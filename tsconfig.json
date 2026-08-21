@@ -1,0 +1,20 @@
+{
+    "compilerOptions": {
+        "target": "esnext",
+        "module": "esnext",
+        "moduleResolution": "bundler",
+        "strict": true,
+        "esModuleInterop": true,
+        "forceConsistentCasingInFileNames": true,
+        "skipLibCheck": true,
+        "allowSyntheticDefaultImports": true,
+        "declaration": true,
+        "rootDir": "./src",
+        "outDir": "./dist",
+        "sourceMap": true,
+        "resolveJsonModule": true,
+        "types": ["node"]
+    },
+    "include": ["./src/**/*"],
+    "exclude": ["node_modules", "./src/**/__tests__/**/*", "./src/**/*.test.ts"]
+}

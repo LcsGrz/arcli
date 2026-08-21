@@ -1,0 +1,204 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
+
+import { ConfigService } from '../config.service';
+
+const temporaryDirectories: string[] = [];
+
+function createService(): ConfigService {
+  const cwd = mkdtempSync(join(tmpdir(), 'arcli-config-test-'));
+
+  temporaryDirectories.push(cwd);
+
+  return new ConfigService({
+    cwd,
+    projectName: 'arcli-test',
+  });
+}
+
+function writePemFile(directory: string, filename: string, content: string): string {
+  const fullPath = join(directory, filename);
+
+  writeFileSync(fullPath, content, 'utf8');
+
+  return fullPath;
+}
+
+function certificatePem(label: string): string {
+  return `-----BEGIN CERTIFICATE-----
+${label}
+-----END CERTIFICATE-----`;
+}
+
+function privateKeyPem(label: string): string {
+  return `-----BEGIN PRIVATE KEY-----
+${label}
+-----END PRIVATE KEY-----`;
+}
+
+afterEach(() => {
+  for (const directory of temporaryDirectories.splice(0)) {
+    rmSync(directory, { force: true, recursive: true });
+  }
+});
+
+describe('config.service', () => {
+  it('initializes config with defaults', () => {
+    const service = createService();
+
+    try {
+      expect(service.initialize()).toEqual({
+        cert: {},
+        cotizacionPorDefecto: 1,
+        entornoPorDefecto: 'testing',
+        key: {},
+        monedaPorDefecto: 'PES',
+        output: {
+          emitirPorDefecto: false,
+          jsonPorDefecto: false,
+          brutoPorDefecto: false,
+        },
+      });
+    } finally {
+      service.close();
+    }
+  });
+
+  it('stores scalar values with public aliases', () => {
+    const service = createService();
+
+    try {
+      service.setValue('entorno', 'produccion');
+      service.setValue('puntoVenta', '3');
+      service.setValue('cuit', '20123456789');
+      service.setValue('concepto', 'servicios');
+      service.setValue('moneda', 'usd');
+      service.setValue('cotizacion', '1234.5');
+      service.setValue('ivaReceptor', 'consumidor-final');
+      service.setValue('emitir', 'si');
+      service.setValue('json', 'si');
+      service.setValue('bruto', 'si');
+
+      expect(service.getConfig()).toEqual({
+        cert: {},
+        conceptoPorDefecto: 'servicios',
+        cotizacionPorDefecto: 1234.5,
+        cuit: '20123456789',
+        entornoPorDefecto: 'produccion',
+        ivaReceptorPorDefecto: 'consumidor-final',
+        key: {},
+        monedaPorDefecto: 'USD',
+        output: {
+          emitirPorDefecto: true,
+          jsonPorDefecto: true,
+          brutoPorDefecto: true,
+        },
+        puntoVentaPorDefecto: 3,
+      });
+    } finally {
+      service.close();
+    }
+  });
+
+  it('stores nested paths for certificates and keys', () => {
+    const service = createService();
+    const cwd = temporaryDirectories[temporaryDirectories.length - 1]!;
+    const testingCertPath = writePemFile(cwd, 'testing-cert.pem', certificatePem('TESTING-CERT'));
+    const productionKeyPath = writePemFile(cwd, 'production-key.pem', privateKeyPem('PRODUCTION-KEY'));
+
+    try {
+      service.setValue('cert.testing', testingCertPath);
+      service.setValue('key.produccion', productionKeyPath);
+
+      expect(service.getConfig()).toEqual({
+        cert: {
+          testing: testingCertPath,
+        },
+        cotizacionPorDefecto: 1,
+        entornoPorDefecto: 'testing',
+        key: {
+          produccion: productionKeyPath,
+        },
+        monedaPorDefecto: 'PES',
+        output: {
+          emitirPorDefecto: false,
+          jsonPorDefecto: false,
+          brutoPorDefecto: false,
+        },
+      });
+    } finally {
+      service.close();
+    }
+  });
+
+  it('unsets values and preserves defaults', () => {
+    const service = createService();
+
+    try {
+      service.setValue('entorno', 'produccion');
+      service.unsetValue('entorno');
+
+      expect(service.getConfig().entornoPorDefecto).toBe('testing');
+    } finally {
+      service.close();
+    }
+  });
+
+  it('returns the config path', () => {
+    const service = createService();
+
+    try {
+      expect(service.getPath()).toContain('config.json');
+    } finally {
+      service.close();
+    }
+  });
+
+  it('defaults the ticket path to a tickets folder next to the config file', () => {
+    const service = createService();
+
+    try {
+      expect(service.getDefaultTicketPath()).toBe(join(dirname(service.getPath()), 'tickets'));
+      expect(service.resolveTicketPath(service.getConfig())).toBe(service.getDefaultTicketPath());
+    } finally {
+      service.close();
+    }
+  });
+
+  it('lets the user override the ticket path', () => {
+    const service = createService();
+
+    try {
+      const cwd = temporaryDirectories[temporaryDirectories.length - 1]!;
+      const customTicketPath = join(cwd, 'tickets-personalizados');
+
+      service.setValue('ticketPath', customTicketPath);
+
+      expect(service.resolveTicketPath(service.getConfig())).toBe(customTicketPath);
+    } finally {
+      service.close();
+    }
+  });
+
+  it('rejects invalid values', () => {
+    const service = createService();
+    const cwd = temporaryDirectories[temporaryDirectories.length - 1]!;
+    const invalidPemPath = writePemFile(cwd, 'invalid-testing.key', 'NOT-A-PEM');
+
+    try {
+      expect(() => service.setValue('entorno', 'demo')).toThrow();
+      expect(() => service.setValue('concepto', 'cosas')).toThrow();
+      expect(() => service.setValue('ivaReceptor', 'algo-raro')).toThrow();
+      expect(() => service.setValue('cotizacion', '0')).toThrow();
+      expect(() => service.setValue('puntoVenta', '0')).toThrow();
+      expect(() => service.setValue('emitir', 'tal-vez')).toThrow();
+      expect(() => service.setValue('json', 'tal-vez')).toThrow();
+      expect(() => service.setValue('cuit', '123')).toThrow();
+      expect(() => service.setValue('key.testing', invalidPemPath)).toThrow(/formato PEM invalido/);
+    } finally {
+      service.close();
+    }
+  });
+});

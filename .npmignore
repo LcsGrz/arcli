@@ -1,0 +1,12 @@
+src/
+tests/
+docs/
+.agents/
+.vscode/
+.env
+.env.*
+!/.env.example
+*.log
+.DS_Store
+skills-lock.json
+asd.md

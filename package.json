@@ -1,0 +1,109 @@
+{
+  "name": "arcli",
+  "version": "0.1.0",
+  "description": "CLI para previsualizar y emitir comprobantes ARCA desde terminal, con validaciones claras y salida lista para automatizar",
+  "keywords": [
+    "arca",
+    "afip",
+    "cli",
+    "facturacion",
+    "typescript",
+    "factura-electronica",
+    "argentina",
+    "cae",
+    "cuit",
+    "automation"
+  ],
+  "homepage": "https://github.com/LcsGrz/arcli#readme",
+  "bugs": {
+    "url": "https://github.com/LcsGrz/arcli/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LcsGrz/arcli.git"
+  },
+  "license": "MIT",
+  "author": "LcsGrz",
+  "sideEffects": false,
+  "type": "module",
+  "exports": {
+    ".": "./dist/cli/index.js"
+  },
+  "main": "./dist/cli/index.js",
+  "types": "./dist/cli/index.d.ts",
+  "bin": {
+    "arcli": "dist/cli/index.js"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node ./scripts/clean-dist.mjs && tsc --project tsconfig.json && node ./scripts/fix-esm-extensions.mjs",
+    "clean": "node ./scripts/clean-dist.mjs",
+    "dev": "node --import tsx ./src/cli/index.ts",
+    "lint": "yarn lint:eslint && yarn lint:prettier",
+    "lint:eslint": "eslint 'src/**/*.{js,jsx,ts,tsx,json}'",
+    "lint:eslint:fix": "eslint --fix 'src/**/*.{js,jsx,ts,tsx,json}'",
+    "lint:prettier": "prettier --check 'src/**/*.{js,jsx,ts,tsx,json,md}' docs/**/*.md AGENTS.md README.md package.json",
+    "lint:prettier:fix": "prettier --write 'src/**/*.{js,jsx,ts,tsx,json,md}' docs/**/*.md AGENTS.md README.md package.json",
+    "open-source:check": "yarn typecheck && yarn test:coverage && yarn build && npm pack --dry-run",
+    "prepack": "yarn build",
+    "pack:check": "npm pack --dry-run",
+    "prepare": "husky",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest",
+    "typecheck": "tsc --project tsconfig.typecheck.json"
+  },
+  "lint-staged": {
+    "src/**/*.{ts,tsx}": [
+      "tsc-files --noEmit"
+    ],
+    "src/**/*.{js,jsx,ts,tsx,json}": [
+      "eslint --fix"
+    ],
+    "src/**/*.{js,jsx,ts,tsx}": [
+      "vitest related --silent --passWithNoTests --run"
+    ]
+  },
+  "dependencies": {
+    "@arcasdk/core": "2.0.0",
+    "@inquirer/select": "5.2.2",
+    "big.js": "7.0.1",
+    "boxen": "8.0.1",
+    "commander": "15.0.0",
+    "conf": "15.1.0",
+    "ora": "9.4.1",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@eslint/json": "2.0.1",
+    "@types/big.js": "7.0.0",
+    "@types/node": "22.20.1",
+    "@typescript-eslint/parser": "8.67.0",
+    "@vitest/coverage-v8": "4.1.11",
+    "eslint": "10.8.1",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-jsonc": "3.4.1",
+    "eslint-plugin-prettier": "5.5.6",
+    "eslint-plugin-simple-import-sort": "14.0.0",
+    "husky": "9.1.7",
+    "lint-staged": "17.3.0",
+    "prettier": "3.9.6",
+    "tsc-files": "1.1.4",
+    "tsx": "4.23.12",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.67.0",
+    "vitest": "4.1.11"
+  },
+  "engines": {
+    "node": ">=22.22.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "packageManager": "yarn@1.22.22+sha256.c17d3797fb9a9115bf375e31bfd30058cac6bc9c3b8807a3d8cb2094794b51ca"
+}
