@@ -1,0 +1,157 @@
+# arcli
+
+> CLI de Node/TypeScript para emitir y previsualizar comprobantes ARCA (ex AFIP) desde
+> terminal: facturas, notas de crédito/débito (papel y electrónicas), en testing o producción.
+> Salida humana por defecto, `--json` para scripts/agentes. Repo: https://github.com/LcsGrz/arcli
+
+Este archivo es una referencia densa para que un agente con acceso a shell pueda construir
+comandos `arcli` correctos sin tener que ir probando `--ayuda` a ciegas. Para el detalle
+completo de cada tema, ver los docs linkeados al final.
+
+## Instalación y setup mínimo
+
+```bash
+npm install -g arcli   # o: yarn dev <comando>  si corrés desde el repo
+arcli config establecer cuit <11 digitos>
+arcli config establecer cert.testing /ruta/al/certificado.crt
+arcli config establecer key.testing /ruta/a/la/clave.key
+arcli config establecer puntoVenta <numero>
+arcli config revisar          # valida que este todo listo antes de emitir
+```
+
+Sin `cuit`, `cert.<entorno>`, `key.<entorno>` y `puntoVenta` configurados (o pasados por
+flag), cualquier comando de facturación falla con `ConfigurationError` antes de contactar
+ARCA. `--testing` es el entorno por defecto; `--produccion` cambia a real.
+
+## Comandos de facturación (shortcut de 2-4 letras)
+
+```
+arcli <shortcut> --monto <n> --cs|--cp|--csp --ir-<tipo>|--iva-receptor <tipo> [--cuit N|--cuil N|--dni N|--consumidor-final] [--emitir|--previsualizar] [--json]
+```
+
+Shortcuts (`family` = comando alternativo `arcli <family> <letra>`, ej. `arcli factura c`):
+
+| shortcut | comprobante | family | requiere comprobante asociado |
+|---|---|---|---|
+| fa, fb, fc | Factura A/B/C | factura | no |
+| nca, ncb, ncc | Nota de crédito A/B/C | nota-credito | sí |
+| nda, ndb, ndc | Nota de débito A/B/C | nota-debito | sí |
+| fcea, fceb, fcec | Factura de crédito electrónica A/B/C | factura-credito-electronica | no |
+| ncea, nceb, ncec | Nota de crédito electrónica A/B/C | nota-credito-electronica | sí |
+| ndea, ndeb, ndec | Nota de débito electrónica A/B/C | nota-debito-electronica | sí |
+
+## Flags principales (alias corto entre paréntesis)
+
+- `-m, --monto <n>`: importe total (requerido).
+- Concepto: `--concepto <tipo>` (`productos`/`servicios`/`productos-servicios`) o atajos `--cs` `--cp` `--csp`. Uno solo, no combinar `--concepto` con un atajo.
+- IVA receptor: `--iva-receptor <tipo>` / `--ir <tipo>` (alias) o un atajo `--ir-ce|--ir-cf|--ir-il|--ir-ina|--ir-ms|--ir-mtip|--ir-pe|--ir-ri|--ir-rm|--ir-se|--ir-snc`. Usar exactamente una forma.
+  Valores válidos: `cliente-del-exterior`, `consumidor-final`, `iva-liberado`, `iva-no-alcanzado`, `monotributista-social`, `monotributo-trabajador-independiente-promovido`, `proveedor-del-exterior`, `responsable-inscripto`, `responsable-monotributo`, `sujeto-exento`, `sujeto-no-categorizado`.
+- Identidad del receptor: `--cuit <n>` / `--cuil <n>` / `--dni <n>` / `--consumidor-final` (alias `--cfinal`, documento 0). Usar como máximo una.
+- Punto de venta: `--punto-venta <n>` (alias `--pv`). Si no se pasa, usa el default de config.
+- Moneda: `--moneda <codigo>` (alias `--mda`, ej. `ARS`/`USD`) y `--cotizacion-moneda <n>` (alias `--cm`).
+- Fechas: `-f, --fecha <fecha>` acepta formato argentino día-primero: `D`, `DD`, `D/M`, `DD/MM`, `D-M-YY`, `DD-MM-YYYY` (con `-` o `/`); si se omiten mes/año usa los actuales. También `--servicio-desde`/`--sd` y `--servicio-hasta`/`--sh`, y `-d, --dia <n>` (día de vencimiento).
+- Comprobante asociado (obligatorio en notas de crédito/débito): `--ac <shortcut>` (ej. `fc`), `--apv <n>` (punto de venta, alias `--asociado-punto-venta`), `--ar <n>` (número), `--acuit <n>`, `--at <n>` (tipo ARCA, alternativa a `--ac`; no combinar ambos).
+- Ejecución: `--previsualizar` (default si no se especifica nada) vs `--emitir` (real contra ARCA) — son mutuamente excluyentes. En producción además hace falta `--produccion --emitir --confirmar-produccion` los tres juntos.
+- Salida: `--json` (estructurada, para scripts/agentes — desactiva el aviso de nueva versión), `--bruto` (incluye la respuesta cruda de ARCA).
+- `--cargar <path.json>`: carga uno o un array de comprobantes desde un JSON en vez de flags (ver forma abajo). Los flags pisan lo que venga del archivo.
+
+## Modo no interactivo
+
+Sin `--emitir` ni `--previsualizar`, si la sesión es interactiva (TTY) arcli muestra una vista
+previa y pregunta si emitir. **Con `--json`, o cuando stdin/stdout no son un TTY (scripts,
+agentes, CI), nunca pregunta** — se comporta como si fuera dry-run salvo que se pase
+`--emitir` explícitamente. Para invocar desde un agente, siempre pasar `--emitir` o
+`--previsualizar` de forma explícita y no depender del prompt.
+
+## Forma del JSON de `--cargar` (un objeto o un array de estos)
+
+```json
+{
+  "concepto": "servicios",
+  "ivaReceptor": "consumidor-final",
+  "tipoDocumento": "consumidor-final",
+  "numeroDocumento": 0,
+  "montoTotal": 1000,
+  "puntoVenta": 3,
+  "codigoMoneda": "ARS",
+  "cotizacionMoneda": 1,
+  "fechaComprobante": "18-03-2026",
+  "servicioDesde": "01-03-2026",
+  "servicioHasta": "31-03-2026",
+  "dia": 10,
+  "emitir": false,
+  "previsualizar": true,
+  "confirmarProduccion": false,
+  "comprobanteAsociado": { "atajo": "fc", "cuit": "20123456789", "numero": 10, "puntoVenta": 3 }
+}
+```
+
+## Forma de la respuesta (`--json`, sin `--bruto`)
+
+```json
+{
+  "atajo": "fa",
+  "comprobante": "Factura A",
+  "tipoArca": 1,
+  "estado": "aprobado | observado | rechazado",
+  "resultado": "A | R | P | null",
+  "cae": "string | null",
+  "caeVencimiento": "YYYYMMDD | null",
+  "errores": [],
+  "eventos": [],
+  "observaciones": ["..."],
+  "observacion": "string | null",
+  "solicitud": { "...": "payload enviado a ARCA" },
+  "previsualizacion": true,
+  "sugerencias": ["texto en español sugiriendo como resolver errores comunes de ARCA"]
+}
+```
+
+Con múltiples comprobantes (batch o `--cargar` con array) la salida es un array de estos
+objetos. Con `--bruto` se agrega `respuesta` con la respuesta cruda del SDK.
+
+**Importante:** un comprobante rechazado por ARCA (`"estado": "rechazado"`) es una respuesta
+válida, no una excepción — el proceso termina con exit code `0` igual. Para saber si un
+comprobante fue realmente aprobado hay que revisar `estado`/`resultado`/`errores` en el
+JSON, nunca alcanza con chequear el exit code.
+
+## Salida de error
+
+Sin `--json`: panel de texto en stderr. Con `--json`: JSON en stderr con la forma
+`{"codigo": "...", "detalles": {...} | null, "error": "mensaje", "sugerencia": "..." | null}`.
+`codigo` es `CONFIGURATION_ERROR`, `INPUT_VALIDATION_ERROR`, `TRANSIENT_ERROR` (reintentar,
+suele ser "transacción activa" de ARCA) o `UNEXPECTED_ERROR`. El proceso termina con
+exit code `1` en cualquier error.
+
+## Comando `config`
+
+```bash
+arcli config                              # ver config actual (agregar --json)
+arcli config revisar [--testing|--produccion]   # valida credenciales + contexto real
+arcli config ruta                         # path del archivo de config
+arcli config establecer <clave> <valor>
+arcli config eliminar <clave>
+```
+
+Claves válidas: `cuit`, `puntoVenta`, `concepto`, `ivaReceptor`, `moneda`, `cotizacion`,
+`entorno` (`testing`/`produccion`), `emitir`, `json`, `bruto` (booleanos: `true/false`,
+`si/no`, `1/0`), `cert.testing`, `cert.produccion`, `key.testing`, `key.produccion`
+(rutas a archivos PEM, se validan al guardar), `ticketPath` (carpeta donde se cachea el
+ticket WSAA; por defecto una carpeta junto al archivo de config).
+
+`config revisar` también avisa si un certificado ya venció o vence en menos de 30 días.
+
+## Otros comandos
+
+- `arcli ejemplos`: comandos listos para copiar por cada tipo de comprobante.
+- `arcli storybook [escena]`: demos visuales de la UI (sin llamar a ARCA).
+- `arcli <cualquier comando> ayuda` o `--ayuda`: ayuda contextual con ejemplos (nota: el flag
+  estándar `--help` de commander está deshabilitado, usar `--ayuda` o el subcomando `ayuda`).
+
+## Más detalle
+
+- `docs/cli-reference.md`: referencia completa de comandos y flags.
+- `docs/configuration.md`: config persistente, claves soportadas, ticketPath.
+- `docs/validation-rules.md` y `docs/input-output.md`: reglas de validación y formatos de entrada/salida.
+- `docs/troubleshooting.md`: errores comunes de ARCA y como resolverlos.
+- `AGENTS.md`: para agentes que van a modificar el código de este repo (no para usar el CLI).

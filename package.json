@@ -1,6 +1,6 @@
 {
   "name": "arcli",
-  "version": "0.1.0",
+  "version": "1.1.0",
   "description": "CLI para previsualizar y emitir comprobantes ARCA desde terminal, con validaciones claras y salida lista para automatizar",
   "keywords": [
     "arca",
@@ -37,7 +37,8 @@
   "files": [
     "dist",
     "LICENSE",
-    "README.md"
+    "README.md",
+    "llms.txt"
   ],
   "scripts": {
     "build": "node ./scripts/clean-dist.mjs && tsc --project tsconfig.json && node ./scripts/fix-esm-extensions.mjs",

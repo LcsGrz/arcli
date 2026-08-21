@@ -131,6 +131,7 @@ arcli fa -m 15000 --cs --cuit 20168598204 --ir-ri \
 - [Guía de desarrollo](docs/development.md)
 - [Testing](docs/ui-smoke-checklist.md)
 - [Cómo contribuir](CONTRIBUTING.md)
+- [llms.txt](llms.txt): referencia condensada para que un agente/IA con acceso a terminal ejecute el CLI directamente
 - [Seguridad](SECURITY.md)
 
 ## ❤️ Agradecimientos
