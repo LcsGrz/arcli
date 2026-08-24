@@ -79,7 +79,7 @@ arcli config establecer cert.testing /ruta/al/certificado.crt
 arcli config establecer key.testing /ruta/a/la/clave.key
 ```
 
-- **Documentación relacionada:** [Configuración](configuration.md)
+- **Documentación relacionada:** [Configuración](configuration.md), [Cómo obtener los certificados de ARCA](obtencion-certificados.md)
 
 ## Validación
 

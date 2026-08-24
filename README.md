@@ -131,6 +131,7 @@ arcli fa -m 15000 --cs --cuit 20168598204 --ir-ri \
 - [Referencia del CLI](docs/cli-reference.md)
 - [Patrones de uso](docs/usage-patterns.md)
 - [Configuración](docs/configuration.md)
+- [Cómo obtener los certificados de ARCA](docs/obtencion-certificados.md)
 - [Entrada y salida](docs/input-output.md)
 - [Reglas de validación](docs/validation-rules.md)
 - [Troubleshooting](docs/troubleshooting.md)

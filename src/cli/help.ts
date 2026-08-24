@@ -477,6 +477,14 @@ export function createConfigHelp(): string {
       ].join('\n'),
     ),
     '',
+    section(
+      'No tenes certificado todavia?',
+      [
+        '  - Guia paso a paso (testing y produccion), con capturas de ARCA:',
+        '    https://github.com/LcsGrz/arcli/blob/main/docs/obtencion-certificados.md',
+      ].join('\n'),
+    ),
+    '',
   ].join('\n');
 }
 

@@ -119,6 +119,9 @@ Cuando se guarda `cert.*` o `key.*`, ARCLI valida:
 - que la ruta exista
 - que el archivo tenga formato PEM válido
 
+¿Todavía no tenés el certificado y la clave? Ver
+[Cómo obtener los certificados de ARCA](obtencion-certificados.md).
+
 ## Cuándo usar config vs flags
 
 Usá config para defaults que se repiten en el flujo diario:
