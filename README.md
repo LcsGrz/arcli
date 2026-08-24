@@ -1,3 +1,10 @@
+# ARCLI
+
+[![npm version](https://img.shields.io/npm/v/arcli.svg)](https://www.npmjs.com/package/arcli)
+[![CI](https://github.com/LcsGrz/arcli/actions/workflows/ci.yml/badge.svg)](https://github.com/LcsGrz/arcli/actions/workflows/ci.yml)
+[![license: MIT](https://img.shields.io/npm/l/arcli.svg)](LICENSE)
+[![node >=20](https://img.shields.io/node/v/arcli.svg)](package.json)
+
 ```text
        d8888 8888888b.   .d8888b.  888      8888888
       d88888 888   Y88b d88P  Y88b 888        888
@@ -11,7 +18,7 @@ d88P     888 888   T88b  "Y8888P"  88888888 8888888
 
 Emití o previsualizá comprobantes ARCA desde tu terminal, con un flujo claro, seguro y rapido en lugar de utilizar UI.
 
-## Features
+## Características
 
 - configuración persistente por usuario
 - previsualización segura antes de emitir
@@ -33,9 +40,11 @@ arcli config establecer key.testing /ruta/a/la/clave.key
 arcli fc -m 15000 --cs --consumidor-final --ir-cf
 ```
 
-## Quick start
+## Inicio rápido
 
 ### 1. Instalar
+
+Requiere Node.js 20 o superior.
 
 ```bash
 npm install -g arcli
@@ -106,15 +115,13 @@ Ver [docs/mental-model.md](docs/mental-model.md) para el modelo completo.
 - Para emitir realmente en producción hacen falta:
   - `--produccion`
   - `--emitir`
-  - `--confirmar-produccion`
 
 Ejemplo:
 
 ```bash
 arcli fa -m 15000 --cs --cuit 20168598204 --ir-ri \
   --produccion \
-  --emitir \
-  --confirmar-produccion
+  --emitir
 ```
 
 ## Documentación
@@ -150,6 +157,10 @@ ARCLI es open source. Mantenerlo, probarlo contra servicios reales y documentarl
 - Si queres darme un mimo: [Cafesito](https://cafecito.app/lcsgrz)
 - Reporta issues claros, repros buenos y feedback real de uso
 - Dejame tu estrellita ★ :)
+
+## Licencia
+
+MIT © [LcsGrz](https://github.com/LcsGrz). Ver [LICENSE](LICENSE).
 
 ## Proyecto
 

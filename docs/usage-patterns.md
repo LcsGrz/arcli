@@ -262,7 +262,6 @@ arcli fc -m 15000 --cs --consumidor-final --ir-cf --emitir
 
 ### Errores comunes
 
-- emitir en `produccion` sin `--confirmar-produccion`
 - asumir que `--json` cambia el comportamiento funcional; solo cambia la salida
 
 ## Caso de automatización

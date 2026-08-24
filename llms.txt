@@ -51,7 +51,7 @@ Shortcuts (`family` = comando alternativo `arcli <family> <letra>`, ej. `arcli f
 - Moneda: `--moneda <codigo>` (alias `--mda`, ej. `ARS`/`USD`) y `--cotizacion-moneda <n>` (alias `--cm`).
 - Fechas: `-f, --fecha <fecha>` acepta formato argentino día-primero: `D`, `DD`, `D/M`, `DD/MM`, `D-M-YY`, `DD-MM-YYYY` (con `-` o `/`); si se omiten mes/año usa los actuales. También `--servicio-desde`/`--sd` y `--servicio-hasta`/`--sh`, y `-d, --dia <n>` (día de vencimiento).
 - Comprobante asociado (obligatorio en notas de crédito/débito): `--ac <shortcut>` (ej. `fc`), `--apv <n>` (punto de venta, alias `--asociado-punto-venta`), `--ar <n>` (número), `--acuit <n>`, `--at <n>` (tipo ARCA, alternativa a `--ac`; no combinar ambos).
-- Ejecución: `--previsualizar` (default si no se especifica nada) vs `--emitir` (real contra ARCA) — son mutuamente excluyentes. En producción además hace falta `--produccion --emitir --confirmar-produccion` los tres juntos.
+- Ejecución: `--previsualizar` (default si no se especifica nada) vs `--emitir` (real contra ARCA) — son mutuamente excluyentes. En producción hace falta `--produccion --emitir` juntos — no hay un flag de confirmación adicional, así que esa combinación emite de verdad.
 - Salida: `--json` (estructurada, para scripts/agentes — desactiva el aviso de nueva versión), `--bruto` (incluye la respuesta cruda de ARCA).
 - `--cargar <path.json>`: carga uno o un array de comprobantes desde un JSON en vez de flags (ver forma abajo). Los flags pisan lo que venga del archivo.
 

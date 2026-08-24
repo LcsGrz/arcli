@@ -1,7 +1,6 @@
 import type { Command } from 'commander';
 import ora from 'ora';
 
-import { ConfigurationError } from '../../lib/errors/app-error';
 import { BillingService } from '../../modules/billing/billing.service';
 import type { VoucherShortcut } from '../../modules/billing/billing.types';
 import type { BillingExecutionResult } from '../../modules/billing/billing.types.internal';
@@ -63,18 +62,7 @@ export async function executeBillingCommand(command: Command, shortcut: VoucherS
       return;
     }
 
-    const { confirmedInteractively, inputs, previewShown } = preview;
-
-    if (
-      inputs.some((input) => input.emit) &&
-      runtime.environment === 'produccion' &&
-      !confirmedInteractively &&
-      !command.optsWithGlobals<Record<string, unknown>>().confirmarProduccion
-    ) {
-      throw new ConfigurationError(
-        'Para emitir realmente en produccion debe agregar --confirmar-produccion ademas de --emitir.',
-      );
-    }
+    const { inputs, previewShown } = preview;
 
     spinner = !runtime.outputJson && process.stdout.isTTY ? ora('Procesando comprobante...').start() : null;
 

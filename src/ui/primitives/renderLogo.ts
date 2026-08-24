@@ -1,4 +1,4 @@
-import { centerLines, colorize, type UiTextColor } from './text';
+import { colorize } from './text';
 
 export const ARCLI_ASCII_BANNER = [
   '       d8888 8888888b.   .d8888b.  888      8888888 ',
@@ -11,18 +11,24 @@ export const ARCLI_ASCII_BANNER = [
   'd88P     888 888   T88b  "Y8888P"  88888888 8888888 ',
 ].join('\n');
 
-export interface RenderLogoOptions {
-  readonly align?: 'center' | 'left';
-  readonly color?: UiTextColor;
-  readonly width?: number;
+// Columna donde termina "AR" (con el espacio entre letras) y arranca "CLI",
+// segun las columnas en blanco de ARCLI_ASCII_BANNER (letras separadas por
+// una columna vacia en las 8 filas: 12, 23, 34, 43).
+const ARCLI_BANNER_AR_CLI_SPLIT_COLUMN = 23;
+
+function renderLogoWidth(): number {
+  return ARCLI_ASCII_BANNER.split('\n')[0]?.length ?? 0;
 }
 
-export function renderLogo(options: RenderLogoOptions = {}): string {
-  const lines = ARCLI_ASCII_BANNER.split('\n').map((line) => (options.color ? colorize(line, options.color) : line));
+export function renderLogo(): string {
+  const logo = ARCLI_ASCII_BANNER.split('\n').map((line) => {
+    const ar = line.slice(0, ARCLI_BANNER_AR_CLI_SPLIT_COLUMN);
+    const cli = line.slice(ARCLI_BANNER_AR_CLI_SPLIT_COLUMN);
 
-  if (options.align === 'center' && options.width) {
-    return centerLines(lines, options.width).join('\n');
-  }
+    return `${colorize(ar, 'info')}${colorize(cli, 'neutral')}`;
+  });
 
-  return lines.join('\n');
+  const credit = '-LcsGrz'.padStart(renderLogoWidth() - 1);
+
+  return `\n\n${[...logo, credit].join('\n')}\n\n`;
 }

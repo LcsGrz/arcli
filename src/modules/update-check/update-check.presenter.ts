@@ -7,6 +7,5 @@ export function renderUpdateNoticePanel(result: UpdateCheckResult): string {
     `Nueva version disponible: ${result.latestVersion} (actual: ${result.currentVersion})\n` +
       'Actualiza con: npm install -g arcli@latest',
     'info',
-    'arrow',
   );
 }

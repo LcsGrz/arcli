@@ -128,10 +128,8 @@ Usalos cuando necesitás controlar el entorno, la salida o el modo de inspecció
 Para emitir en producción, ARCLI exige este bloque completo:
 
 ```bash
---produccion --emitir --confirmar-produccion
+--produccion --emitir
 ```
-
-No es redundancia. Es una barrera de seguridad para evitar emisiones reales por error.
 
 | Flag           | Alias   | Tipo      | Valor por defecto                                     | Descripción                                   |
 | -------------- | ------- | --------- | ----------------------------------------------------- | --------------------------------------------- |
@@ -148,11 +146,10 @@ Esta sección describe qué existe. Más abajo vas a encontrar qué hace falta e
 
 Estos flags controlan si ARCLI previsualiza o emite de verdad.
 
-| Flag                     | Alias   | Tipo      | Valor por defecto                                      | Descripción                                              |
-| ------------------------ | ------- | --------- | ------------------------------------------------------ | -------------------------------------------------------- |
-| `--previsualizar`        | ninguno | `boolean` | `!emitir` resuelto desde flags, JSON o config          | Muestra la solicitud sin emitir                          |
-| `--emitir`               | ninguno | `boolean` | `config.output.emitirPorDefecto` (`false` por defecto) | Emite realmente en ARCA                                  |
-| `--confirmar-produccion` | ninguno | `boolean` | `false`                                                | Confirmación extra requerida para emitir en `produccion` |
+| Flag              | Alias   | Tipo      | Valor por defecto                                      | Descripción                     |
+| ----------------- | ------- | --------- | ------------------------------------------------------ | ------------------------------- |
+| `--previsualizar` | ninguno | `boolean` | `!emitir` resuelto desde flags, JSON o config          | Muestra la solicitud sin emitir |
+| `--emitir`        | ninguno | `boolean` | `config.output.emitirPorDefecto` (`false` por defecto) | Emite realmente en ARCA         |
 
 ### Identidad e IVA receptor
 
@@ -343,17 +340,12 @@ La lógica de uso es casi la misma que en una factura común.
 - cambia el tipo ARCA
 - se mantiene la misma estructura base
 - no usa comprobante asociado
-- si emitís en producción, puede entrar `--confirmar-produccion`
 
 #### Qué necesitás para emitir este comprobante
 
 **Obligatorio**
 
 - lo mismo que en una factura común
-
-**Opcional**
-
-- `--confirmar-produccion` si además usás `--produccion --emitir`
 
 #### Ejemplo mínimo funcional
 
@@ -375,10 +367,6 @@ Acá se combinan las dos reglas anteriores:
 
 - todo lo base de una factura
 - bloque de asociado completo
-
-**Opcional**
-
-- `--confirmar-produccion` si además emitís en producción
 
 #### Ejemplo mínimo funcional
 
@@ -432,7 +420,6 @@ Tropiezos habituales cuando el comando parece bien armado pero igual falla:
 - se mezclan flags excluyentes (ver [exclusividades importantes](#cómo-funcionan-los-flags))
 - faltan datos del asociado en una nota: `--ac`/`--at`, `--apv`, `--ar`, `--acuit`
 - el JSON de `--cargar` no representa el mismo comprobante que estás invocando (por ejemplo, cargar una nota en `arcli fc`)
-- falta `--confirmar-produccion` al emitir con `--produccion --emitir`
 
 Para el diagnóstico paso a paso de cada caso, ver [Troubleshooting](troubleshooting.md).
 

@@ -61,7 +61,6 @@ Para emitir realmente en `produccion`, ARCLI exige:
 
 - `--produccion`
 - `--emitir`
-- `--confirmar-produccion`
 
 ## 2. Reglas de negocio
 

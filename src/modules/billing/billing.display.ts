@@ -3,10 +3,9 @@ import {
   noticePanel,
   renderKeyValueRows,
   renderTable,
-  resolveBalancedKeyValueLabelWidth,
+  resolveKeyValueLabelWidth,
   statusPanel,
   toneText,
-  UI_THEME,
 } from '../../ui';
 
 import {
@@ -22,14 +21,6 @@ import {
 } from './billing.labels';
 import type { BillingExecutionResult } from './billing.types.internal';
 import { getVoucherKindByArcaType } from './voucher-kind-map';
-
-function resolveBalancedTableLabelWidth(widthPreset: 'compact' | 'standard' | 'wide'): number {
-  const panelWidth = UI_THEME.widths[widthPreset].max;
-  const innerWidth =
-    panelWidth - (UI_THEME.spacing.panelPadding.left ?? 0) - (UI_THEME.spacing.panelPadding.right ?? 0) - 2;
-
-  return Math.max(0, Math.floor((innerWidth - UI_THEME.table.gap) / 2));
-}
 
 export function formatEnvironmentBanner(environment: BillingExecutionResult['environment'] | undefined): string[] {
   if (environment !== 'testing') {
@@ -124,9 +115,9 @@ function formatFriendlyPayloadRows(result: BillingExecutionResult): Array<readon
 }
 
 export function formatPayloadTable(result: BillingExecutionResult): string {
-  return renderTable(formatFriendlyPayloadRows(result), {
-    labelWidth: resolveBalancedTableLabelWidth('compact'),
-  }).trimEnd();
+  const rows = formatFriendlyPayloadRows(result);
+
+  return renderTable(rows, { labelWidth: resolveKeyValueLabelWidth('compact', rows) }).trimEnd();
 }
 
 export function formatPayloadPreview(result: BillingExecutionResult): string {
@@ -140,26 +131,22 @@ export function formatResultPanel(
   result: BillingExecutionResult,
   status: { readonly label: string; readonly tone: 'danger' | 'success' | 'warning' },
 ): string {
-  const labelWidth = resolveBalancedKeyValueLabelWidth('compact');
+  const summaryRows: Array<readonly [string, string | number]> = [
+    ['CAE', result.response.cae ?? 'N/D'],
+    ['Vencimiento CAE', formatDateLabel(result.response.caeVencimiento ?? undefined)],
+    ['Punto de venta', result.payload.PtoVta],
+    ['Importe total', formatMoneyLabel(result.payload.ImpTotal)],
+  ];
+  const countRows: Array<readonly [string, string | number]> = [
+    ['Observaciones', result.response.observaciones.length],
+    ['Eventos', result.response.events.length],
+    ['Errores', result.response.errors.length],
+  ];
+  const labelWidth = resolveKeyValueLabelWidth('compact', [...summaryRows, ...countRows]);
   const rows = [
-    ...renderKeyValueRows(
-      [
-        ['CAE', result.response.cae ?? 'N/D'],
-        ['Vencimiento CAE', formatDateLabel(result.response.caeVencimiento ?? undefined)],
-        ['Punto de venta', result.payload.PtoVta],
-        ['Importe total', formatMoneyLabel(result.payload.ImpTotal)],
-      ],
-      { labelWidth },
-    ),
+    ...renderKeyValueRows(summaryRows, { labelWidth }),
     '',
-    ...renderKeyValueRows(
-      [
-        ['Observaciones', result.response.observaciones.length],
-        ['Eventos', result.response.events.length],
-        ['Errores', result.response.errors.length],
-      ],
-      { labelWidth },
-    ),
+    ...renderKeyValueRows(countRows, { labelWidth }),
   ];
   const footer = toneText(status.label, status.tone);
 

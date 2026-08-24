@@ -1,5 +1,5 @@
 import { maskPath } from '../../lib/paths/mask-path';
-import { keyValuePanel, renderKeyValueRows, resolveBalancedKeyValueLabelWidth, statusPanel, toneText } from '../../ui';
+import { keyValuePanel, renderKeyValueRows, resolveKeyValueLabelWidth, statusPanel, toneText } from '../../ui';
 
 import type { ArcliConfig } from './config.schemas';
 import type { ConfigDoctorReport } from './config-doctor';
@@ -60,30 +60,27 @@ export function formatConfigPath(configPath: string): string {
 
 export function formatConfigAsText(config: ArcliConfig, effectiveTicketPath: string): string {
   const safeConfig = toPublicSnapshot(config, effectiveTicketPath);
-  const labelWidth = resolveBalancedKeyValueLabelWidth('standard');
+  const rows: Array<readonly [string, string | number]> = [
+    ['CUIT', safeConfig.cuit ?? 'no configurado'],
+    ['Concepto', safeConfig.concepto ?? 'no configurado'],
+    ['IVA receptor', safeConfig.ivaReceptor ?? 'no configurado'],
+    ['Moneda', safeConfig.moneda ?? 'PES'],
+    ['Cotizacion', safeConfig.cotizacion ?? 1],
+    ['Entorno', safeConfig.entorno],
+    ['Cert testing', safeConfig.cert.testing ?? 'no configurado'],
+    ['Key testing', safeConfig.key.testing ?? 'no configurado'],
+    ['Cert produccion', safeConfig.cert.produccion ?? 'no configurado'],
+    ['Key produccion', safeConfig.key.produccion ?? 'no configurado'],
+    ['Punto de venta', safeConfig.puntoVenta ?? 'no configurado'],
+    ['Emitir', safeConfig.emitir ? 'si' : 'no'],
+    ['Salida JSON', safeConfig.json ? 'si' : 'no'],
+    ['Salida bruta', safeConfig.bruto ? 'si' : 'no'],
+    ['Ruta tickets WSAA', safeConfig.ticketPath],
+  ];
 
   return keyValuePanel(
     'Configuracion',
-    renderKeyValueRows(
-      [
-        ['CUIT', safeConfig.cuit ?? 'no configurado'],
-        ['Concepto', safeConfig.concepto ?? 'no configurado'],
-        ['IVA receptor', safeConfig.ivaReceptor ?? 'no configurado'],
-        ['Moneda', safeConfig.moneda ?? 'PES'],
-        ['Cotizacion', safeConfig.cotizacion ?? 1],
-        ['Entorno', safeConfig.entorno],
-        ['Cert testing', safeConfig.cert.testing ?? 'no configurado'],
-        ['Key testing', safeConfig.key.testing ?? 'no configurado'],
-        ['Cert produccion', safeConfig.cert.produccion ?? 'no configurado'],
-        ['Key produccion', safeConfig.key.produccion ?? 'no configurado'],
-        ['Punto de venta', safeConfig.puntoVenta ?? 'no configurado'],
-        ['Emitir', safeConfig.emitir ? 'si' : 'no'],
-        ['Salida JSON', safeConfig.json ? 'si' : 'no'],
-        ['Salida bruta', safeConfig.bruto ? 'si' : 'no'],
-        ['Ruta tickets WSAA', safeConfig.ticketPath],
-      ],
-      { labelWidth },
-    ),
+    renderKeyValueRows(rows, { labelWidth: resolveKeyValueLabelWidth('standard', rows, [35, 65]) }),
   );
 }
 

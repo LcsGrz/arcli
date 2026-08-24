@@ -19,7 +19,6 @@ interface BillingJsonInput {
     readonly puntoVenta?: AssociatedVoucherInput['puntoVenta'];
     readonly tipo?: AssociatedVoucherInput['tipo'];
   };
-  readonly confirmarProduccion?: boolean;
   readonly concepto?: BillingCommandInput['concept'];
   readonly codigoMoneda?: string;
   readonly cotizacionMoneda?: number;

@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 
+import { registerGlobalOptions } from './commands/billing.command.shared';
 import { registerBillingFamilyCommands } from './commands/billing-family.command';
 import { registerBillingShortcutCommands } from './commands/billing-shortcuts.command';
 import { registerConfigCommand } from './commands/config.command';
@@ -20,6 +21,7 @@ export function createProgram(): Command {
     .showHelpAfterError('(usa "ayuda" para ver comandos y ejemplos)');
 
   configureSpanishHelp(program);
+  registerGlobalOptions(program);
 
   registerBillingShortcutCommands(program);
   registerBillingFamilyCommands(program);

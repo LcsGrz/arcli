@@ -48,7 +48,6 @@ export function registerBillingOptions(command: Command): void {
     .option('--ar <number>', 'numero del comprobante asociado', (value: string) => Number.parseInt(value, 10))
     .option('--ac <shortcut>', 'atajo del comprobante asociado, por ejemplo fc o fa')
     .option('--acuit <number>', 'CUIT del comprobante asociado')
-    .option('--confirmar-produccion', 'confirmar explicitamente una emision real en produccion')
     .option('--previsualizar', 'mostrar el payload antes de emitir en ARCA')
     .addOption(new Option('--emitir', 'emitir realmente en ARCA'));
 }

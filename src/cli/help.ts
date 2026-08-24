@@ -61,7 +61,6 @@ const AVAILABLE_EXECUTION_OPTIONS = [
   '  - --emitir | todas | emite realmente el comprobante',
   '  - --testing | todas | fuerza entorno testing en esta corrida',
   '  - --produccion | todas | fuerza entorno produccion en esta corrida',
-  '  - --confirmar-produccion | solo con --produccion --emitir | confirma emision real en produccion',
   '  - --json | todas | salida estructurada para scripts',
   '  - --bruto | todas | agrega respuesta cruda de ARCA cuando exista',
 ].join('\n');
@@ -87,10 +86,6 @@ function formatFamilyShortcuts(family: VoucherFamily): string {
   const [a, b, c] = FAMILY_SHORTCUTS[family];
 
   return compactList([`A -> ${a}`, `B -> ${b}`, `C -> ${c}`]);
-}
-
-function buildProgramHeader(): string {
-  return ['', renderLogo(), ''].join('\n');
 }
 
 function createProgramQuickStart(): string {
@@ -160,8 +155,19 @@ function createProgramSafety(): string {
       '  - --previsualizar muestra la solicitud antes de emitir.',
       '  - --emitir habla de verdad con ARCA.',
       '  - --produccion cambia al entorno real.',
-      '  - En produccion, la barrera completa es: --produccion --emitir --confirmar-produccion.',
+      '  - Para emitir de verdad necesita --produccion junto con --emitir.',
       '  - Para scripts o pipelines, usá --json y evitá automatizar sobre salida humana.',
+    ].join('\n'),
+  );
+}
+
+function createProgramProject(): string {
+  return section(
+    'Proyecto y actualizaciones',
+    [
+      '  - Repositorio: https://github.com/LcsGrz/arcli',
+      '  - Actualizar a la ultima version: npm install -g arcli@latest',
+      '  - Ver la version instalada: arcli --version',
     ].join('\n'),
   );
 }
@@ -438,9 +444,23 @@ export function createConfigHelp(): string {
     ),
     '',
     section(
+      'Defaults que podes guardar',
+      [
+        '  - entorno: testing o produccion por defecto cuando no pasas --testing/--produccion.',
+        '  - cuit, puntoVenta, concepto, ivaReceptor: datos de facturacion que se repiten siempre.',
+        '  - cert.testing, cert.produccion, key.testing, key.produccion: rutas a certificado/clave por entorno.',
+        '  - moneda, cotizacion: defaults cuando no pasas --moneda/--cm.',
+        '  - emitir, json, bruto: defaults de ejecucion y salida (true/false, si/no o 1/0).',
+        '  - ticketPath: carpeta donde se cachea el ticket WSAA.',
+        '  - Guardar: arcli config establecer <clave> <valor>. Borrar: arcli config eliminar <clave>.',
+      ].join('\n'),
+    ),
+    '',
+    section(
       'Ejemplos',
       [
         '  - arcli config establecer cuit 20409509763',
+        '  - arcli config establecer entorno produccion',
         '  - arcli config establecer ivaReceptor consumidor-final',
         '  - arcli config establecer key.produccion /ruta/clave.key',
         '  - arcli config establecer ticketPath /ruta/tickets',
@@ -514,7 +534,6 @@ export function createExamplesHelp(): string {
       [
         '  - Todos los ejemplos usan --previsualizar para evitar emisiones reales por error.',
         '  - Si queres emitir, reemplaza --previsualizar por --emitir.',
-        '  - Si ademas usas --produccion, suma --confirmar-produccion.',
       ].join('\n'),
     ),
     '',
@@ -576,6 +595,8 @@ export function createProgramHelp(): string {
     '',
     createProgramFrequentErrors(),
     '',
+    createProgramProject(),
+    '',
   ].join('\n');
 }
 
@@ -586,5 +607,5 @@ export function configureSpanishHelp(command: Command): void {
 }
 
 export function createProgramHeader(): string {
-  return buildProgramHeader();
+  return renderLogo();
 }

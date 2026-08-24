@@ -179,9 +179,7 @@ function renderFamilyExamples(family: VoucherFamily): string {
 
 export function renderExamples(): string {
   return [
-    '',
-    renderLogo(),
-    '',
+    renderLogo().trim(),
     '',
     `${badge('MINIMA', 'info')} datos esenciales`,
     `${badge('FULL', 'warning')} mas campos explicitados`,
@@ -191,7 +189,7 @@ export function renderExamples(): string {
     toneText('SEGURIDAD', 'warning'),
     'Todos usan --previsualizar para evitar emisiones reales por error.',
     'Si queres emitir de verdad, reemplaza --previsualizar por --emitir.',
-    'En produccion, la barrera completa es --produccion --emitir --confirmar-produccion.',
+    'Para emitir en produccion necesitas --produccion junto con --emitir.',
     '',
     ISSUER_HINT,
     '',

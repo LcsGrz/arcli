@@ -46,9 +46,7 @@ export function formatBillingResultAsText(result: BillingExecutionResult, option
   lines.push(formatResultPanel(result, formatStatusBadge(result)));
 
   if (result.response.observaciones.length > 0) {
-    lines.push(
-      contentPanel('Observaciones', formatObservationList(result.response.observaciones), 'standard', 'warning'),
-    );
+    lines.push(contentPanel('Observaciones', formatObservationList(result.response.observaciones), 'wide', 'warning'));
   }
 
   if (result.response.events.length > 0) {

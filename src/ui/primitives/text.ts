@@ -1,7 +1,11 @@
 import { UI_THEME, type UiColorToken } from '../theme/theme';
 
-const RESET = '\u001B[0m';
 const BOLD = '\u001B[1m';
+// Cierres puntuales (no un reset total) para no cortar un color ambiental en
+// el que este texto quede anidado, por ejemplo un titulo dentro del borde
+// coloreado que dibuja boxen.
+const BOLD_OFF = '\u001B[22m';
+const COLOR_OFF = '\u001B[39m';
 
 export type OutputTarget = 'stderr' | 'stdout';
 export type UiTextColor = UiColorToken | string;
@@ -24,12 +28,23 @@ export function resolveTextColor(color: UiTextColor): string {
   return UI_THEME.colors[color as UiColorToken] ?? color;
 }
 
+// Envuelve cada linea por separado (en vez de todo el bloque de una vez) para
+// que, si el contenido tiene varias lineas, el estilo no quede "abierto" en
+// el salto de linea. Un panel que dibuja un borde entre cada linea de
+// contenido insertaria ese borde dentro de un estilo todavia sin cerrar.
+function wrapLines(value: string, open: string, close: string): string {
+  return value
+    .split('\n')
+    .map((line) => `${open}${line}${close}`)
+    .join('\n');
+}
+
 export function colorize(value: string, color: UiTextColor, target: OutputTarget = 'stdout'): string {
   if (!shouldUseColor(target)) {
     return value;
   }
 
-  return `${resolveTextColor(color)}${value}${RESET}`;
+  return wrapLines(value, resolveTextColor(color), COLOR_OFF);
 }
 
 export function bold(value: string, target: OutputTarget = 'stdout'): string {
@@ -37,18 +52,15 @@ export function bold(value: string, target: OutputTarget = 'stdout'): string {
     return value;
   }
 
-  return `${BOLD}${value}${RESET}`;
+  return wrapLines(value, BOLD, BOLD_OFF);
 }
 
 export function badge(label: string, color: UiTextColor): string {
-  return colorize(
-    `${UI_THEME.badgeBrackets[0]}${label}${UI_THEME.badgeBrackets[1]}`,
-    `${BOLD}${resolveTextColor(color)}`,
-  );
+  return bold(colorize(`${UI_THEME.badgeBrackets[0]}${label}${UI_THEME.badgeBrackets[1]}`, color));
 }
 
 export function toneText(value: string, color: UiTextColor): string {
-  return colorize(value, `${BOLD}${resolveTextColor(color)}`);
+  return bold(colorize(value, color));
 }
 
 export function stripAnsi(value: string): string {

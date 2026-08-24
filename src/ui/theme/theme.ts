@@ -62,8 +62,8 @@ export const UI_THEME: UiTheme = {
     labelWidth: 30,
   },
   widths: {
-    compact: { min: 56, max: 64 },
-    standard: { min: 60, max: 76 },
-    wide: { min: 72, max: 96 },
+    compact: { min: 68, max: 80 },
+    standard: { min: 80, max: 100 },
+    wide: { min: 92, max: 116 },
   },
 };

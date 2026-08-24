@@ -7,12 +7,29 @@ export interface RenderKeyValueOptions {
   readonly labelWidth?: number;
 }
 
-export function resolveBalancedKeyValueLabelWidth(widthPreset: UiWidthPreset): number {
-  const panelWidth = UI_THEME.widths[widthPreset].max;
-  const innerWidth =
-    panelWidth - (UI_THEME.spacing.panelPadding.left ?? 0) - (UI_THEME.spacing.panelPadding.right ?? 0) - 2;
+const DEFAULT_COLUMN_WIDTHS: readonly number[] = [50, 50];
 
-  return Math.max(0, Math.floor((innerWidth - UI_THEME.table.gap) / 2));
+/**
+ * Ancho de columna de etiqueta como porcentaje del panel (columnWidths[0]),
+ * sin bajar de lo que necesita la etiqueta mas larga. Por defecto reparte
+ * el ancho en partes iguales entre las columnas (50/50 para las 2 columnas
+ * habituales de label/value).
+ */
+export function resolveKeyValueLabelWidth(
+  preset: UiWidthPreset,
+  rows: ReadonlyArray<readonly [string, ...unknown[]]>,
+  columnWidths: readonly number[] = DEFAULT_COLUMN_WIDTHS,
+): number {
+  const innerWidth =
+    UI_THEME.widths[preset].min -
+    (UI_THEME.spacing.panelPadding.left ?? 0) -
+    (UI_THEME.spacing.panelPadding.right ?? 0) -
+    2;
+  const labelPercentage = columnWidths[0] ?? 100 / columnWidths.length;
+  const proportionalWidth = Math.round(innerWidth * (labelPercentage / 100));
+  const naturalWidth = Math.max(...rows.map(([label]) => label.length), 0);
+
+  return Math.max(naturalWidth, proportionalWidth);
 }
 
 function normalizeValue(value: string | number | null | undefined): string {

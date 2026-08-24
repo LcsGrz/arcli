@@ -10,7 +10,7 @@ import {
   renderLogo,
   renderObject,
   renderPanel,
-  resolveBalancedKeyValueLabelWidth,
+  resolveKeyValueLabelWidth,
   statusPanel,
   toneText,
 } from '../../ui';
@@ -295,16 +295,19 @@ function buildJsonScene(): string {
 function buildComponentsScene(): string {
   const notice = noticePanel('Estas utilizando el entorno de TESTING', 'warning');
   const updateNotice = renderUpdateNoticePanel(createSampleUpdateCheckResult());
-  const compactLabelWidth = resolveBalancedKeyValueLabelWidth('compact');
+  const keyValueRows: Array<readonly [string, string | number]> = [
+    ['CUIT', '20-40950976-3'],
+    ['Punto de venta', 3],
+    ['Entorno', 'testing'],
+  ];
+  const statusRows: Array<readonly [string, string | number]> = [
+    ['CAE', '86120020280000'],
+    ['Importe total', '1$'],
+    ['Errores', 0],
+  ];
+  const demoLabelWidth = resolveKeyValueLabelWidth('compact', [...keyValueRows, ...statusRows]);
   const keyValue = renderPanel({
-    content: renderKeyValueRows(
-      [
-        ['CUIT', '20-40950976-3'],
-        ['Punto de venta', 3],
-        ['Entorno', 'testing'],
-      ],
-      { labelWidth: compactLabelWidth },
-    ),
+    content: renderKeyValueRows(keyValueRows, { labelWidth: demoLabelWidth }),
     contentAlign: 'left',
     footer: toneText('TODO LISTO', 'success'),
     footerColor: 'success',
@@ -322,15 +325,9 @@ function buildComponentsScene(): string {
   const status = statusPanel(
     'Demo estado',
     [
-      ...renderKeyValueRows(
-        [
-          ['CAE', '86120020280000'],
-          ['Importe total', '1$'],
-        ],
-        { labelWidth: compactLabelWidth },
-      ),
+      ...renderKeyValueRows(statusRows.slice(0, 2), { labelWidth: demoLabelWidth }),
       '',
-      ...renderKeyValueRows([['Errores', 0]], { labelWidth: compactLabelWidth }),
+      ...renderKeyValueRows(statusRows.slice(2), { labelWidth: demoLabelWidth }),
     ],
     'APROBADO',
     'compact',
@@ -359,7 +356,7 @@ function buildComponentsScene(): string {
 }
 
 export function renderStorybookShowcase(scene?: StorybookScene): string {
-  const logo = renderLogo({ align: 'center', color: 'debug', width: 52 });
+  const logo = renderLogo().trim();
 
   const scenes: Record<StorybookScene, string> = {
     colores: buildColorsScene(),

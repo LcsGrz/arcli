@@ -48,6 +48,21 @@ Verifica:
 - datos hardcodeados consistentes
 - utilidad real para iterar diseño sin depender de ARCA
 
+### Escenas individuales
+
+```bash
+yarn dev storybook colores
+yarn dev storybook componentes
+yarn dev storybook comprobantes
+yarn dev storybook configuracion
+yarn dev storybook errores
+yarn dev storybook json
+```
+
+Verifica que cada escena renderice sola, sin depender de las demas, y que
+`configuracion` (con paths de ejemplo cortos) se vea igual de alineada que
+`arcli config` con paths reales largos.
+
 ## Help y descubrimiento
 
 ### Help general
@@ -100,6 +115,19 @@ Verifica:
 - nombres claros
 - ayuda entendible
 
+### Version y ejemplos
+
+```bash
+yarn dev --version
+yarn dev ejemplos
+yarn dev ejemplos ayuda
+```
+
+Verifica:
+
+- version coincide con la de `package.json`
+- ejemplos listos para copiar por cada shortcut
+
 ## Configuracion
 
 ### Config show
@@ -148,6 +176,31 @@ Verifica:
 
 - salida simple
 - sin ruido visual extra
+
+### Config en JSON
+
+```bash
+yarn dev config --json
+```
+
+Verifica:
+
+- mismo contenido que la vista de texto, en JSON valido
+- paths enmascarados igual que en texto
+
+### Ruta del ticket WSAA (ticketPath)
+
+```bash
+yarn dev config establecer ticketPath /tmp/arcli-tickets-test
+yarn dev config
+yarn dev config eliminar ticketPath
+yarn dev config
+```
+
+Verifica:
+
+- fila `Ruta tickets WSAA` visible siempre (configurado o default)
+- vuelve al default (carpeta junto al `config.json`) despues de `eliminar`
 
 ## Facturacion: preview, emision y bruto
 
@@ -517,6 +570,65 @@ Verifica:
 - documento distinto
 - formato claro
 
+### CUIL
+
+```bash
+yarn dev factura a -m 1 --cs --cuil 20168598204 --ir-ri --previsualizar
+```
+
+Verifica:
+
+- `Tipo de documento` muestra CUIL, no CUIT
+
+## Fechas y moneda
+
+### Formatos de fecha argentina
+
+```bash
+yarn dev factura c -m 1 --cs --consumidor-final --ir-cf --previsualizar -f 15
+yarn dev factura c -m 1 --cs --consumidor-final --ir-cf --previsualizar -f 15/3
+yarn dev factura c -m 1 --cs --consumidor-final --ir-cf --previsualizar -f 05-03-2026
+yarn dev factura c -m 1 --csp --consumidor-final --ir-cf --previsualizar --sd 01-03 --sh 31-03 -d 10
+```
+
+Verifica:
+
+- todas aceptan dia-primero (`D`, `D/M`, `DD-MM-YYYY`) sin pedir `YYYY-MM-DD`
+- mes/anio actuales cuando se omiten
+
+### Moneda distinta de la default
+
+```bash
+yarn dev factura c -m 100 --cs --consumidor-final --ir-cf --previsualizar --moneda USD --cm 1200
+```
+
+Verifica:
+
+- codigo de moneda y cotizacion reflejados en el preview
+
+## Comprobantes electronicos
+
+Mismos flags que sus equivalentes en papel; la unica diferencia es el shortcut
+(`fcea/fceb/fcec`, `ncea/nceb/ncec`, `ndea/ndeb/ndec`). Las notas requieren
+comprobante asociado igual que sus pares no electronicos.
+
+```bash
+yarn dev fcea -m 2000 --cs --consumidor-final --ir-cf --previsualizar
+yarn dev fceb -m 2000 --cs --consumidor-final --ir-cf --previsualizar
+yarn dev fcec -m 2000 --cs --consumidor-final --ir-cf --previsualizar
+yarn dev ncea -m 500 --cs --consumidor-final --ir-cf --ac fcea --apv 3 --ar 1 --previsualizar
+yarn dev nceb -m 500 --cs --consumidor-final --ir-cf --ac fceb --apv 3 --ar 1 --previsualizar
+yarn dev ncec -m 500 --cs --consumidor-final --ir-cf --ac fcec --apv 3 --ar 1 --previsualizar
+yarn dev ndea -m 500 --cs --consumidor-final --ir-cf --ac fcea --apv 3 --ar 1 --previsualizar
+yarn dev ndeb -m 500 --cs --consumidor-final --ir-cf --ac fceb --apv 3 --ar 1 --previsualizar
+yarn dev ndec -m 500 --cs --consumidor-final --ir-cf --ac fcec --apv 3 --ar 1 --previsualizar
+```
+
+Verifica:
+
+- nombres "Factura/Nota de credito/debito electronica A/B/C" correctos en el preview
+- tipo ARCA correcto (201/206/211 facturas, 203/208/213 NC, 202/207/212 ND)
+
 ## Notas con asociado
 
 ### Nota de credito con asociado
@@ -696,16 +808,23 @@ Verifica:
 
 - aviso visible de `TESTING`
 
-### Produccion sin confirmacion
+### Produccion exige ambos flags
+
+`--produccion --emitir` ya emite de verdad en produccion, sin una confirmacion
+adicional (no existe `--confirmar-produccion`). Para probar la resolucion de
+entorno sin arriesgar una emision real, usa `--previsualizar`:
 
 ```bash
-yarn dev factura c -m 1 --produccion --emitir
+yarn dev factura c -m 1 --produccion --previsualizar
 ```
 
 Verifica:
 
-- error de configuracion
-- mensaje de `--confirmar-produccion`
+- no aparece el aviso de `TESTING`
+- el payload no se envia (previsualizacion)
+
+No corras `--produccion --emitir` como parte de este checklist salvo que
+sea a proposito y con datos reales que quieras emitir.
 
 ## Orden recomendado de prueba
 
@@ -726,7 +845,7 @@ Verifica:
 15. `yarn dev factura c -m 1 --json`
 16. `yarn dev nota-credito a ... --previsualizar`
 17. `yarn dev factura c`
-18. `yarn dev factura c -m 1 --produccion --emitir`
+18. `yarn dev factura c -m 1 --produccion --previsualizar` (verifica que no emite; no hay un flag adicional de confirmacion)
 
 ## Casos pendientes
 
@@ -734,3 +853,4 @@ Verifica:
 - probar `Nota de credito A` con un comprobante `A` previo real
 - probar `Nota de debito A` con un comprobante `A` previo real
 - probar lote JSON en `previsualizacion` con multiples items
+- emitir de verdad (no solo previsualizar) al menos una factura de credito electronica y su nota asociada
