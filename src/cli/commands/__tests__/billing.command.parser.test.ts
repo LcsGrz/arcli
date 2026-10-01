@@ -105,6 +105,44 @@ describe('billing.command.parser', () => {
     expect(() => parseBillingCommandInput(command, 'fa')).toThrow(/Use --emitir o --previsualizar/);
   });
 
+  it('parses --misma-moneda without applying the default exchange rate', () => {
+    const command = createCommand(['--monto', '1000', '--cs', '--ir-cf', '--moneda', 'USD', '--misma-moneda']);
+    const input = parseBillingCommandInput(command, 'fc', { defaultExchangeRate: 1200 });
+
+    expect(input.sameCurrency).toBe(true);
+    expect(input.exchangeRate).toBeUndefined();
+  });
+
+  it('rejects --misma-moneda together with an explicit exchange rate', () => {
+    const command = createCommand([
+      '--monto',
+      '1000',
+      '--cs',
+      '--ir-cf',
+      '--moneda',
+      'USD',
+      '--misma-moneda',
+      '--cm',
+      '1200',
+    ]);
+
+    expect(() => parseBillingCommandInput(command, 'fc')).toThrow(/la cotizacion se toma de ARCA/);
+  });
+
+  it('applies the default exchange rate only to foreign currency', () => {
+    const pesos = parseBillingCommandInput(createCommand(['--monto', '1000', '--cs', '--ir-cf']), 'fc', {
+      defaultExchangeRate: 1200,
+    });
+    const dollars = parseBillingCommandInput(
+      createCommand(['--monto', '1000', '--cs', '--ir-cf', '--moneda', 'USD']),
+      'fc',
+      { defaultExchangeRate: 1200 },
+    );
+
+    expect(pesos.exchangeRate).toBeUndefined();
+    expect(dollars.exchangeRate).toBe(1200);
+  });
+
   it('loads base data from a JSON file', () => {
     const directory = mkdtempSync(join(tmpdir(), 'arcli-billing-cli-'));
 
@@ -239,6 +277,7 @@ describe('billing.command.parser', () => {
     expect(input.pointOfSale).toBe(9);
     expect(input.currencyCode).toBe('USD');
     expect(input.exchangeRate).toBe(1234);
+    expect(input.sameCurrency).toBe(false);
     expect(input.serviceStartDate).toBe('01-03-2026');
     expect(input.serviceEndDate).toBe('31-03-2026');
     expect(input.documentType).toBe('consumidor-final');

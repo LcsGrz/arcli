@@ -112,6 +112,14 @@ arcli fc ayuda
 - **Solución:** dejar una sola fuente.
 - **Documentación relacionada:** [Reglas de validación](validation-rules.md)
 
+### Falta la cotización en moneda extranjera
+
+- **Severidad:** frecuente
+- **Síntoma:** `Falta la cotizacion de USD.`
+- **Causa:** se pasó `--moneda USD` sin `--cotizacion-moneda`, o con cotización `1`.
+- **Solución:** pasar `--cm <cotización>` si te pagan en pesos, o `--misma-moneda` si te pagan en dólares.
+- **Documentación relacionada:** [Moneda y cotización](validation-rules.md#moneda-y-cotización)
+
 ## ARCA
 
 ### `coe.alreadyAuthenticated`

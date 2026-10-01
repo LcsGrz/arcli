@@ -2,6 +2,7 @@ import type { Command } from 'commander';
 
 import { InputValidationError } from '../../lib/errors/app-error';
 import { readJsonFile } from '../../lib/files/read-json-file';
+import { isForeignCurrency } from '../../modules/billing/billing.currency';
 import { type BillingCommandInput, billingCommandSchema } from '../../modules/billing/billing.schemas';
 import type { VoucherShortcut } from '../../modules/billing/billing.types';
 
@@ -26,6 +27,7 @@ interface BillingJsonInput {
   readonly emitir?: boolean;
   readonly fechaComprobante?: string;
   readonly ivaReceptor?: BillingCommandInput['ivaCondition'];
+  readonly mismaMoneda?: boolean;
   readonly montoTotal?: number;
   readonly numeroDocumento?: number;
   readonly previsualizar?: boolean;
@@ -157,30 +159,45 @@ function parseBillingCommandInputFromSource(
       }
     : undefined;
 
+  const currencyCode = pickString(
+    commandOptions.moneda,
+    commandOptions.mda,
+    fileInput?.codigoMoneda,
+    defaults.defaultCurrencyCode,
+  );
+  const sameCurrency = commandOptions.mismaMoneda === true || fileInput?.mismaMoneda === true;
+  const explicitExchangeRate = pickNumber(
+    commandOptions.cotizacionMoneda,
+    commandOptions.cm,
+    fileInput?.cotizacionMoneda,
+  );
+
+  if (sameCurrency && typeof explicitExchangeRate === 'number') {
+    throw new InputValidationError(
+      'Con --misma-moneda la cotizacion se toma de ARCA. Quite --cotizacion-moneda o --cm.',
+    );
+  }
+
+  // La cotizacion por defecto de la config solo aplica a moneda extranjera sin --misma-moneda.
+  const exchangeRate =
+    explicitExchangeRate ??
+    (!sameCurrency && isForeignCurrency({ currencyCode }) ? defaults.defaultExchangeRate : undefined);
+
   return {
     ...billingCommandSchema.parse({
       associatedVoucher: associatedVoucherFromFlags ?? associatedVoucherFromFile,
       billingDate: pickString(commandOptions.fecha, fileInput?.fechaComprobante),
       concept: resolvedConcept,
-      currencyCode: pickString(
-        commandOptions.moneda,
-        commandOptions.mda,
-        fileInput?.codigoMoneda,
-        defaults.defaultCurrencyCode,
-      ),
+      currencyCode,
       documentNumber: documentIdentity.documentNumber ?? fileInput?.numeroDocumento,
       documentType: documentIdentity.documentType ?? fileInput?.tipoDocumento,
       dryRun: shouldDryRun,
       dueDay: pickNumber(commandOptions.dia, fileInput?.dia),
       emit: shouldEmit,
-      exchangeRate: pickNumber(
-        commandOptions.cotizacionMoneda,
-        commandOptions.cm,
-        fileInput?.cotizacionMoneda,
-        defaults.defaultExchangeRate,
-      ),
+      exchangeRate,
       ivaCondition: resolvedIvaCondition,
       pointOfSale: pickNumber(commandOptions.puntoVenta, commandOptions.pv, fileInput?.puntoVenta),
+      sameCurrency,
       serviceEndDate: pickString(commandOptions.servicioHasta, commandOptions.sh, fileInput?.servicioHasta),
       serviceStartDate: pickString(commandOptions.servicioDesde, commandOptions.sd, fileInput?.servicioDesde),
       shortcut,

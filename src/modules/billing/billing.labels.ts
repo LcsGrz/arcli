@@ -84,7 +84,7 @@ export function formatCurrencyLabel(value: string | undefined): string {
   switch (value) {
     case 'PES':
       return 'Pesos argentinos (ARS)';
-    case 'USD':
+    case 'DOL':
       return 'Dolares estadounidenses (USD)';
     default:
       return value ?? 'N/D';

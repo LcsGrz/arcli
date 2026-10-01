@@ -31,8 +31,9 @@ const BILLING_IVA_CONDITION_MAP: Record<BillingIvaCondition, number> = {
 
 const BILLING_CURRENCY_CODE_MAP: Record<string, string> = {
   ARS: 'PES',
+  DOL: 'DOL',
   PES: 'PES',
-  USD: 'USD',
+  USD: 'DOL',
 };
 
 export function resolveBillingConceptCode(concept: BillingConcept): number {

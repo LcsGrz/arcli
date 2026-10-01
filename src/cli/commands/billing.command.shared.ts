@@ -1,6 +1,7 @@
 import type { Command } from 'commander';
 import ora from 'ora';
 
+import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import { BillingService } from '../../modules/billing/billing.service';
 import type { VoucherShortcut } from '../../modules/billing/billing.types';
 import type { BillingExecutionResult } from '../../modules/billing/billing.types.internal';
@@ -47,10 +48,16 @@ export async function executeBillingCommand(command: Command, shortcut: VoucherS
     });
     const service = new BillingService();
     const arca = new ArcaClientFactory().create(runtime);
+    const gateway = new ArcaBillingGateway(arca);
     const useRaw = typeof globalOptions.bruto === 'boolean' ? globalOptions.bruto : runtime.outputRaw;
+    const plannedInputs: BillingCommandInput[] = [];
+
+    for (const input of plan.inputs) {
+      plannedInputs.push(await service.resolveExchangeRate(input, gateway));
+    }
 
     const preview = await runInteractiveBillingPreview({
-      inputs: plan.inputs,
+      inputs: plannedInputs,
       modeSource: plan.modeSource,
       runtime,
       service,
@@ -70,7 +77,6 @@ export async function executeBillingCommand(command: Command, shortcut: VoucherS
       spinner.text = inputs.length > 1 ? `Procesando ${inputs.length} comprobantes...` : 'Procesando comprobante...';
     }
 
-    const gateway = new ArcaBillingGateway(arca);
     const results: BillingExecutionResult[] = [];
 
     for (const input of inputs) {

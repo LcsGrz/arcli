@@ -16,23 +16,24 @@ arcli fc --cargar ./voucher.json
 
 ### Campos soportados
 
-| Campo                 | Tipo    | Requerido                          | Descripción                                |
-| --------------------- | ------- | ---------------------------------- | ------------------------------------------ |
-| `comprobanteAsociado` | object  | no                                 | Comprobante asociado                       |
-| `concepto`            | string  | sí, salvo default por flags/config | Concepto                                   |
-| `codigoMoneda`        | string  | no                                 | Moneda                                     |
-| `cotizacionMoneda`    | number  | no                                 | Cotización de la moneda                    |
-| `dia`                 | number  | no                                 | Día de vencimiento o referencia            |
-| `emitir`              | boolean | no                                 | Emisión real                               |
-| `fechaComprobante`    | string  | no                                 | Fecha del comprobante                      |
-| `ivaReceptor`         | string  | sí, salvo default por config       | Condición IVA del receptor                 |
-| `montoTotal`          | number  | sí                                 | Importe total                              |
-| `numeroDocumento`     | number  | depende del tipo de documento      | Número de documento                        |
-| `previsualizar`       | boolean | no                                 | Preview sin emitir                         |
-| `puntoVenta`          | number  | no                                 | Punto de venta                             |
-| `servicioDesde`       | string  | no                                 | Fecha inicio de servicio                   |
-| `servicioHasta`       | string  | no                                 | Fecha fin de servicio                      |
-| `tipoDocumento`       | string  | no                                 | `consumidor-final`, `cuit`, `cuil` o `dni` |
+| Campo                 | Tipo    | Requerido                              | Descripción                                |
+| --------------------- | ------- | -------------------------------------- | ------------------------------------------ |
+| `comprobanteAsociado` | object  | no                                     | Comprobante asociado                       |
+| `concepto`            | string  | sí, salvo default por flags/config     | Concepto                                   |
+| `codigoMoneda`        | string  | no                                     | Moneda                                     |
+| `cotizacionMoneda`    | number  | en moneda extranjera sin `mismaMoneda` | Cotización de la moneda                    |
+| `mismaMoneda`         | boolean | no                                     | El pago se cancela en la moneda extranjera |
+| `dia`                 | number  | no                                     | Día de vencimiento o referencia            |
+| `emitir`              | boolean | no                                     | Emisión real                               |
+| `fechaComprobante`    | string  | no                                     | Fecha del comprobante                      |
+| `ivaReceptor`         | string  | sí, salvo default por config           | Condición IVA del receptor                 |
+| `montoTotal`          | number  | sí                                     | Importe total                              |
+| `numeroDocumento`     | number  | depende del tipo de documento          | Número de documento                        |
+| `previsualizar`       | boolean | no                                     | Preview sin emitir                         |
+| `puntoVenta`          | number  | no                                     | Punto de venta                             |
+| `servicioDesde`       | string  | no                                     | Fecha inicio de servicio                   |
+| `servicioHasta`       | string  | no                                     | Fecha fin de servicio                      |
+| `tipoDocumento`       | string  | no                                     | `consumidor-final`, `cuit`, `cuil` o `dni` |
 
 ### Objeto `comprobanteAsociado`
 

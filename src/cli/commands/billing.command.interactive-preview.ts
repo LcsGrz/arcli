@@ -62,6 +62,9 @@ export async function runInteractiveBillingPreview(options: {
     createNextVoucher: async () => {
       throw new Error('No deberia ejecutarse la emision real durante la vista previa.');
     },
+    getQuotation: async () => {
+      throw new Error('La cotizacion se resuelve antes de la vista previa.');
+    },
   };
   const previewResults: BillingExecutionResult[] = [];
 
