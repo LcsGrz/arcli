@@ -811,6 +811,59 @@ describe('billing.service', () => {
     ).toThrow(/no usa --vencimiento/);
   });
 
+  describe('resolveFceWarnings', () => {
+    const rejectingGateway = {
+      getObligation: async () => {
+        throw new Error('El certificado no esta autorizado para el servicio wsfecred.');
+      },
+    };
+
+    it('queries the receiver CUIT with the billing date and amount in pesos', async () => {
+      const getObligation = vi.fn(async () => ({ minimumAmount: 3_958_316, obligated: true }));
+      const warnings = await new BillingService().resolveFceWarnings(
+        createBillingInput({
+          billingDate: '15/03/2026',
+          currencyCode: 'USD',
+          documentNumber: 30709965812,
+          documentType: 'cuit',
+          exchangeRate: 1000,
+          ivaCondition: 'responsable-inscripto',
+          shortcut: 'fa',
+          totalAmount: 5000,
+        }),
+        { getObligation },
+      );
+
+      expect(getObligation).toHaveBeenCalledWith(30709965812, '20260315');
+      expect(warnings).toEqual([expect.stringContaining('Corresponde emitir fcea en lugar de fa')]);
+    });
+
+    it('skips vouchers that do not depend on the FCE regime', async () => {
+      const getObligation = vi.fn();
+
+      await expect(
+        new BillingService().resolveFceWarnings(createBillingInput({ documentNumber: 0 }), { getObligation }),
+      ).resolves.toEqual([]);
+      expect(getObligation).not.toHaveBeenCalled();
+    });
+
+    it('turns query failures into a warning instead of blocking', async () => {
+      const warnings = await new BillingService().resolveFceWarnings(
+        createBillingInput({
+          documentNumber: 30709965812,
+          documentType: 'cuit',
+          ivaCondition: 'responsable-inscripto',
+          shortcut: 'fa',
+        }),
+        rejectingGateway,
+      );
+
+      expect(warnings).toEqual([
+        'No se pudo verificar el regimen FCE del receptor: El certificado no esta autorizado para el servicio wsfecred.',
+      ]);
+    });
+  });
+
   describe('factura de credito electronica', () => {
     const fceInvoice = (overrides: Partial<BillingCommandInput> = {}) =>
       createBillingInput({

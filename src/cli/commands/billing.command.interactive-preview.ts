@@ -41,6 +41,7 @@ export async function runInteractiveBillingPreview(options: {
   readonly service: BillingService;
   readonly useRaw: boolean;
   readonly voucherLabel: string;
+  readonly warnings?: ReadonlyArray<readonly string[]>;
 }): Promise<InteractiveBillingPreviewOutcome> {
   const shouldPromptForEmit =
     options.modeSource === 'default' &&
@@ -68,12 +69,13 @@ export async function runInteractiveBillingPreview(options: {
   };
   const previewResults: BillingExecutionResult[] = [];
 
-  for (const input of options.inputs) {
+  for (const [index, input] of options.inputs.entries()) {
     previewResults.push(
       await options.service.execute({
         gateway: previewGateway,
         input,
         runtime: options.runtime,
+        warnings: options.warnings?.[index],
       }),
     );
   }

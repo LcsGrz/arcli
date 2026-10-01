@@ -27,4 +27,5 @@ export interface BillingExecutionResult {
   readonly payload: INextVoucher;
   readonly response: BillingResponseSummary;
   readonly voucherKind: VoucherKindDefinition;
+  readonly warnings?: readonly string[];
 }

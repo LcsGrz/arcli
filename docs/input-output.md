@@ -149,6 +149,7 @@ Sin `--bruto`, ARCLI serializa un resumen del resultado.
 | Campo              | Tipo                                       | Descripción                                       |
 | ------------------ | ------------------------------------------ | ------------------------------------------------- |
 | `atajo`            | `string`                                   | Atajo del comprobante                             |
+| `avisos`           | `string[]`                                 | Avisos de ARCLI, por ejemplo del régimen FCE      |
 | `cae`              | `string \| null`                           | CAE informado por ARCA                            |
 | `caeVencimiento`   | `string \| null`                           | Vencimiento del CAE                               |
 | `comprobante`      | `string`                                   | Nombre visible del comprobante                    |
@@ -219,6 +220,7 @@ Cuando se usa `--bruto`, el contrato cambia para priorizar inspección técnica.
 | Campo              | Tipo       | Descripción                                   |
 | ------------------ | ---------- | --------------------------------------------- |
 | `atajo`            | `string`   | Atajo del comprobante                         |
+| `avisos`           | `string[]` | Avisos de ARCLI, por ejemplo del régimen FCE  |
 | `comprobante`      | `string`   | Nombre visible del comprobante                |
 | `previsualizacion` | `boolean`  | `true` si no hubo emisión real                |
 | `respuesta`        | `object`   | Respuesta cruda del SDK o un mensaje amigable |

@@ -63,6 +63,7 @@ export const arcliConfigSchema = z.object({
     .default({ emitirPorDefecto: false, jsonPorDefecto: false, brutoPorDefecto: false }),
   puntoVentaPorDefecto: z.number().int().positive().optional(),
   ticketPath: z.string().trim().min(1).optional(),
+  verificarFce: z.boolean().optional(),
 });
 
 export type ArcliConfig = z.infer<typeof arcliConfigSchema>;
@@ -99,6 +100,7 @@ export const configPublicKeySchema = z.enum([
   'bruto',
   'puntoVenta',
   'ticketPath',
+  'verificarFce',
 ]);
 
 export type ConfigPublicKey = z.infer<typeof configPublicKeySchema>;

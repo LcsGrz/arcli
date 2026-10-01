@@ -178,6 +178,18 @@ ARCLI arma `Opcionales` (los "Adicionales por R.G.") según el comprobante:
 | NC/ND FCE (`ncea`…`ndec`)            | `22` anulación: `S` con `--anulacion`, si no `N`             | Obligatorio (10173). `--cbu`, `--alias` y `--transferencia` dan error (10172). `--afecha` es obligatoria (10158). El asociado tiene que ser del CUIT emisor (10155), así que `--acuit` se puede omitir. |
 | Resto                                | ninguno                                                      | `--cbu`, `--alias`, `--transferencia` y `--anulacion` dan error (10169).                                                                                                                                |
 
+### Régimen FCE del receptor
+
+Con `config.verificarFce` en `true`, ARCLI consulta `wsfecred` (`consultarMontoObligadoRecepcion`) antes de la vista previa. La consulta corre en facturas comunes y FCE con `--cuit` del receptor, usando la fecha del comprobante. Los avisos posibles son:
+
+| Comprobante            | Receptor                             | Aviso                               |
+| ---------------------- | ------------------------------------ | ----------------------------------- |
+| `fa`, `fb`, `fc`       | obligado y monto (en pesos) ≥ mínimo | Corresponde `fcea`, `fceb` o `fcec` |
+| `fcea`, `fceb`, `fcec` | no obligado                          | Corresponde `fa`, `fb` o `fc`       |
+| `fcea`, `fceb`, `fcec` | obligado, pero monto < mínimo        | Corresponde `fa`, `fb` o `fc`       |
+
+Los avisos aparecen en la salida de texto (panel "Avisos") y en el campo `avisos` del JSON. No frenan la emisión. Si la consulta falla, por ejemplo porque el certificado no tiene autorizado `wsfecred`, el motivo también llega como aviso.
+
 `config.cbu` y `config.aliasCbu` solo se aplican a facturas FCE. ARCA además exige que el CBU esté registrado a nombre del emisor (10174), cosa que no se puede validar localmente.
 
 ### Moneda y cotización

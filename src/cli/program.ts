@@ -5,6 +5,7 @@ import { registerBillingFamilyCommands } from './commands/billing-family.command
 import { registerBillingShortcutCommands } from './commands/billing-shortcuts.command';
 import { registerConfigCommand } from './commands/config.command';
 import { registerExamplesCommand } from './commands/examples.command';
+import { registerFceObligationCommand } from './commands/fce-obligation.command';
 import { registerStorybookCommand } from './commands/storybook.command';
 import { configureSpanishHelp, createProgramHeader, createProgramHelp } from './help';
 import { CLI_VERSION } from './version';
@@ -27,6 +28,7 @@ export function createProgram(): Command {
   registerBillingFamilyCommands(program);
   registerConfigCommand(program);
   registerExamplesCommand(program);
+  registerFceObligationCommand(program);
   registerStorybookCommand(program);
 
   program.addHelpText('beforeAll', ({ command }) => (command === program ? createProgramHeader() : ''));

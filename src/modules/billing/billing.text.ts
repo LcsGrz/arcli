@@ -14,10 +14,21 @@ function formatObservationList(observaciones: readonly string[]): string {
   return observaciones.map((item, index) => `${index + 1}. ${item}`).join('\n');
 }
 
+function formatWarningsPanel(result: BillingExecutionResult): string[] {
+  const warnings = result.warnings ?? [];
+
+  if (warnings.length === 0) {
+    return [];
+  }
+
+  return [contentPanel('Avisos', warnings.map((item) => `• ${item}`).join('\n'), 'wide', 'warning')];
+}
+
 export function formatBillingResultAsText(result: BillingExecutionResult, options: BillingTextOptions = {}): string {
-  const environmentLines = options.previewShown
-    ? []
-    : formatEnvironmentBanner(options.environment ?? result.environment);
+  const environmentLines = [
+    ...(options.previewShown ? [] : formatEnvironmentBanner(options.environment ?? result.environment)),
+    ...(options.previewShown ? [] : formatWarningsPanel(result)),
+  ];
 
   if (options.raw) {
     if (result.dryRun) {

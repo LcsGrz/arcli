@@ -156,6 +156,7 @@ function createProgramCommands(): string {
       '  - Ver y guardar config: arcli config',
       '  - Revisar entorno y credenciales: arcli config revisar',
       '  - Ver ejemplos listos para copiar: arcli ejemplos',
+      '  - Consultar si un receptor esta obligado a FCE: arcli fce-obligado <cuit>',
       '  - Ver escenas de UI: arcli storybook',
     ].join('\n'),
   );
@@ -579,6 +580,33 @@ export function createExamplesHelp(): string {
       [
         '  - Todos los ejemplos usan --previsualizar para evitar emisiones reales por error.',
         '  - Si queres emitir, reemplaza --previsualizar por --emitir.',
+      ].join('\n'),
+    ),
+    '',
+  ].join('\n');
+}
+
+export function createFceObligationHelp(): string {
+  return [
+    '',
+    section(
+      'Para que sirve',
+      [
+        '  - Saber si a un receptor le corresponde factura comun o Factura de Credito Electronica (FCE).',
+        '  - ARCA informa si esta obligado a recibir FCE y desde que monto.',
+      ].join('\n'),
+    ),
+    '',
+    section(
+      'Ejemplos',
+      ['  - arcli fce-obligado 30709965812', '  - arcli fce-obligado 30709965812 --fecha 15/10 --json'].join('\n'),
+    ),
+    '',
+    section(
+      'Requisitos',
+      [
+        '  - El certificado tiene que estar autorizado para el servicio wsfecred en ARCA.',
+        '  - Para chequearlo en cada factura: arcli config establecer verificarFce true',
       ].join('\n'),
     ),
     '',

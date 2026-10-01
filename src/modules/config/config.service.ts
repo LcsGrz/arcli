@@ -28,6 +28,7 @@ const CONFIG_KEY_ALIASES: Record<ConfigPublicKey, CanonicalConfigKey> = {
   bruto: 'output.brutoPorDefecto',
   puntoVenta: 'puntoVentaPorDefecto',
   ticketPath: 'ticketPath',
+  verificarFce: 'verificarFce',
 };
 
 export interface ConfigServiceOptions {

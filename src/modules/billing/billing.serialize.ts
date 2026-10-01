@@ -19,6 +19,7 @@ function formatRawResponse(
 function formatVoucherSummary(result: BillingExecutionResult): Record<string, unknown> {
   return {
     atajo: result.voucherKind.shortcut,
+    avisos: result.warnings ?? [],
     cae: result.response.cae,
     caeVencimiento: result.response.caeVencimiento,
     comprobante: result.voucherKind.displayName,
@@ -42,6 +43,7 @@ export function serializeBillingResult(
   if (options.raw) {
     return {
       atajo: result.voucherKind.shortcut,
+      avisos: result.warnings ?? [],
       comprobante: result.voucherKind.displayName,
       solicitud: result.payload,
       previsualizacion: result.dryRun,
