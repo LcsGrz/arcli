@@ -62,7 +62,7 @@ Código numérico con el que ARCA identifica cada tipo de comprobante (Factura A
 
 ### Factura de crédito electrónica (FCE)
 
-Variante electrónica de factura pensada para el régimen de facturación de crédito PyME. Usa la misma estructura que una factura común pero con un tipo ARCA distinto.
+Variante electrónica de factura pensada para el régimen de facturación de crédito PyME. Usa la misma estructura que una factura común, con un tipo ARCA distinto y datos de cobro adicionales: CBU del emisor, modalidad de transferencia (`SCA` o `ADC`) y vencimiento de pago. Sus notas de crédito y débito llevan el código de anulación y la fecha de la factura asociada. Ver [Crédito electrónico (FCE)](validation-rules.md#crédito-electrónico-fce).
 
 ## Números y respuesta
 

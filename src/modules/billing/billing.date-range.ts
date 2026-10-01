@@ -1,5 +1,6 @@
 import { formatDateAsArcaDate, maxArcaDate, parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
 
+import { isElectronicCreditInvoice } from './billing.fce';
 import type { BillingCommandInput } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
 import {
@@ -27,10 +28,6 @@ function resolvePaymentDateFromDueDay(dueDay: number): Date {
   paymentDate.setDate(dueDay);
 
   return paymentDate;
-}
-
-function isElectronicCreditInvoice(voucherKind: VoucherKindDefinition): boolean {
-  return voucherKind.family === 'factura-credito-electronica';
 }
 
 /**

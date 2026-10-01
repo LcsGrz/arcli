@@ -5,6 +5,7 @@ import { readJsonFile } from '../../lib/files/read-json-file';
 import { isForeignCurrency } from '../../modules/billing/billing.currency';
 import { type BillingCommandInput, billingCommandSchema } from '../../modules/billing/billing.schemas';
 import type { VoucherShortcut } from '../../modules/billing/billing.types';
+import { getVoucherKindByShortcut } from '../../modules/billing/voucher-kind-map';
 
 import { resolveConceptShortcut, resolveDocumentIdentity, resolveIvaShortcut } from './billing.command.shortcuts';
 
@@ -16,10 +17,14 @@ interface BillingJsonInput {
   readonly comprobanteAsociado?: {
     readonly atajo?: AssociatedVoucherInput['shortcut'];
     readonly cuit?: AssociatedVoucherInput['cuit'];
+    readonly fecha?: AssociatedVoucherInput['fecha'];
     readonly numero?: AssociatedVoucherInput['numero'];
     readonly puntoVenta?: AssociatedVoucherInput['puntoVenta'];
     readonly tipo?: AssociatedVoucherInput['tipo'];
   };
+  readonly aliasCbu?: string;
+  readonly anulacion?: boolean;
+  readonly cbu?: string;
   readonly concepto?: BillingCommandInput['concept'];
   readonly codigoMoneda?: string;
   readonly cotizacionMoneda?: number;
@@ -35,6 +40,7 @@ interface BillingJsonInput {
   readonly vencimientoPago?: string;
   readonly servicioDesde?: string;
   readonly servicioHasta?: string;
+  readonly transferencia?: string;
   readonly tipoDocumento?: BillingCommandInput['documentType'];
 }
 
@@ -49,6 +55,8 @@ function pickNumber(...values: unknown[]): number | undefined {
 }
 
 export interface BillingCommandDefaults {
+  readonly defaultCbu?: string;
+  readonly defaultCbuAlias?: string;
   readonly defaultConcept?: BillingCommandInput['concept'];
   readonly defaultCurrencyCode?: string;
   readonly defaultEmit?: boolean;
@@ -83,9 +91,11 @@ function parseBillingCommandInputFromSource(
     commandOptions.asociadoPuntoVenta ||
     commandOptions.at ||
     commandOptions.acuit ||
+    commandOptions.afecha ||
     commandOptions.ac
       ? {
           cuit: pickString(commandOptions.acuit),
+          fecha: pickString(commandOptions.afecha),
           numero: pickNumber(commandOptions.ar),
           puntoVenta: pickNumber(commandOptions.apv, commandOptions.asociadoPuntoVenta),
           shortcut: pickString(commandOptions.ac),
@@ -153,6 +163,7 @@ function parseBillingCommandInputFromSource(
   const associatedVoucherFromFile = fileInput?.comprobanteAsociado
     ? {
         cuit: fileInput.comprobanteAsociado.cuit,
+        fecha: fileInput.comprobanteAsociado.fecha,
         numero: fileInput.comprobanteAsociado.numero,
         puntoVenta: fileInput.comprobanteAsociado.puntoVenta,
         shortcut: fileInput.comprobanteAsociado.atajo,
@@ -184,10 +195,20 @@ function parseBillingCommandInputFromSource(
     explicitExchangeRate ??
     (!sameCurrency && isForeignCurrency({ currencyCode }) ? defaults.defaultExchangeRate : undefined);
 
+  // El CBU de la config solo aplica a facturas FCE: ARCA rechaza esos opcionales en otros comprobantes (10169).
+  const usesFceDefaults = getVoucherKindByShortcut(shortcut)?.family === 'factura-credito-electronica';
+
   return {
     ...billingCommandSchema.parse({
       associatedVoucher: associatedVoucherFromFlags ?? associatedVoucherFromFile,
       billingDate: pickString(commandOptions.fecha, fileInput?.fechaComprobante),
+      cancellation: commandOptions.anulacion === true || fileInput?.anulacion === true,
+      cbu: pickString(commandOptions.cbu, fileInput?.cbu, usesFceDefaults ? defaults.defaultCbu : undefined),
+      cbuAlias: pickString(
+        commandOptions.alias,
+        fileInput?.aliasCbu,
+        usesFceDefaults ? defaults.defaultCbuAlias : undefined,
+      ),
       concept: resolvedConcept,
       currencyCode,
       documentNumber: documentIdentity.documentNumber ?? fileInput?.numeroDocumento,
@@ -204,6 +225,7 @@ function parseBillingCommandInputFromSource(
       serviceStartDate: pickString(commandOptions.servicioDesde, commandOptions.sd, fileInput?.servicioDesde),
       shortcut,
       totalAmount: pickNumber(commandOptions.monto, fileInput?.montoTotal),
+      transferMode: pickString(commandOptions.transferencia, fileInput?.transferencia),
     }),
     __modeSource: modeSource,
   };

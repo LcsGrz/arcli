@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import type { BillingCommandInput } from '../billing.schemas';
@@ -33,6 +33,7 @@ function createRuntime(): ResolvedArcaRuntime {
 
 function createBillingInput(overrides: Partial<BillingCommandInput> = {}): BillingCommandInput {
   return {
+    cancellation: false,
     concept: 'servicios',
     currencyCode: 'PES',
     documentType: 'consumidor-final',
@@ -669,6 +670,7 @@ describe('billing.service', () => {
           billingDate,
           documentNumber: 20123456789,
           documentType: 'cuit',
+          cbu: '0110599520000012345678',
           ivaCondition: 'responsable-inscripto',
           shortcut: 'fcea',
         }),
@@ -692,6 +694,7 @@ describe('billing.service', () => {
         concept: 'productos',
         documentNumber: 20123456789,
         documentType: 'cuit',
+        cbu: '0110599520000012345678',
         ivaCondition: 'responsable-inscripto',
         shortcut: 'fcea',
       }),
@@ -715,6 +718,7 @@ describe('billing.service', () => {
           documentNumber: 20123456789,
           documentType: 'cuit',
           ivaCondition: 'responsable-inscripto',
+          cbu: '0110599520000012345678',
           paymentDueDate: '17/03/2026',
           shortcut: 'fcea',
         }),
@@ -729,7 +733,7 @@ describe('billing.service', () => {
 
     const service = new BillingService();
     const input = createBillingInput({
-      associatedVoucher: { cuit: '20123456789', numero: 1, puntoVenta: 3, shortcut: 'fcea' },
+      associatedVoucher: { cuit: '20123456789', fecha: '10/03/2026', numero: 1, puntoVenta: 3, shortcut: 'fcea' },
       documentNumber: 20123456789,
       documentType: 'cuit',
       ivaCondition: 'responsable-inscripto',
@@ -805,6 +809,137 @@ describe('billing.service', () => {
         createRuntime(),
       ),
     ).toThrow(/no usa --vencimiento/);
+  });
+
+  describe('factura de credito electronica', () => {
+    const fceInvoice = (overrides: Partial<BillingCommandInput> = {}) =>
+      createBillingInput({
+        billingDate: '18/03/2026',
+        cbu: '0110599520000012345678',
+        documentNumber: 30709965812,
+        documentType: 'cuit',
+        ivaCondition: 'responsable-inscripto',
+        shortcut: 'fcea',
+        ...overrides,
+      });
+    const fceNote = (overrides: Partial<BillingCommandInput> = {}) =>
+      createBillingInput({
+        associatedVoucher: { fecha: '10/03/2026', numero: 7, puntoVenta: 3, shortcut: 'fcea' },
+        billingDate: '18/03/2026',
+        documentNumber: 30709965812,
+        documentType: 'cuit',
+        ivaCondition: 'responsable-inscripto',
+        shortcut: 'ncea',
+        ...overrides,
+      });
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
+    });
+
+    it('sends CBU and the default SCA transfer mode on FCE invoices', () => {
+      const payload = new BillingService().buildVoucherPayload(fceInvoice(), createRuntime());
+
+      expect(payload.Opcionales).toEqual([
+        { Id: '2101', Valor: '0110599520000012345678' },
+        { Id: '27', Valor: 'SCA' },
+      ]);
+    });
+
+    it('sends the CBU alias and the chosen transfer mode', () => {
+      const payload = new BillingService().buildVoucherPayload(
+        fceInvoice({ cbuAlias: 'mi.alias.cbu', transferMode: 'adc' }),
+        createRuntime(),
+      );
+
+      expect(payload.Opcionales).toEqual([
+        { Id: '2101', Valor: '0110599520000012345678' },
+        { Id: '2102', Valor: 'mi.alias.cbu' },
+        { Id: '27', Valor: 'ADC' },
+      ]);
+    });
+
+    it('requires the CBU on FCE invoices', () => {
+      expect(() => new BillingService().buildVoucherPayload(fceInvoice({ cbu: undefined }), createRuntime())).toThrow(
+        /requiere el CBU del emisor/,
+      );
+    });
+
+    it('rejects --anulacion on FCE invoices', () => {
+      expect(() =>
+        new BillingService().buildVoucherPayload(fceInvoice({ cancellation: true }), createRuntime()),
+      ).toThrow(/no usa --anulacion/);
+    });
+
+    it('sends the cancellation code, associated date and emitter CUIT on FCE notes', () => {
+      const service = new BillingService();
+      const regular = service.buildVoucherPayload(fceNote(), createRuntime());
+      const cancellation = service.buildVoucherPayload(fceNote({ cancellation: true }), createRuntime());
+
+      expect(regular.Opcionales).toEqual([{ Id: '22', Valor: 'N' }]);
+      expect(cancellation.Opcionales).toEqual([{ Id: '22', Valor: 'S' }]);
+      expect(regular.CbtesAsoc).toEqual([{ CbteFch: '20260310', Cuit: '20123456789', Nro: 7, PtoVta: 3, Tipo: 201 }]);
+    });
+
+    it('rejects invoice-only optionals on FCE notes', () => {
+      expect(() =>
+        new BillingService().buildVoucherPayload(fceNote({ cbu: '0110599520000012345678' }), createRuntime()),
+      ).toThrow(/no lleva --cbu/);
+    });
+
+    it('requires the associated voucher date on FCE notes', () => {
+      expect(() =>
+        new BillingService().buildVoucherPayload(
+          fceNote({ associatedVoucher: { numero: 7, puntoVenta: 3, shortcut: 'fcea' } }),
+          createRuntime(),
+        ),
+      ).toThrow(/requiere la fecha del comprobante asociado/);
+    });
+
+    it('rejects an associated voucher date after the note date', () => {
+      expect(() =>
+        new BillingService().buildVoucherPayload(
+          fceNote({ associatedVoucher: { fecha: '19/03/2026', numero: 7, puntoVenta: 3, shortcut: 'fcea' } }),
+          createRuntime(),
+        ),
+      ).toThrow(/no puede ser posterior/);
+    });
+
+    it('rejects an associated CUIT different from the emitter on FCE notes', () => {
+      expect(() =>
+        new BillingService().buildVoucherPayload(
+          fceNote({
+            associatedVoucher: { cuit: '20999999999', fecha: '10/03/2026', numero: 7, puntoVenta: 3, shortcut: 'fcea' },
+          }),
+          createRuntime(),
+        ),
+      ).toThrow(/tiene que ser del CUIT emisor/);
+    });
+
+    it('rejects FCE optionals on regular vouchers', () => {
+      expect(() =>
+        new BillingService().buildVoucherPayload(
+          createBillingInput({ billingDate: '18/03/2026', cbu: '0110599520000012345678', documentNumber: 0 }),
+          createRuntime(),
+        ),
+      ).toThrow(/--cbu solo aplica a comprobantes de credito electronica/);
+    });
+
+    it('keeps the associated date optional on regular credit notes', () => {
+      const payload = new BillingService().buildVoucherPayload(
+        createBillingInput({
+          associatedVoucher: { cuit: '20123456789', fecha: '10/03/2026', numero: 7, puntoVenta: 3, shortcut: 'fb' },
+          billingDate: '18/03/2026',
+          documentNumber: 0,
+          shortcut: 'ncb',
+        }),
+        createRuntime(),
+      );
+
+      expect(payload.CbtesAsoc?.[0]?.CbteFch).toBe('20260310');
+      expect(payload.Opcionales).toBeUndefined();
+    });
   });
 
   it('rejects invalid service date ranges', () => {

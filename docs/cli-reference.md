@@ -232,6 +232,18 @@ Dicho más directo: **no aplican a `factura`, `factura-credito-electronica`, `fa
 | `--asociado-punto-venta <number>` | `--apv <number>` | `integer`    | ninguno           | Punto de venta del asociado        |
 | `--ar <number>`                   | ninguno          | `integer`    | ninguno           | Número del comprobante asociado    |
 | `--acuit <number>`                | ninguno          | `string(11)` | ninguno           | CUIT del comprobante asociado      |
+| `--afecha <fecha>`                | ninguno          | `string`     | ninguno           | Fecha del comprobante asociado     |
+
+### Crédito electrónico (FCE)
+
+Estos flags solo aplican a comprobantes de crédito electrónica. En cualquier otro comprobante dan error, porque ARCA los rechaza (10169).
+
+| Flag                          | Alias   | Tipo             | Valor por defecto | Aplica a    | Descripción                         |
+| ----------------------------- | ------- | ---------------- | ----------------- | ----------- | ----------------------------------- |
+| `--cbu <cbu>`                 | ninguno | `string(22)`     | `config.cbu`      | Factura FCE | CBU del emisor (obligatorio)        |
+| `--alias <alias>`             | ninguno | `string(6..20)`  | `config.aliasCbu` | Factura FCE | Alias del CBU (opcional)            |
+| `--transferencia <modalidad>` | ninguno | `'sca' \| 'adc'` | `sca`             | Factura FCE | Modalidad de transferencia          |
+| `--anulacion`                 | ninguno | `boolean`        | `false`           | NC/ND FCE   | La nota anula una factura rechazada |
 
 ## Parámetros por familia de comprobantes
 
@@ -345,24 +357,31 @@ arcli nca -m 1 --cs --cuit 20168598204 --ir-ri --ac fa --apv 3 --ar 6 --acuit 20
 
 ### Factura de crédito electrónica `A`, `B` y `C`
 
-La lógica de uso es casi la misma que en una factura común.
+La base es la de una factura común, más los datos de cobro que exige el régimen MiPyMEs.
 
 #### Qué cambia respecto a una factura común
 
 - cambia el tipo ARCA
-- se mantiene la misma estructura base
 - no usa comprobante asociado
+- lleva el CBU del emisor y la modalidad de transferencia
+- siempre lleva vencimiento de pago, incluso con concepto productos
+- la fecha del comprobante puede ir de 5 días antes a 1 día después de hoy
 
 #### Qué necesitás para emitir este comprobante
 
 **Obligatorio**
 
 - lo mismo que en una factura común
+- CBU: `--cbu`, o configurado una vez con `arcli config establecer cbu <22 dígitos>`
+
+**Opcional**
+
+- `--alias`, `--transferencia` (por defecto `sca`) y `--vencimiento`
 
 #### Ejemplo mínimo funcional
 
 ```bash
-arcli fcec -m 1 --cs --consumidor-final --ir-cf
+arcli fcea -m 1 --cs --cuit 20168598204 --ir-ri --cbu 0110599520000012345678
 ```
 
 ### Nota de crédito electrónica y nota de débito electrónica `A`, `B` y `C`
@@ -371,19 +390,26 @@ Acá se combinan las dos reglas anteriores:
 
 - base de factura
 - tipo ARCA electrónico
-- comprobante asociado obligatorio
+- comprobante asociado obligatorio, con su fecha
 
 #### Qué necesitás para emitir este comprobante
 
 **Obligatorio**
 
 - todo lo base de una factura
-- bloque de asociado completo
+- bloque de asociado completo, incluida `--afecha`
+- el asociado tiene que ser del propio emisor: `--acuit` se puede omitir y toma el CUIT configurado
+
+**Opcional**
+
+- `--anulacion` si la nota anula una factura que el comprador rechazó
+
+No llevan CBU, alias, transferencia ni vencimiento de pago.
 
 #### Ejemplo mínimo funcional
 
 ```bash
-arcli ncec -m 1 --cs --consumidor-final --ir-cf --ac fcec --apv 3 --ar 6 --acuit 20409509763
+arcli ncea -m 1 --cs --cuit 20168598204 --ir-ri --ac fcea --apv 3 --ar 6 --afecha 01-03-2026
 ```
 
 ## Ejemplos útiles

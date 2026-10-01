@@ -608,21 +608,26 @@ Verifica:
 
 ## Comprobantes electronicos
 
-Mismos flags que sus equivalentes en papel; la unica diferencia es el shortcut
-(`fcea/fceb/fcec`, `ncea/nceb/ncec`, `ndea/ndeb/ndec`). Las notas requieren
-comprobante asociado igual que sus pares no electronicos.
+Misma base que sus equivalentes en papel, más los datos de FCE: las facturas
+llevan `--cbu` (o `config cbu`) y las notas, `--afecha` con la fecha de la factura
+asociada. El CUIT del asociado se toma del emisor.
 
 ```bash
-yarn dev fcea -m 2000 --cs --consumidor-final --ir-cf --previsualizar
-yarn dev fceb -m 2000 --cs --consumidor-final --ir-cf --previsualizar
-yarn dev fcec -m 2000 --cs --consumidor-final --ir-cf --previsualizar
-yarn dev ncea -m 500 --cs --consumidor-final --ir-cf --ac fcea --apv 3 --ar 1 --previsualizar
-yarn dev nceb -m 500 --cs --consumidor-final --ir-cf --ac fceb --apv 3 --ar 1 --previsualizar
-yarn dev ncec -m 500 --cs --consumidor-final --ir-cf --ac fcec --apv 3 --ar 1 --previsualizar
-yarn dev ndea -m 500 --cs --consumidor-final --ir-cf --ac fcea --apv 3 --ar 1 --previsualizar
-yarn dev ndeb -m 500 --cs --consumidor-final --ir-cf --ac fceb --apv 3 --ar 1 --previsualizar
-yarn dev ndec -m 500 --cs --consumidor-final --ir-cf --ac fcec --apv 3 --ar 1 --previsualizar
+yarn dev fcea -m 2000 --cs --cuit 20168598204 --ir-ri --cbu 0110599520000012345678 --previsualizar
+yarn dev fceb -m 2000 --cs --dni 12345678 --ir-cf --cbu 0110599520000012345678 --transferencia adc --previsualizar
+yarn dev fcec -m 2000 --cs --cfinal --ir-cf --cbu 0110599520000012345678 --previsualizar
+yarn dev ncea -m 500 --cs --cuit 20168598204 --ir-ri --ac fcea --apv 3 --ar 1 --afecha 1 --previsualizar
+yarn dev nceb -m 500 --cs --dni 12345678 --ir-cf --ac fceb --apv 3 --ar 1 --afecha 1 --anulacion --previsualizar
+yarn dev ncec -m 500 --cs --cfinal --ir-cf --ac fcec --apv 3 --ar 1 --afecha 1 --previsualizar
+yarn dev ndea -m 500 --cs --cuit 20168598204 --ir-ri --ac fcea --apv 3 --ar 1 --afecha 1 --previsualizar
+yarn dev ndeb -m 500 --cs --dni 12345678 --ir-cf --ac fceb --apv 3 --ar 1 --afecha 1 --previsualizar
+yarn dev ndec -m 500 --cs --cfinal --ir-cf --ac fcec --apv 3 --ar 1 --afecha 1 --previsualizar
 ```
+
+Verifica:
+
+- en facturas FCE, el preview muestra CBU, transferencia y vencimiento de pago
+- en NC/ND FCE, el preview muestra fecha del asociado y anulación (`Si`/`No`)
 
 Verifica:
 

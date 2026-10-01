@@ -5,6 +5,8 @@ import type { ArcliConfig } from './config.schemas';
 import type { ConfigDoctorReport } from './config-doctor';
 
 interface PublicConfigSnapshot {
+  readonly aliasCbu?: string;
+  readonly cbu?: string;
   readonly cert: {
     readonly produccion?: string;
     readonly testing?: string;
@@ -28,6 +30,8 @@ interface PublicConfigSnapshot {
 
 function toPublicSnapshot(config: ArcliConfig, effectiveTicketPath: string): PublicConfigSnapshot {
   return {
+    aliasCbu: config.aliasCbu,
+    cbu: config.cbu,
     cert: {
       produccion: config.cert.produccion ? maskPath(config.cert.produccion) : undefined,
       testing: config.cert.testing ? maskPath(config.cert.testing) : undefined,
@@ -62,6 +66,8 @@ export function formatConfigAsText(config: ArcliConfig, effectiveTicketPath: str
   const safeConfig = toPublicSnapshot(config, effectiveTicketPath);
   const rows: Array<readonly [string, string | number]> = [
     ['CUIT', safeConfig.cuit ?? 'no configurado'],
+    ['CBU (FCE)', safeConfig.cbu ?? 'no configurado'],
+    ['Alias CBU (FCE)', safeConfig.aliasCbu ?? 'no configurado'],
     ['Concepto', safeConfig.concepto ?? 'no configurado'],
     ['IVA receptor', safeConfig.ivaReceptor ?? 'no configurado'],
     ['Moneda', safeConfig.moneda ?? 'PES'],

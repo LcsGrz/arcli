@@ -157,6 +157,53 @@ describe('billing.command.parser', () => {
     expect(short.paymentDueDate).toBe('11/04');
   });
 
+  it('applies the configured CBU only to FCE invoices', () => {
+    const defaults = { defaultCbu: '0110599520000012345678', defaultCbuAlias: 'mi.alias.cbu' };
+    const fce = parseBillingCommandInput(createCommand(['--monto', '1000', '--cs', '--ir-ri']), 'fcea', defaults);
+    const regular = parseBillingCommandInput(createCommand(['--monto', '1000', '--cs', '--ir-ri']), 'fa', defaults);
+
+    expect(fce.cbu).toBe('0110599520000012345678');
+    expect(fce.cbuAlias).toBe('mi.alias.cbu');
+    expect(regular.cbu).toBeUndefined();
+    expect(regular.cbuAlias).toBeUndefined();
+  });
+
+  it('parses FCE flags', () => {
+    const input = parseBillingCommandInput(
+      createCommand([
+        '--monto',
+        '1000',
+        '--cs',
+        '--ir-ri',
+        '--ac',
+        'fcea',
+        '--apv',
+        '3',
+        '--ar',
+        '7',
+        '--afecha',
+        '10/03',
+        '--anulacion',
+      ]),
+      'ncea',
+    );
+
+    expect(input.cancellation).toBe(true);
+    expect(input.associatedVoucher?.fecha).toBe('10/03');
+  });
+
+  it('normalizes the transfer mode and rejects unknown values', () => {
+    const input = parseBillingCommandInput(
+      createCommand(['--monto', '1000', '--cs', '--ir-ri', '--transferencia', 'ADC']),
+      'fcea',
+    );
+
+    expect(input.transferMode).toBe('adc');
+    expect(() =>
+      parseBillingCommandInput(createCommand(['--monto', '1000', '--cs', '--ir-ri', '--transferencia', 'xyz']), 'fcea'),
+    ).toThrow();
+  });
+
   it('loads base data from a JSON file', () => {
     const directory = mkdtempSync(join(tmpdir(), 'arcli-billing-cli-'));
 

@@ -3,6 +3,8 @@ import { readPemFile } from '../../lib/security/pem';
 import { arcliDefaultConceptSchema, arcliDefaultIvaConditionSchema, arcliEnvironmentSchema } from './config.schemas';
 
 export type CanonicalConfigKey =
+  | 'aliasCbu'
+  | 'cbu'
   | 'cert.produccion'
   | 'cert.testing'
   | 'conceptoPorDefecto'
@@ -43,6 +45,26 @@ function parseNonEmptyString(value: string): string {
   return normalizedValue;
 }
 
+function parseCbu(value: string): string {
+  const normalizedValue = value.trim();
+
+  if (!/^\d{22}$/.test(normalizedValue)) {
+    throw new Error(`El CBU "${value}" no es valido: debe tener 22 digitos.`);
+  }
+
+  return normalizedValue;
+}
+
+function parseCbuAlias(value: string): string {
+  const normalizedValue = value.trim();
+
+  if (!/^[A-Za-z0-9.-]{6,20}$/.test(normalizedValue)) {
+    throw new Error(`El alias "${value}" no es valido: debe tener entre 6 y 20 letras, numeros, puntos o guiones.`);
+  }
+
+  return normalizedValue;
+}
+
 function parsePositiveInteger(value: string): number {
   const parsedValue = Number.parseInt(value.trim(), 10);
 
@@ -73,6 +95,10 @@ function parsePemPath(value: string, label: 'certificado' | 'clave privada'): st
 
 export function parseConfigValue(key: CanonicalConfigKey, value: string): boolean | number | string {
   switch (key) {
+    case 'aliasCbu':
+      return parseCbuAlias(value);
+    case 'cbu':
+      return parseCbu(value);
     case 'conceptoPorDefecto':
       return arcliDefaultConceptSchema.parse(value.trim().toLowerCase());
     case 'cotizacionPorDefecto':

@@ -33,6 +33,16 @@ export const arcliConfigSchema = z.object({
     .trim()
     .regex(/^\d{11}$/, 'El CUIT debe tener 11 digitos')
     .optional(),
+  cbu: z
+    .string()
+    .trim()
+    .regex(/^\d{22}$/, 'El CBU debe tener 22 digitos')
+    .optional(),
+  aliasCbu: z
+    .string()
+    .trim()
+    .regex(/^[A-Za-z0-9.-]{6,20}$/, 'El alias debe tener entre 6 y 20 caracteres (letras, numeros, punto o guion)')
+    .optional(),
   conceptoPorDefecto: arcliDefaultConceptSchema.optional(),
   ivaReceptorPorDefecto: arcliDefaultIvaConditionSchema.optional(),
   monedaPorDefecto: arcliDefaultCurrencySchema.optional(),
@@ -72,6 +82,8 @@ export const CONFIG_DEFAULTS: ArcliConfig = {
 };
 
 export const configPublicKeySchema = z.enum([
+  'aliasCbu',
+  'cbu',
   'cert.produccion',
   'cert.testing',
   'concepto',

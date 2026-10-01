@@ -53,7 +53,58 @@ function resolveAssociatedShortcut(definition: VoucherKindDefinition): string {
   return `fce${definition.letter}`;
 }
 
-function buildMinimalLong(definition: VoucherKindDefinition): string {
+const EXAMPLE_CBU = '0110599520000012345678';
+
+interface ExampleDates {
+  readonly associated: string;
+  readonly billing: string;
+  readonly paymentDue: string;
+  readonly serviceEnd: string;
+  readonly serviceStart: string;
+}
+
+function formatExampleDate(value: Date): string {
+  const day = String(value.getDate()).padStart(2, '0');
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+
+  return `${day}-${month}-${value.getFullYear()}`;
+}
+
+// Fechas relativas a hoy para que los ejemplos queden dentro de la ventana que acepta ARCA.
+function resolveExampleDates(today: Date): ExampleDates {
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const paymentDue = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 10);
+
+  return {
+    associated: formatExampleDate(monthStart),
+    billing: formatExampleDate(today),
+    paymentDue: formatExampleDate(paymentDue),
+    serviceEnd: formatExampleDate(today),
+    serviceStart: formatExampleDate(monthStart),
+  };
+}
+
+function isElectronicCreditNote(definition: VoucherKindDefinition): boolean {
+  return definition.isElectronicCredit && definition.requiresAssociatedVoucher;
+}
+
+function resolveElectronicCreditFlags(
+  definition: VoucherKindDefinition,
+  dates: ExampleDates,
+  variant: 'full' | 'minimal',
+): string[] {
+  if (!definition.isElectronicCredit) {
+    return [];
+  }
+
+  if (isElectronicCreditNote(definition)) {
+    return [`--afecha ${dates.associated}`];
+  }
+
+  return variant === 'full' ? [`--cbu ${EXAMPLE_CBU}`, '--transferencia sca'] : [`--cbu ${EXAMPLE_CBU}`];
+}
+
+function buildMinimalLong(definition: VoucherKindDefinition, dates: ExampleDates): string {
   const command = [
     `arcli ${definition.family} ${definition.letter}`,
     `--monto ${resolveAmount(definition)}`,
@@ -70,12 +121,12 @@ function buildMinimalLong(definition: VoucherKindDefinition): string {
     );
   }
 
-  command.push('--previsualizar');
+  command.push(...resolveElectronicCreditFlags(definition, dates, 'minimal'), '--previsualizar');
 
   return command.join(' ');
 }
 
-function buildMinimalShort(definition: VoucherKindDefinition): string {
+function buildMinimalShort(definition: VoucherKindDefinition, dates: ExampleDates): string {
   const command = [`arcli ${definition.shortcut}`, `-m ${resolveAmount(definition)}`, '--cs'];
   command.push(...resolveIdentityShort(definition));
 
@@ -83,24 +134,28 @@ function buildMinimalShort(definition: VoucherKindDefinition): string {
     command.push(`--ac ${resolveAssociatedShortcut(definition)}`, '--apv 3', '--ar 120', '--acuit 20409509763');
   }
 
-  command.push('--previsualizar');
+  command.push(...resolveElectronicCreditFlags(definition, dates, 'minimal'), '--previsualizar');
 
   return command.join(' ');
 }
 
-function buildFullLong(definition: VoucherKindDefinition): string {
+function buildFullLong(definition: VoucherKindDefinition, dates: ExampleDates): string {
   const command = [
     `arcli ${definition.family} ${definition.letter}`,
     `--monto ${resolveAmount(definition)}`,
     '--concepto servicios',
     '--punto-venta 3',
-    '--fecha 31-03-2026',
+    `--fecha ${dates.billing}`,
     '--moneda PES',
     '--cotizacion-moneda 1',
-    '--dia 31',
-    '--servicio-desde 01-03-2026',
-    '--servicio-hasta 31-03-2026',
+    `--servicio-desde ${dates.serviceStart}`,
+    `--servicio-hasta ${dates.serviceEnd}`,
   ];
+
+  if (!isElectronicCreditNote(definition)) {
+    command.push(`--vencimiento ${dates.paymentDue}`);
+  }
+
   command.push(...resolveIdentityLong(definition));
 
   if (definition.requiresAssociatedVoucher) {
@@ -112,36 +167,40 @@ function buildFullLong(definition: VoucherKindDefinition): string {
     );
   }
 
-  command.push('--previsualizar');
+  command.push(...resolveElectronicCreditFlags(definition, dates, 'full'), '--previsualizar');
 
   return command.join(' ');
 }
 
-function buildFullShort(definition: VoucherKindDefinition): string {
+function buildFullShort(definition: VoucherKindDefinition, dates: ExampleDates): string {
   const command = [
     `arcli ${definition.shortcut}`,
     `-m ${resolveAmount(definition)}`,
     '--cs',
     '--pv 3',
-    '-f 31-03-2026',
+    `-f ${dates.billing}`,
     '--mda PES',
     '--cm 1',
-    '-d 31',
-    '--sd 01-03-2026',
-    '--sh 31-03-2026',
+    `--sd ${dates.serviceStart}`,
+    `--sh ${dates.serviceEnd}`,
   ];
+
+  if (!isElectronicCreditNote(definition)) {
+    command.push(`--vto ${dates.paymentDue}`);
+  }
+
   command.push(...resolveIdentityShort(definition));
 
   if (definition.requiresAssociatedVoucher) {
     command.push(`--ac ${resolveAssociatedShortcut(definition)}`, '--apv 3', '--ar 120', '--acuit 20409509763');
   }
 
-  command.push('--previsualizar');
+  command.push(...resolveElectronicCreditFlags(definition, dates, 'full'), '--previsualizar');
 
   return command.join(' ');
 }
 
-function formatVoucherExample(definition: VoucherKindDefinition): string {
+function formatVoucherExample(definition: VoucherKindDefinition, dates: ExampleDates): string {
   return [
     renderPanel({
       borderType: 'note',
@@ -157,27 +216,29 @@ function formatVoucherExample(definition: VoucherKindDefinition): string {
     }),
     '',
     `${badge('MINIMA LARGA', 'info')}`,
-    `${buildMinimalLong(definition)}`,
+    `${buildMinimalLong(definition, dates)}`,
     '',
     `${badge('MINIMA CORTA', 'success')}`,
-    `${buildMinimalShort(definition)}`,
+    `${buildMinimalShort(definition, dates)}`,
     '',
     `${badge('FULL LARGA', 'warning')}`,
-    `${buildFullLong(definition)}`,
+    `${buildFullLong(definition, dates)}`,
     '',
     `${badge('FULL CORTA', 'debug')}`,
-    `${buildFullShort(definition)}`,
+    `${buildFullShort(definition, dates)}`,
   ].join('\n');
 }
 
-function renderFamilyExamples(family: VoucherFamily): string {
+function renderFamilyExamples(family: VoucherFamily, dates: ExampleDates): string {
   return VOUCHER_SHORTCUTS.map((shortcut) => VOUCHER_KIND_MAP[shortcut])
     .filter((definition) => definition.family === family)
-    .map(formatVoucherExample)
+    .map((definition) => formatVoucherExample(definition, dates))
     .join('\n\n\n');
 }
 
-export function renderExamples(): string {
+export function renderExamples(today = new Date()): string {
+  const dates = resolveExampleDates(today);
+
   return [
     renderLogo().trim(),
     '',
@@ -193,7 +254,7 @@ export function renderExamples(): string {
     '',
     ISSUER_HINT,
     '',
-    ...VOUCHER_FAMILIES.flatMap((family) => [renderFamilyExamples(family), '']),
+    ...VOUCHER_FAMILIES.flatMap((family) => [renderFamilyExamples(family, dates), '']),
     '',
   ].join('\n');
 }

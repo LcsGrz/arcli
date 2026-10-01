@@ -166,6 +166,19 @@ Además:
 - el asociado debe ser una factura, no otra nota
 - la letra debe coincidir
 - la categoría electrónica debe coincidir
+- `--afecha` es opcional, salvo en NC/ND FCE, y no puede ser posterior a la fecha de la nota (10159)
+
+### Crédito electrónico (FCE)
+
+ARCLI arma `Opcionales` (los "Adicionales por R.G.") según el comprobante:
+
+| Comprobante                          | `Opcionales`                                                 | Reglas                                                                                                                                                                                                  |
+| ------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Factura FCE (`fcea`, `fceb`, `fcec`) | `2101` CBU, `2102` alias (si se informa), `27` transferencia | El CBU es obligatorio (10168) y tiene 22 dígitos (10165). El alias tiene de 6 a 20 caracteres (10166). La transferencia es `SCA` o `ADC`, por defecto `SCA` (10216). `--anulacion` da error (10171).    |
+| NC/ND FCE (`ncea`…`ndec`)            | `22` anulación: `S` con `--anulacion`, si no `N`             | Obligatorio (10173). `--cbu`, `--alias` y `--transferencia` dan error (10172). `--afecha` es obligatoria (10158). El asociado tiene que ser del CUIT emisor (10155), así que `--acuit` se puede omitir. |
+| Resto                                | ninguno                                                      | `--cbu`, `--alias`, `--transferencia` y `--anulacion` dan error (10169).                                                                                                                                |
+
+`config.cbu` y `config.aliasCbu` solo se aplican a facturas FCE. ARCA además exige que el CBU esté registrado a nombre del emisor (10174), cosa que no se puede validar localmente.
 
 ### Moneda y cotización
 

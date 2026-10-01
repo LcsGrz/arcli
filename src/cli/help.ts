@@ -55,8 +55,27 @@ const AVAILABLE_ASSOCIATED_OPTIONS = [
   '  - --at <number> | notas | tipo ARCA del comprobante asociado',
   '  - --asociado-punto-venta <number> | --apv <number> | notas | punto de venta del asociado',
   '  - --ar <number> | notas | numero del comprobante asociado',
-  '  - --acuit <number> | notas | CUIT del comprobante asociado',
+  '  - --acuit <number> | notas | CUIT del comprobante asociado; en NC/ND FCE por defecto el CUIT emisor',
+  '  - --afecha <fecha> | notas | fecha del comprobante asociado; obligatoria en NC/ND FCE',
 ].join('\n');
+
+const AVAILABLE_FCE_INVOICE_OPTIONS = [
+  '  - --cbu <22 digitos> | facturas FCE | CBU del emisor; obligatorio (o config cbu)',
+  '  - --alias <alias> | facturas FCE | alias del CBU (o config aliasCbu)',
+  '  - --transferencia <sca|adc> | facturas FCE | modalidad de transferencia; por defecto sca',
+].join('\n');
+
+const AVAILABLE_FCE_NOTE_OPTIONS = [
+  '  - --anulacion | NC/ND FCE | la nota anula una factura rechazada por el comprador',
+].join('\n');
+
+function resolveFceOptions(isElectronicCredit: boolean, isNote: boolean): string {
+  if (!isElectronicCredit) {
+    return '  - No aplica para este comprobante.';
+  }
+
+  return isNote ? AVAILABLE_FCE_NOTE_OPTIONS : AVAILABLE_FCE_INVOICE_OPTIONS;
+}
 
 const AVAILABLE_EXECUTION_OPTIONS = [
   '  - --previsualizar | todas | muestra el payload antes de hablar con ARCA',
@@ -283,6 +302,13 @@ function createShortcutImportantFlags(shortcut: VoucherShortcut): string {
       definition.requiresAssociatedVoucher
         ? '  - Asociado: --ac o --at, mas --apv, --ar y --acuit.'
         : '  - Asociado: no aplica para este comprobante.',
+      ...(definition.isElectronicCredit
+        ? [
+            definition.requiresAssociatedVoucher
+              ? '  - FCE: --afecha obligatoria y --anulacion si anula una factura rechazada.'
+              : '  - FCE: --cbu obligatorio (o config cbu), --alias y --transferencia sca|adc.',
+          ]
+        : []),
       '  - Salida y ejecucion: --previsualizar, --emitir, --json, --bruto, --testing, --produccion.',
     ].join('\n'),
   );
@@ -309,6 +335,9 @@ function createShortcutAvailableFlags(shortcut: VoucherShortcut): string {
       '',
       'Comprobante asociado',
       definition.requiresAssociatedVoucher ? AVAILABLE_ASSOCIATED_OPTIONS : '  - No aplica para este comprobante.',
+      '',
+      'Credito electronico (FCE)',
+      resolveFceOptions(definition.isElectronicCredit, definition.requiresAssociatedVoucher),
       '',
       'Ejecucion y salida',
       AVAILABLE_EXECUTION_OPTIONS,
@@ -391,6 +420,9 @@ function createFamilySharedFlags(family: VoucherFamily): string {
         '',
         'Comprobante asociado',
         family.includes('nota') ? AVAILABLE_ASSOCIATED_OPTIONS : '  - No aplica para esta familia.',
+        '',
+        'Credito electronico (FCE)',
+        resolveFceOptions(family.includes('electronica'), family.includes('nota')),
         '',
         'Ejecucion y salida',
         AVAILABLE_EXECUTION_OPTIONS,

@@ -48,6 +48,7 @@ const billingAssociatedVoucherSchema = z
       .trim()
       .regex(/^\d{11}$/)
       .optional(),
+    fecha: z.string().trim().optional(),
     numero: z.number().int().positive().optional(),
     puntoVenta: z.number().int().positive().optional(),
     shortcut: z.string().trim().min(1).optional(),
@@ -58,6 +59,17 @@ const billingAssociatedVoucherSchema = z
 export const billingCommandSchema = z.object({
   associatedVoucher: billingAssociatedVoucherSchema,
   billingDate: z.string().trim().optional(),
+  cancellation: z.boolean().default(false),
+  cbu: z
+    .string()
+    .trim()
+    .regex(/^\d{22}$/, 'El CBU debe tener 22 digitos')
+    .optional(),
+  cbuAlias: z
+    .string()
+    .trim()
+    .regex(/^[A-Za-z0-9.-]{6,20}$/, 'El alias debe tener entre 6 y 20 caracteres (letras, numeros, punto o guion)')
+    .optional(),
   concept: billingConceptSchema,
   currencyCode: z.string().trim().length(3).default('ARS'),
   documentNumber: z.number().int().nonnegative().optional(),
@@ -78,6 +90,12 @@ export const billingCommandSchema = z.object({
     .min(1)
     .transform((value) => value as VoucherShortcut),
   totalAmount: z.number().positive(),
+  transferMode: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .pipe(z.enum(['adc', 'sca']))
+    .optional(),
 });
 
 export type BillingConcept = z.infer<typeof billingConceptSchema>;

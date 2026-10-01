@@ -54,6 +54,13 @@ describe('config-value-parser', () => {
     expect(() => parseConfigValue('output.emitirPorDefecto', 'tal-vez')).toThrow(/no es un booleano valido/);
   });
 
+  it('validates the FCE CBU and its alias', () => {
+    expect(parseConfigValue('cbu', ' 0110599520000012345678 ')).toBe('0110599520000012345678');
+    expect(parseConfigValue('aliasCbu', 'mi.alias.cbu')).toBe('mi.alias.cbu');
+    expect(() => parseConfigValue('cbu', '123')).toThrow(/debe tener 22 digitos/);
+    expect(() => parseConfigValue('aliasCbu', 'abc')).toThrow(/entre 6 y 20/);
+  });
+
   it('parses positive numbers and integers', () => {
     expect(parseConfigValue('cotizacionPorDefecto', '1234.5')).toBe(1234.5);
     expect(parseConfigValue('puntoVentaPorDefecto', '3')).toBe(3);

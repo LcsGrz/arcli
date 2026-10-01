@@ -18,6 +18,9 @@ arcli fc --cargar ./voucher.json
 
 | Campo                 | Tipo    | Requerido                              | Descripción                                |
 | --------------------- | ------- | -------------------------------------- | ------------------------------------------ |
+| `aliasCbu`            | string  | no                                     | Alias del CBU (facturas FCE)               |
+| `anulacion`           | boolean | no                                     | NC/ND FCE de anulación                     |
+| `cbu`                 | string  | en facturas FCE, salvo `config.cbu`    | CBU del emisor (facturas FCE)              |
 | `comprobanteAsociado` | object  | no                                     | Comprobante asociado                       |
 | `concepto`            | string  | sí, salvo default por flags/config     | Concepto                                   |
 | `codigoMoneda`        | string  | no                                     | Moneda                                     |
@@ -35,16 +38,18 @@ arcli fc --cargar ./voucher.json
 | `servicioHasta`       | string  | no                                     | Fecha fin de servicio                      |
 | `vencimientoPago`     | string  | no                                     | Fecha de vencimiento del pago              |
 | `tipoDocumento`       | string  | no                                     | `consumidor-final`, `cuit`, `cuil` o `dni` |
+| `transferencia`       | string  | no                                     | `sca` o `adc` (facturas FCE)               |
 
 ### Objeto `comprobanteAsociado`
 
-| Campo        | Tipo   | Requerido     | Descripción                             |
-| ------------ | ------ | ------------- | --------------------------------------- |
-| `atajo`      | string | sí\*          | Atajo del comprobante asociado          |
-| `cuit`       | string | sí para notas | CUIT del comprobante asociado           |
-| `numero`     | number | sí para notas | Número del comprobante asociado         |
-| `puntoVenta` | number | sí para notas | Punto de venta del comprobante asociado |
-| `tipo`       | number | sí\*          | Tipo ARCA del comprobante asociado      |
+| Campo        | Tipo   | Requerido       | Descripción                                                         |
+| ------------ | ------ | --------------- | ------------------------------------------------------------------- |
+| `atajo`      | string | sí\*            | Atajo del comprobante asociado                                      |
+| `cuit`       | string | sí para notas   | CUIT del comprobante asociado (en NC/ND FCE, por defecto el emisor) |
+| `fecha`      | string | sí en NC/ND FCE | Fecha del comprobante asociado                                      |
+| `numero`     | number | sí para notas   | Número del comprobante asociado                                     |
+| `puntoVenta` | number | sí para notas   | Punto de venta del comprobante asociado                             |
+| `tipo`       | number | sí\*            | Tipo ARCA del comprobante asociado                                  |
 
 \* Hay que informar `atajo` o `tipo`, pero no hace falta enviar ambos.
 

@@ -40,6 +40,8 @@ export async function executeBillingCommand(command: Command, shortcut: VoucherS
   try {
     const runtime = new ArcaContextResolver({ options: globalOptions }).resolve();
     const plan = parseBillingCommandPlan(command, shortcut, {
+      defaultCbu: runtime.config.cbu,
+      defaultCbuAlias: runtime.config.aliasCbu,
       defaultConcept: runtime.config.conceptoPorDefecto,
       defaultCurrencyCode: runtime.config.monedaPorDefecto,
       defaultEmit: runtime.config.output.emitirPorDefecto,
