@@ -26,6 +26,7 @@ interface PublicConfigSnapshot {
   readonly puntoVenta?: number;
   readonly bruto: boolean;
   readonly ticketPath: string;
+  readonly verificarFce?: boolean;
 }
 
 function toPublicSnapshot(config: ArcliConfig, effectiveTicketPath: string): PublicConfigSnapshot {
@@ -51,6 +52,7 @@ function toPublicSnapshot(config: ArcliConfig, effectiveTicketPath: string): Pub
     puntoVenta: config.puntoVentaPorDefecto,
     bruto: config.output.brutoPorDefecto,
     ticketPath: maskPath(effectiveTicketPath),
+    verificarFce: config.verificarFce,
   };
 }
 
@@ -68,6 +70,7 @@ export function formatConfigAsText(config: ArcliConfig, effectiveTicketPath: str
     ['CUIT', safeConfig.cuit ?? 'no configurado'],
     ['CBU (FCE)', safeConfig.cbu ?? 'no configurado'],
     ['Alias CBU (FCE)', safeConfig.aliasCbu ?? 'no configurado'],
+    ['Verificar regimen FCE', safeConfig.verificarFce ? 'si' : 'no'],
     ['Concepto', safeConfig.concepto ?? 'no configurado'],
     ['IVA receptor', safeConfig.ivaReceptor ?? 'no configurado'],
     ['Moneda', safeConfig.moneda ?? 'PES'],

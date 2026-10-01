@@ -176,6 +176,14 @@ arcli fc ayuda
 - **Solución:** pasar en `--monto` el total, incluidos exento y no gravado.
 - **Documentación relacionada:** [IVA automático](validation-rules.md#iva-automático)
 
+### `wsfecred` no autorizado
+
+- **Severidad:** frecuente si usás `fce-obligado` o `verificarFce`
+- **Síntoma:** `El certificado no esta autorizado para el servicio wsfecred ...` (ARCA responde `coe.notAuthorized`).
+- **Causa:** el certificado solo tiene autorizado `wsfe`. La consulta del régimen FCE usa otro servicio.
+- **Solución:** crear la autorización para `wsfecred` igual que la de `wsfe`, en WSASS (testing) o en el Administrador de Relaciones (producción). Si no la necesitás, desactivá el chequeo con `arcli config eliminar verificarFce`.
+- **Documentación relacionada:** [Autorizar el servicio web](obtencion-certificados.md#3-autorizar-el-servicio-web)
+
 ## ARCA
 
 ### `coe.alreadyAuthenticated`

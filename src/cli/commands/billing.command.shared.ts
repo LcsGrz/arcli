@@ -6,9 +6,11 @@ import { BillingService } from '../../modules/billing/billing.service';
 import type { VoucherShortcut } from '../../modules/billing/billing.types';
 import type { BillingExecutionResult } from '../../modules/billing/billing.types.internal';
 import { getVoucherKindByShortcut } from '../../modules/billing/voucher-kind-map';
+import type { FceObligationGateway } from '../../modules/fce/fce-obligation';
 import { ArcaBillingGateway } from '../../services/arca/arca-billing.gateway';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { ArcaContextResolver } from '../../services/arca/arca-context.resolver';
+import { ArcaFceObligationGateway } from '../../services/arca/arca-fce-obligation.gateway';
 import type { GlobalCliOptions } from '../types';
 
 import { runInteractiveBillingPreview } from './billing.command.interactive-preview';
@@ -30,6 +32,21 @@ export function registerBillingCommandOptions(command: Command): void {
 
 export function getGlobalOptions(command: Command): GlobalCliOptions {
   return command.optsWithGlobals<GlobalCliOptions>();
+}
+
+async function resolveFceWarnings(
+  inputs: readonly BillingCommandInput[],
+  service: BillingService,
+  gateway: FceObligationGateway,
+): Promise<string[][]> {
+  const warnings: string[][] = [];
+
+  // Secuencial a proposito: cada consulta a wsfecred reutiliza el mismo ticket WSAA.
+  for (const input of inputs) {
+    warnings.push(await service.resolveFceWarnings(input, gateway));
+  }
+
+  return warnings;
 }
 
 export async function executeBillingCommand(command: Command, shortcut: VoucherShortcut): Promise<void> {
@@ -58,6 +75,10 @@ export async function executeBillingCommand(command: Command, shortcut: VoucherS
       plannedInputs.push(await service.resolveExchangeRate(input, gateway));
     }
 
+    const warnings = runtime.config.verificarFce
+      ? await resolveFceWarnings(plannedInputs, service, new ArcaFceObligationGateway(arca))
+      : [];
+
     const preview = await runInteractiveBillingPreview({
       inputs: plannedInputs,
       modeSource: plan.modeSource,
@@ -65,6 +86,7 @@ export async function executeBillingCommand(command: Command, shortcut: VoucherS
       service,
       useRaw,
       voucherLabel: voucherKind?.displayName ?? 'este comprobante',
+      warnings,
     });
 
     if (!preview.proceed) {
@@ -81,12 +103,13 @@ export async function executeBillingCommand(command: Command, shortcut: VoucherS
 
     const results: BillingExecutionResult[] = [];
 
-    for (const input of inputs) {
+    for (const [index, input] of inputs.entries()) {
       results.push(
         await service.execute({
           gateway,
           input,
           runtime,
+          warnings: warnings[index],
         }),
       );
     }

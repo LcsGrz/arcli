@@ -466,6 +466,24 @@ Tropiezos habituales cuando el comando parece bien armado pero igual falla:
 
 Para el diagnóstico paso a paso de cada caso, ver [Troubleshooting](troubleshooting.md).
 
+## Consultar el régimen FCE
+
+`arcli fce-obligado <cuit>` le pregunta a ARCA si un receptor está obligado a recibir Factura de Crédito Electrónica y desde qué monto. Con eso sabés si corresponde `fa/fb/fc` o `fcea/fceb/fcec`.
+
+```bash
+arcli fce-obligado 30709965812
+arcli fce-obligado 30709965812 --fecha 15/10 --json
+```
+
+| Flag                                  | Alias   | Descripción                                   |
+| ------------------------------------- | ------- | --------------------------------------------- |
+| `--fecha <fecha>`                     | `-f`    | Fecha de emisión a consultar; por defecto hoy |
+| `--json`, `--testing`, `--produccion` | ninguno | Flags globales                                |
+
+Usa el servicio `wsfecred`, que hay que autorizar aparte de `wsfe`. Ver [Autorizar el servicio web](obtencion-certificados.md#3-autorizar-el-servicio-web).
+
+Si activás `arcli config establecer verificarFce true`, la misma consulta corre en cada factura con CUIT del receptor y deja un aviso si el comprobante no coincide con el régimen. Por ejemplo, una `fa` a un receptor obligado por encima del mínimo. El aviso no frena la emisión. Ver [Régimen FCE del receptor](validation-rules.md#régimen-fce-del-receptor).
+
 ## Configuración
 
 Para referencia de comandos `config` y claves disponibles, ver [configuration.md](configuration.md).
@@ -482,4 +500,5 @@ Para referencia de comandos `config` y claves disponibles, ver [configuration.md
 | `config establecer`                                                                                                                | estable | Guarda una clave pública                               |
 | `config eliminar`                                                                                                                  | estable | Elimina una clave pública                              |
 | `ejemplos`                                                                                                                         | estable | Muestra ejemplos listos para copiar                    |
+| `fce-obligado`                                                                                                                     | estable | Consulta si un receptor está obligado a recibir FCE    |
 | `storybook`                                                                                                                        | interno | Herramienta de desarrollo para probar la UI            |

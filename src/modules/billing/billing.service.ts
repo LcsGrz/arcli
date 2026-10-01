@@ -1,12 +1,13 @@
 import type { ICbtesAsoc, IIva, INextVoucher } from '@arcasdk/core/lib/domain/types/voucher.types';
 
-import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
+import { formatDateAsArcaDate, parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import type { ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
+import { evaluateFceObligation, type FceObligationGateway, shouldCheckFceObligation } from '../fce/fce-obligation';
 
 import { resolveTaxAmounts } from './billing.amounts';
 import { resolveAssociatedVouchers } from './billing.associated-vouchers';
-import { needsOfficialExchangeRate, resolveBillingCurrencyFields } from './billing.currency';
+import { isForeignCurrency, needsOfficialExchangeRate, resolveBillingCurrencyFields } from './billing.currency';
 import { resolveBillingDateRange } from './billing.date-range';
 import { resolveElectronicCreditOptionals } from './billing.fce';
 import { validateConsumerIdentification, validateIvaConditionForVoucher } from './billing.iva-receptor';
@@ -27,6 +28,7 @@ export interface BillingExecutionOptions {
   readonly gateway: BillingGateway;
   readonly input: BillingCommandInput;
   readonly runtime: ResolvedArcaRuntime;
+  readonly warnings?: readonly string[];
 }
 
 interface CliVoucherPayload extends Omit<INextVoucher, 'CbtesAsoc' | 'DocNro'> {
@@ -62,6 +64,7 @@ export class BillingService {
         payload,
         response: createDryRunResponse(),
         voucherKind,
+        warnings: options.warnings ?? [],
       };
     }
 
@@ -73,7 +76,35 @@ export class BillingService {
       payload,
       response: mapBillingResponse(response),
       voucherKind,
+      warnings: options.warnings ?? [],
     };
+  }
+
+  /**
+   * Avisa si el comprobante elegido no coincide con el regimen FCE del receptor.
+   * Es informativo: si ARCA no responde, devuelve el motivo como aviso y no frena la emision.
+   */
+  public async resolveFceWarnings(input: BillingCommandInput, gateway: FceObligationGateway): Promise<string[]> {
+    const voucherKind = this.requireVoucherKind(input.shortcut);
+
+    if (!shouldCheckFceObligation(input, voucherKind)) {
+      return [];
+    }
+
+    const issueDate = input.billingDate
+      ? parseArgentineDateInputAsArcaDate(input.billingDate)
+      : formatDateAsArcaDate(new Date());
+    const amountInPesos = input.totalAmount * (isForeignCurrency(input) ? (input.exchangeRate ?? 1) : 1);
+
+    try {
+      const obligation = await gateway.getObligation(input.documentNumber, issueDate);
+
+      return evaluateFceObligation(obligation, voucherKind, amountInPesos);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : 'error desconocido';
+
+      return [`No se pudo verificar el regimen FCE del receptor: ${reason}`];
+    }
   }
 
   public buildVoucherPayload(

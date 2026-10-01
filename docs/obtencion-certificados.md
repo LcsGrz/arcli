@@ -101,6 +101,8 @@ Completá:
 2. **CUIT representado**: en pruebas, tu propio CUIT.
 3. **Servicio al que deseas acceder**: `wsfe` para facturación electrónica.
 
+> Si vas a usar `arcli fce-obligado` o `verificarFce`, repetí este paso con el servicio `wsfecred` (Factura de Crédito Electrónica MiPyMEs).
+
 Presioná **"Crear autorización de acceso"** — deberías ver un mensaje `OK. Autorización
 fue creada`:
 
@@ -168,7 +170,7 @@ Elegí **"Nueva Relación"** y presioná **"Buscar"** junto a Servicio:
 
 ![Buscar el servicio a autorizar](assets/certificados/produccion-autorizar-buscar-servicio.png)
 
-Navegá a **ARCA → Web Services** y elegí el servicio que necesitás (ej. `wsfe`):
+Navegá a **ARCA → Web Services** y elegí el servicio que necesitás (ej. `wsfe`). Si vas a usar `arcli fce-obligado` o `verificarFce`, creá también la relación para `wsfecred`:
 
 ![Elegir el web service de la lista](assets/certificados/produccion-autorizar-elegir-webservice.png)
 

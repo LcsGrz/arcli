@@ -19,7 +19,8 @@ export type CanonicalConfigKey =
   | 'output.jsonPorDefecto'
   | 'output.brutoPorDefecto'
   | 'puntoVentaPorDefecto'
-  | 'ticketPath';
+  | 'ticketPath'
+  | 'verificarFce';
 
 function parseBoolean(value: string): boolean {
   const normalizedValue = value.trim().toLowerCase();
@@ -111,6 +112,7 @@ export function parseConfigValue(key: CanonicalConfigKey, value: string): boolea
       return arcliDefaultIvaConditionSchema.parse(value.trim().toLowerCase());
     case 'monedaPorDefecto':
       return value.trim().toUpperCase();
+    case 'verificarFce':
     case 'output.emitirPorDefecto':
     case 'output.jsonPorDefecto':
     case 'output.brutoPorDefecto':

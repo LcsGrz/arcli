@@ -208,4 +208,13 @@ describe('billing.presenter', () => {
     expect(output).toContain('│      "Code": 43,');
     expect(output).toContain('│      "Code": 502,');
   });
+
+  it('shows FCE warnings in text and JSON output', () => {
+    const result = { ...createDryRunResult(), warnings: ['Corresponde emitir fcea en lugar de fa.'] };
+
+    expect(stripAnsi(formatBillingResultAsText(result))).toContain('AVISOS');
+    expect(stripAnsi(formatBillingResultAsText(result))).toContain('Corresponde emitir fcea en lugar de fa.');
+    expect(JSON.parse(formatBillingResultAsJson(result)).avisos).toEqual(['Corresponde emitir fcea en lugar de fa.']);
+    expect(JSON.parse(formatBillingResultAsJson(createResult())).avisos).toEqual([]);
+  });
 });
