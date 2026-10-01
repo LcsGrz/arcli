@@ -1,7 +1,6 @@
 import type { IIva } from '@arcasdk/core/lib/domain/types/voucher.types';
 import Big from 'big.js';
 
-import type { BillingIvaCondition } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
 
 const DEFAULT_IVA_ALIQUOT_ID = 5;
@@ -14,15 +13,9 @@ export interface TaxAmounts {
   readonly netAmount: number;
 }
 
-export function resolveTaxAmounts(
-  totalAmount: number,
-  ivaCondition: BillingIvaCondition,
-  voucherKind: VoucherKindDefinition,
-): TaxAmounts {
-  const shouldApplyIva =
-    voucherKind.letter === 'b' || (voucherKind.letter === 'a' && ivaCondition === 'responsable-inscripto');
-
-  if (!shouldApplyIva) {
+export function resolveTaxAmounts(totalAmount: number, voucherKind: VoucherKindDefinition): TaxAmounts {
+  // A y B siempre discriminan IVA; la C no lo informa.
+  if (voucherKind.letter === 'c') {
     return {
       ivaAmount: 0,
       netAmount: totalAmount,

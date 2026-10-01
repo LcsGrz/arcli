@@ -59,7 +59,7 @@ function createInput(overrides: Partial<BillingCommandInput> = {}): BillingComma
     exchangeRate: 1,
     ivaCondition: 'consumidor-final',
     sameCurrency: false,
-    shortcut: 'fa',
+    shortcut: 'fb',
     totalAmount: 1000,
     ...overrides,
   };

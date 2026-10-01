@@ -41,7 +41,7 @@ function createBillingInput(overrides: Partial<BillingCommandInput> = {}): Billi
     exchangeRate: 1,
     ivaCondition: 'consumidor-final',
     sameCurrency: false,
-    shortcut: 'fa',
+    shortcut: 'fb',
     totalAmount: 1000,
     ...overrides,
   };
@@ -58,11 +58,11 @@ describe('billing.service', () => {
 
     const service = new BillingService();
 
-    const payload = service.buildVoucherPayload(createBillingInput(), createRuntime());
+    const payload = service.buildVoucherPayload(createBillingInput({ shortcut: 'fc' }), createRuntime());
 
     expect(payload).toMatchObject({
       CbteFch: '20260318',
-      CbteTipo: 1,
+      CbteTipo: 11,
       Concepto: 2,
       DocTipo: 99,
       ImpNeto: 1000,
@@ -257,7 +257,9 @@ describe('billing.service', () => {
           puntoVenta: 3,
           shortcut: 'fa',
         },
-        documentNumber: 0,
+        documentNumber: 20123456789,
+        documentType: 'cuit',
+        ivaCondition: 'responsable-inscripto',
         shortcut: 'nca',
       }),
       createRuntime(),
@@ -384,6 +386,91 @@ describe('billing.service', () => {
     ).toThrow(/no puede ser anterior a hoy/);
   });
 
+  it('discriminates IVA in factura A for a monotributista', () => {
+    const service = new BillingService();
+
+    const payload = service.buildVoucherPayload(
+      createBillingInput({
+        documentNumber: 20123456789,
+        documentType: 'cuit',
+        ivaCondition: 'responsable-monotributo',
+        shortcut: 'fa',
+        totalAmount: 121,
+      }),
+      createRuntime(),
+    );
+
+    expect(payload.ImpNeto).toBe(100);
+    expect(payload.ImpIVA).toBe(21);
+    expect(payload.Iva).toEqual([{ BaseImp: 100, Id: 5, Importe: 21 }]);
+  });
+
+  it('rejects receiver IVA conditions that ARCA does not accept for the voucher letter', () => {
+    const service = new BillingService();
+
+    expect(() =>
+      service.buildVoucherPayload(createBillingInput({ documentNumber: 0, shortcut: 'fa' }), createRuntime()),
+    ).toThrow(/factura a no admite IVA receptor "consumidor-final". Use un comprobante letra B/);
+    expect(() =>
+      service.buildVoucherPayload(
+        createBillingInput({
+          documentNumber: 20123456789,
+          documentType: 'cuit',
+          ivaCondition: 'responsable-inscripto',
+          shortcut: 'fb',
+        }),
+        createRuntime(),
+      ),
+    ).toThrow(/factura b no admite IVA receptor "responsable-inscripto". Use un comprobante letra A/);
+  });
+
+  it('accepts any receiver IVA condition for letter C', () => {
+    const service = new BillingService();
+
+    expect(() =>
+      service.buildVoucherPayload(
+        createBillingInput({
+          documentNumber: 20123456789,
+          documentType: 'cuit',
+          ivaCondition: 'responsable-inscripto',
+          shortcut: 'fc',
+        }),
+        createRuntime(),
+      ),
+    ).not.toThrow();
+  });
+
+  it('requires identifying the consumer final from $10.000.000', () => {
+    const service = new BillingService();
+
+    expect(() =>
+      service.buildVoucherPayload(
+        createBillingInput({ documentNumber: 0, totalAmount: 9_999_999.99 }),
+        createRuntime(),
+      ),
+    ).not.toThrow();
+    expect(() =>
+      service.buildVoucherPayload(createBillingInput({ documentNumber: 0, totalAmount: 10_000_000 }), createRuntime()),
+    ).toThrow(/requiere identificar al consumidor final/);
+    expect(() =>
+      service.buildVoucherPayload(
+        createBillingInput({ documentNumber: 12345678, documentType: 'dni', totalAmount: 10_000_000 }),
+        createRuntime(),
+      ),
+    ).not.toThrow();
+  });
+
+  it('converts foreign currency amounts to pesos for the consumer final threshold', () => {
+    const service = new BillingService();
+
+    expect(() =>
+      service.buildVoucherPayload(
+        createBillingInput({ currencyCode: 'USD', documentNumber: 0, exchangeRate: 1000, totalAmount: 10_000 }),
+        createRuntime(),
+      ),
+    ).toThrow(/requiere identificar al consumidor final/);
+  });
+
   it('builds IVA automatically for factura A with responsable inscripto', () => {
     const service = new BillingService();
 
@@ -392,6 +479,7 @@ describe('billing.service', () => {
         documentNumber: 20123456789,
         documentType: 'cuit',
         ivaCondition: 'responsable-inscripto',
+        shortcut: 'fa',
         totalAmount: 121,
       }),
       createRuntime(),

@@ -8,6 +8,7 @@ import { resolveTaxAmounts } from './billing.amounts';
 import { resolveAssociatedVouchers } from './billing.associated-vouchers';
 import { needsOfficialExchangeRate, resolveBillingCurrencyFields } from './billing.currency';
 import { resolveBillingDateRange } from './billing.date-range';
+import { validateConsumerIdentification, validateIvaConditionForVoucher } from './billing.iva-receptor';
 import {
   resolveBillingConceptCode,
   resolveBillingCurrencyCode,
@@ -96,10 +97,12 @@ export class BillingService {
       requireVoucherKind: (shortcut) => this.requireVoucherKind(shortcut),
       voucherKind,
     });
-    const taxAmounts = resolveTaxAmounts(input.totalAmount, input.ivaCondition, voucherKind);
     const currencyFields = resolveBillingCurrencyFields(input, dateRange.billingDate, formatDateAsArcaDate(new Date()));
+    const taxAmounts = resolveTaxAmounts(input.totalAmount, voucherKind);
 
     validateDocumentIdentity(input, voucherKind);
+    validateIvaConditionForVoucher(input.ivaCondition, voucherKind);
+    validateConsumerIdentification(input, currencyFields.MonCotiz, voucherKind);
 
     const payload: CliVoucherPayload = {
       CantReg: 1,

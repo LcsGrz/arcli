@@ -91,6 +91,7 @@ Si usás consumidor final:
 
 - el documento debe ser `0`
 - el IVA receptor debe ser `consumidor-final`
+- el total en pesos tiene que ser menor a `$10.000.000`. Desde ese monto hay que identificarlo con `--dni`, `--cuit` o `--cuil` ([RG 5700/2025](https://www.consejosalta.org.ar/wp-content/uploads/ARCA-5700.pdf)). En moneda extranjera se compara `monto × cotización`.
 
 #### CUIT, CUIL y DNI
 
@@ -104,6 +105,16 @@ ARCLI exige una única fuente de IVA receptor:
 - `--ir <tipo>`
 - un solo `--ir-*`
 - o un default configurado
+
+Además, la condición tiene que ser válida para la letra del comprobante. ARCLI aplica la misma tabla que devuelve ARCA en `FEParamGetCondicionIvaReceptor` (error 10243):
+
+| Letra | IVA receptor admitido                                                                                                                               |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `A`   | `responsable-inscripto`, `responsable-monotributo`, `monotributista-social`, `monotributo-trabajador-independiente-promovido`                       |
+| `B`   | `sujeto-exento`, `consumidor-final`, `sujeto-no-categorizado`, `proveedor-del-exterior`, `cliente-del-exterior`, `iva-liberado`, `iva-no-alcanzado` |
+| `C`   | todas                                                                                                                                               |
+
+Si la combinación no es válida, el error sugiere la letra que corresponde. Ejemplo: `fb` con `--ir-ri` sugiere usar letra `A`.
 
 ### Comprobantes asociados
 
@@ -146,10 +157,7 @@ ARCLI convierte el código de moneda al de ARCA: `ARS` → `PES` y `USD` → `DO
 
 ### IVA automático
 
-ARCLI hoy calcula IVA automáticamente en estos casos:
-
-- comprobantes letra `B`
-- comprobantes letra `A` cuando `ivaReceptor` es `responsable-inscripto`
+ARCLI calcula IVA automáticamente en todos los comprobantes letra `A` y `B`, sea cual sea el IVA receptor. Los letra `C` no informan IVA.
 
 Usa:
 

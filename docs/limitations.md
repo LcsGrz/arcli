@@ -38,8 +38,7 @@ Se eligió `testing` como entorno por defecto para reducir errores accidentales.
 
 Hoy el CLI aplica una lógica simplificada de IVA:
 
-- letra `B`: IVA automático
-- letra `A` con `responsable-inscripto`: IVA automático
+- letras `A` y `B`: IVA automático
 - alícuota fija `21%`
 - `Id` fijo `5`
 
