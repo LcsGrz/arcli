@@ -33,6 +33,7 @@ arcli fc --cargar ./voucher.json
 | `puntoVenta`          | number  | no                                     | Punto de venta                             |
 | `servicioDesde`       | string  | no                                     | Fecha inicio de servicio                   |
 | `servicioHasta`       | string  | no                                     | Fecha fin de servicio                      |
+| `vencimientoPago`     | string  | no                                     | Fecha de vencimiento del pago              |
 | `tipoDocumento`       | string  | no                                     | `consumidor-final`, `cuit`, `cuil` o `dni` |
 
 ### Objeto `comprobanteAsociado`

@@ -47,6 +47,7 @@ const AVAILABLE_SERVICE_OPTIONS = [
   '  - -d, --dia <1-31> | servicios o productos-servicios | dia de vencimiento o referencia de servicio',
   '  - --servicio-desde <fecha> | --sd <fecha> | servicios o productos-servicios | inicio del servicio',
   '  - --servicio-hasta <fecha> | --sh <fecha> | servicios o productos-servicios | fin del servicio',
+  '  - --vencimiento <fecha> | --vto <fecha> | servicios, productos-servicios y facturas FCE | vencimiento del pago; por defecto el fin del servicio',
 ].join('\n');
 
 const AVAILABLE_ASSOCIATED_OPTIONS = [

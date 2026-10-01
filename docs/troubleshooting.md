@@ -136,6 +136,22 @@ arcli fc ayuda
 - **Solución:** reemplazar `--consumidor-final` por `--dni`, `--cuit` o `--cuil`, manteniendo `--ir-cf`.
 - **Documentación relacionada:** [Consumidor final](validation-rules.md#consumidor-final)
 
+### Fecha del comprobante fuera de rango
+
+- **Severidad:** ocasional
+- **Síntoma:** `La fecha ... esta fuera de rango ...` o `... es futura y cae en otro mes.`
+- **Causa:** ARCA solo acepta fechas cercanas a hoy: ±5 días en productos, ±10 en servicios y de −5 a +1 en FCE.
+- **Solución:** usar una fecha dentro de la ventana, o no pasar `--fecha` para usar la de hoy.
+- **Documentación relacionada:** [Fecha del comprobante](validation-rules.md#fecha-del-comprobante)
+
+### Vencimiento de pago anterior a la fecha
+
+- **Severidad:** ocasional
+- **Síntoma:** `El vencimiento de pago (...) no puede ser anterior al ...`
+- **Causa:** `FchVtoPago` tiene que ser igual o posterior a la fecha del comprobante. En FCE, también a la de hoy.
+- **Solución:** pasar un `--vencimiento` posterior.
+- **Documentación relacionada:** [Vencimiento de pago](validation-rules.md#vencimiento-de-pago-fchvtopago)
+
 ## ARCA
 
 ### `coe.alreadyAuthenticated`

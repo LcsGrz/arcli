@@ -192,22 +192,23 @@ En casi todos los casos te va a interesar mirar primero:
 - `--fecha`
 - `--punto-venta`
 
-| Flag                           | Alias          | Tipo                                                  | Valor por defecto                   | Descripción                                      |
-| ------------------------------ | -------------- | ----------------------------------------------------- | ----------------------------------- | ------------------------------------------------ |
-| `--cargar <path>`              | ninguno        | `string`                                              | ninguno                             | Carga datos base desde un archivo JSON           |
-| `--monto <number>`             | `-m`           | `number`                                              | requerido                           | Importe total del comprobante                    |
-| `--fecha <fecha>`              | `-f`           | `string`                                              | hoy                                 | Fecha del comprobante                            |
-| `--dia <number>`               | `-d`           | `integer`                                             | ninguno                             | Día de vencimiento o referencia del servicio     |
-| `--punto-venta <number>`       | `--pv`         | `integer`                                             | `config.puntoVentaPorDefecto`       | Punto de venta                                   |
-| `--concepto <tipo>`            | `-c`           | `'productos' \| 'servicios' \| 'productos-servicios'` | `config.conceptoPorDefecto`         | `productos`, `servicios` o `productos-servicios` |
-| `--cs`                         | ninguno        | `boolean`                                             | `false`                             | Equivale a `--concepto servicios`                |
-| `--cp`                         | ninguno        | `boolean`                                             | `false`                             | Equivale a `--concepto productos`                |
-| `--csp`                        | ninguno        | `boolean`                                             | `false`                             | Equivale a `--concepto productos-servicios`      |
-| `--moneda <codigo>`            | `--mda`        | `'ARS' \| 'USD' \| string(3)`                         | `config.monedaPorDefecto` o `ARS`   | Moneda del comprobante                           |
-| `--cotizacion-moneda <number>` | `--cm`         | `number`                                              | `config.cotizacionPorDefecto` o `1` | Cotización de la moneda                          |
-| `--misma-moneda`               | ninguno        | `boolean`                                             | `false`                             | El pago se cancela en la moneda extranjera       |
-| `--servicio-desde <fecha>`     | `--sd <fecha>` | `string`                                              | ninguno                             | Fecha de inicio del servicio                     |
-| `--servicio-hasta <fecha>`     | `--sh <fecha>` | `string`                                              | ninguno                             | Fecha de fin del servicio                        |
+| Flag                           | Alias           | Tipo                                                  | Valor por defecto                        | Descripción                                      |
+| ------------------------------ | --------------- | ----------------------------------------------------- | ---------------------------------------- | ------------------------------------------------ |
+| `--cargar <path>`              | ninguno         | `string`                                              | ninguno                                  | Carga datos base desde un archivo JSON           |
+| `--monto <number>`             | `-m`            | `number`                                              | requerido                                | Importe total del comprobante                    |
+| `--fecha <fecha>`              | `-f`            | `string`                                              | hoy                                      | Fecha del comprobante                            |
+| `--dia <number>`               | `-d`            | `integer`                                             | ninguno                                  | Día de vencimiento o referencia del servicio     |
+| `--punto-venta <number>`       | `--pv`          | `integer`                                             | `config.puntoVentaPorDefecto`            | Punto de venta                                   |
+| `--concepto <tipo>`            | `-c`            | `'productos' \| 'servicios' \| 'productos-servicios'` | `config.conceptoPorDefecto`              | `productos`, `servicios` o `productos-servicios` |
+| `--cs`                         | ninguno         | `boolean`                                             | `false`                                  | Equivale a `--concepto servicios`                |
+| `--cp`                         | ninguno         | `boolean`                                             | `false`                                  | Equivale a `--concepto productos`                |
+| `--csp`                        | ninguno         | `boolean`                                             | `false`                                  | Equivale a `--concepto productos-servicios`      |
+| `--moneda <codigo>`            | `--mda`         | `'ARS' \| 'USD' \| string(3)`                         | `config.monedaPorDefecto` o `ARS`        | Moneda del comprobante                           |
+| `--cotizacion-moneda <number>` | `--cm`          | `number`                                              | `config.cotizacionPorDefecto` o `1`      | Cotización de la moneda                          |
+| `--misma-moneda`               | ninguno         | `boolean`                                             | `false`                                  | El pago se cancela en la moneda extranjera       |
+| `--servicio-desde <fecha>`     | `--sd <fecha>`  | `string`                                              | ninguno                                  | Fecha de inicio del servicio                     |
+| `--servicio-hasta <fecha>`     | `--sh <fecha>`  | `string`                                              | ninguno                                  | Fecha de fin del servicio                        |
+| `--vencimiento <fecha>`        | `--vto <fecha>` | `string`                                              | fin del servicio o fecha del comprobante | Vencimiento del pago (`FchVtoPago`)              |
 
 En moneda extranjera (`--moneda USD`) hay dos formas de informar la cotización:
 
@@ -255,7 +256,7 @@ Las facturas comparten la misma base.
 - fecha del comprobante: `--fecha`
 - moneda y cotización: `--moneda`, `--mda`, `--cotizacion-moneda`, `--cm`, `--misma-moneda`
 - carga JSON: `--cargar`
-- fechas de servicio: `--dia`, `--servicio-desde`, `--servicio-hasta`
+- fechas de servicio: `--dia`, `--servicio-desde`, `--servicio-hasta`, `--vencimiento`
 - modo de ejecución: `--previsualizar`, `--emitir`
 - salida: `--json`, `--bruto`
 
@@ -287,6 +288,7 @@ arcli fa -m 1 --cs --cuit 20168598204 --ir-ri
 | `--dia <number>`                                                                | `-d`            | `integer`                                             | Condicional | Si el concepto usa servicio                   |
 | `--servicio-desde <fecha>`                                                      | `--sd <fecha>`  | `string`                                              | Condicional | Si el concepto usa servicio                   |
 | `--servicio-hasta <fecha>`                                                      | `--sh <fecha>`  | `string`                                              | Condicional | Si el concepto usa servicio                   |
+| `--vencimiento <fecha>`                                                         | `--vto <fecha>` | `string`                                              | No          | Servicios y facturas FCE                      |
 
 #### Qué no aplica
 

@@ -67,6 +67,7 @@ export const billingCommandSchema = z.object({
   exchangeRate: z.number().positive().optional(),
   dueDay: z.number().int().min(1).max(31).optional(),
   ivaCondition: billingIvaConditionSchema,
+  paymentDueDate: z.string().trim().optional(),
   pointOfSale: z.number().int().positive().optional(),
   sameCurrency: z.boolean().default(false),
   serviceEndDate: z.string().trim().optional(),

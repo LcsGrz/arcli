@@ -88,7 +88,7 @@ export class BillingService {
       );
     }
 
-    const dateRange = resolveBillingDateRange(input);
+    const dateRange = resolveBillingDateRange(input, voucherKind);
     const concept = resolveBillingConceptCode(input.concept);
     const documentType = resolveBillingDocumentTypeCode(input.documentType);
     const ivaCondition = resolveBillingIvaConditionCode(input.ivaCondition);
@@ -111,9 +111,9 @@ export class BillingService {
       Concepto: concept,
       CondicionIVAReceptorId: ivaCondition,
       DocTipo: documentType,
-      FchServDesde: concept === 1 ? undefined : dateRange.serviceStartDate,
-      FchServHasta: concept === 1 ? undefined : dateRange.serviceEndDate,
-      FchVtoPago: concept === 1 ? undefined : dateRange.paymentDueDate,
+      FchServDesde: dateRange.serviceStartDate,
+      FchServHasta: dateRange.serviceEndDate,
+      FchVtoPago: dateRange.paymentDueDate,
       ImpIVA: taxAmounts.ivaAmount,
       ImpNeto: taxAmounts.netAmount,
       ImpOpEx: 0,

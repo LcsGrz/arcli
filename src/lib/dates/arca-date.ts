@@ -2,8 +2,30 @@ import { InputValidationError } from '../errors/app-error';
 
 const ARGENTINE_DATE_FORMAT_HINT = 'Use D, DD, D-MM, D/MM, D-MM-YY, D/MM/YY, D-MM-YYYY o D/MM/YYYY.';
 
+// Usa la fecha local: con toISOString, despues de las 21 hs en Argentina la fecha saltaba al dia siguiente.
 export function formatDateAsArcaDate(value: Date): string {
-  return value.toISOString().slice(0, 10).replaceAll('-', '');
+  const year = String(value.getFullYear());
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+
+  return `${year}${month}${day}`;
+}
+
+function arcaDateToUtcTime(value: string): number {
+  return Date.UTC(Number(value.slice(0, 4)), Number(value.slice(4, 6)) - 1, Number(value.slice(6, 8)));
+}
+
+/** Dias entre dos fechas ARCA (yyyymmdd): positivo si `to` es posterior a `from`. */
+export function diffArcaDatesInDays(from: string, to: string): number {
+  return Math.round((arcaDateToUtcTime(to) - arcaDateToUtcTime(from)) / 86_400_000);
+}
+
+export function maxArcaDate(...values: string[]): string {
+  return values.reduce((latest, value) => (value > latest ? value : latest));
+}
+
+export function formatArcaDateAsArgentineDate(value: string): string {
+  return `${value.slice(6, 8)}/${value.slice(4, 6)}/${value.slice(0, 4)}`;
 }
 
 export function parseArgentineDateInputAsArcaDate(value: string, referenceDate = new Date()): string {
