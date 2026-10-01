@@ -61,6 +61,13 @@ export function formatVoucherSummary(result: BillingExecutionResult): Record<str
   };
 }
 
+const FCE_OPTIONAL_LABELS: Record<string, string> = {
+  '22': 'Anulacion',
+  '27': 'Transferencia',
+  '2101': 'CBU',
+  '2102': 'Alias CBU',
+};
+
 function formatFriendlyPayloadRows(result: BillingExecutionResult): Array<readonly [string, string]> {
   const payload = result.payload;
   const rows: Array<readonly [string, string]> = [
@@ -109,6 +116,18 @@ function formatFriendlyPayloadRows(result: BillingExecutionResult): Array<readon
     rows.push(['Punto de venta asociado', formatNumericLabel(associatedVoucher.PtoVta)]);
     rows.push(['Numero asociado', formatNumericLabel(associatedVoucher.Nro)]);
     rows.push(['CUIT asociado', formatTaxIdLabel(associatedVoucher.Cuit)]);
+
+    if (associatedVoucher.CbteFch) {
+      rows.push(['Fecha asociado', formatDateLabel(associatedVoucher.CbteFch)]);
+    }
+  }
+
+  for (const optional of payload.Opcionales ?? []) {
+    const label = FCE_OPTIONAL_LABELS[optional.Id];
+
+    if (label) {
+      rows.push([label, optional.Id === '22' ? (optional.Valor === 'S' ? 'Si' : 'No') : optional.Valor]);
+    }
   }
 
   return rows;

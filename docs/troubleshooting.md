@@ -152,6 +152,22 @@ arcli fc ayuda
 - **Solución:** pasar un `--vencimiento` posterior.
 - **Documentación relacionada:** [Vencimiento de pago](validation-rules.md#vencimiento-de-pago-fchvtopago)
 
+### Factura FCE sin CBU
+
+- **Severidad:** frecuente
+- **Síntoma:** `La factura de credito electronica ... requiere el CBU del emisor.`
+- **Causa:** ARCA exige el CBU del emisor en toda factura FCE (10168).
+- **Solución:** pasar `--cbu <22 dígitos>` o configurarlo una vez con `arcli config establecer cbu <22 dígitos>`.
+- **Documentación relacionada:** [Crédito electrónico (FCE)](validation-rules.md#crédito-electrónico-fce)
+
+### NC/ND FCE sin fecha del asociado
+
+- **Severidad:** frecuente
+- **Síntoma:** `La nota de credito electronica ... requiere la fecha del comprobante asociado.`
+- **Causa:** en NC/ND FCE, ARCA exige la fecha de la factura asociada (10158).
+- **Solución:** agregar `--afecha <fecha>` con la fecha de la factura FCE original.
+- **Documentación relacionada:** [Crédito electrónico (FCE)](validation-rules.md#crédito-electrónico-fce)
+
 ## ARCA
 
 ### `coe.alreadyAuthenticated`

@@ -51,7 +51,8 @@ Shortcuts (`family` = comando alternativo `arcli <family> <letra>`, ej. `arcli f
 - Punto de venta: `--punto-venta <n>` (alias `--pv`). Si no se pasa, usa el default de config.
 - Moneda: `--moneda <codigo>` (alias `--mda`, ej. `ARS`/`USD`; `USD` se envía como `DOL`) y `--cotizacion-moneda <n>` (alias `--cm`). En moneda extranjera la cotización es obligatoria y no puede ser 1; si el pago es en la misma moneda extranjera, usar `--misma-moneda` en lugar de `--cm` (consulta la cotización oficial a ARCA). En pesos no pasar cotización distinta de 1.
 - Fechas: `-f, --fecha <fecha>` acepta formato argentino día-primero: `D`, `DD`, `D/M`, `DD/MM`, `D-M-YY`, `DD-MM-YYYY` (con `-` o `/`); si se omiten mes/año usa los actuales. También `--servicio-desde`/`--sd` y `--servicio-hasta`/`--sh`, y `-d, --dia <n>` (día de vencimiento). `--vencimiento <fecha>` (alias `--vto`) fija `FchVtoPago` aparte del período de servicio (servicios y facturas FCE; no en productos ni NC/ND FCE). Ventana de `--fecha` respecto de hoy: productos ±5 días, servicios ±10, FCE −5/+1; en productos y FCE una fecha futura tiene que caer en el mes actual.
-- Comprobante asociado (obligatorio en notas de crédito/débito): `--ac <shortcut>` (ej. `fc`), `--apv <n>` (punto de venta, alias `--asociado-punto-venta`), `--ar <n>` (número), `--acuit <n>`, `--at <n>` (tipo ARCA, alternativa a `--ac`; no combinar ambos).
+- Comprobante asociado (obligatorio en notas de crédito/débito): `--ac <shortcut>` (ej. `fc`), `--apv <n>` (punto de venta, alias `--asociado-punto-venta`), `--ar <n>` (número), `--acuit <n>`, `--at <n>` (tipo ARCA, alternativa a `--ac`; no combinar ambos), `--afecha <fecha>` (fecha del asociado, opcional salvo en NC/ND FCE).
+- Crédito electrónico (FCE): las facturas `fcea/fceb/fcec` requieren `--cbu <22 dígitos>` (o `arcli config establecer cbu ...`); opcionales `--alias <alias>` y `--transferencia sca|adc` (default `sca`). Las NC/ND FCE (`ncea`…`ndec`) requieren `--afecha`, aceptan `--anulacion`, toman `--acuit` del CUIT emisor si se omite y no aceptan `--cbu`/`--alias`/`--transferencia`. Fuera de FCE esos flags dan error.
 - Ejecución: `--previsualizar` (default si no se especifica nada) vs `--emitir` (real contra ARCA) — son mutuamente excluyentes. En producción hace falta `--produccion --emitir` juntos — no hay un flag de confirmación adicional, así que esa combinación emite de verdad.
 - Salida: `--json` (estructurada, para scripts/agentes — desactiva el aviso de nueva versión), `--bruto` (incluye la respuesta cruda de ARCA).
 - `--cargar <path.json>`: carga uno o un array de comprobantes desde un JSON en vez de flags (ver forma abajo). Los flags pisan lo que venga del archivo.
@@ -134,7 +135,7 @@ arcli config establecer <clave> <valor>
 arcli config eliminar <clave>
 ```
 
-Claves válidas: `cuit`, `puntoVenta`, `concepto`, `ivaReceptor`, `moneda`, `cotizacion`,
+Claves válidas: `cuit`, `cbu`, `aliasCbu` (solo facturas FCE), `puntoVenta`, `concepto`, `ivaReceptor`, `moneda`, `cotizacion`,
 `entorno` (`testing`/`produccion`), `emitir`, `json`, `bruto` (booleanos: `true/false`,
 `si/no`, `1/0`), `cert.testing`, `cert.produccion`, `key.testing`, `key.produccion`
 (rutas a archivos PEM, se validan al guardar), `ticketPath` (carpeta donde se cachea el

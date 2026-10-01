@@ -51,6 +51,7 @@ function createRuntime(overrides: Partial<ResolvedArcaRuntime> = {}): ResolvedAr
 
 function createInput(overrides: Partial<BillingCommandInput> = {}): BillingCommandInput {
   return {
+    cancellation: false,
     concept: 'servicios',
     currencyCode: 'PES',
     documentType: 'consumidor-final',

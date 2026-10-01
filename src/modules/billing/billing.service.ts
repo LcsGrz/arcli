@@ -8,6 +8,7 @@ import { resolveTaxAmounts } from './billing.amounts';
 import { resolveAssociatedVouchers } from './billing.associated-vouchers';
 import { needsOfficialExchangeRate, resolveBillingCurrencyFields } from './billing.currency';
 import { resolveBillingDateRange } from './billing.date-range';
+import { resolveElectronicCreditOptionals } from './billing.fce';
 import { validateConsumerIdentification, validateIvaConditionForVoucher } from './billing.iva-receptor';
 import {
   resolveBillingConceptCode,
@@ -93,6 +94,8 @@ export class BillingService {
     const documentType = resolveBillingDocumentTypeCode(input.documentType);
     const ivaCondition = resolveBillingIvaConditionCode(input.ivaCondition);
     const associatedVouchers = resolveAssociatedVouchers({
+      billingDate: dateRange.billingDate,
+      emitterCuit: runtime.context.cuit,
       input,
       requireVoucherKind: (shortcut) => this.requireVoucherKind(shortcut),
       voucherKind,
@@ -139,6 +142,12 @@ export class BillingService {
 
     if (associatedVouchers) {
       payload.CbtesAsoc = associatedVouchers;
+    }
+
+    const optionals = resolveElectronicCreditOptionals(input, voucherKind);
+
+    if (optionals) {
+      payload.Opcionales = optionals;
     }
 
     // El SDK tipa DocNro como obligatorio, pero el CLI permite omitirlo cuando el usuario no lo informa.

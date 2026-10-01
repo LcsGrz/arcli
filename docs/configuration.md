@@ -38,6 +38,8 @@ Si el archivo no existe, `arcli config` lo crea automáticamente.
 | `key.testing`     | string                  | ninguno           | Ruta a la clave privada de testing          |
 | `key.produccion`  | string                  | ninguno           | Ruta a la clave privada de producción       |
 | `cuit`            | string                  | ninguno           | CUIT del emisor                             |
+| `cbu`             | string                  | ninguno           | CBU del emisor (solo facturas FCE)          |
+| `aliasCbu`        | string                  | ninguno           | Alias del CBU (solo facturas FCE)           |
 | `concepto`        | string                  | ninguno           | Concepto por defecto                        |
 | `cotizacion`      | number                  | `1`               | Cotización por defecto en moneda extranjera |
 | `entorno`         | `testing \| produccion` | `testing`         | Entorno por defecto                         |
@@ -132,6 +134,7 @@ Usá config para defaults que se repiten en el flujo diario:
 - `ivaReceptor`
 - `moneda`
 - `cotizacion`
+- `cbu`, si emitís facturas de crédito electrónica
 
 Si un valor aparece en flags, pisa lo que venga de JSON, config o defaults internos.
 
