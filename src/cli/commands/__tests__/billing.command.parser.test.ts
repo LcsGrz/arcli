@@ -143,6 +143,20 @@ describe('billing.command.parser', () => {
     expect(dollars.exchangeRate).toBe(1200);
   });
 
+  it('parses the payment due date from --vencimiento or --vto', () => {
+    const long = parseBillingCommandInput(
+      createCommand(['--monto', '1000', '--cs', '--ir-cf', '--vencimiento', '10/04']),
+      'fc',
+    );
+    const short = parseBillingCommandInput(
+      createCommand(['--monto', '1000', '--cs', '--ir-cf', '--vto', '11/04']),
+      'fc',
+    );
+
+    expect(long.paymentDueDate).toBe('10/04');
+    expect(short.paymentDueDate).toBe('11/04');
+  });
+
   it('loads base data from a JSON file', () => {
     const directory = mkdtempSync(join(tmpdir(), 'arcli-billing-cli-'));
 

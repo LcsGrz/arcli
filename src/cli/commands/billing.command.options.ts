@@ -41,6 +41,8 @@ export function registerBillingOptions(command: Command): void {
     .option('--servicio-desde <fecha>', 'fecha de inicio de servicio')
     .option('--sh <fecha>', 'alias rapido de fecha de fin de servicio')
     .option('--servicio-hasta <fecha>', 'fecha de fin de servicio')
+    .option('--vencimiento <fecha>', 'fecha de vencimiento del pago; por defecto el fin del servicio')
+    .option('--vto <fecha>', 'alias de fecha de vencimiento del pago')
     .option('--at <number>', 'tipo ARCA del comprobante asociado', (value: string) => Number.parseInt(value, 10))
     .option('--apv <number>', 'punto de venta del comprobante asociado', (value: string) => Number.parseInt(value, 10))
     .option('--asociado-punto-venta <number>', 'punto de venta del comprobante asociado', (value: string) =>

@@ -32,6 +32,7 @@ interface BillingJsonInput {
   readonly numeroDocumento?: number;
   readonly previsualizar?: boolean;
   readonly puntoVenta?: number;
+  readonly vencimientoPago?: string;
   readonly servicioDesde?: string;
   readonly servicioHasta?: string;
   readonly tipoDocumento?: BillingCommandInput['documentType'];
@@ -196,6 +197,7 @@ function parseBillingCommandInputFromSource(
       emit: shouldEmit,
       exchangeRate,
       ivaCondition: resolvedIvaCondition,
+      paymentDueDate: pickString(commandOptions.vencimiento, commandOptions.vto, fileInput?.vencimientoPago),
       pointOfSale: pickNumber(commandOptions.puntoVenta, commandOptions.pv, fileInput?.puntoVenta),
       sameCurrency,
       serviceEndDate: pickString(commandOptions.servicioHasta, commandOptions.sh, fileInput?.servicioHasta),

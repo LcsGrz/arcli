@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { InputValidationError } from '../../errors/app-error';
-import { formatDateAsArcaDate, parseArgentineDateInputAsArcaDate } from '../arca-date';
+import {
+  diffArcaDatesInDays,
+  formatArcaDateAsArgentineDate,
+  formatDateAsArcaDate,
+  maxArcaDate,
+  parseArgentineDateInputAsArcaDate,
+} from '../arca-date';
 
 const referenceDate = new Date('2026-08-20T12:00:00Z');
 
@@ -21,6 +27,23 @@ describe('arca-date', () => {
 
   it('formats a Date as an ARCA date', () => {
     expect(formatDateAsArcaDate(referenceDate)).toBe('20260820');
+  });
+
+  it('formats using the local calendar day', () => {
+    expect(formatDateAsArcaDate(new Date(2026, 7, 20, 23, 30))).toBe('20260820');
+  });
+
+  it('computes day differences across months', () => {
+    expect(diffArcaDatesInDays('20260330', '20260402')).toBe(3);
+    expect(diffArcaDatesInDays('20260402', '20260330')).toBe(-3);
+  });
+
+  it('picks the latest ARCA date', () => {
+    expect(maxArcaDate('20260318', '20260402', '20260320')).toBe('20260402');
+  });
+
+  it('formats an ARCA date in Argentine format', () => {
+    expect(formatArcaDateAsArgentineDate('20260318')).toBe('18/03/2026');
   });
 
   it('rejects ISO dates', () => {

@@ -77,11 +77,35 @@ Para emitir realmente en `produccion`, ARCLI exige:
 - no usa `--servicio-desde`
 - no usa `--servicio-hasta`
 - no usa `--dia`
+- no usa `--vencimiento`, salvo en facturas FCE
 
 #### `servicios` y `productos-servicios`
 
 - si informás una fecha de servicio, tenés que informar ambas
 - la fecha de inicio no puede ser posterior a la de fin
+
+#### Vencimiento de pago (`FchVtoPago`)
+
+| Comprobante                                                | ¿Se envía? | Default sin `--vencimiento`                                     | Mínimo                                 |
+| ---------------------------------------------------------- | ---------- | --------------------------------------------------------------- | -------------------------------------- |
+| Servicios / productos y servicios                          | sí         | el fin del servicio, o la fecha del comprobante si es posterior | fecha del comprobante (10036)          |
+| Factura FCE (`fcea`, `fceb`, `fcec`), incluso de productos | sí (10163) | la fecha del comprobante o hoy, la que sea posterior            | la fecha del comprobante o hoy (10164) |
+| NC/ND FCE                                                  | no (10175) | —                                                               | `--vencimiento` da error               |
+| Productos (no FCE)                                         | no         | —                                                               | `--vencimiento` da error               |
+
+`--vencimiento` permite separar el vencimiento del período facturado. Por ejemplo, un servicio de febrero facturado el 18/03 que vence el 10/04.
+
+### Fecha del comprobante
+
+ARCA solo acepta una `CbteFch` cercana a la fecha de envío (errores 10016 y 10152). ARCLI lo valida antes de llamar al servicio:
+
+| Comprobante                       | Desde         | Hasta         | Fecha futura               |
+| --------------------------------- | ------------- | ------------- | -------------------------- |
+| Productos                         | hoy − 5 días  | hoy + 5 días  | solo dentro del mes actual |
+| Servicios / productos y servicios | hoy − 10 días | hoy + 10 días | sin restricción de mes     |
+| FCE (facturas y notas)            | hoy − 5 días  | hoy + 1 día   | solo dentro del mes actual |
+
+ARCA además exige que la fecha no sea anterior a la del último comprobante emitido para ese tipo y punto de venta. Esa regla no se valida localmente, porque depende de lo ya emitido.
 
 ### Identidad del receptor
 

@@ -92,6 +92,9 @@ describe('billing.service', () => {
   });
 
   it('builds invoice payload with explicit billing date in Argentine format', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
+
     const service = new BillingService();
 
     const payload = service.buildVoucherPayload(
@@ -113,6 +116,9 @@ describe('billing.service', () => {
   });
 
   it('accepts slash-separated Argentine dates', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
+
     const service = new BillingService();
 
     const payload = service.buildVoucherPayload(
@@ -131,7 +137,7 @@ describe('billing.service', () => {
 
   it('uses the current year when Argentine dates omit it', () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-08-20T12:00:00Z'));
+    vi.setSystemTime(new Date('2026-08-12T12:00:00Z'));
 
     const service = new BillingService();
 
@@ -152,7 +158,7 @@ describe('billing.service', () => {
 
   it('uses the current month and year when Argentine dates only include the day', () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-08-20T12:00:00Z'));
+    vi.setSystemTime(new Date('2026-08-12T12:00:00Z'));
 
     const service = new BillingService();
 
@@ -622,7 +628,189 @@ describe('billing.service', () => {
     ).toThrow(/debe enviar ambas/);
   });
 
+  it('rejects billing dates outside the ARCA window', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
+
+    const service = new BillingService();
+    const build = (overrides: Partial<BillingCommandInput>) => () =>
+      service.buildVoucherPayload(createBillingInput({ documentNumber: 0, ...overrides }), createRuntime());
+
+    expect(build({ billingDate: '13/03/2026', concept: 'productos' })).not.toThrow();
+    expect(build({ billingDate: '12/03/2026', concept: 'productos' })).toThrow(/hasta 5 dias antes y 5 despues/);
+    expect(build({ billingDate: '08/03/2026' })).not.toThrow();
+    expect(build({ billingDate: '07/03/2026' })).toThrow(/hasta 10 dias antes y 10 despues/);
+    expect(build({ billingDate: '28/03/2026' })).not.toThrow();
+    expect(build({ billingDate: '29/03/2026' })).toThrow(/hasta 10 dias antes y 10 despues/);
+  });
+
+  it('rejects future product dates in another month', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-30T12:00:00Z'));
+
+    const service = new BillingService();
+
+    expect(() =>
+      service.buildVoucherPayload(
+        createBillingInput({ billingDate: '01/04/2026', concept: 'productos', documentNumber: 0 }),
+        createRuntime(),
+      ),
+    ).toThrow(/futura y cae en otro mes/);
+  });
+
+  it('uses the FCE billing date window', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
+
+    const service = new BillingService();
+    const build = (billingDate: string) => () =>
+      service.buildVoucherPayload(
+        createBillingInput({
+          billingDate,
+          documentNumber: 20123456789,
+          documentType: 'cuit',
+          ivaCondition: 'responsable-inscripto',
+          shortcut: 'fcea',
+        }),
+        createRuntime(),
+      );
+
+    expect(build('19/03/2026')).not.toThrow();
+    expect(build('20/03/2026')).toThrow(/hasta 5 dias antes y 1 despues/);
+    expect(build('12/03/2026')).toThrow(/hasta 5 dias antes y 1 despues/);
+  });
+
+  it('sends FchVtoPago on FCE invoices even for products', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
+
+    const service = new BillingService();
+
+    const payload = service.buildVoucherPayload(
+      createBillingInput({
+        billingDate: '16/03/2026',
+        concept: 'productos',
+        documentNumber: 20123456789,
+        documentType: 'cuit',
+        ivaCondition: 'responsable-inscripto',
+        shortcut: 'fcea',
+      }),
+      createRuntime(),
+    );
+
+    expect(payload.FchServDesde).toBeUndefined();
+    expect(payload.FchVtoPago).toBe('20260318');
+  });
+
+  it('rejects an FCE payment due date before today', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
+
+    const service = new BillingService();
+
+    expect(() =>
+      service.buildVoucherPayload(
+        createBillingInput({
+          billingDate: '16/03/2026',
+          documentNumber: 20123456789,
+          documentType: 'cuit',
+          ivaCondition: 'responsable-inscripto',
+          paymentDueDate: '17/03/2026',
+          shortcut: 'fcea',
+        }),
+        createRuntime(),
+      ),
+    ).toThrow(/no puede ser anterior al 18\/03\/2026/);
+  });
+
+  it('does not send FchVtoPago on FCE credit or debit notes', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
+
+    const service = new BillingService();
+    const input = createBillingInput({
+      associatedVoucher: { cuit: '20123456789', numero: 1, puntoVenta: 3, shortcut: 'fcea' },
+      documentNumber: 20123456789,
+      documentType: 'cuit',
+      ivaCondition: 'responsable-inscripto',
+      shortcut: 'ncea',
+    });
+
+    expect(service.buildVoucherPayload(input, createRuntime()).FchVtoPago).toBeUndefined();
+    expect(() => service.buildVoucherPayload({ ...input, paymentDueDate: '30/03/2026' }, createRuntime())).toThrow(
+      /no lleva vencimiento de pago/,
+    );
+  });
+
+  it('accepts an explicit payment due date independent from the service period', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
+
+    const service = new BillingService();
+
+    const payload = service.buildVoucherPayload(
+      createBillingInput({
+        billingDate: '18/03/2026',
+        documentNumber: 0,
+        paymentDueDate: '10/04/2026',
+        serviceEndDate: '28/02/2026',
+        serviceStartDate: '01/02/2026',
+      }),
+      createRuntime(),
+    );
+
+    expect(payload.FchServHasta).toBe('20260228');
+    expect(payload.FchVtoPago).toBe('20260410');
+  });
+
+  it('defaults the payment due date to the billing date when the service ended earlier', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
+
+    const service = new BillingService();
+
+    const payload = service.buildVoucherPayload(
+      createBillingInput({
+        billingDate: '18/03/2026',
+        documentNumber: 0,
+        serviceEndDate: '28/02/2026',
+        serviceStartDate: '01/02/2026',
+      }),
+      createRuntime(),
+    );
+
+    expect(payload.FchVtoPago).toBe('20260318');
+  });
+
+  it('rejects a payment due date before the billing date', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
+
+    const service = new BillingService();
+
+    expect(() =>
+      service.buildVoucherPayload(
+        createBillingInput({ billingDate: '18/03/2026', documentNumber: 0, paymentDueDate: '17/03/2026' }),
+        createRuntime(),
+      ),
+    ).toThrow(/no puede ser anterior al 18\/03\/2026/);
+  });
+
+  it('rejects --vencimiento on product invoices', () => {
+    const service = new BillingService();
+
+    expect(() =>
+      service.buildVoucherPayload(
+        createBillingInput({ concept: 'productos', documentNumber: 0, paymentDueDate: '30/03/2026' }),
+        createRuntime(),
+      ),
+    ).toThrow(/no usa --vencimiento/);
+  });
+
   it('rejects invalid service date ranges', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
+
     const service = new BillingService();
 
     expect(() =>
