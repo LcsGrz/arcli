@@ -179,6 +179,8 @@ En la práctica, siempre necesitás:
 | `--ir-se`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                        | Sujeto exento                                  |
 | `--ir-snc`              | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                        | Sujeto no categorizado                         |
 
+El IVA receptor tiene que ser válido para la letra del comprobante. Por ejemplo, `fa` no admite `--ir-cf` y `fb` no admite `--ir-ri`. Ver [IVA receptor](validation-rules.md#iva-receptor).
+
 ### Contenido
 
 Estos flags arman el contenido del comprobante.

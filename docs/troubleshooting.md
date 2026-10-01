@@ -120,6 +120,22 @@ arcli fc ayuda
 - **Solución:** pasar `--cm <cotización>` si te pagan en pesos, o `--misma-moneda` si te pagan en dólares.
 - **Documentación relacionada:** [Moneda y cotización](validation-rules.md#moneda-y-cotización)
 
+### El comprobante no admite el IVA receptor
+
+- **Severidad:** frecuente
+- **Síntoma:** `La factura b no admite IVA receptor "responsable-inscripto". Use un comprobante letra A.`
+- **Causa:** ARCA solo acepta ciertas condiciones IVA para cada letra. Por ejemplo, la `A` es para responsables inscriptos y monotributistas, y la `B` para el resto.
+- **Solución:** usar la letra que sugiere el error, o corregir el IVA receptor.
+- **Documentación relacionada:** [IVA receptor](validation-rules.md#iva-receptor)
+
+### Consumidor final sin identificar desde $10.000.000
+
+- **Severidad:** ocasional
+- **Síntoma:** `... de $10.000.000 o mas requiere identificar al consumidor final.`
+- **Causa:** la RG 5700/2025 obliga a identificar al consumidor final desde ese monto.
+- **Solución:** reemplazar `--consumidor-final` por `--dni`, `--cuit` o `--cuil`, manteniendo `--ir-cf`.
+- **Documentación relacionada:** [Consumidor final](validation-rules.md#consumidor-final)
+
 ## ARCA
 
 ### `coe.alreadyAuthenticated`
