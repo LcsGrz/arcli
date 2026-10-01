@@ -29,7 +29,8 @@ const AVAILABLE_GENERAL_OPTIONS = [
   '  - --concepto <tipo> | -c | todas | productos, servicios o productos-servicios',
   '  - --cs | --cp | --csp | todas | atajos para concepto',
   '  - --moneda <codigo> | --mda <codigo> | todas | codigo de moneda, por ejemplo ARS o USD',
-  '  - --cotizacion-moneda <number> | --cm <number> | todas | cotizacion de la moneda elegida',
+  '  - --cotizacion-moneda <number> | --cm <number> | todas | cotizacion de la moneda elegida; obligatoria en moneda extranjera',
+  '  - --misma-moneda | todas | el pago se cancela en la moneda extranjera; usa la cotizacion oficial de ARCA',
   '  - --cargar <path> | todas | cargar un comprobante o lote desde JSON',
 ].join('\n');
 

@@ -19,6 +19,7 @@ La idea de esta guía es separar esas tres capas para que sea más fácil entend
 - `--concepto` y cualquiera de `--cs`, `--cp`, `--csp`
 - `--iva-receptor`, `--ir` y cualquier `--ir-*`
 - `--ac` y `--at`
+- `--misma-moneda` y `--cotizacion-moneda` / `--cm`
 - combinaciones múltiples de identidad del receptor:
   - `--cuit`
   - `--cuil`
@@ -130,6 +131,18 @@ Además:
 - el asociado debe ser una factura, no otra nota
 - la letra debe coincidir
 - la categoría electrónica debe coincidir
+
+### Moneda y cotización
+
+ARCLI convierte el código de moneda al de ARCA: `ARS` → `PES` y `USD` → `DOL`. Otros códigos de 3 letras se envían tal cual.
+
+| Caso                                | `MonCotiz`            | `CanMisMonExt` | Regla                                                                                                                                       |
+| ----------------------------------- | --------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pesos                               | `1`                   | no se envía    | Una cotización distinta de `1` da error (ARCA 10039 y 10241). `--misma-moneda` da error.                                                    |
+| Moneda extranjera, pago en pesos    | `--cotizacion-moneda` | `N`            | La cotización es obligatoria y no puede ser `1`. ARCA la acepta entre el 2% y el 400% de la oficial (10119).                                |
+| Moneda extranjera, `--misma-moneda` | la oficial de ARCA    | `S`            | ARCLI la consulta antes de la vista previa porque ARCA exige el valor exacto (10038). La fecha del comprobante no puede ser anterior a hoy. |
+
+`config.cotizacion` solo se usa como default en moneda extranjera sin `--misma-moneda`.
 
 ### IVA automático
 

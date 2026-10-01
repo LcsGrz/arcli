@@ -40,6 +40,7 @@ function createBillingInput(overrides: Partial<BillingCommandInput> = {}): Billi
     emit: false,
     exchangeRate: 1,
     ivaCondition: 'consumidor-final',
+    sameCurrency: false,
     shortcut: 'fa',
     totalAmount: 1000,
     ...overrides,
@@ -277,8 +278,110 @@ describe('billing.service', () => {
       createRuntime(),
     );
 
-    expect(payload.MonId).toBe('USD');
+    expect(payload.MonId).toBe('DOL');
     expect(payload.MonCotiz).toBe(1200.5);
+    expect(payload.CanMisMonExt).toBe('N');
+  });
+
+  it('does not send CanMisMonExt for pesos', () => {
+    const service = new BillingService();
+
+    const payload = service.buildVoucherPayload(createBillingInput({ documentNumber: 0 }), createRuntime());
+
+    expect(payload.MonId).toBe('PES');
+    expect(payload.MonCotiz).toBe(1);
+    expect(payload).not.toHaveProperty('CanMisMonExt');
+  });
+
+  it('rejects foreign currency without an explicit exchange rate', () => {
+    const service = new BillingService();
+
+    expect(() =>
+      service.buildVoucherPayload(
+        createBillingInput({ currencyCode: 'USD', documentNumber: 0, exchangeRate: undefined }),
+        createRuntime(),
+      ),
+    ).toThrow(/Falta la cotizacion de USD/);
+    expect(() =>
+      service.buildVoucherPayload(
+        createBillingInput({ currencyCode: 'USD', documentNumber: 0, exchangeRate: 1 }),
+        createRuntime(),
+      ),
+    ).toThrow(/Falta la cotizacion de USD/);
+  });
+
+  it('rejects an exchange rate other than 1 for pesos', () => {
+    const service = new BillingService();
+
+    expect(() =>
+      service.buildVoucherPayload(createBillingInput({ documentNumber: 0, exchangeRate: 1200 }), createRuntime()),
+    ).toThrow(/En pesos la cotizacion debe ser 1/);
+  });
+
+  it('rejects --misma-moneda for pesos', () => {
+    const service = new BillingService();
+
+    expect(() =>
+      service.buildVoucherPayload(createBillingInput({ documentNumber: 0, sameCurrency: true }), createRuntime()),
+    ).toThrow(/--misma-moneda solo aplica/);
+  });
+
+  it('resolves the official exchange rate when paying in the same foreign currency', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
+
+    const service = new BillingService();
+    const getQuotation = vi.fn(async () => 1415.25);
+    const input = await service.resolveExchangeRate(
+      createBillingInput({ currencyCode: 'USD', documentNumber: 0, exchangeRate: undefined, sameCurrency: true }),
+      {
+        createNextVoucher: async () => {
+          throw new Error('No deberia emitirse');
+        },
+        getQuotation,
+      },
+    );
+    const payload = service.buildVoucherPayload(input, createRuntime());
+
+    expect(getQuotation).toHaveBeenCalledWith('DOL');
+    expect(payload.MonCotiz).toBe(1415.25);
+    expect(payload.CanMisMonExt).toBe('S');
+  });
+
+  it('does not query the exchange rate when it is not needed', async () => {
+    const service = new BillingService();
+    const getQuotation = vi.fn(async () => 1415.25);
+    const input = createBillingInput({ currencyCode: 'USD', exchangeRate: 1200 });
+
+    await expect(
+      service.resolveExchangeRate(input, {
+        createNextVoucher: async () => {
+          throw new Error('No deberia emitirse');
+        },
+        getQuotation,
+      }),
+    ).resolves.toBe(input);
+    expect(getQuotation).not.toHaveBeenCalled();
+  });
+
+  it('rejects --misma-moneda with a past billing date', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
+
+    const service = new BillingService();
+
+    expect(() =>
+      service.buildVoucherPayload(
+        createBillingInput({
+          billingDate: '17/03/2026',
+          currencyCode: 'USD',
+          documentNumber: 0,
+          exchangeRate: 1415.25,
+          sameCurrency: true,
+        }),
+        createRuntime(),
+      ),
+    ).toThrow(/no puede ser anterior a hoy/);
   });
 
   it('builds IVA automatically for factura A with responsable inscripto', () => {
@@ -513,6 +616,9 @@ describe('billing.service', () => {
       gateway: {
         createNextVoucher: async () => {
           throw new Error('No deberia ejecutarse en dry-run');
+        },
+        getQuotation: async () => {
+          throw new Error('No deberia consultarse la cotizacion');
         },
       },
       input: createBillingInput({

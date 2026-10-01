@@ -203,8 +203,16 @@ En casi todos los casos te va a interesar mirar primero:
 | `--csp`                        | ninguno        | `boolean`                                             | `false`                             | Equivale a `--concepto productos-servicios`      |
 | `--moneda <codigo>`            | `--mda`        | `'ARS' \| 'USD' \| string(3)`                         | `config.monedaPorDefecto` o `ARS`   | Moneda del comprobante                           |
 | `--cotizacion-moneda <number>` | `--cm`         | `number`                                              | `config.cotizacionPorDefecto` o `1` | Cotización de la moneda                          |
+| `--misma-moneda`               | ninguno        | `boolean`                                             | `false`                             | El pago se cancela en la moneda extranjera       |
 | `--servicio-desde <fecha>`     | `--sd <fecha>` | `string`                                              | ninguno                             | Fecha de inicio del servicio                     |
 | `--servicio-hasta <fecha>`     | `--sh <fecha>` | `string`                                              | ninguno                             | Fecha de fin del servicio                        |
+
+En moneda extranjera (`--moneda USD`) hay dos formas de informar la cotización:
+
+- **Te pagan en pesos** (default): pasá `--cotizacion-moneda` con la cotización acordada. Es obligatoria y no puede ser `1`.
+- **Te pagan en la moneda extranjera**: pasá `--misma-moneda`. ARCLI consulta la cotización oficial a ARCA y la muestra en la vista previa. No se combina con `--cotizacion-moneda`.
+
+En pesos la cotización siempre es `1` y `--misma-moneda` no aplica. Detalle en [Moneda y cotización](validation-rules.md#moneda-y-cotización).
 
 Las fechas usan formato argentino (día primero), con mes y año opcionales. Detalle completo en [Fechas aceptadas](validation-rules.md#fechas-aceptadas).
 
@@ -243,7 +251,7 @@ Las facturas comparten la misma base.
 
 - punto de venta si no está en config: `--punto-venta` o `--pv`
 - fecha del comprobante: `--fecha`
-- moneda y cotización: `--moneda`, `--mda`, `--cotizacion-moneda`, `--cm`
+- moneda y cotización: `--moneda`, `--mda`, `--cotizacion-moneda`, `--cm`, `--misma-moneda`
 - carga JSON: `--cargar`
 - fechas de servicio: `--dia`, `--servicio-desde`, `--servicio-hasta`
 - modo de ejecución: `--previsualizar`, `--emitir`

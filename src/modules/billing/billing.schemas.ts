@@ -64,10 +64,11 @@ export const billingCommandSchema = z.object({
   documentType: billingDocumentTypeSchema.default('consumidor-final'),
   dryRun: z.boolean().default(false),
   emit: z.boolean().default(false),
-  exchangeRate: z.number().positive().default(1),
+  exchangeRate: z.number().positive().optional(),
   dueDay: z.number().int().min(1).max(31).optional(),
   ivaCondition: billingIvaConditionSchema,
   pointOfSale: z.number().int().positive().optional(),
+  sameCurrency: z.boolean().default(false),
   serviceEndDate: z.string().trim().optional(),
   serviceStartDate: z.string().trim().optional(),
   shortcut: z

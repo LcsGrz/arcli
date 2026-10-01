@@ -1,11 +1,12 @@
 import type { ICbtesAsoc, IIva, INextVoucher } from '@arcasdk/core/lib/domain/types/voucher.types';
 
+import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import type { ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
 
 import { resolveTaxAmounts } from './billing.amounts';
 import { resolveAssociatedVouchers } from './billing.associated-vouchers';
-import { DEFAULT_EXCHANGE_RATE } from './billing.constants';
+import { needsOfficialExchangeRate, resolveBillingCurrencyFields } from './billing.currency';
 import { resolveBillingDateRange } from './billing.date-range';
 import {
   resolveBillingConceptCode,
@@ -33,6 +34,21 @@ interface CliVoucherPayload extends Omit<INextVoucher, 'CbtesAsoc' | 'DocNro'> {
 }
 
 export class BillingService {
+  /**
+   * Completa la cotizacion oficial cuando el comprobante se cancela en la misma moneda extranjera.
+   * Se resuelve antes de la vista previa para que el preview muestre el valor que se va a enviar.
+   */
+  public async resolveExchangeRate(input: BillingCommandInput, gateway: BillingGateway): Promise<BillingCommandInput> {
+    if (!needsOfficialExchangeRate(input)) {
+      return input;
+    }
+
+    return {
+      ...input,
+      exchangeRate: await gateway.getQuotation(resolveBillingCurrencyCode(input.currencyCode)),
+    };
+  }
+
   public async execute(options: BillingExecutionOptions): Promise<BillingExecutionResult> {
     const voucherKind = this.requireVoucherKind(options.input.shortcut);
     const payload = this.buildVoucherPayload(options.input, options.runtime, voucherKind);
@@ -81,6 +97,7 @@ export class BillingService {
       voucherKind,
     });
     const taxAmounts = resolveTaxAmounts(input.totalAmount, input.ivaCondition, voucherKind);
+    const currencyFields = resolveBillingCurrencyFields(input, dateRange.billingDate, formatDateAsArcaDate(new Date()));
 
     validateDocumentIdentity(input, voucherKind);
 
@@ -100,10 +117,14 @@ export class BillingService {
       ImpTotConc: 0,
       ImpTotal: input.totalAmount,
       ImpTrib: 0,
-      MonCotiz: input.exchangeRate ?? DEFAULT_EXCHANGE_RATE,
-      MonId: resolveBillingCurrencyCode(input.currencyCode),
+      MonCotiz: currencyFields.MonCotiz,
+      MonId: currencyFields.MonId,
       PtoVta: pointOfSale,
     };
+
+    if (currencyFields.CanMisMonExt) {
+      payload.CanMisMonExt = currencyFields.CanMisMonExt;
+    }
 
     if (taxAmounts.iva) {
       payload.Iva = taxAmounts.iva;

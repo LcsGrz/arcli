@@ -5,6 +5,7 @@ import type { VoucherKindDefinition } from './billing.types';
 
 export interface BillingGateway {
   createNextVoucher(payload: INextVoucher): Promise<CreateVoucherResultDto>;
+  getQuotation(currencyCode: string): Promise<number>;
 }
 
 export interface BillingResponseSummary {

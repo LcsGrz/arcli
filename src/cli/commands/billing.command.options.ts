@@ -18,6 +18,7 @@ export function registerBillingOptions(command: Command): void {
     .option('--mda <codigo>', 'alias de moneda, por ejemplo ARS o USD')
     .option('--cm <number>', 'alias de cotizacion de la moneda', parseFloat)
     .option('--cotizacion-moneda <number>', 'cotizacion de la moneda', parseFloat)
+    .option('--misma-moneda', 'el pago se cancela en la misma moneda extranjera; usa la cotizacion oficial de ARCA')
     .option('--cuit <number>', 'usar CUIT del receptor', (value: string) => Number.parseInt(value, 10))
     .option('--cuil <number>', 'usar CUIL del receptor', (value: string) => Number.parseInt(value, 10))
     .option('--dni <number>', 'usar DNI del receptor', (value: string) => Number.parseInt(value, 10))
