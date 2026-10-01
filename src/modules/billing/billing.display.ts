@@ -8,6 +8,7 @@ import {
   toneText,
 } from '../../ui';
 
+import { resolveIvaRateLabel } from './billing.amounts';
 import {
   formatConceptLabel,
   formatCurrencyLabel,
@@ -90,8 +91,12 @@ function formatFriendlyPayloadRows(result: BillingExecutionResult): Array<readon
     ['Cotizacion', formatDecimalLabel(payload.MonCotiz)],
     ['Importe neto', formatMoneyLabel(payload.ImpNeto)],
     ['Importe IVA', formatMoneyLabel(payload.ImpIVA)],
+    ...(payload.Iva?.[0]
+      ? [['Alicuota IVA', resolveIvaRateLabel(payload.Iva[0].Id) ?? String(payload.Iva[0].Id)] as const]
+      : []),
     ['Importe tributos', formatMoneyLabel(payload.ImpTrib)],
     ['Importe exento', formatMoneyLabel(payload.ImpOpEx)],
+    ['Importe no gravado', formatMoneyLabel(payload.ImpTotConc)],
     ['Importe total', formatMoneyLabel(payload.ImpTotal)],
   ];
 

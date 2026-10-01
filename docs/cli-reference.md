@@ -196,6 +196,9 @@ En casi todos los casos te va a interesar mirar primero:
 | ------------------------------ | --------------- | ----------------------------------------------------- | ---------------------------------------- | ------------------------------------------------ |
 | `--cargar <path>`              | ninguno         | `string`                                              | ninguno                                  | Carga datos base desde un archivo JSON           |
 | `--monto <number>`             | `-m`            | `number`                                              | requerido                                | Importe total del comprobante                    |
+| `--alicuota <tasa>`            | ninguno         | `'0' \| '2.5' \| '5' \| '10.5' \| '21' \| '27'`       | `21`                                     | Alícuota de IVA (solo `A` y `B`)                 |
+| `--exento <number>`            | ninguno         | `number`                                              | `0`                                      | Parte exenta del monto (solo `A` y `B`)          |
+| `--nogravado <number>`         | ninguno         | `number`                                              | `0`                                      | Parte no gravada del monto (solo `A` y `B`)      |
 | `--fecha <fecha>`              | `-f`            | `string`                                              | hoy                                      | Fecha del comprobante                            |
 | `--dia <number>`               | `-d`            | `integer`                                             | ninguno                                  | Día de vencimiento o referencia del servicio     |
 | `--punto-venta <number>`       | `--pv`          | `integer`                                             | `config.puntoVentaPorDefecto`            | Punto de venta                                   |
@@ -216,6 +219,8 @@ En moneda extranjera (`--moneda USD`) hay dos formas de informar la cotización:
 - **Te pagan en la moneda extranjera**: pasá `--misma-moneda`. ARCLI consulta la cotización oficial a ARCA y la muestra en la vista previa. No se combina con `--cotizacion-moneda`.
 
 En pesos la cotización siempre es `1` y `--misma-moneda` no aplica. Detalle en [Moneda y cotización](validation-rules.md#moneda-y-cotización).
+
+`--monto` siempre es el total del comprobante. Si informás `--exento` o `--nogravado`, ARCLI los descuenta del total y calcula neto e IVA sobre el resto. Ejemplo: `fb -m 1196 --exento 50 --nogravado 25` da neto 926,45 e IVA 194,55. El flag es `--nogravado`, sin guion, porque el CLI interpreta cualquier `--no-*` como la negación de otro flag.
 
 Las fechas usan formato argentino (día primero), con mes y año opcionales. Detalle completo en [Fechas aceptadas](validation-rules.md#fechas-aceptadas).
 

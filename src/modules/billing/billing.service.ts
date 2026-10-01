@@ -101,7 +101,7 @@ export class BillingService {
       voucherKind,
     });
     const currencyFields = resolveBillingCurrencyFields(input, dateRange.billingDate, formatDateAsArcaDate(new Date()));
-    const taxAmounts = resolveTaxAmounts(input.totalAmount, voucherKind);
+    const taxAmounts = resolveTaxAmounts(input, voucherKind);
 
     validateDocumentIdentity(input, voucherKind);
     validateIvaConditionForVoucher(input.ivaCondition, voucherKind);
@@ -119,8 +119,8 @@ export class BillingService {
       FchVtoPago: dateRange.paymentDueDate,
       ImpIVA: taxAmounts.ivaAmount,
       ImpNeto: taxAmounts.netAmount,
-      ImpOpEx: 0,
-      ImpTotConc: 0,
+      ImpOpEx: taxAmounts.exemptAmount,
+      ImpTotConc: taxAmounts.untaxedAmount,
       ImpTotal: input.totalAmount,
       ImpTrib: 0,
       MonCotiz: currencyFields.MonCotiz,

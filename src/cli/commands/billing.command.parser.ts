@@ -22,6 +22,7 @@ interface BillingJsonInput {
     readonly puntoVenta?: AssociatedVoucherInput['puntoVenta'];
     readonly tipo?: AssociatedVoucherInput['tipo'];
   };
+  readonly alicuotaIva?: number | string;
   readonly aliasCbu?: string;
   readonly anulacion?: boolean;
   readonly cbu?: string;
@@ -31,6 +32,8 @@ interface BillingJsonInput {
   readonly dia?: number;
   readonly emitir?: boolean;
   readonly fechaComprobante?: string;
+  readonly importeExento?: number;
+  readonly importeNoGravado?: number;
   readonly ivaReceptor?: BillingCommandInput['ivaCondition'];
   readonly mismaMoneda?: boolean;
   readonly montoTotal?: number;
@@ -217,6 +220,8 @@ function parseBillingCommandInputFromSource(
       dueDay: pickNumber(commandOptions.dia, fileInput?.dia),
       emit: shouldEmit,
       exchangeRate,
+      exemptAmount: pickNumber(commandOptions.exento, fileInput?.importeExento),
+      ivaRate: pickString(commandOptions.alicuota) ?? fileInput?.alicuotaIva,
       ivaCondition: resolvedIvaCondition,
       paymentDueDate: pickString(commandOptions.vencimiento, commandOptions.vto, fileInput?.vencimientoPago),
       pointOfSale: pickNumber(commandOptions.puntoVenta, commandOptions.pv, fileInput?.puntoVenta),
@@ -226,6 +231,7 @@ function parseBillingCommandInputFromSource(
       shortcut,
       totalAmount: pickNumber(commandOptions.monto, fileInput?.montoTotal),
       transferMode: pickString(commandOptions.transferencia, fileInput?.transferencia),
+      untaxedAmount: pickNumber(commandOptions.nogravado, fileInput?.importeNoGravado),
     }),
     __modeSource: modeSource,
   };

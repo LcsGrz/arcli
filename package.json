@@ -70,7 +70,7 @@
     ]
   },
   "dependencies": {
-    "@arcasdk/core": "2.0.0",
+    "@arcasdk/core": "2.0.2",
     "@inquirer/select": "5.2.2",
     "big.js": "7.0.1",
     "boxen": "8.0.1",

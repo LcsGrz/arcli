@@ -196,10 +196,27 @@ ARCLI convierte el código de moneda al de ARCA: `ARS` → `PES` y `USD` → `DO
 
 ARCLI calcula IVA automáticamente en todos los comprobantes letra `A` y `B`, sea cual sea el IVA receptor. Los letra `C` no informan IVA.
 
-Usa:
+El total se reparte así (ARCA 10048):
 
-- alícuota fija `21%`
-- `Id` de IVA fijo `5`
+```
+ImpTotal = ImpTotConc (--nogravado) + ImpOpEx (--exento) + ImpNeto + ImpIVA
+```
+
+- `ImpNeto` e `ImpIVA` salen del resto del total con la alícuota de `--alicuota` (por defecto `21`), redondeados a 2 decimales.
+- `--exento` + `--nogravado` no pueden superar el total. Si lo igualan, no hay neto gravado ni array `Iva`.
+- Con neto mayor a cero siempre se envía el array `Iva`, también al 0% (10070).
+- En letra `C`, `--alicuota`, `--exento` y `--nogravado` dan error, porque ARCA exige que esos importes sean cero.
+
+| `--alicuota` | Id ARCA |
+| ------------ | ------- |
+| `0`          | `3`     |
+| `2.5`        | `9`     |
+| `5`          | `8`     |
+| `10.5`       | `4`     |
+| `21`         | `5`     |
+| `27`         | `6`     |
+
+`--alicuota` acepta coma o punto decimal y un `%` final (`10,5`, `10.5`, `10.5%`). Hoy se informa una sola alícuota por comprobante.
 
 ## 3. Restricciones y errores de ARCA
 

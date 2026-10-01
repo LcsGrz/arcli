@@ -204,6 +204,28 @@ describe('billing.command.parser', () => {
     ).toThrow();
   });
 
+  it('parses the IVA rate and the exempt and untaxed amounts', () => {
+    const input = parseBillingCommandInput(
+      createCommand([
+        '--monto',
+        '1000',
+        '--cs',
+        '--ir-ri',
+        '--alicuota',
+        '10,5',
+        '--exento',
+        '100',
+        '--nogravado',
+        '50',
+      ]),
+      'fa',
+    );
+
+    expect(input.ivaRate).toBe('10.5');
+    expect(input.exemptAmount).toBe(100);
+    expect(input.untaxedAmount).toBe(50);
+  });
+
   it('loads base data from a JSON file', () => {
     const directory = mkdtempSync(join(tmpdir(), 'arcli-billing-cli-'));
 
