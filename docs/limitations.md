@@ -34,15 +34,14 @@ ARCLI los trata mejor en la salida, pero no los elimina.
 
 Se eligió `testing` como entorno por defecto para reducir errores accidentales.
 
-### IVA automático simplificado
+### IVA automático con una alícuota
 
-Hoy el CLI aplica una lógica simplificada de IVA:
+En letras `A` y `B` el CLI calcula el IVA a partir del total, con una sola alícuota por comprobante (`--alicuota`, por defecto `21%`). Exento y no gravado se informan con `--exento` y `--nogravado`.
 
-- letras `A` y `B`: IVA automático
-- alícuota fija `21%`
-- `Id` fijo `5`
+Todavía no se soportan:
 
-Eso funciona para los casos hoy soportados, pero sigue siendo una simplificación.
+- varias alícuotas en un mismo comprobante
+- tributos (`Tributos` / `ImpTrib`), como percepciones de IIBB
 
 ## Inconsistencias o bordes ya detectados
 

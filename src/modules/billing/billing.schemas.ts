@@ -41,6 +41,19 @@ export const billingIvaConditionSchema = z.enum([
   'sujeto-no-categorizado',
 ]);
 
+const IVA_RATE_VALUES = ['0', '2.5', '5', '10.5', '21', '27'] as const;
+
+// Acepta "10,5", "10.5" o "10.5%".
+export const billingIvaRateSchema = z.preprocess(
+  (value) =>
+    typeof value === 'number'
+      ? String(value)
+      : typeof value === 'string'
+        ? value.trim().replace(',', '.').replace(/%$/, '')
+        : value,
+  z.enum(IVA_RATE_VALUES, { message: 'La alicuota debe ser 0, 2.5, 5, 10.5, 21 o 27.' }),
+);
+
 const billingAssociatedVoucherSchema = z
   .object({
     cuit: z
@@ -77,6 +90,8 @@ export const billingCommandSchema = z.object({
   dryRun: z.boolean().default(false),
   emit: z.boolean().default(false),
   exchangeRate: z.number().positive().optional(),
+  exemptAmount: z.number().positive().optional(),
+  ivaRate: billingIvaRateSchema.optional(),
   dueDay: z.number().int().min(1).max(31).optional(),
   ivaCondition: billingIvaConditionSchema,
   paymentDueDate: z.string().trim().optional(),
@@ -90,6 +105,7 @@ export const billingCommandSchema = z.object({
     .min(1)
     .transform((value) => value as VoucherShortcut),
   totalAmount: z.number().positive(),
+  untaxedAmount: z.number().positive().optional(),
   transferMode: z
     .string()
     .trim()
@@ -101,4 +117,5 @@ export const billingCommandSchema = z.object({
 export type BillingConcept = z.infer<typeof billingConceptSchema>;
 export type BillingDocumentType = z.infer<typeof billingDocumentTypeSchema>;
 export type BillingIvaCondition = z.infer<typeof billingIvaConditionSchema>;
+export type BillingIvaRate = z.infer<typeof billingIvaRateSchema>;
 export type BillingCommandInput = z.infer<typeof billingCommandSchema>;

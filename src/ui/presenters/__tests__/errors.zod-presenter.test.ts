@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ZodError } from 'zod';
 
 import { billingCommandSchema } from '../../../modules/billing/billing.schemas';
+import { stripAnsi } from '../../primitives/text';
 import { formatZodError } from '../errors.zod-presenter';
 
 function parseAndGetError(input: unknown): ZodError {
@@ -46,6 +47,9 @@ describe('errors.zod-presenter', () => {
     });
 
     expect(formatZodError(error, false)).toContain('Tipo de documento tiene un valor no soportado.');
+    expect(stripAnsi(formatZodError(error, false)).replace(/[│\s]+/g, ' ')).toContain(
+      'Valores validos: consumidor-final, cuil, cuit, dni.',
+    );
   });
 
   it('serializa el detalle en JSON traduciendo la ruta a los nombres publicos', () => {

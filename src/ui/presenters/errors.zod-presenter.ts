@@ -7,12 +7,17 @@ import { bold } from '../primitives/text';
 const ZOD_PATH_LABELS: Record<string, string> = {
   associatedVoucher: 'comprobante asociado',
   billingDate: 'fecha del comprobante',
+  cancellation: 'anulacion',
+  cbu: 'CBU',
+  cbuAlias: 'alias del CBU',
   concept: 'concepto',
   currencyCode: 'moneda',
   documentNumber: 'numero de documento',
   documentType: 'tipo de documento',
   dueDay: 'dia de vencimiento',
   exchangeRate: 'cotizacion',
+  exemptAmount: 'importe exento',
+  ivaRate: 'alicuota de IVA',
   ivaCondition: 'IVA receptor',
   paymentDueDate: 'vencimiento de pago',
   pointOfSale: 'punto de venta',
@@ -20,17 +25,24 @@ const ZOD_PATH_LABELS: Record<string, string> = {
   serviceEndDate: 'servicio hasta',
   serviceStartDate: 'servicio desde',
   totalAmount: 'monto',
+  transferMode: 'modalidad de transferencia',
+  untaxedAmount: 'importe no gravado',
 };
 
 const ZOD_PUBLIC_PATHS: Record<string, string[]> = {
   associatedVoucher: ['comprobanteAsociado'],
   billingDate: ['fechaComprobante'],
+  cancellation: ['anulacion'],
+  cbu: ['cbu'],
+  cbuAlias: ['aliasCbu'],
   concept: ['concepto'],
   currencyCode: ['codigoMoneda'],
   documentNumber: ['numeroDocumento'],
   documentType: ['tipoDocumento'],
   dueDay: ['dia'],
   exchangeRate: ['cotizacionMoneda'],
+  exemptAmount: ['importeExento'],
+  ivaRate: ['alicuotaIva'],
   ivaCondition: ['ivaReceptor'],
   paymentDueDate: ['vencimientoPago'],
   pointOfSale: ['puntoVenta'],
@@ -38,6 +50,8 @@ const ZOD_PUBLIC_PATHS: Record<string, string[]> = {
   serviceEndDate: ['servicioHasta'],
   serviceStartDate: ['servicioDesde'],
   totalAmount: ['montoTotal'],
+  transferMode: ['transferencia'],
+  untaxedAmount: ['importeNoGravado'],
 };
 
 function formatZodIssuePath(path: PropertyKey[]): string {
@@ -65,7 +79,9 @@ function humanizeZodIssue(issue: ZodError['issues'][number]): string {
   }
 
   if (issue.code === 'invalid_value') {
-    return `${label[0]?.toUpperCase() ?? ''}${label.slice(1)} tiene un valor no soportado.`;
+    const allowedValues = issue.values.map((value) => String(value)).join(', ');
+
+    return `${label[0]?.toUpperCase() ?? ''}${label.slice(1)} tiene un valor no soportado. Valores validos: ${allowedValues}.`;
   }
 
   if (issue.code === 'invalid_type') {

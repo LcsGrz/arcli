@@ -168,6 +168,14 @@ arcli fc ayuda
 - **Solución:** agregar `--afecha <fecha>` con la fecha de la factura FCE original.
 - **Documentación relacionada:** [Crédito electrónico (FCE)](validation-rules.md#crédito-electrónico-fce)
 
+### Exento o no gravado mayor al total
+
+- **Severidad:** ocasional
+- **Síntoma:** `El importe exento mas el no gravado no puede superar el monto total.`
+- **Causa:** `--monto` es el total del comprobante, y `--exento` y `--nogravado` son partes de ese total.
+- **Solución:** pasar en `--monto` el total, incluidos exento y no gravado.
+- **Documentación relacionada:** [IVA automático](validation-rules.md#iva-automático)
+
 ## ARCA
 
 ### `coe.alreadyAuthenticated`

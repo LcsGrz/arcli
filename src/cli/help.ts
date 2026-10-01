@@ -32,6 +32,9 @@ const AVAILABLE_GENERAL_OPTIONS = [
   '  - --cotizacion-moneda <number> | --cm <number> | todas | cotizacion de la moneda elegida; obligatoria en moneda extranjera',
   '  - --misma-moneda | todas | el pago se cancela en la moneda extranjera; usa la cotizacion oficial de ARCA',
   '  - --cargar <path> | todas | cargar un comprobante o lote desde JSON',
+  '  - --alicuota <tasa> | letras A y B | alicuota de IVA: 0, 2.5, 5, 10.5, 21 o 27; por defecto 21',
+  '  - --exento <number> | letras A y B | parte exenta del monto total',
+  '  - --nogravado <number> | letras A y B | parte no gravada del monto total',
 ].join('\n');
 
 const AVAILABLE_IDENTITY_OPTIONS = [

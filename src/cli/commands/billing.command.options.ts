@@ -3,6 +3,10 @@ import { type Command, Option } from 'commander';
 export function registerBillingOptions(command: Command): void {
   command
     .option('-m, --monto <number>', 'importe total del comprobante', parseFloat)
+    .option('--alicuota <tasa>', 'alicuota de IVA para A y B: 0, 2.5, 5, 10.5, 21 o 27 (por defecto 21)')
+    .option('--exento <number>', 'parte exenta del monto total (A y B)', parseFloat)
+    // No puede llamarse --no-gravado: commander interpreta --no-* como negacion de un flag booleano.
+    .option('--nogravado <number>', 'parte no gravada del monto total (A y B)', parseFloat)
     .option('-d, --dia <number>', 'dia de vencimiento o referencia del servicio', (value: string) =>
       Number.parseInt(value, 10),
     )

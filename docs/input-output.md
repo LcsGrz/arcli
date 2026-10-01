@@ -16,29 +16,32 @@ arcli fc --cargar ./voucher.json
 
 ### Campos soportados
 
-| Campo                 | Tipo    | Requerido                              | Descripción                                |
-| --------------------- | ------- | -------------------------------------- | ------------------------------------------ |
-| `aliasCbu`            | string  | no                                     | Alias del CBU (facturas FCE)               |
-| `anulacion`           | boolean | no                                     | NC/ND FCE de anulación                     |
-| `cbu`                 | string  | en facturas FCE, salvo `config.cbu`    | CBU del emisor (facturas FCE)              |
-| `comprobanteAsociado` | object  | no                                     | Comprobante asociado                       |
-| `concepto`            | string  | sí, salvo default por flags/config     | Concepto                                   |
-| `codigoMoneda`        | string  | no                                     | Moneda                                     |
-| `cotizacionMoneda`    | number  | en moneda extranjera sin `mismaMoneda` | Cotización de la moneda                    |
-| `mismaMoneda`         | boolean | no                                     | El pago se cancela en la moneda extranjera |
-| `dia`                 | number  | no                                     | Día de vencimiento o referencia            |
-| `emitir`              | boolean | no                                     | Emisión real                               |
-| `fechaComprobante`    | string  | no                                     | Fecha del comprobante                      |
-| `ivaReceptor`         | string  | sí, salvo default por config           | Condición IVA del receptor                 |
-| `montoTotal`          | number  | sí                                     | Importe total                              |
-| `numeroDocumento`     | number  | depende del tipo de documento          | Número de documento                        |
-| `previsualizar`       | boolean | no                                     | Preview sin emitir                         |
-| `puntoVenta`          | number  | no                                     | Punto de venta                             |
-| `servicioDesde`       | string  | no                                     | Fecha inicio de servicio                   |
-| `servicioHasta`       | string  | no                                     | Fecha fin de servicio                      |
-| `vencimientoPago`     | string  | no                                     | Fecha de vencimiento del pago              |
-| `tipoDocumento`       | string  | no                                     | `consumidor-final`, `cuit`, `cuil` o `dni` |
-| `transferencia`       | string  | no                                     | `sca` o `adc` (facturas FCE)               |
+| Campo                 | Tipo    | Requerido                              | Descripción                                           |
+| --------------------- | ------- | -------------------------------------- | ----------------------------------------------------- |
+| `alicuotaIva`         | string  | no                                     | Alícuota de IVA: `0`, `2.5`, `5`, `10.5`, `21` o `27` |
+| `aliasCbu`            | string  | no                                     | Alias del CBU (facturas FCE)                          |
+| `anulacion`           | boolean | no                                     | NC/ND FCE de anulación                                |
+| `cbu`                 | string  | en facturas FCE, salvo `config.cbu`    | CBU del emisor (facturas FCE)                         |
+| `comprobanteAsociado` | object  | no                                     | Comprobante asociado                                  |
+| `concepto`            | string  | sí, salvo default por flags/config     | Concepto                                              |
+| `codigoMoneda`        | string  | no                                     | Moneda                                                |
+| `cotizacionMoneda`    | number  | en moneda extranjera sin `mismaMoneda` | Cotización de la moneda                               |
+| `mismaMoneda`         | boolean | no                                     | El pago se cancela en la moneda extranjera            |
+| `dia`                 | number  | no                                     | Día de vencimiento o referencia                       |
+| `emitir`              | boolean | no                                     | Emisión real                                          |
+| `fechaComprobante`    | string  | no                                     | Fecha del comprobante                                 |
+| `importeExento`       | number  | no                                     | Parte exenta del total (A y B)                        |
+| `importeNoGravado`    | number  | no                                     | Parte no gravada del total (A y B)                    |
+| `ivaReceptor`         | string  | sí, salvo default por config           | Condición IVA del receptor                            |
+| `montoTotal`          | number  | sí                                     | Importe total                                         |
+| `numeroDocumento`     | number  | depende del tipo de documento          | Número de documento                                   |
+| `previsualizar`       | boolean | no                                     | Preview sin emitir                                    |
+| `puntoVenta`          | number  | no                                     | Punto de venta                                        |
+| `servicioDesde`       | string  | no                                     | Fecha inicio de servicio                              |
+| `servicioHasta`       | string  | no                                     | Fecha fin de servicio                                 |
+| `vencimientoPago`     | string  | no                                     | Fecha de vencimiento del pago                         |
+| `tipoDocumento`       | string  | no                                     | `consumidor-final`, `cuit`, `cuil` o `dni`            |
+| `transferencia`       | string  | no                                     | `sca` o `adc` (facturas FCE)                          |
 
 ### Objeto `comprobanteAsociado`
 
