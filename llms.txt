@@ -155,6 +155,8 @@ ticket WSAA; por defecto una carpeta junto al archivo de config).
 
 ## Otros comandos
 
+- `arcli ultimos <tipo> [--cantidad N] [--pv N] [--json]`: últimos comprobantes emitidos (de 1 a 50, por defecto 10), del más nuevo al más viejo. `tipo` es el atajo (`fb`, `nca`…).
+- `arcli consultar <tipo> <numero> [--pv N] [--json]`: detalle de un comprobante emitido (CAE, vencimiento, importes, receptor). Si no existe, el error es `VOUCHER_NOT_FOUND`. Sirve para verificar después de emitir.
 - `arcli ejemplos`: comandos listos para copiar por cada tipo de comprobante.
 - `arcli storybook [escena]`: demos visuales de la UI (sin llamar a ARCA).
 - `arcli <cualquier comando> ayuda` o `--ayuda`: ayuda contextual con ejemplos (nota: el flag

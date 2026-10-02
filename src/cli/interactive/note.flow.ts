@@ -13,14 +13,14 @@ import {
   type IssuedVoucher,
   listRecentVouchers,
   resolveDocumentType,
-} from '../../modules/interactive/voucher-history';
+} from '../../modules/vouchers/voucher-history';
+import { formatVoucherSummary } from '../../modules/vouchers/voucher-history.presenter';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 import { startSpinner } from '../spinner';
 
 import { askText, chooseOne, confirm } from './prompts';
 import { type InteractiveSession, previewAndEmit, requirePointOfSale } from './session';
 import { validateAmount } from './validators';
-import { formatVoucherSummary } from './voucher-format';
 
 const CONCEPTS_BY_CODE: Record<number, BillingConcept> = {
   1: 'productos',

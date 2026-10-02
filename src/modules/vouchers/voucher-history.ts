@@ -1,15 +1,23 @@
 import type { BillingDocumentType, BillingIvaRate } from '../billing/billing.schemas';
 
+/** Comprobante ya emitido, tal como lo devuelve ARCA (FECompConsultar). Fechas en formato yyyymmdd. */
 export interface IssuedVoucher {
   readonly cae?: string;
+  readonly caeExpiration?: string;
   readonly concept?: number;
+  readonly currency?: string;
   readonly date: string;
   readonly documentNumber: number;
   readonly documentTypeCode: number;
+  readonly exchangeRate?: number;
+  readonly exemptAmount?: number;
   readonly ivaAmount: number;
   readonly netAmount: number;
   readonly number: number;
+  readonly result?: string;
+  readonly taxesAmount?: number;
   readonly total: number;
+  readonly untaxedAmount?: number;
 }
 
 export interface VoucherHistoryGateway {
@@ -34,6 +42,7 @@ const IVA_RATES: ReadonlyArray<readonly [BillingIvaRate, number]> = [
 ];
 
 export const RECENT_VOUCHERS_LIMIT = 10;
+export const MAX_RECENT_VOUCHERS = 50;
 
 export function resolveDocumentType(code: number): BillingDocumentType | undefined {
   return DOCUMENT_TYPES_BY_CODE[code];

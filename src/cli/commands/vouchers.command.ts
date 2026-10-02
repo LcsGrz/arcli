@@ -1,0 +1,155 @@
+import type { Command } from 'commander';
+
+import { AppError, InputValidationError } from '../../lib/errors/app-error';
+import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
+import { getVoucherKindByShortcut, VOUCHER_SHORTCUTS } from '../../modules/billing/voucher-kind-map';
+import { listRecentVouchers, MAX_RECENT_VOUCHERS, RECENT_VOUCHERS_LIMIT } from '../../modules/vouchers/voucher-history';
+import {
+  formatVoucherDetailAsJson,
+  formatVoucherDetailAsText,
+  formatVoucherListAsJson,
+  formatVoucherListAsText,
+  formatVoucherNumber,
+} from '../../modules/vouchers/voucher-history.presenter';
+import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
+import { ArcaContextResolver, type ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
+import { ArcaVoucherHistoryGateway } from '../../services/arca/arca-voucher-history.gateway';
+import { writeTerminalJson, writeTerminalOutput } from '../../ui';
+import { configureSpanishHelp, createVoucherQueryHelp } from '../help';
+import { startSpinner } from '../spinner';
+
+import { getGlobalOptions, registerGlobalOptions } from './billing.command.shared';
+
+interface PointOfSaleOptions {
+  readonly pv?: number;
+  readonly puntoVenta?: number;
+}
+
+const parseInteger = (value: string): number => Number.parseInt(value, 10);
+
+function requireVoucherKind(shortcut: string): VoucherKindDefinition {
+  const voucherKind = getVoucherKindByShortcut(shortcut.trim().toLowerCase());
+
+  if (!voucherKind) {
+    throw new InputValidationError(
+      `El tipo "${shortcut}" no es valido. Use un atajo: ${VOUCHER_SHORTCUTS.join(', ')}.`,
+    );
+  }
+
+  return voucherKind;
+}
+
+function requirePointOfSale(options: PointOfSaleOptions, runtime: ResolvedArcaRuntime): number {
+  const pointOfSale = options.pv ?? options.puntoVenta ?? runtime.pointOfSale;
+
+  if (!pointOfSale || !Number.isInteger(pointOfSale) || pointOfSale <= 0) {
+    throw new InputValidationError(
+      'Falta el punto de venta. Use --pv <numero> o configurelo con "arcli config establecer puntoVenta <numero>".',
+    );
+  }
+
+  return pointOfSale;
+}
+
+function createContext(command: Command): {
+  readonly gateway: ArcaVoucherHistoryGateway;
+  readonly runtime: ResolvedArcaRuntime;
+} {
+  const runtime = new ArcaContextResolver({ options: getGlobalOptions(command) }).resolve();
+
+  return { gateway: new ArcaVoucherHistoryGateway(new ArcaClientFactory().create(runtime)), runtime };
+}
+
+function addPointOfSaleOptions(command: Command): Command {
+  return command
+    .option('--pv <numero>', 'punto de venta; por defecto el de la config', parseInteger)
+    .option('--punto-venta <numero>', 'punto de venta; por defecto el de la config', parseInteger);
+}
+
+async function withSpinner<T>(runtime: ResolvedArcaRuntime, run: () => Promise<T>): Promise<T> {
+  const spinner = runtime.outputJson ? null : startSpinner('Consultando ARCA...');
+
+  try {
+    return await run();
+  } finally {
+    spinner?.stop();
+  }
+}
+
+export function registerVoucherQueryCommands(program: Command): void {
+  const recent = addPointOfSaleOptions(
+    program
+      .command('ultimos')
+      .argument('<tipo>', 'atajo del comprobante, por ejemplo fb, fc o nca')
+      .description('listar los ultimos comprobantes emitidos en ARCA')
+      .option('--cantidad <numero>', `cuantos comprobantes mostrar (1 a ${MAX_RECENT_VOUCHERS})`, parseInteger),
+  ).addHelpText('after', createVoucherQueryHelp());
+
+  registerGlobalOptions(recent);
+  configureSpanishHelp(recent);
+
+  recent.action(async (shortcut: string, options: PointOfSaleOptions & { cantidad?: number }, self: Command) => {
+    const voucherKind = requireVoucherKind(shortcut);
+    const limit = options.cantidad ?? RECENT_VOUCHERS_LIMIT;
+
+    if (!Number.isInteger(limit) || limit < 1 || limit > MAX_RECENT_VOUCHERS) {
+      throw new InputValidationError(`--cantidad tiene que ser un numero entre 1 y ${MAX_RECENT_VOUCHERS}.`);
+    }
+
+    const { gateway, runtime } = createContext(self);
+    const pointOfSale = requirePointOfSale(options, runtime);
+    const vouchers = await withSpinner(runtime, () =>
+      listRecentVouchers(gateway, pointOfSale, voucherKind.arcaType, { limit }),
+    );
+    const report = { environment: runtime.environment, pointOfSale, voucherKind, vouchers };
+
+    if (runtime.outputJson) {
+      writeTerminalJson(formatVoucherListAsJson(report));
+
+      return;
+    }
+
+    writeTerminalOutput(formatVoucherListAsText(report));
+  });
+
+  const detail = addPointOfSaleOptions(
+    program
+      .command('consultar')
+      .argument('<tipo>', 'atajo del comprobante, por ejemplo fb, fc o nca')
+      .argument('<numero>', 'numero del comprobante')
+      .description('ver el detalle de un comprobante emitido en ARCA'),
+  ).addHelpText('after', createVoucherQueryHelp());
+
+  registerGlobalOptions(detail);
+  configureSpanishHelp(detail);
+
+  detail.action(async (shortcut: string, rawNumber: string, options: PointOfSaleOptions, self: Command) => {
+    const voucherKind = requireVoucherKind(shortcut);
+    const number = Number(rawNumber);
+
+    if (!Number.isInteger(number) || number <= 0) {
+      throw new InputValidationError(`El numero "${rawNumber}" no es valido: tiene que ser un entero positivo.`);
+    }
+
+    const { gateway, runtime } = createContext(self);
+    const pointOfSale = requirePointOfSale(options, runtime);
+    const voucher = await withSpinner(runtime, () => gateway.getVoucher(number, pointOfSale, voucherKind.arcaType));
+
+    if (!voucher) {
+      throw new AppError(
+        `No existe la ${voucherKind.displayName} N° ${formatVoucherNumber(pointOfSale, number)} en ARCA (${runtime.environment}).`,
+        { code: 'VOUCHER_NOT_FOUND' },
+      );
+    }
+
+    const report = { environment: runtime.environment, pointOfSale, voucher, voucherKind };
+
+    if (runtime.outputJson) {
+      writeTerminalJson(formatVoucherDetailAsJson(report));
+
+      return;
+    }
+
+    writeTerminalOutput(formatVoucherDetailAsText(report));
+  });
+}
