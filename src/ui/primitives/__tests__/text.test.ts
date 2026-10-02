@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
-import { colorize, stripAnsi, wrapIndentedPlainText } from '../text';
+import { colorize, shouldUseColor, stripAnsi, wrapIndentedPlainText } from '../text';
 
 describe('wrapIndentedPlainText', () => {
   it('deja igual las lineas que entran', () => {
@@ -48,9 +48,11 @@ describe('wrapIndentedPlainText', () => {
 function withColors(run: () => void): void {
   const isTty = process.stdout.isTTY;
   const noColor = process.env.NO_COLOR;
+  const forceColor = process.env.FORCE_COLOR;
 
   Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: true });
   delete process.env.NO_COLOR;
+  delete process.env.FORCE_COLOR;
 
   try {
     run();
@@ -59,6 +61,10 @@ function withColors(run: () => void): void {
 
     if (noColor !== undefined) {
       process.env.NO_COLOR = noColor;
+    }
+
+    if (forceColor !== undefined) {
+      process.env.FORCE_COLOR = forceColor;
     }
   }
 }
@@ -69,5 +75,46 @@ describe('colorize', () => {
       expect(colorize('Esto equivale a:', 'muted')).toBe('\u001B[2mEsto equivale a:\u001B[22m');
       expect(colorize('arcli fc', 'info')).toBe('\u001B[36marcli fc\u001B[39m');
     });
+  });
+});
+
+describe('shouldUseColor', () => {
+  const saved = { force: process.env.FORCE_COLOR, isTty: process.stdout.isTTY, noColor: process.env.NO_COLOR };
+
+  function setEnv(
+    isTty: boolean | undefined,
+    env: { readonly FORCE_COLOR?: string; readonly NO_COLOR?: string },
+  ): void {
+    Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: isTty });
+    delete process.env.FORCE_COLOR;
+    delete process.env.NO_COLOR;
+    Object.assign(process.env, env);
+  }
+
+  afterEach(() => {
+    setEnv(saved.isTty, {});
+
+    if (saved.force !== undefined) process.env.FORCE_COLOR = saved.force;
+    if (saved.noColor !== undefined) process.env.NO_COLOR = saved.noColor;
+  });
+
+  it('colorea solo en una terminal real', () => {
+    setEnv(true, {});
+    expect(shouldUseColor()).toBe(true);
+
+    // Con la salida en un pipe (`| jq`) isTTY es undefined: no tiene que colorear.
+    setEnv(undefined, {});
+    expect(shouldUseColor()).toBe(false);
+  });
+
+  it('respeta FORCE_COLOR y NO_COLOR, con NO_COLOR como prioridad', () => {
+    setEnv(undefined, { FORCE_COLOR: '1' });
+    expect(shouldUseColor()).toBe(true);
+
+    setEnv(true, { FORCE_COLOR: '0' });
+    expect(shouldUseColor()).toBe(false);
+
+    setEnv(true, { FORCE_COLOR: '1', NO_COLOR: '1' });
+    expect(shouldUseColor()).toBe(false);
   });
 });

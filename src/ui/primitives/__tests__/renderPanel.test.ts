@@ -6,9 +6,11 @@ import { stripAnsi } from '../text';
 function withColors(run: () => void): void {
   const isTty = process.stdout.isTTY;
   const noColor = process.env.NO_COLOR;
+  const forceColor = process.env.FORCE_COLOR;
 
   Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: true });
   delete process.env.NO_COLOR;
+  delete process.env.FORCE_COLOR;
 
   try {
     run();
@@ -17,6 +19,10 @@ function withColors(run: () => void): void {
 
     if (noColor !== undefined) {
       process.env.NO_COLOR = noColor;
+    }
+
+    if (forceColor !== undefined) {
+      process.env.FORCE_COLOR = forceColor;
     }
   }
 }
