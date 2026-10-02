@@ -11,14 +11,25 @@ const DIM = '\u001B[2m';
 export type OutputTarget = 'stderr' | 'stdout';
 export type UiTextColor = UiColorToken | string;
 
+/**
+ * Colores solo en una terminal real. Con la salida redirigida (pipe, archivo, `| jq`) `isTTY` es
+ * `undefined`: antes se trataba como terminal y el JSON salia con codigos ANSI que lo rompian.
+ * `NO_COLOR` los apaga siempre; `FORCE_COLOR` los fuerza aunque no haya terminal.
+ */
 export function shouldUseColor(target: OutputTarget = 'stdout'): boolean {
   if (process.env.NO_COLOR) {
     return false;
   }
 
+  const forceColor = process.env.FORCE_COLOR;
+
+  if (forceColor !== undefined && forceColor !== '') {
+    return forceColor !== '0' && forceColor.toLowerCase() !== 'false';
+  }
+
   const stream = target === 'stderr' ? process.stderr : process.stdout;
 
-  return stream.isTTY !== false;
+  return stream.isTTY === true;
 }
 
 export function supportsColor(target: OutputTarget = 'stdout'): boolean {
