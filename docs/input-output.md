@@ -117,13 +117,38 @@ Si el archivo contiene un array, ARCLI procesa un lote del mismo comando.
 ]
 ```
 
-### ⚠️ Batch fail-fast
+### Validación y errores del lote
 
-Hoy el batch es fail-fast:
+**Antes de emitir el primer comprobante, ARCLI valida todos los del lote**: la forma del JSON y las reglas de negocio (IVA receptor por letra, fechas, FCE, montos…).
 
-- si un item es inválido, el lote completo falla
-- no hay resultados parciales por item
-- el error típico es `INPUT_VALIDATION_ERROR`
+- Si alguno es inválido, **no se emite ninguno** y el error `BATCH_VALIDATION_ERROR` lista **todos** los ítems con problemas, con su índice (desde 1) y el motivo.
+- Si la emisión se corta a mitad del lote (red, ARCA), ARCLI **muestra primero los comprobantes ya procesados** y después el error `BATCH_EMISSION_ERROR`, que indica en qué ítem falló y cuáles quedaron sin procesar. **No vuelvas a cargar los ya emitidos**: reintentá solo los que quedaron sin procesar.
+
+```json
+{
+  "codigo": "BATCH_VALIDATION_ERROR",
+  "detalles": {
+    "comprobantes": [
+      { "error": "Falta monto.", "indice": 2 },
+      {
+        "error": "La factura b de $10.000.000 o mas requiere identificar al consumidor final. Use --dni, --cuit o --cuil.",
+        "indice": 3
+      }
+    ]
+  },
+  "error": "2 de 4 comprobantes del lote tienen errores. No se emitio ninguno.\n\n#2: ..."
+}
+```
+
+```json
+{
+  "codigo": "BATCH_EMISSION_ERROR",
+  "detalles": { "fallo": 3, "procesados": 2, "sinProcesar": [4], "total": 4 },
+  "error": "El lote se interrumpio en el comprobante #3: ...\nProcesados: 2 de 4. Sin procesar: #4."
+}
+```
+
+Con un solo comprobante (sin lote) los errores son los de siempre.
 
 ## Output humano
 

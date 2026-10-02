@@ -6,9 +6,9 @@ Limitaciones y decisiones de diseño que hoy forman parte del comportamiento rea
 
 ## Limitaciones funcionales
 
-### Batch fail-fast
+### Lotes sin emisión parcial controlada
 
-Ver [input-output.md](input-output.md#batch-fail-fast).
+Un lote se valida entero antes de emitir, pero si la emisión se corta a mitad (red, ARCA) los comprobantes ya emitidos quedan emitidos: no hay "deshacer". ARCLI los muestra antes del error para que no se carguen dos veces. Ver [input-output.md](input-output.md#validación-y-errores-del-lote).
 
 ### Contrato humano no estable
 

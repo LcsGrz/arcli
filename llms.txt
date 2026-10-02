@@ -132,7 +132,10 @@ JSON, nunca alcanza con chequear el exit code.
 Sin `--json`: panel de texto en stderr. Con `--json`: JSON en stderr con la forma
 `{"codigo": "...", "detalles": {...} | null, "error": "mensaje", "sugerencia": "..." | null}`.
 `codigo` es `CONFIGURATION_ERROR`, `INPUT_VALIDATION_ERROR`, `TRANSIENT_ERROR` (reintentar,
-suele ser "transacción activa" de ARCA) o `UNEXPECTED_ERROR`. El proceso termina con
+suele ser "transacción activa" de ARCA), `UNEXPECTED_ERROR`, `VOUCHER_NOT_FOUND` (`consultar`), o en un lote
+(`--cargar` con un array) `BATCH_VALIDATION_ERROR` (no se emitió ninguno; `detalles.comprobantes` lista cada
+`{indice, error}`) y `BATCH_EMISSION_ERROR` (se cortó a mitad: los resultados ya procesados salen antes por
+stdout; reintentar solo `detalles.sinProcesar`, nunca los ya emitidos). El proceso termina con
 exit code `1` en cualquier error.
 
 ## Comando `config`
