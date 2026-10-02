@@ -238,6 +238,46 @@ Si no hubo emisión real, `respuesta` no se serializa como `null`. En su lugar:
 }
 ```
 
+## Comprobantes emitidos (`ultimos` y `consultar`)
+
+`arcli ultimos <tipo> --json` devuelve el tipo de comprobante y la lista, del más nuevo al más viejo:
+
+```json
+{
+  "atajo": "fb",
+  "comprobante": "Factura B",
+  "tipoArca": 6,
+  "comprobantes": [
+    {
+      "cae": "86400940834444",
+      "caeVencimiento": "20261011",
+      "concepto": 2,
+      "cotizacion": 1,
+      "fecha": "20261001",
+      "importes": { "exento": 50, "iva": 105.05, "neto": 1000.45, "noGravado": 25, "total": 1180.5, "tributos": 0 },
+      "moneda": "PES",
+      "numero": 12,
+      "numeroDocumento": 0,
+      "resultado": "A",
+      "tipoDocumento": 99
+    }
+  ],
+  "entorno": "testing",
+  "puntoVenta": 3
+}
+```
+
+`arcli consultar <tipo> <numero> --json` devuelve un solo comprobante, con los mismos campos al primer nivel (sin el array `comprobantes`).
+
+| Campo                     | Tipo             | Descripción                                                           |
+| ------------------------- | ---------------- | --------------------------------------------------------------------- |
+| `fecha`, `caeVencimiento` | `string`         | Formato ARCA `yyyymmdd`                                               |
+| `concepto`                | `number`         | `1` productos, `2` servicios, `3` productos y servicios               |
+| `tipoDocumento`           | `number`         | Código de ARCA: `80` CUIT, `86` CUIL, `96` DNI, `99` consumidor final |
+| `moneda`                  | `string`         | Código de ARCA (`PES`, `DOL`…)                                        |
+| `importes`                | `object`         | `total`, `neto`, `iva`, `exento`, `noGravado` y `tributos`            |
+| `resultado`               | `string \| null` | `A` aprobado, `R` rechazado                                           |
+
 ## Formato de errores
 
 ### Errores JSON de validación

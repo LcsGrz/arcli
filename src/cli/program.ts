@@ -8,6 +8,7 @@ import { registerExamplesCommand } from './commands/examples.command';
 import { registerFceObligationCommand } from './commands/fce-obligation.command';
 import { registerInteractiveCommand } from './commands/interactive.command';
 import { registerStorybookCommand } from './commands/storybook.command';
+import { registerVoucherQueryCommands } from './commands/vouchers.command';
 import { configureSpanishHelp, createProgramHeader, createProgramHelp } from './help';
 import { CLI_VERSION } from './version';
 
@@ -31,6 +32,7 @@ export function createProgram(): Command {
   registerExamplesCommand(program);
   registerFceObligationCommand(program);
   registerInteractiveCommand(program);
+  registerVoucherQueryCommands(program);
   registerStorybookCommand(program);
 
   program.addHelpText('beforeAll', ({ command }) => (command === program ? createProgramHeader() : ''));

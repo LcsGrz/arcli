@@ -1,13 +1,11 @@
-import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
-import { formatMoneyLabel } from '../../modules/billing/billing.labels';
 import { invoiceKindChoices } from '../../modules/interactive/choices';
-import { listRecentVouchers } from '../../modules/interactive/voucher-history';
-import { keyValuePanel, noticePanel, writeTerminalOutput } from '../../ui';
+import { listRecentVouchers } from '../../modules/vouchers/voucher-history';
+import { formatVoucherListAsText } from '../../modules/vouchers/voucher-history.presenter';
+import { writeTerminalOutput } from '../../ui';
 import { startSpinner } from '../spinner';
 
 import { chooseOne } from './prompts';
 import { type InteractiveSession, requirePointOfSale } from './session';
-import { formatReceiver, formatVoucherNumber } from './voucher-format';
 
 export async function runHistoryFlow(session: InteractiveSession): Promise<void> {
   const pointOfSale = requirePointOfSale(session);
@@ -22,32 +20,7 @@ export async function runHistoryFlow(session: InteractiveSession): Promise<void>
     spinner?.stop(),
   );
 
-  if (vouchers.length === 0) {
-    writeTerminalOutput(
-      noticePanel(`No hay ${voucherKind.displayName} emitidas en el punto de venta ${pointOfSale}.`, 'muted'),
-    );
-
-    return;
-  }
-
-  const rows = vouchers.map((voucher) =>
-    [
-      formatVoucherNumber(pointOfSale, voucher.number),
-      formatArcaDateAsArgentineDate(voucher.date),
-      formatReceiver(voucher).padEnd(20),
-      formatMoneyLabel(voucher.total).padStart(16),
-      voucher.cae ? `CAE ${voucher.cae}` : '',
-    ].join('  '),
-  );
-
   writeTerminalOutput(
-    keyValuePanel(
-      `Ultimas ${voucherKind.displayName} · PV ${pointOfSale} · ${session.runtime.environment}`,
-      rows,
-      undefined,
-      'wide',
-      undefined,
-      'listing',
-    ),
+    formatVoucherListAsText({ environment: session.runtime.environment, pointOfSale, voucherKind, vouchers }),
   );
 }

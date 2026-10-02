@@ -1,6 +1,6 @@
 import type { Arca } from '@arcasdk/core';
 
-import type { IssuedVoucher, VoucherHistoryGateway } from '../../modules/interactive/voucher-history';
+import type { IssuedVoucher, VoucherHistoryGateway } from '../../modules/vouchers/voucher-history';
 
 export class ArcaVoucherHistoryGateway implements VoucherHistoryGateway {
   public constructor(private readonly arca: Arca) {}
@@ -18,20 +18,28 @@ export class ArcaVoucherHistoryGateway implements VoucherHistoryGateway {
   ): Promise<IssuedVoucher | undefined> {
     const info = await this.arca.electronicBillingService.getVoucherInfo(number, pointOfSale, voucherType);
 
-    if (!info?.cbteFch || info.resultado !== 'A') {
+    // ARCA devuelve null cuando el comprobante no existe.
+    if (!info?.cbteFch) {
       return undefined;
     }
 
     return {
       cae: info.codAutorizacion,
+      caeExpiration: info.fchVto,
       concept: info.concepto,
+      currency: info.monId,
       date: info.cbteFch,
       documentNumber: info.docNro ?? 0,
       documentTypeCode: info.docTipo ?? 99,
+      exchangeRate: info.monCotiz,
+      exemptAmount: info.impOpEx ?? 0,
       ivaAmount: info.impIVA ?? 0,
       netAmount: info.impNeto ?? 0,
       number,
+      result: info.resultado,
+      taxesAmount: info.impTrib ?? 0,
       total: info.impTotal ?? 0,
+      untaxedAmount: info.impTotConc ?? 0,
     };
   }
 }

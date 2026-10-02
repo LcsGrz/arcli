@@ -160,6 +160,8 @@ function createProgramCommands(): string {
       '  - Ver ejemplos listos para copiar: arcli ejemplos',
       '  - Consultar si un receptor esta obligado a FCE: arcli fce-obligado <cuit>',
       '  - Asistente paso a paso: arcli (sin argumentos) o arcli interactivo',
+      '  - Ver los ultimos comprobantes emitidos: arcli ultimos fb',
+      '  - Ver el detalle de un comprobante: arcli consultar fb 14',
       '  - Ver escenas de UI: arcli storybook',
     ].join('\n'),
   );
@@ -613,6 +615,31 @@ export function createFceObligationHelp(): string {
       [
         '  - El certificado tiene que estar autorizado para el servicio wsfecred en ARCA.',
         '  - Para chequearlo en cada factura: arcli config establecer verificarFce true',
+      ].join('\n'),
+    ),
+    '',
+  ].join('\n');
+}
+
+export function createVoucherQueryHelp(): string {
+  return [
+    '',
+    section(
+      'Ejemplos',
+      [
+        '  - arcli ultimos fb                  ultimas 10 facturas B del punto de venta configurado',
+        '  - arcli ultimos nca --cantidad 25   ultimas 25 notas de credito A',
+        '  - arcli consultar fb 14             detalle de la factura B numero 14',
+        '  - arcli consultar fb 14 --json      lo mismo, en JSON',
+      ].join('\n'),
+    ),
+    '',
+    section(
+      'Detalles',
+      [
+        '  - El tipo es el atajo del comprobante: fa, fb, fc, nca, ndb, fcea, etc.',
+        '  - Sin --pv usa el punto de venta de la config.',
+        '  - Solo consulta: no emite ni modifica nada.',
       ].join('\n'),
     ),
     '',

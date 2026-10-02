@@ -480,6 +480,24 @@ Tropiezos habituales cuando el comando parece bien armado pero igual falla:
 
 Para el diagnóstico paso a paso de cada caso, ver [Troubleshooting](troubleshooting.md).
 
+## Consultar comprobantes emitidos
+
+Dos comandos de solo lectura para ver lo que ya está emitido en ARCA, sin abrir el modo interactivo:
+
+```bash
+arcli ultimos fb                  # últimas 10 facturas B del punto de venta configurado
+arcli ultimos nca --cantidad 25   # últimas 25 notas de crédito A
+arcli consultar fb 14             # detalle de la factura B número 14
+arcli consultar fb 14 --json      # lo mismo, en JSON
+```
+
+| Comando                           | Argumentos                                                 | Flags                                                                                                      |
+| --------------------------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `arcli ultimos <tipo>`            | `tipo`: atajo del comprobante (`fa`, `fb`, `nca`, `fcea`…) | `--cantidad <n>` (1 a 50, por defecto 10), `--pv` / `--punto-venta`, `--json`, `--testing`, `--produccion` |
+| `arcli consultar <tipo> <numero>` | `tipo` y número del comprobante                            | `--pv` / `--punto-venta`, `--json`, `--testing`, `--produccion`                                            |
+
+Sin `--pv` usan el punto de venta de la config. Si el comprobante no existe, `consultar` termina con el error `VOUCHER_NOT_FOUND`. El formato del JSON está en [Entrada y salida](input-output.md#comprobantes-emitidos-ultimos-y-consultar).
+
 ## Consultar el régimen FCE
 
 `arcli fce-obligado <cuit>` le pregunta a ARCA si un receptor está obligado a recibir Factura de Crédito Electrónica y desde qué monto. Con eso sabés si corresponde `fa/fb/fc` o `fcea/fceb/fcec`.
@@ -516,4 +534,6 @@ Para referencia de comandos `config` y claves disponibles, ver [configuration.md
 | `ejemplos`                                                                                                                         | estable | Muestra ejemplos listos para copiar                                               |
 | `fce-obligado`                                                                                                                     | estable | Consulta si un receptor está obligado a recibir FCE                               |
 | `interactivo`                                                                                                                      | estable | Asistente paso a paso; también se abre con `arcli` sin argumentos en una terminal |
+| `ultimos`                                                                                                                          | estable | Lista los últimos comprobantes emitidos                                           |
+| `consultar`                                                                                                                        | estable | Muestra el detalle de un comprobante emitido                                      |
 | `storybook`                                                                                                                        | interno | Herramienta de desarrollo para probar la UI                                       |

@@ -882,3 +882,18 @@ Verifica:
 - **Revisar configuración**: igual que `arcli config revisar`
 - `Ctrl+C` a mitad de un flujo vuelve al menú; en el menú, sale
 - en producción (`yarn dev interactivo --produccion`) pide una segunda confirmación antes de emitir
+
+## Comprobantes emitidos
+
+```bash
+yarn dev ultimos fb --testing
+yarn dev ultimos fb --cantidad 3 --testing --json | jq '.comprobantes[].numero'
+yarn dev consultar fb 1 --testing
+yarn dev consultar fb 99999 --testing      # no existe: error VOUCHER_NOT_FOUND
+```
+
+Verifica:
+
+- `ultimos` muestra el listado `══` con número, fecha, receptor, total y CAE
+- `consultar` muestra el ticket con importes, CAE, vencimiento y APROBADO
+- con `--json` la salida se puede pasar a `jq` sin errores

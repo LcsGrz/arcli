@@ -4,7 +4,7 @@ import type { BillingCommandInput } from '../../modules/billing/billing.schemas'
 import { BillingService } from '../../modules/billing/billing.service';
 import type { BillingGateway } from '../../modules/billing/billing.types.internal';
 import { buildEquivalentCommand } from '../../modules/interactive/equivalent-command';
-import type { VoucherHistoryGateway } from '../../modules/interactive/voucher-history';
+import type { VoucherHistoryGateway } from '../../modules/vouchers/voucher-history';
 import { ArcaBillingGateway } from '../../services/arca/arca-billing.gateway';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { ArcaContextResolver, type ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
