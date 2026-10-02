@@ -8,6 +8,12 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+### Dependencias
+
+- `boxen` 8 → 9, `zod` 4.4 → 4.6 y `@inquirer/select` 5.2.2 → 5.2.5. No cambia la salida de la terminal.
+- Herramientas de desarrollo: `vitest` y `@vitest/coverage-v8` 4 → 5 (ahora requieren `vite` como dependencia explícita), `eslint`, `typescript-eslint`, `prettier`, `lint-staged` y `tsx`.
+- Se mantienen `typescript` 6, porque `typescript-eslint` todavía no soporta TypeScript 7, y `@types/node` 22, para no usar APIs que no existen en Node 22, la versión mínima soportada.
+
 ## [1.2.0] - 2026-10-02
 
 Esta versión revisa el payload que ARCLI envía a ARCA contra el manual de WSFEv1 y corrige los casos en que ARCA rechazaba el comprobante. Además completa el soporte de Factura de Crédito Electrónica (FCE) y suma alícuotas, importes exentos y no gravados, y período asociado.
