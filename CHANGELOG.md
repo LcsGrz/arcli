@@ -8,6 +8,10 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+## [1.3.0] - 2026-10-02
+
+Esta versión suma el modo interactivo para quien factura de vez en cuando y renueva la salida de la terminal: bordes según el tipo de panel, paneles que se ajustan a ventanas angostas y varios bugs de color corregidos. No se rompe ningún comando, flag ni JSON existente. El único cambio de comportamiento es que `arcli` sin argumentos, en una terminal interactiva, abre el asistente en lugar de la ayuda.
+
 ### Agregado
 
 - `ARCLI_ASCII=1` dibuja los paneles con ASCII puro, para terminales que no muestran caracteres de caja.
@@ -116,6 +120,7 @@ Primera versión publicada en npm.
 - `llms.txt`: referencia condensada para que un agente de IA con acceso a terminal ejecute el CLI.
 - Publicación con npm Trusted Publishers (OIDC).
 
-[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v1.2.0...HEAD
+[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/LcsGrz/arcli/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/LcsGrz/arcli/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/LcsGrz/arcli/releases/tag/v1.1.0
