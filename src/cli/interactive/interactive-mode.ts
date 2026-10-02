@@ -79,7 +79,8 @@ function formatHeader(options: GlobalCliOptions): string {
 
 /** Asistente paso a paso encima del CLI. Ctrl+C cancela el flujo actual; en el menu, sale. */
 export async function runInteractiveMode(options: GlobalCliOptions = {}): Promise<void> {
-  writeTerminalOutput([renderLogo().trimEnd(), formatHeader(options)].join('\n'));
+  // Mismo aire debajo del logo que arriba: tres lineas en blanco.
+  writeTerminalOutput([renderLogo().trimEnd(), '', '', '', formatHeader(options)].join('\n'));
 
   for (;;) {
     let option: MenuOption;

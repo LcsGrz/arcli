@@ -8,6 +8,10 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+### Corregido
+
+- En el modo interactivo, el logo ahora tiene 3 líneas en blanco abajo, igual que arriba. Antes la barra de estado quedaba pegada.
+
 ## [1.3.0] - 2026-10-02
 
 Esta versión suma el modo interactivo para quien factura de vez en cuando y renueva la salida de la terminal: bordes según el tipo de panel, paneles que se ajustan a ventanas angostas y varios bugs de color corregidos. No se rompe ningún comando, flag ni JSON existente. El único cambio de comportamiento es que `arcli` sin argumentos, en una terminal interactiva, abre el asistente en lugar de la ayuda.
