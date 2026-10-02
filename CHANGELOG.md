@@ -10,6 +10,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### Agregado
 
+- `ARCLI_ASCII=1` dibuja los paneles con ASCII puro, para terminales que no muestran caracteres de caja.
 - **Modo interactivo.** `arcli` sin argumentos en una terminal interactiva abre un asistente paso a paso (también `arcli interactivo`):
   - Emitir facturas A, B o C, comunes o FCE.
   - Notas de crédito y débito eligiendo la factura de una lista de las últimas emitidas, consultadas a ARCA.
@@ -19,10 +20,29 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### Cambiado
 
+- **Bordes según el tipo de panel**, para reconocerlo antes de leerlo:
+  - Comprobantes: la línea antes del estado ahora es de puntos y llega al borde (`├┄┄┤`).
+  - Errores del CLI y de ARCA: `╭─╮`, con una franja gruesa `┃` a la izquierda.
+  - Observaciones y avisos del régimen FCE: la misma forma, con la franja a trazos `╏`. Sugerencias: franja fina `┆`.
+  - Configuración y régimen FCE: ficha `┌─┐` con el título a la izquierda.
+  - Revisión de configuración: `╓─╖` con el veredicto en el pie (`╟──╢`).
+  - Últimos comprobantes (modo interactivo): solo reglas `══` arriba y abajo, sin costados.
+  - Avisos simples ("No se emitió nada"): solo las esquinas `┌ ┐ └ ┘`.
+  - Banner de TESTING: `┌╌┐`. Aviso de nueva versión: `╭─╮`. JSON y respuestas crudas: `┌┈┐`.
+  - Encabezado del modo interactivo: una barra de estado de una línea (`━━ MODO INTERACTIVO ━━ testing · PV 3 ━━`).
+  - Títulos de `arcli ejemplos`: una línea de sección (`── FACTURA C ──`) en lugar de una caja.
+  - "Esto equivale a:" del modo interactivo: solo `▎` a la izquierda, sin borde derecho, para que el comando se copie limpio.
+  - `arcli storybook bordes` muestra cada estilo con el panel donde se usa.
+- Las etiquetas de las tablas, los pies de los paneles y el "CLI" del logo usan el color por defecto de la terminal en lugar de blanco fijo, que casi no se leía en terminales con fondo claro.
+- Los títulos de los paneles de JSON, respuesta bruta y eventos pasan de celeste a gris, para que no compitan con los paneles informativos.
+- Los errores muestran **Detalles** en cian y **Sugerencia** en amarillo, como dice la paleta. Antes estaban al revés. El panel "Sugerencias" de la respuesta también pasa a amarillo.
 - `arcli` sin argumentos en una terminal interactiva abre el asistente en lugar de la ayuda. Sin terminal (pipes, CI, agentes) o con `--json` sigue mostrando la ayuda. `arcli ayuda` y `arcli --ayuda` no cambian.
 
 ### Corregido
 
+- Los títulos de los paneles ignoraban el color pedido desde la primera versión. Ahora el comprobante sale verde si fue aprobado, amarillo si quedó observado y rojo si fue rechazado; los errores, en rojo.
+- El texto atenuado dejaba el atenuado prendido y apagaba lo que se imprimía después: el comando del "Esto equivale a:" y el comienzo del panel siguiente hasta el título.
+- En terminales angostas los paneles medían al menos 68 columnas y se rompían. Ahora se ajustan al ancho de la ventana: las filas etiqueta/valor parten el valor debajo de su columna y, si no hay lugar, apilan etiqueta y valor. El logo se reemplaza por el nombre si no entra.
 - El README decía que alcanzaba con Node.js 20. El mínimo es Node.js 22.22.1, como pide `engines`.
 
 ### Dependencias

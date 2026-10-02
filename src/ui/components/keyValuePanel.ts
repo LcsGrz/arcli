@@ -1,6 +1,6 @@
 import { renderPanel } from '../primitives/renderPanel';
 import type { UiTextColor } from '../primitives/text';
-import type { UiWidthPreset } from '../theme/theme';
+import type { UiBorderType, UiWidthPreset } from '../theme/theme';
 
 export function keyValuePanel(
   title: string,
@@ -8,8 +8,10 @@ export function keyValuePanel(
   footer?: string,
   width: UiWidthPreset = 'standard',
   titleColor?: UiTextColor,
+  borderType: UiBorderType = 'common',
 ): string {
   return renderPanel({
+    borderType,
     content: rows,
     contentAlign: 'left',
     footer,

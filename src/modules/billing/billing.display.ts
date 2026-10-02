@@ -1,10 +1,10 @@
 import {
   keyValuePanel,
-  noticePanel,
   renderKeyValueRows,
   renderTable,
   resolveKeyValueLabelWidth,
   statusPanel,
+  testingBanner,
   toneText,
 } from '../../ui';
 
@@ -28,7 +28,7 @@ export function formatEnvironmentBanner(environment: BillingExecutionResult['env
     return [];
   }
 
-  return [noticePanel('Estas utilizando el entorno de TESTING', 'warning')];
+  return [testingBanner()];
 }
 
 export function formatStatusBadge(result: BillingExecutionResult): {
@@ -155,7 +155,7 @@ export function formatPayloadPreview(result: BillingExecutionResult): string {
   const payloadTable = formatPayloadTable(result);
   const footer = result.dryRun ? toneText('SIN EMITIR', 'warning') : undefined;
 
-  return keyValuePanel(result.voucherKind.displayName, [payloadTable], footer, 'compact');
+  return keyValuePanel(result.voucherKind.displayName, [payloadTable], footer, 'compact', undefined, 'ticket');
 }
 
 export function formatResultPanel(
@@ -181,5 +181,5 @@ export function formatResultPanel(
   ];
   const footer = toneText(status.label, status.tone);
 
-  return statusPanel(result.voucherKind.displayName, rows, footer, 'compact', status.tone);
+  return statusPanel(result.voucherKind.displayName, rows, footer, 'compact', status.tone, 'ticket');
 }

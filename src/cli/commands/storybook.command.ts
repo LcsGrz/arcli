@@ -6,6 +6,7 @@ import { renderStorybookShowcase, writeTerminalOutput } from '../../ui';
 import { configureSpanishHelp, createStorybookHelp } from '../help';
 
 const STORYBOOK_SCENES: StorybookScene[] = [
+  'bordes',
   'colores',
   'componentes',
   'comprobantes',
@@ -18,11 +19,11 @@ export function registerStorybookCommand(program: Command): void {
   const command = program
     .command('storybook')
     .description('ver escenas visuales del CLI con datos de ejemplo')
-    .argument('[escena]', 'comprobantes, colores, componentes, configuracion, errores o json')
+    .argument('[escena]', 'bordes, comprobantes, colores, componentes, configuracion, errores o json')
     .action((scene?: string) => {
       if (scene && !STORYBOOK_SCENES.includes(scene as StorybookScene)) {
         throw new InputValidationError(
-          `La escena "${scene}" no es valida. Use comprobantes, colores, componentes, configuracion, errores o json.`,
+          `La escena "${scene}" no es valida. Use bordes, comprobantes, colores, componentes, configuracion, errores o json.`,
         );
       }
 

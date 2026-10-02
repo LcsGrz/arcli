@@ -46,6 +46,8 @@ export async function runHistoryFlow(session: InteractiveSession): Promise<void>
       rows,
       undefined,
       'wide',
+      undefined,
+      'listing',
     ),
   );
 }

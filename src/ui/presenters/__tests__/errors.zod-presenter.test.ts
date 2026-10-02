@@ -47,7 +47,7 @@ describe('errors.zod-presenter', () => {
     });
 
     expect(formatZodError(error, false)).toContain('Tipo de documento tiene un valor no soportado.');
-    expect(stripAnsi(formatZodError(error, false)).replace(/[│\s]+/g, ' ')).toContain(
+    expect(stripAnsi(formatZodError(error, false)).replace(/[│┃\s]+/g, ' ')).toContain(
       'Valores validos: consumidor-final, cuil, cuit, dni.',
     );
   });

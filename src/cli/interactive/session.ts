@@ -60,7 +60,7 @@ export function requirePointOfSale(session: InteractiveSession): number | undefi
 
 function formatEquivalentCommand(command: string): string {
   return renderPanel({
-    borderType: 'note',
+    borderType: 'command',
     content: [colorize('Esto equivale a:', 'muted'), '', colorize(command, 'info')],
     contentAlign: 'left',
     width: 'wide',

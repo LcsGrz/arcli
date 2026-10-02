@@ -126,6 +126,15 @@ Cuando se guarda `cert.*` o `key.*`, ARCLI valida:
 ¿Todavía no tenés el certificado y la clave? Ver
 [Cómo obtener los certificados de ARCA](obtencion-certificados.md).
 
+## Variables de entorno de la terminal
+
+No son claves de config: cambian solo cómo se ve la salida humana. El JSON no cambia.
+
+| Variable        | Efecto                                                                                                                       |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `NO_COLOR`      | Desactiva los colores                                                                                                        |
+| `ARCLI_ASCII=1` | Dibuja los paneles con ASCII puro (`+`, `-`, `\|`), para terminales o fuentes que no muestran los caracteres de caja Unicode |
+
 ## Cuándo usar config vs flags
 
 Usá config para defaults que se repiten en el flujo diario:

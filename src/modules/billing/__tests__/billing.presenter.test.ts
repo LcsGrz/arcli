@@ -203,10 +203,11 @@ describe('billing.presenter', () => {
 
     expect(output).toContain('EVENTOS');
     expect(output).toContain('ERRORES');
-    expect(output).toContain('│  [');
-    expect(output).toContain('│    {');
-    expect(output).toContain('│      "Code": 43,');
-    expect(output).toContain('│      "Code": 502,');
+    // Eventos usa el borde de datos (┊) y Errores el de error (┃).
+    expect(output).toContain('┊  [');
+    expect(output).toContain('┊    {');
+    expect(output).toContain('┊      "Code": 43,');
+    expect(output).toContain('┃      "Code": 502,');
   });
 
   it('shows FCE warnings in text and JSON output', () => {

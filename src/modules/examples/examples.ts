@@ -1,4 +1,4 @@
-import { badge, bold, renderLogo, renderPanel, toneText } from '../../ui';
+import { badge, renderLogo, sectionHeading, toneText } from '../../ui';
 import type { VoucherFamily, VoucherKindDefinition } from '../billing/billing.types';
 import { VOUCHER_FAMILIES, VOUCHER_KIND_MAP, VOUCHER_SHORTCUTS } from '../billing/voucher-kind-map';
 
@@ -202,18 +202,7 @@ function buildFullShort(definition: VoucherKindDefinition, dates: ExampleDates):
 
 function formatVoucherExample(definition: VoucherKindDefinition, dates: ExampleDates): string {
   return [
-    renderPanel({
-      borderType: 'note',
-      content: bold(definition.displayName.toUpperCase()),
-      contentAlign: 'left',
-      padding: {
-        top: 0,
-        bottom: 0,
-        left: 0,
-        right: 0,
-      },
-      width: 'standard',
-    }),
+    sectionHeading(definition.displayName),
     '',
     `${badge('MINIMA LARGA', 'info')}`,
     `${buildMinimalLong(definition, dates)}`,

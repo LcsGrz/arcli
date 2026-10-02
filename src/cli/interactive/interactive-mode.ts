@@ -6,6 +6,7 @@ import {
   formatConfigDoctorAsText,
   noticePanel,
   renderLogo,
+  statusBar,
   writeTerminalError,
   writeTerminalOutput,
 } from '../../ui';
@@ -65,14 +66,14 @@ async function runOption(option: Exclude<MenuOption, 'salir'>, options: GlobalCl
 function formatHeader(options: GlobalCliOptions): string {
   try {
     const { environment, pointOfSale } = createInteractiveSession(options).runtime;
-    const tone = environment === 'produccion' ? 'danger' : 'warning';
 
-    return noticePanel(
-      `Modo interactivo · entorno ${environment.toUpperCase()} · punto de venta ${pointOfSale ?? 'sin configurar'}`,
-      tone,
+    return statusBar(
+      'Modo interactivo',
+      `${environment} · PV ${pointOfSale ?? 'sin configurar'}`,
+      environment === 'produccion' ? 'danger' : 'warning',
     );
   } catch {
-    return noticePanel('Modo interactivo · falta completar la configuracion', 'warning');
+    return statusBar('Modo interactivo', 'falta completar la configuracion', 'warning');
   }
 }
 

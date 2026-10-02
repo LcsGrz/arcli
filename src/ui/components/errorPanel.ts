@@ -6,12 +6,12 @@ export function errorPanel(title: string, message: string, details: readonly str
   const lines = [toneText('Error', 'danger'), message];
 
   if (details.length > 0) {
-    lines.push('', toneText('Detalles', 'warning'), ...details);
+    lines.push('', toneText('Detalles', 'info'), ...details);
   }
 
   if (hint) {
-    lines.push('', toneText('Sugerencia', 'info'), hint);
+    lines.push('', toneText('Sugerencia', 'warning'), hint);
   }
 
-  return contentPanel(title, lines.join('\n'), 'standard', 'danger');
+  return contentPanel(title, lines.join('\n'), 'standard', 'danger', 'left', 'error');
 }
