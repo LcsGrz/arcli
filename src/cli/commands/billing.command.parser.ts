@@ -28,6 +28,7 @@ interface BillingJsonInput {
     readonly tipo?: AssociatedVoucherInput['tipo'];
   };
   readonly alicuotaIva?: number | string;
+  readonly alicuotas?: ReadonlyArray<{ readonly monto?: number; readonly tasa?: number | string }>;
   readonly aliasCbu?: string;
   readonly anulacion?: boolean;
   readonly cbu?: string;
@@ -60,6 +61,55 @@ function pickString(...values: unknown[]): string | undefined {
 
 function pickNumber(...values: unknown[]): number | undefined {
   return values.find((value): value is number => typeof value === 'number');
+}
+
+interface RateAmountInput {
+  readonly amount: unknown;
+  readonly rate: unknown;
+}
+
+function parseAmountText(raw: string): number {
+  const value = raw.trim();
+
+  // "552,50" -> 552.5; con punto se toma como decimal, igual que --monto.
+  return Number(value.includes(',') && !value.includes('.') ? value.replace(',', '.') : value);
+}
+
+/**
+ * `--alicuota` acepta una tasa sola ("reducida", "10.5") o, repetido, pares TASA:MONTO con el importe
+ * de cada alicuota IVA incluido. No se pueden mezclar las dos formas.
+ */
+function parseIvaRateFlags(values: readonly string[] | undefined): {
+  readonly ivaRate?: string;
+  readonly ivaRateAmounts?: RateAmountInput[];
+} {
+  if (!values || values.length === 0) {
+    return {};
+  }
+
+  const withAmount = values.filter((value) => value.includes(':'));
+
+  if (withAmount.length === 0) {
+    if (values.length > 1) {
+      throw new InputValidationError(
+        'Para varias alicuotas use --alicuota TASA:MONTO en cada una, por ejemplo --alicuota general:1210 --alicuota reducida:552.50.',
+      );
+    }
+
+    return { ivaRate: values[0] };
+  }
+
+  if (withAmount.length !== values.length) {
+    throw new InputValidationError('No mezcle --alicuota TASA con --alicuota TASA:MONTO: use una sola forma.');
+  }
+
+  return {
+    ivaRateAmounts: values.map((value) => {
+      const separator = value.indexOf(':');
+
+      return { amount: parseAmountText(value.slice(separator + 1)), rate: value.slice(0, separator) };
+    }),
+  };
 }
 
 export interface BillingCommandDefaults {
@@ -220,6 +270,20 @@ function parseBillingCommandInputFromSource(
   const periodTo = pickString(commandOptions.periodoHasta, commandOptions.ph);
   const associatedPeriod = periodFrom || periodTo ? { desde: periodFrom, hasta: periodTo } : fileInput?.periodoAsociado;
 
+  const flagRates = parseIvaRateFlags(commandOptions.alicuota as string[] | undefined);
+  const fileRateAmounts = fileInput?.alicuotas?.map((item) => ({ amount: item.monto, rate: item.tasa }));
+  const ivaRateAmounts = flagRates.ivaRateAmounts ?? fileRateAmounts;
+  const exemptAmount = pickNumber(commandOptions.exento, fileInput?.importeExento);
+  const untaxedAmount = pickNumber(commandOptions.nogravado, fileInput?.importeNoGravado);
+  // Con varias alicuotas el monto total se puede omitir: es la suma de cada una mas exento y no gravado.
+  const totalAmount =
+    pickNumber(commandOptions.monto, fileInput?.montoTotal) ??
+    (ivaRateAmounts
+      ? ivaRateAmounts.reduce((sum, item) => sum + (typeof item.amount === 'number' ? item.amount : 0), 0) +
+        (exemptAmount ?? 0) +
+        (untaxedAmount ?? 0)
+      : undefined);
+
   return {
     ...billingCommandSchema.parse({
       associatedPeriod,
@@ -240,11 +304,11 @@ function parseBillingCommandInputFromSource(
       dueDay: pickNumber(commandOptions.dia, fileInput?.dia),
       emit: shouldEmit,
       exchangeRate,
-      exemptAmount: pickNumber(commandOptions.exento, fileInput?.importeExento),
-      ivaRate:
-        pickString(commandOptions.alicuota) ??
-        fileInput?.alicuotaIva ??
-        (usesIvaRateDefault ? defaults.defaultIvaRate : undefined),
+      exemptAmount,
+      ivaRate: ivaRateAmounts
+        ? undefined
+        : (flagRates.ivaRate ?? fileInput?.alicuotaIva ?? (usesIvaRateDefault ? defaults.defaultIvaRate : undefined)),
+      ivaRateAmounts,
       ivaCondition: resolvedIvaCondition,
       paymentDueDate: pickString(commandOptions.vencimiento, commandOptions.vto, fileInput?.vencimientoPago),
       pointOfSale: pickNumber(commandOptions.puntoVenta, commandOptions.pv, fileInput?.puntoVenta),
@@ -252,9 +316,9 @@ function parseBillingCommandInputFromSource(
       serviceEndDate: pickString(commandOptions.servicioHasta, commandOptions.sh, fileInput?.servicioHasta),
       serviceStartDate: pickString(commandOptions.servicioDesde, commandOptions.sd, fileInput?.servicioDesde),
       shortcut,
-      totalAmount: pickNumber(commandOptions.monto, fileInput?.montoTotal),
+      totalAmount: totalAmount === undefined ? undefined : Math.round(totalAmount * 100) / 100,
       transferMode: pickString(commandOptions.transferencia, fileInput?.transferencia),
-      untaxedAmount: pickNumber(commandOptions.nogravado, fileInput?.importeNoGravado),
+      untaxedAmount,
     }),
     __modeSource: modeSource,
   };

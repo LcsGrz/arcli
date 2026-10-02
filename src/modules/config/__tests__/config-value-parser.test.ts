@@ -57,7 +57,7 @@ describe('config-value-parser', () => {
   it('normalizes the default IVA rate', () => {
     expect(parseConfigValue('alicuotaPorDefecto', '10,5')).toBe('10.5');
     expect(parseConfigValue('alicuotaPorDefecto', '21%')).toBe('21');
-    expect(() => parseConfigValue('alicuotaPorDefecto', '19')).toThrow(/Use 0, 2.5, 5, 10.5, 21 o 27/);
+    expect(() => parseConfigValue('alicuotaPorDefecto', '19')).toThrow(/general \(21\), reducida \(10\.5\)/);
   });
 
   it('validates the FCE CBU and its alias', () => {

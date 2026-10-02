@@ -80,18 +80,81 @@ describe('resolveTaxAmounts', () => {
   });
 });
 
+describe('resolveTaxAmounts con varias alicuotas', () => {
+  it('parte cada monto en neto e IVA segun su alicuota', () => {
+    const result = resolveTaxAmounts(
+      {
+        ivaRateAmounts: [
+          { amount: 1210, rate: '21' },
+          { amount: 552.5, rate: '10.5' },
+        ],
+        totalAmount: 1762.5,
+      },
+      VOUCHER_KIND_MAP.fa,
+    );
+
+    expect(result.iva).toEqual([
+      { BaseImp: 1000, Id: 5, Importe: 210 },
+      { BaseImp: 500, Id: 4, Importe: 52.5 },
+    ]);
+    expect(result.netAmount).toBe(1500);
+    expect(result.ivaAmount).toBe(262.5);
+  });
+
+  it('junta montos repetidos de la misma alicuota', () => {
+    const result = resolveTaxAmounts(
+      {
+        ivaRateAmounts: [
+          { amount: 121, rate: '21' },
+          { amount: 242, rate: '21' },
+        ],
+        totalAmount: 363,
+      },
+      VOUCHER_KIND_MAP.fb,
+    );
+
+    expect(result.iva).toEqual([{ BaseImp: 300, Id: 5, Importe: 63 }]);
+  });
+
+  it('suma exento y no gravado aparte de las alicuotas', () => {
+    const result = resolveTaxAmounts(
+      { exemptAmount: 50, ivaRateAmounts: [{ amount: 121, rate: '21' }], totalAmount: 171 },
+      VOUCHER_KIND_MAP.fb,
+    );
+
+    expect(result.exemptAmount).toBe(50);
+    expect(result.netAmount + result.ivaAmount + result.exemptAmount).toBe(171);
+  });
+
+  it('rechaza alicuotas que no suman lo gravado del total', () => {
+    expect(() =>
+      resolveTaxAmounts({ ivaRateAmounts: [{ amount: 1210, rate: '21' }], totalAmount: 2000 }, VOUCHER_KIND_MAP.fa),
+    ).toThrow(/La suma de las alicuotas \(1210.00\) no coincide con lo gravado del monto total \(2000.00\)/);
+  });
+
+  it('rechaza varias alicuotas en letra C', () => {
+    expect(() =>
+      resolveTaxAmounts({ ivaRateAmounts: [{ amount: 100, rate: '21' }], totalAmount: 100 }, VOUCHER_KIND_MAP.fc),
+    ).toThrow(/Quite --alicuota/);
+  });
+});
+
 describe('billingIvaRateSchema', () => {
   it.each([
     ['10,5', '10.5'],
     ['10.5%', '10.5'],
     [' 21 ', '21'],
     [27, '27'],
+    ['general', '21'],
+    ['Reducida', '10.5'],
+    ['incrementada', '27'],
+    ['cero', '0'],
   ])('normaliza %s', (input, expected) => {
     expect(billingIvaRateSchema.parse(input)).toBe(expected);
   });
 
   it('rechaza alicuotas que ARCA no admite', () => {
-    expect(() => billingIvaRateSchema.parse('19')).toThrow(/0, 2.5, 5, 10.5, 21 o 27/);
+    expect(() => billingIvaRateSchema.parse('19')).toThrow(/general \(21\), reducida \(10\.5\)/);
   });
 });
 

@@ -43,16 +43,41 @@ export const billingIvaConditionSchema = z.enum([
 
 const IVA_RATE_VALUES = ['0', '2.5', '5', '10.5', '21', '27'] as const;
 
-// Acepta "10,5", "10.5" o "10.5%".
+/** Nombres con que ARCA llama a las alicuotas mas usadas; se aceptan igual que el numero. */
+export const IVA_RATE_ALIASES: Readonly<Record<string, (typeof IVA_RATE_VALUES)[number]>> = {
+  cero: '0',
+  general: '21',
+  incrementada: '27',
+  reducida: '10.5',
+};
+
+export const IVA_RATE_HINT = 'general (21), reducida (10.5), incrementada (27), cero (0), 5 o 2.5';
+
+/** Acepta el alias o el numero: "reducida", "10,5", "10.5" o "10.5%". */
+export function normalizeIvaRateInput(value: unknown): unknown {
+  if (typeof value === 'number') {
+    return String(value);
+  }
+
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  const normalized = value.trim().toLowerCase();
+
+  return IVA_RATE_ALIASES[normalized] ?? normalized.replace(',', '.').replace(/%$/, '');
+}
+
 export const billingIvaRateSchema = z.preprocess(
-  (value) =>
-    typeof value === 'number'
-      ? String(value)
-      : typeof value === 'string'
-        ? value.trim().replace(',', '.').replace(/%$/, '')
-        : value,
-  z.enum(IVA_RATE_VALUES, { message: 'La alicuota debe ser 0, 2.5, 5, 10.5, 21 o 27.' }),
+  normalizeIvaRateInput,
+  z.enum(IVA_RATE_VALUES, { message: `La alicuota debe ser ${IVA_RATE_HINT}.` }),
 );
+
+/** Una alicuota con el importe que le corresponde, IVA incluido (igual que --monto). */
+const billingIvaRateAmountSchema = z.object({
+  amount: z.number().positive(),
+  rate: billingIvaRateSchema,
+});
 
 const billingAssociatedVoucherSchema = z
   .object({
@@ -100,6 +125,7 @@ export const billingCommandSchema = z.object({
   exchangeRate: z.number().positive().optional(),
   exemptAmount: z.number().positive().optional(),
   ivaRate: billingIvaRateSchema.optional(),
+  ivaRateAmounts: z.array(billingIvaRateAmountSchema).min(1).optional(),
   dueDay: z.number().int().min(1).max(31).optional(),
   ivaCondition: billingIvaConditionSchema,
   paymentDueDate: z.string().trim().optional(),
@@ -126,4 +152,5 @@ export type BillingConcept = z.infer<typeof billingConceptSchema>;
 export type BillingDocumentType = z.infer<typeof billingDocumentTypeSchema>;
 export type BillingIvaCondition = z.infer<typeof billingIvaConditionSchema>;
 export type BillingIvaRate = z.infer<typeof billingIvaRateSchema>;
+export type BillingIvaRateAmount = z.infer<typeof billingIvaRateAmountSchema>;
 export type BillingCommandInput = z.infer<typeof billingCommandSchema>;

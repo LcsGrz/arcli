@@ -63,6 +63,10 @@ export function buildEquivalentCommand(
   if (input.pointOfSale) parts.push('--pv', String(input.pointOfSale));
   if (input.billingDate) parts.push('-f', input.billingDate);
   if (input.ivaRate) parts.push('--alicuota', input.ivaRate);
+
+  for (const { amount, rate } of input.ivaRateAmounts ?? []) {
+    parts.push('--alicuota', `${rate}:${formatAmount(amount)}`);
+  }
   if (input.exemptAmount) parts.push('--exento', formatAmount(input.exemptAmount));
   if (input.untaxedAmount) parts.push('--nogravado', formatAmount(input.untaxedAmount));
   if (input.serviceStartDate) parts.push('--sd', input.serviceStartDate);

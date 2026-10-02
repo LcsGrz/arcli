@@ -36,11 +36,10 @@ Se eligió `testing` como entorno por defecto para reducir errores accidentales.
 
 ### IVA automático con una alícuota
 
-En letras `A` y `B` el CLI calcula el IVA a partir del total, con una sola alícuota por comprobante (`--alicuota`, por defecto `21%`). Exento y no gravado se informan con `--exento` y `--nogravado`.
+En letras `A` y `B` el CLI calcula el IVA a partir del total, con una alícuota (`--alicuota`, por defecto `21%`) o varias (`--alicuota TASA:MONTO` repetido). Exento y no gravado se informan con `--exento` y `--nogravado`.
 
 Todavía no se soportan:
 
-- varias alícuotas en un mismo comprobante
 - tributos (`Tributos` / `ImpTrib`), como percepciones de IIBB
 
 ## Inconsistencias o bordes ya detectados

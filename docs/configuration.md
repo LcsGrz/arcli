@@ -31,27 +31,27 @@ Si el archivo no existe, `arcli config` lo crea automáticamente.
 
 ## Claves soportadas
 
-| Clave             | Tipo                    | Valor por defecto | Descripción                                                                           |
-| ----------------- | ----------------------- | ----------------- | ------------------------------------------------------------------------------------- |
-| `cert.testing`    | string                  | ninguno           | Ruta al certificado de testing                                                        |
-| `cert.produccion` | string                  | ninguno           | Ruta al certificado de producción                                                     |
-| `key.testing`     | string                  | ninguno           | Ruta a la clave privada de testing                                                    |
-| `key.produccion`  | string                  | ninguno           | Ruta a la clave privada de producción                                                 |
-| `cuit`            | string                  | ninguno           | CUIT del emisor                                                                       |
-| `alicuota`        | string                  | `21`              | Alícuota de IVA por defecto: `0`, `2.5`, `5`, `10.5`, `21` o `27` (solo letras A y B) |
-| `cbu`             | string                  | ninguno           | CBU del emisor (solo facturas FCE)                                                    |
-| `aliasCbu`        | string                  | ninguno           | Alias del CBU (solo facturas FCE)                                                     |
-| `verificarFce`    | boolean                 | `false`           | Consultar el régimen FCE del receptor al facturar                                     |
-| `concepto`        | string                  | ninguno           | Concepto por defecto                                                                  |
-| `cotizacion`      | number                  | `1`               | Cotización por defecto en moneda extranjera                                           |
-| `entorno`         | `testing \| produccion` | `testing`         | Entorno por defecto                                                                   |
-| `emitir`          | boolean                 | `false`           | Emisión por defecto                                                                   |
-| `ivaReceptor`     | string                  | ninguno           | IVA receptor por defecto                                                              |
-| `json`            | boolean                 | `false`           | Salida JSON por defecto                                                               |
-| `moneda`          | string                  | `ARS`             | Moneda por defecto                                                                    |
-| `bruto`           | boolean                 | `false`           | Respuesta bruta por defecto                                                           |
-| `puntoVenta`      | number                  | ninguno           | Punto de venta por defecto                                                            |
-| `ticketPath`      | string                  | ver abajo         | Carpeta donde se guarda el ticket WSAA                                                |
+| Clave             | Tipo                    | Valor por defecto | Descripción                                                                                                     |
+| ----------------- | ----------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------- |
+| `cert.testing`    | string                  | ninguno           | Ruta al certificado de testing                                                                                  |
+| `cert.produccion` | string                  | ninguno           | Ruta al certificado de producción                                                                               |
+| `key.testing`     | string                  | ninguno           | Ruta a la clave privada de testing                                                                              |
+| `key.produccion`  | string                  | ninguno           | Ruta a la clave privada de producción                                                                           |
+| `cuit`            | string                  | ninguno           | CUIT del emisor                                                                                                 |
+| `alicuota`        | string                  | `21`              | Alícuota de IVA por defecto: alias (`general`, `reducida`, `incrementada`, `cero`) o número (solo letras A y B) |
+| `cbu`             | string                  | ninguno           | CBU del emisor (solo facturas FCE)                                                                              |
+| `aliasCbu`        | string                  | ninguno           | Alias del CBU (solo facturas FCE)                                                                               |
+| `verificarFce`    | boolean                 | `false`           | Consultar el régimen FCE del receptor al facturar                                                               |
+| `concepto`        | string                  | ninguno           | Concepto por defecto                                                                                            |
+| `cotizacion`      | number                  | `1`               | Cotización por defecto en moneda extranjera                                                                     |
+| `entorno`         | `testing \| produccion` | `testing`         | Entorno por defecto                                                                                             |
+| `emitir`          | boolean                 | `false`           | Emisión por defecto                                                                                             |
+| `ivaReceptor`     | string                  | ninguno           | IVA receptor por defecto                                                                                        |
+| `json`            | boolean                 | `false`           | Salida JSON por defecto                                                                                         |
+| `moneda`          | string                  | `ARS`             | Moneda por defecto                                                                                              |
+| `bruto`           | boolean                 | `false`           | Respuesta bruta por defecto                                                                                     |
+| `puntoVenta`      | number                  | ninguno           | Punto de venta por defecto                                                                                      |
+| `ticketPath`      | string                  | ver abajo         | Carpeta donde se guarda el ticket WSAA                                                                          |
 
 > Para claves booleanas, ARCLI acepta `true` / `false`, `sí` / `no` o `1` / `0`.
 
