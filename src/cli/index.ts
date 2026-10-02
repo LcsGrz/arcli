@@ -4,14 +4,16 @@ import { renderUpdateNoticePanel } from '../modules/update-check/update-check.pr
 import { checkForUpdate } from '../modules/update-check/update-check.service';
 import { formatCliError, writeTerminalError, writeTerminalJsonError } from '../ui';
 
+import { isInteractiveTerminal } from './commands/interactive.command';
 import { createProgram } from './program';
 import { CLI_VERSION } from './version';
 
 function normalizeHelpArgv(argv: string[]): string[] {
   const cliArgs = argv.slice(2);
 
+  // Sin argumentos y en una terminal interactiva se abre el asistente; sin TTY sigue mostrando la ayuda.
   if (cliArgs.length === 0) {
-    return argv;
+    return isInteractiveTerminal() ? argv.concat('interactivo') : argv;
   }
 
   if (cliArgs[0] === 'ayuda') {

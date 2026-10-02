@@ -3,7 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/arcli.svg)](https://www.npmjs.com/package/arcli)
 [![CI](https://github.com/LcsGrz/arcli/actions/workflows/ci.yml/badge.svg)](https://github.com/LcsGrz/arcli/actions/workflows/ci.yml)
 [![license: MIT](https://img.shields.io/npm/l/arcli.svg)](LICENSE)
-[![node >=20](https://img.shields.io/node/v/arcli.svg)](package.json)
+[![node >=22.22.1](https://img.shields.io/node/v/arcli.svg)](package.json)
 
 ```text
        d8888 8888888b.   .d8888b.  888      8888888
@@ -24,7 +24,7 @@ Emití o previsualizá comprobantes ARCA desde tu terminal, con un flujo claro, 
 - previsualización segura antes de emitir
 - entrada por flags o JSON
 - salida humana, JSON o respuesta bruta
-- prompts interactivos cuando el flujo lo requiere
+- modo interactivo: `arcli` sin argumentos abre un asistente paso a paso que muestra el comando equivalente
 - integración real con ARCA
 - Factura de Crédito Electrónica (FCE) completa: CBU, transferencia, anulación y consulta del régimen del receptor
 - alícuotas de IVA, importes exentos y no gravados, moneda extranjera y período asociado
@@ -47,7 +47,7 @@ arcli fc -m 15000 --cs --consumidor-final --ir-cf
 
 ### 1. Instalar
 
-Requiere Node.js 20 o superior.
+Requiere Node.js 22.22.1 o superior.
 
 ```bash
 npm install -g arcli
@@ -132,6 +132,7 @@ arcli fa -m 15000 --cs --cuit 20168598204 --ir-ri \
 - [Modelo mental](docs/mental-model.md)
 - [Glosario](docs/glossary.md)
 - [Referencia del CLI](docs/cli-reference.md)
+- [Modo interactivo](docs/modo-interactivo.md)
 - [Patrones de uso](docs/usage-patterns.md)
 - [Configuración](docs/configuration.md)
 - [Cómo obtener los certificados de ARCA](docs/obtencion-certificados.md)

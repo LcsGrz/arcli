@@ -32,7 +32,7 @@ Eso es contrato público. Si querés cambiarlo, primero hay que discutirlo, actu
 
 ## Antes de abrir cambios
 
-- usar Node `>=20`
+- usar Node `>=22.22.1`
 - instalar dependencias con `yarn install`
 - validar cambios con:
 

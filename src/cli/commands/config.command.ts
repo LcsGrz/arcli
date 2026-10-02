@@ -1,5 +1,4 @@
 import { Command } from 'commander';
-import ora from 'ora';
 
 import { ConfigService } from '../../modules/config/config.service';
 import { buildConfigDoctorReport, type ConfigDoctorRuntimeCheck } from '../../modules/config/config-doctor';
@@ -14,6 +13,7 @@ import {
   writeTerminalOutput,
 } from '../../ui';
 import { configureSpanishHelp, createConfigHelp } from '../help';
+import { startSpinner } from '../spinner';
 
 function createConfigService(): ConfigService {
   const service = new ConfigService();
@@ -31,7 +31,7 @@ function printConfigResult(textValue: string, jsonValue: string, useJson = false
   writeTerminalOutput(textValue);
 }
 
-function buildRuntimeCheck(options: { produccion?: boolean; testing?: boolean }): ConfigDoctorRuntimeCheck {
+export function buildRuntimeCheck(options: { produccion?: boolean; testing?: boolean }): ConfigDoctorRuntimeCheck {
   try {
     return {
       validation: new ArcaContextResolver({
@@ -77,7 +77,7 @@ export function registerConfigCommand(program: Command): void {
     .option('--produccion', 'revisar para produccion')
     .action((options: { json?: boolean; produccion?: boolean; testing?: boolean }) => {
       const service = createConfigService();
-      const spinner = !options.json && process.stdout.isTTY ? ora('Generando revision...').start() : null;
+      const spinner = options.json ? null : startSpinner('Generando revision...');
 
       try {
         const report = buildConfigDoctorReport(service.getConfig(), buildRuntimeCheck(options));

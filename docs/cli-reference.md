@@ -19,6 +19,8 @@ Eso crea una `Factura C` con:
 
 Con eso ya podés emitir una factura básica sin configuración previa.
 
+¿Preferís que te pregunte paso a paso? Corré `arcli` sin argumentos y se abre el [modo interactivo](modo-interactivo.md). Antes de emitir te muestra el comando equivalente.
+
 Si querés entender más, este orden sirve: [Cómo pensar los comprobantes](#cómo-pensar-los-comprobantes-en-arcli) → [Parámetros por familia](#parámetros-por-familia-de-comprobantes) → [Cómo funcionan los flags](#cómo-funcionan-los-flags) → [Ejemplos útiles](#ejemplos-útiles). Si ya conocés el CLI, las tablas y el [Estado de comandos](#estado-de-comandos) al final sirven como referencia rápida.
 
 ## Cómo pensar rápido un comando
@@ -502,15 +504,16 @@ Para referencia de comandos `config` y claves disponibles, ver [configuration.md
 
 ## Estado de comandos
 
-| Comando                                                                                                                            | Estado  | Notas                                                  |
-| ---------------------------------------------------------------------------------------------------------------------------------- | ------- | ------------------------------------------------------ |
-| `fa`, `fb`, `fc`, `nca`, `ncb`, `ncc`, `nda`, `ndb`, `ndc`, `fcea`, `fceb`, `fcec`, `ncea`, `nceb`, `ncec`, `ndea`, `ndeb`, `ndec` | estable | Shortcuts públicos de comprobantes                     |
-| `factura`, `nota-credito`, `nota-debito`, `factura-credito-electronica`, `nota-credito-electronica`, `nota-debito-electronica`     | estable | Familias públicas de comprobantes                      |
-| `config`                                                                                                                           | estable | Gestión de configuración persistente                   |
-| `config revisar`                                                                                                                   | estable | Revisión de defaults, credenciales y validación activa |
-| `config ruta`                                                                                                                      | estable | Muestra la ruta del archivo de config                  |
-| `config establecer`                                                                                                                | estable | Guarda una clave pública                               |
-| `config eliminar`                                                                                                                  | estable | Elimina una clave pública                              |
-| `ejemplos`                                                                                                                         | estable | Muestra ejemplos listos para copiar                    |
-| `fce-obligado`                                                                                                                     | estable | Consulta si un receptor está obligado a recibir FCE    |
-| `storybook`                                                                                                                        | interno | Herramienta de desarrollo para probar la UI            |
+| Comando                                                                                                                            | Estado  | Notas                                                                             |
+| ---------------------------------------------------------------------------------------------------------------------------------- | ------- | --------------------------------------------------------------------------------- |
+| `fa`, `fb`, `fc`, `nca`, `ncb`, `ncc`, `nda`, `ndb`, `ndc`, `fcea`, `fceb`, `fcec`, `ncea`, `nceb`, `ncec`, `ndea`, `ndeb`, `ndec` | estable | Shortcuts públicos de comprobantes                                                |
+| `factura`, `nota-credito`, `nota-debito`, `factura-credito-electronica`, `nota-credito-electronica`, `nota-debito-electronica`     | estable | Familias públicas de comprobantes                                                 |
+| `config`                                                                                                                           | estable | Gestión de configuración persistente                                              |
+| `config revisar`                                                                                                                   | estable | Revisión de defaults, credenciales y validación activa                            |
+| `config ruta`                                                                                                                      | estable | Muestra la ruta del archivo de config                                             |
+| `config establecer`                                                                                                                | estable | Guarda una clave pública                                                          |
+| `config eliminar`                                                                                                                  | estable | Elimina una clave pública                                                         |
+| `ejemplos`                                                                                                                         | estable | Muestra ejemplos listos para copiar                                               |
+| `fce-obligado`                                                                                                                     | estable | Consulta si un receptor está obligado a recibir FCE                               |
+| `interactivo`                                                                                                                      | estable | Asistente paso a paso; también se abre con `arcli` sin argumentos en una terminal |
+| `storybook`                                                                                                                        | interno | Herramienta de desarrollo para probar la UI                                       |

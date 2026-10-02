@@ -1,0 +1,85 @@
+[← Volver al README](../README.md)
+
+# Modo interactivo
+
+`arcli` sin argumentos abre un asistente que pregunta paso a paso qué querés emitir. Está pensado para quien factura de vez en cuando y no quiere recordar flags. Usa las mismas validaciones y la misma vista previa que el resto del CLI, y antes de emitir muestra el **comando equivalente**, así podés copiarlo y la próxima vez hacerlo directo.
+
+```bash
+arcli               # en una terminal interactiva abre el asistente
+arcli interactivo   # lo mismo, explícito
+```
+
+## Cuándo se abre y cuándo no
+
+| Situación                                              | Qué pasa                                                |
+| ------------------------------------------------------ | ------------------------------------------------------- |
+| `arcli` en una terminal (stdin y stdout son TTY)       | Se abre el asistente                                    |
+| `arcli interactivo`                                    | Se abre el asistente; sin terminal interactiva da error |
+| `arcli` sin terminal (pipe, CI, agente) o con `--json` | Muestra la ayuda, igual que antes                       |
+| Cualquier comando con flags (`arcli fc -m 1000 …`)     | Sin cambios: el asistente nunca se mete en esos flujos  |
+
+El modo interactivo no agrega comandos de emisión ni cambia flags, claves de config ni el JSON. Es una capa encima del CLI.
+
+## Menú principal
+
+1. **Emitir factura**
+2. **Nota de crédito o débito sobre una factura**
+3. **Ver últimos comprobantes**
+4. **Revisar configuración**
+5. **Salir**
+
+Arriba del menú se muestran el entorno (`testing` o `produccion`) y el punto de venta configurados. Si falta el CUIT, el punto de venta o el certificado, el asistente lo avisa y propone revisar la configuración.
+
+## Emitir factura
+
+| Paso | Pregunta         | Detalle                                                                                       |
+| ---- | ---------------- | --------------------------------------------------------------------------------------------- |
+| 1    | Comprobante      | Factura A, B o C, comunes o de crédito electrónica (FCE)                                      |
+| 2    | Receptor         | Consumidor final, CUIT o DNI. En la A solo CUIT, porque la A no admite consumidor final       |
+| 3    | IVA del receptor | Solo las condiciones válidas para la letra elegida. Con consumidor final no se pregunta       |
+| 4    | Concepto         | Servicios, productos o ambos. Arranca en `config.concepto` si está configurado                |
+| 5    | Monto total      | Acepta `150000`, `150.000`, `1500,50` o `1500.50`                                             |
+| 6    | Alícuota de IVA  | Solo en A y B. Arranca en `config.alicuota` o en 21%                                          |
+| 7    | CBU              | Solo en facturas FCE y si no hay `config.cbu`. También pregunta la modalidad de transferencia |
+
+Después muestra la vista previa (la misma de `--previsualizar`), el comando equivalente y pregunta si emitir. En **producción** pide una segunda confirmación.
+
+Las fechas de servicio, la moneda extranjera, los importes exentos o no gravados y el vencimiento de pago usan los valores por defecto. Para cambiarlos, copiá el comando equivalente y agregá los flags (`--sd`, `--sh`, `--moneda`, `--exento`, `--vencimiento`…).
+
+## Nota de crédito o débito
+
+| Paso | Pregunta                    | Detalle                                                                                                                                 |
+| ---- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Crédito o débito            |                                                                                                                                         |
+| 2    | Tipo de la factura original | Factura A, B o C, comunes o FCE                                                                                                         |
+| 3    | Factura                     | Lista las últimas 10 facturas de ese tipo emitidas en el punto de venta configurado, consultadas a ARCA. No hace falta tipear el número |
+| 4    | Monto                       | En crédito: anular el total o ingresar un monto parcial (no puede superar el total de la factura). En débito: el monto a sumar          |
+| 5    | IVA del receptor            | Solo si la factura no era a consumidor final: ARCA no devuelve la condición IVA, así que se pregunta, filtrada por la letra             |
+| 6    | Anulación                   | Solo en NC/ND FCE: si la factura fue rechazada por el comprador                                                                         |
+
+La nota hereda de la factura el concepto, el receptor (tipo y número de documento), la fecha y la alícuota de IVA cuando se puede deducir de los importes. El comprobante asociado se completa solo: tipo, punto de venta, número, CUIT del emisor y fecha.
+
+## Ver últimos comprobantes
+
+Pregunta el tipo de comprobante y muestra los últimos 10 emitidos en el punto de venta configurado: número, fecha, receptor, total y CAE.
+
+## Revisar configuración
+
+Muestra lo mismo que `arcli config revisar`: defaults, credenciales y validación contra ARCA.
+
+## Cancelar y salir
+
+- `Ctrl+C` durante una pregunta cancela el flujo actual y vuelve al menú. Nada se emite hasta confirmar en el último paso.
+- `Ctrl+C` en el menú principal, o elegir **Salir**, cierra el asistente.
+
+## Qué no hace (todavía)
+
+- Moneda extranjera, exento, no gravado, período asociado y fechas de servicio personalizadas: se resuelven con el comando equivalente más los flags.
+- Facturas por lote: siguen siendo `--cargar` con un JSON.
+- Volver al paso anterior: por ahora se cancela el flujo y se empieza de nuevo.
+
+## Decisiones de diseño
+
+- **Wizard y no pantalla completa.** Prompts encadenados con `@inquirer`, que ya usaba el CLI para confirmar emisiones. No hay una TUI de pantalla completa.
+- **Sin lógica de negocio propia.** Arma la misma entrada que los flags (`BillingCommandInput`) y la pasa por `BillingService`, así que las validaciones, la vista previa y la emisión son exactamente las del CLI.
+- **El contrato del CLI no cambia.** El único comportamiento nuevo es `arcli` sin argumentos en una terminal interactiva; sin terminal sigue mostrando la ayuda.
