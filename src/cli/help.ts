@@ -159,6 +159,7 @@ function createProgramCommands(): string {
       '  - Revisar entorno y credenciales: arcli config revisar',
       '  - Ver ejemplos listos para copiar: arcli ejemplos',
       '  - Consultar si un receptor esta obligado a FCE: arcli fce-obligado <cuit>',
+      '  - Asistente paso a paso: arcli (sin argumentos) o arcli interactivo',
       '  - Ver escenas de UI: arcli storybook',
     ].join('\n'),
   );

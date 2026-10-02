@@ -65,6 +65,13 @@ Si un flag está presente, pisa lo demás.
 
 ## Modos
 
+ARCLI tiene dos formas de usarse:
+
+- **Comandos con flags** (`arcli fc -m 1000 …`): el contrato público, pensado para scripts, agentes y uso frecuente.
+- **Modo interactivo** (`arcli` sin argumentos): un asistente que pregunta paso a paso, arma la misma entrada que los flags y la pasa por las mismas validaciones. Ver [Modo interactivo](modo-interactivo.md).
+
+Dentro de los comandos con flags hay dos modos de ejecución:
+
 ### `--previsualizar`
 
 - no emite

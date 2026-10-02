@@ -1,5 +1,4 @@
 import type { Command } from 'commander';
-import ora from 'ora';
 
 import { formatDateAsArcaDate, parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
@@ -9,6 +8,7 @@ import { ArcaContextResolver } from '../../services/arca/arca-context.resolver';
 import { ArcaFceObligationGateway } from '../../services/arca/arca-fce-obligation.gateway';
 import { writeTerminalJson, writeTerminalOutput } from '../../ui';
 import { configureSpanishHelp, createFceObligationHelp } from '../help';
+import { startSpinner } from '../spinner';
 
 import { getGlobalOptions, registerGlobalOptions } from './billing.command.shared';
 
@@ -39,7 +39,7 @@ export function registerFceObligationCommand(program: Command): void {
       ? parseArgentineDateInputAsArcaDate(options.fecha)
       : formatDateAsArcaDate(new Date());
     const runtime = new ArcaContextResolver({ options: getGlobalOptions(self) }).resolve();
-    const spinner = !runtime.outputJson && process.stdout.isTTY ? ora('Consultando ARCA...').start() : null;
+    const spinner = runtime.outputJson ? null : startSpinner('Consultando ARCA...');
 
     try {
       const gateway = new ArcaFceObligationGateway(new ArcaClientFactory().create(runtime));

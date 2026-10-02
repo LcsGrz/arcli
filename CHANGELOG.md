@@ -8,6 +8,23 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+### Agregado
+
+- **Modo interactivo.** `arcli` sin argumentos en una terminal interactiva abre un asistente paso a paso (también `arcli interactivo`):
+  - Emitir facturas A, B o C, comunes o FCE.
+  - Notas de crédito y débito eligiendo la factura de una lista de las últimas emitidas, consultadas a ARCA.
+  - Ver los últimos comprobantes y revisar la configuración.
+  - Antes de emitir muestra la vista previa y el comando equivalente. En producción pide una segunda confirmación.
+  - Usa las mismas validaciones y la misma emisión que los comandos con flags. Ver [Modo interactivo](docs/modo-interactivo.md).
+
+### Cambiado
+
+- `arcli` sin argumentos en una terminal interactiva abre el asistente en lugar de la ayuda. Sin terminal (pipes, CI, agentes) o con `--json` sigue mostrando la ayuda. `arcli ayuda` y `arcli --ayuda` no cambian.
+
+### Corregido
+
+- El README decía que alcanzaba con Node.js 20. El mínimo es Node.js 22.22.1, como pide `engines`.
+
 ### Dependencias
 
 - `boxen` 8 → 9, `zod` 4.4 → 4.6 y `@inquirer/select` 5.2.2 → 5.2.5. No cambia la salida de la terminal.

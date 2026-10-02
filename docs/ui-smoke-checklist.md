@@ -859,3 +859,25 @@ sea a proposito y con datos reales que quieras emitir.
 - probar `Nota de debito A` con un comprobante `A` previo real
 - probar lote JSON en `previsualizacion` con multiples items
 - emitir de verdad (no solo previsualizar) al menos una factura de credito electronica y su nota asociada
+
+## Modo interactivo
+
+Necesita una terminal real (no funciona en pipes ni desde un agente).
+
+```bash
+yarn dev                   # sin argumentos: abre el asistente
+yarn dev interactivo --testing
+yarn dev </dev/null        # sin TTY: muestra la ayuda, no el asistente
+```
+
+Verifica:
+
+- el encabezado muestra entorno y punto de venta
+- **Emitir factura**: la A solo ofrece CUIT; el IVA receptor se filtra por letra; el monto acepta `1.500,50`; la FCE pide CBU (si no está en config) y transferencia
+- antes de confirmar se ven la vista previa y el panel "Esto equivale a:" con el comando
+- **Cancelar** en la confirmación no emite nada y vuelve al menú
+- **Nota de crédito o débito**: lista las últimas facturas reales del tipo elegido, total o parcial, y completa solo el asociado
+- **Ver últimos comprobantes**: tabla con número, fecha, receptor, total y CAE
+- **Revisar configuración**: igual que `arcli config revisar`
+- `Ctrl+C` a mitad de un flujo vuelve al menú; en el menú, sale
+- en producción (`yarn dev interactivo --produccion`) pide una segunda confirmación antes de emitir

@@ -1,5 +1,4 @@
 import type { Command } from 'commander';
-import ora from 'ora';
 
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import { BillingService } from '../../modules/billing/billing.service';
@@ -11,6 +10,7 @@ import { ArcaBillingGateway } from '../../services/arca/arca-billing.gateway';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { ArcaContextResolver } from '../../services/arca/arca-context.resolver';
 import { ArcaFceObligationGateway } from '../../services/arca/arca-fce-obligation.gateway';
+import { startSpinner } from '../spinner';
 import type { GlobalCliOptions } from '../types';
 
 import { runInteractiveBillingPreview } from './billing.command.interactive-preview';
@@ -51,7 +51,7 @@ async function resolveFceWarnings(
 
 export async function executeBillingCommand(command: Command, shortcut: VoucherShortcut): Promise<void> {
   const globalOptions = getGlobalOptions(command);
-  let spinner: ReturnType<typeof ora> | null = null;
+  let spinner: ReturnType<typeof startSpinner> = null;
   const voucherKind = getVoucherKindByShortcut(shortcut);
 
   try {
@@ -96,7 +96,7 @@ export async function executeBillingCommand(command: Command, shortcut: VoucherS
 
     const { inputs, previewShown } = preview;
 
-    spinner = !runtime.outputJson && process.stdout.isTTY ? ora('Procesando comprobante...').start() : null;
+    spinner = runtime.outputJson ? null : startSpinner('Procesando comprobante...');
 
     if (spinner) {
       spinner.text = inputs.length > 1 ? `Procesando ${inputs.length} comprobantes...` : 'Procesando comprobante...';

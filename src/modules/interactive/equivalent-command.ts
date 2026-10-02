@@ -1,0 +1,83 @@
+import type { BillingCommandInput } from '../billing/billing.schemas';
+
+const CONCEPT_FLAGS: Record<BillingCommandInput['concept'], string> = {
+  productos: '--cp',
+  'productos-servicios': '--csp',
+  servicios: '--cs',
+};
+
+function formatAmount(value: number): string {
+  return String(value);
+}
+
+function identityFlags(input: BillingCommandInput): string[] {
+  if (input.documentType === 'consumidor-final') {
+    return ['--consumidor-final'];
+  }
+
+  return [`--${input.documentType}`, String(input.documentNumber)];
+}
+
+function associatedFlags(input: BillingCommandInput): string[] {
+  const flags: string[] = [];
+  const associated = input.associatedVoucher;
+
+  if (associated) {
+    if (associated.shortcut) {
+      flags.push('--ac', associated.shortcut);
+    } else if (associated.tipo) {
+      flags.push('--at', String(associated.tipo));
+    }
+
+    if (associated.puntoVenta) flags.push('--apv', String(associated.puntoVenta));
+    if (associated.numero) flags.push('--ar', String(associated.numero));
+    if (associated.cuit) flags.push('--acuit', associated.cuit);
+    if (associated.fecha) flags.push('--afecha', associated.fecha);
+  }
+
+  if (input.associatedPeriod?.desde) flags.push('--pd', input.associatedPeriod.desde);
+  if (input.associatedPeriod?.hasta) flags.push('--ph', input.associatedPeriod.hasta);
+
+  return flags;
+}
+
+/**
+ * Comando de CLI que reproduce exactamente la entrada armada por el asistente.
+ * Se muestra antes de emitir para que el usuario pueda repetirlo sin el modo interactivo.
+ */
+export function buildEquivalentCommand(
+  input: BillingCommandInput,
+  options: { readonly environment: 'produccion' | 'testing' },
+): string {
+  const parts = [
+    'arcli',
+    input.shortcut,
+    '-m',
+    formatAmount(input.totalAmount),
+    CONCEPT_FLAGS[input.concept],
+    ...identityFlags(input),
+    '--ir',
+    input.ivaCondition,
+  ];
+
+  if (input.pointOfSale) parts.push('--pv', String(input.pointOfSale));
+  if (input.billingDate) parts.push('-f', input.billingDate);
+  if (input.ivaRate) parts.push('--alicuota', input.ivaRate);
+  if (input.exemptAmount) parts.push('--exento', formatAmount(input.exemptAmount));
+  if (input.untaxedAmount) parts.push('--nogravado', formatAmount(input.untaxedAmount));
+  if (input.serviceStartDate) parts.push('--sd', input.serviceStartDate);
+  if (input.serviceEndDate) parts.push('--sh', input.serviceEndDate);
+  if (input.paymentDueDate) parts.push('--vto', input.paymentDueDate);
+  if (input.cbu) parts.push('--cbu', input.cbu);
+  if (input.cbuAlias) parts.push('--alias', input.cbuAlias);
+  if (input.transferMode) parts.push('--transferencia', input.transferMode);
+
+  parts.push(...associatedFlags(input));
+
+  if (input.cancellation) parts.push('--anulacion');
+  if (options.environment === 'produccion') parts.push('--produccion');
+
+  parts.push('--emitir');
+
+  return parts.join(' ');
+}
