@@ -1,4 +1,5 @@
 import { readPemFile } from '../../lib/security/pem';
+import { IVA_RATE_HINT } from '../billing/billing.schemas';
 
 import {
   arcliDefaultConceptSchema,
@@ -56,7 +57,7 @@ function parseIvaRate(value: string): string {
   const result = arcliDefaultIvaRateSchema.safeParse(value);
 
   if (!result.success) {
-    throw new Error(`La alicuota "${value}" no es valida. Use 0, 2.5, 5, 10.5, 21 o 27.`);
+    throw new Error(`La alicuota "${value}" no es valida. Use ${IVA_RATE_HINT}.`);
   }
 
   return result.data;

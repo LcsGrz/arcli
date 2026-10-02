@@ -1,3 +1,5 @@
+import type { IIva } from '@arcasdk/core/lib/domain/types/voucher.types';
+
 import {
   keyValuePanel,
   renderKeyValueRows,
@@ -69,6 +71,24 @@ const FCE_OPTIONAL_LABELS: Record<string, string> = {
   '2102': 'Alias CBU',
 };
 
+/** Una alicuota: su tasa. Varias: el desglose de neto e IVA de cada una. */
+function formatIvaRows(iva: readonly IIva[]): Array<readonly [string, string]> {
+  if (iva.length === 0) {
+    return [];
+  }
+
+  const label = (aliquotId: number) => resolveIvaRateLabel(aliquotId) ?? String(aliquotId);
+
+  if (iva.length === 1 && iva[0]) {
+    return [['Alicuota IVA', label(iva[0].Id)]];
+  }
+
+  return iva.map(
+    (item) =>
+      [`IVA ${label(item.Id)}`, `${formatMoneyLabel(item.Importe)} sobre ${formatMoneyLabel(item.BaseImp)}`] as const,
+  );
+}
+
 function formatFriendlyPayloadRows(result: BillingExecutionResult): Array<readonly [string, string]> {
   const payload = result.payload;
   const rows: Array<readonly [string, string]> = [
@@ -91,9 +111,7 @@ function formatFriendlyPayloadRows(result: BillingExecutionResult): Array<readon
     ['Cotizacion', formatDecimalLabel(payload.MonCotiz)],
     ['Importe neto', formatMoneyLabel(payload.ImpNeto)],
     ['Importe IVA', formatMoneyLabel(payload.ImpIVA)],
-    ...(payload.Iva?.[0]
-      ? [['Alicuota IVA', resolveIvaRateLabel(payload.Iva[0].Id) ?? String(payload.Iva[0].Id)] as const]
-      : []),
+    ...formatIvaRows(payload.Iva ?? []),
     ['Importe tributos', formatMoneyLabel(payload.ImpTrib)],
     ['Importe exento', formatMoneyLabel(payload.ImpOpEx)],
     ['Importe no gravado', formatMoneyLabel(payload.ImpTotConc)],

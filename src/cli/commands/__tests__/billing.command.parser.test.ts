@@ -255,6 +255,44 @@ describe('billing.command.parser', () => {
     expect(short.associatedPeriod).toEqual({ desde: '1/2', hasta: '28/2' });
   });
 
+  it('parses several alicuotas with aliases and computes the total', () => {
+    const input = parseBillingCommandInput(
+      createCommand(['--cs', '--ir-ri', '--alicuota', 'general:1210', '--alicuota', '10,5:552,50', '--exento', '50']),
+      'fa',
+    );
+
+    expect(input.ivaRateAmounts).toEqual([
+      { amount: 1210, rate: '21' },
+      { amount: 552.5, rate: '10.5' },
+    ]);
+    expect(input.ivaRate).toBeUndefined();
+    expect(input.totalAmount).toBe(1812.5);
+  });
+
+  it('accepts a single alicuota by alias', () => {
+    const input = parseBillingCommandInput(
+      createCommand(['--monto', '110.5', '--cs', '--ir-ri', '--alicuota', 'reducida']),
+      'fa',
+    );
+
+    expect(input.ivaRate).toBe('10.5');
+  });
+
+  it('rejects mixing a single alicuota with TASA:MONTO pairs', () => {
+    expect(() =>
+      parseBillingCommandInput(
+        createCommand(['--monto', '100', '--cs', '--ir-ri', '--alicuota', '21', '--alicuota', '10.5:50']),
+        'fa',
+      ),
+    ).toThrow(/No mezcle --alicuota TASA con --alicuota TASA:MONTO/);
+    expect(() =>
+      parseBillingCommandInput(
+        createCommand(['--monto', '100', '--cs', '--ir-ri', '--alicuota', '21', '--alicuota', '27']),
+        'fa',
+      ),
+    ).toThrow(/Para varias alicuotas use --alicuota TASA:MONTO/);
+  });
+
   it('loads base data from a JSON file', () => {
     const directory = mkdtempSync(join(tmpdir(), 'arcli-billing-cli-'));
 

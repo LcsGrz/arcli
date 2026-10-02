@@ -181,6 +181,14 @@ arcli fc ayuda
 - **Solución:** agregar `--afecha <fecha>` con la fecha de la factura FCE original.
 - **Documentación relacionada:** [Crédito electrónico (FCE)](validation-rules.md#crédito-electrónico-fce)
 
+### La suma de las alícuotas no coincide con el total
+
+- **Severidad:** ocasional
+- **Síntoma:** `La suma de las alicuotas (...) no coincide con lo gravado del monto total (...)`.
+- **Causa:** con varias `--alicuota TASA:MONTO`, cada monto lleva el IVA incluido, y la suma más `--exento` y `--nogravado` tiene que dar `--monto`.
+- **Solución:** sacar `--monto` (el total se calcula solo) o corregir los montos.
+- **Documentación relacionada:** [Varias alícuotas](validation-rules.md#varias-alícuotas-en-un-comprobante)
+
 ### Exento o no gravado mayor al total
 
 - **Severidad:** ocasional

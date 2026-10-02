@@ -228,16 +228,30 @@ ImpTotal = ImpTotConc (--nogravado) + ImpOpEx (--exento) + ImpNeto + ImpIVA
 - Con neto mayor a cero siempre se envía el array `Iva`, también al 0% (10070).
 - En letra `C`, `--alicuota`, `--exento` y `--nogravado` dan error, porque ARCA exige que esos importes sean cero.
 
-| `--alicuota` | Id ARCA |
-| ------------ | ------- |
-| `0`          | `3`     |
-| `2.5`        | `9`     |
-| `5`          | `8`     |
-| `10.5`       | `4`     |
-| `21`         | `5`     |
-| `27`         | `6`     |
+| Alias          | Número | Id ARCA |
+| -------------- | ------ | ------- |
+| `cero`         | `0`    | `3`     |
+| —              | `2.5`  | `9`     |
+| —              | `5`    | `8`     |
+| `reducida`     | `10.5` | `4`     |
+| `general`      | `21`   | `5`     |
+| `incrementada` | `27`   | `6`     |
 
-`--alicuota` acepta coma o punto decimal y un `%` final (`10,5`, `10.5`, `10.5%`). Hoy se informa una sola alícuota por comprobante.
+`--alicuota` acepta el alias o el número, con coma o punto decimal y un `%` final (`reducida`, `10,5`, `10.5`, `10.5%`).
+
+#### Varias alícuotas en un comprobante
+
+Repetí `--alicuota TASA:MONTO`, con el importe de cada alícuota **IVA incluido**, igual que `--monto`:
+
+```bash
+arcli fa --cs --cuit 30709965812 --ir-ri --alicuota general:1210 --alicuota reducida:552.50
+```
+
+- Cada monto se parte en neto e IVA según su tasa, y se envía una entrada de `Iva` por alícuota. La suma de los netos es `ImpNeto` (10061).
+- `--monto` pasa a ser opcional. Sin él, el total es la suma de las alícuotas más `--exento` y `--nogravado`. Si lo pasás, tiene que coincidir con esa suma (con un margen de un centavo).
+- Si la misma alícuota aparece dos veces, se suman sus montos.
+- No se puede mezclar `--alicuota TASA` con `--alicuota TASA:MONTO`, ni repetir `--alicuota TASA` sin monto.
+- En JSON: `"alicuotas": [{ "tasa": "general", "monto": 1210 }, { "tasa": "10.5", "monto": 552.5 }]`.
 
 ## 3. Restricciones y errores de ARCA
 

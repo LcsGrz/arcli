@@ -27,7 +27,13 @@ export interface TaxAmounts {
   readonly untaxedAmount: number;
 }
 
-type TaxAmountsInput = Pick<BillingCommandInput, 'exemptAmount' | 'ivaRate' | 'totalAmount' | 'untaxedAmount'>;
+type TaxAmountsInput = Pick<
+  BillingCommandInput,
+  'exemptAmount' | 'ivaRate' | 'ivaRateAmounts' | 'totalAmount' | 'untaxedAmount'
+>;
+
+// Margen de ARCA para comparar importes (10048): un centavo.
+const AMOUNT_TOLERANCE = 0.01;
 
 export function resolveIvaRateLabel(aliquotId: number): string | undefined {
   const entry = Object.entries(IVA_RATE_DEFINITIONS).find(([, definition]) => definition.id === aliquotId);
@@ -37,7 +43,7 @@ export function resolveIvaRateLabel(aliquotId: number): string | undefined {
 
 function validateLetterCAmounts(input: TaxAmountsInput, voucherKind: VoucherKindDefinition): void {
   const flags = [
-    input.ivaRate ? '--alicuota' : undefined,
+    input.ivaRate || input.ivaRateAmounts ? '--alicuota' : undefined,
     input.exemptAmount ? '--exento' : undefined,
     input.untaxedAmount ? '--nogravado' : undefined,
   ].filter((flag): flag is string => Boolean(flag));
@@ -77,24 +83,56 @@ export function resolveTaxAmounts(input: TaxAmountsInput, voucherKind: VoucherKi
     return { exemptAmount, ivaAmount: 0, netAmount: 0, untaxedAmount };
   }
 
-  const definition = IVA_RATE_DEFINITIONS[input.ivaRate ?? DEFAULT_IVA_RATE];
-  const netAmount = roundAmount(taxedTotal.div(new Big(1).plus(definition.rate)));
-  const ivaAmount = roundAmount(taxedTotal.minus(netAmount));
+  const parts = resolveTaxedParts(input, taxedTotal);
+  const iva = parts.map(({ amount, rate }) => {
+    const definition = IVA_RATE_DEFINITIONS[rate];
+    const BaseImp = roundAmount(amount.div(new Big(1).plus(definition.rate)));
+
+    return { BaseImp, Id: definition.id, Importe: roundAmount(amount.minus(BaseImp)) };
+  });
 
   // Con neto mayor a cero el array de IVA es obligatorio, incluso al 0% (10070).
+  // La suma de BaseImp tiene que dar ImpNeto (10061).
   return {
     exemptAmount,
-    iva: [
-      {
-        BaseImp: netAmount,
-        Id: definition.id,
-        Importe: ivaAmount,
-      },
-    ],
-    ivaAmount,
-    netAmount,
+    iva,
+    ivaAmount: roundAmount(iva.reduce((sum, item) => sum.plus(item.Importe), new Big(0))),
+    netAmount: roundAmount(iva.reduce((sum, item) => sum.plus(item.BaseImp), new Big(0))),
     untaxedAmount,
   };
+}
+
+/**
+ * Importe gravado (IVA incluido) de cada alicuota. Con una sola alicuota es todo lo gravado; con varias,
+ * los montos de cada una tienen que sumar lo gravado del total.
+ */
+function resolveTaxedParts(
+  input: TaxAmountsInput,
+  taxedTotal: Big,
+): Array<{ readonly amount: Big; readonly rate: BillingIvaRate }> {
+  if (!input.ivaRateAmounts?.length) {
+    return [{ amount: taxedTotal, rate: input.ivaRate ?? DEFAULT_IVA_RATE }];
+  }
+
+  const byRate = new Map<BillingIvaRate, Big>();
+
+  for (const { amount, rate } of input.ivaRateAmounts) {
+    byRate.set(rate, (byRate.get(rate) ?? new Big(0)).plus(amount));
+  }
+
+  const sum = [...byRate.values()].reduce((total, amount) => total.plus(amount), new Big(0));
+
+  if (sum.minus(taxedTotal).abs().gt(AMOUNT_TOLERANCE)) {
+    throw new InputValidationError(
+      `La suma de las alicuotas (${formatPlain(sum)}) no coincide con lo gravado del monto total (${formatPlain(taxedTotal)}). Revise --monto, --alicuota, --exento y --nogravado.`,
+    );
+  }
+
+  return [...byRate.entries()].map(([rate, amount]) => ({ amount, rate }));
+}
+
+function formatPlain(value: Big): string {
+  return value.round(2, Big.roundHalfUp).toFixed(2);
 }
 
 function roundAmount(value: Big): number {
