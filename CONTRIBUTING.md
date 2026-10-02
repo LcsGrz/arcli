@@ -79,6 +79,7 @@ Y revisá también, según el cambio:
 - [ ] `yarn build`
 - [ ] `npm pack --dry-run`
 - [ ] `README.md` actualizado si corresponde
+- [ ] `CHANGELOG.md`: entrada en "Sin publicar" si el cambio afecta a quien usa el CLI
 
 ## Dudas o ideas
 

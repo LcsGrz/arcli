@@ -159,21 +159,18 @@ El repo tiene dos workflows de GitHub Actions:
   - se ejecuta manualmente desde GitHub Actions con `workflow_dispatch`
   - vuelve a correr validaciones y después publica a npm
 
-Para que `Release` pueda publicar, el repo necesita este secret en GitHub:
+`Release` publica con [npm Trusted Publishers](https://docs.npmjs.com/trusted-publishers) (OIDC): no usa `NPM_TOKEN`. El paquete `arcli` en npm tiene que tener configurado este repo y el workflow `release.yml` como publicador de confianza. El job necesita `id-token: write` y npm 11.5.1 o superior (Node 24).
 
-- `NPM_TOKEN`
+### Cómo sacar una versión
 
-Ruta sugerida:
+1. Crear una rama `release/vX.Y.Z`.
+2. Pasar las entradas de "Sin publicar" en `CHANGELOG.md` a una sección `[X.Y.Z] - AAAA-MM-DD` y actualizar los links de comparación al final.
+3. Subir la versión en `package.json` y en `src/cli/version.ts`. Un test verifica que coincidan.
+4. Abrir el PR, esperar el CI y mergear.
+5. Crear el tag `vX.Y.Z` sobre el commit mergeado y la release de GitHub con las notas del changelog.
+6. Correr el workflow `Release` desde GitHub Actions.
 
-1. GitHub repo
-2. `Settings`
-3. `Secrets and variables`
-4. `Actions`
-5. `New repository secret`
-
-Valor:
-
-- un token válido de npm con permisos para publicar `arcli`
+Versionado: cambios que rompen el contrato del CLI → mayor; flags, comandos o claves nuevas, y validaciones que adelantan rechazos de ARCA → menor; correcciones sin cambio de contrato → patch.
 
 Para cambios visuales de terminal:
 
