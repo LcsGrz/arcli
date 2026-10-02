@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { billingIvaRateSchema } from '../billing/billing.schemas';
+
 export const arcliEnvironmentSchema = z.enum(['testing', 'produccion']);
 export const arcliDefaultConceptSchema = z.enum(['productos', 'productos-servicios', 'servicios']);
 export const arcliDefaultIvaConditionSchema = z.enum([
@@ -21,7 +23,11 @@ export const arcliDefaultCurrencySchema = z
   .length(3)
   .transform((value) => value.toUpperCase());
 
+// Misma normalizacion que --alicuota ("10,5", "10.5%").
+export const arcliDefaultIvaRateSchema = billingIvaRateSchema;
+
 export const arcliConfigSchema = z.object({
+  alicuotaPorDefecto: arcliDefaultIvaRateSchema.optional(),
   cert: z
     .object({
       produccion: z.string().trim().min(1).optional(),
@@ -83,6 +89,7 @@ export const CONFIG_DEFAULTS: ArcliConfig = {
 };
 
 export const configPublicKeySchema = z.enum([
+  'alicuota',
   'aliasCbu',
   'cbu',
   'cert.produccion',

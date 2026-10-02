@@ -226,6 +226,21 @@ describe('billing.command.parser', () => {
     expect(input.untaxedAmount).toBe(50);
   });
 
+  it('applies the configured IVA rate only to letters A and B', () => {
+    const defaults = { defaultIvaRate: '10.5' as const };
+    const letterA = parseBillingCommandInput(createCommand(['--monto', '1000', '--cs', '--ir-ri']), 'fa', defaults);
+    const letterC = parseBillingCommandInput(createCommand(['--monto', '1000', '--cs', '--ir-cf']), 'fc', defaults);
+    const explicit = parseBillingCommandInput(
+      createCommand(['--monto', '1000', '--cs', '--ir-ri', '--alicuota', '27']),
+      'fa',
+      defaults,
+    );
+
+    expect(letterA.ivaRate).toBe('10.5');
+    expect(letterC.ivaRate).toBeUndefined();
+    expect(explicit.ivaRate).toBe('27');
+  });
+
   it('loads base data from a JSON file', () => {
     const directory = mkdtempSync(join(tmpdir(), 'arcli-billing-cli-'));
 

@@ -32,7 +32,7 @@ const AVAILABLE_GENERAL_OPTIONS = [
   '  - --cotizacion-moneda <number> | --cm <number> | todas | cotizacion de la moneda elegida; obligatoria en moneda extranjera',
   '  - --misma-moneda | todas | el pago se cancela en la moneda extranjera; usa la cotizacion oficial de ARCA',
   '  - --cargar <path> | todas | cargar un comprobante o lote desde JSON',
-  '  - --alicuota <tasa> | letras A y B | alicuota de IVA: 0, 2.5, 5, 10.5, 21 o 27; por defecto 21',
+  '  - --alicuota <tasa> | letras A y B | alicuota de IVA: 0, 2.5, 5, 10.5, 21 o 27; por defecto config alicuota o 21',
   '  - --exento <number> | letras A y B | parte exenta del monto total',
   '  - --nogravado <number> | letras A y B | parte no gravada del monto total',
 ].join('\n');
@@ -488,6 +488,7 @@ export function createConfigHelp(): string {
         '  - cuit, puntoVenta, concepto, ivaReceptor: datos de facturacion que se repiten siempre.',
         '  - cert.testing, cert.produccion, key.testing, key.produccion: rutas a certificado/clave por entorno.',
         '  - moneda, cotizacion: defaults cuando no pasas --moneda/--cm.',
+        '  - alicuota: alicuota de IVA por defecto para letras A y B.',
         '  - emitir, json, bruto: defaults de ejecucion y salida (true/false, si/no o 1/0).',
         '  - ticketPath: carpeta donde se cachea el ticket WSAA.',
         '  - Guardar: arcli config establecer <clave> <valor>. Borrar: arcli config eliminar <clave>.',

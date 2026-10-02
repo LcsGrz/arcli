@@ -54,6 +54,12 @@ describe('config-value-parser', () => {
     expect(() => parseConfigValue('output.emitirPorDefecto', 'tal-vez')).toThrow(/no es un booleano valido/);
   });
 
+  it('normalizes the default IVA rate', () => {
+    expect(parseConfigValue('alicuotaPorDefecto', '10,5')).toBe('10.5');
+    expect(parseConfigValue('alicuotaPorDefecto', '21%')).toBe('21');
+    expect(() => parseConfigValue('alicuotaPorDefecto', '19')).toThrow(/Use 0, 2.5, 5, 10.5, 21 o 27/);
+  });
+
   it('validates the FCE CBU and its alias', () => {
     expect(parseConfigValue('cbu', ' 0110599520000012345678 ')).toBe('0110599520000012345678');
     expect(parseConfigValue('aliasCbu', 'mi.alias.cbu')).toBe('mi.alias.cbu');

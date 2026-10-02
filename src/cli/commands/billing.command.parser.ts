@@ -58,6 +58,7 @@ function pickNumber(...values: unknown[]): number | undefined {
 }
 
 export interface BillingCommandDefaults {
+  readonly defaultIvaRate?: BillingCommandInput['ivaRate'];
   readonly defaultCbu?: string;
   readonly defaultCbuAlias?: string;
   readonly defaultConcept?: BillingCommandInput['concept'];
@@ -199,7 +200,10 @@ function parseBillingCommandInputFromSource(
     (!sameCurrency && isForeignCurrency({ currencyCode }) ? defaults.defaultExchangeRate : undefined);
 
   // El CBU de la config solo aplica a facturas FCE: ARCA rechaza esos opcionales en otros comprobantes (10169).
-  const usesFceDefaults = getVoucherKindByShortcut(shortcut)?.family === 'factura-credito-electronica';
+  const voucherKind = getVoucherKindByShortcut(shortcut);
+  const usesFceDefaults = voucherKind?.family === 'factura-credito-electronica';
+  // La C no discrimina IVA: la alicuota de la config solo aplica a A y B.
+  const usesIvaRateDefault = voucherKind?.letter !== 'c';
 
   return {
     ...billingCommandSchema.parse({
@@ -221,7 +225,10 @@ function parseBillingCommandInputFromSource(
       emit: shouldEmit,
       exchangeRate,
       exemptAmount: pickNumber(commandOptions.exento, fileInput?.importeExento),
-      ivaRate: pickString(commandOptions.alicuota) ?? fileInput?.alicuotaIva,
+      ivaRate:
+        pickString(commandOptions.alicuota) ??
+        fileInput?.alicuotaIva ??
+        (usesIvaRateDefault ? defaults.defaultIvaRate : undefined),
       ivaCondition: resolvedIvaCondition,
       paymentDueDate: pickString(commandOptions.vencimiento, commandOptions.vto, fileInput?.vencimientoPago),
       pointOfSale: pickNumber(commandOptions.puntoVenta, commandOptions.pv, fileInput?.puntoVenta),

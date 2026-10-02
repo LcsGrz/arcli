@@ -64,6 +64,7 @@ export async function executeBillingCommand(command: Command, shortcut: VoucherS
       defaultEmit: runtime.config.output.emitirPorDefecto,
       defaultExchangeRate: runtime.config.cotizacionPorDefecto,
       defaultIvaCondition: runtime.config.ivaReceptorPorDefecto,
+      defaultIvaRate: runtime.config.alicuotaPorDefecto,
     });
     const service = new BillingService();
     const arca = new ArcaClientFactory().create(runtime);
