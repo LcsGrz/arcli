@@ -880,6 +880,9 @@ Verifica:
 - **Nota de crédito o débito**: lista las últimas facturas reales del tipo elegido, total o parcial, y completa solo el asociado
 - **Ver últimos comprobantes**: tabla con número, fecha, receptor, total y CAE
 - **Revisar configuración**: igual que `arcli config revisar`
+- **"← Volver"** en una opción y `<` en un texto vuelven al paso anterior; desde la primera pregunta, al menú
+- **Opciones avanzadas** ("¿Agregamos algo más?"): moneda extranjera, exento/no gravado, período del servicio y vencimiento; el comando equivalente las refleja (`--moneda USD --cm 1200`, `--exento`, `--sd/--sh`, `--vto`)
+- **NC por período**: en una nota común, "A un período" pide desde/hasta, receptor y concepto
 - `Ctrl+C` a mitad de un flujo vuelve al menú; en el menú, sale
 - en producción (`yarn dev interactivo --produccion`) pide una segunda confirmación antes de emitir
 

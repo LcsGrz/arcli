@@ -32,30 +32,43 @@ Arriba del menú se muestran el entorno (`testing` o `produccion`) y el punto de
 
 ## Emitir factura
 
-| Paso | Pregunta         | Detalle                                                                                       |
-| ---- | ---------------- | --------------------------------------------------------------------------------------------- |
-| 1    | Comprobante      | Factura A, B o C, comunes o de crédito electrónica (FCE)                                      |
-| 2    | Receptor         | Consumidor final, CUIT o DNI. En la A solo CUIT, porque la A no admite consumidor final       |
-| 3    | IVA del receptor | Solo las condiciones válidas para la letra elegida. Con consumidor final no se pregunta       |
-| 4    | Concepto         | Servicios, productos o ambos. Arranca en `config.concepto` si está configurado                |
-| 5    | Monto total      | Acepta `150000`, `150.000`, `1500,50` o `1500.50`                                             |
-| 6    | Alícuota de IVA  | Solo en A y B. Arranca en `config.alicuota` o en 21%                                          |
-| 7    | CBU              | Solo en facturas FCE y si no hay `config.cbu`. También pregunta la modalidad de transferencia |
+| Paso | Pregunta           | Detalle                                                                                                                             |
+| ---- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Comprobante        | Factura A, B o C, comunes o de crédito electrónica (FCE)                                                                            |
+| 2    | Receptor           | Consumidor final, CUIT o DNI. En la A solo CUIT, porque la A no admite consumidor final                                             |
+| 3    | IVA del receptor   | Solo las condiciones válidas para la letra elegida. Con consumidor final no se pregunta                                             |
+| 4    | Concepto           | Servicios, productos o ambos. Arranca en `config.concepto` si está configurado                                                      |
+| 5    | Monto total        | Acepta `150000`, `150.000`, `1500,50` o `1500.50`                                                                                   |
+| 6    | Alícuota de IVA    | Solo en A y B. Arranca en `config.alicuota` o en 21%                                                                                |
+| 7    | CBU                | Solo en facturas FCE y si no hay `config.cbu`. También pregunta la modalidad de transferencia                                       |
+| 8    | Opciones avanzadas | Menú opcional antes de la vista previa: moneda extranjera, exento y no gravado (A y B), período del servicio y vencimiento del pago |
 
 Después muestra la vista previa (la misma de `--previsualizar`), el comando equivalente y pregunta si emitir. En **producción** pide una segunda confirmación.
 
-Las fechas de servicio, la moneda extranjera, los importes exentos o no gravados y el vencimiento de pago usan los valores por defecto. Para cambiarlos, copiá el comando equivalente y agregá los flags (`--sd`, `--sh`, `--moneda`, `--exento`, `--vencimiento`…).
+### Opciones avanzadas
+
+Antes de la vista previa aparece **"¿Agregamos algo más?"**. Cada opción se puede elegir y cambiar varias veces, y muestra el valor actual:
+
+| Opción                      | Qué pregunta                                                                                                                   |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Moneda extranjera           | Pesos o dólares. En dólares, si te pagan en pesos (ingresás la cotización) o en dólares (se usa la cotización oficial de ARCA) |
+| Importe exento o no gravado | La parte exenta y la no gravada del monto total. Solo en A y B                                                                 |
+| Período del servicio        | Desde y hasta. Solo si el concepto no es solo productos                                                                        |
+| Vencimiento del pago        | La fecha. En servicios y en facturas FCE                                                                                       |
+
+Lo que no se elige usa los valores por defecto, igual que el CLI sin esos flags.
 
 ## Nota de crédito o débito
 
-| Paso | Pregunta                    | Detalle                                                                                                                                 |
-| ---- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| 1    | Crédito o débito            |                                                                                                                                         |
-| 2    | Tipo de la factura original | Factura A, B o C, comunes o FCE                                                                                                         |
-| 3    | Factura                     | Lista las últimas 10 facturas de ese tipo emitidas en el punto de venta configurado, consultadas a ARCA. No hace falta tipear el número |
-| 4    | Monto                       | En crédito: anular el total o ingresar un monto parcial (no puede superar el total de la factura). En débito: el monto a sumar          |
-| 5    | IVA del receptor            | Solo si la factura no era a consumidor final: ARCA no devuelve la condición IVA, así que se pregunta, filtrada por la letra             |
-| 6    | Anulación                   | Solo en NC/ND FCE: si la factura fue rechazada por el comprador                                                                         |
+| Paso | Pregunta                    | Detalle                                                                                                                                                                                                  |
+| ---- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Crédito o débito            |                                                                                                                                                                                                          |
+| 2    | Tipo de la factura original | Factura A, B o C, comunes o FCE                                                                                                                                                                          |
+| 3    | Factura                     | Lista las últimas 10 facturas de ese tipo emitidas en el punto de venta configurado, consultadas a ARCA. No hace falta tipear el número                                                                  |
+| 4    | Factura o período           | En notas comunes, se elige si asociarla a una factura de la lista o a un período (desde y hasta). Con período, se pregunta además el receptor y el concepto. Las notas FCE siempre van sobre una factura |
+| 5    | Monto                       | En crédito: anular el total o ingresar un monto parcial (no puede superar el total de la factura). En débito: el monto a sumar                                                                           |
+| 6    | IVA del receptor            | Solo si la factura no era a consumidor final: ARCA no devuelve la condición IVA, así que se pregunta, filtrada por la letra                                                                              |
+| 7    | Anulación                   | Solo en NC/ND FCE: si la factura fue rechazada por el comprador                                                                                                                                          |
 
 La nota hereda de la factura el concepto, el receptor (tipo y número de documento), la fecha y la alícuota de IVA cuando se puede deducir de los importes. El comprobante asociado se completa solo: tipo, punto de venta, número, CUIT del emisor y fecha.
 
@@ -67,16 +80,16 @@ Pregunta el tipo de comprobante y muestra los últimos 10 emitidos en el punto d
 
 Muestra lo mismo que `arcli config revisar`: defaults, credenciales y validación contra ARCA.
 
-## Cancelar y salir
+## Volver, cancelar y salir
 
+- **Volver al paso anterior:** en las opciones, **"← Volver"**; en las preguntas de texto, escribí **`<`**. Si volvés desde la primera pregunta, volvés al menú. Al volver se descarta lo que respondiste después, así un cambio de camino (por ejemplo, de CUIT a consumidor final) no deja datos viejos.
 - `Ctrl+C` durante una pregunta cancela el flujo actual y vuelve al menú. Nada se emite hasta confirmar en el último paso.
 - `Ctrl+C` en el menú principal, o elegir **Salir**, cierra el asistente.
 
 ## Qué no hace (todavía)
 
-- Moneda extranjera, exento, no gravado, período asociado y fechas de servicio personalizadas: se resuelven con el comando equivalente más los flags.
+- Varias alícuotas en un mismo comprobante: se resuelven con el comando equivalente y `--alicuota TASA:MONTO`.
 - Facturas por lote: siguen siendo `--cargar` con un JSON.
-- Volver al paso anterior: por ahora se cancela el flujo y se empieza de nuevo.
 
 ## Decisiones de diseño
 

@@ -53,6 +53,16 @@ describe('buildEquivalentCommand', () => {
     );
   });
 
+  it('incluye la moneda extranjera', () => {
+    expect(
+      buildEquivalentCommand(input({ currencyCode: 'USD', exchangeRate: 1200 }), { environment: 'testing' }),
+    ).toContain('--moneda USD --cm 1200');
+    expect(
+      buildEquivalentCommand(input({ currencyCode: 'USD', sameCurrency: true }), { environment: 'testing' }),
+    ).toContain('--moneda USD --misma-moneda');
+    expect(buildEquivalentCommand(input({}), { environment: 'testing' })).not.toContain('--moneda');
+  });
+
   it('genera un comando que el parser vuelve a leer igual', () => {
     const original = input({
       associatedVoucher: { cuit: '20409509763', fecha: '01/10/2026', numero: 14, puntoVenta: 3, shortcut: 'fb' },
