@@ -73,7 +73,9 @@ function formatEquivalentCommand(command: string): string {
  */
 export async function previewAndEmit(session: InteractiveSession, rawInput: BillingCommandInput): Promise<void> {
   const { runtime, service } = session;
-  const input: BillingCommandInput = { ...rawInput, dryRun: true, emit: false };
+  // Con "me pagan en dolares" la cotizacion es la oficial de ARCA: se consulta antes de la vista previa.
+  const resolved = await service.resolveExchangeRate(rawInput, session.billingGateway);
+  const input: BillingCommandInput = { ...resolved, dryRun: true, emit: false };
   const warnings = runtime.config.verificarFce
     ? await service.resolveFceWarnings(input, new ArcaFceObligationGateway(session.arca))
     : [];

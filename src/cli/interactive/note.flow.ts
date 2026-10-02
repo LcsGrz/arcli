@@ -1,13 +1,21 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
-import { billingCommandSchema, type BillingConcept } from '../../modules/billing/billing.schemas';
+import {
+  type BillingCommandInput,
+  billingCommandSchema,
+  type BillingConcept,
+} from '../../modules/billing/billing.schemas';
+import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { parseAmountInput } from '../../modules/interactive/amount-input';
 import {
+  conceptChoices,
   invoiceKindChoices,
   ivaConditionChoices,
   ivaRateChoices,
   noteKindChoices,
+  receiverChoices,
 } from '../../modules/interactive/choices';
+import { BACK, type Back, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import {
   inferIvaRate,
   type IssuedVoucher,
@@ -18,9 +26,9 @@ import { formatVoucherSummary } from '../../modules/vouchers/voucher-history.pre
 import { noticePanel, writeTerminalOutput } from '../../ui';
 import { startSpinner } from '../spinner';
 
-import { askText, chooseOne, confirm } from './prompts';
+import { askTextStep, chooseStep } from './prompts';
 import { type InteractiveSession, previewAndEmit, requirePointOfSale } from './session';
-import { validateAmount } from './validators';
+import { normalizeDocumentNumber, validateAmount, validateCuit, validateDate, validateDni } from './validators';
 
 const CONCEPTS_BY_CODE: Record<number, BillingConcept> = {
   1: 'productos',
@@ -28,25 +36,45 @@ const CONCEPTS_BY_CODE: Record<number, BillingConcept> = {
   3: 'productos-servicios',
 };
 
-async function askNoteAmount(kind: 'credito' | 'debito', invoice: IssuedVoucher): Promise<number | undefined> {
-  if (kind === 'debito') {
-    return parseAmountInput(await askText('Monto de la nota de debito:', { validate: validateAmount }));
+export interface NoteState {
+  readonly cancellation?: boolean;
+  readonly concept?: BillingConcept;
+  readonly documentNumber?: number;
+  readonly documentType?: BillingCommandInput['documentType'];
+  readonly invoice?: IssuedVoucher;
+  readonly invoiceKind?: VoucherKindDefinition;
+  readonly ivaCondition?: BillingCommandInput['ivaCondition'];
+  readonly ivaRate?: BillingCommandInput['ivaRate'];
+  readonly kind?: 'credito' | 'debito';
+  readonly periodFrom?: string;
+  readonly periodTo?: string;
+  /** Sobre una factura de la lista o sobre un periodo (solo notas comunes). */
+  readonly target?: 'factura' | 'periodo';
+  readonly totalAmount?: number;
+}
+
+const isPeriod = (state: NoteState): boolean => state.target === 'periodo';
+
+async function askNoteAmount(state: NoteState): Promise<Back | number | undefined> {
+  const invoice = state.invoice;
+  const label = state.kind === 'debito' ? 'Monto de la nota de debito:' : 'Monto de la nota de credito:';
+
+  if (state.kind === 'credito' && invoice) {
+    const scope = await chooseStep('¿Total o parcial?', [
+      { name: `Anular el total (${formatMoneyLabel(invoice.total)})`, value: 'total' as const },
+      { name: 'Parcial (ingresar monto)', value: 'parcial' as const },
+    ]);
+
+    if (scope === BACK || scope === 'total') {
+      return scope === BACK ? BACK : invoice.total;
+    }
   }
 
-  const scope = await chooseOne('¿Total o parcial?', [
-    { name: `Anular el total (${formatMoneyLabel(invoice.total)})`, value: 'total' as const },
-    { name: 'Parcial (ingresar monto)', value: 'parcial' as const },
-  ]);
-
-  if (scope === 'total') {
-    return invoice.total;
-  }
-
-  const answer = await askText('Monto de la nota de credito:', {
+  const answer = await askTextStep(label, {
     validate: (value) => {
       const valid = validateAmount(value);
 
-      if (valid !== true) {
+      if (valid !== true || state.kind !== 'credito' || !invoice) {
         return valid;
       }
 
@@ -56,7 +84,237 @@ async function askNoteAmount(kind: 'credito' | 'debito', invoice: IssuedVoucher)
     },
   });
 
-  return parseAmountInput(answer);
+  return answer === BACK ? BACK : parseAmountInput(answer);
+}
+
+/** Pasos del flujo de notas; cada uno se puede deshacer con "Volver". */
+export function noteSteps(session: InteractiveSession, pointOfSale: number): Array<WizardStep<NoteState>> {
+  return [
+    {
+      name: 'nota',
+      run: async () => {
+        const kind = await chooseStep('¿Que nota queres emitir?', [
+          { name: 'Nota de credito (descuento, devolucion o anulacion)', value: 'credito' as const },
+          { name: 'Nota de debito (cargo adicional)', value: 'debito' as const },
+        ]);
+
+        return kind === BACK ? BACK : { kind };
+      },
+    },
+    {
+      name: 'tipo-factura',
+      run: async () => {
+        const invoiceKind = await chooseStep('¿Sobre que tipo de factura?', invoiceKindChoices());
+
+        return invoiceKind === BACK ? BACK : { invoiceKind, target: 'factura' };
+      },
+    },
+    {
+      name: 'asociacion',
+      run: async () => {
+        const target = await chooseStep('¿A que la asociamos?', [
+          { description: 'Elegis una de las ultimas emitidas', name: 'A una factura', value: 'factura' as const },
+          {
+            description: 'Por ejemplo, un descuento sobre todo el mes',
+            name: 'A un periodo',
+            value: 'periodo' as const,
+          },
+        ]);
+
+        return target === BACK ? BACK : { target };
+      },
+      // ARCA no acepta periodo asociado en notas FCE (10196).
+      skip: (state) => Boolean(state.invoiceKind?.isElectronicCredit),
+    },
+    {
+      name: 'factura',
+      run: async (state) => {
+        const invoiceKind = state.invoiceKind as VoucherKindDefinition;
+        const spinner = startSpinner('Buscando las ultimas facturas en ARCA...');
+        const invoices = await listRecentVouchers(session.historyGateway, pointOfSale, invoiceKind.arcaType).finally(
+          () => spinner?.stop(),
+        );
+
+        if (invoices.length === 0) {
+          writeTerminalOutput(
+            noticePanel(`No hay ${invoiceKind.displayName} emitidas en el punto de venta ${pointOfSale}.`, 'warning'),
+          );
+
+          return BACK;
+        }
+
+        const invoice = await chooseStep(
+          `¿Sobre que ${invoiceKind.displayName}?`,
+          invoices.map((item) => ({
+            description: item.cae ? `CAE ${item.cae}` : undefined,
+            name: formatVoucherSummary(pointOfSale, item),
+            value: item,
+          })),
+        );
+
+        if (invoice === BACK) {
+          return BACK;
+        }
+
+        const documentType = resolveDocumentType(invoice.documentTypeCode);
+
+        if (!documentType) {
+          writeTerminalOutput(
+            noticePanel(
+              'La factura tiene un tipo de documento que el asistente no soporta. Usa los flags del CLI.',
+              'warning',
+            ),
+          );
+
+          return BACK;
+        }
+
+        // La nota hereda de la factura el receptor, el concepto y la alicuota (si se puede deducir).
+        return {
+          concept: CONCEPTS_BY_CODE[invoice.concept ?? 2] ?? 'servicios',
+          documentNumber: documentType === 'consumidor-final' ? undefined : invoice.documentNumber,
+          documentType,
+          invoice,
+          ivaCondition: documentType === 'consumidor-final' ? 'consumidor-final' : undefined,
+          ivaRate: invoiceKind.letter === 'c' ? undefined : inferIvaRate(invoice.netAmount, invoice.ivaAmount),
+        };
+      },
+      skip: isPeriod,
+    },
+    {
+      name: 'periodo',
+      run: async () => {
+        const periodFrom = await askTextStep('Periodo desde:', { validate: validateDate });
+
+        if (periodFrom === BACK) {
+          return BACK;
+        }
+
+        const periodTo = await askTextStep('Periodo hasta:', { validate: validateDate });
+
+        return periodTo === BACK ? BACK : { invoice: undefined, periodFrom, periodTo };
+      },
+      skip: (state) => !isPeriod(state),
+    },
+    {
+      name: 'receptor',
+      run: async (state) => {
+        const documentType = await chooseStep(
+          '¿A quien va la nota?',
+          receiverChoices(state.invoiceKind?.letter ?? 'c'),
+        );
+
+        return documentType === BACK
+          ? BACK
+          : {
+              documentNumber: undefined,
+              documentType,
+              ivaCondition: documentType === 'consumidor-final' ? 'consumidor-final' : undefined,
+            };
+      },
+      skip: (state) => !isPeriod(state),
+    },
+    {
+      name: 'documento',
+      run: async (state) => {
+        const isCuit = state.documentType === 'cuit';
+        const answer = await askTextStep(isCuit ? 'CUIT del receptor:' : 'DNI del receptor:', {
+          validate: isCuit ? validateCuit : validateDni,
+        });
+
+        return answer === BACK ? BACK : { documentNumber: normalizeDocumentNumber(answer) };
+      },
+      skip: (state) => !isPeriod(state) || state.documentType === 'consumidor-final',
+    },
+    {
+      name: 'concepto',
+      run: async () => {
+        const concept = await chooseStep('¿Que concepto ajusta la nota?', conceptChoices());
+
+        return concept === BACK ? BACK : { concept };
+      },
+      skip: (state) => !isPeriod(state),
+    },
+    {
+      name: 'monto',
+      run: async (state) => {
+        const totalAmount = await askNoteAmount(state);
+
+        return totalAmount === BACK ? BACK : { totalAmount };
+      },
+    },
+    {
+      name: 'iva-receptor',
+      run: async (state) => {
+        // ARCA no devuelve la condicion IVA de la factura, asi que se pregunta, filtrada por la letra.
+        const ivaCondition = await chooseStep(
+          'Condicion frente al IVA del receptor:',
+          ivaConditionChoices(state.invoiceKind?.letter ?? 'c'),
+        );
+
+        return ivaCondition === BACK ? BACK : { ivaCondition };
+      },
+      skip: (state) => state.documentType === 'consumidor-final',
+    },
+    {
+      name: 'alicuota',
+      run: async (state) => {
+        const ivaRate = await chooseStep(
+          isPeriod(state) ? 'Alicuota de IVA:' : 'Alicuota de IVA de la factura:',
+          ivaRateChoices(),
+        );
+
+        return ivaRate === BACK ? BACK : { ivaRate };
+      },
+      // En la C no hay IVA; si la factura deja deducir la alicuota, no se pregunta.
+      skip: (state) => state.invoiceKind?.letter === 'c' || (!isPeriod(state) && Boolean(state.ivaRate)),
+    },
+    {
+      name: 'anulacion',
+      run: async () => {
+        const cancellation = await chooseStep('¿El comprador rechazo la factura?', [
+          { name: 'Si, es una nota de anulacion', value: true },
+          { name: 'No', value: false },
+        ]);
+
+        return cancellation === BACK ? BACK : { cancellation };
+      },
+      skip: (state) => !state.invoiceKind?.isElectronicCredit,
+    },
+  ];
+}
+
+/** Arma la entrada del CLI con lo que respondio el usuario. */
+export function buildNoteInput(
+  state: NoteState,
+  session: InteractiveSession,
+  pointOfSale: number,
+): BillingCommandInput {
+  const invoiceKind = state.invoiceKind as VoucherKindDefinition;
+  const noteKind = noteKindChoices(state.kind ?? 'credito', invoiceKind);
+  const invoice = state.invoice;
+
+  return billingCommandSchema.parse({
+    associatedPeriod: isPeriod(state) ? { desde: state.periodFrom, hasta: state.periodTo } : undefined,
+    associatedVoucher:
+      !isPeriod(state) && invoice
+        ? {
+            cuit: String(session.runtime.context.cuit),
+            fecha: formatArcaDateAsArgentineDate(invoice.date),
+            numero: invoice.number,
+            puntoVenta: pointOfSale,
+            shortcut: invoiceKind.shortcut,
+          }
+        : undefined,
+    cancellation: state.cancellation ?? false,
+    concept: state.concept,
+    documentNumber: state.documentType === 'consumidor-final' ? undefined : state.documentNumber,
+    documentType: state.documentType,
+    ivaCondition: state.ivaCondition,
+    ivaRate: state.ivaRate === '21' && !session.runtime.config.alicuotaPorDefecto ? undefined : state.ivaRate,
+    shortcut: noteKind.shortcut,
+    totalAmount: state.totalAmount,
+  });
 }
 
 export async function runNoteFlow(session: InteractiveSession): Promise<void> {
@@ -66,77 +324,11 @@ export async function runNoteFlow(session: InteractiveSession): Promise<void> {
     return;
   }
 
-  const kind = await chooseOne('¿Que nota queres emitir?', [
-    { name: 'Nota de credito (descuento, devolucion o anulacion)', value: 'credito' as const },
-    { name: 'Nota de debito (cargo adicional)', value: 'debito' as const },
-  ]);
-  const invoiceKind = await chooseOne('¿Sobre que tipo de factura?', invoiceKindChoices());
-  const spinner = startSpinner('Buscando las ultimas facturas en ARCA...');
-  const invoices = await listRecentVouchers(session.historyGateway, pointOfSale, invoiceKind.arcaType).finally(() =>
-    spinner?.stop(),
-  );
+  const state = await runWizard(noteSteps(session, pointOfSale), {});
 
-  if (invoices.length === 0) {
-    writeTerminalOutput(
-      noticePanel(`No hay ${invoiceKind.displayName} emitidas en el punto de venta ${pointOfSale}.`, 'warning'),
-    );
-
+  if (!state) {
     return;
   }
 
-  const invoice = await chooseOne(
-    `¿Sobre que ${invoiceKind.displayName}?`,
-    invoices.map((item) => ({
-      description: item.cae ? `CAE ${item.cae}` : undefined,
-      name: formatVoucherSummary(pointOfSale, item),
-      value: item,
-    })),
-  );
-  const documentType = resolveDocumentType(invoice.documentTypeCode);
-
-  if (!documentType) {
-    writeTerminalOutput(
-      noticePanel(
-        'La factura tiene un tipo de documento que el asistente no soporta. Usa los flags del CLI.',
-        'warning',
-      ),
-    );
-
-    return;
-  }
-
-  const noteKind = noteKindChoices(kind, invoiceKind);
-  const totalAmount = await askNoteAmount(kind, invoice);
-  const ivaCondition =
-    documentType === 'consumidor-final'
-      ? 'consumidor-final'
-      : await chooseOne('Condicion frente al IVA del receptor:', ivaConditionChoices(invoiceKind.letter));
-  const inferredRate = invoiceKind.letter === 'c' ? undefined : inferIvaRate(invoice.netAmount, invoice.ivaAmount);
-  const ivaRate =
-    invoiceKind.letter === 'c'
-      ? undefined
-      : (inferredRate ?? (await chooseOne('Alicuota de IVA de la factura:', ivaRateChoices())));
-  const cancellation = noteKind.isElectronicCredit
-    ? await confirm('¿El comprador rechazo la factura?', 'Si, es una nota de anulacion', 'No')
-    : false;
-
-  const input = billingCommandSchema.parse({
-    associatedVoucher: {
-      cuit: String(session.runtime.context.cuit),
-      fecha: formatArcaDateAsArgentineDate(invoice.date),
-      numero: invoice.number,
-      puntoVenta: pointOfSale,
-      shortcut: invoiceKind.shortcut,
-    },
-    cancellation,
-    concept: CONCEPTS_BY_CODE[invoice.concept ?? 2] ?? 'servicios',
-    documentNumber: documentType === 'consumidor-final' ? undefined : invoice.documentNumber,
-    documentType,
-    ivaCondition,
-    ivaRate: ivaRate === '21' && !session.runtime.config.alicuotaPorDefecto ? undefined : ivaRate,
-    shortcut: noteKind.shortcut,
-    totalAmount,
-  });
-
-  await previewAndEmit(session, input);
+  await previewAndEmit(session, buildNoteInput(state, session, pointOfSale));
 }

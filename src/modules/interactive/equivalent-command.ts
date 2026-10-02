@@ -1,3 +1,4 @@
+import { isForeignCurrency } from '../billing/billing.currency';
 import type { BillingCommandInput } from '../billing/billing.schemas';
 
 const CONCEPT_FLAGS: Record<BillingCommandInput['concept'], string> = {
@@ -62,6 +63,15 @@ export function buildEquivalentCommand(
 
   if (input.pointOfSale) parts.push('--pv', String(input.pointOfSale));
   if (input.billingDate) parts.push('-f', input.billingDate);
+  if (isForeignCurrency(input)) {
+    parts.push('--moneda', input.currencyCode.toUpperCase());
+
+    if (input.sameCurrency) {
+      parts.push('--misma-moneda');
+    } else if (input.exchangeRate) {
+      parts.push('--cm', formatAmount(input.exchangeRate));
+    }
+  }
   if (input.ivaRate) parts.push('--alicuota', input.ivaRate);
 
   for (const { amount, rate } of input.ivaRateAmounts ?? []) {

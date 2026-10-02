@@ -1,6 +1,9 @@
 import input from '@inquirer/input';
 import select from '@inquirer/select';
 
+import { BACK, type Back } from '../../modules/interactive/wizard';
+import { colorize } from '../../ui';
+
 export interface Choice<T> {
   readonly description?: string;
   readonly name: string;
@@ -34,4 +37,35 @@ export async function confirm(message: string, yesLabel: string, noLabel = 'Canc
 /** Ctrl+C dentro de un prompt de @inquirer. */
 export function isPromptCancellation(error: unknown): boolean {
   return error instanceof Error && error.name === 'ExitPromptError';
+}
+
+const BACK_CHOICE = { name: '← Volver', value: BACK } as const;
+const BACK_TEXT = '<';
+
+/** Como chooseOne, con una opcion "← Volver" al final para el motor de pasos. */
+export async function chooseStep<T>(
+  message: string,
+  choices: ReadonlyArray<Choice<T>>,
+  defaultValue?: T,
+): Promise<Back | T> {
+  return select<Back | T>({
+    choices: [...choices, BACK_CHOICE],
+    default: defaultValue,
+    loop: false,
+    message,
+    pageSize: 12,
+  });
+}
+
+/** Como askText, pero escribir "<" vuelve al paso anterior. */
+export async function askTextStep(
+  message: string,
+  options: { readonly defaultValue?: string; readonly validate?: (value: string) => string | true } = {},
+): Promise<Back | string> {
+  const answer = await askText(`${message} ${colorize('(< para volver)', 'muted')}`, {
+    defaultValue: options.defaultValue,
+    validate: (value) => (value.trim() === BACK_TEXT ? true : (options.validate?.(value) ?? true)),
+  });
+
+  return answer === BACK_TEXT ? BACK : answer;
 }

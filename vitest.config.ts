@@ -8,10 +8,10 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'lcov'],
       thresholds: {
-        branches: 60,
-        functions: 60,
-        lines: 60,
-        statements: 60,
+        branches: 70,
+        functions: 70,
+        lines: 70,
+        statements: 70,
         'src/modules/billing/**': {
           branches: 65,
           functions: 80,

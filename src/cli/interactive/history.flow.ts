@@ -1,10 +1,11 @@
 import { invoiceKindChoices } from '../../modules/interactive/choices';
+import { BACK } from '../../modules/interactive/wizard';
 import { listRecentVouchers } from '../../modules/vouchers/voucher-history';
 import { formatVoucherListAsText } from '../../modules/vouchers/voucher-history.presenter';
 import { writeTerminalOutput } from '../../ui';
 import { startSpinner } from '../spinner';
 
-import { chooseOne } from './prompts';
+import { chooseStep } from './prompts';
 import { type InteractiveSession, requirePointOfSale } from './session';
 
 export async function runHistoryFlow(session: InteractiveSession): Promise<void> {
@@ -14,7 +15,11 @@ export async function runHistoryFlow(session: InteractiveSession): Promise<void>
     return;
   }
 
-  const voucherKind = await chooseOne('¿Que comprobantes queres ver?', invoiceKindChoices());
+  const voucherKind = await chooseStep('¿Que comprobantes queres ver?', invoiceKindChoices());
+
+  if (voucherKind === BACK) {
+    return;
+  }
   const spinner = startSpinner('Consultando ARCA...');
   const vouchers = await listRecentVouchers(session.historyGateway, pointOfSale, voucherKind.arcaType).finally(() =>
     spinner?.stop(),
