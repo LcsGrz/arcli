@@ -14,6 +14,10 @@ export { registerBillingOptions } from './billing.command.options';
 type AssociatedVoucherInput = NonNullable<BillingCommandInput['associatedVoucher']>;
 
 interface BillingJsonInput {
+  readonly periodoAsociado?: {
+    readonly desde?: string;
+    readonly hasta?: string;
+  };
   readonly comprobanteAsociado?: {
     readonly atajo?: AssociatedVoucherInput['shortcut'];
     readonly cuit?: AssociatedVoucherInput['cuit'];
@@ -205,8 +209,13 @@ function parseBillingCommandInputFromSource(
   // La C no discrimina IVA: la alicuota de la config solo aplica a A y B.
   const usesIvaRateDefault = voucherKind?.letter !== 'c';
 
+  const periodFrom = pickString(commandOptions.periodoDesde, commandOptions.pd);
+  const periodTo = pickString(commandOptions.periodoHasta, commandOptions.ph);
+  const associatedPeriod = periodFrom || periodTo ? { desde: periodFrom, hasta: periodTo } : fileInput?.periodoAsociado;
+
   return {
     ...billingCommandSchema.parse({
+      associatedPeriod,
       associatedVoucher: associatedVoucherFromFlags ?? associatedVoucherFromFile,
       billingDate: pickString(commandOptions.fecha, fileInput?.fechaComprobante),
       cancellation: commandOptions.anulacion === true || fileInput?.anulacion === true,

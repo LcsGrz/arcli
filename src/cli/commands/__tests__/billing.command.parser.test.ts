@@ -241,6 +241,20 @@ describe('billing.command.parser', () => {
     expect(explicit.ivaRate).toBe('27');
   });
 
+  it('parses the associated period from long and short flags', () => {
+    const long = parseBillingCommandInput(
+      createCommand(['--monto', '1000', '--cs', '--ir-cf', '--periodo-desde', '1/2', '--periodo-hasta', '28/2']),
+      'ncb',
+    );
+    const short = parseBillingCommandInput(
+      createCommand(['--monto', '1000', '--cs', '--ir-cf', '--pd', '1/2', '--ph', '28/2']),
+      'ncb',
+    );
+
+    expect(long.associatedPeriod).toEqual({ desde: '1/2', hasta: '28/2' });
+    expect(short.associatedPeriod).toEqual({ desde: '1/2', hasta: '28/2' });
+  });
+
   it('loads base data from a JSON file', () => {
     const directory = mkdtempSync(join(tmpdir(), 'arcli-billing-cli-'));
 

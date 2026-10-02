@@ -6,6 +6,7 @@ import type { ResolvedArcaRuntime } from '../../services/arca/arca-context.resol
 import { evaluateFceObligation, type FceObligationGateway, shouldCheckFceObligation } from '../fce/fce-obligation';
 
 import { resolveTaxAmounts } from './billing.amounts';
+import { resolveAssociatedPeriod } from './billing.associated-period';
 import { resolveAssociatedVouchers } from './billing.associated-vouchers';
 import { isForeignCurrency, needsOfficialExchangeRate, resolveBillingCurrencyFields } from './billing.currency';
 import { resolveBillingDateRange } from './billing.date-range';
@@ -173,6 +174,12 @@ export class BillingService {
 
     if (associatedVouchers) {
       payload.CbtesAsoc = associatedVouchers;
+    }
+
+    const associatedPeriod = resolveAssociatedPeriod(input, voucherKind, dateRange.billingDate);
+
+    if (associatedPeriod) {
+      payload.PeriodoAsoc = associatedPeriod;
     }
 
     const optionals = resolveElectronicCreditOptionals(input, voucherKind);

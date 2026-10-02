@@ -811,6 +811,99 @@ describe('billing.service', () => {
     ).toThrow(/no usa --vencimiento/);
   });
 
+  describe('periodo asociado', () => {
+    const periodNote = (overrides: Partial<BillingCommandInput> = {}) =>
+      createBillingInput({
+        associatedPeriod: { desde: '01/02/2026', hasta: '28/02/2026' },
+        billingDate: '18/03/2026',
+        documentNumber: 0,
+        shortcut: 'ncb',
+        ...overrides,
+      });
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
+    });
+
+    it('sends PeriodoAsoc instead of CbtesAsoc on regular notes', () => {
+      const payload = new BillingService().buildVoucherPayload(periodNote(), createRuntime());
+
+      expect(payload.PeriodoAsoc).toEqual({ FchDesde: '20260201', FchHasta: '20260228' });
+      expect(payload.CbtesAsoc).toBeUndefined();
+    });
+
+    it('requires both period dates', () => {
+      expect(() =>
+        new BillingService().buildVoucherPayload(
+          periodNote({ associatedPeriod: { desde: '01/02/2026' } }),
+          createRuntime(),
+        ),
+      ).toThrow(/requiere ambas fechas/);
+    });
+
+    it('rejects a period together with an associated voucher', () => {
+      expect(() =>
+        new BillingService().buildVoucherPayload(
+          periodNote({ associatedVoucher: { cuit: '20123456789', numero: 1, puntoVenta: 3, shortcut: 'fb' } }),
+          createRuntime(),
+        ),
+      ).toThrow(/pero no ambos/);
+    });
+
+    it('rejects a period ending after the note date', () => {
+      expect(() =>
+        new BillingService().buildVoucherPayload(
+          periodNote({ associatedPeriod: { desde: '01/03/2026', hasta: '19/03/2026' } }),
+          createRuntime(),
+        ),
+      ).toThrow(/no puede terminar despues/);
+    });
+
+    it('rejects an inverted period', () => {
+      expect(() =>
+        new BillingService().buildVoucherPayload(
+          periodNote({ associatedPeriod: { desde: '28/02/2026', hasta: '01/02/2026' } }),
+          createRuntime(),
+        ),
+      ).toThrow(/no puede ser posterior/);
+    });
+
+    it('rejects periods before 2006', () => {
+      expect(() =>
+        new BillingService().buildVoucherPayload(
+          periodNote({ associatedPeriod: { desde: '01/12/2005', hasta: '31/12/2005' } }),
+          createRuntime(),
+        ),
+      ).toThrow(/posterior al 01\/01\/2006/);
+    });
+
+    it('rejects a period on invoices and FCE notes', () => {
+      const service = new BillingService();
+
+      expect(() => service.buildVoucherPayload(periodNote({ shortcut: 'fb' }), createRuntime())).toThrow(
+        /no usa periodo asociado/,
+      );
+      expect(() =>
+        service.buildVoucherPayload(
+          periodNote({
+            documentNumber: 30709965812,
+            documentType: 'cuit',
+            ivaCondition: 'responsable-inscripto',
+            shortcut: 'ncea',
+          }),
+          createRuntime(),
+        ),
+      ).toThrow(/no admite periodo asociado/);
+    });
+
+    it('mentions the period alternative when a regular note has no association', () => {
+      expect(() =>
+        new BillingService().buildVoucherPayload(periodNote({ associatedPeriod: undefined }), createRuntime()),
+      ).toThrow(/o un periodo con --periodo-desde y --periodo-hasta/);
+    });
+  });
+
   describe('resolveFceWarnings', () => {
     const rejectingGateway = {
       getObligation: async () => {

@@ -5,6 +5,7 @@ import { renderJson } from '../primitives/renderJson';
 import { bold } from '../primitives/text';
 
 const ZOD_PATH_LABELS: Record<string, string> = {
+  associatedPeriod: 'periodo asociado',
   associatedVoucher: 'comprobante asociado',
   billingDate: 'fecha del comprobante',
   cancellation: 'anulacion',
@@ -30,6 +31,7 @@ const ZOD_PATH_LABELS: Record<string, string> = {
 };
 
 const ZOD_PUBLIC_PATHS: Record<string, string[]> = {
+  associatedPeriod: ['periodoAsociado'],
   associatedVoucher: ['comprobanteAsociado'],
   billingDate: ['fechaComprobante'],
   cancellation: ['anulacion'],
