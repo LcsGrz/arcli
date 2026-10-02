@@ -32,6 +32,19 @@ arcli fc -m 1000 --cs --consumidor-final --ir-cf --emitir --json --bruto
 
 - **Documentación relacionada:** [Entrada y salida](input-output.md)
 
+### Los bordes de los paneles se ven como `?` o cuadraditos
+
+- **Severidad:** ocasional (terminales viejas, por ejemplo el `cmd` clásico de Windows, o fuentes sin caracteres de caja)
+- **Síntoma:** los bordes de los paneles muestran `?`, `�` o cuadrados en lugar de líneas.
+- **Causa:** la terminal o la fuente no tiene los caracteres de caja Unicode que usa ARCLI (`╒`, `┃`, `╏`, `╓`, `╌`, `┈`, `━`, `▎`…).
+- **Solución:** usar una terminal moderna (Windows Terminal, iTerm2, la de VS Code) o activar los bordes ASCII con `ARCLI_ASCII=1`.
+
+```bash
+ARCLI_ASCII=1 arcli fc -m 1000 --cs --cfinal --ir-cf
+```
+
+- **Documentación relacionada:** [Variables de entorno de la terminal](configuration.md#variables-de-entorno-de-la-terminal)
+
 ## Config
 
 ### Falta CUIT del emisor

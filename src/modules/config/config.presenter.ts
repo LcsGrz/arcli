@@ -93,6 +93,10 @@ export function formatConfigAsText(config: ArcliConfig, effectiveTicketPath: str
   return keyValuePanel(
     'Configuracion',
     renderKeyValueRows(rows, { labelWidth: resolveKeyValueLabelWidth('standard', rows, [35, 65]) }),
+    undefined,
+    'standard',
+    undefined,
+    'sheet',
   );
 }
 
@@ -129,5 +133,5 @@ export function formatConfigDoctorAsText(report: ConfigDoctorReport): string {
       ? 'Hay puntos criticos por corregir antes de emitir'
       : 'Revise las recomendaciones antes de emitir en serio';
 
-  return statusPanel('Revision de configuracion', lines, footer, 'wide', tone);
+  return statusPanel('Revision de configuracion', lines, footer, 'wide', tone, 'checklist');
 }

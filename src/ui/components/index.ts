@@ -3,4 +3,7 @@ export * from './errorPanel';
 export * from './keyValuePanel';
 export * from './noticePanel';
 export * from './rawPanel';
+export * from './sectionHeading';
+export * from './statusBar';
 export * from './statusPanel';
+export * from './testingBanner';

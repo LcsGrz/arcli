@@ -23,6 +23,10 @@ Sin `cuit`, `cert.<entorno>`, `key.<entorno>` y `puntoVenta` configurados (o pas
 flag), cualquier comando de facturación falla con `ConfigurationError` antes de contactar
 ARCA. `--testing` es el entorno por defecto; `--produccion` cambia a real.
 
+## Salida humana
+
+`NO_COLOR` desactiva colores y `ARCLI_ASCII=1` dibuja los paneles en ASCII puro. Ninguna de las dos cambia `--json`; para parsear, usar siempre `--json`.
+
 ## Modo interactivo (no usar desde un agente)
 
 `arcli` sin argumentos en una TTY abre un asistente con prompts (`arcli interactivo` lo abre explícito). Sin TTY o con `--json`, `arcli` sin argumentos muestra la ayuda y `arcli interactivo` falla. Un agente siempre tiene que usar los comandos con flags de abajo.

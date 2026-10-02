@@ -52,6 +52,7 @@ Verifica:
 
 ```bash
 yarn dev storybook colores
+yarn dev storybook bordes
 yarn dev storybook componentes
 yarn dev storybook comprobantes
 yarn dev storybook configuracion

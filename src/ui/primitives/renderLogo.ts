@@ -21,6 +21,13 @@ function renderLogoWidth(): number {
 }
 
 export function renderLogo(): string {
+  const columns = process.stdout.columns;
+
+  // En una terminal mas angosta que el dibujo, cada linea se partiria: se muestra solo el nombre.
+  if (columns && columns < renderLogoWidth()) {
+    return `\n${colorize('AR', 'info')}${colorize('CLI', 'neutral')}\n`;
+  }
+
   const logo = ARCLI_ASCII_BANNER.split('\n').map((line) => {
     const ar = line.slice(0, ARCLI_BANNER_AR_CLI_SPLIT_COLUMN);
     const cli = line.slice(ARCLI_BANNER_AR_CLI_SPLIT_COLUMN);

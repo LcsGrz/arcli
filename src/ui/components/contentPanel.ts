@@ -1,6 +1,6 @@
 import { renderPanel } from '../primitives/renderPanel';
 import type { UiTextColor } from '../primitives/text';
-import type { UiWidthPreset } from '../theme/theme';
+import type { UiBorderType, UiWidthPreset } from '../theme/theme';
 
 type ContentPanelAlignment = 'block-center' | 'center' | 'left';
 
@@ -10,8 +10,10 @@ export function contentPanel(
   width: UiWidthPreset = 'wide',
   titleColor?: UiTextColor,
   contentAlign: ContentPanelAlignment = 'left',
+  borderType: UiBorderType = 'common',
 ): string {
   return renderPanel({
+    borderType,
     content,
     contentAlign,
     title,

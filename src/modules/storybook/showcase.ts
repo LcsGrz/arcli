@@ -2,17 +2,22 @@ import { ConfigurationError, InputValidationError } from '../../lib/errors/app-e
 import type { ArcaRuntimeValidation } from '../../services/arca/arca-context.resolver';
 import {
   badge,
+  colorize,
   contentPanel,
   formatCliError,
   highlightJsonValues,
-  noticePanel,
   renderKeyValueRows,
   renderLogo,
   renderObject,
   renderPanel,
   resolveKeyValueLabelWidth,
+  sectionHeading,
+  statusBar,
   statusPanel,
+  testingBanner,
   toneText,
+  type UiBorderType,
+  type UiTextColor,
 } from '../../ui';
 import { formatBillingResultAsJson, formatBillingResultAsText } from '../billing/billing.presenter';
 import type { VoucherKindDefinition } from '../billing/billing.types';
@@ -30,7 +35,8 @@ import type { UpdateCheckResult } from '../update-check/update-check.service';
 
 import { STORYBOOK_SHOWCASE_THEME } from './showcase-theme';
 
-export type StorybookScene = 'colores' | 'componentes' | 'comprobantes' | 'configuracion' | 'errores' | 'json';
+export type StorybookScene =
+  'bordes' | 'colores' | 'componentes' | 'comprobantes' | 'configuracion' | 'errores' | 'json';
 
 function createVoucherKind(partial: Partial<VoucherKindDefinition>): VoucherKindDefinition {
   return {
@@ -168,10 +174,65 @@ function buildColorsScene(): string {
   return [
     sceneTitle('Colores UI', 'Paleta semantica y tono debug'),
     `${badge('OK', 'success')} ${toneText('Paneles base listos', 'success')}`,
-    `${badge('INFO', 'info')} ${toneText('Respuesta bruta o eventos', 'info')}`,
+    `${badge('INFO', 'info')} ${toneText('Paneles informativos y comandos', 'info')}`,
+    `${badge('DATA', 'subtle')} ${toneText('JSON, respuesta bruta y eventos', 'subtle')}`,
     `${badge('WARN', 'warning')} ${toneText('Observaciones o sugerencias', 'warning')}`,
     `${badge('ERROR', 'danger')} ${toneText('Errores o bloqueos', 'danger')}`,
     `${badge('DEBUG', 'debug')} ${toneText('Storybook y debug visual', 'debug')}`,
+  ].join('\n\n');
+}
+
+const BORDER_SAMPLES: ReadonlyArray<
+  readonly [
+    borderType: UiBorderType,
+    title: string,
+    description: string,
+    color: UiTextColor | undefined,
+    footer?: string,
+  ]
+> = [
+  ['ticket', 'Factura', 'Comprobantes: vista previa y resultado', 'success', 'RESULTADO'],
+  ['error', 'Error', 'Errores del CLI o de ARCA', 'danger'],
+  ['attention', 'Observaciones', 'Observaciones de ARCA y avisos del regimen FCE', 'warning'],
+  ['tip', 'Sugerencias', 'Sugerencias para resolver un problema', 'warning'],
+  ['sheet', 'Configuracion', 'Fichas de consulta: configuracion y regimen FCE', 'info'],
+  ['checklist', 'Revision', 'Revision de configuracion', 'success', 'VEREDICTO'],
+  ['listing', 'Ultimos comprobantes', 'Listados en tabla, como los ultimos comprobantes', 'info'],
+  ['note', 'Aviso', 'Avisos simples, por ejemplo "No se emitio nada"', undefined],
+  ['warning', 'Testing', 'Banner del entorno de testing', 'warning'],
+  ['info', 'Nueva version', 'Aviso de nueva version disponible', 'info'],
+  ['data', 'Billing json', 'JSON y respuestas crudas', 'subtle'],
+  ['common', 'Contenido', 'Base para paneles sin estilo propio', undefined],
+  ['debug', 'Storybook', 'Storybook y debug visual', 'debug'],
+];
+
+function buildBordersScene(): string {
+  const boxes = BORDER_SAMPLES.map(([borderType, title, description, color, footer]) =>
+    renderPanel({
+      borderType,
+      content: [description],
+      footer,
+      footerColor: color,
+      footerDivider: Boolean(footer),
+      title,
+      titleColor: color,
+      width: 'compact',
+    }),
+  );
+  const command = renderPanel({
+    borderType: 'command',
+    content: [
+      colorize('Esto equivale a:', 'muted'),
+      'arcli fc -m 1000 --cs --consumidor-final --ir consumidor-final --emitir',
+    ],
+  });
+
+  return [
+    sceneTitle('Bordes', 'Un estilo por tipo de panel; ARCLI_ASCII=1 los cambia por ASCII'),
+    ...boxes,
+    `${colorize('Barra de estado (modo interactivo):', 'muted')}\n${statusBar('Modo interactivo', 'testing · PV 3', 'warning')}`,
+    `${colorize('Seccion (arcli ejemplos):', 'muted')}\n${sectionHeading('Factura C')}`,
+    `${colorize('Comando para copiar:', 'muted')}\n${command}`,
   ].join('\n\n');
 }
 
@@ -286,14 +347,14 @@ function buildJsonScene(): string {
 
   return [
     sceneTitle('Json', 'Contratos estructurados para automatizacion y respuesta bruta'),
-    contentPanel('Billing json', billingJson, 'wide', 'info'),
-    contentPanel('Config json', configJson, 'wide', 'info'),
-    contentPanel('Doctor json', doctorJson, 'wide', 'info'),
+    contentPanel('Billing json', billingJson, 'wide', 'subtle', 'left', 'data'),
+    contentPanel('Config json', configJson, 'wide', 'subtle', 'left', 'data'),
+    contentPanel('Doctor json', doctorJson, 'wide', 'subtle', 'left', 'data'),
   ].join('\n\n');
 }
 
 function buildComponentsScene(): string {
-  const notice = noticePanel('Estas utilizando el entorno de TESTING', 'warning');
+  const notice = testingBanner();
   const updateNotice = renderUpdateNoticePanel(createSampleUpdateCheckResult());
   const keyValueRows: Array<readonly [string, string | number]> = [
     ['CUIT', '20-40950976-3'],
@@ -359,6 +420,7 @@ export function renderStorybookShowcase(scene?: StorybookScene): string {
   const logo = renderLogo().trim();
 
   const scenes: Record<StorybookScene, string> = {
+    bordes: buildBordersScene(),
     colores: buildColorsScene(),
     componentes: buildComponentsScene(),
     comprobantes: buildBillingScene(),
@@ -372,6 +434,7 @@ export function renderStorybookShowcase(scene?: StorybookScene): string {
       showcaseIndex(),
       logo,
       scenes.colores,
+      scenes.bordes,
       scenes.componentes,
       scenes.configuracion,
       scenes.comprobantes,

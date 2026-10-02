@@ -21,7 +21,9 @@ function formatWarningsPanel(result: BillingExecutionResult): string[] {
     return [];
   }
 
-  return [contentPanel('Avisos', warnings.map((item) => `• ${item}`).join('\n'), 'wide', 'warning')];
+  return [
+    contentPanel('Avisos', warnings.map((item) => `• ${item}`).join('\n'), 'wide', 'warning', 'left', 'attention'),
+  ];
 }
 
 export function formatBillingResultAsText(result: BillingExecutionResult, options: BillingTextOptions = {}): string {
@@ -35,7 +37,9 @@ export function formatBillingResultAsText(result: BillingExecutionResult, option
       return [...environmentLines, formatPayloadPreview(result)].join('\n\n');
     }
 
-    const lines = [contentPanel('Respuesta bruta', renderObject(formatRawBillingResponse(result)), 'wide', 'info')];
+    const lines = [
+      contentPanel('Respuesta bruta', renderObject(formatRawBillingResponse(result)), 'wide', 'subtle', 'left', 'data'),
+    ];
 
     if (!options.previewShown) {
       lines.unshift(formatPayloadPreview(result));
@@ -57,21 +61,32 @@ export function formatBillingResultAsText(result: BillingExecutionResult, option
   lines.push(formatResultPanel(result, formatStatusBadge(result)));
 
   if (result.response.observaciones.length > 0) {
-    lines.push(contentPanel('Observaciones', formatObservationList(result.response.observaciones), 'wide', 'warning'));
+    lines.push(
+      contentPanel(
+        'Observaciones',
+        formatObservationList(result.response.observaciones),
+        'wide',
+        'warning',
+        'left',
+        'attention',
+      ),
+    );
   }
 
   if (result.response.events.length > 0) {
-    lines.push(contentPanel('Eventos', renderObject(result.response.events), 'wide', 'info'));
+    lines.push(contentPanel('Eventos', renderObject(result.response.events), 'wide', 'subtle', 'left', 'data'));
   }
 
   if (result.response.errors.length > 0) {
-    lines.push(contentPanel('Errores', renderObject(result.response.errors), 'wide', 'danger'));
+    lines.push(contentPanel('Errores', renderObject(result.response.errors), 'wide', 'danger', 'left', 'error'));
   }
 
   const suggestions = result.response.suggestions ?? [];
 
   if (suggestions.length > 0) {
-    lines.push(contentPanel('Sugerencias', suggestions.map((item) => `• ${item}`).join('\n'), 'wide', 'info'));
+    lines.push(
+      contentPanel('Sugerencias', suggestions.map((item) => `• ${item}`).join('\n'), 'wide', 'warning', 'left', 'tip'),
+    );
   }
 
   return lines.join('\n\n');

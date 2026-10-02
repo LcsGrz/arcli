@@ -49,5 +49,8 @@ export function formatFceObligationAsText(report: FceObligationReport): string {
     'Regimen FCE MiPyMEs',
     renderKeyValueRows(rows, { labelWidth: resolveKeyValueLabelWidth('standard', rows) }),
     footer,
+    'standard',
+    undefined,
+    'sheet',
   );
 }
