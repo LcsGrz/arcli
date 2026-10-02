@@ -268,7 +268,9 @@ export const UI_THEME: UiTheme = {
     debug: '\u001B[95m',
     info: '\u001B[36m',
     muted: '\u001B[2m',
-    neutral: '\u001B[37m',
+    // Color por defecto de la terminal: claro en fondos oscuros y oscuro en fondos claros.
+    // Un blanco fijo (\u001B[37m) casi no se leia en terminales con fondo claro.
+    neutral: '\u001B[39m',
     // Gris (bright black): para titulos de datos crudos, que tienen que verse pero sin competir.
     subtle: '\u001B[90m',
     success: '\u001B[32m',
