@@ -133,6 +133,7 @@ No son claves de config: cambian solo cómo se ve la salida humana. El JSON no c
 | Variable        | Efecto                                                                                                                       |
 | --------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | `NO_COLOR`      | Desactiva los colores                                                                                                        |
+| `FORCE_COLOR=1` | Fuerza los colores aunque la salida no sea una terminal (por defecto, con la salida redirigida no hay colores)               |
 | `ARCLI_ASCII=1` | Dibuja los paneles con ASCII puro (`+`, `-`, `\|`), para terminales o fuentes que no muestran los caracteres de caja Unicode |
 
 ## Cuándo usar config vs flags

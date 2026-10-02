@@ -25,7 +25,7 @@ ARCA. `--testing` es el entorno por defecto; `--produccion` cambia a real.
 
 ## Salida humana
 
-`NO_COLOR` desactiva colores y `ARCLI_ASCII=1` dibuja los paneles en ASCII puro. Ninguna de las dos cambia `--json`; para parsear, usar siempre `--json`.
+Con la salida redirigida (pipe o archivo) no hay colores, así que `--json` se puede pasar directo a `jq`. `NO_COLOR` desactiva los colores, `FORCE_COLOR=1` los fuerza y `ARCLI_ASCII=1` dibuja los paneles en ASCII puro. Ninguna cambia el contenido de `--json`; para parsear, usar siempre `--json`.
 
 ## Modo interactivo (no usar desde un agente)
 
