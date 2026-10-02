@@ -214,7 +214,7 @@ El total se reparte así (ARCA 10048):
 ImpTotal = ImpTotConc (--nogravado) + ImpOpEx (--exento) + ImpNeto + ImpIVA
 ```
 
-- `ImpNeto` e `ImpIVA` salen del resto del total con la alícuota de `--alicuota` (por defecto `21`), redondeados a 2 decimales.
+- `ImpNeto` e `ImpIVA` salen del resto del total con la alícuota de `--alicuota`, o la de `config.alicuota`, o `21`. Se redondean a 2 decimales. `config.alicuota` no se aplica a letra `C`.
 - `--exento` + `--nogravado` no pueden superar el total. Si lo igualan, no hay neto gravado ni array `Iva`.
 - Con neto mayor a cero siempre se envía el array `Iva`, también al 0% (10070).
 - En letra `C`, `--alicuota`, `--exento` y `--nogravado` dan error, porque ARCA exige que esos importes sean cero.

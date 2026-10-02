@@ -1,8 +1,14 @@
 import { readPemFile } from '../../lib/security/pem';
 
-import { arcliDefaultConceptSchema, arcliDefaultIvaConditionSchema, arcliEnvironmentSchema } from './config.schemas';
+import {
+  arcliDefaultConceptSchema,
+  arcliDefaultIvaConditionSchema,
+  arcliDefaultIvaRateSchema,
+  arcliEnvironmentSchema,
+} from './config.schemas';
 
 export type CanonicalConfigKey =
+  | 'alicuotaPorDefecto'
   | 'aliasCbu'
   | 'cbu'
   | 'cert.produccion'
@@ -44,6 +50,16 @@ function parseNonEmptyString(value: string): string {
   }
 
   return normalizedValue;
+}
+
+function parseIvaRate(value: string): string {
+  const result = arcliDefaultIvaRateSchema.safeParse(value);
+
+  if (!result.success) {
+    throw new Error(`La alicuota "${value}" no es valida. Use 0, 2.5, 5, 10.5, 21 o 27.`);
+  }
+
+  return result.data;
 }
 
 function parseCbu(value: string): string {
@@ -96,6 +112,8 @@ function parsePemPath(value: string, label: 'certificado' | 'clave privada'): st
 
 export function parseConfigValue(key: CanonicalConfigKey, value: string): boolean | number | string {
   switch (key) {
+    case 'alicuotaPorDefecto':
+      return parseIvaRate(value);
     case 'aliasCbu':
       return parseCbuAlias(value);
     case 'cbu':

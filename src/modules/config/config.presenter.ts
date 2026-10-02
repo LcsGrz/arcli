@@ -5,6 +5,7 @@ import type { ArcliConfig } from './config.schemas';
 import type { ConfigDoctorReport } from './config-doctor';
 
 interface PublicConfigSnapshot {
+  readonly alicuota?: ArcliConfig['alicuotaPorDefecto'];
   readonly aliasCbu?: string;
   readonly cbu?: string;
   readonly cert: {
@@ -31,6 +32,7 @@ interface PublicConfigSnapshot {
 
 function toPublicSnapshot(config: ArcliConfig, effectiveTicketPath: string): PublicConfigSnapshot {
   return {
+    alicuota: config.alicuotaPorDefecto,
     aliasCbu: config.aliasCbu,
     cbu: config.cbu,
     cert: {
@@ -73,6 +75,7 @@ export function formatConfigAsText(config: ArcliConfig, effectiveTicketPath: str
     ['Verificar regimen FCE', safeConfig.verificarFce ? 'si' : 'no'],
     ['Concepto', safeConfig.concepto ?? 'no configurado'],
     ['IVA receptor', safeConfig.ivaReceptor ?? 'no configurado'],
+    ['Alicuota IVA (A y B)', safeConfig.alicuota ? `${safeConfig.alicuota}%` : '21% (por defecto)'],
     ['Moneda', safeConfig.moneda ?? 'PES'],
     ['Cotizacion', safeConfig.cotizacion ?? 1],
     ['Entorno', safeConfig.entorno],
