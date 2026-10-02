@@ -50,7 +50,7 @@ Qué se está facturando: `productos`, `servicios` o `productos-servicios`. Dete
 
 ### Comprobante asociado / `CbtesAsoc`
 
-El comprobante original que una nota de crédito o débito ajusta o anula. `CbtesAsoc` es el nombre del campo tal cual lo espera ARCA dentro del payload; en ARCLI se arma con `--ac`/`--at`, `--apv`, `--ar` y `--acuit`.
+El comprobante original que una nota de crédito o débito ajusta o anula. `CbtesAsoc` es el nombre del campo tal cual lo espera ARCA dentro del payload; en ARCLI se arma con `--ac`/`--at`, `--apv`, `--ar` y `--acuit`. En notas comunes, la alternativa es el período asociado (`PeriodoAsoc`), que se arma con `--periodo-desde` y `--periodo-hasta`.
 
 ### `DocTipo` / `DocNro`
 

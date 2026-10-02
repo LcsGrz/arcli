@@ -127,6 +127,13 @@ function formatFriendlyPayloadRows(result: BillingExecutionResult): Array<readon
     }
   }
 
+  if (payload.PeriodoAsoc) {
+    rows.push([
+      'Periodo asociado',
+      `${formatDateLabel(payload.PeriodoAsoc.FchDesde)} al ${formatDateLabel(payload.PeriodoAsoc.FchHasta)}`,
+    ]);
+  }
+
   for (const optional of payload.Opcionales ?? []) {
     const label = FCE_OPTIONAL_LABELS[optional.Id];
 

@@ -238,6 +238,8 @@ Dicho más directo: **no aplican a `factura`, `factura-credito-electronica`, `fa
 | `--ar <number>`                   | ninguno          | `integer`    | ninguno           | Número del comprobante asociado    |
 | `--acuit <number>`                | ninguno          | `string(11)` | ninguno           | CUIT del comprobante asociado      |
 | `--afecha <fecha>`                | ninguno          | `string`     | ninguno           | Fecha del comprobante asociado     |
+| `--periodo-desde <fecha>`         | `--pd <fecha>`   | `string`     | ninguno           | Inicio del período asociado        |
+| `--periodo-hasta <fecha>`         | `--ph <fecha>`   | `string`     | ninguno           | Fin del período asociado           |
 
 ### Crédito electrónico (FCE)
 
@@ -320,11 +322,11 @@ Las facturas no usan comprobante asociado, así que no aplican:
 
 ### Notas de crédito y débito `A`, `B` y `C`
 
-Las notas heredan todo lo de una factura, pero suman una regla importante: **siempre requieren comprobante asociado**.
+Las notas heredan todo lo de una factura, pero suman una regla importante: **siempre requieren un comprobante asociado o un período asociado**.
 
 #### Diferencias clave con facturas
 
-- siempre requieren asociado
+- siempre requieren asociado: una factura puntual (`--ac`…) o un período (`--periodo-desde` y `--periodo-hasta`)
 - el asociado debe ser una factura compatible
 - la letra del asociado debe coincidir con la de la nota
 - `--ac` y `--at` son excluyentes
@@ -349,6 +351,16 @@ Las notas heredan todo lo de una factura, pero suman una regla importante: **sie
 ```bash
 arcli nca -m 1 --cs --cuit 20168598204 --ir-ri --ac fa --apv 3 --ar 6 --acuit 20409509763
 ```
+
+#### Nota por período
+
+Si la nota ajusta un período entero y no una factura puntual (por ejemplo, un descuento sobre todo lo facturado en el mes), usá el período en lugar del bloque `--ac`:
+
+```bash
+arcli ncb -m 5000 --cs --cfinal --ir-cf --periodo-desde 01-09-2026 --periodo-hasta 30-09-2026
+```
+
+El período no puede terminar después de la fecha de la nota. Las notas FCE no lo aceptan.
 
 #### Resumen rápido de parámetros asociados
 

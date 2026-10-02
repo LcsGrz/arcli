@@ -154,7 +154,16 @@ No aplica a:
 - `factura`
 - `factura-credito-electronica`
 
-Para notas, el asociado necesita:
+Para notas, ARCLI acepta un comprobante asociado **o** un período asociado (`PeriodoAsoc`), pero no ambos (10197).
+
+Período asociado (`--periodo-desde` y `--periodo-hasta`):
+
+- solo en notas comunes: en facturas (10198) y en notas FCE (10196) da error
+- requiere las dos fechas
+- desde ≤ hasta (10207), y ambas posteriores al 01/01/2006 (10206)
+- hasta ≤ fecha de la nota (10208)
+
+Comprobante asociado, que necesita:
 
 - `--ac` o `--at`
 - `--apv` o `--asociado-punto-venta`

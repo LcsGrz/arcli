@@ -60,6 +60,8 @@ const AVAILABLE_ASSOCIATED_OPTIONS = [
   '  - --ar <number> | notas | numero del comprobante asociado',
   '  - --acuit <number> | notas | CUIT del comprobante asociado; en NC/ND FCE por defecto el CUIT emisor',
   '  - --afecha <fecha> | notas | fecha del comprobante asociado; obligatoria en NC/ND FCE',
+  '  - --periodo-desde <fecha> | --pd <fecha> | notas comunes | inicio del periodo asociado; alternativa a --ac',
+  '  - --periodo-hasta <fecha> | --ph <fecha> | notas comunes | fin del periodo asociado',
 ].join('\n');
 
 const AVAILABLE_FCE_INVOICE_OPTIONS = [
@@ -304,7 +306,9 @@ function createShortcutImportantFlags(shortcut: VoucherShortcut): string {
       '  - Datos comunes: --pv, --fecha, --moneda, --cm, --cargar.',
       '  - Servicio: --dia, --sd y --sh cuando el concepto usa servicios.',
       definition.requiresAssociatedVoucher
-        ? '  - Asociado: --ac o --at, mas --apv, --ar y --acuit.'
+        ? definition.isElectronicCredit
+          ? '  - Asociado: --ac o --at, mas --apv, --ar y --afecha.'
+          : '  - Asociado: --ac o --at, mas --apv, --ar y --acuit; o un periodo con --pd y --ph.'
         : '  - Asociado: no aplica para este comprobante.',
       ...(definition.isElectronicCredit
         ? [

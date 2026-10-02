@@ -69,7 +69,15 @@ const billingAssociatedVoucherSchema = z
   })
   .optional();
 
+const billingAssociatedPeriodSchema = z
+  .object({
+    desde: z.string().trim().optional(),
+    hasta: z.string().trim().optional(),
+  })
+  .optional();
+
 export const billingCommandSchema = z.object({
+  associatedPeriod: billingAssociatedPeriodSchema,
   associatedVoucher: billingAssociatedVoucherSchema,
   billingDate: z.string().trim().optional(),
   cancellation: z.boolean().default(false),

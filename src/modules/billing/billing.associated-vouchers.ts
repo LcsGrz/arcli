@@ -26,6 +26,11 @@ export function resolveAssociatedVouchers(options: ResolveAssociatedVoucherOptio
     return undefined;
   }
 
+  // Con periodo asociado la nota no lleva CbtesAsoc; lo valida resolveAssociatedPeriod.
+  if (input.associatedPeriod && !input.associatedVoucher) {
+    return undefined;
+  }
+
   const associatedVoucher = input.associatedVoucher;
   // En NC/ND FCE el asociado siempre es del propio emisor (10155), asi que el CUIT puede omitirse.
   const associatedCuit = associatedVoucher?.cuit ?? (voucherKind.isElectronicCredit ? String(emitterCuit) : undefined);
@@ -37,7 +42,7 @@ export function resolveAssociatedVouchers(options: ResolveAssociatedVoucherOptio
 
   if (!associatedVoucher?.numero || !associatedVoucher.puntoVenta || !associatedVoucherType || !associatedCuit) {
     throw new InputValidationError(
-      `El comprobante ${formatVoucherLabel(voucherKind)} requiere comprobante asociado. Use --ac o --at, junto con --apv o --asociado-punto-venta, --ar y --acuit.`,
+      `El comprobante ${formatVoucherLabel(voucherKind)} requiere comprobante asociado. Use --ac o --at, junto con --apv o --asociado-punto-venta, --ar y --acuit${voucherKind.isElectronicCredit ? '' : ', o un periodo con --periodo-desde y --periodo-hasta'}.`,
     );
   }
 
