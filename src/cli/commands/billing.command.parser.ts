@@ -2,6 +2,7 @@ import type { Command } from 'commander';
 
 import { InputValidationError } from '../../lib/errors/app-error';
 import { readJsonFile } from '../../lib/files/read-json-file';
+import { type BatchItemError, BatchValidationError, describeBatchItemError } from '../../modules/billing/billing.batch';
 import { isForeignCurrency } from '../../modules/billing/billing.currency';
 import { type BillingCommandInput, billingCommandSchema } from '../../modules/billing/billing.schemas';
 import type { VoucherShortcut } from '../../modules/billing/billing.types';
@@ -73,8 +74,14 @@ export interface BillingCommandDefaults {
 }
 
 export interface BillingCommandPlan {
+  /** Posicion en el lote (desde 1) de cada item de `inputs`. */
+  readonly inputIndexes: number[];
   readonly inputs: BillingCommandInput[];
+  /** Items del lote que no se pudieron leer; el comando no emite nada si hay alguno. */
+  readonly invalidItems: BatchItemError[];
   readonly modeSource: 'default' | 'file' | 'flags';
+  /** Cantidad de items del lote (1 si no hay lote). */
+  readonly total: number;
 }
 
 function parseBillingCommandInputFromSource(
@@ -267,23 +274,47 @@ export function parseBillingCommandPlan(
     const { __modeSource, ...input } = parseBillingCommandInputFromSource(command, shortcut, undefined, defaults);
 
     return {
+      inputIndexes: [1],
       inputs: [input],
+      invalidItems: [],
       modeSource: __modeSource,
+      total: 1,
     };
   }
 
-  const inputs = fileInputs.map((fileInput) =>
-    parseBillingCommandInputFromSource(command, shortcut, fileInput, defaults),
-  );
-  const modeSource = inputs.some((input) => input.__modeSource === 'flags')
+  // Un solo comprobante falla como siempre. En un lote se leen todos y se juntan los errores,
+  // para informarlos de una vez en lugar de cortar en el primero.
+  if (fileInputs.length === 1) {
+    const { __modeSource, ...input } = parseBillingCommandInputFromSource(command, shortcut, fileInputs[0], defaults);
+
+    return { inputIndexes: [1], inputs: [input], invalidItems: [], modeSource: __modeSource, total: 1 };
+  }
+
+  const parsed: Array<ReturnType<typeof parseBillingCommandInputFromSource>> = [];
+  const inputIndexes: number[] = [];
+  const invalidItems: BatchItemError[] = [];
+
+  fileInputs.forEach((fileInput, position) => {
+    try {
+      parsed.push(parseBillingCommandInputFromSource(command, shortcut, fileInput, defaults));
+      inputIndexes.push(position + 1);
+    } catch (error) {
+      invalidItems.push({ index: position + 1, message: describeBatchItemError(error) });
+    }
+  });
+
+  const modeSource = parsed.some((input) => input.__modeSource === 'flags')
     ? 'flags'
-    : inputs.some((input) => input.__modeSource === 'file')
+    : parsed.some((input) => input.__modeSource === 'file')
       ? 'file'
       : 'default';
 
   return {
-    inputs: inputs.map(({ __modeSource: _modeSource, ...input }) => input),
+    inputIndexes,
+    inputs: parsed.map(({ __modeSource: _modeSource, ...input }) => input),
+    invalidItems,
     modeSource,
+    total: fileInputs.length,
   };
 }
 
@@ -292,7 +323,13 @@ export function parseBillingCommandInputs(
   shortcut: VoucherShortcut,
   defaults: BillingCommandDefaults = {},
 ): BillingCommandInput[] {
-  return parseBillingCommandPlan(command, shortcut, defaults).inputs;
+  const plan = parseBillingCommandPlan(command, shortcut, defaults);
+
+  if (plan.invalidItems.length > 0) {
+    throw new BatchValidationError(plan.invalidItems, plan.total);
+  }
+
+  return plan.inputs;
 }
 
 export function parseBillingCommandInput(

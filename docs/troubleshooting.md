@@ -233,10 +233,18 @@ arcli fc ayuda
 
 ## Batch
 
-### Un item inválido hace caer todo el lote
+### El lote tiene comprobantes inválidos
+
+- **Severidad:** frecuente
+- **Síntoma:** `BATCH_VALIDATION_ERROR` con la lista de ítems inválidos (`#2: Falta monto.`…). No se emitió ninguno.
+- **Causa:** ARCLI valida todo el lote antes de emitir el primero.
+- **Solución:** corregir esos ítems en el JSON y volver a correr el lote completo.
+- **Documentación relacionada:** [Entrada y salida](input-output.md#validación-y-errores-del-lote)
+
+### El lote se interrumpió a mitad
 
 - **Severidad:** crítico
-- **Síntoma:** el batch devuelve `INPUT_VALIDATION_ERROR` y no hay resultados parciales.
-- **Causa:** hoy la validación del lote es fail-fast.
-- **Solución:** validar o dividir el lote antes de ejecutarlo.
-- **Documentación relacionada:** [Entrada y salida](input-output.md), [Limitaciones actuales](limitations.md)
+- **Síntoma:** se ven los resultados de algunos comprobantes y después `BATCH_EMISSION_ERROR` ("El lote se interrumpio en el comprobante #3…").
+- **Causa:** la emisión falló a mitad del lote (red, ARCA, transacción activa).
+- **Solución:** **no vuelvas a cargar los comprobantes que ya se procesaron**, porque se duplicarían. Armá un lote solo con los que figuran en "Sin procesar" (`sinProcesar` en el JSON) y reintentá. Si el que falló fue por "Transacción Activa", esperá unos segundos.
+- **Documentación relacionada:** [Entrada y salida](input-output.md#validación-y-errores-del-lote)

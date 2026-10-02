@@ -296,6 +296,36 @@ describe('billing.command.parser', () => {
     expect(input.associatedVoucher?.shortcut).toBe('fc');
   });
 
+  it('in a batch, collects every invalid item instead of failing on the first one', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'arcli-billing-cli-'));
+
+    temporaryDirectories.push(directory);
+
+    const inputPath = join(directory, 'lote.json');
+
+    writeFileSync(
+      inputPath,
+      JSON.stringify([
+        { concepto: 'servicios', ivaReceptor: 'consumidor-final', montoTotal: 100 },
+        { concepto: 'servicios', ivaReceptor: 'consumidor-final' },
+        { concepto: 'servicios', ivaReceptor: 'consumidor-final', montoTotal: 300 },
+        { concepto: 'servicios', ivaReceptor: 'no-existe', montoTotal: 400 },
+      ]),
+      'utf8',
+    );
+
+    const plan = parseBillingCommandPlan(createCommand(['--cargar', inputPath]), 'fc');
+
+    expect(plan.total).toBe(4);
+    expect(plan.inputIndexes).toEqual([1, 3]);
+    expect(plan.inputs.map((input) => input.totalAmount)).toEqual([100, 300]);
+    expect(plan.invalidItems.map((item) => item.index)).toEqual([2, 4]);
+    expect(plan.invalidItems[0]?.message).toContain('monto');
+    expect(() => parseBillingCommandInputs(createCommand(['--cargar', inputPath]), 'fc')).toThrow(
+      /2 de 4 comprobantes del lote tienen errores/,
+    );
+  });
+
   it('loads multiple voucher inputs from a JSON array', () => {
     const directory = mkdtempSync(join(tmpdir(), 'arcli-billing-cli-'));
 

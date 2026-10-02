@@ -13,6 +13,10 @@ function formatErrorTitle(code: string): string {
       return 'Error de configuracion';
     case 'INPUT_VALIDATION_ERROR':
       return 'Error de entrada';
+    case 'BATCH_VALIDATION_ERROR':
+      return 'Lote invalido';
+    case 'BATCH_EMISSION_ERROR':
+      return 'Lote interrumpido';
     default:
       return 'Error';
   }
@@ -24,6 +28,10 @@ function formatErrorHint(error: AppError): string | null {
       return 'Revise la configuracion con `arcli config` o corra `arcli config revisar`.';
     case 'INPUT_VALIDATION_ERROR':
       return 'Revise los parametros del comando con `ayuda` e intente nuevamente.';
+    case 'BATCH_VALIDATION_ERROR':
+      return 'Corrija esos comprobantes en el archivo y vuelva a correr el lote completo.';
+    case 'BATCH_EMISSION_ERROR':
+      return 'Los comprobantes de arriba ya se emitieron: no los vuelva a cargar. Reintente solo los que quedaron sin procesar.';
     default:
       return null;
   }
@@ -57,8 +65,10 @@ function formatErrorDetails(details: Record<string, unknown> | undefined): strin
     return [];
   }
 
+  // Arrays y objetos (por ejemplo, la lista de items de un lote) solo van en el JSON:
+  // en texto se verian como "[object Object]" y ya estan en el mensaje.
   return Object.entries(details)
-    .filter(([, value]) => value !== null && value !== undefined && value !== '')
+    .filter(([, value]) => value !== null && value !== undefined && value !== '' && typeof value !== 'object')
     .map(([key, value]) => {
       const label = key === 'path' ? 'Ruta' : key;
 

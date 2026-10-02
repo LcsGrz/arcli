@@ -99,6 +99,11 @@ function formatPublicIssuePath(path: PropertyKey[]): string[] {
   return ZOD_PUBLIC_PATHS[pathKey] ?? path.map((segment) => String(segment));
 }
 
+/** Resumen de una linea, para listar errores por item (por ejemplo, en un lote). */
+export function summarizeZodError(error: ZodError): string {
+  return error.issues.map((issue) => humanizeZodIssue(issue)).join(' ');
+}
+
 export function formatZodError(error: ZodError, useJson: boolean): string {
   if (useJson) {
     return renderJson({

@@ -3,7 +3,6 @@ import type { Command } from 'commander';
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import { BillingService } from '../../modules/billing/billing.service';
 import type { VoucherShortcut } from '../../modules/billing/billing.types';
-import type { BillingExecutionResult } from '../../modules/billing/billing.types.internal';
 import { getVoucherKindByShortcut } from '../../modules/billing/voucher-kind-map';
 import type { FceObligationGateway } from '../../modules/fce/fce-obligation';
 import { ArcaBillingGateway } from '../../services/arca/arca-billing.gateway';
@@ -13,6 +12,7 @@ import { ArcaFceObligationGateway } from '../../services/arca/arca-fce-obligatio
 import { startSpinner } from '../spinner';
 import type { GlobalCliOptions } from '../types';
 
+import { emitBatch, validateBatchBeforeEmitting } from './billing.command.batch';
 import { runInteractiveBillingPreview } from './billing.command.interactive-preview';
 import { writeBillingCommandResults } from './billing.command.output';
 import { parseBillingCommandPlan, registerBillingOptions } from './billing.command.parser';
@@ -76,6 +76,8 @@ export async function executeBillingCommand(command: Command, shortcut: VoucherS
       plannedInputs.push(await service.resolveExchangeRate(input, gateway));
     }
 
+    validateBatchBeforeEmitting(plan, plannedInputs, (input) => service.buildVoucherPayload(input, runtime));
+
     const warnings = runtime.config.verificarFce
       ? await resolveFceWarnings(plannedInputs, service, new ArcaFceObligationGateway(arca))
       : [];
@@ -102,27 +104,25 @@ export async function executeBillingCommand(command: Command, shortcut: VoucherS
       spinner.text = inputs.length > 1 ? `Procesando ${inputs.length} comprobantes...` : 'Procesando comprobante...';
     }
 
-    const results: BillingExecutionResult[] = [];
-
-    for (const [index, input] of inputs.entries()) {
-      results.push(
-        await service.execute({
-          gateway,
-          input,
-          runtime,
-          warnings: warnings[index],
-        }),
-      );
-    }
-
-    spinner?.stop();
-
-    writeBillingCommandResults(results, {
+    const outputOptions = {
       environment: runtime.environment,
       outputJson: runtime.outputJson,
       previewShown,
       raw: useRaw,
+    };
+    const results = await emitBatch({
+      emit: (input, position) => service.execute({ gateway, input, runtime, warnings: warnings[position] }),
+      inputs,
+      onPartialResults: (partial) => {
+        spinner?.stop();
+        writeBillingCommandResults(partial, outputOptions);
+      },
+      plan,
     });
+
+    spinner?.stop();
+
+    writeBillingCommandResults(results, outputOptions);
   } catch (error) {
     spinner?.stop();
     throw error;
