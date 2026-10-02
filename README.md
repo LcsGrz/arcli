@@ -26,6 +26,9 @@ Emití o previsualizá comprobantes ARCA desde tu terminal, con un flujo claro, 
 - salida humana, JSON o respuesta bruta
 - prompts interactivos cuando el flujo lo requiere
 - integración real con ARCA
+- Factura de Crédito Electrónica (FCE) completa: CBU, transferencia, anulación y consulta del régimen del receptor
+- alícuotas de IVA, importes exentos y no gravados, moneda extranjera y período asociado
+- validaciones locales con las reglas del manual de ARCA, para que los errores aparezcan antes de emitir
 
 ## Demo basica
 
@@ -138,6 +141,7 @@ arcli fa -m 15000 --cs --cuit 20168598204 --ir-ri \
 - [Limitaciones actuales](docs/limitations.md)
 - [Guía de desarrollo](docs/development.md)
 - [Testing](docs/ui-smoke-checklist.md)
+- [Changelog](CHANGELOG.md)
 - [Cómo contribuir](CONTRIBUTING.md)
 - [llms.txt](llms.txt): referencia condensada para que un agente/IA con acceso a terminal ejecute el CLI directamente
 - [Seguridad](SECURITY.md)
