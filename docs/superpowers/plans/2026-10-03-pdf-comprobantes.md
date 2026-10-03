@@ -108,21 +108,23 @@ Reglas de estos flags:
 ### Comando `arcli pdf`
 
 ```
-arcli pdf instalar       descarga el plugin (pide confirmación si hay terminal; --si para scripts)
+arcli pdf [estado]       instalado o no, versión, navegador y carpeta
+arcli pdf instalar       descarga el plugin (y un navegador si no hay Chrome)
 arcli pdf desinstalar    borra la carpeta del plugin
-arcli pdf estado         instalado o no, versión, ruta
-arcli pdf generar <tipo> <numero> [--pv N] [--descripcion ...] [--receptor-nombre ...] [--receptor-domicilio ...]
 ```
 
-`generar` arma el PDF de un comprobante ya emitido con los datos de `consultar` (FECompConsultar). arcli no guarda nada localmente, así que la descripción y los datos del receptor hay que volver a pasarlos.
+**Cambios respecto del plan original:**
+
+- `instalar` no pide confirmación ni tiene `--si`: pedir el comando ya es la confirmación, y así sirve igual en scripts.
+- **`generar` quedó afuera.** `getVoucherInfo` de `@arcasdk/core` mapea FECompConsultar y descarta `Iva`, `CbtesAsoc`, `FchServDesde/Hasta` y `CondicionIVAReceptorId`, así que el PDF de una A con varias alícuotas o de una nota saldría incompleto. Para hacerlo bien hace falta que el SDK exponga esos campos: proponerlo upstream o leer la respuesta SOAP cruda.
 
 ### Contrato JSON (aditivo)
 
-Cada resultado de emisión suma `pdf` **solo si se intentó generar**:
+Cada resultado de emisión suma `pdf` **solo si se intentó generar**. Las claves siguen el estilo de los errores del CLI (`codigo`, `sugerencia`):
 
 ```json
 { "pdf": { "ruta": "/Users/x/arcli/comprobantes/factura-c_0003-00000125.pdf" } }
-{ "pdf": { "error": { "code": "PDF_PLUGIN_MISSING", "message": "...", "suggestion": "arcli pdf instalar" } } }
+{ "pdf": { "error": { "codigo": "PDF_PLUGIN_MISSING", "mensaje": "...", "sugerencia": "Instalelo con `arcli pdf instalar`." } } }
 ```
 
 Códigos nuevos: `PDF_PLUGIN_MISSING`, `PDF_PLUGIN_INSTALL_ERROR`, `PDF_ISSUER_INCOMPLETE` y `PDF_GENERATION_ERROR`.
@@ -143,67 +145,68 @@ Códigos nuevos: `PDF_PLUGIN_MISSING`, `PDF_PLUGIN_INSTALL_ERROR`, `PDF_ISSUER_I
 - [x] Confirmar que el QR es una URL de `afip.gob.ar/fe/qr/?p=` con el JSON en base64 (`ver`, `fecha`, `cuit`, `ptoVta`, `tipoCmp`, `nroCmp`, `importe`, `moneda`, `ctz`, `tipoDocRec`, `nroDocRec`, `tipoCodAut`, `codAut`).
 - [x] Medir tiempos: el primer PDF tarda 1,7 a 3,6 s y los siguientes 0,2 a 0,7 s. Con el Chrome del sistema (`PUPPETEER_EXECUTABLE_PATH`) también funciona.
 - [x] **Hallazgo:** con npm 12, Puppeteer no descarga Chromium (los scripts están bloqueados) y `headless: true` no encuentra `chrome-headless-shell`. Por eso el plan resuelve el navegador explícitamente (ver "Plugin").
-- [ ] Probar una NC A con comprobante asociado y una FCE A: se hace dentro de la Tarea 2, con datos reales del mapper.
-- **Detalle:** la columna de cantidad muestra "1 unidades". Pasar `unidadMedida: 'unidad'`.
+- [x] Probar una NC A con dos alícuotas y comprobante asociado con el exportador real. **Hallazgo:** la plantilla busca cada alícuota por el texto exacto `"10.5%"` (con punto); con `"10,5%"` salía en $0.
+- [x] La columna de cantidad mostraba "1 unidades": se pasa `unidadMedida: 'unidad'`.
 
 ### Tarea 1: Config del PDF y del emisor
 
 **Archivos:** `src/modules/config/config.schemas.ts`, `config.service.ts`, `config-value-parser.ts`, `config.presenter.ts`, `config-doctor.ts` y sus tests.
 
-- [ ] Claves `pdf` (`siempre | preguntar | nunca`), `pdfCarpeta`, `pdfNavegador` y `emisor.*`, con validación Zod.
-- [ ] `arcli config` las muestra. `config revisar` avisa si `pdf != nunca` y faltan datos obligatorios del emisor.
+- [x] Claves `pdf` (`siempre | preguntar | nunca`), `pdfCarpeta`, `pdfNavegador` y `emisor.*`, con validación Zod.
+- [x] `arcli config` las muestra. `config revisar` avisa si `pdf != nunca` y faltan datos obligatorios del emisor.
 
 ### Tarea 2: Módulo puro `src/modules/pdf/`
 
 **Archivos:** `pdf.types.ts` (copia tipada de `InvoiceData`, porque no podemos importar tipos de un plugin que puede no estar), `pdf-data.mapper.ts`, `pdf-file-name.ts`, `pdf-decision.ts` y `__tests__/`.
 
-- [ ] `resolvePdfDecision({ config, flags, isTty, json, result })` devuelve `generar | preguntar | omitir` (la tabla de arriba).
-- [ ] `buildPdfFileName(voucherKind, pv, numero)`.
-- [ ] `mapToInvoicePdfData(...)` desde un `BillingExecutionResult` y desde un `IssuedVoucher`: renglones por alícuota, descripciones de IVA y de documento, comprobantes asociados, fechas de servicio, moneda y cotización.
-- [ ] Validar el emisor, lanzando `PDF_ISSUER_INCOMPLETE` con la lista de lo que falta.
+- [x] `resolvePdfDecision({ config, flags, isTty, json, result })` devuelve `generar | preguntar | omitir` (la tabla de arriba).
+- [x] `buildPdfFileName(voucherKind, pv, numero)`.
+- [x] `mapToInvoicePdfData(...)` desde un `BillingExecutionResult` y desde un `IssuedVoucher`: renglones por alícuota, descripciones de IVA y de documento, comprobantes asociados, fechas de servicio, moneda y cotización.
+- [x] Validar el emisor, lanzando `PDF_ISSUER_INCOMPLETE` con la lista de lo que falta.
 
 ### Tarea 3: Plugin `src/services/pdf/`
 
 **Archivos:** `pdf-plugin.ts` (ubicar, instalar, desinstalar, estado y cargar) y `pdf-renderer.ts` (genera y escribe el archivo).
 
-- [ ] Instalar con `npm` como proceso hijo, mostrando el progreso con el spinner.
-- [ ] Cargar con `createRequire` y verificar la versión.
-- [ ] Tests con `npm` y el módulo mockeados. El render real queda en un test marcado como de red, que no corre en CI.
+- [x] Instalar con `npm` como proceso hijo, mostrando el progreso con el spinner.
+- [x] Cargar con `createRequire` y verificar la versión.
+- [x] Tests con `npm` y el módulo mockeados (un SDK falso en una carpeta temporal). El render real se probó a mano (Tareas 0 y 8); no hay test de red automático.
 
 ### Tarea 4: Emisión con flags
 
 **Archivos:** `billing.command.options.ts`, `billing.command.parser.ts`, `billing.schemas.ts`, `billing.command.shared.ts`, `billing.command.output.ts`, `billing.serialize.ts` y el presenter.
 
-- [ ] Flags y campos JSON nuevos, con el error si vienen `--exportar-pdf` y `--sin-pdf` juntos.
-- [ ] Después de `emitBatch`, generar los PDFs de los resultados con CAE. Si falta el plugin y hay terminal, ofrecer instalarlo.
-- [ ] Mostrar en el panel una línea `PDF  ~/arcli/comprobantes/factura-c_0003-00000125.pdf`, y en JSON el campo `pdf`.
-- [ ] El aviso de los flags que solo sirven para el PDF.
+- [x] Flags y campos JSON nuevos, con el error si vienen `--exportar-pdf` y `--sin-pdf` juntos.
+- [x] Después de `emitBatch`, generar los PDFs de los resultados con CAE. Si falta el plugin y hay terminal, ofrecer instalarlo.
+- [x] En texto, primero el comprobante con su CAE y después un aviso `PDF guardado en <ruta>` (o el error); en JSON, el campo `pdf` dentro del resultado.
+- [x] El aviso de los flags que solo sirven para el PDF.
 
 ### Tarea 5: Comando `arcli pdf`
 
 **Archivos:** `src/cli/commands/pdf.command.ts` y su registro en `src/cli/index.ts`.
 
-- [ ] `instalar` (con `--si`), `desinstalar`, `estado` y `generar`. `generar` reutiliza `ArcaVoucherHistoryGateway`.
+- [x] `instalar`, `desinstalar` y `estado`. `generar` quedó afuera (ver "Comando `arcli pdf`").
 
 ### Tarea 6: Modo interactivo
 
 **Archivos:** `src/cli/interactive/session.ts` y los flujos.
 
-- [ ] Después de emitir, si la decisión es `preguntar`: _"¿Generamos el PDF?"_. Si responde que sí, pregunta la descripción y el nombre y domicilio del receptor (con "← Volver").
-- [ ] Si faltan datos del emisor, preguntarlos y ofrecer guardarlos.
-- [ ] El comando equivalente incluye `--exportar-pdf` y los flags de PDF.
+- [x] Después de emitir, si la decisión es `preguntar`: _"¿Generamos el PDF?"_. Si responde que sí, pregunta la descripción y el nombre y domicilio del receptor (Enter para omitir; sin "← Volver", porque el comprobante ya está emitido).
+- [x] Si faltan datos del emisor, preguntarlos y ofrecer guardarlos.
+- [ ] ~~El comando equivalente incluye los flags de PDF.~~ Descartado: el equivalente se muestra antes de emitir y la pregunta del PDF es después.
 
 ### Tarea 7: Documentación
 
-- [ ] `docs/configuration.md`: claves nuevas.
-- [ ] `docs/cli-reference.md`: flags y `arcli pdf`.
-- [ ] `docs/input-output.md`: campo `pdf` y códigos de error.
-- [ ] `docs/usage-patterns.md`: ejemplo de factura con PDF.
-- [ ] `docs/troubleshooting.md`: proxy o sin internet al instalar, y Chromium.
-- [ ] `docs/modo-interactivo.md`, `docs/limitations.md`, `README.md`, `llms.txt`, `arcli ejemplos` y `CHANGELOG.md`.
+- [x] `docs/configuration.md`: claves nuevas.
+- [x] `docs/cli-reference.md`: flags y `arcli pdf`.
+- [x] `docs/input-output.md`: campo `pdf` y códigos de error.
+- [x] `docs/usage-patterns.md`: ejemplo de factura con PDF.
+- [x] `docs/troubleshooting.md`: proxy o sin internet al instalar, y Chromium.
+- [x] `docs/modo-interactivo.md`, `docs/limitations.md`, `README.md`, `llms.txt`, `arcli ejemplos` y `CHANGELOG.md`.
 
 ### Tarea 8: Verificación
 
-- [ ] `yarn typecheck`, `yarn lint`, `yarn test` y `yarn build`.
-- [ ] Prueba real en testing: emitir una factura C con `--exportar-pdf`, abrir el PDF y escanear el QR.
-- [ ] Verificar que `npm pack --dry-run` no creció.
+- [x] `yarn typecheck`, `yarn lint`, `yarn test` y `yarn build`.
+- [x] Prueba real en testing: factura C 3-73 emitida con `--exportar-pdf --json` (CAE 86400944635047) y PDF revisado. **Hallazgo:** consumidor final mostraba "Sin Identificar: 0"; ahora dice "Documento: - -" y el QR sigue saliendo con tipo 99 y número 0.
+- [ ] Escanear el QR con el celular (queda para el usuario).
+- [x] `npm pack --dry-run`: 154,9 kB → 181,5 kB, solo por el código nuevo. No se agregó ninguna dependencia.

@@ -14,7 +14,6 @@ const DOCUMENT_TYPE_NAMES: Readonly<Record<number, string>> = {
   80: 'CUIT',
   86: 'CUIL',
   96: 'DNI',
-  99: 'Sin Identificar',
 };
 
 const CURRENCY_CODES: Readonly<Record<string, string>> = { PES: 'PES', DOL: 'DOL' };
@@ -102,6 +101,7 @@ export function mapBillingResultToPdfData(
 
   const number = resolveVoucherNumber(result);
   const isConsumer = payload.DocTipo === 99;
+  const isUnidentified = isConsumer && !payload.DocNro;
   const iva = voucherKind.letter === 'c' ? [] : buildIvaEntries(payload.Iva);
 
   return {
@@ -137,8 +137,9 @@ export function mapBillingResultToPdfData(
     puntoVenta: payload.PtoVta,
     receptor: {
       condicionIva: capitalizeWords(formatIvaConditionLabel(payload.CondicionIVAReceptorId)),
-      documentoNro: String(payload.DocNro),
-      documentoTipo: DOCUMENT_TYPE_NAMES[payload.DocTipo] ?? String(payload.DocTipo),
+      // Consumidor final sin documento: el QR igual sale con tipo 99 y numero 0 (el SDK usa `Number(nro) || 0`).
+      documentoNro: isUnidentified ? EMPTY_TEXT : String(payload.DocNro),
+      documentoTipo: isUnidentified ? 'Documento' : (DOCUMENT_TYPE_NAMES[payload.DocTipo] ?? String(payload.DocTipo)),
       domicilio: extras.receptorDomicilio?.trim() || undefined,
       razonSocial: extras.receptorNombre?.trim() || (isConsumer ? 'Consumidor Final' : EMPTY_TEXT),
     },

@@ -152,7 +152,7 @@ describe('mapBillingResultToPdfData', () => {
       importeNetoGravado: 150000,
       importeTotal: 150000,
       items: [{ descripcion: 'Servicios de septiembre', subtotal: 150000 }],
-      receptor: { documentoTipo: 'Sin Identificar', razonSocial: 'Consumidor Final' },
+      receptor: { documentoNro: '- -', documentoTipo: 'Documento', razonSocial: 'Consumidor Final' },
     });
     expect(data.iva).toBeUndefined();
   });

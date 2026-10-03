@@ -53,6 +53,10 @@ Después de la solicitud, ARCLI puede devolver tres tipos de salida:
 - JSON
 - `--bruto`
 
+### 6. PDF (opcional)
+
+Si el comprobante se emitió y tiene CAE, ARCLI puede generar su PDF con el QR de ARCA. Es un paso posterior a la emisión: si falla, el comprobante ya está emitido y no se deshace. Ver [PDF de comprobantes](pdf.md).
+
 ## Prioridad de datos
 
 ARCLI resuelve así:

@@ -203,6 +203,44 @@ arcli fc --cargar ./voucher.json
 - tipos inválidos
 - lote con un item inválido que corta toda la ejecución
 
+## Factura con PDF
+
+### Cuándo usarlo
+
+Cuando además de emitir querés el PDF con el QR de ARCA para mandarle al cliente.
+
+### Requisitos
+
+- datos del emisor en la config: `emisor.razonSocial`, `emisor.domicilio` y `emisor.inicioActividades`
+- el plugin de PDF (`arcli pdf instalar`, o aceptar la descarga la primera vez en una terminal)
+
+### Comando
+
+```bash
+arcli fc -m 150000 --cs --cfinal --emitir --exportar-pdf \
+  --descripcion "Servicios de septiembre" --receptor-nombre "Cliente SA"
+```
+
+Si siempre querés el PDF, guardalo en la config y no hace falta el flag:
+
+```bash
+arcli config establecer pdf siempre
+```
+
+### Resultado esperado
+
+- el comprobante emitido, con su CAE
+- debajo, `PDF guardado en ~/arcli/comprobantes/factura-c_0003-00000125.pdf` (en testing, en la subcarpeta `testing/`)
+- con `--json`, la clave `pdf` con la `ruta`
+
+### Errores comunes
+
+- faltan datos del emisor (`PDF_ISSUER_INCOMPLETE`): el comprobante se emite igual, sin PDF
+- falta el plugin con `--json` o en un script (`PDF_PLUGIN_MISSING`): instalalo antes con `arcli pdf instalar`
+- pasar `--descripcion` sin `--emitir`: en la vista previa no hay PDF
+
+Detalle completo en [PDF de comprobantes](pdf.md).
+
 ## Batch con JSON
 
 ### Cuándo usarlo

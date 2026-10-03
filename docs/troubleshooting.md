@@ -256,3 +256,41 @@ arcli fc ayuda
 - **Causa:** la emisión falló a mitad del lote (red, ARCA, transacción activa).
 - **Solución:** **no vuelvas a cargar los comprobantes que ya se procesaron**, porque se duplicarían. Armá un lote solo con los que figuran en "Sin procesar" (`sinProcesar` en el JSON) y reintentá. Si el que falló fue por "Transacción Activa", esperá unos segundos.
 - **Documentación relacionada:** [Entrada y salida](input-output.md#validación-y-errores-del-lote)
+
+## PDF
+
+Un error del PDF no deshace la emisión: el comprobante ya tiene CAE. **No lo vuelvas a emitir para obtener el PDF**, porque quedaría duplicado en ARCA. Arreglá la causa para los próximos. Regenerar el PDF de un comprobante ya emitido todavía no está disponible. Ver [PDF de comprobantes](pdf.md#qué-no-hace-todavía).
+
+### `PDF_PLUGIN_MISSING`
+
+- **Síntoma:** "Para generar PDFs falta instalar el plugin de PDF".
+- **Causa:** el plugin no se descarga solo con `--json` o sin terminal. También aparece si una versión nueva de ARCLI usa otra versión del plugin.
+- **Solución:** `arcli pdf instalar`. Para ver qué hay instalado: `arcli pdf`.
+
+### `PDF_PLUGIN_INSTALL_ERROR`
+
+- **Síntoma:** `arcli pdf instalar` falla y muestra las últimas líneas de npm.
+- **Causa:** sin internet, un proxy corporativo o un registro de npm privado.
+- **Solución:** revisá `npm config get proxy` y `npm config get registry` y volvé a correr `arcli pdf instalar`. Si lo que falla es la descarga del navegador y ya tenés Chrome, Chromium o Edge, indicá su ruta:
+
+```bash
+arcli config establecer pdfNavegador "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+```
+
+### `PDF_ISSUER_INCOMPLETE`
+
+- **Síntoma:** "Faltan datos del emisor para el PDF".
+- **Causa:** ARCA no guarda el nombre, el domicilio ni el inicio de actividades del emisor, y el PDF los necesita.
+- **Solución:** completalos una vez con los comandos que muestra el error:
+
+```bash
+arcli config establecer emisor.razonSocial "Tu Nombre o Empresa"
+arcli config establecer emisor.domicilio "Calle 123, Ciudad"
+arcli config establecer emisor.inicioActividades 1/03/2020
+```
+
+### `PDF_GENERATION_ERROR`
+
+- **Síntoma:** "No se pudo generar el PDF".
+- **Causa habitual:** el navegador no arranca. Pasa en servidores sin entorno gráfico o con un Chrome muy viejo.
+- **Solución:** probá con otro navegador (`arcli config establecer pdfNavegador <ruta>`) o borrá esa config para que ARCLI use el que descargó el plugin.
