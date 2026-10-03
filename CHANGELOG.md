@@ -8,6 +8,10 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+## [1.4.0] - 2026-10-02
+
+Esta versión suma dos comandos para ver lo emitido (`ultimos` y `consultar`), facturas con varias alícuotas de IVA y un modo interactivo más completo. Los lotes ahora se validan enteros antes de emitir. No se rompe ningún comando, flag ni JSON existente: `--alicuota` con un solo número funciona igual que antes.
+
 ### Agregado
 
 - **Modo interactivo:**
@@ -145,7 +149,8 @@ Primera versión publicada en npm.
 - `llms.txt`: referencia condensada para que un agente de IA con acceso a terminal ejecute el CLI.
 - Publicación con npm Trusted Publishers (OIDC).
 
-[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v1.3.0...HEAD
+[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/LcsGrz/arcli/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/LcsGrz/arcli/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/LcsGrz/arcli/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/LcsGrz/arcli/releases/tag/v1.1.0
