@@ -14,8 +14,9 @@ import type { GlobalCliOptions } from '../types';
 
 import { emitBatch, validateBatchBeforeEmitting } from './billing.command.batch';
 import { runInteractiveBillingPreview } from './billing.command.interactive-preview';
-import { writeBillingCommandResults } from './billing.command.output';
+import { writeBillingCommandResults, writePdfOutcomes } from './billing.command.output';
 import { parseBillingCommandPlan, registerBillingOptions } from './billing.command.parser';
+import { attachPdfs } from './billing.command.pdf';
 
 export function registerGlobalOptions(command: Command): void {
   command
@@ -122,7 +123,22 @@ export async function executeBillingCommand(command: Command, shortcut: VoucherS
 
     spinner?.stop();
 
+    const pdfOptions = {
+      config: runtime.config,
+      inputs,
+      interactive: !runtime.outputJson && Boolean(process.stdin.isTTY && process.stdout.isTTY),
+      results,
+    };
+
+    // En JSON el PDF va dentro del mismo resultado; en texto primero se ve el CAE y despues se pregunta.
+    if (runtime.outputJson) {
+      writeBillingCommandResults(await attachPdfs(pdfOptions), outputOptions);
+
+      return;
+    }
+
     writeBillingCommandResults(results, outputOptions);
+    writePdfOutcomes(results, await attachPdfs(pdfOptions));
   } catch (error) {
     spinner?.stop();
     throw error;

@@ -489,4 +489,42 @@ describe('billing.command.parser', () => {
       tipo: undefined,
     });
   });
+
+  describe('PDF flags', () => {
+    const defaults = { defaultConcept: 'servicios' as const, defaultIvaCondition: 'consumidor-final' as const };
+
+    it('reads --exportar-pdf, its alias and the PDF-only data', () => {
+      const input = parseBillingCommandInput(
+        createCommand([
+          '--monto',
+          '1000',
+          '--exportar-pdf',
+          '--descripcion',
+          'Servicios de octubre',
+          '--receptor-nombre',
+          'Cliente SA',
+          '--receptor-domicilio',
+          'Calle 1',
+        ]),
+        'fc',
+        defaults,
+      );
+
+      expect(input).toMatchObject({
+        pdf: true,
+        pdfDescription: 'Servicios de octubre',
+        receiverAddress: 'Calle 1',
+        receiverName: 'Cliente SA',
+      });
+      expect(parseBillingCommandInput(createCommand(['--monto', '1000', '--pdf']), 'fc', defaults).pdf).toBe(true);
+      expect(parseBillingCommandInput(createCommand(['--monto', '1000', '--sin-pdf']), 'fc', defaults).pdf).toBe(false);
+      expect(parseBillingCommandInput(createCommand(['--monto', '1000']), 'fc', defaults).pdf).toBeUndefined();
+    });
+
+    it('rejects --exportar-pdf together with --sin-pdf', () => {
+      expect(() =>
+        parseBillingCommandInput(createCommand(['--monto', '1000', '--pdf', '--sin-pdf']), 'fc', defaults),
+      ).toThrow(/--exportar-pdf o --sin-pdf/);
+    });
+  });
 });

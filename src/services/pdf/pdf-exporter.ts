@@ -5,7 +5,7 @@ import { AppError } from '../../lib/errors/app-error';
 import type { BillingExecutionResult } from '../../modules/billing/billing.types.internal';
 import type { ArcliConfig } from '../../modules/config/config.schemas';
 import { PdfError } from '../../modules/pdf/pdf.errors';
-import type { InvoicePdfOptions, PdfVoucherExtras } from '../../modules/pdf/pdf.types';
+import type { InvoicePdfOptions, PdfOutcome, PdfVoucherExtras } from '../../modules/pdf/pdf.types';
 import { mapBillingResultToPdfData } from '../../modules/pdf/pdf-data.mapper';
 import { buildPdfFileName } from '../../modules/pdf/pdf-file-name';
 import { resolvePdfIssuer } from '../../modules/pdf/pdf-issuer';
@@ -13,10 +13,6 @@ import { resolvePdfIssuer } from '../../modules/pdf/pdf-issuer';
 import type { PdfRenderer } from './pdf-plugin';
 
 export const TESTING_FOOTER = 'COMPROBANTE DE PRUEBA - SIN VALIDEZ FISCAL';
-
-export type PdfOutcome =
-  | { readonly path: string }
-  | { readonly error: { readonly code: string; readonly message: string; readonly suggestion?: string } };
 
 export function toPdfFailure(error: unknown): Extract<PdfOutcome, { error: unknown }> {
   if (error instanceof PdfError) {

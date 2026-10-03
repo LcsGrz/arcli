@@ -1,6 +1,7 @@
 import { isCertificateExpiringSoon, readCertificateExpiry } from '../../lib/security/certificate';
 import { readPemFile } from '../../lib/security/pem';
 import type { ArcaRuntimeValidation } from '../../services/arca/arca-context.resolver';
+import { listMissingIssuerKeys } from '../pdf/pdf-issuer';
 
 import type { ArcliConfig } from './config.schemas';
 
@@ -150,6 +151,19 @@ export function buildConfigDoctorReport(
     detail: `Respuesta bruta por defecto: ${config.output.brutoPorDefecto ? 'si' : 'no'}.`,
     label: 'Bruto',
   });
+
+  // Solo se avisa si el PDF se genera siempre: con "preguntar" (por defecto) los datos se piden al generarlo.
+  const missingIssuerKeys = listMissingIssuerKeys(config);
+
+  if (missingIssuerKeys.length === 0) {
+    checks.push({ category: 'ok', detail: 'Datos del emisor completos para el PDF.', label: 'PDF' });
+  } else if (config.pdf === 'siempre') {
+    checks.push({
+      category: 'warning',
+      detail: `Con pdf=siempre faltan datos del emisor: ${missingIssuerKeys.join(', ')}. Configurelos con "arcli config establecer".`,
+      label: 'PDF',
+    });
+  }
 
   if (runtimeCheck?.validation) {
     checks.push({

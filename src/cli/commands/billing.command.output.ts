@@ -1,6 +1,13 @@
 import { serializeBillingBatch } from '../../modules/billing/billing.serialize';
 import type { BillingExecutionResult } from '../../modules/billing/billing.types.internal';
-import { formatBillingResultAsJson, formatBillingResultAsText, writeTerminalJson, writeTerminalOutput } from '../../ui';
+import {
+  formatBillingResultAsJson,
+  formatBillingResultAsText,
+  formatPdfOutcomeAsText,
+  noticePanel,
+  writeTerminalJson,
+  writeTerminalOutput,
+} from '../../ui';
 
 export function formatBillingOutputs(
   results: BillingExecutionResult[],
@@ -55,4 +62,24 @@ export function writeBillingCommandResults(
       raw: options.raw,
     }),
   );
+}
+
+/** En texto el comprobante ya se mostro: solo se agrega lo que paso con el PDF y los avisos nuevos. */
+export function writePdfOutcomes(
+  before: readonly BillingExecutionResult[],
+  after: readonly BillingExecutionResult[],
+): void {
+  const blocks = after.flatMap((result, index) => {
+    const label = after.length > 1 ? `Lote ${index + 1}/${after.length}` : undefined;
+    const newWarnings = (result.warnings ?? []).slice(before[index]?.warnings?.length ?? 0);
+
+    return [
+      ...(result.pdf ? [formatPdfOutcomeAsText(result.pdf, label)] : []),
+      ...newWarnings.map((warning) => noticePanel(label ? `${label}: ${warning}` : warning, 'warning')),
+    ];
+  });
+
+  if (blocks.length > 0) {
+    writeTerminalOutput(blocks.join('\n'));
+  }
 }

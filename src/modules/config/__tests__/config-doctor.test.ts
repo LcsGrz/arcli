@@ -155,4 +155,21 @@ describe('config-doctor', () => {
     expect(check?.category).toBe('warning');
     expect(check?.detail).toContain('No se pudo verificar');
   });
+
+  it('warns about missing issuer data only when the PDF is always generated', () => {
+    const base = {
+      cert: {},
+      emisor: {},
+      entornoPorDefecto: 'testing' as const,
+      key: {},
+      output: { brutoPorDefecto: false, emitirPorDefecto: false, jsonPorDefecto: false },
+    };
+
+    expect(buildConfigDoctorReport(base).checks.find((check) => check.label === 'PDF')).toBeUndefined();
+    expect(
+      buildConfigDoctorReport({ ...base, pdf: 'siempre' }).checks.find((check) => check.label === 'PDF'),
+    ).toMatchObject({
+      category: 'warning',
+    });
+  });
 });

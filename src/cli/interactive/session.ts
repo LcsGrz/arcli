@@ -15,6 +15,7 @@ import { formatBillingOutputs } from '../commands/billing.command.output';
 import { startSpinner } from '../spinner';
 import type { GlobalCliOptions } from '../types';
 
+import { offerPdf } from './pdf.flow';
 import { confirm } from './prompts';
 
 export interface InteractiveSession {
@@ -116,6 +117,7 @@ export async function previewAndEmit(session: InteractiveSession, rawInput: Bill
     writeTerminalOutput(
       formatBillingOutputs([result], { environment: runtime.environment, previewShown: true, raw: false }),
     );
+    await offerPdf(runtime.config, input, result);
   } catch (error) {
     spinner?.stop();
     throw error;

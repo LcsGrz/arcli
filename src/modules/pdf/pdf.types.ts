@@ -86,3 +86,8 @@ export interface PdfVoucherExtras {
   readonly receptorDomicilio?: string;
   readonly receptorNombre?: string;
 }
+
+/** Resultado de generar el PDF de un comprobante: la ruta del archivo o el error, que no frena la emision. */
+export type PdfOutcome =
+  | { readonly path: string }
+  | { readonly error: { readonly code: string; readonly message: string; readonly suggestion?: string } };

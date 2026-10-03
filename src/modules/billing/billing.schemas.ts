@@ -129,7 +129,13 @@ export const billingCommandSchema = z.object({
   dueDay: z.number().int().min(1).max(31).optional(),
   ivaCondition: billingIvaConditionSchema,
   paymentDueDate: z.string().trim().optional(),
+  /** `true` con --exportar-pdf, `false` con --sin-pdf; sin definir, decide la config. */
+  pdf: z.boolean().optional(),
+  /** Solo para el PDF: ARCA no guarda descripcion ni datos del receptor. */
+  pdfDescription: z.string().trim().min(1).max(200).optional(),
   pointOfSale: z.number().int().positive().optional(),
+  receiverAddress: z.string().trim().min(1).max(200).optional(),
+  receiverName: z.string().trim().min(1).max(200).optional(),
   sameCurrency: z.boolean().default(false),
   serviceEndDate: z.string().trim().optional(),
   serviceStartDate: z.string().trim().optional(),

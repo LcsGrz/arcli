@@ -1,6 +1,8 @@
 import type { CreateVoucherResultDto } from '@arcasdk/core/lib/application/dto/electronic-billing';
 import type { INextVoucher } from '@arcasdk/core/lib/domain/types/voucher.types';
 
+import type { PdfOutcome } from '../pdf/pdf.types';
+
 import type { VoucherKindDefinition } from './billing.types';
 
 export interface BillingGateway {
@@ -25,6 +27,8 @@ export interface BillingExecutionResult {
   readonly dryRun: boolean;
   readonly environment: 'produccion' | 'testing';
   readonly payload: INextVoucher;
+  /** Solo si se intento generar el PDF. */
+  readonly pdf?: PdfOutcome;
   readonly response: BillingResponseSummary;
   readonly voucherKind: VoucherKindDefinition;
   readonly warnings?: readonly string[];
