@@ -110,6 +110,7 @@ function createSampleConfig(): ArcliConfig {
     cuit: '20409509763',
     conceptoPorDefecto: 'servicios',
     cotizacionPorDefecto: 1,
+    emisor: {},
     entornoPorDefecto: 'testing',
     ivaReceptorPorDefecto: 'consumidor-final',
     key: {
@@ -319,7 +320,7 @@ function buildConfigScene(): string {
 
   return [
     sceneTitle('Configuracion', 'Vista actual y revision'),
-    formatConfigAsText(config, createSampleValidation().ticketPath),
+    formatConfigAsText(config, { pdfFolder: '~/arcli/comprobantes', ticketPath: createSampleValidation().ticketPath }),
     formatConfigDoctorAsText(doctor),
   ].join('\n\n');
 }
@@ -340,7 +341,12 @@ function buildErrorScene(): string {
 
 function buildJsonScene(): string {
   const billingJson = highlightJsonValues(formatBillingResultAsJson(createBillingResult(), { raw: true }));
-  const configJson = highlightJsonValues(formatConfig(createSampleConfig(), createSampleValidation().ticketPath));
+  const configJson = highlightJsonValues(
+    formatConfig(createSampleConfig(), {
+      pdfFolder: '~/arcli/comprobantes',
+      ticketPath: createSampleValidation().ticketPath,
+    }),
+  );
   const doctorJson = highlightJsonValues(
     formatConfigDoctor(buildConfigDoctorReport(createSampleConfig(), { validation: createSampleValidation() })),
   );

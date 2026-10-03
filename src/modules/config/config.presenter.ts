@@ -1,3 +1,4 @@
+import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { maskPath } from '../../lib/paths/mask-path';
 import { keyValuePanel, renderKeyValueRows, resolveKeyValueLabelWidth, statusPanel, toneText } from '../../ui';
 
@@ -15,6 +16,7 @@ interface PublicConfigSnapshot {
   readonly concepto?: ArcliConfig['conceptoPorDefecto'];
   readonly cotizacion?: number;
   readonly cuit?: string;
+  readonly emisor: ArcliConfig['emisor'];
   readonly emitir: boolean;
   readonly entorno: 'produccion' | 'testing';
   readonly ivaReceptor?: ArcliConfig['ivaReceptorPorDefecto'];
@@ -24,13 +26,21 @@ interface PublicConfigSnapshot {
     readonly testing?: string;
   };
   readonly moneda?: string;
+  readonly pdf: NonNullable<ArcliConfig['pdf']>;
+  readonly pdfCarpeta: string;
+  readonly pdfNavegador?: string;
   readonly puntoVenta?: number;
   readonly bruto: boolean;
   readonly ticketPath: string;
   readonly verificarFce?: boolean;
 }
 
-function toPublicSnapshot(config: ArcliConfig, effectiveTicketPath: string): PublicConfigSnapshot {
+export interface ConfigPathSnapshot {
+  readonly pdfFolder: string;
+  readonly ticketPath: string;
+}
+
+function toPublicSnapshot(config: ArcliConfig, paths: ConfigPathSnapshot): PublicConfigSnapshot {
   return {
     alicuota: config.alicuotaPorDefecto,
     aliasCbu: config.aliasCbu,
@@ -42,6 +52,7 @@ function toPublicSnapshot(config: ArcliConfig, effectiveTicketPath: string): Pub
     concepto: config.conceptoPorDefecto,
     cotizacion: config.cotizacionPorDefecto,
     cuit: config.cuit,
+    emisor: { ...config.emisor, logo: config.emisor.logo ? maskPath(config.emisor.logo) : undefined },
     emitir: config.output.emitirPorDefecto,
     entorno: config.entornoPorDefecto,
     ivaReceptor: config.ivaReceptorPorDefecto,
@@ -51,23 +62,26 @@ function toPublicSnapshot(config: ArcliConfig, effectiveTicketPath: string): Pub
       testing: config.key.testing ? maskPath(config.key.testing) : undefined,
     },
     moneda: config.monedaPorDefecto,
+    pdf: config.pdf ?? 'preguntar',
+    pdfCarpeta: maskPath(paths.pdfFolder),
+    pdfNavegador: config.pdfNavegador ? maskPath(config.pdfNavegador) : undefined,
     puntoVenta: config.puntoVentaPorDefecto,
     bruto: config.output.brutoPorDefecto,
-    ticketPath: maskPath(effectiveTicketPath),
+    ticketPath: maskPath(paths.ticketPath),
     verificarFce: config.verificarFce,
   };
 }
 
-export function formatConfig(config: ArcliConfig, effectiveTicketPath: string): string {
-  return JSON.stringify(toPublicSnapshot(config, effectiveTicketPath), null, 2);
+export function formatConfig(config: ArcliConfig, paths: ConfigPathSnapshot): string {
+  return JSON.stringify(toPublicSnapshot(config, paths), null, 2);
 }
 
 export function formatConfigPath(configPath: string): string {
   return configPath;
 }
 
-export function formatConfigAsText(config: ArcliConfig, effectiveTicketPath: string): string {
-  const safeConfig = toPublicSnapshot(config, effectiveTicketPath);
+export function formatConfigAsText(config: ArcliConfig, paths: ConfigPathSnapshot): string {
+  const safeConfig = toPublicSnapshot(config, paths);
   const rows: Array<readonly [string, string | number]> = [
     ['CUIT', safeConfig.cuit ?? 'no configurado'],
     ['CBU (FCE)', safeConfig.cbu ?? 'no configurado'],
@@ -88,6 +102,20 @@ export function formatConfigAsText(config: ArcliConfig, effectiveTicketPath: str
     ['Salida JSON', safeConfig.json ? 'si' : 'no'],
     ['Salida bruta', safeConfig.bruto ? 'si' : 'no'],
     ['Ruta tickets WSAA', safeConfig.ticketPath],
+    ['PDF', safeConfig.pdf],
+    ['Carpeta de PDFs', safeConfig.pdfCarpeta],
+    ['Navegador para PDFs', safeConfig.pdfNavegador ?? 'automatico'],
+    ['Emisor: razon social', safeConfig.emisor.razonSocial ?? 'no configurado'],
+    ['Emisor: domicilio', safeConfig.emisor.domicilio ?? 'no configurado'],
+    [
+      'Emisor: inicio actividades',
+      safeConfig.emisor.inicioActividades
+        ? formatArcaDateAsArgentineDate(safeConfig.emisor.inicioActividades)
+        : 'no configurado',
+    ],
+    ['Emisor: IIBB', safeConfig.emisor.iibb ?? 'no configurado'],
+    ['Emisor: condicion IVA', safeConfig.emisor.condicionIva ?? 'segun la letra'],
+    ['Emisor: logo', safeConfig.emisor.logo ?? 'no configurado'],
   ];
 
   return keyValuePanel(

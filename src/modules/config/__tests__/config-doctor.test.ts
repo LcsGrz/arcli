@@ -60,6 +60,7 @@ describe('config-doctor', () => {
         },
         cuit: '20409509763',
         conceptoPorDefecto: 'servicios',
+        emisor: {},
         entornoPorDefecto: 'testing',
         ivaReceptorPorDefecto: 'consumidor-final',
         key: {
@@ -98,6 +99,7 @@ describe('config-doctor', () => {
   it('warns when key defaults are still missing', () => {
     const report = buildConfigDoctorReport({
       cert: {},
+      emisor: {},
       entornoPorDefecto: 'testing',
       key: {},
       output: {
@@ -119,6 +121,7 @@ describe('config-doctor', () => {
 
     const report = buildConfigDoctorReport({
       cert: { testing: testingCert },
+      emisor: {},
       entornoPorDefecto: 'testing',
       key: {},
       output: {
@@ -137,6 +140,7 @@ describe('config-doctor', () => {
   it('reports an error when a certificate path cannot be read', () => {
     const report = buildConfigDoctorReport({
       cert: { testing: '/no/existe/testing.crt' },
+      emisor: {},
       entornoPorDefecto: 'testing',
       key: {},
       output: {

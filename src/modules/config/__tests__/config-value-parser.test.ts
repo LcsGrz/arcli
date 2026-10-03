@@ -101,4 +101,28 @@ describe('config-value-parser', () => {
     expect(() => parseConfigValue('cert.testing', invalidPath)).toThrow(/formato PEM invalido/);
     expect(() => parseConfigValue('key.testing', invalidPath)).toThrow(/formato PEM invalido/);
   });
+
+  it('parses the PDF mode and folder', () => {
+    expect(parseConfigValue('pdf', 'Siempre')).toBe('siempre');
+    expect(() => parseConfigValue('pdf', 'a-veces')).toThrow();
+    expect(parseConfigValue('pdfCarpeta', '/tmp/comprobantes')).toBe('/tmp/comprobantes');
+  });
+
+  it('requires the year in the start of activities date', () => {
+    expect(parseConfigValue('emisor.inicioActividades', '1/03/2020')).toBe('20200301');
+    expect(() => parseConfigValue('emisor.inicioActividades', '1/03')).toThrow(/D\/MM\/YYYY/);
+  });
+
+  it('accepts only existing PNG or JPG logos', () => {
+    const logoPath = writePemFile('logo.png', 'png');
+    const textPath = writePemFile('logo.txt', 'txt');
+
+    expect(parseConfigValue('emisor.logo', logoPath)).toBe(logoPath);
+    expect(() => parseConfigValue('emisor.logo', textPath)).toThrow(/PNG o JPG/);
+    expect(() => parseConfigValue('emisor.logo', '/no/existe.png')).toThrow(/No se encontro el logo/);
+  });
+
+  it('rejects a browser path that does not exist', () => {
+    expect(() => parseConfigValue('pdfNavegador', '/no/existe/chrome')).toThrow(/No se encontro el navegador/);
+  });
 });
