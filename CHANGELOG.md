@@ -8,6 +8,10 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+## [1.7.0] - 2026-10-05
+
+Esta versión completa el modo interactivo: configuración guiada la primera vez, cambiar cualquier dato desde un menú, repetir una factura anterior con fechas nuevas, consultar un comprobante y ver el estado de ARCA. También corrige el PDF de la Factura B y suma GIF e imágenes al README. No se rompe ningún comando, flag ni JSON existente.
+
 ### Corregido
 
 - **PDF de la Factura B:** el renglón y el subtotal mostraban el importe neto y el total con IVA, sin el IVA en ningún lado, así que no cerraba. Ahora los renglones y el subtotal de la B van con IVA incluido, como corresponde a una B. La A y la C no cambian.
@@ -189,7 +193,8 @@ Primera versión publicada en npm.
 - `llms.txt`: referencia condensada para que un agente de IA con acceso a terminal ejecute el CLI.
 - Publicación con npm Trusted Publishers (OIDC).
 
-[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v1.6.0...HEAD
+[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v1.7.0...HEAD
+[1.7.0]: https://github.com/LcsGrz/arcli/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/LcsGrz/arcli/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/LcsGrz/arcli/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/LcsGrz/arcli/compare/v1.3.0...v1.4.0
