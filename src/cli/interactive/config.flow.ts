@@ -1,5 +1,6 @@
 import { join } from 'node:path';
 
+import { CERTIFICATE_GUIDE_URL } from '../../lib/links';
 import type { ArcliConfig, ConfigPublicKey } from '../../modules/config/config.schemas';
 import { ConfigService, validateConfigValue } from '../../modules/config/config.service';
 import { buildConfigDoctorReport } from '../../modules/config/config-doctor';
@@ -140,6 +141,12 @@ function fieldSteps(keys: readonly ConfigPublicKey[], required: readonly ConfigP
   return keys.map((key) => ({
     name: key,
     run: async () => {
+      if (key === 'cert.testing' && !readConfig().cert.testing) {
+        writeTerminalOutput(
+          noticePanel(`¿No tenes certificado todavia? Guia paso a paso: ${CERTIFICATE_GUIDE_URL}`, 'muted'),
+        );
+      }
+
       const result = await askField(getConfigField(key), readConfig(), { required: required.includes(key) });
 
       return result === BACK ? BACK : {};
@@ -151,7 +158,7 @@ function fieldSteps(keys: readonly ConfigPublicKey[], required: readonly ConfigP
 export async function runGuidedSetup(): Promise<void> {
   writeTerminalOutput(
     noticePanel(
-      'Vamos a dejar todo listo para emitir. Los certificados se obtienen en ARCA: ver docs/obtencion-certificados.md.',
+      `Vamos a dejar todo listo para emitir. Si todavia no tenes certificado, la guia esta en ${CERTIFICATE_GUIDE_URL}`,
       'info',
     ),
   );

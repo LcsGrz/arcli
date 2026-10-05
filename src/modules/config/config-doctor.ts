@@ -1,3 +1,4 @@
+import { CERTIFICATE_GUIDE_URL } from '../../lib/links';
 import { isCertificateExpiringSoon, readCertificateExpiry } from '../../lib/security/certificate';
 import { readPemFile } from '../../lib/security/pem';
 import type { ArcaRuntimeValidation } from '../../services/arca/arca-context.resolver';
@@ -97,8 +98,7 @@ export function buildConfigDoctorReport(
       label: 'Credenciales testing',
       ok: config.cert.testing && config.key.testing,
       okDetail: 'Certificado y clave de testing configurados.',
-      warningDetail:
-        'Faltan credenciales de testing. Configure "cert.testing" y "key.testing" con "arcli config establecer".',
+      warningDetail: `Faltan credenciales de testing. Configure "cert.testing" y "key.testing" con "arcli config establecer". Si todavia no tiene certificado: ${CERTIFICATE_GUIDE_URL}`,
     },
     {
       label: 'Credenciales produccion',
