@@ -218,4 +218,23 @@ describe('mapBillingResultToPdfData', () => {
       /numero del comprobante/,
     );
   });
+
+  it('shows IVA-included amounts in a factura B', () => {
+    const data = mapBillingResultToPdfData(
+      createResult('fb', {
+        ImpIVA: 26250,
+        ImpNeto: 125000,
+        ImpOpEx: 100,
+        ImpTotal: 151350,
+        Iva: [{ BaseImp: 125000, Id: 5, Importe: 26250 }],
+      }),
+      issuer,
+    );
+
+    expect(data.items).toEqual([
+      expect.objectContaining({ alicuotaIva: undefined, subtotal: 151250 }),
+      expect.objectContaining({ descripcion: 'Segun detalle (exento)', subtotal: 100 }),
+    ]);
+    expect(data.importeNetoGravado).toBe(151350);
+  });
 });

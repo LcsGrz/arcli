@@ -64,7 +64,11 @@ function buildItems(result: BillingExecutionResult, description: string): Invoic
     return [line(payload.ImpTotal)];
   }
 
-  const items = (payload.Iva ?? []).map((entry) => line(entry.BaseImp, resolveIvaRateNumber(entry.Id)));
+  // La B no discrimina IVA: cada renglon va con el IVA incluido, como lo ve el cliente.
+  const includesIva = voucherKind.letter === 'b';
+  const items = (payload.Iva ?? []).map((entry) =>
+    includesIva ? line(round(entry.BaseImp + entry.Importe)) : line(entry.BaseImp, resolveIvaRateNumber(entry.Id)),
+  );
 
   if (payload.ImpOpEx > 0) {
     items.push(line(payload.ImpOpEx, undefined, ' (exento)'));
@@ -127,7 +131,13 @@ export function mapBillingResultToPdfData(
     fechaVtoPago: payload.FchVtoPago,
     importeExento: payload.ImpOpEx || undefined,
     importeIva: voucherKind.letter === 'c' ? 0 : payload.ImpIVA,
-    importeNetoGravado: voucherKind.letter === 'c' ? payload.ImpTotal : payload.ImpNeto,
+    // La plantilla muestra este importe como "Subtotal" en la B y como neto gravado en la A.
+    importeNetoGravado:
+      voucherKind.letter === 'c'
+        ? payload.ImpTotal
+        : voucherKind.letter === 'b'
+          ? round(payload.ImpTotal - payload.ImpTrib)
+          : payload.ImpNeto,
     importeNetoNoGravado: payload.ImpTotConc || undefined,
     importeTotal: round(payload.ImpTotal),
     items: buildItems(result, extras.descripcion?.trim() || DEFAULT_ITEM_DESCRIPTION),

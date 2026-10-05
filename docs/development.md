@@ -221,3 +221,22 @@ yarn dev storybook json
 - [Troubleshooting](troubleshooting.md)
 - [Limitaciones actuales](limitations.md)
 - [Checklist visual](ui-smoke-checklist.md)
+
+## Imágenes y GIF del README
+
+Están en `docs/assets/demo/` y se regeneran con scripts, para que no queden desactualizados:
+
+- **GIF** (`interactivo.gif`, `comandos.gif`): los graba [VHS](https://github.com/charmbracelet/vhs) a partir de los guiones de `docs/assets/tapes/`. `scripts/demo/record.sh` usa un `HOME` temporal con una copia de tu config, así la grabación no muestra tus rutas, y **emite comprobantes reales en testing**.
+
+  ```bash
+  brew install vhs
+  ARCLI_DEMO_CONFIG=~/Library/Preferences/arcli/config.json scripts/demo/record.sh
+  ```
+
+- **PDF de ejemplo** (`pdf-factura.png`): `scripts/demo/pdf-sample.mts` arma una Factura B con datos ficticios (no consulta ARCA). Necesita el plugin de PDF instalado y macOS (`qlmanage`).
+
+  ```bash
+  node --import tsx scripts/demo/pdf-sample.mts
+  ```
+
+El README las enlaza con URLs absolutas de `raw.githubusercontent.com`, porque npmjs.com no muestra imágenes con rutas relativas.
