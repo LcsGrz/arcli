@@ -8,6 +8,13 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+### Agregado
+
+- **Modo interactivo:**
+  - **Repetir una factura anterior:** copia receptor, concepto, monto y alícuota de una de las últimas emitidas, con fecha de hoy y el período que elijas (este mes, el mes pasado, hoy u otro).
+  - **Configuración:** submenú con revisar, **configuración guiada** (CUIT, certificado, punto de venta y defaults, más los datos del PDF), **cambiar un dato** de una lista con su valor actual, y el **plugin de PDF**. Si falta algo obligatorio, el asistente ofrece la configuración guiada al abrirse.
+  - **Consultar un comprobante** por tipo y número, y **Estado de ARCA** con la cotización del dólar.
+
 ## [1.6.0] - 2026-10-05
 
 Esta versión suma `arcli estado` y `arcli parametros` para consultar ARCA sin emitir, y simplifica la factura del modo interactivo: primero lo requerido y después todos los opcionales en una sola pregunta. No se rompe ningún comando, flag ni JSON existente.

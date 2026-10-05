@@ -42,6 +42,11 @@ const CONFIG_KEY_ALIASES: Record<ConfigPublicKey, CanonicalConfigKey> = {
   verificarFce: 'verificarFce',
 };
 
+/** Valida un valor como lo haria `arcli config establecer`, sin guardarlo. Lanza un Error con el motivo. */
+export function validateConfigValue(publicKey: ConfigPublicKey, rawValue: string): void {
+  parseConfigValue(CONFIG_KEY_ALIASES[publicKey], rawValue);
+}
+
 export interface ConfigServiceOptions {
   readonly configName?: string;
   readonly cwd?: string;

@@ -64,25 +64,27 @@ export function createScript(steps: ReadonlyArray<readonly [RegExp, ScriptedAnsw
   });
 
   // Devuelve lo marcado en el orden de las opciones, como el checkbox real.
-  const chooseManyStep = vi.fn(async <T>(message: string, choices: ReadonlyArray<Choice<T>>) => {
-    const answer = next(message);
+  const chooseManyStep = vi.fn(
+    async <T>(message: string, choices: ReadonlyArray<Choice<T>>, _selected?: readonly T[]) => {
+      const answer = next(message);
 
-    if (answer === BACK) {
-      return BACK;
-    }
-
-    const names = typeof answer === 'string' ? [answer] : answer;
-
-    for (const name of names) {
-      if (!choices.some((item) => item.name.includes(name))) {
-        throw new Error(
-          `"${name}" no esta entre las opciones de "${message}": ${choices.map((item) => item.name).join(' | ')}`,
-        );
+      if (answer === BACK) {
+        return BACK;
       }
-    }
 
-    return choices.filter((item) => names.some((name) => item.name.includes(name))).map((item) => item.value);
-  });
+      const names = typeof answer === 'string' ? [answer] : answer;
+
+      for (const name of names) {
+        if (!choices.some((item) => item.name.includes(name))) {
+          throw new Error(
+            `"${name}" no esta entre las opciones de "${message}": ${choices.map((item) => item.name).join(' | ')}`,
+          );
+        }
+      }
+
+      return choices.filter((item) => names.some((name) => item.name.includes(name))).map((item) => item.value);
+    },
+  );
 
   const askTextStep = vi.fn(
     async (message: string, options: { readonly validate?: (value: string) => string | true } = {}) => {

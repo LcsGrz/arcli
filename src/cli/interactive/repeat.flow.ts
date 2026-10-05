@@ -1,0 +1,234 @@
+import { formatMoneyLabel } from '../../modules/billing/billing.labels';
+import type { BillingConcept } from '../../modules/billing/billing.schemas';
+import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
+import { parseAmountInput } from '../../modules/interactive/amount-input';
+import { invoiceKindChoices, ivaConditionChoices } from '../../modules/interactive/choices';
+import { currentMonthPeriod, previousMonthPeriod, type ServicePeriod } from '../../modules/interactive/periods';
+import { BACK, runWizard, type WizardStep } from '../../modules/interactive/wizard';
+import {
+  inferIvaRate,
+  type IssuedVoucher,
+  listRecentVouchers,
+  resolveDocumentType,
+} from '../../modules/vouchers/voucher-history';
+import { formatVoucherSummary } from '../../modules/vouchers/voucher-history.presenter';
+import { noticePanel, writeTerminalOutput } from '../../ui';
+import { startSpinner } from '../spinner';
+
+import { askAdvancedOptions } from './advanced-options';
+import { buildInvoiceInput, type InvoiceState } from './invoice.flow';
+import { askTextStep, chooseStep } from './prompts';
+import { type InteractiveSession, previewAndEmit, requirePointOfSale } from './session';
+import { validateAmount, validateCbu, validateDate } from './validators';
+
+const CONCEPTS_BY_CODE: Record<number, BillingConcept> = {
+  1: 'productos',
+  2: 'servicios',
+  3: 'productos-servicios',
+};
+
+export interface RepeatState extends InvoiceState {
+  readonly original?: IssuedVoucher;
+}
+
+const LOCAL_CURRENCIES = new Set(['PES', 'ARS', undefined]);
+
+function describePeriod(period: ServicePeriod): string {
+  return `${period.from} al ${period.to}`;
+}
+
+/**
+ * Repetir una factura: se elige una de las ultimas emitidas y se copian el comprobante, el receptor, el concepto,
+ * el monto y la alicuota. Las fechas se actualizan: la factura sale con fecha de hoy y el periodo se elige.
+ */
+export function repeatSteps(
+  session: InteractiveSession,
+  pointOfSale: number,
+  today: Date = new Date(),
+): Array<WizardStep<RepeatState>> {
+  const { config } = session.runtime;
+
+  return [
+    {
+      name: 'tipo',
+      run: async () => {
+        const voucherKind = await chooseStep('¿Que tipo de factura queres repetir?', invoiceKindChoices());
+
+        return voucherKind === BACK ? BACK : { voucherKind };
+      },
+    },
+    {
+      name: 'factura',
+      run: async (state) => {
+        const voucherKind = state.voucherKind as VoucherKindDefinition;
+        const spinner = startSpinner('Buscando las ultimas facturas en ARCA...');
+        const invoices = await listRecentVouchers(session.historyGateway, pointOfSale, voucherKind.arcaType).finally(
+          () => spinner?.stop(),
+        );
+
+        if (invoices.length === 0) {
+          writeTerminalOutput(
+            noticePanel(`No hay ${voucherKind.displayName} emitidas en el punto de venta ${pointOfSale}.`, 'warning'),
+          );
+
+          return BACK;
+        }
+
+        const original = await chooseStep(
+          '¿Cual repetimos?',
+          invoices.map((item) => ({ name: formatVoucherSummary(pointOfSale, item), value: item })),
+        );
+
+        if (original === BACK) {
+          return BACK;
+        }
+
+        const documentType = resolveDocumentType(original.documentTypeCode);
+
+        if (!documentType) {
+          writeTerminalOutput(
+            noticePanel(
+              'La factura tiene un tipo de documento que el asistente no soporta. Usa los flags del CLI.',
+              'warning',
+            ),
+          );
+
+          return BACK;
+        }
+
+        return {
+          advanced: {
+            currencyCode: 'ARS',
+            ivaRate: voucherKind.letter === 'c' ? undefined : inferIvaRate(original.netAmount, original.ivaAmount),
+            sameCurrency: false,
+          },
+          concept: CONCEPTS_BY_CODE[original.concept ?? 2] ?? 'servicios',
+          documentNumber: documentType === 'consumidor-final' ? undefined : original.documentNumber,
+          documentType,
+          ivaCondition: documentType === 'consumidor-final' ? 'consumidor-final' : undefined,
+          original,
+          totalAmount: original.total,
+        };
+      },
+    },
+    {
+      name: 'iva-receptor',
+      // ARCA no devuelve la condicion IVA de la factura, asi que se pregunta.
+      run: async (state) => {
+        const ivaCondition = await chooseStep(
+          'Condicion frente al IVA del receptor:',
+          ivaConditionChoices(state.voucherKind?.letter ?? 'c'),
+          config.ivaReceptorPorDefecto,
+        );
+
+        return ivaCondition === BACK ? BACK : { ivaCondition };
+      },
+      skip: (state) => state.documentType === 'consumidor-final',
+    },
+    {
+      name: 'monto',
+      run: async (state) => {
+        const original = state.original as IssuedVoucher;
+        const scope = await chooseStep('¿Mismo monto?', [
+          { name: `Si, ${formatMoneyLabel(original.total)}`, value: 'mismo' as const },
+          { name: 'No, ingresar otro monto', value: 'otro' as const },
+        ]);
+
+        if (scope === BACK || scope === 'mismo') {
+          return scope === BACK ? BACK : { totalAmount: original.total };
+        }
+
+        const answer = await askTextStep('Monto total:', { validate: validateAmount });
+
+        return answer === BACK ? BACK : { totalAmount: parseAmountInput(answer) };
+      },
+    },
+    {
+      name: 'periodo',
+      run: async (state) => {
+        const current = currentMonthPeriod(today);
+        const previous = previousMonthPeriod(today);
+        const choice = await chooseStep<'hoy' | 'otro' | ServicePeriod>('Periodo del servicio:', [
+          { description: describePeriod(current), name: 'Este mes', value: current },
+          { description: describePeriod(previous), name: 'El mes pasado', value: previous },
+          { description: 'Desde y hasta hoy', name: 'Solo hoy', value: 'hoy' as const },
+          { name: 'Otro periodo', value: 'otro' as const },
+        ]);
+
+        if (choice === BACK) {
+          return BACK;
+        }
+
+        const advanced = { ...state.advanced };
+
+        if (choice === 'hoy') {
+          return { advanced: { ...advanced, serviceEndDate: undefined, serviceStartDate: undefined } };
+        }
+
+        if (choice !== 'otro') {
+          return { advanced: { ...advanced, serviceEndDate: choice.to, serviceStartDate: choice.from } };
+        }
+
+        const from = await askTextStep('Servicio desde:', { validate: validateDate });
+
+        if (from === BACK) {
+          return BACK;
+        }
+
+        const to = await askTextStep('Servicio hasta:', { validate: validateDate });
+
+        return to === BACK ? BACK : { advanced: { ...advanced, serviceEndDate: to, serviceStartDate: from } };
+      },
+      skip: (state) => state.concept === 'productos',
+    },
+    {
+      name: 'cbu',
+      run: async () => {
+        const cbu = await askTextStep('CBU del emisor (22 digitos):', { validate: validateCbu });
+
+        return cbu === BACK ? BACK : { cbu };
+      },
+      skip: (state) => state.voucherKind?.family !== 'factura-credito-electronica' || Boolean(config.cbu),
+    },
+    {
+      name: 'opcionales',
+      run: async (state) => {
+        // La cotizacion de la factura original ya no sirve: si era en moneda extranjera, arranca marcada.
+        const foreign = !LOCAL_CURRENCIES.has(state.original?.currency);
+
+        if (foreign) {
+          writeTerminalOutput(
+            noticePanel('La factura original era en moneda extranjera: completa la moneda y la cotizacion.', 'info'),
+          );
+        }
+
+        const advanced = await askAdvancedOptions(state.advanced, {
+          concept: state.concept ?? 'servicios',
+          defaultIvaRate: state.advanced.ivaRate ?? config.alicuotaPorDefecto ?? '21',
+          preselected: foreign ? ['divisas'] : [],
+          voucherKind: state.voucherKind as VoucherKindDefinition,
+        });
+
+        return advanced === BACK ? BACK : { advanced };
+      },
+    },
+  ];
+}
+
+export async function runRepeatFlow(session: InteractiveSession): Promise<void> {
+  const pointOfSale = requirePointOfSale(session);
+
+  if (!pointOfSale) {
+    return;
+  }
+
+  const state = await runWizard(repeatSteps(session, pointOfSale), {
+    advanced: { currencyCode: 'ARS', sameCurrency: false },
+  });
+
+  if (!state) {
+    return;
+  }
+
+  await previewAndEmit(session, buildInvoiceInput(state, session));
+}

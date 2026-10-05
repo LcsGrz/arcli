@@ -1,0 +1,155 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { BACK } from '../../../modules/interactive/wizard';
+import { runConfigMenu, runGuidedSetup } from '../config.flow';
+import { askTextStep, chooseOne, chooseStep, confirm } from '../prompts';
+
+vi.mock('../prompts', () => ({ askTextStep: vi.fn(), chooseOne: vi.fn(), chooseStep: vi.fn(), confirm: vi.fn() }));
+
+const store: Record<string, string> = {};
+const install = vi.fn(async () => ({ installed: true }));
+const uninstall = vi.fn();
+
+vi.mock('../../../modules/config/config.service', () => ({
+  ConfigService: class {
+    public close() {}
+    public ensureInitialized() {}
+    public getConfig() {
+      return {
+        cert: { testing: store['cert.testing'] },
+        conceptoPorDefecto: store.concepto,
+        cuit: store.cuit,
+        emisor: { razonSocial: store['emisor.razonSocial'] },
+        entornoPorDefecto: 'testing',
+        ivaReceptorPorDefecto: store.ivaReceptor,
+        key: { testing: store['key.testing'] },
+        output: {},
+        puntoVentaPorDefecto: store.puntoVenta ? Number(store.puntoVenta) : undefined,
+      };
+    }
+    public getPluginsPath() {
+      return '/tmp/plugins';
+    }
+    public setValue(key: string, value: string) {
+      store[key] = value;
+    }
+    public unsetValue(key: string) {
+      delete store[key];
+    }
+  },
+  // La validacion real lee los PEM; aca solo se rechaza un CUIT mal formado.
+  validateConfigValue: (key: string, value: string) => {
+    if (key === 'cuit' && !/^\d{11}$/.test(value)) {
+      throw new Error('El CUIT debe tener 11 digitos');
+    }
+  },
+}));
+vi.mock('../../../services/pdf/pdf-plugin', () => ({
+  PdfPlugin: class {
+    public getStatus() {
+      return { installed: false, path: '/tmp/plugins/pdf', version: '0.2.1' };
+    }
+    public install = install;
+    public uninstall = uninstall;
+  },
+}));
+vi.mock('../../spinner', () => ({ startSpinner: () => null }));
+
+const askTextMock = vi.mocked(askTextStep);
+const chooseStepMock = vi.mocked(chooseStep);
+
+beforeEach(() => {
+  for (const key of Object.keys(store)) {
+    delete store[key];
+  }
+
+  vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.clearAllMocks();
+});
+
+describe('runGuidedSetup', () => {
+  it('pide lo obligatorio, los defaults y opcionalmente los datos del PDF, y guarda cada respuesta', async () => {
+    askTextMock
+      .mockResolvedValueOnce('20123456789')
+      .mockResolvedValueOnce('/certs/testing.crt')
+      .mockResolvedValueOnce('/certs/testing.key')
+      .mockResolvedValueOnce('3')
+      .mockResolvedValueOnce('Lucas Gerez')
+      .mockResolvedValueOnce('Calle 123')
+      .mockResolvedValueOnce('1/03/2020');
+    chooseStepMock.mockResolvedValueOnce('servicios').mockResolvedValueOnce('consumidor-final');
+    vi.mocked(confirm).mockResolvedValueOnce(true);
+
+    await runGuidedSetup();
+
+    expect(store).toMatchObject({
+      'cert.testing': '/certs/testing.crt',
+      concepto: 'servicios',
+      cuit: '20123456789',
+      'emisor.domicilio': 'Calle 123',
+      'emisor.inicioActividades': '1/03/2020',
+      'emisor.razonSocial': 'Lucas Gerez',
+      ivaReceptor: 'consumidor-final',
+      'key.testing': '/certs/testing.key',
+      puntoVenta: '3',
+    });
+  });
+
+  it('valida con las mismas reglas que config establecer y no deja vacio lo obligatorio', async () => {
+    askTextMock.mockImplementationOnce(async (_message, options) => {
+      expect(options?.validate?.('123')).toMatch(/11 digitos/);
+      expect(options?.validate?.('')).toMatch(/obligatorio/);
+
+      return BACK;
+    });
+
+    await runGuidedSetup();
+
+    expect(store).toEqual({});
+  });
+});
+
+describe('runConfigMenu', () => {
+  it('cambia un dato de una lista de opciones', async () => {
+    vi.mocked(chooseOne).mockResolvedValueOnce('cambiar').mockResolvedValueOnce('volver');
+    chooseStepMock
+      .mockImplementationOnce(async (_message, choices) => choices.find((choice) => choice.name === 'Concepto')?.value)
+      .mockResolvedValueOnce('productos');
+
+    await runConfigMenu({});
+
+    expect(store.concepto).toBe('productos');
+  });
+
+  it('borra un dato de texto con "-"', async () => {
+    store['emisor.razonSocial'] = 'Viejo';
+    vi.mocked(chooseOne).mockResolvedValueOnce('cambiar').mockResolvedValueOnce('volver');
+    chooseStepMock.mockImplementationOnce(
+      async (_message, choices) => choices.find((choice) => choice.name === 'Razon social')?.value,
+    );
+    askTextMock.mockImplementationOnce(async (message, options) => {
+      expect(message).toContain('"-" para borrar');
+      expect(options?.defaultValue).toBe('Viejo');
+
+      return '-';
+    });
+
+    await runConfigMenu({});
+
+    expect(store['emisor.razonSocial']).toBeUndefined();
+  });
+
+  it('instala el plugin de PDF desde configuracion', async () => {
+    vi.mocked(chooseOne).mockResolvedValueOnce('pdf').mockResolvedValueOnce('volver');
+    chooseStepMock.mockResolvedValueOnce('instalar');
+
+    await runConfigMenu({});
+
+    expect(install).toHaveBeenCalledTimes(1);
+    expect(uninstall).not.toHaveBeenCalled();
+  });
+});

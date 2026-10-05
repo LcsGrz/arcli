@@ -6,7 +6,9 @@ import type { IssuedVoucher, VoucherHistoryGateway } from '../../../modules/vouc
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import { runHistoryFlow } from '../history.flow';
 import { buildInvoiceInput, invoiceSteps } from '../invoice.flow';
+import { runLookupFlow } from '../lookup.flow';
 import { buildNoteInput, noteSteps } from '../note.flow';
+import { repeatSteps } from '../repeat.flow';
 import type { InteractiveSession } from '../session';
 
 import { createScript } from './script';
@@ -210,6 +212,108 @@ describe('flujos del modo interactivo', () => {
       expect(
         await runWizard(invoiceSteps(createSession()), { advanced: { currencyCode: 'ARS', sameCurrency: false } }),
       ).toBeUndefined();
+    });
+  });
+
+  describe('repetir factura', () => {
+    const today = new Date(2026, 9, 5);
+
+    it('copia receptor, concepto, monto y alicuota con el periodo del mes pasado', async () => {
+      script = createScript([
+        [/tipo de factura queres repetir/, 'Factura A'],
+        [/Cual repetimos/, '00003-00000014'],
+        [/Condicion frente al IVA/, 'Responsable inscripto'],
+        [/Mismo monto/, 'Si'],
+        [/Periodo del servicio/, 'El mes pasado'],
+        [/Agregamos/, []],
+      ]);
+
+      const session = createSession([invoice({ documentNumber: 30709965812, documentTypeCode: 80 })]);
+      const state = await runWizard(repeatSteps(session, 3, today), {
+        advanced: { currencyCode: 'ARS', sameCurrency: false },
+      });
+
+      expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
+        concept: 'servicios',
+        documentNumber: 30709965812,
+        documentType: 'cuit',
+        ivaCondition: 'responsable-inscripto',
+        ivaRate: undefined,
+        serviceEndDate: '30/09/2026',
+        serviceStartDate: '1/09/2026',
+        shortcut: 'fa',
+        totalAmount: 121,
+      });
+      expect(script.chooseManyStep.mock.calls[0][1]).toContainEqual(
+        expect.objectContaining({ description: '1/09/2026 al 30/09/2026', value: 'servicio' }),
+      );
+    });
+
+    it('permite otro monto y en consumidor final no pregunta el IVA', async () => {
+      script = createScript([
+        [/tipo de factura queres repetir/, 'Factura C'],
+        [/Cual repetimos/, '00003-00000014'],
+        [/Mismo monto/, 'No'],
+        [/Monto total/, '2000'],
+        [/Periodo del servicio/, 'Este mes'],
+        [/Agregamos/, []],
+      ]);
+
+      const session = createSession([invoice({ ivaAmount: 0, netAmount: 121 })]);
+      const state = await runWizard(repeatSteps(session, 3, today), {
+        advanced: { currencyCode: 'ARS', sameCurrency: false },
+      });
+
+      expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
+        documentType: 'consumidor-final',
+        serviceEndDate: '31/10/2026',
+        serviceStartDate: '1/10/2026',
+        shortcut: 'fc',
+        totalAmount: 2000,
+      });
+    });
+
+    it('si la factura era en dolares arranca con la moneda marcada', async () => {
+      script = createScript([
+        [/tipo de factura queres repetir/, 'Factura C'],
+        [/Cual repetimos/, '00003-00000014'],
+        [/Mismo monto/, 'Si'],
+        [/Periodo del servicio/, 'Solo hoy'],
+        [/Agregamos/, ['Moneda extranjera']],
+        [/Moneda del comprobante/, 'Dolares'],
+        [/Como te pagan/, 'En dolares'],
+      ]);
+
+      const session = createSession([invoice({ currency: 'DOL', ivaAmount: 0, netAmount: 121 })]);
+      const state = await runWizard(repeatSteps(session, 3, today), {
+        advanced: { currencyCode: 'ARS', sameCurrency: false },
+      });
+
+      expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
+        currencyCode: 'USD',
+        sameCurrency: true,
+      });
+      expect(script.chooseManyStep.mock.calls[0][2]).toEqual(['divisas']);
+    });
+  });
+
+  describe('consultar', () => {
+    it('propone el ultimo numero y muestra el detalle', async () => {
+      script = createScript([
+        [/Que tipo de comprobante/, 'Factura B'],
+        [/Numero \(el ultimo es 14\)/, '14'],
+      ]);
+
+      let printed = '';
+
+      vi.mocked(process.stdout.write).mockImplementation((chunk) => {
+        printed += String(chunk);
+        return true;
+      });
+
+      await runLookupFlow(createSession([invoice()]));
+
+      expect(printed).toContain('86400940834693');
     });
   });
 

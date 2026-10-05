@@ -21,12 +21,15 @@ export type AdvancedOptions = Pick<
   | 'untaxedAmount'
 >;
 
-type Option = 'alicuota' | 'divisas' | 'exento' | 'servicio' | 'transferencia' | 'vencimiento';
+export type AdvancedOptionKey = 'alicuota' | 'divisas' | 'exento' | 'servicio' | 'transferencia' | 'vencimiento';
+type Option = AdvancedOptionKey;
 
 interface AdvancedContext {
   readonly concept: BillingCommandInput['concept'];
   /** Alicuota que se usa si no se elige otra: la de la config o 21%. */
   readonly defaultIvaRate: NonNullable<BillingCommandInput['ivaRate']>;
+  /** Opciones que arrancan marcadas, por ejemplo la moneda al repetir una factura en dolares. */
+  readonly preselected?: readonly Option[];
   readonly voucherKind: VoucherKindDefinition;
 }
 
@@ -205,7 +208,7 @@ export async function askAdvancedOptions(
     vencimiento: askPaymentDueDate,
   };
   let options = initial;
-  let selected: Option[] = [];
+  let selected: Option[] = [...(context.preselected ?? [])];
 
   for (;;) {
     const picked = await chooseManyStep<Option>(

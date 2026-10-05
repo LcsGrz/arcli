@@ -1,0 +1,278 @@
+import { join } from 'node:path';
+
+import type { ArcliConfig, ConfigPublicKey } from '../../modules/config/config.schemas';
+import { ConfigService, validateConfigValue } from '../../modules/config/config.service';
+import { buildConfigDoctorReport } from '../../modules/config/config-doctor';
+import {
+  CONFIG_FIELDS,
+  CONFIG_GROUP_LABELS,
+  type ConfigField,
+  describeConfigValue,
+  getConfigField,
+} from '../../modules/interactive/config-fields';
+import { BACK, runWizard, type WizardStep } from '../../modules/interactive/wizard';
+import { PdfPlugin } from '../../services/pdf/pdf-plugin';
+import { formatConfigDoctorAsText, formatPdfPluginStatusAsText, noticePanel, writeTerminalOutput } from '../../ui';
+import { buildRuntimeCheck } from '../commands/config.command';
+import { startSpinner } from '../spinner';
+import type { GlobalCliOptions } from '../types';
+
+import { askTextStep, chooseOne, chooseStep, confirm } from './prompts';
+
+const CLEAR = '__borrar__';
+const KEEP = '__mantener__';
+
+/** Lo que pide la configuracion guiada, en orden. Los primeros cuatro son obligatorios para emitir. */
+const GUIDED_KEYS: readonly ConfigPublicKey[] = [
+  'cuit',
+  'cert.testing',
+  'key.testing',
+  'puntoVenta',
+  'concepto',
+  'ivaReceptor',
+];
+const ISSUER_KEYS: readonly ConfigPublicKey[] = ['emisor.razonSocial', 'emisor.domicilio', 'emisor.inicioActividades'];
+
+function withConfigService<T>(run: (service: ConfigService) => T): T {
+  const service = new ConfigService();
+
+  try {
+    service.ensureInitialized();
+
+    return run(service);
+  } finally {
+    service.close();
+  }
+}
+
+function readConfig(): ArcliConfig {
+  return withConfigService((service) => service.getConfig());
+}
+
+function validate(key: ConfigPublicKey, value: string): string | true {
+  try {
+    validateConfigValue(key, value);
+
+    return true;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+}
+
+/**
+ * Pregunta un dato y lo guarda en el momento, asi cortar a mitad no pierde lo respondido.
+ * Devuelve BACK, o si se guardo, borro o dejo como estaba.
+ */
+async function askField(
+  field: ConfigField,
+  config: ArcliConfig,
+  options: { readonly required?: boolean } = {},
+): Promise<'borrado' | 'guardado' | 'sin-cambios' | typeof BACK> {
+  const current = field.read(config);
+  let value: string;
+
+  if (field.choices) {
+    const answer = await chooseStep<string>(
+      `${field.label}:`,
+      [
+        ...field.choices.map((choice) => ({ name: choice, value: choice })),
+        ...(current && !options.required ? [{ name: 'Quitar el valor por defecto', value: CLEAR }] : []),
+        ...(!current && !options.required ? [{ name: 'Dejar sin configurar', value: KEEP }] : []),
+      ],
+      current,
+    );
+
+    if (answer === BACK) {
+      return BACK;
+    }
+
+    if (answer === KEEP) {
+      return 'sin-cambios';
+    }
+
+    value = answer;
+  } else {
+    // Con un valor actual, Enter lo deja igual (es el default del prompt); "-" lo borra.
+    const canClear = !options.required && Boolean(current);
+    const hint = [field.hint, canClear ? '"-" para borrar' : undefined].filter(Boolean).join(', ');
+    const answer = await askTextStep(`${field.label}${hint ? ` (${hint})` : ''}:`, {
+      defaultValue: current,
+      validate: (text) => {
+        if (canClear && text.trim() === '-') {
+          return true;
+        }
+
+        if (!text.trim()) {
+          return options.required ? 'Este dato es obligatorio.' : true;
+        }
+
+        return validate(field.key, text);
+      },
+    });
+
+    if (answer === BACK) {
+      return BACK;
+    }
+
+    if (!answer.trim()) {
+      return 'sin-cambios';
+    }
+
+    value = canClear && answer.trim() === '-' ? CLEAR : answer;
+  }
+
+  if (value === CLEAR) {
+    withConfigService((service) => service.unsetValue(field.key));
+
+    return 'borrado';
+  }
+
+  if (value === current) {
+    return 'sin-cambios';
+  }
+
+  withConfigService((service) => service.setValue(field.key, value));
+
+  return 'guardado';
+}
+
+function fieldSteps(keys: readonly ConfigPublicKey[], required: readonly ConfigPublicKey[]): Array<WizardStep<object>> {
+  return keys.map((key) => ({
+    name: key,
+    run: async () => {
+      const result = await askField(getConfigField(key), readConfig(), { required: required.includes(key) });
+
+      return result === BACK ? BACK : {};
+    },
+  }));
+}
+
+/** Configuracion guiada: lo minimo para emitir, los defaults mas usados y, si se quiere, los datos del PDF. */
+export async function runGuidedSetup(): Promise<void> {
+  writeTerminalOutput(
+    noticePanel(
+      'Vamos a dejar todo listo para emitir. Los certificados se obtienen en ARCA: ver docs/obtencion-certificados.md.',
+      'info',
+    ),
+  );
+
+  const completed = await runWizard(fieldSteps(GUIDED_KEYS, ['cuit', 'cert.testing', 'key.testing', 'puntoVenta']), {});
+
+  if (!completed) {
+    writeTerminalOutput(noticePanel('Configuracion guiada cancelada. Lo ya respondido quedo guardado.', 'muted'));
+
+    return;
+  }
+
+  if (await confirm('¿Cargamos tambien los datos del emisor para el PDF?', 'Si', 'Ahora no')) {
+    await runWizard(fieldSteps(ISSUER_KEYS, []), {});
+  }
+
+  writeTerminalOutput(noticePanel('Configuracion guardada. Ya podes emitir en testing.', 'success'));
+}
+
+async function runChangeField(): Promise<void> {
+  const config = readConfig();
+  const field = await chooseStep<ConfigField>(
+    '¿Que dato queres cambiar?',
+    CONFIG_FIELDS.map((candidate) => ({
+      description: `${CONFIG_GROUP_LABELS[candidate.group]} · ${describeConfigValue(candidate, config)}`,
+      name: candidate.label,
+      value: candidate,
+    })),
+  );
+
+  if (field === BACK) {
+    return;
+  }
+
+  const result = await askField(field, config);
+  const messages = { borrado: 'Dato borrado.', guardado: 'Guardado.', 'sin-cambios': 'Sin cambios.' } as const;
+
+  if (result !== BACK) {
+    writeTerminalOutput(noticePanel(messages[result], result === 'sin-cambios' ? 'muted' : 'success'));
+  }
+}
+
+async function runPdfPluginMenu(): Promise<void> {
+  const plugin = withConfigService(
+    (service) =>
+      new PdfPlugin({
+        configuredBrowser: service.getConfig().pdfNavegador,
+        path: join(service.getPluginsPath(), 'pdf'),
+      }),
+  );
+  const status = plugin.getStatus();
+
+  writeTerminalOutput(formatPdfPluginStatusAsText(status));
+
+  const action = await chooseStep<'desinstalar' | 'instalar'>('¿Que hacemos con el plugin de PDF?', [
+    status.installed
+      ? { description: 'Borra el plugin y el navegador descargado', name: 'Desinstalar', value: 'desinstalar' }
+      : {
+          description: '~160 MB, o ~360 MB si no tenes Chrome',
+          name: status.installedVersion ? 'Actualizar' : 'Instalar',
+          value: 'instalar',
+        },
+  ]);
+
+  if (action === BACK) {
+    return;
+  }
+
+  if (action === 'desinstalar') {
+    plugin.uninstall();
+    writeTerminalOutput(noticePanel('Plugin de PDF desinstalado.', 'success'));
+
+    return;
+  }
+
+  const spinner = startSpinner('Instalando el plugin de PDF...');
+
+  try {
+    await plugin.install((message) => {
+      if (spinner) {
+        spinner.text = message;
+      }
+    });
+  } finally {
+    spinner?.stop();
+  }
+
+  writeTerminalOutput(formatPdfPluginStatusAsText(plugin.getStatus(), 'Plugin de PDF instalado'));
+}
+
+type ConfigOption = 'cambiar' | 'guiada' | 'pdf' | 'revisar' | 'volver';
+
+/** Submenu de configuracion: revisar, configuracion guiada, cambiar un dato y el plugin de PDF. */
+export async function runConfigMenu(options: GlobalCliOptions): Promise<void> {
+  for (;;) {
+    const option = await chooseOne<ConfigOption>('Configuracion', [
+      {
+        description: 'Credenciales, defaults y validacion contra ARCA',
+        name: 'Revisar configuracion',
+        value: 'revisar',
+      },
+      {
+        description: 'CUIT, certificado, punto de venta y defaults, paso a paso',
+        name: 'Configuracion guiada',
+        value: 'guiada',
+      },
+      { description: 'Elegis un dato de la lista y lo cambias', name: 'Cambiar un dato', value: 'cambiar' },
+      { description: 'Estado, instalar o desinstalar', name: 'Plugin de PDF', value: 'pdf' },
+      { name: '← Volver al menu', value: 'volver' },
+    ]);
+
+    if (option === 'volver') {
+      return;
+    }
+
+    if (option === 'revisar') {
+      writeTerminalOutput(formatConfigDoctorAsText(buildConfigDoctorReport(readConfig(), buildRuntimeCheck(options))));
+    }
+
+    if (option === 'guiada') await runGuidedSetup();
+    if (option === 'cambiar') await runChangeField();
+    if (option === 'pdf') await runPdfPluginMenu();
+  }
+}
