@@ -32,16 +32,18 @@ Arriba del menú se muestran el entorno (`testing` o `produccion`) y el punto de
 
 ## Emitir factura
 
-| Paso | Pregunta           | Detalle                                                                                                                             |
-| ---- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
-| 1    | Comprobante        | Factura A, B o C, comunes o de crédito electrónica (FCE)                                                                            |
-| 2    | Receptor           | Consumidor final, CUIT o DNI. En la A solo CUIT, porque la A no admite consumidor final                                             |
-| 3    | IVA del receptor   | Solo las condiciones válidas para la letra elegida. Con consumidor final no se pregunta                                             |
-| 4    | Concepto           | Servicios, productos o ambos. Arranca en `config.concepto` si está configurado                                                      |
-| 5    | Monto total        | Acepta `150000`, `150.000`, `1500,50` o `1500.50`                                                                                   |
-| 6    | Alícuota de IVA    | Solo en A y B. Arranca en `config.alicuota` o en 21%                                                                                |
-| 7    | CBU                | Solo en facturas FCE y si no hay `config.cbu`. También pregunta la modalidad de transferencia                                       |
-| 8    | Opciones avanzadas | Menú opcional antes de la vista previa: moneda extranjera, exento y no gravado (A y B), período del servicio y vencimiento del pago |
+Primero pregunta solo lo **requerido**:
+
+| Paso | Pregunta         | Detalle                                                                                 |
+| ---- | ---------------- | --------------------------------------------------------------------------------------- |
+| 1    | Comprobante      | Factura A, B o C, comunes o de crédito electrónica (FCE)                                |
+| 2    | Receptor         | Consumidor final, CUIT o DNI. En la A solo CUIT, porque la A no admite consumidor final |
+| 3    | IVA del receptor | Solo las condiciones válidas para la letra elegida. Con consumidor final no se pregunta |
+| 4    | Concepto         | Servicios, productos o ambos. Arranca en `config.concepto` si está configurado          |
+| 5    | Monto total      | Acepta `150000`, `150.000`, `1500,50` o `1500.50`                                       |
+| 6    | CBU              | Solo en facturas FCE y si no hay `config.cbu`                                           |
+
+Después, **una sola pregunta con todos los opcionales** (ver abajo). Enter sin marcar nada sigue con los valores por defecto.
 
 Después muestra la vista previa (la misma de `--previsualizar`), el comando equivalente y pregunta si emitir. En **producción** pide una segunda confirmación.
 
@@ -53,16 +55,20 @@ Si respondés que sí, pregunta tres datos opcionales que solo van en el PDF (En
 
 El comando equivalente se muestra antes de emitir, así que no incluye los flags del PDF.
 
-### Opciones avanzadas
+### Opcionales
 
-Antes de la vista previa aparece **"¿Agregamos algo más?"**. Cada opción se puede elegir y cambiar varias veces, y muestra el valor actual:
+Antes de la vista previa aparece **"¿Agregamos algún opcional?"**: una lista donde marcás con **espacio** lo que querés cambiar y confirmás con **Enter**. Cada opción muestra el valor que se va a usar si no la marcás. Después pregunta solo lo que marcaste, en orden.
 
-| Opción                      | Qué pregunta                                                                                                                   |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Moneda extranjera           | Pesos o dólares. En dólares, si te pagan en pesos (ingresás la cotización) o en dólares (se usa la cotización oficial de ARCA) |
-| Importe exento o no gravado | La parte exenta y la no gravada del monto total. Solo en A y B                                                                 |
-| Período del servicio        | Desde y hasta. Solo si el concepto no es solo productos                                                                        |
-| Vencimiento del pago        | La fecha. En servicios y en facturas FCE                                                                                       |
+| Opción                      | Qué pregunta                                                                                                                   | Cuándo aparece                      |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------- |
+| Alícuota de IVA             | La alícuota. Por defecto `config.alicuota` o 21%                                                                               | A y B                               |
+| Moneda extranjera           | Pesos o dólares. En dólares, si te pagan en pesos (ingresás la cotización) o en dólares (se usa la cotización oficial de ARCA) | Siempre                             |
+| Importe exento o no gravado | La parte exenta y la no gravada del monto total                                                                                | A y B                               |
+| Período del servicio        | Desde y hasta                                                                                                                  | Si el concepto no es solo productos |
+| Vencimiento del pago        | La fecha                                                                                                                       | En servicios y en facturas FCE      |
+| Modalidad de transferencia  | SCA (por defecto) o ADC                                                                                                        | Facturas FCE                        |
+
+"Volver" en una de esas preguntas vuelve a la lista, con lo marcado y lo ya respondido. "← Volver" en la lista vuelve al monto.
 
 Lo que no se elige usa los valores por defecto, igual que el CLI sin esos flags.
 

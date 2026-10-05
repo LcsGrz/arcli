@@ -15,6 +15,7 @@ let script = createScript([]);
 
 vi.mock('../prompts', () => ({
   askTextStep: (...args: Parameters<typeof script.askTextStep>) => script.askTextStep(...args),
+  chooseManyStep: (...args: Parameters<typeof script.chooseManyStep>) => script.chooseManyStep(...args),
   chooseStep: (...args: Parameters<typeof script.chooseStep>) => script.chooseStep(...args),
 }));
 
@@ -72,7 +73,7 @@ describe('flujos del modo interactivo', () => {
         [/Monto total/, BACK],
         [/Que estas facturando/, 'Productos'],
         [/Monto total/, '1.500,50'],
-        [/Agregamos/, 'No, ver'],
+        [/Agregamos/, []],
       ]);
 
       const session = createSession();
@@ -89,7 +90,7 @@ describe('flujos del modo interactivo', () => {
       expect(script.asked.some((question) => /alicuota/i.test(question))).toBe(false);
     });
 
-    it('arma una FCE A con CUIT, alicuota, CBU, transferencia y vencimiento', async () => {
+    it('arma una FCE A con CUIT y CBU, y alicuota, vencimiento y transferencia como opcionales', async () => {
       script = createScript([
         [/comprobante/, 'Factura de credito electronica A'],
         [/A quien/, 'Con CUIT'],
@@ -97,12 +98,11 @@ describe('flujos del modo interactivo', () => {
         [/Condicion frente al IVA/, 'Responsable inscripto'],
         [/Que estas facturando/, 'Servicios'],
         [/Monto total/, '1105'],
-        [/Alicuota/, '10,5%'],
         [/CBU/, '0110599520000012345678'],
-        [/Modalidad de transferencia/, 'ADC'],
-        [/Agregamos/, 'Vencimiento del pago'],
+        [/Agregamos/, ['Modalidad', 'Alicuota', 'Vencimiento']],
+        [/Alicuota/, '10,5%'],
         [/Vencimiento del pago/, '30/10'],
-        [/Agregamos/, 'No, ver'],
+        [/Modalidad de transferencia/, 'ADC'],
       ]);
 
       const session = createSession();
@@ -125,14 +125,11 @@ describe('flujos del modo interactivo', () => {
         [/A quien/, 'Consumidor final'],
         [/Que estas facturando/, 'Servicios'],
         [/Monto total/, '1210'],
-        [/Alicuota/, '21%'],
-        [/Agregamos/, 'Moneda extranjera'],
+        [/Agregamos/, ['Moneda extranjera', 'Importe exento']],
         [/Moneda del comprobante/, 'Dolares'],
         [/Como te pagan/, 'En dolares'],
-        [/Agregamos/, 'Importe exento'],
         [/exenta/, '50'],
         [/no gravada/, ''],
-        [/Agregamos/, 'No, ver'],
       ]);
 
       const session = createSession();
@@ -141,9 +138,70 @@ describe('flujos del modo interactivo', () => {
       expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
         currencyCode: 'USD',
         exemptAmount: 50,
+        ivaRate: undefined,
         sameCurrency: true,
         untaxedAmount: undefined,
       });
+    });
+
+    it('sin marcar opcionales usa la alicuota de la config', async () => {
+      script = createScript([
+        [/comprobante/, 'Factura B'],
+        [/A quien/, 'Consumidor final'],
+        [/Que estas facturando/, 'Productos'],
+        [/Monto total/, '1105'],
+        [/Agregamos/, []],
+      ]);
+
+      const session = createSession();
+
+      (session.runtime.config as { alicuotaPorDefecto?: string }).alicuotaPorDefecto = '10.5';
+
+      const state = await runWizard(invoiceSteps(session), { advanced: { currencyCode: 'ARS', sameCurrency: false } });
+
+      expect(buildInvoiceInput(state as NonNullable<typeof state>, session).ivaRate).toBe('10.5');
+      expect(script.asked.some((question) => /Alicuota/.test(question))).toBe(false);
+    });
+
+    it('volver dentro de un opcional vuelve a la seleccion con lo ya respondido', async () => {
+      script = createScript([
+        [/comprobante/, 'Factura B'],
+        [/A quien/, 'Consumidor final'],
+        [/Que estas facturando/, 'Servicios'],
+        [/Monto total/, '1210'],
+        [/Agregamos/, ['Alicuota', 'Periodo']],
+        [/Alicuota/, '10,5%'],
+        [/Servicio desde/, BACK],
+        [/Agregamos/, ['Alicuota']],
+        [/Alicuota/, '10,5%'],
+      ]);
+
+      const session = createSession();
+      const state = await runWizard(invoiceSteps(session), { advanced: { currencyCode: 'ARS', sameCurrency: false } });
+      const input = buildInvoiceInput(state as NonNullable<typeof state>, session);
+
+      expect(input.ivaRate).toBe('10.5');
+      expect(input.serviceStartDate).toBeUndefined();
+      expect(script.chooseManyStep.mock.calls[1][1]).toContainEqual(
+        expect.objectContaining({ description: '10,5%', value: 'alicuota' }),
+      );
+    });
+
+    it('volver en la seleccion de opcionales vuelve al monto', async () => {
+      script = createScript([
+        [/comprobante/, 'Factura C'],
+        [/A quien/, 'Consumidor final'],
+        [/Que estas facturando/, 'Servicios'],
+        [/Monto total/, '100'],
+        [/Agregamos/, BACK],
+        [/Monto total/, '200'],
+        [/Agregamos/, []],
+      ]);
+
+      const session = createSession();
+      const state = await runWizard(invoiceSteps(session), { advanced: { currencyCode: 'ARS', sameCurrency: false } });
+
+      expect(buildInvoiceInput(state as NonNullable<typeof state>, session).totalAmount).toBe(200);
     });
 
     it('volver en la primera pregunta sale del flujo', async () => {

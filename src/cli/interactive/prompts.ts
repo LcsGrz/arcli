@@ -1,3 +1,4 @@
+import checkbox from '@inquirer/checkbox';
 import input from '@inquirer/input';
 import select from '@inquirer/select';
 
@@ -68,4 +69,23 @@ export async function askTextStep(
   });
 
   return answer === BACK_TEXT ? BACK : answer;
+}
+
+/**
+ * Seleccion multiple: espacio marca, Enter confirma (sin marcar nada tambien vale). Tiene un "← Volver" al
+ * final para el motor de pasos: si se marca, vuelve al paso anterior.
+ */
+export async function chooseManyStep<T>(
+  message: string,
+  choices: ReadonlyArray<Choice<T>>,
+  selected: readonly T[] = [],
+): Promise<Back | T[]> {
+  const answer = await checkbox<Back | T>({
+    choices: [...choices.map((choice) => ({ ...choice, checked: selected.includes(choice.value) })), BACK_CHOICE],
+    loop: false,
+    message,
+    pageSize: 12,
+  });
+
+  return answer.includes(BACK) ? BACK : (answer as T[]);
 }

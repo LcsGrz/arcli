@@ -5,7 +5,6 @@ import {
   conceptChoices,
   invoiceKindChoices,
   ivaConditionChoices,
-  ivaRateChoices,
   receiverChoices,
 } from '../../modules/interactive/choices';
 import { BACK, runWizard, type WizardStep } from '../../modules/interactive/wizard';
@@ -22,9 +21,7 @@ export interface InvoiceState {
   readonly documentNumber?: number;
   readonly documentType?: BillingCommandInput['documentType'];
   readonly ivaCondition?: BillingCommandInput['ivaCondition'];
-  readonly ivaRate?: BillingCommandInput['ivaRate'];
   readonly totalAmount?: number;
-  readonly transferMode?: BillingCommandInput['transferMode'];
   readonly voucherKind?: VoucherKindDefinition;
 }
 
@@ -102,15 +99,6 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
       },
     },
     {
-      name: 'alicuota',
-      run: async () => {
-        const ivaRate = await chooseStep('Alicuota de IVA:', ivaRateChoices(), config.alicuotaPorDefecto ?? '21');
-
-        return ivaRate === BACK ? BACK : { ivaRate };
-      },
-      skip: (state) => state.voucherKind?.letter === 'c',
-    },
-    {
       name: 'cbu',
       run: async () => {
         const cbu = await askTextStep('CBU del emisor (22 digitos):', { validate: validateCbu });
@@ -120,22 +108,11 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
       skip: (state) => !isFceInvoice(state) || Boolean(config.cbu),
     },
     {
-      name: 'transferencia',
-      run: async () => {
-        const transferMode = await chooseStep('Modalidad de transferencia:', [
-          { description: 'La opcion habitual', name: 'Sistema de circulacion abierta (SCA)', value: 'sca' as const },
-          { name: 'Agente de deposito colectivo (ADC)', value: 'adc' as const },
-        ]);
-
-        return transferMode === BACK ? BACK : { transferMode };
-      },
-      skip: (state) => !isFceInvoice(state),
-    },
-    {
       name: 'avanzadas',
       run: async (state) => {
         const advanced = await askAdvancedOptions(state.advanced, {
           concept: state.concept ?? 'servicios',
+          defaultIvaRate: config.alicuotaPorDefecto ?? '21',
           voucherKind: state.voucherKind as VoucherKindDefinition,
         });
 
@@ -149,6 +126,8 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
 export function buildInvoiceInput(state: InvoiceState, session: InteractiveSession): BillingCommandInput {
   const { config } = session.runtime;
   const voucherKind = state.voucherKind as VoucherKindDefinition;
+  const ivaRate =
+    voucherKind.letter === 'c' ? undefined : (state.advanced.ivaRate ?? config.alicuotaPorDefecto ?? '21');
 
   return billingCommandSchema.parse({
     ...state.advanced,
@@ -159,10 +138,10 @@ export function buildInvoiceInput(state: InvoiceState, session: InteractiveSessi
     ivaCondition: state.ivaCondition,
     // 21% sin alicuota configurada es el default del CLI. Si hay config, se deja explicito para que el
     // comando equivalente no tome la de la config.
-    ivaRate: state.ivaRate === '21' && !config.alicuotaPorDefecto ? undefined : state.ivaRate,
+    ivaRate: ivaRate === '21' && !config.alicuotaPorDefecto ? undefined : ivaRate,
     shortcut: voucherKind.shortcut,
     totalAmount: state.totalAmount,
-    transferMode: isFceInvoice(state) ? state.transferMode : undefined,
+    transferMode: isFceInvoice(state) ? state.advanced.transferMode : undefined,
   });
 }
 
