@@ -257,6 +257,33 @@ Estos flags solo aplican a comprobantes de crédito electrónica. En cualquier o
 | `--transferencia <modalidad>` | ninguno | `'sca' \| 'adc'` | `sca`             | Factura FCE | Modalidad de transferencia          |
 | `--anulacion`                 | ninguno | `boolean`        | `false`           | NC/ND FCE   | La nota anula una factura rechazada |
 
+### PDF
+
+Estos flags controlan el PDF del comprobante emitido. Los datos que se pasan acá **solo van en el PDF**: ARCA no los recibe. Detalle en [PDF de comprobantes](pdf.md).
+
+| Flag                           | Alias   | Tipo      | Valor por defecto  | Descripción                                  |
+| ------------------------------ | ------- | --------- | ------------------ | -------------------------------------------- |
+| `--exportar-pdf`               | `--pdf` | `boolean` | según `config.pdf` | Genera el PDF después de emitir              |
+| `--sin-pdf`                    | ninguno | `boolean` | según `config.pdf` | No genera el PDF                             |
+| `--descripcion <texto>`        | ninguno | `string`  | `Segun detalle`    | Detalle del comprobante en el PDF            |
+| `--receptor-nombre <texto>`    | ninguno | `string`  | ninguno            | Nombre o razón social del receptor en el PDF |
+| `--receptor-domicilio <texto>` | ninguno | `string`  | ninguno            | Domicilio del receptor en el PDF             |
+
+`--exportar-pdf` y `--sin-pdf` no se combinan. Sin ninguno de los dos, decide `config.pdf` (`preguntar` por defecto: en una terminal pregunta, con `--json` o sin terminal no genera).
+
+### Comando `arcli pdf`
+
+Instala o revisa el plugin que genera los PDFs. No viene con ARCLI porque pesa unos 160 MB.
+
+| Comando                 | Descripción                                            |
+| ----------------------- | ------------------------------------------------------ |
+| `arcli pdf`             | Estado del plugin: instalado o no, versión y navegador |
+| `arcli pdf estado`      | Igual que `arcli pdf`                                  |
+| `arcli pdf instalar`    | Descarga el plugin (y un navegador si no hay Chrome)   |
+| `arcli pdf desinstalar` | Borra el plugin y el navegador que haya descargado     |
+
+Todos aceptan `--json`.
+
 ## Parámetros por familia de comprobantes
 
 Acá está la parte más práctica del documento: qué necesitás para emitir cada familia y qué cambia entre una y otra.

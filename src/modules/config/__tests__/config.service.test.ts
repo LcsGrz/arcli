@@ -52,6 +52,7 @@ describe('config.service', () => {
       expect(service.initialize()).toEqual({
         cert: {},
         cotizacionPorDefecto: 1,
+        emisor: {},
         entornoPorDefecto: 'testing',
         key: {},
         monedaPorDefecto: 'PES',
@@ -86,6 +87,7 @@ describe('config.service', () => {
         conceptoPorDefecto: 'servicios',
         cotizacionPorDefecto: 1234.5,
         cuit: '20123456789',
+        emisor: {},
         entornoPorDefecto: 'produccion',
         ivaReceptorPorDefecto: 'consumidor-final',
         key: {},
@@ -117,6 +119,7 @@ describe('config.service', () => {
           testing: testingCertPath,
         },
         cotizacionPorDefecto: 1,
+        emisor: {},
         entornoPorDefecto: 'testing',
         key: {
           produccion: productionKeyPath,

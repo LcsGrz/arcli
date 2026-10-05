@@ -31,27 +31,36 @@ Si el archivo no existe, `arcli config` lo crea automáticamente.
 
 ## Claves soportadas
 
-| Clave             | Tipo                    | Valor por defecto | Descripción                                                                                                     |
-| ----------------- | ----------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------- |
-| `cert.testing`    | string                  | ninguno           | Ruta al certificado de testing                                                                                  |
-| `cert.produccion` | string                  | ninguno           | Ruta al certificado de producción                                                                               |
-| `key.testing`     | string                  | ninguno           | Ruta a la clave privada de testing                                                                              |
-| `key.produccion`  | string                  | ninguno           | Ruta a la clave privada de producción                                                                           |
-| `cuit`            | string                  | ninguno           | CUIT del emisor                                                                                                 |
-| `alicuota`        | string                  | `21`              | Alícuota de IVA por defecto: alias (`general`, `reducida`, `incrementada`, `cero`) o número (solo letras A y B) |
-| `cbu`             | string                  | ninguno           | CBU del emisor (solo facturas FCE)                                                                              |
-| `aliasCbu`        | string                  | ninguno           | Alias del CBU (solo facturas FCE)                                                                               |
-| `verificarFce`    | boolean                 | `false`           | Consultar el régimen FCE del receptor al facturar                                                               |
-| `concepto`        | string                  | ninguno           | Concepto por defecto                                                                                            |
-| `cotizacion`      | number                  | `1`               | Cotización por defecto en moneda extranjera                                                                     |
-| `entorno`         | `testing \| produccion` | `testing`         | Entorno por defecto                                                                                             |
-| `emitir`          | boolean                 | `false`           | Emisión por defecto                                                                                             |
-| `ivaReceptor`     | string                  | ninguno           | IVA receptor por defecto                                                                                        |
-| `json`            | boolean                 | `false`           | Salida JSON por defecto                                                                                         |
-| `moneda`          | string                  | `ARS`             | Moneda por defecto                                                                                              |
-| `bruto`           | boolean                 | `false`           | Respuesta bruta por defecto                                                                                     |
-| `puntoVenta`      | number                  | ninguno           | Punto de venta por defecto                                                                                      |
-| `ticketPath`      | string                  | ver abajo         | Carpeta donde se guarda el ticket WSAA                                                                          |
+| Clave                      | Tipo                            | Valor por defecto      | Descripción                                                                                                     |
+| -------------------------- | ------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `cert.testing`             | string                          | ninguno                | Ruta al certificado de testing                                                                                  |
+| `cert.produccion`          | string                          | ninguno                | Ruta al certificado de producción                                                                               |
+| `key.testing`              | string                          | ninguno                | Ruta a la clave privada de testing                                                                              |
+| `key.produccion`           | string                          | ninguno                | Ruta a la clave privada de producción                                                                           |
+| `cuit`                     | string                          | ninguno                | CUIT del emisor                                                                                                 |
+| `alicuota`                 | string                          | `21`                   | Alícuota de IVA por defecto: alias (`general`, `reducida`, `incrementada`, `cero`) o número (solo letras A y B) |
+| `cbu`                      | string                          | ninguno                | CBU del emisor (solo facturas FCE)                                                                              |
+| `aliasCbu`                 | string                          | ninguno                | Alias del CBU (solo facturas FCE)                                                                               |
+| `verificarFce`             | boolean                         | `false`                | Consultar el régimen FCE del receptor al facturar                                                               |
+| `concepto`                 | string                          | ninguno                | Concepto por defecto                                                                                            |
+| `cotizacion`               | number                          | `1`                    | Cotización por defecto en moneda extranjera                                                                     |
+| `entorno`                  | `testing \| produccion`         | `testing`              | Entorno por defecto                                                                                             |
+| `emitir`                   | boolean                         | `false`                | Emisión por defecto                                                                                             |
+| `ivaReceptor`              | string                          | ninguno                | IVA receptor por defecto                                                                                        |
+| `json`                     | boolean                         | `false`                | Salida JSON por defecto                                                                                         |
+| `moneda`                   | string                          | `ARS`                  | Moneda por defecto                                                                                              |
+| `bruto`                    | boolean                         | `false`                | Respuesta bruta por defecto                                                                                     |
+| `puntoVenta`               | number                          | ninguno                | Punto de venta por defecto                                                                                      |
+| `ticketPath`               | string                          | ver abajo              | Carpeta donde se guarda el ticket WSAA                                                                          |
+| `pdf`                      | `siempre \| preguntar \| nunca` | `preguntar`            | Cuándo generar el PDF del comprobante emitido. Ver [PDF](pdf.md)                                                |
+| `pdfCarpeta`               | string                          | `~/arcli/comprobantes` | Carpeta donde se guardan los PDFs                                                                               |
+| `pdfNavegador`             | string                          | automático             | Ruta a Chrome, Chromium o Edge para generar los PDFs                                                            |
+| `emisor.razonSocial`       | string                          | ninguno                | Nombre o razón social del emisor (solo PDF)                                                                     |
+| `emisor.domicilio`         | string                          | ninguno                | Domicilio comercial del emisor (solo PDF)                                                                       |
+| `emisor.inicioActividades` | fecha                           | ninguno                | Inicio de actividades, con año: `1/03/2020` (solo PDF)                                                          |
+| `emisor.iibb`              | string                          | `Exento`               | Ingresos Brutos del emisor (solo PDF)                                                                           |
+| `emisor.condicionIva`      | string                          | según la letra         | Condición de IVA del emisor (solo PDF)                                                                          |
+| `emisor.logo`              | string                          | ninguno                | Ruta a un logo PNG o JPG (solo PDF)                                                                             |
 
 > Para claves booleanas, ARCLI acepta `true` / `false`, `sí` / `no` o `1` / `0`.
 
@@ -64,6 +73,17 @@ Por defecto, ARCLI lo guarda en una carpeta `tickets/` junto al `config.json` (v
 ```bash
 arcli config establecer ticketPath /ruta/que/prefieras
 arcli config eliminar ticketPath
+```
+
+### PDF y datos del emisor
+
+Las claves `pdf`, `pdfCarpeta`, `pdfNavegador` y `emisor.*` solo se usan para generar el PDF de los comprobantes. ARCA no recibe los datos del emisor: van impresos en el PDF. Ver [PDF de comprobantes](pdf.md).
+
+```bash
+arcli config establecer emisor.razonSocial "Tu Nombre o Empresa"
+arcli config establecer emisor.domicilio "Calle 123, Ciudad"
+arcli config establecer emisor.inicioActividades 1/03/2020
+arcli config establecer pdf siempre
 ```
 
 ## Prioridad de fuentes

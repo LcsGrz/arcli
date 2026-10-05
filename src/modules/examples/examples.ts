@@ -240,6 +240,7 @@ export function renderExamples(today = new Date()): string {
     'Todos usan --previsualizar para evitar emisiones reales por error.',
     'Si queres emitir de verdad, reemplaza --previsualizar por --emitir.',
     'Para emitir en produccion necesitas --produccion junto con --emitir.',
+    'Para guardar el PDF con el QR, agrega --exportar-pdf al emitir (ver docs/pdf.md).',
     '',
     ISSUER_HINT,
     '',

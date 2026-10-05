@@ -9,6 +9,7 @@ function createRuntime(): ResolvedArcaRuntime {
   return {
     config: {
       cert: {},
+      emisor: {},
       entornoPorDefecto: 'testing',
       key: {},
       output: {

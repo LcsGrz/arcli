@@ -68,6 +68,12 @@ export function registerBillingOptions(command: Command): void {
     .option('--alias <alias>', 'alias del CBU del emisor para facturas FCE')
     .option('--transferencia <modalidad>', 'modalidad de transferencia FCE: sca o adc (por defecto sca)')
     .option('--anulacion', 'NC/ND FCE de anulacion (la factura asociada fue rechazada por el comprador)')
+    .option('--exportar-pdf', 'generar el PDF del comprobante emitido, aunque la config diga otra cosa')
+    .option('--pdf', 'alias de --exportar-pdf')
+    .option('--sin-pdf', 'no generar el PDF, aunque la config diga otra cosa')
+    .option('--descripcion <texto>', 'detalle del comprobante en el PDF; por defecto "Segun detalle"')
+    .option('--receptor-nombre <texto>', 'nombre o razon social del receptor en el PDF')
+    .option('--receptor-domicilio <texto>', 'domicilio del receptor en el PDF')
     .option('--previsualizar', 'mostrar el payload antes de emitir en ARCA')
     .addOption(new Option('--emitir', 'emitir realmente en ARCA'));
 }

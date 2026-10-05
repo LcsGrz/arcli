@@ -45,6 +45,14 @@ Arriba del menú se muestran el entorno (`testing` o `produccion`) y el punto de
 
 Después muestra la vista previa (la misma de `--previsualizar`), el comando equivalente y pregunta si emitir. En **producción** pide una segunda confirmación.
 
+### PDF
+
+Después de emitir, si `config.pdf` es `preguntar` (el valor por defecto), pregunta **"¿Generamos el PDF del comprobante?"**. Con `siempre` lo genera sin preguntar y con `nunca` no pregunta nada. Lo mismo vale para las notas de crédito y débito.
+
+Si respondés que sí, pregunta tres datos opcionales que solo van en el PDF (Enter para omitirlos): la descripción, el nombre y el domicilio del receptor. Si faltan datos del emisor (razón social, domicilio, inicio de actividades), los pregunta una vez y ofrece guardarlos en la config. Si falta el plugin, ofrece instalarlo. Ver [PDF de comprobantes](pdf.md).
+
+El comando equivalente se muestra antes de emitir, así que no incluye los flags del PDF.
+
 ### Opciones avanzadas
 
 Antes de la vista previa aparece **"¿Agregamos algo más?"**. Cada opción se puede elegir y cambiar varias veces, y muestra el valor actual:

@@ -1,4 +1,5 @@
 import Conf from 'conf';
+import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 
 import {
@@ -19,6 +20,12 @@ const CONFIG_KEY_ALIASES: Record<ConfigPublicKey, CanonicalConfigKey> = {
   concepto: 'conceptoPorDefecto',
   cotizacion: 'cotizacionPorDefecto',
   cuit: 'cuit',
+  'emisor.condicionIva': 'emisor.condicionIva',
+  'emisor.domicilio': 'emisor.domicilio',
+  'emisor.iibb': 'emisor.iibb',
+  'emisor.inicioActividades': 'emisor.inicioActividades',
+  'emisor.logo': 'emisor.logo',
+  'emisor.razonSocial': 'emisor.razonSocial',
   entorno: 'entornoPorDefecto',
   emitir: 'output.emitirPorDefecto',
   ivaReceptor: 'ivaReceptorPorDefecto',
@@ -27,6 +34,9 @@ const CONFIG_KEY_ALIASES: Record<ConfigPublicKey, CanonicalConfigKey> = {
   'key.testing': 'key.testing',
   moneda: 'monedaPorDefecto',
   bruto: 'output.brutoPorDefecto',
+  pdf: 'pdf',
+  pdfCarpeta: 'pdfCarpeta',
+  pdfNavegador: 'pdfNavegador',
   puntoVenta: 'puntoVentaPorDefecto',
   ticketPath: 'ticketPath',
   verificarFce: 'verificarFce',
@@ -68,8 +78,22 @@ export class ConfigService {
     return join(dirname(this.store.path), 'tickets');
   }
 
+  /** Carpeta donde se instala el plugin de PDF, junto a config.json. */
+  public getPluginsPath(): string {
+    return join(dirname(this.store.path), 'plugins');
+  }
+
   public resolveTicketPath(config: ArcliConfig): string {
     return config.ticketPath ?? this.getDefaultTicketPath();
+  }
+
+  /** Absoluta por defecto, para que los PDFs no queden repartidos segun desde donde se ejecuta arcli. */
+  public resolvePdfFolder(config: ArcliConfig): string {
+    return config.pdfCarpeta ?? join(homedir(), 'arcli', 'comprobantes');
+  }
+
+  public resolvePaths(config: ArcliConfig): { readonly pdfFolder: string; readonly ticketPath: string } {
+    return { pdfFolder: this.resolvePdfFolder(config), ticketPath: this.resolveTicketPath(config) };
   }
 
   public initialize(): ArcliConfig {

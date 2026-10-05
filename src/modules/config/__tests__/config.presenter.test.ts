@@ -10,6 +10,7 @@ describe('config.presenter', () => {
         cert: {
           testing: '/Users/lucas/secretos/cert.pem',
         },
+        emisor: {},
         entornoPorDefecto: 'testing',
         key: {
           testing: '/Users/lucas/secretos/key.pem',
@@ -20,7 +21,7 @@ describe('config.presenter', () => {
           jsonPorDefecto: false,
         },
       },
-      '/Users/lucas/secretos/tickets',
+      { pdfFolder: '/Users/lucas/arcli/comprobantes', ticketPath: '/Users/lucas/secretos/tickets' },
     );
 
     const json = formatConfig(
@@ -28,6 +29,7 @@ describe('config.presenter', () => {
         cert: {
           testing: '/Users/lucas/secretos/cert.pem',
         },
+        emisor: {},
         entornoPorDefecto: 'testing',
         key: {
           testing: '/Users/lucas/secretos/key.pem',
@@ -38,7 +40,7 @@ describe('config.presenter', () => {
           jsonPorDefecto: false,
         },
       },
-      '/Users/lucas/secretos/tickets',
+      { pdfFolder: '/Users/lucas/arcli/comprobantes', ticketPath: '/Users/lucas/secretos/tickets' },
     );
 
     expect(text).toContain('.../secretos/cert.pem');
@@ -57,6 +59,7 @@ describe('config.presenter', () => {
           testing: '/Users/lucas/secretos/cert.pem',
         },
         cuit: '20123456789',
+        emisor: {},
         entornoPorDefecto: 'testing',
         key: {
           testing: '/Users/lucas/secretos/key.pem',

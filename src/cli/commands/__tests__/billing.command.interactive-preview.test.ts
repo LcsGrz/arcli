@@ -26,6 +26,7 @@ function createRuntime(overrides: Partial<ResolvedArcaRuntime> = {}): ResolvedAr
   return {
     config: {
       cert: {},
+      emisor: {},
       entornoPorDefecto: 'testing',
       key: {},
       output: {

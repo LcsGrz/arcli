@@ -60,8 +60,8 @@ export function registerConfigCommand(program: Command): void {
 
     try {
       const config = service.getConfig();
-      const ticketPath = service.resolveTicketPath(config);
-      printConfigResult(formatConfigAsText(config, ticketPath), formatConfig(config, ticketPath), options.json);
+      const paths = service.resolvePaths(config);
+      printConfigResult(formatConfigAsText(config, paths), formatConfig(config, paths), options.json);
     } finally {
       service.close();
     }
@@ -117,8 +117,8 @@ export function registerConfigCommand(program: Command): void {
 
       try {
         const config = service.setValue(key, value);
-        const ticketPath = service.resolveTicketPath(config);
-        printConfigResult(formatConfigAsText(config, ticketPath), formatConfig(config, ticketPath), options.json);
+        const paths = service.resolvePaths(config);
+        printConfigResult(formatConfigAsText(config, paths), formatConfig(config, paths), options.json);
       } finally {
         service.close();
       }
@@ -135,8 +135,8 @@ export function registerConfigCommand(program: Command): void {
 
       try {
         const config = service.unsetValue(key);
-        const ticketPath = service.resolveTicketPath(config);
-        printConfigResult(formatConfigAsText(config, ticketPath), formatConfig(config, ticketPath), options.json);
+        const paths = service.resolvePaths(config);
+        printConfigResult(formatConfigAsText(config, paths), formatConfig(config, paths), options.json);
       } finally {
         service.close();
       }

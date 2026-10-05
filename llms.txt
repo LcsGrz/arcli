@@ -66,6 +66,7 @@ Shortcuts (`family` = comando alternativo `arcli <family> <letra>`, ej. `arcli f
 - Ejecución: `--previsualizar` (default si no se especifica nada) vs `--emitir` (real contra ARCA) — son mutuamente excluyentes. En producción hace falta `--produccion --emitir` juntos — no hay un flag de confirmación adicional, así que esa combinación emite de verdad.
 - Salida: `--json` (estructurada, para scripts/agentes — desactiva el aviso de nueva versión), `--bruto` (incluye la respuesta cruda de ARCA).
 - `--cargar <path.json>`: carga uno o un array de comprobantes desde un JSON en vez de flags (ver forma abajo). Los flags pisan lo que venga del archivo.
+- PDF: `--exportar-pdf` (alias `--pdf`) genera el PDF con QR después de emitir; `--sin-pdf` no lo genera; sin flag decide `config pdf` (`preguntar` por defecto, que sin TTY o con `--json` no genera). Datos que solo van en el PDF (ARCA no los recibe): `--descripcion <texto>`, `--receptor-nombre <texto>`, `--receptor-domicilio <texto>`. Requiere el plugin (`arcli pdf instalar`, ~160 MB; desde un agente instalarlo antes, porque sin TTY nunca se descarga solo) y `emisor.razonSocial`, `emisor.domicilio`, `emisor.inicioActividades` en la config. Detalle: `docs/pdf.md`.
 
 ## Modo no interactivo
 
@@ -94,7 +95,11 @@ agentes, CI), nunca pregunta** — se comporta como si fuera dry-run salvo que s
   "emitir": false,
   "previsualizar": true,
   "confirmarProduccion": false,
-  "comprobanteAsociado": { "atajo": "fc", "cuit": "20123456789", "numero": 10, "puntoVenta": 3 }
+  "comprobanteAsociado": { "atajo": "fc", "cuit": "20123456789", "numero": 10, "puntoVenta": 3 },
+  "pdf": true,
+  "descripcion": "Servicios de marzo",
+  "receptorNombre": "Cliente SA",
+  "receptorDomicilio": "Calle 1"
 }
 ```
 
@@ -115,9 +120,14 @@ agentes, CI), nunca pregunta** — se comporta como si fuera dry-run salvo que s
   "observacion": "string | null",
   "solicitud": { "...": "payload enviado a ARCA" },
   "previsualizacion": true,
-  "sugerencias": ["texto en español sugiriendo como resolver errores comunes de ARCA"]
+  "sugerencias": ["texto en español sugiriendo como resolver errores comunes de ARCA"],
+  "pdf": { "ruta": "/ruta/al/archivo.pdf" }
 }
 ```
+
+`pdf` aparece solo si se intentó generar el PDF. Si falló es `{ "error": { "codigo", "mensaje", "sugerencia" } }`
+(`PDF_PLUGIN_MISSING`, `PDF_PLUGIN_INSTALL_ERROR`, `PDF_ISSUER_INCOMPLETE`, `PDF_GENERATION_ERROR`) y el exit code
+sigue siendo `0`: el comprobante ya está emitido, **no reemitir para obtener el PDF**.
 
 Con múltiples comprobantes (batch o `--cargar` con array) la salida es un array de estos
 objetos. Con `--bruto` se agrega `respuesta` con la respuesta cruda del SDK.
@@ -153,6 +163,9 @@ Claves válidas: `cuit`, `cbu`, `aliasCbu` (solo facturas FCE), `verificarFce`, 
 `si/no`, `1/0`), `cert.testing`, `cert.produccion`, `key.testing`, `key.produccion`
 (rutas a archivos PEM, se validan al guardar), `ticketPath` (carpeta donde se cachea el
 ticket WSAA; por defecto una carpeta junto al archivo de config).
+Para el PDF: `pdf` (`siempre`/`preguntar`/`nunca`), `pdfCarpeta` (por defecto `~/arcli/comprobantes`; los de
+testing van a `testing/`), `pdfNavegador` (ruta a Chrome/Chromium/Edge), `emisor.razonSocial`, `emisor.domicilio`,
+`emisor.inicioActividades` (fecha con año), `emisor.iibb`, `emisor.condicionIva`, `emisor.logo` (PNG o JPG).
 
 `config revisar` también avisa si un certificado ya venció o vence en menos de 30 días.
 
@@ -160,6 +173,7 @@ ticket WSAA; por defecto una carpeta junto al archivo de config).
 
 - `arcli ultimos <tipo> [--cantidad N] [--pv N] [--json]`: últimos comprobantes emitidos (de 1 a 50, por defecto 10), del más nuevo al más viejo. `tipo` es el atajo (`fb`, `nca`…).
 - `arcli consultar <tipo> <numero> [--pv N] [--json]`: detalle de un comprobante emitido (CAE, vencimiento, importes, receptor). Si no existe, el error es `VOUCHER_NOT_FOUND`. Sirve para verificar después de emitir.
+- `arcli pdf [estado|instalar|desinstalar] [--json]`: plugin que genera los PDFs. `arcli pdf instalar` lo descarga sin preguntar (sirve en scripts).
 - `arcli ejemplos`: comandos listos para copiar por cada tipo de comprobante.
 - `arcli storybook [escena]`: demos visuales de la UI (sin llamar a ARCA).
 - `arcli <cualquier comando> ayuda` o `--ayuda`: ayuda contextual con ejemplos (nota: el flag
@@ -171,4 +185,5 @@ ticket WSAA; por defecto una carpeta junto al archivo de config).
 - `docs/configuration.md`: config persistente, claves soportadas, ticketPath.
 - `docs/validation-rules.md` y `docs/input-output.md`: reglas de validación y formatos de entrada/salida.
 - `docs/troubleshooting.md`: errores comunes de ARCA y como resolverlos.
+- `docs/pdf.md`: PDF de comprobantes, plugin, carpeta y nombre del archivo.
 - `AGENTS.md`: para agentes que van a modificar el código de este repo (no para usar el CLI).

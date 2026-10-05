@@ -23,6 +23,8 @@ export const arcliDefaultCurrencySchema = z
   .length(3)
   .transform((value) => value.toUpperCase());
 
+export const arcliPdfModeSchema = z.enum(['siempre', 'preguntar', 'nunca']);
+
 // Misma normalizacion que --alicuota ("10,5", "10.5%").
 export const arcliDefaultIvaRateSchema = billingIvaRateSchema;
 
@@ -53,6 +55,21 @@ export const arcliConfigSchema = z.object({
   ivaReceptorPorDefecto: arcliDefaultIvaConditionSchema.optional(),
   monedaPorDefecto: arcliDefaultCurrencySchema.optional(),
   cotizacionPorDefecto: z.number().positive().optional(),
+  /** Datos del emisor que ARCA no guarda y solo se usan en el PDF. */
+  emisor: z
+    .object({
+      condicionIva: arcliDefaultIvaConditionSchema.optional(),
+      domicilio: z.string().trim().min(1).optional(),
+      iibb: z.string().trim().min(1).optional(),
+      /** yyyymmdd */
+      inicioActividades: z
+        .string()
+        .regex(/^\d{8}$/)
+        .optional(),
+      logo: z.string().trim().min(1).optional(),
+      razonSocial: z.string().trim().min(1).optional(),
+    })
+    .default({}),
   entornoPorDefecto: arcliEnvironmentSchema.default('testing'),
   key: z
     .object({
@@ -67,6 +84,9 @@ export const arcliConfigSchema = z.object({
       brutoPorDefecto: z.boolean().default(false),
     })
     .default({ emitirPorDefecto: false, jsonPorDefecto: false, brutoPorDefecto: false }),
+  pdf: arcliPdfModeSchema.optional(),
+  pdfCarpeta: z.string().trim().min(1).optional(),
+  pdfNavegador: z.string().trim().min(1).optional(),
   puntoVentaPorDefecto: z.number().int().positive().optional(),
   ticketPath: z.string().trim().min(1).optional(),
   verificarFce: z.boolean().optional(),
@@ -74,9 +94,11 @@ export const arcliConfigSchema = z.object({
 
 export type ArcliConfig = z.infer<typeof arcliConfigSchema>;
 export type ArcliEnvironment = z.infer<typeof arcliEnvironmentSchema>;
+export type ArcliPdfMode = z.infer<typeof arcliPdfModeSchema>;
 
 export const CONFIG_DEFAULTS: ArcliConfig = {
   cert: {},
+  emisor: {},
   entornoPorDefecto: 'testing',
   key: {},
   monedaPorDefecto: 'PES',
@@ -97,6 +119,12 @@ export const configPublicKeySchema = z.enum([
   'concepto',
   'cuit',
   'cotizacion',
+  'emisor.condicionIva',
+  'emisor.domicilio',
+  'emisor.iibb',
+  'emisor.inicioActividades',
+  'emisor.logo',
+  'emisor.razonSocial',
   'entorno',
   'emitir',
   'ivaReceptor',
@@ -105,6 +133,9 @@ export const configPublicKeySchema = z.enum([
   'key.testing',
   'moneda',
   'bruto',
+  'pdf',
+  'pdfCarpeta',
+  'pdfNavegador',
   'puntoVenta',
   'ticketPath',
   'verificarFce',

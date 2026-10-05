@@ -1,3 +1,7 @@
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+import { parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
 import { readPemFile } from '../../lib/security/pem';
 import { IVA_RATE_HINT } from '../billing/billing.schemas';
 
@@ -6,6 +10,7 @@ import {
   arcliDefaultIvaConditionSchema,
   arcliDefaultIvaRateSchema,
   arcliEnvironmentSchema,
+  arcliPdfModeSchema,
 } from './config.schemas';
 
 export type CanonicalConfigKey =
@@ -17,6 +22,12 @@ export type CanonicalConfigKey =
   | 'conceptoPorDefecto'
   | 'cotizacionPorDefecto'
   | 'cuit'
+  | 'emisor.condicionIva'
+  | 'emisor.domicilio'
+  | 'emisor.iibb'
+  | 'emisor.inicioActividades'
+  | 'emisor.logo'
+  | 'emisor.razonSocial'
   | 'entornoPorDefecto'
   | 'ivaReceptorPorDefecto'
   | 'key.produccion'
@@ -25,6 +36,9 @@ export type CanonicalConfigKey =
   | 'output.emitirPorDefecto'
   | 'output.jsonPorDefecto'
   | 'output.brutoPorDefecto'
+  | 'pdf'
+  | 'pdfCarpeta'
+  | 'pdfNavegador'
   | 'puntoVentaPorDefecto'
   | 'ticketPath'
   | 'verificarFce';
@@ -111,6 +125,35 @@ function parsePemPath(value: string, label: 'certificado' | 'clave privada'): st
   return normalizedValue;
 }
 
+// La fecha de inicio de actividades es vieja: se pide con anio para no completarla con el actual.
+function parseFullDate(value: string): string {
+  if (!/^\d{1,2}([-/])\d{1,2}\1(\d{2}|\d{4})$/.test(value.trim())) {
+    throw new Error(`La fecha "${value}" no es valida. Use D/MM/YYYY, por ejemplo 1/03/2020.`);
+  }
+
+  return parseArgentineDateInputAsArcaDate(value);
+}
+
+function parseExistingFile(value: string, label: string): string {
+  const path = resolve(parseNonEmptyString(value));
+
+  if (!existsSync(path)) {
+    throw new Error(`No se encontro ${label} en "${path}".`);
+  }
+
+  return path;
+}
+
+function parseLogoPath(value: string): string {
+  const path = parseExistingFile(value, 'el logo');
+
+  if (!/\.(png|jpe?g)$/i.test(path)) {
+    throw new Error('El logo debe ser un archivo PNG o JPG.');
+  }
+
+  return path;
+}
+
 export function parseConfigValue(key: CanonicalConfigKey, value: string): boolean | number | string {
   switch (key) {
     case 'alicuotaPorDefecto':
@@ -125,6 +168,16 @@ export function parseConfigValue(key: CanonicalConfigKey, value: string): boolea
       return parsePositiveNumber(value);
     case 'cuit':
       return value.trim();
+    case 'emisor.condicionIva':
+      return arcliDefaultIvaConditionSchema.parse(value.trim().toLowerCase());
+    case 'emisor.domicilio':
+    case 'emisor.iibb':
+    case 'emisor.razonSocial':
+      return parseNonEmptyString(value);
+    case 'emisor.inicioActividades':
+      return parseFullDate(value);
+    case 'emisor.logo':
+      return parseLogoPath(value);
     case 'entornoPorDefecto':
       return arcliEnvironmentSchema.parse(value.trim().toLowerCase());
     case 'ivaReceptorPorDefecto':
@@ -136,6 +189,12 @@ export function parseConfigValue(key: CanonicalConfigKey, value: string): boolea
     case 'output.jsonPorDefecto':
     case 'output.brutoPorDefecto':
       return parseBoolean(value);
+    case 'pdf':
+      return arcliPdfModeSchema.parse(value.trim().toLowerCase());
+    case 'pdfCarpeta':
+      return resolve(parseNonEmptyString(value));
+    case 'pdfNavegador':
+      return parseExistingFile(value, 'el navegador');
     case 'puntoVentaPorDefecto':
       return parsePositiveInteger(value);
     case 'ticketPath':

@@ -28,6 +28,10 @@ Hay errores que no dependen de la solicitud sino del entorno remoto, por ejemplo
 
 ARCLI los trata mejor en la salida, pero no los elimina.
 
+### PDF solo al emitir
+
+El PDF se genera en el momento de emitir. Todavía no se puede regenerar el de un comprobante ya emitido: la consulta de ARCA que usa el SDK (`FECompConsultar`) no devuelve el detalle de IVA, los comprobantes asociados ni las fechas de servicio. Tampoco hay ítems detallados: el PDF lleva un renglón por alícuota con la descripción que pases. Ver [PDF de comprobantes](pdf.md#qué-no-hace-todavía).
+
 ## Decisiones de diseño
 
 ### `testing` por defecto

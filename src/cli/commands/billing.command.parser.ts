@@ -44,8 +44,12 @@ interface BillingJsonInput {
   readonly mismaMoneda?: boolean;
   readonly montoTotal?: number;
   readonly numeroDocumento?: number;
+  readonly pdf?: boolean;
+  readonly descripcion?: string;
   readonly previsualizar?: boolean;
   readonly puntoVenta?: number;
+  readonly receptorDomicilio?: string;
+  readonly receptorNombre?: string;
   readonly vencimientoPago?: string;
   readonly servicioDesde?: string;
   readonly servicioHasta?: string;
@@ -110,6 +114,23 @@ function parseIvaRateFlags(values: readonly string[] | undefined): {
       return { amount: parseAmountText(value.slice(separator + 1)), rate: value.slice(0, separator) };
     }),
   };
+}
+
+function resolvePdfFlag(
+  commandOptions: Record<string, unknown>,
+  fileInput: BillingJsonInput | undefined,
+): boolean | undefined {
+  const exportPdf = commandOptions.exportarPdf === true || commandOptions.pdf === true;
+
+  if (exportPdf && commandOptions.sinPdf === true) {
+    throw new InputValidationError('Use --exportar-pdf o --sin-pdf, pero no ambos a la vez.');
+  }
+
+  if (exportPdf) {
+    return true;
+  }
+
+  return commandOptions.sinPdf === true ? false : fileInput?.pdf;
 }
 
 export interface BillingCommandDefaults {
@@ -311,7 +332,11 @@ function parseBillingCommandInputFromSource(
       ivaRateAmounts,
       ivaCondition: resolvedIvaCondition,
       paymentDueDate: pickString(commandOptions.vencimiento, commandOptions.vto, fileInput?.vencimientoPago),
+      pdf: resolvePdfFlag(commandOptions, fileInput),
+      pdfDescription: pickString(commandOptions.descripcion, fileInput?.descripcion),
       pointOfSale: pickNumber(commandOptions.puntoVenta, commandOptions.pv, fileInput?.puntoVenta),
+      receiverAddress: pickString(commandOptions.receptorDomicilio, fileInput?.receptorDomicilio),
+      receiverName: pickString(commandOptions.receptorNombre, fileInput?.receptorNombre),
       sameCurrency,
       serviceEndDate: pickString(commandOptions.servicioHasta, commandOptions.sh, fileInput?.servicioHasta),
       serviceStartDate: pickString(commandOptions.servicioDesde, commandOptions.sd, fileInput?.servicioDesde),

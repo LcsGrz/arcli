@@ -29,6 +29,7 @@ Emití o previsualizá comprobantes ARCA desde tu terminal, con un flujo claro, 
 - Factura de Crédito Electrónica (FCE) completa: CBU, transferencia, anulación y consulta del régimen del receptor
 - alícuotas de IVA, importes exentos y no gravados, moneda extranjera y período asociado
 - validaciones locales con las reglas del manual de ARCA, para que los errores aparezcan antes de emitir
+- PDF del comprobante con el QR de ARCA, con un plugin que se descarga solo si lo usás
 
 ## Demo basica
 
@@ -135,6 +136,7 @@ arcli fa -m 15000 --cs --cuit 20168598204 --ir-ri \
 - [Modo interactivo](docs/modo-interactivo.md)
 - [Patrones de uso](docs/usage-patterns.md)
 - [Configuración](docs/configuration.md)
+- [PDF de comprobantes](docs/pdf.md)
 - [Cómo obtener los certificados de ARCA](docs/obtencion-certificados.md)
 - [Entrada y salida](docs/input-output.md)
 - [Reglas de validación](docs/validation-rules.md)
@@ -151,7 +153,7 @@ arcli fa -m 15000 --cs --cuit 20168598204 --ir-ri \
 
 ARCLI existe apoyado en trabajo open source que ya resolvió partes difíciles del problema. En particular:
 
-- [`@arcasdk/core`](https://github.com/ralcorta/arcasdk) creada por [Rodrigo Alcorta](https://github.com/ralcorta)
+- [`@arcasdk/core`](https://github.com/ralcorta/arcasdk) y [`@arcasdk/pdf`](https://www.afipts.com/packages/pdf), creadas por [Rodrigo Alcorta](https://github.com/ralcorta)
 - [Arpit Bhayani](https://github.com/arpitbbhayani) por cederme el paquete de npm bajo el nombre de 'arcli', estaba siendo utilizado por el.
 
 Y la comunidad open source que mantiene herramientas de este estilo vivas y usables

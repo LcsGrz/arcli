@@ -16,6 +16,21 @@ function formatRawResponse(
   };
 }
 
+// Aditivo: la clave `pdf` solo aparece si se intento generar el PDF.
+function formatPdfOutcome(result: BillingExecutionResult): Record<string, unknown> {
+  if (!result.pdf) {
+    return {};
+  }
+
+  if ('path' in result.pdf) {
+    return { pdf: { ruta: result.pdf.path } };
+  }
+
+  const { code, message, suggestion } = result.pdf.error;
+
+  return { pdf: { error: { codigo: code, mensaje: message, sugerencia: suggestion ?? null } } };
+}
+
 function formatVoucherSummary(result: BillingExecutionResult): Record<string, unknown> {
   return {
     atajo: result.voucherKind.shortcut,
@@ -28,6 +43,7 @@ function formatVoucherSummary(result: BillingExecutionResult): Record<string, un
     eventos: result.response.events,
     observaciones: result.response.observaciones,
     observacion: result.response.observacion,
+    ...formatPdfOutcome(result),
     solicitud: result.payload,
     previsualizacion: result.dryRun,
     resultado: result.response.resultado,
@@ -46,6 +62,7 @@ export function serializeBillingResult(
       avisos: result.warnings ?? [],
       comprobante: result.voucherKind.displayName,
       solicitud: result.payload,
+      ...formatPdfOutcome(result),
       previsualizacion: result.dryRun,
       respuesta: formatRawResponse(result),
       sugerencias: result.response.suggestions,

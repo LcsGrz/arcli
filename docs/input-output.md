@@ -37,6 +37,10 @@ arcli fc --cargar ./voucher.json
 | `montoTotal`          | number  | sí                                     | Importe total                                                                                                         |
 | `periodoAsociado`     | object  | no                                     | `{ "desde": "01-09-2026", "hasta": "30-09-2026" }`; alternativa a `comprobanteAsociado` en notas comunes              |
 | `numeroDocumento`     | number  | depende del tipo de documento          | Número de documento                                                                                                   |
+| `pdf`                 | boolean | no                                     | `true` genera el PDF y `false` no, como `--exportar-pdf` y `--sin-pdf`. Ver [PDF](pdf.md)                             |
+| `descripcion`         | string  | no                                     | Detalle del comprobante en el PDF; ARCA no lo recibe                                                                  |
+| `receptorNombre`      | string  | no                                     | Nombre o razón social del receptor en el PDF; ARCA no lo recibe                                                       |
+| `receptorDomicilio`   | string  | no                                     | Domicilio del receptor en el PDF; ARCA no lo recibe                                                                   |
 | `previsualizar`       | boolean | no                                     | Preview sin emitir                                                                                                    |
 | `puntoVenta`          | number  | no                                     | Punto de venta                                                                                                        |
 | `servicioDesde`       | string  | no                                     | Fecha inicio de servicio                                                                                              |
@@ -173,23 +177,24 @@ La salida humana no debe tratarse como contrato estable para automatización. Pa
 
 Sin `--bruto`, ARCLI serializa un resumen del resultado.
 
-| Campo              | Tipo                                       | Descripción                                       |
-| ------------------ | ------------------------------------------ | ------------------------------------------------- |
-| `atajo`            | `string`                                   | Atajo del comprobante                             |
-| `avisos`           | `string[]`                                 | Avisos de ARCLI, por ejemplo del régimen FCE      |
-| `cae`              | `string \| null`                           | CAE informado por ARCA                            |
-| `caeVencimiento`   | `string \| null`                           | Vencimiento del CAE                               |
-| `comprobante`      | `string`                                   | Nombre visible del comprobante                    |
-| `errores`          | `unknown[]`                                | Array de errores crudos                           |
-| `estado`           | `"aprobado" \| "observado" \| "rechazado"` | Estado normalizado que arma ARCLI                 |
-| `eventos`          | `unknown[]`                                | Array de eventos crudos                           |
-| `observaciones`    | `string[]`                                 | Observaciones amigables                           |
-| `observacion`      | `string \| null`                           | Observaciones unidas en una sola cadena           |
-| `previsualizacion` | `boolean`                                  | `true` si no hubo emisión real                    |
-| `resultado`        | `string \| null`                           | Resultado original de ARCA, por ejemplo `A` o `R` |
-| `solicitud`        | `object`                                   | Solicitud enviada o previsualizada                |
-| `sugerencias`      | `string[]`                                 | Sugerencias generadas por ARCLI                   |
-| `tipoArca`         | `number`                                   | Tipo ARCA del comprobante                         |
+| Campo              | Tipo                                       | Descripción                                                                                                            |
+| ------------------ | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| `atajo`            | `string`                                   | Atajo del comprobante                                                                                                  |
+| `avisos`           | `string[]`                                 | Avisos de ARCLI, por ejemplo del régimen FCE                                                                           |
+| `cae`              | `string \| null`                           | CAE informado por ARCA                                                                                                 |
+| `caeVencimiento`   | `string \| null`                           | Vencimiento del CAE                                                                                                    |
+| `comprobante`      | `string`                                   | Nombre visible del comprobante                                                                                         |
+| `errores`          | `unknown[]`                                | Array de errores crudos                                                                                                |
+| `estado`           | `"aprobado" \| "observado" \| "rechazado"` | Estado normalizado que arma ARCLI                                                                                      |
+| `eventos`          | `unknown[]`                                | Array de eventos crudos                                                                                                |
+| `observaciones`    | `string[]`                                 | Observaciones amigables                                                                                                |
+| `observacion`      | `string \| null`                           | Observaciones unidas en una sola cadena                                                                                |
+| `pdf`              | `object`, opcional                         | Solo si se intentó generar el PDF: `{ ruta }` o `{ error: { codigo, mensaje, sugerencia } }`. Ver [PDF](pdf.md#salida) |
+| `previsualizacion` | `boolean`                                  | `true` si no hubo emisión real                                                                                         |
+| `resultado`        | `string \| null`                           | Resultado original de ARCA, por ejemplo `A` o `R`                                                                      |
+| `solicitud`        | `object`                                   | Solicitud enviada o previsualizada                                                                                     |
+| `sugerencias`      | `string[]`                                 | Sugerencias generadas por ARCLI                                                                                        |
+| `tipoArca`         | `number`                                   | Tipo ARCA del comprobante                                                                                              |
 
 ### `estado` vs `resultado`
 
@@ -341,6 +346,21 @@ Cuando el error viene de Zod o de validación de entrada:
   "detalles": null,
   "error": "ns1:coe.alreadyAuthenticated",
   "sugerencia": "WSAA informo que ya existe un TA valido para este servicio. Espere unos segundos y vuelva a intentar sin cambiar la solicitud."
+}
+```
+
+### Errores del PDF
+
+Un error del PDF **no** es un error del comando: el comprobante ya se emitió, así que el error va dentro del resultado, en `pdf.error`, y el código de salida no cambia. Los códigos son `PDF_PLUGIN_MISSING`, `PDF_PLUGIN_INSTALL_ERROR`, `PDF_ISSUER_INCOMPLETE` y `PDF_GENERATION_ERROR`. Ver [PDF de comprobantes](pdf.md#salida).
+
+`arcli pdf instalar` sí falla como un comando, con `sugerencia`:
+
+```json
+{
+  "codigo": "PDF_PLUGIN_INSTALL_ERROR",
+  "detalles": { "salida": "npm error code ECONNREFUSED" },
+  "error": "npm no pudo instalar @arcasdk/pdf.",
+  "sugerencia": "Revise la conexion a internet o el proxy de npm y vuelva a correr `arcli pdf instalar`."
 }
 ```
 

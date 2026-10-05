@@ -1,6 +1,7 @@
 import { ZodError } from 'zod';
 
 import { AppError } from '../../lib/errors/app-error';
+import { PdfError } from '../../modules/pdf/pdf.errors';
 import { errorPanel } from '../components/errorPanel';
 import { renderJson } from '../primitives/renderJson';
 import { bold } from '../primitives/text';
@@ -17,12 +18,22 @@ function formatErrorTitle(code: string): string {
       return 'Lote invalido';
     case 'BATCH_EMISSION_ERROR':
       return 'Lote interrumpido';
+    case 'PDF_GENERATION_ERROR':
+    case 'PDF_ISSUER_INCOMPLETE':
+    case 'PDF_PLUGIN_MISSING':
+      return 'PDF no generado';
+    case 'PDF_PLUGIN_INSTALL_ERROR':
+      return 'Plugin de PDF no instalado';
     default:
       return 'Error';
   }
 }
 
 function formatErrorHint(error: AppError): string | null {
+  if (error instanceof PdfError && error.suggestion) {
+    return error.suggestion;
+  }
+
   switch (error.code) {
     case 'CONFIGURATION_ERROR':
       return 'Revise la configuracion con `arcli config` o corra `arcli config revisar`.';
@@ -99,6 +110,7 @@ export function formatCliError(error: unknown, useJson: boolean): string {
         codigo: error.code,
         detalles: formatErrorDetailsAsJson(error.details),
         error: error.message,
+        ...(error instanceof PdfError && error.suggestion ? { sugerencia: error.suggestion } : {}),
       });
     }
 
