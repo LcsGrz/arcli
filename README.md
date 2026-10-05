@@ -24,25 +24,49 @@ Emití o previsualizá comprobantes ARCA desde tu terminal, con un flujo claro, 
 - previsualización segura antes de emitir
 - entrada por flags o JSON
 - salida humana, JSON o respuesta bruta
-- modo interactivo: `arcli` sin argumentos abre un asistente paso a paso que muestra el comando equivalente
+- **modo interactivo:** `arcli` sin argumentos abre un asistente paso a paso para emitir, repetir una factura anterior, hacer notas de crédito y débito, consultar comprobantes y configurar todo sin recordar flags
+- comandos para automatizar: cada paso del asistente muestra el comando equivalente
+- consultas a ARCA sin emitir: últimos comprobantes, detalle de uno, estado de los servidores, tablas y cotización oficial
 - integración real con ARCA
 - Factura de Crédito Electrónica (FCE) completa: CBU, transferencia, anulación y consulta del régimen del receptor
 - alícuotas de IVA, importes exentos y no gravados, moneda extranjera y período asociado
 - validaciones locales con las reglas del manual de ARCA, para que los errores aparezcan antes de emitir
 - PDF del comprobante con el QR de ARCA, con un plugin que se descarga solo si lo usás
 
-## Demo basica
+## Dos formas de usarlo
+
+**Modo interactivo**, para facturar de vez en cuando sin memorizar nada:
 
 ```bash
 npm install -g arcli
-arcli config
-arcli config establecer cuit 20168598204
-arcli config establecer puntoVenta 3
-arcli config establecer cert.testing /ruta/al/certificado.crt
-arcli config establecer key.testing /ruta/a/la/clave.key
-
-arcli fc -m 15000 --cs --consumidor-final --ir-cf
+arcli
 ```
+
+La primera vez ofrece una **configuración guiada** (CUIT, certificado, punto de venta). Después, un menú:
+
+```text
+? ¿Que queres hacer?
+❯ Emitir factura
+  Repetir una factura anterior
+  Nota de credito o debito sobre una factura
+  Ver ultimos comprobantes
+  Consultar un comprobante
+  Estado de ARCA
+  Configuracion
+  Salir
+```
+
+Pregunta solo lo necesario, muestra la vista previa y el comando equivalente, y pide confirmación antes de emitir. Ver [Modo interactivo](docs/modo-interactivo.md).
+
+**Comandos con flags**, para scripts, automatizaciones o agentes de IA:
+
+```bash
+arcli fc -m 15000 --cs --consumidor-final --ir-cf            # vista previa
+arcli fc -m 15000 --cs --consumidor-final --ir-cf --emitir   # emitir
+arcli fc --cargar ./facturas.json --emitir --json            # lote desde JSON, salida JSON
+```
+
+Ver [Referencia del CLI](docs/cli-reference.md).
 
 ## Inicio rápido
 
@@ -54,7 +78,15 @@ Requiere Node.js 22.22.1 o superior.
 npm install -g arcli
 ```
 
-### 2. Crear o abrir la configuración
+### 2. Configurar
+
+La forma más simple es abrir el asistente y seguir la **configuración guiada**:
+
+```bash
+arcli
+```
+
+Si preferís hacerlo con comandos (por ejemplo, en un servidor), seguí los pasos 3 y 4. Para ver o crear la configuración:
 
 ```bash
 arcli config
