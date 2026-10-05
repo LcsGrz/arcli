@@ -42,19 +42,9 @@ npm install -g arcli
 arcli
 ```
 
-La primera vez ofrece una **configuración guiada** (CUIT, certificado, punto de venta). Después, un menú:
+La primera vez ofrece una **configuración guiada** (CUIT, certificado, punto de venta). Después, un menú para emitir, repetir facturas, hacer notas, consultar y configurar:
 
-```text
-? ¿Que queres hacer?
-❯ Emitir factura
-  Repetir una factura anterior
-  Nota de credito o debito sobre una factura
-  Ver ultimos comprobantes
-  Consultar un comprobante
-  Estado de ARCA
-  Configuracion
-  Salir
-```
+<p align="center"><img src="https://raw.githubusercontent.com/LcsGrz/arcli/main/docs/assets/demo/interactivo.gif" alt="Modo interactivo de arcli emitiendo una Factura C en testing" width="760"></p>
 
 Pregunta solo lo necesario, muestra la vista previa y el comando equivalente, y pide confirmación antes de emitir. Ver [Modo interactivo](docs/modo-interactivo.md).
 
@@ -66,7 +56,15 @@ arcli fc -m 15000 --cs --consumidor-final --ir-cf --emitir   # emitir
 arcli fc --cargar ./facturas.json --emitir --json            # lote desde JSON, salida JSON
 ```
 
+<p align="center"><img src="https://raw.githubusercontent.com/LcsGrz/arcli/main/docs/assets/demo/comandos.gif" alt="Vista previa de una Factura C y emisión con salida JSON filtrada con jq" width="760"></p>
+
 Ver [Referencia del CLI](docs/cli-reference.md).
+
+### PDF con el QR de ARCA
+
+Con `--exportar-pdf`, o respondiendo que sí en el asistente, cada comprobante emitido queda en PDF, listo para mandarle al cliente. Ver [PDF de comprobantes](docs/pdf.md).
+
+<p align="center"><img src="https://raw.githubusercontent.com/LcsGrz/arcli/main/docs/assets/demo/pdf-factura.png" alt="PDF de una Factura B generado por arcli, con datos de ejemplo" width="480"></p>
 
 ## Inicio rápido
 
