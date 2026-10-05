@@ -80,6 +80,12 @@ arcli fc -m 1000 --pv 3 --cs --consumidor-final --ir-cf
 
 - **Documentación relacionada:** [Configuración](configuration.md), [Referencia del CLI](cli-reference.md)
 
+### El punto de venta no existe o está bloqueado
+
+- **Síntoma:** ARCA rechaza el comprobante por el punto de venta, o `arcli estado` dice que no existe, está bloqueado o dado de baja.
+- **Causa:** el punto de venta tiene que estar dado de alta en ARCA para tu CUIT y para factura electrónica por web service.
+- **Solución:** `arcli parametros puntos-venta --produccion` lista los habilitados. Guardá uno con `arcli config establecer puntoVenta <numero>`. En testing ARCA no informa puntos de venta y cualquier número sirve.
+
 ### Certificado o clave PEM inválidos
 
 - **Severidad:** crítico

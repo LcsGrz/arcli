@@ -174,6 +174,8 @@ testing van a `testing/`), `pdfNavegador` (ruta a Chrome/Chromium/Edge), `emisor
 - `arcli ultimos <tipo> [--cantidad N] [--pv N] [--json]`: últimos comprobantes emitidos (de 1 a 50, por defecto 10), del más nuevo al más viejo. `tipo` es el atajo (`fb`, `nca`…).
 - `arcli consultar <tipo> <numero> [--pv N] [--json]`: detalle de un comprobante emitido (CAE, vencimiento, importes, receptor). Si no existe, el error es `VOUCHER_NOT_FOUND`. Sirve para verificar después de emitir.
 - `arcli pdf [estado|instalar|desinstalar] [--json]`: plugin que genera los PDFs. `arcli pdf instalar` lo descarga sin preguntar (sirve en scripts).
+- `arcli estado [--json]`: si ARCA responde (servidores app/db/auth, latencia) y si el punto de venta configurado está habilitado. `listo: true` = se puede emitir. En testing ARCA no informa puntos de venta (`puntoVenta.estado: "sin-datos"`).
+- `arcli parametros [tabla] [--json]`: tablas de ARCA vigentes: `puntos-venta`, `comprobantes`, `documentos`, `alicuotas`, `iva-receptor`, `monedas`, `conceptos`, `opcionales`, `tributos`. `arcli parametros cotizacion USD` da la cotización oficial (`{moneda, cotizacion, fecha}`).
 - `arcli ejemplos`: comandos listos para copiar por cada tipo de comprobante.
 - `arcli storybook [escena]`: demos visuales de la UI (sin llamar a ARCA).
 - `arcli <cualquier comando> ayuda` o `--ayuda`: ayuda contextual con ejemplos (nota: el flag
