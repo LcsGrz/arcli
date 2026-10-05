@@ -72,6 +72,7 @@
   },
   "dependencies": {
     "@arcasdk/core": "2.0.2",
+    "@inquirer/checkbox": "5.2.6",
     "@inquirer/input": "5.1.6",
     "@inquirer/select": "5.2.5",
     "big.js": "7.0.1",

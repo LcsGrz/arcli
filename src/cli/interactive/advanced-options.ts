@@ -1,9 +1,10 @@
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { parseAmountInput } from '../../modules/interactive/amount-input';
+import { ivaRateChoices } from '../../modules/interactive/choices';
 import { BACK, type Back } from '../../modules/interactive/wizard';
 
-import { askTextStep, chooseStep } from './prompts';
+import { askTextStep, chooseManyStep, chooseStep } from './prompts';
 import { validateDate, validateExchangeRate, validateOptionalAmount } from './validators';
 
 export type AdvancedOptions = Pick<
@@ -11,17 +12,21 @@ export type AdvancedOptions = Pick<
   | 'currencyCode'
   | 'exchangeRate'
   | 'exemptAmount'
+  | 'ivaRate'
   | 'paymentDueDate'
   | 'sameCurrency'
   | 'serviceEndDate'
   | 'serviceStartDate'
+  | 'transferMode'
   | 'untaxedAmount'
 >;
 
-type Option = 'divisas' | 'exento' | 'listo' | 'servicio' | 'vencimiento';
+type Option = 'alicuota' | 'divisas' | 'exento' | 'servicio' | 'transferencia' | 'vencimiento';
 
 interface AdvancedContext {
   readonly concept: BillingCommandInput['concept'];
+  /** Alicuota que se usa si no se elige otra: la de la config o 21%. */
+  readonly defaultIvaRate: NonNullable<BillingCommandInput['ivaRate']>;
   readonly voucherKind: VoucherKindDefinition;
 }
 
@@ -114,66 +119,122 @@ async function askPaymentDueDate(current: AdvancedOptions): Promise<AdvancedOpti
   return due === BACK ? BACK : { ...current, paymentDueDate: due };
 }
 
+async function askIvaRate(current: AdvancedOptions, context: AdvancedContext): Promise<AdvancedOptions | Back> {
+  const ivaRate = await chooseStep('Alicuota de IVA:', ivaRateChoices(), current.ivaRate ?? context.defaultIvaRate);
+
+  return ivaRate === BACK ? BACK : { ...current, ivaRate };
+}
+
+async function askTransferMode(current: AdvancedOptions): Promise<AdvancedOptions | Back> {
+  const transferMode = await chooseStep(
+    'Modalidad de transferencia:',
+    [
+      { description: 'La opcion habitual', name: 'Sistema de circulacion abierta (SCA)', value: 'sca' as const },
+      { name: 'Agente de deposito colectivo (ADC)', value: 'adc' as const },
+    ],
+    current.transferMode ?? 'sca',
+  );
+
+  return transferMode === BACK ? BACK : { ...current, transferMode };
+}
+
+function optionalChoices(options: AdvancedOptions, context: AdvancedContext) {
+  const usesService = context.concept !== 'productos';
+  const isFceInvoice = context.voucherKind.family === 'factura-credito-electronica';
+  const discriminatesIva = context.voucherKind.letter !== 'c';
+
+  return [
+    ...(discriminatesIva
+      ? [
+          {
+            description: `${(options.ivaRate ?? context.defaultIvaRate).replace('.', ',')}%`,
+            name: 'Alicuota de IVA',
+            value: 'alicuota' as const,
+          },
+        ]
+      : []),
+    { description: describeCurrency(options), name: 'Moneda extranjera', value: 'divisas' as const },
+    ...(discriminatesIva
+      ? [{ description: describeAmounts(options), name: 'Importe exento o no gravado', value: 'exento' as const }]
+      : []),
+    ...(usesService
+      ? [
+          {
+            description: options.serviceStartDate ? `${options.serviceStartDate} al ${options.serviceEndDate}` : 'hoy',
+            name: 'Periodo del servicio',
+            value: 'servicio' as const,
+          },
+        ]
+      : []),
+    ...(usesService || isFceInvoice
+      ? [
+          {
+            description: options.paymentDueDate ?? 'por defecto',
+            name: 'Vencimiento del pago',
+            value: 'vencimiento' as const,
+          },
+        ]
+      : []),
+    ...(isFceInvoice
+      ? [
+          {
+            description: (options.transferMode ?? 'sca').toUpperCase(),
+            name: 'Modalidad de transferencia',
+            value: 'transferencia' as const,
+          },
+        ]
+      : []),
+  ];
+}
+
 /**
- * Menu de opciones avanzadas antes de la vista previa. Cada opcion se puede cambiar varias veces;
- * "Volver" en el menu vuelve al paso anterior del flujo, y "Volver" dentro de una opcion vuelve al menu.
+ * Despues de lo requerido, una sola pregunta con todos los opcionales: se marcan con espacio y Enter sigue
+ * (sin marcar nada, todo queda por defecto). Despues se pregunta solo lo marcado, en orden. "Volver" en una
+ * de esas preguntas vuelve a la seleccion, con lo marcado y lo ya respondido.
  */
 export async function askAdvancedOptions(
   initial: AdvancedOptions,
   context: AdvancedContext,
 ): Promise<AdvancedOptions | Back> {
-  const usesService = context.concept !== 'productos';
-  const usesPaymentDue = usesService || context.voucherKind.family === 'factura-credito-electronica';
-  const allowsExempt = context.voucherKind.letter !== 'c';
+  const asks: Record<Option, (current: AdvancedOptions) => Promise<AdvancedOptions | Back>> = {
+    alicuota: (current) => askIvaRate(current, context),
+    divisas: askCurrency,
+    exento: askExemptAmounts,
+    servicio: askServicePeriod,
+    transferencia: askTransferMode,
+    vencimiento: askPaymentDueDate,
+  };
   let options = initial;
+  let selected: Option[] = [];
 
   for (;;) {
-    const choice = await chooseStep<Option>('¿Agregamos algo mas?', [
-      { name: 'No, ver la vista previa', value: 'listo' },
-      { description: describeCurrency(options), name: 'Moneda extranjera', value: 'divisas' },
-      ...(allowsExempt
-        ? [{ description: describeAmounts(options), name: 'Importe exento o no gravado', value: 'exento' as const }]
-        : []),
-      ...(usesService
-        ? [
-            {
-              description: options.serviceStartDate
-                ? `${options.serviceStartDate} al ${options.serviceEndDate}`
-                : 'hoy',
-              name: 'Periodo del servicio',
-              value: 'servicio' as const,
-            },
-          ]
-        : []),
-      ...(usesPaymentDue
-        ? [
-            {
-              description: options.paymentDueDate ?? 'por defecto',
-              name: 'Vencimiento del pago',
-              value: 'vencimiento' as const,
-            },
-          ]
-        : []),
-    ]);
+    const picked = await chooseManyStep<Option>(
+      '¿Agregamos algun opcional? (espacio para marcar, Enter para seguir)',
+      optionalChoices(options, context),
+      selected,
+    );
 
-    if (choice === BACK) {
+    if (picked === BACK) {
       return BACK;
     }
 
-    if (choice === 'listo') {
-      return options;
+    selected = picked;
+
+    let completed = true;
+
+    for (const option of picked) {
+      const updated = await asks[option](options);
+
+      if (updated === BACK) {
+        completed = false;
+        break;
+      }
+
+      options = updated;
     }
 
-    const ask = {
-      divisas: askCurrency,
-      exento: askExemptAmounts,
-      servicio: askServicePeriod,
-      vencimiento: askPaymentDueDate,
-    }[choice];
-    const updated = await ask(options);
-
-    if (updated !== BACK) {
-      options = updated;
+    if (completed) {
+      return options;
     }
   }
 }
