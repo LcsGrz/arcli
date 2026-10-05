@@ -8,6 +8,10 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+## [1.5.0] - 2026-10-04
+
+Esta versión suma el PDF del comprobante con el QR de ARCA, para mandarle al cliente. El PDF lo genera un plugin que se descarga solo si lo usás, así que ARCLI no pesa más para quien no quiere PDFs. No se rompe ningún comando, flag ni JSON existente: todo lo nuevo es opcional, y el JSON suma la clave `pdf` solo cuando se intenta generar el PDF.
+
 ### Agregado
 
 - **PDF del comprobante con el QR de ARCA**, para mandarle al cliente. Ver [PDF de comprobantes](docs/pdf.md).
@@ -161,7 +165,8 @@ Primera versión publicada en npm.
 - `llms.txt`: referencia condensada para que un agente de IA con acceso a terminal ejecute el CLI.
 - Publicación con npm Trusted Publishers (OIDC).
 
-[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v1.4.0...HEAD
+[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/LcsGrz/arcli/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/LcsGrz/arcli/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/LcsGrz/arcli/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/LcsGrz/arcli/compare/v1.1.0...v1.2.0
