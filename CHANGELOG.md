@@ -8,6 +8,10 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+## [1.7.0] - 2026-10-05
+
+Esta versión completa el modo interactivo: configuración guiada la primera vez, cambiar cualquier dato desde un menú, repetir una factura anterior con fechas nuevas, consultar un comprobante y ver el estado de ARCA. También corrige el PDF de la Factura B, enlaza la guía de certificados desde la configuración y suma GIF e imágenes al README. No se rompe ningún comando, flag ni JSON existente.
+
 ### Corregido
 
 - **PDF de la Factura B:** el renglón y el subtotal mostraban el importe neto y el total con IVA, sin el IVA en ningún lado, así que no cerraba. Ahora los renglones y el subtotal de la B van con IVA incluido, como corresponde a una B. La A y la C no cambian.
@@ -18,6 +22,10 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
   - **Repetir una factura anterior:** copia receptor, concepto, monto y alícuota de una de las últimas emitidas, con fecha de hoy y el período que elijas (este mes, el mes pasado, hoy u otro).
   - **Configuración:** submenú con revisar, **configuración guiada** (CUIT, certificado, punto de venta y defaults, más los datos del PDF), **cambiar un dato** de una lista con su valor actual, y el **plugin de PDF**. Si falta algo obligatorio, el asistente ofrece la configuración guiada al abrirse.
   - **Consultar un comprobante** por tipo y número, y **Estado de ARCA** con la cotización del dólar.
+
+### Cambiado
+
+- **Guía de certificados en la configuración:** el asistente de configuración y `arcli config revisar` ahora muestran el link a [Cómo obtener los certificados de ARCA](https://github.com/LcsGrz/arcli/blob/main/docs/obtencion-certificados.md): en el mensaje inicial, justo antes de pedir el certificado de testing si todavía no hay uno cargado, y en el aviso de credenciales de testing faltantes. Antes el asistente apuntaba a una ruta relativa que no existe al instalar desde npm.
 
 ## [1.6.0] - 2026-10-05
 
@@ -189,7 +197,8 @@ Primera versión publicada en npm.
 - `llms.txt`: referencia condensada para que un agente de IA con acceso a terminal ejecute el CLI.
 - Publicación con npm Trusted Publishers (OIDC).
 
-[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v1.6.0...HEAD
+[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v1.7.0...HEAD
+[1.7.0]: https://github.com/LcsGrz/arcli/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/LcsGrz/arcli/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/LcsGrz/arcli/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/LcsGrz/arcli/compare/v1.3.0...v1.4.0
