@@ -1,5 +1,6 @@
 import type { Command } from 'commander';
 
+import { CERTIFICATE_GUIDE_URL } from '../lib/links';
 import type { VoucherFamily, VoucherShortcut } from '../modules/billing/billing.types';
 import { getVoucherKindByShortcut } from '../modules/billing/voucher-kind-map';
 import { renderLogo } from '../ui';
@@ -529,10 +530,7 @@ export function createConfigHelp(): string {
     '',
     section(
       'No tenes certificado todavia?',
-      [
-        '  - Guia paso a paso (testing y produccion), con capturas de ARCA:',
-        '    https://github.com/LcsGrz/arcli/blob/main/docs/obtencion-certificados.md',
-      ].join('\n'),
+      ['  - Guia paso a paso (testing y produccion), con capturas de ARCA:', `    ${CERTIFICATE_GUIDE_URL}`].join('\n'),
     ),
     '',
   ].join('\n');
