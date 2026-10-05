@@ -1,14 +1,25 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { listMissingSetupKeys } from '../../../modules/interactive/config-fields';
+import { runConfigMenu, runGuidedSetup } from '../config.flow';
 import { runHistoryFlow } from '../history.flow';
 import { runInteractiveMode } from '../interactive-mode';
 import { runInvoiceFlow } from '../invoice.flow';
-import { chooseOne } from '../prompts';
+import { chooseOne, confirm } from '../prompts';
+import { runRepeatFlow } from '../repeat.flow';
 
 vi.mock('../prompts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../prompts')>()),
   chooseOne: vi.fn(),
+  confirm: vi.fn(),
 }));
+vi.mock('../../../modules/interactive/config-fields', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../modules/interactive/config-fields')>()),
+  listMissingSetupKeys: vi.fn(() => []),
+}));
+vi.mock('../config.flow', () => ({ runConfigMenu: vi.fn(), runGuidedSetup: vi.fn() }));
+vi.mock('../repeat.flow', () => ({ runRepeatFlow: vi.fn() }));
+vi.mock('../lookup.flow', () => ({ runLookupFlow: vi.fn(), runStatusFlow: vi.fn() }));
 vi.mock('../invoice.flow', () => ({ runInvoiceFlow: vi.fn() }));
 vi.mock('../note.flow', () => ({ runNoteFlow: vi.fn() }));
 vi.mock('../history.flow', () => ({ runHistoryFlow: vi.fn() }));
@@ -83,5 +94,32 @@ describe('runInteractiveMode', () => {
     await runInteractiveMode();
 
     expect(output).toContain('¡Hasta la proxima!');
+  });
+
+  it('ofrece la configuracion guiada si falta algo obligatorio', async () => {
+    vi.mocked(listMissingSetupKeys).mockReturnValueOnce(['cuit']);
+    vi.mocked(confirm).mockResolvedValueOnce(true);
+    chooseOneMock.mockResolvedValueOnce('salir');
+
+    await runInteractiveMode();
+
+    expect(runGuidedSetup).toHaveBeenCalledTimes(1);
+  });
+
+  it('no ofrece la guia si la configuracion esta completa', async () => {
+    chooseOneMock.mockResolvedValueOnce('salir');
+
+    await runInteractiveMode();
+
+    expect(confirm).not.toHaveBeenCalled();
+  });
+
+  it('abre configuracion y repetir factura desde el menu', async () => {
+    chooseOneMock.mockResolvedValueOnce('config').mockResolvedValueOnce('repetir').mockResolvedValueOnce('salir');
+
+    await runInteractiveMode();
+
+    expect(runConfigMenu).toHaveBeenCalledTimes(1);
+    expect(runRepeatFlow).toHaveBeenCalledTimes(1);
   });
 });
