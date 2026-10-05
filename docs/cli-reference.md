@@ -284,6 +284,21 @@ Instala o revisa el plugin que genera los PDFs. No viene con ARCLI porque pesa u
 
 Todos aceptan `--json`.
 
+### Comandos `arcli estado` y `arcli parametros`
+
+Consultan a ARCA sin emitir nada. Usan el entorno y el punto de venta de la config (o `--testing` / `--produccion`) y aceptan `--json`.
+
+| Comando                                | Descripción                                                                                                                  |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `arcli estado`                         | Si los servidores de ARCA responden, cuánto tardan y si el punto de venta está habilitado                                    |
+| `arcli parametros`                     | Lista las tablas disponibles (no consulta ARCA)                                                                              |
+| `arcli parametros <tabla>`             | `puntos-venta`, `comprobantes`, `documentos`, `alicuotas`, `iva-receptor`, `monedas`, `conceptos`, `opcionales` o `tributos` |
+| `arcli parametros cotizacion <moneda>` | Cotización oficial de ARCA, por ejemplo `USD`                                                                                |
+
+- Las tablas muestran solo los valores vigentes hoy.
+- **Puntos de venta en testing:** ARCA no los informa, así que `parametros puntos-venta` sale vacío y `estado` no puede verificar el punto de venta. En testing cualquier número sirve.
+- En producción, `estado` avisa si el punto de venta configurado no existe para tu CUIT, está bloqueado o dado de baja.
+
 ## Parámetros por familia de comprobantes
 
 Acá está la parte más práctica del documento: qué necesitás para emitir cada familia y qué cambia entre una y otra.
@@ -566,4 +581,7 @@ Para referencia de comandos `config` y claves disponibles, ver [configuration.md
 | `interactivo`                                                                                                                      | estable | Asistente paso a paso; también se abre con `arcli` sin argumentos en una terminal |
 | `ultimos`                                                                                                                          | estable | Lista los últimos comprobantes emitidos                                           |
 | `consultar`                                                                                                                        | estable | Muestra el detalle de un comprobante emitido                                      |
+| `estado`                                                                                                                           | estable | Estado de los servidores de ARCA y del punto de venta                             |
+| `parametros`                                                                                                                       | estable | Tablas de referencia de ARCA y cotización oficial                                 |
+| `pdf`                                                                                                                              | estable | Instala o revisa el plugin de PDF                                                 |
 | `storybook`                                                                                                                        | interno | Herramienta de desarrollo para probar la UI                                       |

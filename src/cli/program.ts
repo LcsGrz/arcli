@@ -7,6 +7,7 @@ import { registerConfigCommand } from './commands/config.command';
 import { registerExamplesCommand } from './commands/examples.command';
 import { registerFceObligationCommand } from './commands/fce-obligation.command';
 import { registerInteractiveCommand } from './commands/interactive.command';
+import { registerParametersCommands } from './commands/parameters.command';
 import { registerPdfCommand } from './commands/pdf.command';
 import { registerStorybookCommand } from './commands/storybook.command';
 import { registerVoucherQueryCommands } from './commands/vouchers.command';
@@ -34,6 +35,7 @@ export function createProgram(): Command {
   registerFceObligationCommand(program);
   registerInteractiveCommand(program);
   registerPdfCommand(program);
+  registerParametersCommands(program);
   registerVoucherQueryCommands(program);
   registerStorybookCommand(program);
 

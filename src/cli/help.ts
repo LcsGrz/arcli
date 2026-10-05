@@ -163,6 +163,8 @@ function createProgramCommands(): string {
       '  - Asistente paso a paso: arcli (sin argumentos) o arcli interactivo',
       '  - Ver los ultimos comprobantes emitidos: arcli ultimos fb',
       '  - Ver el detalle de un comprobante: arcli consultar fb 14',
+      '  - Ver si ARCA responde y el punto de venta esta habilitado: arcli estado',
+      '  - Ver tablas de ARCA (puntos de venta, alicuotas, cotizacion): arcli parametros',
       '  - Generar el PDF al emitir: arcli fc ... --emitir --exportar-pdf (plugin: arcli pdf instalar)',
       '  - Ver escenas de UI: arcli storybook',
     ].join('\n'),
