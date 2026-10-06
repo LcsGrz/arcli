@@ -1,4 +1,4 @@
-[← Volver al README](../README.md)
+[← Documentación](README.md)
 
 # Cómo obtener los certificados de ARCA (testing y producción)
 
@@ -195,7 +195,11 @@ arcli config revisar --produccion
 ```
 
 Para emitir de verdad en producción hace falta además `--produccion --emitir` en el
-comando de facturación — ver [Seguridad: testing vs producción](../README.md#seguridad-testing-vs-producción).
+comando de facturación — ver [Testing y producción](../README.md#testing-y-producción).
+
+## Siguiente paso
+
+Configurá el CUIT y el punto de venta, o corré `arcli` para la [configuración guiada](../README.md#configuración), y emití tu primera factura en testing.
 
 ---
 

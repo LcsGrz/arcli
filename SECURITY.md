@@ -2,45 +2,23 @@
 
 # Seguridad
 
-Si encontraste un problema de seguridad, por ahora no lo publiques en un issue abierto.
+## Reportar una vulnerabilidad
 
-## Que no subir nunca
+No abras un issue público. Usá el [reporte privado de GitHub](https://github.com/LcsGrz/arcli/security/advisories/new) (pestaña **Security** → **Report a vulnerability**) y esperá confirmación antes de publicar detalles.
 
-- certificados `.crt`
-- claves `.key`
-- tokens WSAA
-- configuraciones con rutas o datos sensibles de produccion
+## Qué no subir nunca
 
-## Reporte responsable
+Ni a issues, ni a PRs, ni a capturas:
 
-Mientras el proyecto no tenga un canal dedicado, la recomendacion es reportar el problema por un canal privado antes de abrir un issue publico.
+- certificados `.crt` y claves `.key`
+- tickets WSAA
+- archivos de configuración con rutas o datos de producción
+- respuestas crudas de ARCA (`--bruto`) sin revisar
 
-## Alcance inicial
+## Qué es sensible en ARCLI
 
-Las prioridades de seguridad actuales son:
+- Certificados y claves privadas: ARCLI guarda solo las rutas en su configuración, no el contenido.
+- Tickets WSAA: se guardan en disco junto a la configuración (ver [`ticketPath`](docs/configuration.md#ticket-wsaa-ticketpath)).
+- La emisión real: `testing` es el entorno por defecto y emitir en producción exige `--produccion --emitir` juntos.
 
-- no exponer secretos en el repo
-- no imprimir rutas o datos sensibles innecesarios
-- mantener `testing` como default seguro
-- requerir confirmaciones para emisiones reales en produccion
-
-## Superficie de riesgo
-
-Estos son los puntos más sensibles hoy:
-
-- certificados y claves privadas usadas para autenticación
-- tickets WSAA y cualquier dato derivado de autenticación
-- emisión real de comprobantes en ARCA
-
-En la práctica, eso significa:
-
-- no guardar secretos dentro del repo
-- no exponer rutas o materiales sensibles en logs o capturas
-- evitar pruebas en `produccion` salvo que sea realmente necesario
-- revisar con cuidado cualquier cambio que toque autenticación o emisión
-
-## Buenas prácticas
-
-- usar `testing` siempre que sea posible
-- evitar compartir outputs que puedan incluir rutas, respuestas crudas o datos sensibles
-- revisar dos veces el comando antes de emitir en `produccion`
+Buenas prácticas: usá `testing` siempre que puedas y revisá el comando antes de emitir en producción.

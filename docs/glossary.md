@@ -1,4 +1,4 @@
-[← Volver al README](../README.md)
+[← Documentación](README.md)
 
 # Glosario
 
@@ -72,7 +72,7 @@ Código de Autorización Electrónico. El número que ARCA devuelve al aprobar u
 
 ### Alícuota
 
-El porcentaje de IVA aplicado. ARCLI hoy usa una alícuota fija del `21%` en los casos donde calcula IVA automáticamente (ver [Limitaciones actuales](limitations.md)).
+El porcentaje de IVA aplicado. ARCLI calcula el IVA automáticamente en las letras `A` y `B`, con `21%` por defecto; se cambia con `--alicuota` o `config.alicuota` (ver [IVA automático](validation-rules.md#iva-automático)).
 
 ### Estado vs. resultado
 

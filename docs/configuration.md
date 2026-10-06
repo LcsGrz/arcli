@@ -1,4 +1,4 @@
-[← Volver al README](../README.md)
+[← Documentación](README.md)
 
 # Configuración
 
@@ -77,14 +77,7 @@ arcli config eliminar ticketPath
 
 ### PDF y datos del emisor
 
-Las claves `pdf`, `pdfCarpeta`, `pdfNavegador` y `emisor.*` solo se usan para generar el PDF de los comprobantes. ARCA no recibe los datos del emisor: van impresos en el PDF. Ver [PDF de comprobantes](pdf.md).
-
-```bash
-arcli config establecer emisor.razonSocial "Tu Nombre o Empresa"
-arcli config establecer emisor.domicilio "Calle 123, Ciudad"
-arcli config establecer emisor.inicioActividades 1/03/2020
-arcli config establecer pdf siempre
-```
+Las claves `pdf`, `pdfCarpeta`, `pdfNavegador` y `emisor.*` solo se usan para generar el PDF. ARCA no recibe los datos del emisor: van impresos en el PDF. Cómo completarlos y qué hace cada clave: [PDF de comprobantes](pdf.md#datos-que-arca-no-guarda).
 
 ## Prioridad de fuentes
 
@@ -146,49 +139,21 @@ Cuando se guarda `cert.*` o `key.*`, ARCLI valida:
 ¿Todavía no tenés el certificado y la clave? Ver
 [Cómo obtener los certificados de ARCA](obtencion-certificados.md).
 
-## Variables de entorno de la terminal
+## Variables de entorno
 
-No son claves de config: cambian solo cómo se ve la salida humana. El JSON no cambia.
+No son claves de config. Las de color y `ARCLI_ASCII` cambian solo cómo se ve la salida humana; el JSON no cambia.
 
-| Variable        | Efecto                                                                                                                       |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `NO_COLOR`      | Desactiva los colores                                                                                                        |
-| `FORCE_COLOR=1` | Fuerza los colores aunque la salida no sea una terminal (por defecto, con la salida redirigida no hay colores)               |
-| `ARCLI_ASCII=1` | Dibuja los paneles con ASCII puro (`+`, `-`, `\|`), para terminales o fuentes que no muestran los caracteres de caja Unicode |
+| Variable                    | Efecto                                                                                                                       |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `NO_COLOR`                  | Desactiva los colores                                                                                                        |
+| `FORCE_COLOR=1`             | Fuerza los colores aunque la salida no sea una terminal (por defecto, con la salida redirigida no hay colores)               |
+| `ARCLI_ASCII=1`             | Dibuja los paneles con ASCII puro (`+`, `-`, `\|`), para terminales o fuentes que no muestran los caracteres de caja Unicode |
+| `NO_UPDATE_NOTIFIER`        | Desactiva el aviso de nueva versión. Tampoco aparece con `CI`, con `--json` ni si stderr no es una terminal                  |
+| `PUPPETEER_EXECUTABLE_PATH` | Ruta del navegador para el PDF (ver [PDF](pdf.md#el-plugin-de-pdf))                                                          |
 
-## Cuándo usar config vs flags
+## Qué conviene guardar
 
-Usá config para defaults que se repiten en el flujo diario:
-
-- `cuit`
-- `puntoVenta`
-- `concepto`
-- `ivaReceptor`
-- `moneda`
-- `cotizacion`
-- `cbu`, si emitís facturas de crédito electrónica
-- `alicuota`, si casi siempre facturás con una alícuota distinta del 21%
-
-Si un valor aparece en flags, pisa lo que venga de JSON, config o defaults internos.
-
-## Ejemplo completo real
-
-Un setup razonable para uso diario en testing:
-
-```bash
-arcli config
-arcli config establecer cuit 20168598204
-arcli config establecer puntoVenta 3
-arcli config establecer concepto servicios
-arcli config establecer ivaReceptor consumidor-final
-arcli config establecer moneda ARS
-arcli config establecer cotizacion 1
-arcli config establecer emitir false
-arcli config establecer bruto false
-arcli config establecer cert.testing /ruta/al/certificado.crt
-arcli config establecer key.testing /ruta/a/la/clave.key
-arcli config revisar
-```
+Guardá en config lo que se repite en el uso diario: `cuit`, `puntoVenta`, `concepto`, `ivaReceptor`, `cbu` (si emitís facturas FCE) y `alicuota` (si casi siempre facturás con una alícuota distinta de 21%). Un flag siempre pisa lo guardado. Para una configuración inicial, ver [Configuración](../README.md#configuración).
 
 ## Advertencias
 
@@ -200,6 +165,4 @@ Si guardás:
 arcli config establecer emitir true
 ```
 
-ARCLI va a asumir emisión real por defecto cuando no pases `--previsualizar`. Eso puede ser cómodo, pero también hace más fácil emitir sin querer en flujos repetitivos.
-
-Si no estás muy seguro, dejalo en `false`.
+ARCLI va a emitir por defecto cuando no pases `--previsualizar`. Es cómodo, pero también hace más fácil emitir sin querer en flujos repetitivos. Si no estás seguro, dejalo en `false`.

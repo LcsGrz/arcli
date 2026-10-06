@@ -1,8 +1,8 @@
-[← Volver al README](../README.md)
+[← Documentación](README.md)
 
 # Patrones de uso
 
-Guías prácticas para los flujos más comunes de ARCLI.
+Recetas para los flujos más comunes: qué necesitás, el comando y qué esperar. Las tablas completas de flags están en la [referencia del CLI](cli-reference.md); para errores, [Troubleshooting](troubleshooting.md). Todos los comandos sin `--emitir` solo previsualizan.
 
 ## Factura C simple
 
@@ -23,9 +23,8 @@ arcli fc -m 15000 --cs --consumidor-final --ir-cf
 
 ### Resultado esperado
 
-- payload visible en terminal
-- estado `SIN EMITIR` si no confirmás emisión
-- prompt interactivo si el flujo entra por defaults y la terminal es interactiva
+- vista previa de la solicitud, con estado `SIN EMITIR`
+- agregá `--emitir` para emitir de verdad
 
 ### Errores comunes
 
@@ -268,81 +267,6 @@ arcli fc --cargar ./voucher-batch.json --json --bruto
 - un item inválido hace fallar el lote completo
 - asumir que hay resultados parciales cuando la validación corta antes
 
-## Caso con error real
-
-### Cuándo usarlo
-
-Cuando querés entender un rechazo o una observación real del entorno ARCA.
-
-### Requisitos
-
-- entorno configurado
-- caso reproducible
-
-### Comando
-
-```bash
-arcli fa -m 15000 --cs --cuit 20409509763 --ir-ri --emitir --bruto
-```
-
-### Resultado esperado
-
-- respuesta real de ARCA
-- error funcional porque el receptor coincide con el emisor
-
-### Errores comunes
-
-- confundir un error funcional con un fallo del CLI
-- mirar solo la salida humana cuando conviene revisar `--bruto`
-
-## Previsualizar
-
-### Cuándo usarlo
-
-Cuando querés revisar el payload sin llamar a ARCA.
-
-### Requisitos
-
-- datos mínimos válidos para construir el payload
-
-### Comando
-
-```bash
-arcli fc -m 15000 --cs --consumidor-final --ir-cf --previsualizar
-```
-
-### Resultado esperado
-
-- no hay emisión real
-- no aparece respuesta ARCA real
-- `--bruto` muestra un mensaje amigable en vez de `null`
-
-### Errores comunes
-
-- combinar `--previsualizar` con `--emitir`
-
-## Emitir
-
-### Cuándo usarlo
-
-Cuando querés crear realmente el comprobante en ARCA.
-
-### Comando
-
-```bash
-arcli fc -m 15000 --cs --consumidor-final --ir-cf --emitir
-```
-
-### Resultado esperado
-
-- payload visible
-- resultado humano
-- respuesta cruda si agregás `--bruto`
-
-### Errores comunes
-
-- asumir que `--json` cambia el comportamiento funcional; solo cambia la salida
-
 ## Caso de automatización
 
 ### Cuándo usarlo
@@ -378,3 +302,9 @@ arcli fb -m 1 --cs --consumidor-final --ir-cf --emitir --json \
 
 - intentar parsear la salida humana
 - asumir que `--json` devuelve exactamente lo mismo que el modo texto
+
+## Ver también
+
+- [Modo interactivo](modo-interactivo.md): lo mismo, con preguntas en vez de flags.
+- [Entrada y salida](input-output.md): formato del JSON y de los lotes.
+- [Reglas de validación](validation-rules.md)

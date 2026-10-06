@@ -1,4 +1,4 @@
-[← Volver al README](../README.md)
+[← Documentación](README.md)
 
 # Referencia del CLI
 
@@ -17,11 +17,11 @@ Eso crea una `Factura C` con:
 - receptor consumidor final
 - IVA receptor consumidor final
 
-Con eso ya podés emitir una factura básica sin configuración previa.
+Asume que ya configuraste CUIT, credenciales y punto de venta (`arcli config revisar` lo verifica). Sin `--emitir` solo muestra la vista previa.
 
 ¿Preferís que te pregunte paso a paso? Corré `arcli` sin argumentos y se abre el [modo interactivo](modo-interactivo.md). Antes de emitir te muestra el comando equivalente.
 
-Si querés entender más, este orden sirve: [Cómo pensar los comprobantes](#cómo-pensar-los-comprobantes-en-arcli) → [Parámetros por familia](#parámetros-por-familia-de-comprobantes) → [Cómo funcionan los flags](#cómo-funcionan-los-flags) → [Ejemplos útiles](#ejemplos-útiles). Si ya conocés el CLI, las tablas y el [Estado de comandos](#estado-de-comandos) al final sirven como referencia rápida.
+Si querés entender más, este orden sirve: [Cómo pensar los comprobantes](#cómo-pensar-los-comprobantes-en-arcli) → [Parámetros por familia](#parámetros-por-familia-de-comprobantes) → [Cómo funcionan los flags](#cómo-funcionan-los-flags) → [Ejemplos útiles](#ejemplos-útiles). Si ya conocés el CLI, las tablas de flags sirven como referencia rápida.
 
 ## Cómo pensar rápido un comando
 
@@ -125,20 +125,16 @@ Estos flags aplican a cualquier comando de comprobantes.
 
 Usalos cuando necesitás controlar el entorno, la salida o el modo de inspección del resultado.
 
-### ⚠️ Emisión en producción
+### Emisión en producción
 
-Para emitir en producción, ARCLI exige este bloque completo:
+Para emitir en producción hay que pasar `--produccion` y `--emitir` juntos.
 
-```bash
---produccion --emitir
-```
-
-| Flag           | Alias   | Tipo      | Valor por defecto                                     | Descripción                                   |
-| -------------- | ------- | --------- | ----------------------------------------------------- | --------------------------------------------- |
-| `--testing`    | ninguno | `boolean` | `false`                                               | Fuerza entorno `testing` en esta ejecución    |
-| `--produccion` | ninguno | `boolean` | `false`                                               | Fuerza entorno `produccion` en esta ejecución |
-| `--json`       | ninguno | `boolean` | `config.output.jsonPorDefecto` (`false` por defecto)  | Devuelve salida estructurada                  |
-| `--bruto`      | ninguno | `boolean` | `config.output.brutoPorDefecto` (`false` por defecto) | Agrega respuesta cruda de ARCA cuando exista  |
+| Flag           | Alias   | Tipo      | Valor por defecto                    | Descripción                                   |
+| -------------- | ------- | --------- | ------------------------------------ | --------------------------------------------- |
+| `--testing`    | ninguno | `boolean` | `false`                              | Fuerza entorno `testing` en esta ejecución    |
+| `--produccion` | ninguno | `boolean` | `false`                              | Fuerza entorno `produccion` en esta ejecución |
+| `--json`       | ninguno | `boolean` | `config.json` (`false` por defecto)  | Devuelve salida estructurada                  |
+| `--bruto`      | ninguno | `boolean` | `config.bruto` (`false` por defecto) | Agrega respuesta cruda de ARCA cuando exista  |
 
 ## Flags de comprobantes
 
@@ -148,10 +144,10 @@ Esta sección describe qué existe. Más abajo vas a encontrar qué hace falta e
 
 Estos flags controlan si ARCLI previsualiza o emite de verdad.
 
-| Flag              | Alias   | Tipo      | Valor por defecto                                      | Descripción                     |
-| ----------------- | ------- | --------- | ------------------------------------------------------ | ------------------------------- |
-| `--previsualizar` | ninguno | `boolean` | `!emitir` resuelto desde flags, JSON o config          | Muestra la solicitud sin emitir |
-| `--emitir`        | ninguno | `boolean` | `config.output.emitirPorDefecto` (`false` por defecto) | Emite realmente en ARCA         |
+| Flag              | Alias   | Tipo      | Valor por defecto                                             | Descripción                     |
+| ----------------- | ------- | --------- | ------------------------------------------------------------- | ------------------------------- |
+| `--previsualizar` | ninguno | `boolean` | lo contrario de `emitir`, resuelto desde flags, JSON o config | Muestra la solicitud sin emitir |
+| `--emitir`        | ninguno | `boolean` | `config.emitir` (`false` por defecto)                         | Emite realmente en ARCA         |
 
 ### Identidad e IVA receptor
 
@@ -162,24 +158,24 @@ En la práctica, siempre necesitás:
 - una identidad
 - una condición de IVA receptor
 
-| Flag                    | Alias         | Tipo                                                                                                                                                                                                                                                                                                     | Valor por defecto              | Descripción                                    |
-| ----------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ | ---------------------------------------------- |
-| `--cuit <number>`       | ninguno       | `integer`                                                                                                                                                                                                                                                                                                | ninguno                        | Usa CUIT del receptor                          |
-| `--cuil <number>`       | ninguno       | `integer`                                                                                                                                                                                                                                                                                                | ninguno                        | Usa CUIL del receptor                          |
-| `--dni <number>`        | ninguno       | `integer`                                                                                                                                                                                                                                                                                                | ninguno                        | Usa DNI del receptor                           |
-| `--consumidor-final`    | `--cfinal`    | `boolean`                                                                                                                                                                                                                                                                                                | `false`                        | Usa consumidor final con documento `0`         |
-| `--iva-receptor <tipo>` | `--ir <tipo>` | `'cliente-del-exterior' \| 'consumidor-final' \| 'iva-liberado' \| 'iva-no-alcanzado' \| 'monotributista-social' \| 'monotributo-trabajador-independiente-promovido' \| 'proveedor-del-exterior' \| 'responsable-inscripto' \| 'responsable-monotributo' \| 'sujeto-exento' \| 'sujeto-no-categorizado'` | `config.ivaReceptorPorDefecto` | Condición IVA del receptor                     |
-| `--ir-ce`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                        | Cliente del exterior                           |
-| `--ir-cf`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                        | Consumidor final                               |
-| `--ir-il`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                        | IVA liberado                                   |
-| `--ir-ina`              | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                        | IVA no alcanzado                               |
-| `--ir-ms`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                        | Monotributista social                          |
-| `--ir-mtip`             | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                        | Monotributo trabajador independiente promovido |
-| `--ir-pe`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                        | Proveedor del exterior                         |
-| `--ir-ri`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                        | Responsable inscripto                          |
-| `--ir-rm`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                        | Responsable monotributo                        |
-| `--ir-se`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                        | Sujeto exento                                  |
-| `--ir-snc`              | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                        | Sujeto no categorizado                         |
+| Flag                    | Alias         | Tipo                                                                                                                                                                                                                                                                                                     | Valor por defecto    | Descripción                                    |
+| ----------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- | ---------------------------------------------- |
+| `--cuit <number>`       | ninguno       | `integer`                                                                                                                                                                                                                                                                                                | ninguno              | Usa CUIT del receptor                          |
+| `--cuil <number>`       | ninguno       | `integer`                                                                                                                                                                                                                                                                                                | ninguno              | Usa CUIL del receptor                          |
+| `--dni <number>`        | ninguno       | `integer`                                                                                                                                                                                                                                                                                                | ninguno              | Usa DNI del receptor                           |
+| `--consumidor-final`    | `--cfinal`    | `boolean`                                                                                                                                                                                                                                                                                                | `false`              | Usa consumidor final con documento `0`         |
+| `--iva-receptor <tipo>` | `--ir <tipo>` | `'cliente-del-exterior' \| 'consumidor-final' \| 'iva-liberado' \| 'iva-no-alcanzado' \| 'monotributista-social' \| 'monotributo-trabajador-independiente-promovido' \| 'proveedor-del-exterior' \| 'responsable-inscripto' \| 'responsable-monotributo' \| 'sujeto-exento' \| 'sujeto-no-categorizado'` | `config.ivaReceptor` | Condición IVA del receptor                     |
+| `--ir-ce`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`              | Cliente del exterior                           |
+| `--ir-cf`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`              | Consumidor final                               |
+| `--ir-il`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`              | IVA liberado                                   |
+| `--ir-ina`              | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`              | IVA no alcanzado                               |
+| `--ir-ms`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`              | Monotributista social                          |
+| `--ir-mtip`             | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`              | Monotributo trabajador independiente promovido |
+| `--ir-pe`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`              | Proveedor del exterior                         |
+| `--ir-ri`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`              | Responsable inscripto                          |
+| `--ir-rm`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`              | Responsable monotributo                        |
+| `--ir-se`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`              | Sujeto exento                                  |
+| `--ir-snc`              | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`              | Sujeto no categorizado                         |
 
 El IVA receptor tiene que ser válido para la letra del comprobante. Por ejemplo, `fa` no admite `--ir-cf` y `fb` no admite `--ir-ri`. Ver [IVA receptor](validation-rules.md#iva-receptor).
 
@@ -204,13 +200,13 @@ En casi todos los casos te va a interesar mirar primero:
 | `--nogravado <number>`         | ninguno         | `number`                                              | `0`                                      | Parte no gravada del monto (solo `A` y `B`)      |
 | `--fecha <fecha>`              | `-f`            | `string`                                              | hoy                                      | Fecha del comprobante                            |
 | `--dia <number>`               | `-d`            | `integer`                                             | ninguno                                  | Día de vencimiento o referencia del servicio     |
-| `--punto-venta <number>`       | `--pv`          | `integer`                                             | `config.puntoVentaPorDefecto`            | Punto de venta                                   |
-| `--concepto <tipo>`            | `-c`            | `'productos' \| 'servicios' \| 'productos-servicios'` | `config.conceptoPorDefecto`              | `productos`, `servicios` o `productos-servicios` |
+| `--punto-venta <number>`       | `--pv`          | `integer`                                             | `config.puntoVenta`                      | Punto de venta                                   |
+| `--concepto <tipo>`            | `-c`            | `'productos' \| 'servicios' \| 'productos-servicios'` | `config.concepto`                        | `productos`, `servicios` o `productos-servicios` |
 | `--cs`                         | ninguno         | `boolean`                                             | `false`                                  | Equivale a `--concepto servicios`                |
 | `--cp`                         | ninguno         | `boolean`                                             | `false`                                  | Equivale a `--concepto productos`                |
 | `--csp`                        | ninguno         | `boolean`                                             | `false`                                  | Equivale a `--concepto productos-servicios`      |
-| `--moneda <codigo>`            | `--mda`         | `'ARS' \| 'USD' \| string(3)`                         | `config.monedaPorDefecto` o `ARS`        | Moneda del comprobante                           |
-| `--cotizacion-moneda <number>` | `--cm`          | `number`                                              | `config.cotizacionPorDefecto` o `1`      | Cotización de la moneda                          |
+| `--moneda <codigo>`            | `--mda`         | `'ARS' \| 'USD' \| string(3)`                         | `config.moneda` o `ARS`                  | Moneda del comprobante                           |
+| `--cotizacion-moneda <number>` | `--cm`          | `number`                                              | `config.cotizacion` o `1`                | Cotización de la moneda                          |
 | `--misma-moneda`               | ninguno         | `boolean`                                             | `false`                                  | El pago se cancela en la moneda extranjera       |
 | `--servicio-desde <fecha>`     | `--sd <fecha>`  | `string`                                              | ninguno                                  | Fecha de inicio del servicio                     |
 | `--servicio-hasta <fecha>`     | `--sh <fecha>`  | `string`                                              | ninguno                                  | Fecha de fin del servicio                        |
@@ -514,17 +510,6 @@ arcli fc -m 300000
 arcli fa -m 1 --cs --cuit 20168598204 --ir-ri --emitir --json --bruto
 ```
 
-## Errores comunes
-
-Tropiezos habituales cuando el comando parece bien armado pero igual falla:
-
-- falta un dato base: `--monto`, identidad del receptor, IVA receptor o concepto
-- se mezclan flags excluyentes (ver [exclusividades importantes](#cómo-funcionan-los-flags))
-- faltan datos del asociado en una nota: `--ac`/`--at`, `--apv`, `--ar`, `--acuit`
-- el JSON de `--cargar` no representa el mismo comprobante que estás invocando (por ejemplo, cargar una nota en `arcli fc`)
-
-Para el diagnóstico paso a paso de cada caso, ver [Troubleshooting](troubleshooting.md).
-
 ## Consultar comprobantes emitidos
 
 Dos comandos de solo lectura para ver lo que ya está emitido en ARCA, sin abrir el modo interactivo:
@@ -563,25 +548,13 @@ Si activás `arcli config establecer verificarFce true`, la misma consulta corre
 
 ## Configuración
 
-Para referencia de comandos `config` y claves disponibles, ver [configuration.md](configuration.md).
+Comandos `config` y claves disponibles: [Configuración](configuration.md).
 
-## Estado de comandos
+## Estabilidad
 
-| Comando                                                                                                                            | Estado  | Notas                                                                             |
-| ---------------------------------------------------------------------------------------------------------------------------------- | ------- | --------------------------------------------------------------------------------- |
-| `fa`, `fb`, `fc`, `nca`, `ncb`, `ncc`, `nda`, `ndb`, `ndc`, `fcea`, `fceb`, `fcec`, `ncea`, `nceb`, `ncec`, `ndea`, `ndeb`, `ndec` | estable | Shortcuts públicos de comprobantes                                                |
-| `factura`, `nota-credito`, `nota-debito`, `factura-credito-electronica`, `nota-credito-electronica`, `nota-debito-electronica`     | estable | Familias públicas de comprobantes                                                 |
-| `config`                                                                                                                           | estable | Gestión de configuración persistente                                              |
-| `config revisar`                                                                                                                   | estable | Revisión de defaults, credenciales y validación activa                            |
-| `config ruta`                                                                                                                      | estable | Muestra la ruta del archivo de config                                             |
-| `config establecer`                                                                                                                | estable | Guarda una clave pública                                                          |
-| `config eliminar`                                                                                                                  | estable | Elimina una clave pública                                                         |
-| `ejemplos`                                                                                                                         | estable | Muestra ejemplos listos para copiar                                               |
-| `fce-obligado`                                                                                                                     | estable | Consulta si un receptor está obligado a recibir FCE                               |
-| `interactivo`                                                                                                                      | estable | Asistente paso a paso; también se abre con `arcli` sin argumentos en una terminal |
-| `ultimos`                                                                                                                          | estable | Lista los últimos comprobantes emitidos                                           |
-| `consultar`                                                                                                                        | estable | Muestra el detalle de un comprobante emitido                                      |
-| `estado`                                                                                                                           | estable | Estado de los servidores de ARCA y del punto de venta                             |
-| `parametros`                                                                                                                       | estable | Tablas de referencia de ARCA y cotización oficial                                 |
-| `pdf`                                                                                                                              | estable | Instala o revisa el plugin de PDF                                                 |
-| `storybook`                                                                                                                        | interno | Herramienta de desarrollo para probar la UI                                       |
+Todos los comandos de esta referencia son estables, salvo `storybook`, una herramienta interna de desarrollo.
+
+## Ver también
+
+- [Patrones de uso](usage-patterns.md): casos completos paso a paso.
+- [Reglas de validación](validation-rules.md) y [Troubleshooting](troubleshooting.md): qué rechaza el CLI y cómo resolverlo.

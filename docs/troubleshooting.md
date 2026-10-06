@@ -1,8 +1,8 @@
-[← Volver al README](../README.md)
+[← Documentación](README.md)
 
 # Troubleshooting
 
-Problemas comunes agrupados por categoría.
+Errores frecuentes agrupados por categoría: síntoma, causa y solución.
 
 ## Debug rápido
 
@@ -20,30 +20,9 @@ Con eso normalmente ves:
 - si el comando está mal armado
 - si el problema viene de la solicitud o de ARCA
 
-### Inspeccionar con JSON o bruto
+Si la salida humana no alcanza para entender qué pasó, agregá `--json`, `--bruto` o ambos al mismo comando.
 
-Si la salida humana no alcanza para entender qué pasó:
-
-```bash
-arcli fc -m 1000 --cs --consumidor-final --ir-cf --emitir --json
-arcli fc -m 1000 --cs --consumidor-final --ir-cf --emitir --bruto
-arcli fc -m 1000 --cs --consumidor-final --ir-cf --emitir --json --bruto
-```
-
-- **Documentación relacionada:** [Entrada y salida](input-output.md)
-
-### Los bordes de los paneles se ven como `?` o cuadraditos
-
-- **Severidad:** ocasional (terminales viejas, por ejemplo el `cmd` clásico de Windows, o fuentes sin caracteres de caja)
-- **Síntoma:** los bordes de los paneles muestran `?`, `�` o cuadrados en lugar de líneas.
-- **Causa:** la terminal o la fuente no tiene los caracteres de caja Unicode que usa ARCLI (`╒`, `┃`, `╏`, `╓`, `╌`, `┈`, `━`, `▎`…).
-- **Solución:** usar una terminal moderna (Windows Terminal, iTerm2, la de VS Code) o activar los bordes ASCII con `ARCLI_ASCII=1`.
-
-```bash
-ARCLI_ASCII=1 arcli fc -m 1000 --cs --cfinal --ir-cf
-```
-
-- **Documentación relacionada:** [Variables de entorno de la terminal](configuration.md#variables-de-entorno-de-la-terminal)
+Formatos: [Entrada y salida](input-output.md).
 
 ## Config
 
@@ -262,6 +241,21 @@ arcli fc ayuda
 - **Causa:** la emisión falló a mitad del lote (red, ARCA, transacción activa).
 - **Solución:** **no vuelvas a cargar los comprobantes que ya se procesaron**, porque se duplicarían. Armá un lote solo con los que figuran en "Sin procesar" (`sinProcesar` en el JSON) y reintentá. Si el que falló fue por "Transacción Activa", esperá unos segundos.
 - **Documentación relacionada:** [Entrada y salida](input-output.md#validación-y-errores-del-lote)
+
+## Terminal
+
+### Los bordes de los paneles se ven como `?` o cuadraditos
+
+- **Severidad:** ocasional (terminales viejas, por ejemplo el `cmd` clásico de Windows, o fuentes sin caracteres de caja)
+- **Síntoma:** los bordes de los paneles muestran `?`, `�` o cuadrados en lugar de líneas.
+- **Causa:** la terminal o la fuente no tiene los caracteres de caja Unicode que usa ARCLI (`╒`, `┃`, `╏`, `╓`, `╌`, `┈`, `━`, `▎`…).
+- **Solución:** usar una terminal moderna (Windows Terminal, iTerm2, la de VS Code) o activar los bordes ASCII con `ARCLI_ASCII=1`.
+
+```bash
+ARCLI_ASCII=1 arcli fc -m 1000 --cs --cfinal --ir-cf
+```
+
+- **Documentación relacionada:** [Variables de entorno](configuration.md#variables-de-entorno)
 
 ## PDF
 

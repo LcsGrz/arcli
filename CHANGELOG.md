@@ -8,6 +8,19 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+## [1.7.1] - 2026-10-06
+
+Versión de documentación. No cambia ningún comando, flag, clave de config ni JSON.
+
+### Cambiado
+
+- **Documentación reorganizada:** nuevo índice en `docs/README.md` y nueva guía de [arquitectura](https://github.com/LcsGrz/arcli/blob/main/docs/architecture.md). El README quedó más corto, con instalación, configuración y uso mínimos. Se eliminaron secciones duplicadas entre documentos y el checklist manual de UI, que usaba comandos que ya no existen.
+- **Seguridad:** `SECURITY.md` apunta al reporte privado de vulnerabilidades de GitHub.
+
+### Corregido
+
+- **Docs:** el glosario decía que la alícuota de IVA era fija al 21%; la referencia del CLI citaba claves de config inexistentes; `llms.txt` documentaba un campo JSON (`confirmarProduccion`) que no existe; faltaban en la guía de configuración `NO_UPDATE_NOTIFIER` y `PUPPETEER_EXECUTABLE_PATH`.
+
 ## [1.7.0] - 2026-10-05
 
 Esta versión completa el modo interactivo: configuración guiada la primera vez, cambiar cualquier dato desde un menú, repetir una factura anterior con fechas nuevas, consultar un comprobante y ver el estado de ARCA. También corrige el PDF de la Factura B, enlaza la guía de certificados desde la configuración y suma GIF e imágenes al README. No se rompe ningún comando, flag ni JSON existente.
@@ -197,7 +210,8 @@ Primera versión publicada en npm.
 - `llms.txt`: referencia condensada para que un agente de IA con acceso a terminal ejecute el CLI.
 - Publicación con npm Trusted Publishers (OIDC).
 
-[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v1.7.0...HEAD
+[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v1.7.1...HEAD
+[1.7.1]: https://github.com/LcsGrz/arcli/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/LcsGrz/arcli/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/LcsGrz/arcli/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/LcsGrz/arcli/compare/v1.4.0...v1.5.0

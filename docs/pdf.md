@@ -1,4 +1,4 @@
-[← Volver al README](../README.md)
+[← Documentación](README.md)
 
 # PDF de comprobantes
 

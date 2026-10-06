@@ -1,151 +1,64 @@
 # AGENTS.md
 
-## Project Overview
+Instrucciones para agentes que modifican el código de este repo. Para usar el CLI desde un agente, ver [llms.txt](llms.txt).
 
-This repository contains `arcli`, a TypeScript-based ARCA billing CLI that is being refactored from a single-purpose script into an open source terminal application.
+## Proyecto
 
-Current state:
+`arcli` es un CLI de TypeScript (ESM, Node.js) para previsualizar y emitir comprobantes ARCA, publicado en npm. Usa `@arcasdk/core` para hablar con ARCA. Tiene dos formas de uso: comandos con flags y un modo interactivo (`arcli` sin argumentos).
 
-- The project is early-stage and still centered around [src/index.ts](/Users/lcsgrz/Documents/GZSoft/AFIP/src/index.ts).
-- The long-term goal is a modular CLI focused on ARCA voucher workflows.
-- The currently installed ARCA SDK is `@arcasdk/core`.
+Alcance de comprobantes (no ampliar sin pedido explícito): Factura, Nota de Crédito y Nota de Débito A, B y C, y sus versiones de Factura de Crédito Electrónica (FCE).
 
-Near-term supported business scope:
+## Mapa del código
 
-- Factura `A`, `B`, `C`
-- Nota de credito `A`, `B`, `C`
-- Nota de debito `A`, `B`, `C`
-- Factura de credito electronica `A`, `B`, `C`
-- Nota de credito electronica `A`, `B`, `C`
-- Nota de debito electronica `A`, `B`, `C`
+- `src/cli/`: registro de comandos, ayuda y modo interactivo (`interactive/`). Sin lógica de negocio.
+- `src/modules/`: lógica por dominio (`billing`, `config`, `pdf`, `parameters`, `vouchers`, `fce`, etc.).
+- `src/services/`: adaptadores sobre `@arcasdk/core` (`arca/`) y el plugin de PDF (`pdf/`).
+- `src/ui/`: primitivas, componentes y presenters de terminal.
+- `src/lib/`: utilidades puras.
+- Tests colocados en `src/**/__tests__/`.
 
-## Tech Stack
+Detalle de capas y cómo extender: [docs/architecture.md](docs/architecture.md).
 
-- TypeScript with ESM
-- Node.js
-- Yarn
-- ESLint
-- Prettier
-- `@arcasdk/core`
+Imports de UI: fuera de `src/ui`, usá los barrels públicos (`src/ui`, `src/ui/primitives`, `src/ui/components`, `src/ui/presenters`). Dentro de `src/ui`, imports directos entre archivos.
 
-## Repository Layout
+## Comandos
 
-Current structure:
+Gestor de paquetes: `yarn` (no mezclar lockfiles).
 
-- `src/index.ts`: current executable entry point and billing flow prototype
-- `src/config.ts`: ARCA context prototype
-- `src/certificados/`: certificate material currently committed in source form
+- `yarn install`
+- `yarn dev --ayuda`: correr el CLI desde `src/`
+- `yarn typecheck`, `yarn lint`, `yarn test`
+- `yarn open-source:check`: typecheck, tests con cobertura, build y `npm pack --dry-run`
 
-Current direction:
+Antes de dar por terminado un cambio significativo: `yarn typecheck`, `yarn lint` y `yarn test`.
 
-- `src/cli/`: CLI parsing and command entry points
-- `src/modules/`: business modules by domain
-- `src/services/`: adapters around `@arcasdk/core`
-- `src/lib/`: shared utilities
-- `src/ui/`: terminal UI primitives, components and presenters
-- unit tests colocated in `src/**/__tests__/`
+## Convenciones de código
 
-UI import convention:
+- TypeScript estricto; validar explícitamente toda entrada del usuario.
+- Mantener el parseo de la CLI separado de las llamadas a ARCA y de las reglas de negocio.
+- Preferir funciones puras en `lib` y `modules`.
+- Modelar tipos de comprobante y flags con constantes tipadas o uniones discriminadas, no con números mágicos.
+- No hardcodear CUITs, certificados, rutas de tickets, puntos de venta ni defaults de comprobantes en módulos reutilizables.
+- Antes de agregar una dependencia, revisar si `@arcasdk/core` o el toolchain actual ya lo cubre.
+- Cambios incrementales y enfocados; el CLI tiene que seguir corriendo después de cada paso.
 
-- Outside `src/ui`, prefer importing from the public UI barrels (`src/ui`, `src/ui/primitives`, `src/ui/components`, `src/ui/presenters`) instead of deep file paths.
-- Inside `src/ui`, prefer direct file imports to keep dependencies explicit and avoid accidental circular references.
+## Contrato público
 
-When restructuring, prefer small focused files and keep business logic out of the argument parser.
+Comandos, flags, claves de config y formatos JSON son contrato público y no cambian en silencio.
 
-## Setup Commands
+- Si un cambio rompería la sintaxis del CLI, pausá y documentá el tradeoff antes de implementarlo.
+- La salida humana no es contrato; `--json` sí.
+- Los cambios de comportamiento actualizan la documentación correspondiente (ver la tabla en [CONTRIBUTING.md](CONTRIBUTING.md#documentación)) y, si afectan a quien usa el CLI, [CHANGELOG.md](CHANGELOG.md).
+- Las decisiones de arquitectura se registran en [docs/architecture.md](docs/architecture.md).
 
-- Install dependencies: `yarn install`
-- Run the CLI in development: `yarn dev --ayuda`
-- Type-check: `yarn typecheck`
-- Lint check: `yarn lint:eslint`
-- Auto-fix lint issues: `yarn lint:eslint:fix`
-- Check formatting: `yarn lint:prettier`
-- Format files: `yarn lint:prettier:fix`
+## Seguridad
 
-## Development Workflow
+- No commitear certificados, claves privadas, tokens ni `.env`.
+- Los secretos se resuelven desde rutas de archivo configuradas por el usuario, nunca desde el código.
+- No loguear respuestas de ARCA ni rutas sensibles sin necesidad.
+- `testing` es el entorno por defecto; emitir en producción exige `--produccion --emitir`.
 
-- Package manager is `yarn`; do not mix lockfiles or switch package managers.
-- `yarn test` runs the real Vitest suite.
-- Prefer incremental refactors over giant rewrites. Keep the CLI runnable after each meaningful step.
-- Before adding new dependencies, check whether `@arcasdk/core` or the existing toolchain already covers the need.
+## Notas
 
-## Coding Guidelines
-
-- Use TypeScript `strict` mode patterns.
-- Prefer explicit, validated input handling for all user-provided values.
-- Keep CLI parsing separate from ARCA service calls and business rules.
-- Avoid hardcoding CUITs, certificate contents, ticket paths, sales points, or voucher defaults in reusable modules.
-- Prefer pure functions in `lib` and `modules` where possible.
-- Model voucher types and CLI flags with typed constants or discriminated unions instead of scattered magic numbers.
-- Keep output human-friendly by default, but design for a future `--json` mode.
-
-## Security and Secrets
-
-- Do not commit real certificates, private keys, tokens, or `.env` secrets.
-- The current committed certificate files should be treated as migration debt and removed from source control during the hardening phase.
-- Any future config system should resolve secrets from environment variables and/or explicit file paths outside source code.
-- Be careful when logging ARCA responses; avoid exposing sensitive credentials or raw certificate material.
-
-## Testing Instructions
-
-Current state:
-
-- Unit tests live colocated with source files under `src/**/__tests__/`.
-- Before introducing major refactors, add tests for any logic that becomes reusable.
-
-Expected direction:
-
-- Keep unit tests close to the module they verify.
-- Add integration-style tests around ARCA client adapters using mocks or fixtures when needed.
-- Keep network-dependent tests isolated and clearly marked.
-
-Before finalizing significant changes, run:
-
-- `yarn typecheck`
-- `yarn lint:eslint`
-- `yarn lint:prettier`
-
-## Documentation
-
-Before changing user-facing behavior, review the relevant docs in `/docs`:
-
-- `docs/mental-model.md`
-- `docs/cli-reference.md`
-- `docs/input-output.md`
-- `docs/usage-patterns.md`
-- `docs/troubleshooting.md`
-- `docs/validation-rules.md`
-
-These files describe the public behavior of the CLI from different angles. Keep them aligned when commands, flags, JSON, or execution flow change.
-
-## Refactor Guardrails
-
-- Do not expand the supported business scope beyond the voucher families listed above unless explicitly requested.
-- Favor a stable CLI contract over clever abstractions.
-- Treat the CLI contract as public and stable: commands, flags, config keys, and JSON formats should not change silently.
-- If a new command shape would break the planned user-facing syntax, pause and document the tradeoff before changing it.
-- Preserve a simple user experience: fast commands, clear help, minimal required flags.
-
-## Open Source Readiness Checklist
-
-When preparing the repository for public use, prioritize:
-
-- Removing committed secrets and certificate material
-- Making `package.json` publish-ready
-- Adding a proper `bin` entry for the CLI
-- Writing a user-facing `README.md`
-- Adding examples for common voucher flows
-- Defining license, versioning, and release workflow
-
-## Pull Request / Change Guidelines
-
-- Keep changes focused and logically grouped.
-- Update docs when command behavior or setup changes.
-- Do not silently change the CLI contract.
-- If a task introduces architectural decisions, record them in docs before or alongside the implementation.
-
-## Notes for Agents
-
-- This project is in active redesign. Validate the current structure before assuming a planned path already exists.
-- Treat the current implementation as a prototype, not as architecture to scale blindly.
-- If the user asks for planning first, do not jump into implementation. Align on command design, module boundaries, security handling, and packaging before coding.
+- Si el usuario pide planificar primero, no implementes: alineá antes diseño de comandos, módulos y seguridad.
+- Verificá la estructura real antes de asumir que una ruta existe.

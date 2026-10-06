@@ -1,4 +1,4 @@
-[← Volver al README](../README.md)
+[← Documentación](README.md)
 
 # Modo interactivo
 
@@ -139,8 +139,7 @@ Muestra lo mismo que `arcli estado` (servidores, tiempo de respuesta y punto de 
 - Varias alícuotas en un mismo comprobante: se resuelven con el comando equivalente y `--alicuota TASA:MONTO`.
 - Facturas por lote: siguen siendo `--cargar` con un JSON.
 
-## Decisiones de diseño
+## Ver también
 
-- **Wizard y no pantalla completa.** Prompts encadenados con `@inquirer`, que ya usaba el CLI para confirmar emisiones. No hay una TUI de pantalla completa.
-- **Sin lógica de negocio propia.** Arma la misma entrada que los flags (`BillingCommandInput`) y la pasa por `BillingService`, así que las validaciones, la vista previa y la emisión son exactamente las del CLI.
-- **El contrato del CLI no cambia.** El único comportamiento nuevo es `arcli` sin argumentos en una terminal interactiva; sin terminal sigue mostrando la ayuda.
+- [Arquitectura](architecture.md#decisiones-de-diseño): por qué es un asistente y no una pantalla completa.
+- [Referencia del CLI](cli-reference.md): los comandos equivalentes.

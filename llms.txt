@@ -94,7 +94,6 @@ agentes, CI), nunca pregunta** — se comporta como si fuera dry-run salvo que s
   "dia": 10,
   "emitir": false,
   "previsualizar": true,
-  "confirmarProduccion": false,
   "comprobanteAsociado": { "atajo": "fc", "cuit": "20123456789", "numero": 10, "puntoVenta": 3 },
   "pdf": true,
   "descripcion": "Servicios de marzo",
@@ -188,4 +187,5 @@ testing van a `testing/`), `pdfNavegador` (ruta a Chrome/Chromium/Edge), `emisor
 - `docs/validation-rules.md` y `docs/input-output.md`: reglas de validación y formatos de entrada/salida.
 - `docs/troubleshooting.md`: errores comunes de ARCA y como resolverlos.
 - `docs/pdf.md`: PDF de comprobantes, plugin, carpeta y nombre del archivo.
+- `docs/modo-interactivo.md`: asistente interactivo (un agente no debe usarlo).
 - `AGENTS.md`: para agentes que van a modificar el código de este repo (no para usar el CLI).
