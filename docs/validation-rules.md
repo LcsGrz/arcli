@@ -1,4 +1,4 @@
-[← Volver al README](../README.md)
+[← Documentación](README.md)
 
 # Reglas de validación
 
@@ -58,10 +58,7 @@ Si el formato no coincide, ARCLI corta antes de armar el payload.
 
 ### Emisión en producción
 
-Para emitir realmente en `produccion`, ARCLI exige:
-
-- `--produccion`
-- `--emitir`
+Para emitir realmente en `produccion`, ARCLI exige `--produccion` y `--emitir` juntos.
 
 ## 2. Reglas de negocio
 
@@ -255,39 +252,4 @@ arcli fa --cs --cuit 30709965812 --ir-ri --alicuota general:1210 --alicuota redu
 
 ## 3. Restricciones y errores de ARCA
 
-Estas no son validaciones propias del CLI, pero aparecen en la práctica y conviene documentarlas por separado.
-
-### Errores transitorios
-
-#### `coe.alreadyAuthenticated`
-
-- viene de WSAA
-- suele indicar que ya existe un TA válido
-- normalmente conviene esperar unos segundos y reintentar
-
-#### `Transacción Activa`
-
-- viene de ARCA
-- suele aparecer como error transitorio
-- conviene reintentar antes de cambiar el comprobante
-
-### Restricciones reales observadas
-
-#### Emisor igual a receptor
-
-ARCA rechaza `Factura A` si el `DocNro` coincide con el CUIT del emisor.
-
-Error real observado:
-
-```text
-Campo DocNro no puede ser igual al del emisor.
-```
-
-#### Observaciones de padrón
-
-Algunos CUITes de testing aprueban pero devuelven observaciones, por ejemplo:
-
-- `10217`
-- `10017`
-
-Eso no implica necesariamente un problema del CLI. Puede depender del receptor o del entorno de testing.
+Hay rechazos que ARCLI no puede anticipar: errores transitorios de WSAA (`coe.alreadyAuthenticated`, `Transacción Activa`), receptor igual al emisor, observaciones de padrón y fechas anteriores al último comprobante emitido. Ver [Troubleshooting](troubleshooting.md#arca) y [Limitaciones](limitations.md).

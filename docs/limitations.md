@@ -1,4 +1,4 @@
-[← Volver al README](../README.md)
+[← Documentación](README.md)
 
 # Limitaciones actuales
 
@@ -10,14 +10,9 @@ Limitaciones y decisiones de diseño que hoy forman parte del comportamiento rea
 
 Un lote se valida entero antes de emitir, pero si la emisión se corta a mitad (red, ARCA) los comprobantes ya emitidos quedan emitidos: no hay "deshacer". ARCLI los muestra antes del error para que no se carguen dos veces. Ver [input-output.md](input-output.md#validación-y-errores-del-lote).
 
-### Contrato humano no estable
+### Salida humana no estable
 
-La salida humana está pensada para terminal, no como contrato de automatización.
-
-Para integraciones:
-
-- `--json`
-- `--json --bruto`
+La salida humana es para terminal y puede cambiar. Para integraciones usá `--json` (o `--json --bruto`).
 
 ### Dependencia de ARCA y WSAA
 
@@ -38,13 +33,11 @@ El PDF se genera en el momento de emitir. Todavía no se puede regenerar el de u
 
 Se eligió `testing` como entorno por defecto para reducir errores accidentales.
 
-### IVA automático con una alícuota
+### IVA automático y tributos
 
-En letras `A` y `B` el CLI calcula el IVA a partir del total, con una alícuota (`--alicuota`, por defecto `21%`) o varias (`--alicuota TASA:MONTO` repetido). Exento y no gravado se informan con `--exento` y `--nogravado`.
+En letras `A` y `B` el CLI calcula el IVA a partir del total, con una o varias alícuotas, y admite importes exentos y no gravados. Ver [IVA automático](validation-rules.md#iva-automático).
 
-Todavía no se soportan:
-
-- tributos (`Tributos` / `ImpTrib`), como percepciones de IIBB
+Todavía no se soportan los tributos (`Tributos` / `ImpTrib`), como las percepciones de IIBB.
 
 ## Inconsistencias o bordes ya detectados
 
@@ -69,10 +62,3 @@ Con `--bruto`:
 - si no hubo emisión, `respuesta` pasa a ser un objeto con `mensaje`
 
 Eso está documentado, pero conviene tenerlo presente si alguien consume JSON desde scripts.
-
-## Posibles mejoras futuras
-
-- batch con resultados parciales por item
-- estrategia de retry para errores transitorios WSAA/ARCA
-- soporte de IVA menos simplificado
-- más guías de automatización y ejemplos de integración

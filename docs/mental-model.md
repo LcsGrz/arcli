@@ -1,4 +1,4 @@
-[← Volver al README](../README.md)
+[← Documentación](README.md)
 
 # Modelo mental
 
@@ -43,7 +43,7 @@ Esa solicitud es la que ves en:
 
 Si usás `--emitir`, ARCLI llama a ARCA.
 
-Si usás `--previsualizar`, no llama a ARCA: solo arma y muestra la solicitud.
+Si usás `--previsualizar`, no llama a ARCA: solo arma y muestra la solicitud. Sin ninguno de los dos flags, en una terminal muestra la vista previa y pregunta si emitir; con `--json` o sin terminal no emite.
 
 ### 5. Output
 
@@ -74,50 +74,16 @@ ARCLI tiene dos formas de usarse:
 - **Comandos con flags** (`arcli fc -m 1000 …`): el contrato público, pensado para scripts, agentes y uso frecuente.
 - **Modo interactivo** (`arcli` sin argumentos): un asistente que pregunta paso a paso, arma la misma entrada que los flags y la pasa por las mismas validaciones. Ver [Modo interactivo](modo-interactivo.md).
 
-Dentro de los comandos con flags hay dos modos de ejecución:
+Con flags, `--previsualizar` arma y muestra la solicitud sin llamar a ARCA, y `--emitir` emite de verdad. Son excluyentes. En producción hace falta `--produccion --emitir`.
 
-### `--previsualizar`
+## Formatos de salida
 
-- no emite
-- no llama a ARCA
-- sirve para revisar la solicitud
+- **Humana** (por defecto): paneles para la terminal. No es un contrato estable.
+- **`--json`**: resumen serializado, estable, para scripts.
+- **`--bruto`**: agrega la respuesta cruda de ARCA para inspección técnica; sin emisión, `respuesta` trae un `mensaje`.
 
-### `--emitir`
+El detalle y la comparación entre modos están en [Entrada y salida](input-output.md#diferencias-entre-modos).
 
-- emite realmente
-- llama a ARCA
-- devuelve resultado real
+## ARCLI no reemplaza a ARCA
 
-## Salida humana vs JSON vs bruto
-
-| Modo              | Para quién         | Contrato estable | Notas                                                |
-| ----------------- | ------------------ | ---------------- | ---------------------------------------------------- |
-| normal (no flags) | personas           | no               | paneles y texto amigable                             |
-| `--json`          | scripts y sistemas | sí               | estructura serializada                               |
-| `--bruto`         | inspección técnica | sí               | agrega respuesta cruda; `mensaje` si no hubo emisión |
-
-## Idea clave
-
-ARCLI no reemplaza las reglas de ARCA. Lo que hace es ordenar el flujo y hacerlo mucho más claro:
-
-- primero entendés qué vas a enviar
-- después decidís si emitir o no
-- y recién ahí mirás la respuesta del servicio
-
-## Errores mentales comunes
-
-### “Si el CLI está bien, ARCA debería aprobar”
-
-No necesariamente.
-
-ARCLI puede estar armando bien el payload y aun así ARCA puede:
-
-- observar el comprobante
-- rechazarlo
-- devolver un error transitorio
-
-### “ARCLI reemplaza a ARCA”
-
-No.
-
-ARCLI ordena el flujo, valida bastante y mejora la experiencia. Pero la decisión final sobre un comprobante real la sigue teniendo ARCA.
+ARCLI ordena el flujo y valida lo que puede localmente, pero la decisión sobre un comprobante real es de ARCA. Un comprobante bien armado igual puede salir observado, rechazado o con un error transitorio. Ver [Troubleshooting](troubleshooting.md).

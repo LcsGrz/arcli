@@ -2,9 +2,11 @@
 
 # Contribuir a ARCLI
 
-Gracias por querer mejorar ARCLI.
+Gracias por querer mejorar ARCLI. Se aceptan bugs, mejoras de uso, documentación y features nuevas. Para estas últimas, o cualquier cambio grande, abrí primero un issue.
 
-## Setup rapido
+## Empezar
+
+Requiere Node.js 22.22.1 o superior y Yarn. El setup, los scripts y los tests están en la [guía de desarrollo](docs/development.md); el mapa del código, en [Arquitectura](docs/architecture.md).
 
 ```bash
 git clone https://github.com/LcsGrz/arcli.git
@@ -13,81 +15,46 @@ yarn install
 yarn dev --ayuda
 ```
 
-## Tipos de contribuciones
-
-- bugs
-- mejoras de DX
-- documentación
-- features nuevas, pero conviene discutirlas antes de implementarlas
-
 ## Contrato del CLI
 
-En ARCLI hay una parte del proyecto que no se trata como detalle interno:
+Los comandos, los flags, las claves de configuración y los formatos JSON son contrato público. No se cambian en silencio: primero se discute en un issue, y después se actualizan implementación, ayuda, tests y documentación. Si tocás alguno, avisalo en el PR.
 
-- comandos
-- flags
-- contrato JSON
+El alcance de comprobantes es Factura, Nota de Crédito y Nota de Débito A, B y C, y sus versiones de Factura de Crédito Electrónica. Otros comprobantes quedan fuera salvo decisión explícita.
 
-Eso es contrato público. Si querés cambiarlo, primero hay que discutirlo, actualizar help, tests y documentación, y recién después tocar implementación.
+## Flujo
 
-## Antes de abrir cambios
+1. Creá una rama corta y descriptiva.
+2. Hacé cambios chicos y fáciles de revisar.
+3. Agregá o ajustá tests cuando cambie el comportamiento.
+4. Actualizá la documentación que corresponda (ver abajo).
+5. Abrí el PR con el checklist completo.
 
-- usar Node `>=22.22.1`
-- instalar dependencias con `yarn install`
-- validar cambios con:
+## Convenciones
 
-```bash
-yarn typecheck
-yarn test
-```
+- TypeScript estricto; la lógica de negocio va en `src/modules/`, no en `src/cli/`.
+- Mensajes de error claros y en español.
+- `testing` es el entorno por defecto.
+- Nada de secretos: no subas certificados, claves, tokens ni configuraciones reales. Ver [SECURITY](SECURITY.md).
 
-## Flujo recomendado
+## Documentación
 
-1. crear una rama corta y descriptiva
-2. hacer cambios pequenos y faciles de revisar
-3. actualizar docs si cambia el contrato del CLI
-4. agregar o ajustar tests cuando cambie el comportamiento
+Actualizá la documentación que describe lo que cambiaste:
 
-## Convenciones del proyecto
+| Si cambia                                | Revisá                                                            |
+| ---------------------------------------- | ----------------------------------------------------------------- |
+| Comandos o flags                         | `README.md`, [referencia del CLI](docs/cli-reference.md), `llms.txt` |
+| Claves de config o variables de entorno  | [configuración](docs/configuration.md)                            |
+| JSON de entrada o salida, errores        | [entrada y salida](docs/input-output.md)                          |
+| Validaciones                             | [reglas de validación](docs/validation-rules.md)                  |
+| Flujos de uso o mensajes de error        | [patrones de uso](docs/usage-patterns.md), [troubleshooting](docs/troubleshooting.md) |
+| Modo interactivo                         | [modo interactivo](docs/modo-interactivo.md)                      |
 
-- TypeScript estricto
-- componentes de UI de terminal reutilizables
-- mensajes de error humanos
-- `testing` como entorno seguro por defecto
-- nada de secretos o certificados dentro del repo
+Si el cambio le afecta a quien usa el CLI, sumá una entrada en "Sin publicar" de [CHANGELOG.md](CHANGELOG.md).
 
-## Cuando tocar docs
-
-Actualiza `README.md` y `docs/ui-smoke-checklist.md` si cambian:
-
-- comandos
-- flags
-- defaults
-- contratos JSON
-- salida visual importante
-
-Y revisá también, según el cambio:
-
-- `docs/cli-reference.md`
-- `docs/input-output.md`
-- `docs/usage-patterns.md`
-
-## Checklist rapida para PR
+## Checklist del PR
 
 - [ ] `yarn typecheck`
+- [ ] `yarn lint`
 - [ ] `yarn test`
-- [ ] `yarn build`
-- [ ] `npm pack --dry-run`
-- [ ] `README.md` actualizado si corresponde
-- [ ] `CHANGELOG.md`: entrada en "Sin publicar" si el cambio afecta a quien usa el CLI
-
-## Dudas o ideas
-
-Si no estás seguro de cómo encarar un cambio, o querés proponer algo grande, abrí un issue antes de implementarlo.
-
-En ARCLI se valora bastante discutir primero cuando el cambio toca:
-
-- contrato del CLI
-- configuración pública
-- contratos JSON
-- flujos importantes de emisión
+- [ ] `yarn build` y `npm pack --dry-run` (`yarn open-source:check` corre typecheck, tests con cobertura, build y pack)
+- [ ] Documentación y `CHANGELOG.md` al día

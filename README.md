@@ -3,7 +3,6 @@
 [![npm version](https://img.shields.io/npm/v/arcli.svg)](https://www.npmjs.com/package/arcli)
 [![CI](https://github.com/LcsGrz/arcli/actions/workflows/ci.yml/badge.svg)](https://github.com/LcsGrz/arcli/actions/workflows/ci.yml)
 [![license: MIT](https://img.shields.io/npm/l/arcli.svg)](LICENSE)
-[![node >=22.22.1](https://img.shields.io/node/v/arcli.svg)](package.json)
 
 ```text
        d8888 8888888b.   .d8888b.  888      8888888
@@ -16,59 +15,21 @@
 d88P     888 888   T88b  "Y8888P"  88888888 8888888
 ```
 
-Emití o previsualizá comprobantes ARCA desde tu terminal, con un flujo claro, seguro y rapido en lugar de utilizar UI.
-
-## Características
-
-- configuración persistente por usuario
-- previsualización segura antes de emitir
-- entrada por flags o JSON
-- salida humana, JSON o respuesta bruta
-- **modo interactivo:** `arcli` sin argumentos abre un asistente paso a paso para emitir, repetir una factura anterior, hacer notas de crédito y débito, consultar comprobantes y configurar todo sin recordar flags
-- comandos para automatizar: cada paso del asistente muestra el comando equivalente
-- consultas a ARCA sin emitir: últimos comprobantes, detalle de uno, estado de los servidores, tablas y cotización oficial
-- integración real con ARCA
-- Factura de Crédito Electrónica (FCE) completa: CBU, transferencia, anulación y consulta del régimen del receptor
-- alícuotas de IVA, importes exentos y no gravados, moneda extranjera y período asociado
-- validaciones locales con las reglas del manual de ARCA, para que los errores aparezcan antes de emitir
-- PDF del comprobante con el QR de ARCA, con un plugin que se descarga solo si lo usás
-
-## Dos formas de usarlo
-
-**Modo interactivo**, para facturar de vez en cuando sin memorizar nada:
-
-```bash
-npm install -g arcli
-arcli
-```
-
-La primera vez ofrece una **configuración guiada** (CUIT, certificado, punto de venta). Después, un menú para emitir, repetir facturas, hacer notas, consultar y configurar:
+CLI para previsualizar y emitir comprobantes electrónicos de ARCA (ex AFIP) desde la terminal. Sin emitir hasta que lo pedís, con validaciones locales y salida lista para automatizar.
 
 <p align="center"><img src="https://raw.githubusercontent.com/LcsGrz/arcli/main/docs/assets/demo/interactivo.gif" alt="Modo interactivo de arcli emitiendo una Factura C en testing" width="760"></p>
 
-Pregunta solo lo necesario, muestra la vista previa y el comando equivalente, y pide confirmación antes de emitir. Ver [Modo interactivo](docs/modo-interactivo.md).
+## Características
 
-**Comandos con flags**, para scripts, automatizaciones o agentes de IA:
+- **Modo interactivo:** `arcli` sin argumentos abre un asistente que guía la emisión, repite facturas anteriores, arma notas de crédito y débito, consulta comprobantes y configura el CLI. Cada paso muestra el comando equivalente.
+- **Vista previa por defecto:** nada se emite sin `--emitir`.
+- **Comprobantes:** Factura, Nota de Crédito y Nota de Débito A, B y C, y sus versiones de Factura de Crédito Electrónica (FCE), con CBU, transferencia, anulación y consulta del régimen del receptor.
+- **Entrada y salida flexibles:** flags o JSON (incluso lotes); salida legible, `--json` o respuesta bruta de ARCA.
+- **Validaciones locales** basadas en el manual de ARCA, para detectar errores antes de llamar al servicio.
+- **Consultas sin emitir:** últimos comprobantes, detalle de uno, estado de los servidores, tablas de parámetros y cotización oficial.
+- **PDF con el QR de ARCA** mediante un plugin que se descarga solo si lo usás.
 
-```bash
-arcli fc -m 15000 --cs --consumidor-final --ir-cf            # vista previa
-arcli fc -m 15000 --cs --consumidor-final --ir-cf --emitir   # emitir
-arcli fc --cargar ./facturas.json --emitir --json            # lote desde JSON, salida JSON
-```
-
-<p align="center"><img src="https://raw.githubusercontent.com/LcsGrz/arcli/main/docs/assets/demo/comandos.gif" alt="Vista previa de una Factura C y emisión con salida JSON filtrada con jq" width="760"></p>
-
-Ver [Referencia del CLI](docs/cli-reference.md).
-
-### PDF con el QR de ARCA
-
-Con `--exportar-pdf`, o respondiendo que sí en el asistente, cada comprobante emitido queda en PDF, listo para mandarle al cliente. Ver [PDF de comprobantes](docs/pdf.md).
-
-<p align="center"><img src="https://raw.githubusercontent.com/LcsGrz/arcli/main/docs/assets/demo/pdf-factura.png" alt="PDF de una Factura B generado por arcli, con datos de ejemplo" width="480"></p>
-
-## Inicio rápido
-
-### 1. Instalar
+## Instalación
 
 Requiere Node.js 22.22.1 o superior.
 
@@ -76,131 +37,76 @@ Requiere Node.js 22.22.1 o superior.
 npm install -g arcli
 ```
 
-### 2. Configurar
+## Configuración
 
-La forma más simple es abrir el asistente y seguir la **configuración guiada**:
+Necesitás tu CUIT, un punto de venta y un certificado con su clave privada de ARCA. Si todavía no los tenés, seguí [Cómo obtener los certificados](docs/obtencion-certificados.md).
 
-```bash
-arcli
-```
-
-Si preferís hacerlo con comandos (por ejemplo, en un servidor), seguí los pasos 3 y 4. Para ver o crear la configuración:
-
-```bash
-arcli config
-```
-
-### 3. Guardar defaults útiles
+Lo más simple es correr `arcli` y seguir la configuración guiada. Para hacerlo por comandos (por ejemplo, en un servidor):
 
 ```bash
 arcli config establecer cuit 20168598204
 arcli config establecer puntoVenta 3
-arcli config establecer concepto servicios
-arcli config establecer ivaReceptor consumidor-final
-arcli config establecer moneda ARS
-arcli config establecer cotizacion 1
-arcli config establecer emitir false
-arcli config establecer bruto false
-```
-
-### 4. Configurar credenciales
-
-```bash
 arcli config establecer cert.testing /ruta/al/certificado.crt
 arcli config establecer key.testing /ruta/a/la/clave.key
-```
-
-Si después querés usar producción:
-
-```bash
-arcli config establecer cert.produccion /ruta/al/certificado.crt
-arcli config establecer key.produccion /ruta/a/la/clave.key
-```
-
-### 5. Revisar el entorno activo
-
-```bash
 arcli config revisar
 ```
 
-### 6. Previsualizar el primer comprobante
+`arcli config revisar` verifica que el entorno activo esté listo para emitir. Todas las claves disponibles están en [Configuración](docs/configuration.md).
+
+## Uso
 
 ```bash
-arcli fc -m 15000 --cs --consumidor-final --ir-cf
+arcli fc -m 15000 --cs --consumidor-final --ir-cf            # vista previa de una Factura C
+arcli fc -m 15000 --cs --consumidor-final --ir-cf --emitir   # emitir
+arcli fc --cargar ./facturas.json --emitir --json            # lote desde JSON, salida JSON
+arcli fc -m 15000 --cs --consumidor-final --ir-cf --emitir --exportar-pdf
 ```
 
-### 7. Emitir de verdad
+Otras consultas: `arcli ultimos`, `arcli consultar`, `arcli estado`, `arcli parametros`, `arcli fce-obligado`. Para ver todos los comprobantes y ejemplos: `arcli --ayuda` y `arcli ejemplos`.
 
-```bash
-arcli fc -m 15000 --cs --consumidor-final --ir-cf --emitir
-```
+<p align="center"><img src="https://raw.githubusercontent.com/LcsGrz/arcli/main/docs/assets/demo/comandos.gif" alt="Vista previa de una Factura C y emisión con salida JSON filtrada con jq" width="760"></p>
 
-## Cómo funciona
+La prioridad de los valores es `flags > JSON > config > defaults`. Ver el [modelo mental](docs/mental-model.md) y la [referencia del CLI](docs/cli-reference.md).
 
-ARCLI toma datos por flags, JSON o config, valida lo que puede localmente, arma el payload y — si corresponde — llama a ARCA. La prioridad es `flags > JSON > config > defaults`.
+### Testing y producción
 
-Ver [docs/mental-model.md](docs/mental-model.md) para el modelo completo.
-
-## Seguridad: testing vs producción
-
-- Si no pasás nada, el entorno es `testing`.
-- `testing` usa `cert.testing` y `key.testing`.
-- `produccion` usa `cert.produccion` y `key.produccion`.
-- Para emitir realmente en producción hacen falta:
-  - `--produccion`
-  - `--emitir`
-
-Ejemplo:
-
-```bash
-arcli fa -m 15000 --cs --cuit 20168598204 --ir-ri \
-  --produccion \
-  --emitir
-```
+Por defecto se usa el entorno `testing`, con `cert.testing` y `key.testing`. Para emitir en producción hay que configurar `cert.produccion` y `key.produccion` y pasar `--produccion --emitir`.
 
 ## Documentación
 
-- [Modelo mental](docs/mental-model.md)
-- [Glosario](docs/glossary.md)
-- [Referencia del CLI](docs/cli-reference.md)
-- [Modo interactivo](docs/modo-interactivo.md)
-- [Patrones de uso](docs/usage-patterns.md)
-- [Configuración](docs/configuration.md)
+El índice completo está en [docs/](docs/README.md). Lo principal:
+
+- [Modo interactivo](docs/modo-interactivo.md) y [Patrones de uso](docs/usage-patterns.md)
+- [Referencia del CLI](docs/cli-reference.md) y [Configuración](docs/configuration.md)
+- [Entrada y salida](docs/input-output.md): formato del JSON
 - [PDF de comprobantes](docs/pdf.md)
-- [Cómo obtener los certificados de ARCA](docs/obtencion-certificados.md)
-- [Entrada y salida](docs/input-output.md)
-- [Reglas de validación](docs/validation-rules.md)
-- [Troubleshooting](docs/troubleshooting.md)
-- [Limitaciones actuales](docs/limitations.md)
-- [Guía de desarrollo](docs/development.md)
-- [Testing](docs/ui-smoke-checklist.md)
+- [Cómo obtener los certificados](docs/obtencion-certificados.md)
+- [Troubleshooting](docs/troubleshooting.md), [Reglas de validación](docs/validation-rules.md) y [Limitaciones](docs/limitations.md)
+- [llms.txt](llms.txt): referencia condensada para agentes de IA con acceso a terminal
 - [Changelog](CHANGELOG.md)
-- [Cómo contribuir](CONTRIBUTING.md)
-- [llms.txt](llms.txt): referencia condensada para que un agente/IA con acceso a terminal ejecute el CLI directamente
-- [Seguridad](SECURITY.md)
 
-## ❤️ Agradecimientos
+## Desarrollo
 
-ARCLI existe apoyado en trabajo open source que ya resolvió partes difíciles del problema. En particular:
+```bash
+git clone https://github.com/LcsGrz/arcli.git
+cd arcli
+yarn install
+yarn dev --ayuda
+```
 
-- [`@arcasdk/core`](https://github.com/ralcorta/arcasdk) y [`@arcasdk/pdf`](https://www.afipts.com/packages/pdf), creadas por [Rodrigo Alcorta](https://github.com/ralcorta)
-- [Arpit Bhayani](https://github.com/arpitbbhayani) por cederme el paquete de npm bajo el nombre de 'arcli', estaba siendo utilizado por el.
+Antes de abrir un PR: `yarn typecheck`, `yarn lint` y `yarn test`. Más en la [guía de desarrollo](docs/development.md) y la [arquitectura](docs/architecture.md).
 
-Y la comunidad open source que mantiene herramientas de este estilo vivas y usables
+## Contribuir
 
-## ☕ Apoyar el proyecto
+Leé [CONTRIBUTING.md](CONTRIBUTING.md). Para vulnerabilidades, ver [SECURITY.md](SECURITY.md); no subas certificados, claves ni tokens reales a issues ni PRs.
 
-ARCLI es open source. Mantenerlo, probarlo contra servicios reales y documentarlo bien lleva tiempo.
+## Agradecimientos
 
-- Si queres darme un mimo: [Cafesito](https://cafecito.app/lcsgrz)
-- Reporta issues claros, repros buenos y feedback real de uso
-- Dejame tu estrellita ★ :)
+- [`@arcasdk/core`](https://github.com/ralcorta/arcasdk) y [`@arcasdk/pdf`](https://www.afipts.com/packages/pdf), de [Rodrigo Alcorta](https://github.com/ralcorta).
+- [Arpit Bhayani](https://github.com/arpitbbhayani), por ceder el nombre `arcli` en npm.
+
+Si el proyecto te resulta útil, podés dejar una estrella o invitarme un [Cafecito](https://cafecito.app/lcsgrz).
 
 ## Licencia
 
 MIT © [LcsGrz](https://github.com/LcsGrz). Ver [LICENSE](LICENSE).
-
-## Proyecto
-
-- repo: [github.com/LcsGrz/arcli](https://github.com/LcsGrz/arcli)
-- issues: [github.com/LcsGrz/arcli/issues](https://github.com/LcsGrz/arcli/issues)
