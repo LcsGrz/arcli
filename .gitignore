@@ -23,3 +23,7 @@ coverage/
 
 # Misc
 .DS_Store
+
+# Agent tooling
+.agents/
+skills-lock.json
