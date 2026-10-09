@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { stripAnsi } from '../../../ui';
 import { formatConfig, formatConfigAsText, formatConfigDoctor, formatConfigDoctorAsText } from '../config.presenter';
 import { buildConfigDoctorReport } from '../config-doctor';
 
@@ -50,6 +51,16 @@ describe('config.presenter', () => {
     expect(json).toContain('.../secretos/cert.pem');
     expect(json).not.toContain('/Users/lucas/secretos/key.pem"');
     expect(json).not.toContain('/Users/lucas/secretos/tickets"');
+
+    // Por secciones, en el orden del modo interactivo; los certificados van juntos con los tickets.
+    const plain = stripAnsi(text);
+    const order = ['Cuenta', 'Certificados', 'Al facturar', 'FCE', 'Datos del emisor', 'PDF', 'Salida y listados'];
+
+    expect(order.map((title) => plain.indexOf(title))).toEqual(
+      [...order.map((title) => plain.indexOf(title))].sort((a, b) => a - b),
+    );
+    expect(plain.indexOf('Carpeta de tickets WSAA')).toBeGreaterThan(plain.indexOf('Certificados'));
+    expect(plain.indexOf('Carpeta de tickets WSAA')).toBeLessThan(plain.indexOf('Al facturar'));
   });
 
   it('serializes revision with masked runtime-friendly details', () => {

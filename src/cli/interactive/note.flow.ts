@@ -16,16 +16,10 @@ import {
   receiverChoices,
 } from '../../modules/interactive/choices';
 import { BACK, type Back, runWizard, type WizardStep } from '../../modules/interactive/wizard';
-import {
-  inferIvaRate,
-  type IssuedVoucher,
-  listRecentVouchers,
-  resolveDocumentType,
-} from '../../modules/vouchers/voucher-history';
-import { formatVoucherSummary } from '../../modules/vouchers/voucher-history.presenter';
+import { inferIvaRate, type IssuedVoucher, resolveDocumentType } from '../../modules/vouchers/voucher-history';
 import { noticePanel, writeTerminalOutput } from '../../ui';
-import { startSpinner } from '../spinner';
 
+import { pickInvoice } from './invoice-picker';
 import { askTextStep, chooseStep } from './prompts';
 import { type InteractiveSession, previewAndEmit, requirePointOfSale } from './session';
 import { normalizeDocumentNumber, validateAmount, validateCuit, validateDate, validateDni } from './validators';
@@ -36,6 +30,8 @@ const CONCEPTS_BY_CODE: Record<number, BillingConcept> = {
   3: 'productos-servicios',
 };
 
+export type NoteKind = 'credito' | 'debito';
+
 export interface NoteState {
   readonly cancellation?: boolean;
   readonly concept?: BillingConcept;
@@ -43,9 +39,12 @@ export interface NoteState {
   readonly documentType?: BillingCommandInput['documentType'];
   readonly invoice?: IssuedVoucher;
   readonly invoiceKind?: VoucherKindDefinition;
+  /** Punto de venta de la factura asociada; ingresada a mano puede no ser el configurado. */
+  readonly invoicePointOfSale?: number;
   readonly ivaCondition?: BillingCommandInput['ivaCondition'];
   readonly ivaRate?: BillingCommandInput['ivaRate'];
-  readonly kind?: 'credito' | 'debito';
+  /** Credito o debito: viene del menu principal. */
+  readonly kind?: NoteKind;
   readonly periodFrom?: string;
   readonly periodTo?: string;
   /** Sobre una factura de la lista o sobre un periodo (solo notas comunes). */
@@ -91,17 +90,6 @@ async function askNoteAmount(state: NoteState): Promise<Back | number | undefine
 export function noteSteps(session: InteractiveSession, pointOfSale: number): Array<WizardStep<NoteState>> {
   return [
     {
-      name: 'nota',
-      run: async () => {
-        const kind = await chooseStep('¿Que nota queres emitir?', [
-          { name: 'Nota de credito (descuento, devolucion o anulacion)', value: 'credito' as const },
-          { name: 'Nota de debito (cargo adicional)', value: 'debito' as const },
-        ]);
-
-        return kind === BACK ? BACK : { kind };
-      },
-    },
-    {
       name: 'tipo-factura',
       run: async () => {
         const invoiceKind = await chooseStep('¿Sobre que tipo de factura?', invoiceKindChoices());
@@ -113,7 +101,11 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
       name: 'asociacion',
       run: async () => {
         const target = await chooseStep('¿A que la asociamos?', [
-          { description: 'Elegis una de las ultimas emitidas', name: 'A una factura', value: 'factura' as const },
+          {
+            description: 'Elegis una de las ultimas emitidas o la ingresas a mano',
+            name: 'A una factura',
+            value: 'factura' as const,
+          },
           {
             description: 'Por ejemplo, un descuento sobre todo el mes',
             name: 'A un periodo',
@@ -130,32 +122,17 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
       name: 'factura',
       run: async (state) => {
         const invoiceKind = state.invoiceKind as VoucherKindDefinition;
-        const spinner = startSpinner('Buscando las ultimas facturas en ARCA...');
-        const invoices = await listRecentVouchers(session.historyGateway, pointOfSale, invoiceKind.arcaType).finally(
-          () => spinner?.stop(),
-        );
+        const picked = await pickInvoice(session, {
+          message: `¿Sobre que ${invoiceKind.displayName}?`,
+          pointOfSale,
+          voucherKind: invoiceKind,
+        });
 
-        if (invoices.length === 0) {
-          writeTerminalOutput(
-            noticePanel(`No hay ${invoiceKind.displayName} emitidas en el punto de venta ${pointOfSale}.`, 'warning'),
-          );
-
+        if (picked === BACK) {
           return BACK;
         }
 
-        const invoice = await chooseStep(
-          `¿Sobre que ${invoiceKind.displayName}?`,
-          invoices.map((item) => ({
-            description: item.cae ? `CAE ${item.cae}` : undefined,
-            name: formatVoucherSummary(pointOfSale, item),
-            value: item,
-          })),
-        );
-
-        if (invoice === BACK) {
-          return BACK;
-        }
-
+        const { invoice } = picked;
         const documentType = resolveDocumentType(invoice.documentTypeCode);
 
         if (!documentType) {
@@ -175,6 +152,7 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
           documentNumber: documentType === 'consumidor-final' ? undefined : invoice.documentNumber,
           documentType,
           invoice,
+          invoicePointOfSale: picked.pointOfSale,
           ivaCondition: documentType === 'consumidor-final' ? 'consumidor-final' : undefined,
           ivaRate: invoiceKind.letter === 'c' ? undefined : inferIvaRate(invoice.netAmount, invoice.ivaAmount),
         };
@@ -192,7 +170,7 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
 
         const periodTo = await askTextStep('Periodo hasta:', { validate: validateDate });
 
-        return periodTo === BACK ? BACK : { invoice: undefined, periodFrom, periodTo };
+        return periodTo === BACK ? BACK : { invoice: undefined, invoicePointOfSale: undefined, periodFrom, periodTo };
       },
       skip: (state) => !isPeriod(state),
     },
@@ -302,7 +280,7 @@ export function buildNoteInput(
             cuit: String(session.runtime.context.cuit),
             fecha: formatArcaDateAsArgentineDate(invoice.date),
             numero: invoice.number,
-            puntoVenta: pointOfSale,
+            puntoVenta: state.invoicePointOfSale ?? pointOfSale,
             shortcut: invoiceKind.shortcut,
           }
         : undefined,
@@ -317,14 +295,14 @@ export function buildNoteInput(
   });
 }
 
-export async function runNoteFlow(session: InteractiveSession): Promise<void> {
+export async function runNoteFlow(session: InteractiveSession, kind: NoteKind): Promise<void> {
   const pointOfSale = requirePointOfSale(session);
 
   if (!pointOfSale) {
     return;
   }
 
-  const state = await runWizard(noteSteps(session, pointOfSale), {});
+  const state = await runWizard(noteSteps(session, pointOfSale), { kind });
 
   if (!state) {
     return;

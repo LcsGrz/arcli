@@ -515,16 +515,16 @@ arcli fa -m 1 --cs --cuit 20168598204 --ir-ri --emitir --json --bruto
 Dos comandos de solo lectura para ver lo que ya está emitido en ARCA, sin abrir el modo interactivo:
 
 ```bash
-arcli ultimos fb                  # últimas 10 facturas B del punto de venta configurado
+arcli ultimos fb                  # últimas 15 facturas B del punto de venta configurado
 arcli ultimos nca --cantidad 25   # últimas 25 notas de crédito A
 arcli consultar fb 14             # detalle de la factura B número 14
 arcli consultar fb 14 --json      # lo mismo, en JSON
 ```
 
-| Comando                           | Argumentos                                                 | Flags                                                                                                      |
-| --------------------------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `arcli ultimos <tipo>`            | `tipo`: atajo del comprobante (`fa`, `fb`, `nca`, `fcea`…) | `--cantidad <n>` (1 a 50, por defecto 10), `--pv` / `--punto-venta`, `--json`, `--testing`, `--produccion` |
-| `arcli consultar <tipo> <numero>` | `tipo` y número del comprobante                            | `--pv` / `--punto-venta`, `--json`, `--testing`, `--produccion`                                            |
+| Comando                           | Argumentos                                                 | Flags                                                                                                                                      |
+| --------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `arcli ultimos <tipo>`            | `tipo`: atajo del comprobante (`fa`, `fb`, `nca`, `fcea`…) | `--cantidad <n>` (1 a 50; por defecto `config.comprobantesPorLista` o 15), `--pv` / `--punto-venta`, `--json`, `--testing`, `--produccion` |
+| `arcli consultar <tipo> <numero>` | `tipo` y número del comprobante                            | `--pv` / `--punto-venta`, `--json`, `--testing`, `--produccion`                                                                            |
 
 Sin `--pv` usan el punto de venta de la config. Si el comprobante no existe, `consultar` termina con el error `VOUCHER_NOT_FOUND`. El formato del JSON está en [Entrada y salida](input-output.md#comprobantes-emitidos-ultimos-y-consultar).
 

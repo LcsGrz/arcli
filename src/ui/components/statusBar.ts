@@ -7,9 +7,14 @@ import { UI_THEME } from '../theme/theme';
  * Barra de una linea con el contexto de la sesion, como la barra de estado de un editor:
  * `━━ TITULO ━━━━━━━━━━━━ estado ━━`. No es una caja: no compite con los paneles de contenido.
  */
+/** Ancho de la barra de estado: el preset `wide`, o menos si la terminal es mas angosta. */
+export function statusBarWidth(): number {
+  return fitToTerminal(UI_THEME.widths.wide.min);
+}
+
 export function statusBar(title: string, status: string, statusColor: UiTextColor = 'info'): string {
   const fill = usesAsciiBorders() ? '=' : '━';
-  const width = fitToTerminal(UI_THEME.widths.wide.min);
+  const width = statusBarWidth();
   const left = ` ${bold(title.toUpperCase())} `;
   const right = ` ${colorize(status, statusColor)} `;
   const used = 2 + stripAnsi(left).length + stripAnsi(right).length + 2;

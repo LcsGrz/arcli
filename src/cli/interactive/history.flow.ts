@@ -1,13 +1,16 @@
-import { invoiceKindChoices } from '../../modules/interactive/choices';
+import { VOUCHER_KIND_MAP, VOUCHER_SHORTCUTS } from '../../modules/billing/voucher-kind-map';
 import { BACK } from '../../modules/interactive/wizard';
-import { listRecentVouchers } from '../../modules/vouchers/voucher-history';
-import { formatVoucherListAsText } from '../../modules/vouchers/voucher-history.presenter';
+import { formatVoucherDetailAsText } from '../../modules/vouchers/voucher-history.presenter';
 import { writeTerminalOutput } from '../../ui';
-import { startSpinner } from '../spinner';
 
+import { pickInvoice } from './invoice-picker';
 import { chooseStep } from './prompts';
 import { type InteractiveSession, requirePointOfSale } from './session';
 
+/**
+ * Consultar comprobantes de cualquier tipo: la lista de los ultimos, cargar mas o buscar por numero.
+ * Al elegir uno muestra el detalle y vuelve a la lista.
+ */
 export async function runHistoryFlow(session: InteractiveSession): Promise<void> {
   const pointOfSale = requirePointOfSale(session);
 
@@ -15,17 +18,30 @@ export async function runHistoryFlow(session: InteractiveSession): Promise<void>
     return;
   }
 
-  const voucherKind = await chooseStep('¿Que comprobantes queres ver?', invoiceKindChoices());
+  const voucherKind = await chooseStep(
+    '¿Que comprobantes queres consultar?',
+    VOUCHER_SHORTCUTS.map((shortcut) => ({
+      name: `${VOUCHER_KIND_MAP[shortcut].displayName} (${shortcut})`,
+      value: VOUCHER_KIND_MAP[shortcut],
+    })),
+  );
 
   if (voucherKind === BACK) {
     return;
   }
-  const spinner = startSpinner('Consultando ARCA...');
-  const vouchers = await listRecentVouchers(session.historyGateway, pointOfSale, voucherKind.arcaType).finally(() =>
-    spinner?.stop(),
-  );
 
-  writeTerminalOutput(
-    formatVoucherListAsText({ environment: session.runtime.environment, pointOfSale, voucherKind, vouchers }),
-  );
+  await pickInvoice(session, {
+    message: `¿Que ${voucherKind.displayName} queres ver?`,
+    onPick: (picked) =>
+      writeTerminalOutput(
+        formatVoucherDetailAsText({
+          environment: session.runtime.environment,
+          pointOfSale: picked.pointOfSale,
+          voucher: picked.invoice,
+          voucherKind,
+        }),
+      ),
+    pointOfSale,
+    voucherKind,
+  });
 }

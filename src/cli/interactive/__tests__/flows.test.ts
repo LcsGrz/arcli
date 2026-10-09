@@ -4,14 +4,14 @@ import { BillingService } from '../../../modules/billing/billing.service';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../../../modules/vouchers/voucher-history';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
+import { stripAnsi } from '../../../ui';
 import { runHistoryFlow } from '../history.flow';
 import { buildInvoiceInput, invoiceSteps } from '../invoice.flow';
-import { runLookupFlow } from '../lookup.flow';
 import { buildNoteInput, noteSteps } from '../note.flow';
 import { repeatSteps } from '../repeat.flow';
 import type { InteractiveSession } from '../session';
 
-import { createScript } from './script';
+import { createScript, onlyChoices } from './script';
 
 let script = createScript([]);
 
@@ -19,6 +19,10 @@ vi.mock('../prompts', () => ({
   askTextStep: (...args: Parameters<typeof script.askTextStep>) => script.askTextStep(...args),
   chooseManyStep: (...args: Parameters<typeof script.chooseManyStep>) => script.chooseManyStep(...args),
   chooseStep: (...args: Parameters<typeof script.chooseStep>) => script.chooseStep(...args),
+  chooseStepWhileLoading: (...args: Parameters<typeof script.chooseStepWhileLoading>) =>
+    script.chooseStepWhileLoading(...args),
+  eraseLastAnswer: () => undefined,
+  fitPageSize: () => 12,
 }));
 
 function createSession(vouchers: IssuedVoucher[] = []): InteractiveSession {
@@ -297,30 +301,9 @@ describe('flujos del modo interactivo', () => {
     });
   });
 
-  describe('consultar', () => {
-    it('propone el ultimo numero y muestra el detalle', async () => {
-      script = createScript([
-        [/Que tipo de comprobante/, 'Factura B'],
-        [/Numero \(el ultimo es 14\)/, '14'],
-      ]);
-
-      let printed = '';
-
-      vi.mocked(process.stdout.write).mockImplementation((chunk) => {
-        printed += String(chunk);
-        return true;
-      });
-
-      await runLookupFlow(createSession([invoice()]));
-
-      expect(printed).toContain('86400940834693');
-    });
-  });
-
   describe('notas', () => {
     it('arma una NC por el total sobre una factura de la lista', async () => {
       script = createScript([
-        [/Que nota/, 'Nota de credito'],
         [/tipo de factura/, 'Factura B'],
         [/A que la asociamos/, 'A una factura'],
         [/Sobre que Factura B/, '00003-00000014'],
@@ -328,7 +311,7 @@ describe('flujos del modo interactivo', () => {
       ]);
 
       const session = createSession([invoice()]);
-      const state = await runWizard(noteSteps(session, 3), {});
+      const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
 
       expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
         associatedVoucher: { cuit: '20409509763', fecha: '01/10/2026', numero: 14, puntoVenta: 3, shortcut: 'fb' },
@@ -341,7 +324,6 @@ describe('flujos del modo interactivo', () => {
 
     it('en FCE no ofrece periodo, pregunta el IVA receptor y la anulacion', async () => {
       script = createScript([
-        [/Que nota/, 'Nota de credito'],
         [/tipo de factura/, 'Factura de credito electronica A'],
         [/Sobre que Factura de credito electronica A/, '00003-00000014'],
         [/Total o parcial/, 'Parcial'],
@@ -351,7 +333,7 @@ describe('flujos del modo interactivo', () => {
       ]);
 
       const session = createSession([invoice({ documentNumber: 30709965812, documentTypeCode: 80 })]);
-      const state = await runWizard(noteSteps(session, 3), {});
+      const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
 
       expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
         cancellation: true,
@@ -365,7 +347,6 @@ describe('flujos del modo interactivo', () => {
 
     it('arma una NC asociada a un periodo', async () => {
       script = createScript([
-        [/Que nota/, 'Nota de credito'],
         [/tipo de factura/, 'Factura B'],
         [/A que la asociamos/, 'A un periodo'],
         [/Periodo desde/, '1/9'],
@@ -377,7 +358,7 @@ describe('flujos del modo interactivo', () => {
       ]);
 
       const session = createSession();
-      const state = await runWizard(noteSteps(session, 3), {});
+      const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
       const input = buildNoteInput(state as NonNullable<typeof state>, session, 3);
 
       expect(input).toMatchObject({
@@ -388,24 +369,100 @@ describe('flujos del modo interactivo', () => {
       expect(input.associatedVoucher).toBeUndefined();
     });
 
-    it('si no hay facturas vuelve a la pregunta anterior', async () => {
+    it('si no hay facturas solo ofrece ingresarla a mano', async () => {
       script = createScript([
-        [/Que nota/, 'Nota de debito'],
         [/tipo de factura/, 'Factura B'],
         [/A que la asociamos/, 'A una factura'],
+        [/Sobre que Factura B/, BACK],
         [/A que la asociamos/, BACK],
         [/tipo de factura/, BACK],
-        [/Que nota/, BACK],
       ]);
 
-      expect(await runWizard(noteSteps(createSession([]), 3), {})).toBeUndefined();
+      expect(await runWizard(noteSteps(createSession([]), 3), { kind: 'debito' })).toBeUndefined();
+      expect(onlyChoices(script.chooseStep.mock.calls[2][1]).map((choice) => choice.name)).toEqual([
+        '# Ingresar el numero a mano…',
+      ]);
+    });
+
+    it('carga mas facturas, de a la cantidad configurada, y deja elegir una vieja', async () => {
+      script = createScript([
+        [/tipo de factura/, 'Factura C'],
+        [/A que la asociamos/, 'A una factura'],
+        [/Sobre que Factura C/, 'Cargar mas'],
+        [/Sobre que Factura C/, '00003-00000003'],
+        [/Total o parcial/, 'Anular el total'],
+      ]);
+
+      const vouchers = Array.from({ length: 12 }, (_, index) => invoice({ ivaAmount: 0, number: index + 1 }));
+      const session = createSession(vouchers);
+
+      Object.assign(session.runtime.config, { comprobantesPorLista: 8 });
+      const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
+      const [firstList, secondList] = script.chooseStep.mock.calls
+        .filter(([message]) => /Sobre que Factura C/.test(message))
+        .map(([, choices]) => onlyChoices(choices).map((choice) => choice.name));
+
+      expect(firstList).toHaveLength(10);
+      expect(firstList).toContain('+ Cargar mas…');
+      // Mientras carga, la misma lista con "Cargando…" en lugar del boton.
+      const loadingList = script.chooseStepWhileLoading.mock.calls[0][1] as ReadonlyArray<{
+        name?: string;
+        separator?: string;
+      }>;
+
+      expect(loadingList.some((item) => stripAnsi(item.separator ?? '').includes('Cargando…'))).toBe(true);
+      expect(loadingList.some((item) => item.name === '+ Cargar mas…')).toBe(false);
+      // Ya estan las 12: no ofrece cargar mas.
+      expect(secondList).toHaveLength(13);
+      expect(secondList).not.toContain('+ Cargar mas…');
+      expect(buildNoteInput(state as NonNullable<typeof state>, session, 3).associatedVoucher).toMatchObject({
+        numero: 3,
+        puntoVenta: 3,
+      });
+    });
+
+    it('ingresa a mano una factura de otro punto de venta', async () => {
+      script = createScript([
+        [/tipo de factura/, 'Factura C'],
+        [/A que la asociamos/, 'A una factura'],
+        [/Sobre que Factura C/, 'Ingresar el numero a mano'],
+        [/Punto de venta/, '5'],
+        [/^Numero/, '14'],
+        [/Total o parcial/, 'Anular el total'],
+      ]);
+
+      const session = createSession([invoice({ ivaAmount: 0 })]);
+      const getVoucher = vi.spyOn(session.historyGateway, 'getVoucher');
+      const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
+
+      expect(getVoucher).toHaveBeenLastCalledWith(14, 5, 11);
+      expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
+        associatedVoucher: { numero: 14, puntoVenta: 5, shortcut: 'fc' },
+        shortcut: 'ncc',
+        totalAmount: 121,
+      });
+    });
+
+    it('si la factura ingresada a mano no existe vuelve a la lista', async () => {
+      script = createScript([
+        [/tipo de factura/, 'Factura C'],
+        [/A que la asociamos/, 'A una factura'],
+        [/Sobre que Factura C/, 'Ingresar el numero a mano'],
+        [/Punto de venta/, '3'],
+        [/^Numero/, '99'],
+        [/Sobre que Factura C/, '00003-00000014'],
+        [/Total o parcial/, 'Anular el total'],
+      ]);
+
+      const session = createSession([invoice({ ivaAmount: 0 })]);
+      const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
+
+      expect(state?.invoice?.number).toBe(14);
     });
   });
 
-  describe('historial', () => {
-    it('lista los ultimos comprobantes del tipo elegido', async () => {
-      script = createScript([[/Que comprobantes/, 'Factura B']]);
-
+  describe('consultar comprobantes', () => {
+    function capture(): () => string {
       let printed = '';
 
       vi.mocked(process.stdout.write).mockImplementation((chunk) => {
@@ -413,10 +470,55 @@ describe('flujos del modo interactivo', () => {
         return true;
       });
 
+      return () => printed;
+    }
+
+    it('lista cualquier tipo, muestra el detalle y vuelve a la lista', async () => {
+      script = createScript([
+        [/Que comprobantes queres consultar/, 'Nota de credito B'],
+        [/Que Nota de credito B queres ver/, '00003-00000014'],
+        [/Que Nota de credito B queres ver/, BACK],
+      ]);
+
+      const printed = capture();
+      const session = createSession([invoice()]);
+      const getLastNumber = vi.spyOn(session.historyGateway, 'getLastNumber');
+
+      await runHistoryFlow(session);
+
+      expect(printed()).toContain('86400940834693');
+      expect(getLastNumber).toHaveBeenCalledWith(3, 8);
+      // El listado va entre lineas punteadas; buscar a mano queda afuera.
+      const choices = script.chooseStep.mock.calls[1][1] as ReadonlyArray<{
+        name?: string;
+        separator?: string;
+        short?: string;
+      }>;
+      const names = choices.map((item) => (item.separator === undefined ? item.name : stripAnsi(item.separator)));
+
+      expect(names[0]).toMatch(/^┈+$/);
+      expect(names[1]).toContain('CAE 86400940834693');
+      // Al elegirla, la respuesta muestra solo el numero.
+      expect(choices[1]?.short).toBe('00003-00000014');
+      expect(names.slice(2)).toEqual([expect.stringMatching(/^┈+$/), ' ', '# Ingresar el numero a mano…']);
+      // La lista se arma una sola vez: volver del detalle no consulta ARCA de nuevo.
+      expect(getLastNumber).toHaveBeenCalledTimes(1);
+    });
+
+    it('busca uno por numero en otro punto de venta', async () => {
+      script = createScript([
+        [/Que comprobantes queres consultar/, 'Factura B'],
+        [/Que Factura B queres ver/, 'Ingresar el numero a mano'],
+        [/Punto de venta/, '7'],
+        [/^Numero/, '14'],
+        [/Que Factura B queres ver/, BACK],
+      ]);
+
+      const printed = capture();
+
       await runHistoryFlow(createSession([invoice()]));
 
-      expect(printed).toContain('00003-00000014');
-      expect(printed).toContain('CAE 86400940834693');
+      expect(printed()).toContain('00007-00000014');
     });
 
     it('volver sale sin consultar', async () => {

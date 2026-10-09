@@ -4,6 +4,9 @@
 # Requiere vhs y freeze (brew install vhs charmbracelet/tap/freeze) y una config con credenciales de testing:
 #   ARCLI_DEMO_CONFIG=~/Library/Preferences/arcli/config.json scripts/demo/record.sh
 #
+# Sin argumentos graba todos los guiones de docs/assets/tapes/; para grabar solo algunos, pasalos:
+#   ARCLI_DEMO_CONFIG=... scripts/demo/record.sh docs/assets/tapes/consultar.tape
+#
 # Usa un HOME temporal con una copia de esa config, asi la grabacion no muestra tus rutas ni toca tu config.
 # Emite comprobantes reales en testing (homologacion), que no tienen validez fiscal.
 set -euo pipefail
@@ -26,12 +29,21 @@ for dir in "$demo_home/Library/Preferences/arcli" "$demo_home/.config/arcli"; do
   ' "$config" "$dir/config.json" "$(dirname "$config")/tickets"
 done
 
+# Rutas absolutas antes del cd, asi los guiones pasados como argumento se pueden indicar desde cualquier carpeta.
+tapes=()
+for tape in "$@"; do
+  tapes+=("$(cd "$(dirname "$tape")" && pwd)/$(basename "$tape")")
+done
+
 cd "$repo"
+if [ "${#tapes[@]}" -eq 0 ]; then
+  tapes=(docs/assets/tapes/*.tape)
+fi
 yarn -s build >/dev/null
 
 export ARCLI_DEMO_HOME="$demo_home" ARCLI_REPO="$repo"
 
-for tape in docs/assets/tapes/*.tape; do
+for tape in "${tapes[@]}"; do
   echo "Grabando $tape"
   vhs "$tape"
 done

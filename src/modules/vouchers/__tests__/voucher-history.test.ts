@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { inferIvaRate, type IssuedVoucher, listRecentVouchers, resolveDocumentType } from '../voucher-history';
+import {
+  inferIvaRate,
+  type IssuedVoucher,
+  listRecentVouchers,
+  listVouchersFrom,
+  resolveDocumentType,
+} from '../voucher-history';
 
 function voucher(number: number): IssuedVoucher {
   return {
@@ -40,6 +46,25 @@ describe('listRecentVouchers', () => {
     );
 
     expect(sparse.map((item) => item.number)).toEqual([3, 1]);
+  });
+});
+
+describe('listVouchersFrom', () => {
+  it('pagina desde un numero sin pedir el ultimo emitido', async () => {
+    const getLastNumber = vi.fn();
+    const getVoucher = vi.fn(async (number: number) => voucher(number));
+    const result = await listVouchersFrom({ getLastNumber, getVoucher }, 3, 6, 4, { limit: 10 });
+
+    expect(result.map((item) => item.number)).toEqual([4, 3, 2, 1]);
+    expect(getLastNumber).not.toHaveBeenCalled();
+  });
+
+  it('desde 0 o menos no consulta nada', async () => {
+    const getVoucher = vi.fn();
+
+    expect(await listVouchersFrom({ getLastNumber: vi.fn(), getVoucher }, 3, 6, 0)).toEqual([]);
+    expect(await listVouchersFrom({ getLastNumber: vi.fn(), getVoucher }, 3, 6, -2)).toEqual([]);
+    expect(getVoucher).not.toHaveBeenCalled();
   });
 });
 

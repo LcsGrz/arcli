@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { billingIvaRateSchema } from '../billing/billing.schemas';
+import { MAX_RECENT_VOUCHERS } from '../vouchers/voucher-history';
 
 export const arcliEnvironmentSchema = z.enum(['testing', 'produccion']);
 export const arcliDefaultConceptSchema = z.enum(['productos', 'productos-servicios', 'servicios']);
@@ -87,6 +88,8 @@ export const arcliConfigSchema = z.object({
   pdf: arcliPdfModeSchema.optional(),
   pdfCarpeta: z.string().trim().min(1).optional(),
   pdfNavegador: z.string().trim().min(1).optional(),
+  /** Cuantos comprobantes muestran `arcli ultimos` y las listas del modo interactivo. */
+  comprobantesPorLista: z.number().int().min(1).max(MAX_RECENT_VOUCHERS).optional(),
   puntoVentaPorDefecto: z.number().int().positive().optional(),
   ticketPath: z.string().trim().min(1).optional(),
   verificarFce: z.boolean().optional(),
@@ -113,6 +116,7 @@ export const CONFIG_DEFAULTS: ArcliConfig = {
 export const configPublicKeySchema = z.enum([
   'alicuota',
   'aliasCbu',
+  'comprobantesPorLista',
   'cbu',
   'cert.produccion',
   'cert.testing',

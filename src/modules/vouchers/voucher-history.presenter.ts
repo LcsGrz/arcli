@@ -39,36 +39,60 @@ export function formatReceiver(voucher: IssuedVoucher): string {
   return `${label} ${voucher.documentNumber}`;
 }
 
-/** Una linea por comprobante, para listas y para elegir una factura en el modo interactivo. */
-export function formatVoucherSummary(pointOfSale: number, voucher: IssuedVoucher): string {
+/** Titulo del listado de ultimos comprobantes, tambien usado por el selector del modo interactivo. */
+export function formatVoucherListTitle(report: Omit<VoucherListReport, 'vouchers'>): string {
+  return `Ultimas ${report.voucherKind.displayName} · PV ${report.pointOfSale} · ${report.environment}`;
+}
+
+/** Una fila del listado: numero, fecha, receptor, total y CAE, en columnas alineadas. */
+export function formatVoucherListRow(pointOfSale: number, voucher: IssuedVoucher): string {
   return [
-    `N° ${formatVoucherNumber(pointOfSale, voucher.number)}`,
+    formatVoucherNumber(pointOfSale, voucher.number),
     formatArcaDateAsArgentineDate(voucher.date),
     formatReceiver(voucher).padEnd(20),
-    formatMoneyLabel(voucher.total),
-  ].join('  ·  ');
+    formatMoneyLabel(voucher.total).padStart(16),
+    voucher.cae ? `CAE ${voucher.cae}` : '',
+  ]
+    .join('  ')
+    .trimEnd();
+}
+
+/**
+ * Filas compactas para elegir un comprobante: cada columna mide lo justo para el dato mas largo de la lista
+ * y las separa `separator`.
+ */
+export function formatVoucherPickerRows(
+  pointOfSale: number,
+  vouchers: readonly IssuedVoucher[],
+  separator: string,
+): string[] {
+  const columns = vouchers.map((voucher) => ({
+    cae: voucher.cae ? `CAE ${voucher.cae}` : '',
+    date: formatArcaDateAsArgentineDate(voucher.date),
+    number: formatVoucherNumber(pointOfSale, voucher.number),
+    receiver: formatReceiver(voucher),
+    total: formatMoneyLabel(voucher.total),
+  }));
+  const receiverWidth = Math.max(0, ...columns.map((column) => column.receiver.length));
+  const totalWidth = Math.max(0, ...columns.map((column) => column.total.length));
+
+  return columns.map((column) =>
+    [column.number, column.date, column.receiver.padEnd(receiverWidth), column.total.padStart(totalWidth), column.cae]
+      .filter(Boolean)
+      .join(separator),
+  );
 }
 
 export function formatVoucherListAsText(report: VoucherListReport): string {
-  const { environment, pointOfSale, voucherKind, vouchers } = report;
+  const { pointOfSale, voucherKind, vouchers } = report;
 
   if (vouchers.length === 0) {
     return noticePanel(`No hay ${voucherKind.displayName} emitidas en el punto de venta ${pointOfSale}.`, 'muted');
   }
 
-  const rows = vouchers.map((voucher) =>
-    [
-      formatVoucherNumber(pointOfSale, voucher.number),
-      formatArcaDateAsArgentineDate(voucher.date),
-      formatReceiver(voucher).padEnd(20),
-      formatMoneyLabel(voucher.total).padStart(16),
-      voucher.cae ? `CAE ${voucher.cae}` : '',
-    ].join('  '),
-  );
-
   return keyValuePanel(
-    `Ultimas ${voucherKind.displayName} · PV ${pointOfSale} · ${environment}`,
-    rows,
+    formatVoucherListTitle(report),
+    vouchers.map((voucher) => formatVoucherListRow(pointOfSale, voucher)),
     undefined,
     'wide',
     undefined,

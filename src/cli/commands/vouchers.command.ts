@@ -82,7 +82,11 @@ export function registerVoucherQueryCommands(program: Command): void {
       .command('ultimos')
       .argument('<tipo>', 'atajo del comprobante, por ejemplo fb, fc o nca')
       .description('listar los ultimos comprobantes emitidos en ARCA')
-      .option('--cantidad <numero>', `cuantos comprobantes mostrar (1 a ${MAX_RECENT_VOUCHERS})`, parseInteger),
+      .option(
+        '--cantidad <numero>',
+        `cuantos comprobantes mostrar (1 a ${MAX_RECENT_VOUCHERS}; por defecto config.comprobantesPorLista o ${RECENT_VOUCHERS_LIMIT})`,
+        parseInteger,
+      ),
   ).addHelpText('after', createVoucherQueryHelp());
 
   registerGlobalOptions(recent);
@@ -90,13 +94,14 @@ export function registerVoucherQueryCommands(program: Command): void {
 
   recent.action(async (shortcut: string, options: PointOfSaleOptions & { cantidad?: number }, self: Command) => {
     const voucherKind = requireVoucherKind(shortcut);
-    const limit = options.cantidad ?? RECENT_VOUCHERS_LIMIT;
+    const { cantidad } = options;
 
-    if (!Number.isInteger(limit) || limit < 1 || limit > MAX_RECENT_VOUCHERS) {
+    if (cantidad !== undefined && (!Number.isInteger(cantidad) || cantidad < 1 || cantidad > MAX_RECENT_VOUCHERS)) {
       throw new InputValidationError(`--cantidad tiene que ser un numero entre 1 y ${MAX_RECENT_VOUCHERS}.`);
     }
 
     const { gateway, runtime } = createContext(self);
+    const limit = cantidad ?? runtime.config.comprobantesPorLista ?? RECENT_VOUCHERS_LIMIT;
     const pointOfSale = requirePointOfSale(options, runtime);
     const vouchers = await withSpinner(runtime, () =>
       listRecentVouchers(gateway, pointOfSale, voucherKind.arcaType, { limit }),

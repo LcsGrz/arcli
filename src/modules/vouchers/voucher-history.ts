@@ -41,7 +41,8 @@ const IVA_RATES: ReadonlyArray<readonly [BillingIvaRate, number]> = [
   ['27', 0.27],
 ];
 
-export const RECENT_VOUCHERS_LIMIT = 10;
+/** Cuantos comprobantes listar si no se pide otra cantidad; se cambia con `config.comprobantesPorLista`. */
+export const RECENT_VOUCHERS_LIMIT = 15;
 export const MAX_RECENT_VOUCHERS = 50;
 
 export function resolveDocumentType(code: number): BillingDocumentType | undefined {
@@ -60,17 +61,34 @@ export function inferIvaRate(netAmount: number, ivaAmount: number): BillingIvaRa
   return match?.[0];
 }
 
+interface ListVouchersOptions {
+  readonly concurrency?: number;
+  readonly limit?: number;
+}
+
 /** Ultimos comprobantes emitidos, del mas nuevo al mas viejo. */
 export async function listRecentVouchers(
   gateway: VoucherHistoryGateway,
   pointOfSale: number,
   voucherType: number,
-  options: { readonly concurrency?: number; readonly limit?: number } = {},
+  options: ListVouchersOptions = {},
+): Promise<IssuedVoucher[]> {
+  const lastNumber = await gateway.getLastNumber(pointOfSale, voucherType);
+
+  return listVouchersFrom(gateway, pointOfSale, voucherType, lastNumber, options);
+}
+
+/** Comprobantes desde `fromNumber` hacia atras (incluido), para paginar sin volver a pedir el ultimo numero. */
+export async function listVouchersFrom(
+  gateway: VoucherHistoryGateway,
+  pointOfSale: number,
+  voucherType: number,
+  fromNumber: number,
+  options: ListVouchersOptions = {},
 ): Promise<IssuedVoucher[]> {
   const limit = options.limit ?? RECENT_VOUCHERS_LIMIT;
   const concurrency = options.concurrency ?? 4;
-  const lastNumber = await gateway.getLastNumber(pointOfSale, voucherType);
-  const numbers = Array.from({ length: Math.min(limit, lastNumber) }, (_, index) => lastNumber - index);
+  const numbers = Array.from({ length: Math.max(0, Math.min(limit, fromNumber)) }, (_, index) => fromNumber - index);
   const vouchers: Array<IssuedVoucher | undefined> = [];
 
   // Lotes chicos: cada consulta tarda ~0,5 s y no conviene saturar el web service.

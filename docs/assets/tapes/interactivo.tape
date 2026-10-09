@@ -38,8 +38,7 @@ Sleep 4s
 # Emitir ahora
 Enter
 Sleep 6s
-# Salir
-Down 7
+# Esc en el menu principal sale del asistente
 Sleep 500ms
-Enter
+Escape
 Sleep 2s

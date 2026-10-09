@@ -1,3 +1,5 @@
+import { Separator } from '@inquirer/select';
+
 import { ConfigService } from '../../modules/config/config.service';
 import { listMissingSetupKeys } from '../../modules/interactive/config-fields';
 import {
@@ -14,13 +16,13 @@ import type { GlobalCliOptions } from '../types';
 import { runConfigMenu, runGuidedSetup } from './config.flow';
 import { runHistoryFlow } from './history.flow';
 import { runInvoiceFlow } from './invoice.flow';
-import { runLookupFlow, runStatusFlow } from './lookup.flow';
 import { runNoteFlow } from './note.flow';
 import { chooseOne, confirm, isPromptCancellation } from './prompts';
 import { runRepeatFlow } from './repeat.flow';
 import { createInteractiveSession, type InteractiveSession } from './session';
+import { runStatusFlow } from './status.flow';
 
-type MenuOption = 'config' | 'consultar' | 'estado' | 'factura' | 'historial' | 'nota' | 'repetir' | 'salir';
+type MenuOption = 'config' | 'estado' | 'factura' | 'historial' | 'nota-credito' | 'nota-debito' | 'repetir' | 'salir';
 
 function listMissingSetup(): string[] {
   const service = new ConfigService();
@@ -60,9 +62,9 @@ async function runOption(option: Exclude<MenuOption, 'salir'>, options: GlobalCl
 
   if (option === 'factura') await runInvoiceFlow(session);
   if (option === 'repetir') await runRepeatFlow(session);
-  if (option === 'nota') await runNoteFlow(session);
+  if (option === 'nota-credito') await runNoteFlow(session, 'credito');
+  if (option === 'nota-debito') await runNoteFlow(session, 'debito');
   if (option === 'historial') await runHistoryFlow(session);
-  if (option === 'consultar') await runLookupFlow(session);
   if (option === 'estado') await runStatusFlow(session);
 }
 
@@ -105,20 +107,38 @@ export async function runInteractiveMode(options: GlobalCliOptions = {}): Promis
     let option: MenuOption;
 
     try {
-      option = await chooseOne<MenuOption>('¿Que queres hacer?', [
-        { name: 'Emitir factura', value: 'factura' },
-        {
-          description: 'Copia una de las ultimas, con fechas nuevas',
-          name: 'Repetir una factura anterior',
-          value: 'repetir',
-        },
-        { name: 'Nota de credito o debito sobre una factura', value: 'nota' },
-        { name: 'Ver ultimos comprobantes', value: 'historial' },
-        { name: 'Consultar un comprobante', value: 'consultar' },
-        { description: 'Servidores, punto de venta y cotizacion del dolar', name: 'Estado de ARCA', value: 'estado' },
-        { description: 'Revisar, configuracion guiada, cambiar un dato y PDF', name: 'Configuracion', value: 'config' },
-        { name: 'Salir', value: 'salir' },
-      ]);
+      option = await chooseOne<MenuOption>(
+        '¿Que queres hacer?',
+        [
+          { name: 'Emitir factura', value: 'factura' },
+          {
+            description: 'Copia una de las ultimas, con fechas nuevas',
+            name: 'Repetir una factura anterior',
+            value: 'repetir',
+          },
+          {
+            description: 'Descuento, devolucion o anulacion de una factura',
+            name: 'Emitir nota de credito',
+            value: 'nota-credito',
+          },
+          { description: 'Cargo adicional sobre una factura', name: 'Emitir nota de debito', value: 'nota-debito' },
+          {
+            description: 'Los ultimos de cada tipo, o buscar uno por numero',
+            name: 'Consultar comprobantes',
+            value: 'historial',
+          },
+          { description: 'Servidores, punto de venta y cotizacion del dolar', name: 'Estado de ARCA', value: 'estado' },
+          {
+            description: 'Revisar, configuracion guiada, cambiar un dato y PDF',
+            name: 'Configuracion',
+            value: 'config',
+          },
+          new Separator(' '),
+          { name: 'Salir', value: 'salir' },
+        ],
+        undefined,
+        { escapeLabel: 'salir', escapeValue: 'salir' },
+      );
     } catch (error) {
       if (isPromptCancellation(error)) {
         break;
