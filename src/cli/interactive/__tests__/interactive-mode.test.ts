@@ -19,7 +19,7 @@ vi.mock('../../../modules/interactive/config-fields', async (importOriginal) => 
 }));
 vi.mock('../config.flow', () => ({ runConfigMenu: vi.fn(), runGuidedSetup: vi.fn() }));
 vi.mock('../repeat.flow', () => ({ runRepeatFlow: vi.fn() }));
-vi.mock('../lookup.flow', () => ({ runLookupFlow: vi.fn(), runStatusFlow: vi.fn() }));
+vi.mock('../status.flow', () => ({ runStatusFlow: vi.fn() }));
 vi.mock('../invoice.flow', () => ({ runInvoiceFlow: vi.fn() }));
 vi.mock('../note.flow', () => ({ runNoteFlow: vi.fn() }));
 vi.mock('../history.flow', () => ({ runHistoryFlow: vi.fn() }));

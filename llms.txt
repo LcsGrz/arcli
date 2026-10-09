@@ -157,7 +157,7 @@ arcli config establecer <clave> <valor>
 arcli config eliminar <clave>
 ```
 
-Claves válidas: `cuit`, `cbu`, `aliasCbu` (solo facturas FCE), `verificarFce`, `alicuota`, `puntoVenta`, `concepto`, `ivaReceptor`, `moneda`, `cotizacion`,
+Claves válidas: `cuit`, `cbu`, `aliasCbu` (solo facturas FCE), `verificarFce`, `alicuota`, `puntoVenta`, `comprobantesPorLista` (1 a 50, por defecto 15), `concepto`, `ivaReceptor`, `moneda`, `cotizacion`,
 `entorno` (`testing`/`produccion`), `emitir`, `json`, `bruto` (booleanos: `true/false`,
 `si/no`, `1/0`), `cert.testing`, `cert.produccion`, `key.testing`, `key.produccion`
 (rutas a archivos PEM, se validan al guardar), `ticketPath` (carpeta donde se cachea el
@@ -170,7 +170,7 @@ testing van a `testing/`), `pdfNavegador` (ruta a Chrome/Chromium/Edge), `emisor
 
 ## Otros comandos
 
-- `arcli ultimos <tipo> [--cantidad N] [--pv N] [--json]`: últimos comprobantes emitidos (de 1 a 50, por defecto 10), del más nuevo al más viejo. `tipo` es el atajo (`fb`, `nca`…).
+- `arcli ultimos <tipo> [--cantidad N] [--pv N] [--json]`: últimos comprobantes emitidos (de 1 a 50; por defecto `config.comprobantesPorLista` o 15), del más nuevo al más viejo. `tipo` es el atajo (`fb`, `nca`…).
 - `arcli consultar <tipo> <numero> [--pv N] [--json]`: detalle de un comprobante emitido (CAE, vencimiento, importes, receptor). Si no existe, el error es `VOUCHER_NOT_FOUND`. Sirve para verificar después de emitir.
 - `arcli pdf [estado|instalar|desinstalar] [--json]`: plugin que genera los PDFs. `arcli pdf instalar` lo descarga sin preguntar (sirve en scripts).
 - `arcli estado [--json]`: si ARCA responde (servidores app/db/auth, latencia) y si el punto de venta configurado está habilitado. `listo: true` = se puede emitir. En testing ARCA no informa puntos de venta (`puntoVenta.estado: "sin-datos"`).

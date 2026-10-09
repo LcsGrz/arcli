@@ -1,24 +1,32 @@
+import { Separator } from '@inquirer/select';
 import { join } from 'node:path';
 
 import { CERTIFICATE_GUIDE_URL } from '../../lib/links';
 import type { ArcliConfig, ConfigPublicKey } from '../../modules/config/config.schemas';
+import { CONFIG_SECTIONS } from '../../modules/config/config.sections';
 import { ConfigService, validateConfigValue } from '../../modules/config/config.service';
 import { buildConfigDoctorReport } from '../../modules/config/config-doctor';
 import {
   CONFIG_FIELDS,
-  CONFIG_GROUP_LABELS,
   type ConfigField,
   describeConfigValue,
   getConfigField,
 } from '../../modules/interactive/config-fields';
 import { BACK, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { PdfPlugin } from '../../services/pdf/pdf-plugin';
-import { formatConfigDoctorAsText, formatPdfPluginStatusAsText, noticePanel, writeTerminalOutput } from '../../ui';
+import {
+  bold,
+  formatConfigAsText,
+  formatConfigDoctorAsText,
+  formatPdfPluginStatusAsText,
+  noticePanel,
+  writeTerminalOutput,
+} from '../../ui';
 import { buildRuntimeCheck } from '../commands/config.command';
 import { startSpinner } from '../spinner';
 import type { GlobalCliOptions } from '../types';
 
-import { askTextStep, chooseOne, chooseStep, confirm } from './prompts';
+import { askTextStep, type Choice, chooseOne, chooseStep, confirm, fitPageSize } from './prompts';
 
 const CLEAR = '__borrar__';
 const KEEP = '__mantener__';
@@ -178,26 +186,51 @@ export async function runGuidedSetup(): Promise<void> {
   writeTerminalOutput(noticePanel('Configuracion guardada. Ya podes emitir en testing.', 'success'));
 }
 
-async function runChangeField(): Promise<void> {
-  const config = readConfig();
-  const field = await chooseStep<ConfigField>(
-    '¿Que dato queres cambiar?',
-    CONFIG_FIELDS.map((candidate) => ({
-      description: `${CONFIG_GROUP_LABELS[candidate.group]} · ${describeConfigValue(candidate, config)}`,
-      name: candidate.label,
-      value: candidate,
+/** Los datos agrupados por seccion, en el mismo orden que `arcli config`, con un titulo arriba de cada una. */
+function fieldChoicesBySection(config: ArcliConfig): Array<Choice<ConfigField> | Separator> {
+  const sections = CONFIG_SECTIONS.map((section) => ({
+    fields: section.keys.flatMap((key) => CONFIG_FIELDS.filter((field) => field.key === key)),
+    label: section.label,
+  })).filter((section) => section.fields.length > 0);
+
+  return sections.flatMap((section, index) => [
+    ...(index > 0 ? [new Separator(' ')] : []),
+    new Separator(bold(section.label)),
+    ...section.fields.map((field) => ({
+      description: describeConfigValue(field, config),
+      name: field.label,
+      value: field,
     })),
-  );
+  ]);
+}
 
-  if (field === BACK) {
-    return;
-  }
-
-  const result = await askField(field, config);
+/** Lista de datos por seccion; despues de cambiar uno (o volver) se muestra de nuevo, hasta "Volver". */
+async function runChangeField(): Promise<void> {
   const messages = { borrado: 'Dato borrado.', guardado: 'Guardado.', 'sin-cambios': 'Sin cambios.' } as const;
+  let lastField: ConfigField | undefined;
 
-  if (result !== BACK) {
-    writeTerminalOutput(noticePanel(messages[result], result === 'sin-cambios' ? 'muted' : 'success'));
+  for (;;) {
+    const config = readConfig();
+    const choices = fieldChoicesBySection(config);
+    // +2: el separador y "Volver" que agrega chooseStep.
+    const field = await chooseStep<ConfigField>(
+      '¿Que queres modificar?',
+      choices,
+      lastField,
+      fitPageSize(choices.length + 2),
+    );
+
+    if (field === BACK) {
+      return;
+    }
+
+    lastField = field;
+
+    const result = await askField(field, config);
+
+    if (result !== BACK) {
+      writeTerminalOutput(noticePanel(messages[result], result === 'sin-cambios' ? 'muted' : 'success'));
+    }
   }
 }
 
@@ -249,30 +282,51 @@ async function runPdfPluginMenu(): Promise<void> {
   writeTerminalOutput(formatPdfPluginStatusAsText(plugin.getStatus(), 'Plugin de PDF instalado'));
 }
 
-type ConfigOption = 'cambiar' | 'guiada' | 'pdf' | 'revisar' | 'volver';
+type ConfigOption = 'cambiar' | 'guiada' | 'pdf' | 'revisar' | 'ver' | 'volver';
 
-/** Submenu de configuracion: revisar, configuracion guiada, cambiar un dato y el plugin de PDF. */
+function showConfig(): void {
+  withConfigService((service) => {
+    const config = service.getConfig();
+
+    writeTerminalOutput(formatConfigAsText(config, service.resolvePaths(config)));
+  });
+}
+
+/** Submenu de configuracion: ver, revisar, configuracion guiada, modificar y el plugin de PDF. */
 export async function runConfigMenu(options: GlobalCliOptions): Promise<void> {
   for (;;) {
-    const option = await chooseOne<ConfigOption>('Configuracion', [
-      {
-        description: 'Credenciales, defaults y validacion contra ARCA',
-        name: 'Revisar configuracion',
-        value: 'revisar',
-      },
-      {
-        description: 'CUIT, certificado, punto de venta y defaults, paso a paso',
-        name: 'Configuracion guiada',
-        value: 'guiada',
-      },
-      { description: 'Elegis un dato de la lista y lo cambias', name: 'Cambiar un dato', value: 'cambiar' },
-      { description: 'Estado, instalar o desinstalar', name: 'Plugin de PDF', value: 'pdf' },
-      { name: '← Volver al menu', value: 'volver' },
-    ]);
+    const option = await chooseOne<ConfigOption>(
+      'Configuracion',
+      [
+        { description: 'Todos los datos guardados, como arcli config', name: 'Ver configuracion', value: 'ver' },
+        {
+          description: 'Credenciales, defaults y validacion contra ARCA',
+          name: 'Revisar configuracion',
+          value: 'revisar',
+        },
+        {
+          description: 'CUIT, certificado, punto de venta y defaults, paso a paso',
+          name: 'Configuracion guiada',
+          value: 'guiada',
+        },
+        {
+          description: 'Elegis un dato, agrupado por seccion, y lo cambias',
+          name: 'Modificar configuracion',
+          value: 'cambiar',
+        },
+        { description: 'Estado, instalar o desinstalar', name: 'Plugin de PDF', value: 'pdf' },
+        new Separator(' '),
+        { name: '← Volver al menu', value: 'volver' },
+      ],
+      undefined,
+      { escapeValue: 'volver' },
+    );
 
     if (option === 'volver') {
       return;
     }
+
+    if (option === 'ver') showConfig();
 
     if (option === 'revisar') {
       writeTerminalOutput(formatConfigDoctorAsText(buildConfigDoctorReport(readConfig(), buildRuntimeCheck(options))));

@@ -1,10 +1,20 @@
+import { Separator } from '@inquirer/select';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BACK } from '../../../modules/interactive/wizard';
+import { stripAnsi } from '../../../ui';
 import { runConfigMenu, runGuidedSetup } from '../config.flow';
 import { askTextStep, chooseOne, chooseStep, confirm } from '../prompts';
 
-vi.mock('../prompts', () => ({ askTextStep: vi.fn(), chooseOne: vi.fn(), chooseStep: vi.fn(), confirm: vi.fn() }));
+import { onlyChoices } from './script';
+
+vi.mock('../prompts', () => ({
+  askTextStep: vi.fn(),
+  chooseOne: vi.fn(),
+  chooseStep: vi.fn(),
+  confirm: vi.fn(),
+  fitPageSize: () => 12,
+}));
 
 const store: Record<string, string> = {};
 const install = vi.fn(async () => ({ installed: true }));
@@ -29,6 +39,9 @@ vi.mock('../../../modules/config/config.service', () => ({
     }
     public getPluginsPath() {
       return '/tmp/plugins';
+    }
+    public resolvePaths() {
+      return { pdfFolder: '/tmp/pdf', ticketPath: '/tmp/tickets' };
     }
     public setValue(key: string, value: string) {
       store[key] = value;
@@ -117,20 +130,58 @@ describe('runConfigMenu', () => {
   it('cambia un dato de una lista de opciones', async () => {
     vi.mocked(chooseOne).mockResolvedValueOnce('cambiar').mockResolvedValueOnce('volver');
     chooseStepMock
-      .mockImplementationOnce(async (_message, choices) => choices.find((choice) => choice.name === 'Concepto')?.value)
-      .mockResolvedValueOnce('productos');
+      .mockImplementationOnce(
+        async (_message, choices) => onlyChoices(choices).find((choice) => choice.name === 'Concepto')?.value,
+      )
+      .mockResolvedValueOnce('productos')
+      // Despues de guardar vuelve a la lista; "Volver" sale.
+      .mockResolvedValueOnce(BACK);
 
     await runConfigMenu({});
 
     expect(store.concepto).toBe('productos');
+
+    // Los datos van agrupados: un titulo por seccion, en orden.
+    const headers = (chooseStepMock.mock.calls[0]?.[1] ?? [])
+      .filter((item) => Separator.isSeparator(item) && item.separator.trim())
+      .map((item) => stripAnsi((item as Separator).separator));
+
+    expect(headers).toEqual([
+      'Cuenta',
+      'Certificados',
+      'Al facturar',
+      'Factura de credito electronica (FCE)',
+      'Datos del emisor (PDF)',
+      'PDF',
+      'Salida y listados',
+    ]);
+  });
+
+  it('muestra toda la configuracion', async () => {
+    store.cuit = '20409509763';
+    vi.mocked(chooseOne).mockResolvedValueOnce('ver').mockResolvedValueOnce('volver');
+
+    let printed = '';
+
+    vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
+      printed += String(chunk);
+      return true;
+    });
+
+    await runConfigMenu({});
+
+    expect(stripAnsi(printed)).toContain('20409509763');
+    expect(stripAnsi(printed)).toContain('Comprobantes por lista');
   });
 
   it('borra un dato de texto con "-"', async () => {
     store['emisor.razonSocial'] = 'Viejo';
     vi.mocked(chooseOne).mockResolvedValueOnce('cambiar').mockResolvedValueOnce('volver');
-    chooseStepMock.mockImplementationOnce(
-      async (_message, choices) => choices.find((choice) => choice.name === 'Razon social')?.value,
-    );
+    chooseStepMock
+      .mockImplementationOnce(
+        async (_message, choices) => onlyChoices(choices).find((choice) => choice.name === 'Razon social')?.value,
+      )
+      .mockResolvedValueOnce(BACK);
     askTextMock.mockImplementationOnce(async (message, options) => {
       expect(message).toContain('"-" para borrar');
       expect(options?.defaultValue).toBe('Viejo');

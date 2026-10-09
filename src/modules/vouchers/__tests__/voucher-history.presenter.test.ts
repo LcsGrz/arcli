@@ -10,6 +10,7 @@ import {
   formatVoucherListAsJson,
   formatVoucherListAsText,
   formatVoucherNumber,
+  formatVoucherPickerRows,
 } from '../voucher-history.presenter';
 
 const voucher: IssuedVoucher = {
@@ -33,6 +34,22 @@ const voucher: IssuedVoucher = {
 const base = { environment: 'testing' as const, pointOfSale: 3, voucherKind: VOUCHER_KIND_MAP.fb };
 
 describe('voucher-history.presenter', () => {
+  it('alinea las filas del selector al dato mas largo de cada columna', () => {
+    const rows = formatVoucherPickerRows(
+      3,
+      [
+        voucher,
+        { ...voucher, cae: undefined, documentNumber: 20123456789, documentTypeCode: 80, number: 13, total: 5 },
+      ],
+      ' · ',
+    );
+
+    expect(rows[0]).toMatch(/^00003-00000012 · 01\/10\/2026 · Consumidor final · +[\d.,]+\$ · CAE 86400940834444$/);
+    // Sin CAE no queda un separador colgando; el receptor y el total quedan alineados con la otra fila.
+    expect(rows[1]).toMatch(/^00003-00000013 · 01\/10\/2026 · CUIT 20123456789 · +5\$$/);
+    expect(rows[0].indexOf('$')).toBe(rows[1].indexOf('$'));
+  });
+
   it('formatea numero y receptor', () => {
     expect(formatVoucherNumber(3, 12)).toBe('00003-00000012');
     expect(formatReceiver(voucher)).toBe('Consumidor final');

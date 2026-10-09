@@ -1,7 +1,13 @@
+import { Separator } from '@inquirer/select';
 import { vi } from 'vitest';
 
 import { BACK } from '../../../modules/interactive/wizard';
 import type { Choice } from '../prompts';
+
+/** Las opciones de una lista, sin los separadores. */
+export function onlyChoices<T>(choices: ReadonlyArray<Choice<T> | Separator>): Array<Choice<T>> {
+  return choices.filter((item): item is Choice<T> => !Separator.isSeparator(item));
+}
 
 /** Respuesta guionada: el texto de la opcion a elegir, lo que se tipea, las opciones a marcar, o "volver". */
 export type ScriptedAnswer = readonly string[] | string | typeof BACK;
@@ -45,13 +51,14 @@ export function createScript(steps: ReadonlyArray<readonly [RegExp, ScriptedAnsw
     return step.answer;
   }
 
-  const chooseStep = vi.fn(async <T>(message: string, choices: ReadonlyArray<Choice<T>>) => {
+  const chooseStep = vi.fn(async <T>(message: string, allChoices: ReadonlyArray<Choice<T> | Separator>) => {
     const answer = nextSingle(message);
 
     if (answer === BACK) {
       return BACK;
     }
 
+    const choices = onlyChoices(allChoices);
     const choice = choices.find((item) => item.name.includes(answer));
 
     if (!choice) {
@@ -104,5 +111,23 @@ export function createScript(steps: ReadonlyArray<readonly [RegExp, ScriptedAnsw
     },
   );
 
-  return { asked, askTextStep, chooseManyStep, chooseStep, remaining: () => queue.length };
+  // La lista que queda en pantalla mientras carga no consume el guion: siempre gana la carga.
+  const chooseStepWhileLoading = vi.fn(
+    async <T, L>(
+      _message: string,
+      _choices: ReadonlyArray<Choice<T> | Separator>,
+      _defaultValue: T | undefined,
+      _pageSize: number,
+      loading: Promise<L>,
+    ) => ({ loaded: await loading }),
+  );
+
+  return {
+    asked,
+    askTextStep,
+    chooseManyStep,
+    chooseStep,
+    chooseStepWhileLoading,
+    remaining: () => queue.length,
+  };
 }

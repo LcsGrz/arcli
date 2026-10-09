@@ -92,12 +92,14 @@ Versionado: cambios que rompen el contrato del CLI → mayor; flags, comandos o 
 
 Están en `docs/assets/demo/` y se regeneran con scripts para que no queden desactualizados:
 
-- **GIF** (`interactivo.gif`, `comandos.gif`): los graba [VHS](https://github.com/charmbracelet/vhs) a partir de los guiones de `docs/assets/tapes/`. `scripts/demo/record.sh` usa un `HOME` temporal con una copia de tu config, así la grabación no muestra tus rutas, y **emite comprobantes reales en testing**.
+- **GIF** (`interactivo.gif`, `consultar.gif`, `comandos.gif`): los graba [VHS](https://github.com/charmbracelet/vhs) a partir de los guiones de `docs/assets/tapes/`. `scripts/demo/record.sh` usa un `HOME` temporal con una copia de tu config, así la grabación no muestra tus rutas, y **emite comprobantes reales en testing**.
 
   ```bash
   brew install vhs
   ARCLI_DEMO_CONFIG=~/Library/Preferences/arcli/config.json scripts/demo/record.sh
   ```
+
+  Para grabar solo algunos, pasá los guiones: `scripts/demo/record.sh docs/assets/tapes/consultar.tape`. `consultar.tape` solo lee; `interactivo.tape` y `comandos.tape` emiten.
 
 - **PDF de ejemplo** (`pdf-factura.png`): `scripts/demo/pdf-sample.mts` arma una Factura B con datos ficticios, sin consultar ARCA. Necesita el plugin de PDF instalado y macOS (`qlmanage`).
 

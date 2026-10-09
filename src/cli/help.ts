@@ -629,7 +629,7 @@ export function createVoucherQueryHelp(): string {
     section(
       'Ejemplos',
       [
-        '  - arcli ultimos fb                  ultimas 10 facturas B del punto de venta configurado',
+        '  - arcli ultimos fb                  ultimas 15 facturas B del punto de venta configurado',
         '  - arcli ultimos nca --cantidad 25   ultimas 25 notas de credito A',
         '  - arcli consultar fb 14             detalle de la factura B numero 14',
         '  - arcli consultar fb 14 --json      lo mismo, en JSON',

@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
 import { readPemFile } from '../../lib/security/pem';
 import { IVA_RATE_HINT } from '../billing/billing.schemas';
+import { MAX_RECENT_VOUCHERS } from '../vouchers/voucher-history';
 
 import {
   arcliDefaultConceptSchema,
@@ -16,6 +17,7 @@ import {
 export type CanonicalConfigKey =
   | 'alicuotaPorDefecto'
   | 'aliasCbu'
+  | 'comprobantesPorLista'
   | 'cbu'
   | 'cert.produccion'
   | 'cert.testing'
@@ -107,6 +109,16 @@ function parsePositiveInteger(value: string): number {
   return parsedValue;
 }
 
+function parseRecentCount(value: string): number {
+  const parsedValue = Number(value.trim());
+
+  if (!Number.isInteger(parsedValue) || parsedValue < 1 || parsedValue > MAX_RECENT_VOUCHERS) {
+    throw new Error(`La cantidad "${value}" no es valida: tiene que ser un numero entre 1 y ${MAX_RECENT_VOUCHERS}.`);
+  }
+
+  return parsedValue;
+}
+
 function parsePositiveNumber(value: string): number {
   const parsedValue = Number.parseFloat(value.trim());
 
@@ -160,6 +172,8 @@ export function parseConfigValue(key: CanonicalConfigKey, value: string): boolea
       return parseIvaRate(value);
     case 'aliasCbu':
       return parseCbuAlias(value);
+    case 'comprobantesPorLista':
+      return parseRecentCount(value);
     case 'cbu':
       return parseCbu(value);
     case 'conceptoPorDefecto':

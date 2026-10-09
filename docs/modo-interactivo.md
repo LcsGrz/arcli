@@ -24,9 +24,9 @@ El modo interactivo no agrega comandos de emisión ni cambia flags, claves de co
 
 1. **Emitir factura**
 2. **Repetir una factura anterior**
-3. **Nota de crédito o débito sobre una factura**
-4. **Ver últimos comprobantes**
-5. **Consultar un comprobante**
+3. **Emitir nota de crédito**
+4. **Emitir nota de débito**
+5. **Consultar comprobantes**
 6. **Estado de ARCA**
 7. **Configuración**
 8. **Salir**
@@ -77,26 +77,27 @@ Lo que no se elige usa los valores por defecto, igual que el CLI sin esos flags.
 
 ## Nota de crédito o débito
 
-| Paso | Pregunta                    | Detalle                                                                                                                                                                                                  |
-| ---- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1    | Crédito o débito            |                                                                                                                                                                                                          |
-| 2    | Tipo de la factura original | Factura A, B o C, comunes o FCE                                                                                                                                                                          |
-| 3    | Factura                     | Lista las últimas 10 facturas de ese tipo emitidas en el punto de venta configurado, consultadas a ARCA. No hace falta tipear el número                                                                  |
-| 4    | Factura o período           | En notas comunes, se elige si asociarla a una factura de la lista o a un período (desde y hasta). Con período, se pregunta además el receptor y el concepto. Las notas FCE siempre van sobre una factura |
-| 5    | Monto                       | En crédito: anular el total o ingresar un monto parcial (no puede superar el total de la factura). En débito: el monto a sumar                                                                           |
-| 6    | IVA del receptor            | Solo si la factura no era a consumidor final: ARCA no devuelve la condición IVA, así que se pregunta, filtrada por la letra                                                                              |
-| 7    | Anulación                   | Solo en NC/ND FCE: si la factura fue rechazada por el comprador                                                                                                                                          |
+Se elige desde el menú: **Emitir nota de crédito** (descuento, devolución o anulación) o **Emitir nota de débito** (cargo adicional). Las dos siguen los mismos pasos.
 
-La nota hereda de la factura el concepto, el receptor (tipo y número de documento), la fecha y la alícuota de IVA cuando se puede deducir de los importes. El comprobante asociado se completa solo: tipo, punto de venta, número, CUIT del emisor y fecha.
+| Paso | Pregunta                    | Detalle                                                                                                                                                                                                                                                                                                                                                                                    |
+| ---- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1    | Tipo de la factura original | Factura A, B o C, comunes o FCE                                                                                                                                                                                                                                                                                                                                                            |
+| 2    | Factura o período           | En notas comunes, se elige si asociarla a una factura o a un período (desde y hasta). Con período, se pregunta además el receptor y el concepto. Las notas FCE siempre van sobre una factura                                                                                                                                                                                               |
+| 3    | Factura                     | Lista las últimas 15 facturas de ese tipo emitidas en el punto de venta configurado (la cantidad se cambia con `config.comprobantesPorLista`), consultadas a ARCA, con número, fecha, receptor, total y CAE. Abajo de la lista: **Cargar más…** trae las anteriores, e **Ingresar el número a mano…** pide punto de venta y número (sirve para una factura vieja o de otro punto de venta) |
+| 4    | Monto                       | En crédito: anular el total o ingresar un monto parcial (no puede superar el total de la factura). En débito: el monto a sumar                                                                                                                                                                                                                                                             |
+| 5    | IVA del receptor            | Solo si la factura no era a consumidor final: ARCA no devuelve la condición IVA, así que se pregunta, filtrada por la letra                                                                                                                                                                                                                                                                |
+| 6    | Anulación                   | Solo en NC/ND FCE: si la factura fue rechazada por el comprador                                                                                                                                                                                                                                                                                                                            |
+
+La nota hereda de la factura el concepto, el receptor (tipo y número de documento), la fecha y la alícuota de IVA cuando se puede deducir de los importes. El comprobante asociado se completa solo: tipo, punto de venta (el de la factura, aunque sea otro que el configurado), número, CUIT del emisor y fecha.
 
 ## Repetir una factura anterior
 
-Para quien factura lo mismo seguido. Elegís el tipo de factura y una de las últimas 10 emitidas, y se copian el receptor, el concepto, el monto y la alícuota (cuando se puede deducir de los importes). **Las fechas no se copian:** la factura sale con fecha de hoy.
+Para quien factura lo mismo seguido. Elegís el tipo de factura y una de las últimas 15 emitidas, y se copian el receptor, el concepto, el monto y la alícuota (cuando se puede deducir de los importes). **Las fechas no se copian:** la factura sale con fecha de hoy.
 
 | Paso | Pregunta             | Detalle                                                                                                                                                       |
 | ---- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1    | Tipo de factura      | Factura A, B o C, comunes o FCE                                                                                                                               |
-| 2    | Factura              | Una de las últimas emitidas en el punto de venta configurado                                                                                                  |
+| 2    | Factura              | Una de las últimas emitidas en el punto de venta configurado. Como en las notas, se pueden cargar más o ingresar el número a mano                             |
 | 3    | IVA del receptor     | Solo si no era consumidor final: ARCA no devuelve la condición IVA de la factura                                                                              |
 | 4    | Monto                | El mismo o uno nuevo                                                                                                                                          |
 | 5    | Período del servicio | Este mes, el mes pasado, solo hoy u otro. No se pregunta si el concepto es solo productos                                                                     |
@@ -105,24 +106,25 @@ Para quien factura lo mismo seguido. Elegís el tipo de factura y una de las úl
 
 Después sigue igual que una factura nueva: vista previa, comando equivalente y confirmación.
 
-## Ver últimos comprobantes
+## Consultar comprobantes
 
-Pregunta el tipo de comprobante y muestra los últimos 10 emitidos en el punto de venta configurado: número, fecha, receptor, total y CAE.
+![Consultar comprobantes: lista, cargar más y detalle de una Factura C](assets/demo/consultar.gif)
+
+Elegís el tipo (cualquiera de los 18) y aparece la lista de los últimos 15 emitidos en el punto de venta configurado, con el mismo formato que `arcli ultimos`: número, fecha, receptor, total y CAE. Igual que al elegir la factura de una nota, abajo están **Cargar más…** e **Ingresar el número a mano…** (punto de venta y número).
+
+Al elegir uno se muestra lo mismo que `arcli consultar`: CAE, vencimiento, importes y receptor. Después vuelve a la lista, con lo que ya estaba cargado, para ver otro. **Esc** o **"← Volver"** sale al menú.
 
 ## Configuración
 
-| Opción                | Qué hace                                                                                                                                                                               |
-| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Revisar configuración | Lo mismo que `arcli config revisar`: defaults, credenciales y validación contra ARCA                                                                                                   |
-| Configuración guiada  | Pregunta CUIT, certificado y clave de testing, punto de venta, concepto e IVA del receptor por defecto, y si querés, los datos del emisor para el PDF. Propone lo que ya está guardado |
-| Cambiar un dato       | Lista todos los datos con su valor actual. Elegís uno y lo cambiás; en los de texto, `-` lo borra                                                                                      |
-| Plugin de PDF         | Estado del plugin; instalarlo, actualizarlo o desinstalarlo                                                                                                                            |
+| Opción                  | Qué hace                                                                                                                                                                                                                                                                                                                                                                     |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ver configuración       | Todos los datos guardados, igual que `arcli config`                                                                                                                                                                                                                                                                                                                          |
+| Revisar configuración   | Lo mismo que `arcli config revisar`: defaults, credenciales y validación contra ARCA                                                                                                                                                                                                                                                                                         |
+| Configuración guiada    | Pregunta CUIT, certificado y clave de testing, punto de venta, concepto e IVA del receptor por defecto, y si querés, los datos del emisor para el PDF. Propone lo que ya está guardado                                                                                                                                                                                       |
+| Modificar configuración | Lista los datos con las mismas secciones y el mismo orden que `arcli config` (cuenta, certificados, al facturar, FCE, datos del emisor, PDF y salida), con el valor actual abajo del marcado. No incluye `emitir`, `json` ni `bruto`, que solo cambian el CLI con flags. Elegís uno y lo cambiás; en los de texto, `-` lo borra. Después vuelve a la lista, hasta "← Volver" |
+| Plugin de PDF           | Estado del plugin; instalarlo, actualizarlo o desinstalarlo                                                                                                                                                                                                                                                                                                                  |
 
 Cada respuesta se valida igual que en `arcli config establecer` y se guarda en el momento: si cortás a mitad, lo ya respondido queda guardado.
-
-## Consultar un comprobante
-
-Elegís el tipo (cualquiera de los 18) y el número; propone el último emitido. Muestra lo mismo que `arcli consultar`: CAE, vencimiento, importes y receptor.
 
 ## Estado de ARCA
 
@@ -130,9 +132,9 @@ Muestra lo mismo que `arcli estado` (servidores, tiempo de respuesta y punto de 
 
 ## Volver, cancelar y salir
 
-- **Volver al paso anterior:** en las opciones, **"← Volver"**; en las preguntas de texto, escribí **`<`**. Si volvés desde la primera pregunta, volvés al menú. Al volver se descarta lo que respondiste después, así un cambio de camino (por ejemplo, de CUIT a consumidor final) no deja datos viejos.
+- **Volver al paso anterior:** **Esc**, en las listas y en las preguntas de texto. En las listas también está la opción **"← Volver"**, y en las de texto escribir **`<`** hace lo mismo, por si la terminal no manda Esc. Si volvés desde la primera pregunta, volvés al menú. Al volver se descarta lo que respondiste después, así un cambio de camino (por ejemplo, de CUIT a consumidor final) no deja datos viejos.
 - `Ctrl+C` durante una pregunta cancela el flujo actual y vuelve al menú. Nada se emite hasta confirmar en el último paso.
-- `Ctrl+C` en el menú principal, o elegir **Salir**, cierra el asistente.
+- **Esc** o `Ctrl+C` en el menú principal, o elegir **Salir**, cierra el asistente.
 
 ## Qué no hace (todavía)
 

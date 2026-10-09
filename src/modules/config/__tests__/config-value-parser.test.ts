@@ -72,6 +72,13 @@ describe('config-value-parser', () => {
     expect(parseConfigValue('puntoVentaPorDefecto', '3')).toBe(3);
   });
 
+  it('valida la cantidad de comprobantes por lista entre 1 y 50', () => {
+    expect(parseConfigValue('comprobantesPorLista', ' 25 ')).toBe(25);
+    expect(() => parseConfigValue('comprobantesPorLista', '0')).toThrow(/entre 1 y 50/);
+    expect(() => parseConfigValue('comprobantesPorLista', '51')).toThrow(/entre 1 y 50/);
+    expect(() => parseConfigValue('comprobantesPorLista', '2.5')).toThrow(/entre 1 y 50/);
+  });
+
   it('rejects non-positive numbers and integers', () => {
     expect(() => parseConfigValue('cotizacionPorDefecto', '0')).toThrow(/no es un numero positivo valido/);
     expect(() => parseConfigValue('puntoVentaPorDefecto', '0')).toThrow(/no es un entero positivo valido/);

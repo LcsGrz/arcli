@@ -8,16 +8,16 @@ import {
   arcliPdfModeSchema,
   type ConfigPublicKey,
 } from '../config/config.schemas';
-
-export type ConfigFieldGroup = 'credenciales' | 'defaults' | 'emisor' | 'pdf';
+import { CONFIG_LABELS } from '../config/config.sections';
+import { MAX_RECENT_VOUCHERS, RECENT_VOUCHERS_LIMIT } from '../vouchers/voucher-history';
 
 /** Un dato de la config que se puede cambiar desde el modo interactivo. */
 export interface ConfigField {
   /** Valores posibles para elegir de una lista; sin esto se escribe. */
   readonly choices?: readonly string[];
-  readonly group: ConfigFieldGroup;
   readonly hint?: string;
   readonly key: ConfigPublicKey;
+  /** El mismo nombre que en `arcli config` (ver CONFIG_LABELS). */
   readonly label: string;
   /** Las rutas se muestran enmascaradas, igual que en `arcli config`. */
   readonly path?: boolean;
@@ -26,115 +26,107 @@ export interface ConfigField {
 
 const date = (value: string | undefined) => (value ? formatArcaDateAsArgentineDate(value) : undefined);
 
-export const CONFIG_GROUP_LABELS: Record<ConfigFieldGroup, string> = {
-  credenciales: 'Credenciales',
-  defaults: 'Valores por defecto',
-  emisor: 'Datos del emisor (PDF)',
-  pdf: 'PDF',
-};
-
-export const CONFIG_FIELDS: readonly ConfigField[] = [
-  { group: 'credenciales', key: 'cuit', label: 'CUIT del emisor', read: (c) => c.cuit, hint: '11 digitos' },
+/**
+ * Datos editables desde el asistente. El orden y las secciones salen de CONFIG_SECTIONS; emitir, json y bruto
+ * no estan porque solo cambian el CLI con flags, no el asistente.
+ */
+const FIELD_DEFINITIONS: ReadonlyArray<Omit<ConfigField, 'label'>> = [
+  { key: 'cuit', read: (c) => c.cuit, hint: '11 digitos' },
   {
     choices: arcliEnvironmentSchema.options,
-    group: 'credenciales',
     key: 'entorno',
-    label: 'Entorno',
     read: (c) => c.entornoPorDefecto,
   },
   {
-    group: 'credenciales',
     key: 'cert.testing',
-    label: 'Certificado de testing',
     path: true,
     read: (c) => c.cert.testing,
   },
   {
-    group: 'credenciales',
     key: 'key.testing',
-    label: 'Clave privada de testing',
     path: true,
     read: (c) => c.key.testing,
   },
   {
-    group: 'credenciales',
     key: 'cert.produccion',
-    label: 'Certificado de produccion',
     path: true,
     read: (c) => c.cert.produccion,
   },
   {
-    group: 'credenciales',
     key: 'key.produccion',
-    label: 'Clave privada de produccion',
     path: true,
     read: (c) => c.key.produccion,
   },
   {
-    group: 'defaults',
     hint: 'numero',
     key: 'puntoVenta',
-    label: 'Punto de venta',
     read: (c) => c.puntoVentaPorDefecto?.toString(),
   },
   {
     choices: arcliDefaultConceptSchema.options,
-    group: 'defaults',
     key: 'concepto',
-    label: 'Concepto',
     read: (c) => c.conceptoPorDefecto,
   },
   {
     choices: arcliDefaultIvaConditionSchema.options,
-    group: 'defaults',
     key: 'ivaReceptor',
-    label: 'IVA del receptor',
     read: (c) => c.ivaReceptorPorDefecto,
   },
   {
     choices: ['general', 'reducida', 'incrementada', 'cero', '5', '2.5'],
-    group: 'defaults',
     key: 'alicuota',
-    label: 'Alicuota de IVA (A y B)',
     read: (c) => c.alicuotaPorDefecto,
   },
-  { group: 'defaults', hint: '22 digitos', key: 'cbu', label: 'CBU (FCE)', read: (c) => c.cbu },
-  { group: 'defaults', key: 'aliasCbu', label: 'Alias del CBU (FCE)', read: (c) => c.aliasCbu },
+  {
+    hint: `1 a ${MAX_RECENT_VOUCHERS}, por defecto ${RECENT_VOUCHERS_LIMIT}`,
+    key: 'comprobantesPorLista',
+    read: (c) => c.comprobantesPorLista?.toString(),
+  },
+  { hint: '22 digitos', key: 'cbu', read: (c) => c.cbu },
+  { key: 'aliasCbu', read: (c) => c.aliasCbu },
   {
     choices: ['si', 'no'],
-    group: 'defaults',
     key: 'verificarFce',
-    label: 'Verificar regimen FCE del receptor',
     read: (c) => (c.verificarFce === undefined ? undefined : c.verificarFce ? 'si' : 'no'),
   },
   {
     choices: arcliPdfModeSchema.options,
-    group: 'pdf',
     key: 'pdf',
-    label: 'Cuando generar el PDF',
     read: (c) => c.pdf,
   },
-  { group: 'pdf', key: 'pdfCarpeta', label: 'Carpeta de PDFs', path: true, read: (c) => c.pdfCarpeta },
-  { group: 'pdf', key: 'pdfNavegador', label: 'Navegador para PDFs', path: true, read: (c) => c.pdfNavegador },
-  { group: 'emisor', key: 'emisor.razonSocial', label: 'Razon social', read: (c) => c.emisor.razonSocial },
-  { group: 'emisor', key: 'emisor.domicilio', label: 'Domicilio comercial', read: (c) => c.emisor.domicilio },
+  { key: 'pdfCarpeta', path: true, read: (c) => c.pdfCarpeta },
+  { key: 'pdfNavegador', path: true, read: (c) => c.pdfNavegador },
+  { key: 'emisor.razonSocial', read: (c) => c.emisor.razonSocial },
+  { key: 'emisor.domicilio', read: (c) => c.emisor.domicilio },
   {
-    group: 'emisor',
     hint: 'D/MM/YYYY',
     key: 'emisor.inicioActividades',
-    label: 'Inicio de actividades',
     read: (c) => date(c.emisor.inicioActividades),
   },
-  { group: 'emisor', key: 'emisor.iibb', label: 'Ingresos Brutos', read: (c) => c.emisor.iibb },
+  { key: 'emisor.iibb', read: (c) => c.emisor.iibb },
   {
     choices: arcliDefaultIvaConditionSchema.options,
-    group: 'emisor',
     key: 'emisor.condicionIva',
-    label: 'Condicion de IVA',
     read: (c) => c.emisor.condicionIva,
   },
-  { group: 'emisor', key: 'emisor.logo', label: 'Logo (PNG o JPG)', path: true, read: (c) => c.emisor.logo },
+  { key: 'emisor.logo', path: true, read: (c) => c.emisor.logo },
+  {
+    hint: 'codigo de moneda, por ejemplo PES o USD',
+    key: 'moneda',
+    read: (c) => c.monedaPorDefecto,
+  },
+  {
+    hint: 'solo para moneda extranjera',
+    key: 'cotizacion',
+    read: (c) => c.cotizacionPorDefecto?.toString(),
+  },
+  { key: 'ticketPath', path: true, read: (c) => c.ticketPath },
 ];
+
+export const CONFIG_FIELDS: readonly ConfigField[] = FIELD_DEFINITIONS.map((field) => ({
+  ...field,
+  label: CONFIG_LABELS[field.key],
+}));
 
 export function getConfigField(key: ConfigPublicKey): ConfigField {
   const field = CONFIG_FIELDS.find((candidate) => candidate.key === key);

@@ -5,18 +5,12 @@ import { parseAmountInput } from '../../modules/interactive/amount-input';
 import { invoiceKindChoices, ivaConditionChoices } from '../../modules/interactive/choices';
 import { currentMonthPeriod, previousMonthPeriod, type ServicePeriod } from '../../modules/interactive/periods';
 import { BACK, runWizard, type WizardStep } from '../../modules/interactive/wizard';
-import {
-  inferIvaRate,
-  type IssuedVoucher,
-  listRecentVouchers,
-  resolveDocumentType,
-} from '../../modules/vouchers/voucher-history';
-import { formatVoucherSummary } from '../../modules/vouchers/voucher-history.presenter';
+import { inferIvaRate, type IssuedVoucher, resolveDocumentType } from '../../modules/vouchers/voucher-history';
 import { noticePanel, writeTerminalOutput } from '../../ui';
-import { startSpinner } from '../spinner';
 
 import { askAdvancedOptions } from './advanced-options';
 import { buildInvoiceInput, type InvoiceState } from './invoice.flow';
+import { pickInvoice } from './invoice-picker';
 import { askTextStep, chooseStep } from './prompts';
 import { type InteractiveSession, previewAndEmit, requirePointOfSale } from './session';
 import { validateAmount, validateCbu, validateDate } from './validators';
@@ -61,28 +55,13 @@ export function repeatSteps(
       name: 'factura',
       run: async (state) => {
         const voucherKind = state.voucherKind as VoucherKindDefinition;
-        const spinner = startSpinner('Buscando las ultimas facturas en ARCA...');
-        const invoices = await listRecentVouchers(session.historyGateway, pointOfSale, voucherKind.arcaType).finally(
-          () => spinner?.stop(),
-        );
+        const picked = await pickInvoice(session, { message: '¿Cual repetimos?', pointOfSale, voucherKind });
 
-        if (invoices.length === 0) {
-          writeTerminalOutput(
-            noticePanel(`No hay ${voucherKind.displayName} emitidas en el punto de venta ${pointOfSale}.`, 'warning'),
-          );
-
+        if (picked === BACK) {
           return BACK;
         }
 
-        const original = await chooseStep(
-          '¿Cual repetimos?',
-          invoices.map((item) => ({ name: formatVoucherSummary(pointOfSale, item), value: item })),
-        );
-
-        if (original === BACK) {
-          return BACK;
-        }
-
+        const original = picked.invoice;
         const documentType = resolveDocumentType(original.documentTypeCode);
 
         if (!documentType) {

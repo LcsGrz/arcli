@@ -1,19 +1,12 @@
-# ARCLI
+<p align="center">
+  <img src="https://raw.githubusercontent.com/LcsGrz/arcli/main/docs/assets/imagenes/arcliChip.png" alt="ARCLI" width="560">
+</p>
 
-[![npm version](https://img.shields.io/npm/v/arcli.svg)](https://www.npmjs.com/package/arcli)
-[![CI](https://github.com/LcsGrz/arcli/actions/workflows/ci.yml/badge.svg)](https://github.com/LcsGrz/arcli/actions/workflows/ci.yml)
-[![license: MIT](https://img.shields.io/npm/l/arcli.svg)](LICENSE)
-
-```text
-       d8888 8888888b.   .d8888b.  888      8888888
-      d88888 888   Y88b d88P  Y88b 888        888
-     d88P888 888    888 888    888 888        888
-    d88P 888 888   d88P 888        888        888
-   d88P  888 8888888P"  888        888        888
-  d88P   888 888 T88b   888    888 888        888
- d8888888888 888  T88b  Y88b  d88P 888        888
-d88P     888 888   T88b  "Y8888P"  88888888 8888888
-```
+<p align="center">
+  <a href="https://www.npmjs.com/package/arcli"><img src="https://img.shields.io/npm/v/arcli.svg" alt="npm version"></a>
+  <a href="https://github.com/LcsGrz/arcli/actions/workflows/ci.yml"><img src="https://github.com/LcsGrz/arcli/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/LcsGrz/arcli/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/arcli.svg" alt="license: MIT"></a>
+</p>
 
 CLI para previsualizar y emitir comprobantes electrónicos de ARCA (ex AFIP) desde la terminal. Sin emitir hasta que lo pedís, con validaciones locales y salida lista para automatizar.
 

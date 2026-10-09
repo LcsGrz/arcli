@@ -14,6 +14,7 @@ import { type CanonicalConfigKey, parseConfigValue } from './config-value-parser
 const CONFIG_KEY_ALIASES: Record<ConfigPublicKey, CanonicalConfigKey> = {
   alicuota: 'alicuotaPorDefecto',
   aliasCbu: 'aliasCbu',
+  comprobantesPorLista: 'comprobantesPorLista',
   cbu: 'cbu',
   'cert.produccion': 'cert.produccion',
   'cert.testing': 'cert.testing',
