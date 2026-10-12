@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 jobs:
-  validate:
+  test:
     runs-on: ubuntu-latest
 
     strategy:
@@ -46,3 +46,12 @@ jobs:
 
       - name: Build
         run: yarn build
+
+  # La proteccion de main exige un check llamado "validate": este job lo da cuando pasan las dos versiones de Node.
+  validate:
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Todas las versiones de Node pasaron
+        run: echo "ok"
