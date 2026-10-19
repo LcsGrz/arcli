@@ -25,5 +25,18 @@
       "Bash(npm publish *)",
       "Bash(yarn publish *)"
     ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR}/scripts/agent/stop-check.mjs\"",
+            "timeout": 180
+          }
+        ]
+      }
+    ]
   }
 }
