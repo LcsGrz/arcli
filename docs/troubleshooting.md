@@ -79,6 +79,24 @@ arcli config establecer key.testing /ruta/a/la/clave.key
 
 - **Documentación relacionada:** [Configuración](configuration.md), [Cómo obtener los certificados de ARCA](obtencion-certificados.md)
 
+### `config.json` con JSON inválido
+
+- **Severidad:** crítico
+- **Síntoma:** cualquier comando falla con `Error de configuracion` ("El archivo de configuracion tiene JSON invalido y no se puede leer."), con la ruta del archivo en `Ruta` (`detalles.ruta` con `--json`). Antes salía como "Error inesperado".
+- **Causa:** el `config.json` quedó mal escrito, casi siempre por una edición a mano (una coma de más, comillas sin cerrar) o un archivo vacío.
+- **Solución:** corregir el JSON a mano en esa ruta, o renombrar el archivo y volver a cargar los datos. ARCLI no lo borra ni lo pisa: lo que tenía sigue ahí para recuperarlo.
+
+```bash
+mv "<ruta>" "<ruta>.bak"
+arcli config establecer cuit 20168598204
+arcli config establecer cert.testing /ruta/al/certificado.crt
+arcli config establecer key.testing /ruta/a/la/clave.key
+```
+
+O abrí `arcli` y elegí "Configuracion" para la configuración guiada.
+
+- **Documentación relacionada:** [Configuración](configuration.md)
+
 ## Validación
 
 ### Falta un dato obligatorio
@@ -246,14 +264,14 @@ arcli fc ayuda
 
 - **Severidad:** frecuente
 - **Síntoma:** `BATCH_VALIDATION_ERROR` con la lista de ítems inválidos (`#2: Falta monto.`…). No se emitió ninguno.
-- **Causa:** ARCLI valida todo el lote antes de emitir el primero.
-- **Solución:** corregir esos ítems en el JSON y volver a correr el lote completo.
+- **Causa:** ARCLI valida todo el lote antes de emitir el primero, incluidas las consultas al padrón (IVA receptor desde `--cuit`) y a la cotización oficial.
+- **Solución:** corregir esos ítems en el JSON y volver a correr el lote completo. Si el motivo es una consulta a ARCA que no respondió, reintentá en unos minutos.
 - **Documentación relacionada:** [Entrada y salida](input-output.md#validación-y-errores-del-lote)
 
 ### El lote se interrumpió a mitad
 
 - **Severidad:** crítico
-- **Síntoma:** se ven los resultados de algunos comprobantes y después `BATCH_EMISSION_ERROR` ("El lote se interrumpio en el comprobante #3…").
+- **Síntoma:** se ven los resultados de algunos comprobantes (con su PDF, si corresponde) y después `BATCH_EMISSION_ERROR` ("El lote se interrumpio en el comprobante #3…").
 - **Causa:** la emisión falló a mitad del lote (red, ARCA, transacción activa).
 - **Solución:** **no vuelvas a cargar los comprobantes que ya se procesaron**, porque se duplicarían. El que falló puede haberse emitido igual (`sinConfirmar` en el JSON): verificalo con `arcli ultimos` y sumalo solo si no figura. Armá un lote con ese y los que figuran en "Sin procesar" (`sinProcesar`) y reintentá. Si el que falló fue por "Transacción Activa", esperá unos segundos.
 - **Documentación relacionada:** [Entrada y salida](input-output.md#validación-y-errores-del-lote)
