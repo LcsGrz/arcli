@@ -12,9 +12,10 @@ import {
   formatVoucherNumber,
 } from '../../modules/vouchers/voucher-history.presenter';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
-import { ArcaContextResolver, type ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
+import type { ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
 import { ArcaVoucherHistoryGateway } from '../../services/arca/arca-voucher-history.gateway';
 import { writeTerminalJson, writeTerminalOutput } from '../../ui';
+import { resolveArcaRuntime } from '../arca-runtime';
 import { configureSpanishHelp, createVoucherQueryHelp } from '../help';
 import { integerOption } from '../option-parsers';
 import { startSpinner } from '../spinner';
@@ -54,7 +55,7 @@ function createContext(command: Command): {
   readonly gateway: ArcaVoucherHistoryGateway;
   readonly runtime: ResolvedArcaRuntime;
 } {
-  const runtime = new ArcaContextResolver({ options: getGlobalOptions(command) }).resolve();
+  const runtime = resolveArcaRuntime(getGlobalOptions(command));
 
   return { gateway: new ArcaVoucherHistoryGateway(new ArcaClientFactory().create(runtime)), runtime };
 }

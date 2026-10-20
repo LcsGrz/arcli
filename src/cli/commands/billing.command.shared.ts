@@ -9,9 +9,9 @@ import type { ArcliConfig } from '../../modules/config/config.schemas';
 import type { FceObligationGateway } from '../../modules/fce/fce-obligation';
 import { ArcaBillingGateway } from '../../services/arca/arca-billing.gateway';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
-import { ArcaContextResolver } from '../../services/arca/arca-context.resolver';
 import { ArcaFceObligationGateway } from '../../services/arca/arca-fce-obligation.gateway';
 import { ArcaPadronGateway } from '../../services/arca/arca-padron.gateway';
+import { certificateWarnings, resolveArcaRuntime } from '../arca-runtime';
 import { startSpinner } from '../spinner';
 import type { GlobalCliOptions } from '../types';
 
@@ -101,7 +101,7 @@ export async function executeBillingCommand(command: Command, shortcut: VoucherS
   const voucherKind = getVoucherKindByShortcut(shortcut);
 
   try {
-    const runtime = new ArcaContextResolver({ options: globalOptions }).resolve();
+    const runtime = resolveArcaRuntime(globalOptions);
     const plan = parseBillingCommandPlan(command, shortcut, {
       defaultCbu: runtime.config.cbu,
       defaultCbuAlias: runtime.config.aliasCbu,
@@ -141,6 +141,7 @@ export async function executeBillingCommand(command: Command, shortcut: VoucherS
       ? await resolveFceWarnings(plannedInputs, service, new ArcaFceObligationGateway(arca))
       : [];
     const warnings = plannedInputs.map((_input, position) => [
+      ...certificateWarnings(runtime),
       ...(padronWarnings[position] ?? []),
       ...(fceWarnings[position] ?? []),
     ]);
