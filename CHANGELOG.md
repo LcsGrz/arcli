@@ -22,6 +22,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### Corregido
 
+- **Lote interrumpido, PDFs de los ya emitidos:** si un lote se cortaba a mitad, los comprobantes que ya tenían CAE quedaban sin PDF. Ahora se generan antes de mostrar el error, según `pdf` o `--exportar-pdf` como en un lote completo, y en `--json` cada uno lleva su campo `pdf`. Si falla el PDF, el error que se muestra sigue siendo el de la emisión.
+- **Lote, fallos del padrón o de la cotización con su índice:** si la consulta al padrón (IVA receptor desde `--cuit`) o a la cotización oficial fallaba para un ítem, el lote cortaba con un error que no decía cuál era. Ahora sale en `BATCH_VALIDATION_ERROR`, junto con los demás ítems con problemas y su `#n`, antes de emitir ninguno.
 - **Opciones globales que no aplican:** `--testing`, `--produccion`, `--json` o `--bruto` en un comando que no las usa (`arcli config ruta --json`) se aceptaban sin decir nada. Ahora el comando corre igual y avisa en stderr que la opción se ignora.
 - **`json=true` en `config`:** `config`, `config revisar`, `config establecer` y `config eliminar` respetan `json=true` de la config, como el resto de los comandos.
 - **`--dia` corría un mes de más** a fin de mes: `--dia 15` el 31/03 daba el 15/05 en vez del 15/04, y ARCA lo aceptaba con las fechas de servicio y vencimiento equivocadas. Si el día no existe en ese mes (`--dia 31` con abril), ahora da error.
