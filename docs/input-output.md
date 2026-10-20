@@ -71,7 +71,8 @@ Con un solo comprobante, `detalles.campos` lista cada problema con su ruta en el
       { "mensaje": "La clave \"vencimiento\" no existe: ¿quisiste decir \"vencimientoPago\"?", "ruta": ["vencimiento"] }
     ]
   },
-  "error": "En el JSON de --cargar: ..."
+  "error": "En el JSON de --cargar: ...",
+  "sugerencia": null
 }
 ```
 
@@ -206,7 +207,8 @@ Si el archivo contiene un array, ARCLI procesa un lote del mismo comando. **Un a
       }
     ]
   },
-  "error": "2 de 4 comprobantes del lote tienen errores. No se emitio ninguno.\n\n#2: ..."
+  "error": "2 de 4 comprobantes del lote tienen errores. No se emitio ninguno.\n\n#2: ...",
+  "sugerencia": null
 }
 ```
 
@@ -214,7 +216,8 @@ Si el archivo contiene un array, ARCLI procesa un lote del mismo comando. **Un a
 {
   "codigo": "BATCH_EMISSION_ERROR",
   "detalles": { "fallo": 3, "procesados": 2, "sinConfirmar": 3, "sinProcesar": [4], "total": 4 },
-  "error": "El lote se interrumpio en el comprobante #3: ...\nProcesados: 2 de 4. Sin procesar: #4.\nEl #3 puede haberse emitido: verifiquelo con \"arcli ultimos\" antes de reintentarlo."
+  "error": "El lote se interrumpio en el comprobante #3: ...\nProcesados: 2 de 4. Sin procesar: #4.\nEl #3 puede haberse emitido: verifiquelo con \"arcli ultimos\" antes de reintentarlo.",
+  "sugerencia": null
 }
 ```
 
@@ -530,6 +533,7 @@ En testing, `puntos-venta` sale con `valores: []`: ARCA no informa puntos de ven
 {
   "alicuota": "21",
   "cert": { "testing": ".../certs/testing.crt" },
+  "concepto": "servicios",
   "consultarPadron": true,
   "cotizacion": 1,
   "cuit": "20409509763",
