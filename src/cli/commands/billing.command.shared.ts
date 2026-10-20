@@ -12,8 +12,8 @@ import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { ArcaFceObligationGateway } from '../../services/arca/arca-fce-obligation.gateway';
 import { ArcaPadronGateway } from '../../services/arca/arca-padron.gateway';
 import { certificateWarnings, resolveArcaRuntime } from '../arca-runtime';
+import { getGlobalOptions, registerGlobalOptions } from '../global-options';
 import { startSpinner } from '../spinner';
-import type { GlobalCliOptions } from '../types';
 
 import { emitBatch, prepareBatch } from './billing.command.batch';
 import { runInteractiveBillingPreview } from './billing.command.interactive-preview';
@@ -31,21 +31,9 @@ export function setExitCodeForResults(results: readonly BillingExecutionResult[]
   }
 }
 
-export function registerGlobalOptions(command: Command): void {
-  command
-    .option('--testing', 'usar entorno de testing en esta ejecucion')
-    .option('--produccion', 'usar entorno de produccion en esta ejecucion')
-    .option('--json', 'imprimir salida JSON')
-    .option('--bruto', 'mostrar la respuesta bruta de ARCA cuando exista');
-}
-
 export function registerBillingCommandOptions(command: Command): void {
   registerGlobalOptions(command);
   registerBillingOptions(command);
-}
-
-export function getGlobalOptions(command: Command): GlobalCliOptions {
-  return command.optsWithGlobals<GlobalCliOptions>();
 }
 
 /**
@@ -173,6 +161,7 @@ export async function executeBillingCommand(command: Command, shortcut: VoucherS
       inputs,
       interactive: !runtime.outputJson && Boolean(process.stdin.isTTY && process.stdout.isTTY),
       output: {
+        batch: plan.isBatch,
         environment: runtime.environment,
         outputJson: runtime.outputJson,
         previewShown,

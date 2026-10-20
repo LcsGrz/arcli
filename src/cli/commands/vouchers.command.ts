@@ -16,11 +16,10 @@ import type { ResolvedArcaRuntime } from '../../services/arca/arca-context.resol
 import { ArcaVoucherHistoryGateway } from '../../services/arca/arca-voucher-history.gateway';
 import { writeTerminalJson, writeTerminalOutput } from '../../ui';
 import { resolveArcaRuntime } from '../arca-runtime';
+import { getGlobalOptions, registerQueryOptions } from '../global-options';
 import { configureSpanishHelp, createVoucherQueryHelp } from '../help';
 import { integerOption } from '../option-parsers';
 import { startSpinner } from '../spinner';
-
-import { getGlobalOptions, registerGlobalOptions } from './billing.command.shared';
 
 interface PointOfSaleOptions {
   readonly pv?: number;
@@ -89,7 +88,7 @@ export function registerVoucherQueryCommands(program: Command): void {
       ),
   ).addHelpText('after', createVoucherQueryHelp());
 
-  registerGlobalOptions(recent);
+  registerQueryOptions(recent);
   configureSpanishHelp(recent);
 
   recent.action(async (shortcut: string, options: PointOfSaleOptions & { cantidad?: number }, self: Command) => {
@@ -125,7 +124,7 @@ export function registerVoucherQueryCommands(program: Command): void {
       .description('ver el detalle de un comprobante emitido en ARCA'),
   ).addHelpText('after', createVoucherQueryHelp());
 
-  registerGlobalOptions(detail);
+  registerQueryOptions(detail);
   configureSpanishHelp(detail);
 
   detail.action(async (shortcut: string, rawNumber: string, options: PointOfSaleOptions, self: Command) => {

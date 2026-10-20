@@ -19,10 +19,9 @@ import type { ResolvedArcaRuntime } from '../../services/arca/arca-context.resol
 import { ArcaParametersGateway } from '../../services/arca/arca-parameters.gateway';
 import { writeTerminalJson, writeTerminalOutput } from '../../ui';
 import { resolveArcaRuntime } from '../arca-runtime';
+import { getGlobalOptions, registerQueryOptions, resolveOutputJson } from '../global-options';
 import { configureSpanishHelp } from '../help';
 import { startSpinner } from '../spinner';
-
-import { getGlobalOptions, registerGlobalOptions } from './billing.command.shared';
 
 function createContext(command: Command): {
   readonly gateway: ArcaParametersGateway;
@@ -60,14 +59,15 @@ export function registerParametersCommands(program: Command): void {
     .argument('[moneda]', 'solo para "cotizacion": codigo de moneda, por ejemplo USD')
     .description('consultar tablas de ARCA: puntos de venta, tipos, alicuotas, monedas y cotizacion');
 
-  registerGlobalOptions(parameters);
+  registerQueryOptions(parameters);
   configureSpanishHelp(parameters);
 
   parameters.action(
     async (rawTable: string | undefined, currency: string | undefined, _options: unknown, self: Command) => {
       if (!rawTable) {
-        // No consulta ARCA: no hace falta config ni credenciales para ver las tablas.
-        if (getGlobalOptions(self).json) {
+        // No consulta ARCA: no hace falta config ni credenciales para ver las tablas (si la config no se puede
+        // leer, sale en texto salvo con --json).
+        if (resolveOutputJson(self)) {
           writeTerminalJson(formatParameterTablesAsJson());
         } else {
           writeTerminalOutput(formatParameterTablesAsText());
@@ -113,7 +113,7 @@ export function registerParametersCommands(program: Command): void {
     .command('estado')
     .description('ver si ARCA responde y si el punto de venta configurado esta habilitado');
 
-  registerGlobalOptions(status);
+  registerQueryOptions(status);
   configureSpanishHelp(status);
 
   status.action(async (_options: unknown, self: Command) => {
