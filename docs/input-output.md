@@ -352,6 +352,8 @@ Cuando el error viene de Zod o de validación de entrada:
 
 Si falla la llamada que emite en ARCA (red, timeout, transacción activa), no se sabe si el comprobante quedó autorizado: pudo emitirse y perderse la respuesta. **No reintentes sin verificar**, porque se duplicaría.
 
+Los pasos previos no cuentan: si falla el login en WSAA (por ejemplo, un certificado vencido) o el pedido del último número, no se envió nada y el error sale como `UNEXPECTED_ERROR` o `TRANSIENT_ERROR`.
+
 ```json
 {
   "codigo": "EMISSION_UNCERTAIN",
