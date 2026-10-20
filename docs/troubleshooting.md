@@ -79,6 +79,20 @@ arcli config establecer key.testing /ruta/a/la/clave.key
 
 - **Documentación relacionada:** [Configuración](configuration.md), [Cómo obtener los certificados de ARCA](obtencion-certificados.md)
 
+### Certificado por vencer o vencido
+
+- **Severidad:** alta (crítico si ya venció)
+- **Síntoma:** a menos de 30 días de vencer, cada comando que va a ARCA empieza con el aviso `El certificado de <entorno> vence el dd/mm/aaaa (en N días)` (en stderr; en el modo interactivo, un recuadro debajo de la barra). Si ya venció, el comando corta con `Certificado vencido` (`CERTIFICATE_EXPIRED` en el JSON, con `detalles.entorno` y `detalles.vencimiento`) sin llegar a ARCA.
+- **Causa:** los certificados de ARCA vencen (por defecto, a los 2 años). Vencido, WSAA rechaza el login, así que no se puede emitir ni consultar en ese entorno.
+- **Solución:** generá un certificado nuevo con la [guía de obtención de certificados](https://github.com/LcsGrz/arcli/blob/main/docs/obtencion-certificados.md) (podés reusar la clave privada y el alias), autorizá de nuevo los servicios web si hace falta y cargá el nuevo:
+
+```bash
+arcli config establecer cert.produccion /ruta/al/certificado-nuevo.crt
+arcli config revisar
+```
+
+- **Documentación relacionada:** [Cómo obtener los certificados de ARCA](obtencion-certificados.md), [Formato de errores](input-output.md#certificado-vencido)
+
 ### `config.json` con JSON inválido
 
 - **Severidad:** crítico
@@ -264,6 +278,14 @@ arcli fc ayuda
 - **Causa:** condición del receptor o del entorno de testing.
 - **Solución:** revisar si el caso es aceptable para tu flujo y distinguirlo de un rechazo real.
 - **Documentación relacionada:** [Limitaciones actuales](limitations.md)
+
+### ARCA rechaza por punto de venta
+
+- **Severidad:** común en producción
+- **Síntoma:** el comprobante sale `rechazado` con el error `10005` ("El punto de venta informado debe estar dado de alta y ser del tipo RECE"), y la sugerencia habla de un punto de venta para web service. `arcli estado --produccion` dice que el punto de venta no está habilitado para web service.
+- **Causa:** el punto de venta configurado no es de web service. Pasa con los de Comprobantes en línea ("Factura en línea"), Facturador o talonarios manuales. Desde el 1/11/2026, por la RG 5893/2026, ARCA da de alta de oficio un punto de venta "Factura en línea - Monotributo" a los monotributistas que no tienen uno electrónico: ese tampoco sirve para arcli.
+- **Solución:** `arcli parametros puntos-venta --produccion` lista los habilitados para web service. Si el tuyo no está, creá uno nuevo con sistema de web services en "Administración de puntos de venta y domicilios" y guardalo con `arcli config establecer puntoVenta <numero>`.
+- **Documentación relacionada:** [Punto de venta para web service](obtencion-certificados.md#punto-de-venta-para-web-service)
 
 ## Batch
 

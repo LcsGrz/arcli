@@ -9,16 +9,16 @@ import type { ArcliConfig } from '../../modules/config/config.schemas';
 import type { FceObligationGateway } from '../../modules/fce/fce-obligation';
 import { ArcaBillingGateway } from '../../services/arca/arca-billing.gateway';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
-import { ArcaContextResolver } from '../../services/arca/arca-context.resolver';
 import { ArcaFceObligationGateway } from '../../services/arca/arca-fce-obligation.gateway';
 import { ArcaPadronGateway } from '../../services/arca/arca-padron.gateway';
+import { certificateWarnings, resolveArcaRuntime } from '../arca-runtime';
+import { getGlobalOptions, registerGlobalOptions } from '../global-options';
 import { startSpinner } from '../spinner';
-import type { GlobalCliOptions } from '../types';
 
 import { emitBatch, prepareBatch } from './billing.command.batch';
 import { runInteractiveBillingPreview } from './billing.command.interactive-preview';
 import { writeBillingCommandResults, writePdfOutcomes } from './billing.command.output';
-import { parseBillingCommandPlan, registerBillingOptions } from './billing.command.parser';
+import { type BillingCommandDefaults, parseBillingCommandPlan, registerBillingOptions } from './billing.command.parser';
 import { attachPdfs } from './billing.command.pdf';
 
 /** Exit code cuando ARCA rechaza algun comprobante: la operacion corrio bien, pero no hay CAE. */
@@ -31,21 +31,24 @@ export function setExitCodeForResults(results: readonly BillingExecutionResult[]
   }
 }
 
-export function registerGlobalOptions(command: Command): void {
-  command
-    .option('--testing', 'usar entorno de testing en esta ejecucion')
-    .option('--produccion', 'usar entorno de produccion en esta ejecucion')
-    .option('--json', 'imprimir salida JSON')
-    .option('--bruto', 'mostrar la respuesta bruta de ARCA cuando exista');
-}
-
 export function registerBillingCommandOptions(command: Command): void {
   registerGlobalOptions(command);
   registerBillingOptions(command);
 }
 
-export function getGlobalOptions(command: Command): GlobalCliOptions {
-  return command.optsWithGlobals<GlobalCliOptions>();
+/** Los defaults de la config que completan lo que no viene por flags ni por JSON. */
+export function resolveBillingCommandDefaults(config: ArcliConfig): BillingCommandDefaults {
+  return {
+    defaultCbu: config.cbu,
+    defaultCbuAlias: config.aliasCbu,
+    defaultConcept: config.conceptoPorDefecto,
+    defaultCurrencyCode: config.monedaPorDefecto,
+    defaultEmit: config.output.emitirPorDefecto,
+    defaultExchangeRate: config.cotizacionPorDefecto,
+    defaultIvaCondition: config.ivaReceptorPorDefecto,
+    defaultIvaRate: config.alicuotaPorDefecto,
+    lookupIvaConditionInPadron: config.consultarPadron !== false,
+  };
 }
 
 /**
@@ -101,18 +104,8 @@ export async function executeBillingCommand(command: Command, shortcut: VoucherS
   const voucherKind = getVoucherKindByShortcut(shortcut);
 
   try {
-    const runtime = new ArcaContextResolver({ options: globalOptions }).resolve();
-    const plan = parseBillingCommandPlan(command, shortcut, {
-      defaultCbu: runtime.config.cbu,
-      defaultCbuAlias: runtime.config.aliasCbu,
-      defaultConcept: runtime.config.conceptoPorDefecto,
-      defaultCurrencyCode: runtime.config.monedaPorDefecto,
-      defaultEmit: runtime.config.output.emitirPorDefecto,
-      defaultExchangeRate: runtime.config.cotizacionPorDefecto,
-      defaultIvaCondition: runtime.config.ivaReceptorPorDefecto,
-      defaultIvaRate: runtime.config.alicuotaPorDefecto,
-      lookupIvaConditionInPadron: runtime.config.consultarPadron !== false,
-    });
+    const runtime = resolveArcaRuntime(globalOptions);
+    const plan = parseBillingCommandPlan(command, shortcut, resolveBillingCommandDefaults(runtime.config));
     const service = new BillingService();
     const arca = new ArcaClientFactory().create(runtime);
     const gateway = new ArcaBillingGateway(arca);
@@ -141,6 +134,7 @@ export async function executeBillingCommand(command: Command, shortcut: VoucherS
       ? await resolveFceWarnings(plannedInputs, service, new ArcaFceObligationGateway(arca))
       : [];
     const warnings = plannedInputs.map((_input, position) => [
+      ...certificateWarnings(runtime),
       ...(padronWarnings[position] ?? []),
       ...(fceWarnings[position] ?? []),
     ]);
@@ -172,6 +166,7 @@ export async function executeBillingCommand(command: Command, shortcut: VoucherS
       inputs,
       interactive: !runtime.outputJson && Boolean(process.stdin.isTTY && process.stdout.isTTY),
       output: {
+        batch: plan.isBatch,
         environment: runtime.environment,
         outputJson: runtime.outputJson,
         previewShown,

@@ -147,7 +147,7 @@ Cuando vendés a una empresa grande dentro del régimen FCE MiPyMEs y el comprob
 arcli config establecer cbu 0110599520000012345678
 
 arcli fcea -m 1500000 --cs --cuit 30546689979 --ir-ri \
-  --vencimiento 30-10-2026 \
+  --dia 25 \
   --transferencia sca
 ```
 
@@ -216,7 +216,7 @@ Cuando además de emitir querés el PDF con el QR de ARCA para mandarle al clien
 ### Comando
 
 ```bash
-arcli fc -m 150000 --cs --cfinal --emitir --exportar-pdf \
+arcli fc -m 150000 --cs --cfinal --ir-cf --emitir --exportar-pdf \
   --descripcion "Servicios de septiembre" --receptor-nombre "Cliente SA"
 ```
 
@@ -248,7 +248,7 @@ Cuando querés procesar varios comprobantes del mismo comando en una sola corrid
 
 ### Requisitos
 
-- archivo con un array JSON
+- archivo con un array JSON (un array de un solo elemento también es un lote)
 - cada item debe ser válido
 
 ### Comando
@@ -260,7 +260,7 @@ arcli fc --cargar ./voucher-batch.json --json --bruto
 ### Resultado esperado
 
 - en texto: un bloque por item
-- en JSON: un array de resultados con `indice`, `comprobante` y `atajo`
+- en JSON: un array de resultados con `indice`, `comprobante` y `atajo` (también con un solo elemento); con `--bruto`, cada uno suma `respuesta`
 
 ### Errores comunes
 
