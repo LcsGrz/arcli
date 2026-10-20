@@ -3,13 +3,13 @@ import type { Command } from 'commander';
 import { AppError } from '../../lib/errors/app-error';
 import { formatPadronAsJson, formatPadronAsText } from '../../modules/padron/padron.presenter';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
-import { ArcaContextResolver } from '../../services/arca/arca-context.resolver';
 import { ArcaPadronGateway } from '../../services/arca/arca-padron.gateway';
 import { writeTerminalJson, writeTerminalOutput } from '../../ui';
+import { resolveArcaRuntime } from '../arca-runtime';
+import { getGlobalOptions, registerQueryOptions } from '../global-options';
 import { configureSpanishHelp, createPadronHelp } from '../help';
 import { startSpinner } from '../spinner';
 
-import { getGlobalOptions, registerGlobalOptions } from './billing.command.shared';
 import { parseCuitArgument } from './cuit-argument';
 
 export function registerPadronCommand(program: Command): void {
@@ -19,12 +19,12 @@ export function registerPadronCommand(program: Command): void {
     .description('consultar en el padron de ARCA el nombre, domicilio y condicion IVA de un CUIT')
     .addHelpText('after', createPadronHelp());
 
-  registerGlobalOptions(command);
+  registerQueryOptions(command);
   configureSpanishHelp(command);
 
   command.action(async (rawCuit: string, _options: unknown, self: Command) => {
     const cuit = parseCuitArgument(rawCuit);
-    const runtime = new ArcaContextResolver({ options: getGlobalOptions(self) }).resolve();
+    const runtime = resolveArcaRuntime(getGlobalOptions(self));
     const spinner = runtime.outputJson ? null : startSpinner('Consultando el padron...');
 
     try {
