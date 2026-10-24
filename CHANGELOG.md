@@ -8,6 +8,10 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+### Corregido
+
+- **Leyendas obligatorias en el PDF:** los comprobantes B ahora traen el bloque del Régimen de Transparencia Fiscal al Consumidor (Ley 27.743, RG 5614), con el IVA contenido, y los comprobantes A a un monotributista la leyenda de la RG 5003 sobre el crédito fiscal. Salen debajo del CAE. Ver [PDF](docs/pdf.md#leyendas-obligatorias).
+
 ## [2.1.0] - 2026-10-23
 
 Trae `arcli padron` y el IVA receptor desde el padrón al facturar con `--cuit`, el aviso de vencimiento del certificado y una guía para el punto de venta de web service. Además corrige un montón de cosas que salen de una revisión del repo: el JSON de `--cargar` se valida clave por clave, los errores con `--json` tienen siempre la misma forma, y los ejemplos de la ayuda y de los docs se pueden copiar y andan.
