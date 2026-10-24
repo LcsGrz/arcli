@@ -8,6 +8,10 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+### Agregado
+
+- **Esc en las preguntas del CLI:** "¿Desea emitir … ahora?", que aparece sin `--emitir` en una terminal, ahora se cierra con Esc como un "no", igual que en el modo interactivo y en las preguntas del PDF.
+
 ### Corregido
 
 - **`montoTotal` del JSON nunca se redondea:** con más de 2 decimales se redondeaba en silencio antes de validar (`1.005` se emitía por `$1`). Ahora da `INPUT_VALIDATION_ERROR` ("Use hasta 2 decimales"), igual que `--monto` y el resto de los importes.
