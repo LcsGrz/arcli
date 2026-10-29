@@ -135,7 +135,7 @@ Usalos cuando necesitás controlar el entorno, la salida o el modo de inspecció
 El entorno y la decisión de emitir son independientes:
 
 - **Entorno:** `--testing` o `--produccion`; sin flag, `config.entorno` (`testing` por defecto).
-- **Emitir:** `--emitir` o `--previsualizar`; sin flag, `emitir`/`previsualizar` del JSON de `--cargar`; si tampoco, `config.emitir` (`false` por defecto). Si nada pide emitir, en una terminal se muestra la vista previa y se pregunta; con `--json` o sin terminal no se emite.
+- **Emitir:** `--emitir` o `--previsualizar`; sin flag, `emitir`/`previsualizar` del JSON de `--cargar`; si tampoco, `config.emitir` (`false` por defecto). Si nada pide emitir, en una terminal se muestra la vista previa y se pregunta (Esc cuenta como no, igual que en el modo interactivo, y también en las preguntas del PDF); con `--json` o sin terminal no se emite.
 
 Así, `--produccion --emitir` emite en producción sin preguntar, y también lo hace un comando sin flags si la config tiene `entorno produccion` y `emitir true`. Es a propósito, para quien no quiere confirmar cada vez. Para no depender de la config (scripts, agentes), pasá siempre el entorno y `--emitir` o `--previsualizar`.
 
@@ -595,6 +595,28 @@ Al facturar con `--cuit` sin `--ir` (ni `ivaReceptor` en el JSON), ARCLI consult
 | Lo mismo, sin `ivaReceptor` en la config        | Error `INPUT_VALIDATION_ERROR`: indicala con `--ir`         |
 
 Para no consultarlo: `arcli config establecer consultarPadron false`. El modo interactivo hace la misma consulta al cargar un CUIT y propone esa condición, marcada "(segun el padron)".
+
+## Autocompletado
+
+Completa con Tab comandos, flags y valores en bash, zsh y fish: atajos (`arcli ultimos nc<Tab>`), flags (`arcli fc --ir-<Tab>`), valores de `--iva-receptor`, `--concepto`, `--alicuota`, `--moneda`, `--transferencia` y `--ac`, claves de config y sus valores (`arcli config establecer entorno <Tab>`), tablas de `parametros` y letras de las familias. Donde va una ruta (`--cargar`), completa archivos.
+
+```bash
+arcli completado instalar        # con el shell de $SHELL; o: arcli completado instalar zsh
+arcli completado                 # ¿está instalado?
+arcli completado desinstalar
+```
+
+`arcli completado instalar` agrega al archivo de inicio del shell una línea marcada con un comentario `# arcli` y `desinstalar` saca solo eso:
+
+| Shell | Archivo                                                                                           |
+| ----- | ------------------------------------------------------------------------------------------------- |
+| zsh   | `~/.zshrc` (o `$ZDOTDIR/.zshrc`)                                                                  |
+| bash  | `~/.bashrc`; en macOS, el primero que exista de `~/.bash_profile`, `~/.bash_login` y `~/.profile` |
+| fish  | `~/.config/fish/completions/arcli.fish` (archivo propio; `desinstalar` lo borra)                  |
+
+Pedir el comando ya es la confirmación: no vuelve a preguntar, como `arcli pdf instalar`. Con `--json` devuelve `{ "cambio", "instalado", "ruta", "shell" }`. Si no se puede saber el shell, da `INPUT_VALIDATION_ERROR` y hay que indicarlo. Un programa no puede cambiar la terminal que ya está abierta: después de instalar, abrí una nueva.
+
+`arcli completado <bash|zsh|fish>` solo imprime el script, para instalarlo a mano. Cada Tab le pregunta a la versión instalada qué sigue, así que después de actualizar arcli no hay que reinstalar nada. En el modo interactivo está en Configuración → Autocompletado.
 
 ## Configuración
 
