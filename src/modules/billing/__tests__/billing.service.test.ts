@@ -681,13 +681,13 @@ describe('billing.service', () => {
     expect(() =>
       service.buildVoucherPayload(
         createBillingInput({
-          documentNumber: 20409509764,
+          documentNumber: 20333333335,
           documentType: 'cuil',
           ivaCondition: 'responsable-inscripto',
         }),
         createRuntime(),
       ),
-    ).toThrow(/--cuil 20409509764 no es valido .*digito verificador/);
+    ).toThrow(/--cuil 20333333335 no es valido .*digito verificador/);
   });
 
   it('rejects dni with invalid length', () => {

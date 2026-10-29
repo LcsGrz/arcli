@@ -189,7 +189,7 @@ function createProgramExamples(): string {
     [
       '  - Basico: arcli fc -m 300000 --cs --consumidor-final --ir-cf',
       '  - Con CUIT: arcli fa -m 1 --cs --cuit 20168598204 --ir-ri',
-      '  - Nota: arcli nca -m 1 --cs --cuit 20168598204 --ir-ri --ac fa --apv 3 --ar 6 --acuit 20409509763',
+      '  - Nota: arcli nca -m 1 --cs --cuit 20168598204 --ir-ri --ac fa --apv 3 --ar 6 --acuit 20333333334',
     ].join('\n'),
   );
 }
@@ -560,7 +560,7 @@ export function createConfigHelp(): string {
     section(
       'Ejemplos',
       [
-        '  - arcli config establecer cuit 20409509763',
+        '  - arcli config establecer cuit 20333333334',
         '  - arcli config establecer entorno produccion',
         '  - arcli config establecer ivaReceptor consumidor-final',
         '  - arcli config establecer key.produccion /ruta/clave.key',
