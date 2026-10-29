@@ -9,7 +9,7 @@ export function amountOption(flag: string, maxDecimals?: number): (value: string
     const result = parseArgentineAmount(value, { maxDecimals });
 
     if (!result.ok) {
-      throw new InputValidationError(`${flag} "${value}" no es valido: ${result.reason}.`);
+      throw new InputValidationError(`${flag} "${value}" no es válido: ${result.reason}.`);
     }
 
     return result.value;
@@ -22,20 +22,20 @@ export function integerOption(flag: string): (value: string) => number {
     const parsed = parseStrictInteger(value);
 
     if (parsed === undefined) {
-      throw new InputValidationError(`${flag} "${value}" no es valido: tiene que ser un numero entero.`);
+      throw new InputValidationError(`${flag} "${value}" no es válido: tiene que ser un número entero.`);
     }
 
     return parsed;
   };
 }
 
-/** CUIT o CUIL: acepta guiones y puntos (`20-40950976-3`) y chequea el digito verificador. */
+/** CUIT o CUIL: acepta guiones y puntos (`20-33333333-4`) y chequea el digito verificador. */
 export function cuitOption(flag: string): (value: string) => string {
   return (value) => {
     const result = parseCuit(value);
 
     if (!result.ok) {
-      throw new InputValidationError(`${flag} "${value}" no es valido: ${result.reason}.`);
+      throw new InputValidationError(`${flag} "${value}" no es válido: ${result.reason}.`);
     }
 
     return result.value;
@@ -48,7 +48,7 @@ export function documentNumberOption(flag: string): (value: string) => number {
     const parsed = parseDocumentNumber(value);
 
     if (parsed === undefined) {
-      throw new InputValidationError(`${flag} "${value}" no es valido: use solo numeros, con o sin guiones.`);
+      throw new InputValidationError(`${flag} "${value}" no es válido: usá solo números, con o sin guiones.`);
     }
 
     return parsed;

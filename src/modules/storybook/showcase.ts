@@ -109,7 +109,7 @@ function createSampleConfig(): ArcliConfig {
       produccion: '/Users/demo/.arcli/produccion/certificado.crt',
       testing: '/Users/demo/.arcli/testing/certificado.crt',
     },
-    cuit: '20409509763',
+    cuit: '20333333334',
     conceptoPorDefecto: 'servicios',
     cotizacionPorDefecto: 1,
     emisor: {},
@@ -139,7 +139,7 @@ function createSampleUpdateCheckResult(): UpdateCheckResult {
 function createSampleValidation(): ArcaRuntimeValidation {
   return {
     certPath: '/Users/demo/.arcli/testing/certificado.crt',
-    cuit: 20409509763,
+    cuit: 20333333334,
     environment: 'testing',
     keyPath: '/Users/demo/.arcli/testing/clave.key',
     outputJson: false,
@@ -196,14 +196,14 @@ const BORDER_SAMPLES: ReadonlyArray<
 > = [
   ['ticket', 'Factura', 'Comprobantes: vista previa y resultado', 'success', 'RESULTADO'],
   ['error', 'Error', 'Errores del CLI o de ARCA', 'danger'],
-  ['attention', 'Observaciones', 'Observaciones de ARCA y avisos del regimen FCE', 'warning'],
+  ['attention', 'Observaciones', 'Observaciones de ARCA y avisos del régimen FCE', 'warning'],
   ['tip', 'Sugerencias', 'Sugerencias para resolver un problema', 'warning'],
-  ['sheet', 'Configuracion', 'Fichas de consulta: configuracion y regimen FCE', 'info'],
-  ['checklist', 'Revision', 'Revision de configuracion', 'success', 'VEREDICTO'],
-  ['listing', 'Ultimos comprobantes', 'Listados en tabla, como los ultimos comprobantes', 'info'],
-  ['note', 'Aviso', 'Avisos simples, por ejemplo "No se emitio nada"', undefined],
+  ['sheet', 'Configuración', 'Fichas de consulta: configuración y régimen FCE', 'info'],
+  ['checklist', 'Revision', 'Revisión de configuración', 'success', 'VEREDICTO'],
+  ['listing', 'Últimos comprobantes', 'Listados en tabla, como los últimos comprobantes', 'info'],
+  ['note', 'Aviso', 'Avisos simples, por ejemplo "No se emitió nada"', undefined],
   ['warning', 'Testing', 'Banners del entorno de testing y del certificado por vencer', 'warning'],
-  ['info', 'Nueva version', 'Aviso de nueva version disponible', 'info'],
+  ['info', 'Nueva versión', 'Aviso de nueva versión disponible', 'info'],
   ['data', 'Billing json', 'JSON y respuestas crudas', 'subtle'],
   ['common', 'Contenido', 'Base para paneles sin estilo propio', undefined],
   ['debug', 'Storybook', 'Storybook y debug visual', 'debug'],
@@ -234,7 +234,7 @@ function buildBordersScene(): string {
     sceneTitle('Bordes', 'Un estilo por tipo de panel; ARCLI_ASCII=1 los cambia por ASCII'),
     ...boxes,
     `${colorize('Barra de estado (modo interactivo):', 'muted')}\n${statusBar(
-      [{ text: '20-40950976-3' }, { text: 'PV 3' }],
+      [{ text: '20-33333333-4' }, { text: 'PV 3' }],
       [
         { color: 'success', text: 'ARCA FUNCIONANDO' },
         { color: 'testing', text: 'TESTING' },
@@ -265,8 +265,8 @@ function buildBillingScene(): string {
     createBillingResult({
       response: {
         ...createBillingResult().response,
-        observaciones: ['La CUIT receptora no existe en padron.'],
-        observacion: 'La CUIT receptora no existe en padron.',
+        observaciones: ['La CUIT receptora no existe en padrón.'],
+        observacion: 'La CUIT receptora no existe en padrón.',
         raw: {
           response: {
             FeDetResp: {
@@ -275,7 +275,7 @@ function buildBillingScene(): string {
           },
         } as BillingExecutionResult['response']['raw'],
         status: 'observado',
-        suggestions: ['Revise el CUIT del receptor o use uno valido de testing.'],
+        suggestions: ['Revisá el CUIT del receptor o usá uno válido de testing.'],
       },
       voucherKind: createVoucherKind({ displayName: 'Factura A', shortcut: 'fa', letter: 'a', arcaType: 1 }),
       payload: {
@@ -306,7 +306,7 @@ function buildBillingScene(): string {
         } as BillingExecutionResult['response']['raw'],
         resultado: 'R',
         status: 'rechazado',
-        suggestions: ['ARCA devolvio un error transitorio. Espere unos segundos y vuelva a intentar la emision.'],
+        suggestions: ['ARCA devolvió un error transitorio. Esperá unos segundos y volvé a intentar la emisión.'],
       },
     }),
   );
@@ -328,7 +328,7 @@ function buildConfigScene(): string {
   const doctor = buildConfigDoctorReport(config, [{ environment: 'testing' }]);
 
   return [
-    sceneTitle('Configuracion', 'Vista actual y revision'),
+    sceneTitle('Configuración', 'Vista actual y revisión'),
     formatConfigAsText(config, { pdfFolder: '~/arcli/comprobantes', ticketPath: createSampleValidation().ticketPath }),
     formatConfigDoctorAsText(doctor),
   ].join('\n\n');
@@ -336,7 +336,7 @@ function buildConfigScene(): string {
 
 function buildErrorScene(): string {
   return [
-    sceneTitle('Errores', 'Configuracion, entrada y error inesperado'),
+    sceneTitle('Errores', 'Configuración, entrada y error inesperado'),
     formatCliError(
       new ConfigurationError('Falta la ruta de la clave privada para testing.', {
         path: '/Users/demo/.arcli/testing/clave.key',
@@ -361,7 +361,7 @@ function buildJsonScene(): string {
   );
 
   return [
-    sceneTitle('Json', 'Contratos estructurados para automatizacion y respuesta bruta'),
+    sceneTitle('Json', 'Contratos estructurados para automatización y respuesta bruta'),
     contentPanel('Billing json', billingJson, 'wide', 'subtle', 'left', 'data'),
     contentPanel('Config json', configJson, 'wide', 'subtle', 'left', 'data'),
     contentPanel('Doctor json', doctorJson, 'wide', 'subtle', 'left', 'data'),
@@ -373,16 +373,16 @@ function buildComponentsScene(): string {
   const certificateNotice = certificateBanner({
     expired: false,
     guideUrl: CERTIFICATE_GUIDE_URL,
-    summary: 'El certificado de produccion vence el 20/11/2026 (en 10 días).',
+    summary: 'El certificado de producción vence el 20/11/2026 (en 10 días).',
   });
   const expiredCertificateNotice = certificateBanner({
     expired: true,
     guideUrl: CERTIFICATE_GUIDE_URL,
-    summary: 'El certificado de produccion venció el 20/11/2026.',
+    summary: 'El certificado de producción venció el 20/11/2026.',
   });
   const updateNotice = renderUpdateNoticePanel(createSampleUpdateCheckResult());
   const keyValueRows: Array<readonly [string, string | number]> = [
-    ['CUIT', '20-40950976-3'],
+    ['CUIT', '20-33333333-4'],
     ['Punto de venta', 3],
     ['Entorno', 'testing'],
   ];

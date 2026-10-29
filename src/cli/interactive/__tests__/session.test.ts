@@ -16,7 +16,7 @@ function createSession(environment: 'produccion' | 'testing'): InteractiveSessio
   const createVoucher = vi.fn(async () => ({ response: {} }) as never);
   const runtime = {
     config: { cert: {}, entornoPorDefecto: environment, key: {}, output: {} },
-    context: { cuit: 20409509763 },
+    context: { cuit: 20333333334 },
     environment,
     outputJson: false,
     outputRaw: false,
@@ -81,7 +81,7 @@ describe('previewAndEmit', () => {
     confirmMock.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
     await previewAndEmit(accepted, input);
     expect(accepted.createVoucher).toHaveBeenCalledTimes(1);
-    expect(confirmMock).toHaveBeenLastCalledWith(expect.stringContaining('PRODUCCION'), 'Si, emitir en produccion');
+    expect(confirmMock).toHaveBeenLastCalledWith(expect.stringContaining('PRODUCCIÓN'), 'Sí, emitir en producción');
   });
 
   it('muestra el comando equivalente antes de confirmar', async () => {
