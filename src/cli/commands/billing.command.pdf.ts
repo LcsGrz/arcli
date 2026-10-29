@@ -83,7 +83,11 @@ async function resolveDecisions(options: PdfStepOptions, deps: PdfStepDependenci
 }
 
 /** Si falta el plugin, en una terminal se ofrece instalarlo; sin terminal nunca se descarga solo. */
-async function loadRenderer(plugin: PdfPlugin, interactive: boolean, deps: PdfStepDependencies): Promise<PdfRenderer> {
+export async function loadPdfRenderer(
+  plugin: PdfPlugin,
+  interactive: boolean,
+  deps: PdfStepDependencies,
+): Promise<PdfRenderer> {
   if (!plugin.getStatus().installed && interactive) {
     const install = await deps.confirm(
       'Para generar PDFs hay que descargar un componente (~160 MB, o ~360 MB si no tenes Chrome). ¿Instalarlo ahora?',
@@ -145,7 +149,7 @@ export async function attachPdfs(
       // Antes de descargar nada: sin los datos del emisor no se puede armar ningun PDF.
       resolvePdfIssuer(options.config, options.results[targets[0]].voucherKind.letter);
 
-      const renderer = await loadRenderer(deps.createPlugin(options.config), options.interactive, deps);
+      const renderer = await loadPdfRenderer(deps.createPlugin(options.config), options.interactive, deps);
       const folder = deps.resolveFolder(options.config);
 
       for (const index of targets) {

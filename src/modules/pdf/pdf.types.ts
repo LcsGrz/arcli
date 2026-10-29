@@ -14,16 +14,22 @@ export interface InvoicePdfIssuer {
 
 export interface InvoicePdfReceiver {
   readonly condicionIva: string;
+  /** CUIT del pais de destino con su descripcion, como lo informa WSFEX. Solo en la letra E. */
+  readonly cuitPais?: string;
   readonly documentoNro: string;
   /** "CUIT", "CUIL", "DNI" u "Otro". */
   readonly documentoTipo: string;
   readonly domicilio?: string;
+  /** ID impositivo del receptor en el pais de destino. Solo en la letra E. */
+  readonly idImpositivo?: string;
   readonly razonSocial: string;
 }
 
 export interface InvoicePdfItem {
   readonly alicuotaIva?: number;
   readonly cantidad: number;
+  /** Codigo del producto; la letra E lo imprime en el detalle. */
+  readonly codigo?: string;
   readonly descripcion: string;
   readonly precioUnitario: number;
   readonly subtotal: number;

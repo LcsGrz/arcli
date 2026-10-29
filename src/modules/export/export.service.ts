@@ -1,0 +1,206 @@
+import {
+  formatArcaDateAsArgentineDate,
+  formatArcaDateAsIsoDate,
+  formatDateAsArcaDate,
+  parseArgentineDateInputAsArcaDate,
+} from '../../lib/dates/arca-date';
+import { InputValidationError } from '../../lib/errors/app-error';
+import type { ArcliConfig } from '../config/config.schemas';
+
+import { assertExportItemsTotal, buildExportItems, DEFAULT_EXPORT_ITEM_DESCRIPTION } from './export.items';
+import {
+  buildExportPayload,
+  resolveExportActivity,
+  resolveExportClientCountryCuit,
+  resolveExportCurrency,
+  resolveExportDestinationCountry,
+  resolveExportIncoterm,
+  resolveExportLanguage,
+  resolveExportNumber,
+  resolveExportPointOfSale,
+  resolveExportQuotation,
+  resolveExportType,
+  resolveExportVoucherDate,
+} from './export.mappers';
+import { createDryRunExportResponse, mapExportResponse } from './export.response';
+import {
+  EXPORT_VOUCHER_KIND,
+  type ExportDisplayInfo,
+  type ExportExecutionResult,
+  type ExportGateway,
+  type ExportVoucherInput,
+  type ResolvedExportVoucher,
+} from './export.types';
+
+export interface ExportRuntime {
+  readonly config: ArcliConfig;
+  readonly environment: 'produccion' | 'testing';
+}
+
+/** Se valida antes de tocar la red: un flag que falta no tiene por que autenticar en WSAA. */
+function assertRequiredFields(input: ExportVoucherInput): void {
+  if (typeof input.amount !== 'number' || !(input.amount > 0)) {
+    throw new InputValidationError('Falta el importe total o no es valido. Use --monto.');
+  }
+
+  if (!input.clientName?.trim()) {
+    throw new InputValidationError('Falta el nombre del cliente. Use --cliente.');
+  }
+
+  if (!input.clientAddress?.trim()) {
+    throw new InputValidationError('Falta el domicilio del cliente. Use --domicilio-cliente.');
+  }
+
+  if (!input.destinationCountry?.trim()) {
+    throw new InputValidationError('Falta el pais de destino. Use --pais-destino.');
+  }
+
+  assertExportItemsTotal(input.items, input.amount);
+}
+
+/** WSFEX no acepta comprobantes con fecha futura. Las fechas pasadas si son validas. */
+function assertNotFuture(voucherDate: string, now: Date): void {
+  const today = formatDateAsArcaDate(now);
+
+  if (voucherDate > today) {
+    throw new InputValidationError(
+      `La fecha del comprobante (${voucherDate.slice(6, 8)}/${voucherDate.slice(4, 6)}/${voucherDate.slice(0, 4)}) no puede ser futura.`,
+    );
+  }
+}
+
+export class ExportService {
+  /**
+   * Resuelve todo lo que pide WSFEX antes de emitir: tablas de paises, incoterms, idiomas y unidades,
+   * numeracion y cotizacion. Son llamadas de lectura: no emiten nada.
+   */
+  public async resolve(
+    input: ExportVoucherInput,
+    gateway: ExportGateway,
+    runtime: ExportRuntime,
+    now = new Date(),
+  ): Promise<ResolvedExportVoucher> {
+    assertRequiredFields(input);
+
+    const config = runtime.config;
+    const exportType = resolveExportType(input.exportType);
+    const voucherDate = resolveExportVoucherDate(input.voucherDate, now);
+    const paymentDate = input.paymentDate?.trim() ? parseArgentineDateInputAsArcaDate(input.paymentDate) : voucherDate;
+
+    assertNotFuture(voucherDate, now);
+
+    const countryList = await gateway.getDestinationCountries();
+    const destinationCountry = resolveExportDestinationCountry(input.destinationCountry, countryList);
+    const clientCountryCuit = resolveExportClientCountryCuit({
+      country: destinationCountry,
+      countries: await gateway.getDestinationCountryCuits(),
+      cuit: input.clientCountryCuit,
+    });
+
+    const units = await gateway.getUnits();
+    const items = buildExportItems(
+      input.items,
+      input.amount as number,
+      units,
+      input.description?.trim() || DEFAULT_EXPORT_ITEM_DESCRIPTION,
+    );
+
+    const incoterm = resolveExportIncoterm(input.incoterm, input.incoterm?.trim() ? await gateway.getIncoterms() : []);
+    const languages = input.language === undefined ? [] : await gateway.getLanguages();
+    const languageId = resolveExportLanguage(input.language, languages);
+    const currency = resolveExportCurrency(input, config);
+    // WSFEX pide la fecha de la cotizacion como yyyy-mm-dd; la del comprobante viene en yyyymmdd.
+    const isoVoucherDate = formatArcaDateAsIsoDate(voucherDate);
+    const quotation = currency.needsQuotation
+      ? resolveExportQuotation(currency.fields.Moneda_Id, await gateway.getQuotations(isoVoucherDate), isoVoucherDate)
+      : undefined;
+    const exchangeRate = quotation?.rate ?? currency.fields.Moneda_ctz;
+    const pointOfSale = resolveExportPointOfSale(input.pointOfSale, config);
+    const voucherNumber = resolveExportNumber({
+      label: 'El numero del comprobante',
+      last: input.voucherNumber === undefined ? await gateway.getLastVoucherNumber(pointOfSale) : 0,
+      provided: input.voucherNumber,
+    });
+    const requestId = resolveExportNumber({
+      label: 'El ID de la solicitud',
+      last: input.requestId === undefined ? await gateway.getLastRequestId() : 0,
+      provided: input.requestId,
+    });
+
+    const activity = resolveExportActivity(input.activity, await gateway.getActivities());
+    const payload = buildExportPayload(input, {
+      activity: activity.id,
+      clientCountryCuit,
+      currency: {
+        ...currency.fields,
+        Moneda_Id: quotation?.code ?? currency.fields.Moneda_Id,
+        Moneda_ctz: exchangeRate,
+      },
+      destinationCountry,
+      exportType,
+      incoterm,
+      items: items.items,
+      languageId,
+      paymentDate,
+      pointOfSale,
+      requestId,
+      voucherDate,
+      voucherNumber,
+    });
+    const display: ExportDisplayInfo = {
+      countryName: destinationCountry.name,
+      incotermName: incoterm?.name,
+      languageName: languages.find((language) => language.id === languageId)?.name,
+      unitNames: Object.fromEntries(units.map((unit) => [unit.id, unit.name])),
+    };
+    // La cotizacion de aduana del dia se publica mas tarde: se emite con la ultima disponible, avisando de que dia es.
+    const warnings = [
+      ...(quotation?.date && quotation.date !== voucherDate
+        ? [
+            `ARCA no publico la cotizacion de ${quotation.code} del ${formatArcaDateAsArgentineDate(
+              voucherDate,
+            )}: se usa la del ${formatArcaDateAsArgentineDate(quotation.date)} (${quotation.rate}). Para usar otra, --cotizacion-moneda.`,
+          ]
+        : []),
+      ...(activity.warning ? [activity.warning] : []),
+    ];
+
+    return { display, payload, warnings };
+  }
+  /** Vista previa: el payload resuelto, sin llamar a `authorize`. */
+  public preview(
+    resolved: ResolvedExportVoucher,
+    runtime: ExportRuntime,
+    warnings?: readonly string[],
+  ): ExportExecutionResult {
+    return {
+      display: resolved.display,
+      dryRun: true,
+      environment: runtime.environment,
+      payload: resolved.payload,
+      response: createDryRunExportResponse(),
+      voucherKind: EXPORT_VOUCHER_KIND,
+      warnings,
+    };
+  }
+
+  /** La llamada que emite. Un error aca puede haber dejado el comprobante autorizado en ARCA. */
+  public async execute(options: {
+    readonly gateway: ExportGateway;
+    readonly resolved: ResolvedExportVoucher;
+    readonly runtime: ExportRuntime;
+    readonly warnings?: readonly string[];
+  }): Promise<ExportExecutionResult> {
+    const raw = await options.gateway.authorize(options.resolved.payload);
+
+    return {
+      display: options.resolved.display,
+      dryRun: false,
+      environment: options.runtime.environment,
+      payload: options.resolved.payload,
+      response: mapExportResponse(raw),
+      voucherKind: EXPORT_VOUCHER_KIND,
+      warnings: options.warnings,
+    };
+  }
+}

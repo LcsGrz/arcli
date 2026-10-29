@@ -11,6 +11,8 @@ import {
 import { configureSpanishHelp, createFamilyHelp } from '../help';
 
 import { executeBillingCommand, registerBillingCommandOptions } from './billing.command.shared';
+import { executeExportCommand } from './export.command';
+import { registerExportOptions } from './export.command.options';
 
 export function registerBillingFamilyCommands(program: Command): void {
   for (const family of VOUCHER_FAMILIES) {
@@ -18,10 +20,12 @@ export function registerBillingFamilyCommands(program: Command): void {
       .filter((definition) => definition.family === family)
       .map((definition) => definition.shortcut)
       .join(', ');
+    // La familia `factura` tambien acepta la letra E, que se emite por WSFEX con su propio comando.
+    const supportsExport = family === 'factura';
     const command = program
       .command(family)
       .description(
-        `usar ${family} por letra A, B o C con ejemplos y atajos${familyShortcuts ? ` (${familyShortcuts})` : ''}`,
+        `usar ${family} por letra A, B o C${supportsExport ? ' o E' : ''} con ejemplos y atajos${familyShortcuts ? ` (${familyShortcuts})` : ''}`,
       )
       .argument('<letra>', 'letra del comprobante', (value: string) => value.toLowerCase());
 
@@ -29,9 +33,21 @@ export function registerBillingFamilyCommands(program: Command): void {
 
     registerBillingCommandOptions(command);
 
+    if (supportsExport) {
+      registerExportOptions(command, { hidden: true });
+    }
+
     command.action(async (letter: string) => {
+      if (supportsExport && letter === 'e') {
+        await executeExportCommand(command);
+
+        return;
+      }
+
       if (!VOUCHER_LETTERS.includes(letter as VoucherLetter)) {
-        throw new InputValidationError(`La letra "${letter}" no es valida. Use a, b o c.`);
+        throw new InputValidationError(
+          `La letra "${letter}" no es valida. Use a, b o c${supportsExport ? ' o e' : ''}.`,
+        );
       }
 
       const definition = getVoucherKindByFamilyAndLetter(family, letter as VoucherLetter);

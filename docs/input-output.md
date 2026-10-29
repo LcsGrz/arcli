@@ -165,6 +165,115 @@ Los nombres de las claves no siempre coinciden con los flags. Si pasás las dos 
 }
 ```
 
+## Factura de exportación (`factura-exportacion`)
+
+La factura `E` no comparte el JSON de facturación: no tiene concepto, IVA ni receptor con documento, y `--cargar` acepta **un objeto, nunca un array** (el lote de exportación no está soportado y responde `INPUT_VALIDATION_ERROR`). El archivo es `.strict()`: una clave desconocida también es error.
+
+### Input de `--cargar`
+
+| Campo                                       | Tipo              | Requerido | Descripción                                                                                      |
+| ------------------------------------------- | ----------------- | --------- | ------------------------------------------------------------------------------------------------ |
+| `cliente`                                   | string            | sí        | Nombre del cliente del exterior                                                                  |
+| `domicilioCliente`                          | string            | sí        | Domicilio del cliente                                                                            |
+| `paisDestino`                               | string \| number  | sí        | Código de ARCA o nombre del país (`203`, `"Brasil"`)                                             |
+| `monto`                                     | number            | sí        | Total del comprobante; tiene que dar la suma de los items                                        |
+| `items`                                     | array             | no        | Renglones (ver abajo). Sin items va uno solo con `descripcion` por el total                      |
+| `idImpositivo`                              | string            | no        | ID impositivo del cliente en su país                                                             |
+| `cuitPais`                                  | number            | no        | CUIT del país del cliente; si falta sale de la tabla de ARCA                                     |
+| `tipoExpo`                                  | `1` \| `2` \| `4` | no        | `2` servicios (por defecto), `1` bienes, `4` otros                                               |
+| `actividad`                                 | number            | no        | Código de actividad de ARCA; por defecto `620900` (servicios de informática N.C.P.)              |
+| `incoterm`, `descripcionIncoterm`           | string            | no        | Código y descripción del incoterm (`FOB`, `CIF`…)                                                |
+| `idioma`                                    | number            | no        | `1` español (por defecto), `2` inglés, `3` portugués                                             |
+| `formaPago`                                 | string            | no        | Por defecto `Transferencia Internacional`                                                        |
+| `permisos`, `permisoExistente`              | string[], boolean | no        | IDs de permiso de embarque y si ya están informados en ARCA; solo con `tipoExpo: 1`              |
+| `numero`, `idSolicitud`                     | number            | no        | Numeración; si faltan se piden a WSFEX                                                           |
+| `puntoVenta`                                | number            | no        | Por defecto, el de la config                                                                     |
+| `fechaComprobante`, `fechaPago`             | string            | no        | Formato argentino: `27/10/2026`, `27-10-26` o solo día y mes                                     |
+| `codigoMoneda`, `cotizacionMoneda`          | string, number    | no        | Igual que en A/B/C: `USD` viaja como `DOL` (por defecto) y la cotización es obligatoria          |
+| `mismaMoneda`                               | boolean           | no        | Pago en la misma moneda extranjera (`CanMisMonExt` en `S`): ARCLI consulta la cotización oficial |
+| `observaciones`, `observacionesComerciales` | string            | no        | Van a `Obs` y `Obs_comerciales`                                                                  |
+| `descripcion`                               | string            | no        | Solo para el PDF                                                                                 |
+| `pdf`, `emitir`, `previsualizar`            | boolean           | no        | Igual que en el resto de los comprobantes                                                        |
+
+Cada item:
+
+| Campo            | Tipo             | Requerido | Descripción                                               |
+| ---------------- | ---------------- | --------- | --------------------------------------------------------- |
+| `cantidad`       | number           | sí        | `Pro_qty`                                                 |
+| `descripcion`    | string           | sí        | `Pro_ds`                                                  |
+| `precioUnitario` | number           | sí        | `Pro_precio_uni`; el total del renglón lo calcula ARCLI   |
+| `codigo`         | string           | no        | `Pro_codigo`                                              |
+| `unidad`         | string \| number | no        | Código de ARCA o nombre de la tabla (`7`, `"kilogramos"`) |
+
+```json
+{
+  "cliente": "ACME LLC",
+  "domicilioCliente": "123 Main St",
+  "paisDestino": 203,
+  "monto": 1500,
+  "tipoExpo": 2,
+  "incoterm": "FOB",
+  "items": [
+    {
+      "codigo": "001",
+      "descripcion": "Servicios de consultoria",
+      "cantidad": 1,
+      "precioUnitario": 1000,
+      "unidad": "unidades"
+    },
+    { "codigo": "002", "descripcion": "Soporte", "cantidad": 2, "precioUnitario": 250, "unidad": "unidades" }
+  ],
+  "previsualizar": false,
+  "pdf": true
+}
+```
+
+### Output JSON
+
+Es el mismo resumen que A, B y C (`atajo`, `cae`, `estado`, `errores`, `observaciones`, `pdf`…) con `atajo: "fe"` y `tipoArca: 19`, más un bloque `exportacion` con lo que WSFEX tiene y `wsfe` no. `solicitud` es el `Cmp` de WSFEX, con los nombres de ARCA.
+
+```json
+{
+  "atajo": "fe",
+  "cae": "86120020284412",
+  "estado": "aprobado",
+  "exportacion": {
+    "actividad": [620900],
+    "cliente": "ACME LLC",
+    "cuitPaisCliente": 225,
+    "destino": { "codigo": 203, "nombre": "Brasil" },
+    "domicilioCliente": "123 Main St",
+    "formaPago": "Transferencia Internacional",
+    "idImpositivo": null,
+    "idioma": 1,
+    "incoterm": "FOB",
+    "incotermDescripcion": "Free on board",
+    "items": [
+      {
+        "cantidad": 1,
+        "codigo": "001",
+        "descripcion": "Servicios de consultoria",
+        "precioUnitario": 1000,
+        "total": 1000,
+        "unidad": "unidades",
+        "unidadCodigo": 7
+      }
+    ],
+    "mismaMoneda": false,
+    "permisos": [],
+    "tipoExpo": 2
+  },
+  "solicitud": { "Cbte_Tipo": 19, "Imp_total": 1500 },
+  "tipoArca": 19
+}
+```
+
+`exportacion.destino.nombre`, `exportacion.incotermDescripcion` y `exportacion.items[].unidad` salen de las tablas de WSFEX; si la tabla no trae el nombre, quedan en `null` y el código numérico sigue disponible. `exportacion.actividad` lista los códigos de actividad informados en `solicitud.Actividades` (sin `--actividad`, `[620900]`) y `exportacion.mismaMoneda` indica si el pago se cancela en la misma moneda extranjera (`solicitud.CanMisMonExt` en `S`).
+
+Cuando la actividad no está en la tabla de actividades de WSFEX, el aviso sale en `avisos` y la emisión sigue: ARCA es el que la rechaza (error 2105). `solicitud` no trae `Cmps_asoc` ni `Opcionales` mientras el comprobante no los informe: ARCA rechaza esos bloques vacíos (error 1820 el primero).
+
+`solicitud` no incluye `Permisos` cuando el comprobante no informa permisos de embarque: ARCA rechaza ese campo (error 1720) si `Permiso_existente` es `N`. En las exportaciones de servicios (`tipoExpo: 2`) y otros (`tipoExpo: 4`) ARCA exige ese campo **vacío** (error 1550), así que `solicitud.Permiso_existente` sale `""` y los permisos de embarque no se admiten.
+
 ## Formato de input: batch
 
 Si el archivo contiene un array, ARCLI procesa un lote del mismo comando. **Un array es siempre un lote, aunque tenga un solo elemento**: la salida `--json` es un array y los errores son `BATCH_VALIDATION_ERROR` / `BATCH_EMISSION_ERROR` con el índice. Un objeto suelto es un solo comprobante: sale un objeto y los errores son los de siempre (`INPUT_VALIDATION_ERROR`, etc.).

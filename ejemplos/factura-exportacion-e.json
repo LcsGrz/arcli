@@ -1,0 +1,22 @@
+{
+  "cliente": "ACME LLC",
+  "idImpositivo": "12-3456789",
+  "domicilioCliente": "123 Main St",
+  "paisDestino": 212,
+  "cuitPais": 55000002126,
+  "tipoExpo": 2,
+  "actividad": 620900,
+  "monto": 1500,
+  "numero": 3,
+  "codigoMoneda": "DOL",
+  "mismaMoneda": true,
+  "items": [
+    {
+      "codigo": "001",
+      "descripcion": "Servicios de consultoria",
+      "cantidad": 1,
+      "precioUnitario": 1500,
+      "unidad": "unidad"
+    }
+  ]
+}

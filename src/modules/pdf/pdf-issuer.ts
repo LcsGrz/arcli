@@ -1,4 +1,3 @@
-import type { VoucherLetter } from '../billing/billing.types';
 import type { ArcliConfig } from '../config/config.schemas';
 
 import { PdfError } from './pdf.errors';
@@ -25,10 +24,7 @@ export function listMissingIssuerKeys(config: Pick<ArcliConfig, 'cuit' | 'emisor
   return config.cuit ? missing : ['cuit', ...missing];
 }
 
-export function resolvePdfIssuer(
-  config: Pick<ArcliConfig, 'cuit' | 'emisor'>,
-  letter: VoucherLetter,
-): InvoicePdfIssuer {
+export function resolvePdfIssuer(config: Pick<ArcliConfig, 'cuit' | 'emisor'>, letter: string): InvoicePdfIssuer {
   const missing = listMissingIssuerKeys(config);
   const { emisor } = config;
 

@@ -1,6 +1,7 @@
 src/
 tests/
 docs/
+ejemplos/
 .agents/
 .vscode/
 .env

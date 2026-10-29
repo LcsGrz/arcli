@@ -8,6 +8,33 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+Trae la factura de exportación `E` (`arcli fe`) sobre WSFEX: items, país de destino, incoterm y permisos de embarque, con credenciales propias para `wsfex` y PDF con el detalle real. Es todo agregado: los comandos y flags de A, B, C y FCE siguen igual.
+
+### Agregado
+
+- **`arcli factura-exportacion` (alias `arcli fe`, también `arcli factura e`):** emite o previsualiza la Factura de exportación `E` (tipo 19) con WSFEX. Flags propios: `--cliente`, `--domicilio-cliente` y `--pais-destino` (código o nombre) obligatorios, más `--id-impositivo`, `--cuit-pais`, `--tipo-expo` (`1` bienes, `2` servicios, `4` otros), `--actividad`, `--incoterm`, `--incoterms-desc`, `--idioma`, `--forma-pago`, `--permiso` con `--permiso-existente`, `--numero`, `--id-solicitud`, `--fecha-pago`, `--observaciones` y `--obs-comerciales`. No lleva concepto, IVA ni receptor con CUIT/CUIL/DNI, y los flags de A/B/C que no aplican se ignoran.
+- **`--item` con detalle real:** `codigo|descripcion|cantidad|precio|unidad`, repetible; el código y la unidad son opcionales y la unidad puede ser el código de ARCA o su nombre. La suma de los items tiene que dar `--monto` y se valida antes de autenticar en WSAA, porque WSFEX no lo controla.
+- **`--cargar` para `E`:** un objeto, con claves propias (`cliente`, `domicilioCliente`, `paisDestino`, `monto`, `items`, `tipoExpo`…). El lote no está soportado: un array es error de entrada.
+- **`exportacion.cert.testing`, `exportacion.cert.produccion`, `exportacion.key.testing`, `exportacion.key.produccion`:** credenciales del servicio `wsfex`, para cuando el certificado general no está autorizado a exportación. Si no están las dos de un entorno, se usan `cert.*`/`key.*`; con la mitad del par configurada el comando corta antes de ir a ARCA. Se muestran en la sección **Certificados** de `arcli config`, se validan como PEM al guardarlas y `arcli config revisar` las revisa con el resto.
+- **Defaults de la `E`:** sin flags, la exportación sale de servicios (`Tipo_expo` `2`), en dólares (`Moneda_Id` `DOL`) y con forma de pago `Transferencia Internacional`. La clave `moneda` de la config no aplica a exportación: es la de los comprobantes locales, y en la `E` la moneda se cambia solo con `--moneda` (o `codigoMoneda` en el JSON).
+- **`--actividad` (o `actividad` en el JSON de `--cargar`):** código de la tabla de actividades de WSFEX que va en `solicitud.Actividades`. Sin flag se informa `620900` (servicios de informática N.C.P.), que es lo que evita el error 2100 de WSFEX; la vista previa lo muestra y el JSON lo publica en `exportacion.actividad`. La tabla de WSFEX no es la del padrón y es más chica, así que cuando el código no está la vista previa avisa en `avisos` con las actividades que empiezan igual, sin cortar la emisión.
+- **Salida JSON de exportación:** el mismo resumen que A, B y C (`atajo: "fe"`, `tipoArca: 19`) más un bloque `exportacion` con cliente, destino, domicilio, incoterm, items y permisos; `solicitud` es el `Cmp` de WSFEX, con los nombres de ARCA. Forma exacta en [entrada y salida](docs/input-output.md#factura-de-exportación-factura-exportacion).
+- **PDF de exportación:** se guarda como `factura-exportacion-e_<pv>-<numero>.pdf` e imprime los items de WSFEX, el país de destino con su CUIT, el incoterm y el ID impositivo del cliente, sin discriminar IVA.
+
+### Corregido
+
+- **Actividad de la factura de exportación `E`:** `solicitud.Actividades` ahora lleva una `Actividad`, con `620900` por defecto o la de `--actividad`. Antes iba vacío y ARCA rechazaba la emisión con el error 2100 (`Si informa Actividades, Actividad es obligatorio informarlo`).
+- **Bloques vacíos en `solicitud` de la `E`:** ya no se envían `Cmps_asoc` ni `Opcionales` sin filas. ARCA rechazaba la emisión con el error 1820 (`Cmp.Cmps_asoc: Si envia Cmps_asoc, Cmp_asoc es obligatorio`).
+- **Estado de una `E` autorizada:** la autorización de WSFEX viene con `FEXErr` en `ErrCode` `0` y `ErrMsg` `OK`; ahora ese `OK` no se toma como error, así que el comprobante queda `aprobado` con su CAE en lugar de `rechazado`.
+- **Factura de exportación `E` sin permisos de embarque:** `solicitud` ya no incluye `Permisos` cuando `Permiso_existente` es `N`. ARCA rechazaba la emisión con el error 1720 (`Campo Permisos enviado. El mismo no debe enviarse cuando Cmp.Permiso_existente=N`).
+- **`Permiso_existente` en exportaciones de servicios u otros:** con `--tipo-expo 2` o `4` el campo ahora va vacío, como exige ARCA, que rechazaba la emisión con el error 1550 (`Campo Permiso_existente:'N'. Debe ser 'vacio' para comprobantes 20 o 21 y Tipo_expo=2 o 4`). En esos tipos `--permiso` es error de validación, antes de llamar a ARCA.
+- **Fecha de la cotización de la `E` (`FchCotiz`):** la consulta a `FEXGetPARAM_Ctz` manda la fecha del comprobante —hoy si no pasás `--fecha`— en formato `yyyy-mm-dd`, que es el que pide WSFEX. Antes iba en `yyyymmdd` y la exportación en moneda extranjera cortaba con `Campo FchCotiz No corresponde a una fecha valida con formato YYYY-MM-DD`. Si el día no tiene cotización, el error ahora incluye la fecha y la moneda.
+- **Cotización de la `E` cuando ARCA todavía no publicó la del día:** la cotización sale de `FEXGetPARAM_MON_CON_COTIZACION` —la cotización de aduana de WSFEX, pedida con `Fecha_CTZ` en `yyyymmdd`—, que devuelve por moneda la última publicada. Si no es la del comprobante, la vista previa lo avisa en `avisos` con el día que corresponde. Antes se consultaba `FEXGetPARAM_Ctz` con la fecha exacta y cortaba con `Codigo de moneda (DOL) inexistente o SIN cotizacion`, que es lo que contesta ARCA mientras no publicó la del día —pasa siempre al emitir con la fecha de hoy—. Para fijar otra cotización sigue estando `--cotizacion-moneda`.
+
+### Documentación
+
+- Nueva sección de la `E` en [referencia del CLI](docs/cli-reference.md#factura-de-exportación-e-wsfex) y en [reglas de validación](docs/validation-rules.md#factura-de-exportación-e); credenciales de WSFEX en [configuración](docs/configuration.md#certificados-de-exportación-wsfex); items, JSON y limitaciones (numeración global de WSFEX, sin notas E, sin lote) en [entrada y salida](docs/input-output.md), [PDF](docs/pdf.md) y [limitaciones](docs/limitations.md).
+
 ## [2.1.0] - 2026-10-23
 
 Trae `arcli padron` y el IVA receptor desde el padrón al facturar con `--cuit`, el aviso de vencimiento del certificado y una guía para el punto de venta de web service. Además corrige un montón de cosas que salen de una revisión del repo: el JSON de `--cargar` se valida clave por clave, los errores con `--json` tienen siempre la misma forma, y los ejemplos de la ayuda y de los docs se pueden copiar y andan.

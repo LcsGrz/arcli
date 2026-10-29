@@ -390,15 +390,17 @@ describe('ejemplos de facturacion validos', () => {
     expect([...EXCLUDED_EXAMPLES.keys()].filter((command) => !commands.has(command))).toEqual([]);
   });
 
-  it('accepts every billing example in the help', async () => {
+  // Valida ~150 ejemplos construyendo el programa entero en cada uno: con la suite completa en paralelo
+  // pasa de 5 s, asi que el limite es explicito.
+  it('accepts every billing example in the help', { timeout: 30_000 }, async () => {
     expect(await findInvalid(collectHelpExamples())).toEqual([]);
   });
 
-  it('accepts every example of arcli ejemplos', async () => {
+  it('accepts every example of arcli ejemplos', { timeout: 30_000 }, async () => {
     expect(await findInvalid(collectExamplesCommand())).toEqual([]);
   });
 
-  it('accepts every billing command in docs, README and llms.txt', async () => {
+  it('accepts every billing command in docs, README and llms.txt', { timeout: 30_000 }, async () => {
     expect(await findInvalid(collectDocExamples())).toEqual([]);
   });
 

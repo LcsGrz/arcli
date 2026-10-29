@@ -22,6 +22,16 @@ interface PublicConfigSnapshot {
   readonly emisor: ArcliConfig['emisor'];
   readonly emitir: boolean;
   readonly entorno: 'produccion' | 'testing';
+  readonly exportacion: {
+    readonly cert: {
+      readonly produccion?: string;
+      readonly testing?: string;
+    };
+    readonly key: {
+      readonly produccion?: string;
+      readonly testing?: string;
+    };
+  };
   readonly ivaReceptor?: ArcliConfig['ivaReceptorPorDefecto'];
   readonly json: boolean;
   readonly key: {
@@ -45,6 +55,7 @@ export interface ConfigPathSnapshot {
 }
 
 function toPublicSnapshot(config: ArcliConfig, paths: ConfigPathSnapshot): PublicConfigSnapshot {
+  const dedicated = config.exportacion;
   return {
     alicuota: config.alicuotaPorDefecto,
     aliasCbu: config.aliasCbu,
@@ -60,6 +71,16 @@ function toPublicSnapshot(config: ArcliConfig, paths: ConfigPathSnapshot): Publi
     emisor: { ...config.emisor, logo: config.emisor.logo ? maskPath(config.emisor.logo) : undefined },
     emitir: config.output.emitirPorDefecto,
     entorno: config.entornoPorDefecto,
+    exportacion: {
+      cert: {
+        produccion: dedicated?.cert.produccion ? maskPath(dedicated.cert.produccion) : undefined,
+        testing: dedicated?.cert.testing ? maskPath(dedicated.cert.testing) : undefined,
+      },
+      key: {
+        produccion: dedicated?.key.produccion ? maskPath(dedicated.key.produccion) : undefined,
+        testing: dedicated?.key.testing ? maskPath(dedicated.key.testing) : undefined,
+      },
+    },
     ivaReceptor: config.ivaReceptorPorDefecto,
     json: config.output.jsonPorDefecto,
     key: {
@@ -119,6 +140,10 @@ const CONFIG_TEXT_VALUES: Record<ConfigPublicKey, PublicConfigValue> = {
   'emisor.razonSocial': (c) => notSet(c.emisor.razonSocial),
   emitir: (c) => yesNo(c.emitir),
   entorno: (c) => c.entorno,
+  'exportacion.cert.produccion': (c) => notSet(c.exportacion.cert.produccion),
+  'exportacion.cert.testing': (c) => notSet(c.exportacion.cert.testing),
+  'exportacion.key.produccion': (c) => notSet(c.exportacion.key.produccion),
+  'exportacion.key.testing': (c) => notSet(c.exportacion.key.testing),
   ivaReceptor: (c) => notSet(c.ivaReceptor),
   json: (c) => yesNo(c.json),
   'key.produccion': (c) => notSet(c.key.produccion),

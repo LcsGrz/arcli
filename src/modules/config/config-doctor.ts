@@ -4,7 +4,7 @@ import { readPemFile } from '../../lib/security/pem';
 import { listMissingIssuerKeys } from '../pdf/pdf-issuer';
 
 import { CERTIFICATE_EXPIRY_WARNING_DAYS, formatCertificateExpiryDate } from './certificate-expiry';
-import type { ArcliConfig, ArcliEnvironment } from './config.schemas';
+import { type ArcliConfig, type ArcliEnvironment, arcliEnvironmentSchema } from './config.schemas';
 
 export interface ConfigDoctorReport {
   readonly checks: ReadonlyArray<{
@@ -120,12 +120,38 @@ export function buildConfigDoctorReport(
   for (const [label, certPath] of [
     ['Vencimiento cert. testing', config.cert.testing],
     ['Vencimiento cert. produccion', config.cert.produccion],
+    ['Vencimiento cert. exportacion testing', config.exportacion?.cert.testing],
+    ['Vencimiento cert. exportacion produccion', config.exportacion?.cert.produccion],
   ] as const) {
     const certificateCheck = buildCertificateExpiryCheck(label, certPath);
 
     if (certificateCheck) {
       checks.push(certificateCheck);
     }
+  }
+
+  // WSFEX es opcional: solo se avisa si hay algo configurado a medias.
+  for (const environment of arcliEnvironmentSchema.options) {
+    const cert = config.exportacion?.cert[environment];
+    const key = config.exportacion?.key[environment];
+
+    if (!cert && !key) {
+      continue;
+    }
+
+    checks.push(
+      cert && key
+        ? {
+            category: 'ok',
+            detail: `Certificado y clave de exportacion (${environment}) configurados.`,
+            label: 'Credenciales WSFEX',
+          }
+        : {
+            category: 'warning',
+            detail: `Para WSFEX en ${environment} configure "exportacion.cert.${environment}" y "exportacion.key.${environment}" juntos.`,
+            label: 'Credenciales WSFEX',
+          },
+    );
   }
 
   checks.push({

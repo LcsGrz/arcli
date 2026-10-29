@@ -5,9 +5,10 @@ import { AppError } from '../../lib/errors/app-error';
 import { writeNewFile } from '../../lib/files/write-new-file';
 import type { BillingExecutionResult } from '../../modules/billing/billing.types.internal';
 import type { ArcliConfig } from '../../modules/config/config.schemas';
+import type { ExportExecutionResult } from '../../modules/export/export.types';
 import { PdfError } from '../../modules/pdf/pdf.errors';
 import type { InvoicePdfOptions, PdfOutcome, PdfVoucherExtras } from '../../modules/pdf/pdf.types';
-import { mapBillingResultToPdfData } from '../../modules/pdf/pdf-data.mapper';
+import { mapBillingResultToPdfData, mapExportResultToPdfData } from '../../modules/pdf/pdf-data.mapper';
 import { buildPdfFileName } from '../../modules/pdf/pdf-file-name';
 import { resolvePdfIssuer } from '../../modules/pdf/pdf-issuer';
 
@@ -65,6 +66,31 @@ export async function exportBillingPdf(input: ExportPdfInput): Promise<string> {
   const { result } = input;
   const issuer = resolvePdfIssuer(input.config, result.voucherKind.letter);
   const data = mapBillingResultToPdfData(result, issuer, input.extras);
+  const options: InvoicePdfOptions = {
+    footerText: result.environment === 'testing' ? TESTING_FOOTER : undefined,
+    logo: readLogoAsDataUrl(input.config.emisor.logo),
+  };
+  const bytes = await input.renderer.render(escapeHtmlStrings(data), options);
+  const folder = resolvePdfTargetFolder(input.folder, result.environment, issuer.cuit);
+
+  mkdirSync(folder, { recursive: true });
+
+  return writeNewFile(join(folder, buildPdfFileName(result.voucherKind, data.puntoVenta, data.cbteDesde)), bytes);
+}
+
+export interface ExportacionPdfInput {
+  readonly config: Pick<ArcliConfig, 'cuit' | 'emisor'>;
+  readonly extras?: PdfVoucherExtras;
+  readonly folder: string;
+  readonly renderer: PdfRenderer;
+  readonly result: ExportExecutionResult;
+}
+
+/** Igual que `exportBillingPdf`, con el detalle real de WSFEX y el CUIT del pais del cliente. */
+export async function exportExportacionPdf(input: ExportacionPdfInput): Promise<string> {
+  const { result } = input;
+  const issuer = resolvePdfIssuer(input.config, result.voucherKind.letter);
+  const data = mapExportResultToPdfData(result, issuer, input.extras);
   const options: InvoicePdfOptions = {
     footerText: result.environment === 'testing' ? TESTING_FOOTER : undefined,
     logo: readLogoAsDataUrl(input.config.emisor.logo),

@@ -1,0 +1,150 @@
+import { type Command, Option } from 'commander';
+
+import { InputValidationError } from '../../lib/errors/app-error';
+import { EXCHANGE_RATE_DECIMALS } from '../../lib/numbers/argentine-amount';
+import { parseStrictInteger } from '../../lib/numbers/strict-integer';
+import { parseExportItemArgument } from '../../modules/export/export.items';
+import type { ExportItemInput, ExportType } from '../../modules/export/export.types';
+import { amountOption, integerOption } from '../option-parsers';
+
+function exportTypeOption(value: string): ExportType {
+  const parsed = parseStrictInteger(value);
+
+  if (parsed !== 1 && parsed !== 2 && parsed !== 4) {
+    throw new InputValidationError(`--tipo-expo "${value}" no es valido: use 1 (bienes), 2 (servicios) o 4 (otros).`);
+  }
+
+  return parsed;
+}
+
+function repeatable<T>(parse: (value: string) => T): (value: string, previous: unknown) => unknown {
+  return (value, previous) => [...(Array.isArray(previous) ? (previous as T[]) : []), parse(value)];
+}
+
+interface ExportOptionDefinition {
+  readonly description: string;
+  readonly flags: string;
+  readonly parser?: (value: string, previous: unknown) => unknown;
+}
+
+const EXPORT_OPTIONS: readonly ExportOptionDefinition[] = [
+  {
+    description: 'importe total del comprobante, por ejemplo 15000 o 1.500,50',
+    flags: '-m, --monto <number>',
+    parser: amountOption('--monto'),
+  },
+  { description: 'nombre o razon social del cliente del exterior', flags: '--cliente <texto>' },
+  { description: 'domicilio del cliente en el exterior', flags: '--domicilio-cliente <texto>' },
+  {
+    description: 'pais de destino por codigo o nombre, por ejemplo 203 o Brasil',
+    flags: '--pais-destino <codigo|nombre>',
+  },
+  { description: 'ID impositivo del cliente en su pais', flags: '--id-impositivo <texto>' },
+  {
+    description: 'CUIT del pais del cliente; sin este flag se resuelve desde el pais de destino',
+    flags: '--cuit-pais <number>',
+    parser: integerOption('--cuit-pais'),
+  },
+  {
+    description: 'tipo de exportacion: 1 bienes, 2 servicios (por defecto), 4 otros',
+    flags: '--tipo-expo <1|2|4>',
+    parser: exportTypeOption,
+  },
+  {
+    description: 'codigo de actividad de ARCA; por defecto 620900 (servicios de informatica N.C.P.)',
+    flags: '--actividad <codigo>',
+    parser: integerOption('--actividad'),
+  },
+  { description: 'codigo de incoterm, por ejemplo FOB', flags: '--incoterm <codigo>' },
+  { description: 'descripcion del incoterm; por defecto la de la tabla de ARCA', flags: '--incoterms-desc <texto>' },
+  {
+    description: 'codigo de idioma del comprobante: 1 espanol (por defecto), 2 ingles, 3 portugues',
+    flags: '--idioma <codigo>',
+    parser: integerOption('--idioma'),
+  },
+  { description: 'forma de pago; por defecto "Transferencia Internacional"', flags: '--forma-pago <texto>' },
+  {
+    description: 'permiso de embarque ya existente; repetible. Requiere --permiso-existente y --tipo-expo 1',
+    flags: '--permiso <id>',
+    parser: repeatable((value: string) => value),
+  },
+  {
+    description: 'el permiso de embarque informado ya existe en ARCA',
+    flags: '--permiso-existente',
+  },
+  {
+    description:
+      'item del comprobante: codigo|descripcion|cantidad|precio|unidad. Repetible; la suma tiene que dar --monto',
+    flags: '--item <partes>',
+    parser: repeatable<ExportItemInput>((value) => parseExportItemArgument(value)),
+  },
+  {
+    description: 'numero del comprobante; por defecto el siguiente de ARCA',
+    flags: '--numero <number>',
+    parser: integerOption('--numero'),
+  },
+  {
+    description: 'ID de la solicitud; por defecto el siguiente de ARCA',
+    flags: '--id-solicitud <number>',
+    parser: integerOption('--id-solicitud'),
+  },
+  { description: 'punto de venta', flags: '--punto-venta <number>', parser: integerOption('--punto-venta') },
+  { description: 'alias de punto de venta', flags: '--pv <number>', parser: integerOption('--pv') },
+  { description: 'fecha del comprobante; acepta D, D/M, D/M/YY o D/M/YYYY con - o /', flags: '-f, --fecha <fecha>' },
+  { description: 'fecha de pago; por defecto la del comprobante', flags: '--fecha-pago <fecha>' },
+  { description: 'codigo de moneda: USD o DOL (por defecto), ARS o PES', flags: '--moneda <codigo>' },
+  { description: 'alias de moneda', flags: '--mda <codigo>' },
+  {
+    description: 'cotizacion de la moneda; sin este flag se consulta la del dia en ARCA',
+    flags: '--cotizacion-moneda <number>',
+    parser: amountOption('--cotizacion-moneda', EXCHANGE_RATE_DECIMALS),
+  },
+  {
+    description: 'alias de cotizacion de la moneda',
+    flags: '--cm <number>',
+    parser: amountOption('--cm', EXCHANGE_RATE_DECIMALS),
+  },
+  { description: 'el pago se cancela en la misma moneda extranjera', flags: '--misma-moneda' },
+  { description: 'observaciones del comprobante', flags: '--observaciones <texto>' },
+  { description: 'observaciones comerciales del comprobante', flags: '--obs-comerciales <texto>' },
+  {
+    description: 'descripcion del comprobante cuando no se informan items; tambien va al PDF',
+    flags: '--descripcion <texto>',
+  },
+  { description: 'cargar los datos desde un archivo JSON', flags: '--cargar <path>' },
+  { description: 'generar el PDF del comprobante emitido, aunque la config diga otra cosa', flags: '--exportar-pdf' },
+  { description: 'alias de --exportar-pdf', flags: '--pdf' },
+  { description: 'no generar el PDF, aunque la config diga otra cosa', flags: '--sin-pdf' },
+  { description: 'mostrar el payload antes de emitir en ARCA', flags: '--previsualizar' },
+  { description: 'emitir realmente en ARCA', flags: '--emitir' },
+];
+
+/**
+ * Las opciones de la factura de exportacion. `hidden` las registra igual pero sin mostrarlas: `arcli factura e`
+ * las acepta como alias del comando propio.
+ */
+export function registerExportOptions(command: Command, options: { readonly hidden?: boolean } = {}): void {
+  // `arcli factura e` comparte los flags de facturacion (--monto, --fecha...): esos ya estan y se reusan.
+  const existing = new Set(
+    command.options.flatMap((option) => [option.short, option.long]).filter((flag): flag is string => Boolean(flag)),
+  );
+
+  for (const definition of EXPORT_OPTIONS) {
+    const option = new Option(definition.flags, definition.description);
+    const flags = [option.short, option.long].filter((flag): flag is string => Boolean(flag));
+
+    if (flags.some((flag) => existing.has(flag))) {
+      continue;
+    }
+
+    if (definition.parser) {
+      option.argParser(definition.parser);
+    }
+
+    if (options.hidden) {
+      option.hideHelp();
+    }
+
+    command.addOption(option);
+  }
+}

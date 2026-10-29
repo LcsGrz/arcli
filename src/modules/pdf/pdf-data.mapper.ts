@@ -3,6 +3,7 @@ import type { IIva } from '@arcasdk/core/lib/domain/types/voucher.types';
 import { resolveIvaRateLabel } from '../billing/billing.amounts';
 import { formatIvaConditionLabel } from '../billing/billing.labels';
 import type { BillingExecutionResult } from '../billing/billing.types.internal';
+import type { ExportExecutionResult } from '../export/export.types';
 
 import { PdfError } from './pdf.errors';
 import type { InvoicePdfData, InvoicePdfIssuer, InvoicePdfItem, InvoicePdfIva, PdfVoucherExtras } from './pdf.types';
@@ -152,6 +153,72 @@ export function mapBillingResultToPdfData(
       documentoTipo: isUnidentified ? 'Documento' : (DOCUMENT_TYPE_NAMES[payload.DocTipo] ?? String(payload.DocTipo)),
       domicilio: extras.receptorDomicilio?.trim() || undefined,
       razonSocial: extras.receptorNombre?.trim() || (isConsumer ? 'Consumidor Final' : EMPTY_TEXT),
+    },
+  };
+}
+
+/** En WSFEX el numero tambien lo asigna ARCA al autorizar. */
+function resolveExportVoucherNumber(result: ExportExecutionResult): number {
+  const number = result.response.raw?.FEXAuthorizeResult?.FEXResultAuth?.Cbte_nro || result.payload.Cbte_nro;
+
+  if (!number) {
+    throw new PdfError('PDF_GENERATION_ERROR', 'La respuesta de ARCA no trae el numero del comprobante.');
+  }
+
+  return number;
+}
+
+/** La letra E lleva los items reales de WSFEX y el CUIT del pais del cliente; el IVA no se discrimina. */
+export function mapExportResultToPdfData(
+  result: ExportExecutionResult,
+  issuer: InvoicePdfIssuer,
+  extras: PdfVoucherExtras = {},
+): InvoicePdfData {
+  const { display, payload, response } = result;
+
+  if (!response.cae || !response.caeVencimiento) {
+    throw new PdfError('PDF_GENERATION_ERROR', 'El comprobante no tiene CAE: no se puede generar el PDF.');
+  }
+
+  const number = resolveExportVoucherNumber(result);
+  const items: InvoicePdfItem[] = payload.Items.Item.map((item) => ({
+    cantidad: item.Pro_qty,
+    codigo: item.Pro_codigo || undefined,
+    descripcion: item.Pro_ds,
+    precioUnitario: item.Pro_precio_uni,
+    subtotal: item.Pro_total_item,
+    unidadMedida: display.unitNames[item.Pro_umed] ?? 'unidad',
+  }));
+
+  return {
+    cae: response.cae,
+    caeFechaVencimiento: response.caeVencimiento,
+    cbteDesde: number,
+    cbteFecha: payload.Fecha_cbte,
+    cbteHasta: number,
+    cbteLetra: result.voucherKind.letter.toUpperCase(),
+    cbteTipo: payload.Cbte_Tipo,
+    // WSFEX no tiene concepto: el tipo de exportacion 2 es servicios.
+    concepto: payload.Tipo_expo === 2 ? 2 : 1,
+    cotizacion: payload.Moneda_ctz,
+    emisor: issuer,
+    fechaVtoPago: payload.Fecha_pago,
+    importeIva: 0,
+    importeNetoGravado: payload.Imp_total,
+    importeTotal: round(payload.Imp_total),
+    items,
+    moneda: payload.Moneda_Id,
+    puntoVenta: payload.Punto_vta,
+    receptor: {
+      condicionIva: 'Cliente del exterior',
+      cuitPais: display.countryName
+        ? `${payload.Cuit_pais_cliente} (${display.countryName})`
+        : String(payload.Cuit_pais_cliente),
+      documentoNro: String(payload.Cuit_pais_cliente),
+      documentoTipo: 'CUIT',
+      domicilio: extras.receptorDomicilio?.trim() || payload.Domicilio_cliente,
+      idImpositivo: payload.Id_impositivo || undefined,
+      razonSocial: extras.receptorNombre?.trim() || payload.Cliente,
     },
   };
 }
