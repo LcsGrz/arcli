@@ -8,6 +8,16 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+### Agregado
+
+- **`numero` en el JSON de facturación:** el número que le tocó al comprobante emitido (`null` en una previsualización), y `solicitud` lo trae en `CbteDesde`/`CbteHasta`. El panel de texto muestra `Número: 00003-00000125`. Antes el número solo se veía con `--bruto`.
+
+### Corregido
+
+- **`consultarPadron false` se respeta siempre:** con un `ivaReceptor` en la config, facturar con `--cuit` igual consultaba el padrón y su condición IVA pisaba la de la config.
+- **Aviso falso en `avisos`:** "--descripcion, --receptor-nombre y --receptor-domicilio solo se usan en el PDF" salía sin haber pasado esos flags, cuando el nombre o el domicilio los había completado el padrón.
+- **Modo interactivo:** al generar el PDF, apretar Enter en el nombre o el domicilio del receptor borraba lo que había traído el padrón; ahora lo propone y Enter lo deja. En una FCE se informa el `aliasCbu` de la config, como con flags. Y si la config tiene una moneda extranjera, el comando equivalente de un comprobante en pesos lleva `--moneda ARS`, así al pegarlo hace lo mismo.
+
 ## [2.1.0] - 2026-10-23
 
 Trae `arcli padron` y el IVA receptor desde el padrón al facturar con `--cuit`, el aviso de vencimiento del certificado y una guía para el punto de venta de web service. Además corrige un montón de cosas que salen de una revisión del repo: el JSON de `--cargar` se valida clave por clave, los errores con `--json` tienen siempre la misma forma, y los ejemplos de la ayuda y de los docs se pueden copiar y andan.
