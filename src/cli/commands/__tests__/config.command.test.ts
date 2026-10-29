@@ -21,7 +21,7 @@ vi.mock('../../../services/arca/arca-context.resolver', () => ({
 
 const CONFIG = {
   cert: { testing: '/certs/testing.pem' },
-  cuit: '20123456789',
+  cuit: '20123456786',
   emisor: {},
   entornoPorDefecto: 'testing',
   key: { testing: '/certs/testing.key' },
@@ -61,14 +61,14 @@ describe('buildRuntimeChecks', () => {
     validate
       .mockImplementationOnce(() => undefined)
       .mockImplementationOnce(() => {
-        throw new Error('No se encontro el certificado.');
+        throw new Error('No se encontró el certificado.');
       });
 
     const checks = buildRuntimeChecks({ ...CONFIG, cert: { ...CONFIG.cert, produccion: '/certs/prod.pem' } });
 
     expect(checks).toEqual([
       { environment: 'testing' },
-      { environment: 'produccion', error: 'No se encontro el certificado.' },
+      { environment: 'produccion', error: 'No se encontró el certificado.' },
     ]);
     expect(resolverOptions).toEqual([{ testing: true }, { produccion: true }]);
   });
@@ -84,7 +84,7 @@ describe('arcli config', () => {
       const output = write.mock.calls.map(([chunk]) => String(chunk)).join('');
 
       expect(JSON.parse(output)).toHaveProperty('chequeos');
-      expect(output).toContain('"etiqueta": "Validacion testing"');
+      expect(output).toContain('"etiqueta": "Validación testing"');
     } finally {
       write.mockRestore();
     }
@@ -99,7 +99,7 @@ describe('arcli config', () => {
 
       const output = write.mock.calls.map(([chunk]) => String(chunk)).join('');
 
-      expect(JSON.parse(output)).toHaveProperty('cuit', '20123456789');
+      expect(JSON.parse(output)).toHaveProperty('cuit', '20123456786');
     } finally {
       write.mockRestore();
     }

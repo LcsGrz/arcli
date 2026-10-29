@@ -57,7 +57,7 @@ function requireText(value: string | undefined, description: string, flag: strin
   const trimmed = value?.trim();
 
   if (!trimmed) {
-    throw new InputValidationError(`Falta ${description}. Use ${flag}.`);
+    throw new InputValidationError(`Falta ${description}. Usá ${flag}.`);
   }
 
   return trimmed;
@@ -91,7 +91,7 @@ export function resolveExportCurrency(
     }
 
     if (typeof input.exchangeRate === 'number' && input.exchangeRate !== LOCAL_EXCHANGE_RATE) {
-      throw new InputValidationError('En pesos la cotizacion tiene que ser 1. Quite --cotizacion-moneda o use --cm 1.');
+      throw new InputValidationError('En pesos la cotización tiene que ser 1. Quitá --cotizacion-moneda o usá --cm 1.');
     }
 
     return {
@@ -105,7 +105,7 @@ export function resolveExportCurrency(
     input.exchangeRate ?? (configuredRate && configuredRate > LOCAL_EXCHANGE_RATE ? configuredRate : undefined);
 
   if (rate !== undefined && rate <= LOCAL_EXCHANGE_RATE) {
-    throw new InputValidationError(`La cotizacion de ${displayCode} tiene que ser mayor a 1.`);
+    throw new InputValidationError(`La cotización de ${displayCode} tiene que ser mayor a 1.`);
   }
 
   return {
@@ -138,9 +138,9 @@ export function resolveExportQuotation(
   const available = quotations.map((entry) => entry.code).join(', ');
 
   throw new AppError(
-    `ARCA no informo la cotizacion de ${code} para el ${isoDate}.${
-      available ? ` Las monedas con cotizacion son ${available}.` : ''
-    } Informe la cotizacion con --cotizacion-moneda.`,
+    `ARCA no informó la cotización de ${code} para el ${isoDate}.${
+      available ? ` Las monedas con cotización son ${available}.` : ''
+    } Informá la cotización con --cotizacion-moneda.`,
     { code: 'ARCA_QUOTATION_ERROR' },
   );
 }
@@ -160,7 +160,7 @@ export function resolveExportActivity(
   const id = value ?? DEFAULT_EXPORT_ACTIVITY_ID;
 
   if (!Number.isInteger(id) || id < 1) {
-    throw new InputValidationError('La actividad tiene que ser un numero entero positivo. Use --actividad.');
+    throw new InputValidationError('La actividad tiene que ser un número entero positivo. Usá --actividad.');
   }
 
   if (activities.length === 0 || activities.some((activity) => activity.id === id)) {
@@ -174,7 +174,7 @@ export function resolveExportActivity(
 
   return {
     id,
-    warning: `La actividad ${id} no esta en la tabla de actividades de WSFEX: ARCA la rechaza al emitir (error 2105).${candidates} Indique la que corresponda con --actividad.`,
+    warning: `La actividad ${id} no está en la tabla de actividades de WSFEX: ARCA la rechaza al emitir (error 2105).${candidates} Indicá la que corresponda con --actividad.`,
   };
 }
 
@@ -185,7 +185,7 @@ export function resolveExportType(value: ExportType | undefined): ExportType {
 
   if (!EXPORT_TYPE_VALUES.includes(value)) {
     throw new InputValidationError(
-      '--tipo-expo tiene que ser 1 (exportacion definitiva de bienes), 2 (servicios) o 4 (otros).',
+      '--tipo-expo tiene que ser 1 (exportación definitiva de bienes), 2 (servicios) o 4 (otros).',
     );
   }
 
@@ -215,7 +215,7 @@ export function resolveExportDestinationCountry(
   value: string | undefined,
   countries: readonly ExportCountry[],
 ): ExportCountry {
-  const trimmed = requireText(value, 'el pais de destino', '--pais-destino');
+  const trimmed = requireText(value, 'el país de destino', '--pais-destino');
   const numeric = /^\d+$/.test(trimmed) ? Number(trimmed) : undefined;
   const country = numeric
     ? countries.find((entry) => entry.code === numeric)
@@ -223,13 +223,13 @@ export function resolveExportDestinationCountry(
 
   if (!country) {
     throw new InputValidationError(
-      `El pais de destino "${trimmed}" no existe en la tabla de ARCA. Use el codigo o el nombre que informa ARCA.`,
+      `El país de destino "${trimmed}" no existe en la tabla de ARCA. Usá el código o el nombre que informa ARCA.`,
     );
   }
 
   if (country.code === ARGENTINA_COUNTRY_CODE) {
     throw new InputValidationError(
-      'Argentina no es un destino de exportacion: use `arcli factura a` o `arcli factura b`.',
+      'Argentina no es un destino de exportación: usá `arcli factura a` o `arcli factura b`.',
     );
   }
 
@@ -297,7 +297,7 @@ export function resolveExportClientCountryCuit(options: {
 
     if (!resolved) {
       throw new InputValidationError(
-        `La tabla de ARCA no tiene CUIT para "${options.country.name}". Indiquelo con --cuit-pais.`,
+        `La tabla de ARCA no tiene CUIT para "${options.country.name}". Indicalo con --cuit-pais.`,
       );
     }
 
@@ -307,14 +307,14 @@ export function resolveExportClientCountryCuit(options: {
   const match = options.countries.find((entry) => entry.cuit === options.cuit);
 
   if (!match) {
-    throw new InputValidationError(`El CUIT de pais ${options.cuit} no existe en la tabla de ARCA.`);
+    throw new InputValidationError(`El CUIT de país ${options.cuit} no existe en la tabla de ARCA.`);
   }
 
   const expected = pickCountryCuit(forDestination);
 
   if (expected && normalizeCountryName(countryNameWithoutEntity(match.countryName)) !== destination) {
     throw new InputValidationError(
-      `El CUIT de pais ${options.cuit} corresponde a "${countryNameWithoutEntity(match.countryName)}" y el destino es "${options.country.name}". Para "${options.country.name}" la tabla de ARCA trae ${expected.cuit}.`,
+      `El CUIT de país ${options.cuit} corresponde a "${countryNameWithoutEntity(match.countryName)}" y el destino es "${options.country.name}". Para "${options.country.name}" la tabla de ARCA trae ${expected.cuit}.`,
     );
   }
 
@@ -336,7 +336,7 @@ export function resolveExportIncoterm(
 
   if (!incoterm) {
     throw new InputValidationError(
-      `El incoterm "${trimmed}" no existe en la tabla de ARCA. Consulte los validos con arcli parametros.`,
+      `El incoterm "${trimmed}" no existe en la tabla de ARCA. Consultá los válidos con arcli parametros.`,
     );
   }
 
@@ -347,11 +347,11 @@ export function resolveExportPointOfSale(value: number | undefined, config: Expo
   const pointOfSale = value ?? config.puntoVentaPorDefecto;
 
   if (pointOfSale === undefined) {
-    throw new InputValidationError('Falta el punto de venta. Use --punto-venta o configure puntoVentaPorDefecto.');
+    throw new InputValidationError('Falta el punto de venta. Usá --punto-venta o configurá puntoVentaPorDefecto.');
   }
 
   if (!Number.isInteger(pointOfSale) || pointOfSale < 1) {
-    throw new InputValidationError('El punto de venta tiene que ser un numero entero positivo.');
+    throw new InputValidationError('El punto de venta tiene que ser un número entero positivo.');
   }
 
   return pointOfSale;
@@ -365,7 +365,7 @@ export function resolveExportNumber(options: {
 }): number {
   if (options.provided !== undefined) {
     if (!Number.isInteger(options.provided) || options.provided < 1) {
-      throw new InputValidationError(`${options.label} tiene que ser un numero entero positivo.`);
+      throw new InputValidationError(`${options.label} tiene que ser un número entero positivo.`);
     }
 
     return options.provided;
@@ -374,7 +374,7 @@ export function resolveExportNumber(options: {
   const next = (Number.isFinite(options.last) ? options.last : 0) + 1;
 
   if (next > MAX_EXPORT_VOUCHER_NUMBER) {
-    throw new InputValidationError(`${options.label} supera el maximo de ARCA (${MAX_EXPORT_VOUCHER_NUMBER}).`);
+    throw new InputValidationError(`${options.label} supera el máximo de ARCA (${MAX_EXPORT_VOUCHER_NUMBER}).`);
   }
 
   return next;
@@ -398,7 +398,7 @@ function resolvePermits(
 
   if (permits.length === 0) {
     if (input.permitsExisting) {
-      throw new InputValidationError('--permiso-existente pide al menos un permiso de embarque. Use --permiso.');
+      throw new InputValidationError('--permiso-existente pide al menos un permiso de embarque. Usá --permiso.');
     }
 
     return undefined;
@@ -406,7 +406,7 @@ function resolvePermits(
 
   if (requiresEmptyPermitsExisting(exportType)) {
     throw new InputValidationError(
-      `El tipo de exportacion ${exportType} (${EXPORT_TYPES[exportType]}) no lleva permisos de embarque: ARCA exige Permiso_existente vacio (error 1550). Quite --permiso.`,
+      `El tipo de exportación ${exportType} (${EXPORT_TYPES[exportType]}) no lleva permisos de embarque: ARCA exige Permiso_existente vacío (error 1550). Quitá --permiso.`,
     );
   }
 
@@ -430,7 +430,7 @@ export function buildExportPayload(input: ExportVoucherInput, resolution: BuildE
   const clientAddress = requireText(input.clientAddress, 'el domicilio del cliente', '--domicilio-cliente');
 
   if (typeof input.amount !== 'number' || !(input.amount > 0)) {
-    throw new InputValidationError('Falta el importe total o no es valido. Use --monto.');
+    throw new InputValidationError('Falta el importe total o no es válido. Usá --monto.');
   }
 
   const permits = resolvePermits(input, resolution.destinationCountry.code, resolution.exportType);

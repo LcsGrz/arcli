@@ -187,7 +187,7 @@ describe('serializeExportResult', () => {
     const preview = result({ dryRun: true, response: { ...result().response, cae: null, raw: null } });
 
     expect(serializeExportResult(preview, { raw: true }).respuesta).toEqual({
-      mensaje: 'Sin emision real. Use --emitir para obtener una respuesta de ARCA.',
+      mensaje: 'Sin emisión real. Usá --emitir para obtener una respuesta de ARCA.',
     });
   });
 

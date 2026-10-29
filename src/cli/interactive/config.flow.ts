@@ -2,6 +2,18 @@ import { Separator } from '@inquirer/select';
 import { join } from 'node:path';
 
 import { CERTIFICATE_GUIDE_URL } from '../../lib/links';
+import {
+  formatCompletionResultAsText,
+  formatCompletionStateAsText,
+} from '../../modules/completion/completion.presenter';
+import {
+  currentCompletionEnvironment,
+  detectShell,
+  getCompletionState,
+  installCompletion,
+  uninstallCompletion,
+} from '../../modules/completion/installer';
+import { COMPLETION_SHELLS, type CompletionShell } from '../../modules/completion/shell-scripts';
 import type { ArcliConfig, ConfigPublicKey } from '../../modules/config/config.schemas';
 import { CONFIG_SECTIONS } from '../../modules/config/config.sections';
 import { ConfigService, validateConfigValue } from '../../modules/config/config.service';
@@ -39,7 +51,12 @@ const GUIDED_KEYS: readonly ConfigPublicKey[] = [
   'concepto',
   'ivaReceptor',
 ];
-const ISSUER_KEYS: readonly ConfigPublicKey[] = ['emisor.razonSocial', 'emisor.domicilio', 'emisor.inicioActividades'];
+const ISSUER_KEYS: readonly ConfigPublicKey[] = [
+  'emisor.razonSocial',
+  'emisor.domicilio',
+  'emisor.inicioActividades',
+  'emisor.iibb',
+];
 
 function withConfigService<T>(run: (service: ConfigService) => T): T {
   const service = new ConfigService();
@@ -150,7 +167,7 @@ function fieldSteps(keys: readonly ConfigPublicKey[], required: readonly ConfigP
     run: async () => {
       if (key === 'cert.testing' && !readConfig().cert.testing) {
         writeTerminalOutput(
-          noticePanel(`¿No tenes certificado todavia? Guia paso a paso: ${CERTIFICATE_GUIDE_URL}`, 'muted'),
+          noticePanel(`¿No tenés certificado todavía? Guía paso a paso: ${CERTIFICATE_GUIDE_URL}`, 'muted'),
         );
       }
 
@@ -165,7 +182,7 @@ function fieldSteps(keys: readonly ConfigPublicKey[], required: readonly ConfigP
 export async function runGuidedSetup(): Promise<void> {
   writeTerminalOutput(
     noticePanel(
-      `Vamos a dejar todo listo para emitir. Si todavia no tenes certificado, la guia esta en ${CERTIFICATE_GUIDE_URL}`,
+      `Vamos a dejar todo listo para emitir. Si todavía no tenés certificado, la guía esta en ${CERTIFICATE_GUIDE_URL}`,
       'info',
     ),
   );
@@ -173,16 +190,16 @@ export async function runGuidedSetup(): Promise<void> {
   const completed = await runWizard(fieldSteps(GUIDED_KEYS, ['cuit', 'cert.testing', 'key.testing', 'puntoVenta']), {});
 
   if (!completed) {
-    writeTerminalOutput(noticePanel('Configuracion guiada cancelada. Lo ya respondido quedo guardado.', 'muted'));
+    writeTerminalOutput(noticePanel('Configuración guiada cancelada. Lo ya respondido quedo guardado.', 'muted'));
 
     return;
   }
 
-  if (await confirm('¿Cargamos tambien los datos del emisor para el PDF?', 'Si', 'Ahora no')) {
+  if (await confirm('¿Cargamos también los datos del emisor para el PDF?', 'Si', 'Ahora no')) {
     await runWizard(fieldSteps(ISSUER_KEYS, []), {});
   }
 
-  writeTerminalOutput(noticePanel('Configuracion guardada. Ya podes emitir en testing.', 'success'));
+  writeTerminalOutput(noticePanel('Configuración guardada. Ya podés emitir en testing.', 'success'));
 }
 
 /** Los datos agrupados por seccion, en el mismo orden que `arcli config`, con un titulo arriba de cada una. */
@@ -213,7 +230,7 @@ async function runChangeField(): Promise<void> {
     const choices = fieldChoicesBySection(config);
     // +2: el separador y "Volver" que agrega chooseStep.
     const field = await chooseStep<ConfigField>(
-      '¿Que queres modificar?',
+      '¿Qué querés modificar?',
       choices,
       lastField,
       fitPageSize(choices.length + 2),
@@ -245,11 +262,11 @@ async function runPdfPluginMenu(): Promise<void> {
 
   writeTerminalOutput(formatPdfPluginStatusAsText(status));
 
-  const action = await chooseStep<'desinstalar' | 'instalar'>('¿Que hacemos con el plugin de PDF?', [
+  const action = await chooseStep<'desinstalar' | 'instalar'>('¿Qué hacemos con el plugin de PDF?', [
     status.installed
       ? { description: 'Borra el plugin y el navegador descargado', name: 'Desinstalar', value: 'desinstalar' }
       : {
-          description: '~160 MB, o ~360 MB si no tenes Chrome',
+          description: '~160 MB, o ~360 MB si no tenés Chrome',
           name: status.installedVersion ? 'Actualizar' : 'Instalar',
           value: 'instalar',
         },
@@ -281,7 +298,43 @@ async function runPdfPluginMenu(): Promise<void> {
   writeTerminalOutput(formatPdfPluginStatusAsText(plugin.getStatus(), 'Plugin de PDF instalado'));
 }
 
-type ConfigOption = 'cambiar' | 'guiada' | 'pdf' | 'revisar' | 'ver' | 'volver';
+async function runCompletionMenu(): Promise<void> {
+  const environment = currentCompletionEnvironment();
+  const shell =
+    detectShell(environment.shell) ??
+    (await chooseStep<CompletionShell>(
+      '¿Qué shell usás?',
+      COMPLETION_SHELLS.map((name) => ({ name, value: name })),
+    ));
+
+  if (shell === BACK) {
+    return;
+  }
+
+  const state = getCompletionState(shell, environment);
+
+  writeTerminalOutput(formatCompletionStateAsText(state, environment.home));
+
+  const action = await chooseStep<'desinstalar' | 'instalar'>('¿Qué hacemos con el autocompletado?', [
+    state.installed
+      ? { description: 'Lo saca del archivo de inicio del shell', name: 'Desinstalar', value: 'desinstalar' }
+      : {
+          description: `Completa comandos y flags con Tab; se agrega a ${state.path.replace(environment.home, '~')}`,
+          name: 'Instalar',
+          value: 'instalar',
+        },
+  ]);
+
+  if (action === BACK) {
+    return;
+  }
+
+  const result = (action === 'instalar' ? installCompletion : uninstallCompletion)(shell, environment);
+
+  writeTerminalOutput(formatCompletionResultAsText(result, environment.home));
+}
+
+type ConfigOption = 'cambiar' | 'completado' | 'guiada' | 'pdf' | 'revisar' | 'ver' | 'volver';
 
 function showConfig(): void {
   withConfigService((service) => {
@@ -295,25 +348,30 @@ function showConfig(): void {
 export async function runConfigMenu(): Promise<void> {
   for (;;) {
     const option = await chooseOne<ConfigOption>(
-      'Configuracion',
+      'Configuración',
       [
-        { description: 'Todos los datos guardados, como arcli config', name: 'Ver configuracion', value: 'ver' },
+        { description: 'Todos los datos guardados, como arcli config', name: 'Ver configuración', value: 'ver' },
         {
-          description: 'Credenciales, defaults y validacion contra ARCA',
-          name: 'Revisar configuracion',
+          description: 'Credenciales, defaults y validación contra ARCA',
+          name: 'Revisar configuración',
           value: 'revisar',
         },
         {
           description: 'CUIT, certificado, punto de venta y defaults, paso a paso',
-          name: 'Configuracion guiada',
+          name: 'Configuración guiada',
           value: 'guiada',
         },
         {
-          description: 'Elegis un dato, agrupado por seccion, y lo cambias',
-          name: 'Modificar configuracion',
+          description: 'Elegis un dato, agrupado por sección, y lo cambias',
+          name: 'Modificar configuración',
           value: 'cambiar',
         },
         { description: 'Estado, instalar o desinstalar', name: 'Plugin de PDF', value: 'pdf' },
+        {
+          description: 'Completar comandos y flags con Tab en la terminal',
+          name: 'Autocompletado',
+          value: 'completado',
+        },
         new Separator(' '),
         { name: '← Volver al menu', value: 'volver' },
       ],
@@ -336,5 +394,6 @@ export async function runConfigMenu(): Promise<void> {
     if (option === 'guiada') await runGuidedSetup();
     if (option === 'cambiar') await runChangeField();
     if (option === 'pdf') await runPdfPluginMenu();
+    if (option === 'completado') await runCompletionMenu();
   }
 }

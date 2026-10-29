@@ -65,6 +65,16 @@ function createDryRunResult(): BillingExecutionResult {
 }
 
 describe('billing.presenter', () => {
+  it('shows the emitted number in json and text, and leaves it null in a preview', () => {
+    const emitted = { ...createResult(), voucherNumber: 125 };
+    const json = JSON.parse(formatBillingResultAsJson(emitted)) as Record<string, unknown>;
+
+    expect(json.numero).toBe(125);
+    expect(json.solicitud).toMatchObject({ CbteDesde: 125, CbteHasta: 125, PtoVta: 3 });
+    expect(stripAnsi(formatBillingResultAsText(emitted))).toContain('00003-00000125');
+    expect((JSON.parse(formatBillingResultAsJson(createDryRunResult())) as Record<string, unknown>).numero).toBeNull();
+  });
+
   it('renders a pretty summary by default in json', () => {
     const output = formatBillingResultAsJson(createResult());
 
@@ -107,7 +117,7 @@ describe('billing.presenter', () => {
   it('shows a friendly raw message when there was no real emission', () => {
     const output = formatBillingResultAsJson(createDryRunResult(), { raw: true });
 
-    expect(output).toContain('Sin emision real');
+    expect(output).toContain('Sin emisión real');
     expect(output).not.toContain('"respuesta": null');
   });
 

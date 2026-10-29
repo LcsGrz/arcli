@@ -73,7 +73,7 @@ describe('resolveExportCurrency', () => {
 
   it('no acepta cotizacion en pesos distinta de 1 ni misma moneda en pesos', () => {
     expect(() => resolveExportCurrency({ currencyCode: 'ARS', exchangeRate: 2 }, config)).toThrow(
-      /cotizacion tiene que ser 1/,
+      /cotización tiene que ser 1/,
     );
     expect(() => resolveExportCurrency({ currencyCode: 'ARS', sameCurrency: true }, config)).toThrow(
       /moneda extranjera/,
@@ -114,13 +114,13 @@ describe('resolveExportQuotation', () => {
 
   it('falla con las monedas que si tienen cotizacion', () => {
     expect(() => resolveExportQuotation('019', QUOTATIONS, '2026-10-28')).toThrow(
-      /no informo la cotizacion de 019 para el 2026-10-28\. Las monedas con cotizacion son DOL, 060\./,
+      /no informó la cotización de 019 para el 2026-10-28\. Las monedas con cotización son DOL, 060\./,
     );
   });
 
   it('pide la cotizacion por flag cuando ARCA no publico ninguna', () => {
     expect(() => resolveExportQuotation('DOL', [], '2027-01-05')).toThrow(
-      /no informo la cotizacion de DOL para el 2027-01-05\. Informe la cotizacion con --cotizacion-moneda\./,
+      /no informó la cotización de DOL para el 2027-01-05\. Informá la cotización con --cotizacion-moneda\./,
     );
   });
 });
@@ -132,7 +132,7 @@ describe('resolveExportDestinationCountry', () => {
   });
 
   it('rechaza Argentina: no es un destino de exportacion', () => {
-    expect(() => resolveExportDestinationCountry('Argentina', COUNTRIES)).toThrow(/no es un destino de exportacion/);
+    expect(() => resolveExportDestinationCountry('Argentina', COUNTRIES)).toThrow(/no es un destino de exportación/);
   });
 
   it('rechaza un pais que no esta en la tabla', () => {
@@ -256,7 +256,7 @@ describe('resolveExportActivity', () => {
     const resolved = resolveExportActivity(620900, ACTIVITIES);
 
     expect(resolved.id).toBe(620900);
-    expect(resolved.warning).toMatch(/no esta en la tabla de actividades de WSFEX/);
+    expect(resolved.warning).toMatch(/no está en la tabla de actividades de WSFEX/);
     expect(resolved.warning).toMatch(/error 2105/);
     expect(resolved.warning).toMatch(/Las que empiezan con 620 son 62000, 620100, 620300/);
     expect(resolved.warning).toMatch(/--actividad/);
@@ -283,7 +283,7 @@ describe('resolveExportNumber', () => {
   });
 
   it('no permite pasar el maximo de ARCA', () => {
-    expect(() => resolveExportNumber({ label: 'El numero', last: 99_999_999 })).toThrow(/maximo/);
+    expect(() => resolveExportNumber({ label: 'El numero', last: 99_999_999 })).toThrow(/máximo/);
   });
 });
 

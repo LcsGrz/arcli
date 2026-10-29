@@ -57,7 +57,7 @@ export type ExportJsonInput = z.infer<typeof exportJsonInputSchema>;
 const TYPE_LABELS: Readonly<Record<string, string>> = {
   array: 'un array',
   boolean: 'true o false',
-  number: 'un numero',
+  number: 'un número',
   object: 'un objeto',
   string: 'un texto',
 };

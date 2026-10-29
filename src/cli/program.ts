@@ -2,6 +2,7 @@ import { Command } from 'commander';
 
 import { registerBillingFamilyCommands } from './commands/billing-family.command';
 import { registerBillingShortcutCommands } from './commands/billing-shortcuts.command';
+import { registerCompletionCommands } from './commands/completion.command';
 import { registerConfigCommand } from './commands/config.command';
 import { registerExamplesCommand } from './commands/examples.command';
 import { registerExportCommand } from './commands/export.command';
@@ -31,9 +32,9 @@ export function createProgram(options: CreateProgramOptions = {}): Command {
   program
     .name('arcli')
     .description(
-      'Emití y revisá comprobantes ARCA desde terminal con una UX mas simple, validaciones claras y salida lista para automatizar.',
+      'Emití y revisá comprobantes ARCA desde terminal con una UX más simple, validaciones claras y salida lista para automatizar.',
     )
-    .version(CLI_VERSION)
+    .version(CLI_VERSION, '-V, --version', 'mostrar la versión instalada')
     .showHelpAfterError('(usa "ayuda" para ver comandos y ejemplos)');
 
   configureSpanishHelp(program);
@@ -42,6 +43,7 @@ export function createProgram(options: CreateProgramOptions = {}): Command {
 
   registerBillingShortcutCommands(program);
   registerBillingFamilyCommands(program);
+  registerCompletionCommands(program);
   registerConfigCommand(program);
   registerExamplesCommand(program);
   registerExportCommand(program);

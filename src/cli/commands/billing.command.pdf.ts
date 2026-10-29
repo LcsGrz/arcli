@@ -53,8 +53,15 @@ export interface PdfStepOptions {
   readonly results: readonly BillingExecutionResult[];
 }
 
+/** Datos que solo van en el PDF y pasó quien factura; lo que completó el padrón no cuenta. */
 function hasPdfOnlyData(input: BillingCommandInput | undefined): boolean {
-  return Boolean(input?.pdfDescription || input?.receiverName || input?.receiverAddress);
+  const fromPadron = input?.receiverFromPadron ?? [];
+
+  return Boolean(
+    input?.pdfDescription ||
+    (input?.receiverName && !fromPadron.includes('name')) ||
+    (input?.receiverAddress && !fromPadron.includes('address')),
+  );
 }
 
 async function resolveDecisions(options: PdfStepOptions, deps: PdfStepDependencies): Promise<PdfDecision[]> {
@@ -75,7 +82,7 @@ async function resolveDecisions(options: PdfStepOptions, deps: PdfStepDependenci
 
   const answer = await deps.confirm(
     pending === 1 ? '¿Generamos el PDF del comprobante?' : `¿Generamos los PDFs de los ${pending} comprobantes?`,
-    pending === 1 ? 'Si, generar el PDF' : 'Si, generar los PDFs',
+    pending === 1 ? 'Sí, generar el PDF' : 'Sí, generar los PDFs',
     'No',
   );
 
@@ -90,8 +97,8 @@ export async function loadPdfRenderer(
 ): Promise<PdfRenderer> {
   if (!plugin.getStatus().installed && interactive) {
     const install = await deps.confirm(
-      'Para generar PDFs hay que descargar un componente (~160 MB, o ~360 MB si no tenes Chrome). ¿Instalarlo ahora?',
-      'Si, instalar',
+      'Para generar PDFs hay que descargar un componente (~160 MB, o ~360 MB si no tenés Chrome). ¿Instalarlo ahora?',
+      'Sí, instalar',
       'No',
     );
 

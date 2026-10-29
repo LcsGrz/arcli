@@ -7,7 +7,14 @@ import type { BillingExecutionResult } from '../../../modules/billing/billing.ty
 import { getVoucherKindByShortcut } from '../../../modules/billing/voucher-kind-map';
 import { findDownloadedBrowser } from '../pdf-browser';
 import { exportBillingPdf, TESTING_FOOTER, toPdfFailure } from '../pdf-exporter';
-import { PDF_PLUGIN_VERSION, PdfPlugin, type ProcessRunner } from '../pdf-plugin';
+import {
+  BROWSER_DOWNLOAD_TIMEOUT_MS,
+  NPM_INSTALL_TIMEOUT_MS,
+  PDF_PLUGIN_VERSION,
+  PdfPlugin,
+  type ProcessRunner,
+  runProcessWithSpawn,
+} from '../pdf-plugin';
 
 const temporaryDirectories: string[] = [];
 
@@ -58,7 +65,7 @@ describe('PdfPlugin', () => {
     fakeNpmInstall(path);
 
     expect(plugin.getStatus().installed).toBe(false);
-    expect(() => plugin.load()).toThrow(/No se encontro un navegador/);
+    expect(() => plugin.load()).toThrow(/No se encontró un navegador/);
   });
 
   it('installs with npm ignoring scripts and skips the browser download when the system has one', async () => {
@@ -117,6 +124,41 @@ describe('PdfPlugin', () => {
     });
   });
 
+  it('limits npm and the browser download and explains a timeout', async () => {
+    const path = join(createTempDir(), 'pdf');
+    const runProcess = vi.fn<ProcessRunner>(async (_command, args, options) => {
+      if (args[0] === 'install') {
+        fakeNpmInstall(options.cwd);
+
+        return { code: 0, output: '' };
+      }
+
+      return { code: null, output: 'Downloading...', timedOut: true };
+    });
+    const plugin = new PdfPlugin({ env: {}, findSystemBrowser: () => undefined, path, runProcess });
+
+    await expect(plugin.install()).rejects.toMatchObject({
+      code: 'PDF_PLUGIN_INSTALL_ERROR',
+      message: expect.stringMatching(/no termino en 15 minutos/),
+    });
+    expect(runProcess.mock.calls.map(([, , options]) => options.timeoutMs)).toEqual([
+      NPM_INSTALL_TIMEOUT_MS,
+      BROWSER_DOWNLOAD_TIMEOUT_MS,
+    ]);
+  });
+
+  it('kills a process that does not finish in time', async () => {
+    const started = Date.now();
+    const result = await runProcessWithSpawn(process.execPath, ['-e', 'setTimeout(() => {}, 30000)'], {
+      cwd: createTempDir(),
+      env: process.env,
+      timeoutMs: 200,
+    });
+
+    expect(result).toMatchObject({ code: null, timedOut: true });
+    expect(Date.now() - started).toBeLessThan(5000);
+  });
+
   it('treats another installed version as missing', () => {
     const path = join(createTempDir(), 'pdf');
 
@@ -125,7 +167,7 @@ describe('PdfPlugin', () => {
     const plugin = new PdfPlugin({ env: {}, findSystemBrowser: () => '/chrome', path });
 
     expect(plugin.getStatus()).toMatchObject({ installed: false, installedVersion: '0.1.0' });
-    expect(() => plugin.load()).toThrow(/version 0.1.0/);
+    expect(() => plugin.load()).toThrow(/versión 0.1.0/);
   });
 
   it('prefers the configured browser and removes everything on uninstall', () => {
@@ -194,8 +236,8 @@ describe('exportBillingPdf', () => {
   }
 
   const config = {
-    cuit: '20123456789',
-    emisor: { domicilio: 'Calle 123', inicioActividades: '20200301', razonSocial: 'Lucas Gerez' },
+    cuit: '20123456786',
+    emisor: { domicilio: 'Calle 123', inicioActividades: '20200301', razonSocial: 'Ana Gomez' },
   };
 
   it('writes testing PDFs to a subfolder with the testing footer', async () => {
@@ -204,7 +246,7 @@ describe('exportBillingPdf', () => {
 
     const path = await exportBillingPdf({ config, folder, renderer: { render }, result: createResult('testing') });
 
-    expect(path).toBe(join(folder, 'testing', '20123456789', 'factura-c_0003-00000125.pdf'));
+    expect(path).toBe(join(folder, 'testing', '20123456786', 'factura-c_0003-00000125.pdf'));
     expect(readFileSync(path)).toEqual(Buffer.from([1, 2, 3]));
     expect(render).toHaveBeenCalledWith(expect.objectContaining({ cbteDesde: 125 }), {
       footerText: TESTING_FOOTER,
@@ -220,22 +262,22 @@ describe('exportBillingPdf', () => {
     const first = await exportBillingPdf({ config, folder, renderer: { render }, result });
     const again = await exportBillingPdf({ config, folder, renderer: { render }, result });
     const otherIssuer = await exportBillingPdf({
-      config: { ...config, cuit: '27111111112' },
+      config: { ...config, cuit: '27111111117' },
       folder,
       renderer: { render },
       result,
     });
 
-    expect(first).toBe(join(folder, '20123456789', 'factura-c_0003-00000125.pdf'));
-    expect(again).toBe(join(folder, '20123456789', 'factura-c_0003-00000125-2.pdf'));
-    expect(otherIssuer).toBe(join(folder, '27111111112', 'factura-c_0003-00000125.pdf'));
+    expect(first).toBe(join(folder, '20123456786', 'factura-c_0003-00000125.pdf'));
+    expect(again).toBe(join(folder, '20123456786', 'factura-c_0003-00000125-2.pdf'));
+    expect(otherIssuer).toBe(join(folder, '27111111117', 'factura-c_0003-00000125.pdf'));
   });
 
   it('escapes HTML in every text before rendering, because the plugin template does not', async () => {
     const render = vi.fn(async () => new Uint8Array([1]));
 
     await exportBillingPdf({
-      config: { ...config, emisor: { ...config.emisor, razonSocial: 'Gerez & Hijos' } },
+      config: { ...config, emisor: { ...config.emisor, razonSocial: 'Gomez & Hijos' } },
       extras: { descripcion: '<img src=x onerror=alert(1)>', receptorNombre: 'Cliente "SA"' },
       folder: createTempDir(),
       renderer: { render },
@@ -246,7 +288,7 @@ describe('exportBillingPdf', () => {
       { emisor: { razonSocial: string }; items: Array<{ descripcion: string }>; receptor: { razonSocial: string } },
     ];
 
-    expect(data.emisor.razonSocial).toBe('Gerez &amp; Hijos');
+    expect(data.emisor.razonSocial).toBe('Gomez &amp; Hijos');
     expect(data.items[0]?.descripcion).toBe('&lt;img src=x onerror=alert(1)&gt;');
     expect(data.receptor.razonSocial).toBe('Cliente &quot;SA&quot;');
     expect(JSON.stringify(data)).not.toMatch(/[<>]/);
@@ -266,7 +308,7 @@ describe('exportBillingPdf', () => {
       result: createResult('produccion'),
     });
 
-    expect(path).toBe(join(folder, '20123456789', 'factura-c_0003-00000125.pdf'));
+    expect(path).toBe(join(folder, '20123456786', 'factura-c_0003-00000125.pdf'));
     expect(render).toHaveBeenCalledWith(expect.anything(), {
       footerText: undefined,
       logo: `data:image/png;base64,${Buffer.from('png').toString('base64')}`,

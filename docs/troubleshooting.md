@@ -96,7 +96,7 @@ arcli config revisar
 ### `config.json` con JSON inválido
 
 - **Severidad:** crítico
-- **Síntoma:** cualquier comando falla con `Error de configuracion` ("El archivo de configuracion tiene JSON invalido y no se puede leer."), con la ruta del archivo en `Ruta` (`detalles.ruta` con `--json`). Antes salía como "Error inesperado".
+- **Síntoma:** cualquier comando falla con `Error de configuracion` ("El archivo de configuración tiene JSON inválido y no se puede leer."), con la ruta del archivo en `Ruta` (`detalles.ruta` con `--json`). Antes salía como "Error inesperado".
 - **Causa:** el `config.json` quedó mal escrito, casi siempre por una edición a mano (una coma de más, comillas sin cerrar) o un archivo vacío.
 - **Solución:** corregir el JSON a mano en esa ruta, o renombrar el archivo y volver a cargar los datos. ARCLI no lo borra ni lo pisa: lo que tenía sigue ahí para recuperarlo.
 
@@ -129,7 +129,7 @@ arcli fc ayuda
 ### Clave desconocida o tipo incorrecto en el JSON de `--cargar`
 
 - **Severidad:** común
-- **Síntoma:** `INPUT_VALIDATION_ERROR` (o `BATCH_VALIDATION_ERROR` en un lote) con `La clave "montototal" no existe` o `"puntoVenta" tiene que ser un numero y llego el texto "3"`.
+- **Síntoma:** `INPUT_VALIDATION_ERROR` (o `BATCH_VALIDATION_ERROR` en un lote) con `La clave "montototal" no existe` o `"puntoVenta" tiene que ser un número y llegó el texto "3"`.
 - **Causa:** el JSON trae una clave que ARCLI no conoce (un typo o el nombre de un flag, como `vencimiento` en vez de `vencimientoPago`) o un valor con otro tipo (un número entre comillas, `"true"` en vez de `true`, `null`).
 - **Solución:** usá la clave que sugiere el mensaje y escribí los números sin comillas. La lista completa está en [entrada y salida](input-output.md#campos-soportados).
 
@@ -332,9 +332,9 @@ arcli fc ayuda
 ### El lote se interrumpió a mitad
 
 - **Severidad:** crítico
-- **Síntoma:** se ven los resultados de algunos comprobantes (con su PDF, si corresponde) y después `BATCH_EMISSION_ERROR` ("El lote se interrumpio en el comprobante #3…").
+- **Síntoma:** se ven los resultados de algunos comprobantes (con su PDF, si corresponde) y después `BATCH_EMISSION_ERROR` ("El lote se interrumpió en el comprobante #3…").
 - **Causa:** la emisión falló a mitad del lote (red, ARCA, transacción activa).
-- **Solución:** **no vuelvas a cargar los comprobantes que ya se procesaron**, porque se duplicarían. El que falló puede haberse emitido igual (`sinConfirmar` en el JSON): verificalo con `arcli ultimos` y sumalo solo si no figura. Armá un lote con ese y los que figuran en "Sin procesar" (`sinProcesar`) y reintentá. Si el que falló fue por "Transacción Activa", esperá unos segundos.
+- **Solución:** **no vuelvas a cargar los comprobantes que ya se procesaron**, porque se duplicarían. Si el JSON trae `sinConfirmar`, el que falló puede haberse emitido igual: verificalo con `arcli ultimos` y sumalo solo si no figura. Si no lo trae, falló antes de emitir (login, último número) y ya está en "Sin procesar" (`sinProcesar`). Armá un lote con los de `sinProcesar` (y el sin confirmar, si no figura) y reintentá. Si el que falló fue por "Transacción Activa", esperá unos segundos.
 - **Documentación relacionada:** [Entrada y salida](input-output.md#validación-y-errores-del-lote)
 
 ## Terminal
@@ -364,8 +364,8 @@ Un error del PDF no deshace la emisión: el comprobante ya tiene CAE. **No lo vu
 
 ### `PDF_PLUGIN_INSTALL_ERROR`
 
-- **Síntoma:** `arcli pdf instalar` falla y muestra las últimas líneas de npm.
-- **Causa:** sin internet, un proxy corporativo o un registro de npm privado.
+- **Síntoma:** `arcli pdf instalar` falla y muestra las últimas líneas de npm, o se corta con "no termino en 5 minutos" (15 para el navegador).
+- **Causa:** sin internet, un proxy corporativo o un registro de npm privado. Si el proxy no responde, la instalación se corta por tiempo en lugar de quedar colgada.
 - **Solución:** revisá `npm config get proxy` y `npm config get registry` y volvé a correr `arcli pdf instalar`. Si lo que falla es la descarga del navegador y ya tenés Chrome, Chromium o Edge, indicá su ruta:
 
 ```bash

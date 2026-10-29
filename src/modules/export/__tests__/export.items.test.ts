@@ -34,7 +34,7 @@ describe('parseExportItemArgument', () => {
   });
 
   it('rechaza un item con menos partes que las necesarias', () => {
-    expect(() => parseExportItemArgument('Servicio|1')).toThrow(/no es valido/);
+    expect(() => parseExportItemArgument('Servicio|1')).toThrow(/no es válido/);
   });
 
   it('rechaza importes con formato invalido', () => {

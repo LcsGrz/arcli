@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { parseCuit } from '../../lib/identity/cuit';
 import { AMOUNT_DECIMALS, EXCHANGE_RATE_DECIMALS, hasAtMostDecimals } from '../../lib/numbers/argentine-amount';
 
 import type { VoucherShortcut } from './billing.types';
@@ -72,7 +73,7 @@ export function normalizeIvaRateInput(value: unknown): unknown {
 
 export const billingIvaRateSchema = z.preprocess(
   normalizeIvaRateInput,
-  z.enum(IVA_RATE_VALUES, { message: `La alicuota debe ser ${IVA_RATE_HINT}.` }),
+  z.enum(IVA_RATE_VALUES, { message: `La alícuota debe ser ${IVA_RATE_HINT}.` }),
 );
 
 /** Importe positivo con los decimales que acepta ARCA: 2 en importes y 6 en la cotizacion. */
@@ -80,7 +81,7 @@ function positiveAmountSchema(decimals = AMOUNT_DECIMALS) {
   return z
     .number()
     .positive()
-    .refine((value) => hasAtMostDecimals(value, decimals), { message: `Use hasta ${decimals} decimales.` });
+    .refine((value) => hasAtMostDecimals(value, decimals), { message: `Usá hasta ${decimals} decimales.` });
 }
 
 /** Una alicuota con el importe que le corresponde, IVA incluido (igual que --monto). */
@@ -93,8 +94,17 @@ const billingAssociatedVoucherSchema = z
   .object({
     cuit: z
       .string()
-      .trim()
-      .regex(/^\d{11}$/)
+      .transform((value, context) => {
+        const result = parseCuit(value);
+
+        if (!result.ok) {
+          context.addIssue({ code: 'custom', message: `El CUIT del comprobante asociado ${result.reason}.` });
+
+          return z.NEVER;
+        }
+
+        return result.value;
+      })
       .optional(),
     fecha: z.string().trim().optional(),
     numero: z.number().int().positive().optional(),
@@ -124,7 +134,7 @@ export const billingCommandSchema = z.object({
   cbuAlias: z
     .string()
     .trim()
-    .regex(/^[A-Za-z0-9.-]{6,20}$/, 'El alias debe tener entre 6 y 20 caracteres (letras, numeros, punto o guion)')
+    .regex(/^[A-Za-z0-9.-]{6,20}$/, 'El alias debe tener entre 6 y 20 caracteres (letras, números, punto o guion)')
     .optional(),
   concept: billingConceptSchema,
   currencyCode: z.string().trim().length(3).default('ARS'),
@@ -151,6 +161,8 @@ export const billingCommandSchema = z.object({
   pdfDescription: z.string().trim().min(1).max(200).optional(),
   pointOfSale: z.number().int().positive().optional(),
   receiverAddress: z.string().trim().min(1).max(200).optional(),
+  /** Que datos del receptor completo el padron (no los paso quien factura). */
+  receiverFromPadron: z.array(z.enum(['address', 'name'])).optional(),
   receiverName: z.string().trim().min(1).max(200).optional(),
   sameCurrency: z.boolean().default(false),
   serviceEndDate: z.string().trim().optional(),

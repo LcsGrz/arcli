@@ -1,4 +1,6 @@
 import { Separator } from '@inquirer/select';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BACK } from '../../../modules/interactive/wizard';
@@ -87,13 +89,14 @@ afterEach(() => {
 describe('runGuidedSetup', () => {
   it('pide lo obligatorio, los defaults y opcionalmente los datos del PDF, y guarda cada respuesta', async () => {
     askTextMock
-      .mockResolvedValueOnce('20123456789')
+      .mockResolvedValueOnce('20123456786')
       .mockResolvedValueOnce('/certs/testing.crt')
       .mockResolvedValueOnce('/certs/testing.key')
       .mockResolvedValueOnce('3')
-      .mockResolvedValueOnce('Lucas Gerez')
+      .mockResolvedValueOnce('Ana Gomez')
       .mockResolvedValueOnce('Calle 123')
-      .mockResolvedValueOnce('1/03/2020');
+      .mockResolvedValueOnce('1/03/2020')
+      .mockResolvedValueOnce('Exento');
     chooseStepMock.mockResolvedValueOnce('servicios').mockResolvedValueOnce('consumidor-final');
     vi.mocked(confirm).mockResolvedValueOnce(true);
 
@@ -102,10 +105,11 @@ describe('runGuidedSetup', () => {
     expect(store).toMatchObject({
       'cert.testing': '/certs/testing.crt',
       concepto: 'servicios',
-      cuit: '20123456789',
+      cuit: '20123456786',
       'emisor.domicilio': 'Calle 123',
+      'emisor.iibb': 'Exento',
       'emisor.inicioActividades': '1/03/2020',
-      'emisor.razonSocial': 'Lucas Gerez',
+      'emisor.razonSocial': 'Ana Gomez',
       ivaReceptor: 'consumidor-final',
       'key.testing': '/certs/testing.key',
       puntoVenta: '3',
@@ -150,7 +154,7 @@ describe('runConfigMenu', () => {
       'Cuenta',
       'Certificados',
       'Al facturar',
-      'Factura de credito electronica (FCE)',
+      'Factura de crédito electrónica (FCE)',
       'Datos del emisor (PDF)',
       'PDF',
       'Salida y listados',
@@ -158,7 +162,7 @@ describe('runConfigMenu', () => {
   });
 
   it('muestra toda la configuracion', async () => {
-    store.cuit = '20409509763';
+    store.cuit = '20333333334';
     vi.mocked(chooseOne).mockResolvedValueOnce('ver').mockResolvedValueOnce('volver');
 
     let printed = '';
@@ -170,7 +174,7 @@ describe('runConfigMenu', () => {
 
     await runConfigMenu();
 
-    expect(stripAnsi(printed)).toContain('20409509763');
+    expect(stripAnsi(printed)).toContain('20333333334');
     expect(stripAnsi(printed)).toContain('Comprobantes por lista');
   });
 
@@ -179,7 +183,7 @@ describe('runConfigMenu', () => {
     vi.mocked(chooseOne).mockResolvedValueOnce('cambiar').mockResolvedValueOnce('volver');
     chooseStepMock
       .mockImplementationOnce(
-        async (_message, choices) => onlyChoices(choices).find((choice) => choice.name === 'Razon social')?.value,
+        async (_message, choices) => onlyChoices(choices).find((choice) => choice.name === 'Razón social')?.value,
       )
       .mockResolvedValueOnce(BACK);
     askTextMock.mockImplementationOnce(async (message, options) => {
@@ -202,5 +206,28 @@ describe('runConfigMenu', () => {
 
     expect(install).toHaveBeenCalledTimes(1);
     expect(uninstall).not.toHaveBeenCalled();
+  });
+
+  it('instala y desinstala el autocompletado desde configuracion', async () => {
+    const shell = process.env.SHELL;
+    const rc = join(process.env.HOME ?? '', '.zshrc');
+
+    process.env.SHELL = '/bin/zsh';
+
+    try {
+      vi.mocked(chooseOne).mockResolvedValueOnce('completado').mockResolvedValueOnce('volver');
+      chooseStepMock.mockResolvedValueOnce('instalar');
+      await runConfigMenu();
+
+      expect(readFileSync(rc, 'utf8')).toContain('eval "$(arcli completado zsh)"');
+
+      vi.mocked(chooseOne).mockResolvedValueOnce('completado').mockResolvedValueOnce('volver');
+      chooseStepMock.mockResolvedValueOnce('desinstalar');
+      await runConfigMenu();
+
+      expect(readFileSync(rc, 'utf8')).not.toContain('arcli completado');
+    } finally {
+      process.env.SHELL = shell;
+    }
   });
 });

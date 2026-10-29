@@ -83,7 +83,7 @@ describe('mapExportResponse', () => {
 
     expect(summary.status).toBe('rechazado');
     expect(summary.errors).toEqual([{ code: 1601, message: 'El numero de comprobante no es correlativo' }]);
-    expect(summary.suggestions.join(' ')).toMatch(/numero del comprobante/);
+    expect(summary.suggestions.join(' ')).toMatch(/número del comprobante/);
   });
 
   it('sugiere revisar la actividad cuando ARCA la rechaza por no estar vinculada al emisor', () => {

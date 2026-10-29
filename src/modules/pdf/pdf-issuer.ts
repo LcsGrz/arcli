@@ -37,7 +37,7 @@ export function resolvePdfIssuer(config: Pick<ArcliConfig, 'cuit' | 'emisor'>, l
 
     throw new PdfError('PDF_ISSUER_INCOMPLETE', `Faltan datos del emisor para el PDF: ${missing.join(', ')}.`, {
       details: { faltan: missing },
-      suggestion: `Configurelos una vez con:\n${commands.join('\n')}`,
+      suggestion: `Configuralos una vez con:\n${commands.join('\n')}`,
     });
   }
 
@@ -49,7 +49,8 @@ export function resolvePdfIssuer(config: Pick<ArcliConfig, 'cuit' | 'emisor'>, l
     cuit: config.cuit,
     domicilioComercial: emisor.domicilio,
     fechaInicioActividades: emisor.inicioActividades,
-    iibb: emisor.iibb ?? 'Exento',
+    // Sin el dato no se afirma nada: "Exento" seria declarar una exencion que nadie informo.
+    iibb: emisor.iibb ?? '-',
     razonSocial: emisor.razonSocial,
   };
 }

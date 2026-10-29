@@ -10,20 +10,19 @@ import {
 } from '../../modules/billing/voucher-kind-map';
 import { configureSpanishHelp, createFamilyHelp } from '../help';
 
+import { hideInapplicableBillingOptions } from './billing.command.options';
 import { executeBillingCommand, registerBillingCommandOptions } from './billing.command.shared';
 import { executeExportCommand } from './export.command';
 import { registerExportOptions } from './export.command.options';
 
 export function registerBillingFamilyCommands(program: Command): void {
   for (const family of VOUCHER_FAMILIES) {
-    const familyShortcuts = Object.values(VOUCHER_KIND_MAP)
-      .filter((definition) => definition.family === family)
-      .map((definition) => definition.shortcut)
-      .join(', ');
-    // La familia `factura` tambien acepta la letra E, que se emite por WSFEX con su propio comando.
+    const definitions = Object.values(VOUCHER_KIND_MAP).filter((definition) => definition.family === family);
+    const familyShortcuts = definitions.map((definition) => definition.shortcut).join(', ');
+    // La familia `factura` también acepta la letra E, que se emite por WSFEX con su propio comando.
     const supportsExport = family === 'factura';
     const command = program
-      .command(family)
+      .command(family, { hidden: true })
       .description(
         `usar ${family} por letra A, B o C${supportsExport ? ' o E' : ''} con ejemplos y atajos${familyShortcuts ? ` (${familyShortcuts})` : ''}`,
       )
@@ -32,6 +31,11 @@ export function registerBillingFamilyCommands(program: Command): void {
     configureSpanishHelp(command);
 
     registerBillingCommandOptions(command);
+    hideInapplicableBillingOptions(command, {
+      isElectronicCredit: definitions.some((definition) => definition.isElectronicCredit),
+      isNote: definitions.some((definition) => definition.requiresAssociatedVoucher),
+      letters: definitions.map((definition) => definition.letter),
+    });
 
     if (supportsExport) {
       registerExportOptions(command, { hidden: true });
@@ -46,7 +50,7 @@ export function registerBillingFamilyCommands(program: Command): void {
 
       if (!VOUCHER_LETTERS.includes(letter as VoucherLetter)) {
         throw new InputValidationError(
-          `La letra "${letter}" no es valida. Use a, b o c${supportsExport ? ' o e' : ''}.`,
+          `La letra "${letter}" no es válida. Usá a, b o c${supportsExport ? ' o e' : ''}.`,
         );
       }
 

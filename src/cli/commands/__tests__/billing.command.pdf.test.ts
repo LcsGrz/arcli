@@ -17,8 +17,8 @@ vi.mock('node:fs', async (importOriginal) => ({
 
 const CONFIG = {
   cert: {},
-  cuit: '20123456789',
-  emisor: { domicilio: 'Calle 123', inicioActividades: '20200301', razonSocial: 'Lucas Gerez' },
+  cuit: '20123456786',
+  emisor: { domicilio: 'Calle 123', inicioActividades: '20200301', razonSocial: 'Ana Gomez' },
   entornoPorDefecto: 'testing',
   key: {},
   output: { brutoPorDefecto: false, emitirPorDefecto: false, jsonPorDefecto: false },
@@ -108,7 +108,7 @@ describe('attachPdfs', () => {
       deps,
     );
 
-    expect(result.pdf).toEqual({ path: '/pdfs/20123456789/factura-c_0003-00000125.pdf' });
+    expect(result.pdf).toEqual({ path: '/pdfs/20123456786/factura-c_0003-00000125.pdf' });
   });
 
   it('treats Ctrl+C in the PDF question as no, because the voucher is already issued', async () => {
@@ -186,7 +186,7 @@ describe('attachPdfs', () => {
     );
 
     expect(plugin.install).toHaveBeenCalled();
-    expect(result.pdf).toEqual({ path: '/pdfs/20123456789/factura-c_0003-00000125.pdf' });
+    expect(result.pdf).toEqual({ path: '/pdfs/20123456786/factura-c_0003-00000125.pdf' });
   });
 
   it('checks the issuer before downloading anything', async () => {
@@ -219,5 +219,27 @@ describe('attachPdfs', () => {
     );
 
     expect(result.warnings).toEqual(['otro aviso', PDF_ONLY_FLAGS_WARNING]);
+  });
+
+  it('does not warn about the receiver the padron filled in', async () => {
+    const { deps } = createDeps();
+    const [result] = await attachPdfs(
+      {
+        config: CONFIG,
+        inputs: [
+          input({
+            pdf: false,
+            receiverAddress: 'Calle 1',
+            receiverFromPadron: ['address', 'name'],
+            receiverName: 'DARIO SA',
+          }),
+        ],
+        interactive: false,
+        results: [createResult({ warnings: [] })],
+      },
+      deps,
+    );
+
+    expect(result.warnings).toEqual([]);
   });
 });

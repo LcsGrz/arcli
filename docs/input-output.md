@@ -54,7 +54,7 @@ arcli fc --cargar ./voucher.json
 Cada objeto se valida contra esta lista antes de mezclarlo con los flags y la config:
 
 - **Una clave que no está en las tablas es un error** (`INPUT_VALIDATION_ERROR`) que la nombra y, si se parece a una válida o a un flag, sugiere la correcta: `"montototal"` → `montoTotal`, `"vencimiento"` → `vencimientoPago`, `"moneda"` → `codigoMoneda`. Vale también dentro de `comprobanteAsociado`, `periodoAsociado` y cada ítem de `alicuotas`.
-- **Un tipo incorrecto es un error**, no se descarta: `"puntoVenta": "3"` falla con "tiene que ser un numero". Los números van sin comillas y los booleanos son `true` o `false`, no `"true"`. `null` tampoco vale: para no informar un campo, omití la clave. La única clave que acepta texto o número es la tasa de IVA (`alicuotaIva` y `tasa` en `alicuotas`).
+- **Un tipo incorrecto es un error**, no se descarta: `"puntoVenta": "3"` falla con "tiene que ser un número". Los números van sin comillas y los booleanos son `true` o `false`, no `"true"`. `null` tampoco vale: para no informar un campo, omití la clave. La única clave que acepta texto o número es la tasa de IVA (`alicuotaIva` y `tasa` en `alicuotas`).
 - En un lote, cada ítem se valida por separado y el error sale en `BATCH_VALIDATION_ERROR` con su índice (ver [abajo](#validación-y-errores-del-lote)). Un array vacío también es error.
 
 Con un solo comprobante, `detalles.campos` lista cada problema con su ruta en el JSON:
@@ -65,7 +65,7 @@ Con un solo comprobante, `detalles.campos` lista cada problema con su ruta en el
   "detalles": {
     "campos": [
       {
-        "mensaje": "\"puntoVenta\" tiene que ser un numero y llego el texto \"3\". Escribilo sin comillas.",
+        "mensaje": "\"puntoVenta\" tiene que ser un número y llegó el texto \"3\". Escribilo sin comillas.",
         "ruta": ["puntoVenta"]
       },
       { "mensaje": "La clave \"vencimiento\" no existe: ¿quisiste decir \"vencimientoPago\"?", "ruta": ["vencimiento"] }
@@ -153,7 +153,7 @@ Los nombres de las claves no siempre coinciden con los flags. Si pasás las dos 
 {
   "comprobanteAsociado": {
     "atajo": "fa",
-    "cuit": "20409509763",
+    "cuit": "20333333334",
     "numero": 120,
     "puntoVenta": 3
   },
@@ -302,7 +302,7 @@ Si el archivo contiene un array, ARCLI procesa un lote del mismo comando. **Un a
 **Antes de emitir el primer comprobante, ARCLI valida todos los del lote**: la forma del JSON, las consultas a ARCA que se hacen antes de emitir (IVA receptor desde el padrón, cotización oficial) y las reglas de negocio (IVA receptor por letra, fechas, FCE, montos…).
 
 - Si alguno es inválido o falla su consulta, **no se emite ninguno** y el error `BATCH_VALIDATION_ERROR` lista **todos** los ítems con problemas, con su índice (desde 1) y el motivo.
-- Si la emisión se corta a mitad del lote (red, ARCA), ARCLI **muestra primero los comprobantes ya procesados**, con su PDF si corresponde (según `pdf` o `--exportar-pdf`, igual que en un lote completo; en `--json`, cada uno con su campo `pdf`), y después el error `BATCH_EMISSION_ERROR`, que indica en qué ítem falló y cuáles quedaron sin procesar. **No vuelvas a cargar los ya emitidos**. El que falló puede haberse emitido igual (`detalles.sinConfirmar`): verificalo con `arcli ultimos` antes de reintentarlo, y después reintentá los que quedaron sin procesar.
+- Si la emisión se corta a mitad del lote (red, ARCA), ARCLI **muestra primero los comprobantes ya procesados**, con su PDF si corresponde (según `pdf` o `--exportar-pdf`, igual que en un lote completo; en `--json`, cada uno con su campo `pdf`), y después el error `BATCH_EMISSION_ERROR`, que indica en qué ítem falló y cuáles quedaron sin procesar. **No vuelvas a cargar los ya emitidos**. Si viene `detalles.sinConfirmar`, el que falló puede haberse emitido igual: verificalo con `arcli ultimos` antes de reintentarlo. Si no viene, falló antes de emitir (login, último número) y ya está en `detalles.sinProcesar`. Después reintentá los de `sinProcesar`.
 
 ```json
 {
@@ -316,7 +316,7 @@ Si el archivo contiene un array, ARCLI procesa un lote del mismo comando. **Un a
       }
     ]
   },
-  "error": "2 de 4 comprobantes del lote tienen errores. No se emitio ninguno.\n\n#2: ...",
+  "error": "2 de 4 comprobantes del lote tienen errores. No se emitió ninguno.\n\n#2: ...",
   "sugerencia": null
 }
 ```
@@ -325,7 +325,7 @@ Si el archivo contiene un array, ARCLI procesa un lote del mismo comando. **Un a
 {
   "codigo": "BATCH_EMISSION_ERROR",
   "detalles": { "fallo": 3, "procesados": 2, "sinConfirmar": 3, "sinProcesar": [4], "total": 4 },
-  "error": "El lote se interrumpio en el comprobante #3: ...\nProcesados: 2 de 4. Sin procesar: #4.\nEl #3 puede haberse emitido: verifiquelo con \"arcli ultimos\" antes de reintentarlo.",
+  "error": "El lote se interrumpió en el comprobante #3: ...\nProcesados: 2 de 4. Sin procesar: #4.\nEl #3 puede haberse emitido: verificalo con \"arcli ultimos\" antes de reintentarlo.",
   "sugerencia": null
 }
 ```
@@ -364,12 +364,13 @@ ARCLI serializa un resumen del resultado. Con `--bruto` se agrega además el cam
 | `errores`          | `unknown[]`                                | Array de errores crudos                                                                                                |
 | `estado`           | `"aprobado" \| "observado" \| "rechazado"` | Estado normalizado que arma ARCLI                                                                                      |
 | `eventos`          | `unknown[]`                                | Array de eventos crudos                                                                                                |
+| `numero`           | `number \| null`                           | Número del comprobante emitido; `null` en una previsualización                                                         |
 | `observaciones`    | `string[]`                                 | Observaciones amigables                                                                                                |
 | `observacion`      | `string \| null`                           | Observaciones unidas en una sola cadena                                                                                |
 | `pdf`              | `object`, opcional                         | Solo si se intentó generar el PDF: `{ ruta }` o `{ error: { codigo, mensaje, sugerencia } }`. Ver [PDF](pdf.md#salida) |
 | `previsualizacion` | `boolean`                                  | `true` si no hubo emisión real                                                                                         |
 | `resultado`        | `string \| null`                           | Resultado original de ARCA, por ejemplo `A` o `R`                                                                      |
-| `solicitud`        | `object`                                   | Solicitud enviada o previsualizada                                                                                     |
+| `solicitud`        | `object`                                   | Solicitud enviada o previsualizada; si se emitió, con el número en `CbteDesde` y `CbteHasta`                           |
 | `sugerencias`      | `string[]`                                 | Sugerencias generadas por ARCLI                                                                                        |
 | `tipoArca`         | `number`                                   | Tipo ARCA del comprobante                                                                                              |
 
@@ -380,7 +381,7 @@ Si a alguno de los certificados configurados (de testing o de producción, sin i
 ```json
 {
   "avisos": [
-    "El certificado de produccion vence el 20/11/2026 (en 10 días). Renovalo: https://github.com/LcsGrz/arcli/blob/main/docs/obtencion-certificados.md"
+    "El certificado de producción vence el 20/11/2026 (en 10 días). Renovalo: https://github.com/LcsGrz/arcli/blob/main/docs/obtencion-certificados.md"
   ],
   "...": "..."
 }
@@ -411,6 +412,7 @@ Ejemplo:
   "errores": [],
   "estado": "aprobado",
   "eventos": [],
+  "numero": 125,
   "observaciones": [],
   "observacion": null,
   "previsualizacion": false,
@@ -466,7 +468,7 @@ Si no hubo emisión real, `respuesta` no se serializa como `null`. En su lugar:
 
 ```json
 {
-  "mensaje": "Sin emision real. Use --emitir para obtener una respuesta de ARCA."
+  "mensaje": "Sin emisión real. Usá --emitir para obtener una respuesta de ARCA."
 }
 ```
 
@@ -645,7 +647,7 @@ En testing, `puntos-venta` sale con `valores: []`: ARCA no informa puntos de ven
   "concepto": "servicios",
   "consultarPadron": true,
   "cotizacion": 1,
-  "cuit": "20409509763",
+  "cuit": "20333333334",
   "emisor": { "razonSocial": "Ana Gomez", "domicilio": "Calle 1, CABA" },
   "emitir": false,
   "entorno": "testing",
@@ -676,7 +678,7 @@ Las claves son las de [configuración](configuration.md), salvo que `cert.*`, `k
     {
       "categoria": "error",
       "detalle": "Falta el CUIT. Configurelo con \"arcli config establecer cuit <valor>\". Si quiere una guia rapida, use \"arcli config revisar\".",
-      "etiqueta": "Validacion testing"
+      "etiqueta": "Validación testing"
     }
   ],
   "ok": false
@@ -748,6 +750,7 @@ Dos comandos de diagnóstico informan un problema sin que sea un error: `arcli c
 | `ARCA_UNAVAILABLE`              | `estado`                                                  | ARCA no respondió a la consulta de estado                                                                       | Reintentá en unos minutos; si persiste, ARCA está caído                                                                                  |
 | `ARCA_PARAMETERS_ERROR`         | `parametros <tabla>`                                      | ARCA devolvió un error al consultar una tabla o los puntos de venta (`detalles.errores`)                        | Revisá el mensaje de ARCA; suele ser pasajero o de permisos del certificado                                                              |
 | `ARCA_QUOTATION_ERROR`          | `parametros cotizacion`, facturación con `--misma-moneda` | ARCA no devolvió una cotización válida para la moneda                                                           | Revisá el código de moneda (`arcli parametros monedas`) o pasá la cotización con `--cm` en lugar de `--misma-moneda`                     |
+| `ARCA_LAST_VOUCHER_ERROR`       | facturación, `ultimos`                                    | ARCA devolvió un error al pedir el último número (`detalles.errores`); no se emitió nada                        | Si es del punto de venta (11002), revisá `arcli parametros puntos-venta`; si no, el mensaje de ARCA y reintentá                          |
 | `VOUCHER_NOT_FOUND`             | `consultar`                                               | El comprobante no existe en ese punto de venta y entorno                                                        | Revisá tipo, número, `--pv` y entorno; `arcli ultimos` lista los emitidos                                                                |
 | `TAXPAYER_NOT_FOUND`            | `padron`                                                  | El CUIT no figura en el padrón de ese entorno                                                                   | Revisá el número; en testing el padrón tiene datos ficticios (`sugerencia` trae un CUIT de prueba)                                       |
 | `PADRON_SERVICE_NOT_AUTHORIZED` | `padron`                                                  | El certificado no está autorizado para `ws_sr_constancia_inscripcion`                                           | Autorizalo como `wsfe` ([certificados](obtencion-certificados.md)). Al facturar no corta: se usa `ivaReceptor` de la config con un aviso |
@@ -776,13 +779,13 @@ Cuando el error viene de Zod o de validación de entrada:
 
 ### Errores JSON de uso
 
-Una opción desconocida, un valor faltante o un comando que no existe también sale en JSON cuando corresponde (`--json` o `json=true` en la config), con exit code `1`. El mensaje es el de commander, en una sola línea. `--ayuda` y `--version` no son errores.
+Una opción desconocida, un valor faltante o un comando que no existe también sale en JSON cuando corresponde (`--json` o `json=true` en la config), con exit code `1`. El mensaje es el de commander traducido al español, en una sola línea. `--ayuda` y `--version` no son errores.
 
 ```json
 {
   "codigo": "INPUT_VALIDATION_ERROR",
   "detalles": null,
-  "error": "unknown option '--montoo' (Did you mean --monto?)",
+  "error": "opción desconocida '--montoo' (¿quisiste decir --monto?)",
   "sugerencia": "Usá \"arcli ayuda\" o \"arcli <comando> --ayuda\" para ver comandos y opciones."
 }
 ```
@@ -804,7 +807,7 @@ Si el `config.json` tiene JSON inválido, sale con el mismo código, la ruta del
 {
   "codigo": "CONFIGURATION_ERROR",
   "detalles": { "ruta": "/Users/ana/Library/Preferences/arcli/config.json" },
-  "error": "El archivo de configuracion tiene JSON invalido y no se puede leer.",
+  "error": "El archivo de configuración tiene JSON inválido y no se puede leer.",
   "sugerencia": "Corregilo a mano, o renombralo (por ejemplo, a config.json.bak) y volve a cargar los datos con `arcli config establecer` o desde \"Configuracion\" en `arcli`. ARCLI no lo borra ni lo pisa."
 }
 ```
@@ -861,7 +864,7 @@ Un error del PDF **no** es un error del comando: el comprobante ya se emitió, a
   "codigo": "PDF_PLUGIN_INSTALL_ERROR",
   "detalles": { "salida": "npm error code ECONNREFUSED" },
   "error": "npm no pudo instalar @arcasdk/pdf.",
-  "sugerencia": "Revise la conexion a internet o el proxy de npm y vuelva a correr `arcli pdf instalar`."
+  "sugerencia": "Revisá la conexión a internet o el proxy de npm y volvé a correr `arcli pdf instalar`."
 }
 ```
 

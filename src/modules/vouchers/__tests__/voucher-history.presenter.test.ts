@@ -39,14 +39,14 @@ describe('voucher-history.presenter', () => {
       3,
       [
         voucher,
-        { ...voucher, cae: undefined, documentNumber: 20123456789, documentTypeCode: 80, number: 13, total: 5 },
+        { ...voucher, cae: undefined, documentNumber: 20123456786, documentTypeCode: 80, number: 13, total: 5 },
       ],
       ' · ',
     );
 
     expect(rows[0]).toMatch(/^00003-00000012 · 01\/10\/2026 · Consumidor final · +[\d.,]+\$ · CAE 86400940834444$/);
     // Sin CAE no queda un separador colgando; el receptor y el total quedan alineados con la otra fila.
-    expect(rows[1]).toMatch(/^00003-00000013 · 01\/10\/2026 · CUIT 20123456789 · +5\$$/);
+    expect(rows[1]).toMatch(/^00003-00000013 · 01\/10\/2026 · CUIT 20123456786 · +5\$$/);
     expect(rows[0].indexOf('$')).toBe(rows[1].indexOf('$'));
   });
 
@@ -75,7 +75,7 @@ describe('voucher-history.presenter', () => {
   it('lista los comprobantes en texto y avisa si no hay', () => {
     const text = stripAnsi(formatVoucherListAsText({ ...base, vouchers: [voucher] }));
 
-    expect(text).toContain('ULTIMAS FACTURA B · PV 3 · TESTING');
+    expect(text).toContain('ÚLTIMAS FACTURA B · PV 3 · TESTING');
     expect(text).toContain('00003-00000012  01/10/2026');
     expect(text).toContain('CAE 86400940834444');
     expect(stripAnsi(formatVoucherListAsText({ ...base, vouchers: [] }))).toContain('No hay Factura B emitidas');
@@ -107,10 +107,10 @@ describe('voucher-history.presenter', () => {
     expect(text).toContain('Importe no gravado');
     expect(text).toContain('Vencimiento CAE');
     expect(text).toContain('APROBADO');
-    expect(text).not.toContain('Cotizacion');
+    expect(text).not.toContain('Cotización');
     expect(
       stripAnsi(formatVoucherDetailAsText({ ...base, voucher: { ...voucher, currency: 'DOL', exchangeRate: 1200 } })),
-    ).toContain('Cotizacion');
+    ).toContain('Cotización');
   });
 
   it('serializa el detalle en JSON', () => {

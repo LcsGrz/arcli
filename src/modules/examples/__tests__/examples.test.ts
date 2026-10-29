@@ -7,8 +7,8 @@ describe('examples', () => {
   it('includes minima and full examples in long and short forms', () => {
     const output = stripAnsi(renderExamples());
 
-    expect(output).toContain('[MINIMA LARGA]');
-    expect(output).toContain('[MINIMA CORTA]');
+    expect(output).toContain('[MÍNIMA LARGA]');
+    expect(output).toContain('[MÍNIMA CORTA]');
     expect(output).toContain('[FULL LARGA]');
     expect(output).toContain('[FULL CORTA]');
     expect(output).toContain('arcli factura c --monto 300000');
@@ -25,6 +25,6 @@ describe('examples', () => {
     expect(output).toContain(
       'arcli ncea -m 1 --cs --cuit 20168598204 --ir-ri --ac fcea --apv 3 --ar 120 --afecha 01-03-2026',
     );
-    expect(output).toContain('arcli ncb -m 15000 --cs --cfinal --ir-cf --ac fb --apv 3 --ar 120 --acuit 20409509763');
+    expect(output).toContain('arcli ncb -m 15000 --cs --cfinal --ir-cf --ac fb --apv 3 --ar 120 --acuit 20333333334');
   });
 });

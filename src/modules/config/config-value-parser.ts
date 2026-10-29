@@ -3,7 +3,9 @@ import { resolve } from 'node:path';
 
 import { parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
+import { parseCuit } from '../../lib/identity/cuit';
 import { EXCHANGE_RATE_DECIMALS, parseArgentineAmount } from '../../lib/numbers/argentine-amount';
+import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import { readPemFile } from '../../lib/security/pem';
 import { IVA_RATE_HINT } from '../billing/billing.schemas';
 import { MAX_RECENT_VOUCHERS } from '../vouchers/voucher-history';
@@ -63,14 +65,14 @@ function parseBoolean(value: string): boolean {
     return false;
   }
 
-  throw new InputValidationError(`El valor "${value}" no es un booleano valido. Use true/false, si/no o 1/0.`);
+  throw new InputValidationError(`El valor "${value}" no es un booleano válido. Usá true/false, si/no o 1/0.`);
 }
 
 function parseNonEmptyString(value: string): string {
   const normalizedValue = value.trim();
 
   if (!normalizedValue) {
-    throw new InputValidationError('El valor no puede estar vacio.');
+    throw new InputValidationError('El valor no puede estar vacío.');
   }
 
   return normalizedValue;
@@ -80,17 +82,27 @@ function parseIvaRate(value: string): string {
   const result = arcliDefaultIvaRateSchema.safeParse(value);
 
   if (!result.success) {
-    throw new InputValidationError(`La alicuota "${value}" no es valida. Use ${IVA_RATE_HINT}.`);
+    throw new InputValidationError(`La alícuota "${value}" no es válida. Usá ${IVA_RATE_HINT}.`);
   }
 
   return result.data;
+}
+
+function parseConfigCuit(value: string): string {
+  const result = parseCuit(value);
+
+  if (!result.ok) {
+    throw new InputValidationError(`El CUIT "${value}" no es válido: ${result.reason}.`);
+  }
+
+  return result.value;
 }
 
 function parseCbu(value: string): string {
   const normalizedValue = value.trim();
 
   if (!/^\d{22}$/.test(normalizedValue)) {
-    throw new InputValidationError(`El CBU "${value}" no es valido: debe tener 22 digitos.`);
+    throw new InputValidationError(`El CBU "${value}" no es válido: debe tener 22 digitos.`);
   }
 
   return normalizedValue;
@@ -101,7 +113,7 @@ function parseCbuAlias(value: string): string {
 
   if (!/^[A-Za-z0-9.-]{6,20}$/.test(normalizedValue)) {
     throw new InputValidationError(
-      `El alias "${value}" no es valido: debe tener entre 6 y 20 letras, numeros, puntos o guiones.`,
+      `El alias "${value}" no es válido: debe tener entre 6 y 20 letras, números, puntos o guiones.`,
     );
   }
 
@@ -109,21 +121,21 @@ function parseCbuAlias(value: string): string {
 }
 
 function parsePositiveInteger(value: string): number {
-  const parsedValue = Number.parseInt(value.trim(), 10);
+  const parsedValue = parseStrictInteger(value);
 
-  if (!Number.isInteger(parsedValue) || parsedValue <= 0) {
-    throw new InputValidationError(`El valor "${value}" no es un entero positivo valido.`);
+  if (parsedValue === undefined || parsedValue <= 0) {
+    throw new InputValidationError(`El valor "${value}" no es un entero positivo válido.`);
   }
 
   return parsedValue;
 }
 
 function parseRecentCount(value: string): number {
-  const parsedValue = Number(value.trim());
+  const parsedValue = parseStrictInteger(value);
 
-  if (!Number.isInteger(parsedValue) || parsedValue < 1 || parsedValue > MAX_RECENT_VOUCHERS) {
+  if (parsedValue === undefined || parsedValue < 1 || parsedValue > MAX_RECENT_VOUCHERS) {
     throw new InputValidationError(
-      `La cantidad "${value}" no es valida: tiene que ser un numero entre 1 y ${MAX_RECENT_VOUCHERS}.`,
+      `La cantidad "${value}" no es válida: tiene que ser un número entre 1 y ${MAX_RECENT_VOUCHERS}.`,
     );
   }
 
@@ -134,7 +146,7 @@ function parseExchangeRate(value: string): number {
   const result = parseArgentineAmount(value, { maxDecimals: EXCHANGE_RATE_DECIMALS });
 
   if (!result.ok) {
-    throw new InputValidationError(`La cotizacion "${value}" no es valida: ${result.reason}.`);
+    throw new InputValidationError(`La cotización "${value}" no es válida: ${result.reason}.`);
   }
 
   return result.value;
@@ -152,7 +164,7 @@ function parsePemPath(value: string, label: 'certificado' | 'clave privada'): st
 // La fecha de inicio de actividades es vieja: se pide con anio para no completarla con el actual.
 function parseFullDate(value: string): string {
   if (!/^\d{1,2}([-/])\d{1,2}\1(\d{2}|\d{4})$/.test(value.trim())) {
-    throw new InputValidationError(`La fecha "${value}" no es valida. Use D/MM/YYYY, por ejemplo 1/03/2020.`);
+    throw new InputValidationError(`La fecha "${value}" no es válida. Usá D/MM/YYYY, por ejemplo 1/03/2020.`);
   }
 
   return parseArgentineDateInputAsArcaDate(value);
@@ -162,7 +174,7 @@ function parseExistingFile(value: string, label: string): string {
   const path = resolve(parseNonEmptyString(value));
 
   if (!existsSync(path)) {
-    throw new InputValidationError(`No se encontro ${label} en "${path}".`);
+    throw new InputValidationError(`No se encontró ${label} en "${path}".`);
   }
 
   return path;
@@ -193,7 +205,7 @@ export function parseConfigValue(key: CanonicalConfigKey, value: string): boolea
     case 'cotizacionPorDefecto':
       return parseExchangeRate(value);
     case 'cuit':
-      return value.trim();
+      return parseConfigCuit(value);
     case 'emisor.condicionIva':
       return arcliDefaultIvaConditionSchema.parse(value.trim().toLowerCase());
     case 'emisor.domicilio':

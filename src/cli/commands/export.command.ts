@@ -38,10 +38,10 @@ Ejemplos:
 
   arcli ${EXPORT_COMMAND_NAME} --cargar factura-e.json --emitir --exportar-pdf
 
-Por defecto la exportacion es de servicios (--tipo-expo 2), en dolares (--moneda DOL), con la actividad 620900
-(servicios de informatica N.C.P.) y con forma de pago "Transferencia Internacional".
-El pago de la exportacion se cancela en moneda extranjera: con --misma-moneda ARCA recibe CanMisMonExt = S.
-La vista previa consulta las tablas y la numeracion de WSFEX, pero no emite nada.
+Por defecto la exportación es de servicios (--tipo-expo 2), en dólares (--moneda DOL), con la actividad 620900
+(servicios de informática N.C.P.) y con forma de pago "Transferencia Internacional".
+El pago de la exportación se cancela en moneda extranjera: con --misma-moneda ARCA recibe CanMisMonExt = S.
+La vista previa consulta las tablas y la numeración de WSFEX, pero no emite nada.
 Los permisos de embarque van con --permiso y --permiso-existente, solo con --tipo-expo 1.`;
 
 function writeExportResult(
@@ -167,7 +167,7 @@ export async function executeExportCommand(command: Command): Promise<void> {
 export function registerExportCommand(program: Command): void {
   const command = program
     .command(EXPORT_COMMAND_NAME)
-    .description('factura de exportacion E (WSFEX): previsualizar o emitir con items, incoterm y pais de destino')
+    .description('factura de exportación E (WSFEX): previsualizar o emitir con items, incoterm y país de destino')
     .alias('fe');
 
   configureSpanishHelp(command);

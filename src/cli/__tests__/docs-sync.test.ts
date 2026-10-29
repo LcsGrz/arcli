@@ -37,6 +37,12 @@ function mentionsCommand(doc: string, path: string[]): boolean {
   return parent !== '' && new RegExp(`${word(parent)} \\[[^\\]]*${word(leaf)}[^\\]]*\\]`).test(doc);
 }
 
+/** El script de autocompletado lo llama en cada Tab; no se usa a mano. */
+const UNDOCUMENTED_COMMANDS = new Set(['__completar']);
+
+/** Herramientas de desarrollo ocultas en la ayuda: van en docs/development.md, no en llms.txt. */
+const INTERNAL_COMMANDS = new Set(['storybook']);
+
 function collect(program: Command) {
   const commands: string[][] = [];
   const flags = new Set<string>();
@@ -45,6 +51,7 @@ function collect(program: Command) {
       if (option.long && !option.hidden) flags.add(option.long);
     }
     for (const sub of command.commands) {
+      if (UNDOCUMENTED_COMMANDS.has(sub.name())) continue;
       commands.push([...path, sub.name()]);
       walk(sub, [...path, sub.name()]);
     }
@@ -64,8 +71,10 @@ describe('docs al día con el CLI', () => {
   it.each([
     ['docs/', allDocs],
     ['llms.txt', llms],
-  ])('cada comando aparece en %s', (_name, doc) => {
-    expect(commands.filter((path) => !mentionsCommand(doc, path)).map((path) => path.join(' '))).toEqual([]);
+  ])('cada comando aparece en %s', (name, doc) => {
+    const expected = name === 'llms.txt' ? commands.filter((path) => !INTERNAL_COMMANDS.has(path[0] ?? '')) : commands;
+
+    expect(expected.filter((path) => !mentionsCommand(doc, path)).map((path) => path.join(' '))).toEqual([]);
   });
 
   it.each([

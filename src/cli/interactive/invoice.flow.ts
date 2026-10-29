@@ -32,7 +32,7 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
     {
       name: 'comprobante',
       run: async () => {
-        const voucherKind = await chooseStep('¿Que comprobante queres emitir?', invoiceKindChoices());
+        const voucherKind = await chooseStep('¿Qué comprobante querés emitir?', invoiceKindChoices());
 
         return voucherKind === BACK ? BACK : { voucherKind };
       },
@@ -76,7 +76,7 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
     {
       name: 'concepto',
       run: async () => {
-        const concept = await chooseStep('¿Que estas facturando?', conceptChoices(), config.conceptoPorDefecto);
+        const concept = await chooseStep('¿Qué estás facturando?', conceptChoices(), config.conceptoPorDefecto);
 
         return concept === BACK ? BACK : { concept };
       },
@@ -123,6 +123,8 @@ export function buildInvoiceInput(state: InvoiceState, session: InteractiveSessi
   return billingCommandSchema.parse({
     ...state.advanced,
     cbu: isFceInvoice(state) ? (state.cbu ?? config.cbu) : undefined,
+    // Como en el CLI: en una FCE el alias de la config se informa junto con el CBU.
+    cbuAlias: isFceInvoice(state) ? config.aliasCbu : undefined,
     concept: state.concept,
     documentNumber: state.documentNumber,
     documentType: state.documentType,

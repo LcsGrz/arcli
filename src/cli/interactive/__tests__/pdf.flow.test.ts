@@ -37,8 +37,8 @@ const attachPdfsMock = vi.mocked(attachPdfs);
 
 const CONFIG = {
   cert: {},
-  cuit: '20123456789',
-  emisor: { domicilio: 'Calle 123', inicioActividades: '20200301', razonSocial: 'Lucas Gerez' },
+  cuit: '20123456786',
+  emisor: { domicilio: 'Calle 123', inicioActividades: '20200301', razonSocial: 'Ana Gomez' },
   entornoPorDefecto: 'testing',
   key: {},
   output: { brutoPorDefecto: false, emitirPorDefecto: false, jsonPorDefecto: false },
@@ -91,6 +91,21 @@ describe('offerPdf', () => {
     expect(attachPdfsMock).not.toHaveBeenCalled();
   });
 
+  it('keeps the receiver name and address from the padron when the user presses Enter', async () => {
+    confirmMock.mockResolvedValueOnce(true);
+    // Enter en un prompt con valor por defecto devuelve ese valor.
+    askTextMock.mockImplementation(async (_message, options) => options?.defaultValue ?? '');
+
+    await offerPdf(CONFIG, { ...input, receiverAddress: 'Av. Siempreviva 742', receiverName: 'DARIO SA' }, result);
+
+    expect(attachPdfsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        inputs: [expect.objectContaining({ receiverAddress: 'Av. Siempreviva 742', receiverName: 'DARIO SA' })],
+      }),
+    );
+    askTextMock.mockReset();
+  });
+
   it('asks the PDF-only data and generates it', async () => {
     confirmMock.mockResolvedValueOnce(true);
     askTextMock
@@ -125,14 +140,14 @@ describe('offerPdf', () => {
       .mockResolvedValueOnce('Calle 9')
       .mockResolvedValueOnce('1/03/2020');
 
-    await offerPdf({ ...CONFIG, emisor: { razonSocial: 'Lucas Gerez' }, pdf: 'siempre' }, input, result);
+    await offerPdf({ ...CONFIG, emisor: { razonSocial: 'Ana Gomez' }, pdf: 'siempre' }, input, result);
 
     expect(setValue).toHaveBeenCalledWith('emisor.domicilio', 'Calle 9');
     expect(setValue).toHaveBeenCalledWith('emisor.inicioActividades', '1/03/2020');
     expect(attachPdfsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         config: expect.objectContaining({
-          emisor: { domicilio: 'Calle 9', inicioActividades: '20200301', razonSocial: 'Lucas Gerez' },
+          emisor: { domicilio: 'Calle 9', inicioActividades: '20200301', razonSocial: 'Ana Gomez' },
         }),
       }),
     );

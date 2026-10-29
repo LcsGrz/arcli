@@ -165,7 +165,7 @@ describe('ExportService.resolve', () => {
 
     expect(resolved.payload.Moneda_ctz).toBe(895);
     expect(resolved.warnings).toEqual([
-      'ARCA no publico la cotizacion de DOL del 01/06/2026: se usa la del 29/05/2026 (895). Para usar otra, --cotizacion-moneda.',
+      'ARCA no publicó la cotización de DOL del 01/06/2026: se usa la del 29/05/2026 (895). Para usar otra, --cotizacion-moneda.',
     ]);
   });
 
@@ -181,7 +181,7 @@ describe('ExportService.resolve', () => {
     });
 
     await expect(service.resolve(INPUT, gateway, RUNTIME, NOW)).rejects.toThrow(
-      /no informo la cotizacion de DOL para el 2026-06-01\. Las monedas con cotizacion son 060\./,
+      /no informó la cotización de DOL para el 2026-06-01\. Las monedas con cotización son 060\./,
     );
     await expect(service.resolve(INPUT, gateway, RUNTIME, NOW)).rejects.toThrow(/--cotizacion-moneda/);
   });
@@ -228,7 +228,7 @@ describe('ExportService.resolve', () => {
     // El aviso no corta la emision: ARCA es el que rechaza con 2105 si la actividad no le sirve.
     expect(resolved.payload.Actividades).toEqual({ Actividad: [{ Id: 620900 }] });
     expect(resolved.warnings).toEqual([
-      'La actividad 620900 no esta en la tabla de actividades de WSFEX: ARCA la rechaza al emitir (error 2105). Las que empiezan con 620 son 620100, 620300. Indique la que corresponda con --actividad.',
+      'La actividad 620900 no está en la tabla de actividades de WSFEX: ARCA la rechaza al emitir (error 2105). Las que empiezan con 620 son 620100, 620300. Indicá la que corresponda con --actividad.',
     ]);
   });
 

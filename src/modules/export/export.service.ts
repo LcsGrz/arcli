@@ -40,19 +40,19 @@ export interface ExportRuntime {
 /** Se valida antes de tocar la red: un flag que falta no tiene por que autenticar en WSAA. */
 function assertRequiredFields(input: ExportVoucherInput): void {
   if (typeof input.amount !== 'number' || !(input.amount > 0)) {
-    throw new InputValidationError('Falta el importe total o no es valido. Use --monto.');
+    throw new InputValidationError('Falta el importe total o no es válido. Usá --monto.');
   }
 
   if (!input.clientName?.trim()) {
-    throw new InputValidationError('Falta el nombre del cliente. Use --cliente.');
+    throw new InputValidationError('Falta el nombre del cliente. Usá --cliente.');
   }
 
   if (!input.clientAddress?.trim()) {
-    throw new InputValidationError('Falta el domicilio del cliente. Use --domicilio-cliente.');
+    throw new InputValidationError('Falta el domicilio del cliente. Usá --domicilio-cliente.');
   }
 
   if (!input.destinationCountry?.trim()) {
-    throw new InputValidationError('Falta el pais de destino. Use --pais-destino.');
+    throw new InputValidationError('Falta el país de destino. Usá --pais-destino.');
   }
 
   assertExportItemsTotal(input.items, input.amount);
@@ -117,7 +117,7 @@ export class ExportService {
     const exchangeRate = quotation?.rate ?? currency.fields.Moneda_ctz;
     const pointOfSale = resolveExportPointOfSale(input.pointOfSale, config);
     const voucherNumber = resolveExportNumber({
-      label: 'El numero del comprobante',
+      label: 'El número del comprobante',
       last: input.voucherNumber === undefined ? await gateway.getLastVoucherNumber(pointOfSale) : 0,
       provided: input.voucherNumber,
     });
@@ -157,7 +157,7 @@ export class ExportService {
     const warnings = [
       ...(quotation?.date && quotation.date !== voucherDate
         ? [
-            `ARCA no publico la cotizacion de ${quotation.code} del ${formatArcaDateAsArgentineDate(
+            `ARCA no publicó la cotización de ${quotation.code} del ${formatArcaDateAsArgentineDate(
               voucherDate,
             )}: se usa la del ${formatArcaDateAsArgentineDate(quotation.date)} (${quotation.rate}). Para usar otra, --cotizacion-moneda.`,
           ]

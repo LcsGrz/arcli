@@ -7,8 +7,9 @@ import type { ExportExecutionResult } from '../export/export.types';
 
 import { PdfError } from './pdf.errors';
 import type { InvoicePdfData, InvoicePdfIssuer, InvoicePdfItem, InvoicePdfIva, PdfVoucherExtras } from './pdf.types';
+import { buildPdfLegends } from './pdf-legends';
 
-export const DEFAULT_ITEM_DESCRIPTION = 'Segun detalle';
+export const DEFAULT_ITEM_DESCRIPTION = 'Según detalle';
 
 // Mismos nombres que usa la plantilla del SDK para calcular el tipo de documento del QR.
 const DOCUMENT_TYPE_NAMES: Readonly<Record<number, string>> = {
@@ -87,7 +88,7 @@ function resolveVoucherNumber(result: BillingExecutionResult): number {
   const number = result.response.raw?.response?.FeDetResp?.FECAEDetResponse?.[0]?.CbteDesde ?? result.payload.CbteDesde;
 
   if (!number) {
-    throw new PdfError('PDF_GENERATION_ERROR', 'La respuesta de ARCA no trae el numero del comprobante.');
+    throw new PdfError('PDF_GENERATION_ERROR', 'La respuesta de ARCA no trae el número del comprobante.');
   }
 
   return number;
@@ -145,6 +146,7 @@ export function mapBillingResultToPdfData(
     iva: iva.length > 0 ? iva : undefined,
     // La plantilla del SDK solo conoce pesos y dolares; el resto se muestra con su codigo ARCA.
     moneda: CURRENCY_CODES[payload.MonId] ?? payload.MonId,
+    observaciones: buildPdfLegends(result),
     puntoVenta: payload.PtoVta,
     receptor: {
       condicionIva: capitalizeWords(formatIvaConditionLabel(payload.CondicionIVAReceptorId)),
@@ -162,7 +164,7 @@ function resolveExportVoucherNumber(result: ExportExecutionResult): number {
   const number = result.response.raw?.FEXAuthorizeResult?.FEXResultAuth?.Cbte_nro || result.payload.Cbte_nro;
 
   if (!number) {
-    throw new PdfError('PDF_GENERATION_ERROR', 'La respuesta de ARCA no trae el numero del comprobante.');
+    throw new PdfError('PDF_GENERATION_ERROR', 'La respuesta de ARCA no trae el número del comprobante.');
   }
 
   return number;

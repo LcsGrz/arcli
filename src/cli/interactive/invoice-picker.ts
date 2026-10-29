@@ -1,5 +1,6 @@
 import { Separator } from '@inquirer/select';
 
+import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { BACK, type Back } from '../../modules/interactive/wizard';
 import { type IssuedVoucher, listVouchersFrom, RECENT_VOUCHERS_LIMIT } from '../../modules/vouchers/voucher-history';
@@ -55,9 +56,9 @@ async function withSpinner<T>(text: string, run: () => Promise<T>): Promise<T> {
 
 function validatePositiveInteger(label: string): (value: string) => string | true {
   return (value) => {
-    const number = Number(value.trim());
+    const number = parseStrictInteger(value);
 
-    return Number.isInteger(number) && number > 0 ? true : `${label} tiene que ser un numero entero mayor a 0.`;
+    return number !== undefined && number > 0 ? true : `${label} tiene que ser un número entero mayor a 0.`;
   };
 }
 
@@ -76,7 +77,7 @@ async function askVoucherByNumber(
     return BACK;
   }
 
-  const numberAnswer = await askTextStep('Numero:', { validate: validatePositiveInteger('El numero') });
+  const numberAnswer = await askTextStep('Número:', { validate: validatePositiveInteger('El número') });
 
   if (numberAnswer === BACK) {
     return BACK;
@@ -153,15 +154,15 @@ export async function pickInvoice(
       if (loading) {
         choices.push(new Separator(' '), new Separator(colorize(' Cargando…', 'muted')));
       } else if (nextNumber > 0) {
-        choices.push(new Separator(' '), { name: '+ Cargar mas…', value: LOAD_MORE });
+        choices.push(new Separator(' '), { name: '+ Cargar más…', value: LOAD_MORE });
       }
 
       choices.push(listRule(), new Separator(' '));
     }
 
     choices.push({
-      description: 'Uno mas viejo o de otro punto de venta',
-      name: '# Ingresar el numero a mano…',
+      description: 'Uno más viejo o de otro punto de venta',
+      name: '# Ingresar el número a mano…',
       value: BY_NUMBER,
     });
 

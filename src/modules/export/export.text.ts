@@ -63,7 +63,7 @@ function formatIncoterm(result: ExportExecutionResult): string {
 
 function formatCurrency(result: ExportExecutionResult): string {
   const { CanMisMonExt: sameCurrency, Moneda_Id: currency, Moneda_ctz: rate } = result.payload;
-  const label = currency === 'PES' ? `${currency} (pesos)` : `${currency}, cotizacion ${rate}`;
+  const label = currency === 'PES' ? `${currency} (pesos)` : `${currency}, cotización ${rate}`;
 
   return sameCurrency === 'S' ? `${label} (el pago se cancela en la misma moneda)` : label;
 }
@@ -93,17 +93,17 @@ function formatPayloadRows(result: ExportExecutionResult): Rows {
   const { payload } = result;
   const rows: Rows = [
     ['Cliente', payload.Cliente],
-    ['CUIT del pais del cliente', String(payload.Cuit_pais_cliente)],
+    ['CUIT del país del cliente', String(payload.Cuit_pais_cliente)],
     ['Domicilio del cliente', payload.Domicilio_cliente],
-    ['Pais de destino', formatCountry(result)],
-    ['Tipo de exportacion', formatExportType(result)],
+    ['País de destino', formatCountry(result)],
+    ['Tipo de exportación', formatExportType(result)],
     ['Actividad', payload.Actividades.Actividad.map((activity) => activity.Id).join(', ')],
     ['Incoterm', formatIncoterm(result)],
     ['Idioma', result.display.languageName ?? String(payload.Idioma_cbte)],
     ['Moneda', formatCurrency(result)],
     ['Forma de pago', payload.Forma_pago],
     ['Punto de venta', formatNumericLabel(payload.Punto_vta)],
-    ['Numero', formatNumericLabel(payload.Cbte_nro)],
+    ['Número', formatNumericLabel(payload.Cbte_nro)],
     ['Fecha del comprobante', formatDateLabel(payload.Fecha_cbte)],
     ['Fecha de pago', formatDateLabel(payload.Fecha_pago)],
     ['Importe total', formatMoneyLabel(payload.Imp_total)],
@@ -157,7 +157,7 @@ export function formatExportResultPanel(
     ['CAE', result.response.cae ?? 'N/D'],
     ['Vencimiento CAE', formatDateLabel(result.response.caeVencimiento ?? undefined)],
     ['Punto de venta', result.payload.Punto_vta],
-    ['Numero', result.payload.Cbte_nro],
+    ['Número', result.payload.Cbte_nro],
     ['Importe total', formatMoneyLabel(result.payload.Imp_total)],
   ];
   const countRows: Array<readonly [string, string | number]> = [

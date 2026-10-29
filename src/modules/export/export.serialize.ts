@@ -20,7 +20,7 @@ function formatPdfOutcome(result: ExportExecutionResult): Record<string, unknown
 }
 
 function formatRawResponse(result: ExportExecutionResult): unknown {
-  return result.response.raw ?? { mensaje: 'Sin emision real. Use --emitir para obtener una respuesta de ARCA.' };
+  return result.response.raw ?? { mensaje: 'Sin emisión real. Usá --emitir para obtener una respuesta de ARCA.' };
 }
 
 /** Lo que WSFEX tiene y wsfe no: destino, incoterm, permisos e items reales. */

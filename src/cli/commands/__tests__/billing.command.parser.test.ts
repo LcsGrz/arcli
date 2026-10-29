@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { needsPadronLookup } from '../../../modules/billing/billing.padron';
 import {
   parseBillingCommandInput,
   parseBillingCommandInputs,
@@ -50,6 +51,16 @@ afterEach(() => {
 });
 
 describe('billing.command.parser', () => {
+  it('never rounds the JSON total: keeps 2 decimals and rejects more', () => {
+    const parse = (montoTotal: number) =>
+      parseBillingCommandInput(createCommand(['--cargar', writeJsonInput({ montoTotal })]), 'fc');
+
+    expect(parse(100.55).totalAmount).toBe(100.55);
+    expect(parse(1234.5).totalAmount).toBe(1234.5);
+    expect(() => parse(1.005)).toThrow(/hasta 2 decimales/);
+    expect(() => parse(100.555)).toThrow(/hasta 2 decimales/);
+  });
+
   it('defaults to safe dry-run when emit is absent', () => {
     const command = createCommand(['--monto', '1000']);
     const input = parseBillingCommandInput(command, 'fa', {
@@ -123,7 +134,7 @@ describe('billing.command.parser', () => {
   it('rejects mixing emit and preview at the same time', () => {
     const command = createCommand(['--monto', '1000', '--emitir', '--previsualizar', '--cs', '--ir-cf']);
 
-    expect(() => parseBillingCommandInput(command, 'fa')).toThrow(/Use --emitir o --previsualizar/);
+    expect(() => parseBillingCommandInput(command, 'fa')).toThrow(/Usá --emitir o --previsualizar/);
   });
 
   describe('a written flag wins over the file and the config', () => {
@@ -236,7 +247,7 @@ describe('billing.command.parser', () => {
       '1200',
     ]);
 
-    expect(() => parseBillingCommandInput(command, 'fc')).toThrow(/la cotizacion se toma de ARCA/);
+    expect(() => parseBillingCommandInput(command, 'fc')).toThrow(/la cotización se toma de ARCA/);
   });
 
   it('applies the default exchange rate only to foreign currency', () => {
@@ -401,11 +412,11 @@ describe('billing.command.parser', () => {
   });
 
   it.each([
-    [['--monto', '1500.50'], /--monto "1500.50" no es valido: use coma para los decimales/],
-    [['--monto', '12abc'], /--monto "12abc" no es valido: use punto para miles y coma para decimales/],
-    [['--monto', '1500,555'], /--monto "1500,555" no es valido: use hasta 2 decimales/],
-    [['--monto', '100', '--exento', '10.5'], /--exento "10.5" no es valido/],
-    [['--monto', '100', '--cm', '1452.5'], /--cm "1452.5" no es valido/],
+    [['--monto', '1500.50'], /--monto "1500.50" no es válido: usá coma para los decimales/],
+    [['--monto', '12abc'], /--monto "12abc" no es válido: usá punto para miles y coma para decimales/],
+    [['--monto', '1500,555'], /--monto "1500,555" no es válido: usá hasta 2 decimales/],
+    [['--monto', '100', '--exento', '10.5'], /--exento "10.5" no es válido/],
+    [['--monto', '100', '--cm', '1452.5'], /--cm "1452.5" no es válido/],
   ])('rejects amounts that are not in the Argentine format: %j', (args, message) => {
     expect(() => createCommand(args)).toThrow(message);
   });
@@ -416,7 +427,7 @@ describe('billing.command.parser', () => {
         createCommand(['--cs', '--ir-ri', '--alicuota', 'general:1210', '--alicuota', 'reducida:552.50']),
         'fa',
       ),
-    ).toThrow(/--alicuota "reducida:552.50": el monto no es valido: use coma para los decimales/);
+    ).toThrow(/--alicuota "reducida:552.50": el monto no es válido: usá coma para los decimales/);
   });
 
   it('sums several alicuotas without floating point errors', () => {
@@ -443,13 +454,13 @@ describe('billing.command.parser', () => {
         createCommand(['--monto', '100', '--cs', '--ir-ri', '--alicuota', '21', '--alicuota', '10.5:50']),
         'fa',
       ),
-    ).toThrow(/No mezcle --alicuota TASA con --alicuota TASA:MONTO/);
+    ).toThrow(/No mezcles --alicuota TASA con --alicuota TASA:MONTO/);
     expect(() =>
       parseBillingCommandInput(
         createCommand(['--monto', '100', '--cs', '--ir-ri', '--alicuota', '21', '--alicuota', '27']),
         'fa',
       ),
-    ).toThrow(/Para varias alicuotas use --alicuota TASA:MONTO/);
+    ).toThrow(/Para varias alícuotas usá --alicuota TASA:MONTO/);
   });
 
   it('loads base data from a JSON file', () => {
@@ -465,7 +476,7 @@ describe('billing.command.parser', () => {
         codigoMoneda: 'USD',
         comprobanteAsociado: {
           atajo: 'fc',
-          cuit: '20123456789',
+          cuit: '20123456786',
           numero: 10,
           puntoVenta: 3,
         },
@@ -636,17 +647,23 @@ describe('billing.command.parser', () => {
       '--ar',
       '120',
       '--acuit',
-      '20409509763',
+      '20-33333333-4',
     ]);
     const input = parseBillingCommandInput(command, 'ncc');
 
     expect(input.associatedVoucher).toEqual({
-      cuit: '20409509763',
+      cuit: '20333333334',
       numero: 120,
       puntoVenta: 3,
       shortcut: 'fc',
       tipo: undefined,
     });
+  });
+
+  it('rejects an --acuit with a wrong check digit', () => {
+    expect(() => createCommand(['--monto', '5000', '--acuit', '20-33333333-5'])).toThrow(
+      /--acuit "20-33333333-5" no es válido: el digito verificador/,
+    );
   });
 
   describe('PDF flags', () => {
@@ -705,6 +722,16 @@ describe('IVA receptor y padron', () => {
     ).toMatchObject({ ivaCondition: 'consumidor-final', ivaConditionSource: 'default' });
   });
 
+  it('con consultarPadron=false el IVA de la config es definitivo y no se consulta', () => {
+    const input = parse(['--cuit', '20201797064'], {
+      defaultIvaCondition: 'responsable-inscripto',
+      lookupIvaConditionInPadron: false,
+    });
+
+    expect(input).toMatchObject({ ivaCondition: 'responsable-inscripto' });
+    expect(input && needsPadronLookup(input)).toBe(false);
+  });
+
   it('un --ir explicito no se marca y no se consulta', () => {
     expect(
       parse(['--cuit', '20201797064', '--ir-ri'], { lookupIvaConditionInPadron: true })?.ivaConditionSource,
@@ -731,7 +758,7 @@ describe('--cargar JSON validation', () => {
   it('rejects a point of sale written as text instead of using the one in the config', () => {
     expect(() =>
       parseBillingCommandInput(createCommand(['--cargar', writeJsonInput({ puntoVenta: '3' })]), 'fc'),
-    ).toThrow(/"puntoVenta" tiene que ser un numero/);
+    ).toThrow(/"puntoVenta" tiene que ser un número/);
   });
 
   it('rejects a misspelled key instead of ignoring it', () => {
@@ -797,6 +824,6 @@ describe('--cargar JSON validation', () => {
         createCommand(['--cargar', writeRawJson([]), '--monto', '100', '--cs', '--ir-cf']),
         'fc',
       ),
-    ).toThrow(/vacio/);
+    ).toThrow(/vacío/);
   });
 });
