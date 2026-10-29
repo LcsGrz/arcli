@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { needsPadronLookup } from '../../../modules/billing/billing.padron';
 import {
   parseBillingCommandInput,
   parseBillingCommandInputs,
@@ -50,6 +51,16 @@ afterEach(() => {
 });
 
 describe('billing.command.parser', () => {
+  it('never rounds the JSON total: keeps 2 decimals and rejects more', () => {
+    const parse = (montoTotal: number) =>
+      parseBillingCommandInput(createCommand(['--cargar', writeJsonInput({ montoTotal })]), 'fc');
+
+    expect(parse(100.55).totalAmount).toBe(100.55);
+    expect(parse(1234.5).totalAmount).toBe(1234.5);
+    expect(() => parse(1.005)).toThrow(/hasta 2 decimales/);
+    expect(() => parse(100.555)).toThrow(/hasta 2 decimales/);
+  });
+
   it('defaults to safe dry-run when emit is absent', () => {
     const command = createCommand(['--monto', '1000']);
     const input = parseBillingCommandInput(command, 'fa', {
@@ -465,7 +476,7 @@ describe('billing.command.parser', () => {
         codigoMoneda: 'USD',
         comprobanteAsociado: {
           atajo: 'fc',
-          cuit: '20123456789',
+          cuit: '20123456786',
           numero: 10,
           puntoVenta: 3,
         },
@@ -636,7 +647,7 @@ describe('billing.command.parser', () => {
       '--ar',
       '120',
       '--acuit',
-      '20409509763',
+      '20-40950976-3',
     ]);
     const input = parseBillingCommandInput(command, 'ncc');
 
@@ -647,6 +658,12 @@ describe('billing.command.parser', () => {
       shortcut: 'fc',
       tipo: undefined,
     });
+  });
+
+  it('rejects an --acuit with a wrong check digit', () => {
+    expect(() => createCommand(['--monto', '5000', '--acuit', '20-40950976-4'])).toThrow(
+      /--acuit "20-40950976-4" no es valido: el digito verificador/,
+    );
   });
 
   describe('PDF flags', () => {
@@ -703,6 +720,16 @@ describe('IVA receptor y padron', () => {
     expect(
       parse(['--cuit', '20201797064'], { defaultIvaCondition: 'consumidor-final', lookupIvaConditionInPadron: true }),
     ).toMatchObject({ ivaCondition: 'consumidor-final', ivaConditionSource: 'default' });
+  });
+
+  it('con consultarPadron=false el IVA de la config es definitivo y no se consulta', () => {
+    const input = parse(['--cuit', '20201797064'], {
+      defaultIvaCondition: 'responsable-inscripto',
+      lookupIvaConditionInPadron: false,
+    });
+
+    expect(input).toMatchObject({ ivaCondition: 'responsable-inscripto' });
+    expect(input && needsPadronLookup(input)).toBe(false);
   });
 
   it('un --ir explicito no se marca y no se consulta', () => {

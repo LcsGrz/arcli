@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { parseCuit } from '../../lib/identity/cuit';
 import { AMOUNT_DECIMALS, EXCHANGE_RATE_DECIMALS, hasAtMostDecimals } from '../../lib/numbers/argentine-amount';
 
 import type { VoucherShortcut } from './billing.types';
@@ -93,8 +94,17 @@ const billingAssociatedVoucherSchema = z
   .object({
     cuit: z
       .string()
-      .trim()
-      .regex(/^\d{11}$/)
+      .transform((value, context) => {
+        const result = parseCuit(value);
+
+        if (!result.ok) {
+          context.addIssue({ code: 'custom', message: `El CUIT del comprobante asociado ${result.reason}.` });
+
+          return z.NEVER;
+        }
+
+        return result.value;
+      })
       .optional(),
     fecha: z.string().trim().optional(),
     numero: z.number().int().positive().optional(),
@@ -151,6 +161,8 @@ export const billingCommandSchema = z.object({
   pdfDescription: z.string().trim().min(1).max(200).optional(),
   pointOfSale: z.number().int().positive().optional(),
   receiverAddress: z.string().trim().min(1).max(200).optional(),
+  /** Que datos del receptor completo el padron (no los paso quien factura). */
+  receiverFromPadron: z.array(z.enum(['address', 'name'])).optional(),
   receiverName: z.string().trim().min(1).max(200).optional(),
   sameCurrency: z.boolean().default(false),
   serviceEndDate: z.string().trim().optional(),

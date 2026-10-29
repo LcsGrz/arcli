@@ -193,7 +193,7 @@ Si el archivo contiene un array, ARCLI procesa un lote del mismo comando. **Un a
 **Antes de emitir el primer comprobante, ARCLI valida todos los del lote**: la forma del JSON, las consultas a ARCA que se hacen antes de emitir (IVA receptor desde el padrón, cotización oficial) y las reglas de negocio (IVA receptor por letra, fechas, FCE, montos…).
 
 - Si alguno es inválido o falla su consulta, **no se emite ninguno** y el error `BATCH_VALIDATION_ERROR` lista **todos** los ítems con problemas, con su índice (desde 1) y el motivo.
-- Si la emisión se corta a mitad del lote (red, ARCA), ARCLI **muestra primero los comprobantes ya procesados**, con su PDF si corresponde (según `pdf` o `--exportar-pdf`, igual que en un lote completo; en `--json`, cada uno con su campo `pdf`), y después el error `BATCH_EMISSION_ERROR`, que indica en qué ítem falló y cuáles quedaron sin procesar. **No vuelvas a cargar los ya emitidos**. El que falló puede haberse emitido igual (`detalles.sinConfirmar`): verificalo con `arcli ultimos` antes de reintentarlo, y después reintentá los que quedaron sin procesar.
+- Si la emisión se corta a mitad del lote (red, ARCA), ARCLI **muestra primero los comprobantes ya procesados**, con su PDF si corresponde (según `pdf` o `--exportar-pdf`, igual que en un lote completo; en `--json`, cada uno con su campo `pdf`), y después el error `BATCH_EMISSION_ERROR`, que indica en qué ítem falló y cuáles quedaron sin procesar. **No vuelvas a cargar los ya emitidos**. Si viene `detalles.sinConfirmar`, el que falló puede haberse emitido igual: verificalo con `arcli ultimos` antes de reintentarlo. Si no viene, falló antes de emitir (login, último número) y ya está en `detalles.sinProcesar`. Después reintentá los de `sinProcesar`.
 
 ```json
 {
@@ -255,12 +255,13 @@ ARCLI serializa un resumen del resultado. Con `--bruto` se agrega además el cam
 | `errores`          | `unknown[]`                                | Array de errores crudos                                                                                                |
 | `estado`           | `"aprobado" \| "observado" \| "rechazado"` | Estado normalizado que arma ARCLI                                                                                      |
 | `eventos`          | `unknown[]`                                | Array de eventos crudos                                                                                                |
+| `numero`           | `number \| null`                           | Número del comprobante emitido; `null` en una previsualización                                                         |
 | `observaciones`    | `string[]`                                 | Observaciones amigables                                                                                                |
 | `observacion`      | `string \| null`                           | Observaciones unidas en una sola cadena                                                                                |
 | `pdf`              | `object`, opcional                         | Solo si se intentó generar el PDF: `{ ruta }` o `{ error: { codigo, mensaje, sugerencia } }`. Ver [PDF](pdf.md#salida) |
 | `previsualizacion` | `boolean`                                  | `true` si no hubo emisión real                                                                                         |
 | `resultado`        | `string \| null`                           | Resultado original de ARCA, por ejemplo `A` o `R`                                                                      |
-| `solicitud`        | `object`                                   | Solicitud enviada o previsualizada                                                                                     |
+| `solicitud`        | `object`                                   | Solicitud enviada o previsualizada; si se emitió, con el número en `CbteDesde` y `CbteHasta`                           |
 | `sugerencias`      | `string[]`                                 | Sugerencias generadas por ARCLI                                                                                        |
 | `tipoArca`         | `number`                                   | Tipo ARCA del comprobante                                                                                              |
 
@@ -302,6 +303,7 @@ Ejemplo:
   "errores": [],
   "estado": "aprobado",
   "eventos": [],
+  "numero": 125,
   "observaciones": [],
   "observacion": null,
   "previsualizacion": false,
@@ -639,6 +641,7 @@ Dos comandos de diagnóstico informan un problema sin que sea un error: `arcli c
 | `ARCA_UNAVAILABLE`              | `estado`                                                  | ARCA no respondió a la consulta de estado                                                                       | Reintentá en unos minutos; si persiste, ARCA está caído                                                                                  |
 | `ARCA_PARAMETERS_ERROR`         | `parametros <tabla>`                                      | ARCA devolvió un error al consultar una tabla o los puntos de venta (`detalles.errores`)                        | Revisá el mensaje de ARCA; suele ser pasajero o de permisos del certificado                                                              |
 | `ARCA_QUOTATION_ERROR`          | `parametros cotizacion`, facturación con `--misma-moneda` | ARCA no devolvió una cotización válida para la moneda                                                           | Revisá el código de moneda (`arcli parametros monedas`) o pasá la cotización con `--cm` en lugar de `--misma-moneda`                     |
+| `ARCA_LAST_VOUCHER_ERROR`       | facturación, `ultimos`                                    | ARCA devolvió un error al pedir el último número (`detalles.errores`); no se emitió nada                        | Si es del punto de venta (11002), revisá `arcli parametros puntos-venta`; si no, el mensaje de ARCA y reintentá                          |
 | `VOUCHER_NOT_FOUND`             | `consultar`                                               | El comprobante no existe en ese punto de venta y entorno                                                        | Revisá tipo, número, `--pv` y entorno; `arcli ultimos` lista los emitidos                                                                |
 | `TAXPAYER_NOT_FOUND`            | `padron`                                                  | El CUIT no figura en el padrón de ese entorno                                                                   | Revisá el número; en testing el padrón tiene datos ficticios (`sugerencia` trae un CUIT de prueba)                                       |
 | `PADRON_SERVICE_NOT_AUTHORIZED` | `padron`                                                  | El certificado no está autorizado para `ws_sr_constancia_inscripcion`                                           | Autorizalo como `wsfe` ([certificados](obtencion-certificados.md)). Al facturar no corta: se usa `ivaReceptor` de la config con un aviso |
