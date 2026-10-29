@@ -5,7 +5,8 @@ import { BillingService } from '../../../modules/billing/billing.service';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import { runInteractiveBillingPreview } from '../billing.command.interactive-preview';
 
-vi.mock('@inquirer/select', () => ({
+vi.mock('@inquirer/select', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@inquirer/select')>()),
   default: vi.fn(),
 }));
 
@@ -39,7 +40,7 @@ function createRuntime(overrides: Partial<ResolvedArcaRuntime> = {}): ResolvedAr
     },
     context: {
       cert: 'CERT',
-      cuit: 20123456789,
+      cuit: 20123456786,
       key: 'KEY',
       production: false,
     },
@@ -199,5 +200,31 @@ describe('runInteractiveBillingPreview', () => {
       previewShown: true,
       proceed: false,
     });
+  });
+
+  it('treats Esc as declining, like the interactive mode', async () => {
+    setTty(true);
+    vi.mocked(select).mockImplementationOnce(
+      (_config, context) =>
+        new Promise((_resolve, reject) => {
+          context?.signal?.addEventListener('abort', () =>
+            reject(Object.assign(new Error('abort'), { name: 'AbortPromptError' })),
+          );
+        }) as never,
+    );
+
+    const run = runInteractiveBillingPreview({
+      inputs: [createInput()],
+      modeSource: 'default',
+      runtime: createRuntime(),
+      service: new BillingService(),
+      useRaw: false,
+      voucherLabel: 'Factura A',
+    });
+
+    await vi.waitFor(() => expect(select).toHaveBeenCalled());
+    process.stdin.emit('keypress', '', { name: 'escape' });
+
+    expect(await run).toMatchObject({ confirmedInteractively: false, previewShown: true, proceed: false });
   });
 });

@@ -51,6 +51,16 @@ afterEach(() => {
 });
 
 describe('billing.command.parser', () => {
+  it('never rounds the JSON total: keeps 2 decimals and rejects more', () => {
+    const parse = (montoTotal: number) =>
+      parseBillingCommandInput(createCommand(['--cargar', writeJsonInput({ montoTotal })]), 'fc');
+
+    expect(parse(100.55).totalAmount).toBe(100.55);
+    expect(parse(1234.5).totalAmount).toBe(1234.5);
+    expect(() => parse(1.005)).toThrow(/hasta 2 decimales/);
+    expect(() => parse(100.555)).toThrow(/hasta 2 decimales/);
+  });
+
   it('defaults to safe dry-run when emit is absent', () => {
     const command = createCommand(['--monto', '1000']);
     const input = parseBillingCommandInput(command, 'fa', {
@@ -466,7 +476,7 @@ describe('billing.command.parser', () => {
         codigoMoneda: 'USD',
         comprobanteAsociado: {
           atajo: 'fc',
-          cuit: '20123456789',
+          cuit: '20123456786',
           numero: 10,
           puntoVenta: 3,
         },
@@ -637,7 +647,7 @@ describe('billing.command.parser', () => {
       '--ar',
       '120',
       '--acuit',
-      '20409509763',
+      '20-40950976-3',
     ]);
     const input = parseBillingCommandInput(command, 'ncc');
 
@@ -648,6 +658,12 @@ describe('billing.command.parser', () => {
       shortcut: 'fc',
       tipo: undefined,
     });
+  });
+
+  it('rejects an --acuit with a wrong check digit', () => {
+    expect(() => createCommand(['--monto', '5000', '--acuit', '20-40950976-4'])).toThrow(
+      /--acuit "20-40950976-4" no es valido: el digito verificador/,
+    );
   });
 
   describe('PDF flags', () => {
