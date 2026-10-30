@@ -58,7 +58,24 @@ function formatIncoterm(result: ExportExecutionResult): string {
     return 'No informado';
   }
 
-  return description ? `${code} - ${description}` : code;
+  // La tabla de WSFEX trae como descripcion el mismo codigo ("FOB"): no se repite.
+  return description && description.trim().toUpperCase() !== code.trim().toUpperCase()
+    ? `${code} - ${description}`
+    : code;
+}
+
+/** La E casi siempre va en moneda extranjera: el importe lleva su codigo, no el `$` de los pesos. */
+function formatAmount(result: ExportExecutionResult, value: number): string {
+  const currency = result.payload.Moneda_Id;
+  const label = formatMoneyLabel(value);
+
+  return currency === 'PES' ? label : `${label.replace(/\$$/, '')} ${currency}`;
+}
+
+function formatLanguage(result: ExportExecutionResult): string {
+  const { Idioma_cbte: id } = result.payload;
+
+  return result.display.languageName ? `${id} - ${result.display.languageName}` : String(id);
 }
 
 function formatCurrency(result: ExportExecutionResult): string {
@@ -82,7 +99,7 @@ function formatItemsTable(result: ExportExecutionResult): string {
 
   const rows: Rows = items.map((item) => [
     `${item.Pro_qty} x ${item.Pro_ds} (${formatUnit(result, item.Pro_umed)})`,
-    formatMoneyLabel(item.Pro_total_item),
+    formatAmount(result, item.Pro_total_item),
   ]);
   const labelWidth = Math.max(...rows.map(([label]) => label.length), 0);
 
@@ -99,14 +116,14 @@ function formatPayloadRows(result: ExportExecutionResult): Rows {
     ['Tipo de exportación', formatExportType(result)],
     ['Actividad', payload.Actividades.Actividad.map((activity) => activity.Id).join(', ')],
     ['Incoterm', formatIncoterm(result)],
-    ['Idioma', result.display.languageName ?? String(payload.Idioma_cbte)],
+    ['Idioma', formatLanguage(result)],
     ['Moneda', formatCurrency(result)],
     ['Forma de pago', payload.Forma_pago],
     ['Punto de venta', formatNumericLabel(payload.Punto_vta)],
     ['Número', formatNumericLabel(payload.Cbte_nro)],
     ['Fecha del comprobante', formatDateLabel(payload.Fecha_cbte)],
     ['Fecha de pago', formatDateLabel(payload.Fecha_pago)],
-    ['Importe total', formatMoneyLabel(payload.Imp_total)],
+    ['Importe total', formatAmount(result, payload.Imp_total)],
   ];
 
   if (payload.Id_impositivo) {
@@ -158,7 +175,7 @@ export function formatExportResultPanel(
     ['Vencimiento CAE', formatDateLabel(result.response.caeVencimiento ?? undefined)],
     ['Punto de venta', result.payload.Punto_vta],
     ['Número', result.payload.Cbte_nro],
-    ['Importe total', formatMoneyLabel(result.payload.Imp_total)],
+    ['Importe total', formatAmount(result, result.payload.Imp_total)],
   ];
   const countRows: Array<readonly [string, string | number]> = [
     ['Observaciones', result.response.observaciones.length],

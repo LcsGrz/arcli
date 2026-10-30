@@ -121,7 +121,8 @@ export class ExportService {
     );
 
     const incoterm = resolveExportIncoterm(input.incoterm, input.incoterm?.trim() ? await gateway.getIncoterms() : []);
-    const languages = input.language === undefined ? [] : await gateway.getLanguages();
+    // Se consulta siempre: la vista previa muestra el nombre del idioma, tambien el de por defecto.
+    const languages = await gateway.getLanguages();
     const languageId = resolveExportLanguage(input.language, languages);
     const currency = resolveExportCurrency(input);
     const quotation = currency.needsQuotation

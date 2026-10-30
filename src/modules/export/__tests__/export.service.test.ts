@@ -120,11 +120,10 @@ describe('ExportService.resolve', () => {
       countryName: 'Brasil',
       currencyName: 'Dólar Estadounidense',
       incotermName: 'Free on Board',
-      languageName: undefined,
+      languageName: 'Espanol',
       unitNames: { 1: 'Kilogramo', 7: 'Unidad' },
     });
     expect(gateway.getQuotations).toHaveBeenCalledWith('20260601');
-    expect(gateway.getLanguages).not.toHaveBeenCalled();
     // Sin permisos de embarque el Cmp no lleva Permisos: ARCA lo rechaza (1720) con Permiso_existente = N.
     expect(resolved.payload).not.toHaveProperty('Permisos');
   });
