@@ -23,6 +23,7 @@ interface PublicConfigSnapshot {
   readonly emitir: boolean;
   readonly entorno: 'produccion' | 'testing';
   readonly exportacion: {
+    readonly actividad?: number;
     readonly cert: {
       readonly produccion?: string;
       readonly testing?: string;
@@ -72,6 +73,7 @@ function toPublicSnapshot(config: ArcliConfig, paths: ConfigPathSnapshot): Publi
     emitir: config.output.emitirPorDefecto,
     entorno: config.entornoPorDefecto,
     exportacion: {
+      actividad: dedicated?.actividad,
       cert: {
         produccion: dedicated?.cert.produccion ? maskPath(dedicated.cert.produccion) : undefined,
         testing: dedicated?.cert.testing ? maskPath(dedicated.cert.testing) : undefined,
@@ -140,6 +142,7 @@ const CONFIG_TEXT_VALUES: Record<ConfigPublicKey, PublicConfigValue> = {
   'emisor.razonSocial': (c) => notSet(c.emisor.razonSocial),
   emitir: (c) => yesNo(c.emitir),
   entorno: (c) => c.entorno,
+  'exportacion.actividad': (c) => notSet(c.exportacion.actividad),
   'exportacion.cert.produccion': (c) => notSet(c.exportacion.cert.produccion),
   'exportacion.cert.testing': (c) => notSet(c.exportacion.cert.testing),
   'exportacion.key.produccion': (c) => notSet(c.exportacion.key.produccion),

@@ -226,7 +226,8 @@ Claves válidas: `cuit`, `cbu`, `aliasCbu` (solo facturas FCE), `verificarFce`, 
 `si/no`, `1/0`), `cert.testing`, `cert.produccion`, `key.testing`, `key.produccion`
 (rutas a archivos PEM, se validan al guardar), `exportacion.cert.testing`, `exportacion.cert.produccion`,
 `exportacion.key.testing`, `exportacion.key.produccion` (credenciales propias de WSFEX para la factura
-de exportación; si faltan, se usan `cert.*`/`key.*`), `ticketPath` (carpeta donde se cachea el
+de exportación; si faltan, se usan `cert.*`/`key.*`), `exportacion.actividad` (código de la tabla de
+actividades de WSFEX para la `E`; `--actividad` lo pisa), `ticketPath` (carpeta donde se cachea el
 ticket WSAA; por defecto una carpeta junto al archivo de config).
 Para el PDF: `pdf` (`siempre`/`preguntar`/`nunca`), `pdfCarpeta` (por defecto `~/arcli/comprobantes`; una subcarpeta
 por CUIT emisor, los de testing en `testing/<CUIT>/`, y nunca se pisa un PDF existente: se suma `-2`, `-3`), `pdfNavegador` (ruta a Chrome/Chromium/Edge), `emisor.razonSocial`, `emisor.domicilio`,

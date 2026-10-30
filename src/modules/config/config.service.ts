@@ -31,6 +31,7 @@ const CONFIG_KEY_ALIASES: Record<ConfigPublicKey, CanonicalConfigKey> = {
   'emisor.razonSocial': 'emisor.razonSocial',
   entorno: 'entornoPorDefecto',
   emitir: 'output.emitirPorDefecto',
+  'exportacion.actividad': 'exportacion.actividad',
   'exportacion.cert.produccion': 'exportacion.cert.produccion',
   'exportacion.cert.testing': 'exportacion.cert.testing',
   'exportacion.key.produccion': 'exportacion.key.produccion',

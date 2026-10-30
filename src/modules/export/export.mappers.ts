@@ -4,7 +4,6 @@ import { resolveBillingCurrencyCode } from '../billing/billing.mappers';
 import type { ArcliConfig } from '../config/config.schemas';
 
 import {
-  DEFAULT_EXPORT_ACTIVITY_ID,
   DEFAULT_EXPORT_CURRENCY_CODE,
   DEFAULT_EXPORT_LANGUAGE,
   DEFAULT_EXPORT_TYPE,
@@ -13,7 +12,6 @@ import {
   EXPORT_TYPES_WITHOUT_PERMITS,
   EXPORT_VOUCHER_KIND,
   type ExportActivity,
-  type ExportActivityResolution,
   type ExportCountry,
   type ExportCountryCuit,
   type ExportCurrencyResolution,
@@ -146,36 +144,27 @@ export function resolveExportQuotation(
 }
 
 /**
- * WSFEX no acepta el comprobante si informa `Actividades` sin ninguna `Actividad` (error 2100), asi que va siempre
- * una: 620900 (servicios de informatica N.C.P.) salvo que `--actividad` indique otro codigo.
- *
- * La tabla de actividades de WSFEX no es la del padron y es mas chica, asi que un codigo puede no estar: ARCA lo
- * rechaza al emitir con el error 2105. No se corta la emision por eso —el codigo puede ser valido igual— pero la
- * vista previa avisa y muestra las actividades de la tabla que empiezan igual.
+ * WSFEX exige una `Actividad` (error 2100) y solo acepta los codigos de su propia tabla, que no es la del padron y
+ * es mas chica (error 2105 al emitir). Cada emisor tiene la suya, asi que no hay default: sale de `--actividad` o de
+ * `exportacion.actividad`. Los nombres de la tabla llegan con la codificacion rota, por eso los mensajes solo dan codigos.
  */
-export function resolveExportActivity(
-  value: number | undefined,
-  activities: readonly ExportActivity[] = [],
-): ExportActivityResolution {
-  const id = value ?? DEFAULT_EXPORT_ACTIVITY_ID;
-
-  if (!Number.isInteger(id) || id < 1) {
+export function resolveExportActivity(value: number, activities: readonly ExportActivity[] = []): number {
+  if (!Number.isInteger(value) || value < 1) {
     throw new InputValidationError('La actividad tiene que ser un número entero positivo. Usá --actividad.');
   }
 
-  if (activities.length === 0 || activities.some((activity) => activity.id === id)) {
-    return { id };
+  if (activities.length === 0 || activities.some((activity) => activity.id === value)) {
+    return value;
   }
 
-  const prefix = String(id).slice(0, 3);
+  const prefix = String(value).slice(0, 3);
   const family = activities.filter((activity) => String(activity.id).startsWith(prefix)).slice(0, 5);
   const candidates =
     family.length > 0 ? ` Las que empiezan con ${prefix} son ${family.map((activity) => activity.id).join(', ')}.` : '';
 
-  return {
-    id,
-    warning: `La actividad ${id} no está en la tabla de actividades de WSFEX: ARCA la rechaza al emitir (error 2105).${candidates} Indicá la que corresponda con --actividad.`,
-  };
+  throw new InputValidationError(
+    `La actividad ${value} no está en la tabla de actividades de WSFEX y ARCA la rechaza (error 2105).${candidates} Indicá la que corresponda con --actividad.`,
+  );
 }
 
 export function resolveExportType(value: ExportType | undefined): ExportType {

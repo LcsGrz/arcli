@@ -240,30 +240,18 @@ describe('resolveExportActivity', () => {
     { id: 620300, name: 'SERVICIOS DE CONSULTORES EN TECNOLOGIA DE LA INFORMACION' },
   ];
 
-  it('usa 620900 (servicios de informatica) cuando no se indica otra', () => {
-    expect(resolveExportActivity(undefined)).toEqual({ id: 620900 });
+  it('toma la actividad indicada si esta en la tabla de WSFEX', () => {
+    expect(resolveExportActivity(620300, ACTIVITIES)).toBe(620300);
   });
 
-  it('toma la actividad indicada por el usuario', () => {
-    expect(resolveExportActivity(620300, ACTIVITIES)).toEqual({ id: 620300 });
+  it('corta cuando la actividad no esta en la tabla, con las que empiezan igual', () => {
+    expect(() => resolveExportActivity(620900, ACTIVITIES)).toThrow(
+      /no está en la tabla de actividades de WSFEX y ARCA la rechaza \(error 2105\)\. Las que empiezan con 620 son 62000, 620100, 620300\. Indicá la que corresponda con --actividad/,
+    );
   });
 
-  it('no avisa nada si la actividad esta en la tabla de WSFEX', () => {
-    expect(resolveExportActivity(620100, ACTIVITIES)).toEqual({ id: 620100 });
-  });
-
-  it('avisa cuando la actividad no esta en la tabla, con las que empiezan igual', () => {
-    const resolved = resolveExportActivity(620900, ACTIVITIES);
-
-    expect(resolved.id).toBe(620900);
-    expect(resolved.warning).toMatch(/no está en la tabla de actividades de WSFEX/);
-    expect(resolved.warning).toMatch(/error 2105/);
-    expect(resolved.warning).toMatch(/Las que empiezan con 620 son 62000, 620100, 620300/);
-    expect(resolved.warning).toMatch(/--actividad/);
-  });
-
-  it('no corta la emision cuando la tabla viene vacia (ARCA no informa actividades)', () => {
-    expect(resolveExportActivity(620900, [])).toEqual({ id: 620900 });
+  it('no valida contra la tabla cuando ARCA no informa actividades', () => {
+    expect(resolveExportActivity(620900, [])).toBe(620900);
   });
 
   it('rechaza codigos que no son enteros positivos', () => {

@@ -35,6 +35,7 @@ export type CanonicalConfigKey =
   | 'emisor.logo'
   | 'emisor.razonSocial'
   | 'entornoPorDefecto'
+  | 'exportacion.actividad'
   | 'exportacion.cert.produccion'
   | 'exportacion.cert.testing'
   | 'exportacion.key.produccion'
@@ -235,6 +236,7 @@ export function parseConfigValue(key: CanonicalConfigKey, value: string): boolea
     case 'pdfNavegador':
       return parseExistingFile(value, 'el navegador');
     case 'puntoVentaPorDefecto':
+    case 'exportacion.actividad':
       return parsePositiveInteger(value);
     case 'ticketPath':
       return resolve(parseNonEmptyString(value));

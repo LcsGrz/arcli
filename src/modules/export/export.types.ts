@@ -50,13 +50,6 @@ export const DEFAULT_EXPORT_UNIT_CODE = 7;
 /** Idioma por defecto del comprobante. 1 = Espanol. */
 export const DEFAULT_EXPORT_LANGUAGE = 1;
 
-/**
- * Actividad por defecto: 620900 = "Servicios de informatica N.C.P.". WSFEX rechaza el comprobante si se informa
- * `Actividades` sin ninguna `Actividad` (error 2100), asi que siempre va una; los servicios son lo que mas se
- * exporta desde ARCLI, y el codigo se cambia con `--actividad`.
- */
-export const DEFAULT_EXPORT_ACTIVITY_ID = 620900;
-
 /** Tope de numeracion de ARCA. */
 export const MAX_EXPORT_VOUCHER_NUMBER = 99_999_999;
 
@@ -172,12 +165,6 @@ export interface ExportActivity {
   readonly name: string;
 }
 
-/** Actividad resuelta: el codigo que va en el `Cmp` y, si no esta en la tabla de WSFEX, el aviso. */
-export interface ExportActivityResolution {
-  readonly id: number;
-  readonly warning?: string;
-}
-
 /**
  * Una fila de `FEXGetPARAM_MON_CON_COTIZACION`: la cotizacion de aduana que WSFEX tiene publicada para una moneda
  * a una fecha. La de la fecha pedida aparece cuando ARCA la publica, asi que hasta entonces viene la anterior.
@@ -241,7 +228,7 @@ export type ExportModeSource = 'default' | 'file' | 'flags';
 
 /** Lo que llega de los flags o del JSON de `--cargar`; sin defaults de config todavia. */
 export interface ExportVoucherInput {
-  /** Codigo de actividad de ARCA; por defecto 620900 (servicios de informatica N.C.P.). */
+  /** Codigo de la tabla de actividades de WSFEX; sin flag sale de `exportacion.actividad`. */
   readonly activity?: number;
   readonly amount?: number;
   readonly clientAddress?: string;

@@ -8,7 +8,7 @@ import type { ExportGateway, ExportVoucherInput } from '../export.types';
 const NOW = new Date('2026-06-01T15:00:00Z');
 
 const RUNTIME = {
-  config: arcliConfigSchema.parse({ cuit: '20111111112', puntoVentaPorDefecto: 3 }),
+  config: arcliConfigSchema.parse({ cuit: '20111111112', exportacion: { actividad: 620100 }, puntoVentaPorDefecto: 3 }),
   environment: 'testing' as const,
 };
 
@@ -37,7 +37,10 @@ function createGateway(overrides: Partial<ExportGateway> = {}): ExportGateway {
       { code: 203, name: 'Brasil' },
       { code: 212, name: 'Chile' },
     ]),
-    getActivities: vi.fn(async () => [{ id: 620900, name: 'SERVICIOS DE INFORMATICA N.C.P.' }]),
+    getActivities: vi.fn(async () => [
+      { id: 46201, name: 'VENTA AL POR MAYOR DE MATERIAS PRIMAS' },
+      { id: 620100, name: 'SERVICIOS DE CONSULTORES EN INFORMATICA' },
+    ]),
     getDestinationCountryCuits: vi.fn(async () => [
       { countryName: 'Brasil - Persona Física', cuit: 50000000059 },
       { countryName: 'Brasil - Persona Jurídica', cuit: 55000000050 },
@@ -96,8 +99,8 @@ describe('ExportService.resolve', () => {
       Punto_vta: 3,
       Tipo_expo: 1,
     });
-    // Sin --actividad el Cmp lleva 620900: WSFEX rechaza Actividades sin Actividad (error 2100).
-    expect(resolved.payload.Actividades).toEqual({ Actividad: [{ Id: 620900 }] });
+    // Sin --actividad sale de exportacion.actividad: WSFEX rechaza Actividades sin Actividad (error 2100).
+    expect(resolved.payload.Actividades).toEqual({ Actividad: [{ Id: 620100 }] });
     expect(resolved.payload.Items.Item).toEqual([
       {
         Pro_bonificacion: 0,
@@ -215,20 +218,21 @@ describe('ExportService.resolve', () => {
     expect(resolved.payload.CanMisMonExt).toBe('S');
   });
 
-  it('avisa cuando la actividad no esta en la tabla de actividades de WSFEX', async () => {
-    const gateway = createGateway({
-      getActivities: vi.fn(async () => [
-        { id: 620100, name: 'SERVICIOS DE CONSULTORES EN INFORMATICA' },
-        { id: 620300, name: 'SERVICIOS DE CONSULTORES EN TECNOLOGIA DE LA INFORMACION' },
-      ]),
-    });
-    const resolved = await service.resolve(INPUT, gateway, RUNTIME, NOW);
+  it('corta antes de emitir si la actividad no esta en la tabla de WSFEX (ARCA la rechaza con 2105)', async () => {
+    const gateway = createGateway();
 
-    // El aviso no corta la emision: ARCA es el que rechaza con 2105 si la actividad no le sirve.
-    expect(resolved.payload.Actividades).toEqual({ Actividad: [{ Id: 620900 }] });
-    expect(resolved.warnings).toEqual([
-      'La actividad 620900 no está en la tabla de actividades de WSFEX: ARCA la rechaza al emitir (error 2105). Las que empiezan con 620 son 620100, 620300. Indicá la que corresponda con --actividad.',
-    ]);
+    await expect(service.resolve({ ...INPUT, activity: 620900 }, gateway, RUNTIME, NOW)).rejects.toThrow(
+      /La actividad 620900 no está en la tabla de actividades de WSFEX.*Las que empiezan con 620 son 620100/,
+    );
+    expect(gateway.authorize).not.toHaveBeenCalled();
+  });
+
+  it('pide la actividad antes de ir a ARCA si no viene por flag ni por config', async () => {
+    const gateway = createGateway();
+    const runtime = { ...RUNTIME, config: arcliConfigSchema.parse({ cuit: '20111111112', puntoVentaPorDefecto: 3 }) };
+
+    await expect(service.resolve(INPUT, gateway, runtime, NOW)).rejects.toThrow(/Falta la actividad de exportación/);
+    expect(gateway.getDestinationCountries).not.toHaveBeenCalled();
   });
 
   it('no consulta el ID de solicitud si el usuario lo informa', async () => {
@@ -287,7 +291,10 @@ describe('ExportService.resolve', () => {
       service.resolve(
         INPUT,
         createGateway(),
-        { config: arcliConfigSchema.parse({ cuit: '20111111112' }), environment: 'testing' },
+        {
+          config: arcliConfigSchema.parse({ cuit: '20111111112', exportacion: { actividad: 620100 } }),
+          environment: 'testing',
+        },
         NOW,
       ),
     ).rejects.toThrow(/--punto-venta/);

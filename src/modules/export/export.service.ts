@@ -38,7 +38,7 @@ export interface ExportRuntime {
 }
 
 /** Se valida antes de tocar la red: un flag que falta no tiene por que autenticar en WSAA. */
-function assertRequiredFields(input: ExportVoucherInput): void {
+function assertRequiredFields(input: ExportVoucherInput, activity: number | undefined): void {
   if (typeof input.amount !== 'number' || !(input.amount > 0)) {
     throw new InputValidationError('Falta el importe total o no es válido. Usá --monto.');
   }
@@ -60,6 +60,12 @@ function assertRequiredFields(input: ExportVoucherInput): void {
   if (input.voucherNumber === undefined) {
     throw new InputValidationError(
       'Falta el número del comprobante. Usá --numero: arcli todavía no puede consultar en WSFEX el último emitido. Si es la primera Factura E de este punto de venta, es 1; si no, el siguiente al último que emitiste.',
+    );
+  }
+
+  if (activity === undefined) {
+    throw new InputValidationError(
+      'Falta la actividad de exportación. Usá --actividad o guardala con "arcli config establecer exportacion.actividad <código>": es el código de la tabla de actividades de WSFEX, por ejemplo 620100.',
     );
   }
 
@@ -88,9 +94,11 @@ export class ExportService {
     runtime: ExportRuntime,
     now = new Date(),
   ): Promise<ResolvedExportVoucher> {
-    assertRequiredFields(input);
-
     const config = runtime.config;
+    const activityCode = input.activity ?? config.exportacion?.actividad;
+
+    assertRequiredFields(input, activityCode);
+
     const exportType = resolveExportType(input.exportType);
     const voucherDate = resolveExportVoucherDate(input.voucherDate, now);
     const paymentDate = input.paymentDate?.trim() ? parseArgentineDateInputAsArcaDate(input.paymentDate) : voucherDate;
@@ -135,9 +143,9 @@ export class ExportService {
       provided: input.requestId,
     });
 
-    const activity = resolveExportActivity(input.activity, await gateway.getActivities());
+    const activity = resolveExportActivity(activityCode as number, await gateway.getActivities());
     const payload = buildExportPayload(input, {
-      activity: activity.id,
+      activity,
       clientCountryCuit,
       currency: {
         ...currency.fields,
@@ -170,7 +178,6 @@ export class ExportService {
             )}: se usa la del ${formatArcaDateAsArgentineDate(quotation.date)} (${quotation.rate}). Para usar otra, --cotizacion-moneda.`,
           ]
         : []),
-      ...(activity.warning ? [activity.warning] : []),
     ];
 
     return { display, payload, warnings };

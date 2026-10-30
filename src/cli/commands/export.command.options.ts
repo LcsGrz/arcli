@@ -51,7 +51,8 @@ const EXPORT_OPTIONS: readonly ExportOptionDefinition[] = [
     parser: exportTypeOption,
   },
   {
-    description: 'código de actividad de ARCA; por defecto 620900 (servicios de informática N.C.P.)',
+    description:
+      'código de la tabla de actividades de WSFEX, por ejemplo 620100; sin flag, exportacion.actividad de la config',
     flags: '--actividad <codigo>',
     parser: integerOption('--actividad'),
   },

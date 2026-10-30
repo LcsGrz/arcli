@@ -38,8 +38,8 @@ Ejemplos:
 
   arcli ${EXPORT_COMMAND_NAME} --cargar factura-e.json --emitir --exportar-pdf
 
-Por defecto la exportación es de servicios (--tipo-expo 2), en dólares (--moneda DOL), con la actividad 620900
-(servicios de informática N.C.P.) y con forma de pago "Transferencia Internacional".
+Por defecto la exportación es de servicios (--tipo-expo 2), en dólares (--moneda DOL) y con forma de pago
+"Transferencia Internacional". La actividad sale de --actividad o de exportacion.actividad en la config.
 El pago de la exportación se cancela en moneda extranjera: con --misma-moneda ARCA recibe CanMisMonExt = S.
 La vista previa consulta las tablas y la numeración de WSFEX, pero no emite nada.
 Los permisos de embarque van con --permiso y --permiso-existente, solo con --tipo-expo 1.`;
