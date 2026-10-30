@@ -55,6 +55,7 @@ describe('billing.json-input', () => {
         tipo: 11,
       },
       concepto: 'servicios',
+      condicionVenta: 'Contado',
       cotizacionMoneda: 1200.5,
       descripcion: 'Servicios de marzo',
       dia: 10,
@@ -181,6 +182,7 @@ describe('billing.json-input', () => {
       paymentDueDate: 'vencimientoPago',
       pdfDescription: 'descripcion',
       pointOfSale: 'puntoVenta',
+      saleCondition: 'condicionVenta',
       totalAmount: 'montoTotal',
     });
     expect(Object.values(BILLING_JSON_KEY_BY_INTERNAL_KEY)).not.toContain('emitir');

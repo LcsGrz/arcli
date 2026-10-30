@@ -83,12 +83,15 @@ El CUIT es el de siempre (`cuit`). Si falta algún dato obligatorio, el PDF no s
 | Flag                           | En el JSON de `--cargar` | Si no se pasa              |
 | ------------------------------ | ------------------------ | -------------------------- |
 | `--descripcion <texto>`        | `descripcion`            | "Segun detalle"            |
+| `--condicion-venta <texto>`    | `condicionVenta`         | no se muestra              |
 | `--receptor-nombre <texto>`    | `receptorNombre`         | "Consumidor Final" o `- -` |
 | `--receptor-domicilio <texto>` | `receptorDomicilio`      | `- -`                      |
 
 Al facturar con `--cuit` y sin `--ir` (con `consultarPadron` activo, como viene por defecto), el nombre y el domicilio del receptor que no pases salen del padrón de ARCA. Con `--ir` explícito no se consulta el padrón y valen los de la tabla.
 
 Estos datos **solo van en el PDF**: ARCA no los recibe. Si los pasás y al final no se genera ningún PDF, ARCLI avisa que no quedaron en ningún lado.
+
+La condición de venta es texto libre, por ejemplo `Contado`, `Transferencia bancaria` u `Otros medios de pago electrónico`. Cuando también hay vencimiento de pago, la plantilla lo muestra junto a esa condición. `--vencimiento` sigue formando parte de la solicitud enviada a ARCA; `--condicion-venta`, no.
 
 El detalle del PDF tiene un renglón por alícuota de IVA con la descripción y su importe neto, o un solo renglón en las facturas `C`. Exento y no gravado van en renglones aparte.
 

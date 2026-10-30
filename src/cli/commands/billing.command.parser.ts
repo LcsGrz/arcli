@@ -353,6 +353,7 @@ function parseBillingCommandInputFromSource(
       pointOfSale: pickNumber(commandOptions.puntoVenta, commandOptions.pv, fileInput?.puntoVenta),
       receiverAddress: pickString(commandOptions.receptorDomicilio, fileInput?.receptorDomicilio),
       receiverName: pickString(commandOptions.receptorNombre, fileInput?.receptorNombre),
+      saleCondition: pickString(commandOptions.condicionVenta, fileInput?.condicionVenta),
       sameCurrency,
       serviceEndDate: pickString(commandOptions.servicioHasta, commandOptions.sh, fileInput?.servicioHasta),
       serviceStartDate: pickString(commandOptions.servicioDesde, commandOptions.sd, fileInput?.servicioDesde),

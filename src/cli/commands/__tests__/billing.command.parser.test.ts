@@ -677,6 +677,8 @@ describe('billing.command.parser', () => {
           '--exportar-pdf',
           '--descripcion',
           'Servicios de octubre',
+          '--condicion-venta',
+          'Otros medios de pago electrónico',
           '--receptor-nombre',
           'Cliente SA',
           '--receptor-domicilio',
@@ -691,6 +693,7 @@ describe('billing.command.parser', () => {
         pdfDescription: 'Servicios de octubre',
         receiverAddress: 'Calle 1',
         receiverName: 'Cliente SA',
+        saleCondition: 'Otros medios de pago electrónico',
       });
       expect(parseBillingCommandInput(createCommand(['--monto', '1000', '--pdf']), 'fc', defaults).pdf).toBe(true);
       expect(parseBillingCommandInput(createCommand(['--monto', '1000', '--sin-pdf']), 'fc', defaults).pdf).toBe(false);

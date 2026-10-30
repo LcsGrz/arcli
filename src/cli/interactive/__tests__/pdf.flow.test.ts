@@ -111,7 +111,8 @@ describe('offerPdf', () => {
     askTextMock
       .mockResolvedValueOnce('Servicios de octubre')
       .mockResolvedValueOnce('Cliente SA')
-      .mockResolvedValueOnce('');
+      .mockResolvedValueOnce('')
+      .mockResolvedValueOnce('Otros medios de pago electrónico');
 
     await offerPdf(CONFIG, input, result);
 
@@ -123,6 +124,7 @@ describe('offerPdf', () => {
           pdfDescription: 'Servicios de octubre',
           receiverAddress: undefined,
           receiverName: 'Cliente SA',
+          saleCondition: 'Otros medios de pago electrónico',
         }),
       ],
       interactive: true,
@@ -134,6 +136,7 @@ describe('offerPdf', () => {
   it('asks the missing issuer data once and saves it when the user agrees', async () => {
     confirmMock.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
     askTextMock
+      .mockResolvedValueOnce('')
       .mockResolvedValueOnce('')
       .mockResolvedValueOnce('')
       .mockResolvedValueOnce('')

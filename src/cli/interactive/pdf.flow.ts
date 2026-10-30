@@ -112,6 +112,10 @@ export async function offerPdf(
       input.receiverAddress ? 'Domicilio del receptor:' : 'Domicilio del receptor (Enter para omitir)',
       { defaultValue: input.receiverAddress },
     );
+    const saleCondition = await askText(
+      input.saleCondition ? 'Condición de venta:' : 'Condición de venta (Enter para omitir)',
+      { defaultValue: input.saleCondition },
+    );
     const completedConfig = await completeIssuer(config);
     const withPdf = await attachPdfs({
       config: completedConfig,
@@ -122,6 +126,7 @@ export async function offerPdf(
           pdfDescription: description || undefined,
           receiverAddress: receiverAddress || undefined,
           receiverName: receiverName || undefined,
+          saleCondition: saleCondition || undefined,
         },
       ],
       interactive: true,

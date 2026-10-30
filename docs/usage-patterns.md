@@ -217,7 +217,7 @@ Cuando además de emitir querés el PDF con el QR de ARCA para mandarle al clien
 
 ```bash
 arcli fc -m 150000 --cs --cfinal --ir-cf --emitir --exportar-pdf \
-  --descripcion "Servicios de septiembre" --receptor-nombre "Cliente SA"
+  --descripcion "Servicios de septiembre" --condicion-venta "Contado" --receptor-nombre "Cliente SA"
 ```
 
 Si siempre querés el PDF, guardalo en la config y no hace falta el flag:
