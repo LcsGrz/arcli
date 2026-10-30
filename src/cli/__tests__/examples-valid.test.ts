@@ -173,7 +173,7 @@ function codeBlocks(text: string): CodeBlock[] {
   const blocks: CodeBlock[] = [];
   let open: { language: string; line: number; lines: string[] } | null = null;
 
-  text.split('\n').forEach((line, index) => {
+  text.split(/\r?\n/).forEach((line, index) => {
     const fence = /^\s*```(\w*)/.exec(line);
 
     if (fence && !open) {
@@ -192,7 +192,7 @@ function codeBlocks(text: string): CodeBlock[] {
 function examplesFromBashBlock(block: CodeBlock, file: string): Example[] {
   const examples: Example[] = [];
   const config: Array<readonly [string, string]> = [];
-  const lines = block.content.split('\n');
+  const lines = block.content.split(/\r?\n/);
 
   for (let index = 0; index < lines.length; index += 1) {
     const first = index;
