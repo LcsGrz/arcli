@@ -105,18 +105,25 @@ describe('ArcaExportGateway', () => {
     await expect(gateway.getIncoterms()).rejects.toThrow(/Servicio no autorizado/);
   });
 
-  it('lee el ultimo comprobante y el ultimo ID, con 0 si ARCA no informa nada', async () => {
-    const getLastCmp = vi.fn(async () => ({
-      FEXGetLast_CMPResult: { ...EMPTY_RESULT, FEXResult_LastCMP: { Cbte_nro: 41, Cbte_fecha: '20260531' } },
-    }));
+  it('lee el ultimo ID de solicitud, con 0 si ARCA no informa nada', async () => {
     const gateway = createGateway({
-      getLastCmp,
       getLastId: vi.fn(async () => ({ FEXGetLast_IDResult: { ...EMPTY_RESULT, FEXResultGet: {} } })),
     });
 
-    await expect(gateway.getLastVoucherNumber(3)).resolves.toBe(41);
-    expect(getLastCmp).toHaveBeenCalledWith({ Cbte_Tipo: 19, Punto_venta: 3 });
     await expect(gateway.getLastRequestId()).resolves.toBe(0);
+  });
+
+  it('explica que el certificado no esta autorizado a wsfex', async () => {
+    const gateway = createGateway({
+      getParamDstPais: vi.fn(async () => {
+        throw new Error('ns1:coe.notAuthorized: Computador no autorizado a acceder al servicio');
+      }),
+    });
+
+    await expect(gateway.getDestinationCountries()).rejects.toMatchObject({
+      code: 'WSFEX_SERVICE_NOT_AUTHORIZED',
+      message: expect.stringMatching(/no está autorizado para el servicio wsfex/),
+    });
   });
 
   it('pide las cotizaciones de aduana con la fecha en yyyymmdd y normaliza el dia de cada moneda', async () => {

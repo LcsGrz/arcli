@@ -49,7 +49,6 @@ function createGateway(overrides: Partial<ExportGateway> = {}): ExportGateway {
       { id: 2, name: 'Ingles' },
     ]),
     getLastRequestId: vi.fn(async () => 7),
-    getLastVoucherNumber: vi.fn(async () => 41),
     getQuotations: vi.fn(async () => [{ code: 'DOL', date: '20260601', rate: 900.5 }]),
     getUnits: vi.fn(async () => [
       { id: 1, name: 'Kilogramo' },
@@ -69,6 +68,7 @@ const INPUT: ExportVoucherInput = {
   emit: true,
   incoterm: 'fob',
   items: [{ code: '001', description: 'Servicio de consultoria', quantity: 1, unit: 'unidad', unitPrice: 1500 }],
+  voucherNumber: 42,
 };
 
 describe('ExportService.resolve', () => {
@@ -116,7 +116,6 @@ describe('ExportService.resolve', () => {
       unitNames: { 1: 'Kilogramo', 7: 'Unidad' },
     });
     expect(gateway.getQuotations).toHaveBeenCalledWith('2026-06-01');
-    expect(gateway.getLastVoucherNumber).toHaveBeenCalledWith(RUNTIME.config.puntoVentaPorDefecto);
     expect(gateway.getLanguages).not.toHaveBeenCalled();
     // Sin permisos de embarque el Cmp no lleva Permisos: ARCA lo rechaza (1720) con Permiso_existente = N.
     expect(resolved.payload).not.toHaveProperty('Permisos');
@@ -232,14 +231,22 @@ describe('ExportService.resolve', () => {
     ]);
   });
 
-  it('no consulta la numeracion si el usuario la informa', async () => {
+  it('no consulta el ID de solicitud si el usuario lo informa', async () => {
     const gateway = createGateway();
     const resolved = await service.resolve({ ...INPUT, requestId: 100, voucherNumber: 5 }, gateway, RUNTIME, NOW);
 
     expect(resolved.payload.Cbte_nro).toBe(5);
     expect(resolved.payload.Id).toBe(100);
-    expect(gateway.getLastVoucherNumber).not.toHaveBeenCalled();
     expect(gateway.getLastRequestId).not.toHaveBeenCalled();
+  });
+
+  it('pide --numero antes de ir a ARCA: el SDK no deja consultar el ultimo comprobante E', async () => {
+    const gateway = createGateway();
+
+    await expect(service.resolve({ ...INPUT, voucherNumber: undefined }, gateway, RUNTIME, NOW)).rejects.toThrow(
+      /Falta el número del comprobante. Usá --numero/,
+    );
+    expect(gateway.getDestinationCountries).not.toHaveBeenCalled();
   });
 
   it('no consulta la cotizacion si viene por flag', async () => {

@@ -55,6 +55,14 @@ function assertRequiredFields(input: ExportVoucherInput): void {
     throw new InputValidationError('Falta el país de destino. Usá --pais-destino.');
   }
 
+  // WSFEX numera por punto de venta y tipo, pero @arcasdk/core no deja consultar el ultimo (FEXGetLast_CMP lleva
+  // Pto_venta y Cbte_Tipo dentro de Auth y el SDK pisa ese bloque). Hasta que se arregle, el numero lo indica el usuario.
+  if (input.voucherNumber === undefined) {
+    throw new InputValidationError(
+      'Falta el número del comprobante. Usá --numero: arcli todavía no puede consultar en WSFEX el último emitido. Si es la primera Factura E de este punto de venta, es 1; si no, el siguiente al último que emitiste.',
+    );
+  }
+
   assertExportItemsTotal(input.items, input.amount);
 }
 
@@ -118,7 +126,7 @@ export class ExportService {
     const pointOfSale = resolveExportPointOfSale(input.pointOfSale, config);
     const voucherNumber = resolveExportNumber({
       label: 'El número del comprobante',
-      last: input.voucherNumber === undefined ? await gateway.getLastVoucherNumber(pointOfSale) : 0,
+      last: 0,
       provided: input.voucherNumber,
     });
     const requestId = resolveExportNumber({

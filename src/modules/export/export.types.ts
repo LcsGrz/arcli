@@ -219,8 +219,6 @@ export interface ExportGateway {
   getDestinationCountryCuits(): Promise<readonly ExportCountryCuit[]>;
   getIncoterms(): Promise<readonly ExportIncoterm[]>;
   getLanguages(): Promise<readonly ExportLanguage[]>;
-  /** Ultimo numero de WSFEX. Pide el punto de venta, pero la numeracion es unica para todos. */
-  getLastVoucherNumber(pointOfSale: number): Promise<number>;
   getLastRequestId(): Promise<number>;
   /**
    * Cotizaciones de aduana que WSFEX tiene publicadas para `isoDate` (`yyyy-mm-dd`). Devuelve solo las monedas con

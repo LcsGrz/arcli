@@ -19,7 +19,7 @@ function toEntry(code: number | undefined, message: string | undefined): ExportR
     return [];
   }
 
-  return [{ code, message: message?.trim() || 'ARCA no informo el detalle.' }];
+  return [{ code, message: message?.trim() || 'ARCA no informó el detalle.' }];
 }
 
 function buildSuggestions(options: {
@@ -56,7 +56,7 @@ function buildSuggestions(options: {
 
   if (/correlativ/i.test(options.messages)) {
     suggestions.add(
-      'Revisá el número del comprobante: WSFEX numera por punto de venta, así que puede hacer falta indicarlo con --numero.',
+      'Revisá el número del comprobante (--numero): tiene que ser el siguiente al último E emitido en ese punto de venta.',
     );
   }
 
