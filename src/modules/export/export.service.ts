@@ -163,8 +163,11 @@ export class ExportService {
       voucherDate,
       voucherNumber,
     });
+    const currencyCode = payload.Moneda_Id.trim().toUpperCase();
     const display: ExportDisplayInfo = {
       countryName: destinationCountry.name,
+      currencyName: (await gateway.getCurrencies()).find((entry) => entry.code.trim().toUpperCase() === currencyCode)
+        ?.name,
       incotermName: incoterm?.name,
       languageName: languages.find((language) => language.id === languageId)?.name,
       unitNames: Object.fromEntries(units.map((unit) => [unit.id, unit.name])),

@@ -7,7 +7,7 @@ import type { ExportExecutionResult } from '../export/export.types';
 
 import { PdfError } from './pdf.errors';
 import type { InvoicePdfData, InvoicePdfIssuer, InvoicePdfItem, InvoicePdfIva, PdfVoucherExtras } from './pdf.types';
-import { buildPdfLegends } from './pdf-legends';
+import { buildPdfLegends, EXPORT_IVA_LEGEND } from './pdf-legends';
 
 export const DEFAULT_ITEM_DESCRIPTION = 'Según detalle';
 
@@ -170,7 +170,28 @@ function resolveExportVoucherNumber(result: ExportExecutionResult): number {
   return number;
 }
 
-/** La letra E lleva los items reales de WSFEX y el CUIT del pais del cliente; el IVA no se discrimina. */
+function formatExportDivisa(result: ExportExecutionResult): string {
+  const { Moneda_Id: code } = result.payload;
+
+  return result.display.currencyName ? `${code} - ${result.display.currencyName}` : code;
+}
+
+function formatExportIncoterm(payload: ExportExecutionResult['payload']): string | undefined {
+  const code = payload.Incoterms.trim();
+  const description = payload.Incoterms_Ds.trim();
+
+  if (!code) {
+    return undefined;
+  }
+
+  return description && description.toUpperCase() !== code.toUpperCase() ? `${code} - ${description}` : code;
+}
+
+/**
+ * La letra E tiene su propio diseno en `@arcasdk/pdf`: destino, divisa, forma y fecha de pago, incoterm y la leyenda
+ * de IVA exento, con los items reales de WSFEX. `concepto` e `importeNetoGravado` los pide el tipo del plugin, pero la
+ * plantilla de la E no los muestra.
+ */
 export function mapExportResultToPdfData(
   result: ExportExecutionResult,
   issuer: InvoicePdfIssuer,
@@ -191,6 +212,7 @@ export function mapExportResultToPdfData(
     subtotal: item.Pro_total_item,
     unidadMedida: display.unitNames[item.Pro_umed] ?? 'unidad',
   }));
+  const observaciones = [payload.Obs_comerciales, payload.Obs].map((value) => value.trim()).filter(Boolean);
 
   return {
     cae: response.cae,
@@ -200,16 +222,21 @@ export function mapExportResultToPdfData(
     cbteHasta: number,
     cbteLetra: result.voucherKind.letter.toUpperCase(),
     cbteTipo: payload.Cbte_Tipo,
-    // WSFEX no tiene concepto: el tipo de exportacion 2 es servicios.
     concepto: payload.Tipo_expo === 2 ? 2 : 1,
+    condicionIvaExportacion: EXPORT_IVA_LEGEND,
     cotizacion: payload.Moneda_ctz,
+    destinoComprobante: display.countryName ?? String(payload.Dst_cmp),
+    divisa: formatExportDivisa(result),
     emisor: issuer,
-    fechaVtoPago: payload.Fecha_pago,
+    fechaPago: payload.Fecha_pago,
+    formaPago: payload.Forma_pago,
     importeIva: 0,
     importeNetoGravado: payload.Imp_total,
     importeTotal: round(payload.Imp_total),
+    incoterms: formatExportIncoterm(payload),
     items,
     moneda: payload.Moneda_Id,
+    observaciones: observaciones.length > 0 ? observaciones.join(' · ') : undefined,
     puntoVenta: payload.Punto_vta,
     receptor: {
       condicionIva: 'Cliente del exterior',

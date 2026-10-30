@@ -144,6 +144,12 @@ export interface ExportCountryCuit {
   readonly cuit: number;
 }
 
+/** Una fila de `FEXGetPARAM_MON`: codigo de moneda de WSFEX (`DOL`, `060`) y su nombre. */
+export interface ExportCurrency {
+  readonly code: string;
+  readonly name: string;
+}
+
 export interface ExportIncoterm {
   readonly code: string;
   readonly name: string;
@@ -192,6 +198,8 @@ export interface ExportCurrencyResolution {
 /** Nombres de las tablas de ARCA que se muestran en texto, PDF y JSON. */
 export interface ExportDisplayInfo {
   readonly countryName?: string;
+  /** Nombre de la moneda en la tabla de WSFEX ("Dólar Estadounidense"): el PDF lo muestra como divisa. */
+  readonly currencyName?: string;
   readonly incotermName?: string;
   readonly languageName?: string;
   readonly unitNames: Readonly<Record<number, string>>;
@@ -202,6 +210,7 @@ export interface ExportGateway {
   authorize(payload: ExportVoucherPayload): Promise<IFEXAuthorizeOutput>;
   /** Tabla de actividades de WSFEX: el `Cmp` solo acepta estos codigos, no los del padron. */
   getActivities(): Promise<readonly ExportActivity[]>;
+  getCurrencies(): Promise<readonly ExportCurrency[]>;
   getDestinationCountries(): Promise<readonly ExportCountry[]>;
   getDestinationCountryCuits(): Promise<readonly ExportCountryCuit[]>;
   getIncoterms(): Promise<readonly ExportIncoterm[]>;

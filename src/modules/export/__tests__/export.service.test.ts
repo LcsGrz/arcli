@@ -41,6 +41,10 @@ function createGateway(overrides: Partial<ExportGateway> = {}): ExportGateway {
       { id: 46201, name: 'VENTA AL POR MAYOR DE MATERIAS PRIMAS' },
       { id: 620100, name: 'SERVICIOS DE CONSULTORES EN INFORMATICA' },
     ]),
+    getCurrencies: vi.fn(async () => [
+      { code: 'DOL', name: 'Dólar Estadounidense' },
+      { code: 'PES', name: 'Pesos Argentinos' },
+    ]),
     getDestinationCountryCuits: vi.fn(async () => [
       { countryName: 'Brasil - Persona Física', cuit: 50000000059 },
       { countryName: 'Brasil - Persona Jurídica', cuit: 55000000050 },
@@ -114,6 +118,7 @@ describe('ExportService.resolve', () => {
     ]);
     expect(resolved.display).toEqual({
       countryName: 'Brasil',
+      currencyName: 'Dólar Estadounidense',
       incotermName: 'Free on Board',
       languageName: undefined,
       unitNames: { 1: 'Kilogramo', 7: 'Unidad' },

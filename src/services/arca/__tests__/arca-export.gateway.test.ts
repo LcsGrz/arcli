@@ -105,6 +105,28 @@ describe('ArcaExportGateway', () => {
     await expect(gateway.getIncoterms()).rejects.toThrow(/Servicio no autorizado/);
   });
 
+  it('lee la tabla de monedas con su nombre', async () => {
+    const gateway = createGateway({
+      getParamMon: vi.fn(async () => ({
+        FEXGetPARAM_MONResult: {
+          ...EMPTY_RESULT,
+          FEXResultGet: {
+            ClsFEXResponse_Mon: [
+              { Mon_Ds: 'Dólar Estadounidense', Mon_Id: 'DOL' },
+              { Mon_Ds: 'Euro', Mon_Id: ' 060 ' },
+              { Mon_Ds: 'Sin codigo', Mon_Id: '' },
+            ],
+          },
+        },
+      })),
+    });
+
+    await expect(gateway.getCurrencies()).resolves.toEqual([
+      { code: 'DOL', name: 'Dólar Estadounidense' },
+      { code: '060', name: 'Euro' },
+    ]);
+  });
+
   it('lee el ultimo ID de solicitud, con 0 si ARCA no informa nada', async () => {
     const gateway = createGateway({
       getLastId: vi.fn(async () => ({ FEXGetLast_IDResult: { ...EMPTY_RESULT, FEXResultGet: {} } })),

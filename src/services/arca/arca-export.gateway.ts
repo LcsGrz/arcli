@@ -6,6 +6,7 @@ import type {
   ExportActivity,
   ExportCountry,
   ExportCountryCuit,
+  ExportCurrency,
   ExportGateway,
   ExportIncoterm,
   ExportLanguage,
@@ -113,6 +114,18 @@ export class ArcaExportGateway implements ExportGateway {
       const name = readText(row?.Desc);
 
       return Number.isInteger(id) && id > 0 ? [{ id, name }] : [];
+    });
+  }
+
+  public async getCurrencies(): Promise<ExportCurrency[]> {
+    const data = (await this.call((service) => service.getParamMon({}))).FEXGetPARAM_MONResult;
+
+    assertNoError(data, 'las monedas');
+
+    return asArray(data?.FEXResultGet?.ClsFEXResponse_Mon).flatMap((row) => {
+      const code = readText(row.Mon_Id);
+
+      return code ? [{ code, name: readText(row.Mon_Ds) }] : [];
     });
   }
 
