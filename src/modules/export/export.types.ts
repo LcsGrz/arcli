@@ -197,6 +197,8 @@ export interface ExportCurrencyResolution {
 
 /** Nombres de las tablas de ARCA que se muestran en texto, PDF y JSON. */
 export interface ExportDisplayInfo {
+  /** Nombre de la fila de DST_CUIT del CUIT del pais, con el tipo de entidad: "POLONIA - Persona Jurídica". */
+  readonly countryCuitName?: string;
   readonly countryName?: string;
   /** Nombre de la moneda en la tabla de WSFEX ("Dólar Estadounidense"): el PDF lo muestra como divisa. */
   readonly currencyName?: string;

@@ -117,6 +117,7 @@ describe('ExportService.resolve', () => {
       },
     ]);
     expect(resolved.display).toEqual({
+      countryCuitName: 'Brasil - Persona Jurídica',
       countryName: 'Brasil',
       currencyName: 'Dólar Estadounidense',
       incotermName: 'Free on Board',

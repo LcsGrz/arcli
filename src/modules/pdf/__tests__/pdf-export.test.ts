@@ -16,6 +16,7 @@ const ISSUER = resolvePdfIssuer(
 function createResult(overrides: Partial<ExportExecutionResult['payload']> = {}): ExportExecutionResult {
   return {
     display: {
+      countryCuitName: 'ESTADOS UNIDOS - Persona Jurídica',
       countryName: 'ESTADOS UNIDOS',
       currencyName: 'Dólar Estadounidense',
       unitNames: { 7: 'unidades' },
@@ -79,17 +80,18 @@ function createResult(overrides: Partial<ExportExecutionResult['payload']> = {})
 }
 
 describe('mapExportResultToPdfData', () => {
-  it('completa lo que la plantilla de la E muestra: destino, divisa, pago, incoterm y leyenda de IVA', () => {
+  it('completa lo que muestra la E de Comprobantes en linea: titulo, destino, divisa ISO, pago, incoterm y leyenda', () => {
     const data = mapExportResultToPdfData(createResult({ Incoterms: 'FOB', Incoterms_Ds: 'FOB' }), ISSUER);
 
     expect(data).toMatchObject({
+      cbteDescripcion: 'FACTURA DE EXPORTACIÓN',
       cbteDesde: 12,
       cbteLetra: 'E',
       cbteTipo: 19,
       condicionIvaExportacion: EXPORT_IVA_LEGEND,
       cotizacion: 1174,
       destinoComprobante: 'ESTADOS UNIDOS',
-      divisa: 'DOL - Dólar Estadounidense',
+      divisa: 'USD - Dólar Estadounidense',
       fechaPago: '20261115',
       formaPago: 'Transferencia Internacional',
       importeTotal: 1500,
@@ -98,7 +100,7 @@ describe('mapExportResultToPdfData', () => {
       observaciones: 'Orden de compra 778',
       puntoVenta: 4,
       receptor: {
-        cuitPais: '55000002126 (ESTADOS UNIDOS)',
+        cuitPais: '55000002126 (ESTADOS UNIDOS - Persona Jurídica)',
         domicilio: '123 Main St',
         idImpositivo: '12-3456789',
         razonSocial: 'ACME LLC',
@@ -123,11 +125,23 @@ describe('mapExportResultToPdfData', () => {
     ).toBe('FOB - Free on Board');
   });
 
-  it('sin el nombre de la moneda la divisa es solo el codigo', () => {
+  it('sin el nombre de la moneda la divisa es solo el codigo ISO, y sin ISO conocido el de WSFEX', () => {
+    const result = createResult();
+    const withoutName = { ...result, display: { ...result.display, currencyName: undefined } };
+
+    expect(mapExportResultToPdfData(withoutName, ISSUER).divisa).toBe('USD');
+    expect(
+      mapExportResultToPdfData({ ...withoutName, payload: { ...withoutName.payload, Moneda_Id: '019' } }, ISSUER)
+        .divisa,
+    ).toBe('019');
+  });
+
+  it('sin la fila de DST_CUIT el CUIT del pais lleva solo el nombre del pais', () => {
     const result = createResult();
 
     expect(
-      mapExportResultToPdfData({ ...result, display: { ...result.display, currencyName: undefined } }, ISSUER).divisa,
-    ).toBe('DOL');
+      mapExportResultToPdfData({ ...result, display: { ...result.display, countryCuitName: undefined } }, ISSUER)
+        .receptor.cuitPais,
+    ).toBe('55000002126 (ESTADOS UNIDOS)');
   });
 });

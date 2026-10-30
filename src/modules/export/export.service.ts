@@ -106,9 +106,10 @@ export class ExportService {
 
     const countryList = await gateway.getDestinationCountries();
     const destinationCountry = resolveExportDestinationCountry(input.destinationCountry, countryList);
+    const countryCuits = await gateway.getDestinationCountryCuits();
     const clientCountryCuit = resolveExportClientCountryCuit({
       country: destinationCountry,
-      countries: await gateway.getDestinationCountryCuits(),
+      countries: countryCuits,
       cuit: input.clientCountryCuit,
     });
 
@@ -163,6 +164,7 @@ export class ExportService {
     });
     const currencyCode = payload.Moneda_Id.trim().toUpperCase();
     const display: ExportDisplayInfo = {
+      countryCuitName: countryCuits.find((entry) => entry.cuit === clientCountryCuit)?.countryName,
       countryName: destinationCountry.name,
       currencyName: (await gateway.getCurrencies()).find((entry) => entry.code.trim().toUpperCase() === currencyCode)
         ?.name,

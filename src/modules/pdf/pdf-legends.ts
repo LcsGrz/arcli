@@ -8,10 +8,7 @@ export const TRANSPARENCY_TITLE = 'Régimen de Transparencia Fiscal al Consumido
 export const MONOTRIBUTO_CREDIT_LEGEND =
   'El crédito fiscal discriminado en el presente comprobante, sólo podrá ser computado a efectos del Régimen de Sostenimiento e Inclusión Fiscal para Pequeños Contribuyentes de la Ley Nº 27.618';
 
-/**
- * Leyenda de IVA de la factura de exportacion E: la operacion esta exenta. Texto a confirmar contra una E de
- * Comprobantes en linea.
- */
+/** Leyenda de IVA de la factura de exportacion E, con el mismo texto que la E de Comprobantes en linea. */
 export const EXPORT_IVA_LEGEND = 'IVA EXENTO OPERACIÓN DE EXPORTACIÓN';
 
 const MONOTRIBUTO_CONDITION_CODES: ReadonlySet<number> = new Set([

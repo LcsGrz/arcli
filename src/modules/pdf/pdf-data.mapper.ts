@@ -170,10 +170,28 @@ function resolveExportVoucherNumber(result: ExportExecutionResult): number {
   return number;
 }
 
+/**
+ * WSFEX usa sus propios codigos de moneda (`DOL`, `060`), pero la E de Comprobantes en linea muestra la divisa con
+ * el codigo ISO: "USD - Dólar Estadounidense". Las que no estan aca salen con el codigo de WSFEX.
+ */
+/** El titulo que lleva la E de Comprobantes en linea, en lugar del "FACTURA" de la plantilla. */
+const EXPORT_VOUCHER_TITLE = 'FACTURA DE EXPORTACIÓN';
+
+const ISO_CURRENCY_CODES: Readonly<Record<string, string>> = { '012': 'BRL', '060': 'EUR', DOL: 'USD', PES: 'ARS' };
+
 function formatExportDivisa(result: ExportExecutionResult): string {
   const { Moneda_Id: code } = result.payload;
+  const isoCode = ISO_CURRENCY_CODES[code.trim().toUpperCase()] ?? code;
 
-  return result.display.currencyName ? `${code} - ${result.display.currencyName}` : code;
+  return result.display.currencyName ? `${isoCode} - ${result.display.currencyName}` : isoCode;
+}
+
+/** Como en ARCA: "55000004242 (POLONIA - Persona Jurídica)", con el tipo de entidad de la tabla DST_CUIT. */
+function formatExportCountryCuit(result: ExportExecutionResult): string {
+  const { Cuit_pais_cliente: cuit } = result.payload;
+  const name = result.display.countryCuitName ?? result.display.countryName;
+
+  return name ? `${cuit} (${name})` : String(cuit);
 }
 
 function formatExportIncoterm(payload: ExportExecutionResult['payload']): string | undefined {
@@ -219,6 +237,7 @@ export function mapExportResultToPdfData(
     caeFechaVencimiento: response.caeVencimiento,
     cbteDesde: number,
     cbteFecha: payload.Fecha_cbte,
+    cbteDescripcion: EXPORT_VOUCHER_TITLE,
     cbteHasta: number,
     cbteLetra: result.voucherKind.letter.toUpperCase(),
     cbteTipo: payload.Cbte_Tipo,
@@ -240,9 +259,7 @@ export function mapExportResultToPdfData(
     puntoVenta: payload.Punto_vta,
     receptor: {
       condicionIva: 'Cliente del exterior',
-      cuitPais: display.countryName
-        ? `${payload.Cuit_pais_cliente} (${display.countryName})`
-        : String(payload.Cuit_pais_cliente),
+      cuitPais: formatExportCountryCuit(result),
       documentoNro: String(payload.Cuit_pais_cliente),
       documentoTipo: 'CUIT',
       domicilio: extras.receptorDomicilio?.trim() || payload.Domicilio_cliente,

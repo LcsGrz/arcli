@@ -59,6 +59,8 @@ export interface InvoicePdfData {
   /** yyyymmdd */
   readonly cbteFecha: string;
   readonly cbteHasta: number;
+  /** Titulo del comprobante; sin esto la plantilla usa el nombre del tipo ("FACTURA"). */
+  readonly cbteDescripcion?: string;
   readonly cbteLetra: string;
   readonly cbteTipo: number;
   readonly cbtesAsociados?: readonly InvoicePdfAssociatedVoucher[];
@@ -69,7 +71,7 @@ export interface InvoicePdfData {
   readonly cotizacion?: number;
   /** Pais de destino de la E. */
   readonly destinoComprobante?: string;
-  /** Moneda de la E con su nombre: "DOL - Dólar Estadounidense". */
+  /** Moneda de la E con su codigo ISO y su nombre: "USD - Dólar Estadounidense". */
   readonly divisa?: string;
   readonly emisor: InvoicePdfIssuer;
   /** yyyymmdd. Solo E: forma, fecha de pago e incoterm van juntos en una tabla. */

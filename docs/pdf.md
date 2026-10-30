@@ -94,11 +94,12 @@ El detalle del PDF tiene un renglón por alícuota de IVA con la descripción y 
 
 ### Factura de exportación (E)
 
-La `E` usa el diseño de exportación de `@arcasdk/pdf` y no discrimina IVA. Imprime:
+La `E` usa el diseño de exportación de `@arcasdk/pdf`, con los mismos datos que la E de Comprobantes en línea, y no discrimina IVA. Imprime:
 
 - los items que viajaron a WSFEX (código, descripción con su unidad, cantidad, precio unitario y total);
-- el cliente con su domicilio, el CUIT del país con su nombre y el ID impositivo;
-- la divisa con su nombre (`DOL - Dólar Estadounidense`, de la tabla de monedas de WSFEX) y el destino del comprobante;
+- el título `FACTURA DE EXPORTACIÓN`;
+- el cliente con su domicilio, el CUIT del país con su descripción de ARCA (`55000004242 (POLONIA - Persona Jurídica)`) y el ID impositivo;
+- la divisa con su código ISO y su nombre (`USD - Dólar Estadounidense`; WSFEX la llama `DOL`) y el destino del comprobante;
 - una tabla con la forma de pago, la fecha de pago y el incoterm;
 - el tipo de cambio y el importe total en la moneda del comprobante;
 - la leyenda `IVA EXENTO OPERACIÓN DE EXPORTACIÓN` debajo de la condición frente al IVA del emisor;
