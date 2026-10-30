@@ -165,6 +165,119 @@ Los nombres de las claves no siempre coinciden con los flags. Si pasás las dos 
 }
 ```
 
+## Factura de exportación (E)
+
+La factura `E` (`arcli fe` o `arcli factura e`) no comparte el JSON de facturación: no tiene concepto, IVA ni receptor con documento, y `--cargar` acepta **un objeto, nunca un array** (el lote de exportación no está soportado y responde `INPUT_VALIDATION_ERROR`). El archivo es `.strict()`: una clave desconocida también es error.
+
+### Input de `--cargar`
+
+| Campo                                       | Tipo              | Requerido | Descripción                                                                                      |
+| ------------------------------------------- | ----------------- | --------- | ------------------------------------------------------------------------------------------------ |
+| `cliente`                                   | string            | sí        | Nombre del cliente del exterior                                                                  |
+| `domicilioCliente`                          | string            | sí        | Domicilio del cliente                                                                            |
+| `paisDestino`                               | string \| number  | sí        | Código de ARCA o nombre del país (`203`, `"Brasil"`)                                             |
+| `monto`                                     | number            | sí        | Total del comprobante; tiene que dar la suma de los items                                        |
+| `numero`                                    | number            | sí        | El siguiente al último `E` de ese punto de venta: ARCLI todavía no lo puede consultar en WSFEX   |
+| `actividad`                                 | number            | sí\*      | Código de la tabla de actividades de WSFEX. \*Si falta, sale de `exportacion.actividad`          |
+| `items`                                     | array             | no        | Renglones (ver abajo). Sin items va uno solo con `descripcion` por el total                      |
+| `idImpositivo`                              | string            | no        | ID impositivo del cliente en su país                                                             |
+| `cuitPais`                                  | number            | no        | CUIT del país del cliente; si falta sale de la tabla de ARCA                                     |
+| `tipoExpo`                                  | `1` \| `2` \| `4` | no        | `2` servicios (por defecto), `1` bienes, `4` otros                                               |
+| `incoterm`, `descripcionIncoterm`           | string            | no        | Código y descripción del incoterm (`FOB`, `CIF`…)                                                |
+| `idioma`                                    | number            | no        | `1` español (por defecto), `2` inglés, `3` portugués                                             |
+| `formaPago`                                 | string            | no        | Por defecto `Transferencia Internacional`                                                        |
+| `permisos`, `permisoExistente`              | string[], boolean | no        | IDs de permiso de embarque y si ya están informados en ARCA; solo con `tipoExpo: 1`              |
+| `idSolicitud`                               | number            | no        | ID de la solicitud; si falta se pide a WSFEX                                                     |
+| `puntoVenta`                                | number            | no        | Por defecto, el de la config                                                                     |
+| `fechaComprobante`, `fechaPago`             | string            | no        | Formato argentino: `27/10/2026`, `27-10-26` o solo día y mes                                     |
+| `codigoMoneda`, `cotizacionMoneda`          | string, number    | no        | `USD` viaja como `DOL` (por defecto); sin cotización se usa la de aduana que publica ARCA        |
+| `mismaMoneda`                               | boolean           | no        | Pago en la misma moneda extranjera (`CanMisMonExt` en `S`): ARCLI consulta la cotización oficial |
+| `observaciones`, `observacionesComerciales` | string            | no        | Van a `Obs` y `Obs_comerciales`                                                                  |
+| `descripcion`                               | string            | no        | Descripción del renglón único cuando no hay `items`; por defecto `Según detalle`                 |
+| `pdf`, `emitir`, `previsualizar`            | boolean           | no        | Igual que en el resto de los comprobantes                                                        |
+
+Cada item:
+
+| Campo            | Tipo             | Requerido | Descripción                                               |
+| ---------------- | ---------------- | --------- | --------------------------------------------------------- |
+| `cantidad`       | number           | sí        | `Pro_qty`                                                 |
+| `descripcion`    | string           | sí        | `Pro_ds`                                                  |
+| `precioUnitario` | number           | sí        | `Pro_precio_uni`; el total del renglón lo calcula ARCLI   |
+| `codigo`         | string           | no        | `Pro_codigo`                                              |
+| `unidad`         | string \| number | no        | Código de ARCA o nombre de la tabla (`7`, `"kilogramos"`) |
+
+```json
+{
+  "cliente": "ACME LLC",
+  "domicilioCliente": "123 Main St",
+  "paisDestino": 203,
+  "monto": 1500,
+  "numero": 1,
+  "actividad": 620100,
+  "tipoExpo": 2,
+  "incoterm": "FOB",
+  "items": [
+    {
+      "codigo": "001",
+      "descripcion": "Servicios de consultoría",
+      "cantidad": 1,
+      "precioUnitario": 1000,
+      "unidad": "unidades"
+    },
+    { "codigo": "002", "descripcion": "Soporte", "cantidad": 2, "precioUnitario": 250, "unidad": "unidades" }
+  ],
+  "previsualizar": false,
+  "pdf": true
+}
+```
+
+### Output JSON
+
+Es el mismo resumen que A, B y C (`atajo`, `cae`, `estado`, `errores`, `observaciones`, `pdf`…) con `atajo: "fe"` y `tipoArca: 19`, más un bloque `exportacion` con lo que WSFEX tiene y `wsfe` no. `solicitud` es el `Cmp` de WSFEX, con los nombres de ARCA.
+
+```json
+{
+  "atajo": "fe",
+  "cae": "86120020284412",
+  "comprobante": "Factura de exportación E",
+  "estado": "aprobado",
+  "exportacion": {
+    "actividad": [620100],
+    "cliente": "ACME LLC",
+    "cuitPaisCliente": 55000002126,
+    "destino": { "codigo": 212, "nombre": "ESTADOS UNIDOS" },
+    "domicilioCliente": "123 Main St",
+    "formaPago": "Transferencia Internacional",
+    "idImpositivo": null,
+    "idioma": 1,
+    "incoterm": null,
+    "incotermDescripcion": null,
+    "items": [
+      {
+        "cantidad": 1,
+        "codigo": "001",
+        "descripcion": "Servicios de consultoría",
+        "precioUnitario": 1000,
+        "total": 1000,
+        "unidad": "unidades",
+        "unidadCodigo": 7
+      }
+    ],
+    "mismaMoneda": false,
+    "permisos": [],
+    "tipoExpo": 2
+  },
+  "solicitud": { "Cbte_Tipo": 19, "Imp_total": 1500 },
+  "tipoArca": 19
+}
+```
+
+`exportacion.destino.nombre`, `exportacion.incotermDescripcion` y `exportacion.items[].unidad` salen de las tablas de WSFEX; si la tabla no trae el nombre, quedan en `null` y el código numérico sigue disponible. `exportacion.actividad` lista los códigos de actividad informados en `solicitud.Actividades` (de `--actividad` o de `exportacion.actividad`) y `exportacion.mismaMoneda` indica si el pago se cancela en la misma moneda extranjera (`solicitud.CanMisMonExt` en `S`).
+
+Una actividad que no está en la tabla de actividades de WSFEX es `INPUT_VALIDATION_ERROR` antes de ir a ARCA, porque ARCA la rechaza (error 2105). En `arcli factura e`, los flags de A, B y C que se saltean salen en `avisos`. `solicitud` no trae `Cmps_asoc` ni `Opcionales` mientras el comprobante no los informe: ARCA rechaza esos bloques vacíos (error 1820 el primero).
+
+`solicitud` no incluye `Permisos` cuando el comprobante no informa permisos de embarque: ARCA rechaza ese campo (error 1720) si `Permiso_existente` es `N`. En las exportaciones de servicios (`tipoExpo: 2`) y otros (`tipoExpo: 4`) ARCA exige ese campo **vacío** (error 1550), así que `solicitud.Permiso_existente` sale `""` y los permisos de embarque no se admiten.
+
 ## Formato de input: batch
 
 Si el archivo contiene un array, ARCLI procesa un lote del mismo comando. **Un array es siempre un lote, aunque tenga un solo elemento**: la salida `--json` es un array y los errores son `BATCH_VALIDATION_ERROR` / `BATCH_EMISSION_ERROR` con el índice. Un objeto suelto es un solo comprobante: sale un objeto y los errores son los de siempre (`INPUT_VALIDATION_ERROR`, etc.).
@@ -359,7 +472,7 @@ Si no hubo emisión real, `respuesta` no se serializa como `null`. En su lugar:
 
 ```json
 {
-  "mensaje": "Sin emision real. Use --emitir para obtener una respuesta de ARCA."
+  "mensaje": "Sin emisión real. Usá --emitir para obtener una respuesta de ARCA."
 }
 ```
 
@@ -629,26 +742,28 @@ Dos comandos de diagnóstico informan un problema sin que sea un error: `arcli c
 
 ### Códigos de error
 
-| Código                          | Comando                                                   | Qué pasó                                                                                                        | Qué hacer                                                                                                                                |
-| ------------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `INPUT_VALIDATION_ERROR`        | todos                                                     | Flags, argumentos o JSON de `--cargar` inválidos o incompletos                                                  | Corregí lo que indican `error` y `detalles`; no se emitió nada                                                                           |
-| `CONFIGURATION_ERROR`           | todos los que usan ARCA, `config`                         | Falta o es inválido un dato de la config: CUIT, certificado, clave, `config.json` corrupto                      | `arcli config revisar` y `arcli config establecer`                                                                                       |
-| `BATCH_VALIDATION_ERROR`        | facturación con lote                                      | Algún comprobante del lote es inválido; no se emitió ninguno                                                    | Corregí los índices de `detalles.comprobantes` y corré el lote completo ([detalle](#validación-y-errores-del-lote))                      |
-| `BATCH_EMISSION_ERROR`          | facturación con lote                                      | El lote se cortó a mitad; los procesados salen antes por stdout                                                 | No reemitas los procesados; verificá `detalles.sinConfirmar` con `arcli ultimos` y reintentá `detalles.sinProcesar`                      |
-| `EMISSION_UNCERTAIN`            | facturación                                               | Falló la llamada que emite: puede haberse emitido igual                                                         | Verificá con el `arcli ultimos` de `sugerencia` antes de reintentar ([detalle](#emisión-sin-confirmar))                                  |
-| `TRANSIENT_ERROR`               | todos los que usan ARCA                                   | WSAA o ARCA informan un estado pasajero (ticket vigente, transacción activa)                                    | Esperá unos segundos y reintentá sin cambiar nada                                                                                        |
-| `UNEXPECTED_ERROR`              | todos                                                     | Error sin código propio: red, login en WSAA (certificado vencido o no autorizado), respuesta inesperada de ARCA | Leé `error`; si es de red o de ARCA, reintentá más tarde                                                                                 |
-| `ARCA_UNAVAILABLE`              | `estado`                                                  | ARCA no respondió a la consulta de estado                                                                       | Reintentá en unos minutos; si persiste, ARCA está caído                                                                                  |
-| `ARCA_PARAMETERS_ERROR`         | `parametros <tabla>`                                      | ARCA devolvió un error al consultar una tabla o los puntos de venta (`detalles.errores`)                        | Revisá el mensaje de ARCA; suele ser pasajero o de permisos del certificado                                                              |
-| `ARCA_QUOTATION_ERROR`          | `parametros cotizacion`, facturación con `--misma-moneda` | ARCA no devolvió una cotización válida para la moneda                                                           | Revisá el código de moneda (`arcli parametros monedas`) o pasá la cotización con `--cm` en lugar de `--misma-moneda`                     |
-| `ARCA_LAST_VOUCHER_ERROR`       | facturación, `ultimos`                                    | ARCA devolvió un error al pedir el último número (`detalles.errores`); no se emitió nada                        | Si es del punto de venta (11002), revisá `arcli parametros puntos-venta`; si no, el mensaje de ARCA y reintentá                          |
-| `VOUCHER_NOT_FOUND`             | `consultar`                                               | El comprobante no existe en ese punto de venta y entorno                                                        | Revisá tipo, número, `--pv` y entorno; `arcli ultimos` lista los emitidos                                                                |
-| `TAXPAYER_NOT_FOUND`            | `padron`                                                  | El CUIT no figura en el padrón de ese entorno                                                                   | Revisá el número; en testing el padrón tiene datos ficticios (`sugerencia` trae un CUIT de prueba)                                       |
-| `PADRON_SERVICE_NOT_AUTHORIZED` | `padron`                                                  | El certificado no está autorizado para `ws_sr_constancia_inscripcion`                                           | Autorizalo como `wsfe` ([certificados](obtencion-certificados.md)). Al facturar no corta: se usa `ivaReceptor` de la config con un aviso |
-| `FCE_SERVICE_NOT_AUTHORIZED`    | `fce-obligado`                                            | El certificado no está autorizado para `wsfecred`                                                               | Autorizalo como `wsfe` ([certificados](obtencion-certificados.md)). Con `verificarFce` al facturar no corta: sale como aviso             |
-| `FCE_OBLIGATION_ERROR`          | `fce-obligado`                                            | ARCA no pudo informar si el receptor está obligado a FCE (`detalles.errors`)                                    | Revisá el CUIT y la fecha; los códigos de ARCA vienen en el mensaje. Al facturar sale como aviso                                         |
-| `PDF_PLUGIN_INSTALL_ERROR`      | `pdf instalar`                                            | No se pudo descargar el plugin o el navegador                                                                   | Revisá la conexión o el proxy de npm y reintentá                                                                                         |
-| `PDF_*` en `pdf.error`          | facturación con PDF                                       | No es un error del comando: el comprobante se emitió y falló solo el PDF                                        | Ver [errores del PDF](#errores-del-pdf); no reemitas                                                                                     |
+| Código                          | Comando                                                         | Qué pasó                                                                                                        | Qué hacer                                                                                                                                |
+| ------------------------------- | --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `INPUT_VALIDATION_ERROR`        | todos                                                           | Flags, argumentos o JSON de `--cargar` inválidos o incompletos                                                  | Corregí lo que indican `error` y `detalles`; no se emitió nada                                                                           |
+| `CONFIGURATION_ERROR`           | todos los que usan ARCA, `config`                               | Falta o es inválido un dato de la config: CUIT, certificado, clave, `config.json` corrupto                      | `arcli config revisar` y `arcli config establecer`                                                                                       |
+| `BATCH_VALIDATION_ERROR`        | facturación con lote                                            | Algún comprobante del lote es inválido; no se emitió ninguno                                                    | Corregí los índices de `detalles.comprobantes` y corré el lote completo ([detalle](#validación-y-errores-del-lote))                      |
+| `BATCH_EMISSION_ERROR`          | facturación con lote                                            | El lote se cortó a mitad; los procesados salen antes por stdout                                                 | No reemitas los procesados; verificá `detalles.sinConfirmar` con `arcli ultimos` y reintentá `detalles.sinProcesar`                      |
+| `EMISSION_UNCERTAIN`            | facturación                                                     | Falló la llamada que emite: puede haberse emitido igual                                                         | Verificá con el `arcli ultimos` de `sugerencia` antes de reintentar ([detalle](#emisión-sin-confirmar))                                  |
+| `TRANSIENT_ERROR`               | todos los que usan ARCA                                         | WSAA o ARCA informan un estado pasajero (ticket vigente, transacción activa)                                    | Esperá unos segundos y reintentá sin cambiar nada                                                                                        |
+| `UNEXPECTED_ERROR`              | todos                                                           | Error sin código propio: red, login en WSAA (certificado vencido o no autorizado), respuesta inesperada de ARCA | Leé `error`; si es de red o de ARCA, reintentá más tarde                                                                                 |
+| `ARCA_UNAVAILABLE`              | `estado`                                                        | ARCA no respondió a la consulta de estado                                                                       | Reintentá en unos minutos; si persiste, ARCA está caído                                                                                  |
+| `ARCA_PARAMETERS_ERROR`         | `parametros <tabla>`                                            | ARCA devolvió un error al consultar una tabla o los puntos de venta (`detalles.errores`)                        | Revisá el mensaje de ARCA; suele ser pasajero o de permisos del certificado                                                              |
+| `ARCA_QUOTATION_ERROR`          | `parametros cotizacion`, facturación con `--misma-moneda`, `fe` | ARCA no devolvió una cotización válida para la moneda                                                           | Revisá el código de moneda (`arcli parametros monedas`) o pasá la cotización con `--cm` en lugar de `--misma-moneda`                     |
+| `ARCA_LAST_VOUCHER_ERROR`       | facturación, `ultimos`                                          | ARCA devolvió un error al pedir el último número (`detalles.errores`); no se emitió nada                        | Si es del punto de venta (11002), revisá `arcli parametros puntos-venta`; si no, el mensaje de ARCA y reintentá                          |
+| `VOUCHER_NOT_FOUND`             | `consultar`                                                     | El comprobante no existe en ese punto de venta y entorno                                                        | Revisá tipo, número, `--pv` y entorno; `arcli ultimos` lista los emitidos                                                                |
+| `TAXPAYER_NOT_FOUND`            | `padron`                                                        | El CUIT no figura en el padrón de ese entorno                                                                   | Revisá el número; en testing el padrón tiene datos ficticios (`sugerencia` trae un CUIT de prueba)                                       |
+| `PADRON_SERVICE_NOT_AUTHORIZED` | `padron`                                                        | El certificado no está autorizado para `ws_sr_constancia_inscripcion`                                           | Autorizalo como `wsfe` ([certificados](obtencion-certificados.md)). Al facturar no corta: se usa `ivaReceptor` de la config con un aviso |
+| `FCE_SERVICE_NOT_AUTHORIZED`    | `fce-obligado`                                                  | El certificado no está autorizado para `wsfecred`                                                               | Autorizalo como `wsfe` ([certificados](obtencion-certificados.md)). Con `verificarFce` al facturar no corta: sale como aviso             |
+| `WSFEX_SERVICE_NOT_AUTHORIZED`  | `fe`, `factura e`                                               | El certificado no está autorizado para `wsfex`                                                                  | Autorizalo como `wsfe` ([certificados](obtencion-certificados.md)) o configurá `exportacion.cert.*`/`exportacion.key.*`                  |
+| `ARCA_EXPORT_ERROR`             | `fe`, `factura e`                                               | WSFEX devolvió un error al consultar una tabla, el ID de solicitud o la cotización (`detalles.errores`)         | Revisá el mensaje de ARCA; no se emitió nada                                                                                             |
+| `FCE_OBLIGATION_ERROR`          | `fce-obligado`                                                  | ARCA no pudo informar si el receptor está obligado a FCE (`detalles.errors`)                                    | Revisá el CUIT y la fecha; los códigos de ARCA vienen en el mensaje. Al facturar sale como aviso                                         |
+| `PDF_PLUGIN_INSTALL_ERROR`      | `pdf instalar`                                                  | No se pudo descargar el plugin o el navegador                                                                   | Revisá la conexión o el proxy de npm y reintentá                                                                                         |
+| `PDF_*` en `pdf.error`          | facturación con PDF                                             | No es un error del comando: el comprobante se emitió y falló solo el PDF                                        | Ver [errores del PDF](#errores-del-pdf); no reemitas                                                                                     |
 
 ### Errores JSON de validación
 
@@ -755,7 +870,7 @@ Un error del PDF **no** es un error del comando: el comprobante ya se emitió, a
   "codigo": "PDF_PLUGIN_INSTALL_ERROR",
   "detalles": { "salida": "npm error code ECONNREFUSED" },
   "error": "npm no pudo instalar @arcasdk/pdf.",
-  "sugerencia": "Revise la conexion a internet o el proxy de npm y vuelva a correr `arcli pdf instalar`."
+  "sugerencia": "Revisá la conexión a internet o el proxy de npm y volvé a correr `arcli pdf instalar`."
 }
 ```
 

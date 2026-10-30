@@ -14,16 +14,22 @@ export interface InvoicePdfIssuer {
 
 export interface InvoicePdfReceiver {
   readonly condicionIva: string;
+  /** CUIT del pais de destino con su descripcion, como lo informa WSFEX. Solo en la letra E. */
+  readonly cuitPais?: string;
   readonly documentoNro: string;
   /** "CUIT", "CUIL", "DNI" u "Otro". */
   readonly documentoTipo: string;
   readonly domicilio?: string;
+  /** ID impositivo del receptor en el pais de destino. Solo en la letra E. */
+  readonly idImpositivo?: string;
   readonly razonSocial: string;
 }
 
 export interface InvoicePdfItem {
   readonly alicuotaIva?: number;
   readonly cantidad: number;
+  /** Codigo del producto; la letra E lo imprime en el detalle. */
+  readonly codigo?: string;
   readonly descripcion: string;
   readonly precioUnitario: number;
   readonly subtotal: number;
@@ -53,20 +59,33 @@ export interface InvoicePdfData {
   /** yyyymmdd */
   readonly cbteFecha: string;
   readonly cbteHasta: number;
+  /** Titulo del comprobante; sin esto la plantilla usa el nombre del tipo ("FACTURA"). */
+  readonly cbteDescripcion?: string;
   readonly cbteLetra: string;
   readonly cbteTipo: number;
   readonly cbtesAsociados?: readonly InvoicePdfAssociatedVoucher[];
+  /** Solo A, B y C. La plantilla de la E no lo muestra, pero el tipo del plugin lo pide. */
   readonly concepto: number;
+  /** Leyenda de IVA de la E, debajo de la condicion del emisor. */
+  readonly condicionIvaExportacion?: string;
   readonly cotizacion?: number;
+  /** Pais de destino de la E. */
+  readonly destinoComprobante?: string;
+  /** Moneda de la E con su codigo ISO y su nombre: "USD - Dólar Estadounidense". */
+  readonly divisa?: string;
   readonly emisor: InvoicePdfIssuer;
+  /** yyyymmdd. Solo E: forma, fecha de pago e incoterm van juntos en una tabla. */
+  readonly fechaPago?: string;
   readonly fechaServicioDesde?: string;
   readonly fechaServicioHasta?: string;
   readonly fechaVtoPago?: string;
+  readonly formaPago?: string;
   readonly importeExento?: number;
   readonly importeIva: number;
   readonly importeNetoGravado: number;
   readonly importeNetoNoGravado?: number;
   readonly importeTotal: number;
+  readonly incoterms?: string;
   readonly items: readonly InvoicePdfItem[];
   readonly iva?: readonly InvoicePdfIva[];
   readonly moneda?: string;

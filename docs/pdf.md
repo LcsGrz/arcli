@@ -92,6 +92,24 @@ Estos datos **solo van en el PDF**: ARCA no los recibe. Si los pasás y al final
 
 El detalle del PDF tiene un renglón por alícuota de IVA con la descripción y su importe neto, o un solo renglón en las facturas `C`. Exento y no gravado van en renglones aparte.
 
+### Factura de exportación (E)
+
+La `E` usa el diseño de exportación de `@arcasdk/pdf`, con los mismos datos que la E de Comprobantes en línea, y no discrimina IVA. Imprime:
+
+- los items que viajaron a WSFEX (código, descripción con su unidad, cantidad, precio unitario y total);
+- el título `FACTURA DE EXPORTACIÓN`;
+- el cliente con su domicilio, el CUIT del país con su descripción de ARCA (`55000004242 (POLONIA - Persona Jurídica)`) y el ID impositivo;
+- la divisa con su código ISO y su nombre (`USD - Dólar Estadounidense`; WSFEX la llama `DOL`) y el destino del comprobante;
+- una tabla con la forma de pago, la fecha de pago y el incoterm;
+- el tipo de cambio y el importe total en la moneda del comprobante;
+- la leyenda `IVA EXENTO OPERACIÓN DE EXPORTACIÓN` debajo de la condición frente al IVA del emisor;
+- las observaciones comerciales y las observaciones, debajo del CAE;
+- el QR de ARCA, con el CUIT del país como documento del receptor.
+
+- El nombre y el domicilio del cliente no son datos solo del PDF: salen de `--cliente` y `--domicilio-cliente` y ARCA los guarda. `--receptor-nombre` y `--receptor-domicilio` no existen en `fe`.
+- `--descripcion` es la descripción del renglón único que arma ARCLI cuando no pasás `--item` (por defecto "Según detalle"). Con items, los renglones son los `--item`.
+- `emisor.condicionIva` sin configurar sale como "Responsable Inscripto", igual que en `A` y `B`.
+
 ## Leyendas obligatorias
 
 ARCLI agrega al PDF las leyendas que pide la normativa y que la plantilla de `@arcasdk/pdf` no trae. Salen debajo del CAE, en la línea de "Observaciones":
@@ -106,7 +124,7 @@ Las facturas C no llevan ninguna de las dos.
 - **Carpeta:** la config `pdfCarpeta`. Por defecto es `~/arcli/comprobantes`, una ruta fija para que los PDFs no queden repartidos según desde dónde corriste el comando.
 - **Una subcarpeta por CUIT emisor:** `~/arcli/comprobantes/20123456786/`. Así dos emisores con el mismo punto de venta y número no se pisan.
 - **Testing:** los PDFs de testing van a `testing/<CUIT>/` y llevan al pie "COMPROBANTE DE PRUEBA - SIN VALIDEZ FISCAL".
-- **Nombre:** `<tipo>-<letra>_<punto de venta>-<número>.pdf`, con el punto de venta en 4 dígitos y el número en 8. Por ejemplo, `factura-c_0003-00000125.pdf` o `nota-credito-a_0003-00000007.pdf`.
+- **Nombre:** `<tipo>-<letra>_<punto de venta>-<número>.pdf`, con el punto de venta en 4 dígitos y el número en 8. Por ejemplo, `factura-c_0003-00000125.pdf`, `nota-credito-a_0003-00000007.pdf` o `factura-e_0003-00000012.pdf`.
 - **Nunca se pisa un PDF:** si el archivo ya existe, el nuevo se guarda como `factura-c_0003-00000125-2.pdf`, `-3` y así.
 
 ```bash
@@ -144,5 +162,6 @@ Códigos posibles: `PDF_PLUGIN_MISSING`, `PDF_PLUGIN_INSTALL_ERROR`, `PDF_ISSUER
 ## Qué no hace (todavía)
 
 - **Regenerar el PDF de un comprobante ya emitido.** La consulta de ARCA que usa el SDK no devuelve el detalle de IVA, los comprobantes asociados ni las fechas de servicio, así que el PDF saldría incompleto. Por ahora el PDF se genera al emitir.
-- Ítems detallados (cantidad × precio unitario), duplicado y triplicado, plantilla propia y envío por mail.
+- Ítems detallados en A, B y C (cantidad × precio unitario). La factura de exportación `E` sí los imprime porque WSFEX los recibe y los devuelve en la respuesta.
+- Duplicado y triplicado, plantilla propia y envío por mail.
 - Completar los datos del emisor desde el padrón de ARCA (los del receptor sí se completan; ver [Del comprobante](#del-comprobante-flags-opcionales)).

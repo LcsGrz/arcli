@@ -35,6 +35,11 @@ export type CanonicalConfigKey =
   | 'emisor.logo'
   | 'emisor.razonSocial'
   | 'entornoPorDefecto'
+  | 'exportacion.actividad'
+  | 'exportacion.cert.produccion'
+  | 'exportacion.cert.testing'
+  | 'exportacion.key.produccion'
+  | 'exportacion.key.testing'
   | 'ivaReceptorPorDefecto'
   | 'key.produccion'
   | 'key.testing'
@@ -231,14 +236,19 @@ export function parseConfigValue(key: CanonicalConfigKey, value: string): boolea
     case 'pdfNavegador':
       return parseExistingFile(value, 'el navegador');
     case 'puntoVentaPorDefecto':
+    case 'exportacion.actividad':
       return parsePositiveInteger(value);
     case 'ticketPath':
       return resolve(parseNonEmptyString(value));
     case 'cert.produccion':
     case 'cert.testing':
+    case 'exportacion.cert.produccion':
+    case 'exportacion.cert.testing':
       return parsePemPath(value, 'certificado');
     case 'key.produccion':
     case 'key.testing':
+    case 'exportacion.key.produccion':
+    case 'exportacion.key.testing':
       return parsePemPath(value, 'clave privada');
     default:
       return parseNonEmptyString(value);

@@ -1,6 +1,7 @@
 import type { ConfigPublicKey } from './config.schemas';
 
-export type ConfigSectionId = 'certificados' | 'cuenta' | 'emisor' | 'facturacion' | 'fce' | 'pdf' | 'salida';
+export type ConfigSectionId =
+  'certificados' | 'cuenta' | 'emisor' | 'exportacion' | 'facturacion' | 'fce' | 'pdf' | 'salida';
 
 export interface ConfigSection {
   readonly id: ConfigSectionId;
@@ -16,7 +17,17 @@ export const CONFIG_SECTIONS: readonly ConfigSection[] = [
   { id: 'cuenta', keys: ['cuit', 'puntoVenta', 'entorno'], label: 'Cuenta' },
   {
     id: 'certificados',
-    keys: ['cert.testing', 'key.testing', 'cert.produccion', 'key.produccion', 'ticketPath'],
+    keys: [
+      'cert.testing',
+      'key.testing',
+      'cert.produccion',
+      'key.produccion',
+      'exportacion.cert.testing',
+      'exportacion.key.testing',
+      'exportacion.cert.produccion',
+      'exportacion.key.produccion',
+      'ticketPath',
+    ],
     label: 'Certificados',
   },
   {
@@ -25,6 +36,7 @@ export const CONFIG_SECTIONS: readonly ConfigSection[] = [
     label: 'Al facturar',
   },
   { id: 'fce', keys: ['cbu', 'aliasCbu', 'verificarFce'], label: 'Factura de crédito electrónica (FCE)' },
+  { id: 'exportacion', keys: ['exportacion.actividad'], label: 'Factura de exportación (E)' },
   {
     id: 'emisor',
     keys: [
@@ -61,6 +73,11 @@ export const CONFIG_LABELS: Record<ConfigPublicKey, string> = {
   'emisor.razonSocial': 'Razón social',
   emitir: 'Emitir sin --emitir',
   entorno: 'Entorno',
+  'exportacion.actividad': 'Actividad de exportación (WSFEX)',
+  'exportacion.cert.produccion': 'Certificado de exportación (producción)',
+  'exportacion.cert.testing': 'Certificado de exportación (testing)',
+  'exportacion.key.produccion': 'Clave de exportación (producción)',
+  'exportacion.key.testing': 'Clave de exportación (testing)',
   ivaReceptor: 'IVA del receptor',
   json: 'Salida JSON',
   'key.produccion': 'Clave privada de producción',

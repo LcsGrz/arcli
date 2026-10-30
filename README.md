@@ -17,6 +17,7 @@ CLI para previsualizar y emitir comprobantes electrónicos de ARCA (ex AFIP) des
 - **Modo interactivo:** `arcli` sin argumentos abre un asistente que guía la emisión, repite facturas anteriores, arma notas de crédito y débito, consulta comprobantes y configura el CLI. Cada paso muestra el comando equivalente.
 - **Vista previa por defecto:** sin `--emitir`, muestra la solicitud y, en una terminal, pregunta antes de emitir.
 - **Comprobantes:** Factura, Nota de Crédito y Nota de Débito A, B y C, y sus versiones de Factura de Crédito Electrónica (FCE), con CBU, transferencia, anulación y consulta del régimen del receptor.
+- **Factura de exportación E:** `arcli fe` emite con WSFEX, con cliente y país de destino, incoterm, items detallados y permisos de embarque; acepta certificado propio con `exportacion.cert.*` / `exportacion.key.*`.
 - **Entrada y salida flexibles:** flags o JSON (incluso lotes); salida legible, `--json` o respuesta bruta de ARCA.
 - **Validaciones locales** basadas en el manual de ARCA, para detectar errores antes de llamar al servicio.
 - **Consultas sin emitir:** últimos comprobantes, detalle de uno, estado de los servidores, tablas de parámetros, cotización oficial y padrón de un CUIT.
@@ -56,6 +57,8 @@ arcli fc -m 15000 --cs --consumidor-final --ir-cf            # vista previa de u
 arcli fc -m 15000 --cs --consumidor-final --ir-cf --emitir   # emitir
 arcli fc --cargar ./facturas.json --emitir --json            # lote desde JSON, salida JSON
 arcli fc -m 15000 --cs --consumidor-final --ir-cf --emitir --exportar-pdf
+arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 203 \
+  --numero 1 --actividad 620100 --previsualizar                             # Factura de exportación E
 ```
 
 Otras consultas: `arcli ultimos`, `arcli consultar`, `arcli estado`, `arcli parametros`, `arcli fce-obligado`, `arcli padron`. Para ver todos los comprobantes y ejemplos: `arcli --ayuda` y `arcli ejemplos`.
@@ -100,6 +103,7 @@ Leé [CONTRIBUTING.md](https://github.com/LcsGrz/arcli/blob/main/CONTRIBUTING.md
 
 - [`@arcasdk/core`](https://github.com/ralcorta/arcasdk) y [`@arcasdk/pdf`](https://www.afipts.com/packages/pdf), de [Rodrigo Alcorta](https://github.com/ralcorta).
 - [Arpit Bhayani](https://github.com/arpitbbhayani), por ceder el nombre `arcli` en npm.
+- [Manuel Aller](https://github.com/itManuel), por la factura de exportación E.
 
 Si el proyecto te resulta útil, podés dejar una estrella o invitarme un [Cafecito](https://cafecito.app/lcsgrz).
 

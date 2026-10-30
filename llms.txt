@@ -48,6 +48,55 @@ Shortcuts (`family` = comando alternativo `arcli <family> <letra>`, ej. `arcli f
 | ncea, nceb, ncec | Nota de crédito electrónica A/B/C | nota-credito-electronica | sí |
 | ndea, ndeb, ndec | Nota de débito electrónica A/B/C | nota-debito-electronica | sí |
 
+## Factura de exportación E (WSFEX)
+
+`arcli fe` (o `arcli factura e`, que hace lo mismo) emite la Factura de exportación E con el
+servicio `wsfex`. No lleva concepto, IVA ni receptor con CUIT/CUIL/DNI: lleva
+cliente y domicilio del exterior, país de destino, incoterm, items y permisos de embarque. `--cargar`
+acepta un solo objeto, no un array.
+
+```bash
+arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 203 \
+  --numero 1 --actividad 620100 --item "001|Servicios de consultoría|1|1500|unidad" --previsualizar --json
+```
+
+- Requeridos: `-m, --monto <n>`, `--cliente <texto>`, `--domicilio-cliente <texto>`,
+  `--pais-destino <codigo|nombre>` (código de ARCA o nombre, ej. `203` o `Brasil`), `--numero <n>` (el
+  siguiente al último E de ese punto de venta; arcli todavía no lo puede consultar en WSFEX porque
+  `@arcasdk/core` arma mal `FEXGetLast_CMP`) y la actividad: `--actividad <codigo>` o la clave
+  `exportacion.actividad`. No hay default: tiene que ser un código de la tabla de actividades de WSFEX,
+  que no es la del padrón (ej. `620100`; `620900` no está). Si no está en la tabla es
+  `INPUT_VALIDATION_ERROR` con las que empiezan igual.
+- `--item <partes>` (repetible): `codigo|descripcion|cantidad|precio|unidad`; con 4 partes se omite
+  el código y con 3 la unidad (por defecto `unidad`, código `7`). La suma de los items tiene que dar
+  `--monto`: se valida antes de ir a ARCA. Sin `--item` va un renglón con `--descripcion`.
+- Opcionales: `--id-impositivo <texto>`, `--cuit-pais <n>` (sin flag sale del país de destino; si ARCA no
+  publica un CUIT para ese país, el flag es obligatorio),
+  `--tipo-expo <1|2|4>` (`2` servicios por defecto, `1` bienes, `4` otros).
+  `solicitud` no informa `Cmps_asoc` ni `Opcionales` mientras no los haya: ARCA rechaza los bloques
+  vacíos (error 1820 el primero).
+- `--incoterm <codigo>`,
+  `--incoterms-desc <texto>`, `--idioma <codigo>` (`1` español por defecto, `2` inglés, `3` portugués),
+  `--forma-pago <texto>` (por defecto `Transferencia Internacional`), `--permiso <id>` (repetible, requiere
+  `--permiso-existente` y solo se acepta con `--tipo-expo 1`), `--permiso-existente`,
+  `--id-solicitud <n>` (sin flag, el siguiente de WSFEX), `--punto-venta <n>` (`--pv`), `-f, --fecha <fecha>`, `--fecha-pago <fecha>`,
+  `--moneda <codigo>` (`--mda`; por defecto `DOL`), `--cotizacion-moneda <n>` (`--cm`; sin flag, la de
+  aduana que publica ARCA; la clave `cotizacion` de la config no aplica), `--misma-moneda`
+  (manda `CanMisMonExt` en `S`: el pago se cancela en la misma moneda extranjera),
+  `--observaciones <texto>`, `--obs-comerciales <texto>`, `--descripcion <texto>`, `--cargar <path>`,
+  `--exportar-pdf` (`--pdf`), `--sin-pdf`, `--previsualizar`, `--emitir`, `--json`, `--bruto`.
+- La fecha del comprobante no puede ser futura. WSFEX numera por punto de venta y tipo.
+- `fe` es estricto: un flag de A/B/C es opción desconocida. `factura <letra>` acepta los flags de todas las
+  letras y saltea los que no aplican a la elegida con un aviso en `avisos` (`factura a --incoterm`,
+  `factura e --alicuota`).
+- Credenciales: usa `exportacion.cert.<entorno>`/`exportacion.key.<entorno>` si están configuradas y,
+  si no, `cert.<entorno>`/`key.<entorno>`; el certificado tiene que estar autorizado a `wsfex` (si no,
+  `WSFEX_SERVICE_NOT_AUTHORIZED`). Con la
+  mitad del par configurada, el comando corta antes de ir a ARCA.
+- Un rechazo de WSFEX sale como respuesta válida con exit code `2`, igual que en las letras A, B y C.
+- PDF: `factura-e_<pv>-<numero>.pdf`, con el diseño de exportación (divisa, destino, forma y fecha de
+  pago, incoterm, leyenda de IVA exento).
+
 ## Flags principales (alias corto entre paréntesis)
 
 - `-m, --monto <n>`: importe total (requerido). Montos en formato argentino: punto para miles, coma para decimales (`15000`, `15.000`, `1.500,50`). `1500.50` da error; máximo 2 decimales (la cotización, 6). Aplica a `--monto`, `--exento`, `--nogravado`, `--cm` y `--alicuota TASA:MONTO`. En JSON los montos son números, también con 2 decimales como máximo. Enteros (`--pv`, `--ar`, `--dia`…) solo con dígitos; `--cuit`/`--cuil`/`--acuit`/`--dni` aceptan guiones, y todo CUIT (también el de `padron`, `fce-obligado` y `config establecer cuit`) se valida con su dígito verificador.
@@ -131,6 +180,12 @@ Una clave desconocida (`montototal`, `vencimiento`, `moneda`) o un tipo incorrec
 }
 ```
 
+En la factura E (`fe`) el objeto agrega `exportacion` (`cliente`, `destino`, `domicilioCliente`,
+`incoterm`, `items`, `permisos`, `tipoExpo`) y `solicitud` es el `Cmp` de WSFEX con los nombres de ARCA
+(`Dst_cmp`, `Moneda_Id`, `Items.Item`…). `solicitud` no lleva `Permisos` cuando no hay permisos de
+embarque: ARCA rechaza ese campo (error 1720) si `Permiso_existente` es `N`, y lo exige vacío en los
+tipos `2` (servicios) y `4` (otros), donde tampoco admite permisos (error 1550).
+
 `pdf` aparece solo si se intentó generar el PDF. Si falló es `{ "error": { "codigo", "mensaje", "sugerencia" } }`
 (`PDF_PLUGIN_MISSING`, `PDF_PLUGIN_INSTALL_ERROR`, `PDF_ISSUER_INCOMPLETE`, `PDF_GENERATION_ERROR`) y el exit code
 sigue siendo `0`: el comprobante ya está emitido, **no reemitir para obtener el PDF**.
@@ -176,7 +231,10 @@ arcli config eliminar <clave>
 Claves válidas: `cuit`, `cbu`, `aliasCbu` (solo facturas FCE), `verificarFce`, `consultarPadron` (por defecto `true`), `alicuota`, `puntoVenta`, `comprobantesPorLista` (1 a 50, por defecto 15), `concepto`, `ivaReceptor`, `moneda`, `cotizacion`,
 `entorno` (`testing`/`produccion`), `emitir`, `json`, `bruto` (booleanos: `true/false`,
 `si/no`, `1/0`), `cert.testing`, `cert.produccion`, `key.testing`, `key.produccion`
-(rutas a archivos PEM, se validan al guardar), `ticketPath` (carpeta donde se cachea el
+(rutas a archivos PEM, se validan al guardar), `exportacion.cert.testing`, `exportacion.cert.produccion`,
+`exportacion.key.testing`, `exportacion.key.produccion` (credenciales propias de WSFEX para la factura
+de exportación; si faltan, se usan `cert.*`/`key.*`), `exportacion.actividad` (código de la tabla de
+actividades de WSFEX para la `E`; `--actividad` lo pisa), `ticketPath` (carpeta donde se cachea el
 ticket WSAA; por defecto una carpeta junto al archivo de config).
 Para el PDF: `pdf` (`siempre`/`preguntar`/`nunca`), `pdfCarpeta` (por defecto `~/arcli/comprobantes`; una subcarpeta
 por CUIT emisor, los de testing en `testing/<CUIT>/`, y nunca se pisa un PDF existente: se suma `-2`, `-3`), `pdfNavegador` (ruta a Chrome/Chromium/Edge), `emisor.razonSocial`, `emisor.domicilio`,

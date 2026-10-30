@@ -100,7 +100,7 @@ export async function offerPdf(
       return;
     }
 
-    const description = await askText('Descripción del comprobante (Enter para "Segun detalle")');
+    const description = await askText('Descripción del comprobante (Enter para "Según detalle")');
     // Lo que trajo el padron se propone: Enter lo deja, en lugar de borrarlo.
     const receiverName = await askText(
       input.receiverName
