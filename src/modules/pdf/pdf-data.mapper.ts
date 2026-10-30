@@ -125,6 +125,7 @@ export function mapBillingResultToPdfData(
       tipo: voucher.Tipo,
     })),
     concepto: payload.Concepto,
+    condicionVenta: extras.condicionVenta?.trim() || undefined,
     cotizacion: payload.MonCotiz,
     emisor: issuer,
     fechaServicioDesde: payload.FchServDesde,

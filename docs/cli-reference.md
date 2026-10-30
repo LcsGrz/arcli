@@ -278,6 +278,7 @@ Estos flags controlan el PDF del comprobante emitido. Los datos que se pasan ac�
 | `--exportar-pdf`               | `--pdf` | `boolean` | según `config.pdf` | Genera el PDF después de emitir              |
 | `--sin-pdf`                    | ninguno | `boolean` | según `config.pdf` | No genera el PDF                             |
 | `--descripcion <texto>`        | ninguno | `string`  | `Segun detalle`    | Detalle del comprobante en el PDF            |
+| `--condicion-venta <texto>`    | ninguno | `string`  | ninguno            | Condición de venta en el PDF                 |
 | `--receptor-nombre <texto>`    | ninguno | `string`  | ninguno            | Nombre o razón social del receptor en el PDF |
 | `--receptor-domicilio <texto>` | ninguno | `string`  | ninguno            | Domicilio del receptor en el PDF             |
 

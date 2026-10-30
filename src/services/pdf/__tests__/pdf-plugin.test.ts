@@ -278,17 +278,27 @@ describe('exportBillingPdf', () => {
 
     await exportBillingPdf({
       config: { ...config, emisor: { ...config.emisor, razonSocial: 'Gomez & Hijos' } },
-      extras: { descripcion: '<img src=x onerror=alert(1)>', receptorNombre: 'Cliente "SA"' },
+      extras: {
+        condicionVenta: '<script>alert(1)</script>',
+        descripcion: '<img src=x onerror=alert(1)>',
+        receptorNombre: 'Cliente "SA"',
+      },
       folder: createTempDir(),
       renderer: { render },
       result: createResult('produccion'),
     });
 
     const [data] = render.mock.calls[0] as unknown as [
-      { emisor: { razonSocial: string }; items: Array<{ descripcion: string }>; receptor: { razonSocial: string } },
+      {
+        condicionVenta: string;
+        emisor: { razonSocial: string };
+        items: Array<{ descripcion: string }>;
+        receptor: { razonSocial: string };
+      },
     ];
 
     expect(data.emisor.razonSocial).toBe('Gomez &amp; Hijos');
+    expect(data.condicionVenta).toBe('&lt;script&gt;alert(1)&lt;/script&gt;');
     expect(data.items[0]?.descripcion).toBe('&lt;img src=x onerror=alert(1)&gt;');
     expect(data.receptor.razonSocial).toBe('Cliente &quot;SA&quot;');
     expect(JSON.stringify(data)).not.toMatch(/[<>]/);

@@ -211,7 +211,7 @@ describe('attachPdfs', () => {
     const [result] = await attachPdfs(
       {
         config: CONFIG,
-        inputs: [input({ pdf: false, receiverName: 'Cliente SA' })],
+        inputs: [input({ pdf: false, receiverName: 'Cliente SA', saleCondition: 'Contado' })],
         interactive: false,
         results: [createResult({ warnings: ['otro aviso'] })],
       },

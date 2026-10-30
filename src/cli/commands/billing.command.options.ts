@@ -95,6 +95,7 @@ export function registerBillingOptions(command: Command): void {
     .option('--pdf', 'alias de --exportar-pdf')
     .option('--sin-pdf', 'no generar el PDF, aunque la config diga otra cosa')
     .option('--descripcion <texto>', 'detalle del comprobante en el PDF; por defecto "Según detalle"')
+    .option('--condicion-venta <texto>', 'condición de venta en el PDF; el modo interactivo muestra opciones')
     .option('--receptor-nombre <texto>', 'nombre o razón social del receptor en el PDF')
     .option('--receptor-domicilio <texto>', 'domicilio del receptor en el PDF')
     .option('--previsualizar', 'mostrar el payload antes de emitir en ARCA')

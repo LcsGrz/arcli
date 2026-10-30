@@ -39,6 +39,7 @@ arcli fc --cargar ./voucher.json
 | `numeroDocumento`     | number  | depende del tipo de documento          | Número de documento                                                                                                                             |
 | `pdf`                 | boolean | no                                     | `true` genera el PDF y `false` no, como `--exportar-pdf` y `--sin-pdf`. Ver [PDF](pdf.md)                                                       |
 | `descripcion`         | string  | no                                     | Detalle del comprobante en el PDF; ARCA no lo recibe                                                                                            |
+| `condicionVenta`      | string  | no                                     | Condición de venta en el PDF; ARCA no la recibe                                                                                                 |
 | `receptorNombre`      | string  | no                                     | Nombre o razón social del receptor en el PDF; ARCA no lo recibe                                                                                 |
 | `receptorDomicilio`   | string  | no                                     | Domicilio del receptor en el PDF; ARCA no lo recibe                                                                                             |
 | `previsualizar`       | boolean | no                                     | Preview sin emitir                                                                                                                              |
@@ -113,6 +114,7 @@ Los nombres de las claves no siempre coinciden con los flags. Si pasás las dos 
 | `--anulacion`                                                 | `anulacion`                         |
 | `--exportar-pdf`, `--pdf` / `--sin-pdf`                       | `pdf: true` / `pdf: false`          |
 | `--descripcion`                                               | `descripcion`                       |
+| `--condicion-venta`                                           | `condicionVenta`                    |
 | `--receptor-nombre`                                           | `receptorNombre`                    |
 | `--receptor-domicilio`                                        | `receptorDomicilio`                 |
 | `--emitir`                                                    | `emitir`                            |

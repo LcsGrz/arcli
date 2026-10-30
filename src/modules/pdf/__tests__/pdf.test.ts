@@ -143,6 +143,7 @@ describe('mapBillingResultToPdfData', () => {
 
   it('maps a factura C to a single line with the total', () => {
     const data = mapBillingResultToPdfData(createResult('fc', { ImpNeto: 150000, ImpTotal: 150000 }), issuer, {
+      condicionVenta: 'Otros medios de pago electrónico',
       descripcion: 'Servicios de septiembre',
     });
 
@@ -151,6 +152,7 @@ describe('mapBillingResultToPdfData', () => {
       cbteDesde: 125,
       cbteLetra: 'C',
       cbteTipo: 11,
+      condicionVenta: 'Otros medios de pago electrónico',
       importeIva: 0,
       importeNetoGravado: 150000,
       importeTotal: 150000,

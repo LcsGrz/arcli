@@ -57,6 +57,7 @@ export interface InvoicePdfData {
   readonly cbteTipo: number;
   readonly cbtesAsociados?: readonly InvoicePdfAssociatedVoucher[];
   readonly concepto: number;
+  readonly condicionVenta?: string;
   readonly cotizacion?: number;
   readonly emisor: InvoicePdfIssuer;
   readonly fechaServicioDesde?: string;
@@ -84,6 +85,7 @@ export interface InvoicePdfOptions {
 
 /** Datos que no estan en ARCA y se pasan por flag o en el JSON de --cargar. Solo se usan en el PDF. */
 export interface PdfVoucherExtras {
+  readonly condicionVenta?: string;
   readonly descripcion?: string;
   readonly receptorDomicilio?: string;
   readonly receptorNombre?: string;

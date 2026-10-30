@@ -9,7 +9,7 @@ import { noticePanel, writeTerminalOutput } from '../../ui';
 import { writePdfOutcomes } from '../commands/billing.command.output';
 import { attachPdfs } from '../commands/billing.command.pdf';
 
-import { askText, confirm, isPromptCancellation } from './prompts';
+import { askText, chooseOne, confirm, isPromptCancellation } from './prompts';
 
 type IssuerKey = 'cuit' | 'emisor.domicilio' | 'emisor.inicioActividades' | 'emisor.razonSocial';
 
@@ -19,6 +19,34 @@ const ISSUER_QUESTIONS: Record<IssuerKey, string> = {
   'emisor.inicioActividades': 'Fecha de inicio de actividades (D/MM/YYYY)',
   'emisor.razonSocial': 'Razón social o nombre del emisor',
 };
+
+const CUSTOM_SALE_CONDITION = '__otra_condicion_de_venta__';
+const SALE_CONDITION_CHOICES = [
+  { name: 'Omitir', value: '' },
+  { name: 'Contado', value: 'Contado' },
+  { name: 'Tarjeta de débito', value: 'Tarjeta de débito' },
+  { name: 'Tarjeta de crédito', value: 'Tarjeta de crédito' },
+  { name: 'Cuenta corriente', value: 'Cuenta corriente' },
+  { name: 'Cheque', value: 'Cheque' },
+  { name: 'Transferencia bancaria', value: 'Transferencia bancaria' },
+  { name: 'Otros medios de pago electrónico', value: 'Otros medios de pago electrónico' },
+  { name: 'Otra (escribir)', value: CUSTOM_SALE_CONDITION },
+] as const;
+
+async function askSaleCondition(current?: string): Promise<string | undefined> {
+  const isKnown = !current || SALE_CONDITION_CHOICES.some((choice) => choice.value === current);
+  const choices =
+    current && !isKnown
+      ? [{ name: `Mantener: ${current}`, value: current }, ...SALE_CONDITION_CHOICES]
+      : SALE_CONDITION_CHOICES;
+  const selected = await chooseOne('Condición de venta para el PDF', choices, current ?? '');
+
+  if (selected === CUSTOM_SALE_CONDITION) {
+    return (await askText('Otra condición de venta (Enter para omitir)')) || undefined;
+  }
+
+  return selected || undefined;
+}
 
 function validateConfigValue(key: IssuerKey, value: string): string | true {
   try {
@@ -112,6 +140,7 @@ export async function offerPdf(
       input.receiverAddress ? 'Domicilio del receptor:' : 'Domicilio del receptor (Enter para omitir)',
       { defaultValue: input.receiverAddress },
     );
+    const saleCondition = await askSaleCondition(input.saleCondition);
     const completedConfig = await completeIssuer(config);
     const withPdf = await attachPdfs({
       config: completedConfig,
@@ -122,6 +151,7 @@ export async function offerPdf(
           pdfDescription: description || undefined,
           receiverAddress: receiverAddress || undefined,
           receiverName: receiverName || undefined,
+          saleCondition,
         },
       ],
       interactive: true,

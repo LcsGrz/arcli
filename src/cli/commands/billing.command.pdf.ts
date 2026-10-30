@@ -14,7 +14,7 @@ import { confirm, isPromptCancellation } from '../interactive/prompts';
 import { startSpinner } from '../spinner';
 
 export const PDF_ONLY_FLAGS_WARNING =
-  '--descripcion, --receptor-nombre y --receptor-domicilio solo se usan en el PDF; no se genero ninguno.';
+  '--descripcion, --condicion-venta, --receptor-nombre y --receptor-domicilio solo se usan en el PDF; no se genero ninguno.';
 
 export interface PdfStepDependencies {
   readonly confirm: (message: string, yesLabel: string, noLabel?: string) => Promise<boolean>;
@@ -59,6 +59,7 @@ function hasPdfOnlyData(input: BillingCommandInput | undefined): boolean {
 
   return Boolean(
     input?.pdfDescription ||
+    input?.saleCondition ||
     (input?.receiverName && !fromPadron.includes('name')) ||
     (input?.receiverAddress && !fromPadron.includes('address')),
   );
@@ -163,6 +164,7 @@ export async function attachPdfs(
           const path = await exportBillingPdf({
             config: options.config,
             extras: {
+              condicionVenta: input?.saleCondition,
               descripcion: input?.pdfDescription,
               receptorDomicilio: input?.receiverAddress,
               receptorNombre: input?.receiverName,
