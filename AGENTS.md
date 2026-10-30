@@ -6,7 +6,7 @@ Instrucciones para agentes que modifican el código de este repo. Para usar el C
 
 `arcli` es un CLI de TypeScript (ESM, Node.js) para previsualizar y emitir comprobantes ARCA, publicado en npm. Usa `@arcasdk/core` para hablar con ARCA. Tiene dos formas de uso: comandos con flags y un modo interactivo (`arcli` sin argumentos).
 
-Alcance de comprobantes (no ampliar sin pedido explícito): Factura, Nota de Crédito y Nota de Débito A, B y C, y sus versiones de Factura de Crédito Electrónica (FCE).
+Alcance de comprobantes (no ampliar sin pedido explícito): Factura, Nota de Crédito y Nota de Débito A, B y C, sus versiones de Factura de Crédito Electrónica (FCE) y la Factura de exportación E (WSFEX). Las notas de crédito y débito E todavía no.
 
 ## Mapa del código
 

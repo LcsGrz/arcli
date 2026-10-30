@@ -60,18 +60,41 @@ Con el asistente, el aviso de nueva versión no se repite al salir. En los coman
 
 Primero pregunta solo lo **requerido**:
 
-| Paso | Pregunta         | Detalle                                                                                    |
-| ---- | ---------------- | ------------------------------------------------------------------------------------------ |
-| 1    | Comprobante      | Factura A, B o C, comunes o de crédito electrónica (FCE)                                   |
-| 2    | Receptor         | Consumidor final, CUIT o DNI. En la A solo CUIT, porque la A no admite consumidor final    |
-| 3    | IVA del receptor | Solo las condiciones válidas para la letra elegida. Con consumidor final no se pregunta    |
-| 4    | Concepto         | Servicios, productos o ambos. Arranca en `config.concepto` si está configurado             |
-| 5    | Monto total      | Acepta `150000`, `150.000`, `1500,50` o `1.500,50` (punto para miles, coma para decimales) |
-| 6    | CBU              | Solo en facturas FCE y si no hay `config.cbu`                                              |
+| Paso | Pregunta         | Detalle                                                                                                              |
+| ---- | ---------------- | -------------------------------------------------------------------------------------------------------------------- |
+| 1    | Comprobante      | Factura A, B o C, comunes o de crédito electrónica (FCE), o la de exportación E ([abajo](#factura-de-exportación-e)) |
+| 2    | Receptor         | Consumidor final, CUIT o DNI. En la A solo CUIT, porque la A no admite consumidor final                              |
+| 3    | IVA del receptor | Solo las condiciones válidas para la letra elegida. Con consumidor final no se pregunta                              |
+| 4    | Concepto         | Servicios, productos o ambos. Arranca en `config.concepto` si está configurado                                       |
+| 5    | Monto total      | Acepta `150000`, `150.000`, `1500,50` o `1.500,50` (punto para miles, coma para decimales)                           |
+| 6    | CBU              | Solo en facturas FCE y si no hay `config.cbu`                                                                        |
 
 Después, **una sola pregunta con todos los opcionales** (ver abajo). Enter sin marcar nada sigue con los valores por defecto.
 
 Después muestra la vista previa (la misma de `--previsualizar`), el comando equivalente y pregunta si emitir. En **producción** pide una segunda confirmación.
+
+### Factura de exportación (E)
+
+La `E` se elige en el mismo selector, pero tiene su propio asistente porque no lleva receptor argentino, concepto ni IVA. Valida y emite igual que `arcli fe`:
+
+| Paso | Pregunta          | Detalle                                                                                                             |
+| ---- | ----------------- | ------------------------------------------------------------------------------------------------------------------- |
+| 1    | Cliente           | Nombre o razón social del cliente del exterior                                                                      |
+| 2    | Domicilio         | Domicilio del cliente                                                                                               |
+| 3    | País de destino   | Nombre o código de la tabla de WSFEX (`ESTADOS UNIDOS` o `212`). Argentina no se acepta                             |
+| 4    | ID impositivo     | Opcional (Enter para omitirlo)                                                                                      |
+| 5    | Qué exportás      | Servicios (por defecto), bienes u otros                                                                             |
+| 6    | Monto total       | Igual que en la factura común                                                                                       |
+| 7    | Descripción       | Opcional; por defecto "Según detalle"                                                                               |
+| 8    | Moneda            | Dólares (`DOL`, con la cotización de aduana que publica ARCA) o pesos (`PES`)                                       |
+| 9    | ¿Te pagan en USD? | Solo en dólares: si sí, ARCA lo registra como cancelación en la misma moneda (`--misma-moneda`)                     |
+| 10   | Incoterm          | Solo en bienes, de la tabla de WSFEX, o sin incoterm                                                                |
+| 11   | Forma de pago     | Por defecto "Transferencia Internacional"                                                                           |
+| 12   | Fecha de pago     | Opcional; por defecto la del comprobante                                                                            |
+| 13   | Actividad         | Solo si no está `exportacion.actividad`; se valida contra la tabla de WSFEX y después ofrece guardarla en la config |
+| 14   | Número            | El siguiente al último `E` de ese punto de venta (`1` si es el primero): ARCLI todavía no lo puede consultar        |
+
+Después muestra la vista previa, el comando `arcli fe` equivalente y pregunta si emitir (dos veces en producción). El PDF sigue la misma regla que el resto. Volver desde el primer paso vuelve al selector de comprobantes.
 
 ### PDF
 

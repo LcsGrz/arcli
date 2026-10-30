@@ -287,37 +287,37 @@ arcli fc ayuda
 - **Solución:** `arcli parametros puntos-venta --produccion` lista los habilitados para web service. Si el tuyo no está, creá uno nuevo con sistema de web services en "Administración de puntos de venta y domicilios" y guardalo con `arcli config establecer puntoVenta <numero>`.
 - **Documentación relacionada:** [Punto de venta para web service](obtencion-certificados.md#punto-de-venta-para-web-service)
 
-### WSFEX no acepta la fecha de cotización (`FchCotiz`)
+### Factura E: falta el número del comprobante
 
-- **Severidad:** frecuente
-- **Síntoma:** `ARCA devolvio un error al consultar la cotizacion de DOL: Campo FchCotiz No corresponde a una fecha valida con formato YYYY-MM-DD`. Pasa al previsualizar o emitir sin `--cotizacion-moneda`, y también con `--misma-moneda`.
-- **Causa:** `FEXGetPARAM_Ctz` pide la fecha de cotización en `yyyy-mm-dd`. ARCLI la manda con la fecha del comprobante (por defecto hoy en Argentina); en las versiones con el bug iba en `yyyymmdd`.
-- **Solución:** actualizá arcli (`npm i -g arcli@latest`). Si no querés consultar ARCA, pasá `--cotizacion-moneda <valor>` (o `--cm`): con la cotización por flag o en la config no se hace la consulta.
-- **Documentación relacionada:** [Reglas de validación](validation-rules.md#factura-de-exportación-e), [Referencia del CLI](cli-reference.md#factura-de-exportación-e-wsfex)
+- **Severidad:** siempre, en cada `E`
+- **Síntoma:** `Falta el número del comprobante. Usá --numero: arcli todavía no puede consultar en WSFEX el último emitido.`
+- **Causa:** WSFEX numera por punto de venta y tipo de comprobante, y el último se consulta con `FEXGetLast_CMP`, que lleva el punto de venta y el tipo **dentro** del bloque `Auth`. `@arcasdk/core` arma ese bloque pisándolo entero, así que la consulta no funciona (ARCA contesta 1606 o 1000). Hasta que se arregle en el SDK, el número lo indicás vos.
+- **Solución:** pasá `--numero` con el siguiente al último `E` que emitiste en ese punto de venta (`1` si es el primero). Si no es el correcto, ARCA rechaza el comprobante y no se emite nada.
+- **Documentación relacionada:** [Referencia del CLI](cli-reference.md#factura-de-exportación-e-wsfex)
 
-### WSFEX no tiene la cotización de la fecha del comprobante
-
-- **Severidad:** frecuente (pasa siempre con la fecha de hoy)
-- **Síntoma:** `ARCA devolvio un error al consultar la cotizacion de DOL: Codigo  de moneda (DOL) inexistente o SIN cotización`, al previsualizar o emitir sin `--cotizacion-moneda`.
-- **Causa:** la `E` usa la cotización de aduana de WSFEX, que se publica una vez por día: mientras no sale la de hoy, `FEXGetPARAM_Ctz` contesta ese error para la fecha de hoy. El código `DOL` es válido —la tabla de monedas de WSFEX (`FEXGetPARAM_MON`) trae `DOL` (dólar), `PES` (pesos), `060` (euro) y los códigos numéricos del resto—: lo que falta es la cotización del día, no la moneda.
-- **Solución:** actualizá arcli: la cotización sale de `FEXGetPARAM_MON_CON_COTIZACION`, que devuelve la última publicada y la vista previa avisa de qué día es. Para fijar otra, pasá `--cotizacion-moneda <valor>` (o `--cm`).
-- **Documentación relacionada:** [Reglas de validación](validation-rules.md#factura-de-exportación-e)
-
-### WSFEX rechaza la actividad del emisor (errores 2100 y 2105)
+### Factura E: falta la actividad o no está en la tabla de WSFEX
 
 - **Severidad:** frecuente la primera vez que se emite una `E`
-- **Síntoma:** `Si informa Actividades, Actividad es obligatorio informarlo` (2100) o `La actividad seleccionada 620900 no se encuentra vinculada al emisor o no esta activa` (2105).
-- **Causa:** la `E` lleva siempre una `Actividades.Actividad`. El 2100 aparece cuando el bloque va vacío (versiones con el bug, ya corregido). El 2105, cuando el código no está en la tabla de actividades de WSFEX (`FEXGetPARAM_Actividades`), que **no es la del padrón y es más chica**: por ejemplo, `620900` (servicios de informática N.C.P.) no está; para informática están `620100` (consultores en informática y suministros de programas) y `620300` (consultores en tecnología de la información).
-- **Solución:** actualizá arcli (`npm i -g arcli@latest`): la vista previa avisa en `avisos` cuando la actividad no está en la tabla, con las que empiezan igual. Elegí la que corresponda a tu actividad declarada y pasala con `--actividad <codigo>`.
-- **Documentación relacionada:** [Reglas de validación](validation-rules.md#factura-de-exportación-e), [Referencia del CLI](cli-reference.md#factura-de-exportación-e-wsfex)
+- **Síntoma:** `Falta la actividad de exportación.` o `La actividad 620900 no está en la tabla de actividades de WSFEX y ARCA la rechaza (error 2105).`
+- **Causa:** la `E` informa siempre una actividad (ARCA rechaza `Actividades` vacío con el error 2100) y solo acepta los códigos de su propia tabla (`FEXGetPARAM_Actividades`), que **no es la del padrón y es más chica**: por ejemplo, `620900` (servicios de informática N.C.P.) no está; para informática están `620100` (consultores en informática y suministros de programas) y `620300` (consultores en tecnología de la información).
+- **Solución:** elegí la que corresponda a tu actividad declarada (el error lista las que empiezan igual) y guardala con `arcli config establecer exportacion.actividad <codigo>`, o pasala con `--actividad`.
+- **Documentación relacionada:** [Reglas de validación](validation-rules.md#factura-de-exportación-e), [Configuración](configuration.md)
 
-### WSFEX rechaza los bloques vacíos (`Cmps_asoc`, `Opcionales`)
+### Factura E: el certificado no está autorizado a `wsfex`
 
-- **Severidad:** frecuente
-- **Síntoma:** `Cmp.Cmps_asoc: Si envia Cmps_asoc, Cmp_asoc es obligatorio.` (1820), al emitir.
-- **Causa:** el `Cmp` incluía el bloque vacío. Las versiones con el bug mandaban `Cmps_asoc` y `Opcionales` sin filas; ARCA rechaza los bloques informados sin contenido.
-- **Solución:** actualizá arcli: la `E` no informa comprobantes asociados ni datos opcionales, así que `solicitud` ya no trae esas claves.
-- **Documentación relacionada:** [Reglas de validación](validation-rules.md#factura-de-exportación-e), [Entrada y salida](input-output.md#factura-de-exportación-factura-exportacion)
+- **Severidad:** frecuente la primera vez
+- **Síntoma:** error `WSFEX_SERVICE_NOT_AUTHORIZED` ("El certificado no está autorizado para el servicio wsfex"), incluso con `--previsualizar`.
+- **Causa:** la vista previa ya consulta las tablas de WSFEX, y el certificado no tiene la relación con el servicio `wsfex`.
+- **Solución:** autorizá el certificado a `wsfex` igual que a `wsfe` (WSASS en testing, Administrador de Relaciones en producción), o configurá uno propio con `exportacion.cert.*` y `exportacion.key.*`.
+- **Documentación relacionada:** [Configuración](configuration.md#certificados-de-exportación-wsfex), [Obtención de certificados](obtencion-certificados.md)
+
+### Factura E: la cotización no es la del día
+
+- **Severidad:** normal (pasa casi siempre con la fecha de hoy)
+- **Síntoma:** aviso `ARCA no publicó la cotización de DOL del <fecha>: se usa la del <fecha anterior>`.
+- **Causa:** la `E` usa la cotización de aduana de WSFEX (`FEXGetPARAM_MON_CON_COTIZACION`), que ARCA publica una vez por día. Mientras no sale la de hoy, se usa la última publicada.
+- **Solución:** no hace falta hacer nada. Para fijar otra cotización, pasá `--cotizacion-moneda <valor>` (o `--cm`).
+- **Documentación relacionada:** [Reglas de validación](validation-rules.md#factura-de-exportación-e)
 
 ## Batch
 

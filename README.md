@@ -103,6 +103,7 @@ Leé [CONTRIBUTING.md](https://github.com/LcsGrz/arcli/blob/main/CONTRIBUTING.md
 
 - [`@arcasdk/core`](https://github.com/ralcorta/arcasdk) y [`@arcasdk/pdf`](https://www.afipts.com/packages/pdf), de [Rodrigo Alcorta](https://github.com/ralcorta).
 - [Arpit Bhayani](https://github.com/arpitbbhayani), por ceder el nombre `arcli` en npm.
+- [Manuel Aller](https://github.com/itManuel), por la factura de exportación E.
 
 Si el proyecto te resulta útil, podés dejar una estrella o invitarme un [Cafecito](https://cafecito.app/lcsgrz).
 

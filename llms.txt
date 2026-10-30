@@ -50,8 +50,8 @@ Shortcuts (`family` = comando alternativo `arcli <family> <letra>`, ej. `arcli f
 
 ## Factura de exportación E (WSFEX)
 
-`arcli factura-exportacion` (alias `arcli fe`; `arcli factura e` hace lo mismo) emite la Factura de
-exportación E con el servicio `wsfex`. No lleva concepto, IVA ni receptor con CUIT/CUIL/DNI: lleva
+`arcli fe` (o `arcli factura e`, que hace lo mismo) emite la Factura de exportación E con el
+servicio `wsfex`. No lleva concepto, IVA ni receptor con CUIT/CUIL/DNI: lleva
 cliente y domicilio del exterior, país de destino, incoterm, items y permisos de embarque. `--cargar`
 acepta un solo objeto, no un array.
 
@@ -61,34 +61,41 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
 ```
 
 - Requeridos: `-m, --monto <n>`, `--cliente <texto>`, `--domicilio-cliente <texto>`,
-  `--pais-destino <codigo|nombre>` (código de ARCA o nombre, ej. `203` o `Brasil`).
+  `--pais-destino <codigo|nombre>` (código de ARCA o nombre, ej. `203` o `Brasil`), `--numero <n>` (el
+  siguiente al último E de ese punto de venta; arcli todavía no lo puede consultar en WSFEX porque
+  `@arcasdk/core` arma mal `FEXGetLast_CMP`) y la actividad: `--actividad <codigo>` o la clave
+  `exportacion.actividad`. No hay default: tiene que ser un código de la tabla de actividades de WSFEX,
+  que no es la del padrón (ej. `620100`; `620900` no está). Si no está en la tabla es
+  `INPUT_VALIDATION_ERROR` con las que empiezan igual.
 - `--item <partes>` (repetible): `codigo|descripcion|cantidad|precio|unidad`; con 4 partes se omite
   el código y con 3 la unidad (por defecto `unidad`, código `7`). La suma de los items tiene que dar
   `--monto`: se valida antes de ir a ARCA. Sin `--item` va un renglón con `--descripcion`.
 - Opcionales: `--id-impositivo <texto>`, `--cuit-pais <n>` (sin flag sale del país de destino; si ARCA no
   publica un CUIT para ese país, el flag es obligatorio),
-  `--tipo-expo <1|2|4>` (`2` servicios por defecto, `1` bienes, `4` otros), `--actividad <codigo>` (por
-  defecto `620900`, servicios de informática N.C.P.; la `E` siempre informa una actividad, porque ARCA
-  rechaza `Actividades` vacío con el error 2100). La tabla de actividades de WSFEX no es la del padrón: si
-  el código no está, la vista previa lo avisa en `avisos` con las que empiezan igual (ARCA contesta 2105).
-  `solicitud` tampoco informa `Cmps_asoc` ni `Opcionales` mientras no los haya: ARCA rechaza los bloques
+  `--tipo-expo <1|2|4>` (`2` servicios por defecto, `1` bienes, `4` otros).
+  `solicitud` no informa `Cmps_asoc` ni `Opcionales` mientras no los haya: ARCA rechaza los bloques
   vacíos (error 1820 el primero).
 - `--incoterm <codigo>`,
   `--incoterms-desc <texto>`, `--idioma <codigo>` (`1` español por defecto, `2` inglés, `3` portugués),
   `--forma-pago <texto>` (por defecto `Transferencia Internacional`), `--permiso <id>` (repetible, requiere
-  `--permiso-existente` y solo se acepta con `--tipo-expo 1`), `--permiso-existente`, `--numero <n>` y
-  `--id-solicitud <n>` (sin flag, el
-  siguiente de WSFEX), `--punto-venta <n>` (`--pv`), `-f, --fecha <fecha>`, `--fecha-pago <fecha>`,
-  `--moneda <codigo>` (`--mda`; por defecto `DOL`), `--cotizacion-moneda <n>` (`--cm`), `--misma-moneda`
+  `--permiso-existente` y solo se acepta con `--tipo-expo 1`), `--permiso-existente`,
+  `--id-solicitud <n>` (sin flag, el siguiente de WSFEX), `--punto-venta <n>` (`--pv`), `-f, --fecha <fecha>`, `--fecha-pago <fecha>`,
+  `--moneda <codigo>` (`--mda`; por defecto `DOL`), `--cotizacion-moneda <n>` (`--cm`; sin flag, la de
+  aduana que publica ARCA; la clave `cotizacion` de la config no aplica), `--misma-moneda`
   (manda `CanMisMonExt` en `S`: el pago se cancela en la misma moneda extranjera),
   `--observaciones <texto>`, `--obs-comerciales <texto>`, `--descripcion <texto>`, `--cargar <path>`,
   `--exportar-pdf` (`--pdf`), `--sin-pdf`, `--previsualizar`, `--emitir`, `--json`, `--bruto`.
-- La fecha del comprobante no puede ser futura. La numeración de WSFEX no se discrimina por punto de
-  venta: si hay varios procesos, fijá `--numero` y `--id-solicitud`.
+- La fecha del comprobante no puede ser futura. WSFEX numera por punto de venta y tipo.
+- `fe` es estricto: un flag de A/B/C es opción desconocida. `factura <letra>` acepta los flags de todas las
+  letras y saltea los que no aplican a la elegida con un aviso en `avisos` (`factura a --incoterm`,
+  `factura e --alicuota`).
 - Credenciales: usa `exportacion.cert.<entorno>`/`exportacion.key.<entorno>` si están configuradas y,
-  si no, `cert.<entorno>`/`key.<entorno>`; el certificado tiene que estar autorizado a `wsfex`. Con la
+  si no, `cert.<entorno>`/`key.<entorno>`; el certificado tiene que estar autorizado a `wsfex` (si no,
+  `WSFEX_SERVICE_NOT_AUTHORIZED`). Con la
   mitad del par configurada, el comando corta antes de ir a ARCA.
 - Un rechazo de WSFEX sale como respuesta válida con exit code `2`, igual que en las letras A, B y C.
+- PDF: `factura-e_<pv>-<numero>.pdf`, con el diseño de exportación (divisa, destino, forma y fecha de
+  pago, incoterm, leyenda de IVA exento).
 
 ## Flags principales (alias corto entre paréntesis)
 
@@ -173,7 +180,7 @@ Una clave desconocida (`montototal`, `vencimiento`, `moneda`) o un tipo incorrec
 }
 ```
 
-En `factura-exportacion` (E) el objeto agrega `exportacion` (`cliente`, `destino`, `domicilioCliente`,
+En la factura E (`fe`) el objeto agrega `exportacion` (`cliente`, `destino`, `domicilioCliente`,
 `incoterm`, `items`, `permisos`, `tipoExpo`) y `solicitud` es el `Cmp` de WSFEX con los nombres de ARCA
 (`Dst_cmp`, `Moneda_Id`, `Items.Item`…). `solicitud` no lleva `Permisos` cuando no hay permisos de
 embarque: ARCA rechaza ese campo (error 1720) si `Permiso_existente` es `N`, y lo exige vacío en los

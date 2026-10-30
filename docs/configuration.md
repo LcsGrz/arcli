@@ -94,7 +94,9 @@ Las claves aparecen en la sección **Certificados** de `arcli config`, se valida
 
 Cómo autorizar el servicio: [Autorizar el servicio web](obtencion-certificados.md#3-autorizar-el-servicio-web).
 
-Si el certificado no está autorizado a `wsfex`, la primera llamada falla con `coe.notAuthorized` ("Computador no autorizado a acceder al servicio"). Pasa incluso con `--previsualizar`, porque la vista previa consulta las tablas y la numeración de WSFEX: autorizá el servicio en WSASS (testing) o creá la relación en el Administrador de Relaciones (producción) antes de reintentar.
+La actividad que informa la `E` se guarda una vez con `arcli config establecer exportacion.actividad <codigo>` (sección **Factura de exportación (E)** de `arcli config`); `--actividad` la pisa. Tiene que ser un código de la tabla de actividades de WSFEX, que no es la del padrón: por ejemplo, `620100` para servicios de consultores en informática.
+
+Si el certificado no está autorizado a `wsfex`, la primera llamada falla con `WSFEX_SERVICE_NOT_AUTHORIZED`. Pasa incluso con `--previsualizar`, porque la vista previa consulta las tablas de WSFEX: autorizá el servicio en WSASS (testing) o creá la relación en el Administrador de Relaciones (producción) antes de reintentar.
 
 ### Ticket WSAA (`ticketPath`)
 

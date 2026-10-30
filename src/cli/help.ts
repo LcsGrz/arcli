@@ -183,7 +183,9 @@ function createFamilySummary(family: VoucherFamily): string {
 
           return definition ? [`Letra ${letter.toUpperCase()}: ${buildMinimalFamilyExample(definition)}`] : [];
         }),
-        ...(hasExport ? [`Letra E: ${EXPORT_MINIMAL_EXAMPLE.replace('arcli fe', `arcli ${family} e`)}`] : []),
+        ...(hasExport
+          ? [`Letra E: ${EXPORT_MINIMAL_EXAMPLE.replace('arcli fe -m', `arcli ${family} e --monto`)}`]
+          : []),
         `Desde un JSON: arcli ${family} c --cargar ./voucher.json --json`,
       ]),
     ),
