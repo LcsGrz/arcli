@@ -1,10 +1,13 @@
-import { formatDateAsArcaDate, parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
+import {
+  formatArcaDateAsArgentineDate,
+  formatDateAsArcaDate,
+  parseArgentineDateInputAsArcaDate,
+} from '../../lib/dates/arca-date';
 import { AppError, InputValidationError } from '../../lib/errors/app-error';
 import { resolveBillingCurrencyCode } from '../billing/billing.mappers';
 import type { ArcliConfig } from '../config/config.schemas';
 
 import {
-  DEFAULT_EXPORT_ACTIVITY_ID,
   DEFAULT_EXPORT_CURRENCY_CODE,
   DEFAULT_EXPORT_LANGUAGE,
   DEFAULT_EXPORT_TYPE,
@@ -13,7 +16,6 @@ import {
   EXPORT_TYPES_WITHOUT_PERMITS,
   EXPORT_VOUCHER_KIND,
   type ExportActivity,
-  type ExportActivityResolution,
   type ExportCountry,
   type ExportCountryCuit,
   type ExportCurrencyResolution,
@@ -35,7 +37,7 @@ export const DEFAULT_EXPORT_PAYMENT_TERMS = 'Transferencia Internacional';
 /** ARCA no acepta cotizaciones en pesos distintas de 1. */
 const LOCAL_EXCHANGE_RATE = 1;
 
-type ExportConfig = Pick<ArcliConfig, 'cotizacionPorDefecto' | 'puntoVentaPorDefecto'>;
+type ExportConfig = Pick<ArcliConfig, 'puntoVentaPorDefecto'>;
 
 export interface BuildExportResolution {
   readonly activity: number;
@@ -74,12 +76,12 @@ export function resolveExportVoucherDate(value: string | undefined, now = new Da
 
 /**
  * Acepta `ARS`, `USD` o los codigos de ARCA (`PES`, `DOL`). Sin `--moneda` la exportacion va en dolares; la moneda
- * de la config es la de los comprobantes locales. Sin cotizacion explicita se pide la del dia a ARCA: WSFEX no
- * acepta `Moneda_ctz` en 0 para moneda extranjera.
+ * de la config es la de los comprobantes locales. Sin `--cotizacion-moneda` se usa la de aduana que publica ARCA
+ * (WSFEX no acepta `Moneda_ctz` en 0): la clave `cotizacion` de la config no aplica, porque una cotizacion guardada
+ * queda vieja en dias (REV-35).
  */
 export function resolveExportCurrency(
   input: Pick<ExportVoucherInput, 'currencyCode' | 'exchangeRate' | 'sameCurrency'>,
-  config: Pick<ExportConfig, 'cotizacionPorDefecto'>,
 ): ExportCurrencyResolution {
   const requested = input.currencyCode?.trim() || DEFAULT_EXPORT_CURRENCY_CODE;
   const currencyCode = resolveBillingCurrencyCode(requested);
@@ -100,9 +102,7 @@ export function resolveExportCurrency(
     };
   }
 
-  const configuredRate = config.cotizacionPorDefecto;
-  const rate =
-    input.exchangeRate ?? (configuredRate && configuredRate > LOCAL_EXCHANGE_RATE ? configuredRate : undefined);
+  const rate = input.exchangeRate;
 
   if (rate !== undefined && rate <= LOCAL_EXCHANGE_RATE) {
     throw new InputValidationError(`La cotización de ${displayCode} tiene que ser mayor a 1.`);
@@ -126,7 +126,7 @@ export function resolveExportCurrency(
 export function resolveExportQuotation(
   currencyCode: string,
   quotations: readonly ExportQuotation[],
-  isoDate: string,
+  voucherDate: string,
 ): ExportQuotation {
   const code = currencyCode.trim().toUpperCase();
   const quotation = quotations.find((entry) => entry.code.trim().toUpperCase() === code);
@@ -138,7 +138,7 @@ export function resolveExportQuotation(
   const available = quotations.map((entry) => entry.code).join(', ');
 
   throw new AppError(
-    `ARCA no informó la cotización de ${code} para el ${isoDate}.${
+    `ARCA no informó la cotización de ${code} para el ${formatArcaDateAsArgentineDate(voucherDate)}.${
       available ? ` Las monedas con cotización son ${available}.` : ''
     } Informá la cotización con --cotizacion-moneda.`,
     { code: 'ARCA_QUOTATION_ERROR' },
@@ -146,36 +146,27 @@ export function resolveExportQuotation(
 }
 
 /**
- * WSFEX no acepta el comprobante si informa `Actividades` sin ninguna `Actividad` (error 2100), asi que va siempre
- * una: 620900 (servicios de informatica N.C.P.) salvo que `--actividad` indique otro codigo.
- *
- * La tabla de actividades de WSFEX no es la del padron y es mas chica, asi que un codigo puede no estar: ARCA lo
- * rechaza al emitir con el error 2105. No se corta la emision por eso —el codigo puede ser valido igual— pero la
- * vista previa avisa y muestra las actividades de la tabla que empiezan igual.
+ * WSFEX exige una `Actividad` (error 2100) y solo acepta los codigos de su propia tabla, que no es la del padron y
+ * es mas chica (error 2105 al emitir). Cada emisor tiene la suya, asi que no hay default: sale de `--actividad` o de
+ * `exportacion.actividad`. Los nombres de la tabla llegan con la codificacion rota, por eso los mensajes solo dan codigos.
  */
-export function resolveExportActivity(
-  value: number | undefined,
-  activities: readonly ExportActivity[] = [],
-): ExportActivityResolution {
-  const id = value ?? DEFAULT_EXPORT_ACTIVITY_ID;
-
-  if (!Number.isInteger(id) || id < 1) {
+export function resolveExportActivity(value: number, activities: readonly ExportActivity[] = []): number {
+  if (!Number.isInteger(value) || value < 1) {
     throw new InputValidationError('La actividad tiene que ser un número entero positivo. Usá --actividad.');
   }
 
-  if (activities.length === 0 || activities.some((activity) => activity.id === id)) {
-    return { id };
+  if (activities.length === 0 || activities.some((activity) => activity.id === value)) {
+    return value;
   }
 
-  const prefix = String(id).slice(0, 3);
+  const prefix = String(value).slice(0, 3);
   const family = activities.filter((activity) => String(activity.id).startsWith(prefix)).slice(0, 5);
   const candidates =
     family.length > 0 ? ` Las que empiezan con ${prefix} son ${family.map((activity) => activity.id).join(', ')}.` : '';
 
-  return {
-    id,
-    warning: `La actividad ${id} no está en la tabla de actividades de WSFEX: ARCA la rechaza al emitir (error 2105).${candidates} Indicá la que corresponda con --actividad.`,
-  };
+  throw new InputValidationError(
+    `La actividad ${value} no está en la tabla de actividades de WSFEX y ARCA la rechaza (error 2105).${candidates} Indicá la que corresponda con --actividad.`,
+  );
 }
 
 export function resolveExportType(value: ExportType | undefined): ExportType {

@@ -10,7 +10,7 @@ import {
   type ExportUnit,
 } from './export.types';
 
-export const DEFAULT_EXPORT_ITEM_DESCRIPTION = 'Segun detalle';
+export const DEFAULT_EXPORT_ITEM_DESCRIPTION = 'Según detalle';
 
 const ITEM_FORMAT_HINT =
   'Usá --item "codigo|descripcion|cantidad|precio|unidad" (el código y la unidad son opcionales).';

@@ -1,15 +1,13 @@
 import type { Arca } from '@arcasdk/core';
-import type {
-  IFEXAuthorizeInput,
-  IFEXAuthorizeOutput,
-  IFEXGetLast_CMPInput,
-} from '@arcasdk/core/lib/application/dto/fex';
+import type { IFEXAuthorizeInput, IFEXAuthorizeOutput } from '@arcasdk/core/lib/application/dto/fex';
 
+import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { AppError } from '../../lib/errors/app-error';
 import type {
   ExportActivity,
   ExportCountry,
   ExportCountryCuit,
+  ExportCurrency,
   ExportGateway,
   ExportIncoterm,
   ExportLanguage,
@@ -17,7 +15,9 @@ import type {
   ExportUnit,
   ExportVoucherPayload,
 } from '../../modules/export/export.types';
-import { EXPORT_VOUCHER_KIND } from '../../modules/export/export.types';
+
+const NOT_AUTHORIZED_MESSAGE =
+  'El certificado no está autorizado para el servicio wsfex (factura de exportación). Autorizalo igual que wsfe: en testing desde WSASS ("Crear autorización a servicio") y en producción desde el Administrador de Relaciones.';
 
 interface FexError {
   readonly ErrCode?: number;
@@ -62,7 +62,7 @@ function assertNoError(result: FexResult | undefined, operation: string): void {
   const error = result?.FEXErr;
 
   if (error?.ErrCode) {
-    throw new AppError(`ARCA devolvio un error al consultar ${operation}: ${readText(error.ErrMsg) || error.ErrCode}`, {
+    throw new AppError(`ARCA devolvió un error al consultar ${operation}: ${readText(error.ErrMsg) || error.ErrCode}`, {
       code: 'ARCA_EXPORT_ERROR',
       details: { errores: [{ codigo: error.ErrCode, mensaje: readText(error.ErrMsg) }] },
     });
@@ -72,6 +72,19 @@ function assertNoError(result: FexResult | undefined, operation: string): void {
 export class ArcaExportGateway implements ExportGateway {
   public constructor(private readonly arca: Arca) {}
 
+  /** Todas las llamadas autentican en WSAA: si el certificado no esta autorizado a wsfex, el error lo dice. */
+  private async call<T>(request: (service: Arca['wsfexService']) => Promise<T>): Promise<T> {
+    try {
+      return await request(this.arca.wsfexService);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('notAuthorized')) {
+        throw new AppError(NOT_AUTHORIZED_MESSAGE, { code: 'WSFEX_SERVICE_NOT_AUTHORIZED' });
+      }
+
+      throw error;
+    }
+  }
+
   /**
    * La unica llamada que emite. Un rechazo viene en `FEXResultAuth`, no como excepcion.
    *
@@ -80,7 +93,7 @@ export class ArcaExportGateway implements ExportGateway {
    * clave y el serializador de SOAP omite los campos ausentes.
    */
   public async authorize(payload: ExportVoucherPayload): Promise<IFEXAuthorizeOutput> {
-    return this.arca.wsfexService.authorize({ Cmp: payload } as IFEXAuthorizeInput);
+    return this.call((service) => service.authorize({ Cmp: payload } as IFEXAuthorizeInput));
   }
 
   /**
@@ -88,7 +101,7 @@ export class ArcaExportGateway implements ExportGateway {
    * suyos. El WSDL no la tipa (devuelve `ClsFEXResponse_ActividadTipo`), asi que se lee como array tolerante.
    */
   public async getActivities(): Promise<ExportActivity[]> {
-    const data = (await this.arca.wsfexService.getParamActividades({})).FEXGetPARAM_ActividadesResult;
+    const data = (await this.call((service) => service.getParamActividades({}))).FEXGetPARAM_ActividadesResult;
 
     assertNoError(data, 'las actividades');
 
@@ -105,10 +118,22 @@ export class ArcaExportGateway implements ExportGateway {
     });
   }
 
-  public async getDestinationCountries(): Promise<ExportCountry[]> {
-    const data = (await this.arca.wsfexService.getParamDstPais({})).FEXGetPARAM_DST_paisResult;
+  public async getCurrencies(): Promise<ExportCurrency[]> {
+    const data = (await this.call((service) => service.getParamMon({}))).FEXGetPARAM_MONResult;
 
-    assertNoError(data, 'los paises de destino');
+    assertNoError(data, 'las monedas');
+
+    return asArray(data?.FEXResultGet?.ClsFEXResponse_Mon).flatMap((row) => {
+      const code = readText(row.Mon_Id);
+
+      return code ? [{ code, name: readText(row.Mon_Ds) }] : [];
+    });
+  }
+
+  public async getDestinationCountries(): Promise<ExportCountry[]> {
+    const data = (await this.call((service) => service.getParamDstPais({}))).FEXGetPARAM_DST_paisResult;
+
+    assertNoError(data, 'los países de destino');
 
     return asArray(data?.FEXResultGet?.ClsFEXResponse_DST_pais).flatMap((row) => {
       const code = Number(row.DST_Codigo);
@@ -119,9 +144,9 @@ export class ArcaExportGateway implements ExportGateway {
   }
 
   public async getDestinationCountryCuits(): Promise<ExportCountryCuit[]> {
-    const data = (await this.arca.wsfexService.getParamDstCuit({})).FEXGetPARAM_DST_CUITResult;
+    const data = (await this.call((service) => service.getParamDstCuit({}))).FEXGetPARAM_DST_CUITResult;
 
-    assertNoError(data, 'los CUIT de paises');
+    assertNoError(data, 'los CUIT de países');
 
     return asArray(data?.FEXResultGet?.ClsFEXResponse_DST_cuit).flatMap((row) => {
       const cuit = Number(row.DST_CUIT);
@@ -132,7 +157,7 @@ export class ArcaExportGateway implements ExportGateway {
   }
 
   public async getIncoterms(): Promise<ExportIncoterm[]> {
-    const data = (await this.arca.wsfexService.getParamIncoterms({})).FEXGetPARAM_IncotermsResult;
+    const data = (await this.call((service) => service.getParamIncoterms({}))).FEXGetPARAM_IncotermsResult;
 
     assertNoError(data, 'los incoterms');
 
@@ -144,7 +169,7 @@ export class ArcaExportGateway implements ExportGateway {
   }
 
   public async getLanguages(): Promise<ExportLanguage[]> {
-    const data = (await this.arca.wsfexService.getParamIdiomas({})).FEXGetPARAM_IdiomasResult;
+    const data = (await this.call((service) => service.getParamIdiomas({}))).FEXGetPARAM_IdiomasResult;
 
     assertNoError(data, 'los idiomas');
 
@@ -156,7 +181,7 @@ export class ArcaExportGateway implements ExportGateway {
   }
 
   public async getUnits(): Promise<ExportUnit[]> {
-    const data = (await this.arca.wsfexService.getParamUMed({})).FEXGetPARAM_UMedResult;
+    const data = (await this.call((service) => service.getParamUMed({}))).FEXGetPARAM_UMedResult;
 
     assertNoError(data, 'las unidades de medida');
 
@@ -167,38 +192,24 @@ export class ArcaExportGateway implements ExportGateway {
     });
   }
 
-  /** FEXGetLast_CMP pide `Punto_venta` y `Cbte_Tipo`; el SDK los tipa como vacios, pero WSFEX los exige. */
-  public async getLastVoucherNumber(pointOfSale: number): Promise<number> {
-    const data = (
-      await this.arca.wsfexService.getLastCmp({
-        Cbte_Tipo: EXPORT_VOUCHER_KIND.arcaType,
-        Punto_venta: pointOfSale,
-      } as IFEXGetLast_CMPInput)
-    ).FEXGetLast_CMPResult;
-
-    assertNoError(data, 'el ultimo comprobante autorizado');
-
-    return Number(data?.FEXResult_LastCMP?.Cbte_nro) || 0;
-  }
-
   public async getLastRequestId(): Promise<number> {
-    const data = (await this.arca.wsfexService.getLastId({})).FEXGetLast_IDResult;
+    const data = (await this.call((service) => service.getLastId({}))).FEXGetLast_IDResult;
 
-    assertNoError(data, 'el ultimo ID de solicitud');
+    assertNoError(data, 'el último ID de solicitud');
 
     return Number(data?.FEXResultGet?.Id) || 0;
   }
 
   /**
    * La cotizacion de la `E` es la de aduana, que WSFEX publica una vez por dia: `FEXGetPARAM_MON_CON_COTIZACION`
-   * devuelve por moneda la ultima publicada hasta `isoDate`, con el dia al que corresponde. El pedido va con
-   * `Fecha_CTZ` en `yyyymmdd` —no en el `yyyy-mm-dd` de `FchCotiz`—; con guiones ARCA contesta el error 2054.
+   * devuelve por moneda la ultima publicada hasta `arcaDate`, con el dia al que corresponde. `Fecha_CTZ` va en
+   * `yyyymmdd`: con guiones ARCA contesta el error 2054.
    */
-  public async getQuotations(isoDate: string): Promise<ExportQuotation[]> {
-    const data = (await this.arca.wsfexService.getParamMonConCotizacion({ Fecha_CTZ: isoDate.replaceAll('-', '') }))
+  public async getQuotations(arcaDate: string): Promise<ExportQuotation[]> {
+    const data = (await this.call((service) => service.getParamMonConCotizacion({ Fecha_CTZ: arcaDate })))
       .FEXGetPARAM_MON_CON_COTIZACIONResult;
 
-    assertNoError(data, `las cotizaciones al ${isoDate}`);
+    assertNoError(data, `las cotizaciones al ${formatArcaDateAsArgentineDate(arcaDate)}`);
 
     return asArray(data?.FEXResultGet?.ClsFEXResponse_Mon_CON_Cotizacion).flatMap((row) => {
       const code = readText(row.Mon_Id);

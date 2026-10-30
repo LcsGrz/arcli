@@ -105,18 +105,47 @@ describe('ArcaExportGateway', () => {
     await expect(gateway.getIncoterms()).rejects.toThrow(/Servicio no autorizado/);
   });
 
-  it('lee el ultimo comprobante y el ultimo ID, con 0 si ARCA no informa nada', async () => {
-    const getLastCmp = vi.fn(async () => ({
-      FEXGetLast_CMPResult: { ...EMPTY_RESULT, FEXResult_LastCMP: { Cbte_nro: 41, Cbte_fecha: '20260531' } },
-    }));
+  it('lee la tabla de monedas con su nombre', async () => {
     const gateway = createGateway({
-      getLastCmp,
+      getParamMon: vi.fn(async () => ({
+        FEXGetPARAM_MONResult: {
+          ...EMPTY_RESULT,
+          FEXResultGet: {
+            ClsFEXResponse_Mon: [
+              { Mon_Ds: 'Dólar Estadounidense', Mon_Id: 'DOL' },
+              { Mon_Ds: 'Euro', Mon_Id: ' 060 ' },
+              { Mon_Ds: 'Sin codigo', Mon_Id: '' },
+            ],
+          },
+        },
+      })),
+    });
+
+    await expect(gateway.getCurrencies()).resolves.toEqual([
+      { code: 'DOL', name: 'Dólar Estadounidense' },
+      { code: '060', name: 'Euro' },
+    ]);
+  });
+
+  it('lee el ultimo ID de solicitud, con 0 si ARCA no informa nada', async () => {
+    const gateway = createGateway({
       getLastId: vi.fn(async () => ({ FEXGetLast_IDResult: { ...EMPTY_RESULT, FEXResultGet: {} } })),
     });
 
-    await expect(gateway.getLastVoucherNumber(3)).resolves.toBe(41);
-    expect(getLastCmp).toHaveBeenCalledWith({ Cbte_Tipo: 19, Punto_venta: 3 });
     await expect(gateway.getLastRequestId()).resolves.toBe(0);
+  });
+
+  it('explica que el certificado no esta autorizado a wsfex', async () => {
+    const gateway = createGateway({
+      getParamDstPais: vi.fn(async () => {
+        throw new Error('ns1:coe.notAuthorized: Computador no autorizado a acceder al servicio');
+      }),
+    });
+
+    await expect(gateway.getDestinationCountries()).rejects.toMatchObject({
+      code: 'WSFEX_SERVICE_NOT_AUTHORIZED',
+      message: expect.stringMatching(/no está autorizado para el servicio wsfex/),
+    });
   });
 
   it('pide las cotizaciones de aduana con la fecha en yyyymmdd y normaliza el dia de cada moneda', async () => {
@@ -135,7 +164,7 @@ describe('ArcaExportGateway', () => {
     const gateway = createGateway({ getParamMonConCotizacion });
 
     // Fecha_CTZ va en yyyymmdd: con guiones ARCA contesta "El campo Fecha_CTZ ... YYYYMMDD" (2054).
-    await expect(gateway.getQuotations('2026-10-28')).resolves.toEqual([
+    await expect(gateway.getQuotations('20261028')).resolves.toEqual([
       { code: 'DOL', date: '20261027', rate: 1174 },
       { code: '060', date: undefined, rate: 1300.5 },
     ]);
@@ -154,7 +183,7 @@ describe('ArcaExportGateway', () => {
       })),
     });
 
-    await expect(gateway.getQuotations('2026-10-28')).resolves.toEqual([{ code: 'DOL', date: '20261027', rate: 1174 }]);
+    await expect(gateway.getQuotations('20261028')).resolves.toEqual([{ code: 'DOL', date: '20261027', rate: 1174 }]);
   });
 
   it('devuelve una lista vacia si ARCA no tiene cotizaciones para esa fecha', async () => {
@@ -164,7 +193,7 @@ describe('ArcaExportGateway', () => {
       })),
     });
 
-    await expect(gateway.getQuotations('2027-01-05')).resolves.toEqual([]);
+    await expect(gateway.getQuotations('20270105')).resolves.toEqual([]);
   });
 
   it('informa el error de ARCA cuando no puede consultar las cotizaciones', async () => {
@@ -180,8 +209,8 @@ describe('ArcaExportGateway', () => {
       })),
     });
 
-    await expect(gateway.getQuotations('2026-10-28')).rejects.toThrow(
-      /al consultar las cotizaciones al 2026-10-28: El campo Fecha_CTZ/,
+    await expect(gateway.getQuotations('20261028')).rejects.toThrow(
+      /al consultar las cotizaciones al 28\/10\/2026: El campo Fecha_CTZ/,
     );
   });
 

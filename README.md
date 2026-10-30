@@ -57,8 +57,8 @@ arcli fc -m 15000 --cs --consumidor-final --ir-cf            # vista previa de u
 arcli fc -m 15000 --cs --consumidor-final --ir-cf --emitir   # emitir
 arcli fc --cargar ./facturas.json --emitir --json            # lote desde JSON, salida JSON
 arcli fc -m 15000 --cs --consumidor-final --ir-cf --emitir --exportar-pdf
-arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" \
-  --pais-destino 203 --item "001|Servicios|1|1500|unidad" --previsualizar   # Factura de exportación E
+arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 203 \
+  --numero 1 --actividad 620100 --previsualizar                             # Factura de exportación E
 ```
 
 Otras consultas: `arcli ultimos`, `arcli consultar`, `arcli estado`, `arcli parametros`, `arcli fce-obligado`, `arcli padron`. Para ver todos los comprobantes y ejemplos: `arcli --ayuda` y `arcli ejemplos`.
@@ -103,6 +103,7 @@ Leé [CONTRIBUTING.md](https://github.com/LcsGrz/arcli/blob/main/CONTRIBUTING.md
 
 - [`@arcasdk/core`](https://github.com/ralcorta/arcasdk) y [`@arcasdk/pdf`](https://www.afipts.com/packages/pdf), de [Rodrigo Alcorta](https://github.com/ralcorta).
 - [Arpit Bhayani](https://github.com/arpitbbhayani), por ceder el nombre `arcli` en npm.
+- [Manuel Aller](https://github.com/itManuel), por la factura de exportación E.
 
 Si el proyecto te resulta útil, podés dejar una estrella o invitarme un [Cafecito](https://cafecito.app/lcsgrz).
 

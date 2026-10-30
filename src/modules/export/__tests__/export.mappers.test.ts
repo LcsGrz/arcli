@@ -40,50 +40,49 @@ describe('resolveExportVoucherDate', () => {
 });
 
 describe('resolveExportCurrency', () => {
-  const config = { cotizacionPorDefecto: 1 };
-
   it('por defecto la exportacion va en dolares y pide la cotizacion a ARCA', () => {
-    expect(resolveExportCurrency({}, config)).toEqual({
+    expect(resolveExportCurrency({})).toEqual({
       fields: { CanMisMonExt: 'N', Moneda_ctz: 0, Moneda_Id: 'DOL' },
       needsQuotation: true,
     });
   });
 
   it('en pesos la cotizacion es 1 y no hay que consultar ARCA', () => {
-    expect(resolveExportCurrency({ currencyCode: 'ARS' }, config)).toEqual({
+    expect(resolveExportCurrency({ currencyCode: 'ARS' })).toEqual({
       fields: { CanMisMonExt: 'N', Moneda_ctz: 1, Moneda_Id: 'PES' },
       needsQuotation: false,
     });
   });
 
   it('acepta el alias USD y la cotizacion escrita por el usuario', () => {
-    expect(resolveExportCurrency({ currencyCode: 'USD', exchangeRate: 900.5 }, config)).toEqual({
+    expect(resolveExportCurrency({ currencyCode: 'USD', exchangeRate: 900.5 })).toEqual({
       fields: { CanMisMonExt: 'N', Moneda_ctz: 900.5, Moneda_Id: 'DOL' },
       needsQuotation: false,
     });
   });
 
   it('pide la cotizacion a ARCA cuando es moneda extranjera y no vino', () => {
-    expect(resolveExportCurrency({ currencyCode: 'DOL' }, config).needsQuotation).toBe(true);
+    expect(resolveExportCurrency({ currencyCode: 'DOL' }).needsQuotation).toBe(true);
   });
 
-  it('usa la cotizacion configurada si es mayor a 1', () => {
-    expect(resolveExportCurrency({ currencyCode: 'DOL' }, { cotizacionPorDefecto: 1200 }).fields.Moneda_ctz).toBe(1200);
+  it('no usa la clave cotizacion de la config: sin --cotizacion-moneda va la de aduana de ARCA (REV-35)', () => {
+    expect(resolveExportCurrency({ currencyCode: 'DOL' })).toEqual({
+      fields: { CanMisMonExt: 'N', Moneda_ctz: 0, Moneda_Id: 'DOL' },
+      needsQuotation: true,
+    });
   });
 
   it('no acepta cotizacion en pesos distinta de 1 ni misma moneda en pesos', () => {
-    expect(() => resolveExportCurrency({ currencyCode: 'ARS', exchangeRate: 2 }, config)).toThrow(
-      /cotización tiene que ser 1/,
-    );
-    expect(() => resolveExportCurrency({ currencyCode: 'ARS', sameCurrency: true }, config)).toThrow(
-      /moneda extranjera/,
-    );
+    expect(() => resolveExportCurrency({ currencyCode: 'ARS', exchangeRate: 2 })).toThrow(/cotización tiene que ser 1/);
+    expect(() => resolveExportCurrency({ currencyCode: 'ARS', sameCurrency: true })).toThrow(/moneda extranjera/);
   });
 
   it('marca CanMisMonExt cuando el pago es en la misma moneda', () => {
-    expect(
-      resolveExportCurrency({ currencyCode: 'USD', exchangeRate: 900, sameCurrency: true }, config).fields,
-    ).toEqual({ CanMisMonExt: 'S', Moneda_ctz: 900, Moneda_Id: 'DOL' });
+    expect(resolveExportCurrency({ currencyCode: 'USD', exchangeRate: 900, sameCurrency: true }).fields).toEqual({
+      CanMisMonExt: 'S',
+      Moneda_ctz: 900,
+      Moneda_Id: 'DOL',
+    });
   });
 });
 
@@ -109,18 +108,18 @@ describe('resolveExportQuotation', () => {
   ];
 
   it('encuentra la moneda sin importar mayusculas ni espacios', () => {
-    expect(resolveExportQuotation(' dol ', QUOTATIONS, '2026-10-28')).toEqual(QUOTATIONS[0]);
+    expect(resolveExportQuotation(' dol ', QUOTATIONS, '20261028')).toEqual(QUOTATIONS[0]);
   });
 
   it('falla con las monedas que si tienen cotizacion', () => {
-    expect(() => resolveExportQuotation('019', QUOTATIONS, '2026-10-28')).toThrow(
-      /no informó la cotización de 019 para el 2026-10-28\. Las monedas con cotización son DOL, 060\./,
+    expect(() => resolveExportQuotation('019', QUOTATIONS, '20261028')).toThrow(
+      /no informó la cotización de 019 para el 28\/10\/2026\. Las monedas con cotización son DOL, 060\./,
     );
   });
 
   it('pide la cotizacion por flag cuando ARCA no publico ninguna', () => {
-    expect(() => resolveExportQuotation('DOL', [], '2027-01-05')).toThrow(
-      /no informó la cotización de DOL para el 2027-01-05\. Informá la cotización con --cotizacion-moneda\./,
+    expect(() => resolveExportQuotation('DOL', [], '20270105')).toThrow(
+      /no informó la cotización de DOL para el 05\/01\/2027\. Informá la cotización con --cotizacion-moneda\./,
     );
   });
 });
@@ -240,30 +239,18 @@ describe('resolveExportActivity', () => {
     { id: 620300, name: 'SERVICIOS DE CONSULTORES EN TECNOLOGIA DE LA INFORMACION' },
   ];
 
-  it('usa 620900 (servicios de informatica) cuando no se indica otra', () => {
-    expect(resolveExportActivity(undefined)).toEqual({ id: 620900 });
+  it('toma la actividad indicada si esta en la tabla de WSFEX', () => {
+    expect(resolveExportActivity(620300, ACTIVITIES)).toBe(620300);
   });
 
-  it('toma la actividad indicada por el usuario', () => {
-    expect(resolveExportActivity(620300, ACTIVITIES)).toEqual({ id: 620300 });
+  it('corta cuando la actividad no esta en la tabla, con las que empiezan igual', () => {
+    expect(() => resolveExportActivity(620900, ACTIVITIES)).toThrow(
+      /no está en la tabla de actividades de WSFEX y ARCA la rechaza \(error 2105\)\. Las que empiezan con 620 son 62000, 620100, 620300\. Indicá la que corresponda con --actividad/,
+    );
   });
 
-  it('no avisa nada si la actividad esta en la tabla de WSFEX', () => {
-    expect(resolveExportActivity(620100, ACTIVITIES)).toEqual({ id: 620100 });
-  });
-
-  it('avisa cuando la actividad no esta en la tabla, con las que empiezan igual', () => {
-    const resolved = resolveExportActivity(620900, ACTIVITIES);
-
-    expect(resolved.id).toBe(620900);
-    expect(resolved.warning).toMatch(/no está en la tabla de actividades de WSFEX/);
-    expect(resolved.warning).toMatch(/error 2105/);
-    expect(resolved.warning).toMatch(/Las que empiezan con 620 son 62000, 620100, 620300/);
-    expect(resolved.warning).toMatch(/--actividad/);
-  });
-
-  it('no corta la emision cuando la tabla viene vacia (ARCA no informa actividades)', () => {
-    expect(resolveExportActivity(620900, [])).toEqual({ id: 620900 });
+  it('no valida contra la tabla cuando ARCA no informa actividades', () => {
+    expect(resolveExportActivity(620900, [])).toBe(620900);
   });
 
   it('rechaza codigos que no son enteros positivos', () => {

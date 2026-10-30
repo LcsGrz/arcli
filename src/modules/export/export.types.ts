@@ -8,8 +8,8 @@ import type { PdfOutcome } from '../pdf/pdf.types';
  */
 export const EXPORT_VOUCHER_KIND = {
   arcaType: 19,
-  displayName: 'Factura de exportacion E',
-  family: 'factura-exportacion',
+  displayName: 'Factura de exportación E',
+  family: 'factura',
   letter: 'e',
   shortcut: 'fe',
 } as const;
@@ -20,7 +20,7 @@ export type ExportVoucherLetter = ExportVoucherKind['letter'];
 
 /** Tabla FEXGetPARAM_Tipo_Expo. */
 export const EXPORT_TYPES = {
-  1: 'Exportacion definitiva de bienes',
+  1: 'Exportación definitiva de bienes',
   2: 'Servicios',
   4: 'Otros',
 } as const;
@@ -49,13 +49,6 @@ export const DEFAULT_EXPORT_UNIT_CODE = 7;
 
 /** Idioma por defecto del comprobante. 1 = Espanol. */
 export const DEFAULT_EXPORT_LANGUAGE = 1;
-
-/**
- * Actividad por defecto: 620900 = "Servicios de informatica N.C.P.". WSFEX rechaza el comprobante si se informa
- * `Actividades` sin ninguna `Actividad` (error 2100), asi que siempre va una; los servicios son lo que mas se
- * exporta desde ARCLI, y el codigo se cambia con `--actividad`.
- */
-export const DEFAULT_EXPORT_ACTIVITY_ID = 620900;
 
 /** Tope de numeracion de ARCA. */
 export const MAX_EXPORT_VOUCHER_NUMBER = 99_999_999;
@@ -151,6 +144,12 @@ export interface ExportCountryCuit {
   readonly cuit: number;
 }
 
+/** Una fila de `FEXGetPARAM_MON`: codigo de moneda de WSFEX (`DOL`, `060`) y su nombre. */
+export interface ExportCurrency {
+  readonly code: string;
+  readonly name: string;
+}
+
 export interface ExportIncoterm {
   readonly code: string;
   readonly name: string;
@@ -170,12 +169,6 @@ export interface ExportUnit {
 export interface ExportActivity {
   readonly id: number;
   readonly name: string;
-}
-
-/** Actividad resuelta: el codigo que va en el `Cmp` y, si no esta en la tabla de WSFEX, el aviso. */
-export interface ExportActivityResolution {
-  readonly id: number;
-  readonly warning?: string;
 }
 
 /**
@@ -204,7 +197,11 @@ export interface ExportCurrencyResolution {
 
 /** Nombres de las tablas de ARCA que se muestran en texto, PDF y JSON. */
 export interface ExportDisplayInfo {
+  /** Nombre de la fila de DST_CUIT del CUIT del pais, con el tipo de entidad: "POLONIA - Persona Jurídica". */
+  readonly countryCuitName?: string;
   readonly countryName?: string;
+  /** Nombre de la moneda en la tabla de WSFEX ("Dólar Estadounidense"): el PDF lo muestra como divisa. */
+  readonly currencyName?: string;
   readonly incotermName?: string;
   readonly languageName?: string;
   readonly unitNames: Readonly<Record<number, string>>;
@@ -215,18 +212,17 @@ export interface ExportGateway {
   authorize(payload: ExportVoucherPayload): Promise<IFEXAuthorizeOutput>;
   /** Tabla de actividades de WSFEX: el `Cmp` solo acepta estos codigos, no los del padron. */
   getActivities(): Promise<readonly ExportActivity[]>;
+  getCurrencies(): Promise<readonly ExportCurrency[]>;
   getDestinationCountries(): Promise<readonly ExportCountry[]>;
   getDestinationCountryCuits(): Promise<readonly ExportCountryCuit[]>;
   getIncoterms(): Promise<readonly ExportIncoterm[]>;
   getLanguages(): Promise<readonly ExportLanguage[]>;
-  /** Ultimo numero de WSFEX. Pide el punto de venta, pero la numeracion es unica para todos. */
-  getLastVoucherNumber(pointOfSale: number): Promise<number>;
   getLastRequestId(): Promise<number>;
   /**
-   * Cotizaciones de aduana que WSFEX tiene publicadas para `isoDate` (`yyyy-mm-dd`). Devuelve solo las monedas con
+   * Cotizaciones de aduana que WSFEX tiene publicadas para `arcaDate` (`yyyymmdd`). Devuelve solo las monedas con
    * cotizacion y, en `date`, el dia al que corresponde: si la del dia pedido todavia no salio, es la anterior.
    */
-  getQuotations(isoDate: string): Promise<readonly ExportQuotation[]>;
+  getQuotations(arcaDate: string): Promise<readonly ExportQuotation[]>;
   getUnits(): Promise<readonly ExportUnit[]>;
 }
 
@@ -243,7 +239,7 @@ export type ExportModeSource = 'default' | 'file' | 'flags';
 
 /** Lo que llega de los flags o del JSON de `--cargar`; sin defaults de config todavia. */
 export interface ExportVoucherInput {
-  /** Codigo de actividad de ARCA; por defecto 620900 (servicios de informatica N.C.P.). */
+  /** Codigo de la tabla de actividades de WSFEX; sin flag sale de `exportacion.actividad`. */
   readonly activity?: number;
   readonly amount?: number;
   readonly clientAddress?: string;

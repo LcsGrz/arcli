@@ -76,6 +76,8 @@ export const arcliConfigSchema = z.object({
   /** WSFEX (factura de exportacion) usa su propio certificado, autorizado al servicio wsfex. */
   exportacion: z
     .object({
+      /** Codigo de la tabla de actividades de WSFEX que va en `Actividades` de la factura E. */
+      actividad: z.number().int().positive().optional(),
       cert: certificatePathsSchema.default({}),
       key: certificatePathsSchema.default({}),
     })
@@ -141,6 +143,7 @@ export const configPublicKeySchema = z.enum([
   'emisor.razonSocial',
   'entorno',
   'emitir',
+  'exportacion.actividad',
   'exportacion.cert.produccion',
   'exportacion.cert.testing',
   'exportacion.key.produccion',

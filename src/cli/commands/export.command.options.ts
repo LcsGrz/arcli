@@ -24,6 +24,8 @@ function repeatable<T>(parse: (value: string) => T): (value: string, previous: u
 interface ExportOptionDefinition {
   readonly description: string;
   readonly flags: string;
+  /** Alias: se aceptan pero no se listan, como en A, B y C. El flag principal los nombra. */
+  readonly hidden?: boolean;
   readonly parser?: (value: string, previous: unknown) => unknown;
 }
 
@@ -51,7 +53,8 @@ const EXPORT_OPTIONS: readonly ExportOptionDefinition[] = [
     parser: exportTypeOption,
   },
   {
-    description: 'código de actividad de ARCA; por defecto 620900 (servicios de informática N.C.P.)',
+    description:
+      'código de la tabla de actividades de WSFEX, por ejemplo 620100; sin flag, exportacion.actividad de la config',
     flags: '--actividad <codigo>',
     parser: integerOption('--actividad'),
   },
@@ -88,20 +91,25 @@ const EXPORT_OPTIONS: readonly ExportOptionDefinition[] = [
     flags: '--id-solicitud <numero>',
     parser: integerOption('--id-solicitud'),
   },
-  { description: 'punto de venta', flags: '--punto-venta <numero>', parser: integerOption('--punto-venta') },
-  { description: 'alias de punto de venta', flags: '--pv <numero>', parser: integerOption('--pv') },
+  {
+    description: 'punto de venta (alias: --pv)',
+    flags: '--punto-venta <numero>',
+    parser: integerOption('--punto-venta'),
+  },
+  { description: 'alias de --punto-venta', flags: '--pv <numero>', hidden: true, parser: integerOption('--pv') },
   { description: 'fecha del comprobante; acepta D, D/M, D/M/YY o D/M/YYYY con - o /', flags: '-f, --fecha <fecha>' },
   { description: 'fecha de pago; por defecto la del comprobante', flags: '--fecha-pago <fecha>' },
-  { description: 'código de moneda: USD o DOL (por defecto), ARS o PES', flags: '--moneda <codigo>' },
-  { description: 'alias de moneda', flags: '--mda <codigo>' },
+  { description: 'código de moneda: USD o DOL (por defecto), ARS o PES (alias: --mda)', flags: '--moneda <codigo>' },
+  { description: 'alias de --moneda', flags: '--mda <codigo>', hidden: true },
   {
-    description: 'cotización de la moneda; sin este flag se consulta la del día en ARCA',
+    description: 'cotización de la moneda; sin este flag se usa la de aduana que publica ARCA (alias: --cm)',
     flags: '--cotizacion-moneda <numero>',
     parser: amountOption('--cotizacion-moneda', EXCHANGE_RATE_DECIMALS),
   },
   {
-    description: 'alias de cotización de la moneda',
+    description: 'alias de --cotizacion-moneda',
     flags: '--cm <numero>',
+    hidden: true,
     parser: amountOption('--cm', EXCHANGE_RATE_DECIMALS),
   },
   { description: 'el pago se cancela en la misma moneda extranjera', flags: '--misma-moneda' },
@@ -112,22 +120,30 @@ const EXPORT_OPTIONS: readonly ExportOptionDefinition[] = [
     flags: '--descripcion <texto>',
   },
   { description: 'cargar los datos desde un archivo JSON', flags: '--cargar <ruta>' },
-  { description: 'generar el PDF del comprobante emitido, aunque la config diga otra cosa', flags: '--exportar-pdf' },
-  { description: 'alias de --exportar-pdf', flags: '--pdf' },
+  {
+    description: 'generar el PDF del comprobante emitido, aunque la config diga otra cosa (alias: --pdf)',
+    flags: '--exportar-pdf',
+  },
+  { description: 'alias de --exportar-pdf', flags: '--pdf', hidden: true },
   { description: 'no generar el PDF, aunque la config diga otra cosa', flags: '--sin-pdf' },
   { description: 'mostrar el payload antes de emitir en ARCA', flags: '--previsualizar' },
   { description: 'emitir realmente en ARCA', flags: '--emitir' },
 ];
 
+/** Los flags largos que aplican a la factura E, incluidos los que comparte con A, B y C (`--monto`, `--fecha`...). */
+export const EXPORT_OPTION_FLAGS: ReadonlySet<string> = new Set(
+  EXPORT_OPTIONS.map((definition) => new Option(definition.flags).long).filter((flag): flag is string => Boolean(flag)),
+);
+
 /**
- * Las opciones de la factura de exportacion. `hidden` las registra igual pero sin mostrarlas: `arcli factura e`
- * las acepta como alias del comando propio.
+ * Registra las opciones de la factura E. `hidden` las registra sin mostrarlas: `arcli factura <letra>` las acepta
+ * para la letra E. Las que el comando ya tiene (`--monto`, `--fecha`...) se reusan. Devuelve las que agrego.
  */
-export function registerExportOptions(command: Command, options: { readonly hidden?: boolean } = {}): void {
-  // `arcli factura e` comparte los flags de facturacion (--monto, --fecha...): esos ya estan y se reusan.
+export function registerExportOptions(command: Command, options: { readonly hidden?: boolean } = {}): Option[] {
   const existing = new Set(
     command.options.flatMap((option) => [option.short, option.long]).filter((flag): flag is string => Boolean(flag)),
   );
+  const added: Option[] = [];
 
   for (const definition of EXPORT_OPTIONS) {
     const option = new Option(definition.flags, definition.description);
@@ -141,10 +157,13 @@ export function registerExportOptions(command: Command, options: { readonly hidd
       option.argParser(definition.parser);
     }
 
-    if (options.hidden) {
+    if (options.hidden || definition.hidden) {
       option.hideHelp();
     }
 
     command.addOption(option);
+    added.push(option);
   }
+
+  return added;
 }

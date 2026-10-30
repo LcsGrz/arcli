@@ -88,7 +88,7 @@ describe('serializeExportResult', () => {
       atajo: 'fe',
       cae: '75123456789012',
       caeVencimiento: '20260611',
-      comprobante: 'Factura de exportacion E',
+      comprobante: 'Factura de exportación E',
       estado: 'aprobado',
       exportacion: {
         actividad: [620900],

@@ -52,14 +52,6 @@ export function formatArcaDateAsArgentineDate(value: string): string {
   return `${value.slice(6, 8)}/${value.slice(4, 6)}/${value.slice(0, 4)}`;
 }
 
-/**
- * Fecha ISO (yyyy-mm-dd) de una fecha ARCA (yyyymmdd). WSFEX pide asi la fecha de cotizacion (`FchCotiz`
- * de `FEXGetPARAM_Ctz`): con `yyyymmdd` responde "No corresponde a una fecha valida con formato YYYY-MM-DD".
- */
-export function formatArcaDateAsIsoDate(value: string): string {
-  return `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`;
-}
-
 export function parseArgentineDateInputAsArcaDate(value: string, referenceDate = new Date()): string {
   const normalizedValue = value.trim();
   const dateMatch = /^(\d{1,2})(?:([-/])(\d{1,2})(?:\2(\d{2}|\d{4}))?)?$/.exec(normalizedValue);

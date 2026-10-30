@@ -98,7 +98,16 @@ async function resolveFceWarnings(
   return warnings;
 }
 
-export async function executeBillingCommand(command: Command, shortcut: VoucherShortcut): Promise<void> {
+export interface BillingCommandOptions {
+  /** Avisos que arma quien llama, como los flags de la E salteados en `arcli factura a`. */
+  readonly extraWarnings?: readonly string[];
+}
+
+export async function executeBillingCommand(
+  command: Command,
+  shortcut: VoucherShortcut,
+  options: BillingCommandOptions = {},
+): Promise<void> {
   const globalOptions = getGlobalOptions(command);
   let spinner: ReturnType<typeof startSpinner> = null;
   const voucherKind = getVoucherKindByShortcut(shortcut);
@@ -135,6 +144,7 @@ export async function executeBillingCommand(command: Command, shortcut: VoucherS
       : [];
     const warnings = plannedInputs.map((_input, position) => [
       ...certificateWarnings(runtime),
+      ...(options.extraWarnings ?? []),
       ...(padronWarnings[position] ?? []),
       ...(fceWarnings[position] ?? []),
     ]);

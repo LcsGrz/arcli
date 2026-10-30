@@ -1,6 +1,5 @@
 import {
   formatArcaDateAsArgentineDate,
-  formatArcaDateAsIsoDate,
   formatDateAsArcaDate,
   parseArgentineDateInputAsArcaDate,
 } from '../../lib/dates/arca-date';
@@ -38,7 +37,7 @@ export interface ExportRuntime {
 }
 
 /** Se valida antes de tocar la red: un flag que falta no tiene por que autenticar en WSAA. */
-function assertRequiredFields(input: ExportVoucherInput): void {
+function assertRequiredFields(input: ExportVoucherInput, activity: number | undefined): void {
   if (typeof input.amount !== 'number' || !(input.amount > 0)) {
     throw new InputValidationError('Falta el importe total o no es válido. Usá --monto.');
   }
@@ -53,6 +52,20 @@ function assertRequiredFields(input: ExportVoucherInput): void {
 
   if (!input.destinationCountry?.trim()) {
     throw new InputValidationError('Falta el país de destino. Usá --pais-destino.');
+  }
+
+  // WSFEX numera por punto de venta y tipo, pero @arcasdk/core no deja consultar el ultimo (FEXGetLast_CMP lleva
+  // Pto_venta y Cbte_Tipo dentro de Auth y el SDK pisa ese bloque). Hasta que se arregle, el numero lo indica el usuario.
+  if (input.voucherNumber === undefined) {
+    throw new InputValidationError(
+      'Falta el número del comprobante. Usá --numero: arcli todavía no puede consultar en WSFEX el último emitido. Si es la primera Factura E de este punto de venta, es 1; si no, el siguiente al último que emitiste.',
+    );
+  }
+
+  if (activity === undefined) {
+    throw new InputValidationError(
+      'Falta la actividad de exportación. Usá --actividad o guardala con "arcli config establecer exportacion.actividad <código>": es el código de la tabla de actividades de WSFEX, por ejemplo 620100.',
+    );
   }
 
   assertExportItemsTotal(input.items, input.amount);
@@ -80,9 +93,11 @@ export class ExportService {
     runtime: ExportRuntime,
     now = new Date(),
   ): Promise<ResolvedExportVoucher> {
-    assertRequiredFields(input);
-
     const config = runtime.config;
+    const activityCode = input.activity ?? config.exportacion?.actividad;
+
+    assertRequiredFields(input, activityCode);
+
     const exportType = resolveExportType(input.exportType);
     const voucherDate = resolveExportVoucherDate(input.voucherDate, now);
     const paymentDate = input.paymentDate?.trim() ? parseArgentineDateInputAsArcaDate(input.paymentDate) : voucherDate;
@@ -91,9 +106,10 @@ export class ExportService {
 
     const countryList = await gateway.getDestinationCountries();
     const destinationCountry = resolveExportDestinationCountry(input.destinationCountry, countryList);
+    const countryCuits = await gateway.getDestinationCountryCuits();
     const clientCountryCuit = resolveExportClientCountryCuit({
       country: destinationCountry,
-      countries: await gateway.getDestinationCountryCuits(),
+      countries: countryCuits,
       cuit: input.clientCountryCuit,
     });
 
@@ -106,19 +122,18 @@ export class ExportService {
     );
 
     const incoterm = resolveExportIncoterm(input.incoterm, input.incoterm?.trim() ? await gateway.getIncoterms() : []);
-    const languages = input.language === undefined ? [] : await gateway.getLanguages();
+    // Se consulta siempre: la vista previa muestra el nombre del idioma, tambien el de por defecto.
+    const languages = await gateway.getLanguages();
     const languageId = resolveExportLanguage(input.language, languages);
-    const currency = resolveExportCurrency(input, config);
-    // WSFEX pide la fecha de la cotizacion como yyyy-mm-dd; la del comprobante viene en yyyymmdd.
-    const isoVoucherDate = formatArcaDateAsIsoDate(voucherDate);
+    const currency = resolveExportCurrency(input);
     const quotation = currency.needsQuotation
-      ? resolveExportQuotation(currency.fields.Moneda_Id, await gateway.getQuotations(isoVoucherDate), isoVoucherDate)
+      ? resolveExportQuotation(currency.fields.Moneda_Id, await gateway.getQuotations(voucherDate), voucherDate)
       : undefined;
     const exchangeRate = quotation?.rate ?? currency.fields.Moneda_ctz;
     const pointOfSale = resolveExportPointOfSale(input.pointOfSale, config);
     const voucherNumber = resolveExportNumber({
       label: 'El número del comprobante',
-      last: input.voucherNumber === undefined ? await gateway.getLastVoucherNumber(pointOfSale) : 0,
+      last: 0,
       provided: input.voucherNumber,
     });
     const requestId = resolveExportNumber({
@@ -127,9 +142,9 @@ export class ExportService {
       provided: input.requestId,
     });
 
-    const activity = resolveExportActivity(input.activity, await gateway.getActivities());
+    const activity = resolveExportActivity(activityCode as number, await gateway.getActivities());
     const payload = buildExportPayload(input, {
-      activity: activity.id,
+      activity,
       clientCountryCuit,
       currency: {
         ...currency.fields,
@@ -147,8 +162,12 @@ export class ExportService {
       voucherDate,
       voucherNumber,
     });
+    const currencyCode = payload.Moneda_Id.trim().toUpperCase();
     const display: ExportDisplayInfo = {
+      countryCuitName: countryCuits.find((entry) => entry.cuit === clientCountryCuit)?.countryName,
       countryName: destinationCountry.name,
+      currencyName: (await gateway.getCurrencies()).find((entry) => entry.code.trim().toUpperCase() === currencyCode)
+        ?.name,
       incotermName: incoterm?.name,
       languageName: languages.find((language) => language.id === languageId)?.name,
       unitNames: Object.fromEntries(units.map((unit) => [unit.id, unit.name])),
@@ -162,7 +181,6 @@ export class ExportService {
             )}: se usa la del ${formatArcaDateAsArgentineDate(quotation.date)} (${quotation.rate}). Para usar otra, --cotizacion-moneda.`,
           ]
         : []),
-      ...(activity.warning ? [activity.warning] : []),
     ];
 
     return { display, payload, warnings };

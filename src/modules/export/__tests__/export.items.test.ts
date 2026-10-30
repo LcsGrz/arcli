@@ -69,12 +69,12 @@ describe('resolveUnitCode', () => {
 
 describe('buildExportItems', () => {
   it('resume el comprobante en un renglon cuando no hay items', () => {
-    expect(buildExportItems(undefined, 1500, UNITS, 'Segun detalle')).toEqual({
+    expect(buildExportItems(undefined, 1500, UNITS, 'Según detalle')).toEqual({
       items: [
         {
           Pro_bonificacion: 0,
           Pro_codigo: '',
-          Pro_ds: 'Segun detalle',
+          Pro_ds: 'Según detalle',
           Pro_precio_uni: 1500,
           Pro_qty: 1,
           Pro_total_item: 1500,
@@ -93,7 +93,7 @@ describe('buildExportItems', () => {
       ],
       300.3,
       UNITS,
-      'Segun detalle',
+      'Según detalle',
     );
 
     expect(result.total).toBe(300.3);
@@ -102,17 +102,17 @@ describe('buildExportItems', () => {
 
   it('falla si la suma de los items no da el monto total', () => {
     expect(() =>
-      buildExportItems([{ description: 'Uno', quantity: 1, unitPrice: 100, unit: 7 }], 150, UNITS, 'Segun detalle'),
+      buildExportItems([{ description: 'Uno', quantity: 1, unitPrice: 100, unit: 7 }], 150, UNITS, 'Según detalle'),
     ).toThrow(/no coincide con --monto/);
   });
 
   it('rechaza cantidades y precios que no son positivos', () => {
     expect(() =>
-      buildExportItems([{ description: 'Uno', quantity: 0, unitPrice: 100 }], 0, UNITS, 'Segun detalle'),
+      buildExportItems([{ description: 'Uno', quantity: 0, unitPrice: 100 }], 0, UNITS, 'Según detalle'),
     ).toThrow(/cantidad/);
 
     expect(() => {
-      buildExportItems([{ description: 'Uno', quantity: 1, unitPrice: 0 }], 1, UNITS, 'Segun detalle');
+      buildExportItems([{ description: 'Uno', quantity: 1, unitPrice: 0 }], 1, UNITS, 'Según detalle');
     }).toThrow(/precio/);
   });
 });

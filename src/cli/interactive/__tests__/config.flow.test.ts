@@ -155,6 +155,7 @@ describe('runConfigMenu', () => {
       'Certificados',
       'Al facturar',
       'Factura de crédito electrónica (FCE)',
+      'Factura de exportación (E)',
       'Datos del emisor (PDF)',
       'PDF',
       'Salida y listados',

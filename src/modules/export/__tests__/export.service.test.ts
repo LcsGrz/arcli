@@ -8,7 +8,7 @@ import type { ExportGateway, ExportVoucherInput } from '../export.types';
 const NOW = new Date('2026-06-01T15:00:00Z');
 
 const RUNTIME = {
-  config: arcliConfigSchema.parse({ cuit: '20111111112', puntoVentaPorDefecto: 3 }),
+  config: arcliConfigSchema.parse({ cuit: '20111111112', exportacion: { actividad: 620100 }, puntoVentaPorDefecto: 3 }),
   environment: 'testing' as const,
 };
 
@@ -37,7 +37,14 @@ function createGateway(overrides: Partial<ExportGateway> = {}): ExportGateway {
       { code: 203, name: 'Brasil' },
       { code: 212, name: 'Chile' },
     ]),
-    getActivities: vi.fn(async () => [{ id: 620900, name: 'SERVICIOS DE INFORMATICA N.C.P.' }]),
+    getActivities: vi.fn(async () => [
+      { id: 46201, name: 'VENTA AL POR MAYOR DE MATERIAS PRIMAS' },
+      { id: 620100, name: 'SERVICIOS DE CONSULTORES EN INFORMATICA' },
+    ]),
+    getCurrencies: vi.fn(async () => [
+      { code: 'DOL', name: 'Dólar Estadounidense' },
+      { code: 'PES', name: 'Pesos Argentinos' },
+    ]),
     getDestinationCountryCuits: vi.fn(async () => [
       { countryName: 'Brasil - Persona Física', cuit: 50000000059 },
       { countryName: 'Brasil - Persona Jurídica', cuit: 55000000050 },
@@ -49,7 +56,6 @@ function createGateway(overrides: Partial<ExportGateway> = {}): ExportGateway {
       { id: 2, name: 'Ingles' },
     ]),
     getLastRequestId: vi.fn(async () => 7),
-    getLastVoucherNumber: vi.fn(async () => 41),
     getQuotations: vi.fn(async () => [{ code: 'DOL', date: '20260601', rate: 900.5 }]),
     getUnits: vi.fn(async () => [
       { id: 1, name: 'Kilogramo' },
@@ -69,6 +75,7 @@ const INPUT: ExportVoucherInput = {
   emit: true,
   incoterm: 'fob',
   items: [{ code: '001', description: 'Servicio de consultoria', quantity: 1, unit: 'unidad', unitPrice: 1500 }],
+  voucherNumber: 42,
 };
 
 describe('ExportService.resolve', () => {
@@ -96,8 +103,8 @@ describe('ExportService.resolve', () => {
       Punto_vta: 3,
       Tipo_expo: 1,
     });
-    // Sin --actividad el Cmp lleva 620900: WSFEX rechaza Actividades sin Actividad (error 2100).
-    expect(resolved.payload.Actividades).toEqual({ Actividad: [{ Id: 620900 }] });
+    // Sin --actividad sale de exportacion.actividad: WSFEX rechaza Actividades sin Actividad (error 2100).
+    expect(resolved.payload.Actividades).toEqual({ Actividad: [{ Id: 620100 }] });
     expect(resolved.payload.Items.Item).toEqual([
       {
         Pro_bonificacion: 0,
@@ -110,14 +117,14 @@ describe('ExportService.resolve', () => {
       },
     ]);
     expect(resolved.display).toEqual({
+      countryCuitName: 'Brasil - Persona Jurídica',
       countryName: 'Brasil',
+      currencyName: 'Dólar Estadounidense',
       incotermName: 'Free on Board',
-      languageName: undefined,
+      languageName: 'Espanol',
       unitNames: { 1: 'Kilogramo', 7: 'Unidad' },
     });
-    expect(gateway.getQuotations).toHaveBeenCalledWith('2026-06-01');
-    expect(gateway.getLastVoucherNumber).toHaveBeenCalledWith(RUNTIME.config.puntoVentaPorDefecto);
-    expect(gateway.getLanguages).not.toHaveBeenCalled();
+    expect(gateway.getQuotations).toHaveBeenCalledWith('20260601');
     // Sin permisos de embarque el Cmp no lleva Permisos: ARCA lo rechaza (1720) con Permiso_existente = N.
     expect(resolved.payload).not.toHaveProperty('Permisos');
   });
@@ -140,21 +147,21 @@ describe('ExportService.resolve', () => {
       Permiso_existente: '',
       Tipo_expo: 2,
     });
-    expect(gateway.getQuotations).toHaveBeenCalledWith('2026-06-01');
+    expect(gateway.getQuotations).toHaveBeenCalledWith('20260601');
   });
 
-  it('pide la cotizacion con la fecha del comprobante en formato ISO (Fecha_CTZ)', async () => {
+  it('pide la cotizacion con la fecha del comprobante en yyyymmdd (Fecha_CTZ)', async () => {
     const gateway = createGateway();
 
     // Sin --fecha la cotizacion es la del dia del comprobante (hoy en Argentina): la consulta va en yyyy-mm-dd.
     await service.resolve({ ...INPUT, currencyCode: undefined }, gateway, RUNTIME, NOW);
-    expect(gateway.getQuotations).toHaveBeenCalledWith('2026-06-01');
+    expect(gateway.getQuotations).toHaveBeenCalledWith('20260601');
 
     const backdated = createGateway();
     const resolved = await service.resolve({ ...INPUT, voucherDate: '18/03/2026' }, backdated, RUNTIME, NOW);
 
     expect(resolved.payload.Fecha_cbte).toBe('20260318');
-    expect(backdated.getQuotations).toHaveBeenCalledWith('2026-03-18');
+    expect(backdated.getQuotations).toHaveBeenCalledWith('20260318');
   });
 
   it('usa la ultima cotizacion publicada y avisa de que dia es', async () => {
@@ -181,7 +188,7 @@ describe('ExportService.resolve', () => {
     });
 
     await expect(service.resolve(INPUT, gateway, RUNTIME, NOW)).rejects.toThrow(
-      /no informó la cotización de DOL para el 2026-06-01\. Las monedas con cotización son 060\./,
+      /no informó la cotización de DOL para el 01\/06\/2026\. Las monedas con cotización son 060\./,
     );
     await expect(service.resolve(INPUT, gateway, RUNTIME, NOW)).rejects.toThrow(/--cotizacion-moneda/);
   });
@@ -216,30 +223,39 @@ describe('ExportService.resolve', () => {
     expect(resolved.payload.CanMisMonExt).toBe('S');
   });
 
-  it('avisa cuando la actividad no esta en la tabla de actividades de WSFEX', async () => {
-    const gateway = createGateway({
-      getActivities: vi.fn(async () => [
-        { id: 620100, name: 'SERVICIOS DE CONSULTORES EN INFORMATICA' },
-        { id: 620300, name: 'SERVICIOS DE CONSULTORES EN TECNOLOGIA DE LA INFORMACION' },
-      ]),
-    });
-    const resolved = await service.resolve(INPUT, gateway, RUNTIME, NOW);
+  it('corta antes de emitir si la actividad no esta en la tabla de WSFEX (ARCA la rechaza con 2105)', async () => {
+    const gateway = createGateway();
 
-    // El aviso no corta la emision: ARCA es el que rechaza con 2105 si la actividad no le sirve.
-    expect(resolved.payload.Actividades).toEqual({ Actividad: [{ Id: 620900 }] });
-    expect(resolved.warnings).toEqual([
-      'La actividad 620900 no está en la tabla de actividades de WSFEX: ARCA la rechaza al emitir (error 2105). Las que empiezan con 620 son 620100, 620300. Indicá la que corresponda con --actividad.',
-    ]);
+    await expect(service.resolve({ ...INPUT, activity: 620900 }, gateway, RUNTIME, NOW)).rejects.toThrow(
+      /La actividad 620900 no está en la tabla de actividades de WSFEX.*Las que empiezan con 620 son 620100/,
+    );
+    expect(gateway.authorize).not.toHaveBeenCalled();
   });
 
-  it('no consulta la numeracion si el usuario la informa', async () => {
+  it('pide la actividad antes de ir a ARCA si no viene por flag ni por config', async () => {
+    const gateway = createGateway();
+    const runtime = { ...RUNTIME, config: arcliConfigSchema.parse({ cuit: '20111111112', puntoVentaPorDefecto: 3 }) };
+
+    await expect(service.resolve(INPUT, gateway, runtime, NOW)).rejects.toThrow(/Falta la actividad de exportación/);
+    expect(gateway.getDestinationCountries).not.toHaveBeenCalled();
+  });
+
+  it('no consulta el ID de solicitud si el usuario lo informa', async () => {
     const gateway = createGateway();
     const resolved = await service.resolve({ ...INPUT, requestId: 100, voucherNumber: 5 }, gateway, RUNTIME, NOW);
 
     expect(resolved.payload.Cbte_nro).toBe(5);
     expect(resolved.payload.Id).toBe(100);
-    expect(gateway.getLastVoucherNumber).not.toHaveBeenCalled();
     expect(gateway.getLastRequestId).not.toHaveBeenCalled();
+  });
+
+  it('pide --numero antes de ir a ARCA: el SDK no deja consultar el ultimo comprobante E', async () => {
+    const gateway = createGateway();
+
+    await expect(service.resolve({ ...INPUT, voucherNumber: undefined }, gateway, RUNTIME, NOW)).rejects.toThrow(
+      /Falta el número del comprobante. Usá --numero/,
+    );
+    expect(gateway.getDestinationCountries).not.toHaveBeenCalled();
   });
 
   it('no consulta la cotizacion si viene por flag', async () => {
@@ -280,7 +296,10 @@ describe('ExportService.resolve', () => {
       service.resolve(
         INPUT,
         createGateway(),
-        { config: arcliConfigSchema.parse({ cuit: '20111111112' }), environment: 'testing' },
+        {
+          config: arcliConfigSchema.parse({ cuit: '20111111112', exportacion: { actividad: 620100 } }),
+          environment: 'testing',
+        },
         NOW,
       ),
     ).rejects.toThrow(/--punto-venta/);

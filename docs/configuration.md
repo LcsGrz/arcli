@@ -43,6 +43,7 @@ Si el archivo no existe, `arcli config` lo crea automáticamente.
 | `exportacion.cert.produccion` | string                          | ninguno                | Ruta al certificado del servicio `wsfex` para producción; si falta, se usa `cert.produccion`                                                                                                                                                    |
 | `exportacion.key.testing`     | string                          | ninguno                | Ruta a la clave privada del servicio `wsfex` para testing; si falta, se usa `key.testing`                                                                                                                                                       |
 | `exportacion.key.produccion`  | string                          | ninguno                | Ruta a la clave privada del servicio `wsfex` para producción; si falta, se usa `key.produccion`                                                                                                                                                 |
+| `exportacion.actividad`       | number                          | ninguno                | Código de la tabla de actividades de WSFEX que informa la factura de exportación `E`, por ejemplo `620100`; `--actividad` lo pisa                                                                                                               |
 | `cuit`                        | string                          | ninguno                | CUIT del emisor                                                                                                                                                                                                                                 |
 | `alicuota`                    | string                          | `21`                   | Alícuota de IVA por defecto: alias (`general`, `reducida`, `incrementada`, `cero`) o número (solo letras A y B)                                                                                                                                 |
 | `cbu`                         | string                          | ninguno                | CBU del emisor (solo facturas FCE)                                                                                                                                                                                                              |
@@ -93,7 +94,9 @@ Las claves aparecen en la sección **Certificados** de `arcli config`, se valida
 
 Cómo autorizar el servicio: [Autorizar el servicio web](obtencion-certificados.md#3-autorizar-el-servicio-web).
 
-Si el certificado no está autorizado a `wsfex`, la primera llamada falla con `coe.notAuthorized` ("Computador no autorizado a acceder al servicio"). Pasa incluso con `--previsualizar`, porque la vista previa consulta las tablas y la numeración de WSFEX: autorizá el servicio en WSASS (testing) o creá la relación en el Administrador de Relaciones (producción) antes de reintentar.
+La actividad que informa la `E` se guarda una vez con `arcli config establecer exportacion.actividad <codigo>` (sección **Factura de exportación (E)** de `arcli config`); `--actividad` la pisa. Tiene que ser un código de la tabla de actividades de WSFEX, que no es la del padrón: por ejemplo, `620100` para servicios de consultores en informática.
+
+Si el certificado no está autorizado a `wsfex`, la primera llamada falla con `WSFEX_SERVICE_NOT_AUTHORIZED`. Pasa incluso con `--previsualizar`, porque la vista previa consulta las tablas de WSFEX: autorizá el servicio en WSASS (testing) o creá la relación en el Administrador de Relaciones (producción) antes de reintentar.
 
 ### Ticket WSAA (`ticketPath`)
 

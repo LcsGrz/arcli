@@ -96,7 +96,7 @@ export function parseExportJsonInput(value: unknown): ExportJsonInput {
 export function readExportJsonInput(source: unknown): ExportJsonInput {
   if (Array.isArray(source)) {
     throw new InputValidationError(
-      'El JSON de --cargar de exportacion tiene que ser un objeto con un comprobante, no un array.',
+      'El JSON de --cargar de la factura E tiene que ser un objeto con un comprobante, no un array.',
     );
   }
 
