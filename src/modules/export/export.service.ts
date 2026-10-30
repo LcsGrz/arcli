@@ -1,6 +1,5 @@
 import {
   formatArcaDateAsArgentineDate,
-  formatArcaDateAsIsoDate,
   formatDateAsArcaDate,
   parseArgentineDateInputAsArcaDate,
 } from '../../lib/dates/arca-date';
@@ -124,11 +123,9 @@ export class ExportService {
     const incoterm = resolveExportIncoterm(input.incoterm, input.incoterm?.trim() ? await gateway.getIncoterms() : []);
     const languages = input.language === undefined ? [] : await gateway.getLanguages();
     const languageId = resolveExportLanguage(input.language, languages);
-    const currency = resolveExportCurrency(input, config);
-    // WSFEX pide la fecha de la cotizacion como yyyy-mm-dd; la del comprobante viene en yyyymmdd.
-    const isoVoucherDate = formatArcaDateAsIsoDate(voucherDate);
+    const currency = resolveExportCurrency(input);
     const quotation = currency.needsQuotation
-      ? resolveExportQuotation(currency.fields.Moneda_Id, await gateway.getQuotations(isoVoucherDate), isoVoucherDate)
+      ? resolveExportQuotation(currency.fields.Moneda_Id, await gateway.getQuotations(voucherDate), voucherDate)
       : undefined;
     const exchangeRate = quotation?.rate ?? currency.fields.Moneda_ctz;
     const pointOfSale = resolveExportPointOfSale(input.pointOfSale, config);

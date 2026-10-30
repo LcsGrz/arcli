@@ -123,7 +123,7 @@ describe('ExportService.resolve', () => {
       languageName: undefined,
       unitNames: { 1: 'Kilogramo', 7: 'Unidad' },
     });
-    expect(gateway.getQuotations).toHaveBeenCalledWith('2026-06-01');
+    expect(gateway.getQuotations).toHaveBeenCalledWith('20260601');
     expect(gateway.getLanguages).not.toHaveBeenCalled();
     // Sin permisos de embarque el Cmp no lleva Permisos: ARCA lo rechaza (1720) con Permiso_existente = N.
     expect(resolved.payload).not.toHaveProperty('Permisos');
@@ -147,21 +147,21 @@ describe('ExportService.resolve', () => {
       Permiso_existente: '',
       Tipo_expo: 2,
     });
-    expect(gateway.getQuotations).toHaveBeenCalledWith('2026-06-01');
+    expect(gateway.getQuotations).toHaveBeenCalledWith('20260601');
   });
 
-  it('pide la cotizacion con la fecha del comprobante en formato ISO (Fecha_CTZ)', async () => {
+  it('pide la cotizacion con la fecha del comprobante en yyyymmdd (Fecha_CTZ)', async () => {
     const gateway = createGateway();
 
     // Sin --fecha la cotizacion es la del dia del comprobante (hoy en Argentina): la consulta va en yyyy-mm-dd.
     await service.resolve({ ...INPUT, currencyCode: undefined }, gateway, RUNTIME, NOW);
-    expect(gateway.getQuotations).toHaveBeenCalledWith('2026-06-01');
+    expect(gateway.getQuotations).toHaveBeenCalledWith('20260601');
 
     const backdated = createGateway();
     const resolved = await service.resolve({ ...INPUT, voucherDate: '18/03/2026' }, backdated, RUNTIME, NOW);
 
     expect(resolved.payload.Fecha_cbte).toBe('20260318');
-    expect(backdated.getQuotations).toHaveBeenCalledWith('2026-03-18');
+    expect(backdated.getQuotations).toHaveBeenCalledWith('20260318');
   });
 
   it('usa la ultima cotizacion publicada y avisa de que dia es', async () => {
@@ -188,7 +188,7 @@ describe('ExportService.resolve', () => {
     });
 
     await expect(service.resolve(INPUT, gateway, RUNTIME, NOW)).rejects.toThrow(
-      /no informó la cotización de DOL para el 2026-06-01\. Las monedas con cotización son 060\./,
+      /no informó la cotización de DOL para el 01\/06\/2026\. Las monedas con cotización son 060\./,
     );
     await expect(service.resolve(INPUT, gateway, RUNTIME, NOW)).rejects.toThrow(/--cotizacion-moneda/);
   });

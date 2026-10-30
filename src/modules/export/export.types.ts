@@ -217,10 +217,10 @@ export interface ExportGateway {
   getLanguages(): Promise<readonly ExportLanguage[]>;
   getLastRequestId(): Promise<number>;
   /**
-   * Cotizaciones de aduana que WSFEX tiene publicadas para `isoDate` (`yyyy-mm-dd`). Devuelve solo las monedas con
+   * Cotizaciones de aduana que WSFEX tiene publicadas para `arcaDate` (`yyyymmdd`). Devuelve solo las monedas con
    * cotizacion y, en `date`, el dia al que corresponde: si la del dia pedido todavia no salio, es la anterior.
    */
-  getQuotations(isoDate: string): Promise<readonly ExportQuotation[]>;
+  getQuotations(arcaDate: string): Promise<readonly ExportQuotation[]>;
   getUnits(): Promise<readonly ExportUnit[]>;
 }
 

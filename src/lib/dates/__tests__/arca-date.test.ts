@@ -4,7 +4,6 @@ import { InputValidationError } from '../../errors/app-error';
 import {
   diffArcaDatesInDays,
   formatArcaDateAsArgentineDate,
-  formatArcaDateAsIsoDate,
   formatDateAsArcaDate,
   maxArcaDate,
   parseArgentineDateInputAsArcaDate,
@@ -55,11 +54,6 @@ describe('arca-date', () => {
 
   it('formats an ARCA date in Argentine format', () => {
     expect(formatArcaDateAsArgentineDate('20260318')).toBe('18/03/2026');
-  });
-
-  it('formats an ARCA date in ISO format for FchCotiz', () => {
-    expect(formatArcaDateAsIsoDate('20260318')).toBe('2026-03-18');
-    expect(formatArcaDateAsIsoDate('20261231')).toBe('2026-12-31');
   });
 
   it('rejects ISO dates', () => {

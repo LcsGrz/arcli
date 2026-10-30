@@ -1,6 +1,7 @@
 import type { Arca } from '@arcasdk/core';
 import type { IFEXAuthorizeInput, IFEXAuthorizeOutput } from '@arcasdk/core/lib/application/dto/fex';
 
+import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { AppError } from '../../lib/errors/app-error';
 import type {
   ExportActivity,
@@ -201,15 +202,14 @@ export class ArcaExportGateway implements ExportGateway {
 
   /**
    * La cotizacion de la `E` es la de aduana, que WSFEX publica una vez por dia: `FEXGetPARAM_MON_CON_COTIZACION`
-   * devuelve por moneda la ultima publicada hasta `isoDate`, con el dia al que corresponde. El pedido va con
-   * `Fecha_CTZ` en `yyyymmdd` —no en el `yyyy-mm-dd` de `FchCotiz`—; con guiones ARCA contesta el error 2054.
+   * devuelve por moneda la ultima publicada hasta `arcaDate`, con el dia al que corresponde. `Fecha_CTZ` va en
+   * `yyyymmdd`: con guiones ARCA contesta el error 2054.
    */
-  public async getQuotations(isoDate: string): Promise<ExportQuotation[]> {
-    const data = (
-      await this.call((service) => service.getParamMonConCotizacion({ Fecha_CTZ: isoDate.replaceAll('-', '') }))
-    ).FEXGetPARAM_MON_CON_COTIZACIONResult;
+  public async getQuotations(arcaDate: string): Promise<ExportQuotation[]> {
+    const data = (await this.call((service) => service.getParamMonConCotizacion({ Fecha_CTZ: arcaDate })))
+      .FEXGetPARAM_MON_CON_COTIZACIONResult;
 
-    assertNoError(data, `las cotizaciones al ${isoDate}`);
+    assertNoError(data, `las cotizaciones al ${formatArcaDateAsArgentineDate(arcaDate)}`);
 
     return asArray(data?.FEXResultGet?.ClsFEXResponse_Mon_CON_Cotizacion).flatMap((row) => {
       const code = readText(row.Mon_Id);

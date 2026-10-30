@@ -164,7 +164,7 @@ describe('ArcaExportGateway', () => {
     const gateway = createGateway({ getParamMonConCotizacion });
 
     // Fecha_CTZ va en yyyymmdd: con guiones ARCA contesta "El campo Fecha_CTZ ... YYYYMMDD" (2054).
-    await expect(gateway.getQuotations('2026-10-28')).resolves.toEqual([
+    await expect(gateway.getQuotations('20261028')).resolves.toEqual([
       { code: 'DOL', date: '20261027', rate: 1174 },
       { code: '060', date: undefined, rate: 1300.5 },
     ]);
@@ -183,7 +183,7 @@ describe('ArcaExportGateway', () => {
       })),
     });
 
-    await expect(gateway.getQuotations('2026-10-28')).resolves.toEqual([{ code: 'DOL', date: '20261027', rate: 1174 }]);
+    await expect(gateway.getQuotations('20261028')).resolves.toEqual([{ code: 'DOL', date: '20261027', rate: 1174 }]);
   });
 
   it('devuelve una lista vacia si ARCA no tiene cotizaciones para esa fecha', async () => {
@@ -193,7 +193,7 @@ describe('ArcaExportGateway', () => {
       })),
     });
 
-    await expect(gateway.getQuotations('2027-01-05')).resolves.toEqual([]);
+    await expect(gateway.getQuotations('20270105')).resolves.toEqual([]);
   });
 
   it('informa el error de ARCA cuando no puede consultar las cotizaciones', async () => {
@@ -209,8 +209,8 @@ describe('ArcaExportGateway', () => {
       })),
     });
 
-    await expect(gateway.getQuotations('2026-10-28')).rejects.toThrow(
-      /al consultar las cotizaciones al 2026-10-28: El campo Fecha_CTZ/,
+    await expect(gateway.getQuotations('20261028')).rejects.toThrow(
+      /al consultar las cotizaciones al 28\/10\/2026: El campo Fecha_CTZ/,
     );
   });
 

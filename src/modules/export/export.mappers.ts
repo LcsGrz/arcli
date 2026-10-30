@@ -1,4 +1,8 @@
-import { formatDateAsArcaDate, parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
+import {
+  formatArcaDateAsArgentineDate,
+  formatDateAsArcaDate,
+  parseArgentineDateInputAsArcaDate,
+} from '../../lib/dates/arca-date';
 import { AppError, InputValidationError } from '../../lib/errors/app-error';
 import { resolveBillingCurrencyCode } from '../billing/billing.mappers';
 import type { ArcliConfig } from '../config/config.schemas';
@@ -33,7 +37,7 @@ export const DEFAULT_EXPORT_PAYMENT_TERMS = 'Transferencia Internacional';
 /** ARCA no acepta cotizaciones en pesos distintas de 1. */
 const LOCAL_EXCHANGE_RATE = 1;
 
-type ExportConfig = Pick<ArcliConfig, 'cotizacionPorDefecto' | 'puntoVentaPorDefecto'>;
+type ExportConfig = Pick<ArcliConfig, 'puntoVentaPorDefecto'>;
 
 export interface BuildExportResolution {
   readonly activity: number;
@@ -72,12 +76,12 @@ export function resolveExportVoucherDate(value: string | undefined, now = new Da
 
 /**
  * Acepta `ARS`, `USD` o los codigos de ARCA (`PES`, `DOL`). Sin `--moneda` la exportacion va en dolares; la moneda
- * de la config es la de los comprobantes locales. Sin cotizacion explicita se pide la del dia a ARCA: WSFEX no
- * acepta `Moneda_ctz` en 0 para moneda extranjera.
+ * de la config es la de los comprobantes locales. Sin `--cotizacion-moneda` se usa la de aduana que publica ARCA
+ * (WSFEX no acepta `Moneda_ctz` en 0): la clave `cotizacion` de la config no aplica, porque una cotizacion guardada
+ * queda vieja en dias (REV-35).
  */
 export function resolveExportCurrency(
   input: Pick<ExportVoucherInput, 'currencyCode' | 'exchangeRate' | 'sameCurrency'>,
-  config: Pick<ExportConfig, 'cotizacionPorDefecto'>,
 ): ExportCurrencyResolution {
   const requested = input.currencyCode?.trim() || DEFAULT_EXPORT_CURRENCY_CODE;
   const currencyCode = resolveBillingCurrencyCode(requested);
@@ -98,9 +102,7 @@ export function resolveExportCurrency(
     };
   }
 
-  const configuredRate = config.cotizacionPorDefecto;
-  const rate =
-    input.exchangeRate ?? (configuredRate && configuredRate > LOCAL_EXCHANGE_RATE ? configuredRate : undefined);
+  const rate = input.exchangeRate;
 
   if (rate !== undefined && rate <= LOCAL_EXCHANGE_RATE) {
     throw new InputValidationError(`La cotización de ${displayCode} tiene que ser mayor a 1.`);
@@ -124,7 +126,7 @@ export function resolveExportCurrency(
 export function resolveExportQuotation(
   currencyCode: string,
   quotations: readonly ExportQuotation[],
-  isoDate: string,
+  voucherDate: string,
 ): ExportQuotation {
   const code = currencyCode.trim().toUpperCase();
   const quotation = quotations.find((entry) => entry.code.trim().toUpperCase() === code);
@@ -136,7 +138,7 @@ export function resolveExportQuotation(
   const available = quotations.map((entry) => entry.code).join(', ');
 
   throw new AppError(
-    `ARCA no informó la cotización de ${code} para el ${isoDate}.${
+    `ARCA no informó la cotización de ${code} para el ${formatArcaDateAsArgentineDate(voucherDate)}.${
       available ? ` Las monedas con cotización son ${available}.` : ''
     } Informá la cotización con --cotizacion-moneda.`,
     { code: 'ARCA_QUOTATION_ERROR' },
