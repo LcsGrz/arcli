@@ -10,7 +10,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### Agregado
 
-- **Condición de venta en el PDF:** `--condicion-venta <texto>` (o `condicionVenta` en el JSON de `--cargar`) imprime, por ejemplo, `Contado` u `Otros medios de pago electrónico` junto a los datos del receptor. Es un dato exclusivo del PDF: WSFE no lo recibe.
+- **Condición de venta en el PDF:** `--condicion-venta <texto>` (o `condicionVenta` en el JSON de `--cargar`) imprime, por ejemplo, `Contado` u `Otros medios de pago electrónico` junto a los datos del receptor. El modo interactivo muestra las opciones habituales y solo pide texto libre al elegir `Otra`. Es un dato exclusivo del PDF: WSFE no lo recibe.
 - **CUIT con dígito verificador y con o sin guiones en todos lados:** `arcli padron`, `arcli fce-obligado`, `--cuit`, `--cuil`, `--acuit`, `comprobanteAsociado.cuit` en el JSON, `config establecer cuit` y el modo interactivo aceptan `20-33333333-4` o `20333333334`, y rechazan un CUIT mal tipeado antes de llegar a ARCA. Antes `arcli padron 20-20179706-4` fallaba y nadie chequeaba el dígito verificador.
 - **Error `ARCA_LAST_VOUCHER_ERROR`:** si ARCA rechaza el pedido del último número (por ejemplo, con un punto de venta no habilitado para web service), la facturación y `arcli ultimos` cortan ahí con el mensaje de ARCA y una sugerencia. No se emite nada.
 - **Esc en las preguntas del CLI:** "¿Desea emitir … ahora?", que aparece sin `--emitir` en una terminal, ahora se cierra con Esc como un "no", igual que en el modo interactivo y en las preguntas del PDF.

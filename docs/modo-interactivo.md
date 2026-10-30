@@ -77,7 +77,7 @@ Después muestra la vista previa (la misma de `--previsualizar`), el comando equ
 
 Después de emitir, si `config.pdf` es `preguntar` (el valor por defecto), pregunta **"¿Generamos el PDF del comprobante?"**. Con `siempre` lo genera sin preguntar y con `nunca` no pregunta nada. Lo mismo vale para las notas de crédito y débito.
 
-Si respondés que sí, pregunta tres datos opcionales que solo van en el PDF (Enter para omitirlos): la descripción, el nombre y el domicilio del receptor. Si faltan datos del emisor (razón social, domicilio, inicio de actividades), los pregunta una vez y ofrece guardarlos en la config. Si falta el plugin, ofrece instalarlo. Ver [PDF de comprobantes](pdf.md).
+Si respondés que sí, pregunta cuatro datos opcionales que solo van en el PDF: la descripción, el nombre y el domicilio del receptor, y la condición de venta. Para esta última muestra las opciones habituales, `Otra (escribir)` y `Omitir`; `Otra` abre un campo de texto y, si ya había una condición personalizada, también se puede mantener. Si faltan datos del emisor (razón social, domicilio, inicio de actividades), los pregunta una vez y ofrece guardarlos en la config. Si falta el plugin, ofrece instalarlo. Ver [PDF de comprobantes](pdf.md).
 
 El comando equivalente se muestra antes de emitir, así que no incluye los flags del PDF. Siempre lleva el entorno (`--testing` o `--produccion`): si después cambiás el entorno en la config, el comando pegado sigue emitiendo donde lo armaste.
 

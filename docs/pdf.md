@@ -91,7 +91,9 @@ Al facturar con `--cuit` y sin `--ir` (con `consultarPadron` activo, como viene 
 
 Estos datos **solo van en el PDF**: ARCA no los recibe. Si los pasás y al final no se genera ningún PDF, ARCLI avisa que no quedaron en ningún lado.
 
-La condición de venta es texto libre, por ejemplo `Contado`, `Transferencia bancaria` u `Otros medios de pago electrónico`. Cuando también hay vencimiento de pago, la plantilla lo muestra junto a esa condición. `--vencimiento` sigue formando parte de la solicitud enviada a ARCA; `--condicion-venta`, no.
+En el modo interactivo, ARCLI ofrece `Contado`, tarjetas, cuenta corriente, cheque, transferencia bancaria, otros medios de pago electrónico, `Otra` y `Omitir`. Solo `Otra` abre un campo de texto. Por flags o JSON la condición sigue siendo texto libre para no limitar automatizaciones ni valores que ARCA no cataloga en WSFE.
+
+La condición y el vencimiento de pago se muestran en renglones separados. `--vencimiento` forma parte de la solicitud enviada a ARCA; `--condicion-venta`, no.
 
 El detalle del PDF tiene un renglón por alícuota de IVA con la descripción y su importe neto, o un solo renglón en las facturas `C`. Exento y no gravado van en renglones aparte.
 
