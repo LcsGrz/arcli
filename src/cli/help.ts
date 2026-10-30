@@ -10,7 +10,12 @@ import {
 } from '../modules/billing/voucher-kind-map';
 import type { ConfigPublicKey } from '../modules/config/config.schemas';
 import { CONFIG_LABELS, CONFIG_SECTIONS } from '../modules/config/config.sections';
-import { buildMinimalFamilyExample, buildMinimalShortcutExample } from '../modules/examples/examples';
+import {
+  buildMinimalFamilyExample,
+  buildMinimalShortcutExample,
+  EXPORT_MINIMAL_EXAMPLE,
+} from '../modules/examples/examples';
+import { EXPORT_VOUCHER_KIND } from '../modules/export/export.types';
 import { CONFIG_FIELDS } from '../modules/interactive/config-fields';
 import { renderLogo } from '../ui';
 
@@ -81,18 +86,25 @@ function compactList(values: readonly string[]): string {
   return values.map((value) => `  - ${value}`).join('\n');
 }
 
-/** Los 18 atajos en una tabla familia × letra, en lugar de 24 renglones en la lista de comandos. */
+/** La letra E (exportacion, WSFEX) solo existe en la familia `factura`. */
+function familyShortcuts(family: VoucherFamily): readonly string[] {
+  return family === EXPORT_VOUCHER_KIND.family
+    ? [...FAMILY_SHORTCUTS[family], EXPORT_VOUCHER_KIND.shortcut]
+    : FAMILY_SHORTCUTS[family];
+}
+
+/** Los atajos en una tabla familia × letra, en lugar de un renglon por atajo en la lista de comandos. */
 function createProgramVoucherTable(): string {
   const width = Math.max(...VOUCHER_FAMILIES.map((family) => family.length)) + 2;
   const column = (value: string) => value.padEnd(7);
   const rows = VOUCHER_FAMILIES.map(
-    (family) => `  ${family.padEnd(width)}${FAMILY_SHORTCUTS[family].map(column).join('').trimEnd()}`,
+    (family) => `  ${family.padEnd(width)}${familyShortcuts(family).map(column).join('').trimEnd()}`,
   );
 
   return section(
     'Comprobantes (atajo por familia y letra)',
     [
-      `  ${''.padEnd(width)}${['A', 'B', 'C'].map(column).join('').trimEnd()}`,
+      `  ${''.padEnd(width)}${['A', 'B', 'C', 'E'].map(column).join('').trimEnd()}`,
       ...rows,
       '  arcli fc ... es lo mismo que arcli factura c ...; cada uno tiene su ayuda: arcli fc --ayuda',
     ].join('\n'),
@@ -155,12 +167,13 @@ function createShortcutSummary(shortcut: VoucherShortcut): string {
 
 function createFamilySummary(family: VoucherFamily): string {
   const [a, b, c] = FAMILY_SHORTCUTS[family];
+  const hasExport = family === EXPORT_VOUCHER_KIND.family;
+  const summary = hasExport
+    ? `${FAMILY_LABELS[family]}, letras A, B, C y E (exportación): arcli ${family} <a|b|c|e>. Atajos: ${a}, ${b}, ${c} y ${EXPORT_VOUCHER_KIND.shortcut}. Los flags que no aplican a la letra se saltean con un aviso.`
+    : `${FAMILY_LABELS[family]}, letras A, B y C: arcli ${family} <a|b|c>. Atajos: ${a}, ${b} y ${c}.`;
 
   return [
-    section(
-      'Familia',
-      compactList([`${FAMILY_LABELS[family]}, letras A, B y C: arcli ${family} <a|b|c>. Atajos: ${a}, ${b} y ${c}.`]),
-    ),
+    section('Familia', compactList([summary])),
     '',
     section(
       'Ejemplos',
@@ -170,6 +183,7 @@ function createFamilySummary(family: VoucherFamily): string {
 
           return definition ? [`Letra ${letter.toUpperCase()}: ${buildMinimalFamilyExample(definition)}`] : [];
         }),
+        ...(hasExport ? [`Letra E: ${EXPORT_MINIMAL_EXAMPLE.replace('arcli fe', `arcli ${family} e`)}`] : []),
         `Desde un JSON: arcli ${family} c --cargar ./voucher.json --json`,
       ]),
     ),
@@ -472,6 +486,36 @@ export function createShortcutHelp(shortcut: VoucherShortcut): string {
       isNote: definition.requiresAssociatedVoucher,
       letters: [definition.letter],
     }),
+    '',
+  ].join('\n');
+}
+
+/** Ayuda de `arcli fe`: la E no tiene concepto, IVA ni receptor argentino, asi que no usa las reglas de A, B y C. */
+export function createExportShortcutHelp(): string {
+  const { arcaType, displayName, family, letter, shortcut } = EXPORT_VOUCHER_KIND;
+
+  return [
+    '',
+    section(
+      'Comprobante',
+      compactList([
+        `${displayName}, tipo ARCA ${arcaType}, por WSFEX. Es lo mismo que arcli ${family} ${letter}.`,
+        'Sin flags sale de servicios (--tipo-expo 2), en dólares (DOL) y con forma de pago "Transferencia Internacional".',
+        'La actividad sale de --actividad o de exportacion.actividad en la config.',
+        '--numero es obligatorio: arcli todavía no puede consultar en WSFEX el último comprobante emitido.',
+      ]),
+    ),
+    '',
+    section(
+      'Ejemplos',
+      compactList([
+        `Vista previa: ${EXPORT_MINIMAL_EXAMPLE}`,
+        `Emitir: ${EXPORT_MINIMAL_EXAMPLE} --emitir`,
+        `Con items, que tienen que sumar --monto: ${EXPORT_MINIMAL_EXAMPLE} --item "001|Consultoría|10|150|unidades"`,
+        `Desde un JSON: arcli ${shortcut} --cargar ./factura-e.json --json`,
+        'Más ejemplos: arcli ejemplos',
+      ]),
+    ),
     '',
   ].join('\n');
 }

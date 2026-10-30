@@ -58,7 +58,9 @@ describe('arcli __completar', () => {
     expect(await complete('config', 'establecer', 'punto')).toEqual(['puntoVenta']);
     expect(await complete('config', 'establecer', 'entorno', '')).toEqual(['testing', 'produccion']);
     expect(await complete('parametros', 'cot')).toEqual(['cotizacion']);
-    expect(await complete('factura', '')).toEqual(['a', 'b', 'c']);
+    // La E (exportacion) solo existe en la familia factura.
+    expect(await complete('factura', '')).toEqual(['a', 'b', 'c', 'e']);
+    expect(await complete('nota-credito', '')).toEqual(['a', 'b', 'c']);
   });
 
   it('takes the typed words as they are, even flags or "ayuda"', async () => {

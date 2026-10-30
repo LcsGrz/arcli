@@ -57,7 +57,7 @@ acepta un solo objeto, no un array.
 
 ```bash
 arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 203 \
-  --item "001|Servicios de consultoria|1|1500|unidad" --previsualizar --json
+  --numero 1 --actividad 620100 --item "001|Servicios de consultoría|1|1500|unidad" --previsualizar --json
 ```
 
 - Requeridos: `-m, --monto <n>`, `--cliente <texto>`, `--domicilio-cliente <texto>`,

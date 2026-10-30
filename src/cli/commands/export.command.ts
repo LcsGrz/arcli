@@ -1,7 +1,7 @@
 import type { Command } from 'commander';
 
 import { ExportService } from '../../modules/export/export.service';
-import type { ExportExecutionResult } from '../../modules/export/export.types';
+import { EXPORT_VOUCHER_KIND, type ExportExecutionResult } from '../../modules/export/export.types';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { ArcaExportGateway } from '../../services/arca/arca-export.gateway';
 import {
@@ -12,37 +12,16 @@ import {
   writeTerminalOutput,
 } from '../../ui';
 import { certificateWarnings, resolveArcaRuntime } from '../arca-runtime';
-import { getGlobalOptions, registerGlobalOptions } from '../global-options';
-import { configureSpanishHelp } from '../help';
-import { confirm } from '../interactive/prompts';
+import { getGlobalOptions } from '../global-options';
+import { chooseOne } from '../interactive/prompts';
 import { startSpinner } from '../spinner';
 
 import { REJECTED_EXIT_CODE } from './billing.command.shared';
-import { registerExportOptions } from './export.command.options';
 import { parseExportCommandPlan } from './export.command.parser';
 import { attachExportPdf } from './export.command.pdf';
 
-export const EXPORT_COMMAND_NAME = 'factura-exportacion';
-
 const ITEMS_DESCRIPTION_WARNING =
   '--descripcion se usa solo cuando no hay --item: el detalle del comprobante sale de los items.';
-
-const EXPORT_HELP = `
-Ejemplos:
-  arcli fe --monto 1500 --cliente "ACME LLC" --id-impositivo "12-3456789" \\
-    --domicilio-cliente "123 Main St" --pais-destino 203 \\
-    --item "001|Servicios de consultoria|1|1500|unidad" --previsualizar
-
-  arcli fe --monto 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" \\
-    --pais-destino Brasil --tipo-expo 1 --incoterm FOB --misma-moneda --emitir --json
-
-  arcli ${EXPORT_COMMAND_NAME} --cargar factura-e.json --emitir --exportar-pdf
-
-Por defecto la exportación es de servicios (--tipo-expo 2), en dólares (--moneda DOL) y con forma de pago
-"Transferencia Internacional". La actividad sale de --actividad o de exportacion.actividad en la config.
-El pago de la exportación se cancela en moneda extranjera: con --misma-moneda ARCA recibe CanMisMonExt = S.
-La vista previa consulta las tablas y la numeración de WSFEX, pero no emite nada.
-Los permisos de embarque van con --permiso y --permiso-existente, solo con --tipo-expo 1.`;
 
 function writeExportResult(
   result: ExportExecutionResult,
@@ -77,11 +56,29 @@ function resolveWarnings(
   return [...certificateWarningsList, ...ignored];
 }
 
+/** Esc cuenta como no, igual que en A, B y C. */
+async function promptForEmission(): Promise<boolean> {
+  return chooseOne(
+    `¿Querés emitir ${EXPORT_VOUCHER_KIND.displayName} ahora?`,
+    [
+      { name: 'Sí, emitir ahora', value: true },
+      { name: 'No, dejar sin emitir', value: false },
+    ],
+    true,
+    { escapeLabel: 'no emitir', escapeValue: false },
+  );
+}
+
+export interface ExportCommandOptions {
+  /** Avisos que arma quien llama, como los flags de A, B y C salteados en `arcli factura e`. */
+  readonly extraWarnings?: readonly string[];
+}
+
 /**
  * Un comprobante por ejecucion: resuelve el payload contra WSFEX, muestra la vista previa si corresponde,
  * emite y, si hay CAE, genera el PDF.
  */
-export async function executeExportCommand(command: Command): Promise<void> {
+export async function executeExportCommand(command: Command, options: ExportCommandOptions = {}): Promise<void> {
   const globalOptions = getGlobalOptions(command);
   let spinner: ReturnType<typeof startSpinner> = null;
 
@@ -97,7 +94,11 @@ export async function executeExportCommand(command: Command): Promise<void> {
 
     const resolved = await service.resolve(plan.input, gateway, runtime);
     // Los avisos de la resolucion (por ejemplo, la cotizacion de un dia anterior) van con los del certificado.
-    const warnings = [...resolveWarnings(certificateWarnings(runtime), plan.input), ...(resolved.warnings ?? [])];
+    const warnings = [
+      ...resolveWarnings(certificateWarnings(runtime), plan.input),
+      ...(options.extraWarnings ?? []),
+      ...(resolved.warnings ?? []),
+    ];
 
     spinner?.stop();
     spinner = null;
@@ -121,9 +122,7 @@ export async function executeExportCommand(command: Command): Promise<void> {
 
       writeTerminalOutput(formatExportResultAsText(result, { environment: runtime.environment, raw: useRaw }));
 
-      const confirmed = await confirm('¿Emitimos la factura de exportacion ahora?', 'Si, emitir ahora', 'No');
-
-      if (!confirmed) {
+      if (!(await promptForEmission())) {
         return;
       }
 
@@ -161,22 +160,4 @@ export async function executeExportCommand(command: Command): Promise<void> {
     spinner?.stop();
     throw error;
   }
-}
-
-/** `arcli factura-exportacion` con alias `arcli fe`. */
-export function registerExportCommand(program: Command): void {
-  const command = program
-    .command(EXPORT_COMMAND_NAME)
-    .description('factura de exportación E (WSFEX): previsualizar o emitir con items, incoterm y país de destino')
-    .alias('fe');
-
-  configureSpanishHelp(command);
-  registerGlobalOptions(command);
-  registerExportOptions(command);
-
-  command.action(async () => {
-    await executeExportCommand(command);
-  });
-
-  command.addHelpText('after', EXPORT_HELP);
 }

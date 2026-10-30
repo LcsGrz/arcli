@@ -8,8 +8,8 @@ import type { PdfOutcome } from '../pdf/pdf.types';
  */
 export const EXPORT_VOUCHER_KIND = {
   arcaType: 19,
-  displayName: 'Factura de exportacion E',
-  family: 'factura-exportacion',
+  displayName: 'Factura de exportación E',
+  family: 'factura',
   letter: 'e',
   shortcut: 'fe',
 } as const;
@@ -20,7 +20,7 @@ export type ExportVoucherLetter = ExportVoucherKind['letter'];
 
 /** Tabla FEXGetPARAM_Tipo_Expo. */
 export const EXPORT_TYPES = {
-  1: 'Exportacion definitiva de bienes',
+  1: 'Exportación definitiva de bienes',
   2: 'Servicios',
   4: 'Otros',
 } as const;

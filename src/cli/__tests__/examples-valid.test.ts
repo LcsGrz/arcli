@@ -10,11 +10,14 @@ import type { BillingGateway } from '../../modules/billing/billing.types.interna
 import { VOUCHER_FAMILIES, VOUCHER_SHORTCUTS } from '../../modules/billing/voucher-kind-map';
 import { ConfigService } from '../../modules/config/config.service';
 import { renderExamples } from '../../modules/examples/examples';
+import { ExportService } from '../../modules/export/export.service';
+import { EXPORT_VOUCHER_KIND, type ExportGateway } from '../../modules/export/export.types';
 import type { PadronGateway } from '../../modules/padron/padron';
 import { stripAnsi } from '../../ui';
 import { parseBillingCommandPlan } from '../commands/billing.command.parser';
 import { resolveBillingCommandDefaults } from '../commands/billing.command.shared';
-import { createFamilyHelp, createProgramHelp, createShortcutHelp } from '../help';
+import { parseExportCommandPlan } from '../commands/export.command.parser';
+import { createExportShortcutHelp, createFamilyHelp, createProgramHelp, createShortcutHelp } from '../help';
 import { createProgram } from '../program';
 
 /**
@@ -62,7 +65,38 @@ const gateway: BillingGateway = {
   getQuotation: async () => 1000,
 };
 
-const captured: Array<{ command: Command; shortcut: VoucherShortcut }> = [];
+/** Las tablas de WSFEX que usan los ejemplos de la factura E, sin red. */
+const exportGateway: ExportGateway = {
+  authorize: () => Promise.reject(new Error('los ejemplos no emiten')),
+  getActivities: async () => [{ id: 620100, name: 'SERVICIOS DE CONSULTORES EN INFORMATICA' }],
+  getCurrencies: async () => [{ code: 'DOL', name: 'Dólar Estadounidense' }],
+  getDestinationCountries: async () => [
+    { code: 203, name: 'BRASIL' },
+    { code: 212, name: 'ESTADOS UNIDOS' },
+  ],
+  getDestinationCountryCuits: async () => [
+    { countryName: 'BRASIL - Persona Jurídica', cuit: 55000000050 },
+    { countryName: 'ESTADOS UNIDOS - Persona Jurídica', cuit: 55000002126 },
+  ],
+  getIncoterms: async () => [{ code: 'FOB', name: 'FOB' }],
+  getLanguages: async () => [{ id: 1, name: 'Español' }],
+  getLastRequestId: async () => 0,
+  getQuotations: async () => [{ code: 'DOL', rate: 1000 }],
+  getUnits: async () => [{ id: 7, name: 'unidades' }],
+};
+
+const captured: Array<{ command: Command; shortcut: VoucherShortcut | typeof EXPORT_VOUCHER_KIND.shortcut }> = [];
+
+vi.mock('../commands/export.command', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../commands/export.command')>();
+
+  return {
+    ...original,
+    executeExportCommand: async (command: Command) => {
+      captured.push({ command, shortcut: EXPORT_VOUCHER_KIND.shortcut });
+    },
+  };
+});
 
 vi.mock('../commands/billing.command.shared', async (importOriginal) => {
   const original = await importOriginal<typeof import('../commands/billing.command.shared')>();
@@ -83,7 +117,7 @@ interface Example {
   readonly source: string;
 }
 
-const BILLING_COMMANDS = new Set<string>([...VOUCHER_SHORTCUTS, ...VOUCHER_FAMILIES]);
+const BILLING_COMMANDS = new Set<string>([...VOUCHER_SHORTCUTS, ...VOUCHER_FAMILIES, EXPORT_VOUCHER_KIND.shortcut]);
 const HELP_TOKENS = new Set(['ayuda', '--ayuda', '--help', '-h', 'help']);
 
 const root = new URL('../../../', import.meta.url);
@@ -224,6 +258,7 @@ function collectHelpExamples(): Example[] {
       examplesFromText(createShortcutHelp(shortcut), `arcli ${shortcut} --ayuda`),
     ),
     ...VOUCHER_FAMILIES.flatMap((family) => examplesFromText(createFamilyHelp(family), `arcli ${family} --ayuda`)),
+    ...examplesFromText(createExportShortcutHelp(), `arcli ${EXPORT_VOUCHER_KIND.shortcut} --ayuda`),
   ];
 }
 
@@ -332,6 +367,14 @@ async function validate(args: readonly string[], settings: Example['config'] = [
 
   if (!call) throw new Error('no llego a un comando de facturacion');
 
+  if (call.shortcut === EXPORT_VOUCHER_KIND.shortcut) {
+    const exportPlan = parseExportCommandPlan(call.command);
+
+    await new ExportService().resolve(exportPlan.input, exportGateway, { config, environment: 'testing' }, NOW);
+
+    return;
+  }
+
   const plan = parseBillingCommandPlan(call.command, call.shortcut, resolveBillingCommandDefaults(config));
 
   if (plan.invalidItems.length > 0) throw new Error(plan.invalidItems.map((item) => item.message).join('; '));
@@ -377,7 +420,8 @@ describe('ejemplos de facturacion validos', () => {
     const validatable = (examples: readonly Example[]) => examples.filter((example) => isValidatable(example.args));
 
     expect(validatable(collectHelpExamples()).length).toBeGreaterThan(VOUCHER_SHORTCUTS.length * 3);
-    expect(validatable(collectExamplesCommand())).toHaveLength(VOUCHER_SHORTCUTS.length * 4);
+    // Cuatro por atajo, mas los cuatro de la factura E.
+    expect(validatable(collectExamplesCommand())).toHaveLength((VOUCHER_SHORTCUTS.length + 1) * 4);
     expect(validatable(collectDocExamples()).length).toBeGreaterThan(20);
     expect(collectJsonExamples().length).toBeGreaterThan(3);
   });

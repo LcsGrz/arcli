@@ -534,7 +534,8 @@ La `E` no lleva comprobantes asociados ni datos opcionales todavía, así que `s
 #### Ejemplo mínimo funcional
 
 ```bash
-arcli fe --monto 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 203
+arcli fe --monto 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 203 \
+  --numero 1 --actividad 620100
 ```
 
 Con los datos del receptor del exterior (CUIT del país, ID impositivo, razón social y domicilio), items, incoterm y
@@ -542,7 +543,7 @@ salida JSON:
 
 ```bash
 arcli fe -m 1500 --cliente "ACME LLC" --id-impositivo "12-3456789" --domicilio-cliente "123 Main St" \
-  --pais-destino Brasil --cuit-pais 55000002126 --tipo-expo 1 --incoterm FOB \
+  --pais-destino 212 --cuit-pais 55000002126 --tipo-expo 1 --incoterm FOB --numero 2 --actividad 620100 \
   --item "001|Bienes varios|1|1500|unidad" --emitir --json
 ```
 
@@ -550,7 +551,7 @@ Cobrando en dólares, con la cotización de aduana de ARCA (`--misma-moneda`):
 
 ```bash
 arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 212 \
-  --actividad 620900 --misma-moneda --previsualizar
+  --numero 3 --actividad 620100 --misma-moneda --previsualizar
 ```
 
 #### Resumen rápido de parámetros
@@ -593,7 +594,7 @@ Cada `--item` se separa con `|` para no pelear con las comas de los importes. La
 
 ```bash
 arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 203 \
-  --item "001|Servicio de consultoria|1|1000|unidad" \
+  --numero 4 --actividad 620100 --item "001|Servicio de consultoría|1|1000|unidad" \
   --item "002|Soporte|2|250|unidades" --previsualizar
 ```
 
