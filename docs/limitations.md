@@ -35,6 +35,10 @@ WSFEX emite solo la factura `E`: las notas de crédito y débito de exportación
 - El certificado tiene que estar autorizado a `wsfex`, además de `wsfe`. Se puede usar uno propio con `exportacion.cert.*` / `exportacion.key.*` ([configuración](configuration.md#certificados-de-exportación-wsfex)).
 - La cotización es la de aduana que publica WSFEX (`FEXGetPARAM_MON_CON_COTIZACION`), no la de `wsfe`, y no se toma de la clave `cotizacion` de la config.
 
+### Recibo C solo por comandos
+
+El Recibo C (`rc`) se emite con flags y `--cargar`. El modo interactivo no tiene un flujo propio para recibos: el asistente de facturas y las notas no lo ofrecen, aunque `Historial` sí lo lista. El PDF usa la plantilla de factura con el título `RECIBO C`, no el formato de recibo del portal de ARCA.
+
 ### PDF solo al emitir
 
 El PDF se genera en el momento de emitir. Todavía no se puede regenerar el de un comprobante ya emitido: la consulta de ARCA que usa el SDK (`FECompConsultar`) no devuelve el detalle de IVA, los comprobantes asociados ni las fechas de servicio. Tampoco hay ítems detallados en A, B y C: el PDF lleva un renglón por alícuota con la descripción que pases (la factura de exportación `E` sí imprime los items de WSFEX). Ver [PDF de comprobantes](pdf.md#qué-no-hace-todavía).

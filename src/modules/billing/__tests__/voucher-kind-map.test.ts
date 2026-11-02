@@ -10,8 +10,21 @@ import {
 } from '../voucher-kind-map';
 
 describe('voucher-kind-map', () => {
-  it('defines the 18 supported voucher shortcuts', () => {
-    expect(VOUCHER_SHORTCUTS).toHaveLength(18);
+  it('defines the 19 supported voucher shortcuts', () => {
+    expect(VOUCHER_SHORTCUTS).toHaveLength(19);
+  });
+
+  it('defines a recibo C that is not a note and needs no associated voucher', () => {
+    expect(VOUCHER_KIND_MAP.rc).toMatchObject({
+      arcaType: 15,
+      displayName: 'Recibo C',
+      family: 'recibo',
+      isElectronicCredit: false,
+      letter: 'c',
+      requiresAssociatedVoucher: false,
+    });
+    expect(getVoucherKindByFamilyAndLetter('recibo', 'c')?.shortcut).toBe('rc');
+    expect(getVoucherKindByFamilyAndLetter('recibo', 'a')).toBeNull();
   });
 
   it('resolves a voucher by shortcut', () => {
@@ -41,7 +54,7 @@ describe('voucher-kind-map', () => {
     expect(isVoucherShortcut('zzz')).toBe(false);
   });
 
-  it('exposes the six configured voucher families', () => {
+  it('exposes the seven configured voucher families', () => {
     expect(VOUCHER_FAMILIES).toEqual([
       'factura',
       'nota-credito',
@@ -49,6 +62,7 @@ describe('voucher-kind-map', () => {
       'factura-credito-electronica',
       'nota-credito-electronica',
       'nota-debito-electronica',
+      'recibo',
     ]);
   });
 });

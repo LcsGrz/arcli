@@ -53,7 +53,7 @@ Reglas de dependencia:
 
 ### Agregar un comprobante
 
-Dentro del alcance del proyecto (A, B y C de factura, nota de crédito y débito, y sus versiones FCE):
+Dentro del alcance del proyecto (A, B y C de factura, nota de crédito y débito, sus versiones FCE y Recibo C):
 
 1. Definilo en `src/modules/billing/voucher-kind-map.ts` (`VOUCHER_KIND_MAP`): tipo ARCA, familia, letra y si requiere comprobante asociado.
 2. Los comandos se registran solos desde ese mapa (`registerBillingShortcutCommands` y `registerBillingFamilyCommands`).

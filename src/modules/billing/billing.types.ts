@@ -6,7 +6,8 @@ export type VoucherFamily =
   | 'nota-debito'
   | 'factura-credito-electronica'
   | 'nota-credito-electronica'
-  | 'nota-debito-electronica';
+  | 'nota-debito-electronica'
+  | 'recibo';
 
 export type VoucherShortcut =
   | 'fa'
@@ -26,7 +27,8 @@ export type VoucherShortcut =
   | 'ncec'
   | 'ndea'
   | 'ndeb'
-  | 'ndec';
+  | 'ndec'
+  | 'rc';
 
 export type VoucherDisplayName =
   | 'Factura A'
@@ -46,7 +48,8 @@ export type VoucherDisplayName =
   | 'Nota de crédito electrónica C'
   | 'Nota de débito electrónica A'
   | 'Nota de débito electrónica B'
-  | 'Nota de débito electrónica C';
+  | 'Nota de débito electrónica C'
+  | 'Recibo C';
 
 export interface VoucherKindDefinition {
   readonly arcaType: number;

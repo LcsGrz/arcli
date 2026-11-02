@@ -47,6 +47,7 @@ Shortcuts (`family` = comando alternativo `arcli <family> <letra>`, ej. `arcli f
 | fcea, fceb, fcec | Factura de crédito electrónica A/B/C | factura-credito-electronica | no |
 | ncea, nceb, ncec | Nota de crédito electrónica A/B/C | nota-credito-electronica | sí |
 | ndea, ndeb, ndec | Nota de débito electrónica A/B/C | nota-debito-electronica | sí |
+| rc | Recibo C (solo letra C) | recibo | no |
 
 ## Factura de exportación E (WSFEX)
 
