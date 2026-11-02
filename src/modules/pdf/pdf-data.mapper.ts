@@ -113,6 +113,7 @@ export function mapBillingResultToPdfData(
   return {
     cae: response.cae,
     caeFechaVencimiento: response.caeVencimiento,
+    ...(voucherKind.family === 'recibo' ? { cbteDescripcion: 'RECIBO' } : {}),
     cbteDesde: number,
     cbteFecha: payload.CbteFch,
     cbteHasta: number,

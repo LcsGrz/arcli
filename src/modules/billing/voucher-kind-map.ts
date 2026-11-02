@@ -163,6 +163,15 @@ export const VOUCHER_KIND_MAP: Record<VoucherShortcut, VoucherKindDefinition> = 
     requiresAssociatedVoucher: true,
     shortcut: 'ndec',
   },
+  rc: {
+    arcaType: 15,
+    displayName: 'Recibo C',
+    family: 'recibo',
+    isElectronicCredit: false,
+    letter: 'c',
+    requiresAssociatedVoucher: false,
+    shortcut: 'rc',
+  },
 };
 
 export const VOUCHER_SHORTCUTS = Object.freeze(Object.keys(VOUCHER_KIND_MAP) as VoucherShortcut[]);

@@ -28,15 +28,19 @@ const FAMILY_LABELS: Record<VoucherFamily, string> = {
   'nota-credito-electronica': 'Nota de crédito electrónica',
   'nota-debito': 'Nota de débito',
   'nota-debito-electronica': 'Nota de débito electrónica',
+  recibo: 'Recibo',
 };
 
-const FAMILY_SHORTCUTS: Record<VoucherFamily, readonly [VoucherShortcut, VoucherShortcut, VoucherShortcut]> = {
+type FamilyShortcuts = readonly [VoucherShortcut | null, VoucherShortcut | null, VoucherShortcut | null];
+
+const FAMILY_SHORTCUTS: Record<VoucherFamily, FamilyShortcuts> = {
   factura: ['fa', 'fb', 'fc'],
   'factura-credito-electronica': ['fcea', 'fceb', 'fcec'],
   'nota-credito': ['nca', 'ncb', 'ncc'],
   'nota-credito-electronica': ['ncea', 'nceb', 'ncec'],
   'nota-debito': ['nda', 'ndb', 'ndc'],
   'nota-debito-electronica': ['ndea', 'ndeb', 'ndec'],
+  recibo: [null, null, 'rc'],
 };
 
 /** Lo que vale para cualquier comprobante. */
@@ -87,18 +91,22 @@ function compactList(values: readonly string[]): string {
 }
 
 /** La letra E (exportacion, WSFEX) solo existe en la familia `factura`. */
-function familyShortcuts(family: VoucherFamily): readonly string[] {
+function familyShortcuts(family: VoucherFamily): readonly (string | null)[] {
   return family === EXPORT_VOUCHER_KIND.family
     ? [...FAMILY_SHORTCUTS[family], EXPORT_VOUCHER_KIND.shortcut]
     : FAMILY_SHORTCUTS[family];
 }
 
-/** Los atajos en una tabla familia × letra, en lugar de un renglon por atajo en la lista de comandos. */
+/** Los atajos en una tabla familia × letra, en lugar de un renglón por atajo en la lista de comandos. */
 function createProgramVoucherTable(): string {
   const width = Math.max(...VOUCHER_FAMILIES.map((family) => family.length)) + 2;
   const column = (value: string) => value.padEnd(7);
   const rows = VOUCHER_FAMILIES.map(
-    (family) => `  ${family.padEnd(width)}${familyShortcuts(family).map(column).join('').trimEnd()}`,
+    (family) =>
+      `  ${family.padEnd(width)}${familyShortcuts(family)
+        .map((shortcut) => column(shortcut ?? '-'))
+        .join('')
+        .trimEnd()}`,
   );
 
   return section(
@@ -170,7 +178,9 @@ function createFamilySummary(family: VoucherFamily): string {
   const hasExport = family === EXPORT_VOUCHER_KIND.family;
   const summary = hasExport
     ? `${FAMILY_LABELS[family]}, letras A, B, C y E (exportación): arcli ${family} <a|b|c|e>. Atajos: ${a}, ${b}, ${c} y ${EXPORT_VOUCHER_KIND.shortcut}. Los flags que no aplican a la letra se saltean con un aviso.`
-    : `${FAMILY_LABELS[family]}, letras A, B y C: arcli ${family} <a|b|c>. Atajos: ${a}, ${b} y ${c}.`;
+    : a && b && c
+      ? `${FAMILY_LABELS[family]}, letras A, B y C: arcli ${family} <a|b|c>. Atajos: ${a}, ${b} y ${c}.`
+      : `${FAMILY_LABELS[family]}, solo letra C: arcli ${family} c. Atajo: ${c}.`;
 
   return [
     section('Familia', compactList([summary])),

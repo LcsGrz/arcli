@@ -74,6 +74,7 @@ Después cambian algunas cosas según la familia:
 | `factura-credito-electronica` | `<a\|b\|c>`    | Emite o previsualiza Factura de crédito electrónica A, B o C       |
 | `nota-credito-electronica`    | `<a\|b\|c>`    | Emite o previsualiza Nota de crédito electrónica A, B o C          |
 | `nota-debito-electronica`     | `<a\|b\|c>`    | Emite o previsualiza Nota de débito electrónica A, B o C           |
+| `recibo`                      | `<c>`          | Emite o previsualiza Recibo C (solo letra C)                       |
 
 ### Shortcuts
 
@@ -98,6 +99,7 @@ Después cambian algunas cosas según la familia:
 | `ndea`   | `nota-debito-electronica a`     |
 | `ndeb`   | `nota-debito-electronica b`     |
 | `ndec`   | `nota-debito-electronica c`     |
+| `rc`     | `recibo c`                      |
 
 `arcli factura e` y `arcli fe` son la misma Factura de exportación `E`: la letra `E` de la familia `factura` se resuelve por WSFEX, con sus propios flags (ver [Factura de exportación](#factura-de-exportación-e-wsfex)).
 

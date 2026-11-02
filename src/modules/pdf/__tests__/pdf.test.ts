@@ -101,6 +101,12 @@ describe('buildPdfFileName', () => {
     expect(kind && buildPdfFileName(kind, 3, 125)).toBe('factura-c_0003-00000125.pdf');
     expect(note && buildPdfFileName(note, 12, 7)).toBe('nota-credito-electronica-a_0012-00000007.pdf');
   });
+
+  it('names a recibo C', () => {
+    const recibo = getVoucherKindByShortcut('rc');
+
+    expect(recibo && buildPdfFileName(recibo, 1, 99)).toBe('recibo-c_0001-00000099.pdf');
+  });
 });
 
 describe('resolvePdfIssuer', () => {
@@ -157,6 +163,14 @@ describe('mapBillingResultToPdfData', () => {
       items: [{ descripcion: 'Servicios de septiembre', subtotal: 150000 }],
       receptor: { documentoNro: '- -', documentoTipo: 'Documento', razonSocial: 'Consumidor Final' },
     });
+    expect(data.iva).toBeUndefined();
+    expect(data.cbteDescripcion).toBeUndefined();
+  });
+
+  it('titles a recibo C and keeps ARCA type 15 for the QR', () => {
+    const data = mapBillingResultToPdfData(createResult('rc', { ImpNeto: 150000, ImpTotal: 150000 }), issuer);
+
+    expect(data).toMatchObject({ cbteDescripcion: 'RECIBO', cbteLetra: 'C', cbteTipo: 15, importeIva: 0 });
     expect(data.iva).toBeUndefined();
   });
 
