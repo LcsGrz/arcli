@@ -8,7 +8,13 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+## [2.2.0] - 2026-11-02
+
 Trae la factura de exportación `E` (`arcli fe`) sobre WSFEX: items, país de destino, incoterm y permisos de embarque, con credenciales propias para `wsfex`, PDF con el diseño de exportación y modo interactivo. Es todo agregado: los comandos y flags de A, B, C y FCE siguen igual. Gracias a [Manuel Aller](https://github.com/itManuel), que la trajo en [#67](https://github.com/LcsGrz/arcli/pull/67).
+
+Además suma el autocompletado con Tab, el número del comprobante en el JSON, la validación del dígito verificador de todo CUIT y una ayuda más corta y en español, y corrige varios errores de la revisión del repo.
+
+Dos cambios pueden afectar scripts: los mensajes ahora usan voseo y tildes (si comparás el texto de un error en lugar de `codigo`), y un `montoTotal` con más de 2 decimales en el JSON da error en lugar de redondearse. Ver "Cambiado" y "Corregido".
 
 ### Agregado
 
@@ -25,7 +31,7 @@ Trae la factura de exportación `E` (`arcli fe`) sobre WSFEX: items, país de de
 - **Factura E en el modo interactivo:** se elige en el mismo selector que A, B y C y tiene su propio asistente (cliente, país, tipo, monto, moneda, incoterm en bienes, pago, actividad y número), con vista previa, comando equivalente y PDF. Ver [modo interactivo](docs/modo-interactivo.md#factura-de-exportación-e).
 - **CUIT con dígito verificador y con o sin guiones en todos lados:** `arcli padron`, `arcli fce-obligado`, `--cuit`, `--cuil`, `--acuit`, `comprobanteAsociado.cuit` en el JSON, `config establecer cuit` y el modo interactivo aceptan `20-33333333-4` o `20333333334`, y rechazan un CUIT mal tipeado antes de llegar a ARCA. Antes `arcli padron 20-20179706-4` fallaba y nadie chequeaba el dígito verificador.
 - **Error `ARCA_LAST_VOUCHER_ERROR`:** si ARCA rechaza el pedido del último número (por ejemplo, con un punto de venta no habilitado para web service), la facturación y `arcli ultimos` cortan ahí con el mensaje de ARCA y una sugerencia. No se emite nada.
-- **Esc en las preguntas del CLI:** "¿Desea emitir … ahora?", que aparece sin `--emitir` en una terminal, ahora se cierra con Esc como un "no", igual que en el modo interactivo y en las preguntas del PDF.
+- **Esc en las preguntas del CLI:** "¿Querés emitir … ahora?", que aparece sin `--emitir` en una terminal, ahora se cierra con Esc como un "no", igual que en el modo interactivo y en las preguntas del PDF.
 - **`numero` en el JSON de facturación:** el número que le tocó al comprobante emitido (`null` en una previsualización), y `solicitud` lo trae en `CbteDesde`/`CbteHasta`. El panel de texto muestra `Número: 00003-00000125`. Antes el número solo se veía con `--bruto`.
 - **Autocompletado con Tab** para bash, zsh y fish. Se instala con `arcli completado instalar`, que agrega una línea al archivo de inicio del shell (`~/.zshrc`, `~/.bashrc`…), y se saca con `arcli completado desinstalar`; también desde el modo interactivo, en Configuración → Autocompletado. Completa comandos y atajos, flags, valores (`--iva-receptor`, `--concepto`, `--alicuota`, `--moneda`, `--transferencia`, `--ac`), claves de config y sus valores, tablas de `parametros` y letras de las familias; donde va una ruta, archivos. No hay que reinstalarlo al actualizar arcli. Ver [Autocompletado](docs/cli-reference.md#autocompletado).
 
@@ -382,7 +388,8 @@ Primera versión publicada en npm.
 - `llms.txt`: referencia condensada para que un agente de IA con acceso a terminal ejecute el CLI.
 - Publicación con npm Trusted Publishers (OIDC).
 
-[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v2.1.0...HEAD
+[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v2.2.0...HEAD
+[2.2.0]: https://github.com/LcsGrz/arcli/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/LcsGrz/arcli/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/LcsGrz/arcli/compare/v1.8.0...v2.0.0
 [1.8.0]: https://github.com/LcsGrz/arcli/compare/v1.7.1...v1.8.0
