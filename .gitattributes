@@ -1,0 +1,7 @@
+# LF en todos los SO: los tests leen los docs y los parsean por línea.
+* text=auto eol=lf
+
+*.gif binary
+*.mp4 binary
+*.png binary
+*.pdf binary

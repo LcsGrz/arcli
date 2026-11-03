@@ -8,6 +8,10 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+### Corregido
+
+- **`arcli pdf instalar` en Windows:** la descarga del navegador pasaba por `cmd.exe`, que corta las rutas con espacios (como `C:\Users\Nombre Apellido`), y fallaba. Ahora la shell se usa solo para correr `npm.cmd`.
+
 ### Documentación
 
 - El README explica cómo instalar con pnpm y Yarn además de npm, cómo probarlo con `npx` y cómo actualizar, y suma las secciones "Ayuda y soporte" (preguntas en [Discussions](https://github.com/LcsGrz/arcli/discussions), bugs en issues) y "Estabilidad" (qué es contrato público y qué puede cambiar entre versiones).

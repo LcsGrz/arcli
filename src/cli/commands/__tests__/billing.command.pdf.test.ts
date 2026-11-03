@@ -1,3 +1,4 @@
+import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { BillingCommandInput } from '../../../modules/billing/billing.schemas';
@@ -108,7 +109,7 @@ describe('attachPdfs', () => {
       deps,
     );
 
-    expect(result.pdf).toEqual({ path: '/pdfs/20123456786/factura-c_0003-00000125.pdf' });
+    expect(result.pdf).toEqual({ path: join('/pdfs', '20123456786', 'factura-c_0003-00000125.pdf') });
   });
 
   it('treats Ctrl+C in the PDF question as no, because the voucher is already issued', async () => {
@@ -186,7 +187,7 @@ describe('attachPdfs', () => {
     );
 
     expect(plugin.install).toHaveBeenCalled();
-    expect(result.pdf).toEqual({ path: '/pdfs/20123456786/factura-c_0003-00000125.pdf' });
+    expect(result.pdf).toEqual({ path: join('/pdfs', '20123456786', 'factura-c_0003-00000125.pdf') });
   });
 
   it('checks the issuer before downloading anything', async () => {

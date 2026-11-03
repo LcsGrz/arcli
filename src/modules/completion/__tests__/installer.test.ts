@@ -42,7 +42,7 @@ describe('resolveCompletionPath', () => {
     const environment = createEnvironment();
 
     expect(resolveCompletionPath('zsh', environment)).toBe(join(environment.home, '.zshrc'));
-    expect(resolveCompletionPath('zsh', { ...environment, zdotdir: '/z' })).toBe('/z/.zshrc');
+    expect(resolveCompletionPath('zsh', { ...environment, zdotdir: '/z' })).toBe(join('/z', '.zshrc'));
     expect(resolveCompletionPath('bash', environment)).toBe(join(environment.home, '.bashrc'));
     expect(resolveCompletionPath('fish', environment)).toBe(
       join(environment.home, '.config', 'fish', 'completions', 'arcli.fish'),

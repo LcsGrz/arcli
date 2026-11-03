@@ -63,8 +63,10 @@ export interface PdfPluginOptions {
 
 export const runProcessWithSpawn: ProcessRunner = (command, args, options) =>
   new Promise((resolve) => {
-    // En Windows npm es un .cmd y necesita shell.
-    const child = spawn(command, args, { cwd: options.cwd, env: options.env, shell: process.platform === 'win32' });
+    // En Windows npm es un .cmd y necesita shell. Solo ese caso: con shell, una ruta con espacios (node.exe en
+    // C:\Program Files) se corta en el espacio.
+    const shell = process.platform === 'win32' && /\.(cmd|bat)$/i.test(command);
+    const child = spawn(command, args, { cwd: options.cwd, env: options.env, shell });
     let output = '';
     const timer = setTimeout(() => {
       child.kill();

@@ -1,6 +1,6 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { basename, dirname, join } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { InputValidationError } from '../../../lib/errors/app-error';
@@ -102,7 +102,7 @@ describe('config-value-parser', () => {
   });
 
   it('trims free-form string keys without transforming them', () => {
-    expect(parseConfigValue('ticketPath', '  /ruta/a/tickets  ')).toBe('/ruta/a/tickets');
+    expect(parseConfigValue('ticketPath', '  /ruta/a/tickets  ')).toBe(resolve('/ruta/a/tickets'));
   });
 
   it('rejects empty free-form string keys', () => {
@@ -150,7 +150,7 @@ describe('config-value-parser', () => {
   it('parses the PDF mode and folder', () => {
     expect(parseConfigValue('pdf', 'Siempre')).toBe('siempre');
     expect(() => parseConfigValue('pdf', 'a-veces')).toThrow();
-    expect(parseConfigValue('pdfCarpeta', '/tmp/comprobantes')).toBe('/tmp/comprobantes');
+    expect(parseConfigValue('pdfCarpeta', '/tmp/comprobantes')).toBe(resolve('/tmp/comprobantes'));
   });
 
   it('requires the year in the start of activities date', () => {
