@@ -26,11 +26,22 @@ CLI para previsualizar y emitir comprobantes electrónicos de ARCA (ex AFIP) des
 
 ## Instalación
 
-Requiere Node.js 22.22.1 o superior.
+Requiere Node.js 22.22.1 o superior. Si no lo tenés, bajá la versión LTS de [nodejs.org](https://nodejs.org/es/download): trae `npm`.
 
 ```bash
 npm install -g arcli
 ```
+
+También con otros gestores de paquetes:
+
+```bash
+pnpm add -g arcli
+yarn global add arcli   # Yarn 1; Yarn 2 o superior no instala paquetes globales
+```
+
+Para probarlo sin instalar nada: `npx arcli --ayuda`.
+
+Para actualizar, repetí la instalación con `arcli@latest` (por ejemplo, `npm install -g arcli@latest`). Funciona en macOS, Linux y Windows.
 
 Opcional: autocompletado con Tab de comandos, flags y valores, en bash, zsh o fish. Se instala con `arcli completado instalar` y se saca con `arcli completado desinstalar` ([detalle](docs/cli-reference.md#autocompletado)).
 
@@ -95,9 +106,27 @@ yarn dev --ayuda
 
 Antes de abrir un PR: `yarn typecheck`, `yarn lint` y `yarn test`. Más en la [guía de desarrollo](https://github.com/LcsGrz/arcli/blob/main/docs/development.md) y la [arquitectura](https://github.com/LcsGrz/arcli/blob/main/docs/architecture.md).
 
+## Ayuda y soporte
+
+- **Preguntas y dudas de uso** (configuración, certificados, cómo facturar algo): [GitHub Discussions](https://github.com/LcsGrz/arcli/discussions).
+- **Bugs y propuestas**: [issues](https://github.com/LcsGrz/arcli/issues/new/choose), con las plantillas.
+- **Vulnerabilidades**: en privado, como dice [SECURITY.md](https://github.com/LcsGrz/arcli/blob/main/SECURITY.md).
+
+Antes de preguntar, puede que ya esté en [Troubleshooting](https://github.com/LcsGrz/arcli/blob/main/docs/troubleshooting.md). No pegues certificados, claves, tickets ni la salida de `--bruto` en ningún lado.
+
+## Estabilidad
+
+ARCLI usa [versionado semántico](https://semver.org/lang/es/). Son contrato público, y solo cambian de forma incompatible en una versión mayor y avisándolo en el [CHANGELOG](https://github.com/LcsGrz/arcli/blob/main/CHANGELOG.md):
+
+- los comandos y sus flags,
+- las claves de configuración,
+- el JSON de entrada (`--cargar`) y de salida (`--json`), incluidos los `codigo` de error.
+
+La salida en texto (tablas, mensajes, colores) es para leer, no para parsear, y puede cambiar en cualquier versión. Para scripts, usá `--json`.
+
 ## Contribuir
 
-Leé [CONTRIBUTING.md](https://github.com/LcsGrz/arcli/blob/main/CONTRIBUTING.md). Para vulnerabilidades, ver [SECURITY.md](https://github.com/LcsGrz/arcli/blob/main/SECURITY.md); no subas certificados, claves ni tokens reales a issues ni PRs.
+Leé [CONTRIBUTING.md](https://github.com/LcsGrz/arcli/blob/main/CONTRIBUTING.md) y el [código de conducta](https://github.com/LcsGrz/arcli/blob/main/CODE_OF_CONDUCT.md). Para vulnerabilidades, ver [SECURITY.md](https://github.com/LcsGrz/arcli/blob/main/SECURITY.md); no subas certificados, claves ni tokens reales a issues ni PRs.
 
 ## Agradecimientos
 

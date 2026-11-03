@@ -8,6 +8,12 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+### Documentación
+
+- El README explica cómo instalar con pnpm y Yarn además de npm, cómo probarlo con `npx` y cómo actualizar, y suma las secciones "Ayuda y soporte" (preguntas en [Discussions](https://github.com/LcsGrz/arcli/discussions), bugs en issues) y "Estabilidad" (qué es contrato público y qué puede cambiar entre versiones).
+- Plantillas de issue y de PR, y [código de conducta](CODE_OF_CONDUCT.md).
+- El CI corre también en Windows, macOS y Node 26.
+
 ## [2.2.0] - 2026-11-02
 
 Trae la factura de exportación `E` (`arcli fe`) sobre WSFEX: items, país de destino, incoterm y permisos de embarque, con credenciales propias para `wsfex`, PDF con el diseño de exportación y modo interactivo. Es todo agregado: los comandos y flags de A, B, C y FCE siguen igual. Gracias a [Manuel Aller](https://github.com/itManuel), que la trajo en [#67](https://github.com/LcsGrz/arcli/pull/67).
