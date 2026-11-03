@@ -8,6 +8,10 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+## [2.2.1] - 2026-11-03
+
+Corrige `arcli pdf instalar` en Windows y suma lo necesario para recibir contribuciones: plantillas de issue y de PR, código de conducta, Discussions para preguntas, y un CI que también corre en Windows, macOS y Node 26. No cambian comandos, flags, claves de config ni el `--json`.
+
 ### Corregido
 
 - **`arcli pdf instalar` en Windows:** la descarga del navegador pasaba por `cmd.exe`, que corta las rutas con espacios (como `C:\Users\Nombre Apellido`), y fallaba. Ahora la shell se usa solo para correr `npm.cmd`.
@@ -398,7 +402,8 @@ Primera versión publicada en npm.
 - `llms.txt`: referencia condensada para que un agente de IA con acceso a terminal ejecute el CLI.
 - Publicación con npm Trusted Publishers (OIDC).
 
-[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v2.2.0...HEAD
+[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v2.2.1...HEAD
+[2.2.1]: https://github.com/LcsGrz/arcli/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/LcsGrz/arcli/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/LcsGrz/arcli/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/LcsGrz/arcli/compare/v1.8.0...v2.0.0
