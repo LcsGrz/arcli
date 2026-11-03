@@ -2,7 +2,7 @@
 
 # Contribuir a ARCLI
 
-Gracias por querer mejorar ARCLI. Se aceptan bugs, mejoras de uso, documentación y features nuevas. Para estas últimas, o cualquier cambio grande, abrí primero un issue. Si tenés una pregunta, usá [Discussions](https://github.com/LcsGrz/arcli/discussions).
+Gracias por querer mejorar ARCLI. Se aceptan bugs, mejoras de uso, documentación y features nuevas. Si ya tenés el cambio hecho, abrí el PR directo y contá en la descripción qué problema resuelve. Si todavía no empezaste algo grande o que cambia el contrato (ver abajo), conviene abrir antes un issue, así no trabajás en algo que después no entra. Si tenés una pregunta, usá [Discussions](https://github.com/LcsGrz/arcli/discussions).
 
 Participar en el proyecto implica respetar el [código de conducta](CODE_OF_CONDUCT.md).
 
@@ -19,7 +19,7 @@ yarn dev --ayuda
 
 ## Contrato del CLI
 
-Los comandos, los flags, las claves de configuración y los formatos JSON son contrato público. No se cambian en silencio: primero se discute en un issue, y después se actualizan implementación, ayuda, tests y documentación. Si tocás alguno, avisalo en el PR.
+Los comandos, los flags, las claves de configuración y los formatos JSON son contrato público. No se cambian en silencio: el cambio se discute (en un issue o en el mismo PR) y se actualizan implementación, ayuda, tests y documentación. Si tocás alguno, avisalo en la descripción del PR. Un cambio que rompe compatibilidad puede tener que esperar a una versión mayor.
 
 El alcance de comprobantes es Factura, Nota de Crédito y Nota de Débito A, B y C, sus versiones de Factura de Crédito Electrónica y la Factura de exportación E. Otros comprobantes quedan fuera salvo decisión explícita.
 

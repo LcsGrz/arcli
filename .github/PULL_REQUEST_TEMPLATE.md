@@ -2,14 +2,16 @@
 
 <!-- Qué cambia para quien usa el CLI. Si es interno (refactor, tests, CI), decilo. -->
 
-Cierra #
+## Por qué
+
+<!-- El problema que resuelve. Si hay un issue, alcanza con "Cierra #123"; si no, contalo acá. -->
 
 ## Contrato público
 
 <!-- Comandos, flags, claves de config y el JSON de `--json` no cambian en silencio. -->
 
 - [ ] No cambia comandos, flags, claves de config ni el `--json`
-- [ ] Cambia el contrato y está avisado en `CHANGELOG.md` (si rompe compatibilidad, lo discutimos antes en un issue)
+- [ ] Cambia el contrato y está avisado en `CHANGELOG.md` (si rompe compatibilidad, explicá por qué hace falta)
 
 ## Checklist
 

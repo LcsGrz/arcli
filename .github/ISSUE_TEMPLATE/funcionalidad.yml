@@ -5,7 +5,9 @@ body:
   - type: markdown
     attributes:
       value: |
-        Si es una pregunta o una idea todavía sin forma, abrí una [discusión](https://github.com/LcsGrz/arcli/discussions). Los comandos, flags, claves de config y el `--json` son contrato público: si tu propuesta los cambia, contalo acá.
+        Si es una pregunta o una idea todavía sin forma, abrí una [discusión](https://github.com/LcsGrz/arcli/discussions). Si ya la programaste, no hace falta este issue: abrí el PR directo y contá ahí qué problema resuelve.
+
+        Los comandos, flags, claves de config y el `--json` son contrato público: si tu propuesta los cambia, contalo acá.
   - type: textarea
     id: objetivo
     attributes:
@@ -24,6 +26,14 @@ body:
       label: Cómo te imaginás que funcione
       description: Opcional. Un comando de ejemplo ayuda mucho.
       render: shell
+  - type: dropdown
+    id: implementar
+    attributes:
+      label: ¿Te gustaría implementarla?
+      options:
+        - Sí, quiero hacer el PR
+        - Puedo ayudar a probarla
+        - No, solo la propongo
   - type: input
     id: comprobantes
     attributes:
