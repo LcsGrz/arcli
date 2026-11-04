@@ -80,13 +80,16 @@ El CUIT es el de siempre (`cuit`). Si falta algún dato obligatorio, el PDF no s
 
 ### Del comprobante (flags opcionales)
 
-| Flag                           | En el JSON de `--cargar` | Si no se pasa              |
-| ------------------------------ | ------------------------ | -------------------------- |
-| `--descripcion <texto>`        | `descripcion`            | "Segun detalle"            |
-| `--receptor-nombre <texto>`    | `receptorNombre`         | "Consumidor Final" o `- -` |
-| `--receptor-domicilio <texto>` | `receptorDomicilio`      | `- -`                      |
+| Flag                                | En el JSON de `--cargar` | Si no se pasa                                          |
+| ----------------------------------- | ------------------------ | ------------------------------------------------------ |
+| `--descripcion <texto>`             | `descripcion`            | "Segun detalle"                                        |
+| `--condicion-venta <tipo>` (`--cv`) | `condicionVenta`         | `condicionVenta` de la config; sin ella, no se imprime |
+| `--receptor-nombre <texto>`         | `receptorNombre`         | "Consumidor Final" o `- -`                             |
+| `--receptor-domicilio <texto>`      | `receptorDomicilio`      | `- -`                                                  |
 
 Al facturar con `--cuit` y sin `--ir` (con `consultarPadron` activo, como viene por defecto), el nombre y el domicilio del receptor que no pases salen del padrón de ARCA. Con `--ir` explícito no se consulta el padrón y valen los de la tabla.
+
+La condición de venta es `contado`, `tarjeta-debito`, `tarjeta-credito`, `cuenta-corriente`, `cheque`, `transferencia`, `otros-medios-electronicos` u `otra`, o un texto que se imprime tal cual. Va junto a la condición frente al IVA del receptor ("Cond. Venta: Contado"), con el vencimiento del pago si lo hay. Para no pasarla siempre: `arcli config establecer condicionVenta contado`.
 
 Estos datos **solo van en el PDF**: ARCA no los recibe. Si los pasás y al final no se genera ningún PDF, ARCLI avisa que no quedaron en ningún lado.
 

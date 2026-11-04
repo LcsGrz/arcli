@@ -354,6 +354,7 @@ function parseBillingCommandInputFromSource(
       paymentDueDate: pickString(commandOptions.vencimiento, commandOptions.vto, fileInput?.vencimientoPago),
       pdf: resolvePdfFlag(commandOptions, fileInput),
       pdfDescription: pickString(commandOptions.descripcion, fileInput?.descripcion),
+      saleCondition: pickString(commandOptions.condicionVenta, commandOptions.cv, fileInput?.condicionVenta),
       pointOfSale: pickNumber(commandOptions.puntoVenta, commandOptions.pv, fileInput?.puntoVenta),
       receiverAddress: pickString(commandOptions.receptorDomicilio, fileInput?.receptorDomicilio),
       receiverName: pickString(commandOptions.receptorNombre, fileInput?.receptorNombre),

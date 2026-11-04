@@ -1,5 +1,10 @@
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import type { BillingExecutionResult } from '../../modules/billing/billing.types.internal';
+import {
+  SALE_CONDITION_KEYS,
+  SALE_CONDITION_LABELS,
+  type SaleConditionKey,
+} from '../../modules/billing/sale-condition';
 import type { ArcliConfig } from '../../modules/config/config.schemas';
 import { ConfigService } from '../../modules/config/config.service';
 import { parseConfigValue } from '../../modules/config/config-value-parser';
@@ -9,7 +14,7 @@ import { noticePanel, writeTerminalOutput } from '../../ui';
 import { writePdfOutcomes } from '../commands/billing.command.output';
 import { attachPdfs } from '../commands/billing.command.pdf';
 
-import { askText, confirm, isPromptCancellation } from './prompts';
+import { askText, chooseOne, confirm, isPromptCancellation } from './prompts';
 
 type IssuerKey = 'cuit' | 'emisor.domicilio' | 'emisor.inicioActividades' | 'emisor.razonSocial';
 
@@ -75,6 +80,39 @@ async function completeIssuer(config: ArcliConfig): Promise<ArcliConfig> {
   return completed;
 }
 
+const OMIT_SALE_CONDITION = 'omitir';
+
+/**
+ * La condicion de venta del PDF, con la de la config preseleccionada. "Otra" pide el texto; Enter deja "Otra".
+ * Un texto libre de la config se propone como "Otra" con ese texto.
+ */
+async function askSaleCondition(configured: string | undefined): Promise<string | undefined> {
+  const configuredKey = configured?.trim().toLowerCase();
+  const isKey = (value: string | undefined): value is SaleConditionKey =>
+    SALE_CONDITION_KEYS.includes(value as SaleConditionKey);
+  const configuredText = configured && !isKey(configuredKey) ? configured.trim() : undefined;
+  const choice = await chooseOne<SaleConditionKey | typeof OMIT_SALE_CONDITION>(
+    'Condición de venta:',
+    [
+      { name: 'Omitir', value: OMIT_SALE_CONDITION },
+      ...SALE_CONDITION_KEYS.map((key) => ({ name: SALE_CONDITION_LABELS[key], value: key })),
+    ],
+    isKey(configuredKey) ? configuredKey : configuredText ? 'otra' : undefined,
+  );
+
+  if (choice === OMIT_SALE_CONDITION) {
+    return undefined;
+  }
+
+  if (choice !== 'otra') {
+    return choice;
+  }
+
+  return (
+    (await askText('Condición de venta:', { defaultValue: configuredText ?? SALE_CONDITION_LABELS.otra })) || 'otra'
+  );
+}
+
 /** Despues de emitir: pregunta si se quiere el PDF (segun la config) y los datos que solo van en el PDF. */
 export async function offerPdf(
   config: ArcliConfig,
@@ -101,6 +139,7 @@ export async function offerPdf(
     }
 
     const description = await askText('Descripción del comprobante (Enter para "Según detalle")');
+    const saleCondition = await askSaleCondition(config.condicionVenta);
     // Lo que trajo el padron se propone: Enter lo deja, en lugar de borrarlo.
     const receiverName = await askText(
       input.receiverName
@@ -114,7 +153,8 @@ export async function offerPdf(
     );
     const completedConfig = await completeIssuer(config);
     const withPdf = await attachPdfs({
-      config: completedConfig,
+      // La condicion de venta ya se pregunto con la de la config preseleccionada: "Omitir" no la tiene que traer.
+      config: { ...completedConfig, condicionVenta: undefined },
       inputs: [
         {
           ...input,
@@ -122,6 +162,7 @@ export async function offerPdf(
           pdfDescription: description || undefined,
           receiverAddress: receiverAddress || undefined,
           receiverName: receiverName || undefined,
+          saleCondition,
         },
       ],
       interactive: true,

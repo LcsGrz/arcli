@@ -669,6 +669,16 @@ describe('billing.command.parser', () => {
   describe('PDF flags', () => {
     const defaults = { defaultConcept: 'servicios' as const, defaultIvaCondition: 'consumidor-final' as const };
 
+    it('reads --condicion-venta, its --cv alias and condicionVenta from the JSON', () => {
+      const parse = (args: string[]) =>
+        parseBillingCommandInput(createCommand(['--monto', '1000', ...args]), 'fc', defaults);
+
+      expect(parse(['--condicion-venta', 'contado']).saleCondition).toBe('contado');
+      expect(parse(['--cv', 'Mercado Pago']).saleCondition).toBe('Mercado Pago');
+      expect(parse(['--cargar', writeJsonInput({ condicionVenta: 'cheque' })]).saleCondition).toBe('cheque');
+      expect(parse([]).saleCondition).toBeUndefined();
+    });
+
     it('reads --exportar-pdf, its alias and the PDF-only data', () => {
       const input = parseBillingCommandInput(
         createCommand([

@@ -17,6 +17,7 @@ interface PublicConfigSnapshot {
     readonly testing?: string;
   };
   readonly concepto?: ArcliConfig['conceptoPorDefecto'];
+  readonly condicionVenta?: string;
   readonly cotizacion?: number;
   readonly cuit?: string;
   readonly emisor: ArcliConfig['emisor'];
@@ -67,6 +68,7 @@ function toPublicSnapshot(config: ArcliConfig, paths: ConfigPathSnapshot): Publi
       testing: config.cert.testing ? maskPath(config.cert.testing) : undefined,
     },
     concepto: config.conceptoPorDefecto,
+    condicionVenta: config.condicionVenta,
     cotizacion: config.cotizacionPorDefecto,
     cuit: config.cuit,
     emisor: { ...config.emisor, logo: config.emisor.logo ? maskPath(config.emisor.logo) : undefined },
@@ -131,6 +133,7 @@ const CONFIG_TEXT_VALUES: Record<ConfigPublicKey, PublicConfigValue> = {
   'cert.testing': (c) => notSet(c.cert.testing),
   comprobantesPorLista: (c) => c.comprobantesPorLista ?? `${RECENT_VOUCHERS_LIMIT} (por defecto)`,
   concepto: (c) => notSet(c.concepto),
+  condicionVenta: (c) => notSet(c.condicionVenta),
   cotizacion: (c) => c.cotizacion ?? 1,
   cuit: (c) => notSet(c.cuit),
   'emisor.condicionIva': (c) => c.emisor.condicionIva ?? 'según la letra',

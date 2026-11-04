@@ -302,13 +302,16 @@ Estos flags solo aplican a comprobantes de crédito electrónica. En cualquier o
 
 Estos flags controlan el PDF del comprobante emitido. Los datos que se pasan acá **solo van en el PDF**: ARCA no los recibe. Detalle en [PDF de comprobantes](pdf.md).
 
-| Flag                           | Alias   | Tipo      | Valor por defecto  | Descripción                                  |
-| ------------------------------ | ------- | --------- | ------------------ | -------------------------------------------- |
-| `--exportar-pdf`               | `--pdf` | `boolean` | según `config.pdf` | Genera el PDF después de emitir              |
-| `--sin-pdf`                    | ninguno | `boolean` | según `config.pdf` | No genera el PDF                             |
-| `--descripcion <texto>`        | ninguno | `string`  | `Segun detalle`    | Detalle del comprobante en el PDF            |
-| `--receptor-nombre <texto>`    | ninguno | `string`  | ninguno            | Nombre o razón social del receptor en el PDF |
-| `--receptor-domicilio <texto>` | ninguno | `string`  | ninguno            | Domicilio del receptor en el PDF             |
+| Flag                           | Alias   | Tipo      | Valor por defecto       | Descripción                                  |
+| ------------------------------ | ------- | --------- | ----------------------- | -------------------------------------------- |
+| `--exportar-pdf`               | `--pdf` | `boolean` | según `config.pdf`      | Genera el PDF después de emitir              |
+| `--sin-pdf`                    | ninguno | `boolean` | según `config.pdf`      | No genera el PDF                             |
+| `--descripcion <texto>`        | ninguno | `string`  | `Segun detalle`         | Detalle del comprobante en el PDF            |
+| `--condicion-venta <tipo>`     | `--cv`  | `string`  | `config.condicionVenta` | Condición de venta en el PDF                 |
+| `--receptor-nombre <texto>`    | ninguno | `string`  | ninguno                 | Nombre o razón social del receptor en el PDF |
+| `--receptor-domicilio <texto>` | ninguno | `string`  | ninguno                 | Domicilio del receptor en el PDF             |
+
+`--condicion-venta` acepta `contado`, `tarjeta-debito`, `tarjeta-credito`, `cuenta-corriente`, `cheque`, `transferencia`, `otros-medios-electronicos` u `otra`, que se imprimen con su nombre (`cuenta-corriente` sale "Cuenta Corriente"). Cualquier otro texto se imprime tal cual: `--cv "50% anticipo"`. Solo en A, B y C; en la factura `E` va `--forma-pago`, que sí viaja a ARCA.
 
 `--exportar-pdf` y `--sin-pdf` no se combinan. Sin ninguno de los dos, decide `config.pdf` (`preguntar` por defecto: en una terminal pregunta, con `--json` o sin terminal no genera).
 

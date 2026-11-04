@@ -3,6 +3,7 @@ import type { IIva } from '@arcasdk/core/lib/domain/types/voucher.types';
 import { resolveIvaRateLabel } from '../billing/billing.amounts';
 import { formatIvaConditionLabel } from '../billing/billing.labels';
 import type { BillingExecutionResult } from '../billing/billing.types.internal';
+import { formatSaleCondition } from '../billing/sale-condition';
 import type { ExportExecutionResult } from '../export/export.types';
 
 import { PdfError } from './pdf.errors';
@@ -126,6 +127,7 @@ export function mapBillingResultToPdfData(
       tipo: voucher.Tipo,
     })),
     concepto: payload.Concepto,
+    condicionVenta: formatSaleCondition(extras.condicionVenta),
     cotizacion: payload.MonCotiz,
     emisor: issuer,
     fechaServicioDesde: payload.FchServDesde,
