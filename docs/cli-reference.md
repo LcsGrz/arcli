@@ -242,7 +242,33 @@ En pesos la cotización siempre es `1` y `--misma-moneda` no aplica. Detalle en 
 
 Los montos usan formato argentino: el punto separa miles y la coma separa decimales. `15000`, `15.000`, `1500,50` y `1.500,50` son válidos; `1500.50` da error, igual que el texto sobrante (`12abc`) y más de 2 decimales. La cotización acepta hasta 6. Vale para `--monto`, `--exento`, `--nogravado`, `--cotizacion-moneda` y el monto de `--alicuota TASA:MONTO`. En el JSON de `--cargar` los montos son números, también con 2 decimales como máximo (la cotización, 6).
 
-Las fechas usan formato argentino (día primero), con mes y año opcionales. Detalle completo en [Fechas aceptadas](validation-rules.md#fechas-aceptadas).
+#### Las fechas de un comprobante
+
+Un comprobante puede llevar hasta cuatro fechas, y cada una responde a una pregunta distinta:
+
+| Fecha                    | Flag                                                 | Responde                       | Sin el flag                                     |
+| ------------------------ | ---------------------------------------------------- | ------------------------------ | ----------------------------------------------- |
+| Del comprobante          | `-f`, `--fecha`                                      | ¿Qué día se emite?             | hoy                                             |
+| Período del servicio     | `--sd`/`--servicio-desde`, `--sh`/`--servicio-hasta` | ¿Qué período cubre la factura? | la fecha del comprobante                        |
+| Vencimiento              | `--vto`, `--vencimiento`                             | ¿Cuándo vence el pago?         | el fin del servicio, o la fecha del comprobante |
+| Período asociado (notas) | `--pd`/`--periodo-desde`, `--ph`/`--periodo-hasta`   | ¿Qué facturas ajusta la nota?  | no va: se usa el comprobante asociado (`--ac`…) |
+
+- `--servicio-*` y `--vencimiento` son de facturas (y notas) de servicios. `--periodo-*` es solo de notas: en lugar de ajustar una factura puntual, ajustan todo lo facturado en ese período.
+- `--dia` está deprecado: usá `--vencimiento` o `--vto`.
+
+Ejemplos:
+
+```bash
+# Servicio de octubre, facturado hoy, que vence el 10/11
+arcli fc -m 1000 --cs --cfinal --ir-cf --sd 1/10 --sh 31/10 --vto 10/11
+
+# Nota de crédito por un descuento sobre todo lo facturado en octubre de 2026
+arcli ncc -m 500 --cs --cfinal --ir-cf --pd 1/10/2026 --ph 31/10/2026
+```
+
+Para facturar con otra fecha, sumá `-f`: por ejemplo, `-f 31/10` el 3/11 (en servicios, hasta 10 días antes o después de hoy).
+
+Las cuatro se escriben igual: formato argentino (día primero), con mes y año opcionales; sin año se toma la fecha más cercana a hoy. Detalle completo en [Fechas aceptadas](validation-rules.md#fechas-aceptadas).
 
 ### Asociados
 
