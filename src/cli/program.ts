@@ -2,6 +2,7 @@ import { Command } from 'commander';
 
 import { registerBillingFamilyCommands } from './commands/billing-family.command';
 import { registerBillingShortcutCommands } from './commands/billing-shortcuts.command';
+import { registerCertificateCommand } from './commands/certificate.command';
 import { registerCompletionCommands } from './commands/completion.command';
 import { registerConfigCommand } from './commands/config.command';
 import { registerExamplesCommand } from './commands/examples.command';
@@ -43,6 +44,7 @@ export function createProgram(options: CreateProgramOptions = {}): Command {
 
   registerBillingShortcutCommands(program);
   registerBillingFamilyCommands(program);
+  registerCertificateCommand(program);
   registerCompletionCommands(program);
   registerConfigCommand(program);
   registerExamplesCommand(program);

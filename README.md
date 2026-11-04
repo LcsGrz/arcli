@@ -47,7 +47,7 @@ Opcional: autocompletado con Tab de comandos, flags y valores, en bash, zsh o fi
 
 ## Configuración
 
-Necesitás tu CUIT, un punto de venta y un certificado con su clave privada de ARCA. Si todavía no los tenés, seguí [Cómo obtener los certificados](https://github.com/LcsGrz/arcli/blob/main/docs/obtencion-certificados.md).
+Necesitás tu CUIT, un punto de venta y un certificado con su clave privada de ARCA. Si todavía no tenés el certificado, `arcli certificado generar` arma el pedido para ARCA y `arcli certificado importar` carga el que te devuelve; el paso a paso está en [Cómo obtener los certificados](https://github.com/LcsGrz/arcli/blob/main/docs/obtencion-certificados.md).
 
 Lo más simple es correr `arcli` y seguir la configuración guiada. Para hacerlo por comandos (por ejemplo, en un servidor):
 

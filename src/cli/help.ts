@@ -275,6 +275,7 @@ export function createConfigHelp(): string {
         '  - Revisar entorno: arcli config revisar',
         '  - Ver ruta del archivo: arcli config ruta',
         '  - Guardar un default: arcli config establecer puntoVenta 3',
+        '  - Sacar el certificado de ARCA: arcli certificado generar --testing',
         '  - Guardar una credencial: arcli config establecer cert.testing /ruta/cert.crt',
       ].join('\n'),
     ),

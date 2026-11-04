@@ -73,6 +73,10 @@ Si el archivo no existe, `arcli config` lo crea automáticamente.
 
 > Para claves booleanas, ARCLI acepta `true` / `false`, `sí` / `no` o `1` / `0`.
 
+### Certificados con `arcli certificado`
+
+`arcli certificado generar` y `arcli certificado importar` guardan la clave y el certificado en `certificados/<CUIT>/`, junto a `config.json`, y configuran `cert.<entorno>` y `key.<entorno>` apuntando ahí. Si ya tenés las rutas configuradas a mano, siguen andando igual. Ver [Comando `arcli certificado`](cli-reference.md#comando-arcli-certificado).
+
 ### Certificados de exportación (WSFEX)
 
 La factura de exportación `E` (`arcli fe`) usa el servicio `wsfex`, que ARCA autoriza por separado de `wsfe`. El certificado general puede no estar autorizado a `wsfex`, así que podés guardar uno propio:

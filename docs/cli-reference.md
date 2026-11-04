@@ -325,6 +325,23 @@ Instala o revisa el plugin que genera los PDFs. No viene con ARCLI porque pesa u
 
 Todos aceptan `--json`. El formato está en [Entrada y salida](input-output.md#plugin-de-pdf-pdf-estado).
 
+### Comando `arcli certificado`
+
+Arma el pedido del certificado de ARCA y carga el certificado que te devuelve, sin `openssl`. Los pasos en ARCA, con capturas, están en [Cómo obtener los certificados](obtencion-certificados.md).
+
+| Comando                                                                 | Descripción                                                                                    |
+| ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `arcli certificado generar [--testing\|--produccion] [--alias <alias>]` | Crea la clave privada y el CSR para subir a ARCA, y muestra los pasos del entorno              |
+| `arcli certificado importar <archivo> [--testing\|--produccion]`        | Valida el `.crt` que bajaste de ARCA, lo guarda y configura `cert.<entorno>` y `key.<entorno>` |
+
+- Los archivos van a `certificados/<CUIT>/`, junto al archivo de config: `<entorno>.key` (permisos `0600`), `<entorno>.crt` y `<entorno>.csr`.
+- `generar` usa el entorno de `--testing`/`--produccion` o, sin flag, el de la config. `--alias` es el nombre del certificado en ARCA (por defecto `arcli`).
+- **Renovar sin cortar la facturación:** `generar` deja la clave nueva como pendiente (`<entorno>.nueva.key`) y no toca la activa: seguís facturando con el certificado actual hasta que `importar` valida el nuevo. Recién ahí la pendiente pasa a ser la activa, y el par anterior queda como `<entorno>.anterior.*`. Si ya hay un pedido pendiente, `generar` frena; `--reemplazar` lo descarta y arma otro.
+- `importar` saca el entorno del certificado (ARCA firma los de testing con "Computadores Test" y los de producción con "Computadores"). Antes de tocar nada valida que sea un certificado, que sea de tu CUIT, que no esté vencido y que corresponda a la clave del pedido. Acepta archivos con BOM o finales de línea de Windows. Al terminar, dice qué cargó: entorno, CUIT, alias y vencimiento.
+- Si ya había otro certificado configurado para ese entorno, `importar` pregunta antes de reemplazarlo; sin terminal o con `--json`, hace falta `--reemplazar`.
+- Las rutas configuradas a mano con `arcli config establecer cert.*`/`key.*` siguen andando igual: `importar` solo las cambia al cargar un certificado nuevo.
+- Los dos aceptan `--json`. El formato está en [Entrada y salida](input-output.md#certificados-certificado).
+
 ### Comandos `arcli estado` y `arcli parametros`
 
 Consultan a ARCA sin emitir nada. Usan el entorno y el punto de venta de la config (o `--testing` / `--produccion`) y aceptan `--json`.
