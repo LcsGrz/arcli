@@ -90,7 +90,10 @@ describe('runGenerateCertificate', () => {
   it('carga el .crt en el momento, aunque la ruta venga arrastrada con espacios escapados', async () => {
     askTextMock.mockResolvedValueOnce('arcli');
     chooseStepMock.mockResolvedValueOnce('testing').mockImplementationOnce(async () => {
-      askTextMock.mockResolvedValueOnce(`${downloadCertificate().replace(/ /g, '\\ ')} `);
+      const path = downloadCertificate();
+
+      // Arrastrado a la terminal: macOS escapa los espacios; Windows lo pega entre comillas.
+      askTextMock.mockResolvedValueOnce(process.platform === 'win32' ? `"${path}"` : `${path.replace(/ /g, '\\ ')} `);
 
       return 'importar';
     });

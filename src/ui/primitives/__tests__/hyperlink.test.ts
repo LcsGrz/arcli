@@ -1,3 +1,4 @@
+import { pathToFileURL } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { fileHyperlink, hyperlink, supportsHyperlinks } from '../hyperlink';
@@ -36,7 +37,7 @@ describe('hyperlink', () => {
   it('links local files with a file URL', () => {
     process.env.FORCE_HYPERLINK = '1';
 
-    expect(fileHyperlink('cert', '/tmp/arcli/cert.crt')).toContain('file:///tmp/arcli/cert.crt');
+    expect(fileHyperlink('cert', '/tmp/arcli/cert.crt')).toContain(pathToFileURL('/tmp/arcli/cert.crt').href);
   });
 
   it('only turns on by itself in known terminals with color', () => {
