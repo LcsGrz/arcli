@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { VOUCHER_KIND_MAP } from '../../billing/voucher-kind-map';
-import { invoiceKindChoices, ivaConditionChoices, noteKindChoices, receiverChoices } from '../choices';
+import { invoiceKindChoices, ivaConditionChoices, noteKindChoices, receiverChoices, reciboChoice } from '../choices';
 
 describe('interactive choices', () => {
   it('ofrece facturas comunes y FCE', () => {
@@ -13,6 +13,11 @@ describe('interactive choices', () => {
       'fceb',
       'fcea',
     ]);
+  });
+
+  it('ofrece el recibo C aparte, para que las notas no lo listen como factura', () => {
+    expect(reciboChoice().value.shortcut).toBe('rc');
+    expect(invoiceKindChoices().map((choice) => choice.value.shortcut)).not.toContain('rc');
   });
 
   it('en la A solo permite identificar por CUIT', () => {

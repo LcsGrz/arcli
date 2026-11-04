@@ -36,6 +36,17 @@ export function invoiceKindChoices(): Array<InteractiveChoice<VoucherKindDefinit
   });
 }
 
+/** El recibo C se emite como una factura C, pero no lleva notas: no está en el selector de facturas de las notas. */
+export function reciboChoice(): InteractiveChoice<VoucherKindDefinition> {
+  const definition = VOUCHER_KIND_MAP.rc;
+
+  return {
+    description: 'Comprobante de un cobro; lo emiten monotributistas y exentos',
+    name: `${definition.displayName} (${definition.shortcut})`,
+    value: definition,
+  };
+}
+
 /** La factura E va por WSFEX y tiene su propio asistente, pero se elige en el mismo selector que A, B y C. */
 export function exportInvoiceChoice(): InteractiveChoice<ExportVoucherKind> {
   return {

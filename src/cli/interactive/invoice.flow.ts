@@ -7,6 +7,7 @@ import {
   exportInvoiceChoice,
   invoiceKindChoices,
   receiverChoices,
+  reciboChoice,
 } from '../../modules/interactive/choices';
 import { BACK, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 
@@ -44,7 +45,7 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
       for (;;) {
         const voucherKind = await chooseStep<ExportVoucherKind | VoucherKindDefinition>(
           '¿Qué comprobante querés emitir?',
-          [...invoiceKindChoices(), exportInvoiceChoice()],
+          [...invoiceKindChoices(), exportInvoiceChoice(), reciboChoice()],
         );
 
         if (voucherKind === BACK) {

@@ -2,7 +2,14 @@ import type { Command } from 'commander';
 import { describe, expect, it } from 'vitest';
 
 import { configPublicKeySchema } from '../../modules/config/config.schemas';
-import { createConfigHelp, createConfigSetHelp, createShortcutHelp, createStorybookHelp } from '../help';
+import {
+  createConfigHelp,
+  createConfigSetHelp,
+  createFamilyHelp,
+  createProgramHelp,
+  createShortcutHelp,
+  createStorybookHelp,
+} from '../help';
 import { createProgram } from '../program';
 
 function allCommands(command: Command): Command[] {
@@ -63,6 +70,30 @@ describe('help', () => {
     it('no repite la tabla de parámetros debajo de las opciones', () => {
       expect(createShortcutHelp('fc')).not.toContain('Más parámetros disponibles');
       expect(createShortcutHelp('fc')).not.toContain('No aplica');
+    });
+  });
+
+  describe('recibo, que solo tiene la letra C', () => {
+    const program = createProgram();
+    const recibo = program.commands.find((command) => command.name() === 'recibo');
+
+    it('deja vacías la A y la B en la tabla de comprobantes', () => {
+      expect(createProgramHelp()).toMatch(/\n {2}recibo +- +- +rc\n/);
+    });
+
+    it('no ofrece letras ni reglas de A y B', () => {
+      expect(recibo?.description()).toContain('por letra C con');
+      expect(createFamilyHelp('recibo')).toContain('solo letra C: arcli recibo c. Atajo: rc.');
+      expect(createFamilyHelp('recibo')).not.toContain('IVA (A y B)');
+      expect(createFamilyHelp('factura')).toContain('IVA (A y B)');
+    });
+
+    it('rechaza otra letra antes de armar el comprobante', async () => {
+      recibo?.exitOverride();
+
+      await expect(program.parseAsync(['node', 'arcli', 'recibo', 'a'])).rejects.toThrow(
+        'La letra "a" no es válida. Usá c.',
+      );
     });
   });
 });
