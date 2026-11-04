@@ -243,10 +243,6 @@ WSFEX tiene su propio contrato: las reglas de concepto, fecha de servicio, IVA r
 
 ARCLI calcula IVA automáticamente en todos los comprobantes letra `A` y `B`, sea cual sea el IVA receptor. Los letra `C` no informan IVA.
 
-### Recibo C
-
-El Recibo C (`rc`, tipo ARCA 15) usa las mismas validaciones y el mismo armado que la Factura C: letra `C`, sin IVA, sin comprobante asociado y sin FCE. ARCA es quien acepta o rechaza el tipo según el punto de venta y la condición del emisor.
-
 El total se reparte así (ARCA 10048):
 
 ```
@@ -282,6 +278,10 @@ arcli fa --cs --cuit 30709965812 --ir-ri --alicuota general:1210 --alicuota redu
 - Si la misma alícuota aparece dos veces, se suman sus montos.
 - No se puede mezclar `--alicuota TASA` con `--alicuota TASA:MONTO`, ni repetir `--alicuota TASA` sin monto.
 - En JSON: `"alicuotas": [{ "tasa": "general", "monto": 1210 }, { "tasa": "10.5", "monto": 552.5 }]`.
+
+### Recibo C
+
+El Recibo C (`rc`, tipo ARCA 15) usa las mismas validaciones y el mismo armado que la Factura C: letra `C`, sin IVA, sin comprobante asociado y sin FCE. ARCA es quien acepta o rechaza el tipo según el punto de venta y la condición del emisor.
 
 ## 3. Restricciones y errores de ARCA
 

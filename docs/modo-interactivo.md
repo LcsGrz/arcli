@@ -60,14 +60,14 @@ Con el asistente, el aviso de nueva versión no se repite al salir. En los coman
 
 Primero pregunta solo lo **requerido**:
 
-| Paso | Pregunta         | Detalle                                                                                                              |
-| ---- | ---------------- | -------------------------------------------------------------------------------------------------------------------- |
-| 1    | Comprobante      | Factura A, B o C, comunes o de crédito electrónica (FCE), o la de exportación E ([abajo](#factura-de-exportación-e)) |
-| 2    | Receptor         | Consumidor final, CUIT o DNI. En la A solo CUIT, porque la A no admite consumidor final                              |
-| 3    | IVA del receptor | Solo las condiciones válidas para la letra elegida. Con consumidor final no se pregunta                              |
-| 4    | Concepto         | Servicios, productos o ambos. Arranca en `config.concepto` si está configurado                                       |
-| 5    | Monto total      | Acepta `150000`, `150.000`, `1500,50` o `1.500,50` (punto para miles, coma para decimales)                           |
-| 6    | CBU              | Solo en facturas FCE y si no hay `config.cbu`                                                                        |
+| Paso | Pregunta         | Detalle                                                                                                                       |
+| ---- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Comprobante      | Factura A, B o C, comunes o de crédito electrónica (FCE), la de exportación E ([abajo](#factura-de-exportación-e)) o Recibo C |
+| 2    | Receptor         | Consumidor final, CUIT o DNI. En la A solo CUIT, porque la A no admite consumidor final                                       |
+| 3    | IVA del receptor | Solo las condiciones válidas para la letra elegida. Con consumidor final no se pregunta                                       |
+| 4    | Concepto         | Servicios, productos o ambos. Arranca en `config.concepto` si está configurado                                                |
+| 5    | Monto total      | Acepta `150000`, `150.000`, `1500,50` o `1.500,50` (punto para miles, coma para decimales)                                    |
+| 6    | CBU              | Solo en facturas FCE y si no hay `config.cbu`                                                                                 |
 
 Después, **una sola pregunta con todos los opcionales** (ver abajo). Enter sin marcar nada sigue con los valores por defecto.
 
@@ -138,11 +138,11 @@ La nota hereda de la factura el concepto, el receptor (tipo y número de documen
 
 ## Repetir una factura anterior
 
-Para quien factura lo mismo seguido. Elegís el tipo de factura y una de las últimas 15 emitidas, y se copian el receptor, el concepto, el monto y la alícuota (cuando se puede deducir de los importes). **Las fechas no se copian:** la factura sale con fecha de hoy.
+Para quien factura lo mismo seguido. Elegís el tipo de comprobante (una factura o un Recibo C) y una de las últimas 15 emitidas, y se copian el receptor, el concepto, el monto y la alícuota (cuando se puede deducir de los importes). **Las fechas no se copian:** la factura sale con fecha de hoy.
 
 | Paso | Pregunta             | Detalle                                                                                                                                                       |
 | ---- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1    | Tipo de factura      | Factura A, B o C, comunes o FCE                                                                                                                               |
+| 1    | Tipo de comprobante  | Factura A, B o C, comunes o FCE, o Recibo C                                                                                                                   |
 | 2    | Factura              | Una de las últimas emitidas en el punto de venta configurado. Como en las notas, se pueden cargar más o ingresar el número a mano                             |
 | 3    | IVA del receptor     | Solo si no era consumidor final: ARCA no devuelve la condición IVA de la factura                                                                              |
 | 4    | Monto                | El mismo o uno nuevo                                                                                                                                          |

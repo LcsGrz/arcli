@@ -195,6 +195,11 @@ export function getVoucherKindByFamilyAndLetter(
   );
 }
 
+/** Las letras que tiene una familia: A, B y C, salvo `recibo`, que solo tiene C. */
+export function getVoucherFamilyLetters(family: VoucherFamily): readonly VoucherLetter[] {
+  return VOUCHER_LETTERS.filter((letter) => getVoucherKindByFamilyAndLetter(family, letter));
+}
+
 export function getVoucherKindByArcaType(arcaType: number): VoucherKindDefinition | null {
   return (
     VOUCHER_SHORTCUTS.map((shortcut) => VOUCHER_KIND_MAP[shortcut]).find(

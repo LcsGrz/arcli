@@ -123,6 +123,26 @@ describe('flujos del modo interactivo', () => {
       expect(script.asked.some((question) => /alicuota/i.test(question))).toBe(false);
     });
 
+    it('arma un recibo C como una factura C', async () => {
+      script = createScript([
+        [/comprobante/, 'Recibo C'],
+        [/A quien/, 'Consumidor final'],
+        [/Qué estás facturando/, 'Productos'],
+        [/Monto total/, '2000'],
+        [/Agregamos/, []],
+      ]);
+
+      const session = createSession();
+      const state = await runWizard(invoiceSteps(session), { advanced: { currencyCode: 'ARS', sameCurrency: false } });
+
+      expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
+        concept: 'productos',
+        documentType: 'consumidor-final',
+        shortcut: 'rc',
+        totalAmount: 2000,
+      });
+    });
+
     it('arma una FCE A con CUIT y CBU, y alicuota, vencimiento y transferencia como opcionales', async () => {
       script = createScript([
         [/comprobante/, 'Factura de crédito electrónica A'],
@@ -306,7 +326,7 @@ describe('flujos del modo interactivo', () => {
 
     it('copia receptor, concepto, monto y alicuota con el periodo del mes pasado', async () => {
       script = createScript([
-        [/tipo de factura querés repetir/, 'Factura A'],
+        [/comprobante querés repetir/, 'Factura A'],
         [/Cuál repetimos/, '00003-00000014'],
         [/Condición frente al IVA/, 'Responsable inscripto'],
         [/Mismo monto/, 'Sí'],
@@ -337,7 +357,7 @@ describe('flujos del modo interactivo', () => {
 
     it('permite otro monto y en consumidor final no pregunta el IVA', async () => {
       script = createScript([
-        [/tipo de factura querés repetir/, 'Factura C'],
+        [/comprobante querés repetir/, 'Factura C'],
         [/Cuál repetimos/, '00003-00000014'],
         [/Mismo monto/, 'No'],
         [/Monto total/, '2000'],
@@ -359,9 +379,30 @@ describe('flujos del modo interactivo', () => {
       });
     });
 
+    it('repite un recibo C', async () => {
+      script = createScript([
+        [/comprobante querés repetir/, 'Recibo C'],
+        [/Cuál repetimos/, '00003-00000014'],
+        [/Mismo monto/, 'Sí'],
+        [/Período del servicio/, 'Este mes'],
+        [/Agregamos/, []],
+      ]);
+
+      const session = createSession([invoice({ ivaAmount: 0, netAmount: 121 })]);
+      const state = await runWizard(repeatSteps(session, 3, today), {
+        advanced: { currencyCode: 'ARS', sameCurrency: false },
+      });
+
+      expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
+        documentType: 'consumidor-final',
+        shortcut: 'rc',
+        totalAmount: 121,
+      });
+    });
+
     it('copia exento y no gravado de la factura', async () => {
       script = createScript([
-        [/tipo de factura querés repetir/, 'Factura A'],
+        [/comprobante querés repetir/, 'Factura A'],
         [/Cuál repetimos/, '00003-00000014'],
         [/Condición frente al IVA/, 'Responsable inscripto'],
         [/Mismo monto/, 'Sí'],
@@ -385,7 +426,7 @@ describe('flujos del modo interactivo', () => {
 
     it('con varias alicuotas no ofrece el mismo monto y pide elegir la alicuota', async () => {
       script = createScript([
-        [/tipo de factura querés repetir/, 'Factura A'],
+        [/comprobante querés repetir/, 'Factura A'],
         [/Cuál repetimos/, '00003-00000014'],
         [/Condición frente al IVA/, 'Responsable inscripto'],
         [/Monto total/, '1.210'],
@@ -412,7 +453,7 @@ describe('flujos del modo interactivo', () => {
 
     it('si la factura era en dolares arranca con la moneda marcada', async () => {
       script = createScript([
-        [/tipo de factura querés repetir/, 'Factura C'],
+        [/comprobante querés repetir/, 'Factura C'],
         [/Cuál repetimos/, '00003-00000014'],
         [/Mismo monto/, 'Sí'],
         [/Período del servicio/, 'Solo hoy'],
