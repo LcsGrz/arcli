@@ -1,6 +1,6 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { maskPath } from '../../lib/paths/mask-path';
-import { colorize, keyValuePanel, resolveKeyValueLabelWidth, statusPanel, toneText, UI_THEME } from '../../ui';
+import { bold, colorize, keyValuePanel, resolveKeyValueLabelWidth, statusPanel, toneText, UI_THEME } from '../../ui';
 import { RECENT_VOUCHERS_LIMIT } from '../vouchers/voucher-history';
 
 import type { ArcliConfig, ConfigPublicKey } from './config.schemas';
@@ -214,6 +214,18 @@ const DOCTOR_ICONS: Record<ConfigDoctorReport['checks'][number]['category'], str
 
 const DOCTOR_TONES = { error: 'danger', ok: 'success', warning: 'warning' } as const;
 
+/** Sin el punto final, con el dato del chequeo (el ultimo que aparece) en negrita. */
+function formatDoctorDetail(check: ConfigDoctorReport['checks'][number]): string {
+  const detail = check.detail.replace(/\.$/, '');
+  const index = check.value ? detail.lastIndexOf(check.value) : -1;
+
+  if (!check.value || index < 0) {
+    return detail;
+  }
+
+  return `${detail.slice(0, index)}${bold(check.value)}${detail.slice(index + check.value.length)}`;
+}
+
 /** Por seccion, en el orden de `CONFIG_DOCTOR_SECTIONS`: un titulo y un item por chequeo. Lo que falla, en color. */
 export function formatConfigDoctorAsText(report: ConfigDoctorReport): string {
   const sections = CONFIG_DOCTOR_SECTIONS.map(([section, title]) => ({
@@ -222,13 +234,13 @@ export function formatConfigDoctorAsText(report: ConfigDoctorReport): string {
   })).filter(({ checks }) => checks.length > 0);
   const lines = sections.flatMap(({ checks, title }, index) => [
     ...(index > 0 ? [''] : []),
-    toneText(title, 'info'),
+    colorize(title, 'info'),
     ...checks.map((check) => {
       const tone = DOCTOR_TONES[check.category];
-      const detail = check.category === 'ok' ? check.detail : colorize(check.detail, tone);
+      const detail = formatDoctorDetail(check);
 
       // Dos espacios despues del icono: una linea larga sigue alineada al texto, no al icono.
-      return `  ${toneText(DOCTOR_ICONS[check.category], tone)}  ${detail}`;
+      return `  ${toneText(DOCTOR_ICONS[check.category], tone)}  ${check.category === 'ok' ? detail : colorize(detail, tone)}`;
     }),
   ]);
   const tone = report.ok ? 'success' : report.checks.some((check) => check.category === 'error') ? 'danger' : 'warning';

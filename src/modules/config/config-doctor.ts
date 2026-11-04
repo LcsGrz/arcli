@@ -29,6 +29,8 @@ export interface ConfigDoctorReport {
     readonly detail: string;
     readonly label: string;
     readonly section: ConfigDoctorSection;
+    /** El dato del chequeo dentro de `detail` (un valor, una fecha, el entorno): el texto lo resalta. */
+    readonly value?: string;
   }>;
   readonly ok: boolean;
 }
@@ -55,7 +57,13 @@ function buildCertificateExpiryCheck(
     const formattedDate = formatCertificateExpiryDate(expiry.expiresAt);
 
     if (expiry.isExpired) {
-      return { category: 'error', detail: `El ${name} venció el ${formattedDate}.`, label, section: 'certificados' };
+      return {
+        category: 'error',
+        detail: `El ${name} venció el ${formattedDate}.`,
+        label,
+        section: 'certificados',
+        value: formattedDate,
+      };
     }
 
     if (isCertificateExpiringSoon(expiry, CERTIFICATE_EXPIRY_WARNING_DAYS)) {
@@ -64,10 +72,17 @@ function buildCertificateExpiryCheck(
         detail: `El ${name} vence en ${expiry.daysRemaining} días (${formattedDate}). Renovalo con "arcli certificado generar".`,
         label,
         section: 'certificados',
+        value: formattedDate,
       };
     }
 
-    return { category: 'ok', detail: `El ${name} vence el ${formattedDate}.`, label, section: 'certificados' };
+    return {
+      category: 'ok',
+      detail: `El ${name} vence el ${formattedDate}.`,
+      label,
+      section: 'certificados',
+      value: formattedDate,
+    };
   } catch (error) {
     return {
       category: 'warning',
@@ -89,6 +104,7 @@ export function buildConfigDoctorReport(
     readonly ok: unknown;
     readonly okDetail: string;
     readonly section: ConfigDoctorSection;
+    readonly value?: string;
     readonly warningDetail: string;
   }> = [
     {
@@ -103,6 +119,7 @@ export function buildConfigDoctorReport(
       section: 'cuenta',
       ok: config.puntoVentaPorDefecto,
       okDetail: `Punto de venta por defecto: ${config.puntoVentaPorDefecto}.`,
+      value: String(config.puntoVentaPorDefecto),
       warningDetail: 'Configurá un punto de venta por defecto con "arcli config establecer puntoVenta <valor>".',
     },
     {
@@ -110,6 +127,7 @@ export function buildConfigDoctorReport(
       section: 'facturacion',
       ok: config.conceptoPorDefecto,
       okDetail: `Concepto por defecto: ${config.conceptoPorDefecto}.`,
+      value: config.conceptoPorDefecto,
       warningDetail: 'Podés fijar un concepto por defecto con "arcli config establecer concepto servicios".',
     },
     {
@@ -117,6 +135,7 @@ export function buildConfigDoctorReport(
       section: 'facturacion',
       ok: config.ivaReceptorPorDefecto,
       okDetail: `IVA receptor por defecto: ${config.ivaReceptorPorDefecto}.`,
+      value: config.ivaReceptorPorDefecto,
       warningDetail:
         'Podés fijar un IVA receptor por defecto con "arcli config establecer ivaReceptor consumidor-final".',
     },
@@ -125,6 +144,7 @@ export function buildConfigDoctorReport(
       section: 'certificados',
       ok: config.cert.testing && config.key.testing,
       okDetail: 'Certificado y clave de testing configurados.',
+      value: 'testing',
       warningDetail:
         'Faltan el certificado y la clave de testing: sacalos con "arcli certificado generar --testing", o configurá "cert.testing" y "key.testing".',
     },
@@ -133,6 +153,7 @@ export function buildConfigDoctorReport(
       section: 'certificados',
       ok: config.cert.produccion && config.key.produccion,
       okDetail: 'Certificado y clave de producción configurados.',
+      value: 'producción',
       warningDetail:
         'Todavía no hay certificado de producción: sacalo con "arcli certificado generar --produccion", o configurá "cert.produccion" y "key.produccion".',
     },
@@ -141,7 +162,7 @@ export function buildConfigDoctorReport(
   for (const check of conditionalChecks) {
     checks.push(
       check.ok
-        ? { category: 'ok', detail: check.okDetail, label: check.label, section: check.section }
+        ? { category: 'ok', detail: check.okDetail, label: check.label, section: check.section, value: check.value }
         : { category: 'warning', detail: check.warningDetail, label: check.label, section: check.section },
     );
   }
@@ -183,6 +204,7 @@ export function buildConfigDoctorReport(
             detail: `Certificado y clave de exportación (${environment}) configurados.`,
             label: 'Credenciales WSFEX',
             section: 'certificados',
+            value: environment,
           }
         : {
             category: 'warning',
@@ -198,6 +220,7 @@ export function buildConfigDoctorReport(
     detail: `Entorno por defecto: ${config.entornoPorDefecto}.`,
     label: 'Entorno',
     section: 'salida',
+    value: config.entornoPorDefecto,
   });
 
   checks.push({
@@ -205,6 +228,7 @@ export function buildConfigDoctorReport(
     detail: `Emitir por defecto: ${config.output.emitirPorDefecto ? 'si' : 'no'}.`,
     label: 'Emisión',
     section: 'salida',
+    value: config.output.emitirPorDefecto ? 'si' : 'no',
   });
 
   checks.push({
@@ -212,6 +236,7 @@ export function buildConfigDoctorReport(
     detail: `Salida JSON por defecto: ${config.output.jsonPorDefecto ? 'si' : 'no'}.`,
     label: 'JSON',
     section: 'salida',
+    value: config.output.jsonPorDefecto ? 'si' : 'no',
   });
 
   checks.push({
@@ -219,6 +244,7 @@ export function buildConfigDoctorReport(
     detail: `Respuesta bruta por defecto: ${config.output.brutoPorDefecto ? 'si' : 'no'}.`,
     label: 'Bruto',
     section: 'salida',
+    value: config.output.brutoPorDefecto ? 'si' : 'no',
   });
 
   // Solo se avisa si el PDF se genera siempre: con "preguntar" (por defecto) los datos se piden al generarlo.
@@ -242,7 +268,13 @@ export function buildConfigDoctorReport(
     checks.push(
       runtimeCheck.error
         ? { category: 'error', detail: runtimeCheck.error, label, section: 'validaciones' }
-        : { category: 'ok', detail: `Configuración válida para ${environment}.`, label, section: 'validaciones' },
+        : {
+            category: 'ok',
+            detail: `Configuración válida para ${environment}.`,
+            label,
+            section: 'validaciones',
+            value: environment,
+          },
     );
   }
 

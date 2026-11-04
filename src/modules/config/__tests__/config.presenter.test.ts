@@ -86,6 +86,6 @@ describe('config.presenter', () => {
 
     expect(formatConfigDoctor(report)).toContain('"etiqueta": "Validación testing"');
     expect(formatConfigDoctorAsText(report)).toContain('REVISIÓN DE CONFIGURACIÓN');
-    expect(formatConfigDoctorAsText(report)).toContain('Falta el punto de venta.');
+    expect(formatConfigDoctorAsText(report)).toContain('Falta el punto de venta');
   });
 });
