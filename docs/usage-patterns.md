@@ -171,6 +171,30 @@ arcli ncea -m 1500000 --cs --cuit 30546689979 --ir-ri \
 - falta `--afecha` en la nota
 - pasar `--cbu` o `--transferencia` en una nota FCE: solo van en la factura
 
+## Renovar el certificado
+
+### Cuándo usarlo
+
+Cuando `arcli config revisar` o el aviso de cada comando dicen que el certificado vence pronto, o para sacar el primero.
+
+### Comando
+
+```bash
+arcli certificado generar --produccion
+# en ARCA: subís el CSR que muestra y bajás el .crt
+arcli certificado importar produccion.crt
+```
+
+### Resultado esperado
+
+- hasta importar seguís facturando con el certificado actual: `generar` no toca la clave activa
+- `importar` dice qué cargó (entorno, CUIT, alias y vencimiento) y deja el par anterior como `.anterior.*`
+
+### Errores comunes
+
+- importar el `.crt` de otro CSR (`CERTIFICATE_KEY_MISMATCH`): usá el del último `generar`
+- olvidar autorizar los servicios web si cambiaste de alias
+
 ## Carga desde JSON
 
 ### Cuándo usarlo

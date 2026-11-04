@@ -79,17 +79,28 @@ arcli config establecer key.testing /ruta/a/la/clave.key
 
 - **Documentación relacionada:** [Configuración](configuration.md), [Cómo obtener los certificados de ARCA](obtencion-certificados.md)
 
+### Al importar: el certificado no corresponde a la clave
+
+- **Severidad:** media
+- **Síntoma:** `arcli certificado importar` corta con `El certificado no corresponde a la clave del último pedido` (`CERTIFICATE_KEY_MISMATCH`). No se toca la config.
+- **Causa:** el `.crt` se creó en ARCA con otro CSR: uno de un pedido anterior que descartaste con `--reemplazar`, uno armado en otra computadora o uno hecho con `openssl`.
+- **Solución:** en ARCA, creá el certificado con el CSR del último `arcli certificado generar` (está en `certificados/<CUIT>/<entorno>.nueva.csr`, junto a la config) y volvé a importar. Si el certificado es de un par que armaste con `openssl`, configuralo con `arcli config establecer cert.<entorno>` y `key.<entorno>`.
+- **Documentación relacionada:** [Comando `arcli certificado`](cli-reference.md#comando-arcli-certificado)
+
 ### Certificado por vencer o vencido
 
 - **Severidad:** alta (crítico si ya venció)
 - **Síntoma:** a menos de 30 días de vencer cualquiera de los certificados configurados (también el de producción si trabajás en testing), cada comando que va a ARCA empieza con el aviso `El certificado de <entorno> vence el dd/mm/aaaa (en N días)` (en stderr; en el modo interactivo, un recuadro debajo de la barra). Si ya venció el del entorno que usás, el comando corta con `Certificado vencido` (`CERTIFICATE_EXPIRED` en el JSON, con `detalles.entorno` y `detalles.vencimiento`) sin llegar a ARCA.
 - **Causa:** los certificados de ARCA vencen (por defecto, a los 2 años). Vencido, WSAA rechaza el login, así que no se puede emitir ni consultar en ese entorno.
-- **Solución:** generá un certificado nuevo con la [guía de obtención de certificados](https://github.com/LcsGrz/arcli/blob/main/docs/obtencion-certificados.md) (podés reusar la clave privada y el alias), autorizá de nuevo los servicios web si hace falta y cargá el nuevo:
+- **Solución:** renovalo con `arcli certificado generar` (o en el modo interactivo: Configuración → Certificados de ARCA). Arma una clave y un pedido nuevos sin tocar los actuales, así que seguís facturando hasta cargar el certificado nuevo. Subí el CSR en ARCA, bajá el `.crt` y cargalo; si usás un alias nuevo, autorizá de nuevo los servicios web:
 
 ```bash
-arcli config establecer cert.produccion /ruta/al/certificado-nuevo.crt
+arcli certificado generar --produccion
+arcli certificado importar produccion.crt
 arcli config revisar
 ```
+
+Si lo renovaste a mano, también sirve `arcli config establecer cert.produccion /ruta/al/certificado-nuevo.crt`.
 
 - **Documentación relacionada:** [Cómo obtener los certificados de ARCA](obtencion-certificados.md), [Formato de errores](input-output.md#certificado-vencido)
 
