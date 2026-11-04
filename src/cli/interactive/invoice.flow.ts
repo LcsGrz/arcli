@@ -32,6 +32,7 @@ export interface InvoiceState {
 }
 
 const isFceInvoice = (state: InvoiceState): boolean => state.voucherKind?.family === 'factura-credito-electronica';
+const isReceipt = (state: InvoiceState): boolean => state.voucherKind?.family === 'recibo';
 
 /** Pasos del flujo de factura; cada uno se puede deshacer con "Volver". */
 export function invoiceSteps(session: InteractiveSession): Array<WizardStep<InvoiceState>> {
@@ -60,13 +61,15 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
         }
       }
     },
+    // "Emitir recibo" arranca con el Recibo C elegido.
+    skip: (state) => Boolean(state.voucherKind),
   };
   const billingSteps: Array<WizardStep<InvoiceState>> = [
     {
       name: 'receptor',
       run: async (state) => {
         const documentType = await chooseStep(
-          '¿A quien le facturas?',
+          isReceipt(state) ? '¿A quién le hacés el recibo?' : '¿A quien le facturas?',
           receiverChoices(state.voucherKind?.letter ?? 'c'),
         );
 
@@ -100,8 +103,12 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
     },
     {
       name: 'concepto',
-      run: async () => {
-        const concept = await chooseStep('¿Qué estás facturando?', conceptChoices(), config.conceptoPorDefecto);
+      run: async (state) => {
+        const concept = await chooseStep(
+          isReceipt(state) ? '¿Qué estás cobrando?' : '¿Qué estás facturando?',
+          conceptChoices(),
+          config.conceptoPorDefecto,
+        );
 
         return concept === BACK ? BACK : { concept };
       },
@@ -172,8 +179,12 @@ export function buildInvoiceInput(state: InvoiceState, session: InteractiveSessi
   });
 }
 
-export async function runInvoiceFlow(session: InteractiveSession): Promise<void> {
-  const state = await runWizard(invoiceSteps(session), { advanced: { currencyCode: 'ARS', sameCurrency: false } });
+/** Sin `voucherKind` pregunta el comprobante; "Emitir recibo" lo pasa ya elegido. */
+export async function runInvoiceFlow(session: InteractiveSession, voucherKind?: VoucherKindDefinition): Promise<void> {
+  const state = await runWizard(invoiceSteps(session), {
+    advanced: { currencyCode: 'ARS', sameCurrency: false },
+    voucherKind,
+  });
 
   if (!state || state.exported) {
     return;

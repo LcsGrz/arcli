@@ -1,22 +1,41 @@
 import { basename, dirname } from 'node:path';
 
-export function maskPath(filePath: string): string {
+/**
+ * La ruta sin la carpeta del usuario, para que no quede en capturas ni logs: `.../<carpeta>/<archivo>`. Con `depth`
+ * se muestran mas tramos, por ejemplo `.../arcli/certificados/<CUIT>` con 3.
+ */
+export function maskPath(filePath: string, depth = 2): string {
   const normalizedPath = filePath.trim();
 
   if (!normalizedPath) {
     return filePath;
   }
 
-  const fileName = basename(normalizedPath);
-  const parentDirectory = basename(dirname(normalizedPath));
+  const segments: string[] = [];
+  let current = normalizedPath;
 
-  if (!fileName) {
-    return normalizedPath;
+  while (segments.length < depth) {
+    const segment = basename(current);
+    const parent = dirname(current);
+
+    if (!segment || segment === '.' || parent === current) {
+      break;
+    }
+
+    segments.unshift(segment);
+    current = parent;
   }
 
-  if (!parentDirectory || parentDirectory === '.' || parentDirectory === fileName) {
-    return `.../${fileName}`;
-  }
+  return segments.length === 0 ? normalizedPath : `.../${segments.join('/')}`;
+}
 
-  return `.../${parentDirectory}/${fileName}`;
+/**
+ * Como `maskPath`, pero desde la carpeta `arcli` si la ruta esta adentro (`.../arcli/certificados/<CUIT>/x.crt`,
+ * `.../arcli/tickets`): asi todas las rutas de arcli se leen igual. Fuera de esa carpeta, `maskPath`.
+ */
+export function shortenPath(filePath: string): string {
+  const segments = filePath.trim().split(/[\\/]+/);
+  const arcliIndex = segments.lastIndexOf('arcli');
+
+  return arcliIndex > 0 ? `.../${segments.slice(arcliIndex).join('/')}` : maskPath(filePath);
 }

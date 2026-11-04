@@ -1,3 +1,4 @@
+export * from './hyperlink';
 export * from './renderDivider';
 export * from './renderFooter';
 export * from './renderJson';

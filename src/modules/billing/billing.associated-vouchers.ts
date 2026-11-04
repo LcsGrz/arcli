@@ -5,7 +5,7 @@ import { InputValidationError } from '../../lib/errors/app-error';
 
 import { formatVoucherLabel } from './billing.mappers';
 import type { BillingCommandInput } from './billing.schemas';
-import type { VoucherKindDefinition } from './billing.types';
+import type { VoucherFamily, VoucherKindDefinition } from './billing.types';
 import { getVoucherKindByArcaType } from './voucher-kind-map';
 
 interface ResolveAssociatedVoucherOptions {
@@ -125,13 +125,16 @@ function resolveAssociatedVoucherType(
   return requireVoucherKind(shortcut).arcaType;
 }
 
+const ASSOCIABLE_FAMILIES: readonly VoucherFamily[] = ['factura', 'factura-credito-electronica', 'recibo'];
+
 function validateAssociatedVoucherKind(
   associatedVoucherKind: VoucherKindDefinition,
   voucherKind: VoucherKindDefinition,
 ): void {
-  if (associatedVoucherKind.family !== 'factura' && associatedVoucherKind.family !== 'factura-credito-electronica') {
+  // ARCA acepta notas C sobre un Recibo C (probado en testing).
+  if (!ASSOCIABLE_FAMILIES.includes(associatedVoucherKind.family)) {
     throw new InputValidationError(
-      `El comprobante asociado de ${formatVoucherLabel(voucherKind)} debe ser una factura, no otra nota.`,
+      `El comprobante asociado de ${formatVoucherLabel(voucherKind)} debe ser una factura o un recibo, no otra nota.`,
     );
   }
 

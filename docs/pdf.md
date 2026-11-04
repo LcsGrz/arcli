@@ -98,6 +98,8 @@ Va en el renglón de la condición frente al IVA del receptor ("Cond. Venta: Con
 
 El detalle del PDF tiene un renglón por alícuota de IVA con la descripción y su importe neto, o un solo renglón en las facturas `C`. Exento y no gravado van en renglones aparte.
 
+El Recibo C usa la misma plantilla que la Factura C con el título `RECIBO C`, `COD.15` y el QR con el tipo 15. No es el formato de recibo del portal de ARCA.
+
 ### Factura de exportación (E)
 
 La `E` usa el diseño de exportación de `@arcasdk/pdf`, con los mismos datos que la E de Comprobantes en línea, y no discrimina IVA. Imprime:
@@ -130,7 +132,7 @@ Las facturas C no llevan ninguna de las dos.
 - **Carpeta:** la config `pdfCarpeta`. Por defecto es `~/arcli/comprobantes`, una ruta fija para que los PDFs no queden repartidos según desde dónde corriste el comando.
 - **Una subcarpeta por CUIT emisor:** `~/arcli/comprobantes/20123456786/`. Así dos emisores con el mismo punto de venta y número no se pisan.
 - **Testing:** los PDFs de testing van a `testing/<CUIT>/` y llevan al pie "COMPROBANTE DE PRUEBA - SIN VALIDEZ FISCAL".
-- **Nombre:** `<tipo>-<letra>_<punto de venta>-<número>.pdf`, con el punto de venta en 4 dígitos y el número en 8. Por ejemplo, `factura-c_0003-00000125.pdf`, `nota-credito-a_0003-00000007.pdf` o `factura-e_0003-00000012.pdf`.
+- **Nombre:** `<tipo>-<letra>_<punto de venta>-<número>.pdf`, con el punto de venta en 4 dígitos y el número en 8. Por ejemplo, `factura-c_0003-00000125.pdf`, `nota-credito-a_0003-00000007.pdf`, `recibo-c_0003-00000003.pdf` o `factura-e_0003-00000012.pdf`.
 - **Nunca se pisa un PDF:** si el archivo ya existe, el nuevo se guarda como `factura-c_0003-00000125-2.pdf`, `-3` y así.
 
 ```bash

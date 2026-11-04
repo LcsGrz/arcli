@@ -20,7 +20,7 @@ function acceptedPemHeaders(kind: PemKind): string[] {
 export function ensurePathExists(filePath: string, label: PemKind): void {
   if (!existsSync(filePath)) {
     throw new ConfigurationError(
-      `La ruta de ${label === 'certificado' ? 'el certificado' : 'la clave privada'} no existe: ${maskPath(filePath)}`,
+      `La ruta ${label === 'certificado' ? 'del certificado' : 'de la clave privada'} no existe: ${maskPath(filePath)}`,
       {
         path: maskPath(filePath),
       },

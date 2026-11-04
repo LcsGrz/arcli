@@ -74,6 +74,10 @@ Si el archivo no existe, `arcli config` lo crea automáticamente.
 
 > Para claves booleanas, ARCLI acepta `true` / `false`, `sí` / `no` o `1` / `0`.
 
+### Certificados con `arcli certificado`
+
+`arcli certificado generar` y `arcli certificado importar` guardan la clave y el certificado en `certificados/<CUIT>/`, junto a `config.json`, y configuran `cert.<entorno>` y `key.<entorno>` apuntando ahí. Si ya tenés las rutas configuradas a mano, siguen andando igual. Ver [Comando `arcli certificado`](cli-reference.md#comando-arcli-certificado).
+
 ### Certificados de exportación (WSFEX)
 
 La factura de exportación `E` (`arcli fe`) usa el servicio `wsfex`, que ARCA autoriza por separado de `wsfe`. El certificado general puede no estar autorizado a `wsfex`, así que podés guardar uno propio:
@@ -164,6 +168,10 @@ arcli config revisar --json
 
 No recibe `--testing` ni `--produccion`: revisa los dos entornos de una vez.
 
+En `arcli config`, las rutas (certificados, claves, tickets, PDFs) se abren con un clic en terminales que soportan links, como la de VS Code, iTerm2 o Windows Terminal; `FORCE_HYPERLINK=0` los apaga. La sección Certificados muestra también la carpeta donde `arcli certificado` guarda los suyos.
+
+En la terminal agrupa los chequeos por sección (Cuenta, Al facturar, Certificados, Salida, PDF y Validaciones), con lo que falta en amarillo o rojo. El JSON trae los mismos chequeos, sin las secciones.
+
 Con problemas sale igual con exit code `0`: para saber si está todo listo, leé `ok` en el JSON (`true` solo si todos los chequeos están bien). La forma del JSON de `config` y `config revisar` está en [Entrada y salida](input-output.md#configuración-config-y-config-revisar).
 
 `arcli config --ayuda` y `arcli config establecer --ayuda` listan todas las claves con sus valores.
@@ -187,15 +195,16 @@ Cuando se guarda `cert.*` o `key.*`, ARCLI valida:
 
 ## Variables de entorno
 
-No son claves de config. Las de color y `ARCLI_ASCII` cambian solo cómo se ve la salida humana; el JSON no cambia.
+No son claves de config. Las de color, `FORCE_HYPERLINK` y `ARCLI_ASCII` cambian solo cómo se ve la salida humana; el JSON no cambia.
 
-| Variable                    | Efecto                                                                                                                                      |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `NO_COLOR`                  | Desactiva los colores                                                                                                                       |
-| `FORCE_COLOR=1`             | Fuerza los colores aunque la salida no sea una terminal (por defecto, con la salida redirigida no hay colores)                              |
-| `ARCLI_ASCII=1`             | Dibuja los paneles con ASCII puro (`+`, `-`, `\|`), para terminales o fuentes que no muestran los caracteres de caja Unicode                |
-| `NO_UPDATE_NOTIFIER`        | Desactiva el aviso de nueva versión, también en el modo interactivo. Tampoco aparece con `CI`, con `--json` ni si stderr no es una terminal |
-| `PUPPETEER_EXECUTABLE_PATH` | Ruta del navegador para el PDF (ver [PDF](pdf.md#el-plugin-de-pdf))                                                                         |
+| Variable                    | Efecto                                                                                                                                                     |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NO_COLOR`                  | Desactiva los colores                                                                                                                                      |
+| `FORCE_COLOR=1`             | Fuerza los colores aunque la salida no sea una terminal (por defecto, con la salida redirigida no hay colores)                                             |
+| `ARCLI_ASCII=1`             | Dibuja los paneles con ASCII puro (`+`, `-`, `\|`), para terminales o fuentes que no muestran los caracteres de caja Unicode                               |
+| `FORCE_HYPERLINK=0`         | Apaga los links clickeables en las rutas (con `1` los fuerza). Por defecto se usan en terminales que los soportan, como VS Code, iTerm2 o Windows Terminal |
+| `NO_UPDATE_NOTIFIER`        | Desactiva el aviso de nueva versión, también en el modo interactivo. Tampoco aparece con `CI`, con `--json` ni si stderr no es una terminal                |
+| `PUPPETEER_EXECUTABLE_PATH` | Ruta del navegador para el PDF (ver [PDF](pdf.md#el-plugin-de-pdf))                                                                                        |
 
 ## Qué conviene guardar
 

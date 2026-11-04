@@ -1,8 +1,8 @@
-import { maskPath } from '../../lib/paths/mask-path';
 import type { PdfOutcome } from '../../modules/pdf/pdf.types';
 import { errorPanel } from '../components/errorPanel';
 import { keyValuePanel } from '../components/keyValuePanel';
 import { noticePanel } from '../components/noticePanel';
+import { pathLink, supportsHyperlinks } from '../primitives/hyperlink';
 import { renderKeyValueRows, resolveKeyValueLabelWidth } from '../primitives/renderKeyValue';
 
 /** Texto que sigue al comprobante emitido: la ruta del PDF o por que no se genero. */
@@ -10,7 +10,10 @@ export function formatPdfOutcomeAsText(outcome: PdfOutcome, label?: string): str
   const prefix = label ? `${label}: ` : '';
 
   if ('path' in outcome) {
-    return noticePanel(`${prefix}PDF guardado en ${outcome.path}`, 'success');
+    // Con link alcanza la ruta corta (se abre con un clic); sin link, la completa para poder encontrarlo.
+    const path = supportsHyperlinks() ? pathLink(outcome.path) : outcome.path;
+
+    return noticePanel(`${prefix}PDF guardado en ${path}`, 'success');
   }
 
   const hint = ['El comprobante ya esta emitido: solo falto el PDF.', outcome.error.suggestion]
@@ -59,7 +62,7 @@ export function formatPdfPluginStatusAsText(status: PdfPluginStatusView, title =
       'Navegador',
       status.browser ? `${status.browser} (${BROWSER_SOURCE_LABELS[status.browserSource ?? 'sistema']})` : 'ninguno',
     ],
-    ['Carpeta', maskPath(status.path)],
+    ['Carpeta', pathLink(status.path)],
   ];
   const footer = status.installed ? 'Listo para generar PDFs' : 'Instalelo con `arcli pdf instalar`';
 

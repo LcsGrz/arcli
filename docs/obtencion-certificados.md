@@ -68,7 +68,24 @@ Se puede sumar un servicio después, repitiendo solo el paso 3 con el mismo cert
 
 ### 2. Generar la clave y el certificado
 
-Generá la clave privada (2048 bits como mínimo) y guardala en un lugar seguro — es la
+**Con arcli (recomendado).** Desde el modo interactivo: `arcli` → Configuración → Certificados de ARCA. O por comandos, con el CUIT ya configurado (`arcli config establecer cuit <CUIT>`):
+
+```bash
+arcli certificado generar --testing
+```
+
+Crea la clave privada y el CSR en la carpeta de config de arcli (no necesitás `openssl`, tampoco en
+Windows) y te muestra el CSR para pegar en WSASS. Seguí con "Ahora entrá a WSASS" más abajo y, cuando
+tengas el certificado en un archivo, cargalo:
+
+```bash
+arcli certificado importar testing.crt
+```
+
+`importar` valida el certificado, lo guarda junto a la clave y configura `cert.testing` y `key.testing`:
+podés saltear el paso 4. Te dice qué cargó (entorno, CUIT, alias y vencimiento).
+
+**Con openssl.** Generá la clave privada (2048 bits como mínimo) y guardala en un lugar seguro — es la
 "contraseña" del certificado, si la perdés tenés que empezar de nuevo:
 
 ```bash
@@ -151,7 +168,15 @@ Son los mismos 5 pasos que en testing (sección anterior), eligiendo el mismo se
 
 ### 2. Generar la clave y obtener el certificado
 
-Mismos comandos de `openssl` que en testing, con un archivo distinto:
+**Con arcli (recomendado):** `arcli certificado generar --produccion`, subí el CSR como se muestra abajo y,
+con el `.crt` descargado, `arcli certificado importar produccion.crt`. Configura `cert.produccion` y
+`key.produccion`, así que podés saltear el paso 4.
+
+**Para renovar** un certificado que está por vencer, es el mismo flujo: `generar` deja la clave nueva
+pendiente y no toca la actual, así que seguís facturando hasta que `importar` carga el certificado nuevo.
+Acordate de volver a crear las relaciones del paso 3 si usás un alias nuevo.
+
+**Con openssl.** Mismos comandos que en testing, con un archivo distinto:
 
 ```bash
 openssl genrsa -out produccion.key 2048

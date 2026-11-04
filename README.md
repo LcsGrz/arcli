@@ -16,7 +16,7 @@ CLI para previsualizar y emitir comprobantes electrónicos de ARCA (ex AFIP) des
 
 - **Modo interactivo:** `arcli` sin argumentos abre un asistente que guía la emisión, repite facturas anteriores, arma notas de crédito y débito, consulta comprobantes y configura el CLI. Cada paso muestra el comando equivalente.
 - **Vista previa por defecto:** sin `--emitir`, muestra la solicitud y, en una terminal, pregunta antes de emitir.
-- **Comprobantes:** Factura, Nota de Crédito y Nota de Débito A, B y C, y sus versiones de Factura de Crédito Electrónica (FCE), con CBU, transferencia, anulación y consulta del régimen del receptor.
+- **Comprobantes:** Factura, Nota de Crédito y Nota de Débito A, B y C, y sus versiones de Factura de Crédito Electrónica (FCE), y Recibo C, con CBU, transferencia, anulación y consulta del régimen del receptor.
 - **Factura de exportación E:** `arcli fe` emite con WSFEX, con cliente y país de destino, incoterm, items detallados y permisos de embarque; acepta certificado propio con `exportacion.cert.*` / `exportacion.key.*`.
 - **Entrada y salida flexibles:** flags o JSON (incluso lotes); salida legible, `--json` o respuesta bruta de ARCA.
 - **Validaciones locales** basadas en el manual de ARCA, para detectar errores antes de llamar al servicio.
@@ -47,7 +47,7 @@ Opcional: autocompletado con Tab de comandos, flags y valores, en bash, zsh o fi
 
 ## Configuración
 
-Necesitás tu CUIT, un punto de venta y un certificado con su clave privada de ARCA. Si todavía no los tenés, seguí [Cómo obtener los certificados](https://github.com/LcsGrz/arcli/blob/main/docs/obtencion-certificados.md).
+Necesitás tu CUIT, un punto de venta y un certificado con su clave privada de ARCA. Si todavía no tenés el certificado, `arcli certificado generar` arma el pedido para ARCA y `arcli certificado importar` carga el que te devuelve; el paso a paso está en [Cómo obtener los certificados](https://github.com/LcsGrz/arcli/blob/main/docs/obtencion-certificados.md).
 
 Lo más simple es correr `arcli` y seguir la configuración guiada. Para hacerlo por comandos (por ejemplo, en un servidor):
 
@@ -133,6 +133,7 @@ Leé [CONTRIBUTING.md](https://github.com/LcsGrz/arcli/blob/main/CONTRIBUTING.md
 - [`@arcasdk/core`](https://github.com/ralcorta/arcasdk) y [`@arcasdk/pdf`](https://www.afipts.com/packages/pdf), de [Rodrigo Alcorta](https://github.com/ralcorta).
 - [Arpit Bhayani](https://github.com/arpitbbhayani), por ceder el nombre `arcli` en npm.
 - [Manuel Aller](https://github.com/itManuel), por la factura de exportación E.
+- [Guillermo Britos](https://github.com/guillermobr), por el Recibo C.
 - [Kevin Tea](https://github.com/kevintea), por la condición de venta en el PDF.
 
 Si el proyecto te resulta útil, podés dejar una estrella o invitarme un [Cafecito](https://cafecito.app/lcsgrz).

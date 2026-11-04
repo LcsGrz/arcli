@@ -3,6 +3,7 @@ import { type Command, Help } from 'commander';
 import { CERTIFICATE_GUIDE_URL } from '../lib/links';
 import type { VoucherFamily, VoucherLetter, VoucherShortcut } from '../modules/billing/billing.types';
 import {
+  getVoucherFamilyLetters,
   getVoucherKindByFamilyAndLetter,
   getVoucherKindByShortcut,
   VOUCHER_FAMILIES,
@@ -28,15 +29,7 @@ const FAMILY_LABELS: Record<VoucherFamily, string> = {
   'nota-credito-electronica': 'Nota de crédito electrónica',
   'nota-debito': 'Nota de débito',
   'nota-debito-electronica': 'Nota de débito electrónica',
-};
-
-const FAMILY_SHORTCUTS: Record<VoucherFamily, readonly [VoucherShortcut, VoucherShortcut, VoucherShortcut]> = {
-  factura: ['fa', 'fb', 'fc'],
-  'factura-credito-electronica': ['fcea', 'fceb', 'fcec'],
-  'nota-credito': ['nca', 'ncb', 'ncc'],
-  'nota-credito-electronica': ['ncea', 'nceb', 'ncec'],
-  'nota-debito': ['nda', 'ndb', 'ndc'],
-  'nota-debito-electronica': ['ndea', 'ndeb', 'ndec'],
+  recibo: 'Recibo',
 };
 
 /** Lo que vale para cualquier comprobante. */
@@ -86,14 +79,14 @@ function compactList(values: readonly string[]): string {
   return values.map((value) => `  - ${value}`).join('\n');
 }
 
-/** La letra E (exportacion, WSFEX) solo existe en la familia `factura`. */
+/** Un atajo por letra (`-` si la familia no tiene esa letra); la E (exportacion, WSFEX) solo existe en `factura`. */
 function familyShortcuts(family: VoucherFamily): readonly string[] {
-  return family === EXPORT_VOUCHER_KIND.family
-    ? [...FAMILY_SHORTCUTS[family], EXPORT_VOUCHER_KIND.shortcut]
-    : FAMILY_SHORTCUTS[family];
+  const shortcuts = VOUCHER_LETTERS.map((letter) => getVoucherKindByFamilyAndLetter(family, letter)?.shortcut ?? '-');
+
+  return family === EXPORT_VOUCHER_KIND.family ? [...shortcuts, EXPORT_VOUCHER_KIND.shortcut] : shortcuts;
 }
 
-/** Los atajos en una tabla familia × letra, en lugar de un renglon por atajo en la lista de comandos. */
+/** Los atajos en una tabla familia × letra, en lugar de un renglón por atajo en la lista de comandos. */
 function createProgramVoucherTable(): string {
   const width = Math.max(...VOUCHER_FAMILIES.map((family) => family.length)) + 2;
   const column = (value: string) => value.padEnd(7);
@@ -166,11 +159,13 @@ function createShortcutSummary(shortcut: VoucherShortcut): string {
 }
 
 function createFamilySummary(family: VoucherFamily): string {
-  const [a, b, c] = FAMILY_SHORTCUTS[family];
+  const [a, b, c] = familyShortcuts(family);
   const hasExport = family === EXPORT_VOUCHER_KIND.family;
   const summary = hasExport
     ? `${FAMILY_LABELS[family]}, letras A, B, C y E (exportación): arcli ${family} <a|b|c|e>. Atajos: ${a}, ${b}, ${c} y ${EXPORT_VOUCHER_KIND.shortcut}. Los flags que no aplican a la letra se saltean con un aviso.`
-    : `${FAMILY_LABELS[family]}, letras A, B y C: arcli ${family} <a|b|c>. Atajos: ${a}, ${b} y ${c}.`;
+    : getVoucherFamilyLetters(family).length === 1
+      ? `${FAMILY_LABELS[family]}, solo letra C: arcli ${family} c. Atajo: ${c}.`
+      : `${FAMILY_LABELS[family]}, letras A, B y C: arcli ${family} <a|b|c>. Atajos: ${a}, ${b} y ${c}.`;
 
   return [
     section('Familia', compactList([summary])),
@@ -275,6 +270,7 @@ export function createConfigHelp(): string {
         '  - Revisar entorno: arcli config revisar',
         '  - Ver ruta del archivo: arcli config ruta',
         '  - Guardar un default: arcli config establecer puntoVenta 3',
+        '  - Sacar el certificado de ARCA: arcli certificado generar --testing',
         '  - Guardar una credencial: arcli config establecer cert.testing /ruta/cert.crt',
       ].join('\n'),
     ),
@@ -530,7 +526,7 @@ export function createFamilyHelp(family: VoucherFamily): string {
     createRules({
       isElectronicCredit: family.includes('electronica'),
       isNote: family.includes('nota'),
-      letters: VOUCHER_LETTERS,
+      letters: getVoucherFamilyLetters(family),
     }),
     '',
   ].join('\n');

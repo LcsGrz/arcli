@@ -2,7 +2,12 @@ import type { Command } from 'commander';
 
 import { InputValidationError } from '../../lib/errors/app-error';
 import { billingIvaConditionSchema, IVA_RATE_ALIASES } from '../../modules/billing/billing.schemas';
-import { VOUCHER_LETTERS, VOUCHER_SHORTCUTS } from '../../modules/billing/voucher-kind-map';
+import {
+  getVoucherFamilyLetters,
+  VOUCHER_FAMILIES,
+  VOUCHER_LETTERS,
+  VOUCHER_SHORTCUTS,
+} from '../../modules/billing/voucher-kind-map';
 import { completeWords, type CompletionCommand, type CompletionValues } from '../../modules/completion/completion';
 import {
   formatCompletionResultAsText,
@@ -63,11 +68,17 @@ const ARGUMENT_VALUES: Readonly<Record<string, CompletionValues>> = {
   valor: configValues,
 };
 
-/** La familia `factura` tambien acepta la letra E (exportacion). */
+/** Las letras de cada familia: `factura` tambien acepta la E (exportacion) y `recibo` solo la C. */
 function argumentValues(command: Command, name: string): CompletionValues | undefined {
-  return name === 'letra' && command.name() === EXPORT_VOUCHER_KIND.family
-    ? [...VOUCHER_LETTERS, EXPORT_VOUCHER_KIND.letter]
-    : ARGUMENT_VALUES[name];
+  const family = VOUCHER_FAMILIES.find((candidate) => candidate === command.name());
+
+  if (name !== 'letra' || !family) {
+    return ARGUMENT_VALUES[name];
+  }
+
+  return family === EXPORT_VOUCHER_KIND.family
+    ? [...getVoucherFamilyLetters(family), EXPORT_VOUCHER_KIND.letter]
+    : getVoucherFamilyLetters(family);
 }
 
 /** El arbol de commander como lo necesita el autocompletado. */

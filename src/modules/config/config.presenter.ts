@@ -1,11 +1,20 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { maskPath } from '../../lib/paths/mask-path';
-import { colorize, keyValuePanel, resolveKeyValueLabelWidth, statusPanel, toneText, UI_THEME } from '../../ui';
+import {
+  bold,
+  colorize,
+  keyValuePanel,
+  pathLink,
+  resolveKeyValueLabelWidth,
+  statusPanel,
+  toneText,
+  UI_THEME,
+} from '../../ui';
 import { RECENT_VOUCHERS_LIMIT } from '../vouchers/voucher-history';
 
 import type { ArcliConfig, ConfigPublicKey } from './config.schemas';
 import { CONFIG_LABELS, CONFIG_SECTIONS } from './config.sections';
-import type { ConfigDoctorReport } from './config-doctor';
+import { CONFIG_DOCTOR_SECTIONS, type ConfigDoctorReport } from './config-doctor';
 
 interface PublicConfigSnapshot {
   readonly alicuota?: ArcliConfig['alicuotaPorDefecto'];
@@ -52,6 +61,8 @@ interface PublicConfigSnapshot {
 }
 
 export interface ConfigPathSnapshot {
+  /** Donde `arcli certificado` guarda claves y certificados; solo se muestra en el texto. */
+  readonly certificatesFolder?: string;
   readonly pdfFolder: string;
   readonly ticketPath: string;
 }
@@ -168,12 +179,48 @@ const CONFIG_TEXT_VALUES: Record<ConfigPublicKey, PublicConfigValue> = {
  * La configuracion por secciones, en el mismo orden que "Modificar configuracion" del modo interactivo.
  * El peso esta en los valores: titulos en celeste, etiquetas y datos sin cargar atenuados.
  */
+/** La ruta completa de cada clave que es una ruta, para el link de `arcli config`. */
+const CONFIG_PATHS: Partial<
+  Record<ConfigPublicKey, (config: ArcliConfig, paths: ConfigPathSnapshot) => string | undefined>
+> = {
+  'cert.produccion': (c) => c.cert.produccion,
+  'cert.testing': (c) => c.cert.testing,
+  'emisor.logo': (c) => c.emisor.logo,
+  'exportacion.cert.produccion': (c) => c.exportacion?.cert.produccion,
+  'exportacion.cert.testing': (c) => c.exportacion?.cert.testing,
+  'exportacion.key.produccion': (c) => c.exportacion?.key.produccion,
+  'exportacion.key.testing': (c) => c.exportacion?.key.testing,
+  'key.produccion': (c) => c.key.produccion,
+  'key.testing': (c) => c.key.testing,
+  pdfCarpeta: (_c, paths) => paths.pdfFolder,
+  pdfNavegador: (c) => c.pdfNavegador,
+  ticketPath: (_c, paths) => paths.ticketPath,
+};
+
 export function formatConfigAsText(config: ArcliConfig, paths: ConfigPathSnapshot): string {
   const safeConfig = toPublicSnapshot(config, paths);
   const sections = CONFIG_SECTIONS.map((section) => ({
+    id: section.id,
     label: section.label,
-    rows: section.keys.map((key) => [CONFIG_LABELS[key], String(CONFIG_TEXT_VALUES[key](safeConfig))] as const),
+    rows: section.keys.map((key) => {
+      const path = CONFIG_PATHS[key]?.(config, paths);
+
+      // Las rutas se abren con un clic; el texto es el mismo que sin link.
+      return [
+        CONFIG_LABELS[key],
+        path
+          ? pathLink(path, String(CONFIG_TEXT_VALUES[key](safeConfig)))
+          : String(CONFIG_TEXT_VALUES[key](safeConfig)),
+      ] as const;
+    }),
   }));
+  // La carpeta de `arcli certificado` no es una clave de config: va al final de Certificados, como la de tickets.
+  if (paths.certificatesFolder) {
+    sections
+      .find((section) => section.id === 'certificados')
+      ?.rows.push(['Carpeta de certificados', pathLink(paths.certificatesFolder)] as const);
+  }
+
   // Un solo ancho de etiqueta para todas las secciones, asi los valores quedan en la misma columna.
   const labelWidth = resolveKeyValueLabelWidth(
     'standard',
@@ -209,17 +256,43 @@ export function formatConfigDoctor(report: ConfigDoctorReport): string {
   );
 }
 
-export function formatConfigDoctorAsText(report: ConfigDoctorReport): string {
-  const lines = report.checks.map((check) => {
-    const icon =
-      check.category === 'ok'
-        ? toneText('✓', 'success')
-        : check.category === 'warning'
-          ? toneText('!', 'warning')
-          : toneText('x', 'danger');
+const DOCTOR_ICONS: Record<ConfigDoctorReport['checks'][number]['category'], string> = {
+  error: 'x',
+  ok: '✓',
+  warning: '!',
+};
 
-    return `${icon} ${check.label}: ${check.detail}`;
-  });
+const DOCTOR_TONES = { error: 'danger', ok: 'success', warning: 'warning' } as const;
+
+/** Sin el punto final, con el dato del chequeo (el ultimo que aparece) en negrita. */
+function formatDoctorDetail(check: ConfigDoctorReport['checks'][number]): string {
+  const detail = check.detail.replace(/\.$/, '');
+  const index = check.value ? detail.lastIndexOf(check.value) : -1;
+
+  if (!check.value || index < 0) {
+    return detail;
+  }
+
+  return `${detail.slice(0, index)}${bold(check.value)}${detail.slice(index + check.value.length)}`;
+}
+
+/** Por seccion, en el orden de `CONFIG_DOCTOR_SECTIONS`: un titulo y un item por chequeo. Lo que falla, en color. */
+export function formatConfigDoctorAsText(report: ConfigDoctorReport): string {
+  const sections = CONFIG_DOCTOR_SECTIONS.map(([section, title]) => ({
+    checks: report.checks.filter((check) => check.section === section),
+    title,
+  })).filter(({ checks }) => checks.length > 0);
+  const lines = sections.flatMap(({ checks, title }, index) => [
+    ...(index > 0 ? [''] : []),
+    colorize(title, 'info'),
+    ...checks.map((check) => {
+      const tone = DOCTOR_TONES[check.category];
+      const detail = formatDoctorDetail(check);
+
+      // Dos espacios despues del icono: una linea larga sigue alineada al texto, no al icono.
+      return `  ${toneText(DOCTOR_ICONS[check.category], tone)}  ${check.category === 'ok' ? detail : colorize(detail, tone)}`;
+    }),
+  ]);
   const tone = report.ok ? 'success' : report.checks.some((check) => check.category === 'error') ? 'danger' : 'warning';
   const footer = report.ok
     ? 'Configuración lista para usar ARCLI'

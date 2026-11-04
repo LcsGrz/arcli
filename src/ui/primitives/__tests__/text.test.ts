@@ -3,6 +3,13 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { colorize, shouldUseColor, stripAnsi, wrapIndentedPlainText } from '../text';
 
 describe('wrapIndentedPlainText', () => {
+  it('keeps the label when the first word of the value does not fit', () => {
+    expect(wrapIndentedPlainText('  Ruta          .../arcli/certificados/123/x.crt', 34)).toEqual([
+      '  Ruta          .../arcli/certific',
+      '                ados/123/x.crt',
+    ]);
+  });
+
   it('deja igual las lineas que entran', () => {
     expect(wrapIndentedPlainText('  Moneda   ARS', 40)).toEqual(['  Moneda   ARS']);
   });

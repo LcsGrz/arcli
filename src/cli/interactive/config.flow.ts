@@ -1,7 +1,6 @@
 import { Separator } from '@inquirer/select';
 import { join } from 'node:path';
 
-import { CERTIFICATE_GUIDE_URL } from '../../lib/links';
 import {
   formatCompletionResultAsText,
   formatCompletionStateAsText,
@@ -24,7 +23,7 @@ import {
   describeConfigValue,
   getConfigField,
 } from '../../modules/interactive/config-fields';
-import { BACK, runWizard, type WizardStep } from '../../modules/interactive/wizard';
+import { BACK, type Back, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { PdfPlugin } from '../../services/pdf/pdf-plugin';
 import {
   bold,
@@ -37,6 +36,7 @@ import {
 import { buildRuntimeChecks } from '../commands/config.command';
 import { startSpinner } from '../spinner';
 
+import { runCertificateMenu, runGenerateCertificate } from './certificate.flow';
 import { askTextStep, type Choice, chooseOne, chooseStep, confirm, fitPageSize } from './prompts';
 
 const CLEAR = '__borrar__';
@@ -167,20 +167,55 @@ async function askField(
   return 'guardado';
 }
 
-function fieldSteps(keys: readonly ConfigPublicKey[], required: readonly ConfigPublicKey[]): Array<WizardStep<object>> {
+interface GuidedState {
+  /** El certificado de testing se saco desde el paso: la clave ya quedo configurada (o pendiente), no se pide. */
+  readonly certificateFromArca?: boolean;
+}
+
+/** Sin certificado de testing, ofrece sacarlo en el momento en lugar de pedir la ruta de uno que no existe. */
+async function askTestingCertificate(required: boolean): Promise<Back | GuidedState> {
+  if (!readConfig().cert.testing) {
+    const choice = await chooseStep<'sacar' | 'tengo'>('¿Ya tenés el certificado de testing de ARCA?', [
+      { description: 'Te pido la ruta del .crt y de la clave', name: 'Sí, tengo los archivos', value: 'tengo' },
+      {
+        description: 'Armamos la clave y el pedido para subir a ARCA',
+        name: 'No, sacarlo ahora',
+        value: 'sacar',
+      },
+    ]);
+
+    if (choice === BACK) {
+      return BACK;
+    }
+
+    if (choice === 'sacar') {
+      const result = await runGenerateCertificate('testing');
+
+      return result === BACK ? BACK : { certificateFromArca: true };
+    }
+  }
+
+  const result = await askField(getConfigField('cert.testing'), readConfig(), { required });
+
+  return result === BACK ? BACK : { certificateFromArca: false };
+}
+
+function fieldSteps(
+  keys: readonly ConfigPublicKey[],
+  required: readonly ConfigPublicKey[],
+): Array<WizardStep<GuidedState>> {
   return keys.map((key) => ({
     name: key,
     run: async () => {
-      if (key === 'cert.testing' && !readConfig().cert.testing) {
-        writeTerminalOutput(
-          noticePanel(`¿No tenés certificado todavía? Guía paso a paso: ${CERTIFICATE_GUIDE_URL}`, 'muted'),
-        );
+      if (key === 'cert.testing') {
+        return askTestingCertificate(required.includes(key));
       }
 
       const result = await askField(getConfigField(key), readConfig(), { required: required.includes(key) });
 
       return result === BACK ? BACK : {};
     },
+    skip: (state: GuidedState) => key === 'key.testing' && state.certificateFromArca === true,
   }));
 }
 
@@ -188,7 +223,7 @@ function fieldSteps(keys: readonly ConfigPublicKey[], required: readonly ConfigP
 export async function runGuidedSetup(): Promise<void> {
   writeTerminalOutput(
     noticePanel(
-      `Vamos a dejar todo listo para emitir. Si todavía no tenés certificado, la guía esta en ${CERTIFICATE_GUIDE_URL}`,
+      'Vamos a dejar todo listo para emitir. Si todavía no tenés certificado, en el paso del certificado lo sacamos juntos.',
       'info',
     ),
   );
@@ -340,7 +375,7 @@ async function runCompletionMenu(): Promise<void> {
   writeTerminalOutput(formatCompletionResultAsText(result, environment.home));
 }
 
-type ConfigOption = 'cambiar' | 'completado' | 'guiada' | 'pdf' | 'revisar' | 'ver' | 'volver';
+type ConfigOption = 'cambiar' | 'certificados' | 'completado' | 'guiada' | 'pdf' | 'revisar' | 'ver' | 'volver';
 
 function showConfig(): void {
   withConfigService((service) => {
@@ -372,6 +407,11 @@ export async function runConfigMenu(): Promise<void> {
           name: 'Modificar configuración',
           value: 'cambiar',
         },
+        {
+          description: 'Sacar, renovar o cargar el certificado',
+          name: 'Certificados de ARCA',
+          value: 'certificados',
+        },
         { description: 'Estado, instalar o desinstalar', name: 'Plugin de PDF', value: 'pdf' },
         {
           description: 'Completar comandos y flags con Tab en la terminal',
@@ -399,6 +439,7 @@ export async function runConfigMenu(): Promise<void> {
 
     if (option === 'guiada') await runGuidedSetup();
     if (option === 'cambiar') await runChangeField();
+    if (option === 'certificados') await runCertificateMenu();
     if (option === 'pdf') await runPdfPluginMenu();
     if (option === 'completado') await runCompletionMenu();
   }

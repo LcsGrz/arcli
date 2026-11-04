@@ -2,7 +2,7 @@ import { formatMoneyLabel } from '../../modules/billing/billing.labels';
 import type { BillingConcept } from '../../modules/billing/billing.schemas';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { parseAmountInput } from '../../modules/interactive/amount-input';
-import { invoiceKindChoices } from '../../modules/interactive/choices';
+import { invoiceKindChoices, reciboChoice } from '../../modules/interactive/choices';
 import { copyInvoiceAmounts } from '../../modules/interactive/invoice-copy';
 import { currentMonthPeriod, previousMonthPeriod, type ServicePeriod } from '../../modules/interactive/periods';
 import { BACK, runWizard, type WizardStep } from '../../modules/interactive/wizard';
@@ -34,7 +34,7 @@ function describePeriod(period: ServicePeriod): string {
 }
 
 /**
- * Repetir una factura: se elige una de las ultimas emitidas y se copian el comprobante, el receptor, el concepto,
+ * Repetir una factura o un recibo: se elige uno de los ultimos emitidos y se copian el comprobante, el receptor, el concepto,
  * el monto y la alicuota. Las fechas se actualizan: la factura sale con fecha de hoy y el periodo se elige.
  */
 export function repeatSteps(
@@ -48,7 +48,10 @@ export function repeatSteps(
     {
       name: 'tipo',
       run: async () => {
-        const voucherKind = await chooseStep('¿Qué tipo de factura querés repetir?', invoiceKindChoices());
+        const voucherKind = await chooseStep('¿Qué comprobante querés repetir?', [
+          ...invoiceKindChoices(),
+          reciboChoice(),
+        ]);
 
         return voucherKind === BACK ? BACK : { voucherKind };
       },

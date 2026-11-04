@@ -21,14 +21,14 @@ jobs:
 
     steps:
       - name: Checkout del tag
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.release.tag_name }}
           fetch-depth: 0
 
       # Sin cache de yarn: una cache envenenada por otro workflow entraria al paquete publicado.
       - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
 
@@ -81,16 +81,18 @@ jobs:
           retention-days: 7
 
   # Solo publica el .tgz que armo `build`: no hace checkout ni instala nada.
+  # El environment `npm` solo acepta tags `v*` y espera la aprobación de quien mantiene el repo.
   publish:
     needs: build
     runs-on: ubuntu-latest
+    environment: npm
     permissions:
       contents: read
       id-token: write
 
     steps:
       - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org

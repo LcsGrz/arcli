@@ -61,6 +61,7 @@ describe('arcli __completar', () => {
     // La E (exportacion) solo existe en la familia factura.
     expect(await complete('factura', '')).toEqual(['a', 'b', 'c', 'e']);
     expect(await complete('nota-credito', '')).toEqual(['a', 'b', 'c']);
+    expect(await complete('recibo', '')).toEqual(['c']);
   });
 
   it('takes the typed words as they are, even flags or "ayuda"', async () => {

@@ -21,7 +21,7 @@ yarn dev --ayuda
 
 Los comandos, los flags, las claves de configuración y los formatos JSON son contrato público. No se cambian en silencio: el cambio se discute (en un issue o en el mismo PR) y se actualizan implementación, ayuda, tests y documentación. Si tocás alguno, avisalo en la descripción del PR. Un cambio que rompe compatibilidad puede tener que esperar a una versión mayor.
 
-El alcance de comprobantes es Factura, Nota de Crédito y Nota de Débito A, B y C, sus versiones de Factura de Crédito Electrónica y la Factura de exportación E. Otros comprobantes quedan fuera salvo decisión explícita.
+El alcance de comprobantes es Factura, Nota de Crédito y Nota de Débito A, B y C, sus versiones de Factura de Crédito Electrónica, la Factura de exportación E y Recibo C. Otros comprobantes quedan fuera salvo decisión explícita.
 
 ## Flujo
 

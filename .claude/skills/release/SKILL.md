@@ -78,7 +78,7 @@ Pedí el ok una sola vez y mostrá las notas antes: crear la release ya publica 
 
 1. Notas: el cuerpo de la sección `[X.Y.Z]` del CHANGELOG, sin la línea `## [X.Y.Z] - fecha`. Guardalo en un archivo del scratchpad.
 2. `gh release create vX.Y.Z --target main --title vX.Y.Z --notes-file <archivo>`. Esto crea también el tag y dispara el workflow `Release`, que publica en npm.
-3. Buscá el run con `gh run list --workflow release.yml --limit 1` y seguilo con `gh run watch <id> --exit-status`.
+3. Buscá el run con `gh run list --workflow release.yml --limit 1` y seguilo con `gh run watch <id> --exit-status`. Cuando `build` termina, `publish` espera la aprobación del environment `npm`: avisale al usuario que la apruebe en Actions ("Review deployments"). No la apruebes vos.
 4. Confirmá con `npm view arcli version`, que tiene que devolver `X.Y.Z`. Puede tardar unos minutos en propagarse.
 
 Si el workflow falla, mostrá el log (`gh run view <id> --log-failed`) y frená. No borres el tag ni la release sin que el usuario lo pida.
