@@ -64,5 +64,5 @@ Un test (`docs-sync.test.ts`) falla si un comando, flag o clave de config falta 
 - [ ] `yarn typecheck`
 - [ ] `yarn lint`
 - [ ] `yarn test`
-- [ ] `yarn build` y `npm pack --dry-run` (`yarn open-source:check` corre typecheck, tests con cobertura, build y pack)
+- [ ] `yarn build` y `yarn pack:check` (`yarn open-source:check` corre typecheck, tests con cobertura, build y `pack:check`)
 - [ ] Documentación y `CHANGELOG.md` al día

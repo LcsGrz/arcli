@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
   type CertificateExpiry,
@@ -7,8 +7,13 @@ import {
   readCertificateExpiry,
 } from '../certificate';
 
-import { createSelfSignedCertificate, removeSelfSignedCertificates } from './self-signed-certificate';
+import {
+  createSelfSignedCertificate,
+  OPENSSL_WARM_UP_TIMEOUT_MS,
+  removeSelfSignedCertificates,
+} from './self-signed-certificate';
 
+beforeAll(() => [10, 365].forEach(createSelfSignedCertificate), OPENSSL_WARM_UP_TIMEOUT_MS);
 afterAll(removeSelfSignedCertificates);
 
 function createExpiry(partial: Partial<CertificateExpiry>): CertificateExpiry {

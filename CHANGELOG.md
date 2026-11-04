@@ -19,6 +19,10 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **`--misma-moneda` con `--fecha` futura** llegaba a ARCA y fallaba con el error 10038: ahora pide que la fecha sea la de hoy, porque ARCA solo publica la cotización vigente.
 - **Repetir una factura con montos chicos** podía deducir mal la alícuota de IVA (por ejemplo, 2,5% en vez de 21%).
 
+### Seguridad
+
+- **Publicación en npm más estricta:** el paquete se publica desde el tag de la release de GitHub (antes, desde lo último de `main`) y el release falla si el tag no coincide con la versión. Se arma en un job sin permiso para publicar, sin cache y sin scripts de dependencias, y antes de publicarlo se instala y se prueba que arranque.
+
 ## [2.2.1] - 2026-11-03
 
 Corrige `arcli pdf instalar` en Windows y suma lo necesario para recibir contribuciones: plantillas de issue y de PR, código de conducta, Discussions para preguntas, y un CI que también corre en Windows, macOS y Node 26. No cambian comandos, flags, claves de config ni el `--json`.

@@ -1,10 +1,11 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import {
   createSelfSignedCertificate,
+  OPENSSL_WARM_UP_TIMEOUT_MS,
   removeSelfSignedCertificates,
 } from '../../../lib/security/__tests__/self-signed-certificate';
 import { ConfigService } from '../../../modules/config/config.service';
@@ -69,9 +70,10 @@ function writeRawConfig(
   return configPath;
 }
 
-afterEach(() => {
-  removeSelfSignedCertificates();
+beforeAll(() => [10, 365].forEach(createSelfSignedCertificate), OPENSSL_WARM_UP_TIMEOUT_MS);
+afterAll(removeSelfSignedCertificates);
 
+afterEach(() => {
   for (const directory of temporaryDirectories.splice(0)) {
     rmSync(directory, { force: true, recursive: true });
   }

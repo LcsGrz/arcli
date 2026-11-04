@@ -28,7 +28,7 @@ Gestor de paquetes: `yarn` (no mezclar lockfiles).
 - `yarn install`
 - `yarn dev --ayuda`: correr el CLI desde `src/`
 - `yarn typecheck`, `yarn lint`, `yarn test`
-- `yarn open-source:check`: typecheck, tests con cobertura, build y `npm pack --dry-run`
+- `yarn open-source:check`: typecheck, tests con cobertura, build y `pack:check` (instala el paquete y corre `arcli --version`)
 
 Antes de dar por terminado un cambio significativo: `yarn typecheck`, `yarn lint` y `yarn test`. En Claude Code, un hook al terminar cada respuesta ya corre typecheck, ESLint y los tests relacionados si cambió `src/`, así que no hace falta correrlos a mano después de cada edición; la suite completa sí, antes de abrir un PR. Detalle en [docs/development.md](docs/development.md#trabajar-con-agentes).
 
