@@ -308,10 +308,11 @@ Estos flags controlan el PDF del comprobante emitido. Los datos que se pasan ac�
 | `--sin-pdf`                    | ninguno | `boolean` | según `config.pdf`      | No genera el PDF                             |
 | `--descripcion <texto>`        | ninguno | `string`  | `Segun detalle`         | Detalle del comprobante en el PDF            |
 | `--condicion-venta <tipo>`     | `--cv`  | `string`  | `config.condicionVenta` | Condición de venta en el PDF                 |
+| `--sin-condicion-venta`        | ninguno | `boolean` | ninguno                 | Omite la condición aunque esté configurada   |
 | `--receptor-nombre <texto>`    | ninguno | `string`  | ninguno                 | Nombre o razón social del receptor en el PDF |
 | `--receptor-domicilio <texto>` | ninguno | `string`  | ninguno                 | Domicilio del receptor en el PDF             |
 
-`--condicion-venta` acepta `contado`, `tarjeta-debito`, `tarjeta-credito`, `cuenta-corriente`, `cheque`, `transferencia`, `otros-medios-electronicos` u `otra`, que se imprimen con su nombre (`cuenta-corriente` sale "Cuenta Corriente"). Cualquier otro texto se imprime tal cual: `--cv "Billetera virtual"`. Solo en A, B y C; en la factura `E` va `--forma-pago`, que sí viaja a ARCA.
+`--condicion-venta` acepta `contado`, `tarjeta-debito`, `tarjeta-credito`, `cuenta-corriente`, `cheque`, `transferencia`, `otros-medios-electronicos` u `otra`, que se imprimen con su nombre (`cuenta-corriente` sale "Cuenta Corriente"). Cualquier otro texto se imprime tal cual: `--cv "Billetera virtual"`. `--sin-condicion-venta` permite omitirla en un comprobante aunque exista un valor en la config; no se combina con `--condicion-venta` ni `--cv`. Solo en A, B y C; en la factura `E` va `--forma-pago`, que sí viaja a ARCA.
 
 `--exportar-pdf` y `--sin-pdf` no se combinan. Sin ninguno de los dos, decide `config.pdf` (`preguntar` por defecto: en una terminal pregunta, con `--json` o sin terminal no genera).
 

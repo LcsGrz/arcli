@@ -65,6 +65,14 @@ function hasPdfOnlyData(input: BillingCommandInput | undefined): boolean {
   );
 }
 
+function resolveSaleCondition(input: BillingCommandInput | undefined, config: ArcliConfig): string | undefined {
+  if (input?.saleCondition === null) {
+    return undefined;
+  }
+
+  return input?.saleCondition ?? config.condicionVenta;
+}
+
 async function resolveDecisions(options: PdfStepOptions, deps: PdfStepDependencies): Promise<PdfDecision[]> {
   const decisions = options.results.map((result, index) =>
     canHavePdf(result)
@@ -168,7 +176,7 @@ export async function attachPdfs(
           const path = await exportBillingPdf({
             config: options.config,
             extras: {
-              condicionVenta: input?.saleCondition ?? options.config.condicionVenta,
+              condicionVenta: resolveSaleCondition(input, options.config),
               descripcion: input?.pdfDescription,
               receptorDomicilio: input?.receiverAddress,
               receptorNombre: input?.receiverName,

@@ -90,6 +90,10 @@ describe('billing.json-input', () => {
     });
   });
 
+  it('accepts null to explicitly omit the configured sale condition', () => {
+    expect(parseBillingJsonInput({ condicionVenta: null })).toEqual({ condicionVenta: null });
+  });
+
   it('accepts every documented example in docs/input-output.md and llms.txt', () => {
     const examples = [...documentedInputs(read('docs/input-output.md')), ...documentedInputs(read('llms.txt'))];
 

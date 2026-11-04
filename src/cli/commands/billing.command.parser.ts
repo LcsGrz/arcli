@@ -322,6 +322,14 @@ function parseBillingCommandInputFromSource(
   const totalAmount =
     pickNumber(commandOptions.monto, fileInput?.montoTotal) ??
     (ivaRateAmounts ? sumRateAmounts(ivaRateAmounts, exemptAmount, untaxedAmount) : undefined);
+  const flagSaleCondition = pickString(commandOptions.condicionVenta, commandOptions.cv);
+
+  if (commandOptions.sinCondicionVenta === true && flagSaleCondition) {
+    throw new InputValidationError('Usá --condicion-venta/--cv o --sin-condicion-venta, pero no ambos a la vez.');
+  }
+
+  const saleCondition =
+    commandOptions.sinCondicionVenta === true ? null : (flagSaleCondition ?? fileInput?.condicionVenta);
 
   return {
     ...billingCommandSchema.parse({
@@ -357,7 +365,7 @@ function parseBillingCommandInputFromSource(
       pointOfSale: pickNumber(commandOptions.puntoVenta, commandOptions.pv, fileInput?.puntoVenta),
       receiverAddress: pickString(commandOptions.receptorDomicilio, fileInput?.receptorDomicilio),
       receiverName: pickString(commandOptions.receptorNombre, fileInput?.receptorNombre),
-      saleCondition: pickString(commandOptions.condicionVenta, commandOptions.cv, fileInput?.condicionVenta),
+      saleCondition,
       sameCurrency,
       serviceEndDate: pickString(commandOptions.servicioHasta, commandOptions.sh, fileInput?.servicioHasta),
       serviceStartDate: pickString(commandOptions.servicioDesde, commandOptions.sd, fileInput?.servicioDesde),

@@ -104,6 +104,7 @@ export function registerBillingOptions(command: Command): void {
       'condición de venta en el PDF: contado, tarjeta-debito, tarjeta-credito, cuenta-corriente, cheque, transferencia, otros-medios-electronicos, otra o un texto (alias: --cv)',
     )
     .option('--cv <tipo>', 'alias de --condicion-venta')
+    .option('--sin-condicion-venta', 'omite la condición de venta aunque esté configurada')
     .option('--receptor-nombre <texto>', 'nombre o razón social del receptor en el PDF')
     .option('--receptor-domicilio <texto>', 'domicilio del receptor en el PDF')
     .option('--previsualizar', 'mostrar el payload antes de emitir en ARCA')

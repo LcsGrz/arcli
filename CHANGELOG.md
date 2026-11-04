@@ -10,7 +10,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### Agregado
 
-- **Condición de venta en el PDF de A, B y C:** `--condicion-venta` (alias `--cv`), `condicionVenta` en el JSON de `--cargar` y la clave `condicionVenta` de la config como default. Acepta `contado`, `tarjeta-debito`, `tarjeta-credito`, `cuenta-corriente`, `cheque`, `transferencia`, `otros-medios-electronicos` y `otra`, que se imprimen con su nombre, o un texto libre que se imprime tal cual. El modo interactivo la pregunta con una lista y la de la config marcada; "Otra" pide el texto. Es un dato exclusivo del PDF: WSFE no lo recibe. Gracias a [Kevin Tea](https://github.com/kevintea), que la trajo en [#74](https://github.com/LcsGrz/arcli/pull/74).
+- **Condición de venta en el PDF de A, B y C:** `--condicion-venta` (alias `--cv`), `condicionVenta` en el JSON de `--cargar` y la clave `condicionVenta` de la config como default. `--sin-condicion-venta` y `"condicionVenta": null` permiten omitir ese default para un comprobante. Acepta `contado`, `tarjeta-debito`, `tarjeta-credito`, `cuenta-corriente`, `cheque`, `transferencia`, `otros-medios-electronicos` y `otra`, que se imprimen con su nombre, o un texto libre que se imprime tal cual. El modo interactivo la pregunta con una lista y la de la config marcada; "Omitir" la suprime y "Otra" pide el texto. Es un dato exclusivo del PDF: WSFE no lo recibe. Gracias a [Kevin Tea](https://github.com/kevintea), que la trajo en [#74](https://github.com/LcsGrz/arcli/pull/74).
 
 ### Cambiado
 

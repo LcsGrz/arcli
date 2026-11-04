@@ -16,39 +16,39 @@ arcli fc --cargar ./voucher.json
 
 ### Campos soportados
 
-| Campo                 | Tipo    | Requerido                              | Descripción                                                                                                                                     |
-| --------------------- | ------- | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `alicuotaIva`         | string  | no                                     | Alícuota de IVA: alias (`general`, `reducida`, `incrementada`, `cero`) o número (`0`, `2.5`, `5`, `10.5`, `21`, `27`); acepta `"10.5"` o `10.5` |
-| `alicuotas`           | array   | no                                     | Varias alícuotas: `[{ "tasa": "general", "monto": 1210 }]`, monto con IVA incluido; con esto `montoTotal` es opcional                           |
-| `aliasCbu`            | string  | no                                     | Alias del CBU (facturas FCE)                                                                                                                    |
-| `anulacion`           | boolean | no                                     | NC/ND FCE de anulación                                                                                                                          |
-| `cbu`                 | string  | en facturas FCE, salvo `config.cbu`    | CBU del emisor (facturas FCE)                                                                                                                   |
-| `comprobanteAsociado` | object  | no                                     | Comprobante asociado                                                                                                                            |
-| `concepto`            | string  | sí, salvo default por flags/config     | Concepto                                                                                                                                        |
-| `codigoMoneda`        | string  | no                                     | Moneda                                                                                                                                          |
-| `cotizacionMoneda`    | number  | en moneda extranjera sin `mismaMoneda` | Cotización de la moneda                                                                                                                         |
-| `mismaMoneda`         | boolean | no                                     | El pago se cancela en la moneda extranjera                                                                                                      |
-| `dia`                 | number  | no                                     | Deprecado: usá `vencimientoPago`. Vence el próximo día con ese número                                                                           |
-| `emitir`              | boolean | no                                     | Emisión real                                                                                                                                    |
-| `fechaComprobante`    | string  | no                                     | Fecha del comprobante                                                                                                                           |
-| `importeExento`       | number  | no                                     | Parte exenta del total (A y B)                                                                                                                  |
-| `importeNoGravado`    | number  | no                                     | Parte no gravada del total (A y B)                                                                                                              |
-| `ivaReceptor`         | string  | sí, salvo default por config           | Condición IVA del receptor                                                                                                                      |
-| `montoTotal`          | number  | sí                                     | Importe total                                                                                                                                   |
-| `periodoAsociado`     | object  | no                                     | `{ "desde": "01-09-2026", "hasta": "30-09-2026" }`; alternativa a `comprobanteAsociado` en notas comunes                                        |
-| `numeroDocumento`     | number  | depende del tipo de documento          | Número de documento                                                                                                                             |
-| `pdf`                 | boolean | no                                     | `true` genera el PDF y `false` no, como `--exportar-pdf` y `--sin-pdf`. Ver [PDF](pdf.md)                                                       |
-| `descripcion`         | string  | no                                     | Detalle del comprobante en el PDF; ARCA no lo recibe                                                                                            |
-| `condicionVenta`      | string  | no                                     | Condición de venta en el PDF (`contado`, `cuenta-corriente`… o un texto); ARCA no la recibe                                                     |
-| `receptorNombre`      | string  | no                                     | Nombre o razón social del receptor en el PDF; ARCA no lo recibe                                                                                 |
-| `receptorDomicilio`   | string  | no                                     | Domicilio del receptor en el PDF; ARCA no lo recibe                                                                                             |
-| `previsualizar`       | boolean | no                                     | Preview sin emitir                                                                                                                              |
-| `puntoVenta`          | number  | no                                     | Punto de venta                                                                                                                                  |
-| `servicioDesde`       | string  | no                                     | Fecha inicio de servicio                                                                                                                        |
-| `servicioHasta`       | string  | no                                     | Fecha fin de servicio                                                                                                                           |
-| `vencimientoPago`     | string  | no                                     | Fecha de vencimiento del pago                                                                                                                   |
-| `tipoDocumento`       | string  | no                                     | `consumidor-final`, `cuit`, `cuil` o `dni`                                                                                                      |
-| `transferencia`       | string  | no                                     | `sca` o `adc` (facturas FCE)                                                                                                                    |
+| Campo                 | Tipo           | Requerido                              | Descripción                                                                                                                                     |
+| --------------------- | -------------- | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `alicuotaIva`         | string         | no                                     | Alícuota de IVA: alias (`general`, `reducida`, `incrementada`, `cero`) o número (`0`, `2.5`, `5`, `10.5`, `21`, `27`); acepta `"10.5"` o `10.5` |
+| `alicuotas`           | array          | no                                     | Varias alícuotas: `[{ "tasa": "general", "monto": 1210 }]`, monto con IVA incluido; con esto `montoTotal` es opcional                           |
+| `aliasCbu`            | string         | no                                     | Alias del CBU (facturas FCE)                                                                                                                    |
+| `anulacion`           | boolean        | no                                     | NC/ND FCE de anulación                                                                                                                          |
+| `cbu`                 | string         | en facturas FCE, salvo `config.cbu`    | CBU del emisor (facturas FCE)                                                                                                                   |
+| `comprobanteAsociado` | object         | no                                     | Comprobante asociado                                                                                                                            |
+| `concepto`            | string         | sí, salvo default por flags/config     | Concepto                                                                                                                                        |
+| `codigoMoneda`        | string         | no                                     | Moneda                                                                                                                                          |
+| `cotizacionMoneda`    | number         | en moneda extranjera sin `mismaMoneda` | Cotización de la moneda                                                                                                                         |
+| `mismaMoneda`         | boolean        | no                                     | El pago se cancela en la moneda extranjera                                                                                                      |
+| `dia`                 | number         | no                                     | Deprecado: usá `vencimientoPago`. Vence el próximo día con ese número                                                                           |
+| `emitir`              | boolean        | no                                     | Emisión real                                                                                                                                    |
+| `fechaComprobante`    | string         | no                                     | Fecha del comprobante                                                                                                                           |
+| `importeExento`       | number         | no                                     | Parte exenta del total (A y B)                                                                                                                  |
+| `importeNoGravado`    | number         | no                                     | Parte no gravada del total (A y B)                                                                                                              |
+| `ivaReceptor`         | string         | sí, salvo default por config           | Condición IVA del receptor                                                                                                                      |
+| `montoTotal`          | number         | sí                                     | Importe total                                                                                                                                   |
+| `periodoAsociado`     | object         | no                                     | `{ "desde": "01-09-2026", "hasta": "30-09-2026" }`; alternativa a `comprobanteAsociado` en notas comunes                                        |
+| `numeroDocumento`     | number         | depende del tipo de documento          | Número de documento                                                                                                                             |
+| `pdf`                 | boolean        | no                                     | `true` genera el PDF y `false` no, como `--exportar-pdf` y `--sin-pdf`. Ver [PDF](pdf.md)                                                       |
+| `descripcion`         | string         | no                                     | Detalle del comprobante en el PDF; ARCA no lo recibe                                                                                            |
+| `condicionVenta`      | string \| null | no                                     | Condición de venta en el PDF (`contado`, `cuenta-corriente`… o un texto); `null` omite el valor de la config; ARCA no la recibe                 |
+| `receptorNombre`      | string         | no                                     | Nombre o razón social del receptor en el PDF; ARCA no lo recibe                                                                                 |
+| `receptorDomicilio`   | string         | no                                     | Domicilio del receptor en el PDF; ARCA no lo recibe                                                                                             |
+| `previsualizar`       | boolean        | no                                     | Preview sin emitir                                                                                                                              |
+| `puntoVenta`          | number         | no                                     | Punto de venta                                                                                                                                  |
+| `servicioDesde`       | string         | no                                     | Fecha inicio de servicio                                                                                                                        |
+| `servicioHasta`       | string         | no                                     | Fecha fin de servicio                                                                                                                           |
+| `vencimientoPago`     | string         | no                                     | Fecha de vencimiento del pago                                                                                                                   |
+| `tipoDocumento`       | string         | no                                     | `consumidor-final`, `cuit`, `cuil` o `dni`                                                                                                      |
+| `transferencia`       | string         | no                                     | `sca` o `adc` (facturas FCE)                                                                                                                    |
 
 ### Claves desconocidas y tipos
 
@@ -115,6 +115,7 @@ Los nombres de las claves no siempre coinciden con los flags. Si pasás las dos 
 | `--exportar-pdf`, `--pdf` / `--sin-pdf`                       | `pdf: true` / `pdf: false`          |
 | `--descripcion`                                               | `descripcion`                       |
 | `--condicion-venta`, `--cv`                                   | `condicionVenta`                    |
+| `--sin-condicion-venta`                                       | `condicionVenta: null`              |
 | `--receptor-nombre`                                           | `receptorNombre`                    |
 | `--receptor-domicilio`                                        | `receptorDomicilio`                 |
 | `--emitir`                                                    | `emitir`                            |

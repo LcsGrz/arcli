@@ -166,7 +166,7 @@ export const billingCommandSchema = z.object({
   receiverFromPadron: z.array(z.enum(['address', 'name'])).optional(),
   receiverName: z.string().trim().min(1).max(200).optional(),
   /** Solo para el PDF: WSFE no recibe la condicion de venta. */
-  saleCondition: saleConditionSchema.optional(),
+  saleCondition: saleConditionSchema.nullable().optional(),
   sameCurrency: z.boolean().default(false),
   serviceEndDate: z.string().trim().optional(),
   serviceStartDate: z.string().trim().optional(),

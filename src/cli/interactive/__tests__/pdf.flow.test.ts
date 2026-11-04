@@ -120,7 +120,7 @@ describe('offerPdf', () => {
     await offerPdf(CONFIG, input, result);
 
     expect(attachPdfsMock).toHaveBeenCalledWith({
-      config: { ...CONFIG, condicionVenta: undefined },
+      config: CONFIG,
       inputs: [
         expect.objectContaining({
           pdf: true,
@@ -154,7 +154,7 @@ describe('offerPdf', () => {
     expect(chooseOneMock).toHaveBeenCalledWith('Condición de venta:', expect.any(Array), 'cuenta-corriente');
     expect(attachPdfsMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        config: expect.objectContaining({ condicionVenta: undefined }),
+        config: expect.objectContaining({ condicionVenta: 'cuenta-corriente' }),
         inputs: [expect.objectContaining({ saleCondition: 'cuenta-corriente' })],
       }),
     );
@@ -169,7 +169,10 @@ describe('offerPdf', () => {
     await offerPdf({ ...CONFIG, condicionVenta: 'contado' }, input, result);
 
     expect(attachPdfsMock).toHaveBeenCalledWith(
-      expect.objectContaining({ inputs: [expect.objectContaining({ saleCondition: undefined })] }),
+      expect.objectContaining({
+        config: expect.objectContaining({ condicionVenta: 'contado' }),
+        inputs: [expect.objectContaining({ saleCondition: null })],
+      }),
     );
     askTextMock.mockReset();
   });

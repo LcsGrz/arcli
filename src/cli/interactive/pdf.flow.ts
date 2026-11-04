@@ -31,7 +31,7 @@ const OMIT_SALE_CONDITION = 'omitir';
  * La condicion de venta del PDF, con la de siempre (la del comprobante o la de la config) ya marcada: Enter la
  * mantiene. "Otra" pide el texto; Enter deja "Otra", o el texto libre que ya habia.
  */
-async function askSaleCondition(current: string | undefined): Promise<string | undefined> {
+async function askSaleCondition(current: string | undefined): Promise<string | null> {
   const currentKey = current?.trim().toLowerCase();
   const isKey = (value: string | undefined): value is SaleConditionKey =>
     SALE_CONDITION_KEYS.includes(value as SaleConditionKey);
@@ -46,7 +46,7 @@ async function askSaleCondition(current: string | undefined): Promise<string | u
   );
 
   if (choice === OMIT_SALE_CONDITION) {
-    return undefined;
+    return null;
   }
 
   if (choice !== 'otra') {
@@ -148,11 +148,12 @@ export async function offerPdf(
       input.receiverAddress ? 'Domicilio del receptor:' : 'Domicilio del receptor (Enter para omitir)',
       { defaultValue: input.receiverAddress },
     );
-    const saleCondition = await askSaleCondition(input.saleCondition ?? config.condicionVenta);
+    const currentSaleCondition =
+      input.saleCondition === null ? undefined : (input.saleCondition ?? config.condicionVenta);
+    const saleCondition = await askSaleCondition(currentSaleCondition);
     const completedConfig = await completeIssuer(config);
     const withPdf = await attachPdfs({
-      // La condicion de venta ya se pregunto con la de la config marcada: "Omitir" no la tiene que traer.
-      config: { ...completedConfig, condicionVenta: undefined },
+      config: completedConfig,
       inputs: [
         {
           ...input,

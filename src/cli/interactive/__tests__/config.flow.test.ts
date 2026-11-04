@@ -30,6 +30,7 @@ vi.mock('../../../modules/config/config.service', () => ({
       return {
         cert: { testing: store['cert.testing'] },
         conceptoPorDefecto: store.concepto,
+        condicionVenta: store.condicionVenta,
         cuit: store.cuit,
         emisor: { razonSocial: store['emisor.razonSocial'] },
         entornoPorDefecto: 'testing',
@@ -160,6 +161,33 @@ describe('runConfigMenu', () => {
       'PDF',
       'Salida y listados',
     ]);
+  });
+
+  it('preserva una condición de venta personalizada y muestra etiquetas amigables', async () => {
+    store.condicionVenta = 'Billetera virtual';
+    vi.mocked(chooseOne).mockResolvedValueOnce('cambiar').mockResolvedValueOnce('volver');
+    chooseStepMock
+      .mockImplementationOnce(
+        async (_message, choices) =>
+          onlyChoices(choices).find((choice) => choice.name === 'Condición de venta (PDF de A, B y C)')?.value,
+      )
+      .mockImplementationOnce(async (_message, choices, defaultValue) => {
+        expect(onlyChoices(choices)).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ name: 'Mantener: Billetera virtual', value: 'Billetera virtual' }),
+            expect.objectContaining({ name: 'Contado', value: 'contado' }),
+            expect.objectContaining({ name: 'Tarjeta de Débito', value: 'tarjeta-debito' }),
+          ]),
+        );
+        expect(defaultValue).toBe('Billetera virtual');
+
+        return 'Billetera virtual';
+      })
+      .mockResolvedValueOnce(BACK);
+
+    await runConfigMenu();
+
+    expect(store.condicionVenta).toBe('Billetera virtual');
   });
 
   it('muestra toda la configuracion', async () => {

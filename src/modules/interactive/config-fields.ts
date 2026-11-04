@@ -1,7 +1,7 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { formatArgentineAmountInput } from '../../lib/numbers/argentine-amount';
 import { maskPath } from '../../lib/paths/mask-path';
-import { SALE_CONDITION_KEYS } from '../billing/sale-condition';
+import { SALE_CONDITION_KEYS, SALE_CONDITION_LABELS } from '../billing/sale-condition';
 import {
   type ArcliConfig,
   arcliDefaultConceptSchema,
@@ -17,6 +17,8 @@ import { MAX_RECENT_VOUCHERS, RECENT_VOUCHERS_LIMIT } from '../vouchers/voucher-
 export interface ConfigField {
   /** Valores posibles para elegir de una lista; sin esto se escribe. */
   readonly choices?: readonly string[];
+  /** Etiquetas amigables para los valores de `choices`. */
+  readonly choiceLabels?: Readonly<Record<string, string>>;
   readonly hint?: string;
   readonly key: ConfigPublicKey;
   /** El mismo nombre que en `arcli config` (ver CONFIG_LABELS). */
@@ -113,7 +115,12 @@ const FIELD_DEFINITIONS: ReadonlyArray<Omit<ConfigField, 'label'>> = [
   },
   { key: 'pdfCarpeta', path: true, read: (c) => c.pdfCarpeta },
   { key: 'pdfNavegador', path: true, read: (c) => c.pdfNavegador },
-  { choices: SALE_CONDITION_KEYS, key: 'condicionVenta', read: (c) => c.condicionVenta },
+  {
+    choices: SALE_CONDITION_KEYS,
+    choiceLabels: SALE_CONDITION_LABELS,
+    key: 'condicionVenta',
+    read: (c) => c.condicionVenta,
+  },
   { key: 'emisor.razonSocial', read: (c) => c.emisor.razonSocial },
   { key: 'emisor.domicilio', read: (c) => c.emisor.domicilio },
   {

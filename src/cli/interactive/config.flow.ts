@@ -97,10 +97,16 @@ async function askField(
   let value: string;
 
   if (field.choices) {
+    const customCurrentChoice =
+      current && !field.choices.includes(current) ? [{ name: `Mantener: ${current}`, value: current }] : [];
     const answer = await chooseStep<string>(
       `${field.label}:`,
       [
-        ...field.choices.map((choice) => ({ name: choice, value: choice })),
+        ...customCurrentChoice,
+        ...field.choices.map((choice) => ({
+          name: field.choiceLabels?.[choice] ?? choice,
+          value: choice,
+        })),
         ...(current && !options.required ? [{ name: 'Quitar el valor por defecto', value: CLEAR }] : []),
         ...(!current && !options.required ? [{ name: 'Dejar sin configurar', value: KEEP }] : []),
       ],

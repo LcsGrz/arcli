@@ -208,7 +208,7 @@ describe('attachPdfs', () => {
   });
 
   it('prints the sale condition of the voucher, or the one in the config', async () => {
-    const renderedSaleCondition = async (config: ArcliConfig, saleCondition?: string) => {
+    const renderedSaleCondition = async (config: ArcliConfig, saleCondition?: string | null) => {
       const { deps, plugin } = createDeps();
 
       await attachPdfs(
@@ -223,6 +223,7 @@ describe('attachPdfs', () => {
 
     expect(await renderedSaleCondition({ ...CONFIG, condicionVenta: 'contado' })).toBe('Contado');
     expect(await renderedSaleCondition({ ...CONFIG, condicionVenta: 'contado' }, 'cheque')).toBe('Cheque');
+    expect(await renderedSaleCondition({ ...CONFIG, condicionVenta: 'contado' }, null)).toBeUndefined();
     expect(await renderedSaleCondition(CONFIG)).toBeUndefined();
   });
 

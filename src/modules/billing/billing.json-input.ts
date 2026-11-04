@@ -48,7 +48,7 @@ export const billingJsonInputSchema = z
     codigoMoneda: z.string().optional(),
     comprobanteAsociado: associatedVoucherJsonSchema.optional(),
     concepto: z.string().optional(),
-    condicionVenta: z.string().optional(),
+    condicionVenta: z.string().nullable().optional(),
     cotizacionMoneda: z.number().optional(),
     descripcion: z.string().optional(),
     dia: z.number().optional(),

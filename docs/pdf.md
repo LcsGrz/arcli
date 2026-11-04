@@ -84,6 +84,7 @@ El CUIT es el de siempre (`cuit`). Si falta algún dato obligatorio, el PDF no s
 | ----------------------------------- | ------------------------ | ------------------------------------------------------ |
 | `--descripcion <texto>`             | `descripcion`            | "Segun detalle"                                        |
 | `--condicion-venta <tipo>` (`--cv`) | `condicionVenta`         | `condicionVenta` de la config; sin ella, no se muestra |
+| `--sin-condicion-venta`             | `condicionVenta: null`   | Omite también el valor de la config                    |
 | `--receptor-nombre <texto>`         | `receptorNombre`         | "Consumidor Final" o `- -`                             |
 | `--receptor-domicilio <texto>`      | `receptorDomicilio`      | `- -`                                                  |
 
@@ -91,7 +92,7 @@ Al facturar con `--cuit` y sin `--ir` (con `consultarPadron` activo, como viene 
 
 Estos datos **solo van en el PDF**: ARCA no los recibe. Si los pasás y al final no se genera ningún PDF, ARCLI avisa que no quedaron en ningún lado.
 
-La condición de venta es `contado`, `tarjeta-debito`, `tarjeta-credito`, `cuenta-corriente`, `cheque`, `transferencia`, `otros-medios-electronicos` u `otra`, que se imprimen con su nombre, o cualquier otro texto, que se imprime tal cual: así no se limitan automatizaciones ni valores que ARCA no cataloga. Para no pasarla siempre: `arcli config establecer condicionVenta contado`. En el modo interactivo se elige de una lista con la de la config marcada.
+La condición de venta es `contado`, `tarjeta-debito`, `tarjeta-credito`, `cuenta-corriente`, `cheque`, `transferencia`, `otros-medios-electronicos` u `otra`, que se imprimen con su nombre, o cualquier otro texto, que se imprime tal cual: así no se limitan automatizaciones ni valores que ARCA no cataloga. Para no pasarla siempre: `arcli config establecer condicionVenta contado`. Para omitir ese default en un comprobante, usá `--sin-condicion-venta` o `"condicionVenta": null` en el JSON. En el modo interactivo se elige de una lista con la de la config marcada.
 
 Va en el renglón de la condición frente al IVA del receptor ("Cond. Venta: Contado"), seguida del vencimiento del pago si lo hay. Con la plantilla actual del plugin, el vencimiento solo se imprime junto a la condición de venta. `--vencimiento` viaja a ARCA en la solicitud; `--condicion-venta`, no.
 
