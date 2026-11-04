@@ -74,6 +74,11 @@ describe('inferIvaRate', () => {
     [100, 10.5, '10.5'],
     [826.45, 173.55, '21'],
     [100, 0, '0'],
+    // Montos chicos: el IVA viene redondeado a centavos y la proporcion se aleja de la tasa.
+    [0.5, 0.11, '21'],
+    [1, 0.03, '2.5'],
+    [0.1, 0.01, '10.5'],
+    [0.01, 0, '0'],
   ] as const)('deduce la alícuota de neto %s e IVA %s', (net, iva, expected) => {
     expect(inferIvaRate(net, iva)).toBe(expected);
   });

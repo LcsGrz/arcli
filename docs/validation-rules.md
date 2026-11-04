@@ -30,8 +30,7 @@ La idea de esta guía es separar esas tres capas para que sea más fácil entend
 ### Tipos y formatos
 
 - `--monto` debe ser un número positivo
-- `--dia` debe ser un entero entre `1` y `31`, y no se combina con `--fecha` ni con `--servicio-hasta` (con esas fechas no se usaría)
-- `--dia` cae en este mes si todavía no pasó y si no, en el siguiente; si ese mes no tiene ese día (`--dia 31` en abril), da error: usá `--servicio-hasta` con la fecha exacta
+- `--dia` (deprecado: usá `--vencimiento`) debe ser un entero entre `1` y `31`. Fija solo el vencimiento: este mes si el día todavía no pasó y si no, el siguiente; si ese mes no tiene ese día (`--dia 31` en abril), da error. No se combina con `--vencimiento`
 - `--punto-venta`, `--pv`, `--at`, `--apv`, `--ar` deben ser enteros positivos, escritos solo con dígitos (`3a` da error)
 - `--cuit`, `--cuil`, `--acuit` y `--dni` aceptan guiones y puntos (`20-33333333-4`), pero nada más. Lo mismo el CUIT de `arcli padron`, `arcli fce-obligado`, `config establecer cuit` y `comprobanteAsociado.cuit` en el JSON
 - `--at` se valida igual que `--ac`: una NC A no puede asociar una factura B. Si en el JSON vienen `tipo` y `atajo`, tienen que coincidir
@@ -52,7 +51,7 @@ ARCLI interpreta las fechas en formato argentino (día primero), con mes y año 
 Reglas de interpretación:
 
 - "hoy" es siempre el día en Argentina, aunque el equipo esté en otra zona horaria (por ejemplo un servidor en UTC después de las 21 h)
-- si omitís el año, ARCLI usa el año actual
+- si omitís el año, ARCLI usa el de la fecha más cercana a hoy: el 5/1/2027, `1/12` es el 1/12/2026; el 28/12/2026, `10/1` es el 10/1/2027. Para una fecha a más de seis meses, escribí el año
 - si omitís mes y año, ARCLI usa el mes y año actuales
 - un año de 2 dígitos se interpreta como `20YY`
 - no se pueden mezclar separadores dentro de la misma fecha (por ejemplo, `5-3/26` no es válido)
@@ -78,8 +77,7 @@ ARCLI no tiene una regla aparte para producción: emite si `--emitir` lo pide o,
 
 - no usa `--servicio-desde`
 - no usa `--servicio-hasta`
-- no usa `--dia`
-- no usa `--vencimiento`, salvo en facturas FCE
+- no usa `--vencimiento` ni `--dia`, salvo en facturas FCE
 
 #### `servicios` y `productos-servicios`
 
@@ -95,7 +93,7 @@ ARCLI no tiene una regla aparte para producción: emite si `--emitir` lo pide o,
 | NC/ND FCE                                                  | no (10175) | —                                                               | `--vencimiento` da error               |
 | Productos (no FCE)                                         | no         | —                                                               | `--vencimiento` da error               |
 
-`--vencimiento` permite separar el vencimiento del período facturado. Por ejemplo, un servicio de febrero facturado el 18/03 que vence el 10/04.
+`--vencimiento` permite separar el vencimiento del período facturado. Por ejemplo, un servicio de febrero facturado el 18/03 que vence el 10/04. `--dia` (deprecado) sigue las mismas reglas que `--vencimiento`.
 
 ### Fecha del comprobante
 
@@ -207,13 +205,13 @@ Los avisos aparecen en la salida de texto (panel "Avisos") y en el campo `avisos
 
 ### Moneda y cotización
 
-ARCLI convierte el código de moneda al de ARCA: `ARS` → `PES` y `USD` → `DOL`. Otros códigos de 3 letras se envían tal cual.
+ARCLI convierte el código de moneda al de ARCA: `ARS` → `PES`, `USD` → `DOL`, `EUR` → `060` y `BRL` → `012`. Cualquier otro código se envía tal cual, así que para el resto de las monedas usá el de ARCA (`arcli parametros monedas`).
 
-| Caso                                | `MonCotiz`            | `CanMisMonExt` | Regla                                                                                                                                       |
-| ----------------------------------- | --------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| Pesos                               | `1`                   | no se envía    | Una cotización distinta de `1` da error (ARCA 10039 y 10241). `--misma-moneda` da error.                                                    |
-| Moneda extranjera, pago en pesos    | `--cotizacion-moneda` | `N`            | La cotización es obligatoria y no puede ser `1`. ARCA la acepta entre el 2% y el 400% de la oficial (10119).                                |
-| Moneda extranjera, `--misma-moneda` | la oficial de ARCA    | `S`            | ARCLI la consulta antes de la vista previa porque ARCA exige el valor exacto (10038). La fecha del comprobante no puede ser anterior a hoy. |
+| Caso                                | `MonCotiz`            | `CanMisMonExt` | Regla                                                                                                                                                                                                                              |
+| ----------------------------------- | --------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pesos                               | `1`                   | no se envía    | Una cotización distinta de `1` da error (ARCA 10039 y 10241). `--misma-moneda` da error.                                                                                                                                           |
+| Moneda extranjera, pago en pesos    | `--cotizacion-moneda` | `N`            | La cotización es obligatoria y no puede ser `1`. ARCA la acepta entre el 2% y el 400% de la oficial (10119).                                                                                                                       |
+| Moneda extranjera, `--misma-moneda` | la oficial de ARCA    | `S`            | ARCLI la consulta antes de la vista previa porque ARCA exige el valor exacto (10038). La fecha del comprobante tiene que ser la de hoy: la cotización de un día pasado no se puede consultar y la de uno futuro todavía no existe. |
 
 `config.cotizacion` solo se usa como default en moneda extranjera sin `--misma-moneda`.
 

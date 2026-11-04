@@ -216,7 +216,7 @@ En casi todos los casos te va a interesar mirar primero:
 | `--exento <numero>`            | ninguno         | `number`                                              | `0`                                      | Parte exenta del monto (solo `A` y `B`)          |
 | `--nogravado <numero>`         | ninguno         | `number`                                              | `0`                                      | Parte no gravada del monto (solo `A` y `B`)      |
 | `--fecha <fecha>`              | `-f`            | `string`                                              | hoy                                      | Fecha del comprobante                            |
-| `--dia <numero>`               | `-d`            | `integer`                                             | ninguno                                  | Día de vencimiento o referencia del servicio     |
+| `--dia <numero>`               | `-d`            | `integer`                                             | ninguno                                  | Deprecado: usá `--vencimiento`                   |
 | `--punto-venta <numero>`       | `--pv`          | `integer`                                             | `config.puntoVenta`                      | Punto de venta                                   |
 | `--concepto <tipo>`            | `-c`            | `'productos' \| 'servicios' \| 'productos-servicios'` | `config.concepto`                        | `productos`, `servicios` o `productos-servicios` |
 | `--cs`                         | ninguno         | `boolean`                                             | `false`                                  | Equivale a `--concepto servicios`                |
@@ -339,7 +339,7 @@ Las facturas comparten la misma base.
 - fecha del comprobante: `--fecha`
 - moneda y cotización: `--moneda`, `--mda`, `--cotizacion-moneda`, `--cm`, `--misma-moneda`
 - carga JSON: `--cargar`
-- fechas de servicio: `--dia`, `--servicio-desde`, `--servicio-hasta`, `--vencimiento`
+- fechas de servicio y vencimiento: `--servicio-desde`, `--servicio-hasta`, `--vencimiento` (y `--dia`, deprecado)
 - modo de ejecución: `--previsualizar`, `--emitir`
 - salida: `--json`, `--bruto`
 
@@ -368,7 +368,7 @@ arcli fa -m 1 --cs --cuit 20168598204 --ir-ri
 | `--iva-receptor <tipo>` / `--ir <tipo>` / `--ir-*`                              | ninguno         | unión de IVA receptor o `boolean`                     | Sí          | Siempre, una sola forma de IVA receptor       |
 | `--punto-venta <numero>`                                                        | `--pv <numero>` | `integer`                                             | Condicional | Si no está en config                          |
 | `--fecha <fecha>`                                                               | `-f`            | `string`                                              | No          | Si querés fijar una fecha específica          |
-| `--dia <numero>`                                                                | `-d`            | `integer`                                             | Condicional | Si el concepto usa servicio                   |
+| `--dia <numero>`                                                                | `-d`            | `integer`                                             | No          | Deprecado: usá `--vencimiento`                |
 | `--servicio-desde <fecha>`                                                      | `--sd <fecha>`  | `string`                                              | Condicional | Si el concepto usa servicio                   |
 | `--servicio-hasta <fecha>`                                                      | `--sh <fecha>`  | `string`                                              | Condicional | Si el concepto usa servicio                   |
 | `--vencimiento <fecha>`                                                         | `--vto <fecha>` | `string`                                              | No          | Servicios y facturas FCE                      |
@@ -606,7 +606,7 @@ WSFEX no valida que `Imp_total` coincida con la suma de los items, así que ARCL
 
 Estos flags de facturación no existen en `fe`, que los rechaza como opción desconocida. `arcli factura e` comparte el comando con A, B y C, así que los acepta pero los saltea con un aviso en "Avisos" (y en `avisos` del JSON); lo mismo pasa al revés con los flags de la `E` en `arcli factura a`, `b` o `c`:
 
-- concepto (`--concepto`, `--cs`, `--cp`, `--csp`) y fechas de servicio (`--dia`, `--servicio-desde`, `--servicio-hasta`, `--vencimiento`)
+- concepto (`--concepto`, `--cs`, `--cp`, `--csp`) y fechas de servicio (`--servicio-desde`, `--servicio-hasta`, `--vencimiento` y `--dia`, deprecado)
 - identidad del receptor (`--cuit`, `--cuil`, `--dni`, `--consumidor-final`) e `--iva-receptor`
 - IVA y alícuotas (`--alicuota`, `--exento`, `--nogravado`, `--alicuotas`)
 - comprobante asociado (`--ac`, `--at`, `--apv`, `--ar`, `--acuit`, `--afecha`, `--anulacion`, `--periodo-desde`, `--periodo-hasta`)

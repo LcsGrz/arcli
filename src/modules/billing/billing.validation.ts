@@ -16,15 +16,21 @@ export function validateConceptDateInputs(input: BillingCommandInput, voucherKin
   const hasAnyServiceDate = Boolean(input.serviceStartDate || input.serviceEndDate);
   const hasPartialServiceDate = Boolean(input.serviceStartDate) !== Boolean(input.serviceEndDate);
 
-  if (input.paymentDueDate) {
+  if (input.paymentDueDate && input.dueDay) {
+    throw new InputValidationError('--dia y --vencimiento son el mismo vencimiento: dejá solo --vencimiento.');
+  }
+
+  if (input.paymentDueDate || input.dueDay) {
+    const flag = input.dueDay ? '--dia' : '--vencimiento';
+
     if (voucherKind.isElectronicCredit && voucherKind.family !== 'factura-credito-electronica') {
       throw new InputValidationError(
-        `La ${formatVoucherLabel(voucherKind)} no lleva vencimiento de pago. Sacá --vencimiento.`,
+        `La ${formatVoucherLabel(voucherKind)} no lleva vencimiento de pago. Sacá ${flag}.`,
       );
     }
 
     if (!voucherKind.isElectronicCredit && input.concept === 'productos') {
-      throw new InputValidationError('El concepto "productos" no usa --vencimiento.');
+      throw new InputValidationError(`El concepto "productos" no usa ${flag}.`);
     }
   }
 
@@ -35,23 +41,12 @@ export function validateConceptDateInputs(input: BillingCommandInput, voucherKin
       );
     }
 
-    if (input.dueDay) {
-      throw new InputValidationError('El concepto "productos" no usa --dia. Usá solo fecha o monto.');
-    }
-
     return;
   }
 
   if (hasPartialServiceDate) {
     throw new InputValidationError(
       'Si informa fechas de servicio, debe enviar ambas: --servicio-desde y --servicio-hasta.',
-    );
-  }
-
-  // --dia arma el fin del servicio desde hoy; con una fecha explicita no se usaria y nadie se enteraria.
-  if (input.dueDay && (input.billingDate || input.serviceEndDate)) {
-    throw new InputValidationError(
-      '--dia no se combina con --fecha ni con --servicio-hasta: con esas fechas no se usa. Sacá --dia o esas fechas.',
     );
   }
 }

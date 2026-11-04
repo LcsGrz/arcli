@@ -95,20 +95,42 @@ describe('billing.service', () => {
     expect(payload.CbteFch).toBe('20260318');
   });
 
-  it.each([[{ billingDate: '18/3' }], [{ serviceEndDate: '20/3', serviceStartDate: '1/3' }]])(
-    'rejects --dia with an explicit date, because it would be ignored: %j',
-    (dates) => {
-      vi.useFakeTimers();
-      vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
+  it('uses --dia only for the payment due date, keeping the service period', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-03T12:00:00Z'));
 
-      expect(() =>
-        new BillingService().buildVoucherPayload(
-          createBillingInput({ concept: 'servicios', dueDay: 25, shortcut: 'fc', ...dates }),
-          createRuntime(),
-        ),
-      ).toThrow(/--dia no se combina con --fecha ni con --servicio-hasta/);
-    },
-  );
+    const service = new BillingService();
+    const alone = service.buildVoucherPayload(
+      createBillingInput({ concept: 'servicios', dueDay: 10, shortcut: 'fc' }),
+      createRuntime(),
+    );
+    const withPeriod = service.buildVoucherPayload(
+      createBillingInput({
+        concept: 'servicios',
+        dueDay: 10,
+        serviceEndDate: '31/10',
+        serviceStartDate: '1/10',
+        shortcut: 'fc',
+      }),
+      createRuntime(),
+    );
+
+    expect([alone.FchServDesde, alone.FchServHasta, alone.FchVtoPago]).toEqual(['20261103', '20261103', '20261110']);
+    expect([withPeriod.FchServDesde, withPeriod.FchServHasta, withPeriod.FchVtoPago]).toEqual([
+      '20261001',
+      '20261031',
+      '20261110',
+    ]);
+  });
+
+  it('rejects --dia together with --vencimiento', () => {
+    expect(() =>
+      new BillingService().buildVoucherPayload(
+        createBillingInput({ concept: 'servicios', dueDay: 10, paymentDueDate: '10/11', shortcut: 'fc' }),
+        createRuntime(),
+      ),
+    ).toThrow(/--dia y --vencimiento son el mismo vencimiento/);
+  });
 
   it('uses the Argentine date at night, even on a UTC machine', () => {
     vi.useFakeTimers();
@@ -142,7 +164,7 @@ describe('billing.service', () => {
       createRuntime(),
     );
 
-    expect(payload.FchServHasta).toBe('20260415');
+    expect(payload.FchServHasta).toBe('20260331');
     expect(payload.FchVtoPago).toBe('20260415');
   });
 
@@ -482,7 +504,27 @@ describe('billing.service', () => {
         }),
         createRuntime(),
       ),
-    ).toThrow(/no puede ser anterior a hoy/);
+    ).toThrow(/tiene que ser la de hoy/);
+  });
+
+  it('rejects --misma-moneda with a future billing date, whose official rate does not exist yet', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
+
+    const service = new BillingService();
+
+    expect(() =>
+      service.buildVoucherPayload(
+        createBillingInput({
+          billingDate: '19/03/2026',
+          currencyCode: 'USD',
+          documentNumber: 0,
+          exchangeRate: 1415.25,
+          sameCurrency: true,
+        }),
+        createRuntime(),
+      ),
+    ).toThrow(/tiene que ser la de hoy/);
   });
 
   it('discriminates IVA in factura A for a monotributista', () => {

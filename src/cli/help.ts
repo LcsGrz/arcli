@@ -45,7 +45,7 @@ const CORE_RULES = [
   'Una sola identidad del receptor: --cuit, --cuil, --dni o --consumidor-final.',
   'Un solo IVA receptor: --iva-receptor o un flag --ir-*.',
   'Un solo concepto: --concepto o uno entre --cs, --cp y --csp.',
-  'Con servicios: --servicio-desde y --servicio-hasta, o --dia para el día de vencimiento.',
+  'Con servicios: --servicio-desde y --servicio-hasta para el período, y --vto para el vencimiento.',
   'Sin --fecha usa hoy. Lo que no pasás por flag sale del JSON de --cargar o de la config.',
 ];
 

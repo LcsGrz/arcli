@@ -8,6 +8,21 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+## [2.2.2] - 2026-11-03
+
+Corrige cinco errores de fechas, monedas y alícuotas que encontró la auditoría, y depreca `--dia`: ahora fija solo el vencimiento y el período del servicio queda como sin él. Para el vencimiento, usá `--vto`.
+
+### Cambiado
+
+- **`--dia` está deprecado y fija solo el vencimiento:** antes también ponía el período del servicio en ese día (`--dia 10` facturaba un servicio "del 10/11 al 10/11"). Ahora el período es el de `--servicio-desde`/`--servicio-hasta` o, sin ellos, la fecha del comprobante, como sin `--dia`. Se puede combinar con `--fecha` y `--servicio-hasta`, y da error junto con `--vencimiento`. Sigue andando con un aviso; usá `--vto`. Lo mismo la clave `dia` del JSON de `--cargar`.
+
+### Corregido
+
+- **Fechas sin año en el cambio de año:** se tomaba siempre el año actual, así que el 5/1/2027 `--sd 1/12` era diciembre de 2027. Ahora se toma la fecha más cercana a hoy: diciembre de 2026, y el 28/12 `--vto 10/1` es enero que viene.
+- **`--moneda EUR` y `BRL`** se mandaban tal cual y ARCA las rechazaba: ahora se traducen a sus códigos (`060` y `012`) en `fc`/`fb`/`fa`, `fe` y `parametros cotizacion`.
+- **`--misma-moneda` con `--fecha` futura** llegaba a ARCA y fallaba con el error 10038: ahora pide que la fecha sea la de hoy, porque ARCA solo publica la cotización vigente.
+- **Repetir una factura con montos chicos** podía deducir mal la alícuota de IVA (por ejemplo, 2,5% en vez de 21%).
+
 ## [2.2.1] - 2026-11-03
 
 Corrige `arcli pdf instalar` en Windows y suma lo necesario para recibir contribuciones: plantillas de issue y de PR, código de conducta, Discussions para preguntas, y un CI que también corre en Windows, macOS y Node 26. No cambian comandos, flags, claves de config ni el `--json`.
@@ -402,7 +417,8 @@ Primera versión publicada en npm.
 - `llms.txt`: referencia condensada para que un agente de IA con acceso a terminal ejecute el CLI.
 - Publicación con npm Trusted Publishers (OIDC).
 
-[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v2.2.1...HEAD
+[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v2.2.2...HEAD
+[2.2.2]: https://github.com/LcsGrz/arcli/compare/v2.2.1...v2.2.2
 [2.2.1]: https://github.com/LcsGrz/arcli/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/LcsGrz/arcli/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/LcsGrz/arcli/compare/v2.0.0...v2.1.0

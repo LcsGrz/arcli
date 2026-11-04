@@ -46,7 +46,7 @@ Número que identifica la "caja" o punto de emisión dentro de ARCA para un mism
 
 ### Concepto
 
-Qué se está facturando: `productos`, `servicios` o `productos-servicios`. Determina si hace falta informar fechas de servicio (`--dia`, `--servicio-desde`, `--servicio-hasta`).
+Qué se está facturando: `productos`, `servicios` o `productos-servicios`. Determina si hace falta informar fechas de servicio (`--servicio-desde`, `--servicio-hasta`, `--vencimiento`).
 
 ### Comprobante asociado / `CbtesAsoc`
 

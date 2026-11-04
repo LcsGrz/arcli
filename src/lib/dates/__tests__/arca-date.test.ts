@@ -43,6 +43,16 @@ describe('arca-date', () => {
     expect(parseArgentineDateInputAsArcaDate('1/12', new Date('2027-01-01T01:00:00Z'))).toBe('20261201');
   });
 
+  it.each([
+    ['1/12', '2027-01-05T12:00:00Z', '20261201'],
+    ['15/1', '2027-01-20T12:00:00Z', '20270115'],
+    ['10/1', '2026-12-28T12:00:00Z', '20270110'],
+    ['1/10', '2026-11-03T12:00:00Z', '20261001'],
+    ['1/5', '2026-11-03T12:00:00Z', '20270501'],
+  ])('without a year, %s on %s is the closest date: %s', (input, today, expected) => {
+    expect(parseArgentineDateInputAsArcaDate(input, new Date(today))).toBe(expected);
+  });
+
   it('computes day differences across months', () => {
     expect(diffArcaDatesInDays('20260330', '20260402')).toBe(3);
     expect(diffArcaDatesInDays('20260402', '20260330')).toBe(-3);

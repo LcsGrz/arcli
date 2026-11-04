@@ -1,5 +1,6 @@
 import type { Command } from 'commander';
 
+import { DUE_DAY_DEPRECATION_WARNING } from '../../modules/billing/billing.date-range';
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import { BillingService } from '../../modules/billing/billing.service';
 import type { VoucherShortcut } from '../../modules/billing/billing.types';
@@ -142,9 +143,10 @@ export async function executeBillingCommand(
     const fceWarnings = runtime.config.verificarFce
       ? await resolveFceWarnings(plannedInputs, service, new ArcaFceObligationGateway(arca))
       : [];
-    const warnings = plannedInputs.map((_input, position) => [
+    const warnings = plannedInputs.map((input, position) => [
       ...certificateWarnings(runtime),
       ...(options.extraWarnings ?? []),
+      ...(input.dueDay ? [DUE_DAY_DEPRECATION_WARNING] : []),
       ...(padronWarnings[position] ?? []),
       ...(fceWarnings[position] ?? []),
     ]);

@@ -147,7 +147,7 @@ Cuando vendés a una empresa grande dentro del régimen FCE MiPyMEs y el comprob
 arcli config establecer cbu 0110599520000012345678
 
 arcli fcea -m 1500000 --cs --cuit 30546689979 --ir-ri \
-  --dia 25 \
+  --vto 25 \
   --transferencia sca
 ```
 

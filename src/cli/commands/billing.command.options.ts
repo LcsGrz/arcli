@@ -19,7 +19,7 @@ export function registerBillingOptions(command: Command): void {
     .option('--exento <numero>', 'parte exenta del monto total (A y B)', amountOption('--exento'))
     // No puede llamarse --no-gravado: commander interpreta --no-* como negacion de un flag booleano.
     .option('--nogravado <numero>', 'parte no gravada del monto total (A y B)', amountOption('--nogravado'))
-    .option('-d, --dia <numero>', 'día de vencimiento o referencia del servicio', integerOption('--dia'))
+    .option('-d, --dia <numero>', 'deprecado, usá --vto: vence el próximo día con ese número', integerOption('--dia'))
     .option('--punto-venta <numero>', 'punto de venta (alias: --pv)', integerOption('--punto-venta'))
     .option('--pv <numero>', 'alias de punto de venta', integerOption('--pv'))
     .option('--cargar <ruta>', 'cargar datos base desde un archivo JSON')

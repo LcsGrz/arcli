@@ -29,9 +29,12 @@ const BILLING_IVA_CONDITION_MAP: Record<BillingIvaCondition, number> = {
   'sujeto-no-categorizado': 7,
 };
 
+/** Codigos ISO de las monedas mas comunes al codigo de ARCA; cualquier otro se manda tal cual (por ejemplo, `060`). */
 const BILLING_CURRENCY_CODE_MAP: Record<string, string> = {
   ARS: 'PES',
+  BRL: '012',
   DOL: 'DOL',
+  EUR: '060',
   PES: 'PES',
   USD: 'DOL',
 };
