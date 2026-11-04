@@ -106,7 +106,7 @@ Cuando necesitás anular o ajustar una factura previa.
 
 - datos completos del asociado
 - misma letra que la factura referenciada
-- asociado del tipo factura, no otra nota
+- asociado del tipo factura o Recibo C, no otra nota
 
 ### Comando
 

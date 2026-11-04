@@ -13,6 +13,7 @@ import {
   ivaRateChoices,
   noteKindChoices,
   receiverChoices,
+  reciboChoice,
 } from '../../modules/interactive/choices';
 import { copyInvoiceAmounts } from '../../modules/interactive/invoice-copy';
 import { BACK, type Back, runWizard, type WizardStep } from '../../modules/interactive/wizard';
@@ -100,18 +101,18 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
     {
       name: 'tipo-factura',
       run: async () => {
-        const invoiceKind = await chooseStep('¿Sobre qué tipo de factura?', invoiceKindChoices());
+        const invoiceKind = await chooseStep('¿Sobre qué comprobante?', [...invoiceKindChoices(), reciboChoice()]);
 
         return invoiceKind === BACK ? BACK : { invoiceKind, target: 'factura' };
       },
     },
     {
       name: 'asociacion',
-      run: async () => {
+      run: async (state) => {
         const target = await chooseStep('¿A qué la asociamos?', [
           {
             description: 'Elegis una de las últimas emitidas o la ingresas a mano',
-            name: 'A una factura',
+            name: state.invoiceKind?.family === 'recibo' ? 'A un recibo' : 'A una factura',
             value: 'factura' as const,
           },
           {
