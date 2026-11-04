@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BACK } from '../../../modules/interactive/wizard';
 import { stripAnsi } from '../../../ui';
+import { runCertificateMenu, runGenerateCertificate } from '../certificate.flow';
 import { runConfigMenu, runGuidedSetup } from '../config.flow';
 import { askTextStep, chooseOne, chooseStep, confirm } from '../prompts';
 
@@ -69,6 +70,7 @@ vi.mock('../../../services/pdf/pdf-plugin', () => ({
   },
 }));
 vi.mock('../../spinner', () => ({ startSpinner: () => null }));
+vi.mock('../certificate.flow', () => ({ runCertificateMenu: vi.fn(), runGenerateCertificate: vi.fn() }));
 
 const askTextMock = vi.mocked(askTextStep);
 const chooseStepMock = vi.mocked(chooseStep);
@@ -97,7 +99,10 @@ describe('runGuidedSetup', () => {
       .mockResolvedValueOnce('Calle 123')
       .mockResolvedValueOnce('1/03/2020')
       .mockResolvedValueOnce('Exento');
-    chooseStepMock.mockResolvedValueOnce('servicios').mockResolvedValueOnce('consumidor-final');
+    chooseStepMock
+      .mockResolvedValueOnce('tengo')
+      .mockResolvedValueOnce('servicios')
+      .mockResolvedValueOnce('consumidor-final');
     vi.mocked(confirm).mockResolvedValueOnce(true);
 
     await runGuidedSetup();
@@ -114,6 +119,27 @@ describe('runGuidedSetup', () => {
       'key.testing': '/certs/testing.key',
       puntoVenta: '3',
     });
+  });
+
+  it('sin certificado, lo saca en el momento y no pide la clave', async () => {
+    vi.mocked(runGenerateCertificate).mockImplementationOnce(async () => {
+      store['cert.testing'] = '/arcli/certificados/testing.crt';
+      store['key.testing'] = '/arcli/certificados/testing.key';
+
+      return 'importado';
+    });
+    askTextMock.mockResolvedValueOnce('20123456786').mockResolvedValueOnce('3');
+    chooseStepMock
+      .mockResolvedValueOnce('sacar')
+      .mockResolvedValueOnce('servicios')
+      .mockResolvedValueOnce('consumidor-final');
+    vi.mocked(confirm).mockResolvedValueOnce(false);
+
+    await runGuidedSetup();
+
+    expect(runGenerateCertificate).toHaveBeenCalledWith('testing');
+    expect(askTextMock).toHaveBeenCalledTimes(2);
+    expect(store).toMatchObject({ 'key.testing': '/arcli/certificados/testing.key', puntoVenta: '3' });
   });
 
   it('valida con las mismas reglas que config establecer y no deja vacio lo obligatorio', async () => {
@@ -197,6 +223,14 @@ describe('runConfigMenu', () => {
     await runConfigMenu();
 
     expect(store['emisor.razonSocial']).toBeUndefined();
+  });
+
+  it('abre los certificados de ARCA desde configuracion', async () => {
+    vi.mocked(chooseOne).mockResolvedValueOnce('certificados').mockResolvedValueOnce('volver');
+
+    await runConfigMenu();
+
+    expect(runCertificateMenu).toHaveBeenCalled();
   });
 
   it('instala el plugin de PDF desde configuracion', async () => {

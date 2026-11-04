@@ -68,7 +68,7 @@ Se puede sumar un servicio después, repitiendo solo el paso 3 con el mismo cert
 
 ### 2. Generar la clave y el certificado
 
-**Con arcli (recomendado).** Con el CUIT ya configurado (`arcli config establecer cuit <CUIT>`):
+**Con arcli (recomendado).** Desde el modo interactivo: `arcli` → Configuración → Certificados de ARCA. O por comandos, con el CUIT ya configurado (`arcli config establecer cuit <CUIT>`):
 
 ```bash
 arcli certificado generar --testing

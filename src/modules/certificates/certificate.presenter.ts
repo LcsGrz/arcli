@@ -13,7 +13,7 @@ import {
 } from '../../ui';
 import type { ArcliEnvironment } from '../config/config.schemas';
 
-import type { GeneratedCertificateRequest, ImportedCertificate } from './certificate.service';
+import type { CertificateStatus, GeneratedCertificateRequest, ImportedCertificate } from './certificate.service';
 
 const SERVICES_URL = `${CERTIFICATE_GUIDE_URL}#qué-servicios-autorizar`;
 
@@ -183,4 +183,44 @@ export function formatImportedCertificateAsJson(imported: ImportedCertificate): 
     null,
     2,
   );
+}
+
+const EXPIRY_WARNING_DAYS = 30;
+
+function describeStatus(status: CertificateStatus, now: Date): string {
+  const pending = status.pending ? colorize('  · pedido sin importar', 'warning') : '';
+
+  if (!status.certificatePath) {
+    return `${colorize('sin certificado', 'muted')}${pending}`;
+  }
+
+  if (status.unreadable || !status.expiresAt) {
+    return `${colorize('no se puede leer', 'danger')} ${pathLink(status.certificatePath)}${pending}`;
+  }
+
+  const days = Math.floor((status.expiresAt.getTime() - now.getTime()) / 86_400_000);
+  const expiry =
+    days < 0
+      ? colorize(`venció el ${formatDate(status.expiresAt)}`, 'danger')
+      : days <= EXPIRY_WARNING_DAYS
+        ? colorize(`vence el ${formatDate(status.expiresAt)}`, 'warning')
+        : `vence el ${bold(formatDate(status.expiresAt))}`;
+
+  return `${status.alias ?? '- -'} · ${expiry} · ${pathLink(status.certificatePath)}${pending}`;
+}
+
+/** Un renglon por entorno: alias, vencimiento y ruta, o "sin certificado"; y si quedo un pedido sin importar. */
+export function formatCertificateStatusAsText(statuses: readonly CertificateStatus[], now = new Date()): string {
+  return renderPanel({
+    borderType: 'sheet',
+    content: rows(
+      statuses.map((status) => [
+        toneText(ENVIRONMENT_NAMES[status.environment], ENVIRONMENT_COLORS[status.environment]),
+        describeStatus(status, now),
+      ]),
+    ),
+    contentAlign: 'left',
+    title: 'Certificados de ARCA',
+    width: 'wide',
+  });
 }

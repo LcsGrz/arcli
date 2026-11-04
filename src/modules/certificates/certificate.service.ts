@@ -69,6 +69,17 @@ export interface ImportedCertificate {
   readonly replaced: boolean;
 }
 
+export interface CertificateStatus {
+  readonly alias?: string;
+  readonly certificatePath?: string;
+  readonly environment: ArcliEnvironment;
+  readonly expiresAt?: Date;
+  /** Hay un pedido de `generar` sin importar. */
+  readonly pending: boolean;
+  /** El certificado configurado no se pudo leer (no existe o no es X.509). */
+  readonly unreadable: boolean;
+}
+
 export const DEFAULT_CERTIFICATE_ALIAS = 'arcli';
 
 const ENVIRONMENT_NAMES: Record<ArcliEnvironment, string> = { produccion: 'producción', testing: 'testing' };
@@ -116,6 +127,29 @@ export class CertificateService {
       environment: options.environment,
       keyPath: files.pendingKey,
       requestPath: files.pendingRequest,
+    };
+  }
+
+  /** Que hay configurado en el entorno y si quedo un pedido sin importar. Solo lee archivos locales. */
+  public status(environment: ArcliEnvironment): CertificateStatus {
+    const config = this.config.getConfig();
+    const certificatePath = config.cert[environment];
+    const pending = config.cuit ? readIfExists(this.files(config.cuit, environment).pendingKey) !== undefined : false;
+    let info: ArcaCertificateInfo | undefined;
+
+    try {
+      info = certificatePath ? readArcaCertificate(readFileSync(certificatePath, 'utf8')) : undefined;
+    } catch {
+      info = undefined;
+    }
+
+    return {
+      alias: info?.alias,
+      certificatePath,
+      environment,
+      expiresAt: info?.expiresAt,
+      pending,
+      unreadable: Boolean(certificatePath) && !info,
     };
   }
 
