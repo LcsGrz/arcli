@@ -8,6 +8,7 @@ import { EXCHANGE_RATE_DECIMALS, parseArgentineAmount } from '../../lib/numbers/
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import { readPemFile } from '../../lib/security/pem';
 import { IVA_RATE_HINT } from '../billing/billing.schemas';
+import { saleConditionSchema } from '../billing/sale-condition';
 import { MAX_RECENT_VOUCHERS } from '../vouchers/voucher-history';
 
 import {
@@ -26,6 +27,7 @@ export type CanonicalConfigKey =
   | 'cert.produccion'
   | 'cert.testing'
   | 'conceptoPorDefecto'
+  | 'condicionVenta'
   | 'cotizacionPorDefecto'
   | 'cuit'
   | 'emisor.condicionIva'
@@ -203,6 +205,8 @@ export function parseConfigValue(key: CanonicalConfigKey, value: string): boolea
       return parseCbu(value);
     case 'conceptoPorDefecto':
       return arcliDefaultConceptSchema.parse(value.trim().toLowerCase());
+    case 'condicionVenta':
+      return saleConditionSchema.parse(value);
     case 'cotizacionPorDefecto':
       return parseExchangeRate(value);
     case 'cuit':

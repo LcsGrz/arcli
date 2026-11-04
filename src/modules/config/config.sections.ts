@@ -49,7 +49,7 @@ export const CONFIG_SECTIONS: readonly ConfigSection[] = [
     ],
     label: 'Datos del emisor (PDF)',
   },
-  { id: 'pdf', keys: ['pdf', 'pdfCarpeta', 'pdfNavegador'], label: 'PDF' },
+  { id: 'pdf', keys: ['pdf', 'pdfCarpeta', 'pdfNavegador', 'condicionVenta'], label: 'PDF' },
   { id: 'salida', keys: ['comprobantesPorLista', 'emitir', 'json', 'bruto'], label: 'Salida y listados' },
 ];
 
@@ -63,6 +63,7 @@ export const CONFIG_LABELS: Record<ConfigPublicKey, string> = {
   'cert.testing': 'Certificado de testing',
   comprobantesPorLista: 'Comprobantes por lista',
   concepto: 'Concepto',
+  condicionVenta: 'Condición de venta (PDF de A, B y C)',
   cotizacion: 'Cotización',
   cuit: 'CUIT del emisor',
   'emisor.condicionIva': 'Condición de IVA',

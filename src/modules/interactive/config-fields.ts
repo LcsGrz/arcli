@@ -1,6 +1,7 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { formatArgentineAmountInput } from '../../lib/numbers/argentine-amount';
 import { maskPath } from '../../lib/paths/mask-path';
+import { SALE_CONDITION_KEYS } from '../billing/sale-condition';
 import {
   type ArcliConfig,
   arcliDefaultConceptSchema,
@@ -112,6 +113,7 @@ const FIELD_DEFINITIONS: ReadonlyArray<Omit<ConfigField, 'label'>> = [
   },
   { key: 'pdfCarpeta', path: true, read: (c) => c.pdfCarpeta },
   { key: 'pdfNavegador', path: true, read: (c) => c.pdfNavegador },
+  { choices: SALE_CONDITION_KEYS, key: 'condicionVenta', read: (c) => c.condicionVenta },
   { key: 'emisor.razonSocial', read: (c) => c.emisor.razonSocial },
   { key: 'emisor.domicilio', read: (c) => c.emisor.domicilio },
   {

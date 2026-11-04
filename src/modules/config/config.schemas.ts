@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { billingIvaRateSchema } from '../billing/billing.schemas';
+import { saleConditionSchema } from '../billing/sale-condition';
 import { MAX_RECENT_VOUCHERS } from '../vouchers/voucher-history';
 
 export const arcliEnvironmentSchema = z.enum(['testing', 'produccion']);
@@ -93,6 +94,8 @@ export const arcliConfigSchema = z.object({
   pdf: arcliPdfModeSchema.optional(),
   pdfCarpeta: z.string().trim().min(1).optional(),
   pdfNavegador: z.string().trim().min(1).optional(),
+  /** Condicion de venta del PDF de A, B y C cuando el comprobante no trae una. */
+  condicionVenta: saleConditionSchema.optional(),
   /** Cuantos comprobantes muestran `arcli ultimos` y las listas del modo interactivo. */
   comprobantesPorLista: z.number().int().min(1).max(MAX_RECENT_VOUCHERS).optional(),
   puntoVentaPorDefecto: z.number().int().positive().optional(),
@@ -133,6 +136,7 @@ export const configPublicKeySchema = z.enum([
   'cert.produccion',
   'cert.testing',
   'concepto',
+  'condicionVenta',
   'cuit',
   'cotizacion',
   'emisor.condicionIva',

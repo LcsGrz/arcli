@@ -10,7 +10,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### Agregado
 
-- **Condición de venta en el PDF:** `--condicion-venta <texto>` (o `condicionVenta` en el JSON de `--cargar`) imprime, por ejemplo, `Contado` u `Otros medios de pago electrónico` junto a los datos del receptor. El modo interactivo muestra las opciones habituales y solo pide texto libre al elegir `Otra`. Es un dato exclusivo del PDF: WSFE no lo recibe.
+- **Condición de venta en el PDF de A, B y C:** `--condicion-venta` (alias `--cv`), `condicionVenta` en el JSON de `--cargar` y la clave `condicionVenta` de la config como default. Acepta `contado`, `tarjeta-debito`, `tarjeta-credito`, `cuenta-corriente`, `cheque`, `transferencia`, `otros-medios-electronicos` y `otra`, que se imprimen con su nombre, o un texto libre que se imprime tal cual. El modo interactivo la pregunta con una lista y la de la config marcada; "Otra" pide el texto. Es un dato exclusivo del PDF: WSFE no lo recibe.
 
 ### Cambiado
 

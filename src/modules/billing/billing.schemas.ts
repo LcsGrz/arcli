@@ -4,6 +4,7 @@ import { parseCuit } from '../../lib/identity/cuit';
 import { AMOUNT_DECIMALS, EXCHANGE_RATE_DECIMALS, hasAtMostDecimals } from '../../lib/numbers/argentine-amount';
 
 import type { VoucherShortcut } from './billing.types';
+import { saleConditionSchema } from './sale-condition';
 
 const BILLING_CONCEPT_ALIASES = {
   p: 'productos',
@@ -165,7 +166,7 @@ export const billingCommandSchema = z.object({
   receiverFromPadron: z.array(z.enum(['address', 'name'])).optional(),
   receiverName: z.string().trim().min(1).max(200).optional(),
   /** Solo para el PDF: WSFE no recibe la condicion de venta. */
-  saleCondition: z.string().trim().min(1).max(100).optional(),
+  saleCondition: saleConditionSchema.optional(),
   sameCurrency: z.boolean().default(false),
   serviceEndDate: z.string().trim().optional(),
   serviceStartDate: z.string().trim().optional(),

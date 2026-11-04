@@ -1,5 +1,10 @@
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import type { BillingExecutionResult } from '../../modules/billing/billing.types.internal';
+import {
+  SALE_CONDITION_KEYS,
+  SALE_CONDITION_LABELS,
+  type SaleConditionKey,
+} from '../../modules/billing/sale-condition';
 import type { ArcliConfig } from '../../modules/config/config.schemas';
 import { ConfigService } from '../../modules/config/config.service';
 import { parseConfigValue } from '../../modules/config/config-value-parser';
@@ -20,32 +25,35 @@ const ISSUER_QUESTIONS: Record<IssuerKey, string> = {
   'emisor.razonSocial': 'Razón social o nombre del emisor',
 };
 
-const CUSTOM_SALE_CONDITION = '__otra_condicion_de_venta__';
-const SALE_CONDITION_CHOICES = [
-  { name: 'Omitir', value: '' },
-  { name: 'Contado', value: 'Contado' },
-  { name: 'Tarjeta de débito', value: 'Tarjeta de débito' },
-  { name: 'Tarjeta de crédito', value: 'Tarjeta de crédito' },
-  { name: 'Cuenta corriente', value: 'Cuenta corriente' },
-  { name: 'Cheque', value: 'Cheque' },
-  { name: 'Transferencia bancaria', value: 'Transferencia bancaria' },
-  { name: 'Otros medios de pago electrónico', value: 'Otros medios de pago electrónico' },
-  { name: 'Otra (escribir)', value: CUSTOM_SALE_CONDITION },
-] as const;
+const OMIT_SALE_CONDITION = 'omitir';
 
-async function askSaleCondition(current?: string): Promise<string | undefined> {
-  const isKnown = !current || SALE_CONDITION_CHOICES.some((choice) => choice.value === current);
-  const choices =
-    current && !isKnown
-      ? [{ name: `Mantener: ${current}`, value: current }, ...SALE_CONDITION_CHOICES]
-      : SALE_CONDITION_CHOICES;
-  const selected = await chooseOne('Condición de venta para el PDF', choices, current ?? '');
+/**
+ * La condicion de venta del PDF, con la de siempre (la del comprobante o la de la config) ya marcada: Enter la
+ * mantiene. "Otra" pide el texto; Enter deja "Otra", o el texto libre que ya habia.
+ */
+async function askSaleCondition(current: string | undefined): Promise<string | undefined> {
+  const currentKey = current?.trim().toLowerCase();
+  const isKey = (value: string | undefined): value is SaleConditionKey =>
+    SALE_CONDITION_KEYS.includes(value as SaleConditionKey);
+  const currentText = current?.trim() && !isKey(currentKey) ? current.trim() : undefined;
+  const choice = await chooseOne<SaleConditionKey | typeof OMIT_SALE_CONDITION>(
+    'Condición de venta:',
+    [
+      { name: 'Omitir', value: OMIT_SALE_CONDITION },
+      ...SALE_CONDITION_KEYS.map((key) => ({ name: SALE_CONDITION_LABELS[key], value: key })),
+    ],
+    isKey(currentKey) ? currentKey : currentText ? 'otra' : undefined,
+  );
 
-  if (selected === CUSTOM_SALE_CONDITION) {
-    return (await askText('Otra condición de venta (Enter para omitir)')) || undefined;
+  if (choice === OMIT_SALE_CONDITION) {
+    return undefined;
   }
 
-  return selected || undefined;
+  if (choice !== 'otra') {
+    return choice;
+  }
+
+  return (await askText('Condición de venta:', { defaultValue: currentText ?? SALE_CONDITION_LABELS.otra })) || 'otra';
 }
 
 function validateConfigValue(key: IssuerKey, value: string): string | true {
@@ -140,10 +148,11 @@ export async function offerPdf(
       input.receiverAddress ? 'Domicilio del receptor:' : 'Domicilio del receptor (Enter para omitir)',
       { defaultValue: input.receiverAddress },
     );
-    const saleCondition = await askSaleCondition(input.saleCondition);
+    const saleCondition = await askSaleCondition(input.saleCondition ?? config.condicionVenta);
     const completedConfig = await completeIssuer(config);
     const withPdf = await attachPdfs({
-      config: completedConfig,
+      // La condicion de venta ya se pregunto con la de la config marcada: "Omitir" no la tiene que traer.
+      config: { ...completedConfig, condicionVenta: undefined },
       inputs: [
         {
           ...input,

@@ -64,6 +64,7 @@ Si el archivo no existe, `arcli config` lo crea automáticamente.
 | `pdf`                         | `siempre \| preguntar \| nunca` | `preguntar`            | Cuándo generar el PDF del comprobante emitido. Ver [PDF](pdf.md)                                                                                                                                                                                |
 | `pdfCarpeta`                  | string                          | `~/arcli/comprobantes` | Carpeta donde se guardan los PDFs                                                                                                                                                                                                               |
 | `pdfNavegador`                | string                          | automático             | Ruta a Chrome, Chromium o Edge para generar los PDFs                                                                                                                                                                                            |
+| `condicionVenta`              | string                          | ninguno                | Condición de venta del PDF de A, B y C si el comprobante no trae `--condicion-venta`: `contado`, `cuenta-corriente`, `transferencia`… o un texto. Ver [PDF](pdf.md#del-comprobante-flags-opcionales)                                            |
 | `emisor.razonSocial`          | string                          | ninguno                | Nombre o razón social del emisor (solo PDF)                                                                                                                                                                                                     |
 | `emisor.domicilio`            | string                          | ninguno                | Domicilio comercial del emisor (solo PDF)                                                                                                                                                                                                       |
 | `emisor.inicioActividades`    | fecha                           | ninguno                | Inicio de actividades, con año: `1/03/2020` (solo PDF)                                                                                                                                                                                          |
@@ -113,7 +114,7 @@ El ticket permite operar en ARCA como tu CUIT mientras dure, así que ARCLI deja
 
 ### PDF y datos del emisor
 
-Las claves `pdf`, `pdfCarpeta`, `pdfNavegador` y `emisor.*` solo se usan para generar el PDF. ARCA no recibe los datos del emisor: van impresos en el PDF. Cómo completarlos y qué hace cada clave: [PDF de comprobantes](pdf.md#datos-que-arca-no-guarda).
+Las claves `pdf`, `pdfCarpeta`, `pdfNavegador`, `condicionVenta` y `emisor.*` solo se usan para generar el PDF. ARCA no recibe los datos del emisor: van impresos en el PDF. Cómo completarlos y qué hace cada clave: [PDF de comprobantes](pdf.md#datos-que-arca-no-guarda).
 
 ## Prioridad de fuentes
 

@@ -117,7 +117,7 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
 - Ejecución: `--previsualizar` (solo arma y muestra la solicitud) vs `--emitir` (real contra ARCA) — son mutuamente excluyentes. El entorno sale de `config.entorno` (`testing` por defecto) salvo `--testing`/`--produccion`. Sin `--emitir` ni `--previsualizar` decide `config.emitir` (o `"emitir"` del JSON); si tampoco hay, en una terminal pregunta y con `--json` o sin TTY no emite. `--produccion --emitir` emite de verdad sin confirmación adicional, y lo mismo pasa sin flags si la config tiene `entorno produccion` y `emitir true`. Para no depender de la config, pasá siempre `--testing` o `--produccion` y `--emitir` o `--previsualizar` explícitos.
 - Salida: `--json` (estructurada, para scripts/agentes — desactiva el aviso de nueva versión), `--bruto` (incluye la respuesta cruda de ARCA). `--bruto` solo existe en los comandos de facturación; en `padron`, `fce-obligado`, `ultimos`, `consultar`, `parametros` y `estado` se ignora con un aviso en stderr. En todos los comandos, sin `--json` decide la clave de config `json`.
 - `--cargar <path.json>`: carga uno o un array de comprobantes desde un JSON en vez de flags (ver forma abajo). Los flags pisan lo que venga del archivo.
-- PDF: `--exportar-pdf` (alias `--pdf`) genera el PDF con QR después de emitir; `--sin-pdf` no lo genera; sin flag decide `config pdf` (`preguntar` por defecto, que sin TTY o con `--json` no genera). Datos que solo van en el PDF (ARCA no los recibe): `--descripcion <texto>`, `--condicion-venta <texto>`, `--receptor-nombre <texto>`, `--receptor-domicilio <texto>`. Requiere el plugin (`arcli pdf instalar`, ~160 MB; desde un agente instalarlo antes, porque sin TTY nunca se descarga solo) y `emisor.razonSocial`, `emisor.domicilio`, `emisor.inicioActividades` en la config. Detalle: https://github.com/LcsGrz/arcli/blob/main/docs/pdf.md.
+- PDF: `--exportar-pdf` (alias `--pdf`) genera el PDF con QR después de emitir; `--sin-pdf` no lo genera; sin flag decide `config pdf` (`preguntar` por defecto, que sin TTY o con `--json` no genera). Datos que solo van en el PDF (ARCA no los recibe): `--descripcion <texto>`, `--condicion-venta <tipo>` (alias `--cv`; `contado`, `tarjeta-debito`, `tarjeta-credito`, `cuenta-corriente`, `cheque`, `transferencia`, `otros-medios-electronicos`, `otra` o un texto libre que se imprime tal cual; JSON `condicionVenta`; default en la config `condicionVenta`), `--receptor-nombre <texto>`, `--receptor-domicilio <texto>`. Requiere el plugin (`arcli pdf instalar`, ~160 MB; desde un agente instalarlo antes, porque sin TTY nunca se descarga solo) y `emisor.razonSocial`, `emisor.domicilio`, `emisor.inicioActividades` en la config. Detalle: https://github.com/LcsGrz/arcli/blob/main/docs/pdf.md.
 
 ## Modo no interactivo
 
@@ -145,7 +145,7 @@ explícita y no depender de la config ni del prompt.
   "previsualizar": true,
   "pdf": true,
   "descripcion": "Servicios del mes",
-  "condicionVenta": "Contado",
+  "condicionVenta": "contado",
   "receptorNombre": "Cliente SA",
   "receptorDomicilio": "Calle 1"
 }
@@ -238,7 +238,7 @@ de exportación; si faltan, se usan `cert.*`/`key.*`), `exportacion.actividad` (
 actividades de WSFEX para la `E`; `--actividad` lo pisa), `ticketPath` (carpeta donde se cachea el
 ticket WSAA; por defecto una carpeta junto al archivo de config).
 Para el PDF: `pdf` (`siempre`/`preguntar`/`nunca`), `pdfCarpeta` (por defecto `~/arcli/comprobantes`; una subcarpeta
-por CUIT emisor, los de testing en `testing/<CUIT>/`, y nunca se pisa un PDF existente: se suma `-2`, `-3`), `pdfNavegador` (ruta a Chrome/Chromium/Edge), `emisor.razonSocial`, `emisor.domicilio`,
+por CUIT emisor, los de testing en `testing/<CUIT>/`, y nunca se pisa un PDF existente: se suma `-2`, `-3`), `pdfNavegador` (ruta a Chrome/Chromium/Edge), `condicionVenta` (default de `--condicion-venta`), `emisor.razonSocial`, `emisor.domicilio`,
 `emisor.inicioActividades` (fecha con año), `emisor.iibb`, `emisor.condicionIva`, `emisor.logo` (PNG o JPG).
 
 `config revisar` también avisa si un certificado ya venció o vence en menos de 30 días. Con `--json` devuelve

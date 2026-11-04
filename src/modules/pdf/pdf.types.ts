@@ -68,6 +68,7 @@ export interface InvoicePdfData {
   readonly concepto: number;
   /** Leyenda de IVA de la E, debajo de la condicion del emisor. */
   readonly condicionIvaExportacion?: string;
+  /** Condicion de venta impresa ("Contado", "Cuenta Corriente"). Solo A, B y C. */
   readonly condicionVenta?: string;
   readonly cotizacion?: number;
   /** Pais de destino de la E. */
@@ -104,6 +105,7 @@ export interface InvoicePdfOptions {
 
 /** Datos que no estan en ARCA y se pasan por flag o en el JSON de --cargar. Solo se usan en el PDF. */
 export interface PdfVoucherExtras {
+  /** Clave de `SALE_CONDITION_LABELS` o texto libre. */
   readonly condicionVenta?: string;
   readonly descripcion?: string;
   readonly receptorDomicilio?: string;

@@ -168,7 +168,7 @@ export async function attachPdfs(
           const path = await exportBillingPdf({
             config: options.config,
             extras: {
-              condicionVenta: input?.saleCondition,
+              condicionVenta: input?.saleCondition ?? options.config.condicionVenta,
               descripcion: input?.pdfDescription,
               receptorDomicilio: input?.receiverAddress,
               receptorNombre: input?.receiverName,

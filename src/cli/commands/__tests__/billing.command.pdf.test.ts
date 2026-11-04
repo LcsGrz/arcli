@@ -207,6 +207,25 @@ describe('attachPdfs', () => {
     expect(result.pdf).toMatchObject({ error: { code: 'PDF_ISSUER_INCOMPLETE' } });
   });
 
+  it('prints the sale condition of the voucher, or the one in the config', async () => {
+    const renderedSaleCondition = async (config: ArcliConfig, saleCondition?: string) => {
+      const { deps, plugin } = createDeps();
+
+      await attachPdfs(
+        { config, inputs: [input({ pdf: true, saleCondition })], interactive: false, results: [createResult()] },
+        deps,
+      );
+
+      const { render } = plugin.load.mock.results[0].value as { render: ReturnType<typeof vi.fn> };
+
+      return (render.mock.calls[0][0] as { condicionVenta?: string }).condicionVenta;
+    };
+
+    expect(await renderedSaleCondition({ ...CONFIG, condicionVenta: 'contado' })).toBe('Contado');
+    expect(await renderedSaleCondition({ ...CONFIG, condicionVenta: 'contado' }, 'cheque')).toBe('Cheque');
+    expect(await renderedSaleCondition(CONFIG)).toBeUndefined();
+  });
+
   it('warns when PDF-only data was given but no PDF was generated', async () => {
     const { deps } = createDeps();
     const [result] = await attachPdfs(

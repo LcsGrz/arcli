@@ -162,6 +162,18 @@ describe('mapBillingResultToPdfData', () => {
     expect(data.iva).toBeUndefined();
   });
 
+  it('prints a known sale condition by its name, and a free text as is', () => {
+    const fc = createResult('fc', { ImpNeto: 1000, ImpTotal: 1000 });
+
+    expect(mapBillingResultToPdfData(fc, issuer, { condicionVenta: 'cuenta-corriente' }).condicionVenta).toBe(
+      'Cuenta Corriente',
+    );
+    expect(mapBillingResultToPdfData(fc, issuer, { condicionVenta: 'Billetera virtual' }).condicionVenta).toBe(
+      'Billetera virtual',
+    );
+    expect(mapBillingResultToPdfData(fc, issuer).condicionVenta).toBeUndefined();
+  });
+
   it('maps one line per IVA rate plus exempt in a factura A', () => {
     const data = mapBillingResultToPdfData(
       createResult('fa', {

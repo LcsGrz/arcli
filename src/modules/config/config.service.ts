@@ -21,6 +21,7 @@ const CONFIG_KEY_ALIASES: Record<ConfigPublicKey, CanonicalConfigKey> = {
   'cert.produccion': 'cert.produccion',
   'cert.testing': 'cert.testing',
   concepto: 'conceptoPorDefecto',
+  condicionVenta: 'condicionVenta',
   cotizacion: 'cotizacionPorDefecto',
   cuit: 'cuit',
   'emisor.condicionIva': 'emisor.condicionIva',
