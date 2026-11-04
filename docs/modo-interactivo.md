@@ -24,7 +24,7 @@ El modo interactivo no agrega comandos de emisión ni cambia flags, claves de co
 
 1. **Emitir factura**
 2. **Emitir recibo**
-3. **Repetir una factura anterior**
+3. **Repetir un comprobante anterior**
 4. **Emitir nota de crédito**
 5. **Emitir nota de débito**
 6. **Consultar comprobantes**
@@ -141,14 +141,14 @@ Se elige desde el menú: **Emitir nota de crédito** (descuento, devolución o a
 
 La nota hereda de la factura el concepto, el receptor (tipo y número de documento), la fecha y la alícuota de IVA cuando se puede deducir de los importes. El comprobante asociado se completa solo: tipo, punto de venta (el de la factura, aunque sea otro que el configurado), número, CUIT del emisor y fecha.
 
-## Repetir una factura anterior
+## Repetir un comprobante anterior
 
-Para quien factura lo mismo seguido. Elegís el tipo de comprobante (una factura o un Recibo C) y una de las últimas 15 emitidas, y se copian el receptor, el concepto, el monto y la alícuota (cuando se puede deducir de los importes). **Las fechas no se copian:** la factura sale con fecha de hoy.
+Para quien factura o cobra lo mismo seguido. Elegís si es una factura o un Recibo C y uno de los últimos 15 emitidos, y se copian el receptor, el concepto, el monto y la alícuota (cuando se puede deducir de los importes). **Las fechas no se copian:** el comprobante sale con fecha de hoy.
 
 | Paso | Pregunta             | Detalle                                                                                                                                                       |
 | ---- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1    | Tipo de comprobante  | Factura A, B o C, comunes o FCE, o Recibo C                                                                                                                   |
-| 2    | Factura              | Una de las últimas emitidas en el punto de venta configurado. Como en las notas, se pueden cargar más o ingresar el número a mano                             |
+| 2    | Comprobante          | Uno de los últimos emitidos en el punto de venta configurado. Como en las notas, se pueden cargar más o ingresar el número a mano                             |
 | 3    | IVA del receptor     | Solo si no era consumidor final: ARCA no devuelve la condición IVA de la factura                                                                              |
 | 4    | Monto                | El mismo o uno nuevo                                                                                                                                          |
 | 5    | Período del servicio | Este mes, el mes pasado, solo hoy u otro. No se pregunta si el concepto es solo productos                                                                     |

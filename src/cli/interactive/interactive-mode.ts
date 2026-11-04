@@ -255,7 +255,7 @@ export async function runInteractiveMode(options: GlobalCliOptions = {}): Promis
           },
           {
             description: 'Copia una de las últimas, con fechas nuevas',
-            name: 'Repetir una factura anterior',
+            name: 'Repetir un comprobante anterior',
             value: 'repetir',
           },
           {
