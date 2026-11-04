@@ -123,17 +123,19 @@ describe('flujos del modo interactivo', () => {
       expect(script.asked.some((question) => /alicuota/i.test(question))).toBe(false);
     });
 
-    it('arma un recibo C como una factura C', async () => {
+    it('"Emitir recibo" arranca con el Recibo C elegido y no pregunta el comprobante', async () => {
       script = createScript([
-        [/comprobante/, 'Recibo C'],
-        [/A quien/, 'Consumidor final'],
-        [/Qué estás facturando/, 'Productos'],
+        [/A quién le hacés el recibo/, 'Consumidor final'],
+        [/Qué estás cobrando/, 'Productos'],
         [/Monto total/, '2000'],
         [/Agregamos/, []],
       ]);
 
       const session = createSession();
-      const state = await runWizard(invoiceSteps(session), { advanced: { currencyCode: 'ARS', sameCurrency: false } });
+      const state = await runWizard(invoiceSteps(session), {
+        advanced: { currencyCode: 'ARS', sameCurrency: false },
+        voucherKind: getVoucherKindByShortcut('rc') ?? undefined,
+      });
 
       expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
         concept: 'productos',
@@ -478,7 +480,7 @@ describe('flujos del modo interactivo', () => {
   describe('notas', () => {
     it('arma una NC por el total sobre una factura de la lista', async () => {
       script = createScript([
-        [/tipo de factura/, 'Factura B'],
+        [/Sobre qué comprobante/, 'Factura B'],
         [/A qué la asociamos/, 'A una factura'],
         [/Sobre qué Factura B/, '00003-00000014'],
         [/Total o parcial/, 'Anular el total'],
@@ -498,7 +500,7 @@ describe('flujos del modo interactivo', () => {
 
     it('una NC sobre una factura en dolares va en dolares y, si la anula entera, copia el exento', async () => {
       script = createScript([
-        [/tipo de factura/, 'Factura B'],
+        [/Sobre qué comprobante/, 'Factura B'],
         [/A qué la asociamos/, 'A una factura'],
         [/Sobre qué Factura B/, '00003-00000014'],
         [/Total o parcial/, 'Anular el total'],
@@ -517,7 +519,7 @@ describe('flujos del modo interactivo', () => {
 
     it('con varias alicuotas no ofrece anular el total', async () => {
       script = createScript([
-        [/tipo de factura/, 'Factura B'],
+        [/Sobre qué comprobante/, 'Factura B'],
         [/A qué la asociamos/, 'A una factura'],
         [/Sobre qué Factura B/, '00003-00000014'],
         [/Monto de la nota de crédito/, '100'],
@@ -537,7 +539,7 @@ describe('flujos del modo interactivo', () => {
 
     it('en FCE no ofrece periodo, pregunta el IVA receptor y la anulacion', async () => {
       script = createScript([
-        [/tipo de factura/, 'Factura de crédito electrónica A'],
+        [/Sobre qué comprobante/, 'Factura de crédito electrónica A'],
         [/Sobre qué Factura de crédito electrónica A/, '00003-00000014'],
         [/Total o parcial/, 'Parcial'],
         [/Monto de la nota de crédito/, '60,50'],
@@ -558,9 +560,27 @@ describe('flujos del modo interactivo', () => {
       expect(script.asked.some((question) => /asociamos/.test(question))).toBe(false);
     });
 
+    it('arma una NC C sobre un Recibo C', async () => {
+      script = createScript([
+        [/Sobre qué comprobante/, 'Recibo C'],
+        [/A qué la asociamos/, 'A un recibo'],
+        [/Sobre qué Recibo C/, '00003-00000014'],
+        [/Total o parcial/, 'Anular el total'],
+      ]);
+
+      const session = createSession([invoice({ ivaAmount: 0, netAmount: 121 })]);
+      const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
+
+      expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
+        associatedVoucher: { numero: 14, puntoVenta: 3, shortcut: 'rc' },
+        shortcut: 'ncc',
+        totalAmount: 121,
+      });
+    });
+
     it('arma una NC asociada a un periodo', async () => {
       script = createScript([
-        [/tipo de factura/, 'Factura B'],
+        [/Sobre qué comprobante/, 'Factura B'],
         [/A qué la asociamos/, 'A un período'],
         [/Período desde/, '1/9'],
         [/Período hasta/, '30/9'],
@@ -584,11 +604,11 @@ describe('flujos del modo interactivo', () => {
 
     it('si no hay facturas solo ofrece ingresarla a mano', async () => {
       script = createScript([
-        [/tipo de factura/, 'Factura B'],
+        [/Sobre qué comprobante/, 'Factura B'],
         [/A qué la asociamos/, 'A una factura'],
         [/Sobre qué Factura B/, BACK],
         [/A qué la asociamos/, BACK],
-        [/tipo de factura/, BACK],
+        [/Sobre qué comprobante/, BACK],
       ]);
 
       expect(await runWizard(noteSteps(createSession([]), 3), { kind: 'debito' })).toBeUndefined();
@@ -599,7 +619,7 @@ describe('flujos del modo interactivo', () => {
 
     it('carga mas facturas, de a la cantidad configurada, y deja elegir una vieja', async () => {
       script = createScript([
-        [/tipo de factura/, 'Factura C'],
+        [/Sobre qué comprobante/, 'Factura C'],
         [/A qué la asociamos/, 'A una factura'],
         [/Sobre qué Factura C/, 'Cargar más'],
         [/Sobre qué Factura C/, '00003-00000003'],
@@ -636,7 +656,7 @@ describe('flujos del modo interactivo', () => {
 
     it('ingresa a mano una factura de otro punto de venta', async () => {
       script = createScript([
-        [/tipo de factura/, 'Factura C'],
+        [/Sobre qué comprobante/, 'Factura C'],
         [/A qué la asociamos/, 'A una factura'],
         [/Sobre qué Factura C/, 'Ingresar el número a mano'],
         [/Punto de venta/, '5'],
@@ -658,7 +678,7 @@ describe('flujos del modo interactivo', () => {
 
     it('si la factura ingresada a mano no existe vuelve a la lista', async () => {
       script = createScript([
-        [/tipo de factura/, 'Factura C'],
+        [/Sobre qué comprobante/, 'Factura C'],
         [/A qué la asociamos/, 'A una factura'],
         [/Sobre qué Factura C/, 'Ingresar el número a mano'],
         [/Punto de venta/, '3'],

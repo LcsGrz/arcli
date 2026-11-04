@@ -1342,7 +1342,20 @@ describe('billing.service', () => {
         }),
         createRuntime(),
       ),
-    ).toThrow(/debe ser una factura, no otra nota/);
+    ).toThrow(/debe ser una factura o un recibo, no otra nota/);
+  });
+
+  it('accepts a recibo C as the associated voucher of a C note', () => {
+    const payload = new BillingService().buildVoucherPayload(
+      createBillingInput({
+        associatedVoucher: { cuit: '20123456786', numero: 1, puntoVenta: 3, shortcut: 'rc' },
+        documentNumber: 0,
+        shortcut: 'ncc',
+      }),
+      createRuntime(),
+    );
+
+    expect(payload.CbtesAsoc).toEqual([expect.objectContaining({ Nro: 1, PtoVta: 3, Tipo: 15 })]);
   });
 
   it('returns the number it sent to ARCA with the emitted voucher', async () => {

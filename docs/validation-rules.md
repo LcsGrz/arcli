@@ -175,7 +175,7 @@ Con período asociado no hace falta ninguno de estos flags, `--acuit` incluido.
 
 Además:
 
-- el asociado debe ser una factura, no otra nota
+- el asociado debe ser una factura o un Recibo C, no otra nota
 - la letra debe coincidir
 - la categoría electrónica debe coincidir
 - `--afecha` es opcional, salvo en NC/ND FCE, y no puede ser posterior a la fecha de la nota (10159)
@@ -280,7 +280,7 @@ arcli fa --cs --cuit 30709965812 --ir-ri --alicuota general:1210 --alicuota redu
 
 ### Recibo C
 
-El Recibo C (`rc`, tipo ARCA 15) usa las mismas validaciones y el mismo armado que la Factura C: letra `C`, sin IVA, sin comprobante asociado y sin FCE. ARCA es quien acepta o rechaza el tipo según el punto de venta y la condición del emisor.
+El Recibo C (`rc`, tipo ARCA 15) usa las mismas validaciones y el mismo armado que la Factura C: letra `C`, sin IVA, sin comprobante asociado y sin FCE. Puede ser el asociado de una nota de crédito o débito C (`--ac rc` o `--at 15`). ARCA es quien acepta o rechaza el tipo según el punto de venta y la condición del emisor.
 
 ## 3. Restricciones y errores de ARCA
 
