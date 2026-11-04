@@ -1,5 +1,6 @@
 import type { Command } from 'commander';
 
+import { DUE_DAY_DEPRECATION_WARNING } from '../../modules/billing/billing.date-range';
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import { BillingService } from '../../modules/billing/billing.service';
 import type { VoucherShortcut } from '../../modules/billing/billing.types';
@@ -98,7 +99,16 @@ async function resolveFceWarnings(
   return warnings;
 }
 
-export async function executeBillingCommand(command: Command, shortcut: VoucherShortcut): Promise<void> {
+export interface BillingCommandOptions {
+  /** Avisos que arma quien llama, como los flags de la E salteados en `arcli factura a`. */
+  readonly extraWarnings?: readonly string[];
+}
+
+export async function executeBillingCommand(
+  command: Command,
+  shortcut: VoucherShortcut,
+  options: BillingCommandOptions = {},
+): Promise<void> {
   const globalOptions = getGlobalOptions(command);
   let spinner: ReturnType<typeof startSpinner> = null;
   const voucherKind = getVoucherKindByShortcut(shortcut);
@@ -133,8 +143,10 @@ export async function executeBillingCommand(command: Command, shortcut: VoucherS
     const fceWarnings = runtime.config.verificarFce
       ? await resolveFceWarnings(plannedInputs, service, new ArcaFceObligationGateway(arca))
       : [];
-    const warnings = plannedInputs.map((_input, position) => [
+    const warnings = plannedInputs.map((input, position) => [
       ...certificateWarnings(runtime),
+      ...(options.extraWarnings ?? []),
+      ...(input.dueDay ? [DUE_DAY_DEPRECATION_WARNING] : []),
       ...(padronWarnings[position] ?? []),
       ...(fceWarnings[position] ?? []),
     ]);

@@ -1,33 +1,58 @@
 name: Release
 
+# Publica en npm lo que apunta el tag de la release de GitHub, no el HEAD de main. Si falla, se reintenta con
+# "Re-run jobs" desde Actions: vuelve a correr sobre el mismo tag.
 on:
-  workflow_dispatch:
+  release:
+    types: [published]
+
+# Dos releases a la vez publicarian en cualquier orden.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
-  publish:
-    # Solo desde main: un release desde otra rama publicaria codigo sin revisar.
-    if: github.ref == 'refs/heads/main'
+  # Valida y empaqueta sin permiso para publicar: las dependencias que se instalan aca no pueden usar el token de npm.
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
 
     steps:
-      - name: Checkout
+      - name: Checkout del tag
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          fetch-depth: 0
 
+      # Sin cache de yarn: una cache envenenada por otro workflow entraria al paquete publicado.
       - name: Setup Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: 24
-          cache: yarn
-          registry-url: https://registry.npmjs.org
+
+      - name: El tag coincide con package.json y esta en main
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          version="v$(node -p "require('./package.json').version")"
+          if [ "$TAG" != "$version" ]; then
+            echo "::error::El tag es $TAG y package.json dice $version."
+            exit 1
+          fi
+          git fetch origin main
+          if ! git merge-base --is-ancestor HEAD origin/main; then
+            echo "::error::El tag $TAG no apunta a un commit de main."
+            exit 1
+          fi
 
       - name: Enable Corepack
         run: corepack enable
 
+      # --ignore-scripts: ningun postinstall de una dependencia corre en el job que arma el paquete.
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: yarn install --frozen-lockfile --ignore-scripts
 
       - name: Lint
         run: yarn lint
@@ -41,5 +66,39 @@ jobs:
       - name: Build
         run: yarn build
 
+      - name: Pack
+        run: npm pack --ignore-scripts
+
+      - name: El paquete se instala y arranca
+        run: node scripts/check-package.mjs arcli-*.tgz
+
+      - name: Guardar el paquete
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: paquete
+          path: arcli-*.tgz
+          if-no-files-found: error
+          retention-days: 7
+
+  # Solo publica el .tgz que armo `build`: no hace checkout ni instala nada.
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      - name: Bajar el paquete
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: paquete
+
       - name: Publish to npm
-        run: npm publish
+        run: npm publish ./arcli-*.tgz

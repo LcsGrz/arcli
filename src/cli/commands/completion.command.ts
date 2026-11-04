@@ -25,6 +25,7 @@ import {
 } from '../../modules/completion/shell-scripts';
 import { configPublicKeySchema } from '../../modules/config/config.schemas';
 import { ConfigService } from '../../modules/config/config.service';
+import { EXPORT_VOUCHER_KIND } from '../../modules/export/export.types';
 import { CONFIG_FIELDS } from '../../modules/interactive/config-fields';
 import { PARAMETER_TABLE_NAMES } from '../../modules/parameters/parameters';
 import { writeTerminalJson, writeTerminalOutput } from '../../ui';
@@ -62,10 +63,17 @@ const ARGUMENT_VALUES: Readonly<Record<string, CompletionValues>> = {
   valor: configValues,
 };
 
+/** La familia `factura` tambien acepta la letra E (exportacion). */
+function argumentValues(command: Command, name: string): CompletionValues | undefined {
+  return name === 'letra' && command.name() === EXPORT_VOUCHER_KIND.family
+    ? [...VOUCHER_LETTERS, EXPORT_VOUCHER_KIND.letter]
+    : ARGUMENT_VALUES[name];
+}
+
 /** El arbol de commander como lo necesita el autocompletado. */
 export function describeCompletionTree(command: Command): CompletionCommand {
   return {
-    argumentValues: command.registeredArguments.map((argument) => ARGUMENT_VALUES[argument.name()]),
+    argumentValues: command.registeredArguments.map((argument) => argumentValues(command, argument.name())),
     name: command.name(),
     options: command.options.map((option) => ({
       flags: [option.long, option.short].filter((flag): flag is string => Boolean(flag)),

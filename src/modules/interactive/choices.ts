@@ -9,6 +9,7 @@ import type {
 } from '../billing/billing.schemas';
 import type { VoucherKindDefinition, VoucherLetter, VoucherShortcut } from '../billing/billing.types';
 import { VOUCHER_KIND_MAP } from '../billing/voucher-kind-map';
+import { EXPORT_VOUCHER_KIND, type ExportVoucherKind } from '../export/export.types';
 
 export interface InteractiveChoice<T> {
   readonly description?: string;
@@ -33,6 +34,15 @@ export function invoiceKindChoices(): Array<InteractiveChoice<VoucherKindDefinit
 
     return { description, name: `${definition.displayName} (${shortcut})`, value: definition };
   });
+}
+
+/** La factura E va por WSFEX y tiene su propio asistente, pero se elige en el mismo selector que A, B y C. */
+export function exportInvoiceChoice(): InteractiveChoice<ExportVoucherKind> {
+  return {
+    description: 'A un cliente del exterior: servicios o bienes',
+    name: `${EXPORT_VOUCHER_KIND.displayName} (${EXPORT_VOUCHER_KIND.shortcut})`,
+    value: EXPORT_VOUCHER_KIND,
+  };
 }
 
 export function noteKindChoices(kind: 'credito' | 'debito', invoice: VoucherKindDefinition): VoucherKindDefinition {

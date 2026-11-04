@@ -6,7 +6,7 @@ import { colorize, writeTerminalError } from '../ui';
  * Opciones del programa que un comando puede no usar. Commander las acepta en cualquier comando (las parsea el
  * programa), asi que `arcli config revisar --produccion` no fallaba ni hacia nada.
  */
-const GLOBAL_OPTION_FLAGS = ['--testing', '--produccion', '--json', '--bruto'] as const;
+export const GLOBAL_OPTION_FLAGS = ['--testing', '--produccion', '--json', '--bruto'] as const;
 
 /** Las opciones globales que se pasaron pero el comando no declara: se ignoran. Las del padre no cuentan. */
 export function findIgnoredGlobalOptions(program: Command, actionCommand: Command): string[] {

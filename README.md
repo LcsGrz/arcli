@@ -17,6 +17,7 @@ CLI para previsualizar y emitir comprobantes electrónicos de ARCA (ex AFIP) des
 - **Modo interactivo:** `arcli` sin argumentos abre un asistente que guía la emisión, repite facturas anteriores, arma notas de crédito y débito, consulta comprobantes y configura el CLI. Cada paso muestra el comando equivalente.
 - **Vista previa por defecto:** sin `--emitir`, muestra la solicitud y, en una terminal, pregunta antes de emitir.
 - **Comprobantes:** Factura, Nota de Crédito y Nota de Débito A, B y C, y sus versiones de Factura de Crédito Electrónica (FCE), con CBU, transferencia, anulación y consulta del régimen del receptor.
+- **Factura de exportación E:** `arcli fe` emite con WSFEX, con cliente y país de destino, incoterm, items detallados y permisos de embarque; acepta certificado propio con `exportacion.cert.*` / `exportacion.key.*`.
 - **Entrada y salida flexibles:** flags o JSON (incluso lotes); salida legible, `--json` o respuesta bruta de ARCA.
 - **Validaciones locales** basadas en el manual de ARCA, para detectar errores antes de llamar al servicio.
 - **Consultas sin emitir:** últimos comprobantes, detalle de uno, estado de los servidores, tablas de parámetros, cotización oficial y padrón de un CUIT.
@@ -25,11 +26,22 @@ CLI para previsualizar y emitir comprobantes electrónicos de ARCA (ex AFIP) des
 
 ## Instalación
 
-Requiere Node.js 22.22.1 o superior.
+Requiere Node.js 22.22.1 o superior. Si no lo tenés, bajá la versión LTS de [nodejs.org](https://nodejs.org/es/download): trae `npm`.
 
 ```bash
 npm install -g arcli
 ```
+
+También con otros gestores de paquetes:
+
+```bash
+pnpm add -g arcli
+yarn global add arcli   # Yarn 1; Yarn 2 o superior no instala paquetes globales
+```
+
+Para probarlo sin instalar nada: `npx arcli --ayuda`.
+
+Para actualizar, repetí la instalación con `arcli@latest` (por ejemplo, `npm install -g arcli@latest`). Funciona en macOS, Linux y Windows.
 
 Opcional: autocompletado con Tab de comandos, flags y valores, en bash, zsh o fish. Se instala con `arcli completado instalar` y se saca con `arcli completado desinstalar` ([detalle](docs/cli-reference.md#autocompletado)).
 
@@ -52,10 +64,12 @@ arcli config revisar
 ## Uso
 
 ```bash
-arcli fc -m 15000 --cs --consumidor-final --ir-cf            # vista previa de una Factura C
-arcli fc -m 15000 --cs --consumidor-final --ir-cf --emitir   # emitir
+arcli fc -m 15000 --cs --consumidor-final            # vista previa de una Factura C
+arcli fc -m 15000 --cs --consumidor-final --emitir   # emitir
 arcli fc --cargar ./facturas.json --emitir --json            # lote desde JSON, salida JSON
-arcli fc -m 15000 --cs --consumidor-final --ir-cf --emitir --exportar-pdf
+arcli fc -m 15000 --cs --consumidor-final --emitir --exportar-pdf
+arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 203 \
+  --numero 1 --actividad 620100 --previsualizar                             # Factura de exportación E
 ```
 
 Otras consultas: `arcli ultimos`, `arcli consultar`, `arcli estado`, `arcli parametros`, `arcli fce-obligado`, `arcli padron`. Para ver todos los comprobantes y ejemplos: `arcli --ayuda` y `arcli ejemplos`.
@@ -92,14 +106,33 @@ yarn dev --ayuda
 
 Antes de abrir un PR: `yarn typecheck`, `yarn lint` y `yarn test`. Más en la [guía de desarrollo](https://github.com/LcsGrz/arcli/blob/main/docs/development.md) y la [arquitectura](https://github.com/LcsGrz/arcli/blob/main/docs/architecture.md).
 
+## Ayuda y soporte
+
+- **Preguntas y dudas de uso** (configuración, certificados, cómo facturar algo): [GitHub Discussions](https://github.com/LcsGrz/arcli/discussions).
+- **Bugs y propuestas**: [issues](https://github.com/LcsGrz/arcli/issues/new/choose), con las plantillas.
+- **Vulnerabilidades**: en privado, como dice [SECURITY.md](https://github.com/LcsGrz/arcli/blob/main/SECURITY.md).
+
+Antes de preguntar, puede que ya esté en [Troubleshooting](https://github.com/LcsGrz/arcli/blob/main/docs/troubleshooting.md). No pegues certificados, claves, tickets ni la salida de `--bruto` en ningún lado.
+
+## Estabilidad
+
+ARCLI usa [versionado semántico](https://semver.org/lang/es/). Son contrato público, y solo cambian de forma incompatible en una versión mayor y avisándolo en el [CHANGELOG](https://github.com/LcsGrz/arcli/blob/main/CHANGELOG.md):
+
+- los comandos y sus flags,
+- las claves de configuración,
+- el JSON de entrada (`--cargar`) y de salida (`--json`), incluidos los `codigo` de error.
+
+La salida en texto (tablas, mensajes, colores) es para leer, no para parsear, y puede cambiar en cualquier versión. Para scripts, usá `--json`.
+
 ## Contribuir
 
-Leé [CONTRIBUTING.md](https://github.com/LcsGrz/arcli/blob/main/CONTRIBUTING.md). Para vulnerabilidades, ver [SECURITY.md](https://github.com/LcsGrz/arcli/blob/main/SECURITY.md); no subas certificados, claves ni tokens reales a issues ni PRs.
+Leé [CONTRIBUTING.md](https://github.com/LcsGrz/arcli/blob/main/CONTRIBUTING.md) y el [código de conducta](https://github.com/LcsGrz/arcli/blob/main/CODE_OF_CONDUCT.md). Para vulnerabilidades, ver [SECURITY.md](https://github.com/LcsGrz/arcli/blob/main/SECURITY.md); no subas certificados, claves ni tokens reales a issues ni PRs.
 
 ## Agradecimientos
 
 - [`@arcasdk/core`](https://github.com/ralcorta/arcasdk) y [`@arcasdk/pdf`](https://www.afipts.com/packages/pdf), de [Rodrigo Alcorta](https://github.com/ralcorta).
 - [Arpit Bhayani](https://github.com/arpitbbhayani), por ceder el nombre `arcli` en npm.
+- [Manuel Aller](https://github.com/itManuel), por la factura de exportación E.
 
 Si el proyecto te resulta útil, podés dejar una estrella o invitarme un [Cafecito](https://cafecito.app/lcsgrz).
 

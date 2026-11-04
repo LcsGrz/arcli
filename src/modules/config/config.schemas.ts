@@ -26,17 +26,18 @@ export const arcliDefaultCurrencySchema = z
 
 export const arcliPdfModeSchema = z.enum(['siempre', 'preguntar', 'nunca']);
 
+/** Rutas de certificado o clave por entorno; no se leen al parsear la config. */
+const certificatePathsSchema = z.object({
+  produccion: z.string().trim().min(1).optional(),
+  testing: z.string().trim().min(1).optional(),
+});
+
 // Misma normalizacion que --alicuota ("10,5", "10.5%").
 export const arcliDefaultIvaRateSchema = billingIvaRateSchema;
 
 export const arcliConfigSchema = z.object({
   alicuotaPorDefecto: arcliDefaultIvaRateSchema.optional(),
-  cert: z
-    .object({
-      produccion: z.string().trim().min(1).optional(),
-      testing: z.string().trim().min(1).optional(),
-    })
-    .default({}),
+  cert: certificatePathsSchema.default({}),
   cuit: z
     .string()
     .trim()
@@ -72,12 +73,16 @@ export const arcliConfigSchema = z.object({
     })
     .default({}),
   entornoPorDefecto: arcliEnvironmentSchema.default('testing'),
-  key: z
+  /** WSFEX (factura de exportacion) usa su propio certificado, autorizado al servicio wsfex. */
+  exportacion: z
     .object({
-      produccion: z.string().trim().min(1).optional(),
-      testing: z.string().trim().min(1).optional(),
+      /** Codigo de la tabla de actividades de WSFEX que va en `Actividades` de la factura E. */
+      actividad: z.number().int().positive().optional(),
+      cert: certificatePathsSchema.default({}),
+      key: certificatePathsSchema.default({}),
     })
-    .default({}),
+    .optional(),
+  key: certificatePathsSchema.default({}),
   output: z
     .object({
       emitirPorDefecto: z.boolean().default(false),
@@ -138,6 +143,11 @@ export const configPublicKeySchema = z.enum([
   'emisor.razonSocial',
   'entorno',
   'emitir',
+  'exportacion.actividad',
+  'exportacion.cert.produccion',
+  'exportacion.cert.testing',
+  'exportacion.key.produccion',
+  'exportacion.key.testing',
   'ivaReceptor',
   'json',
   'key.produccion',

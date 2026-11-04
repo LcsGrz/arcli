@@ -4,6 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const temporaryDirectories: string[] = [];
+/** Uno por cantidad de dias: en Windows openssl puede tardar mas de 10 s la primera vez. */
+const certificatesByDays = new Map<number, SelfSignedCertificate>();
 
 export interface SelfSignedCertificate {
   readonly certPath: string;
@@ -11,8 +13,17 @@ export interface SelfSignedCertificate {
   readonly pem: string;
 }
 
-/** Certificado de prueba con openssl que vence en `days` dias desde ahora. Nunca usa certificados reales. */
+/**
+ * Certificado de prueba con openssl que vence en `days` dias desde ahora. Nunca usa certificados reales. Se reusa
+ * hasta `removeSelfSignedCertificates`: los tests solo lo leen.
+ */
 export function createSelfSignedCertificate(days: number): SelfSignedCertificate {
+  const cached = certificatesByDays.get(days);
+
+  if (cached) {
+    return cached;
+  }
+
   const directory = mkdtempSync(join(tmpdir(), 'arcli-certificate-test-'));
 
   temporaryDirectories.push(directory);
@@ -42,10 +53,19 @@ export function createSelfSignedCertificate(days: number): SelfSignedCertificate
     { stdio: 'ignore' },
   );
 
-  return { certPath, keyPath, pem: readFileSync(certPath, 'utf8') };
+  const certificate = { certPath, keyPath, pem: readFileSync(certPath, 'utf8') };
+
+  certificatesByDays.set(days, certificate);
+
+  return certificate;
 }
 
+/** Para un `beforeAll` con timeout largo: asi los tests no pagan el primer openssl. */
+export const OPENSSL_WARM_UP_TIMEOUT_MS = 60_000;
+
 export function removeSelfSignedCertificates(): void {
+  certificatesByDays.clear();
+
   for (const directory of temporaryDirectories.splice(0)) {
     rmSync(directory, { force: true, recursive: true });
   }

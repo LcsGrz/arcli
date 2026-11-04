@@ -49,16 +49,26 @@ export function resolveDocumentType(code: number): BillingDocumentType | undefin
   return DOCUMENT_TYPES_BY_CODE[code];
 }
 
-/** ARCA no devuelve la alicuota de la factura; se deduce de IVA / neto cuando coincide con una tasa conocida. */
+const toCents = (amount: number) => Math.round(amount * 100 + Number.EPSILON);
+
+/**
+ * ARCA no devuelve la alicuota de la factura; se deduce del neto y el IVA. Una tasa coincide si el neto por la tasa,
+ * redondeado a centavos, da el IVA: con montos chicos la proporcion IVA / neto se aleja de la tasa por el redondeo.
+ * Si coinciden varias, gana la mas cercana a esa proporcion.
+ */
 export function inferIvaRate(netAmount: number, ivaAmount: number): BillingIvaRate | undefined {
   if (netAmount <= 0) {
     return undefined;
   }
 
   const ratio = ivaAmount / netAmount;
-  const match = IVA_RATES.find(([, rate]) => Math.abs(rate - ratio) < 0.001);
+  const matches = IVA_RATES.filter(([, rate]) => toCents(netAmount * rate) === toCents(ivaAmount));
+  const closest = matches.reduce<(typeof IVA_RATES)[number] | undefined>(
+    (best, candidate) => (!best || Math.abs(candidate[1] - ratio) < Math.abs(best[1] - ratio) ? candidate : best),
+    undefined,
+  );
 
-  return match?.[0];
+  return closest?.[0];
 }
 
 interface ListVouchersOptions {

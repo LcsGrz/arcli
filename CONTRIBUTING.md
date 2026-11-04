@@ -2,7 +2,9 @@
 
 # Contribuir a ARCLI
 
-Gracias por querer mejorar ARCLI. Se aceptan bugs, mejoras de uso, documentación y features nuevas. Para estas últimas, o cualquier cambio grande, abrí primero un issue.
+Gracias por querer mejorar ARCLI. Se aceptan bugs, mejoras de uso, documentación y features nuevas. Si ya tenés el cambio hecho, abrí el PR directo y contá en la descripción qué problema resuelve. Si todavía no empezaste algo grande o que cambia el contrato (ver abajo), conviene abrir antes un issue, así no trabajás en algo que después no entra. Si tenés una pregunta, usá [Discussions](https://github.com/LcsGrz/arcli/discussions).
+
+Participar en el proyecto implica respetar el [código de conducta](CODE_OF_CONDUCT.md).
 
 ## Empezar
 
@@ -17,9 +19,9 @@ yarn dev --ayuda
 
 ## Contrato del CLI
 
-Los comandos, los flags, las claves de configuración y los formatos JSON son contrato público. No se cambian en silencio: primero se discute en un issue, y después se actualizan implementación, ayuda, tests y documentación. Si tocás alguno, avisalo en el PR.
+Los comandos, los flags, las claves de configuración y los formatos JSON son contrato público. No se cambian en silencio: el cambio se discute (en un issue o en el mismo PR) y se actualizan implementación, ayuda, tests y documentación. Si tocás alguno, avisalo en la descripción del PR. Un cambio que rompe compatibilidad puede tener que esperar a una versión mayor.
 
-El alcance de comprobantes es Factura, Nota de Crédito y Nota de Débito A, B y C, y sus versiones de Factura de Crédito Electrónica. Otros comprobantes quedan fuera salvo decisión explícita.
+El alcance de comprobantes es Factura, Nota de Crédito y Nota de Débito A, B y C, sus versiones de Factura de Crédito Electrónica y la Factura de exportación E. Otros comprobantes quedan fuera salvo decisión explícita.
 
 ## Flujo
 
@@ -27,7 +29,7 @@ El alcance de comprobantes es Factura, Nota de Crédito y Nota de Débito A, B y
 2. Hacé cambios chicos y fáciles de revisar.
 3. Agregá o ajustá tests cuando cambie el comportamiento.
 4. Actualizá la documentación que corresponda (ver abajo).
-5. Abrí el PR con el checklist completo.
+5. Abrí el PR: la plantilla trae el checklist.
 
 ## Convenciones
 
@@ -62,5 +64,5 @@ Un test (`docs-sync.test.ts`) falla si un comando, flag o clave de config falta 
 - [ ] `yarn typecheck`
 - [ ] `yarn lint`
 - [ ] `yarn test`
-- [ ] `yarn build` y `npm pack --dry-run` (`yarn open-source:check` corre typecheck, tests con cobertura, build y pack)
+- [ ] `yarn build` y `yarn pack:check` (`yarn open-source:check` corre typecheck, tests con cobertura, build y `pack:check`)
 - [ ] Documentación y `CHANGELOG.md` al día

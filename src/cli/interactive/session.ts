@@ -62,7 +62,7 @@ export function requirePointOfSale(session: InteractiveSession): number | undefi
   return session.runtime.pointOfSale;
 }
 
-function formatEquivalentCommand(command: string): string {
+export function formatEquivalentCommand(command: string): string {
   return renderPanel({
     borderType: 'command',
     content: [colorize('Esto equivale a:', 'muted'), '', colorize(command, 'info')],

@@ -12,12 +12,21 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
 
     strategy:
+      fail-fast: false
       matrix:
-        # 22 es el minimo de "engines"; 24 es el que usa el release.
-        node-version: [22, 24]
+        # 22 es el minimo de "engines"; 24 es el que usa el release; 26 es la ultima.
+        os: [ubuntu-latest]
+        node-version: [22, 24, 26]
+        # Windows y macOS solo con la version del release: alcanza para el codigo propio de cada SO (portapapeles,
+        # navegador del PDF, spawn con shell, permisos de archivos).
+        include:
+          - os: windows-latest
+            node-version: 24
+          - os: macos-latest
+            node-version: 24
 
     steps:
       - name: Checkout
@@ -29,13 +38,18 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: yarn
 
+      # Node 25 en adelante ya no trae corepack; ahi se usa el Yarn 1 que viene en los runners.
       - name: Enable Corepack
+        if: matrix.node-version < 25
         run: corepack enable
 
+      # Igual que el release: sin scripts de dependencias, para enterarse en el PR si alguna los necesita.
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: yarn install --frozen-lockfile --ignore-scripts
 
+      # Los scripts de lint usan comillas simples en los globs, que cmd.exe no saca: el lint es igual en todos los SO.
       - name: Lint
+        if: runner.os == 'Linux'
         run: yarn lint
 
       - name: Typecheck
@@ -47,11 +61,14 @@ jobs:
       - name: Build
         run: yarn build
 
-  # La proteccion de main exige un check llamado "validate": este job lo da cuando pasan las dos versiones de Node.
+      - name: El paquete se instala y arranca
+        run: yarn pack:check
+
+  # La proteccion de main exige un check llamado "validate": este job lo da cuando pasa toda la matriz.
   validate:
     needs: test
     runs-on: ubuntu-latest
 
     steps:
-      - name: Todas las versiones de Node pasaron
+      - name: Toda la matriz paso
         run: echo "ok"

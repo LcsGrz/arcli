@@ -51,9 +51,11 @@ export function resolveBillingCurrencyFields(
   }
 
   if (input.sameCurrency) {
-    if (billingDate < today) {
+    // ARCA exige la cotizacion oficial del dia del comprobante (10038): la de un dia pasado no se puede consultar y
+    // la de uno futuro todavia no existe.
+    if (billingDate !== today) {
       throw new InputValidationError(
-        'Con --misma-moneda la fecha del comprobante no puede ser anterior a hoy: ARCA exige la cotización oficial de ese día y solo se puede consultar la vigente.',
+        'Con --misma-moneda la fecha del comprobante tiene que ser la de hoy: ARCA exige la cotización oficial de ese día y solo se puede consultar la vigente. Sacá --fecha para emitir con la de hoy.',
       );
     }
 

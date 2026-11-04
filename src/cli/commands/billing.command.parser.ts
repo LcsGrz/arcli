@@ -225,9 +225,13 @@ function parseBillingCommandInputFromSource(
   const ivaShortcut = resolveIvaShortcut(commandOptions);
   const resolvedConcept =
     pickString(commandOptions.concepto) ?? conceptShortcut ?? fileInput?.concepto ?? defaults.defaultConcept;
-  const explicitIvaCondition =
-    pickString(commandOptions.ivaReceptor, commandOptions.ir) ?? ivaShortcut ?? fileInput?.ivaReceptor;
   const documentType = documentIdentity.documentType ?? fileInput?.tipoDocumento;
+  // Sin documento el receptor solo puede ser consumidor final: --cfinal le gana al IVA de la config, no a un --ir.
+  const explicitIvaCondition =
+    pickString(commandOptions.ivaReceptor, commandOptions.ir) ??
+    ivaShortcut ??
+    fileInput?.ivaReceptor ??
+    (documentType === 'consumidor-final' ? 'consumidor-final' : undefined);
   const willLookupPadron =
     !explicitIvaCondition && defaults.lookupIvaConditionInPadron === true && documentType === 'cuit';
   const resolvedIvaCondition = explicitIvaCondition ?? defaults.defaultIvaCondition;

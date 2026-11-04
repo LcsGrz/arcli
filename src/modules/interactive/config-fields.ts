@@ -58,6 +58,15 @@ const FIELD_DEFINITIONS: ReadonlyArray<Omit<ConfigField, 'label'>> = [
     path: true,
     read: (c) => c.key.produccion,
   },
+  { key: 'exportacion.cert.testing', path: true, read: (c) => c.exportacion?.cert.testing },
+  { key: 'exportacion.key.testing', path: true, read: (c) => c.exportacion?.key.testing },
+  { key: 'exportacion.cert.produccion', path: true, read: (c) => c.exportacion?.cert.produccion },
+  { key: 'exportacion.key.produccion', path: true, read: (c) => c.exportacion?.key.produccion },
+  {
+    hint: 'código de la tabla de WSFEX, por ejemplo 620100',
+    key: 'exportacion.actividad',
+    read: (c) => c.exportacion?.actividad?.toString(),
+  },
   {
     hint: 'numero',
     key: 'puntoVenta',

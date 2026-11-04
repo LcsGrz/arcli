@@ -64,7 +64,7 @@ export function parseArgentineDateInputAsArcaDate(value: string, referenceDate =
   const today = toArgentineCalendarDate(referenceDate);
   const day = rawDay.padStart(2, '0');
   const month = (rawMonth ?? String(today.month)).padStart(2, '0');
-  const year = resolveYear(explicitYear, today);
+  const year = resolveYear(explicitYear, Number(month), Number(day), today);
   const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
 
   if (
@@ -78,10 +78,20 @@ export function parseArgentineDateInputAsArcaDate(value: string, referenceDate =
   return `${year}${month}${day}`;
 }
 
-function resolveYear(explicitYear: string | undefined, today: CalendarDate): string {
-  if (!explicitYear) {
-    return String(today.year);
+/**
+ * Sin año, el de la fecha mas cercana a hoy: el 5/1 `1/12` es diciembre pasado y el 28/12 `10/1` es enero que
+ * viene. A igual distancia gana el año actual.
+ */
+function resolveYear(explicitYear: string | undefined, month: number, day: number, today: CalendarDate): string {
+  if (explicitYear) {
+    return explicitYear.length === 2 ? `20${explicitYear}` : explicitYear;
   }
 
-  return explicitYear.length === 2 ? `20${explicitYear}` : explicitYear;
+  const todayTime = Date.UTC(today.year, today.month - 1, today.day);
+  const distance = (year: number) => Math.abs(Date.UTC(year, month - 1, day) - todayTime);
+  const closest = [today.year, today.year - 1, today.year + 1].reduce((best, year) =>
+    distance(year) < distance(best) ? year : best,
+  );
+
+  return String(closest);
 }

@@ -6,6 +6,7 @@ import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../../../modules/vouchers/voucher-history';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import { stripAnsi } from '../../../ui';
+import { runExportFlow } from '../export.flow';
 import { runHistoryFlow } from '../history.flow';
 import { buildInvoiceInput, invoiceSteps } from '../invoice.flow';
 import { buildNoteInput, noteSteps } from '../note.flow';
@@ -15,6 +16,8 @@ import type { InteractiveSession } from '../session';
 import { createScript, onlyChoices } from './script';
 
 let script = createScript([]);
+
+vi.mock('../export.flow', () => ({ runExportFlow: vi.fn(async () => undefined) }));
 
 vi.mock('../prompts', () => ({
   askTextStep: (...args: Parameters<typeof script.askTextStep>) => script.askTextStep(...args),
@@ -72,6 +75,29 @@ describe('flujos del modo interactivo', () => {
   });
 
   describe('factura', () => {
+    it('la factura E se elige en el mismo selector y corre su propio asistente', async () => {
+      script = createScript([[/comprobante/, 'Factura de exportación E']]);
+
+      const state = await runWizard(invoiceSteps(createSession()), {
+        advanced: { currencyCode: 'ARS', sameCurrency: false },
+      });
+
+      expect(runExportFlow).toHaveBeenCalledTimes(1);
+      expect(state).toMatchObject({ exported: true });
+    });
+
+    it('volver desde el asistente de la E vuelve al selector de comprobantes', async () => {
+      vi.mocked(runExportFlow).mockResolvedValueOnce(BACK);
+      script = createScript([
+        [/comprobante/, 'Factura de exportación E'],
+        [/comprobante/, BACK],
+      ]);
+
+      expect(
+        await runWizard(invoiceSteps(createSession()), { advanced: { currencyCode: 'ARS', sameCurrency: false } }),
+      ).toBeUndefined();
+    });
+
     it('arma una factura C y permite volver a cambiar una respuesta', async () => {
       script = createScript([
         [/comprobante/, 'Factura C'],

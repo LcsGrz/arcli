@@ -1,0 +1,27 @@
+# Una vez por mes, un PR por ecosistema con todo agrupado. Las alertas de seguridad llegan aparte, cuando aparecen.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ['*']
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    groups:
+      dependencias:
+        dependency-type: production
+        patterns: ['*']
+      desarrollo:
+        dependency-type: development
+        patterns: ['*']
+    ignore:
+      # typescript-eslint todavia pide TypeScript < 6.1: el salto se hace a mano (BACKLOG, Mantenimiento).
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major', 'version-update:semver-minor']

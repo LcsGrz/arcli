@@ -28,7 +28,8 @@ function createTempDir(): string {
 
 afterEach(() => {
   for (const directory of temporaryDirectories.splice(0)) {
-    rmSync(directory, { force: true, recursive: true });
+    // En Windows un proceso recien cortado puede seguir usando la carpeta un momento (EPERM/EBUSY): se reintenta.
+    rmSync(directory, { force: true, maxRetries: 10, recursive: true, retryDelay: 100 });
   }
 });
 

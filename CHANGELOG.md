@@ -11,9 +11,61 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 ### Agregado
 
 - **Condición de venta en el PDF:** `--condicion-venta <texto>` (o `condicionVenta` en el JSON de `--cargar`) imprime, por ejemplo, `Contado` u `Otros medios de pago electrónico` junto a los datos del receptor. El modo interactivo muestra las opciones habituales y solo pide texto libre al elegir `Otra`. Es un dato exclusivo del PDF: WSFE no lo recibe.
+
+### Cambiado
+
+- **`--consumidor-final` (`--cfinal`) implica IVA receptor consumidor final:** ya no hace falta sumar `--ir-cf`, y anda aunque la config tenga otro `ivaReceptor`, que antes daba error. Lo mismo `tipoDocumento: "consumidor-final"` en el JSON de `--cargar`. Un IVA explícito distinto (`--cfinal --ir-rm`) sigue siendo error.
+- **`--dia` está deprecado y fija solo el vencimiento:** antes también ponía el período del servicio en ese día (`--dia 10` facturaba un servicio "del 10/11 al 10/11"). Ahora el período es el de `--servicio-desde`/`--servicio-hasta` o, sin ellos, la fecha del comprobante, como sin `--dia`. Se puede combinar con `--fecha` y `--servicio-hasta`, y da error junto con `--vencimiento`/`--vto`. Sigue andando con un aviso; usá `--vencimiento` o `--vto`. Lo mismo la clave `dia` del JSON de `--cargar`.
+
+### Corregido
+
+- **Fechas sin año en el cambio de año:** se tomaba siempre el año actual, así que el 5/1/2027 `--sd 1/12` era diciembre de 2027. Ahora se toma la fecha más cercana a hoy: diciembre de 2026, y el 28/12 `--vto 10/1` es enero que viene.
+- **`--moneda EUR` y `BRL`** se mandaban tal cual y ARCA las rechazaba: ahora se traducen a sus códigos (`060` y `012`) en `fc`/`fb`/`fa`, `fe` y `parametros cotizacion`.
+- **`--misma-moneda` con `--fecha` futura** llegaba a ARCA y fallaba con el error 10038: ahora pide que la fecha sea la de hoy, porque ARCA solo publica la cotización vigente.
+- **Repetir una factura con montos chicos** podía deducir mal la alícuota de IVA (por ejemplo, 2,5% en vez de 21%).
+
+### Seguridad
+
+- **Publicación en npm más estricta:** el paquete se publica desde el tag de la release de GitHub (antes, desde lo último de `main`) y el release falla si el tag no coincide con la versión. Se arma en un job sin permiso para publicar, sin cache y sin scripts de dependencias, y antes de publicarlo se instala y se prueba que arranque.
+
+## [2.2.1] - 2026-11-03
+
+Corrige `arcli pdf instalar` en Windows y suma lo necesario para recibir contribuciones: plantillas de issue y de PR, código de conducta, Discussions para preguntas, y un CI que también corre en Windows, macOS y Node 26. No cambian comandos, flags, claves de config ni el `--json`.
+
+### Corregido
+
+- **`arcli pdf instalar` en Windows:** la descarga del navegador pasaba por `cmd.exe`, que corta las rutas con espacios (como `C:\Users\Nombre Apellido`), y fallaba. Ahora la shell se usa solo para correr `npm.cmd`.
+
+### Documentación
+
+- El README explica cómo instalar con pnpm y Yarn además de npm, cómo probarlo con `npx` y cómo actualizar, y suma las secciones "Ayuda y soporte" (preguntas en [Discussions](https://github.com/LcsGrz/arcli/discussions), bugs en issues) y "Estabilidad" (qué es contrato público y qué puede cambiar entre versiones).
+- Plantillas de issue y de PR, y [código de conducta](CODE_OF_CONDUCT.md).
+- El CI corre también en Windows, macOS y Node 26.
+
+## [2.2.0] - 2026-11-02
+
+Trae la factura de exportación `E` (`arcli fe`) sobre WSFEX: items, país de destino, incoterm y permisos de embarque, con credenciales propias para `wsfex`, PDF con el diseño de exportación y modo interactivo. Es todo agregado: los comandos y flags de A, B, C y FCE siguen igual. Gracias a [Manuel Aller](https://github.com/itManuel), que la trajo en [#67](https://github.com/LcsGrz/arcli/pull/67).
+
+Además suma el autocompletado con Tab, el número del comprobante en el JSON, la validación del dígito verificador de todo CUIT y una ayuda más corta y en español, y corrige varios errores de la revisión del repo.
+
+Dos cambios pueden afectar scripts: los mensajes ahora usan voseo y tildes (si comparás el texto de un error en lugar de `codigo`), y un `montoTotal` con más de 2 decimales en el JSON da error en lugar de redondearse. Ver "Cambiado" y "Corregido".
+
+### Agregado
+
+- **`arcli fe` y `arcli factura e`:** emiten o previsualizan la Factura de exportación `E` (tipo 19) con WSFEX. Obligatorios: `--monto`, `--cliente`, `--domicilio-cliente`, `--pais-destino` (código o nombre), `--numero` y la actividad. Opcionales: `--id-impositivo`, `--cuit-pais`, `--tipo-expo` (`1` bienes, `2` servicios, `4` otros), `--incoterm`, `--incoterms-desc`, `--idioma`, `--forma-pago`, `--permiso` con `--permiso-existente`, `--id-solicitud`, `--fecha-pago`, `--observaciones` y `--obs-comerciales`. No lleva concepto, IVA ni receptor con CUIT/CUIL/DNI. `fe` va en la tabla de atajos de `arcli --ayuda` y en `arcli ejemplos`, y Tab completa la letra `e` en `arcli factura`.
+- **`--numero` obligatorio en la `E`:** WSFEX numera por punto de venta y tipo, pero `@arcasdk/core` todavía no permite consultar el último comprobante E. Pasá el siguiente al último que emitiste (`1` si es el primero).
+- **Actividad de la `E`:** `--actividad` o la clave nueva `exportacion.actividad` (sección "Factura de exportación (E)" de `arcli config`), con un código de la tabla de actividades de WSFEX, que no es la del padrón. No hay default; un código que no está en la tabla es error de validación con los que empiezan igual.
+- **Flags de otra letra en `arcli factura <letra>`:** como `factura` comparte el comando para A, B, C y E, los flags que no aplican a la letra elegida se saltean con un aviso en "Avisos" y en `avisos` del JSON (`factura a --incoterm`, `factura e --alicuota`). Los atajos (`fa`, `fe`…) siguen rechazándolos como opción desconocida.
+- **`--item` con detalle real:** `codigo|descripcion|cantidad|precio|unidad`, repetible; el código y la unidad son opcionales y la unidad puede ser el código de ARCA o su nombre. La suma de los items tiene que dar `--monto` y se valida antes de autenticar en WSAA, porque WSFEX no lo controla.
+- **`--cargar` para `E`:** un objeto, con claves propias (`cliente`, `domicilioCliente`, `paisDestino`, `monto`, `numero`, `actividad`, `items`, `tipoExpo`…). El lote no está soportado: un array es error de entrada.
+- **`exportacion.cert.testing`, `exportacion.cert.produccion`, `exportacion.key.testing`, `exportacion.key.produccion`:** credenciales del servicio `wsfex`, para cuando el certificado general no está autorizado a exportación. Si no están las dos de un entorno, se usan `cert.*`/`key.*`; con la mitad del par configurada el comando corta antes de ir a ARCA. Se muestran en la sección **Certificados** de `arcli config` (también en el modo interactivo), se validan como PEM al guardarlas y `arcli config revisar` las revisa con el resto. Sin autorización a `wsfex`, el error es `WSFEX_SERVICE_NOT_AUTHORIZED`.
+- **Defaults de la `E`:** sin flags, la exportación sale de servicios (`Tipo_expo` `2`), en dólares (`Moneda_Id` `DOL`), con la cotización de aduana que publica ARCA (si la del día todavía no salió, la última, con un aviso) y con forma de pago `Transferencia Internacional`. Las claves `moneda` y `cotizacion` de la config no aplican a exportación.
+- **Salida JSON de exportación:** el mismo resumen que A, B y C (`atajo: "fe"`, `tipoArca: 19`, `comprobante: "Factura de exportación E"`) más un bloque `exportacion` con cliente, destino, domicilio, actividad, incoterm, items y permisos; `solicitud` es el `Cmp` de WSFEX, con los nombres de ARCA. Forma exacta en [entrada y salida](docs/input-output.md#factura-de-exportación-e).
+- **PDF de exportación:** se guarda como `factura-e_<pv>-<numero>.pdf` con el diseño de exportación de `@arcasdk/pdf` y los mismos datos que la E de Comprobantes en línea: título `FACTURA DE EXPORTACIÓN`, items de WSFEX, país de destino, CUIT del país con su tipo de entidad, ID impositivo, divisa con su código ISO (`USD - Dólar Estadounidense`), forma y fecha de pago, incoterm y la leyenda `IVA EXENTO OPERACIÓN DE EXPORTACIÓN`, sin discriminar IVA.
+- **Factura E en el modo interactivo:** se elige en el mismo selector que A, B y C y tiene su propio asistente (cliente, país, tipo, monto, moneda, incoterm en bienes, pago, actividad y número), con vista previa, comando equivalente y PDF. Ver [modo interactivo](docs/modo-interactivo.md#factura-de-exportación-e).
 - **CUIT con dígito verificador y con o sin guiones en todos lados:** `arcli padron`, `arcli fce-obligado`, `--cuit`, `--cuil`, `--acuit`, `comprobanteAsociado.cuit` en el JSON, `config establecer cuit` y el modo interactivo aceptan `20-33333333-4` o `20333333334`, y rechazan un CUIT mal tipeado antes de llegar a ARCA. Antes `arcli padron 20-20179706-4` fallaba y nadie chequeaba el dígito verificador.
 - **Error `ARCA_LAST_VOUCHER_ERROR`:** si ARCA rechaza el pedido del último número (por ejemplo, con un punto de venta no habilitado para web service), la facturación y `arcli ultimos` cortan ahí con el mensaje de ARCA y una sugerencia. No se emite nada.
-- **Esc en las preguntas del CLI:** "¿Desea emitir … ahora?", que aparece sin `--emitir` en una terminal, ahora se cierra con Esc como un "no", igual que en el modo interactivo y en las preguntas del PDF.
+- **Esc en las preguntas del CLI:** "¿Querés emitir … ahora?", que aparece sin `--emitir` en una terminal, ahora se cierra con Esc como un "no", igual que en el modo interactivo y en las preguntas del PDF.
 - **`numero` en el JSON de facturación:** el número que le tocó al comprobante emitido (`null` en una previsualización), y `solicitud` lo trae en `CbteDesde`/`CbteHasta`. El panel de texto muestra `Número: 00003-00000125`. Antes el número solo se veía con `--bruto`.
 - **Autocompletado con Tab** para bash, zsh y fish. Se instala con `arcli completado instalar`, que agrega una línea al archivo de inicio del shell (`~/.zshrc`, `~/.bashrc`…), y se saca con `arcli completado desinstalar`; también desde el modo interactivo, en Configuración → Autocompletado. Completa comandos y atajos, flags, valores (`--iva-receptor`, `--concepto`, `--alicuota`, `--moneda`, `--transferencia`, `--ac`), claves de config y sus valores, tablas de `parametros` y letras de las familias; donde va una ruta, archivos. No hay que reinstalarlo al actualizar arcli. Ver [Autocompletado](docs/cli-reference.md#autocompletado).
 
@@ -35,6 +87,10 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Aviso falso en `avisos`:** "--descripcion, --receptor-nombre y --receptor-domicilio solo se usan en el PDF" salía sin haber pasado esos flags, cuando el nombre o el domicilio los había completado el padrón.
 - **Modo interactivo:** al generar el PDF, apretar Enter en el nombre o el domicilio del receptor borraba lo que había traído el padrón; ahora lo propone y Enter lo deja. En una FCE se informa el `aliasCbu` de la config, como con flags. Y si la config tiene una moneda extranjera, el comando equivalente de un comprobante en pesos lleva `--moneda ARS`, así al pegarlo hace lo mismo.
 - **Leyendas obligatorias en el PDF:** los comprobantes B ahora traen el bloque del Régimen de Transparencia Fiscal al Consumidor (Ley 27.743, RG 5614), con el IVA contenido, y los comprobantes A a un monotributista la leyenda de la RG 5003 sobre el crédito fiscal. Salen debajo del CAE. Ver [PDF](docs/pdf.md#leyendas-obligatorias).
+
+### Documentación
+
+- Nueva sección de la `E` en [referencia del CLI](docs/cli-reference.md#factura-de-exportación-e-wsfex) y en [reglas de validación](docs/validation-rules.md#factura-de-exportación-e); credenciales de WSFEX en [configuración](docs/configuration.md#certificados-de-exportación-wsfex); items, JSON y limitaciones (`--numero` obligatorio, sin notas E, sin lote) en [entrada y salida](docs/input-output.md), [PDF](docs/pdf.md) y [limitaciones](docs/limitations.md); el asistente de la `E` en [modo interactivo](docs/modo-interactivo.md) y sus problemas comunes en [troubleshooting](docs/troubleshooting.md).
 
 ## [2.1.0] - 2026-10-23
 
@@ -366,7 +422,9 @@ Primera versión publicada en npm.
 - `llms.txt`: referencia condensada para que un agente de IA con acceso a terminal ejecute el CLI.
 - Publicación con npm Trusted Publishers (OIDC).
 
-[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v2.1.0...HEAD
+[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v2.2.1...HEAD
+[2.2.1]: https://github.com/LcsGrz/arcli/compare/v2.2.0...v2.2.1
+[2.2.0]: https://github.com/LcsGrz/arcli/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/LcsGrz/arcli/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/LcsGrz/arcli/compare/v1.8.0...v2.0.0
 [1.8.0]: https://github.com/LcsGrz/arcli/compare/v1.7.1...v1.8.0

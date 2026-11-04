@@ -1,10 +1,17 @@
 import { type BillingCommandInput, billingCommandSchema } from '../../modules/billing/billing.schemas';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
+import { EXPORT_VOUCHER_KIND, type ExportVoucherKind } from '../../modules/export/export.types';
 import { parseAmountInput } from '../../modules/interactive/amount-input';
-import { conceptChoices, invoiceKindChoices, receiverChoices } from '../../modules/interactive/choices';
+import {
+  conceptChoices,
+  exportInvoiceChoice,
+  invoiceKindChoices,
+  receiverChoices,
+} from '../../modules/interactive/choices';
 import { BACK, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 
 import { type AdvancedOptions, askAdvancedOptions } from './advanced-options';
+import { runExportFlow } from './export.flow';
 import { askTextStep, chooseStep } from './prompts';
 import { askReceiverIvaCondition, type ReceiverFromPadron, receiverInputFields } from './receiver-padron';
 import { type InteractiveSession, previewAndEmit } from './session';
@@ -16,6 +23,8 @@ export interface InvoiceState {
   readonly concept?: BillingCommandInput['concept'];
   readonly documentNumber?: number;
   readonly documentType?: BillingCommandInput['documentType'];
+  /** Se eligio la factura E: su asistente ya corrio y el resto de los pasos no aplica. */
+  readonly exported?: boolean;
   readonly ivaCondition?: BillingCommandInput['ivaCondition'];
   readonly receiver?: ReceiverFromPadron;
   readonly totalAmount?: number;
@@ -28,15 +37,31 @@ const isFceInvoice = (state: InvoiceState): boolean => state.voucherKind?.family
 export function invoiceSteps(session: InteractiveSession): Array<WizardStep<InvoiceState>> {
   const { config } = session.runtime;
 
-  return [
-    {
-      name: 'comprobante',
-      run: async () => {
-        const voucherKind = await chooseStep('¿Qué comprobante querés emitir?', invoiceKindChoices());
+  const pickVoucherKind: WizardStep<InvoiceState> = {
+    name: 'comprobante',
+    run: async () => {
+      // Volver desde el primer paso de la E vuelve a este selector.
+      for (;;) {
+        const voucherKind = await chooseStep<ExportVoucherKind | VoucherKindDefinition>(
+          '¿Qué comprobante querés emitir?',
+          [...invoiceKindChoices(), exportInvoiceChoice()],
+        );
 
-        return voucherKind === BACK ? BACK : { voucherKind };
-      },
+        if (voucherKind === BACK) {
+          return BACK;
+        }
+
+        if (voucherKind !== EXPORT_VOUCHER_KIND) {
+          return { voucherKind: voucherKind as VoucherKindDefinition };
+        }
+
+        if ((await runExportFlow(session)) !== BACK) {
+          return { exported: true };
+        }
+      }
     },
+  };
+  const billingSteps: Array<WizardStep<InvoiceState>> = [
     {
       name: 'receptor',
       run: async (state) => {
@@ -111,6 +136,14 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
       },
     },
   ];
+
+  return [
+    pickVoucherKind,
+    ...billingSteps.map((step) => ({
+      ...step,
+      skip: (state: InvoiceState) => Boolean(state.exported) || Boolean(step.skip?.(state)),
+    })),
+  ];
 }
 
 /** Arma la entrada del CLI con lo que respondio el usuario. */
@@ -142,7 +175,7 @@ export function buildInvoiceInput(state: InvoiceState, session: InteractiveSessi
 export async function runInvoiceFlow(session: InteractiveSession): Promise<void> {
   const state = await runWizard(invoiceSteps(session), { advanced: { currencyCode: 'ARS', sameCurrency: false } });
 
-  if (!state) {
+  if (!state || state.exported) {
     return;
   }
 

@@ -7,7 +7,8 @@
 # Sin argumentos graba todos los guiones de docs/assets/tapes/; para grabar solo algunos, pasalos:
 #   ARCLI_DEMO_CONFIG=... scripts/demo/record.sh docs/assets/tapes/consultar.tape
 #
-# Usa un HOME temporal con una copia de esa config, asi la grabacion no muestra tus rutas ni toca tu config.
+# Usa un HOME temporal con una copia de esa config, asi la grabacion no muestra tus rutas ni toca tu config, y
+# reemplaza el CUIT de la config por uno ficticio en la salida (scripts/demo/mask-cuit.mjs).
 # Emite comprobantes reales en testing (homologacion), que no tienen validez fiscal.
 set -euo pipefail
 
@@ -45,7 +46,8 @@ if [ "${#tapes[@]}" -eq 0 ]; then
 fi
 yarn -s build >/dev/null
 
-export ARCLI_DEMO_HOME="$demo_home" ARCLI_REPO="$repo"
+ARCLI_DEMO_CUIT="$(node -e 'console.log(JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).cuit ?? "")' "$config")"
+export ARCLI_DEMO_HOME="$demo_home" ARCLI_REPO="$repo" ARCLI_DEMO_CUIT
 
 for tape in "${tapes[@]}"; do
   echo "Grabando $tape"

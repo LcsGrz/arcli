@@ -1,6 +1,6 @@
 {
   "name": "arcli",
-  "version": "2.1.0",
+  "version": "2.2.1",
   "description": "CLI para previsualizar y emitir comprobantes ARCA desde terminal, con validaciones claras y salida lista para automatizar",
   "keywords": [
     "arca",
@@ -49,9 +49,9 @@
     "lint:eslint:fix": "eslint --fix 'src/**/*.{js,jsx,ts,tsx,json}'",
     "lint:prettier": "prettier --check 'src/**/*.{js,jsx,ts,tsx,json,md}' docs/**/*.md AGENTS.md README.md package.json",
     "lint:prettier:fix": "prettier --write 'src/**/*.{js,jsx,ts,tsx,json,md}' docs/**/*.md AGENTS.md README.md package.json",
-    "open-source:check": "yarn typecheck && yarn test:coverage && yarn build && npm pack --dry-run",
+    "open-source:check": "yarn typecheck && yarn test:coverage && yarn build && yarn pack:check",
     "prepack": "yarn build",
-    "pack:check": "npm pack --dry-run",
+    "pack:check": "node ./scripts/check-package.mjs",
     "prepare": "husky",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",

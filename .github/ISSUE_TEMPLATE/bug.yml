@@ -1,0 +1,51 @@
+name: Reportar un bug
+description: Algo no funciona como dice la documentación.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **No pegues certificados, claves privadas, tickets WSAA ni la salida de `--bruto`** (trae la respuesta completa de ARCA). Si hace falta, tapá CUITs, nombres y rutas. Para una vulnerabilidad, no abras un issue: usá el [reporte privado](https://github.com/LcsGrz/arcli/security/advisories/new).
+  - type: input
+    id: version
+    attributes:
+      label: Versión de arcli
+      description: Lo que muestra `arcli --version`.
+      placeholder: 2.2.0
+    validations:
+      required: true
+  - type: input
+    id: entorno
+    attributes:
+      label: Sistema operativo y versión de Node.js
+      description: Por ejemplo, macOS 15 y Node 24.11 (`node --version`).
+    validations:
+      required: true
+  - type: textarea
+    id: comando
+    attributes:
+      label: Comando y salida
+      description: El comando que corriste y lo que mostró. Si usás `--json`, mejor.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: esperado
+    attributes:
+      label: Qué esperabas que pase
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostico
+    attributes:
+      label: Resultado de `arcli estado` y `arcli config revisar`
+      description: Ayuda a descartar problemas de configuración o de los servidores de ARCA.
+      render: shell
+  - type: dropdown
+    id: entorno-arca
+    attributes:
+      label: Entorno de ARCA
+      options:
+        - testing
+        - producción
+        - no aplica

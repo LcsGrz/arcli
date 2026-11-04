@@ -1,6 +1,6 @@
 ---
 name: release
-description: Saca una versión de arcli a npm. Arma el PR release/vX.Y.Z y, después del merge, crea el tag, la release de GitHub y corre el workflow Release.
+description: Saca una versión de arcli a npm. Arma el PR release/vX.Y.Z y, después del merge, crea la release de GitHub, que crea el tag y dispara el workflow Release.
 disable-model-invocation: true
 argument-hint: "[patch|minor|major]"
 ---
@@ -74,11 +74,11 @@ Pedí el ok para mergear. El merge es squash: `gh pr merge <N> --squash --delete
 
 ## 6. Gate 3: tag, release de GitHub y npm
 
-Pedí el ok una sola vez para las tres acciones y mostrá las notas antes. Esto publica en npm, y una versión publicada en npm no se puede volver a usar.
+Pedí el ok una sola vez y mostrá las notas antes: crear la release ya publica en npm. Esto publica en npm, y una versión publicada en npm no se puede volver a usar.
 
 1. Notas: el cuerpo de la sección `[X.Y.Z]` del CHANGELOG, sin la línea `## [X.Y.Z] - fecha`. Guardalo en un archivo del scratchpad.
-2. `gh release create vX.Y.Z --target main --title vX.Y.Z --notes-file <archivo>`. Esto crea también el tag.
-3. `gh workflow run release.yml --ref main`. Después buscá el run con `gh run list --workflow release.yml --limit 1` y seguilo con `gh run watch <id> --exit-status`.
+2. `gh release create vX.Y.Z --target main --title vX.Y.Z --notes-file <archivo>`. Esto crea también el tag y dispara el workflow `Release`, que publica en npm.
+3. Buscá el run con `gh run list --workflow release.yml --limit 1` y seguilo con `gh run watch <id> --exit-status`.
 4. Confirmá con `npm view arcli version`, que tiene que devolver `X.Y.Z`. Puede tardar unos minutos en propagarse.
 
 Si el workflow falla, mostrá el log (`gh run view <id> --log-failed`) y frená. No borres el tag ni la release sin que el usuario lo pida.

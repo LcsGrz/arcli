@@ -18,7 +18,7 @@ Cuando querés emitir o previsualizar una factura básica para consumidor final.
 ### Comando
 
 ```bash
-arcli fc -m 15000 --cs --consumidor-final --ir-cf
+arcli fc -m 15000 --cs --consumidor-final
 ```
 
 ### Resultado esperado
@@ -147,7 +147,7 @@ Cuando vendés a una empresa grande dentro del régimen FCE MiPyMEs y el comprob
 arcli config establecer cbu 0110599520000012345678
 
 arcli fcea -m 1500000 --cs --cuit 30546689979 --ir-ri \
-  --dia 25 \
+  --vto 25 \
   --transferencia sca
 ```
 
@@ -216,8 +216,8 @@ Cuando además de emitir querés el PDF con el QR de ARCA para mandarle al clien
 ### Comando
 
 ```bash
-arcli fc -m 150000 --cs --cfinal --ir-cf --emitir --exportar-pdf \
-  --descripcion "Servicios de septiembre" --condicion-venta "Contado" --receptor-nombre "Cliente SA"
+arcli fc -m 150000 --cs --cfinal --emitir --exportar-pdf \
+  --descripcion "Servicios de septiembre" --condicion-venta contado --receptor-nombre "Cliente SA"
 ```
 
 Si siempre querés el PDF, guardalo en la config y no hace falta el flag:
@@ -281,7 +281,7 @@ Cuando querés consumir ARCLI desde un script o pipeline.
 ### Comando
 
 ```bash
-arcli fb -m 1 --cs --consumidor-final --ir-cf --emitir --json --bruto
+arcli fb -m 1 --cs --consumidor-final --emitir --json --bruto
 ```
 
 ### Ejemplo con `jq`
@@ -289,7 +289,7 @@ arcli fb -m 1 --cs --consumidor-final --ir-cf --emitir --json --bruto
 Cuando querés encadenar la salida con otros scripts, lo más práctico es combinar `--json` con `jq`:
 
 ```bash
-arcli fb -m 1 --cs --consumidor-final --ir-cf --emitir --json \
+arcli fb -m 1 --cs --consumidor-final --emitir --json \
   | jq '{estado, cae, comprobante, atajo, solicitud}'
 ```
 

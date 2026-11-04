@@ -1,8 +1,9 @@
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { CERTIFICATE_GUIDE_URL } from '../../../lib/links';
 import {
   createSelfSignedCertificate,
+  OPENSSL_WARM_UP_TIMEOUT_MS,
   removeSelfSignedCertificates,
 } from '../../../lib/security/__tests__/self-signed-certificate';
 import { computeCertificateExpiry } from '../../../lib/security/certificate';
@@ -14,6 +15,7 @@ import {
   inspectConfiguredCertificates,
 } from '../certificate-expiry';
 
+beforeAll(() => [5, 10, 365].forEach(createSelfSignedCertificate), OPENSSL_WARM_UP_TIMEOUT_MS);
 afterAll(removeSelfSignedCertificates);
 
 // 20/11/2026 23:59:59 en Argentina.

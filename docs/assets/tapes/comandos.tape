@@ -17,8 +17,8 @@ Type "source scripts/demo/setup.sh" Enter
 Sleep 500ms
 Show
 
-Type "arcli fc -m 15000 --cs --cfinal --ir-cf --previsualizar" Sleep 500ms Enter
+Type "arcli fc -m 15000 --cs --cfinal --previsualizar" Sleep 500ms Enter
 Sleep 4s
 Type "clear" Enter
-Type "arcli fc -m 15000 --cs --cfinal --ir-cf --emitir --json | jq '{estado, cae, caeVencimiento}'" Sleep 500ms Enter
+Type "arcli fc -m 15000 --cs --cfinal --emitir --json | jq '{estado, cae, caeVencimiento}'" Sleep 500ms Enter
 Sleep 6s

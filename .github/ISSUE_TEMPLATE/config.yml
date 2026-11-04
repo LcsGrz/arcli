@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Preguntas y ayuda
+    url: https://github.com/LcsGrz/arcli/discussions
+    about: Dudas de uso, configuración o certificados de ARCA.
+  - name: Documentación
+    url: https://github.com/LcsGrz/arcli/blob/main/docs/README.md
+    about: Referencia del CLI, configuración, troubleshooting y cómo obtener los certificados.
+  - name: Reportar una vulnerabilidad
+    url: https://github.com/LcsGrz/arcli/security/advisories/new
+    about: En privado, no en un issue público.

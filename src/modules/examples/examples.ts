@@ -2,6 +2,7 @@ import { toArgentineCalendarDate } from '../../lib/dates/arca-date';
 import { badge, renderLogo, sectionHeading, toneText } from '../../ui';
 import type { VoucherFamily, VoucherKindDefinition } from '../billing/billing.types';
 import { VOUCHER_FAMILIES, VOUCHER_KIND_MAP, VOUCHER_SHORTCUTS } from '../billing/voucher-kind-map';
+import { EXPORT_VOUCHER_KIND } from '../export/export.types';
 
 const ISSUER_HINT =
   'Estos ejemplos asumen que ya resolviste cuit emisor, credenciales y, en la versión mínima, también punto de venta por config.';
@@ -210,6 +211,40 @@ function renderFamilyExamples(family: VoucherFamily, dates: ExampleDates): strin
     .join('\n\n\n');
 }
 
+const EXPORT_CLIENT = '--cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 212 --numero 1';
+
+/** El comando minimo de la factura E por shortcut, sin modo de ejecucion. Lo usa tambien la ayuda de `fe`. */
+export const EXPORT_MINIMAL_EXAMPLE = `arcli ${EXPORT_VOUCHER_KIND.shortcut} -m 1500 ${EXPORT_CLIENT} --actividad 620100`;
+
+/** La E no comparte flags de receptor ni de IVA con A, B y C: sus ejemplos se arman aparte. */
+function formatExportExample(): string {
+  const { family, letter, shortcut } = EXPORT_VOUCHER_KIND;
+  const fullFlags = [
+    '--id-impositivo "12-3456789"',
+    '--tipo-expo 2',
+    '--item "001|Servicios de consultoría|10|150|unidades"',
+    '--fecha-pago 15/11',
+    '--forma-pago "Transferencia Internacional"',
+    '--obs-comerciales "Orden de compra 778"',
+  ];
+
+  return [
+    sectionHeading(EXPORT_VOUCHER_KIND.displayName),
+    '',
+    `${badge('MÍNIMA LARGA', 'info')}`,
+    `arcli ${family} ${letter} --monto 1500 ${EXPORT_CLIENT} --actividad 620100 --previsualizar`,
+    '',
+    `${badge('MÍNIMA CORTA', 'success')}`,
+    `${EXPORT_MINIMAL_EXAMPLE} --previsualizar`,
+    '',
+    `${badge('FULL LARGA', 'warning')}`,
+    `arcli ${family} ${letter} --monto 1500 ${EXPORT_CLIENT} --actividad 620100 ${fullFlags.join(' ')} --moneda USD --misma-moneda --previsualizar`,
+    '',
+    `${badge('FULL CORTA', 'debug')}`,
+    `arcli ${shortcut} -m 1500 ${EXPORT_CLIENT} --actividad 620100 ${fullFlags.join(' ')} --mda USD --misma-moneda --previsualizar`,
+  ].join('\n');
+}
+
 /** El comando minimo por shortcut (`arcli nca -m 1 --cs ...`), sin modo de ejecucion. Lo usa tambien la ayuda. */
 export function buildMinimalShortcutExample(definition: VoucherKindDefinition, today = new Date()): string {
   return buildMinimalShort(definition, resolveExampleDates(today));
@@ -239,7 +274,11 @@ export function renderExamples(today = new Date()): string {
     '',
     ISSUER_HINT,
     '',
-    ...VOUCHER_FAMILIES.flatMap((family) => [renderFamilyExamples(family, dates), '']),
+    ...VOUCHER_FAMILIES.flatMap((family) => [
+      renderFamilyExamples(family, dates),
+      ...(family === EXPORT_VOUCHER_KIND.family ? ['', '', formatExportExample()] : []),
+      '',
+    ]),
     '',
   ].join('\n');
 }

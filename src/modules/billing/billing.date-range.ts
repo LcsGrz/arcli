@@ -24,6 +24,10 @@ export interface BillingDateRange {
   readonly serviceStartDate?: string;
 }
 
+/** `--dia` (y `dia` en el JSON) queda por compatibilidad: es un atajo de `--vto` que se va a sacar. */
+export const DUE_DAY_DEPRECATION_WARNING =
+  '--dia está deprecado y se va a sacar en una próxima versión: usá --vencimiento o --vto (por ejemplo, --vto 10).';
+
 const MONTH_NAMES = [
   'enero',
   'febrero',
@@ -53,7 +57,7 @@ function resolvePaymentDateFromDueDay(dueDay: number, now = new Date()): string 
 
   if (dueDay > daysInMonth) {
     throw new InputValidationError(
-      `--dia ${dueDay} no existe en ${MONTH_NAMES[monthIndex]} de ${year}. Indicá la fecha exacta con --servicio-hasta.`,
+      `--dia ${dueDay} no existe en ${MONTH_NAMES[monthIndex]} de ${year}. Indicá la fecha exacta con --vto.`,
     );
   }
 
@@ -78,11 +82,7 @@ function resolveServiceDates(
   input: BillingCommandInput,
   billingDate: string,
 ): Required<Pick<BillingDateRange, 'serviceEndDate' | 'serviceStartDate'>> {
-  const defaultServiceEndDate =
-    input.billingDate || !input.dueDay ? billingDate : resolvePaymentDateFromDueDay(input.dueDay);
-  const serviceEndDate = input.serviceEndDate
-    ? parseArgentineDateInputAsArcaDate(input.serviceEndDate)
-    : defaultServiceEndDate;
+  const serviceEndDate = input.serviceEndDate ? parseArgentineDateInputAsArcaDate(input.serviceEndDate) : billingDate;
   const serviceStartDate = input.serviceStartDate
     ? parseArgentineDateInputAsArcaDate(input.serviceStartDate)
     : serviceEndDate;
@@ -113,7 +113,9 @@ export function resolveBillingDateRange(
   const minimumPaymentDueDate = isElectronicCreditInvoice(voucherKind) ? maxArcaDate(billingDate, today) : billingDate;
   const paymentDueDate = input.paymentDueDate
     ? parseArgentineDateInputAsArcaDate(input.paymentDueDate)
-    : maxArcaDate(serviceDates?.serviceEndDate ?? minimumPaymentDueDate, minimumPaymentDueDate);
+    : input.dueDay
+      ? resolvePaymentDateFromDueDay(input.dueDay)
+      : maxArcaDate(serviceDates?.serviceEndDate ?? minimumPaymentDueDate, minimumPaymentDueDate);
 
   validatePaymentDueDate(paymentDueDate, minimumPaymentDueDate);
 
