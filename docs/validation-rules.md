@@ -30,7 +30,7 @@ La idea de esta guía es separar esas tres capas para que sea más fácil entend
 ### Tipos y formatos
 
 - `--monto` debe ser un número positivo
-- `--dia` (deprecado: usá `--vencimiento`) debe ser un entero entre `1` y `31`. Fija solo el vencimiento: este mes si el día todavía no pasó y si no, el siguiente; si ese mes no tiene ese día (`--dia 31` en abril), da error. No se combina con `--vencimiento`
+- `--dia` (deprecado: usá `--vencimiento` o `--vto`) debe ser un entero entre `1` y `31`. Fija solo el vencimiento: este mes si el día todavía no pasó y si no, el siguiente; si ese mes no tiene ese día (`--dia 31` en abril), da error. No se combina con `--vencimiento`/`--vto`
 - `--punto-venta`, `--pv`, `--at`, `--apv`, `--ar` deben ser enteros positivos, escritos solo con dígitos (`3a` da error)
 - `--cuit`, `--cuil`, `--acuit` y `--dni` aceptan guiones y puntos (`20-33333333-4`), pero nada más. Lo mismo el CUIT de `arcli padron`, `arcli fce-obligado`, `config establecer cuit` y `comprobanteAsociado.cuit` en el JSON
 - `--at` se valida igual que `--ac`: una NC A no puede asociar una factura B. Si en el JSON vienen `tipo` y `atajo`, tienen que coincidir

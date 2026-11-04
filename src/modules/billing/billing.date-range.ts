@@ -26,7 +26,7 @@ export interface BillingDateRange {
 
 /** `--dia` (y `dia` en el JSON) queda por compatibilidad: es un atajo de `--vto` que se va a sacar. */
 export const DUE_DAY_DEPRECATION_WARNING =
-  '--dia está deprecado y se va a sacar en una próxima versión: usá --vto (por ejemplo, --vto 10).';
+  '--dia está deprecado y se va a sacar en una próxima versión: usá --vencimiento o --vto (por ejemplo, --vto 10).';
 
 const MONTH_NAMES = [
   'enero',

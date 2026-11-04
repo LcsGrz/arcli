@@ -216,7 +216,7 @@ En casi todos los casos te va a interesar mirar primero:
 | `--exento <numero>`            | ninguno         | `number`                                              | `0`                                      | Parte exenta del monto (solo `A` y `B`)          |
 | `--nogravado <numero>`         | ninguno         | `number`                                              | `0`                                      | Parte no gravada del monto (solo `A` y `B`)      |
 | `--fecha <fecha>`              | `-f`            | `string`                                              | hoy                                      | Fecha del comprobante                            |
-| `--dia <numero>`               | `-d`            | `integer`                                             | ninguno                                  | Deprecado: usá `--vencimiento`                   |
+| `--dia <numero>`               | `-d`            | `integer`                                             | ninguno                                  | Deprecado: usá `--vencimiento` o `--vto`         |
 | `--punto-venta <numero>`       | `--pv`          | `integer`                                             | `config.puntoVenta`                      | Punto de venta                                   |
 | `--concepto <tipo>`            | `-c`            | `'productos' \| 'servicios' \| 'productos-servicios'` | `config.concepto`                        | `productos`, `servicios` o `productos-servicios` |
 | `--cs`                         | ninguno         | `boolean`                                             | `false`                                  | Equivale a `--concepto servicios`                |
@@ -368,7 +368,7 @@ arcli fa -m 1 --cs --cuit 20168598204 --ir-ri
 | `--iva-receptor <tipo>` / `--ir <tipo>` / `--ir-*`                              | ninguno         | unión de IVA receptor o `boolean`                     | Sí          | Siempre, una sola forma de IVA receptor       |
 | `--punto-venta <numero>`                                                        | `--pv <numero>` | `integer`                                             | Condicional | Si no está en config                          |
 | `--fecha <fecha>`                                                               | `-f`            | `string`                                              | No          | Si querés fijar una fecha específica          |
-| `--dia <numero>`                                                                | `-d`            | `integer`                                             | No          | Deprecado: usá `--vencimiento`                |
+| `--dia <numero>`                                                                | `-d`            | `integer`                                             | No          | Deprecado: usá `--vencimiento` o `--vto`      |
 | `--servicio-desde <fecha>`                                                      | `--sd <fecha>`  | `string`                                              | Condicional | Si el concepto usa servicio                   |
 | `--servicio-hasta <fecha>`                                                      | `--sh <fecha>`  | `string`                                              | Condicional | Si el concepto usa servicio                   |
 | `--vencimiento <fecha>`                                                         | `--vto <fecha>` | `string`                                              | No          | Servicios y facturas FCE                      |

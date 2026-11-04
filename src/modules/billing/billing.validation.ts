@@ -17,7 +17,7 @@ export function validateConceptDateInputs(input: BillingCommandInput, voucherKin
   const hasPartialServiceDate = Boolean(input.serviceStartDate) !== Boolean(input.serviceEndDate);
 
   if (input.paymentDueDate && input.dueDay) {
-    throw new InputValidationError('--dia y --vencimiento son el mismo vencimiento: dejá solo --vencimiento.');
+    throw new InputValidationError('--dia y --vencimiento son el mismo vencimiento: dejá solo --vencimiento o --vto.');
   }
 
   if (input.paymentDueDate || input.dueDay) {

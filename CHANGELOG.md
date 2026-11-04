@@ -10,11 +10,11 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [2.2.2] - 2026-11-03
 
-Corrige cinco errores de fechas, monedas y alícuotas que encontró la auditoría, y depreca `--dia`: ahora fija solo el vencimiento y el período del servicio queda como sin él. Para el vencimiento, usá `--vto`.
+Corrige cinco errores de fechas, monedas y alícuotas que encontró la auditoría, y depreca `--dia`: ahora fija solo el vencimiento y el período del servicio queda como sin él. Para el vencimiento, usá `--vencimiento` o `--vto`.
 
 ### Cambiado
 
-- **`--dia` está deprecado y fija solo el vencimiento:** antes también ponía el período del servicio en ese día (`--dia 10` facturaba un servicio "del 10/11 al 10/11"). Ahora el período es el de `--servicio-desde`/`--servicio-hasta` o, sin ellos, la fecha del comprobante, como sin `--dia`. Se puede combinar con `--fecha` y `--servicio-hasta`, y da error junto con `--vencimiento`. Sigue andando con un aviso; usá `--vto`. Lo mismo la clave `dia` del JSON de `--cargar`.
+- **`--dia` está deprecado y fija solo el vencimiento:** antes también ponía el período del servicio en ese día (`--dia 10` facturaba un servicio "del 10/11 al 10/11"). Ahora el período es el de `--servicio-desde`/`--servicio-hasta` o, sin ellos, la fecha del comprobante, como sin `--dia`. Se puede combinar con `--fecha` y `--servicio-hasta`, y da error junto con `--vencimiento`/`--vto`. Sigue andando con un aviso; usá `--vencimiento` o `--vto`. Lo mismo la clave `dia` del JSON de `--cargar`.
 
 ### Corregido
 
