@@ -8,10 +8,16 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+## [2.3.0] - 2026-11-04
+
+Trae el Recibo C (`rc`), `arcli certificado generar` e `importar` para sacar el certificado de ARCA sin `openssl`, y la condición de venta en el PDF. Gracias a [Guillermo Britos](https://github.com/guillermobr) y a [Kevin Tea](https://github.com/kevintea), que trajeron el recibo y la condición de venta.
+
+Un cambio puede afectar scripts: `--dia` está deprecado y ya no fija el período del servicio, solo el vencimiento. Sigue andando con un aviso. Ver "Cambiado".
+
 ### Agregado
 
+- **`arcli certificado generar` e `importar`:** arman la clave y el CSR para ARCA sin `openssl` (también en Windows) y cargan el certificado que devuelve ARCA. `importar` deduce el entorno del certificado, valida CUIT, vencimiento y clave, lo guarda en `certificados/<CUIT>/` junto a la config y configura `cert.*`/`key.*`. Para renovar, la clave nueva queda pendiente hasta importar, así que se sigue facturando con el certificado actual. Las rutas configuradas a mano siguen andando. En el modo interactivo: Configuración → Certificados de ARCA, y la configuración guiada ofrece sacarlo si no tenés uno.
 - **Recibo C (`rc`, `arcli recibo c`):** emite o previsualiza un Recibo C (tipo ARCA 15) con los mismos flags y validaciones que la Factura C. La familia `recibo` solo tiene la letra C: `arcli recibo a` da error y el autocompletado ofrece solo `c`. Las notas de crédito y débito C pueden asociarse a un Recibo C (`arcli ncc --ac rc ...`). En el modo interactivo tiene su propia opción, **Emitir recibo**, y se puede elegir como comprobante original de una nota. "Repetir una factura anterior" pasa a llamarse **Repetir un comprobante anterior** y deja elegir entre una factura y un recibo. El PDF lleva el título `RECIBO C`, `COD.15` y el QR de ARCA con el tipo 15, y se guarda como `recibo-c_<pv>-<numero>.pdf`. Gracias a [Guillermo Britos](https://github.com/guillermobr), que lo trajo en [#78](https://github.com/LcsGrz/arcli/pull/78).
-
 - **Condición de venta en el PDF de A, B y C:** `--condicion-venta` (alias `--cv`), `condicionVenta` en el JSON de `--cargar` y la clave `condicionVenta` de la config como default. `--sin-condicion-venta` y `"condicionVenta": null` permiten omitir ese default para un comprobante. Acepta `contado`, `tarjeta-debito`, `tarjeta-credito`, `cuenta-corriente`, `cheque`, `transferencia`, `otros-medios-electronicos` y `otra`, que se imprimen con su nombre, o un texto libre que se imprime tal cual. El modo interactivo la pregunta con una lista y la de la config marcada; "Omitir" la suprime y "Otra" pide el texto. Es un dato exclusivo del PDF: WSFE no lo recibe. Gracias a [Kevin Tea](https://github.com/kevintea), que la trajo en [#74](https://github.com/LcsGrz/arcli/pull/74).
 
 ### Cambiado
@@ -56,7 +62,6 @@ Dos cambios pueden afectar scripts: los mensajes ahora usan voseo y tildes (si c
 
 ### Agregado
 
-- **`arcli certificado generar` e `importar`:** arman la clave y el CSR para ARCA sin `openssl` (también en Windows) y cargan el certificado que devuelve ARCA. `importar` deduce el entorno del certificado, valida CUIT, vencimiento y clave, lo guarda en `certificados/<CUIT>/` junto a la config y configura `cert.*`/`key.*`. Para renovar, la clave nueva queda pendiente hasta importar, así que se sigue facturando con el certificado actual. Las rutas configuradas a mano siguen andando. En el modo interactivo: Configuración → Certificados de ARCA, y la configuración guiada ofrece sacarlo si no tenés uno.
 - **`arcli fe` y `arcli factura e`:** emiten o previsualizan la Factura de exportación `E` (tipo 19) con WSFEX. Obligatorios: `--monto`, `--cliente`, `--domicilio-cliente`, `--pais-destino` (código o nombre), `--numero` y la actividad. Opcionales: `--id-impositivo`, `--cuit-pais`, `--tipo-expo` (`1` bienes, `2` servicios, `4` otros), `--incoterm`, `--incoterms-desc`, `--idioma`, `--forma-pago`, `--permiso` con `--permiso-existente`, `--id-solicitud`, `--fecha-pago`, `--observaciones` y `--obs-comerciales`. No lleva concepto, IVA ni receptor con CUIT/CUIL/DNI. `fe` va en la tabla de atajos de `arcli --ayuda` y en `arcli ejemplos`, y Tab completa la letra `e` en `arcli factura`.
 - **`--numero` obligatorio en la `E`:** WSFEX numera por punto de venta y tipo, pero `@arcasdk/core` todavía no permite consultar el último comprobante E. Pasá el siguiente al último que emitiste (`1` si es el primero).
 - **Actividad de la `E`:** `--actividad` o la clave nueva `exportacion.actividad` (sección "Factura de exportación (E)" de `arcli config`), con un código de la tabla de actividades de WSFEX, que no es la del padrón. No hay default; un código que no está en la tabla es error de validación con los que empiezan igual.
@@ -427,7 +432,8 @@ Primera versión publicada en npm.
 - `llms.txt`: referencia condensada para que un agente de IA con acceso a terminal ejecute el CLI.
 - Publicación con npm Trusted Publishers (OIDC).
 
-[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v2.2.1...HEAD
+[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v2.3.0...HEAD
+[2.3.0]: https://github.com/LcsGrz/arcli/compare/v2.2.1...v2.3.0
 [2.2.1]: https://github.com/LcsGrz/arcli/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/LcsGrz/arcli/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/LcsGrz/arcli/compare/v2.0.0...v2.1.0
