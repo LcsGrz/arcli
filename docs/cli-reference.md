@@ -340,6 +340,7 @@ Arma el pedido del certificado de ARCA y carga el certificado que te devuelve, s
 - `importar` saca el entorno del certificado (ARCA firma los de testing con "Computadores Test" y los de producción con "Computadores"). Antes de tocar nada valida que sea un certificado, que sea de tu CUIT, que no esté vencido y que corresponda a la clave del pedido. Acepta archivos con BOM o finales de línea de Windows. Al terminar, dice qué cargó: entorno, CUIT, alias y vencimiento.
 - Si ya había otro certificado configurado para ese entorno, `importar` pregunta antes de reemplazarlo; sin terminal o con `--json`, hace falta `--reemplazar`.
 - Las rutas configuradas a mano con `arcli config establecer cert.*`/`key.*` siguen andando igual: `importar` solo las cambia al cargar un certificado nuevo.
+- En la terminal, el título va con el color del entorno y la carpeta, el CSR y la clave son links: con un clic se abren (en terminales que los soportan, como la de VS Code, iTerm2 o Windows Terminal; `FORCE_HYPERLINK=0` los apaga).
 - Los dos aceptan `--json`. El formato está en [Entrada y salida](input-output.md#certificados-certificado).
 
 ### Comandos `arcli estado` y `arcli parametros`

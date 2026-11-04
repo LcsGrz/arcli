@@ -1,3 +1,4 @@
+import { isTrustedHyperlink } from '../primitives/hyperlink';
 import { highlightJsonValues } from '../primitives/renderJson';
 import { supportsColor } from '../primitives/text';
 
@@ -15,11 +16,13 @@ const COLOR_SEQUENCE = /^\u001B\[[0-9;]*m$/;
 
 /**
  * Lo que se muestra incluye textos de afuera (observaciones de ARCA, datos del JSON, errores de npm). Solo pasan
- * los colores (SGR), saltos de linea y tabs: un texto no puede mover el cursor, borrar la pantalla ni pisar una
- * linea para ocultar, por ejemplo, el aviso de PRODUCCION.
+ * los colores (SGR), saltos de linea, tabs y los links que armo `hyperlink`: un texto no puede mover el cursor,
+ * borrar la pantalla, pisar una linea para ocultar, por ejemplo, el aviso de PRODUCCION, ni disfrazar un link.
  */
 export function sanitizeTerminalText(content: string): string {
-  return content.replace(TERMINAL_SEQUENCES, (sequence) => (COLOR_SEQUENCE.test(sequence) ? sequence : ''));
+  return content.replace(TERMINAL_SEQUENCES, (sequence) =>
+    COLOR_SEQUENCE.test(sequence) || isTrustedHyperlink(sequence) ? sequence : '',
+  );
 }
 
 export function formatTerminalOutput(content: string, options: TerminalStreamOptions = {}): string {

@@ -5,7 +5,7 @@ import { RECENT_VOUCHERS_LIMIT } from '../vouchers/voucher-history';
 
 import type { ArcliConfig, ConfigPublicKey } from './config.schemas';
 import { CONFIG_LABELS, CONFIG_SECTIONS } from './config.sections';
-import type { ConfigDoctorReport } from './config-doctor';
+import { CONFIG_DOCTOR_SECTIONS, type ConfigDoctorReport } from './config-doctor';
 
 interface PublicConfigSnapshot {
   readonly alicuota?: ArcliConfig['alicuotaPorDefecto'];
@@ -206,17 +206,31 @@ export function formatConfigDoctor(report: ConfigDoctorReport): string {
   );
 }
 
-export function formatConfigDoctorAsText(report: ConfigDoctorReport): string {
-  const lines = report.checks.map((check) => {
-    const icon =
-      check.category === 'ok'
-        ? toneText('✓', 'success')
-        : check.category === 'warning'
-          ? toneText('!', 'warning')
-          : toneText('x', 'danger');
+const DOCTOR_ICONS: Record<ConfigDoctorReport['checks'][number]['category'], string> = {
+  error: 'x',
+  ok: '✓',
+  warning: '!',
+};
 
-    return `${icon} ${check.label}: ${check.detail}`;
-  });
+const DOCTOR_TONES = { error: 'danger', ok: 'success', warning: 'warning' } as const;
+
+/** Por seccion, en el orden de `CONFIG_DOCTOR_SECTIONS`: un titulo y un item por chequeo. Lo que falla, en color. */
+export function formatConfigDoctorAsText(report: ConfigDoctorReport): string {
+  const sections = CONFIG_DOCTOR_SECTIONS.map(([section, title]) => ({
+    checks: report.checks.filter((check) => check.section === section),
+    title,
+  })).filter(({ checks }) => checks.length > 0);
+  const lines = sections.flatMap(({ checks, title }, index) => [
+    ...(index > 0 ? [''] : []),
+    toneText(title, 'info'),
+    ...checks.map((check) => {
+      const tone = DOCTOR_TONES[check.category];
+      const detail = check.category === 'ok' ? check.detail : colorize(check.detail, tone);
+
+      // Dos espacios despues del icono: una linea larga sigue alineada al texto, no al icono.
+      return `  ${toneText(DOCTOR_ICONS[check.category], tone)}  ${detail}`;
+    }),
+  ]);
   const tone = report.ok ? 'success' : report.checks.some((check) => check.category === 'error') ? 'danger' : 'warning';
   const footer = report.ok
     ? 'Configuración lista para usar ARCLI'

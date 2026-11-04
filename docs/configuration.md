@@ -167,6 +167,8 @@ arcli config revisar --json
 
 No recibe `--testing` ni `--produccion`: revisa los dos entornos de una vez.
 
+En la terminal agrupa los chequeos por sección (Cuenta, Al facturar, Certificados, Salida, PDF y Validaciones), con lo que falta en amarillo o rojo. El JSON trae los mismos chequeos, sin las secciones.
+
 Con problemas sale igual con exit code `0`: para saber si está todo listo, leé `ok` en el JSON (`true` solo si todos los chequeos están bien). La forma del JSON de `config` y `config revisar` está en [Entrada y salida](input-output.md#configuración-config-y-config-revisar).
 
 `arcli config --ayuda` y `arcli config establecer --ayuda` listan todas las claves con sus valores.

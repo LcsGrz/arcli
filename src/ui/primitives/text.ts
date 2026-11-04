@@ -80,8 +80,9 @@ export function toneText(value: string, color: UiTextColor): string {
 }
 
 export function stripAnsi(value: string): string {
+  // Colores (SGR) y links (OSC 8): ninguno ocupa columnas.
   // eslint-disable-next-line no-control-regex
-  return value.replace(/\u001B\[[0-9;]*m/g, '');
+  return value.replace(/\u001B\[[0-9;]*m|\u001B\]8;[^;]*;.*?(?:\u0007|\u001B\\)/g, '');
 }
 
 export function flattenVisibleLines(lines: readonly string[]): string[] {
@@ -177,7 +178,7 @@ function wrapWords(words: readonly string[], firstPrefix: string, continuationPr
 }
 
 // eslint-disable-next-line no-control-regex
-const ANSI_SEQUENCE = /^\u001B\[[0-9;]*m/;
+const ANSI_SEQUENCE = /^(?:\u001B\[[0-9;]*m|\u001B\]8;[^;]*;.*?(?:\u0007|\u001B\\))/;
 
 // Corta `line` en la columna visible `column`, sin partir secuencias ANSI: los codigos que caen
 // antes de esa columna (por ejemplo el cierre de una etiqueta en negrita) quedan en la primera parte.
