@@ -74,8 +74,9 @@ export interface CertificateStatus {
   readonly certificatePath?: string;
   readonly environment: ArcliEnvironment;
   readonly expiresAt?: Date;
-  /** Hay un pedido de `generar` sin importar. */
-  readonly pending: boolean;
+  readonly keyPath?: string;
+  /** El CSR de un pedido de `generar` sin importar. */
+  readonly pendingRequestPath?: string;
   /** El certificado configurado no se pudo leer (no existe o no es X.509). */
   readonly unreadable: boolean;
 }
@@ -134,7 +135,8 @@ export class CertificateService {
   public status(environment: ArcliEnvironment): CertificateStatus {
     const config = this.config.getConfig();
     const certificatePath = config.cert[environment];
-    const pending = config.cuit ? readIfExists(this.files(config.cuit, environment).pendingKey) !== undefined : false;
+    const files = config.cuit ? this.files(config.cuit, environment) : undefined;
+    const pending = files && readIfExists(files.pendingKey) !== undefined ? files.pendingRequest : undefined;
     let info: ArcaCertificateInfo | undefined;
 
     try {
@@ -148,7 +150,8 @@ export class CertificateService {
       certificatePath,
       environment,
       expiresAt: info?.expiresAt,
-      pending,
+      keyPath: config.key[environment],
+      pendingRequestPath: pending,
       unreadable: Boolean(certificatePath) && !info,
     };
   }

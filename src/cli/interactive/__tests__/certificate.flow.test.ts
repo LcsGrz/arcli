@@ -161,7 +161,8 @@ describe('runCertificateMenu', () => {
 
     await runCertificateMenu();
 
-    expect(output).toContain('sin certificado');
-    expect(output.toUpperCase()).toContain('CERTIFICADOS DE ARCA');
+    expect(output).toContain('Sin certificado');
+    expect(output.toUpperCase()).toContain('CERTIFICADO DE TESTING');
+    expect(output.toUpperCase()).toContain('CERTIFICADO DE PRODUCCIÓN');
   });
 });

@@ -187,40 +187,65 @@ export function formatImportedCertificateAsJson(imported: ImportedCertificate): 
 
 const EXPIRY_WARNING_DAYS = 30;
 
-function describeStatus(status: CertificateStatus, now: Date): string {
-  const pending = status.pending ? colorize('  · pedido sin importar', 'warning') : '';
+function describeExpiry(expiresAt: Date, now: Date): string {
+  const days = Math.floor((expiresAt.getTime() - now.getTime()) / 86_400_000);
+  const date = formatDate(expiresAt);
+
+  if (days < 0) {
+    return `${toneText(date, 'danger')}  ${colorize('(vencido: renovalo)', 'danger')}`;
+  }
+
+  const remaining = days === 0 ? 'vence hoy' : days === 1 ? 'falta 1 día' : `faltan ${days} días`;
+
+  return days <= EXPIRY_WARNING_DAYS
+    ? `${toneText(date, 'warning')}  ${colorize(`(${remaining}: renovalo)`, 'warning')}`
+    : `${bold(date)}  ${colorize(`(${remaining})`, 'muted')}`;
+}
+
+function statusRows(status: CertificateStatus, now: Date): string[] {
+  const pending = status.pendingRequestPath
+    ? [
+        '',
+        `  ${toneText('!', 'warning')}  Hay un pedido sin importar: ${pathLink(status.pendingRequestPath, basename(status.pendingRequestPath))}`,
+      ]
+    : [];
 
   if (!status.certificatePath) {
-    return `${colorize('sin certificado', 'muted')}${pending}`;
+    return [colorize('Sin certificado. Sacalo con "Sacar o renovar un certificado".', 'muted'), ...pending];
   }
 
   if (status.unreadable || !status.expiresAt) {
-    return `${colorize('no se puede leer', 'danger')} ${pathLink(status.certificatePath)}${pending}`;
+    return [
+      ...rows([['Certificado', pathLink(status.certificatePath)]]),
+      '',
+      `  ${toneText('x', 'danger')}  ${colorize('No se puede leer: cargalo de nuevo con "Cargar el certificado (.crt)".', 'danger')}`,
+      ...pending,
+    ];
   }
 
-  const days = Math.floor((status.expiresAt.getTime() - now.getTime()) / 86_400_000);
-  const expiry =
-    days < 0
-      ? colorize(`venció el ${formatDate(status.expiresAt)}`, 'danger')
-      : days <= EXPIRY_WARNING_DAYS
-        ? colorize(`vence el ${formatDate(status.expiresAt)}`, 'warning')
-        : `vence el ${bold(formatDate(status.expiresAt))}`;
-
-  return `${status.alias ?? '- -'} · ${expiry} · ${pathLink(status.certificatePath)}${pending}`;
+  return [
+    ...rows([
+      ['Alias', status.alias ?? '- -'],
+      ['Vence', describeExpiry(status.expiresAt, now)],
+      ['Certificado', pathLink(status.certificatePath)],
+      ['Clave privada', status.keyPath ? pathLink(status.keyPath) : colorize('sin configurar', 'muted')],
+    ]),
+    ...pending,
+  ];
 }
 
-/** Un renglon por entorno: alias, vencimiento y ruta, o "sin certificado"; y si quedo un pedido sin importar. */
+/** Una caja por entorno, con el titulo en su color: alias, vencimiento, archivos y si quedo un pedido sin importar. */
 export function formatCertificateStatusAsText(statuses: readonly CertificateStatus[], now = new Date()): string {
-  return renderPanel({
-    borderType: 'sheet',
-    content: rows(
-      statuses.map((status) => [
-        toneText(ENVIRONMENT_NAMES[status.environment], ENVIRONMENT_COLORS[status.environment]),
-        describeStatus(status, now),
-      ]),
-    ),
-    contentAlign: 'left',
-    title: 'Certificados de ARCA',
-    width: 'wide',
-  });
+  return statuses
+    .map((status) =>
+      renderPanel({
+        borderType: 'sheet',
+        content: statusRows(status, now),
+        contentAlign: 'left',
+        title: `Certificado de ${ENVIRONMENT_NAMES[status.environment]}`,
+        titleColor: ENVIRONMENT_COLORS[status.environment],
+        width: 'wide',
+      }),
+    )
+    .join('\n\n');
 }
