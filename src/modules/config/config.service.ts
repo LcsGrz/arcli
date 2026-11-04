@@ -136,8 +136,21 @@ export class ConfigService {
     return config.pdfCarpeta ?? join(homedir(), 'arcli', 'comprobantes');
   }
 
-  public resolvePaths(config: ArcliConfig): { readonly pdfFolder: string; readonly ticketPath: string } {
-    return { pdfFolder: this.resolvePdfFolder(config), ticketPath: this.resolveTicketPath(config) };
+  /** Carpeta de `arcli certificado`, junto a config.json: una subcarpeta por CUIT. */
+  public getCertificatesPath(): string {
+    return join(dirname(this.store.path), 'certificados');
+  }
+
+  public resolvePaths(config: ArcliConfig): {
+    readonly certificatesFolder: string;
+    readonly pdfFolder: string;
+    readonly ticketPath: string;
+  } {
+    return {
+      certificatesFolder: this.getCertificatesPath(),
+      pdfFolder: this.resolvePdfFolder(config),
+      ticketPath: this.resolveTicketPath(config),
+    };
   }
 
   public initialize(): ArcliConfig {

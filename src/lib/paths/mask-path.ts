@@ -28,3 +28,14 @@ export function maskPath(filePath: string, depth = 2): string {
 
   return segments.length === 0 ? normalizedPath : `.../${segments.join('/')}`;
 }
+
+/**
+ * Como `maskPath`, pero desde la carpeta `arcli` si la ruta esta adentro (`.../arcli/certificados/<CUIT>/x.crt`,
+ * `.../arcli/tickets`): asi todas las rutas de arcli se leen igual. Fuera de esa carpeta, `maskPath`.
+ */
+export function shortenPath(filePath: string): string {
+  const segments = filePath.trim().split(/[\\/]+/);
+  const arcliIndex = segments.lastIndexOf('arcli');
+
+  return arcliIndex > 0 ? `.../${segments.slice(arcliIndex).join('/')}` : maskPath(filePath);
+}

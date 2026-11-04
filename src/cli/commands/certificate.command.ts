@@ -10,7 +10,6 @@ import {
   formatImportedCertificateAsText,
 } from '../../modules/certificates/certificate.presenter';
 import { CertificateService, type ImportedCertificate } from '../../modules/certificates/certificate.service';
-import { resolveCertificatesRoot } from '../../modules/certificates/certificate-store';
 import type { ArcliEnvironment } from '../../modules/config/config.schemas';
 import { ConfigService } from '../../modules/config/config.service';
 import { writeTerminalJson, writeTerminalOutput } from '../../ui';
@@ -27,7 +26,7 @@ function withService<T>(run: (service: CertificateService, config: ConfigService
   const config = new ConfigService();
 
   try {
-    return run(new CertificateService({ certificatesRoot: resolveCertificatesRoot(config.getPath()), config }), config);
+    return run(new CertificateService({ certificatesRoot: config.getCertificatesPath(), config }), config);
   } finally {
     config.close();
   }
@@ -130,7 +129,7 @@ export function registerCertificateCommand(program: Command): void {
 
       try {
         const json = resolveOutputJson(command, config.getConfig());
-        const service = new CertificateService({ certificatesRoot: resolveCertificatesRoot(config.getPath()), config });
+        const service = new CertificateService({ certificatesRoot: config.getCertificatesPath(), config });
         const imported = await importWithConfirmation(
           service,
           { content, environment: explicitEnvironment(command), replace: options.reemplazar === true },

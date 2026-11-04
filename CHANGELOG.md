@@ -10,6 +10,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### Cambiado
 
+- **Rutas clickeables:** en terminales que soportan links (VS Code, iTerm2, Windows Terminal, Kitty, WezTerm, Ghostty), las rutas de `arcli config`, `arcli pdf`, el PDF guardado y `arcli certificado` se abren con un clic. `FORCE_HYPERLINK=0` los apaga. `arcli config` muestra además la carpeta de certificados.
 - **`arcli config revisar` más fácil de leer:** los chequeos van agrupados por sección (Cuenta, Al facturar, Certificados, Salida, PDF y Validaciones), con lo que falta en color, y los avisos de certificados sugieren `arcli certificado generar`. El JSON no cambia de forma.
 - **`--consumidor-final` (`--cfinal`) implica IVA receptor consumidor final:** ya no hace falta sumar `--ir-cf`, y anda aunque la config tenga otro `ivaReceptor`, que antes daba error. Lo mismo `tipoDocumento: "consumidor-final"` en el JSON de `--cargar`. Un IVA explícito distinto (`--cfinal --ir-rm`) sigue siendo error.
 - **`--dia` está deprecado y fija solo el vencimiento:** antes también ponía el período del servicio en ese día (`--dia 10` facturaba un servicio "del 10/11 al 10/11"). Ahora el período es el de `--servicio-desde`/`--servicio-hasta` o, sin ellos, la fecha del comprobante, como sin `--dia`. Se puede combinar con `--fecha` y `--servicio-hasta`, y da error junto con `--vencimiento`/`--vto`. Sigue andando con un aviso; usá `--vencimiento` o `--vto`. Lo mismo la clave `dia` del JSON de `--cargar`.

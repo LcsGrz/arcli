@@ -1,12 +1,11 @@
 import { basename, dirname } from 'node:path';
 
 import { CERTIFICATE_GUIDE_URL } from '../../lib/links';
-import { maskPath } from '../../lib/paths/mask-path';
 import {
   bold,
   colorize,
-  fileHyperlink,
   hyperlink,
+  pathLink,
   renderPanel,
   supportsHyperlinks,
   toneText,
@@ -53,7 +52,7 @@ export function certificateSteps(request: Pick<GeneratedCertificateRequest, 'ali
 }
 
 function heading(text: string): string {
-  return toneText(text, 'info');
+  return colorize(text, 'info');
 }
 
 /** Filas "etiqueta  valor": con dos espacios o mas, el panel parte el valor sin perder la columna. */
@@ -64,7 +63,7 @@ function rows(entries: ReadonlyArray<readonly [label: string, value: string]>): 
 }
 
 function servicesSection(title = 'Servicios a autorizar'): string[] {
-  const guide = supportsHyperlinks() ? [`  ${hyperlink('Guía con capturas de cada pantalla', SERVICES_URL)}`] : [];
+  const guide = supportsHyperlinks() ? ['', `  ${hyperlink('Guía con capturas de cada pantalla', SERVICES_URL)}`] : [];
 
   return [heading(title), ...rows(SERVICES.map(([service, usage]) => [`• ${service}`, usage])), ...guide];
 }
@@ -74,12 +73,8 @@ function guideLine(): string {
   return supportsHyperlinks() ? '' : `\nQué servicios autorizar, con capturas: ${SERVICES_URL}\n`;
 }
 
-function folderLink(path: string): string {
-  return fileHyperlink(maskPath(path, 3), path);
-}
-
 function fileLink(path: string): string {
-  return fileHyperlink(basename(path), path);
+  return pathLink(path, basename(path));
 }
 
 function formatDate(value: Date): string {
@@ -95,7 +90,7 @@ export function formatGeneratedRequestAsText(request: GeneratedCertificateReques
       ...rows([
         ['CUIT', request.cuit],
         ['Alias', request.alias],
-        ['Carpeta', folderLink(dirname(request.requestPath))],
+        ['Carpeta', pathLink(dirname(request.requestPath))],
         ['CSR', fileLink(request.requestPath)],
         ['Clave privada', `${fileLink(request.keyPath)}  ${colorize('(no la compartas)', 'muted')}`],
       ]),
@@ -155,7 +150,7 @@ export function formatImportedCertificateAsText(imported: ImportedCertificate): 
       '',
       heading('Archivos'),
       ...rows([
-        ['Carpeta', folderLink(dirname(imported.certificatePath))],
+        ['Carpeta', pathLink(dirname(imported.certificatePath))],
         ['Certificado', fileLink(imported.certificatePath)],
         ['Clave privada', fileLink(imported.keyPath)],
       ]),

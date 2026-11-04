@@ -1,6 +1,15 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { maskPath } from '../../lib/paths/mask-path';
-import { bold, colorize, keyValuePanel, resolveKeyValueLabelWidth, statusPanel, toneText, UI_THEME } from '../../ui';
+import {
+  bold,
+  colorize,
+  keyValuePanel,
+  pathLink,
+  resolveKeyValueLabelWidth,
+  statusPanel,
+  toneText,
+  UI_THEME,
+} from '../../ui';
 import { RECENT_VOUCHERS_LIMIT } from '../vouchers/voucher-history';
 
 import type { ArcliConfig, ConfigPublicKey } from './config.schemas';
@@ -51,6 +60,8 @@ interface PublicConfigSnapshot {
 }
 
 export interface ConfigPathSnapshot {
+  /** Donde `arcli certificado` guarda claves y certificados; solo se muestra en el texto. */
+  readonly certificatesFolder?: string;
   readonly pdfFolder: string;
   readonly ticketPath: string;
 }
@@ -165,12 +176,48 @@ const CONFIG_TEXT_VALUES: Record<ConfigPublicKey, PublicConfigValue> = {
  * La configuracion por secciones, en el mismo orden que "Modificar configuracion" del modo interactivo.
  * El peso esta en los valores: titulos en celeste, etiquetas y datos sin cargar atenuados.
  */
+/** La ruta completa de cada clave que es una ruta, para el link de `arcli config`. */
+const CONFIG_PATHS: Partial<
+  Record<ConfigPublicKey, (config: ArcliConfig, paths: ConfigPathSnapshot) => string | undefined>
+> = {
+  'cert.produccion': (c) => c.cert.produccion,
+  'cert.testing': (c) => c.cert.testing,
+  'emisor.logo': (c) => c.emisor.logo,
+  'exportacion.cert.produccion': (c) => c.exportacion?.cert.produccion,
+  'exportacion.cert.testing': (c) => c.exportacion?.cert.testing,
+  'exportacion.key.produccion': (c) => c.exportacion?.key.produccion,
+  'exportacion.key.testing': (c) => c.exportacion?.key.testing,
+  'key.produccion': (c) => c.key.produccion,
+  'key.testing': (c) => c.key.testing,
+  pdfCarpeta: (_c, paths) => paths.pdfFolder,
+  pdfNavegador: (c) => c.pdfNavegador,
+  ticketPath: (_c, paths) => paths.ticketPath,
+};
+
 export function formatConfigAsText(config: ArcliConfig, paths: ConfigPathSnapshot): string {
   const safeConfig = toPublicSnapshot(config, paths);
   const sections = CONFIG_SECTIONS.map((section) => ({
+    id: section.id,
     label: section.label,
-    rows: section.keys.map((key) => [CONFIG_LABELS[key], String(CONFIG_TEXT_VALUES[key](safeConfig))] as const),
+    rows: section.keys.map((key) => {
+      const path = CONFIG_PATHS[key]?.(config, paths);
+
+      // Las rutas se abren con un clic; el texto es el mismo que sin link.
+      return [
+        CONFIG_LABELS[key],
+        path
+          ? pathLink(path, String(CONFIG_TEXT_VALUES[key](safeConfig)))
+          : String(CONFIG_TEXT_VALUES[key](safeConfig)),
+      ] as const;
+    }),
   }));
+  // La carpeta de `arcli certificado` no es una clave de config: va al final de Certificados, como la de tickets.
+  if (paths.certificatesFolder) {
+    sections
+      .find((section) => section.id === 'certificados')
+      ?.rows.push(['Carpeta de certificados', pathLink(paths.certificatesFolder)] as const);
+  }
+
   // Un solo ancho de etiqueta para todas las secciones, asi los valores quedan en la misma columna.
   const labelWidth = resolveKeyValueLabelWidth(
     'standard',

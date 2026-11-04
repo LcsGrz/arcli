@@ -1,5 +1,7 @@
 import { pathToFileURL } from 'node:url';
 
+import { shortenPath } from '../../lib/paths/mask-path';
+
 import { type OutputTarget, shouldUseColor } from './text';
 
 const ESC = '\u001B';
@@ -49,6 +51,11 @@ export function hyperlink(text: string, url: string, target: OutputTarget = 'std
 /** Link a un archivo o carpeta local: con un clic se abre en el editor o el explorador. */
 export function fileHyperlink(text: string, path: string, target: OutputTarget = 'stdout'): string {
   return hyperlink(text, pathToFileURL(path).href, target);
+}
+
+/** Una ruta para mostrar (por defecto, desde la carpeta `arcli`) que se abre con un clic. */
+export function pathLink(path: string, text = shortenPath(path), target: OutputTarget = 'stdout'): string {
+  return fileHyperlink(text, path, target);
 }
 
 /** Lo usa el stream de la terminal: solo pasan los links que armo `hyperlink` y los cierres. */

@@ -20,10 +20,6 @@ export interface CertificateFiles {
   readonly request: string;
 }
 
-export function resolveCertificatesRoot(configPath: string): string {
-  return join(configPath, '..', 'certificados');
-}
-
 export function resolveCertificateFiles(
   certificatesRoot: string,
   cuit: string,
