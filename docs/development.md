@@ -15,7 +15,7 @@ yarn install
 yarn dev --ayuda
 ```
 
-`yarn dev <comando>` corre el CLI desde `src/` sin compilar. Por ejemplo: `yarn dev fc -m 1000 --cs --cfinal --ir-cf`.
+`yarn dev <comando>` corre el CLI desde `src/` sin compilar. Por ejemplo: `yarn dev fc -m 1000 --cs --cfinal`.
 
 ## Scripts
 
@@ -60,9 +60,9 @@ Los tests no llaman a ARCA. Para cambios en emisión, consultas o salida, probá
 
 ```bash
 yarn dev config revisar
-yarn dev fc -m 1000 --cs --cfinal --ir-cf              # vista previa
-yarn dev fc -m 1000 --cs --cfinal --ir-cf --emitir     # emisión en testing
-yarn dev fc -m 1000 --cs --cfinal --ir-cf --emitir --json --bruto
+yarn dev fc -m 1000 --cs --cfinal              # vista previa
+yarn dev fc -m 1000 --cs --cfinal --emitir     # emisión en testing
+yarn dev fc -m 1000 --cs --cfinal --emitir --json --bruto
 ```
 
 Revisá según lo que tocaste: la salida humana y la `--json` de los casos que cambian, los errores de validación (flags incompatibles, monto faltante, PEM inválido) y que `--produccion` sin `--emitir` no emita.

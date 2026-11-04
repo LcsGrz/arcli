@@ -11,7 +11,7 @@ Si algo no cierra, estas son las tres corridas que más ayudan:
 ```bash
 arcli config revisar
 arcli fc ayuda
-arcli fc -m 1000 --cs --consumidor-final --ir-cf --emitir --json --bruto --testing
+arcli fc -m 1000 --cs --consumidor-final --emitir --json --bruto --testing
 ```
 
 Con eso normalmente ves:
@@ -54,7 +54,7 @@ arcli config establecer puntoVenta 3
 o bien:
 
 ```bash
-arcli fc -m 1000 --pv 3 --cs --consumidor-final --ir-cf
+arcli fc -m 1000 --pv 3 --cs --consumidor-final
 ```
 
 - **Documentación relacionada:** [Configuración](configuration.md), [Referencia del CLI](cli-reference.md)
@@ -347,7 +347,7 @@ arcli fc ayuda
 - **Solución:** usar una terminal moderna (Windows Terminal, iTerm2, la de VS Code) o activar los bordes ASCII con `ARCLI_ASCII=1`.
 
 ```bash
-ARCLI_ASCII=1 arcli fc -m 1000 --cs --cfinal --ir-cf
+ARCLI_ASCII=1 arcli fc -m 1000 --cs --cfinal
 ```
 
 - **Documentación relacionada:** [Variables de entorno](configuration.md#variables-de-entorno)

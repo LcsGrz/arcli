@@ -13,7 +13,7 @@ arcli config establecer emisor.domicilio "Calle 123, Ciudad"
 arcli config establecer emisor.inicioActividades 1/03/2020
 
 # Emitir y generar el PDF
-arcli fc -m 150000 --cs --cfinal --ir-cf --emitir --exportar-pdf --descripcion "Servicios de septiembre"
+arcli fc -m 150000 --cs --cfinal --emitir --exportar-pdf --descripcion "Servicios de septiembre"
 ```
 
 La primera vez, ARCLI ofrece descargar el plugin de PDF. El archivo queda en `~/arcli/comprobantes/20123456786/factura-c_0003-00000125.pdf`.

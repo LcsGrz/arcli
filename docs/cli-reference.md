@@ -7,7 +7,7 @@
 Si solo querés un ejemplo mínimo funcional para arrancar:
 
 ```bash
-arcli fc -m 300000 --cs --consumidor-final --ir-cf
+arcli fc -m 300000 --cs --consumidor-final
 ```
 
 Eso crea una `Factura C` con:
@@ -180,7 +180,7 @@ En la práctica, siempre necesitás:
 | `--cuit <numero>`       | ninguno       | `string`                                                                                                                                                                                                                                                                                                 | ninguno              | CUIT del receptor: 11 dígitos, con o sin guiones  |
 | `--cuil <numero>`       | ninguno       | `string`                                                                                                                                                                                                                                                                                                 | ninguno              | CUIL del receptor: 11 dígitos, con o sin guiones  |
 | `--dni <numero>`        | ninguno       | `string`                                                                                                                                                                                                                                                                                                 | ninguno              | DNI del receptor: 7 u 8 dígitos, con o sin puntos |
-| `--consumidor-final`    | `--cfinal`    | `boolean`                                                                                                                                                                                                                                                                                                | `false`              | Usa consumidor final con documento `0`            |
+| `--consumidor-final`    | `--cfinal`    | `boolean`                                                                                                                                                                                                                                                                                                | `false`              | Documento `0` e IVA receptor `consumidor-final`   |
 | `--iva-receptor <tipo>` | `--ir <tipo>` | `'cliente-del-exterior' \| 'consumidor-final' \| 'iva-liberado' \| 'iva-no-alcanzado' \| 'monotributista-social' \| 'monotributo-trabajador-independiente-promovido' \| 'proveedor-del-exterior' \| 'responsable-inscripto' \| 'responsable-monotributo' \| 'sujeto-exento' \| 'sujeto-no-categorizado'` | `config.ivaReceptor` | Condición IVA del receptor                        |
 | `--ir-ce`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`              | Cliente del exterior                              |
 | `--ir-cf`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`              | Consumidor final                                  |
@@ -260,10 +260,10 @@ Ejemplos:
 
 ```bash
 # Servicio de octubre, facturado hoy, que vence el 10/11
-arcli fc -m 1000 --cs --cfinal --ir-cf --sd 1/10 --sh 31/10 --vto 10/11
+arcli fc -m 1000 --cs --cfinal --sd 1/10 --sh 31/10 --vto 10/11
 
 # Nota de crédito por un descuento sobre todo lo facturado en octubre de 2026
-arcli ncc -m 500 --cs --cfinal --ir-cf --pd 1/10/2026 --ph 31/10/2026
+arcli ncc -m 500 --cs --cfinal --pd 1/10/2026 --ph 31/10/2026
 ```
 
 Para facturar con otra fecha, sumá `-f`: por ejemplo, `-f 31/10` el 3/11 (en servicios, hasta 10 días antes o después de hoy).
@@ -374,7 +374,7 @@ Las facturas comparten la misma base.
 Factura C simple:
 
 ```bash
-arcli fc -m 300000 --cs --consumidor-final --ir-cf
+arcli fc -m 300000 --cs --consumidor-final
 ```
 
 Factura A con CUIT:
@@ -445,7 +445,7 @@ arcli nca -m 1 --cs --cuit 20168598204 --ir-ri --ac fa --apv 3 --ar 6 --acuit 20
 Si la nota ajusta un período entero y no una factura puntual (por ejemplo, un descuento sobre todo lo facturado en el mes), usá el período en lugar del bloque `--ac`:
 
 ```bash
-arcli ncb -m 5000 --cs --cfinal --ir-cf --periodo-desde 01-09-2026 --periodo-hasta 30-09-2026
+arcli ncb -m 5000 --cs --cfinal --periodo-desde 01-09-2026 --periodo-hasta 30-09-2026
 ```
 
 El período no puede terminar después de la fecha de la nota. Las notas FCE no lo aceptan.
@@ -664,7 +664,7 @@ La salida incluye versión mínima, versión full, forma larga y forma corta par
 ### Básico (manual)
 
 ```bash
-arcli fc -m 300000 --cs --consumidor-final --ir-cf
+arcli fc -m 300000 --cs --consumidor-final
 ```
 
 ### Desde JSON

@@ -21,6 +21,22 @@ ARCA.
   producción — lo único que cambia es a qué aplicación te lleva al final. Si ya lo hiciste
   para un entorno, repetís los mismos pasos eligiendo el otro servicio.
 
+### Qué servicios autorizar
+
+El certificado no alcanza: en el paso 3 lo autorizás a cada servicio web que vayas a
+usar, y algunos comandos usan uno distinto de `wsfe`. Si falta la autorización, ARCA
+rechaza el pedido aunque el certificado sea válido. Autorizá desde el principio lo que
+vayas a necesitar:
+
+| Para usar                                               | Servicio que autorizás                                     | Punto de venta en producción                                       |
+| ------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------ |
+| Facturas y notas `A`, `B`, `C` y FCE                    | `wsfe` (Facturación Electrónica)                           | uno de web service ([ver abajo](#punto-de-venta-para-web-service)) |
+| `arcli padron` y el IVA del receptor desde el padrón    | `ws_sr_constancia_inscripcion` (Constancia de inscripción) | no usa                                                             |
+| `arcli fce-obligado` y el aviso de FCE (`verificarFce`) | `wsfecred` (Factura de Crédito Electrónica MiPyMEs)        | no usa                                                             |
+| `arcli fe`, la factura de exportación `E`               | `wsfex` (Factura Electrónica de Exportación)               | uno del sistema WSFEX, distinto del de `wsfe`                      |
+
+Se puede sumar un servicio después, repitiendo solo el paso 3 con el mismo certificado.
+
 ---
 
 ## Testing (homologación)
@@ -101,7 +117,7 @@ Completá:
 2. **CUIT representado**: en pruebas, tu propio CUIT.
 3. **Servicio al que deseas acceder**: `wsfe` para facturación electrónica.
 
-> Si vas a usar `arcli fce-obligado` o `verificarFce`, repetí este paso con el servicio `wsfecred` (Factura de Crédito Electrónica MiPyMEs). Para `arcli padron` y el IVA receptor automático, con `ws_sr_constancia_inscripcion` (Constancia de inscripción). Para `arcli fe` (factura de exportación `E`), con `wsfex` (Factura Electrónica de Exportación).
+> Repetí este paso con cada servicio de [Qué servicios autorizar](#qué-servicios-autorizar) que vayas a usar: `ws_sr_constancia_inscripcion`, `wsfecred` o `wsfex`.
 
 Presioná **"Crear autorización de acceso"** — deberías ver un mensaje `OK. Autorización
 fue creada`:
@@ -170,7 +186,7 @@ Elegí **"Nueva Relación"** y presioná **"Buscar"** junto a Servicio:
 
 ![Buscar el servicio a autorizar](assets/certificados/produccion-autorizar-buscar-servicio.png)
 
-Navegá a **ARCA → Web Services** y elegí el servicio que necesitás (ej. `wsfe`). Si vas a usar `arcli padron` o el IVA receptor automático, creá también la relación para `ws_sr_constancia_inscripcion`. Si vas a usar `arcli fce-obligado` o `verificarFce`, creá también la relación para `wsfecred`. Para `arcli fe` (factura de exportación `E`), creá también la relación para `wsfex`:
+Navegá a **ARCA → Web Services** y elegí el servicio que necesitás (ej. `wsfe`). Creá una relación por cada servicio de [Qué servicios autorizar](#qué-servicios-autorizar) que vayas a usar:
 
 ![Elegir el web service de la lista](assets/certificados/produccion-autorizar-elegir-webservice.png)
 

@@ -34,7 +34,7 @@ Formas de identificar al receptor de un comprobante:
 
 ### Consumidor final
 
-Categoría de receptor sin documento identificable. ARCLI la representa con documento `0` y exige IVA receptor `consumidor-final`.
+Categoría de receptor sin documento identificable. ARCLI la representa con documento `0` e IVA receptor `consumidor-final`: `--consumidor-final` alcanza para las dos cosas.
 
 ### Condición IVA (IVA receptor)
 

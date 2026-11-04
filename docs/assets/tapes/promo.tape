@@ -25,7 +25,7 @@ Type "# Facturas, notas de crédito y débito A, B y C, y FCE" Sleep 400ms Enter
 Sleep 1.8s
 
 # 2. Vista previa: nada se emite sin confirmar
-Type "arcli fc -m 25000 --cs --cfinal --ir-cf --previsualizar" Sleep 500ms Enter
+Type "arcli fc -m 25000 --cs --cfinal --previsualizar" Sleep 500ms Enter
 Sleep 5s
 Hide
 Type "clear" Enter
@@ -34,7 +34,7 @@ Show
 # 3. Emitir y obtener el CAE en JSON, listo para scripts y agentes
 Type "# Emití y obtené el CAE en JSON, listo para tus scripts" Sleep 400ms Enter
 Sleep 1s
-Type "arcli fc -m 25000 --cs --cfinal --ir-cf --emitir --json | jq '{estado, cae, caeVencimiento}'" Sleep 500ms Enter
+Type "arcli fc -m 25000 --cs --cfinal --emitir --json | jq '{estado, cae, caeVencimiento}'" Sleep 500ms Enter
 Sleep 6s
 Hide
 Type "clear" Enter

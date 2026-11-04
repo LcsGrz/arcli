@@ -64,10 +64,10 @@ arcli config revisar
 ## Uso
 
 ```bash
-arcli fc -m 15000 --cs --consumidor-final --ir-cf            # vista previa de una Factura C
-arcli fc -m 15000 --cs --consumidor-final --ir-cf --emitir   # emitir
+arcli fc -m 15000 --cs --consumidor-final            # vista previa de una Factura C
+arcli fc -m 15000 --cs --consumidor-final --emitir   # emitir
 arcli fc --cargar ./facturas.json --emitir --json            # lote desde JSON, salida JSON
-arcli fc -m 15000 --cs --consumidor-final --ir-cf --emitir --exportar-pdf
+arcli fc -m 15000 --cs --consumidor-final --emitir --exportar-pdf
 arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 203 \
   --numero 1 --actividad 620100 --previsualizar                             # Factura de exportación E
 ```

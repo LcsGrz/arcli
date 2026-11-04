@@ -738,6 +738,30 @@ describe('IVA receptor y padron', () => {
     ).toBeUndefined();
   });
 
+  it('--cfinal implica IVA consumidor final, aunque la config diga otro', () => {
+    const parseC = (args: string[], defaults: Parameters<typeof parseBillingCommandPlan>[2] = {}) =>
+      parseBillingCommandPlan(createCommand(['--monto', '1000', '--cs', ...args]), 'fc', defaults).inputs[0];
+
+    expect(parseC(['--cfinal'])).toMatchObject({ ivaCondition: 'consumidor-final', ivaConditionSource: undefined });
+    expect(parseC(['--consumidor-final'], { defaultIvaCondition: 'responsable-monotributo' })).toMatchObject({
+      ivaCondition: 'consumidor-final',
+    });
+    expect(parseC(['--cfinal', '--ir-rm'])?.ivaCondition).toBe('responsable-monotributo');
+  });
+
+  it('tipoDocumento consumidor-final en el JSON implica IVA consumidor final', () => {
+    const input = parseBillingCommandInput(
+      createCommand([
+        '--cargar',
+        writeJsonInput({ concepto: 'servicios', montoTotal: 100, tipoDocumento: 'consumidor-final' }),
+      ]),
+      'fc',
+      { defaultIvaCondition: 'responsable-inscripto' },
+    );
+
+    expect(input.ivaCondition).toBe('consumidor-final');
+  });
+
   it('sin padron, o con DNI, falta el IVA receptor como antes', () => {
     expect(() => parse(['--cuit', '20201797064'])).toThrow(/Falta IVA receptor/);
     expect(() => parse(['--dni', '12345678'], { lookupIvaConditionInPadron: true })).toThrow(/Falta IVA receptor/);

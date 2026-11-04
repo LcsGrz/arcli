@@ -116,7 +116,7 @@ function createProgramQuickStart(): string {
     'Para empezar',
     compactList([
       'Revisá que esté todo listo: arcli config revisar',
-      'Vista previa: arcli fc -m 300000 --cs --consumidor-final --ir-cf',
+      'Vista previa: arcli fc -m 300000 --cs --consumidor-final',
       'Emitir: agregá --emitir (sin el flag, en una terminal te pregunta). --produccion usa el entorno real.',
       'Paso a paso, sin flags: arcli (sin argumentos)',
       'Un comando se arma con el comprobante, --monto, el concepto (--cs, --cp, --csp), el receptor (--cuit, --dni o --consumidor-final) y su IVA (--ir-*).',
