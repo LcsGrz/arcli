@@ -34,7 +34,7 @@ function describePeriod(period: ServicePeriod): string {
 }
 
 /**
- * Repetir una factura: se elige una de las ultimas emitidas y se copian el comprobante, el receptor, el concepto,
+ * Repetir una factura o un recibo: se elige uno de los ultimos emitidos y se copian el comprobante, el receptor, el concepto,
  * el monto y la alicuota. Las fechas se actualizan: la factura sale con fecha de hoy y el periodo se elige.
  */
 export function repeatSteps(
