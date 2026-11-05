@@ -1,3 +1,5 @@
+import { findArcaCurrency } from './currency-codes';
+
 export function formatDateLabel(value: string | undefined): string {
   if (!value) {
     return 'N/D';
@@ -80,15 +82,19 @@ export function formatIvaConditionLabel(value: number | undefined): string {
   }
 }
 
+/** "Pesos uruguayos (UYU)"; una moneda que no esta en la tabla sale con su codigo. */
 export function formatCurrencyLabel(value: string | undefined): string {
-  switch (value) {
-    case 'PES':
-      return 'Pesos argentinos (ARS)';
-    case 'DOL':
-      return 'Dólares estadounidenses (USD)';
-    default:
-      return value ?? 'N/D';
+  if (!value) {
+    return 'N/D';
   }
+
+  const currency = findArcaCurrency(value);
+
+  if (!currency) {
+    return value;
+  }
+
+  return `${currency.name} (${currency.iso ?? currency.arca})`;
 }
 
 export function formatNumericLabel(value: number | undefined): string {

@@ -1,6 +1,7 @@
 import { DEFAULT_CURRENCY_CODE } from './billing.constants';
 import type { BillingConcept, BillingDocumentType, BillingIvaCondition } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
+import { toArcaCurrencyCode } from './currency-codes';
 
 const BILLING_CONCEPT_MAP: Record<BillingConcept, number> = {
   productos: 1,
@@ -29,16 +30,6 @@ const BILLING_IVA_CONDITION_MAP: Record<BillingIvaCondition, number> = {
   'sujeto-no-categorizado': 7,
 };
 
-/** Codigos ISO de las monedas mas comunes al codigo de ARCA; cualquier otro se manda tal cual (por ejemplo, `060`). */
-const BILLING_CURRENCY_CODE_MAP: Record<string, string> = {
-  ARS: 'PES',
-  BRL: '012',
-  DOL: 'DOL',
-  EUR: '060',
-  PES: 'PES',
-  USD: 'DOL',
-};
-
 export function resolveBillingConceptCode(concept: BillingConcept): number {
   return BILLING_CONCEPT_MAP[concept];
 }
@@ -51,10 +42,9 @@ export function resolveBillingIvaConditionCode(ivaCondition: BillingIvaCondition
   return BILLING_IVA_CONDITION_MAP[ivaCondition];
 }
 
+/** Acepta el codigo ISO (`ARS`, `USD`, `UYU`) o el de ARCA (`PES`, `DOL`, `011`) y devuelve el de ARCA. */
 export function resolveBillingCurrencyCode(currencyCode = DEFAULT_CURRENCY_CODE): string {
-  const normalizedCode = currencyCode.trim().toUpperCase();
-
-  return BILLING_CURRENCY_CODE_MAP[normalizedCode] ?? normalizedCode;
+  return toArcaCurrencyCode(currencyCode);
 }
 
 export function formatVoucherLabel(voucherKind: VoucherKindDefinition): string {

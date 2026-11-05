@@ -225,7 +225,7 @@ En casi todos los casos te va a interesar mirar primero:
 | `--cs`                         | ninguno         | `boolean`                                             | `false`                                  | Equivale a `--concepto servicios`                |
 | `--cp`                         | ninguno         | `boolean`                                             | `false`                                  | Equivale a `--concepto productos`                |
 | `--csp`                        | ninguno         | `boolean`                                             | `false`                                  | Equivale a `--concepto productos-servicios`      |
-| `--moneda <codigo>`            | `--mda`         | `'ARS' \| 'USD' \| string(3)`                         | `config.moneda` o `ARS`                  | Moneda del comprobante                           |
+| `--moneda <codigo>`            | `--mda`         | `string(3)`                                           | `config.moneda` o `ARS`                  | Moneda del comprobante: ISO o código de ARCA     |
 | `--cotizacion-moneda <numero>` | `--cm`          | `number`                                              | `config.cotizacion` o `1`                | Cotización de la moneda                          |
 | `--misma-moneda`               | ninguno         | `boolean`                                             | `false`                                  | El pago se cancela en la moneda extranjera       |
 | `--servicio-desde <fecha>`     | `--sd <fecha>`  | `string`                                              | ninguno                                  | Fecha de inicio del servicio                     |
@@ -238,6 +238,8 @@ En moneda extranjera (`--moneda USD`) hay dos formas de informar la cotización:
 - **Te pagan en la moneda extranjera**: pasá `--misma-moneda`. ARCLI consulta la cotización oficial a ARCA y la muestra en la vista previa. No se combina con `--cotizacion-moneda`.
 
 En pesos la cotización siempre es `1` y `--misma-moneda` no aplica. Detalle en [Moneda y cotización](validation-rules.md#moneda-y-cotización).
+
+`--moneda` acepta el código ISO o el de ARCA, en mayúsculas o minúsculas: `ARS` y `PES` son lo mismo, como `USD` y `DOL`, `EUR` y `060` o `UYU` y `011`. ARCLI traduce el ISO al código de ARCA antes de enviar y la vista previa muestra el nombre con el ISO (`Pesos uruguayos (UYU)`). Están todas las monedas de la tabla de ARCA (`arcli parametros monedas`) que tienen código ISO; un código que no está en esa tabla se manda tal cual y lo rechaza ARCA si no existe. Lo mismo vale para `codigoMoneda` en el JSON y la clave `moneda` de la config.
 
 `--alicuota` acepta alias: `general` (21), `reducida` (10.5), `incrementada` (27) y `cero` (0). Para una factura con ítems a distintas alícuotas, repetí `--alicuota TASA:MONTO` (por ejemplo `--alicuota general:1210 --alicuota reducida:552,50`); el total se calcula solo. Ver [Varias alícuotas](validation-rules.md#varias-alícuotas-en-un-comprobante).
 
@@ -639,7 +641,7 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
 | `--punto-venta <number>`          | `--pv <number>` | `integer`                            | Condicional | Si no está en config                                                               |
 | `--fecha <fecha>`                 | `-f`            | `string`                             | No          | No admite fechas futuras                                                           |
 | `--fecha-pago <fecha>`            | ninguno         | `string`                             | No          | Por defecto, la fecha del comprobante                                              |
-| `--moneda <codigo>`               | `--mda`         | `string`                             | No          | Código de ARCA, por ejemplo `USD` o `DOL`; por defecto `DOL`                       |
+| `--moneda <codigo>`               | `--mda`         | `string`                             | No          | Código ISO o de ARCA, por ejemplo `USD` o `DOL`; por defecto `DOL`                 |
 | `--cotizacion-moneda <number>`    | `--cm`          | `number`                             | No          | Sin flag se usa la última cotización de aduana publicada por ARCA                  |
 | `--misma-moneda`                  | ninguno         | `boolean`                            | No          | El pago se cancela en la misma moneda extranjera: manda `CanMisMonExt` en `S`      |
 | `--observaciones <texto>`         | ninguno         | `string`                             | No          | Observaciones del comprobante                                                      |

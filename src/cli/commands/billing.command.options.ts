@@ -32,8 +32,8 @@ export function registerBillingOptions(command: Command): void {
     .option('--cs', 'usar concepto servicios')
     .option('--cp', 'usar concepto productos')
     .option('--csp', 'usar concepto productos y servicios')
-    .option('--moneda <codigo>', 'código de moneda, por ejemplo ARS o USD (alias: --mda)')
-    .option('--mda <codigo>', 'alias de moneda, por ejemplo ARS o USD')
+    .option('--moneda <codigo>', 'moneda: código ISO (ARS, USD, EUR, UYU…) o de ARCA (PES, DOL, 060…) (alias: --mda)')
+    .option('--mda <codigo>', 'alias de --moneda: código ISO o de ARCA')
     .option('--cm <numero>', 'alias de cotización de la moneda', amountOption('--cm', EXCHANGE_RATE_DECIMALS))
     .option(
       '--cotizacion-moneda <numero>',
