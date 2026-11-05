@@ -88,7 +88,7 @@ export const runProcessWithSpawn: ProcessRunner = (command, args, options) =>
   });
 
 function describeTimeout(timeoutMs: number): string {
-  return `no termino en ${timeoutMs / 60_000} minutos y se corto`;
+  return `no terminó en ${timeoutMs / 60_000} minutos y se cortó`;
 }
 
 function lastLines(output: string, count = 5): string {

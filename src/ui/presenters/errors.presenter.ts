@@ -58,7 +58,7 @@ function detectTransientError(message: string): {
   if (message.includes('coe.alreadyAuthenticated')) {
     return {
       sugerencia:
-        'WSAA informo que ya existe un TA válido para este servicio. Esperá unos segundos y volvé a intentar sin cambiar el payload.',
+        'WSAA informó que ya existe un TA válido para este servicio. Esperá unos segundos y volvé a intentar sin cambiar el payload.',
       title: 'Error transitorio WSAA',
     };
   }
