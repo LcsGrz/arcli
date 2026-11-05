@@ -30,7 +30,6 @@ arcli fc -m 15000 --cs --consumidor-final
 
 - falta `--monto`
 - falta `puntoVenta`
-- `--consumidor-final` sin `--ir-cf`
 
 ## Factura usando config sin casi flags
 
@@ -170,6 +169,60 @@ arcli ncea -m 1500000 --cs --cuit 30546689979 --ir-ri \
 - falta el CBU en la factura
 - falta `--afecha` en la nota
 - pasar `--cbu` o `--transferencia` en una nota FCE: solo van en la factura
+
+## Recibo C
+
+### Cuándo usarlo
+
+Cuando sos monotributista o exento y tenés que documentar un cobro con recibo en lugar de factura.
+
+### Comando
+
+```bash
+arcli rc -m 15000 --cs --cfinal
+```
+
+### Resultado esperado
+
+- vista previa con tipo ARCA `15` y sin IVA discriminado, igual que una Factura C
+- si después hay que anularlo o ajustarlo, la nota C lo asocia con `--ac rc`
+
+### Errores comunes
+
+- pasar `--alicuota`, `--exento` o `--nogravado`: en letra C dan error
+- pasar un comprobante asociado: el recibo no lleva
+
+## Factura de exportación E
+
+### Cuándo usarlo
+
+Cuando le vendés servicios o bienes a un cliente del exterior. Va por el servicio `wsfex`, que hay que autorizar en ARCA aparte de `wsfe`.
+
+### Requisitos
+
+- certificado autorizado a `wsfex` (ver [certificados](obtencion-certificados.md))
+- el número del comprobante: el siguiente al último E de ese punto de venta
+- la actividad de la tabla de WSFEX, por flag o en `exportacion.actividad`
+
+### Comando
+
+```bash
+arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 203 \
+  --numero 1 --actividad 620100 --item "001|Servicios de consultoría|1|1500|unidad"
+```
+
+### Resultado esperado
+
+- va en dólares (`DOL`) con la cotización de aduana que publica ARCA, salvo `--moneda` o `--cotizacion-moneda`
+- la vista previa muestra cliente, destino, items y la solicitud de WSFEX
+
+### Errores comunes
+
+- falta `--numero`: arcli todavía no lo puede consultar en WSFEX
+- la suma de los `--item` no da `--monto`
+- la actividad no está en la tabla de WSFEX (no es la del padrón)
+
+Detalle de flags: [Factura de exportación `E`](cli-reference.md#factura-de-exportación-e-wsfex).
 
 ## Renovar el certificado
 

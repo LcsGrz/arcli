@@ -14,7 +14,7 @@ ARCA.
 ## Antes de empezar
 
 - Necesitás tu Clave Fiscal (nivel de seguridad 3) para entrar al portal de ARCA.
-- Necesitás `openssl`. En Linux y macOS ya viene instalado; en Windows lo bajás de
+- Solo si generás la clave a mano en vez de usar `arcli certificado`, necesitás `openssl`. En Linux y macOS ya viene instalado; en Windows lo bajás de
   [slproweb.com/products/Win32OpenSSL.html](https://slproweb.com/products/Win32OpenSSL.html)
   y agregás la carpeta `bin` a tu `PATH` (o abrís la consola directamente desde ahí).
 - El flujo de **habilitar el administrador de certificados** es idéntico en testing y en
@@ -109,16 +109,16 @@ Completá:
 
 1. **Nombre simbólico del DN**: un alias para identificar este certificado (ej. `Test1`).
 2. **CUIT del contribuyente**: ya viene completo.
-3. **Solicitud de certificado**: pegá el contenido completo de `testing.csr` (abrilo con
-   un editor de texto).
+3. **Solicitud de certificado**: pegá el CSR que te mostró `arcli certificado generar` o, con
+   openssl, el contenido completo de `testing.csr` (abrilo con un editor de texto).
 
 Presioná **"Crear DN y obtener certificado"** y copiá el certificado que aparece en el
 recuadro de resultado a un archivo (ej. `testing.crt`):
 
 ![CSR pegado y certificado generado en WSASS](assets/certificados/testing-wsass-crear-certificado.png)
 
-Ya no necesitás el CSR, podés borrarlo. Guardá `testing.key` y `testing.crt` — son los que
-vas a usar en arcli.
+Con arcli, importalo como se explicó arriba. Con openssl, ya no necesitás el CSR y podés borrarlo:
+guardá `testing.key` y `testing.crt`, que son los que vas a usar en arcli.
 
 ### 3. Autorizar el servicio web
 
@@ -188,7 +188,8 @@ elegí **"Agregar alias"**:
 
 ![Agregar alias en Administración de Certificados Digitales](assets/certificados/produccion-agregar-alias.png)
 
-Completá el **Alias** y subí el archivo `produccion.csr` con **"Examinar..."**:
+Completá el **Alias** y subí el CSR con **"Examinar..."**: con arcli, el archivo que te indicó `generar`;
+con openssl, `produccion.csr`:
 
 ![Formulario de alias con CSR para subir](assets/certificados/produccion-agregar-alias-formulario.png)
 

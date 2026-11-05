@@ -28,11 +28,12 @@ Gestor de paquetes: `yarn` (no mezclar lockfiles).
 - `yarn install`
 - `yarn dev --ayuda`: correr el CLI desde `src/`
 - `yarn typecheck`, `yarn lint`, `yarn test`
-- `yarn open-source:check`: typecheck, tests con cobertura, build y `pack:check` (instala el paquete y corre `arcli --version`)
+- `yarn open-source:check`: typecheck, tests con cobertura, build y `pack:check` (instala el paquete y corre `arcli --version` y `--ayuda`)
 
 Antes de dar por terminado un cambio significativo: `yarn typecheck`, `yarn lint` y `yarn test`. En Claude Code, un hook al terminar cada respuesta ya corre typecheck, ESLint y los tests relacionados si cambió `src/`, así que no hace falta correrlos a mano después de cada edición; la suite completa sí, antes de abrir un PR. Detalle en [docs/development.md](docs/development.md#trabajar-con-agentes).
 
 - Editá archivos con la herramienta de edición del agente. `sed` o scripts solo para reemplazos mecánicos en muchos archivos: fallan sin aviso y no se ven en el diff hasta el final.
+- Los docs también se testean: `docs-sync.test.ts` falla si un comando, flag o clave de config no aparece en `docs/` y `llms.txt`, y `examples-valid.test.ts` pasa cada bloque `bash` de `docs/`, `README.md` y `llms.txt` por el parser real. `yarn lint` corre Prettier sobre `docs/**/*.md`, `AGENTS.md` y `README.md`: si falla por tablas desalineadas, `yarn lint:prettier:fix`.
 - Para esperar el CI de un PR, `gh pr checks <N> --watch` en segundo plano, no `sleep` en loop.
 
 ## Convenciones de código

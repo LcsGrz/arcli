@@ -132,8 +132,9 @@ Usalos cuando necesitás controlar el entorno, la salida o el modo de inspecció
 | ------------------------------------------------------------------------ | ------------------------------------------------ |
 | comprobantes (`fa`, `fc`, `nca`, `factura`, ...)                         | `--testing`, `--produccion`, `--json`, `--bruto` |
 | `padron`, `fce-obligado`, `ultimos`, `consultar`, `parametros`, `estado` | `--testing`, `--produccion`, `--json`            |
+| `certificado generar`, `certificado importar`                            | `--testing`, `--produccion`, `--json`            |
 | `interactivo`                                                            | `--testing`, `--produccion`                      |
-| `config` (y sus subcomandos), `pdf` (y sus subcomandos)                  | `--json`                                         |
+| `config` (y sus subcomandos), `pdf` (y sus subcomandos), `completado`    | `--json`                                         |
 
 ### Emisión en producción
 
@@ -276,7 +277,7 @@ Las cuatro se escriben igual: formato argentino (día primero), con mes y año o
 
 Estos flags importan solo para notas. Si estás emitiendo una factura, podés ignorarlos.
 
-Dicho más directo: **no aplican a `factura`, `factura-credito-electronica`, `fa`, `fb`, `fc`, `fcea`, `fceb` ni `fcec`**.
+Dicho más directo: **no aplican a `factura`, `factura-credito-electronica`, `recibo`, `fa`, `fb`, `fc`, `fcea`, `fceb`, `fcec` ni `rc`**.
 
 | Flag                              | Alias            | Tipo         | Valor por defecto | Descripción                        |
 | --------------------------------- | ---------------- | ------------ | ----------------- | ---------------------------------- |
@@ -433,6 +434,14 @@ Las facturas no usan comprobante asociado, así que no aplican:
 - `--asociado-punto-venta`
 - `--ar`
 - `--acuit`
+
+### Recibo C
+
+`arcli rc` (o `arcli recibo c`) emite el Recibo C, tipo ARCA 15. Usa los mismos flags y validaciones que la Factura C: sin IVA discriminado, sin comprobante asociado y sin FCE. Una nota de crédito o débito C lo puede asociar con `--ac rc`. Detalle en [Reglas de validación](validation-rules.md#recibo-c).
+
+```bash
+arcli rc -m 15000 --cs --cfinal
+```
 
 ### Notas de crédito y débito `A`, `B` y `C`
 
@@ -658,7 +667,7 @@ Estos flags de facturación no existen en `fe`, que los rechaza como opción des
 
 - concepto (`--concepto`, `--cs`, `--cp`, `--csp`) y fechas de servicio (`--servicio-desde`, `--servicio-hasta`, `--vencimiento` y `--dia`, deprecado)
 - identidad del receptor (`--cuit`, `--cuil`, `--dni`, `--consumidor-final`) e `--iva-receptor`
-- IVA y alícuotas (`--alicuota`, `--exento`, `--nogravado`, `--alicuotas`)
+- IVA y alícuotas (`--alicuota`, `--exento`, `--nogravado`; tampoco `alicuotas` en el JSON)
 - comprobante asociado (`--ac`, `--at`, `--apv`, `--ar`, `--acuit`, `--afecha`, `--anulacion`, `--periodo-desde`, `--periodo-hasta`)
 - datos de cobro FCE (`--cbu`, `--alias`, `--transferencia`); el régimen FCE (`verificarFce` en la config) tampoco se consulta
 
@@ -729,7 +738,7 @@ arcli consultar fb 14 --json      # lo mismo, en JSON
 | `arcli ultimos <tipo>`            | `tipo`: atajo del comprobante (`fa`, `fb`, `nca`, `fcea`…) | `--cantidad <n>` (1 a 50; por defecto `config.comprobantesPorLista` o 15), `--pv` / `--punto-venta`, `--json`, `--testing`, `--produccion` |
 | `arcli consultar <tipo> <numero>` | `tipo` y número del comprobante                            | `--pv` / `--punto-venta`, `--json`, `--testing`, `--produccion`                                                                            |
 
-Sin `--pv` usan el punto de venta de la config. Si el comprobante no existe, `consultar` termina con el error `VOUCHER_NOT_FOUND`. El formato del JSON está en [Entrada y salida](input-output.md#comprobantes-emitidos-ultimos-y-consultar).
+Sin `--pv` usan el punto de venta de la config. Todavía no aceptan la Factura de exportación `E` (`fe`). Si el comprobante no existe, `consultar` termina con el error `VOUCHER_NOT_FOUND`. El formato del JSON está en [Entrada y salida](input-output.md#comprobantes-emitidos-ultimos-y-consultar).
 
 ## Consultar el régimen FCE
 

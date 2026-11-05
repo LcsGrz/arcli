@@ -87,6 +87,19 @@ arcli config establecer key.testing /ruta/a/la/clave.key
 - **Solución:** en ARCA, creá el certificado con el CSR del último `arcli certificado generar` (está en `certificados/<CUIT>/<entorno>.nueva.csr`, junto a la config) y volvé a importar. Si el certificado es de un par que armaste con `openssl`, configuralo con `arcli config establecer cert.<entorno>` y `key.<entorno>`.
 - **Documentación relacionada:** [Comando `arcli certificado`](cli-reference.md#comando-arcli-certificado)
 
+### Al importar: otros rechazos del certificado
+
+- **Severidad:** media
+- **Síntoma:** `arcli certificado generar` o `importar` corta sin tocar la config. El código del JSON dice cuál es:
+  - `CERTIFICATE_REQUEST_PENDING` (`generar`): ya hay un pedido de ese entorno sin importar.
+  - `CERTIFICATE_INVALID`: el archivo no tiene un certificado X.509.
+  - `CERTIFICATE_CUIT_MISMATCH`: el certificado es de otro CUIT que el de la config.
+  - `CERTIFICATE_EXPIRED`: el `.crt` que querés cargar ya venció.
+  - `CERTIFICATE_ENVIRONMENT_UNKNOWN`: arcli no reconoce al emisor como una autoridad de ARCA, así que no sabe de qué entorno es.
+  - `CERTIFICATE_REPLACE_CONFIRMATION`: ya había otro certificado y, sin terminal o con `--json`, no se puede preguntar.
+- **Solución:** importá el certificado del pedido pendiente o descartalo con `--reemplazar`; usá el `.crt` tal como lo bajaste de ARCA, sin abrirlo ni guardarlo con otro programa; bajalo con la clave fiscal del CUIT configurado; si está vencido, generá uno nuevo; si es de ARCA, indicá el entorno con `--testing` o `--produccion`; para reemplazar sin preguntar, sumá `--reemplazar`.
+- **Documentación relacionada:** [Comando `arcli certificado`](cli-reference.md#comando-arcli-certificado), [códigos de error](input-output.md#códigos-de-error)
+
 ### Certificado por vencer o vencido
 
 - **Severidad:** alta (crítico si ya venció)
@@ -107,7 +120,7 @@ Si lo renovaste a mano, también sirve `arcli config establecer cert.produccion 
 ### `config.json` con JSON inválido
 
 - **Severidad:** crítico
-- **Síntoma:** cualquier comando falla con `Error de configuracion` ("El archivo de configuración tiene JSON inválido y no se puede leer."), con la ruta del archivo en `Ruta` (`detalles.ruta` con `--json`). Antes salía como "Error inesperado".
+- **Síntoma:** cualquier comando falla con `Error de configuración` ("El archivo de configuración tiene JSON inválido y no se puede leer."), con la ruta del archivo en `Ruta` (`detalles.ruta` con `--json`). Antes salía como "Error inesperado".
 - **Causa:** el `config.json` quedó mal escrito, casi siempre por una edición a mano (una coma de más, comillas sin cerrar) o un archivo vacío.
 - **Solución:** corregir el JSON a mano en esa ruta, o renombrar el archivo y volver a cargar los datos. ARCLI no lo borra ni lo pisa: lo que tenía sigue ahí para recuperarlo.
 
@@ -118,7 +131,7 @@ arcli config establecer cert.testing /ruta/al/certificado.crt
 arcli config establecer key.testing /ruta/a/la/clave.key
 ```
 
-O abrí `arcli` y elegí "Configuracion" para la configuración guiada.
+O abrí `arcli` y elegí "Configuración" para la configuración guiada.
 
 - **Documentación relacionada:** [Configuración](configuration.md)
 
@@ -163,7 +176,7 @@ arcli fc ayuda
 ### Falta la cotización en moneda extranjera
 
 - **Severidad:** frecuente
-- **Síntoma:** `Falta la cotizacion de USD.`
+- **Síntoma:** `Falta la cotización de USD.`
 - **Causa:** se pasó `--moneda USD` sin `--cotizacion-moneda`, o con cotización `1`.
 - **Solución:** pasar `--cm <cotización>` si te pagan en pesos, o `--misma-moneda` si te pagan en dólares.
 - **Documentación relacionada:** [Moneda y cotización](validation-rules.md#moneda-y-cotización)
@@ -171,7 +184,7 @@ arcli fc ayuda
 ### El comprobante no admite el IVA receptor
 
 - **Severidad:** frecuente
-- **Síntoma:** `La factura b no admite IVA receptor "responsable-inscripto". Use un comprobante letra A.`
+- **Síntoma:** `La factura b no admite IVA receptor "responsable-inscripto". Usá un comprobante letra A.`
 - **Causa:** ARCA solo acepta ciertas condiciones IVA para cada letra. Por ejemplo, la `A` es para responsables inscriptos y monotributistas, y la `B` para el resto.
 - **Solución:** usar la letra que sugiere el error, o corregir el IVA receptor.
 - **Documentación relacionada:** [IVA receptor](validation-rules.md#iva-receptor)
@@ -179,7 +192,7 @@ arcli fc ayuda
 ### Consumidor final sin identificar desde $10.000.000
 
 - **Severidad:** ocasional
-- **Síntoma:** `... de $10.000.000 o mas requiere identificar al consumidor final.`
+- **Síntoma:** `... de $10.000.000 o más requiere identificar al consumidor final.`
 - **Causa:** la RG 5700/2025 obliga a identificar al consumidor final desde ese monto.
 - **Solución:** reemplazar `--consumidor-final` por `--dni`, `--cuit` o `--cuil`, manteniendo `--ir-cf`.
 - **Documentación relacionada:** [Consumidor final](validation-rules.md#consumidor-final)
@@ -203,7 +216,7 @@ arcli fc ayuda
 ### Factura FCE sin CBU
 
 - **Severidad:** frecuente
-- **Síntoma:** `La factura de credito electronica ... requiere el CBU del emisor.`
+- **Síntoma:** `La factura de crédito electrónica ... requiere el CBU del emisor.`
 - **Causa:** ARCA exige el CBU del emisor en toda factura FCE (10168).
 - **Solución:** pasar `--cbu <22 dígitos>` o configurarlo una vez con `arcli config establecer cbu <22 dígitos>`.
 - **Documentación relacionada:** [Crédito electrónico (FCE)](validation-rules.md#crédito-electrónico-fce)
@@ -211,7 +224,7 @@ arcli fc ayuda
 ### NC/ND FCE sin fecha del asociado
 
 - **Severidad:** frecuente
-- **Síntoma:** `La nota de credito electronica ... requiere la fecha del comprobante asociado.`
+- **Síntoma:** `La nota de crédito electrónica ... requiere la fecha del comprobante asociado.`
 - **Causa:** en NC/ND FCE, ARCA exige la fecha de la factura asociada (10158).
 - **Solución:** agregar `--afecha <fecha>` con la fecha de la factura FCE original.
 - **Documentación relacionada:** [Crédito electrónico (FCE)](validation-rules.md#crédito-electrónico-fce)
@@ -219,7 +232,7 @@ arcli fc ayuda
 ### La suma de las alícuotas no coincide con el total
 
 - **Severidad:** ocasional
-- **Síntoma:** `La suma de las alicuotas (...) no coincide con lo gravado del monto total (...)`.
+- **Síntoma:** `La suma de las alícuotas (...) no coincide con lo gravado del monto total (...)`.
 - **Causa:** con varias `--alicuota TASA:MONTO`, cada monto lleva el IVA incluido, y la suma más `--exento` y `--nogravado` tiene que dar `--monto`.
 - **Solución:** sacar `--monto` (el total se calcula solo) o corregir los montos.
 - **Documentación relacionada:** [Varias alícuotas](validation-rules.md#varias-alícuotas-en-un-comprobante)
@@ -227,7 +240,7 @@ arcli fc ayuda
 ### Exento o no gravado mayor al total
 
 - **Severidad:** ocasional
-- **Síntoma:** `El importe exento mas el no gravado no puede superar el monto total.`
+- **Síntoma:** `El importe exento más el no gravado no puede superar el monto total.`
 - **Causa:** `--monto` es el total del comprobante, y `--exento` y `--nogravado` son partes de ese total.
 - **Solución:** pasar en `--monto` el total, incluidos exento y no gravado.
 - **Documentación relacionada:** [IVA automático](validation-rules.md#iva-automático)
@@ -235,7 +248,7 @@ arcli fc ayuda
 ### `wsfecred` no autorizado
 
 - **Severidad:** frecuente si usás `fce-obligado` o `verificarFce`
-- **Síntoma:** `El certificado no esta autorizado para el servicio wsfecred ...` (ARCA responde `coe.notAuthorized`).
+- **Síntoma:** `El certificado no está autorizado para el servicio wsfecred ...` (ARCA responde `coe.notAuthorized`).
 - **Causa:** el certificado solo tiene autorizado `wsfe`. La consulta del régimen FCE usa otro servicio.
 - **Solución:** crear la autorización para `wsfecred` igual que la de `wsfe`, en WSASS (testing) o en el Administrador de Relaciones (producción). Si no la necesitás, desactivá el chequeo con `arcli config eliminar verificarFce`.
 - **Documentación relacionada:** [Autorizar el servicio web](obtencion-certificados.md#3-autorizar-el-servicio-web)
@@ -243,7 +256,7 @@ arcli fc ayuda
 ### `ws_sr_constancia_inscripcion` no autorizado
 
 - **Severidad:** frecuente si usás `arcli padron` o facturás con `--cuit` sin `--ir`
-- **Síntoma:** `arcli padron` falla con `El certificado no esta autorizado para el servicio ws_sr_constancia_inscripcion ...`. Al facturar no corta: aparece el aviso `No se pudo consultar el padron de ARCA` y se usa el `ivaReceptor` de la config.
+- **Síntoma:** `arcli padron` falla con `El certificado no está autorizado para el servicio ws_sr_constancia_inscripcion ...`. Al facturar no corta: aparece el aviso `No se pudo consultar el padrón de ARCA` y se usa el `ivaReceptor` de la config.
 - **Causa:** el certificado solo tiene autorizado `wsfe`. El padrón usa otro servicio.
 - **Solución:** crear la autorización para `ws_sr_constancia_inscripcion` igual que la de `wsfe`. Si no la necesitás, desactivá la consulta con `arcli config establecer consultarPadron false`.
 - **Documentación relacionada:** [IVA receptor desde el padrón](cli-reference.md#iva-receptor-desde-el-padrón)
@@ -269,7 +282,7 @@ arcli fc ayuda
 ### No se pudo confirmar la emisión (`EMISSION_UNCERTAIN`)
 
 - **Severidad:** crítico
-- **Síntoma:** "No se pudo confirmar la emision: …" al emitir.
+- **Síntoma:** "No se pudo confirmar la emisión: …" al emitir.
 - **Causa:** falló la llamada que emite en ARCA (red, timeout, transacción activa). ARCA pudo haber autorizado el comprobante y perderse la respuesta. Si el error es del login en WSAA (certificado vencido o no autorizado) o del pedido del último número, no sale este error sino el original: ahí no se emitió nada y alcanza con corregir y reintentar.
 - **Solución:** **no reintentes todavía**. Corré el `arcli ultimos <tipo> --pv <n>` que muestra la sugerencia: si el comprobante figura, ya está emitido y no hay que repetirlo; si no figura, reintentá.
 - **Documentación relacionada:** [Entrada y salida](input-output.md#emisión-sin-confirmar)

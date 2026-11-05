@@ -55,7 +55,7 @@ arcli fc --cargar ./voucher.json
 Cada objeto se valida contra esta lista antes de mezclarlo con los flags y la config:
 
 - **Una clave que no está en las tablas es un error** (`INPUT_VALIDATION_ERROR`) que la nombra y, si se parece a una válida o a un flag, sugiere la correcta: `"montototal"` → `montoTotal`, `"vencimiento"` → `vencimientoPago`, `"moneda"` → `codigoMoneda`. Vale también dentro de `comprobanteAsociado`, `periodoAsociado` y cada ítem de `alicuotas`.
-- **Un tipo incorrecto es un error**, no se descarta: `"puntoVenta": "3"` falla con "tiene que ser un número". Los números van sin comillas y los booleanos son `true` o `false`, no `"true"`. `null` tampoco vale: para no informar un campo, omití la clave. La única clave que acepta texto o número es la tasa de IVA (`alicuotaIva` y `tasa` en `alicuotas`).
+- **Un tipo incorrecto es un error**, no se descarta: `"puntoVenta": "3"` falla con "tiene que ser un número". Los números van sin comillas y los booleanos son `true` o `false`, no `"true"`. `null` tampoco vale (salvo en `condicionVenta`, donde omite el valor de la config): para no informar un campo, omití la clave. La única clave que acepta texto o número es la tasa de IVA (`alicuotaIva` y `tasa` en `alicuotas`).
 - En un lote, cada ítem se valida por separado y el error sale en `BATCH_VALIDATION_ERROR` con su índice (ver [abajo](#validación-y-errores-del-lote)). Un array vacío también es error.
 
 Con un solo comprobante, `detalles.campos` lista cada problema con su ruta en el JSON:
@@ -236,7 +236,7 @@ Cada item:
 
 ### Output JSON
 
-Es el mismo resumen que A, B y C (`atajo`, `cae`, `estado`, `errores`, `observaciones`, `pdf`…) con `atajo: "fe"` y `tipoArca: 19`, más un bloque `exportacion` con lo que WSFEX tiene y `wsfe` no. `solicitud` es el `Cmp` de WSFEX, con los nombres de ARCA.
+Es el mismo resumen que A, B y C (`atajo`, `cae`, `estado`, `errores`, `observaciones`, `pdf`…) con `atajo: "fe"` y `tipoArca: 19`, salvo que no trae `numero`: el número está en `solicitud.Cbte_nro`. Suma un bloque `exportacion` con lo que WSFEX tiene y `wsfe` no. `solicitud` es el `Cmp` de WSFEX, con los nombres de ARCA.
 
 ```json
 {
@@ -318,7 +318,7 @@ Si el archivo contiene un array, ARCLI procesa un lote del mismo comando. **Un a
     "comprobantes": [
       { "error": "Falta monto.", "indice": 2 },
       {
-        "error": "La factura b de $10.000.000 o mas requiere identificar al consumidor final. Use --dni, --cuit o --cuil.",
+        "error": "La factura b de $10.000.000 o más requiere identificar al consumidor final. Usá --dni, --cuit o --cuil.",
         "indice": 3
       }
     ]
@@ -658,6 +658,7 @@ En testing, `puntos-venta` sale con `valores: []`: ARCA no informa puntos de ven
   "emisor": { "razonSocial": "Ana Gomez", "domicilio": "Calle 1, CABA" },
   "emitir": false,
   "entorno": "testing",
+  "exportacion": { "cert": {}, "key": {} },
   "json": false,
   "key": { "testing": ".../certs/testing.key" },
   "moneda": "PES",
@@ -669,7 +670,7 @@ En testing, `puntos-venta` sale con `valores: []`: ARCA no informa puntos de ven
 }
 ```
 
-Las claves son las de [configuración](configuration.md), salvo que `cert.*`, `key.*` y `emisor.*` van anidadas en los objetos `cert`, `key` y `emisor` (vacíos si no hay nada). `emitir`, `entorno`, `json`, `bruto`, `pdf`, `pdfCarpeta`, `moneda`, `cotizacion`, `consultarPadron` y `ticketPath` siempre aparecen, con su valor por defecto si no se configuraron; el resto, solo si tiene valor.
+Las claves son las de [configuración](configuration.md), salvo que `cert.*`, `key.*`, `emisor.*` y `exportacion.*` van anidadas en los objetos `cert`, `key`, `emisor` y `exportacion` (vacíos si no hay nada; `exportacion` trae a su vez `cert`, `key` y, si está, `actividad`). `emitir`, `entorno`, `exportacion`, `json`, `bruto`, `pdf`, `pdfCarpeta`, `moneda`, `cotizacion`, `consultarPadron` y `ticketPath` siempre aparecen, con su valor por defecto si no se configuraron; el resto, solo si tiene valor.
 
 `arcli config revisar --json`:
 
@@ -679,12 +680,12 @@ Las claves son las de [configuración](configuration.md), salvo que `cert.*`, `k
     { "categoria": "ok", "detalle": "Entorno por defecto: testing.", "etiqueta": "Entorno" },
     {
       "categoria": "warning",
-      "detalle": "Configure un punto de venta por defecto con \"arcli config establecer puntoVenta <valor>\".",
+      "detalle": "Configurá un punto de venta por defecto con \"arcli config establecer puntoVenta <valor>\".",
       "etiqueta": "Punto de venta"
     },
     {
       "categoria": "error",
-      "detalle": "Falta el CUIT. Configurelo con \"arcli config establecer cuit <valor>\". Si quiere una guia rapida, use \"arcli config revisar\".",
+      "detalle": "Falta el CUIT. Configuralo con \"arcli config establecer cuit <valor>\". Si querés una guía rápida, usá \"arcli config revisar\".",
       "etiqueta": "Validación testing"
     }
   ],
@@ -791,7 +792,7 @@ Dos comandos de diagnóstico informan un problema sin que sea un error: `arcli c
 | `CONFIGURATION_ERROR`              | todos los que usan ARCA, `config`                               | Falta o es inválido un dato de la config: CUIT, certificado, clave, `config.json` corrupto                      | `arcli config revisar` y `arcli config establecer`                                                                                       |
 | `BATCH_VALIDATION_ERROR`           | facturación con lote                                            | Algún comprobante del lote es inválido; no se emitió ninguno                                                    | Corregí los índices de `detalles.comprobantes` y corré el lote completo ([detalle](#validación-y-errores-del-lote))                      |
 | `BATCH_EMISSION_ERROR`             | facturación con lote                                            | El lote se cortó a mitad; los procesados salen antes por stdout                                                 | No reemitas los procesados; verificá `detalles.sinConfirmar` con `arcli ultimos` y reintentá `detalles.sinProcesar`                      |
-| `EMISSION_UNCERTAIN`               | facturación                                                     | Falló la llamada que emite: puede haberse emitido igual                                                         | Verificá con el `arcli ultimos` de `sugerencia` antes de reintentar ([detalle](#emisión-sin-confirmar))                                  |
+| `EMISSION_UNCERTAIN`               | facturación A, B y C (no `fe`)                                  | Falló la llamada que emite: puede haberse emitido igual                                                         | Verificá con el `arcli ultimos` de `sugerencia` antes de reintentar ([detalle](#emisión-sin-confirmar))                                  |
 | `TRANSIENT_ERROR`                  | todos los que usan ARCA                                         | WSAA o ARCA informan un estado pasajero (ticket vigente, transacción activa)                                    | Esperá unos segundos y reintentá sin cambiar nada                                                                                        |
 | `UNEXPECTED_ERROR`                 | todos                                                           | Error sin código propio: red, login en WSAA (certificado vencido o no autorizado), respuesta inesperada de ARCA | Leé `error`; si es de red o de ARCA, reintentá más tarde                                                                                 |
 | `ARCA_UNAVAILABLE`                 | `estado`                                                        | ARCA no respondió a la consulta de estado                                                                       | Reintentá en unos minutos; si persiste, ARCA está caído                                                                                  |
@@ -828,7 +829,7 @@ Cuando el error viene de Zod o de validación de entrada:
       "ruta": ["montoTotal"]
     }
   ],
-  "error": "Hay parametros invalidos o incompletos en la entrada.",
+  "error": "Hay parámetros inválidos o incompletos en la entrada.",
   "sugerencia": null
 }
 ```
@@ -876,14 +877,14 @@ Con el certificado del entorno vencido, los comandos que van a ARCA cortan antes
 {
   "codigo": "CERTIFICATE_EXPIRED",
   "detalles": { "entorno": "produccion", "vencimiento": "20/11/2026" },
-  "error": "El certificado de produccion venció el 20/11/2026: ARCA no lo acepta.",
+  "error": "El certificado de producción venció el 20/11/2026: ARCA no lo acepta.",
   "sugerencia": "Generá uno nuevo siguiendo la guía y cargalo con \"arcli config establecer cert.produccion <ruta>\": https://github.com/LcsGrz/arcli/blob/main/docs/obtencion-certificados.md"
 }
 ```
 
 ### Emisión sin confirmar
 
-Si falla la llamada que emite en ARCA (red, timeout, transacción activa), no se sabe si el comprobante quedó autorizado: pudo emitirse y perderse la respuesta. **No reintentes sin verificar**, porque se duplicaría.
+Si falla la llamada que emite en ARCA (red, timeout, transacción activa), no se sabe si el comprobante quedó autorizado: pudo emitirse y perderse la respuesta. **No reintentes sin verificar**, porque se duplicaría. Por ahora vale para A, B y C: un fallo al emitir `fe` sale como error común.
 
 Los pasos previos no cuentan: si falla el login en WSAA (por ejemplo, un certificado no autorizado; uno vencido corta antes, con [`CERTIFICATE_EXPIRED`](#certificado-vencido)) o el pedido del último número, no se envió nada y el error sale como `UNEXPECTED_ERROR` o `TRANSIENT_ERROR`.
 
@@ -891,8 +892,8 @@ Los pasos previos no cuentan: si falla el login en WSAA (por ejemplo, un certifi
 {
   "codigo": "EMISSION_UNCERTAIN",
   "detalles": { "causa": "socket hang up" },
-  "error": "No se pudo confirmar la emision: socket hang up",
-  "sugerencia": "Puede haberse emitido igual. Antes de reintentar, verifique con \"arcli ultimos fc --pv 3\": si figura, ya esta emitido y no hay que repetirlo."
+  "error": "No se pudo confirmar la emisión: socket hang up",
+  "sugerencia": "Puede haberse emitido igual. Antes de reintentar, verificá con \"arcli ultimos fc --pv 3\": si figura, ya esta emitido y no hay que repetirlo."
 }
 ```
 
@@ -905,7 +906,7 @@ En un lote, el mismo caso sale como `BATCH_EMISSION_ERROR` con `detalles.sinConf
   "codigo": "TRANSIENT_ERROR",
   "detalles": null,
   "error": "ns1:coe.alreadyAuthenticated",
-  "sugerencia": "WSAA informo que ya existe un TA valido para este servicio. Espere unos segundos y vuelva a intentar sin cambiar la solicitud."
+  "sugerencia": "WSAA informo que ya existe un TA válido para este servicio. Esperá unos segundos y volvé a intentar sin cambiar el payload."
 }
 ```
 

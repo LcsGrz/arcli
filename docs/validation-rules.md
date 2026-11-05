@@ -20,6 +20,9 @@ La idea de esta guía es separar esas tres capas para que sea más fácil entend
 - `--iva-receptor`, `--ir` y cualquier `--ir-*`
 - `--ac` y `--at`
 - `--misma-moneda` y `--cotizacion-moneda` / `--cm`
+- `--condicion-venta` / `--cv` y `--sin-condicion-venta`
+- `--exportar-pdf` y `--sin-pdf`
+- en el JSON de `--cargar`, `"emitir": true` y `"previsualizar": true` a la vez
 - combinaciones múltiples de identidad del receptor:
   - `--cuit`
   - `--cuil`
@@ -37,6 +40,7 @@ La idea de esta guía es separar esas tres capas para que sea más fácil entend
 - `--cotizacion-moneda` y `--cm` deben ser números positivos
 - Todo CUIT o CUIL debe tener 11 dígitos y un dígito verificador válido: un número mal tipeado da error antes de llegar a ARCA
 - `--dni` debe tener 7 u 8 dígitos
+- `--condicion-venta` / `--cv` (y `condicionVenta` en el JSON o la config) acepta hasta 100 caracteres
 - En el JSON de `--cargar`, una clave desconocida o un tipo incorrecto (`"puntoVenta": "3"`) es error: ver [claves desconocidas y tipos](input-output.md#claves-desconocidas-y-tipos)
 
 ### Fechas aceptadas
@@ -154,6 +158,7 @@ No aplica a:
 
 - `factura`
 - `factura-credito-electronica`
+- `recibo` (`rc`)
 
 Para notas, ARCLI acepta un comprobante asociado **o** un período asociado (`PeriodoAsoc`), pero no ambos (10197).
 
@@ -235,7 +240,7 @@ WSFEX tiene su propio contrato: las reglas de concepto, fecha de servicio, IVA r
 | Permisos           | `--permiso` requiere `--permiso-existente` y `--permiso-existente` sin permisos es error. Se deduplican y solo aplican a `--tipo-expo 1`: en `2` (servicios) y `4` (otros) ARCA exige `Permiso_existente` vacío (error 1550), así que ARCLI manda el campo en `""` y rechaza los permisos. Sin permisos el campo `Permisos` no se envía: ARCA lo rechaza (error 1720) cuando `Permiso_existente` es `N`                                                                               |
 | Numeración         | `--numero` es obligatorio: WSFEX numera por punto de venta y tipo, y `@arcasdk/core` todavía no deja consultar el último. `--numero`, `--id-solicitud` y `--punto-venta` son enteros positivos (máximo 99.999.999); sin `--id-solicitud` sale del último de WSFEX más uno                                                                                                                                                                                                             |
 | Fecha              | La del comprobante no puede ser futura; `--fecha-pago` por defecto es la del comprobante                                                                                                                                                                                                                                                                                                                                                                                              |
-| Moneda             | Por defecto `DOL` (dólares); `--moneda` acepta `ARS`/`PES` y el resto de la tabla de monedas de WSFEX (`DOL`, `PES`, `060`…). La cotización que falta sale de `FEXGetPARAM_MON_CON_COTIZACION`, la cotización de aduana de WSFEX, pedida con la fecha del comprobante —por defecto hoy— en `yyyymmdd` (`Fecha_CTZ`). ARCA publica la del día una vez por día: hasta entonces se usa la última publicada y la vista previa avisa de qué día es. Para fijar otra, `--cotizacion-moneda` |
+| Moneda             | Por defecto `DOL` (dólares); `--moneda` acepta `ARS`/`PES` y el resto de la tabla de monedas de WSFEX (`DOL`, `PES`, `060`…). La cotización que falta sale de `FEXGetPARAM_MON_CON_COTIZACION`, la cotización de aduana de WSFEX, pedida con la fecha del comprobante —por defecto hoy— en `yyyymmdd` (`Fecha_CTZ`). ARCA publica la del día una vez por día: hasta entonces se usa la última publicada y la vista previa avisa de qué día es. Para fijar otra, `--cotizacion-moneda`, que tiene que ser mayor a 1. En pesos la cotización es 1 y `--misma-moneda` no aplica |
 | Defaults de config | Aplican `puntoVenta` y `exportacion.actividad`. `moneda` y `cotizacion` no: la exportación va en `DOL` salvo `--moneda`, con la cotización de aduana de ARCA salvo `--cotizacion-moneda`. Los de concepto, IVA, CBU y padrón tampoco                                                                                                                                                                                                                                                  |
 
 ### IVA automático

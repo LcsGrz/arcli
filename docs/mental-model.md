@@ -43,7 +43,7 @@ Esa solicitud es la que ves en:
 
 Si usás `--emitir`, ARCLI llama a ARCA.
 
-Si usás `--previsualizar`, no llama a ARCA: solo arma y muestra la solicitud. Sin ninguno de los dos flags, en una terminal muestra la vista previa y pregunta si emitir; con `--json` o sin terminal no emite.
+Si usás `--previsualizar`, no emite: arma y muestra la solicitud. Puede consultar a ARCA para completarla (padrón del receptor, cotización oficial con `--misma-moneda`, tablas y cotización de WSFEX en la `E`), pero nunca pide un CAE. Sin ninguno de los dos flags, en una terminal muestra la vista previa y pregunta si emitir; con `--json` o sin terminal no emite.
 
 ### 5. Output
 

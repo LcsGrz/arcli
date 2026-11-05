@@ -37,7 +37,7 @@ WSFEX emite solo la factura `E`: las notas de crédito y débito de exportación
 
 ### Recibo C con la plantilla de factura
 
-El PDF del Recibo C (`rc`) usa la plantilla de factura con el título `RECIBO C`, no el formato de recibo del portal de ARCA (sin "Recibí(mos) la suma de" ni la condición de venta).
+El PDF del Recibo C (`rc`) usa la plantilla de factura con el título `RECIBO C`, no el formato de recibo del portal de ARCA (sin "Recibí(mos) la suma de").
 
 ### PDF solo al emitir
 

@@ -1,7 +1,8 @@
 # arcli
 
 > CLI de Node/TypeScript para emitir y previsualizar comprobantes ARCA (ex AFIP) desde
-> terminal: facturas, notas de crédito/débito (papel y electrónicas), en testing o producción.
+> terminal: facturas, notas de crédito/débito (comunes y FCE), Recibo C y Factura de exportación E,
+> en testing o producción.
 > Salida humana por defecto, `--json` para scripts/agentes. Repo: https://github.com/LcsGrz/arcli
 
 Este archivo es una referencia densa para que un agente con acceso a shell pueda construir
@@ -19,9 +20,10 @@ arcli config establecer puntoVenta <numero>
 arcli config revisar          # valida que este todo listo antes de emitir
 ```
 
-Sin `cuit`, `cert.<entorno>`, `key.<entorno>` y `puntoVenta` configurados (o pasados por
-flag), cualquier comando de facturación falla con `ConfigurationError` antes de contactar
-ARCA. `--testing` es el entorno por defecto; `--produccion` cambia a real.
+En lugar de `cert.*`/`key.*` a mano, `arcli certificado generar` y `arcli certificado importar` arman la
+clave y configuran las dos rutas (ver "Otros comandos"). Sin `cuit`, `cert.<entorno>` y `key.<entorno>` en la
+config, ni punto de venta (`puntoVenta` o `--pv`), la facturación falla con `CONFIGURATION_ERROR` antes de
+contactar ARCA. El entorno sale de `config.entorno` (`testing` por defecto); `--testing`/`--produccion` lo fijan.
 
 ## Salida humana
 
@@ -74,8 +76,6 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
 - Opcionales: `--id-impositivo <texto>`, `--cuit-pais <n>` (sin flag sale del país de destino; si ARCA no
   publica un CUIT para ese país, el flag es obligatorio),
   `--tipo-expo <1|2|4>` (`2` servicios por defecto, `1` bienes, `4` otros).
-  `solicitud` no informa `Cmps_asoc` ni `Opcionales` mientras no los haya: ARCA rechaza los bloques
-  vacíos (error 1820 el primero).
 - `--incoterm <codigo>`,
   `--incoterms-desc <texto>`, `--idioma <codigo>` (`1` español por defecto, `2` inglés, `3` portugués),
   `--forma-pago <texto>` (por defecto `Transferencia Internacional`), `--permiso <id>` (repetible, requiere
@@ -112,10 +112,9 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
 - Fechas: `-f, --fecha <fecha>` acepta formato argentino día-primero: `D`, `DD`, `D/M`, `DD/MM`, `D-M-YY`, `DD-MM-YYYY` (con `-` o `/`); sin mes usa el actual; sin año, el de la fecha más cercana a hoy (en enero, `1/12` es diciembre pasado). También `--servicio-desde`/`--sd` y `--servicio-hasta`/`--sh`. `-d, --dia <n>` está deprecado (avisa): fija solo el vencimiento en el próximo día `n`; usá `--vencimiento` o `--vto`. "Hoy" es siempre la fecha argentina, aunque el equipo esté en UTC. `--vencimiento <fecha>` (alias `--vto`) fija `FchVtoPago` aparte del período de servicio (servicios y facturas FCE; no en productos ni NC/ND FCE). Ventana de `--fecha` respecto de hoy: productos ±5 días, servicios ±10, FCE −5/+1; en productos y FCE una fecha futura tiene que caer en el mes actual.
 - Comprobante asociado (obligatorio en notas de crédito/débito): `--ac <shortcut>` (una factura, ej. `fc`, o en notas C un recibo, `rc`), `--apv <n>` (punto de venta, alias `--asociado-punto-venta`), `--ar <n>` (número), `--acuit <n>`, `--at <n>` (tipo ARCA, alternativa a `--ac`; no combinar ambos), `--afecha <fecha>` (fecha del asociado, opcional salvo en NC/ND FCE). En notas comunes, en lugar del bloque `--ac` se puede usar un período: `--periodo-desde <fecha>` y `--periodo-hasta <fecha>` (alias `--pd`/`--ph`); no se combinan con `--ac`/`--at`, no aplican a FCE y el período no puede terminar después de la nota.
 - Crédito electrónico (FCE): las facturas `fcea/fceb/fcec` requieren `--cbu <22 dígitos>` (o `arcli config establecer cbu ...`); opcionales `--alias <alias>` y `--transferencia sca|adc` (default `sca`). Las NC/ND FCE (`ncea`…`ndec`) requieren `--afecha`, aceptan `--anulacion`, toman `--acuit` del CUIT emisor si se omite y no aceptan `--cbu`/`--alias`/`--transferencia`. Fuera de FCE esos flags dan error.
-- Padrón: `arcli padron <cuit> [--json]` consulta en ARCA (`ws_sr_constancia_inscripcion`) nombre, domicilio fiscal, `condicionIva` (`responsable-inscripto`, `responsable-monotributo`, `sujeto-exento` o `null` si no se puede deducir), impuestos y actividades. CUIT inexistente: error `TAXPAYER_NOT_FOUND`. Al facturar con `--cuit` y sin `--ir`/`ivaReceptor`, se usa la condición del padrón antes que el `ivaReceptor` de la config; si el padrón no responde o no la informa, se usa la config con un aviso en `avisos`, y sin config es `INPUT_VALIDATION_ERROR`. Se desactiva con `arcli config establecer consultarPadron false`. Para no depender del padrón, pasá `--ir` explícito.
-- Autocompletado con Tab (para personas; un agente no lo necesita): `arcli completado instalar [shell]` lo agrega al archivo de inicio del shell, `arcli completado desinstalar [shell]` lo saca, `arcli completado` dice si está instalado y `arcli completado <bash|zsh|fish>` imprime el script. Con `--json`: `{ cambio, instalado, ruta, shell }`.
-- Régimen FCE: `arcli fce-obligado <cuit> [--fecha <fecha>] [--json]` consulta en ARCA (`wsfecred`) si el receptor está obligado a recibir FCE y desde qué monto. Con `arcli config establecer verificarFce true`, cada factura con CUIT hace esa consulta y devuelve avisos en `avisos` (JSON) sin bloquear. Requiere autorizar `wsfecred` en ARCA además de `wsfe`.
-- Ejecución: `--previsualizar` (solo arma y muestra la solicitud) vs `--emitir` (real contra ARCA) — son mutuamente excluyentes. El entorno sale de `config.entorno` (`testing` por defecto) salvo `--testing`/`--produccion`. Sin `--emitir` ni `--previsualizar` decide `config.emitir` (o `"emitir"` del JSON); si tampoco hay, en una terminal pregunta y con `--json` o sin TTY no emite. `--produccion --emitir` emite de verdad sin confirmación adicional, y lo mismo pasa sin flags si la config tiene `entorno produccion` y `emitir true`. Para no depender de la config, pasá siempre `--testing` o `--produccion` y `--emitir` o `--previsualizar` explícitos.
+- Padrón: al facturar con `--cuit` y sin `--ir`/`ivaReceptor`, se usa la condición IVA del padrón de ARCA antes que el `ivaReceptor` de la config; si el padrón no responde o no la informa, se usa la config con un aviso en `avisos`, y sin config es `INPUT_VALIDATION_ERROR`. Se desactiva con `arcli config establecer consultarPadron false`. Para no depender del padrón, pasá `--ir` explícito.
+- Régimen FCE al facturar: con `arcli config establecer verificarFce true`, cada factura con CUIT consulta si el receptor está obligado a recibir FCE y devuelve avisos en `avisos` (JSON) sin bloquear.
+- Ejecución: `--previsualizar` (solo arma y muestra la solicitud) vs `--emitir` (real contra ARCA), mutuamente excluyentes. `--produccion --emitir` emite de verdad sin confirmación adicional. Qué pasa sin ninguno de los dos: ver "Modo no interactivo".
 - Salida: `--json` (estructurada, para scripts/agentes — desactiva el aviso de nueva versión), `--bruto` (incluye la respuesta cruda de ARCA). `--bruto` solo existe en los comandos de facturación; en `padron`, `fce-obligado`, `ultimos`, `consultar`, `parametros` y `estado` se ignora con un aviso en stderr. En todos los comandos, sin `--json` decide la clave de config `json`.
 - `--cargar <path.json>`: carga uno o un array de comprobantes desde un JSON en vez de flags (ver forma abajo). Los flags pisan lo que venga del archivo.
 - PDF: `--exportar-pdf` (alias `--pdf`) genera el PDF con QR después de emitir; `--sin-pdf` no lo genera; sin flag decide `config pdf` (`preguntar` por defecto, que sin TTY o con `--json` no genera). Datos que solo van en el PDF (ARCA no los recibe): `--descripcion <texto>`, `--condicion-venta <tipo>` (alias `--cv`; `contado`, `tarjeta-debito`, `tarjeta-credito`, `cuenta-corriente`, `cheque`, `transferencia`, `otros-medios-electronicos`, `otra` o un texto libre que se imprime tal cual; JSON `condicionVenta`; default en la config `condicionVenta`), `--sin-condicion-venta` (o JSON `condicionVenta: null`) para omitir ese default, `--receptor-nombre <texto>`, `--receptor-domicilio <texto>`. Requiere el plugin (`arcli pdf instalar`, ~160 MB; desde un agente instalarlo antes, porque sin TTY nunca se descarga solo) y `emisor.razonSocial`, `emisor.domicilio`, `emisor.inicioActividades` en la config. Detalle: https://github.com/LcsGrz/arcli/blob/main/docs/pdf.md.
@@ -142,7 +141,7 @@ explícita y no depender de la config ni del prompt.
   "puntoVenta": 3,
   "codigoMoneda": "ARS",
   "cotizacionMoneda": 1,
-  "dia": 10,
+  "vencimientoPago": "10/11",
   "previsualizar": true,
   "pdf": true,
   "descripcion": "Servicios del mes",
@@ -175,6 +174,7 @@ Una clave desconocida (`montototal`, `vencimiento`, `moneda`) o un tipo incorrec
   "observaciones": ["..."],
   "observacion": "string | null",
   "numero": "number (número emitido) | null (previsualización)",
+  "avisos": ["texto: padrón, régimen FCE, certificado por vencer, flags salteados…"],
   "solicitud": { "...": "payload enviado a ARCA; si se emitió, con CbteDesde/CbteHasta" },
   "previsualizacion": true,
   "sugerencias": ["texto en español sugiriendo como resolver errores comunes de ARCA"],
@@ -183,10 +183,8 @@ Una clave desconocida (`montototal`, `vencimiento`, `moneda`) o un tipo incorrec
 ```
 
 En la factura E (`fe`) el objeto agrega `exportacion` (`cliente`, `destino`, `domicilioCliente`,
-`incoterm`, `items`, `permisos`, `tipoExpo`) y `solicitud` es el `Cmp` de WSFEX con los nombres de ARCA
-(`Dst_cmp`, `Moneda_Id`, `Items.Item`…). `solicitud` no lleva `Permisos` cuando no hay permisos de
-embarque: ARCA rechaza ese campo (error 1720) si `Permiso_existente` es `N`, y lo exige vacío en los
-tipos `2` (servicios) y `4` (otros), donde tampoco admite permisos (error 1550).
+`incoterm`, `items`, `permisos`, `tipoExpo`), no trae `numero` (está en `solicitud.Cbte_nro`) y `solicitud`
+es el `Cmp` de WSFEX con los nombres de ARCA (`Dst_cmp`, `Moneda_Id`, `Items.Item`…).
 
 `pdf` aparece solo si se intentó generar el PDF. Si falló es `{ "error": { "codigo", "mensaje", "sugerencia" } }`
 (`PDF_PLUGIN_MISSING`, `PDF_PLUGIN_INSTALL_ERROR`, `PDF_ISSUER_INCOMPLETE`, `PDF_GENERATION_ERROR`) y el exit code
@@ -208,14 +206,17 @@ Sin `--json` (ni `json=true` en la config): panel de texto en stderr. Con `--jso
 `codigo` es `CONFIGURATION_ERROR`, `INPUT_VALIDATION_ERROR`, `EMISSION_UNCERTAIN` (falló la llamada
 que emite, no el login ni el pedido del último número: puede haberse emitido igual; antes de reintentar, verificar con el `arcli ultimos <tipo> --pv <n>`
 que viene en `sugerencia`), `TRANSIENT_ERROR` (consultas: reintentar), `ARCA_LAST_VOUCHER_ERROR` (facturación o `ultimos`: ARCA rechazó el pedido del último número, por ejemplo con un punto de venta no habilitado; no se emitió nada), `CERTIFICATE_EXPIRED` (el certificado del entorno venció: se corta antes
-de ARCA, no se envió nada; `detalles.entorno` y `detalles.vencimiento`, la guía en `sugerencia`), `UNEXPECTED_ERROR`, `VOUCHER_NOT_FOUND` (`consultar`), o en un lote
+de ARCA, no se envió nada; `detalles.entorno` y `detalles.vencimiento`, la guía en `sugerencia`; también en `certificado importar` si el `.crt` ya venció), `UNEXPECTED_ERROR`, `VOUCHER_NOT_FOUND` (`consultar`), o en un lote
 (`--cargar` con un array, aunque tenga un solo elemento) `BATCH_VALIDATION_ERROR` (no se emitió ninguno; `detalles.comprobantes` lista cada
 `{indice, error}`) y `BATCH_EMISSION_ERROR` (se cortó a mitad: los resultados ya procesados salen antes por
 stdout; si viene `detalles.sinConfirmar`, verificar ese índice con `arcli ultimos` antes de reintentarlo;
 después reintentar `detalles.sinProcesar`, nunca los ya emitidos). En consultas: `TAXPAYER_NOT_FOUND` (`padron`),
 `PADRON_SERVICE_NOT_AUTHORIZED` (`padron`; al facturar no corta, usa la config con un aviso), `FCE_SERVICE_NOT_AUTHORIZED`
 y `FCE_OBLIGATION_ERROR` (`fce-obligado`; con `verificarFce` al facturar salen como aviso), `ARCA_UNAVAILABLE` (`estado`),
-`ARCA_PARAMETERS_ERROR` (`parametros <tabla>`) y `ARCA_QUOTATION_ERROR` (`parametros cotizacion` o `--misma-moneda`).
+`ARCA_PARAMETERS_ERROR` (`parametros <tabla>`) y `ARCA_QUOTATION_ERROR` (`parametros cotizacion` o `--misma-moneda`). En `fe`:
+`WSFEX_SERVICE_NOT_AUTHORIZED` y `ARCA_EXPORT_ERROR` (WSFEX rechazó una consulta previa: tabla, ID de solicitud o cotización; no se emitió nada).
+`EMISSION_UNCERTAIN` todavía no aplica a `fe`: si falla la emisión de una E, verificá en ARCA antes de reintentar.
+Los errores de `arcli certificado` están en "Otros comandos".
 `PDF_PLUGIN_INSTALL_ERROR` sale de `arcli pdf instalar`. `sugerencia` está siempre: `null` si no hay nada que sugerir.
 Qué hacer con cada código: tabla "Códigos de error" de https://github.com/LcsGrz/arcli/blob/main/docs/input-output.md. Los errores de uso (opción desconocida, valor faltante, comando inexistente) también salen en este JSON como `INPUT_VALIDATION_ERROR`, con el mensaje de commander en `error`. El proceso termina con
 exit code `1` en cualquier error. Resumen: `0` aprobado (u observado), `1` error, `2` rechazado por ARCA.
@@ -244,16 +245,19 @@ por CUIT emisor, los de testing en `testing/<CUIT>/`, y nunca se pisa un PDF exi
 
 `config revisar` también avisa si un certificado ya venció o vence en menos de 30 días. Con `--json` devuelve
 `{ok, chequeos: [{categoria: "ok"|"warning"|"error", etiqueta, detalle}]}`; `ok: false` sale igual con exit code `0`.
-`arcli config --json` devuelve la config con las rutas enmascaradas (`cert`, `key` y `emisor` como objetos).
+`arcli config --json` devuelve la config con las rutas enmascaradas (`cert`, `key`, `emisor` y `exportacion` como objetos).
 Además, a menos de 30 días de vencer cualquiera de los certificados configurados (testing o producción, sin importar el entorno
 en uso), cada comando que va a ARCA avisa en stderr (nunca en stdout) y la facturación lo suma a `avisos` del JSON.
 
 ## Otros comandos
 
-- `arcli ultimos <tipo> [--cantidad N] [--pv N] [--json]`: últimos comprobantes emitidos (de 1 a 50; por defecto `config.comprobantesPorLista` o 15), del más nuevo al más viejo. `tipo` es el atajo (`fb`, `nca`…).
-- `arcli consultar <tipo> <numero> [--pv N] [--json]`: detalle de un comprobante emitido (CAE, vencimiento, importes, receptor). Si no existe, el error es `VOUCHER_NOT_FOUND`. Sirve para verificar después de emitir.
+- `arcli ultimos <tipo> [--cantidad N] [--pv N] [--json]`: últimos comprobantes emitidos (de 1 a 50; por defecto `config.comprobantesPorLista` o 15), del más nuevo al más viejo. `tipo` es el atajo (`fb`, `nca`, `rc`…); todavía no acepta `fe`.
+- `arcli consultar <tipo> <numero> [--pv N] [--json]`: detalle de un comprobante emitido (CAE, vencimiento, importes, receptor). Si no existe, el error es `VOUCHER_NOT_FOUND`. Sirve para verificar después de emitir. Todavía no acepta `fe`.
 - `arcli certificado generar [--testing|--produccion] [--alias <alias>] [--reemplazar] [--json]`: crea la clave privada y el CSR para subir a ARCA en `certificados/<CUIT>/` junto a la config (sin `openssl`). La clave queda pendiente: la activa sigue andando hasta importar. Con un pedido pendiente da `CERTIFICATE_REQUEST_PENDING`; `--reemplazar` lo descarta. El JSON trae `csr`, `pasos`, `rutaCsr` y `rutaClave`. Un agente nunca ve la clave fiscal: la persona sube el CSR y baja el `.crt` en ARCA.
 - `arcli certificado importar <archivo> [--testing|--produccion] [--reemplazar] [--json]`: valida el `.crt` de ARCA (X.509, CUIT, vencimiento, que corresponda a la clave del pedido), deduce el entorno del emisor, lo guarda y configura `cert.<entorno>`/`key.<entorno>`. Devuelve `{alias, cuit, entorno, reemplazado, rutaCertificado, rutaClave, vence}`. Si ya había otro certificado configurado, sin TTY o con `--json` hace falta `--reemplazar` (si no, `CERTIFICATE_REPLACE_CONFIRMATION`). Otros errores: `CERTIFICATE_INVALID`, `CERTIFICATE_CUIT_MISMATCH`, `CERTIFICATE_EXPIRED`, `CERTIFICATE_ENVIRONMENT_UNKNOWN`, `CERTIFICATE_KEY_MISMATCH`.
+- `arcli padron <cuit> [--json]`: consulta en ARCA (`ws_sr_constancia_inscripcion`) nombre, domicilio fiscal, `condicionIva` (`responsable-inscripto`, `responsable-monotributo`, `sujeto-exento` o `null` si no se puede deducir), impuestos y actividades. CUIT inexistente: error `TAXPAYER_NOT_FOUND`.
+- `arcli fce-obligado <cuit> [--fecha <fecha>] [--json]`: consulta en ARCA (`wsfecred`) si el receptor está obligado a recibir FCE y desde qué monto. Requiere autorizar `wsfecred` en ARCA además de `wsfe`.
+- `arcli completado [instalar|desinstalar] [shell]`: autocompletado con Tab para personas; un agente no lo necesita.
 - `arcli pdf [estado|instalar|desinstalar] [--json]`: plugin que genera los PDFs. `arcli pdf instalar` lo descarga sin preguntar (sirve en scripts).
 - `arcli estado [--json]`: si ARCA responde y si el punto de venta configurado está habilitado: `{entorno, latenciaMs, listo, puntoVenta: {estado, numero, tipoEmision}, servidores: {aplicacion, baseDeDatos, autenticacion}}`. `listo: true` = se puede emitir; `listo: false` sale igual con exit code `0`, así que hay que leer `listo`. En testing ARCA no informa puntos de venta (`puntoVenta.estado: "sin-datos"`). Si ARCA no responde: error `ARCA_UNAVAILABLE`.
 - `arcli parametros [tabla] [--json]`: tablas de ARCA vigentes: `puntos-venta`, `comprobantes`, `documentos`, `alicuotas`, `iva-receptor`, `monedas`, `conceptos`, `opcionales`, `tributos`. Sin tabla: `{tablas: [{tabla, descripcion}]}`; con tabla: `{entorno, tabla, valores: [{id, descripcion, detalle, vigenteHasta}]}`. `arcli parametros cotizacion USD` da la cotización oficial (`{cotizacion, entorno, fecha, moneda}`, con `moneda` en código ARCA: `DOL`).

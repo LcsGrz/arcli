@@ -59,7 +59,7 @@ arcli config establecer key.testing /ruta/a/la/clave.key
 arcli config revisar
 ```
 
-`arcli config revisar` verifica que el entorno activo esté listo para emitir. Todas las claves disponibles están en [Configuración](https://github.com/LcsGrz/arcli/blob/main/docs/configuration.md).
+`arcli config revisar` verifica que cada entorno (testing y producción) esté listo para emitir. Todas las claves disponibles están en [Configuración](https://github.com/LcsGrz/arcli/blob/main/docs/configuration.md).
 
 ## Uso
 

@@ -29,7 +29,7 @@ arcli config ruta
 
 Si el archivo no existe, `arcli config` lo crea automáticamente.
 
-`arcli config` muestra los datos agrupados en secciones: cuenta, certificados, al facturar, FCE, datos del emisor (PDF), PDF, y salida y listados. Son las mismas secciones, en el mismo orden, que "Modificar configuración" del [modo interactivo](modo-interactivo.md).
+`arcli config` muestra los datos agrupados en secciones: cuenta, certificados, al facturar, FCE, factura de exportación (E), datos del emisor (PDF), PDF, y salida y listados. Son las mismas secciones, en el mismo orden, que "Modificar configuración" del [modo interactivo](modo-interactivo.md).
 
 ## Claves soportadas
 
@@ -56,7 +56,7 @@ Si el archivo no existe, `arcli config` lo crea automáticamente.
 | `emitir`                      | boolean                         | `false`                | Emisión por defecto                                                                                                                                                                                                                             |
 | `ivaReceptor`                 | string                          | ninguno                | IVA receptor por defecto: uno de los valores de `--iva-receptor` (ver [referencia](cli-reference.md)), por ejemplo `consumidor-final`                                                                                                           |
 | `json`                        | boolean                         | `false`                | Salida JSON por defecto                                                                                                                                                                                                                         |
-| `moneda`                      | string                          | `ARS`                  | Moneda por defecto de A, B, C y FCE; `arcli fe` va en `DOL` salvo `--moneda`                                                                                                                                                                    |
+| `moneda`                      | string                          | `PES`                  | Moneda por defecto de A, B, C y FCE, en código de 3 letras: `PES` o `ARS` (es la misma) para pesos, `USD` o `DOL` para dólares. `arcli fe` va en `DOL` salvo `--moneda`                                                                                                                                                                    |
 | `bruto`                       | boolean                         | `false`                | Respuesta bruta por defecto                                                                                                                                                                                                                     |
 | `puntoVenta`                  | number                          | ninguno                | Punto de venta por defecto                                                                                                                                                                                                                      |
 | `comprobantesPorLista`        | number                          | `15`                   | Cuántos comprobantes muestran `arcli ultimos` (si no pasás `--cantidad`) y las listas del modo interactivo, de 1 a 50                                                                                                                           |
@@ -64,7 +64,7 @@ Si el archivo no existe, `arcli config` lo crea automáticamente.
 | `pdf`                         | `siempre \| preguntar \| nunca` | `preguntar`            | Cuándo generar el PDF del comprobante emitido. Ver [PDF](pdf.md)                                                                                                                                                                                |
 | `pdfCarpeta`                  | string                          | `~/arcli/comprobantes` | Carpeta donde se guardan los PDFs                                                                                                                                                                                                               |
 | `pdfNavegador`                | string                          | automático             | Ruta a Chrome, Chromium o Edge para generar los PDFs                                                                                                                                                                                            |
-| `condicionVenta`              | string                          | ninguno                | Condición de venta del PDF de A, B y C si el comprobante no la sobrescribe; `--sin-condicion-venta` o JSON `null` la omiten para ese comprobante. Ver [PDF](pdf.md#del-comprobante-flags-opcionales)                                            |
+| `condicionVenta`              | string                          | ninguno                | Condición de venta del PDF de A, B y C si el comprobante no la sobrescribe, hasta 100 caracteres; `--sin-condicion-venta` o JSON `null` la omiten para ese comprobante. Ver [PDF](pdf.md#del-comprobante-flags-opcionales)                                            |
 | `emisor.razonSocial`          | string                          | ninguno                | Nombre o razón social del emisor (solo PDF)                                                                                                                                                                                                     |
 | `emisor.domicilio`            | string                          | ninguno                | Domicilio comercial del emisor (solo PDF)                                                                                                                                                                                                       |
 | `emisor.inicioActividades`    | fecha                           | ninguno                | Inicio de actividades, con año: `1/03/2020` (solo PDF)                                                                                                                                                                                          |
@@ -185,10 +185,12 @@ arcli config eliminar puntoVenta
 
 ### Validación al guardar credenciales
 
-Cuando se guarda `cert.*` o `key.*`, ARCLI valida:
+Cuando se guarda `cert.*`, `key.*`, `exportacion.cert.*` o `exportacion.key.*`, ARCLI valida:
 
 - que la ruta exista
 - que el archivo tenga formato PEM válido
+
+La ruta se guarda absoluta, así que podés pasarla relativa a la carpeta donde estás.
 
 ¿Todavía no tenés el certificado y la clave? Ver
 [Cómo obtener los certificados de ARCA](obtencion-certificados.md).
@@ -200,7 +202,7 @@ No son claves de config. Las de color, `FORCE_HYPERLINK` y `ARCLI_ASCII` cambian
 | Variable                    | Efecto                                                                                                                                                     |
 | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `NO_COLOR`                  | Desactiva los colores                                                                                                                                      |
-| `FORCE_COLOR=1`             | Fuerza los colores aunque la salida no sea una terminal (por defecto, con la salida redirigida no hay colores)                                             |
+| `FORCE_COLOR`               | `1` fuerza los colores aunque la salida no sea una terminal (por defecto, con la salida redirigida no hay colores); `0` o `false` los apaga                 |
 | `ARCLI_ASCII=1`             | Dibuja los paneles con ASCII puro (`+`, `-`, `\|`), para terminales o fuentes que no muestran los caracteres de caja Unicode                               |
 | `FORCE_HYPERLINK=0`         | Apaga los links clickeables en las rutas (con `1` los fuerza). Por defecto se usan en terminales que los soportan, como VS Code, iTerm2 o Windows Terminal |
 | `NO_UPDATE_NOTIFIER`        | Desactiva el aviso de nueva versión, también en el modo interactivo. Tampoco aparece con `CI`, con `--json` ni si stderr no es una terminal                |

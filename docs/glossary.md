@@ -22,6 +22,14 @@ Ticket de Acceso. Credencial temporal que devuelve WSAA y que habilita a operar 
 
 Base de datos de ARCA con la situación fiscal de cada CUIT. Un comprobante puede aprobarse pero igual traer una observación de padrón (por ejemplo `10217` o `10017`) según la condición del receptor, sin que eso implique un error del CLI.
 
+### wsfe / wsfex / wsfecred
+
+Servicios web de ARCA que usa ARCLI: `wsfe` emite las facturas, notas y recibos A, B y C; `wsfex`, la factura de exportación E; `wsfecred` consulta el régimen FCE del receptor. Cada uno se autoriza aparte en ARCA. Ver [Qué servicios autorizar](obtencion-certificados.md#qué-servicios-autorizar).
+
+### CSR y alias
+
+El CSR (pedido de firma de certificado) es el archivo que subís a ARCA para que te devuelva el certificado; `arcli certificado generar` lo arma junto con la clave privada. El alias es el nombre con el que el certificado aparece en ARCA (por defecto `arcli`).
+
 ## Identidad y comprobante
 
 ### CUIT / CUIL / DNI
@@ -71,6 +79,14 @@ Código numérico con el que ARCA identifica cada tipo de comprobante (Factura A
 ### Factura de crédito electrónica (FCE)
 
 Variante electrónica de factura pensada para el régimen de facturación de crédito PyME. Usa la misma estructura que una factura común, con un tipo ARCA distinto y datos de cobro adicionales: CBU del emisor, modalidad de transferencia (`SCA` o `ADC`) y vencimiento de pago. Sus notas de crédito y débito llevan el código de anulación y la fecha de la factura asociada. Ver [Crédito electrónico (FCE)](validation-rules.md#crédito-electrónico-fce).
+
+### Recibo C
+
+Comprobante tipo ARCA `15` (`arcli rc`) para documentar un cobro. Se arma como una Factura C: sin IVA discriminado y sin comprobante asociado. Ver [Recibo C](validation-rules.md#recibo-c).
+
+### Factura de exportación E
+
+Factura para clientes del exterior (`arcli fe`), que va por `wsfex` en vez de `wsfe`: no lleva concepto, IVA ni documento del receptor, y sí cliente, país de destino, items e incoterm. Ver [Factura de exportación (E)](validation-rules.md#factura-de-exportación-e).
 
 ## Números y respuesta
 
