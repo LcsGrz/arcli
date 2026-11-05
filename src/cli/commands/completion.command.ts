@@ -2,6 +2,7 @@ import type { Command } from 'commander';
 
 import { InputValidationError } from '../../lib/errors/app-error';
 import { billingIvaConditionSchema, IVA_RATE_ALIASES } from '../../modules/billing/billing.schemas';
+import { ISO_CURRENCY_ALIASES } from '../../modules/billing/currency-codes';
 import {
   getVoucherFamilyLetters,
   VOUCHER_FAMILIES,
@@ -49,8 +50,8 @@ const OPTION_VALUES: Readonly<Record<string, CompletionValues>> = {
   '--concepto': ['productos', 'servicios', 'productos-servicios'],
   '--ir': billingIvaConditionSchema.options,
   '--iva-receptor': billingIvaConditionSchema.options,
-  '--mda': ['ARS', 'USD'],
-  '--moneda': ['ARS', 'USD'],
+  '--mda': ISO_CURRENCY_ALIASES,
+  '--moneda': ISO_CURRENCY_ALIASES,
   '--transferencia': ['sca', 'adc'],
 };
 
@@ -61,7 +62,7 @@ const configValues: CompletionValues = ([key]) => CONFIG_FIELDS.find((field) => 
 const ARGUMENT_VALUES: Readonly<Record<string, CompletionValues>> = {
   clave: configPublicKeySchema.options,
   letra: VOUCHER_LETTERS,
-  moneda: ['USD', 'DOL'],
+  moneda: ISO_CURRENCY_ALIASES,
   shell: COMPLETION_SHELLS,
   tabla: [...PARAMETER_TABLE_NAMES, 'cotizacion'],
   tipo: VOUCHER_SHORTCUTS,

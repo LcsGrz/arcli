@@ -3,6 +3,7 @@ import type { IIva } from '@arcasdk/core/lib/domain/types/voucher.types';
 import { resolveIvaRateLabel } from '../billing/billing.amounts';
 import { formatIvaConditionLabel } from '../billing/billing.labels';
 import type { BillingExecutionResult } from '../billing/billing.types.internal';
+import { toIsoCurrencyCode } from '../billing/currency-codes';
 import { formatSaleCondition } from '../billing/sale-condition';
 import type { ExportExecutionResult } from '../export/export.types';
 
@@ -173,18 +174,15 @@ function resolveExportVoucherNumber(result: ExportExecutionResult): number {
   return number;
 }
 
-/**
- * WSFEX usa sus propios codigos de moneda (`DOL`, `060`), pero la E de Comprobantes en linea muestra la divisa con
- * el codigo ISO: "USD - Dólar Estadounidense". Las que no estan aca salen con el codigo de WSFEX.
- */
 /** El titulo que lleva la E de Comprobantes en linea, en lugar del "FACTURA" de la plantilla. */
 const EXPORT_VOUCHER_TITLE = 'FACTURA DE EXPORTACIÓN';
 
-const ISO_CURRENCY_CODES: Readonly<Record<string, string>> = { '012': 'BRL', '060': 'EUR', DOL: 'USD', PES: 'ARS' };
-
+/**
+ * WSFEX usa sus propios codigos de moneda (`DOL`, `060`), pero la E de Comprobantes en linea muestra la divisa con
+ * el codigo ISO: "USD - Dólar Estadounidense". Las que no tienen ISO salen con el codigo de WSFEX.
+ */
 function formatExportDivisa(result: ExportExecutionResult): string {
-  const { Moneda_Id: code } = result.payload;
-  const isoCode = ISO_CURRENCY_CODES[code.trim().toUpperCase()] ?? code;
+  const isoCode = toIsoCurrencyCode(result.payload.Moneda_Id);
 
   return result.display.currencyName ? `${isoCode} - ${result.display.currencyName}` : isoCode;
 }
