@@ -284,7 +284,7 @@ arcli fc ayuda
 - **Severidad:** crítico
 - **Síntoma:** "No se pudo confirmar la emisión: …" al emitir.
 - **Causa:** falló la llamada que emite en ARCA (red, timeout, transacción activa). ARCA pudo haber autorizado el comprobante y perderse la respuesta. Si el error es del login en WSAA (certificado vencido o no autorizado) o del pedido del último número, no sale este error sino el original: ahí no se emitió nada y alcanza con corregir y reintentar.
-- **Solución:** **no reintentes todavía**. Corré el `arcli ultimos <tipo> --pv <n>` que muestra la sugerencia: si el comprobante figura, ya está emitido y no hay que repetirlo; si no figura, reintentá.
+- **Solución:** **no reintentes todavía**. Corré el `arcli ultimos <tipo> --pv <n>` que muestra la sugerencia: si el comprobante figura, ya está emitido y no hay que repetirlo; si no figura, reintentá. En la factura E (`fe`), reintentá con el mismo `--numero` e `--id-solicitud` que muestra la sugerencia: ARCA no autoriza dos veces el mismo número.
 - **Documentación relacionada:** [Entrada y salida](input-output.md#emisión-sin-confirmar)
 
 ### El receptor coincide con el emisor
