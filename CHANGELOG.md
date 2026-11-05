@@ -10,6 +10,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### Agregado
 
+- **Sugerencias para los rechazos de ARCA más comunes:** cuando ARCA rechaza o deja una observación con un código conocido (`10016`, `10152`, `10243`, `10174`, `10119`, `10038`, `10017`/`10217`, además del punto de venta `10005`/`11002`), `sugerencias` dice qué pasó, qué hacer y el link a la guía. Antes solo se reconocían unos pocos mensajes, y los códigos que venían en las observaciones no se miraban. La tabla completa está en [Troubleshooting](docs/troubleshooting.md#rechazos-de-arca-por-código). La forma del JSON no cambia.
 - **Todas las monedas de ARCA con su código ISO:** `--moneda`, `codigoMoneda` del JSON y la clave `moneda` de la config aceptan el código ISO o el de ARCA, indistinto: `ARS` o `PES`, `USD` o `DOL`, `UYU` o `011`, `CLP` o `033`, `GBP` o `021`, y así con todas las de la tabla de ARCA que tienen ISO. Antes solo se traducían `ARS`, `USD`, `EUR` y `BRL`, y otro ISO se mandaba tal cual y ARCA lo rechazaba. La vista previa y `consultar` muestran el nombre con el ISO (`Pesos uruguayos (UYU)`), el PDF de la `E` muestra el ISO de cualquier moneda y el autocompletado de `--moneda` ofrece todos los ISO. Un código que no está en la tabla se sigue mandando tal cual.
 
 ### Corregido

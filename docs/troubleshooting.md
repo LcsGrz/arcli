@@ -311,6 +311,25 @@ arcli fc ayuda
 - **Solución:** `arcli parametros puntos-venta --produccion` lista los habilitados para web service. Si el tuyo no está, creá uno nuevo con sistema de web services en "Administración de puntos de venta y domicilios" y guardalo con `arcli config establecer puntoVenta <numero>`.
 - **Documentación relacionada:** [Punto de venta para web service](obtencion-certificados.md#punto-de-venta-para-web-service)
 
+### Rechazos de ARCA por código
+
+Cuando ARCA rechaza o deja una observación con alguno de estos códigos, `sugerencias` del JSON (y el panel de la salida humana) dice qué pasó y qué hacer. Los que arcli valida antes de enviar (por ejemplo, la ventana de fechas o el IVA receptor por letra) casi nunca llegan a ARCA, pero si llegan, el texto es el mismo.
+
+| Código          | Qué pasó                                                                                                                                                          | Qué hacer                                                                                                       |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `10005`/`11002` | El punto de venta no está habilitado para web service                                                                                                             | Ver [ARCA rechaza por punto de venta](#arca-rechaza-por-punto-de-venta)                                         |
+| `10016`         | El número o la fecha no es el próximo a autorizar: otro comprobante del mismo tipo y punto de venta se emitió en el medio, o la fecha es anterior a la del último | Mirá el último con `arcli ultimos` y reintentá; si emitís varios, de a uno (ver [Limitaciones](limitations.md)) |
+| `10152`         | La fecha del comprobante está fuera del rango que acepta ARCA                                                                                                     | Ver [Fecha del comprobante fuera de rango](#fecha-del-comprobante-fuera-de-rango)                               |
+| `10243`         | El IVA receptor no es válido para la letra                                                                                                                        | Ver [El comprobante no admite el IVA receptor](#el-comprobante-no-admite-el-iva-receptor)                       |
+| `10174`         | El CBU de la factura FCE no está registrado a nombre del emisor                                                                                                   | Usá un CBU propio registrado en ARCA (`--cbu` o la clave `cbu`)                                                 |
+| `10119`         | La cotización está fuera del rango que acepta ARCA: entre el 2% y el 400% de la oficial                                                                           | Revisá `--cotizacion-moneda` contra `arcli parametros cotizacion <moneda>`                                      |
+| `10038`         | Con `--misma-moneda`, la cotización enviada ya no es la oficial exacta                                                                                            | Volvé a emitir: arcli consulta la oficial en ese momento                                                        |
+| `10017`/`10217` | Observación sobre la condición del receptor; el comprobante puede estar aprobado                                                                                  | Ver [Observaciones de padrón](#observaciones-de-padrón)                                                         |
+
+También se reconocen por el mensaje, sin código: receptor igual al emisor, `Transacción Activa`, CUIT receptor inexistente y detalle de IVA obligatorio. Si ARCA rechaza con otro código, `sugerencias` pide revisar `errores` y `observaciones`.
+
+- **Documentación relacionada:** [Reglas de validación](validation-rules.md), [Entrada y salida](input-output.md)
+
 ### Factura E: falta el número del comprobante
 
 - **Severidad:** siempre, en cada `E`

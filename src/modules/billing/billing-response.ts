@@ -1,14 +1,7 @@
 import type { CreateVoucherResultDto } from '@arcasdk/core/lib/application/dto/electronic-billing';
 
-import { POINT_OF_SALE_GUIDE_URL } from '../../lib/links';
-
+import { findArcaRejections, formatArcaRejection } from './arca-rejections';
 import type { BillingResponseSummary } from './billing.types.internal';
-
-/**
- * WSFEv1 10005: "El punto de venta informado debe estar dado de alta y ser del tipo RECE".
- * Es el rechazo de un punto de venta de "Factura en línea" (Comprobantes en linea).
- */
-const POINT_OF_SALE_NOT_RECE_CODE = 10005;
 
 export function createDryRunResponse(): BillingResponseSummary {
   return {
@@ -34,7 +27,7 @@ export function mapBillingResponse(response: CreateVoucherResultDto): BillingRes
   const resultado = detail?.Resultado ?? null;
   const suggestions = buildResponseSuggestions({
     errors,
-    observaciones,
+    observations: detail?.Observaciones?.Obs ?? [],
     resultado,
   });
 
@@ -57,49 +50,32 @@ export function mapBillingResponse(response: CreateVoucherResultDto): BillingRes
   };
 }
 
+function readCode(item: unknown): number | undefined {
+  const code = typeof item === 'object' && item && 'Code' in item ? Number((item as { Code?: number }).Code) : NaN;
+
+  return Number.isInteger(code) ? code : undefined;
+}
+
+function readMessage(item: unknown): string {
+  return typeof item === 'object' && item && 'Msg' in item ? String((item as { Msg?: string }).Msg ?? '') : '';
+}
+
+/** Lo que sugiere la tabla de rechazos (`arca-rejections.ts`) para los codigos y mensajes de errores y observaciones. */
 function buildResponseSuggestions(options: {
-  readonly errors: Array<{ readonly Code?: number; readonly Msg?: string } | unknown>;
-  readonly observaciones: string[];
+  readonly errors: readonly unknown[];
+  readonly observations: readonly unknown[];
   readonly resultado: string | null;
 }): string[] {
-  const messages = [
-    ...options.observaciones,
-    ...options.errors
-      .map((error) =>
-        typeof error === 'object' && error && 'Msg' in error ? String((error as { Msg?: string }).Msg ?? '') : '',
-      )
-      .filter(Boolean),
-  ].join(' | ');
-  const codes = options.errors
-    .map((error) =>
-      typeof error === 'object' && error && 'Code' in error ? Number((error as { Code?: number }).Code) : NaN,
-    )
-    .filter((code) => Number.isInteger(code));
-  const suggestions = new Set<string>();
+  const items = [...options.errors, ...options.observations];
+  const codes = items.map(readCode).filter((code): code is number => code !== undefined);
+  const messages = items.map(readMessage).filter(Boolean).join(' | ');
+  const suggestions = findArcaRejections(codes, messages).map(formatArcaRejection);
 
-  if (/transacci[oó]n activa/i.test(messages) || /error interno de base de datos/i.test(messages)) {
-    suggestions.add('ARCA devolvió un error transitorio. Esperá unos segundos y volvé a intentar la emisión.');
+  if (options.resultado === 'R' && suggestions.length === 0) {
+    suggestions.push('Revisá observaciones y errores de ARCA antes de volver a emitir.');
   }
 
-  if (/cuit receptora.*no existe/i.test(messages)) {
-    suggestions.add('Revisá el CUIT del receptor o emití con un receptor válido del padrón para testing.');
-  }
-
-  if (/objeto IVA es obligatorio/i.test(messages)) {
-    suggestions.add('Revisá IVA receptor y el calculo de IVA del comprobante antes de reintentar.');
-  }
-
-  if (codes.includes(POINT_OF_SALE_NOT_RECE_CODE) || /punto de venta.*tipo RECE/i.test(messages)) {
-    suggestions.add(
-      `El punto de venta no está habilitado para web service (los de "Factura en línea" no sirven). Revisá los habilitados con arcli parametros puntos-venta o creá uno para web service: ${POINT_OF_SALE_GUIDE_URL}`,
-    );
-  }
-
-  if (options.resultado === 'R' && suggestions.size === 0) {
-    suggestions.add('Revisá observaciones y errores de ARCA antes de volver a emitir.');
-  }
-
-  return [...suggestions];
+  return suggestions;
 }
 
 function resolveBillingStatus(options: {
