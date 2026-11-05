@@ -18,6 +18,7 @@ import {
 } from '../modules/examples/examples';
 import { EXPORT_VOUCHER_KIND } from '../modules/export/export.types';
 import { CONFIG_FIELDS } from '../modules/interactive/config-fields';
+import { resolveUpdateCommand } from '../modules/update-check/package-manager';
 import { renderLogo } from '../ui';
 
 import { CLI_VERSION } from './version';
@@ -124,7 +125,7 @@ function createProgramMore(): string {
       'Ejemplos listos para copiar: arcli ejemplos',
       'Autocompletado con Tab de comandos y flags: arcli completado instalar',
       'Para scripts, usá --json: la salida en texto puede cambiar.',
-      'Repositorio: https://github.com/LcsGrz/arcli · Actualizar: npm install -g arcli@latest',
+      `Repositorio: https://github.com/LcsGrz/arcli · Actualizar: ${resolveUpdateCommand()}`,
     ]),
   );
 }

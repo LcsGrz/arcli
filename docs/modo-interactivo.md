@@ -52,7 +52,7 @@ La consulta es la misma de `arcli estado` sin el punto de venta (no pide autenti
 
 Al abrir el asistente se consulta npm por una versión nueva (no aparece con `CI` ni `NO_UPDATE_NOTIFIER`). Si hay, **Actualizar a la versión X.Y.Z** es la primera opción del menú, en naranja. Adentro muestra tu versión, la nueva y las novedades de cada versión intermedia (de las 3 más nuevas, sacadas del [CHANGELOG](../CHANGELOG.md)), y el comando para actualizar.
 
-- **Cerrar para actualizar**: copia `npm install -g arcli@latest` al portapapeles y cierra el asistente, para que lo pegues y lo ejecutes. ARCLI no se actualiza solo porque no puede reemplazarse mientras corre, y porque no sabe si lo instalaste con npm, yarn o pnpm. Si no puede copiar (en Linux usa `wl-copy`, `xclip` o `xsel`), muestra el comando para escribirlo.
+- **Cerrar para actualizar**: copia el comando para actualizar al portapapeles y cierra el asistente, para que lo pegues y lo ejecutes. El comando es el del gestor con que instalaste ARCLI: `npm install -g arcli@latest`, `pnpm add -g arcli@latest`, `yarn global add arcli@latest` o `bun add -g arcli@latest` (lo deduce de la carpeta donde está instalado; si no lo reconoce, npm). ARCLI no se actualiza solo porque no puede reemplazarse mientras corre. Si no puede copiar (en Linux usa `wl-copy`, `xclip` o `xsel`), muestra el comando para escribirlo.
 - **← Volver**: vuelve al menú.
 
 Con el asistente, el aviso de nueva versión no se repite al salir. En los comandos con flags sigue apareciendo al final, como antes.

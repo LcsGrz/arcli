@@ -4,7 +4,8 @@ import { join } from 'node:path';
 import { afterAll } from 'vitest';
 
 // Ningun test toca la config real (Conf la busca desde HOME o APPDATA) ni depende de la terminal de quien corre la
-// suite: con FORCE_COLOR o ARCLI_ASCII en el entorno, las salidas esperadas cambian.
+// suite: con FORCE_COLOR o ARCLI_ASCII en el entorno, las salidas esperadas cambian. Tampoco del gestor con que se
+// corre (`yarn test` define npm_config_user_agent y el comando para actualizar saldria con yarn).
 const home = mkdtempSync(join(tmpdir(), 'arcli-test-'));
 
 process.env.HOME = home;
@@ -15,6 +16,7 @@ process.env.XDG_CONFIG_HOME = join(home, '.config');
 delete process.env.FORCE_COLOR;
 delete process.env.NO_COLOR;
 delete process.env.ARCLI_ASCII;
+delete process.env.npm_config_user_agent;
 
 afterAll(() => {
   rmSync(home, { force: true, recursive: true });

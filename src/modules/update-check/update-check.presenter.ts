@@ -1,9 +1,8 @@
 import { bold, colorize, noticePanel, renderPanel, type UiTextColor } from '../../ui';
 
 import { CHANGELOG_PAGE_URL, type ChangelogChange, type ChangelogChangeKind, type ChangelogEntry } from './changelog';
+import { resolveUpdateCommand } from './package-manager';
 import type { UpdateCheckResult } from './update-check.service';
-
-export const UPDATE_COMMAND = 'npm install -g arcli@latest';
 
 /** Versiones del changelog que se muestran, y cambios por version; el resto queda en el link. */
 const MAX_CHANGELOG_ENTRIES = 3;
@@ -12,7 +11,7 @@ const MAX_CHANGES_PER_ENTRY = 6;
 export function renderUpdateNoticePanel(result: UpdateCheckResult): string {
   return noticePanel(
     `Nueva versión disponible: ${result.latestVersion} (actual: ${result.currentVersion})\n` +
-      `Actualiza con: ${UPDATE_COMMAND}`,
+      `Actualizá con: ${resolveUpdateCommand()}`,
     'info',
     'info',
   );
@@ -95,9 +94,9 @@ export function renderUpdateDetails(result: UpdateCheckResult, entries: readonly
   const howTo = renderPanel({
     borderType: 'command',
     content: [
-      'Para actualizar, arcli se cierra y deja este comando copiado. Pegalo en la terminal y apreta Enter:',
+      'Para actualizar, arcli se cierra y deja este comando copiado. Pegalo en la terminal y apretá Enter:',
       '',
-      bold(colorize(UPDATE_COMMAND, 'info')),
+      bold(colorize(resolveUpdateCommand(), 'info')),
     ],
     preserveBlankLines: true,
     width: 'wide',

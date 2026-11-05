@@ -10,6 +10,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### Agregado
 
+- **Comando para actualizar según el gestor:** el aviso de versión nueva, la ayuda y "Cerrar para actualizar" del modo interactivo muestran el comando del gestor con que instalaste arcli (`npm install -g`, `pnpm add -g`, `yarn global add` o `bun add -g`), deducido de la carpeta donde está instalado. Si no lo reconoce, sigue siendo el de npm. El plugin de PDF se sigue instalando con npm.
 - **Todas las monedas de ARCA con su código ISO:** `--moneda`, `codigoMoneda` del JSON y la clave `moneda` de la config aceptan el código ISO o el de ARCA, indistinto: `ARS` o `PES`, `USD` o `DOL`, `UYU` o `011`, `CLP` o `033`, `GBP` o `021`, y así con todas las de la tabla de ARCA que tienen ISO. Antes solo se traducían `ARS`, `USD`, `EUR` y `BRL`, y otro ISO se mandaba tal cual y ARCA lo rechazaba. La vista previa y `consultar` muestran el nombre con el ISO (`Pesos uruguayos (UYU)`), el PDF de la `E` muestra el ISO de cualquier moneda y el autocompletado de `--moneda` ofrece todos los ISO. Un código que no está en la tabla se sigue mandando tal cual.
 
 ### Corregido
