@@ -1,4 +1,5 @@
 import { InputValidationError } from '../../lib/errors/app-error';
+import { formatArgentineAmountInput } from '../../lib/numbers/argentine-amount';
 
 import { DEFAULT_EXCHANGE_RATE } from './billing.constants';
 import { resolveBillingCurrencyCode } from './billing.mappers';
@@ -19,11 +20,33 @@ export function isForeignCurrency(input: { readonly currencyCode?: string }): bo
 }
 
 /**
- * Con CanMisMonExt = S, ARCA exige la cotizacion oficial exacta (error 10038),
- * asi que el CLI la consulta en lugar de pedirsela al usuario.
+ * Con CanMisMonExt = S, ARCA exige la cotizacion oficial exacta (error 10038), asi que el CLI la consulta en lugar de
+ * pedirsela al usuario. Sin --misma-moneda y sin --cm tambien se usa la oficial: es el default (REV-35).
  */
 export function needsOfficialExchangeRate(input: CurrencyInput): boolean {
-  return input.sameCurrency && isForeignCurrency(input) && typeof input.exchangeRate !== 'number';
+  return isForeignCurrency(input) && typeof input.exchangeRate !== 'number';
+}
+
+/** Los avisos de de donde salio la cotizacion cuando no la indico el usuario. */
+export function exchangeRateWarnings(
+  input: Pick<BillingCommandInput, 'currencyCode' | 'exchangeRate' | 'exchangeRateSource'>,
+): string[] {
+  const code = input.currencyCode.trim().toUpperCase();
+  const rate = typeof input.exchangeRate === 'number' ? formatArgentineAmountInput(input.exchangeRate) : undefined;
+
+  if (input.exchangeRateSource === 'config') {
+    return [
+      `La cotización de ${code} (${rate}) sale de la clave "cotizacion" de la config, que está deprecada y se va a sacar en la 3.0.0: una cotización guardada queda vieja. Pasá --cm, o borrala con "arcli config eliminar cotizacion" para usar la oficial de ARCA.`,
+    ];
+  }
+
+  if (input.exchangeRateSource === 'arca') {
+    return [
+      `Sin --cm se usa la cotización oficial de ARCA para ${code} (${rate}). Para usar otra, --cotizacion-moneda.`,
+    ];
+  }
+
+  return [];
 }
 
 export function resolveBillingCurrencyFields(

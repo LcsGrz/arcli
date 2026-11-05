@@ -177,8 +177,8 @@ arcli fc ayuda
 
 - **Severidad:** frecuente
 - **Síntoma:** `Falta la cotización de USD.`
-- **Causa:** se pasó `--moneda USD` sin `--cotizacion-moneda`, o con cotización `1`.
-- **Solución:** pasar `--cm <cotización>` si te pagan en pesos, o `--misma-moneda` si te pagan en dólares.
+- **Causa:** se pasó `--moneda USD` con `--cm 1`. Sin `--cm`, ARCLI usa la cotización oficial de ARCA.
+- **Solución:** pasar `--cm <cotización>` con la acordada, sacar `--cm` para usar la oficial, o `--misma-moneda` si te pagan en dólares.
 - **Documentación relacionada:** [Moneda y cotización](validation-rules.md#moneda-y-cotización)
 
 ### El comprobante no admite el IVA receptor

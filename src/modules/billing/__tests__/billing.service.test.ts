@@ -468,6 +468,28 @@ describe('billing.service', () => {
     expect(payload.CanMisMonExt).toBe('S');
   });
 
+  it('without --cm or --misma-moneda, uses the official exchange rate and marks it to warn', async () => {
+    const service = new BillingService();
+    const getQuotation = vi.fn(async () => 1415.25);
+    const input = await service.resolveExchangeRate(
+      createBillingInput({ currencyCode: 'USD', documentNumber: 0, exchangeRate: undefined }),
+      {
+        createVoucher: async () => {
+          throw new Error('No debería emitirse');
+        },
+        getNextVoucherNumber: async () => {
+          throw new Error('No debería emitirse');
+        },
+        getQuotation,
+      },
+    );
+    const payload = service.buildVoucherPayload(input, createRuntime());
+
+    expect(getQuotation).toHaveBeenCalledWith('DOL');
+    expect(input.exchangeRateSource).toBe('arca');
+    expect(payload).toMatchObject({ CanMisMonExt: 'N', MonCotiz: 1415.25 });
+  });
+
   it('does not query the exchange rate when it is not needed', async () => {
     const service = new BillingService();
     const getQuotation = vi.fn(async () => 1415.25);

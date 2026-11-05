@@ -114,6 +114,10 @@ export function formatEnvironmentLabel(environment: ArcliEnvironment): string {
 }
 export type ArcliPdfMode = z.infer<typeof arcliPdfModeSchema>;
 
+/** `cotizacion` se saca en la 3.0.0: una cotizacion guardada queda vieja en dias (REV-35). */
+export const COTIZACION_DEPRECATION_WARNING =
+  'La clave "cotizacion" está deprecada y se va a sacar en la 3.0.0: una cotización guardada queda vieja. Sin ella se usa la cotización oficial de ARCA; para otra, pasá --cm al facturar.';
+
 export const CONFIG_DEFAULTS: ArcliConfig = {
   cert: {},
   emisor: {},
