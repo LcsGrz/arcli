@@ -128,12 +128,12 @@ describe('mapExportResultToPdfData', () => {
   it('sin el nombre de la moneda la divisa es solo el codigo ISO, y sin ISO conocido el de WSFEX', () => {
     const result = createResult();
     const withoutName = { ...result, display: { ...result.display, currencyName: undefined } };
+    const divisaOf = (code: string) =>
+      mapExportResultToPdfData({ ...withoutName, payload: { ...withoutName.payload, Moneda_Id: code } }, ISSUER).divisa;
 
     expect(mapExportResultToPdfData(withoutName, ISSUER).divisa).toBe('USD');
-    expect(
-      mapExportResultToPdfData({ ...withoutName, payload: { ...withoutName.payload, Moneda_Id: '019' } }, ISSUER)
-        .divisa,
-    ).toBe('019');
+    expect(divisaOf('019')).toBe('JPY');
+    expect(divisaOf('002')).toBe('002');
   });
 
   it('sin la fila de DST_CUIT el CUIT del pais lleva solo el nombre del pais', () => {

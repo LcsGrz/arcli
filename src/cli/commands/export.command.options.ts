@@ -99,7 +99,7 @@ const EXPORT_OPTIONS: readonly ExportOptionDefinition[] = [
   { description: 'alias de --punto-venta', flags: '--pv <numero>', hidden: true, parser: integerOption('--pv') },
   { description: 'fecha del comprobante; acepta D, D/M, D/M/YY o D/M/YYYY con - o /', flags: '-f, --fecha <fecha>' },
   { description: 'fecha de pago; por defecto la del comprobante', flags: '--fecha-pago <fecha>' },
-  { description: 'código de moneda: USD o DOL (por defecto), ARS o PES (alias: --mda)', flags: '--moneda <codigo>' },
+  { description: 'moneda: código ISO o de ARCA; USD o DOL por defecto (alias: --mda)', flags: '--moneda <codigo>' },
   { description: 'alias de --moneda', flags: '--mda <codigo>', hidden: true },
   {
     description: 'cotización de la moneda; sin este flag se usa la de aduana que publica ARCA (alias: --cm)',
