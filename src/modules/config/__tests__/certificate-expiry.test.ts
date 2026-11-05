@@ -127,7 +127,7 @@ describe('CertificateExpiredError', () => {
     expect(error.code).toBe('CERTIFICATE_EXPIRED');
     expect(error.message).toBe('El certificado de producción venció el 20/11/2026: ARCA no lo acepta.');
     expect(error.details).toEqual({ entorno: 'produccion', vencimiento: '20/11/2026' });
-    expect(error.suggestion).toContain('cert.produccion');
+    expect(error.suggestion).toContain('arcli certificado generar --produccion');
     expect(error.suggestion).toContain(CERTIFICATE_GUIDE_URL);
     expect(error.notice).toBe(notice);
   });

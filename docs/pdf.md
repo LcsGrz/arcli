@@ -159,7 +159,7 @@ En JSON, el resultado suma la clave `pdf` **solo si se intentó generar** el PDF
     "error": {
       "codigo": "PDF_PLUGIN_MISSING",
       "mensaje": "Para generar PDFs falta instalar el plugin de PDF.",
-      "sugerencia": "Instalelo con `arcli pdf instalar`."
+      "sugerencia": "Instalalo con `arcli pdf instalar`."
     }
   }
 }

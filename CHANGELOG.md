@@ -8,6 +8,12 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+### Corregido
+
+- **Ayuda de `arcli fe`:** `--numero` decía "por defecto el siguiente de ARCA", pero es obligatorio. Ahora la ayuda lo dice.
+- **Certificado vencido:** la sugerencia de `CERTIFICATE_EXPIRED` manda a renovarlo con `arcli certificado generar` e `importar`, en lugar de cargar las rutas a mano con `arcli config establecer`.
+- **Textos:** tildes y voseo en mensajes que habían quedado sin corregir (fecha fuera de rango, instalación del plugin de PDF, emisión sin confirmar, `coe.alreadyAuthenticated`). Los códigos de error y la forma del JSON no cambian.
+
 ## [2.3.0] - 2026-11-04
 
 Trae el Recibo C (`rc`), `arcli certificado generar` e `importar` para sacar el certificado de ARCA sin `openssl`, y la condición de venta en el PDF. Gracias a [Guillermo Britos](https://github.com/guillermobr) y a [Kevin Tea](https://github.com/kevintea), que trajeron el recibo y la condición de venta.

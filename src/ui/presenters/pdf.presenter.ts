@@ -16,7 +16,7 @@ export function formatPdfOutcomeAsText(outcome: PdfOutcome, label?: string): str
     return noticePanel(`${prefix}PDF guardado en ${path}`, 'success');
   }
 
-  const hint = ['El comprobante ya esta emitido: solo falto el PDF.', outcome.error.suggestion]
+  const hint = ['El comprobante ya está emitido: solo faltó el PDF.', outcome.error.suggestion]
     .filter(Boolean)
     .join('\n');
 
@@ -64,7 +64,7 @@ export function formatPdfPluginStatusAsText(status: PdfPluginStatusView, title =
     ],
     ['Carpeta', pathLink(status.path)],
   ];
-  const footer = status.installed ? 'Listo para generar PDFs' : 'Instalelo con `arcli pdf instalar`';
+  const footer = status.installed ? 'Listo para generar PDFs' : 'Instalalo con `arcli pdf instalar`';
 
   return keyValuePanel(
     title,

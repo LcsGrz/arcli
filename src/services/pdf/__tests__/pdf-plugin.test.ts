@@ -140,7 +140,7 @@ describe('PdfPlugin', () => {
 
     await expect(plugin.install()).rejects.toMatchObject({
       code: 'PDF_PLUGIN_INSTALL_ERROR',
-      message: expect.stringMatching(/no termino en 15 minutos/),
+      message: expect.stringMatching(/no terminó en 15 minutos/),
     });
     expect(runProcess.mock.calls.map(([, , options]) => options.timeoutMs)).toEqual([
       NPM_INSTALL_TIMEOUT_MS,
