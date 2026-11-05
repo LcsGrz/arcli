@@ -35,6 +35,14 @@ export interface ConfigDoctorReport {
   readonly ok: boolean;
 }
 
+/** Lo que `config revisar` necesita del plugin de PDF: lo mismo que muestra `arcli pdf estado`. */
+export interface ConfigDoctorPdfPlugin {
+  readonly browser?: string;
+  /** Version instalada, aunque no sea la que espera arcli; sin definir, no esta instalado. */
+  readonly installedVersion?: string;
+  readonly version: string;
+}
+
 /** Lo que valida `ArcaContextResolver` para un entorno: CUIT, certificado y clave legibles. */
 export interface ConfigDoctorRuntimeCheck {
   readonly environment: ArcliEnvironment;
@@ -93,9 +101,39 @@ function buildCertificateExpiryCheck(
   }
 }
 
+function buildPdfPluginCheck(plugin: ConfigDoctorPdfPlugin): ConfigDoctorReport['checks'][number] {
+  const label = 'Plugin de PDF';
+  const warning = (detail: string) => ({ category: 'warning' as const, detail, label, section: 'pdf' as const });
+
+  if (!plugin.installedVersion) {
+    return warning('No está instalado: los PDFs no se pueden generar. Instalalo con "arcli pdf instalar" (~160 MB).');
+  }
+
+  if (plugin.installedVersion !== plugin.version) {
+    return warning(
+      `Está instalada la versión ${plugin.installedVersion} y arcli usa la ${plugin.version}. Actualizalo con "arcli pdf instalar".`,
+    );
+  }
+
+  if (!plugin.browser) {
+    return warning(
+      'No se encontró un navegador para generar los PDFs. "arcli pdf instalar" descarga uno, o indicá el tuyo con "arcli config establecer pdfNavegador <ruta>".',
+    );
+  }
+
+  return {
+    category: 'ok',
+    detail: `Instalado (versión ${plugin.version}), con el navegador ${plugin.browser}.`,
+    label,
+    section: 'pdf',
+    value: plugin.version,
+  };
+}
+
 export function buildConfigDoctorReport(
   config: ArcliConfig,
   runtimeChecks: readonly ConfigDoctorRuntimeCheck[] = [],
+  pdfPlugin?: ConfigDoctorPdfPlugin,
 ): ConfigDoctorReport {
   const checks: Array<ConfigDoctorReport['checks'][number]> = [];
 
@@ -259,6 +297,15 @@ export function buildConfigDoctorReport(
       label: 'PDF',
       section: 'pdf',
     });
+  }
+
+  // Como los datos del emisor: un plugin que falta solo es aviso con pdf=siempre, asi `ok` no cae para quien no usa
+  // PDFs. Con "preguntar" se revisa si esta instalado (quien lo instalo lo usa) y con "nunca", nunca.
+  const checksPdfPlugin =
+    config.pdf === 'siempre' || (config.pdf !== 'nunca' && pdfPlugin?.installedVersion !== undefined);
+
+  if (pdfPlugin && checksPdfPlugin) {
+    checks.push(buildPdfPluginCheck(pdfPlugin));
   }
 
   for (const runtimeCheck of runtimeChecks) {

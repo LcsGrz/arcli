@@ -165,6 +165,7 @@ arcli config revisar --json
 - el estado de la config persistente
 - el vencimiento de los certificados de los dos entornos
 - la validación real (CUIT, certificado y clave legibles) del entorno por defecto y de cualquier otro que tenga `cert` o `key` configurados
+- el plugin de PDF, como `arcli pdf estado`: si está instalado, si es la versión que usa arcli y si encontró un navegador. Con `pdf=siempre` avisa si falta; con `preguntar` (por defecto) lo revisa solo si está instalado, y con `nunca`, no lo revisa. Así `ok` no queda en `false` para quien no genera PDFs
 
 No recibe `--testing` ni `--produccion`: revisa los dos entornos de una vez.
 

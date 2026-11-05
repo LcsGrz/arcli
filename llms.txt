@@ -243,7 +243,7 @@ Para el PDF: `pdf` (`siempre`/`preguntar`/`nunca`), `pdfCarpeta` (por defecto `~
 por CUIT emisor, los de testing en `testing/<CUIT>/`, y nunca se pisa un PDF existente: se suma `-2`, `-3`), `pdfNavegador` (ruta a Chrome/Chromium/Edge), `condicionVenta` (default de `--condicion-venta`; se omite por comprobante con `--sin-condicion-venta` o JSON `null`), `emisor.razonSocial`, `emisor.domicilio`,
 `emisor.inicioActividades` (fecha con año), `emisor.iibb`, `emisor.condicionIva`, `emisor.logo` (PNG o JPG).
 
-`config revisar` también avisa si un certificado ya venció o vence en menos de 30 días. Con `--json` devuelve
+`config revisar` también avisa si un certificado ya venció o vence en menos de 30 días, y revisa el plugin de PDF (chequeo "Plugin de PDF": instalado, versión y navegador; si falta, solo avisa con `pdf=siempre`). Con `--json` devuelve
 `{ok, chequeos: [{categoria: "ok"|"warning"|"error", etiqueta, detalle}]}`; `ok: false` sale igual con exit code `0`.
 `arcli config --json` devuelve la config con las rutas enmascaradas (`cert`, `key`, `emisor` y `exportacion` como objetos).
 Además, a menos de 30 días de vencer cualquiera de los certificados configurados (testing o producción, sin importar el entorno
