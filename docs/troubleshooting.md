@@ -200,7 +200,7 @@ arcli fc ayuda
 ### Fecha del comprobante fuera de rango
 
 - **Severidad:** ocasional
-- **Síntoma:** `La fecha ... esta fuera de rango ...` o `... es futura y cae en otro mes.`
+- **Síntoma:** `La fecha ... está fuera de rango ...` o `... es futura y cae en otro mes.`
 - **Causa:** ARCA solo acepta fechas cercanas a hoy: ±5 días en productos, ±10 en servicios y de −5 a +1 en FCE.
 - **Solución:** usar una fecha dentro de la ventana, o no pasar `--fecha` para usar la de hoy.
 - **Documentación relacionada:** [Fecha del comprobante](validation-rules.md#fecha-del-comprobante)
@@ -388,7 +388,7 @@ Un error del PDF no deshace la emisión: el comprobante ya tiene CAE. **No lo vu
 
 ### `PDF_PLUGIN_INSTALL_ERROR`
 
-- **Síntoma:** `arcli pdf instalar` falla y muestra las últimas líneas de npm, o se corta con "no termino en 5 minutos" (15 para el navegador).
+- **Síntoma:** `arcli pdf instalar` falla y muestra las últimas líneas de npm, o se corta con "no terminó en 5 minutos" (15 para el navegador).
 - **Causa:** sin internet, un proxy corporativo o un registro de npm privado. Si el proxy no responde, la instalación se corta por tiempo en lugar de quedar colgada.
 - **Solución:** revisá `npm config get proxy` y `npm config get registry` y volvé a correr `arcli pdf instalar`. Si lo que falla es la descarga del navegador y ya tenés Chrome, Chromium o Edge, indicá su ruta:
 

@@ -164,7 +164,7 @@ describe('attachPdfs', () => {
 
     plugin.load.mockImplementation(() => {
       throw new PdfError('PDF_PLUGIN_MISSING', 'falta', {
-        suggestion: 'Instalelo con `arcli pdf instalar`.',
+        suggestion: 'Instalalo con `arcli pdf instalar`.',
       });
     });
 
@@ -175,7 +175,7 @@ describe('attachPdfs', () => {
 
     expect(plugin.install).not.toHaveBeenCalled();
     expect(result.pdf).toEqual({
-      error: { code: 'PDF_PLUGIN_MISSING', message: 'falta', suggestion: 'Instalelo con `arcli pdf instalar`.' },
+      error: { code: 'PDF_PLUGIN_MISSING', message: 'falta', suggestion: 'Instalalo con `arcli pdf instalar`.' },
     });
   });
 

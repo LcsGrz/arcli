@@ -878,7 +878,7 @@ Con el certificado del entorno vencido, los comandos que van a ARCA cortan antes
   "codigo": "CERTIFICATE_EXPIRED",
   "detalles": { "entorno": "produccion", "vencimiento": "20/11/2026" },
   "error": "El certificado de producción venció el 20/11/2026: ARCA no lo acepta.",
-  "sugerencia": "Generá uno nuevo siguiendo la guía y cargalo con \"arcli config establecer cert.produccion <ruta>\": https://github.com/LcsGrz/arcli/blob/main/docs/obtencion-certificados.md"
+  "sugerencia": "Renovalo con \"arcli certificado generar --produccion\" y cargá el .crt de ARCA con \"arcli certificado importar <archivo>\". Guía: https://github.com/LcsGrz/arcli/blob/main/docs/obtencion-certificados.md"
 }
 ```
 
@@ -893,7 +893,7 @@ Los pasos previos no cuentan: si falla el login en WSAA (por ejemplo, un certifi
   "codigo": "EMISSION_UNCERTAIN",
   "detalles": { "causa": "socket hang up" },
   "error": "No se pudo confirmar la emisión: socket hang up",
-  "sugerencia": "Puede haberse emitido igual. Antes de reintentar, verificá con \"arcli ultimos fc --pv 3\": si figura, ya esta emitido y no hay que repetirlo."
+  "sugerencia": "Puede haberse emitido igual. Antes de reintentar, verificá con \"arcli ultimos fc --pv 3\": si figura, ya está emitido y no hay que repetirlo."
 }
 ```
 
@@ -906,7 +906,7 @@ En un lote, el mismo caso sale como `BATCH_EMISSION_ERROR` con `detalles.sinConf
   "codigo": "TRANSIENT_ERROR",
   "detalles": null,
   "error": "ns1:coe.alreadyAuthenticated",
-  "sugerencia": "WSAA informo que ya existe un TA válido para este servicio. Esperá unos segundos y volvé a intentar sin cambiar el payload."
+  "sugerencia": "WSAA informó que ya existe un TA válido para este servicio. Esperá unos segundos y volvé a intentar sin cambiar el payload."
 }
 ```
 

@@ -120,7 +120,7 @@ export function validateBillingDateWindow(
 
   if (offset < -window.maxDaysBefore || offset > window.maxDaysAfter) {
     throw new InputValidationError(
-      `La fecha ${label} esta fuera de rango para la ${formatVoucherLabel(voucherKind)}: ARCA acepta hasta ${window.maxDaysBefore} días antes y ${window.maxDaysAfter} después de hoy.`,
+      `La fecha ${label} está fuera de rango para la ${formatVoucherLabel(voucherKind)}: ARCA acepta hasta ${window.maxDaysBefore} días antes y ${window.maxDaysAfter} después de hoy.`,
     );
   }
 
