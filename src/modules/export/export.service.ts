@@ -4,6 +4,7 @@ import {
   parseArgentineDateInputAsArcaDate,
 } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
+import { EmissionUncertainError } from '../billing/billing.errors';
 import type { ArcliConfig } from '../config/config.schemas';
 
 import { assertExportItemsTotal, buildExportItems, DEFAULT_EXPORT_ITEM_DESCRIPTION } from './export.items';
@@ -209,7 +210,19 @@ export class ExportService {
     readonly runtime: ExportRuntime;
     readonly warnings?: readonly string[];
   }): Promise<ExportExecutionResult> {
-    const raw = await options.gateway.authorize(options.resolved.payload);
+    const { payload } = options.resolved;
+    let raw: Awaited<ReturnType<ExportGateway['authorize']>>;
+
+    try {
+      raw = await options.gateway.authorize(payload);
+    } catch (error) {
+      throw new EmissionUncertainError({
+        cause: error,
+        pointOfSale: payload.Punto_vta,
+        requestId: payload.Id,
+        voucherNumber: payload.Cbte_nro,
+      });
+    }
 
     return {
       display: options.resolved.display,

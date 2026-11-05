@@ -1,6 +1,7 @@
 import type { IFEXAuthorizeOutput } from '@arcasdk/core/lib/application/dto/fex';
 import { describe, expect, it, vi } from 'vitest';
 
+import { EmissionUncertainError } from '../../billing/billing.errors';
 import { arcliConfigSchema } from '../../config/config.schemas';
 import { ExportService } from '../export.service';
 import type { ExportGateway, ExportVoucherInput } from '../export.types';
@@ -327,5 +328,34 @@ describe('ExportService.preview y execute', () => {
     expect(gateway.authorize).toHaveBeenCalledWith(resolved.payload);
     expect(result).toMatchObject({ dryRun: false, environment: 'testing' });
     expect(result.response).toMatchObject({ cae: '75123456789012', status: 'aprobado' });
+  });
+
+  it('si falla la llamada que emite, es EMISSION_UNCERTAIN con el número y la solicitud para reintentar', async () => {
+    const gateway = createGateway({
+      authorize: vi.fn(async () => {
+        throw new Error('socket hang up');
+      }),
+    });
+    const resolved = await service.resolve(INPUT, gateway, RUNTIME, NOW);
+    const { Cbte_nro: numero, Id: idSolicitud, Punto_vta: pv } = resolved.payload;
+    const run = service.execute({ gateway, resolved, runtime: RUNTIME });
+
+    await expect(run).rejects.toBeInstanceOf(EmissionUncertainError);
+    await expect(run).rejects.toMatchObject({
+      code: 'EMISSION_UNCERTAIN',
+      details: { causa: 'socket hang up', idSolicitud, numero },
+      message: 'No se pudo confirmar la emisión: socket hang up',
+      suggestion: expect.stringContaining(`--numero ${numero} --id-solicitud ${idSolicitud} --pv ${pv}`),
+    });
+  });
+
+  it('un error al resolver (antes de emitir) no es EMISSION_UNCERTAIN', async () => {
+    const gateway = createGateway({
+      getLastRequestId: vi.fn(async () => {
+        throw new Error('socket hang up');
+      }),
+    });
+
+    await expect(service.resolve(INPUT, gateway, RUNTIME, NOW)).rejects.not.toBeInstanceOf(EmissionUncertainError);
   });
 });
