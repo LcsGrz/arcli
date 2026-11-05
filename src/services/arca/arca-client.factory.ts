@@ -1,10 +1,19 @@
-import { Arca } from '@arcasdk/core';
+import { Arca, type Context } from '@arcasdk/core';
 
 import { readPemFile } from '../../lib/security/pem';
 import { CertificateExpiredError, inspectCertificateExpiry } from '../../modules/config/certificate-expiry';
 import { resolveExportCredentials } from '../../modules/config/config.export-credentials';
 
 import type { ResolvedArcaRuntime } from './arca-context.resolver';
+
+function createArcaClient(context: Context): Arca {
+  return new Arca({
+    ...context,
+    // ARCA producción todavía negocia parámetros DH que OpenSSL 3 rechaza por defecto. El SDK limita la
+    // compatibilidad a este agente y mantiene la validación del certificado del servidor.
+    useHttpsAgent: context.production === true,
+  });
+}
 
 export class ArcaClientFactory {
   /** Todo cliente de ARCA sale de aca: con el certificado vencido se corta antes de pedir el ticket a WSAA. */
@@ -13,7 +22,7 @@ export class ArcaClientFactory {
       throw new CertificateExpiredError(runtime.certificateExpiry);
     }
 
-    return new Arca(runtime.context);
+    return createArcaClient(runtime.context);
   }
 
   /**
@@ -36,7 +45,7 @@ export class ArcaClientFactory {
       throw new CertificateExpiredError(notice);
     }
 
-    return new Arca({
+    return createArcaClient({
       ...runtime.context,
       cert,
       key: readPemFile(credentials.key, 'clave privada'),
