@@ -215,7 +215,7 @@ después reintentar `detalles.sinProcesar`, nunca los ya emitidos). En consultas
 y `FCE_OBLIGATION_ERROR` (`fce-obligado`; con `verificarFce` al facturar salen como aviso), `ARCA_UNAVAILABLE` (`estado`),
 `ARCA_PARAMETERS_ERROR` (`parametros <tabla>`) y `ARCA_QUOTATION_ERROR` (`parametros cotizacion` o `--misma-moneda`). En `fe`:
 `WSFEX_SERVICE_NOT_AUTHORIZED` y `ARCA_EXPORT_ERROR` (WSFEX rechazó una consulta previa: tabla, ID de solicitud o cotización; no se emitió nada).
-`EMISSION_UNCERTAIN` todavía no aplica a `fe`: si falla la emisión de una E, verificá en ARCA antes de reintentar.
+`EMISSION_UNCERTAIN` en `fe` trae `detalles.numero` y `detalles.idSolicitud`: reintentar con esos mismos `--numero` e `--id-solicitud`, nunca con otros (ARCA no autoriza dos veces el mismo número).
 Los errores de `arcli certificado` están en "Otros comandos".
 `PDF_PLUGIN_INSTALL_ERROR` sale de `arcli pdf instalar`. `sugerencia` está siempre: `null` si no hay nada que sugerir.
 Qué hacer con cada código: tabla "Códigos de error" de https://github.com/LcsGrz/arcli/blob/main/docs/input-output.md. Los errores de uso (opción desconocida, valor faltante, comando inexistente) también salen en este JSON como `INPUT_VALIDATION_ERROR`, con el mensaje de commander en `error`. El proceso termina con
