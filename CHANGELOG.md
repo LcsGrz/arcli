@@ -8,9 +8,18 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+### Cambiado
+
+- **Cotización oficial por defecto en moneda extranjera:** `arcli fc --moneda USD` sin `--cm` ni `--misma-moneda` usa la cotización oficial de ARCA y lo avisa en "Avisos" (y en `avisos` del JSON). Antes daba error "Falta la cotización". `--cm` sigue pisándola y `--cm 1` sigue siendo error.
+
+### Deprecado
+
+- **La clave `cotizacion` de la config se saca en la 3.0.0:** una cotización guardada queda vieja en días y factura con un tipo de cambio viejo sin que te enteres. Mientras tanto sigue andando: si está guardada (distinta de `1`), cada factura en moneda extranjera sin `--cm` la usa y avisa que está deprecada, y `config establecer cotizacion` avisa lo mismo. Para dejar de usarla, `arcli config eliminar cotizacion`. `config --json` sigue trayendo `cotizacion`.
+
 ### Agregado
 
 - **Comando para actualizar según el gestor:** el aviso de versión nueva, la ayuda y "Cerrar para actualizar" del modo interactivo muestran el comando del gestor con que instalaste arcli (`npm install -g`, `pnpm add -g`, `yarn global add` o `bun add -g`), deducido de la carpeta donde está instalado. Si no lo reconoce, sigue siendo el de npm. El plugin de PDF se sigue instalando con npm.
+- **`config revisar` revisa el plugin de PDF:** un chequeo "Plugin de PDF" en la sección PDF dice si está instalado, si es la versión que usa arcli y si encontró un navegador, como `arcli pdf estado`. Con `pdf=siempre` avisa si falta; con `preguntar` (por defecto) solo lo revisa si está instalado, así `ok` no pasa a `false` para quien no genera PDFs; con `nunca` no lo revisa.
 - **Todas las monedas de ARCA con su código ISO:** `--moneda`, `codigoMoneda` del JSON y la clave `moneda` de la config aceptan el código ISO o el de ARCA, indistinto: `ARS` o `PES`, `USD` o `DOL`, `UYU` o `011`, `CLP` o `033`, `GBP` o `021`, y así con todas las de la tabla de ARCA que tienen ISO. Antes solo se traducían `ARS`, `USD`, `EUR` y `BRL`, y otro ISO se mandaba tal cual y ARCA lo rechazaba. La vista previa y `consultar` muestran el nombre con el ISO (`Pesos uruguayos (UYU)`), el PDF de la `E` muestra el ISO de cualquier moneda y el autocompletado de `--moneda` ofrece todos los ISO. Un código que no está en la tabla se sigue mandando tal cual.
 
 ### Corregido

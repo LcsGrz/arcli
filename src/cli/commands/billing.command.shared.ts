@@ -1,5 +1,7 @@
 import type { Command } from 'commander';
 
+import { DEFAULT_EXCHANGE_RATE } from '../../modules/billing/billing.constants';
+import { exchangeRateWarnings } from '../../modules/billing/billing.currency';
 import { DUE_DAY_DEPRECATION_WARNING } from '../../modules/billing/billing.date-range';
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import { BillingService } from '../../modules/billing/billing.service';
@@ -45,7 +47,9 @@ export function resolveBillingCommandDefaults(config: ArcliConfig): BillingComma
     defaultConcept: config.conceptoPorDefecto,
     defaultCurrencyCode: config.monedaPorDefecto,
     defaultEmit: config.output.emitirPorDefecto,
-    defaultExchangeRate: config.cotizacionPorDefecto,
+    // `conf` guarda el default 1 en el archivo: 1 es lo mismo que no tenerla, y en moneda extranjera no es valida.
+    defaultExchangeRate:
+      config.cotizacionPorDefecto === DEFAULT_EXCHANGE_RATE ? undefined : config.cotizacionPorDefecto,
     defaultIvaCondition: config.ivaReceptorPorDefecto,
     defaultIvaRate: config.alicuotaPorDefecto,
     lookupIvaConditionInPadron: config.consultarPadron !== false,
@@ -147,6 +151,7 @@ export async function executeBillingCommand(
       ...certificateWarnings(runtime),
       ...(options.extraWarnings ?? []),
       ...(input.dueDay ? [DUE_DAY_DEPRECATION_WARNING] : []),
+      ...exchangeRateWarnings(input),
       ...(padronWarnings[position] ?? []),
       ...(fceWarnings[position] ?? []),
     ]);

@@ -1,5 +1,6 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { keyValuePanel, noticePanel, renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui';
+import { CONSUMER_DOCUMENT_TYPE_CODE } from '../billing/arca-codes';
 import { formatConceptLabel, formatCurrencyLabel, formatMoneyLabel } from '../billing/billing.labels';
 import type { VoucherKindDefinition } from '../billing/billing.types';
 
@@ -30,7 +31,7 @@ export function formatVoucherNumber(pointOfSale: number, number: number): string
 }
 
 export function formatReceiver(voucher: IssuedVoucher): string {
-  if (voucher.documentTypeCode === 99) {
+  if (voucher.documentTypeCode === CONSUMER_DOCUMENT_TYPE_CODE) {
     return 'Consumidor final';
   }
 

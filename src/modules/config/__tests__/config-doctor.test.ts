@@ -163,3 +163,47 @@ describe('config-doctor', () => {
     });
   });
 });
+
+describe('config revisar: plugin de PDF', () => {
+  const pluginCheck = (pdf: 'nunca' | 'preguntar' | 'siempre', plugin: Parameters<typeof buildConfigDoctorReport>[2]) =>
+    buildConfigDoctorReport(
+      {
+        cert: {},
+        emisor: {},
+        entornoPorDefecto: 'testing',
+        key: {},
+        output: { brutoPorDefecto: false, emitirPorDefecto: false, jsonPorDefecto: false },
+        pdf,
+      },
+      [],
+      plugin,
+    ).checks.find((check) => check.label === 'Plugin de PDF');
+
+  it('instalado, con la versión de arcli y un navegador: ok', () => {
+    expect(
+      pluginCheck('preguntar', { browser: '/usr/bin/chromium', installedVersion: '0.2.1', version: '0.2.1' }),
+    ).toMatchObject({ category: 'ok', section: 'pdf', value: '0.2.1' });
+  });
+
+  it.each([
+    ['sin instalar', { version: '0.2.1' }, /arcli pdf instalar/],
+    ['otra versión', { browser: '/b', installedVersion: '0.1.0', version: '0.2.1' }, /0\.1\.0.*0\.2\.1/],
+    ['sin navegador', { installedVersion: '0.2.1', version: '0.2.1' }, /pdfNavegador/],
+  ])('%s: aviso', (_case, plugin, detail) => {
+    expect(pluginCheck('siempre', plugin)).toMatchObject({
+      category: 'warning',
+      detail: expect.stringMatching(detail),
+    });
+  });
+
+  it('con pdf=nunca no lo revisa', () => {
+    expect(pluginCheck('nunca', { version: '0.2.1' })).toBeUndefined();
+  });
+
+  it('con pdf=preguntar, sin instalar no avisa (así `ok` no cae) e instalado sí lo revisa', () => {
+    expect(pluginCheck('preguntar', { version: '0.2.1' })).toBeUndefined();
+    expect(pluginCheck('preguntar', { installedVersion: '0.1.0', version: '0.2.1' })).toMatchObject({
+      category: 'warning',
+    });
+  });
+});

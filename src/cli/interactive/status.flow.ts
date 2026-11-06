@@ -2,19 +2,9 @@ import { formatQuotationAsText, formatStatusAsText } from '../../modules/paramet
 import { buildStatusReport } from '../../modules/parameters/status';
 import { ArcaParametersGateway } from '../../services/arca/arca-parameters.gateway';
 import { writeTerminalOutput } from '../../ui';
-import { startSpinner } from '../spinner';
+import { withSpinner } from '../spinner';
 
 import type { InteractiveSession } from './session';
-
-async function withSpinner<T>(text: string, run: () => Promise<T>): Promise<T> {
-  const spinner = startSpinner(text);
-
-  try {
-    return await run();
-  } finally {
-    spinner?.stop();
-  }
-}
 
 /** Estado de los servidores de ARCA, del punto de venta y la cotizacion oficial del dolar. */
 export async function runStatusFlow(session: InteractiveSession): Promise<void> {
