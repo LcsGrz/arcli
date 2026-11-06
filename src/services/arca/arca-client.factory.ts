@@ -1,4 +1,5 @@
 import { Arca, type Context } from '@arcasdk/core';
+import tls from 'node:tls';
 
 import { readPemFile } from '../../lib/security/pem';
 import { CertificateExpiredError, inspectCertificateExpiry } from '../../modules/config/certificate-expiry';
@@ -7,12 +8,14 @@ import { resolveExportCredentials } from '../../modules/config/config.export-cre
 import type { ResolvedArcaRuntime } from './arca-context.resolver';
 
 function createArcaClient(context: Context): Arca {
-  return new Arca({
-    ...context,
-    // ARCA producción todavía negocia parámetros DH que OpenSSL 3 rechaza por defecto. El SDK limita la
-    // compatibilidad a este agente y mantiene la validación del certificado del servidor.
-    useHttpsAgent: context.production === true,
-  });
+  // WSFE y WSFEX de producción prefieren DHE con una clave de 1024 bits, que corta con `dh key too small` donde OpenSSL
+  // usa SECLEVEL=2 (Debian y otras distros). Sin DHE negocian otra suite y nada más se afloja, a diferencia de
+  // `useHttpsAgent` del SDK, que baja a SECLEVEL=1 y habilita la renegociación insegura en todas las conexiones.
+  if (context.production === true && !tls.DEFAULT_CIPHERS.includes('!DHE')) {
+    tls.DEFAULT_CIPHERS += ':!DHE';
+  }
+
+  return new Arca(context);
 }
 
 export class ArcaClientFactory {
