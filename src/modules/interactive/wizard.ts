@@ -3,6 +3,15 @@ export const BACK = Symbol('volver');
 
 export type Back = typeof BACK;
 
+/** Un dato que completa un paso anterior: si falta, el flujo esta mal armado, no es un error de quien lo usa. */
+export function requireStepValue<T>(value: T | undefined, name: string): T {
+  if (value === undefined) {
+    throw new Error(`Falta ${name}: lo completa un paso anterior del asistente.`);
+  }
+
+  return value;
+}
+
 export interface WizardStep<S> {
   readonly name: string;
   /** Pasos que no aplican al estado actual (por ejemplo, el DNI si el receptor es consumidor final). */

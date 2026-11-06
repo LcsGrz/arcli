@@ -179,10 +179,10 @@ La factura `E` (`arcli fe` o `arcli factura e`) no comparte el JSON de facturaci
 | `cliente`                                   | string            | sí        | Nombre del cliente del exterior                                                                                                                                    |
 | `domicilioCliente`                          | string            | sí        | Domicilio del cliente                                                                                                                                              |
 | `paisDestino`                               | string \| number  | sí        | Código de ARCA o nombre del país (`203`, `"Brasil"`)                                                                                                               |
-| `montoTotal`                                | number            | sí        | Total del comprobante, igual que en A, B y C. `monto` sigue andando, con un aviso, hasta la 3.0.0; las dos juntas son un error. Tiene que dar la suma de los items |
+| `montoTotal`                                | number            | sí        | Total del comprobante, igual que en A, B y C. `monto` sigue andando, con un aviso, hasta la 3.0.0; las dos juntas son un error. Tiene que dar la suma de los ítems |
 | `numero`                                    | number            | sí        | El siguiente al último `E` de ese punto de venta: ARCLI todavía no lo puede consultar en WSFEX                                                                     |
 | `actividad`                                 | number            | sí\*      | Código de la tabla de actividades de WSFEX. \*Si falta, sale de `exportacion.actividad`                                                                            |
-| `items`                                     | array             | no        | Renglones (ver abajo). Sin items va uno solo con `descripcion` por el total                                                                                        |
+| `items`                                     | array             | no        | Renglones (ver abajo). Sin ítems va uno solo con `descripcion` por el total                                                                                        |
 | `idImpositivo`                              | string            | no        | ID impositivo del cliente en su país                                                                                                                               |
 | `cuitPais`                                  | number            | no        | CUIT del país del cliente; si falta sale de la tabla de ARCA                                                                                                       |
 | `tipoExpo`                                  | `1` \| `2` \| `4` | no        | `2` servicios (por defecto), `1` bienes, `4` otros                                                                                                                 |
@@ -199,7 +199,7 @@ La factura `E` (`arcli fe` o `arcli factura e`) no comparte el JSON de facturaci
 | `descripcion`                               | string            | no        | Descripción del renglón único cuando no hay `items`; por defecto `Según detalle`                                                                                   |
 | `pdf`, `emitir`, `previsualizar`            | boolean           | no        | Igual que en el resto de los comprobantes                                                                                                                          |
 
-Cada item:
+Cada ítem:
 
 | Campo            | Tipo             | Requerido | Descripción                                               |
 | ---------------- | ---------------- | --------- | --------------------------------------------------------- |
@@ -454,7 +454,7 @@ Ejemplo:
 
 Cuando `--cargar` trae un array, ARCLI devuelve un array, aunque tenga un solo elemento. Con flags o un objeto devuelve un objeto.
 
-Cada item agrega:
+Cada ítem agrega:
 
 | Campo         | Tipo     | Descripción                         |
 | ------------- | -------- | ----------------------------------- |

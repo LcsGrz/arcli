@@ -10,7 +10,7 @@ import {
   invoiceKindChoices,
   receiverChoices,
 } from '../../modules/interactive/choices';
-import { BACK, runWizard, type WizardStep } from '../../modules/interactive/wizard';
+import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 
 import { type AdvancedOptions, askAdvancedOptions } from './advanced-options';
 import { runExportFlow } from './export.flow';
@@ -138,7 +138,7 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
         const advanced = await askAdvancedOptions(state.advanced, {
           concept: state.concept ?? 'servicios',
           defaultIvaRate: config.alicuotaPorDefecto ?? DEFAULT_IVA_RATE,
-          voucherKind: state.voucherKind as VoucherKindDefinition,
+          voucherKind: requireStepValue(state.voucherKind, 'voucherKind'),
         });
 
         return advanced === BACK ? BACK : { advanced };
@@ -158,7 +158,7 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
 /** Arma la entrada del CLI con lo que respondio el usuario. */
 export function buildInvoiceInput(state: InvoiceState, session: InteractiveSession): BillingCommandInput {
   const { config } = session.runtime;
-  const voucherKind = state.voucherKind as VoucherKindDefinition;
+  const voucherKind = requireStepValue(state.voucherKind, 'voucherKind');
   const ivaRate =
     voucherKind.letter === 'c' ? undefined : (state.advanced.ivaRate ?? config.alicuotaPorDefecto ?? DEFAULT_IVA_RATE);
 

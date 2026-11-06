@@ -105,7 +105,7 @@ El Recibo C usa la misma plantilla que la Factura C con el título `RECIBO C`, `
 
 La `E` usa el diseño de exportación de `@arcasdk/pdf`, con los mismos datos que la E de Comprobantes en línea, y no discrimina IVA. Imprime:
 
-- los items que viajaron a WSFEX (código, descripción con su unidad, cantidad, precio unitario y total);
+- los ítems que viajaron a WSFEX (código, descripción con su unidad, cantidad, precio unitario y total);
 - el título `FACTURA DE EXPORTACIÓN`;
 - el cliente con su domicilio, el CUIT del país con su descripción de ARCA (`55000004242 (POLONIA - Persona Jurídica)`) y el ID impositivo;
 - la divisa con su código ISO y su nombre (`USD - Dólar Estadounidense`; WSFEX la llama `DOL`) y el destino del comprobante;
@@ -116,7 +116,7 @@ La `E` usa el diseño de exportación de `@arcasdk/pdf`, con los mismos datos qu
 - el QR de ARCA, con el CUIT del país como documento del receptor.
 
 - El nombre y el domicilio del cliente no son datos solo del PDF: salen de `--cliente` y `--domicilio-cliente` y ARCA los guarda. `--receptor-nombre` y `--receptor-domicilio` no existen en `fe`.
-- `--descripcion` es la descripción del renglón único que arma ARCLI cuando no pasás `--item` (por defecto "Según detalle"). Con items, los renglones son los `--item`.
+- `--descripcion` es la descripción del renglón único que arma ARCLI cuando no pasás `--item` (por defecto "Según detalle"). Con ítems, los renglones son los `--item`.
 - `emisor.condicionIva` sin configurar sale como "Responsable Inscripto", igual que en `A` y `B`.
 
 ## Leyendas obligatorias

@@ -2,12 +2,11 @@ import { DEFAULT_IVA_RATE } from '../../modules/billing/billing.amounts';
 import { DEFAULT_CURRENCY_CODE } from '../../modules/billing/billing.constants';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
 import type { BillingConcept } from '../../modules/billing/billing.schemas';
-import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { parseAmountInput } from '../../modules/interactive/amount-input';
 import { invoiceKindChoices, reciboChoice } from '../../modules/interactive/choices';
 import { copyInvoiceAmounts } from '../../modules/interactive/invoice-copy';
 import { currentMonthPeriod, previousMonthPeriod, type ServicePeriod } from '../../modules/interactive/periods';
-import { BACK, runWizard, type WizardStep } from '../../modules/interactive/wizard';
+import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { type IssuedVoucher, resolveDocumentType } from '../../modules/vouchers/voucher-history';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 
@@ -61,7 +60,7 @@ export function repeatSteps(
     {
       name: 'factura',
       run: async (state) => {
-        const voucherKind = state.voucherKind as VoucherKindDefinition;
+        const voucherKind = requireStepValue(state.voucherKind, 'voucherKind');
         const picked = await pickInvoice(session, { message: '¿Cuál repetimos?', pointOfSale, voucherKind });
 
         if (picked === BACK) {
@@ -118,7 +117,7 @@ export function repeatSteps(
     {
       name: 'monto',
       run: async (state) => {
-        const original = state.original as IssuedVoucher;
+        const original = requireStepValue(state.original, 'original');
         // Si no se puede reproducir (varias alicuotas, tributos), "mismo monto" no daria la misma factura.
         const reproducible = !copyInvoiceAmounts(original, state.voucherKind?.letter ?? 'c').limitation;
         const scope = reproducible
@@ -207,7 +206,7 @@ export function repeatSteps(
             ...(foreign ? (['divisas'] as const) : []),
             ...(!state.advanced.ivaRate && state.voucherKind?.letter !== 'c' ? (['alicuota'] as const) : []),
           ],
-          voucherKind: state.voucherKind as VoucherKindDefinition,
+          voucherKind: requireStepValue(state.voucherKind, 'voucherKind'),
         });
 
         return advanced === BACK ? BACK : { advanced };
