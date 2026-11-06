@@ -11,6 +11,8 @@ import type {
   ServerStatus,
 } from '../../modules/parameters/parameters';
 
+import { toDetailErrors, withDeprecatedErrors } from './arca-error-details';
+
 interface ArcaParameterRow {
   readonly cmp_Clase?: string;
   readonly desc: string;
@@ -32,7 +34,7 @@ function readRows<T>(result: ArcaListResult, key: string, operation: string): T[
   if (errors.some((error) => error.code !== NO_RESULTS_CODE)) {
     throw new AppError(`ARCA devolvió un error al consultar ${operation}: ${errors.map((e) => e.msg).join('; ')}`, {
       code: 'ARCA_PARAMETERS_ERROR',
-      details: { errores: errors },
+      details: { errores: toDetailErrors(errors) },
     });
   }
 
@@ -82,7 +84,7 @@ export class ArcaParametersGateway implements ParametersGateway {
     if (typeof rate !== 'number' || rate <= 0) {
       throw new AppError(`ARCA no devolvió una cotización para ${currency}.`, {
         code: 'ARCA_QUOTATION_ERROR',
-        details: { errors: result.errors },
+        details: withDeprecatedErrors(result.errors, toDetailErrors(result.errors?.err ?? [])),
       });
     }
 

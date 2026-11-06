@@ -156,7 +156,7 @@ export function formatImportedCertificateAsText(imported: ImportedCertificate): 
       ...servicesSection('Si todavía no los autorizaste'),
     ],
     contentAlign: 'left',
-    footer: 'Para revisar todo: arcli config revisar',
+    footer: 'Para revisar todo: `arcli config revisar`.',
     footerColor: 'muted',
     footerDivider: true,
     title: `Certificado de ${ENVIRONMENT_NAMES[imported.environment]}`,

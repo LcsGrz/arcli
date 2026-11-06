@@ -34,7 +34,7 @@ function fallBack(input: BillingCommandInput, reason: string, hint?: string): Pa
 
 function lookupErrorHint(error: unknown): string | undefined {
   return error instanceof AppError && error.code === 'PADRON_SERVICE_NOT_AUTHORIZED'
-    ? 'Para no consultarlo al facturar: arcli config establecer consultarPadron false.'
+    ? 'Para no consultarlo al facturar: `arcli config establecer consultarPadron false`.'
     : undefined;
 }
 

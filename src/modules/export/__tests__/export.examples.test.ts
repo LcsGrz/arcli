@@ -21,11 +21,11 @@ describe('ejemplos de factura de exportacion', () => {
   it.each(FILES)('%s pasa el schema de --cargar y la suma de items da el monto', (file) => {
     const input = readExportJsonInput(JSON.parse(readFileSync(join(EXAMPLES_DIR, file), 'utf8')));
 
-    expect(input.monto).toBeGreaterThan(0);
+    expect(input.montoTotal).toBeGreaterThan(0);
     expect(input.cliente?.trim()).toBeTruthy();
     expect(input.domicilioCliente?.trim()).toBeTruthy();
     expect(input.paisDestino).toBeDefined();
     expect(mapExportJsonItems(input.items)?.length ?? 0).toBeGreaterThan(0);
-    expect(() => assertExportItemsTotal(mapExportJsonItems(input.items), input.monto as number)).not.toThrow();
+    expect(() => assertExportItemsTotal(mapExportJsonItems(input.items), input.montoTotal as number)).not.toThrow();
   });
 });

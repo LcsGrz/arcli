@@ -1,4 +1,5 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
+import { DEPRECATED_POINT_OF_SALE_OBJECT } from '../../lib/json/deprecations';
 import { POINT_OF_SALE_GUIDE_URL } from '../../lib/links';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { keyValuePanel, noticePanel, renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui';
@@ -138,7 +139,7 @@ export function formatStatusAsText(report: StatusReport): string {
   const footer = report.ready
     ? 'ARCA responde: se puede emitir'
     : report.pointOfSale.kind === 'sin-configurar'
-      ? 'Configurá el punto de venta: arcli config establecer puntoVenta <numero>'
+      ? 'Configurá el punto de venta con `arcli config establecer puntoVenta <numero>`.'
       : report.pointOfSale.kind === 'habilitado' || report.pointOfSale.kind === 'sin-datos'
         ? 'ARCA tiene problemas: esperá unos minutos y reintentá'
         : report.pointOfSale.kind === 'no-encontrado'
@@ -157,17 +158,20 @@ export function formatStatusAsText(report: StatusReport): string {
 
 export function formatStatusAsJson(report: StatusReport): string {
   const point = 'point' in report.pointOfSale ? report.pointOfSale.point : undefined;
+  const pointOfSale = {
+    estado: report.pointOfSale.kind,
+    numero: report.pointOfSaleNumber ?? null,
+    tipoEmision: point?.emissionType ?? null,
+  };
 
   return JSON.stringify(
     {
+      deprecado: [DEPRECATED_POINT_OF_SALE_OBJECT],
       entorno: report.environment,
       latenciaMs: report.latencyMs,
       listo: report.ready,
-      puntoVenta: {
-        estado: report.pointOfSale.kind,
-        numero: report.pointOfSaleNumber ?? null,
-        tipoEmision: point?.emissionType ?? null,
-      },
+      puntoVenta: pointOfSale,
+      puntoVentaDetalle: pointOfSale,
       servidores: {
         aplicacion: report.servers.app,
         autenticacion: report.servers.auth,

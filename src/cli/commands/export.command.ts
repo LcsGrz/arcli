@@ -102,6 +102,7 @@ export async function executeExportCommand(command: Command, options: ExportComm
     // Los avisos de la resolucion (por ejemplo, la cotizacion de un dia anterior) van con los del certificado.
     const warnings = [
       ...resolveWarnings(certificateWarnings(runtime), plan.input),
+      ...plan.warnings,
       ...(options.extraWarnings ?? []),
       ...(resolved.warnings ?? []),
     ];

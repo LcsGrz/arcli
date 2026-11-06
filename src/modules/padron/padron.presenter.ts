@@ -1,4 +1,5 @@
 import { formatCuit } from '../../lib/identity/format-cuit';
+import { DEPRECATED_CUIT_NUMBER } from '../../lib/json/deprecations';
 import { keyValuePanel, renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui';
 import { ivaConditionCode, ivaConditionLabel } from '../billing/arca-codes';
 
@@ -29,6 +30,7 @@ export function formatPadronAsJson(report: PadronReport): string {
     {
       actividades: taxpayer.activities.map((activity) => ({ descripcion: activity.description, id: activity.id })),
       avisos: taxpayer.notices,
+      deprecado: [DEPRECATED_CUIT_NUMBER],
       categoriaMonotributo: taxpayer.monotributoCategory,
       condicionIva: taxpayer.ivaCondition,
       cuit: taxpayer.cuit,

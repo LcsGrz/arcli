@@ -39,6 +39,7 @@ const exportJsonInputSchema = z
     items: z.array(itemJsonSchema).optional(),
     mismaMoneda: z.boolean().optional(),
     monto: z.number().optional(),
+    montoTotal: z.number().optional(),
     numero: z.number().optional(),
     observaciones: z.string().optional(),
     observacionesComerciales: z.string().optional(),
@@ -53,6 +54,9 @@ const exportJsonInputSchema = z
   .strict();
 
 export type ExportJsonInput = z.infer<typeof exportJsonInputSchema>;
+
+const DEPRECATED_AMOUNT_KEY_WARNING =
+  'La clave "monto" del JSON de --cargar se saca en la 3.0.0: usá "montoTotal", como en A, B y C.';
 
 const TYPE_LABELS: Readonly<Record<string, string>> = {
   array: 'un array',
@@ -100,7 +104,18 @@ export function readExportJsonInput(source: unknown): ExportJsonInput {
     );
   }
 
-  return parseExportJsonInput(source);
+  const input = parseExportJsonInput(source);
+
+  if (input.monto !== undefined && input.montoTotal !== undefined) {
+    throw new InputValidationError('En el JSON de --cargar: usá "montoTotal" o "monto", no las dos.');
+  }
+
+  return input;
+}
+
+/** Los avisos de lo que trae el JSON de `--cargar`. */
+export function exportJsonInputWarnings(input: ExportJsonInput | undefined): string[] {
+  return input?.monto === undefined ? [] : [DEPRECATED_AMOUNT_KEY_WARNING];
 }
 
 export function mapExportJsonItems(items: ExportJsonInput['items']): ExportItemInput[] | undefined {

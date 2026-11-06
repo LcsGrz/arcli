@@ -285,6 +285,8 @@ function isBillingInput(value: unknown): value is Record<string, unknown> {
     value !== null &&
     !Array.isArray(value) &&
     !('codigo' in value) &&
+    // La factura E tambien lleva `montoTotal`, pero tiene otro schema.
+    !('cliente' in value) &&
     ('montoTotal' in value || 'alicuotas' in value)
   );
 }

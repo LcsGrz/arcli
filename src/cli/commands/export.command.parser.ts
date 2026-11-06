@@ -2,7 +2,11 @@ import type { Command } from 'commander';
 
 import { InputValidationError } from '../../lib/errors/app-error';
 import { readJsonFile } from '../../lib/files/read-json-file';
-import { mapExportJsonItems, readExportJsonInput } from '../../modules/export/export.json-input';
+import {
+  exportJsonInputWarnings,
+  mapExportJsonItems,
+  readExportJsonInput,
+} from '../../modules/export/export.json-input';
 import type {
   ExportItemInput,
   ExportModeSource,
@@ -14,6 +18,8 @@ export interface ExportCommandPlan {
   readonly input: ExportVoucherInput;
   /** De donde salio la decision de emitir: define si se pregunta antes de emitir. */
   readonly modeSource: ExportModeSource;
+  /** Avisos de lo que trae el JSON de `--cargar`. */
+  readonly warnings: readonly string[];
 }
 
 export interface ExportCommandDefaults {
@@ -89,7 +95,7 @@ export function parseExportCommandPlan(command: Command, defaults: ExportCommand
   return {
     input: {
       activity: pickNumber(options.actividad, file?.actividad),
-      amount: pickNumber(options.monto, file?.monto),
+      amount: pickNumber(options.monto, file?.montoTotal, file?.monto),
       clientAddress: pickString(options.domicilioCliente, file?.domicilioCliente),
       clientCountryCuit: pickNumber(options.cuitPais, file?.cuitPais),
       clientName: pickString(options.cliente, file?.cliente),
@@ -119,5 +125,6 @@ export function parseExportCommandPlan(command: Command, defaults: ExportCommand
       voucherNumber: pickNumber(options.numero, file?.numero),
     },
     modeSource,
+    warnings: exportJsonInputWarnings(file),
   };
 }

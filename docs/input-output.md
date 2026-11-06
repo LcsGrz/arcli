@@ -174,30 +174,30 @@ La factura `E` (`arcli fe` o `arcli factura e`) no comparte el JSON de facturaci
 
 ### Input de `--cargar`
 
-| Campo                                       | Tipo              | Requerido | Descripción                                                                                      |
-| ------------------------------------------- | ----------------- | --------- | ------------------------------------------------------------------------------------------------ |
-| `cliente`                                   | string            | sí        | Nombre del cliente del exterior                                                                  |
-| `domicilioCliente`                          | string            | sí        | Domicilio del cliente                                                                            |
-| `paisDestino`                               | string \| number  | sí        | Código de ARCA o nombre del país (`203`, `"Brasil"`)                                             |
-| `monto`                                     | number            | sí        | Total del comprobante; tiene que dar la suma de los items                                        |
-| `numero`                                    | number            | sí        | El siguiente al último `E` de ese punto de venta: ARCLI todavía no lo puede consultar en WSFEX   |
-| `actividad`                                 | number            | sí\*      | Código de la tabla de actividades de WSFEX. \*Si falta, sale de `exportacion.actividad`          |
-| `items`                                     | array             | no        | Renglones (ver abajo). Sin items va uno solo con `descripcion` por el total                      |
-| `idImpositivo`                              | string            | no        | ID impositivo del cliente en su país                                                             |
-| `cuitPais`                                  | number            | no        | CUIT del país del cliente; si falta sale de la tabla de ARCA                                     |
-| `tipoExpo`                                  | `1` \| `2` \| `4` | no        | `2` servicios (por defecto), `1` bienes, `4` otros                                               |
-| `incoterm`, `descripcionIncoterm`           | string            | no        | Código y descripción del incoterm (`FOB`, `CIF`…)                                                |
-| `idioma`                                    | number            | no        | `1` español (por defecto), `2` inglés, `3` portugués                                             |
-| `formaPago`                                 | string            | no        | Por defecto `Transferencia Internacional`                                                        |
-| `permisos`, `permisoExistente`              | string[], boolean | no        | IDs de permiso de embarque y si ya están informados en ARCA; solo con `tipoExpo: 1`              |
-| `idSolicitud`                               | number            | no        | ID de la solicitud; si falta se pide a WSFEX                                                     |
-| `puntoVenta`                                | number            | no        | Por defecto, el de la config                                                                     |
-| `fechaComprobante`, `fechaPago`             | string            | no        | Formato argentino: `27/10/2026`, `27-10-26` o solo día y mes                                     |
-| `codigoMoneda`, `cotizacionMoneda`          | string, number    | no        | `USD` viaja como `DOL` (por defecto); sin cotización se usa la de aduana que publica ARCA        |
-| `mismaMoneda`                               | boolean           | no        | Pago en la misma moneda extranjera (`CanMisMonExt` en `S`): ARCLI consulta la cotización oficial |
-| `observaciones`, `observacionesComerciales` | string            | no        | Van a `Obs` y `Obs_comerciales`                                                                  |
-| `descripcion`                               | string            | no        | Descripción del renglón único cuando no hay `items`; por defecto `Según detalle`                 |
-| `pdf`, `emitir`, `previsualizar`            | boolean           | no        | Igual que en el resto de los comprobantes                                                        |
+| Campo                                       | Tipo              | Requerido | Descripción                                                                                                                                                        |
+| ------------------------------------------- | ----------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `cliente`                                   | string            | sí        | Nombre del cliente del exterior                                                                                                                                    |
+| `domicilioCliente`                          | string            | sí        | Domicilio del cliente                                                                                                                                              |
+| `paisDestino`                               | string \| number  | sí        | Código de ARCA o nombre del país (`203`, `"Brasil"`)                                                                                                               |
+| `montoTotal`                                | number            | sí        | Total del comprobante, igual que en A, B y C. `monto` sigue andando, con un aviso, hasta la 3.0.0; las dos juntas son un error. Tiene que dar la suma de los items |
+| `numero`                                    | number            | sí        | El siguiente al último `E` de ese punto de venta: ARCLI todavía no lo puede consultar en WSFEX                                                                     |
+| `actividad`                                 | number            | sí\*      | Código de la tabla de actividades de WSFEX. \*Si falta, sale de `exportacion.actividad`                                                                            |
+| `items`                                     | array             | no        | Renglones (ver abajo). Sin items va uno solo con `descripcion` por el total                                                                                        |
+| `idImpositivo`                              | string            | no        | ID impositivo del cliente en su país                                                                                                                               |
+| `cuitPais`                                  | number            | no        | CUIT del país del cliente; si falta sale de la tabla de ARCA                                                                                                       |
+| `tipoExpo`                                  | `1` \| `2` \| `4` | no        | `2` servicios (por defecto), `1` bienes, `4` otros                                                                                                                 |
+| `incoterm`, `descripcionIncoterm`           | string            | no        | Código y descripción del incoterm (`FOB`, `CIF`…)                                                                                                                  |
+| `idioma`                                    | number            | no        | `1` español (por defecto), `2` inglés, `3` portugués                                                                                                               |
+| `formaPago`                                 | string            | no        | Por defecto `Transferencia Internacional`                                                                                                                          |
+| `permisos`, `permisoExistente`              | string[], boolean | no        | IDs de permiso de embarque y si ya están informados en ARCA; solo con `tipoExpo: 1`                                                                                |
+| `idSolicitud`                               | number            | no        | ID de la solicitud; si falta se pide a WSFEX                                                                                                                       |
+| `puntoVenta`                                | number            | no        | Por defecto, el de la config                                                                                                                                       |
+| `fechaComprobante`, `fechaPago`             | string            | no        | Formato argentino: `27/10/2026`, `27-10-26` o solo día y mes                                                                                                       |
+| `codigoMoneda`, `cotizacionMoneda`          | string, number    | no        | `USD` viaja como `DOL` (por defecto); sin cotización se usa la de aduana que publica ARCA                                                                          |
+| `mismaMoneda`                               | boolean           | no        | Pago en la misma moneda extranjera (`CanMisMonExt` en `S`): ARCLI consulta la cotización oficial                                                                   |
+| `observaciones`, `observacionesComerciales` | string            | no        | Van a `Obs` y `Obs_comerciales`                                                                                                                                    |
+| `descripcion`                               | string            | no        | Descripción del renglón único cuando no hay `items`; por defecto `Según detalle`                                                                                   |
+| `pdf`, `emitir`, `previsualizar`            | boolean           | no        | Igual que en el resto de los comprobantes                                                                                                                          |
 
 Cada item:
 
@@ -214,7 +214,7 @@ Cada item:
   "cliente": "ACME LLC",
   "domicilioCliente": "123 Main St",
   "paisDestino": 203,
-  "monto": 1500,
+  "montoTotal": 1500,
   "numero": 1,
   "actividad": 620100,
   "tipoExpo": 2,
@@ -236,7 +236,7 @@ Cada item:
 
 ### Output JSON
 
-Es el mismo resumen que A, B y C (`atajo`, `cae`, `estado`, `errores`, `observaciones`, `pdf`…) con `atajo: "fe"` y `tipoArca: 19`, salvo que no trae `numero`: el número está en `solicitud.Cbte_nro`. Suma un bloque `exportacion` con lo que WSFEX tiene y `wsfe` no. `solicitud` es el `Cmp` de WSFEX, con los nombres de ARCA.
+Es el mismo resumen que A, B y C (`atajo`, `cae`, `estado`, `errores`, `observaciones`, `pdf`…) con `atajo: "fe"` y `tipoArca: 19`, y `numero`, también en la vista previa, porque lo informás vos. Suma un bloque `exportacion` con lo que WSFEX tiene y `wsfe` no. `solicitud` es el `Cmp` de WSFEX, con los nombres de ARCA.
 
 ```json
 {
@@ -355,6 +355,19 @@ Incluye, según el caso:
 
 La salida humana no debe tratarse como contrato estable para automatización. Para eso existe `--json`.
 
+Una clave del JSON no cambia sin aviso. Antes de sacarla o de cambiarle el tipo, sigue funcionando y la respuesta suma `deprecado`: una lista de frases con qué pasa y qué usar. Solo aparece si esa respuesta trae algo deprecado, nunca es un error y no se muestra en la terminal.
+
+| Clave deprecada                            | Dónde                    | Qué usar                                                   |
+| ------------------------------------------ | ------------------------ | ---------------------------------------------------------- |
+| `Code`, `Msg` en `errores` y `eventos`     | emisión de A, B y C      | `codigo`, `mensaje`                                        |
+| `code`, `message` en `errores` y `eventos` | emisión de la factura E  | `codigo`, `mensaje`                                        |
+| `puntoVenta` como objeto                   | `estado`                 | `puntoVentaDetalle`; en la 3.0.0 `puntoVenta` es un número |
+| `cuit` como número                         | `padron`, `fce-obligado` | Leelo como texto: en la 3.0.0 es un string                 |
+| `detalles.errors`                          | errores de ARCA          | `detalles.errores`, con `codigo` y `mensaje`               |
+| `monto` en `--cargar`                      | factura E                | `montoTotal`; este aviso sale en `avisos` y en la terminal |
+
+Todas se sacan en la 3.0.0.
+
 ## Output JSON
 
 ### Caso simple
@@ -368,14 +381,17 @@ ARCLI serializa un resumen del resultado. Con `--bruto` se agrega además el cam
 | `cae`              | `string \| null`                           | CAE informado por ARCA                                                                                                 |
 | `caeVencimiento`   | `string \| null`                           | Vencimiento del CAE                                                                                                    |
 | `comprobante`      | `string`                                   | Nombre visible del comprobante                                                                                         |
-| `errores`          | `unknown[]`                                | Array de errores crudos                                                                                                |
+| `deprecado`        | `string[]`, opcional                       | Claves de esta respuesta que se sacan en la 3.0.0 (ver [Estabilidad del contrato](#estabilidad-del-contrato))          |
+| `entorno`          | `"testing" \| "produccion"`                | Entorno en que se emitió o previsualizó                                                                                |
+| `errores`          | `object[]`                                 | Errores de ARCA, con `codigo` y `mensaje`                                                                              |
 | `estado`           | `"aprobado" \| "observado" \| "rechazado"` | Estado normalizado que arma ARCLI                                                                                      |
-| `eventos`          | `unknown[]`                                | Array de eventos crudos                                                                                                |
+| `eventos`          | `object[]`                                 | Eventos de ARCA, con `codigo` y `mensaje`                                                                              |
 | `numero`           | `number \| null`                           | Número del comprobante emitido; `null` en una previsualización                                                         |
 | `observaciones`    | `string[]`                                 | Observaciones amigables                                                                                                |
 | `observacion`      | `string \| null`                           | Observaciones unidas en una sola cadena                                                                                |
 | `pdf`              | `object`, opcional                         | Solo si se intentó generar el PDF: `{ ruta }` o `{ error: { codigo, mensaje, sugerencia } }`. Ver [PDF](pdf.md#salida) |
 | `previsualizacion` | `boolean`                                  | `true` si no hubo emisión real                                                                                         |
+| `puntoVenta`       | `number`                                   | Punto de venta del comprobante                                                                                         |
 | `resultado`        | `string \| null`                           | Resultado original de ARCA, por ejemplo `A` o `R`                                                                      |
 | `solicitud`        | `object`                                   | Solicitud enviada o previsualizada; si se emitió, con el número en `CbteDesde` y `CbteHasta`                           |
 | `sugerencias`      | `string[]`                                 | Sugerencias generadas por ARCLI                                                                                        |
@@ -416,10 +432,12 @@ Ejemplo:
   "cae": "86120020284412",
   "caeVencimiento": "20260329",
   "comprobante": "Factura B",
+  "entorno": "testing",
   "errores": [],
   "estado": "aprobado",
   "eventos": [],
   "numero": 125,
+  "puntoVenta": 3,
   "observaciones": [],
   "observacion": null,
   "previsualizacion": false,
@@ -530,6 +548,7 @@ Si no hubo emisión real, `respuesta` no se serializa como `null`. En su lugar:
   "categoriaMonotributo": null,
   "condicionIva": "responsable-inscripto",
   "cuit": 20201797064,
+  "deprecado": ["`cuit` pasa a ser texto en la 3.0.0: leelo como texto para que no te afecte."],
   "domicilio": "AV SIEMPRE VIVA 742, CABA, CP 1000, CIUDAD AUTONOMA BUENOS AIRES",
   "entorno": "testing",
   "estadoClave": "ACTIVO",
@@ -562,6 +581,7 @@ Si el CUIT no figura, es el error `TAXPAYER_NOT_FOUND` (ver [códigos](#códigos
 ```json
 {
   "cuit": 30546689979,
+  "deprecado": ["`cuit` pasa a ser texto en la 3.0.0: leelo como texto para que no te afecte."],
   "entorno": "testing",
   "fecha": "20261019",
   "montoDesde": 3958316,
@@ -583,10 +603,12 @@ Si el CUIT no figura, es el error `TAXPAYER_NOT_FOUND` (ver [códigos](#códigos
 
 ```json
 {
+  "deprecado": ["`puntoVenta` pasa a ser un número en la 3.0.0: para el detalle usá `puntoVentaDetalle`."],
   "entorno": "produccion",
   "latenciaMs": 412,
   "listo": true,
   "puntoVenta": { "estado": "habilitado", "numero": 3, "tipoEmision": "CAE" },
+  "puntoVentaDetalle": { "estado": "habilitado", "numero": 3, "tipoEmision": "CAE" },
   "servidores": { "aplicacion": "OK", "autenticacion": "OK", "baseDeDatos": "OK" }
 }
 ```
@@ -596,6 +618,7 @@ Si el CUIT no figura, es el error `TAXPAYER_NOT_FOUND` (ver [códigos](#códigos
 | `listo`                  | `boolean`        | Se puede emitir: los tres servidores en `OK` y el punto de venta `habilitado` o `sin-datos`     |
 | `latenciaMs`             | `number`         | Lo que tardó ARCA en responder el estado de los servidores                                      |
 | `servidores`             | `object`         | `aplicacion`, `baseDeDatos` y `autenticacion`, tal como los informa ARCA (`OK` si andan)        |
+| `puntoVentaDetalle`      | `object`         | Lo mismo que `puntoVenta`, que en la 3.0.0 pasa a ser un número. Se detalla abajo               |
 | `puntoVenta.estado`      | `string`         | `habilitado`, `bloqueado`, `de-baja`, `no-encontrado`, `sin-datos` (testing) o `sin-configurar` |
 | `puntoVenta.numero`      | `number \| null` | Punto de venta de la config; `null` si no hay                                                   |
 | `puntoVenta.tipoEmision` | `string \| null` | Tipo de emisión que informa ARCA, si encontró el punto de venta                                 |
@@ -773,6 +796,8 @@ Todos tienen las mismas cuatro claves:
 | `detalles`   | `object \| array \| null` | Datos del error: un objeto, la lista de campos en errores de validación de Zod, o `null` |
 | `error`      | `string`                  | Mensaje para mostrar                                                                     |
 | `sugerencia` | `string \| null`          | Qué hacer; `null` cuando no hay nada que sugerir                                         |
+
+En los errores de ARCA, `detalles.errores` trae cada error con `codigo` y `mensaje`. Si `detalles.errors` también está, `detalles.deprecado` avisa que se saca en la 3.0.0.
 
 Un comprobante **rechazado por ARCA no es un error del comando**: sale como resultado normal (stdout, `estado: "rechazado"`, con `errores` y `observaciones`), pero el exit code es `2`.
 

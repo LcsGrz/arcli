@@ -1,4 +1,6 @@
-import type { ExportExecutionResult } from './export.types';
+import { DEPRECATED_EXPORT_RESPONSE_KEYS } from '../../lib/json/deprecations';
+
+import type { ExportExecutionResult, ExportResponseError } from './export.types';
 
 export interface ExportSerializeOptions {
   readonly raw?: boolean;
@@ -53,24 +55,33 @@ function formatExportBlock(result: ExportExecutionResult): Record<string, unknow
   };
 }
 
+function withSpanishKeys(item: ExportResponseError): Record<string, unknown> {
+  return { ...item, codigo: item.code, mensaje: item.message };
+}
+
 export function serializeExportResult(
   result: ExportExecutionResult,
   options: ExportSerializeOptions = {},
 ): Record<string, unknown> {
+  const { errors, events } = result.response;
   const summary: Record<string, unknown> = {
     atajo: result.voucherKind.shortcut,
     avisos: result.warnings ?? [],
     cae: result.response.cae,
     caeVencimiento: result.response.caeVencimiento,
     comprobante: result.voucherKind.displayName,
-    errores: result.response.errors,
+    ...(errors.length + events.length > 0 ? { deprecado: [DEPRECATED_EXPORT_RESPONSE_KEYS] } : {}),
+    entorno: result.environment,
+    errores: errors.map(withSpanishKeys),
     estado: result.response.status,
-    eventos: result.response.events,
+    eventos: events.map(withSpanishKeys),
     exportacion: formatExportBlock(result),
+    numero: result.payload.Cbte_nro,
     observaciones: result.response.observaciones,
     observacion: result.response.observacion,
     ...formatPdfOutcome(result),
     previsualizacion: result.dryRun,
+    puntoVenta: result.payload.Punto_vta,
     resultado: result.response.resultado,
     solicitud: result.payload,
     sugerencias: result.response.suggestions,
