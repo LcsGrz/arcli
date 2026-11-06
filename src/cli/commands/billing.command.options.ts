@@ -25,16 +25,16 @@ export function registerBillingOptions(command: Command): void {
       integerOption('--dia'),
     )
     .option('--punto-venta <numero>', 'punto de venta (alias: --pv)', integerOption('--punto-venta'))
-    .option('--pv <numero>', 'alias de punto de venta', integerOption('--pv'))
+    .option('--pv <numero>', 'alias de --punto-venta', integerOption('--pv'))
     .option('--cargar <ruta>', 'cargar datos base desde un archivo JSON')
     .option('-f, --fecha <fecha>', 'fecha del comprobante; acepta D, D/M, D/M/YY o D/M/YYYY con - o /')
-    .option('-c, --concepto <tipo>', 'productos, servicios o productos y servicios (alias: cs, cp, csp)')
+    .option('-c, --concepto <tipo>', 'productos, servicios o productos y servicios (alias: --cs, --cp, --csp)')
     .option('--cs', 'usar concepto servicios')
     .option('--cp', 'usar concepto productos')
     .option('--csp', 'usar concepto productos y servicios')
     .option('--moneda <codigo>', 'moneda: código ISO (ARS, USD, EUR, UYU…) o de ARCA (PES, DOL, 060…) (alias: --mda)')
-    .option('--mda <codigo>', 'alias de --moneda: código ISO o de ARCA')
-    .option('--cm <numero>', 'alias de cotización de la moneda', amountOption('--cm', EXCHANGE_RATE_DECIMALS))
+    .option('--mda <codigo>', 'alias de --moneda')
+    .option('--cm <numero>', 'alias de --cotizacion-moneda', amountOption('--cm', EXCHANGE_RATE_DECIMALS))
     .option(
       '--cotizacion-moneda <numero>',
       'cotización de la moneda, por ejemplo 1.452,50 (alias: --cm)',
@@ -45,12 +45,12 @@ export function registerBillingOptions(command: Command): void {
     .option('--cuil <numero>', 'usar CUIL del receptor', documentNumberOption('--cuil'))
     .option('--dni <numero>', 'usar DNI del receptor', documentNumberOption('--dni'))
     .option('--consumidor-final', 'usar consumidor final con documento 0 (alias: --cfinal)')
-    .option('--cfinal', 'alias de consumidor final con documento 0')
+    .option('--cfinal', 'alias de --consumidor-final')
     .option(
       '--iva-receptor <tipo>',
       'condición IVA del receptor; con --cuit, sin este flag, se toma del padrón (alias: --ir)',
     )
-    .option('--ir <tipo>', 'alias rápido de condición IVA del receptor')
+    .option('--ir <tipo>', 'alias de --iva-receptor')
     .option('--ir-ce', 'IVA receptor: cliente del exterior')
     .option('--ir-cf', 'IVA receptor: consumidor final')
     .option('--ir-il', 'IVA receptor: IVA liberado')
@@ -62,12 +62,12 @@ export function registerBillingOptions(command: Command): void {
     .option('--ir-rm', 'IVA receptor: responsable monotributo')
     .option('--ir-se', 'IVA receptor: sujeto exento')
     .option('--ir-snc', 'IVA receptor: sujeto no categorizado')
-    .option('--sd <fecha>', 'alias rápido de fecha de inicio de servicio')
+    .option('--sd <fecha>', 'alias de --servicio-desde')
     .option('--servicio-desde <fecha>', 'fecha de inicio de servicio (alias: --sd)')
-    .option('--sh <fecha>', 'alias rápido de fecha de fin de servicio')
+    .option('--sh <fecha>', 'alias de --servicio-hasta')
     .option('--servicio-hasta <fecha>', 'fecha de fin de servicio (alias: --sh)')
     .option('--vencimiento <fecha>', 'fecha de vencimiento del pago; por defecto el fin del servicio (alias: --vto)')
-    .option('--vto <fecha>', 'alias de fecha de vencimiento del pago')
+    .option('--vto <fecha>', 'alias de --vencimiento')
     .option('--at <numero>', 'tipo ARCA del comprobante asociado', integerOption('--at'))
     .option(
       '--apv <numero>',
@@ -87,9 +87,9 @@ export function registerBillingOptions(command: Command): void {
       cuitOption('--acuit'),
     )
     .option('--periodo-desde <fecha>', 'inicio del período asociado; alternativa a --ac en notas comunes (alias: --pd)')
-    .option('--pd <fecha>', 'alias de inicio del período asociado')
+    .option('--pd <fecha>', 'alias de --periodo-desde')
     .option('--periodo-hasta <fecha>', 'fin del período asociado; alternativa a --ac en notas comunes (alias: --ph)')
-    .option('--ph <fecha>', 'alias de fin del período asociado')
+    .option('--ph <fecha>', 'alias de --periodo-hasta')
     .option('--afecha <fecha>', 'fecha del comprobante asociado; obligatoria en NC/ND FCE')
     .option('--cbu <cbu>', 'CBU del emisor para facturas FCE (22 dígitos)')
     .option('--alias <alias>', 'alias del CBU del emisor para facturas FCE')
@@ -104,10 +104,10 @@ export function registerBillingOptions(command: Command): void {
       'condición de venta en el PDF: contado, tarjeta-debito, tarjeta-credito, cuenta-corriente, cheque, transferencia, otros-medios-electronicos, otra o un texto (alias: --cv)',
     )
     .option('--cv <tipo>', 'alias de --condicion-venta')
-    .option('--sin-condicion-venta', 'omite la condición de venta aunque esté configurada')
+    .option('--sin-condicion-venta', 'omitir la condición de venta aunque esté configurada')
     .option('--receptor-nombre <texto>', 'nombre o razón social del receptor en el PDF')
     .option('--receptor-domicilio <texto>', 'domicilio del receptor en el PDF')
-    .option('--previsualizar', 'mostrar el payload antes de emitir en ARCA')
+    .option('--previsualizar', 'mostrar la solicitud sin emitir en ARCA')
     .addOption(new Option('--emitir', 'emitir realmente en ARCA'));
 }
 

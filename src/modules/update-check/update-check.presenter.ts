@@ -11,7 +11,7 @@ const MAX_CHANGES_PER_ENTRY = 6;
 export function renderUpdateNoticePanel(result: UpdateCheckResult): string {
   return noticePanel(
     `Nueva versión disponible: ${result.latestVersion} (actual: ${result.currentVersion})\n` +
-      `Actualizá con: ${resolveUpdateCommand()}`,
+      `Actualizá con \`${resolveUpdateCommand()}\`.`,
     'info',
     'info',
   );
@@ -51,7 +51,9 @@ function formatChanges(changes: readonly ChangelogChange[]): string[] {
   const lines = changes.slice(0, MAX_CHANGES_PER_ENTRY).map(formatChange);
   const hidden = changes.length - MAX_CHANGES_PER_ENTRY;
 
-  return hidden > 0 ? [...lines, colorize(`${CHANGE_INDENT}y ${hidden} cambio(s) más`, 'muted')] : lines;
+  return hidden > 0
+    ? [...lines, colorize(`${CHANGE_INDENT}y ${hidden} ${hidden === 1 ? 'cambio' : 'cambios'} más`, 'muted')]
+    : lines;
 }
 
 function formatChangelog(entries: readonly ChangelogEntry[] | undefined): string[] {
@@ -71,7 +73,10 @@ function formatChangelog(entries: readonly ChangelogEntry[] | undefined): string
   const hidden = entries.length - MAX_CHANGELOG_ENTRIES;
 
   if (hidden > 0) {
-    lines.push('', colorize(`Y ${hidden} versión(es) más en ${CHANGELOG_PAGE_URL}`, 'muted'));
+    lines.push(
+      '',
+      colorize(`Y ${hidden} ${hidden === 1 ? 'versión' : 'versiones'} más en ${CHANGELOG_PAGE_URL}`, 'muted'),
+    );
   }
 
   return lines;

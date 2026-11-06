@@ -163,7 +163,7 @@ export function registerCompletionCommands(program: Command): void {
   // Pedir el comando ya es la confirmacion, como en `pdf instalar`: no se vuelve a preguntar.
   for (const [name, description, run] of [
     ['instalar', 'agregar el autocompletado al archivo de inicio del shell', installCompletion],
-    ['desinstalar', 'sacar el autocompletado que agrego arcli', uninstallCompletion],
+    ['desinstalar', 'sacar el autocompletado que agregó arcli', uninstallCompletion],
   ] as const) {
     const subcommand = registerJsonOption(
       command

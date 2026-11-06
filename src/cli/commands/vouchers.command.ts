@@ -67,7 +67,7 @@ export function registerVoucherQueryCommands(program: Command): void {
       .description('listar los últimos comprobantes emitidos en ARCA')
       .option(
         '--cantidad <numero>',
-        `cuantos comprobantes mostrar (1 a ${MAX_RECENT_VOUCHERS}; por defecto config.comprobantesPorLista o ${RECENT_VOUCHERS_LIMIT})`,
+        `cuántos comprobantes mostrar (1 a ${MAX_RECENT_VOUCHERS}; por defecto config.comprobantesPorLista o ${RECENT_VOUCHERS_LIMIT})`,
         integerOption('--cantidad'),
       ),
   ).addHelpText('after', createVoucherQueryHelp());

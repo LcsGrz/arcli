@@ -26,7 +26,7 @@ function parseItemAmount(part: string, field: string, raw: string): number {
   const parsed = parseArgentineAmount(part, { maxDecimals: 6 });
 
   if (!parsed.ok) {
-    throw new InputValidationError(`El ${field} del item "${raw}" no es válido: ${parsed.reason}.`);
+    throw new InputValidationError(`${field} del ítem "${raw}" no tiene un formato válido: ${parsed.reason}.`);
   }
 
   return parsed.value;
@@ -40,7 +40,7 @@ export function parseExportItemArgument(raw: string): ExportItemInput {
   const parts = raw.split('|').map((part) => part.trim());
 
   if (parts.length < 3 || parts.length > 5) {
-    throw new InputValidationError(`El item "${raw}" no es válido. ${ITEM_FORMAT_HINT}`);
+    throw new InputValidationError(`El ítem "${raw}" no es válido. ${ITEM_FORMAT_HINT}`);
   }
 
   const [codeOrDescription, ...rest] = parts;
@@ -48,15 +48,15 @@ export function parseExportItemArgument(raw: string): ExportItemInput {
   const [quantityPart, pricePart, unitPart] = rest;
 
   if (!description || !quantityPart || !pricePart) {
-    throw new InputValidationError(`El item "${raw}" no es válido: falta la descripción, la cantidad o el precio.`);
+    throw new InputValidationError(`El ítem "${raw}" no es válido: falta la descripción, la cantidad o el precio.`);
   }
 
   return {
     code: parts.length === 5 ? codeOrDescription : undefined,
     description,
-    quantity: parseItemAmount(quantityPart, 'la cantidad', raw),
+    quantity: parseItemAmount(quantityPart, 'La cantidad', raw),
     unit: unitPart ? resolveExportItemUnit(unitPart) : DEFAULT_EXPORT_UNIT_CODE,
-    unitPrice: parseItemAmount(pricePart, 'el precio', raw),
+    unitPrice: parseItemAmount(pricePart, 'El precio', raw),
   };
 }
 
@@ -70,7 +70,7 @@ function resolveExportItemUnit(unit: string | number): string | number {
 
   if (!trimmed) {
     throw new InputValidationError(
-      'La unidad del item no puede estar vacía. Usá --item sin la última parte para usar "unidad".',
+      'La unidad del ítem no puede estar vacía. Usá --item sin la última parte para usar "unidad".',
     );
   }
 
@@ -135,7 +135,7 @@ export function resolveUnitCode(unit: string | number | undefined, units: readon
 function assertSameTotal(total: Big, amount: number): void {
   if (!total.eq(new Big(amount).round(2, Big.roundHalfUp))) {
     throw new InputValidationError(
-      `La suma de los items (${formatArgentineAmount(roundAmount(total))}) no coincide con --monto (${formatArgentineAmount(amount)}).`,
+      `La suma de los ítems (${formatArgentineAmount(roundAmount(total))}) no coincide con --monto (${formatArgentineAmount(amount)}).`,
     );
   }
 }
@@ -183,17 +183,17 @@ export function buildExportItems(
 
   const items = inputs.map((item) => {
     if (!item.description.trim()) {
-      throw new InputValidationError('Cada item necesita una descripción.');
+      throw new InputValidationError('Cada ítem necesita una descripción.');
     }
 
     const quantity = new Big(item.quantity);
 
     if (quantity.lte(0)) {
-      throw new InputValidationError(`La cantidad del item "${item.description}" tiene que ser mayor a 0.`);
+      throw new InputValidationError(`La cantidad del ítem "${item.description}" tiene que ser mayor a 0.`);
     }
 
     if (!(item.unitPrice > 0)) {
-      throw new InputValidationError(`El precio del item "${item.description}" tiene que ser mayor a 0.`);
+      throw new InputValidationError(`El precio del ítem "${item.description}" tiene que ser mayor a 0.`);
     }
 
     return {

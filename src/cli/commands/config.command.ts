@@ -65,7 +65,7 @@ export function buildRuntimeChecks(config: ArcliConfig): ConfigDoctorRuntimeChec
 export function registerConfigCommand(program: Command): void {
   const configCommand = program
     .command('config')
-    .description('guardar defaults, credenciales y revisar si el CLI está listo para emitir');
+    .description('guardar valores por defecto y credenciales, y revisar si el CLI está listo para emitir');
 
   configureSpanishHelp(configCommand);
 
@@ -89,7 +89,7 @@ export function registerConfigCommand(program: Command): void {
 
   const revisarCommand = configCommand
     .command('revisar')
-    .description('revisar configuración, defaults, credenciales y validación de cada entorno')
+    .description('revisar configuración, valores por defecto, credenciales y validación de cada entorno')
     .action((_options: unknown, command: Command) => {
       const service = createConfigService();
       let spinner: ReturnType<typeof startSpinner> = null;
@@ -137,7 +137,7 @@ export function registerConfigCommand(program: Command): void {
   const establecerCommand = configCommand
     .command('establecer')
     .description('guardar un valor de configuración')
-    .argument('<clave>', 'clave publica de configuración')
+    .argument('<clave>', 'clave pública de configuración')
     .argument('<valor>', 'valor a guardar')
     .addHelpText('after', createConfigSetHelp())
     .action((key: string, value: string, _options: unknown, command: Command) => {
@@ -167,7 +167,7 @@ export function registerConfigCommand(program: Command): void {
   const eliminarCommand = configCommand
     .command('eliminar')
     .description('eliminar un valor de configuración')
-    .argument('<clave>', 'clave publica de configuración')
+    .argument('<clave>', 'clave pública de configuración')
     .action((key: string, _options: unknown, command: Command) => {
       // Sin ensureInitialized: si la config quedo invalida, establecer o eliminar la clave es la forma de arreglarla.
       const service = new ConfigService();

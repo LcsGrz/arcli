@@ -10,7 +10,7 @@ function displayPath(path: string, home: string): string {
 function reloadHint(state: CompletionInstallState, home: string): string {
   return state.shell === 'fish'
     ? 'Abrí una terminal nueva.'
-    : `Abrí una terminal nueva o corré: source ${displayPath(state.path, home)}`;
+    : `Abrí una terminal nueva o corré \`source ${displayPath(state.path, home)}\`.`;
 }
 
 export function formatCompletionStateAsText(state: CompletionInstallState, home: string): string {
