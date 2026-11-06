@@ -263,6 +263,14 @@ arcli fc ayuda
 
 ## ARCA
 
+### `dh key too small` en producción
+
+- **Severidad:** media
+- **Síntoma:** en una versión anterior de arcli, los comandos de producción fallan con `dh key too small` o `ERR_SSL_DH_KEY_TOO_SMALL`, con certificado, clave y punto de venta correctos. En testing andan.
+- **Causa:** WSFE y WSFEX de producción prefieren un intercambio DHE con una clave de 1024 bits, y OpenSSL la rechaza con `SECLEVEL=2`, el nivel de Debian 13 y otras distros.
+- **Solución:** actualizar arcli. Si no podés, corré el CLI con `node --tls-cipher-list='DEFAULT:!DHE' "$(which arcli)"` más los argumentos de siempre.
+- **Documentación relacionada:** [Arquitectura](architecture.md)
+
 ### `coe.alreadyAuthenticated`
 
 - **Severidad:** frecuente
