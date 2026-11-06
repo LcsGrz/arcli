@@ -9,7 +9,7 @@ describe('parseCuitArgument', () => {
   });
 
   it('rejects a wrong length or check digit', () => {
-    expect(() => parseCuitArgument('2020179706')).toThrow(/debe tener 11 digitos/);
-    expect(() => parseCuitArgument('20-20179706-5')).toThrow(/digito verificador/);
+    expect(() => parseCuitArgument('2020179706')).toThrow(/debe tener 11 dígitos/);
+    expect(() => parseCuitArgument('20-20179706-5')).toThrow(/dígito verificador/);
   });
 });

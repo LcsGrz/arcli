@@ -1,3 +1,5 @@
+export const HELP_SUGGESTION = 'Usá "arcli ayuda" o "arcli <comando> --ayuda" para ver comandos y opciones.';
+
 export class AppError extends Error {
   public readonly code: string;
   public readonly details?: Record<string, unknown>;

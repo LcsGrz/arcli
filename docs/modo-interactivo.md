@@ -78,22 +78,22 @@ Después muestra la vista previa (la misma de `--previsualizar`), el comando equ
 
 La `E` se elige en el mismo selector, pero tiene su propio asistente porque no lleva receptor argentino, concepto ni IVA. Valida y emite igual que `arcli fe`:
 
-| Paso | Pregunta          | Detalle                                                                                                             |
-| ---- | ----------------- | ------------------------------------------------------------------------------------------------------------------- |
-| 1    | Cliente           | Nombre o razón social del cliente del exterior                                                                      |
-| 2    | Domicilio         | Domicilio del cliente                                                                                               |
-| 3    | País de destino   | Nombre o código de la tabla de WSFEX (`ESTADOS UNIDOS` o `212`). Argentina no se acepta                             |
-| 4    | ID impositivo     | Opcional (Enter para omitirlo)                                                                                      |
-| 5    | Qué exportás      | Servicios (por defecto), bienes u otros                                                                             |
-| 6    | Monto total       | Igual que en la factura común                                                                                       |
-| 7    | Descripción       | Opcional; por defecto "Según detalle"                                                                               |
-| 8    | Moneda            | Dólares (`DOL`, con la cotización de aduana que publica ARCA) o pesos (`PES`)                                       |
-| 9    | ¿Te pagan en USD? | Solo en dólares: si sí, ARCA lo registra como cancelación en la misma moneda (`--misma-moneda`)                     |
-| 10   | Incoterm          | Solo en bienes, de la tabla de WSFEX, o sin incoterm                                                                |
-| 11   | Forma de pago     | Por defecto "Transferencia Internacional"                                                                           |
-| 12   | Fecha de pago     | Opcional; por defecto la del comprobante                                                                            |
-| 13   | Actividad         | Solo si no está `exportacion.actividad`; se valida contra la tabla de WSFEX y después ofrece guardarla en la config |
-| 14   | Número            | El siguiente al último `E` de ese punto de venta (`1` si es el primero): ARCLI todavía no lo puede consultar        |
+| Paso | Pregunta              | Detalle                                                                                                             |
+| ---- | --------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| 1    | Cliente               | Nombre o razón social del cliente del exterior                                                                      |
+| 2    | Domicilio             | Domicilio del cliente                                                                                               |
+| 3    | País de destino       | Nombre o código de la tabla de WSFEX (`ESTADOS UNIDOS` o `212`). Argentina no se acepta                             |
+| 4    | ID impositivo         | Opcional (Enter para omitirlo)                                                                                      |
+| 5    | Qué exportás          | Servicios (por defecto), bienes u otros                                                                             |
+| 6    | Monto total           | Igual que en la factura común                                                                                       |
+| 7    | Descripción           | Opcional; por defecto "Según detalle"                                                                               |
+| 8    | Moneda                | Dólares (`DOL`, con la cotización de aduana que publica ARCA) o pesos (`PES`)                                       |
+| 9    | ¿Te pagan en dólares? | Solo en dólares: si sí, ARCA lo registra como cancelación en la misma moneda (`--misma-moneda`)                     |
+| 10   | Incoterm              | Solo en bienes, de la tabla de WSFEX, o sin incoterm                                                                |
+| 11   | Forma de pago         | Por defecto "Transferencia Internacional"                                                                           |
+| 12   | Fecha de pago         | Opcional; por defecto la del comprobante                                                                            |
+| 13   | Actividad             | Solo si no está `exportacion.actividad`; se valida contra la tabla de WSFEX y después ofrece guardarla en la config |
+| 14   | Número                | El siguiente al último `E` de ese punto de venta (`1` si es el primero): ARCLI todavía no lo puede consultar        |
 
 Después muestra la vista previa, el comando `arcli fe` equivalente y pregunta si emitir (dos veces en producción). El PDF sigue la misma regla que el resto. Volver desde el primer paso vuelve al selector de comprobantes.
 
@@ -139,7 +139,7 @@ Se elige desde el menú: **Emitir nota de crédito** (descuento, devolución o a
 | 5    | IVA del receptor      | Solo si la factura no era a consumidor final: ARCA no devuelve la condición IVA, así que se pregunta, filtrada por la letra                                                                                                                                                                                                                                                                |
 | 6    | Anulación             | Solo en NC/ND FCE: si la factura fue rechazada por el comprador                                                                                                                                                                                                                                                                                                                            |
 
-La nota hereda de la factura el concepto, el receptor (tipo y número de documento), la fecha y la alícuota de IVA cuando se puede deducir de los importes. El comprobante asociado se completa solo: tipo, punto de venta (el de la factura, aunque sea otro que el configurado), número, CUIT del emisor y fecha.
+La nota hereda de la factura el concepto, el receptor (tipo y número de documento), la moneda y la alícuota de IVA cuando se puede deducir de los importes. El comprobante asociado se completa solo: tipo, punto de venta (el de la factura, aunque sea otro que el configurado), número, CUIT del emisor y fecha.
 
 ## Repetir un comprobante anterior
 

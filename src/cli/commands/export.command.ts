@@ -137,7 +137,9 @@ export async function executeExportCommand(command: Command, options: ExportComm
       previewShown = true;
     }
 
-    spinner = runtime.outputJson ? null : startSpinner('Emitiendo comprobante...');
+    spinner = runtime.outputJson
+      ? null
+      : startSpinner(`Emitiendo ${formatVoucherWithArticle(EXPORT_VOUCHER_KIND)} en ARCA...`);
 
     result = await service.execute({ gateway, resolved, runtime, warnings });
 

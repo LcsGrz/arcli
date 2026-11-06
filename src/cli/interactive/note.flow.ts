@@ -90,7 +90,7 @@ async function askNoteAmount(
 
       return (parseAmountInput(value) ?? 0) <= invoice.total
         ? true
-        : `No puede superar el total de la factura (${formatMoneyLabel(invoice.total, invoice.currency)}).`;
+        : `No puede superar el total del comprobante (${formatMoneyLabel(invoice.total, invoice.currency)}).`;
     },
   });
 
@@ -113,7 +113,7 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
       run: async (state) => {
         const target = await chooseStep('¿A qué la asociamos?', [
           {
-            description: 'Elegis una de las últimas emitidas o la ingresas a mano',
+            description: 'Elegís una de las últimas emitidas o la ingresás a mano',
             name: state.invoiceKind?.family === 'recibo' ? 'A un recibo' : 'A una factura',
             value: 'factura' as const,
           },
@@ -149,7 +149,7 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
         if (!documentType) {
           writeTerminalOutput(
             noticePanel(
-              'La factura tiene un tipo de documento que el asistente no soporta. Usa los flags del CLI.',
+              'El comprobante tiene un tipo de documento que el asistente no soporta. Usá los flags del CLI.',
               'warning',
             ),
           );
@@ -161,7 +161,7 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
 
         if (copy.limitation) {
           writeTerminalOutput(
-            noticePanel(`${copy.limitation} La nota solo puede ser parcial; revisa la alícuota.`, 'warning'),
+            noticePanel(`${copy.limitation} La nota solo puede ser parcial; revisá la alícuota.`, 'warning'),
           );
         }
 
@@ -197,7 +197,7 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
       name: 'receptor',
       run: async (state) => {
         const documentType = await chooseStep(
-          '¿A quien va la nota?',
+          '¿A quién va la nota?',
           receiverChoices(state.invoiceKind?.letter ?? 'c'),
         );
 
@@ -252,7 +252,7 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
       name: 'alicuota',
       run: async (state) => {
         const ivaRate = await chooseStep(
-          isPeriod(state) ? 'Alícuota de IVA:' : 'Alícuota de IVA de la factura:',
+          isPeriod(state) ? 'Alícuota de IVA:' : 'Alícuota de IVA del comprobante:',
           ivaRateChoices(),
         );
 
@@ -264,7 +264,7 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
     {
       name: 'anulacion',
       run: async () => {
-        const cancellation = await chooseStep('¿El comprador rechazo la factura?', [
+        const cancellation = await chooseStep('¿El comprador rechazó la factura?', [
           { name: 'Sí, es una nota de anulación', value: true },
           { name: 'No', value: false },
         ]);

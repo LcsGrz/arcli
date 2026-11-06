@@ -361,7 +361,7 @@ export function createExamplesHelp(): string {
       'Seguridad',
       [
         '  - Todos los ejemplos usan --previsualizar para evitar emisiones reales por error.',
-        '  - Si querés emitir, reemplaza --previsualizar por --emitir.',
+        '  - Si querés emitir, reemplazá --previsualizar por --emitir.',
       ].join('\n'),
     ),
     '',
@@ -374,7 +374,7 @@ export function createFceObligationHelp(): string {
     section(
       'Para que sirve',
       [
-        '  - Saber si a un receptor le corresponde factura comun o Factura de Crédito Electrónica (FCE).',
+        '  - Saber si a un receptor le corresponde factura común o Factura de Crédito Electrónica (FCE).',
         '  - ARCA informa si está obligado a recibir FCE y desde que monto.',
       ].join('\n'),
     ),
@@ -450,9 +450,9 @@ export function createVoucherQueryHelp(): string {
     section(
       'Ejemplos',
       [
-        '  - arcli ultimos fb                  ultimas 15 facturas B del punto de venta configurado',
-        '  - arcli ultimos nca --cantidad 25   ultimas 25 notas de credito A',
-        '  - arcli consultar fb 14             detalle de la factura B numero 14',
+        '  - arcli ultimos fb                  últimas 15 facturas B del punto de venta configurado',
+        '  - arcli ultimos nca --cantidad 25   últimas 25 notas de crédito A',
+        '  - arcli consultar fb 14             detalle de la factura B número 14',
         '  - arcli consultar fb 14 --json      lo mismo, en JSON',
       ].join('\n'),
     ),
@@ -565,7 +565,7 @@ export function configureSpanishHelp(command: Command): void {
   });
   command.helpCommand(false);
   command.helpOption('--ayuda', 'mostrar ayuda');
-  command.showHelpAfterError('(usa "ayuda" para ver ejemplos y opciones)');
+  command.showHelpAfterError('(usá "ayuda" para ver ejemplos y opciones)');
 }
 
 export function createProgramHeader(): string {

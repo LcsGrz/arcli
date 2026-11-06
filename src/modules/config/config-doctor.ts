@@ -150,7 +150,7 @@ export function buildConfigDoctorReport(
       section: 'cuenta',
       ok: config.cuit,
       okDetail: 'CUIT listo para emitir comprobantes.',
-      warningDetail: 'Configurá su CUIT con "arcli config establecer cuit <valor>".',
+      warningDetail: 'Configurá tu CUIT con "arcli config establecer cuit <valor>".',
     },
     {
       label: 'Punto de venta',

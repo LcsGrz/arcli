@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { ArcliConfig } from '../../config/config.schemas';
+import { validateConfigValue } from '../../config/config.service';
 import { CONFIG_FIELDS, describeConfigValue, getConfigField, listMissingSetupKeys } from '../config-fields';
 import { currentMonthPeriod, previousMonthPeriod } from '../periods';
 
@@ -36,6 +37,27 @@ describe('config-fields', () => {
     expect(describeConfigValue(getConfigField('cert.testing'), config)).toBe('.../secretos/cert.crt');
     expect(describeConfigValue(getConfigField('emisor.inicioActividades'), config)).toBe('01/03/2020');
     expect(describeConfigValue(getConfigField('cuit'), config)).toBe('no configurado');
+  });
+
+  it('shows labels instead of raw values, without changing what is saved', () => {
+    const config = {
+      ...BASE,
+      alicuotaPorDefecto: '10.5',
+      consultarPadron: false,
+      ivaReceptorPorDefecto: 'responsable-inscripto',
+    };
+
+    expect(describeConfigValue(getConfigField('ivaReceptor'), config as ArcliConfig)).toBe('Responsable inscripto');
+    expect(describeConfigValue(getConfigField('alicuota'), config as ArcliConfig)).toBe('10,5%');
+    expect(describeConfigValue(getConfigField('consultarPadron'), config as ArcliConfig)).toBe('No');
+  });
+
+  it('only offers choices that config accepts', () => {
+    for (const field of CONFIG_FIELDS) {
+      for (const choice of field.choices ?? []) {
+        expect(() => validateConfigValue(field.key, choice)).not.toThrow();
+      }
+    }
   });
 
   it('has one field per key', () => {

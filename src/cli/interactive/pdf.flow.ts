@@ -174,6 +174,6 @@ export async function offerPdf(
       throw error;
     }
 
-    writeTerminalOutput(noticePanel('El comprobante ya quedo emitido; no se genero el PDF.', 'muted'));
+    writeTerminalOutput(noticePanel('El comprobante ya quedó emitido; no se generó el PDF.', 'muted'));
   }
 }

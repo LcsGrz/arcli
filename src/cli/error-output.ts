@@ -1,6 +1,6 @@
 import { type Command, CommanderError } from 'commander';
 
-import { AppError } from '../lib/errors/app-error';
+import { AppError, HELP_SUGGESTION } from '../lib/errors/app-error';
 import { formatCliError, writeTerminalError, writeTerminalJsonError } from '../ui';
 
 import { readJsonDefault } from './global-options';
@@ -65,7 +65,7 @@ function toUsageError(error: CommanderError): AppError {
 
   return new AppError(message, {
     code: 'INPUT_VALIDATION_ERROR',
-    suggestion: 'Usá "arcli ayuda" o "arcli <comando> --ayuda" para ver comandos y opciones.',
+    suggestion: HELP_SUGGESTION,
   });
 }
 

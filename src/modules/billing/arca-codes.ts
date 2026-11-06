@@ -101,7 +101,7 @@ export function ivaConditionLabel(code: number | undefined): string {
   return labelOf(IVA_CONDITIONS, code);
 }
 
-/** "responsable-inscripto" -> "Responsable Inscripto", como lo escribe el padron y el PDF. */
+/** "responsable-inscripto" -> "Responsable Inscripto", como lo escribe el PDF. */
 export function formatIvaConditionName(value: string): string {
   return value
     .split('-')

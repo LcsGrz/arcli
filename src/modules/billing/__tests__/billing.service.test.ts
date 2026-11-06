@@ -432,7 +432,7 @@ describe('billing.service', () => {
 
     expect(() =>
       service.buildVoucherPayload(createBillingInput({ documentNumber: 0, exchangeRate: 1200 }), createRuntime()),
-    ).toThrow(/En pesos la cotización debe ser 1/);
+    ).toThrow(/En pesos la cotización tiene que ser 1/);
   });
 
   it('rejects --misma-moneda for pesos', () => {
@@ -736,7 +736,7 @@ describe('billing.service', () => {
         }),
         createRuntime(),
       ),
-    ).toThrow(/--cuit 2012345678 no es válido .*: debe tener 11 digitos/);
+    ).toThrow(/--cuit 2012345678 no es válido .*: debe tener 11 dígitos/);
   });
 
   it('rejects a cuit or cuil with a wrong check digit', () => {
@@ -751,7 +751,7 @@ describe('billing.service', () => {
         }),
         createRuntime(),
       ),
-    ).toThrow(/--cuil 20333333335 no es válido .*digito verificador/);
+    ).toThrow(/--cuil 20333333335 no es válido .*dígito verificador/);
   });
 
   it('rejects dni with invalid length', () => {
@@ -765,7 +765,7 @@ describe('billing.service', () => {
         }),
         createRuntime(),
       ),
-    ).toThrow(/--dni debe tener 7 u 8 digitos/);
+    ).toThrow(/--dni debe tener 7 u 8 dígitos/);
   });
 
   it('rejects service dates for products concept', () => {
@@ -797,7 +797,7 @@ describe('billing.service', () => {
         }),
         createRuntime(),
       ),
-    ).toThrow(/debe enviar ambas/);
+    ).toThrow(/tenés que enviar ambas/);
   });
 
   it('rejects billing dates outside the ARCA window', () => {

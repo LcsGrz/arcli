@@ -41,7 +41,7 @@ export interface ExportRuntime {
 /** Se valida antes de tocar la red: un flag que falta no tiene por que autenticar en WSAA. */
 function assertRequiredFields(input: ExportVoucherInput, activity: number | undefined): void {
   if (typeof input.amount !== 'number' || !(input.amount > 0)) {
-    throw new InputValidationError('Falta el importe total o no es válido. Usá --monto.');
+    throw new InputValidationError('Falta el monto total o no es válido. Usá --monto.');
   }
 
   if (!input.clientName?.trim()) {

@@ -69,7 +69,7 @@ async function askCurrency(current: AdvancedOptions): Promise<AdvancedOptions | 
   }
 
   const payment = await chooseStep('¿Cómo te pagan?', [
-    { description: 'Ingresas la cotización acordada', name: 'En pesos', value: 'pesos' as const },
+    { description: 'Ingresás la cotización acordada', name: 'En pesos', value: 'pesos' as const },
     { description: 'Se usa la cotización oficial de ARCA', name: 'En dólares', value: 'dolares' as const },
   ]);
 
@@ -137,7 +137,7 @@ async function askTransferMode(current: AdvancedOptions): Promise<AdvancedOption
     'Modalidad de transferencia:',
     [
       { description: 'La opción habitual', name: 'Sistema de circulación abierta (SCA)', value: 'sca' as const },
-      { name: 'Agente de deposito colectivo (ADC)', value: 'adc' as const },
+      { name: 'Agente de depósito colectivo (ADC)', value: 'adc' as const },
     ],
     current.transferMode ?? 'sca',
   );

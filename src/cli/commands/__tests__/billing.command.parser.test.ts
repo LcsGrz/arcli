@@ -674,7 +674,7 @@ describe('billing.command.parser', () => {
 
   it('rejects an --acuit with a wrong check digit', () => {
     expect(() => createCommand(['--monto', '5000', '--acuit', '20-33333333-5'])).toThrow(
-      /--acuit "20-33333333-5" no es válido: el digito verificador/,
+      /--acuit "20-33333333-5" no es válido: el dígito verificador/,
     );
   });
 

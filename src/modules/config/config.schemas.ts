@@ -30,12 +30,12 @@ export const arcliConfigSchema = z.object({
   cuit: z
     .string()
     .trim()
-    .regex(/^\d{11}$/, 'El CUIT debe tener 11 digitos')
+    .regex(/^\d{11}$/, 'El CUIT debe tener 11 dígitos')
     .optional(),
   cbu: z
     .string()
     .trim()
-    .regex(/^\d{22}$/, 'El CBU debe tener 22 digitos')
+    .regex(/^\d{22}$/, 'El CBU debe tener 22 dígitos')
     .optional(),
   aliasCbu: z
     .string()

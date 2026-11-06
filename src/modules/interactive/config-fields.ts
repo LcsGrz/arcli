@@ -1,6 +1,7 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { formatArgentineAmountInput } from '../../lib/numbers/argentine-amount';
 import { maskPath } from '../../lib/paths/mask-path';
+import { ivaConditionCode, ivaConditionLabel } from '../billing/arca-codes';
 import { SALE_CONDITION_KEYS, SALE_CONDITION_LABELS } from '../billing/sale-condition';
 import {
   type ArcliConfig,
@@ -12,6 +13,18 @@ import {
 } from '../config/config.schemas';
 import { CONFIG_LABELS } from '../config/config.sections';
 import { MAX_RECENT_VOUCHERS, RECENT_VOUCHERS_LIMIT } from '../vouchers/voucher-history';
+
+import { conceptChoices, ivaRateChoices } from './choices';
+
+function labelsOf(choices: ReadonlyArray<{ readonly name: string; readonly value: string }>): Record<string, string> {
+  return Object.fromEntries(choices.map((choice) => [choice.value, choice.name]));
+}
+
+const IVA_CONDITION_LABELS = Object.fromEntries(
+  arcliDefaultIvaConditionSchema.options.map((key) => [key, ivaConditionLabel(ivaConditionCode(key))]),
+);
+
+const YES_NO_LABELS = { no: 'No', si: 'Sí' };
 
 /** Un dato de la config que se puede cambiar desde el modo interactivo. */
 export interface ConfigField {
@@ -35,7 +48,7 @@ const date = (value: string | undefined) => (value ? formatArcaDateAsArgentineDa
  * no estan porque solo cambian el CLI con flags, no el asistente.
  */
 const FIELD_DEFINITIONS: ReadonlyArray<Omit<ConfigField, 'label'>> = [
-  { key: 'cuit', read: (c) => c.cuit, hint: '11 digitos' },
+  { key: 'cuit', read: (c) => c.cuit, hint: '11 dígitos' },
   {
     choices: arcliEnvironmentSchema.options,
     key: 'entorno',
@@ -71,22 +84,25 @@ const FIELD_DEFINITIONS: ReadonlyArray<Omit<ConfigField, 'label'>> = [
     read: (c) => c.exportacion?.actividad?.toString(),
   },
   {
-    hint: 'numero',
+    hint: 'número',
     key: 'puntoVenta',
     read: (c) => c.puntoVentaPorDefecto?.toString(),
   },
   {
+    choiceLabels: labelsOf(conceptChoices()),
     choices: arcliDefaultConceptSchema.options,
     key: 'concepto',
     read: (c) => c.conceptoPorDefecto,
   },
   {
+    choiceLabels: IVA_CONDITION_LABELS,
     choices: arcliDefaultIvaConditionSchema.options,
     key: 'ivaReceptor',
     read: (c) => c.ivaReceptorPorDefecto,
   },
   {
-    choices: ['general', 'reducida', 'incrementada', 'cero', '5', '2.5'],
+    choiceLabels: labelsOf(ivaRateChoices()),
+    choices: ivaRateChoices().map((choice) => choice.value),
     key: 'alicuota',
     read: (c) => c.alicuotaPorDefecto,
   },
@@ -95,15 +111,17 @@ const FIELD_DEFINITIONS: ReadonlyArray<Omit<ConfigField, 'label'>> = [
     key: 'comprobantesPorLista',
     read: (c) => c.comprobantesPorLista?.toString(),
   },
-  { hint: '22 digitos', key: 'cbu', read: (c) => c.cbu },
+  { hint: '22 dígitos', key: 'cbu', read: (c) => c.cbu },
   { key: 'aliasCbu', read: (c) => c.aliasCbu },
   {
+    choiceLabels: YES_NO_LABELS,
     choices: ['si', 'no'],
     hint: 'por defecto si',
     key: 'consultarPadron',
     read: (c) => (c.consultarPadron === undefined ? undefined : c.consultarPadron ? 'si' : 'no'),
   },
   {
+    choiceLabels: YES_NO_LABELS,
     choices: ['si', 'no'],
     key: 'verificarFce',
     read: (c) => (c.verificarFce === undefined ? undefined : c.verificarFce ? 'si' : 'no'),
@@ -130,6 +148,7 @@ const FIELD_DEFINITIONS: ReadonlyArray<Omit<ConfigField, 'label'>> = [
   },
   { hint: 'número, o "Exento" si lo estás', key: 'emisor.iibb', read: (c) => c.emisor.iibb },
   {
+    choiceLabels: IVA_CONDITION_LABELS,
     choices: arcliDefaultIvaConditionSchema.options,
     key: 'emisor.condicionIva',
     read: (c) => c.emisor.condicionIva,
@@ -172,7 +191,7 @@ export function describeConfigValue(field: ConfigField, config: ArcliConfig): st
     return 'no configurado';
   }
 
-  return field.path ? maskPath(value) : value;
+  return field.path ? maskPath(value) : (field.choiceLabels?.[value] ?? value);
 }
 
 /** Lo minimo para emitir: sin esto el modo interactivo no puede crear la sesion con ARCA. */

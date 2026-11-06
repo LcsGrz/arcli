@@ -90,7 +90,7 @@ export function resolveExportCurrency(
     }
 
     if (typeof input.exchangeRate === 'number' && input.exchangeRate !== LOCAL_EXCHANGE_RATE) {
-      throw new InputValidationError('En pesos la cotización tiene que ser 1. Quitá --cotizacion-moneda o usá --cm 1.');
+      throw new InputValidationError('En pesos la cotización tiene que ser 1. Sacá --cotizacion-moneda o usá --cm 1.');
     }
 
     return {
@@ -217,7 +217,7 @@ export function resolveExportDestinationCountry(
 
   if (country.code === ARGENTINA_COUNTRY_CODE) {
     throw new InputValidationError(
-      'Argentina no es un destino de exportación: usá `arcli factura a` o `arcli factura b`.',
+      'Argentina no es un destino de exportación: usá "arcli factura a" o "arcli factura b".',
     );
   }
 
@@ -324,7 +324,7 @@ export function resolveExportIncoterm(
 
   if (!incoterm) {
     throw new InputValidationError(
-      `El incoterm "${trimmed}" no existe en la tabla de ARCA. Consultá los válidos con arcli parametros.`,
+      `El incoterm "${trimmed}" no existe en la tabla de ARCA. Consultá los válidos con "arcli parametros".`,
     );
   }
 
@@ -335,7 +335,9 @@ export function resolveExportPointOfSale(value: number | undefined, config: Expo
   const pointOfSale = value ?? config.puntoVentaPorDefecto;
 
   if (pointOfSale === undefined) {
-    throw new InputValidationError('Falta el punto de venta. Usá --punto-venta o configurá puntoVentaPorDefecto.');
+    throw new InputValidationError(
+      'Falta el punto de venta. Usá --pv <numero> o configuralo con "arcli config establecer puntoVenta <numero>".',
+    );
   }
 
   if (!Number.isInteger(pointOfSale) || pointOfSale < 1) {

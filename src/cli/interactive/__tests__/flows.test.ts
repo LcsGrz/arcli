@@ -101,7 +101,7 @@ describe('flujos del modo interactivo', () => {
     it('arma una factura C y permite volver a cambiar una respuesta', async () => {
       script = createScript([
         [/comprobante/, 'Factura C'],
-        [/A quien/, 'Consumidor final'],
+        [/A quién/, 'Consumidor final'],
         [/Qué estás facturando/, 'Servicios'],
         [/Monto total/, BACK],
         [/Qué estás facturando/, 'Productos'],
@@ -148,7 +148,7 @@ describe('flujos del modo interactivo', () => {
     it('arma una FCE A con CUIT y CBU, y alicuota, vencimiento y transferencia como opcionales', async () => {
       script = createScript([
         [/comprobante/, 'Factura de crédito electrónica A'],
-        [/A quien/, 'Con CUIT'],
+        [/A quién/, 'Con CUIT'],
         [/CUIT del receptor/, '30-70996581-2'],
         [/Condición frente al IVA/, 'Responsable inscripto'],
         [/Qué estás facturando/, 'Servicios'],
@@ -200,7 +200,7 @@ describe('flujos del modo interactivo', () => {
     it('con un CUIT propone la condicion IVA del padron y guarda el nombre del receptor', async () => {
       script = createScript([
         [/comprobante/, 'Factura A'],
-        [/A quien/, 'Con CUIT'],
+        [/A quién/, 'Con CUIT'],
         [/CUIT del receptor/, '20201797064'],
         [/Condición frente al IVA de VICTORIA CAROLINA DARIO/, 'Responsable inscripto (según el padrón)'],
         [/Qué estás facturando/, 'Servicios'],
@@ -232,7 +232,7 @@ describe('flujos del modo interactivo', () => {
     it('suma moneda extranjera y exento desde las opciones avanzadas', async () => {
       script = createScript([
         [/comprobante/, 'Factura B'],
-        [/A quien/, 'Consumidor final'],
+        [/A quién/, 'Consumidor final'],
         [/Qué estás facturando/, 'Servicios'],
         [/Monto total/, '1210'],
         [/Agregamos/, ['Moneda extranjera', 'Importe exento']],
@@ -257,7 +257,7 @@ describe('flujos del modo interactivo', () => {
     it('sin marcar opcionales usa la alicuota de la config', async () => {
       script = createScript([
         [/comprobante/, 'Factura B'],
-        [/A quien/, 'Consumidor final'],
+        [/A quién/, 'Consumidor final'],
         [/Qué estás facturando/, 'Productos'],
         [/Monto total/, '1105'],
         [/Agregamos/, []],
@@ -276,7 +276,7 @@ describe('flujos del modo interactivo', () => {
     it('volver dentro de un opcional vuelve a la seleccion con lo ya respondido', async () => {
       script = createScript([
         [/comprobante/, 'Factura B'],
-        [/A quien/, 'Consumidor final'],
+        [/A quién/, 'Consumidor final'],
         [/Qué estás facturando/, 'Servicios'],
         [/Monto total/, '1210'],
         [/Agregamos/, ['Alícuota', 'Período']],
@@ -300,7 +300,7 @@ describe('flujos del modo interactivo', () => {
     it('volver en la seleccion de opcionales vuelve al monto', async () => {
       script = createScript([
         [/comprobante/, 'Factura C'],
-        [/A quien/, 'Consumidor final'],
+        [/A quién/, 'Consumidor final'],
         [/Qué estás facturando/, 'Servicios'],
         [/Monto total/, '100'],
         [/Agregamos/, BACK],
@@ -523,7 +523,7 @@ describe('flujos del modo interactivo', () => {
         [/A qué la asociamos/, 'A una factura'],
         [/Sobre qué factura B/, '00003-00000014'],
         [/Monto de la nota de crédito/, '100'],
-        [/Alícuota de IVA de la factura/, '21%'],
+        [/Alícuota de IVA del comprobante/, '21%'],
       ]);
 
       const session = createSession([invoice({ ivaAmount: 262.5, netAmount: 1500, total: 1762.5 })]);
@@ -544,7 +544,7 @@ describe('flujos del modo interactivo', () => {
         [/Total o parcial/, 'Parcial'],
         [/Monto de la nota de crédito/, '60,50'],
         [/Condición frente al IVA/, 'Responsable inscripto'],
-        [/rechazo la factura/, 'Sí'],
+        [/rechazó la factura/, 'Sí'],
       ]);
 
       const session = createSession([invoice({ documentNumber: 30709965812, documentTypeCode: 80 })]);
@@ -584,7 +584,7 @@ describe('flujos del modo interactivo', () => {
         [/A qué la asociamos/, 'A un período'],
         [/Período desde/, '1/9'],
         [/Período hasta/, '30/9'],
-        [/A quien va la nota/, 'Consumidor final'],
+        [/A quién va la nota/, 'Consumidor final'],
         [/concepto ajusta/, 'Servicios'],
         [/Monto de la nota/, '121'],
         [/Alícuota/, '21%'],

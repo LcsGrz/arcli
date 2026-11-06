@@ -31,7 +31,7 @@ export function formatIgnoredGlobalOptionsWarning(options: readonly string[], co
   const flags = options.join(', ');
   const verb = options.length === 1 ? 'no aplica' : 'no aplican';
 
-  return `Aviso: ${flags} ${verb} a \`${command}\`, se ignora${options.length === 1 ? '' : 'n'}.`;
+  return `Aviso: ${flags} ${verb} a "${command}", se ignora${options.length === 1 ? '' : 'n'}.`;
 }
 
 /** Avisa por stderr, sin cortar la ejecucion, cuando una opcion global no aplica al comando. */

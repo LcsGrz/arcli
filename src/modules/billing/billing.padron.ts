@@ -1,7 +1,7 @@
 import { AppError, InputValidationError } from '../../lib/errors/app-error';
 import type { PadronGateway, Taxpayer } from '../padron/padron';
 
-import { formatIvaConditionName } from './arca-codes';
+import { ivaConditionCode, ivaConditionLabel } from './arca-codes';
 import type { BillingCommandInput } from './billing.schemas';
 
 export interface PadronResolution {
@@ -27,7 +27,7 @@ function fallBack(input: BillingCommandInput, reason: string, hint?: string): Pa
     throw new InputValidationError(`Falta IVA receptor. ${reason}. ${MISSING_IVA_HINT}`);
   }
 
-  const warning = `${reason}. Se usa el IVA receptor de la config: ${formatIvaConditionName(input.ivaCondition)}.`;
+  const warning = `${reason}. Se usa el IVA receptor de la config: ${ivaConditionLabel(ivaConditionCode(input.ivaCondition))}.`;
 
   return { input, warnings: [hint ? `${warning} ${hint}` : warning] };
 }

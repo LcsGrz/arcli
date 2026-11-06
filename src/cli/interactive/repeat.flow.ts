@@ -74,7 +74,7 @@ export function repeatSteps(
         if (!documentType) {
           writeTerminalOutput(
             noticePanel(
-              'La factura tiene un tipo de documento que el asistente no soporta. Usa los flags del CLI.',
+              'El comprobante tiene un tipo de documento que el asistente no soporta. Usá los flags del CLI.',
               'warning',
             ),
           );
@@ -86,7 +86,7 @@ export function repeatSteps(
 
         if (copy.limitation) {
           writeTerminalOutput(
-            noticePanel(`${copy.limitation} Revisa la alícuota y el monto antes de emitir.`, 'warning'),
+            noticePanel(`${copy.limitation} Revisá la alícuota y el monto antes de emitir.`, 'warning'),
           );
         }
 
@@ -178,7 +178,7 @@ export function repeatSteps(
     {
       name: 'cbu',
       run: async () => {
-        const cbu = await askTextStep('CBU del emisor (22 digitos):', { validate: validateCbu });
+        const cbu = await askTextStep('CBU del emisor (22 dígitos):', { validate: validateCbu });
 
         return cbu === BACK ? BACK : { cbu };
       },
@@ -192,7 +192,10 @@ export function repeatSteps(
 
         if (foreign) {
           writeTerminalOutput(
-            noticePanel('La factura original era en moneda extranjera: completa la moneda y la cotización.', 'info'),
+            noticePanel(
+              'El comprobante original era en moneda extranjera: completá la moneda y la cotización.',
+              'info',
+            ),
           );
         }
 

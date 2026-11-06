@@ -30,12 +30,12 @@ export function formatFceObligationAsText(report: FceObligationReport): string {
   const rows: Array<readonly [string, string]> = [
     ['CUIT', formatCuit(report.cuit)],
     ['Fecha consultada', formatArcaDateAsArgentineDate(report.issueDate)],
-    ['Obligado a recibir FCE', report.obligation.obligated ? 'si' : 'no'],
-    ['Monto mínimo', formatArgentineMoney(report.obligation.minimumAmount)],
+    ['Obligado a recibir FCE', report.obligation.obligated ? 'sí' : 'no'],
+    ['Importe mínimo', formatArgentineMoney(report.obligation.minimumAmount)],
   ];
   const footer = report.obligation.obligated
-    ? `Desde ese monto corresponde emitir FCE (fcea, fceb o fcec). Debajo, factura comun.`
-    : 'Corresponde emitir factura comun (fa, fb o fc).';
+    ? `Desde ese importe corresponde emitir FCE (fcea, fceb o fcec). Debajo, factura común.`
+    : 'Corresponde emitir factura común (fa, fb o fc).';
 
   return keyValuePanel(
     'Régimen FCE MiPyMEs',

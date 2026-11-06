@@ -303,7 +303,7 @@ describe('ExportService.resolve', () => {
         },
         NOW,
       ),
-    ).rejects.toThrow(/--punto-venta/);
+    ).rejects.toThrow(/--pv <numero>/);
   });
 });
 

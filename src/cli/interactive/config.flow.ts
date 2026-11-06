@@ -231,12 +231,12 @@ export async function runGuidedSetup(): Promise<void> {
   const completed = await runWizard(fieldSteps(GUIDED_KEYS, ['cuit', 'cert.testing', 'key.testing', 'puntoVenta']), {});
 
   if (!completed) {
-    writeTerminalOutput(noticePanel('Configuración guiada cancelada. Lo ya respondido quedo guardado.', 'muted'));
+    writeTerminalOutput(noticePanel('Configuración guiada cancelada. Lo ya respondido quedó guardado.', 'muted'));
 
     return;
   }
 
-  if (await confirm('¿Cargamos también los datos del emisor para el PDF?', 'Si', 'Ahora no')) {
+  if (await confirm('¿Cargamos también los datos del emisor para el PDF?', 'Sí', 'Ahora no')) {
     await runWizard(fieldSteps(ISSUER_KEYS, []), {});
   }
 
@@ -403,7 +403,7 @@ export async function runConfigMenu(): Promise<void> {
           value: 'guiada',
         },
         {
-          description: 'Elegis un dato, agrupado por sección, y lo cambias',
+          description: 'Elegís un dato, agrupado por sección, y lo cambiás',
           name: 'Modificar configuración',
           value: 'cambiar',
         },
@@ -419,7 +419,7 @@ export async function runConfigMenu(): Promise<void> {
           value: 'completado',
         },
         new Separator(' '),
-        { name: '← Volver al menu', value: 'volver' },
+        { name: '← Volver al menú', value: 'volver' },
       ],
       undefined,
       { escapeValue: 'volver' },

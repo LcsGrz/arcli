@@ -14,4 +14,4 @@ export class PdfError extends AppError {
   }
 }
 
-export const PDF_INSTALL_SUGGESTION = 'Instalalo con `arcli pdf instalar`.';
+export const PDF_INSTALL_SUGGESTION = 'Instalalo con "arcli pdf instalar".';

@@ -195,7 +195,7 @@ export function formatVoucherDetailAsText(report: VoucherDetailReport): string {
   const { pointOfSale, voucher, voucherKind } = report;
   const rows: Array<readonly [string, string]> = [
     ['Número', formatVoucherNumber(pointOfSale, voucher.number)],
-    ['Fecha', formatArcaDateAsArgentineDate(voucher.date)],
+    ['Fecha del comprobante', formatArcaDateAsArgentineDate(voucher.date)],
     ['Receptor', formatReceiver(voucher)],
     ['Concepto', formatConceptLabel(voucher.concept)],
     ['Moneda', formatCurrencyLabel(voucher.currency)],

@@ -46,7 +46,7 @@ export function validateConceptDateInputs(input: BillingCommandInput, voucherKin
 
   if (hasPartialServiceDate) {
     throw new InputValidationError(
-      'Si informa fechas de servicio, debe enviar ambas: --servicio-desde y --servicio-hasta.',
+      'Si informás fechas de servicio, tenés que enviar ambas: --servicio-desde y --servicio-hasta.',
     );
   }
 }
@@ -85,7 +85,7 @@ export function validateDocumentIdentity(input: BillingCommandInput, voucherKind
   }
 
   if (input.documentType === 'dni' && !/^\d{7,8}$/.test(String(input.documentNumber))) {
-    throw new InputValidationError(`--dni debe tener 7 u 8 digitos en ${formatVoucherWithArticle(voucherKind)}.`);
+    throw new InputValidationError(`--dni debe tener 7 u 8 dígitos en ${formatVoucherWithArticle(voucherKind)}.`);
   }
 }
 

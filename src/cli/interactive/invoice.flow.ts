@@ -71,7 +71,7 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
       name: 'receptor',
       run: async (state) => {
         const documentType = await chooseStep(
-          isReceipt(state) ? '¿A quién le hacés el recibo?' : '¿A quien le facturas?',
+          isReceipt(state) ? '¿A quién le hacés el recibo?' : '¿A quién le facturás?',
           receiverChoices(state.voucherKind?.letter ?? 'c'),
         );
 
@@ -126,7 +126,7 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
     {
       name: 'cbu',
       run: async () => {
-        const cbu = await askTextStep('CBU del emisor (22 digitos):', { validate: validateCbu });
+        const cbu = await askTextStep('CBU del emisor (22 dígitos):', { validate: validateCbu });
 
         return cbu === BACK ? BACK : { cbu };
       },

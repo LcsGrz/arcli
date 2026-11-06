@@ -15,11 +15,11 @@ export function validateCuit(value: string): string | true {
 }
 
 export function validateDni(value: string): string | true {
-  return /^\d{7,8}$/.test(value.replace(/\./g, '')) ? true : 'El DNI tiene 7 u 8 digitos.';
+  return /^\d{7,8}$/.test(value.replace(/\./g, '')) ? true : 'El DNI tiene 7 u 8 dígitos.';
 }
 
 export function validateCbu(value: string): string | true {
-  return /^\d{22}$/.test(value) ? true : 'El CBU tiene 22 digitos.';
+  return /^\d{22}$/.test(value) ? true : 'El CBU tiene 22 dígitos.';
 }
 
 export function normalizeDocumentNumber(value: string): number {
@@ -48,5 +48,5 @@ export function validateExchangeRate(value: string): string | true {
     return `Cotización inválida: ${result.reason}. Por ejemplo 1200 o 1.185,50.`;
   }
 
-  return result.value !== 1 ? true : 'Ingresa la cotización acordada, por ejemplo 1200 o 1.185,50.';
+  return result.value !== 1 ? true : 'Ingresá la cotización acordada, por ejemplo 1200 o 1.185,50.';
 }

@@ -23,7 +23,7 @@ describe('errors.zod-presenter', () => {
       totalAmount: 100,
     });
 
-    expect(formatZodError(error, false)).toContain('Falta shortcut.');
+    expect(formatZodError(error, false)).toContain('Falta el dato: shortcut.');
   });
 
   it('usa un mensaje especifico para montos invalidos', () => {

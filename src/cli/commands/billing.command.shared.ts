@@ -174,11 +174,17 @@ export async function executeBillingCommand(
 
     const { inputs, previewShown } = preview;
 
-    spinner = runtime.outputJson ? null : startSpinner('Procesando comprobante...');
+    const emitting = inputs.some((input) => input.emit);
+    const emittedVouchers =
+      inputs.length > 1
+        ? `${inputs.length} comprobantes`
+        : voucherKind
+          ? formatVoucherWithArticle(voucherKind)
+          : 'el comprobante';
 
-    if (spinner) {
-      spinner.text = inputs.length > 1 ? `Procesando ${inputs.length} comprobantes...` : 'Procesando comprobante...';
-    }
+    spinner = runtime.outputJson
+      ? null
+      : startSpinner(emitting ? `Emitiendo ${emittedVouchers} en ARCA...` : 'Preparando la vista previa...');
 
     const deliveryOptions = {
       config: runtime.config,

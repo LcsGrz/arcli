@@ -50,7 +50,7 @@ export function registerParametersCommands(program: Command): void {
 
       if (rawTable.trim().toLowerCase() === 'cotizacion') {
         if (!currency) {
-          throw new InputValidationError('Indicá la moneda, por ejemplo: arcli parametros cotizacion USD.');
+          throw new InputValidationError('Indicá la moneda, por ejemplo: "arcli parametros cotizacion USD".');
         }
 
         const { gateway, runtime } = createContext(self);

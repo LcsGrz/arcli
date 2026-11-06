@@ -58,7 +58,7 @@ export async function attachExportPdf(
     return result;
   }
 
-  if (decision === 'preguntar' && !(await ask(deps, '¿Generamos el PDF del comprobante?', 'Si, generar el PDF'))) {
+  if (decision === 'preguntar' && !(await ask(deps, '¿Generamos el PDF del comprobante?', 'Sí, generar el PDF'))) {
     return result;
   }
 

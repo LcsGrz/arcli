@@ -64,7 +64,7 @@ export function formatPdfPluginStatusAsText(status: PdfPluginStatusView, title =
     ],
     ['Carpeta', pathLink(status.path)],
   ];
-  const footer = status.installed ? 'Listo para generar PDFs' : 'Instalalo con `arcli pdf instalar`';
+  const footer = status.installed ? 'Listo para generar PDFs' : 'Instalalo con "arcli pdf instalar".';
 
   return keyValuePanel(
     title,

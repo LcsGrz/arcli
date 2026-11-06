@@ -21,7 +21,7 @@ export class ArcaBillingGateway implements BillingGateway {
     const nextNumber = (await getLastAuthorizedNumber(this.arca, pointOfSale, voucherType)) + 1;
 
     if (nextNumber > MAX_VOUCHER_NUMBER) {
-      throw new Error(`Número de comprobante no puede ser mayor a ${MAX_VOUCHER_NUMBER}`);
+      throw new Error(`Número de comprobante no puede ser mayor a ${MAX_VOUCHER_NUMBER}.`);
     }
 
     return nextNumber;

@@ -316,7 +316,7 @@ Si el archivo contiene un array, ARCLI procesa un lote del mismo comando. **Un a
   "codigo": "BATCH_VALIDATION_ERROR",
   "detalles": {
     "comprobantes": [
-      { "error": "Falta monto.", "indice": 2 },
+      { "error": "Falta el dato: monto.", "indice": 2 },
       {
         "error": "La factura B de $ 10.000.000 o más requiere identificar al consumidor final. Usá --dni, --cuit o --cuil.",
         "indice": 3
@@ -825,7 +825,7 @@ Cuando el error viene de Zod o de validación de entrada:
   "codigo": "INPUT_VALIDATION_ERROR",
   "detalles": [
     {
-      "mensaje": "Falta monto.",
+      "mensaje": "Falta el dato: monto.",
       "ruta": ["montoTotal"]
     }
   ],

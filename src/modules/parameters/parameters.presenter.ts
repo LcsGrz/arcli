@@ -131,7 +131,7 @@ export function formatStatusAsText(report: StatusReport): string {
     ['Entorno', report.environment],
     ['Servidor de aplicación', report.servers.app],
     ['Base de datos', report.servers.db],
-    ['Autenticacion', report.servers.auth],
+    ['Autenticación', report.servers.auth],
     ['Tiempo de respuesta', `${report.latencyMs} ms`],
     ['Punto de venta', describePointOfSale(report.pointOfSale, report.pointOfSaleNumber)],
   ] as const;
@@ -142,8 +142,8 @@ export function formatStatusAsText(report: StatusReport): string {
       : report.pointOfSale.kind === 'habilitado' || report.pointOfSale.kind === 'sin-datos'
         ? 'ARCA tiene problemas: esperá unos minutos y reintentá'
         : report.pointOfSale.kind === 'no-encontrado'
-          ? `Revisá el punto de venta: arcli parametros puntos-venta. Los de "Factura en línea" no sirven; para crear uno para web service: ${POINT_OF_SALE_GUIDE_URL}`
-          : 'Revisá el punto de venta: arcli parametros puntos-venta';
+          ? `Revisá el punto de venta con "arcli parametros puntos-venta". Los de "Factura en línea" no sirven; para crear uno para web service: ${POINT_OF_SALE_GUIDE_URL}`
+          : 'Revisá el punto de venta con "arcli parametros puntos-venta".';
 
   return keyValuePanel(
     'Estado de ARCA',

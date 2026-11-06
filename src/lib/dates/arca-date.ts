@@ -72,7 +72,7 @@ export function parseArgentineDateInputAsArcaDate(value: string, referenceDate =
     date.getUTCMonth() !== Number(month) - 1 ||
     date.getUTCDate() !== Number(day)
   ) {
-    throw new InputValidationError(`La fecha "${value}" no es válida.`);
+    throw new InputValidationError(`La fecha "${value}" no es válida. ${ARGENTINE_DATE_FORMAT_HINT}`);
   }
 
   return `${year}${month}${day}`;

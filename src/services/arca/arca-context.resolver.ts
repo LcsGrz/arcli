@@ -141,7 +141,7 @@ export class ArcaContextResolver {
     const parsedValue = Number.parseInt(rawValue, 10);
 
     if (!Number.isInteger(parsedValue) || rawValue.length !== 11) {
-      throw new ConfigurationError(`El CUIT "${rawValue}" no es válido. Debe tener 11 digitos.`);
+      throw new ConfigurationError(`El CUIT "${rawValue}" no es válido. Debe tener 11 dígitos.`);
     }
 
     return parsedValue;

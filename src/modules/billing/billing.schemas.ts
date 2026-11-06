@@ -129,7 +129,7 @@ export const billingCommandSchema = z.object({
   cbu: z
     .string()
     .trim()
-    .regex(/^\d{22}$/, 'El CBU debe tener 22 digitos')
+    .regex(/^\d{22}$/, 'El CBU debe tener 22 dígitos')
     .optional(),
   cbuAlias: z
     .string()

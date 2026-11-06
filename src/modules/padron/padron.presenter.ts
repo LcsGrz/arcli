@@ -1,6 +1,6 @@
 import { formatCuit } from '../../lib/identity/format-cuit';
 import { keyValuePanel, renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui';
-import { formatIvaConditionName } from '../billing/arca-codes';
+import { ivaConditionCode, ivaConditionLabel } from '../billing/arca-codes';
 
 import type { Taxpayer } from './padron';
 
@@ -10,7 +10,7 @@ export interface PadronReport {
 }
 
 const PERSON_TYPE_LABELS: Record<NonNullable<Taxpayer['personType']>, string> = {
-  fisica: 'Persona fisica',
+  fisica: 'Persona física',
   juridica: 'Persona jurídica',
 };
 
@@ -53,7 +53,10 @@ export function formatPadronAsText(report: PadronReport): string {
     ['Tipo', taxpayer.personType ? PERSON_TYPE_LABELS[taxpayer.personType] : 'N/D'],
     ['Estado', taxpayer.keyStatus ?? 'N/D'],
     ['Domicilio fiscal', taxpayer.address ?? 'N/D'],
-    ['Condición IVA', taxpayer.ivaCondition ? formatIvaConditionName(taxpayer.ivaCondition) : 'N/D'],
+    [
+      'Condición frente al IVA',
+      taxpayer.ivaCondition ? ivaConditionLabel(ivaConditionCode(taxpayer.ivaCondition)) : 'N/D',
+    ],
     ...(taxpayer.monotributoCategory ? [['Categoría monotributo', taxpayer.monotributoCategory] as const] : []),
     ...(activeTaxes.length > 0 ? [['Impuestos', activeTaxes.join(', ')] as const] : []),
     ...(taxpayer.activities.length > 0 ? [['Actividad principal', formatMainActivity(taxpayer)] as const] : []),

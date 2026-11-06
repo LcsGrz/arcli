@@ -63,7 +63,7 @@ export function resolveBillingCurrencyFields(
     }
 
     if (typeof input.exchangeRate === 'number' && input.exchangeRate !== DEFAULT_EXCHANGE_RATE) {
-      throw new InputValidationError('En pesos la cotización debe ser 1. Sacá --cotizacion-moneda o usá --cm 1.');
+      throw new InputValidationError('En pesos la cotización tiene que ser 1. Sacá --cotizacion-moneda o usá --cm 1.');
     }
 
     // ARCA rechaza CanMisMonExt cuando MonId = PES (error 10241).

@@ -82,7 +82,7 @@ describe('offerPdf', () => {
 
     await expect(offerPdf(CONFIG, input, result)).resolves.toBeUndefined();
     expect(attachPdfsMock).not.toHaveBeenCalled();
-    expect(vi.mocked(writeTerminalOutput)).toHaveBeenCalledWith(expect.stringContaining('ya quedo emitido'));
+    expect(vi.mocked(writeTerminalOutput)).toHaveBeenCalledWith(expect.stringContaining('ya quedó emitido'));
   });
 
   it('stops when the user does not want the PDF', async () => {

@@ -67,7 +67,7 @@ export function formatVoucherSummary(result: BillingExecutionResult): Record<str
 }
 
 const FCE_OPTIONAL_LABELS: Record<string, string> = {
-  '22': 'Anulacion',
+  '22': 'Anulación',
   '27': 'Transferencia',
   '2101': 'CBU',
   '2102': 'Alias CBU',
@@ -82,7 +82,7 @@ function formatIvaRows(iva: readonly IIva[], currency: string): Array<readonly [
   const label = (aliquotId: number) => resolveIvaRateLabel(aliquotId) ?? String(aliquotId);
 
   if (iva.length === 1 && iva[0]) {
-    return [['Alícuota IVA', label(iva[0].Id)]];
+    return [['Alícuota de IVA', label(iva[0].Id)]];
   }
 
   return iva.map(
@@ -136,7 +136,7 @@ function formatFriendlyPayloadRows(result: BillingExecutionResult): Array<readon
   }
 
   if (payload.FchVtoPago) {
-    rows.push(['Vencimiento de pago', formatDateLabel(payload.FchVtoPago)]);
+    rows.push(['Vencimiento del pago', formatDateLabel(payload.FchVtoPago)]);
   }
 
   const associatedVoucher = payload.CbtesAsoc?.[0];
@@ -164,7 +164,7 @@ function formatFriendlyPayloadRows(result: BillingExecutionResult): Array<readon
     const label = FCE_OPTIONAL_LABELS[optional.Id];
 
     if (label) {
-      rows.push([label, optional.Id === '22' ? (optional.Valor === 'S' ? 'Si' : 'No') : optional.Valor]);
+      rows.push([label, optional.Id === '22' ? (optional.Valor === 'S' ? 'Sí' : 'No') : optional.Valor]);
     }
   }
 
