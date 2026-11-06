@@ -565,7 +565,7 @@ export function configureSpanishHelp(command: Command): void {
   });
   command.helpCommand(false);
   command.helpOption('--ayuda', 'mostrar ayuda');
-  command.showHelpAfterError('(usá "ayuda" para ver ejemplos y opciones)');
+  command.showHelpAfterError('(usá `ayuda` para ver ejemplos y opciones)');
 }
 
 export function createProgramHeader(): string {

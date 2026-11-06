@@ -34,7 +34,7 @@ async function stderrOf(argv: string[]): Promise<string> {
 describe('opciones globales que no aplican', () => {
   it('avisa sin cortar la ejecucion cuando el comando no usa la opcion', async () => {
     expect(await stderrOf(['config', 'ruta', '--produccion', '--bruto'])).toContain(
-      'Aviso: --produccion, --bruto no aplican a "arcli config ruta", se ignoran.',
+      'Aviso: --produccion, --bruto no aplican a `arcli config ruta`, se ignoran.',
     );
   });
 
@@ -45,7 +45,7 @@ describe('opciones globales que no aplican', () => {
 
   it('arma el mensaje en singular', () => {
     expect(formatIgnoredGlobalOptionsWarning(['--bruto'], 'arcli pdf estado')).toBe(
-      'Aviso: --bruto no aplica a "arcli pdf estado", se ignora.',
+      'Aviso: --bruto no aplica a `arcli pdf estado`, se ignora.',
     );
   });
 });

@@ -64,7 +64,7 @@ describe('arcli __completar', () => {
     expect(await complete('recibo', '')).toEqual(['c']);
   });
 
-  it('takes the typed words as they are, even flags or "ayuda"', async () => {
+  it('takes the typed words as they are, even flags or `ayuda`', async () => {
     expect(await complete('fc', '--monto', '1000', 'ayuda', '--ir-c')).toEqual(['--ir-ce', '--ir-cf']);
   });
 });

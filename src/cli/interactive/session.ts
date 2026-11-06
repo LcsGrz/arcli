@@ -60,7 +60,7 @@ export function createInteractiveSession(options: GlobalCliOptions): Interactive
 export function requirePointOfSale(session: InteractiveSession): number | undefined {
   if (!session.runtime.pointOfSale) {
     writeTerminalOutput(
-      noticePanel('Falta el punto de venta. Configuralo con "arcli config establecer puntoVenta <numero>".', 'warning'),
+      noticePanel('Falta el punto de venta. Configuralo con `arcli config establecer puntoVenta <numero>`.', 'warning'),
     );
   }
 

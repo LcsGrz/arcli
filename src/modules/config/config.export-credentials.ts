@@ -24,7 +24,7 @@ export function resolveExportCredentials(
     throw new ConfigurationError(
       `Para WSFEX en ${environment} configurá el certificado y la clave juntos.`,
       { faltan: dedicatedCert ? [`exportacion.key.${environment}`] : [`exportacion.cert.${environment}`] },
-      `Cargalos con "arcli config establecer exportacion.cert.${environment} <ruta>" y "arcli config establecer exportacion.key.${environment} <ruta>".`,
+      `Cargalos con \`arcli config establecer exportacion.cert.${environment} <ruta>\` y \`arcli config establecer exportacion.key.${environment} <ruta>\`.`,
     );
   }
 
@@ -40,7 +40,7 @@ export function resolveExportCredentials(
           ...(key ? [] : [`exportacion.key.${environment}`]),
         ],
       },
-      `Autorizá un certificado al servicio wsfex y cargalo con "arcli config establecer exportacion.cert.${environment} <ruta>" y "arcli config establecer exportacion.key.${environment} <ruta>".`,
+      `Autorizá un certificado al servicio wsfex y cargalo con \`arcli config establecer exportacion.cert.${environment} <ruta>\` y \`arcli config establecer exportacion.key.${environment} <ruta>\`.`,
     );
   }
 

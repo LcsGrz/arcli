@@ -332,7 +332,7 @@ Si el archivo contiene un array, ARCLI procesa un lote del mismo comando. **Un a
 {
   "codigo": "BATCH_EMISSION_ERROR",
   "detalles": { "fallo": 3, "procesados": 2, "sinConfirmar": 3, "sinProcesar": [4], "total": 4 },
-  "error": "El lote se interrumpió en el comprobante #3: ...\nProcesados: 2 de 4. Sin procesar: #4.\nEl #3 puede haberse emitido: verificalo con \"arcli ultimos\" antes de reintentarlo.",
+  "error": "El lote se interrumpió en el comprobante #3: ...\nProcesados: 2 de 4. Sin procesar: #4.\nEl #3 puede haberse emitido: verificalo con `arcli ultimos` antes de reintentarlo.",
   "sugerencia": null
 }
 ```
@@ -680,12 +680,12 @@ Las claves son las de [configuración](configuration.md), salvo que `cert.*`, `k
     { "categoria": "ok", "detalle": "Entorno por defecto: testing.", "etiqueta": "Entorno" },
     {
       "categoria": "warning",
-      "detalle": "Configurá un punto de venta por defecto con \"arcli config establecer puntoVenta <valor>\".",
+      "detalle": "Configurá un punto de venta por defecto con `arcli config establecer puntoVenta <valor>`.",
       "etiqueta": "Punto de venta"
     },
     {
       "categoria": "error",
-      "detalle": "Falta el CUIT. Configuralo con \"arcli config establecer cuit <valor>\". Si querés una guía rápida, usá \"arcli config revisar\".",
+      "detalle": "Falta el CUIT. Configuralo con `arcli config establecer cuit <valor>`. Si querés una guía rápida, usá `arcli config revisar`.",
       "etiqueta": "Validación testing"
     }
   ],
@@ -843,7 +843,7 @@ Una opción desconocida, un valor faltante o un comando que no existe también s
   "codigo": "INPUT_VALIDATION_ERROR",
   "detalles": null,
   "error": "opción desconocida '--montoo' (¿quisiste decir --monto?)",
-  "sugerencia": "Usá \"arcli ayuda\" o \"arcli <comando> --ayuda\" para ver comandos y opciones."
+  "sugerencia": "Usá `arcli ayuda` o `arcli <comando> --ayuda` para ver comandos y opciones."
 }
 ```
 
@@ -878,7 +878,7 @@ Con el certificado del entorno vencido, los comandos que van a ARCA cortan antes
   "codigo": "CERTIFICATE_EXPIRED",
   "detalles": { "entorno": "produccion", "vencimiento": "20/11/2026" },
   "error": "El certificado de producción venció el 20/11/2026: ARCA no lo acepta.",
-  "sugerencia": "Renovalo con \"arcli certificado generar --produccion\" y cargá el .crt de ARCA con \"arcli certificado importar <archivo>\". Guía: https://github.com/LcsGrz/arcli/blob/main/docs/obtencion-certificados.md"
+  "sugerencia": "Renovalo con `arcli certificado generar --produccion` y cargá el .crt de ARCA con `arcli certificado importar <archivo>`. Guía: https://github.com/LcsGrz/arcli/blob/main/docs/obtencion-certificados.md"
 }
 ```
 
@@ -893,7 +893,7 @@ Los pasos previos no cuentan: si falla el login en WSAA (por ejemplo, un certifi
   "codigo": "EMISSION_UNCERTAIN",
   "detalles": { "causa": "socket hang up" },
   "error": "No se pudo confirmar la emisión: socket hang up",
-  "sugerencia": "Puede haberse emitido igual. Antes de reintentar, verificá con \"arcli ultimos fc --pv 3\": si figura, ya está emitido y no hay que repetirlo."
+  "sugerencia": "Puede haberse emitido igual. Antes de reintentar, verificá con `arcli ultimos fc --pv 3`: si figura, ya está emitido y no hay que repetirlo."
 }
 ```
 

@@ -2,7 +2,7 @@ import type { IFEXAuthorizeOutput } from '@arcasdk/core/lib/application/dto/fex'
 
 import type { ExportResponseError, ExportResponseSummary } from './export.types';
 
-const POINT_OF_SALE_HINT = 'Revisá los puntos de venta habilitados para WSFEX con "arcli parametros puntos-venta".';
+const POINT_OF_SALE_HINT = 'Revisá los puntos de venta habilitados para WSFEX con `arcli parametros puntos-venta`.';
 
 function normalizeArcaDate(value: string | undefined): string | null {
   const digits = (value ?? '').replace(/\D/g, '').slice(0, 8);

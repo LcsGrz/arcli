@@ -21,13 +21,13 @@ export const ARCA_REJECTIONS: readonly ArcaRejection[] = [
     codes: [10005, 11002],
     guide: POINT_OF_SALE_GUIDE_URL,
     pattern: /punto de venta.*tipo RECE/i,
-    todo: 'Revisá los habilitados con "arcli parametros puntos-venta" o creá uno para web service.',
+    todo: 'Revisá los habilitados con `arcli parametros puntos-venta` o creá uno para web service.',
     what: 'El punto de venta no está habilitado para web service (los de "Factura en línea" no sirven).',
   },
   {
     codes: [10016],
     guide: `${TROUBLESHOOTING_URL}#rechazos-de-arca-por-código`,
-    todo: 'Mirá el último emitido con "arcli ultimos" y reintentá; si emitís varios del mismo tipo y punto de venta, hacelo de a uno.',
+    todo: 'Mirá el último emitido con `arcli ultimos` y reintentá; si emitís varios del mismo tipo y punto de venta, hacelo de a uno.',
     what: 'ARCA no aceptó el número o la fecha: no es el próximo a autorizar (otro comprobante se emitió en el medio) o la fecha es anterior a la del último emitido.',
   },
   {
@@ -39,7 +39,7 @@ export const ARCA_REJECTIONS: readonly ArcaRejection[] = [
   {
     codes: [10243],
     guide: `${TROUBLESHOOTING_URL}#el-comprobante-no-admite-el-iva-receptor`,
-    todo: 'Usá un IVA receptor válido para la letra (con --ir) o consultá el del receptor con "arcli padron <cuit>".',
+    todo: 'Usá un IVA receptor válido para la letra (con --ir) o consultá el del receptor con `arcli padron <cuit>`.',
     what: 'El IVA receptor no es válido para la letra del comprobante.',
   },
   {
@@ -51,7 +51,7 @@ export const ARCA_REJECTIONS: readonly ArcaRejection[] = [
   {
     codes: [10119],
     guide: `${TROUBLESHOOTING_URL}#rechazos-de-arca-por-código`,
-    todo: 'Revisá --cotizacion-moneda contra la oficial ("arcli parametros cotizacion <moneda>").',
+    todo: 'Revisá --cotizacion-moneda contra la oficial (`arcli parametros cotizacion <moneda>`).',
     what: 'La cotización está fuera del rango que acepta ARCA: entre el 2% y el 400% de la oficial.',
   },
   {

@@ -39,13 +39,13 @@ function formatErrorHint(error: AppError): string | null {
 
   switch (error.code) {
     case 'CONFIGURATION_ERROR':
-      return 'Revisá la configuración con "arcli config" o corré "arcli config revisar".';
+      return 'Revisá la configuración con `arcli config` o corré `arcli config revisar`.';
     case 'INPUT_VALIDATION_ERROR':
       return HELP_SUGGESTION;
     case 'BATCH_VALIDATION_ERROR':
       return 'Corregí esos comprobantes en el archivo y volvé a correr el lote completo.';
     case 'BATCH_EMISSION_ERROR':
-      return 'Los comprobantes de arriba ya se emitieron: no los vuelvas a cargar. Antes de reintentar el que falló, verificá con "arcli ultimos" si se emitió; después reintentá los que quedaron sin procesar.';
+      return 'Los comprobantes de arriba ya se emitieron: no los vuelvas a cargar. Antes de reintentar el que falló, verificá con `arcli ultimos` si se emitió; después reintentá los que quedaron sin procesar.';
     default:
       return null;
   }

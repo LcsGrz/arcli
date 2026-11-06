@@ -25,7 +25,7 @@ export interface CompletionInstallResult extends CompletionInstallState {
 }
 
 /** Marca lo que agrega arcli, para reconocerlo y sacarlo despues sin tocar nada mas. */
-const MARKER = '# arcli: autocompletado con Tab (se saca con "arcli completado desinstalar")';
+const MARKER = '# arcli: autocompletado con Tab (se saca con `arcli completado desinstalar`)';
 
 export function currentCompletionEnvironment(): CompletionEnvironment {
   return {

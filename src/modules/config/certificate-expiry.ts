@@ -137,7 +137,7 @@ export class CertificateExpiredError extends AppError {
       {
         code: 'CERTIFICATE_EXPIRED',
         details: { entorno: notice.environment, vencimiento: notice.expiresOn },
-        suggestion: `Renovalo con "arcli certificado generar --${notice.environment}" y cargá el .crt de ARCA con "arcli certificado importar <archivo>". Guía: ${CERTIFICATE_GUIDE_URL}`,
+        suggestion: `Renovalo con \`arcli certificado generar --${notice.environment}\` y cargá el .crt de ARCA con \`arcli certificado importar <archivo>\`. Guía: ${CERTIFICATE_GUIDE_URL}`,
       },
     );
     this.name = 'CertificateExpiredError';

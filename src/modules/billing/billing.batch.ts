@@ -62,7 +62,9 @@ export class BatchEmissionError extends AppError {
         `El lote se interrumpió en el comprobante #${options.failedIndex}: ${describeBatchItemError(options.cause)}`,
         `Procesados: ${options.emitted} de ${options.total}.${pending.length > 0 ? ` Sin procesar: ${pending.map((index) => `#${index}`).join(', ')}.` : ''}`,
         ...(uncertain
-          ? [`El #${options.failedIndex} puede haberse emitido: verificalo con "arcli ultimos" antes de reintentarlo.`]
+          ? [
+              `El #${options.failedIndex} puede haberse emitido: verificalo con \`arcli ultimos\` antes de reintentarlo.`,
+            ]
           : []),
       ].join('\n'),
       {

@@ -134,7 +134,7 @@ export class ArcaContextResolver {
 
     if (!rawValue) {
       throw new ConfigurationError(
-        'Falta el CUIT. Configuralo con "arcli config establecer cuit <valor>". Si querés una guía rápida, usá "arcli config revisar".',
+        'Falta el CUIT. Configuralo con `arcli config establecer cuit <valor>`. Si querés una guía rápida, usá `arcli config revisar`.',
       );
     }
 
@@ -188,7 +188,7 @@ export class ArcaContextResolver {
 
     if (!filePath) {
       throw new ConfigurationError(
-        `Falta la ruta del certificado para ${environment}. Configurá "cert.${environment}". Si necesitás ayuda, probá "arcli config revisar".`,
+        `Falta la ruta del certificado para ${environment}. Configurá "cert.${environment}". Si necesitás ayuda, probá \`arcli config revisar\`.`,
       );
     }
 
@@ -200,7 +200,7 @@ export class ArcaContextResolver {
 
     if (!filePath) {
       throw new ConfigurationError(
-        `Falta la ruta de la clave privada para ${environment}. Configurá "key.${environment}". Si necesitás ayuda, probá "arcli config revisar".`,
+        `Falta la ruta de la clave privada para ${environment}. Configurá "key.${environment}". Si necesitás ayuda, probá \`arcli config revisar\`.`,
       );
     }
 

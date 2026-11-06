@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 /**
  * La salida humana va en voseo y con tildes. Busca las palabras sin tilde mas comunes en los textos de src
- * (literales con espacios). No mira comandos de ejemplo ("arcli ..."), lo que va entre comillas dobles,
+ * (literales con espacios). No mira comandos de ejemplo (`arcli ...`), lo que va entre comillas dobles,
  * ni flags, claves o marcadores (`--produccion`, `emisor.razonSocial`, `<numero>`): eso es contrato.
  */
 const UNACCENTED = [

@@ -36,7 +36,7 @@ export function createProgram(options: CreateProgramOptions = {}): Command {
       'Emití y revisá comprobantes ARCA desde terminal con una UX más simple, validaciones claras y salida lista para automatizar.',
     )
     .version(CLI_VERSION, '-V, --version', 'mostrar la versión instalada')
-    .showHelpAfterError('(usa "ayuda" para ver comandos y ejemplos)');
+    .showHelpAfterError('(usa `ayuda` para ver comandos y ejemplos)');
 
   configureSpanishHelp(program);
   registerGlobalOptions(program);

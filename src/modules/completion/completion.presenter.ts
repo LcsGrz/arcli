@@ -19,7 +19,7 @@ export function formatCompletionStateAsText(state: CompletionInstallState, home:
   return state.installed
     ? noticePanel(`Autocompletado instalado para ${state.shell} (${where}).`, 'success')
     : noticePanel(
-        `Autocompletado no instalado para ${state.shell}. Instalalo con "arcli completado instalar".`,
+        `Autocompletado no instalado para ${state.shell}. Instalalo con \`arcli completado instalar\`.`,
         'muted',
       );
 }

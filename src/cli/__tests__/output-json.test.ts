@@ -118,7 +118,7 @@ describe('commander usage errors', () => {
 
     expect(stderr).toContain("error: opción desconocida '--montoo'");
     expect(stderr).toContain('(¿quisiste decir --monto?)');
-    expect(stderr).toContain('(usá "ayuda" para ver ejemplos y opciones)');
+    expect(stderr).toContain('(usá `ayuda` para ver ejemplos y opciones)');
     expect(exitCode).toBe(1);
   });
 
@@ -143,13 +143,13 @@ describe('--bruto only where it is used', () => {
     [['parametros', '--bruto'], 'arcli parametros'],
     [['estado', '--bruto'], 'arcli estado'],
   ])('%j warns that --bruto does not apply', async (argv, command) => {
-    expect((await run(argv)).stderr).toContain(`Aviso: --bruto no aplica a "${command}", se ignora.`);
+    expect((await run(argv)).stderr).toContain(`Aviso: --bruto no aplica a \`${command}\`, se ignora.`);
   });
 
   it('warns instead of failing when interactivo gets --json or --bruto', async () => {
     const { error, stderr } = await run(['interactivo', '--json', '--bruto']);
 
-    expect(stderr).toContain('Aviso: --json, --bruto no aplican a "arcli interactivo", se ignoran.');
+    expect(stderr).toContain('Aviso: --json, --bruto no aplican a `arcli interactivo`, se ignoran.');
     // Sin TTY en los tests: falla por la terminal, no por --json.
     expect(error).toMatchObject({ message: expect.not.stringContaining('--json') });
   });

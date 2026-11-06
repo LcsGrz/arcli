@@ -20,7 +20,7 @@ export type CertificateFlowResult = 'importado' | 'pendiente';
 const ENVIRONMENT_NAMES: Record<ArcliEnvironment, string> = { produccion: 'Producción', testing: 'Testing' };
 
 const LATER_NOTICE =
-  'Cuando tengas el .crt, cargalo desde Configuración → Certificados de ARCA, o con "arcli certificado importar <archivo>". Hasta entonces seguís usando el certificado actual.';
+  'Cuando tengas el .crt, cargalo desde Configuración → Certificados de ARCA, o con `arcli certificado importar <archivo>`. Hasta entonces seguís usando el certificado actual.';
 
 /** Cada operacion abre y cierra la config: entre una pregunta y otra el usuario puede tardar lo que quiera. */
 function withService<T>(run: (service: CertificateService, config: ConfigService) => T): T {

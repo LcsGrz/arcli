@@ -36,7 +36,7 @@ export function exchangeRateWarnings(
 
   if (input.exchangeRateSource === 'config') {
     return [
-      `La cotización de ${code} (${rate}) sale de la clave "cotizacion" de la config, que está deprecada y se va a sacar en la 3.0.0: una cotización guardada queda vieja. Pasá --cm, o borrala con "arcli config eliminar cotizacion" para usar la oficial de ARCA.`,
+      `La cotización de ${code} (${rate}) sale de la clave "cotizacion" de la config, que está deprecada y se va a sacar en la 3.0.0: una cotización guardada queda vieja. Pasá --cm, o borrala con \`arcli config eliminar cotizacion\` para usar la oficial de ARCA.`,
     ];
   }
 

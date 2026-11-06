@@ -66,7 +66,7 @@ function assertRequiredFields(input: ExportVoucherInput, activity: number | unde
 
   if (activity === undefined) {
     throw new InputValidationError(
-      'Falta la actividad de exportación. Usá --actividad o guardala con "arcli config establecer exportacion.actividad <código>": es el código de la tabla de actividades de WSFEX, por ejemplo 620100.',
+      'Falta la actividad de exportación. Usá --actividad o guardala con `arcli config establecer exportacion.actividad <código>`: es el código de la tabla de actividades de WSFEX, por ejemplo 620100.',
     );
   }
 

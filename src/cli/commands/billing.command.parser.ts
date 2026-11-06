@@ -258,13 +258,13 @@ function parseBillingCommandInputFromSource(
 
   if (!resolvedConcept) {
     throw new InputValidationError(
-      'Falta el concepto. Usá --concepto <tipo>, o bien --cs/--cp/--csp, o configurá uno por defecto con "arcli config establecer concepto servicios".',
+      'Falta el concepto. Usá --concepto <tipo>, o bien --cs/--cp/--csp, o configurá uno por defecto con `arcli config establecer concepto servicios`.',
     );
   }
 
   if (!resolvedIvaCondition && !willLookupPadron) {
     throw new InputValidationError(
-      'Falta IVA receptor. Usá --iva-receptor <tipo>, --ir <tipo>, un flag --ir-*, o configurá uno por defecto con "arcli config establecer ivaReceptor consumidor-final".',
+      'Falta IVA receptor. Usá --iva-receptor <tipo>, --ir <tipo>, un flag --ir-*, o configurá uno por defecto con `arcli config establecer ivaReceptor consumidor-final`.',
     );
   }
 

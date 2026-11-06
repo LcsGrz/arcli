@@ -142,8 +142,8 @@ export function formatStatusAsText(report: StatusReport): string {
       : report.pointOfSale.kind === 'habilitado' || report.pointOfSale.kind === 'sin-datos'
         ? 'ARCA tiene problemas: esperá unos minutos y reintentá'
         : report.pointOfSale.kind === 'no-encontrado'
-          ? `Revisá el punto de venta con "arcli parametros puntos-venta". Los de "Factura en línea" no sirven; para crear uno para web service: ${POINT_OF_SALE_GUIDE_URL}`
-          : 'Revisá el punto de venta con "arcli parametros puntos-venta".';
+          ? `Revisá el punto de venta con \`arcli parametros puntos-venta\`. Los de "Factura en línea" no sirven; para crear uno para web service: ${POINT_OF_SALE_GUIDE_URL}`
+          : 'Revisá el punto de venta con `arcli parametros puntos-venta`.';
 
   return keyValuePanel(
     'Estado de ARCA',
