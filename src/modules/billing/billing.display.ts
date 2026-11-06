@@ -11,6 +11,7 @@ import {
 } from '../../ui';
 import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
 
+import { isTaxIdDocumentType } from './arca-codes';
 import { resolveIvaRateLabel } from './billing.amounts';
 import {
   formatConceptLabel,
@@ -102,7 +103,7 @@ function formatFriendlyPayloadRows(result: BillingExecutionResult): Array<readon
       typeof payload.DocNro === 'number'
         ? payload.DocNro === 0
           ? 'Sin especificar'
-          : payload.DocTipo === 80 || payload.DocTipo === 86
+          : isTaxIdDocumentType(payload.DocTipo)
             ? formatTaxIdLabel(payload.DocNro)
             : formatNumericLabel(payload.DocNro)
         : 'No informado',

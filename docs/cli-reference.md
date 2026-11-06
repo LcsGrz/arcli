@@ -226,7 +226,7 @@ En casi todos los casos te va a interesar mirar primero:
 | `--cp`                         | ninguno         | `boolean`                                             | `false`                                  | Equivale a `--concepto productos`                |
 | `--csp`                        | ninguno         | `boolean`                                             | `false`                                  | Equivale a `--concepto productos-servicios`      |
 | `--moneda <codigo>`            | `--mda`         | `string(3)`                                           | `config.moneda` o `ARS`                  | Moneda del comprobante: ISO o código de ARCA     |
-| `--cotizacion-moneda <numero>` | `--cm`          | `number`                                              | `config.cotizacion` o `1`                | Cotización de la moneda                          |
+| `--cotizacion-moneda <numero>` | `--cm`          | `number`                                              | oficial de ARCA                          | Cotización de la moneda                          |
 | `--misma-moneda`               | ninguno         | `boolean`                                             | `false`                                  | El pago se cancela en la moneda extranjera       |
 | `--servicio-desde <fecha>`     | `--sd <fecha>`  | `string`                                              | ninguno                                  | Fecha de inicio del servicio                     |
 | `--servicio-hasta <fecha>`     | `--sh <fecha>`  | `string`                                              | ninguno                                  | Fecha de fin del servicio                        |
@@ -234,7 +234,7 @@ En casi todos los casos te va a interesar mirar primero:
 
 En moneda extranjera (`--moneda USD`) hay dos formas de informar la cotización:
 
-- **Te pagan en pesos** (default): pasá `--cotizacion-moneda` con la cotización acordada. Es obligatoria y no puede ser `1`.
+- **Te pagan en pesos** (default): pasá `--cotizacion-moneda` con la cotización acordada. Sin ella, ARCLI usa la oficial de ARCA y lo avisa en "Avisos". No puede ser `1`.
 - **Te pagan en la moneda extranjera**: pasá `--misma-moneda`. ARCLI consulta la cotización oficial a ARCA y la muestra en la vista previa. No se combina con `--cotizacion-moneda`.
 
 En pesos la cotización siempre es `1` y `--misma-moneda` no aplica. Detalle en [Moneda y cotización](validation-rules.md#moneda-y-cotización).

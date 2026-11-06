@@ -43,8 +43,8 @@ interface CliVoucherPayload extends Omit<INextVoucher, 'CbtesAsoc' | 'DocNro'> {
 
 export class BillingService {
   /**
-   * Completa la cotizacion oficial cuando el comprobante se cancela en la misma moneda extranjera.
-   * Se resuelve antes de la vista previa para que el preview muestre el valor que se va a enviar.
+   * Completa la cotizacion oficial en moneda extranjera sin --cm: con --misma-moneda es obligatoria y sin ella es el
+   * default. Se resuelve antes de la vista previa para que el preview muestre el valor que se va a enviar.
    */
   public async resolveExchangeRate(input: BillingCommandInput, gateway: BillingGateway): Promise<BillingCommandInput> {
     if (!needsOfficialExchangeRate(input)) {
@@ -54,6 +54,8 @@ export class BillingService {
     return {
       ...input,
       exchangeRate: await gateway.getQuotation(resolveBillingCurrencyCode(input.currencyCode)),
+      // Con --misma-moneda la oficial es obligatoria, no un default: no hace falta avisar.
+      exchangeRateSource: input.sameCurrency ? undefined : 'arca',
     };
   }
 

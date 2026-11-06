@@ -39,6 +39,9 @@ vi.mock('../../../modules/config/config.service', () => ({
     public getConfig(): ArcliConfig {
       return storedConfig;
     }
+    public getPluginsPath(): string {
+      return '/arcli-test/plugins-que-no-existen';
+    }
     public resolvePaths(): { pdfFolder: string; ticketPath: string } {
       return { pdfFolder: '/pdfs', ticketPath: '/tickets' };
     }
@@ -85,6 +88,8 @@ describe('arcli config', () => {
 
       expect(JSON.parse(output)).toHaveProperty('chequeos');
       expect(output).toContain('"etiqueta": "Validación testing"');
+      // Con pdf=preguntar (por defecto) y el plugin sin instalar no se revisa.
+      expect(output).not.toContain('"etiqueta": "Plugin de PDF"');
     } finally {
       write.mockRestore();
     }

@@ -262,6 +262,18 @@ describe('billing.command.parser', () => {
 
     expect(pesos.exchangeRate).toBeUndefined();
     expect(dollars.exchangeRate).toBe(1200);
+    expect(dollars.exchangeRateSource).toBe('config');
+  });
+
+  it('a rate from --cm is not marked as coming from the config', () => {
+    const input = parseBillingCommandInput(
+      createCommand(['--monto', '1000', '--cs', '--ir-cf', '--moneda', 'USD', '--cm', '1300']),
+      'fc',
+      { defaultExchangeRate: 1200 },
+    );
+
+    expect(input.exchangeRate).toBe(1300);
+    expect(input.exchangeRateSource).toBeUndefined();
   });
 
   it('parses the payment due date from --vencimiento or --vto', () => {

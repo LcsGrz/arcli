@@ -1,3 +1,4 @@
+import { conceptLabel, documentTypeLabel, ivaConditionLabel } from './arca-codes';
 import { findArcaCurrency } from './currency-codes';
 
 export function formatDateLabel(value: string | undefined): string {
@@ -26,60 +27,15 @@ export function formatMoneyLabel(value: number | undefined): string {
 }
 
 export function formatConceptLabel(value: number | undefined): string {
-  switch (value) {
-    case 1:
-      return 'Productos';
-    case 2:
-      return 'Servicios';
-    case 3:
-      return 'Productos y servicios';
-    default:
-      return value ? String(value) : 'N/D';
-  }
+  return conceptLabel(value);
 }
 
 export function formatDocumentTypeLabel(value: number | undefined): string {
-  switch (value) {
-    case 80:
-      return 'CUIT';
-    case 86:
-      return 'CUIL';
-    case 96:
-      return 'DNI';
-    case 99:
-      return 'Consumidor final';
-    default:
-      return value ? String(value) : 'N/D';
-  }
+  return documentTypeLabel(value);
 }
 
 export function formatIvaConditionLabel(value: number | undefined): string {
-  switch (value) {
-    case 1:
-      return 'Responsable inscripto';
-    case 4:
-      return 'Sujeto exento';
-    case 5:
-      return 'Consumidor final';
-    case 6:
-      return 'Responsable monotributo';
-    case 7:
-      return 'Sujeto no categorizado';
-    case 8:
-      return 'Proveedor del exterior';
-    case 9:
-      return 'Cliente del exterior';
-    case 10:
-      return 'IVA liberado';
-    case 13:
-      return 'Monotributista social';
-    case 15:
-      return 'IVA no alcanzado';
-    case 16:
-      return 'Monotributo trabajador independiente promovido';
-    default:
-      return value ? String(value) : 'N/D';
-  }
+  return ivaConditionLabel(value);
 }
 
 /** "Pesos uruguayos (UYU)"; una moneda que no esta en la tabla sale con su codigo. */

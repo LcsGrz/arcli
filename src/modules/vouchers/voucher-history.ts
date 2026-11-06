@@ -1,3 +1,4 @@
+import { BILLING_IVA_RATES, documentTypeFromCode, ivaRateFactor } from '../billing/arca-codes';
 import type { BillingDocumentType, BillingIvaRate } from '../billing/billing.schemas';
 
 /** Comprobante ya emitido, tal como lo devuelve ARCA (FECompConsultar). Fechas en formato yyyymmdd. */
@@ -25,28 +26,12 @@ export interface VoucherHistoryGateway {
   getVoucher(number: number, pointOfSale: number, voucherType: number): Promise<IssuedVoucher | undefined>;
 }
 
-const DOCUMENT_TYPES_BY_CODE: Record<number, BillingDocumentType> = {
-  80: 'cuit',
-  86: 'cuil',
-  96: 'dni',
-  99: 'consumidor-final',
-};
-
-const IVA_RATES: ReadonlyArray<readonly [BillingIvaRate, number]> = [
-  ['0', 0],
-  ['2.5', 0.025],
-  ['5', 0.05],
-  ['10.5', 0.105],
-  ['21', 0.21],
-  ['27', 0.27],
-];
-
 /** Cuantos comprobantes listar si no se pide otra cantidad; se cambia con `config.comprobantesPorLista`. */
 export const RECENT_VOUCHERS_LIMIT = 15;
 export const MAX_RECENT_VOUCHERS = 50;
 
 export function resolveDocumentType(code: number): BillingDocumentType | undefined {
-  return DOCUMENT_TYPES_BY_CODE[code];
+  return documentTypeFromCode(code);
 }
 
 const toCents = (amount: number) => Math.round(amount * 100 + Number.EPSILON);
@@ -62,13 +47,14 @@ export function inferIvaRate(netAmount: number, ivaAmount: number): BillingIvaRa
   }
 
   const ratio = ivaAmount / netAmount;
-  const matches = IVA_RATES.filter(([, rate]) => toCents(netAmount * rate) === toCents(ivaAmount));
-  const closest = matches.reduce<(typeof IVA_RATES)[number] | undefined>(
-    (best, candidate) => (!best || Math.abs(candidate[1] - ratio) < Math.abs(best[1] - ratio) ? candidate : best),
+  const factor = (rate: BillingIvaRate) => Number(ivaRateFactor(rate));
+  const matches = BILLING_IVA_RATES.filter((rate) => toCents(netAmount * factor(rate)) === toCents(ivaAmount));
+
+  return matches.reduce<BillingIvaRate | undefined>(
+    (best, candidate) =>
+      !best || Math.abs(factor(candidate) - ratio) < Math.abs(factor(best) - ratio) ? candidate : best,
     undefined,
   );
-
-  return closest?.[0];
 }
 
 interface ListVouchersOptions {

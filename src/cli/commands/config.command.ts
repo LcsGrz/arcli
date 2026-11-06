@@ -1,9 +1,15 @@
 import { Command } from 'commander';
+import { join } from 'node:path';
 
-import type { ArcliConfig, ArcliEnvironment } from '../../modules/config/config.schemas';
+import {
+  type ArcliConfig,
+  type ArcliEnvironment,
+  COTIZACION_DEPRECATION_WARNING,
+} from '../../modules/config/config.schemas';
 import { ConfigService } from '../../modules/config/config.service';
 import { buildConfigDoctorReport, type ConfigDoctorRuntimeCheck } from '../../modules/config/config-doctor';
 import { ArcaContextResolver } from '../../services/arca/arca-context.resolver';
+import { PdfPlugin } from '../../services/pdf/pdf-plugin';
 import {
   formatConfig,
   formatConfigAsText,
@@ -12,6 +18,7 @@ import {
   formatConfigPath,
   formatConfigPathAsJson,
   writeTerminalJson,
+  writeTerminalNotice,
   writeTerminalOutput,
 } from '../../ui';
 import { registerJsonOption, resolveOutputJson } from '../global-options';
@@ -91,7 +98,11 @@ export function registerConfigCommand(program: Command): void {
         const config = service.getConfig();
         const useJson = resolveOutputJson(command, config);
         spinner = useJson ? null : startSpinner('Generando revisión...');
-        const report = buildConfigDoctorReport(config, buildRuntimeChecks(config));
+        const pdfPlugin = new PdfPlugin({
+          configuredBrowser: config.pdfNavegador,
+          path: join(service.getPluginsPath(), 'pdf'),
+        }).getStatus();
+        const report = buildConfigDoctorReport(config, buildRuntimeChecks(config), pdfPlugin);
         spinner?.stop();
         printConfigResult(formatConfigDoctorAsText(report), formatConfigDoctor(report), useJson);
       } catch (error) {
@@ -136,6 +147,11 @@ export function registerConfigCommand(program: Command): void {
       try {
         const config = service.setValue(key, value);
         const paths = service.resolvePaths(config);
+
+        if (key === 'cotizacion') {
+          writeTerminalNotice(COTIZACION_DEPRECATION_WARNING);
+        }
+
         printConfigResult(
           formatConfigAsText(config, paths),
           formatConfig(config, paths),

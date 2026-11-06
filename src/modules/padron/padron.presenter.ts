@@ -1,5 +1,5 @@
 import { keyValuePanel, renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui';
-import { formatIvaConditionName } from '../pdf/pdf-issuer';
+import { formatIvaConditionName } from '../billing/arca-codes';
 
 import type { Taxpayer } from './padron';
 

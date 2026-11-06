@@ -16,7 +16,7 @@ import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { ArcaExportGateway } from '../../services/arca/arca-export.gateway';
 import { formatExportResultAsText, formatPdfOutcomeAsText, noticePanel, writeTerminalOutput } from '../../ui';
 import { attachExportPdf } from '../commands/export.command.pdf';
-import { startSpinner } from '../spinner';
+import { withSpinner } from '../spinner';
 
 import { askTextStep, chooseStep, confirm } from './prompts';
 import { formatEquivalentCommand, type InteractiveSession } from './session';
@@ -43,16 +43,6 @@ interface ExportFlowState {
 interface ExportTables {
   readonly activities: ReadonlySet<number>;
   readonly countries: readonly ExportCountry[];
-}
-
-async function withSpinner<T>(text: string, run: () => Promise<T>): Promise<T> {
-  const spinner = startSpinner(text);
-
-  try {
-    return await run();
-  } finally {
-    spinner?.stop();
-  }
 }
 
 function required(label: string): (value: string) => string | true {

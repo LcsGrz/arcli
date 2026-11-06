@@ -155,6 +155,11 @@ export const billingCommandSchema = z.object({
    * (`BillingService.resolveIvaConditionFromPadron`). `missing` todavia no tiene un valor real: no se puede emitir.
    */
   ivaConditionSource: z.enum(['default', 'missing', 'padron']).optional(),
+  /**
+   * De donde salio `exchangeRate` si no la indico el usuario: `config` (la clave `cotizacion`, deprecada) o `arca`
+   * (la oficial, que se consulta sin --cm). Solo arma los avisos.
+   */
+  exchangeRateSource: z.enum(['arca', 'config']).optional(),
   paymentDueDate: z.string().trim().optional(),
   /** `true` con --exportar-pdf, `false` con --sin-pdf; sin definir, decide la config. */
   pdf: z.boolean().optional(),

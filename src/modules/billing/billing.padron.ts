@@ -1,7 +1,7 @@
 import { AppError, InputValidationError } from '../../lib/errors/app-error';
 import type { PadronGateway, Taxpayer } from '../padron/padron';
-import { formatIvaConditionName } from '../pdf/pdf-issuer';
 
+import { formatIvaConditionName } from './arca-codes';
 import type { BillingCommandInput } from './billing.schemas';
 
 export interface PadronResolution {

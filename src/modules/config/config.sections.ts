@@ -64,7 +64,7 @@ export const CONFIG_LABELS: Record<ConfigPublicKey, string> = {
   comprobantesPorLista: 'Comprobantes por lista',
   concepto: 'Concepto',
   condicionVenta: 'Condición de venta (PDF de A, B y C)',
-  cotizacion: 'Cotización',
+  cotizacion: 'Cotización (deprecada)',
   cuit: 'CUIT del emisor',
   'emisor.condicionIva': 'Condición de IVA',
   'emisor.domicilio': 'Domicilio comercial',

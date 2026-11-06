@@ -6,7 +6,7 @@ import { BACK, type Back } from '../../modules/interactive/wizard';
 import { type IssuedVoucher, listVouchersFrom, RECENT_VOUCHERS_LIMIT } from '../../modules/vouchers/voucher-history';
 import { formatVoucherNumber, formatVoucherPickerRows } from '../../modules/vouchers/voucher-history.presenter';
 import { colorize, noticePanel, statusBarWidth, writeTerminalOutput } from '../../ui';
-import { startSpinner } from '../spinner';
+import { withSpinner } from '../spinner';
 
 import { askTextStep, type Choice, chooseStep, chooseStepWhileLoading, eraseLastAnswer, fitPageSize } from './prompts';
 import type { InteractiveSession } from './session';
@@ -42,16 +42,6 @@ const COLUMN_SEPARATOR = ' · ';
  */
 function listRule(): Separator {
   return new Separator(colorize('┈'.repeat(statusBarWidth() - 1), 'muted'));
-}
-
-async function withSpinner<T>(text: string, run: () => Promise<T>): Promise<T> {
-  const spinner = startSpinner(text);
-
-  try {
-    return await run();
-  } finally {
-    spinner?.stop();
-  }
 }
 
 function validatePositiveInteger(label: string): (value: string) => string | true {

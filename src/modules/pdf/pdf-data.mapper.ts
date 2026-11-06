@@ -1,5 +1,6 @@
 import type { IIva } from '@arcasdk/core/lib/domain/types/voucher.types';
 
+import { CONSUMER_DOCUMENT_TYPE_CODE } from '../billing/arca-codes';
 import { resolveIvaRateLabel } from '../billing/billing.amounts';
 import { formatIvaConditionLabel } from '../billing/billing.labels';
 import type { BillingExecutionResult } from '../billing/billing.types.internal';
@@ -108,7 +109,7 @@ export function mapBillingResultToPdfData(
   }
 
   const number = resolveVoucherNumber(result);
-  const isConsumer = payload.DocTipo === 99;
+  const isConsumer = payload.DocTipo === CONSUMER_DOCUMENT_TYPE_CODE;
   const isUnidentified = isConsumer && !payload.DocNro;
   const iva = voucherKind.letter === 'c' ? [] : buildIvaEntries(payload.Iva);
 

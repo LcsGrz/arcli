@@ -1,6 +1,7 @@
 import { BACK } from '../../modules/interactive/wizard';
 import { extractChangelog, fetchChangelog } from '../../modules/update-check/changelog';
-import { renderUpdateDetails, UPDATE_COMMAND } from '../../modules/update-check/update-check.presenter';
+import { resolveUpdateCommand } from '../../modules/update-check/package-manager';
+import { renderUpdateDetails } from '../../modules/update-check/update-check.presenter';
 import type { UpdateCheckResult } from '../../modules/update-check/update-check.service';
 import { copyToClipboard } from '../../services/clipboard/clipboard';
 import { noticePanel, writeTerminalOutput } from '../../ui';
@@ -29,10 +30,12 @@ export async function runUpdateFlow(update: UpdateCheckResult): Promise<boolean>
     return false;
   }
 
+  const command = resolveUpdateCommand();
+
   writeTerminalOutput(
-    copyToClipboard(UPDATE_COMMAND)
-      ? noticePanel(`Comando copiado. Pegalo en la terminal y apreta Enter:\n${UPDATE_COMMAND}`, 'success')
-      : noticePanel(`No se pudo copiar el comando. Ejecutalo en la terminal:\n${UPDATE_COMMAND}`, 'warning'),
+    copyToClipboard(command)
+      ? noticePanel(`Comando copiado. Pegalo en la terminal y apretá Enter:\n${command}`, 'success')
+      : noticePanel(`No se pudo copiar el comando. Ejecutalo en la terminal:\n${command}`, 'warning'),
   );
 
   return true;
