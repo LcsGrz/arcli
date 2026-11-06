@@ -28,6 +28,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### Corregido
 
+- **PDF de la factura E en el modo interactivo:** si faltan datos del emisor, los pide y ofrece guardarlos, como en el resto de los comprobantes. Antes el PDF no se generaba.
 - **Emisión incierta en la factura E:** si falla la llamada que emite una `fe` (red, timeout), sale como `EMISSION_UNCERTAIN`, igual que A, B y C, en lugar de un error inesperado que invitaba a reintentar. `detalles` trae `numero` e `idSolicitud`, y la sugerencia es reintentar con esos mismos valores: ARCA no autoriza dos comprobantes con el mismo número, así que no se duplica.
 - **Ayuda de `arcli fe`:** `--numero` decía "por defecto el siguiente de ARCA", pero es obligatorio. Ahora la ayuda lo dice.
 - **Certificado vencido:** la sugerencia de `CERTIFICATE_EXPIRED` manda a renovarlo con `arcli certificado generar` e `importar`, en lugar de cargar las rutas a mano con `arcli config establecer`.
