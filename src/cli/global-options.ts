@@ -21,7 +21,7 @@ export function registerJsonOption(command: Command): Command {
 }
 
 /** Solo facturacion muestra la respuesta bruta de ARCA. */
-export function registerRawOption(command: Command): Command {
+function registerRawOption(command: Command): Command {
   return command.option('--bruto', 'mostrar la respuesta bruta de ARCA cuando exista');
 }
 

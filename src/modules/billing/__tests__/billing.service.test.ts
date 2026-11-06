@@ -432,7 +432,7 @@ describe('billing.service', () => {
 
     expect(() =>
       service.buildVoucherPayload(createBillingInput({ documentNumber: 0, exchangeRate: 1200 }), createRuntime()),
-    ).toThrow(/En pesos la cotización debe ser 1/);
+    ).toThrow(/En pesos la cotización tiene que ser 1/);
   });
 
   it('rejects --misma-moneda for pesos', () => {
@@ -466,6 +466,28 @@ describe('billing.service', () => {
     expect(getQuotation).toHaveBeenCalledWith('DOL');
     expect(payload.MonCotiz).toBe(1415.25);
     expect(payload.CanMisMonExt).toBe('S');
+  });
+
+  it('without --cm or --misma-moneda, uses the official exchange rate and marks it to warn', async () => {
+    const service = new BillingService();
+    const getQuotation = vi.fn(async () => 1415.25);
+    const input = await service.resolveExchangeRate(
+      createBillingInput({ currencyCode: 'USD', documentNumber: 0, exchangeRate: undefined }),
+      {
+        createVoucher: async () => {
+          throw new Error('No debería emitirse');
+        },
+        getNextVoucherNumber: async () => {
+          throw new Error('No debería emitirse');
+        },
+        getQuotation,
+      },
+    );
+    const payload = service.buildVoucherPayload(input, createRuntime());
+
+    expect(getQuotation).toHaveBeenCalledWith('DOL');
+    expect(input.exchangeRateSource).toBe('arca');
+    expect(payload).toMatchObject({ CanMisMonExt: 'N', MonCotiz: 1415.25 });
   });
 
   it('does not query the exchange rate when it is not needed', async () => {
@@ -551,7 +573,7 @@ describe('billing.service', () => {
 
     expect(() =>
       service.buildVoucherPayload(createBillingInput({ documentNumber: 0, shortcut: 'fa' }), createRuntime()),
-    ).toThrow(/factura a no admite IVA receptor "consumidor-final". Usá un comprobante letra B/);
+    ).toThrow(/factura A no admite IVA receptor "consumidor-final". Usá un comprobante letra B/);
     expect(() =>
       service.buildVoucherPayload(
         createBillingInput({
@@ -562,7 +584,7 @@ describe('billing.service', () => {
         }),
         createRuntime(),
       ),
-    ).toThrow(/factura b no admite IVA receptor "responsable-inscripto". Usá un comprobante letra A/);
+    ).toThrow(/factura B no admite IVA receptor "responsable-inscripto". Usá un comprobante letra A/);
   });
 
   it('accepts any receiver IVA condition for letter C', () => {
@@ -714,7 +736,7 @@ describe('billing.service', () => {
         }),
         createRuntime(),
       ),
-    ).toThrow(/--cuit 2012345678 no es válido .*: debe tener 11 digitos/);
+    ).toThrow(/--cuit 2012345678 no es válido .*: debe tener 11 dígitos/);
   });
 
   it('rejects a cuit or cuil with a wrong check digit', () => {
@@ -729,7 +751,7 @@ describe('billing.service', () => {
         }),
         createRuntime(),
       ),
-    ).toThrow(/--cuil 20333333335 no es válido .*digito verificador/);
+    ).toThrow(/--cuil 20333333335 no es válido .*dígito verificador/);
   });
 
   it('rejects dni with invalid length', () => {
@@ -743,7 +765,7 @@ describe('billing.service', () => {
         }),
         createRuntime(),
       ),
-    ).toThrow(/--dni debe tener 7 u 8 digitos/);
+    ).toThrow(/--dni debe tener 7 u 8 dígitos/);
   });
 
   it('rejects service dates for products concept', () => {
@@ -775,7 +797,7 @@ describe('billing.service', () => {
         }),
         createRuntime(),
       ),
-    ).toThrow(/debe enviar ambas/);
+    ).toThrow(/tenés que enviar ambas/);
   });
 
   it('rejects billing dates outside the ARCA window', () => {

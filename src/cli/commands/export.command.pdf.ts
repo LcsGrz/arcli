@@ -11,6 +11,8 @@ import { defaultPdfStepDependencies, loadPdfRenderer, type PdfStepDependencies }
 export interface ExportPdfOptions {
   readonly config: ArcliConfig;
   readonly input: ExportVoucherInput;
+  /** Modo interactivo: pide los datos del emisor que faltan antes de generar el PDF. */
+  readonly completeConfig?: (config: ArcliConfig) => Promise<ArcliConfig>;
   /** Hay alguien para responder preguntas: terminal interactiva y sin --json. */
   readonly interactive: boolean;
 }
@@ -34,8 +36,8 @@ async function ask(deps: PdfStepDependencies, message: string, yesLabel: string)
 }
 
 /**
- * Genera el PDF del comprobante emitido. Nunca lanza: el comprobante ya esta emitido, asi que un error del PDF
- * se devuelve en `pdf.error` y no cambia el codigo de salida.
+ * Genera el PDF del comprobante emitido. El comprobante ya esta emitido, asi que un error del PDF se devuelve en
+ * `pdf.error` y no cambia el codigo de salida. Solo lanza lo que lance `completeConfig`, como un Ctrl+C.
  */
 export async function attachExportPdf(
   result: ExportExecutionResult,
@@ -56,21 +58,22 @@ export async function attachExportPdf(
     return result;
   }
 
-  if (decision === 'preguntar' && !(await ask(deps, '¿Generamos el PDF del comprobante?', 'Si, generar el PDF'))) {
+  if (decision === 'preguntar' && !(await ask(deps, '¿Generamos el PDF del comprobante?', 'Sí, generar el PDF'))) {
     return result;
   }
 
+  const config = options.completeConfig ? await options.completeConfig(options.config) : options.config;
   const spinner = startSpinner('Generando PDF...');
 
   try {
     // Antes de descargar nada: sin los datos del emisor no se puede armar el PDF.
-    resolvePdfIssuer(options.config, result.voucherKind.letter);
+    resolvePdfIssuer(config, result.voucherKind.letter);
 
-    const renderer = await loadPdfRenderer(deps.createPlugin(options.config), options.interactive, deps);
+    const renderer = await loadPdfRenderer(deps.createPlugin(config), options.interactive, deps);
 
     const path = await exportExportacionPdf({
-      config: options.config,
-      folder: deps.resolveFolder(options.config),
+      config,
+      folder: deps.resolveFolder(config),
       renderer,
       result,
     });

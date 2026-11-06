@@ -38,7 +38,7 @@ describe('parseExportItemArgument', () => {
   });
 
   it('rechaza importes con formato invalido', () => {
-    expect(() => parseExportItemArgument('Servicio|1|1000.50')).toThrow(/el precio del item/i);
+    expect(() => parseExportItemArgument('Servicio|1|1000.50')).toThrow(/^El precio del ítem/);
   });
 });
 
@@ -103,7 +103,10 @@ describe('buildExportItems', () => {
   it('falla si la suma de los items no da el monto total', () => {
     expect(() =>
       buildExportItems([{ description: 'Uno', quantity: 1, unitPrice: 100, unit: 7 }], 150, UNITS, 'Según detalle'),
-    ).toThrow(/no coincide con --monto/);
+    ).toThrow('La suma de los ítems (100) no coincide con --monto (150).');
+    expect(() =>
+      buildExportItems([{ description: 'Uno', quantity: 1, unitPrice: 1000.5, unit: 7 }], 1500, UNITS, 'Según detalle'),
+    ).toThrow('La suma de los ítems (1.000,50) no coincide con --monto (1.500).');
   });
 
   it('rechaza cantidades y precios que no son positivos', () => {

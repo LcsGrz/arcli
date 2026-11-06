@@ -2,13 +2,10 @@ import type { Command } from 'commander';
 
 import { formatDateAsArcaDate, parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
 import { formatFceObligationAsJson, formatFceObligationAsText } from '../../modules/fce/fce-obligation.presenter';
-import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { ArcaFceObligationGateway } from '../../services/arca/arca-fce-obligation.gateway';
-import { writeTerminalJson, writeTerminalOutput } from '../../ui';
-import { resolveArcaRuntime } from '../arca-runtime';
-import { getGlobalOptions, registerQueryOptions } from '../global-options';
+import { createArcaQuery, withQuerySpinner, writeQueryOutput } from '../arca-query';
+import { registerQueryOptions } from '../global-options';
 import { configureSpanishHelp, createFceObligationHelp } from '../help';
-import { startSpinner } from '../spinner';
 
 import { parseCuitArgument } from './cuit-argument';
 
@@ -28,26 +25,13 @@ export function registerFceObligationCommand(program: Command): void {
     const issueDate = options.fecha
       ? parseArgentineDateInputAsArcaDate(options.fecha)
       : formatDateAsArcaDate(new Date());
-    const runtime = resolveArcaRuntime(getGlobalOptions(self));
-    const spinner = runtime.outputJson ? null : startSpinner('Consultando ARCA...');
+    const { gateway, runtime } = createArcaQuery(self, (arca) => new ArcaFceObligationGateway(arca));
+    const obligation = await withQuerySpinner(runtime, () => gateway.getObligation(cuit, issueDate));
+    const report = { cuit, environment: runtime.environment, issueDate, obligation };
 
-    try {
-      const gateway = new ArcaFceObligationGateway(new ArcaClientFactory().create(runtime));
-      const obligation = await gateway.getObligation(cuit, issueDate);
-      const report = { cuit, environment: runtime.environment, issueDate, obligation };
-
-      spinner?.stop();
-
-      if (runtime.outputJson) {
-        writeTerminalJson(formatFceObligationAsJson(report));
-
-        return;
-      }
-
-      writeTerminalOutput(formatFceObligationAsText(report));
-    } catch (error) {
-      spinner?.stop();
-      throw error;
-    }
+    writeQueryOutput(runtime, {
+      json: () => formatFceObligationAsJson(report),
+      text: () => formatFceObligationAsText(report),
+    });
   });
 }

@@ -1,3 +1,4 @@
+import { formatArgentineMoney } from '../../lib/numbers/argentine-amount';
 import type { BillingCommandInput } from '../billing/billing.schemas';
 import type { VoucherKindDefinition } from '../billing/billing.types';
 
@@ -10,12 +11,6 @@ export interface FceObligation {
 export interface FceObligationGateway {
   /** `issueDate` en formato ARCA yyyymmdd. */
   getObligation(cuit: number, issueDate: string): Promise<FceObligation>;
-}
-
-const MONEY_FORMATTER = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 2, minimumFractionDigits: 0 });
-
-function formatMoney(value: number): string {
-  return `$${MONEY_FORMATTER.format(value)}`;
 }
 
 function isInvoice(voucherKind: VoucherKindDefinition): boolean {
@@ -45,13 +40,13 @@ export function evaluateFceObligation(
 
   if (voucherKind.family === 'factura' && requiresFce) {
     return [
-      `El receptor está obligado a recibir FCE desde ${formatMoney(obligation.minimumAmount)} y este monto lo supera. Corresponde emitir ${fceShortcut} en lugar de ${regularShortcut}.`,
+      `El receptor está obligado a recibir FCE desde ${formatArgentineMoney(obligation.minimumAmount)} y este monto lo supera. Corresponde emitir ${fceShortcut} en lugar de ${regularShortcut}.`,
     ];
   }
 
   if (voucherKind.family === 'factura-credito-electronica' && !requiresFce) {
     const reason = obligation.obligated
-      ? `el monto es menor al mínimo del régimen (${formatMoney(obligation.minimumAmount)})`
+      ? `el monto es menor al mínimo del régimen (${formatArgentineMoney(obligation.minimumAmount)})`
       : 'el receptor no está obligado a recibir FCE';
 
     return [`Para este comprobante ${reason}. Corresponde emitir ${regularShortcut} en lugar de ${fceShortcut}.`];

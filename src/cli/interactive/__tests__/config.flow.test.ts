@@ -57,7 +57,7 @@ vi.mock('../../../modules/config/config.service', () => ({
   // La validacion real lee los PEM; aca solo se rechaza un CUIT mal formado.
   validateConfigValue: (key: string, value: string) => {
     if (key === 'cuit' && !/^\d{11}$/.test(value)) {
-      throw new Error('El CUIT debe tener 11 digitos');
+      throw new Error('El CUIT debe tener 11 dígitos');
     }
   },
 }));
@@ -145,7 +145,7 @@ describe('runGuidedSetup', () => {
 
   it('valida con las mismas reglas que config establecer y no deja vacio lo obligatorio', async () => {
     askTextMock.mockImplementationOnce(async (_message, options) => {
-      expect(options?.validate?.('123')).toMatch(/11 digitos/);
+      expect(options?.validate?.('123')).toMatch(/11 dígitos/);
       expect(options?.validate?.('')).toMatch(/obligatorio/);
 
       return BACK;

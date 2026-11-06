@@ -1,3 +1,4 @@
+import { formatIvaConditionName } from '../billing/arca-codes';
 import type { ArcliConfig } from '../config/config.schemas';
 
 import { PdfError } from './pdf.errors';
@@ -8,14 +9,6 @@ const REQUIRED_ISSUER_KEYS = [
   ['domicilio', 'emisor.domicilio', '"Calle 123, Ciudad"'],
   ['inicioActividades', 'emisor.inicioActividades', '1/03/2020'],
 ] as const;
-
-/** "responsable-inscripto" -> "Responsable Inscripto". */
-export function formatIvaConditionName(value: string): string {
-  return value
-    .split('-')
-    .map((word) => (word === 'iva' ? 'IVA' : `${word.charAt(0).toUpperCase()}${word.slice(1)}`))
-    .join(' ');
-}
 
 /** Claves obligatorias del emisor que faltan en la config, como se escriben en `arcli config establecer`. */
 export function listMissingIssuerKeys(config: Pick<ArcliConfig, 'cuit' | 'emisor'>): string[] {

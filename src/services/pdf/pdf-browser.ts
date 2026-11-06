@@ -3,7 +3,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 /** Rutas conocidas de Chrome, Chromium y Edge. Con alguno instalado no hace falta descargar un navegador. */
-export function listSystemBrowserCandidates(
+function listSystemBrowserCandidates(
   platform: NodeJS.Platform = process.platform,
   env: NodeJS.ProcessEnv = process.env,
 ): string[] {

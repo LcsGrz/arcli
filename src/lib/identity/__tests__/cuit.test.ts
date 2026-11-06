@@ -18,13 +18,13 @@ describe('parseCuit', () => {
   });
 
   it('rejects the wrong number of digits or other characters', () => {
-    expect(parseCuit('2033333333')).toEqual({ ok: false, reason: expect.stringMatching(/11 digitos/) });
+    expect(parseCuit('2033333333')).toEqual({ ok: false, reason: expect.stringMatching(/11 dígitos/) });
     expect(parseCuit('203333333344')).toMatchObject({ ok: false });
     expect(parseCuit('20-3333O333-4')).toMatchObject({ ok: false });
     expect(parseCuit('')).toMatchObject({ ok: false });
   });
 
   it('rejects a wrong check digit', () => {
-    expect(parseCuit('20-33333333-5')).toEqual({ ok: false, reason: expect.stringMatching(/digito verificador/) });
+    expect(parseCuit('20-33333333-5')).toEqual({ ok: false, reason: expect.stringMatching(/dígito verificador/) });
   });
 });

@@ -3,19 +3,10 @@ import Big from 'big.js';
 
 import { InputValidationError } from '../../lib/errors/app-error';
 
-import { formatVoucherLabel } from './billing.mappers';
+import { ivaRateFactor, ivaRateFromId, ivaRateId } from './arca-codes';
+import { formatVoucherSubject } from './billing.mappers';
 import type { BillingCommandInput, BillingIvaRate } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
-
-/** Ids de alicuota de FEParamGetTiposIva. */
-const IVA_RATE_DEFINITIONS: Record<BillingIvaRate, { readonly id: number; readonly rate: string }> = {
-  '0': { id: 3, rate: '0' },
-  '2.5': { id: 9, rate: '0.025' },
-  '5': { id: 8, rate: '0.05' },
-  '10.5': { id: 4, rate: '0.105' },
-  '21': { id: 5, rate: '0.21' },
-  '27': { id: 6, rate: '0.27' },
-};
 
 export const DEFAULT_IVA_RATE: BillingIvaRate = '21';
 
@@ -33,9 +24,9 @@ type TaxAmountsInput = Pick<
 >;
 
 export function resolveIvaRateLabel(aliquotId: number): string | undefined {
-  const entry = Object.entries(IVA_RATE_DEFINITIONS).find(([, definition]) => definition.id === aliquotId);
+  const rate = ivaRateFromId(aliquotId);
 
-  return entry ? `${entry[0].replace('.', ',')}%` : undefined;
+  return rate ? `${rate.replace('.', ',')}%` : undefined;
 }
 
 function validateLetterCAmounts(input: TaxAmountsInput, voucherKind: VoucherKindDefinition): void {
@@ -47,7 +38,7 @@ function validateLetterCAmounts(input: TaxAmountsInput, voucherKind: VoucherKind
 
   if (flags.length > 0) {
     throw new InputValidationError(
-      `La ${formatVoucherLabel(voucherKind)} no discrimina IVA ni importes exentos o no gravados. Sacá ${flags.join(', ')}.`,
+      `${formatVoucherSubject(voucherKind)} no discrimina IVA ni importes exentos o no gravados. Sacá ${flags.join(', ')}.`,
     );
   }
 }
@@ -82,10 +73,9 @@ export function resolveTaxAmounts(input: TaxAmountsInput, voucherKind: VoucherKi
 
   const parts = resolveTaxedParts(input, taxedTotal);
   const iva = parts.map(({ amount, rate }) => {
-    const definition = IVA_RATE_DEFINITIONS[rate];
-    const BaseImp = roundAmount(amount.div(new Big(1).plus(definition.rate)));
+    const BaseImp = roundAmount(amount.div(new Big(1).plus(ivaRateFactor(rate))));
 
-    return { BaseImp, Id: definition.id, Importe: roundAmount(amount.minus(BaseImp)) };
+    return { BaseImp, Id: ivaRateId(rate), Importe: roundAmount(amount.minus(BaseImp)) };
   });
 
   // Con neto mayor a cero el array de IVA es obligatorio, incluso al 0% (10070).
@@ -133,7 +123,7 @@ function formatPlain(value: Big): string {
   return value.round(2, Big.roundHalfUp).toFixed(2);
 }
 
-function roundAmount(value: Big): number {
+export function roundAmount(value: Big): number {
   return value.round(2, Big.roundHalfUp).toNumber();
 }
 

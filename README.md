@@ -41,7 +41,7 @@ yarn global add arcli   # Yarn 1; Yarn 2 o superior no instala paquetes globales
 
 Para probarlo sin instalar nada: `npx arcli --ayuda`.
 
-Para actualizar, repetí la instalación con `arcli@latest` (por ejemplo, `npm install -g arcli@latest`). Funciona en macOS, Linux y Windows.
+Para actualizar, repetí la instalación con `arcli@latest` (por ejemplo, `npm install -g arcli@latest`). Cuando hay una versión nueva, el aviso de arcli muestra el comando del gestor con que lo instalaste. Funciona en macOS, Linux y Windows.
 
 Opcional: autocompletado con Tab de comandos, flags y valores, en bash, zsh o fish. Se instala con `arcli completado instalar` y se saca con `arcli completado desinstalar` ([detalle](docs/cli-reference.md#autocompletado)).
 
@@ -54,10 +54,12 @@ Lo más simple es correr `arcli` y seguir la configuración guiada. Para hacerlo
 ```bash
 arcli config establecer cuit 20168598204
 arcli config establecer puntoVenta 3
-arcli config establecer cert.testing /ruta/al/certificado.crt
-arcli config establecer key.testing /ruta/a/la/clave.key
+arcli certificado generar --testing     # arma la clave y el pedido (CSR) para subir a ARCA
+arcli certificado importar testing.crt  # carga el certificado que te devuelve ARCA
 arcli config revisar
 ```
+
+Si ya tenés el certificado y la clave, cargalos directo con `arcli config establecer cert.testing <ruta>` y `arcli config establecer key.testing <ruta>`.
 
 `arcli config revisar` verifica que cada entorno (testing y producción) esté listo para emitir. Todas las claves disponibles están en [Configuración](https://github.com/LcsGrz/arcli/blob/main/docs/configuration.md).
 

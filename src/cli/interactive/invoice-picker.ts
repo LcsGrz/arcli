@@ -1,12 +1,13 @@
 import { Separator } from '@inquirer/select';
 
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
+import { formatNoVouchersEmitted, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { BACK, type Back } from '../../modules/interactive/wizard';
 import { type IssuedVoucher, listVouchersFrom, RECENT_VOUCHERS_LIMIT } from '../../modules/vouchers/voucher-history';
 import { formatVoucherNumber, formatVoucherPickerRows } from '../../modules/vouchers/voucher-history.presenter';
 import { colorize, noticePanel, statusBarWidth, writeTerminalOutput } from '../../ui';
-import { startSpinner } from '../spinner';
+import { withSpinner } from '../spinner';
 
 import { askTextStep, type Choice, chooseStep, chooseStepWhileLoading, eraseLastAnswer, fitPageSize } from './prompts';
 import type { InteractiveSession } from './session';
@@ -42,16 +43,6 @@ const COLUMN_SEPARATOR = ' · ';
  */
 function listRule(): Separator {
   return new Separator(colorize('┈'.repeat(statusBarWidth() - 1), 'muted'));
-}
-
-async function withSpinner<T>(text: string, run: () => Promise<T>): Promise<T> {
-  const spinner = startSpinner(text);
-
-  try {
-    return await run();
-  } finally {
-    spinner?.stop();
-  }
 }
 
 function validatePositiveInteger(label: string): (value: string) => string | true {
@@ -91,7 +82,10 @@ async function askVoucherByNumber(
 
   if (!invoice) {
     writeTerminalOutput(
-      noticePanel(`No existe la ${voucherKind.displayName} N° ${formatVoucherNumber(pointOfSale, number)}.`, 'warning'),
+      noticePanel(
+        `No existe ${formatVoucherWithArticle(voucherKind)} N° ${formatVoucherNumber(pointOfSale, number)}.`,
+        'warning',
+      ),
     );
 
     return BACK;
@@ -126,7 +120,7 @@ export async function pickInvoice(
 
   if (invoices.length === 0) {
     writeTerminalOutput(
-      noticePanel(`No hay ${voucherKind.displayName} emitidas en el punto de venta ${pointOfSale}.`, 'warning'),
+      noticePanel(`${formatNoVouchersEmitted(voucherKind)} en el punto de venta ${pointOfSale}.`, 'warning'),
     );
   }
 

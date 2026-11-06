@@ -11,6 +11,7 @@ import {
 } from '../../ui';
 import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
 
+import { isTaxIdDocumentType } from './arca-codes';
 import { resolveIvaRateLabel } from './billing.amounts';
 import {
   formatConceptLabel,
@@ -66,14 +67,14 @@ export function formatVoucherSummary(result: BillingExecutionResult): Record<str
 }
 
 const FCE_OPTIONAL_LABELS: Record<string, string> = {
-  '22': 'Anulacion',
+  '22': 'Anulación',
   '27': 'Transferencia',
   '2101': 'CBU',
   '2102': 'Alias CBU',
 };
 
 /** Una alicuota: su tasa. Varias: el desglose de neto e IVA de cada una. */
-function formatIvaRows(iva: readonly IIva[]): Array<readonly [string, string]> {
+function formatIvaRows(iva: readonly IIva[], currency: string): Array<readonly [string, string]> {
   if (iva.length === 0) {
     return [];
   }
@@ -81,12 +82,15 @@ function formatIvaRows(iva: readonly IIva[]): Array<readonly [string, string]> {
   const label = (aliquotId: number) => resolveIvaRateLabel(aliquotId) ?? String(aliquotId);
 
   if (iva.length === 1 && iva[0]) {
-    return [['Alícuota IVA', label(iva[0].Id)]];
+    return [['Alícuota de IVA', label(iva[0].Id)]];
   }
 
   return iva.map(
     (item) =>
-      [`IVA ${label(item.Id)}`, `${formatMoneyLabel(item.Importe)} sobre ${formatMoneyLabel(item.BaseImp)}`] as const,
+      [
+        `IVA ${label(item.Id)}`,
+        `${formatMoneyLabel(item.Importe, currency)} sobre ${formatMoneyLabel(item.BaseImp, currency)}`,
+      ] as const,
   );
 }
 
@@ -94,18 +98,18 @@ function formatFriendlyPayloadRows(result: BillingExecutionResult): Array<readon
   const payload = result.payload;
   const rows: Array<readonly [string, string]> = [
     ['Concepto', formatConceptLabel(payload.Concepto)],
-    ['Punto de venta', formatNumericLabel(payload.PtoVta)],
+    ['Punto de venta', String(payload.PtoVta)],
     ['Fecha del comprobante', formatDateLabel(payload.CbteFch)],
     ['Tipo de documento', formatDocumentTypeLabel(payload.DocTipo)],
     [
       'Número de documento',
       typeof payload.DocNro === 'number'
         ? payload.DocNro === 0
-          ? 'Sin especificar'
-          : payload.DocTipo === 80 || payload.DocTipo === 86
+          ? 'Consumidor final'
+          : isTaxIdDocumentType(payload.DocTipo)
             ? formatTaxIdLabel(payload.DocNro)
             : formatNumericLabel(payload.DocNro)
-        : 'No informado',
+        : 'N/D',
     ],
     ...(result.receiver?.name ? [['Receptor', result.receiver.name] as const] : []),
     [
@@ -114,13 +118,13 @@ function formatFriendlyPayloadRows(result: BillingExecutionResult): Array<readon
     ],
     ['Moneda', formatCurrencyLabel(payload.MonId)],
     ['Cotización', formatDecimalLabel(payload.MonCotiz)],
-    ['Importe neto', formatMoneyLabel(payload.ImpNeto)],
-    ['Importe IVA', formatMoneyLabel(payload.ImpIVA)],
-    ...formatIvaRows(payload.Iva ?? []),
-    ['Importe tributos', formatMoneyLabel(payload.ImpTrib)],
-    ['Importe exento', formatMoneyLabel(payload.ImpOpEx)],
-    ['Importe no gravado', formatMoneyLabel(payload.ImpTotConc)],
-    ['Importe total', formatMoneyLabel(payload.ImpTotal)],
+    ['Importe neto', formatMoneyLabel(payload.ImpNeto, payload.MonId)],
+    ['Importe IVA', formatMoneyLabel(payload.ImpIVA, payload.MonId)],
+    ...formatIvaRows(payload.Iva ?? [], payload.MonId),
+    ['Importe tributos', formatMoneyLabel(payload.ImpTrib, payload.MonId)],
+    ['Importe exento', formatMoneyLabel(payload.ImpOpEx, payload.MonId)],
+    ['Importe no gravado', formatMoneyLabel(payload.ImpTotConc, payload.MonId)],
+    ['Importe total', formatMoneyLabel(payload.ImpTotal, payload.MonId)],
   ];
 
   if (payload.FchServDesde) {
@@ -132,7 +136,7 @@ function formatFriendlyPayloadRows(result: BillingExecutionResult): Array<readon
   }
 
   if (payload.FchVtoPago) {
-    rows.push(['Vencimiento de pago', formatDateLabel(payload.FchVtoPago)]);
+    rows.push(['Vencimiento del pago', formatDateLabel(payload.FchVtoPago)]);
   }
 
   const associatedVoucher = payload.CbtesAsoc?.[0];
@@ -141,8 +145,7 @@ function formatFriendlyPayloadRows(result: BillingExecutionResult): Array<readon
     const associatedKind = getVoucherKindByArcaType(associatedVoucher.Tipo);
 
     rows.push(['Comprobante asociado', associatedKind ? associatedKind.displayName : String(associatedVoucher.Tipo)]);
-    rows.push(['Punto de venta asociado', formatNumericLabel(associatedVoucher.PtoVta)]);
-    rows.push(['Número asociado', formatNumericLabel(associatedVoucher.Nro)]);
+    rows.push(['Número asociado', formatVoucherNumber(associatedVoucher.PtoVta, associatedVoucher.Nro)]);
     rows.push(['CUIT asociado', formatTaxIdLabel(associatedVoucher.Cuit)]);
 
     if (associatedVoucher.CbteFch) {
@@ -161,14 +164,14 @@ function formatFriendlyPayloadRows(result: BillingExecutionResult): Array<readon
     const label = FCE_OPTIONAL_LABELS[optional.Id];
 
     if (label) {
-      rows.push([label, optional.Id === '22' ? (optional.Valor === 'S' ? 'Si' : 'No') : optional.Valor]);
+      rows.push([label, optional.Id === '22' ? (optional.Valor === 'S' ? 'Sí' : 'No') : optional.Valor]);
     }
   }
 
   return rows;
 }
 
-export function formatPayloadTable(result: BillingExecutionResult): string {
+function formatPayloadTable(result: BillingExecutionResult): string {
   const rows = formatFriendlyPayloadRows(result);
 
   return renderTable(rows, { labelWidth: resolveKeyValueLabelWidth('ticket', rows) }).trimEnd();
@@ -191,7 +194,7 @@ export function formatResultPanel(
     result.voucherNumber === undefined
       ? ['Punto de venta', result.payload.PtoVta]
       : ['Número', formatVoucherNumber(result.payload.PtoVta, result.voucherNumber)],
-    ['Importe total', formatMoneyLabel(result.payload.ImpTotal)],
+    ['Importe total', formatMoneyLabel(result.payload.ImpTotal, result.payload.MonId)],
   ];
   const countRows: Array<readonly [string, string | number]> = [
     ['Observaciones', result.response.observaciones.length],

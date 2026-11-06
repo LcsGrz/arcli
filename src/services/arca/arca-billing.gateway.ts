@@ -5,6 +5,7 @@ import type { IVoucher } from '@arcasdk/core/lib/domain/types/voucher.types';
 import { AppError } from '../../lib/errors/app-error';
 import type { BillingGateway } from '../../modules/billing/billing.types.internal';
 
+import { toDetailErrors, withDeprecatedErrors } from './arca-error-details';
 import { getLastAuthorizedNumber } from './last-voucher';
 
 /** Tope de numeracion de ARCA; el SDK lo valida igual en `createNextVoucher`. */
@@ -21,7 +22,7 @@ export class ArcaBillingGateway implements BillingGateway {
     const nextNumber = (await getLastAuthorizedNumber(this.arca, pointOfSale, voucherType)) + 1;
 
     if (nextNumber > MAX_VOUCHER_NUMBER) {
-      throw new Error(`Número de comprobante no puede ser mayor a ${MAX_VOUCHER_NUMBER}`);
+      throw new Error(`Número de comprobante no puede ser mayor a ${MAX_VOUCHER_NUMBER}.`);
     }
 
     return nextNumber;
@@ -39,7 +40,7 @@ export class ArcaBillingGateway implements BillingGateway {
     if (typeof exchangeRate !== 'number' || exchangeRate <= 0) {
       throw new AppError(`ARCA no devolvió una cotización válida para ${currencyCode}.`, {
         code: 'ARCA_QUOTATION_ERROR',
-        details: { errors: result.errors },
+        details: withDeprecatedErrors(result.errors, toDetailErrors(result.errors?.err ?? [])),
       });
     }
 

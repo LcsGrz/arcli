@@ -119,7 +119,7 @@ Si usás consumidor final:
 
 - el documento debe ser `0`
 - el IVA receptor debe ser `consumidor-final`: con `--consumidor-final` (o `tipoDocumento: "consumidor-final"` en el JSON) ARCLI ya lo asume y no hace falta `--ir-cf`, aunque la config tenga otro `ivaReceptor`. Un IVA explícito distinto (`--ir-rm` con `--cfinal`) es error
-- el total en pesos tiene que ser menor a `$10.000.000`. Desde ese monto hay que identificarlo con `--dni`, `--cuit` o `--cuil` ([RG 5700/2025](https://www.consejosalta.org.ar/wp-content/uploads/ARCA-5700.pdf)). En moneda extranjera se compara `monto × cotización`.
+- el total en pesos tiene que ser menor a `$ 10.000.000`. Desde ese monto hay que identificarlo con `--dni`, `--cuit` o `--cuil` ([RG 5700/2025](https://www.consejosalta.org.ar/wp-content/uploads/ARCA-5700.pdf)). En moneda extranjera se compara `monto × cotización`.
 
 #### CUIT, CUIL y DNI
 
@@ -211,15 +211,15 @@ Los avisos aparecen en la salida de texto (panel "Avisos") y en el campo `avisos
 
 ### Moneda y cotización
 
-ARCLI convierte el código de moneda al de ARCA: `ARS` → `PES`, `USD` → `DOL`, `EUR` → `060` y `BRL` → `012`. Cualquier otro código se envía tal cual, así que para el resto de las monedas usá el de ARCA (`arcli parametros monedas`).
+`--moneda` acepta el código ISO o el de ARCA de cualquier moneda de la tabla de ARCA (`arcli parametros monedas`) que tenga ISO: `ARS` → `PES`, `USD` → `DOL`, `EUR` → `060`, `UYU` → `011`… Un código que no está en la tabla se envía tal cual.
 
-| Caso                                | `MonCotiz`            | `CanMisMonExt` | Regla                                                                                                                                                                                                                              |
-| ----------------------------------- | --------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Pesos                               | `1`                   | no se envía    | Una cotización distinta de `1` da error (ARCA 10039 y 10241). `--misma-moneda` da error.                                                                                                                                           |
-| Moneda extranjera, pago en pesos    | `--cotizacion-moneda` | `N`            | La cotización es obligatoria y no puede ser `1`. ARCA la acepta entre el 2% y el 400% de la oficial (10119).                                                                                                                       |
-| Moneda extranjera, `--misma-moneda` | la oficial de ARCA    | `S`            | ARCLI la consulta antes de la vista previa porque ARCA exige el valor exacto (10038). La fecha del comprobante tiene que ser la de hoy: la cotización de un día pasado no se puede consultar y la de uno futuro todavía no existe. |
+| Caso                                | `MonCotiz`          | `CanMisMonExt` | Regla                                                                                                                                                                                                                              |
+| ----------------------------------- | ------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pesos                               | `1`                 | no se envía    | Una cotización distinta de `1` da error (ARCA 10039 y 10241). `--misma-moneda` da error.                                                                                                                                           |
+| Moneda extranjera, pago en pesos    | `--cm` o la oficial | `N`            | Sin `--cm`, ARCLI usa la oficial de ARCA y lo avisa. `--cm 1` da error. ARCA la acepta entre el 2% y el 400% de la oficial (10119).                                                                                                |
+| Moneda extranjera, `--misma-moneda` | la oficial de ARCA  | `S`            | ARCLI la consulta antes de la vista previa porque ARCA exige el valor exacto (10038). La fecha del comprobante tiene que ser la de hoy: la cotización de un día pasado no se puede consultar y la de uno futuro todavía no existe. |
 
-`config.cotizacion` solo se usa como default en moneda extranjera sin `--misma-moneda`.
+La clave `cotizacion` de la config (deprecada) se usa como default en moneda extranjera sin `--misma-moneda` ni `--cm`, con un aviso; si vale `1` o no está, se usa la oficial de ARCA.
 
 ### Factura de exportación (E)
 

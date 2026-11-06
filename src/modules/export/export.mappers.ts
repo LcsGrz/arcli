@@ -4,6 +4,7 @@ import {
   parseArgentineDateInputAsArcaDate,
 } from '../../lib/dates/arca-date';
 import { AppError, InputValidationError } from '../../lib/errors/app-error';
+import { roundToCents } from '../../lib/numbers/argentine-amount';
 import { resolveBillingCurrencyCode } from '../billing/billing.mappers';
 import type { ArcliConfig } from '../config/config.schemas';
 
@@ -29,7 +30,7 @@ import {
 } from './export.types';
 
 /** Codigo de pais de Argentina en la tabla DST_pais: no es un destino de exportacion. */
-export const ARGENTINA_COUNTRY_CODE = 200;
+const ARGENTINA_COUNTRY_CODE = 200;
 
 /** Forma de pago por defecto: WSFEX la exige y casi todas las exportaciones se cobran por transferencia internacional. */
 export const DEFAULT_EXPORT_PAYMENT_TERMS = 'Transferencia Internacional';
@@ -65,10 +66,6 @@ function requireText(value: string | undefined, description: string, flag: strin
   return trimmed;
 }
 
-function roundAmount(value: number): number {
-  return Math.round(value * 100) / 100;
-}
-
 /** La fecha del comprobante, en formato ARCA: por defecto hoy en Argentina. */
 export function resolveExportVoucherDate(value: string | undefined, now = new Date()): string {
   return value?.trim() ? parseArgentineDateInputAsArcaDate(value) : formatDateAsArcaDate(now);
@@ -93,7 +90,7 @@ export function resolveExportCurrency(
     }
 
     if (typeof input.exchangeRate === 'number' && input.exchangeRate !== LOCAL_EXCHANGE_RATE) {
-      throw new InputValidationError('En pesos la cotización tiene que ser 1. Quitá --cotizacion-moneda o usá --cm 1.');
+      throw new InputValidationError('En pesos la cotización tiene que ser 1. Sacá --cotizacion-moneda o usá --cm 1.');
     }
 
     return {
@@ -327,7 +324,7 @@ export function resolveExportIncoterm(
 
   if (!incoterm) {
     throw new InputValidationError(
-      `El incoterm "${trimmed}" no existe en la tabla de ARCA. Consultá los válidos con arcli parametros.`,
+      `El incoterm "${trimmed}" no existe en la tabla de ARCA. Consultá los válidos con \`arcli parametros\`.`,
     );
   }
 
@@ -338,7 +335,9 @@ export function resolveExportPointOfSale(value: number | undefined, config: Expo
   const pointOfSale = value ?? config.puntoVentaPorDefecto;
 
   if (pointOfSale === undefined) {
-    throw new InputValidationError('Falta el punto de venta. Usá --punto-venta o configurá puntoVentaPorDefecto.');
+    throw new InputValidationError(
+      'Falta el punto de venta. Usá --pv <numero> o configuralo con `arcli config establecer puntoVenta <numero>`.',
+    );
   }
 
   if (!Number.isInteger(pointOfSale) || pointOfSale < 1) {
@@ -448,7 +447,7 @@ export function buildExportPayload(input: ExportVoucherInput, resolution: BuildE
     Id: resolution.requestId,
     Id_impositivo: input.clientTaxId?.trim() ?? '',
     Idioma_cbte: resolution.languageId,
-    Imp_total: roundAmount(input.amount),
+    Imp_total: roundToCents(input.amount),
     Incoterms: resolution.incoterm?.code ?? '',
     Incoterms_Ds: input.incotermDescription?.trim() || resolution.incoterm?.name || '',
     Items: { Item: [...resolution.items] },

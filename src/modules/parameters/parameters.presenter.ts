@@ -1,5 +1,7 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
+import { DEPRECATED_POINT_OF_SALE_OBJECT } from '../../lib/json/deprecations';
 import { POINT_OF_SALE_GUIDE_URL } from '../../lib/links';
+import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { keyValuePanel, noticePanel, renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui';
 
 import {
@@ -86,7 +88,7 @@ export function formatParameterEntriesAsJson(
 export function formatQuotationAsText(quotation: Quotation, environment: Environment): string {
   const rows = [
     ['Moneda', quotation.currency],
-    ['Cotización', new Intl.NumberFormat('es-AR', { maximumFractionDigits: 6 }).format(quotation.rate)],
+    ['Cotización', formatExchangeRate(quotation.rate)],
     ['Fecha', quotation.date ? formatArcaDateAsArgentineDate(quotation.date) : 'N/D'],
   ] as const;
 
@@ -130,19 +132,19 @@ export function formatStatusAsText(report: StatusReport): string {
     ['Entorno', report.environment],
     ['Servidor de aplicación', report.servers.app],
     ['Base de datos', report.servers.db],
-    ['Autenticacion', report.servers.auth],
+    ['Autenticación', report.servers.auth],
     ['Tiempo de respuesta', `${report.latencyMs} ms`],
     ['Punto de venta', describePointOfSale(report.pointOfSale, report.pointOfSaleNumber)],
   ] as const;
   const footer = report.ready
     ? 'ARCA responde: se puede emitir'
     : report.pointOfSale.kind === 'sin-configurar'
-      ? 'Configurá el punto de venta: arcli config establecer puntoVenta <numero>'
+      ? 'Configurá el punto de venta con `arcli config establecer puntoVenta <numero>`.'
       : report.pointOfSale.kind === 'habilitado' || report.pointOfSale.kind === 'sin-datos'
         ? 'ARCA tiene problemas: esperá unos minutos y reintentá'
         : report.pointOfSale.kind === 'no-encontrado'
-          ? `Revisá el punto de venta: arcli parametros puntos-venta. Los de "Factura en línea" no sirven; para crear uno para web service: ${POINT_OF_SALE_GUIDE_URL}`
-          : 'Revisá el punto de venta: arcli parametros puntos-venta';
+          ? `Revisá el punto de venta con \`arcli parametros puntos-venta\`. Los de "Factura en línea" no sirven; para crear uno para web service: ${POINT_OF_SALE_GUIDE_URL}`
+          : 'Revisá el punto de venta con `arcli parametros puntos-venta`.';
 
   return keyValuePanel(
     'Estado de ARCA',
@@ -156,17 +158,20 @@ export function formatStatusAsText(report: StatusReport): string {
 
 export function formatStatusAsJson(report: StatusReport): string {
   const point = 'point' in report.pointOfSale ? report.pointOfSale.point : undefined;
+  const pointOfSale = {
+    estado: report.pointOfSale.kind,
+    numero: report.pointOfSaleNumber ?? null,
+    tipoEmision: point?.emissionType ?? null,
+  };
 
   return JSON.stringify(
     {
+      deprecado: [DEPRECATED_POINT_OF_SALE_OBJECT],
       entorno: report.environment,
       latenciaMs: report.latencyMs,
       listo: report.ready,
-      puntoVenta: {
-        estado: report.pointOfSale.kind,
-        numero: report.pointOfSaleNumber ?? null,
-        tipoEmision: point?.emissionType ?? null,
-      },
+      puntoVenta: pointOfSale,
+      puntoVentaDetalle: pointOfSale,
       servidores: {
         aplicacion: report.servers.app,
         autenticacion: report.servers.auth,

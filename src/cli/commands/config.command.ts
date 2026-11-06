@@ -1,9 +1,15 @@
 import { Command } from 'commander';
+import { join } from 'node:path';
 
-import type { ArcliConfig, ArcliEnvironment } from '../../modules/config/config.schemas';
+import {
+  type ArcliConfig,
+  type ArcliEnvironment,
+  COTIZACION_DEPRECATION_WARNING,
+} from '../../modules/config/config.schemas';
 import { ConfigService } from '../../modules/config/config.service';
 import { buildConfigDoctorReport, type ConfigDoctorRuntimeCheck } from '../../modules/config/config-doctor';
 import { ArcaContextResolver } from '../../services/arca/arca-context.resolver';
+import { PdfPlugin } from '../../services/pdf/pdf-plugin';
 import {
   formatConfig,
   formatConfigAsText,
@@ -12,6 +18,7 @@ import {
   formatConfigPath,
   formatConfigPathAsJson,
   writeTerminalJson,
+  writeTerminalNotice,
   writeTerminalOutput,
 } from '../../ui';
 import { registerJsonOption, resolveOutputJson } from '../global-options';
@@ -58,7 +65,7 @@ export function buildRuntimeChecks(config: ArcliConfig): ConfigDoctorRuntimeChec
 export function registerConfigCommand(program: Command): void {
   const configCommand = program
     .command('config')
-    .description('guardar defaults, credenciales y revisar si el CLI está listo para emitir');
+    .description('guardar valores por defecto y credenciales, y revisar si el CLI está listo para emitir');
 
   configureSpanishHelp(configCommand);
 
@@ -82,7 +89,7 @@ export function registerConfigCommand(program: Command): void {
 
   const revisarCommand = configCommand
     .command('revisar')
-    .description('revisar configuración, defaults, credenciales y validación de cada entorno')
+    .description('revisar configuración, valores por defecto, credenciales y validación de cada entorno')
     .action((_options: unknown, command: Command) => {
       const service = createConfigService();
       let spinner: ReturnType<typeof startSpinner> = null;
@@ -91,7 +98,11 @@ export function registerConfigCommand(program: Command): void {
         const config = service.getConfig();
         const useJson = resolveOutputJson(command, config);
         spinner = useJson ? null : startSpinner('Generando revisión...');
-        const report = buildConfigDoctorReport(config, buildRuntimeChecks(config));
+        const pdfPlugin = new PdfPlugin({
+          configuredBrowser: config.pdfNavegador,
+          path: join(service.getPluginsPath(), 'pdf'),
+        }).getStatus();
+        const report = buildConfigDoctorReport(config, buildRuntimeChecks(config), pdfPlugin);
         spinner?.stop();
         printConfigResult(formatConfigDoctorAsText(report), formatConfigDoctor(report), useJson);
       } catch (error) {
@@ -126,7 +137,7 @@ export function registerConfigCommand(program: Command): void {
   const establecerCommand = configCommand
     .command('establecer')
     .description('guardar un valor de configuración')
-    .argument('<clave>', 'clave publica de configuración')
+    .argument('<clave>', 'clave pública de configuración')
     .argument('<valor>', 'valor a guardar')
     .addHelpText('after', createConfigSetHelp())
     .action((key: string, value: string, _options: unknown, command: Command) => {
@@ -136,6 +147,11 @@ export function registerConfigCommand(program: Command): void {
       try {
         const config = service.setValue(key, value);
         const paths = service.resolvePaths(config);
+
+        if (key === 'cotizacion') {
+          writeTerminalNotice(COTIZACION_DEPRECATION_WARNING);
+        }
+
         printConfigResult(
           formatConfigAsText(config, paths),
           formatConfig(config, paths),
@@ -151,7 +167,7 @@ export function registerConfigCommand(program: Command): void {
   const eliminarCommand = configCommand
     .command('eliminar')
     .description('eliminar un valor de configuración')
-    .argument('<clave>', 'clave publica de configuración')
+    .argument('<clave>', 'clave pública de configuración')
     .action((key: string, _options: unknown, command: Command) => {
       // Sin ensureInitialized: si la config quedo invalida, establecer o eliminar la clave es la forma de arreglarla.
       const service = new ConfigService();

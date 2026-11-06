@@ -1,25 +1,13 @@
 import { z } from 'zod';
 
-import { billingIvaRateSchema } from '../billing/billing.schemas';
+import { billingConceptValueSchema, billingIvaConditionSchema, billingIvaRateSchema } from '../billing/billing.schemas';
 import { saleConditionSchema } from '../billing/sale-condition';
 import { MAX_RECENT_VOUCHERS } from '../vouchers/voucher-history';
 
 export const arcliEnvironmentSchema = z.enum(['testing', 'produccion']);
-export const arcliDefaultConceptSchema = z.enum(['productos', 'productos-servicios', 'servicios']);
-export const arcliDefaultIvaConditionSchema = z.enum([
-  'cliente-del-exterior',
-  'consumidor-final',
-  'iva-liberado',
-  'iva-no-alcanzado',
-  'monotributista-social',
-  'monotributo-trabajador-independiente-promovido',
-  'proveedor-del-exterior',
-  'responsable-inscripto',
-  'responsable-monotributo',
-  'sujeto-exento',
-  'sujeto-no-categorizado',
-]);
-export const arcliDefaultCurrencySchema = z
+export const arcliDefaultConceptSchema = billingConceptValueSchema;
+export const arcliDefaultIvaConditionSchema = billingIvaConditionSchema;
+const arcliDefaultCurrencySchema = z
   .string()
   .trim()
   .length(3)
@@ -42,12 +30,12 @@ export const arcliConfigSchema = z.object({
   cuit: z
     .string()
     .trim()
-    .regex(/^\d{11}$/, 'El CUIT debe tener 11 digitos')
+    .regex(/^\d{11}$/, 'El CUIT debe tener 11 dígitos')
     .optional(),
   cbu: z
     .string()
     .trim()
-    .regex(/^\d{22}$/, 'El CBU debe tener 22 digitos')
+    .regex(/^\d{22}$/, 'El CBU debe tener 22 dígitos')
     .optional(),
   aliasCbu: z
     .string()
@@ -109,10 +97,19 @@ export type ArcliConfig = z.infer<typeof arcliConfigSchema>;
 export type ArcliEnvironment = z.infer<typeof arcliEnvironmentSchema>;
 
 /** El entorno como se lee en un texto; el valor (`produccion`) sigue igual en flags, claves y JSON. */
+/** El padrón se consulta salvo que se haya apagado con `consultarPadron false`. */
+export function isPadronLookupEnabled(config: Pick<ArcliConfig, 'consultarPadron'>): boolean {
+  return config.consultarPadron ?? true;
+}
+
 export function formatEnvironmentLabel(environment: ArcliEnvironment): string {
   return environment === 'produccion' ? 'producción' : environment;
 }
 export type ArcliPdfMode = z.infer<typeof arcliPdfModeSchema>;
+
+/** `cotizacion` se saca en la 3.0.0: una cotizacion guardada queda vieja en dias (REV-35). */
+export const COTIZACION_DEPRECATION_WARNING =
+  'La clave "cotizacion" está deprecada y se va a sacar en la 3.0.0: una cotización guardada queda vieja. Sin ella se usa la cotización oficial de ARCA; para otra, pasá --cm al facturar.';
 
 export const CONFIG_DEFAULTS: ArcliConfig = {
   cert: {},

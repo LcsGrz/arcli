@@ -33,7 +33,7 @@ export class EmissionUncertainError extends AppError {
       suggestion:
         'voucherNumber' in options
           ? `Puede haberse emitido igual. Si reintentás, usá el mismo número y la misma solicitud (--numero ${options.voucherNumber} --id-solicitud ${options.requestId} --pv ${options.pointOfSale}): si ya se había emitido, ARCA no lo autoriza dos veces.`
-          : `Puede haberse emitido igual. Antes de reintentar, verificá con "arcli ultimos ${options.shortcut} --pv ${options.pointOfSale}": si figura, ya está emitido y no hay que repetirlo.`,
+          : `Puede haberse emitido igual. Antes de reintentar, verificá con \`arcli ultimos ${options.shortcut} --pv ${options.pointOfSale}\`: si figura, ya está emitido y no hay que repetirlo.`,
     });
     this.name = 'EmissionUncertainError';
     this.cause = options.cause;

@@ -1,5 +1,7 @@
 import type { IIva } from '@arcasdk/core/lib/domain/types/voucher.types';
 
+import { roundToCents } from '../../lib/numbers/argentine-amount';
+import { CONSUMER_DOCUMENT_TYPE_CODE } from '../billing/arca-codes';
 import { resolveIvaRateLabel } from '../billing/billing.amounts';
 import { formatIvaConditionLabel } from '../billing/billing.labels';
 import type { BillingExecutionResult } from '../billing/billing.types.internal';
@@ -11,7 +13,7 @@ import { PdfError } from './pdf.errors';
 import type { InvoicePdfData, InvoicePdfIssuer, InvoicePdfItem, InvoicePdfIva, PdfVoucherExtras } from './pdf.types';
 import { buildPdfLegends, EXPORT_IVA_LEGEND } from './pdf-legends';
 
-export const DEFAULT_ITEM_DESCRIPTION = 'Según detalle';
+const DEFAULT_ITEM_DESCRIPTION = 'Según detalle';
 
 // Mismos nombres que usa la plantilla del SDK para calcular el tipo de documento del QR.
 const DOCUMENT_TYPE_NAMES: Readonly<Record<number, string>> = {
@@ -23,10 +25,6 @@ const DOCUMENT_TYPE_NAMES: Readonly<Record<number, string>> = {
 const CURRENCY_CODES: Readonly<Record<string, string>> = { PES: 'PES', DOL: 'DOL' };
 
 const EMPTY_TEXT = '- -';
-
-function round(value: number): number {
-  return Math.round(value * 100) / 100;
-}
 
 function capitalizeWords(value: string): string {
   return value.replace(/(^|\s)(\p{L})/gu, (_, space: string, letter: string) => `${space}${letter.toUpperCase()}`);
@@ -71,7 +69,9 @@ function buildItems(result: BillingExecutionResult, description: string): Invoic
   // La B no discrimina IVA: cada renglon va con el IVA incluido, como lo ve el cliente.
   const includesIva = voucherKind.letter === 'b';
   const items = (payload.Iva ?? []).map((entry) =>
-    includesIva ? line(round(entry.BaseImp + entry.Importe)) : line(entry.BaseImp, resolveIvaRateNumber(entry.Id)),
+    includesIva
+      ? line(roundToCents(entry.BaseImp + entry.Importe))
+      : line(entry.BaseImp, resolveIvaRateNumber(entry.Id)),
   );
 
   if (payload.ImpOpEx > 0) {
@@ -108,7 +108,7 @@ export function mapBillingResultToPdfData(
   }
 
   const number = resolveVoucherNumber(result);
-  const isConsumer = payload.DocTipo === 99;
+  const isConsumer = payload.DocTipo === CONSUMER_DOCUMENT_TYPE_CODE;
   const isUnidentified = isConsumer && !payload.DocNro;
   const iva = voucherKind.letter === 'c' ? [] : buildIvaEntries(payload.Iva);
 
@@ -142,10 +142,10 @@ export function mapBillingResultToPdfData(
       voucherKind.letter === 'c'
         ? payload.ImpTotal
         : voucherKind.letter === 'b'
-          ? round(payload.ImpTotal - payload.ImpTrib)
+          ? roundToCents(payload.ImpTotal - payload.ImpTrib)
           : payload.ImpNeto,
     importeNetoNoGravado: payload.ImpTotConc || undefined,
-    importeTotal: round(payload.ImpTotal),
+    importeTotal: roundToCents(payload.ImpTotal),
     items: buildItems(result, extras.descripcion?.trim() || DEFAULT_ITEM_DESCRIPTION),
     iva: iva.length > 0 ? iva : undefined,
     // La plantilla del SDK solo conoce pesos y dolares; el resto se muestra con su codigo ARCA.
@@ -252,7 +252,7 @@ export function mapExportResultToPdfData(
     formaPago: payload.Forma_pago,
     importeIva: 0,
     importeNetoGravado: payload.Imp_total,
-    importeTotal: round(payload.Imp_total),
+    importeTotal: roundToCents(payload.Imp_total),
     incoterms: formatExportIncoterm(payload),
     items,
     moneda: payload.Moneda_Id,

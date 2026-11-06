@@ -9,7 +9,7 @@ import { colorize, writeTerminalError } from '../ui';
 export const GLOBAL_OPTION_FLAGS = ['--testing', '--produccion', '--json', '--bruto'] as const;
 
 /** Las opciones globales que se pasaron pero el comando no declara: se ignoran. Las del padre no cuentan. */
-export function findIgnoredGlobalOptions(program: Command, actionCommand: Command): string[] {
+function findIgnoredGlobalOptions(program: Command, actionCommand: Command): string[] {
   const values = program.opts<Record<string, unknown>>();
 
   return GLOBAL_OPTION_FLAGS.filter(

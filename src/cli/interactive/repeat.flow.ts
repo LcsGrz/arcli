@@ -1,3 +1,5 @@
+import { DEFAULT_IVA_RATE } from '../../modules/billing/billing.amounts';
+import { DEFAULT_CURRENCY_CODE } from '../../modules/billing/billing.constants';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
 import type { BillingConcept } from '../../modules/billing/billing.schemas';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
@@ -27,7 +29,7 @@ export interface RepeatState extends InvoiceState {
   readonly original?: IssuedVoucher;
 }
 
-const LOCAL_CURRENCIES = new Set(['PES', 'ARS', undefined]);
+const LOCAL_CURRENCIES = new Set(['PES', DEFAULT_CURRENCY_CODE, undefined]);
 
 function describePeriod(period: ServicePeriod): string {
   return `${period.from} al ${period.to}`;
@@ -72,7 +74,7 @@ export function repeatSteps(
         if (!documentType) {
           writeTerminalOutput(
             noticePanel(
-              'La factura tiene un tipo de documento que el asistente no soporta. Usa los flags del CLI.',
+              'El comprobante tiene un tipo de documento que el asistente no soporta. Usá los flags del CLI.',
               'warning',
             ),
           );
@@ -84,13 +86,13 @@ export function repeatSteps(
 
         if (copy.limitation) {
           writeTerminalOutput(
-            noticePanel(`${copy.limitation} Revisa la alícuota y el monto antes de emitir.`, 'warning'),
+            noticePanel(`${copy.limitation} Revisá la alícuota y el monto antes de emitir.`, 'warning'),
           );
         }
 
         return {
           advanced: {
-            currencyCode: 'ARS',
+            currencyCode: DEFAULT_CURRENCY_CODE,
             exemptAmount: copy.exemptAmount,
             ivaRate: copy.ivaRate,
             sameCurrency: false,
@@ -121,7 +123,7 @@ export function repeatSteps(
         const reproducible = !copyInvoiceAmounts(original, state.voucherKind?.letter ?? 'c').limitation;
         const scope = reproducible
           ? await chooseStep('¿Mismo monto?', [
-              { name: `Sí, ${formatMoneyLabel(original.total)}`, value: 'mismo' as const },
+              { name: `Sí, ${formatMoneyLabel(original.total, original.currency)}`, value: 'mismo' as const },
               { name: 'No, ingresar otro monto', value: 'otro' as const },
             ])
           : ('otro' as const);
@@ -176,7 +178,7 @@ export function repeatSteps(
     {
       name: 'cbu',
       run: async () => {
-        const cbu = await askTextStep('CBU del emisor (22 digitos):', { validate: validateCbu });
+        const cbu = await askTextStep('CBU del emisor (22 dígitos):', { validate: validateCbu });
 
         return cbu === BACK ? BACK : { cbu };
       },
@@ -190,13 +192,16 @@ export function repeatSteps(
 
         if (foreign) {
           writeTerminalOutput(
-            noticePanel('La factura original era en moneda extranjera: completa la moneda y la cotización.', 'info'),
+            noticePanel(
+              'El comprobante original era en moneda extranjera: completá la moneda y la cotización.',
+              'info',
+            ),
           );
         }
 
         const advanced = await askAdvancedOptions(state.advanced, {
           concept: state.concept ?? 'servicios',
-          defaultIvaRate: state.advanced.ivaRate ?? config.alicuotaPorDefecto ?? '21',
+          defaultIvaRate: state.advanced.ivaRate ?? config.alicuotaPorDefecto ?? DEFAULT_IVA_RATE,
           // Sin alicuota deducida de la factura, que la elija en lugar de caer en la de la config.
           preselected: [
             ...(foreign ? (['divisas'] as const) : []),
@@ -219,7 +224,7 @@ export async function runRepeatFlow(session: InteractiveSession): Promise<void> 
   }
 
   const state = await runWizard(repeatSteps(session, pointOfSale), {
-    advanced: { currencyCode: 'ARS', sameCurrency: false },
+    advanced: { currencyCode: DEFAULT_CURRENCY_CODE, sameCurrency: false },
   });
 
   if (!state) {

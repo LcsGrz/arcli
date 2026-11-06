@@ -83,7 +83,7 @@ function argumentValues(command: Command, name: string): CompletionValues | unde
 }
 
 /** El arbol de commander como lo necesita el autocompletado. */
-export function describeCompletionTree(command: Command): CompletionCommand {
+function describeCompletionTree(command: Command): CompletionCommand {
   return {
     argumentValues: command.registeredArguments.map((argument) => argumentValues(command, argument.name())),
     name: command.name(),
@@ -108,7 +108,7 @@ function parseShell(value: string): CompletionShell {
 }
 
 /** El shell pedido o, si no se paso, el de `$SHELL`. */
-export function resolveShell(value: string | undefined, environment: CompletionEnvironment): CompletionShell {
+function resolveShell(value: string | undefined, environment: CompletionEnvironment): CompletionShell {
   if (value) {
     return parseShell(value);
   }
@@ -163,7 +163,7 @@ export function registerCompletionCommands(program: Command): void {
   // Pedir el comando ya es la confirmacion, como en `pdf instalar`: no se vuelve a preguntar.
   for (const [name, description, run] of [
     ['instalar', 'agregar el autocompletado al archivo de inicio del shell', installCompletion],
-    ['desinstalar', 'sacar el autocompletado que agrego arcli', uninstallCompletion],
+    ['desinstalar', 'sacar el autocompletado que agregó arcli', uninstallCompletion],
   ] as const) {
     const subcommand = registerJsonOption(
       command

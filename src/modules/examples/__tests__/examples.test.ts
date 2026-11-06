@@ -9,8 +9,8 @@ describe('examples', () => {
 
     expect(output).toContain('[MÍNIMA LARGA]');
     expect(output).toContain('[MÍNIMA CORTA]');
-    expect(output).toContain('[FULL LARGA]');
-    expect(output).toContain('[FULL CORTA]');
+    expect(output).toContain('[COMPLETA LARGA]');
+    expect(output).toContain('[COMPLETA CORTA]');
     expect(output).toContain('arcli factura c --monto 300000');
     expect(output).toContain('arcli fc -m 300000 --cs --cfinal --ir-cf --previsualizar');
   });

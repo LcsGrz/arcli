@@ -4,6 +4,7 @@ import {
   parseArgentineDateInputAsArcaDate,
 } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
+import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { EmissionUncertainError } from '../billing/billing.errors';
 import type { ArcliConfig } from '../config/config.schemas';
 
@@ -40,7 +41,7 @@ export interface ExportRuntime {
 /** Se valida antes de tocar la red: un flag que falta no tiene por que autenticar en WSAA. */
 function assertRequiredFields(input: ExportVoucherInput, activity: number | undefined): void {
   if (typeof input.amount !== 'number' || !(input.amount > 0)) {
-    throw new InputValidationError('Falta el importe total o no es válido. Usá --monto.');
+    throw new InputValidationError('Falta el monto total o no es válido. Usá --monto.');
   }
 
   if (!input.clientName?.trim()) {
@@ -65,7 +66,7 @@ function assertRequiredFields(input: ExportVoucherInput, activity: number | unde
 
   if (activity === undefined) {
     throw new InputValidationError(
-      'Falta la actividad de exportación. Usá --actividad o guardala con "arcli config establecer exportacion.actividad <código>": es el código de la tabla de actividades de WSFEX, por ejemplo 620100.',
+      'Falta la actividad de exportación. Usá --actividad o guardala con `arcli config establecer exportacion.actividad <código>`: es el código de la tabla de actividades de WSFEX, por ejemplo 620100.',
     );
   }
 
@@ -78,7 +79,7 @@ function assertNotFuture(voucherDate: string, now: Date): void {
 
   if (voucherDate > today) {
     throw new InputValidationError(
-      `La fecha del comprobante (${voucherDate.slice(6, 8)}/${voucherDate.slice(4, 6)}/${voucherDate.slice(0, 4)}) no puede ser futura.`,
+      `La fecha del comprobante (${formatArcaDateAsArgentineDate(voucherDate)}) no puede ser futura.`,
     );
   }
 }
@@ -179,7 +180,7 @@ export class ExportService {
         ? [
             `ARCA no publicó la cotización de ${quotation.code} del ${formatArcaDateAsArgentineDate(
               voucherDate,
-            )}: se usa la del ${formatArcaDateAsArgentineDate(quotation.date)} (${quotation.rate}). Para usar otra, --cotizacion-moneda.`,
+            )}: se usa la del ${formatArcaDateAsArgentineDate(quotation.date)} (${formatExchangeRate(quotation.rate)}). Para usar otra, --cotizacion-moneda.`,
           ]
         : []),
     ];

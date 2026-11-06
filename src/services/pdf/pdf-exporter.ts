@@ -45,7 +45,7 @@ function readLogoAsDataUrl(path: string | undefined): string | undefined {
  * Una subcarpeta por CUIT emisor, para que dos emisores con el mismo punto de venta y numero no se pisen. Los de
  * testing van ademas a `testing/` y con un pie que avisa que no valen, para no mezclarlos con los reales.
  */
-export function resolvePdfTargetFolder(
+function resolvePdfTargetFolder(
   folder: string,
   environment: BillingExecutionResult['environment'],
   cuit: string,

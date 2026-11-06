@@ -37,15 +37,15 @@ function buildSuggestions(options: {
   }
 
   if (/cuit.*(pais|país)/i.test(options.messages)) {
-    suggestions.add('Revisá el CUIT del país del cliente (`--cuit-pais`) y el país de destino.');
+    suggestions.add('Revisá el CUIT del país del cliente (--cuit-pais) y el país de destino.');
   }
 
   if (/moneda|cotizaci[oó]n/i.test(options.messages)) {
-    suggestions.add('Revisá la moneda y la cotización (`--moneda`, `--cotizacion-moneda`).');
+    suggestions.add('Revisá la moneda y la cotización (--moneda, --cotizacion-moneda).');
   }
 
   if (/incoterm/i.test(options.messages)) {
-    suggestions.add('Revisá el incoterm (`--incoterm`) contra la tabla de ARCA.');
+    suggestions.add('Revisá el incoterm (--incoterm) contra la tabla de ARCA.');
   }
 
   if (/actividad/i.test(options.messages)) {

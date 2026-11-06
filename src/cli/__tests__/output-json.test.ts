@@ -118,7 +118,7 @@ describe('commander usage errors', () => {
 
     expect(stderr).toContain("error: opción desconocida '--montoo'");
     expect(stderr).toContain('(¿quisiste decir --monto?)');
-    expect(stderr).toContain('(usa "ayuda" para ver ejemplos y opciones)');
+    expect(stderr).toContain('(usá `ayuda` para ver ejemplos y opciones)');
     expect(exitCode).toBe(1);
   });
 
@@ -172,7 +172,7 @@ describe('strict numbers and CUITs in query arguments', () => {
   it('padron rejects a CUIT with a wrong check digit before contacting ARCA', async () => {
     expect((await run(['padron', '20-20179706-5'])).error).toMatchObject({
       code: 'INPUT_VALIDATION_ERROR',
-      message: expect.stringContaining('digito verificador'),
+      message: expect.stringContaining('dígito verificador'),
     });
   });
 });

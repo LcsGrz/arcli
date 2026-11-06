@@ -1,4 +1,5 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
+import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { maskPath } from '../../lib/paths/mask-path';
 import {
   bold,
@@ -13,6 +14,7 @@ import {
 import { RECENT_VOUCHERS_LIMIT } from '../vouchers/voucher-history';
 
 import type { ArcliConfig, ConfigPublicKey } from './config.schemas';
+import { isPadronLookupEnabled } from './config.schemas';
 import { CONFIG_LABELS, CONFIG_SECTIONS } from './config.sections';
 import { CONFIG_DOCTOR_SECTIONS, type ConfigDoctorReport } from './config-doctor';
 
@@ -110,7 +112,7 @@ function toPublicSnapshot(config: ArcliConfig, paths: ConfigPathSnapshot): Publi
     bruto: config.output.brutoPorDefecto,
     ticketPath: maskPath(paths.ticketPath),
     verificarFce: config.verificarFce,
-    consultarPadron: config.consultarPadron ?? true,
+    consultarPadron: isPadronLookupEnabled(config),
   };
 }
 
@@ -136,7 +138,7 @@ const yesNo = (value: boolean | undefined): string => (value ? 'si' : 'no');
 
 /** Como se muestra cada dato en `arcli config`. */
 const CONFIG_TEXT_VALUES: Record<ConfigPublicKey, PublicConfigValue> = {
-  alicuota: (c) => (c.alicuota ? `${c.alicuota}%` : '21% (por defecto)'),
+  alicuota: (c) => (c.alicuota ? `${String(c.alicuota).replace('.', ',')}%` : '21% (por defecto)'),
   aliasCbu: (c) => notSet(c.aliasCbu),
   bruto: (c) => yesNo(c.bruto),
   cbu: (c) => notSet(c.cbu),
@@ -145,7 +147,7 @@ const CONFIG_TEXT_VALUES: Record<ConfigPublicKey, PublicConfigValue> = {
   comprobantesPorLista: (c) => c.comprobantesPorLista ?? `${RECENT_VOUCHERS_LIMIT} (por defecto)`,
   concepto: (c) => notSet(c.concepto),
   condicionVenta: (c) => notSet(c.condicionVenta),
-  cotizacion: (c) => c.cotizacion ?? 1,
+  cotizacion: (c) => formatExchangeRate(c.cotizacion ?? 1),
   cuit: (c) => notSet(c.cuit),
   'emisor.condicionIva': (c) => c.emisor.condicionIva ?? 'según la letra',
   'emisor.domicilio': (c) => notSet(c.emisor.domicilio),
@@ -172,7 +174,7 @@ const CONFIG_TEXT_VALUES: Record<ConfigPublicKey, PublicConfigValue> = {
   puntoVenta: (c) => notSet(c.puntoVenta),
   ticketPath: (c) => c.ticketPath,
   verificarFce: (c) => yesNo(c.verificarFce),
-  consultarPadron: (c) => yesNo(c.consultarPadron ?? true),
+  consultarPadron: (c) => yesNo(isPadronLookupEnabled(c)),
 };
 
 /**

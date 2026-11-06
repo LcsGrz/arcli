@@ -5,7 +5,7 @@ import { VOUCHER_FAMILIES, VOUCHER_KIND_MAP, VOUCHER_SHORTCUTS } from '../billin
 import { EXPORT_VOUCHER_KIND } from '../export/export.types';
 
 const ISSUER_HINT =
-  'Estos ejemplos asumen que ya resolviste cuit emisor, credenciales y, en la versión mínima, también punto de venta por config.';
+  'Estos ejemplos asumen que ya resolviste CUIT emisor, credenciales y, en la versión mínima, también punto de venta por config.';
 
 function resolveAmount(definition: VoucherKindDefinition): number {
   if (definition.letter === 'a') {
@@ -196,10 +196,10 @@ function formatVoucherExample(definition: VoucherKindDefinition, dates: ExampleD
     `${badge('MÍNIMA CORTA', 'success')}`,
     `${buildMinimalShort(definition, dates)} --previsualizar`,
     '',
-    `${badge('FULL LARGA', 'warning')}`,
+    `${badge('COMPLETA LARGA', 'warning')}`,
     `${buildFullLong(definition, dates)}`,
     '',
-    `${badge('FULL CORTA', 'debug')}`,
+    `${badge('COMPLETA CORTA', 'debug')}`,
     `${buildFullShort(definition, dates)}`,
   ].join('\n');
 }
@@ -237,10 +237,10 @@ function formatExportExample(): string {
     `${badge('MÍNIMA CORTA', 'success')}`,
     `${EXPORT_MINIMAL_EXAMPLE} --previsualizar`,
     '',
-    `${badge('FULL LARGA', 'warning')}`,
+    `${badge('COMPLETA LARGA', 'warning')}`,
     `arcli ${family} ${letter} --monto 1500 ${EXPORT_CLIENT} --actividad 620100 ${fullFlags.join(' ')} --moneda USD --misma-moneda --previsualizar`,
     '',
-    `${badge('FULL CORTA', 'debug')}`,
+    `${badge('COMPLETA CORTA', 'debug')}`,
     `arcli ${shortcut} -m 1500 ${EXPORT_CLIENT} --actividad 620100 ${fullFlags.join(' ')} --mda USD --misma-moneda --previsualizar`,
   ].join('\n');
 }
@@ -262,15 +262,15 @@ export function renderExamples(today = new Date()): string {
     renderLogo().trim(),
     '',
     `${badge('MÍNIMA', 'info')} datos esenciales`,
-    `${badge('FULL', 'warning')} más campos explicitados`,
+    `${badge('COMPLETA', 'warning')} más campos explicitados`,
     `${badge('LARGA', 'success')} comando largo`,
-    `${badge('CORTA', 'debug')} shortcut y aliases`,
+    `${badge('CORTA', 'debug')} atajos y alias`,
     '',
     toneText('SEGURIDAD', 'warning'),
     'Todos usan --previsualizar para evitar emisiones reales por error.',
-    'Si querés emitir de verdad, reemplaza --previsualizar por --emitir.',
-    'Para emitir en producción necesitas --produccion junto con --emitir.',
-    'Para guardar el PDF con el QR, agrega --exportar-pdf al emitir (ver docs/pdf.md).',
+    'Si querés emitir de verdad, reemplazá --previsualizar por --emitir.',
+    'Para emitir en producción necesitás --produccion junto con --emitir.',
+    'Para guardar el PDF con el QR, agregá --exportar-pdf al emitir (ver docs/pdf.md).',
     '',
     ISSUER_HINT,
     '',

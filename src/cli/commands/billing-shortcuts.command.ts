@@ -12,7 +12,7 @@ export function registerBillingShortcutCommands(program: Command): void {
     // Ocultos en la lista de comandos: la ayuda principal los muestra en una tabla por familia y letra.
     const command = program
       .command(shortcut, { hidden: true })
-      .description(`${definition.displayName} por shortcut, con ayuda guiada para previsualizar o emitir`);
+      .description(`${definition.displayName} por atajo, con ayuda guiada para previsualizar o emitir`);
 
     configureSpanishHelp(command);
 

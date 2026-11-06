@@ -1,6 +1,15 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
+import { formatCuit } from '../../lib/identity/format-cuit';
+import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { keyValuePanel, noticePanel, renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui';
-import { formatConceptLabel, formatCurrencyLabel, formatMoneyLabel } from '../billing/billing.labels';
+import { CONSUMER_DOCUMENT_TYPE_CODE, isTaxIdDocumentType } from '../billing/arca-codes';
+import {
+  formatConceptLabel,
+  formatCurrencyLabel,
+  formatMoneyLabel,
+  formatNumericLabel,
+} from '../billing/billing.labels';
+import { formatLatestVouchersTitle, formatNoVouchersEmitted } from '../billing/billing.mappers';
 import type { VoucherKindDefinition } from '../billing/billing.types';
 
 import type { IssuedVoucher } from './voucher-history';
@@ -30,27 +39,31 @@ export function formatVoucherNumber(pointOfSale: number, number: number): string
 }
 
 export function formatReceiver(voucher: IssuedVoucher): string {
-  if (voucher.documentTypeCode === 99) {
+  if (voucher.documentTypeCode === CONSUMER_DOCUMENT_TYPE_CODE) {
     return 'Consumidor final';
   }
 
   const label = DOCUMENT_LABELS[voucher.documentTypeCode] ?? `Doc ${voucher.documentTypeCode}`;
 
-  return `${label} ${voucher.documentNumber}`;
+  const number = isTaxIdDocumentType(voucher.documentTypeCode)
+    ? formatCuit(voucher.documentNumber)
+    : formatNumericLabel(voucher.documentNumber);
+
+  return `${label} ${number}`;
 }
 
 /** Titulo del listado de ultimos comprobantes, tambien usado por el selector del modo interactivo. */
-export function formatVoucherListTitle(report: Omit<VoucherListReport, 'vouchers'>): string {
-  return `Últimas ${report.voucherKind.displayName} · PV ${report.pointOfSale} · ${report.environment}`;
+function formatVoucherListTitle(report: Omit<VoucherListReport, 'vouchers'>): string {
+  return `${formatLatestVouchersTitle(report.voucherKind)} · PV ${report.pointOfSale} · ${report.environment}`;
 }
 
 /** Una fila del listado: numero, fecha, receptor, total y CAE, en columnas alineadas. */
-export function formatVoucherListRow(pointOfSale: number, voucher: IssuedVoucher): string {
+function formatVoucherListRow(pointOfSale: number, voucher: IssuedVoucher): string {
   return [
     formatVoucherNumber(pointOfSale, voucher.number),
     formatArcaDateAsArgentineDate(voucher.date),
     formatReceiver(voucher).padEnd(20),
-    formatMoneyLabel(voucher.total).padStart(16),
+    formatMoneyLabel(voucher.total, voucher.currency).padStart(16),
     voucher.cae ? `CAE ${voucher.cae}` : '',
   ]
     .join('  ')
@@ -85,7 +98,7 @@ export function formatVoucherPickerRows(
     date: formatArcaDateAsArgentineDate(voucher.date),
     number: formatVoucherNumber(pointOfSale, voucher.number),
     receiver: formatReceiver(voucher),
-    total: formatMoneyLabel(voucher.total),
+    total: formatMoneyLabel(voucher.total, voucher.currency),
   }));
   const receiverWidth = Math.max(0, ...columns.map((column) => column.receiver.length));
   const totalWidth = Math.max(0, ...columns.map((column) => column.total.length));
@@ -112,7 +125,7 @@ export function formatVoucherListAsText(report: VoucherListReport): string {
   const { pointOfSale, voucherKind, vouchers } = report;
 
   if (vouchers.length === 0) {
-    return noticePanel(`No hay ${voucherKind.displayName} emitidas en el punto de venta ${pointOfSale}.`, 'muted');
+    return noticePanel(`${formatNoVouchersEmitted(voucherKind)} en el punto de venta ${pointOfSale}.`, 'muted');
   }
 
   return keyValuePanel(
@@ -182,26 +195,27 @@ export function formatVoucherDetailAsText(report: VoucherDetailReport): string {
   const { pointOfSale, voucher, voucherKind } = report;
   const rows: Array<readonly [string, string]> = [
     ['Número', formatVoucherNumber(pointOfSale, voucher.number)],
-    ['Fecha', formatArcaDateAsArgentineDate(voucher.date)],
+    ['Fecha del comprobante', formatArcaDateAsArgentineDate(voucher.date)],
     ['Receptor', formatReceiver(voucher)],
     ['Concepto', formatConceptLabel(voucher.concept)],
     ['Moneda', formatCurrencyLabel(voucher.currency)],
   ];
 
   if (voucher.currency && voucher.currency !== 'PES') {
-    rows.push(['Cotización', String(voucher.exchangeRate ?? 1)]);
+    rows.push(['Cotización', formatExchangeRate(voucher.exchangeRate ?? 1)]);
   }
 
   rows.push(
-    ['Importe neto', formatMoneyLabel(voucher.netAmount)],
-    ['Importe IVA', formatMoneyLabel(voucher.ivaAmount)],
+    ['Importe neto', formatMoneyLabel(voucher.netAmount, voucher.currency)],
+    ['Importe IVA', formatMoneyLabel(voucher.ivaAmount, voucher.currency)],
   );
 
-  if (voucher.exemptAmount) rows.push(['Importe exento', formatMoneyLabel(voucher.exemptAmount)]);
-  if (voucher.untaxedAmount) rows.push(['Importe no gravado', formatMoneyLabel(voucher.untaxedAmount)]);
-  if (voucher.taxesAmount) rows.push(['Importe tributos', formatMoneyLabel(voucher.taxesAmount)]);
+  if (voucher.exemptAmount) rows.push(['Importe exento', formatMoneyLabel(voucher.exemptAmount, voucher.currency)]);
+  if (voucher.untaxedAmount)
+    rows.push(['Importe no gravado', formatMoneyLabel(voucher.untaxedAmount, voucher.currency)]);
+  if (voucher.taxesAmount) rows.push(['Importe tributos', formatMoneyLabel(voucher.taxesAmount, voucher.currency)]);
 
-  rows.push(['Importe total', formatMoneyLabel(voucher.total)], ['CAE', voucher.cae ?? 'N/D']);
+  rows.push(['Importe total', formatMoneyLabel(voucher.total, voucher.currency)], ['CAE', voucher.cae ?? 'N/D']);
 
   if (voucher.caeExpiration) {
     rows.push(['Vencimiento CAE', formatArcaDateAsArgentineDate(voucher.caeExpiration)]);

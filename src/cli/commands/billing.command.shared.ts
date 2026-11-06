@@ -1,12 +1,16 @@
 import type { Command } from 'commander';
 
+import { DEFAULT_EXCHANGE_RATE } from '../../modules/billing/billing.constants';
+import { exchangeRateWarnings } from '../../modules/billing/billing.currency';
 import { DUE_DAY_DEPRECATION_WARNING } from '../../modules/billing/billing.date-range';
+import { formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import { BillingService } from '../../modules/billing/billing.service';
 import type { VoucherShortcut } from '../../modules/billing/billing.types';
 import type { BillingExecutionResult } from '../../modules/billing/billing.types.internal';
 import { getVoucherKindByShortcut } from '../../modules/billing/voucher-kind-map';
 import type { ArcliConfig } from '../../modules/config/config.schemas';
+import { isPadronLookupEnabled } from '../../modules/config/config.schemas';
 import type { FceObligationGateway } from '../../modules/fce/fce-obligation';
 import { ArcaBillingGateway } from '../../services/arca/arca-billing.gateway';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
@@ -45,10 +49,12 @@ export function resolveBillingCommandDefaults(config: ArcliConfig): BillingComma
     defaultConcept: config.conceptoPorDefecto,
     defaultCurrencyCode: config.monedaPorDefecto,
     defaultEmit: config.output.emitirPorDefecto,
-    defaultExchangeRate: config.cotizacionPorDefecto,
+    // `conf` guarda el default 1 en el archivo: 1 es lo mismo que no tenerla, y en moneda extranjera no es valida.
+    defaultExchangeRate:
+      config.cotizacionPorDefecto === DEFAULT_EXCHANGE_RATE ? undefined : config.cotizacionPorDefecto,
     defaultIvaCondition: config.ivaReceptorPorDefecto,
     defaultIvaRate: config.alicuotaPorDefecto,
-    lookupIvaConditionInPadron: config.consultarPadron !== false,
+    lookupIvaConditionInPadron: isPadronLookupEnabled(config),
   };
 }
 
@@ -147,6 +153,7 @@ export async function executeBillingCommand(
       ...certificateWarnings(runtime),
       ...(options.extraWarnings ?? []),
       ...(input.dueDay ? [DUE_DAY_DEPRECATION_WARNING] : []),
+      ...exchangeRateWarnings(input),
       ...(padronWarnings[position] ?? []),
       ...(fceWarnings[position] ?? []),
     ]);
@@ -157,7 +164,7 @@ export async function executeBillingCommand(
       runtime,
       service,
       useRaw,
-      voucherLabel: voucherKind?.displayName ?? 'este comprobante',
+      voucherLabel: voucherKind ? formatVoucherWithArticle(voucherKind) : 'este comprobante',
       warnings,
     });
 
@@ -167,11 +174,17 @@ export async function executeBillingCommand(
 
     const { inputs, previewShown } = preview;
 
-    spinner = runtime.outputJson ? null : startSpinner('Procesando comprobante...');
+    const emitting = inputs.some((input) => input.emit);
+    const emittedVouchers =
+      inputs.length > 1
+        ? `${inputs.length} comprobantes`
+        : voucherKind
+          ? formatVoucherWithArticle(voucherKind)
+          : 'el comprobante';
 
-    if (spinner) {
-      spinner.text = inputs.length > 1 ? `Procesando ${inputs.length} comprobantes...` : 'Procesando comprobante...';
-    }
+    spinner = runtime.outputJson
+      ? null
+      : startSpinner(emitting ? `Emitiendo ${emittedVouchers} en ARCA...` : 'Preparando la vista previa...');
 
     const deliveryOptions = {
       config: runtime.config,

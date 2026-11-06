@@ -105,7 +105,7 @@ function parseCbu(value: string): string {
   const normalizedValue = value.trim();
 
   if (!/^\d{22}$/.test(normalizedValue)) {
-    throw new InputValidationError(`El CBU "${value}" no es válido: debe tener 22 digitos.`);
+    throw new InputValidationError(`El CBU "${value}" no es válido: debe tener 22 dígitos.`);
   }
 
   return normalizedValue;

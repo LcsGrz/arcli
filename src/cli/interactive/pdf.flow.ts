@@ -79,7 +79,7 @@ function applyIssuerValue(config: ArcliConfig, key: IssuerKey, value: string): A
 }
 
 /** Pide los datos del emisor que faltan y ofrece guardarlos para no volver a preguntarlos. */
-async function completeIssuer(config: ArcliConfig): Promise<ArcliConfig> {
+export async function completeIssuer(config: ArcliConfig): Promise<ArcliConfig> {
   const missing = listMissingIssuerKeys(config) as IssuerKey[];
 
   if (missing.length === 0) {
@@ -174,6 +174,6 @@ export async function offerPdf(
       throw error;
     }
 
-    writeTerminalOutput(noticePanel('El comprobante ya quedo emitido; no se genero el PDF.', 'muted'));
+    writeTerminalOutput(noticePanel('El comprobante ya quedó emitido; no se generó el PDF.', 'muted'));
   }
 }

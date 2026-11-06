@@ -1,3 +1,5 @@
+import { formatArgentineAmount, formatExchangeRate } from '../../lib/numbers/argentine-amount';
+import { DEFAULT_CURRENCY_CODE, DEFAULT_EXCHANGE_RATE } from '../../modules/billing/billing.constants';
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { parseAmountInput, parseExchangeRateInput } from '../../modules/interactive/amount-input';
@@ -34,17 +36,19 @@ interface AdvancedContext {
 }
 
 function describeCurrency(options: AdvancedOptions): string {
-  if (!options.currencyCode || options.currencyCode === 'PES' || options.currencyCode === 'ARS') {
+  if (!options.currencyCode || options.currencyCode === 'PES' || options.currencyCode === DEFAULT_CURRENCY_CODE) {
     return 'pesos';
   }
 
-  return options.sameCurrency ? 'dólares, cotización oficial de ARCA' : `dólares, cotización ${options.exchangeRate}`;
+  return options.sameCurrency
+    ? 'dólares, cotización oficial de ARCA'
+    : `dólares, cotización ${formatExchangeRate(options.exchangeRate ?? DEFAULT_EXCHANGE_RATE)}`;
 }
 
 function describeAmounts(options: AdvancedOptions): string {
   const parts = [
-    options.exemptAmount ? `exento ${options.exemptAmount}` : undefined,
-    options.untaxedAmount ? `no gravado ${options.untaxedAmount}` : undefined,
+    options.exemptAmount ? `exento ${formatArgentineAmount(options.exemptAmount)}` : undefined,
+    options.untaxedAmount ? `no gravado ${formatArgentineAmount(options.untaxedAmount)}` : undefined,
   ].filter(Boolean);
 
   return parts.length > 0 ? parts.join(', ') : 'sin exento ni no gravado';
@@ -61,11 +65,11 @@ async function askCurrency(current: AdvancedOptions): Promise<AdvancedOptions | 
   }
 
   if (currency === 'PES') {
-    return { ...current, currencyCode: 'ARS', exchangeRate: undefined, sameCurrency: false };
+    return { ...current, currencyCode: DEFAULT_CURRENCY_CODE, exchangeRate: undefined, sameCurrency: false };
   }
 
   const payment = await chooseStep('¿Cómo te pagan?', [
-    { description: 'Ingresas la cotización acordada', name: 'En pesos', value: 'pesos' as const },
+    { description: 'Ingresás la cotización acordada', name: 'En pesos', value: 'pesos' as const },
     { description: 'Se usa la cotización oficial de ARCA', name: 'En dólares', value: 'dolares' as const },
   ]);
 
@@ -133,7 +137,7 @@ async function askTransferMode(current: AdvancedOptions): Promise<AdvancedOption
     'Modalidad de transferencia:',
     [
       { description: 'La opción habitual', name: 'Sistema de circulación abierta (SCA)', value: 'sca' as const },
-      { name: 'Agente de deposito colectivo (ADC)', value: 'adc' as const },
+      { name: 'Agente de depósito colectivo (ADC)', value: 'adc' as const },
     ],
     current.transferMode ?? 'sca',
   );

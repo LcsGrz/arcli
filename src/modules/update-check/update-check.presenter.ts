@@ -1,9 +1,8 @@
 import { bold, colorize, noticePanel, renderPanel, type UiTextColor } from '../../ui';
 
 import { CHANGELOG_PAGE_URL, type ChangelogChange, type ChangelogChangeKind, type ChangelogEntry } from './changelog';
+import { resolveUpdateCommand } from './package-manager';
 import type { UpdateCheckResult } from './update-check.service';
-
-export const UPDATE_COMMAND = 'npm install -g arcli@latest';
 
 /** Versiones del changelog que se muestran, y cambios por version; el resto queda en el link. */
 const MAX_CHANGELOG_ENTRIES = 3;
@@ -12,7 +11,7 @@ const MAX_CHANGES_PER_ENTRY = 6;
 export function renderUpdateNoticePanel(result: UpdateCheckResult): string {
   return noticePanel(
     `Nueva versión disponible: ${result.latestVersion} (actual: ${result.currentVersion})\n` +
-      `Actualiza con: ${UPDATE_COMMAND}`,
+      `Actualizá con \`${resolveUpdateCommand()}\`.`,
     'info',
     'info',
   );
@@ -52,7 +51,9 @@ function formatChanges(changes: readonly ChangelogChange[]): string[] {
   const lines = changes.slice(0, MAX_CHANGES_PER_ENTRY).map(formatChange);
   const hidden = changes.length - MAX_CHANGES_PER_ENTRY;
 
-  return hidden > 0 ? [...lines, colorize(`${CHANGE_INDENT}y ${hidden} cambio(s) más`, 'muted')] : lines;
+  return hidden > 0
+    ? [...lines, colorize(`${CHANGE_INDENT}y ${hidden} ${hidden === 1 ? 'cambio' : 'cambios'} más`, 'muted')]
+    : lines;
 }
 
 function formatChangelog(entries: readonly ChangelogEntry[] | undefined): string[] {
@@ -72,7 +73,10 @@ function formatChangelog(entries: readonly ChangelogEntry[] | undefined): string
   const hidden = entries.length - MAX_CHANGELOG_ENTRIES;
 
   if (hidden > 0) {
-    lines.push('', colorize(`Y ${hidden} versión(es) más en ${CHANGELOG_PAGE_URL}`, 'muted'));
+    lines.push(
+      '',
+      colorize(`Y ${hidden} ${hidden === 1 ? 'versión' : 'versiones'} más en ${CHANGELOG_PAGE_URL}`, 'muted'),
+    );
   }
 
   return lines;
@@ -95,9 +99,9 @@ export function renderUpdateDetails(result: UpdateCheckResult, entries: readonly
   const howTo = renderPanel({
     borderType: 'command',
     content: [
-      'Para actualizar, arcli se cierra y deja este comando copiado. Pegalo en la terminal y apreta Enter:',
+      'Para actualizar, arcli se cierra y deja este comando copiado. Pegalo en la terminal y apretá Enter:',
       '',
-      bold(colorize(UPDATE_COMMAND, 'info')),
+      bold(colorize(resolveUpdateCommand(), 'info')),
     ],
     preserveBlankLines: true,
     width: 'wide',

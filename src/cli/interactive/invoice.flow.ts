@@ -1,3 +1,5 @@
+import { DEFAULT_IVA_RATE } from '../../modules/billing/billing.amounts';
+import { DEFAULT_CURRENCY_CODE } from '../../modules/billing/billing.constants';
 import { type BillingCommandInput, billingCommandSchema } from '../../modules/billing/billing.schemas';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { EXPORT_VOUCHER_KIND, type ExportVoucherKind } from '../../modules/export/export.types';
@@ -69,7 +71,7 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
       name: 'receptor',
       run: async (state) => {
         const documentType = await chooseStep(
-          isReceipt(state) ? '¿A quién le hacés el recibo?' : '¿A quien le facturas?',
+          isReceipt(state) ? '¿A quién le hacés el recibo?' : '¿A quién le facturás?',
           receiverChoices(state.voucherKind?.letter ?? 'c'),
         );
 
@@ -124,7 +126,7 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
     {
       name: 'cbu',
       run: async () => {
-        const cbu = await askTextStep('CBU del emisor (22 digitos):', { validate: validateCbu });
+        const cbu = await askTextStep('CBU del emisor (22 dígitos):', { validate: validateCbu });
 
         return cbu === BACK ? BACK : { cbu };
       },
@@ -135,7 +137,7 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
       run: async (state) => {
         const advanced = await askAdvancedOptions(state.advanced, {
           concept: state.concept ?? 'servicios',
-          defaultIvaRate: config.alicuotaPorDefecto ?? '21',
+          defaultIvaRate: config.alicuotaPorDefecto ?? DEFAULT_IVA_RATE,
           voucherKind: state.voucherKind as VoucherKindDefinition,
         });
 
@@ -158,7 +160,7 @@ export function buildInvoiceInput(state: InvoiceState, session: InteractiveSessi
   const { config } = session.runtime;
   const voucherKind = state.voucherKind as VoucherKindDefinition;
   const ivaRate =
-    voucherKind.letter === 'c' ? undefined : (state.advanced.ivaRate ?? config.alicuotaPorDefecto ?? '21');
+    voucherKind.letter === 'c' ? undefined : (state.advanced.ivaRate ?? config.alicuotaPorDefecto ?? DEFAULT_IVA_RATE);
 
   return billingCommandSchema.parse({
     ...state.advanced,
@@ -172,7 +174,7 @@ export function buildInvoiceInput(state: InvoiceState, session: InteractiveSessi
     ...receiverInputFields(state),
     // 21% sin alicuota configurada es el default del CLI. Si hay config, se deja explicito para que el
     // comando equivalente no tome la de la config.
-    ivaRate: ivaRate === '21' && !config.alicuotaPorDefecto ? undefined : ivaRate,
+    ivaRate: ivaRate === DEFAULT_IVA_RATE && !config.alicuotaPorDefecto ? undefined : ivaRate,
     shortcut: voucherKind.shortcut,
     totalAmount: state.totalAmount,
     transferMode: isFceInvoice(state) ? state.advanced.transferMode : undefined,
@@ -182,7 +184,7 @@ export function buildInvoiceInput(state: InvoiceState, session: InteractiveSessi
 /** Sin `voucherKind` pregunta el comprobante; "Emitir recibo" lo pasa ya elegido. */
 export async function runInvoiceFlow(session: InteractiveSession, voucherKind?: VoucherKindDefinition): Promise<void> {
   const state = await runWizard(invoiceSteps(session), {
-    advanced: { currencyCode: 'ARS', sameCurrency: false },
+    advanced: { currencyCode: DEFAULT_CURRENCY_CODE, sameCurrency: false },
     voucherKind,
   });
 

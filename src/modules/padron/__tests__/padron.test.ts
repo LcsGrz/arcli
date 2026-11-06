@@ -61,7 +61,7 @@ describe('padron presenter', () => {
     const text = formatPadronAsText({ environment: 'testing', taxpayer });
 
     expect(text).toContain('ALQUILER (y 1 más)');
-    expect(text).toContain('Responsable Inscripto');
+    expect(text).toContain('Responsable inscripto');
   });
 
   it('sin condicion IVA pide indicarla con --ir', () => {

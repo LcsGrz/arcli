@@ -18,7 +18,7 @@ const itemJsonSchema = z
  * Forma del JSON de `--cargar`: solo tipos y claves. Los valores (importes, pais, incoterm) los valida el
  * servicio igual que si vinieran por flags. Es `.strict()` para que un typo no se ignore en silencio.
  */
-export const exportJsonInputSchema = z
+const exportJsonInputSchema = z
   .object({
     actividad: z.number().optional(),
     cliente: z.string().optional(),
@@ -39,6 +39,7 @@ export const exportJsonInputSchema = z
     items: z.array(itemJsonSchema).optional(),
     mismaMoneda: z.boolean().optional(),
     monto: z.number().optional(),
+    montoTotal: z.number().optional(),
     numero: z.number().optional(),
     observaciones: z.string().optional(),
     observacionesComerciales: z.string().optional(),
@@ -53,6 +54,9 @@ export const exportJsonInputSchema = z
   .strict();
 
 export type ExportJsonInput = z.infer<typeof exportJsonInputSchema>;
+
+const DEPRECATED_AMOUNT_KEY_WARNING =
+  'La clave "monto" del JSON de --cargar se saca en la 3.0.0: usá "montoTotal", como en A, B y C.';
 
 const TYPE_LABELS: Readonly<Record<string, string>> = {
   array: 'un array',
@@ -80,7 +84,7 @@ function describeIssue(issue: z.core.$ZodIssue): string {
   return path ? `"${path}": ${issue.message}.` : `${issue.message}.`;
 }
 
-export function parseExportJsonInput(value: unknown): ExportJsonInput {
+function parseExportJsonInput(value: unknown): ExportJsonInput {
   const result = exportJsonInputSchema.safeParse(value, { reportInput: true });
 
   if (result.success) {
@@ -100,7 +104,18 @@ export function readExportJsonInput(source: unknown): ExportJsonInput {
     );
   }
 
-  return parseExportJsonInput(source);
+  const input = parseExportJsonInput(source);
+
+  if (input.monto !== undefined && input.montoTotal !== undefined) {
+    throw new InputValidationError('En el JSON de --cargar: usá "montoTotal" o "monto", no las dos.');
+  }
+
+  return input;
+}
+
+/** Los avisos de lo que trae el JSON de `--cargar`. */
+export function exportJsonInputWarnings(input: ExportJsonInput | undefined): string[] {
+  return input?.monto === undefined ? [] : [DEPRECATED_AMOUNT_KEY_WARNING];
 }
 
 export function mapExportJsonItems(items: ExportJsonInput['items']): ExportItemInput[] | undefined {

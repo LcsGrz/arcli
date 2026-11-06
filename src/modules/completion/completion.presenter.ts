@@ -10,7 +10,7 @@ function displayPath(path: string, home: string): string {
 function reloadHint(state: CompletionInstallState, home: string): string {
   return state.shell === 'fish'
     ? 'Abrí una terminal nueva.'
-    : `Abrí una terminal nueva o corré: source ${displayPath(state.path, home)}`;
+    : `Abrí una terminal nueva o corré \`source ${displayPath(state.path, home)}\`.`;
 }
 
 export function formatCompletionStateAsText(state: CompletionInstallState, home: string): string {
@@ -18,7 +18,10 @@ export function formatCompletionStateAsText(state: CompletionInstallState, home:
 
   return state.installed
     ? noticePanel(`Autocompletado instalado para ${state.shell} (${where}).`, 'success')
-    : noticePanel(`Autocompletado no instalado para ${state.shell}. Instalalo con: arcli completado instalar`, 'muted');
+    : noticePanel(
+        `Autocompletado no instalado para ${state.shell}. Instalalo con \`arcli completado instalar\`.`,
+        'muted',
+      );
 }
 
 export function formatCompletionResultAsText(result: CompletionInstallResult, home: string): string {

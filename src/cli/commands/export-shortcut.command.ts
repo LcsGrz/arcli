@@ -12,9 +12,7 @@ export function registerExportShortcutCommand(program: Command): void {
   // Oculto en la lista de comandos: la ayuda principal lo muestra en la tabla de atajos.
   const command = program
     .command(EXPORT_VOUCHER_KIND.shortcut, { hidden: true })
-    .description(
-      `${EXPORT_VOUCHER_KIND.displayName} por shortcut (WSFEX), con ayuda guiada para previsualizar o emitir`,
-    );
+    .description(`${EXPORT_VOUCHER_KIND.displayName} por atajo (WSFEX), con ayuda guiada para previsualizar o emitir`);
 
   configureSpanishHelp(command);
   registerGlobalOptions(command);

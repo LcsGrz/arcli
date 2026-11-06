@@ -1,3 +1,7 @@
+import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
+import { formatCuit } from '../../lib/identity/format-cuit';
+import { DEPRECATED_CUIT_NUMBER } from '../../lib/json/deprecations';
+import { formatArgentineMoney } from '../../lib/numbers/argentine-amount';
 import { keyValuePanel, renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui';
 
 import type { FceObligation } from './fce-obligation';
@@ -9,21 +13,11 @@ export interface FceObligationReport {
   readonly obligation: FceObligation;
 }
 
-const MONEY_FORMATTER = new Intl.NumberFormat('es-AR', {
-  currency: 'ARS',
-  maximumFractionDigits: 2,
-  minimumFractionDigits: 2,
-  style: 'currency',
-});
-
-function formatArcaDate(value: string): string {
-  return `${value.slice(6, 8)}/${value.slice(4, 6)}/${value.slice(0, 4)}`;
-}
-
 export function formatFceObligationAsJson(report: FceObligationReport): string {
   return JSON.stringify(
     {
       cuit: report.cuit,
+      deprecado: [DEPRECATED_CUIT_NUMBER],
       entorno: report.environment,
       fecha: report.issueDate,
       montoDesde: report.obligation.minimumAmount,
@@ -36,14 +30,14 @@ export function formatFceObligationAsJson(report: FceObligationReport): string {
 
 export function formatFceObligationAsText(report: FceObligationReport): string {
   const rows: Array<readonly [string, string]> = [
-    ['CUIT', String(report.cuit)],
-    ['Fecha consultada', formatArcaDate(report.issueDate)],
-    ['Obligado a recibir FCE', report.obligation.obligated ? 'si' : 'no'],
-    ['Monto mínimo', MONEY_FORMATTER.format(report.obligation.minimumAmount)],
+    ['CUIT', formatCuit(report.cuit)],
+    ['Fecha consultada', formatArcaDateAsArgentineDate(report.issueDate)],
+    ['Obligado a recibir FCE', report.obligation.obligated ? 'sí' : 'no'],
+    ['Importe mínimo', formatArgentineMoney(report.obligation.minimumAmount)],
   ];
   const footer = report.obligation.obligated
-    ? `Desde ese monto corresponde emitir FCE (fcea, fceb o fcec). Debajo, factura comun.`
-    : 'Corresponde emitir factura comun (fa, fb o fc).';
+    ? `Desde ese importe corresponde emitir FCE (fcea, fceb o fcec). Debajo, factura común.`
+    : 'Corresponde emitir factura común (fa, fb o fc).';
 
   return keyValuePanel(
     'Régimen FCE MiPyMEs',

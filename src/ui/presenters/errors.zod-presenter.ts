@@ -1,5 +1,6 @@
 import { ZodError } from 'zod';
 
+import { HELP_SUGGESTION } from '../../lib/errors/app-error';
 import { BILLING_JSON_KEY_BY_INTERNAL_KEY } from '../../modules/billing/billing.json-input';
 import { errorPanel } from '../components/errorPanel';
 import { renderJson } from '../primitives/renderJson';
@@ -9,7 +10,7 @@ const ZOD_PATH_LABELS: Record<string, string> = {
   associatedPeriod: 'período asociado',
   associatedVoucher: 'comprobante asociado',
   billingDate: 'fecha del comprobante',
-  cancellation: 'anulacion',
+  cancellation: 'anulación',
   cbu: 'CBU',
   cbuAlias: 'alias del CBU',
   concept: 'concepto',
@@ -17,7 +18,7 @@ const ZOD_PATH_LABELS: Record<string, string> = {
   documentNumber: 'número de documento',
   documentType: 'tipo de documento',
   dueDay: 'día de vencimiento',
-  exchangeRate: 'cotizacion',
+  exchangeRate: 'cotización',
   exemptAmount: 'importe exento',
   ivaRate: 'alícuota de IVA',
   ivaCondition: 'IVA receptor',
@@ -44,7 +45,7 @@ function humanizeZodIssue(issue: ZodError['issues'][number]): string {
   const label = ZOD_PATH_LABELS[pathKey] ?? pathKey;
 
   if (issue.code === 'invalid_type' && issue.input === undefined) {
-    return `Falta ${label}.`;
+    return `Falta el dato: ${label}.`;
   }
 
   if (issue.code === 'too_small' && typeof issue.minimum === 'number') {
@@ -106,6 +107,6 @@ export function formatZodError(error: ZodError, useJson: boolean): string {
     'Error de entrada',
     'Hay parámetros inválidos o incompletos en la entrada.',
     detailLines,
-    'Revisá los parámetros del comando con `ayuda` e intentá nuevamente.',
+    HELP_SUGGESTION,
   );
 }

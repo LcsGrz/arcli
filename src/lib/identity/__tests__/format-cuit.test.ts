@@ -7,7 +7,7 @@ describe('formatCuit', () => {
     expect(formatCuit(20333333334)).toBe('20-33333333-4');
   });
 
-  it('deja igual lo que no tiene 11 digitos', () => {
+  it('deja igual lo que no tiene 11 dígitos', () => {
     expect(formatCuit('123')).toBe('123');
   });
 });

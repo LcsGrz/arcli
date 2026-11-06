@@ -2,6 +2,7 @@ import type { Command } from 'commander';
 
 import { AppError, InputValidationError } from '../../lib/errors/app-error';
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
+import { formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { getVoucherKindByShortcut, VOUCHER_SHORTCUTS } from '../../modules/billing/voucher-kind-map';
 import { listRecentVouchers, MAX_RECENT_VOUCHERS, RECENT_VOUCHERS_LIMIT } from '../../modules/vouchers/voucher-history';
@@ -12,15 +13,12 @@ import {
   formatVoucherListAsText,
   formatVoucherNumber,
 } from '../../modules/vouchers/voucher-history.presenter';
-import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import type { ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
 import { ArcaVoucherHistoryGateway } from '../../services/arca/arca-voucher-history.gateway';
-import { writeTerminalJson, writeTerminalOutput } from '../../ui';
-import { resolveArcaRuntime } from '../arca-runtime';
-import { getGlobalOptions, registerQueryOptions } from '../global-options';
+import { type ArcaQuery, createArcaQuery, withQuerySpinner, writeQueryOutput } from '../arca-query';
+import { registerQueryOptions } from '../global-options';
 import { configureSpanishHelp, createVoucherQueryHelp } from '../help';
 import { integerOption } from '../option-parsers';
-import { startSpinner } from '../spinner';
 
 interface PointOfSaleOptions {
   readonly pv?: number;
@@ -44,36 +42,21 @@ function requirePointOfSale(options: PointOfSaleOptions, runtime: ResolvedArcaRu
 
   if (!pointOfSale || !Number.isInteger(pointOfSale) || pointOfSale <= 0) {
     throw new InputValidationError(
-      'Falta el punto de venta. Usá --pv <numero> o configuralo con "arcli config establecer puntoVenta <numero>".',
+      'Falta el punto de venta. Usá --pv <numero> o configuralo con `arcli config establecer puntoVenta <numero>`.',
     );
   }
 
   return pointOfSale;
 }
 
-function createContext(command: Command): {
-  readonly gateway: ArcaVoucherHistoryGateway;
-  readonly runtime: ResolvedArcaRuntime;
-} {
-  const runtime = resolveArcaRuntime(getGlobalOptions(command));
-
-  return { gateway: new ArcaVoucherHistoryGateway(new ArcaClientFactory().create(runtime)), runtime };
+function createContext(command: Command): ArcaQuery<ArcaVoucherHistoryGateway> {
+  return createArcaQuery(command, (arca) => new ArcaVoucherHistoryGateway(arca));
 }
 
 function addPointOfSaleOptions(command: Command): Command {
   return command
     .option('--pv <numero>', 'punto de venta; por defecto el de la config', integerOption('--pv'))
     .option('--punto-venta <numero>', 'punto de venta; por defecto el de la config', integerOption('--punto-venta'));
-}
-
-async function withSpinner<T>(runtime: ResolvedArcaRuntime, run: () => Promise<T>): Promise<T> {
-  const spinner = runtime.outputJson ? null : startSpinner('Consultando ARCA...');
-
-  try {
-    return await run();
-  } finally {
-    spinner?.stop();
-  }
 }
 
 export function registerVoucherQueryCommands(program: Command): void {
@@ -84,7 +67,7 @@ export function registerVoucherQueryCommands(program: Command): void {
       .description('listar los últimos comprobantes emitidos en ARCA')
       .option(
         '--cantidad <numero>',
-        `cuantos comprobantes mostrar (1 a ${MAX_RECENT_VOUCHERS}; por defecto config.comprobantesPorLista o ${RECENT_VOUCHERS_LIMIT})`,
+        `cuántos comprobantes mostrar (1 a ${MAX_RECENT_VOUCHERS}; por defecto config.comprobantesPorLista o ${RECENT_VOUCHERS_LIMIT})`,
         integerOption('--cantidad'),
       ),
   ).addHelpText('after', createVoucherQueryHelp());
@@ -103,18 +86,15 @@ export function registerVoucherQueryCommands(program: Command): void {
     const { gateway, runtime } = createContext(self);
     const limit = cantidad ?? runtime.config.comprobantesPorLista ?? RECENT_VOUCHERS_LIMIT;
     const pointOfSale = requirePointOfSale(options, runtime);
-    const vouchers = await withSpinner(runtime, () =>
+    const vouchers = await withQuerySpinner(runtime, () =>
       listRecentVouchers(gateway, pointOfSale, voucherKind.arcaType, { limit }),
     );
     const report = { environment: runtime.environment, pointOfSale, voucherKind, vouchers };
 
-    if (runtime.outputJson) {
-      writeTerminalJson(formatVoucherListAsJson(report));
-
-      return;
-    }
-
-    writeTerminalOutput(formatVoucherListAsText(report));
+    writeQueryOutput(runtime, {
+      json: () => formatVoucherListAsJson(report),
+      text: () => formatVoucherListAsText(report),
+    });
   });
 
   const detail = addPointOfSaleOptions(
@@ -138,23 +118,22 @@ export function registerVoucherQueryCommands(program: Command): void {
 
     const { gateway, runtime } = createContext(self);
     const pointOfSale = requirePointOfSale(options, runtime);
-    const voucher = await withSpinner(runtime, () => gateway.getVoucher(number, pointOfSale, voucherKind.arcaType));
+    const voucher = await withQuerySpinner(runtime, () =>
+      gateway.getVoucher(number, pointOfSale, voucherKind.arcaType),
+    );
 
     if (!voucher) {
       throw new AppError(
-        `No existe la ${voucherKind.displayName} N° ${formatVoucherNumber(pointOfSale, number)} en ARCA (${runtime.environment}).`,
+        `No existe ${formatVoucherWithArticle(voucherKind)} N° ${formatVoucherNumber(pointOfSale, number)} en ARCA (${runtime.environment}).`,
         { code: 'VOUCHER_NOT_FOUND' },
       );
     }
 
     const report = { environment: runtime.environment, pointOfSale, voucher, voucherKind };
 
-    if (runtime.outputJson) {
-      writeTerminalJson(formatVoucherDetailAsJson(report));
-
-      return;
-    }
-
-    writeTerminalOutput(formatVoucherDetailAsText(report));
+    writeQueryOutput(runtime, {
+      json: () => formatVoucherDetailAsJson(report),
+      text: () => formatVoucherDetailAsText(report),
+    });
   });
 }

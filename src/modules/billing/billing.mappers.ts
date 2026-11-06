@@ -1,45 +1,19 @@
+import { conceptCode, documentTypeCode, ivaConditionCode } from './arca-codes';
 import { DEFAULT_CURRENCY_CODE } from './billing.constants';
 import type { BillingConcept, BillingDocumentType, BillingIvaCondition } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
 import { toArcaCurrencyCode } from './currency-codes';
 
-const BILLING_CONCEPT_MAP: Record<BillingConcept, number> = {
-  productos: 1,
-  servicios: 2,
-  'productos-servicios': 3,
-};
-
-const BILLING_DOCUMENT_TYPE_MAP: Record<BillingDocumentType, number> = {
-  'consumidor-final': 99,
-  cuil: 86,
-  cuit: 80,
-  dni: 96,
-};
-
-const BILLING_IVA_CONDITION_MAP: Record<BillingIvaCondition, number> = {
-  'cliente-del-exterior': 9,
-  'consumidor-final': 5,
-  'iva-liberado': 10,
-  'iva-no-alcanzado': 15,
-  'monotributista-social': 13,
-  'monotributo-trabajador-independiente-promovido': 16,
-  'proveedor-del-exterior': 8,
-  'responsable-inscripto': 1,
-  'responsable-monotributo': 6,
-  'sujeto-exento': 4,
-  'sujeto-no-categorizado': 7,
-};
-
 export function resolveBillingConceptCode(concept: BillingConcept): number {
-  return BILLING_CONCEPT_MAP[concept];
+  return conceptCode(concept);
 }
 
 export function resolveBillingDocumentTypeCode(documentType: BillingDocumentType): number {
-  return BILLING_DOCUMENT_TYPE_MAP[documentType];
+  return documentTypeCode(documentType);
 }
 
 export function resolveBillingIvaConditionCode(ivaCondition: BillingIvaCondition): number {
-  return BILLING_IVA_CONDITION_MAP[ivaCondition];
+  return ivaConditionCode(ivaCondition);
 }
 
 /** Acepta el codigo ISO (`ARS`, `USD`, `UYU`) o el de ARCA (`PES`, `DOL`, `011`) y devuelve el de ARCA. */
@@ -47,8 +21,50 @@ export function resolveBillingCurrencyCode(currencyCode = DEFAULT_CURRENCY_CODE)
   return toArcaCurrencyCode(currencyCode);
 }
 
-export function formatVoucherLabel(voucherKind: VoucherKindDefinition): string {
-  return voucherKind.displayName.toLowerCase();
+/** Tambien la factura E, que no es un VoucherKindDefinition. */
+type NamedVoucher = Pick<VoucherKindDefinition, 'family'> & { readonly displayName: string };
+
+function isMasculineVoucher(voucherKind: NamedVoucher): boolean {
+  return voucherKind.family === 'recibo';
+}
+
+/** Para usar dentro de una frase: `factura B`, `recibo C`. La letra del comprobante siempre va en mayuscula. */
+export function formatVoucherLabel(voucherKind: NamedVoucher): string {
+  const { displayName } = voucherKind;
+
+  return `${displayName.charAt(0).toLowerCase()}${displayName.slice(1)}`;
+}
+
+/** `la factura B`, `el recibo C`. */
+export function formatVoucherWithArticle(voucherKind: NamedVoucher): string {
+  return `${isMasculineVoucher(voucherKind) ? 'el' : 'la'} ${formatVoucherLabel(voucherKind)}`;
+}
+
+/** Para empezar una frase: `La factura B`, `El recibo C`. */
+export function formatVoucherSubject(voucherKind: NamedVoucher): string {
+  return `${isMasculineVoucher(voucherKind) ? 'El' : 'La'} ${formatVoucherLabel(voucherKind)}`;
+}
+
+/** `facturas de crédito electrónica A`, `notas de crédito B`, `recibos C`: el plural va en la primera palabra. */
+function formatVoucherPlural(voucherKind: NamedVoucher): string {
+  return formatVoucherLabel(voucherKind).replace(/^\p{L}+/u, '$&s');
+}
+
+/** `Últimas facturas B`, `Últimos recibos C`. */
+export function formatLatestVouchersTitle(voucherKind: NamedVoucher): string {
+  return `${isMasculineVoucher(voucherKind) ? 'Últimos' : 'Últimas'} ${formatVoucherPlural(voucherKind)}`;
+}
+
+/** `No hay facturas B emitidas`, `No hay recibos C emitidos`. */
+export function formatNoVouchersEmitted(voucherKind: NamedVoucher): string {
+  return `No hay ${formatVoucherPlural(voucherKind)} ${isMasculineVoucher(voucherKind) ? 'emitidos' : 'emitidas'}`;
+}
+
+export const NOTHING_EMITTED_NOTICE = 'No se emitió nada.';
+
+/** La pregunta antes de emitir, igual con flags y en el modo interactivo: siempre dice en que entorno se emite. */
+export function formatEmissionQuestion(subject: string, environment: 'produccion' | 'testing'): string {
+  return `¿Emitimos ${subject} en ${environment === 'produccion' ? 'PRODUCCIÓN' : 'testing'}?`;
 }
 
 export function formatDocumentFlag(documentType: BillingDocumentType): string {

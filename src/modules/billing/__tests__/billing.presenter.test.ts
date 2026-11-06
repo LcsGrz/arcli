@@ -127,7 +127,7 @@ describe('billing.presenter', () => {
     expect(output).toContain('Concepto');
     expect(output).toContain('APROBADO');
     expect(output).toContain('FACTURA A');
-    expect(output).toContain('15.000$');
+    expect(output).toContain('$ 15.000');
     expect(output).not.toContain('Estado');
   });
 

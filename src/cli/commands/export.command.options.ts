@@ -77,7 +77,7 @@ const EXPORT_OPTIONS: readonly ExportOptionDefinition[] = [
   },
   {
     description:
-      'item del comprobante: "codigo|descripcion|cantidad|precio|unidad". Repetible; la suma tiene que dar --monto',
+      'ítem del comprobante: "codigo|descripcion|cantidad|precio|unidad". Repetible; la suma tiene que dar --monto',
     flags: '--item <partes>',
     parser: repeatable<ExportItemInput>((value) => parseExportItemArgument(value)),
   },
@@ -116,7 +116,7 @@ const EXPORT_OPTIONS: readonly ExportOptionDefinition[] = [
   { description: 'observaciones del comprobante', flags: '--observaciones <texto>' },
   { description: 'observaciones comerciales del comprobante', flags: '--obs-comerciales <texto>' },
   {
-    description: 'descripción del comprobante cuando no se informan items; también va al PDF',
+    description: 'descripción del comprobante cuando no se informan ítems; también va al PDF',
     flags: '--descripcion <texto>',
   },
   { description: 'cargar los datos desde un archivo JSON', flags: '--cargar <ruta>' },
@@ -126,7 +126,7 @@ const EXPORT_OPTIONS: readonly ExportOptionDefinition[] = [
   },
   { description: 'alias de --exportar-pdf', flags: '--pdf', hidden: true },
   { description: 'no generar el PDF, aunque la config diga otra cosa', flags: '--sin-pdf' },
-  { description: 'mostrar el payload antes de emitir en ARCA', flags: '--previsualizar' },
+  { description: 'mostrar la solicitud sin emitir en ARCA', flags: '--previsualizar' },
   { description: 'emitir realmente en ARCA', flags: '--emitir' },
 ];
 

@@ -9,8 +9,8 @@ import type { ParametersGateway } from './parameters';
  */
 export type ArcaHealth = 'con-demoras' | 'con-problemas' | 'funcionando' | 'sin-respuesta';
 
-export const ARCA_SLOW_MS = 3000;
-export const ARCA_TIMEOUT_MS = 5000;
+const ARCA_SLOW_MS = 3000;
+const ARCA_TIMEOUT_MS = 5000;
 
 const SERVER_OK = 'OK';
 

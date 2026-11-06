@@ -258,13 +258,13 @@ function parseBillingCommandInputFromSource(
 
   if (!resolvedConcept) {
     throw new InputValidationError(
-      'Falta el concepto. Usá --concepto <tipo>, o bien --cs/--cp/--csp, o configurá uno por defecto con "arcli config establecer concepto servicios".',
+      'Falta el concepto. Usá --concepto <tipo>, o bien --cs/--cp/--csp, o configurá uno por defecto con `arcli config establecer concepto servicios`.',
     );
   }
 
   if (!resolvedIvaCondition && !willLookupPadron) {
     throw new InputValidationError(
-      'Falta IVA receptor. Usá --iva-receptor <tipo>, --ir <tipo>, un flag --ir-*, o configurá uno por defecto con "arcli config establecer ivaReceptor consumidor-final".',
+      'Falta IVA receptor. Usá --iva-receptor <tipo>, --ir <tipo>, un flag --ir-*, o configurá uno por defecto con `arcli config establecer ivaReceptor consumidor-final`.',
     );
   }
 
@@ -297,10 +297,13 @@ function parseBillingCommandInputFromSource(
     );
   }
 
-  // La cotizacion por defecto de la config solo aplica a moneda extranjera sin --misma-moneda.
-  const exchangeRate =
-    explicitExchangeRate ??
-    (!sameCurrency && isForeignCurrency({ currencyCode }) ? defaults.defaultExchangeRate : undefined);
+  // La cotizacion por defecto de la config (deprecada) solo aplica a moneda extranjera sin --misma-moneda. Sin ella,
+  // BillingService.resolveExchangeRate consulta la oficial de ARCA.
+  const configExchangeRate =
+    explicitExchangeRate === undefined && !sameCurrency && isForeignCurrency({ currencyCode })
+      ? defaults.defaultExchangeRate
+      : undefined;
+  const exchangeRate = explicitExchangeRate ?? configExchangeRate;
 
   // El CBU de la config solo aplica a facturas FCE: ARCA rechaza esos opcionales en otros comprobantes (10169).
   const voucherKind = getVoucherKindByShortcut(shortcut);
@@ -351,6 +354,7 @@ function parseBillingCommandInputFromSource(
       dueDay: pickNumber(commandOptions.dia, fileInput?.dia),
       emit: shouldEmit,
       exchangeRate,
+      exchangeRateSource: configExchangeRate === undefined ? undefined : 'config',
       exemptAmount,
       ivaRate: ivaRateAmounts
         ? undefined

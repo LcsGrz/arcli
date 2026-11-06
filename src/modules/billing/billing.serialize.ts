@@ -1,3 +1,5 @@
+import { DEPRECATED_BILLING_RESPONSE_KEYS } from '../../lib/json/deprecations';
+
 import type { BillingExecutionResult } from './billing.types.internal';
 
 interface BillingSerializeOptions {
@@ -31,19 +33,35 @@ function formatPdfOutcome(result: BillingExecutionResult): Record<string, unknow
   return { pdf: { error: { codigo: code, mensaje: message, sugerencia: suggestion ?? null } } };
 }
 
+/** ARCA informa `Code` y `Msg`: se suman `codigo` y `mensaje`, como en el resto del JSON. */
+function withSpanishKeys(item: unknown): unknown {
+  if (typeof item !== 'object' || item === null) {
+    return item;
+  }
+
+  const { Code, Msg } = item as { readonly Code?: unknown; readonly Msg?: unknown };
+
+  return { ...item, codigo: Code, mensaje: Msg };
+}
+
 function formatVoucherSummary(result: BillingExecutionResult): Record<string, unknown> {
+  const { errors, events } = result.response;
+
   return {
     atajo: result.voucherKind.shortcut,
     avisos: result.warnings ?? [],
     cae: result.response.cae,
     caeVencimiento: result.response.caeVencimiento,
     comprobante: result.voucherKind.displayName,
-    errores: result.response.errors,
+    ...(errors.length + events.length > 0 ? { deprecado: [DEPRECATED_BILLING_RESPONSE_KEYS] } : {}),
+    entorno: result.environment,
+    errores: errors.map(withSpanishKeys),
     estado: result.response.status,
-    eventos: result.response.events,
+    eventos: events.map(withSpanishKeys),
     observaciones: result.response.observaciones,
     observacion: result.response.observacion,
     numero: result.voucherNumber ?? null,
+    puntoVenta: result.payload.PtoVta,
     ...formatPdfOutcome(result),
     // Lo que se envio a ARCA, con el numero que le toco.
     solicitud:

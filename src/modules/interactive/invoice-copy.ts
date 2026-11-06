@@ -26,7 +26,7 @@ export function copyInvoiceAmounts(invoice: IssuedVoucher, letter: VoucherKindDe
   const ivaRate = discriminatesIva ? inferIvaRate(invoice.netAmount, invoice.ivaAmount) : undefined;
   const limitation =
     (invoice.taxesAmount ?? 0) > 0
-      ? 'La factura tiene tributos o percepciones, que ARCLI no maneja.'
+      ? 'El comprobante tiene tributos o percepciones, que ARCLI no maneja.'
       : discriminatesIva && invoice.netAmount > 0 && !ivaRate
         ? 'No se pudo deducir la alícuota de la factura: tiene varias o una que no es estandar.'
         : undefined;

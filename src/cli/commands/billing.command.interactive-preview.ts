@@ -1,8 +1,9 @@
+import { formatEmissionQuestion, NOTHING_EMITTED_NOTICE } from '../../modules/billing/billing.mappers';
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import type { BillingService } from '../../modules/billing/billing.service';
 import type { BillingExecutionResult, BillingGateway } from '../../modules/billing/billing.types.internal';
 import type { ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
-import { writeTerminalOutput } from '../../ui';
+import { noticePanel, writeTerminalOutput } from '../../ui';
 import { chooseOne } from '../interactive/prompts';
 
 import { formatBillingOutputs } from './billing.command.output';
@@ -15,9 +16,13 @@ export interface InteractiveBillingPreviewOutcome {
 }
 
 /** Esc cuenta como no, igual que en el modo interactivo. */
-async function promptForEmission(count: number, voucherLabel: string): Promise<boolean> {
+async function promptForEmission(
+  count: number,
+  voucherLabel: string,
+  environment: ResolvedArcaRuntime['environment'],
+): Promise<boolean> {
   return chooseOne(
-    count > 1 ? `¿Querés emitir los ${count} comprobantes ahora?` : `¿Querés emitir ${voucherLabel} ahora?`,
+    formatEmissionQuestion(count > 1 ? `los ${count} comprobantes` : voucherLabel, environment),
     [
       { name: 'Sí, emitir ahora', value: true },
       { name: 'No, dejar sin emitir', value: false },
@@ -88,9 +93,11 @@ export async function runInteractiveBillingPreview(options: {
     formatBillingOutputs(previewResults, { environment: options.runtime.environment, raw: options.useRaw }),
   );
 
-  const confirmed = await promptForEmission(options.inputs.length, options.voucherLabel);
+  const confirmed = await promptForEmission(options.inputs.length, options.voucherLabel, options.runtime.environment);
 
   if (!confirmed) {
+    writeTerminalOutput(noticePanel(NOTHING_EMITTED_NOTICE, 'muted'));
+
     return {
       confirmedInteractively: false,
       inputs: options.inputs,

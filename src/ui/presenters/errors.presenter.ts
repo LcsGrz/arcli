@@ -1,6 +1,6 @@
 import { ZodError } from 'zod';
 
-import { AppError } from '../../lib/errors/app-error';
+import { AppError, HELP_SUGGESTION } from '../../lib/errors/app-error';
 import { errorPanel } from '../components/errorPanel';
 import { renderJson } from '../primitives/renderJson';
 import { bold } from '../primitives/text';
@@ -41,11 +41,11 @@ function formatErrorHint(error: AppError): string | null {
     case 'CONFIGURATION_ERROR':
       return 'Revisá la configuración con `arcli config` o corré `arcli config revisar`.';
     case 'INPUT_VALIDATION_ERROR':
-      return 'Revisá los parámetros del comando con `ayuda` e intentá nuevamente.';
+      return HELP_SUGGESTION;
     case 'BATCH_VALIDATION_ERROR':
       return 'Corregí esos comprobantes en el archivo y volvé a correr el lote completo.';
     case 'BATCH_EMISSION_ERROR':
-      return 'Los comprobantes de arriba ya se emitieron: no los volvé a cargar. Antes de reintentar el que fallo, verificá con `arcli ultimos` si se emitió; después reintentá los que quedaron sin procesar.';
+      return 'Los comprobantes de arriba ya se emitieron: no los vuelvas a cargar. Antes de reintentar el que falló, verificá con `arcli ultimos` si se emitió; después reintentá los que quedaron sin procesar.';
     default:
       return null;
   }
@@ -123,7 +123,7 @@ export function formatCliError(error: unknown, useJson: boolean): string {
     return errorPanel(formatErrorTitle(error.code), error.message, details, hint ?? undefined);
   }
 
-  const message = error instanceof Error ? error.message : 'Ocurrio un error inesperado.';
+  const message = error instanceof Error ? error.message : 'Ocurrió un error inesperado.';
   const transientError = detectTransientError(message);
 
   if (useJson) {

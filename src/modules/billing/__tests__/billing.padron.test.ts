@@ -77,7 +77,7 @@ describe('resolveIvaConditionFromPadron', () => {
 
     expect(result.input).toMatchObject({ ivaCondition: 'consumidor-final', receiverName: 'VICTORIA CAROLINA DARIO' });
     expect(result.warnings).toEqual([
-      'El padrón de ARCA no informa la condición IVA del CUIT 20201797064. Se usa el IVA receptor de la config: Consumidor Final.',
+      'El padrón de ARCA no informa la condición IVA del CUIT 20201797064. Se usa el IVA receptor de la config: Consumidor final.',
     ]);
   });
 

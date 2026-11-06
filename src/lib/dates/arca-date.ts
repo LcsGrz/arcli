@@ -1,6 +1,6 @@
 import { InputValidationError } from '../errors/app-error';
 
-const ARGENTINE_DATE_FORMAT_HINT = 'Usá D, DD, D-MM, D/MM, D-MM-YY, D/MM/YY, D-MM-YYYY o D/MM/YYYY.';
+export const ARGENTINE_DATE_FORMAT_HINT = 'Usá D, DD, D-MM, D/MM, D-MM-YY, D/MM/YY, D-MM-YYYY o D/MM/YYYY.';
 
 export interface CalendarDate {
   readonly day: number;
@@ -72,7 +72,7 @@ export function parseArgentineDateInputAsArcaDate(value: string, referenceDate =
     date.getUTCMonth() !== Number(month) - 1 ||
     date.getUTCDate() !== Number(day)
   ) {
-    throw new InputValidationError(`La fecha "${value}" no es válida.`);
+    throw new InputValidationError(`La fecha "${value}" no es válida. ${ARGENTINE_DATE_FORMAT_HINT}`);
   }
 
   return `${year}${month}${day}`;

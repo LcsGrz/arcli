@@ -31,6 +31,7 @@ arcli pdf desinstalar  # borrar el plugin y el navegador descargado
 - **Tamaño:** unos 160 MB. Si no tenés Chrome, Chromium o Edge instalado, se descarga un navegador y se suman unos 200 MB.
 - **Navegador:** ARCLI busca, en este orden, la config `pdfNavegador`, la variable `PUPPETEER_EXECUTABLE_PATH`, un Chrome, Chromium o Edge instalado en el sistema y, por último, el navegador que descargó el plugin.
 - **Dónde se instala:** en `plugins/pdf/`, junto al archivo de configuración (ver `arcli config ruta`). `arcli pdf desinstalar` borra esa carpeta entera.
+- **Con qué se instala:** con `npm`, aunque hayas instalado ARCLI con pnpm, Yarn o bun: npm viene con Node, y así el plugin queda en una carpeta `node_modules` común que ARCLI sabe cargar.
 - **Cuándo se descarga solo:** solo en una terminal interactiva, y siempre preguntando antes. Con `--json` o sin terminal (scripts, CI, agentes) **nunca** se descarga solo: el comprobante sale con el error `PDF_PLUGIN_MISSING` en `pdf.error` y hay que correr `arcli pdf instalar` antes.
 - **Versión:** ARCLI usa una versión fija del plugin, probada con ARCLI. Si cambia en una versión nueva de ARCLI, `arcli pdf` lo indica y `arcli pdf instalar` la actualiza.
 

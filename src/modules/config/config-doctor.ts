@@ -35,6 +35,14 @@ export interface ConfigDoctorReport {
   readonly ok: boolean;
 }
 
+/** Lo que `config revisar` necesita del plugin de PDF: lo mismo que muestra `arcli pdf estado`. */
+export interface ConfigDoctorPdfPlugin {
+  readonly browser?: string;
+  /** Version instalada, aunque no sea la que espera arcli; sin definir, no esta instalado. */
+  readonly installedVersion?: string;
+  readonly version: string;
+}
+
 /** Lo que valida `ArcaContextResolver` para un entorno: CUIT, certificado y clave legibles. */
 export interface ConfigDoctorRuntimeCheck {
   readonly environment: ArcliEnvironment;
@@ -69,7 +77,7 @@ function buildCertificateExpiryCheck(
     if (isCertificateExpiringSoon(expiry, CERTIFICATE_EXPIRY_WARNING_DAYS)) {
       return {
         category: 'warning',
-        detail: `El ${name} vence en ${expiry.daysRemaining} días (${formattedDate}). Renovalo con "arcli certificado generar".`,
+        detail: `El ${name} vence en ${expiry.daysRemaining} días (${formattedDate}). Renovalo con \`arcli certificado generar\`.`,
         label,
         section: 'certificados',
         value: formattedDate,
@@ -93,9 +101,39 @@ function buildCertificateExpiryCheck(
   }
 }
 
+function buildPdfPluginCheck(plugin: ConfigDoctorPdfPlugin): ConfigDoctorReport['checks'][number] {
+  const label = 'Plugin de PDF';
+  const warning = (detail: string) => ({ category: 'warning' as const, detail, label, section: 'pdf' as const });
+
+  if (!plugin.installedVersion) {
+    return warning('No está instalado: los PDFs no se pueden generar. Instalalo con `arcli pdf instalar` (~160 MB).');
+  }
+
+  if (plugin.installedVersion !== plugin.version) {
+    return warning(
+      `Está instalada la versión ${plugin.installedVersion} y arcli usa la ${plugin.version}. Actualizalo con \`arcli pdf instalar\`.`,
+    );
+  }
+
+  if (!plugin.browser) {
+    return warning(
+      'No se encontró un navegador para generar los PDFs. `arcli pdf instalar` descarga uno, o indicá el tuyo con `arcli config establecer pdfNavegador <ruta>`.',
+    );
+  }
+
+  return {
+    category: 'ok',
+    detail: `Instalado (versión ${plugin.version}), con el navegador ${plugin.browser}.`,
+    label,
+    section: 'pdf',
+    value: plugin.version,
+  };
+}
+
 export function buildConfigDoctorReport(
   config: ArcliConfig,
   runtimeChecks: readonly ConfigDoctorRuntimeCheck[] = [],
+  pdfPlugin?: ConfigDoctorPdfPlugin,
 ): ConfigDoctorReport {
   const checks: Array<ConfigDoctorReport['checks'][number]> = [];
 
@@ -112,7 +150,7 @@ export function buildConfigDoctorReport(
       section: 'cuenta',
       ok: config.cuit,
       okDetail: 'CUIT listo para emitir comprobantes.',
-      warningDetail: 'Configurá su CUIT con "arcli config establecer cuit <valor>".',
+      warningDetail: 'Configurá tu CUIT con `arcli config establecer cuit <valor>`.',
     },
     {
       label: 'Punto de venta',
@@ -120,7 +158,7 @@ export function buildConfigDoctorReport(
       ok: config.puntoVentaPorDefecto,
       okDetail: `Punto de venta por defecto: ${config.puntoVentaPorDefecto}.`,
       value: String(config.puntoVentaPorDefecto),
-      warningDetail: 'Configurá un punto de venta por defecto con "arcli config establecer puntoVenta <valor>".',
+      warningDetail: 'Configurá un punto de venta por defecto con `arcli config establecer puntoVenta <valor>`.',
     },
     {
       label: 'Concepto',
@@ -128,7 +166,7 @@ export function buildConfigDoctorReport(
       ok: config.conceptoPorDefecto,
       okDetail: `Concepto por defecto: ${config.conceptoPorDefecto}.`,
       value: config.conceptoPorDefecto,
-      warningDetail: 'Podés fijar un concepto por defecto con "arcli config establecer concepto servicios".',
+      warningDetail: 'Podés fijar un concepto por defecto con `arcli config establecer concepto servicios`.',
     },
     {
       label: 'IVA receptor',
@@ -137,7 +175,7 @@ export function buildConfigDoctorReport(
       okDetail: `IVA receptor por defecto: ${config.ivaReceptorPorDefecto}.`,
       value: config.ivaReceptorPorDefecto,
       warningDetail:
-        'Podés fijar un IVA receptor por defecto con "arcli config establecer ivaReceptor consumidor-final".',
+        'Podés fijar un IVA receptor por defecto con `arcli config establecer ivaReceptor consumidor-final`.',
     },
     {
       label: 'Credenciales testing',
@@ -146,7 +184,7 @@ export function buildConfigDoctorReport(
       okDetail: 'Certificado y clave de testing configurados.',
       value: 'testing',
       warningDetail:
-        'Faltan el certificado y la clave de testing: sacalos con "arcli certificado generar --testing", o configurá "cert.testing" y "key.testing".',
+        'Faltan el certificado y la clave de testing: sacalos con `arcli certificado generar --testing`, o configurá "cert.testing" y "key.testing".',
     },
     {
       label: 'Credenciales producción',
@@ -155,7 +193,7 @@ export function buildConfigDoctorReport(
       okDetail: 'Certificado y clave de producción configurados.',
       value: 'producción',
       warningDetail:
-        'Todavía no hay certificado de producción: sacalo con "arcli certificado generar --produccion", o configurá "cert.produccion" y "key.produccion".',
+        'Todavía no hay certificado de producción: sacalo con `arcli certificado generar --produccion`, o configurá "cert.produccion" y "key.produccion".',
     },
   ];
 
@@ -255,10 +293,19 @@ export function buildConfigDoctorReport(
   } else if (config.pdf === 'siempre') {
     checks.push({
       category: 'warning',
-      detail: `Con pdf=siempre faltan datos del emisor: ${missingIssuerKeys.join(', ')}. Configuralos con "arcli config establecer".`,
+      detail: `Con pdf=siempre faltan datos del emisor: ${missingIssuerKeys.join(', ')}. Configuralos con \`arcli config establecer\`.`,
       label: 'PDF',
       section: 'pdf',
     });
+  }
+
+  // Como los datos del emisor: un plugin que falta solo es aviso con pdf=siempre, asi `ok` no cae para quien no usa
+  // PDFs. Con "preguntar" se revisa si esta instalado (quien lo instalo lo usa) y con "nunca", nunca.
+  const checksPdfPlugin =
+    config.pdf === 'siempre' || (config.pdf !== 'nunca' && pdfPlugin?.installedVersion !== undefined);
+
+  if (pdfPlugin && checksPdfPlugin) {
+    checks.push(buildPdfPluginCheck(pdfPlugin));
   }
 
   for (const runtimeCheck of runtimeChecks) {

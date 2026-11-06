@@ -18,6 +18,7 @@ import {
 } from '../modules/examples/examples';
 import { EXPORT_VOUCHER_KIND } from '../modules/export/export.types';
 import { CONFIG_FIELDS } from '../modules/interactive/config-fields';
+import { resolveUpdateCommand } from '../modules/update-check/package-manager';
 import { renderLogo } from '../ui';
 
 import { CLI_VERSION } from './version';
@@ -124,7 +125,7 @@ function createProgramMore(): string {
       'Ejemplos listos para copiar: arcli ejemplos',
       'Autocompletado con Tab de comandos y flags: arcli completado instalar',
       'Para scripts, usá --json: la salida en texto puede cambiar.',
-      'Repositorio: https://github.com/LcsGrz/arcli · Actualizar: npm install -g arcli@latest',
+      `Repositorio: https://github.com/LcsGrz/arcli · Actualizar: ${resolveUpdateCommand()}`,
     ]),
   );
 }
@@ -246,9 +247,9 @@ export function createConfigHelp(): string {
   return [
     '',
     section(
-      'Para que sirve',
+      'Para qué sirve',
       [
-        '  - Guardar defaults del CLI para no repetir flags en cada corrida.',
+        '  - Guardar valores por defecto para no repetir flags en cada corrida.',
         '  - Definir rutas de certificados y claves por entorno.',
         '  - Revisar si el entorno está listo antes de emitir.',
       ].join('\n'),
@@ -257,9 +258,9 @@ export function createConfigHelp(): string {
     section(
       'Casos comunes',
       [
-        '  - Guardar defaults para no repetir flags como puntoVenta, concepto o IVA receptor.',
+        '  - Guardar valores por defecto para no repetir flags como puntoVenta, concepto o IVA receptor.',
         '  - Revisar si testing o producción tienen credenciales y contexto válidos.',
-        '  - Debuggear por que un comando pide datos que pensabas tener guardados.',
+        '  - Entender por qué un comando pide datos que pensabas tener guardados.',
       ].join('\n'),
     ),
     '',
@@ -269,7 +270,7 @@ export function createConfigHelp(): string {
         '  - Ver config actual: arcli config',
         '  - Revisar entorno: arcli config revisar',
         '  - Ver ruta del archivo: arcli config ruta',
-        '  - Guardar un default: arcli config establecer puntoVenta 3',
+        '  - Guardar un valor por defecto: arcli config establecer puntoVenta 3',
         '  - Sacar el certificado de ARCA: arcli certificado generar --testing',
         '  - Guardar una credencial: arcli config establecer cert.testing /ruta/cert.crt',
       ].join('\n'),
@@ -292,14 +293,14 @@ export function createConfigHelp(): string {
     section(
       'Errores frecuentes',
       [
-        '  - Faltan cert.testing o key.testing: corré arcli config revisar.',
+        '  - Faltan cert.testing o key.testing: corré `arcli config revisar`.',
         '  - Punto de venta no configurado: guardá puntoVenta o pasalo por flag.',
         '  - Emitir por defecto activado sin querer: revisá el valor de emitir.',
       ].join('\n'),
     ),
     '',
     section(
-      'No tenés certificado todavía?',
+      '¿No tenés certificado todavía?',
       ['  - Guía paso a paso (testing y producción), con capturas de ARCA:', `    ${CERTIFICATE_GUIDE_URL}`].join('\n'),
     ),
     '',
@@ -324,10 +325,10 @@ export function createStorybookHelp(): string {
     ),
     '',
     section(
-      'Cuando usarlo',
+      'Cuándo usarlo',
       [
         '  - Revisar la UI del CLI sin pegarle a ARCA.',
-        '  - Probar escenas visuales mientras ajusta paneles, colores o contratos JSON.',
+        '  - Probar escenas visuales mientras ajustás paneles, colores o contratos JSON.',
       ].join('\n'),
     ),
     '',
@@ -338,21 +339,21 @@ export function createExamplesHelp(): string {
   return [
     '',
     section(
-      'Para que sirve',
+      'Para qué sirve',
       [
         '  - Mostrar ejemplos seguros y listos para copiar de todos los comprobantes soportados.',
         '  - Comparar la forma larga y la forma corta del mismo comando.',
-        '  - Ver rápido que cambia entre una variante mínima y una full.',
+        '  - Ver rápido qué cambia entre una variante mínima y una completa.',
       ].join('\n'),
     ),
     '',
     section(
-      'Como leer la salida',
+      'Cómo leer la salida',
       [
         '  - Mínima: datos esenciales del comprobante.',
-        '  - Full: más campos explicitados para el mismo flujo.',
+        '  - Completa: más campos explicitados para el mismo flujo.',
         '  - Larga: comando largo y flags descriptivos.',
-        '  - Corta: shortcut y aliases practicos.',
+        '  - Corta: atajos y alias prácticos.',
       ].join('\n'),
     ),
     '',
@@ -360,7 +361,7 @@ export function createExamplesHelp(): string {
       'Seguridad',
       [
         '  - Todos los ejemplos usan --previsualizar para evitar emisiones reales por error.',
-        '  - Si querés emitir, reemplaza --previsualizar por --emitir.',
+        '  - Si querés emitir, reemplazá --previsualizar por --emitir.',
       ].join('\n'),
     ),
     '',
@@ -371,10 +372,10 @@ export function createFceObligationHelp(): string {
   return [
     '',
     section(
-      'Para que sirve',
+      'Para qué sirve',
       [
-        '  - Saber si a un receptor le corresponde factura comun o Factura de Crédito Electrónica (FCE).',
-        '  - ARCA informa si está obligado a recibir FCE y desde que monto.',
+        '  - Saber si a un receptor le corresponde factura común o Factura de Crédito Electrónica (FCE).',
+        '  - ARCA informa si está obligado a recibir FCE y desde qué monto.',
       ].join('\n'),
     ),
     '',
@@ -398,10 +399,10 @@ export function createPadronHelp(): string {
   return [
     '',
     section(
-      'Para que sirve',
+      'Para qué sirve',
       [
         '  - Ver razón social, domicilio fiscal, condición IVA, impuestos y actividad de un CUIT.',
-        '  - Al facturar con --cuit, arcli usa el mismo dato para completar el IVA receptor si no pasa --ir.',
+        '  - Al facturar con --cuit, arcli usa el mismo dato para completar el IVA receptor si no pasás --ir.',
       ].join('\n'),
     ),
     '',
@@ -422,7 +423,7 @@ export function createCompletionHelp(): string {
   return [
     '',
     section(
-      'Para que sirve',
+      'Para qué sirve',
       compactList([
         'Completar con Tab comandos, flags y valores: arcli f<Tab>, arcli fc --ir<Tab>, arcli config establecer <Tab>.',
         'La lista sale de la versión instalada: después de actualizar arcli no hay que reinstalar nada.',
@@ -449,9 +450,9 @@ export function createVoucherQueryHelp(): string {
     section(
       'Ejemplos',
       [
-        '  - arcli ultimos fb                  ultimas 15 facturas B del punto de venta configurado',
-        '  - arcli ultimos nca --cantidad 25   ultimas 25 notas de credito A',
-        '  - arcli consultar fb 14             detalle de la factura B numero 14',
+        '  - arcli ultimos fb                  últimas 15 facturas B del punto de venta configurado',
+        '  - arcli ultimos nca --cantidad 25   últimas 25 notas de crédito A',
+        '  - arcli consultar fb 14             detalle de la factura B número 14',
         '  - arcli consultar fb 14 --json      lo mismo, en JSON',
       ].join('\n'),
     ),
@@ -498,7 +499,7 @@ export function createExportShortcutHelp(): string {
       'Comprobante',
       compactList([
         `${displayName}, tipo ARCA ${arcaType}, por WSFEX. Es lo mismo que arcli ${family} ${letter}.`,
-        'Sin flags sale de servicios (--tipo-expo 2), en dólares (DOL) y con forma de pago "Transferencia Internacional".',
+        'Sin flags sale de servicios (--tipo-expo 2), en dólares (USD) y con forma de pago "Transferencia Internacional".',
         'La actividad sale de --actividad o de exportacion.actividad en la config.',
         '--numero es obligatorio: arcli todavía no puede consultar en WSFEX el último comprobante emitido.',
       ]),
@@ -509,7 +510,7 @@ export function createExportShortcutHelp(): string {
       compactList([
         `Vista previa: ${EXPORT_MINIMAL_EXAMPLE}`,
         `Emitir: ${EXPORT_MINIMAL_EXAMPLE} --emitir`,
-        `Con items, que tienen que sumar --monto: ${EXPORT_MINIMAL_EXAMPLE} --item "001|Consultoría|10|150|unidades"`,
+        `Con ítems, que tienen que sumar --monto: ${EXPORT_MINIMAL_EXAMPLE} --item "001|Consultoría|10|150|unidades"`,
         `Desde un JSON: arcli ${shortcut} --cargar ./factura-e.json --json`,
         'Más ejemplos: arcli ejemplos',
       ]),
@@ -564,7 +565,7 @@ export function configureSpanishHelp(command: Command): void {
   });
   command.helpCommand(false);
   command.helpOption('--ayuda', 'mostrar ayuda');
-  command.showHelpAfterError('(usa "ayuda" para ver ejemplos y opciones)');
+  command.showHelpAfterError('(usá `ayuda` para ver ejemplos y opciones)');
 }
 
 export function createProgramHeader(): string {

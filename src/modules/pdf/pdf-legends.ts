@@ -2,10 +2,10 @@ import { resolveBillingIvaConditionCode } from '../billing/billing.mappers';
 import type { BillingExecutionResult } from '../billing/billing.types.internal';
 
 /** RG 5614 (Ley 27.743): titulo y datos del regimen de transparencia fiscal, en comprobantes a consumidor final. */
-export const TRANSPARENCY_TITLE = 'Régimen de Transparencia Fiscal al Consumidor (Ley 27.743)';
+const TRANSPARENCY_TITLE = 'Régimen de Transparencia Fiscal al Consumidor (Ley 27.743)';
 
 /** RG 5003 (RG 1415, art. 15, inc. a): comprobante A a un sujeto adherido al monotributo. */
-export const MONOTRIBUTO_CREDIT_LEGEND =
+const MONOTRIBUTO_CREDIT_LEGEND =
   'El crédito fiscal discriminado en el presente comprobante, sólo podrá ser computado a efectos del Régimen de Sostenimiento e Inclusión Fiscal para Pequeños Contribuyentes de la Ley Nº 27.618';
 
 /** Leyenda de IVA de la factura de exportacion E, con el mismo texto que la E de Comprobantes en linea. */

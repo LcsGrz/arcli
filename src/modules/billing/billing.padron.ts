@@ -1,7 +1,7 @@
 import { AppError, InputValidationError } from '../../lib/errors/app-error';
 import type { PadronGateway, Taxpayer } from '../padron/padron';
-import { formatIvaConditionName } from '../pdf/pdf-issuer';
 
+import { ivaConditionCode, ivaConditionLabel } from './arca-codes';
 import type { BillingCommandInput } from './billing.schemas';
 
 export interface PadronResolution {
@@ -11,7 +11,7 @@ export interface PadronResolution {
 }
 
 const MISSING_IVA_HINT =
-  'Usá --ir <tipo> o un flag --ir-*, o configurá uno por defecto con "arcli config establecer ivaReceptor <tipo>".';
+  'Usá --ir <tipo> o un flag --ir-*, o configurá uno por defecto con `arcli config establecer ivaReceptor <tipo>`.';
 
 /** Hay que consultar el padron: un CUIT sin IVA receptor explicito (vino de la config o falta). */
 export function needsPadronLookup(input: BillingCommandInput): boolean {
@@ -27,14 +27,14 @@ function fallBack(input: BillingCommandInput, reason: string, hint?: string): Pa
     throw new InputValidationError(`Falta IVA receptor. ${reason}. ${MISSING_IVA_HINT}`);
   }
 
-  const warning = `${reason}. Se usa el IVA receptor de la config: ${formatIvaConditionName(input.ivaCondition)}.`;
+  const warning = `${reason}. Se usa el IVA receptor de la config: ${ivaConditionLabel(ivaConditionCode(input.ivaCondition))}.`;
 
   return { input, warnings: [hint ? `${warning} ${hint}` : warning] };
 }
 
 function lookupErrorHint(error: unknown): string | undefined {
   return error instanceof AppError && error.code === 'PADRON_SERVICE_NOT_AUTHORIZED'
-    ? 'Para no consultarlo al facturar: arcli config establecer consultarPadron false.'
+    ? 'Para no consultarlo al facturar: `arcli config establecer consultarPadron false`.'
     : undefined;
 }
 

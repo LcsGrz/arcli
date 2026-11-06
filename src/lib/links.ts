@@ -3,3 +3,6 @@ export const CERTIFICATE_GUIDE_URL = 'https://github.com/LcsGrz/arcli/blob/main/
 
 /** Seccion de la guia que explica como crear un punto de venta para web service. */
 export const POINT_OF_SALE_GUIDE_URL = `${CERTIFICATE_GUIDE_URL}#punto-de-venta-para-web-service`;
+
+/** Guia de errores frecuentes, con la tabla de rechazos de ARCA por codigo. */
+export const TROUBLESHOOTING_URL = 'https://github.com/LcsGrz/arcli/blob/main/docs/troubleshooting.md';

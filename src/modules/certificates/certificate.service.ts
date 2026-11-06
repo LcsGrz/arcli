@@ -9,6 +9,7 @@ import {
   readArcaCertificate,
 } from '../../lib/security/arca-certificate';
 import { createCertificateRequest } from '../../lib/security/certificate-request';
+import { formatCertificateExpiryDate } from '../config/certificate-expiry';
 import type { ArcliConfig, ArcliEnvironment } from '../config/config.schemas';
 
 import {
@@ -110,7 +111,7 @@ export class CertificateService {
       throw certificateError(
         'CERTIFICATE_REQUEST_PENDING',
         `Ya hay un pedido de certificado de ${ENVIRONMENT_NAMES[options.environment]} sin importar.`,
-        `Si ya subiste el CSR a ARCA, importá el certificado con "arcli certificado importar <archivo>". Para descartarlo y armar otro, sumá --reemplazar.`,
+        `Si ya subiste el CSR a ARCA, importá el certificado con \`arcli certificado importar <archivo>\`. Para descartarlo y armar otro, sumá --reemplazar.`,
       );
     }
 
@@ -187,15 +188,15 @@ export class CertificateService {
       throw certificateError(
         'CERTIFICATE_CUIT_MISMATCH',
         `El certificado es del CUIT ${info.cuit ?? 'desconocido'} y la config usa el ${cuit}.`,
-        'Revisá que lo hayas bajado con la clave fiscal del CUIT configurado, o cambiá el CUIT con "arcli config establecer cuit".',
+        'Revisá que lo hayas bajado con la clave fiscal del CUIT configurado, o cambiá el CUIT con `arcli config establecer cuit`.',
       );
     }
 
     if (info.expiresAt.getTime() <= this.now().getTime()) {
       throw certificateError(
         'CERTIFICATE_EXPIRED',
-        `El certificado venció el ${info.expiresAt.toLocaleDateString('es-AR')}.`,
-        `Generá uno nuevo con "arcli certificado generar --${environment}".`,
+        `El certificado venció el ${formatCertificateExpiryDate(info.expiresAt)}.`,
+        `Generá uno nuevo con \`arcli certificado generar --${environment}\`.`,
       );
     }
 
@@ -248,7 +249,7 @@ export class CertificateService {
       throw new ConfigurationError(
         'Falta el CUIT del emisor.',
         undefined,
-        'Configuralo con "arcli config establecer cuit <CUIT>": el certificado se pide para ese CUIT.',
+        'Configuralo con `arcli config establecer cuit <CUIT>`: el certificado se pide para ese CUIT.',
       );
     }
 
@@ -311,8 +312,8 @@ export class CertificateService {
       'CERTIFICATE_KEY_MISMATCH',
       `El certificado no corresponde a ${pendingKey ? 'la clave del último pedido' : 'ninguna clave de este CUIT'}.`,
       pendingKey
-        ? 'Bajá de ARCA el certificado que creaste con el último CSR de "arcli certificado generar".'
-        : `Primero armá el pedido con "arcli certificado generar --${environment}" y subí ese CSR a ARCA.`,
+        ? 'Bajá de ARCA el certificado que creaste con el último CSR de `arcli certificado generar`.'
+        : `Primero armá el pedido con \`arcli certificado generar --${environment}\` y subí ese CSR a ARCA.`,
     );
   }
 }

@@ -43,8 +43,8 @@ interface CliVoucherPayload extends Omit<INextVoucher, 'CbtesAsoc' | 'DocNro'> {
 
 export class BillingService {
   /**
-   * Completa la cotizacion oficial cuando el comprobante se cancela en la misma moneda extranjera.
-   * Se resuelve antes de la vista previa para que el preview muestre el valor que se va a enviar.
+   * Completa la cotizacion oficial en moneda extranjera sin --cm: con --misma-moneda es obligatoria y sin ella es el
+   * default. Se resuelve antes de la vista previa para que el preview muestre el valor que se va a enviar.
    */
   public async resolveExchangeRate(input: BillingCommandInput, gateway: BillingGateway): Promise<BillingCommandInput> {
     if (!needsOfficialExchangeRate(input)) {
@@ -54,6 +54,8 @@ export class BillingService {
     return {
       ...input,
       exchangeRate: await gateway.getQuotation(resolveBillingCurrencyCode(input.currencyCode)),
+      // Con --misma-moneda la oficial es obligatoria, no un default: no hace falta avisar.
+      exchangeRateSource: input.sameCurrency ? undefined : 'arca',
     };
   }
 
@@ -148,13 +150,13 @@ export class BillingService {
     // Resguardo: un IVA receptor que esperaba al padron nunca llega a ARCA con el valor provisorio.
     if (input.ivaConditionSource === 'missing') {
       throw new InputValidationError(
-        'Falta IVA receptor. Usá --ir <tipo> o un flag --ir-*, o configurá uno por defecto con "arcli config establecer ivaReceptor <tipo>".',
+        'Falta IVA receptor. Usá --ir <tipo> o un flag --ir-*, o configurá uno por defecto con `arcli config establecer ivaReceptor <tipo>`.',
       );
     }
 
     if (!pointOfSale) {
       throw new InputValidationError(
-        'Falta el punto de venta. Usá --punto-venta o --pv, o configuralo con "arcli config establecer puntoVenta <valor>".',
+        'Falta el punto de venta. Usá --punto-venta o --pv, o configuralo con `arcli config establecer puntoVenta <valor>`.',
       );
     }
 

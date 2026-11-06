@@ -177,22 +177,22 @@ arcli fc ayuda
 
 - **Severidad:** frecuente
 - **Síntoma:** `Falta la cotización de USD.`
-- **Causa:** se pasó `--moneda USD` sin `--cotizacion-moneda`, o con cotización `1`.
-- **Solución:** pasar `--cm <cotización>` si te pagan en pesos, o `--misma-moneda` si te pagan en dólares.
+- **Causa:** se pasó `--moneda USD` con `--cm 1`. Sin `--cm`, ARCLI usa la cotización oficial de ARCA.
+- **Solución:** pasar `--cm <cotización>` con la acordada, sacar `--cm` para usar la oficial, o `--misma-moneda` si te pagan en dólares.
 - **Documentación relacionada:** [Moneda y cotización](validation-rules.md#moneda-y-cotización)
 
 ### El comprobante no admite el IVA receptor
 
 - **Severidad:** frecuente
-- **Síntoma:** `La factura b no admite IVA receptor "responsable-inscripto". Usá un comprobante letra A.`
+- **Síntoma:** `La factura B no admite IVA receptor "responsable-inscripto". Usá un comprobante letra A.`
 - **Causa:** ARCA solo acepta ciertas condiciones IVA para cada letra. Por ejemplo, la `A` es para responsables inscriptos y monotributistas, y la `B` para el resto.
 - **Solución:** usar la letra que sugiere el error, o corregir el IVA receptor.
 - **Documentación relacionada:** [IVA receptor](validation-rules.md#iva-receptor)
 
-### Consumidor final sin identificar desde $10.000.000
+### Consumidor final sin identificar desde $ 10.000.000
 
 - **Severidad:** ocasional
-- **Síntoma:** `... de $10.000.000 o más requiere identificar al consumidor final.`
+- **Síntoma:** `... de $ 10.000.000 o más requiere identificar al consumidor final.`
 - **Causa:** la RG 5700/2025 obliga a identificar al consumidor final desde ese monto.
 - **Solución:** reemplazar `--consumidor-final` por `--dni`, `--cuit` o `--cuil`, manteniendo `--ir-cf`.
 - **Documentación relacionada:** [Consumidor final](validation-rules.md#consumidor-final)
@@ -318,6 +318,25 @@ arcli fc ayuda
 - **Causa:** el punto de venta configurado no es de web service. Pasa con los de Comprobantes en línea ("Factura en línea"), Facturador o talonarios manuales. Desde el 1/11/2026, por la RG 5893/2026, ARCA da de alta de oficio un punto de venta "Factura en línea - Monotributo" a los monotributistas que no tienen uno electrónico: ese tampoco sirve para arcli.
 - **Solución:** `arcli parametros puntos-venta --produccion` lista los habilitados para web service. Si el tuyo no está, creá uno nuevo con sistema de web services en "Administración de puntos de venta y domicilios" y guardalo con `arcli config establecer puntoVenta <numero>`.
 - **Documentación relacionada:** [Punto de venta para web service](obtencion-certificados.md#punto-de-venta-para-web-service)
+
+### Rechazos de ARCA por código
+
+Cuando ARCA rechaza o deja una observación con alguno de estos códigos, `sugerencias` del JSON (y el panel de la salida humana) dice qué pasó y qué hacer. Los que arcli valida antes de enviar (por ejemplo, la ventana de fechas o el IVA receptor por letra) casi nunca llegan a ARCA, pero si llegan, el texto es el mismo.
+
+| Código          | Qué pasó                                                                                                                                                          | Qué hacer                                                                                                       |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `10005`/`11002` | El punto de venta no está habilitado para web service                                                                                                             | Ver [ARCA rechaza por punto de venta](#arca-rechaza-por-punto-de-venta)                                         |
+| `10016`         | El número o la fecha no es el próximo a autorizar: otro comprobante del mismo tipo y punto de venta se emitió en el medio, o la fecha es anterior a la del último | Mirá el último con `arcli ultimos` y reintentá; si emitís varios, de a uno (ver [Limitaciones](limitations.md)) |
+| `10152`         | La fecha del comprobante está fuera del rango que acepta ARCA                                                                                                     | Ver [Fecha del comprobante fuera de rango](#fecha-del-comprobante-fuera-de-rango)                               |
+| `10243`         | El IVA receptor no es válido para la letra                                                                                                                        | Ver [El comprobante no admite el IVA receptor](#el-comprobante-no-admite-el-iva-receptor)                       |
+| `10174`         | El CBU de la factura FCE no está registrado a nombre del emisor                                                                                                   | Usá un CBU propio registrado en ARCA (`--cbu` o la clave `cbu`)                                                 |
+| `10119`         | La cotización está fuera del rango que acepta ARCA: entre el 2% y el 400% de la oficial                                                                           | Revisá `--cotizacion-moneda` contra `arcli parametros cotizacion <moneda>`                                      |
+| `10038`         | Con `--misma-moneda`, la cotización enviada ya no es la oficial exacta                                                                                            | Volvé a emitir: arcli consulta la oficial en ese momento                                                        |
+| `10017`/`10217` | Observación sobre la condición del receptor; el comprobante puede estar aprobado                                                                                  | Ver [Observaciones de padrón](#observaciones-de-padrón)                                                         |
+
+También se reconocen por el mensaje, sin código: receptor igual al emisor, `Transacción Activa`, CUIT receptor inexistente y detalle de IVA obligatorio. Si ARCA rechaza con otro código, `sugerencias` pide revisar `errores` y `observaciones`.
+
+- **Documentación relacionada:** [Reglas de validación](validation-rules.md), [Entrada y salida](input-output.md)
 
 ### Factura E: falta el número del comprobante
 

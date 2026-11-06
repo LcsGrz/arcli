@@ -15,8 +15,6 @@ export const EXPORT_VOUCHER_KIND = {
 } as const;
 
 export type ExportVoucherKind = typeof EXPORT_VOUCHER_KIND;
-export type ExportVoucherFamily = ExportVoucherKind['family'];
-export type ExportVoucherLetter = ExportVoucherKind['letter'];
 
 /** Tabla FEXGetPARAM_Tipo_Expo. */
 export const EXPORT_TYPES = {
