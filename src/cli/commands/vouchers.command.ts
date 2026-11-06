@@ -2,6 +2,7 @@ import type { Command } from 'commander';
 
 import { AppError, InputValidationError } from '../../lib/errors/app-error';
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
+import { formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { getVoucherKindByShortcut, VOUCHER_SHORTCUTS } from '../../modules/billing/voucher-kind-map';
 import { listRecentVouchers, MAX_RECENT_VOUCHERS, RECENT_VOUCHERS_LIMIT } from '../../modules/vouchers/voucher-history';
@@ -123,7 +124,7 @@ export function registerVoucherQueryCommands(program: Command): void {
 
     if (!voucher) {
       throw new AppError(
-        `No existe la ${voucherKind.displayName} N° ${formatVoucherNumber(pointOfSale, number)} en ARCA (${runtime.environment}).`,
+        `No existe ${formatVoucherWithArticle(voucherKind)} N° ${formatVoucherNumber(pointOfSale, number)} en ARCA (${runtime.environment}).`,
         { code: 'VOUCHER_NOT_FOUND' },
       );
     }

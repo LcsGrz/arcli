@@ -3,7 +3,7 @@ import type { IPeriodoAsoc } from '@arcasdk/core/lib/domain/types/voucher.types'
 import { formatArcaDateAsArgentineDate, parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 
-import { formatVoucherLabel } from './billing.mappers';
+import { formatVoucherSubject, formatVoucherWithArticle } from './billing.mappers';
 import type { BillingCommandInput } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
 
@@ -24,15 +24,15 @@ export function resolveAssociatedPeriod(
     return undefined;
   }
 
-  const label = formatVoucherLabel(voucherKind);
+  const subject = formatVoucherSubject(voucherKind);
 
   if (!voucherKind.requiresAssociatedVoucher) {
-    throw new InputValidationError(`La ${label} no usa período asociado: solo aplica a notas de crédito o débito.`);
+    throw new InputValidationError(`${subject} no usa período asociado: solo aplica a notas de crédito o débito.`);
   }
 
   if (voucherKind.isElectronicCredit) {
     throw new InputValidationError(
-      `La ${label} no admite período asociado: ARCA solo lo acepta en notas comunes. Usá el comprobante asociado (--ac).`,
+      `${subject} no admite período asociado: ARCA solo lo acepta en notas comunes. Usá el comprobante asociado (--ac).`,
     );
   }
 
@@ -59,7 +59,7 @@ export function resolveAssociatedPeriod(
 
   if (FchHasta > billingDate) {
     throw new InputValidationError(
-      `El período asociado no puede terminar después de la fecha de la ${label} (${formatArcaDateAsArgentineDate(billingDate)}).`,
+      `El período asociado no puede terminar después de la fecha de ${formatVoucherWithArticle(voucherKind)} (${formatArcaDateAsArgentineDate(billingDate)}).`,
     );
   }
 

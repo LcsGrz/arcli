@@ -139,7 +139,7 @@ describe('runExportFlow', () => {
       [/Fecha de pago/, ''],
       [/actividad/, '620100'],
       [/Número del comprobante/, '7'],
-      [/Emitimos la Factura de exportación E en testing/, 'Emitir ahora'],
+      [/Emitimos la factura de exportación E en testing/, 'Emitir ahora'],
       [/Guardamos la actividad 620100/, 'Sí, guardar'],
     ]);
 

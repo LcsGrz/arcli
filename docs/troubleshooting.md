@@ -184,7 +184,7 @@ arcli fc ayuda
 ### El comprobante no admite el IVA receptor
 
 - **Severidad:** frecuente
-- **Síntoma:** `La factura b no admite IVA receptor "responsable-inscripto". Usá un comprobante letra A.`
+- **Síntoma:** `La factura B no admite IVA receptor "responsable-inscripto". Usá un comprobante letra A.`
 - **Causa:** ARCA solo acepta ciertas condiciones IVA para cada letra. Por ejemplo, la `A` es para responsables inscriptos y monotributistas, y la `B` para el resto.
 - **Solución:** usar la letra que sugiere el error, o corregir el IVA receptor.
 - **Documentación relacionada:** [IVA receptor](validation-rules.md#iva-receptor)

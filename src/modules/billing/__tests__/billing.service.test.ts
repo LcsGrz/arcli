@@ -573,7 +573,7 @@ describe('billing.service', () => {
 
     expect(() =>
       service.buildVoucherPayload(createBillingInput({ documentNumber: 0, shortcut: 'fa' }), createRuntime()),
-    ).toThrow(/factura a no admite IVA receptor "consumidor-final". Usá un comprobante letra B/);
+    ).toThrow(/factura A no admite IVA receptor "consumidor-final". Usá un comprobante letra B/);
     expect(() =>
       service.buildVoucherPayload(
         createBillingInput({
@@ -584,7 +584,7 @@ describe('billing.service', () => {
         }),
         createRuntime(),
       ),
-    ).toThrow(/factura b no admite IVA receptor "responsable-inscripto". Usá un comprobante letra A/);
+    ).toThrow(/factura B no admite IVA receptor "responsable-inscripto". Usá un comprobante letra A/);
   });
 
   it('accepts any receiver IVA condition for letter C', () => {

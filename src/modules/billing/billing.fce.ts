@@ -2,7 +2,7 @@ import type { IOpcional } from '@arcasdk/core/lib/domain/types/voucher.types';
 
 import { InputValidationError } from '../../lib/errors/app-error';
 
-import { formatVoucherLabel } from './billing.mappers';
+import { formatVoucherSubject } from './billing.mappers';
 import type { BillingCommandInput } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
 
@@ -41,7 +41,7 @@ export function resolveElectronicCreditOptionals(
   voucherKind: VoucherKindDefinition,
 ): IOpcional[] | undefined {
   const invoiceOnlyFlags = listInvoiceOnlyFlags(input);
-  const label = formatVoucherLabel(voucherKind);
+  const subject = formatVoucherSubject(voucherKind);
 
   if (!voucherKind.isElectronicCredit) {
     const flags = input.cancellation ? [...invoiceOnlyFlags, '--anulacion'] : invoiceOnlyFlags;
@@ -55,21 +55,19 @@ export function resolveElectronicCreditOptionals(
 
   if (!isElectronicCreditInvoice(voucherKind)) {
     if (invoiceOnlyFlags.length > 0) {
-      throw new InputValidationError(
-        `La ${label} no lleva ${invoiceOnlyFlags.join(', ')}: solo van en la factura FCE.`,
-      );
+      throw new InputValidationError(`${subject} no lleva ${invoiceOnlyFlags.join(', ')}: solo van en la factura FCE.`);
     }
 
     return [{ Id: FCE_OPTIONAL_IDS.cancellation, Valor: input.cancellation ? 'S' : 'N' }];
   }
 
   if (input.cancellation) {
-    throw new InputValidationError(`La ${label} no usa --anulacion: solo aplica a notas de crédito o débito FCE.`);
+    throw new InputValidationError(`${subject} no usa --anulacion: solo aplica a notas de crédito o débito FCE.`);
   }
 
   if (!input.cbu) {
     throw new InputValidationError(
-      `La ${label} requiere el CBU del emisor. Usá --cbu o configuralo con "arcli config establecer cbu <22 digitos>".`,
+      `${subject} requiere el CBU del emisor. Usá --cbu o configuralo con "arcli config establecer cbu <22 digitos>".`,
     );
   }
 

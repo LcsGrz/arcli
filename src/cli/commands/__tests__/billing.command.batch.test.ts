@@ -45,7 +45,7 @@ describe('prepareBatch', () => {
     });
     const validate = (input: string) => {
       if (input === 'invalido-resuelto') {
-        throw new InputValidationError('La factura a no admite IVA receptor "consumidor-final".');
+        throw new InputValidationError('La factura A no admite IVA receptor "consumidor-final".');
       }
     };
 
@@ -59,7 +59,7 @@ describe('prepareBatch', () => {
         comprobantes: [
           { error: 'ARCA no devolvió la cotización de DOL.', indice: 2 },
           { error: 'Falta monto.', indice: 3 },
-          { error: 'La factura a no admite IVA receptor "consumidor-final".', indice: 4 },
+          { error: 'La factura A no admite IVA receptor "consumidor-final".', indice: 4 },
         ],
       });
     });

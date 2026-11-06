@@ -3,6 +3,7 @@ import type { Command } from 'commander';
 import { DEFAULT_EXCHANGE_RATE } from '../../modules/billing/billing.constants';
 import { exchangeRateWarnings } from '../../modules/billing/billing.currency';
 import { DUE_DAY_DEPRECATION_WARNING } from '../../modules/billing/billing.date-range';
+import { formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import { BillingService } from '../../modules/billing/billing.service';
 import type { VoucherShortcut } from '../../modules/billing/billing.types';
@@ -163,7 +164,7 @@ export async function executeBillingCommand(
       runtime,
       service,
       useRaw,
-      voucherLabel: voucherKind?.displayName ?? 'este comprobante',
+      voucherLabel: voucherKind ? formatVoucherWithArticle(voucherKind) : 'este comprobante',
       warnings,
     });
 

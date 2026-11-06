@@ -1,6 +1,7 @@
 import { Separator } from '@inquirer/select';
 
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
+import { formatNoVouchersEmitted, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { BACK, type Back } from '../../modules/interactive/wizard';
 import { type IssuedVoucher, listVouchersFrom, RECENT_VOUCHERS_LIMIT } from '../../modules/vouchers/voucher-history';
@@ -81,7 +82,10 @@ async function askVoucherByNumber(
 
   if (!invoice) {
     writeTerminalOutput(
-      noticePanel(`No existe la ${voucherKind.displayName} N° ${formatVoucherNumber(pointOfSale, number)}.`, 'warning'),
+      noticePanel(
+        `No existe ${formatVoucherWithArticle(voucherKind)} N° ${formatVoucherNumber(pointOfSale, number)}.`,
+        'warning',
+      ),
     );
 
     return BACK;
@@ -116,7 +120,7 @@ export async function pickInvoice(
 
   if (invoices.length === 0) {
     writeTerminalOutput(
-      noticePanel(`No hay ${voucherKind.displayName} emitidas en el punto de venta ${pointOfSale}.`, 'warning'),
+      noticePanel(`${formatNoVouchersEmitted(voucherKind)} en el punto de venta ${pointOfSale}.`, 'warning'),
     );
   }
 

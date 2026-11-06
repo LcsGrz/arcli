@@ -1,4 +1,9 @@
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
+import {
+  formatEmissionQuestion,
+  formatVoucherWithArticle,
+  NOTHING_EMITTED_NOTICE,
+} from '../../modules/billing/billing.mappers';
 import { ConfigService } from '../../modules/config/config.service';
 import { DEFAULT_EXPORT_PAYMENT_TERMS, resolveExportDestinationCountry } from '../../modules/export/export.mappers';
 import { ExportService } from '../../modules/export/export.service';
@@ -18,7 +23,8 @@ import { formatExportResultAsText, formatPdfOutcomeAsText, noticePanel, writeTer
 import { attachExportPdf } from '../commands/export.command.pdf';
 import { withSpinner } from '../spinner';
 
-import { askTextStep, chooseStep, confirm } from './prompts';
+import { completeIssuer } from './pdf.flow';
+import { askTextStep, chooseStep, confirm, isPromptCancellation } from './prompts';
 import { formatEquivalentCommand, type InteractiveSession } from './session';
 import { validateAmount, validateDate } from './validators';
 
@@ -277,11 +283,10 @@ async function emit(
     formatEquivalentCommand(buildExportEquivalentCommand(input, { activity, environment: runtime.environment })),
   );
 
-  const label = EXPORT_VOUCHER_KIND.displayName;
-  const environmentLabel = runtime.environment === 'produccion' ? 'PRODUCCIÓN' : 'testing';
+  const label = formatVoucherWithArticle(EXPORT_VOUCHER_KIND);
 
-  if (!(await confirm(`¿Emitimos la ${label} en ${environmentLabel}?`, 'Emitir ahora'))) {
-    writeTerminalOutput(noticePanel('No se emitió nada.', 'muted'));
+  if (!(await confirm(formatEmissionQuestion(label, runtime.environment), 'Emitir ahora'))) {
+    writeTerminalOutput(noticePanel(NOTHING_EMITTED_NOTICE, 'muted'));
 
     return;
   }
@@ -290,7 +295,7 @@ async function emit(
     runtime.environment === 'produccion' &&
     !(await confirm('Vas a emitir un comprobante real en PRODUCCIÓN. ¿Confirmás?', 'Sí, emitir en producción'))
   ) {
-    writeTerminalOutput(noticePanel('No se emitió nada.', 'muted'));
+    writeTerminalOutput(noticePanel(NOTHING_EMITTED_NOTICE, 'muted'));
 
     return;
   }
@@ -303,10 +308,24 @@ async function emit(
     formatExportResultAsText(result, { environment: runtime.environment, previewShown: true, raw: false }),
   );
 
-  const withPdf = await attachExportPdf(result, { config: runtime.config, input, interactive: true });
+  // Ya se emitio: un Ctrl+C mientras se piden los datos del emisor no puede terminar en "No se emitio nada".
+  try {
+    const withPdf = await attachExportPdf(result, {
+      completeConfig: completeIssuer,
+      config: runtime.config,
+      input,
+      interactive: true,
+    });
 
-  if (withPdf.pdf) {
-    writeTerminalOutput(formatPdfOutcomeAsText(withPdf.pdf));
+    if (withPdf.pdf) {
+      writeTerminalOutput(formatPdfOutcomeAsText(withPdf.pdf));
+    }
+  } catch (error) {
+    if (!isPromptCancellation(error)) {
+      throw error;
+    }
+
+    writeTerminalOutput(noticePanel('El comprobante ya quedo emitido; no se genero el PDF.', 'muted'));
   }
 }
 

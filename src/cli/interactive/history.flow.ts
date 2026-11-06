@@ -1,3 +1,4 @@
+import { formatVoucherLabel } from '../../modules/billing/billing.mappers';
 import { VOUCHER_KIND_MAP, VOUCHER_SHORTCUTS } from '../../modules/billing/voucher-kind-map';
 import { BACK } from '../../modules/interactive/wizard';
 import { formatVoucherDetailAsText } from '../../modules/vouchers/voucher-history.presenter';
@@ -31,7 +32,7 @@ export async function runHistoryFlow(session: InteractiveSession): Promise<void>
   }
 
   await pickInvoice(session, {
-    message: `¿Qué ${voucherKind.displayName} querés ver?`,
+    message: `¿Qué ${formatVoucherLabel(voucherKind)} querés ver?`,
     onPick: (picked) =>
       writeTerminalOutput(
         formatVoucherDetailAsText({

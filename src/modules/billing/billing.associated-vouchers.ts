@@ -3,7 +3,7 @@ import type { ICbtesAsoc } from '@arcasdk/core/lib/domain/types/voucher.types';
 import { formatArcaDateAsArgentineDate, parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 
-import { formatVoucherLabel } from './billing.mappers';
+import { formatVoucherSubject, formatVoucherWithArticle } from './billing.mappers';
 import type { BillingCommandInput } from './billing.schemas';
 import type { VoucherFamily, VoucherKindDefinition } from './billing.types';
 import { getVoucherKindByArcaType } from './voucher-kind-map';
@@ -21,7 +21,7 @@ export function resolveAssociatedVouchers(options: ResolveAssociatedVoucherOptio
 
   if (!voucherKind.requiresAssociatedVoucher) {
     if (input.associatedVoucher) {
-      throw new InputValidationError(`El comprobante ${formatVoucherLabel(voucherKind)} no usa comprobante asociado.`);
+      throw new InputValidationError(`${formatVoucherSubject(voucherKind)} no usa comprobante asociado.`);
     }
 
     return undefined;
@@ -41,7 +41,7 @@ export function resolveAssociatedVouchers(options: ResolveAssociatedVoucherOptio
 
   if (!associatedVoucher?.numero || !associatedVoucher.puntoVenta || !associatedVoucherType || !associatedCuit) {
     throw new InputValidationError(
-      `El comprobante ${formatVoucherLabel(voucherKind)} requiere comprobante asociado. Usá --ac o --at, junto con --apv o --asociado-punto-venta, --ar y --acuit${voucherKind.isElectronicCredit ? '' : ', o un período con --periodo-desde y --periodo-hasta'}.`,
+      `${formatVoucherSubject(voucherKind)} requiere comprobante asociado. Usá --ac o --at, junto con --apv o --asociado-punto-venta, --ar y --acuit${voucherKind.isElectronicCredit ? '' : ', o un período con --periodo-desde y --periodo-hasta'}.`,
     );
   }
 
@@ -51,7 +51,7 @@ export function resolveAssociatedVouchers(options: ResolveAssociatedVoucherOptio
 
   if (voucherKind.isElectronicCredit && associatedCuit !== String(emitterCuit)) {
     throw new InputValidationError(
-      `En la ${formatVoucherLabel(voucherKind)} el comprobante asociado tiene que ser del CUIT emisor (${emitterCuit}). Sacá --acuit o usá ese CUIT.`,
+      `En ${formatVoucherWithArticle(voucherKind)} el comprobante asociado tiene que ser del CUIT emisor (${emitterCuit}). Sacá --acuit o usá ese CUIT.`,
     );
   }
 
@@ -96,7 +96,7 @@ function resolveAssociatedVoucherDate(
   if (!rawDate) {
     if (voucherKind.isElectronicCredit) {
       throw new InputValidationError(
-        `La ${formatVoucherLabel(voucherKind)} requiere la fecha del comprobante asociado. Usá --afecha <fecha>.`,
+        `${formatVoucherSubject(voucherKind)} requiere la fecha del comprobante asociado. Usá --afecha <fecha>.`,
       );
     }
 
@@ -107,7 +107,7 @@ function resolveAssociatedVoucherDate(
 
   if (associatedDate > billingDate) {
     throw new InputValidationError(
-      `La fecha del comprobante asociado (${formatArcaDateAsArgentineDate(associatedDate)}) no puede ser posterior a la de la ${formatVoucherLabel(voucherKind)} (${formatArcaDateAsArgentineDate(billingDate)}).`,
+      `La fecha del comprobante asociado (${formatArcaDateAsArgentineDate(associatedDate)}) no puede ser posterior a la de ${formatVoucherWithArticle(voucherKind)} (${formatArcaDateAsArgentineDate(billingDate)}).`,
     );
   }
 
@@ -134,19 +134,19 @@ function validateAssociatedVoucherKind(
   // ARCA acepta notas C sobre un Recibo C (probado en testing).
   if (!ASSOCIABLE_FAMILIES.includes(associatedVoucherKind.family)) {
     throw new InputValidationError(
-      `El comprobante asociado de ${formatVoucherLabel(voucherKind)} debe ser una factura o un recibo, no otra nota.`,
+      `El comprobante asociado de ${formatVoucherWithArticle(voucherKind)} debe ser una factura o un recibo, no otra nota.`,
     );
   }
 
   if (associatedVoucherKind.letter !== voucherKind.letter) {
     throw new InputValidationError(
-      `El comprobante asociado debe usar la misma letra que ${formatVoucherLabel(voucherKind)}.`,
+      `El comprobante asociado debe usar la misma letra que ${formatVoucherWithArticle(voucherKind)}.`,
     );
   }
 
   if (associatedVoucherKind.isElectronicCredit !== voucherKind.isElectronicCredit) {
     throw new InputValidationError(
-      `El comprobante asociado debe pertenecer a la misma categoría electrónica que ${formatVoucherLabel(voucherKind)}.`,
+      `El comprobante asociado debe pertenecer a la misma categoría electrónica que ${formatVoucherWithArticle(voucherKind)}.`,
     );
   }
 }

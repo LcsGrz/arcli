@@ -2,7 +2,7 @@ import { diffArcaDatesInDays, formatArcaDateAsArgentineDate } from '../../lib/da
 import { InputValidationError } from '../../lib/errors/app-error';
 import { parseCuit } from '../../lib/identity/cuit';
 
-import { formatDocumentFlag, formatVoucherLabel } from './billing.mappers';
+import { formatDocumentFlag, formatVoucherSubject, formatVoucherWithArticle } from './billing.mappers';
 import type { BillingCommandInput, BillingConcept } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
 
@@ -25,7 +25,7 @@ export function validateConceptDateInputs(input: BillingCommandInput, voucherKin
 
     if (voucherKind.isElectronicCredit && voucherKind.family !== 'factura-credito-electronica') {
       throw new InputValidationError(
-        `La ${formatVoucherLabel(voucherKind)} no lleva vencimiento de pago. Sacá ${flag}.`,
+        `${formatVoucherSubject(voucherKind)} no lleva vencimiento de pago. Sacá ${flag}.`,
       );
     }
 
@@ -55,13 +55,13 @@ export function validateDocumentIdentity(input: BillingCommandInput, voucherKind
   if (input.documentType === 'consumidor-final') {
     if (input.ivaCondition !== 'consumidor-final') {
       throw new InputValidationError(
-        `La ${formatVoucherLabel(voucherKind)} usa consumidor final solo con --ir-cf o --iva-receptor consumidor-final.`,
+        `${formatVoucherSubject(voucherKind)} usa consumidor final solo con --ir-cf o --iva-receptor consumidor-final.`,
       );
     }
 
     if (typeof input.documentNumber === 'number' && input.documentNumber !== 0) {
       throw new InputValidationError(
-        `La ${formatVoucherLabel(voucherKind)} usa consumidor final solo con documento 0. Usá --consumidor-final.`,
+        `${formatVoucherSubject(voucherKind)} usa consumidor final solo con documento 0. Usá --consumidor-final.`,
       );
     }
 
@@ -70,7 +70,7 @@ export function validateDocumentIdentity(input: BillingCommandInput, voucherKind
 
   if (typeof input.documentNumber !== 'number') {
     throw new InputValidationError(
-      `La ${formatVoucherLabel(voucherKind)} requiere documento del receptor. Usá ${formatDocumentFlag(input.documentType)}.`,
+      `${formatVoucherSubject(voucherKind)} requiere documento del receptor. Usá ${formatDocumentFlag(input.documentType)}.`,
     );
   }
 
@@ -79,13 +79,13 @@ export function validateDocumentIdentity(input: BillingCommandInput, voucherKind
 
     if (!result.ok) {
       throw new InputValidationError(
-        `${formatDocumentFlag(input.documentType)} ${input.documentNumber} no es válido en ${formatVoucherLabel(voucherKind)}: ${result.reason}.`,
+        `${formatDocumentFlag(input.documentType)} ${input.documentNumber} no es válido en ${formatVoucherWithArticle(voucherKind)}: ${result.reason}.`,
       );
     }
   }
 
   if (input.documentType === 'dni' && !/^\d{7,8}$/.test(String(input.documentNumber))) {
-    throw new InputValidationError(`--dni debe tener 7 u 8 digitos en ${formatVoucherLabel(voucherKind)}.`);
+    throw new InputValidationError(`--dni debe tener 7 u 8 digitos en ${formatVoucherWithArticle(voucherKind)}.`);
   }
 }
 
@@ -120,13 +120,13 @@ export function validateBillingDateWindow(
 
   if (offset < -window.maxDaysBefore || offset > window.maxDaysAfter) {
     throw new InputValidationError(
-      `La fecha ${label} está fuera de rango para la ${formatVoucherLabel(voucherKind)}: ARCA acepta hasta ${window.maxDaysBefore} días antes y ${window.maxDaysAfter} después de hoy.`,
+      `La fecha ${label} está fuera de rango para ${formatVoucherWithArticle(voucherKind)}: ARCA acepta hasta ${window.maxDaysBefore} días antes y ${window.maxDaysAfter} después de hoy.`,
     );
   }
 
   if (window.sameMonthWhenFuture && offset > 0 && billingDate.slice(0, 6) !== today.slice(0, 6)) {
     throw new InputValidationError(
-      `La fecha ${label} es futura y cae en otro mes. Para la ${formatVoucherLabel(voucherKind)} ARCA solo acepta fechas futuras dentro del mes actual.`,
+      `La fecha ${label} es futura y cae en otro mes. Para ${formatVoucherWithArticle(voucherKind)} ARCA solo acepta fechas futuras dentro del mes actual.`,
     );
   }
 }

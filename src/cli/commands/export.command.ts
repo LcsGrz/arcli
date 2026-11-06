@@ -1,5 +1,10 @@
 import type { Command } from 'commander';
 
+import {
+  formatEmissionQuestion,
+  formatVoucherWithArticle,
+  NOTHING_EMITTED_NOTICE,
+} from '../../modules/billing/billing.mappers';
 import { ExportService } from '../../modules/export/export.service';
 import { EXPORT_VOUCHER_KIND, type ExportExecutionResult } from '../../modules/export/export.types';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
@@ -8,6 +13,7 @@ import {
   formatExportResultAsJson,
   formatExportResultAsText,
   formatPdfOutcomeAsText,
+  noticePanel,
   writeTerminalJson,
   writeTerminalOutput,
 } from '../../ui';
@@ -57,9 +63,9 @@ function resolveWarnings(
 }
 
 /** Esc cuenta como no, igual que en A, B y C. */
-async function promptForEmission(): Promise<boolean> {
+async function promptForEmission(environment: 'produccion' | 'testing'): Promise<boolean> {
   return chooseOne(
-    `¿Querés emitir ${EXPORT_VOUCHER_KIND.displayName} ahora?`,
+    formatEmissionQuestion(formatVoucherWithArticle(EXPORT_VOUCHER_KIND), environment),
     [
       { name: 'Sí, emitir ahora', value: true },
       { name: 'No, dejar sin emitir', value: false },
@@ -122,7 +128,9 @@ export async function executeExportCommand(command: Command, options: ExportComm
 
       writeTerminalOutput(formatExportResultAsText(result, { environment: runtime.environment, raw: useRaw }));
 
-      if (!(await promptForEmission())) {
+      if (!(await promptForEmission(runtime.environment))) {
+        writeTerminalOutput(noticePanel(NOTHING_EMITTED_NOTICE, 'muted'));
+
         return;
       }
 

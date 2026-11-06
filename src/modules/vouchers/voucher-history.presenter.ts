@@ -2,6 +2,7 @@ import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { keyValuePanel, noticePanel, renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui';
 import { CONSUMER_DOCUMENT_TYPE_CODE } from '../billing/arca-codes';
 import { formatConceptLabel, formatCurrencyLabel, formatMoneyLabel } from '../billing/billing.labels';
+import { formatLatestVouchersTitle, formatNoVouchersEmitted } from '../billing/billing.mappers';
 import type { VoucherKindDefinition } from '../billing/billing.types';
 
 import type { IssuedVoucher } from './voucher-history';
@@ -42,7 +43,7 @@ export function formatReceiver(voucher: IssuedVoucher): string {
 
 /** Titulo del listado de ultimos comprobantes, tambien usado por el selector del modo interactivo. */
 function formatVoucherListTitle(report: Omit<VoucherListReport, 'vouchers'>): string {
-  return `Últimas ${report.voucherKind.displayName} · PV ${report.pointOfSale} · ${report.environment}`;
+  return `${formatLatestVouchersTitle(report.voucherKind)} · PV ${report.pointOfSale} · ${report.environment}`;
 }
 
 /** Una fila del listado: numero, fecha, receptor, total y CAE, en columnas alineadas. */
@@ -113,7 +114,7 @@ export function formatVoucherListAsText(report: VoucherListReport): string {
   const { pointOfSale, voucherKind, vouchers } = report;
 
   if (vouchers.length === 0) {
-    return noticePanel(`No hay ${voucherKind.displayName} emitidas en el punto de venta ${pointOfSale}.`, 'muted');
+    return noticePanel(`${formatNoVouchersEmitted(voucherKind)} en el punto de venta ${pointOfSale}.`, 'muted');
   }
 
   return keyValuePanel(

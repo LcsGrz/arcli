@@ -1,5 +1,10 @@
 import type { Arca } from '@arcasdk/core';
 
+import {
+  formatEmissionQuestion,
+  formatVoucherWithArticle,
+  NOTHING_EMITTED_NOTICE,
+} from '../../modules/billing/billing.mappers';
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import { BillingService } from '../../modules/billing/billing.service';
 import type { BillingGateway } from '../../modules/billing/billing.types.internal';
@@ -95,11 +100,10 @@ export async function previewAndEmit(session: InteractiveSession, rawInput: Bill
     ),
   );
 
-  const label = preview.voucherKind.displayName;
-  const environmentLabel = runtime.environment === 'produccion' ? 'PRODUCCIÓN' : 'testing';
+  const label = formatVoucherWithArticle(preview.voucherKind);
 
-  if (!(await confirm(`¿Emitimos la ${label} en ${environmentLabel}?`, 'Emitir ahora'))) {
-    writeTerminalOutput(noticePanel('No se emitió nada.', 'muted'));
+  if (!(await confirm(formatEmissionQuestion(label, runtime.environment), 'Emitir ahora'))) {
+    writeTerminalOutput(noticePanel(NOTHING_EMITTED_NOTICE, 'muted'));
 
     return;
   }
@@ -108,7 +112,7 @@ export async function previewAndEmit(session: InteractiveSession, rawInput: Bill
     runtime.environment === 'produccion' &&
     !(await confirm('Vas a emitir un comprobante real en PRODUCCIÓN. ¿Confirmás?', 'Sí, emitir en producción'))
   ) {
-    writeTerminalOutput(noticePanel('No se emitió nada.', 'muted'));
+    writeTerminalOutput(noticePanel(NOTHING_EMITTED_NOTICE, 'muted'));
 
     return;
   }

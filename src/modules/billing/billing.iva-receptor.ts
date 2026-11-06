@@ -1,7 +1,7 @@
 import { InputValidationError } from '../../lib/errors/app-error';
 import { formatArgentineMoney } from '../../lib/numbers/argentine-amount';
 
-import { formatVoucherLabel } from './billing.mappers';
+import { formatVoucherSubject } from './billing.mappers';
 import type { BillingCommandInput, BillingIvaCondition } from './billing.schemas';
 import type { VoucherKindDefinition, VoucherLetter } from './billing.types';
 
@@ -63,7 +63,7 @@ export function validateIvaConditionForVoucher(
   const suggestion = suggestedLetter ? ` Usá un comprobante letra ${suggestedLetter.toUpperCase()}.` : '';
 
   throw new InputValidationError(
-    `La ${formatVoucherLabel(voucherKind)} no admite IVA receptor "${ivaCondition}".${suggestion}`,
+    `${formatVoucherSubject(voucherKind)} no admite IVA receptor "${ivaCondition}".${suggestion}`,
   );
 }
 
@@ -78,7 +78,7 @@ export function validateConsumerIdentification(
 
   if (input.totalAmount * exchangeRate >= CONSUMER_IDENTIFICATION_THRESHOLD) {
     throw new InputValidationError(
-      `La ${formatVoucherLabel(voucherKind)} de ${formatArgentineMoney(CONSUMER_IDENTIFICATION_THRESHOLD)} o más requiere identificar al consumidor final. Usá --dni, --cuit o --cuil.`,
+      `${formatVoucherSubject(voucherKind)} de ${formatArgentineMoney(CONSUMER_IDENTIFICATION_THRESHOLD)} o más requiere identificar al consumidor final. Usá --dni, --cuit o --cuil.`,
     );
   }
 }

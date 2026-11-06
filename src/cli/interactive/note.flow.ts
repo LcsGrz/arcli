@@ -1,6 +1,7 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { DEFAULT_IVA_RATE } from '../../modules/billing/billing.amounts';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
+import { formatVoucherLabel } from '../../modules/billing/billing.mappers';
 import {
   type BillingCommandInput,
   billingCommandSchema,
@@ -133,7 +134,7 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
       run: async (state) => {
         const invoiceKind = state.invoiceKind as VoucherKindDefinition;
         const picked = await pickInvoice(session, {
-          message: `¿Sobre qué ${invoiceKind.displayName}?`,
+          message: `¿Sobre qué ${formatVoucherLabel(invoiceKind)}?`,
           pointOfSale,
           voucherKind: invoiceKind,
         });

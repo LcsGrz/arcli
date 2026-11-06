@@ -4,7 +4,7 @@ import Big from 'big.js';
 import { InputValidationError } from '../../lib/errors/app-error';
 
 import { ivaRateFactor, ivaRateFromId, ivaRateId } from './arca-codes';
-import { formatVoucherLabel } from './billing.mappers';
+import { formatVoucherSubject } from './billing.mappers';
 import type { BillingCommandInput, BillingIvaRate } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
 
@@ -38,7 +38,7 @@ function validateLetterCAmounts(input: TaxAmountsInput, voucherKind: VoucherKind
 
   if (flags.length > 0) {
     throw new InputValidationError(
-      `La ${formatVoucherLabel(voucherKind)} no discrimina IVA ni importes exentos o no gravados. Sacá ${flags.join(', ')}.`,
+      `${formatVoucherSubject(voucherKind)} no discrimina IVA ni importes exentos o no gravados. Sacá ${flags.join(', ')}.`,
     );
   }
 }

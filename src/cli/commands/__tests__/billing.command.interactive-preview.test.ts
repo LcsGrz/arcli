@@ -200,6 +200,36 @@ describe('runInteractiveBillingPreview', () => {
       previewShown: true,
       proceed: false,
     });
+    expect(vi.mocked(writeTerminalOutput).mock.lastCall?.[0]).toContain('No se emitió nada.');
+  });
+
+  it('names the environment in the question, also for a batch', async () => {
+    setTty(true);
+    vi.mocked(select).mockResolvedValue(true);
+
+    await runInteractiveBillingPreview({
+      inputs: [createInput()],
+      modeSource: 'default',
+      runtime: createRuntime({ environment: 'produccion' }),
+      service: new BillingService(),
+      useRaw: false,
+      voucherLabel: 'la factura A',
+    });
+    await runInteractiveBillingPreview({
+      inputs: [createInput(), createInput()],
+      modeSource: 'default',
+      runtime: createRuntime(),
+      service: new BillingService(),
+      useRaw: false,
+      voucherLabel: 'este comprobante',
+    });
+
+    expect(vi.mocked(select).mock.calls.map(([config]) => config.message)).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('¿Emitimos la factura A en PRODUCCIÓN?'),
+        expect.stringContaining('¿Emitimos los 2 comprobantes en testing?'),
+      ]),
+    );
   });
 
   it('treats Esc as declining, like the interactive mode', async () => {
