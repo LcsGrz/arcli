@@ -60,8 +60,10 @@ const table = (value: ExportExecutionResult) => stripAnsi(formatExportPayloadTab
 
 describe('formatExportPayloadTable', () => {
   it('muestra el importe con el codigo de la moneda, no con el $ de los pesos', () => {
-    expect(table(result())).toMatch(/Importe total\s+1\.500,50 DOL/);
+    expect(table(result())).toMatch(/Importe total\s+1\.500,50 USD/);
     expect(table(result({ Moneda_ctz: 1, Moneda_Id: 'PES' }))).toMatch(/Importe total\s+\$ 1\.500,50/);
+    expect(table(result())).toMatch(/Moneda\s+Dólares estadounidenses \(USD\), cotización/);
+    expect(table(result())).toMatch(/Número\s+\d{5}-\d{8}/);
   });
 
   it('no repite el incoterm cuando la tabla de ARCA trae el codigo como descripcion', () => {

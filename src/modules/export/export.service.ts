@@ -4,6 +4,7 @@ import {
   parseArgentineDateInputAsArcaDate,
 } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
+import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { EmissionUncertainError } from '../billing/billing.errors';
 import type { ArcliConfig } from '../config/config.schemas';
 
@@ -179,7 +180,7 @@ export class ExportService {
         ? [
             `ARCA no publicó la cotización de ${quotation.code} del ${formatArcaDateAsArgentineDate(
               voucherDate,
-            )}: se usa la del ${formatArcaDateAsArgentineDate(quotation.date)} (${quotation.rate}). Para usar otra, --cotizacion-moneda.`,
+            )}: se usa la del ${formatArcaDateAsArgentineDate(quotation.date)} (${formatExchangeRate(quotation.rate)}). Para usar otra, --cotizacion-moneda.`,
           ]
         : []),
     ];

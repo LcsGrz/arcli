@@ -1,4 +1,5 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
+import { formatCuit } from '../../lib/identity/format-cuit';
 import { formatArgentineMoney } from '../../lib/numbers/argentine-amount';
 import { keyValuePanel, renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui';
 
@@ -27,7 +28,7 @@ export function formatFceObligationAsJson(report: FceObligationReport): string {
 
 export function formatFceObligationAsText(report: FceObligationReport): string {
   const rows: Array<readonly [string, string]> = [
-    ['CUIT', String(report.cuit)],
+    ['CUIT', formatCuit(report.cuit)],
     ['Fecha consultada', formatArcaDateAsArgentineDate(report.issueDate)],
     ['Obligado a recibir FCE', report.obligation.obligated ? 'si' : 'no'],
     ['Monto mínimo', formatArgentineMoney(report.obligation.minimumAmount)],

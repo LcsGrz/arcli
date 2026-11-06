@@ -1,3 +1,4 @@
+import { formatCuit } from '../../lib/identity/format-cuit';
 import { keyValuePanel, renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui';
 import { formatIvaConditionName } from '../billing/arca-codes';
 
@@ -18,7 +19,7 @@ function formatMainActivity(taxpayer: Taxpayer): string {
   const [main, ...others] = taxpayer.activities;
   const more = others.length === 0 ? '' : ` (y ${others.length} más)`;
 
-  return `${main?.description ?? '-'}${more}`;
+  return `${main?.description ?? 'N/D'}${more}`;
 }
 
 export function formatPadronAsJson(report: PadronReport): string {
@@ -47,12 +48,12 @@ export function formatPadronAsText(report: PadronReport): string {
   const { taxpayer } = report;
   const activeTaxes = taxpayer.taxes.filter((tax) => tax.active).map((tax) => tax.description);
   const rows: Array<readonly [string, string]> = [
-    ['CUIT', String(taxpayer.cuit)],
-    ['Nombre', taxpayer.name ?? '-'],
-    ['Tipo', taxpayer.personType ? PERSON_TYPE_LABELS[taxpayer.personType] : '-'],
-    ['Estado', taxpayer.keyStatus ?? '-'],
-    ['Domicilio fiscal', taxpayer.address ?? '-'],
-    ['Condición IVA', taxpayer.ivaCondition ? formatIvaConditionName(taxpayer.ivaCondition) : 'sin informar'],
+    ['CUIT', formatCuit(taxpayer.cuit)],
+    ['Nombre', taxpayer.name ?? 'N/D'],
+    ['Tipo', taxpayer.personType ? PERSON_TYPE_LABELS[taxpayer.personType] : 'N/D'],
+    ['Estado', taxpayer.keyStatus ?? 'N/D'],
+    ['Domicilio fiscal', taxpayer.address ?? 'N/D'],
+    ['Condición IVA', taxpayer.ivaCondition ? formatIvaConditionName(taxpayer.ivaCondition) : 'N/D'],
     ...(taxpayer.monotributoCategory ? [['Categoría monotributo', taxpayer.monotributoCategory] as const] : []),
     ...(activeTaxes.length > 0 ? [['Impuestos', activeTaxes.join(', ')] as const] : []),
     ...(taxpayer.activities.length > 0 ? [['Actividad principal', formatMainActivity(taxpayer)] as const] : []),

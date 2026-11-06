@@ -1,5 +1,6 @@
 import { basename, dirname } from 'node:path';
 
+import { formatCuit } from '../../lib/identity/format-cuit';
 import { CERTIFICATE_GUIDE_URL } from '../../lib/links';
 import {
   bold,
@@ -11,6 +12,7 @@ import {
   toneText,
   type UiColorToken,
 } from '../../ui';
+import { formatCertificateExpiryDate } from '../config/certificate-expiry';
 import type { ArcliEnvironment } from '../config/config.schemas';
 
 import type { CertificateStatus, GeneratedCertificateRequest, ImportedCertificate } from './certificate.service';
@@ -77,10 +79,6 @@ function fileLink(path: string): string {
   return pathLink(path, basename(path));
 }
 
-function formatDate(value: Date): string {
-  return value.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', timeZone: 'UTC', year: 'numeric' });
-}
-
 export function formatGeneratedRequestAsText(request: GeneratedCertificateRequest): string {
   const color = ENVIRONMENT_COLORS[request.environment];
   const panel = renderPanel({
@@ -88,7 +86,7 @@ export function formatGeneratedRequestAsText(request: GeneratedCertificateReques
     content: [
       heading('Pedido'),
       ...rows([
-        ['CUIT', request.cuit],
+        ['CUIT', formatCuit(request.cuit)],
         ['Alias', request.alias],
         ['Carpeta', pathLink(dirname(request.requestPath))],
         ['CSR', fileLink(request.requestPath)],
@@ -143,9 +141,9 @@ export function formatImportedCertificateAsText(imported: ImportedCertificate): 
       '',
       heading('Certificado'),
       ...rows([
-        ['CUIT', imported.cuit],
-        ['Alias', imported.alias ?? '- -'],
-        ['Vence', bold(formatDate(imported.expiresAt))],
+        ['CUIT', formatCuit(imported.cuit)],
+        ['Alias', imported.alias ?? 'N/D'],
+        ['Vence', bold(formatCertificateExpiryDate(imported.expiresAt))],
       ]),
       '',
       heading('Archivos'),
@@ -189,7 +187,7 @@ const EXPIRY_WARNING_DAYS = 30;
 
 function describeExpiry(expiresAt: Date, now: Date): string {
   const days = Math.floor((expiresAt.getTime() - now.getTime()) / 86_400_000);
-  const date = formatDate(expiresAt);
+  const date = formatCertificateExpiryDate(expiresAt);
 
   if (days < 0) {
     return `${toneText(date, 'danger')}  ${colorize('(vencido: renovalo)', 'danger')}`;
@@ -225,10 +223,10 @@ function statusRows(status: CertificateStatus, now: Date): string[] {
 
   return [
     ...rows([
-      ['Alias', status.alias ?? '- -'],
+      ['Alias', status.alias ?? 'N/D'],
       ['Vence', describeExpiry(status.expiresAt, now)],
       ['Certificado', pathLink(status.certificatePath)],
-      ['Clave privada', status.keyPath ? pathLink(status.keyPath) : colorize('sin configurar', 'muted')],
+      ['Clave privada', status.keyPath ? pathLink(status.keyPath) : colorize('no configurado', 'muted')],
     ]),
     ...pending,
   ];

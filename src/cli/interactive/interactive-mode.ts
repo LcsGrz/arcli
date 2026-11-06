@@ -180,7 +180,7 @@ async function buildHeader(options: GlobalCliOptions): Promise<string> {
   const bar = statusBar(
     [
       { text: formatIssuer(config.emisor?.razonSocial, context.cuit) },
-      { text: `PV ${pointOfSale ?? 'sin configurar'}` },
+      { text: `PV ${pointOfSale ?? 'no configurado'}` },
     ],
     [{ color, text: label.toUpperCase() }, environmentSegment(environment)],
     { rightSeparator: 'rule' },

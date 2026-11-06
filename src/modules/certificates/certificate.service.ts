@@ -9,6 +9,7 @@ import {
   readArcaCertificate,
 } from '../../lib/security/arca-certificate';
 import { createCertificateRequest } from '../../lib/security/certificate-request';
+import { formatCertificateExpiryDate } from '../config/certificate-expiry';
 import type { ArcliConfig, ArcliEnvironment } from '../config/config.schemas';
 
 import {
@@ -194,7 +195,7 @@ export class CertificateService {
     if (info.expiresAt.getTime() <= this.now().getTime()) {
       throw certificateError(
         'CERTIFICATE_EXPIRED',
-        `El certificado venció el ${info.expiresAt.toLocaleDateString('es-AR')}.`,
+        `El certificado venció el ${formatCertificateExpiryDate(info.expiresAt)}.`,
         `Generá uno nuevo con "arcli certificado generar --${environment}".`,
       );
     }

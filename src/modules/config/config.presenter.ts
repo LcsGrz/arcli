@@ -1,4 +1,5 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
+import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { maskPath } from '../../lib/paths/mask-path';
 import {
   bold,
@@ -137,7 +138,7 @@ const yesNo = (value: boolean | undefined): string => (value ? 'si' : 'no');
 
 /** Como se muestra cada dato en `arcli config`. */
 const CONFIG_TEXT_VALUES: Record<ConfigPublicKey, PublicConfigValue> = {
-  alicuota: (c) => (c.alicuota ? `${c.alicuota}%` : '21% (por defecto)'),
+  alicuota: (c) => (c.alicuota ? `${String(c.alicuota).replace('.', ',')}%` : '21% (por defecto)'),
   aliasCbu: (c) => notSet(c.aliasCbu),
   bruto: (c) => yesNo(c.bruto),
   cbu: (c) => notSet(c.cbu),
@@ -146,7 +147,7 @@ const CONFIG_TEXT_VALUES: Record<ConfigPublicKey, PublicConfigValue> = {
   comprobantesPorLista: (c) => c.comprobantesPorLista ?? `${RECENT_VOUCHERS_LIMIT} (por defecto)`,
   concepto: (c) => notSet(c.concepto),
   condicionVenta: (c) => notSet(c.condicionVenta),
-  cotizacion: (c) => c.cotizacion ?? 1,
+  cotizacion: (c) => formatExchangeRate(c.cotizacion ?? 1),
   cuit: (c) => notSet(c.cuit),
   'emisor.condicionIva': (c) => c.emisor.condicionIva ?? 'según la letra',
   'emisor.domicilio': (c) => notSet(c.emisor.domicilio),

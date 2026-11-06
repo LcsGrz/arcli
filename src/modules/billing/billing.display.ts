@@ -74,7 +74,7 @@ const FCE_OPTIONAL_LABELS: Record<string, string> = {
 };
 
 /** Una alicuota: su tasa. Varias: el desglose de neto e IVA de cada una. */
-function formatIvaRows(iva: readonly IIva[]): Array<readonly [string, string]> {
+function formatIvaRows(iva: readonly IIva[], currency: string): Array<readonly [string, string]> {
   if (iva.length === 0) {
     return [];
   }
@@ -87,7 +87,10 @@ function formatIvaRows(iva: readonly IIva[]): Array<readonly [string, string]> {
 
   return iva.map(
     (item) =>
-      [`IVA ${label(item.Id)}`, `${formatMoneyLabel(item.Importe)} sobre ${formatMoneyLabel(item.BaseImp)}`] as const,
+      [
+        `IVA ${label(item.Id)}`,
+        `${formatMoneyLabel(item.Importe, currency)} sobre ${formatMoneyLabel(item.BaseImp, currency)}`,
+      ] as const,
   );
 }
 
@@ -95,18 +98,18 @@ function formatFriendlyPayloadRows(result: BillingExecutionResult): Array<readon
   const payload = result.payload;
   const rows: Array<readonly [string, string]> = [
     ['Concepto', formatConceptLabel(payload.Concepto)],
-    ['Punto de venta', formatNumericLabel(payload.PtoVta)],
+    ['Punto de venta', String(payload.PtoVta)],
     ['Fecha del comprobante', formatDateLabel(payload.CbteFch)],
     ['Tipo de documento', formatDocumentTypeLabel(payload.DocTipo)],
     [
       'Número de documento',
       typeof payload.DocNro === 'number'
         ? payload.DocNro === 0
-          ? 'Sin especificar'
+          ? 'Consumidor final'
           : isTaxIdDocumentType(payload.DocTipo)
             ? formatTaxIdLabel(payload.DocNro)
             : formatNumericLabel(payload.DocNro)
-        : 'No informado',
+        : 'N/D',
     ],
     ...(result.receiver?.name ? [['Receptor', result.receiver.name] as const] : []),
     [
@@ -115,13 +118,13 @@ function formatFriendlyPayloadRows(result: BillingExecutionResult): Array<readon
     ],
     ['Moneda', formatCurrencyLabel(payload.MonId)],
     ['Cotización', formatDecimalLabel(payload.MonCotiz)],
-    ['Importe neto', formatMoneyLabel(payload.ImpNeto)],
-    ['Importe IVA', formatMoneyLabel(payload.ImpIVA)],
-    ...formatIvaRows(payload.Iva ?? []),
-    ['Importe tributos', formatMoneyLabel(payload.ImpTrib)],
-    ['Importe exento', formatMoneyLabel(payload.ImpOpEx)],
-    ['Importe no gravado', formatMoneyLabel(payload.ImpTotConc)],
-    ['Importe total', formatMoneyLabel(payload.ImpTotal)],
+    ['Importe neto', formatMoneyLabel(payload.ImpNeto, payload.MonId)],
+    ['Importe IVA', formatMoneyLabel(payload.ImpIVA, payload.MonId)],
+    ...formatIvaRows(payload.Iva ?? [], payload.MonId),
+    ['Importe tributos', formatMoneyLabel(payload.ImpTrib, payload.MonId)],
+    ['Importe exento', formatMoneyLabel(payload.ImpOpEx, payload.MonId)],
+    ['Importe no gravado', formatMoneyLabel(payload.ImpTotConc, payload.MonId)],
+    ['Importe total', formatMoneyLabel(payload.ImpTotal, payload.MonId)],
   ];
 
   if (payload.FchServDesde) {
@@ -142,8 +145,7 @@ function formatFriendlyPayloadRows(result: BillingExecutionResult): Array<readon
     const associatedKind = getVoucherKindByArcaType(associatedVoucher.Tipo);
 
     rows.push(['Comprobante asociado', associatedKind ? associatedKind.displayName : String(associatedVoucher.Tipo)]);
-    rows.push(['Punto de venta asociado', formatNumericLabel(associatedVoucher.PtoVta)]);
-    rows.push(['Número asociado', formatNumericLabel(associatedVoucher.Nro)]);
+    rows.push(['Número asociado', formatVoucherNumber(associatedVoucher.PtoVta, associatedVoucher.Nro)]);
     rows.push(['CUIT asociado', formatTaxIdLabel(associatedVoucher.Cuit)]);
 
     if (associatedVoucher.CbteFch) {
@@ -192,7 +194,7 @@ export function formatResultPanel(
     result.voucherNumber === undefined
       ? ['Punto de venta', result.payload.PtoVta]
       : ['Número', formatVoucherNumber(result.payload.PtoVta, result.voucherNumber)],
-    ['Importe total', formatMoneyLabel(result.payload.ImpTotal)],
+    ['Importe total', formatMoneyLabel(result.payload.ImpTotal, result.payload.MonId)],
   ];
   const countRows: Array<readonly [string, string | number]> = [
     ['Observaciones', result.response.observaciones.length],

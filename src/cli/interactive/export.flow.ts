@@ -173,8 +173,8 @@ function exportSteps(
         const currencyCode = await chooseStep<'DOL' | 'PES'>(
           '¿En qué moneda facturás?',
           [
-            { description: 'Con la cotización de aduana que publica ARCA', name: 'Dólares (DOL)', value: 'DOL' },
-            { name: 'Pesos (PES)', value: 'PES' },
+            { description: 'Con la cotización de aduana que publica ARCA', name: 'Dólares (USD)', value: 'DOL' },
+            { name: 'Pesos', value: 'PES' },
           ],
           'DOL',
         );

@@ -1,4 +1,4 @@
-import { parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
+import { ARGENTINE_DATE_FORMAT_HINT, parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
 import { parseCuit } from '../../lib/identity/cuit';
 import { EXCHANGE_RATE_DECIMALS, parseArgentineAmount } from '../../lib/numbers/argentine-amount';
 
@@ -32,7 +32,7 @@ export function validateDate(value: string): string | true {
 
     return true;
   } catch {
-    return 'Fecha inválida. Usa D/M/AAAA, D/M o solo el día (por ejemplo 15/10).';
+    return `Fecha inválida. ${ARGENTINE_DATE_FORMAT_HINT}`;
   }
 }
 

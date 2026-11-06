@@ -44,9 +44,9 @@ describe('voucher-history.presenter', () => {
       ' · ',
     );
 
-    expect(rows[0]).toMatch(/^00003-00000012 · 01\/10\/2026 · Consumidor final · +\$ [\d.,]+ · CAE 86400940834444$/);
+    expect(rows[0]).toMatch(/^00003-00000012 · 01\/10\/2026 · Consumidor final +· +\$ [\d.,]+ · CAE 86400940834444$/);
     // Sin CAE no queda un separador colgando; el receptor y el total quedan alineados con la otra fila.
-    expect(rows[1]).toMatch(/^00003-00000013 · 01\/10\/2026 · CUIT 20123456786 · +\$ 5$/);
+    expect(rows[1]).toMatch(/^00003-00000013 · 01\/10\/2026 · CUIT 20-12345678-6 · +\$ 5$/);
     expect(rows[0].indexOf(' · CAE')).toBe(rows[1].length);
   });
 
@@ -69,7 +69,10 @@ describe('voucher-history.presenter', () => {
   it('formatea numero y receptor', () => {
     expect(formatVoucherNumber(3, 12)).toBe('00003-00000012');
     expect(formatReceiver(voucher)).toBe('Consumidor final');
-    expect(formatReceiver({ ...voucher, documentNumber: 30709965812, documentTypeCode: 80 })).toBe('CUIT 30709965812');
+    expect(formatReceiver({ ...voucher, documentNumber: 30709965812, documentTypeCode: 80 })).toBe(
+      'CUIT 30-70996581-2',
+    );
+    expect(formatReceiver({ ...voucher, documentNumber: 12345678, documentTypeCode: 96 })).toBe('DNI 12.345.678');
   });
 
   it('lista los comprobantes en texto y avisa si no hay', () => {
@@ -111,6 +114,9 @@ describe('voucher-history.presenter', () => {
     expect(
       stripAnsi(formatVoucherDetailAsText({ ...base, voucher: { ...voucher, currency: 'DOL', exchangeRate: 1200 } })),
     ).toContain('Cotización');
+    expect(
+      stripAnsi(formatVoucherDetailAsText({ ...base, voucher: { ...voucher, currency: 'DOL', exchangeRate: 1200.5 } })),
+    ).toMatch(/Cotización\s+1\.200,50[\s\S]*Importe total\s+[\d.,]+ USD/);
   });
 
   it('serializa el detalle en JSON', () => {

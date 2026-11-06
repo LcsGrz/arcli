@@ -1,13 +1,13 @@
 import { toArgentineCalendarDate } from '../../lib/dates/arca-date';
 
-/** Periodos de servicio para repetir una factura: el mes actual o el anterior, en formato D/MM/YYYY. */
+/** Periodos de servicio para repetir una factura: el mes actual o el anterior, en formato DD/MM/YYYY. */
 export interface ServicePeriod {
   readonly from: string;
   readonly to: string;
 }
 
 function format(value: Date): string {
-  return `${value.getDate()}/${String(value.getMonth() + 1).padStart(2, '0')}/${value.getFullYear()}`;
+  return `${String(value.getDate()).padStart(2, '0')}/${String(value.getMonth() + 1).padStart(2, '0')}/${value.getFullYear()}`;
 }
 
 function monthPeriod(year: number, month: number): ServicePeriod {

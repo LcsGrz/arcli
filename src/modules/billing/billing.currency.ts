@@ -1,5 +1,5 @@
 import { InputValidationError } from '../../lib/errors/app-error';
-import { formatArgentineAmountInput } from '../../lib/numbers/argentine-amount';
+import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 
 import { DEFAULT_EXCHANGE_RATE } from './billing.constants';
 import { resolveBillingCurrencyCode } from './billing.mappers';
@@ -32,7 +32,7 @@ export function exchangeRateWarnings(
   input: Pick<BillingCommandInput, 'currencyCode' | 'exchangeRate' | 'exchangeRateSource'>,
 ): string[] {
   const code = input.currencyCode.trim().toUpperCase();
-  const rate = typeof input.exchangeRate === 'number' ? formatArgentineAmountInput(input.exchangeRate) : undefined;
+  const rate = typeof input.exchangeRate === 'number' ? formatExchangeRate(input.exchangeRate) : undefined;
 
   if (input.exchangeRateSource === 'config') {
     return [

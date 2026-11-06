@@ -1,4 +1,5 @@
-import { formatArgentineAmount } from '../../lib/numbers/argentine-amount';
+import { formatCuit } from '../../lib/identity/format-cuit';
+import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import {
   contentPanel,
   keyValuePanel,
@@ -10,7 +11,8 @@ import {
   testingBanner,
   toneText,
 } from '../../ui';
-import { formatDateLabel, formatMoneyLabel, formatNumericLabel } from '../billing/billing.labels';
+import { formatCurrencyLabel, formatDateLabel, formatMoneyLabel } from '../billing/billing.labels';
+import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
 
 import { formatRawExportResponse } from './export.serialize';
 import { EXPORT_TYPES, type ExportExecutionResult } from './export.types';
@@ -56,7 +58,7 @@ function formatIncoterm(result: ExportExecutionResult): string {
   const { Incoterms: code, Incoterms_Ds: description } = result.payload;
 
   if (!code) {
-    return 'No informado';
+    return 'N/D';
   }
 
   // La tabla de WSFEX trae como descripcion el mismo codigo ("FOB"): no se repite.
@@ -67,9 +69,7 @@ function formatIncoterm(result: ExportExecutionResult): string {
 
 /** La E casi siempre va en moneda extranjera: el importe lleva su codigo, no el `$` de los pesos. */
 function formatAmount(result: ExportExecutionResult, value: number): string {
-  const currency = result.payload.Moneda_Id;
-
-  return currency === 'PES' ? formatMoneyLabel(value) : `${formatArgentineAmount(value)} ${currency}`;
+  return formatMoneyLabel(value, result.payload.Moneda_Id);
 }
 
 function formatLanguage(result: ExportExecutionResult): string {
@@ -80,7 +80,8 @@ function formatLanguage(result: ExportExecutionResult): string {
 
 function formatCurrency(result: ExportExecutionResult): string {
   const { CanMisMonExt: sameCurrency, Moneda_Id: currency, Moneda_ctz: rate } = result.payload;
-  const label = currency === 'PES' ? `${currency} (pesos)` : `${currency}, cotización ${rate}`;
+  const name = formatCurrencyLabel(currency);
+  const label = currency === 'PES' ? name : `${name}, cotización ${formatExchangeRate(rate)}`;
 
   return sameCurrency === 'S' ? `${label} (el pago se cancela en la misma moneda)` : label;
 }
@@ -110,7 +111,7 @@ function formatPayloadRows(result: ExportExecutionResult): Rows {
   const { payload } = result;
   const rows: Rows = [
     ['Cliente', payload.Cliente],
-    ['CUIT del país del cliente', String(payload.Cuit_pais_cliente)],
+    ['CUIT del país del cliente', formatCuit(payload.Cuit_pais_cliente)],
     ['Domicilio del cliente', payload.Domicilio_cliente],
     ['País de destino', formatCountry(result)],
     ['Tipo de exportación', formatExportType(result)],
@@ -119,8 +120,7 @@ function formatPayloadRows(result: ExportExecutionResult): Rows {
     ['Idioma', formatLanguage(result)],
     ['Moneda', formatCurrency(result)],
     ['Forma de pago', payload.Forma_pago],
-    ['Punto de venta', formatNumericLabel(payload.Punto_vta)],
-    ['Número', formatNumericLabel(payload.Cbte_nro)],
+    ['Número', formatVoucherNumber(payload.Punto_vta, payload.Cbte_nro)],
     ['Fecha del comprobante', formatDateLabel(payload.Fecha_cbte)],
     ['Fecha de pago', formatDateLabel(payload.Fecha_pago)],
     ['Importe total', formatAmount(result, payload.Imp_total)],
@@ -173,8 +173,7 @@ function formatExportResultPanel(
   const summaryRows: Array<readonly [string, string | number]> = [
     ['CAE', result.response.cae ?? 'N/D'],
     ['Vencimiento CAE', formatDateLabel(result.response.caeVencimiento ?? undefined)],
-    ['Punto de venta', result.payload.Punto_vta],
-    ['Número', result.payload.Cbte_nro],
+    ['Número', formatVoucherNumber(result.payload.Punto_vta, result.payload.Cbte_nro)],
     ['Importe total', formatAmount(result, result.payload.Imp_total)],
   ];
   const countRows: Array<readonly [string, string | number]> = [

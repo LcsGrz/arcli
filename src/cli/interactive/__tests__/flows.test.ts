@@ -348,12 +348,12 @@ describe('flujos del modo interactivo', () => {
         ivaCondition: 'responsable-inscripto',
         ivaRate: undefined,
         serviceEndDate: '30/09/2026',
-        serviceStartDate: '1/09/2026',
+        serviceStartDate: '01/09/2026',
         shortcut: 'fa',
         totalAmount: 121,
       });
       expect(script.chooseManyStep.mock.calls[0][1]).toContainEqual(
-        expect.objectContaining({ description: '1/09/2026 al 30/09/2026', value: 'servicio' }),
+        expect.objectContaining({ description: '01/09/2026 al 30/09/2026', value: 'servicio' }),
       );
     });
 
@@ -375,7 +375,7 @@ describe('flujos del modo interactivo', () => {
       expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
         documentType: 'consumidor-final',
         serviceEndDate: '31/10/2026',
-        serviceStartDate: '1/10/2026',
+        serviceStartDate: '01/10/2026',
         shortcut: 'fc',
         totalAmount: 2000,
       });

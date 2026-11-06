@@ -169,7 +169,7 @@ export function describeConfigValue(field: ConfigField, config: ArcliConfig): st
   const value = field.read(config);
 
   if (!value) {
-    return 'sin configurar';
+    return 'no configurado';
   }
 
   return field.path ? maskPath(value) : value;

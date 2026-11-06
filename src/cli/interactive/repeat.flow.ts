@@ -123,7 +123,7 @@ export function repeatSteps(
         const reproducible = !copyInvoiceAmounts(original, state.voucherKind?.letter ?? 'c').limitation;
         const scope = reproducible
           ? await chooseStep('¿Mismo monto?', [
-              { name: `Sí, ${formatMoneyLabel(original.total)}`, value: 'mismo' as const },
+              { name: `Sí, ${formatMoneyLabel(original.total, original.currency)}`, value: 'mismo' as const },
               { name: 'No, ingresar otro monto', value: 'otro' as const },
             ])
           : ('otro' as const);

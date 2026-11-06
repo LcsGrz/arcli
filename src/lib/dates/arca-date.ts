@@ -1,6 +1,6 @@
 import { InputValidationError } from '../errors/app-error';
 
-const ARGENTINE_DATE_FORMAT_HINT = 'Usá D, DD, D-MM, D/MM, D-MM-YY, D/MM/YY, D-MM-YYYY o D/MM/YYYY.';
+export const ARGENTINE_DATE_FORMAT_HINT = 'Usá D, DD, D-MM, D/MM, D-MM-YY, D/MM/YY, D-MM-YYYY o D/MM/YYYY.';
 
 export interface CalendarDate {
   readonly day: number;

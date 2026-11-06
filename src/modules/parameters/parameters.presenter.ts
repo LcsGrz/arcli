@@ -1,5 +1,6 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { POINT_OF_SALE_GUIDE_URL } from '../../lib/links';
+import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { keyValuePanel, noticePanel, renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui';
 
 import {
@@ -86,7 +87,7 @@ export function formatParameterEntriesAsJson(
 export function formatQuotationAsText(quotation: Quotation, environment: Environment): string {
   const rows = [
     ['Moneda', quotation.currency],
-    ['Cotización', new Intl.NumberFormat('es-AR', { maximumFractionDigits: 6 }).format(quotation.rate)],
+    ['Cotización', formatExchangeRate(quotation.rate)],
     ['Fecha', quotation.date ? formatArcaDateAsArgentineDate(quotation.date) : 'N/D'],
   ] as const;
 

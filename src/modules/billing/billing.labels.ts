@@ -1,6 +1,6 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { formatCuit } from '../../lib/identity/format-cuit';
-import { formatArgentineMoney } from '../../lib/numbers/argentine-amount';
+import { formatArgentineAmount, formatArgentineMoney, formatExchangeRate } from '../../lib/numbers/argentine-amount';
 
 import { conceptLabel, documentTypeLabel, ivaConditionLabel } from './arca-codes';
 import { findArcaCurrency } from './currency-codes';
@@ -17,12 +17,21 @@ export function formatDateLabel(value: string | undefined): string {
   return value.replaceAll('-', '/');
 }
 
-export function formatMoneyLabel(value: number | undefined): string {
+/** Pesos con `$`; otra moneda, con su codigo: `1.500,50 USD`. Acepta el codigo ISO o el de ARCA. */
+export function formatMoneyLabel(value: number | undefined, currency?: string): string {
   if (typeof value !== 'number') {
     return 'N/D';
   }
 
-  return formatArgentineMoney(value);
+  if (!currency) {
+    return formatArgentineMoney(value);
+  }
+
+  const known = findArcaCurrency(currency);
+
+  return known?.arca === 'PES'
+    ? formatArgentineMoney(value)
+    : `${formatArgentineAmount(value)} ${known?.iso ?? currency}`;
 }
 
 export function formatConceptLabel(value: number | undefined): string {
@@ -62,7 +71,7 @@ export function formatNumericLabel(value: number | undefined): string {
 
 export function formatTaxIdLabel(value: string | number | undefined): string {
   if (value === undefined || value === null || value === '') {
-    return 'No informado';
+    return 'N/D';
   }
 
   const normalizedValue = String(value).replace(/\D/g, '');
@@ -79,7 +88,5 @@ export function formatDecimalLabel(value: number | undefined): string {
     return 'N/D';
   }
 
-  return new Intl.NumberFormat('es-AR', {
-    maximumFractionDigits: 6,
-  }).format(value);
+  return formatExchangeRate(value);
 }

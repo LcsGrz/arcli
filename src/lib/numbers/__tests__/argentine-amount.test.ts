@@ -5,6 +5,7 @@ import {
   formatArgentineAmount,
   formatArgentineAmountInput,
   formatArgentineMoney,
+  formatExchangeRate,
   hasAtMostDecimals,
   parseArgentineAmount,
 } from '../argentine-amount';
@@ -58,7 +59,7 @@ describe('parseArgentineAmount', () => {
 
 describe('formatArgentineAmountInput', () => {
   it.each([
-    [1234.5, '1234,5'],
+    [1234.5, '1234,50'],
     [1500, '1500'],
     [0.01, '0,01'],
   ])('escribe %s como %s', (value, expected) => {
@@ -84,6 +85,18 @@ describe('formatArgentineAmount', () => {
 
   it('se puede volver a leer con parseArgentineAmount', () => {
     expect(parseArgentineAmount(formatArgentineMoney(123456.5))).toEqual({ ok: true, value: 123456.5 });
+  });
+});
+
+describe('formatExchangeRate', () => {
+  it.each([
+    [1, '1'],
+    [1250, '1.250'],
+    [1250.5, '1.250,50'],
+    [1250.12, '1.250,12'],
+    [1250.123456, '1.250,123456'],
+  ])('escribe %s como %s', (value, expected) => {
+    expect(formatExchangeRate(value)).toBe(expected);
   });
 });
 

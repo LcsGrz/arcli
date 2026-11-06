@@ -71,7 +71,7 @@ async function askNoteAmount(
 
   if (state.kind === 'credito' && invoice && canAnnulTotal) {
     const scope = await chooseStep('¿Total o parcial?', [
-      { name: `Anular el total (${formatMoneyLabel(invoice.total)})`, value: 'total' as const },
+      { name: `Anular el total (${formatMoneyLabel(invoice.total, invoice.currency)})`, value: 'total' as const },
       { name: 'Parcial (ingresar monto)', value: 'parcial' as const },
     ]);
 
@@ -90,7 +90,7 @@ async function askNoteAmount(
 
       return (parseAmountInput(value) ?? 0) <= invoice.total
         ? true
-        : `No puede superar el total de la factura (${formatMoneyLabel(invoice.total)}).`;
+        : `No puede superar el total de la factura (${formatMoneyLabel(invoice.total, invoice.currency)}).`;
     },
   });
 

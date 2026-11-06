@@ -1,4 +1,5 @@
-import { DEFAULT_CURRENCY_CODE } from '../../modules/billing/billing.constants';
+import { formatArgentineAmount, formatExchangeRate } from '../../lib/numbers/argentine-amount';
+import { DEFAULT_CURRENCY_CODE, DEFAULT_EXCHANGE_RATE } from '../../modules/billing/billing.constants';
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { parseAmountInput, parseExchangeRateInput } from '../../modules/interactive/amount-input';
@@ -39,13 +40,15 @@ function describeCurrency(options: AdvancedOptions): string {
     return 'pesos';
   }
 
-  return options.sameCurrency ? 'dólares, cotización oficial de ARCA' : `dólares, cotización ${options.exchangeRate}`;
+  return options.sameCurrency
+    ? 'dólares, cotización oficial de ARCA'
+    : `dólares, cotización ${formatExchangeRate(options.exchangeRate ?? DEFAULT_EXCHANGE_RATE)}`;
 }
 
 function describeAmounts(options: AdvancedOptions): string {
   const parts = [
-    options.exemptAmount ? `exento ${options.exemptAmount}` : undefined,
-    options.untaxedAmount ? `no gravado ${options.untaxedAmount}` : undefined,
+    options.exemptAmount ? `exento ${formatArgentineAmount(options.exemptAmount)}` : undefined,
+    options.untaxedAmount ? `no gravado ${formatArgentineAmount(options.untaxedAmount)}` : undefined,
   ].filter(Boolean);
 
   return parts.length > 0 ? parts.join(', ') : 'sin exento ni no gravado';
