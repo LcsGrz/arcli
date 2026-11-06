@@ -1,4 +1,5 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
+import { formatArgentineMoney } from '../../lib/numbers/argentine-amount';
 import { keyValuePanel, renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui';
 
 import type { FceObligation } from './fce-obligation';
@@ -9,13 +10,6 @@ export interface FceObligationReport {
   readonly issueDate: string;
   readonly obligation: FceObligation;
 }
-
-const MONEY_FORMATTER = new Intl.NumberFormat('es-AR', {
-  currency: 'ARS',
-  maximumFractionDigits: 2,
-  minimumFractionDigits: 2,
-  style: 'currency',
-});
 
 export function formatFceObligationAsJson(report: FceObligationReport): string {
   return JSON.stringify(
@@ -36,7 +30,7 @@ export function formatFceObligationAsText(report: FceObligationReport): string {
     ['CUIT', String(report.cuit)],
     ['Fecha consultada', formatArcaDateAsArgentineDate(report.issueDate)],
     ['Obligado a recibir FCE', report.obligation.obligated ? 'si' : 'no'],
-    ['Monto mínimo', MONEY_FORMATTER.format(report.obligation.minimumAmount)],
+    ['Monto mínimo', formatArgentineMoney(report.obligation.minimumAmount)],
   ];
   const footer = report.obligation.obligated
     ? `Desde ese monto corresponde emitir FCE (fcea, fceb o fcec). Debajo, factura comun.`

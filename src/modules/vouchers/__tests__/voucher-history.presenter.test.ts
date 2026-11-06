@@ -44,10 +44,10 @@ describe('voucher-history.presenter', () => {
       ' · ',
     );
 
-    expect(rows[0]).toMatch(/^00003-00000012 · 01\/10\/2026 · Consumidor final · +[\d.,]+\$ · CAE 86400940834444$/);
+    expect(rows[0]).toMatch(/^00003-00000012 · 01\/10\/2026 · Consumidor final · +\$ [\d.,]+ · CAE 86400940834444$/);
     // Sin CAE no queda un separador colgando; el receptor y el total quedan alineados con la otra fila.
-    expect(rows[1]).toMatch(/^00003-00000013 · 01\/10\/2026 · CUIT 20123456786 · +5\$$/);
-    expect(rows[0].indexOf('$')).toBe(rows[1].indexOf('$'));
+    expect(rows[1]).toMatch(/^00003-00000013 · 01\/10\/2026 · CUIT 20123456786 · +\$ 5$/);
+    expect(rows[0].indexOf(' · CAE')).toBe(rows[1].length);
   });
 
   it('con un ancho, agranda los separadores para que las filas lo ocupen', () => {

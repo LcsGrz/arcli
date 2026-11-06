@@ -1,5 +1,6 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { formatCuit } from '../../lib/identity/format-cuit';
+import { formatArgentineMoney } from '../../lib/numbers/argentine-amount';
 
 import { conceptLabel, documentTypeLabel, ivaConditionLabel } from './arca-codes';
 import { findArcaCurrency } from './currency-codes';
@@ -21,12 +22,7 @@ export function formatMoneyLabel(value: number | undefined): string {
     return 'N/D';
   }
 
-  const hasDecimals = !Number.isInteger(value);
-
-  return `${new Intl.NumberFormat('es-AR', {
-    maximumFractionDigits: 2,
-    minimumFractionDigits: hasDecimals ? 2 : 0,
-  }).format(value)}$`;
+  return formatArgentineMoney(value);
 }
 
 export function formatConceptLabel(value: number | undefined): string {

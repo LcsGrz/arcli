@@ -1,3 +1,4 @@
+import { formatArgentineAmount } from '../../lib/numbers/argentine-amount';
 import {
   contentPanel,
   keyValuePanel,
@@ -67,9 +68,8 @@ function formatIncoterm(result: ExportExecutionResult): string {
 /** La E casi siempre va en moneda extranjera: el importe lleva su codigo, no el `$` de los pesos. */
 function formatAmount(result: ExportExecutionResult, value: number): string {
   const currency = result.payload.Moneda_Id;
-  const label = formatMoneyLabel(value);
 
-  return currency === 'PES' ? label : `${label.replace(/\$$/, '')} ${currency}`;
+  return currency === 'PES' ? formatMoneyLabel(value) : `${formatArgentineAmount(value)} ${currency}`;
 }
 
 function formatLanguage(result: ExportExecutionResult): string {

@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   EXCHANGE_RATE_DECIMALS,
+  formatArgentineAmount,
   formatArgentineAmountInput,
+  formatArgentineMoney,
   hasAtMostDecimals,
   parseArgentineAmount,
 } from '../argentine-amount';
@@ -62,6 +64,26 @@ describe('formatArgentineAmountInput', () => {
   ])('escribe %s como %s', (value, expected) => {
     expect(formatArgentineAmountInput(value)).toBe(expected);
     expect(parseArgentineAmount(expected)).toEqual({ ok: true, value });
+  });
+});
+
+describe('formatArgentineAmount', () => {
+  it.each([
+    [0, '0'],
+    [5, '5'],
+    [1500, '1.500'],
+    [123456.5, '123.456,50'],
+    [123456.12, '123.456,12'],
+    [1500000.05, '1.500.000,05'],
+    [1500.004, '1.500'],
+    [1499.999, '1.500'],
+  ])('escribe %s como %s', (value, expected) => {
+    expect(formatArgentineAmount(value)).toBe(expected);
+    expect(formatArgentineMoney(value)).toBe(`$ ${expected}`);
+  });
+
+  it('se puede volver a leer con parseArgentineAmount', () => {
+    expect(parseArgentineAmount(formatArgentineMoney(123456.5))).toEqual({ ok: true, value: 123456.5 });
   });
 });
 

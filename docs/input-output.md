@@ -318,7 +318,7 @@ Si el archivo contiene un array, ARCLI procesa un lote del mismo comando. **Un a
     "comprobantes": [
       { "error": "Falta monto.", "indice": 2 },
       {
-        "error": "La factura b de $10.000.000 o más requiere identificar al consumidor final. Usá --dni, --cuit o --cuil.",
+        "error": "La factura b de $ 10.000.000 o más requiere identificar al consumidor final. Usá --dni, --cuit o --cuil.",
         "indice": 3
       }
     ]

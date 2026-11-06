@@ -189,10 +189,10 @@ arcli fc ayuda
 - **Solución:** usar la letra que sugiere el error, o corregir el IVA receptor.
 - **Documentación relacionada:** [IVA receptor](validation-rules.md#iva-receptor)
 
-### Consumidor final sin identificar desde $10.000.000
+### Consumidor final sin identificar desde $ 10.000.000
 
 - **Severidad:** ocasional
-- **Síntoma:** `... de $10.000.000 o más requiere identificar al consumidor final.`
+- **Síntoma:** `... de $ 10.000.000 o más requiere identificar al consumidor final.`
 - **Causa:** la RG 5700/2025 obliga a identificar al consumidor final desde ese monto.
 - **Solución:** reemplazar `--consumidor-final` por `--dni`, `--cuit` o `--cuil`, manteniendo `--ir-cf`.
 - **Documentación relacionada:** [Consumidor final](validation-rules.md#consumidor-final)

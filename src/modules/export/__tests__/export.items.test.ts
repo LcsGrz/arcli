@@ -103,7 +103,10 @@ describe('buildExportItems', () => {
   it('falla si la suma de los items no da el monto total', () => {
     expect(() =>
       buildExportItems([{ description: 'Uno', quantity: 1, unitPrice: 100, unit: 7 }], 150, UNITS, 'Según detalle'),
-    ).toThrow(/no coincide con --monto/);
+    ).toThrow('La suma de los items (100) no coincide con --monto (150).');
+    expect(() =>
+      buildExportItems([{ description: 'Uno', quantity: 1, unitPrice: 1000.5, unit: 7 }], 1500, UNITS, 'Según detalle'),
+    ).toThrow('La suma de los items (1.000,50) no coincide con --monto (1.500).');
   });
 
   it('rechaza cantidades y precios que no son positivos', () => {

@@ -11,6 +11,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 ### Cambiado
 
 - **Cotización oficial por defecto en moneda extranjera:** `arcli fc --moneda USD` sin `--cm` ni `--misma-moneda` usa la cotización oficial de ARCA y lo avisa en "Avisos" (y en `avisos` del JSON). Antes daba error "Falta la cotización". `--cm` sigue pisándola y `--cm 1` sigue siendo error.
+- **Un solo formato para los importes:** la salida en terminal muestra los pesos como `$ 1.500` o `$ 1.500,50`, con el espacio que usa el PDF y sin `,00` si no hay centavos. Antes convivían `1.500$`, `$1.500` y `$ 1.500,00`. En moneda extranjera la factura `E` sigue con el código (`1.500,50 DOL`), y el error de `fe` cuando los ítems no suman `--monto` deja de usar punto decimal (`1.500,50` en lugar de `1500.50`). Los textos de errores y avisos toman el mismo formato, también en el `--json`. El PDF no cambia y los importes del `--json` siguen siendo números.
 
 ### Deprecado
 

@@ -1,7 +1,7 @@
 import Big from 'big.js';
 
 import { InputValidationError } from '../../lib/errors/app-error';
-import { parseArgentineAmount } from '../../lib/numbers/argentine-amount';
+import { formatArgentineAmount, parseArgentineAmount } from '../../lib/numbers/argentine-amount';
 import { roundAmount } from '../billing/billing.amounts';
 
 import {
@@ -135,7 +135,7 @@ export function resolveUnitCode(unit: string | number | undefined, units: readon
 function assertSameTotal(total: Big, amount: number): void {
   if (!total.eq(new Big(amount).round(2, Big.roundHalfUp))) {
     throw new InputValidationError(
-      `La suma de los items (${roundAmount(total).toFixed(2)}) no coincide con --monto (${amount.toFixed(2)}).`,
+      `La suma de los items (${formatArgentineAmount(roundAmount(total))}) no coincide con --monto (${formatArgentineAmount(amount)}).`,
     );
   }
 }
