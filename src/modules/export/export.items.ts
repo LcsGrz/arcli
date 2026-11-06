@@ -2,6 +2,7 @@ import Big from 'big.js';
 
 import { InputValidationError } from '../../lib/errors/app-error';
 import { parseArgentineAmount } from '../../lib/numbers/argentine-amount';
+import { roundAmount } from '../billing/billing.amounts';
 
 import {
   DEFAULT_EXPORT_UNIT_CODE,
@@ -60,7 +61,7 @@ export function parseExportItemArgument(raw: string): ExportItemInput {
 }
 
 /** La unidad del item puede ser el codigo de ARCA (`7`) o el nombre de la tabla (`unidad`). */
-export function resolveExportItemUnit(unit: string | number): string | number {
+function resolveExportItemUnit(unit: string | number): string | number {
   if (typeof unit === 'number') {
     return unit;
   }
@@ -129,10 +130,6 @@ export function resolveUnitCode(unit: string | number | undefined, units: readon
   }
 
   return DEFAULT_EXPORT_UNIT_CODE;
-}
-
-function roundAmount(value: Big): number {
-  return value.round(2, Big.roundHalfUp).toNumber();
 }
 
 function assertSameTotal(total: Big, amount: number): void {

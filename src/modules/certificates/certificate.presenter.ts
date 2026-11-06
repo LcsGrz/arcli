@@ -29,7 +29,7 @@ const SERVICES: ReadonlyArray<readonly [service: string, usage: string]> = [
 ];
 
 /** Lo que hay que hacer en ARCA con el CSR. Testing usa WSASS; producción, Administración de Certificados Digitales. */
-export function certificateSteps(request: Pick<GeneratedCertificateRequest, 'alias' | 'environment'>): string[] {
+function certificateSteps(request: Pick<GeneratedCertificateRequest, 'alias' | 'environment'>): string[] {
   const importCommand = 'arcli certificado importar <archivo.crt>';
 
   if (request.environment === 'testing') {

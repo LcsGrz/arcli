@@ -1,4 +1,5 @@
 import { formatArgentineAmountInput } from '../../lib/numbers/argentine-amount';
+import { DEFAULT_CURRENCY_CODE } from '../billing/billing.constants';
 import { isForeignCurrency } from '../billing/billing.currency';
 import { resolveBillingCurrencyCode } from '../billing/billing.mappers';
 import type { BillingCommandInput } from '../billing/billing.schemas';
@@ -74,7 +75,7 @@ export function buildEquivalentCommand(
       parts.push('--cm', formatArgentineAmountInput(input.exchangeRate));
     }
   } else if (options.defaultCurrency && resolveBillingCurrencyCode(options.defaultCurrency) !== 'PES') {
-    parts.push('--moneda', 'ARS');
+    parts.push('--moneda', DEFAULT_CURRENCY_CODE);
   }
   if (input.ivaRate) parts.push('--alicuota', input.ivaRate);
 

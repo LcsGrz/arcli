@@ -25,12 +25,12 @@ export function shouldPrintErrorAsJson(argv: readonly string[], readDefault = re
 const COMMANDER_NON_ERROR_CODES = new Set(['commander.help', 'commander.helpDisplayed', 'commander.version']);
 
 /** Ayuda o version: commander ya las imprimio y solo queda salir con su exit code. */
-export function isCommanderExit(error: unknown): error is CommanderError {
+function isCommanderExit(error: unknown): error is CommanderError {
   return error instanceof CommanderError && COMMANDER_NON_ERROR_CODES.has(error.code);
 }
 
 /** Un error de uso de commander: opcion desconocida, valor faltante, argumento de mas, etc. */
-export function isCommanderUsageError(error: unknown): error is CommanderError {
+function isCommanderUsageError(error: unknown): error is CommanderError {
   return error instanceof CommanderError && !COMMANDER_NON_ERROR_CODES.has(error.code);
 }
 
@@ -51,12 +51,12 @@ const COMMANDER_MESSAGES: ReadonlyArray<readonly [RegExp, string]> = [
   [/\(Did you mean ([^?]+)\?\)/, '(¿quisiste decir $1?)'],
 ];
 
-export function translateCommanderMessage(message: string): string {
+function translateCommanderMessage(message: string): string {
   return COMMANDER_MESSAGES.reduce((result, [pattern, replacement]) => result.replace(pattern, replacement), message);
 }
 
 /** El error de uso de commander como `INPUT_VALIDATION_ERROR`, en el mismo formato que el resto. */
-export function toUsageError(error: CommanderError): AppError {
+function toUsageError(error: CommanderError): AppError {
   // Commander arma el mensaje con "error: " adelante y, a veces, una segunda linea "(Did you mean --monto?)".
   const message = translateCommanderMessage(error.message)
     .replace(/^error:\s*/i, '')

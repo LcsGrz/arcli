@@ -1,25 +1,13 @@
 import { z } from 'zod';
 
-import { billingIvaRateSchema } from '../billing/billing.schemas';
+import { billingConceptValueSchema, billingIvaConditionSchema, billingIvaRateSchema } from '../billing/billing.schemas';
 import { saleConditionSchema } from '../billing/sale-condition';
 import { MAX_RECENT_VOUCHERS } from '../vouchers/voucher-history';
 
 export const arcliEnvironmentSchema = z.enum(['testing', 'produccion']);
-export const arcliDefaultConceptSchema = z.enum(['productos', 'productos-servicios', 'servicios']);
-export const arcliDefaultIvaConditionSchema = z.enum([
-  'cliente-del-exterior',
-  'consumidor-final',
-  'iva-liberado',
-  'iva-no-alcanzado',
-  'monotributista-social',
-  'monotributo-trabajador-independiente-promovido',
-  'proveedor-del-exterior',
-  'responsable-inscripto',
-  'responsable-monotributo',
-  'sujeto-exento',
-  'sujeto-no-categorizado',
-]);
-export const arcliDefaultCurrencySchema = z
+export const arcliDefaultConceptSchema = billingConceptValueSchema;
+export const arcliDefaultIvaConditionSchema = billingIvaConditionSchema;
+const arcliDefaultCurrencySchema = z
   .string()
   .trim()
   .length(3)
@@ -109,6 +97,11 @@ export type ArcliConfig = z.infer<typeof arcliConfigSchema>;
 export type ArcliEnvironment = z.infer<typeof arcliEnvironmentSchema>;
 
 /** El entorno como se lee en un texto; el valor (`produccion`) sigue igual en flags, claves y JSON. */
+/** El padrón se consulta salvo que se haya apagado con `consultarPadron false`. */
+export function isPadronLookupEnabled(config: Pick<ArcliConfig, 'consultarPadron'>): boolean {
+  return config.consultarPadron ?? true;
+}
+
 export function formatEnvironmentLabel(environment: ArcliEnvironment): string {
   return environment === 'produccion' ? 'producción' : environment;
 }

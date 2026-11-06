@@ -41,12 +41,12 @@ export function formatReceiver(voucher: IssuedVoucher): string {
 }
 
 /** Titulo del listado de ultimos comprobantes, tambien usado por el selector del modo interactivo. */
-export function formatVoucherListTitle(report: Omit<VoucherListReport, 'vouchers'>): string {
+function formatVoucherListTitle(report: Omit<VoucherListReport, 'vouchers'>): string {
   return `Últimas ${report.voucherKind.displayName} · PV ${report.pointOfSale} · ${report.environment}`;
 }
 
 /** Una fila del listado: numero, fecha, receptor, total y CAE, en columnas alineadas. */
-export function formatVoucherListRow(pointOfSale: number, voucher: IssuedVoucher): string {
+function formatVoucherListRow(pointOfSale: number, voucher: IssuedVoucher): string {
   return [
     formatVoucherNumber(pointOfSale, voucher.number),
     formatArcaDateAsArgentineDate(voucher.date),

@@ -14,7 +14,7 @@ export const FCE_OPTIONAL_IDS = {
   transferMode: '27',
 } as const;
 
-export const DEFAULT_FCE_TRANSFER_MODE = 'sca';
+const DEFAULT_FCE_TRANSFER_MODE = 'sca';
 
 type FceInput = Pick<BillingCommandInput, 'cancellation' | 'cbu' | 'cbuAlias' | 'transferMode'>;
 

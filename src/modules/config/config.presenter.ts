@@ -13,6 +13,7 @@ import {
 import { RECENT_VOUCHERS_LIMIT } from '../vouchers/voucher-history';
 
 import type { ArcliConfig, ConfigPublicKey } from './config.schemas';
+import { isPadronLookupEnabled } from './config.schemas';
 import { CONFIG_LABELS, CONFIG_SECTIONS } from './config.sections';
 import { CONFIG_DOCTOR_SECTIONS, type ConfigDoctorReport } from './config-doctor';
 
@@ -110,7 +111,7 @@ function toPublicSnapshot(config: ArcliConfig, paths: ConfigPathSnapshot): Publi
     bruto: config.output.brutoPorDefecto,
     ticketPath: maskPath(paths.ticketPath),
     verificarFce: config.verificarFce,
-    consultarPadron: config.consultarPadron ?? true,
+    consultarPadron: isPadronLookupEnabled(config),
   };
 }
 
@@ -172,7 +173,7 @@ const CONFIG_TEXT_VALUES: Record<ConfigPublicKey, PublicConfigValue> = {
   puntoVenta: (c) => notSet(c.puntoVenta),
   ticketPath: (c) => c.ticketPath,
   verificarFce: (c) => yesNo(c.verificarFce),
-  consultarPadron: (c) => yesNo(c.consultarPadron ?? true),
+  consultarPadron: (c) => yesNo(isPadronLookupEnabled(c)),
 };
 
 /**

@@ -121,7 +121,3 @@ export function parseExportCommandPlan(command: Command, defaults: ExportCommand
     modeSource,
   };
 }
-
-export function parseExportCommandInput(command: Command, defaults: ExportCommandDefaults = {}): ExportVoucherInput {
-  return parseExportCommandPlan(command, defaults).input;
-}

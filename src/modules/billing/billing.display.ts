@@ -169,7 +169,7 @@ function formatFriendlyPayloadRows(result: BillingExecutionResult): Array<readon
   return rows;
 }
 
-export function formatPayloadTable(result: BillingExecutionResult): string {
+function formatPayloadTable(result: BillingExecutionResult): string {
   const rows = formatFriendlyPayloadRows(result);
 
   return renderTable(rows, { labelWidth: resolveKeyValueLabelWidth('ticket', rows) }).trimEnd();

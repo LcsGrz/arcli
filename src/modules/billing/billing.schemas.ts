@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { parseCuit } from '../../lib/identity/cuit';
 import { AMOUNT_DECIMALS, EXCHANGE_RATE_DECIMALS, hasAtMostDecimals } from '../../lib/numbers/argentine-amount';
 
+import { DEFAULT_CURRENCY_CODE } from './billing.constants';
 import type { VoucherShortcut } from './billing.types';
 import { saleConditionSchema } from './sale-condition';
 
@@ -18,18 +19,16 @@ const BILLING_CONCEPT_ALIASES = {
   servicios: 'servicios',
 } as const;
 
-export const billingConceptSchema = z.preprocess(
-  (value) => {
-    if (typeof value !== 'string') {
-      return value;
-    }
+export const billingConceptValueSchema = z.enum(['productos', 'productos-servicios', 'servicios']);
+const billingConceptSchema = z.preprocess((value) => {
+  if (typeof value !== 'string') {
+    return value;
+  }
 
-    const normalizedValue = value.trim().toLowerCase();
+  const normalizedValue = value.trim().toLowerCase();
 
-    return BILLING_CONCEPT_ALIASES[normalizedValue as keyof typeof BILLING_CONCEPT_ALIASES] ?? value;
-  },
-  z.enum(['productos', 'productos-servicios', 'servicios']),
-);
+  return BILLING_CONCEPT_ALIASES[normalizedValue as keyof typeof BILLING_CONCEPT_ALIASES] ?? value;
+}, billingConceptValueSchema);
 export const billingDocumentTypeSchema = z.enum(['consumidor-final', 'cuil', 'cuit', 'dni']);
 export const billingIvaConditionSchema = z.enum([
   'cliente-del-exterior',
@@ -58,7 +57,7 @@ export const IVA_RATE_ALIASES: Readonly<Record<string, (typeof IVA_RATE_VALUES)[
 export const IVA_RATE_HINT = 'general (21), reducida (10.5), incrementada (27), cero (0), 5 o 2.5';
 
 /** Acepta el alias o el numero: "reducida", "10,5", "10.5" o "10.5%". */
-export function normalizeIvaRateInput(value: unknown): unknown {
+function normalizeIvaRateInput(value: unknown): unknown {
   if (typeof value === 'number') {
     return String(value);
   }
@@ -138,7 +137,7 @@ export const billingCommandSchema = z.object({
     .regex(/^[A-Za-z0-9.-]{6,20}$/, 'El alias debe tener entre 6 y 20 caracteres (letras, números, punto o guion)')
     .optional(),
   concept: billingConceptSchema,
-  currencyCode: z.string().trim().length(3).default('ARS'),
+  currencyCode: z.string().trim().length(3).default(DEFAULT_CURRENCY_CODE),
   documentNumber: z.number().int().nonnegative().optional(),
   documentType: billingDocumentTypeSchema.default('consumidor-final'),
   dryRun: z.boolean().default(false),
@@ -194,5 +193,4 @@ export type BillingConcept = z.infer<typeof billingConceptSchema>;
 export type BillingDocumentType = z.infer<typeof billingDocumentTypeSchema>;
 export type BillingIvaCondition = z.infer<typeof billingIvaConditionSchema>;
 export type BillingIvaRate = z.infer<typeof billingIvaRateSchema>;
-export type BillingIvaRateAmount = z.infer<typeof billingIvaRateAmountSchema>;
 export type BillingCommandInput = z.infer<typeof billingCommandSchema>;

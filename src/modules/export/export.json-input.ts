@@ -18,7 +18,7 @@ const itemJsonSchema = z
  * Forma del JSON de `--cargar`: solo tipos y claves. Los valores (importes, pais, incoterm) los valida el
  * servicio igual que si vinieran por flags. Es `.strict()` para que un typo no se ignore en silencio.
  */
-export const exportJsonInputSchema = z
+const exportJsonInputSchema = z
   .object({
     actividad: z.number().optional(),
     cliente: z.string().optional(),
@@ -80,7 +80,7 @@ function describeIssue(issue: z.core.$ZodIssue): string {
   return path ? `"${path}": ${issue.message}.` : `${issue.message}.`;
 }
 
-export function parseExportJsonInput(value: unknown): ExportJsonInput {
+function parseExportJsonInput(value: unknown): ExportJsonInput {
   const result = exportJsonInputSchema.safeParse(value, { reportInput: true });
 
   if (result.success) {

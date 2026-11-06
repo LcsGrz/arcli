@@ -9,6 +9,7 @@ import type { VoucherShortcut } from '../../modules/billing/billing.types';
 import type { BillingExecutionResult } from '../../modules/billing/billing.types.internal';
 import { getVoucherKindByShortcut } from '../../modules/billing/voucher-kind-map';
 import type { ArcliConfig } from '../../modules/config/config.schemas';
+import { isPadronLookupEnabled } from '../../modules/config/config.schemas';
 import type { FceObligationGateway } from '../../modules/fce/fce-obligation';
 import { ArcaBillingGateway } from '../../services/arca/arca-billing.gateway';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
@@ -52,7 +53,7 @@ export function resolveBillingCommandDefaults(config: ArcliConfig): BillingComma
       config.cotizacionPorDefecto === DEFAULT_EXCHANGE_RATE ? undefined : config.cotizacionPorDefecto,
     defaultIvaCondition: config.ivaReceptorPorDefecto,
     defaultIvaRate: config.alicuotaPorDefecto,
-    lookupIvaConditionInPadron: config.consultarPadron !== false,
+    lookupIvaConditionInPadron: isPadronLookupEnabled(config),
   };
 }
 

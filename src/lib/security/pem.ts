@@ -28,7 +28,7 @@ export function ensurePathExists(filePath: string, label: PemKind): void {
   }
 }
 
-export function ensurePemFormat(content: string, filePath: string, label: PemKind): void {
+function ensurePemFormat(content: string, filePath: string, label: PemKind): void {
   const normalizedContent = content.trim();
 
   // El SDK no recibe passphrase: con una clave cifrada fallaria recien al hablar con ARCA, con un error confuso.

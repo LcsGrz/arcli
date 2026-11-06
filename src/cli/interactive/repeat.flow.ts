@@ -1,3 +1,5 @@
+import { DEFAULT_IVA_RATE } from '../../modules/billing/billing.amounts';
+import { DEFAULT_CURRENCY_CODE } from '../../modules/billing/billing.constants';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
 import type { BillingConcept } from '../../modules/billing/billing.schemas';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
@@ -27,7 +29,7 @@ export interface RepeatState extends InvoiceState {
   readonly original?: IssuedVoucher;
 }
 
-const LOCAL_CURRENCIES = new Set(['PES', 'ARS', undefined]);
+const LOCAL_CURRENCIES = new Set(['PES', DEFAULT_CURRENCY_CODE, undefined]);
 
 function describePeriod(period: ServicePeriod): string {
   return `${period.from} al ${period.to}`;
@@ -90,7 +92,7 @@ export function repeatSteps(
 
         return {
           advanced: {
-            currencyCode: 'ARS',
+            currencyCode: DEFAULT_CURRENCY_CODE,
             exemptAmount: copy.exemptAmount,
             ivaRate: copy.ivaRate,
             sameCurrency: false,
@@ -196,7 +198,7 @@ export function repeatSteps(
 
         const advanced = await askAdvancedOptions(state.advanced, {
           concept: state.concept ?? 'servicios',
-          defaultIvaRate: state.advanced.ivaRate ?? config.alicuotaPorDefecto ?? '21',
+          defaultIvaRate: state.advanced.ivaRate ?? config.alicuotaPorDefecto ?? DEFAULT_IVA_RATE,
           // Sin alicuota deducida de la factura, que la elija en lugar de caer en la de la config.
           preselected: [
             ...(foreign ? (['divisas'] as const) : []),
@@ -219,7 +221,7 @@ export async function runRepeatFlow(session: InteractiveSession): Promise<void> 
   }
 
   const state = await runWizard(repeatSteps(session, pointOfSale), {
-    advanced: { currencyCode: 'ARS', sameCurrency: false },
+    advanced: { currencyCode: DEFAULT_CURRENCY_CODE, sameCurrency: false },
   });
 
   if (!state) {

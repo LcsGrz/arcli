@@ -1,4 +1,5 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
+import { DEFAULT_IVA_RATE } from '../../modules/billing/billing.amounts';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
 import {
   type BillingCommandInput,
@@ -307,7 +308,8 @@ export function buildNoteInput(
     exemptAmount: state.annulsTotal ? copy?.exemptAmount : undefined,
     ivaCondition: state.ivaCondition,
     ...receiverInputFields(state),
-    ivaRate: state.ivaRate === '21' && !session.runtime.config.alicuotaPorDefecto ? undefined : state.ivaRate,
+    ivaRate:
+      state.ivaRate === DEFAULT_IVA_RATE && !session.runtime.config.alicuotaPorDefecto ? undefined : state.ivaRate,
     shortcut: noteKind.shortcut,
     totalAmount: state.totalAmount,
     untaxedAmount: state.annulsTotal ? copy?.untaxedAmount : undefined,

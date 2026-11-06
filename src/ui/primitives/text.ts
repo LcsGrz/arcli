@@ -36,7 +36,7 @@ export function supportsColor(target: OutputTarget = 'stdout'): boolean {
   return shouldUseColor(target);
 }
 
-export function resolveTextColor(color: UiTextColor): string {
+function resolveTextColor(color: UiTextColor): string {
   return UI_THEME.colors[color as UiColorToken] ?? color;
 }
 

@@ -176,7 +176,7 @@ export function describeConfigValue(field: ConfigField, config: ArcliConfig): st
 }
 
 /** Lo minimo para emitir: sin esto el modo interactivo no puede crear la sesion con ARCA. */
-export const REQUIRED_SETUP_KEYS: readonly ConfigPublicKey[] = ['cuit', 'cert.testing', 'key.testing', 'puntoVenta'];
+const REQUIRED_SETUP_KEYS: readonly ConfigPublicKey[] = ['cuit', 'cert.testing', 'key.testing', 'puntoVenta'];
 
 export function listMissingSetupKeys(config: ArcliConfig): ConfigPublicKey[] {
   return REQUIRED_SETUP_KEYS.filter((key) => !getConfigField(key).read(config));

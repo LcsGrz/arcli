@@ -78,7 +78,7 @@ function assertNotFuture(voucherDate: string, now: Date): void {
 
   if (voucherDate > today) {
     throw new InputValidationError(
-      `La fecha del comprobante (${voucherDate.slice(6, 8)}/${voucherDate.slice(4, 6)}/${voucherDate.slice(0, 4)}) no puede ser futura.`,
+      `La fecha del comprobante (${formatArcaDateAsArgentineDate(voucherDate)}) no puede ser futura.`,
     );
   }
 }

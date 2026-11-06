@@ -1,3 +1,6 @@
+import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
+import { formatCuit } from '../../lib/identity/format-cuit';
+
 import { conceptLabel, documentTypeLabel, ivaConditionLabel } from './arca-codes';
 import { findArcaCurrency } from './currency-codes';
 
@@ -7,7 +10,7 @@ export function formatDateLabel(value: string | undefined): string {
   }
 
   if (/^\d{8}$/.test(value)) {
-    return `${value.slice(6, 8)}/${value.slice(4, 6)}/${value.slice(0, 4)}`;
+    return formatArcaDateAsArgentineDate(value);
   }
 
   return value.replaceAll('-', '/');
@@ -72,7 +75,7 @@ export function formatTaxIdLabel(value: string | number | undefined): string {
     return String(value);
   }
 
-  return `${normalizedValue.slice(0, 2)}-${normalizedValue.slice(2, 10)}-${normalizedValue.slice(10)}`;
+  return formatCuit(normalizedValue);
 }
 
 export function formatDecimalLabel(value: number | undefined): string {

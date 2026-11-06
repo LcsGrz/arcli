@@ -123,7 +123,7 @@ function formatPlain(value: Big): string {
   return value.round(2, Big.roundHalfUp).toFixed(2);
 }
 
-function roundAmount(value: Big): number {
+export function roundAmount(value: Big): number {
   return value.round(2, Big.roundHalfUp).toNumber();
 }
 

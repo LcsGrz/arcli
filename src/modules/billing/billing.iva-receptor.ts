@@ -40,7 +40,7 @@ const IVA_CONDITIONS_BY_LETTER: Record<VoucherLetter, readonly BillingIvaConditi
 };
 
 /** RG 5700/2025: desde $10.000.000 hay que identificar al consumidor final. */
-export const CONSUMER_IDENTIFICATION_THRESHOLD = 10_000_000;
+const CONSUMER_IDENTIFICATION_THRESHOLD = 10_000_000;
 
 export function listAllowedIvaConditions(letter: VoucherLetter): readonly BillingIvaCondition[] {
   return IVA_CONDITIONS_BY_LETTER[letter];

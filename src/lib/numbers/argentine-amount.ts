@@ -44,6 +44,10 @@ export function parseArgentineAmount(
 }
 
 /** Escribe un numero como lo lee `parseArgentineAmount`: `1234.5` pasa a `1234,5`. */
+export function roundToCents(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
 export function formatArgentineAmountInput(value: number): string {
   return String(value).replace('.', ',');
 }

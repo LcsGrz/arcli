@@ -26,7 +26,7 @@ function formatEnvironmentBanner(environment: ExportExecutionResult['environment
   return environment === 'testing' ? [testingBanner()] : [];
 }
 
-export function formatExportStatusBadge(result: ExportExecutionResult): {
+function formatExportStatusBadge(result: ExportExecutionResult): {
   readonly label: string;
   readonly tone: 'danger' | 'success' | 'warning';
 } {
@@ -153,7 +153,7 @@ export function formatExportPayloadTable(result: ExportExecutionResult): string 
   return renderTable(rows, { labelWidth: resolveKeyValueLabelWidth('ticket', rows) }).trimEnd();
 }
 
-export function formatExportPayloadPreview(result: ExportExecutionResult): string {
+function formatExportPayloadPreview(result: ExportExecutionResult): string {
   const content = [formatExportPayloadTable(result)];
   const items = formatItemsTable(result);
 
@@ -166,7 +166,7 @@ export function formatExportPayloadPreview(result: ExportExecutionResult): strin
   return keyValuePanel(result.voucherKind.displayName, content, footer, 'ticket', undefined, 'ticket');
 }
 
-export function formatExportResultPanel(
+function formatExportResultPanel(
   result: ExportExecutionResult,
   status: { readonly label: string; readonly tone: 'danger' | 'success' | 'warning' },
 ): string {

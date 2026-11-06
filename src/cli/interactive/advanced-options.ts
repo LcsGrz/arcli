@@ -1,3 +1,4 @@
+import { DEFAULT_CURRENCY_CODE } from '../../modules/billing/billing.constants';
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { parseAmountInput, parseExchangeRateInput } from '../../modules/interactive/amount-input';
@@ -34,7 +35,7 @@ interface AdvancedContext {
 }
 
 function describeCurrency(options: AdvancedOptions): string {
-  if (!options.currencyCode || options.currencyCode === 'PES' || options.currencyCode === 'ARS') {
+  if (!options.currencyCode || options.currencyCode === 'PES' || options.currencyCode === DEFAULT_CURRENCY_CODE) {
     return 'pesos';
   }
 
@@ -61,7 +62,7 @@ async function askCurrency(current: AdvancedOptions): Promise<AdvancedOptions | 
   }
 
   if (currency === 'PES') {
-    return { ...current, currencyCode: 'ARS', exchangeRate: undefined, sameCurrency: false };
+    return { ...current, currencyCode: DEFAULT_CURRENCY_CODE, exchangeRate: undefined, sameCurrency: false };
   }
 
   const payment = await chooseStep('¿Cómo te pagan?', [

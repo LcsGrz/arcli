@@ -1,6 +1,7 @@
 import { isIvaConditionAllowed } from '../../modules/billing/billing.iva-receptor';
 import type { BillingCommandInput, BillingIvaCondition } from '../../modules/billing/billing.schemas';
 import type { VoucherLetter } from '../../modules/billing/billing.types';
+import { isPadronLookupEnabled } from '../../modules/config/config.schemas';
 import { ivaConditionChoices } from '../../modules/interactive/choices';
 import { BACK, type Back } from '../../modules/interactive/wizard';
 import { ArcaPadronGateway } from '../../services/arca/arca-padron.gateway';
@@ -30,7 +31,7 @@ async function lookupReceiver(
 ): Promise<ReceiverFromPadron | undefined> {
   const cuit = state.documentNumber;
 
-  if (state.documentType !== 'cuit' || !cuit || session.runtime.config.consultarPadron === false) {
+  if (state.documentType !== 'cuit' || !cuit || !isPadronLookupEnabled(session.runtime.config)) {
     return undefined;
   }
 
