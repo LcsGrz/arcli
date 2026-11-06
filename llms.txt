@@ -58,7 +58,7 @@ Shortcuts (`family` = comando alternativo `arcli <family> <letra>`, ej. `arcli f
 
 `arcli fe` (o `arcli factura e`, que hace lo mismo) emite la Factura de exportación E con el
 servicio `wsfex`. No lleva concepto, IVA ni receptor con CUIT/CUIL/DNI: lleva
-cliente y domicilio del exterior, país de destino, incoterm, items y permisos de embarque. `--cargar`
+cliente y domicilio del exterior, país de destino, incoterm, ítems y permisos de embarque. `--cargar`
 acepta un solo objeto, no un array.
 
 ```bash
@@ -74,7 +74,7 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
   que no es la del padrón (ej. `620100`; `620900` no está). Si no está en la tabla es
   `INPUT_VALIDATION_ERROR` con las que empiezan igual.
 - `--item <partes>` (repetible): `codigo|descripcion|cantidad|precio|unidad`; con 4 partes se omite
-  el código y con 3 la unidad (por defecto `unidad`, código `7`). La suma de los items tiene que dar
+  el código y con 3 la unidad (por defecto `unidad`, código `7`). La suma de los ítems tiene que dar
   `--monto`: se valida antes de ir a ARCA. Sin `--item` va un renglón con `--descripcion`.
 - Opcionales: `--id-impositivo <texto>`, `--cuit-pais <n>` (sin flag sale del país de destino; si ARCA no
   publica un CUIT para ese país, el flag es obligatorio),

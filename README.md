@@ -17,7 +17,7 @@ CLI para previsualizar y emitir comprobantes electrónicos de ARCA (ex AFIP) des
 - **Modo interactivo:** `arcli` sin argumentos abre un asistente que guía la emisión, repite facturas anteriores, arma notas de crédito y débito, consulta comprobantes y configura el CLI. Cada paso muestra el comando equivalente.
 - **Vista previa por defecto:** sin `--emitir`, muestra la solicitud y, en una terminal, pregunta antes de emitir.
 - **Comprobantes:** Factura, Nota de Crédito y Nota de Débito A, B y C, y sus versiones de Factura de Crédito Electrónica (FCE), y Recibo C, con CBU, transferencia, anulación y consulta del régimen del receptor.
-- **Factura de exportación E:** `arcli fe` emite con WSFEX, con cliente y país de destino, incoterm, items detallados y permisos de embarque; acepta certificado propio con `exportacion.cert.*` / `exportacion.key.*`.
+- **Factura de exportación E:** `arcli fe` emite con WSFEX, con cliente y país de destino, incoterm, ítems detallados y permisos de embarque; acepta certificado propio con `exportacion.cert.*` / `exportacion.key.*`.
 - **Entrada y salida flexibles:** flags o JSON (incluso lotes); salida legible, `--json` o respuesta bruta de ARCA.
 - **Validaciones locales** basadas en el manual de ARCA, para detectar errores antes de llamar al servicio.
 - **Consultas sin emitir:** últimos comprobantes, detalle de uno, estado de los servidores, tablas de parámetros, cotización oficial y padrón de un CUIT.

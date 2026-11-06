@@ -4,7 +4,6 @@ import { parseCuit } from '../../lib/identity/cuit';
 import { AMOUNT_DECIMALS, EXCHANGE_RATE_DECIMALS, hasAtMostDecimals } from '../../lib/numbers/argentine-amount';
 
 import { DEFAULT_CURRENCY_CODE } from './billing.constants';
-import type { VoucherShortcut } from './billing.types';
 import { saleConditionSchema } from './sale-condition';
 
 const BILLING_CONCEPT_ALIASES = {
@@ -174,11 +173,7 @@ export const billingCommandSchema = z.object({
   sameCurrency: z.boolean().default(false),
   serviceEndDate: z.string().trim().optional(),
   serviceStartDate: z.string().trim().optional(),
-  shortcut: z
-    .string()
-    .trim()
-    .min(1)
-    .transform((value) => value as VoucherShortcut),
+  shortcut: z.string().trim().min(1),
   totalAmount: positiveAmountSchema(),
   untaxedAmount: positiveAmountSchema().optional(),
   transferMode: z

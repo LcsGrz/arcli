@@ -4,9 +4,10 @@ import { describe, expect, it } from 'vitest';
 import { parseBillingCommandInput, registerBillingOptions } from '../../../cli/commands/billing.command.parser';
 import { registerGlobalOptions } from '../../../cli/global-options';
 import { type BillingCommandInput, billingCommandSchema } from '../../billing/billing.schemas';
+import type { VoucherShortcut } from '../../billing/billing.types';
 import { buildEquivalentCommand } from '../equivalent-command';
 
-function parseCommand(command: string, shortcut: BillingCommandInput['shortcut']): BillingCommandInput {
+function parseCommand(command: string, shortcut: VoucherShortcut): BillingCommandInput {
   const program = new Command();
 
   registerGlobalOptions(program);

@@ -577,7 +577,7 @@ WSFEX pide un certificado autorizado al servicio `wsfex`. ARCLI usa `exportacion
 - `--id-impositivo` y `--cuit-pais` (sin `--cuit-pais` se resuelve desde el país de destino; si ARCA no
   publica un CUIT para ese país, el flag es obligatorio)
 - `--tipo-expo` (`1` bienes, `2` servicios, `4` otros; por defecto `2`)
-- `--item` para el detalle real; sin items va un renglón con `--descripcion`
+- `--item` para el detalle real; sin ítems va un renglón con `--descripcion`
 - `--incoterm` y `--incoterms-desc`, `--idioma`, `--forma-pago` (por defecto `Transferencia Internacional`)
 - `--permiso` y `--permiso-existente` para permisos de embarque (solo con `--tipo-expo 1`; en `2` y `4` ARCA exige `Permiso_existente` vacío)
 - `--id-solicitud` si lo querés fijar a mano (por defecto, el siguiente de WSFEX)
@@ -601,7 +601,7 @@ arcli fe --monto 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --p
   --numero 1 --actividad 620100
 ```
 
-Con los datos del receptor del exterior (CUIT del país, ID impositivo, razón social y domicilio), items, incoterm y
+Con los datos del receptor del exterior (CUIT del país, ID impositivo, razón social y domicilio), ítems, incoterm y
 salida JSON:
 
 ```bash
@@ -651,7 +651,7 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
 
 Los flags globales (`--testing`, `--produccion`, `--json`, `--bruto`) y los de modo (`--previsualizar`, `--emitir`) funcionan igual que en el resto de los comprobantes.
 
-#### Items
+#### Ítems
 
 Cada `--item` se separa con `|` para no pelear con las comas de los importes. La forma completa es `codigo|descripcion|cantidad|precio|unidad`; con cuatro partes se omite el código y con tres la unidad, que queda en `unidad` (código `7` de ARCA). La unidad puede ser el código numérico o el nombre de la tabla de unidades, que se compara sin mayúsculas y acepta singular o plural (`unidad` o `unidades`).
 
@@ -661,7 +661,7 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
   --item "002|Soporte|2|250|unidades" --previsualizar
 ```
 
-WSFEX no valida que `Imp_total` coincida con la suma de los items, así que ARCLI lo valida antes de ir a ARCA: si la suma no da `--monto`, el comando corta con un error de validación.
+WSFEX no valida que `Imp_total` coincida con la suma de los ítems, así que ARCLI lo valida antes de ir a ARCA: si la suma no da `--monto`, el comando corta con un error de validación.
 
 #### Qué no aplica
 
@@ -679,7 +679,7 @@ Los defaults de config de esos campos (concepto, IVA receptor, alícuota, CBU) n
 
 - La vista previa consulta las tablas de WSFEX (países, monedas, unidades, incoterms, idiomas, actividades), la cotización y el ID de la solicitud, pero no emite.
 - WSFEX numera por punto de venta y tipo de comprobante. `--numero` es obligatorio mientras `@arcasdk/core` no permita consultar el último (`FEXGetLast_CMP`); si te equivocás, ARCA rechaza el comprobante. El ID de la solicitud sí se consulta (`FEXGetLast_ID`); fijalo con `--id-solicitud` si emitís en paralelo.
-- El PDF se genera después de emitir, como en el resto de los comprobantes. Se guarda como `factura-e_<pv>-<numero>.pdf` y usa el diseño de exportación: items reales, país de destino, CUIT del país, ID impositivo, divisa, forma y fecha de pago, incoterm y la leyenda de IVA exento. Ver [PDF](pdf.md#factura-de-exportación-e).
+- El PDF se genera después de emitir, como en el resto de los comprobantes. Se guarda como `factura-e_<pv>-<numero>.pdf` y usa el diseño de exportación: ítems reales, país de destino, CUIT del país, ID impositivo, divisa, forma y fecha de pago, incoterm y la leyenda de IVA exento. Ver [PDF](pdf.md#factura-de-exportación-e).
 - Un comprobante rechazado por WSFEX sale como respuesta válida con exit code `2`, igual que en las letras A, B y C.
 
 El JSON de salida y el de `--cargar` están en [Entrada y salida](input-output.md#factura-de-exportación-e).

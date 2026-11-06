@@ -214,7 +214,7 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
 ### Resultado esperado
 
 - va en dólares (`DOL`) con la cotización de aduana que publica ARCA, salvo `--moneda` o `--cotizacion-moneda`
-- la vista previa muestra cliente, destino, items y la solicitud de WSFEX
+- la vista previa muestra cliente, destino, ítems y la solicitud de WSFEX
 
 ### Errores comunes
 
@@ -277,7 +277,7 @@ arcli fc --cargar ./voucher.json
 
 - nombres de campos incompatibles con el contrato JSON
 - tipos inválidos
-- lote con un item inválido que corta toda la ejecución
+- lote con un ítem inválido que corta toda la ejecución
 
 ## Factura con PDF
 
@@ -326,7 +326,7 @@ Cuando querés procesar varios comprobantes del mismo comando en una sola corrid
 ### Requisitos
 
 - archivo con un array JSON (un array de un solo elemento también es un lote)
-- cada item debe ser válido
+- cada ítem debe ser válido
 
 ### Comando
 
@@ -336,12 +336,12 @@ arcli fc --cargar ./voucher-batch.json --json --bruto
 
 ### Resultado esperado
 
-- en texto: un bloque por item
+- en texto: un bloque por ítem
 - en JSON: un array de resultados con `indice`, `comprobante` y `atajo` (también con un solo elemento); con `--bruto`, cada uno suma `respuesta`
 
 ### Errores comunes
 
-- un item inválido hace fallar el lote completo
+- un ítem inválido hace fallar el lote completo
 - asumir que hay resultados parciales cuando la validación corta antes
 
 ## Caso de automatización

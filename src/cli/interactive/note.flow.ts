@@ -18,7 +18,7 @@ import {
   reciboChoice,
 } from '../../modules/interactive/choices';
 import { copyInvoiceAmounts } from '../../modules/interactive/invoice-copy';
-import { BACK, type Back, runWizard, type WizardStep } from '../../modules/interactive/wizard';
+import { BACK, type Back, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { type IssuedVoucher, resolveDocumentType } from '../../modules/vouchers/voucher-history';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 
@@ -132,7 +132,7 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
     {
       name: 'factura',
       run: async (state) => {
-        const invoiceKind = state.invoiceKind as VoucherKindDefinition;
+        const invoiceKind = requireStepValue(state.invoiceKind, 'invoiceKind');
         const picked = await pickInvoice(session, {
           message: `¿Sobre qué ${formatVoucherLabel(invoiceKind)}?`,
           pointOfSale,
@@ -282,7 +282,7 @@ export function buildNoteInput(
   session: InteractiveSession,
   pointOfSale: number,
 ): BillingCommandInput {
-  const invoiceKind = state.invoiceKind as VoucherKindDefinition;
+  const invoiceKind = requireStepValue(state.invoiceKind, 'invoiceKind');
   const noteKind = noteKindChoices(state.kind ?? 'credito', invoiceKind);
   const invoice = state.invoice;
   // Una nota va en la moneda de su factura; si la anula entera, tambien copia exento y no gravado.

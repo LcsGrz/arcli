@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { BACK, runWizard, type WizardStep } from '../wizard';
+import { BACK, requireStepValue, runWizard, type WizardStep } from '../wizard';
 
 interface State {
   readonly a?: string;
@@ -21,6 +21,17 @@ function scripted(answers: Record<string, Array<string | typeof BACK>>): Array<W
     { name: 'c', run: take('c') },
   ];
 }
+
+describe('requireStepValue', () => {
+  it('devuelve el dato, tambien si es falsy', () => {
+    expect(requireStepValue('fc', 'voucherKind')).toBe('fc');
+    expect(requireStepValue(0, 'monto')).toBe(0);
+  });
+
+  it('falla si un paso anterior no lo completo', () => {
+    expect(() => requireStepValue(undefined, 'voucherKind')).toThrow('Falta voucherKind');
+  });
+});
 
 describe('runWizard', () => {
   it('corre los pasos en orden y junta las respuestas', async () => {

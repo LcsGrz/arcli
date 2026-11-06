@@ -41,7 +41,7 @@ El PDF del Recibo C (`rc`) usa la plantilla de factura con el título `RECIBO C`
 
 ### PDF solo al emitir
 
-El PDF se genera en el momento de emitir. Todavía no se puede regenerar el de un comprobante ya emitido: la consulta de ARCA que usa el SDK (`FECompConsultar`) no devuelve el detalle de IVA, los comprobantes asociados ni las fechas de servicio. Tampoco hay ítems detallados en A, B y C: el PDF lleva un renglón por alícuota con la descripción que pases (la factura de exportación `E` sí imprime los items de WSFEX). Ver [PDF de comprobantes](pdf.md#qué-no-hace-todavía).
+El PDF se genera en el momento de emitir. Todavía no se puede regenerar el de un comprobante ya emitido: la consulta de ARCA que usa el SDK (`FECompConsultar`) no devuelve el detalle de IVA, los comprobantes asociados ni las fechas de servicio. Tampoco hay ítems detallados en A, B y C: el PDF lleva un renglón por alícuota con la descripción que pases (la factura de exportación `E` sí imprime los ítems de WSFEX). Ver [PDF de comprobantes](pdf.md#qué-no-hace-todavía).
 
 ## Decisiones de diseño
 

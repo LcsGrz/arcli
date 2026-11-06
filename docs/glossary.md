@@ -86,7 +86,7 @@ Comprobante tipo ARCA `15` (`arcli rc`) para documentar un cobro. Se arma como u
 
 ### Factura de exportación E
 
-Factura para clientes del exterior (`arcli fe`), que va por `wsfex` en vez de `wsfe`: no lleva concepto, IVA ni documento del receptor, y sí cliente, país de destino, items e incoterm. Ver [Factura de exportación (E)](validation-rules.md#factura-de-exportación-e).
+Factura para clientes del exterior (`arcli fe`), que va por `wsfex` en vez de `wsfe`: no lleva concepto, IVA ni documento del receptor, y sí cliente, país de destino, ítems e incoterm. Ver [Factura de exportación (E)](validation-rules.md#factura-de-exportación-e).
 
 ## Números y respuesta
 
