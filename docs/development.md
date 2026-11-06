@@ -102,7 +102,7 @@ Versionado: cambios que rompen el contrato del CLI → mayor; flags, comandos o 
 
 ## Trabajar con agentes
 
-Las instrucciones para agentes están en [AGENTS.md](../AGENTS.md) y la referencia para quien usa el CLI desde un agente, en [llms.txt](../llms.txt). Para Claude Code, el repo trae además `.claude/settings.json` y las skills de `.claude/skills/`. Tu config personal para este repo va en `.claude/settings.local.json`, que está ignorado.
+Las instrucciones para agentes están en [AGENTS.md](../AGENTS.md) y la referencia para quien usa el CLI desde un agente, en [llms.txt](../llms.txt). Para Claude Code, el repo trae además `.claude/settings.json`, las skills de `.claude/skills/` y los agentes de `.claude/agents/`. Quien mantiene arcli revisa los PRs de terceros con `/revisar-pr <N>`. Tu config personal para este repo va en `.claude/settings.local.json`, que está ignorado.
 
 ### Verificación al terminar (hook Stop)
 
