@@ -21,7 +21,9 @@ gh pr view <N> --json title,body,author,comments,commits,files,maintainerCanModi
 
 Leé también el issue que cierra y, si el autor ya colaboró, sus PRs anteriores. Mirá el historial de los archivos que toca (`git log -5 -- <archivo>`): el motivo de cómo están hoy suele estar ahí.
 
-**Listo cuando:** podés decir en una frase qué problema resuelve el PR y qué evidencia trae de que el problema existe.
+Buscá el tema en `docs/backlog/` (síntomas, errores y nombres de opciones, también en `descartado.md`): puede haber un ticket con el análisis hecho o una alternativa ya descartada. Si existe, la persona decide con eso a la vista. El backlog es local: en lo que se publique contá el razonamiento, sin citarlo.
+
+**Listo cuando:** podés decir en una frase qué problema resuelve el PR y qué evidencia trae de que el problema existe, y sabés si ya lo habíamos analizado.
 
 ## 2. Control de seguridad
 
@@ -55,7 +57,7 @@ Anotá los conflictos contra `main`. Todo lo que corras del PR en los pasos sigu
 
 Hacelo en este orden, para que las dos lecturas sean independientes:
 
-1. Lanzá el agente `revisor-pr` con la ruta del worktree, la ruta del diff y el número de PR. No le pases tu opinión ni la descripción del PR resumida. Si es un PR grande, lanzá uno por área (por ejemplo `src/` y docs).
+1. Lanzá el agente `revisor-pr` con la ruta del worktree, la ruta del diff y la raíz del checkout principal. No le pases tu opinión ni la descripción del PR resumida. Si es un PR grande, lanzá uno por área (por ejemplo `src/` y docs).
 2. Mientras tanto, aplicá vos mismo [criterios.md](criterios.md).
 3. Juntá los dos resultados y verificá cada hallazgo contra el código: el agente puede equivocarse con la misma seguridad con la que acierta. Descartá lo que no puedas sostener.
 
@@ -66,7 +68,7 @@ Hacelo en este orden, para que las dos lecturas sean independientes:
 En el worktree, con `HOME` temporal:
 
 - `yarn typecheck`, `yarn lint` y la suite completa, y `yarn open-source:check` si toca el empaquetado, dependencias o el arranque.
-- **El test detecta el bug:** revertí el arreglo sin tocar el test (`git stash` o editando a mano) y confirmá que falla. Un test que pasa igual no cuenta como cobertura.
+- **El test detecta el bug:** revertí el arreglo sin tocar el test (`git checkout origin/main -- <archivos de src sin tests>`, y al terminar `git checkout HEAD -- <los mismos>`) y confirmá que falla. Un test que pasa igual no cuenta como cobertura.
 - **El problema se reproduce:** corré el flujo real con `yarn dev`, antes y después del cambio, en lo que se pueda sin credenciales.
 - **Contra ARCA:** si el cambio habla con ARCA y la prueba necesita credenciales, pedí el ok: es la única excepción al `HOME` temporal. Decí exactamente qué comando vas a correr y en qué entorno. Emitir en testing necesita un ok por separado. En producción, solo lectura y solo si la persona lo pide. Si no se puede probar, el informe lo dice.
 
