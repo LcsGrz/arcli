@@ -45,6 +45,8 @@ Para actualizar, repetí la instalación con `arcli@latest` (por ejemplo, `npm i
 
 Opcional: autocompletado con Tab de comandos, flags y valores, en bash, zsh o fish. Se instala con `arcli completado instalar` y se saca con `arcli completado desinstalar` ([detalle](docs/cli-reference.md#autocompletado)).
 
+Opcional: un ícono para abrir ARCLI con doble clic, con `arcli acceso-directo` ([detalle](docs/cli-reference.md#acceso-directo)).
+
 ## Configuración
 
 Necesitás tu CUIT, un punto de venta y un certificado con su clave privada de ARCA. Si todavía no tenés el certificado, `arcli certificado generar` arma el pedido para ARCA y `arcli certificado importar` carga el que te devuelve; el paso a paso está en [Cómo obtener los certificados](https://github.com/LcsGrz/arcli/blob/main/docs/obtencion-certificados.md).

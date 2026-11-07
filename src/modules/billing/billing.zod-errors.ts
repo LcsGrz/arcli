@@ -1,10 +1,8 @@
-import { ZodError } from 'zod';
+import type { ZodError } from 'zod';
 
-import { HELP_SUGGESTION } from '../../lib/errors/app-error';
-import { BILLING_JSON_KEY_BY_INTERNAL_KEY } from '../../modules/billing/billing.json-input';
-import { errorPanel } from '../components/errorPanel';
-import { renderJson } from '../primitives/renderJson';
-import { bold } from '../primitives/text';
+import type { InputIssue } from '../../lib/errors/input-issue';
+
+import { BILLING_JSON_KEY_BY_INTERNAL_KEY } from './billing.json-input';
 
 const ZOD_PATH_LABELS: Record<string, string> = {
   associatedPeriod: 'período asociado',
@@ -40,16 +38,13 @@ function formatZodIssuePath(path: PropertyKey[]): string {
   return path.map((segment) => String(segment)).join('.');
 }
 
-function humanizeZodIssue(issue: ZodError['issues'][number]): string {
-  const pathKey = formatZodIssuePath(issue.path);
-  const label = ZOD_PATH_LABELS[pathKey] ?? pathKey;
-
+function humanizeZodIssue(issue: ZodError['issues'][number], label: string): string {
   if (issue.code === 'invalid_type' && issue.input === undefined) {
     return `Falta el dato: ${label}.`;
   }
 
   if (issue.code === 'too_small' && typeof issue.minimum === 'number') {
-    if (pathKey === 'totalAmount') {
+    if (formatZodIssuePath(issue.path) === 'totalAmount') {
       return 'El monto debe ser mayor a 0.';
     }
 
@@ -70,43 +65,24 @@ function humanizeZodIssue(issue: ZodError['issues'][number]): string {
 }
 
 function formatPublicIssuePath(path: PropertyKey[]): string[] {
-  const pathKey = formatZodIssuePath(path);
-
   // La clave del JSON sale del esquema de `--cargar`, la misma que se documenta.
-  const publicKey = BILLING_JSON_KEY_BY_INTERNAL_KEY[pathKey];
+  const publicKey = BILLING_JSON_KEY_BY_INTERNAL_KEY[formatZodIssuePath(path)];
 
   return publicKey ? [publicKey] : path.map((segment) => String(segment));
 }
 
-/** Resumen de una linea, para listar errores por item (por ejemplo, en un lote). */
-export function summarizeZodError(error: ZodError): string {
-  return error.issues.map((issue) => humanizeZodIssue(issue)).join(' ');
-}
-
-export function formatZodError(error: ZodError, useJson: boolean): string {
-  if (useJson) {
-    return renderJson({
-      codigo: 'INPUT_VALIDATION_ERROR',
-      detalles: error.issues.map((issue) => ({
-        mensaje: humanizeZodIssue(issue),
-        ruta: formatPublicIssuePath(issue.path),
-      })),
-      error: 'Hay parámetros inválidos o incompletos en la entrada.',
-      sugerencia: null,
-    });
-  }
-
-  const detailLines = error.issues.map((issue) => {
+export function describeZodIssues(error: ZodError): InputIssue[] {
+  return error.issues.map((issue) => {
     const pathKey = formatZodIssuePath(issue.path);
     const label = ZOD_PATH_LABELS[pathKey] ?? pathKey;
 
-    return `${bold(`${label}:`)} ${humanizeZodIssue(issue)}`;
+    return { label, mensaje: humanizeZodIssue(issue, label), ruta: formatPublicIssuePath(issue.path) };
   });
+}
 
-  return errorPanel(
-    'Error de entrada',
-    'Hay parámetros inválidos o incompletos en la entrada.',
-    detailLines,
-    HELP_SUGGESTION,
-  );
+/** Resumen de una linea, para listar errores por item (por ejemplo, en un lote). */
+export function summarizeZodError(error: ZodError): string {
+  return describeZodIssues(error)
+    .map((issue) => issue.mensaje)
+    .join(' ');
 }

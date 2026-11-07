@@ -1,47 +1,16 @@
 import { formatCuit } from '../../lib/identity/format-cuit';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
-import {
-  contentPanel,
-  keyValuePanel,
-  renderKeyValueRows,
-  renderObject,
-  renderTable,
-  resolveKeyValueLabelWidth,
-  statusPanel,
-  testingBanner,
-  toneText,
-} from '../../ui';
+import { renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui/primitives';
 import { formatCurrencyLabel, formatDateLabel, formatMoneyLabel } from '../billing/billing.labels';
+import { formatVoucherText, type VoucherTextOptions } from '../billing/voucher-text';
 import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
 
 import { formatRawExportResponse } from './export.serialize';
 import { EXPORT_TYPES, type ExportExecutionResult } from './export.types';
 
-export interface ExportTextOptions {
-  readonly environment?: 'produccion' | 'testing';
-  readonly previewShown?: boolean;
-  readonly raw?: boolean;
-}
+export type ExportTextOptions = VoucherTextOptions;
 
 type Rows = Array<readonly [string, string]>;
-
-function formatEnvironmentBanner(environment: ExportExecutionResult['environment'] | undefined): string[] {
-  return environment === 'testing' ? [testingBanner()] : [];
-}
-
-function formatExportStatusBadge(result: ExportExecutionResult): {
-  readonly label: string;
-  readonly tone: 'danger' | 'success' | 'warning';
-} {
-  switch (result.response.status) {
-    case 'aprobado':
-      return { label: 'APROBADO', tone: 'success' };
-    case 'rechazado':
-      return { label: 'RECHAZADO', tone: 'danger' };
-    default:
-      return { label: 'OBSERVADO', tone: 'warning' };
-  }
-}
 
 function formatCountry(result: ExportExecutionResult): string {
   const { Dst_cmp: code } = result.payload;
@@ -104,7 +73,7 @@ function formatItemsTable(result: ExportExecutionResult): string {
   ]);
   const labelWidth = Math.max(...rows.map(([label]) => label.length), 0);
 
-  return renderTable(rows, { labelWidth }).trimEnd();
+  return renderKeyValueRows(rows, { labelWidth }).join('\n');
 }
 
 function formatPayloadRows(result: ExportExecutionResult): Rows {
@@ -150,128 +119,37 @@ function formatPayloadRows(result: ExportExecutionResult): Rows {
 export function formatExportPayloadTable(result: ExportExecutionResult): string {
   const rows = formatPayloadRows(result);
 
-  return renderTable(rows, { labelWidth: resolveKeyValueLabelWidth('ticket', rows) }).trimEnd();
+  return renderKeyValueRows(rows, { labelWidth: resolveKeyValueLabelWidth('ticket', rows) }).join('\n');
 }
 
-function formatExportPayloadPreview(result: ExportExecutionResult): string {
-  const content = [formatExportPayloadTable(result)];
+function formatExportPreviewContent(result: ExportExecutionResult): string[] {
   const items = formatItemsTable(result);
 
-  if (items) {
-    content.push(items);
-  }
-
-  const footer = result.dryRun ? toneText('SIN EMITIR', 'warning') : undefined;
-
-  return keyValuePanel(result.voucherKind.displayName, content, footer, 'ticket', undefined, 'ticket');
+  return [formatExportPayloadTable(result), ...(items ? [items] : [])];
 }
 
-function formatExportResultPanel(
-  result: ExportExecutionResult,
-  status: { readonly label: string; readonly tone: 'danger' | 'success' | 'warning' },
-): string {
-  const summaryRows: Array<readonly [string, string | number]> = [
+/** CAE, vencimiento, numero e importe: el resumen del resultado. */
+function formatExportResultSummary(result: ExportExecutionResult): Array<readonly [string, string | number]> {
+  return [
     ['CAE', result.response.cae ?? 'N/D'],
     ['Vencimiento CAE', formatDateLabel(result.response.caeVencimiento ?? undefined)],
     ['Número', formatVoucherNumber(result.payload.Punto_vta, result.payload.Cbte_nro)],
     ['Importe total', formatAmount(result, result.payload.Imp_total)],
   ];
-  const countRows: Array<readonly [string, string | number]> = [
-    ['Observaciones', result.response.observaciones.length],
-    ['Eventos', result.response.events.length],
-    ['Errores', result.response.errors.length],
-  ];
-  const labelWidth = resolveKeyValueLabelWidth('ticket', [...summaryRows, ...countRows]);
-  const rows = [
-    ...renderKeyValueRows(summaryRows, { labelWidth }),
-    '',
-    ...renderKeyValueRows(countRows, { labelWidth }),
-  ];
-
-  return statusPanel(
-    result.voucherKind.displayName,
-    rows,
-    toneText(status.label, status.tone),
-    'ticket',
-    status.tone,
-    'ticket',
-  );
-}
-
-function formatObservationList(observaciones: readonly string[]): string {
-  return observaciones.map((item, index) => `${index + 1}. ${item}`).join('\n');
-}
-
-function formatWarningsPanel(result: ExportExecutionResult): string[] {
-  const warnings = result.warnings ?? [];
-
-  if (warnings.length === 0) {
-    return [];
-  }
-
-  return [
-    contentPanel('Avisos', warnings.map((item) => `• ${item}`).join('\n'), 'wide', 'warning', 'left', 'attention'),
-  ];
 }
 
 export function formatExportResultAsText(result: ExportExecutionResult, options: ExportTextOptions = {}): string {
-  const environmentLines = [
-    ...(options.previewShown ? [] : formatEnvironmentBanner(options.environment ?? result.environment)),
-    ...(options.previewShown ? [] : formatWarningsPanel(result)),
-  ];
-
-  if (result.dryRun) {
-    return [...environmentLines, formatExportPayloadPreview(result)].join('\n\n');
-  }
-
-  const lines = [...environmentLines];
-
-  if (!options.previewShown) {
-    lines.push(formatExportPayloadPreview(result));
-  }
-
-  lines.push(formatExportResultPanel(result, formatExportStatusBadge(result)));
-
-  if (result.response.observaciones.length > 0) {
-    lines.push(
-      contentPanel(
-        'Observaciones',
-        formatObservationList(result.response.observaciones),
-        'wide',
-        'warning',
-        'left',
-        'attention',
-      ),
-    );
-  }
-
-  if (result.response.events.length > 0) {
-    lines.push(contentPanel('Eventos', renderObject(result.response.events), 'wide', 'subtle', 'left', 'data'));
-  }
-
-  if (result.response.errors.length > 0) {
-    lines.push(contentPanel('Errores', renderObject(result.response.errors), 'wide', 'danger', 'left', 'error'));
-  }
-
-  if (result.response.suggestions.length > 0) {
-    lines.push(
-      contentPanel(
-        'Sugerencias',
-        result.response.suggestions.map((item) => `• ${item}`).join('\n'),
-        'wide',
-        'warning',
-        'left',
-        'tip',
-      ),
-    );
-  }
-
-  // `--bruto` agrega la respuesta cruda al final; el resumen se muestra igual.
-  if (options.raw) {
-    lines.push(
-      contentPanel('Respuesta bruta', renderObject(formatRawExportResponse(result)), 'wide', 'subtle', 'left', 'data'),
-    );
-  }
-
-  return lines.join('\n\n');
+  return formatVoucherText(
+    {
+      dryRun: result.dryRun,
+      environment: result.environment,
+      preview: formatExportPreviewContent(result),
+      raw: () => formatRawExportResponse(result),
+      response: result.response,
+      summary: formatExportResultSummary(result),
+      title: result.voucherKind.displayName,
+      warnings: result.warnings ?? [],
+    },
+    options,
+  );
 }

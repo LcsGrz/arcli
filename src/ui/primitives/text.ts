@@ -9,14 +9,31 @@ const COLOR_OFF = '\u001B[39m';
 const DIM = '\u001B[2m';
 
 export type OutputTarget = 'stderr' | 'stdout';
-export type UiTextColor = UiColorToken | string;
+export type UiTextColor = UiColorToken;
+
+// A donde va lo que se esta armando. Un panel no conoce su destino y adentro hay muchas llamadas a `colorize`:
+// mientras dura `renderForTarget`, todas miran esa salida en lugar de stdout.
+let defaultTarget: OutputTarget = 'stdout';
+
+/** Corre `render` decidiendo los colores y links segun `target`. `render` tiene que ser sincrono. */
+export function renderForTarget<T>(target: OutputTarget, render: () => T): T {
+  const previous = defaultTarget;
+
+  defaultTarget = target;
+
+  try {
+    return render();
+  } finally {
+    defaultTarget = previous;
+  }
+}
 
 /**
  * Colores solo en una terminal real. Con la salida redirigida (pipe, archivo, `| jq`) `isTTY` es
  * `undefined`: antes se trataba como terminal y el JSON salia con codigos ANSI que lo rompian.
  * `NO_COLOR` los apaga siempre; `FORCE_COLOR` los fuerza aunque no haya terminal.
  */
-export function shouldUseColor(target: OutputTarget = 'stdout'): boolean {
+export function shouldUseColor(target: OutputTarget = defaultTarget): boolean {
   if (process.env.NO_COLOR) {
     return false;
   }
@@ -32,12 +49,8 @@ export function shouldUseColor(target: OutputTarget = 'stdout'): boolean {
   return stream.isTTY === true;
 }
 
-export function supportsColor(target: OutputTarget = 'stdout'): boolean {
-  return shouldUseColor(target);
-}
-
 function resolveTextColor(color: UiTextColor): string {
-  return UI_THEME.colors[color as UiColorToken] ?? color;
+  return UI_THEME.colors[color];
 }
 
 // Envuelve cada linea por separado (en vez de todo el bloque de una vez) para
@@ -51,7 +64,7 @@ function wrapLines(value: string, open: string, close: string): string {
     .join('\n');
 }
 
-export function colorize(value: string, color: UiTextColor, target: OutputTarget = 'stdout'): string {
+export function colorize(value: string, color: UiTextColor, target: OutputTarget = defaultTarget): string {
   if (!shouldUseColor(target)) {
     return value;
   }
@@ -63,7 +76,7 @@ export function colorize(value: string, color: UiTextColor, target: OutputTarget
   return wrapLines(value, open, open === DIM ? BOLD_OFF : COLOR_OFF);
 }
 
-export function bold(value: string, target: OutputTarget = 'stdout'): string {
+export function bold(value: string, target: OutputTarget = defaultTarget): string {
   if (!shouldUseColor(target)) {
     return value;
   }
@@ -76,7 +89,8 @@ export function badge(label: string, color: UiTextColor): string {
 }
 
 export function toneText(value: string, color: UiTextColor): string {
-  return bold(colorize(value, color));
+  // Atenuado y negrita se pisan: segun la terminal, el texto queda normal o no se ve atenuado.
+  return color === 'muted' ? colorize(value, color) : bold(colorize(value, color));
 }
 
 export function stripAnsi(value: string): string {
@@ -227,31 +241,63 @@ function trimTrailingSpaces(value: string): string {
 const LABEL_VALUE_LINE = /^(\s*\S(?:.*?\S)?\s{2,})(\S.*)$/;
 // Espacio minimo para el valor; con menos, conviene partir la linea entera.
 const MIN_VALUE_COLUMN_WIDTH = 12;
+// Item de una lista ("• texto", "- texto", "1. texto"): al partirse, el texto sigue debajo del texto.
+const LIST_ITEM_MARKER = /^(?:[•*-]|\d+\.)\s+/;
+const NO_COLUMNS: ReadonlySet<number> = new Set();
+
+function labelColumnWidth(line: string): number | null {
+  return LABEL_VALUE_LINE.exec(stripAnsi(line))?.[1]?.length ?? null;
+}
+
+// La etiqueta de una fila apilada, por palabras. Si se parte, cada linea abre y cierra su estilo: un panel dibuja
+// un borde entre ellas, que no puede quedar adentro de un estilo sin cerrar.
+function wrapLabel(label: string, indent: string, width: number): string[] {
+  const visible = stripAnsi(label).trim();
+
+  if (indent.length + visible.length <= width) {
+    return [label];
+  }
+
+  // eslint-disable-next-line no-control-regex
+  const open = label.match(/^\s*((?:\u001B\[[0-9;]*m)*)/)?.[1] ?? '';
+  // eslint-disable-next-line no-control-regex
+  const close = label.match(/((?:\u001B\[[0-9;]*m)*)$/)?.[1] ?? '';
+
+  return wrapWords(visible.split(/\s+/), '', '', width - indent.length).map(
+    (line) => `${indent}${open}${line}${close}`,
+  );
+}
 
 /**
  * Parte lineas que no entran en `width` respetando su sangria.
  * Si la linea es una fila etiqueta/valor, el valor sigue debajo de su propia columna en vez de
- * pegarse a la etiqueta, asi la tabla no se desarma en terminales angostas.
+ * pegarse a la etiqueta, asi la tabla no se desarma en terminales angostas. Las columnas de `stackedColumns` van
+ * con la etiqueta en una linea y el valor debajo, aunque la fila entre (ver `wrapPanelLines`).
  */
-export function wrapIndentedPlainText(value: string, width: number): string[] {
+export function wrapIndentedPlainText(
+  value: string,
+  width: number,
+  stackedColumns: ReadonlySet<number> = NO_COLUMNS,
+): string[] {
   if (width <= 0) {
     return [value];
   }
 
   return value.split('\n').flatMap((line) => {
-    if (stripAnsi(line).length <= width) {
-      return [line];
-    }
-
     // La columna se busca sobre el texto visible: con ANSI (etiquetas en negrita) la regex cortaria mal.
     const columnMatch = LABEL_VALUE_LINE.exec(stripAnsi(line));
     const prefixWidth = columnMatch?.[1]?.length ?? 0;
+    const stacked = columnMatch !== null && stackedColumns.has(prefixWidth);
+
+    if (stripAnsi(line).length <= width && !stacked) {
+      return [line];
+    }
 
     if (columnMatch) {
       const [prefix, rest] = splitAtVisibleColumn(line, prefixWidth);
       const values = rest.split(/\s+/);
 
-      if (width - prefixWidth >= MIN_VALUE_COLUMN_WIDTH) {
+      if (width - prefixWidth >= MIN_VALUE_COLUMN_WIDTH && !stacked) {
         return wrapWords(values, prefix, ' '.repeat(prefixWidth), width);
       }
 
@@ -260,7 +306,7 @@ export function wrapIndentedPlainText(value: string, width: number): string[] {
       const valueIndent = `${indent}  `;
 
       return [
-        ...wrapWords([trimTrailingSpaces(prefix)], '', indent, width),
+        ...wrapLabel(trimTrailingSpaces(prefix), indent, width),
         ...wrapWords(values, valueIndent, valueIndent, width),
       ];
     }
@@ -272,10 +318,35 @@ export function wrapIndentedPlainText(value: string, width: number): string[] {
       return [line];
     }
 
-    const wrapped = wrapWords(content.split(/\s+/), indent, indent, width);
+    const marker = LIST_ITEM_MARKER.exec(content)?.[0] ?? '';
+    const wrapped = wrapWords(
+      content.slice(marker.length).split(/\s+/),
+      `${indent}${marker}`,
+      `${indent}${' '.repeat(marker.length)}`,
+      width,
+    );
 
     return wrapped.length > 0 ? wrapped : [line];
   });
+}
+
+/**
+ * Las lineas de un panel. Si una fila no entra y su columna no deja lugar para el valor, se apilan todas las de esa
+ * columna: mezcladas con filas en columnas, la tabla se lee mal.
+ */
+export function wrapPanelLines(lines: readonly string[], width: number): string[] {
+  const flattened = flattenVisibleLines(lines);
+  const stackedColumns = new Set<number>();
+
+  for (const line of flattened) {
+    const column = labelColumnWidth(line);
+
+    if (column !== null && stripAnsi(line).length > width && width - column < MIN_VALUE_COLUMN_WIDTH) {
+      stackedColumns.add(column);
+    }
+  }
+
+  return flattened.flatMap((line) => wrapIndentedPlainText(line, width, stackedColumns));
 }
 
 export function maxVisibleWidth(lines: readonly string[]): number {
@@ -291,12 +362,4 @@ export function centerText(value: string, width: number): string {
 
 export function centerLines(lines: readonly string[], width: number): string[] {
   return flattenVisibleLines(lines).map((line) => centerText(line, width));
-}
-
-export function centerLineBlock(lines: readonly string[], width: number): string[] {
-  const flattenedLines = flattenVisibleLines(lines);
-  const blockWidth = maxVisibleWidth(flattenedLines);
-  const leftPadding = Math.max(0, Math.floor((width - blockWidth) / 2));
-
-  return flattenedLines.map((line) => `${' '.repeat(leftPadding)}${line}`);
 }

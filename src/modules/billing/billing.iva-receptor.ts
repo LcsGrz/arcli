@@ -78,7 +78,7 @@ export function validateConsumerIdentification(
 
   if (input.totalAmount * exchangeRate >= CONSUMER_IDENTIFICATION_THRESHOLD) {
     throw new InputValidationError(
-      `${formatVoucherSubject(voucherKind)} de ${formatArgentineMoney(CONSUMER_IDENTIFICATION_THRESHOLD)} o más requiere identificar al consumidor final. Usá --dni, --cuit o --cuil.`,
+      `${formatVoucherSubject(voucherKind)} de ${formatArgentineMoney(CONSUMER_IDENTIFICATION_THRESHOLD)} o más requiere identificar al consumidor final. Usá \`--dni\`, \`--cuit\` o \`--cuil\`.`,
     );
   }
 }

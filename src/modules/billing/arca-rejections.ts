@@ -33,32 +33,32 @@ export const ARCA_REJECTIONS: readonly ArcaRejection[] = [
   {
     codes: [10152],
     guide: `${TROUBLESHOOTING_URL}#fecha-del-comprobante-fuera-de-rango`,
-    todo: 'Revisá --fecha: tiene que estar cerca de hoy (hasta 5 días en productos y FCE, 10 en servicios).',
+    todo: 'Revisá `--fecha`: tiene que estar cerca de hoy (hasta 5 días en productos y FCE, 10 en servicios).',
     what: 'La fecha del comprobante está fuera del rango que acepta ARCA.',
   },
   {
     codes: [10243],
     guide: `${TROUBLESHOOTING_URL}#el-comprobante-no-admite-el-iva-receptor`,
-    todo: 'Usá un IVA receptor válido para la letra (con --ir) o consultá el del receptor con `arcli padron <cuit>`.',
+    todo: 'Usá un IVA receptor válido para la letra (con `--ir`) o consultá el del receptor con `arcli padron <cuit>`.',
     what: 'El IVA receptor no es válido para la letra del comprobante.',
   },
   {
     codes: [10174],
     guide: `${TROUBLESHOOTING_URL}#rechazos-de-arca-por-código`,
-    todo: 'Usá un CBU propio (--cbu o la clave cbu de la config) que esté registrado en ARCA.',
+    todo: 'Usá un CBU propio (`--cbu` o la clave cbu de la config) que esté registrado en ARCA.',
     what: 'El CBU no está registrado a nombre del emisor.',
   },
   {
     codes: [10119],
     guide: `${TROUBLESHOOTING_URL}#rechazos-de-arca-por-código`,
-    todo: 'Revisá --cotizacion-moneda contra la oficial (`arcli parametros cotizacion <moneda>`).',
+    todo: 'Revisá `--cotizacion-moneda` contra la oficial (`arcli parametros cotizacion <moneda>`).',
     what: 'La cotización está fuera del rango que acepta ARCA: entre el 2% y el 400% de la oficial.',
   },
   {
     codes: [10038],
     guide: `${TROUBLESHOOTING_URL}#rechazos-de-arca-por-código`,
-    todo: 'Volvé a emitir con --misma-moneda: arcli consulta la oficial en ese momento.',
-    what: 'Con --misma-moneda ARCA exige la cotización oficial exacta y la que se envió ya no coincide.',
+    todo: 'Volvé a emitir con `--misma-moneda`: arcli consulta la oficial en ese momento.',
+    what: 'Con `--misma-moneda` ARCA exige la cotización oficial exacta y la que se envió ya no coincide.',
   },
   {
     codes: [10017, 10217],

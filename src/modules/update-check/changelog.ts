@@ -1,3 +1,5 @@
+import { uiSymbol } from '../../ui/primitives';
+
 import { isNewerVersion } from './update-check.service';
 
 const CHANGELOG_URL = (version: string) => `https://raw.githubusercontent.com/LcsGrz/arcli/v${version}/CHANGELOG.md`;
@@ -46,7 +48,7 @@ function plainText(value: string): string {
 }
 
 function shorten(value: string, maxLength = MAX_LEAD_LENGTH): string {
-  return value.length > maxLength ? `${value.slice(0, maxLength - 1).trimEnd()}…` : value;
+  return value.length > maxLength ? `${value.slice(0, maxLength - 1).trimEnd()}${uiSymbol('ellipsis')}` : value;
 }
 
 function firstSentence(value: string): string {

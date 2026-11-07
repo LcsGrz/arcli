@@ -128,13 +128,13 @@ Hay varias combinaciones de flags que no podés usar juntas (entorno, modo de ej
 
 Usalos cuando necesitás controlar el entorno, la salida o el modo de inspección del resultado. Cada comando acepta solo los que usa:
 
-| Comando                                                                  | Flags globales que acepta                        |
-| ------------------------------------------------------------------------ | ------------------------------------------------ |
-| comprobantes (`fa`, `fc`, `nca`, `factura`, ...)                         | `--testing`, `--produccion`, `--json`, `--bruto` |
-| `padron`, `fce-obligado`, `ultimos`, `consultar`, `parametros`, `estado` | `--testing`, `--produccion`, `--json`            |
-| `certificado generar`, `certificado importar`                            | `--testing`, `--produccion`, `--json`            |
-| `interactivo`                                                            | `--testing`, `--produccion`                      |
-| `config` (y sus subcomandos), `pdf` (y sus subcomandos), `completado`    | `--json`                                         |
+| Comando                                                                                 | Flags globales que acepta                        |
+| --------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| comprobantes (`fa`, `fc`, `nca`, `factura`, ...)                                        | `--testing`, `--produccion`, `--json`, `--bruto` |
+| `padron`, `fce-obligado`, `ultimos`, `consultar`, `parametros`, `estado`                | `--testing`, `--produccion`, `--json`            |
+| `certificado generar`, `certificado importar`                                           | `--testing`, `--produccion`, `--json`            |
+| `interactivo`                                                                           | `--testing`, `--produccion`                      |
+| `config` (y sus subcomandos), `pdf` (y sus subcomandos), `completado`, `acceso-directo` | `--json`                                         |
 
 ### Emisión en producción
 
@@ -813,6 +813,28 @@ arcli completado desinstalar
 Pedir el comando ya es la confirmación: no vuelve a preguntar, como `arcli pdf instalar`. Con `--json` devuelve `{ "cambio", "instalado", "ruta", "shell" }`. Si no se puede saber el shell, da `INPUT_VALIDATION_ERROR` y hay que indicarlo. Un programa no puede cambiar la terminal que ya está abierta: después de instalar, abrí una nueva.
 
 `arcli completado <bash|zsh|fish>` solo imprime el script, para instalarlo a mano. Cada Tab le pregunta a la versión instalada qué sigue, así que después de actualizar arcli no hay que reinstalar nada. En el modo interactivo está en Configuración → Autocompletado.
+
+## Acceso directo
+
+Crea un ícono que abre ARCLI en su modo interactivo con doble clic, sin escribir comandos:
+
+```bash
+arcli acceso-directo                # en el escritorio
+arcli acceso-directo ~/Documentos   # en otra carpeta, que tiene que existir
+```
+
+| Sistema | Qué crea        | Dónde quedan el lanzador y el ícono              |
+| ------- | --------------- | ------------------------------------------------ |
+| macOS   | `ARCLI.app`     | Dentro de la `.app`                              |
+| Windows | `ARCLI.lnk`     | En `acceso-directo/`, junto al archivo de config |
+| Linux   | `ARCLI.desktop` | En `acceso-directo/`, junto al archivo de config |
+
+Abre una terminal con ARCLI. Si termina con un error, la ventana espera un Enter para que se pueda leer. Con `--json` devuelve `{ "reemplazado", "ruta" }`.
+
+- **Repetirlo:** actualiza el acceso directo de esa carpeta. En macOS y Linux, si ya hay un archivo con ese nombre que no creó ARCLI, da `INPUT_VALIDATION_ERROR` y no lo toca.
+- **Si cambiás Node o ARCLI de lugar:** el acceso directo guarda sus rutas al crearse. Si ya no están, prueba con el `arcli` del `PATH`; si tampoco anda, volvé a correr el comando.
+- **Quitarlo:** borrá el ícono como cualquier archivo.
+- En el modo interactivo está en Configuración → Acceso directo en el escritorio.
 
 ## Configuración
 

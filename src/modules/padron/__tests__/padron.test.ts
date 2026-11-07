@@ -66,7 +66,7 @@ describe('padron presenter', () => {
 
   it('sin condicion IVA pide indicarla con --ir', () => {
     expect(formatPadronAsText({ environment: 'testing', taxpayer: { ...taxpayer, ivaCondition: null } })).toContain(
-      'indicala con --ir',
+      'indicala con `--ir`',
     );
   });
 });

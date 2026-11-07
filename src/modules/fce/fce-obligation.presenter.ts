@@ -2,7 +2,8 @@ import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { formatCuit } from '../../lib/identity/format-cuit';
 import { DEPRECATED_CUIT_NUMBER } from '../../lib/json/deprecations';
 import { formatArgentineMoney } from '../../lib/numbers/argentine-amount';
-import { keyValuePanel, renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui';
+import { sheetPanel } from '../../ui/components';
+import { renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui/primitives';
 
 import type { FceObligation } from './fce-obligation';
 
@@ -39,12 +40,9 @@ export function formatFceObligationAsText(report: FceObligationReport): string {
     ? `Desde ese importe corresponde emitir FCE (fcea, fceb o fcec). Debajo, factura común.`
     : 'Corresponde emitir factura común (fa, fb o fc).';
 
-  return keyValuePanel(
+  return sheetPanel(
     'Régimen FCE MiPyMEs',
     renderKeyValueRows(rows, { labelWidth: resolveKeyValueLabelWidth('standard', rows) }),
-    footer,
-    'standard',
-    undefined,
-    'sheet',
+    { footer },
   );
 }

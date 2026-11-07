@@ -8,19 +8,27 @@ import {
   formatImportedCertificateAsText,
 } from '../../modules/certificates/certificate.presenter';
 import { CertificateService, DEFAULT_CERTIFICATE_ALIAS } from '../../modules/certificates/certificate.service';
-import { type ArcliEnvironment, arcliEnvironmentSchema } from '../../modules/config/config.schemas';
+import {
+  type ArcliEnvironment,
+  arcliEnvironmentSchema,
+  formatEnvironmentLabel,
+} from '../../modules/config/config.schemas';
 import { ConfigService } from '../../modules/config/config.service';
 import { BACK, type Back } from '../../modules/interactive/wizard';
-import { formatCliError, noticePanel, writeTerminalError, writeTerminalOutput } from '../../ui';
+import { noticePanel, uiSymbol, writeTerminalError, writeTerminalOutput } from '../../ui';
+import { formatCliError } from '../error-output';
 
 import { askTextStep, chooseStep, confirm } from './prompts';
 
 export type CertificateFlowResult = 'importado' | 'pendiente';
 
-const ENVIRONMENT_NAMES: Record<ArcliEnvironment, string> = { produccion: 'Producción', testing: 'Testing' };
+function environmentName(environment: ArcliEnvironment): string {
+  const label = formatEnvironmentLabel(environment);
 
-const LATER_NOTICE =
-  'Cuando tengas el .crt, cargalo desde Configuración → Certificados de ARCA, o con `arcli certificado importar <archivo>`. Hasta entonces seguís usando el certificado actual.';
+  return `${label.charAt(0).toUpperCase()}${label.slice(1)}`;
+}
+
+const LATER_NOTICE = `Cuando tengas el .crt, cargalo desde Configuración ${uiSymbol('arrow')} Certificados de ARCA, o con \`arcli certificado importar <archivo>\`. Hasta entonces seguís usando el certificado actual.`;
 
 /** Cada operacion abre y cierra la config: entre una pregunta y otra el usuario puede tardar lo que quiera. */
 function withService<T>(run: (service: CertificateService, config: ConfigService) => T): T {
@@ -48,7 +56,7 @@ async function chooseEnvironment(): Promise<ArcliEnvironment | Back> {
 
   return chooseStep(
     '¿Para qué entorno?',
-    arcliEnvironmentSchema.options.map((environment) => ({ name: ENVIRONMENT_NAMES[environment], value: environment })),
+    arcliEnvironmentSchema.options.map((environment) => ({ name: environmentName(environment), value: environment })),
     current,
   );
 }
@@ -95,7 +103,7 @@ export async function runImportCertificate(): Promise<'importado' | Back> {
       throw error;
     }
 
-    writeTerminalError(formatCliError(error, false));
+    writeTerminalError(() => formatCliError(error, false));
 
     return BACK;
   }
@@ -110,7 +118,7 @@ async function handlePendingRequest(environment: ArcliEnvironment): Promise<'ree
   }
 
   const choice = await chooseStep<'reemplazar' | 'ver'>(
-    `Ya hay un pedido de ${ENVIRONMENT_NAMES[environment].toLowerCase()} sin importar. ¿Qué hacemos?`,
+    `Ya hay un pedido de ${formatEnvironmentLabel(environment)} sin importar. ¿Qué hacemos?`,
     [
       { description: 'Si ya lo subiste a ARCA, usá este', name: 'Ver el CSR de nuevo', value: 'ver' },
       {

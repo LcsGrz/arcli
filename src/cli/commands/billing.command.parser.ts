@@ -59,7 +59,7 @@ function parseIvaRateFlags(values: readonly string[] | undefined): {
   if (withAmount.length === 0) {
     if (values.length > 1) {
       throw new InputValidationError(
-        'Para varias alícuotas usá --alicuota TASA:MONTO en cada una, por ejemplo --alicuota general:1210 --alicuota reducida:552,50.',
+        'Para varias alícuotas usá `--alicuota TASA:MONTO` en cada una, por ejemplo `--alicuota general:1210 --alicuota reducida:552,50`.',
       );
     }
 
@@ -67,7 +67,7 @@ function parseIvaRateFlags(values: readonly string[] | undefined): {
   }
 
   if (withAmount.length !== values.length) {
-    throw new InputValidationError('No mezcles --alicuota TASA con --alicuota TASA:MONTO: usá una sola forma.');
+    throw new InputValidationError('No mezcles `--alicuota TASA` con `--alicuota TASA:MONTO`: usá una sola forma.');
   }
 
   return {
@@ -104,7 +104,7 @@ function resolveShouldEmit(options: {
   readonly filePreview?: boolean;
 }): boolean {
   if (options.cliEmit && options.cliPreview) {
-    throw new InputValidationError('Usá --emitir o --previsualizar, pero no ambos a la vez.');
+    throw new InputValidationError('Usá `--emitir` o `--previsualizar`, pero no ambos a la vez.');
   }
 
   if (options.cliEmit !== undefined || options.cliPreview !== undefined) {
@@ -134,7 +134,7 @@ function resolvePdfFlag(
   const exportPdf = commandOptions.exportarPdf === true || commandOptions.pdf === true;
 
   if (exportPdf && commandOptions.sinPdf === true) {
-    throw new InputValidationError('Usá --exportar-pdf o --sin-pdf, pero no ambos a la vez.');
+    throw new InputValidationError('Usá `--exportar-pdf` o `--sin-pdf`, pero no ambos a la vez.');
   }
 
   if (exportPdf) {
@@ -186,7 +186,9 @@ function parseBillingCommandInputFromSource(
   const hasAssociatedType = typeof commandOptions.at === 'number';
 
   if (hasAssociatedShortcut && hasAssociatedType) {
-    throw new InputValidationError('Usá --ac o --at para identificar el comprobante asociado, pero no ambos a la vez.');
+    throw new InputValidationError(
+      'Usá `--ac` o `--at` para identificar el comprobante asociado, pero no ambos a la vez.',
+    );
   }
 
   const associatedVoucherFromFlags =
@@ -245,26 +247,28 @@ function parseBillingCommandInputFromSource(
         : 'missing';
 
   if (typeof commandOptions.concepto === 'string' && conceptShortcut) {
-    throw new InputValidationError('Usá --concepto o un flag corto de concepto (--cs, --cp, --csp), pero no ambos.');
+    throw new InputValidationError(
+      'Usá `--concepto` o un flag corto de concepto (`--cs`, `--cp`, `--csp`), pero no ambos.',
+    );
   }
 
   if (typeof commandOptions.ivaReceptor === 'string' && typeof commandOptions.ir === 'string') {
-    throw new InputValidationError('Usá --iva-receptor o --ir para indicar IVA receptor, pero no ambos.');
+    throw new InputValidationError('Usá `--iva-receptor` o `--ir` para indicar IVA receptor, pero no ambos.');
   }
 
   if ((typeof commandOptions.ivaReceptor === 'string' || typeof commandOptions.ir === 'string') && ivaShortcut) {
-    throw new InputValidationError('Usá --iva-receptor, --ir o un flag corto --ir-*, pero no varios a la vez.');
+    throw new InputValidationError('Usá `--iva-receptor`, `--ir` o un flag corto `--ir-*`, pero no varios a la vez.');
   }
 
   if (!resolvedConcept) {
     throw new InputValidationError(
-      'Falta el concepto. Usá --concepto <tipo>, o bien --cs/--cp/--csp, o configurá uno por defecto con `arcli config establecer concepto servicios`.',
+      'Falta el concepto. Usá `--concepto <tipo>`, o bien `--cs`/`--cp`/`--csp`, o configurá uno por defecto con `arcli config establecer concepto servicios`.',
     );
   }
 
   if (!resolvedIvaCondition && !willLookupPadron) {
     throw new InputValidationError(
-      'Falta IVA receptor. Usá --iva-receptor <tipo>, --ir <tipo>, un flag --ir-*, o configurá uno por defecto con `arcli config establecer ivaReceptor consumidor-final`.',
+      'Falta IVA receptor. Usá `--iva-receptor <tipo>`, `--ir <tipo>`, un flag `--ir-*`, o configurá uno por defecto con `arcli config establecer ivaReceptor consumidor-final`.',
     );
   }
 
@@ -293,7 +297,7 @@ function parseBillingCommandInputFromSource(
 
   if (sameCurrency && typeof explicitExchangeRate === 'number') {
     throw new InputValidationError(
-      'Con --misma-moneda la cotización se toma de ARCA. Sacá --cotizacion-moneda o --cm.',
+      'Con `--misma-moneda` la cotización se toma de ARCA. Sacá `--cotizacion-moneda` o `--cm`.',
     );
   }
 
@@ -328,7 +332,7 @@ function parseBillingCommandInputFromSource(
   const flagSaleCondition = pickString(commandOptions.condicionVenta, commandOptions.cv);
 
   if (commandOptions.sinCondicionVenta === true && flagSaleCondition) {
-    throw new InputValidationError('Usá --condicion-venta/--cv o --sin-condicion-venta, pero no ambos a la vez.');
+    throw new InputValidationError('Usá `--condicion-venta`/`--cv` o `--sin-condicion-venta`, pero no ambos a la vez.');
   }
 
   const saleCondition =

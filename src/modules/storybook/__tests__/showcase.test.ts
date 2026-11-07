@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { renderStorybookShowcase } from '../showcase';
+
+// Lo que no es ASCII ni una letra del español: ARCLI_ASCII cambia bordes y simbolos, no el idioma.
+// eslint-disable-next-line no-control-regex
+const NOT_ALLOWED = /[^\u0000-\u007F¿¡áéíóúüñÁÉÍÓÚÜÑ]/g;
 
 function stripAnsi(value: string): string {
   // eslint-disable-next-line no-control-regex
@@ -8,6 +12,20 @@ function stripAnsi(value: string): string {
 }
 
 describe('storybook.showcase', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('leaves no unicode symbols with ARCLI_ASCII=1', () => {
+    vi.stubEnv('ARCLI_ASCII', '1');
+
+    expect(renderStorybookShowcase().match(NOT_ALLOWED)).toBeNull();
+  });
+
+  it('shows the version under the logo, like the help', () => {
+    expect(stripAnsi(renderStorybookShowcase(undefined, '2.3.0'))).toContain('v2.3.0 | LcsGrz');
+  });
+
   it('renders all scenes in the default showcase', () => {
     const output = renderStorybookShowcase();
 
@@ -17,6 +35,18 @@ describe('storybook.showcase', () => {
     expect(output).toContain('ERRORES');
     expect(output).toContain('COMPONENTES');
     expect(output).toContain('JSON');
+  });
+
+  it('renders the queries scene', () => {
+    const output = renderStorybookShowcase('consultas');
+
+    expect(output).toContain('CONSULTAS');
+    expect(output).toContain('Empresa de Ejemplo SRL');
+    expect(output).toContain('00003-00001234');
+  });
+
+  it('renders the certificates scene', () => {
+    expect(renderStorybookShowcase('certificados')).toContain('CERTIFICADOS');
   });
 
   it('renders a focused billing scene', () => {

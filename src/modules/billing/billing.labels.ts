@@ -34,6 +34,40 @@ export function formatMoneyLabel(value: number | undefined, currency?: string): 
     : `${formatArgentineAmount(value)} ${known?.iso ?? currency}`;
 }
 
+/** Los mensajes de ARCA (`Code`/`Msg` en A, B y C; `code`/`message` en E) como lista; lo que no tiene esa forma, en JSON. */
+export function formatArcaMessages(items: readonly unknown[]): string {
+  return items
+    .map((item, index) => {
+      const { Code, Msg, code, message } = (item ?? {}) as Record<string, unknown>;
+      const text = Msg ?? message;
+      const prefix = `${index + 1}. `;
+
+      if (typeof text !== 'string') {
+        return `${prefix}${JSON.stringify(item)}`;
+      }
+
+      const number = Code ?? code;
+
+      return `${prefix}${number === undefined ? '' : `${String(number)}: `}${text}`;
+    })
+    .join('\n');
+}
+
+/** Los contadores de la respuesta de ARCA que tienen algo: en cero no dicen nada, y el estado ya va en el pie. */
+export function formatResponseCountRows(response: {
+  readonly errors: readonly unknown[];
+  readonly events: readonly unknown[];
+  readonly observaciones: readonly unknown[];
+}): Array<readonly [string, number]> {
+  const rows: Array<readonly [string, number]> = [
+    ['Observaciones', response.observaciones.length],
+    ['Eventos', response.events.length],
+    ['Errores', response.errors.length],
+  ];
+
+  return rows.filter(([, count]) => count > 0);
+}
+
 export function formatConceptLabel(value: number | undefined): string {
   return conceptLabel(value);
 }

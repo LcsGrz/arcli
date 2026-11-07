@@ -67,11 +67,11 @@ yarn dev fc -m 1000 --cs --cfinal --emitir --json --bruto
 
 Revisá según lo que tocaste: la salida humana y la `--json` de los casos que cambian, los errores de validación (flags incompatibles, monto faltante, PEM inválido) y que `--produccion` sin `--emitir` no emita.
 
-Para iterar la UI sin llamar a ARCA hay un storybook de terminal:
+Las reglas de la salida están en el [design system](design-system.md). Para iterar la UI sin llamar a ARCA hay un storybook de terminal:
 
 ```bash
 yarn dev storybook              # todas las escenas
-yarn dev storybook colores      # o: bordes, componentes, comprobantes, configuracion, errores, json
+yarn dev storybook colores      # o: bordes, certificados, componentes, comprobantes, configuracion, consultas, errores, json
 ```
 
 ## CI y publicación
@@ -146,6 +146,12 @@ Están en `docs/assets/demo/` y se regeneran con scripts para que no queden desa
 
   ```bash
   node --import tsx scripts/demo/pdf-sample.mts
+  ```
+
+- **Ícono** (`docs/assets/imagenes/arcliIcon.*` y los de `assets/acceso-directo/` que usa `arcli acceso-directo`): `scripts/icono/generar.py` los arma a partir del logo ASCII. Necesita macOS (`iconutil`) y `rsvg-convert` (`brew install librsvg`).
+
+  ```bash
+  python3 scripts/icono/generar.py
   ```
 
 El README las enlaza con URLs absolutas de `raw.githubusercontent.com` porque npmjs.com no muestra imágenes con rutas relativas.

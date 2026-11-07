@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { InputValidationError } from '../../../lib/errors/app-error';
 import { BACK } from '../../../modules/interactive/wizard';
 import { stripAnsi } from '../../../ui';
 import { runCertificateMenu, runGenerateCertificate } from '../certificate.flow';
@@ -22,6 +23,12 @@ vi.mock('../prompts', () => ({
 const store: Record<string, string> = {};
 const install = vi.fn(async () => ({ installed: true }));
 const uninstall = vi.fn();
+const createShortcut = vi.hoisted(() => vi.fn());
+
+vi.mock('../../../modules/desktop-shortcut/installer', () => ({
+  createDesktopShortcut: createShortcut,
+  currentDesktopShortcutEnvironment: () => ({}),
+}));
 
 vi.mock('../../../modules/config/config.service', () => ({
   ConfigService: class {
@@ -40,6 +47,9 @@ vi.mock('../../../modules/config/config.service', () => ({
         output: {},
         puntoVentaPorDefecto: store.puntoVenta ? Number(store.puntoVenta) : undefined,
       };
+    }
+    public getPath() {
+      return '/tmp/config.json';
     }
     public getPluginsPath() {
       return '/tmp/plugins';
@@ -229,7 +239,7 @@ describe('runConfigMenu', () => {
 
     await runConfigMenu();
 
-    expect(stripAnsi(printed)).toContain('20333333334');
+    expect(stripAnsi(printed)).toContain('20-33333333-4');
     expect(stripAnsi(printed)).toContain('Comprobantes por lista');
   });
 
@@ -269,6 +279,42 @@ describe('runConfigMenu', () => {
 
     expect(install).toHaveBeenCalledTimes(1);
     expect(uninstall).not.toHaveBeenCalled();
+  });
+
+  it('crea el acceso directo desde configuracion', async () => {
+    createShortcut.mockReturnValueOnce({ path: '/Escritorio/ARCLI.app', replaced: false });
+    vi.mocked(chooseOne).mockResolvedValueOnce('acceso-directo').mockResolvedValueOnce('volver');
+
+    let printed = '';
+
+    vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
+      printed += String(chunk);
+      return true;
+    });
+
+    await runConfigMenu();
+
+    expect(createShortcut).toHaveBeenCalledWith(undefined, expect.anything());
+    expect(stripAnsi(printed)).toContain('/Escritorio/ARCLI.app');
+  });
+
+  it('si no se puede crear el acceso directo, avisa y sigue en el menu', async () => {
+    createShortcut.mockImplementationOnce(() => {
+      throw new InputValidationError('No se encontró el escritorio.');
+    });
+    vi.mocked(chooseOne).mockResolvedValueOnce('acceso-directo').mockResolvedValueOnce('volver');
+
+    let printed = '';
+
+    vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
+      printed += String(chunk);
+      return true;
+    });
+
+    await runConfigMenu();
+
+    expect(stripAnsi(printed)).toContain('No se encontró el escritorio.');
+    expect(chooseOne).toHaveBeenCalledTimes(2);
   });
 
   it('instala y desinstala el autocompletado desde configuracion', async () => {

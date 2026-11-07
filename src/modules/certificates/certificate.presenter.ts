@@ -2,37 +2,39 @@ import { basename, dirname } from 'node:path';
 
 import { formatCuit } from '../../lib/identity/format-cuit';
 import { CERTIFICATE_GUIDE_URL } from '../../lib/links';
+import { sheetPanel } from '../../ui/components';
 import {
   bold,
   colorize,
   hyperlink,
   pathLink,
-  renderPanel,
+  renderKeyValueRows,
+  resolveKeyValueLabelWidth,
   supportsHyperlinks,
   toneText,
-  type UiColorToken,
-} from '../../ui';
+  uiSymbol,
+} from '../../ui/primitives';
+import { type UiColorToken } from '../../ui/theme';
 import { formatCertificateExpiryDate } from '../config/certificate-expiry';
-import type { ArcliEnvironment } from '../config/config.schemas';
+import { type ArcliEnvironment, formatEnvironmentLabel } from '../config/config.schemas';
 
 import type { CertificateStatus, GeneratedCertificateRequest, ImportedCertificate } from './certificate.service';
 
 const SERVICES_URL = `${CERTIFICATE_GUIDE_URL}#qué-servicios-autorizar`;
 
-const ENVIRONMENT_NAMES: Record<ArcliEnvironment, string> = { produccion: 'producción', testing: 'testing' };
 const ENVIRONMENT_COLORS: Record<ArcliEnvironment, UiColorToken> = { produccion: 'production', testing: 'testing' };
 
 /** Lo mismo que la tabla "Qué servicios autorizar" de la guía de certificados. */
 const SERVICES: ReadonlyArray<readonly [service: string, usage: string]> = [
   ['wsfe', 'facturas y notas A, B, C y FCE'],
-  ['ws_sr_constancia_inscripcion', 'arcli padron y el IVA del receptor'],
-  ['wsfecred', 'arcli fce-obligado y el aviso de FCE'],
-  ['wsfex', 'arcli fe, la factura de exportación E'],
+  ['ws_sr_constancia_inscripcion', '`arcli padron` y el IVA del receptor'],
+  ['wsfecred', '`arcli fce-obligado` y el aviso de FCE'],
+  ['wsfex', '`arcli fe`, la factura de exportación E'],
 ];
 
 /** Lo que hay que hacer en ARCA con el CSR. Testing usa WSASS; producción, Administración de Certificados Digitales. */
 function certificateSteps(request: Pick<GeneratedCertificateRequest, 'alias' | 'environment'>): string[] {
-  const importCommand = 'arcli certificado importar <archivo.crt>';
+  const importCommand = '`arcli certificado importar <archivo.crt>`';
 
   if (request.environment === 'testing') {
     return [
@@ -57,17 +59,25 @@ function heading(text: string): string {
   return colorize(text, 'info');
 }
 
-/** Filas "etiqueta  valor": con dos espacios o mas, el panel parte el valor sin perder la columna. */
-function rows(entries: ReadonlyArray<readonly [label: string, value: string]>): string[] {
-  const width = Math.max(...entries.map(([label]) => label.length));
+function serviceRows(): Array<readonly [label: string, value: string]> {
+  return SERVICES.map(([service, usage]) => [`${uiSymbol('bullet')} ${service}`, usage]);
+}
 
-  return entries.map(([label, value]) => `  ${bold(label.padEnd(width))}  ${value}`);
+/**
+ * Filas "etiqueta  valor": con dos espacios o mas, el panel parte el valor sin perder la columna. En un panel con la
+ * lista de servicios (`besideServices`), todas las secciones toman el ancho de esa lista, asi los valores quedan en
+ * la misma columna.
+ */
+function rows(entries: ReadonlyArray<readonly [label: string, value: string]>, besideServices = false): string[] {
+  const labelWidth = resolveKeyValueLabelWidth('standard', [...(besideServices ? serviceRows() : []), ...entries]);
+
+  return renderKeyValueRows(entries, { indent: 2, labelWidth });
 }
 
 function servicesSection(title = 'Servicios a autorizar'): string[] {
   const guide = supportsHyperlinks() ? ['', `  ${hyperlink('Guía con capturas de cada pantalla', SERVICES_URL)}`] : [];
 
-  return [heading(title), ...rows(SERVICES.map(([service, usage]) => [`• ${service}`, usage])), ...guide];
+  return [heading(title), ...rows(serviceRows(), true), ...guide];
 }
 
 /** Sin links en la terminal, la URL va afuera de la caja: adentro se partiria y no se podria abrir. */
@@ -81,17 +91,20 @@ function fileLink(path: string): string {
 
 export function formatGeneratedRequestAsText(request: GeneratedCertificateRequest): string {
   const color = ENVIRONMENT_COLORS[request.environment];
-  const panel = renderPanel({
-    borderType: 'sheet',
-    content: [
+  const panel = sheetPanel(
+    `Pedido de certificado ${uiSymbol('separator')} ${formatEnvironmentLabel(request.environment)}`,
+    [
       heading('Pedido'),
-      ...rows([
-        ['CUIT', formatCuit(request.cuit)],
-        ['Alias', request.alias],
-        ['Carpeta', pathLink(dirname(request.requestPath))],
-        ['CSR', fileLink(request.requestPath)],
-        ['Clave privada', `${fileLink(request.keyPath)}  ${colorize('(no la compartas)', 'muted')}`],
-      ]),
+      ...rows(
+        [
+          ['CUIT', formatCuit(request.cuit)],
+          ['Alias', request.alias],
+          ['Carpeta', pathLink(dirname(request.requestPath))],
+          ['CSR', fileLink(request.requestPath)],
+          ['Clave privada', `${fileLink(request.keyPath)}  ${colorize('(no la compartas)', 'muted')}`],
+        ],
+        true,
+      ),
       '',
       heading('Pasos en ARCA'),
       // "1.  texto": con dos espacios despues del numero, una linea larga sigue alineada al texto.
@@ -99,14 +112,8 @@ export function formatGeneratedRequestAsText(request: GeneratedCertificateReques
       '',
       ...servicesSection(),
     ],
-    contentAlign: 'left',
-    footer: 'Tu certificado actual sigue andando hasta que importes el nuevo.',
-    footerColor: 'muted',
-    footerDivider: true,
-    title: `Pedido de certificado · ${ENVIRONMENT_NAMES[request.environment]}`,
-    titleColor: color,
-    width: 'wide',
-  });
+    { footer: 'Tu certificado actual sigue andando hasta que importes el nuevo.', footerTone: 'muted', tone: color },
+  );
 
   // El CSR va suelto, sin bordes: se copia entero para pegarlo en ARCA.
   return `${panel}\n${guideLine()}\n${request.csrPem.trim()}\n`;
@@ -131,38 +138,38 @@ export function formatGeneratedRequestAsJson(request: GeneratedCertificateReques
 
 export function formatImportedCertificateAsText(imported: ImportedCertificate): string {
   const color = ENVIRONMENT_COLORS[imported.environment];
-  const environment = ENVIRONMENT_NAMES[imported.environment].toUpperCase();
-  const panel = renderPanel({
-    borderType: 'sheet',
-    content: [
-      `${toneText('✓', 'success')} ${bold(`Certificado de ${toneText(environment, color)} cargado`)}${
+  const environment = formatEnvironmentLabel(imported.environment).toUpperCase();
+  const panel = sheetPanel(
+    `Certificado de ${formatEnvironmentLabel(imported.environment)}`,
+    [
+      `${toneText(uiSymbol('check'), 'success')} ${bold(`Certificado de ${toneText(environment, color)} cargado`)}${
         imported.replaced ? colorize(' (reemplaza al anterior)', 'muted') : ''
       }`,
       '',
       heading('Certificado'),
-      ...rows([
-        ['CUIT', formatCuit(imported.cuit)],
-        ['Alias', imported.alias ?? 'N/D'],
-        ['Vence', bold(formatCertificateExpiryDate(imported.expiresAt))],
-      ]),
+      ...rows(
+        [
+          ['CUIT', formatCuit(imported.cuit)],
+          ['Alias', imported.alias ?? 'N/D'],
+          ['Vence', bold(formatCertificateExpiryDate(imported.expiresAt))],
+        ],
+        true,
+      ),
       '',
       heading('Archivos'),
-      ...rows([
-        ['Carpeta', pathLink(dirname(imported.certificatePath))],
-        ['Certificado', fileLink(imported.certificatePath)],
-        ['Clave privada', fileLink(imported.keyPath)],
-      ]),
+      ...rows(
+        [
+          ['Carpeta', pathLink(dirname(imported.certificatePath))],
+          ['Certificado', fileLink(imported.certificatePath)],
+          ['Clave privada', fileLink(imported.keyPath)],
+        ],
+        true,
+      ),
       '',
       ...servicesSection('Si todavía no los autorizaste'),
     ],
-    contentAlign: 'left',
-    footer: 'Para revisar todo: `arcli config revisar`.',
-    footerColor: 'muted',
-    footerDivider: true,
-    title: `Certificado de ${ENVIRONMENT_NAMES[imported.environment]}`,
-    titleColor: color,
-    width: 'wide',
-  });
+    { footer: 'Para revisar todo: `arcli config revisar`.', footerTone: 'muted', tone: color },
+  );
 
   return `${panel}\n${guideLine()}`;
 }
@@ -226,7 +233,7 @@ function statusRows(status: CertificateStatus, now: Date): string[] {
       ['Alias', status.alias ?? 'N/D'],
       ['Vence', describeExpiry(status.expiresAt, now)],
       ['Certificado', pathLink(status.certificatePath)],
-      ['Clave privada', status.keyPath ? pathLink(status.keyPath) : colorize('no configurado', 'muted')],
+      ['Clave privada', status.keyPath ? pathLink(status.keyPath) : colorize('sin configurar', 'muted')],
     ]),
     ...pending,
   ];
@@ -236,13 +243,8 @@ function statusRows(status: CertificateStatus, now: Date): string[] {
 export function formatCertificateStatusAsText(statuses: readonly CertificateStatus[], now = new Date()): string {
   return statuses
     .map((status) =>
-      renderPanel({
-        borderType: 'sheet',
-        content: statusRows(status, now),
-        contentAlign: 'left',
-        title: `Certificado de ${ENVIRONMENT_NAMES[status.environment]}`,
-        titleColor: ENVIRONMENT_COLORS[status.environment],
-        width: 'wide',
+      sheetPanel(`Certificado de ${formatEnvironmentLabel(status.environment)}`, statusRows(status, now), {
+        tone: ENVIRONMENT_COLORS[status.environment],
       }),
     )
     .join('\n\n');

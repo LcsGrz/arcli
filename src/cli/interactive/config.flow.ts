@@ -1,6 +1,7 @@
 import { Separator } from '@inquirer/select';
 import { join } from 'node:path';
 
+import { AppError } from '../../lib/errors/app-error';
 import {
   formatCompletionResultAsText,
   formatCompletionStateAsText,
@@ -13,10 +14,13 @@ import {
   uninstallCompletion,
 } from '../../modules/completion/installer';
 import { COMPLETION_SHELLS, type CompletionShell } from '../../modules/completion/shell-scripts';
+import { formatConfigAsText, formatConfigDoctorAsText } from '../../modules/config/config.presenter';
 import type { ArcliConfig, ConfigPublicKey } from '../../modules/config/config.schemas';
 import { CONFIG_SECTIONS } from '../../modules/config/config.sections';
 import { ConfigService, validateConfigValue } from '../../modules/config/config.service';
 import { buildConfigDoctorReport } from '../../modules/config/config-doctor';
+import { formatDesktopShortcutAsText } from '../../modules/desktop-shortcut/desktop-shortcut.presenter';
+import { createDesktopShortcut, currentDesktopShortcutEnvironment } from '../../modules/desktop-shortcut/installer';
 import {
   CONFIG_FIELDS,
   type ConfigField,
@@ -24,15 +28,9 @@ import {
   getConfigField,
 } from '../../modules/interactive/config-fields';
 import { BACK, type Back, runWizard, type WizardStep } from '../../modules/interactive/wizard';
+import { formatPdfPluginStatusAsText } from '../../modules/pdf/pdf.presenter';
 import { PdfPlugin } from '../../services/pdf/pdf-plugin';
-import {
-  bold,
-  formatConfigAsText,
-  formatConfigDoctorAsText,
-  formatPdfPluginStatusAsText,
-  noticePanel,
-  writeTerminalOutput,
-} from '../../ui';
+import { bold, noticePanel, uiSymbol, writeTerminalOutput } from '../../ui';
 import { buildRuntimeChecks } from '../commands/config.command';
 import { startSpinner } from '../spinner';
 
@@ -375,7 +373,23 @@ async function runCompletionMenu(): Promise<void> {
   writeTerminalOutput(formatCompletionResultAsText(result, environment.home));
 }
 
-type ConfigOption = 'cambiar' | 'certificados' | 'completado' | 'guiada' | 'pdf' | 'revisar' | 'ver' | 'volver';
+type ConfigOption =
+  'acceso-directo' | 'cambiar' | 'certificados' | 'completado' | 'guiada' | 'pdf' | 'revisar' | 'ver' | 'volver';
+
+/** Un error aca no corta el menu: se avisa y se puede seguir (por ejemplo, si no hay escritorio). */
+function runDesktopShortcut(): void {
+  try {
+    const environment = withConfigService((service) => currentDesktopShortcutEnvironment(service.getPath()));
+
+    writeTerminalOutput(formatDesktopShortcutAsText(createDesktopShortcut(undefined, environment)));
+  } catch (error) {
+    if (!(error instanceof AppError)) {
+      throw error;
+    }
+
+    writeTerminalOutput(noticePanel(error.message, 'warning'));
+  }
+}
 
 function showConfig(): void {
   withConfigService((service) => {
@@ -391,7 +405,7 @@ export async function runConfigMenu(): Promise<void> {
     const option = await chooseOne<ConfigOption>(
       'Configuración',
       [
-        { description: 'Todos los datos guardados, como arcli config', name: 'Ver configuración', value: 'ver' },
+        { description: 'Todos los datos guardados, como `arcli config`', name: 'Ver configuración', value: 'ver' },
         {
           description: 'Credenciales, defaults y validación contra ARCA',
           name: 'Revisar configuración',
@@ -418,8 +432,13 @@ export async function runConfigMenu(): Promise<void> {
           name: 'Autocompletado',
           value: 'completado',
         },
+        {
+          description: 'Un ícono para abrir ARCLI con doble clic',
+          name: 'Acceso directo en el escritorio',
+          value: 'acceso-directo',
+        },
         new Separator(' '),
-        { name: '← Volver al menú', value: 'volver' },
+        { name: `${uiSymbol('back')} Volver al menú`, value: 'volver' },
       ],
       undefined,
       { escapeValue: 'volver' },
@@ -442,5 +461,6 @@ export async function runConfigMenu(): Promise<void> {
     if (option === 'certificados') await runCertificateMenu();
     if (option === 'pdf') await runPdfPluginMenu();
     if (option === 'completado') await runCompletionMenu();
+    if (option === 'acceso-directo') runDesktopShortcut();
   }
 }

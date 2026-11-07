@@ -41,32 +41,32 @@ export interface ExportRuntime {
 /** Se valida antes de tocar la red: un flag que falta no tiene por que autenticar en WSAA. */
 function assertRequiredFields(input: ExportVoucherInput, activity: number | undefined): void {
   if (typeof input.amount !== 'number' || !(input.amount > 0)) {
-    throw new InputValidationError('Falta el monto total o no es válido. Usá --monto.');
+    throw new InputValidationError('Falta el monto total o no es válido. Usá `--monto`.');
   }
 
   if (!input.clientName?.trim()) {
-    throw new InputValidationError('Falta el nombre del cliente. Usá --cliente.');
+    throw new InputValidationError('Falta el nombre del cliente. Usá `--cliente`.');
   }
 
   if (!input.clientAddress?.trim()) {
-    throw new InputValidationError('Falta el domicilio del cliente. Usá --domicilio-cliente.');
+    throw new InputValidationError('Falta el domicilio del cliente. Usá `--domicilio-cliente`.');
   }
 
   if (!input.destinationCountry?.trim()) {
-    throw new InputValidationError('Falta el país de destino. Usá --pais-destino.');
+    throw new InputValidationError('Falta el país de destino. Usá `--pais-destino`.');
   }
 
   // WSFEX numera por punto de venta y tipo, pero @arcasdk/core no deja consultar el ultimo (FEXGetLast_CMP lleva
   // Pto_venta y Cbte_Tipo dentro de Auth y el SDK pisa ese bloque). Hasta que se arregle, el numero lo indica el usuario.
   if (input.voucherNumber === undefined) {
     throw new InputValidationError(
-      'Falta el número del comprobante. Usá --numero: arcli todavía no puede consultar en WSFEX el último emitido. Si es la primera Factura E de este punto de venta, es 1; si no, el siguiente al último que emitiste.',
+      'Falta el número del comprobante. Usá `--numero`: arcli todavía no puede consultar en WSFEX el último emitido. Si es la primera Factura E de este punto de venta, es 1; si no, el siguiente al último que emitiste.',
     );
   }
 
   if (activity === undefined) {
     throw new InputValidationError(
-      'Falta la actividad de exportación. Usá --actividad o guardala con `arcli config establecer exportacion.actividad <código>`: es el código de la tabla de actividades de WSFEX, por ejemplo 620100.',
+      'Falta la actividad de exportación. Usá `--actividad` o guardala con `arcli config establecer exportacion.actividad <código>`: es el código de la tabla de actividades de WSFEX, por ejemplo 620100.',
     );
   }
 

@@ -32,18 +32,18 @@ export function resolveAssociatedPeriod(
 
   if (voucherKind.isElectronicCredit) {
     throw new InputValidationError(
-      `${subject} no admite período asociado: ARCA solo lo acepta en notas comunes. Usá el comprobante asociado (--ac).`,
+      `${subject} no admite período asociado: ARCA solo lo acepta en notas comunes. Usá el comprobante asociado (\`--ac\`).`,
     );
   }
 
   if (input.associatedVoucher) {
     throw new InputValidationError(
-      'Usá un comprobante asociado (--ac/--at) o un período asociado (--periodo-desde/--periodo-hasta), pero no ambos.',
+      'Usá un comprobante asociado (`--ac`/`--at`) o un período asociado (`--periodo-desde`/`--periodo-hasta`), pero no ambos.',
     );
   }
 
   if (!period.desde || !period.hasta) {
-    throw new InputValidationError('El período asociado requiere ambas fechas: --periodo-desde y --periodo-hasta.');
+    throw new InputValidationError('El período asociado requiere ambas fechas: `--periodo-desde` y `--periodo-hasta`.');
   }
 
   const FchDesde = parseArgentineDateInputAsArcaDate(period.desde);
@@ -54,7 +54,9 @@ export function resolveAssociatedPeriod(
   }
 
   if (FchDesde > FchHasta) {
-    throw new InputValidationError('En el período asociado, --periodo-desde no puede ser posterior a --periodo-hasta.');
+    throw new InputValidationError(
+      'En el período asociado, `--periodo-desde` no puede ser posterior a `--periodo-hasta`.',
+    );
   }
 
   if (FchHasta > billingDate) {

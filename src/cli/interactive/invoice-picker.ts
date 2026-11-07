@@ -6,7 +6,7 @@ import type { VoucherKindDefinition } from '../../modules/billing/billing.types'
 import { BACK, type Back } from '../../modules/interactive/wizard';
 import { type IssuedVoucher, listVouchersFrom, RECENT_VOUCHERS_LIMIT } from '../../modules/vouchers/voucher-history';
 import { formatVoucherNumber, formatVoucherPickerRows } from '../../modules/vouchers/voucher-history.presenter';
-import { colorize, noticePanel, statusBarWidth, writeTerminalOutput } from '../../ui';
+import { colorize, noticePanel, statusBarWidth, uiSymbol, writeTerminalOutput } from '../../ui';
 import { withSpinner } from '../spinner';
 
 import { askTextStep, type Choice, chooseStep, chooseStepWhileLoading, eraseLastAnswer, fitPageSize } from './prompts';
@@ -35,14 +35,14 @@ const BY_NUMBER = 'a-mano';
 type PickerChoice = IssuedVoucher | typeof BY_NUMBER | typeof LOAD_MORE;
 
 /** Separa las columnas de cada fila del listado. */
-const COLUMN_SEPARATOR = ' · ';
+const COLUMN_SEPARATOR = ` ${uiSymbol('separator')} `;
 
 /**
  * Linea punteada tenue que enmarca el listado, del mismo ancho que la barra de estado de ARCA.
  * @inquirer deja un espacio antes de cada separador; por eso se resta uno al ancho.
  */
 function listRule(): Separator {
-  return new Separator(colorize('┈'.repeat(statusBarWidth() - 1), 'muted'));
+  return new Separator(colorize(uiSymbol('rule').repeat(statusBarWidth() - 1), 'muted'));
 }
 
 function validatePositiveInteger(label: string): (value: string) => string | true {
@@ -146,9 +146,9 @@ export async function pickInvoice(
       );
 
       if (loading) {
-        choices.push(new Separator(' '), new Separator(colorize(' Cargando…', 'muted')));
+        choices.push(new Separator(' '), new Separator(colorize(` Cargando${uiSymbol('ellipsis')}`, 'muted')));
       } else if (nextNumber > 0) {
-        choices.push(new Separator(' '), { name: '+ Cargar más…', value: LOAD_MORE });
+        choices.push(new Separator(' '), { name: `+ Cargar más${uiSymbol('ellipsis')}`, value: LOAD_MORE });
       }
 
       choices.push(listRule(), new Separator(' '));
@@ -156,7 +156,7 @@ export async function pickInvoice(
 
     choices.push({
       description: 'Uno más viejo o de otro punto de venta',
-      name: '# Ingresar el número a mano…',
+      name: `# Ingresar el número a mano${uiSymbol('ellipsis')}`,
       value: BY_NUMBER,
     });
 

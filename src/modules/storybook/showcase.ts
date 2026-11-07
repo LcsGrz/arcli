@@ -2,28 +2,40 @@ import { ConfigurationError, InputValidationError } from '../../lib/errors/app-e
 import { CERTIFICATE_GUIDE_URL } from '../../lib/links';
 import type { ArcaRuntimeValidation } from '../../services/arca/arca-context.resolver';
 import {
-  badge,
+  attentionPanel,
   certificateBanner,
+  dataPanel,
+  errorListPanel,
+  sectionHeading,
+  sheetPanel,
+  statusBar,
+  testingBanner,
+  ticketPanel,
+  tipPanel,
+} from '../../ui/components';
+import { formatAppError } from '../../ui/presenters';
+import {
+  badge,
   colorize,
-  contentPanel,
-  formatCliError,
   highlightJsonValues,
   renderKeyValueRows,
   renderLogo,
   renderObject,
   renderPanel,
   resolveKeyValueLabelWidth,
-  sectionHeading,
-  statusBar,
-  statusPanel,
-  testingBanner,
   toneText,
-  type UiBorderType,
+  uiSymbol,
   type UiTextColor,
-} from '../../ui';
+} from '../../ui/primitives';
+import { type UiBorderType } from '../../ui/theme';
 import { formatBillingResultAsJson, formatBillingResultAsText } from '../billing/billing.presenter';
 import type { VoucherKindDefinition } from '../billing/billing.types';
 import type { BillingExecutionResult } from '../billing/billing.types.internal';
+import {
+  formatCertificateStatusAsText,
+  formatGeneratedRequestAsText,
+  formatImportedCertificateAsText,
+} from '../certificates/certificate.presenter';
 import {
   formatConfig,
   formatConfigAsText,
@@ -32,13 +44,26 @@ import {
 } from '../config/config.presenter';
 import type { ArcliConfig } from '../config/config.schemas';
 import { buildConfigDoctorReport } from '../config/config-doctor';
-import { renderUpdateNoticePanel } from '../update-check/update-check.presenter';
+import { formatPadronAsText } from '../padron/padron.presenter';
+import { formatParameterTablesAsText, formatStatusAsText } from '../parameters/parameters.presenter';
+import { formatPdfPluginStatusAsText } from '../pdf/pdf.presenter';
+import { renderUpdateDetails, renderUpdateNoticePanel } from '../update-check/update-check.presenter';
 import type { UpdateCheckResult } from '../update-check/update-check.service';
+import type { IssuedVoucher } from '../vouchers/voucher-history';
+import { formatVoucherDetailAsText, formatVoucherListAsText } from '../vouchers/voucher-history.presenter';
 
 import { STORYBOOK_SHOWCASE_THEME } from './showcase-theme';
 
 export type StorybookScene =
-  'bordes' | 'colores' | 'componentes' | 'comprobantes' | 'configuracion' | 'errores' | 'json';
+  | 'bordes'
+  | 'certificados'
+  | 'colores'
+  | 'componentes'
+  | 'comprobantes'
+  | 'configuracion'
+  | 'consultas'
+  | 'errores'
+  | 'json';
 
 function createVoucherKind(partial: Partial<VoucherKindDefinition>): VoucherKindDefinition {
   return {
@@ -166,7 +191,7 @@ function showcaseIndex(): string {
     borderColor: STORYBOOK_SHOWCASE_THEME.borderColor,
     borderType: 'debug',
     content: [],
-    subtitle: 'Galeria visual del CLI',
+    subtitle: 'Galería visual del CLI',
     subtitleColor: 'debug',
     title: 'Terminal Storybook',
     width: STORYBOOK_SHOWCASE_THEME.indexPanelWidth,
@@ -175,7 +200,7 @@ function showcaseIndex(): string {
 
 function buildColorsScene(): string {
   return [
-    sceneTitle('Colores UI', 'Paleta semantica y tono debug'),
+    sceneTitle('Colores UI', 'Paleta semántica y tono debug'),
     `${badge('OK', 'success')} ${toneText('Paneles base listos', 'success')}`,
     `${badge('INFO', 'info')} ${toneText('Paneles informativos y comandos', 'info')}`,
     `${badge('DATA', 'subtle')} ${toneText('JSON, respuesta bruta y eventos', 'subtle')}`,
@@ -199,7 +224,7 @@ const BORDER_SAMPLES: ReadonlyArray<
   ['attention', 'Observaciones', 'Observaciones de ARCA y avisos del régimen FCE', 'warning'],
   ['tip', 'Sugerencias', 'Sugerencias para resolver un problema', 'warning'],
   ['sheet', 'Configuración', 'Fichas de consulta: configuración y régimen FCE', 'info'],
-  ['checklist', 'Revision', 'Revisión de configuración', 'success', 'VEREDICTO'],
+  ['checklist', 'Revisión', 'Revisión de configuración', 'success', 'VEREDICTO'],
   ['listing', 'Últimos comprobantes', 'Listados en tabla, como los últimos comprobantes', 'info'],
   ['note', 'Aviso', 'Avisos simples, por ejemplo "No se emitió nada"', undefined],
   ['warning', 'Testing', 'Banners del entorno de testing y del certificado por vencer', 'warning'],
@@ -241,7 +266,7 @@ function buildBordersScene(): string {
       ],
       { rightSeparator: 'rule' },
     )}`,
-    `${colorize('Seccion (arcli ejemplos):', 'muted')}\n${sectionHeading('Factura C')}`,
+    `${colorize('Sección (arcli ejemplos):', 'muted')}\n${sectionHeading('Factura C')}`,
     `${colorize('Comando para copiar:', 'muted')}\n${command}`,
   ].join('\n\n');
 }
@@ -334,17 +359,136 @@ function buildConfigScene(): string {
   ].join('\n\n');
 }
 
+function createSampleVoucher(partial: Partial<IssuedVoucher> = {}): IssuedVoucher {
+  return {
+    cae: '76123456789012',
+    caeExpiration: '20260405',
+    date: '20260326',
+    documentNumber: 20333333334,
+    documentTypeCode: 80,
+    ivaAmount: 0,
+    netAmount: 1500.5,
+    number: 1234,
+    result: 'A',
+    total: 1500.5,
+    ...partial,
+  };
+}
+
+function buildQueriesScene(): string {
+  const voucherKind = createVoucherKind({});
+
+  return [
+    sceneTitle('Consultas', 'Padrón, estado, listados, parámetros y plugin de PDF'),
+    formatPadronAsText({
+      environment: 'testing',
+      taxpayer: {
+        activities: [
+          { description: 'Servicios de consultores en informática', id: 620200 },
+          { description: 'Servicios de diseño', id: 741000 },
+        ],
+        address: 'Av. Siempreviva 742, CABA',
+        cuit: 20333333334,
+        ivaCondition: 'responsable-monotributo',
+        keyStatus: 'ACTIVO',
+        monotributoCategory: 'D',
+        name: 'Empresa de Ejemplo SRL',
+        notices: ['El domicilio fiscal no está confirmado.'],
+        personType: 'juridica',
+        taxes: [{ active: true, description: 'Monotributo', id: 20 }],
+      },
+    }),
+    formatStatusAsText({
+      environment: 'testing',
+      latencyMs: 180,
+      pointOfSale: { kind: 'sin-datos' },
+      pointOfSaleNumber: 3,
+      ready: true,
+      servers: { app: 'OK', auth: 'OK', db: 'OK' },
+    }),
+    formatStatusAsText({
+      environment: 'produccion',
+      latencyMs: 240,
+      pointOfSale: { kind: 'bloqueado', point: { blocked: true, emissionType: 'CAE', number: 3 } },
+      pointOfSaleNumber: 3,
+      ready: false,
+      servers: { app: 'OK', auth: 'OK', db: 'OK' },
+    }),
+    formatVoucherListAsText({
+      environment: 'testing',
+      pointOfSale: 3,
+      voucherKind,
+      vouchers: [
+        createSampleVoucher(),
+        createSampleVoucher({ documentNumber: 12345678, documentTypeCode: 96, number: 1233 }),
+      ],
+    }),
+    formatVoucherListAsText({ environment: 'testing', pointOfSale: 3, voucherKind, vouchers: [] }),
+    formatVoucherDetailAsText({ environment: 'testing', pointOfSale: 3, voucher: createSampleVoucher(), voucherKind }),
+    formatParameterTablesAsText(),
+    formatPdfPluginStatusAsText({
+      browser: '/ruta/al/navegador',
+      browserSource: 'sistema',
+      installed: true,
+      installedVersion: '0.2.1',
+      path: '/ruta/a/plugins/pdf',
+      version: '0.2.1',
+    }),
+    formatPdfPluginStatusAsText({ installed: false, path: '/ruta/a/plugins/pdf', version: '0.2.1' }),
+  ].join('\n\n');
+}
+
+function buildCertificatesScene(): string {
+  // Una fecha fija, para que la escena no cambie con los dias.
+  const now = new Date('2026-03-26T12:00:00-03:00');
+
+  return [
+    sceneTitle('Certificados', 'Estado por entorno, pedido nuevo y certificado importado'),
+    formatCertificateStatusAsText(
+      [
+        {
+          alias: 'arcli',
+          certificatePath: '/ruta/a/testing.crt',
+          environment: 'testing',
+          expiresAt: new Date('2026-04-05T12:00:00-03:00'),
+          keyPath: '/ruta/a/testing.key',
+          unreadable: false,
+        },
+        { environment: 'produccion', pendingRequestPath: '/ruta/a/produccion.csr', unreadable: false },
+      ],
+      now,
+    ),
+    formatGeneratedRequestAsText({
+      alias: 'arcli',
+      csrPem: '-----BEGIN CERTIFICATE REQUEST-----',
+      cuit: '20333333334',
+      environment: 'testing',
+      keyPath: '/ruta/a/testing.key',
+      requestPath: '/ruta/a/testing.csr',
+    }),
+    formatImportedCertificateAsText({
+      alias: 'arcli',
+      certificatePath: '/ruta/a/testing.crt',
+      cuit: '20333333334',
+      environment: 'testing',
+      expiresAt: new Date('2028-03-26T12:00:00-03:00'),
+      keyPath: '/ruta/a/testing.key',
+      replaced: true,
+    }),
+  ].join('\n\n');
+}
+
 function buildErrorScene(): string {
   return [
     sceneTitle('Errores', 'Configuración, entrada y error inesperado'),
-    formatCliError(
+    formatAppError(
       new ConfigurationError('Falta la ruta de la clave privada para testing.', {
         path: '/Users/demo/.arcli/testing/clave.key',
       }),
       false,
     ),
-    formatCliError(new InputValidationError('Falta el concepto.'), false),
-    formatCliError(new Error('Fallo inesperado de red.'), false),
+    formatAppError(new InputValidationError('Falta el concepto.'), false),
+    formatAppError(new Error('Fallo inesperado de red.'), false),
   ].join('\n\n');
 }
 
@@ -362,9 +506,9 @@ function buildJsonScene(): string {
 
   return [
     sceneTitle('Json', 'Contratos estructurados para automatización y respuesta bruta'),
-    contentPanel('Billing json', billingJson, 'wide', 'subtle', 'left', 'data'),
-    contentPanel('Config json', configJson, 'wide', 'subtle', 'left', 'data'),
-    contentPanel('Doctor json', doctorJson, 'wide', 'subtle', 'left', 'data'),
+    dataPanel('Billing json', billingJson),
+    dataPanel('Config json', configJson),
+    dataPanel('Doctor json', doctorJson),
   ].join('\n\n');
 }
 
@@ -381,77 +525,66 @@ function buildComponentsScene(): string {
     summary: 'El certificado de producción venció el 20/11/2026.',
   });
   const updateNotice = renderUpdateNoticePanel(createSampleUpdateCheckResult());
-  const keyValueRows: Array<readonly [string, string | number]> = [
+  const updateDetails = renderUpdateDetails(createSampleUpdateCheckResult(), [
+    {
+      changes: [
+        { kind: 'agregado', nested: false, text: 'Acceso directo en el escritorio.', topic: 'Modo interactivo' },
+        { kind: 'cambiado', nested: false, text: 'Opciones entre backticks en los mensajes.' },
+        { kind: 'corregido', nested: false, text: '"Volver" es un botón común en la selección múltiple.' },
+      ],
+      date: '2026-11-07',
+      version: '0.2.0',
+    },
+  ]);
+  const sheetRows: Array<readonly [string, string | number]> = [
     ['CUIT', '20-33333333-4'],
     ['Punto de venta', 3],
     ['Entorno', 'testing'],
   ];
-  const statusRows: Array<readonly [string, string | number]> = [
+  const ticketRows: Array<readonly [string, string | number]> = [
     ['CAE', '86120020280000'],
-    ['Importe total', '1$'],
-    ['Errores', 0],
+    ['Importe total', '$ 1'],
   ];
-  const demoLabelWidth = resolveKeyValueLabelWidth('compact', [...keyValueRows, ...statusRows]);
-  const keyValue = renderPanel({
-    content: renderKeyValueRows(keyValueRows, { labelWidth: demoLabelWidth }),
-    contentAlign: 'left',
-    footer: toneText('TODO LISTO', 'success'),
-    footerColor: 'success',
-    footerDivider: true,
-    padding: {
-      bottom: 1,
-      left: 2,
-      right: 2,
-      top: 1,
-    },
-    title: 'Demo key value',
-    width: 'compact',
-  });
-
-  const status = statusPanel(
-    'Demo estado',
-    [
-      ...renderKeyValueRows(statusRows.slice(0, 2), { labelWidth: demoLabelWidth }),
-      '',
-      ...renderKeyValueRows(statusRows.slice(2), { labelWidth: demoLabelWidth }),
-    ],
-    'APROBADO',
-    'compact',
-    'success',
-  );
-
-  const content = contentPanel(
-    'Demo contenido',
-    renderObject({
-      cae: '86120020280000',
-      resultado: 'A',
-      payload: { CbteTipo: 11, ImpTotal: 1, PtoVta: 3 },
-    }),
-    'wide',
-    'info',
-  );
 
   return [
-    sceneTitle('Componentes', 'Notice, badges y paneles base'),
+    sceneTitle('Componentes', 'Banners, avisos y un panel de cada rol'),
     notice,
     certificateNotice,
     expiredCertificateNotice,
     updateNotice,
-    keyValue,
-    status,
-    content,
+    updateDetails,
+    sheetPanel(
+      'Demo ficha',
+      renderKeyValueRows(sheetRows, { labelWidth: resolveKeyValueLabelWidth('standard', sheetRows) }),
+      { footer: toneText('TODO LISTO', 'success'), tone: 'success' },
+    ),
+    ticketPanel(
+      'Demo comprobante',
+      renderKeyValueRows(ticketRows, { labelWidth: resolveKeyValueLabelWidth('ticket', ticketRows) }),
+      { footer: toneText('APROBADO', 'success'), tone: 'success' },
+    ),
+    attentionPanel('Demo avisos', `${uiSymbol('bullet')} La cotización sale de ARCA.`),
+    tipPanel('Demo sugerencias', `${uiSymbol('bullet')} Revisá \`--fecha\`.`),
+    errorListPanel('Demo errores', '1. 10016: la fecha no corresponde.'),
+    dataPanel(
+      'Demo datos',
+      renderObject({ cae: '86120020280000', payload: { CbteTipo: 11, ImpTotal: 1, PtoVta: 3 }, resultado: 'A' }),
+    ),
   ].join('\n\n');
 }
 
-export function renderStorybookShowcase(scene?: StorybookScene): string {
-  const logo = renderLogo().trim();
+/** El storybook completo o una escena; `version`, la de arcli, va debajo del logo como en la ayuda. */
+export function renderStorybookShowcase(scene?: StorybookScene, version?: string): string {
+  const logo = renderLogo(version);
 
   const scenes: Record<StorybookScene, string> = {
     bordes: buildBordersScene(),
+    certificados: buildCertificatesScene(),
     colores: buildColorsScene(),
     componentes: buildComponentsScene(),
     comprobantes: buildBillingScene(),
     configuracion: buildConfigScene(),
+    consultas: buildQueriesScene(),
     errores: buildErrorScene(),
     json: buildJsonScene(),
   };
@@ -465,6 +598,8 @@ export function renderStorybookShowcase(scene?: StorybookScene): string {
       scenes.componentes,
       scenes.configuracion,
       scenes.comprobantes,
+      scenes.consultas,
+      scenes.certificados,
       scenes.json,
       scenes.errores,
     ].join('\n\n');

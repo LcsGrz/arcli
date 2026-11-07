@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { stripAnsi } from '../../../ui';
+import { stripAnsi } from '../../../ui/primitives';
 import { formatCertificateStatusAsText } from '../certificate.presenter';
 
 const NOW = new Date('2026-11-04T12:00:00Z');

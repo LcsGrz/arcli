@@ -341,7 +341,7 @@ También se reconocen por el mensaje, sin código: receptor igual al emisor, `Tr
 ### Factura E: falta el número del comprobante
 
 - **Severidad:** siempre, en cada `E`
-- **Síntoma:** `Falta el número del comprobante. Usá --numero: arcli todavía no puede consultar en WSFEX el último emitido.`
+- **Síntoma:** ``Falta el número del comprobante. Usá `--numero`: arcli todavía no puede consultar en WSFEX el último emitido.``
 - **Causa:** WSFEX numera por punto de venta y tipo de comprobante, y el último se consulta con `FEXGetLast_CMP`, que lleva el punto de venta y el tipo **dentro** del bloque `Auth`. `@arcasdk/core` arma ese bloque pisándolo entero, así que la consulta no funciona (ARCA contesta 1606 o 1000). Hasta que se arregle en el SDK, el número lo indicás vos.
 - **Solución:** pasá `--numero` con el siguiente al último `E` que emitiste en ese punto de venta (`1` si es el primero). Si no es el correcto, ARCA rechaza el comprobante y no se emite nada.
 - **Documentación relacionada:** [Referencia del CLI](cli-reference.md#factura-de-exportación-e-wsfex)
@@ -395,13 +395,50 @@ También se reconocen por el mensaje, sin código: receptor igual al emisor, `Tr
 - **Severidad:** ocasional (terminales viejas, por ejemplo el `cmd` clásico de Windows, o fuentes sin caracteres de caja)
 - **Síntoma:** los bordes de los paneles muestran `?`, `�` o cuadrados en lugar de líneas.
 - **Causa:** la terminal o la fuente no tiene los caracteres de caja Unicode que usa ARCLI (`╒`, `┃`, `╏`, `╓`, `╌`, `┈`, `━`, `▎`…).
-- **Solución:** usar una terminal moderna (Windows Terminal, iTerm2, la de VS Code) o activar los bordes ASCII con `ARCLI_ASCII=1`.
+- **Solución:** usar una terminal moderna (Windows Terminal, iTerm2, la de VS Code) o activar los bordes y símbolos ASCII con `ARCLI_ASCII=1`. También cambia los símbolos del modo interactivo (`✔`, `❯`, `↑↓`); las tildes y la `ñ` se mantienen.
 
 ```bash
 ARCLI_ASCII=1 arcli fc -m 1000 --cs --cfinal
 ```
 
 - **Documentación relacionada:** [Variables de entorno](configuration.md#variables-de-entorno)
+
+## Acceso directo
+
+### No se encontró el escritorio o la carpeta no existe
+
+- **Síntoma:** "No se encontró el escritorio en …" o "La carpeta … no existe".
+- **Causa:** el sistema no informa un escritorio (pasa en servidores o en Linux sin entorno gráfico) o la ruta que indicaste no existe. ARCLI no crea carpetas.
+- **Solución:** indicá una carpeta que exista.
+
+```bash
+arcli acceso-directo ~/Documentos
+```
+
+### Ya existe y no lo creó ARCLI
+
+- **Síntoma:** "… ya existe y no lo creó ARCLI".
+- **Causa:** en macOS y Linux ARCLI solo reemplaza el `ARCLI.app` o `ARCLI.desktop` que creó él. En Windows reemplaza `ARCLI.lnk` sin preguntar.
+- **Solución:** borrá ese archivo o creá el acceso directo en otra carpeta.
+
+### `DESKTOP_SHORTCUT_ERROR`
+
+- **Síntoma:** "No se pudo crear el acceso directo en …" (solo en Windows).
+- **Causa:** el acceso directo `.lnk` lo crea PowerShell. Falla si no tenés permiso de escritura en la carpeta o si PowerShell está bloqueado.
+- **Solución:** probá en una carpeta tuya, por ejemplo `arcli acceso-directo %USERPROFILE%\Documents`, o pedile a quien administra la máquina que habilite PowerShell.
+
+### En Linux el escritorio dice que el lanzador no es confiable
+
+- **Síntoma:** al hacer doble clic en `ARCLI.desktop` aparece "lanzador no confiable" o se abre como texto.
+- **Causa:** ARCLI lo marca como confiable con `gio`. Si `gio` no está o el escritorio no lo respeta, queda sin marcar.
+- **Solución:** clic derecho sobre el ícono y "Permitir ejecutar".
+
+### El ícono dejó de abrir ARCLI
+
+- **Síntoma:** la ventana dice "ARCLI terminó con un error" o se cierra enseguida.
+- **Causa:** el acceso directo guarda las rutas de Node y de ARCLI del momento en que se creó. Si después moviste, actualizaste o desinstalaste alguno, esas rutas ya no existen.
+- **Solución:** volvé a crearlo con `arcli acceso-directo`. Reemplaza al anterior.
+- **Documentación relacionada:** [Acceso directo](cli-reference.md#acceso-directo)
 
 ## PDF
 

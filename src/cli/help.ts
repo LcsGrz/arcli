@@ -19,7 +19,7 @@ import {
 import { EXPORT_VOUCHER_KIND } from '../modules/export/export.types';
 import { CONFIG_FIELDS } from '../modules/interactive/config-fields';
 import { resolveUpdateCommand } from '../modules/update-check/package-manager';
-import { renderLogo } from '../ui';
+import { renderLogo, uiSymbol } from '../ui';
 
 import { CLI_VERSION } from './version';
 
@@ -124,8 +124,9 @@ function createProgramMore(): string {
     compactList([
       'Ejemplos listos para copiar: arcli ejemplos',
       'Autocompletado con Tab de comandos y flags: arcli completado instalar',
+      'Ícono para abrir ARCLI con doble clic: arcli acceso-directo',
       'Para scripts, usá --json: la salida en texto puede cambiar.',
-      `Repositorio: https://github.com/LcsGrz/arcli · Actualizar: ${resolveUpdateCommand()}`,
+      `Repositorio: https://github.com/LcsGrz/arcli ${uiSymbol('separator')} Actualizar: ${resolveUpdateCommand()}`,
     ]),
   );
 }
@@ -315,10 +316,12 @@ export function createStorybookHelp(): string {
       [
         '  - arcli storybook',
         '  - arcli storybook bordes',
+        '  - arcli storybook certificados',
         '  - arcli storybook colores',
         '  - arcli storybook componentes',
         '  - arcli storybook comprobantes',
         '  - arcli storybook configuracion',
+        '  - arcli storybook consultas',
         '  - arcli storybook errores',
         '  - arcli storybook json',
       ].join('\n'),
@@ -569,5 +572,5 @@ export function configureSpanishHelp(command: Command): void {
 }
 
 export function createProgramHeader(): string {
-  return renderLogo(CLI_VERSION);
+  return `\n\n${renderLogo(CLI_VERSION)}\n\n`;
 }

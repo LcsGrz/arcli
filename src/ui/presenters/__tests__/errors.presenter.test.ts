@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { z, ZodError } from 'zod';
 
 import { AppError, ConfigurationError, InputValidationError } from '../../../lib/errors/app-error';
-import { formatCliError } from '../errors.presenter';
+import { formatAppError } from '../errors.presenter';
 
 describe('errors.presenter', () => {
   it('formats configuration errors in a friendly text panel', () => {
-    const output = formatCliError(
+    const output = formatAppError(
       new ConfigurationError('La ruta de la clave privada apunta a un archivo con formato PEM inválido.', {
         path: '.../testing/ARCATestingKey.key',
       }),
@@ -28,8 +27,8 @@ describe('errors.presenter', () => {
       suggestion: 'Renovalo.',
     });
 
-    expect(formatCliError(error, false)).toContain('CERTIFICADO VENCIDO');
-    expect(JSON.parse(formatCliError(error, true))).toEqual({
+    expect(formatAppError(error, false)).toContain('CERTIFICADO VENCIDO');
+    expect(JSON.parse(formatAppError(error, true))).toEqual({
       codigo: 'CERTIFICATE_EXPIRED',
       detalles: { entorno: 'produccion', vencimiento: '20/11/2026' },
       error: 'El certificado de producción venció el 20/11/2026: ARCA no lo acepta.',
@@ -38,7 +37,7 @@ describe('errors.presenter', () => {
   });
 
   it('formats input errors in a friendly text panel', () => {
-    const output = formatCliError(new InputValidationError('Falta el concepto.'), false);
+    const output = formatAppError(new InputValidationError('Falta el concepto.'), false);
 
     expect(output).toContain('ERROR DE ENTRADA');
     expect(output).toContain('Falta el concepto.');
@@ -51,15 +50,15 @@ describe('errors.presenter', () => {
       suggestion: 'Verificá con arcli ultimos fc --pv 3.',
     });
 
-    expect(formatCliError(error, false)).toContain('Verificá con arcli ultimos fc --pv 3.');
-    expect(JSON.parse(formatCliError(error, true))).toMatchObject({
+    expect(formatAppError(error, false)).toContain('Verificá con arcli ultimos fc --pv 3.');
+    expect(JSON.parse(formatAppError(error, true))).toMatchObject({
       codigo: 'EMISSION_UNCERTAIN',
       sugerencia: 'Verificá con arcli ultimos fc --pv 3.',
     });
   });
 
   it('keeps json output structured for app errors', () => {
-    const output = formatCliError(new ConfigurationError('Mensaje de prueba', { path: '/tmp/test.key' }), true);
+    const output = formatAppError(new ConfigurationError('Mensaje de prueba', { path: '/tmp/test.key' }), true);
 
     expect(output).toContain('"codigo": "CONFIGURATION_ERROR"');
     expect(output).toContain('"error": "Mensaje de prueba"');
@@ -69,10 +68,9 @@ describe('errors.presenter', () => {
   it.each([
     ['app error without suggestion', new ConfigurationError('Falta el CUIT.')],
     ['input error', new InputValidationError('Falta el concepto.')],
-    ['zod error', z.object({ monto: z.number() }).safeParse({}).error as ZodError],
     ['unexpected error', new Error('boom')],
   ])('always includes sugerencia in JSON, null when there is none (%s)', (_name, error) => {
-    const json = JSON.parse(formatCliError(error, true)) as Record<string, unknown>;
+    const json = JSON.parse(formatAppError(error, true)) as Record<string, unknown>;
 
     expect(Object.keys(json).sort()).toEqual(['codigo', 'detalles', 'error', 'sugerencia']);
     expect(json.sugerencia).toBeNull();

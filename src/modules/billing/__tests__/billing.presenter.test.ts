@@ -192,7 +192,7 @@ describe('billing.presenter', () => {
       environment: 'testing',
     });
 
-    expect(output).toContain('Estas utilizando el entorno de TESTING');
+    expect(output).toContain('Estás utilizando el entorno de TESTING');
   });
 
   it('formats dates with slashes in preview and response output', () => {
@@ -231,11 +231,11 @@ describe('billing.presenter', () => {
 
     expect(output).toContain('FACTURA C');
     expect(output).toContain('APROBADO');
-    expect(output).not.toContain('Estas utilizando el entorno de TESTING');
+    expect(output).not.toContain('Estás utilizando el entorno de TESTING');
     expect(output).not.toContain('Campo | Valor');
   });
 
-  it('preserves multiline object indentation in events and errors panels', () => {
+  it('lists the events and errors from ARCA instead of raw JSON', () => {
     const output = stripAnsi(
       formatBillingResultAsText({
         ...createResult(),
@@ -250,10 +250,69 @@ describe('billing.presenter', () => {
     expect(output).toContain('EVENTOS');
     expect(output).toContain('ERRORES');
     // Eventos usa el borde de datos (┊) y Errores el de error (┃).
-    expect(output).toContain('┊  [');
-    expect(output).toContain('┊    {');
-    expect(output).toContain('┊      "Code": 43,');
-    expect(output).toContain('┃      "Code": 502,');
+    expect(output).toContain('┊  1. 43: Evento de prueba multilinea');
+    expect(output).toContain('┃  1. 502: Error de prueba');
+    expect(output).not.toContain('"Code"');
+    expect(output).toMatch(/Eventos\s+1/);
+    expect(output).toMatch(/Errores\s+1/);
+    expect(output).not.toMatch(/Observaciones\s+0/);
+  });
+
+  it('shows what came with a value and hides the amounts nobody loaded', () => {
+    const base = createDryRunResult();
+    const payload = {
+      ...base.payload,
+      CondicionIVAReceptorId: 5,
+      DocNro: 0,
+      DocTipo: 99,
+      ImpIVA: 0,
+      ImpNeto: 1000,
+      ImpOpEx: 0,
+      ImpTotConc: 0,
+      ImpTotal: 1000,
+      ImpTrib: 0,
+      Iva: [],
+      MonCotiz: 1,
+      MonId: 'PES',
+    };
+    const consumer = stripAnsi(formatBillingResultAsText({ ...base, payload }));
+
+    expect(consumer).toMatch(/Receptor\s+Consumidor final/);
+    expect(consumer).toMatch(/Importe neto\s+\$ 1\.000/);
+    expect(consumer).toMatch(/Importe total\s+\$ 1\.000/);
+
+    for (const hidden of [
+      'Tipo de documento',
+      'Número de documento',
+      'IVA receptor',
+      'Cotización',
+      'Importe IVA',
+      'Importe tributos',
+      'Importe exento',
+      'Importe no gravado',
+    ]) {
+      expect(consumer).not.toContain(hidden);
+    }
+
+    const loaded = stripAnsi(
+      formatBillingResultAsText({
+        ...base,
+        payload: {
+          ...payload,
+          CondicionIVAReceptorId: 1,
+          DocNro: 20333333334,
+          DocTipo: 80,
+          ImpOpEx: 50,
+          MonCotiz: 1200,
+          MonId: 'DOL',
+        },
+      }),
+    );
+
+    expect(loaded).toMatch(/Número de documento\s+20-33333333-4/);
+    expect(loaded).toMatch(/IVA receptor\s+Responsable inscripto/);
+    expect(loaded).toContain('Cotización');
+    expect(loaded).toMatch(/Importe exento\s+50 USD/);
   });
 
   it('shows FCE warnings in text and JSON output', () => {

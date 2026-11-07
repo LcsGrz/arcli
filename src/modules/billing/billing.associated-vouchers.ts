@@ -41,7 +41,7 @@ export function resolveAssociatedVouchers(options: ResolveAssociatedVoucherOptio
 
   if (!associatedVoucher?.numero || !associatedVoucher.puntoVenta || !associatedVoucherType || !associatedCuit) {
     throw new InputValidationError(
-      `${formatVoucherSubject(voucherKind)} requiere comprobante asociado. Usá --ac o --at, junto con --apv o --asociado-punto-venta, --ar y --acuit${voucherKind.isElectronicCredit ? '' : ', o un período con --periodo-desde y --periodo-hasta'}.`,
+      `${formatVoucherSubject(voucherKind)} requiere comprobante asociado. Usá \`--ac\` o \`--at\`, junto con \`--apv\` o \`--asociado-punto-venta\`, \`--ar\` y \`--acuit\`${voucherKind.isElectronicCredit ? '' : ', o un período con `--periodo-desde` y `--periodo-hasta`'}.`,
     );
   }
 
@@ -51,7 +51,7 @@ export function resolveAssociatedVouchers(options: ResolveAssociatedVoucherOptio
 
   if (voucherKind.isElectronicCredit && associatedCuit !== String(emitterCuit)) {
     throw new InputValidationError(
-      `En ${formatVoucherWithArticle(voucherKind)} el comprobante asociado tiene que ser del CUIT emisor (${emitterCuit}). Sacá --acuit o usá ese CUIT.`,
+      `En ${formatVoucherWithArticle(voucherKind)} el comprobante asociado tiene que ser del CUIT emisor (${emitterCuit}). Sacá \`--acuit\` o usá ese CUIT.`,
     );
   }
 
@@ -96,7 +96,7 @@ function resolveAssociatedVoucherDate(
   if (!rawDate) {
     if (voucherKind.isElectronicCredit) {
       throw new InputValidationError(
-        `${formatVoucherSubject(voucherKind)} requiere la fecha del comprobante asociado. Usá --afecha <fecha>.`,
+        `${formatVoucherSubject(voucherKind)} requiere la fecha del comprobante asociado. Usá \`--afecha <fecha>\`.`,
       );
     }
 

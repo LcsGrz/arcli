@@ -6,6 +6,7 @@ import {
 } from '../../modules/billing/billing.mappers';
 import { ConfigService } from '../../modules/config/config.service';
 import { DEFAULT_EXPORT_PAYMENT_TERMS, resolveExportDestinationCountry } from '../../modules/export/export.mappers';
+import { formatExportResultAsText } from '../../modules/export/export.presenter';
 import { ExportService } from '../../modules/export/export.service';
 import {
   EXPORT_VOUCHER_KIND,
@@ -17,9 +18,10 @@ import {
 import { parseAmountInput } from '../../modules/interactive/amount-input';
 import { buildExportEquivalentCommand } from '../../modules/interactive/export-equivalent-command';
 import { BACK, runWizard, type WizardStep } from '../../modules/interactive/wizard';
+import { formatPdfOutcomeAsText } from '../../modules/pdf/pdf.presenter';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { ArcaExportGateway } from '../../services/arca/arca-export.gateway';
-import { formatExportResultAsText, formatPdfOutcomeAsText, noticePanel, writeTerminalOutput } from '../../ui';
+import { noticePanel, writeTerminalOutput } from '../../ui';
 import { attachExportPdf } from '../commands/export.command.pdf';
 import { withSpinner } from '../spinner';
 

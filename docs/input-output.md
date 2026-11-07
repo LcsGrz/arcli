@@ -72,7 +72,7 @@ Con un solo comprobante, `detalles.campos` lista cada problema con su ruta en el
       { "mensaje": "La clave \"vencimiento\" no existe: ¿quisiste decir \"vencimientoPago\"?", "ruta": ["vencimiento"] }
     ]
   },
-  "error": "En el JSON de --cargar: ...",
+  "error": "En el JSON de `--cargar`: ...",
   "sugerencia": null
 }
 ```
@@ -318,7 +318,7 @@ Si el archivo contiene un array, ARCLI procesa un lote del mismo comando. **Un a
     "comprobantes": [
       { "error": "Falta el dato: monto.", "indice": 2 },
       {
-        "error": "La factura B de $ 10.000.000 o más requiere identificar al consumidor final. Usá --dni, --cuit o --cuil.",
+        "error": "La factura B de $ 10.000.000 o más requiere identificar al consumidor final. Usá `--dni`, `--cuit` o `--cuil`.",
         "indice": 3
       }
     ]
@@ -493,7 +493,7 @@ Si no hubo emisión real, `respuesta` no se serializa como `null`. En su lugar:
 
 ```json
 {
-  "mensaje": "Sin emisión real. Usá --emitir para obtener una respuesta de ARCA."
+  "mensaje": "Sin emisión real. Usá `--emitir` para obtener una respuesta de ARCA."
 }
 ```
 
@@ -708,7 +708,7 @@ Las claves son las de [configuración](configuration.md), salvo que `cert.*`, `k
     },
     {
       "categoria": "error",
-      "detalle": "Falta el CUIT. Configuralo con `arcli config establecer cuit <valor>`. Si querés una guía rápida, usá `arcli config revisar`.",
+      "detalle": "Falta el CUIT. Configuralo con `arcli config establecer cuit <valor>`.",
       "etiqueta": "Validación testing"
     }
   ],
@@ -838,6 +838,7 @@ Dos comandos de diagnóstico informan un problema sin que sea un error: `arcli c
 | `CERTIFICATE_ENVIRONMENT_UNKNOWN`  | `certificado importar`                                          | El emisor no es una autoridad de ARCA conocida                                                                  | Si es de ARCA, indicá el entorno con `--testing` o `--produccion`                                                                        |
 | `CERTIFICATE_KEY_MISMATCH`         | `certificado importar`                                          | El certificado no corresponde a la clave del pedido ni a la configurada                                         | Bajá el certificado que creaste con el último CSR de `arcli certificado generar`                                                         |
 | `CERTIFICATE_REPLACE_CONFIRMATION` | `certificado importar`                                          | Ya hay otro certificado configurado para ese entorno                                                            | Sumá `--reemplazar` (en una terminal, se pregunta)                                                                                       |
+| `DESKTOP_SHORTCUT_ERROR`           | `acceso-directo`                                                | Windows no pudo crear el `.lnk`                                                                                 | Revisá los permisos de la carpeta y que PowerShell esté disponible                                                                       |
 | `PDF_PLUGIN_INSTALL_ERROR`         | `pdf instalar`                                                  | No se pudo descargar el plugin o el navegador                                                                   | Revisá la conexión o el proxy de npm y reintentá                                                                                         |
 | `PDF_*` en `pdf.error`             | facturación con PDF                                             | No es un error del comando: el comprobante se emitió y falló solo el PDF                                        | Ver [errores del PDF](#errores-del-pdf); no reemitas                                                                                     |
 
@@ -867,7 +868,7 @@ Una opción desconocida, un valor faltante o un comando que no existe también s
 {
   "codigo": "INPUT_VALIDATION_ERROR",
   "detalles": null,
-  "error": "opción desconocida '--montoo' (¿quisiste decir --monto?)",
+  "error": "opción desconocida `--montoo` (¿quisiste decir `--monto`?)",
   "sugerencia": "Usá `arcli ayuda` o `arcli <comando> --ayuda` para ver comandos y opciones."
 }
 ```

@@ -112,7 +112,7 @@ function resolveTaxedParts(
   // Los importes tienen 2 decimales como maximo, asi que la suma tiene que dar exacta.
   if (!sum.eq(taxedTotal)) {
     throw new InputValidationError(
-      `La suma de las alícuotas (${formatPlain(sum)}) no coincide con lo gravado del monto total (${formatPlain(taxedTotal)}). Revisá --monto, --alicuota, --exento y --nogravado.`,
+      `La suma de las alícuotas (${formatPlain(sum)}) no coincide con lo gravado del monto total (${formatPlain(taxedTotal)}). Revisá \`--monto\`, \`--alicuota\`, \`--exento\` y \`--nogravado\`.`,
     );
   }
 

@@ -16,9 +16,9 @@ import { CLI_VERSION } from './version';
 process.umask(OWNER_ONLY_UMASK);
 
 let errorsAsJson: boolean | undefined;
-// Se decide recien al fallar (puede leer la config) y una sola vez: commander y el catch lo consultan.
+// Se decide recien al fallar: puede leer la config.
 const shouldPrintErrorsAsJson = (): boolean => (errorsAsJson ??= shouldPrintErrorAsJson(process.argv));
-const program = createProgram({ errorsAsJson: shouldPrintErrorsAsJson });
+const program = createProgram();
 // El autocompletado corre en cada Tab: recibe las palabras tal cual y no busca actualizaciones.
 const isCompletion = process.argv[2] === COMPLETE_COMMAND;
 const argv = isCompletion ? process.argv : normalizeHelpArgv(process.argv, isInteractiveTerminal());
@@ -34,7 +34,7 @@ program
     const updateResult = await updateCheckPromise;
 
     if (updateResult) {
-      writeTerminalError(renderUpdateNoticePanel(updateResult));
+      writeTerminalError(() => renderUpdateNoticePanel(updateResult));
     }
   })
   .catch((error: unknown) => {

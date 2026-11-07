@@ -2,8 +2,8 @@ import type { Spacing as BoxenSpacing } from 'boxen';
 
 /**
  * Tipo de borde segun lo que se muestra:
- * - common: paneles de contenido (configuracion, observaciones, sugerencias, avisos FCE)
- * - ticket: comprobante, como common pero con la linea de corte punteada antes del estado; va centrado
+ * - common: borde simple, solo en el storybook
+ * - ticket: comprobante, con la linea de corte punteada antes del estado; va centrado
  * - error: errores del CLI o de ARCA (redondeado con franja gruesa a la izquierda)
  * - attention: observaciones y avisos (como error, con la franja a trazos)
  * - tip: sugerencias (como error, con la franja fina punteada)
@@ -11,7 +11,7 @@ import type { Spacing as BoxenSpacing } from 'boxen';
  * - checklist: revision de configuracion (doble lateral, veredicto en el pie)
  * - listing: listados en tabla, como los ultimos comprobantes (solo reglas arriba y abajo)
  * - note: avisos simples de una linea (solo esquinas)
- * - warning: banner del entorno de testing
+ * - warning: banner del entorno de testing y certificados por vencer
  * - info: aviso de nueva version
  * - data: JSON y respuestas crudas
  * - command: comandos para copiar (solo barra a la izquierda, sin borde derecho)
@@ -56,6 +56,7 @@ export type UiColorToken =
   | 'debug'
   | 'highlight'
   | 'info'
+  | 'logo'
   | 'muted'
   | 'neutral'
   | 'production'
@@ -63,6 +64,20 @@ export type UiColorToken =
   | 'success'
   | 'testing'
   | 'warning';
+export type UiSymbolName =
+  | 'arrow'
+  | 'back'
+  | 'bullet'
+  | 'check'
+  | 'done'
+  | 'ellipsis'
+  | 'keyEnter'
+  | 'keysMove'
+  | 'pointer'
+  | 'rule'
+  | 'selected'
+  | 'separator'
+  | 'unselected';
 export type UiWidthPreset = 'compact' | 'standard' | 'ticket' | 'wide';
 export interface UiWidthRange {
   readonly max: number;
@@ -77,17 +92,14 @@ export interface UiTheme {
   readonly asciiBorderStyle: UiBorderStyle;
   readonly commandBar: { readonly ascii: string; readonly unicode: string };
   readonly colors: Readonly<Record<UiColorToken, string>>;
-  readonly headingLineMinWidth: number;
   readonly spacing: {
-    readonly gaps: {
-      readonly section: number;
-      readonly block: number;
-    };
     readonly panelPadding: BoxenSpacing;
   };
+  /** Simbolos de la salida, con su respaldo para ARCLI_ASCII=1. Se piden con `uiSymbol`. */
+  readonly symbols: Readonly<Record<UiSymbolName, { readonly ascii: string; readonly unicode: string }>>;
   readonly table: {
     readonly gap: number;
-    readonly labelWidth: number;
+    readonly labelColumn: Readonly<Record<UiWidthPreset, number>>;
   };
   readonly widths: Readonly<Record<UiWidthPreset, UiWidthRange>>;
 }
@@ -282,6 +294,8 @@ export const UI_THEME: UiTheme = {
     // Naranja amarillento (paleta de 256 colores): para invitar a una accion, como actualizar arcli.
     highlight: '\u001B[38;5;214m',
     info: '\u001B[36m',
+    // El celeste de la bandera (color de 24 bits): solo el logo.
+    logo: '\u001B[38;2;116;172;223m',
     muted: '\u001B[2m',
     // Color por defecto de la terminal: claro en fondos oscuros y oscuro en fondos claros.
     // Un blanco fijo (\u001B[37m) casi no se leia en terminales con fondo claro.
@@ -295,12 +309,7 @@ export const UI_THEME: UiTheme = {
     testing: '\u001B[38;5;208m',
     warning: '\u001B[33m',
   },
-  headingLineMinWidth: 18,
   spacing: {
-    gaps: {
-      block: 1,
-      section: 2,
-    },
     panelPadding: {
       top: 1,
       right: 2,
@@ -308,9 +317,26 @@ export const UI_THEME: UiTheme = {
       left: 2,
     },
   },
+  symbols: {
+    arrow: { ascii: '->', unicode: '→' },
+    back: { ascii: '<', unicode: '←' },
+    bullet: { ascii: '-', unicode: '•' },
+    check: { ascii: 'v', unicode: '✓' },
+    done: { ascii: 'v', unicode: '✔' },
+    ellipsis: { ascii: '...', unicode: '…' },
+    keyEnter: { ascii: 'enter', unicode: '⏎' },
+    keysMove: { ascii: 'arriba/abajo', unicode: '↑↓' },
+    pointer: { ascii: '>', unicode: '❯' },
+    rule: { ascii: '-', unicode: '┈' },
+    selected: { ascii: '[x]', unicode: '◉' },
+    separator: { ascii: '-', unicode: '·' },
+    unselected: { ascii: '[ ]', unicode: '◯' },
+  },
   table: {
     gap: 2,
-    labelWidth: 30,
+    // Porcentaje del panel para la columna de etiquetas (ver resolveKeyValueLabelWidth). El comprobante, angosto
+    // como un ticket, lleva los valores en la mitad derecha; el resto de los paneles, todos con el mismo.
+    labelColumn: { compact: 30, standard: 30, ticket: 50, wide: 30 },
   },
   // Un solo ancho para todas las cajas, igual al de la barra de estado y al que centra el logo, asi todo ocupa
   // el mismo espacio. En una terminal mas angosta se achica (ver renderPanel y fitToTerminal).

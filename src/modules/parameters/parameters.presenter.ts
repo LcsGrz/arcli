@@ -2,7 +2,9 @@ import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { DEPRECATED_POINT_OF_SALE_OBJECT } from '../../lib/json/deprecations';
 import { POINT_OF_SALE_GUIDE_URL } from '../../lib/links';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
-import { keyValuePanel, noticePanel, renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui';
+import { listingPanel, noticePanel, sheetPanel } from '../../ui/components';
+import { renderKeyValueRows, resolveKeyValueLabelWidth, uiSymbol } from '../../ui/primitives';
+import { formatEnvironmentLabel } from '../config/config.schemas';
 
 import {
   PARAMETER_TABLE_NAMES,
@@ -19,13 +21,10 @@ export function formatParameterTablesAsText(): string {
   const rows = PARAMETER_TABLE_NAMES.map((name) => [name, PARAMETER_TABLES[name]] as const);
   const allRows = [...rows, ['cotización <moneda>', 'Cotización oficial de ARCA, por ejemplo USD'] as const];
 
-  return keyValuePanel(
+  return sheetPanel(
     'Tablas de ARCA',
-    renderKeyValueRows(allRows, { labelWidth: resolveKeyValueLabelWidth('standard', allRows, [30, 70]) }),
-    'Uso: arcli parametros <tabla>',
-    'standard',
-    undefined,
-    'sheet',
+    renderKeyValueRows(allRows, { labelWidth: resolveKeyValueLabelWidth('standard', allRows) }),
+    { footer: 'Uso: `arcli parametros <tabla>`' },
   );
 }
 
@@ -61,7 +60,10 @@ export function formatParameterEntriesAsText(
     [entry.id.padStart(idWidth), entry.description, entry.detail ? `(${entry.detail})` : ''].filter(Boolean).join('  '),
   );
 
-  return keyValuePanel(`${PARAMETER_TABLES[table]} · ${environment}`, rows, undefined, 'wide', undefined, 'listing');
+  return listingPanel(
+    `${PARAMETER_TABLES[table]} ${uiSymbol('separator')} ${formatEnvironmentLabel(environment)}`,
+    rows,
+  );
 }
 
 export function formatParameterEntriesAsJson(
@@ -92,13 +94,9 @@ export function formatQuotationAsText(quotation: Quotation, environment: Environ
     ['Fecha', quotation.date ? formatArcaDateAsArgentineDate(quotation.date) : 'N/D'],
   ] as const;
 
-  return keyValuePanel(
-    `Cotización oficial · ${environment}`,
-    renderKeyValueRows(rows, { labelWidth: resolveKeyValueLabelWidth('standard', rows, [30, 70]) }),
-    undefined,
-    'standard',
-    undefined,
-    'sheet',
+  return sheetPanel(
+    `Cotización oficial ${uiSymbol('separator')} ${formatEnvironmentLabel(environment)}`,
+    renderKeyValueRows(rows, { labelWidth: resolveKeyValueLabelWidth('standard', rows) }),
   );
 }
 
@@ -123,13 +121,13 @@ function describePointOfSale(check: PointOfSaleCheck, number: number | undefined
     case 'sin-datos':
       return `${number} (en testing ARCA no informa puntos de venta)`;
     case 'sin-configurar':
-      return 'no configurado';
+      return 'sin configurar';
   }
 }
 
 export function formatStatusAsText(report: StatusReport): string {
   const rows = [
-    ['Entorno', report.environment],
+    ['Entorno', formatEnvironmentLabel(report.environment)],
     ['Servidor de aplicación', report.servers.app],
     ['Base de datos', report.servers.db],
     ['Autenticación', report.servers.auth],
@@ -146,13 +144,10 @@ export function formatStatusAsText(report: StatusReport): string {
           ? `Revisá el punto de venta con \`arcli parametros puntos-venta\`. Los de "Factura en línea" no sirven; para crear uno para web service: ${POINT_OF_SALE_GUIDE_URL}`
           : 'Revisá el punto de venta con `arcli parametros puntos-venta`.';
 
-  return keyValuePanel(
+  return sheetPanel(
     'Estado de ARCA',
-    renderKeyValueRows(rows, { labelWidth: resolveKeyValueLabelWidth('standard', rows, [30, 70]) }),
-    footer,
-    'standard',
-    report.ready ? 'success' : 'warning',
-    'sheet',
+    renderKeyValueRows(rows, { labelWidth: resolveKeyValueLabelWidth('standard', rows) }),
+    { footer, tone: report.ready ? 'success' : 'warning' },
   );
 }
 

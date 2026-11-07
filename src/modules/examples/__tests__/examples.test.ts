@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { stripAnsi } from '../../../ui';
+import { stripAnsi } from '../../../ui/primitives';
 import { renderExamples } from '../examples';
 
 describe('examples', () => {
@@ -26,5 +26,12 @@ describe('examples', () => {
       'arcli ncea -m 1 --cs --cuit 20168598204 --ir-ri --ac fcea --apv 3 --ar 120 --afecha 01-03-2026',
     );
     expect(output).toContain('arcli ncb -m 15000 --cs --cfinal --ir-cf --ac fb --apv 3 --ar 120 --acuit 20333333334');
+  });
+
+  it('keeps the logo aligned and shows the version', () => {
+    const lines = stripAnsi(renderExamples(new Date('2026-03-18T15:00:00Z'), '9.9.9')).split('\n');
+
+    expect((lines[0] ?? '').indexOf('d8888') - (lines[1] ?? '').indexOf('d88888')).toBe(1);
+    expect(lines.slice(0, 12).join('\n')).toContain('v9.9.9');
   });
 });

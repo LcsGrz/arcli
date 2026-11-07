@@ -1,9 +1,7 @@
-import type { PdfOutcome } from '../../modules/pdf/pdf.types';
-import { errorPanel } from '../components/errorPanel';
-import { keyValuePanel } from '../components/keyValuePanel';
-import { noticePanel } from '../components/noticePanel';
-import { pathLink, supportsHyperlinks } from '../primitives/hyperlink';
-import { renderKeyValueRows, resolveKeyValueLabelWidth } from '../primitives/renderKeyValue';
+import { errorPanel, noticePanel, sheetPanel } from '../../ui/components';
+import { pathLink, renderKeyValueRows, resolveKeyValueLabelWidth, supportsHyperlinks } from '../../ui/primitives';
+
+import type { PdfOutcome } from './pdf.types';
 
 /** Texto que sigue al comprobante emitido: la ruta del PDF o por que no se genero. */
 export function formatPdfOutcomeAsText(outcome: PdfOutcome, label?: string): string {
@@ -66,12 +64,8 @@ export function formatPdfPluginStatusAsText(status: PdfPluginStatusView, title =
   ];
   const footer = status.installed ? 'Listo para generar PDFs' : 'Instalalo con `arcli pdf instalar`.';
 
-  return keyValuePanel(
-    title,
-    renderKeyValueRows(rows, { labelWidth: resolveKeyValueLabelWidth('standard', rows, [25, 75]) }),
+  return sheetPanel(title, renderKeyValueRows(rows, { labelWidth: resolveKeyValueLabelWidth('standard', rows) }), {
     footer,
-    'standard',
-    status.installed ? 'success' : 'warning',
-    'sheet',
-  );
+    tone: status.installed ? 'success' : 'warning',
+  });
 }

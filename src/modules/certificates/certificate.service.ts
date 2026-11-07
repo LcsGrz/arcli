@@ -10,7 +10,7 @@ import {
 } from '../../lib/security/arca-certificate';
 import { createCertificateRequest } from '../../lib/security/certificate-request';
 import { formatCertificateExpiryDate } from '../config/certificate-expiry';
-import type { ArcliConfig, ArcliEnvironment } from '../config/config.schemas';
+import { type ArcliConfig, type ArcliEnvironment, formatEnvironmentLabel } from '../config/config.schemas';
 
 import {
   type CertificateFiles,
@@ -84,8 +84,6 @@ export interface CertificateStatus {
 
 export const DEFAULT_CERTIFICATE_ALIAS = 'arcli';
 
-const ENVIRONMENT_NAMES: Record<ArcliEnvironment, string> = { produccion: 'producción', testing: 'testing' };
-
 function certificateError(code: string, message: string, suggestion?: string): AppError {
   return new AppError(message, { code, suggestion });
 }
@@ -110,8 +108,8 @@ export class CertificateService {
     if (readIfExists(files.pendingKey) && !options.replace) {
       throw certificateError(
         'CERTIFICATE_REQUEST_PENDING',
-        `Ya hay un pedido de certificado de ${ENVIRONMENT_NAMES[options.environment]} sin importar.`,
-        `Si ya subiste el CSR a ARCA, importá el certificado con \`arcli certificado importar <archivo>\`. Para descartarlo y armar otro, sumá --reemplazar.`,
+        `Ya hay un pedido de certificado de ${formatEnvironmentLabel(options.environment)} sin importar.`,
+        `Si ya subiste el CSR a ARCA, importá el certificado con \`arcli certificado importar <archivo>\`. Para descartarlo y armar otro, sumá \`--reemplazar\`.`,
       );
     }
 
@@ -208,8 +206,8 @@ export class CertificateService {
     if (replaced && !options.replace) {
       throw certificateError(
         'CERTIFICATE_REPLACE_CONFIRMATION',
-        `Ya hay un certificado de ${ENVIRONMENT_NAMES[environment]} configurado: ${maskPath(configuredCertificate ?? '')}.`,
-        'Para reemplazarlo, sumá --reemplazar.',
+        `Ya hay un certificado de ${formatEnvironmentLabel(environment)} configurado: ${maskPath(configuredCertificate ?? '')}.`,
+        'Para reemplazarlo, sumá `--reemplazar`.',
       );
     }
 
@@ -271,7 +269,7 @@ export class CertificateService {
   private resolveEnvironment(info: ArcaCertificateInfo, requested?: ArcliEnvironment): ArcliEnvironment {
     if (info.environment && requested && info.environment !== requested) {
       throw new InputValidationError(
-        `El certificado es de ${ENVIRONMENT_NAMES[info.environment]} (lo firmó "${info.issuer}") y pediste ${ENVIRONMENT_NAMES[requested]}.`,
+        `El certificado es de ${formatEnvironmentLabel(info.environment)} (lo firmó "${info.issuer}") y pediste ${formatEnvironmentLabel(requested)}.`,
       );
     }
 
@@ -281,7 +279,7 @@ export class CertificateService {
       throw certificateError(
         'CERTIFICATE_ENVIRONMENT_UNKNOWN',
         `No se reconoce quién firmó el certificado ("${info.issuer}"): ARCA usa "Computadores Test" en testing y "Computadores" en producción.`,
-        'Si estás seguro de que es de ARCA, indicá el entorno con --testing o --produccion.',
+        'Si estás seguro de que es de ARCA, indicá el entorno con `--testing` o `--produccion`.',
       );
     }
 

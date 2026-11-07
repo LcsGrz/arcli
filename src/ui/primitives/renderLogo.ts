@@ -23,9 +23,6 @@ const ARCLI_BANNER_AR_CLI_SPLIT_COLUMN = 23;
 const BANNER_LAST_COLUMN = 50;
 const CREDIT = 'LcsGrz';
 
-// "AR" en el celeste de la bandera argentina (#74ACDF, truecolor); "CLI" en el color por defecto de la terminal.
-const LOGO_AR_COLOR = '\u001B[38;2;116;172;223m';
-
 /** Debajo del logo, en gris y alineado al final de la "I": `v1.8.0 | LcsGrz`, o solo la firma sin version. */
 function renderLogoFooter(version: string | undefined): string {
   const footer = version ? `v${version} | ${CREDIT}` : CREDIT;
@@ -44,7 +41,10 @@ function logoIndent(): string {
   return ' '.repeat(Math.max(0, Math.floor((fitToTerminal(UI_THEME.widths.wide.min) - visibleWidth) / 2)));
 }
 
-/** El logo de ARCLI, centrado; con `version`, la muestra debajo, junto a la firma. */
+/**
+ * El logo de ARCLI, centrado; con `version`, la muestra debajo, junto a la firma. Sin lineas en blanco alrededor: cada
+ * pantalla pone su espacio. No se recorta con `trim`, que se llevaria la sangria que lo centra.
+ */
 export function renderLogo(version?: string): string {
   const columns = process.stdout.columns;
 
@@ -52,17 +52,17 @@ export function renderLogo(version?: string): string {
   if (columns && columns < renderLogoWidth()) {
     const suffix = version ? ` ${colorize(`v${version}`, 'muted')}` : '';
 
-    return `\n${colorize('AR', LOGO_AR_COLOR)}${colorize('CLI', 'neutral')}${suffix}\n`;
+    return `${colorize('AR', 'logo')}${colorize('CLI', 'neutral')}${suffix}`;
   }
 
   const logo = ARCLI_ASCII_BANNER.split('\n').map((line) => {
     const ar = line.slice(0, ARCLI_BANNER_AR_CLI_SPLIT_COLUMN);
     const cli = line.slice(ARCLI_BANNER_AR_CLI_SPLIT_COLUMN);
 
-    return `${colorize(ar, LOGO_AR_COLOR)}${colorize(cli, 'neutral')}`;
+    return `${colorize(ar, 'logo')}${colorize(cli, 'neutral')}`;
   });
 
   const indent = logoIndent();
 
-  return `\n\n${[...logo, renderLogoFooter(version)].map((line) => `${indent}${line}`).join('\n')}\n\n`;
+  return [...logo, renderLogoFooter(version)].map((line) => `${indent}${line}`).join('\n');
 }

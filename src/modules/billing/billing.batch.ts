@@ -1,9 +1,9 @@
 import { ZodError } from 'zod';
 
 import { AppError } from '../../lib/errors/app-error';
-import { summarizeZodError } from '../../ui';
 
 import { EmissionUncertainError } from './billing.errors';
+import { summarizeZodError } from './billing.zod-errors';
 
 export interface BatchItemError {
   /** Posicion en el lote, empezando en 1. */

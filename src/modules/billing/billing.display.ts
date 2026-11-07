@@ -1,17 +1,9 @@
 import type { IIva } from '@arcasdk/core/lib/domain/types/voucher.types';
 
-import {
-  keyValuePanel,
-  renderKeyValueRows,
-  renderTable,
-  resolveKeyValueLabelWidth,
-  statusPanel,
-  testingBanner,
-  toneText,
-} from '../../ui';
+import { renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui/primitives';
 import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
 
-import { isTaxIdDocumentType } from './arca-codes';
+import { CONSUMER_DOCUMENT_TYPE_CODE, CONSUMER_IVA_CONDITION_CODE, isTaxIdDocumentType } from './arca-codes';
 import { resolveIvaRateLabel } from './billing.amounts';
 import {
   formatConceptLabel,
@@ -26,28 +18,6 @@ import {
 } from './billing.labels';
 import type { BillingExecutionResult } from './billing.types.internal';
 import { getVoucherKindByArcaType } from './voucher-kind-map';
-
-export function formatEnvironmentBanner(environment: BillingExecutionResult['environment'] | undefined): string[] {
-  if (environment !== 'testing') {
-    return [];
-  }
-
-  return [testingBanner()];
-}
-
-export function formatStatusBadge(result: BillingExecutionResult): {
-  readonly label: string;
-  readonly tone: 'danger' | 'success' | 'warning';
-} {
-  switch (result.response.status) {
-    case 'aprobado':
-      return { label: 'APROBADO', tone: 'success' };
-    case 'rechazado':
-      return { label: 'RECHAZADO', tone: 'danger' };
-    default:
-      return { label: 'OBSERVADO', tone: 'warning' };
-  }
-}
 
 export function formatVoucherSummary(result: BillingExecutionResult): Record<string, unknown> {
   return {
@@ -94,36 +64,59 @@ function formatIvaRows(iva: readonly IIva[], currency: string): Array<readonly [
   );
 }
 
+/** El receptor: consumidor final sin identificar es una sola fila; su IVA solo si es otro. */
+function formatReceiverRows(result: BillingExecutionResult): Array<readonly [string, string]> {
+  const payload = result.payload;
+  const ivaRow = [
+    'IVA receptor',
+    `${formatIvaConditionLabel(payload.CondicionIVAReceptorId)}${result.receiver?.ivaConditionFromPadron ? ' (padrón)' : ''}`,
+  ] as const;
+
+  if (payload.DocTipo === CONSUMER_DOCUMENT_TYPE_CODE && payload.DocNro === 0) {
+    return [
+      ['Receptor', 'Consumidor final'],
+      ...(payload.CondicionIVAReceptorId === CONSUMER_IVA_CONDITION_CODE ? [] : [ivaRow]),
+    ];
+  }
+
+  return [
+    ['Tipo de documento', formatDocumentTypeLabel(payload.DocTipo)],
+    [
+      'Número de documento',
+      typeof payload.DocNro === 'number'
+        ? isTaxIdDocumentType(payload.DocTipo)
+          ? formatTaxIdLabel(payload.DocNro)
+          : formatNumericLabel(payload.DocNro)
+        : 'N/D',
+    ],
+    ...(result.receiver?.name ? [['Receptor', result.receiver.name] as const] : []),
+    ivaRow,
+  ];
+}
+
+/**
+ * Lo que ARCA recibe en cero porque nadie lo cargo no se muestra. Lo que tiene valor si, venga de una flag, de la
+ * config o de un default. El `--json` y `--bruto` siguen trayendo todo.
+ */
+function formatOptionalMoneyRow(label: string, value: number | undefined, currency: string) {
+  return value ? [[label, formatMoneyLabel(value, currency)] as const] : [];
+}
+
 function formatFriendlyPayloadRows(result: BillingExecutionResult): Array<readonly [string, string]> {
   const payload = result.payload;
   const rows: Array<readonly [string, string]> = [
     ['Concepto', formatConceptLabel(payload.Concepto)],
     ['Punto de venta', String(payload.PtoVta)],
     ['Fecha del comprobante', formatDateLabel(payload.CbteFch)],
-    ['Tipo de documento', formatDocumentTypeLabel(payload.DocTipo)],
-    [
-      'Número de documento',
-      typeof payload.DocNro === 'number'
-        ? payload.DocNro === 0
-          ? 'Consumidor final'
-          : isTaxIdDocumentType(payload.DocTipo)
-            ? formatTaxIdLabel(payload.DocNro)
-            : formatNumericLabel(payload.DocNro)
-        : 'N/D',
-    ],
-    ...(result.receiver?.name ? [['Receptor', result.receiver.name] as const] : []),
-    [
-      'IVA receptor',
-      `${formatIvaConditionLabel(payload.CondicionIVAReceptorId)}${result.receiver?.ivaConditionFromPadron ? ' (padrón)' : ''}`,
-    ],
+    ...formatReceiverRows(result),
     ['Moneda', formatCurrencyLabel(payload.MonId)],
-    ['Cotización', formatDecimalLabel(payload.MonCotiz)],
+    ...(payload.MonId === 'PES' ? [] : [['Cotización', formatDecimalLabel(payload.MonCotiz)] as const]),
     ['Importe neto', formatMoneyLabel(payload.ImpNeto, payload.MonId)],
-    ['Importe IVA', formatMoneyLabel(payload.ImpIVA, payload.MonId)],
+    ...formatOptionalMoneyRow('Importe IVA', payload.ImpIVA, payload.MonId),
     ...formatIvaRows(payload.Iva ?? [], payload.MonId),
-    ['Importe tributos', formatMoneyLabel(payload.ImpTrib, payload.MonId)],
-    ['Importe exento', formatMoneyLabel(payload.ImpOpEx, payload.MonId)],
-    ['Importe no gravado', formatMoneyLabel(payload.ImpTotConc, payload.MonId)],
+    ...formatOptionalMoneyRow('Importe tributos', payload.ImpTrib, payload.MonId),
+    ...formatOptionalMoneyRow('Importe exento', payload.ImpOpEx, payload.MonId),
+    ...formatOptionalMoneyRow('Importe no gravado', payload.ImpTotConc, payload.MonId),
     ['Importe total', formatMoneyLabel(payload.ImpTotal, payload.MonId)],
   ];
 
@@ -171,24 +164,15 @@ function formatFriendlyPayloadRows(result: BillingExecutionResult): Array<readon
   return rows;
 }
 
-function formatPayloadTable(result: BillingExecutionResult): string {
+export function formatPayloadTable(result: BillingExecutionResult): string {
   const rows = formatFriendlyPayloadRows(result);
 
-  return renderTable(rows, { labelWidth: resolveKeyValueLabelWidth('ticket', rows) }).trimEnd();
+  return renderKeyValueRows(rows, { labelWidth: resolveKeyValueLabelWidth('ticket', rows) }).join('\n');
 }
 
-export function formatPayloadPreview(result: BillingExecutionResult): string {
-  const payloadTable = formatPayloadTable(result);
-  const footer = result.dryRun ? toneText('SIN EMITIR', 'warning') : undefined;
-
-  return keyValuePanel(result.voucherKind.displayName, [payloadTable], footer, 'ticket', undefined, 'ticket');
-}
-
-export function formatResultPanel(
-  result: BillingExecutionResult,
-  status: { readonly label: string; readonly tone: 'danger' | 'success' | 'warning' },
-): string {
-  const summaryRows: Array<readonly [string, string | number]> = [
+/** CAE, vencimiento, numero e importe: el resumen del resultado. */
+export function formatResultSummary(result: BillingExecutionResult): Array<readonly [string, string | number]> {
+  return [
     ['CAE', result.response.cae ?? 'N/D'],
     ['Vencimiento CAE', formatDateLabel(result.response.caeVencimiento ?? undefined)],
     result.voucherNumber === undefined
@@ -196,18 +180,4 @@ export function formatResultPanel(
       : ['Número', formatVoucherNumber(result.payload.PtoVta, result.voucherNumber)],
     ['Importe total', formatMoneyLabel(result.payload.ImpTotal, result.payload.MonId)],
   ];
-  const countRows: Array<readonly [string, string | number]> = [
-    ['Observaciones', result.response.observaciones.length],
-    ['Eventos', result.response.events.length],
-    ['Errores', result.response.errors.length],
-  ];
-  const labelWidth = resolveKeyValueLabelWidth('ticket', [...summaryRows, ...countRows]);
-  const rows = [
-    ...renderKeyValueRows(summaryRows, { labelWidth }),
-    '',
-    ...renderKeyValueRows(countRows, { labelWidth }),
-  ];
-  const footer = toneText(status.label, status.tone);
-
-  return statusPanel(result.voucherKind.displayName, rows, footer, 'ticket', status.tone, 'ticket');
 }

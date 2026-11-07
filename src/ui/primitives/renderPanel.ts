@@ -5,20 +5,20 @@ import { UI_THEME, type UiBorderStyle, type UiBorderType, type UiWidthPreset } f
 import { renderDivider } from './renderDivider';
 import { renderFooter } from './renderFooter';
 import { renderSubtitle } from './renderSubtitle';
+import { usesAsciiBorders } from './symbols';
 import { fitToTerminal, resolveTerminalColumns } from './terminalWidth';
 import {
   bold,
-  centerLineBlock,
   centerLines,
   colorize,
   flattenVisibleLines,
   maxVisibleWidth,
   stripAnsi,
   type UiTextColor,
-  wrapIndentedPlainText,
+  wrapPanelLines,
 } from './text';
 
-type PanelAlignment = 'block-center' | 'center' | 'left';
+type PanelAlignment = 'center' | 'left';
 
 export interface RenderPanelProps {
   readonly borderColor?: BoxenOptions['borderColor'];
@@ -35,7 +35,6 @@ export interface RenderPanelProps {
   readonly subtitle?: string;
   readonly subtitleColor?: UiTextColor;
   readonly title?: string;
-  readonly titleAlignment?: BoxenOptions['titleAlignment'];
   readonly titleColor?: UiTextColor;
   readonly width?: UiWidthPreset | number;
 }
@@ -76,10 +75,6 @@ function alignLines(lines: readonly string[], width: number, align: PanelAlignme
     return flattenVisibleLines(lines);
   }
 
-  if (align === 'block-center') {
-    return centerLineBlock(lines, width);
-  }
-
   return centerLines(lines, width);
 }
 
@@ -89,13 +84,6 @@ const MIN_PANEL_WIDTH = 24;
 // Marca de la linea divisoria: despues de dibujar la caja se reemplaza por una linea unida al borde
 // (por ejemplo `╟┄┄┄╢`). El caracter NUL no ocupa ancho, asi que no altera el calculo de boxen.
 const DIVIDER_MARKER = '\u0000';
-
-/** ARCLI_ASCII=1 cambia todos los bordes por ASCII puro, para terminales sin caracteres de caja. */
-export function usesAsciiBorders(): boolean {
-  const value = process.env.ARCLI_ASCII?.trim().toLowerCase();
-
-  return value === '1' || value === 'true' || value === 'si';
-}
 
 function resolveBorderStyle(borderType: Exclude<UiBorderType, 'command'>): UiBorderStyle {
   return usesAsciiBorders() ? UI_THEME.asciiBorderStyle : UI_THEME.borderStyles[borderType];
@@ -170,8 +158,7 @@ export function renderPanel(props: RenderPanelProps): string {
     configuredMaxWidth === null ? Number.POSITIVE_INFINITY : Math.max(minimumWidth, configuredMaxWidth);
   const maximumWidth = terminalLimit === null ? presetMaximumWidth : Math.min(presetMaximumWidth, terminalLimit);
   const contentLines = typeof props.content === 'string' ? props.content.split('\n') : [...props.content];
-  const visibleLines = [...contentLines];
-  const calculatedWidth = maxVisibleWidth(visibleLines) + paddingLeft + paddingRight + 2;
+  const calculatedWidth = maxVisibleWidth(contentLines) + paddingLeft + paddingRight + 2;
   const panelWidth = Math.min(maximumWidth, Math.max(minimumWidth, calculatedWidth));
   const innerWidth = Math.max(0, panelWidth - paddingLeft - paddingRight - 2);
   // Con junction la linea se une al borde; si no, va por adentro como un divisor `═`.
@@ -188,7 +175,7 @@ export function renderPanel(props: RenderPanelProps): string {
       })
     : null;
 
-  const wrappedContentLines = contentLines.flatMap((line) => wrapIndentedPlainText(line, innerWidth));
+  const wrappedContentLines = wrapPanelLines(contentLines, innerWidth);
   const lines: string[] = [];
   const hasBodyContent = contentLines.length > 0;
   const hasFooter = footerLine !== null;
@@ -225,7 +212,7 @@ export function renderPanel(props: RenderPanelProps): string {
     borderStyle: borderStyle.box,
     padding,
     title: formatTitle(props.title, props.titleColor),
-    titleAlignment: props.titleAlignment ?? borderStyle.titleAlignment ?? 'center',
+    titleAlignment: borderStyle.titleAlignment ?? 'center',
     width: panelWidth,
   });
 

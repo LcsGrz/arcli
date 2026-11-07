@@ -36,7 +36,7 @@ describe('config-fields', () => {
 
     expect(describeConfigValue(getConfigField('cert.testing'), config)).toBe('.../secretos/cert.crt');
     expect(describeConfigValue(getConfigField('emisor.inicioActividades'), config)).toBe('01/03/2020');
-    expect(describeConfigValue(getConfigField('cuit'), config)).toBe('no configurado');
+    expect(describeConfigValue(getConfigField('cuit'), config)).toBe('sin configurar');
   });
 
   it('shows labels instead of raw values, without changing what is saved', () => {

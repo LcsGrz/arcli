@@ -29,5 +29,6 @@
 
 - [Guía de desarrollo](development.md): entorno local, scripts, tests, CI y releases.
 - [Arquitectura](architecture.md): capas, flujo de una emisión y cómo extender el CLI.
+- [Design system](design-system.md): paneles, colores, símbolos, formatos y textos de la terminal.
 - [CONTRIBUTING](../CONTRIBUTING.md): flujo de trabajo y reglas del contrato público.
 - [CHANGELOG](../CHANGELOG.md) y [SECURITY](../SECURITY.md).

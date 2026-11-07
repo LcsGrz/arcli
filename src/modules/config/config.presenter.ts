@@ -1,20 +1,21 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
+import { formatCuit } from '../../lib/identity/format-cuit';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { maskPath } from '../../lib/paths/mask-path';
+import { checklistPanel, sheetPanel } from '../../ui/components';
 import {
   bold,
   colorize,
-  keyValuePanel,
   pathLink,
+  renderKeyValueRows,
   resolveKeyValueLabelWidth,
-  statusPanel,
   toneText,
-  UI_THEME,
-} from '../../ui';
+  uiSymbol,
+} from '../../ui/primitives';
 import { RECENT_VOUCHERS_LIMIT } from '../vouchers/voucher-history';
 
 import type { ArcliConfig, ConfigPublicKey } from './config.schemas';
-import { isPadronLookupEnabled } from './config.schemas';
+import { formatEnvironmentLabel, isPadronLookupEnabled } from './config.schemas';
 import { CONFIG_LABELS, CONFIG_SECTIONS } from './config.sections';
 import { CONFIG_DOCTOR_SECTIONS, type ConfigDoctorReport } from './config-doctor';
 
@@ -120,21 +121,17 @@ export function formatConfig(config: ArcliConfig, paths: ConfigPathSnapshot): st
   return JSON.stringify(toPublicSnapshot(config, paths), null, 2);
 }
 
-export function formatConfigPath(configPath: string): string {
-  return configPath;
-}
-
 /** `{ "ruta": "..." }`, como `ruta` en el JSON de `pdf desinstalar`. */
 export function formatConfigPathAsJson(configPath: string): string {
   return JSON.stringify({ ruta: configPath }, null, 2);
 }
 
-const NOT_SET = 'no configurado';
+const NOT_SET = 'sin configurar';
 
 type PublicConfigValue = (config: PublicConfigSnapshot) => number | string;
 
 const notSet = (value: number | string | undefined): number | string => value ?? NOT_SET;
-const yesNo = (value: boolean | undefined): string => (value ? 'si' : 'no');
+const yesNo = (value: boolean | undefined): string => (value ? 'sí' : 'no');
 
 /** Como se muestra cada dato en `arcli config`. */
 const CONFIG_TEXT_VALUES: Record<ConfigPublicKey, PublicConfigValue> = {
@@ -148,7 +145,7 @@ const CONFIG_TEXT_VALUES: Record<ConfigPublicKey, PublicConfigValue> = {
   concepto: (c) => notSet(c.concepto),
   condicionVenta: (c) => notSet(c.condicionVenta),
   cotizacion: (c) => formatExchangeRate(c.cotizacion ?? 1),
-  cuit: (c) => notSet(c.cuit),
+  cuit: (c) => (c.cuit ? formatCuit(c.cuit) : NOT_SET),
   'emisor.condicionIva': (c) => c.emisor.condicionIva ?? 'según la letra',
   'emisor.domicilio': (c) => notSet(c.emisor.domicilio),
   'emisor.iibb': (c) => notSet(c.emisor.iibb),
@@ -157,7 +154,7 @@ const CONFIG_TEXT_VALUES: Record<ConfigPublicKey, PublicConfigValue> = {
   'emisor.logo': (c) => notSet(c.emisor.logo),
   'emisor.razonSocial': (c) => notSet(c.emisor.razonSocial),
   emitir: (c) => yesNo(c.emitir),
-  entorno: (c) => c.entorno,
+  entorno: (c) => formatEnvironmentLabel(c.entorno),
   'exportacion.actividad': (c) => notSet(c.exportacion.actividad),
   'exportacion.cert.produccion': (c) => notSet(c.exportacion.cert.produccion),
   'exportacion.cert.testing': (c) => notSet(c.exportacion.cert.testing),
@@ -170,7 +167,7 @@ const CONFIG_TEXT_VALUES: Record<ConfigPublicKey, PublicConfigValue> = {
   moneda: (c) => c.moneda ?? 'PES',
   pdf: (c) => c.pdf,
   pdfCarpeta: (c) => c.pdfCarpeta,
-  pdfNavegador: (c) => c.pdfNavegador ?? 'automatico',
+  pdfNavegador: (c) => c.pdfNavegador ?? 'automático',
   puntoVenta: (c) => notSet(c.puntoVenta),
   ticketPath: (c) => c.ticketPath,
   verificarFce: (c) => yesNo(c.verificarFce),
@@ -227,20 +224,18 @@ export function formatConfigAsText(config: ArcliConfig, paths: ConfigPathSnapsho
   const labelWidth = resolveKeyValueLabelWidth(
     'standard',
     sections.flatMap((section) => section.rows),
-    [35, 65],
   );
-  const gap = ' '.repeat(UI_THEME.table.gap);
   const lines = sections.flatMap((section, index) => [
     ...(index > 0 ? [''] : []),
     colorize(section.label, 'info'),
     // Los datos van corridos bajo el titulo, asi la seccion se lee aun sin color (NO_COLOR, pipes).
-    ...section.rows.map(
-      ([label, value]) =>
-        `  ${colorize(label.padEnd(labelWidth), 'muted')}${gap}${value === NOT_SET ? colorize(value, 'muted') : value}`,
+    ...renderKeyValueRows(
+      section.rows.map(([label, value]) => [label, value === NOT_SET ? colorize(value, 'muted') : value] as const),
+      { indent: 2, labelTone: 'muted', labelWidth },
     ),
   ]);
 
-  return keyValuePanel('Configuración', lines, undefined, 'standard', undefined, 'sheet');
+  return sheetPanel('Configuración', lines);
 }
 
 export function formatConfigDoctor(report: ConfigDoctorReport): string {
@@ -258,11 +253,9 @@ export function formatConfigDoctor(report: ConfigDoctorReport): string {
   );
 }
 
-const DOCTOR_ICONS: Record<ConfigDoctorReport['checks'][number]['category'], string> = {
-  error: 'x',
-  ok: '✓',
-  warning: '!',
-};
+function doctorIcon(category: ConfigDoctorReport['checks'][number]['category']): string {
+  return { error: 'x', ok: uiSymbol('check'), warning: '!' }[category];
+}
 
 const DOCTOR_TONES = { error: 'danger', ok: 'success', warning: 'warning' } as const;
 
@@ -278,10 +271,22 @@ function formatDoctorDetail(check: ConfigDoctorReport['checks'][number]): string
   return `${detail.slice(0, index)}${bold(check.value)}${detail.slice(index + check.value.length)}`;
 }
 
+/** Un chequeo que repite a otro no suma una fila: el repetido toma su categoria y su detalle. */
+function mergeRepeatedChecks(checks: ConfigDoctorReport['checks']): ConfigDoctorReport['checks'] {
+  return checks
+    .filter((check) => !check.repeats)
+    .map((check) => {
+      const repeat = checks.find((other) => other.repeats === check.label);
+
+      return repeat ? { ...check, category: repeat.category, detail: repeat.detail } : check;
+    });
+}
+
 /** Por seccion, en el orden de `CONFIG_DOCTOR_SECTIONS`: un titulo y un item por chequeo. Lo que falla, en color. */
 export function formatConfigDoctorAsText(report: ConfigDoctorReport): string {
+  const visibleChecks = mergeRepeatedChecks(report.checks);
   const sections = CONFIG_DOCTOR_SECTIONS.map(([section, title]) => ({
-    checks: report.checks.filter((check) => check.section === section),
+    checks: visibleChecks.filter((check) => check.section === section),
     title,
   })).filter(({ checks }) => checks.length > 0);
   const lines = sections.flatMap(({ checks, title }, index) => [
@@ -292,15 +297,15 @@ export function formatConfigDoctorAsText(report: ConfigDoctorReport): string {
       const detail = formatDoctorDetail(check);
 
       // Dos espacios despues del icono: una linea larga sigue alineada al texto, no al icono.
-      return `  ${toneText(DOCTOR_ICONS[check.category], tone)}  ${check.category === 'ok' ? detail : colorize(detail, tone)}`;
+      return `  ${toneText(doctorIcon(check.category), tone)}  ${check.category === 'ok' ? detail : colorize(detail, tone)}`;
     }),
   ]);
   const tone = report.ok ? 'success' : report.checks.some((check) => check.category === 'error') ? 'danger' : 'warning';
   const footer = report.ok
     ? 'Configuración lista para usar ARCLI'
     : report.checks.some((check) => check.category === 'error')
-      ? 'Hay puntos criticos por corregir antes de emitir'
+      ? 'Hay puntos críticos por corregir antes de emitir'
       : 'Revisá las recomendaciones antes de emitir en serio';
 
-  return statusPanel('Revisión de configuración', lines, footer, 'wide', tone, 'checklist');
+  return checklistPanel('Revisión de configuración', lines, { footer, tone });
 }

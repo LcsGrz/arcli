@@ -129,7 +129,7 @@ describe('billing.service', () => {
         createBillingInput({ concept: 'servicios', dueDay: 10, paymentDueDate: '10/11', shortcut: 'fc' }),
         createRuntime(),
       ),
-    ).toThrow(/--dia y --vencimiento son el mismo vencimiento/);
+    ).toThrow(/`--dia` y `--vencimiento` son el mismo vencimiento/);
   });
 
   it('uses the Argentine date at night, even on a UTC machine', () => {
@@ -197,7 +197,7 @@ describe('billing.service', () => {
         createBillingInput({ concept: 'servicios', dueDay: 31, shortcut: 'fc' }),
         createRuntime(),
       ),
-    ).toThrow(/--dia 31 no existe en abril de 2026/);
+    ).toThrow(/`--dia 31` no existe en abril de 2026/);
   });
 
   it('builds invoice payload with explicit billing date in Argentine format', () => {
@@ -979,7 +979,7 @@ describe('billing.service', () => {
         createBillingInput({ concept: 'productos', documentNumber: 0, paymentDueDate: '30/03/2026' }),
         createRuntime(),
       ),
-    ).toThrow(/no usa --vencimiento/);
+    ).toThrow(/no usa `--vencimiento`/);
   });
 
   describe('periodo asociado', () => {
@@ -1071,7 +1071,7 @@ describe('billing.service', () => {
     it('mentions the period alternative when a regular note has no association', () => {
       expect(() =>
         new BillingService().buildVoucherPayload(periodNote({ associatedPeriod: undefined }), createRuntime()),
-      ).toThrow(/o un período con --periodo-desde y --periodo-hasta/);
+      ).toThrow(/o un período con `--periodo-desde` y `--periodo-hasta`/);
     });
   });
 
@@ -1186,7 +1186,7 @@ describe('billing.service', () => {
     it('rejects --anulacion on FCE invoices', () => {
       expect(() =>
         new BillingService().buildVoucherPayload(fceInvoice({ cancellation: true }), createRuntime()),
-      ).toThrow(/no usa --anulacion/);
+      ).toThrow(/no usa `--anulacion`/);
     });
 
     it('sends the cancellation code, associated date and emitter CUIT on FCE notes', () => {

@@ -5,6 +5,7 @@ import { registerBillingShortcutCommands } from './commands/billing-shortcuts.co
 import { registerCertificateCommand } from './commands/certificate.command';
 import { registerCompletionCommands } from './commands/completion.command';
 import { registerConfigCommand } from './commands/config.command';
+import { registerDesktopShortcutCommand } from './commands/desktop-shortcut.command';
 import { registerExamplesCommand } from './commands/examples.command';
 import { registerExportShortcutCommand } from './commands/export-shortcut.command';
 import { registerFceObligationCommand } from './commands/fce-obligation.command';
@@ -20,15 +21,10 @@ import { configureSpanishHelp, createProgramHeader, createProgramHelp } from './
 import { warnAboutIgnoredGlobalOptions } from './ignored-global-options';
 import { CLI_VERSION } from './version';
 
-export interface CreateProgramOptions {
-  /** Si los errores salen en JSON; se consulta recien al fallar. Por defecto, texto. */
-  readonly errorsAsJson?: () => boolean;
-}
-
-export function createProgram(options: CreateProgramOptions = {}): Command {
+export function createProgram(): Command {
   const program = new Command();
 
-  configureUsageErrors(program, options.errorsAsJson ?? (() => false));
+  configureUsageErrors(program);
 
   program
     .name('arcli')
@@ -47,6 +43,7 @@ export function createProgram(options: CreateProgramOptions = {}): Command {
   registerCertificateCommand(program);
   registerCompletionCommands(program);
   registerConfigCommand(program);
+  registerDesktopShortcutCommand(program);
   registerExamplesCommand(program);
   registerExportShortcutCommand(program);
   registerFceObligationCommand(program);

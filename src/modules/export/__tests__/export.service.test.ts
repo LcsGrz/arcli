@@ -254,7 +254,7 @@ describe('ExportService.resolve', () => {
     const gateway = createGateway();
 
     await expect(service.resolve({ ...INPUT, voucherNumber: undefined }, gateway, RUNTIME, NOW)).rejects.toThrow(
-      /Falta el número del comprobante. Usá --numero/,
+      /Falta el número del comprobante. Usá `--numero`/,
     );
     expect(gateway.getDestinationCountries).not.toHaveBeenCalled();
   });
@@ -277,7 +277,7 @@ describe('ExportService.resolve', () => {
       /--pais-destino/,
     );
     await expect(service.resolve({ ...INPUT, amount: 1000 }, gateway, RUNTIME, NOW)).rejects.toThrow(
-      /no coincide con --monto/,
+      /no coincide con `--monto`/,
     );
     expect(gateway.getDestinationCountries).not.toHaveBeenCalled();
   });

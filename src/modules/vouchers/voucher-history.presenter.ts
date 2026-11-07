@@ -1,7 +1,8 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { formatCuit } from '../../lib/identity/format-cuit';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
-import { keyValuePanel, noticePanel, renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui';
+import { listingPanel, noticePanel, ticketPanel } from '../../ui/components';
+import { renderKeyValueRows, resolveKeyValueLabelWidth, uiSymbol } from '../../ui/primitives';
 import { CONSUMER_DOCUMENT_TYPE_CODE, isTaxIdDocumentType } from '../billing/arca-codes';
 import {
   formatConceptLabel,
@@ -11,6 +12,7 @@ import {
 } from '../billing/billing.labels';
 import { formatLatestVouchersTitle, formatNoVouchersEmitted } from '../billing/billing.mappers';
 import type { VoucherKindDefinition } from '../billing/billing.types';
+import { formatEnvironmentLabel } from '../config/config.schemas';
 
 import type { IssuedVoucher } from './voucher-history';
 
@@ -54,7 +56,9 @@ export function formatReceiver(voucher: IssuedVoucher): string {
 
 /** Titulo del listado de ultimos comprobantes, tambien usado por el selector del modo interactivo. */
 function formatVoucherListTitle(report: Omit<VoucherListReport, 'vouchers'>): string {
-  return `${formatLatestVouchersTitle(report.voucherKind)} · PV ${report.pointOfSale} · ${report.environment}`;
+  const separator = uiSymbol('separator');
+
+  return `${formatLatestVouchersTitle(report.voucherKind)} ${separator} PV ${report.pointOfSale} ${separator} ${formatEnvironmentLabel(report.environment)}`;
 }
 
 /** Una fila del listado: numero, fecha, receptor, total y CAE, en columnas alineadas. */
@@ -128,13 +132,9 @@ export function formatVoucherListAsText(report: VoucherListReport): string {
     return noticePanel(`${formatNoVouchersEmitted(voucherKind)} en el punto de venta ${pointOfSale}.`, 'muted');
   }
 
-  return keyValuePanel(
+  return listingPanel(
     formatVoucherListTitle(report),
     vouchers.map((voucher) => formatVoucherListRow(pointOfSale, voucher)),
-    undefined,
-    'wide',
-    undefined,
-    'listing',
   );
 }
 
@@ -205,10 +205,9 @@ export function formatVoucherDetailAsText(report: VoucherDetailReport): string {
     rows.push(['Cotización', formatExchangeRate(voucher.exchangeRate ?? 1)]);
   }
 
-  rows.push(
-    ['Importe neto', formatMoneyLabel(voucher.netAmount, voucher.currency)],
-    ['Importe IVA', formatMoneyLabel(voucher.ivaAmount, voucher.currency)],
-  );
+  rows.push(['Importe neto', formatMoneyLabel(voucher.netAmount, voucher.currency)]);
+
+  if (voucher.ivaAmount) rows.push(['Importe IVA', formatMoneyLabel(voucher.ivaAmount, voucher.currency)]);
 
   if (voucher.exemptAmount) rows.push(['Importe exento', formatMoneyLabel(voucher.exemptAmount, voucher.currency)]);
   if (voucher.untaxedAmount)
@@ -221,12 +220,12 @@ export function formatVoucherDetailAsText(report: VoucherDetailReport): string {
     rows.push(['Vencimiento CAE', formatArcaDateAsArgentineDate(voucher.caeExpiration)]);
   }
 
-  return keyValuePanel(
+  return ticketPanel(
     voucherKind.displayName,
     renderKeyValueRows(rows, { labelWidth: resolveKeyValueLabelWidth('ticket', rows) }),
-    voucher.result === 'A' ? 'APROBADO' : voucher.result === 'R' ? 'RECHAZADO' : undefined,
-    'ticket',
-    voucher.result === 'R' ? 'danger' : 'success',
-    'ticket',
+    {
+      footer: voucher.result === 'A' ? 'APROBADO' : voucher.result === 'R' ? 'RECHAZADO' : undefined,
+      tone: voucher.result === 'R' ? 'danger' : 'success',
+    },
   );
 }

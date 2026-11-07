@@ -1,4 +1,4 @@
-import { usesAsciiBorders } from '../primitives/renderPanel';
+import { usesAsciiBorders } from '../primitives/symbols';
 import { fitToTerminal } from '../primitives/terminalWidth';
 import { bold, colorize, stripAnsi, type UiTextColor } from '../primitives/text';
 import { UI_THEME } from '../theme/theme';

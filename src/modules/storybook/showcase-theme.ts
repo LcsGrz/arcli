@@ -1,4 +1,4 @@
-import type { UiWidthPreset } from '../../ui';
+import type { UiWidthPreset } from '../../ui/theme';
 
 export interface StorybookShowcaseTheme {
   readonly borderColor: string;

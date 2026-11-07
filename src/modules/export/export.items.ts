@@ -14,7 +14,7 @@ import {
 export const DEFAULT_EXPORT_ITEM_DESCRIPTION = 'Según detalle';
 
 const ITEM_FORMAT_HINT =
-  'Usá --item "codigo|descripcion|cantidad|precio|unidad" (el código y la unidad son opcionales).';
+  'Usá `--item "codigo|descripcion|cantidad|precio|unidad"` (el código y la unidad son opcionales).';
 
 export interface ExportItemsResult {
   readonly items: ExportItemPayload[];
@@ -70,7 +70,7 @@ function resolveExportItemUnit(unit: string | number): string | number {
 
   if (!trimmed) {
     throw new InputValidationError(
-      'La unidad del ítem no puede estar vacía. Usá --item sin la última parte para usar "unidad".',
+      'La unidad del ítem no puede estar vacía. Usá `--item` sin la última parte para usar "unidad".',
     );
   }
 
@@ -135,7 +135,7 @@ export function resolveUnitCode(unit: string | number | undefined, units: readon
 function assertSameTotal(total: Big, amount: number): void {
   if (!total.eq(new Big(amount).round(2, Big.roundHalfUp))) {
     throw new InputValidationError(
-      `La suma de los ítems (${formatArgentineAmount(roundAmount(total))}) no coincide con --monto (${formatArgentineAmount(amount)}).`,
+      `La suma de los ítems (${formatArgentineAmount(roundAmount(total))}) no coincide con \`--monto\` (${formatArgentineAmount(amount)}).`,
     );
   }
 }

@@ -6,7 +6,7 @@ import { ConfigurationError } from '../../lib/errors/app-error';
 import { restrictFolderToOwner } from '../../lib/files/restrict-to-owner';
 import { ensurePathExists, readPemFile } from '../../lib/security/pem';
 import { type CertificateExpiryNotice, inspectConfiguredCertificates } from '../../modules/config/certificate-expiry';
-import type { ArcliConfig, ArcliEnvironment } from '../../modules/config/config.schemas';
+import { type ArcliConfig, type ArcliEnvironment, MISSING_CUIT_MESSAGE } from '../../modules/config/config.schemas';
 import { ConfigService } from '../../modules/config/config.service';
 
 export interface ResolveArcaContextOptions {
@@ -133,9 +133,7 @@ export class ArcaContextResolver {
     const rawValue = config.cuit;
 
     if (!rawValue) {
-      throw new ConfigurationError(
-        'Falta el CUIT. Configuralo con `arcli config establecer cuit <valor>`. Si querés una guía rápida, usá `arcli config revisar`.',
-      );
+      throw new ConfigurationError(MISSING_CUIT_MESSAGE);
     }
 
     const parsedValue = Number.parseInt(rawValue, 10);
@@ -149,7 +147,7 @@ export class ArcaContextResolver {
 
   private resolveEnvironment(config: ArcliConfig): ArcliEnvironment {
     if (this.options.testing && this.options.produccion) {
-      throw new ConfigurationError('Usá --testing o --produccion, pero no ambos a la vez.');
+      throw new ConfigurationError('Usá `--testing` o `--produccion`, pero no ambos a la vez.');
     }
 
     if (this.options.testing) {
@@ -188,7 +186,7 @@ export class ArcaContextResolver {
 
     if (!filePath) {
       throw new ConfigurationError(
-        `Falta la ruta del certificado para ${environment}. Configurá "cert.${environment}". Si necesitás ayuda, probá \`arcli config revisar\`.`,
+        `Falta la ruta del certificado para ${environment}. Configurá "cert.${environment}".`,
       );
     }
 
@@ -200,7 +198,7 @@ export class ArcaContextResolver {
 
     if (!filePath) {
       throw new ConfigurationError(
-        `Falta la ruta de la clave privada para ${environment}. Configurá "key.${environment}". Si necesitás ayuda, probá \`arcli config revisar\`.`,
+        `Falta la ruta de la clave privada para ${environment}. Configurá "key.${environment}".`,
       );
     }
 

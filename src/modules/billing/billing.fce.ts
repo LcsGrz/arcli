@@ -62,12 +62,12 @@ export function resolveElectronicCreditOptionals(
   }
 
   if (input.cancellation) {
-    throw new InputValidationError(`${subject} no usa --anulacion: solo aplica a notas de crédito o débito FCE.`);
+    throw new InputValidationError(`${subject} no usa \`--anulacion\`: solo aplica a notas de crédito o débito FCE.`);
   }
 
   if (!input.cbu) {
     throw new InputValidationError(
-      `${subject} requiere el CBU del emisor. Usá --cbu o configuralo con \`arcli config establecer cbu <22 dígitos>\`.`,
+      `${subject} requiere el CBU del emisor. Usá \`--cbu\` o configuralo con \`arcli config establecer cbu <22 dígitos>\`.`,
     );
   }
 

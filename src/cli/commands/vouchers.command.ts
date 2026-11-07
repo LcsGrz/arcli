@@ -5,6 +5,7 @@ import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import { formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { getVoucherKindByShortcut, VOUCHER_SHORTCUTS } from '../../modules/billing/voucher-kind-map';
+import { formatEnvironmentLabel } from '../../modules/config/config.schemas';
 import { listRecentVouchers, MAX_RECENT_VOUCHERS, RECENT_VOUCHERS_LIMIT } from '../../modules/vouchers/voucher-history';
 import {
   formatVoucherDetailAsJson,
@@ -42,7 +43,7 @@ function requirePointOfSale(options: PointOfSaleOptions, runtime: ResolvedArcaRu
 
   if (!pointOfSale || !Number.isInteger(pointOfSale) || pointOfSale <= 0) {
     throw new InputValidationError(
-      'Falta el punto de venta. Usá --pv <numero> o configuralo con `arcli config establecer puntoVenta <numero>`.',
+      'Falta el punto de venta. Usá `--pv <numero>` o configuralo con `arcli config establecer puntoVenta <numero>`.',
     );
   }
 
@@ -124,7 +125,7 @@ export function registerVoucherQueryCommands(program: Command): void {
 
     if (!voucher) {
       throw new AppError(
-        `No existe ${formatVoucherWithArticle(voucherKind)} N° ${formatVoucherNumber(pointOfSale, number)} en ARCA (${runtime.environment}).`,
+        `No existe ${formatVoucherWithArticle(voucherKind)} N° ${formatVoucherNumber(pointOfSale, number)} en ARCA (${formatEnvironmentLabel(runtime.environment)}).`,
         { code: 'VOUCHER_NOT_FOUND' },
       );
     }

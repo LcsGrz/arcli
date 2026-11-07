@@ -37,7 +37,7 @@ function explicitEnvironment(command: Command): ArcliEnvironment | undefined {
   const { produccion, testing } = getGlobalOptions(command);
 
   if (produccion && testing) {
-    throw new InputValidationError('Usá --testing o --produccion, pero no ambos a la vez.');
+    throw new InputValidationError('Usá `--testing` o `--produccion`, pero no ambos a la vez.');
   }
 
   return produccion ? 'produccion' : testing ? 'testing' : undefined;

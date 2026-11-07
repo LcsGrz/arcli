@@ -1,4 +1,5 @@
-import { bold, colorize, noticePanel, renderPanel, type UiTextColor } from '../../ui';
+import { noticePanel } from '../../ui/components';
+import { bold, colorize, renderPanel, uiSymbol, type UiTextColor } from '../../ui/primitives';
 
 import { CHANGELOG_PAGE_URL, type ChangelogChange, type ChangelogChangeKind, type ChangelogEntry } from './changelog';
 import { resolveUpdateCommand } from './package-manager';
@@ -39,7 +40,7 @@ function formatChange(change: ChangelogChange): string {
   const text = change.topic ? `${bold(`${change.topic}:`)} ${change.text}` : change.text;
 
   if (change.nested) {
-    return `${CHANGE_INDENT}· ${text}`;
+    return `${CHANGE_INDENT}${uiSymbol('separator')} ${text}`;
   }
 
   const [label, color] = KIND_LABELS[change.kind];
@@ -65,7 +66,7 @@ function formatChangelog(entries: readonly ChangelogEntry[] | undefined): string
     .slice(0, MAX_CHANGELOG_ENTRIES)
     .flatMap((entry) => [
       '',
-      `${bold(entry.version)}${entry.date ? ` · ${colorize(formatChangelogDate(entry.date), 'muted')}` : ''}`,
+      `${bold(entry.version)}${entry.date ? ` ${uiSymbol('separator')} ${colorize(formatChangelogDate(entry.date), 'muted')}` : ''}`,
       ...(entry.summary ? [entry.summary] : []),
       ...(entry.changes.length > 0 ? [''] : []),
       ...formatChanges(entry.changes),

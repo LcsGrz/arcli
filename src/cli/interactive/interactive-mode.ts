@@ -7,7 +7,7 @@ import {
   type CertificateExpiryNotice,
   inspectConfiguredCertificates,
 } from '../../modules/config/certificate-expiry';
-import type { ArcliEnvironment } from '../../modules/config/config.schemas';
+import { type ArcliEnvironment, formatEnvironmentLabel } from '../../modules/config/config.schemas';
 import { ConfigService } from '../../modules/config/config.service';
 import { listMissingSetupKeys } from '../../modules/interactive/config-fields';
 import { type ArcaHealth, checkArcaHealth } from '../../modules/parameters/health';
@@ -15,16 +15,18 @@ import { checkForUpdate, type UpdateCheckResult } from '../../modules/update-che
 import { ArcaParametersGateway } from '../../services/arca/arca-parameters.gateway';
 import {
   colorize,
-  formatCliError,
   noticePanel,
   renderLogo,
   statusBar,
   type StatusBarSegment,
+  uiSymbol,
   type UiTextColor,
   writeTerminalError,
   writeTerminalOutput,
+  writeTerminalRaw,
 } from '../../ui';
 import { renderCertificateNotices } from '../arca-runtime';
+import { formatCliError } from '../error-output';
 import { startSpinner } from '../spinner';
 import type { GlobalCliOptions } from '../types';
 import { CLI_VERSION } from '../version';
@@ -67,7 +69,7 @@ function resolveSession(options: GlobalCliOptions): InteractiveSession | undefin
   try {
     return createInteractiveSession(options);
   } catch (error) {
-    writeTerminalError(formatCliError(error, false));
+    writeTerminalError(() => formatCliError(error, false));
     writeTerminalOutput(noticePanel('Revisala desde "Configuración" en el menú.', 'warning'));
 
     return undefined;
@@ -110,9 +112,10 @@ const HEALTH_LABELS: Record<ArcaHealth, readonly [label: string, color: UiTextCo
 const MAX_ISSUER_NAME_LENGTH = 32;
 
 function environmentSegment(environment: ArcliEnvironment): StatusBarSegment {
-  return environment === 'produccion'
-    ? { color: 'production', text: 'PRODUCCIÓN' }
-    : { color: 'testing', text: 'TESTING' };
+  return {
+    color: environment === 'produccion' ? 'production' : 'testing',
+    text: formatEnvironmentLabel(environment).toUpperCase(),
+  };
 }
 
 /**
@@ -180,7 +183,7 @@ async function buildHeader(options: GlobalCliOptions): Promise<string> {
   const bar = statusBar(
     [
       { text: formatIssuer(config.emisor?.razonSocial, context.cuit) },
-      { text: `PV ${pointOfSale ?? 'no configurado'}` },
+      { text: `PV ${pointOfSale ?? 'sin configurar'}` },
     ],
     [{ color, text: label.toUpperCase() }, environmentSegment(environment)],
     { rightSeparator: 'rule' },
@@ -195,7 +198,7 @@ function formatIssuer(businessName: string | undefined, cuit: number): string {
   }
 
   return businessName.length > MAX_ISSUER_NAME_LENGTH
-    ? `${businessName.slice(0, MAX_ISSUER_NAME_LENGTH - 1).trimEnd()}…`
+    ? `${businessName.slice(0, MAX_ISSUER_NAME_LENGTH - 1).trimEnd()}${uiSymbol('ellipsis')}`
     : businessName;
 }
 
@@ -213,8 +216,8 @@ export async function runInteractiveMode(options: GlobalCliOptions = {}): Promis
   // Dos lineas en blanco entre el logo y la barra. La barra se escribe aparte porque, mientras se consulta ARCA,
   // en su lugar va el spinner. Debajo, una linea en blanco fija: al responder el menu, @inquirer saca las lineas
   // de su prefijo y sin esta la respuesta quedaria pegada a la barra (ver `compactTop` en el primer menu).
-  process.stdout.write(`${renderLogo(CLI_VERSION).trimEnd()}\n\n\n`);
-  process.stdout.write(`${await buildHeader(options)}\n\n`);
+  writeTerminalRaw(`\n\n${renderLogo(CLI_VERSION)}\n\n\n`);
+  writeTerminalRaw(`${await buildHeader(options)}\n\n`);
 
   const update = await updatePromise;
   // El menu va justo debajo de la barra solo la primera vez; despues, debajo de lo que mostro cada flujo.
@@ -308,7 +311,7 @@ export async function runInteractiveMode(options: GlobalCliOptions = {}): Promis
       if (isPromptCancellation(error)) {
         writeTerminalOutput(colorize('Cancelado. No se emitió nada.', 'muted'));
       } else {
-        writeTerminalError(formatCliError(error, false));
+        writeTerminalError(() => formatCliError(error, false));
       }
     }
   }

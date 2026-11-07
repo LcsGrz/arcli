@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { stripAnsi } from '../../../ui';
+import { stripAnsi } from '../../../ui/primitives';
 import { VOUCHER_KIND_MAP } from '../../billing/voucher-kind-map';
 import type { IssuedVoucher } from '../voucher-history';
 import {
@@ -79,6 +79,9 @@ describe('voucher-history.presenter', () => {
     const text = stripAnsi(formatVoucherListAsText({ ...base, vouchers: [voucher] }));
 
     expect(text).toContain('ÚLTIMAS FACTURAS B · PV 3 · TESTING');
+    expect(stripAnsi(formatVoucherListAsText({ ...base, environment: 'produccion', vouchers: [voucher] }))).toContain(
+      'ÚLTIMAS FACTURAS B · PV 3 · PRODUCCIÓN',
+    );
     expect(text).toContain('00003-00000012  01/10/2026');
     expect(text).toContain('CAE 86400940834444');
     expect(stripAnsi(formatVoucherListAsText({ ...base, vouchers: [] }))).toContain('No hay facturas B emitidas');

@@ -61,6 +61,13 @@ try {
   }
 
   run([bin, ['--ayuda']]);
+
+  for (const icon of ['arcli.icns', 'arcli.ico', 'arcli.png']) {
+    if (!existsSync(join(prefix, 'node_modules', 'arcli', 'assets', 'acceso-directo', icon))) {
+      throw new Error(`Falta el ícono ${icon} en el paquete: revisá \`files\` en package.json.`);
+    }
+  }
+
   console.log(`Paquete ok: arcli ${version} se instala y arranca.`);
 } finally {
   rmSync(workDirectory, { force: true, maxRetries: 10, recursive: true, retryDelay: 100 });

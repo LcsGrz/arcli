@@ -185,7 +185,7 @@ describe('arca-context.resolver', () => {
             testing: true,
           },
         }).validate(),
-      ).toThrow(/Usá --testing o --produccion/);
+      ).toThrow(/Usá `--testing` o `--produccion`/);
     } finally {
       configService.close();
     }

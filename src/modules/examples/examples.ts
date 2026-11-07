@@ -1,5 +1,6 @@
 import { toArgentineCalendarDate } from '../../lib/dates/arca-date';
-import { badge, renderLogo, sectionHeading, toneText } from '../../ui';
+import { sectionHeading } from '../../ui/components';
+import { badge, renderLogo, toneText } from '../../ui/primitives';
 import type { VoucherFamily, VoucherKindDefinition } from '../billing/billing.types';
 import { VOUCHER_FAMILIES, VOUCHER_KIND_MAP, VOUCHER_SHORTCUTS } from '../billing/voucher-kind-map';
 import { EXPORT_VOUCHER_KIND } from '../export/export.types';
@@ -199,7 +200,7 @@ function formatVoucherExample(definition: VoucherKindDefinition, dates: ExampleD
     `${badge('COMPLETA LARGA', 'warning')}`,
     `${buildFullLong(definition, dates)}`,
     '',
-    `${badge('COMPLETA CORTA', 'debug')}`,
+    `${badge('COMPLETA CORTA', 'info')}`,
     `${buildFullShort(definition, dates)}`,
   ].join('\n');
 }
@@ -240,7 +241,7 @@ function formatExportExample(): string {
     `${badge('COMPLETA LARGA', 'warning')}`,
     `arcli ${family} ${letter} --monto 1500 ${EXPORT_CLIENT} --actividad 620100 ${fullFlags.join(' ')} --moneda USD --misma-moneda --previsualizar`,
     '',
-    `${badge('COMPLETA CORTA', 'debug')}`,
+    `${badge('COMPLETA CORTA', 'info')}`,
     `arcli ${shortcut} -m 1500 ${EXPORT_CLIENT} --actividad 620100 ${fullFlags.join(' ')} --mda USD --misma-moneda --previsualizar`,
   ].join('\n');
 }
@@ -255,16 +256,16 @@ export function buildMinimalFamilyExample(definition: VoucherKindDefinition, tod
   return buildMinimalLong(definition, resolveExampleDates(today));
 }
 
-export function renderExamples(today = new Date()): string {
+export function renderExamples(today = new Date(), version?: string): string {
   const dates = resolveExampleDates(today);
 
   return [
-    renderLogo().trim(),
+    renderLogo(version),
     '',
     `${badge('MÍNIMA', 'info')} datos esenciales`,
     `${badge('COMPLETA', 'warning')} más campos explicitados`,
     `${badge('LARGA', 'success')} comando largo`,
-    `${badge('CORTA', 'debug')} atajos y alias`,
+    `${badge('CORTA', 'info')} atajos y alias`,
     '',
     toneText('SEGURIDAD', 'warning'),
     'Todos usan --previsualizar para evitar emisiones reales por error.',

@@ -1,11 +1,11 @@
-import checkbox from '@inquirer/checkbox';
 import input from '@inquirer/input';
 import select, { Separator } from '@inquirer/select';
 import { emitKeypressEvents } from 'node:readline';
-import { styleText } from 'node:util';
 
 import { BACK, type Back } from '../../modules/interactive/wizard';
-import { colorize } from '../../ui';
+import { bold, colorize, uiSymbol, usesAsciiBorders, writeTerminalRaw } from '../../ui';
+
+import { multiSelect } from './multi-select';
 
 export interface Choice<T> {
   readonly description?: string;
@@ -22,27 +22,34 @@ const HELP_TRANSLATIONS: Record<string, HelpKey> = {
   'a all': ['a', 'todos'],
   'i invert': ['i', 'invertir'],
   'space select': ['espacio', 'marcar'],
-  '↑↓ navigate': ['↑↓', 'mover'],
-  '⏎ select': ['⏎', 'elegir'],
-  '⏎ submit': ['⏎', 'confirmar'],
+  '↑↓ navigate': [uiSymbol('keysMove'), 'mover'],
+  '⏎ select': [uiSymbol('keyEnter'), 'elegir'],
+  '⏎ submit': [uiSymbol('keyEnter'), 'confirmar'],
 };
 
 function keysHelpTip(extra: readonly HelpKey[]): (keys: HelpKey[]) => string {
   return (keys) =>
     [...keys.map(([key, action]) => HELP_TRANSLATIONS[`${key} ${action}`] ?? [key, action]), ...extra]
-      .map(([key, action]) => `${styleText('bold', key)} ${styleText('dim', action)}`)
-      .join(styleText('dim', ' • '));
+      .map(([key, action]) => `${bold(key)} ${colorize(action, 'muted')}`)
+      .join(colorize(` ${uiSymbol('bullet')} `, 'muted'));
 }
 
 /**
  * La pregunta activa lleva dos lineas en blanco arriba, para separarla de las ya respondidas. Al responderla
  * @inquirer la redibuja con el prefijo "done", sin esas lineas, y las respuestas quedan juntas.
  */
-const PROMPT_PREFIX = { idle: `\n\n${styleText('blue', '?')}` };
+const DONE_PREFIX = colorize(uiSymbol('done'), 'success');
+const PROMPT_PREFIX = { done: DONE_PREFIX, idle: `\n\n${colorize('?', 'info')}` };
 /** Una sola linea arriba: para una pregunta que ya tiene una linea en blanco fija antes, como el menu bajo la barra. */
-const COMPACT_PROMPT_PREFIX = { idle: `\n${styleText('blue', '?')}` };
+const COMPACT_PROMPT_PREFIX = { done: DONE_PREFIX, idle: `\n${colorize('?', 'info')}` };
 
-type PromptStatus = 'done' | 'idle' | 'loading';
+// Los iconos y el spinner de @inquirer son Unicode: con ARCLI_ASCII=1 se reemplazan.
+const ASCII_THEME = usesAsciiBorders()
+  ? {
+      icon: { cursor: uiSymbol('pointer') },
+      spinner: { frames: ['-', '\\', '|', '/'], interval: 80 },
+    }
+  : {};
 
 /**
  * En las listas, mientras la pregunta esta activa, una linea en blanco entre la pregunta y las opciones, y otra
@@ -50,16 +57,19 @@ type PromptStatus = 'done' | 'idle' | 'loading';
  */
 function listStyle(extraKeys: readonly HelpKey[]) {
   return {
-    description: (text: string) => `${styleText('cyan', text)}\n`,
+    description: (text: string) => `${colorize(text, 'info')}\n`,
     keysHelpTip: keysHelpTip(extraKeys),
-    message: (text: string, status: PromptStatus) =>
-      status === 'done' ? styleText('bold', text) : `${styleText('bold', text)}\n`,
+    message: (text: string, status: string) => (status === 'done' ? bold(text) : `${bold(text)}\n`),
   };
 }
 
-const MENU_THEME = { prefix: PROMPT_PREFIX, style: listStyle([]) };
-const STEP_THEME = { prefix: PROMPT_PREFIX, style: listStyle([['esc', 'volver']]) };
-const TEXT_THEME = { prefix: PROMPT_PREFIX };
+const MENU_THEME = { ...ASCII_THEME, prefix: PROMPT_PREFIX, style: listStyle([]) };
+const STEP_THEME = { ...ASCII_THEME, prefix: PROMPT_PREFIX, style: listStyle([['esc', 'volver']]) };
+const TEXT_THEME = {
+  ...ASCII_THEME,
+  prefix: PROMPT_PREFIX,
+  style: { defaultAnswer: (text: string) => colorize(`enter: ${text}`, 'muted') },
+};
 
 /**
  * Una lista simple. Con `escapeValue`, Esc la cierra devolviendo ese valor (por ejemplo, "volver", "no" o
@@ -83,7 +93,7 @@ export async function chooseOne<T>(
     theme:
       escapeValue === undefined
         ? { ...MENU_THEME, prefix }
-        : { prefix, style: listStyle([['esc', escapeLabel] as HelpKey]) },
+        : { ...ASCII_THEME, prefix, style: listStyle([['esc', escapeLabel] as HelpKey]) },
   };
 
   if (escapeValue === undefined) {
@@ -140,7 +150,7 @@ export function fitPageSize(count: number): number {
   return Math.max(12, Math.min(count, available));
 }
 
-const BACK_CHOICE = { name: '← Volver', value: BACK } as const;
+const BACK_CHOICE = { name: `${uiSymbol('back')} Volver`, value: BACK } as const;
 // Linea en blanco entre las opciones y "Volver".
 const BACK_SPACER = new Separator(' ');
 // Alternativa a Esc, por si la terminal no la manda.
@@ -149,7 +159,7 @@ const ESCAPE_REASON = 'esc';
 
 /** La misma linea que deja @inquirer al responder; hace falta cuando el prompt se borra al cerrarse. */
 function writeAnsweredLine(message: string, answer: string): void {
-  process.stdout.write(`${styleText('green', '✔')} ${styleText('bold', message)} ${styleText('cyan', answer)}\n`);
+  writeTerminalRaw(`${DONE_PREFIX} ${bold(message)} ${colorize(answer, 'info')}\n`);
 }
 
 /**
@@ -310,8 +320,8 @@ export async function askTextStep(
 }
 
 /**
- * Seleccion multiple: espacio marca, Enter confirma (sin marcar nada tambien vale). Tiene un "← Volver" al
- * final para el motor de pasos: si se marca (o con Esc), vuelve al paso anterior.
+ * Seleccion multiple: espacio marca, Enter confirma (sin marcar nada tambien vale). Tiene un boton "← Volver" al
+ * final para el motor de pasos: Enter sobre el (o Esc) vuelve al paso anterior.
  */
 export async function chooseManyStep<T>(
   message: string,
@@ -320,32 +330,21 @@ export async function chooseManyStep<T>(
 ): Promise<Back | T[]> {
   const result = await runStepPrompt(
     (context) =>
-      checkbox<Back | T>(
-        {
-          choices: [
-            ...choices.map((choice) => ({ ...choice, checked: selected.includes(choice.value) })),
-            BACK_SPACER,
-            BACK_CHOICE,
-          ],
-          loop: false,
-          message,
-          pageSize: 12,
-          theme: STEP_THEME,
-        },
+      multiSelect<T>(
+        { backLabel: BACK_CHOICE.name, choices, message, pageSize: 12, selected, theme: STEP_THEME },
         context,
       ),
     (answer) => ({
-      answer: choices
-        .filter((choice) => answer.includes(choice.value))
-        .map((choice) => choice.name)
-        .join(', '),
+      answer:
+        answer === BACK
+          ? BACK_CHOICE.name
+          : choices
+              .filter((choice) => answer.includes(choice.value))
+              .map((choice) => choice.name)
+              .join(', '),
       message,
     }),
   );
 
-  if (!('answer' in result) || result.answer === BACK || result.answer.includes(BACK)) {
-    return BACK;
-  }
-
-  return result.answer as T[];
+  return 'answer' in result ? result.answer : BACK;
 }
