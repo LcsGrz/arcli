@@ -315,10 +315,12 @@ export function createStorybookHelp(): string {
       [
         '  - arcli storybook',
         '  - arcli storybook bordes',
+        '  - arcli storybook certificados',
         '  - arcli storybook colores',
         '  - arcli storybook componentes',
         '  - arcli storybook comprobantes',
         '  - arcli storybook configuracion',
+        '  - arcli storybook consultas',
         '  - arcli storybook errores',
         '  - arcli storybook json',
       ].join('\n'),
