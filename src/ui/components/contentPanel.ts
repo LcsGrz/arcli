@@ -2,7 +2,7 @@ import { renderPanel } from '../primitives/renderPanel';
 import type { UiTextColor } from '../primitives/text';
 import type { UiBorderType, UiWidthPreset } from '../theme/theme';
 
-type ContentPanelAlignment = 'block-center' | 'center' | 'left';
+type ContentPanelAlignment = 'center' | 'left';
 
 export function contentPanel(
   title: string,

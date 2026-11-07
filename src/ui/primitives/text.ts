@@ -49,10 +49,6 @@ export function shouldUseColor(target: OutputTarget = defaultTarget): boolean {
   return stream.isTTY === true;
 }
 
-export function supportsColor(target: OutputTarget = defaultTarget): boolean {
-  return shouldUseColor(target);
-}
-
 function resolveTextColor(color: UiTextColor): string {
   return UI_THEME.colors[color as UiColorToken] ?? color;
 }
@@ -367,10 +363,3 @@ export function centerLines(lines: readonly string[], width: number): string[] {
   return flattenVisibleLines(lines).map((line) => centerText(line, width));
 }
 
-export function centerLineBlock(lines: readonly string[], width: number): string[] {
-  const flattenedLines = flattenVisibleLines(lines);
-  const blockWidth = maxVisibleWidth(flattenedLines);
-  const leftPadding = Math.max(0, Math.floor((width - blockWidth) / 2));
-
-  return flattenedLines.map((line) => `${' '.repeat(leftPadding)}${line}`);
-}

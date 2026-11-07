@@ -15,7 +15,6 @@ import {
   formatConfigAsText,
   formatConfigDoctor,
   formatConfigDoctorAsText,
-  formatConfigPath,
   formatConfigPathAsJson,
   writeTerminalJson,
   writeTerminalNotice,
@@ -123,11 +122,7 @@ export function registerConfigCommand(program: Command): void {
     try {
       const path = service.getPath();
 
-      printConfigResult(
-        formatConfigPath(path),
-        formatConfigPathAsJson(path),
-        resolveOutputJson(command, service.getConfig()),
-      );
+      printConfigResult(path, formatConfigPathAsJson(path), resolveOutputJson(command, service.getConfig()));
     } finally {
       service.close();
     }

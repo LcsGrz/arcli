@@ -1,6 +1,6 @@
 import { isTrustedHyperlink } from '../primitives/hyperlink';
 import { highlightJsonValues } from '../primitives/renderJson';
-import { renderForTarget, supportsColor } from '../primitives/text';
+import { renderForTarget, shouldUseColor } from '../primitives/text';
 
 interface TerminalStreamOptions {
   readonly json?: boolean;
@@ -38,7 +38,7 @@ export function formatTerminalOutput(content: string, options: TerminalStreamOpt
 function shouldHighlightJson(target: 'stderr' | 'stdout'): boolean {
   const stream = target === 'stderr' ? process.stderr : process.stdout;
 
-  return stream.isTTY === true && supportsColor(target);
+  return stream.isTTY === true && shouldUseColor(target);
 }
 
 export function writeTerminalOutput(content: string): void {

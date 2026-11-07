@@ -9,7 +9,6 @@ import { usesAsciiBorders } from './symbols';
 import { fitToTerminal, resolveTerminalColumns } from './terminalWidth';
 import {
   bold,
-  centerLineBlock,
   centerLines,
   colorize,
   flattenVisibleLines,
@@ -19,7 +18,7 @@ import {
   wrapPanelLines,
 } from './text';
 
-type PanelAlignment = 'block-center' | 'center' | 'left';
+type PanelAlignment = 'center' | 'left';
 
 export interface RenderPanelProps {
   readonly borderColor?: BoxenOptions['borderColor'];
@@ -36,7 +35,6 @@ export interface RenderPanelProps {
   readonly subtitle?: string;
   readonly subtitleColor?: UiTextColor;
   readonly title?: string;
-  readonly titleAlignment?: BoxenOptions['titleAlignment'];
   readonly titleColor?: UiTextColor;
   readonly width?: UiWidthPreset | number;
 }
@@ -75,10 +73,6 @@ function resolveMaxWidth(width: RenderPanelProps['maxWidth']): number | null {
 function alignLines(lines: readonly string[], width: number, align: PanelAlignment): string[] {
   if (align === 'left') {
     return flattenVisibleLines(lines);
-  }
-
-  if (align === 'block-center') {
-    return centerLineBlock(lines, width);
   }
 
   return centerLines(lines, width);
@@ -164,8 +158,7 @@ export function renderPanel(props: RenderPanelProps): string {
     configuredMaxWidth === null ? Number.POSITIVE_INFINITY : Math.max(minimumWidth, configuredMaxWidth);
   const maximumWidth = terminalLimit === null ? presetMaximumWidth : Math.min(presetMaximumWidth, terminalLimit);
   const contentLines = typeof props.content === 'string' ? props.content.split('\n') : [...props.content];
-  const visibleLines = [...contentLines];
-  const calculatedWidth = maxVisibleWidth(visibleLines) + paddingLeft + paddingRight + 2;
+  const calculatedWidth = maxVisibleWidth(contentLines) + paddingLeft + paddingRight + 2;
   const panelWidth = Math.min(maximumWidth, Math.max(minimumWidth, calculatedWidth));
   const innerWidth = Math.max(0, panelWidth - paddingLeft - paddingRight - 2);
   // Con junction la linea se une al borde; si no, va por adentro como un divisor `═`.
@@ -219,7 +212,7 @@ export function renderPanel(props: RenderPanelProps): string {
     borderStyle: borderStyle.box,
     padding,
     title: formatTitle(props.title, props.titleColor),
-    titleAlignment: props.titleAlignment ?? borderStyle.titleAlignment ?? 'center',
+    titleAlignment: borderStyle.titleAlignment ?? 'center',
     width: panelWidth,
   });
 

@@ -91,12 +91,7 @@ export interface UiTheme {
   readonly asciiBorderStyle: UiBorderStyle;
   readonly commandBar: { readonly ascii: string; readonly unicode: string };
   readonly colors: Readonly<Record<UiColorToken, string>>;
-  readonly headingLineMinWidth: number;
   readonly spacing: {
-    readonly gaps: {
-      readonly section: number;
-      readonly block: number;
-    };
     readonly panelPadding: BoxenSpacing;
   };
   /** Simbolos de la salida, con su respaldo para ARCLI_ASCII=1. Se piden con `uiSymbol`. */
@@ -311,12 +306,7 @@ export const UI_THEME: UiTheme = {
     testing: '\u001B[38;5;208m',
     warning: '\u001B[33m',
   },
-  headingLineMinWidth: 18,
   spacing: {
-    gaps: {
-      block: 1,
-      section: 2,
-    },
     panelPadding: {
       top: 1,
       right: 2,
