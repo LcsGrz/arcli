@@ -36,23 +36,29 @@ function isCommanderUsageError(error: unknown): error is CommanderError {
 
 /** Los mensajes de error de uso de commander (15.x), que vienen en ingles. */
 const COMMANDER_MESSAGES: ReadonlyArray<readonly [RegExp, string]> = [
-  [/unknown option '([^']+)'/, "opción desconocida '$1'"],
+  [/unknown option '([^']+)'/, 'opción desconocida `$1`'],
   [/unknown command '([^']+)'/, 'comando desconocido `$1`'],
-  [/missing required argument '([^']+)'/, "falta el argumento obligatorio '$1'"],
-  [/option '([^']+)' argument missing/, "falta el valor de la opción '$1'"],
-  [/required option '([^']+)' not specified/, "falta la opción obligatoria '$1'"],
-  [/option '([^']+)' argument '([^']*)' is invalid\./, "el valor '$2' de la opción '$1' no es válido."],
+  [/missing required argument '([^']+)'/, 'falta el argumento obligatorio `$1`'],
+  [/option '([^']+)' argument missing/, 'falta el valor de la opción `$1`'],
+  [/required option '([^']+)' not specified/, 'falta la opción obligatoria `$1`'],
+  [/option '([^']+)' argument '([^']*)' is invalid\./, "el valor '$2' de la opción `$1` no es válido."],
   [
     /too many arguments(?: for '([^']+)')?\. Expected (\d+) arguments? but got (\d+): (.*)\./,
     'sobran argumentos: espera $2 y recibió $3 ($4).',
   ],
   [/ cannot be used with /, ' no se puede usar junto con '],
-  [/\(Did you mean one of ([^?]+)\?\)/, '(¿quisiste decir alguno de $1?)'],
-  [/\(Did you mean ([^?]+)\?\)/, '(¿quisiste decir $1?)'],
+  [/\(Did you mean ([^?]+)\?\)/, '(¿quisiste decir `$1`?)'],
 ];
 
 function translateCommanderMessage(message: string): string {
-  return COMMANDER_MESSAGES.reduce((result, [pattern, replacement]) => result.replace(pattern, replacement), message);
+  // Va antes que la tabla: "Did you mean one of" tambien coincide con "Did you mean".
+  const suggested = message.replace(/\(Did you mean one of ([^?]+)\?\)/, (_match, options: string) => {
+    const quoted = options.split(', ').map((option) => `\`${option}\``);
+
+    return `(¿quisiste decir alguno de ${quoted.join(', ')}?)`;
+  });
+
+  return COMMANDER_MESSAGES.reduce((result, [pattern, replacement]) => result.replace(pattern, replacement), suggested);
 }
 
 /** El error de uso de commander como `INPUT_VALIDATION_ERROR`, en el mismo formato que el resto. */

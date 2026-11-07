@@ -867,7 +867,7 @@ Una opción desconocida, un valor faltante o un comando que no existe también s
 {
   "codigo": "INPUT_VALIDATION_ERROR",
   "detalles": null,
-  "error": "opción desconocida '--montoo' (¿quisiste decir --monto?)",
+  "error": "opción desconocida `--montoo` (¿quisiste decir `--monto`?)",
   "sugerencia": "Usá `arcli ayuda` o `arcli <comando> --ayuda` para ver comandos y opciones."
 }
 ```

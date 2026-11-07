@@ -92,9 +92,10 @@ describe('JSON output resolved the same way in every command', () => {
 
 describe('commander usage errors', () => {
   it.each([
-    [['fc', '--montoo', '1', '--json'], "opción desconocida '--montoo' (¿quisiste decir --monto?)"],
-    [['fc', '--json', '--monto'], "falta el valor de la opción '-m, --monto <numero>'"],
+    [['fc', '--montoo', '1', '--json'], 'opción desconocida `--montoo` (¿quisiste decir `--monto`?)'],
+    [['fc', '--json', '--monto'], 'falta el valor de la opción `-m, --monto <numero>`'],
     [['comando-que-no-existe', '--json'], 'comando desconocido `comando-que-no-existe`'],
+    [['padron', '--json'], 'falta el argumento obligatorio `cuit`'],
     [['padron', '1', '2', '--json'], 'sobran argumentos: espera 1 y recibió 2 (1, 2).'],
   ])('%j prints a parseable INPUT_VALIDATION_ERROR with --json', async (argv, message) => {
     const { exitCode, stderr, stdout } = await runReportingErrors(argv);
@@ -117,8 +118,8 @@ describe('commander usage errors', () => {
     const { exitCode, stderr } = await runReportingErrors(['fc', '--montoo', '1']);
 
     expect(stderr).toContain('ERROR DE ENTRADA');
-    expect(stderr).toContain("opción desconocida '--montoo'");
-    expect(stderr).toContain('(¿quisiste decir --monto?)');
+    expect(stderr).toContain('opción desconocida `--montoo`');
+    expect(stderr).toContain('(¿quisiste decir `--monto`?)');
     expect(stderr).toContain('`arcli ayuda`');
     expect(stderr).not.toContain('error:');
     expect(exitCode).toBe(1);
