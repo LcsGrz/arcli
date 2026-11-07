@@ -8,6 +8,7 @@ import {
   type ArcliEnvironment,
   arcliEnvironmentSchema,
   formatEnvironmentLabel,
+  MISSING_CUIT_MESSAGE,
 } from './config.schemas';
 
 /** Como se agrupan los chequeos en el texto de `config revisar`, en este orden; el JSON no las lleva. */
@@ -28,6 +29,8 @@ export interface ConfigDoctorReport {
     /** Se lee solo, sin la etiqueta: el texto lo muestra como un item de su seccion. */
     readonly detail: string;
     readonly label: string;
+    /** Etiqueta del chequeo que este repite: el texto muestra uno solo, con la categoria y el detalle de este. */
+    readonly repeats?: string;
     readonly section: ConfigDoctorSection;
     /** El dato del chequeo dentro de `detail` (un valor, una fecha, el entorno): el texto lo resalta. */
     readonly value?: string;
@@ -314,7 +317,13 @@ export function buildConfigDoctorReport(
 
     checks.push(
       runtimeCheck.error
-        ? { category: 'error', detail: runtimeCheck.error, label, section: 'validaciones' }
+        ? {
+            category: 'error',
+            detail: runtimeCheck.error,
+            label,
+            ...(runtimeCheck.error === MISSING_CUIT_MESSAGE ? { repeats: 'CUIT' } : {}),
+            section: 'validaciones',
+          }
         : {
             category: 'ok',
             detail: `Configuración válida para ${environment}.`,
