@@ -15,7 +15,7 @@ El código vive en `src/ui`: tokens en [`theme/theme.ts`](../src/ui/theme/theme.
 
 ## Color
 
-Solo tokens de `UI_THEME.colors`, cada uno con un significado. No se usan como adorno ni para distinguir cosas que no tienen ese significado.
+Solo tokens de `UI_THEME.colors`, cada uno con un significado. No se usan como adorno ni para distinguir cosas que no tienen ese significado. Fuera de `src/ui`, el lint no deja importar `boxen` ni `styleText`: se usan `colorize`, `bold` y los paneles.
 
 | Token        | Significa                                             |
 | ------------ | ----------------------------------------------------- |
@@ -137,8 +137,5 @@ Cada dato tiene su helper. Antes de escribir un formato, buscá si ya existe.
 Estas reglas son el objetivo. Quedan excepciones conocidas:
 
 - `contentPanel` y `keyValuePanel` reciben borde y color por parámetro; faltan los paneles por rol y unificar factura con exportación.
-- `UiTextColor` acepta cualquier string y ningún lint prohíbe `boxen` o `styleText` fuera de `src/ui`.
-- `prompts.ts` usa `styleText` en lugar de tokens y `arcli ejemplos` usa `debug`.
-- El header del modo interactivo escribe directo a stdout.
 - Los colores `production`, `testing` y `highlight` se leen mal sobre fondo claro, y el banner de testing usa `warning`.
 - Al storybook le faltan los prompts, que son interactivos.

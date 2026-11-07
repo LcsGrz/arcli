@@ -58,6 +58,29 @@ export default defineConfig([
   },
 
   // =========================
+  // Colores y paneles solo desde src/ui (docs/design-system.md)
+  // =========================
+  {
+    files: ['src/**/*.ts'],
+    ignores: ['src/ui/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            { name: 'boxen', message: 'Usá los paneles de src/ui.' },
+            ...['node:util', 'util'].map((name) => ({
+              name,
+              importNames: ['styleText'],
+              message: 'Usá colorize o bold de src/ui, con un token de color.',
+            })),
+          ],
+        },
+      ],
+    },
+  },
+
+  // =========================
   // JSON, JSONC, JSON5 configs
   // =========================
   {

@@ -1,10 +1,9 @@
 import input from '@inquirer/input';
 import select, { Separator } from '@inquirer/select';
 import { emitKeypressEvents } from 'node:readline';
-import { styleText } from 'node:util';
 
 import { BACK, type Back } from '../../modules/interactive/wizard';
-import { colorize, uiSymbol, usesAsciiBorders, writeTerminalRaw } from '../../ui';
+import { bold, colorize, uiSymbol, usesAsciiBorders, writeTerminalRaw } from '../../ui';
 
 import { multiSelect } from './multi-select';
 
@@ -31,18 +30,18 @@ const HELP_TRANSLATIONS: Record<string, HelpKey> = {
 function keysHelpTip(extra: readonly HelpKey[]): (keys: HelpKey[]) => string {
   return (keys) =>
     [...keys.map(([key, action]) => HELP_TRANSLATIONS[`${key} ${action}`] ?? [key, action]), ...extra]
-      .map(([key, action]) => `${styleText('bold', key)} ${styleText('dim', action)}`)
-      .join(styleText('dim', ` ${uiSymbol('bullet')} `));
+      .map(([key, action]) => `${bold(key)} ${colorize(action, 'muted')}`)
+      .join(colorize(` ${uiSymbol('bullet')} `, 'muted'));
 }
 
 /**
  * La pregunta activa lleva dos lineas en blanco arriba, para separarla de las ya respondidas. Al responderla
  * @inquirer la redibuja con el prefijo "done", sin esas lineas, y las respuestas quedan juntas.
  */
-const DONE_PREFIX = styleText('green', uiSymbol('done'));
-const PROMPT_PREFIX = { done: DONE_PREFIX, idle: `\n\n${styleText('blue', '?')}` };
+const DONE_PREFIX = colorize(uiSymbol('done'), 'success');
+const PROMPT_PREFIX = { done: DONE_PREFIX, idle: `\n\n${colorize('?', 'info')}` };
 /** Una sola linea arriba: para una pregunta que ya tiene una linea en blanco fija antes, como el menu bajo la barra. */
-const COMPACT_PROMPT_PREFIX = { done: DONE_PREFIX, idle: `\n${styleText('blue', '?')}` };
+const COMPACT_PROMPT_PREFIX = { done: DONE_PREFIX, idle: `\n${colorize('?', 'info')}` };
 
 // Los iconos y el spinner de @inquirer son Unicode: con ARCLI_ASCII=1 se reemplazan.
 const ASCII_THEME = usesAsciiBorders()
@@ -58,10 +57,9 @@ const ASCII_THEME = usesAsciiBorders()
  */
 function listStyle(extraKeys: readonly HelpKey[]) {
   return {
-    description: (text: string) => `${styleText('cyan', text)}\n`,
+    description: (text: string) => `${colorize(text, 'info')}\n`,
     keysHelpTip: keysHelpTip(extraKeys),
-    message: (text: string, status: string) =>
-      status === 'done' ? styleText('bold', text) : `${styleText('bold', text)}\n`,
+    message: (text: string, status: string) => (status === 'done' ? bold(text) : `${bold(text)}\n`),
   };
 }
 
@@ -70,7 +68,7 @@ const STEP_THEME = { ...ASCII_THEME, prefix: PROMPT_PREFIX, style: listStyle([['
 const TEXT_THEME = {
   ...ASCII_THEME,
   prefix: PROMPT_PREFIX,
-  style: { defaultAnswer: (text: string) => styleText('dim', `enter: ${text}`) },
+  style: { defaultAnswer: (text: string) => colorize(`enter: ${text}`, 'muted') },
 };
 
 /**
@@ -161,7 +159,7 @@ const ESCAPE_REASON = 'esc';
 
 /** La misma linea que deja @inquirer al responder; hace falta cuando el prompt se borra al cerrarse. */
 function writeAnsweredLine(message: string, answer: string): void {
-  writeTerminalRaw(`${DONE_PREFIX} ${styleText('bold', message)} ${styleText('cyan', answer)}\n`);
+  writeTerminalRaw(`${DONE_PREFIX} ${bold(message)} ${colorize(answer, 'info')}\n`);
 }
 
 /**

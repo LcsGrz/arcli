@@ -10,10 +10,9 @@ import {
   usePrefix,
   useState,
 } from '@inquirer/core';
-import { styleText } from 'node:util';
 
 import { BACK, type Back } from '../../modules/interactive/wizard';
-import { uiSymbol } from '../../ui';
+import { colorize, uiSymbol } from '../../ui';
 
 /** Oculta el cursor de la terminal mientras se muestra la lista; @inquirer lo vuelve a mostrar al cerrarla. */
 const CURSOR_HIDE = '\u001B[?25l';
@@ -114,7 +113,7 @@ export const multiSelect = createPrompt(
           return color(`${cursor} ${config.backLabel}`);
         }
 
-        const icon = marked.includes(item.value) ? styleText('green', uiSymbol('selected')) : uiSymbol('unselected');
+        const icon = marked.includes(item.value) ? colorize(uiSymbol('selected'), 'success') : uiSymbol('unselected');
 
         return color(`${cursor} ${icon} ${item.name}`);
       },
