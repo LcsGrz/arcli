@@ -29,6 +29,7 @@ Solo tokens de `UI_THEME.colors`, cada uno con un significado. No se usan como a
 | `highlight`  | Invita a una acción, como actualizar arcli            |
 | `testing`    | El entorno de testing                                 |
 | `production` | El entorno de producción                              |
+| `logo`       | El celeste de la bandera, solo en el logo             |
 | `debug`      | Solo storybook                                        |
 
 ## Paneles
