@@ -2,7 +2,8 @@ import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { formatCuit } from '../../lib/identity/format-cuit';
 import { DEPRECATED_CUIT_NUMBER } from '../../lib/json/deprecations';
 import { formatArgentineMoney } from '../../lib/numbers/argentine-amount';
-import { keyValuePanel, renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui';
+import { keyValuePanel } from '../../ui/components';
+import { renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui/primitives';
 
 import type { FceObligation } from './fce-obligation';
 

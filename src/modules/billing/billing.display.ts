@@ -1,14 +1,7 @@
 import type { IIva } from '@arcasdk/core/lib/domain/types/voucher.types';
 
-import {
-  keyValuePanel,
-  renderKeyValueRows,
-  renderTable,
-  resolveKeyValueLabelWidth,
-  statusPanel,
-  testingBanner,
-  toneText,
-} from '../../ui';
+import { keyValuePanel, statusPanel, testingBanner } from '../../ui/components';
+import { renderKeyValueRows, renderTable, resolveKeyValueLabelWidth, toneText } from '../../ui/primitives';
 import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
 
 import { CONSUMER_DOCUMENT_TYPE_CODE, CONSUMER_IVA_CONDITION_CODE, isTaxIdDocumentType } from './arca-codes';

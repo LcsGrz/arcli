@@ -1,7 +1,8 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { formatCuit } from '../../lib/identity/format-cuit';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
-import { keyValuePanel, noticePanel, renderKeyValueRows, resolveKeyValueLabelWidth, uiSymbol } from '../../ui';
+import { keyValuePanel, noticePanel } from '../../ui/components';
+import { renderKeyValueRows, resolveKeyValueLabelWidth, uiSymbol } from '../../ui/primitives';
 import { CONSUMER_DOCUMENT_TYPE_CODE, isTaxIdDocumentType } from '../billing/arca-codes';
 import {
   formatConceptLabel,

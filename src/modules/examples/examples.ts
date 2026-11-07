@@ -1,5 +1,6 @@
 import { toArgentineCalendarDate } from '../../lib/dates/arca-date';
-import { badge, renderLogo, sectionHeading, toneText } from '../../ui';
+import { sectionHeading } from '../../ui/components';
+import { badge, renderLogo, toneText } from '../../ui/primitives';
 import type { VoucherFamily, VoucherKindDefinition } from '../billing/billing.types';
 import { VOUCHER_FAMILIES, VOUCHER_KIND_MAP, VOUCHER_SHORTCUTS } from '../billing/voucher-kind-map';
 import { EXPORT_VOUCHER_KIND } from '../export/export.types';

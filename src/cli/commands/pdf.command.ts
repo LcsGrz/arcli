@@ -2,14 +2,9 @@ import { Command } from 'commander';
 import { join } from 'node:path';
 
 import { ConfigService } from '../../modules/config/config.service';
+import { formatPdfPluginStatusAsJson, formatPdfPluginStatusAsText } from '../../modules/pdf/pdf.presenter';
 import { PdfPlugin } from '../../services/pdf/pdf-plugin';
-import {
-  formatPdfPluginStatusAsJson,
-  formatPdfPluginStatusAsText,
-  noticePanel,
-  writeTerminalJson,
-  writeTerminalOutput,
-} from '../../ui';
+import { noticePanel, writeTerminalJson, writeTerminalOutput } from '../../ui';
 import { registerJsonOption, resolveOutputJson } from '../global-options';
 import { configureSpanishHelp } from '../help';
 import { startSpinner } from '../spinner';

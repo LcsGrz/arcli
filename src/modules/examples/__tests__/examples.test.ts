@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { stripAnsi } from '../../../ui';
+import { stripAnsi } from '../../../ui/primitives';
 import { renderExamples } from '../examples';
 
 describe('examples', () => {

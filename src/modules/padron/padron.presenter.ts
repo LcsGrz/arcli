@@ -1,6 +1,7 @@
 import { formatCuit } from '../../lib/identity/format-cuit';
 import { DEPRECATED_CUIT_NUMBER } from '../../lib/json/deprecations';
-import { keyValuePanel, renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui';
+import { keyValuePanel } from '../../ui/components';
+import { renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui/primitives';
 import { ivaConditionCode, ivaConditionLabel } from '../billing/arca-codes';
 
 import type { Taxpayer } from './padron';

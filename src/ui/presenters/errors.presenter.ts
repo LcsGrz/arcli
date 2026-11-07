@@ -1,11 +1,7 @@
-import { ZodError } from 'zod';
-
 import { AppError, HELP_SUGGESTION } from '../../lib/errors/app-error';
 import { errorPanel } from '../components/errorPanel';
 import { renderJson } from '../primitives/renderJson';
 import { bold } from '../primitives/text';
-
-import { formatZodError } from './errors.zod-presenter';
 
 function formatErrorTitle(code: string): string {
   switch (code) {
@@ -102,11 +98,8 @@ function formatErrorDetailsAsJson(details: Record<string, unknown> | undefined):
   );
 }
 
-export function formatCliError(error: unknown, useJson: boolean): string {
-  if (error instanceof ZodError) {
-    return formatZodError(error, useJson);
-  }
-
+/** Un error de la app o inesperado. Los de un esquema (zod) los describe el dominio: ver `formatInputIssues`. */
+export function formatAppError(error: unknown, useJson: boolean): string {
   if (error instanceof AppError) {
     if (useJson) {
       return renderJson({

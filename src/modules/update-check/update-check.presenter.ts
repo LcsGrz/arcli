@@ -1,4 +1,5 @@
-import { bold, colorize, noticePanel, renderPanel, uiSymbol, type UiTextColor } from '../../ui';
+import { noticePanel } from '../../ui/components';
+import { bold, colorize, renderPanel, uiSymbol, type UiTextColor } from '../../ui/primitives';
 
 import { CHANGELOG_PAGE_URL, type ChangelogChange, type ChangelogChangeKind, type ChangelogEntry } from './changelog';
 import { resolveUpdateCommand } from './package-manager';

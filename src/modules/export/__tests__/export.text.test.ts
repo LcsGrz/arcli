@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { stripAnsi } from '../../../ui';
+import { stripAnsi } from '../../../ui/primitives';
 import { formatExportPayloadTable } from '../export.text';
 import { EXPORT_VOUCHER_KIND, type ExportExecutionResult, type ExportVoucherPayload } from '../export.types';
 

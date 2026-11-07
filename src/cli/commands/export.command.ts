@@ -5,18 +5,13 @@ import {
   formatVoucherWithArticle,
   NOTHING_EMITTED_NOTICE,
 } from '../../modules/billing/billing.mappers';
+import { formatExportResultAsJson, formatExportResultAsText } from '../../modules/export/export.presenter';
 import { ExportService } from '../../modules/export/export.service';
 import { EXPORT_VOUCHER_KIND, type ExportExecutionResult } from '../../modules/export/export.types';
+import { formatPdfOutcomeAsText } from '../../modules/pdf/pdf.presenter';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { ArcaExportGateway } from '../../services/arca/arca-export.gateway';
-import {
-  formatExportResultAsJson,
-  formatExportResultAsText,
-  formatPdfOutcomeAsText,
-  noticePanel,
-  writeTerminalJson,
-  writeTerminalOutput,
-} from '../../ui';
+import { noticePanel, writeTerminalJson, writeTerminalOutput } from '../../ui';
 import { certificateWarnings, resolveArcaRuntime } from '../arca-runtime';
 import { getGlobalOptions } from '../global-options';
 import { chooseOne } from '../interactive/prompts';

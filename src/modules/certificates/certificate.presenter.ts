@@ -10,9 +10,9 @@ import {
   renderPanel,
   supportsHyperlinks,
   toneText,
-  type UiColorToken,
   uiSymbol,
-} from '../../ui';
+} from '../../ui/primitives';
+import { type UiColorToken } from '../../ui/theme';
 import { formatCertificateExpiryDate } from '../config/certificate-expiry';
 import { type ArcliEnvironment, formatEnvironmentLabel } from '../config/config.schemas';
 

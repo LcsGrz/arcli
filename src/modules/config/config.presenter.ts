@@ -2,17 +2,9 @@ import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { formatCuit } from '../../lib/identity/format-cuit';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { maskPath } from '../../lib/paths/mask-path';
-import {
-  bold,
-  colorize,
-  keyValuePanel,
-  pathLink,
-  resolveKeyValueLabelWidth,
-  statusPanel,
-  toneText,
-  UI_THEME,
-  uiSymbol,
-} from '../../ui';
+import { keyValuePanel, statusPanel } from '../../ui/components';
+import { bold, colorize, pathLink, resolveKeyValueLabelWidth, toneText, uiSymbol } from '../../ui/primitives';
+import { UI_THEME } from '../../ui/theme';
 import { RECENT_VOUCHERS_LIMIT } from '../vouchers/voucher-history';
 
 import type { ArcliConfig, ConfigPublicKey } from './config.schemas';

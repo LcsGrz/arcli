@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { ZodError } from 'zod';
+import { z, type ZodError } from 'zod';
 
-import { billingCommandSchema } from '../../../modules/billing/billing.schemas';
-import { stripAnsi } from '../../primitives/text';
-import { formatZodError } from '../errors.zod-presenter';
+import { billingCommandSchema } from '../../modules/billing/billing.schemas';
+import { stripAnsi } from '../../ui';
+import { formatCliError } from '../error-output';
 
 function parseAndGetError(input: unknown): ZodError {
   const result = billingCommandSchema.safeParse(input);
@@ -15,7 +15,7 @@ function parseAndGetError(input: unknown): ZodError {
   return result.error;
 }
 
-describe('errors.zod-presenter', () => {
+describe('formatCliError con errores de zod', () => {
   it('avisa cuando falta un campo string obligatorio', () => {
     const error = parseAndGetError({
       concept: 'servicios',
@@ -23,7 +23,7 @@ describe('errors.zod-presenter', () => {
       totalAmount: 100,
     });
 
-    expect(formatZodError(error, false)).toContain('Falta el dato: shortcut.');
+    expect(formatCliError(error, false)).toContain('Falta el dato: shortcut.');
   });
 
   it('usa un mensaje especifico para montos invalidos', () => {
@@ -34,7 +34,7 @@ describe('errors.zod-presenter', () => {
       totalAmount: -5,
     });
 
-    expect(formatZodError(error, false)).toContain('El monto debe ser mayor a 0.');
+    expect(formatCliError(error, false)).toContain('El monto debe ser mayor a 0.');
   });
 
   it('marca valores no soportados con la etiqueta legible en español', () => {
@@ -46,8 +46,8 @@ describe('errors.zod-presenter', () => {
       totalAmount: 100,
     });
 
-    expect(formatZodError(error, false)).toContain('Tipo de documento tiene un valor no soportado.');
-    expect(stripAnsi(formatZodError(error, false)).replace(/[│┃\s]+/g, ' ')).toContain(
+    expect(formatCliError(error, false)).toContain('Tipo de documento tiene un valor no soportado.');
+    expect(stripAnsi(formatCliError(error, false)).replace(/[│┃\s]+/g, ' ')).toContain(
       'Valores válidos: consumidor-final, cuil, cuit, dni.',
     );
   });
@@ -59,7 +59,7 @@ describe('errors.zod-presenter', () => {
       totalAmount: 100,
     });
 
-    const parsed = JSON.parse(formatZodError(error, true)) as {
+    const parsed = JSON.parse(formatCliError(error, true)) as {
       codigo: string;
       detalles: Array<{ mensaje: string; ruta: string[] }>;
       error: string;
@@ -78,7 +78,7 @@ describe('errors.zod-presenter', () => {
       totalAmount: 100,
     });
 
-    expect(formatZodError(error, false)).toContain('Punto de venta debe ser mayor a');
+    expect(formatCliError(error, false)).toContain('Punto de venta debe ser mayor a');
   });
 
   it('traduce a la clave del JSON tambien los campos que solo usa el PDF', () => {
@@ -90,8 +90,18 @@ describe('errors.zod-presenter', () => {
       totalAmount: 100,
     });
 
-    const parsed = JSON.parse(formatZodError(error, true)) as { detalles: Array<{ ruta: string[] }> };
+    const parsed = JSON.parse(formatCliError(error, true)) as { detalles: Array<{ ruta: string[] }> };
 
     expect(parsed.detalles).toContainEqual(expect.objectContaining({ ruta: ['descripcion'] }));
+  });
+});
+
+describe('formatCliError', () => {
+  it('siempre incluye sugerencia en el JSON de un error de zod, null porque no hay', () => {
+    const error = z.object({ monto: z.number() }).safeParse({}).error as ZodError;
+    const json = JSON.parse(formatCliError(error, true)) as Record<string, unknown>;
+
+    expect(Object.keys(json).sort()).toEqual(['codigo', 'detalles', 'error', 'sugerencia']);
+    expect(json.sugerencia).toBeNull();
   });
 });

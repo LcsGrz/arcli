@@ -2,7 +2,8 @@ import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { DEPRECATED_POINT_OF_SALE_OBJECT } from '../../lib/json/deprecations';
 import { POINT_OF_SALE_GUIDE_URL } from '../../lib/links';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
-import { keyValuePanel, noticePanel, renderKeyValueRows, resolveKeyValueLabelWidth, uiSymbol } from '../../ui';
+import { keyValuePanel, noticePanel } from '../../ui/components';
+import { renderKeyValueRows, resolveKeyValueLabelWidth, uiSymbol } from '../../ui/primitives';
 import { formatEnvironmentLabel } from '../config/config.schemas';
 
 import {

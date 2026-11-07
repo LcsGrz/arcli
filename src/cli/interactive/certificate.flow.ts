@@ -15,7 +15,8 @@ import {
 } from '../../modules/config/config.schemas';
 import { ConfigService } from '../../modules/config/config.service';
 import { BACK, type Back } from '../../modules/interactive/wizard';
-import { formatCliError, noticePanel, uiSymbol, writeTerminalError, writeTerminalOutput } from '../../ui';
+import { noticePanel, uiSymbol, writeTerminalError, writeTerminalOutput } from '../../ui';
+import { formatCliError } from '../error-output';
 
 import { askTextStep, chooseStep, confirm } from './prompts';
 

@@ -1,8 +1,8 @@
 import type { Command } from 'commander';
 
 import { InputValidationError } from '../../lib/errors/app-error';
-import type { StorybookScene } from '../../ui';
-import { renderStorybookShowcase, writeTerminalOutput } from '../../ui';
+import { renderStorybookShowcase, type StorybookScene } from '../../modules/storybook/showcase';
+import { writeTerminalOutput } from '../../ui';
 import { configureSpanishHelp, createStorybookHelp } from '../help';
 
 const STORYBOOK_SCENES: StorybookScene[] = [

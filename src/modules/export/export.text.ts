@@ -1,17 +1,14 @@
 import { formatCuit } from '../../lib/identity/format-cuit';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
+import { contentPanel, keyValuePanel, statusPanel, testingBanner } from '../../ui/components';
 import {
-  contentPanel,
-  keyValuePanel,
   renderKeyValueRows,
   renderObject,
   renderTable,
   resolveKeyValueLabelWidth,
-  statusPanel,
-  testingBanner,
   toneText,
   uiSymbol,
-} from '../../ui';
+} from '../../ui/primitives';
 import {
   formatArcaMessages,
   formatCurrencyLabel,

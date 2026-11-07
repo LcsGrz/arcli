@@ -6,6 +6,15 @@ import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended'
 import simpleImportSort from 'eslint-plugin-simple-import-sort';
 import eslintTS from 'typescript-eslint';
 
+const UI_STYLE_IMPORTS = [
+  { name: 'boxen', message: 'Usá los paneles de src/ui.' },
+  ...['node:util', 'util'].map((name) => ({
+    name,
+    importNames: ['styleText'],
+    message: 'Usá colorize o bold de src/ui, con un token de color.',
+  })),
+];
+
 export default defineConfig([
   // =========================
   // Global ignores
@@ -58,22 +67,43 @@ export default defineConfig([
   },
 
   // =========================
-  // Colores y paneles solo desde src/ui (docs/design-system.md)
+  // Capas (docs/architecture.md) y colores y paneles solo desde src/ui (docs/design-system.md)
   // =========================
   {
     files: ['src/**/*.ts'],
     ignores: ['src/ui/**'],
     rules: {
+      'no-restricted-imports': ['error', { paths: UI_STYLE_IMPORTS }],
+    },
+  },
+  {
+    files: ['src/lib/**/*.ts', 'src/modules/**/*.ts', 'src/services/**/*.ts'],
+    rules: {
       'no-restricted-imports': [
         'error',
         {
-          paths: [
-            { name: 'boxen', message: 'Usá los paneles de src/ui.' },
-            ...['node:util', 'util'].map((name) => ({
-              name,
-              importNames: ['styleText'],
-              message: 'Usá colorize o bold de src/ui, con un token de color.',
-            })),
+          paths: UI_STYLE_IMPORTS,
+          patterns: [
+            {
+              regex: '(^|/)ui$',
+              message: 'El barrel src/ui reexporta todo: importá de src/ui/primitives, components, presenters, stream o theme.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['src/ui/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              regex: '/(cli|modules|services)(/|$)',
+              message: 'La UI no conoce el dominio: recibí los datos ya armados (ver docs/architecture.md).',
+            },
           ],
         },
       ],

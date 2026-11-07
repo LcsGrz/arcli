@@ -13,6 +13,7 @@ import {
   uninstallCompletion,
 } from '../../modules/completion/installer';
 import { COMPLETION_SHELLS, type CompletionShell } from '../../modules/completion/shell-scripts';
+import { formatConfigAsText, formatConfigDoctorAsText } from '../../modules/config/config.presenter';
 import type { ArcliConfig, ConfigPublicKey } from '../../modules/config/config.schemas';
 import { CONFIG_SECTIONS } from '../../modules/config/config.sections';
 import { ConfigService, validateConfigValue } from '../../modules/config/config.service';
@@ -24,16 +25,9 @@ import {
   getConfigField,
 } from '../../modules/interactive/config-fields';
 import { BACK, type Back, runWizard, type WizardStep } from '../../modules/interactive/wizard';
+import { formatPdfPluginStatusAsText } from '../../modules/pdf/pdf.presenter';
 import { PdfPlugin } from '../../services/pdf/pdf-plugin';
-import {
-  bold,
-  formatConfigAsText,
-  formatConfigDoctorAsText,
-  formatPdfPluginStatusAsText,
-  noticePanel,
-  uiSymbol,
-  writeTerminalOutput,
-} from '../../ui';
+import { bold, noticePanel, uiSymbol, writeTerminalOutput } from '../../ui';
 import { buildRuntimeChecks } from '../commands/config.command';
 import { startSpinner } from '../spinner';
 

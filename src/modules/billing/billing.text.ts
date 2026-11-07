@@ -1,4 +1,5 @@
-import { contentPanel, renderObject, uiSymbol } from '../../ui';
+import { contentPanel } from '../../ui/components';
+import { renderObject, uiSymbol } from '../../ui/primitives';
 
 import { formatEnvironmentBanner, formatPayloadPreview, formatResultPanel, formatStatusBadge } from './billing.display';
 import { formatArcaMessages } from './billing.labels';

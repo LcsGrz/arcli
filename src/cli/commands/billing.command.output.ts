@@ -1,13 +1,8 @@
+import { formatBillingResultAsJson, formatBillingResultAsText } from '../../modules/billing/billing.presenter';
 import { serializeBillingBatch } from '../../modules/billing/billing.serialize';
 import type { BillingExecutionResult } from '../../modules/billing/billing.types.internal';
-import {
-  formatBillingResultAsJson,
-  formatBillingResultAsText,
-  formatPdfOutcomeAsText,
-  noticePanel,
-  writeTerminalJson,
-  writeTerminalOutput,
-} from '../../ui';
+import { formatPdfOutcomeAsText } from '../../modules/pdf/pdf.presenter';
+import { noticePanel, writeTerminalJson, writeTerminalOutput } from '../../ui';
 
 export function formatBillingOutputs(
   results: BillingExecutionResult[],

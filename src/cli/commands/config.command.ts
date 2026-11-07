@@ -2,6 +2,13 @@ import { Command } from 'commander';
 import { join } from 'node:path';
 
 import {
+  formatConfig,
+  formatConfigAsText,
+  formatConfigDoctor,
+  formatConfigDoctorAsText,
+  formatConfigPathAsJson,
+} from '../../modules/config/config.presenter';
+import {
   type ArcliConfig,
   type ArcliEnvironment,
   COTIZACION_DEPRECATION_WARNING,
@@ -10,16 +17,7 @@ import { ConfigService } from '../../modules/config/config.service';
 import { buildConfigDoctorReport, type ConfigDoctorRuntimeCheck } from '../../modules/config/config-doctor';
 import { ArcaContextResolver } from '../../services/arca/arca-context.resolver';
 import { PdfPlugin } from '../../services/pdf/pdf-plugin';
-import {
-  formatConfig,
-  formatConfigAsText,
-  formatConfigDoctor,
-  formatConfigDoctorAsText,
-  formatConfigPathAsJson,
-  writeTerminalJson,
-  writeTerminalNotice,
-  writeTerminalOutput,
-} from '../../ui';
+import { writeTerminalJson, writeTerminalNotice, writeTerminalOutput } from '../../ui';
 import { registerJsonOption, resolveOutputJson } from '../global-options';
 import { configureSpanishHelp, createConfigHelp, createConfigSetHelp } from '../help';
 import { startSpinner } from '../spinner';

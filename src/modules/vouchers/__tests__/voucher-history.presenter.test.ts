@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { stripAnsi } from '../../../ui';
+import { stripAnsi } from '../../../ui/primitives';
 import { VOUCHER_KIND_MAP } from '../../billing/voucher-kind-map';
 import type { IssuedVoucher } from '../voucher-history';
 import {

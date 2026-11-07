@@ -1,4 +1,4 @@
-import { noticePanel } from '../../ui';
+import { noticePanel } from '../../ui/components';
 
 import type { CompletionInstallResult, CompletionInstallState } from './installer';
 

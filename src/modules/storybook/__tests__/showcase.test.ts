@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { renderStorybookShowcase } from '../showcase';
+
+// Lo que no es ASCII ni una letra del español: ARCLI_ASCII cambia bordes y simbolos, no el idioma.
+// eslint-disable-next-line no-control-regex
+const NOT_ALLOWED = /[^\u0000-\u007F¿¡áéíóúüñÁÉÍÓÚÜÑ]/g;
 
 function stripAnsi(value: string): string {
   // eslint-disable-next-line no-control-regex
@@ -8,6 +12,16 @@ function stripAnsi(value: string): string {
 }
 
 describe('storybook.showcase', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('leaves no unicode symbols with ARCLI_ASCII=1', () => {
+    vi.stubEnv('ARCLI_ASCII', '1');
+
+    expect(renderStorybookShowcase().match(NOT_ALLOWED)).toBeNull();
+  });
+
   it('renders all scenes in the default showcase', () => {
     const output = renderStorybookShowcase();
 

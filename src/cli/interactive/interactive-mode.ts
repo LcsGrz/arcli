@@ -15,7 +15,6 @@ import { checkForUpdate, type UpdateCheckResult } from '../../modules/update-che
 import { ArcaParametersGateway } from '../../services/arca/arca-parameters.gateway';
 import {
   colorize,
-  formatCliError,
   noticePanel,
   renderLogo,
   statusBar,
@@ -27,6 +26,7 @@ import {
   writeTerminalRaw,
 } from '../../ui';
 import { renderCertificateNotices } from '../arca-runtime';
+import { formatCliError } from '../error-output';
 import { startSpinner } from '../spinner';
 import type { GlobalCliOptions } from '../types';
 import { CLI_VERSION } from '../version';

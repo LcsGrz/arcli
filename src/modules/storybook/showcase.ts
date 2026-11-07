@@ -2,26 +2,27 @@ import { ConfigurationError, InputValidationError } from '../../lib/errors/app-e
 import { CERTIFICATE_GUIDE_URL } from '../../lib/links';
 import type { ArcaRuntimeValidation } from '../../services/arca/arca-context.resolver';
 import {
-  badge,
   certificateBanner,
-  colorize,
   contentPanel,
-  formatCliError,
-  formatPdfPluginStatusAsText,
+  sectionHeading,
+  statusBar,
+  statusPanel,
+  testingBanner,
+} from '../../ui/components';
+import { formatAppError } from '../../ui/presenters';
+import {
+  badge,
+  colorize,
   highlightJsonValues,
   renderKeyValueRows,
   renderLogo,
   renderObject,
   renderPanel,
   resolveKeyValueLabelWidth,
-  sectionHeading,
-  statusBar,
-  statusPanel,
-  testingBanner,
   toneText,
-  type UiBorderType,
   type UiTextColor,
-} from '../../ui';
+} from '../../ui/primitives';
+import { type UiBorderType } from '../../ui/theme';
 import { formatBillingResultAsJson, formatBillingResultAsText } from '../billing/billing.presenter';
 import type { VoucherKindDefinition } from '../billing/billing.types';
 import type { BillingExecutionResult } from '../billing/billing.types.internal';
@@ -36,6 +37,7 @@ import type { ArcliConfig } from '../config/config.schemas';
 import { buildConfigDoctorReport } from '../config/config-doctor';
 import { formatPadronAsText } from '../padron/padron.presenter';
 import { formatParameterTablesAsText, formatStatusAsText } from '../parameters/parameters.presenter';
+import { formatPdfPluginStatusAsText } from '../pdf/pdf.presenter';
 import { renderUpdateNoticePanel } from '../update-check/update-check.presenter';
 import type { UpdateCheckResult } from '../update-check/update-check.service';
 import type { IssuedVoucher } from '../vouchers/voucher-history';
@@ -461,14 +463,14 @@ function buildCertificatesScene(): string {
 function buildErrorScene(): string {
   return [
     sceneTitle('Errores', 'Configuración, entrada y error inesperado'),
-    formatCliError(
+    formatAppError(
       new ConfigurationError('Falta la ruta de la clave privada para testing.', {
         path: '/Users/demo/.arcli/testing/clave.key',
       }),
       false,
     ),
-    formatCliError(new InputValidationError('Falta el concepto.'), false),
-    formatCliError(new Error('Fallo inesperado de red.'), false),
+    formatAppError(new InputValidationError('Falta el concepto.'), false),
+    formatAppError(new Error('Fallo inesperado de red.'), false),
   ].join('\n\n');
 }
 

@@ -1,4 +1,4 @@
-import { uiSymbol } from '../../ui';
+import { uiSymbol } from '../../ui/primitives';
 
 import { isNewerVersion } from './update-check.service';
 
