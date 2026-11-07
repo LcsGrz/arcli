@@ -23,7 +23,7 @@ export function formatParameterTablesAsText(): string {
 
   return sheetPanel(
     'Tablas de ARCA',
-    renderKeyValueRows(allRows, { labelWidth: resolveKeyValueLabelWidth('standard', allRows, [30, 70]) }),
+    renderKeyValueRows(allRows, { labelWidth: resolveKeyValueLabelWidth('standard', allRows) }),
     { footer: 'Uso: `arcli parametros <tabla>`' },
   );
 }
@@ -96,7 +96,7 @@ export function formatQuotationAsText(quotation: Quotation, environment: Environ
 
   return sheetPanel(
     `Cotización oficial ${uiSymbol('separator')} ${formatEnvironmentLabel(environment)}`,
-    renderKeyValueRows(rows, { labelWidth: resolveKeyValueLabelWidth('standard', rows, [30, 70]) }),
+    renderKeyValueRows(rows, { labelWidth: resolveKeyValueLabelWidth('standard', rows) }),
   );
 }
 
@@ -146,7 +146,7 @@ export function formatStatusAsText(report: StatusReport): string {
 
   return sheetPanel(
     'Estado de ARCA',
-    renderKeyValueRows(rows, { labelWidth: resolveKeyValueLabelWidth('standard', rows, [30, 70]) }),
+    renderKeyValueRows(rows, { labelWidth: resolveKeyValueLabelWidth('standard', rows) }),
     { footer, tone: report.ready ? 'success' : 'warning' },
   );
 }

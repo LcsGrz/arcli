@@ -64,9 +64,8 @@ export function formatPdfPluginStatusAsText(status: PdfPluginStatusView, title =
   ];
   const footer = status.installed ? 'Listo para generar PDFs' : 'Instalalo con `arcli pdf instalar`.';
 
-  return sheetPanel(
-    title,
-    renderKeyValueRows(rows, { labelWidth: resolveKeyValueLabelWidth('standard', rows, [25, 75]) }),
-    { footer, tone: status.installed ? 'success' : 'warning' },
-  );
+  return sheetPanel(title, renderKeyValueRows(rows, { labelWidth: resolveKeyValueLabelWidth('standard', rows) }), {
+    footer,
+    tone: status.installed ? 'success' : 'warning',
+  });
 }

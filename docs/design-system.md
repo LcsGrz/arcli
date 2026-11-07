@@ -34,22 +34,23 @@ Solo tokens de `UI_THEME.colors`, cada uno con un significado. No se usan como a
 
 ## Paneles
 
-Se elige por lo que se muestra, no por cómo se ve. Cada rol tiene su borde y distingue el panel aunque no haya color.
+Se elige por lo que se muestra, no por cómo se ve. Cada rol tiene su función, que fija borde, ancho y color, y distingue el panel aunque no haya color. La factura y la de exportación se arman con los mismos paneles (`formatVoucherText`).
 
-| Contenido                                  | Borde       | Color            |
-| ------------------------------------------ | ----------- | ---------------- |
-| Comprobante: vista previa y resultado      | `ticket`    | Según estado     |
-| Errores del CLI o de ARCA                  | `error`     | `danger`         |
-| Observaciones y avisos                     | `attention` | `warning`        |
-| Sugerencias                                | `tip`       | `warning`        |
-| Fichas de consulta: config, padrón, FCE    | `sheet`     | Según estado     |
-| Revisión con veredicto al pie              | `checklist` | Según veredicto  |
-| Listados en tabla                          | `listing`   | Sin color        |
-| Aviso de una o dos líneas                  | `note`      | `muted` o `info` |
-| Banner de entorno o certificado por vencer | `warning`   | `warning`        |
-| Nueva versión                              | `info`      | `info`           |
-| JSON y respuesta bruta                     | `data`      | `subtle`         |
-| Comando para copiar                        | `command`   | `info`           |
+| Contenido                                  | Función                              | Borde       | Color            |
+| ------------------------------------------ | ------------------------------------ | ----------- | ---------------- |
+| Comprobante: vista previa y resultado      | `ticketPanel`                        | `ticket`    | Según estado     |
+| Errores del CLI                            | `errorPanel`                         | `error`     | `danger`         |
+| Errores de ARCA, como lista                | `errorListPanel`                     | `error`     | `danger`         |
+| Observaciones y avisos                     | `attentionPanel`                     | `attention` | `warning`        |
+| Sugerencias                                | `tipPanel`                           | `tip`       | `warning`        |
+| Fichas de consulta: config, padrón, FCE    | `sheetPanel`                         | `sheet`     | Según estado     |
+| Revisión con veredicto al pie              | `checklistPanel`                     | `checklist` | Según veredicto  |
+| Listados en tabla                          | `listingPanel`                       | `listing`   | Sin color        |
+| Aviso de una o dos líneas                  | `noticePanel`                        | `note`      | `muted` o `info` |
+| Banner de entorno o certificado por vencer | `testingBanner`, `certificateBanner` | `warning`   | `warning`        |
+| Nueva versión                              | `renderUpdateNoticePanel`            | `info`      | `info`           |
+| JSON y respuesta bruta                     | `dataPanel`                          | `data`      | `subtle`         |
+| Comando para copiar                        | `renderPanel` con `command`          | `command`   | `info`           |
 
 - **Un comando va en `command`**, sin borde a la derecha: así se copia sin arrastrar caracteres.
 - **Títulos** en mayúscula, los pone el panel. El pie lleva el estado o el veredicto.
@@ -58,7 +59,7 @@ Se elige por lo que se muestra, no por cómo se ve. Cada rol tiene su borde y di
 ## Layout
 
 - **Ancho:** los paneles miden 92 columnas y se achican con la terminal, con un mínimo de 24. El comprobante mide entre 68 y 80, según su contenido, y va centrado.
-- **Filas etiqueta/valor:** el valor en una columna alineada. Si una fila no entra y su columna no deja lugar, todas las de esa columna ponen la etiqueta arriba y el valor debajo (`wrapPanelLines`).
+- **Filas etiqueta/valor:** con `renderKeyValueRows`, el valor en una columna alineada. La columna de etiquetas ocupa el 50% del panel en el comprobante y el 30% en el resto (`resolveKeyValueLabelWidth`), o lo que mida la etiqueta más larga. Si una fila no entra y su columna no deja lugar, todas las de esa columna ponen la etiqueta arriba y el valor debajo (`wrapPanelLines`).
 - **Listas:** `• texto` o `1. texto`. Al partirse, la línea sigue alineada al texto.
 - **Barra de estado:** una línea; en una terminal angosta, una por lado. Nunca esconde el entorno.
 
@@ -136,6 +137,5 @@ Cada dato tiene su helper. Antes de escribir un formato, buscá si ya existe.
 
 Estas reglas son el objetivo. Quedan excepciones conocidas:
 
-- `contentPanel` y `keyValuePanel` reciben borde y color por parámetro; faltan los paneles por rol y unificar factura con exportación.
 - Los colores `production`, `testing` y `highlight` se leen mal sobre fondo claro, y el banner de testing usa `warning`.
 - Al storybook le faltan los prompts, que son interactivos.

@@ -71,7 +71,7 @@ export function formatPadronAsText(report: PadronReport): string {
 
   return sheetPanel(
     'Padrón de ARCA',
-    renderKeyValueRows(rows, { labelWidth: resolveKeyValueLabelWidth('standard', rows, [25, 75]) }),
+    renderKeyValueRows(rows, { labelWidth: resolveKeyValueLabelWidth('standard', rows) }),
     { footer },
   );
 }

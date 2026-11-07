@@ -10,6 +10,8 @@ type PanelContent = string | readonly string[];
 /** El estado al pie (`APROBADO`, `TODO LISTO`) y su color, que tambien toma el titulo. */
 export interface PanelStatus {
   readonly footer?: string;
+  /** Color del pie cuando no es el del titulo, por ejemplo una nota atenuada. */
+  readonly footerTone?: UiTextColor;
   readonly tone?: UiTextColor;
 }
 
@@ -18,14 +20,14 @@ function statusPanelFor(
   width: UiWidthPreset,
   title: string,
   content: PanelContent,
-  { footer, tone }: PanelStatus = {},
+  { footer, footerTone, tone }: PanelStatus = {},
 ): string {
   return renderPanel({
     borderType,
     content,
     contentAlign: 'left',
     footer,
-    footerColor: tone,
+    footerColor: footerTone ?? tone,
     footerDivider: Boolean(footer),
     title,
     titleColor: tone,

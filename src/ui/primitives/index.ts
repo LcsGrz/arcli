@@ -7,6 +7,5 @@ export * from './renderLogo';
 export * from './renderObject';
 export * from './renderPanel';
 export * from './renderSubtitle';
-export * from './renderTable';
 export * from './symbols';
 export * from './text';

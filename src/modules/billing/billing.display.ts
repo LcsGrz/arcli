@@ -1,6 +1,6 @@
 import type { IIva } from '@arcasdk/core/lib/domain/types/voucher.types';
 
-import { renderTable, resolveKeyValueLabelWidth } from '../../ui/primitives';
+import { renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui/primitives';
 import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
 
 import { CONSUMER_DOCUMENT_TYPE_CODE, CONSUMER_IVA_CONDITION_CODE, isTaxIdDocumentType } from './arca-codes';
@@ -167,7 +167,7 @@ function formatFriendlyPayloadRows(result: BillingExecutionResult): Array<readon
 export function formatPayloadTable(result: BillingExecutionResult): string {
   const rows = formatFriendlyPayloadRows(result);
 
-  return renderTable(rows, { labelWidth: resolveKeyValueLabelWidth('ticket', rows) }).trimEnd();
+  return renderKeyValueRows(rows, { labelWidth: resolveKeyValueLabelWidth('ticket', rows) }).join('\n');
 }
 
 /** CAE, vencimiento, numero e importe: el resumen del resultado. */

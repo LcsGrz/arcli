@@ -99,7 +99,7 @@ export interface UiTheme {
   readonly symbols: Readonly<Record<UiSymbolName, { readonly ascii: string; readonly unicode: string }>>;
   readonly table: {
     readonly gap: number;
-    readonly labelWidth: number;
+    readonly labelColumn: Readonly<Record<UiWidthPreset, number>>;
   };
   readonly widths: Readonly<Record<UiWidthPreset, UiWidthRange>>;
 }
@@ -334,7 +334,9 @@ export const UI_THEME: UiTheme = {
   },
   table: {
     gap: 2,
-    labelWidth: 30,
+    // Porcentaje del panel para la columna de etiquetas (ver resolveKeyValueLabelWidth). El comprobante, angosto
+    // como un ticket, lleva los valores en la mitad derecha; el resto de los paneles, todos con el mismo.
+    labelColumn: { compact: 30, standard: 30, ticket: 50, wide: 30 },
   },
   // Un solo ancho para todas las cajas, igual al de la barra de estado y al que centra el logo, asi todo ocupa
   // el mismo espacio. En una terminal mas angosta se achica (ver renderPanel y fitToTerminal).

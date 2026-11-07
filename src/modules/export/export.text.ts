@@ -1,6 +1,6 @@
 import { formatCuit } from '../../lib/identity/format-cuit';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
-import { renderTable, resolveKeyValueLabelWidth } from '../../ui/primitives';
+import { renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui/primitives';
 import { formatCurrencyLabel, formatDateLabel, formatMoneyLabel } from '../billing/billing.labels';
 import { formatVoucherText, type VoucherTextOptions } from '../billing/voucher-text';
 import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
@@ -73,7 +73,7 @@ function formatItemsTable(result: ExportExecutionResult): string {
   ]);
   const labelWidth = Math.max(...rows.map(([label]) => label.length), 0);
 
-  return renderTable(rows, { labelWidth }).trimEnd();
+  return renderKeyValueRows(rows, { labelWidth }).join('\n');
 }
 
 function formatPayloadRows(result: ExportExecutionResult): Rows {
@@ -119,7 +119,7 @@ function formatPayloadRows(result: ExportExecutionResult): Rows {
 export function formatExportPayloadTable(result: ExportExecutionResult): string {
   const rows = formatPayloadRows(result);
 
-  return renderTable(rows, { labelWidth: resolveKeyValueLabelWidth('ticket', rows) }).trimEnd();
+  return renderKeyValueRows(rows, { labelWidth: resolveKeyValueLabelWidth('ticket', rows) }).join('\n');
 }
 
 function formatExportPreviewContent(result: ExportExecutionResult): string[] {
