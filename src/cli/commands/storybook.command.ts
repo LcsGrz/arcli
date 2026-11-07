@@ -4,6 +4,7 @@ import { InputValidationError } from '../../lib/errors/app-error';
 import { renderStorybookShowcase, type StorybookScene } from '../../modules/storybook/showcase';
 import { writeTerminalOutput } from '../../ui';
 import { configureSpanishHelp, createStorybookHelp } from '../help';
+import { CLI_VERSION } from '../version';
 
 const STORYBOOK_SCENES: StorybookScene[] = [
   'bordes',
@@ -33,7 +34,7 @@ export function registerStorybookCommand(program: Command): void {
         );
       }
 
-      writeTerminalOutput(renderStorybookShowcase(scene as StorybookScene | undefined));
+      writeTerminalOutput(renderStorybookShowcase(scene as StorybookScene | undefined, CLI_VERSION));
     })
     .addHelpText('after', createStorybookHelp());
 

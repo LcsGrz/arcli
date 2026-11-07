@@ -22,6 +22,10 @@ describe('storybook.showcase', () => {
     expect(renderStorybookShowcase().match(NOT_ALLOWED)).toBeNull();
   });
 
+  it('shows the version under the logo, like the help', () => {
+    expect(stripAnsi(renderStorybookShowcase(undefined, '2.3.0'))).toContain('v2.3.0 | LcsGrz');
+  });
+
   it('renders all scenes in the default showcase', () => {
     const output = renderStorybookShowcase();
 

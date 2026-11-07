@@ -573,8 +573,9 @@ function buildComponentsScene(): string {
   ].join('\n\n');
 }
 
-export function renderStorybookShowcase(scene?: StorybookScene): string {
-  const logo = renderLogo();
+/** El storybook completo o una escena; `version`, la de arcli, va debajo del logo como en la ayuda. */
+export function renderStorybookShowcase(scene?: StorybookScene, version?: string): string {
+  const logo = renderLogo(version);
 
   const scenes: Record<StorybookScene, string> = {
     bordes: buildBordersScene(),
