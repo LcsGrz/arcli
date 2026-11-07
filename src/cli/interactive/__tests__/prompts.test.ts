@@ -1,4 +1,3 @@
-import checkbox from '@inquirer/checkbox';
 import input from '@inquirer/input';
 import select, { Separator } from '@inquirer/select';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -8,7 +7,6 @@ import { stripAnsi } from '../../../ui';
 import {
   askText,
   askTextStep,
-  chooseManyStep,
   chooseOne,
   chooseStep,
   chooseStepWhileLoading,
@@ -20,28 +18,14 @@ vi.mock('@inquirer/select', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@inquirer/select')>()),
   default: vi.fn(),
 }));
-vi.mock('@inquirer/checkbox', () => ({ default: vi.fn() }));
 vi.mock('@inquirer/input', () => ({ default: vi.fn() }));
 
-const checkboxMock = vi.mocked(checkbox);
 const selectMock = vi.mocked(select);
 const inputMock = vi.mocked(input);
 
 describe('prompts', () => {
   afterEach(() => {
     vi.clearAllMocks();
-  });
-
-  it('chooseManyStep separa el cursor del icono y deja las filas alineadas', async () => {
-    checkboxMock.mockResolvedValueOnce(['a'] as never);
-
-    expect(await chooseManyStep('¿Cuales?', [{ name: 'A', value: 'a' }])).toEqual(['a']);
-
-    const icon = checkboxMock.mock.calls[0]?.[0].theme?.icon;
-
-    expect(stripAnsi(`${String(icon?.cursor)}${String(icon?.unchecked)}`)).toBe('❯ ◯');
-    expect(stripAnsi(` ${String(icon?.unchecked)}`)).toBe('  ◯');
-    expect(stripAnsi(` ${String(icon?.checked)}`)).toBe('  ◉');
   });
 
   it('chooseOne pasa las opciones y devuelve la elegida', async () => {

@@ -1,4 +1,3 @@
-import checkbox from '@inquirer/checkbox';
 import input from '@inquirer/input';
 import select, { Separator } from '@inquirer/select';
 import { emitKeypressEvents } from 'node:readline';
@@ -6,6 +5,8 @@ import { styleText } from 'node:util';
 
 import { BACK, type Back } from '../../modules/interactive/wizard';
 import { colorize, uiSymbol, usesAsciiBorders } from '../../ui';
+
+import { multiSelect } from './multi-select';
 
 export interface Choice<T> {
   readonly description?: string;
@@ -51,8 +52,6 @@ const ASCII_THEME = usesAsciiBorders()
     }
   : {};
 
-type PromptStatus = 'done' | 'idle' | 'loading';
-
 /**
  * En las listas, mientras la pregunta esta activa, una linea en blanco entre la pregunta y las opciones, y otra
  * entre la descripcion de la opcion marcada y la ayuda de teclas.
@@ -61,25 +60,13 @@ function listStyle(extraKeys: readonly HelpKey[]) {
   return {
     description: (text: string) => `${styleText('cyan', text)}\n`,
     keysHelpTip: keysHelpTip(extraKeys),
-    message: (text: string, status: PromptStatus) =>
+    message: (text: string, status: string) =>
       status === 'done' ? styleText('bold', text) : `${styleText('bold', text)}\n`,
   };
 }
 
 const MENU_THEME = { ...ASCII_THEME, prefix: PROMPT_PREFIX, style: listStyle([]) };
 const STEP_THEME = { ...ASCII_THEME, prefix: PROMPT_PREFIX, style: listStyle([['esc', 'volver']]) };
-/**
- * @inquirer/checkbox pega el cursor al icono (`❯◯`); `select` deja un espacio. Va en los iconos y no en el cursor:
- * las filas sin cursor llevan un solo espacio en su lugar y quedarian corridas.
- */
-const MULTI_SELECT_THEME = {
-  ...STEP_THEME,
-  icon: {
-    checked: ` ${styleText('green', uiSymbol('selected'))}`,
-    cursor: uiSymbol('pointer'),
-    unchecked: ` ${uiSymbol('unselected')}`,
-  },
-};
 const TEXT_THEME = {
   ...ASCII_THEME,
   prefix: PROMPT_PREFIX,
@@ -335,8 +322,8 @@ export async function askTextStep(
 }
 
 /**
- * Seleccion multiple: espacio marca, Enter confirma (sin marcar nada tambien vale). Tiene un "← Volver" al
- * final para el motor de pasos: si se marca (o con Esc), vuelve al paso anterior.
+ * Seleccion multiple: espacio marca, Enter confirma (sin marcar nada tambien vale). Tiene un boton "← Volver" al
+ * final para el motor de pasos: Enter sobre el (o Esc) vuelve al paso anterior.
  */
 export async function chooseManyStep<T>(
   message: string,
@@ -345,32 +332,21 @@ export async function chooseManyStep<T>(
 ): Promise<Back | T[]> {
   const result = await runStepPrompt(
     (context) =>
-      checkbox<Back | T>(
-        {
-          choices: [
-            ...choices.map((choice) => ({ ...choice, checked: selected.includes(choice.value) })),
-            BACK_SPACER,
-            BACK_CHOICE,
-          ],
-          loop: false,
-          message,
-          pageSize: 12,
-          theme: MULTI_SELECT_THEME,
-        },
+      multiSelect<T>(
+        { backLabel: BACK_CHOICE.name, choices, message, pageSize: 12, selected, theme: STEP_THEME },
         context,
       ),
     (answer) => ({
-      answer: choices
-        .filter((choice) => answer.includes(choice.value))
-        .map((choice) => choice.name)
-        .join(', '),
+      answer:
+        answer === BACK
+          ? BACK_CHOICE.name
+          : choices
+              .filter((choice) => answer.includes(choice.value))
+              .map((choice) => choice.name)
+              .join(', '),
       message,
     }),
   );
 
-  if (!('answer' in result) || result.answer === BACK || result.answer.includes(BACK)) {
-    return BACK;
-  }
-
-  return result.answer as T[];
+  return 'answer' in result ? result.answer : BACK;
 }

@@ -22,7 +22,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Errores de uso en panel:** un comando u opción desconocida se muestra en el mismo panel que el resto de los errores, con la sugerencia de ayuda. Comandos, opciones y argumentos van entre backticks (`` opción desconocida `--montoo` ``), también en `error` con `--json`. El panel ya no repite la palabra `Error`. El mensaje de CUIT, certificado o clave faltante no repite `arcli config revisar`, que queda en la sugerencia (cambia el texto de `error` y `detalle` en el `--json`, no las claves ni los códigos).
 - **Terminales angostas:** si una fila de una tabla no entra, todas las de esa columna ponen la etiqueta arriba y el valor debajo, las etiquetas ya no se cortan a mitad de palabra y la barra de estado pasa a dos líneas en lugar de romperse. En listas, una línea partida sigue alineada al texto.
 - **`arcli ejemplos`:** el logo sale alineado y con la versión.
-- **Selección múltiple:** el cursor deja un espacio antes del círculo (`❯ ◯`), como en las demás listas del modo interactivo.
+- **Selección múltiple:** el cursor deja un espacio antes del círculo (`❯ ◯`), como en las demás listas del modo interactivo. "Volver" es un botón común: no lleva círculo, ni espacio ni `a` lo marcan, y Enter sobre él vuelve al paso anterior.
 
 ### Deprecado
 
