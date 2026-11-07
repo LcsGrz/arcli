@@ -34,6 +34,8 @@ El modo interactivo no agrega comandos de emisión ni cambia flags, claves de co
 
 Si hay una versión nueva de ARCLI, el menú suma arriba de todo **Actualizar a la versión X.Y.Z** (ver [Actualizar](#actualizar)).
 
+**Opciones nuevas.** Lo que se sumó en las últimas versiones lleva `(nuevo)` al final, en color: Emitir recibo, Certificados de ARCA, Autocompletado y Acceso directo en el escritorio en Configuración, Factura E al elegir el comprobante y Recibo C al elegir sobre qué comprobante va una nota. Configuración también lo lleva mientras tenga alguna opción nueva adentro. La marca se va sola dos versiones menores después de la que trajo la opción.
+
 Debajo del logo va la versión de ARCLI. Arriba del menú, la barra de estado muestra a la izquierda quién emite (la razón social de `emisor.razonSocial` o, si no está, el CUIT) y el punto de venta, y a la derecha cómo está ARCA y el entorno (`TESTING` en naranja o `PRODUCCIÓN` en celeste):
 
 | Estado                 | Cuándo                                                                           |

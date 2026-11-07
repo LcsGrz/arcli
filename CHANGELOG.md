@@ -34,6 +34,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### Agregado
 
+- **Opciones nuevas marcadas en el modo interactivo:** lo que se sumó en las últimas versiones lleva `(nuevo)` al final (Emitir recibo, Factura E, Recibo C en las notas, y Certificados de ARCA, Autocompletado y Acceso directo en Configuración, que también lo lleva). La marca se va sola dos versiones menores después. Ver [modo interactivo](docs/modo-interactivo.md#menú-principal).
 - **`arcli acceso-directo [ruta]`:** crea un ícono para abrir ARCLI con doble clic en macOS, Windows y Linux, en el escritorio o en la carpeta que indiques. También está en el modo interactivo, en Configuración.
 - **Más datos en el JSON de las emisiones:** `entorno` y `puntoVenta` en todos los comprobantes, y `numero` en la factura E, también en la vista previa.
 - **Sugerencias para los rechazos de ARCA más comunes:** cuando ARCA rechaza o deja una observación con un código conocido (`10016`, `10152`, `10243`, `10174`, `10119`, `10038`, `10017`/`10217`, además del punto de venta `10005`/`11002`), `sugerencias` dice qué pasó, qué hacer y el link a la guía. Antes solo se reconocían unos pocos mensajes, y los códigos que venían en las observaciones no se miraban. La tabla completa está en [Troubleshooting](docs/troubleshooting.md#rechazos-de-arca-por-código). La forma del JSON no cambia.

@@ -10,6 +10,7 @@ import {
 import { type ArcliEnvironment, formatEnvironmentLabel } from '../../modules/config/config.schemas';
 import { ConfigService } from '../../modules/config/config.service';
 import { listMissingSetupKeys } from '../../modules/interactive/config-fields';
+import { CONFIG_MENU_NEW_OPTIONS } from '../../modules/interactive/new-options';
 import { type ArcaHealth, checkArcaHealth } from '../../modules/parameters/health';
 import { checkForUpdate, type UpdateCheckResult } from '../../modules/update-check/update-check.service';
 import { ArcaParametersGateway } from '../../services/arca/arca-parameters.gateway';
@@ -34,6 +35,7 @@ import { CLI_VERSION } from '../version';
 import { runConfigMenu, runGuidedSetup } from './config.flow';
 import { runHistoryFlow } from './history.flow';
 import { runInvoiceFlow } from './invoice.flow';
+import { markIfNew } from './new-mark';
 import { runNoteFlow } from './note.flow';
 import { chooseOne, confirm, isPromptCancellation } from './prompts';
 import { runRepeatFlow } from './repeat.flow';
@@ -251,11 +253,14 @@ export async function runInteractiveMode(options: GlobalCliOptions = {}): Promis
         [
           ...(update ? [updateChoice(update), new Separator(' ')] : []),
           { name: 'Emitir factura', value: 'factura' },
-          {
-            description: 'Recibo C por un cobro; lo emiten monotributistas y exentos',
-            name: 'Emitir recibo',
-            value: 'recibo',
-          },
+          markIfNew(
+            {
+              description: 'Recibo C por un cobro; lo emiten monotributistas y exentos',
+              name: 'Emitir recibo',
+              value: 'recibo',
+            },
+            'recibo',
+          ),
           {
             description: 'Copia una de las últimas, con fechas nuevas',
             name: 'Repetir un comprobante anterior',
@@ -273,11 +278,14 @@ export async function runInteractiveMode(options: GlobalCliOptions = {}): Promis
             value: 'historial',
           },
           { description: 'Servidores, punto de venta y cotización del dólar', name: 'Estado de ARCA', value: 'estado' },
-          {
-            description: 'Revisar, configuración guiada, cambiar un dato y PDF',
-            name: 'Configuración',
-            value: 'config',
-          },
+          markIfNew(
+            {
+              description: 'Revisar, configuración guiada, cambiar un dato y PDF',
+              name: 'Configuración',
+              value: 'config',
+            },
+            CONFIG_MENU_NEW_OPTIONS,
+          ),
           new Separator(' '),
           { name: 'Salir', value: 'salir' },
         ],

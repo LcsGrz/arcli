@@ -118,6 +118,7 @@ Cada dato tiene su helper. Antes de escribir un formato, buscá si ya existe.
 - **Comandos, opciones y argumentos entre backticks:** `` `arcli config revisar` ``, `` `--monto` ``, no entre comillas.
 - **Monto al pedir, importe al mostrar.** "Comprobante" donde también puede ser un recibo.
 - **Un error dice qué pasó y qué hacer,** sin repetir: lo que va en la sugerencia no va en el mensaje.
+- **Opción nueva en un menú:** `(nuevo)` al final del texto, en `highlight`, con `markIfNew`. La versión en que apareció va en `NEW_OPTION_SINCE` y la marca se apaga sola dos versiones menores después. Un submenú que se mira poco, como Configuración, la lleva mientras tenga alguna opción nueva adentro. La respuesta ("✔ pregunta respuesta") queda sin la marca.
 
 ## Salida
 

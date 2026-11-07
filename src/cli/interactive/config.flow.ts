@@ -35,6 +35,7 @@ import { buildRuntimeChecks } from '../commands/config.command';
 import { startSpinner } from '../spinner';
 
 import { runCertificateMenu, runGenerateCertificate } from './certificate.flow';
+import { markIfNew } from './new-mark';
 import { askTextStep, type Choice, chooseOne, chooseStep, confirm, fitPageSize } from './prompts';
 
 const CLEAR = '__borrar__';
@@ -421,22 +422,31 @@ export async function runConfigMenu(): Promise<void> {
           name: 'Modificar configuración',
           value: 'cambiar',
         },
-        {
-          description: 'Sacar, renovar o cargar el certificado',
-          name: 'Certificados de ARCA',
-          value: 'certificados',
-        },
+        markIfNew(
+          {
+            description: 'Sacar, renovar o cargar el certificado',
+            name: 'Certificados de ARCA',
+            value: 'certificados',
+          },
+          'certificados',
+        ),
         { description: 'Estado, instalar o desinstalar', name: 'Plugin de PDF', value: 'pdf' },
-        {
-          description: 'Completar comandos y flags con Tab en la terminal',
-          name: 'Autocompletado',
-          value: 'completado',
-        },
-        {
-          description: 'Un ícono para abrir ARCLI con doble clic',
-          name: 'Acceso directo en el escritorio',
-          value: 'acceso-directo',
-        },
+        markIfNew(
+          {
+            description: 'Completar comandos y flags con Tab en la terminal',
+            name: 'Autocompletado',
+            value: 'completado',
+          },
+          'autocompletado',
+        ),
+        markIfNew(
+          {
+            description: 'Un ícono para abrir ARCLI con doble clic',
+            name: 'Acceso directo en el escritorio',
+            value: 'acceso-directo',
+          },
+          'acceso-directo',
+        ),
         new Separator(' '),
         { name: `${uiSymbol('back')} Volver al menú`, value: 'volver' },
       ],

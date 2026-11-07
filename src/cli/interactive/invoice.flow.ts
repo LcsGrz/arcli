@@ -14,6 +14,7 @@ import { BACK, requireStepValue, runWizard, type WizardStep } from '../../module
 
 import { type AdvancedOptions, askAdvancedOptions } from './advanced-options';
 import { runExportFlow } from './export.flow';
+import { markIfNew } from './new-mark';
 import { askTextStep, chooseStep } from './prompts';
 import { askReceiverIvaCondition, type ReceiverFromPadron, receiverInputFields } from './receiver-padron';
 import { type InteractiveSession, previewAndEmit } from './session';
@@ -47,7 +48,7 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
       for (;;) {
         const voucherKind = await chooseStep<ExportVoucherKind | VoucherKindDefinition>(
           '¿Qué comprobante querés emitir?',
-          [...invoiceKindChoices(), exportInvoiceChoice()],
+          [...invoiceKindChoices(), markIfNew(exportInvoiceChoice(), 'factura-e')],
         );
 
         if (voucherKind === BACK) {

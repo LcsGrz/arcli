@@ -23,6 +23,7 @@ import { type IssuedVoucher, resolveDocumentType } from '../../modules/vouchers/
 import { noticePanel, writeTerminalOutput } from '../../ui';
 
 import { pickInvoice } from './invoice-picker';
+import { markIfNew } from './new-mark';
 import { askTextStep, chooseStep } from './prompts';
 import { askReceiverIvaCondition, type ReceiverFromPadron, receiverInputFields } from './receiver-padron';
 import { type InteractiveSession, previewAndEmit, requirePointOfSale } from './session';
@@ -103,7 +104,10 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
     {
       name: 'tipo-factura',
       run: async () => {
-        const invoiceKind = await chooseStep('¿Sobre qué comprobante?', [...invoiceKindChoices(), reciboChoice()]);
+        const invoiceKind = await chooseStep('¿Sobre qué comprobante?', [
+          ...invoiceKindChoices(),
+          markIfNew(reciboChoice(), 'recibo'),
+        ]);
 
         return invoiceKind === BACK ? BACK : { invoiceKind, target: 'factura' };
       },
