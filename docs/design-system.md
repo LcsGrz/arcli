@@ -111,7 +111,7 @@ Cada dato tiene su helper. Antes de escribir un formato, buscá si ya existe.
 
 - **Voseo y tildes:** `Revisá`, `Usá`, `¿Emitimos?`. Sí/no con tilde: `sí`.
 - **Letra del comprobante en mayúscula:** `factura C`. Los atajos van en minúscula: `fc`.
-- **Comandos entre backticks:** `` `arcli config revisar` ``, no entre comillas.
+- **Comandos, opciones y argumentos entre backticks:** `` `arcli config revisar` ``, `` `--monto` ``, no entre comillas.
 - **Monto al pedir, importe al mostrar.** "Comprobante" donde también puede ser un recibo.
 - **Un error dice qué pasó y qué hacer,** sin repetir: lo que va en la sugerencia no va en el mensaje.
 
