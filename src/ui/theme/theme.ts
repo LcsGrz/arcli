@@ -2,8 +2,8 @@ import type { Spacing as BoxenSpacing } from 'boxen';
 
 /**
  * Tipo de borde segun lo que se muestra:
- * - common: paneles de contenido (configuracion, observaciones, sugerencias, avisos FCE)
- * - ticket: comprobante, como common pero con la linea de corte punteada antes del estado; va centrado
+ * - common: borde simple, solo en el storybook
+ * - ticket: comprobante, con la linea de corte punteada antes del estado; va centrado
  * - error: errores del CLI o de ARCA (redondeado con franja gruesa a la izquierda)
  * - attention: observaciones y avisos (como error, con la franja a trazos)
  * - tip: sugerencias (como error, con la franja fina punteada)
@@ -11,7 +11,7 @@ import type { Spacing as BoxenSpacing } from 'boxen';
  * - checklist: revision de configuracion (doble lateral, veredicto en el pie)
  * - listing: listados en tabla, como los ultimos comprobantes (solo reglas arriba y abajo)
  * - note: avisos simples de una linea (solo esquinas)
- * - warning: banner del entorno de testing
+ * - warning: banner del entorno de testing y certificados por vencer
  * - info: aviso de nueva version
  * - data: JSON y respuestas crudas
  * - command: comandos para copiar (solo barra a la izquierda, sin borde derecho)
@@ -56,6 +56,7 @@ export type UiColorToken =
   | 'debug'
   | 'highlight'
   | 'info'
+  | 'logo'
   | 'muted'
   | 'neutral'
   | 'production'
@@ -298,6 +299,8 @@ export const UI_THEME: UiTheme = {
     // Naranja amarillento (paleta de 256 colores): para invitar a una accion, como actualizar arcli.
     highlight: '\u001B[38;5;214m',
     info: '\u001B[36m',
+    // El celeste de la bandera (color de 24 bits): solo el logo.
+    logo: '\u001B[38;2;116;172;223m',
     muted: '\u001B[2m',
     // Color por defecto de la terminal: claro en fondos oscuros y oscuro en fondos claros.
     // Un blanco fijo (\u001B[37m) casi no se leia en terminales con fondo claro.

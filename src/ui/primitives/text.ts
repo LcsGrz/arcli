@@ -9,7 +9,7 @@ const COLOR_OFF = '\u001B[39m';
 const DIM = '\u001B[2m';
 
 export type OutputTarget = 'stderr' | 'stdout';
-export type UiTextColor = UiColorToken | string;
+export type UiTextColor = UiColorToken;
 
 // A donde va lo que se esta armando. Un panel no conoce su destino y adentro hay muchas llamadas a `colorize`:
 // mientras dura `renderForTarget`, todas miran esa salida en lugar de stdout.
@@ -54,7 +54,7 @@ export function supportsColor(target: OutputTarget = defaultTarget): boolean {
 }
 
 function resolveTextColor(color: UiTextColor): string {
-  return UI_THEME.colors[color as UiColorToken] ?? color;
+  return UI_THEME.colors[color];
 }
 
 // Envuelve cada linea por separado (en vez de todo el bloque de una vez) para
@@ -93,7 +93,8 @@ export function badge(label: string, color: UiTextColor): string {
 }
 
 export function toneText(value: string, color: UiTextColor): string {
-  return bold(colorize(value, color));
+  // Atenuado y negrita se pisan: segun la terminal, el texto queda normal o no se ve atenuado.
+  return color === 'muted' ? colorize(value, color) : bold(colorize(value, color));
 }
 
 export function stripAnsi(value: string): string {
