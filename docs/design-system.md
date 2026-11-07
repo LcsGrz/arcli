@@ -65,19 +65,21 @@ Se elige por lo que se muestra, no por cómo se ve. Cada rol tiene su borde y di
 
 Se piden con `uiSymbol('check')`, nunca escritos a mano en un presenter. Cada uno tiene su respaldo para `ARCLI_ASCII=1`, que cambia bordes y símbolos pero no las tildes ni la `ñ`. Un símbolo nuevo se agrega en `UI_THEME.symbols`.
 
-| Nombre      | Unicode | ASCII          | Para                |
-| ----------- | ------- | -------------- | ------------------- |
-| `check`     | `✓`     | `v`            | Chequeo correcto    |
-| `done`      | `✔`     | `v`            | Pregunta respondida |
-| `bullet`    | `•`     | `-`            | Listas              |
-| `separator` | `·`     | `-`            | Datos en una línea  |
-| `ellipsis`  | `…`     | `...`          | Texto recortado     |
-| `arrow`     | `→`     | `->`           | Ruta en un menú     |
-| `back`      | `←`     | `<`            | Volver              |
-| `pointer`   | `❯`     | `>`            | Opción marcada      |
-| `rule`      | `┈`     | `-`            | Regla de un listado |
-| `keysMove`  | `↑↓`    | `arriba/abajo` | Ayuda de teclas     |
-| `keyEnter`  | `⏎`     | `enter`        | Ayuda de teclas     |
+| Nombre       | Unicode | ASCII          | Para                   |
+| ------------ | ------- | -------------- | ---------------------- |
+| `check`      | `✓`     | `v`            | Chequeo correcto       |
+| `done`       | `✔`     | `v`            | Pregunta respondida    |
+| `bullet`     | `•`     | `-`            | Listas                 |
+| `separator`  | `·`     | `-`            | Datos en una línea     |
+| `ellipsis`   | `…`     | `...`          | Texto recortado        |
+| `arrow`      | `→`     | `->`           | Ruta en un menú        |
+| `back`       | `←`     | `<`            | Volver                 |
+| `pointer`    | `❯`     | `>`            | Cursor en una lista    |
+| `rule`       | `┈`     | `-`            | Regla de un listado    |
+| `selected`   | `◉`     | `[x]`          | Opción seleccionada    |
+| `unselected` | `◯`     | `[ ]`          | Opción sin seleccionar |
+| `keysMove`   | `↑↓`    | `arriba/abajo` | Ayuda de teclas        |
+| `keyEnter`   | `⏎`     | `enter`        | Ayuda de teclas        |
 
 ## Formatos
 
