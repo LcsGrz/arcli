@@ -5,7 +5,7 @@ import { emitKeypressEvents } from 'node:readline';
 import { styleText } from 'node:util';
 
 import { BACK, type Back } from '../../modules/interactive/wizard';
-import { colorize, uiSymbol, usesAsciiBorders } from '../../ui';
+import { colorize, uiSymbol, usesAsciiBorders, writeTerminalRaw } from '../../ui';
 
 export interface Choice<T> {
   readonly description?: string;
@@ -174,7 +174,7 @@ const ESCAPE_REASON = 'esc';
 
 /** La misma linea que deja @inquirer al responder; hace falta cuando el prompt se borra al cerrarse. */
 function writeAnsweredLine(message: string, answer: string): void {
-  process.stdout.write(`${DONE_PREFIX} ${styleText('bold', message)} ${styleText('cyan', answer)}\n`);
+  writeTerminalRaw(`${DONE_PREFIX} ${styleText('bold', message)} ${styleText('cyan', answer)}\n`);
 }
 
 /**

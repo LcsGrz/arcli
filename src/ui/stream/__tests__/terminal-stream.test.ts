@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { hyperlink } from '../../primitives/hyperlink';
-import { formatTerminalOutput, sanitizeTerminalText, writeTerminalNotice } from '../terminal-stream';
+import { formatTerminalOutput, sanitizeTerminalText, writeTerminalNotice, writeTerminalRaw } from '../terminal-stream';
 
 const ESC = '\u001B';
 
@@ -80,6 +80,20 @@ describe('sanitizeTerminalText', () => {
 
   it('is applied to everything written to the terminal', () => {
     expect(formatTerminalOutput(`Observacion: ${ESC}[2Jlimpio`)).toBe('\nObservacion: limpio\n\n');
+  });
+});
+
+describe('writeTerminalRaw', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('sanitizes without adding a margin', () => {
+    const write = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+
+    writeTerminalRaw('\u001B[1mEmpresa\u001B[0m\u001B[2J\n');
+
+    expect(write).toHaveBeenCalledWith('\u001B[1mEmpresa\u001B[0m\n');
   });
 });
 

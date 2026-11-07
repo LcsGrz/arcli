@@ -39,6 +39,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### Corregido
 
+- **Modo interactivo:** la barra con la razón social y las respuestas ya respondidas pasan por el mismo filtro que el resto de la salida, así un dato externo no puede meter secuencias de terminal.
 - **Colores de los errores:** dependían de stdout aunque los errores se escriben en stderr. `arcli ... 2> errores.log` guardaba códigos de color en el archivo, y con `arcli ... | jq` el error salía sin color en la terminal. Ahora dependen de stderr. También vale para los avisos de nueva versión y de certificado.
 - **`ARCLI_ASCII=1` cubre toda la salida:** también cambia los símbolos (`✓`, `•`, `·`, `…`, `→`) y lo que dibuja el modo interactivo (`✔`, `❯`, `↑↓`, `⏎`, `←`, `┈`, el spinner). Antes solo cambiaba los bordes. Las tildes y la `ñ` se mantienen.
 - **Entorno con tilde:** los títulos de `parametros` y `ultimos` dicen `PRODUCCIÓN` en lugar de `PRODUCCION`, y `estado`, `config`, `config revisar` y los errores de comprobante o CUIT no encontrado dicen `producción`. El `--json` conserva `entorno: "produccion"`; solo cambia el texto de `error` y `detalle`.
