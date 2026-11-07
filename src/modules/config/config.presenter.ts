@@ -2,7 +2,7 @@ import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { formatCuit } from '../../lib/identity/format-cuit';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { maskPath } from '../../lib/paths/mask-path';
-import { keyValuePanel, statusPanel } from '../../ui/components';
+import { checklistPanel, sheetPanel } from '../../ui/components';
 import { bold, colorize, pathLink, resolveKeyValueLabelWidth, toneText, uiSymbol } from '../../ui/primitives';
 import { UI_THEME } from '../../ui/theme';
 import { RECENT_VOUCHERS_LIMIT } from '../vouchers/voucher-history';
@@ -230,7 +230,7 @@ export function formatConfigAsText(config: ArcliConfig, paths: ConfigPathSnapsho
     ),
   ]);
 
-  return keyValuePanel('Configuración', lines, undefined, 'standard', undefined, 'sheet');
+  return sheetPanel('Configuración', lines);
 }
 
 export function formatConfigDoctor(report: ConfigDoctorReport): string {
@@ -302,5 +302,5 @@ export function formatConfigDoctorAsText(report: ConfigDoctorReport): string {
       ? 'Hay puntos críticos por corregir antes de emitir'
       : 'Revisá las recomendaciones antes de emitir en serio';
 
-  return statusPanel('Revisión de configuración', lines, footer, 'wide', tone, 'checklist');
+  return checklistPanel('Revisión de configuración', lines, { footer, tone });
 }

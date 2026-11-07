@@ -1,7 +1,7 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { formatCuit } from '../../lib/identity/format-cuit';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
-import { keyValuePanel, noticePanel } from '../../ui/components';
+import { listingPanel, noticePanel, ticketPanel } from '../../ui/components';
 import { renderKeyValueRows, resolveKeyValueLabelWidth, uiSymbol } from '../../ui/primitives';
 import { CONSUMER_DOCUMENT_TYPE_CODE, isTaxIdDocumentType } from '../billing/arca-codes';
 import {
@@ -132,13 +132,9 @@ export function formatVoucherListAsText(report: VoucherListReport): string {
     return noticePanel(`${formatNoVouchersEmitted(voucherKind)} en el punto de venta ${pointOfSale}.`, 'muted');
   }
 
-  return keyValuePanel(
+  return listingPanel(
     formatVoucherListTitle(report),
     vouchers.map((voucher) => formatVoucherListRow(pointOfSale, voucher)),
-    undefined,
-    'wide',
-    undefined,
-    'listing',
   );
 }
 
@@ -224,12 +220,12 @@ export function formatVoucherDetailAsText(report: VoucherDetailReport): string {
     rows.push(['Vencimiento CAE', formatArcaDateAsArgentineDate(voucher.caeExpiration)]);
   }
 
-  return keyValuePanel(
+  return ticketPanel(
     voucherKind.displayName,
     renderKeyValueRows(rows, { labelWidth: resolveKeyValueLabelWidth('ticket', rows) }),
-    voucher.result === 'A' ? 'APROBADO' : voucher.result === 'R' ? 'RECHAZADO' : undefined,
-    'ticket',
-    voucher.result === 'R' ? 'danger' : 'success',
-    'ticket',
+    {
+      footer: voucher.result === 'A' ? 'APROBADO' : voucher.result === 'R' ? 'RECHAZADO' : undefined,
+      tone: voucher.result === 'R' ? 'danger' : 'success',
+    },
   );
 }

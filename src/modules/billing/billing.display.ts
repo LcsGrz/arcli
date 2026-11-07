@@ -1,7 +1,6 @@
 import type { IIva } from '@arcasdk/core/lib/domain/types/voucher.types';
 
-import { keyValuePanel, statusPanel, testingBanner } from '../../ui/components';
-import { renderKeyValueRows, renderTable, resolveKeyValueLabelWidth, toneText } from '../../ui/primitives';
+import { renderTable, resolveKeyValueLabelWidth } from '../../ui/primitives';
 import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
 
 import { CONSUMER_DOCUMENT_TYPE_CODE, CONSUMER_IVA_CONDITION_CODE, isTaxIdDocumentType } from './arca-codes';
@@ -15,33 +14,10 @@ import {
   formatIvaConditionLabel,
   formatMoneyLabel,
   formatNumericLabel,
-  formatResponseCountRows,
   formatTaxIdLabel,
 } from './billing.labels';
 import type { BillingExecutionResult } from './billing.types.internal';
 import { getVoucherKindByArcaType } from './voucher-kind-map';
-
-export function formatEnvironmentBanner(environment: BillingExecutionResult['environment'] | undefined): string[] {
-  if (environment !== 'testing') {
-    return [];
-  }
-
-  return [testingBanner()];
-}
-
-export function formatStatusBadge(result: BillingExecutionResult): {
-  readonly label: string;
-  readonly tone: 'danger' | 'success' | 'warning';
-} {
-  switch (result.response.status) {
-    case 'aprobado':
-      return { label: 'APROBADO', tone: 'success' };
-    case 'rechazado':
-      return { label: 'RECHAZADO', tone: 'danger' };
-    default:
-      return { label: 'OBSERVADO', tone: 'warning' };
-  }
-}
 
 export function formatVoucherSummary(result: BillingExecutionResult): Record<string, unknown> {
   return {
@@ -188,24 +164,15 @@ function formatFriendlyPayloadRows(result: BillingExecutionResult): Array<readon
   return rows;
 }
 
-function formatPayloadTable(result: BillingExecutionResult): string {
+export function formatPayloadTable(result: BillingExecutionResult): string {
   const rows = formatFriendlyPayloadRows(result);
 
   return renderTable(rows, { labelWidth: resolveKeyValueLabelWidth('ticket', rows) }).trimEnd();
 }
 
-export function formatPayloadPreview(result: BillingExecutionResult): string {
-  const payloadTable = formatPayloadTable(result);
-  const footer = result.dryRun ? toneText('SIN EMITIR', 'warning') : undefined;
-
-  return keyValuePanel(result.voucherKind.displayName, [payloadTable], footer, 'ticket', undefined, 'ticket');
-}
-
-export function formatResultPanel(
-  result: BillingExecutionResult,
-  status: { readonly label: string; readonly tone: 'danger' | 'success' | 'warning' },
-): string {
-  const summaryRows: Array<readonly [string, string | number]> = [
+/** CAE, vencimiento, numero e importe: el resumen del resultado. */
+export function formatResultSummary(result: BillingExecutionResult): Array<readonly [string, string | number]> {
+  return [
     ['CAE', result.response.cae ?? 'N/D'],
     ['Vencimiento CAE', formatDateLabel(result.response.caeVencimiento ?? undefined)],
     result.voucherNumber === undefined
@@ -213,13 +180,4 @@ export function formatResultPanel(
       : ['Número', formatVoucherNumber(result.payload.PtoVta, result.voucherNumber)],
     ['Importe total', formatMoneyLabel(result.payload.ImpTotal, result.payload.MonId)],
   ];
-  const countRows = formatResponseCountRows(result.response);
-  const labelWidth = resolveKeyValueLabelWidth('ticket', [...summaryRows, ...countRows]);
-  const rows = [
-    ...renderKeyValueRows(summaryRows, { labelWidth }),
-    ...(countRows.length > 0 ? ['', ...renderKeyValueRows(countRows, { labelWidth })] : []),
-  ];
-  const footer = toneText(status.label, status.tone);
-
-  return statusPanel(result.voucherKind.displayName, rows, footer, 'ticket', status.tone, 'ticket');
 }

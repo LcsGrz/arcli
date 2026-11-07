@@ -1,6 +1,6 @@
 import { formatCuit } from '../../lib/identity/format-cuit';
 import { DEPRECATED_CUIT_NUMBER } from '../../lib/json/deprecations';
-import { keyValuePanel } from '../../ui/components';
+import { sheetPanel } from '../../ui/components';
 import { renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui/primitives';
 import { ivaConditionCode, ivaConditionLabel } from '../billing/arca-codes';
 
@@ -69,12 +69,9 @@ export function formatPadronAsText(report: PadronReport): string {
     ? `Con \`--cuit ${taxpayer.cuit}\`, arcli completa solo el IVA receptor.`
     : 'El padrón no informa la condición IVA: indicala con `--ir` al facturar.';
 
-  return keyValuePanel(
+  return sheetPanel(
     'Padrón de ARCA',
     renderKeyValueRows(rows, { labelWidth: resolveKeyValueLabelWidth('standard', rows, [25, 75]) }),
-    footer,
-    'standard',
-    undefined,
-    'sheet',
+    { footer },
   );
 }

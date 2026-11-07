@@ -2,12 +2,16 @@ import { ConfigurationError, InputValidationError } from '../../lib/errors/app-e
 import { CERTIFICATE_GUIDE_URL } from '../../lib/links';
 import type { ArcaRuntimeValidation } from '../../services/arca/arca-context.resolver';
 import {
+  attentionPanel,
   certificateBanner,
-  contentPanel,
+  dataPanel,
+  errorListPanel,
   sectionHeading,
+  sheetPanel,
   statusBar,
-  statusPanel,
   testingBanner,
+  ticketPanel,
+  tipPanel,
 } from '../../ui/components';
 import { formatAppError } from '../../ui/presenters';
 import {
@@ -20,6 +24,7 @@ import {
   renderPanel,
   resolveKeyValueLabelWidth,
   toneText,
+  uiSymbol,
   type UiTextColor,
 } from '../../ui/primitives';
 import { type UiBorderType } from '../../ui/theme';
@@ -488,9 +493,9 @@ function buildJsonScene(): string {
 
   return [
     sceneTitle('Json', 'Contratos estructurados para automatización y respuesta bruta'),
-    contentPanel('Billing json', billingJson, 'wide', 'subtle', 'left', 'data'),
-    contentPanel('Config json', configJson, 'wide', 'subtle', 'left', 'data'),
-    contentPanel('Doctor json', doctorJson, 'wide', 'subtle', 'left', 'data'),
+    dataPanel('Billing json', billingJson),
+    dataPanel('Config json', configJson),
+    dataPanel('Doctor json', doctorJson),
   ].join('\n\n');
 }
 
@@ -507,65 +512,39 @@ function buildComponentsScene(): string {
     summary: 'El certificado de producción venció el 20/11/2026.',
   });
   const updateNotice = renderUpdateNoticePanel(createSampleUpdateCheckResult());
-  const keyValueRows: Array<readonly [string, string | number]> = [
+  const sheetRows: Array<readonly [string, string | number]> = [
     ['CUIT', '20-33333333-4'],
     ['Punto de venta', 3],
     ['Entorno', 'testing'],
   ];
-  const statusRows: Array<readonly [string, string | number]> = [
+  const ticketRows: Array<readonly [string, string | number]> = [
     ['CAE', '86120020280000'],
     ['Importe total', '$ 1'],
-    ['Errores', 0],
   ];
-  const demoLabelWidth = resolveKeyValueLabelWidth('compact', [...keyValueRows, ...statusRows]);
-  const keyValue = renderPanel({
-    content: renderKeyValueRows(keyValueRows, { labelWidth: demoLabelWidth }),
-    contentAlign: 'left',
-    footer: toneText('TODO LISTO', 'success'),
-    footerColor: 'success',
-    footerDivider: true,
-    padding: {
-      bottom: 1,
-      left: 2,
-      right: 2,
-      top: 1,
-    },
-    title: 'Demo key value',
-    width: 'compact',
-  });
-
-  const status = statusPanel(
-    'Demo estado',
-    [
-      ...renderKeyValueRows(statusRows.slice(0, 2), { labelWidth: demoLabelWidth }),
-      '',
-      ...renderKeyValueRows(statusRows.slice(2), { labelWidth: demoLabelWidth }),
-    ],
-    'APROBADO',
-    'compact',
-    'success',
-  );
-
-  const content = contentPanel(
-    'Demo contenido',
-    renderObject({
-      cae: '86120020280000',
-      resultado: 'A',
-      payload: { CbteTipo: 11, ImpTotal: 1, PtoVta: 3 },
-    }),
-    'wide',
-    'info',
-  );
 
   return [
-    sceneTitle('Componentes', 'Notice, badges y paneles base'),
+    sceneTitle('Componentes', 'Banners, avisos y un panel de cada rol'),
     notice,
     certificateNotice,
     expiredCertificateNotice,
     updateNotice,
-    keyValue,
-    status,
-    content,
+    sheetPanel(
+      'Demo ficha',
+      renderKeyValueRows(sheetRows, { labelWidth: resolveKeyValueLabelWidth('standard', sheetRows) }),
+      { footer: toneText('TODO LISTO', 'success'), tone: 'success' },
+    ),
+    ticketPanel(
+      'Demo comprobante',
+      renderKeyValueRows(ticketRows, { labelWidth: resolveKeyValueLabelWidth('ticket', ticketRows) }),
+      { footer: toneText('APROBADO', 'success'), tone: 'success' },
+    ),
+    attentionPanel('Demo avisos', `${uiSymbol('bullet')} La cotización sale de ARCA.`),
+    tipPanel('Demo sugerencias', `${uiSymbol('bullet')} Revisá \`--fecha\`.`),
+    errorListPanel('Demo errores', '1. 10016: la fecha no corresponde.'),
+    dataPanel(
+      'Demo datos',
+      renderObject({ cae: '86120020280000', payload: { CbteTipo: 11, ImpTotal: 1, PtoVta: 3 }, resultado: 'A' }),
+    ),
   ].join('\n\n');
 }
 
