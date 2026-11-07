@@ -571,5 +571,5 @@ export function configureSpanishHelp(command: Command): void {
 }
 
 export function createProgramHeader(): string {
-  return renderLogo(CLI_VERSION);
+  return `\n\n${renderLogo(CLI_VERSION)}\n\n`;
 }

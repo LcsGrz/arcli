@@ -574,7 +574,7 @@ function buildComponentsScene(): string {
 }
 
 export function renderStorybookShowcase(scene?: StorybookScene): string {
-  const logo = renderLogo().trim();
+  const logo = renderLogo();
 
   const scenes: Record<StorybookScene, string> = {
     bordes: buildBordersScene(),

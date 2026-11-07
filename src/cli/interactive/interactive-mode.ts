@@ -216,7 +216,7 @@ export async function runInteractiveMode(options: GlobalCliOptions = {}): Promis
   // Dos lineas en blanco entre el logo y la barra. La barra se escribe aparte porque, mientras se consulta ARCA,
   // en su lugar va el spinner. Debajo, una linea en blanco fija: al responder el menu, @inquirer saca las lineas
   // de su prefijo y sin esta la respuesta quedaria pegada a la barra (ver `compactTop` en el primer menu).
-  writeTerminalRaw(`${renderLogo(CLI_VERSION).trimEnd()}\n\n\n`);
+  writeTerminalRaw(`\n\n${renderLogo(CLI_VERSION)}\n\n\n`);
   writeTerminalRaw(`${await buildHeader(options)}\n\n`);
 
   const update = await updatePromise;

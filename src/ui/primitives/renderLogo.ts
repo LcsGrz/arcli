@@ -41,7 +41,10 @@ function logoIndent(): string {
   return ' '.repeat(Math.max(0, Math.floor((fitToTerminal(UI_THEME.widths.wide.min) - visibleWidth) / 2)));
 }
 
-/** El logo de ARCLI, centrado; con `version`, la muestra debajo, junto a la firma. */
+/**
+ * El logo de ARCLI, centrado; con `version`, la muestra debajo, junto a la firma. Sin lineas en blanco alrededor: cada
+ * pantalla pone su espacio. No se recorta con `trim`, que se llevaria la sangria que lo centra.
+ */
 export function renderLogo(version?: string): string {
   const columns = process.stdout.columns;
 
@@ -49,7 +52,7 @@ export function renderLogo(version?: string): string {
   if (columns && columns < renderLogoWidth()) {
     const suffix = version ? ` ${colorize(`v${version}`, 'muted')}` : '';
 
-    return `\n${colorize('AR', 'logo')}${colorize('CLI', 'neutral')}${suffix}\n`;
+    return `${colorize('AR', 'logo')}${colorize('CLI', 'neutral')}${suffix}`;
   }
 
   const logo = ARCLI_ASCII_BANNER.split('\n').map((line) => {
@@ -61,5 +64,5 @@ export function renderLogo(version?: string): string {
 
   const indent = logoIndent();
 
-  return `\n\n${[...logo, renderLogoFooter(version)].map((line) => `${indent}${line}`).join('\n')}\n\n`;
+  return [...logo, renderLogoFooter(version)].map((line) => `${indent}${line}`).join('\n');
 }

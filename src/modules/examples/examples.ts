@@ -260,8 +260,7 @@ export function renderExamples(today = new Date(), version?: string): string {
   const dates = resolveExampleDates(today);
 
   return [
-    // Sin los saltos de arriba, pero con la sangria de la primera linea: el logo va centrado.
-    renderLogo(version).replace(/^\n+/, '').trimEnd(),
+    renderLogo(version),
     '',
     `${badge('MÍNIMA', 'info')} datos esenciales`,
     `${badge('COMPLETA', 'warning')} más campos explicitados`,
