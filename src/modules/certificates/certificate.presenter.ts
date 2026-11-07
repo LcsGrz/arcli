@@ -14,13 +14,12 @@ import {
   uiSymbol,
 } from '../../ui';
 import { formatCertificateExpiryDate } from '../config/certificate-expiry';
-import type { ArcliEnvironment } from '../config/config.schemas';
+import { type ArcliEnvironment, formatEnvironmentLabel } from '../config/config.schemas';
 
 import type { CertificateStatus, GeneratedCertificateRequest, ImportedCertificate } from './certificate.service';
 
 const SERVICES_URL = `${CERTIFICATE_GUIDE_URL}#qué-servicios-autorizar`;
 
-const ENVIRONMENT_NAMES: Record<ArcliEnvironment, string> = { produccion: 'producción', testing: 'testing' };
 const ENVIRONMENT_COLORS: Record<ArcliEnvironment, UiColorToken> = { produccion: 'production', testing: 'testing' };
 
 /** Lo mismo que la tabla "Qué servicios autorizar" de la guía de certificados. */
@@ -108,7 +107,7 @@ export function formatGeneratedRequestAsText(request: GeneratedCertificateReques
     footer: 'Tu certificado actual sigue andando hasta que importes el nuevo.',
     footerColor: 'muted',
     footerDivider: true,
-    title: `Pedido de certificado ${uiSymbol('separator')} ${ENVIRONMENT_NAMES[request.environment]}`,
+    title: `Pedido de certificado ${uiSymbol('separator')} ${formatEnvironmentLabel(request.environment)}`,
     titleColor: color,
     width: 'wide',
   });
@@ -136,7 +135,7 @@ export function formatGeneratedRequestAsJson(request: GeneratedCertificateReques
 
 export function formatImportedCertificateAsText(imported: ImportedCertificate): string {
   const color = ENVIRONMENT_COLORS[imported.environment];
-  const environment = ENVIRONMENT_NAMES[imported.environment].toUpperCase();
+  const environment = formatEnvironmentLabel(imported.environment).toUpperCase();
   const panel = renderPanel({
     borderType: 'sheet',
     content: [
@@ -164,7 +163,7 @@ export function formatImportedCertificateAsText(imported: ImportedCertificate): 
     footer: 'Para revisar todo: `arcli config revisar`.',
     footerColor: 'muted',
     footerDivider: true,
-    title: `Certificado de ${ENVIRONMENT_NAMES[imported.environment]}`,
+    title: `Certificado de ${formatEnvironmentLabel(imported.environment)}`,
     titleColor: color,
     width: 'wide',
   });
@@ -245,7 +244,7 @@ export function formatCertificateStatusAsText(statuses: readonly CertificateStat
         borderType: 'sheet',
         content: statusRows(status, now),
         contentAlign: 'left',
-        title: `Certificado de ${ENVIRONMENT_NAMES[status.environment]}`,
+        title: `Certificado de ${formatEnvironmentLabel(status.environment)}`,
         titleColor: ENVIRONMENT_COLORS[status.environment],
         width: 'wide',
       }),

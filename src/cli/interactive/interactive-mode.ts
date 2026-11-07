@@ -7,7 +7,7 @@ import {
   type CertificateExpiryNotice,
   inspectConfiguredCertificates,
 } from '../../modules/config/certificate-expiry';
-import type { ArcliEnvironment } from '../../modules/config/config.schemas';
+import { type ArcliEnvironment, formatEnvironmentLabel } from '../../modules/config/config.schemas';
 import { ConfigService } from '../../modules/config/config.service';
 import { listMissingSetupKeys } from '../../modules/interactive/config-fields';
 import { type ArcaHealth, checkArcaHealth } from '../../modules/parameters/health';
@@ -111,9 +111,10 @@ const HEALTH_LABELS: Record<ArcaHealth, readonly [label: string, color: UiTextCo
 const MAX_ISSUER_NAME_LENGTH = 32;
 
 function environmentSegment(environment: ArcliEnvironment): StatusBarSegment {
-  return environment === 'produccion'
-    ? { color: 'production', text: 'PRODUCCIÓN' }
-    : { color: 'testing', text: 'TESTING' };
+  return {
+    color: environment === 'produccion' ? 'production' : 'testing',
+    text: formatEnvironmentLabel(environment).toUpperCase(),
+  };
 }
 
 /**
