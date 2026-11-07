@@ -24,6 +24,7 @@ import {
   type UiTextColor,
   writeTerminalError,
   writeTerminalOutput,
+  writeTerminalRaw,
 } from '../../ui';
 import { renderCertificateNotices } from '../arca-runtime';
 import { startSpinner } from '../spinner';
@@ -214,8 +215,8 @@ export async function runInteractiveMode(options: GlobalCliOptions = {}): Promis
   // Dos lineas en blanco entre el logo y la barra. La barra se escribe aparte porque, mientras se consulta ARCA,
   // en su lugar va el spinner. Debajo, una linea en blanco fija: al responder el menu, @inquirer saca las lineas
   // de su prefijo y sin esta la respuesta quedaria pegada a la barra (ver `compactTop` en el primer menu).
-  process.stdout.write(`${renderLogo(CLI_VERSION).trimEnd()}\n\n\n`);
-  process.stdout.write(`${await buildHeader(options)}\n\n`);
+  writeTerminalRaw(`${renderLogo(CLI_VERSION).trimEnd()}\n\n\n`);
+  writeTerminalRaw(`${await buildHeader(options)}\n\n`);
 
   const update = await updatePromise;
   // El menu va justo debajo de la barra solo la primera vez; despues, debajo de lo que mostro cada flujo.

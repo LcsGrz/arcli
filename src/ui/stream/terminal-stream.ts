@@ -41,6 +41,11 @@ function shouldHighlightJson(target: 'stderr' | 'stdout'): boolean {
   return stream.isTTY === true && supportsColor(target);
 }
 
+/** Sanitiza igual que `writeTerminalOutput`, sin el margen: para lo que arma su propio espaciado. */
+export function writeTerminalRaw(content: string): void {
+  process.stdout.write(sanitizeTerminalText(content));
+}
+
 export function writeTerminalOutput(content: string): void {
   process.stdout.write(formatTerminalOutput(content, { target: 'stdout' }));
 }
