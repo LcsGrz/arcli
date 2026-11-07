@@ -94,7 +94,7 @@ describe('commander usage errors', () => {
   it.each([
     [['fc', '--montoo', '1', '--json'], "opción desconocida '--montoo' (¿quisiste decir --monto?)"],
     [['fc', '--json', '--monto'], "falta el valor de la opción '-m, --monto <numero>'"],
-    [['comando-que-no-existe', '--json'], "comando desconocido 'comando-que-no-existe'"],
+    [['comando-que-no-existe', '--json'], 'comando desconocido `comando-que-no-existe`'],
     [['padron', '1', '2', '--json'], 'sobran argumentos: espera 1 y recibió 2 (1, 2).'],
   ])('%j prints a parseable INPUT_VALIDATION_ERROR with --json', async (argv, message) => {
     const { exitCode, stderr, stdout } = await runReportingErrors(argv);

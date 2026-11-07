@@ -37,7 +37,7 @@ function isCommanderUsageError(error: unknown): error is CommanderError {
 /** Los mensajes de error de uso de commander (15.x), que vienen en ingles. */
 const COMMANDER_MESSAGES: ReadonlyArray<readonly [RegExp, string]> = [
   [/unknown option '([^']+)'/, "opción desconocida '$1'"],
-  [/unknown command '([^']+)'/, "comando desconocido '$1'"],
+  [/unknown command '([^']+)'/, 'comando desconocido `$1`'],
   [/missing required argument '([^']+)'/, "falta el argumento obligatorio '$1'"],
   [/option '([^']+)' argument missing/, "falta el valor de la opción '$1'"],
   [/required option '([^']+)' not specified/, "falta la opción obligatoria '$1'"],
