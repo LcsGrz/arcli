@@ -43,11 +43,10 @@ const PROMPT_PREFIX = { done: DONE_PREFIX, idle: `\n\n${styleText('blue', '?')}`
 /** Una sola linea arriba: para una pregunta que ya tiene una linea en blanco fija antes, como el menu bajo la barra. */
 const COMPACT_PROMPT_PREFIX = { done: DONE_PREFIX, idle: `\n${styleText('blue', '?')}` };
 
-// Los iconos y el spinner de @inquirer son Unicode: con ARCLI_ASCII=1 se reemplazan. `checked` y `unchecked` son de
-// las listas con seleccion multiple; las demas los ignoran.
+// Los iconos y el spinner de @inquirer son Unicode: con ARCLI_ASCII=1 se reemplazan.
 const ASCII_THEME = usesAsciiBorders()
   ? {
-      icon: { checked: '[x]', cursor: uiSymbol('pointer'), unchecked: '[ ]' },
+      icon: { cursor: uiSymbol('pointer') },
       spinner: { frames: ['-', '\\', '|', '/'], interval: 80 },
     }
   : {};
@@ -69,6 +68,18 @@ function listStyle(extraKeys: readonly HelpKey[]) {
 
 const MENU_THEME = { ...ASCII_THEME, prefix: PROMPT_PREFIX, style: listStyle([]) };
 const STEP_THEME = { ...ASCII_THEME, prefix: PROMPT_PREFIX, style: listStyle([['esc', 'volver']]) };
+/**
+ * @inquirer/checkbox pega el cursor al icono (`❯◯`); `select` deja un espacio. Va en los iconos y no en el cursor:
+ * las filas sin cursor llevan un solo espacio en su lugar y quedarian corridas.
+ */
+const MULTI_SELECT_THEME = {
+  ...STEP_THEME,
+  icon: {
+    checked: ` ${styleText('green', uiSymbol('selected'))}`,
+    cursor: uiSymbol('pointer'),
+    unchecked: ` ${uiSymbol('unselected')}`,
+  },
+};
 const TEXT_THEME = {
   ...ASCII_THEME,
   prefix: PROMPT_PREFIX,
@@ -344,7 +355,7 @@ export async function chooseManyStep<T>(
           loop: false,
           message,
           pageSize: 12,
-          theme: STEP_THEME,
+          theme: MULTI_SELECT_THEME,
         },
         context,
       ),
