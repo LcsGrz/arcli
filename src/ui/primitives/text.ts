@@ -11,12 +11,29 @@ const DIM = '\u001B[2m';
 export type OutputTarget = 'stderr' | 'stdout';
 export type UiTextColor = UiColorToken | string;
 
+// A donde va lo que se esta armando. Un panel no conoce su destino y adentro hay muchas llamadas a `colorize`:
+// mientras dura `renderForTarget`, todas miran esa salida en lugar de stdout.
+let defaultTarget: OutputTarget = 'stdout';
+
+/** Corre `render` decidiendo los colores y links segun `target`. `render` tiene que ser sincrono. */
+export function renderForTarget<T>(target: OutputTarget, render: () => T): T {
+  const previous = defaultTarget;
+
+  defaultTarget = target;
+
+  try {
+    return render();
+  } finally {
+    defaultTarget = previous;
+  }
+}
+
 /**
  * Colores solo en una terminal real. Con la salida redirigida (pipe, archivo, `| jq`) `isTTY` es
  * `undefined`: antes se trataba como terminal y el JSON salia con codigos ANSI que lo rompian.
  * `NO_COLOR` los apaga siempre; `FORCE_COLOR` los fuerza aunque no haya terminal.
  */
-export function shouldUseColor(target: OutputTarget = 'stdout'): boolean {
+export function shouldUseColor(target: OutputTarget = defaultTarget): boolean {
   if (process.env.NO_COLOR) {
     return false;
   }
@@ -32,7 +49,7 @@ export function shouldUseColor(target: OutputTarget = 'stdout'): boolean {
   return stream.isTTY === true;
 }
 
-export function supportsColor(target: OutputTarget = 'stdout'): boolean {
+export function supportsColor(target: OutputTarget = defaultTarget): boolean {
   return shouldUseColor(target);
 }
 
@@ -51,7 +68,7 @@ function wrapLines(value: string, open: string, close: string): string {
     .join('\n');
 }
 
-export function colorize(value: string, color: UiTextColor, target: OutputTarget = 'stdout'): string {
+export function colorize(value: string, color: UiTextColor, target: OutputTarget = defaultTarget): string {
   if (!shouldUseColor(target)) {
     return value;
   }
@@ -63,7 +80,7 @@ export function colorize(value: string, color: UiTextColor, target: OutputTarget
   return wrapLines(value, open, open === DIM ? BOLD_OFF : COLOR_OFF);
 }
 
-export function bold(value: string, target: OutputTarget = 'stdout'): string {
+export function bold(value: string, target: OutputTarget = defaultTarget): string {
   if (!shouldUseColor(target)) {
     return value;
   }

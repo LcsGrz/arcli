@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { colorize, shouldUseColor, stripAnsi, wrapIndentedPlainText } from '../text';
+import { colorize, renderForTarget, shouldUseColor, stripAnsi, wrapIndentedPlainText } from '../text';
 
 describe('wrapIndentedPlainText', () => {
   it('keeps the label when the first word of the value does not fit', () => {
@@ -123,5 +123,43 @@ describe('shouldUseColor', () => {
 
     setEnv(true, { FORCE_COLOR: '1', NO_COLOR: '1' });
     expect(shouldUseColor()).toBe(false);
+  });
+});
+
+describe('renderForTarget', () => {
+  const original = { stderr: process.stderr.isTTY, stdout: process.stdout.isTTY };
+
+  function setTerminals(stdout: boolean, stderr: boolean): void {
+    Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: stdout });
+    Object.defineProperty(process.stderr, 'isTTY', { configurable: true, value: stderr });
+  }
+
+  afterEach(() => {
+    setTerminals(original.stdout, original.stderr);
+  });
+
+  it('decides the color from stderr while rendering for it', () => {
+    setTerminals(true, false);
+
+    expect(renderForTarget('stderr', () => colorize('error', 'danger'))).toBe('error');
+    expect(colorize('ok', 'success')).not.toBe('ok');
+  });
+
+  it('colors an error in the terminal when only stdout is redirected', () => {
+    setTerminals(false, true);
+
+    expect(renderForTarget('stderr', () => colorize('error', 'danger'))).not.toBe('error');
+    expect(colorize('ok', 'success')).toBe('ok');
+  });
+
+  it('goes back to stdout when the render throws', () => {
+    setTerminals(true, false);
+
+    expect(() =>
+      renderForTarget('stderr', () => {
+        throw new Error('fallo');
+      }),
+    ).toThrow('fallo');
+    expect(colorize('ok', 'success')).not.toBe('ok');
   });
 });

@@ -33,11 +33,7 @@ export function writeCertificateNotice(runtime: CertificateRuntime): void {
     return;
   }
 
-  const banner = renderCertificateNotices(runtime.certificateNotices);
-
-  if (banner) {
-    writeTerminalNotice(banner);
-  }
+  writeTerminalNotice(() => renderCertificateNotices(runtime.certificateNotices));
 }
 
 /** Lo que se suma a `avisos` en el JSON de facturacion. En texto el aviso ya salio arriba: no se repite. */

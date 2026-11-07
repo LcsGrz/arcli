@@ -20,6 +20,7 @@ import {
   renderLogo,
   statusBar,
   type StatusBarSegment,
+  uiSymbol,
   type UiTextColor,
   writeTerminalError,
   writeTerminalOutput,
@@ -67,7 +68,7 @@ function resolveSession(options: GlobalCliOptions): InteractiveSession | undefin
   try {
     return createInteractiveSession(options);
   } catch (error) {
-    writeTerminalError(formatCliError(error, false));
+    writeTerminalError(() => formatCliError(error, false));
     writeTerminalOutput(noticePanel('Revisala desde "Configuración" en el menú.', 'warning'));
 
     return undefined;
@@ -195,7 +196,7 @@ function formatIssuer(businessName: string | undefined, cuit: number): string {
   }
 
   return businessName.length > MAX_ISSUER_NAME_LENGTH
-    ? `${businessName.slice(0, MAX_ISSUER_NAME_LENGTH - 1).trimEnd()}…`
+    ? `${businessName.slice(0, MAX_ISSUER_NAME_LENGTH - 1).trimEnd()}${uiSymbol('ellipsis')}`
     : businessName;
 }
 
@@ -308,7 +309,7 @@ export async function runInteractiveMode(options: GlobalCliOptions = {}): Promis
       if (isPromptCancellation(error)) {
         writeTerminalOutput(colorize('Cancelado. No se emitió nada.', 'muted'));
       } else {
-        writeTerminalError(formatCliError(error, false));
+        writeTerminalError(() => formatCliError(error, false));
       }
     }
   }

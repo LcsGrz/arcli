@@ -1,4 +1,5 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
+import { formatCuit } from '../../lib/identity/format-cuit';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { maskPath } from '../../lib/paths/mask-path';
 import {
@@ -10,11 +11,12 @@ import {
   statusPanel,
   toneText,
   UI_THEME,
+  uiSymbol,
 } from '../../ui';
 import { RECENT_VOUCHERS_LIMIT } from '../vouchers/voucher-history';
 
 import type { ArcliConfig, ConfigPublicKey } from './config.schemas';
-import { isPadronLookupEnabled } from './config.schemas';
+import { formatEnvironmentLabel, isPadronLookupEnabled } from './config.schemas';
 import { CONFIG_LABELS, CONFIG_SECTIONS } from './config.sections';
 import { CONFIG_DOCTOR_SECTIONS, type ConfigDoctorReport } from './config-doctor';
 
@@ -134,7 +136,7 @@ const NOT_SET = 'no configurado';
 type PublicConfigValue = (config: PublicConfigSnapshot) => number | string;
 
 const notSet = (value: number | string | undefined): number | string => value ?? NOT_SET;
-const yesNo = (value: boolean | undefined): string => (value ? 'si' : 'no');
+const yesNo = (value: boolean | undefined): string => (value ? 'sí' : 'no');
 
 /** Como se muestra cada dato en `arcli config`. */
 const CONFIG_TEXT_VALUES: Record<ConfigPublicKey, PublicConfigValue> = {
@@ -148,7 +150,7 @@ const CONFIG_TEXT_VALUES: Record<ConfigPublicKey, PublicConfigValue> = {
   concepto: (c) => notSet(c.concepto),
   condicionVenta: (c) => notSet(c.condicionVenta),
   cotizacion: (c) => formatExchangeRate(c.cotizacion ?? 1),
-  cuit: (c) => notSet(c.cuit),
+  cuit: (c) => (c.cuit ? formatCuit(c.cuit) : NOT_SET),
   'emisor.condicionIva': (c) => c.emisor.condicionIva ?? 'según la letra',
   'emisor.domicilio': (c) => notSet(c.emisor.domicilio),
   'emisor.iibb': (c) => notSet(c.emisor.iibb),
@@ -157,7 +159,7 @@ const CONFIG_TEXT_VALUES: Record<ConfigPublicKey, PublicConfigValue> = {
   'emisor.logo': (c) => notSet(c.emisor.logo),
   'emisor.razonSocial': (c) => notSet(c.emisor.razonSocial),
   emitir: (c) => yesNo(c.emitir),
-  entorno: (c) => c.entorno,
+  entorno: (c) => formatEnvironmentLabel(c.entorno),
   'exportacion.actividad': (c) => notSet(c.exportacion.actividad),
   'exportacion.cert.produccion': (c) => notSet(c.exportacion.cert.produccion),
   'exportacion.cert.testing': (c) => notSet(c.exportacion.cert.testing),
@@ -170,7 +172,7 @@ const CONFIG_TEXT_VALUES: Record<ConfigPublicKey, PublicConfigValue> = {
   moneda: (c) => c.moneda ?? 'PES',
   pdf: (c) => c.pdf,
   pdfCarpeta: (c) => c.pdfCarpeta,
-  pdfNavegador: (c) => c.pdfNavegador ?? 'automatico',
+  pdfNavegador: (c) => c.pdfNavegador ?? 'automático',
   puntoVenta: (c) => notSet(c.puntoVenta),
   ticketPath: (c) => c.ticketPath,
   verificarFce: (c) => yesNo(c.verificarFce),
@@ -258,11 +260,9 @@ export function formatConfigDoctor(report: ConfigDoctorReport): string {
   );
 }
 
-const DOCTOR_ICONS: Record<ConfigDoctorReport['checks'][number]['category'], string> = {
-  error: 'x',
-  ok: '✓',
-  warning: '!',
-};
+function doctorIcon(category: ConfigDoctorReport['checks'][number]['category']): string {
+  return { error: 'x', ok: uiSymbol('check'), warning: '!' }[category];
+}
 
 const DOCTOR_TONES = { error: 'danger', ok: 'success', warning: 'warning' } as const;
 
@@ -292,14 +292,14 @@ export function formatConfigDoctorAsText(report: ConfigDoctorReport): string {
       const detail = formatDoctorDetail(check);
 
       // Dos espacios despues del icono: una linea larga sigue alineada al texto, no al icono.
-      return `  ${toneText(DOCTOR_ICONS[check.category], tone)}  ${check.category === 'ok' ? detail : colorize(detail, tone)}`;
+      return `  ${toneText(doctorIcon(check.category), tone)}  ${check.category === 'ok' ? detail : colorize(detail, tone)}`;
     }),
   ]);
   const tone = report.ok ? 'success' : report.checks.some((check) => check.category === 'error') ? 'danger' : 'warning';
   const footer = report.ok
     ? 'Configuración lista para usar ARCLI'
     : report.checks.some((check) => check.category === 'error')
-      ? 'Hay puntos criticos por corregir antes de emitir'
+      ? 'Hay puntos críticos por corregir antes de emitir'
       : 'Revisá las recomendaciones antes de emitir en serio';
 
   return statusPanel('Revisión de configuración', lines, footer, 'wide', tone, 'checklist');

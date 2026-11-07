@@ -32,6 +32,11 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### Corregido
 
+- **Colores de los errores:** dependían de stdout aunque los errores se escriben en stderr. `arcli ... 2> errores.log` guardaba códigos de color en el archivo, y con `arcli ... | jq` el error salía sin color en la terminal. Ahora dependen de stderr. También vale para los avisos de nueva versión y de certificado.
+- **`ARCLI_ASCII=1` cubre toda la salida:** también cambia los símbolos (`✓`, `•`, `·`, `…`, `→`) y lo que dibuja el modo interactivo (`✔`, `❯`, `↑↓`, `⏎`, `←`, `┈`, el spinner). Antes solo cambiaba los bordes. Las tildes y la `ñ` se mantienen.
+- **Entorno con tilde:** los títulos de `parametros` y `ultimos` dicen `PRODUCCIÓN` en lugar de `PRODUCCION`, y `estado`, `config`, `config revisar` y los errores de comprobante o CUIT no encontrado dicen `producción`. El `--json` conserva `entorno: "produccion"`; solo cambia el texto de `error` y `detalle`.
+- **`arcli config` muestra el CUIT con guiones:** `20-33333333-4`, igual que el resto de los comandos. `config --json` no cambia.
+- **Textos:** tildes que faltaban en `sí`, `automático`, `Cuándo generar el PDF`, `puntos críticos` y `Estás utilizando el entorno de TESTING`. La ayuda de `--moneda` dice `etc.` en lugar de `…`.
 - **`dh key too small` en producción:** en sistemas con OpenSSL en `SECLEVEL=2`, como Debian 13, las llamadas a WSFE y WSFEX de producción fallaban con ese error aunque el certificado, la clave y el punto de venta fueran correctos. Ahora arcli no ofrece DHE en producción, sin aflojar el resto de la seguridad de la conexión. Testing no cambia. Ya no hace falta el wrapper con `--tls-cipher-list`.
 - **PDF de la factura E en el modo interactivo:** si faltan datos del emisor, los pide y ofrece guardarlos, como en el resto de los comprobantes. Antes el PDF no se generaba.
 - **Emisión incierta en la factura E:** si falla la llamada que emite una `fe` (red, timeout), sale como `EMISSION_UNCERTAIN`, igual que A, B y C, en lugar de un error inesperado que invitaba a reintentar. `detalles` trae `numero` e `idSolicitud`, y la sugerencia es reintentar con esos mismos valores: ARCA no autoriza dos comprobantes con el mismo número, así que no se duplica.

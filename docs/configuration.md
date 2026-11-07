@@ -200,14 +200,14 @@ La ruta se guarda absoluta, así que podés pasarla relativa a la carpeta donde 
 
 No son claves de config. Las de color, `FORCE_HYPERLINK` y `ARCLI_ASCII` cambian solo cómo se ve la salida humana; el JSON no cambia.
 
-| Variable                    | Efecto                                                                                                                                                     |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `NO_COLOR`                  | Desactiva los colores                                                                                                                                      |
-| `FORCE_COLOR`               | `1` fuerza los colores aunque la salida no sea una terminal (por defecto, con la salida redirigida no hay colores); `0` o `false` los apaga                |
-| `ARCLI_ASCII=1`             | Dibuja los paneles con ASCII puro (`+`, `-`, `\|`), para terminales o fuentes que no muestran los caracteres de caja Unicode                               |
-| `FORCE_HYPERLINK=0`         | Apaga los links clickeables en las rutas (con `1` los fuerza). Por defecto se usan en terminales que los soportan, como VS Code, iTerm2 o Windows Terminal |
-| `NO_UPDATE_NOTIFIER`        | Desactiva el aviso de nueva versión, también en el modo interactivo. Tampoco aparece con `CI`, con `--json` ni si stderr no es una terminal                |
-| `PUPPETEER_EXECUTABLE_PATH` | Ruta del navegador para el PDF (ver [PDF](pdf.md#el-plugin-de-pdf))                                                                                        |
+| Variable                    | Efecto                                                                                                                                                                        |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NO_COLOR`                  | Desactiva los colores                                                                                                                                                         |
+| `FORCE_COLOR`               | `1` fuerza los colores aunque la salida no sea una terminal (por defecto, con la salida redirigida no hay colores); `0` o `false` los apaga                                   |
+| `ARCLI_ASCII=1`             | Dibuja los paneles y los símbolos con ASCII puro (`+`, `-`, `\|`), para terminales o fuentes que no muestran los caracteres de caja Unicode. Las tildes y la `ñ` se mantienen |
+| `FORCE_HYPERLINK=0`         | Apaga los links clickeables en las rutas (con `1` los fuerza). Por defecto se usan en terminales que los soportan, como VS Code, iTerm2 o Windows Terminal                    |
+| `NO_UPDATE_NOTIFIER`        | Desactiva el aviso de nueva versión, también en el modo interactivo. Tampoco aparece con `CI`, con `--json` ni si stderr no es una terminal                                   |
+| `PUPPETEER_EXECUTABLE_PATH` | Ruta del navegador para el PDF (ver [PDF](pdf.md#el-plugin-de-pdf))                                                                                                           |
 
 ## Qué conviene guardar
 

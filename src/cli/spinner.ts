@@ -1,5 +1,7 @@
 import ora, { type Ora } from 'ora';
 
+import { usesAsciiBorders } from '../ui';
+
 /**
  * Spinner compartido por los comandos y el modo interactivo.
  * - `discardStdin: false`: por defecto ora toma stdin para descartar teclas y choca con los prompts de @inquirer.
@@ -11,7 +13,7 @@ export function startSpinner(text: string): Ora | null {
     return null;
   }
 
-  return ora({ discardStdin: false, text }).start();
+  return ora({ discardStdin: false, ...(usesAsciiBorders() ? { spinner: 'line' as const } : {}), text }).start();
 }
 
 /** Corre `run` con un spinner que se detiene siempre, tambien si falla. Sin texto, no hay spinner. */

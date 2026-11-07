@@ -229,7 +229,7 @@ describe('runConfigMenu', () => {
 
     await runConfigMenu();
 
-    expect(stripAnsi(printed)).toContain('20333333334');
+    expect(stripAnsi(printed)).toContain('20-33333333-4');
     expect(stripAnsi(printed)).toContain('Comprobantes por lista');
   });
 

@@ -5,6 +5,7 @@ import { UI_THEME, type UiBorderStyle, type UiBorderType, type UiWidthPreset } f
 import { renderDivider } from './renderDivider';
 import { renderFooter } from './renderFooter';
 import { renderSubtitle } from './renderSubtitle';
+import { usesAsciiBorders } from './symbols';
 import { fitToTerminal, resolveTerminalColumns } from './terminalWidth';
 import {
   bold,
@@ -89,13 +90,6 @@ const MIN_PANEL_WIDTH = 24;
 // Marca de la linea divisoria: despues de dibujar la caja se reemplaza por una linea unida al borde
 // (por ejemplo `╟┄┄┄╢`). El caracter NUL no ocupa ancho, asi que no altera el calculo de boxen.
 const DIVIDER_MARKER = '\u0000';
-
-/** ARCLI_ASCII=1 cambia todos los bordes por ASCII puro, para terminales sin caracteres de caja. */
-export function usesAsciiBorders(): boolean {
-  const value = process.env.ARCLI_ASCII?.trim().toLowerCase();
-
-  return value === '1' || value === 'true' || value === 'si';
-}
 
 function resolveBorderStyle(borderType: Exclude<UiBorderType, 'command'>): UiBorderStyle {
   return usesAsciiBorders() ? UI_THEME.asciiBorderStyle : UI_THEME.borderStyles[borderType];

@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
+import { stripAnsi } from '../../../ui';
 import { filterCurrentEntries, type ParametersGateway, resolveParameterTable, salesPointToEntry } from '../parameters';
-import { formatParameterEntriesAsText, formatStatusAsJson, formatStatusAsText } from '../parameters.presenter';
+import {
+  formatParameterEntriesAsText,
+  formatQuotationAsText,
+  formatStatusAsJson,
+  formatStatusAsText,
+} from '../parameters.presenter';
 import { buildStatusReport } from '../status';
 
 function createGateway(overrides: Partial<ParametersGateway> = {}): ParametersGateway {
@@ -40,6 +46,18 @@ describe('parameters', () => {
 
   it('explains empty sales points in testing', () => {
     expect(formatParameterEntriesAsText('puntos-venta', [], 'testing')).toContain('En testing ARCA no informa');
+  });
+});
+
+describe('entorno en el texto', () => {
+  it('names production with its accent', async () => {
+    const report = await buildStatusReport({ environment: 'produccion', gateway: createGateway(), pointOfSale: 3 });
+
+    expect(stripAnsi(formatQuotationAsText({ currency: 'DOL', rate: 1 }, 'produccion'))).toContain(
+      'COTIZACIÓN OFICIAL · PRODUCCIÓN',
+    );
+    expect(stripAnsi(formatStatusAsText(report))).toMatch(/Entorno\s+producción/);
+    expect(JSON.parse(formatStatusAsJson(report)).entorno).toBe('produccion');
   });
 });
 

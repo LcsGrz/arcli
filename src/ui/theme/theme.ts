@@ -63,6 +63,18 @@ export type UiColorToken =
   | 'success'
   | 'testing'
   | 'warning';
+export type UiSymbolName =
+  | 'arrow'
+  | 'back'
+  | 'bullet'
+  | 'check'
+  | 'done'
+  | 'ellipsis'
+  | 'keyEnter'
+  | 'keysMove'
+  | 'pointer'
+  | 'rule'
+  | 'separator';
 export type UiWidthPreset = 'compact' | 'standard' | 'ticket' | 'wide';
 export interface UiWidthRange {
   readonly max: number;
@@ -85,6 +97,8 @@ export interface UiTheme {
     };
     readonly panelPadding: BoxenSpacing;
   };
+  /** Simbolos de la salida, con su respaldo para ARCLI_ASCII=1. Se piden con `uiSymbol`. */
+  readonly symbols: Readonly<Record<UiSymbolName, { readonly ascii: string; readonly unicode: string }>>;
   readonly table: {
     readonly gap: number;
     readonly labelWidth: number;
@@ -307,6 +321,19 @@ export const UI_THEME: UiTheme = {
       bottom: 1,
       left: 2,
     },
+  },
+  symbols: {
+    arrow: { ascii: '->', unicode: '→' },
+    back: { ascii: '<', unicode: '←' },
+    bullet: { ascii: '-', unicode: '•' },
+    check: { ascii: 'v', unicode: '✓' },
+    done: { ascii: 'v', unicode: '✔' },
+    ellipsis: { ascii: '...', unicode: '…' },
+    keyEnter: { ascii: 'enter', unicode: '⏎' },
+    keysMove: { ascii: 'arriba/abajo', unicode: '↑↓' },
+    pointer: { ascii: '>', unicode: '❯' },
+    rule: { ascii: '-', unicode: '┈' },
+    separator: { ascii: '-', unicode: '·' },
   },
   table: {
     gap: 2,

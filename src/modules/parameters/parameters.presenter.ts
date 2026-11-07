@@ -2,7 +2,8 @@ import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { DEPRECATED_POINT_OF_SALE_OBJECT } from '../../lib/json/deprecations';
 import { POINT_OF_SALE_GUIDE_URL } from '../../lib/links';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
-import { keyValuePanel, noticePanel, renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui';
+import { keyValuePanel, noticePanel, renderKeyValueRows, resolveKeyValueLabelWidth, uiSymbol } from '../../ui';
+import { formatEnvironmentLabel } from '../config/config.schemas';
 
 import {
   PARAMETER_TABLE_NAMES,
@@ -61,7 +62,14 @@ export function formatParameterEntriesAsText(
     [entry.id.padStart(idWidth), entry.description, entry.detail ? `(${entry.detail})` : ''].filter(Boolean).join('  '),
   );
 
-  return keyValuePanel(`${PARAMETER_TABLES[table]} · ${environment}`, rows, undefined, 'wide', undefined, 'listing');
+  return keyValuePanel(
+    `${PARAMETER_TABLES[table]} ${uiSymbol('separator')} ${formatEnvironmentLabel(environment)}`,
+    rows,
+    undefined,
+    'wide',
+    undefined,
+    'listing',
+  );
 }
 
 export function formatParameterEntriesAsJson(
@@ -93,7 +101,7 @@ export function formatQuotationAsText(quotation: Quotation, environment: Environ
   ] as const;
 
   return keyValuePanel(
-    `Cotización oficial · ${environment}`,
+    `Cotización oficial ${uiSymbol('separator')} ${formatEnvironmentLabel(environment)}`,
     renderKeyValueRows(rows, { labelWidth: resolveKeyValueLabelWidth('standard', rows, [30, 70]) }),
     undefined,
     'standard',
@@ -129,7 +137,7 @@ function describePointOfSale(check: PointOfSaleCheck, number: number | undefined
 
 export function formatStatusAsText(report: StatusReport): string {
   const rows = [
-    ['Entorno', report.environment],
+    ['Entorno', formatEnvironmentLabel(report.environment)],
     ['Servidor de aplicación', report.servers.app],
     ['Base de datos', report.servers.db],
     ['Autenticación', report.servers.auth],

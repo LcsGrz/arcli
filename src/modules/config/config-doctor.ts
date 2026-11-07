@@ -239,14 +239,14 @@ export function buildConfigDoctorReport(
       cert && key
         ? {
             category: 'ok',
-            detail: `Certificado y clave de exportación (${environment}) configurados.`,
+            detail: `Certificado y clave de exportación (${formatEnvironmentLabel(environment)}) configurados.`,
             label: 'Credenciales WSFEX',
             section: 'certificados',
-            value: environment,
+            value: formatEnvironmentLabel(environment),
           }
         : {
             category: 'warning',
-            detail: `Para WSFEX en ${environment} configurá "exportacion.cert.${environment}" y "exportacion.key.${environment}" juntos.`,
+            detail: `Para WSFEX en ${formatEnvironmentLabel(environment)} configurá "exportacion.cert.${environment}" y "exportacion.key.${environment}" juntos.`,
             label: 'Credenciales WSFEX',
             section: 'certificados',
           },
@@ -255,34 +255,34 @@ export function buildConfigDoctorReport(
 
   checks.push({
     category: 'ok',
-    detail: `Entorno por defecto: ${config.entornoPorDefecto}.`,
+    detail: `Entorno por defecto: ${formatEnvironmentLabel(config.entornoPorDefecto)}.`,
     label: 'Entorno',
     section: 'salida',
-    value: config.entornoPorDefecto,
+    value: formatEnvironmentLabel(config.entornoPorDefecto),
   });
 
   checks.push({
     category: 'ok',
-    detail: `Emitir por defecto: ${config.output.emitirPorDefecto ? 'si' : 'no'}.`,
+    detail: `Emitir por defecto: ${config.output.emitirPorDefecto ? 'sí' : 'no'}.`,
     label: 'Emisión',
     section: 'salida',
-    value: config.output.emitirPorDefecto ? 'si' : 'no',
+    value: config.output.emitirPorDefecto ? 'sí' : 'no',
   });
 
   checks.push({
     category: 'ok',
-    detail: `Salida JSON por defecto: ${config.output.jsonPorDefecto ? 'si' : 'no'}.`,
+    detail: `Salida JSON por defecto: ${config.output.jsonPorDefecto ? 'sí' : 'no'}.`,
     label: 'JSON',
     section: 'salida',
-    value: config.output.jsonPorDefecto ? 'si' : 'no',
+    value: config.output.jsonPorDefecto ? 'sí' : 'no',
   });
 
   checks.push({
     category: 'ok',
-    detail: `Respuesta bruta por defecto: ${config.output.brutoPorDefecto ? 'si' : 'no'}.`,
+    detail: `Respuesta bruta por defecto: ${config.output.brutoPorDefecto ? 'sí' : 'no'}.`,
     label: 'Bruto',
     section: 'salida',
-    value: config.output.brutoPorDefecto ? 'si' : 'no',
+    value: config.output.brutoPorDefecto ? 'sí' : 'no',
   });
 
   // Solo se avisa si el PDF se genera siempre: con "preguntar" (por defecto) los datos se piden al generarlo.

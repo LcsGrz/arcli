@@ -11,7 +11,7 @@ import { CertificateService, DEFAULT_CERTIFICATE_ALIAS } from '../../modules/cer
 import { type ArcliEnvironment, arcliEnvironmentSchema } from '../../modules/config/config.schemas';
 import { ConfigService } from '../../modules/config/config.service';
 import { BACK, type Back } from '../../modules/interactive/wizard';
-import { formatCliError, noticePanel, writeTerminalError, writeTerminalOutput } from '../../ui';
+import { formatCliError, noticePanel, uiSymbol, writeTerminalError, writeTerminalOutput } from '../../ui';
 
 import { askTextStep, chooseStep, confirm } from './prompts';
 
@@ -19,8 +19,7 @@ export type CertificateFlowResult = 'importado' | 'pendiente';
 
 const ENVIRONMENT_NAMES: Record<ArcliEnvironment, string> = { produccion: 'Producción', testing: 'Testing' };
 
-const LATER_NOTICE =
-  'Cuando tengas el .crt, cargalo desde Configuración → Certificados de ARCA, o con `arcli certificado importar <archivo>`. Hasta entonces seguís usando el certificado actual.';
+const LATER_NOTICE = `Cuando tengas el .crt, cargalo desde Configuración ${uiSymbol('arrow')} Certificados de ARCA, o con \`arcli certificado importar <archivo>\`. Hasta entonces seguís usando el certificado actual.`;
 
 /** Cada operacion abre y cierra la config: entre una pregunta y otra el usuario puede tardar lo que quiera. */
 function withService<T>(run: (service: CertificateService, config: ConfigService) => T): T {
@@ -95,7 +94,7 @@ export async function runImportCertificate(): Promise<'importado' | Back> {
       throw error;
     }
 
-    writeTerminalError(formatCliError(error, false));
+    writeTerminalError(() => formatCliError(error, false));
 
     return BACK;
   }

@@ -1,7 +1,7 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { formatCuit } from '../../lib/identity/format-cuit';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
-import { keyValuePanel, noticePanel, renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui';
+import { keyValuePanel, noticePanel, renderKeyValueRows, resolveKeyValueLabelWidth, uiSymbol } from '../../ui';
 import { CONSUMER_DOCUMENT_TYPE_CODE, isTaxIdDocumentType } from '../billing/arca-codes';
 import {
   formatConceptLabel,
@@ -11,6 +11,7 @@ import {
 } from '../billing/billing.labels';
 import { formatLatestVouchersTitle, formatNoVouchersEmitted } from '../billing/billing.mappers';
 import type { VoucherKindDefinition } from '../billing/billing.types';
+import { formatEnvironmentLabel } from '../config/config.schemas';
 
 import type { IssuedVoucher } from './voucher-history';
 
@@ -54,7 +55,9 @@ export function formatReceiver(voucher: IssuedVoucher): string {
 
 /** Titulo del listado de ultimos comprobantes, tambien usado por el selector del modo interactivo. */
 function formatVoucherListTitle(report: Omit<VoucherListReport, 'vouchers'>): string {
-  return `${formatLatestVouchersTitle(report.voucherKind)} · PV ${report.pointOfSale} · ${report.environment}`;
+  const separator = uiSymbol('separator');
+
+  return `${formatLatestVouchersTitle(report.voucherKind)} ${separator} PV ${report.pointOfSale} ${separator} ${formatEnvironmentLabel(report.environment)}`;
 }
 
 /** Una fila del listado: numero, fecha, receptor, total y CAE, en columnas alineadas. */

@@ -84,7 +84,7 @@ export const CONFIG_LABELS: Record<ConfigPublicKey, string> = {
   'key.produccion': 'Clave privada de producción',
   'key.testing': 'Clave privada de testing',
   moneda: 'Moneda',
-  pdf: 'Cuando generar el PDF',
+  pdf: 'Cuándo generar el PDF',
   pdfCarpeta: 'Carpeta de PDFs',
   pdfNavegador: 'Navegador para PDFs',
   puntoVenta: 'Punto de venta',

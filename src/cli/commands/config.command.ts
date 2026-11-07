@@ -149,7 +149,7 @@ export function registerConfigCommand(program: Command): void {
         const paths = service.resolvePaths(config);
 
         if (key === 'cotizacion') {
-          writeTerminalNotice(COTIZACION_DEPRECATION_WARNING);
+          writeTerminalNotice(() => COTIZACION_DEPRECATION_WARNING);
         }
 
         printConfigResult(

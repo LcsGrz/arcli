@@ -34,7 +34,7 @@ program
     const updateResult = await updateCheckPromise;
 
     if (updateResult) {
-      writeTerminalError(renderUpdateNoticePanel(updateResult));
+      writeTerminalError(() => renderUpdateNoticePanel(updateResult));
     }
   })
   .catch((error: unknown) => {

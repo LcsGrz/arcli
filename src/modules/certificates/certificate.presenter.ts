@@ -11,6 +11,7 @@ import {
   supportsHyperlinks,
   toneText,
   type UiColorToken,
+  uiSymbol,
 } from '../../ui';
 import { formatCertificateExpiryDate } from '../config/certificate-expiry';
 import type { ArcliEnvironment } from '../config/config.schemas';
@@ -67,7 +68,11 @@ function rows(entries: ReadonlyArray<readonly [label: string, value: string]>): 
 function servicesSection(title = 'Servicios a autorizar'): string[] {
   const guide = supportsHyperlinks() ? ['', `  ${hyperlink('Guía con capturas de cada pantalla', SERVICES_URL)}`] : [];
 
-  return [heading(title), ...rows(SERVICES.map(([service, usage]) => [`• ${service}`, usage])), ...guide];
+  return [
+    heading(title),
+    ...rows(SERVICES.map(([service, usage]) => [`${uiSymbol('bullet')} ${service}`, usage])),
+    ...guide,
+  ];
 }
 
 /** Sin links en la terminal, la URL va afuera de la caja: adentro se partiria y no se podria abrir. */
@@ -103,7 +108,7 @@ export function formatGeneratedRequestAsText(request: GeneratedCertificateReques
     footer: 'Tu certificado actual sigue andando hasta que importes el nuevo.',
     footerColor: 'muted',
     footerDivider: true,
-    title: `Pedido de certificado · ${ENVIRONMENT_NAMES[request.environment]}`,
+    title: `Pedido de certificado ${uiSymbol('separator')} ${ENVIRONMENT_NAMES[request.environment]}`,
     titleColor: color,
     width: 'wide',
   });
@@ -135,7 +140,7 @@ export function formatImportedCertificateAsText(imported: ImportedCertificate): 
   const panel = renderPanel({
     borderType: 'sheet',
     content: [
-      `${toneText('✓', 'success')} ${bold(`Certificado de ${toneText(environment, color)} cargado`)}${
+      `${toneText(uiSymbol('check'), 'success')} ${bold(`Certificado de ${toneText(environment, color)} cargado`)}${
         imported.replaced ? colorize(' (reemplaza al anterior)', 'muted') : ''
       }`,
       '',

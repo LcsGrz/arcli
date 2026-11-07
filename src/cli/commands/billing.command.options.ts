@@ -32,7 +32,10 @@ export function registerBillingOptions(command: Command): void {
     .option('--cs', 'usar concepto servicios')
     .option('--cp', 'usar concepto productos')
     .option('--csp', 'usar concepto productos y servicios')
-    .option('--moneda <codigo>', 'moneda: código ISO (ARS, USD, EUR, UYU…) o de ARCA (PES, DOL, 060…) (alias: --mda)')
+    .option(
+      '--moneda <codigo>',
+      'moneda: código ISO (ARS, USD, EUR, UYU, etc.) o de ARCA (PES, DOL, 060, etc.) (alias: --mda)',
+    )
     .option('--mda <codigo>', 'alias de --moneda')
     .option('--cm <numero>', 'alias de --cotizacion-moneda', amountOption('--cm', EXCHANGE_RATE_DECIMALS))
     .option(

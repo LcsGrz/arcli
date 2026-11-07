@@ -166,7 +166,7 @@ function showcaseIndex(): string {
     borderColor: STORYBOOK_SHOWCASE_THEME.borderColor,
     borderType: 'debug',
     content: [],
-    subtitle: 'Galeria visual del CLI',
+    subtitle: 'Galería visual del CLI',
     subtitleColor: 'debug',
     title: 'Terminal Storybook',
     width: STORYBOOK_SHOWCASE_THEME.indexPanelWidth,
@@ -175,7 +175,7 @@ function showcaseIndex(): string {
 
 function buildColorsScene(): string {
   return [
-    sceneTitle('Colores UI', 'Paleta semantica y tono debug'),
+    sceneTitle('Colores UI', 'Paleta semántica y tono debug'),
     `${badge('OK', 'success')} ${toneText('Paneles base listos', 'success')}`,
     `${badge('INFO', 'info')} ${toneText('Paneles informativos y comandos', 'info')}`,
     `${badge('DATA', 'subtle')} ${toneText('JSON, respuesta bruta y eventos', 'subtle')}`,
@@ -199,7 +199,7 @@ const BORDER_SAMPLES: ReadonlyArray<
   ['attention', 'Observaciones', 'Observaciones de ARCA y avisos del régimen FCE', 'warning'],
   ['tip', 'Sugerencias', 'Sugerencias para resolver un problema', 'warning'],
   ['sheet', 'Configuración', 'Fichas de consulta: configuración y régimen FCE', 'info'],
-  ['checklist', 'Revision', 'Revisión de configuración', 'success', 'VEREDICTO'],
+  ['checklist', 'Revisión', 'Revisión de configuración', 'success', 'VEREDICTO'],
   ['listing', 'Últimos comprobantes', 'Listados en tabla, como los últimos comprobantes', 'info'],
   ['note', 'Aviso', 'Avisos simples, por ejemplo "No se emitió nada"', undefined],
   ['warning', 'Testing', 'Banners del entorno de testing y del certificado por vencer', 'warning'],
@@ -241,7 +241,7 @@ function buildBordersScene(): string {
       ],
       { rightSeparator: 'rule' },
     )}`,
-    `${colorize('Seccion (arcli ejemplos):', 'muted')}\n${sectionHeading('Factura C')}`,
+    `${colorize('Sección (arcli ejemplos):', 'muted')}\n${sectionHeading('Factura C')}`,
     `${colorize('Comando para copiar:', 'muted')}\n${command}`,
   ].join('\n\n');
 }
@@ -388,7 +388,7 @@ function buildComponentsScene(): string {
   ];
   const statusRows: Array<readonly [string, string | number]> = [
     ['CAE', '86120020280000'],
-    ['Importe total', '1$'],
+    ['Importe total', '$ 1'],
     ['Errores', 0],
   ];
   const demoLabelWidth = resolveKeyValueLabelWidth('compact', [...keyValueRows, ...statusRows]);

@@ -1,4 +1,4 @@
-import { usesAsciiBorders } from '../primitives/renderPanel';
+import { uiSymbol, usesAsciiBorders } from '../primitives/symbols';
 import { fitToTerminal } from '../primitives/terminalWidth';
 import { colorize, stripAnsi, type UiTextColor } from '../primitives/text';
 import { UI_THEME } from '../theme/theme';
@@ -25,7 +25,7 @@ export interface StatusBarOptions {
 function renderSegments(segments: readonly StatusBarSegment[], separator: StatusBarSeparator, fill: string): string {
   return segments
     .map(({ color, text }) => (color ? colorize(text, color) : text))
-    .join(colorize(` ${separator === 'rule' ? fill : '·'} `, 'muted'));
+    .join(colorize(` ${separator === 'rule' ? fill : uiSymbol('separator')} `, 'muted'));
 }
 
 /**

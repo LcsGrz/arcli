@@ -63,6 +63,26 @@ describe('config.presenter', () => {
     expect(plain.indexOf('Carpeta de tickets WSAA')).toBeLessThan(plain.indexOf('Al facturar'));
   });
 
+  it('shows the CUIT with dashes, the environment and yes/no with their accents', () => {
+    const text = stripAnsi(
+      formatConfigAsText(
+        {
+          cert: {},
+          cuit: '20333333334',
+          emisor: {},
+          entornoPorDefecto: 'produccion',
+          key: {},
+          output: { brutoPorDefecto: false, emitirPorDefecto: true, jsonPorDefecto: false },
+        },
+        { pdfFolder: '/tmp/pdf', ticketPath: '/tmp/tickets' },
+      ),
+    );
+
+    expect(text).toContain('20-33333333-4');
+    expect(text).toContain('producción');
+    expect(text).toMatch(/Emitir sin --emitir\s+sí/);
+  });
+
   it('serializes revision with masked runtime-friendly details', () => {
     const report = buildConfigDoctorReport(
       {

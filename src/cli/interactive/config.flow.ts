@@ -31,6 +31,7 @@ import {
   formatConfigDoctorAsText,
   formatPdfPluginStatusAsText,
   noticePanel,
+  uiSymbol,
   writeTerminalOutput,
 } from '../../ui';
 import { buildRuntimeChecks } from '../commands/config.command';
@@ -419,7 +420,7 @@ export async function runConfigMenu(): Promise<void> {
           value: 'completado',
         },
         new Separator(' '),
-        { name: '← Volver al menú', value: 'volver' },
+        { name: `${uiSymbol('back')} Volver al menú`, value: 'volver' },
       ],
       undefined,
       { escapeValue: 'volver' },

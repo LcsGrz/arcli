@@ -17,7 +17,7 @@ const trustedUrls = new Set<string>();
 const HYPERLINK_TERMINALS = new Set(['ghostty', 'Hyper', 'iTerm.app', 'Tabby', 'vscode', 'WezTerm']);
 
 /** `FORCE_HYPERLINK=0|1` decide; si no, una terminal conocida y con colores (TTY, sin `NO_COLOR`). */
-export function supportsHyperlinks(target: OutputTarget = 'stdout'): boolean {
+export function supportsHyperlinks(target?: OutputTarget): boolean {
   const forced = process.env.FORCE_HYPERLINK;
 
   if (forced !== undefined && forced !== '') {
@@ -38,7 +38,7 @@ export function supportsHyperlinks(target: OutputTarget = 'stdout'): boolean {
 }
 
 /** El texto como link a `url` si la terminal los soporta; si no, el texto solo. */
-export function hyperlink(text: string, url: string, target: OutputTarget = 'stdout'): string {
+export function hyperlink(text: string, url: string, target?: OutputTarget): string {
   if (!supportsHyperlinks(target)) {
     return text;
   }
@@ -49,12 +49,12 @@ export function hyperlink(text: string, url: string, target: OutputTarget = 'std
 }
 
 /** Link a un archivo o carpeta local: con un clic se abre en el editor o el explorador. */
-export function fileHyperlink(text: string, path: string, target: OutputTarget = 'stdout'): string {
+export function fileHyperlink(text: string, path: string, target?: OutputTarget): string {
   return hyperlink(text, pathToFileURL(path).href, target);
 }
 
 /** Una ruta para mostrar (por defecto, desde la carpeta `arcli`) que se abre con un clic. */
-export function pathLink(path: string, text = shortenPath(path), target: OutputTarget = 'stdout'): string {
+export function pathLink(path: string, text = shortenPath(path), target?: OutputTarget): string {
   return fileHyperlink(text, path, target);
 }
 

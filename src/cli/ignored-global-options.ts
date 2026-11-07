@@ -40,8 +40,8 @@ export function warnAboutIgnoredGlobalOptions(program: Command): void {
     const ignored = findIgnoredGlobalOptions(program, actionCommand);
 
     if (ignored.length > 0) {
-      writeTerminalError(
-        colorize(formatIgnoredGlobalOptionsWarning(ignored, commandPath(program, actionCommand)), 'warning', 'stderr'),
+      writeTerminalError(() =>
+        colorize(formatIgnoredGlobalOptionsWarning(ignored, commandPath(program, actionCommand)), 'warning'),
       );
     }
   });

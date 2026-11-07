@@ -1,4 +1,4 @@
-import { contentPanel, renderObject } from '../../ui';
+import { contentPanel, renderObject, uiSymbol } from '../../ui';
 
 import { formatEnvironmentBanner, formatPayloadPreview, formatResultPanel, formatStatusBadge } from './billing.display';
 import { formatRawBillingResponse } from './billing.serialize';
@@ -22,7 +22,14 @@ function formatWarningsPanel(result: BillingExecutionResult): string[] {
   }
 
   return [
-    contentPanel('Avisos', warnings.map((item) => `• ${item}`).join('\n'), 'wide', 'warning', 'left', 'attention'),
+    contentPanel(
+      'Avisos',
+      warnings.map((item) => `${uiSymbol('bullet')} ${item}`).join('\n'),
+      'wide',
+      'warning',
+      'left',
+      'attention',
+    ),
   ];
 }
 
@@ -69,7 +76,14 @@ export function formatBillingResultAsText(result: BillingExecutionResult, option
 
   if (suggestions.length > 0) {
     lines.push(
-      contentPanel('Sugerencias', suggestions.map((item) => `• ${item}`).join('\n'), 'wide', 'warning', 'left', 'tip'),
+      contentPanel(
+        'Sugerencias',
+        suggestions.map((item) => `${uiSymbol('bullet')} ${item}`).join('\n'),
+        'wide',
+        'warning',
+        'left',
+        'tip',
+      ),
     );
   }
 

@@ -1,6 +1,6 @@
 import { isTrustedHyperlink } from '../primitives/hyperlink';
 import { highlightJsonValues } from '../primitives/renderJson';
-import { supportsColor } from '../primitives/text';
+import { renderForTarget, supportsColor } from '../primitives/text';
 
 interface TerminalStreamOptions {
   readonly json?: boolean;
@@ -49,16 +49,24 @@ export function writeTerminalJson(content: string): void {
   process.stdout.write(formatTerminalOutput(content, { json: true, target: 'stdout' }));
 }
 
-export function writeTerminalError(content: string): void {
-  process.stderr.write(formatTerminalOutput(content, { target: 'stderr' }));
+/**
+ * Recibe una funcion y no el texto: el color depende de si stderr es una terminal, no stdout, y eso se decide
+ * mientras se arma el panel.
+ */
+export function writeTerminalError(render: () => string): void {
+  process.stderr.write(formatTerminalOutput(renderForTarget('stderr', render), { target: 'stderr' }));
 }
 
 /**
  * Aviso antes de la salida del comando, en stderr. Sin la linea vacia de cierre: lo que sigue ya empieza con una
- * y quedarian dos.
+ * y quedarian dos. Sin texto no escribe nada.
  */
-export function writeTerminalNotice(content: string): void {
-  process.stderr.write(`\n${sanitizeTerminalText(content)}\n`);
+export function writeTerminalNotice(render: () => string | null | undefined): void {
+  const content = renderForTarget('stderr', render);
+
+  if (content) {
+    process.stderr.write(`\n${sanitizeTerminalText(content)}\n`);
+  }
 }
 
 export function writeTerminalJsonError(content: string): void {

@@ -114,7 +114,7 @@ export function reportCliError(error: unknown, errorsAsJson: boolean): number {
   if (errorsAsJson) {
     writeTerminalJsonError(formatCliError(error, true));
   } else {
-    writeTerminalError(formatCliError(error, false));
+    writeTerminalError(() => formatCliError(error, false));
   }
 
   return 1;

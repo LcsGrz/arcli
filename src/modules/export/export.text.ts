@@ -10,6 +10,7 @@ import {
   statusPanel,
   testingBanner,
   toneText,
+  uiSymbol,
 } from '../../ui';
 import { formatCurrencyLabel, formatDateLabel, formatMoneyLabel } from '../billing/billing.labels';
 import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
@@ -210,7 +211,14 @@ function formatWarningsPanel(result: ExportExecutionResult): string[] {
   }
 
   return [
-    contentPanel('Avisos', warnings.map((item) => `• ${item}`).join('\n'), 'wide', 'warning', 'left', 'attention'),
+    contentPanel(
+      'Avisos',
+      warnings.map((item) => `${uiSymbol('bullet')} ${item}`).join('\n'),
+      'wide',
+      'warning',
+      'left',
+      'attention',
+    ),
   ];
 }
 
@@ -257,7 +265,7 @@ export function formatExportResultAsText(result: ExportExecutionResult, options:
     lines.push(
       contentPanel(
         'Sugerencias',
-        result.response.suggestions.map((item) => `• ${item}`).join('\n'),
+        result.response.suggestions.map((item) => `${uiSymbol('bullet')} ${item}`).join('\n'),
         'wide',
         'warning',
         'left',
