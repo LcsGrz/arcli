@@ -70,24 +70,20 @@ function toUsageError(error: CommanderError): AppError {
 }
 
 /**
- * Commander tira los errores de uso en vez de cortar el proceso, para que `index.ts` los maneje como el resto. En
- * texto commander los escribe como siempre (con la pista de la ayuda); en JSON se callan y sale el JSON de error.
+ * Commander tira los errores de uso en vez de cortar el proceso, para que `index.ts` los maneje como el resto: los
+ * escribe `reportCliError`, en panel o en JSON, y commander se calla.
  * Va antes de registrar los comandos: los subcomandos copian esta config al crearse.
  */
-export function configureUsageErrors(program: Command, errorsAsJson: () => boolean): void {
+export function configureUsageErrors(program: Command): void {
   let failing = false;
 
   program.exitOverride().configureOutput({
-    outputError: (message, write) => {
+    outputError: () => {
       failing = true;
-
-      if (!errorsAsJson()) {
-        write(translateCommanderMessage(message));
-      }
     },
     writeErr: (text) => {
-      // Despues de un error, commander escribe la pista de la ayuda: en JSON no va.
-      if (!(failing && errorsAsJson())) {
+      // Despues de un error, commander escribe la pista de la ayuda: la sugerencia del panel ya la da.
+      if (!failing) {
         process.stderr.write(text);
       }
     },
@@ -95,8 +91,7 @@ export function configureUsageErrors(program: Command, errorsAsJson: () => boole
 }
 
 /**
- * Imprime un error que corto la ejecucion y devuelve el exit code. Ayuda y version no son errores; los errores de
- * uso en texto ya los escribio commander.
+ * Imprime un error que corto la ejecucion y devuelve el exit code. Ayuda y version no son errores.
  */
 export function reportCliError(error: unknown, errorsAsJson: boolean): number {
   if (isCommanderExit(error)) {
@@ -106,6 +101,8 @@ export function reportCliError(error: unknown, errorsAsJson: boolean): number {
   if (isCommanderUsageError(error)) {
     if (errorsAsJson) {
       writeTerminalJsonError(formatCliError(toUsageError(error), true));
+    } else {
+      writeTerminalError(() => formatCliError(toUsageError(error), false));
     }
 
     return error.exitCode;

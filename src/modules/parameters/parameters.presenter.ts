@@ -131,7 +131,7 @@ function describePointOfSale(check: PointOfSaleCheck, number: number | undefined
     case 'sin-datos':
       return `${number} (en testing ARCA no informa puntos de venta)`;
     case 'sin-configurar':
-      return 'no configurado';
+      return 'sin configurar';
   }
 }
 

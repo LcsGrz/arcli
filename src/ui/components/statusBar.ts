@@ -41,14 +41,16 @@ export function statusBar(
   const width = statusBarWidth();
   const leftText = ` ${renderSegments(left, options.leftSeparator ?? 'dot', fill)} `;
   const rightText = right.length > 0 ? ` ${renderSegments(right, options.rightSeparator ?? 'dot', fill)} ` : '';
-  const used = 2 + stripAnsi(leftText).length + stripAnsi(rightText).length + 2;
-  const middle = Math.max(2, width - used);
+  const line = (start: string, end: string): string =>
+    [
+      colorize(fill.repeat(2), 'muted'),
+      start,
+      colorize(fill.repeat(Math.max(2, width - (4 + stripAnsi(start).length + stripAnsi(end).length))), 'muted'),
+      end,
+      colorize(fill.repeat(2), 'muted'),
+    ].join('');
+  const fits = 4 + stripAnsi(leftText).length + stripAnsi(rightText).length + 2 <= width;
 
-  return [
-    colorize(fill.repeat(2), 'muted'),
-    leftText,
-    colorize(fill.repeat(middle), 'muted'),
-    rightText,
-    colorize(fill.repeat(2), 'muted'),
-  ].join('');
+  // Sin lugar para los dos lados, una linea por lado: recortar podria esconder el entorno.
+  return fits ? line(leftText, rightText) : `${line(leftText, '')}\n${line(rightText, '')}`;
 }

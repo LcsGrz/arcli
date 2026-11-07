@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { colorize, renderForTarget, shouldUseColor, stripAnsi, wrapIndentedPlainText } from '../text';
+import { colorize, renderForTarget, shouldUseColor, stripAnsi, wrapIndentedPlainText, wrapPanelLines } from '../text';
 
 describe('wrapIndentedPlainText', () => {
   it('keeps the label when the first word of the value does not fit', () => {
@@ -161,5 +161,47 @@ describe('renderForTarget', () => {
       }),
     ).toThrow('fallo');
     expect(colorize('ok', 'success')).not.toBe('ok');
+  });
+});
+
+describe('wrapPanelLines', () => {
+  it('stacks every row of a column when one has no room for its value', () => {
+    expect(
+      wrapPanelLines(
+        ['  Etiqueta bastante larga       corto', '  Otra etiqueta bastante larga  un valor largo de verdad'],
+        40,
+      ),
+    ).toEqual([
+      '  Etiqueta bastante larga',
+      '    corto',
+      '  Otra etiqueta bastante larga',
+      '    un valor largo de verdad',
+    ]);
+  });
+
+  it('keeps the columns when the values have room', () => {
+    expect(wrapPanelLines(['  Moneda  Pesos argentinos (ARS)', '  CAE     123'], 24)).toEqual([
+      '  Moneda  Pesos',
+      '          argentinos',
+      '          (ARS)',
+      '  CAE     123',
+    ]);
+  });
+
+  it('wraps a label by words, closing its style on each line', () => {
+    const bold = (text: string) => `\u001B[1m${text}\u001B[22m`;
+    const lines = wrapPanelLines([`  ${bold('Certificado de exportación (testing)')}  no configurado largo`], 22);
+
+    expect(lines.slice(0, 3).map(stripAnsi)).toEqual(['  Certificado de', '  exportación', '  (testing)']);
+    expect(lines[0]).toBe(`  ${bold('Certificado de')}`);
+  });
+
+  it('aligns the wrapped text of a list item under its text', () => {
+    expect(wrapPanelLines(['• Revisá el CUIT del receptor', '1. Un mensaje bastante largo'], 20)).toEqual([
+      '• Revisá el CUIT del',
+      '  receptor',
+      '1. Un mensaje',
+      '   bastante largo',
+    ]);
   });
 });

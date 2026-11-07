@@ -244,31 +244,63 @@ function trimTrailingSpaces(value: string): string {
 const LABEL_VALUE_LINE = /^(\s*\S(?:.*?\S)?\s{2,})(\S.*)$/;
 // Espacio minimo para el valor; con menos, conviene partir la linea entera.
 const MIN_VALUE_COLUMN_WIDTH = 12;
+// Item de una lista ("• texto", "- texto", "1. texto"): al partirse, el texto sigue debajo del texto.
+const LIST_ITEM_MARKER = /^(?:[•*-]|\d+\.)\s+/;
+const NO_COLUMNS: ReadonlySet<number> = new Set();
+
+function labelColumnWidth(line: string): number | null {
+  return LABEL_VALUE_LINE.exec(stripAnsi(line))?.[1]?.length ?? null;
+}
+
+// La etiqueta de una fila apilada, por palabras. Si se parte, cada linea abre y cierra su estilo: un panel dibuja
+// un borde entre ellas, que no puede quedar adentro de un estilo sin cerrar.
+function wrapLabel(label: string, indent: string, width: number): string[] {
+  const visible = stripAnsi(label).trim();
+
+  if (indent.length + visible.length <= width) {
+    return [label];
+  }
+
+  // eslint-disable-next-line no-control-regex
+  const open = label.match(/^\s*((?:\u001B\[[0-9;]*m)*)/)?.[1] ?? '';
+  // eslint-disable-next-line no-control-regex
+  const close = label.match(/((?:\u001B\[[0-9;]*m)*)$/)?.[1] ?? '';
+
+  return wrapWords(visible.split(/\s+/), '', '', width - indent.length).map(
+    (line) => `${indent}${open}${line}${close}`,
+  );
+}
 
 /**
  * Parte lineas que no entran en `width` respetando su sangria.
  * Si la linea es una fila etiqueta/valor, el valor sigue debajo de su propia columna en vez de
- * pegarse a la etiqueta, asi la tabla no se desarma en terminales angostas.
+ * pegarse a la etiqueta, asi la tabla no se desarma en terminales angostas. Las columnas de `stackedColumns` van
+ * con la etiqueta en una linea y el valor debajo, aunque la fila entre (ver `wrapPanelLines`).
  */
-export function wrapIndentedPlainText(value: string, width: number): string[] {
+export function wrapIndentedPlainText(
+  value: string,
+  width: number,
+  stackedColumns: ReadonlySet<number> = NO_COLUMNS,
+): string[] {
   if (width <= 0) {
     return [value];
   }
 
   return value.split('\n').flatMap((line) => {
-    if (stripAnsi(line).length <= width) {
-      return [line];
-    }
-
     // La columna se busca sobre el texto visible: con ANSI (etiquetas en negrita) la regex cortaria mal.
     const columnMatch = LABEL_VALUE_LINE.exec(stripAnsi(line));
     const prefixWidth = columnMatch?.[1]?.length ?? 0;
+    const stacked = columnMatch !== null && stackedColumns.has(prefixWidth);
+
+    if (stripAnsi(line).length <= width && !stacked) {
+      return [line];
+    }
 
     if (columnMatch) {
       const [prefix, rest] = splitAtVisibleColumn(line, prefixWidth);
       const values = rest.split(/\s+/);
 
-      if (width - prefixWidth >= MIN_VALUE_COLUMN_WIDTH) {
+      if (width - prefixWidth >= MIN_VALUE_COLUMN_WIDTH && !stacked) {
         return wrapWords(values, prefix, ' '.repeat(prefixWidth), width);
       }
 
@@ -277,7 +309,7 @@ export function wrapIndentedPlainText(value: string, width: number): string[] {
       const valueIndent = `${indent}  `;
 
       return [
-        ...wrapWords([trimTrailingSpaces(prefix)], '', indent, width),
+        ...wrapLabel(trimTrailingSpaces(prefix), indent, width),
         ...wrapWords(values, valueIndent, valueIndent, width),
       ];
     }
@@ -289,10 +321,35 @@ export function wrapIndentedPlainText(value: string, width: number): string[] {
       return [line];
     }
 
-    const wrapped = wrapWords(content.split(/\s+/), indent, indent, width);
+    const marker = LIST_ITEM_MARKER.exec(content)?.[0] ?? '';
+    const wrapped = wrapWords(
+      content.slice(marker.length).split(/\s+/),
+      `${indent}${marker}`,
+      `${indent}${' '.repeat(marker.length)}`,
+      width,
+    );
 
     return wrapped.length > 0 ? wrapped : [line];
   });
+}
+
+/**
+ * Las lineas de un panel. Si una fila no entra y su columna no deja lugar para el valor, se apilan todas las de esa
+ * columna: mezcladas con filas en columnas, la tabla se lee mal.
+ */
+export function wrapPanelLines(lines: readonly string[], width: number): string[] {
+  const flattened = flattenVisibleLines(lines);
+  const stackedColumns = new Set<number>();
+
+  for (const line of flattened) {
+    const column = labelColumnWidth(line);
+
+    if (column !== null && stripAnsi(line).length > width && width - column < MIN_VALUE_COLUMN_WIDTH) {
+      stackedColumns.add(column);
+    }
+  }
+
+  return flattened.flatMap((line) => wrapIndentedPlainText(line, width, stackedColumns));
 }
 
 export function maxVisibleWidth(lines: readonly string[]): number {

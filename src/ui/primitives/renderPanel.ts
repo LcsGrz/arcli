@@ -16,7 +16,7 @@ import {
   maxVisibleWidth,
   stripAnsi,
   type UiTextColor,
-  wrapIndentedPlainText,
+  wrapPanelLines,
 } from './text';
 
 type PanelAlignment = 'block-center' | 'center' | 'left';
@@ -182,7 +182,7 @@ export function renderPanel(props: RenderPanelProps): string {
       })
     : null;
 
-  const wrappedContentLines = contentLines.flatMap((line) => wrapIndentedPlainText(line, innerWidth));
+  const wrappedContentLines = wrapPanelLines(contentLines, innerWidth);
   const lines: string[] = [];
   const hasBodyContent = contentLines.length > 0;
   const hasFooter = footerLine !== null;

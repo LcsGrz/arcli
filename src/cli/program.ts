@@ -20,15 +20,10 @@ import { configureSpanishHelp, createProgramHeader, createProgramHelp } from './
 import { warnAboutIgnoredGlobalOptions } from './ignored-global-options';
 import { CLI_VERSION } from './version';
 
-export interface CreateProgramOptions {
-  /** Si los errores salen en JSON; se consulta recien al fallar. Por defecto, texto. */
-  readonly errorsAsJson?: () => boolean;
-}
-
-export function createProgram(options: CreateProgramOptions = {}): Command {
+export function createProgram(): Command {
   const program = new Command();
 
-  configureUsageErrors(program, options.errorsAsJson ?? (() => false));
+  configureUsageErrors(program);
 
   program
     .name('arcli')

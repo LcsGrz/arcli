@@ -708,7 +708,7 @@ Las claves son las de [configuración](configuration.md), salvo que `cert.*`, `k
     },
     {
       "categoria": "error",
-      "detalle": "Falta el CUIT. Configuralo con `arcli config establecer cuit <valor>`. Si querés una guía rápida, usá `arcli config revisar`.",
+      "detalle": "Falta el CUIT. Configuralo con `arcli config establecer cuit <valor>`.",
       "etiqueta": "Validación testing"
     }
   ],

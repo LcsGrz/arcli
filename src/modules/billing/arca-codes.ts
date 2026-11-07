@@ -52,6 +52,8 @@ const IVA_RATES: Readonly<Record<BillingIvaRate, { readonly id: number; readonly
 
 /** `DocTipo` de consumidor final: va con `DocNro` 0 si no se identifica. */
 export const CONSUMER_DOCUMENT_TYPE_CODE = DOCUMENT_TYPES['consumidor-final'].code;
+/** `CondicionIVAReceptorId` de consumidor final. */
+export const CONSUMER_IVA_CONDITION_CODE = IVA_CONDITIONS['consumidor-final'].code;
 
 function findByCode<K extends string>(table: Readonly<Record<K, ArcaCode>>, code: number | undefined): K | undefined {
   return (Object.keys(table) as K[]).find((key) => table[key].code === code);

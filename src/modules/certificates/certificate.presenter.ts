@@ -231,7 +231,7 @@ function statusRows(status: CertificateStatus, now: Date): string[] {
       ['Alias', status.alias ?? 'N/D'],
       ['Vence', describeExpiry(status.expiresAt, now)],
       ['Certificado', pathLink(status.certificatePath)],
-      ['Clave privada', status.keyPath ? pathLink(status.keyPath) : colorize('no configurado', 'muted')],
+      ['Clave privada', status.keyPath ? pathLink(status.keyPath) : colorize('sin configurar', 'muted')],
     ]),
     ...pending,
   ];

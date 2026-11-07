@@ -131,7 +131,7 @@ export function formatConfigPathAsJson(configPath: string): string {
   return JSON.stringify({ ruta: configPath }, null, 2);
 }
 
-const NOT_SET = 'no configurado';
+const NOT_SET = 'sin configurar';
 
 type PublicConfigValue = (config: PublicConfigSnapshot) => number | string;
 

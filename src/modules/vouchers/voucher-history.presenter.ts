@@ -208,10 +208,9 @@ export function formatVoucherDetailAsText(report: VoucherDetailReport): string {
     rows.push(['Cotización', formatExchangeRate(voucher.exchangeRate ?? 1)]);
   }
 
-  rows.push(
-    ['Importe neto', formatMoneyLabel(voucher.netAmount, voucher.currency)],
-    ['Importe IVA', formatMoneyLabel(voucher.ivaAmount, voucher.currency)],
-  );
+  rows.push(['Importe neto', formatMoneyLabel(voucher.netAmount, voucher.currency)]);
+
+  if (voucher.ivaAmount) rows.push(['Importe IVA', formatMoneyLabel(voucher.ivaAmount, voucher.currency)]);
 
   if (voucher.exemptAmount) rows.push(['Importe exento', formatMoneyLabel(voucher.exemptAmount, voucher.currency)]);
   if (voucher.untaxedAmount)

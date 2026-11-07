@@ -69,7 +69,11 @@ function listStyle(extraKeys: readonly HelpKey[]) {
 
 const MENU_THEME = { ...ASCII_THEME, prefix: PROMPT_PREFIX, style: listStyle([]) };
 const STEP_THEME = { ...ASCII_THEME, prefix: PROMPT_PREFIX, style: listStyle([['esc', 'volver']]) };
-const TEXT_THEME = { ...ASCII_THEME, prefix: PROMPT_PREFIX };
+const TEXT_THEME = {
+  ...ASCII_THEME,
+  prefix: PROMPT_PREFIX,
+  style: { defaultAnswer: (text: string) => styleText('dim', `enter: ${text}`) },
+};
 
 /**
  * Una lista simple. Con `escapeValue`, Esc la cierra devolviendo ese valor (por ejemplo, "volver", "no" o

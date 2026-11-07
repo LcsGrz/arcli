@@ -1,6 +1,7 @@
 import { contentPanel, renderObject, uiSymbol } from '../../ui';
 
 import { formatEnvironmentBanner, formatPayloadPreview, formatResultPanel, formatStatusBadge } from './billing.display';
+import { formatArcaMessages } from './billing.labels';
 import { formatRawBillingResponse } from './billing.serialize';
 import type { BillingExecutionResult } from './billing.types.internal';
 
@@ -65,11 +66,11 @@ export function formatBillingResultAsText(result: BillingExecutionResult, option
   }
 
   if (result.response.events.length > 0) {
-    lines.push(contentPanel('Eventos', renderObject(result.response.events), 'wide', 'subtle', 'left', 'data'));
+    lines.push(contentPanel('Eventos', formatArcaMessages(result.response.events), 'wide', 'subtle', 'left', 'data'));
   }
 
   if (result.response.errors.length > 0) {
-    lines.push(contentPanel('Errores', renderObject(result.response.errors), 'wide', 'danger', 'left', 'error'));
+    lines.push(contentPanel('Errores', formatArcaMessages(result.response.errors), 'wide', 'danger', 'left', 'error'));
   }
 
   const suggestions = result.response.suggestions ?? [];

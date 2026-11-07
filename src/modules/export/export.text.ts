@@ -12,7 +12,13 @@ import {
   toneText,
   uiSymbol,
 } from '../../ui';
-import { formatCurrencyLabel, formatDateLabel, formatMoneyLabel } from '../billing/billing.labels';
+import {
+  formatArcaMessages,
+  formatCurrencyLabel,
+  formatDateLabel,
+  formatMoneyLabel,
+  formatResponseCountRows,
+} from '../billing/billing.labels';
 import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
 
 import { formatRawExportResponse } from './export.serialize';
@@ -177,16 +183,11 @@ function formatExportResultPanel(
     ['Número', formatVoucherNumber(result.payload.Punto_vta, result.payload.Cbte_nro)],
     ['Importe total', formatAmount(result, result.payload.Imp_total)],
   ];
-  const countRows: Array<readonly [string, string | number]> = [
-    ['Observaciones', result.response.observaciones.length],
-    ['Eventos', result.response.events.length],
-    ['Errores', result.response.errors.length],
-  ];
+  const countRows = formatResponseCountRows(result.response);
   const labelWidth = resolveKeyValueLabelWidth('ticket', [...summaryRows, ...countRows]);
   const rows = [
     ...renderKeyValueRows(summaryRows, { labelWidth }),
-    '',
-    ...renderKeyValueRows(countRows, { labelWidth }),
+    ...(countRows.length > 0 ? ['', ...renderKeyValueRows(countRows, { labelWidth })] : []),
   ];
 
   return statusPanel(
@@ -254,11 +255,11 @@ export function formatExportResultAsText(result: ExportExecutionResult, options:
   }
 
   if (result.response.events.length > 0) {
-    lines.push(contentPanel('Eventos', renderObject(result.response.events), 'wide', 'subtle', 'left', 'data'));
+    lines.push(contentPanel('Eventos', formatArcaMessages(result.response.events), 'wide', 'subtle', 'left', 'data'));
   }
 
   if (result.response.errors.length > 0) {
-    lines.push(contentPanel('Errores', renderObject(result.response.errors), 'wide', 'danger', 'left', 'error'));
+    lines.push(contentPanel('Errores', formatArcaMessages(result.response.errors), 'wide', 'danger', 'left', 'error'));
   }
 
   if (result.response.suggestions.length > 0) {
