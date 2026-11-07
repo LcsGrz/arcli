@@ -102,6 +102,9 @@ export function isPadronLookupEnabled(config: Pick<ArcliConfig, 'consultarPadron
   return config.consultarPadron ?? true;
 }
 
+/** El error de un entorno sin CUIT: `config revisar` lo reconoce para no mostrarlo dos veces. */
+export const MISSING_CUIT_MESSAGE = 'Falta el CUIT. Configuralo con `arcli config establecer cuit <valor>`.';
+
 export function formatEnvironmentLabel(environment: ArcliEnvironment): string {
   return environment === 'produccion' ? 'producción' : environment;
 }

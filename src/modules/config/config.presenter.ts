@@ -278,10 +278,22 @@ function formatDoctorDetail(check: ConfigDoctorReport['checks'][number]): string
   return `${detail.slice(0, index)}${bold(check.value)}${detail.slice(index + check.value.length)}`;
 }
 
+/** Un chequeo que repite a otro no suma una fila: el repetido toma su categoria y su detalle. */
+function mergeRepeatedChecks(checks: ConfigDoctorReport['checks']): ConfigDoctorReport['checks'] {
+  return checks
+    .filter((check) => !check.repeats)
+    .map((check) => {
+      const repeat = checks.find((other) => other.repeats === check.label);
+
+      return repeat ? { ...check, category: repeat.category, detail: repeat.detail } : check;
+    });
+}
+
 /** Por seccion, en el orden de `CONFIG_DOCTOR_SECTIONS`: un titulo y un item por chequeo. Lo que falla, en color. */
 export function formatConfigDoctorAsText(report: ConfigDoctorReport): string {
+  const visibleChecks = mergeRepeatedChecks(report.checks);
   const sections = CONFIG_DOCTOR_SECTIONS.map(([section, title]) => ({
-    checks: report.checks.filter((check) => check.section === section),
+    checks: visibleChecks.filter((check) => check.section === section),
     title,
   })).filter(({ checks }) => checks.length > 0);
   const lines = sections.flatMap(({ checks, title }, index) => [
