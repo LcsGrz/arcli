@@ -403,6 +403,43 @@ ARCLI_ASCII=1 arcli fc -m 1000 --cs --cfinal
 
 - **Documentación relacionada:** [Variables de entorno](configuration.md#variables-de-entorno)
 
+## Acceso directo
+
+### No se encontró el escritorio o la carpeta no existe
+
+- **Síntoma:** "No se encontró el escritorio en …" o "La carpeta … no existe".
+- **Causa:** el sistema no informa un escritorio (pasa en servidores o en Linux sin entorno gráfico) o la ruta que indicaste no existe. ARCLI no crea carpetas.
+- **Solución:** indicá una carpeta que exista.
+
+```bash
+arcli acceso-directo ~/Documentos
+```
+
+### Ya existe y no lo creó ARCLI
+
+- **Síntoma:** "… ya existe y no lo creó ARCLI".
+- **Causa:** en macOS y Linux ARCLI solo reemplaza el `ARCLI.app` o `ARCLI.desktop` que creó él. En Windows reemplaza `ARCLI.lnk` sin preguntar.
+- **Solución:** borrá ese archivo o creá el acceso directo en otra carpeta.
+
+### `DESKTOP_SHORTCUT_ERROR`
+
+- **Síntoma:** "No se pudo crear el acceso directo en …" (solo en Windows).
+- **Causa:** el acceso directo `.lnk` lo crea PowerShell. Falla si no tenés permiso de escritura en la carpeta o si PowerShell está bloqueado.
+- **Solución:** probá en una carpeta tuya, por ejemplo `arcli acceso-directo %USERPROFILE%\Documents`, o pedile a quien administra la máquina que habilite PowerShell.
+
+### En Linux el escritorio dice que el lanzador no es confiable
+
+- **Síntoma:** al hacer doble clic en `ARCLI.desktop` aparece "lanzador no confiable" o se abre como texto.
+- **Causa:** ARCLI lo marca como confiable con `gio`. Si `gio` no está o el escritorio no lo respeta, queda sin marcar.
+- **Solución:** clic derecho sobre el ícono y "Permitir ejecutar".
+
+### El ícono dejó de abrir ARCLI
+
+- **Síntoma:** la ventana dice "ARCLI terminó con un error" o se cierra enseguida.
+- **Causa:** el acceso directo guarda las rutas de Node y de ARCLI del momento en que se creó. Si después moviste, actualizaste o desinstalaste alguno, esas rutas ya no existen.
+- **Solución:** volvé a crearlo con `arcli acceso-directo`. Reemplaza al anterior.
+- **Documentación relacionada:** [Acceso directo](cli-reference.md#acceso-directo)
+
 ## PDF
 
 Un error del PDF no deshace la emisión: el comprobante ya tiene CAE. **No lo vuelvas a emitir para obtener el PDF**, porque quedaría duplicado en ARCA. Arreglá la causa para los próximos. Regenerar el PDF de un comprobante ya emitido todavía no está disponible. Ver [PDF de comprobantes](pdf.md#qué-no-hace-todavía).
