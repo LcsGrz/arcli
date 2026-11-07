@@ -140,4 +140,4 @@ Estas reglas son el objetivo. Quedan excepciones conocidas:
 - `prompts.ts` usa `styleText` en lugar de tokens y `arcli ejemplos` usa `debug`.
 - El header del modo interactivo escribe directo a stdout.
 - Los colores `production`, `testing` y `highlight` se leen mal sobre fondo claro, y el banner de testing usa `warning`.
-- Al storybook le faltan padrón, estado, listados, certificados y prompts.
+- Al storybook le faltan los prompts, que son interactivos.

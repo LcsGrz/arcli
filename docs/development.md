@@ -71,7 +71,7 @@ Las reglas de la salida están en el [design system](design-system.md). Para ite
 
 ```bash
 yarn dev storybook              # todas las escenas
-yarn dev storybook colores      # o: bordes, componentes, comprobantes, configuracion, errores, json
+yarn dev storybook colores      # o: bordes, certificados, componentes, comprobantes, configuracion, consultas, errores, json
 ```
 
 ## CI y publicación

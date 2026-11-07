@@ -7,6 +7,7 @@ import {
   colorize,
   contentPanel,
   formatCliError,
+  formatPdfPluginStatusAsText,
   highlightJsonValues,
   renderKeyValueRows,
   renderLogo,
@@ -24,6 +25,7 @@ import {
 import { formatBillingResultAsJson, formatBillingResultAsText } from '../billing/billing.presenter';
 import type { VoucherKindDefinition } from '../billing/billing.types';
 import type { BillingExecutionResult } from '../billing/billing.types.internal';
+import { formatCertificateStatusAsText, formatGeneratedRequestAsText } from '../certificates/certificate.presenter';
 import {
   formatConfig,
   formatConfigAsText,
@@ -32,13 +34,25 @@ import {
 } from '../config/config.presenter';
 import type { ArcliConfig } from '../config/config.schemas';
 import { buildConfigDoctorReport } from '../config/config-doctor';
+import { formatPadronAsText } from '../padron/padron.presenter';
+import { formatParameterTablesAsText, formatStatusAsText } from '../parameters/parameters.presenter';
 import { renderUpdateNoticePanel } from '../update-check/update-check.presenter';
 import type { UpdateCheckResult } from '../update-check/update-check.service';
+import type { IssuedVoucher } from '../vouchers/voucher-history';
+import { formatVoucherDetailAsText, formatVoucherListAsText } from '../vouchers/voucher-history.presenter';
 
 import { STORYBOOK_SHOWCASE_THEME } from './showcase-theme';
 
 export type StorybookScene =
-  'bordes' | 'colores' | 'componentes' | 'comprobantes' | 'configuracion' | 'errores' | 'json';
+  | 'bordes'
+  | 'certificados'
+  | 'colores'
+  | 'componentes'
+  | 'comprobantes'
+  | 'configuracion'
+  | 'consultas'
+  | 'errores'
+  | 'json';
 
 function createVoucherKind(partial: Partial<VoucherKindDefinition>): VoucherKindDefinition {
   return {
@@ -334,6 +348,116 @@ function buildConfigScene(): string {
   ].join('\n\n');
 }
 
+function createSampleVoucher(partial: Partial<IssuedVoucher> = {}): IssuedVoucher {
+  return {
+    cae: '76123456789012',
+    caeExpiration: '20260405',
+    date: '20260326',
+    documentNumber: 20333333334,
+    documentTypeCode: 80,
+    ivaAmount: 0,
+    netAmount: 1500.5,
+    number: 1234,
+    result: 'A',
+    total: 1500.5,
+    ...partial,
+  };
+}
+
+function buildQueriesScene(): string {
+  const voucherKind = createVoucherKind({});
+
+  return [
+    sceneTitle('Consultas', 'Padrón, estado, listados, parámetros y plugin de PDF'),
+    formatPadronAsText({
+      environment: 'testing',
+      taxpayer: {
+        activities: [
+          { description: 'Servicios de consultores en informática', id: 620200 },
+          { description: 'Servicios de diseño', id: 741000 },
+        ],
+        address: 'Av. Siempreviva 742, CABA',
+        cuit: 20333333334,
+        ivaCondition: 'responsable-monotributo',
+        keyStatus: 'ACTIVO',
+        monotributoCategory: 'D',
+        name: 'Empresa de Ejemplo SRL',
+        notices: ['El domicilio fiscal no está confirmado.'],
+        personType: 'juridica',
+        taxes: [{ active: true, description: 'Monotributo', id: 20 }],
+      },
+    }),
+    formatStatusAsText({
+      environment: 'testing',
+      latencyMs: 180,
+      pointOfSale: { kind: 'sin-datos' },
+      pointOfSaleNumber: 3,
+      ready: true,
+      servers: { app: 'OK', auth: 'OK', db: 'OK' },
+    }),
+    formatStatusAsText({
+      environment: 'produccion',
+      latencyMs: 240,
+      pointOfSale: { kind: 'bloqueado', point: { blocked: true, emissionType: 'CAE', number: 3 } },
+      pointOfSaleNumber: 3,
+      ready: false,
+      servers: { app: 'OK', auth: 'OK', db: 'OK' },
+    }),
+    formatVoucherListAsText({
+      environment: 'testing',
+      pointOfSale: 3,
+      voucherKind,
+      vouchers: [
+        createSampleVoucher(),
+        createSampleVoucher({ documentNumber: 12345678, documentTypeCode: 96, number: 1233 }),
+      ],
+    }),
+    formatVoucherListAsText({ environment: 'testing', pointOfSale: 3, voucherKind, vouchers: [] }),
+    formatVoucherDetailAsText({ environment: 'testing', pointOfSale: 3, voucher: createSampleVoucher(), voucherKind }),
+    formatParameterTablesAsText(),
+    formatPdfPluginStatusAsText({
+      browser: '/ruta/al/navegador',
+      browserSource: 'sistema',
+      installed: true,
+      installedVersion: '0.2.1',
+      path: '/ruta/a/plugins/pdf',
+      version: '0.2.1',
+    }),
+    formatPdfPluginStatusAsText({ installed: false, path: '/ruta/a/plugins/pdf', version: '0.2.1' }),
+  ].join('\n\n');
+}
+
+function buildCertificatesScene(): string {
+  // Una fecha fija, para que la escena no cambie con los dias.
+  const now = new Date('2026-03-26T12:00:00-03:00');
+
+  return [
+    sceneTitle('Certificados', 'Estado por entorno y pedido nuevo'),
+    formatCertificateStatusAsText(
+      [
+        {
+          alias: 'arcli',
+          certificatePath: '/ruta/a/testing.crt',
+          environment: 'testing',
+          expiresAt: new Date('2026-04-05T12:00:00-03:00'),
+          keyPath: '/ruta/a/testing.key',
+          unreadable: false,
+        },
+        { environment: 'produccion', pendingRequestPath: '/ruta/a/produccion.csr', unreadable: false },
+      ],
+      now,
+    ),
+    formatGeneratedRequestAsText({
+      alias: 'arcli',
+      csrPem: '-----BEGIN CERTIFICATE REQUEST-----',
+      cuit: '20333333334',
+      environment: 'testing',
+      keyPath: '/ruta/a/testing.key',
+      requestPath: '/ruta/a/testing.csr',
+    }),
+  ].join('\n\n');
+}
+
 function buildErrorScene(): string {
   return [
     sceneTitle('Errores', 'Configuración, entrada y error inesperado'),
@@ -448,10 +572,12 @@ export function renderStorybookShowcase(scene?: StorybookScene): string {
 
   const scenes: Record<StorybookScene, string> = {
     bordes: buildBordersScene(),
+    certificados: buildCertificatesScene(),
     colores: buildColorsScene(),
     componentes: buildComponentsScene(),
     comprobantes: buildBillingScene(),
     configuracion: buildConfigScene(),
+    consultas: buildQueriesScene(),
     errores: buildErrorScene(),
     json: buildJsonScene(),
   };
@@ -465,6 +591,8 @@ export function renderStorybookShowcase(scene?: StorybookScene): string {
       scenes.componentes,
       scenes.configuracion,
       scenes.comprobantes,
+      scenes.consultas,
+      scenes.certificados,
       scenes.json,
       scenes.errores,
     ].join('\n\n');

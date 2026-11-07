@@ -19,6 +19,18 @@ describe('storybook.showcase', () => {
     expect(output).toContain('JSON');
   });
 
+  it('renders the queries scene', () => {
+    const output = renderStorybookShowcase('consultas');
+
+    expect(output).toContain('CONSULTAS');
+    expect(output).toContain('Empresa de Ejemplo SRL');
+    expect(output).toContain('00003-00001234');
+  });
+
+  it('renders the certificates scene', () => {
+    expect(renderStorybookShowcase('certificados')).toContain('CERTIFICADOS');
+  });
+
   it('renders a focused billing scene', () => {
     const output = renderStorybookShowcase('comprobantes');
 
