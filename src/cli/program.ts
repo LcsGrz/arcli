@@ -5,6 +5,7 @@ import { registerBillingShortcutCommands } from './commands/billing-shortcuts.co
 import { registerCertificateCommand } from './commands/certificate.command';
 import { registerCompletionCommands } from './commands/completion.command';
 import { registerConfigCommand } from './commands/config.command';
+import { registerDesktopShortcutCommand } from './commands/desktop-shortcut.command';
 import { registerExamplesCommand } from './commands/examples.command';
 import { registerExportShortcutCommand } from './commands/export-shortcut.command';
 import { registerFceObligationCommand } from './commands/fce-obligation.command';
@@ -42,6 +43,7 @@ export function createProgram(): Command {
   registerCertificateCommand(program);
   registerCompletionCommands(program);
   registerConfigCommand(program);
+  registerDesktopShortcutCommand(program);
   registerExamplesCommand(program);
   registerExportShortcutCommand(program);
   registerFceObligationCommand(program);

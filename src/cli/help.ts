@@ -124,6 +124,7 @@ function createProgramMore(): string {
     compactList([
       'Ejemplos listos para copiar: arcli ejemplos',
       'Autocompletado con Tab de comandos y flags: arcli completado instalar',
+      'Ícono para abrir ARCLI con doble clic: arcli acceso-directo',
       'Para scripts, usá --json: la salida en texto puede cambiar.',
       `Repositorio: https://github.com/LcsGrz/arcli ${uiSymbol('separator')} Actualizar: ${resolveUpdateCommand()}`,
     ]),

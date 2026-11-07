@@ -148,4 +148,10 @@ Están en `docs/assets/demo/` y se regeneran con scripts para que no queden desa
   node --import tsx scripts/demo/pdf-sample.mts
   ```
 
+- **Ícono** (`docs/assets/imagenes/arcliIcon.*` y los de `assets/acceso-directo/` que usa `arcli acceso-directo`): `scripts/icono/generar.py` los arma a partir del logo ASCII. Necesita macOS (`iconutil`) y `rsvg-convert` (`brew install librsvg`).
+
+  ```bash
+  python3 scripts/icono/generar.py
+  ```
+
 El README las enlaza con URLs absolutas de `raw.githubusercontent.com` porque npmjs.com no muestra imágenes con rutas relativas.

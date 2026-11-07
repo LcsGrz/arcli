@@ -1,6 +1,7 @@
 import { Separator } from '@inquirer/select';
 import { join } from 'node:path';
 
+import { AppError } from '../../lib/errors/app-error';
 import {
   formatCompletionResultAsText,
   formatCompletionStateAsText,
@@ -17,6 +18,8 @@ import type { ArcliConfig, ConfigPublicKey } from '../../modules/config/config.s
 import { CONFIG_SECTIONS } from '../../modules/config/config.sections';
 import { ConfigService, validateConfigValue } from '../../modules/config/config.service';
 import { buildConfigDoctorReport } from '../../modules/config/config-doctor';
+import { formatDesktopShortcutAsText } from '../../modules/desktop-shortcut/desktop-shortcut.presenter';
+import { createDesktopShortcut, currentDesktopShortcutEnvironment } from '../../modules/desktop-shortcut/installer';
 import {
   CONFIG_FIELDS,
   type ConfigField,
@@ -376,7 +379,23 @@ async function runCompletionMenu(): Promise<void> {
   writeTerminalOutput(formatCompletionResultAsText(result, environment.home));
 }
 
-type ConfigOption = 'cambiar' | 'certificados' | 'completado' | 'guiada' | 'pdf' | 'revisar' | 'ver' | 'volver';
+type ConfigOption =
+  'acceso-directo' | 'cambiar' | 'certificados' | 'completado' | 'guiada' | 'pdf' | 'revisar' | 'ver' | 'volver';
+
+/** Un error aca no corta el menu: se avisa y se puede seguir (por ejemplo, si no hay escritorio). */
+function runDesktopShortcut(): void {
+  try {
+    const environment = withConfigService((service) => currentDesktopShortcutEnvironment(service.getPath()));
+
+    writeTerminalOutput(formatDesktopShortcutAsText(createDesktopShortcut(undefined, environment)));
+  } catch (error) {
+    if (!(error instanceof AppError)) {
+      throw error;
+    }
+
+    writeTerminalOutput(noticePanel(error.message, 'warning'));
+  }
+}
 
 function showConfig(): void {
   withConfigService((service) => {
@@ -419,6 +438,11 @@ export async function runConfigMenu(): Promise<void> {
           name: 'Autocompletado',
           value: 'completado',
         },
+        {
+          description: 'Un ícono para abrir ARCLI con doble clic',
+          name: 'Acceso directo en el escritorio',
+          value: 'acceso-directo',
+        },
         new Separator(' '),
         { name: `${uiSymbol('back')} Volver al menú`, value: 'volver' },
       ],
@@ -443,5 +467,6 @@ export async function runConfigMenu(): Promise<void> {
     if (option === 'certificados') await runCertificateMenu();
     if (option === 'pdf') await runPdfPluginMenu();
     if (option === 'completado') await runCompletionMenu();
+    if (option === 'acceso-directo') runDesktopShortcut();
   }
 }
