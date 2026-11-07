@@ -3,7 +3,6 @@ import { UI_THEME, type UiWidthPreset } from '../theme/theme';
 import { toneText } from './text';
 
 export interface RenderKeyValueOptions {
-  readonly gap?: number;
   readonly labelWidth?: number;
 }
 
@@ -44,7 +43,7 @@ export function renderKeyValue(
   options: RenderKeyValueOptions = {},
 ): string {
   const labelWidth = options.labelWidth ?? UI_THEME.table.labelWidth;
-  const gap = ' '.repeat(options.gap ?? UI_THEME.table.gap);
+  const gap = ' '.repeat(UI_THEME.table.gap);
 
   return `${toneText(label.padEnd(labelWidth), 'neutral')}${gap}${normalizeValue(value)}`;
 }

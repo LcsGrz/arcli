@@ -16,10 +16,6 @@ export function highlightJsonValues(content: string, target: OutputTarget = 'std
         return colorize(token, 'success', target);
       }
 
-      if (token === 'true' || token === 'false' || token === 'null') {
-        return colorize(token, 'warning', target);
-      }
-
       return colorize(token, 'warning', target);
     },
   );
