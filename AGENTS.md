@@ -19,6 +19,8 @@ Alcance de comprobantes (no ampliar sin pedido explícito): Factura, Nota de Cr�
 
 Detalle de capas y cómo extender: [docs/architecture.md](docs/architecture.md).
 
+Reglas de la salida en terminal (paneles, colores, símbolos, formatos y textos): [docs/design-system.md](docs/design-system.md).
+
 Imports de UI: fuera de `src/ui`, usá los barrels públicos (`src/ui`, `src/ui/primitives`, `src/ui/components`, `src/ui/presenters`). Dentro de `src/ui`, imports directos entre archivos.
 
 ## Comandos

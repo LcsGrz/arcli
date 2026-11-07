@@ -67,7 +67,7 @@ yarn dev fc -m 1000 --cs --cfinal --emitir --json --bruto
 
 Revisá según lo que tocaste: la salida humana y la `--json` de los casos que cambian, los errores de validación (flags incompatibles, monto faltante, PEM inválido) y que `--produccion` sin `--emitir` no emita.
 
-Para iterar la UI sin llamar a ARCA hay un storybook de terminal:
+Las reglas de la salida están en el [design system](design-system.md). Para iterar la UI sin llamar a ARCA hay un storybook de terminal:
 
 ```bash
 yarn dev storybook              # todas las escenas
