@@ -362,4 +362,3 @@ export function centerText(value: string, width: number): string {
 export function centerLines(lines: readonly string[], width: number): string[] {
   return flattenVisibleLines(lines).map((line) => centerText(line, width));
 }
-
