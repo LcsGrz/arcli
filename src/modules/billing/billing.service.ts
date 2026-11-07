@@ -150,13 +150,13 @@ export class BillingService {
     // Resguardo: un IVA receptor que esperaba al padron nunca llega a ARCA con el valor provisorio.
     if (input.ivaConditionSource === 'missing') {
       throw new InputValidationError(
-        'Falta IVA receptor. Usá --ir <tipo> o un flag --ir-*, o configurá uno por defecto con `arcli config establecer ivaReceptor <tipo>`.',
+        'Falta IVA receptor. Usá `--ir <tipo>` o un flag `--ir-*`, o configurá uno por defecto con `arcli config establecer ivaReceptor <tipo>`.',
       );
     }
 
     if (!pointOfSale) {
       throw new InputValidationError(
-        'Falta el punto de venta. Usá --punto-venta o --pv, o configuralo con `arcli config establecer puntoVenta <valor>`.',
+        'Falta el punto de venta. Usá `--punto-venta` o `--pv`, o configuralo con `arcli config establecer puntoVenta <valor>`.',
       );
     }
 

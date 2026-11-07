@@ -319,7 +319,7 @@ export function parseBillingJsonInput(value: unknown): BillingJsonInput {
 
   const issues = result.error.issues.flatMap((issue) => describeIssue(issue));
 
-  throw new InputValidationError(`En el JSON de --cargar: ${issues.map((issue) => issue.mensaje).join(' ')}`, {
+  throw new InputValidationError(`En el JSON de \`--cargar\`: ${issues.map((issue) => issue.mensaje).join(' ')}`, {
     campos: issues,
   });
 }
@@ -328,7 +328,7 @@ export function parseBillingJsonInput(value: unknown): BillingJsonInput {
 export function readBillingJsonItems(source: unknown): unknown[] {
   if (Array.isArray(source)) {
     if (source.length === 0) {
-      throw new InputValidationError('El JSON de --cargar es un lote vacío: no hay comprobantes para procesar.');
+      throw new InputValidationError('El JSON de `--cargar` es un lote vacío: no hay comprobantes para procesar.');
     }
 
     return source;
@@ -336,7 +336,7 @@ export function readBillingJsonItems(source: unknown): unknown[] {
 
   if (typeof source !== 'object' || source === null) {
     throw new InputValidationError(
-      `El JSON de --cargar tiene que ser un objeto o un array de objetos y es ${describeReceived(source)}.`,
+      `El JSON de \`--cargar\` tiene que ser un objeto o un array de objetos y es ${describeReceived(source)}.`,
     );
   }
 

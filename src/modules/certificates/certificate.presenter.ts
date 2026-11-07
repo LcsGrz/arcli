@@ -25,14 +25,14 @@ const ENVIRONMENT_COLORS: Record<ArcliEnvironment, UiColorToken> = { produccion:
 /** Lo mismo que la tabla "Qué servicios autorizar" de la guía de certificados. */
 const SERVICES: ReadonlyArray<readonly [service: string, usage: string]> = [
   ['wsfe', 'facturas y notas A, B, C y FCE'],
-  ['ws_sr_constancia_inscripcion', 'arcli padron y el IVA del receptor'],
-  ['wsfecred', 'arcli fce-obligado y el aviso de FCE'],
-  ['wsfex', 'arcli fe, la factura de exportación E'],
+  ['ws_sr_constancia_inscripcion', '`arcli padron` y el IVA del receptor'],
+  ['wsfecred', '`arcli fce-obligado` y el aviso de FCE'],
+  ['wsfex', '`arcli fe`, la factura de exportación E'],
 ];
 
 /** Lo que hay que hacer en ARCA con el CSR. Testing usa WSASS; producción, Administración de Certificados Digitales. */
 function certificateSteps(request: Pick<GeneratedCertificateRequest, 'alias' | 'environment'>): string[] {
-  const importCommand = 'arcli certificado importar <archivo.crt>';
+  const importCommand = '`arcli certificado importar <archivo.crt>`';
 
   if (request.environment === 'testing') {
     return [

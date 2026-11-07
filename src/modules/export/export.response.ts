@@ -33,30 +33,30 @@ function buildSuggestions(options: {
   }
 
   if (/permiso/i.test(options.messages)) {
-    suggestions.add('Revisá los permisos de embarque: van con --permiso y --permiso-existente.');
+    suggestions.add('Revisá los permisos de embarque: van con `--permiso` y `--permiso-existente`.');
   }
 
   if (/cuit.*(pais|país)/i.test(options.messages)) {
-    suggestions.add('Revisá el CUIT del país del cliente (--cuit-pais) y el país de destino.');
+    suggestions.add('Revisá el CUIT del país del cliente (`--cuit-pais`) y el país de destino.');
   }
 
   if (/moneda|cotizaci[oó]n/i.test(options.messages)) {
-    suggestions.add('Revisá la moneda y la cotización (--moneda, --cotizacion-moneda).');
+    suggestions.add('Revisá la moneda y la cotización (`--moneda`, `--cotizacion-moneda`).');
   }
 
   if (/incoterm/i.test(options.messages)) {
-    suggestions.add('Revisá el incoterm (--incoterm) contra la tabla de ARCA.');
+    suggestions.add('Revisá el incoterm (`--incoterm`) contra la tabla de ARCA.');
   }
 
   if (/actividad/i.test(options.messages)) {
     suggestions.add(
-      'La actividad tiene que estar vinculada al emisor y activa para WSFEX: revisá las actividades habilitadas en ARCA o indicá otra con --actividad.',
+      'La actividad tiene que estar vinculada al emisor y activa para WSFEX: revisá las actividades habilitadas en ARCA o indicá otra con `--actividad`.',
     );
   }
 
   if (/correlativ/i.test(options.messages)) {
     suggestions.add(
-      'Revisá el número del comprobante (--numero): tiene que ser el siguiente al último E emitido en ese punto de venta.',
+      'Revisá el número del comprobante (`--numero`): tiene que ser el siguiente al último E emitido en ese punto de venta.',
     );
   }
 

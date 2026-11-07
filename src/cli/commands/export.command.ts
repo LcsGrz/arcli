@@ -27,7 +27,7 @@ import { parseExportCommandPlan } from './export.command.parser';
 import { attachExportPdf } from './export.command.pdf';
 
 const ITEMS_DESCRIPTION_WARNING =
-  '--descripcion se usa solo cuando no hay --item: el detalle del comprobante sale de los items.';
+  '`--descripcion` se usa solo cuando no hay `--item`: el detalle del comprobante sale de los items.';
 
 function writeExportResult(
   result: ExportExecutionResult,

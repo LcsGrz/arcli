@@ -147,7 +147,7 @@ export class ArcaContextResolver {
 
   private resolveEnvironment(config: ArcliConfig): ArcliEnvironment {
     if (this.options.testing && this.options.produccion) {
-      throw new ConfigurationError('Usá --testing o --produccion, pero no ambos a la vez.');
+      throw new ConfigurationError('Usá `--testing` o `--produccion`, pero no ambos a la vez.');
     }
 
     if (this.options.testing) {

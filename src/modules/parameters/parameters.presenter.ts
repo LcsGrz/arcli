@@ -23,7 +23,7 @@ export function formatParameterTablesAsText(): string {
   return keyValuePanel(
     'Tablas de ARCA',
     renderKeyValueRows(allRows, { labelWidth: resolveKeyValueLabelWidth('standard', allRows, [30, 70]) }),
-    'Uso: arcli parametros <tabla>',
+    'Uso: `arcli parametros <tabla>`',
     'standard',
     undefined,
     'sheet',

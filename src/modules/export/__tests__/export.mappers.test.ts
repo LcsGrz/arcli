@@ -245,7 +245,7 @@ describe('resolveExportActivity', () => {
 
   it('corta cuando la actividad no esta en la tabla, con las que empiezan igual', () => {
     expect(() => resolveExportActivity(620900, ACTIVITIES)).toThrow(
-      /no está en la tabla de actividades de WSFEX y ARCA la rechaza \(error 2105\)\. Las que empiezan con 620 son 62000, 620100, 620300\. Indicá la que corresponda con --actividad/,
+      /no está en la tabla de actividades de WSFEX y ARCA la rechaza \(error 2105\)\. Las que empiezan con 620 son 62000, 620100, 620300\. Indicá la que corresponda con `--actividad`/,
     );
   });
 

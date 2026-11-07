@@ -109,7 +109,7 @@ export class CertificateService {
       throw certificateError(
         'CERTIFICATE_REQUEST_PENDING',
         `Ya hay un pedido de certificado de ${formatEnvironmentLabel(options.environment)} sin importar.`,
-        `Si ya subiste el CSR a ARCA, importá el certificado con \`arcli certificado importar <archivo>\`. Para descartarlo y armar otro, sumá --reemplazar.`,
+        `Si ya subiste el CSR a ARCA, importá el certificado con \`arcli certificado importar <archivo>\`. Para descartarlo y armar otro, sumá \`--reemplazar\`.`,
       );
     }
 
@@ -207,7 +207,7 @@ export class CertificateService {
       throw certificateError(
         'CERTIFICATE_REPLACE_CONFIRMATION',
         `Ya hay un certificado de ${formatEnvironmentLabel(environment)} configurado: ${maskPath(configuredCertificate ?? '')}.`,
-        'Para reemplazarlo, sumá --reemplazar.',
+        'Para reemplazarlo, sumá `--reemplazar`.',
       );
     }
 
@@ -279,7 +279,7 @@ export class CertificateService {
       throw certificateError(
         'CERTIFICATE_ENVIRONMENT_UNKNOWN',
         `No se reconoce quién firmó el certificado ("${info.issuer}"): ARCA usa "Computadores Test" en testing y "Computadores" en producción.`,
-        'Si estás seguro de que es de ARCA, indicá el entorno con --testing o --produccion.',
+        'Si estás seguro de que es de ARCA, indicá el entorno con `--testing` o `--produccion`.',
       );
     }
 

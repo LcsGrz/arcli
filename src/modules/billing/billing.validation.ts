@@ -17,11 +17,13 @@ export function validateConceptDateInputs(input: BillingCommandInput, voucherKin
   const hasPartialServiceDate = Boolean(input.serviceStartDate) !== Boolean(input.serviceEndDate);
 
   if (input.paymentDueDate && input.dueDay) {
-    throw new InputValidationError('--dia y --vencimiento son el mismo vencimiento: dejá solo --vencimiento o --vto.');
+    throw new InputValidationError(
+      '`--dia` y `--vencimiento` son el mismo vencimiento: dejá solo `--vencimiento` o `--vto`.',
+    );
   }
 
   if (input.paymentDueDate || input.dueDay) {
-    const flag = input.dueDay ? '--dia' : '--vencimiento';
+    const flag = input.dueDay ? '`--dia`' : '`--vencimiento`';
 
     if (voucherKind.isElectronicCredit && voucherKind.family !== 'factura-credito-electronica') {
       throw new InputValidationError(
@@ -37,7 +39,7 @@ export function validateConceptDateInputs(input: BillingCommandInput, voucherKin
   if (input.concept === 'productos') {
     if (hasAnyServiceDate) {
       throw new InputValidationError(
-        'El concepto "productos" no usa fechas de servicio. Sacá --servicio-desde y --servicio-hasta.',
+        'El concepto "productos" no usa fechas de servicio. Sacá `--servicio-desde` y `--servicio-hasta`.',
       );
     }
 
@@ -46,7 +48,7 @@ export function validateConceptDateInputs(input: BillingCommandInput, voucherKin
 
   if (hasPartialServiceDate) {
     throw new InputValidationError(
-      'Si informás fechas de servicio, tenés que enviar ambas: --servicio-desde y --servicio-hasta.',
+      'Si informás fechas de servicio, tenés que enviar ambas: `--servicio-desde` y `--servicio-hasta`.',
     );
   }
 }
@@ -55,13 +57,13 @@ export function validateDocumentIdentity(input: BillingCommandInput, voucherKind
   if (input.documentType === 'consumidor-final') {
     if (input.ivaCondition !== 'consumidor-final') {
       throw new InputValidationError(
-        `${formatVoucherSubject(voucherKind)} usa consumidor final solo con --ir-cf o --iva-receptor consumidor-final.`,
+        `${formatVoucherSubject(voucherKind)} usa consumidor final solo con \`--ir-cf\` o \`--iva-receptor consumidor-final\`.`,
       );
     }
 
     if (typeof input.documentNumber === 'number' && input.documentNumber !== 0) {
       throw new InputValidationError(
-        `${formatVoucherSubject(voucherKind)} usa consumidor final solo con documento 0. Usá --consumidor-final.`,
+        `${formatVoucherSubject(voucherKind)} usa consumidor final solo con documento 0. Usá \`--consumidor-final\`.`,
       );
     }
 

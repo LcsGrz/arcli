@@ -43,7 +43,7 @@ function requirePointOfSale(options: PointOfSaleOptions, runtime: ResolvedArcaRu
 
   if (!pointOfSale || !Number.isInteger(pointOfSale) || pointOfSale <= 0) {
     throw new InputValidationError(
-      'Falta el punto de venta. Usá --pv <numero> o configuralo con `arcli config establecer puntoVenta <numero>`.',
+      'Falta el punto de venta. Usá `--pv <numero>` o configuralo con `arcli config establecer puntoVenta <numero>`.',
     );
   }
 

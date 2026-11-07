@@ -36,13 +36,13 @@ export function exchangeRateWarnings(
 
   if (input.exchangeRateSource === 'config') {
     return [
-      `La cotización de ${code} (${rate}) sale de la clave "cotizacion" de la config, que está deprecada y se va a sacar en la 3.0.0: una cotización guardada queda vieja. Pasá --cm, o borrala con \`arcli config eliminar cotizacion\` para usar la oficial de ARCA.`,
+      `La cotización de ${code} (${rate}) sale de la clave "cotizacion" de la config, que está deprecada y se va a sacar en la 3.0.0: una cotización guardada queda vieja. Pasá \`--cm\`, o borrala con \`arcli config eliminar cotizacion\` para usar la oficial de ARCA.`,
     ];
   }
 
   if (input.exchangeRateSource === 'arca') {
     return [
-      `Sin --cm se usa la cotización oficial de ARCA para ${code} (${rate}). Para usar otra, --cotizacion-moneda.`,
+      `Sin \`--cm\` se usa la cotización oficial de ARCA para ${code} (${rate}). Para usar otra, \`--cotizacion-moneda\`.`,
     ];
   }
 
@@ -63,7 +63,9 @@ export function resolveBillingCurrencyFields(
     }
 
     if (typeof input.exchangeRate === 'number' && input.exchangeRate !== DEFAULT_EXCHANGE_RATE) {
-      throw new InputValidationError('En pesos la cotización tiene que ser 1. Sacá --cotizacion-moneda o usá --cm 1.');
+      throw new InputValidationError(
+        'En pesos la cotización tiene que ser 1. Sacá `--cotizacion-moneda` o usá `--cm 1`.',
+      );
     }
 
     // ARCA rechaza CanMisMonExt cuando MonId = PES (error 10241).
@@ -78,7 +80,7 @@ export function resolveBillingCurrencyFields(
     // la de uno futuro todavia no existe.
     if (billingDate !== today) {
       throw new InputValidationError(
-        'Con --misma-moneda la fecha del comprobante tiene que ser la de hoy: ARCA exige la cotización oficial de ese día y solo se puede consultar la vigente. Sacá --fecha para emitir con la de hoy.',
+        'Con `--misma-moneda` la fecha del comprobante tiene que ser la de hoy: ARCA exige la cotización oficial de ese día y solo se puede consultar la vigente. Sacá `--fecha` para emitir con la de hoy.',
       );
     }
 
@@ -95,7 +97,7 @@ export function resolveBillingCurrencyFields(
 
   if (typeof input.exchangeRate !== 'number' || input.exchangeRate === DEFAULT_EXCHANGE_RATE) {
     throw new InputValidationError(
-      `Falta la cotización de ${inputCurrencyCode}. Usá --cotizacion-moneda o --cm, o --misma-moneda si el pago se hace en ${inputCurrencyCode}.`,
+      `Falta la cotización de ${inputCurrencyCode}. Usá \`--cotizacion-moneda\` o \`--cm\`, o \`--misma-moneda\` si el pago se hace en ${inputCurrencyCode}.`,
     );
   }
 

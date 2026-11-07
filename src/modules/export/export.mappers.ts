@@ -90,7 +90,9 @@ export function resolveExportCurrency(
     }
 
     if (typeof input.exchangeRate === 'number' && input.exchangeRate !== LOCAL_EXCHANGE_RATE) {
-      throw new InputValidationError('En pesos la cotización tiene que ser 1. Sacá --cotizacion-moneda o usá --cm 1.');
+      throw new InputValidationError(
+        'En pesos la cotización tiene que ser 1. Sacá `--cotizacion-moneda` o usá `--cm 1`.',
+      );
     }
 
     return {
@@ -149,7 +151,7 @@ export function resolveExportQuotation(
  */
 export function resolveExportActivity(value: number, activities: readonly ExportActivity[] = []): number {
   if (!Number.isInteger(value) || value < 1) {
-    throw new InputValidationError('La actividad tiene que ser un número entero positivo. Usá --actividad.');
+    throw new InputValidationError('La actividad tiene que ser un número entero positivo. Usá `--actividad`.');
   }
 
   if (activities.length === 0 || activities.some((activity) => activity.id === value)) {
@@ -162,7 +164,7 @@ export function resolveExportActivity(value: number, activities: readonly Export
     family.length > 0 ? ` Las que empiezan con ${prefix} son ${family.map((activity) => activity.id).join(', ')}.` : '';
 
   throw new InputValidationError(
-    `La actividad ${value} no está en la tabla de actividades de WSFEX y ARCA la rechaza (error 2105).${candidates} Indicá la que corresponda con --actividad.`,
+    `La actividad ${value} no está en la tabla de actividades de WSFEX y ARCA la rechaza (error 2105).${candidates} Indicá la que corresponda con \`--actividad\`.`,
   );
 }
 
@@ -203,7 +205,7 @@ export function resolveExportDestinationCountry(
   value: string | undefined,
   countries: readonly ExportCountry[],
 ): ExportCountry {
-  const trimmed = requireText(value, 'el país de destino', '--pais-destino');
+  const trimmed = requireText(value, 'el país de destino', '`--pais-destino`');
   const numeric = /^\d+$/.test(trimmed) ? Number(trimmed) : undefined;
   const country = numeric
     ? countries.find((entry) => entry.code === numeric)
@@ -285,7 +287,7 @@ export function resolveExportClientCountryCuit(options: {
 
     if (!resolved) {
       throw new InputValidationError(
-        `La tabla de ARCA no tiene CUIT para "${options.country.name}". Indicalo con --cuit-pais.`,
+        `La tabla de ARCA no tiene CUIT para "${options.country.name}". Indicalo con \`--cuit-pais\`.`,
       );
     }
 
@@ -336,7 +338,7 @@ export function resolveExportPointOfSale(value: number | undefined, config: Expo
 
   if (pointOfSale === undefined) {
     throw new InputValidationError(
-      'Falta el punto de venta. Usá --pv <numero> o configuralo con `arcli config establecer puntoVenta <numero>`.',
+      'Falta el punto de venta. Usá `--pv <numero>` o configuralo con `arcli config establecer puntoVenta <numero>`.',
     );
   }
 
@@ -388,7 +390,7 @@ function resolvePermits(
 
   if (permits.length === 0) {
     if (input.permitsExisting) {
-      throw new InputValidationError('--permiso-existente pide al menos un permiso de embarque. Usá --permiso.');
+      throw new InputValidationError('`--permiso-existente` pide al menos un permiso de embarque. Usá `--permiso`.');
     }
 
     return undefined;
@@ -396,13 +398,13 @@ function resolvePermits(
 
   if (requiresEmptyPermitsExisting(exportType)) {
     throw new InputValidationError(
-      `El tipo de exportación ${exportType} (${EXPORT_TYPES[exportType]}) no lleva permisos de embarque: ARCA exige Permiso_existente vacío (error 1550). Quitá --permiso.`,
+      `El tipo de exportación ${exportType} (${EXPORT_TYPES[exportType]}) no lleva permisos de embarque: ARCA exige Permiso_existente vacío (error 1550). Quitá \`--permiso\`.`,
     );
   }
 
   if (!input.permitsExisting) {
     throw new InputValidationError(
-      'Los permisos de embarque van con --permiso-existente: ARCA necesita saber que el permiso ya existe.',
+      'Los permisos de embarque van con `--permiso-existente`: ARCA necesita saber que el permiso ya existe.',
     );
   }
 
@@ -416,11 +418,11 @@ function resolvePermits(
  * el primero). `Actividades`, en cambio, siempre lleva una `Actividad` (error 2100).
  */
 export function buildExportPayload(input: ExportVoucherInput, resolution: BuildExportResolution): ExportVoucherPayload {
-  const clientName = requireText(input.clientName, 'el nombre del cliente', '--cliente');
-  const clientAddress = requireText(input.clientAddress, 'el domicilio del cliente', '--domicilio-cliente');
+  const clientName = requireText(input.clientName, 'el nombre del cliente', '`--cliente`');
+  const clientAddress = requireText(input.clientAddress, 'el domicilio del cliente', '`--domicilio-cliente`');
 
   if (typeof input.amount !== 'number' || !(input.amount > 0)) {
-    throw new InputValidationError('Falta el importe total o no es válido. Usá --monto.');
+    throw new InputValidationError('Falta el importe total o no es válido. Usá `--monto`.');
   }
 
   const permits = resolvePermits(input, resolution.destinationCountry.code, resolution.exportType);

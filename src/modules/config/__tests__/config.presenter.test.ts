@@ -81,7 +81,7 @@ describe('config.presenter', () => {
 
     expect(text).toContain('20-33333333-4');
     expect(text).toContain('producción');
-    expect(text).toMatch(/Emitir sin --emitir\s+sí/);
+    expect(text).toMatch(/Emitir sin `--emitir`\s+sí/);
   });
 
   it('serializes revision with masked runtime-friendly details', () => {

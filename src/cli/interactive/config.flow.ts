@@ -392,7 +392,7 @@ export async function runConfigMenu(): Promise<void> {
     const option = await chooseOne<ConfigOption>(
       'Configuración',
       [
-        { description: 'Todos los datos guardados, como arcli config', name: 'Ver configuración', value: 'ver' },
+        { description: 'Todos los datos guardados, como `arcli config`', name: 'Ver configuración', value: 'ver' },
         {
           description: 'Credenciales, defaults y validación contra ARCA',
           name: 'Revisar configuración',

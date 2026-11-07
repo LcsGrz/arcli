@@ -15,7 +15,7 @@ describe('billing.command.shortcuts', () => {
 
     it('rejects more than one --ir-* flag at the same time', () => {
       expect(() => resolveIvaShortcut({ irCf: true, irRi: true })).toThrow(
-        /Usá solo un flag de IVA receptor entre las opciones --ir-\*/,
+        /Usá solo un flag de IVA receptor entre las opciones `--ir-\*`/,
       );
     });
   });
@@ -74,7 +74,7 @@ describe('billing.command.shortcuts', () => {
 
     it('rejects more than one concept shortcut at the same time', () => {
       expect(() => resolveConceptShortcut({ cp: true, cs: true })).toThrow(
-        /Usá solo un flag de concepto entre --cs, --cp o --csp/,
+        /Usá solo un flag de concepto entre `--cs`, `--cp` o `--csp`/,
       );
     });
   });

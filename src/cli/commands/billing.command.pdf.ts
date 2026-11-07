@@ -14,7 +14,7 @@ import { confirm, isPromptCancellation } from '../interactive/prompts';
 import { startSpinner } from '../spinner';
 
 export const PDF_ONLY_FLAGS_WARNING =
-  '--descripcion, --condicion-venta, --receptor-nombre y --receptor-domicilio solo se usan en el PDF; no se generó ninguno.';
+  '`--descripcion`, `--condicion-venta`, `--receptor-nombre` y `--receptor-domicilio` solo se usan en el PDF; no se generó ninguno.';
 
 export interface PdfStepDependencies {
   readonly confirm: (message: string, yesLabel: string, noLabel?: string) => Promise<boolean>;

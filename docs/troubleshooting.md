@@ -341,7 +341,7 @@ También se reconocen por el mensaje, sin código: receptor igual al emisor, `Tr
 ### Factura E: falta el número del comprobante
 
 - **Severidad:** siempre, en cada `E`
-- **Síntoma:** `Falta el número del comprobante. Usá --numero: arcli todavía no puede consultar en WSFEX el último emitido.`
+- **Síntoma:** ``Falta el número del comprobante. Usá `--numero`: arcli todavía no puede consultar en WSFEX el último emitido.``
 - **Causa:** WSFEX numera por punto de venta y tipo de comprobante, y el último se consulta con `FEXGetLast_CMP`, que lleva el punto de venta y el tipo **dentro** del bloque `Auth`. `@arcasdk/core` arma ese bloque pisándolo entero, así que la consulta no funciona (ARCA contesta 1606 o 1000). Hasta que se arregle en el SDK, el número lo indicás vos.
 - **Solución:** pasá `--numero` con el siguiente al último `E` que emitiste en ese punto de venta (`1` si es el primero). Si no es el correcto, ARCA rechaza el comprobante y no se emite nada.
 - **Documentación relacionada:** [Referencia del CLI](cli-reference.md#factura-de-exportación-e-wsfex)

@@ -72,7 +72,7 @@ export const CONFIG_LABELS: Record<ConfigPublicKey, string> = {
   'emisor.inicioActividades': 'Inicio de actividades',
   'emisor.logo': 'Logo (PNG o JPG)',
   'emisor.razonSocial': 'Razón social',
-  emitir: 'Emitir sin --emitir',
+  emitir: 'Emitir sin `--emitir`',
   entorno: 'Entorno',
   'exportacion.actividad': 'Actividad de exportación (WSFEX)',
   'exportacion.cert.produccion': 'Certificado de exportación (producción)',

@@ -13,7 +13,7 @@ describe('exchangeRateWarnings', () => {
 
   it('avisa que se usó la cotización oficial de ARCA', () => {
     expect(exchangeRateWarnings({ currencyCode: 'USD', exchangeRate: 1415.25, exchangeRateSource: 'arca' })).toEqual([
-      'Sin --cm se usa la cotización oficial de ARCA para USD (1.415,25). Para usar otra, --cotizacion-moneda.',
+      'Sin `--cm` se usa la cotización oficial de ARCA para USD (1.415,25). Para usar otra, `--cotizacion-moneda`.',
     ]);
   });
 

@@ -134,7 +134,7 @@ describe('billing.command.parser', () => {
   it('rejects mixing emit and preview at the same time', () => {
     const command = createCommand(['--monto', '1000', '--emitir', '--previsualizar', '--cs', '--ir-cf']);
 
-    expect(() => parseBillingCommandInput(command, 'fa')).toThrow(/Usá --emitir o --previsualizar/);
+    expect(() => parseBillingCommandInput(command, 'fa')).toThrow(/Usá `--emitir` o `--previsualizar`/);
   });
 
   describe('a written flag wins over the file and the config', () => {
@@ -466,13 +466,13 @@ describe('billing.command.parser', () => {
         createCommand(['--monto', '100', '--cs', '--ir-ri', '--alicuota', '21', '--alicuota', '10.5:50']),
         'fa',
       ),
-    ).toThrow(/No mezcles --alicuota TASA con --alicuota TASA:MONTO/);
+    ).toThrow(/No mezcles `--alicuota TASA` con `--alicuota TASA:MONTO`/);
     expect(() =>
       parseBillingCommandInput(
         createCommand(['--monto', '100', '--cs', '--ir-ri', '--alicuota', '21', '--alicuota', '27']),
         'fa',
       ),
-    ).toThrow(/Para varias alícuotas usá --alicuota TASA:MONTO/);
+    ).toThrow(/Para varias alícuotas usá `--alicuota TASA:MONTO`/);
   });
 
   it('loads base data from a JSON file', () => {
@@ -705,7 +705,7 @@ describe('billing.command.parser', () => {
           'fc',
           defaults,
         ),
-      ).toThrow(/--condicion-venta\/--cv o --sin-condicion-venta/);
+      ).toThrow(/`--condicion-venta`\/`--cv` o `--sin-condicion-venta`/);
     });
 
     it('reads --exportar-pdf, its alias and the PDF-only data', () => {
@@ -742,7 +742,7 @@ describe('billing.command.parser', () => {
     it('rejects --exportar-pdf together with --sin-pdf', () => {
       expect(() =>
         parseBillingCommandInput(createCommand(['--monto', '1000', '--pdf', '--sin-pdf']), 'fc', defaults),
-      ).toThrow(/--exportar-pdf o --sin-pdf/);
+      ).toThrow(/`--exportar-pdf` o `--sin-pdf`/);
     });
   });
 });

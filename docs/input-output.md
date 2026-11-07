@@ -72,7 +72,7 @@ Con un solo comprobante, `detalles.campos` lista cada problema con su ruta en el
       { "mensaje": "La clave \"vencimiento\" no existe: ¿quisiste decir \"vencimientoPago\"?", "ruta": ["vencimiento"] }
     ]
   },
-  "error": "En el JSON de --cargar: ...",
+  "error": "En el JSON de `--cargar`: ...",
   "sugerencia": null
 }
 ```
@@ -318,7 +318,7 @@ Si el archivo contiene un array, ARCLI procesa un lote del mismo comando. **Un a
     "comprobantes": [
       { "error": "Falta el dato: monto.", "indice": 2 },
       {
-        "error": "La factura B de $ 10.000.000 o más requiere identificar al consumidor final. Usá --dni, --cuit o --cuil.",
+        "error": "La factura B de $ 10.000.000 o más requiere identificar al consumidor final. Usá `--dni`, `--cuit` o `--cuil`.",
         "indice": 3
       }
     ]
@@ -493,7 +493,7 @@ Si no hubo emisión real, `respuesta` no se serializa como `null`. En su lugar:
 
 ```json
 {
-  "mensaje": "Sin emisión real. Usá --emitir para obtener una respuesta de ARCA."
+  "mensaje": "Sin emisión real. Usá `--emitir` para obtener una respuesta de ARCA."
 }
 ```
 

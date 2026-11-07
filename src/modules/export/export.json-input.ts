@@ -56,7 +56,7 @@ const exportJsonInputSchema = z
 export type ExportJsonInput = z.infer<typeof exportJsonInputSchema>;
 
 const DEPRECATED_AMOUNT_KEY_WARNING =
-  'La clave "monto" del JSON de --cargar se saca en la 3.0.0: usá "montoTotal", como en A, B y C.';
+  'La clave "monto" del JSON de `--cargar` se saca en la 3.0.0: usá "montoTotal", como en A, B y C.';
 
 const TYPE_LABELS: Readonly<Record<string, string>> = {
   array: 'un array',
@@ -70,7 +70,7 @@ function describeIssue(issue: z.core.$ZodIssue): string {
   const path = issue.path.map(String).join('.');
 
   if (issue.code === 'unrecognized_keys') {
-    return `La clave "${issue.keys.join('", "')}" no existe en el JSON de --cargar.`;
+    return `La clave "${issue.keys.join('", "')}" no existe en el JSON de \`--cargar\`.`;
   }
 
   if (issue.code === 'invalid_type' && issue.input === undefined) {
@@ -92,7 +92,7 @@ function parseExportJsonInput(value: unknown): ExportJsonInput {
   }
 
   throw new InputValidationError(
-    `En el JSON de --cargar: ${result.error.issues.map((issue) => describeIssue(issue)).join(' ')}`,
+    `En el JSON de \`--cargar\`: ${result.error.issues.map((issue) => describeIssue(issue)).join(' ')}`,
   );
 }
 
@@ -100,14 +100,14 @@ function parseExportJsonInput(value: unknown): ExportJsonInput {
 export function readExportJsonInput(source: unknown): ExportJsonInput {
   if (Array.isArray(source)) {
     throw new InputValidationError(
-      'El JSON de --cargar de la factura E tiene que ser un objeto con un comprobante, no un array.',
+      'El JSON de `--cargar` de la factura E tiene que ser un objeto con un comprobante, no un array.',
     );
   }
 
   const input = parseExportJsonInput(source);
 
   if (input.monto !== undefined && input.montoTotal !== undefined) {
-    throw new InputValidationError('En el JSON de --cargar: usá "montoTotal" o "monto", no las dos.');
+    throw new InputValidationError('En el JSON de `--cargar`: usá "montoTotal" o "monto", no las dos.');
   }
 
   return input;

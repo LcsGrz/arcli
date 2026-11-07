@@ -54,7 +54,7 @@ function resolveEmitDecision(
   defaults: ExportCommandDefaults,
 ): { readonly emit: boolean; readonly modeSource: ExportModeSource } {
   if (flags.emitir && flags.previsualizar) {
-    throw new InputValidationError('Usá --emitir o --previsualizar, no los dos.');
+    throw new InputValidationError('Usá `--emitir` o `--previsualizar`, no los dos.');
   }
 
   if (flags.emitir !== undefined) {
