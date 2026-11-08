@@ -172,7 +172,12 @@ describe('emitBatch', () => {
   });
 
   it('si la emision quedo sin confirmar, pide verificar el que fallo', async () => {
-    const cause = new EmissionUncertainError({ cause: new Error('timeout'), pointOfSale: 3, shortcut: 'fc' });
+    const cause = new EmissionUncertainError({
+      cause: new Error('timeout'),
+      environment: 'produccion',
+      pointOfSale: 3,
+      shortcut: 'fc',
+    });
     const run = emitBatch({
       emit: async (input: string) => {
         if (input === 'b') {
@@ -188,6 +193,7 @@ describe('emitBatch', () => {
 
     await run.catch((error: BatchEmissionError) => {
       expect(error.message).toContain('El #2 puede haberse emitido');
+      expect(error.message).toContain('`arcli ultimos fc --pv 3 --produccion`');
       expect(error.details).toMatchObject({ fallo: 2, sinConfirmar: 2, sinProcesar: [3] });
     });
     await expect(run).rejects.toThrow(BatchEmissionError);

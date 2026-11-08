@@ -219,6 +219,7 @@ export class ExportService {
     } catch (error) {
       throw new EmissionUncertainError({
         cause: error,
+        environment: options.runtime.environment,
         pointOfSale: payload.Punto_vta,
         requestId: payload.Id,
         voucherNumber: payload.Cbte_nro,

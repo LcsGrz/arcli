@@ -98,7 +98,12 @@ export class BillingService {
         CbteHasta: voucherNumber,
       });
     } catch (error) {
-      throw new EmissionUncertainError({ cause: error, pointOfSale: payload.PtoVta, shortcut: voucherKind.shortcut });
+      throw new EmissionUncertainError({
+        cause: error,
+        environment: options.runtime.environment,
+        pointOfSale: payload.PtoVta,
+        shortcut: voucherKind.shortcut,
+      });
     }
 
     return {

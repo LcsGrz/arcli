@@ -345,7 +345,7 @@ describe('ExportService.preview y execute', () => {
       code: 'EMISSION_UNCERTAIN',
       details: { causa: 'socket hang up', idSolicitud, numero },
       message: 'No se pudo confirmar la emisión: socket hang up',
-      suggestion: expect.stringContaining(`--numero ${numero} --id-solicitud ${idSolicitud} --pv ${pv}`),
+      suggestion: expect.stringContaining(`--numero ${numero} --id-solicitud ${idSolicitud} --pv ${pv} --testing`),
     });
   });
 

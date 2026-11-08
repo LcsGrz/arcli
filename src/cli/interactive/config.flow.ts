@@ -26,6 +26,7 @@ import {
   type ConfigField,
   describeConfigValue,
   getConfigField,
+  listMissingSetupKeys,
 } from '../../modules/interactive/config-fields';
 import { BACK, type Back, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { formatPdfPluginStatusAsText } from '../../modules/pdf/pdf.presenter';
@@ -239,7 +240,17 @@ export async function runGuidedSetup(): Promise<void> {
     await runWizard(fieldSteps(ISSUER_KEYS, []), {});
   }
 
-  writeTerminalOutput(noticePanel('Configuración guardada. Ya podés emitir en testing.', 'success'));
+  // Con "lo cargo después" el certificado queda pendiente: decir que ya se puede emitir seria falso.
+  const missing = listMissingSetupKeys(readConfig());
+
+  writeTerminalOutput(
+    missing.some((key) => key === 'cert.testing' || key === 'key.testing')
+      ? noticePanel(
+          `Configuración guardada, pero falta cargar el certificado de testing. Cuando lo bajes de ARCA, entrá a Configuración ${uiSymbol('arrow')} Certificados de ARCA ${uiSymbol('arrow')} Cargar el certificado (.crt).`,
+          'warning',
+        )
+      : noticePanel('Configuración guardada. Ya podés emitir en testing.', 'success'),
+  );
 }
 
 /** Los datos agrupados por seccion, en el mismo orden que `arcli config`, con un titulo arriba de cada una. */
