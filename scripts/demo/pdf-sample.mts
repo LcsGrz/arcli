@@ -4,7 +4,7 @@
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, renameSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 import { getVoucherKindByShortcut } from '../../src/modules/billing/voucher-kind-map';
 import { ConfigService } from '../../src/modules/config/config.service';
@@ -80,6 +80,7 @@ const path = await exportBillingPdf({
   },
 });
 
-execFileSync('qlmanage', ['-t', '-s', '1000', '-o', folder, path], { stdio: 'ignore' });
+// El PDF queda en una subcarpeta por CUIT: qlmanage deja el PNG en la carpeta que se le indica.
+execFileSync('qlmanage', ['-t', '-s', '1000', '-o', dirname(path), path], { stdio: 'ignore' });
 renameSync(`${path}.png`, 'docs/assets/demo/pdf-factura.png');
 console.log('Listo: docs/assets/demo/pdf-factura.png');

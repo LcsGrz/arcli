@@ -31,7 +31,18 @@ function input(overrides: Record<string, unknown>): BillingCommandInput {
 describe('buildEquivalentCommand', () => {
   it('arma el comando de una factura a consumidor final, con el entorno explicito', () => {
     expect(buildEquivalentCommand(input({}), { environment: 'testing' })).toBe(
-      'arcli fc -m 1000 --cs --consumidor-final --ir consumidor-final --testing --emitir',
+      'arcli fc -m 1000 --cs --consumidor-final --testing --emitir',
+    );
+  });
+
+  it('sin documento, --ir solo si el IVA receptor no es consumidor final, y al reparsearlo da la misma entrada', () => {
+    const exempt = input({ ivaCondition: 'sujeto-exento' });
+    const command = buildEquivalentCommand(exempt, { environment: 'testing' });
+
+    expect(command).toBe('arcli fc -m 1000 --cs --consumidor-final --ir sujeto-exento --testing --emitir');
+    expect(parseCommand(command, 'fc').ivaCondition).toBe('sujeto-exento');
+    expect(parseCommand(buildEquivalentCommand(input({}), { environment: 'testing' }), 'fc').ivaCondition).toBe(
+      'consumidor-final',
     );
   });
 

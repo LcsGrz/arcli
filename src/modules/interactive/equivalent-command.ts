@@ -12,10 +12,13 @@ const CONCEPT_FLAGS: Record<BillingCommandInput['concept'], string> = {
 
 function identityFlags(input: BillingCommandInput): string[] {
   if (input.documentType === 'consumidor-final') {
-    return ['--consumidor-final'];
+    // `--consumidor-final` ya implica ese IVA receptor (y le gana al de la config): `--ir` solo si es otro.
+    return input.ivaCondition === 'consumidor-final'
+      ? ['--consumidor-final']
+      : ['--consumidor-final', '--ir', input.ivaCondition];
   }
 
-  return [`--${input.documentType}`, String(input.documentNumber)];
+  return [`--${input.documentType}`, String(input.documentNumber), '--ir', input.ivaCondition];
 }
 
 function associatedFlags(input: BillingCommandInput): string[] {
@@ -60,8 +63,6 @@ export function buildEquivalentCommand(
     formatArgentineAmountInput(input.totalAmount),
     CONCEPT_FLAGS[input.concept],
     ...identityFlags(input),
-    '--ir',
-    input.ivaCondition,
   ];
 
   if (input.pointOfSale) parts.push('--pv', String(input.pointOfSale));

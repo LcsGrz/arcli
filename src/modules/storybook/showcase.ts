@@ -249,10 +249,7 @@ function buildBordersScene(): string {
   );
   const command = renderPanel({
     borderType: 'command',
-    content: [
-      colorize('Esto equivale a:', 'muted'),
-      'arcli fc -m 1000 --cs --consumidor-final --ir consumidor-final --emitir',
-    ],
+    content: [colorize('Esto equivale a:', 'muted'), 'arcli fc -m 1000 --cs --consumidor-final --testing --emitir'],
   });
 
   return [
