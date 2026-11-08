@@ -76,7 +76,7 @@ describe('resolveTaxAmounts', () => {
   it('rechaza alicuota, exento y no gravado en letra C', () => {
     expect(() =>
       resolveTaxAmounts({ exemptAmount: 10, ivaRate: '10.5', totalAmount: 100 }, VOUCHER_KIND_MAP.fc),
-    ).toThrow(/Sacá --alicuota, --exento/);
+    ).toThrow(/Sacá `--alicuota`, `--exento`/);
   });
 });
 
@@ -135,7 +135,7 @@ describe('resolveTaxAmounts con varias alicuotas', () => {
   it('rechaza varias alicuotas en letra C', () => {
     expect(() =>
       resolveTaxAmounts({ ivaRateAmounts: [{ amount: 100, rate: '21' }], totalAmount: 100 }, VOUCHER_KIND_MAP.fc),
-    ).toThrow(/Sacá --alicuota/);
+    ).toThrow(/Sacá `--alicuota`/);
   });
 });
 

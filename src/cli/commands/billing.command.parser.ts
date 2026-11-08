@@ -36,7 +36,7 @@ function parseRateAmount(flagValue: string, raw: string): number {
   const result = parseArgentineAmount(raw);
 
   if (!result.ok) {
-    throw new InputValidationError(`--alicuota "${flagValue}": el monto no es válido: ${result.reason}.`);
+    throw new InputValidationError(`\`--alicuota\` "${flagValue}": el monto no es válido: ${result.reason}.`);
   }
 
   return result.value;

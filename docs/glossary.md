@@ -46,7 +46,7 @@ Categoría de receptor sin documento identificable. ARCLI la representa con docu
 
 ### Condición IVA (IVA receptor)
 
-La situación del receptor frente al IVA: `responsable-inscripto`, `monotributo`, `consumidor-final`, `sujeto-exento`, etc. Define, entre otras cosas, si ARCLI calcula IVA automáticamente (ver [Reglas de validación](validation-rules.md#iva-automático)).
+La situación del receptor frente al IVA: `responsable-inscripto`, `responsable-monotributo`, `consumidor-final`, `sujeto-exento`, etc. Define, entre otras cosas, si ARCLI calcula IVA automáticamente (ver [Reglas de validación](validation-rules.md#iva-automático)).
 
 ### Punto de venta
 

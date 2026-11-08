@@ -440,7 +440,7 @@ describe('billing.service', () => {
 
     expect(() =>
       service.buildVoucherPayload(createBillingInput({ documentNumber: 0, sameCurrency: true }), createRuntime()),
-    ).toThrow(/--misma-moneda solo aplica/);
+    ).toThrow(/`--misma-moneda` solo aplica/);
   });
 
   it('resolves the official exchange rate when paying in the same foreign currency', async () => {
@@ -736,7 +736,7 @@ describe('billing.service', () => {
         }),
         createRuntime(),
       ),
-    ).toThrow(/--cuit 2012345678 no es válido .*: debe tener 11 dígitos/);
+    ).toThrow(/`--cuit` 2012345678 no es válido .*: debe tener 11 dígitos/);
   });
 
   it('rejects a cuit or cuil with a wrong check digit', () => {
@@ -751,7 +751,7 @@ describe('billing.service', () => {
         }),
         createRuntime(),
       ),
-    ).toThrow(/--cuil 20333333335 no es válido .*dígito verificador/);
+    ).toThrow(/`--cuil` 20333333335 no es válido .*dígito verificador/);
   });
 
   it('rejects dni with invalid length', () => {
@@ -765,7 +765,7 @@ describe('billing.service', () => {
         }),
         createRuntime(),
       ),
-    ).toThrow(/--dni debe tener 7 u 8 dígitos/);
+    ).toThrow(/`--dni` debe tener 7 u 8 dígitos/);
   });
 
   it('rejects service dates for products concept', () => {
@@ -1202,7 +1202,7 @@ describe('billing.service', () => {
     it('rejects invoice-only optionals on FCE notes', () => {
       expect(() =>
         new BillingService().buildVoucherPayload(fceNote({ cbu: '0110599520000012345678' }), createRuntime()),
-      ).toThrow(/no lleva --cbu/);
+      ).toThrow(/no lleva `--cbu`/);
     });
 
     it('requires the associated voucher date on FCE notes', () => {
@@ -1240,7 +1240,7 @@ describe('billing.service', () => {
           createBillingInput({ billingDate: '18/03/2026', cbu: '0110599520000012345678', documentNumber: 0 }),
           createRuntime(),
         ),
-      ).toThrow(/--cbu solo aplica a comprobantes de crédito electrónica/);
+      ).toThrow(/`--cbu` solo aplica a comprobantes de crédito electrónica/);
     });
 
     it('keeps the associated date optional on regular credit notes', () => {

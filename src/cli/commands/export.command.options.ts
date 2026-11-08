@@ -11,7 +11,9 @@ function exportTypeOption(value: string): ExportType {
   const parsed = parseStrictInteger(value);
 
   if (parsed !== 1 && parsed !== 2 && parsed !== 4) {
-    throw new InputValidationError(`--tipo-expo "${value}" no es válido: usá 1 (bienes), 2 (servicios) o 4 (otros).`);
+    throw new InputValidationError(
+      `\`--tipo-expo\` "${value}" no es válido: usá 1 (bienes), 2 (servicios) o 4 (otros).`,
+    );
   }
 
   return parsed;

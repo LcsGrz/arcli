@@ -59,7 +59,7 @@ export function resolveBillingCurrencyFields(
 
   if (currencyCode === ARCA_LOCAL_CURRENCY_CODE) {
     if (input.sameCurrency) {
-      throw new InputValidationError('--misma-moneda solo aplica a comprobantes en moneda extranjera.');
+      throw new InputValidationError('`--misma-moneda` solo aplica a comprobantes en moneda extranjera.');
     }
 
     if (typeof input.exchangeRate === 'number' && input.exchangeRate !== DEFAULT_EXCHANGE_RATE) {

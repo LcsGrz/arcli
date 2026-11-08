@@ -81,13 +81,13 @@ export function validateDocumentIdentity(input: BillingCommandInput, voucherKind
 
     if (!result.ok) {
       throw new InputValidationError(
-        `${formatDocumentFlag(input.documentType)} ${input.documentNumber} no es válido en ${formatVoucherWithArticle(voucherKind)}: ${result.reason}.`,
+        `\`${formatDocumentFlag(input.documentType)}\` ${input.documentNumber} no es válido en ${formatVoucherWithArticle(voucherKind)}: ${result.reason}.`,
       );
     }
   }
 
   if (input.documentType === 'dni' && !/^\d{7,8}$/.test(String(input.documentNumber))) {
-    throw new InputValidationError(`--dni debe tener 7 u 8 dígitos en ${formatVoucherWithArticle(voucherKind)}.`);
+    throw new InputValidationError(`\`--dni\` debe tener 7 u 8 dígitos en ${formatVoucherWithArticle(voucherKind)}.`);
   }
 }
 

@@ -47,7 +47,9 @@ export function resolveElectronicCreditOptionals(
     const flags = input.cancellation ? [...invoiceOnlyFlags, '--anulacion'] : invoiceOnlyFlags;
 
     if (flags.length > 0) {
-      throw new InputValidationError(`${flags.join(', ')} solo aplica a comprobantes de crédito electrónica (FCE).`);
+      throw new InputValidationError(
+        `${flags.map((flag) => `\`${flag}\``).join(', ')} solo aplica a comprobantes de crédito electrónica (FCE).`,
+      );
     }
 
     return undefined;
@@ -55,7 +57,9 @@ export function resolveElectronicCreditOptionals(
 
   if (!isElectronicCreditInvoice(voucherKind)) {
     if (invoiceOnlyFlags.length > 0) {
-      throw new InputValidationError(`${subject} no lleva ${invoiceOnlyFlags.join(', ')}: solo van en la factura FCE.`);
+      throw new InputValidationError(
+        `${subject} no lleva ${invoiceOnlyFlags.map((flag) => `\`${flag}\``).join(', ')}: solo van en la factura FCE.`,
+      );
     }
 
     return [{ Id: FCE_OPTIONAL_IDS.cancellation, Valor: input.cancellation ? 'S' : 'N' }];

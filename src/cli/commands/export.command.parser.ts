@@ -65,12 +65,18 @@ function resolveEmitDecision(
     return { emit: !flags.previsualizar, modeSource: 'flags' };
   }
 
+  if (file?.emitir === true && file.previsualizar === true) {
+    throw new InputValidationError('En el archivo usá "emitir" o "previsualizar", pero no ambos en true.');
+  }
+
   if (file?.emitir !== undefined) {
     return { emit: file.emitir, modeSource: 'file' };
   }
 
-  if (file?.previsualizar !== undefined) {
-    return { emit: !file.previsualizar, modeSource: 'file' };
+  // Igual que en A, B y C: "previsualizar": false no es lo mismo que "emitir": true; sin "emitir" decide la config
+  // (y en una terminal se pregunta).
+  if (file?.previsualizar === true) {
+    return { emit: false, modeSource: 'file' };
   }
 
   return { emit: defaults.defaultEmit ?? false, modeSource: 'default' };

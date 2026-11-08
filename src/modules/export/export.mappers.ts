@@ -86,7 +86,7 @@ export function resolveExportCurrency(
 
   if (currencyCode === 'PES') {
     if (input.sameCurrency) {
-      throw new InputValidationError('--misma-moneda solo aplica a comprobantes en moneda extranjera.');
+      throw new InputValidationError('`--misma-moneda` solo aplica a comprobantes en moneda extranjera.');
     }
 
     if (typeof input.exchangeRate === 'number' && input.exchangeRate !== LOCAL_EXCHANGE_RATE) {
@@ -175,7 +175,7 @@ export function resolveExportType(value: ExportType | undefined): ExportType {
 
   if (!EXPORT_TYPE_VALUES.includes(value)) {
     throw new InputValidationError(
-      '--tipo-expo tiene que ser 1 (exportación definitiva de bienes), 2 (servicios) o 4 (otros).',
+      '`--tipo-expo` tiene que ser 1 (exportación definitiva de bienes), 2 (servicios) o 4 (otros).',
     );
   }
 

@@ -173,7 +173,7 @@ describe('ExportService.resolve', () => {
 
     expect(resolved.payload.Moneda_ctz).toBe(895);
     expect(resolved.warnings).toEqual([
-      'ARCA no publicó la cotización de DOL del 01/06/2026: se usa la del 29/05/2026 (895). Para usar otra, --cotizacion-moneda.',
+      'ARCA no publicó la cotización de DOL del 01/06/2026: se usa la del 29/05/2026 (895). Para usar otra, `--cotizacion-moneda`.',
     ]);
   });
 

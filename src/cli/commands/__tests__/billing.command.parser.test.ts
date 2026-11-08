@@ -424,11 +424,11 @@ describe('billing.command.parser', () => {
   });
 
   it.each([
-    [['--monto', '1500.50'], /--monto "1500.50" no es válido: usá coma para los decimales/],
-    [['--monto', '12abc'], /--monto "12abc" no es válido: usá punto para miles y coma para decimales/],
-    [['--monto', '1500,555'], /--monto "1500,555" no es válido: usá hasta 2 decimales/],
-    [['--monto', '100', '--exento', '10.5'], /--exento "10.5" no es válido/],
-    [['--monto', '100', '--cm', '1452.5'], /--cm "1452.5" no es válido/],
+    [['--monto', '1500.50'], /`--monto` "1500.50" no es válido: usá coma para los decimales/],
+    [['--monto', '12abc'], /`--monto` "12abc" no es válido: usá punto para miles y coma para decimales/],
+    [['--monto', '1500,555'], /`--monto` "1500,555" no es válido: usá hasta 2 decimales/],
+    [['--monto', '100', '--exento', '10.5'], /`--exento` "10.5" no es válido/],
+    [['--monto', '100', '--cm', '1452.5'], /`--cm` "1452.5" no es válido/],
   ])('rejects amounts that are not in the Argentine format: %j', (args, message) => {
     expect(() => createCommand(args)).toThrow(message);
   });
@@ -439,7 +439,7 @@ describe('billing.command.parser', () => {
         createCommand(['--cs', '--ir-ri', '--alicuota', 'general:1210', '--alicuota', 'reducida:552.50']),
         'fa',
       ),
-    ).toThrow(/--alicuota "reducida:552.50": el monto no es válido: usá coma para los decimales/);
+    ).toThrow(/`--alicuota` "reducida:552.50": el monto no es válido: usá coma para los decimales/);
   });
 
   it('sums several alicuotas without floating point errors', () => {
@@ -674,7 +674,7 @@ describe('billing.command.parser', () => {
 
   it('rejects an --acuit with a wrong check digit', () => {
     expect(() => createCommand(['--monto', '5000', '--acuit', '20-33333333-5'])).toThrow(
-      /--acuit "20-33333333-5" no es válido: el dígito verificador/,
+      /`--acuit` "20-33333333-5" no es válido: el dígito verificador/,
     );
   });
 

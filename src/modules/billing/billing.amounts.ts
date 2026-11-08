@@ -38,7 +38,7 @@ function validateLetterCAmounts(input: TaxAmountsInput, voucherKind: VoucherKind
 
   if (flags.length > 0) {
     throw new InputValidationError(
-      `${formatVoucherSubject(voucherKind)} no discrimina IVA ni importes exentos o no gravados. Sacá ${flags.join(', ')}.`,
+      `${formatVoucherSubject(voucherKind)} no discrimina IVA ni importes exentos o no gravados. Sacá ${flags.map((flag) => `\`${flag}\``).join(', ')}.`,
     );
   }
 }

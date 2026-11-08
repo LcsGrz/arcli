@@ -44,6 +44,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### Corregido
 
+- **`arcli fe --cargar` con `"previsualizar": false` emitía sin preguntar:** en A, B y C eso no emite y decide la config (en una terminal pregunta); ahora la `E` hace lo mismo. Para emitir desde el archivo, `"emitir": true`. `"emitir"` y `"previsualizar"` en `true` a la vez son un error, como en el resto.
 - **Modo interactivo:** la barra con la razón social y las respuestas ya respondidas pasan por el mismo filtro que el resto de la salida, así un dato externo no puede meter secuencias de terminal.
 - **Colores de los errores:** dependían de stdout aunque los errores se escriben en stderr. `arcli ... 2> errores.log` guardaba códigos de color en el archivo, y con `arcli ... | jq` el error salía sin color en la terminal. Ahora dependen de stderr. También vale para los avisos de nueva versión y de certificado.
 - **`ARCLI_ASCII=1` cubre toda la salida:** también cambia los símbolos (`✓`, `•`, `·`, `…`, `→`) y lo que dibuja el modo interactivo (`✔`, `❯`, `↑↓`, `⏎`, `←`, `┈`, el spinner). Antes solo cambiaba los bordes. Las tildes y la `ñ` se mantienen.

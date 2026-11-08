@@ -2,7 +2,7 @@
 
 # Patrones de uso
 
-Recetas para los flujos más comunes: qué necesitás, el comando y qué esperar. Las tablas completas de flags están en la [referencia del CLI](cli-reference.md); para errores, [Troubleshooting](troubleshooting.md). Todos los comandos sin `--emitir` solo previsualizan.
+Recetas para los flujos más comunes: qué necesitás, el comando y qué esperar. Las tablas completas de flags están en la [referencia del CLI](cli-reference.md); para errores, [Troubleshooting](troubleshooting.md). Sin `--emitir`, los comandos muestran la vista previa; en una terminal preguntan antes de emitir, y con `emitir true` en la config emiten sin el flag.
 
 ## Factura C simple
 
@@ -92,7 +92,7 @@ arcli fa -m 15000 --cs --cuit 20168598204 --ir-ri
 ### Errores comunes
 
 - usar el mismo CUIT que el emisor
-- omitir IVA receptor
+- el padrón no informa la condición IVA del CUIT: pasala con `--ir`
 - CUIT con longitud inválida
 
 ## Nota de crédito con comprobante asociado
