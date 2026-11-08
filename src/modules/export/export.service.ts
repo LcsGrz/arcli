@@ -180,7 +180,7 @@ export class ExportService {
         ? [
             `ARCA no publicó la cotización de ${quotation.code} del ${formatArcaDateAsArgentineDate(
               voucherDate,
-            )}: se usa la del ${formatArcaDateAsArgentineDate(quotation.date)} (${formatExchangeRate(quotation.rate)}). Para usar otra, --cotizacion-moneda.`,
+            )}: se usa la del ${formatArcaDateAsArgentineDate(quotation.date)} (${formatExchangeRate(quotation.rate)}). Para usar otra, \`--cotizacion-moneda\`.`,
           ]
         : []),
     ];

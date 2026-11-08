@@ -107,7 +107,7 @@ Certificado"**:
 
 Completá:
 
-1. **Nombre simbólico del DN**: un alias para identificar este certificado (ej. `Test1`).
+1. **Nombre simbólico del DN**: un alias para identificar este certificado. Con `arcli certificado generar` es el alias que muestra (por defecto `arcli`); con openssl, el que hayas puesto (ej. `Test1`).
 2. **CUIT del contribuyente**: ya viene completo.
 3. **Solicitud de certificado**: pegá el CSR que te mostró `arcli certificado generar` o, con
    openssl, el contenido completo de `testing.csr` (abrilo con un editor de texto).
@@ -130,7 +130,7 @@ WSASS, elegí **"Crear autorización a servicio"**:
 
 Completá:
 
-1. **Nombre simbólico del DN a autorizar**: el alias que creaste antes (ej. `Test1`).
+1. **Nombre simbólico del DN a autorizar**: el alias que creaste antes (por defecto `arcli`).
 2. **CUIT representado**: en pruebas, tu propio CUIT.
 3. **Servicio al que deseas acceder**: `wsfe` para facturación electrónica.
 

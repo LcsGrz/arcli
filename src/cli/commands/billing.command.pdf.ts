@@ -112,7 +112,7 @@ export async function loadPdfRenderer(
     );
 
     if (!install) {
-      throw new PdfError('PDF_PLUGIN_MISSING', 'No se instalo el plugin de PDF.', {
+      throw new PdfError('PDF_PLUGIN_MISSING', 'No se instaló el plugin de PDF.', {
         suggestion: PDF_INSTALL_SUGGESTION,
       });
     }

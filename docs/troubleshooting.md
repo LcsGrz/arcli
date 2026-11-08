@@ -140,7 +140,7 @@ O abrí `arcli` y elegí "Configuración" para la configuración guiada.
 ### Falta un dato obligatorio
 
 - **Severidad:** común
-- **Síntoma:** `INPUT_VALIDATION_ERROR` o mensaje como `Falta monto.`
+- **Síntoma:** `INPUT_VALIDATION_ERROR` o mensaje como `Falta el dato: monto.`
 - **Causa:** falta un dato obligatorio en flags o JSON.
 - **Solución:** revisar `ayuda` del comando puntual y completar los campos faltantes.
 
@@ -375,7 +375,7 @@ También se reconocen por el mensaje, sin código: receptor igual al emisor, `Tr
 ### El lote tiene comprobantes inválidos
 
 - **Severidad:** frecuente
-- **Síntoma:** `BATCH_VALIDATION_ERROR` con la lista de ítems inválidos (`#2: Falta monto.`…). No se emitió ninguno.
+- **Síntoma:** `BATCH_VALIDATION_ERROR` con la lista de ítems inválidos (`#2: Falta el dato: monto.`…). No se emitió ninguno.
 - **Causa:** ARCLI valida todo el lote antes de emitir el primero, incluidas las consultas al padrón (IVA receptor desde `--cuit`) y a la cotización oficial.
 - **Solución:** corregir esos ítems en el JSON y volver a correr el lote completo. Si el motivo es una consulta a ARCA que no respondió, reintentá en unos minutos.
 - **Documentación relacionada:** [Entrada y salida](input-output.md#validación-y-errores-del-lote)

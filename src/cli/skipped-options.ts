@@ -12,6 +12,6 @@ export function findPassedOptions(command: Command, options: readonly Option[]):
 
 export function formatSkippedOptionsWarning(flags: readonly string[], voucherLabel: string): string {
   return flags.length === 1
-    ? `${flags[0]} no aplica a ${voucherLabel} y se salteó.`
-    : `Estos flags no aplican a ${voucherLabel} y se saltearon: ${flags.join(', ')}.`;
+    ? `\`${flags[0]}\` no aplica a ${voucherLabel} y se salteó.`
+    : `Estos flags no aplican a ${voucherLabel} y se saltearon: ${flags.map((flag) => `\`${flag}\``).join(', ')}.`;
 }

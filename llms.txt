@@ -13,14 +13,14 @@ completo de cada tema, ver los docs linkeados al final.
 
 ```bash
 npm install -g arcli   # o: yarn dev <comando>  si corrés desde el repo
-arcli config establecer cuit <11 digitos>
+arcli config establecer cuit <11 dígitos>
 arcli config establecer puntoVenta <numero>
 # Certificado, una de dos:
 arcli certificado generar --testing      # sin certificado: arma clave y CSR; la persona lo sube a ARCA
 arcli certificado importar testing.crt   # ... y carga el .crt que devuelve ARCA
 arcli config establecer cert.testing /ruta/al/certificado.crt   # si ya tiene certificado y clave
 arcli config establecer key.testing /ruta/a/la/clave.key
-arcli config revisar          # valida que este todo listo antes de emitir
+arcli config revisar          # valida que esté todo listo antes de emitir
 ```
 
 `certificado generar` necesita a la persona: subir el CSR y bajar el `.crt` se hace en ARCA con su clave fiscal
@@ -183,7 +183,7 @@ Una clave desconocida (`montototal`, `vencimiento`, `moneda`) o un tipo incorrec
   "avisos": ["texto: padrón, régimen FCE, certificado por vencer, flags salteados…"],
   "solicitud": { "...": "payload enviado a ARCA; si se emitió, con CbteDesde/CbteHasta" },
   "previsualizacion": true,
-  "sugerencias": ["texto en español sugiriendo como resolver errores comunes de ARCA"],
+  "sugerencias": ["texto en español sugiriendo cómo resolver errores comunes de ARCA"],
   "pdf": { "ruta": "/ruta/al/archivo.pdf" }
 }
 ```
@@ -208,7 +208,7 @@ exit code `2`. En un lote, `2` si ARCA rechazó al menos uno; para saber cuáles
 ## Salida de error
 
 Sin `--json` (ni `json=true` en la config): panel de texto en stderr. Con `--json` o `json=true`: JSON en stderr con la forma
-`{"codigo": "...", "detalles": {...} | null, "error": "mensaje", "sugerencia": "..." | null}`.
+`{"codigo": "...", "detalles": {...} | [{mensaje, ruta}] | null, "error": "mensaje", "sugerencia": "..." | null}`. `detalles` es un array solo en los errores de validación de esquema.
 `codigo` es `CONFIGURATION_ERROR`, `INPUT_VALIDATION_ERROR`, `EMISSION_UNCERTAIN` (falló la llamada
 que emite, no el login ni el pedido del último número: puede haberse emitido igual; antes de reintentar, verificar con el `arcli ultimos <tipo> --pv <n>`
 que viene en `sugerencia`), `TRANSIENT_ERROR` (consultas: reintentar), `ARCA_LAST_VOUCHER_ERROR` (facturación o `ultimos`: ARCA rechazó el pedido del último número, por ejemplo con un punto de venta no habilitado; no se emitió nada), `CERTIFICATE_EXPIRED` (el certificado del entorno venció: se corta antes
@@ -219,7 +219,7 @@ stdout; si viene `detalles.sinConfirmar`, verificar ese índice con `arcli ultim
 después reintentar `detalles.sinProcesar`, nunca los ya emitidos). En consultas: `TAXPAYER_NOT_FOUND` (`padron`),
 `PADRON_SERVICE_NOT_AUTHORIZED` (`padron`; al facturar no corta, usa la config con un aviso), `FCE_SERVICE_NOT_AUTHORIZED`
 y `FCE_OBLIGATION_ERROR` (`fce-obligado`; con `verificarFce` al facturar salen como aviso), `ARCA_UNAVAILABLE` (`estado`),
-`ARCA_PARAMETERS_ERROR` (`parametros <tabla>`) y `ARCA_QUOTATION_ERROR` (`parametros cotizacion` o `--misma-moneda`). En `fe`:
+`ARCA_PARAMETERS_ERROR` (`parametros <tabla>`) y `ARCA_QUOTATION_ERROR` (`parametros cotizacion`, o facturar en moneda extranjera sin `--cm`, con o sin `--misma-moneda`; con `--cm` no consulta). En `fe`:
 `WSFEX_SERVICE_NOT_AUTHORIZED` y `ARCA_EXPORT_ERROR` (WSFEX rechazó una consulta previa: tabla, ID de solicitud o cotización; no se emitió nada).
 `EMISSION_UNCERTAIN` en `fe` trae `detalles.numero` y `detalles.idSolicitud`: reintentar con esos mismos `--numero` e `--id-solicitud`, nunca con otros (ARCA no autoriza dos veces el mismo número).
 Los errores de `arcli certificado` están en "Otros comandos".
@@ -266,7 +266,7 @@ en uso), cada comando que va a ARCA avisa en stderr (nunca en stdout) y la factu
 - `arcli completado [instalar|desinstalar] [shell]`: autocompletado con Tab para personas; un agente no lo necesita.
 - `arcli acceso-directo [ruta] [--json]`: crea un ícono para abrir el modo interactivo con doble clic, en el escritorio o en la carpeta `ruta`, que tiene que existir: `{reemplazado, ruta, usaArcliInstalado}`. Es para personas; un agente no lo necesita. Si Windows no puede crearlo, da `DESKTOP_SHORTCUT_ERROR`.
 - `arcli pdf [estado|instalar|desinstalar] [--json]`: plugin que genera los PDFs. `arcli pdf instalar` lo descarga sin preguntar (sirve en scripts).
-- `arcli estado [--json]`: si ARCA responde y si el punto de venta configurado está habilitado: `{entorno, latenciaMs, listo, puntoVentaDetalle: {estado, numero, tipoEmision}, servidores: {aplicacion, baseDeDatos, autenticacion}}`. `listo: true` = se puede emitir; `listo: false` sale igual con exit code `0`, así que hay que leer `listo`. En testing ARCA no informa puntos de venta (`puntoVenta.estado: "sin-datos"`). Si ARCA no responde: error `ARCA_UNAVAILABLE`.
+- `arcli estado [--json]`: si ARCA responde y si el punto de venta configurado está habilitado: `{entorno, latenciaMs, listo, puntoVentaDetalle: {estado, numero, tipoEmision}, servidores: {aplicacion, baseDeDatos, autenticacion}}`, más `puntoVenta` (el mismo objeto, deprecado: en la 3.0.0 pasa a ser el número) y `deprecado`. `listo: true` = se puede emitir; `listo: false` sale igual con exit code `0`, así que hay que leer `listo`. En testing ARCA no informa puntos de venta (`puntoVentaDetalle.estado: "sin-datos"`). Si ARCA no responde: error `ARCA_UNAVAILABLE`.
 - `arcli parametros [tabla] [--json]`: tablas de ARCA vigentes: `puntos-venta`, `comprobantes`, `documentos`, `alicuotas`, `iva-receptor`, `monedas`, `conceptos`, `opcionales`, `tributos`. Sin tabla: `{tablas: [{tabla, descripcion}]}`; con tabla: `{entorno, tabla, valores: [{id, descripcion, detalle, vigenteHasta}]}`. `arcli parametros cotizacion USD` da la cotización oficial (`{cotizacion, entorno, fecha, moneda}`, con `moneda` en código ARCA: `DOL`).
 - `arcli ejemplos`: comandos listos para copiar por cada tipo de comprobante.
 - `arcli <cualquier comando> ayuda` o `--ayuda`: ayuda contextual con ejemplos (nota: el flag
@@ -279,7 +279,7 @@ Los docs no vienen en el paquete de npm: están en GitHub.
 - https://github.com/LcsGrz/arcli/blob/main/docs/cli-reference.md: referencia completa de comandos y flags.
 - https://github.com/LcsGrz/arcli/blob/main/docs/configuration.md: config persistente, claves soportadas, ticketPath.
 - https://github.com/LcsGrz/arcli/blob/main/docs/validation-rules.md y https://github.com/LcsGrz/arcli/blob/main/docs/input-output.md: reglas de validación y formatos de entrada/salida, con el JSON de cada comando y los códigos de error.
-- https://github.com/LcsGrz/arcli/blob/main/docs/troubleshooting.md: errores comunes de ARCA y como resolverlos.
+- https://github.com/LcsGrz/arcli/blob/main/docs/troubleshooting.md: errores comunes de ARCA y cómo resolverlos.
 - https://github.com/LcsGrz/arcli/blob/main/docs/pdf.md: PDF de comprobantes, plugin, carpeta y nombre del archivo.
 - https://github.com/LcsGrz/arcli/blob/main/docs/modo-interactivo.md: asistente interactivo (un agente no debe usarlo).
 - https://github.com/LcsGrz/arcli/blob/main/AGENTS.md: para agentes que van a modificar el código de este repo (no para usar el CLI).

@@ -43,7 +43,7 @@ Esa solicitud es la que ves en:
 
 Si usás `--emitir`, ARCLI llama a ARCA.
 
-Si usás `--previsualizar`, no emite: arma y muestra la solicitud. Puede consultar a ARCA para completarla (padrón del receptor, cotización oficial con `--misma-moneda`, tablas y cotización de WSFEX en la `E`), pero nunca pide un CAE. Sin ninguno de los dos flags, en una terminal muestra la vista previa y pregunta si emitir; con `--json` o sin terminal no emite.
+Si usás `--previsualizar`, no emite: arma y muestra la solicitud. Puede consultar a ARCA para completarla (padrón del receptor, cotización oficial en moneda extranjera sin `--cm` o con `--misma-moneda`, tablas y cotización de WSFEX en la `E`), pero nunca pide un CAE. Sin ninguno de los dos flags, en una terminal muestra la vista previa y pregunta si emitir; con `--json` o sin terminal no emite.
 
 ### 5. Output
 
@@ -74,7 +74,7 @@ ARCLI tiene dos formas de usarse:
 - **Comandos con flags** (`arcli fc -m 1000 …`): el contrato público, pensado para scripts, agentes y uso frecuente.
 - **Modo interactivo** (`arcli` sin argumentos): un asistente que pregunta paso a paso, arma la misma entrada que los flags y la pasa por las mismas validaciones. Ver [Modo interactivo](modo-interactivo.md).
 
-Con flags, `--previsualizar` arma y muestra la solicitud sin llamar a ARCA, y `--emitir` emite de verdad. Son excluyentes. El entorno es el de la config (`testing` por defecto) salvo que pases `--testing` o `--produccion`.
+Con flags, `--previsualizar` arma y muestra la solicitud sin emitir (puede consultar el padrón o la cotización), y `--emitir` emite de verdad. Son excluyentes. El entorno es el de la config (`testing` por defecto) salvo que pases `--testing` o `--produccion`.
 
 ## Formatos de salida
 

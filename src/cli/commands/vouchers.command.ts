@@ -81,7 +81,7 @@ export function registerVoucherQueryCommands(program: Command): void {
     const { cantidad } = options;
 
     if (cantidad !== undefined && (!Number.isInteger(cantidad) || cantidad < 1 || cantidad > MAX_RECENT_VOUCHERS)) {
-      throw new InputValidationError(`--cantidad tiene que ser un número entre 1 y ${MAX_RECENT_VOUCHERS}.`);
+      throw new InputValidationError(`\`--cantidad\` tiene que ser un número entre 1 y ${MAX_RECENT_VOUCHERS}.`);
     }
 
     const { gateway, runtime } = createContext(self);

@@ -42,10 +42,10 @@ async function run(...args: string[]): Promise<void> {
 describe('formatSkippedOptionsWarning', () => {
   it('nombra el flag o la lista de flags salteados', () => {
     expect(formatSkippedOptionsWarning(['--incoterm'], 'Factura A')).toBe(
-      '--incoterm no aplica a Factura A y se salteó.',
+      '`--incoterm` no aplica a Factura A y se salteó.',
     );
     expect(formatSkippedOptionsWarning(['--incoterm', '--tipo-expo'], 'Factura A')).toBe(
-      'Estos flags no aplican a Factura A y se saltearon: --incoterm, --tipo-expo.',
+      'Estos flags no aplican a Factura A y se saltearon: `--incoterm`, `--tipo-expo`.',
     );
   });
 });
@@ -69,7 +69,10 @@ describe('arcli factura <letra> con flags de otra letra', () => {
     await run('factura', 'a', '-m', '100', '--incoterm', 'FOB', '--tipo-expo', '1');
 
     expect(calls).toEqual([
-      { kind: 'billing', warnings: ['Estos flags no aplican a Factura A y se saltearon: --tipo-expo, --incoterm.'] },
+      {
+        kind: 'billing',
+        warnings: ['Estos flags no aplican a Factura A y se saltearon: `--tipo-expo`, `--incoterm`.'],
+      },
     ]);
   });
 
@@ -79,7 +82,7 @@ describe('arcli factura <letra> con flags de otra letra', () => {
     expect(calls).toHaveLength(1);
     expect(calls[0]?.kind).toBe('export');
     expect(calls[0]?.warnings).toEqual([
-      expect.stringMatching(/^Estos flags no aplican a Factura de exportación E y se saltearon: .*--alicuota/),
+      expect.stringMatching(/^Estos flags no aplican a Factura de exportación E y se saltearon: .*`--alicuota`/),
     ]);
     expect(calls[0]?.warnings[0]).toContain('--cs');
   });

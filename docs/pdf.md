@@ -83,7 +83,7 @@ El CUIT es el de siempre (`cuit`). Si falta algún dato obligatorio, el PDF no s
 
 | Flag                                | En el JSON de `--cargar` | Si no se pasa                                          |
 | ----------------------------------- | ------------------------ | ------------------------------------------------------ |
-| `--descripcion <texto>`             | `descripcion`            | "Segun detalle"                                        |
+| `--descripcion <texto>`             | `descripcion`            | "Según detalle"                                        |
 | `--condicion-venta <tipo>` (`--cv`) | `condicionVenta`         | `condicionVenta` de la config; sin ella, no se muestra |
 | `--sin-condicion-venta`             | `condicionVenta: null`   | Omite también el valor de la config                    |
 | `--receptor-nombre <texto>`         | `receptorNombre`         | "Consumidor Final" o `- -`                             |
