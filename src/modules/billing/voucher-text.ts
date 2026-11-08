@@ -21,7 +21,7 @@ export interface VoucherTextParts {
     readonly errors: readonly unknown[];
     readonly events: readonly unknown[];
     readonly observaciones: readonly string[];
-    readonly status: 'aprobado' | 'observado' | 'rechazado';
+    readonly status: 'aprobado' | 'observado' | 'previsualizacion' | 'rechazado';
     readonly suggestions: readonly string[];
   };
   /** CAE, vencimiento, número e importe: el resumen del resultado. */
@@ -33,6 +33,7 @@ export interface VoucherTextParts {
 const STATUS_FOOTERS = {
   aprobado: { label: 'APROBADO', tone: 'success' },
   observado: { label: 'OBSERVADO', tone: 'warning' },
+  previsualizacion: { label: 'SIN EMITIR', tone: 'warning' },
   rechazado: { label: 'RECHAZADO', tone: 'danger' },
 } as const;
 

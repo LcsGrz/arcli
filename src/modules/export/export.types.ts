@@ -282,7 +282,7 @@ export interface ExportResponseSummary {
   readonly observaciones: readonly string[];
   readonly raw: IFEXAuthorizeOutput | null;
   readonly resultado: string | null;
-  readonly status: 'aprobado' | 'observado' | 'rechazado';
+  readonly status: 'aprobado' | 'observado' | 'previsualizacion' | 'rechazado';
   readonly suggestions: readonly string[];
 }
 

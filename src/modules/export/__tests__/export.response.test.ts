@@ -111,6 +111,6 @@ describe('mapExportResponse', () => {
   });
 
   it('la vista previa no tiene CAE ni respuesta cruda', () => {
-    expect(createDryRunExportResponse()).toMatchObject({ cae: null, raw: null, status: 'observado' });
+    expect(createDryRunExportResponse()).toMatchObject({ cae: null, raw: null, status: 'previsualizacion' });
   });
 });

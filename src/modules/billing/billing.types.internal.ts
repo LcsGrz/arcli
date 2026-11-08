@@ -23,7 +23,7 @@ export interface BillingResponseSummary {
   readonly raw: CreateVoucherResultDto | null;
   readonly resultado: string | null;
   readonly suggestions: string[];
-  readonly status: 'aprobado' | 'observado' | 'rechazado';
+  readonly status: 'aprobado' | 'observado' | 'previsualizacion' | 'rechazado';
 }
 
 export interface BillingExecutionResult {

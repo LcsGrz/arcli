@@ -14,7 +14,8 @@ export function createDryRunResponse(): BillingResponseSummary {
     raw: null,
     resultado: null,
     suggestions: [],
-    status: 'observado',
+    // Sin emision no hay resultado de ARCA: `estado` lo dice, en lugar de un "observado" que no paso.
+    status: 'previsualizacion',
   };
 }
 

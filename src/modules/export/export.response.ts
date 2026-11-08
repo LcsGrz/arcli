@@ -24,7 +24,7 @@ function toEntry(code: number | undefined, message: string | undefined): ExportR
 
 function buildSuggestions(options: {
   readonly messages: string;
-  readonly status: 'aprobado' | 'observado' | 'rechazado';
+  readonly status: 'aprobado' | 'observado' | 'previsualizacion' | 'rechazado';
 }): string[] {
   const suggestions = new Set<string>();
 
@@ -77,7 +77,8 @@ export function createDryRunExportResponse(): ExportResponseSummary {
     observaciones: [],
     raw: null,
     resultado: null,
-    status: 'observado',
+    // Sin emision no hay resultado de ARCA: `estado` lo dice, en lugar de un "observado" que no paso.
+    status: 'previsualizacion',
     suggestions: [],
   };
 }

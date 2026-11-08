@@ -374,28 +374,28 @@ Todas se sacan en la 3.0.0.
 
 ARCLI serializa un resumen del resultado. Con `--bruto` se agrega además el campo `respuesta` (ver [abajo](#output-con---bruto)); el resto no cambia.
 
-| Campo              | Tipo                                       | Descripción                                                                                                            |
-| ------------------ | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
-| `atajo`            | `string`                                   | Atajo del comprobante                                                                                                  |
-| `avisos`           | `string[]`                                 | Avisos de ARCLI: régimen FCE, padrón o certificado por vencer (ver [abajo](#aviso-del-certificado))                    |
-| `cae`              | `string \| null`                           | CAE informado por ARCA                                                                                                 |
-| `caeVencimiento`   | `string \| null`                           | Vencimiento del CAE                                                                                                    |
-| `comprobante`      | `string`                                   | Nombre visible del comprobante                                                                                         |
-| `deprecado`        | `string[]`, opcional                       | Claves de esta respuesta que se sacan en la 3.0.0 (ver [Estabilidad del contrato](#estabilidad-del-contrato))          |
-| `entorno`          | `"testing" \| "produccion"`                | Entorno en que se emitió o previsualizó                                                                                |
-| `errores`          | `object[]`                                 | Errores de ARCA, con `codigo` y `mensaje`                                                                              |
-| `estado`           | `"aprobado" \| "observado" \| "rechazado"` | Estado normalizado que arma ARCLI                                                                                      |
-| `eventos`          | `object[]`                                 | Eventos de ARCA, con `codigo` y `mensaje`                                                                              |
-| `numero`           | `number \| null`                           | Número del comprobante emitido; `null` en una previsualización                                                         |
-| `observaciones`    | `string[]`                                 | Observaciones amigables                                                                                                |
-| `observacion`      | `string \| null`                           | Observaciones unidas en una sola cadena                                                                                |
-| `pdf`              | `object`, opcional                         | Solo si se intentó generar el PDF: `{ ruta }` o `{ error: { codigo, mensaje, sugerencia } }`. Ver [PDF](pdf.md#salida) |
-| `previsualizacion` | `boolean`                                  | `true` si no hubo emisión real                                                                                         |
-| `puntoVenta`       | `number`                                   | Punto de venta del comprobante                                                                                         |
-| `resultado`        | `string \| null`                           | Resultado original de ARCA, por ejemplo `A` o `R`                                                                      |
-| `solicitud`        | `object`                                   | Solicitud enviada o previsualizada; si se emitió, con el número en `CbteDesde` y `CbteHasta`                           |
-| `sugerencias`      | `string[]`                                 | Sugerencias generadas por ARCLI                                                                                        |
-| `tipoArca`         | `number`                                   | Tipo ARCA del comprobante                                                                                              |
+| Campo              | Tipo                                                             | Descripción                                                                                                            |
+| ------------------ | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `atajo`            | `string`                                                         | Atajo del comprobante                                                                                                  |
+| `avisos`           | `string[]`                                                       | Avisos de ARCLI: régimen FCE, padrón o certificado por vencer (ver [abajo](#aviso-del-certificado))                    |
+| `cae`              | `string \| null`                                                 | CAE informado por ARCA                                                                                                 |
+| `caeVencimiento`   | `string \| null`                                                 | Vencimiento del CAE                                                                                                    |
+| `comprobante`      | `string`                                                         | Nombre visible del comprobante                                                                                         |
+| `deprecado`        | `string[]`, opcional                                             | Claves de esta respuesta que se sacan en la 3.0.0 (ver [Estabilidad del contrato](#estabilidad-del-contrato))          |
+| `entorno`          | `"testing" \| "produccion"`                                      | Entorno en que se emitió o previsualizó                                                                                |
+| `errores`          | `object[]`                                                       | Errores de ARCA, con `codigo` y `mensaje`                                                                              |
+| `estado`           | `"aprobado" \| "observado" \| "rechazado" \| "previsualizacion"` | Estado normalizado que arma ARCLI; `previsualizacion` en la vista previa, sin emitir                                   |
+| `eventos`          | `object[]`                                                       | Eventos de ARCA, con `codigo` y `mensaje`                                                                              |
+| `numero`           | `number \| null`                                                 | Número del comprobante emitido; `null` en una previsualización                                                         |
+| `observaciones`    | `string[]`                                                       | Observaciones amigables                                                                                                |
+| `observacion`      | `string \| null`                                                 | Observaciones unidas en una sola cadena                                                                                |
+| `pdf`              | `object`, opcional                                               | Solo si se intentó generar el PDF: `{ ruta }` o `{ error: { codigo, mensaje, sugerencia } }`. Ver [PDF](pdf.md#salida) |
+| `previsualizacion` | `boolean`                                                        | `true` si no hubo emisión real                                                                                         |
+| `puntoVenta`       | `number`                                                         | Punto de venta del comprobante                                                                                         |
+| `resultado`        | `string \| null`                                                 | Resultado original de ARCA, por ejemplo `A` o `R`                                                                      |
+| `solicitud`        | `object`                                                         | Solicitud enviada o previsualizada; si se emitió, con el número en `CbteDesde` y `CbteHasta`                           |
+| `sugerencias`      | `string[]`                                                       | Sugerencias generadas por ARCLI                                                                                        |
+| `tipoArca`         | `number`                                                         | Tipo ARCA del comprobante                                                                                              |
 
 ### Aviso del certificado
 
@@ -425,6 +425,7 @@ Ejemplo:
 - ARCLI puede devolver:
   - `estado: "aprobado"` si no hay observaciones
   - `estado: "observado"` si hubo observaciones
+- En la vista previa no se emite: `estado: "previsualizacion"` y `resultado: null`
 
 ```json
 {

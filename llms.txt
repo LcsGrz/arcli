@@ -168,7 +168,7 @@ Una clave desconocida (`montototal`, `vencimiento`, `moneda`) o un tipo incorrec
   "atajo": "fa",
   "comprobante": "Factura A",
   "tipoArca": 1,
-  "estado": "aprobado | observado | rechazado",
+  "estado": "aprobado | observado | rechazado | previsualizacion",
   "resultado": "A | R | P | null",
   "cae": "string | null",
   "caeVencimiento": "YYYYMMDD | null",
@@ -203,7 +203,7 @@ cruda del SDK; el resto de los campos no cambia.
 **Importante:** un comprobante rechazado por ARCA (`"estado": "rechazado"`) es una respuesta
 válida, no una excepción: sale por stdout como cualquier resultado y el proceso termina con
 exit code `2`. En un lote, `2` si ARCA rechazó al menos uno; para saber cuáles, revisar
-`estado`/`resultado`/`errores` de cada uno. `observado` es aprobado (tiene CAE) y sale con `0`.
+`estado`/`resultado`/`errores` de cada uno. `observado` es aprobado (tiene CAE) y sale con `0`. `previsualizacion` = vista previa: no se emitió nada.
 
 ## Salida de error
 
