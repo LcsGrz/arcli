@@ -15,7 +15,7 @@ import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { ArcaContextResolver, type ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
 import { ArcaFceObligationGateway } from '../../services/arca/arca-fce-obligation.gateway';
 import { ArcaVoucherHistoryGateway } from '../../services/arca/arca-voucher-history.gateway';
-import { colorize, noticePanel, renderPanel, writeTerminalOutput } from '../../ui';
+import { colorize, noticePanel, renderPanel, uiSymbol, writeTerminalOutput } from '../../ui';
 import { formatBillingOutputs } from '../commands/billing.command.output';
 import { startSpinner } from '../spinner';
 import type { GlobalCliOptions } from '../types';
@@ -60,7 +60,10 @@ export function createInteractiveSession(options: GlobalCliOptions): Interactive
 export function requirePointOfSale(session: InteractiveSession): number | undefined {
   if (!session.runtime.pointOfSale) {
     writeTerminalOutput(
-      noticePanel('Falta el punto de venta. Configuralo con `arcli config establecer puntoVenta <numero>`.', 'warning'),
+      noticePanel(
+        `Falta el punto de venta. Cargalo en Configuración ${uiSymbol('arrow')} Modificar configuración ${uiSymbol('arrow')} Punto de venta.`,
+        'warning',
+      ),
     );
   }
 

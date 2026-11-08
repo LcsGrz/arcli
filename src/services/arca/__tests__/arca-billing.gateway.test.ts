@@ -25,6 +25,17 @@ describe('ArcaBillingGateway', () => {
     await expect(missing.getNextVoucherNumber(3, 11)).resolves.toBe(1);
   });
 
+  it('translates a certificate not authorized for wsfe, the usual first error, instead of an unexpected one', async () => {
+    const notAuthorized = new Error('ns1:coe.notAuthorized: Computador no autorizado a acceder al servicio');
+    const gateway = createGateway({
+      getLastVoucher: vi.fn(async () => Promise.reject(notAuthorized)),
+      getQuotation: vi.fn(async () => Promise.reject(notAuthorized)),
+    });
+
+    await expect(gateway.getNextVoucherNumber(3, 11)).rejects.toMatchObject({ code: 'WSFE_SERVICE_NOT_AUTHORIZED' });
+    await expect(gateway.getQuotation('DOL')).rejects.toMatchObject({ code: 'WSFE_SERVICE_NOT_AUTHORIZED' });
+  });
+
   it('fails before emitting when the numbering is exhausted', async () => {
     const gateway = createGateway({ getLastVoucher: vi.fn(async () => ({ cbteNro: 99_999_999 })) });
 

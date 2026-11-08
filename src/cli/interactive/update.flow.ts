@@ -32,11 +32,21 @@ export async function runUpdateFlow(update: UpdateCheckResult): Promise<boolean>
 
   const command = resolveUpdateCommand();
 
+  // Abierto con el acceso directo, la ventana se cierra al terminar: hay que decir donde pegarlo y esperar a que se lea.
+  const where = 'Abrí una terminal nueva (Terminal en Mac, PowerShell en Windows)';
+
   writeTerminalOutput(
     copyToClipboard(command)
-      ? noticePanel(`Comando copiado. Pegalo en la terminal y apretá Enter:\n${command}`, 'success')
-      : noticePanel(`No se pudo copiar el comando. Ejecutalo en la terminal:\n${command}`, 'warning'),
+      ? noticePanel(
+          `Comando copiado. ${where}, pegalo y apretá Enter:\n${command}\nCuando termine, volvé a abrir ARCLI.`,
+          'success',
+        )
+      : noticePanel(
+          `No se pudo copiar el comando. ${where} y escribí:\n${command}\nCuando termine, volvé a abrir ARCLI.`,
+          'warning',
+        ),
   );
 
-  return true;
+  // "← Volver" sigue en ARCLI sin actualizar.
+  return (await chooseStep('¿Cerramos ARCLI?', [{ name: 'Cerrar ARCLI', value: 'cerrar' }])) !== BACK;
 }

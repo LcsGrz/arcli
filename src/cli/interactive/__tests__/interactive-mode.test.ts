@@ -281,5 +281,7 @@ describe('runInteractiveMode', () => {
 
     expect(runConfigMenu).toHaveBeenCalledTimes(1);
     expect(runRepeatFlow).toHaveBeenCalledTimes(1);
+    // Al volver de Configuracion la barra se rearma: pudo cambiar el entorno o el punto de venta.
+    expect(stripAnsi(output).match(/ARCA FUNCIONANDO/g)).toHaveLength(2);
   });
 });

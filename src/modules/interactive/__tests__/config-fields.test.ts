@@ -27,6 +27,19 @@ describe('config-fields', () => {
     ).toEqual([]);
   });
 
+  it('asks for the certificate of the active environment, not always the testing one', () => {
+    expect(
+      listMissingSetupKeys({
+        ...BASE,
+        cert: { produccion: '/p.crt' },
+        cuit: '20123456786',
+        entornoPorDefecto: 'produccion',
+        key: { produccion: '/p.key' },
+        puntoVentaPorDefecto: 3,
+      }),
+    ).toEqual([]);
+  });
+
   it('masks paths and formats dates when describing values', () => {
     const config = {
       ...BASE,

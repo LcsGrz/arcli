@@ -2,6 +2,7 @@ import { Separator } from '@inquirer/select';
 import { join } from 'node:path';
 
 import { AppError } from '../../lib/errors/app-error';
+import { normalizeDroppedPath } from '../../lib/paths/dropped-path';
 import {
   formatCompletionResultAsText,
   formatCompletionStateAsText,
@@ -26,7 +27,6 @@ import {
   type ConfigField,
   describeConfigValue,
   getConfigField,
-  listMissingSetupKeys,
 } from '../../modules/interactive/config-fields';
 import { BACK, type Back, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { formatPdfPluginStatusAsText } from '../../modules/pdf/pdf.presenter';
@@ -125,7 +125,15 @@ async function askField(
   } else {
     // Con un valor actual, Enter lo deja igual (es el default del prompt); "-" lo borra.
     const canClear = !options.required && Boolean(current);
-    const hint = [field.hint, canClear ? '"-" para borrar' : undefined].filter(Boolean).join(', ');
+    // Un archivo arrastrado a la terminal llega entre comillas o con espacios escapados, como en Certificados.
+    const normalize = (text: string) => (field.path ? normalizeDroppedPath(text) : text);
+    const hint = [
+      field.hint,
+      field.path ? 'podés arrastrar el archivo' : undefined,
+      canClear ? '"-" para borrar' : undefined,
+    ]
+      .filter(Boolean)
+      .join(', ');
     const answer = await askTextStep(`${field.label}${hint ? ` (${hint})` : ''}:`, {
       defaultValue: current,
       validate: (text) => {
@@ -137,7 +145,7 @@ async function askField(
           return options.required ? 'Este dato es obligatorio.' : true;
         }
 
-        return validate(field.key, text);
+        return validate(field.key, normalize(text));
       },
     });
 
@@ -149,7 +157,7 @@ async function askField(
       return 'sin-cambios';
     }
 
-    value = canClear && answer.trim() === '-' ? CLEAR : answer;
+    value = canClear && answer.trim() === '-' ? CLEAR : normalize(answer);
   }
 
   if (value === CLEAR) {
@@ -241,10 +249,10 @@ export async function runGuidedSetup(): Promise<void> {
   }
 
   // Con "lo cargo después" el certificado queda pendiente: decir que ya se puede emitir seria falso.
-  const missing = listMissingSetupKeys(readConfig());
+  const config = readConfig();
 
   writeTerminalOutput(
-    missing.some((key) => key === 'cert.testing' || key === 'key.testing')
+    !config.cert.testing || !config.key.testing
       ? noticePanel(
           `Configuración guardada, pero falta cargar el certificado de testing. Cuando lo bajes de ARCA, entrá a Configuración ${uiSymbol('arrow')} Certificados de ARCA ${uiSymbol('arrow')} Cargar el certificado (.crt).`,
           'warning',

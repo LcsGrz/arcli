@@ -1,7 +1,7 @@
 import type { Arca } from '@arcasdk/core';
 
 import { AppError } from '../../lib/errors/app-error';
-import { POINT_OF_SALE_GUIDE_URL } from '../../lib/links';
+import { CERTIFICATE_GUIDE_URL, POINT_OF_SALE_GUIDE_URL } from '../../lib/links';
 
 import { toDetailErrors } from './arca-error-details';
 
@@ -12,11 +12,28 @@ import { toDetailErrors } from './arca-error-details';
 const POINT_OF_SALE_ERROR_CODES = new Set([10005, 11002]);
 
 /**
+ * El primer error de quien recien saca el certificado: no lo autorizo a facturar. Sin traducir llegaba como
+ * "Error inesperado" con el texto de WSAA. Si pasa, no se envio nada a ARCA.
+ */
+export function rethrowIfWsfeNotAuthorized(error: unknown): never {
+  if (error instanceof Error && error.message.includes('notAuthorized')) {
+    throw new AppError('El certificado no está autorizado para facturar (servicio wsfe). No se emitió nada.', {
+      code: 'WSFE_SERVICE_NOT_AUTHORIZED',
+      suggestion: `Autorizalo en ARCA: en testing desde WSASS ("Crear autorización a servicio"), y en producción desde el Administrador de Relaciones de Clave Fiscal. Guía: ${CERTIFICATE_GUIDE_URL}`,
+    });
+  }
+
+  throw error;
+}
+
+/**
  * Pide el ultimo numero autorizado y corta si ARCA devolvio errores.
  * El SDK los deja en `errors` y no lanza: sin este chequeo, un punto de venta invalido parece no tener comprobantes.
  */
 export async function getLastAuthorizedNumber(arca: Arca, pointOfSale: number, voucherType: number): Promise<number> {
-  const result = await arca.electronicBillingService.getLastVoucher(pointOfSale, voucherType);
+  const result = await arca.electronicBillingService
+    .getLastVoucher(pointOfSale, voucherType)
+    .catch(rethrowIfWsfeNotAuthorized);
   const errors = result.errors?.err ?? [];
 
   if (errors.length > 0) {

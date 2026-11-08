@@ -59,7 +59,7 @@ describe('runUpdateFlow', () => {
 
   it('"Cerrar para actualizar" copia el comando y pide cerrar', async () => {
     vi.mocked(fetchChangelog).mockResolvedValueOnce(undefined);
-    vi.mocked(chooseStep).mockResolvedValueOnce('cerrar');
+    vi.mocked(chooseStep).mockResolvedValueOnce('cerrar').mockResolvedValueOnce('cerrar');
 
     await expect(runUpdateFlow(UPDATE)).resolves.toBe(true);
 
@@ -71,10 +71,19 @@ describe('runUpdateFlow', () => {
   it('si no se puede copiar, muestra el comando para escribirlo', async () => {
     vi.mocked(fetchChangelog).mockResolvedValueOnce(undefined);
     vi.mocked(copyToClipboard).mockReturnValueOnce(false);
-    vi.mocked(chooseStep).mockResolvedValueOnce('cerrar');
+    vi.mocked(chooseStep).mockResolvedValueOnce('cerrar').mockResolvedValueOnce('cerrar');
 
     await runUpdateFlow(UPDATE);
 
     expect(stripAnsi(output)).toContain('No se pudo copiar el comando');
+  });
+
+  it('espera antes de cerrar, así se lee dónde pegarlo, y "Volver" sigue en ARCLI', async () => {
+    vi.mocked(fetchChangelog).mockResolvedValueOnce(undefined);
+    vi.mocked(chooseStep).mockResolvedValueOnce('cerrar').mockResolvedValueOnce(BACK);
+
+    await expect(runUpdateFlow(UPDATE)).resolves.toBe(false);
+
+    expect(stripAnsi(output)).toContain('Abrí una terminal nueva');
   });
 });

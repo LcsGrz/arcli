@@ -6,7 +6,7 @@ import { AppError } from '../../lib/errors/app-error';
 import type { BillingGateway } from '../../modules/billing/billing.types.internal';
 
 import { toDetailErrors, withDeprecatedErrors } from './arca-error-details';
-import { getLastAuthorizedNumber } from './last-voucher';
+import { getLastAuthorizedNumber, rethrowIfWsfeNotAuthorized } from './last-voucher';
 
 /** Tope de numeracion de ARCA; el SDK lo valida igual en `createNextVoucher`. */
 const MAX_VOUCHER_NUMBER = 99_999_999;
@@ -34,7 +34,9 @@ export class ArcaBillingGateway implements BillingGateway {
   }
 
   public async getQuotation(currencyCode: string): Promise<number> {
-    const result = await this.arca.electronicBillingService.getQuotation(currencyCode);
+    const result = await this.arca.electronicBillingService
+      .getQuotation(currencyCode)
+      .catch(rethrowIfWsfeNotAuthorized);
     const exchangeRate = result.resultGet?.monCotiz;
 
     if (typeof exchangeRate !== 'number' || exchangeRate <= 0) {

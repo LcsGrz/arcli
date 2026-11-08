@@ -315,6 +315,13 @@ export async function runInteractiveMode(options: GlobalCliOptions = {}): Promis
       }
 
       await runOption(option, options);
+
+      // Desde Configuracion se puede cambiar el entorno, el punto de venta o la razon social: la barra se rearma
+      // para no seguir diciendo TESTING cuando la proxima factura ya sale en produccion.
+      if (option === 'config') {
+        writeTerminalOutput(await buildHeader(options));
+        menuUnderHeader = true;
+      }
     } catch (error) {
       if (isPromptCancellation(error)) {
         writeTerminalOutput(colorize('Cancelado. No se emitió nada.', 'muted'));
