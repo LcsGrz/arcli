@@ -831,7 +831,7 @@ arcli acceso-directo ~/Documentos   # en otra carpeta, que tiene que existir
 
 Abre una terminal con ARCLI. Si termina con un error, la ventana espera un Enter para que se pueda leer. Con `--json` devuelve `{ "reemplazado", "ruta", "usaArcliInstalado" }`.
 
-- **Creado desde el código fuente** (`yarn dev acceso-directo`): abre el `arcli` instalado en lugar del `.ts` del repo, que Node no puede correr sin el cargador de `yarn dev`. Lo avisa al crearlo y en `usaArcliInstalado`.
+- **Creado desde el código fuente** (`yarn dev acceso-directo`): abre el `arcli` instalado en lugar del `.ts` del repo, que Node no puede correr sin el cargador de `yarn dev`. Lo avisa al crearlo y en `usaArcliInstalado`. Si no hay un `arcli` instalado, el ícono avisa que falta instalarlo.
 
 - **Repetirlo:** actualiza el acceso directo de esa carpeta. En macOS y Linux, si ya hay un archivo con ese nombre que no creó ARCLI, da `INPUT_VALIDATION_ERROR` y no lo toca.
 - **Si cambiás Node o ARCLI de lugar:** el acceso directo guarda sus rutas al crearse. Si ya no están, prueba con el `arcli` del `PATH`; si tampoco anda, volvé a correr el comando.

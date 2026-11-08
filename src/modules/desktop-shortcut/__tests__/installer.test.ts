@@ -51,7 +51,7 @@ describe('createDesktopShortcut', () => {
     const launcher = readFileSync(join(folder, 'ARCLI.app', 'Contents', 'Resources', 'arcli.command'), 'utf8');
 
     expect(result.usesInstalledArcli).toBe(true);
-    expect(launcher).toContain('cd "$HOME" || exit 1\narcli\n');
+    expect(launcher).toContain('cd "$HOME" || exit 1\nif command -v arcli >/dev/null 2>&1; then\n  arcli\n');
     expect(launcher).not.toContain('/opt/node/bin/node');
   });
 

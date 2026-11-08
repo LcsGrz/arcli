@@ -440,6 +440,13 @@ arcli acceso-directo ~/Documentos
 - **Solución:** volvé a crearlo con `arcli acceso-directo`. Reemplaza al anterior.
 - **Documentación relacionada:** [Acceso directo](cli-reference.md#acceso-directo)
 
+### El ícono dice "No se encontró ARCLI instalado"
+
+- **Síntoma:** al abrir el ícono aparece "No se encontró ARCLI instalado".
+- **Causa:** no hay un `arcli` instalado que el acceso directo pueda abrir. Pasa si lo creaste desde el código fuente (`yarn dev acceso-directo`) sin tener ARCLI instalado, o si cambiaste de versión de Node (por ejemplo con nvm) y ARCLI quedó instalado en la anterior.
+- **Solución:** instalalo con `npm install -g arcli` y volvé a abrir el ícono. No hace falta recrear el acceso directo.
+- **Documentación relacionada:** [Acceso directo](cli-reference.md#acceso-directo)
+
 ## PDF
 
 Un error del PDF no deshace la emisión: el comprobante ya tiene CAE. **No lo vuelvas a emitir para obtener el PDF**, porque quedaría duplicado en ARCA. Arreglá la causa para los próximos. Regenerar el PDF de un comprobante ya emitido todavía no está disponible. Ver [PDF de comprobantes](pdf.md#qué-no-hace-todavía).

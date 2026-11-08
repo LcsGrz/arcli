@@ -14,30 +14,41 @@ export const LINUX_ENTRY_MARKER = 'X-ARCLI-Generated=true';
 const FAILURE_MESSAGE =
   'ARCLI terminó con un error. Si no vuelve a abrir, recreá el acceso directo con `arcli acceso-directo`.';
 
+// Recrear el acceso directo no lo arregla: pasa si nunca se instalo (se creo desde el codigo fuente) o si se cambio de
+// version de Node (por ejemplo con nvm) y ARCLI quedo en la anterior.
+const NOT_INSTALLED_MESSAGE =
+  'No se encontró ARCLI instalado. Instalalo con `npm install -g arcli` y volvé a abrir el acceso directo.';
+
 function quotePosix(value: string): string {
   return `'${value.replaceAll("'", `'\\''`)}'`;
 }
 
 /**
- * Lanzador de macOS y Linux. Si Node o ARCLI cambiaron de lugar, prueba con el `arcli` del PATH. Al terminar con un
- * error espera un Enter, porque si no la ventana se cierra sin que se llegue a leer; 130 es salir con Ctrl+C.
+ * Lanzador de macOS y Linux. Si Node o ARCLI cambiaron de lugar, prueba con el `arcli` del PATH, y si tampoco esta,
+ * avisa que falta instalarlo. Al terminar con un error espera un Enter, porque si no la ventana se cierra sin que se
+ * llegue a leer; 130 es salir con Ctrl+C.
  */
 export function buildPosixLauncher({ cliPath, nodePath }: ShortcutTarget): string {
   const node = quotePosix(nodePath);
-  const run =
+  const pathCheck =
     cliPath === undefined
-      ? 'arcli'
+      ? 'if'
       : `if [ -x ${node} ] && [ -f ${quotePosix(cliPath)} ]; then
   ${node} ${quotePosix(cliPath)}
-else
-  arcli
-fi`;
+elif`;
 
   return `#!/bin/sh
 # Generado por \`arcli acceso-directo\`.
 printf '\\033]0;${SHORTCUT_NAME}\\007'
 cd "$HOME" || exit 1
-${run}
+${pathCheck} command -v arcli >/dev/null 2>&1; then
+  arcli
+else
+  printf '%s\\n' ${quotePosix(NOT_INSTALLED_MESSAGE)}
+  printf 'Presioná Enter para cerrar.'
+  read -r _
+  exit 127
+fi
 status=$?
 if [ "$status" -ne 0 ] && [ "$status" -ne 130 ]; then
   printf '\\n%s\\n' ${quotePosix(FAILURE_MESSAGE)}
@@ -59,11 +70,12 @@ export function buildWindowsLauncher({ cliPath, nodePath }: ShortcutTarget): str
     `title ${SHORTCUT_NAME}`,
     'cd /d "%USERPROFILE%"',
     ...(cliPath === undefined
-      ? ['call arcli']
+      ? ['where arcli >nul 2>&1 || goto sinarcli', 'call arcli']
       : [
           `set "ARCLI_NODE=${escape(nodePath)}"`,
           `set "ARCLI_CLI=${escape(cliPath)}"`,
           'if exist "%ARCLI_NODE%" if exist "%ARCLI_CLI%" goto directo',
+          'where arcli >nul 2>&1 || goto sinarcli',
           'call arcli',
           'goto fin',
           ':directo',
@@ -74,6 +86,11 @@ export function buildWindowsLauncher({ cliPath, nodePath }: ShortcutTarget): str
     'echo.',
     `echo ${FAILURE_MESSAGE}`,
     'pause',
+    'exit /b 1',
+    ':sinarcli',
+    `echo ${NOT_INSTALLED_MESSAGE}`,
+    'pause',
+    'exit /b 1',
     '',
   ].join('\r\n');
 }

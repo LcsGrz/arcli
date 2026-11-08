@@ -16,7 +16,15 @@ describe('buildPosixLauncher', () => {
 
     expect(script).toContain('cd "$HOME"');
     expect(script).toContain(`'/opt/node/bin/node' '/Users/Ana O'\\''Neil/arcli/index.js'`);
-    expect(script).toMatch(/else\n {2}arcli\nfi/);
+    expect(script).toMatch(/elif command -v arcli >\/dev\/null 2>&1; then\n {2}arcli\n/);
+  });
+
+  it('si no hay arcli instalado, avisa que falta instalarlo en lugar de "command not found"', () => {
+    const script = buildPosixLauncher({ nodePath: '/opt/node/bin/node' });
+
+    expect(script).toMatch(/^if command -v arcli/m);
+    expect(script).toContain('No se encontró ARCLI instalado. Instalalo con `npm install -g arcli`');
+    expect(script).toContain('exit 127');
   });
 
   it('espera un Enter si hubo un error, salvo con Ctrl+C', () => {
@@ -33,6 +41,19 @@ describe('buildWindowsLauncher', () => {
 
     expect(script).toContain('call arcli');
     expect(script).not.toContain('ARCLI_CLI');
+  });
+
+  it('si no hay arcli instalado, avisa que falta instalarlo', () => {
+    const lines = buildWindowsLauncher({ nodePath: 'node.exe' }).split('\r\n');
+
+    expect(lines).toContain('where arcli >nul 2>&1 || goto sinarcli');
+    expect(lines.slice(lines.indexOf(':sinarcli'))).toEqual([
+      ':sinarcli',
+      'echo No se encontró ARCLI instalado. Instalalo con `npm install -g arcli` y volvé a abrir el acceso directo.',
+      'pause',
+      'exit /b 1',
+      '',
+    ]);
   });
 
   it('usa CRLF y UTF-8, y pausa si hubo un error', () => {
