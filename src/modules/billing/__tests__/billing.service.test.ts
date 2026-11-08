@@ -424,7 +424,7 @@ describe('billing.service', () => {
         createBillingInput({ currencyCode: 'USD', documentNumber: 0, exchangeRate: 1 }),
         createRuntime(),
       ),
-    ).toThrow(/Falta la cotización de USD/);
+    ).toThrow(/La cotización de USD no puede ser 1/);
   });
 
   it('rejects an exchange rate other than 1 for pesos', () => {
@@ -1017,6 +1017,15 @@ describe('billing.service', () => {
       expect(() =>
         new BillingService().buildVoucherPayload(
           periodNote({ associatedVoucher: { cuit: '20123456786', numero: 1, puntoVenta: 3, shortcut: 'fb' } }),
+          createRuntime(),
+        ),
+      ).toThrow(/pero no ambos/);
+    });
+
+    it('with a period and only part of an associated voucher, says not to mix them instead of asking for the voucher', () => {
+      expect(() =>
+        new BillingService().buildVoucherPayload(
+          periodNote({ associatedVoucher: { cuit: '20123456786' } }),
           createRuntime(),
         ),
       ).toThrow(/pero no ambos/);

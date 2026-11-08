@@ -95,7 +95,14 @@ export function resolveBillingCurrencyFields(
     };
   }
 
-  if (typeof input.exchangeRate !== 'number' || input.exchangeRate === DEFAULT_EXCHANGE_RATE) {
+  // 1 es la cotizacion del peso: en moneda extranjera es casi seguro un error de tipeo, y ARCA la rechaza.
+  if (input.exchangeRate === DEFAULT_EXCHANGE_RATE) {
+    throw new InputValidationError(
+      `La cotización de ${inputCurrencyCode} no puede ser 1. Pasá la cotización real con \`--cm\`, o sacá \`--cm\` para usar la oficial de ARCA.`,
+    );
+  }
+
+  if (typeof input.exchangeRate !== 'number') {
     throw new InputValidationError(
       `Falta la cotización de ${inputCurrencyCode}. Usá \`--cotizacion-moneda\` o \`--cm\`, o \`--misma-moneda\` si el pago se hace en ${inputCurrencyCode}.`,
     );

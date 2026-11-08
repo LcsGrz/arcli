@@ -32,6 +32,14 @@ export function resolveAssociatedVouchers(options: ResolveAssociatedVoucherOptio
     return undefined;
   }
 
+  // Periodo y algun dato del comprobante (aunque sea solo `--apv` o `--acuit`): se mezclaron las dos formas, y pedir
+  // el comprobante completo confundiria.
+  if (input.associatedPeriod) {
+    throw new InputValidationError(
+      'Usá un comprobante asociado (`--ac`/`--at`) o un período asociado (`--periodo-desde`/`--periodo-hasta`), pero no ambos.',
+    );
+  }
+
   const associatedVoucher = input.associatedVoucher;
   // En NC/ND FCE el asociado siempre es del propio emisor (10155), asi que el CUIT puede omitirse.
   const associatedCuit = associatedVoucher?.cuit ?? (voucherKind.isElectronicCredit ? String(emitterCuit) : undefined);
