@@ -383,11 +383,11 @@ Las facturas comparten la misma base.
 
 - monto: `--monto`
 - concepto: `--concepto`, `--cs`, `--cp` o `--csp`
-- identidad del receptor: `--cuit`, `--cuil`, `--dni`, `--consumidor-final` o `--cfinal`
 - IVA del receptor: `--iva-receptor`, `--ir` o un solo `--ir-*` (con `--cuit` se puede omitir: sale del padrón)
 
 **Opcional**
 
+- identidad del receptor: `--cuit`, `--cuil`, `--dni`, `--consumidor-final` o `--cfinal`. Sin ninguna, es consumidor final (documento 0)
 - punto de venta si no está en config: `--punto-venta` o `--pv`
 - fecha del comprobante: `--fecha`
 - moneda y cotización: `--moneda`, `--mda`, `--cotizacion-moneda`, `--cm`, `--misma-moneda`
@@ -417,7 +417,7 @@ arcli fa -m 1 --cs --cuit 20168598204 --ir-ri
 | `--monto <numero>`                                                              | `-m`            | `number`                                              | Sí          | Siempre                                                   |
 | `--concepto <tipo>`                                                             | `-c`            | `'productos' \| 'servicios' \| 'productos-servicios'` | Sí          | Siempre                                                   |
 | `--cs`, `--cp`, `--csp`                                                         | ninguno         | `boolean`                                             | Condicional | Si preferís el atajo en lugar de `--concepto`             |
-| `--cuit <numero>` / `--cuil <numero>` / `--dni <numero>` / `--consumidor-final` | `--cfinal`      | `string` / `boolean`                                  | Sí          | Siempre, una sola identidad                               |
+| `--cuit <numero>` / `--cuil <numero>` / `--dni <numero>` / `--consumidor-final` | `--cfinal`      | `string` / `boolean`                                  | No          | Sin ninguna, consumidor final; una sola identidad         |
 | `--iva-receptor <tipo>` / `--ir <tipo>` / `--ir-*`                              | ninguno         | unión de IVA receptor o `boolean`                     | Sí          | Una sola forma; con `--cuit`, sin el flag sale del padrón |
 | `--punto-venta <numero>`                                                        | `--pv <numero>` | `integer`                                             | Condicional | Si no está en config                                      |
 | `--fecha <fecha>`                                                               | `-f`            | `string`                                              | No          | Si querés fijar una fecha específica                      |
@@ -694,7 +694,7 @@ Muestra ejemplos seguros y listos para copiar de todos los comprobantes soportad
 arcli ejemplos
 ```
 
-La salida incluye versión mínima, versión full, forma larga y forma corta para cada comprobante. Todos usan `--previsualizar` para evitar emisiones reales por error.
+La salida incluye versión mínima, versión completa, forma larga y forma corta para cada comprobante. Todos usan `--previsualizar` para evitar emisiones reales por error.
 
 ### Básico (manual)
 
@@ -781,7 +781,7 @@ Usa el servicio `ws_sr_constancia_inscripcion`, que hay que autorizar aparte de 
 
 ### IVA receptor desde el padrón
 
-Al facturar con `--cuit` sin `--ir` (ni `ivaReceptor` en el JSON), ARCLI consulta el padrón y usa esa condición IVA, aunque la config tenga un `ivaReceptor` por defecto. También completa el nombre y el domicilio del receptor para el PDF, si no los pasaste. La vista previa lo marca: `IVA receptor   Responsable inscripto (padron)`.
+Al facturar con `--cuit` sin `--ir` (ni `ivaReceptor` en el JSON), ARCLI consulta el padrón y usa esa condición IVA, aunque la config tenga un `ivaReceptor` por defecto. También completa el nombre y el domicilio del receptor para el PDF, si no los pasaste. La vista previa lo marca: `IVA receptor   Responsable inscripto (padrón)`.
 
 | Caso                                            | Resultado                                                   |
 | ----------------------------------------------- | ----------------------------------------------------------- |
@@ -804,11 +804,11 @@ arcli completado desinstalar
 
 `arcli completado instalar` agrega al archivo de inicio del shell una línea marcada con un comentario `# arcli` y `desinstalar` saca solo eso:
 
-| Shell | Archivo                                                                                           |
-| ----- | ------------------------------------------------------------------------------------------------- |
-| zsh   | `~/.zshrc` (o `$ZDOTDIR/.zshrc`)                                                                  |
-| bash  | `~/.bashrc`; en macOS, el primero que exista de `~/.bash_profile`, `~/.bash_login` y `~/.profile` |
-| fish  | `~/.config/fish/completions/arcli.fish` (archivo propio; `desinstalar` lo borra)                  |
+| Shell | Archivo                                                                                                                                             |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| zsh   | `~/.zshrc` (o `$ZDOTDIR/.zshrc`)                                                                                                                    |
+| bash  | `~/.bashrc`; en macOS, el primero que exista de `~/.bash_profile`, `~/.bash_login` y `~/.profile`                                                   |
+| fish  | `~/.config/fish/completions/arcli.fish`, o `$XDG_CONFIG_HOME/fish/completions/arcli.fish` si está definida (archivo propio; `desinstalar` lo borra) |
 
 Pedir el comando ya es la confirmación: no vuelve a preguntar, como `arcli pdf instalar`. Con `--json` devuelve `{ "cambio", "instalado", "ruta", "shell" }`. Si no se puede saber el shell, da `INPUT_VALIDATION_ERROR` y hay que indicarlo. Un programa no puede cambiar la terminal que ya está abierta: después de instalar, abrí una nueva.
 

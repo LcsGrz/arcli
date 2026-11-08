@@ -16,7 +16,7 @@ arcli config establecer emisor.inicioActividades 1/03/2020
 arcli fc -m 150000 --cs --cfinal --emitir --exportar-pdf --descripcion "Servicios de septiembre"
 ```
 
-La primera vez, ARCLI ofrece descargar el plugin de PDF. El archivo queda en `~/arcli/comprobantes/20123456786/factura-c_0003-00000125.pdf`.
+La primera vez, ARCLI ofrece descargar el plugin de PDF. El archivo queda en `~/arcli/comprobantes/testing/20123456786/factura-c_0003-00000125.pdf` (en producción, sin la carpeta `testing/`).
 
 ## El plugin de PDF
 

@@ -2,7 +2,7 @@ import type { Arca } from '@arcasdk/core';
 
 import type { IssuedVoucher, VoucherHistoryGateway } from '../../modules/vouchers/voucher-history';
 
-import { getLastAuthorizedNumber } from './last-voucher';
+import { getLastAuthorizedNumber, rethrowIfWsfeNotAuthorized } from './last-voucher';
 
 export class ArcaVoucherHistoryGateway implements VoucherHistoryGateway {
   public constructor(private readonly arca: Arca) {}
@@ -16,7 +16,9 @@ export class ArcaVoucherHistoryGateway implements VoucherHistoryGateway {
     pointOfSale: number,
     voucherType: number,
   ): Promise<IssuedVoucher | undefined> {
-    const info = await this.arca.electronicBillingService.getVoucherInfo(number, pointOfSale, voucherType);
+    const info = await this.arca.electronicBillingService
+      .getVoucherInfo(number, pointOfSale, voucherType)
+      .catch(rethrowIfWsfeNotAuthorized);
 
     // ARCA devuelve null cuando el comprobante no existe.
     if (!info?.cbteFch) {

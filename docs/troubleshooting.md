@@ -4,6 +4,27 @@
 
 Errores frecuentes agrupados por categoría: síntoma, causa y solución.
 
+Si usás el asistente (`arcli` sin argumentos): Configuración → Revisar configuración te dice qué falta.
+
+## Instalación
+
+### `npm install -g arcli` falla con `EACCES` (macOS o Linux)
+
+- **Síntoma:** `npm ERR! code EACCES` o `permission denied` al instalar.
+- **Causa:** npm quiere escribir en una carpeta del sistema.
+- **Solución:** no uses `sudo`. Configurá una carpeta propia para los paquetes globales (`npm config set prefix ~/.npm-global` y sumá `~/.npm-global/bin` al `PATH`) o instalá Node con un gestor de versiones como `nvm`.
+
+### PowerShell dice "la ejecución de scripts está deshabilitada"
+
+- **Síntoma:** al correr `arcli` en PowerShell: `arcli.ps1 no se puede cargar porque la ejecución de scripts está deshabilitada en este sistema`.
+- **Solución:** `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` y volvé a abrir PowerShell, o usá el "Símbolo del sistema" (`cmd`), o abrí ARCLI con el [acceso directo](cli-reference.md#acceso-directo).
+
+### `arcli` no se reconoce como comando
+
+- **Síntoma:** `command not found: arcli` o "arcli no se reconoce como un comando interno o externo".
+- **Causa:** la terminal se abrió antes de instalar, o la carpeta de los paquetes globales de npm no está en el `PATH`.
+- **Solución:** cerrá y abrí la terminal. Si sigue, `npm prefix -g` te dice la carpeta: sumala al `PATH`.
+
 ## Debug rápido
 
 Si algo no cierra, estas son las tres corridas que más ayudan:
@@ -11,7 +32,7 @@ Si algo no cierra, estas son las tres corridas que más ayudan:
 ```bash
 arcli config revisar
 arcli fc ayuda
-arcli fc -m 1000 --cs --consumidor-final --emitir --json --bruto --testing
+arcli fc -m 1000 --cs --consumidor-final --previsualizar --json --testing
 ```
 
 Con eso normalmente ves:
@@ -120,7 +141,7 @@ Si lo renovaste a mano, también sirve `arcli config establecer cert.produccion 
 ### `config.json` con JSON inválido
 
 - **Severidad:** crítico
-- **Síntoma:** cualquier comando falla con `Error de configuración` ("El archivo de configuración tiene JSON inválido y no se puede leer."), con la ruta del archivo en `Ruta` (`detalles.ruta` con `--json`). Antes salía como "Error inesperado".
+- **Síntoma:** cualquier comando falla con `Error de configuración` ("El archivo de configuración tiene JSON inválido y no se puede leer."), con la ruta del archivo en `Ruta` (`detalles.ruta` con `--json`).
 - **Causa:** el `config.json` quedó mal escrito, casi siempre por una edición a mano (una coma de más, comillas sin cerrar) o un archivo vacío.
 - **Solución:** corregir el JSON a mano en esa ruta, o renombrar el archivo y volver a cargar los datos. ARCLI no lo borra ni lo pisa: lo que tenía sigue ahí para recuperarlo.
 
@@ -245,6 +266,14 @@ arcli fc ayuda
 - **Solución:** pasar en `--monto` el total, incluidos exento y no gravado.
 - **Documentación relacionada:** [IVA automático](validation-rules.md#iva-automático)
 
+### `wsfe` no autorizado
+
+- **Severidad:** frecuente la primera vez
+- **Síntoma:** error `WSFE_SERVICE_NOT_AUTHORIZED` ("El certificado no está autorizado para facturar (servicio wsfe). No se emitió nada.") al facturar o con `ultimos` y `consultar`.
+- **Causa:** sacaste e importaste el certificado, pero falta autorizarlo a facturar en ARCA.
+- **Solución:** en testing, WSASS → "Crear autorización a servicio" con el mismo nombre del certificado y el servicio `wsfe`; en producción, el Administrador de Relaciones de Clave Fiscal. No se emitió nada: después de autorizarlo, reintentá igual.
+- **Documentación relacionada:** [Autorizar el servicio web](obtencion-certificados.md#3-autorizar-el-servicio-web)
+
 ### `wsfecred` no autorizado
 
 - **Severidad:** frecuente si usás `fce-obligado` o `verificarFce`
@@ -291,7 +320,7 @@ arcli fc ayuda
 
 - **Severidad:** crítico
 - **Síntoma:** "No se pudo confirmar la emisión: …" al emitir.
-- **Causa:** falló la llamada que emite en ARCA (red, timeout, transacción activa). ARCA pudo haber autorizado el comprobante y perderse la respuesta. Si el error es del login en WSAA (certificado vencido o no autorizado) o del pedido del último número, no sale este error sino el original: ahí no se emitió nada y alcanza con corregir y reintentar.
+- **Causa:** falló la llamada que emite en ARCA (red, timeout, transacción activa). ARCA pudo haber autorizado el comprobante y perderse la respuesta. Si el error es del login en WSAA (certificado no autorizado; uno vencido corta antes con `CERTIFICATE_EXPIRED`) o del pedido del último número, no sale este error sino el original: ahí no se emitió nada y alcanza con corregir y reintentar.
 - **Solución:** **no reintentes todavía**. Corré el `arcli ultimos <tipo> --pv <n>` que muestra la sugerencia: si el comprobante figura, ya está emitido y no hay que repetirlo; si no figura, reintentá. En la factura E (`fe`), reintentá con el mismo `--numero` e `--id-solicitud` que muestra la sugerencia: ARCA no autoriza dos veces el mismo número.
 - **Documentación relacionada:** [Entrada y salida](input-output.md#emisión-sin-confirmar)
 
@@ -436,7 +465,7 @@ arcli acceso-directo ~/Documentos
 ### El ícono dejó de abrir ARCLI
 
 - **Síntoma:** la ventana dice "ARCLI terminó con un error" o se cierra enseguida.
-- **Causa:** el acceso directo guarda las rutas de Node y de ARCLI del momento en que se creó. Si después moviste, actualizaste o desinstalaste alguno, esas rutas ya no existen.
+- **Causa:** el acceso directo guarda las rutas de Node y de ARCLI del momento en que se creó. Si después moviste o reinstalaste Node (por ejemplo, con otra versión) o desinstalaste ARCLI, esas rutas ya no existen.
 - **Solución:** volvé a crearlo con `arcli acceso-directo`. Reemplaza al anterior.
 - **Documentación relacionada:** [Acceso directo](cli-reference.md#acceso-directo)
 

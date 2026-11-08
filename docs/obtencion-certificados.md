@@ -7,6 +7,8 @@ entorno (`cert.testing`/`key.testing` para homologación, `cert.produccion`/`key
 para real). Esta guía muestra paso a paso cómo generarlos, con capturas del portal de
 ARCA.
 
+**En resumen**, en la web de ARCA vas a hacer tres cosas: habilitar el servicio, crear el certificado con el pedido que arma ARCLI y autorizarlo a facturar (`wsfe`). Desde ARCLI se hace con `arcli certificado generar` e `importar`, o en el asistente: Configuración → Certificados de ARCA. Solo `wsfe` es obligatorio; el resto de los servicios, si usás esa función.
+
 > Contenido adaptado de los tutoriales de [afipts.com](https://www.afipts.com) (ver
 > [fuentes](#fuentes) al final). Las capturas son de ese sitio; los pasos y comandos
 > están reescritos y verificados para esta guía.
@@ -266,7 +268,7 @@ Con el certificado de producción configurado:
 arcli parametros puntos-venta --produccion
 ```
 
-La lista trae solo los puntos de venta habilitados para web service (CAE o CAEA). Si el
+La lista trae solo los puntos de venta de web service (CAE o CAEA); los bloqueados o dados de baja salen marcados. Si el
 tuyo no aparece, o la lista está vacía, seguí con el paso 2. `arcli estado --produccion`
 también avisa si el punto de venta configurado no está entre los habilitados.
 

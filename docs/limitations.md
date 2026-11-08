@@ -6,6 +6,10 @@ Limitaciones y decisiones de diseño que hoy forman parte del comportamiento rea
 
 ## Limitaciones funcionales
 
+### `ultimos` y `consultar` no aceptan la factura E
+
+Para la `E` no hay consulta del último comprobante ni del detalle de uno: `@arcasdk/core` arma mal `FEXGetLast_CMP`, y por eso `arcli fe` también pide `--numero`.
+
 ### Lotes sin emisión parcial controlada
 
 Un lote se valida entero antes de emitir, pero si la emisión se corta a mitad (red, ARCA) los comprobantes ya emitidos quedan emitidos: no hay "deshacer". ARCLI los muestra antes del error para que no se carguen dos veces. Ver [input-output.md](input-output.md#validación-y-errores-del-lote).
@@ -59,7 +63,7 @@ Todavía no se soportan los tributos (`Tributos` / `ImpTrib`), como las percepci
 
 ### Observaciones de padrón
 
-Algunos CUITes de testing aprueban y devuelven observaciones como:
+Algunos CUIT de testing aprueban y devuelven observaciones como:
 
 - `10217`
 - `10017`

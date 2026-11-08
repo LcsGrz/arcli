@@ -12,11 +12,20 @@ CLI para previsualizar y emitir comprobantes electrónicos de ARCA (ex AFIP) des
 
 <p align="center"><img src="https://raw.githubusercontent.com/LcsGrz/arcli/main/docs/assets/demo/interactivo.gif" alt="Modo interactivo de arcli emitiendo una Factura C en testing" width="760"></p>
 
+## Empezar sin saber de terminal
+
+1. Instalá Node.js 22.22.1 o superior desde [nodejs.org](https://nodejs.org/es/download) (la versión LTS).
+2. Abrí la terminal (en Mac: Cmd+Espacio y escribí "Terminal"; en Windows: menú Inicio y escribí "PowerShell") y pegá `npm install -g arcli`.
+3. Pegá `arcli acceso-directo`: deja un ícono de ARCLI en el escritorio.
+4. Abrí ARCLI con doble clic en el ícono y seguí la configuración guiada. Desde ahí sacás el certificado de ARCA y emitís tu primera factura de prueba en testing, sin validez fiscal.
+
+Más adelante va a haber un instalador que no necesita Node.
+
 ## Características
 
 - **Modo interactivo:** `arcli` sin argumentos abre un asistente que guía la emisión, repite facturas anteriores, arma notas de crédito y débito, consulta comprobantes y configura el CLI. Cada paso muestra el comando equivalente.
 - **Vista previa por defecto:** sin `--emitir`, muestra la solicitud y, en una terminal, pregunta antes de emitir.
-- **Comprobantes:** Factura, Nota de Crédito y Nota de Débito A, B y C, y sus versiones de Factura de Crédito Electrónica (FCE), y Recibo C, con CBU, transferencia, anulación y consulta del régimen del receptor.
+- **Comprobantes:** Factura, Nota de Crédito y Nota de Débito A, B y C; sus versiones de Factura de Crédito Electrónica (FCE), con CBU, transferencia, anulación y consulta del régimen del receptor; y Recibo C.
 - **Factura de exportación E:** `arcli fe` emite con WSFEX, con cliente y país de destino, incoterm, ítems detallados y permisos de embarque; acepta certificado propio con `exportacion.cert.*` / `exportacion.key.*`.
 - **Entrada y salida flexibles:** flags o JSON (incluso lotes); salida legible, `--json` o respuesta bruta de ARCA.
 - **Validaciones locales** basadas en el manual de ARCA, para detectar errores antes de llamar al servicio.
@@ -57,13 +66,14 @@ Lo más simple es correr `arcli` y seguir la configuración guiada. Para hacerlo
 arcli config establecer cuit 20168598204
 arcli config establecer puntoVenta 3
 arcli certificado generar --testing     # arma la clave y el pedido (CSR) para subir a ARCA
+# en ARCA: subí el CSR, bajá el .crt y autorizalo a facturar (wsfe), ver la guía
 arcli certificado importar testing.crt  # carga el certificado que te devuelve ARCA
 arcli config revisar
 ```
 
 Si ya tenés el certificado y la clave, cargalos directo con `arcli config establecer cert.testing <ruta>` y `arcli config establecer key.testing <ruta>`.
 
-`arcli config revisar` verifica que cada entorno (testing y producción) esté listo para emitir. Todas las claves disponibles están en [Configuración](https://github.com/LcsGrz/arcli/blob/main/docs/configuration.md).
+`arcli config revisar` revisa localmente la config de cada entorno (testing y producción): archivos, vencimientos y datos. No prueba el certificado contra ARCA; para eso, `arcli estado`. Todas las claves disponibles están en [Configuración](https://github.com/LcsGrz/arcli/blob/main/docs/configuration.md).
 
 ## Uso
 
@@ -84,7 +94,7 @@ La prioridad de los valores es `flags > JSON > config > defaults`. Ver el [model
 
 ### Testing y producción
 
-Por defecto se usa el entorno `testing`, con `cert.testing` y `key.testing`. Para emitir en producción hay que configurar `cert.produccion` y `key.produccion` y pasar `--produccion` (o guardar `entorno produccion`). Con la config por defecto, además hace falta `--emitir` o confirmar la pregunta.
+Por defecto se usa el entorno `testing`, con `cert.testing` y `key.testing`. Para emitir en producción hay que configurar `cert.produccion` y `key.produccion` y pasar `--produccion` (o guardar `entorno produccion`; en el asistente, Configuración → Modificar configuración → Entorno). Con la config por defecto, además hace falta `--emitir` o confirmar la pregunta.
 
 ## Documentación
 

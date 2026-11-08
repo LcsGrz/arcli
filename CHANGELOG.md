@@ -8,6 +8,16 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+Trae el acceso directo con doble clic, una salida en terminal más prolija y pareja, y arreglos para quien empieza sin saber de terminal. Puede afectar scripts:
+
+- En la vista previa, `estado` del `--json` pasa de `"observado"` a `"previsualizacion"`.
+- `fe --cargar` con `"previsualizar": false` ya no emite por sí solo (como A, B y C).
+- `--moneda USD` sin `--cm` ya no da error: usa la cotización oficial de ARCA.
+- Cambian textos de `error`, `sugerencia` y `avisos` (opciones entre backticks, tildes), no sus claves ni los códigos.
+- El certificado sin autorizar a facturar sale como `WSFE_SERVICE_NOT_AUTHORIZED` en lugar de `UNEXPECTED_ERROR`.
+
+Hay deprecaciones para la 3.0.0: ver "Deprecado".
+
 ### Cambiado
 
 - **`estado` de la vista previa en el `--json`:** pasa de `"observado"` a `"previsualizacion"`, en A, B, C y la `E`. Antes parecía que ARCA había observado algo, pero no se emitió nada. `previsualizacion: true` sigue igual. Un script que compara `estado === "aprobado"` no cambia; uno que trate cualquier otro valor como observado tiene que sumar el nuevo.
@@ -17,7 +27,6 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Textos más parejos:** tildes y voseo en toda la salida (`¿A quién le facturás?`, `22 dígitos`, `Usá`), comandos siempre entre backticks y el mismo texto en los errores que se repiten. El dato faltante sale como `Falta el dato: monto.`. Fechas inválidas dicen qué formatos sirven. "Monto" al pedir y en errores, "importe" al mostrar; "comprobante" donde también puede ser un recibo. Mientras se emite, el progreso dice `Emitiendo la factura B en ARCA...`. En la ayuda, `--previsualizar` ya no dice que muestra algo "antes de emitir" (no emite), los alias nombran su flag y los ejemplos dicen `COMPLETA` en lugar de `FULL`. El modo interactivo de config muestra etiquetas (`Responsable inscripto`, `21%`) en lugar de valores crudos; lo que se guarda no cambia. Son textos: pueden cambiar `error`, `sugerencia` y `avisos` en el `--json`, no sus claves ni los códigos de error.
 - **La pregunta antes de emitir dice el entorno:** con flags ahora es `¿Emitimos la factura B en PRODUCCIÓN?`, igual que en el modo interactivo, y si respondés que no avisa `No se emitió nada.`. La doble confirmación en producción sigue siendo solo del modo interactivo.
 - **La letra del comprobante siempre va en mayúscula y las frases concuerdan:** `La factura B no admite…`, `El recibo C no lleva…`, `Últimas facturas B`, `No hay recibos C emitidos`. Antes salían `La factura b`, `La recibo c` y `Últimas Factura B`. Son textos: también cambian dentro de `error` en el `--json`, pero la clave `comprobante` y los códigos de error no. Los atajos siguen en minúscula (`fb`, `rc`).
-
 - **Vista previa más corta:** los importes en cero que nadie cargó (IVA, tributos, exento, no gravado) no se muestran, y la cotización solo en moneda extranjera. A consumidor final sin identificar, una sola fila `Receptor` en lugar de tres. Lo que tiene valor se sigue mostrando, venga de una flag, de la config o de un default. `consultar` tampoco muestra `Importe IVA` en cero. El `--json` y `--bruto` siguen trayendo todo.
 - **Rechazos de ARCA legibles:** los paneles de errores y eventos muestran una lista (`1. 502: mensaje`) en lugar de JSON crudo. El panel de resultado ya no lista `Observaciones`, `Eventos` ni `Errores` en cero.
 - **Errores de uso en panel:** un comando u opción desconocida se muestra en el mismo panel que el resto de los errores, con la sugerencia de ayuda. Comandos, opciones y argumentos van entre backticks (`` opción desconocida `--montoo` ``), también en `error` con `--json`. El panel ya no repite la palabra `Error`. El mensaje de CUIT, certificado o clave faltante no repite `arcli config revisar`, que queda en la sugerencia del panel (cambia el texto de `error` y `detalle` en el `--json`, no las claves ni los códigos).
@@ -35,6 +44,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### Agregado
 
+- **`WSFE_SERVICE_NOT_AUTHORIZED`:** el certificado sin autorizar a facturar, el error más común la primera vez, ahora dice qué hacer en ARCA en lugar de salir como error inesperado con el texto de WSAA.
 - **Opciones nuevas marcadas en el modo interactivo:** lo que se sumó en las últimas versiones lleva `(nuevo)` al final (Emitir recibo, Recibo C en las notas, y Certificados de ARCA y Acceso directo en Configuración, que también lo lleva). La marca se va sola dos versiones menores después. Ver [modo interactivo](docs/modo-interactivo.md#menú-principal).
 - **`arcli acceso-directo [ruta]`:** crea un ícono para abrir ARCLI con doble clic en macOS, Windows y Linux, en el escritorio o en la carpeta que indiques. También está en el modo interactivo, en Configuración. Creado desde el código fuente (`yarn dev`), abre el `arcli` instalado y lo informa en `usaArcliInstalado`.
 - **Más datos en el JSON de las emisiones:** `entorno` y `puntoVenta` en todos los comprobantes, y `numero` en la factura E, también en la vista previa.
@@ -45,6 +55,10 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### Corregido
 
+- **`EMISSION_UNCERTAIN` sugiere verificar en el entorno en que se emitió:** antes `arcli ultimos` consultaba el de la config, y emitido con `--produccion` con la config en testing, el comprobante "no figuraba" y reintentar lo duplicaba. También el aviso del lote, que ahora trae el comando completo.
+- **`--cargar`:** en la `E`, `"pdf"` del archivo se ignoraba, `--exportar-pdf` con `--sin-pdf` no era error y un monto con más de 2 decimales se redondeaba sin avisar. En las notas, un flag del asociado (por ejemplo, solo `--acuit`) descartaba todo `comprobanteAsociado` del archivo; ahora se combinan. `importeExento` e `importeNoGravado` en `0` cuentan como ausentes.
+- **La cotización deprecada de la config** ya no se aplica a otra moneda extranjera (la de USD no vale para EUR).
+- **Modo interactivo:** la configuración guiada ya no dice "Ya podés emitir" con el certificado pendiente; "Cerrar para actualizar" dice dónde pegar el comando y espera, para leerlo al abrir ARCLI con el acceso directo; las rutas aceptan un archivo arrastrado; la barra se actualiza al volver de Configuración; pide el certificado del entorno activo y no siempre el de testing; sin punto de venta, dice dónde cargarlo.
 - **Mensajes que confundían:** `--moneda USD --cm 1` decía "Falta la cotización" y ahora explica que 1 es la cotización del peso. Una nota con período (`--periodo-desde`/`--periodo-hasta`) y parte de un comprobante asociado (`--apv`, `--acuit`) pedía el comprobante completo y ahora dice que se usa uno o el otro.
 - **`arcli fe --cargar` con `"previsualizar": false` emitía sin preguntar:** en A, B y C eso no emite y decide la config (en una terminal pregunta); ahora la `E` hace lo mismo. Para emitir desde el archivo, `"emitir": true`. `"emitir"` y `"previsualizar"` en `true` a la vez son un error, como en el resto.
 - **Modo interactivo:** la barra con la razón social y las respuestas ya respondidas pasan por el mismo filtro que el resto de la salida, así un dato externo no puede meter secuencias de terminal.
@@ -52,13 +66,12 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **`ARCLI_ASCII=1` cubre toda la salida:** también cambia los símbolos (`✓`, `•`, `·`, `…`, `→`) y lo que dibuja el modo interactivo (`✔`, `❯`, `↑↓`, `⏎`, `←`, `┈`, el spinner). Antes solo cambiaba los bordes. Las tildes y la `ñ` se mantienen.
 - **Entorno con tilde:** los títulos de `parametros` y `ultimos` dicen `PRODUCCIÓN` en lugar de `PRODUCCION`, y `estado`, `config`, `config revisar` y los errores de comprobante o CUIT no encontrado dicen `producción`. El `--json` conserva `entorno: "produccion"`; solo cambia el texto de `error` y `detalle`.
 - **`arcli config` muestra el CUIT con guiones:** `20-33333333-4`, igual que el resto de los comandos. `config --json` no cambia.
-- **Textos:** tildes que faltaban en `sí`, `automático`, `Cuándo generar el PDF`, `puntos críticos` y `Estás utilizando el entorno de TESTING`. La ayuda de `--moneda` dice `etc.` en lugar de `…`.
+- **Textos:** tildes que faltaban en `sí`, `automático`, `Cuándo generar el PDF`, `puntos críticos` y `Estás utilizando el entorno de TESTING`. La ayuda de `--moneda` dice `etc.` en lugar de `…`. Tildes y voseo en mensajes que habían quedado sin corregir (fecha fuera de rango, instalación del plugin de PDF, emisión sin confirmar, `coe.alreadyAuthenticated`). Los códigos de error y la forma del JSON no cambian.
 - **`dh key too small` en producción:** en sistemas con OpenSSL en `SECLEVEL=2`, como Debian 13, las llamadas a WSFE y WSFEX de producción fallaban con ese error aunque el certificado, la clave y el punto de venta fueran correctos. Ahora arcli no ofrece DHE en producción, sin aflojar el resto de la seguridad de la conexión. Testing no cambia. Ya no hace falta el wrapper con `--tls-cipher-list`.
 - **PDF de la factura E en el modo interactivo:** si faltan datos del emisor, los pide y ofrece guardarlos, como en el resto de los comprobantes. Antes el PDF no se generaba.
 - **Emisión incierta en la factura E:** si falla la llamada que emite una `fe` (red, timeout), sale como `EMISSION_UNCERTAIN`, igual que A, B y C, en lugar de un error inesperado que invitaba a reintentar. `detalles` trae `numero` e `idSolicitud`, y la sugerencia es reintentar con esos mismos valores: ARCA no autoriza dos comprobantes con el mismo número, así que no se duplica.
 - **Ayuda de `arcli fe`:** `--numero` decía "por defecto el siguiente de ARCA", pero es obligatorio. Ahora la ayuda lo dice.
 - **Certificado vencido:** la sugerencia de `CERTIFICATE_EXPIRED` manda a renovarlo con `arcli certificado generar` e `importar`, en lugar de cargar las rutas a mano con `arcli config establecer`.
-- **Textos:** tildes y voseo en mensajes que habían quedado sin corregir (fecha fuera de rango, instalación del plugin de PDF, emisión sin confirmar, `coe.alreadyAuthenticated`). Los códigos de error y la forma del JSON no cambian.
 
 ## [2.3.0] - 2026-11-04
 

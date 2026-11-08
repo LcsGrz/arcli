@@ -12,7 +12,7 @@ Stack: TypeScript estricto (ESM), Node.js, [commander](https://github.com/tj/com
 src/cli (commander)
   -> parseo de flags y carga del JSON (--cargar)
   -> src/modules/billing: mezcla flags > JSON > config > defaults, valida, arma la solicitud
-  -> src/services/arca: gateway contra ARCA (solo con --emitir)
+  -> src/services/arca: gateway contra ARCA (emite con --emitir; la vista previa también consulta: padrón, cotización, tablas de WSFEX)
   -> src/modules/pdf + src/services/pdf: PDF opcional, después de emitir
   -> presenter del módulo (billing.presenter.ts) con los paneles de src/ui (o JSON)
 ```

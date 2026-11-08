@@ -15,7 +15,7 @@ arcli interactivo   # lo mismo, explícito
 | ------------------------------------------------------ | ------------------------------------------------------- |
 | `arcli` en una terminal (stdin y stdout son TTY)       | Se abre el asistente                                    |
 | `arcli interactivo`                                    | Se abre el asistente; sin terminal interactiva da error |
-| `arcli` sin terminal (pipe, CI, agente) o con `--json` | Muestra la ayuda, igual que antes                       |
+| `arcli` sin terminal (pipe, CI, agente) o con `--json` | Muestra la ayuda                                        |
 | Cualquier comando con flags (`arcli fc -m 1000 …`)     | Sin cambios: el asistente nunca se mete en esos flujos  |
 
 El modo interactivo no agrega comandos de emisión ni cambia flags, claves de config ni el JSON. Es una capa encima del CLI.
@@ -54,10 +54,10 @@ La consulta es la misma de `arcli estado` sin el punto de venta (no pide autenti
 
 Al abrir el asistente se consulta npm por una versión nueva (no aparece con `CI` ni `NO_UPDATE_NOTIFIER`). Si hay, **Actualizar a la versión X.Y.Z** es la primera opción del menú, en naranja. Adentro muestra tu versión, la nueva y las novedades de cada versión intermedia (de las 3 más nuevas, sacadas del [CHANGELOG](../CHANGELOG.md)), y el comando para actualizar.
 
-- **Cerrar para actualizar**: copia el comando para actualizar al portapapeles y cierra el asistente, para que lo pegues y lo ejecutes. El comando es el del gestor con que instalaste ARCLI: `npm install -g arcli@latest`, `pnpm add -g arcli@latest`, `yarn global add arcli@latest` o `bun add -g arcli@latest` (lo deduce de la carpeta donde está instalado; si no lo reconoce, npm). ARCLI no se actualiza solo porque no puede reemplazarse mientras corre. Si no puede copiar (en Linux usa `wl-copy`, `xclip` o `xsel`), muestra el comando para escribirlo.
+- **Cerrar para actualizar**: copia el comando para actualizar al portapapeles, dice dónde pegarlo (una terminal nueva: Terminal en Mac, PowerShell en Windows) y espera a que confirmes antes de cerrar el asistente, así se lee aunque lo hayas abierto con el acceso directo. El comando es el del gestor con que instalaste ARCLI: `npm install -g arcli@latest`, `pnpm add -g arcli@latest`, `yarn global add arcli@latest` o `bun add -g arcli@latest` (lo deduce de la carpeta donde está instalado; si no lo reconoce, npm). ARCLI no se actualiza solo porque no puede reemplazarse mientras corre. Si no puede copiar (en Linux usa `wl-copy`, `xclip` o `xsel`), muestra el comando para escribirlo.
 - **← Volver**: vuelve al menú.
 
-Con el asistente, el aviso de nueva versión no se repite al salir. En los comandos con flags sigue apareciendo al final, como antes.
+Con el asistente, el aviso de nueva versión no se repite al salir. En los comandos con flags aparece al final.
 
 ## Emitir factura
 
@@ -180,7 +180,16 @@ Al elegir uno se muestra lo mismo que `arcli consultar`: CAE, vencimiento, impor
 | Autocompletado                  | Si está instalado el autocompletado con Tab; instalarlo o desinstalarlo (como `arcli completado`)                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | Acceso directo en el escritorio | Crea o actualiza el ícono para abrir ARCLI con doble clic (como `arcli acceso-directo`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 
-Cada respuesta se valida igual que en `arcli config establecer` y se guarda en el momento: si cortás a mitad, lo ya respondido queda guardado.
+Cada respuesta se valida igual que en `arcli config establecer` y se guarda en el momento: si cortás a mitad, lo ya respondido queda guardado. En las rutas del certificado y de la clave podés arrastrar el archivo a la terminal. Si en la guiada dejás el certificado para después, al terminar te dice que falta cargarlo y dónde. Al volver al menú, la barra se actualiza con lo que cambiaste.
+
+## Pasar a producción
+
+1. Configuración → Certificados de ARCA → Sacar o renovar un certificado → Producción, y seguí los pasos en ARCA.
+2. En ARCA, autorizá el certificado a facturar (`wsfe`) desde el Administrador de Relaciones de Clave Fiscal.
+3. Creá un punto de venta para web service (no sirve el de Factura en línea) y cargalo en Modificar configuración → Punto de venta.
+4. Modificar configuración → Entorno → produccion. Desde ahí, lo que emitís tiene validez fiscal, y antes de emitir el asistente pide una segunda confirmación.
+
+Guía completa: [Cómo obtener los certificados](obtencion-certificados.md).
 
 ## Estado de ARCA
 

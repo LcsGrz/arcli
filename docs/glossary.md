@@ -6,6 +6,10 @@ Términos de facturación electrónica argentina que aparecen en la documentaci�
 
 ## Organismo y servicios
 
+### Testing y producción
+
+Testing (homologación) es el ambiente de prueba de ARCA: podés emitir sin que cuente, y los comprobantes no tienen validez fiscal. Producción es el real: lo que emitís ahí vale y no se borra. ARCLI arranca en testing.
+
 ### ARCA / AFIP
 
 ARCA (Agencia de Recaudación y Control Aduanero) es el organismo que sucedió a AFIP como autoridad fiscal argentina. ARCLI habla con los web services de ARCA para autorizar comprobantes; en la documentación y en el código, "ARCA" y "AFIP" se usan como sinónimos del mismo organismo.
@@ -22,9 +26,9 @@ Ticket de Acceso. Credencial temporal que devuelve WSAA y que habilita a operar 
 
 Base de datos de ARCA con la situación fiscal de cada CUIT. Un comprobante puede aprobarse pero igual traer una observación de padrón (por ejemplo `10217` o `10017`) según la condición del receptor, sin que eso implique un error del CLI.
 
-### wsfe / wsfex / wsfecred
+### wsfe / wsfex / wsfecred / ws_sr_constancia_inscripcion
 
-Servicios web de ARCA que usa ARCLI: `wsfe` emite las facturas, notas y recibos A, B y C; `wsfex`, la factura de exportación E; `wsfecred` consulta el régimen FCE del receptor. Cada uno se autoriza aparte en ARCA. Ver [Qué servicios autorizar](obtencion-certificados.md#qué-servicios-autorizar).
+Servicios web de ARCA que usa ARCLI: `wsfe` emite las facturas, notas y recibos A, B y C; `wsfex`, la factura de exportación E; `wsfecred` consulta el régimen FCE del receptor; `ws_sr_constancia_inscripcion` es el padrón (`arcli padron` y el IVA receptor desde el padrón). Cada uno se autoriza aparte en ARCA. Ver [Qué servicios autorizar](obtencion-certificados.md#qué-servicios-autorizar).
 
 ### CSR y alias
 
@@ -46,7 +50,7 @@ Categoría de receptor sin documento identificable. ARCLI la representa con docu
 
 ### Condición IVA (IVA receptor)
 
-La situación del receptor frente al IVA: `responsable-inscripto`, `responsable-monotributo`, `consumidor-final`, `sujeto-exento`, etc. Define, entre otras cosas, si ARCLI calcula IVA automáticamente (ver [Reglas de validación](validation-rules.md#iva-automático)).
+La situación del receptor frente al IVA: `responsable-inscripto`, `responsable-monotributo`, `consumidor-final`, `sujeto-exento`, etc. Define, entre otras cosas, qué letra corresponde (A, B o C) (ver [Reglas de validación](validation-rules.md#iva-automático)).
 
 ### Punto de venta
 

@@ -21,13 +21,15 @@ ARCLI usa `conf` con:
 - `projectName: arcli`
 - `configName: config`
 
-La ubicación exacta depende del sistema operativo. Para verla:
+La ubicación depende del sistema operativo: en macOS, `~/Library/Preferences/arcli/`; en Linux, `~/.config/arcli/`; en Windows, `%APPDATA%\arcli\Config\`. Para ver la exacta:
 
 ```bash
 arcli config ruta
 ```
 
 Si el archivo no existe, `arcli config` lo crea automáticamente.
+
+En esa carpeta también quedan `certificados/<CUIT>/` (con la clave privada), `tickets/` y `plugins/`. **Respaldala:** si perdés la clave privada, el certificado deja de servir y hay que sacar otro.
 
 `arcli config` muestra los datos agrupados en secciones: cuenta, certificados, al facturar, FCE, factura de exportación (E), datos del emisor (PDF), PDF, y salida y listados. Son las mismas secciones, en el mismo orden, que "Modificar configuración" del [modo interactivo](modo-interactivo.md).
 
@@ -56,7 +58,7 @@ Si el archivo no existe, `arcli config` lo crea automáticamente.
 | `emitir`                      | boolean                         | `false`                | Emisión por defecto                                                                                                                                                                                                                             |
 | `ivaReceptor`                 | string                          | ninguno                | IVA receptor por defecto: uno de los valores de `--iva-receptor` (ver [referencia](cli-reference.md)), por ejemplo `consumidor-final`                                                                                                           |
 | `json`                        | boolean                         | `false`                | Salida JSON por defecto                                                                                                                                                                                                                         |
-| `moneda`                      | string                          | `PES`                  | Moneda por defecto de A, B, C y FCE, en código de 3 letras: `PES` o `ARS` (es la misma) para pesos, `USD` o `DOL` para dólares. `arcli fe` va en `DOL` salvo `--moneda`                                                                         |
+| `moneda`                      | string                          | `PES`                  | Moneda por defecto de A, B, C y FCE: código ISO o de ARCA, indistinto (`ARS`/`PES`, `USD`/`DOL`, `UYU`/`011`…). Ver [moneda y cotización](validation-rules.md#moneda-y-cotización). `arcli fe` va en `DOL` salvo `--moneda`                     |
 | `bruto`                       | boolean                         | `false`                | Respuesta bruta por defecto                                                                                                                                                                                                                     |
 | `puntoVenta`                  | number                          | ninguno                | Punto de venta por defecto                                                                                                                                                                                                                      |
 | `comprobantesPorLista`        | number                          | `15`                   | Cuántos comprobantes muestran `arcli ultimos` (si no pasás `--cantidad`) y las listas del modo interactivo, de 1 a 50                                                                                                                           |
@@ -165,7 +167,7 @@ arcli config revisar --json
 - el estado de la config persistente
 - el vencimiento de los certificados de los dos entornos
 - la validación real (CUIT, certificado y clave legibles) del entorno por defecto y de cualquier otro que tenga `cert` o `key` configurados
-- el plugin de PDF, como `arcli pdf estado`: si está instalado, si es la versión que usa arcli y si encontró un navegador. Con `pdf=siempre` avisa si falta; con `preguntar` (por defecto) lo revisa solo si está instalado, y con `nunca`, no lo revisa. Así `ok` no queda en `false` para quien no genera PDFs
+- el plugin de PDF, como `arcli pdf estado`: si está instalado, si es la versión que usa arcli y si encontró un navegador. Con `pdf=siempre` avisa si falta; con `preguntar` (por defecto) lo revisa solo si está instalado, y con `nunca`, no lo revisa. El plugin nunca bloquea la emisión.
 
 No recibe `--testing` ni `--produccion`: revisa los dos entornos de una vez.
 
@@ -173,7 +175,7 @@ En `arcli config`, las rutas (certificados, claves, tickets, PDFs) se abren con 
 
 En la terminal agrupa los chequeos por sección (Cuenta, Al facturar, Certificados, Salida, PDF y Validaciones), con lo que falta en amarillo o rojo. El JSON trae los mismos chequeos, sin las secciones. Si falta el CUIT, la terminal lo muestra una sola vez, en rojo; el JSON trae los dos chequeos (`CUIT` y `Validación testing`).
 
-Con problemas sale igual con exit code `0`: para saber si está todo listo, leé `ok` en el JSON (`true` solo si todos los chequeos están bien). La forma del JSON de `config` y `config revisar` está en [Entrada y salida](input-output.md#configuración-config-y-config-revisar).
+Con problemas sale igual con exit code `0`. `ok` es `true` solo si todos los chequeos están bien, y también queda en `false` por sugerencias opcionales (concepto o IVA receptor por defecto sin configurar, sin certificado de producción, el plugin de PDF): para saber si un entorno puede emitir, mirá que no haya chequeos `error`. Revisa la config localmente: no prueba el certificado contra ARCA (para eso, `arcli estado`). La forma del JSON de `config` y `config revisar` está en [Entrada y salida](input-output.md#configuración-config-y-config-revisar).
 
 `arcli config --ayuda` y `arcli config establecer --ayuda` listan todas las claves con sus valores.
 
