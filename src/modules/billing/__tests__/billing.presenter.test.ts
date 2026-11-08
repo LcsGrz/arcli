@@ -192,7 +192,7 @@ describe('billing.presenter', () => {
       environment: 'testing',
     });
 
-    expect(output).toContain('Estás utilizando el entorno de TESTING');
+    expect(output).toContain('Estás en TESTING');
   });
 
   it('formats dates with slashes in preview and response output', () => {
@@ -231,7 +231,7 @@ describe('billing.presenter', () => {
 
     expect(output).toContain('FACTURA C');
     expect(output).toContain('APROBADO');
-    expect(output).not.toContain('Estás utilizando el entorno de TESTING');
+    expect(output).not.toContain('Estás en TESTING');
     expect(output).not.toContain('Campo | Valor');
   });
 

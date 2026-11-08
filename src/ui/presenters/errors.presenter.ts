@@ -54,7 +54,7 @@ function detectTransientError(message: string): {
   if (message.includes('coe.alreadyAuthenticated')) {
     return {
       sugerencia:
-        'WSAA informó que ya existe un TA válido para este servicio. Esperá unos segundos y volvé a intentar sin cambiar el payload.',
+        'ARCA todavía tiene abierta una sesión anterior. Esperá un par de minutos y probá de nuevo, con los mismos datos.',
       title: 'Error transitorio WSAA',
     };
   }

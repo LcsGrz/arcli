@@ -84,7 +84,7 @@ const FIELD_DEFINITIONS: ReadonlyArray<Omit<ConfigField, 'label'>> = [
     read: (c) => c.exportacion?.actividad?.toString(),
   },
   {
-    hint: 'número',
+    hint: 'número; en testing sirve cualquiera, en producción tiene que ser uno de web service, no el de Factura en línea',
     key: 'puntoVenta',
     read: (c) => c.puntoVentaPorDefecto?.toString(),
   },

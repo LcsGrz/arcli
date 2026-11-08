@@ -197,6 +197,13 @@ async function askTestingCertificate(required: boolean): Promise<Back | GuidedSt
     }
 
     if (choice === 'sacar') {
+      writeTerminalOutput(
+        noticePanel(
+          `Vas a tener que entrar a la web de ARCA con tu Clave Fiscal. Podés cerrar ARCLI cuando quieras: el pedido queda guardado y lo retomás en Configuración ${uiSymbol('arrow')} Certificados de ARCA.`,
+          'info',
+        ),
+      );
+
       const result = await runGenerateCertificate('testing');
 
       return result === BACK ? BACK : { certificateFromArca: true };
