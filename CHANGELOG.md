@@ -8,6 +8,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+## [2.4.0] - 2026-11-08
+
 Trae el acceso directo con doble clic, una salida en terminal más prolija y pareja, y arreglos para quien empieza sin saber de terminal. Puede afectar scripts:
 
 - En la vista previa, `estado` del `--json` pasa de `"observado"` a `"previsualizacion"`.
@@ -497,7 +499,8 @@ Primera versión publicada en npm.
 - `llms.txt`: referencia condensada para que un agente de IA con acceso a terminal ejecute el CLI.
 - Publicación con npm Trusted Publishers (OIDC).
 
-[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v2.3.0...HEAD
+[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v2.4.0...HEAD
+[2.4.0]: https://github.com/LcsGrz/arcli/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/LcsGrz/arcli/compare/v2.2.1...v2.3.0
 [2.2.1]: https://github.com/LcsGrz/arcli/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/LcsGrz/arcli/compare/v2.1.0...v2.2.0

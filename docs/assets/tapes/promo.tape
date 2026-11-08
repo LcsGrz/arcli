@@ -21,7 +21,7 @@ Show
 # 1. Que es
 Type "# Facturá en ARCA desde la terminal" Sleep 400ms Enter
 Sleep 1.2s
-Type "# Facturas, notas de crédito y débito A, B y C, y FCE" Sleep 400ms Enter
+Type "# Facturas A, B, C y E, notas de crédito y débito, recibos y FCE" Sleep 400ms Enter
 Sleep 1.8s
 
 # 2. Vista previa: nada se emite sin confirmar
