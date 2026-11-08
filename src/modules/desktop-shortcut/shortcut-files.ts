@@ -1,6 +1,9 @@
-/** Lo que abre el acceso directo: rutas absolutas, tomadas de la instalacion que lo creo. */
+/**
+ * Lo que abre el acceso directo: rutas absolutas, tomadas de la instalacion que lo creo. Sin `cliPath` (se creo desde
+ * el codigo fuente), abre el `arcli` del PATH.
+ */
 export interface ShortcutTarget {
-  readonly cliPath: string;
+  readonly cliPath?: string;
   readonly nodePath: string;
 }
 
@@ -21,17 +24,20 @@ function quotePosix(value: string): string {
  */
 export function buildPosixLauncher({ cliPath, nodePath }: ShortcutTarget): string {
   const node = quotePosix(nodePath);
-  const cli = quotePosix(cliPath);
+  const run =
+    cliPath === undefined
+      ? 'arcli'
+      : `if [ -x ${node} ] && [ -f ${quotePosix(cliPath)} ]; then
+  ${node} ${quotePosix(cliPath)}
+else
+  arcli
+fi`;
 
   return `#!/bin/sh
 # Generado por \`arcli acceso-directo\`.
 printf '\\033]0;${SHORTCUT_NAME}\\007'
 cd "$HOME" || exit 1
-if [ -x ${node} ] && [ -f ${cli} ]; then
-  ${node} ${cli}
-else
-  arcli
-fi
+${run}
 status=$?
 if [ "$status" -ne 0 ] && [ "$status" -ne 130 ]; then
   printf '\\n%s\\n' ${quotePosix(FAILURE_MESSAGE)}
@@ -52,14 +58,18 @@ export function buildWindowsLauncher({ cliPath, nodePath }: ShortcutTarget): str
     'chcp 65001 >nul',
     `title ${SHORTCUT_NAME}`,
     'cd /d "%USERPROFILE%"',
-    `set "ARCLI_NODE=${escape(nodePath)}"`,
-    `set "ARCLI_CLI=${escape(cliPath)}"`,
-    'if exist "%ARCLI_NODE%" if exist "%ARCLI_CLI%" goto directo',
-    'call arcli',
-    'goto fin',
-    ':directo',
-    '"%ARCLI_NODE%" "%ARCLI_CLI%"',
-    ':fin',
+    ...(cliPath === undefined
+      ? ['call arcli']
+      : [
+          `set "ARCLI_NODE=${escape(nodePath)}"`,
+          `set "ARCLI_CLI=${escape(cliPath)}"`,
+          'if exist "%ARCLI_NODE%" if exist "%ARCLI_CLI%" goto directo',
+          'call arcli',
+          'goto fin',
+          ':directo',
+          '"%ARCLI_NODE%" "%ARCLI_CLI%"',
+          ':fin',
+        ]),
     'if not errorlevel 1 exit /b 0',
     'echo.',
     `echo ${FAILURE_MESSAGE}`,

@@ -35,7 +35,7 @@ describe('createDesktopShortcut', () => {
     const result = createDesktopShortcut(folder, environment());
     const contents = join(folder, 'ARCLI.app', 'Contents');
 
-    expect(result).toEqual({ path: join(folder, 'ARCLI.app'), replaced: false });
+    expect(result).toEqual({ path: join(folder, 'ARCLI.app'), replaced: false, usesInstalledArcli: false });
     expect(readFileSync(join(contents, 'Info.plist'), 'utf8')).toContain('<string>arcli.icns</string>');
     expect(existsSync(join(contents, 'Resources', 'arcli.icns'))).toBe(true);
     expect(readFileSync(join(contents, 'Resources', 'arcli.command'), 'utf8')).toContain("'/opt/node/bin/node'");
@@ -44,6 +44,15 @@ describe('createDesktopShortcut', () => {
       expect(statSync(join(contents, 'MacOS', 'ARCLI')).mode & 0o111).not.toBe(0);
       expect(statSync(join(contents, 'Resources', 'arcli.command')).mode & 0o111).not.toBe(0);
     }
+  });
+
+  it('desde el código fuente abre el arcli instalado: el .ts necesita un cargador que el lanzador no tiene', () => {
+    const result = createDesktopShortcut(folder, environment({ cliPath: undefined }));
+    const launcher = readFileSync(join(folder, 'ARCLI.app', 'Contents', 'Resources', 'arcli.command'), 'utf8');
+
+    expect(result.usesInstalledArcli).toBe(true);
+    expect(launcher).toContain('cd "$HOME" || exit 1\narcli\n');
+    expect(launcher).not.toContain('/opt/node/bin/node');
   });
 
   it('macOS: al repetirlo reemplaza la .app propia', () => {

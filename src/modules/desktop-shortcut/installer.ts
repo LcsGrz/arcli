@@ -40,7 +40,8 @@ export type RunCommand = (
 
 /** Lo que hace falta del entorno; en los tests se pasa a mano. */
 export interface DesktopShortcutEnvironment {
-  readonly cliPath: string;
+  /** El ARCLI que corre; sin definir si es el codigo fuente (\`yarn dev\`): el acceso directo abre el instalado. */
+  readonly cliPath?: string;
   readonly commandInterpreter: string;
   readonly home: string;
   readonly iconsFolder: string;
@@ -55,6 +56,8 @@ export interface DesktopShortcutResult {
   readonly path: string;
   /** `true` si ya habia un acceso directo de ARCLI en esa carpeta. */
   readonly replaced: boolean;
+  /** `true` si abre el \`arcli\` del PATH en lugar del que lo creo, porque se creo desde el codigo fuente. */
+  readonly usesInstalledArcli: boolean;
 }
 
 function runCommand(command: string, args: readonly string[]): { status: number | null; stdout: string } {
@@ -65,8 +68,11 @@ function runCommand(command: string, args: readonly string[]): { status: number 
 
 /** @param configPath ruta del archivo de configuracion: el lanzador y el icono quedan junto a el. */
 export function currentDesktopShortcutEnvironment(configPath: string): DesktopShortcutEnvironment {
+  const cliPath = realpathSync(process.argv[1] ?? '');
+
   return {
-    cliPath: realpathSync(process.argv[1] ?? ''),
+    // Desde el codigo fuente, Node corre el .ts con un cargador (tsx) que el lanzador no tiene: fallaria al abrir.
+    cliPath: cliPath.endsWith('.ts') ? undefined : cliPath,
     commandInterpreter: process.env.ComSpec ?? 'cmd.exe',
     home: process.env.HOME ?? process.env.USERPROFILE ?? '',
     iconsFolder: ICONS_FOLDER,
@@ -130,7 +136,10 @@ function writeExecutable(path: string, content: string): void {
   chmodSync(path, EXECUTABLE_MODE);
 }
 
-function createMacShortcut(folder: string, environment: DesktopShortcutEnvironment): DesktopShortcutResult {
+function createMacShortcut(
+  folder: string,
+  environment: DesktopShortcutEnvironment,
+): Omit<DesktopShortcutResult, 'usesInstalledArcli'> {
   const path = join(folder, `${SHORTCUT_NAME}.app`);
   const infoPath = join(path, 'Contents', 'Info.plist');
   const replaced = existsSync(path);
@@ -158,7 +167,10 @@ function createMacShortcut(folder: string, environment: DesktopShortcutEnvironme
   return { path, replaced };
 }
 
-function createLinuxShortcut(folder: string, environment: DesktopShortcutEnvironment): DesktopShortcutResult {
+function createLinuxShortcut(
+  folder: string,
+  environment: DesktopShortcutEnvironment,
+): Omit<DesktopShortcutResult, 'usesInstalledArcli'> {
   const path = join(folder, `${SHORTCUT_NAME}.desktop`);
   const launcherPath = join(environment.supportFolder, 'arcli.sh');
   const iconPath = join(environment.supportFolder, 'arcli.png');
@@ -178,7 +190,10 @@ function createLinuxShortcut(folder: string, environment: DesktopShortcutEnviron
   return { path, replaced };
 }
 
-function createWindowsShortcut(folder: string, environment: DesktopShortcutEnvironment): DesktopShortcutResult {
+function createWindowsShortcut(
+  folder: string,
+  environment: DesktopShortcutEnvironment,
+): Omit<DesktopShortcutResult, 'usesInstalledArcli'> {
   const path = join(folder, `${SHORTCUT_NAME}.lnk`);
   const launcherPath = join(environment.supportFolder, 'arcli.cmd');
   const iconPath = join(environment.supportFolder, 'arcli.ico');
@@ -215,11 +230,12 @@ export function createDesktopShortcut(
 
   assertFolder(folder, requestedFolder === undefined);
 
-  if (environment.platform === 'darwin') {
-    return createMacShortcut(folder, environment);
-  }
+  const result =
+    environment.platform === 'darwin'
+      ? createMacShortcut(folder, environment)
+      : environment.platform === 'win32'
+        ? createWindowsShortcut(folder, environment)
+        : createLinuxShortcut(folder, environment);
 
-  return environment.platform === 'win32'
-    ? createWindowsShortcut(folder, environment)
-    : createLinuxShortcut(folder, environment);
+  return { ...result, usesInstalledArcli: environment.cliPath === undefined };
 }

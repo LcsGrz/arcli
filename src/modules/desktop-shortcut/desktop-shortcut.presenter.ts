@@ -2,10 +2,14 @@ import { noticePanel } from '../../ui/components';
 
 import type { DesktopShortcutResult } from './installer';
 
-export function formatDesktopShortcutAsText({ path, replaced }: DesktopShortcutResult): string {
-  return noticePanel(`Acceso directo ${replaced ? 'actualizado' : 'creado'}: ${path}`, 'success');
+const FROM_SOURCE_NOTE = 'Se creó desde el código fuente: abre el `arcli` instalado.';
+
+export function formatDesktopShortcutAsText({ path, replaced, usesInstalledArcli }: DesktopShortcutResult): string {
+  const created = `Acceso directo ${replaced ? 'actualizado' : 'creado'}: ${path}`;
+
+  return noticePanel(usesInstalledArcli ? `${created}\n${FROM_SOURCE_NOTE}` : created, 'success');
 }
 
-export function formatDesktopShortcutAsJson({ path, replaced }: DesktopShortcutResult): string {
-  return JSON.stringify({ reemplazado: replaced, ruta: path }, null, 2);
+export function formatDesktopShortcutAsJson({ path, replaced, usesInstalledArcli }: DesktopShortcutResult): string {
+  return JSON.stringify({ reemplazado: replaced, ruta: path, usaArcliInstalado: usesInstalledArcli }, null, 2);
 }

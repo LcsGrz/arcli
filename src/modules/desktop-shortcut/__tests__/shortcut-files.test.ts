@@ -28,6 +28,13 @@ describe('buildPosixLauncher', () => {
 });
 
 describe('buildWindowsLauncher', () => {
+  it('sin la ruta de ARCLI, llama al arcli del PATH', () => {
+    const script = buildWindowsLauncher({ nodePath: 'node.exe' });
+
+    expect(script).toContain('call arcli');
+    expect(script).not.toContain('ARCLI_CLI');
+  });
+
   it('usa CRLF y UTF-8, y pausa si hubo un error', () => {
     const script = buildWindowsLauncher({
       cliPath: 'C:\\a\\index.js',
