@@ -84,7 +84,7 @@ function invalidConfigFileError(path: string): ConfigurationError {
   return new ConfigurationError(
     'El archivo de configuración tiene JSON inválido y no se puede leer.',
     { path },
-    'Corregilo a mano, o renombralo (por ejemplo, a config.json.bak) y volvé a cargar los datos con `arcli config establecer` o desde "Configuracion" en `arcli`. ARCLI no lo borra ni lo pisa.',
+    'Corregilo a mano, o renombralo (por ejemplo, a config.json.bak) y volvé a cargar los datos con `arcli config establecer` o desde "Configuración" en `arcli`. ARCLI no lo borra ni lo pisa.',
   );
 }
 

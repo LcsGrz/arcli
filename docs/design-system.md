@@ -36,21 +36,21 @@ Solo tokens de `UI_THEME.colors`, cada uno con un significado. No se usan como a
 
 Se elige por lo que se muestra, no por cómo se ve. Cada rol tiene su función, que fija borde, ancho y color, y distingue el panel aunque no haya color. La factura y la de exportación se arman con los mismos paneles (`formatVoucherText`).
 
-| Contenido                                  | Función                              | Borde       | Color            |
-| ------------------------------------------ | ------------------------------------ | ----------- | ---------------- |
-| Comprobante: vista previa y resultado      | `ticketPanel`                        | `ticket`    | Según estado     |
-| Errores del CLI                            | `errorPanel`                         | `error`     | `danger`         |
-| Errores de ARCA, como lista                | `errorListPanel`                     | `error`     | `danger`         |
-| Observaciones y avisos                     | `attentionPanel`                     | `attention` | `warning`        |
-| Sugerencias                                | `tipPanel`                           | `tip`       | `warning`        |
-| Fichas de consulta: config, padrón, FCE    | `sheetPanel`                         | `sheet`     | Según estado     |
-| Revisión con veredicto al pie              | `checklistPanel`                     | `checklist` | Según veredicto  |
-| Listados en tabla                          | `listingPanel`                       | `listing`   | Sin color        |
-| Aviso de una o dos líneas                  | `noticePanel`                        | `note`      | `muted` o `info` |
-| Banner de entorno o certificado por vencer | `testingBanner`, `certificateBanner` | `warning`   | `warning`        |
-| Nueva versión                              | `renderUpdateNoticePanel`            | `info`      | `info`           |
-| JSON y respuesta bruta                     | `dataPanel`                          | `data`      | `subtle`         |
-| Comando para copiar                        | `renderPanel` con `command`          | `command`   | `info`           |
+| Contenido                                  | Función                              | Borde       | Color                         |
+| ------------------------------------------ | ------------------------------------ | ----------- | ----------------------------- |
+| Comprobante: vista previa y resultado      | `ticketPanel`                        | `ticket`    | Según estado                  |
+| Errores del CLI                            | `errorPanel`                         | `error`     | `danger`                      |
+| Errores de ARCA, como lista                | `errorListPanel`                     | `error`     | `danger`                      |
+| Observaciones y avisos                     | `attentionPanel`                     | `attention` | `warning`                     |
+| Sugerencias                                | `tipPanel`                           | `tip`       | `warning`                     |
+| Fichas de consulta: config, padrón, FCE    | `sheetPanel`                         | `sheet`     | Según estado                  |
+| Revisión con veredicto al pie              | `checklistPanel`                     | `checklist` | Según veredicto               |
+| Listados en tabla                          | `listingPanel`                       | `listing`   | Sin color                     |
+| Aviso de una o dos líneas                  | `noticePanel`                        | `note`      | Según el aviso                |
+| Banner de entorno o certificado por vencer | `testingBanner`, `certificateBanner` | `warning`   | `warning`; `danger` si venció |
+| Nueva versión                              | `renderUpdateNoticePanel`            | `info`      | `info`                        |
+| JSON y respuesta bruta                     | `dataPanel`                          | `data`      | `subtle`                      |
+| Comando para copiar                        | `renderPanel` con `command`          | `command`   | `info`                        |
 
 - **Un comando va en `command`**, sin borde a la derecha: así se copia sin arrastrar caracteres.
 - **Títulos** en mayúscula, los pone el panel. El pie lleva el estado o el veredicto.

@@ -137,7 +137,7 @@ describe('config-value-parser', () => {
       '-----BEGIN ENCRYPTED PRIVATE KEY-----\nKEY\n-----END ENCRYPTED PRIVATE KEY-----',
     );
 
-    expect(() => parseConfigValue('key.testing', keyPath)).toThrow(/cifrada con contrasena/);
+    expect(() => parseConfigValue('key.testing', keyPath)).toThrow(/cifrada con contraseña/);
   });
 
   it('rejects cert and key paths with invalid PEM content', () => {

@@ -50,6 +50,7 @@ Actualizá la documentación que describe lo que cambiaste:
 | Validaciones                             | [reglas de validación](docs/validation-rules.md)                  |
 | Flujos de uso o mensajes de error        | [patrones de uso](docs/usage-patterns.md), [troubleshooting](docs/troubleshooting.md) |
 | Modo interactivo                         | [modo interactivo](docs/modo-interactivo.md)                      |
+| Salida en terminal (paneles, textos)     | [design system](docs/design-system.md)                            |
 | Módulos, capas o gateways                | [arquitectura](docs/architecture.md)                              |
 | Servicios de ARCA que hay que autorizar  | [obtención de certificados](docs/obtencion-certificados.md)       |
 

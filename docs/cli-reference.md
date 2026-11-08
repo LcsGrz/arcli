@@ -152,9 +152,9 @@ Así, `--produccion --emitir` emite en producción sin preguntar, y también lo 
 | `--json`       | ninguno | `boolean` | `config.json` (`false` por defecto)  | Devuelve salida estructurada                  |
 | `--bruto`      | ninguno | `boolean` | `config.bruto` (`false` por defecto) | Agrega respuesta cruda de ARCA cuando exista  |
 
-Si pasás una de estas opciones a un comando que no la usa (por ejemplo `arcli padron 20201797064 --bruto`), el comando corre igual y en stderr aparece un aviso: ``Aviso: --bruto no aplica a `arcli padron`, se ignora.``
+Si pasás una de estas opciones a un comando que no la usa (por ejemplo `arcli padron 20201797064 --bruto`), el comando corre igual y en stderr aparece un aviso: ``Aviso: `--bruto` no aplica a `arcli padron`, se ignora.``
 
-Todos los comandos con `--json` lo resuelven igual: el flag o, si no está, la clave de config `json`. También los errores de uso (opción desconocida, valor faltante, comando que no existe): con `--json` o `json=true` salen como `INPUT_VALIDATION_ERROR` en el [formato de error JSON](input-output.md#errores-json-de-uso); sin JSON, en texto como siempre.
+Todos los comandos con `--json` lo resuelven igual: el flag o, si no está, la clave de config `json`. También los errores de uso (opción desconocida, valor faltante, comando que no existe): con `--json` o `json=true` salen como `INPUT_VALIDATION_ERROR` en el [formato de error JSON](input-output.md#errores-json-de-uso); sin JSON, en el mismo panel que el resto de los errores, con la sugerencia de ayuda.
 
 ## Flags de comprobantes
 

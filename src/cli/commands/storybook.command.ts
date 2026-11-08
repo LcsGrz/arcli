@@ -25,12 +25,12 @@ export function registerStorybookCommand(program: Command): void {
     .description('ver escenas visuales del CLI con datos de ejemplo')
     .argument(
       '[escena]',
-      'bordes, certificados, comprobantes, colores, componentes, configuración, consultas, errores o json',
+      '`bordes`, `certificados`, `comprobantes`, `colores`, `componentes`, `configuracion`, `consultas`, `errores` o `json`',
     )
     .action((scene?: string) => {
       if (scene && !STORYBOOK_SCENES.includes(scene as StorybookScene)) {
         throw new InputValidationError(
-          `La escena "${scene}" no es válida. Usá bordes, certificados, comprobantes, colores, componentes, configuración, consultas, errores o json.`,
+          `La escena "${scene}" no es válida. Usá \`bordes\`, \`certificados\`, \`comprobantes\`, \`colores\`, \`componentes\`, \`configuracion\`, \`consultas\`, \`errores\` o \`json\`.`,
         );
       }
 

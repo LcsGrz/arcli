@@ -28,7 +28,7 @@ function commandPath(program: Command, command: Command): string {
 }
 
 export function formatIgnoredGlobalOptionsWarning(options: readonly string[], command: string): string {
-  const flags = options.join(', ');
+  const flags = options.map((option) => `\`${option}\``).join(', ');
   const verb = options.length === 1 ? 'no aplica' : 'no aplican';
 
   return `Aviso: ${flags} ${verb} a \`${command}\`, se ignora${options.length === 1 ? '' : 'n'}.`;
