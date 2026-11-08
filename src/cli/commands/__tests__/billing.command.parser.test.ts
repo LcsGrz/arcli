@@ -265,6 +265,46 @@ describe('billing.command.parser', () => {
     expect(dollars.exchangeRateSource).toBe('config');
   });
 
+  it('does not apply the config exchange rate of another foreign currency', () => {
+    const euros = parseBillingCommandInput(
+      createCommand(['--monto', '1000', '--cs', '--ir-cf', '--moneda', 'EUR']),
+      'fc',
+      { defaultCurrencyCode: 'USD', defaultExchangeRate: 1400 },
+    );
+
+    expect(euros.exchangeRate).toBeUndefined();
+  });
+
+  it('combines the associated voucher from the file with a single flag instead of dropping it', () => {
+    const input = parseBillingCommandInput(
+      createCommand([
+        '--cargar',
+        writeJsonInput({ comprobanteAsociado: { atajo: 'fc', numero: 5, puntoVenta: 1 } }),
+        '--acuit',
+        '20111111112',
+      ]),
+      'ncc',
+    );
+
+    expect(input.associatedVoucher).toMatchObject({ cuit: '20111111112', numero: 5, puntoVenta: 1, shortcut: 'fc' });
+  });
+
+  it('treats zero exempt and untaxed amounts in the file as absent', () => {
+    const input = parseBillingCommandInput(
+      createCommand(['--cargar', writeJsonInput({ importeExento: 0, importeNoGravado: 0 })]),
+      'fb',
+    );
+
+    expect(input.exemptAmount).toBeUndefined();
+    expect(input.untaxedAmount).toBeUndefined();
+  });
+
+  it('"previsualizar": false in the file does not decide: the config does, and a terminal asks', () => {
+    const plan = parseBillingCommandPlan(createCommand(['--cargar', writeJsonInput({ previsualizar: false })]), 'fc');
+
+    expect(plan.modeSource).toBe('default');
+  });
+
   it('a rate from --cm is not marked as coming from the config', () => {
     const input = parseBillingCommandInput(
       createCommand(['--monto', '1000', '--cs', '--ir-cf', '--moneda', 'USD', '--cm', '1300']),

@@ -11,6 +11,7 @@ import {
   parseBillingJsonInput,
   readBillingJsonItems,
 } from '../../modules/billing/billing.json-input';
+import { resolveBillingCurrencyCode } from '../../modules/billing/billing.mappers';
 import { type BillingCommandInput, billingCommandSchema } from '../../modules/billing/billing.schemas';
 import type { VoucherShortcut } from '../../modules/billing/billing.types';
 import { getVoucherKindByShortcut } from '../../modules/billing/voucher-kind-map';
@@ -127,6 +128,32 @@ function resolveShouldEmit(options: {
   return Boolean(options.defaultEmit);
 }
 
+type AssociatedVoucherInput = NonNullable<BillingCommandInput['associatedVoucher']>;
+
+/**
+ * Los flags del asociado ganan campo por campo sobre `comprobanteAsociado` del archivo: un `--acuit` solo no descarta
+ * el resto. Si un flag identifica el comprobante (`--ac` o `--at`), el tipo del archivo no se mezcla con el.
+ */
+function mergeAssociatedVoucher(
+  fromFlags: AssociatedVoucherInput | undefined,
+  fromFile: AssociatedVoucherInput | undefined,
+): AssociatedVoucherInput | undefined {
+  if (!fromFlags || !fromFile) {
+    return fromFlags ?? fromFile;
+  }
+
+  const identifiedByFlags = fromFlags.shortcut !== undefined || fromFlags.tipo !== undefined;
+
+  return {
+    cuit: fromFlags.cuit ?? fromFile.cuit,
+    fecha: fromFlags.fecha ?? fromFile.fecha,
+    numero: fromFlags.numero ?? fromFile.numero,
+    puntoVenta: fromFlags.puntoVenta ?? fromFile.puntoVenta,
+    shortcut: identifiedByFlags ? fromFlags.shortcut : fromFile.shortcut,
+    tipo: identifiedByFlags ? fromFlags.tipo : fromFile.tipo,
+  };
+}
+
 function resolvePdfFlag(
   commandOptions: Record<string, unknown>,
   fileInput: BillingJsonInput | undefined,
@@ -212,7 +239,8 @@ function parseBillingCommandInputFromSource(
   const modeSource: BillingCommandPlan['modeSource'] =
     emitirSource === 'cli' || previsualizarSource === 'cli'
       ? 'flags'
-      : typeof fileInput?.emitir === 'boolean' || typeof fileInput?.previsualizar === 'boolean'
+      : // "previsualizar": false no decide nada (decide la config), asi que tampoco cuenta como decision del archivo.
+        typeof fileInput?.emitir === 'boolean' || fileInput?.previsualizar === true
         ? 'file'
         : 'default';
   const shouldEmit = resolveShouldEmit({
@@ -301,10 +329,16 @@ function parseBillingCommandInputFromSource(
     );
   }
 
-  // La cotizacion por defecto de la config (deprecada) solo aplica a moneda extranjera sin --misma-moneda. Sin ella,
-  // BillingService.resolveExchangeRate consulta la oficial de ARCA.
+  // La cotizacion por defecto de la config (deprecada) solo aplica a moneda extranjera sin --misma-moneda. Si la config
+  // tiene otra moneda extranjera, es la cotizacion de esa: la de USD no vale para EUR. Sin ella,
+  // BillingService.resolveExchangeRate consulta la oficial.
+  const configCurrency = defaults.defaultCurrencyCode;
+  const isOtherConfigCurrency =
+    configCurrency !== undefined &&
+    isForeignCurrency({ currencyCode: configCurrency }) &&
+    resolveBillingCurrencyCode(currencyCode) !== resolveBillingCurrencyCode(configCurrency);
   const configExchangeRate =
-    explicitExchangeRate === undefined && !sameCurrency && isForeignCurrency({ currencyCode })
+    explicitExchangeRate === undefined && !sameCurrency && isForeignCurrency({ currencyCode }) && !isOtherConfigCurrency
       ? defaults.defaultExchangeRate
       : undefined;
   const exchangeRate = explicitExchangeRate ?? configExchangeRate;
@@ -323,8 +357,9 @@ function parseBillingCommandInputFromSource(
   const fileRateAmounts = fileInput?.alicuotas?.map((item) => ({ amount: item.monto, rate: item.tasa }));
   // --alicuota TASA tambien pisa las "alicuotas" del archivo.
   const ivaRateAmounts = flagRates.ivaRateAmounts ?? (flagRates.ivaRate ? undefined : fileRateAmounts);
-  const exemptAmount = pickNumber(commandOptions.exento, fileInput?.importeExento);
-  const untaxedAmount = pickNumber(commandOptions.nogravado, fileInput?.importeNoGravado);
+  // En el archivo, un 0 es "no hay" (un JSON generado suele traer los ceros); con el flag sigue siendo error.
+  const exemptAmount = pickNumber(commandOptions.exento, fileInput?.importeExento || undefined);
+  const untaxedAmount = pickNumber(commandOptions.nogravado, fileInput?.importeNoGravado || undefined);
   // Con varias alicuotas el monto total se puede omitir: es la suma de cada una mas exento y no gravado.
   const totalAmount =
     pickNumber(commandOptions.monto, fileInput?.montoTotal) ??
@@ -341,7 +376,7 @@ function parseBillingCommandInputFromSource(
   return {
     ...billingCommandSchema.parse({
       associatedPeriod,
-      associatedVoucher: associatedVoucherFromFlags ?? associatedVoucherFromFile,
+      associatedVoucher: mergeAssociatedVoucher(associatedVoucherFromFlags, associatedVoucherFromFile),
       billingDate: pickString(commandOptions.fecha, fileInput?.fechaComprobante),
       cancellation: commandOptions.anulacion === true || fileInput?.anulacion === true,
       cbu: pickString(commandOptions.cbu, fileInput?.cbu, usesFceDefaults ? defaults.defaultCbu : undefined),

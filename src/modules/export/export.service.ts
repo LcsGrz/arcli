@@ -4,7 +4,7 @@ import {
   parseArgentineDateInputAsArcaDate,
 } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
-import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
+import { AMOUNT_DECIMALS, formatExchangeRate, hasAtMostDecimals } from '../../lib/numbers/argentine-amount';
 import { EmissionUncertainError } from '../billing/billing.errors';
 import type { ArcliConfig } from '../config/config.schemas';
 
@@ -42,6 +42,11 @@ export interface ExportRuntime {
 function assertRequiredFields(input: ExportVoucherInput, activity: number | undefined): void {
   if (typeof input.amount !== 'number' || !(input.amount > 0)) {
     throw new InputValidationError('Falta el monto total o no es válido. Usá `--monto`.');
+  }
+
+  // Como en A, B y C: con mas decimales se redondearia en silencio y el total no coincidiria con el item.
+  if (!hasAtMostDecimals(input.amount, AMOUNT_DECIMALS)) {
+    throw new InputValidationError(`El monto total no puede tener más de ${AMOUNT_DECIMALS} decimales.`);
   }
 
   if (!input.clientName?.trim()) {

@@ -21,7 +21,7 @@ const BASE = {
   paisDestino: 212,
 };
 
-function planFromFile(content: Record<string, unknown>, defaultEmit = false) {
+function planFromFile(content: Record<string, unknown>, defaultEmit = false, args: string[] = []) {
   const directory = mkdtempSync(join(tmpdir(), 'arcli-export-cli-'));
   const path = join(directory, 'factura-e.json');
 
@@ -31,11 +31,11 @@ function planFromFile(content: Record<string, unknown>, defaultEmit = false) {
   const command = new Command();
 
   registerExportOptions(command);
-  command.parse(['node', 'test', '--cargar', path], { from: 'node' });
+  command.parse(['node', 'test', '--cargar', path, ...args], { from: 'node' });
 
   const plan = parseExportCommandPlan(command, { defaultEmit });
 
-  return { emit: plan.input.emit, modeSource: plan.modeSource };
+  return { emit: plan.input.emit, modeSource: plan.modeSource, pdf: plan.input.pdf };
 }
 
 describe('parseExportCommandPlan: emitir o previsualizar desde --cargar', () => {
@@ -51,5 +51,16 @@ describe('parseExportCommandPlan: emitir o previsualizar desde --cargar', () => 
 
   it('"emitir" y "previsualizar" en true a la vez es un error', () => {
     expect(() => planFromFile({ emitir: true, previsualizar: true })).toThrow(/no ambos en true/);
+  });
+});
+
+describe('parseExportCommandPlan: PDF', () => {
+  it('toma "pdf" del archivo si no hay flags, y los flags le ganan', () => {
+    expect(planFromFile({ pdf: true }).pdf).toBe(true);
+    expect(planFromFile({ pdf: true }, false, ['--sin-pdf']).pdf).toBe(false);
+  });
+
+  it('--exportar-pdf y --sin-pdf a la vez es un error', () => {
+    expect(() => planFromFile({}, false, ['--exportar-pdf', '--sin-pdf'])).toThrow(/no ambos a la vez/);
   });
 });

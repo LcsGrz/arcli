@@ -95,8 +95,15 @@ export function parseExportCommandPlan(command: Command, defaults: ExportCommand
   const destination =
     pickString(options.paisDestino, file?.paisDestino) ?? pickNumber(options.paisDestino, file?.paisDestino);
   const currency = pickString(options.moneda, options.mda, file?.codigoMoneda);
-  const pdf =
-    pickBoolean(options.exportarPdf, options.pdf) ?? (pickBoolean(options.sinPdf) === true ? false : undefined);
+  const exportPdf = pickBoolean(options.exportarPdf, options.pdf) === true;
+  const skipPdf = pickBoolean(options.sinPdf) === true;
+
+  if (exportPdf && skipPdf) {
+    throw new InputValidationError('Usá `--exportar-pdf` o `--sin-pdf`, pero no ambos a la vez.');
+  }
+
+  // Igual que en A, B y C: los flags ganan y, sin ellos, vale `"pdf"` del archivo.
+  const pdf = exportPdf ? true : skipPdf ? false : file?.pdf;
 
   return {
     input: {
