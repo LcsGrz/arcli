@@ -74,11 +74,24 @@ yarn dev storybook              # todas las escenas
 yarn dev storybook colores      # o: bordes, certificados, componentes, comprobantes, configuracion, consultas, errores, json
 ```
 
+## Ramas
+
+- **`dev`**: donde se trabaja y rama default de GitHub. Cada cambio sale de `dev` en una rama corta y vuelve con un PR a `dev`, mergeado con squash.
+- **`main`**: lo publicado en npm. Cada commit es una versión (`vX.Y.Z (#N)`) o un hotfix, así que siempre se puede sacar un arreglo sin arrastrar lo que está a medio hacer en `dev`. Exige historia lineal.
+
+Las dos están protegidas: piden PR y el CI en verde (`validate`) y no aceptan force push ni borrado, tampoco a admins.
+
+**Release:** `release/vX.Y.Z` sale de `dev` y entra a `main` con squash (ver [Sacar una versión](#sacar-una-versión)). Si `main` no vuelve a `dev`, el próximo squash a `main` trae conflictos. Por eso después de cada release se abre un PR `main` → `dev` y se mergea con **merge commit**, nunca con squash (`dev` no exige historia lineal justamente para esto).
+
+**Hotfix:** para un bug de una versión publicada que no puede esperar a la próxima. Rama `fix/<tema>` desde `main`, PR a `main` (squash) y release patch desde `main`. Después, el mismo PR `main` → `dev` con merge commit.
+
+Si un PR de trabajo llega apuntando a `main`, se le cambia la base a `dev` (`gh pr edit <N> --base dev`) antes de mergear.
+
 ## CI y publicación
 
 Hay dos workflows en `.github/workflows/`:
 
-- **CI** (`ci.yml`): en cada push y pull request instala sin scripts de dependencias (`--ignore-scripts`) y corre lint, typecheck, tests con cobertura, build y `pack:check`. En Linux con Node 22 (el mínimo de `engines`), 24 y 26; en Windows y macOS con Node 24.
+- **CI** (`ci.yml`): en cada push a `main` o `dev` y en cada pull request instala sin scripts de dependencias (`--ignore-scripts`) y corre lint, typecheck, tests con cobertura, build y `pack:check`. En Linux con Node 22 (el mínimo de `engines`), 24 y 26; en Windows y macOS con Node 24.
 - **Release** (`release.yml`): se dispara al publicar una release de GitHub y publica en npm lo que apunta su tag. Falla si el tag no coincide con la versión de `package.json` o no está en `main`. Tiene dos jobs: `build` valida, empaqueta y prueba el `.tgz` sin permiso para publicar; `publish` solo baja ese `.tgz` y lo publica. No usa cache y no corre scripts de dependencias.
 
   `publish` corre en el environment `npm`, que solo acepta tags `v*` y espera tu aprobación en Actions ("Review deployments"). Los tags `v*` están protegidos por un ruleset ("Tags de release"): solo un admin del repo los puede crear, mover o borrar.
@@ -91,12 +104,13 @@ Las actions están fijadas por SHA (con la versión en un comentario), para que 
 
 ### Sacar una versión
 
-1. Crear la rama `release/vX.Y.Z`.
+1. Crear la rama `release/vX.Y.Z` desde `dev` (desde `main` si es un hotfix).
 2. En `CHANGELOG.md`, pasar las entradas de "Sin publicar" a una sección `[X.Y.Z] - AAAA-MM-DD` y actualizar los links de comparación del final.
 3. Subir la versión en `package.json` y en `src/cli/version.ts` (un test verifica que coincidan).
-4. Abrir el PR, esperar el CI y mergear.
+4. Abrir el PR contra `main`, esperar el CI y mergear con squash.
 5. Crear la release de GitHub `vX.Y.Z` sobre `main`, con las notas del changelog: crea el tag y dispara `Release`. Cuando `build` termina, aprobá el deploy al environment `npm` en Actions y `publish` publica en npm.
 6. Si `Release` falla, arreglar la causa y usar "Re-run jobs" en Actions: vuelve a correr sobre el mismo tag.
+7. Abrir el PR `main` → `dev` y mergearlo con merge commit (ver [Ramas](#ramas)).
 
 Versionado: cambios que rompen el contrato del CLI → mayor; flags, comandos o claves nuevas y validaciones que adelantan rechazos de ARCA → menor; correcciones sin cambio de contrato → patch.
 

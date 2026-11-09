@@ -38,6 +38,14 @@ Antes de dar por terminado un cambio significativo: `yarn typecheck`, `yarn lint
 - Los docs también se testean: `docs-sync.test.ts` falla si un comando, flag o clave de config no aparece en `docs/` y `llms.txt`, y `examples-valid.test.ts` pasa cada bloque `bash` de `docs/`, `README.md` y `llms.txt` por el parser real. `yarn lint` corre Prettier sobre `docs/**/*.md`, `AGENTS.md` y `README.md`: si falla por tablas desalineadas, `yarn lint:prettier:fix`.
 - Para esperar el CI de un PR, `gh pr checks <N> --watch` en segundo plano, no `sleep` en loop.
 
+## Ramas
+
+`main` es lo publicado en npm y `dev`, donde se trabaja (es la rama default de GitHub). Detalle en [docs/development.md](docs/development.md#ramas).
+
+- Todo cambio sale de `dev` y vuelve con un PR a `dev` (squash). La base es siempre `dev`, nunca la rama de otro PR.
+- Un PR a `main` es solo una release (`release/vX.Y.Z` desde `dev`, con la skill `release`) o un hotfix de algo ya publicado (rama desde `main`). Si un PR de trabajo apunta a `main`, cambiá la base a `dev` antes de mergear.
+- Después de cada release o hotfix, `main` vuelve a `dev` con un PR `main` → `dev` mergeado con **merge commit**, nunca squash: con squash, la próxima release trae conflictos.
+
 ## Convenciones de código
 
 - TypeScript estricto; validar explícitamente toda entrada del usuario.

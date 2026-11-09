@@ -83,7 +83,7 @@ function fingerprint(files) {
 
 function needsDocsReminder(files) {
   if (!files.some((file) => CONTRACT.test(file))) return false;
-  const base = git('merge-base', 'HEAD', 'origin/main').trim() || git('merge-base', 'HEAD', 'main').trim();
+  const base = git('merge-base', 'HEAD', 'origin/dev').trim() || git('merge-base', 'HEAD', 'dev').trim();
   if (!base) return false;
   return lines(git('diff', '--name-only', base, '--', ...DOCS)).length === 0 && untracked(...DOCS).length === 0;
 }
