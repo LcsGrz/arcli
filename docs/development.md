@@ -26,6 +26,7 @@ yarn dev --ayuda
 | `yarn typecheck`         | Chequeo de tipos de código y tests                                                         |
 | `yarn test`              | Suite de Vitest                                                                            |
 | `yarn test:coverage`     | Suite con cobertura (falla si baja de los pisos configurados)                              |
+| `yarn test:arca`         | Tests contra ARCA testing con tu config; solo local (antes, `yarn build`)                  |
 | `yarn lint`              | ESLint y Prettier (`yarn lint:eslint`, `yarn lint:prettier`)                               |
 | `yarn lint:eslint:fix`   | Corrige lo que ESLint puede arreglar solo                                                  |
 | `yarn lint:prettier:fix` | Formatea con Prettier                                                                      |
@@ -49,6 +50,16 @@ yarn test
 ```
 
 Para cambios de empaquetado o publicación, `yarn open-source:check`.
+
+### Contra ARCA testing
+
+`src/cli/__tests__/e2e/*.arca.ts` corre el `arcli` compilado contra ARCA testing, con tu config y tu certificado: `estado`, una tabla de `parametros`, `padron` y `fce-obligado` con los CUITs de prueba, una vista previa y una Factura C de prueba que después busca con `consultar`. Todo va con `--testing`, que el helper agrega siempre, así que no puede tocar producción. Los comprobantes de testing no tienen validez fiscal.
+
+```bash
+yarn build && yarn test:arca
+```
+
+No corre en el CI (necesita credenciales y se niega si encuentra `CI`) ni con `yarn test`. Conviene correrlo antes de una release y después de tocar algo que hable con ARCA: atrapa lo que los tests con ARCA simulado no ven, como una respuesta con otra forma o un error nuevo del SDK.
 
 `src/cli/__tests__/docs-sync.test.ts` recorre el programa de commander y falla si un comando no aparece en `docs/` o en `llms.txt`, si un flag no aparece en `docs/cli-reference.md` o en `llms.txt`, o si una clave pública de config no aparece en `docs/configuration.md` o en `llms.txt`. Solo verifica que se mencione, no que la descripción esté bien. Lo que no se documenta a propósito va en `UNDOCUMENTED_FLAGS`, con el motivo.
 

@@ -57,7 +57,8 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
-    "typecheck": "tsc --project tsconfig.typecheck.json"
+    "typecheck": "tsc --project tsconfig.typecheck.json",
+    "test:arca": "vitest run --config vitest.arca.config.ts"
   },
   "lint-staged": {
     "src/**/*.{ts,tsx}": [
