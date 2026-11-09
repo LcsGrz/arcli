@@ -201,14 +201,13 @@ Cuando le vendés servicios o bienes a un cliente del exterior. Va por el servic
 ### Requisitos
 
 - certificado autorizado a `wsfex` (ver [certificados](obtencion-certificados.md))
-- el número del comprobante: el siguiente al último E de ese punto de venta
 - la actividad de la tabla de WSFEX, por flag o en `exportacion.actividad`
 
 ### Comando
 
 ```bash
 arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 203 \
-  --numero 1 --actividad 620100 --item "001|Servicios de consultoría|1|1500|unidad"
+  --actividad 620100 --item "001|Servicios de consultoría|1|1500|unidad"
 ```
 
 ### Resultado esperado
@@ -218,7 +217,6 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
 
 ### Errores comunes
 
-- falta `--numero`: arcli todavía no lo puede consultar en WSFEX
 - la suma de los `--item` no da `--monto`
 - la actividad no está en la tabla de WSFEX (no es la del padrón)
 
@@ -233,12 +231,11 @@ Para ajustar una factura de exportación ya emitida: un descuento o una devoluci
 ### Requisitos
 
 - el número de la factura E (y su punto de venta, si es otro que el de la nota)
-- el número de la nota: el siguiente al último de ese tipo en el punto de venta
 
 ### Comando
 
 ```bash
-arcli nce -m 500 --ar 1 --apv 4 --numero 1
+arcli nce -m 500 --ar 1 --apv 4
 ```
 
 ### Resultado esperado

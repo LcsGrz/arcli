@@ -14,6 +14,9 @@ const CLI = resolve('dist/cli/index.js');
 const PADRON_CUIT = '20201797064';
 const FCE_OBLIGATED_CUIT = '30546689979';
 
+/** Punto de venta de exportacion (WSFEX) de tu testing, con al menos una factura E. Sin la variable, se saltean. */
+const EXPORT_POINT_OF_SALE = process.env.ARCLI_ARCA_PV_E?.trim();
+
 function arcli(...args: string[]): { readonly code: number | null; readonly json: Record<string, unknown> } {
   const result = spawnSync(process.execPath, [CLI, ...args, '--testing', '--json'], {
     encoding: 'utf8',
@@ -87,5 +90,52 @@ describe('ARCA testing', () => {
 
     expect(found.code).toBe(0);
     expect(found.json).toMatchObject({ cae: emitted.json.cae, numero, resultado: 'A' });
+  });
+});
+
+describe.skipIf(!EXPORT_POINT_OF_SALE)('ARCA testing: la E (ARCLI_ARCA_PV_E)', () => {
+  const pv = EXPORT_POINT_OF_SALE ?? '';
+
+  it('ultimos fe lista las facturas E y la vista previa sin --numero usa la que sigue', () => {
+    const recent = arcli('ultimos', 'fe', '--pv', pv, '--cantidad', '1');
+
+    expect(recent.code).toBe(0);
+
+    const [last] = recent.json.comprobantes as Array<{ numero: number }>;
+
+    expect(last).toBeDefined();
+
+    const preview = arcli(
+      'fe',
+      '-m',
+      '100',
+      '--cliente',
+      'ACME LLC',
+      '--domicilio-cliente',
+      '123 Main St',
+      '--pais-destino',
+      '212',
+      '--actividad',
+      '620100',
+      '--pv',
+      pv,
+      '--previsualizar',
+    );
+
+    expect(preview.code).toBe(0);
+    expect(preview.json).toMatchObject({ estado: 'previsualizacion', numero: (last?.numero ?? 0) + 1 });
+  });
+
+  it('una nota de crédito E sobre la última factura E toma sus datos en la vista previa', () => {
+    const recent = arcli('ultimos', 'fe', '--pv', pv, '--cantidad', '1');
+    const [invoice] = recent.json.comprobantes as Array<{ cliente: string; numero: number }>;
+    const preview = arcli('nce', '-m', '1', '--ar', String(invoice?.numero), '--pv', pv, '--previsualizar');
+
+    expect(preview.code).toBe(0);
+    expect(preview.json).toMatchObject({
+      atajo: 'nce',
+      estado: 'previsualizacion',
+      exportacion: { cliente: invoice?.cliente, comprobanteAsociado: { atajo: 'fe', numero: invoice?.numero } },
+    });
   });
 });

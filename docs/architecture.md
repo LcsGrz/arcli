@@ -17,6 +17,8 @@ src/cli (commander)
   -> presenter del módulo (billing.presenter.ts) con los paneles de src/ui (o JSON)
 ```
 
+Entre el parseo y la vista previa, `prepareBillingInput` (`src/modules/billing/billing.prepare.ts`) completa la condición IVA desde el padrón, pide la cotización oficial si hace falta y junta los avisos de la entrada. La usan los comandos con flags y el modo interactivo, así que los dos preparan la emisión igual. El régimen FCE se consulta aparte, con el lote ya validado (`resolveFceWarningsInOrder`). `executeBillingCommand` recibe la config y los gateways como dependencias, para testear el comando entero con un ARCA falso (`billing.command.execute.test.ts`).
+
 La factura de exportación `E` y sus notas recorren el mismo camino con otro módulo y otro gateway: `src/modules/export` (mezcla, validación de ítems y armado del `Cmp` de WSFEX) y `src/services/arca/arca-export.gateway.ts` (`wsfex`), porque WSFEX tiene otro contrato que `wsfe`.
 
 El comportamiento visible de cada paso está en el [modelo mental](mental-model.md).
@@ -42,10 +44,10 @@ El comportamiento visible de cada paso está en el [modelo mental](mental-model.
 Reglas de dependencia:
 
 - La lógica de negocio vive en `modules/`, nunca en `cli/`.
-- Solo `services/` conoce `@arcasdk/core`.
+- Solo `services/` conoce `@arcasdk/core`. El resto importa los tipos del SDK de `src/services/arca/arca-sdk.types.ts`, el único archivo que puede usar una ruta interna (`@arcasdk/core/lib/...`): la raíz del SDK no exporta los tipos del comprobante de wsfe, y si una versión los mueve se arregla ahí.
 - `src/ui` no importa `modules`, `services` ni `cli`. Lo que depende del dominio, como las etiquetas de los campos en un error de zod, lo describe el módulo y `cli` lo une (`formatCliError` en `cli/error-output.ts`).
 - `lib`, `modules` y `services` importan la UI desde sus barrels (`ui/primitives`, `ui/components`, `ui/presenters`, `ui/stream`, `ui/theme`), nunca desde `src/ui`: ese barrel reexporta todo y arma ciclos. `cli` puede usar `src/ui`. Dentro de `src/ui`, imports directos entre archivos.
-- ESLint (`no-restricted-imports`) hace cumplir las dos reglas anteriores.
+- ESLint (`no-restricted-imports`) hace cumplir las tres reglas anteriores.
 
 ## El plugin de PDF
 
@@ -92,4 +94,4 @@ Comandos, flags, claves de config y JSON son contrato público. Antes de cambiar
 - **Errores de uso como el resto.** El programa usa `exitOverride()`: commander tira los errores de uso en vez de cortar el proceso y `reportCliError` (`src/cli/error-output.ts`) los imprime como cualquier error. En JSON salen como `INPUT_VALIDATION_ERROR`; en texto, en el mismo panel que el resto de los errores, con la sugerencia de ayuda (commander ya no los escribe: `configureUsageErrors`). Ayuda y versión también pasan por ahí y no son errores.
 - **Ante la duda, no duplicar.** Si falla la llamada que emite, no se sabe si ARCA autorizó: `BillingService` lo informa como `EMISSION_UNCERTAIN` con el `arcli ultimos` para verificar, en vez de sugerir reintentar. Por eso `BillingGateway` no usa `createNextVoucher` del SDK sino sus dos pasos: `getNextVoucherNumber` (login en WSAA y último número + 1; si falla no se envió nada y el error sale tal cual) y `createVoucher` (la única llamada que se marca como incierta).
 - **`factura <letra>` comparte un comando para A, B, C y E.** La familia registra los flags de facturación y, ocultos, los de la `E` (`registerExportOptions` devuelve los que agregó). Los que se pasaron por línea de comandos y no aplican a la letra elegida se saltean con un aviso (`src/cli/skipped-options.ts`) en lugar de cortar. Los atajos (`fa`, `fe`…) registran solo los suyos y siguen siendo estrictos.
-- **WSFEX no lanza.** `FEXAuthorize` devuelve `FEXResultAuth` o `FEXErr` en vez de tirar error: `src/modules/export/export.response.ts` lo normaliza al mismo `estado` de A/B/C, así que un rechazo es un resultado válido con exit code `2` y no un error del comando. WSFEX numera por punto de venta y tipo, pero `@arcasdk/core` mezcla el bloque `Auth` de forma superficial y `FEXGetLast_CMP` lleva el punto de venta y el tipo dentro de `Auth`: hasta que se arregle en el SDK, `--numero` es obligatorio y se valida antes de WSAA. El ID de solicitud sí sale de `FEXGetLast_ID`. Los ítems se validan contra `--monto` antes de WSAA (`assertExportItemsTotal`): WSFEX no compara `Imp_total` con la suma y el error aparecería lejos de su causa.
+- **WSFEX no lanza.** `FEXAuthorize` devuelve `FEXResultAuth` o `FEXErr` en vez de tirar error: `src/modules/export/export.response.ts` lo normaliza al mismo `estado` de A/B/C, así que un rechazo es un resultado válido con exit code `2` y no un error del comando. WSFEX numera por punto de venta y tipo, y `FEXGetLast_CMP` lleva el punto de venta y el tipo dentro de `Auth`. `@arcasdk/core` arma `{ Auth: {Token, Sign, Cuit}, ...params }`, así que un `Auth` propio pisa el suyo: `ArcaClientFactory.createExportGateway` le da al gateway un autenticador (`AuthRepository` del SDK, con el mismo almacenamiento de tickets) y el gateway manda el `Auth` completo, con token y firma (ralcorta/arcasdk#238 lo arregla en el SDK y sigue abierto). El ID de solicitud sale de `FEXGetLast_ID`. Los ítems se validan contra `--monto` antes de WSAA (`assertExportItemsTotal`): WSFEX no compara `Imp_total` con la suma y el error aparecería lejos de su causa.

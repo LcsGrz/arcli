@@ -1,8 +1,9 @@
-import type { Arca } from '@arcasdk/core';
 import type { Command } from 'commander';
 
 import { ArcaClientFactory } from '../services/arca/arca-client.factory';
 import type { ResolvedArcaRuntime } from '../services/arca/arca-context.resolver';
+import type { ArcaExportGateway } from '../services/arca/arca-export.gateway';
+import type { Arca } from '../services/arca/arca-sdk.types';
 import { writeTerminalJson, writeTerminalOutput } from '../ui';
 
 import { resolveArcaRuntime } from './arca-runtime';
@@ -24,6 +25,13 @@ export function createArcaQuery<Gateway>(command: Command, createGateway: (arca:
   const runtime = resolveArcaRuntime(getGlobalOptions(command));
 
   return { gateway: createGateway(new ArcaClientFactory().create(runtime)), runtime };
+}
+
+/** Lo mismo para WSFEX: el gateway de exportacion, con su propio certificado si esta configurado. */
+export function createExportQuery(command: Command): ArcaQuery<ArcaExportGateway> {
+  const runtime = resolveArcaRuntime(getGlobalOptions(command));
+
+  return { gateway: new ArcaClientFactory().createExportGateway(runtime), runtime };
 }
 
 /** Spinner en stderr mientras corre la consulta; con `--json` no hay. Se detiene tambien si la consulta falla. */

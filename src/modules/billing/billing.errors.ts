@@ -8,13 +8,15 @@ interface WsfeUncertainTarget {
 }
 
 /**
- * Factura E: el numero lo indica el usuario con `--numero` y ARCA no autoriza dos comprobantes con el mismo tipo,
- * punto de venta y numero. Reintentar con los mismos numeros no puede duplicarla (`arcli ultimos` no acepta `fe`).
+ * La E: el numero ya esta fijado en la solicitud y ARCA no autoriza dos comprobantes con el mismo tipo, punto de venta
+ * y numero, asi que reintentar con los mismos numeros no puede duplicarla. Tambien se verifica con `arcli consultar`.
  */
 interface WsfexUncertainTarget {
   readonly environment: 'produccion' | 'testing';
   readonly pointOfSale: number;
   readonly requestId: number;
+  /** `fe`, `nde` o `nce`. */
+  readonly shortcut: string;
   readonly voucherNumber: number;
 }
 
@@ -24,7 +26,7 @@ interface WsfexUncertainTarget {
  */
 export class EmissionUncertainError extends AppError {
   /**
-   * Con que verificarlo en A, B y C. Lleva el entorno: sin el, `ultimos` consulta el de la config, y si se emitio con
+   * Con que verificarlo: `ultimos` en A, B y C, `consultar` en la E. Lleva el entorno: sin el, `ultimos` consulta el de la config, y si se emitio con
    * `--produccion` y la config dice testing el comprobante "no figura" y se reintenta, duplicandolo.
    */
   public readonly verifyCommand?: string;
@@ -33,7 +35,7 @@ export class EmissionUncertainError extends AppError {
     const reason = options.cause instanceof Error ? options.cause.message : String(options.cause);
     const verifyCommand =
       'voucherNumber' in options
-        ? undefined
+        ? `arcli consultar ${options.shortcut} ${options.voucherNumber} --pv ${options.pointOfSale} --${options.environment}`
         : `arcli ultimos ${options.shortcut} --pv ${options.pointOfSale} --${options.environment}`;
 
     super(`No se pudo confirmar la emisión: ${reason}`, {
@@ -44,7 +46,7 @@ export class EmissionUncertainError extends AppError {
           : { causa: reason },
       suggestion:
         'voucherNumber' in options
-          ? `Puede haberse emitido igual. Si reintentás, usá el mismo número y la misma solicitud (\`--numero ${options.voucherNumber} --id-solicitud ${options.requestId} --pv ${options.pointOfSale} --${options.environment}\`): si ya se había emitido, ARCA no lo autoriza dos veces.`
+          ? `Puede haberse emitido igual. Verificalo con \`${verifyCommand}\`: si figura, ya está emitido. Si reintentás, usá el mismo número y la misma solicitud (\`--numero ${options.voucherNumber} --id-solicitud ${options.requestId} --pv ${options.pointOfSale} --${options.environment}\`): si ya se había emitido, ARCA no lo autoriza dos veces.`
           : `Puede haberse emitido igual. Antes de reintentar, verificá con \`${verifyCommand}\`: si figura, ya está emitido y no hay que repetirlo.`,
     });
     this.name = 'EmissionUncertainError';

@@ -26,12 +26,13 @@ yarn dev --ayuda
 | `yarn typecheck`         | Chequeo de tipos de código y tests                                                         |
 | `yarn test`              | Suite de Vitest                                                                            |
 | `yarn test:coverage`     | Suite con cobertura (falla si baja de los pisos configurados)                              |
+| `yarn test:e2e`          | Tests de punta a punta sobre el `dist/` compilado (antes, `yarn build`)                    |
 | `yarn test:arca`         | Tests contra ARCA testing con tu config; solo local (antes, `yarn build`)                  |
 | `yarn lint`              | ESLint y Prettier (`yarn lint:eslint`, `yarn lint:prettier`)                               |
 | `yarn lint:eslint:fix`   | Corrige lo que ESLint puede arreglar solo                                                  |
 | `yarn lint:prettier:fix` | Formatea con Prettier                                                                      |
 | `yarn pack:check`        | Empaqueta `dist`, lo instala en una carpeta temporal y corre `arcli --version` y `--ayuda` |
-| `yarn open-source:check` | `typecheck`, `test:coverage`, `build` y `pack:check`                                       |
+| `yarn open-source:check` | `typecheck`, `test:coverage`, `build`, `test:e2e` y `pack:check`                           |
 
 Husky corre `lint-staged` en cada commit: chequeo de tipos, ESLint y los tests relacionados con lo modificado.
 
@@ -51,12 +52,20 @@ yarn test
 
 Para cambios de empaquetado o publicación, `yarn open-source:check`.
 
+### De punta a punta
+
+`src/cli/__tests__/e2e/*.e2e.ts` corre el `arcli` compilado (`dist/cli/index.js`) como un proceso aparte y compara lo que ve quien lo usa: la salida, que `--json` sea un solo documento JSON, el código de salida y lo que queda en la config. Cada test usa una carpeta de config vacía con `ARCLI_CONFIG_DIR`, sin red ni certificados, así que corre en el CI en los tres sistemas operativos. Van con `yarn test:e2e` después de `yarn build`; `yarn test` no los toma (no terminan en `.test.ts`).
+
+Sirven para lo que los tests unitarios no ven: el empaquetado de ESM, los errores de uso de commander, que nada escriba texto alrededor del JSON. Lo que necesita a ARCA (emitir, consultar) sigue en los unitarios, con ARCA simulado.
+
 ### Contra ARCA testing
 
 `src/cli/__tests__/e2e/*.arca.ts` corre el `arcli` compilado contra ARCA testing, con tu config y tu certificado: `estado`, una tabla de `parametros`, `padron` y `fce-obligado` con los CUITs de prueba, una vista previa y una Factura C de prueba que después busca con `consultar`. Todo va con `--testing`, que el helper agrega siempre, así que no puede tocar producción. Los comprobantes de testing no tienen validez fiscal.
 
 ```bash
 yarn build && yarn test:arca
+# con un punto de venta de exportación, también la E: últimos, número siguiente y notas
+yarn build && ARCLI_ARCA_PV_E=4 yarn test:arca
 ```
 
 No corre en el CI (necesita credenciales y se niega si encuentra `CI`) ni con `yarn test`. Conviene correrlo antes de una release y después de tocar algo que hable con ARCA: atrapa lo que los tests con ARCA simulado no ven, como una respuesta con otra forma o un error nuevo del SDK.
@@ -102,7 +111,7 @@ Si un PR de trabajo llega apuntando a `main`, se le cambia la base a `dev` (`gh 
 
 Hay dos workflows en `.github/workflows/`:
 
-- **CI** (`ci.yml`): en cada push a `main` o `dev` y en cada pull request instala sin scripts de dependencias (`--ignore-scripts`) y corre lint, typecheck, tests con cobertura, build y `pack:check`. En Linux con Node 22 (el mínimo de `engines`), 24 y 26; en Windows y macOS con Node 24.
+- **CI** (`ci.yml`): en cada push a `main` o `dev` y en cada pull request instala sin scripts de dependencias (`--ignore-scripts`) y corre lint, typecheck, tests con cobertura, build, los tests de punta a punta y `pack:check`. En Linux con Node 22 (el mínimo de `engines`), 24 y 26; en Windows y macOS con Node 24.
 - **Release** (`release.yml`): se dispara al publicar una release de GitHub y publica en npm lo que apunta su tag. Falla si el tag no coincide con la versión de `package.json` o no está en `main`. Tiene dos jobs: `build` valida, empaqueta y prueba el `.tgz` sin permiso para publicar; `publish` solo baja ese `.tgz` y lo publica. No usa cache y no corre scripts de dependencias.
 
   `publish` corre en el environment `npm`, que solo acepta tags `v*` y espera tu aprobación en Actions ("Review deployments"). Los tags `v*` están protegidos por un ruleset ("Tags de release"): solo un admin del repo los puede crear, mover o borrar.

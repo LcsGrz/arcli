@@ -6,14 +6,44 @@ import { ArcaExportGateway } from '../arca-export.gateway';
 const EMPTY_RESULT = { FEXErr: { ErrCode: 0, ErrMsg: '' }, FEXEvents: { EventCode: 0, EventMsg: '' } };
 
 function createGateway(service: Record<string, unknown>): ArcaExportGateway {
-  return new ArcaExportGateway({ wsfexService: service } as unknown as Arca);
+  return new ArcaExportGateway({ wsfexService: service } as unknown as Arca, async () => AUTH);
 }
+
+const AUTH = { Cuit: 20409509763, Sign: 'firma', Token: 'token' };
+
+describe('ArcaExportGateway.getLastVoucherNumber', () => {
+  it('manda Pto_venta y Cbte_Tipo dentro de un Auth completo, para que el SDK no lo pise', async () => {
+    const getLastCmp = vi.fn(async () => ({
+      FEXGetLast_CMPResult: { ...EMPTY_RESULT, FEXResult_LastCMP: { Cbte_fecha: '20261109', Cbte_nro: 2 } },
+    }));
+
+    await expect(createGateway({ getLastCmp }).getLastVoucherNumber(20, 4)).resolves.toBe(2);
+    expect(getLastCmp).toHaveBeenCalledWith({ Auth: { ...AUTH, Cbte_Tipo: 20, Pto_venta: 4 } });
+  });
+
+  it('sin comprobantes es 0', async () => {
+    const getLastCmp = vi.fn(async () => ({
+      FEXGetLast_CMPResult: { ...EMPTY_RESULT, FEXResult_LastCMP: { Cbte_nro: 0 } },
+    }));
+
+    await expect(createGateway({ getLastCmp }).getLastVoucherNumber(19, 3)).resolves.toBe(0);
+  });
+
+  it('un error de ARCA se informa', async () => {
+    const getLastCmp = vi.fn(async () => ({
+      FEXGetLast_CMPResult: { FEXErr: { ErrCode: 1607, ErrMsg: 'Pto_venta invalido' } },
+    }));
+
+    await expect(createGateway({ getLastCmp }).getLastVoucherNumber(19, 0)).rejects.toThrow(/Pto_venta invalido/);
+  });
+});
 
 describe('ArcaExportGateway.getVoucher', () => {
   /** La nota de debito E que devolvio FEXGetCMP en testing, recortada. */
   const DEBIT_NOTE = {
     Actividades: { Actividad: [{ Id: 620100 }] },
     Cae: '76453017205088',
+    Fch_venc_Cae: '20261109',
     Cbte_nro: 1,
     Cbte_tipo: 20,
     Cliente: 'ACME LLC',
@@ -42,8 +72,9 @@ describe('ArcaExportGateway.getVoucher', () => {
     await expect(gateway.getVoucher({ arcaType: 20, number: 1, pointOfSale: 4 })).resolves.toEqual({
       activities: [620100],
       arcaType: 20,
-      associatedArcaType: 19,
+      associatedVoucher: { arcaType: 19, number: 1, pointOfSale: 4 },
       cae: '76453017205088',
+      caeExpiration: '20261109',
       clientAddress: '123 Main St, Miami, FL',
       clientCountryCuit: 55000002126,
       clientName: 'ACME LLC',

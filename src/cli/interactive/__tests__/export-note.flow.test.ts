@@ -1,9 +1,9 @@
-import type { IFEXAuthorizeOutput } from '@arcasdk/core/lib/application/dto/fex';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { arcliConfigSchema } from '../../../modules/config/config.schemas';
 import type { ExportGateway, ExportIssuedVoucher } from '../../../modules/export/export.types';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
+import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
 import { stripAnsi } from '../../../ui';
 import { runExportNoteFlow } from '../export-note.flow';
 import type { InteractiveSession } from '../session';
@@ -59,6 +59,7 @@ const gateway: ExportGateway = {
   getIncoterms: async () => [],
   getLanguages: async () => [{ id: 1, name: 'Español' }],
   getLastRequestId: async () => 1,
+  getLastVoucherNumber: vi.fn(async () => 0),
   getQuotations: async () => [],
   getUnits: async () => [{ id: 7, name: 'unidades' }],
   getVoucher: vi.fn(async (query) => (query.number === INVOICE.number ? INVOICE : null)),
@@ -76,15 +77,7 @@ vi.mock('../prompts', () => ({
 
 vi.mock('../../../services/arca/arca-client.factory', () => ({
   ArcaClientFactory: class {
-    public createForExport() {
-      return {};
-    }
-  },
-}));
-
-vi.mock('../../../services/arca/arca-export.gateway', () => ({
-  ArcaExportGateway: class {
-    public constructor() {
+    public createExportGateway() {
       return gateway;
     }
   },
@@ -135,7 +128,6 @@ describe('runExportNoteFlow', () => {
       [/Número de la factura E/, '1'],
       [/Monto de la nota de crédito de exportación E \(DOL\)/, '500'],
       [/Detalle de la nota/, 'Descuento por volumen'],
-      [/Número de la nota de crédito de exportación E/, '1'],
       [/Emitimos la nota de crédito de exportación E en testing/, 'Emitir ahora'],
     ]);
 
@@ -155,7 +147,7 @@ describe('runExportNoteFlow', () => {
       }),
     );
     expect(printed()).toContain(
-      'arcli nce -m 500 --ar 1 --apv 4 --numero 1 --descripcion "Descuento por volumen" --testing --emitir',
+      'arcli nce -m 500 --ar 1 --apv 4 --descripcion "Descuento por volumen" --testing --emitir',
     );
   });
 

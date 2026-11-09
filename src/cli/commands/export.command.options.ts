@@ -130,7 +130,7 @@ const EXPORT_OPTIONS: readonly ExportOptionDefinition[] = [
     parser: repeatable<ExportItemInput>((value) => parseExportItemArgument(value)),
   },
   {
-    description: 'número del comprobante, obligatorio: el siguiente al último E del punto de venta',
+    description: 'número del comprobante; por defecto, el siguiente al último de ARCA en el punto de venta',
     flags: '--numero <numero>',
     parser: integerOption('--numero'),
   },

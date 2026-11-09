@@ -50,7 +50,7 @@
     "lint:eslint:fix": "eslint --fix 'src/**/*.{js,jsx,ts,tsx,json}'",
     "lint:prettier": "prettier --check 'src/**/*.{js,jsx,ts,tsx,json,md}' 'docs/**/*.md' AGENTS.md README.md package.json",
     "lint:prettier:fix": "prettier --write 'src/**/*.{js,jsx,ts,tsx,json,md}' 'docs/**/*.md' AGENTS.md README.md package.json",
-    "open-source:check": "yarn typecheck && yarn test:coverage && yarn build && yarn pack:check",
+    "open-source:check": "yarn typecheck && yarn test:coverage && yarn build && yarn test:e2e && yarn pack:check",
     "prepack": "yarn build",
     "pack:check": "node ./scripts/check-package.mjs",
     "prepare": "husky",
@@ -58,6 +58,7 @@
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "typecheck": "tsc --project tsconfig.typecheck.json",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts",
     "test:arca": "vitest run --config vitest.arca.config.ts"
   },
   "lint-staged": {

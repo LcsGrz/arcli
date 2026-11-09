@@ -177,8 +177,10 @@ describe('assertExportNoteMatchesAssociated', () => {
   it('en servicios la ND solo ajusta una factura y la NC no ajusta otra NC (2041, 2042, 2045)', () => {
     expect(check({}, { arcaType: 21 }, EXPORT_DEBIT_NOTE_KIND)).toThrow(/errores 2041 y 2042/);
     expect(check({}, { arcaType: 21 })).toThrow(/error 2045/);
-    expect(check({}, { arcaType: 20, associatedArcaType: 19 })).not.toThrow();
-    expect(check({}, { arcaType: 20, associatedArcaType: 21 })).toThrow(/error 2055/);
+    expect(check({}, { arcaType: 20, associatedVoucher: { arcaType: 19, number: 1, pointOfSale: 4 } })).not.toThrow();
+    expect(check({}, { arcaType: 20, associatedVoucher: { arcaType: 21, number: 1, pointOfSale: 4 } })).toThrow(
+      /error 2055/,
+    );
   });
 
   it('en bienes no aplica las reglas de servicios', () => {

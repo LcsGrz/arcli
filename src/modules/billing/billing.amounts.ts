@@ -1,7 +1,7 @@
-import type { IIva } from '@arcasdk/core/lib/domain/types/voucher.types';
 import Big from 'big.js';
 
 import { InputValidationError } from '../../lib/errors/app-error';
+import type { IIva } from '../../services/arca/arca-sdk.types';
 
 import { ivaRateFactor, ivaRateFromId, ivaRateId } from './arca-codes';
 import { formatVoucherSubject } from './billing.mappers';

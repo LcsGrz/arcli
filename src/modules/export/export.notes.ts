@@ -241,8 +241,8 @@ export function assertExportNoteMatchesAssociated(options: {
   if (
     kind === EXPORT_CREDIT_NOTE_KIND &&
     associated.arcaType === EXPORT_DEBIT_NOTE_KIND.arcaType &&
-    associated.associatedArcaType !== undefined &&
-    associated.associatedArcaType !== EXPORT_VOUCHER_KIND.arcaType
+    associated.associatedVoucher !== undefined &&
+    associated.associatedVoucher.arcaType !== EXPORT_VOUCHER_KIND.arcaType
   ) {
     throw new InputValidationError(
       `${capitalize(label)} no ajusta una factura E: ARCA no acepta notas sobre ella (error 2055).`,

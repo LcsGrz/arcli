@@ -1,6 +1,6 @@
-import type { IFEXAuthorizeOutput } from '@arcasdk/core/lib/application/dto/fex';
 import { describe, expect, it, vi } from 'vitest';
 
+import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
 import { EmissionUncertainError } from '../../billing/billing.errors';
 import { arcliConfigSchema } from '../../config/config.schemas';
 import { ExportService } from '../export.service';
@@ -63,6 +63,7 @@ function createGateway(overrides: Partial<ExportGateway> = {}): ExportGateway {
       { id: 2, name: 'Ingles' },
     ]),
     getLastRequestId: vi.fn(async () => 7),
+    getLastVoucherNumber: vi.fn(async () => 41),
     getVoucher: vi.fn(async () => ASSOCIATED_INVOICE),
     getQuotations: vi.fn(async () => [{ code: 'DOL', date: '20260601', rate: 900.5 }]),
     getUnits: vi.fn(async () => [
@@ -284,13 +285,20 @@ describe('ExportService.resolve', () => {
     expect(gateway.getLastRequestId).not.toHaveBeenCalled();
   });
 
-  it('pide --numero antes de ir a ARCA: el SDK no deja consultar el ultimo comprobante E', async () => {
+  it('sin --numero usa el siguiente al último que tiene ARCA para ese tipo y punto de venta', async () => {
+    const gateway = createGateway();
+    const resolved = await service.resolve({ ...INPUT, voucherNumber: undefined }, gateway, RUNTIME, NOW);
+
+    expect(gateway.getLastVoucherNumber).toHaveBeenCalledWith(19, 3);
+    expect(resolved.payload.Cbte_nro).toBe(42);
+  });
+
+  it('con --numero no consulta el último', async () => {
     const gateway = createGateway();
 
-    await expect(service.resolve({ ...INPUT, voucherNumber: undefined }, gateway, RUNTIME, NOW)).rejects.toThrow(
-      /Falta el número del comprobante. Usá `--numero`/,
-    );
-    expect(gateway.getDestinationCountries).not.toHaveBeenCalled();
+    await service.resolve(INPUT, gateway, RUNTIME, NOW);
+
+    expect(gateway.getLastVoucherNumber).not.toHaveBeenCalled();
   });
 
   it('no consulta la cotizacion si viene por flag', async () => {
@@ -456,6 +464,7 @@ describe('ExportService.preview y execute', () => {
       details: { causa: 'socket hang up', idSolicitud, numero },
       message: 'No se pudo confirmar la emisión: socket hang up',
       suggestion: expect.stringContaining(`--numero ${numero} --id-solicitud ${idSolicitud} --pv ${pv} --testing`),
+      verifyCommand: `arcli consultar fe ${numero} --pv ${pv} --testing`,
     });
   });
 
