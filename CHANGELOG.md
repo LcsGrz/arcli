@@ -11,11 +11,16 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 ### Agregado
 
 - **`ultimos` y `consultar` con la E:** `arcli ultimos fe` (también `nde` y `nce`) lista los últimos comprobantes de exportación y `arcli consultar fe <numero>` muestra uno, con cliente, destino, moneda, total y comprobante asociado. El JSON de la E tiene sus propias claves (`cliente`, `destino`, `moneda`, `total`, `comprobanteAsociado`), porque no tiene receptor con documento ni IVA.
+- **`ARCLI_CONFIG_DIR`:** una variable de entorno para usar otra carpeta de config, con su `config.json`, tickets, plugins y certificados. Sirve para tener una config aparte sin tocar la de siempre. Sin la variable, todo sigue igual.
 - **Notas de crédito y débito de exportación E:** `arcli nce` y `arcli nde` (también `arcli nota-credito e` y `arcli nota-debito e`) ajustan una Factura de exportación `E` ya emitida. Alcanza con el monto, el asociado (`--ar`, y `--apv` si es de otro punto de venta) y `--numero`: el cliente, el destino, la moneda, la cotización y la actividad salen de la factura, que arcli consulta en ARCA. Antes de emitir valida lo que ARCA va a controlar contra el asociado: que exista, que la nota no sea anterior, que una nota de crédito no lo supere y, en servicios, el mismo destino, moneda y cotización. En `--cargar`, `comprobanteAsociado`; en el `--json`, `exportacion.comprobanteAsociado` (`null` en la factura). También en el modo interactivo, al elegir la factura de exportación como comprobante original de una nota. No cambia nada de la factura `E` ni de A, B y C.
 
 ### Cambiado
 
 - **`--numero` deja de ser obligatorio en `fe`, `nde` y `nce`:** sin el flag, arcli consulta en ARCA el último número de ese tipo en el punto de venta y usa el siguiente, también en la vista previa. `--numero` (o `numero` en `--cargar`) sigue andando para fijarlo a mano. El modo interactivo ya no lo pregunta. Si una emisión de la E queda sin confirmar (`EMISSION_UNCERTAIN`), la sugerencia ahora también manda a verificarla con `arcli consultar`.
+
+### Arreglado
+
+- **El modo interactivo avisa lo mismo que los comandos con flags:** en moneda extranjera, que usa la cotización oficial de ARCA. Antes ese aviso solo salía con flags. La preparación de la emisión ahora es una sola para los dos.
 
 ## [2.4.0] - 2026-11-08
 

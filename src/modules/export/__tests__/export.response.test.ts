@@ -1,6 +1,6 @@
-import type { IFEXAuthorizeOutput } from '@arcasdk/core/lib/application/dto/fex';
 import { describe, expect, it } from 'vitest';
 
+import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
 import { createDryRunExportResponse, mapExportResponse } from '../export.response';
 
 function authorization(overrides: Record<string, unknown> = {}): IFEXAuthorizeOutput {

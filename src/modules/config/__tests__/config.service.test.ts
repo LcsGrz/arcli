@@ -1,10 +1,10 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ConfigurationError } from '../../../lib/errors/app-error';
-import { ConfigService } from '../config.service';
+import { ConfigService, resolveConfigDirectory } from '../config.service';
 
 const temporaryDirectories: string[] = [];
 
@@ -271,5 +271,33 @@ describe('config.service', () => {
     expect((thrown as ConfigurationError).details).toEqual({ path: configPath });
     expect((thrown as ConfigurationError).suggestion).toMatch(/arcli config/);
     expect(readFileSync(configPath, 'utf8')).toBe(corruptContent);
+  });
+});
+
+describe('ARCLI_CONFIG_DIR', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('usa esa carpeta para el config.json y sus carpetas', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'arcli-config-dir-'));
+
+    vi.stubEnv('ARCLI_CONFIG_DIR', ` ${directory} `);
+
+    const service = new ConfigService();
+
+    try {
+      expect(resolveConfigDirectory()).toBe(directory);
+      expect(service.getPath()).toBe(join(directory, 'config.json'));
+    } finally {
+      service.close();
+      rmSync(directory, { force: true, recursive: true });
+    }
+  });
+
+  it('vacia o sin definir, usa la carpeta de siempre', () => {
+    vi.stubEnv('ARCLI_CONFIG_DIR', '  ');
+
+    expect(resolveConfigDirectory()).toBeUndefined();
   });
 });

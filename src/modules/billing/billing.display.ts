@@ -1,5 +1,4 @@
-import type { IIva } from '@arcasdk/core/lib/domain/types/voucher.types';
-
+import type { IIva } from '../../services/arca/arca-sdk.types';
 import { renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui/primitives';
 import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
 

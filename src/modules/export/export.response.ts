@@ -1,4 +1,4 @@
-import type { IFEXAuthorizeOutput } from '@arcasdk/core/lib/application/dto/fex';
+import type { IFEXAuthorizeOutput } from '../../services/arca/arca-sdk.types';
 
 import type { ExportResponseError, ExportResponseSummary } from './export.types';
 

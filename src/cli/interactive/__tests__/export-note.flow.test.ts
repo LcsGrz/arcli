@@ -1,9 +1,9 @@
-import type { IFEXAuthorizeOutput } from '@arcasdk/core/lib/application/dto/fex';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { arcliConfigSchema } from '../../../modules/config/config.schemas';
 import type { ExportGateway, ExportIssuedVoucher } from '../../../modules/export/export.types';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
+import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
 import { stripAnsi } from '../../../ui';
 import { runExportNoteFlow } from '../export-note.flow';
 import type { InteractiveSession } from '../session';

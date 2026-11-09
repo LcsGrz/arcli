@@ -1,9 +1,9 @@
-import type { Arca } from '@arcasdk/core';
 import type { Command } from 'commander';
 
 import { ArcaClientFactory } from '../services/arca/arca-client.factory';
 import type { ResolvedArcaRuntime } from '../services/arca/arca-context.resolver';
 import type { ArcaExportGateway } from '../services/arca/arca-export.gateway';
+import type { Arca } from '../services/arca/arca-sdk.types';
 import { writeTerminalJson, writeTerminalOutput } from '../ui';
 
 import { resolveArcaRuntime } from './arca-runtime';

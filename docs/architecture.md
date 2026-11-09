@@ -17,6 +17,8 @@ src/cli (commander)
   -> presenter del módulo (billing.presenter.ts) con los paneles de src/ui (o JSON)
 ```
 
+Entre el parseo y la vista previa, `prepareBillingInput` (`src/modules/billing/billing.prepare.ts`) completa la condición IVA desde el padrón, pide la cotización oficial si hace falta y junta los avisos de la entrada. La usan los comandos con flags y el modo interactivo, así que los dos preparan la emisión igual. El régimen FCE se consulta aparte, con el lote ya validado (`resolveFceWarningsInOrder`). `executeBillingCommand` recibe la config y los gateways como dependencias, para testear el comando entero con un ARCA falso (`billing.command.execute.test.ts`).
+
 La factura de exportación `E` y sus notas recorren el mismo camino con otro módulo y otro gateway: `src/modules/export` (mezcla, validación de ítems y armado del `Cmp` de WSFEX) y `src/services/arca/arca-export.gateway.ts` (`wsfex`), porque WSFEX tiene otro contrato que `wsfe`.
 
 El comportamiento visible de cada paso está en el [modelo mental](mental-model.md).
@@ -42,10 +44,10 @@ El comportamiento visible de cada paso está en el [modelo mental](mental-model.
 Reglas de dependencia:
 
 - La lógica de negocio vive en `modules/`, nunca en `cli/`.
-- Solo `services/` conoce `@arcasdk/core`.
+- Solo `services/` conoce `@arcasdk/core`. El resto importa los tipos del SDK de `src/services/arca/arca-sdk.types.ts`, el único archivo que puede usar una ruta interna (`@arcasdk/core/lib/...`): la raíz del SDK no exporta los tipos del comprobante de wsfe, y si una versión los mueve se arregla ahí.
 - `src/ui` no importa `modules`, `services` ni `cli`. Lo que depende del dominio, como las etiquetas de los campos en un error de zod, lo describe el módulo y `cli` lo une (`formatCliError` en `cli/error-output.ts`).
 - `lib`, `modules` y `services` importan la UI desde sus barrels (`ui/primitives`, `ui/components`, `ui/presenters`, `ui/stream`, `ui/theme`), nunca desde `src/ui`: ese barrel reexporta todo y arma ciclos. `cli` puede usar `src/ui`. Dentro de `src/ui`, imports directos entre archivos.
-- ESLint (`no-restricted-imports`) hace cumplir las dos reglas anteriores.
+- ESLint (`no-restricted-imports`) hace cumplir las tres reglas anteriores.
 
 ## El plugin de PDF
 
