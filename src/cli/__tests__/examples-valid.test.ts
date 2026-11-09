@@ -86,6 +86,7 @@ const exportGateway: ExportGateway = {
   getIncoterms: async () => [{ code: 'FOB', name: 'FOB' }],
   getLanguages: async () => [{ id: 1, name: 'Español' }],
   getLastRequestId: async () => 0,
+  getLastVoucherNumber: async () => 0,
   getQuotations: async () => [{ code: 'DOL', rate: 1000 }],
   getUnits: async () => [{ id: 7, name: 'unidades' }],
   // Las notas E de los ejemplos ajustan una factura E de servicios en dolares.

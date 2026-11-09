@@ -20,7 +20,6 @@ import { buildExportEquivalentCommand } from '../../modules/interactive/export-e
 import { BACK, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { formatPdfOutcomeAsText } from '../../modules/pdf/pdf.presenter';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
-import { ArcaExportGateway } from '../../services/arca/arca-export.gateway';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 import { attachExportPdf } from '../commands/export.command.pdf';
 import { withSpinner } from '../spinner';
@@ -44,7 +43,6 @@ interface ExportFlowState {
   readonly paymentDate?: string;
   readonly paymentTerms?: string;
   readonly sameCurrency?: boolean;
-  readonly voucherNumber?: number;
 }
 
 /** Lo que el asistente necesita de WSFEX antes de preguntar: paises para validar el destino y la tabla de actividades. */
@@ -240,17 +238,6 @@ function exportSteps(
       },
       skip: () => configuredActivity !== undefined,
     },
-    {
-      name: 'numero',
-      run: async () => {
-        const answer = await askTextStep(
-          'Número del comprobante (el siguiente al último E de este punto de venta; 1 si es el primero):',
-          { validate: validatePositiveInteger('El número') },
-        );
-
-        return answer === BACK ? BACK : { voucherNumber: parseStrictInteger(answer) };
-      },
-    },
   ];
 }
 
@@ -341,7 +328,7 @@ export async function emitExportVoucher(
  */
 export async function runExportFlow(session: InteractiveSession): Promise<typeof BACK | void> {
   const { config } = session.runtime;
-  const gateway = new ArcaExportGateway(new ArcaClientFactory().createForExport(session.runtime));
+  const gateway = new ArcaClientFactory().createExportGateway(session.runtime);
   const tables = await withSpinner('Consultando las tablas de WSFEX...', async () => ({
     activities: new Set((await gateway.getActivities()).map((activity) => activity.id)),
     countries: await gateway.getDestinationCountries(),
@@ -372,7 +359,6 @@ export async function runExportFlow(session: InteractiveSession): Promise<typeof
     paymentDate: state.paymentDate,
     paymentTerms: state.paymentTerms,
     sameCurrency: state.sameCurrency,
-    voucherNumber: state.voucherNumber,
   };
 
   await emitExportVoucher(session, gateway, input, activity);

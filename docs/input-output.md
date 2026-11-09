@@ -180,7 +180,7 @@ La factura `E` (`arcli fe` o `arcli factura e`) y sus notas de crédito y débit
 | `domicilioCliente`                          | string            | sí        | Domicilio del cliente                                                                                                                                              |
 | `paisDestino`                               | string \| number  | sí        | Código de ARCA o nombre del país (`203`, `"Brasil"`)                                                                                                               |
 | `montoTotal`                                | number            | sí        | Total del comprobante, igual que en A, B y C. `monto` sigue andando, con un aviso, hasta la 3.0.0; las dos juntas son un error. Tiene que dar la suma de los ítems |
-| `numero`                                    | number            | sí        | El siguiente al último `E` de ese punto de venta: ARCLI todavía no lo puede consultar en WSFEX                                                                     |
+| `numero`                                    | number            | no        | Por defecto, el siguiente al último de ese tipo en el punto de venta, que arcli consulta en WSFEX                                                                  |
 | `actividad`                                 | number            | sí\*      | Código de la tabla de actividades de WSFEX. \*Si falta, sale de `exportacion.actividad`                                                                            |
 | `items`                                     | array             | no        | Renglones (ver abajo). Sin ítems va uno solo con `descripcion` por el total                                                                                        |
 | `idImpositivo`                              | string            | no        | ID impositivo del cliente en su país                                                                                                                               |
@@ -1004,14 +1004,14 @@ Los pasos previos no cuentan: si falla el login en WSAA (por ejemplo, un certifi
 }
 ```
 
-En la factura E (`fe`) el número lo pasás vos con `--numero`, y ARCA no autoriza dos comprobantes con el mismo número. Por eso la `sugerencia` no manda a verificar con `arcli ultimos` (que no acepta `fe`) sino a reintentar con los mismos `--numero` e `--id-solicitud`, que también vienen en `detalles`:
+En la E el número ya está fijado en la solicitud, y ARCA no autoriza dos comprobantes con el mismo número. Por eso la `sugerencia` manda a verificar ese número con `arcli consultar` y, si hay que reintentar, a usar los mismos `--numero` e `--id-solicitud`, que también vienen en `detalles`:
 
 ```json
 {
   "codigo": "EMISSION_UNCERTAIN",
   "detalles": { "causa": "socket hang up", "idSolicitud": 42, "numero": 7 },
   "error": "No se pudo confirmar la emisión: socket hang up",
-  "sugerencia": "Puede haberse emitido igual. Si reintentás, usá el mismo número y la misma solicitud (`--numero 7 --id-solicitud 42 --pv 3`): si ya se había emitido, ARCA no lo autoriza dos veces."
+  "sugerencia": "Puede haberse emitido igual. Verificalo con `arcli consultar fe 7 --pv 3 --testing`: si figura, ya está emitido. Si reintentás, usá el mismo número y la misma solicitud (`--numero 7 --id-solicitud 42 --pv 3 --testing`): si ya se había emitido, ARCA no lo autoriza dos veces."
 }
 ```
 

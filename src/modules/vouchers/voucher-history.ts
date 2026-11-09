@@ -57,7 +57,7 @@ export function inferIvaRate(netAmount: number, ivaAmount: number): BillingIvaRa
   );
 }
 
-interface ListVouchersOptions {
+export interface ListVouchersOptions {
   readonly concurrency?: number;
   readonly limit?: number;
 }
@@ -82,17 +82,29 @@ export async function listVouchersFrom(
   fromNumber: number,
   options: ListVouchersOptions = {},
 ): Promise<IssuedVoucher[]> {
+  return fetchVouchersBackwards(fromNumber, (number) => gateway.getVoucher(number, pointOfSale, voucherType), options);
+}
+
+/**
+ * Pide los comprobantes desde `fromNumber` hacia atras, del mas nuevo al mas viejo, y descarta los que no existen.
+ * Sirve para wsfe y para wsfex: cada uno sabe como pedir uno.
+ */
+export async function fetchVouchersBackwards<T>(
+  fromNumber: number,
+  fetch: (number: number) => Promise<T | null | undefined>,
+  options: ListVouchersOptions = {},
+): Promise<T[]> {
   const limit = options.limit ?? RECENT_VOUCHERS_LIMIT;
   const concurrency = options.concurrency ?? 4;
   const numbers = Array.from({ length: Math.max(0, Math.min(limit, fromNumber)) }, (_, index) => fromNumber - index);
-  const vouchers: Array<IssuedVoucher | undefined> = [];
+  const vouchers: Array<T | null | undefined> = [];
 
   // Lotes chicos: cada consulta tarda ~0,5 s y no conviene saturar el web service.
   for (let start = 0; start < numbers.length; start += concurrency) {
     const batch = numbers.slice(start, start + concurrency);
 
-    vouchers.push(...(await Promise.all(batch.map((number) => gateway.getVoucher(number, pointOfSale, voucherType)))));
+    vouchers.push(...(await Promise.all(batch.map(fetch))));
   }
 
-  return vouchers.filter((voucher): voucher is IssuedVoucher => Boolean(voucher));
+  return vouchers.filter((voucher): voucher is T => voucher !== null && voucher !== undefined);
 }
