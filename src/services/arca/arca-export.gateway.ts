@@ -1,6 +1,3 @@
-import type { Arca } from '@arcasdk/core';
-import type { IFEXAuthorizeInput, IFEXAuthorizeOutput } from '@arcasdk/core/lib/application/dto/fex';
-
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { AppError } from '../../lib/errors/app-error';
 import type {
@@ -18,6 +15,8 @@ import type {
   ExportVoucherPayload,
   ExportVoucherQuery,
 } from '../../modules/export/export.types';
+
+import type { Arca, IFEXAuthorizeInput, IFEXAuthorizeOutput } from './arca-sdk.types';
 
 const NOT_AUTHORIZED_MESSAGE =
   'El certificado no está autorizado para el servicio wsfex (factura de exportación). Autorizalo igual que wsfe: en testing desde WSASS ("Crear autorización a servicio") y en producción desde el Administrador de Relaciones.';

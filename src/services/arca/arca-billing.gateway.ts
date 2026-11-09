@@ -1,11 +1,8 @@
-import type { Arca } from '@arcasdk/core';
-import type { CreateVoucherResultDto } from '@arcasdk/core/lib/application/dto/electronic-billing';
-import type { IVoucher } from '@arcasdk/core/lib/domain/types/voucher.types';
-
 import { AppError } from '../../lib/errors/app-error';
 import type { BillingGateway } from '../../modules/billing/billing.types.internal';
 
 import { toDetailErrors, withDeprecatedErrors } from './arca-error-details';
+import type { Arca, CreateVoucherResultDto, IVoucher } from './arca-sdk.types';
 import { getLastAuthorizedNumber, rethrowIfWsfeNotAuthorized } from './last-voucher';
 
 /** Tope de numeracion de ARCA; el SDK lo valida igual en `createNextVoucher`. */

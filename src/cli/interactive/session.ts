@@ -1,5 +1,3 @@
-import type { Arca } from '@arcasdk/core';
-
 import {
   formatEmissionQuestion,
   formatVoucherWithArticle,
@@ -14,6 +12,7 @@ import { ArcaBillingGateway } from '../../services/arca/arca-billing.gateway';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { ArcaContextResolver, type ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
 import { ArcaFceObligationGateway } from '../../services/arca/arca-fce-obligation.gateway';
+import type { Arca } from '../../services/arca/arca-sdk.types';
 import { ArcaVoucherHistoryGateway } from '../../services/arca/arca-voucher-history.gateway';
 import { colorize, noticePanel, renderPanel, uiSymbol, writeTerminalOutput } from '../../ui';
 import { formatBillingOutputs } from '../commands/billing.command.output';

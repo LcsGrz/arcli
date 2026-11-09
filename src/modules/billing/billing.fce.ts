@@ -1,6 +1,5 @@
-import type { IOpcional } from '@arcasdk/core/lib/domain/types/voucher.types';
-
 import { InputValidationError } from '../../lib/errors/app-error';
+import type { IOpcional } from '../../services/arca/arca-sdk.types';
 
 import { formatVoucherSubject } from './billing.mappers';
 import type { BillingCommandInput } from './billing.schemas';

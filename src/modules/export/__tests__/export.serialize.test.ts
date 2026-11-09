@@ -1,6 +1,6 @@
-import type { IFEXAuthorizeOutput } from '@arcasdk/core/lib/application/dto/fex';
 import { describe, expect, it } from 'vitest';
 
+import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
 import { mapExportResponse } from '../export.response';
 import { formatExportResultAsJson, serializeExportResult } from '../export.serialize';
 import {

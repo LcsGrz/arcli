@@ -1,8 +1,7 @@
-import type { Arca } from '@arcasdk/core';
-import type { IVoucher } from '@arcasdk/core/lib/domain/types/voucher.types';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ArcaBillingGateway } from '../arca-billing.gateway';
+import type { Arca, IVoucher } from '../arca-sdk.types';
 
 function createGateway(service: Record<string, unknown>): ArcaBillingGateway {
   return new ArcaBillingGateway({ electronicBillingService: service } as unknown as Arca);
