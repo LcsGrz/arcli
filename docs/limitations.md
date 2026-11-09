@@ -29,7 +29,7 @@ ARCLI los trata mejor en la salida, pero no los elimina.
 
 ### Factura de exportación (E)
 
-WSFEX emite solo la factura `E`: las notas de crédito y débito de exportación no están soportadas. Tampoco hay lote: el JSON de `--cargar` tiene que ser un objeto.
+ARCLI emite la factura `E` y sus notas de crédito y débito (`nce`, `nde`). No hay lote: el JSON de `--cargar` tiene que ser un objeto.
 
 - Sin concepto, fechas de servicio, IVA discriminado, comprobante asociado ni datos FCE: esos flags y sus defaults de config no aplican a `E`.
 - `--tipo-expo` acepta solo `1` (bienes), `2` (servicios) y `4` (otros), y por defecto la `E` sale de servicios; la moneda por defecto es `DOL` y la forma de pago `Transferencia Internacional`. Las claves `moneda` y `cotizacion` de la config no aplican. La tabla de ARCA se consulta igual para validar países, unidades, incoterms e idiomas.
@@ -38,6 +38,8 @@ WSFEX emite solo la factura `E`: las notas de crédito y débito de exportación
 - La actividad no tiene default: se informa con `--actividad` o `exportacion.actividad`.
 - El certificado tiene que estar autorizado a `wsfex`, además de `wsfe`. Se puede usar uno propio con `exportacion.cert.*` / `exportacion.key.*` ([configuración](configuration.md#certificados-de-exportación-wsfex)).
 - La cotización es la de aduana que publica WSFEX (`FEXGetPARAM_MON_CON_COTIZACION`), no la de `wsfe`, y no se toma de la clave `cotizacion` de la config.
+- Las notas `E` no informan permisos de embarque, aunque ARCA los acepta como opcionales en las de bienes.
+- En homologación, ARCA rechazó una nota de crédito de servicios asociada a una nota de débito (error 2055) aunque la nota de débito tenía su factura asociada. ARCLI no la bloquea: si ARCA la rechaza, no se emite nada.
 
 ### Recibo C con la plantilla de factura
 

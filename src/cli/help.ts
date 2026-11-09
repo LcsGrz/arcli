@@ -14,9 +14,14 @@ import { CONFIG_LABELS, CONFIG_SECTIONS } from '../modules/config/config.section
 import {
   buildMinimalFamilyExample,
   buildMinimalShortcutExample,
-  EXPORT_MINIMAL_EXAMPLE,
+  exportMinimalExample,
 } from '../modules/examples/examples';
-import { EXPORT_VOUCHER_KIND } from '../modules/export/export.types';
+import {
+  EXPORT_VOUCHER_KIND,
+  type ExportVoucherKind,
+  getExportVoucherKindByFamily,
+  isExportNote,
+} from '../modules/export/export.types';
 import { CONFIG_FIELDS } from '../modules/interactive/config-fields';
 import { resolveUpdateCommand } from '../modules/update-check/package-manager';
 import { renderLogo, uiSymbol } from '../ui';
@@ -80,11 +85,12 @@ function compactList(values: readonly string[]): string {
   return values.map((value) => `  - ${value}`).join('\n');
 }
 
-/** Un atajo por letra (`-` si la familia no tiene esa letra); la E (exportacion, WSFEX) solo existe en `factura`. */
+/** Un atajo por letra (`-` si la familia no tiene esa letra); la E (exportacion, WSFEX) en factura y notas. */
 function familyShortcuts(family: VoucherFamily): readonly string[] {
   const shortcuts = VOUCHER_LETTERS.map((letter) => getVoucherKindByFamilyAndLetter(family, letter)?.shortcut ?? '-');
+  const exportKind = getExportVoucherKindByFamily(family);
 
-  return family === EXPORT_VOUCHER_KIND.family ? [...shortcuts, EXPORT_VOUCHER_KIND.shortcut] : shortcuts;
+  return exportKind ? [...shortcuts, exportKind.shortcut] : shortcuts;
 }
 
 /** Los atajos en una tabla familia × letra, en lugar de un renglón por atajo en la lista de comandos. */
@@ -162,9 +168,9 @@ function createShortcutSummary(shortcut: VoucherShortcut): string {
 
 function createFamilySummary(family: VoucherFamily): string {
   const [a, b, c] = familyShortcuts(family);
-  const hasExport = family === EXPORT_VOUCHER_KIND.family;
-  const summary = hasExport
-    ? `${FAMILY_LABELS[family]}, letras A, B, C y E (exportación): arcli ${family} <a|b|c|e>. Atajos: ${a}, ${b}, ${c} y ${EXPORT_VOUCHER_KIND.shortcut}. Los flags que no aplican a la letra se saltean con un aviso.`
+  const exportKind = getExportVoucherKindByFamily(family);
+  const summary = exportKind
+    ? `${FAMILY_LABELS[family]}, letras A, B, C y E (exportación): arcli ${family} <a|b|c|e>. Atajos: ${a}, ${b}, ${c} y ${exportKind.shortcut}. Los flags que no aplican a la letra se saltean con un aviso.`
     : getVoucherFamilyLetters(family).length === 1
       ? `${FAMILY_LABELS[family]}, solo letra C: arcli ${family} c. Atajo: ${c}.`
       : `${FAMILY_LABELS[family]}, letras A, B y C: arcli ${family} <a|b|c>. Atajos: ${a}, ${b} y ${c}.`;
@@ -180,8 +186,10 @@ function createFamilySummary(family: VoucherFamily): string {
 
           return definition ? [`Letra ${letter.toUpperCase()}: ${buildMinimalFamilyExample(definition)}`] : [];
         }),
-        ...(hasExport
-          ? [`Letra E: ${EXPORT_MINIMAL_EXAMPLE.replace('arcli fe -m', `arcli ${family} e --monto`)}`]
+        ...(exportKind
+          ? [
+              `Letra E: ${exportMinimalExample(exportKind).replace(`arcli ${exportKind.shortcut} -m`, `arcli ${family} e --monto`)}`,
+            ]
           : []),
         `Desde un JSON: arcli ${family} c --cargar ./voucher.json --json`,
       ]),
@@ -492,9 +500,29 @@ export function createShortcutHelp(shortcut: VoucherShortcut): string {
   ].join('\n');
 }
 
-/** Ayuda de `arcli fe`: la E no tiene concepto, IVA ni receptor argentino, asi que no usa las reglas de A, B y C. */
-export function createExportShortcutHelp(): string {
-  const { arcaType, displayName, family, letter, shortcut } = EXPORT_VOUCHER_KIND;
+/** Lo que cambia entre la factura y las notas E. */
+function exportVoucherRules(kind: ExportVoucherKind): string[] {
+  if (!isExportNote(kind)) {
+    return [
+      'Sin flags sale de servicios (--tipo-expo 2), en dólares (USD) y con forma de pago "Transferencia Internacional".',
+      'La actividad sale de --actividad o de exportacion.actividad en la config.',
+    ];
+  }
+
+  return [
+    'Ajusta una factura E ya emitida: --ar es su número y --apv su punto de venta (por defecto, el de la nota). Para ajustar otra nota E, --ac nde o --ac nce.',
+    'Cliente, destino, tipo de exportación, moneda, cotización y actividad salen del comprobante asociado; un flag los reemplaza.',
+    'En servicios (--tipo-expo 2) ARCA exige el mismo destino, moneda y cotización que el asociado.',
+    'No lleva fecha de pago, --misma-moneda ni permisos de embarque.',
+  ];
+}
+
+/** Ayuda de `arcli fe`, `nde` y `nce`: la E no tiene concepto, IVA ni receptor argentino, asi que no usa las reglas de A, B y C. */
+export function createExportShortcutHelp(kind: ExportVoucherKind = EXPORT_VOUCHER_KIND): string {
+  const { arcaType, displayName, family, letter, shortcut } = kind;
+  const minimal = exportMinimalExample(kind);
+  const file = isExportNote(kind) ? `./${shortcut}.json` : './factura-e.json';
+  const item = isExportNote(kind) ? '"001|Ajuste de precio|1|500|unidades"' : '"001|Consultoría|10|150|unidades"';
 
   return [
     '',
@@ -502,8 +530,7 @@ export function createExportShortcutHelp(): string {
       'Comprobante',
       compactList([
         `${displayName}, tipo ARCA ${arcaType}, por WSFEX. Es lo mismo que arcli ${family} ${letter}.`,
-        'Sin flags sale de servicios (--tipo-expo 2), en dólares (USD) y con forma de pago "Transferencia Internacional".',
-        'La actividad sale de --actividad o de exportacion.actividad en la config.',
+        ...exportVoucherRules(kind),
         '--numero es obligatorio: arcli todavía no puede consultar en WSFEX el último comprobante emitido.',
       ]),
     ),
@@ -511,10 +538,10 @@ export function createExportShortcutHelp(): string {
     section(
       'Ejemplos',
       compactList([
-        `Vista previa: ${EXPORT_MINIMAL_EXAMPLE}`,
-        `Emitir: ${EXPORT_MINIMAL_EXAMPLE} --emitir`,
-        `Con ítems, que tienen que sumar --monto: ${EXPORT_MINIMAL_EXAMPLE} --item "001|Consultoría|10|150|unidades"`,
-        `Desde un JSON: arcli ${shortcut} --cargar ./factura-e.json --json`,
+        `Vista previa: ${minimal}`,
+        `Emitir: ${minimal} --emitir`,
+        `Con ítems, que tienen que sumar --monto: ${minimal} --item ${item}`,
+        `Desde un JSON: arcli ${shortcut} --cargar ${file} --json`,
         'Más ejemplos: arcli ejemplos',
       ]),
     ),

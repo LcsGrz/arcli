@@ -224,6 +224,36 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
 
 Detalle de flags: [Factura de exportación `E`](cli-reference.md#factura-de-exportación-e-wsfex).
 
+## Nota de crédito o débito E
+
+### Cuándo usarlo
+
+Para ajustar una factura de exportación ya emitida: un descuento o una devolución (`nce`) o un cargo adicional (`nde`).
+
+### Requisitos
+
+- el número de la factura E (y su punto de venta, si es otro que el de la nota)
+- el número de la nota: el siguiente al último de ese tipo en el punto de venta
+
+### Comando
+
+```bash
+arcli nce -m 500 --ar 1 --apv 4 --numero 1
+```
+
+### Resultado esperado
+
+- cliente, destino, moneda, cotización y actividad salen de la factura, que arcli consulta en ARCA
+- la vista previa muestra la factura asociada con su fecha y su total
+
+### Errores comunes
+
+- ARCA no tiene la factura: revisá `--ar` y `--apv`
+- la nota de crédito supera el total de la factura
+- en servicios, otra cotización, moneda o destino que la factura: ARCA los rechaza
+
+Detalle: [Notas de crédito y débito de exportación](cli-reference.md#notas-de-crédito-y-débito-de-exportación-e).
+
 ## Renovar el certificado
 
 ### Cuándo usarlo

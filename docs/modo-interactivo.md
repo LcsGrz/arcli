@@ -34,7 +34,7 @@ El modo interactivo no agrega comandos de emisión ni cambia flags, claves de co
 
 Si hay una versión nueva de ARCLI, el menú suma arriba de todo **Actualizar a la versión X.Y.Z** (ver [Actualizar](#actualizar)).
 
-**Opciones nuevas.** Lo que se sumó en las últimas versiones lleva `(nuevo)` al final, en color: Emitir recibo, Certificados de ARCA y Acceso directo en el escritorio en Configuración, y Recibo C al elegir sobre qué comprobante va una nota. Configuración también lo lleva mientras tenga alguna opción nueva adentro. La marca se va sola dos versiones menores después de la que trajo la opción.
+**Opciones nuevas.** Lo que se sumó en las últimas versiones lleva `(nuevo)` al final, en color: Emitir recibo, Certificados de ARCA y Acceso directo en el escritorio en Configuración, Recibo C y Factura de exportación E al elegir sobre qué comprobante va una nota. Configuración también lo lleva mientras tenga alguna opción nueva adentro. La marca se va sola dos versiones menores después de la que trajo la opción.
 
 Debajo del logo va la versión de ARCLI. Arriba del menú, la barra de estado muestra a la izquierda quién emite (la razón social de `emisor.razonSocial` o, si no está, el CUIT) y el punto de venta, y a la derecha cómo está ARCA y el entorno (`TESTING` en naranja o `PRODUCCIÓN` en celeste):
 
@@ -134,7 +134,7 @@ Se elige desde el menú: **Emitir nota de crédito** (descuento, devolución o a
 
 | Paso | Pregunta              | Detalle                                                                                                                                                                                                                                                                                                                                                                                    |
 | ---- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1    | Comprobante original  | Factura A, B o C, comunes o FCE, o Recibo C                                                                                                                                                                                                                                                                                                                                                |
+| 1    | Comprobante original  | Factura A, B o C, comunes o FCE, Recibo C o la de exportación E ([abajo](#nota-de-crédito-o-débito-e))                                                                                                                                                                                                                                                                                     |
 | 2    | Comprobante o período | En notas comunes, se elige si asociarla al comprobante (una factura o un recibo) o a un período (desde y hasta). Con período, se pregunta además el receptor y el concepto. Las notas FCE siempre van sobre una factura                                                                                                                                                                    |
 | 3    | Factura               | Lista las últimas 15 facturas de ese tipo emitidas en el punto de venta configurado (la cantidad se cambia con `config.comprobantesPorLista`), consultadas a ARCA, con número, fecha, receptor, total y CAE. Abajo de la lista: **Cargar más…** trae las anteriores, e **Ingresar el número a mano…** pide punto de venta y número (sirve para una factura vieja o de otro punto de venta) |
 | 4    | Monto                 | En crédito: anular el total o ingresar un monto parcial (no puede superar el total de la factura). En débito: el monto a sumar                                                                                                                                                                                                                                                             |
@@ -142,6 +142,20 @@ Se elige desde el menú: **Emitir nota de crédito** (descuento, devolución o a
 | 6    | Anulación             | Solo en NC/ND FCE: si la factura fue rechazada por el comprador                                                                                                                                                                                                                                                                                                                            |
 
 La nota hereda de la factura el concepto, el receptor (tipo y número de documento), la moneda y la alícuota de IVA cuando se puede deducir de los importes. El comprobante asociado se completa solo: tipo, punto de venta (el de la factura, aunque sea otro que el configurado), número, CUIT del emisor y fecha.
+
+### Nota de crédito o débito E
+
+Al elegir **Factura de exportación E** como comprobante original, la nota sigue estos pasos:
+
+| Paso | Pregunta                     | Detalle                                                                                               |
+| ---- | ---------------------------- | ----------------------------------------------------------------------------------------------------- |
+| 1    | Punto de venta de la factura | Por defecto, el configurado                                                                           |
+| 2    | Número de la factura         | La busca en ARCA y muestra a quién y por cuánto fue; si no existe, avisa y vuelve a preguntar         |
+| 3    | Monto                        | En la moneda de la factura. En crédito no puede superar su total                                      |
+| 4    | Detalle                      | Opcional; por defecto "Según detalle"                                                                 |
+| 5    | Número de la nota            | El siguiente al último de ese tipo en el punto de venta: arcli todavía no lo puede consultar en WSFEX |
+
+Cliente, destino, moneda, cotización y actividad salen de la factura. Después muestra la vista previa y el comando equivalente (`arcli nce …` o `arcli nde …`), y pregunta antes de emitir, como la factura E.
 
 ## Repetir un comprobante anterior
 

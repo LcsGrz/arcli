@@ -170,7 +170,7 @@ Los nombres de las claves no siempre coinciden con los flags. Si pasás las dos 
 
 ## Factura de exportación (E)
 
-La factura `E` (`arcli fe` o `arcli factura e`) no comparte el JSON de facturación: no tiene concepto, IVA ni receptor con documento, y `--cargar` acepta **un objeto, nunca un array** (el lote de exportación no está soportado y responde `INPUT_VALIDATION_ERROR`). Una clave desconocida es error: una clave desconocida también es error.
+La factura `E` (`arcli fe` o `arcli factura e`) y sus notas de crédito y débito (`arcli nce`, `arcli nde`) no comparten el JSON de facturación: no tiene concepto, IVA ni receptor con documento, y `--cargar` acepta **un objeto, nunca un array** (el lote de exportación no está soportado y responde `INPUT_VALIDATION_ERROR`). Una clave desconocida es error: una clave desconocida también es error.
 
 ### Input de `--cargar`
 
@@ -198,6 +198,7 @@ La factura `E` (`arcli fe` o `arcli factura e`) no comparte el JSON de facturaci
 | `observaciones`, `observacionesComerciales` | string            | no        | Van a `Obs` y `Obs_comerciales`                                                                                                                                    |
 | `descripcion`                               | string            | no        | Descripción del renglón único cuando no hay `items`; por defecto `Según detalle`                                                                                   |
 | `pdf`, `emitir`, `previsualizar`            | boolean           | no        | Igual que en el resto de los comprobantes: `"previsualizar": false` no emite, decide la config (y en una terminal pregunta)                                        |
+| `comprobanteAsociado`                       | object            | notas     | Solo en `nce` y `nde`: el comprobante que ajusta la nota (ver abajo). En `fe` es un error                                                                          |
 
 Cada ítem:
 
@@ -208,6 +209,30 @@ Cada ítem:
 | `precioUnitario` | number           | sí        | `Pro_precio_uni`; el total del renglón lo calcula ARCLI   |
 | `codigo`         | string           | no        | `Pro_codigo`                                              |
 | `unidad`         | string \| number | no        | Código de ARCA o nombre de la tabla (`7`, `"kilogramos"`) |
+
+`comprobanteAsociado` usa las mismas claves que en A, B y C:
+
+| Campo        | Tipo   | Requerido | Descripción                                                           |
+| ------------ | ------ | --------- | --------------------------------------------------------------------- |
+| `numero`     | number | sí        | Número del comprobante asociado                                       |
+| `puntoVenta` | number | no        | Por defecto, el punto de venta de la nota                             |
+| `atajo`      | string | no        | `fe` (por defecto), `nde` o `nce`                                     |
+| `tipo`       | number | no        | `19`, `20` o `21`; si va con `atajo`, tienen que coincidir            |
+| `cuit`       | string | no        | Solo puede ser el CUIT emisor (error 2031 de ARCA)                    |
+| `fecha`      | string | no        | No se usa: la fecha sale de ARCA. Si viene, sale un aviso en `avisos` |
+
+En una nota, `cliente`, `domicilioCliente`, `paisDestino`, `actividad` y la moneda salen del asociado si faltan, y `fechaPago`, `mismaMoneda`, `permisos` y `permisoExistente` son un error, porque ARCA los rechaza en las notas.
+
+```json
+{
+  "montoTotal": 500,
+  "numero": 1,
+  "comprobanteAsociado": { "atajo": "fe", "puntoVenta": 4, "numero": 1 },
+  "previsualizar": true
+}
+```
+
+Una factura:
 
 ```json
 {
@@ -236,7 +261,7 @@ Cada ítem:
 
 ### Output JSON
 
-Es el mismo resumen que A, B y C (`atajo`, `cae`, `estado`, `errores`, `observaciones`, `pdf`…) con `atajo: "fe"` y `tipoArca: 19`, y `numero`, también en la vista previa, porque lo informás vos. Suma un bloque `exportacion` con lo que WSFEX tiene y `wsfe` no. `solicitud` es el `Cmp` de WSFEX, con los nombres de ARCA.
+Es el mismo resumen que A, B y C (`atajo`, `cae`, `estado`, `errores`, `observaciones`, `pdf`…) con `atajo: "fe"` y `tipoArca: 19` (`nce` y `21`, `nde` y `20` en las notas), y `numero`, también en la vista previa, porque lo informás vos. Suma un bloque `exportacion` con lo que WSFEX tiene y `wsfe` no. `solicitud` es el `Cmp` de WSFEX, con los nombres de ARCA.
 
 ```json
 {
@@ -247,6 +272,7 @@ Es el mismo resumen que A, B y C (`atajo`, `cae`, `estado`, `errores`, `observac
   "exportacion": {
     "actividad": [620100],
     "cliente": "ACME LLC",
+    "comprobanteAsociado": null,
     "cuitPaisCliente": 55000002126,
     "destino": { "codigo": 212, "nombre": "ESTADOS UNIDOS" },
     "domicilioCliente": "123 Main St",
@@ -275,9 +301,26 @@ Es el mismo resumen que A, B y C (`atajo`, `cae`, `estado`, `errores`, `observac
 }
 ```
 
+`exportacion.comprobanteAsociado` es `null` en la factura. En las notas trae el comprobante que ajustan, con la fecha y el total que devolvió ARCA:
+
+```json
+{
+  "comprobanteAsociado": {
+    "atajo": "fe",
+    "fecha": "20261030",
+    "numero": 1,
+    "puntoVenta": 4,
+    "tipoArca": 19,
+    "total": 1500
+  }
+}
+```
+
+En las notas, `solicitud` lleva `Cmps_asoc` con el asociado y `Permiso_existente` vacío, y no lleva `Fecha_pago` ni `CanMisMonExt`.
+
 `exportacion.destino.nombre`, `exportacion.incotermDescripcion` y `exportacion.items[].unidad` salen de las tablas de WSFEX; si la tabla no trae el nombre, quedan en `null` y el código numérico sigue disponible. `exportacion.actividad` lista los códigos de actividad informados en `solicitud.Actividades` (de `--actividad` o de `exportacion.actividad`) y `exportacion.mismaMoneda` indica si el pago se cancela en la misma moneda extranjera (`solicitud.CanMisMonExt` en `S`).
 
-Una actividad que no está en la tabla de actividades de WSFEX es `INPUT_VALIDATION_ERROR` antes de ir a ARCA, porque ARCA la rechaza (error 2105). En `arcli factura e`, los flags de A, B y C que se saltean salen en `avisos`. `solicitud` no trae `Cmps_asoc` ni `Opcionales` mientras el comprobante no los informe: ARCA rechaza esos bloques vacíos (error 1820 el primero).
+Una actividad que no está en la tabla de actividades de WSFEX es `INPUT_VALIDATION_ERROR` antes de ir a ARCA, porque ARCA la rechaza (error 2105). En `arcli factura e`, los flags de A, B y C que se saltean salen en `avisos`. En la factura, `solicitud` no trae `Cmps_asoc` ni `Opcionales`: ARCA rechaza esos bloques vacíos (error 1820 el primero).
 
 `solicitud` no incluye `Permisos` cuando el comprobante no informa permisos de embarque: ARCA rechaza ese campo (error 1720) si `Permiso_existente` es `N`. En las exportaciones de servicios (`tipoExpo: 2`) y otros (`tipoExpo: 4`) ARCA exige ese campo **vacío** (error 1550), así que `solicitud.Permiso_existente` sale `""` y los permisos de embarque no se admiten.
 

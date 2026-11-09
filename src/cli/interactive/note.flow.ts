@@ -8,9 +8,11 @@ import {
   type BillingConcept,
 } from '../../modules/billing/billing.schemas';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
+import { EXPORT_VOUCHER_KIND, type ExportVoucherKind } from '../../modules/export/export.types';
 import { parseAmountInput } from '../../modules/interactive/amount-input';
 import {
   conceptChoices,
+  exportInvoiceChoice,
   invoiceKindChoices,
   ivaRateChoices,
   noteKindChoices,
@@ -22,6 +24,7 @@ import { BACK, type Back, requireStepValue, runWizard, type WizardStep } from '.
 import { type IssuedVoucher, resolveDocumentType } from '../../modules/vouchers/voucher-history';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 
+import { runExportNoteFlow } from './export-note.flow';
 import { pickInvoice } from './invoice-picker';
 import { markIfNew } from './new-mark';
 import { askTextStep, chooseStep } from './prompts';
@@ -44,6 +47,8 @@ export interface NoteState {
   readonly documentType?: BillingCommandInput['documentType'];
   /** Anula la factura entera: la nota copia exento y no gravado. */
   readonly annulsTotal?: boolean;
+  /** Se eligio una factura E: el asistente de la nota E ya corrio y el resto de los pasos no aplica. */
+  readonly exported?: boolean;
   readonly invoice?: IssuedVoucher;
   readonly invoiceKind?: VoucherKindDefinition;
   /** Punto de venta de la factura asociada; ingresada a mano puede no ser el configurado. */
@@ -100,16 +105,30 @@ async function askNoteAmount(
 
 /** Pasos del flujo de notas; cada uno se puede deshacer con "Volver". */
 export function noteSteps(session: InteractiveSession, pointOfSale: number): Array<WizardStep<NoteState>> {
-  return [
+  const steps: Array<WizardStep<NoteState>> = [
     {
       name: 'tipo-factura',
-      run: async () => {
-        const invoiceKind = await chooseStep('¿Sobre qué comprobante?', [
-          ...invoiceKindChoices(),
-          markIfNew(reciboChoice(), 'recibo'),
-        ]);
+      run: async (state) => {
+        // Volver desde el primer paso de la nota E vuelve a este selector.
+        for (;;) {
+          const invoiceKind = await chooseStep<ExportVoucherKind | VoucherKindDefinition>('¿Sobre qué comprobante?', [
+            ...invoiceKindChoices(),
+            markIfNew(reciboChoice(), 'recibo'),
+            markIfNew(exportInvoiceChoice(), 'notas-e'),
+          ]);
 
-        return invoiceKind === BACK ? BACK : { invoiceKind, target: 'factura' };
+          if (invoiceKind === BACK) {
+            return BACK;
+          }
+
+          if (invoiceKind !== EXPORT_VOUCHER_KIND) {
+            return { invoiceKind: invoiceKind as VoucherKindDefinition, target: 'factura' };
+          }
+
+          if ((await runExportNoteFlow(session, state.kind ?? 'credito')) !== BACK) {
+            return { exported: true };
+          }
+        }
       },
     },
     {
@@ -278,6 +297,11 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
       skip: (state) => !state.invoiceKind?.isElectronicCredit,
     },
   ];
+
+  // La nota E tiene su propio asistente: despues del selector, ningun paso de A, B y C aplica.
+  return steps.map((step, index) =>
+    index === 0 ? step : { ...step, skip: (state) => Boolean(state.exported) || Boolean(step.skip?.(state)) },
+  );
 }
 
 /** Arma la entrada del CLI con lo que respondio el usuario. */
@@ -330,7 +354,7 @@ export async function runNoteFlow(session: InteractiveSession, kind: NoteKind): 
 
   const state = await runWizard(noteSteps(session, pointOfSale), { kind });
 
-  if (!state) {
+  if (!state || state.exported) {
     return;
   }
 

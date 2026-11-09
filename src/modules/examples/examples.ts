@@ -3,7 +3,12 @@ import { sectionHeading } from '../../ui/components';
 import { badge, renderLogo, toneText } from '../../ui/primitives';
 import type { VoucherFamily, VoucherKindDefinition } from '../billing/billing.types';
 import { VOUCHER_FAMILIES, VOUCHER_KIND_MAP, VOUCHER_SHORTCUTS } from '../billing/voucher-kind-map';
-import { EXPORT_VOUCHER_KIND } from '../export/export.types';
+import {
+  EXPORT_VOUCHER_KIND,
+  type ExportVoucherKind,
+  getExportVoucherKindByFamily,
+  isExportNote,
+} from '../export/export.types';
 
 const ISSUER_HINT =
   'Estos ejemplos asumen que ya resolviste CUIT emisor, credenciales y, en la versión mínima, también punto de venta por config.';
@@ -217,6 +222,40 @@ const EXPORT_CLIENT = '--cliente "ACME LLC" --domicilio-cliente "123 Main St" --
 /** El comando minimo de la factura E por shortcut, sin modo de ejecucion. Lo usa tambien la ayuda de `fe`. */
 export const EXPORT_MINIMAL_EXAMPLE = `arcli ${EXPORT_VOUCHER_KIND.shortcut} -m 1500 ${EXPORT_CLIENT} --actividad 620100`;
 
+/** La nota E toma el cliente, el destino y la moneda de la factura E que ajusta: alcanza con `--ar`. */
+const EXPORT_NOTE_ASSOCIATED = '--ar 1 --numero 1';
+
+/** El comando minimo de una E por shortcut, sin modo de ejecucion. Lo usa tambien la ayuda de `fe`, `nde` y `nce`. */
+export function exportMinimalExample(kind: ExportVoucherKind): string {
+  return isExportNote(kind) ? `arcli ${kind.shortcut} -m 500 ${EXPORT_NOTE_ASSOCIATED}` : EXPORT_MINIMAL_EXAMPLE;
+}
+
+/** Las notas E: el asociado alcanza para el minimo; el completo suma items, punto de venta y tipo del asociado. */
+function formatExportNoteExample(kind: ExportVoucherKind): string {
+  const { family, letter, shortcut } = kind;
+  const fullFlags = [
+    '--apv 3',
+    '--item "001|Ajuste de precio|1|500|unidades"',
+    '--obs-comerciales "Orden de compra 778"',
+  ];
+
+  return [
+    sectionHeading(kind.displayName),
+    '',
+    `${badge('MÍNIMA LARGA', 'info')}`,
+    `arcli ${family} ${letter} --monto 500 ${EXPORT_NOTE_ASSOCIATED} --previsualizar`,
+    '',
+    `${badge('MÍNIMA CORTA', 'success')}`,
+    `${exportMinimalExample(kind)} --previsualizar`,
+    '',
+    `${badge('COMPLETA LARGA', 'warning')}`,
+    `arcli ${family} ${letter} --monto 500 ${EXPORT_NOTE_ASSOCIATED} --ac fe ${fullFlags.join(' ')} --previsualizar`,
+    '',
+    `${badge('COMPLETA CORTA', 'info')}`,
+    `arcli ${shortcut} -m 500 ${EXPORT_NOTE_ASSOCIATED} --ac fe ${fullFlags.join(' ')} --previsualizar`,
+  ].join('\n');
+}
+
 /** La E no comparte flags de receptor ni de IVA con A, B y C: sus ejemplos se arman aparte. */
 function formatExportExample(): string {
   const { family, letter, shortcut } = EXPORT_VOUCHER_KIND;
@@ -244,6 +283,16 @@ function formatExportExample(): string {
     `${badge('COMPLETA CORTA', 'info')}`,
     `arcli ${shortcut} -m 1500 ${EXPORT_CLIENT} --actividad 620100 ${fullFlags.join(' ')} --mda USD --misma-moneda --previsualizar`,
   ].join('\n');
+}
+
+function exportFamilyExample(family: string): string[] {
+  const kind = getExportVoucherKindByFamily(family);
+
+  if (!kind) {
+    return [];
+  }
+
+  return ['', '', isExportNote(kind) ? formatExportNoteExample(kind) : formatExportExample()];
 }
 
 /** El comando minimo por shortcut (`arcli nca -m 1 --cs ...`), sin modo de ejecucion. Lo usa tambien la ayuda. */
@@ -275,11 +324,7 @@ export function renderExamples(today = new Date(), version?: string): string {
     '',
     ISSUER_HINT,
     '',
-    ...VOUCHER_FAMILIES.flatMap((family) => [
-      renderFamilyExamples(family, dates),
-      ...(family === EXPORT_VOUCHER_KIND.family ? ['', '', formatExportExample()] : []),
-      '',
-    ]),
+    ...VOUCHER_FAMILIES.flatMap((family) => [renderFamilyExamples(family, dates), ...exportFamilyExample(family), '']),
     '',
   ].join('\n');
 }

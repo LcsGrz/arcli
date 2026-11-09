@@ -17,7 +17,7 @@ src/cli (commander)
   -> presenter del módulo (billing.presenter.ts) con los paneles de src/ui (o JSON)
 ```
 
-La factura de exportación `E` recorre el mismo camino con otro módulo y otro gateway: `src/modules/export` (mezcla, validación de ítems y armado del `Cmp` de WSFEX) y `src/services/arca/arca-export.gateway.ts` (`wsfex`), porque WSFEX tiene otro contrato que `wsfe`.
+La factura de exportación `E` y sus notas recorren el mismo camino con otro módulo y otro gateway: `src/modules/export` (mezcla, validación de ítems y armado del `Cmp` de WSFEX) y `src/services/arca/arca-export.gateway.ts` (`wsfex`), porque WSFEX tiene otro contrato que `wsfe`.
 
 El comportamiento visible de cada paso está en el [modelo mental](mental-model.md).
 
@@ -62,7 +62,7 @@ Dentro del alcance del proyecto (A, B y C de factura, nota de crédito y débito
 3. Si cambia una regla de negocio, ajustala en `src/modules/billing/`.
 4. Actualizá tests y docs ([cli-reference](cli-reference.md), [validation-rules](validation-rules.md)).
 
-La letra `E` no pasa por `VOUCHER_KIND_MAP`: WSFEX tiene otro contrato (autorización que no lanza, ítems, país de destino, tablas propias), así que vive en `src/modules/export/` con su propio tipo (`EXPORT_VOUCHER_KIND`) y su gateway. Las notas de crédito y débito de exportación, si se agregan, van ahí.
+La letra `E` no pasa por `VOUCHER_KIND_MAP`: WSFEX tiene otro contrato (autorización que no lanza, ítems, país de destino, tablas propias), así que vive en `src/modules/export/` con sus propios tipos (`EXPORT_VOUCHER_KIND`, `EXPORT_CREDIT_NOTE_KIND`, `EXPORT_DEBIT_NOTE_KIND`) y su gateway. Las notas `E` consultan su asociado con `FEXGetCMP` (`ExportGateway.getVoucher`, una lectura) antes de armar el `Cmp`: toman de ahí cliente, destino y moneda, y lo comparan con las reglas que ARCA aplica contra el asociado (`src/modules/export/export.notes.ts`). A diferencia de `FEXGetLast_CMP`, `FEXGetCMP` lleva el `Cmp` fuera de `Auth`, así que el SDK no lo rompe.
 
 ### Agregar una clave de configuración
 

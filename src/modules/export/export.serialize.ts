@@ -1,6 +1,6 @@
 import { DEPRECATED_EXPORT_RESPONSE_KEYS } from '../../lib/json/deprecations';
 
-import type { ExportExecutionResult, ExportResponseError } from './export.types';
+import { type ExportExecutionResult, type ExportResponseError, getExportVoucherKindByArcaType } from './export.types';
 
 export interface ExportSerializeOptions {
   readonly raw?: boolean;
@@ -25,13 +25,26 @@ function formatRawResponse(result: ExportExecutionResult): unknown {
   return result.response.raw ?? { mensaje: 'Sin emisión real. Usá `--emitir` para obtener una respuesta de ARCA.' };
 }
 
-/** Lo que WSFEX tiene y wsfe no: destino, incoterm, permisos e items reales. */
+/** Lo que WSFEX tiene y wsfe no: destino, incoterm, permisos, items reales y el asociado de las notas. */
 function formatExportBlock(result: ExportExecutionResult): Record<string, unknown> {
   const { payload, display } = result;
+
+  const associated = payload.Cmps_asoc?.Cmp_asoc[0];
 
   return {
     actividad: payload.Actividades.Actividad.map((activity) => activity.Id),
     cliente: payload.Cliente,
+    // Solo en las notas; en la factura, null.
+    comprobanteAsociado: associated
+      ? {
+          atajo: getExportVoucherKindByArcaType(associated.Cbte_tipo)?.shortcut ?? null,
+          fecha: display.associatedVoucher?.date ?? null,
+          numero: associated.Cbte_nro,
+          puntoVenta: associated.Cbte_punto_vta,
+          tipoArca: associated.Cbte_tipo,
+          total: display.associatedVoucher?.total ?? null,
+        }
+      : null,
     cuitPaisCliente: payload.Cuit_pais_cliente,
     destino: { codigo: payload.Dst_cmp, nombre: display.countryName ?? null },
     domicilioCliente: payload.Domicilio_cliente,

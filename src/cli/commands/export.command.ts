@@ -7,7 +7,11 @@ import {
 } from '../../modules/billing/billing.mappers';
 import { formatExportResultAsJson, formatExportResultAsText } from '../../modules/export/export.presenter';
 import { ExportService } from '../../modules/export/export.service';
-import { EXPORT_VOUCHER_KIND, type ExportExecutionResult } from '../../modules/export/export.types';
+import {
+  EXPORT_VOUCHER_KIND,
+  type ExportExecutionResult,
+  type ExportVoucherKind,
+} from '../../modules/export/export.types';
 import { formatPdfOutcomeAsText } from '../../modules/pdf/pdf.presenter';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { ArcaExportGateway } from '../../services/arca/arca-export.gateway';
@@ -58,9 +62,12 @@ function resolveWarnings(
 }
 
 /** Esc cuenta como no, igual que en A, B y C. */
-async function promptForEmission(environment: 'produccion' | 'testing'): Promise<boolean> {
+async function promptForEmission(
+  voucherKind: ExportVoucherKind,
+  environment: 'produccion' | 'testing',
+): Promise<boolean> {
   return chooseOne(
-    formatEmissionQuestion(formatVoucherWithArticle(EXPORT_VOUCHER_KIND), environment),
+    formatEmissionQuestion(formatVoucherWithArticle(voucherKind), environment),
     [
       { name: 'Sí, emitir ahora', value: true },
       { name: 'No, dejar sin emitir', value: false },
@@ -73,6 +80,8 @@ async function promptForEmission(environment: 'produccion' | 'testing'): Promise
 export interface ExportCommandOptions {
   /** Avisos que arma quien llama, como los flags de A, B y C salteados en `arcli factura e`. */
   readonly extraWarnings?: readonly string[];
+  /** Factura, nota de debito o nota de credito E. Sin esto, factura. */
+  readonly voucherKind?: ExportVoucherKind;
 }
 
 /**
@@ -85,7 +94,8 @@ export async function executeExportCommand(command: Command, options: ExportComm
 
   try {
     const runtime = resolveArcaRuntime(globalOptions);
-    const plan = parseExportCommandPlan(command, { defaultEmit: runtime.config.output.emitirPorDefecto });
+    const voucherKind = options.voucherKind ?? EXPORT_VOUCHER_KIND;
+    const plan = parseExportCommandPlan(command, { defaultEmit: runtime.config.output.emitirPorDefecto, voucherKind });
     const useRaw = typeof globalOptions.bruto === 'boolean' ? globalOptions.bruto : runtime.outputRaw;
     const interactive = !runtime.outputJson && Boolean(process.stdin.isTTY && process.stdout.isTTY);
     const service = new ExportService();
@@ -124,7 +134,7 @@ export async function executeExportCommand(command: Command, options: ExportComm
 
       writeTerminalOutput(formatExportResultAsText(result, { environment: runtime.environment, raw: useRaw }));
 
-      if (!(await promptForEmission(runtime.environment))) {
+      if (!(await promptForEmission(voucherKind, runtime.environment))) {
         writeTerminalOutput(noticePanel(NOTHING_EMITTED_NOTICE, 'muted'));
 
         return;
@@ -133,9 +143,7 @@ export async function executeExportCommand(command: Command, options: ExportComm
       previewShown = true;
     }
 
-    spinner = runtime.outputJson
-      ? null
-      : startSpinner(`Emitiendo ${formatVoucherWithArticle(EXPORT_VOUCHER_KIND)} en ARCA...`);
+    spinner = runtime.outputJson ? null : startSpinner(`Emitiendo ${formatVoucherWithArticle(voucherKind)} en ARCA...`);
 
     result = await service.execute({ gateway, resolved, runtime, warnings });
 

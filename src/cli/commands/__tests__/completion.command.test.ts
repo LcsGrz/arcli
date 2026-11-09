@@ -60,7 +60,7 @@ describe('arcli __completar', () => {
     expect(await complete('parametros', 'cot')).toEqual(['cotizacion']);
     // La E (exportacion) solo existe en la familia factura.
     expect(await complete('factura', '')).toEqual(['a', 'b', 'c', 'e']);
-    expect(await complete('nota-credito', '')).toEqual(['a', 'b', 'c']);
+    expect(await complete('nota-credito', '')).toEqual(['a', 'b', 'c', 'e']);
     expect(await complete('recibo', '')).toEqual(['c']);
   });
 

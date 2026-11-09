@@ -4,7 +4,13 @@ import { describe, expect, it, vi } from 'vitest';
 import { EmissionUncertainError } from '../../billing/billing.errors';
 import { arcliConfigSchema } from '../../config/config.schemas';
 import { ExportService } from '../export.service';
-import type { ExportGateway, ExportVoucherInput } from '../export.types';
+import {
+  EXPORT_CREDIT_NOTE_KIND,
+  EXPORT_DEBIT_NOTE_KIND,
+  type ExportGateway,
+  type ExportIssuedVoucher,
+  type ExportVoucherInput,
+} from '../export.types';
 
 const NOW = new Date('2026-06-01T15:00:00Z');
 
@@ -57,6 +63,7 @@ function createGateway(overrides: Partial<ExportGateway> = {}): ExportGateway {
       { id: 2, name: 'Ingles' },
     ]),
     getLastRequestId: vi.fn(async () => 7),
+    getVoucher: vi.fn(async () => ASSOCIATED_INVOICE),
     getQuotations: vi.fn(async () => [{ code: 'DOL', date: '20260601', rate: 900.5 }]),
     getUnits: vi.fn(async () => [
       { id: 1, name: 'Kilogramo' },
@@ -65,6 +72,27 @@ function createGateway(overrides: Partial<ExportGateway> = {}): ExportGateway {
     ...overrides,
   };
 }
+
+/** Una factura E de servicios a Brasil, como la devuelve FEXGetCMP. */
+const ASSOCIATED_INVOICE: ExportIssuedVoucher = {
+  activities: [620100],
+  arcaType: 19,
+  clientAddress: 'Av. Paulista 1000',
+  clientCountryCuit: 55000000050,
+  clientName: 'ACME LLC',
+  clientTaxId: '123456789',
+  currencyCode: 'DOL',
+  date: '20260520',
+  destinationCountry: 203,
+  exchangeRate: 880.25,
+  exportType: 2,
+  language: 1,
+  number: 12,
+  paymentTerms: 'Transferencia Internacional',
+  pointOfSale: 3,
+  result: 'A',
+  total: 1500,
+};
 
 const INPUT: ExportVoucherInput = {
   amount: 1500,
@@ -310,6 +338,82 @@ describe('ExportService.resolve', () => {
         NOW,
       ),
     ).rejects.toThrow(/--pv <numero>/);
+  });
+});
+
+describe('ExportService.resolve: notas E', () => {
+  const service = new ExportService();
+  const NOTE_INPUT: ExportVoucherInput = {
+    amount: 500,
+    associatedVoucher: { number: 12 },
+    emit: false,
+    voucherKind: EXPORT_CREDIT_NOTE_KIND,
+    voucherNumber: 5,
+  };
+
+  it('arma la nota con el asociado, sin fecha de pago, CanMisMonExt ni permisos', async () => {
+    const gateway = createGateway();
+    const resolved = await service.resolve(NOTE_INPUT, gateway, RUNTIME, NOW);
+
+    expect(gateway.getVoucher).toHaveBeenCalledWith({ arcaType: 19, number: 12, pointOfSale: 3 });
+    expect(gateway.getQuotations).not.toHaveBeenCalled();
+    expect(resolved.voucherKind).toBe(EXPORT_CREDIT_NOTE_KIND);
+    expect(resolved.payload).toMatchObject({
+      Cbte_Tipo: 21,
+      Cliente: 'ACME LLC',
+      Cmps_asoc: { Cmp_asoc: [{ Cbte_cuit: 20111111112, Cbte_nro: 12, Cbte_punto_vta: 3, Cbte_tipo: 19 }] },
+      Dst_cmp: 203,
+      Moneda_ctz: 880.25,
+      Moneda_Id: 'DOL',
+      Permiso_existente: '',
+      Tipo_expo: 2,
+    });
+    expect(resolved.payload).not.toHaveProperty('Fecha_pago');
+    expect(resolved.payload).not.toHaveProperty('CanMisMonExt');
+    expect(resolved.payload).not.toHaveProperty('Permisos');
+    expect(resolved.display.associatedVoucher).toEqual({
+      currencyCode: 'DOL',
+      date: '20260520',
+      displayName: 'Factura de exportación E',
+      total: 1500,
+    });
+  });
+
+  it('una nota de debito usa el tipo 20', async () => {
+    const resolved = await service.resolve(
+      { ...NOTE_INPUT, voucherKind: EXPORT_DEBIT_NOTE_KIND },
+      createGateway(),
+      RUNTIME,
+      NOW,
+    );
+
+    expect(resolved.payload.Cbte_Tipo).toBe(20);
+  });
+
+  it('valida lo local antes de consultar el asociado', async () => {
+    const gateway = createGateway();
+
+    await expect(service.resolve({ ...NOTE_INPUT, associatedVoucher: {} }, gateway, RUNTIME, NOW)).rejects.toThrow(
+      /--ar/,
+    );
+    await expect(service.resolve({ ...NOTE_INPUT, paymentDate: '01/06' }, gateway, RUNTIME, NOW)).rejects.toThrow(
+      /error 1673/,
+    );
+    expect(gateway.getVoucher).not.toHaveBeenCalled();
+  });
+
+  it('falla si ARCA no tiene el asociado', async () => {
+    const gateway = createGateway({ getVoucher: vi.fn(async () => null) });
+
+    await expect(service.resolve(NOTE_INPUT, gateway, RUNTIME, NOW)).rejects.toThrow(
+      /ARCA no tiene la factura de exportación E 00003-00000012/,
+    );
+  });
+
+  it('compara la nota contra el asociado antes de emitir', async () => {
+    await expect(service.resolve({ ...NOTE_INPUT, amount: 2000 }, createGateway(), RUNTIME, NOW)).rejects.toThrow(
+      /no puede superar el total/,
+    );
   });
 });
 

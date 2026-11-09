@@ -269,11 +269,15 @@ async function offerSavingActivity(activity: number): Promise<void> {
   }
 }
 
-async function emit(
+/**
+ * Vista previa, comando equivalente, confirmacion, emision y PDF: lo mismo para la factura y las notas E. Sin
+ * `activity` (las notas la toman del asociado), el comando equivalente no la repite.
+ */
+export async function emitExportVoucher(
   session: InteractiveSession,
   gateway: ExportGateway,
   input: ExportVoucherInput,
-  activity: number,
+  activity?: number,
 ): Promise<void> {
   const { runtime } = session;
   const service = new ExportService();
@@ -285,7 +289,7 @@ async function emit(
     formatEquivalentCommand(buildExportEquivalentCommand(input, { activity, environment: runtime.environment })),
   );
 
-  const label = formatVoucherWithArticle(EXPORT_VOUCHER_KIND);
+  const label = formatVoucherWithArticle(input.voucherKind ?? EXPORT_VOUCHER_KIND);
 
   if (!(await confirm(formatEmissionQuestion(label, runtime.environment), 'Emitir ahora'))) {
     writeTerminalOutput(noticePanel(NOTHING_EMITTED_NOTICE, 'muted'));
@@ -371,7 +375,7 @@ export async function runExportFlow(session: InteractiveSession): Promise<typeof
     voucherNumber: state.voucherNumber,
   };
 
-  await emit(session, gateway, input, activity);
+  await emitExportVoucher(session, gateway, input, activity);
 
   if (state.activity !== undefined && configuredActivity === undefined) {
     await offerSavingActivity(state.activity);

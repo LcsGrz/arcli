@@ -11,7 +11,12 @@ import { VOUCHER_FAMILIES, VOUCHER_SHORTCUTS } from '../../modules/billing/vouch
 import { ConfigService } from '../../modules/config/config.service';
 import { renderExamples } from '../../modules/examples/examples';
 import { ExportService } from '../../modules/export/export.service';
-import { EXPORT_VOUCHER_KIND, type ExportGateway } from '../../modules/export/export.types';
+import {
+  EXPORT_VOUCHER_KIND,
+  EXPORT_VOUCHER_KINDS,
+  type ExportGateway,
+  type ExportVoucherKind,
+} from '../../modules/export/export.types';
 import type { PadronGateway } from '../../modules/padron/padron';
 import { stripAnsi } from '../../ui';
 import { parseBillingCommandPlan } from '../commands/billing.command.parser';
@@ -83,17 +88,34 @@ const exportGateway: ExportGateway = {
   getLastRequestId: async () => 0,
   getQuotations: async () => [{ code: 'DOL', rate: 1000 }],
   getUnits: async () => [{ id: 7, name: 'unidades' }],
+  // Las notas E de los ejemplos ajustan una factura E de servicios en dolares.
+  getVoucher: async (query) => ({
+    activities: [620100],
+    arcaType: query.arcaType,
+    clientAddress: '123 Main St',
+    clientCountryCuit: 55000002126,
+    clientName: 'ACME LLC',
+    currencyCode: 'DOL',
+    date: '20260101',
+    destinationCountry: 212,
+    exchangeRate: 1000,
+    exportType: 2,
+    number: query.number,
+    pointOfSale: query.pointOfSale,
+    result: 'A',
+    total: 1500,
+  }),
 };
 
-const captured: Array<{ command: Command; shortcut: VoucherShortcut | typeof EXPORT_VOUCHER_KIND.shortcut }> = [];
+const captured: Array<{ command: Command; exportKind?: ExportVoucherKind; shortcut?: VoucherShortcut }> = [];
 
 vi.mock('../commands/export.command', async (importOriginal) => {
   const original = await importOriginal<typeof import('../commands/export.command')>();
 
   return {
     ...original,
-    executeExportCommand: async (command: Command) => {
-      captured.push({ command, shortcut: EXPORT_VOUCHER_KIND.shortcut });
+    executeExportCommand: async (command: Command, options: { voucherKind?: ExportVoucherKind } = {}) => {
+      captured.push({ command, exportKind: options.voucherKind ?? EXPORT_VOUCHER_KIND });
     },
   };
 });
@@ -117,7 +139,11 @@ interface Example {
   readonly source: string;
 }
 
-const BILLING_COMMANDS = new Set<string>([...VOUCHER_SHORTCUTS, ...VOUCHER_FAMILIES, EXPORT_VOUCHER_KIND.shortcut]);
+const BILLING_COMMANDS = new Set<string>([
+  ...VOUCHER_SHORTCUTS,
+  ...VOUCHER_FAMILIES,
+  ...EXPORT_VOUCHER_KINDS.map((kind) => kind.shortcut),
+]);
 const HELP_TOKENS = new Set(['ayuda', '--ayuda', '--help', '-h', 'help']);
 
 const root = new URL('../../../', import.meta.url);
@@ -258,7 +284,9 @@ function collectHelpExamples(): Example[] {
       examplesFromText(createShortcutHelp(shortcut), `arcli ${shortcut} --ayuda`),
     ),
     ...VOUCHER_FAMILIES.flatMap((family) => examplesFromText(createFamilyHelp(family), `arcli ${family} --ayuda`)),
-    ...examplesFromText(createExportShortcutHelp(), `arcli ${EXPORT_VOUCHER_KIND.shortcut} --ayuda`),
+    ...EXPORT_VOUCHER_KINDS.flatMap((kind) =>
+      examplesFromText(createExportShortcutHelp(kind), `arcli ${kind.shortcut} --ayuda`),
+    ),
   ];
 }
 
@@ -274,7 +302,7 @@ function collectDocExamples(): Example[] {
 
 interface JsonExample {
   readonly items: readonly Record<string, unknown>[];
-  readonly shortcut: VoucherShortcut;
+  readonly shortcut: string;
   readonly source: string;
 }
 
@@ -291,12 +319,14 @@ function isBillingInput(value: unknown): value is Record<string, unknown> {
   );
 }
 
-/** Con asociado, la nota de credito de esa letra (`fa` -> `nca`, `fcea` -> `ncea`); si no, Factura C. */
-function shortcutForJsonInput(items: readonly Record<string, unknown>[]): VoucherShortcut {
+/** Con asociado, la nota de credito de esa letra (`fa` -> `nca`, `fcea` -> `ncea`, `fe` -> `nce`); si no, Factura C. */
+function shortcutForJsonInput(items: readonly Record<string, unknown>[]): string {
   const associated = items.map((item) => item.comprobanteAsociado).find((value) => typeof value === 'object');
   const atajo = (associated as { atajo?: unknown } | undefined)?.atajo;
 
   if (typeof atajo !== 'string') return 'fc';
+
+  if (EXPORT_VOUCHER_KINDS.some((kind) => kind.shortcut === atajo)) return 'nce';
 
   return (atajo.startsWith('fce') ? `nce${atajo.slice(3)}` : `nc${atajo.slice(1)}`) as VoucherShortcut;
 }
@@ -369,13 +399,15 @@ async function validate(args: readonly string[], settings: Example['config'] = [
 
   if (!call) throw new Error('no llego a un comando de facturacion');
 
-  if (call.shortcut === EXPORT_VOUCHER_KIND.shortcut) {
-    const exportPlan = parseExportCommandPlan(call.command);
+  if (call.exportKind) {
+    const exportPlan = parseExportCommandPlan(call.command, { voucherKind: call.exportKind });
 
     await new ExportService().resolve(exportPlan.input, exportGateway, { config, environment: 'testing' }, NOW);
 
     return;
   }
+
+  if (!call.shortcut) throw new Error('falta el atajo del comprobante');
 
   const plan = parseBillingCommandPlan(call.command, call.shortcut, resolveBillingCommandDefaults(config));
 
@@ -422,8 +454,10 @@ describe('ejemplos de facturacion validos', () => {
     const validatable = (examples: readonly Example[]) => examples.filter((example) => isValidatable(example.args));
 
     expect(validatable(collectHelpExamples()).length).toBeGreaterThan(VOUCHER_SHORTCUTS.length * 3);
-    // Cuatro por atajo, mas los cuatro de la factura E.
-    expect(validatable(collectExamplesCommand())).toHaveLength((VOUCHER_SHORTCUTS.length + 1) * 4);
+    // Cuatro por atajo, mas cuatro por cada E (factura y notas).
+    expect(validatable(collectExamplesCommand())).toHaveLength(
+      (VOUCHER_SHORTCUTS.length + EXPORT_VOUCHER_KINDS.length) * 4,
+    );
     expect(validatable(collectDocExamples()).length).toBeGreaterThan(20);
     expect(collectJsonExamples().length).toBeGreaterThan(3);
   });
@@ -456,7 +490,10 @@ describe('ejemplos de facturacion validos', () => {
     for (const example of collectJsonExamples()) {
       const path = join(mkdtempSync(join(tmpdir(), 'arcli-ejemplo-')), 'comprobante.json');
 
-      writeFileSync(path, JSON.stringify(example.items));
+      // La E toma un objeto, nunca un lote.
+      const isExport = EXPORT_VOUCHER_KINDS.some((kind) => kind.shortcut === example.shortcut);
+
+      writeFileSync(path, JSON.stringify(isExport ? example.items[0] : example.items));
 
       try {
         await validate([example.shortcut, '--cargar', path]);

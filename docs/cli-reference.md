@@ -69,8 +69,8 @@ Después cambian algunas cosas según la familia:
 | Comando                       | Argumentos     | Descripción                                                        |
 | ----------------------------- | -------------- | ------------------------------------------------------------------ |
 | `factura`                     | `<a\|b\|c\|e>` | Emite o previsualiza Factura A, B, C o la de exportación E (WSFEX) |
-| `nota-credito`                | `<a\|b\|c>`    | Emite o previsualiza Nota de crédito A, B o C                      |
-| `nota-debito`                 | `<a\|b\|c>`    | Emite o previsualiza Nota de débito A, B o C                       |
+| `nota-credito`                | `<a\|b\|c\|e>` | Emite o previsualiza Nota de crédito A, B, C o la de exportación E |
+| `nota-debito`                 | `<a\|b\|c\|e>` | Emite o previsualiza Nota de débito A, B, C o la de exportación E  |
 | `factura-credito-electronica` | `<a\|b\|c>`    | Emite o previsualiza Factura de crédito electrónica A, B o C       |
 | `nota-credito-electronica`    | `<a\|b\|c>`    | Emite o previsualiza Nota de crédito electrónica A, B o C          |
 | `nota-debito-electronica`     | `<a\|b\|c>`    | Emite o previsualiza Nota de débito electrónica A, B o C           |
@@ -90,6 +90,8 @@ Después cambian algunas cosas según la familia:
 | `ndb`    | `nota-debito b`                 |
 | `ndc`    | `nota-debito c`                 |
 | `fe`     | `factura e`                     |
+| `nce`    | `nota-credito e`                |
+| `nde`    | `nota-debito e`                 |
 | `fcea`   | `factura-credito-electronica a` |
 | `fceb`   | `factura-credito-electronica b` |
 | `fcec`   | `factura-credito-electronica c` |
@@ -101,7 +103,7 @@ Después cambian algunas cosas según la familia:
 | `ndec`   | `nota-debito-electronica c`     |
 | `rc`     | `recibo c`                      |
 
-`arcli factura e` y `arcli fe` son la misma Factura de exportación `E`: la letra `E` de la familia `factura` se resuelve por WSFEX, con sus propios flags (ver [Factura de exportación](#factura-de-exportación-e-wsfex)).
+`arcli factura e` y `arcli fe` son la misma Factura de exportación `E`: la letra `E` de la familia `factura` se resuelve por WSFEX, con sus propios flags (ver [Factura de exportación](#factura-de-exportación-e-wsfex)). Lo mismo pasa con `nota-credito e` (`nce`) y `nota-debito e` (`nde`): ver [Notas de crédito y débito de exportación](#notas-de-crédito-y-débito-de-exportación-e).
 
 ## Cómo funcionan los flags
 
@@ -556,7 +558,7 @@ arcli ncea -m 1 --cs --cuit 20168598204 --ir-ri --ac fcea --apv 3 --ar 6 --afech
 
 `arcli fe` y `arcli factura e` hacen lo mismo: emiten o previsualizan una Factura de exportación `E` con el servicio `wsfex`, que tiene sus propios datos y su propio certificado autorizado. No es una letra más de la familia de facturas: no lleva concepto, IVA ni receptor con CUIT/CUIL/DNI, y en cambio lleva país de destino, incoterm, permisos de embarque e ítems reales.
 
-Las notas de crédito y débito `E` todavía no están soportadas.
+Las notas de crédito y débito `E` tienen su propia sección: [Notas de crédito y débito de exportación](#notas-de-crédito-y-débito-de-exportación-e).
 
 #### Credenciales
 
@@ -592,7 +594,7 @@ La actividad no tiene default: cada emisor tiene la suya. La tabla de actividade
 
 El pago de una exportación se hace en la moneda extranjera del comprobante (`Moneda_Id`/`Moneda_ctz`). Si además se cobra en esa misma moneda, `--misma-moneda` manda `CanMisMonExt` en `S`, que es el campo de WSFEX que lo declara; sin el flag va en `N`.
 
-La `E` no lleva comprobantes asociados ni datos opcionales todavía, así que `solicitud` no incluye `Cmps_asoc` ni `Opcionales`: ARCA rechaza esos bloques vacíos (error 1820 el primero).
+La factura `E` no lleva comprobantes asociados ni datos opcionales, así que `solicitud` no incluye `Cmps_asoc` ni `Opcionales`: ARCA rechaza esos bloques vacíos (error 1820 el primero) y no acepta asociados en la factura (error 1755).
 
 #### Ejemplo mínimo funcional
 
@@ -683,6 +685,48 @@ Los defaults de config de esos campos (concepto, IVA receptor, alícuota, CBU) n
 - Un comprobante rechazado por WSFEX sale como respuesta válida con exit code `2`, igual que en las letras A, B y C.
 
 El JSON de salida y el de `--cargar` están en [Entrada y salida](input-output.md#factura-de-exportación-e).
+
+### Notas de crédito y débito de exportación `E`
+
+`arcli nce` (`nota-credito e`, tipo ARCA `21`) y `arcli nde` (`nota-debito e`, tipo `20`) ajustan una Factura de exportación `E` ya emitida por WSFEX. Usan el mismo servicio, credenciales y flags que `fe`, más el comprobante asociado.
+
+Antes de armar la nota, ARCLI consulta el asociado en ARCA (`FEXGetCMP`) y toma de ahí lo que no venga por flag: cliente, domicilio, ID impositivo, país de destino, CUIT del país, tipo de exportación, moneda y cotización, idioma, incoterm, forma de pago y actividad. Por eso alcanza con el monto, el asociado y el número:
+
+```bash
+arcli nce -m 500 --ar 1 --numero 1
+```
+
+#### Comprobante asociado
+
+| Parámetro          | Alias                             | Tipo      | Requerido | Cuándo usarlo                                                                 |
+| ------------------ | --------------------------------- | --------- | --------- | ----------------------------------------------------------------------------- |
+| `--ar <numero>`    | ninguno                           | `integer` | Sí        | Número del comprobante que ajusta la nota                                     |
+| `--apv <numero>`   | `--asociado-punto-venta <numero>` | `integer` | No        | Punto de venta del asociado; por defecto, el de la nota                       |
+| `--ac <atajo>`     | ninguno                           | `string`  | No        | `fe` (por defecto), `nde` o `nce`, para ajustar otra nota `E`                 |
+| `--at <numero>`    | ninguno                           | `integer` | No        | Lo mismo por tipo ARCA: `19`, `20` o `21`                                     |
+| `--acuit <numero>` | ninguno                           | `string`  | No        | No hace falta: el asociado de una `E` siempre es del CUIT emisor (error 2031) |
+
+`--afecha` no se usa: la fecha del asociado sale de ARCA.
+
+#### Qué valida antes de emitir
+
+- que el asociado exista en ARCA y esté aprobado;
+- que la nota no sea anterior al asociado;
+- que una nota de crédito no supere el total del asociado, si van en la misma moneda;
+- en servicios (`--tipo-expo 2`), lo que ARCA compara contra el asociado: mismo tipo de exportación (2049), mismo país de destino (2050), misma moneda o pesos (2051) y la misma cotización (2053). Además, una nota de débito solo ajusta una factura (2041, 2042) y una nota de crédito, una factura o una nota de débito (2045).
+
+#### Qué no aplica
+
+Las notas `E` no llevan fecha de pago (ARCA la rechaza, error 1673), `--misma-moneda` (1605) ni permisos de embarque: `nce` y `nde` no tienen `--fecha-pago`, `--misma-moneda`, `--permiso` ni `--permiso-existente`. En `arcli nota-credito e` y `nota-debito e` los flags de A, B y C se saltean con un aviso, igual que en `factura e`.
+
+#### Ejemplos
+
+```bash
+arcli nde -m 200 --ar 1 --apv 4 --numero 1 --item "001|Ajuste de precio|1|200|unidades" --previsualizar
+arcli nce -m 100 --ac nde --ar 1 --numero 2 --emitir --json
+```
+
+El PDF se guarda como `nota-credito-e_<pv>-<numero>.pdf` o `nota-debito-e_<pv>-<numero>.pdf`, con el comprobante asociado.
 
 ## Ejemplos útiles
 

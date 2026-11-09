@@ -31,7 +31,7 @@ import {
 } from '../../modules/completion/shell-scripts';
 import { configPublicKeySchema } from '../../modules/config/config.schemas';
 import { ConfigService } from '../../modules/config/config.service';
-import { EXPORT_VOUCHER_KIND } from '../../modules/export/export.types';
+import { getExportVoucherKindByFamily } from '../../modules/export/export.types';
 import { CONFIG_FIELDS } from '../../modules/interactive/config-fields';
 import { PARAMETER_TABLE_NAMES } from '../../modules/parameters/parameters';
 import { writeTerminalJson, writeTerminalOutput } from '../../ui';
@@ -69,7 +69,7 @@ const ARGUMENT_VALUES: Readonly<Record<string, CompletionValues>> = {
   valor: configValues,
 };
 
-/** Las letras de cada familia: `factura` tambien acepta la E (exportacion) y `recibo` solo la C. */
+/** Las letras de cada familia: `factura` y las notas tambien aceptan la E (exportacion) y `recibo` solo la C. */
 function argumentValues(command: Command, name: string): CompletionValues | undefined {
   const family = VOUCHER_FAMILIES.find((candidate) => candidate === command.name());
 
@@ -77,9 +77,9 @@ function argumentValues(command: Command, name: string): CompletionValues | unde
     return ARGUMENT_VALUES[name];
   }
 
-  return family === EXPORT_VOUCHER_KIND.family
-    ? [...getVoucherFamilyLetters(family), EXPORT_VOUCHER_KIND.letter]
-    : getVoucherFamilyLetters(family);
+  const exportKind = getExportVoucherKindByFamily(family);
+
+  return exportKind ? [...getVoucherFamilyLetters(family), exportKind.letter] : getVoucherFamilyLetters(family);
 }
 
 /** El arbol de commander como lo necesita el autocompletado. */
