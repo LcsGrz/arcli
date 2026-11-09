@@ -1,6 +1,6 @@
 import Conf from 'conf';
 import { homedir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 import { ConfigurationError } from '../../lib/errors/app-error';
 
@@ -63,10 +63,20 @@ export interface ConfigServiceOptions {
   readonly projectName?: string;
 }
 
+/**
+ * `ARCLI_CONFIG_DIR` usa otra carpeta de config (con sus tickets, plugins y certificados): para tener una config
+ * aparte o para los tests de punta a punta, que no pueden tocar la real.
+ */
+export function resolveConfigDirectory(): string | undefined {
+  const value = process.env.ARCLI_CONFIG_DIR?.trim();
+
+  return value ? resolve(value) : undefined;
+}
+
 function storeLocation(options: ConfigServiceOptions) {
   return {
     configName: options.configName ?? 'config',
-    cwd: options.cwd,
+    cwd: options.cwd ?? resolveConfigDirectory(),
     projectName: options.projectName ?? 'arcli',
     projectSuffix: '',
   };
