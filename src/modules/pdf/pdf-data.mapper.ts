@@ -1,6 +1,5 @@
-import type { IIva } from '@arcasdk/core/lib/domain/types/voucher.types';
-
 import { roundToCents } from '../../lib/numbers/argentine-amount';
+import type { IIva } from '../../services/arca/arca-sdk.types';
 import { CONSUMER_DOCUMENT_TYPE_CODE } from '../billing/arca-codes';
 import { resolveIvaRateLabel } from '../billing/billing.amounts';
 import { formatIvaConditionLabel } from '../billing/billing.labels';

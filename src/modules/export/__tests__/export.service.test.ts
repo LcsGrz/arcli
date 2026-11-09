@@ -1,6 +1,6 @@
-import type { IFEXAuthorizeOutput } from '@arcasdk/core/lib/application/dto/fex';
 import { describe, expect, it, vi } from 'vitest';
 
+import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
 import { EmissionUncertainError } from '../../billing/billing.errors';
 import { arcliConfigSchema } from '../../config/config.schemas';
 import { ExportService } from '../export.service';
