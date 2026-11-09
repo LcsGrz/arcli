@@ -1,5 +1,4 @@
-import type { IFEXAuthorizeOutput } from '@arcasdk/core/lib/application/dto/fex';
-
+import type { IFEXAuthorizeOutput } from '../../services/arca/arca-sdk.types';
 import type { PdfOutcome } from '../pdf/pdf.types';
 
 /** WSFEX solo emite comprobantes de exportacion, asi que la letra es siempre E. 19 es la Factura E. */

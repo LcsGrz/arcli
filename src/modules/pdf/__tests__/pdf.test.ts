@@ -1,6 +1,6 @@
-import type { INextVoucher } from '@arcasdk/core/lib/domain/types/voucher.types';
 import { describe, expect, it } from 'vitest';
 
+import type { INextVoucher } from '../../../services/arca/arca-sdk.types';
 import type { BillingExecutionResult } from '../../billing/billing.types.internal';
 import { getVoucherKindByShortcut } from '../../billing/voucher-kind-map';
 import { PdfError } from '../pdf.errors';

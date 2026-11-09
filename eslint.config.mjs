@@ -15,6 +15,22 @@ const UI_STYLE_IMPORTS = [
   })),
 ];
 
+/** Solo `services/` conoce `@arcasdk/core` (docs/architecture.md): el resto importa los tipos de un solo archivo. */
+const SDK_TYPES_FILE = 'src/services/arca/arca-sdk.types.ts';
+const SDK_OUTSIDE_SERVICES = {
+  regex: '^@arcasdk/core(/|$)',
+  message: 'Solo src/services conoce @arcasdk/core: importá los tipos de src/services/arca/arca-sdk.types.',
+};
+const SDK_INTERNAL_PATHS = {
+  regex: '^@arcasdk/core/lib/',
+  message:
+    'Las rutas internas del SDK cambian sin aviso: sumá el tipo a src/services/arca/arca-sdk.types e importalo de ahí.',
+};
+const UI_BARREL = {
+  regex: '(^|/)ui$',
+  message: 'El barrel src/ui reexporta todo: importá de src/ui/primitives, components, presenters, stream o theme.',
+};
+
 export default defineConfig([
   // =========================
   // Global ignores
@@ -71,26 +87,28 @@ export default defineConfig([
   // =========================
   {
     files: ['src/**/*.ts'],
-    ignores: ['src/ui/**'],
+    ignores: ['src/ui/**', 'src/services/**'],
     rules: {
-      'no-restricted-imports': ['error', { paths: UI_STYLE_IMPORTS }],
+      'no-restricted-imports': ['error', { paths: UI_STYLE_IMPORTS, patterns: [SDK_OUTSIDE_SERVICES] }],
     },
   },
   {
-    files: ['src/lib/**/*.ts', 'src/modules/**/*.ts', 'src/services/**/*.ts'],
+    files: ['src/lib/**/*.ts', 'src/modules/**/*.ts'],
     rules: {
-      'no-restricted-imports': [
-        'error',
-        {
-          paths: UI_STYLE_IMPORTS,
-          patterns: [
-            {
-              regex: '(^|/)ui$',
-              message: 'El barrel src/ui reexporta todo: importá de src/ui/primitives, components, presenters, stream o theme.',
-            },
-          ],
-        },
-      ],
+      'no-restricted-imports': ['error', { paths: UI_STYLE_IMPORTS, patterns: [UI_BARREL, SDK_OUTSIDE_SERVICES] }],
+    },
+  },
+  {
+    files: ['src/services/**/*.ts'],
+    ignores: [SDK_TYPES_FILE],
+    rules: {
+      'no-restricted-imports': ['error', { paths: UI_STYLE_IMPORTS, patterns: [UI_BARREL, SDK_INTERNAL_PATHS] }],
+    },
+  },
+  {
+    files: [SDK_TYPES_FILE],
+    rules: {
+      'no-restricted-imports': ['error', { paths: UI_STYLE_IMPORTS, patterns: [UI_BARREL] }],
     },
   },
   {

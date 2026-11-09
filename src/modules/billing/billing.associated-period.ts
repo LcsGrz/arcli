@@ -1,7 +1,6 @@
-import type { IPeriodoAsoc } from '@arcasdk/core/lib/domain/types/voucher.types';
-
 import { formatArcaDateAsArgentineDate, parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
+import type { IPeriodoAsoc } from '../../services/arca/arca-sdk.types';
 
 import { formatVoucherSubject, formatVoucherWithArticle } from './billing.mappers';
 import type { BillingCommandInput } from './billing.schemas';

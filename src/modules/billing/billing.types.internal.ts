@@ -1,6 +1,4 @@
-import type { CreateVoucherResultDto } from '@arcasdk/core/lib/application/dto/electronic-billing';
-import type { INextVoucher, IVoucher } from '@arcasdk/core/lib/domain/types/voucher.types';
-
+import type { CreateVoucherResultDto, INextVoucher, IVoucher } from '../../services/arca/arca-sdk.types';
 import type { PdfOutcome } from '../pdf/pdf.types';
 
 import type { VoucherKindDefinition } from './billing.types';
