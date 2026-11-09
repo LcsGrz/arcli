@@ -9,7 +9,7 @@ Qué doc cubre qué está en la tabla de [CONTRIBUTING.md](../../../CONTRIBUTING
 
 ## 1. Qué cambió para quien usa el CLI
 
-`git diff main...HEAD --stat` más `git status --short`; si te piden documentar un commit o rango puntual, `git show <commit> -- src` en su lugar. Para cada archivo de `src/` cambiado, leé el diff y anotá cada **cambio visible**: un comando, flag, clave, campo de JSON, validación, mensaje o pantalla que antes no existía, cambió o ya no está. Un refactor sin cambio visible no se anota.
+`git diff dev...HEAD --stat` más `git status --short`; si te piden documentar un commit o rango puntual, `git show <commit> -- src` en su lugar. Para cada archivo de `src/` cambiado, leé el diff y anotá cada **cambio visible**: un comando, flag, clave, campo de JSON, validación, mensaje o pantalla que antes no existía, cambió o ya no está. Un refactor sin cambio visible no se anota.
 
 **Listo cuando:** tenés la lista de cambios visibles, o sabés que no hay ninguno y lo decís.
 

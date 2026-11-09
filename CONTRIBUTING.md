@@ -25,11 +25,11 @@ El alcance de comprobantes es Factura, Nota de Crédito y Nota de Débito A, B y
 
 ## Flujo
 
-1. Creá una rama corta y descriptiva.
+1. Creá una rama corta y descriptiva desde `dev`, la rama donde se trabaja. `main` es lo publicado en npm y solo recibe releases.
 2. Hacé cambios chicos y fáciles de revisar.
 3. Agregá o ajustá tests cuando cambie el comportamiento.
 4. Actualizá la documentación que corresponda (ver abajo).
-5. Abrí el PR: la plantilla trae el checklist.
+5. Abrí el PR contra `dev`: la plantilla trae el checklist.
 
 ## Convenciones
 
