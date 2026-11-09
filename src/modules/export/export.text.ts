@@ -76,9 +76,27 @@ function formatItemsTable(result: ExportExecutionResult): string {
   return renderKeyValueRows(rows, { labelWidth }).join('\n');
 }
 
+/** "Factura de exportación E 00003-00000012 del 05/11/2026, USD 1.500,00": lo que ajusta la nota. */
+function formatAssociatedVoucher(result: ExportExecutionResult): string | undefined {
+  const associated = result.payload.Cmps_asoc?.Cmp_asoc[0];
+  const display = result.display.associatedVoucher;
+
+  if (!associated) {
+    return undefined;
+  }
+
+  const number = formatVoucherNumber(associated.Cbte_punto_vta, associated.Cbte_nro);
+
+  return display
+    ? `${display.displayName} ${number} del ${formatDateLabel(display.date)}, ${formatMoneyLabel(display.total, display.currencyCode)}`
+    : `Tipo ${associated.Cbte_tipo} ${number}`;
+}
+
 function formatPayloadRows(result: ExportExecutionResult): Rows {
   const { payload } = result;
+  const associated = formatAssociatedVoucher(result);
   const rows: Rows = [
+    ...(associated ? [['Comprobante asociado', associated] as const] : []),
     ['Cliente', payload.Cliente],
     ['CUIT del país del cliente', formatCuit(payload.Cuit_pais_cliente)],
     ['Domicilio del cliente', payload.Domicilio_cliente],
@@ -91,12 +109,12 @@ function formatPayloadRows(result: ExportExecutionResult): Rows {
     ['Forma de pago', payload.Forma_pago],
     ['Número', formatVoucherNumber(payload.Punto_vta, payload.Cbte_nro)],
     ['Fecha del comprobante', formatDateLabel(payload.Fecha_cbte)],
-    ['Fecha de pago', formatDateLabel(payload.Fecha_pago)],
+    ...(payload.Fecha_pago ? [['Fecha de pago', formatDateLabel(payload.Fecha_pago)] as const] : []),
     ['Importe total', formatAmount(result, payload.Imp_total)],
   ];
 
   if (payload.Id_impositivo) {
-    rows.splice(3, 0, ['ID impositivo del cliente', payload.Id_impositivo]);
+    rows.splice(associated ? 4 : 3, 0, ['ID impositivo del cliente', payload.Id_impositivo]);
   }
 
   const permits = payload.Permisos?.Permiso ?? [];

@@ -59,6 +59,31 @@ function result(
 const table = (value: ExportExecutionResult) => stripAnsi(formatExportPayloadTable(value));
 
 describe('formatExportPayloadTable', () => {
+  it('en una nota muestra el comprobante asociado y no la fecha de pago', () => {
+    const invoice = { ...result().payload, CanMisMonExt: undefined, Fecha_pago: undefined };
+    const text = table({
+      ...result(),
+      display: {
+        ...result().display,
+        associatedVoucher: {
+          currencyCode: 'DOL',
+          date: '20261030',
+          displayName: 'Factura de exportación E',
+          total: 1500,
+        },
+      },
+      payload: {
+        ...invoice,
+        Cbte_Tipo: 21,
+        Cmps_asoc: { Cmp_asoc: [{ Cbte_cuit: 20409509763, Cbte_nro: 1, Cbte_punto_vta: 4, Cbte_tipo: 19 }] },
+        Permiso_existente: '',
+      },
+    });
+
+    expect(text).toMatch(/Comprobante asociado\s+Factura de exportación E 00004-00000001 del 30\/10\/2026, 1\.500 USD/);
+    expect(text).not.toContain('Fecha de pago');
+  });
+
   it('muestra el importe con el codigo de la moneda, no con el $ de los pesos', () => {
     expect(table(result())).toMatch(/Importe total\s+1\.500,50 USD/);
     expect(table(result({ Moneda_ctz: 1, Moneda_Id: 'PES' }))).toMatch(/Importe total\s+\$ 1\.500,50/);

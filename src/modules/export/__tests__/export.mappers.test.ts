@@ -12,7 +12,7 @@ import {
   resolveExportType,
   resolveExportVoucherDate,
 } from '../export.mappers';
-import type { ExportCountry, ExportCountryCuit } from '../export.types';
+import { EXPORT_VOUCHER_KIND, type ExportCountry, type ExportCountryCuit } from '../export.types';
 
 const COUNTRIES: readonly ExportCountry[] = [
   { code: 200, name: 'Argentina' },
@@ -298,6 +298,7 @@ describe('buildExportPayload', () => {
     pointOfSale: 3,
     requestId: 7,
     voucherDate: '20260601',
+    voucherKind: EXPORT_VOUCHER_KIND,
     voucherNumber: 12,
   };
 

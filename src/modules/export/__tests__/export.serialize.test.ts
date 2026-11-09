@@ -3,7 +3,12 @@ import { describe, expect, it } from 'vitest';
 
 import { mapExportResponse } from '../export.response';
 import { formatExportResultAsJson, serializeExportResult } from '../export.serialize';
-import { EXPORT_VOUCHER_KIND, type ExportExecutionResult, type ExportVoucherPayload } from '../export.types';
+import {
+  EXPORT_CREDIT_NOTE_KIND,
+  EXPORT_VOUCHER_KIND,
+  type ExportExecutionResult,
+  type ExportVoucherPayload,
+} from '../export.types';
 
 function payload(overrides: Partial<ExportVoucherPayload> = {}): ExportVoucherPayload {
   return {
@@ -81,6 +86,37 @@ function result(overrides: Partial<ExportExecutionResult> = {}): ExportExecution
 }
 
 describe('serializeExportResult', () => {
+  it('en una nota informa el comprobante asociado; en la factura, null', () => {
+    const note = serializeExportResult(
+      result({
+        display: {
+          associatedVoucher: {
+            currencyCode: 'PES',
+            date: '20260520',
+            displayName: 'Factura de exportación E',
+            total: 1500,
+          },
+          unitNames: {},
+        },
+        payload: payload({
+          Cbte_Tipo: 21,
+          Cmps_asoc: { Cmp_asoc: [{ Cbte_cuit: 20111111112, Cbte_nro: 10, Cbte_punto_vta: 3, Cbte_tipo: 19 }] },
+        }),
+        voucherKind: EXPORT_CREDIT_NOTE_KIND,
+      }),
+    );
+
+    expect(note).toMatchObject({
+      atajo: 'nce',
+      comprobante: 'Nota de crédito de exportación E',
+      exportacion: {
+        comprobanteAsociado: { atajo: 'fe', fecha: '20260520', numero: 10, puntoVenta: 3, tipoArca: 19, total: 1500 },
+      },
+      tipoArca: 21,
+    });
+    expect(serializeExportResult(result()).exportacion).toMatchObject({ comprobanteAsociado: null });
+  });
+
   it('mantiene el resumen de A/B/C y agrega el bloque de exportacion', () => {
     const json = serializeExportResult(result());
 

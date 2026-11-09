@@ -174,8 +174,12 @@ function resolveExportVoucherNumber(result: ExportExecutionResult): number {
   return number;
 }
 
-/** El titulo que lleva la E de Comprobantes en linea, en lugar del "FACTURA" de la plantilla. */
-const EXPORT_VOUCHER_TITLE = 'FACTURA DE EXPORTACIÓN';
+/** El titulo que lleva la E de Comprobantes en linea, en lugar del "FACTURA" de la plantilla. Por tipo ARCA. */
+const EXPORT_VOUCHER_TITLES: Readonly<Record<number, string>> = {
+  19: 'FACTURA DE EXPORTACIÓN',
+  20: 'NOTA DE DÉBITO DE EXPORTACIÓN',
+  21: 'NOTA DE CRÉDITO DE EXPORTACIÓN',
+};
 
 /**
  * WSFEX usa sus propios codigos de moneda (`DOL`, `060`), pero la E de Comprobantes en linea muestra la divisa con
@@ -238,10 +242,17 @@ export function mapExportResultToPdfData(
     caeFechaVencimiento: response.caeVencimiento,
     cbteDesde: number,
     cbteFecha: payload.Fecha_cbte,
-    cbteDescripcion: EXPORT_VOUCHER_TITLE,
+    cbteDescripcion: EXPORT_VOUCHER_TITLES[payload.Cbte_Tipo],
     cbteHasta: number,
     cbteLetra: result.voucherKind.letter.toUpperCase(),
     cbteTipo: payload.Cbte_Tipo,
+    cbtesAsociados: payload.Cmps_asoc?.Cmp_asoc.map((voucher) => ({
+      cuit: String(voucher.Cbte_cuit),
+      fecha: display.associatedVoucher?.date,
+      numero: voucher.Cbte_nro,
+      puntoVenta: voucher.Cbte_punto_vta,
+      tipo: voucher.Cbte_tipo,
+    })),
     concepto: payload.Tipo_expo === 2 ? 2 : 1,
     condicionIvaExportacion: EXPORT_IVA_LEGEND,
     cotizacion: payload.Moneda_ctz,

@@ -10,14 +10,20 @@ import type {
   ExportCurrency,
   ExportGateway,
   ExportIncoterm,
+  ExportIssuedVoucher,
   ExportLanguage,
   ExportQuotation,
+  ExportType,
   ExportUnit,
   ExportVoucherPayload,
+  ExportVoucherQuery,
 } from '../../modules/export/export.types';
 
 const NOT_AUTHORIZED_MESSAGE =
   'El certificado no está autorizado para el servicio wsfex (factura de exportación). Autorizalo igual que wsfe: en testing desde WSASS ("Crear autorización a servicio") y en producción desde el Administrador de Relaciones.';
+
+/** `FEXGetCMP`: "Comprobante inexistente". */
+const VOUCHER_NOT_FOUND_ERROR = 1020;
 
 interface FexError {
   readonly ErrCode?: number;
@@ -55,6 +61,65 @@ function parseWsfexQuotationDate(value: string): string | undefined {
   const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(value);
 
   return match ? `${match[3]}${match[2].padStart(2, '0')}${match[1].padStart(2, '0')}` : undefined;
+}
+
+function readNumber(value: unknown): number | undefined {
+  const parsed = typeof value === 'string' && value.trim() ? Number(value) : value;
+
+  return typeof parsed === 'number' && Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function readOptionalText(value: unknown): string | undefined {
+  return readText(value) || undefined;
+}
+
+/** Los arrays de `FEXGetCMP` vienen envueltos (`Actividades.Actividad`, `Cmps_asoc.Cmp_asoc`). */
+function readRows(value: unknown, key: string): Array<Record<string, unknown>> {
+  const wrapper = value as Record<string, unknown> | undefined;
+
+  return asArray(wrapper?.[key] as Record<string, unknown> | Array<Record<string, unknown>> | undefined);
+}
+
+function isExportType(value: number | undefined): value is ExportType {
+  return value === 1 || value === 2 || value === 4;
+}
+
+/** Sin numero, tipo de exportacion o moneda no sirve como asociado: se trata como que no existe. */
+function mapIssuedVoucher(row: Record<string, unknown> | undefined): ExportIssuedVoucher | null {
+  const number = readNumber(row?.Cbte_nro);
+  const exportType = readNumber(row?.Tipo_expo);
+  const currencyCode = readText(row?.Moneda_Id);
+
+  if (!row || !number || !isExportType(exportType) || !currencyCode) {
+    return null;
+  }
+
+  // Sin incoterm ARCA devuelve `Incoterms_Ds` en "0": copiado a la nota, seria el error 1641.
+  const incoterm = readOptionalText(row.Incoterms);
+
+  return {
+    activities: readRows(row.Actividades, 'Actividad').flatMap((activity) => readNumber(activity.Id) ?? []),
+    arcaType: readNumber(row.Cbte_tipo) ?? 0,
+    associatedArcaType: readNumber(readRows(row.Cmps_asoc, 'Cmp_asoc')[0]?.Cbte_tipo),
+    cae: readOptionalText(row.Cae),
+    clientAddress: readText(row.Domicilio_cliente),
+    clientCountryCuit: readNumber(row.Cuit_pais_cliente),
+    clientName: readText(row.Cliente),
+    clientTaxId: readOptionalText(row.Id_impositivo),
+    currencyCode,
+    date: readText(row.Fecha_cbte),
+    destinationCountry: readNumber(row.Dst_cmp) ?? 0,
+    exchangeRate: readNumber(row.Moneda_ctz) ?? 0,
+    exportType,
+    incoterm,
+    incotermDescription: incoterm ? readOptionalText(row.Incoterms_Ds) : undefined,
+    language: readNumber(row.Idioma_cbte),
+    number,
+    paymentTerms: readOptionalText(row.Forma_pago),
+    pointOfSale: readNumber(row.Punto_vta) ?? 0,
+    result: readOptionalText(row.Resultado),
+    total: readNumber(row.Imp_total) ?? 0,
+  };
 }
 
 /** WSFEX no lanza: devuelve `FEXErr` con codigo 0 cuando salio todo bien. */
@@ -116,6 +181,27 @@ export class ArcaExportGateway implements ExportGateway {
 
       return Number.isInteger(id) && id > 0 ? [{ id, name }] : [];
     });
+  }
+
+  /**
+   * `FEXGetCMP` devuelve el comprobante completo, aunque el tipo del SDK solo declare la numeracion: se lee como
+   * registro tolerante. A diferencia de `FEXGetLast_CMP`, lleva el `Cmp` fuera de `Auth`, asi que el SDK no lo pisa.
+   * Un comprobante que no existe vuelve con el error 1020 y un `FEXResultGet` en ceros (probado en testing).
+   */
+  public async getVoucher(query: ExportVoucherQuery): Promise<ExportIssuedVoucher | null> {
+    const data = (
+      await this.call((service) =>
+        service.getCmp({ Cmp: { Cbte_nro: query.number, Cbte_tipo: query.arcaType, Punto_vta: query.pointOfSale } }),
+      )
+    ).FEXGetCMPResult;
+
+    if (data?.FEXErr?.ErrCode === VOUCHER_NOT_FOUND_ERROR) {
+      return null;
+    }
+
+    assertNoError(data, 'el comprobante asociado');
+
+    return mapIssuedVoucher(data?.FEXResultGet as Record<string, unknown> | undefined);
   }
 
   public async getCurrencies(): Promise<ExportCurrency[]> {

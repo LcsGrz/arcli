@@ -6,7 +6,8 @@ import {
 import { InputValidationError } from '../../lib/errors/app-error';
 import { AMOUNT_DECIMALS, formatExchangeRate, hasAtMostDecimals } from '../../lib/numbers/argentine-amount';
 import { EmissionUncertainError } from '../billing/billing.errors';
-import type { ArcliConfig } from '../config/config.schemas';
+import { formatVoucherLabel } from '../billing/billing.mappers';
+import { type ArcliConfig, MISSING_CUIT_MESSAGE } from '../config/config.schemas';
 
 import { assertExportItemsTotal, buildExportItems, DEFAULT_EXPORT_ITEM_DESCRIPTION } from './export.items';
 import {
@@ -23,13 +24,26 @@ import {
   resolveExportType,
   resolveExportVoucherDate,
 } from './export.mappers';
+import {
+  applyExportAssociatedDefaults,
+  assertExportNoteFields,
+  assertExportNoteMatchesAssociated,
+  exportAssociatedVoucherWarnings,
+  missingExportAssociatedVoucherError,
+  resolveExportAssociatedQuery,
+} from './export.notes';
 import { createDryRunExportResponse, mapExportResponse } from './export.response';
 import {
   EXPORT_VOUCHER_KIND,
+  type ExportAssociatedVoucherPayload,
   type ExportDisplayInfo,
   type ExportExecutionResult,
   type ExportGateway,
+  type ExportIssuedVoucher,
   type ExportVoucherInput,
+  type ExportVoucherKind,
+  getExportVoucherKindByArcaType,
+  isExportNote,
   type ResolvedExportVoucher,
 } from './export.types';
 
@@ -38,8 +52,11 @@ export interface ExportRuntime {
   readonly environment: 'produccion' | 'testing';
 }
 
-/** Se valida antes de tocar la red: un flag que falta no tiene por que autenticar en WSAA. */
-function assertRequiredFields(input: ExportVoucherInput, activity: number | undefined): void {
+/**
+ * Lo que hay que validar antes de tocar la red: un flag que falta no tiene por que autenticar en WSAA. En las notas,
+ * cliente, domicilio, destino y actividad pueden salir del asociado, asi que se validan despues de consultarlo.
+ */
+function assertLocalFields(input: ExportVoucherInput, kind: ExportVoucherKind): void {
   if (typeof input.amount !== 'number' || !(input.amount > 0)) {
     throw new InputValidationError('Falta el monto total o no es válido. Usá `--monto`.');
   }
@@ -49,6 +66,28 @@ function assertRequiredFields(input: ExportVoucherInput, activity: number | unde
     throw new InputValidationError(`El monto total no puede tener más de ${AMOUNT_DECIMALS} decimales.`);
   }
 
+  // WSFEX numera por punto de venta y tipo, pero @arcasdk/core no deja consultar el ultimo (FEXGetLast_CMP lleva
+  // Pto_venta y Cbte_Tipo dentro de Auth y el SDK pisa ese bloque). Hasta que se arregle, el numero lo indica el usuario.
+  if (input.voucherNumber === undefined) {
+    throw new InputValidationError(
+      `Falta el número del comprobante. Usá \`--numero\`: arcli todavía no puede consultar en WSFEX el último emitido. Si es ${formatFirstVoucher(kind)} de este punto de venta, es 1; si no, el siguiente al último que emitiste.`,
+    );
+  }
+
+  if (isExportNote(kind)) {
+    assertExportNoteFields(input, kind);
+  }
+
+  assertExportItemsTotal(input.items, input.amount);
+}
+
+/** `la primera Factura E`, `la primera nota de crédito de exportación E`. */
+function formatFirstVoucher(kind: ExportVoucherKind): string {
+  return kind === EXPORT_VOUCHER_KIND ? 'la primera Factura E' : `la primera ${formatVoucherLabel(kind)}`;
+}
+
+/** Lo que pide la factura (y la nota, ya completada con su asociado) antes de consultar las tablas. */
+function assertRequiredFields(input: ExportVoucherInput, activity: number | undefined): void {
   if (!input.clientName?.trim()) {
     throw new InputValidationError('Falta el nombre del cliente. Usá `--cliente`.');
   }
@@ -61,21 +100,11 @@ function assertRequiredFields(input: ExportVoucherInput, activity: number | unde
     throw new InputValidationError('Falta el país de destino. Usá `--pais-destino`.');
   }
 
-  // WSFEX numera por punto de venta y tipo, pero @arcasdk/core no deja consultar el ultimo (FEXGetLast_CMP lleva
-  // Pto_venta y Cbte_Tipo dentro de Auth y el SDK pisa ese bloque). Hasta que se arregle, el numero lo indica el usuario.
-  if (input.voucherNumber === undefined) {
-    throw new InputValidationError(
-      'Falta el número del comprobante. Usá `--numero`: arcli todavía no puede consultar en WSFEX el último emitido. Si es la primera Factura E de este punto de venta, es 1; si no, el siguiente al último que emitiste.',
-    );
-  }
-
   if (activity === undefined) {
     throw new InputValidationError(
       'Falta la actividad de exportación. Usá `--actividad` o guardala con `arcli config establecer exportacion.actividad <código>`: es el código de la tabla de actividades de WSFEX, por ejemplo 620100.',
     );
   }
-
-  assertExportItemsTotal(input.items, input.amount);
 }
 
 /** WSFEX no acepta comprobantes con fecha futura. Las fechas pasadas si son validas. */
@@ -89,18 +118,77 @@ function assertNotFuture(voucherDate: string, now: Date): void {
   }
 }
 
+interface ResolvedAssociatedVoucher {
+  readonly payload: ExportAssociatedVoucherPayload;
+  readonly voucher: ExportIssuedVoucher;
+}
+
+/** Consulta en ARCA el comprobante que ajusta la nota. Es una lectura: no emite nada. */
+async function fetchAssociated(
+  input: ExportVoucherInput,
+  gateway: ExportGateway,
+  runtime: ExportRuntime,
+  kind: ExportVoucherKind,
+): Promise<ResolvedAssociatedVoucher> {
+  const emitterCuit = runtime.config.cuit;
+
+  if (!emitterCuit) {
+    throw new InputValidationError(MISSING_CUIT_MESSAGE);
+  }
+  const query = resolveExportAssociatedQuery({
+    emitterCuit,
+    input: input.associatedVoucher,
+    kind,
+    pointOfSale: resolveExportPointOfSale(input.pointOfSale, runtime.config),
+  });
+  const voucher = await gateway.getVoucher(query);
+
+  if (!voucher) {
+    throw missingExportAssociatedVoucherError(query);
+  }
+
+  return {
+    payload: {
+      Cbte_cuit: Number(emitterCuit),
+      Cbte_nro: query.number,
+      Cbte_punto_vta: query.pointOfSale,
+      Cbte_tipo: query.arcaType,
+    },
+    voucher,
+  };
+}
+
+function describeAssociated(voucher: ExportIssuedVoucher): ExportDisplayInfo['associatedVoucher'] {
+  return {
+    currencyCode: voucher.currencyCode,
+    date: voucher.date,
+    displayName:
+      getExportVoucherKindByArcaType(voucher.arcaType)?.displayName ?? `Comprobante tipo ${voucher.arcaType}`,
+    total: voucher.total,
+  };
+}
+
 export class ExportService {
   /**
    * Resuelve todo lo que pide WSFEX antes de emitir: tablas de paises, incoterms, idiomas y unidades,
    * numeracion y cotizacion. Son llamadas de lectura: no emiten nada.
    */
   public async resolve(
-    input: ExportVoucherInput,
+    rawInput: ExportVoucherInput,
     gateway: ExportGateway,
     runtime: ExportRuntime,
     now = new Date(),
   ): Promise<ResolvedExportVoucher> {
     const config = runtime.config;
+    const voucherKind = rawInput.voucherKind ?? EXPORT_VOUCHER_KIND;
+
+    assertLocalFields(rawInput, voucherKind);
+
+    // La nota completa con su asociado lo que no vino por flag: cliente, destino, moneda, cotizacion, tipo.
+    const associated = isExportNote(voucherKind)
+      ? await fetchAssociated(rawInput, gateway, runtime, voucherKind)
+      : undefined;
+    const input = associated ? applyExportAssociatedDefaults(rawInput, associated.voucher) : rawInput;
     const activityCode = input.activity ?? config.exportacion?.actividad;
 
     assertRequiredFields(input, activityCode);
@@ -166,11 +254,30 @@ export class ExportService {
       paymentDate,
       pointOfSale,
       requestId,
+      associatedVoucher: associated?.payload,
       voucherDate,
+      voucherKind,
       voucherNumber,
     });
+
+    if (associated) {
+      assertExportNoteMatchesAssociated({
+        associated: associated.voucher,
+        kind: voucherKind,
+        note: {
+          amount: payload.Imp_total,
+          currencyCode: payload.Moneda_Id,
+          date: payload.Fecha_cbte,
+          destinationCountry: payload.Dst_cmp,
+          exchangeRate: payload.Moneda_ctz,
+          exportType: payload.Tipo_expo,
+        },
+      });
+    }
+
     const currencyCode = payload.Moneda_Id.trim().toUpperCase();
     const display: ExportDisplayInfo = {
+      ...(associated ? { associatedVoucher: describeAssociated(associated.voucher) } : {}),
       countryCuitName: countryCuits.find((entry) => entry.cuit === clientCountryCuit)?.countryName,
       countryName: destinationCountry.name,
       currencyName: (await gateway.getCurrencies()).find((entry) => entry.code.trim().toUpperCase() === currencyCode)
@@ -181,6 +288,7 @@ export class ExportService {
     };
     // La cotizacion de aduana del dia se publica mas tarde: se emite con la ultima disponible, avisando de que dia es.
     const warnings = [
+      ...exportAssociatedVoucherWarnings(rawInput.associatedVoucher),
       ...(quotation?.date && quotation.date !== voucherDate
         ? [
             `ARCA no publicó la cotización de ${quotation.code} del ${formatArcaDateAsArgentineDate(
@@ -190,7 +298,7 @@ export class ExportService {
         : []),
     ];
 
-    return { display, payload, warnings };
+    return { display, payload, voucherKind, warnings };
   }
   /** Vista previa: el payload resuelto, sin llamar a `authorize`. */
   public preview(
@@ -204,7 +312,7 @@ export class ExportService {
       environment: runtime.environment,
       payload: resolved.payload,
       response: createDryRunExportResponse(),
-      voucherKind: EXPORT_VOUCHER_KIND,
+      voucherKind: resolved.voucherKind,
       warnings,
     };
   }
@@ -237,7 +345,7 @@ export class ExportService {
       environment: options.runtime.environment,
       payload: options.resolved.payload,
       response: mapExportResponse(raw),
-      voucherKind: EXPORT_VOUCHER_KIND,
+      voucherKind: options.resolved.voucherKind,
       warnings: options.warnings,
     };
   }

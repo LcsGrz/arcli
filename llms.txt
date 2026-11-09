@@ -1,7 +1,7 @@
 # arcli
 
 > CLI de Node/TypeScript para emitir y previsualizar comprobantes ARCA (ex AFIP) desde
-> terminal: facturas, notas de crédito/débito (comunes y FCE), Recibo C y Factura de exportación E,
+> terminal: facturas, notas de crédito/débito (comunes y FCE), Recibo C, Factura de exportación E y sus notas,
 > en testing o producción.
 > Salida humana por defecto, `--json` para scripts/agentes. Repo: https://github.com/LcsGrz/arcli
 
@@ -85,6 +85,7 @@ Shortcuts (`family` = comando alternativo `arcli <family> <letra>`, ej. `arcli f
 | ncea, nceb, ncec | Nota de crédito electrónica A/B/C | nota-credito-electronica | sí |
 | ndea, ndeb, ndec | Nota de débito electrónica A/B/C | nota-debito-electronica | sí |
 | rc | Recibo C (solo letra C) | recibo | no |
+| fe, nce, nde | Factura, Nota de crédito y Nota de débito de exportación E (WSFEX, ver abajo) | factura, nota-credito, nota-debito | nce y nde sí |
 
 ## Factura de exportación E (WSFEX)
 
@@ -133,6 +134,28 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
 - Un rechazo de WSFEX sale como respuesta válida con exit code `2`, igual que en las letras A, B y C.
 - PDF: `factura-e_<pv>-<numero>.pdf`, con el diseño de exportación (divisa, destino, forma y fecha de
   pago, incoterm, leyenda de IVA exento).
+
+### Notas de crédito y débito E
+
+`arcli nce` (`nota-credito e`, tipo 21) y `arcli nde` (`nota-debito e`, tipo 20) ajustan una E ya emitida.
+Mismos flags que `fe` más el asociado; cliente, domicilio, destino, CUIT del país, tipo de exportación,
+moneda, cotización, idioma, incoterm, forma de pago y actividad salen del asociado (consultado en ARCA con
+`FEXGetCMP`) si no vienen por flag.
+
+```bash
+arcli nce -m 500 --ar 1 --apv 4 --numero 1 --previsualizar --json
+```
+
+- Asociado: `--ar <n>` (requerido), `--apv <n>` (`--asociado-punto-venta`; por defecto el de la nota),
+  `--ac <fe|nde|nce>` (por defecto `fe`) o `--at <19|20|21>`. `--acuit` solo puede ser el CUIT emisor;
+  `--afecha` no se usa. En `--cargar`: `comprobanteAsociado` `{numero, puntoVenta, atajo|tipo}`.
+- No llevan `--fecha-pago`, `--misma-moneda`, `--permiso` ni `--permiso-existente` (en `nce`/`nde` son opción
+  desconocida; en el JSON, `INPUT_VALIDATION_ERROR`).
+- Antes de emitir valida: asociado existente y aprobado, nota no anterior al asociado, NC no mayor al
+  total del asociado (misma moneda) y, en servicios (`tipoExpo` 2), mismo tipo, destino, moneda (o pesos) y
+  cotización que el asociado; ND solo sobre factura, NC no sobre otra NC.
+- `--numero` sigue siendo obligatorio (el siguiente al último de ese tipo en el punto de venta).
+- PDF: `nota-credito-e_<pv>-<numero>.pdf` / `nota-debito-e_<pv>-<numero>.pdf`.
 
 ## Flags principales (alias corto entre paréntesis)
 
@@ -222,7 +245,8 @@ Una clave desconocida (`montototal`, `vencimiento`, `moneda`) o un tipo incorrec
 }
 ```
 
-En la factura E (`fe`) el objeto agrega `exportacion` (`cliente`, `destino`, `domicilioCliente`,
+En la E (`fe`, `nce`, `nde`) el objeto agrega `exportacion` (`cliente`, `comprobanteAsociado` —`null` en la
+factura; en las notas `{atajo, tipoArca, puntoVenta, numero, fecha, total}`—, `destino`, `domicilioCliente`,
 `incoterm`, `items`, `permisos`, `tipoExpo`), `numero` sale también en la vista previa y `solicitud`
 es el `Cmp` de WSFEX con los nombres de ARCA (`Dst_cmp`, `Moneda_Id`, `Items.Item`…).
 

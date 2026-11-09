@@ -106,10 +106,11 @@ El Recibo C usa la misma plantilla que la Factura C con el título `RECIBO C`, `
 La `E` usa el diseño de exportación de `@arcasdk/pdf`, con los mismos datos que la E de Comprobantes en línea, y no discrimina IVA. Imprime:
 
 - los ítems que viajaron a WSFEX (código, descripción con su unidad, cantidad, precio unitario y total);
-- el título `FACTURA DE EXPORTACIÓN`;
+- el título `FACTURA DE EXPORTACIÓN`, `NOTA DE CRÉDITO DE EXPORTACIÓN` o `NOTA DE DÉBITO DE EXPORTACIÓN`;
+- en las notas, el comprobante asociado;
 - el cliente con su domicilio, el CUIT del país con su descripción de ARCA (`55000004242 (POLONIA - Persona Jurídica)`) y el ID impositivo;
 - la divisa con su código ISO y su nombre (`USD - Dólar Estadounidense`; WSFEX la llama `DOL`) y el destino del comprobante;
-- una tabla con la forma de pago, la fecha de pago y el incoterm;
+- una tabla con la forma de pago, la fecha de pago (las notas no la llevan) y el incoterm;
 - el tipo de cambio y el importe total en la moneda del comprobante;
 - la leyenda `IVA EXENTO OPERACIÓN DE EXPORTACIÓN` debajo de la condición frente al IVA del emisor;
 - las observaciones comerciales y las observaciones, debajo del CAE;
@@ -133,7 +134,7 @@ Las facturas C no llevan ninguna de las dos.
 - **Carpeta:** la config `pdfCarpeta`. Por defecto es `~/arcli/comprobantes`, una ruta fija para que los PDFs no queden repartidos según desde dónde corriste el comando.
 - **Una subcarpeta por CUIT emisor:** `~/arcli/comprobantes/20123456786/`. Así dos emisores con el mismo punto de venta y número no se pisan.
 - **Testing:** los PDFs de testing van a `testing/<CUIT>/` y llevan al pie "COMPROBANTE DE PRUEBA - SIN VALIDEZ FISCAL".
-- **Nombre:** `<tipo>-<letra>_<punto de venta>-<número>.pdf`, con el punto de venta en 4 dígitos y el número en 8. Por ejemplo, `factura-c_0003-00000125.pdf`, `nota-credito-a_0003-00000007.pdf`, `recibo-c_0003-00000003.pdf` o `factura-e_0003-00000012.pdf`.
+- **Nombre:** `<tipo>-<letra>_<punto de venta>-<número>.pdf`, con el punto de venta en 4 dígitos y el número en 8. Por ejemplo, `factura-c_0003-00000125.pdf`, `nota-credito-a_0003-00000007.pdf`, `recibo-c_0003-00000003.pdf`, `factura-e_0003-00000012.pdf` o `nota-credito-e_0004-00000001.pdf`.
 - **Nunca se pisa un PDF:** si el archivo ya existe, el nuevo se guarda como `factura-c_0003-00000125-2.pdf`, `-3` y así.
 
 ```bash

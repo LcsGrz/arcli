@@ -49,6 +49,7 @@ const gateway: ExportGateway = {
   getLastRequestId: async () => 0,
   getQuotations: async () => [{ code: 'DOL', date: '20261030', rate: 1174.6 }],
   getUnits: async () => [{ id: 7, name: 'unidades' }],
+  getVoucher: async () => null,
 };
 
 vi.mock('../prompts', () => ({

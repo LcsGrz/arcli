@@ -14,6 +14,18 @@ const itemJsonSchema = z
   })
   .strict();
 
+/** El comprobante que ajusta una nota E, con las mismas claves que en A, B y C. */
+const associatedVoucherJsonSchema = z
+  .object({
+    atajo: z.string().optional(),
+    cuit: z.string().optional(),
+    fecha: z.string().optional(),
+    numero: z.number().optional(),
+    puntoVenta: z.number().optional(),
+    tipo: z.number().optional(),
+  })
+  .strict();
+
 /**
  * Forma del JSON de `--cargar`: solo tipos y claves. Los valores (importes, pais, incoterm) los valida el
  * servicio igual que si vinieran por flags. Es `.strict()` para que un typo no se ignore en silencio.
@@ -23,6 +35,7 @@ const exportJsonInputSchema = z
     actividad: z.number().optional(),
     cliente: z.string().optional(),
     codigoMoneda: z.string().optional(),
+    comprobanteAsociado: associatedVoucherJsonSchema.optional(),
     cotizacionMoneda: z.number().optional(),
     cuitPais: z.number().optional(),
     descripcion: z.string().optional(),
@@ -100,7 +113,7 @@ function parseExportJsonInput(value: unknown): ExportJsonInput {
 export function readExportJsonInput(source: unknown): ExportJsonInput {
   if (Array.isArray(source)) {
     throw new InputValidationError(
-      'El JSON de `--cargar` de la factura E tiene que ser un objeto con un comprobante, no un array.',
+      'El JSON de `--cargar` de una E tiene que ser un objeto con un comprobante, no un array.',
     );
   }
 

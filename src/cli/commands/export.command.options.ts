@@ -4,8 +4,13 @@ import { InputValidationError } from '../../lib/errors/app-error';
 import { EXCHANGE_RATE_DECIMALS } from '../../lib/numbers/argentine-amount';
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import { parseExportItemArgument } from '../../modules/export/export.items';
-import type { ExportItemInput, ExportType } from '../../modules/export/export.types';
-import { amountOption, integerOption } from '../option-parsers';
+import {
+  type ExportItemInput,
+  type ExportType,
+  type ExportVoucherKind,
+  isExportNote,
+} from '../../modules/export/export.types';
+import { amountOption, cuitOption, integerOption } from '../option-parsers';
 
 function exportTypeOption(value: string): ExportType {
   const parsed = parseStrictInteger(value);
@@ -28,6 +33,8 @@ interface ExportOptionDefinition {
   readonly flags: string;
   /** Alias: se aceptan pero no se listan, como en A, B y C. El flag principal los nombra. */
   readonly hidden?: boolean;
+  /** Solo la factura (permisos, fecha de pago, misma moneda) o solo las notas (el asociado). Sin esto, las dos. */
+  readonly only?: 'factura' | 'nota';
   readonly parser?: (value: string, previous: unknown) => unknown;
 }
 
@@ -71,11 +78,50 @@ const EXPORT_OPTIONS: readonly ExportOptionDefinition[] = [
   {
     description: 'permiso de embarque ya existente; repetible. Requiere --permiso-existente y --tipo-expo 1',
     flags: '--permiso <id>',
+    only: 'factura',
     parser: repeatable((value: string) => value),
   },
   {
     description: 'el permiso de embarque informado ya existe en ARCA',
     flags: '--permiso-existente',
+    only: 'factura',
+  },
+  {
+    description: 'número del comprobante E que ajusta la nota, obligatorio',
+    flags: '--ar <numero>',
+    only: 'nota',
+    parser: integerOption('--ar'),
+  },
+  {
+    description: 'punto de venta del comprobante asociado; por defecto el de la nota (alias: --asociado-punto-venta)',
+    flags: '--apv <numero>',
+    only: 'nota',
+    parser: integerOption('--apv'),
+  },
+  {
+    description: 'alias de --apv',
+    flags: '--asociado-punto-venta <numero>',
+    hidden: true,
+    only: 'nota',
+    parser: integerOption('--asociado-punto-venta'),
+  },
+  {
+    description: 'atajo del comprobante asociado: fe (por defecto), nde o nce',
+    flags: '--ac <atajo>',
+    only: 'nota',
+  },
+  {
+    description: 'tipo ARCA del comprobante asociado: 19, 20 o 21',
+    flags: '--at <numero>',
+    only: 'nota',
+    parser: integerOption('--at'),
+  },
+  {
+    description: 'CUIT del comprobante asociado; en la E siempre es el tuyo',
+    flags: '--acuit <numero>',
+    hidden: true,
+    only: 'nota',
+    parser: cuitOption('--acuit'),
   },
   {
     description:
@@ -100,7 +146,7 @@ const EXPORT_OPTIONS: readonly ExportOptionDefinition[] = [
   },
   { description: 'alias de --punto-venta', flags: '--pv <numero>', hidden: true, parser: integerOption('--pv') },
   { description: 'fecha del comprobante; acepta D, D/M, D/M/YY o D/M/YYYY con - o /', flags: '-f, --fecha <fecha>' },
-  { description: 'fecha de pago; por defecto la del comprobante', flags: '--fecha-pago <fecha>' },
+  { description: 'fecha de pago; por defecto la del comprobante', flags: '--fecha-pago <fecha>', only: 'factura' },
   { description: 'moneda: código ISO o de ARCA; USD o DOL por defecto (alias: --mda)', flags: '--moneda <codigo>' },
   { description: 'alias de --moneda', flags: '--mda <codigo>', hidden: true },
   {
@@ -114,7 +160,7 @@ const EXPORT_OPTIONS: readonly ExportOptionDefinition[] = [
     hidden: true,
     parser: amountOption('--cm', EXCHANGE_RATE_DECIMALS),
   },
-  { description: 'el pago se cancela en la misma moneda extranjera', flags: '--misma-moneda' },
+  { description: 'el pago se cancela en la misma moneda extranjera', flags: '--misma-moneda', only: 'factura' },
   { description: 'observaciones del comprobante', flags: '--observaciones <texto>' },
   { description: 'observaciones comerciales del comprobante', flags: '--obs-comerciales <texto>' },
   {
@@ -132,22 +178,36 @@ const EXPORT_OPTIONS: readonly ExportOptionDefinition[] = [
   { description: 'emitir realmente en ARCA', flags: '--emitir' },
 ];
 
-/** Los flags largos que aplican a la factura E, incluidos los que comparte con A, B y C (`--monto`, `--fecha`...). */
-export const EXPORT_OPTION_FLAGS: ReadonlySet<string> = new Set(
-  EXPORT_OPTIONS.map((definition) => new Option(definition.flags).long).filter((flag): flag is string => Boolean(flag)),
-);
+function optionsFor(kind: ExportVoucherKind): readonly ExportOptionDefinition[] {
+  const scope = isExportNote(kind) ? 'nota' : 'factura';
+
+  return EXPORT_OPTIONS.filter((definition) => !definition.only || definition.only === scope);
+}
+
+/** Los flags largos que aplican a una E, incluidos los que comparte con A, B y C (`--monto`, `--fecha`...). */
+export function exportOptionFlags(kind: ExportVoucherKind): ReadonlySet<string> {
+  return new Set(
+    optionsFor(kind)
+      .map((definition) => new Option(definition.flags).long)
+      .filter((flag): flag is string => Boolean(flag)),
+  );
+}
 
 /**
- * Registra las opciones de la factura E. `hidden` las registra sin mostrarlas: `arcli factura <letra>` las acepta
- * para la letra E. Las que el comando ya tiene (`--monto`, `--fecha`...) se reusan. Devuelve las que agrego.
+ * Registra las opciones de una E. `hidden` las registra sin mostrarlas: `arcli factura <letra>` las acepta para la
+ * letra E. Las que el comando ya tiene (`--monto`, `--fecha`...) se reusan. Devuelve las que agrego.
  */
-export function registerExportOptions(command: Command, options: { readonly hidden?: boolean } = {}): Option[] {
+export function registerExportOptions(
+  command: Command,
+  kind: ExportVoucherKind,
+  options: { readonly hidden?: boolean } = {},
+): Option[] {
   const existing = new Set(
     command.options.flatMap((option) => [option.short, option.long]).filter((flag): flag is string => Boolean(flag)),
   );
   const added: Option[] = [];
 
-  for (const definition of EXPORT_OPTIONS) {
+  for (const definition of optionsFor(kind)) {
     const option = new Option(definition.flags, definition.description);
     const flags = [option.short, option.long].filter((flag): flag is string => Boolean(flag));
 
