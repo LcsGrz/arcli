@@ -6,6 +6,18 @@ import { formatVoucherWithArticle } from '../../modules/billing/billing.mappers'
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { getVoucherKindByShortcut, VOUCHER_SHORTCUTS } from '../../modules/billing/voucher-kind-map';
 import { formatEnvironmentLabel } from '../../modules/config/config.schemas';
+import { listRecentExportVouchers } from '../../modules/export/export.history';
+import {
+  formatExportVoucherDetailAsJson,
+  formatExportVoucherDetailAsText,
+  formatExportVoucherListAsJson,
+  formatExportVoucherListAsText,
+} from '../../modules/export/export.history.presenter';
+import {
+  EXPORT_VOUCHER_KINDS,
+  type ExportVoucherKind,
+  getExportVoucherKindByShortcut,
+} from '../../modules/export/export.types';
 import { listRecentVouchers, MAX_RECENT_VOUCHERS, RECENT_VOUCHERS_LIMIT } from '../../modules/vouchers/voucher-history';
 import {
   formatVoucherDetailAsJson,
@@ -16,7 +28,7 @@ import {
 } from '../../modules/vouchers/voucher-history.presenter';
 import type { ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
 import { ArcaVoucherHistoryGateway } from '../../services/arca/arca-voucher-history.gateway';
-import { type ArcaQuery, createArcaQuery, withQuerySpinner, writeQueryOutput } from '../arca-query';
+import { type ArcaQuery, createArcaQuery, createExportQuery, withQuerySpinner, writeQueryOutput } from '../arca-query';
 import { registerQueryOptions } from '../global-options';
 import { configureSpanishHelp, createVoucherQueryHelp } from '../help';
 import { integerOption } from '../option-parsers';
@@ -26,16 +38,40 @@ interface PointOfSaleOptions {
   readonly puntoVenta?: number;
 }
 
-function requireVoucherKind(shortcut: string): VoucherKindDefinition {
-  const voucherKind = getVoucherKindByShortcut(shortcut.trim().toLowerCase());
+/** A, B y C van por wsfe; la E (`fe`, `nde`, `nce`), por wsfex. */
+type QueryVoucherKind =
+  | { readonly kind: VoucherKindDefinition; readonly service: 'wsfe' }
+  | { readonly kind: ExportVoucherKind; readonly service: 'wsfex' };
 
-  if (!voucherKind) {
-    throw new InputValidationError(
-      `El tipo "${shortcut}" no es válido. Usá un atajo: ${VOUCHER_SHORTCUTS.join(', ')}.`,
-    );
+function requireVoucherKind(shortcut: string): QueryVoucherKind {
+  const normalized = shortcut.trim().toLowerCase();
+  const voucherKind = getVoucherKindByShortcut(normalized);
+
+  if (voucherKind) {
+    return { kind: voucherKind, service: 'wsfe' };
   }
 
-  return voucherKind;
+  const exportKind = getExportVoucherKindByShortcut(normalized);
+
+  if (exportKind) {
+    return { kind: exportKind, service: 'wsfex' };
+  }
+
+  throw new InputValidationError(
+    `El tipo "${shortcut}" no es válido. Usá un atajo: ${[...VOUCHER_SHORTCUTS, ...EXPORT_VOUCHER_KINDS.map((kind) => kind.shortcut)].join(', ')}.`,
+  );
+}
+
+function voucherNotFound(
+  kind: VoucherKindDefinition | ExportVoucherKind,
+  pointOfSale: number,
+  number: number,
+  environment: ResolvedArcaRuntime['environment'],
+): AppError {
+  return new AppError(
+    `No existe ${formatVoucherWithArticle(kind)} N° ${formatVoucherNumber(pointOfSale, number)} en ARCA (${formatEnvironmentLabel(environment)}).`,
+    { code: 'VOUCHER_NOT_FOUND' },
+  );
 }
 
 function requirePointOfSale(options: PointOfSaleOptions, runtime: ResolvedArcaRuntime): number {
@@ -64,7 +100,7 @@ export function registerVoucherQueryCommands(program: Command): void {
   const recent = addPointOfSaleOptions(
     program
       .command('ultimos')
-      .argument('<tipo>', 'atajo del comprobante, por ejemplo fb, fc o nca')
+      .argument('<tipo>', 'atajo del comprobante, por ejemplo fb, fc, nca o fe')
       .description('listar los últimos comprobantes emitidos en ARCA')
       .option(
         '--cantidad <numero>',
@@ -77,13 +113,31 @@ export function registerVoucherQueryCommands(program: Command): void {
   configureSpanishHelp(recent);
 
   recent.action(async (shortcut: string, options: PointOfSaleOptions & { cantidad?: number }, self: Command) => {
-    const voucherKind = requireVoucherKind(shortcut);
+    const query = requireVoucherKind(shortcut);
     const { cantidad } = options;
 
     if (cantidad !== undefined && (!Number.isInteger(cantidad) || cantidad < 1 || cantidad > MAX_RECENT_VOUCHERS)) {
       throw new InputValidationError(`\`--cantidad\` tiene que ser un número entre 1 y ${MAX_RECENT_VOUCHERS}.`);
     }
 
+    if (query.service === 'wsfex') {
+      const { gateway, runtime } = createExportQuery(self);
+      const limit = cantidad ?? runtime.config.comprobantesPorLista ?? RECENT_VOUCHERS_LIMIT;
+      const pointOfSale = requirePointOfSale(options, runtime);
+      const vouchers = await withQuerySpinner(runtime, () =>
+        listRecentExportVouchers(gateway, pointOfSale, query.kind.arcaType, { limit }),
+      );
+      const report = { environment: runtime.environment, pointOfSale, voucherKind: query.kind, vouchers };
+
+      writeQueryOutput(runtime, {
+        json: () => formatExportVoucherListAsJson(report),
+        text: () => formatExportVoucherListAsText(report),
+      });
+
+      return;
+    }
+
+    const voucherKind = query.kind;
     const { gateway, runtime } = createContext(self);
     const limit = cantidad ?? runtime.config.comprobantesPorLista ?? RECENT_VOUCHERS_LIMIT;
     const pointOfSale = requirePointOfSale(options, runtime);
@@ -101,7 +155,7 @@ export function registerVoucherQueryCommands(program: Command): void {
   const detail = addPointOfSaleOptions(
     program
       .command('consultar')
-      .argument('<tipo>', 'atajo del comprobante, por ejemplo fb, fc o nca')
+      .argument('<tipo>', 'atajo del comprobante, por ejemplo fb, fc, nca o fe')
       .argument('<numero>', 'número del comprobante')
       .description('ver el detalle de un comprobante emitido en ARCA'),
   ).addHelpText('after', createVoucherQueryHelp());
@@ -110,13 +164,35 @@ export function registerVoucherQueryCommands(program: Command): void {
   configureSpanishHelp(detail);
 
   detail.action(async (shortcut: string, rawNumber: string, options: PointOfSaleOptions, self: Command) => {
-    const voucherKind = requireVoucherKind(shortcut);
+    const query = requireVoucherKind(shortcut);
     const number = parseStrictInteger(rawNumber);
 
     if (number === undefined || number <= 0) {
       throw new InputValidationError(`El número "${rawNumber}" no es válido: tiene que ser un entero positivo.`);
     }
 
+    if (query.service === 'wsfex') {
+      const { gateway, runtime } = createExportQuery(self);
+      const pointOfSale = requirePointOfSale(options, runtime);
+      const voucher = await withQuerySpinner(runtime, () =>
+        gateway.getVoucher({ arcaType: query.kind.arcaType, number, pointOfSale }),
+      );
+
+      if (!voucher) {
+        throw voucherNotFound(query.kind, pointOfSale, number, runtime.environment);
+      }
+
+      const report = { environment: runtime.environment, pointOfSale, voucher, voucherKind: query.kind };
+
+      writeQueryOutput(runtime, {
+        json: () => formatExportVoucherDetailAsJson(report),
+        text: () => formatExportVoucherDetailAsText(report),
+      });
+
+      return;
+    }
+
+    const voucherKind = query.kind;
     const { gateway, runtime } = createContext(self);
     const pointOfSale = requirePointOfSale(options, runtime);
     const voucher = await withQuerySpinner(runtime, () =>
@@ -124,10 +200,7 @@ export function registerVoucherQueryCommands(program: Command): void {
     );
 
     if (!voucher) {
-      throw new AppError(
-        `No existe ${formatVoucherWithArticle(voucherKind)} N° ${formatVoucherNumber(pointOfSale, number)} en ARCA (${formatEnvironmentLabel(runtime.environment)}).`,
-        { code: 'VOUCHER_NOT_FOUND' },
-      );
+      throw voucherNotFound(voucherKind, pointOfSale, number, runtime.environment);
     }
 
     const report = { environment: runtime.environment, pointOfSale, voucher, voucherKind };

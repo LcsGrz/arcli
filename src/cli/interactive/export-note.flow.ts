@@ -14,7 +14,6 @@ import { parseAmountInput } from '../../modules/interactive/amount-input';
 import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { formatVoucherNumber } from '../../modules/vouchers/voucher-history.presenter';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
-import { ArcaExportGateway } from '../../services/arca/arca-export.gateway';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 import { withSpinner } from '../spinner';
 
@@ -28,7 +27,6 @@ export interface ExportNoteState {
   readonly description?: string;
   readonly invoice?: ExportIssuedVoucher;
   readonly invoicePointOfSale?: number;
-  readonly voucherNumber?: number;
 }
 
 function validatePositiveInteger(label: string): (value: string) => string | true {
@@ -131,17 +129,6 @@ export function exportNoteSteps(
         return answer === BACK ? BACK : { description: answer.trim() || undefined };
       },
     },
-    {
-      name: 'numero',
-      run: async () => {
-        const answer = await askTextStep(
-          `Número de la ${formatVoucherLabel(voucherKind)} (el siguiente al último de este punto de venta; 1 si es la primera):`,
-          { validate: validatePositiveInteger('El número') },
-        );
-
-        return answer === BACK ? BACK : { voucherNumber: parseStrictInteger(answer) };
-      },
-    },
   ];
 }
 
@@ -154,7 +141,6 @@ export function buildExportNoteInput(kind: 'credito' | 'debito', state: ExportNo
     description: state.description,
     emit: false,
     voucherKind: kind === 'credito' ? EXPORT_CREDIT_NOTE_KIND : EXPORT_DEBIT_NOTE_KIND,
-    voucherNumber: state.voucherNumber,
   };
 }
 
@@ -172,7 +158,7 @@ export async function runExportNoteFlow(
     return;
   }
 
-  const gateway = new ArcaExportGateway(new ArcaClientFactory().createForExport(session.runtime));
+  const gateway = new ArcaClientFactory().createExportGateway(session.runtime);
   const state = await runWizard(exportNoteSteps(kind, gateway, pointOfSale), {});
 
   if (!state) {

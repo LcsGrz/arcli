@@ -571,7 +571,6 @@ WSFEX pide un certificado autorizado al servicio `wsfex`. ARCLI usa `exportacion
 - importe total: `--monto`
 - cliente y domicilio en el exterior: `--cliente`, `--domicilio-cliente`
 - país de destino: `--pais-destino`, por código (`203`) o por nombre (`Brasil`)
-- número del comprobante: `--numero`, el siguiente al último `E` emitido en ese punto de venta (`1` si es el primero). ARCLI todavía no lo puede consultar: `@arcasdk/core` arma mal el pedido de `FEXGetLast_CMP`
 - actividad: `--actividad` o la clave `exportacion.actividad` de la config, con un código de la tabla de actividades de WSFEX
 
 **Opcional**
@@ -582,7 +581,7 @@ WSFEX pide un certificado autorizado al servicio `wsfex`. ARCLI usa `exportacion
 - `--item` para el detalle real; sin ítems va un renglón con `--descripcion`
 - `--incoterm` y `--incoterms-desc`, `--idioma`, `--forma-pago` (por defecto `Transferencia Internacional`)
 - `--permiso` y `--permiso-existente` para permisos de embarque (solo con `--tipo-expo 1`; en `2` y `4` ARCA exige `Permiso_existente` vacío)
-- `--id-solicitud` si lo querés fijar a mano (por defecto, el siguiente de WSFEX)
+- `--numero` y `--id-solicitud` si los querés fijar a mano (por defecto, los siguientes de WSFEX)
 - punto de venta si no está en config: `--punto-venta` o `--pv`
 - moneda y cotización: `--moneda` (por defecto `DOL`), `--mda`, `--cotizacion-moneda`, `--cm`, `--misma-moneda`
 - PDF: `--exportar-pdf`, `--pdf` o `--sin-pdf`
@@ -638,7 +637,7 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
 | `--forma-pago <texto>`            | ninguno         | `string`                             | No          | Por defecto `Transferencia Internacional`                                          |
 | `--permiso <id>`                  | ninguno         | `string` repetible                   | No          | Permiso de embarque ya existente; requiere `--permiso-existente` y `--tipo-expo 1` |
 | `--permiso-existente`             | ninguno         | `boolean`                            | No          | Marca que los permisos informados ya están en ARCA                                 |
-| `--numero <numero>`               | ninguno         | `integer`                            | Sí          | El siguiente al último `E` de ese punto de venta                                   |
+| `--numero <numero>`               | ninguno         | `integer`                            | No          | Por defecto, el siguiente al último de ese tipo en el punto de venta               |
 | `--id-solicitud <numero>`         | ninguno         | `integer`                            | No          | Por defecto, el siguiente de WSFEX                                                 |
 | `--punto-venta <numero>`          | `--pv <numero>` | `integer`                            | Condicional | Si no está en config                                                               |
 | `--fecha <fecha>`                 | `-f`            | `string`                             | No          | No admite fechas futuras                                                           |
@@ -680,7 +679,7 @@ Los defaults de config de esos campos (concepto, IVA receptor, alícuota, CBU) n
 #### Vista previa, numeración y PDF
 
 - La vista previa consulta las tablas de WSFEX (países, monedas, unidades, incoterms, idiomas, actividades), la cotización y el ID de la solicitud, pero no emite.
-- WSFEX numera por punto de venta y tipo de comprobante. `--numero` es obligatorio mientras `@arcasdk/core` no permita consultar el último (`FEXGetLast_CMP`); si te equivocás, ARCA rechaza el comprobante. El ID de la solicitud sí se consulta (`FEXGetLast_ID`); fijalo con `--id-solicitud` si emitís en paralelo.
+- WSFEX numera por punto de venta y tipo de comprobante. Sin `--numero`, arcli consulta el último (`FEXGetLast_CMP`) y usa el siguiente, también en la vista previa; si pasás otro, ARCA rechaza el comprobante. El ID de la solicitud también se consulta (`FEXGetLast_ID`). Fijá los dos con `--numero` e `--id-solicitud` si emitís en paralelo.
 - El PDF se genera después de emitir, como en el resto de los comprobantes. Se guarda como `factura-e_<pv>-<numero>.pdf` y usa el diseño de exportación: ítems reales, país de destino, CUIT del país, ID impositivo, divisa, forma y fecha de pago, incoterm y la leyenda de IVA exento. Ver [PDF](pdf.md#factura-de-exportación-e).
 - Un comprobante rechazado por WSFEX sale como respuesta válida con exit code `2`, igual que en las letras A, B y C.
 
@@ -784,7 +783,7 @@ arcli consultar fb 14 --json      # lo mismo, en JSON
 | `arcli ultimos <tipo>`            | `tipo`: atajo del comprobante (`fa`, `fb`, `nca`, `fcea`…) | `--cantidad <n>` (1 a 50; por defecto `config.comprobantesPorLista` o 15), `--pv` / `--punto-venta`, `--json`, `--testing`, `--produccion` |
 | `arcli consultar <tipo> <numero>` | `tipo` y número del comprobante                            | `--pv` / `--punto-venta`, `--json`, `--testing`, `--produccion`                                                                            |
 
-Sin `--pv` usan el punto de venta de la config. Todavía no aceptan la Factura de exportación `E` (`fe`). Si el comprobante no existe, `consultar` termina con el error `VOUCHER_NOT_FOUND`. El formato del JSON está en [Entrada y salida](input-output.md#comprobantes-emitidos-ultimos-y-consultar).
+Sin `--pv` usan el punto de venta de la config. Aceptan también la `E` (`fe`, `nde`, `nce`), que se consulta en WSFEX con su certificado. Si el comprobante no existe, `consultar` termina con el error `VOUCHER_NOT_FOUND`. El formato del JSON está en [Entrada y salida](input-output.md#comprobantes-emitidos-ultimos-y-consultar).
 
 ## Consultar el régimen FCE
 

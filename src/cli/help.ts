@@ -465,13 +465,14 @@ export function createVoucherQueryHelp(): string {
         '  - arcli ultimos nca --cantidad 25   últimas 25 notas de crédito A',
         '  - arcli consultar fb 14             detalle de la factura B número 14',
         '  - arcli consultar fb 14 --json      lo mismo, en JSON',
+        '  - arcli ultimos fe --pv 4           últimas facturas de exportación E del punto de venta 4',
       ].join('\n'),
     ),
     '',
     section(
       'Detalles',
       [
-        '  - El tipo es el atajo del comprobante: fa, fb, fc, nca, ndb, fcea, etc.',
+        '  - El tipo es el atajo del comprobante: fa, fb, fc, nca, ndb, fcea, fe, nce, etc. La E se consulta en WSFEX.',
         '  - Sin --pv usa el punto de venta de la config.',
         '  - Solo consulta: no emite ni modifica nada.',
       ].join('\n'),
@@ -531,7 +532,7 @@ export function createExportShortcutHelp(kind: ExportVoucherKind = EXPORT_VOUCHE
       compactList([
         `${displayName}, tipo ARCA ${arcaType}, por WSFEX. Es lo mismo que arcli ${family} ${letter}.`,
         ...exportVoucherRules(kind),
-        '--numero es obligatorio: arcli todavía no puede consultar en WSFEX el último comprobante emitido.',
+        `Sin --numero toma el siguiente al último de ARCA en el punto de venta. Para verlos: arcli ultimos ${shortcut}.`,
       ]),
     ),
     '',

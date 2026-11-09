@@ -1,4 +1,4 @@
-import type { Arca } from '@arcasdk/core';
+import type { Arca, IFEXGetLast_CMPInput } from '@arcasdk/core';
 import type { IFEXAuthorizeInput, IFEXAuthorizeOutput } from '@arcasdk/core/lib/application/dto/fex';
 
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
@@ -84,6 +84,14 @@ function isExportType(value: number | undefined): value is ExportType {
   return value === 1 || value === 2 || value === 4;
 }
 
+function mapAssociatedVoucher(row: Record<string, unknown> | undefined): ExportVoucherQuery | undefined {
+  const arcaType = readNumber(row?.Cbte_tipo);
+  const number = readNumber(row?.Cbte_nro);
+  const pointOfSale = readNumber(row?.Cbte_punto_vta);
+
+  return arcaType && number && pointOfSale ? { arcaType, number, pointOfSale } : undefined;
+}
+
 /** Sin numero, tipo de exportacion o moneda no sirve como asociado: se trata como que no existe. */
 function mapIssuedVoucher(row: Record<string, unknown> | undefined): ExportIssuedVoucher | null {
   const number = readNumber(row?.Cbte_nro);
@@ -100,8 +108,9 @@ function mapIssuedVoucher(row: Record<string, unknown> | undefined): ExportIssue
   return {
     activities: readRows(row.Actividades, 'Actividad').flatMap((activity) => readNumber(activity.Id) ?? []),
     arcaType: readNumber(row.Cbte_tipo) ?? 0,
-    associatedArcaType: readNumber(readRows(row.Cmps_asoc, 'Cmp_asoc')[0]?.Cbte_tipo),
+    associatedVoucher: mapAssociatedVoucher(readRows(row.Cmps_asoc, 'Cmp_asoc')[0]),
     cae: readOptionalText(row.Cae),
+    caeExpiration: readOptionalText(row.Fch_venc_Cae),
     clientAddress: readText(row.Domicilio_cliente),
     clientCountryCuit: readNumber(row.Cuit_pais_cliente),
     clientName: readText(row.Cliente),
@@ -134,8 +143,19 @@ function assertNoError(result: FexResult | undefined, operation: string): void {
   }
 }
 
+/** El bloque `Auth` de WSFEX (token, firma y CUIT), recien pedido a WSAA o tomado del ticket guardado. */
+export type WsfexAuthenticator = () => Promise<{
+  readonly Cuit: number;
+  readonly Sign: string;
+  readonly Token: string;
+}>;
+
 export class ArcaExportGateway implements ExportGateway {
-  public constructor(private readonly arca: Arca) {}
+  /** Sin `authenticate` no se puede consultar el ultimo numero: ver `getLastVoucherNumber`. */
+  public constructor(
+    private readonly arca: Arca,
+    private readonly authenticate?: WsfexAuthenticator,
+  ) {}
 
   /** Todas las llamadas autentican en WSAA: si el certificado no esta autorizado a wsfex, el error lo dice. */
   private async call<T>(request: (service: Arca['wsfexService']) => Promise<T>): Promise<T> {
@@ -276,6 +296,31 @@ export class ArcaExportGateway implements ExportGateway {
 
       return Number.isInteger(id) ? [{ id, name: readText(row.Umed_Ds) }] : [];
     });
+  }
+
+  /**
+   * `FEXGetLast_CMP` lleva `Pto_venta` y `Cbte_Tipo` dentro de `Auth`, pero `@arcasdk/core` arma
+   * `{ Auth: {Token, Sign, Cuit}, ...params }`: si los mandamos en un `Auth` propio, el suyo se pierde, y sin ellos ARCA
+   * contesta 1606 (ralcorta/arcasdk#238 lo arregla y sigue abierto). Con el `Auth` completo, token y firma incluidos,
+   * el nuestro gana y llega entero.
+   */
+  public async getLastVoucherNumber(arcaType: number, pointOfSale: number): Promise<number> {
+    if (!this.authenticate) {
+      throw new AppError('El gateway de WSFEX se creó sin autenticador: no puede consultar el último número.', {
+        code: 'UNEXPECTED_ERROR',
+      });
+    }
+
+    const auth = await this.authenticate();
+    const data = (
+      await this.call((service) =>
+        service.getLastCmp({ Auth: { ...auth, Cbte_Tipo: arcaType, Pto_venta: pointOfSale } } as IFEXGetLast_CMPInput),
+      )
+    ).FEXGetLast_CMPResult;
+
+    assertNoError(data, 'el último número');
+
+    return Number(data?.FEXResult_LastCMP?.Cbte_nro) || 0;
   }
 
   public async getLastRequestId(): Promise<number> {

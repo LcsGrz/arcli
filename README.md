@@ -83,7 +83,7 @@ arcli fc -m 15000 --cs --consumidor-final --emitir   # emitir
 arcli fc --cargar ./facturas.json --emitir --json            # lote desde JSON, salida JSON
 arcli fc -m 15000 --cs --consumidor-final --emitir --exportar-pdf
 arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 203 \
-  --numero 1 --actividad 620100 --previsualizar                             # Factura de exportación E
+  --actividad 620100 --previsualizar                                        # Factura de exportación E
 ```
 
 Otras consultas: `arcli ultimos`, `arcli consultar`, `arcli estado`, `arcli parametros`, `arcli fce-obligado`, `arcli padron`. Para ver todos los comprobantes y ejemplos: `arcli --ayuda` y `arcli ejemplos`.

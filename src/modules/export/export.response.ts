@@ -56,7 +56,7 @@ function buildSuggestions(options: {
 
   if (/correlativ/i.test(options.messages)) {
     suggestions.add(
-      'Revisá el número del comprobante (`--numero`): tiene que ser el siguiente al último E emitido en ese punto de venta.',
+      'Revisá el número del comprobante: tiene que ser el siguiente al último de ese tipo en el punto de venta. Sin `--numero`, arcli lo consulta en ARCA; mirá los últimos con `arcli ultimos fe`.',
     );
   }
 

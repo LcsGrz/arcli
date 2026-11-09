@@ -14,7 +14,6 @@ import {
 } from '../../modules/export/export.types';
 import { formatPdfOutcomeAsText } from '../../modules/pdf/pdf.presenter';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
-import { ArcaExportGateway } from '../../services/arca/arca-export.gateway';
 import { noticePanel, writeTerminalJson, writeTerminalOutput } from '../../ui';
 import { certificateWarnings, resolveArcaRuntime } from '../arca-runtime';
 import { getGlobalOptions } from '../global-options';
@@ -99,7 +98,7 @@ export async function executeExportCommand(command: Command, options: ExportComm
     const useRaw = typeof globalOptions.bruto === 'boolean' ? globalOptions.bruto : runtime.outputRaw;
     const interactive = !runtime.outputJson && Boolean(process.stdin.isTTY && process.stdout.isTTY);
     const service = new ExportService();
-    const gateway = new ArcaExportGateway(new ArcaClientFactory().createForExport(runtime));
+    const gateway = new ArcaClientFactory().createExportGateway(runtime);
 
     spinner = runtime.outputJson ? null : startSpinner('Consultando WSFEX...');
 

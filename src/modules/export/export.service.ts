@@ -6,7 +6,6 @@ import {
 import { InputValidationError } from '../../lib/errors/app-error';
 import { AMOUNT_DECIMALS, formatExchangeRate, hasAtMostDecimals } from '../../lib/numbers/argentine-amount';
 import { EmissionUncertainError } from '../billing/billing.errors';
-import { formatVoucherLabel } from '../billing/billing.mappers';
 import { type ArcliConfig, MISSING_CUIT_MESSAGE } from '../config/config.schemas';
 
 import { assertExportItemsTotal, buildExportItems, DEFAULT_EXPORT_ITEM_DESCRIPTION } from './export.items';
@@ -66,24 +65,11 @@ function assertLocalFields(input: ExportVoucherInput, kind: ExportVoucherKind): 
     throw new InputValidationError(`El monto total no puede tener más de ${AMOUNT_DECIMALS} decimales.`);
   }
 
-  // WSFEX numera por punto de venta y tipo, pero @arcasdk/core no deja consultar el ultimo (FEXGetLast_CMP lleva
-  // Pto_venta y Cbte_Tipo dentro de Auth y el SDK pisa ese bloque). Hasta que se arregle, el numero lo indica el usuario.
-  if (input.voucherNumber === undefined) {
-    throw new InputValidationError(
-      `Falta el número del comprobante. Usá \`--numero\`: arcli todavía no puede consultar en WSFEX el último emitido. Si es ${formatFirstVoucher(kind)} de este punto de venta, es 1; si no, el siguiente al último que emitiste.`,
-    );
-  }
-
   if (isExportNote(kind)) {
     assertExportNoteFields(input, kind);
   }
 
   assertExportItemsTotal(input.items, input.amount);
-}
-
-/** `la primera Factura E`, `la primera nota de crédito de exportación E`. */
-function formatFirstVoucher(kind: ExportVoucherKind): string {
-  return kind === EXPORT_VOUCHER_KIND ? 'la primera Factura E' : `la primera ${formatVoucherLabel(kind)}`;
 }
 
 /** Lo que pide la factura (y la nota, ya completada con su asociado) antes de consultar las tablas. */
@@ -226,9 +212,11 @@ export class ExportService {
       : undefined;
     const exchangeRate = quotation?.rate ?? currency.fields.Moneda_ctz;
     const pointOfSale = resolveExportPointOfSale(input.pointOfSale, config);
+    // WSFEX numera por punto de venta y tipo. Sin `--numero`, el siguiente al ultimo que tiene ARCA: es una lectura.
     const voucherNumber = resolveExportNumber({
       label: 'El número del comprobante',
-      last: 0,
+      last:
+        input.voucherNumber === undefined ? await gateway.getLastVoucherNumber(voucherKind.arcaType, pointOfSale) : 0,
       provided: input.voucherNumber,
     });
     const requestId = resolveExportNumber({
@@ -335,6 +323,7 @@ export class ExportService {
         environment: options.runtime.environment,
         pointOfSale: payload.Punto_vta,
         requestId: payload.Id,
+        shortcut: options.resolved.voucherKind.shortcut,
         voucherNumber: payload.Cbte_nro,
       });
     }

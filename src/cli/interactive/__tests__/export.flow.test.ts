@@ -47,6 +47,7 @@ const gateway: ExportGateway = {
   ],
   getLanguages: async () => [],
   getLastRequestId: async () => 0,
+  getLastVoucherNumber: vi.fn(async () => 6),
   getQuotations: async () => [{ code: 'DOL', date: '20261030', rate: 1174.6 }],
   getUnits: async () => [{ id: 7, name: 'unidades' }],
   getVoucher: async () => null,
@@ -64,15 +65,7 @@ vi.mock('../prompts', () => ({
 
 vi.mock('../../../services/arca/arca-client.factory', () => ({
   ArcaClientFactory: class {
-    public createForExport() {
-      return {};
-    }
-  },
-}));
-
-vi.mock('../../../services/arca/arca-export.gateway', () => ({
-  ArcaExportGateway: class {
-    public constructor() {
+    public createExportGateway() {
       return gateway;
     }
   },
@@ -139,7 +132,6 @@ describe('runExportFlow', () => {
       [/Forma de pago/, 'Transferencia Internacional'],
       [/Fecha de pago/, ''],
       [/actividad/, '620100'],
-      [/Número del comprobante/, '7'],
       [/Emitimos la factura de exportación E en testing/, 'Emitir ahora'],
       [/Guardamos la actividad 620100/, 'Sí, guardar'],
     ]);
@@ -162,7 +154,7 @@ describe('runExportFlow', () => {
       }),
     );
     expect(printed()).toContain(
-      'arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino "ESTADOS UNIDOS" --id-impositivo 12-3456789 --actividad 620100 --numero 7 --descripcion "Consultoría de software" --moneda DOL --misma-moneda --testing --emitir',
+      'arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino "ESTADOS UNIDOS" --id-impositivo 12-3456789 --actividad 620100 --descripcion "Consultoría de software" --moneda DOL --misma-moneda --testing --emitir',
     );
     expect(savedConfig).toHaveBeenCalledWith('exportacion.actividad', '620100');
   });
@@ -180,7 +172,6 @@ describe('runExportFlow', () => {
       [/Incoterm/, 'FOB'],
       [/Forma de pago/, 'Carta de crédito'],
       [/Fecha de pago/, '15/11/2026'],
-      [/Número del comprobante/, '8'],
       [/Emitimos/, 'Cancelar'],
     ]);
 
@@ -190,7 +181,7 @@ describe('runExportFlow', () => {
     expect(savedConfig).not.toHaveBeenCalled();
     expect(printed()).toContain('No se emitió nada.');
     expect(printed()).toContain(
-      '--tipo-expo 1 --actividad 620100 --numero 8 --moneda PES --incoterm FOB --forma-pago "Carta de crédito" --fecha-pago 15/11/2026',
+      '--tipo-expo 1 --actividad 620100 --moneda PES --incoterm FOB --forma-pago "Carta de crédito" --fecha-pago 15/11/2026',
     );
   });
 

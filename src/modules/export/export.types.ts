@@ -258,9 +258,11 @@ export interface ExportVoucherQuery {
 export interface ExportIssuedVoucher {
   readonly activities: readonly number[];
   readonly arcaType: number;
-  /** Tipo del comprobante que este tiene asociado, si es una nota: ARCA lo mira en la ND de servicios (error 2055). */
-  readonly associatedArcaType?: number;
+  /** El comprobante que este ajusta, si es una nota: ARCA mira su tipo en la ND de servicios (error 2055). */
+  readonly associatedVoucher?: ExportVoucherQuery;
   readonly cae?: string;
+  /** yyyymmdd */
+  readonly caeExpiration?: string;
   readonly clientAddress: string;
   readonly clientCountryCuit?: number;
   readonly clientName: string;
@@ -304,6 +306,8 @@ export interface ExportGateway {
   getIncoterms(): Promise<readonly ExportIncoterm[]>;
   getLanguages(): Promise<readonly ExportLanguage[]>;
   getLastRequestId(): Promise<number>;
+  /** El ultimo numero autorizado de ese tipo en el punto de venta (`FEXGetLast_CMP`); 0 si no hay ninguno. */
+  getLastVoucherNumber(arcaType: number, pointOfSale: number): Promise<number>;
   /**
    * Cotizaciones de aduana que WSFEX tiene publicadas para `arcaDate` (`yyyymmdd`). Devuelve solo las monedas con
    * cotizacion y, en `date`, el dia al que corresponde: si la del dia pedido todavia no salio, es la anterior.
