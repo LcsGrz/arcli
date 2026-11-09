@@ -451,15 +451,7 @@ describe('billing.service', () => {
     const getQuotation = vi.fn(async () => 1415.25);
     const input = await service.resolveExchangeRate(
       createBillingInput({ currencyCode: 'USD', documentNumber: 0, exchangeRate: undefined, sameCurrency: true }),
-      {
-        createVoucher: async () => {
-          throw new Error('No debería emitirse');
-        },
-        getNextVoucherNumber: async () => {
-          throw new Error('No debería emitirse');
-        },
-        getQuotation,
-      },
+      { getQuotation },
     );
     const payload = service.buildVoucherPayload(input, createRuntime());
 
@@ -473,15 +465,7 @@ describe('billing.service', () => {
     const getQuotation = vi.fn(async () => 1415.25);
     const input = await service.resolveExchangeRate(
       createBillingInput({ currencyCode: 'USD', documentNumber: 0, exchangeRate: undefined }),
-      {
-        createVoucher: async () => {
-          throw new Error('No debería emitirse');
-        },
-        getNextVoucherNumber: async () => {
-          throw new Error('No debería emitirse');
-        },
-        getQuotation,
-      },
+      { getQuotation },
     );
     const payload = service.buildVoucherPayload(input, createRuntime());
 
@@ -495,17 +479,7 @@ describe('billing.service', () => {
     const getQuotation = vi.fn(async () => 1415.25);
     const input = createBillingInput({ currencyCode: 'USD', exchangeRate: 1200 });
 
-    await expect(
-      service.resolveExchangeRate(input, {
-        createVoucher: async () => {
-          throw new Error('No debería emitirse');
-        },
-        getNextVoucherNumber: async () => {
-          throw new Error('No debería emitirse');
-        },
-        getQuotation,
-      }),
-    ).resolves.toBe(input);
+    await expect(service.resolveExchangeRate(input, { getQuotation })).resolves.toBe(input);
     expect(getQuotation).not.toHaveBeenCalled();
   });
 

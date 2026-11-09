@@ -12,6 +12,10 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 - **Notas de crédito y débito de exportación E:** `arcli nce` y `arcli nde` (también `arcli nota-credito e` y `arcli nota-debito e`) ajustan una Factura de exportación `E` ya emitida. Alcanza con el monto, el asociado (`--ar`, y `--apv` si es de otro punto de venta) y `--numero`: el cliente, el destino, la moneda, la cotización y la actividad salen de la factura, que arcli consulta en ARCA. Antes de emitir valida lo que ARCA va a controlar contra el asociado: que exista, que la nota no sea anterior, que una nota de crédito no lo supere y, en servicios, el mismo destino, moneda y cotización. En `--cargar`, `comprobanteAsociado`; en el `--json`, `exportacion.comprobanteAsociado` (`null` en la factura). También en el modo interactivo, al elegir la factura de exportación como comprobante original de una nota. No cambia nada de la factura `E` ni de A, B y C.
 
+### Arreglado
+
+- **El modo interactivo avisa lo mismo que los comandos con flags:** en moneda extranjera, que usa la cotización oficial de ARCA. Antes ese aviso solo salía con flags. La preparación de la emisión ahora es una sola para los dos.
+
 ## [2.4.0] - 2026-11-08
 
 Trae el acceso directo con doble clic, una salida en terminal más prolija y pareja, y arreglos para quien empieza sin saber de terminal. Puede afectar scripts:

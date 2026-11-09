@@ -5,6 +5,7 @@ import {
   formatVoucherWithArticle,
   NOTHING_EMITTED_NOTICE,
 } from '../../modules/billing/billing.mappers';
+import { prepareBillingInput, resolveFceWarningsInOrder } from '../../modules/billing/billing.prepare';
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import { BillingService } from '../../modules/billing/billing.service';
 import type { BillingGateway } from '../../modules/billing/billing.types.internal';
@@ -14,6 +15,7 @@ import { ArcaBillingGateway } from '../../services/arca/arca-billing.gateway';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { ArcaContextResolver, type ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
 import { ArcaFceObligationGateway } from '../../services/arca/arca-fce-obligation.gateway';
+import { ArcaPadronGateway } from '../../services/arca/arca-padron.gateway';
 import { ArcaVoucherHistoryGateway } from '../../services/arca/arca-voucher-history.gateway';
 import { colorize, noticePanel, renderPanel, uiSymbol, writeTerminalOutput } from '../../ui';
 import { formatBillingOutputs } from '../commands/billing.command.output';
@@ -85,12 +87,16 @@ export function formatEquivalentCommand(command: string): string {
  */
 export async function previewAndEmit(session: InteractiveSession, rawInput: BillingCommandInput): Promise<void> {
   const { runtime, service } = session;
-  // Con "me pagan en dolares" la cotizacion es la oficial de ARCA: se consulta antes de la vista previa.
-  const resolved = await service.resolveExchangeRate(rawInput, session.billingGateway);
-  const input: BillingCommandInput = { ...resolved, dryRun: true, emit: false };
-  const warnings = runtime.config.verificarFce
-    ? await service.resolveFceWarnings(input, new ArcaFceObligationGateway(session.arca))
+  // Lo mismo que con flags: padron, cotizacion oficial ("me pagan en dolares") y sus avisos, antes de la vista previa.
+  const prepared = await prepareBillingInput(service, rawInput, {
+    billing: session.billingGateway,
+    padron: new ArcaPadronGateway(session.arca),
+  });
+  const input: BillingCommandInput = { ...prepared.input, dryRun: true, emit: false };
+  const fceWarnings = runtime.config.verificarFce
+    ? await resolveFceWarningsInOrder(service, [input], new ArcaFceObligationGateway(session.arca))
     : [];
+  const warnings = [...prepared.warnings, ...(fceWarnings[0] ?? [])];
   const preview = await service.execute({ gateway: PREVIEW_GATEWAY, input, runtime, warnings });
 
   writeTerminalOutput(formatBillingOutputs([preview], { environment: runtime.environment, raw: false }));

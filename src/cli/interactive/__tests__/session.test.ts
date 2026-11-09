@@ -95,4 +95,16 @@ describe('previewAndEmit', () => {
       'arcli fc -m 1000 --cs --consumidor-final --testing --emitir',
     );
   });
+
+  it('en dólares avisa la cotización oficial, igual que con flags', async () => {
+    const session = createSession('testing');
+    const write = vi.mocked(process.stdout.write);
+
+    vi.mocked(session.billingGateway.getQuotation).mockResolvedValueOnce(1415.25);
+    confirmMock.mockResolvedValueOnce(false);
+    await previewAndEmit(session, { ...input, currencyCode: 'USD' });
+
+    expect(session.billingGateway.getQuotation).toHaveBeenCalledWith('DOL');
+    expect(write.mock.calls.map(([chunk]) => String(chunk)).join('')).toContain('cotización oficial');
+  });
 });
