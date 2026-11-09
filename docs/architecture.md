@@ -17,6 +17,8 @@ src/cli (commander)
   -> presenter del módulo (billing.presenter.ts) con los paneles de src/ui (o JSON)
 ```
 
+Entre el parseo y la vista previa, `prepareBillingInput` (`src/modules/billing/billing.prepare.ts`) completa la condición IVA desde el padrón, pide la cotización oficial si hace falta y junta los avisos de la entrada. La usan los comandos con flags y el modo interactivo, así que los dos preparan la emisión igual. El régimen FCE se consulta aparte, con el lote ya validado (`resolveFceWarningsInOrder`). `executeBillingCommand` recibe la config y los gateways como dependencias, para testear el comando entero con un ARCA falso (`billing.command.execute.test.ts`).
+
 La factura de exportación `E` y sus notas recorren el mismo camino con otro módulo y otro gateway: `src/modules/export` (mezcla, validación de ítems y armado del `Cmp` de WSFEX) y `src/services/arca/arca-export.gateway.ts` (`wsfex`), porque WSFEX tiene otro contrato que `wsfe`.
 
 El comportamiento visible de cada paso está en el [modelo mental](mental-model.md).
