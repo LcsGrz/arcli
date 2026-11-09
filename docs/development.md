@@ -27,6 +27,7 @@ yarn dev --ayuda
 | `yarn test`              | Suite de Vitest                                                                            |
 | `yarn test:coverage`     | Suite con cobertura (falla si baja de los pisos configurados)                              |
 | `yarn test:e2e`          | Tests de punta a punta sobre el `dist/` compilado (antes, `yarn build`)                    |
+| `yarn test:arca`         | Tests contra ARCA testing con tu config; solo local (antes, `yarn build`)                  |
 | `yarn lint`              | ESLint y Prettier (`yarn lint:eslint`, `yarn lint:prettier`)                               |
 | `yarn lint:eslint:fix`   | Corrige lo que ESLint puede arreglar solo                                                  |
 | `yarn lint:prettier:fix` | Formatea con Prettier                                                                      |
@@ -56,6 +57,18 @@ Para cambios de empaquetado o publicación, `yarn open-source:check`.
 `src/cli/__tests__/e2e/*.e2e.ts` corre el `arcli` compilado (`dist/cli/index.js`) como un proceso aparte y compara lo que ve quien lo usa: la salida, que `--json` sea un solo documento JSON, el código de salida y lo que queda en la config. Cada test usa una carpeta de config vacía con `ARCLI_CONFIG_DIR`, sin red ni certificados, así que corre en el CI en los tres sistemas operativos. Van con `yarn test:e2e` después de `yarn build`; `yarn test` no los toma (no terminan en `.test.ts`).
 
 Sirven para lo que los tests unitarios no ven: el empaquetado de ESM, los errores de uso de commander, que nada escriba texto alrededor del JSON. Lo que necesita a ARCA (emitir, consultar) sigue en los unitarios, con ARCA simulado.
+
+### Contra ARCA testing
+
+`src/cli/__tests__/e2e/*.arca.ts` corre el `arcli` compilado contra ARCA testing, con tu config y tu certificado: `estado`, una tabla de `parametros`, `padron` y `fce-obligado` con los CUITs de prueba, una vista previa y una Factura C de prueba que después busca con `consultar`. Todo va con `--testing`, que el helper agrega siempre, así que no puede tocar producción. Los comprobantes de testing no tienen validez fiscal.
+
+```bash
+yarn build && yarn test:arca
+# con un punto de venta de exportación, también la E: últimos, número siguiente y notas
+yarn build && ARCLI_ARCA_PV_E=4 yarn test:arca
+```
+
+No corre en el CI (necesita credenciales y se niega si encuentra `CI`) ni con `yarn test`. Conviene correrlo antes de una release y después de tocar algo que hable con ARCA: atrapa lo que los tests con ARCA simulado no ven, como una respuesta con otra forma o un error nuevo del SDK.
 
 `src/cli/__tests__/docs-sync.test.ts` recorre el programa de commander y falla si un comando no aparece en `docs/` o en `llms.txt`, si un flag no aparece en `docs/cli-reference.md` o en `llms.txt`, o si una clave pública de config no aparece en `docs/configuration.md` o en `llms.txt`. Solo verifica que se mencione, no que la descripción esté bien. Lo que no se documenta a propósito va en `UNDOCUMENTED_FLAGS`, con el motivo.
 
