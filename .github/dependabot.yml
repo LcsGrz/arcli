@@ -25,3 +25,6 @@ updates:
       # typescript-eslint todavia pide TypeScript < 6.1: el salto se hace a mano (BACKLOG, Mantenimiento).
       - dependency-name: typescript
         update-types: ['version-update:semver-major', 'version-update:semver-minor']
+      # Los tipos siguen al Node minimo de engines (22): con los de una version mayor, el typecheck acepta APIs que en 22 no existen.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
