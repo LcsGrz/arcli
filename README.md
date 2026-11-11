@@ -14,6 +14,8 @@ CLI para previsualizar y emitir comprobantes electrónicos de ARCA (ex AFIP) des
 
 ## Empezar sin saber de terminal
 
+Si usás un asistente de IA que puede manejar tu computadora (Claude, ChatGPT, Gemini, Copilot…), copiale el prompt de [Instalar o actualizar con IA](#instalar-o-actualizar-con-ia): hace los pasos 1 a 3 por vos. Si no, son estos:
+
 1. Instalá Node.js 22.22.1 o superior desde [nodejs.org](https://nodejs.org/es/download) (la versión LTS).
 2. Abrí la terminal (en Mac: Cmd+Espacio y escribí "Terminal"; en Windows: menú Inicio y escribí "PowerShell") y pegá `npm install -g arcli`.
 3. Pegá `arcli acceso-directo`: deja un ícono de ARCLI en el escritorio.
@@ -51,6 +53,23 @@ yarn global add arcli   # Yarn 1; Yarn 2 o superior no instala paquetes globales
 Para probarlo sin instalar nada: `npx arcli --ayuda`.
 
 Para actualizar, repetí la instalación con `arcli@latest` (por ejemplo, `npm install -g arcli@latest`). Cuando hay una versión nueva, el aviso de arcli muestra el comando del gestor con que lo instalaste. Funciona en macOS, Linux y Windows.
+
+### Instalar o actualizar con IA
+
+Copiá esto y pegáselo a tu asistente de IA. Sirve para instalar y para actualizar:
+
+```text
+Instalá o actualizá arcli en esta computadora. Es un programa para emitir facturas de ARCA: https://www.npmjs.com/package/arcli
+
+1. Revisá si tengo Node.js 22.22.1 o superior (node --version). Si no lo tengo o es más viejo, instalá la versión LTS de https://nodejs.org con el instalador oficial para mi sistema.
+2. Instalá o actualizá arcli con: npm install -g arcli@latest. Si da un error de permisos, explicame la opción más segura antes de usar sudo o permisos de administrador.
+3. Verificá con arcli --version y decime qué versión quedó.
+4. Si es la primera vez que lo instalo, creá el ícono en el escritorio con: arcli acceso-directo
+
+Si podés ejecutar comandos, hacelo vos; si no, guiame paso a paso, como a alguien que nunca usó la terminal. No toques certificados, claves ni la configuración de arcli, y no emitas comprobantes.
+```
+
+Después abrí ARCLI con doble clic en el ícono y seguí la configuración guiada.
 
 Opcional: autocompletado con Tab de comandos, flags y valores, en bash, zsh o fish. Se instala con `arcli completado instalar` y se saca con `arcli completado desinstalar` ([detalle](docs/cli-reference.md#autocompletado)).
 

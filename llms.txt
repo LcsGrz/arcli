@@ -43,6 +43,10 @@ arcli fc --cargar lote.json --testing --previsualizar --json
 
 ## Instalación y setup mínimo
 
+Requiere Node.js 22.22.1 o superior. Para instalar o actualizar: `npm install -g arcli@latest` y verificar con
+`arcli --version`. Si te lo pide una persona que no usa la terminal, hacelo vos y después `arcli acceso-directo`
+deja un ícono para abrir el modo interactivo; no toques certificados ni config sin que te lo pida.
+
 ```bash
 npm install -g arcli   # o: yarn dev <comando>  si corrés desde el repo
 arcli config establecer cuit <11 dígitos>
