@@ -96,8 +96,8 @@ yarn dev storybook colores      # o: bordes, certificados, componentes, comproba
 
 ## Ramas
 
-- **`dev`**: donde se trabaja y rama default de GitHub. Cada cambio sale de `dev` en una rama corta y vuelve con un PR a `dev`, mergeado con squash.
-- **`main`**: lo publicado en npm. Cada commit es una versión (`vX.Y.Z (#N)`) o un hotfix, así que siempre se puede sacar un arreglo sin arrastrar lo que está a medio hacer en `dev`. Exige historia lineal.
+- **`dev`**: donde se trabaja. Cada cambio sale de `dev` en una rama corta y vuelve con un PR a `dev`, mergeado con squash.
+- **`main`**: lo publicado en npm y rama default de GitHub, para que quien entra al repo vea el código y las docs de la versión que instaló. Cada commit es una versión (`vX.Y.Z (#N)`) o un hotfix, así que siempre se puede sacar un arreglo sin arrastrar lo que está a medio hacer en `dev`. Exige historia lineal.
 
 Las dos están protegidas: piden PR y el CI en verde (`validate`) y no aceptan force push ni borrado, tampoco a admins.
 
@@ -105,7 +105,7 @@ Las dos están protegidas: piden PR y el CI en verde (`validate`) y no aceptan f
 
 **Hotfix:** para un bug de una versión publicada que no puede esperar a la próxima. Rama `fix/<tema>` desde `main`, PR a `main` (squash) y release patch desde `main`. Después, el mismo PR `main` → `dev` con merge commit.
 
-Si un PR de trabajo llega apuntando a `main`, se le cambia la base a `dev` (`gh pr edit <N> --base dev`) antes de mergear.
+Como `main` es la default, GitHub y `gh pr create` proponen `main` como base: los PRs de trabajo se abren con `--base dev`, y Dependabot tiene `target-branch: dev`. Si un PR de trabajo llega apuntando a `main`, se le cambia la base a `dev` (`gh pr edit <N> --base dev`) antes de mergear.
 
 ## CI y publicación
 

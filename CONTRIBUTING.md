@@ -29,7 +29,7 @@ El alcance de comprobantes es Factura, Nota de Crédito y Nota de Débito A, B y
 2. Hacé cambios chicos y fáciles de revisar.
 3. Agregá o ajustá tests cuando cambie el comportamiento.
 4. Actualizá la documentación que corresponda (ver abajo).
-5. Abrí el PR contra `dev`: la plantilla trae el checklist.
+5. Abrí el PR contra `dev`: GitHub propone `main` porque es la rama default, así que cambiá la base. La plantilla trae el checklist.
 
 ## Convenciones
 
