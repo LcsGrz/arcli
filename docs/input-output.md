@@ -221,7 +221,7 @@ Cada ítem:
 | `cuit`       | string | no        | Solo puede ser el CUIT emisor (error 2031 de ARCA)                    |
 | `fecha`      | string | no        | No se usa: la fecha sale de ARCA. Si viene, sale un aviso en `avisos` |
 
-En una nota, `cliente`, `domicilioCliente`, `paisDestino`, `actividad` y la moneda salen del asociado si faltan, y `fechaPago`, `mismaMoneda`, `permisos` y `permisoExistente` son un error, porque ARCA los rechaza en las notas.
+En una nota, `cliente`, `domicilioCliente`, `paisDestino`, `actividad` y la moneda salen del asociado si faltan, y `fechaPago`, `mismaMoneda` y `permisoExistente` son un error, porque ARCA los rechaza en las notas. `permisos` es opcional en las notas de bienes (`tipoExpo: 1`) y va sin `permisoExistente`.
 
 ```json
 {
@@ -316,7 +316,7 @@ Es el mismo resumen que A, B y C (`atajo`, `cae`, `estado`, `errores`, `observac
 }
 ```
 
-En las notas, `solicitud` lleva `Cmps_asoc` con el asociado y `Permiso_existente` vacío, y no lleva `Fecha_pago` ni `CanMisMonExt`.
+En las notas, `solicitud` lleva `Cmps_asoc` con el asociado y `Permiso_existente` vacío (con `Permisos` solo si la nota de bienes los informa), y no lleva `Fecha_pago` ni `CanMisMonExt`.
 
 `exportacion.destino.nombre`, `exportacion.incotermDescripcion` y `exportacion.items[].unidad` salen de las tablas de WSFEX; si la tabla no trae el nombre, quedan en `null` y el código numérico sigue disponible. `exportacion.actividad` lista los códigos de actividad informados en `solicitud.Actividades` (de `--actividad` o de `exportacion.actividad`) y `exportacion.mismaMoneda` indica si el pago se cancela en la misma moneda extranjera (`solicitud.CanMisMonExt` en `S`).
 

@@ -115,8 +115,8 @@ export function exportAssociatedVoucherWarnings(input: ExportAssociatedVoucherIn
 
 /**
  * Lo que la factura no comparte con las notas: ARCA rechaza en una nota la fecha de pago (1673), `CanMisMonExt`
- * (1605) y `Permiso_existente` distinto de vacio (1550). Los permisos en una nota de bienes son opcionales para ARCA;
- * arcli todavia no los informa.
+ * (1605) y `Permiso_existente` distinto de vacio (1550). Los permisos de embarque si van, opcionales, en las notas de
+ * bienes: se informan sin `--permiso-existente` (ver `buildExportPayload`).
  */
 export function assertExportNoteFields(input: ExportVoucherInput, kind: ExportVoucherKind): void {
   const subject = formatVoucherSubject(kind);
@@ -133,9 +133,9 @@ export function assertExportNoteFields(input: ExportVoucherInput, kind: ExportVo
     );
   }
 
-  if ((input.permits?.length ?? 0) > 0 || input.permitsExisting) {
+  if (input.permitsExisting) {
     throw new InputValidationError(
-      `arcli todavía no informa permisos de embarque en ${formatVoucherWithArticle(kind)}. Sacá \`--permiso\` y \`--permiso-existente\`.`,
+      `${subject} no lleva \`--permiso-existente\`: ARCA pide ese campo vacío en las notas (error 1550). Los permisos de embarque van solos, con \`--permiso\`.`,
     );
   }
 }

@@ -33,7 +33,7 @@ interface ExportOptionDefinition {
   readonly flags: string;
   /** Alias: se aceptan pero no se listan, como en A, B y C. El flag principal los nombra. */
   readonly hidden?: boolean;
-  /** Solo la factura (permisos, fecha de pago, misma moneda) o solo las notas (el asociado). Sin esto, las dos. */
+  /** Solo la factura (permiso existente, fecha de pago, misma moneda) o solo las notas (el asociado). Sin esto, las dos. */
   readonly only?: 'factura' | 'nota';
   readonly parser?: (value: string, previous: unknown) => unknown;
 }
@@ -76,9 +76,9 @@ const EXPORT_OPTIONS: readonly ExportOptionDefinition[] = [
   },
   { description: 'forma de pago; por defecto "Transferencia Internacional"', flags: '--forma-pago <texto>' },
   {
-    description: 'permiso de embarque ya existente; repetible. Requiere --permiso-existente y --tipo-expo 1',
+    description:
+      'permiso de embarque ya existente; repetible. Solo en bienes (--tipo-expo 1); en la factura, con --permiso-existente',
     flags: '--permiso <id>',
-    only: 'factura',
     parser: repeatable((value: string) => value),
   },
   {

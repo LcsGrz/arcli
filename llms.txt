@@ -116,8 +116,8 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
   `--tipo-expo <1|2|4>` (`2` servicios por defecto, `1` bienes, `4` otros).
 - `--incoterm <codigo>`,
   `--incoterms-desc <texto>`, `--idioma <codigo>` (`1` español por defecto, `2` inglés, `3` portugués),
-  `--forma-pago <texto>` (por defecto `Transferencia Internacional`), `--permiso <id>` (repetible, requiere
-  `--permiso-existente` y solo se acepta con `--tipo-expo 1`), `--permiso-existente`,
+  `--forma-pago <texto>` (por defecto `Transferencia Internacional`), `--permiso <id>` (repetible, solo con
+  `--tipo-expo 1`; en la factura requiere `--permiso-existente`), `--permiso-existente`,
   `--id-solicitud <n>` (sin flag, el siguiente de WSFEX), `--punto-venta <n>` (`--pv`), `-f, --fecha <fecha>`, `--fecha-pago <fecha>`,
   `--moneda <codigo>` (`--mda`; por defecto `DOL`), `--cotizacion-moneda <n>` (`--cm`; sin flag, la de
   aduana que publica ARCA; la clave `cotizacion` de la config no aplica), `--misma-moneda`
@@ -150,8 +150,9 @@ arcli nce -m 500 --ar 1 --apv 4 --previsualizar --json
 - Asociado: `--ar <n>` (requerido), `--apv <n>` (`--asociado-punto-venta`; por defecto el de la nota),
   `--ac <fe|nde|nce>` (por defecto `fe`) o `--at <19|20|21>`. `--acuit` solo puede ser el CUIT emisor;
   `--afecha` no se usa. En `--cargar`: `comprobanteAsociado` `{numero, puntoVenta, atajo|tipo}`.
-- No llevan `--fecha-pago`, `--misma-moneda`, `--permiso` ni `--permiso-existente` (en `nce`/`nde` son opción
-  desconocida; en el JSON, `INPUT_VALIDATION_ERROR`).
+- No llevan `--fecha-pago`, `--misma-moneda` ni `--permiso-existente` (en `nce`/`nde` son opción
+  desconocida; en el JSON, `INPUT_VALIDATION_ERROR`). En bienes, `--permiso` (o `permisos`) es opcional
+  y va sin `--permiso-existente`: ARCA pide `Permiso_existente` vacío.
 - Antes de emitir valida: asociado existente y aprobado, nota no anterior al asociado, NC no mayor al
   total del asociado (misma moneda) y, en servicios (`tipoExpo` 2), mismo tipo, destino, moneda (o pesos) y
   cotización que el asociado; ND solo sobre factura, NC no sobre otra NC.

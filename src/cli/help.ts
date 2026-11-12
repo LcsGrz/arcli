@@ -514,7 +514,7 @@ function exportVoucherRules(kind: ExportVoucherKind): string[] {
     'Ajusta una factura E ya emitida: --ar es su número y --apv su punto de venta (por defecto, el de la nota). Para ajustar otra nota E, --ac nde o --ac nce.',
     'Cliente, destino, tipo de exportación, moneda, cotización y actividad salen del comprobante asociado; un flag los reemplaza.',
     'En servicios (--tipo-expo 2) ARCA exige el mismo destino, moneda y cotización que el asociado.',
-    'No lleva fecha de pago, --misma-moneda ni permisos de embarque.',
+    'No lleva fecha de pago, --misma-moneda ni --permiso-existente. En bienes (--tipo-expo 1), los permisos de embarque son opcionales: van con --permiso.',
   ];
 }
 
