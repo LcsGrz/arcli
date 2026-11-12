@@ -51,7 +51,7 @@ deja un ícono para abrir el modo interactivo; no toques certificados ni config 
 npm install -g arcli   # o: yarn dev <comando>  si corrés desde el repo
 arcli config establecer cuit <11 dígitos>
 arcli config establecer puntoVenta <numero>
-# Certificado, una de dos:
+# Certificado, una de dos (recomendada: certificado generar + importar):
 arcli certificado generar --testing      # sin certificado: arma clave y CSR; la persona lo sube a ARCA
 arcli certificado importar testing.crt   # ... y carga el .crt que devuelve ARCA
 arcli config establecer cert.testing /ruta/al/certificado.crt   # si ya tiene certificado y clave
