@@ -42,6 +42,7 @@ interface ExportFlowState {
   readonly incoterm?: string;
   readonly paymentDate?: string;
   readonly paymentTerms?: string;
+  readonly permits?: readonly string[];
   readonly sameCurrency?: boolean;
 }
 
@@ -86,6 +87,22 @@ function validatePositiveInteger(label: string, allowed?: ReadonlySet<number>): 
 }
 
 const optional = (value: string): string | undefined => value.trim() || undefined;
+
+/**
+ * Permisos de embarque de una E de bienes, separados por coma o espacio. Vacio, ninguno. arcli no da de alta
+ * permisos: los que se informan ya existen en ARCA (en la factura van con `--permiso-existente`).
+ */
+export async function askPermitsStep(): Promise<typeof BACK | { readonly permits: readonly string[] | undefined }> {
+  const answer = await askTextStep('Permisos de embarque ya existentes, separados por coma (Enter si no hay):');
+
+  if (answer === BACK) {
+    return BACK;
+  }
+
+  const permits = answer.split(/[\s,]+/).filter(Boolean);
+
+  return { permits: permits.length > 0 ? permits : undefined };
+}
 
 /** Pasos de la factura E; cada uno se puede deshacer con "Volver". */
 function exportSteps(
@@ -207,6 +224,11 @@ function exportSteps(
 
         return incoterm === BACK ? BACK : { incoterm: incoterm || undefined };
       },
+      skip: (state) => state.exportType !== 1,
+    },
+    {
+      name: 'permisos',
+      run: askPermitsStep,
       skip: (state) => state.exportType !== 1,
     },
     {
@@ -358,6 +380,8 @@ export async function runExportFlow(session: InteractiveSession): Promise<typeof
     incoterm: state.incoterm,
     paymentDate: state.paymentDate,
     paymentTerms: state.paymentTerms,
+    permits: state.permits,
+    permitsExisting: state.permits ? true : undefined,
     sameCurrency: state.sameCurrency,
   };
 

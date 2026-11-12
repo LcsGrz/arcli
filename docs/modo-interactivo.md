@@ -92,9 +92,10 @@ La `E` se elige en el mismo selector, pero tiene su propio asistente porque no l
 | 8    | Moneda                | Dólares (`DOL`, con la cotización de aduana que publica ARCA) o pesos (`PES`)                                       |
 | 9    | ¿Te pagan en dólares? | Solo en dólares: si sí, ARCA lo registra como cancelación en la misma moneda (`--misma-moneda`)                     |
 | 10   | Incoterm              | Solo en bienes, de la tabla de WSFEX, o sin incoterm                                                                |
-| 11   | Forma de pago         | Por defecto "Transferencia Internacional"                                                                           |
-| 12   | Fecha de pago         | Opcional; por defecto la del comprobante                                                                            |
-| 13   | Actividad             | Solo si no está `exportacion.actividad`; se valida contra la tabla de WSFEX y después ofrece guardarla en la config |
+| 11   | Permisos de embarque  | Solo en bienes, opcional: los ya existentes en ARCA, separados por coma (`--permiso` con `--permiso-existente`)     |
+| 12   | Forma de pago         | Por defecto "Transferencia Internacional"                                                                           |
+| 13   | Fecha de pago         | Opcional; por defecto la del comprobante                                                                            |
+| 14   | Actividad             | Solo si no está `exportacion.actividad`; se valida contra la tabla de WSFEX y después ofrece guardarla en la config |
 
 Después muestra la vista previa, el comando `arcli fe` equivalente y pregunta si emitir (dos veces en producción). El PDF sigue la misma regla que el resto. Volver desde el primer paso vuelve al selector de comprobantes.
 
@@ -152,6 +153,7 @@ Al elegir **Factura de exportación E** como comprobante original, la nota sigue
 | 2    | Número de la factura         | La busca en ARCA y muestra a quién y por cuánto fue; si no existe, avisa y vuelve a preguntar |
 | 3    | Monto                        | En la moneda de la factura. En crédito no puede superar su total                              |
 | 4    | Detalle                      | Opcional; por defecto "Según detalle"                                                         |
+| 5    | Permisos de embarque         | Solo si la factura es de bienes, opcional: van con `--permiso`, sin `--permiso-existente`     |
 
 Cliente, destino, moneda, cotización y actividad salen de la factura, y el número de la nota, del último que tiene ARCA. Después muestra la vista previa y el comando equivalente (`arcli nce …` o `arcli nde …`), y pregunta antes de emitir, como la factura E.
 
