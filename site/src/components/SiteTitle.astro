@@ -1,0 +1,36 @@
+---
+/** Titulo del encabezado: el icono y "ARCLI" con los colores del logo de la terminal. */
+import logo from '../assets/logo.svg';
+
+const home = import.meta.env.BASE_URL;
+---
+
+<a href={home} class="site-title">
+  <img src={logo.src} alt="" width="28" height="28" />
+  <span><span class="ar">AR</span><span class="cli">CLI</span></span>
+</a>
+
+<style>
+  .site-title {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    text-decoration: none;
+    font-family: var(--sl-font-system-mono);
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+
+  img {
+    border-radius: 0.4rem;
+  }
+
+  .ar {
+    color: var(--arcli-celeste);
+  }
+
+  .cli {
+    color: var(--arcli-lavanda);
+  }
+</style>

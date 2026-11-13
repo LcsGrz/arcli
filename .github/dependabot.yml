@@ -12,6 +12,14 @@ updates:
         patterns: ['*']
 
   - package-ecosystem: npm
+    directory: /site
+    schedule:
+      interval: monthly
+    groups:
+      sitio:
+        patterns: ['*']
+
+  - package-ecosystem: npm
     directory: /
     target-branch: dev
     schedule:

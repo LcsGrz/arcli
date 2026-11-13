@@ -109,12 +109,14 @@ Como `main` es la default, GitHub y `gh pr create` proponen `main` como base: lo
 
 ## CI y publicación
 
-Hay dos workflows en `.github/workflows/`:
+Hay tres workflows en `.github/workflows/`:
 
 - **CI** (`ci.yml`): en cada push a `main` o `dev` y en cada pull request instala sin scripts de dependencias (`--ignore-scripts`) y corre lint, typecheck, tests con cobertura, build, los tests de punta a punta y `pack:check`. En Linux con Node 22 (el mínimo de `engines`), 24 y 26; en Windows y macOS con Node 24.
 - **Release** (`release.yml`): se dispara al publicar una release de GitHub y publica en npm lo que apunta su tag. Falla si el tag no coincide con la versión de `package.json` o no está en `main`. Tiene dos jobs: `build` valida, empaqueta y prueba el `.tgz` sin permiso para publicar; `publish` solo baja ese `.tgz` y lo publica. No usa cache y no corre scripts de dependencias.
 
   `publish` corre en el environment `npm`, que solo acepta tags `v*` y espera tu aprobación en Actions ("Review deployments"). Los tags `v*` están protegidos por un ruleset ("Tags de release"): solo un admin del repo los puede crear, mover o borrar.
+
+- **Docs** (`docs.yml`): construye el [sitio de documentación](#sitio-de-documentación) en los PRs que tocan docs (falla si hay links internos rotos) y lo publica en GitHub Pages al publicar una release o a mano desde `main`.
 
 - **Dependabot** (`dependabot.yml`): una vez por mes, PRs agrupados para las actions y las dependencias de npm.
 
@@ -162,6 +164,23 @@ Para desactivarlo: `"disableAllHooks": true` en `.claude/settings.local.json`, o
 ### Permisos
 
 `.claude/settings.json` le impide a Claude leer o editar certificados, claves y tickets de ARCA (`*.key`, `*.pem`, `*.p12`, `*.pfx`, `TA-*.json`, en el repo y en tu home) y correr `npm publish` o `yarn publish`: se publica solo con el workflow `Release`. Las reglas de lectura frenan las herramientas de archivos de Claude, no a un script que los abra, así que no es una barrera completa. El repo no habilita mergear PRs ni publicar sin confirmación: si mantenés arcli y lo querés, sumalo en tu `.claude/settings.local.json`.
+
+## Sitio de documentación
+
+`lcsgrz.github.io/arcli` es un sitio de [Starlight](https://starlight.astro.build) que vive en `site/`, con su propio `package.json`: Astro no entra a las dependencias del CLI ni al paquete de npm.
+
+Las páginas **no se editan en `site/`**: `site/scripts/sync-docs.mjs` las genera desde `docs/`, `README.md` (de "Empezar sin saber de terminal" hasta "Uso") y `CHANGELOG.md`, y lo generado está en el `.gitignore` de `site/`. Así `docs/` sigue siendo la única fuente, los links de GitHub no se rompen y los tests de docs no cambian. El script saca el título al frontmatter, cambia los links entre docs por los del sitio, manda a GitHub los que apuntan a archivos que no están en el sitio (arquitectura, desarrollo, design system) y apunta "Editar esta página" al archivo original en `dev`. Lo que es solo del sitio, como la portada (`site/src/content/docs/index.mdx`), sí se edita ahí.
+
+Para sumar una página, agregala a `PAGES` en `sync-docs.mjs`: el orden de esa lista es el del menú.
+
+```bash
+cd site
+yarn install
+yarn dev       # genera las páginas y abre el sitio en localhost:4321/arcli
+yarn build     # genera, construye y revisa los links internos (scripts/check-links.mjs)
+```
+
+Se publica desde `main` con la release, así que el sitio muestra lo que está en npm. Para publicarlo sin release: Actions → Docs → Run workflow sobre `main`.
 
 ## Imágenes y GIF del README
 

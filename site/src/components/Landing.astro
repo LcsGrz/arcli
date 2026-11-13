@@ -1,0 +1,650 @@
+---
+/** Portada del sitio. Los textos siguen el design system del CLI: voseo, concretos y sin promesas que no cumple. */
+import { Icon } from '@astrojs/starlight/components';
+
+import brand from '../generated/brand.json';
+import AsciiLogo from './AsciiLogo.astro';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const url = (path: string) => `${base}/${path}`;
+const install = 'npm install -g arcli';
+
+const steps = [
+  {
+    href: url('empezar/instalar/'),
+    text: 'Con el prompt para tu asistente de IA o a mano. Necesitás Node.js, en Windows, macOS o Linux.',
+    title: 'Instalá arcli',
+  },
+  {
+    href: url('empezar/certificados/'),
+    text: 'arcli arma el pedido; vos lo subís a ARCA con tu clave fiscal. La guía tiene cada pantalla.',
+    title: 'Sacá el certificado',
+  },
+  {
+    href: url('empezar/modo-interactivo/'),
+    text: 'Abrí arcli y seguí el asistente. En testing no tiene validez fiscal: probá todo lo que quieras.',
+    title: 'Emití en testing',
+  },
+] as const;
+
+const vouchers = [
+  { detail: 'A, B y C', name: 'Factura' },
+  { detail: 'A, B y C', name: 'Nota de crédito y débito' },
+  { detail: 'MiPyMEs, con CBU y anulación', name: 'Factura de Crédito Electrónica' },
+  { detail: 'Monotributo', name: 'Recibo C' },
+  { detail: 'Bienes y servicios, con sus notas', name: 'Factura de exportación E' },
+] as const;
+
+const features = [
+  {
+    icon: 'rocket',
+    text: '`arcli` solo abre un asistente: elegís el comprobante, cargás el monto y listo. Repite facturas anteriores y arma notas sobre la factura original.',
+    title: 'Asistente paso a paso',
+  },
+  {
+    icon: 'approve-check',
+    text: 'Por defecto muestra una vista previa y pregunta antes de emitir. Valida con las reglas del manual de ARCA antes de llamar al servicio.',
+    title: 'Nada se emite sin que lo pidas',
+  },
+  {
+    icon: 'document',
+    text: 'PDF con el código QR de ARCA, con tus datos de emisor y el nombre de archivo que elijas.',
+    title: 'PDF listo para enviar',
+  },
+  {
+    icon: 'seti:json',
+    text: 'Flags o JSON, lotes, salida `--json` estable y versionada, y una referencia pensada para agentes de IA.',
+    title: 'Para automatizar',
+  },
+  {
+    icon: 'magnifier',
+    text: 'Últimos comprobantes, el detalle de uno, el estado de ARCA, la cotización oficial y el padrón de un CUIT.',
+    title: 'Consultas sin emitir',
+  },
+  {
+    icon: 'information',
+    text: 'Con un CUIT, toma la condición frente al IVA del padrón de ARCA. Avisa cuando el receptor está obligado a FCE.',
+    title: 'Datos del receptor solos',
+  },
+] as const;
+
+const trust = [
+  'Tus certificados y claves quedan en tu computadora: arcli no tiene servidores.',
+  'Testing por defecto: producción se pide explícitamente.',
+  'Código abierto con licencia MIT, para leer qué hace cada paso.',
+] as const;
+
+/** `codigo` entre backticks, como en el resto de las docs. */
+const withCode = (text: string) => text.replace(/`([^`]+)`/g, '<code>$1</code>');
+---
+
+<div class="landing not-content">
+  <section class="hero">
+    <AsciiLogo />
+    <h1>Facturación electrónica de ARCA desde la terminal</h1>
+    <p class="lead">
+      Facturas, notas de crédito y débito, recibos y facturas de exportación, con un asistente que te guía o con
+      comandos para automatizar. Vista previa antes de emitir, siempre.
+    </p>
+
+    <div class="install">
+      <code><span class="prompt">$</span> {install}</code>
+      <button type="button" data-copy={install} aria-label="Copiar el comando de instalación">
+        <Icon name="document" size="1rem" />
+        <span>Copiar</span>
+      </button>
+    </div>
+
+    <div class="actions">
+      <a class="button primary" href={url('empezar/instalar/')}>
+        Empezar <Icon name="right-arrow" size="1.1rem" />
+      </a>
+      <a class="button secondary" href="https://github.com/LcsGrz/arcli">
+        <Icon name="github" size="1.1rem" /> GitHub
+      </a>
+    </div>
+
+    <p class="meta">
+      <span>v{brand.version}</span>
+      <span aria-hidden="true">·</span>
+      <span>Windows, macOS y Linux</span>
+      <span aria-hidden="true">·</span>
+      <span>Licencia MIT</span>
+    </p>
+  </section>
+
+  <figure class="window">
+    <img
+      src={url('assets/demo/interactivo.gif')}
+      alt="El modo interactivo de arcli emitiendo una Factura C en testing"
+      width="1100"
+      height="780"
+      loading="eager"
+    />
+  </figure>
+
+  <section class="block">
+    <p class="eyebrow">Para empezar</p>
+    <h2>Tu primera factura en tres pasos</h2>
+    <ol class="steps">
+      {
+        steps.map((step, index) => (
+          <li>
+            <a href={step.href}>
+              <span class="number">{index + 1}</span>
+              <span class="step-title">
+                {step.title} <Icon name="right-arrow" size="1rem" />
+              </span>
+              <span class="step-text">{step.text}</span>
+            </a>
+          </li>
+        ))
+      }
+    </ol>
+  </section>
+
+  <section class="block">
+    <p class="eyebrow">Comprobantes</p>
+    <h2>Lo que emite</h2>
+    <ul class="vouchers">
+      {
+        vouchers.map((voucher) => (
+          <li>
+            <strong>{voucher.name}</strong>
+            <span>{voucher.detail}</span>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+
+  <section class="block">
+    <p class="eyebrow">Características</p>
+    <h2>Pensado para no equivocarse</h2>
+    <ul class="features">
+      {
+        features.map((feature) => (
+          <li>
+            <Icon name={feature.icon} size="1.4rem" class="feature-icon" />
+            <h3>{feature.title}</h3>
+            <p set:html={withCode(feature.text)} />
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+
+  <section class="block two">
+    <div>
+      <p class="eyebrow">Dos formas de usarlo</p>
+      <h2>Asistente o comandos, con el mismo resultado</h2>
+      <p class="body">
+        El asistente y los comandos validan y emiten exactamente igual. Cada paso del asistente te muestra el comando
+        equivalente, así pasás de uno a otro cuando quieras.
+      </p>
+      <a class="link" href={url('guias/patrones-de-uso/')}>Ver ejemplos de cada caso <Icon name="right-arrow" size="1rem" /></a>
+    </div>
+    <pre class="snippet"><code><span class="c"># Factura C a consumidor final, por servicios</span>
+<span class="p">$</span> arcli fc -m 15000 --cs --consumidor-final
+
+<span class="c"># Nota de crédito sobre la factura 0003-00000142</span>
+<span class="p">$</span> arcli ncc -m 5000 --cs --cfinal --ac fc --apv 3 --ar 142
+
+<span class="c"># Últimos comprobantes emitidos</span>
+<span class="p">$</span> arcli ultimos fc</code></pre>
+  </section>
+
+  <section class="block trust">
+    <div>
+      <p class="eyebrow">Confianza</p>
+      <h2>Tus datos, en tu computadora</h2>
+    </div>
+    <ul>
+      {
+        trust.map((item) => (
+          <li>
+            <Icon name="approve-check-circle" size="1.25rem" class="check" />
+            <span>{item}</span>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+
+  <section class="cta">
+    <h2>Probalo en testing, sin riesgo</h2>
+    <p>Emití facturas de prueba sin validez fiscal hasta que estés seguro. Pasar a producción es un flag.</p>
+    <div class="actions">
+      <a class="button primary" href={url('empezar/instalar/')}>
+        Instalar arcli <Icon name="right-arrow" size="1.1rem" />
+      </a>
+      <a class="button secondary" href={url('ayuda/problemas-frecuentes/')}>Problemas frecuentes</a>
+    </div>
+  </section>
+</div>
+
+<script>
+  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-copy]')) {
+    button.addEventListener('click', async () => {
+      const label = button.querySelector('span');
+
+      try {
+        await navigator.clipboard.writeText(button.dataset.copy ?? '');
+        if (label) label.textContent = 'Copiado';
+      } catch {
+        if (label) label.textContent = 'No se pudo copiar';
+      }
+
+      setTimeout(() => {
+        if (label) label.textContent = 'Copiar';
+      }, 1800);
+    });
+  }
+</script>
+
+<style is:global>
+  /* La portada no lleva el titulo de pagina de Starlight: el logo hace de titulo. */
+  main:has(.landing) .content-panel:has(#_top) {
+    display: none;
+  }
+</style>
+
+<style>
+  .landing {
+    --gap: clamp(4rem, 9vw, 7rem);
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+    padding-block: clamp(1.5rem, 5vw, 3.5rem) 2rem;
+  }
+
+  .hero {
+    position: relative;
+    isolation: isolate;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 1.25rem;
+  }
+
+  /* Un brillo celeste detras del logo, como el fondo del icono. */
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: -4rem -10% auto;
+    height: 30rem;
+    z-index: -1;
+    background: radial-gradient(ellipse at 50% 35%, rgb(116 172 223 / 0.14), transparent 65%);
+    pointer-events: none;
+  }
+
+  h1 {
+    margin: 1.5rem 0 0;
+    max-width: 22ch;
+    font-size: clamp(1.9rem, 4.6vw, 3.1rem);
+    line-height: 1.1;
+    letter-spacing: -0.025em;
+    font-weight: 700;
+    color: var(--sl-color-white);
+  }
+
+  .lead {
+    margin: 0;
+    max-width: 58ch;
+    font-size: clamp(1.05rem, 1.8vw, 1.2rem);
+    line-height: 1.6;
+    color: var(--sl-color-gray-2);
+  }
+
+  .install {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+    padding: 0.35rem 0.35rem 0.35rem 1.1rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.6rem;
+    background: var(--arcli-panel);
+    font-family: var(--sl-font-system-mono);
+  }
+
+  .install code {
+    font-size: 0.95rem;
+    color: var(--sl-color-white);
+    background: none;
+    padding: 0;
+  }
+
+  .prompt,
+  .p {
+    color: var(--arcli-verde);
+    user-select: none;
+  }
+
+  .install button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.75rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.4rem;
+    background: var(--sl-color-gray-6);
+    color: var(--sl-color-gray-2);
+    font: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+
+  .install button:hover {
+    color: var(--sl-color-white);
+    border-color: var(--sl-color-gray-4);
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+
+  .button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.7rem 1.35rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition:
+      transform 0.15s ease,
+      background-color 0.15s ease;
+  }
+
+  .button:hover {
+    transform: translateY(-1px);
+  }
+
+  .button.primary {
+    background: var(--sl-color-accent);
+    color: var(--sl-color-black);
+  }
+
+  .button.primary:hover {
+    background: var(--sl-color-accent-high);
+  }
+
+  .button.secondary {
+    border: 1px solid var(--sl-color-gray-5);
+    color: var(--sl-color-white);
+  }
+
+  .button.secondary:hover {
+    background: var(--sl-color-gray-6);
+  }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.6rem;
+    margin: 0.25rem 0 0;
+    font-size: 0.85rem;
+    color: var(--sl-color-gray-3);
+  }
+
+  .window {
+    margin: calc(var(--gap) * -0.4) auto 0;
+    width: 100%;
+    max-width: 58rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.75rem;
+    overflow: hidden;
+    background: #11111b;
+    /* El GIF ya trae su barra de ventana: aca solo el borde y el brillo. */
+    box-shadow:
+      0 0 0 1px rgb(116 172 223 / 0.06),
+      0 30px 80px -30px rgb(116 172 223 / 0.35);
+  }
+
+  .window img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .block h2,
+  .cta h2 {
+    margin: 0;
+    font-size: clamp(1.5rem, 3vw, 2.1rem);
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    color: var(--sl-color-white);
+  }
+
+  .eyebrow {
+    margin: 0 0 0.6rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--sl-color-accent);
+  }
+
+  .steps,
+  .vouchers,
+  .features,
+  .trust ul {
+    list-style: none;
+    margin: 2rem 0 0;
+    padding: 0;
+  }
+
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: 1rem;
+  }
+
+  .steps a {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    height: 100%;
+    padding: 1.5rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.75rem;
+    text-decoration: none;
+    color: inherit;
+    transition:
+      border-color 0.15s ease,
+      transform 0.15s ease;
+  }
+
+  .steps a:hover {
+    border-color: var(--sl-color-accent);
+    transform: translateY(-2px);
+  }
+
+  .number {
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    background: var(--sl-color-accent-low);
+    color: var(--sl-color-accent-high);
+    font-family: var(--sl-font-system-mono);
+    font-weight: 700;
+  }
+
+  .step-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--sl-color-white);
+  }
+
+  .step-text,
+  .features p,
+  .body,
+  .trust li,
+  .cta p {
+    color: var(--sl-color-gray-2);
+    line-height: 1.6;
+  }
+
+  .vouchers {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.75rem;
+    overflow: hidden;
+  }
+
+  .vouchers li {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 1.25rem 1.4rem;
+    margin: 0;
+    border-right: 1px solid var(--sl-color-gray-5);
+    border-bottom: 1px solid var(--sl-color-gray-5);
+    margin-right: -1px;
+    margin-bottom: -1px;
+  }
+
+  .vouchers strong {
+    color: var(--sl-color-white);
+  }
+
+  .vouchers span {
+    font-size: 0.9rem;
+    color: var(--sl-color-gray-3);
+  }
+
+  .features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: 2.25rem 2rem;
+  }
+
+  .features li {
+    margin: 0;
+  }
+
+  .features :global(.feature-icon) {
+    color: var(--sl-color-accent);
+  }
+
+  .features h3 {
+    margin: 0.75rem 0 0.4rem;
+    font-size: 1.05rem;
+    color: var(--sl-color-white);
+  }
+
+  .features p {
+    margin: 0;
+    font-size: 0.95rem;
+  }
+
+  .landing :global(code) {
+    font-family: var(--sl-font-system-mono);
+    font-size: 0.88em;
+  }
+
+  .features :global(code) {
+    padding: 0.1em 0.35em;
+    border-radius: 0.3rem;
+    background: var(--sl-color-gray-6);
+    color: var(--sl-color-white);
+  }
+
+  .two {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
+    gap: 2.5rem;
+    align-items: center;
+  }
+
+  .body {
+    margin: 1rem 0 1.25rem;
+  }
+
+  .link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-weight: 600;
+    color: var(--sl-color-accent);
+    text-decoration: none;
+  }
+
+  .link:hover {
+    text-decoration: underline;
+  }
+
+  .snippet {
+    margin: 0;
+    padding: 1.5rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.75rem;
+    background: #11111b;
+    color: #cdd6f4;
+    font-family: var(--sl-font-system-mono);
+    font-size: 0.85rem;
+    line-height: 1.75;
+    overflow-x: auto;
+  }
+
+  .snippet .c {
+    color: #7f849c;
+  }
+
+  .trust {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
+    gap: 2rem;
+    align-items: center;
+    padding: clamp(1.75rem, 4vw, 2.75rem);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 1rem;
+    background: linear-gradient(135deg, var(--sl-color-accent-low), transparent 70%);
+  }
+
+  .trust ul {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+  }
+
+  .trust li {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    margin: 0;
+  }
+
+  .trust :global(.check) {
+    flex-shrink: 0;
+    margin-top: 0.15rem;
+    color: var(--sl-color-accent);
+  }
+
+  .cta {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    text-align: center;
+    padding-top: 1rem;
+  }
+
+  .cta p {
+    margin: 0;
+    max-width: 52ch;
+  }
+</style>
