@@ -10,10 +10,12 @@ import { ExportService } from '../../modules/export/export.service';
 import {
   EXPORT_VOUCHER_KIND,
   type ExportExecutionResult,
+  type ExportGateway,
   type ExportVoucherKind,
 } from '../../modules/export/export.types';
 import { formatPdfOutcomeAsText } from '../../modules/pdf/pdf.presenter';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
+import type { ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
 import { noticePanel, writeTerminalJson, writeTerminalOutput } from '../../ui';
 import { certificateWarnings, resolveArcaRuntime } from '../arca-runtime';
 import { getGlobalOptions } from '../global-options';
@@ -83,22 +85,37 @@ export interface ExportCommandOptions {
   readonly voucherKind?: ExportVoucherKind;
 }
 
+/** Lo que el comando toma de afuera: en los tests, una config y un WSFEX falsos. */
+export interface ExportCommandDependencies {
+  readonly createGateway: (runtime: ResolvedArcaRuntime) => ExportGateway;
+  readonly resolveRuntime: typeof resolveArcaRuntime;
+}
+
+const DEFAULT_DEPENDENCIES: ExportCommandDependencies = {
+  createGateway: (runtime) => new ArcaClientFactory().createExportGateway(runtime),
+  resolveRuntime: resolveArcaRuntime,
+};
+
 /**
  * Un comprobante por ejecucion: resuelve el payload contra WSFEX, muestra la vista previa si corresponde,
  * emite y, si hay CAE, genera el PDF.
  */
-export async function executeExportCommand(command: Command, options: ExportCommandOptions = {}): Promise<void> {
+export async function executeExportCommand(
+  command: Command,
+  options: ExportCommandOptions = {},
+  dependencies: ExportCommandDependencies = DEFAULT_DEPENDENCIES,
+): Promise<void> {
   const globalOptions = getGlobalOptions(command);
   let spinner: ReturnType<typeof startSpinner> = null;
 
   try {
-    const runtime = resolveArcaRuntime(globalOptions);
+    const runtime = dependencies.resolveRuntime(globalOptions);
     const voucherKind = options.voucherKind ?? EXPORT_VOUCHER_KIND;
     const plan = parseExportCommandPlan(command, { defaultEmit: runtime.config.output.emitirPorDefecto, voucherKind });
     const useRaw = typeof globalOptions.bruto === 'boolean' ? globalOptions.bruto : runtime.outputRaw;
     const interactive = !runtime.outputJson && Boolean(process.stdin.isTTY && process.stdout.isTTY);
     const service = new ExportService();
-    const gateway = new ArcaClientFactory().createExportGateway(runtime);
+    const gateway = dependencies.createGateway(runtime);
 
     spinner = runtime.outputJson ? null : startSpinner('Consultando WSFEX...');
 
