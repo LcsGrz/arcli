@@ -40,9 +40,9 @@ Antes de dar por terminado un cambio significativo: `yarn typecheck`, `yarn lint
 
 ## Ramas
 
-`main` es lo publicado en npm y `dev`, donde se trabaja (es la rama default de GitHub). Detalle en [docs/development.md](docs/development.md#ramas).
+`main` es lo publicado en npm (y la rama default de GitHub, para que quien entra al repo vea lo publicado) y `dev`, donde se trabaja. Detalle en [docs/development.md](docs/development.md#ramas).
 
-- Todo cambio sale de `dev` y vuelve con un PR a `dev` (squash). La base es siempre `dev`, nunca la rama de otro PR.
+- Todo cambio sale de `dev` y vuelve con un PR a `dev` (squash): `gh pr create --base dev`, porque sin `--base` va a `main`. La base es siempre `dev`, nunca la rama de otro PR.
 - Un PR a `main` es solo una release (`release/vX.Y.Z` desde `dev`, con la skill `release`) o un hotfix de algo ya publicado (rama desde `main`). Si un PR de trabajo apunta a `main`, cambiá la base a `dev` antes de mergear.
 - Después de cada release o hotfix, `main` vuelve a `dev` con un PR `main` → `dev` mergeado con **merge commit**, nunca squash: con squash, la próxima release trae conflictos.
 

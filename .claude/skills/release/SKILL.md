@@ -46,7 +46,7 @@ Después corré `yarn typecheck`, `yarn lint`, `yarn test` y `yarn build`, y `no
 
 ## 4. Gate 1: commit, push y PR
 
-Mostrá el diff y el cuerpo del PR, y esperá el ok. El commit y el título del PR son `vX.Y.Z`, y el PR va contra `main` (`gh pr create --base main`), no contra la rama default. Cuerpo:
+Mostrá el diff y el cuerpo del PR, y esperá el ok. El commit y el título del PR son `vX.Y.Z`, y el PR va contra `main` (`gh pr create --base main`). Cuerpo:
 
 ```markdown
 ## Release X.Y.Z
