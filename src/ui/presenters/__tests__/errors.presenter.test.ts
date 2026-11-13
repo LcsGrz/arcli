@@ -66,6 +66,44 @@ describe('errors.presenter', () => {
   });
 
   it.each([
+    [
+      'coe.alreadyAuthenticated',
+      new Error('Fault: coe.alreadyAuthenticated: El CEE ya posee un TA valido para el acceso al WSN solicitado'),
+      'Error transitorio WSAA',
+      'ARCA todavía tiene abierta una sesión anterior. Esperá un par de minutos y probá de nuevo, con los mismos datos.',
+    ],
+    [
+      'Transacción Activa',
+      new Error('(502) Transacción Activa'),
+      'Error transitorio ARCA',
+      'ARCA devolvió una transacción activa. Esperá unos segundos y reintentá la emisión antes de modificar datos del comprobante.',
+    ],
+  ])('reports %s as TRANSIENT_ERROR with its suggestion', (_name, error, title, suggestion) => {
+    expect(JSON.parse(formatAppError(error, true))).toEqual({
+      codigo: 'TRANSIENT_ERROR',
+      detalles: null,
+      error: error.message,
+      sugerencia: suggestion,
+    });
+
+    const text = formatAppError(error, false);
+
+    expect(text).toContain(title.toUpperCase());
+    expect(text).toContain('Esperá');
+  });
+
+  it.each([
+    ['an unrelated error', new Error('socket hang up')],
+    ['a non-Error value', 'coe.alreadyAuthenticated'],
+  ])('reports %s as UNEXPECTED_ERROR without a suggestion', (_name, error) => {
+    expect(JSON.parse(formatAppError(error, true))).toMatchObject({
+      codigo: 'UNEXPECTED_ERROR',
+      sugerencia: null,
+    });
+    expect(formatAppError(error, false)).toContain('ERROR INESPERADO');
+  });
+
+  it.each([
     ['app error without suggestion', new ConfigurationError('Falta el CUIT.')],
     ['input error', new InputValidationError('Falta el concepto.')],
     ['unexpected error', new Error('boom')],
