@@ -247,16 +247,16 @@ WSFEX tiene su propio contrato: las reglas de concepto, fecha de servicio, IVA r
 
 `nce` y `nde` siguen las reglas de la factura `E`, con estas diferencias. Todo se valida antes de emitir; lo que depende del asociado, después de consultarlo en ARCA (`FEXGetCMP`).
 
-| Regla             | Detalle                                                                                                                                                                                 |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Asociado          | `--ar` obligatorio. `--ac` (`fe`, `nde`, `nce`) o `--at` (`19`, `20`, `21`); por defecto una factura `E`. Si van los dos, tienen que coincidir                                          |
-| CUIT del asociado | Siempre el emisor: `--acuit` con otro CUIT es error (ARCA lo rechaza con el 2031)                                                                                                       |
-| Existencia        | El asociado tiene que existir en ARCA y estar aprobado                                                                                                                                  |
-| Datos que hereda  | Cliente, domicilio, ID impositivo, destino, CUIT del país, tipo de exportación, moneda, cotización (si la moneda es la misma), idioma, incoterm, forma de pago y actividad              |
-| Fecha             | No puede ser anterior a la del asociado                                                                                                                                                 |
-| Monto de la NC    | No puede superar el total del asociado cuando van en la misma moneda                                                                                                                    |
-| Servicios (`2`)   | Mismo tipo de exportación (2049), destino (2050), moneda o pesos (2051) y cotización (2053) que el asociado. La ND solo ajusta una factura (2041, 2042); la NC no ajusta otra NC (2045) |
-| No van            | `--fecha-pago` (1673), `--misma-moneda` (1605), `--permiso` y `--permiso-existente`. `Permiso_existente` va vacío (1550) y `Cmps_asoc` lleva un solo asociado (1754)                    |
+| Regla             | Detalle                                                                                                                                                                                                 |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Asociado          | `--ar` obligatorio. `--ac` (`fe`, `nde`, `nce`) o `--at` (`19`, `20`, `21`); por defecto una factura `E`. Si van los dos, tienen que coincidir                                                          |
+| CUIT del asociado | Siempre el emisor: `--acuit` con otro CUIT es error (ARCA lo rechaza con el 2031)                                                                                                                       |
+| Existencia        | El asociado tiene que existir en ARCA y estar aprobado                                                                                                                                                  |
+| Datos que hereda  | Cliente, domicilio, ID impositivo, destino, CUIT del país, tipo de exportación, moneda, cotización (si la moneda es la misma), idioma, incoterm, forma de pago y actividad                              |
+| Fecha             | No puede ser anterior a la del asociado                                                                                                                                                                 |
+| Monto de la NC    | No puede superar el total del asociado cuando van en la misma moneda                                                                                                                                    |
+| Servicios (`2`)   | Mismo tipo de exportación (2049), destino (2050), moneda o pesos (2051) y cotización (2053) que el asociado. La ND solo ajusta una factura (2041, 2042); la NC no ajusta otra NC (2045)                 |
+| No van            | `--fecha-pago` (1673), `--misma-moneda` (1605) y `--permiso-existente`. `Permiso_existente` va vacío (1550); en bienes, `--permiso` es opcional y va sin él y `Cmps_asoc` lleva un solo asociado (1754) |
 
 ### IVA automático
 

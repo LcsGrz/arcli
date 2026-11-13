@@ -104,7 +104,10 @@ describe('assertExportNoteFields', () => {
     expect(() => assertExportNoteFields({ ...INPUT, sameCurrency: true }, EXPORT_DEBIT_NOTE_KIND)).toThrow(
       /error 1605/,
     );
-    expect(() => assertExportNoteFields({ ...INPUT, permits: ['P1'] }, EXPORT_CREDIT_NOTE_KIND)).toThrow(/permisos/);
+    expect(() => assertExportNoteFields({ ...INPUT, permitsExisting: true }, EXPORT_CREDIT_NOTE_KIND)).toThrow(
+      /error 1550/,
+    );
+    expect(() => assertExportNoteFields({ ...INPUT, permits: ['P1'] }, EXPORT_CREDIT_NOTE_KIND)).not.toThrow();
     expect(() => assertExportNoteFields(INPUT, EXPORT_CREDIT_NOTE_KIND)).not.toThrow();
   });
 });

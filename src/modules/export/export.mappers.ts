@@ -384,12 +384,14 @@ function requiresEmptyPermitsExisting(exportType: ExportType): boolean {
 
 /**
  * Con `Permiso_existente = N` ARCA rechaza el campo `Permisos` (error 1720), y en los tipos 2 y 4 pide el campo
- * vacio y no admite permisos (error 1550): sin permisos no se manda.
+ * vacio y no admite permisos (error 1550): sin permisos no se manda. En las notas de bienes los permisos son
+ * opcionales y van con `Permiso_existente` vacio (tabla de la 1720), asi que no piden `--permiso-existente`.
  */
 function resolvePermits(
   input: ExportVoucherInput,
   destinationCountry: number,
   exportType: ExportType,
+  isNote: boolean,
 ): ExportVoucherPayload['Permisos'] {
   const permits = (input.permits ?? []).map((permit) => permit.trim()).filter(Boolean);
 
@@ -407,7 +409,7 @@ function resolvePermits(
     );
   }
 
-  if (!input.permitsExisting) {
+  if (!isNote && !input.permitsExisting) {
     throw new InputValidationError(
       'Los permisos de embarque van con `--permiso-existente`: ARCA necesita saber que el permiso ya existe.',
     );
@@ -437,7 +439,7 @@ export function buildExportPayload(input: ExportVoucherInput, resolution: BuildE
     throw new InputValidationError('Falta el comprobante asociado de la nota. Usá `--ar`.');
   }
 
-  const permits = isNote ? undefined : resolvePermits(input, resolution.destinationCountry.code, resolution.exportType);
+  const permits = resolvePermits(input, resolution.destinationCountry.code, resolution.exportType, isNote);
   /** En notas, servicios y otros ARCA pide el campo vacio; en el resto, `N` sin permisos y `S` con permisos. */
   const permitsExisting: ExportVoucherPayload['Permiso_existente'] =
     isNote || requiresEmptyPermitsExisting(resolution.exportType) ? '' : input.permitsExisting ? 'S' : 'N';
