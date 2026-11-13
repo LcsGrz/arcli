@@ -161,15 +161,16 @@ Cliente, destino, moneda, cotización y actividad salen de la factura, y el núm
 
 Para quien factura o cobra lo mismo seguido. Elegís si es una factura o un Recibo C y uno de los últimos 15 emitidos, y se copian el receptor, el concepto, el monto y la alícuota (cuando se puede deducir de los importes). **Las fechas no se copian:** el comprobante sale con fecha de hoy.
 
-| Paso | Pregunta             | Detalle                                                                                                                                                       |
-| ---- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1    | Tipo de comprobante  | Factura A, B o C, comunes o FCE, o Recibo C                                                                                                                   |
-| 2    | Comprobante          | Uno de los últimos emitidos en el punto de venta configurado. Como en las notas, se pueden cargar más o ingresar el número a mano                             |
-| 3    | IVA del receptor     | Solo si no era consumidor final: ARCA no devuelve la condición IVA de la factura                                                                              |
-| 4    | Monto                | El mismo o uno nuevo                                                                                                                                          |
-| 5    | Período del servicio | Este mes, el mes pasado, solo hoy u otro. No se pregunta si el concepto es solo productos                                                                     |
-| 6    | CBU                  | Solo en FCE sin `config.cbu`                                                                                                                                  |
-| 7    | Opcionales           | La misma selección múltiple de "Emitir factura". Si la original era en dólares, arranca con la moneda marcada, porque la cotización hay que volver a cargarla |
+| Paso | Pregunta             | Detalle                                                                                                                                                                                                                                                   |
+| ---- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Tipo de comprobante  | Factura A, B o C, comunes o FCE, o Recibo C                                                                                                                                                                                                               |
+| 2    | Comprobante          | Uno de los últimos emitidos en el punto de venta configurado. Como en las notas, se pueden cargar más o ingresar el número a mano                                                                                                                         |
+| 3    | IVA del receptor     | Solo si no era consumidor final: ARCA no devuelve la condición IVA de la factura                                                                                                                                                                          |
+| 4    | Monto                | El mismo o uno nuevo, en la moneda del original                                                                                                                                                                                                           |
+| 5    | ¿Cómo te pagan?      | Solo si el original era en moneda extranjera (dólares, euros u otra): el nuevo sale en esa moneda y la cotización se vuelve a cargar. En pesos ingresás la cotización acordada; en la moneda del comprobante se usa la oficial de ARCA (`--misma-moneda`) |
+| 6    | Período del servicio | Este mes, el mes pasado, solo hoy u otro. No se pregunta si el concepto es solo productos                                                                                                                                                                 |
+| 7    | CBU                  | Solo en FCE sin `config.cbu`                                                                                                                                                                                                                              |
+| 8    | Opcionales           | La misma selección múltiple de "Emitir factura". Si el original era en moneda extranjera, no ofrece cambiar la moneda: el monto está en esa moneda                                                                                                        |
 
 Después sigue igual que una factura nueva: vista previa, comando equivalente y confirmación.
 

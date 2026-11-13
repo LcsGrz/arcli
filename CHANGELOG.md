@@ -21,6 +21,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### Arreglado
 
+- **Repetir un comprobante en moneda extranjera:** en el modo interactivo, repetir una factura o un recibo en dólares, euros u otra moneda ahora sale en la moneda del original y solo pregunta la cotización (la acordada o la oficial de ARCA). Antes arrancaba en pesos: si se desmarcaba "Moneda extranjera", el monto en dólares se emitía como si fueran pesos, y uno en euros no se podía repetir. Si ARCA no tiene la cotización oficial, no se emite.
 - **El modo interactivo avisa lo mismo que los comandos con flags:** en moneda extranjera, que usa la cotización oficial de ARCA. Antes ese aviso solo salía con flags. La preparación de la emisión ahora es una sola para los dos.
 
 ### Documentación

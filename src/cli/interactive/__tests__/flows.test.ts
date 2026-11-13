@@ -453,27 +453,78 @@ describe('flujos del modo interactivo', () => {
       expect(script.chooseManyStep.mock.calls[0][2]).toEqual(['alicuota']);
     });
 
-    it('si la factura era en dolares arranca con la moneda marcada', async () => {
+    it('si la factura era en dolares sigue en dolares y solo pide la cotizacion', async () => {
       script = createScript([
         [/comprobante querés repetir/, 'Factura C'],
         [/Cuál repetimos/, '00003-00000014'],
         [/Mismo monto/, 'Sí'],
+        [/Cómo te pagan/, 'En pesos'],
+        [/Cotización de USD/, '1.250,5'],
         [/Período del servicio/, 'Solo hoy'],
-        [/Agregamos/, ['Moneda extranjera']],
-        [/Moneda del comprobante/, 'Dólares'],
-        [/Cómo te pagan/, 'En dólares'],
+        [/Agregamos/, []],
       ]);
 
-      const session = createSession([invoice({ currency: 'DOL', ivaAmount: 0, netAmount: 121 })]);
+      const session = createSession([invoice({ currency: 'DOL', exchangeRate: 980, ivaAmount: 0, netAmount: 121 })]);
+      const state = await runWizard(repeatSteps(session, 3, today), {
+        advanced: { currencyCode: 'ARS', sameCurrency: false },
+      });
+
+      // Sin marcar "Moneda extranjera", el monto sigue en dolares: antes salia como 121 pesos.
+      expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
+        currencyCode: 'USD',
+        exchangeRate: 1250.5,
+        sameCurrency: false,
+        totalAmount: 121,
+      });
+      // La moneda es la del original: no se ofrece cambiarla, porque el monto esta en esa moneda.
+      expect(onlyChoices(script.chooseManyStep.mock.calls[0][1]).map((choice) => choice.value)).not.toContain(
+        'divisas',
+      );
+      expect(script.chooseManyStep.mock.calls[0][2]).toEqual([]);
+    });
+
+    it('repite un comprobante en euros con la cotizacion oficial de ARCA', async () => {
+      script = createScript([
+        [/comprobante querés repetir/, 'Factura C'],
+        [/Cuál repetimos/, '00003-00000014'],
+        [/Mismo monto/, 'No'],
+        [/Monto total en EUR/, '300'],
+        [/Cómo te pagan/, 'En euros'],
+        [/Período del servicio/, 'Solo hoy'],
+        [/Agregamos/, []],
+      ]);
+
+      const session = createSession([invoice({ currency: '060', exchangeRate: 1100, ivaAmount: 0, netAmount: 121 })]);
       const state = await runWizard(repeatSteps(session, 3, today), {
         advanced: { currencyCode: 'ARS', sameCurrency: false },
       });
 
       expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
-        currencyCode: 'USD',
+        currencyCode: 'EUR',
+        exchangeRate: undefined,
         sameCurrency: true,
+        totalAmount: 300,
       });
-      expect(script.chooseManyStep.mock.calls[0][2]).toEqual(['divisas']);
+    });
+
+    it('en pesos no pregunta la cotizacion', async () => {
+      script = createScript([
+        [/comprobante querés repetir/, 'Factura C'],
+        [/Cuál repetimos/, '00003-00000014'],
+        [/Mismo monto/, 'Sí'],
+        [/Período del servicio/, 'Solo hoy'],
+        [/Agregamos/, []],
+      ]);
+
+      const session = createSession([invoice({ currency: 'PES', exchangeRate: 1, ivaAmount: 0, netAmount: 121 })]);
+      const state = await runWizard(repeatSteps(session, 3, today), {
+        advanced: { currencyCode: 'ARS', sameCurrency: false },
+      });
+
+      expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
+        currencyCode: 'ARS',
+        sameCurrency: false,
+      });
     });
   });
 

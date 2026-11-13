@@ -1,7 +1,9 @@
 import { DEFAULT_IVA_RATE } from '../../modules/billing/billing.amounts';
 import { DEFAULT_CURRENCY_CODE } from '../../modules/billing/billing.constants';
+import { isForeignCurrency } from '../../modules/billing/billing.currency';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
 import type { BillingConcept } from '../../modules/billing/billing.schemas';
+import { toIsoCurrencyCode } from '../../modules/billing/currency-codes';
 import { parseAmountInput } from '../../modules/interactive/amount-input';
 import { invoiceKindChoices, reciboChoice } from '../../modules/interactive/choices';
 import { copyInvoiceAmounts } from '../../modules/interactive/invoice-copy';
@@ -10,7 +12,7 @@ import { BACK, requireStepValue, runWizard, type WizardStep } from '../../module
 import { type IssuedVoucher, resolveDocumentType } from '../../modules/vouchers/voucher-history';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 
-import { askAdvancedOptions } from './advanced-options';
+import { askAdvancedOptions, askExchangeRate } from './advanced-options';
 import { buildInvoiceInput, type InvoiceState } from './invoice.flow';
 import { pickInvoice } from './invoice-picker';
 import { askTextStep, chooseStep } from './prompts';
@@ -28,7 +30,12 @@ export interface RepeatState extends InvoiceState {
   readonly original?: IssuedVoucher;
 }
 
-const LOCAL_CURRENCIES = new Set(['PES', DEFAULT_CURRENCY_CODE, undefined]);
+/** La moneda extranjera del comprobante, con su codigo ISO; `undefined` si era en pesos. */
+function foreignCurrencyOf(original: IssuedVoucher | undefined): string | undefined {
+  const currency = original?.currency;
+
+  return currency && isForeignCurrency({ currencyCode: currency }) ? toIsoCurrencyCode(currency) : undefined;
+}
 
 function describePeriod(period: ServicePeriod): string {
   return `${period.from} al ${period.to}`;
@@ -91,7 +98,9 @@ export function repeatSteps(
 
         return {
           advanced: {
-            currencyCode: DEFAULT_CURRENCY_CODE,
+            // El monto esta en la moneda del original: se repite en esa moneda y despues se pide la cotizacion.
+            currencyCode: foreignCurrencyOf(original) ?? DEFAULT_CURRENCY_CODE,
+            exchangeRate: undefined,
             exemptAmount: copy.exemptAmount,
             ivaRate: copy.ivaRate,
             sameCurrency: false,
@@ -131,10 +140,32 @@ export function repeatSteps(
           return scope === BACK ? BACK : { totalAmount: original.total };
         }
 
-        const answer = await askTextStep('Monto total:', { validate: validateAmount });
+        const currency = foreignCurrencyOf(original);
+        const answer = await askTextStep(currency ? `Monto total en ${currency}:` : 'Monto total:', {
+          validate: validateAmount,
+        });
 
         return answer === BACK ? BACK : { totalAmount: parseAmountInput(answer) };
       },
+    },
+    {
+      name: 'cotizacion',
+      // La cotizacion del original ya no sirve: se pide la de hoy, en la moneda del original.
+      run: async (state) => {
+        const currency = requireStepValue(foreignCurrencyOf(state.original), 'currency');
+
+        writeTerminalOutput(
+          noticePanel(
+            `El comprobante original era en ${currency}: se repite en ${currency} con una cotización nueva.`,
+            'info',
+          ),
+        );
+
+        const advanced = await askExchangeRate(state.advanced, currency);
+
+        return advanced === BACK ? BACK : { advanced };
+      },
+      skip: (state) => !foreignCurrencyOf(state.original),
     },
     {
       name: 'periodo',
@@ -186,26 +217,13 @@ export function repeatSteps(
     {
       name: 'opcionales',
       run: async (state) => {
-        // La cotizacion de la factura original ya no sirve: si era en moneda extranjera, arranca marcada.
-        const foreign = !LOCAL_CURRENCIES.has(state.original?.currency);
-
-        if (foreign) {
-          writeTerminalOutput(
-            noticePanel(
-              'El comprobante original era en moneda extranjera: completá la moneda y la cotización.',
-              'info',
-            ),
-          );
-        }
-
         const advanced = await askAdvancedOptions(state.advanced, {
           concept: state.concept ?? 'servicios',
           defaultIvaRate: state.advanced.ivaRate ?? config.alicuotaPorDefecto ?? DEFAULT_IVA_RATE,
+          // En moneda extranjera el monto esta en esa moneda: cambiarla a pesos lo emitiria como si fueran pesos.
+          fixedCurrency: Boolean(foreignCurrencyOf(state.original)),
           // Sin alicuota deducida de la factura, que la elija en lugar de caer en la de la config.
-          preselected: [
-            ...(foreign ? (['divisas'] as const) : []),
-            ...(!state.advanced.ivaRate && state.voucherKind?.letter !== 'c' ? (['alicuota'] as const) : []),
-          ],
+          preselected: !state.advanced.ivaRate && state.voucherKind?.letter !== 'c' ? ['alicuota'] : [],
           voucherKind: requireStepValue(state.voucherKind, 'voucherKind'),
         });
 
