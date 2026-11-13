@@ -7,6 +7,7 @@ export default defineConfig({
   base: '/arcli',
   integrations: [
     starlight({
+      components: { SiteTitle: './src/components/SiteTitle.astro' },
       customCss: ['./src/styles/arcli.css'],
       // La 404 es la de src/content/docs/404.md, en español y con el buscador.
       disable404Route: true,

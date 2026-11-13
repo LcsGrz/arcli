@@ -1,5 +1,9 @@
 /* Los colores del logo de arcli: celeste sobre el fondo oscuro del ícono. */
 :root {
+  --arcli-celeste: #74acdf;
+  --arcli-lavanda: #c6c9f0;
+  --arcli-verde: #a6e3a1;
+  --arcli-panel: #11111b;
   --sl-color-accent-low: #1f2f45;
   --sl-color-accent: #74acdf;
   --sl-color-accent-high: #d4e7f7;
@@ -8,6 +12,10 @@
 }
 
 :root[data-theme='light'] {
+  --arcli-celeste: #2c6aa3;
+  --arcli-lavanda: #3d3f66;
+  --arcli-verde: #3a8a3f;
+  --arcli-panel: #f4f5f9;
   --sl-color-accent-low: #d4e7f7;
   --sl-color-accent: #2c6aa3;
   --sl-color-accent-high: #173a5c;

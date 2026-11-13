@@ -156,6 +156,27 @@ function extractBody(page, raw) {
   return { body: text.replace(heading[0], '').trim(), title: page.title ?? heading[1].trim() };
 }
 
+/**
+ * El logo ASCII y la version salen del CLI (`renderLogo.ts` y `package.json`), para que la portada muestre lo mismo
+ * que la terminal sin copiarlo a mano.
+ */
+function writeBrand() {
+  const logoSource = readFileSync(join(repoDir, 'src/ui/primitives/renderLogo.ts'), 'utf8');
+  const block = logoSource.match(/ARCLI_ASCII_BANNER = \[([\s\S]*?)\]\.join/);
+  const split = logoSource.match(/ARCLI_BANNER_AR_CLI_SPLIT_COLUMN = (\d+)/);
+
+  if (!block || !split) {
+    throw new Error('renderLogo.ts: no encontre ARCLI_ASCII_BANNER o ARCLI_BANNER_AR_CLI_SPLIT_COLUMN.');
+  }
+
+  const banner = [...block[1].matchAll(/'([^']*)'/g)].map((match) => match[1].replace(/\s+$/, ''));
+  const { version } = JSON.parse(readFileSync(join(repoDir, 'package.json'), 'utf8'));
+  const target = join(siteDir, 'src/generated/brand.json');
+
+  mkdirSync(dirname(target), { recursive: true });
+  writeFileSync(target, `${JSON.stringify({ banner, splitColumn: Number(split[1]), version }, null, 2)}\n`);
+}
+
 function sync() {
   for (const section of GENERATED_SECTIONS) {
     rmSync(join(contentDir, section), { force: true, recursive: true });
@@ -190,6 +211,8 @@ function sync() {
   mkdirSync(join(siteDir, 'src/assets'), { recursive: true });
   cpSync(join(repoDir, 'docs/assets/imagenes/arcliIcon.svg'), join(siteDir, 'src/assets/logo.svg'));
   cpSync(join(repoDir, 'docs/assets/imagenes/arcliIcon.svg'), join(siteDir, 'public/favicon.svg'));
+
+  writeBrand();
 
   console.log(`Sitio: ${PAGES.length} páginas generadas desde docs/.`);
 }

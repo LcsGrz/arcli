@@ -10,3 +10,4 @@ src/content/docs/ayuda/
 src/assets/logo.svg
 public/assets/
 public/favicon.svg
+src/generated/
