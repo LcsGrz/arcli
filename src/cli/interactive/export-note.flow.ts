@@ -17,7 +17,7 @@ import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 import { withSpinner } from '../spinner';
 
-import { emitExportVoucher } from './export.flow';
+import { askPermitsStep, emitExportVoucher } from './export.flow';
 import { askTextStep } from './prompts';
 import { type InteractiveSession, requirePointOfSale } from './session';
 import { validateAmount } from './validators';
@@ -27,6 +27,7 @@ export interface ExportNoteState {
   readonly description?: string;
   readonly invoice?: ExportIssuedVoucher;
   readonly invoicePointOfSale?: number;
+  readonly permits?: readonly string[];
 }
 
 function validatePositiveInteger(label: string): (value: string) => string | true {
@@ -44,7 +45,7 @@ function describeInvoice(invoice: ExportIssuedVoucher): string {
 
 /**
  * Pasos de la nota E: la factura que ajusta (se busca en ARCA y de ahi salen cliente, destino y moneda), el monto,
- * el detalle y el numero. Cada uno se puede deshacer con "Volver".
+ * el detalle y, en bienes, los permisos de embarque. Cada uno se puede deshacer con "Volver".
  */
 export function exportNoteSteps(
   kind: 'credito' | 'debito',
@@ -129,6 +130,12 @@ export function exportNoteSteps(
         return answer === BACK ? BACK : { description: answer.trim() || undefined };
       },
     },
+    {
+      // Solo en bienes: los permisos son opcionales en la nota y van sin `--permiso-existente` (tabla de la 1720).
+      name: 'permisos',
+      run: askPermitsStep,
+      skip: (state) => state.invoice?.exportType !== 1,
+    },
   ];
 }
 
@@ -140,6 +147,7 @@ export function buildExportNoteInput(kind: 'credito' | 'debito', state: ExportNo
     associatedVoucher: { number: invoice.number, pointOfSale: invoice.pointOfSale },
     description: state.description,
     emit: false,
+    permits: state.permits,
     voucherKind: kind === 'credito' ? EXPORT_CREDIT_NOTE_KIND : EXPORT_DEBIT_NOTE_KIND,
   };
 }

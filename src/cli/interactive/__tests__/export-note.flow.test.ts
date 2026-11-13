@@ -151,6 +151,25 @@ describe('runExportNoteFlow', () => {
     );
   });
 
+  it('en bienes pregunta los permisos de embarque y los informa sin --permiso-existente', async () => {
+    // La busca el asistente y despues ExportService, para heredar sus datos.
+    vi.mocked(gateway.getVoucher)
+      .mockResolvedValueOnce({ ...INVOICE, exportType: 1 })
+      .mockResolvedValueOnce({ ...INVOICE, exportType: 1 });
+    script = createScript([
+      [/Punto de venta de la factura E/, '4'],
+      [/Número de la factura E/, '1'],
+      [/Monto de la nota de débito de exportación E/, '100'],
+      [/Detalle de la nota/, ''],
+      [/Permisos de embarque/, '26001EC01000123A'],
+      [/Emitimos la nota de débito de exportación E en testing/, 'Cancelar'],
+    ]);
+
+    await runExportNoteFlow(createSession(), 'debito');
+
+    expect(printed()).toContain('arcli nde -m 100 --ar 1 --apv 4 --permiso 26001EC01000123A --testing --emitir');
+  });
+
   it('en la nota de crédito no deja pasar del total de la factura', async () => {
     script = createScript([
       [/Punto de venta de la factura E/, '4'],

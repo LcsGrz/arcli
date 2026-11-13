@@ -52,6 +52,8 @@ export function buildExportEquivalentCommand(
   text('--moneda', input.currencyCode);
   if (input.sameCurrency) parts.push('--misma-moneda');
   text('--incoterm', input.incoterm);
+  for (const permit of input.permits ?? []) text('--permiso', permit);
+  if (input.permitsExisting) parts.push('--permiso-existente');
   if (input.paymentTerms?.trim() && input.paymentTerms.trim() !== DEFAULT_EXPORT_PAYMENT_TERMS) {
     text('--forma-pago', input.paymentTerms);
   }

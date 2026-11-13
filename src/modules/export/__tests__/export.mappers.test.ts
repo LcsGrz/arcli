@@ -12,7 +12,12 @@ import {
   resolveExportType,
   resolveExportVoucherDate,
 } from '../export.mappers';
-import { EXPORT_VOUCHER_KIND, type ExportCountry, type ExportCountryCuit } from '../export.types';
+import {
+  EXPORT_CREDIT_NOTE_KIND,
+  EXPORT_VOUCHER_KIND,
+  type ExportCountry,
+  type ExportCountryCuit,
+} from '../export.types';
 
 const COUNTRIES: readonly ExportCountry[] = [
   { code: 200, name: 'Argentina' },
@@ -373,6 +378,22 @@ describe('buildExportPayload', () => {
     expect(() =>
       buildExportPayload({ ...input, permits: ['P1'], permitsExisting: true }, { ...resolution, exportType: 2 }),
     ).toThrow(/no lleva permisos de embarque/);
+  });
+
+  it('en una nota de bienes informa los permisos con Permiso_existente vacio (tabla de la 1720)', () => {
+    const note = {
+      ...resolution,
+      associatedVoucher: { Cbte_cuit: 20111111112, Cbte_nro: 1, Cbte_punto_vta: 4, Cbte_tipo: 19 },
+      voucherKind: EXPORT_CREDIT_NOTE_KIND,
+    };
+    const payload = buildExportPayload({ ...input, permits: ['P1', 'P1'] }, note);
+
+    expect(payload.Permiso_existente).toBe('');
+    expect(payload.Permisos?.Permiso).toEqual([{ Dst_merc: 203, Id_permiso: 'P1' }]);
+    expect(buildExportPayload(input, note)).not.toHaveProperty('Permisos');
+    expect(() => buildExportPayload({ ...input, permits: ['P1'] }, { ...note, exportType: 2 })).toThrow(
+      /no lleva permisos de embarque/,
+    );
   });
 
   it('pide el flag de permiso existente cuando hay permisos', () => {
