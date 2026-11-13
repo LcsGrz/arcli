@@ -170,7 +170,7 @@ Los nombres de las claves no siempre coinciden con los flags. Si pasás las dos 
 
 ## Factura de exportación (E)
 
-La factura `E` (`arcli fe` o `arcli factura e`) y sus notas de crédito y débito (`arcli nce`, `arcli nde`) no comparten el JSON de facturación: no tiene concepto, IVA ni receptor con documento, y `--cargar` acepta **un objeto, nunca un array** (el lote de exportación no está soportado y responde `INPUT_VALIDATION_ERROR`). Una clave desconocida es error: una clave desconocida también es error.
+La factura `E` (`arcli fe` o `arcli factura e`) y sus notas de crédito y débito (`arcli nce`, `arcli nde`) no comparten el JSON de facturación: no tiene concepto, IVA ni receptor con documento, y `--cargar` acepta **un objeto, nunca un array** (el lote de exportación no está soportado y responde `INPUT_VALIDATION_ERROR`). Una clave desconocida es error.
 
 ### Input de `--cargar`
 
@@ -473,6 +473,7 @@ Ejemplo:
 ```json
 {
   "atajo": "fb",
+  "avisos": [],
   "cae": "86120020284412",
   "caeVencimiento": "20260329",
   "comprobante": "Factura B",
