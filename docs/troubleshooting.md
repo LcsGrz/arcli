@@ -91,12 +91,19 @@ arcli fc -m 1000 --pv 3 --cs --consumidor-final
 - **Severidad:** crítico
 - **Síntoma:** error indicando que la ruta apunta a un archivo con formato PEM inválido.
 - **Causa:** el archivo existe, pero el contenido no parece un PEM válido.
-- **Solución:** volver a guardar la ruta correcta.
+- **Solución:** hay dos formas, según cómo cargaste el certificado:
+  - **Con `arcli certificado` (recomendada):** volvé a cargar el `.crt` que bajaste de ARCA. Valida el archivo antes de guardarlo.
 
-```bash
-arcli config establecer cert.testing /ruta/al/certificado.crt
-arcli config establecer key.testing /ruta/a/la/clave.key
-```
+    ```bash
+    arcli certificado importar testing.crt
+    ```
+
+  - **Si lo hiciste con openssl:** volvé a guardar las rutas correctas.
+
+    ```bash
+    arcli config establecer cert.testing /ruta/al/certificado.crt
+    arcli config establecer key.testing /ruta/a/la/clave.key
+    ```
 
 - **Documentación relacionada:** [Configuración](configuration.md), [Cómo obtener los certificados de ARCA](obtencion-certificados.md)
 
@@ -148,6 +155,11 @@ Si lo renovaste a mano, también sirve `arcli config establecer cert.produccion 
 ```bash
 mv "<ruta>" "<ruta>.bak"
 arcli config establecer cuit 20168598204
+```
+
+Después, el certificado. Si lo tenés con `arcli certificado` (recomendado), está en `certificados/<CUIT>/`, junto al `config.json`: volvé a cargarlo con `arcli certificado importar <ruta>/testing.crt`. Si lo hiciste con openssl, cargá las rutas a mano:
+
+```bash
 arcli config establecer cert.testing /ruta/al/certificado.crt
 arcli config establecer key.testing /ruta/a/la/clave.key
 ```

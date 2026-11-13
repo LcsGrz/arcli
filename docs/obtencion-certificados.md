@@ -85,7 +85,7 @@ arcli certificado importar testing.crt
 ```
 
 `importar` valida el certificado, lo guarda junto a la clave y configura `cert.testing` y `key.testing`:
-podés saltear el paso 4. Te dice qué cargó (entorno, CUIT, alias y vencimiento).
+en el paso 4 solo queda revisar. Te dice qué cargó (entorno, CUIT, alias y vencimiento).
 
 **Con openssl.** Generá la clave privada (2048 bits como mínimo) y guardala en un lugar seguro — es la
 "contraseña" del certificado, si la perdés tenés que empezar de nuevo:
@@ -149,10 +149,21 @@ Podés verificarlo entrando a la sección **"Autorizaciones"**:
 
 ### 4. Configurar arcli
 
+Hay dos formas, según cómo generaste la clave en el paso 2:
+
+- **Con `arcli certificado` (recomendada):** si usaste `generar` e `importar`, ya está: `importar` guardó el certificado junto a la clave y configuró `cert.testing` y `key.testing`. Solo falta revisar.
+- **Con openssl:** cargá a mano las rutas del certificado y de la clave:
+
+  ```bash
+  arcli config establecer cert.testing /ruta/a/testing.crt
+  arcli config establecer key.testing /ruta/a/testing.key
+  ```
+
+En los dos casos, revisá la config y probá la conexión con ARCA:
+
 ```bash
-arcli config establecer cert.testing /ruta/a/testing.crt
-arcli config establecer key.testing /ruta/a/testing.key
 arcli config revisar
+arcli estado --testing
 ```
 
 ---
@@ -172,7 +183,7 @@ Son los mismos 5 pasos que en testing (sección anterior), eligiendo el mismo se
 
 **Con arcli (recomendado):** `arcli certificado generar --produccion`, subí el CSR como se muestra abajo y,
 con el `.crt` descargado, `arcli certificado importar produccion.crt`. Configura `cert.produccion` y
-`key.produccion`, así que podés saltear el paso 4.
+`key.produccion`, así que en el paso 4 solo queda revisar.
 
 **Para renovar** un certificado que está por vencer, es el mismo flujo: `generar` deja la clave nueva
 pendiente y no toca la actual, así que seguís facturando hasta que `importar` carga el certificado nuevo.
@@ -232,10 +243,21 @@ Por último, confirmá la relación completa:
 
 ### 4. Configurar arcli
 
+Hay dos formas, según cómo generaste la clave en el paso 2:
+
+- **Con `arcli certificado` (recomendada):** si usaste `generar` e `importar`, ya está: `importar` guardó el certificado junto a la clave y configuró `cert.produccion` y `key.produccion`. Solo falta revisar.
+- **Con openssl:** cargá a mano las rutas del certificado y de la clave:
+
+  ```bash
+  arcli config establecer cert.produccion /ruta/a/produccion.crt
+  arcli config establecer key.produccion /ruta/a/produccion.key
+  ```
+
+En los dos casos, revisá la config y probá la conexión con ARCA:
+
 ```bash
-arcli config establecer cert.produccion /ruta/a/produccion.crt
-arcli config establecer key.produccion /ruta/a/produccion.key
 arcli config revisar
+arcli estado --produccion
 ```
 
 Para emitir de verdad en producción, pasá además `--produccion --emitir` en el
