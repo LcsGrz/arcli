@@ -1,0 +1,72 @@
+---
+title: arcli
+description: Emití facturas electrónicas de ARCA (ex AFIP) desde la terminal o con un asistente paso a paso.
+template: splash
+editUrl: false
+hero:
+  tagline: Facturas, notas de crédito y débito, recibos y facturas de exportación de ARCA (ex AFIP), desde la terminal o con un asistente que te guía paso a paso. Nada se emite hasta que lo pedís.
+  image:
+    alt: Modo interactivo de arcli emitiendo una Factura C en testing
+    file: ../../assets/logo.svg
+  actions:
+    - text: Empezar
+      link: /arcli/empezar/instalar/
+      icon: right-arrow
+    - text: Ver en GitHub
+      link: https://github.com/LcsGrz/arcli
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+<img
+  src="/arcli/assets/demo/interactivo.gif"
+  alt="Modo interactivo de arcli emitiendo una Factura C en testing"
+  width="760"
+/>
+
+## Tres pasos para tu primera factura
+
+<CardGrid>
+  <LinkCard
+    title="1. Instalar"
+    description="Con un prompt para tu asistente de IA o a mano. Funciona en Windows, macOS y Linux."
+    href="/arcli/empezar/instalar/"
+  />
+  <LinkCard
+    title="2. Obtener el certificado"
+    description="Paso a paso en la web de ARCA, con capturas. arcli arma el pedido por vos."
+    href="/arcli/empezar/certificados/"
+  />
+  <LinkCard
+    title="3. Emitir en testing"
+    description="Abrí arcli y seguí el asistente: probás sin validez fiscal hasta que estés seguro."
+    href="/arcli/empezar/modo-interactivo/"
+  />
+</CardGrid>
+
+## Qué hace
+
+<CardGrid>
+  <Card title="Asistente paso a paso" icon="rocket">
+    `arcli` sin nada más abre un asistente que te guía, repite facturas anteriores y arma notas de crédito y débito. Cada
+    paso muestra el comando equivalente.
+  </Card>
+  <Card title="Sin sorpresas" icon="approve-check">
+    Por defecto muestra una vista previa y pregunta antes de emitir. Valida localmente con las reglas de ARCA antes de
+    llamar al servicio.
+  </Card>
+  <Card title="Todos los comprobantes" icon="document">
+    Factura, Nota de Crédito y Débito A, B y C, sus versiones FCE, Recibo C y la factura de exportación E con sus notas.
+  </Card>
+  <Card title="PDF con el QR de ARCA" icon="seti:pdf">
+    Genera el PDF del comprobante con un plugin que se descarga solo si lo usás.
+  </Card>
+  <Card title="Para automatizar" icon="setting">
+    Flags o JSON, lotes, salida `--json` estable y una referencia pensada para agentes de IA.
+  </Card>
+  <Card title="Gratis y abierto" icon="github">
+    Código abierto con licencia MIT. Tus certificados y claves quedan en tu computadora.
+  </Card>
+</CardGrid>

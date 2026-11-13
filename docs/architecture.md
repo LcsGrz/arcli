@@ -79,6 +79,8 @@ Comandos, flags, claves de config y JSON son contrato público. Antes de cambiar
 
 ## Decisiones de diseño
 
+- **Docs con una sola fuente.** El sitio (`site/`, Starlight) genera sus páginas desde `docs/` en cada build en vez de mover los archivos: los links de GitHub que ya circulan siguen andando, los tests de docs leen lo mismo y nadie edita dos copias. Ver [Sitio de documentación](development.md#sitio-de-documentación).
+
 - **CLI primero.** El flujo principal se piensa desde la terminal; el modo interactivo es una capa encima y no agrega comandos de emisión.
 - **Una sola ruta de validación.** El asistente arma `BillingCommandInput` y pasa por `BillingService`, igual que los flags: mismas validaciones, vista previa y emisión.
 - **Wizard, no pantalla completa.** Prompts encadenados con `@inquirer`.

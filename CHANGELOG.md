@@ -24,6 +24,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### Documentación
 
+- **Sitio de documentación:** [lcsgrz.github.io/arcli](https://lcsgrz.github.io/arcli/), con menú por tarea (Empezar, Guías, Referencia, Ayuda), buscador, modo oscuro y buena lectura en el celular. Tiene las mismas guías que `docs/` y se actualiza con cada versión.
 - **Instalar o actualizar con IA:** el README trae un prompt corto, listo para copiar en un asistente de IA (Claude, ChatGPT, Gemini, Copilot…), que revisa Node, instala o actualiza arcli, lo verifica y crea el acceso directo la primera vez. Si el asistente no puede ejecutar comandos, te guía paso a paso.
 
 ## [2.4.0] - 2026-11-08

@@ -42,19 +42,21 @@ El alcance de comprobantes es Factura, Nota de Crédito y Nota de Débito A, B y
 
 Actualizá la documentación que describe lo que cambiaste:
 
-| Si cambia                                | Revisá                                                            |
-| ---------------------------------------- | ----------------------------------------------------------------- |
-| Comandos o flags                         | `README.md`, [referencia del CLI](docs/cli-reference.md), `llms.txt` |
-| Claves de config o variables de entorno  | [configuración](docs/configuration.md)                            |
-| JSON de entrada o salida, errores        | [entrada y salida](docs/input-output.md)                          |
-| Validaciones                             | [reglas de validación](docs/validation-rules.md)                  |
-| Flujos de uso o mensajes de error        | [patrones de uso](docs/usage-patterns.md), [troubleshooting](docs/troubleshooting.md) |
-| Modo interactivo                         | [modo interactivo](docs/modo-interactivo.md)                      |
-| Salida en terminal (paneles, textos)     | [design system](docs/design-system.md)                            |
-| Módulos, capas o gateways                | [arquitectura](docs/architecture.md)                              |
-| Servicios de ARCA que hay que autorizar  | [obtención de certificados](docs/obtencion-certificados.md)       |
+| Si cambia                               | Revisá                                                                                |
+| --------------------------------------- | ------------------------------------------------------------------------------------- |
+| Comandos o flags                        | `README.md`, [referencia del CLI](docs/cli-reference.md), `llms.txt`                  |
+| Claves de config o variables de entorno | [configuración](docs/configuration.md)                                                |
+| JSON de entrada o salida, errores       | [entrada y salida](docs/input-output.md)                                              |
+| Validaciones                            | [reglas de validación](docs/validation-rules.md)                                      |
+| Flujos de uso o mensajes de error       | [patrones de uso](docs/usage-patterns.md), [troubleshooting](docs/troubleshooting.md) |
+| Modo interactivo                        | [modo interactivo](docs/modo-interactivo.md)                                          |
+| Salida en terminal (paneles, textos)    | [design system](docs/design-system.md)                                                |
+| Módulos, capas o gateways               | [arquitectura](docs/architecture.md)                                                  |
+| Servicios de ARCA que hay que autorizar | [obtención de certificados](docs/obtencion-certificados.md)                           |
 
 Un cambio suele caer en varias filas: un comando nuevo con `--json` es también JSON de salida y, si suma errores, mensajes de error.
+
+Los cambios van siempre en `docs/`, nunca en `site/`: el sitio de documentación se genera desde ahí.
 
 Si el cambio le afecta a quien usa el CLI, sumá una entrada en "Sin publicar" de [CHANGELOG.md](CHANGELOG.md).
 

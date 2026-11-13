@@ -16,6 +16,7 @@ Alcance de comprobantes (no ampliar sin pedido explícito): Factura, Nota de Cr�
 - `src/ui/`: primitivas, componentes y presenters de terminal.
 - `src/lib/`: utilidades puras.
 - Tests colocados en `src/**/__tests__/`.
+- `site/`: sitio de documentación (Starlight, GitHub Pages) con su propio `package.json`. Sus páginas se generan desde `docs/`: se edita `docs/`, nunca lo generado en `site/`.
 
 Detalle de capas y cómo extender: [docs/architecture.md](docs/architecture.md).
 

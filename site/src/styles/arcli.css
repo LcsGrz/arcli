@@ -1,0 +1,22 @@
+/* Los colores del logo de arcli: celeste sobre el fondo oscuro del ícono. */
+:root {
+  --sl-color-accent-low: #1f2f45;
+  --sl-color-accent: #74acdf;
+  --sl-color-accent-high: #d4e7f7;
+  --sl-color-black: #181825;
+  --sl-color-gray-6: #262637;
+}
+
+:root[data-theme='light'] {
+  --sl-color-accent-low: #d4e7f7;
+  --sl-color-accent: #2c6aa3;
+  --sl-color-accent-high: #173a5c;
+  --sl-color-black: #ffffff;
+  --sl-color-gray-6: #eeeef2;
+}
+
+/* Las tablas de referencia son anchas: que se desplacen en vez de romper el celular. */
+.sl-markdown-content table {
+  display: block;
+  overflow-x: auto;
+}
