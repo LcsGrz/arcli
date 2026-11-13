@@ -473,6 +473,46 @@ describe('billing.command.parser', () => {
     expect(() => createCommand(args)).toThrow(message);
   });
 
+  it.each([
+    [
+      ['--ac', 'fa', '--at', '1'],
+      /^Usá `--ac` o `--at` para identificar el comprobante asociado, pero no ambos a la vez\.$/,
+    ],
+    [
+      ['--concepto', 'servicios', '--cs'],
+      /^Usá `--concepto` o un flag corto de concepto \(`--cs`, `--cp`, `--csp`\), pero no ambos\.$/,
+    ],
+    [
+      ['--concepto', 'productos', '--cp'],
+      /^Usá `--concepto` o un flag corto de concepto \(`--cs`, `--cp`, `--csp`\), pero no ambos\.$/,
+    ],
+    [
+      ['--concepto', 'productos-servicios', '--csp'],
+      /^Usá `--concepto` o un flag corto de concepto \(`--cs`, `--cp`, `--csp`\), pero no ambos\.$/,
+    ],
+    [
+      ['--iva-receptor', 'consumidor-final', '--ir', 'consumidor-final'],
+      /^Usá `--iva-receptor` o `--ir` para indicar IVA receptor, pero no ambos\.$/,
+    ],
+    [
+      ['--ir', 'consumidor-final', '--ir-cf'],
+      /^Usá `--iva-receptor`, `--ir` o un flag corto `--ir-\*`, pero no varios a la vez\.$/,
+    ],
+    [
+      ['--iva-receptor', 'responsable-inscripto', '--ir-ri'],
+      /^Usá `--iva-receptor`, `--ir` o un flag corto `--ir-\*`, pero no varios a la vez\.$/,
+    ],
+  ])('rejects mutually exclusive flags: %j', (flags, message) => {
+    const command = createCommand(['--monto', '1000', ...flags]);
+
+    expect(() =>
+      parseBillingCommandInput(command, 'nca', {
+        defaultConcept: 'servicios',
+        defaultIvaCondition: 'consumidor-final',
+      }),
+    ).toThrow(message);
+  });
+
   it('rejects an alicuota amount that is not in the Argentine format', () => {
     expect(() =>
       parseBillingCommandInput(
