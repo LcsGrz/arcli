@@ -1,7 +1,9 @@
 import { formatArgentineAmount, formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { DEFAULT_CURRENCY_CODE, DEFAULT_EXCHANGE_RATE } from '../../modules/billing/billing.constants';
+import { isForeignCurrency } from '../../modules/billing/billing.currency';
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
+import { findArcaCurrency, toIsoCurrencyCode } from '../../modules/billing/currency-codes';
 import { parseAmountInput, parseExchangeRateInput } from '../../modules/interactive/amount-input';
 import { ivaRateChoices } from '../../modules/interactive/choices';
 import { BACK, type Back } from '../../modules/interactive/wizard';
@@ -30,19 +32,34 @@ interface AdvancedContext {
   readonly concept: BillingCommandInput['concept'];
   /** Alicuota que se usa si no se elige otra: la de la config o 21%. */
   readonly defaultIvaRate: NonNullable<BillingCommandInput['ivaRate']>;
-  /** Opciones que arrancan marcadas, por ejemplo la moneda al repetir una factura en dolares. */
+  /** La moneda no se puede cambiar: al repetir un comprobante en moneda extranjera, el monto ya esta en esa moneda. */
+  readonly fixedCurrency?: boolean;
+  /** Opciones que arrancan marcadas, por ejemplo la alicuota al repetir una factura de la que no se deduce. */
   readonly preselected?: readonly Option[];
   readonly voucherKind: VoucherKindDefinition;
 }
 
+/** Como se nombra la moneda en las preguntas: "dólares", "euros"; si no esta en la tabla, su codigo. */
+function currencyName(currencyCode: string): string {
+  const iso = toIsoCurrencyCode(currencyCode);
+
+  if (iso === 'USD') {
+    return 'dólares';
+  }
+
+  return findArcaCurrency(iso)?.name.toLowerCase() ?? iso;
+}
+
 function describeCurrency(options: AdvancedOptions): string {
-  if (!options.currencyCode || options.currencyCode === 'PES' || options.currencyCode === DEFAULT_CURRENCY_CODE) {
+  if (!options.currencyCode || !isForeignCurrency(options)) {
     return 'pesos';
   }
 
+  const name = currencyName(options.currencyCode);
+
   return options.sameCurrency
-    ? 'dólares, cotización oficial de ARCA'
-    : `dólares, cotización ${formatExchangeRate(options.exchangeRate ?? DEFAULT_EXCHANGE_RATE)}`;
+    ? `${name}, cotización oficial de ARCA`
+    : `${name}, cotización ${formatExchangeRate(options.exchangeRate ?? DEFAULT_EXCHANGE_RATE)}`;
 }
 
 function describeAmounts(options: AdvancedOptions): string {
@@ -52,6 +69,36 @@ function describeAmounts(options: AdvancedOptions): string {
   ].filter(Boolean);
 
   return parts.length > 0 ? parts.join(', ') : 'sin exento ni no gravado';
+}
+
+/**
+ * La cotizacion de un comprobante en moneda extranjera, como la pregunta "Emitir factura": si te pagan en pesos se
+ * ingresa la acordada y, si te pagan en esa moneda, se usa la oficial de ARCA (`--misma-moneda`).
+ */
+export async function askExchangeRate(current: AdvancedOptions, currencyCode: string): Promise<AdvancedOptions | Back> {
+  const iso = toIsoCurrencyCode(currencyCode);
+  const payment = await chooseStep('¿Cómo te pagan?', [
+    { description: 'Ingresás la cotización acordada', name: 'En pesos', value: 'pesos' as const },
+    {
+      description: 'Se usa la cotización oficial de ARCA',
+      name: `En ${currencyName(iso)}`,
+      value: 'moneda' as const,
+    },
+  ]);
+
+  if (payment === BACK) {
+    return BACK;
+  }
+
+  if (payment === 'moneda') {
+    return { ...current, currencyCode: iso, exchangeRate: undefined, sameCurrency: true };
+  }
+
+  const rate = await askTextStep(`Cotización de ${iso}:`, { validate: validateExchangeRate });
+
+  return rate === BACK
+    ? BACK
+    : { ...current, currencyCode: iso, exchangeRate: parseExchangeRateInput(rate), sameCurrency: false };
 }
 
 async function askCurrency(current: AdvancedOptions): Promise<AdvancedOptions | Back> {
@@ -68,24 +115,7 @@ async function askCurrency(current: AdvancedOptions): Promise<AdvancedOptions | 
     return { ...current, currencyCode: DEFAULT_CURRENCY_CODE, exchangeRate: undefined, sameCurrency: false };
   }
 
-  const payment = await chooseStep('¿Cómo te pagan?', [
-    { description: 'Ingresás la cotización acordada', name: 'En pesos', value: 'pesos' as const },
-    { description: 'Se usa la cotización oficial de ARCA', name: 'En dólares', value: 'dolares' as const },
-  ]);
-
-  if (payment === BACK) {
-    return BACK;
-  }
-
-  if (payment === 'dolares') {
-    return { ...current, currencyCode: 'USD', exchangeRate: undefined, sameCurrency: true };
-  }
-
-  const rate = await askTextStep('Cotización del dólar:', { validate: validateExchangeRate });
-
-  return rate === BACK
-    ? BACK
-    : { ...current, currencyCode: 'USD', exchangeRate: parseExchangeRateInput(rate), sameCurrency: false };
+  return askExchangeRate(current, currency);
 }
 
 async function askExemptAmounts(current: AdvancedOptions): Promise<AdvancedOptions | Back> {
@@ -160,7 +190,9 @@ function optionalChoices(options: AdvancedOptions, context: AdvancedContext) {
           },
         ]
       : []),
-    { description: describeCurrency(options), name: 'Moneda extranjera', value: 'divisas' as const },
+    ...(context.fixedCurrency
+      ? []
+      : [{ description: describeCurrency(options), name: 'Moneda extranjera', value: 'divisas' as const }]),
     ...(discriminatesIva
       ? [{ description: describeAmounts(options), name: 'Importe exento o no gravado', value: 'exento' as const }]
       : []),
