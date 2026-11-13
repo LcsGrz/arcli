@@ -90,7 +90,7 @@ arcli certificado importar testing.crt  # carga el certificado que te devuelve A
 arcli config revisar
 ```
 
-Si ya tenés el certificado y la clave, cargalos directo con `arcli config establecer cert.testing <ruta>` y `arcli config establecer key.testing <ruta>`.
+Esa es la forma recomendada. Si ya tenés el certificado y la clave (por ejemplo, los hiciste con openssl), cargalos directo con `arcli config establecer cert.testing <ruta>` y `arcli config establecer key.testing <ruta>`.
 
 `arcli config revisar` revisa localmente la config de cada entorno (testing y producción): archivos, vencimientos y datos. No prueba el certificado contra ARCA; para eso, `arcli estado`. Todas las claves disponibles están en [Configuración](https://github.com/LcsGrz/arcli/blob/main/docs/configuration.md).
 
