@@ -14,6 +14,7 @@ import { EmissionUncertainError } from './billing.errors';
 import { resolveElectronicCreditOptionals } from './billing.fce';
 import { validateConsumerIdentification, validateIvaConditionForVoucher } from './billing.iva-receptor';
 import {
+  formatVoucherSubject,
   resolveBillingConceptCode,
   resolveBillingCurrencyCode,
   resolveBillingDocumentTypeCode,
@@ -86,6 +87,14 @@ export class BillingService {
         voucherKind,
         warnings: options.warnings ?? [],
       };
+    }
+
+    // Resguardo: una nota FCE no llega a ARCA sin la fecha del asociado (10158). Sin `--afecha` la completa
+    // checkAssociatedInArca antes de emitir; si quien llama no la consulto, se frena aca.
+    if (voucherKind.isElectronicCredit && payload.CbtesAsoc?.some((associated) => !associated.CbteFch)) {
+      throw new InputValidationError(
+        `${formatVoucherSubject(voucherKind)} requiere la fecha del comprobante asociado. Usá \`--afecha <fecha>\`.`,
+      );
     }
 
     // Fuera del try: si falla la autenticacion o el pedido del ultimo numero, no se envio nada a ARCA

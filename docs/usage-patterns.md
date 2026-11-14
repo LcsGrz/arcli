@@ -161,13 +161,13 @@ arcli ncea -m 1500000 --cs --cuit 30546689979 --ir-ri \
 ### Resultado esperado
 
 - la factura lleva `Opcionales` con CBU (`2101`) y transferencia (`27`), además de `FchVtoPago`
-- la nota lleva `Opcionales` con anulación (`22`) y `CbtesAsoc` con la fecha del asociado
+- la nota lleva `Opcionales` con anulación (`22`) y `CbtesAsoc` con la fecha del asociado: sin `--afecha`, arcli la toma de ARCA al emitir
 - el CUIT del asociado se toma del emisor configurado
 
 ### Errores comunes
 
 - falta el CBU en la factura
-- falta `--afecha` en la nota
+- la nota de crédito supera el total de la factura: arcli lo controla al emitir y no la emite
 - pasar `--cbu` o `--transferencia` en una nota FCE: solo van en la factura
 
 ## Recibo C

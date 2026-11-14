@@ -93,7 +93,7 @@ export function registerBillingOptions(command: Command): void {
     .option('--pd <fecha>', 'alias de --periodo-desde')
     .option('--periodo-hasta <fecha>', 'fin del período asociado; alternativa a --ac en notas comunes (alias: --ph)')
     .option('--ph <fecha>', 'alias de --periodo-hasta')
-    .option('--afecha <fecha>', 'fecha del comprobante asociado; obligatoria en NC/ND FCE')
+    .option('--afecha <fecha>', 'fecha del comprobante asociado; en NC/ND FCE, sin ella sale de ARCA')
     .option('--cbu <cbu>', 'CBU del emisor para facturas FCE (22 dígitos)')
     .option('--alias <alias>', 'alias del CBU del emisor para facturas FCE')
     .option('--transferencia <modalidad>', 'modalidad de transferencia FCE: sca o adc (por defecto sca)')

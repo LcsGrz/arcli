@@ -1,5 +1,6 @@
 import type { Command } from 'commander';
 
+import { checkAssociatedInArca } from '../../modules/billing/billing.associated-lookup';
 import { DEFAULT_EXCHANGE_RATE } from '../../modules/billing/billing.constants';
 import { formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import { prepareBillingInput, resolveFceWarningsInOrder } from '../../modules/billing/billing.prepare';
@@ -12,11 +13,13 @@ import type { ArcliConfig } from '../../modules/config/config.schemas';
 import { isPadronLookupEnabled } from '../../modules/config/config.schemas';
 import type { FceObligationGateway } from '../../modules/fce/fce-obligation';
 import type { PadronGateway } from '../../modules/padron/padron';
+import type { VoucherHistoryGateway } from '../../modules/vouchers/voucher-history';
 import { ArcaBillingGateway } from '../../services/arca/arca-billing.gateway';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import type { ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
 import { ArcaFceObligationGateway } from '../../services/arca/arca-fce-obligation.gateway';
 import { ArcaPadronGateway } from '../../services/arca/arca-padron.gateway';
+import { ArcaVoucherHistoryGateway } from '../../services/arca/arca-voucher-history.gateway';
 import { certificateWarnings, resolveArcaRuntime } from '../arca-runtime';
 import { getGlobalOptions, registerGlobalOptions } from '../global-options';
 import { startSpinner } from '../spinner';
@@ -100,6 +103,8 @@ export interface BillingCommandOptions {
 export interface BillingCommandGateways {
   readonly billing: BillingGateway;
   readonly fce: FceObligationGateway;
+  /** Para consultar el comprobante asociado de una nota al emitir. */
+  readonly history: Pick<VoucherHistoryGateway, 'getVoucher'>;
   readonly padron: PadronGateway;
 }
 
@@ -116,6 +121,7 @@ const DEFAULT_DEPENDENCIES: BillingCommandDependencies = {
     return {
       billing: new ArcaBillingGateway(arca),
       fce: new ArcaFceObligationGateway(arca),
+      history: new ArcaVoucherHistoryGateway(arca),
       padron: new ArcaPadronGateway(arca),
     };
   },
@@ -173,12 +179,12 @@ export async function executeBillingCommand(
       return;
     }
 
-    const { inputs, previewShown } = preview;
+    const { previewShown } = preview;
 
-    const emitting = inputs.some((input) => input.emit);
+    const emitting = preview.inputs.some((input) => input.emit);
     const emittedVouchers =
-      inputs.length > 1
-        ? `${inputs.length} comprobantes`
+      preview.inputs.length > 1
+        ? `${preview.inputs.length} comprobantes`
         : voucherKind
           ? formatVoucherWithArticle(voucherKind)
           : 'el comprobante';
@@ -186,6 +192,20 @@ export async function executeBillingCommand(
     spinner = runtime.outputJson
       ? null
       : startSpinner(emitting ? `Emitiendo ${emittedVouchers} en ARCA...` : 'Preparando la vista previa...');
+
+    // El asociado de las notas se consulta recien al emitir, para no sumar llamadas a la vista previa. En un lote se
+    // controlan todos antes de emitir el primero.
+    const inputs = emitting
+      ? await prepareBatch({
+          inputs: preview.inputs,
+          plan,
+          resolve: (input) =>
+            input.emit && !input.dryRun
+              ? checkAssociatedInArca({ gateway: gateways.history, input, runtime, service })
+              : Promise.resolve(input),
+          validate: () => undefined,
+        })
+      : preview.inputs;
 
     const deliveryOptions = {
       config: runtime.config,

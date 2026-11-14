@@ -539,11 +539,12 @@ Acá se combinan las dos reglas anteriores:
 **Obligatorio**
 
 - todo lo base de una factura
-- bloque de asociado completo, incluida `--afecha`
+- bloque de asociado: `--ac` o `--at`, `--apv` y `--ar`
 - el asociado tiene que ser del propio emisor: `--acuit` se puede omitir y toma el CUIT configurado
 
 **Opcional**
 
+- `--afecha`: sin ella, al emitir arcli consulta el asociado en ARCA y toma su fecha. La vista previa no la consulta, así que la muestra sin la fecha del asociado
 - `--anulacion` si la nota anula una factura que el comprador rechazó
 
 No llevan CBU, alias, transferencia ni vencimiento de pago.
@@ -551,7 +552,7 @@ No llevan CBU, alias, transferencia ni vencimiento de pago.
 #### Ejemplo mínimo funcional
 
 ```bash
-arcli ncea -m 1 --cs --cuit 20168598204 --ir-ri --ac fcea --apv 3 --ar 6 --afecha 01-03-2026
+arcli ncea -m 1 --cs --cuit 20168598204 --ir-ri --ac fcea --apv 3 --ar 6
 ```
 
 ### Factura de exportación `E` (WSFEX)

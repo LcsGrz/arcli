@@ -183,17 +183,18 @@ Además:
 - el asociado debe ser una factura o un Recibo C, no otra nota
 - la letra debe coincidir
 - la categoría electrónica debe coincidir
-- `--afecha` es opcional, salvo en NC/ND FCE, y no puede ser posterior a la fecha de la nota (10159)
+- `--afecha` es opcional y no puede ser posterior a la fecha de la nota (10159). En NC/ND FCE ARCA la exige (10158): sin `--afecha`, al emitir ARCLI la toma del asociado en ARCA
+- una nota de crédito no puede superar el total del asociado cuando van en la misma moneda. Se controla al emitir, consultando el asociado en ARCA (`FECompConsultar`), y es un `INPUT_VALIDATION_ERROR`: no se emite. Solo se consulta un asociado del propio emisor; la vista previa no lo consulta
 
 ### Crédito electrónico (FCE)
 
 ARCLI arma `Opcionales` (los "Adicionales por R.G.") según el comprobante:
 
-| Comprobante                          | `Opcionales`                                                 | Reglas                                                                                                                                                                                                  |
-| ------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Factura FCE (`fcea`, `fceb`, `fcec`) | `2101` CBU, `2102` alias (si se informa), `27` transferencia | El CBU es obligatorio (10168) y tiene 22 dígitos (10165). El alias tiene de 6 a 20 caracteres (10166). La transferencia es `SCA` o `ADC`, por defecto `SCA` (10216). `--anulacion` da error (10171).    |
-| NC/ND FCE (`ncea`…`ndec`)            | `22` anulación: `S` con `--anulacion`, si no `N`             | Obligatorio (10173). `--cbu`, `--alias` y `--transferencia` dan error (10172). `--afecha` es obligatoria (10158). El asociado tiene que ser del CUIT emisor (10155), así que `--acuit` se puede omitir. |
-| Resto                                | ninguno                                                      | `--cbu`, `--alias`, `--transferencia` y `--anulacion` dan error (10169).                                                                                                                                |
+| Comprobante                          | `Opcionales`                                                 | Reglas                                                                                                                                                                                                                                     |
+| ------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Factura FCE (`fcea`, `fceb`, `fcec`) | `2101` CBU, `2102` alias (si se informa), `27` transferencia | El CBU es obligatorio (10168) y tiene 22 dígitos (10165). El alias tiene de 6 a 20 caracteres (10166). La transferencia es `SCA` o `ADC`, por defecto `SCA` (10216). `--anulacion` da error (10171).                                       |
+| NC/ND FCE (`ncea`…`ndec`)            | `22` anulación: `S` con `--anulacion`, si no `N`             | Obligatorio (10173). `--cbu`, `--alias` y `--transferencia` dan error (10172). Sin `--afecha`, la fecha del asociado sale de ARCA al emitir (10158). El asociado tiene que ser del CUIT emisor (10155), así que `--acuit` se puede omitir. |
+| Resto                                | ninguno                                                      | `--cbu`, `--alias`, `--transferencia` y `--anulacion` dan error (10169).                                                                                                                                                                   |
 
 ### Régimen FCE del receptor
 
