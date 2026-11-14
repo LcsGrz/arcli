@@ -117,9 +117,9 @@ Por defecto se usa el entorno `testing`, con `cert.testing` y `key.testing`. Par
 
 ## Documentación
 
-El índice completo está en [docs/](https://github.com/LcsGrz/arcli/blob/main/docs/README.md). Lo principal:
+Está en el [sitio de documentación](https://lcsgrz.github.io/arcli/), con buscador, y el índice completo en [docs/](https://github.com/LcsGrz/arcli/blob/main/docs/README.md). Lo principal:
 
-- [Modo interactivo](https://github.com/LcsGrz/arcli/blob/main/docs/modo-interactivo.md) y [Patrones de uso](https://github.com/LcsGrz/arcli/blob/main/docs/usage-patterns.md)
+- [Modo interactivo](https://github.com/LcsGrz/arcli/blob/main/docs/modo-interactivo.md) y los [comprobantes por perfil](https://github.com/LcsGrz/arcli/blob/main/docs/README.md#comprobantes)
 - [Referencia del CLI](https://github.com/LcsGrz/arcli/blob/main/docs/cli-reference.md) y [Configuración](https://github.com/LcsGrz/arcli/blob/main/docs/configuration.md)
 - [Entrada y salida](https://github.com/LcsGrz/arcli/blob/main/docs/input-output.md): formato del JSON
 - [PDF de comprobantes](https://github.com/LcsGrz/arcli/blob/main/docs/pdf.md)

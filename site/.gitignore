@@ -4,9 +4,17 @@ dist/
 
 # Generado por scripts/sync-docs.mjs desde ../docs: se edita alla, no aca.
 src/content/docs/empezar/
-src/content/docs/guias/
+src/content/docs/comprobantes/
+src/content/docs/mas/
 src/content/docs/referencia/
 src/content/docs/ayuda/
+public/empezar/
+public/comprobantes/
+public/mas/
+public/referencia/
+public/ayuda/
+public/llms.txt
+public/llms-full.txt
 src/assets/logo.svg
 public/assets/
 public/favicon.svg

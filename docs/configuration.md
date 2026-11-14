@@ -99,7 +99,7 @@ Reglas:
 
 Las claves aparecen en la sección **Certificados** de `arcli config`, se validan como PEM al guardarlas y `arcli config revisar` avisa si el par quedó incompleto o si el certificado de exportación está por vencer.
 
-Cómo autorizar el servicio: [Autorizar el servicio web](obtencion-certificados.md#3-autorizar-el-servicio-web).
+Cómo autorizar el servicio: [Autorizar el servicio web](certificado-testing.md#3-autorizar-el-servicio-web).
 
 La actividad que informa la `E` se guarda una vez con `arcli config establecer exportacion.actividad <codigo>` (sección **Factura de exportación (E)** de `arcli config`); `--actividad` la pisa. Tiene que ser un código de la tabla de actividades de WSFEX, que no es la del padrón: por ejemplo, `620100` para servicios de consultores en informática.
 

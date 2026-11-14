@@ -284,7 +284,7 @@ arcli fc ayuda
 - **Síntoma:** error `WSFE_SERVICE_NOT_AUTHORIZED` ("El certificado no está autorizado para facturar (servicio wsfe). No se emitió nada.") al facturar o con `ultimos` y `consultar`.
 - **Causa:** sacaste e importaste el certificado, pero falta autorizarlo a facturar en ARCA.
 - **Solución:** en testing, WSASS → "Crear autorización a servicio" con el mismo nombre del certificado y el servicio `wsfe`; en producción, el Administrador de Relaciones de Clave Fiscal. No se emitió nada: después de autorizarlo, reintentá igual.
-- **Documentación relacionada:** [Autorizar el servicio web](obtencion-certificados.md#3-autorizar-el-servicio-web)
+- **Documentación relacionada:** [Autorizar el servicio web](certificado-testing.md#3-autorizar-el-servicio-web)
 
 ### `wsfecred` no autorizado
 
@@ -292,7 +292,7 @@ arcli fc ayuda
 - **Síntoma:** `El certificado no está autorizado para el servicio wsfecred ...` (ARCA responde `coe.notAuthorized`).
 - **Causa:** el certificado solo tiene autorizado `wsfe`. La consulta del régimen FCE usa otro servicio.
 - **Solución:** crear la autorización para `wsfecred` igual que la de `wsfe`, en WSASS (testing) o en el Administrador de Relaciones (producción). Si no la necesitás, desactivá el chequeo con `arcli config eliminar verificarFce`.
-- **Documentación relacionada:** [Autorizar el servicio web](obtencion-certificados.md#3-autorizar-el-servicio-web)
+- **Documentación relacionada:** [Autorizar el servicio web](certificado-testing.md#3-autorizar-el-servicio-web)
 
 ### `ws_sr_constancia_inscripcion` no autorizado
 
@@ -358,7 +358,7 @@ arcli fc ayuda
 - **Síntoma:** el comprobante sale `rechazado` con el error `10005` ("El punto de venta informado debe estar dado de alta y ser del tipo RECE"), y la sugerencia habla de un punto de venta para web service. `arcli estado --produccion` dice que el punto de venta no está habilitado para web service.
 - **Causa:** el punto de venta configurado no es de web service. Pasa con los de Comprobantes en línea ("Factura en línea"), Facturador o talonarios manuales. Desde el 1/11/2026, por la RG 5893/2026, ARCA da de alta de oficio un punto de venta "Factura en línea - Monotributo" a los monotributistas que no tienen uno electrónico: ese tampoco sirve para arcli.
 - **Solución:** `arcli parametros puntos-venta --produccion` lista los habilitados para web service. Si el tuyo no está, creá uno nuevo con sistema de web services en "Administración de puntos de venta y domicilios" y guardalo con `arcli config establecer puntoVenta <numero>`.
-- **Documentación relacionada:** [Punto de venta para web service](obtencion-certificados.md#punto-de-venta-para-web-service)
+- **Documentación relacionada:** [Punto de venta para web service](certificado-produccion.md#punto-de-venta-para-web-service)
 
 ### Rechazos de ARCA por código
 

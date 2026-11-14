@@ -28,7 +28,7 @@ Base de datos de ARCA con la situación fiscal de cada CUIT. Un comprobante pued
 
 ### wsfe / wsfex / wsfecred / ws_sr_constancia_inscripcion
 
-Servicios web de ARCA que usa ARCLI: `wsfe` emite las facturas, notas y recibos A, B y C; `wsfex`, la factura de exportación E; `wsfecred` consulta el régimen FCE del receptor; `ws_sr_constancia_inscripcion` es el padrón (`arcli padron` y el IVA receptor desde el padrón). Cada uno se autoriza aparte en ARCA. Ver [Qué servicios autorizar](obtencion-certificados.md#qué-servicios-autorizar).
+Servicios web de ARCA que usa ARCLI: `wsfe` emite las facturas, notas y recibos A, B y C; `wsfex`, la factura de exportación E; `wsfecred` consulta el régimen FCE del receptor; `ws_sr_constancia_inscripcion` es el padrón (`arcli padron` y el IVA receptor desde el padrón). Cada uno se autoriza aparte en ARCA. Ver [Qué servicios autorizar](certificado-testing.md#qué-servicios-autorizar).
 
 ### CSR y alias
 

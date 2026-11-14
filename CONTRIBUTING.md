@@ -48,11 +48,11 @@ Actualizá la documentación que describe lo que cambiaste:
 | Claves de config o variables de entorno | [configuración](docs/configuration.md)                                                |
 | JSON de entrada o salida, errores       | [entrada y salida](docs/input-output.md)                                              |
 | Validaciones                            | [reglas de validación](docs/validation-rules.md)                                      |
-| Flujos de uso o mensajes de error       | [patrones de uso](docs/usage-patterns.md), [troubleshooting](docs/troubleshooting.md) |
+| Flujos de uso o mensajes de error       | las páginas de [comprobantes](docs/README.md#comprobantes), [troubleshooting](docs/troubleshooting.md) |
 | Modo interactivo                        | [modo interactivo](docs/modo-interactivo.md)                                          |
 | Salida en terminal (paneles, textos)    | [design system](docs/design-system.md)                                                |
 | Módulos, capas o gateways               | [arquitectura](docs/architecture.md)                                                  |
-| Servicios de ARCA que hay que autorizar | [obtención de certificados](docs/obtencion-certificados.md)                           |
+| Servicios de ARCA que hay que autorizar | [certificado de testing](docs/certificado-testing.md#qué-servicios-autorizar)                           |
 
 Un cambio suele caer en varias filas: un comando nuevo con `--json` es también JSON de salida y, si suma errores, mensajes de error.
 
