@@ -16,9 +16,14 @@ import { type AdvancedOptions, askAdvancedOptions } from './advanced-options';
 import { runExportFlow } from './export.flow';
 import { markIfNew } from './new-mark';
 import { askTextStep, chooseStep } from './prompts';
-import { askReceiverIvaCondition, type ReceiverFromPadron, receiverInputFields } from './receiver-padron';
+import {
+  askDocumentNumber,
+  askReceiverIvaCondition,
+  type ReceiverFromPadron,
+  receiverInputFields,
+} from './receiver-padron';
 import { type InteractiveSession, previewAndEmit } from './session';
-import { normalizeDocumentNumber, validateAmount, validateCbu, validateCuit, validateDni } from './validators';
+import { normalizeDocumentNumber, validateAmount, validateCbu } from './validators';
 
 export interface InvoiceState {
   readonly advanced: AdvancedOptions;
@@ -88,10 +93,7 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
     {
       name: 'documento',
       run: async (state) => {
-        const isCuit = state.documentType === 'cuit';
-        const answer = await askTextStep(isCuit ? 'CUIT del receptor:' : 'DNI del receptor:', {
-          validate: isCuit ? validateCuit : validateDni,
-        });
+        const answer = await askDocumentNumber(state.documentType);
 
         return answer === BACK ? BACK : { documentNumber: normalizeDocumentNumber(answer) };
       },

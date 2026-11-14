@@ -7,8 +7,24 @@ import { BACK, type Back } from '../../modules/interactive/wizard';
 import { ArcaPadronGateway } from '../../services/arca/arca-padron.gateway';
 import { startSpinner } from '../spinner';
 
-import { chooseStep } from './prompts';
+import { askTextStep, chooseStep } from './prompts';
 import type { InteractiveSession } from './session';
+import { validateCuil, validateCuit, validateDni } from './validators';
+
+const DOCUMENT_PROMPTS = {
+  cuil: { message: 'CUIL del receptor:', validate: validateCuil },
+  cuit: { message: 'CUIT del receptor:', validate: validateCuit },
+  dni: { message: 'DNI del receptor:', validate: validateDni },
+} as const;
+
+/** El numero del documento elegido para el receptor: CUIT, CUIL o DNI, cada uno con su validacion. */
+export async function askDocumentNumber(
+  documentType: BillingCommandInput['documentType'] | undefined,
+): Promise<Back | string> {
+  const prompt = DOCUMENT_PROMPTS[documentType === 'cuil' || documentType === 'dni' ? documentType : 'cuit'];
+
+  return askTextStep(prompt.message, { validate: prompt.validate });
+}
 
 /** Lo que el padron dijo del CUIT del receptor, para no volver a consultarlo si el usuario vuelve atras. */
 export interface ReceiverFromPadron {
