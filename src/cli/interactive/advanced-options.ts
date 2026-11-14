@@ -5,14 +5,15 @@ import type { BillingCommandInput } from '../../modules/billing/billing.schemas'
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { findArcaCurrency, toIsoCurrencyCode } from '../../modules/billing/currency-codes';
 import { parseAmountInput, parseExchangeRateInput } from '../../modules/interactive/amount-input';
-import { ivaRateChoices } from '../../modules/interactive/choices';
+import { currencyChoices, ivaRateChoices } from '../../modules/interactive/choices';
 import { BACK, type Back } from '../../modules/interactive/wizard';
 
 import { askTextStep, chooseManyStep, chooseStep } from './prompts';
-import { validateDate, validateExchangeRate, validateOptionalAmount } from './validators';
+import { validateBillingDate, validateDate, validateExchangeRate, validateOptionalAmount } from './validators';
 
 export type AdvancedOptions = Pick<
   BillingCommandInput,
+  | 'billingDate'
   | 'currencyCode'
   | 'exchangeRate'
   | 'exemptAmount'
@@ -25,7 +26,8 @@ export type AdvancedOptions = Pick<
   | 'untaxedAmount'
 >;
 
-export type AdvancedOptionKey = 'alicuota' | 'divisas' | 'exento' | 'servicio' | 'transferencia' | 'vencimiento';
+export type AdvancedOptionKey =
+  'alicuota' | 'divisas' | 'exento' | 'fecha' | 'servicio' | 'transferencia' | 'vencimiento';
 type Option = AdvancedOptionKey;
 
 interface AdvancedContext {
@@ -34,6 +36,8 @@ interface AdvancedContext {
   readonly defaultIvaRate: NonNullable<BillingCommandInput['ivaRate']>;
   /** La moneda no se puede cambiar: al repetir un comprobante en moneda extranjera, el monto ya esta en esa moneda. */
   readonly fixedCurrency?: boolean;
+  /** Opciones que no se ofrecen: en las notas, la alicuota (tiene su paso) o la moneda (la de la factura). */
+  readonly hidden?: readonly Option[];
   /** Opciones que arrancan marcadas, por ejemplo la alicuota al repetir una factura de la que no se deduce. */
   readonly preselected?: readonly Option[];
   readonly voucherKind: VoucherKindDefinition;
@@ -102,10 +106,11 @@ export async function askExchangeRate(current: AdvancedOptions, currencyCode: st
 }
 
 async function askCurrency(current: AdvancedOptions): Promise<AdvancedOptions | Back> {
-  const currency = await chooseStep('Moneda del comprobante:', [
-    { name: 'Pesos', value: 'PES' as const },
-    { name: 'Dólares (USD)', value: 'USD' as const },
-  ]);
+  const currency = await chooseStep(
+    'Moneda del comprobante:',
+    currencyChoices(),
+    isForeignCurrency(current) && current.currencyCode ? toIsoCurrencyCode(current.currencyCode) : 'PES',
+  );
 
   if (currency === BACK) {
     return BACK;
@@ -136,6 +141,14 @@ async function askExemptAmounts(current: AdvancedOptions): Promise<AdvancedOptio
   }
 
   return { ...current, exemptAmount: parseAmountInput(exempt), untaxedAmount: parseAmountInput(untaxed) };
+}
+
+async function askBillingDate(current: AdvancedOptions, context: AdvancedContext): Promise<AdvancedOptions | Back> {
+  const date = await askTextStep('Fecha del comprobante:', {
+    validate: (value) => validateBillingDate(value, context.concept, context.voucherKind),
+  });
+
+  return date === BACK ? BACK : { ...current, billingDate: date };
 }
 
 async function askServicePeriod(current: AdvancedOptions): Promise<AdvancedOptions | Back> {
@@ -179,8 +192,12 @@ function optionalChoices(options: AdvancedOptions, context: AdvancedContext) {
   const usesService = context.concept !== 'productos';
   const isFceInvoice = context.voucherKind.family === 'factura-credito-electronica';
   const discriminatesIva = context.voucherKind.letter !== 'c';
+  // Como el CLI: vencimiento en servicios y en la factura FCE; las notas FCE no lo llevan.
+  const usesDueDate = isFceInvoice || (usesService && !context.voucherKind.isElectronicCredit);
+  const hidden = new Set(context.hidden ?? []);
 
   return [
+    { description: options.billingDate ?? 'hoy', name: 'Fecha del comprobante', value: 'fecha' as const },
     ...(discriminatesIva
       ? [
           {
@@ -205,7 +222,7 @@ function optionalChoices(options: AdvancedOptions, context: AdvancedContext) {
           },
         ]
       : []),
-    ...(usesService || isFceInvoice
+    ...(usesDueDate
       ? [
           {
             description: options.paymentDueDate ?? 'por defecto',
@@ -223,7 +240,17 @@ function optionalChoices(options: AdvancedOptions, context: AdvancedContext) {
           },
         ]
       : []),
-  ];
+  ].filter((choice) => !hidden.has(choice.value));
+}
+
+/** Lo que ya no aplica (por ejemplo, fechas de servicio si se cambio a productos) no llega al comprobante. */
+function dropUnavailable(options: AdvancedOptions, available: ReadonlySet<Option>): AdvancedOptions {
+  return {
+    ...options,
+    ...(available.has('exento') ? {} : { exemptAmount: undefined, untaxedAmount: undefined }),
+    ...(available.has('servicio') ? {} : { serviceEndDate: undefined, serviceStartDate: undefined }),
+    ...(available.has('vencimiento') ? {} : { paymentDueDate: undefined }),
+  };
 }
 
 /**
@@ -239,6 +266,7 @@ export async function askAdvancedOptions(
     alicuota: (current) => askIvaRate(current, context),
     divisas: askCurrency,
     exento: askExemptAmounts,
+    fecha: (current) => askBillingDate(current, context),
     servicio: askServicePeriod,
     transferencia: askTransferMode,
     vencimiento: askPaymentDueDate,
@@ -273,7 +301,7 @@ export async function askAdvancedOptions(
     }
 
     if (completed) {
-      return options;
+      return dropUnavailable(options, new Set(optionalChoices(options, context).map((choice) => choice.value)));
     }
   }
 }

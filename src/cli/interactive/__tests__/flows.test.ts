@@ -70,6 +70,7 @@ describe('flujos del modo interactivo', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
     expect(script.remaining()).toBe(0);
   });
@@ -314,6 +315,107 @@ describe('flujos del modo interactivo', () => {
       expect(buildInvoiceInput(state as NonNullable<typeof state>, session).totalAmount).toBe(200);
     });
 
+    it('suma la fecha del comprobante, con la ventana de dias del CLI segun el concepto', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-25T12:00:00-03:00'));
+
+      script = createScript([
+        [/comprobante/, 'Factura C'],
+        [/A quién/, 'Consumidor final'],
+        [/Qué estás facturando/, 'Servicios'],
+        [/Monto total/, '1000'],
+        [/Agregamos/, ['Fecha del comprobante']],
+        [/Fecha del comprobante/, '31/10'],
+      ]);
+
+      const session = createSession();
+      const state = await runWizard(invoiceSteps(session), { advanced: { currencyCode: 'ARS', sameCurrency: false } });
+      const validate = script.askTextStep.mock.calls.find(([message]) => /Fecha del comprobante/.test(message))?.[1]
+        ?.validate;
+
+      expect(buildInvoiceInput(state as NonNullable<typeof state>, session).billingDate).toBe('31/10');
+      // Servicios: hasta 10 dias antes o despues de hoy.
+      expect(validate?.('4/11')).toBe(true);
+      expect(validate?.('10/11')).toMatch(/fuera de rango/);
+      expect(validate?.('32/10')).toMatch(/Fecha inválida/);
+    });
+
+    it('identifica al receptor por CUIL, sin consultar el padron', async () => {
+      script = createScript([
+        [/comprobante/, 'Factura B'],
+        [/A quién/, 'Con CUIL'],
+        [/CUIL del receptor/, '20-33333333-4'],
+        [/Condición frente al IVA del receptor/, 'Consumidor final'],
+        [/Qué estás facturando/, 'Productos'],
+        [/Monto total/, '1210'],
+        [/Agregamos/, []],
+      ]);
+
+      const getTaxpayerDetails = vi.fn();
+      const session = createSession([], { registerInscriptionProofService: { getTaxpayerDetails } });
+      const state = await runWizard(invoiceSteps(session), { advanced: { currencyCode: 'ARS', sameCurrency: false } });
+
+      expect(getTaxpayerDetails).not.toHaveBeenCalled();
+      expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
+        documentNumber: 20333333334,
+        documentType: 'cuil',
+        ivaCondition: 'consumidor-final',
+      });
+    });
+
+    it('factura en euros con la cotizacion acordada', async () => {
+      script = createScript([
+        [/comprobante/, 'Factura C'],
+        [/A quién/, 'Consumidor final'],
+        [/Qué estás facturando/, 'Servicios'],
+        [/Monto total/, '100'],
+        [/Agregamos/, ['Moneda extranjera']],
+        [/Moneda del comprobante/, 'Euros (EUR)'],
+        [/Cómo te pagan/, 'En pesos'],
+        [/Cotización de EUR/, '1.450,50'],
+      ]);
+
+      const session = createSession();
+      const state = await runWizard(invoiceSteps(session), { advanced: { currencyCode: 'ARS', sameCurrency: false } });
+
+      expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
+        currencyCode: 'EUR',
+        exchangeRate: 1450.5,
+        sameCurrency: false,
+      });
+      expect(onlyChoices(script.chooseStep.mock.calls.at(-2)?.[1] ?? []).map((choice) => choice.name)).toContain(
+        'Reales (BRL)',
+      );
+    });
+
+    it('si se cambia a productos no quedan las fechas de servicio ya elegidas', async () => {
+      script = createScript([
+        [/comprobante/, 'Factura C'],
+        [/A quién/, 'Consumidor final'],
+        [/Qué estás facturando/, 'Servicios'],
+        [/Monto total/, '100'],
+        [/Agregamos/, ['Período', 'Vencimiento']],
+        [/Servicio desde/, '1/10'],
+        [/Servicio hasta/, '31/10'],
+        [/Vencimiento del pago/, '10/11'],
+      ]);
+
+      const session = createSession();
+      const steps = invoiceSteps(session);
+      const state = await runWizard(steps, { advanced: { currencyCode: 'ARS', sameCurrency: false } });
+
+      expect(state?.advanced).toMatchObject({ paymentDueDate: '10/11', serviceStartDate: '1/10' });
+
+      script = createScript([[/Agregamos/, []]]);
+
+      const advancedStep = steps.find((step) => step.name === 'avanzadas');
+      const update = await advancedStep?.run({ ...(state as NonNullable<typeof state>), concept: 'productos' });
+
+      expect(update).toMatchObject({
+        advanced: { paymentDueDate: undefined, serviceEndDate: undefined, serviceStartDate: undefined },
+      });
+    });
+
     it('volver en la primera pregunta sale del flujo', async () => {
       script = createScript([[/comprobante/, BACK]]);
 
@@ -535,6 +637,7 @@ describe('flujos del modo interactivo', () => {
         [/A qué la asociamos/, 'A una factura'],
         [/Sobre qué factura B/, '00003-00000014'],
         [/Total o parcial/, 'Anular el total'],
+        [/Agregamos/, []],
       ]);
 
       const session = createSession([invoice()]);
@@ -555,6 +658,7 @@ describe('flujos del modo interactivo', () => {
         [/A qué la asociamos/, 'A una factura'],
         [/Sobre qué factura B/, '00003-00000014'],
         [/Total o parcial/, 'Anular el total'],
+        [/Agregamos/, []],
       ]);
 
       const session = createSession([invoice({ currency: 'DOL', exchangeRate: 1450, exemptAmount: 10, total: 131 })]);
@@ -575,6 +679,7 @@ describe('flujos del modo interactivo', () => {
         [/Sobre qué factura B/, '00003-00000014'],
         [/Monto de la nota de crédito/, '100'],
         [/Alícuota de IVA del comprobante/, '21%'],
+        [/Agregamos/, []],
       ]);
 
       const session = createSession([invoice({ ivaAmount: 262.5, netAmount: 1500, total: 1762.5 })]);
@@ -596,6 +701,7 @@ describe('flujos del modo interactivo', () => {
         [/Monto de la nota de crédito/, '60,50'],
         [/Condición frente al IVA/, 'Responsable inscripto'],
         [/rechazó la factura/, 'Sí'],
+        [/Agregamos/, []],
       ]);
 
       const session = createSession([invoice({ documentNumber: 30709965812, documentTypeCode: 80 })]);
@@ -617,6 +723,7 @@ describe('flujos del modo interactivo', () => {
         [/A qué la asociamos/, 'A un recibo'],
         [/Sobre qué recibo C/, '00003-00000014'],
         [/Total o parcial/, 'Anular el total'],
+        [/Agregamos/, []],
       ]);
 
       const session = createSession([invoice({ ivaAmount: 0, netAmount: 121 })]);
@@ -639,6 +746,7 @@ describe('flujos del modo interactivo', () => {
         [/concepto ajusta/, 'Servicios'],
         [/Monto de la nota/, '121'],
         [/Alícuota/, '21%'],
+        [/Agregamos/, []],
       ]);
 
       const session = createSession();
@@ -651,6 +759,90 @@ describe('flujos del modo interactivo', () => {
         totalAmount: 121,
       });
       expect(input.associatedVoucher).toBeUndefined();
+    });
+
+    it('una NC parcial suma fecha, servicio, vencimiento y exento, pero no la moneda ni la alicuota', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-25T12:00:00-03:00'));
+
+      script = createScript([
+        [/Sobre qué comprobante/, 'Factura B'],
+        [/A qué la asociamos/, 'A una factura'],
+        [/Sobre qué factura B/, '00003-00000014'],
+        [/Total o parcial/, 'Parcial'],
+        [/Monto de la nota de crédito/, '60,50'],
+        [/Agregamos/, ['Fecha', 'Importe exento', 'Período', 'Vencimiento']],
+        [/Fecha del comprobante/, '31/10'],
+        [/exenta/, '10'],
+        [/no gravada/, ''],
+        [/Servicio desde/, '1/10'],
+        [/Servicio hasta/, '15/10'],
+        [/Vencimiento del pago/, '10/11'],
+      ]);
+
+      const session = createSession([invoice({ currency: 'DOL', exchangeRate: 1450 })]);
+      const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
+      const offered = (script.chooseManyStep.mock.calls[0][1] as ReadonlyArray<{ value: unknown }>).map(
+        (choice) => choice.value,
+      );
+
+      expect(offered).toEqual(['fecha', 'exento', 'servicio', 'vencimiento']);
+      expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
+        billingDate: '31/10',
+        currencyCode: 'DOL',
+        exchangeRate: 1450,
+        exemptAmount: 10,
+        paymentDueDate: '10/11',
+        serviceEndDate: '15/10',
+        serviceStartDate: '1/10',
+        totalAmount: 60.5,
+      });
+    });
+
+    it('si la NC anula el total no ofrece exento, y en FCE no ofrece vencimiento', async () => {
+      script = createScript([
+        [/Sobre qué comprobante/, 'Factura de crédito electrónica B'],
+        [/Sobre qué factura de crédito electrónica B/, '00003-00000014'],
+        [/Total o parcial/, 'Anular el total'],
+        [/rechazó la factura/, 'No'],
+        [/Agregamos/, []],
+      ]);
+
+      const session = createSession([invoice()]);
+
+      await runWizard(noteSteps(session, 3), { kind: 'credito' });
+
+      expect(
+        (script.chooseManyStep.mock.calls[0][1] as ReadonlyArray<{ value: unknown }>).map((choice) => choice.value),
+      ).toEqual(['fecha', 'servicio']);
+    });
+
+    it('una ND por periodo puede ir en otra moneda', async () => {
+      script = createScript([
+        [/Sobre qué comprobante/, 'Factura C'],
+        [/A qué la asociamos/, 'A un período'],
+        [/Período desde/, '1/9'],
+        [/Período hasta/, '30/9'],
+        [/A quién va la nota/, 'Con CUIL'],
+        [/CUIL del receptor/, '20333333334'],
+        [/concepto ajusta/, 'Productos'],
+        [/Monto de la nota de débito/, '100'],
+        [/Condición frente al IVA/, 'Consumidor final'],
+        [/Agregamos/, ['Moneda extranjera']],
+        [/Moneda del comprobante/, 'Dólares estadounidenses'],
+        [/Cómo te pagan/, 'En dólares'],
+      ]);
+
+      const session = createSession();
+      const state = await runWizard(noteSteps(session, 3), { kind: 'debito' });
+
+      expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
+        associatedPeriod: { desde: '1/9', hasta: '30/9' },
+        currencyCode: 'USD',
+        documentType: 'cuil',
+        sameCurrency: true,
+        shortcut: 'ndc',
+      });
     });
 
     it('si no hay facturas solo ofrece ingresarla a mano', async () => {
@@ -675,6 +867,7 @@ describe('flujos del modo interactivo', () => {
         [/Sobre qué factura C/, 'Cargar más'],
         [/Sobre qué factura C/, '00003-00000003'],
         [/Total o parcial/, 'Anular el total'],
+        [/Agregamos/, []],
       ]);
 
       const vouchers = Array.from({ length: 12 }, (_, index) => invoice({ ivaAmount: 0, number: index + 1 }));
@@ -713,6 +906,7 @@ describe('flujos del modo interactivo', () => {
         [/Punto de venta/, '5'],
         [/^Número/, '14'],
         [/Total o parcial/, 'Anular el total'],
+        [/Agregamos/, []],
       ]);
 
       const session = createSession([invoice({ ivaAmount: 0 })]);
@@ -736,6 +930,7 @@ describe('flujos del modo interactivo', () => {
         [/^Número/, '99'],
         [/Sobre qué factura C/, '00003-00000014'],
         [/Total o parcial/, 'Anular el total'],
+        [/Agregamos/, []],
       ]);
 
       const session = createSession([invoice({ ivaAmount: 0 })]);
