@@ -3,6 +3,8 @@ import { Separator } from '@inquirer/select';
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import { formatNoVouchersEmitted, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
+import { formatExportVoucherPickerRows } from '../../modules/export/export.history.presenter';
+import type { ExportGateway, ExportIssuedVoucher, ExportVoucherKind } from '../../modules/export/export.types';
 import { BACK, type Back } from '../../modules/interactive/wizard';
 import {
   fetchVouchersBackwards,
@@ -127,6 +129,21 @@ export async function pickInvoice(
     formatRows: formatVoucherPickerRows,
     getLastNumber: (pointOfSale) => historyGateway.getLastNumber(pointOfSale, arcaType),
     getVoucher: (number, pointOfSale) => historyGateway.getVoucher(number, pointOfSale, arcaType),
+  });
+}
+
+/** Un comprobante E (factura o nota) emitido, por wsfex, igual que `arcli ultimos fe`. Ver `pickVoucher`. */
+export async function pickExportVoucher(
+  session: InteractiveSession,
+  gateway: Pick<ExportGateway, 'getLastVoucherNumber' | 'getVoucher'>,
+  options: PickVoucherOptions<ExportIssuedVoucher> & { readonly voucherKind: ExportVoucherKind },
+): Promise<Back | PickedVoucher<ExportIssuedVoucher>> {
+  const { arcaType } = options.voucherKind;
+
+  return pickVoucher(session, options, {
+    formatRows: (_pointOfSale, vouchers, separator, width) => formatExportVoucherPickerRows(vouchers, separator, width),
+    getLastNumber: (pointOfSale) => gateway.getLastVoucherNumber(arcaType, pointOfSale),
+    getVoucher: (number, pointOfSale) => gateway.getVoucher({ arcaType, number, pointOfSale }),
   });
 }
 

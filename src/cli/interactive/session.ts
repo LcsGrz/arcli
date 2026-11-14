@@ -21,7 +21,7 @@ import { formatBillingOutputs } from '../commands/billing.command.output';
 import { startSpinner } from '../spinner';
 import type { GlobalCliOptions } from '../types';
 
-import { offerPdf } from './pdf.flow';
+import { askEmission, offerPdf } from './pdf.flow';
 import { confirm } from './prompts';
 
 export interface InteractiveSession {
@@ -110,7 +110,13 @@ export async function previewAndEmit(session: InteractiveSession, rawInput: Bill
 
   const label = formatVoucherWithArticle(preview.voucherKind);
 
-  if (!(await confirm(formatEmissionQuestion(label, runtime.environment), 'Emitir ahora'))) {
+  const emission = await askEmission(
+    formatEmissionQuestion(label, runtime.environment),
+    'Emitir ahora',
+    runtime.config.pdf,
+  );
+
+  if (!emission) {
     writeTerminalOutput(noticePanel(NOTHING_EMITTED_NOTICE, 'muted'));
 
     return;
@@ -139,7 +145,7 @@ export async function previewAndEmit(session: InteractiveSession, rawInput: Bill
     writeTerminalOutput(
       formatBillingOutputs([result], { environment: runtime.environment, previewShown: true, raw: false }),
     );
-    await offerPdf(runtime.config, input, result);
+    await offerPdf(runtime.config, { ...input, pdf: emission === 'emitir-con-pdf' || undefined }, result);
   } catch (error) {
     spinner?.stop();
     throw error;

@@ -22,6 +22,7 @@ import {
   type ReceiverFromPadron,
   receiverInputFields,
 } from './receiver-padron';
+import { offerSavingToConfig } from './save-to-config';
 import { type InteractiveSession, previewAndEmit } from './session';
 import { normalizeDocumentNumber, validateAmount, validateCbu } from './validators';
 
@@ -184,6 +185,15 @@ export function buildInvoiceInput(state: InvoiceState, session: InteractiveSessi
   });
 }
 
+/** Si el CBU de la FCE se escribio a mano (no habia en la config), ofrece guardarlo, como la actividad de la E. */
+export async function offerSavingCbu(session: InteractiveSession, state: InvoiceState): Promise<void> {
+  if (!state.cbu || session.runtime.config.cbu || !isFceInvoice(state)) {
+    return;
+  }
+
+  await offerSavingToConfig('¿Guardamos el CBU en la config para la próxima?', 'cbu', state.cbu);
+}
+
 /** Sin `voucherKind` pregunta el comprobante; "Emitir recibo" lo pasa ya elegido. */
 export async function runInvoiceFlow(session: InteractiveSession, voucherKind?: VoucherKindDefinition): Promise<void> {
   const state = await runWizard(invoiceSteps(session), {
@@ -196,4 +206,5 @@ export async function runInvoiceFlow(session: InteractiveSession, voucherKind?: 
   }
 
   await previewAndEmit(session, buildInvoiceInput(state, session));
+  await offerSavingCbu(session, state);
 }

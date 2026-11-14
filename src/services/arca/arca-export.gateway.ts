@@ -1,19 +1,21 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { AppError } from '../../lib/errors/app-error';
-import type {
-  ExportActivity,
-  ExportCountry,
-  ExportCountryCuit,
-  ExportCurrency,
-  ExportGateway,
-  ExportIncoterm,
-  ExportIssuedVoucher,
-  ExportLanguage,
-  ExportQuotation,
-  ExportType,
-  ExportUnit,
-  ExportVoucherPayload,
-  ExportVoucherQuery,
+import {
+  DEFAULT_EXPORT_UNIT_CODE,
+  type ExportActivity,
+  type ExportCountry,
+  type ExportCountryCuit,
+  type ExportCurrency,
+  type ExportGateway,
+  type ExportIncoterm,
+  type ExportIssuedItem,
+  type ExportIssuedVoucher,
+  type ExportLanguage,
+  type ExportQuotation,
+  type ExportType,
+  type ExportUnit,
+  type ExportVoucherPayload,
+  type ExportVoucherQuery,
 } from '../../modules/export/export.types';
 
 import type { Arca, IFEXAuthorizeInput, IFEXAuthorizeOutput, IFEXGetLast_CMPInput } from './arca-sdk.types';
@@ -91,6 +93,35 @@ function mapAssociatedVoucher(row: Record<string, unknown> | undefined): ExportV
   return arcaType && number && pointOfSale ? { arcaType, number, pointOfSale } : undefined;
 }
 
+/** Un renglon de `Items.Item`; sin descripcion, cantidad o precio no sirve para repetirlo y se descarta. */
+function mapIssuedItem(row: Record<string, unknown>): ExportIssuedItem[] {
+  const description = readText(row.Pro_ds);
+  const quantity = readNumber(row.Pro_qty);
+  const unitPrice = readNumber(row.Pro_precio_uni);
+
+  if (!description || quantity === undefined || unitPrice === undefined) {
+    return [];
+  }
+
+  return [
+    {
+      code: readOptionalText(row.Pro_codigo),
+      description,
+      discount: readNumber(row.Pro_bonificacion) ?? 0,
+      quantity,
+      total: readNumber(row.Pro_total_item) ?? 0,
+      unit: readNumber(row.Pro_umed) ?? DEFAULT_EXPORT_UNIT_CODE,
+      unitPrice,
+    },
+  ];
+}
+
+function readSameCurrency(value: unknown): boolean | undefined {
+  const text = readText(value).toUpperCase();
+
+  return text === 'S' ? true : text === 'N' ? false : undefined;
+}
+
 /** Sin numero, tipo de exportacion o moneda no sirve como asociado: se trata como que no existe. */
 function mapIssuedVoucher(row: Record<string, unknown> | undefined): ExportIssuedVoucher | null {
   const number = readNumber(row?.Cbte_nro);
@@ -121,11 +152,13 @@ function mapIssuedVoucher(row: Record<string, unknown> | undefined): ExportIssue
     exportType,
     incoterm,
     incotermDescription: incoterm ? readOptionalText(row.Incoterms_Ds) : undefined,
+    items: readRows(row.Items, 'Item').flatMap(mapIssuedItem),
     language: readNumber(row.Idioma_cbte),
     number,
     paymentTerms: readOptionalText(row.Forma_pago),
     pointOfSale: readNumber(row.Punto_vta) ?? 0,
     result: readOptionalText(row.Resultado),
+    sameCurrency: readSameCurrency(row.CanMisMonExt),
     total: readNumber(row.Imp_total) ?? 0,
   };
 }

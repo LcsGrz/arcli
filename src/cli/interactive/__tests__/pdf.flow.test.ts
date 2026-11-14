@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { billingCommandSchema } from '../../../modules/billing/billing.schemas';
 import type { BillingExecutionResult } from '../../../modules/billing/billing.types.internal';
@@ -7,7 +7,7 @@ import type { ArcliConfig } from '../../../modules/config/config.schemas';
 import { writeTerminalOutput } from '../../../ui';
 import { writePdfOutcomes } from '../../commands/billing.command.output';
 import { attachPdfs } from '../../commands/billing.command.pdf';
-import { offerPdf } from '../pdf.flow';
+import { askEmission, offerPdf } from '../pdf.flow';
 import { askText, chooseOne, confirm } from '../prompts';
 
 vi.mock('../prompts', () => ({
@@ -72,6 +72,18 @@ describe('offerPdf', () => {
 
     expect(confirmMock).not.toHaveBeenCalled();
     expect(attachPdfsMock).not.toHaveBeenCalled();
+  });
+
+  it('with nunca, "Emitir y generar el PDF" generates it without asking whether to', async () => {
+    askTextMock.mockResolvedValue('');
+
+    await offerPdf({ ...CONFIG, pdf: 'nunca' }, { ...input, pdf: true }, result);
+
+    expect(confirmMock).not.toHaveBeenCalled();
+    expect(attachPdfsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ inputs: [expect.objectContaining({ pdf: true })] }),
+    );
+    askTextMock.mockReset();
   });
 
   it('says the voucher was already issued when Ctrl+C cancels a PDF question', async () => {
@@ -241,5 +253,37 @@ describe('offerPdf', () => {
     await offerPdf(CONFIG, input, { ...result, response: { ...result.response, cae: null } });
 
     expect(confirmMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('askEmission', () => {
+  beforeEach(() => {
+    // Otros tests dejan respuestas preparadas que no se usaron.
+    confirmMock.mockReset();
+  });
+
+  it('is the usual yes or no when the config does not say nunca', async () => {
+    confirmMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+
+    await expect(askEmission('¿Emitimos?', 'Emitir ahora', 'preguntar')).resolves.toBe('emitir');
+    await expect(askEmission('¿Emitimos?', 'Emitir ahora')).resolves.toBe(false);
+    expect(chooseOneMock).not.toHaveBeenCalled();
+  });
+
+  it('with nunca also offers to emit and generate the PDF, only this time', async () => {
+    chooseOneMock.mockResolvedValueOnce('emitir-con-pdf');
+
+    await expect(askEmission('¿Emitimos?', 'Emitir ahora', 'nunca')).resolves.toBe('emitir-con-pdf');
+    expect(confirmMock).not.toHaveBeenCalled();
+    expect(chooseOneMock).toHaveBeenCalledWith(
+      '¿Emitimos?',
+      [
+        expect.objectContaining({ name: 'Emitir ahora', value: 'emitir' }),
+        expect.objectContaining({ name: 'Emitir y generar el PDF', value: 'emitir-con-pdf' }),
+        expect.objectContaining({ name: 'Cancelar', value: false }),
+      ],
+      undefined,
+      { escapeValue: false },
+    );
   });
 });

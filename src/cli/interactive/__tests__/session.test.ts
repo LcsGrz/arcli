@@ -3,19 +3,27 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { billingCommandSchema } from '../../../modules/billing/billing.schemas';
 import { BillingService } from '../../../modules/billing/billing.service';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
-import { confirm } from '../prompts';
+import { offerPdf } from '../pdf.flow';
+import { chooseOne, confirm } from '../prompts';
 import { type InteractiveSession, previewAndEmit } from '../session';
 
-vi.mock('../prompts', () => ({ confirm: vi.fn() }));
+vi.mock('../prompts', () => ({ chooseOne: vi.fn(), confirm: vi.fn() }));
+vi.mock('../pdf.flow', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../pdf.flow')>()),
+  offerPdf: vi.fn(async () => undefined),
+}));
 
 const confirmMock = vi.mocked(confirm);
 
-function createSession(environment: 'produccion' | 'testing'): InteractiveSession & {
+function createSession(
+  environment: 'produccion' | 'testing',
+  pdf?: 'nunca',
+): InteractiveSession & {
   readonly createVoucher: ReturnType<typeof vi.fn>;
 } {
   const createVoucher = vi.fn(async () => ({ response: {} }) as never);
   const runtime = {
-    config: { cert: {}, entornoPorDefecto: environment, key: {}, output: {} },
+    config: { cert: {}, entornoPorDefecto: environment, key: {}, output: {}, pdf },
     context: { cuit: 20333333334 },
     environment,
     outputJson: false,
@@ -48,6 +56,8 @@ describe('previewAndEmit', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     confirmMock.mockReset();
+    vi.mocked(chooseOne).mockReset();
+    vi.mocked(offerPdf).mockClear();
   });
 
   it('no emite si el usuario cancela', async () => {
@@ -67,6 +77,34 @@ describe('previewAndEmit', () => {
 
     expect(confirmMock).toHaveBeenCalledTimes(1);
     expect(session.createVoucher).toHaveBeenCalledTimes(1);
+  });
+
+  it('con `pdf nunca` se puede emitir y generar el PDF desde la confirmacion', async () => {
+    const session = createSession('testing', 'nunca');
+
+    vi.mocked(chooseOne).mockResolvedValueOnce('emitir-con-pdf');
+    await previewAndEmit(session, input);
+
+    expect(confirmMock).not.toHaveBeenCalled();
+    expect(session.createVoucher).toHaveBeenCalledTimes(1);
+    expect(offerPdf).toHaveBeenCalledWith(
+      expect.objectContaining({ pdf: 'nunca' }),
+      expect.objectContaining({ pdf: true }),
+      expect.anything(),
+    );
+  });
+
+  it('sin elegir el PDF, la config decide como siempre', async () => {
+    const session = createSession('testing');
+
+    confirmMock.mockResolvedValueOnce(true);
+    await previewAndEmit(session, input);
+
+    expect(offerPdf).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ pdf: undefined }),
+      expect.anything(),
+    );
   });
 
   it('en produccion pide una segunda confirmacion antes de emitir', async () => {
