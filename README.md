@@ -59,14 +59,14 @@ Para actualizar, repetí la instalación con `arcli@latest` (por ejemplo, `npm i
 Copiá esto y pegáselo a tu asistente de IA. Sirve para instalar y para actualizar:
 
 ```text
-Instalá o actualizá arcli en esta computadora. Es un programa para emitir facturas de ARCA: https://www.npmjs.com/package/arcli
+Instalá o actualizá ARCLI en esta computadora. Es un programa para emitir facturas de ARCA: https://www.npmjs.com/package/arcli
 
 1. Revisá si tengo Node.js 22.22.1 o superior (node --version). Si no lo tengo o es más viejo, instalá la versión LTS de https://nodejs.org con el instalador oficial para mi sistema.
-2. Instalá o actualizá arcli con: npm install -g arcli@latest. Si da un error de permisos, explicame la opción más segura antes de usar sudo o permisos de administrador.
+2. Instalá o actualizá ARCLI con: npm install -g arcli@latest. Si da un error de permisos, explicame la opción más segura antes de usar sudo o permisos de administrador.
 3. Verificá con arcli --version y decime qué versión quedó.
 4. Si es la primera vez que lo instalo, creá el ícono en el escritorio con: arcli acceso-directo
 
-Si podés ejecutar comandos, hacelo vos; si no, guiame paso a paso, como a alguien que nunca usó la terminal. No toques certificados, claves ni la configuración de arcli, y no emitas comprobantes.
+Si podés ejecutar comandos, hacelo vos; si no, guiame paso a paso, como a alguien que nunca usó la terminal. No toques certificados, claves ni la configuración de ARCLI, y no emitas comprobantes.
 ```
 
 Después abrí ARCLI con doble clic en el ícono y seguí la configuración guiada.
