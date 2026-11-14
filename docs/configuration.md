@@ -2,7 +2,7 @@
 
 # Configuración
 
-Cómo funciona la configuración persistente de arcli y qué conviene dejar guardado.
+Cómo funciona la configuración persistente de ARCLI y qué conviene dejar guardado.
 
 ## Propósito
 
@@ -16,7 +16,7 @@ Eso evita repetir siempre el mismo `cuit`, `puntoVenta`, concepto, IVA receptor 
 
 ## Ubicación del archivo
 
-arcli usa `conf` con:
+ARCLI usa `conf` con:
 
 - `projectName: arcli`
 - `configName: config`
@@ -74,7 +74,7 @@ En esa carpeta también quedan `certificados/<CUIT>/` (con la clave privada), `t
 | `emisor.condicionIva`         | string                          | según la letra         | Condición de IVA del emisor (solo PDF): los mismos valores que `ivaReceptor`, por ejemplo `responsable-inscripto`, `responsable-monotributo` o `sujeto-exento`. Sin valor, sale de la letra: `A` y `B`, responsable inscripto; `C`, monotributo |
 | `emisor.logo`                 | string                          | ninguno                | Ruta a un logo PNG o JPG (solo PDF)                                                                                                                                                                                                             |
 
-> Para claves booleanas, arcli acepta `true` / `false`, `sí` / `no` o `1` / `0`.
+> Para claves booleanas, ARCLI acepta `true` / `false`, `sí` / `no` o `1` / `0`.
 
 ### Certificados con `arcli certificado`
 
@@ -94,7 +94,7 @@ arcli config establecer exportacion.key.produccion /ruta/a/la/clave-exportacion.
 Reglas:
 
 - si `exportacion.cert.<entorno>` y `exportacion.key.<entorno>` están los dos, se usan esos;
-- si no hay ninguno de los dos, arcli usa `cert.<entorno>` y `key.<entorno>`;
+- si no hay ninguno de los dos, ARCLI usa `cert.<entorno>` y `key.<entorno>`;
 - si configurás solo la mitad del par (por ejemplo, el certificado pero no la clave), el comando de exportación corta antes de ir a ARCA con un error de configuración.
 
 Las claves aparecen en la sección **Certificados** de `arcli config`, se validan como PEM al guardarlas y `arcli config revisar` avisa si el par quedó incompleto o si el certificado de exportación está por vencer.
@@ -109,14 +109,14 @@ Si el certificado no está autorizado a `wsfex`, la primera llamada falla con `W
 
 Para autenticarse contra ARCA, el SDK pide un ticket de acceso (WSAA) que dura 12 horas y tiene rate limit estricto (1 request cada 2 minutos en producción, cada 10 minutos en testing). Ese ticket se guarda en disco para reutilizarlo entre corridas.
 
-Por defecto, arcli lo guarda en una carpeta `tickets/` junto al `config.json` (ver `arcli config ruta`), para que sobreviva a reinstalaciones o actualizaciones del paquete. Si preferís otra ubicación:
+Por defecto, ARCLI lo guarda en una carpeta `tickets/` junto al `config.json` (ver `arcli config ruta`), para que sobreviva a reinstalaciones o actualizaciones del paquete. Si preferís otra ubicación:
 
 ```bash
 arcli config establecer ticketPath /ruta/que/prefieras
 arcli config eliminar ticketPath
 ```
 
-El ticket permite operar en ARCA como tu CUIT mientras dure, así que arcli deja la carpeta en `0700` (solo tu usuario). Si elegís otra ubicación, que no sea una carpeta compartida.
+El ticket permite operar en ARCA como tu CUIT mientras dure, así que ARCLI deja la carpeta en `0700` (solo tu usuario). Si elegís otra ubicación, que no sea una carpeta compartida.
 
 ### PDF y datos del emisor
 
@@ -124,7 +124,7 @@ Las claves `pdf`, `pdfCarpeta`, `pdfNavegador`, `condicionVenta` y `emisor.*` so
 
 ## Prioridad de fuentes
 
-arcli resuelve los datos en este orden:
+ARCLI resuelve los datos en este orden:
 
 1. flags
 2. JSON cargado con `--cargar`
@@ -167,7 +167,7 @@ arcli config revisar --json
 - el estado de la config persistente
 - el vencimiento de los certificados de los dos entornos
 - la validación real (CUIT, certificado y clave legibles) del entorno por defecto y de cualquier otro que tenga `cert` o `key` configurados
-- el plugin de PDF, como `arcli pdf estado`: si está instalado, si es la versión que usa arcli y si encontró un navegador. Con `pdf=siempre` avisa si falta; con `preguntar` (por defecto) lo revisa solo si está instalado, y con `nunca`, no lo revisa. El plugin nunca bloquea la emisión.
+- el plugin de PDF, como `arcli pdf estado`: si está instalado, si es la versión que usa ARCLI y si encontró un navegador. Con `pdf=siempre` avisa si falta; con `preguntar` (por defecto) lo revisa solo si está instalado, y con `nunca`, no lo revisa. El plugin nunca bloquea la emisión.
 
 No recibe `--testing` ni `--produccion`: revisa los dos entornos de una vez.
 
@@ -188,7 +188,7 @@ arcli config eliminar puntoVenta
 
 ### Validación al guardar credenciales
 
-Cuando se guarda `cert.*`, `key.*`, `exportacion.cert.*` o `exportacion.key.*`, arcli valida:
+Cuando se guarda `cert.*`, `key.*`, `exportacion.cert.*` o `exportacion.key.*`, ARCLI valida:
 
 - que la ruta exista
 - que el archivo tenga formato PEM válido
@@ -226,6 +226,6 @@ Si guardás:
 arcli config establecer emitir true
 ```
 
-arcli va a emitir por defecto cuando no pases `--previsualizar`, sin preguntar. Es cómodo, pero también hace más fácil emitir sin querer en flujos repetitivos. Si no estás seguro, dejalo en `false`.
+ARCLI va a emitir por defecto cuando no pases `--previsualizar`, sin preguntar. Es cómodo, pero también hace más fácil emitir sin querer en flujos repetitivos. Si no estás seguro, dejalo en `false`.
 
 Combinado con `entorno produccion`, un comando sin flags emite un comprobante real en producción. Si usás esa combinación, pasá `--previsualizar` cuando solo quieras ver la solicitud.

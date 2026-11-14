@@ -2,9 +2,9 @@
 
 # Certificado de testing
 
-Para probar arcli sin validez fiscal necesitás un certificado de **testing** (homologación) y su clave privada. Esta guía muestra cada pantalla del portal de ARCA. Cuando quieras facturar de verdad, seguí con el [certificado de producción](certificado-produccion.md).
+Para probar ARCLI sin validez fiscal necesitás un certificado de **testing** (homologación) y su clave privada. Esta guía muestra cada pantalla del portal de ARCA. Cuando quieras facturar de verdad, seguí con el [certificado de producción](certificado-produccion.md).
 
-**En resumen**, en la web de ARCA vas a habilitar el servicio, crear el certificado con el pedido que arma arcli y autorizarlo a facturar (`wsfe`). Desde arcli se hace con `arcli certificado generar` e `importar`, o en el asistente: Configuración → Certificados de ARCA.
+**En resumen**, en la web de ARCA vas a habilitar el servicio, crear el certificado con el pedido que arma ARCLI y autorizarlo a facturar (`wsfe`). Desde ARCLI se hace con `arcli certificado generar` e `importar`, o en el asistente: Configuración → Certificados de ARCA.
 
 > Contenido adaptado de los tutoriales de [afipts.com](https://www.afipts.com) (ver
 > [fuentes](#fuentes) al final). Las capturas son de ese sitio; los pasos y comandos
@@ -65,13 +65,13 @@ Se puede sumar un servicio después, repitiendo solo el paso 3 con el mismo cert
 
 ## 2. Generar la clave y el certificado
 
-**Con arcli (recomendado).** Desde el modo interactivo: `arcli` → Configuración → Certificados de ARCA. O por comandos, con el CUIT ya configurado (`arcli config establecer cuit <CUIT>`):
+**Con ARCLI (recomendado).** Desde el modo interactivo: `arcli` → Configuración → Certificados de ARCA. O por comandos, con el CUIT ya configurado (`arcli config establecer cuit <CUIT>`):
 
 ```bash
 arcli certificado generar --testing
 ```
 
-Crea la clave privada y el CSR en la carpeta de config de arcli (no necesitás `openssl`, tampoco en
+Crea la clave privada y el CSR en la carpeta de config de ARCLI (no necesitás `openssl`, tampoco en
 Windows) y te muestra el CSR para pegar en WSASS. Seguí con "Ahora entrá a WSASS" más abajo y, cuando
 tengas el certificado en un archivo, cargalo:
 
@@ -114,8 +114,8 @@ recuadro de resultado a un archivo (ej. `testing.crt`):
 
 ![CSR pegado y certificado generado en WSASS](assets/certificados/testing-wsass-crear-certificado.png)
 
-Con arcli, importalo como se explicó arriba. Con openssl, ya no necesitás el CSR y podés borrarlo:
-guardá `testing.key` y `testing.crt`, que son los que vas a usar en arcli.
+Con ARCLI, importalo como se explicó arriba. Con openssl, ya no necesitás el CSR y podés borrarlo:
+guardá `testing.key` y `testing.crt`, que son los que vas a usar en ARCLI.
 
 ## 3. Autorizar el servicio web
 
@@ -142,7 +142,7 @@ Podés verificarlo entrando a la sección **"Autorizaciones"**:
 
 ![Lista de autorizaciones con la nueva entrada](assets/certificados/testing-autorizaciones-lista.png)
 
-## 4. Configurar arcli
+## 4. Configurar ARCLI
 
 Hay dos formas, según cómo generaste la clave en el paso 2:
 

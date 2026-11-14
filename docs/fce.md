@@ -2,7 +2,7 @@
 
 # Factura de Crédito Electrónica (FCE)
 
-La Factura de Crédito Electrónica MiPyMEs corresponde cuando le facturás a una empresa obligada a recibirla y el monto supera el mínimo que fija ARCA. `arcli fce-obligado <cuit>` te dice si el receptor está obligado y desde qué monto; con `verificarFce` en la config, arcli lo revisa solo al facturar. Atajos: `fcea`, `fceb`, `fcec` y sus notas `ncea`…`ndec`.
+La Factura de Crédito Electrónica MiPyMEs corresponde cuando le facturás a una empresa obligada a recibirla y el monto supera el mínimo que fija ARCA. `arcli fce-obligado <cuit>` te dice si el receptor está obligado y desde qué monto; con `verificarFce` en la config, ARCLI lo revisa solo al facturar. Atajos: `fcea`, `fceb`, `fcec` y sus notas `ncea`…`ndec`.
 
 ## Factura de crédito electrónica (FCE)
 

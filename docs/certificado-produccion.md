@@ -19,7 +19,7 @@ Son los mismos 5 pasos que en el [certificado de testing](certificado-testing.md
 
 ## 2. Generar la clave y obtener el certificado
 
-**Con arcli (recomendado).** Generá el pedido:
+**Con ARCLI (recomendado).** Generá el pedido:
 
 ```bash
 arcli certificado generar --produccion
@@ -49,7 +49,7 @@ elegí **"Agregar alias"**:
 
 ![Agregar alias en Administración de Certificados Digitales](assets/certificados/produccion-agregar-alias.png)
 
-Completá el **Alias** y subí el CSR con **"Examinar..."**: con arcli, el archivo que te indicó `generar`;
+Completá el **Alias** y subí el CSR con **"Examinar..."**: con ARCLI, el archivo que te indicó `generar`;
 con openssl, `produccion.csr`:
 
 ![Formulario de alias con CSR para subir](assets/certificados/produccion-agregar-alias-formulario.png)
@@ -89,7 +89,7 @@ Por último, confirmá la relación completa:
 
 ![Confirmar la autorización final](assets/certificados/produccion-autorizar-confirmar.png)
 
-## 4. Configurar arcli
+## 4. Configurar ARCLI
 
 Hay dos formas, según cómo generaste la clave en el paso 2:
 
@@ -116,15 +116,15 @@ comando de facturación: ver [cambiar de entorno](entornos.md).
 Para emitir en producción también necesitás un punto de venta dado de alta para **web
 service**. No sirve cualquiera: ARCA rechaza el comprobante (error `10005`, "El punto de
 venta informado debe estar dado de alta y ser del tipo RECE") si el número que configurás
-en arcli es de otro sistema, como los de **Comprobantes en línea** ("Factura en línea"),
+en ARCLI es de otro sistema, como los de **Comprobantes en línea** ("Factura en línea"),
 Facturador o talonarios manuales. Cada sistema usa sus propios puntos de venta: si ya
-facturás desde la web de ARCA, creá uno nuevo para arcli.
+facturás desde la web de ARCA, creá uno nuevo para ARCLI.
 
 > **Monotributistas, desde el 1/11/2026:** con la
 > [RG 5893/2026](https://www.boletinoficial.gob.ar/detalleAviso/primera/346598/20260831),
 > si no tenés un punto de venta electrónico habilitado, ARCA te da de alta uno de oficio
 > para **Comprobantes en línea**, con la opción "Factura en línea - Monotributo". Ese
-> punto de venta no sirve para arcli: creá otro para web service.
+> punto de venta no sirve para ARCLI: creá otro para web service.
 
 En testing no hace falta: ARCA no controla el punto de venta y cualquier número sirve.
 
@@ -159,7 +159,7 @@ también avisa si el punto de venta configurado no está entre los habilitados.
    - **Domicilio:** el domicilio desde el que facturás.
 4. Confirmá.
 
-Después, revisá que aparezca y guardalo en arcli:
+Después, revisá que aparezca y guardalo en ARCLI:
 
 ```bash
 arcli parametros puntos-venta --produccion

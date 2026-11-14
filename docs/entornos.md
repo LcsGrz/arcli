@@ -2,7 +2,7 @@
 
 # Cambiar de entorno
 
-arcli trabaja con dos entornos de ARCA. **Testing** es para probar sin validez fiscal; **producción** emite comprobantes reales. Cada uno tiene su propio certificado.
+ARCLI trabaja con dos entornos de ARCA. **Testing** es para probar sin validez fiscal; **producción** emite comprobantes reales. Cada uno tiene su propio certificado.
 
 |                    | Testing                                                | Producción                                                                                     |
 | ------------------ | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
@@ -14,7 +14,7 @@ arcli trabaja con dos entornos de ARCA. **Testing** es para probar sin validez f
 
 ## Elegir el entorno en cada comando
 
-Sin flag, arcli usa el entorno de la config, que arranca en testing. Un flag lo cambia solo para ese comando:
+Sin flag, ARCLI usa el entorno de la config, que arranca en testing. Un flag lo cambia solo para ese comando:
 
 ```bash
 arcli fc -m 1000 --cs --consumidor-final --testing      # sin validez fiscal

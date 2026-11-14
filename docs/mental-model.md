@@ -4,7 +4,7 @@
 
 Si algún término te resulta desconocido (CAE, WSAA, padrón, punto de venta...), el [Glosario](glossary.md) los explica en una página.
 
-La forma más útil de pensar arcli es esta:
+La forma más útil de pensar ARCLI es esta:
 
 ```text
 Input -> Validación -> Solicitud -> ARCA -> Output
@@ -23,7 +23,7 @@ Los datos pueden venir de:
 
 ### 2. Validación
 
-arcli valida primero lo que puede resolver localmente:
+ARCLI valida primero lo que puede resolver localmente:
 
 - combinaciones de flags
 - tipos y formatos
@@ -31,7 +31,7 @@ arcli valida primero lo que puede resolver localmente:
 
 ### 3. Solicitud
 
-Si la entrada pasa validación, arcli arma la solicitud que va a usar con ARCA.
+Si la entrada pasa validación, ARCLI arma la solicitud que va a usar con ARCA.
 
 Esa solicitud es la que ves en:
 
@@ -41,13 +41,13 @@ Esa solicitud es la que ves en:
 
 ### 4. ARCA
 
-Si usás `--emitir`, arcli llama a ARCA.
+Si usás `--emitir`, ARCLI llama a ARCA.
 
 Si usás `--previsualizar`, no emite: arma y muestra la solicitud. Puede consultar a ARCA para completarla (padrón del receptor, cotización oficial en moneda extranjera sin `--cm` o con `--misma-moneda`, tablas y cotización de WSFEX en la `E`), pero nunca pide un CAE. Sin ninguno de los dos flags, en una terminal muestra la vista previa y pregunta si emitir; con `--json` o sin terminal no emite.
 
 ### 5. Output
 
-Después de la solicitud, arcli puede devolver tres tipos de salida:
+Después de la solicitud, ARCLI puede devolver tres tipos de salida:
 
 - humana
 - JSON
@@ -55,11 +55,11 @@ Después de la solicitud, arcli puede devolver tres tipos de salida:
 
 ### 6. PDF (opcional)
 
-Si el comprobante se emitió y tiene CAE, arcli puede generar su PDF con el QR de ARCA. Es un paso posterior a la emisión: si falla, el comprobante ya está emitido y no se deshace. Ver [PDF de comprobantes](pdf.md).
+Si el comprobante se emitió y tiene CAE, ARCLI puede generar su PDF con el QR de ARCA. Es un paso posterior a la emisión: si falla, el comprobante ya está emitido y no se deshace. Ver [PDF de comprobantes](pdf.md).
 
 ## Prioridad de datos
 
-arcli resuelve así:
+ARCLI resuelve así:
 
 ```text
 flags > JSON > config > defaults
@@ -69,7 +69,7 @@ Si un flag está presente, pisa lo demás.
 
 ## Modos
 
-arcli tiene dos formas de usarse:
+ARCLI tiene dos formas de usarse:
 
 - **Comandos con flags** (`arcli fc -m 1000 …`): el contrato público, pensado para scripts, agentes y uso frecuente.
 - **Modo interactivo** (`arcli` sin argumentos): un asistente que pregunta paso a paso, arma la misma entrada que los flags y la pasa por las mismas validaciones. Ver [Modo interactivo](modo-interactivo.md).
@@ -84,6 +84,6 @@ Con flags, `--previsualizar` arma y muestra la solicitud sin emitir (puede consu
 
 El detalle y la comparación entre modos están en [Entrada y salida](input-output.md#diferencias-entre-modos).
 
-## arcli no reemplaza a ARCA
+## ARCLI no reemplaza a ARCA
 
-arcli ordena el flujo y valida lo que puede localmente, pero la decisión sobre un comprobante real es de ARCA. Un comprobante bien armado igual puede salir observado, rechazado o con un error transitorio. Ver [Troubleshooting](troubleshooting.md).
+ARCLI ordena el flujo y valida lo que puede localmente, pero la decisión sobre un comprobante real es de ARCA. Un comprobante bien armado igual puede salir observado, rechazado o con un error transitorio. Ver [Troubleshooting](troubleshooting.md).

@@ -18,8 +18,8 @@ Si usás un asistente de IA que puede manejar tu computadora (Claude, ChatGPT, G
 
 1. Instalá Node.js 22.22.1 o superior desde [nodejs.org](https://nodejs.org/es/download) (la versión LTS).
 2. Abrí la terminal (en Mac: Cmd+Espacio y escribí "Terminal"; en Windows: menú Inicio y escribí "PowerShell") y pegá `npm install -g arcli`.
-3. Pegá `arcli acceso-directo`: deja un ícono de arcli en el escritorio.
-4. Abrí arcli con doble clic en el ícono y seguí la configuración guiada. Desde ahí sacás el certificado de ARCA y emitís tu primera factura de prueba en testing, sin validez fiscal.
+3. Pegá `arcli acceso-directo`: deja un ícono de ARCLI en el escritorio.
+4. Abrí ARCLI con doble clic en el ícono y seguí la configuración guiada. Desde ahí sacás el certificado de ARCA y emitís tu primera factura de prueba en testing, sin validez fiscal.
 
 Más adelante va a haber un instalador que no necesita Node.
 
@@ -52,7 +52,7 @@ yarn global add arcli   # Yarn 1; Yarn 2 o superior no instala paquetes globales
 
 Para probarlo sin instalar nada: `npx arcli --ayuda`.
 
-Para actualizar, repetí la instalación con `arcli@latest` (por ejemplo, `npm install -g arcli@latest`). Cuando hay una versión nueva, el aviso de arcli muestra el comando del gestor con que lo instalaste. Funciona en macOS, Linux y Windows.
+Para actualizar, repetí la instalación con `arcli@latest` (por ejemplo, `npm install -g arcli@latest`). Cuando hay una versión nueva, el aviso de ARCLI muestra el comando del gestor con que lo instalaste. Funciona en macOS, Linux y Windows.
 
 ### Instalar o actualizar con IA
 
@@ -69,11 +69,11 @@ Instalá o actualizá arcli en esta computadora. Es un programa para emitir fact
 Si podés ejecutar comandos, hacelo vos; si no, guiame paso a paso, como a alguien que nunca usó la terminal. No toques certificados, claves ni la configuración de arcli, y no emitas comprobantes.
 ```
 
-Después abrí arcli con doble clic en el ícono y seguí la configuración guiada.
+Después abrí ARCLI con doble clic en el ícono y seguí la configuración guiada.
 
 Opcional: autocompletado con Tab de comandos, flags y valores, en bash, zsh o fish. Se instala con `arcli completado instalar` y se saca con `arcli completado desinstalar` ([detalle](docs/cli-reference.md#autocompletado)).
 
-Opcional: un ícono para abrir arcli con doble clic, con `arcli acceso-directo` ([detalle](docs/cli-reference.md#acceso-directo)).
+Opcional: un ícono para abrir ARCLI con doble clic, con `arcli acceso-directo` ([detalle](docs/cli-reference.md#acceso-directo)).
 
 ## Configuración
 
@@ -149,7 +149,7 @@ Antes de preguntar, puede que ya esté en [Troubleshooting](https://github.com/L
 
 ## Estabilidad
 
-arcli usa [versionado semántico](https://semver.org/lang/es/). Son contrato público, y solo cambian de forma incompatible en una versión mayor y avisándolo en el [CHANGELOG](https://github.com/LcsGrz/arcli/blob/main/CHANGELOG.md):
+ARCLI usa [versionado semántico](https://semver.org/lang/es/). Son contrato público, y solo cambian de forma incompatible en una versión mayor y avisándolo en el [CHANGELOG](https://github.com/LcsGrz/arcli/blob/main/CHANGELOG.md):
 
 - los comandos y sus flags,
 - las claves de configuración,

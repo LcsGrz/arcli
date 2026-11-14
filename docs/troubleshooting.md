@@ -17,11 +17,11 @@ Si usás el asistente (`arcli` sin argumentos): Configuración → Revisar confi
 ### PowerShell dice "la ejecución de scripts está deshabilitada"
 
 - **Síntoma:** al correr `arcli` en PowerShell: `arcli.ps1 no se puede cargar porque la ejecución de scripts está deshabilitada en este sistema`.
-- **Solución:** `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` y volvé a abrir PowerShell, o usá el "Símbolo del sistema" (`cmd`), o abrí arcli con el [acceso directo](cli-reference.md#acceso-directo).
+- **Solución:** `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` y volvé a abrir PowerShell, o usá el "Símbolo del sistema" (`cmd`), o abrí ARCLI con el [acceso directo](cli-reference.md#acceso-directo).
 
 ### `arcli` no se reconoce como comando
 
-- **Síntoma:** `command not found: arcli` o "arcli no se reconoce como un comando interno o externo".
+- **Síntoma:** `command not found: arcli` o "'arcli' no se reconoce como un comando interno o externo".
 - **Causa:** la terminal se abrió antes de instalar, o la carpeta de los paquetes globales de npm no está en el `PATH`.
 - **Solución:** cerrá y abrí la terminal. Si sigue, `npm prefix -g` te dice la carpeta: sumala al `PATH`.
 
@@ -123,7 +123,7 @@ arcli fc -m 1000 --pv 3 --cs --consumidor-final
   - `CERTIFICATE_INVALID`: el archivo no tiene un certificado X.509.
   - `CERTIFICATE_CUIT_MISMATCH`: el certificado es de otro CUIT que el de la config.
   - `CERTIFICATE_EXPIRED`: el `.crt` que querés cargar ya venció.
-  - `CERTIFICATE_ENVIRONMENT_UNKNOWN`: arcli no reconoce al emisor como una autoridad de ARCA, así que no sabe de qué entorno es.
+  - `CERTIFICATE_ENVIRONMENT_UNKNOWN`: ARCLI no reconoce al emisor como una autoridad de ARCA, así que no sabe de qué entorno es.
   - `CERTIFICATE_REPLACE_CONFIRMATION`: ya había otro certificado y, sin terminal o con `--json`, no se puede preguntar.
 - **Solución:** importá el certificado del pedido pendiente o descartalo con `--reemplazar`; usá el `.crt` tal como lo bajaste de ARCA, sin abrirlo ni guardarlo con otro programa; bajalo con la clave fiscal del CUIT configurado; si está vencido, generá uno nuevo; si es de ARCA, indicá el entorno con `--testing` o `--produccion`; para reemplazar sin preguntar, sumá `--reemplazar`.
 - **Documentación relacionada:** [Comando `arcli certificado`](cli-reference.md#comando-arcli-certificado), [códigos de error](input-output.md#códigos-de-error)
@@ -150,7 +150,7 @@ Si lo renovaste a mano, también sirve `arcli config establecer cert.produccion 
 - **Severidad:** crítico
 - **Síntoma:** cualquier comando falla con `Error de configuración` ("El archivo de configuración tiene JSON inválido y no se puede leer."), con la ruta del archivo en `Ruta` (`detalles.ruta` con `--json`).
 - **Causa:** el `config.json` quedó mal escrito, casi siempre por una edición a mano (una coma de más, comillas sin cerrar) o un archivo vacío.
-- **Solución:** corregir el JSON a mano en esa ruta, o renombrar el archivo y volver a cargar los datos. arcli no lo borra ni lo pisa: lo que tenía sigue ahí para recuperarlo.
+- **Solución:** corregir el JSON a mano en esa ruta, o renombrar el archivo y volver a cargar los datos. ARCLI no lo borra ni lo pisa: lo que tenía sigue ahí para recuperarlo.
 
 ```bash
 mv "<ruta>" "<ruta>.bak"
@@ -187,7 +187,7 @@ arcli fc ayuda
 
 - **Severidad:** común
 - **Síntoma:** `INPUT_VALIDATION_ERROR` (o `BATCH_VALIDATION_ERROR` en un lote) con `La clave "montototal" no existe` o `"puntoVenta" tiene que ser un número y llegó el texto "3"`.
-- **Causa:** el JSON trae una clave que arcli no conoce (un typo o el nombre de un flag, como `vencimiento` en vez de `vencimientoPago`) o un valor con otro tipo (un número entre comillas, `"true"` en vez de `true`, `null`).
+- **Causa:** el JSON trae una clave que ARCLI no conoce (un typo o el nombre de un flag, como `vencimiento` en vez de `vencimientoPago`) o un valor con otro tipo (un número entre comillas, `"true"` en vez de `true`, `null`).
 - **Solución:** usá la clave que sugiere el mensaje y escribí los números sin comillas. La lista completa está en [entrada y salida](input-output.md#campos-soportados).
 
 ### Se mezclan identidades del receptor
@@ -210,7 +210,7 @@ arcli fc ayuda
 
 - **Severidad:** frecuente
 - **Síntoma:** `Falta la cotización de USD.`
-- **Causa:** se pasó `--moneda USD` con `--cm 1`. Sin `--cm`, arcli usa la cotización oficial de ARCA.
+- **Causa:** se pasó `--moneda USD` con `--cm 1`. Sin `--cm`, ARCLI usa la cotización oficial de ARCA.
 - **Solución:** pasar `--cm <cotización>` con la acordada, sacar `--cm` para usar la oficial, o `--misma-moneda` si te pagan en dólares.
 - **Documentación relacionada:** [Moneda y cotización](validation-rules.md#moneda-y-cotización)
 
@@ -307,9 +307,9 @@ arcli fc ayuda
 ### `dh key too small` en producción
 
 - **Severidad:** media
-- **Síntoma:** en una versión anterior de arcli, los comandos de producción fallan con `dh key too small` o `ERR_SSL_DH_KEY_TOO_SMALL`, con certificado, clave y punto de venta correctos. En testing andan.
+- **Síntoma:** en una versión anterior de ARCLI, los comandos de producción fallan con `dh key too small` o `ERR_SSL_DH_KEY_TOO_SMALL`, con certificado, clave y punto de venta correctos. En testing andan.
 - **Causa:** WSFE y WSFEX de producción prefieren un intercambio DHE con una clave de 1024 bits, y OpenSSL la rechaza con `SECLEVEL=2`, el nivel de Debian 13 y otras distros.
-- **Solución:** actualizar arcli. Si no podés, corré el CLI con `node --tls-cipher-list='DEFAULT:!DHE' "$(which arcli)"` más los argumentos de siempre.
+- **Solución:** actualizar ARCLI. Si no podés, corré el CLI con `node --tls-cipher-list='DEFAULT:!DHE' "$(which arcli)"` más los argumentos de siempre.
 - **Documentación relacionada:** [Arquitectura](architecture.md)
 
 ### `coe.alreadyAuthenticated`
@@ -356,13 +356,13 @@ arcli fc ayuda
 
 - **Severidad:** común en producción
 - **Síntoma:** el comprobante sale `rechazado` con el error `10005` ("El punto de venta informado debe estar dado de alta y ser del tipo RECE"), y la sugerencia habla de un punto de venta para web service. `arcli estado --produccion` dice que el punto de venta no está habilitado para web service.
-- **Causa:** el punto de venta configurado no es de web service. Pasa con los de Comprobantes en línea ("Factura en línea"), Facturador o talonarios manuales. Desde el 1/11/2026, por la RG 5893/2026, ARCA da de alta de oficio un punto de venta "Factura en línea - Monotributo" a los monotributistas que no tienen uno electrónico: ese tampoco sirve para arcli.
+- **Causa:** el punto de venta configurado no es de web service. Pasa con los de Comprobantes en línea ("Factura en línea"), Facturador o talonarios manuales. Desde el 1/11/2026, por la RG 5893/2026, ARCA da de alta de oficio un punto de venta "Factura en línea - Monotributo" a los monotributistas que no tienen uno electrónico: ese tampoco sirve para ARCLI.
 - **Solución:** `arcli parametros puntos-venta --produccion` lista los habilitados para web service. Si el tuyo no está, creá uno nuevo con sistema de web services en "Administración de puntos de venta y domicilios" y guardalo con `arcli config establecer puntoVenta <numero>`.
 - **Documentación relacionada:** [Punto de venta para web service](certificado-produccion.md#punto-de-venta-para-web-service)
 
 ### Rechazos de ARCA por código
 
-Cuando ARCA rechaza o deja una observación con alguno de estos códigos, `sugerencias` del JSON (y el panel de la salida humana) dice qué pasó y qué hacer. Los que arcli valida antes de enviar (por ejemplo, la ventana de fechas o el IVA receptor por letra) casi nunca llegan a ARCA, pero si llegan, el texto es el mismo.
+Cuando ARCA rechaza o deja una observación con alguno de estos códigos, `sugerencias` del JSON (y el panel de la salida humana) dice qué pasó y qué hacer. Los que ARCLI valida antes de enviar (por ejemplo, la ventana de fechas o el IVA receptor por letra) casi nunca llegan a ARCA, pero si llegan, el texto es el mismo.
 
 | Código          | Qué pasó                                                                                                                                                          | Qué hacer                                                                                                       |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
@@ -372,7 +372,7 @@ Cuando ARCA rechaza o deja una observación con alguno de estos códigos, `suger
 | `10243`         | El IVA receptor no es válido para la letra                                                                                                                        | Ver [El comprobante no admite el IVA receptor](#el-comprobante-no-admite-el-iva-receptor)                       |
 | `10174`         | El CBU de la factura FCE no está registrado a nombre del emisor                                                                                                   | Usá un CBU propio registrado en ARCA (`--cbu` o la clave `cbu`)                                                 |
 | `10119`         | La cotización está fuera del rango que acepta ARCA: entre el 2% y el 400% de la oficial                                                                           | Revisá `--cotizacion-moneda` contra `arcli parametros cotizacion <moneda>`                                      |
-| `10038`         | Con `--misma-moneda`, la cotización enviada ya no es la oficial exacta                                                                                            | Volvé a emitir: arcli consulta la oficial en ese momento                                                        |
+| `10038`         | Con `--misma-moneda`, la cotización enviada ya no es la oficial exacta                                                                                            | Volvé a emitir: ARCLI consulta la oficial en ese momento                                                        |
 | `10017`/`10217` | Observación sobre la condición del receptor; el comprobante puede estar aprobado                                                                                  | Ver [Observaciones de padrón](#observaciones-de-padrón)                                                         |
 
 También se reconocen por el mensaje, sin código: receptor igual al emisor, `Transacción Activa`, CUIT receptor inexistente y detalle de IVA obligatorio. Si ARCA rechaza con otro código, `sugerencias` pide revisar `errores` y `observaciones`.
@@ -384,7 +384,7 @@ También se reconocen por el mensaje, sin código: receptor igual al emisor, `Tr
 - **Severidad:** solo si pasás `--numero` a mano
 - **Síntoma:** ARCA rechaza la `E` con un error de correlatividad del número.
 - **Causa:** WSFEX numera por punto de venta y tipo de comprobante, y el número tiene que ser el siguiente al último autorizado.
-- **Solución:** sacá `--numero`: arcli consulta el último en ARCA (`FEXGetLast_CMP`) y usa el siguiente. Para ver los últimos, `arcli ultimos fe` (o `nde`, `nce`). Un rechazo no emite nada.
+- **Solución:** sacá `--numero`: ARCLI consulta el último en ARCA (`FEXGetLast_CMP`) y usa el siguiente. Para ver los últimos, `arcli ultimos fe` (o `nde`, `nce`). Un rechazo no emite nada.
 - **Documentación relacionada:** [Referencia del CLI](cli-reference.md#factura-de-exportación-e-wsfex)
 
 ### Factura E: falta la actividad o no está en la tabla de WSFEX
@@ -417,7 +417,7 @@ También se reconocen por el mensaje, sin código: receptor igual al emisor, `Tr
 
 - **Severidad:** frecuente
 - **Síntoma:** `BATCH_VALIDATION_ERROR` con la lista de ítems inválidos (`#2: Falta el dato: monto.`…). No se emitió ninguno.
-- **Causa:** arcli valida todo el lote antes de emitir el primero, incluidas las consultas al padrón (IVA receptor desde `--cuit`) y a la cotización oficial.
+- **Causa:** ARCLI valida todo el lote antes de emitir el primero, incluidas las consultas al padrón (IVA receptor desde `--cuit`) y a la cotización oficial.
 - **Solución:** corregir esos ítems en el JSON y volver a correr el lote completo. Si el motivo es una consulta a ARCA que no respondió, reintentá en unos minutos.
 - **Documentación relacionada:** [Entrada y salida](input-output.md#validación-y-errores-del-lote)
 
@@ -435,7 +435,7 @@ También se reconocen por el mensaje, sin código: receptor igual al emisor, `Tr
 
 - **Severidad:** ocasional (terminales viejas, por ejemplo el `cmd` clásico de Windows, o fuentes sin caracteres de caja)
 - **Síntoma:** los bordes de los paneles muestran `?`, `�` o cuadrados en lugar de líneas.
-- **Causa:** la terminal o la fuente no tiene los caracteres de caja Unicode que usa arcli (`╒`, `┃`, `╏`, `╓`, `╌`, `┈`, `━`, `▎`…).
+- **Causa:** la terminal o la fuente no tiene los caracteres de caja Unicode que usa ARCLI (`╒`, `┃`, `╏`, `╓`, `╌`, `┈`, `━`, `▎`…).
 - **Solución:** usar una terminal moderna (Windows Terminal, iTerm2, la de VS Code) o activar los bordes y símbolos ASCII con `ARCLI_ASCII=1`. También cambia los símbolos del modo interactivo (`✔`, `❯`, `↑↓`); las tildes y la `ñ` se mantienen.
 
 ```bash
@@ -449,17 +449,17 @@ ARCLI_ASCII=1 arcli fc -m 1000 --cs --cfinal
 ### No se encontró el escritorio o la carpeta no existe
 
 - **Síntoma:** "No se encontró el escritorio en …" o "La carpeta … no existe".
-- **Causa:** el sistema no informa un escritorio (pasa en servidores o en Linux sin entorno gráfico) o la ruta que indicaste no existe. arcli no crea carpetas.
+- **Causa:** el sistema no informa un escritorio (pasa en servidores o en Linux sin entorno gráfico) o la ruta que indicaste no existe. ARCLI no crea carpetas.
 - **Solución:** indicá una carpeta que exista.
 
 ```bash
 arcli acceso-directo ~/Documentos
 ```
 
-### Ya existe y no lo creó arcli
+### Ya existe y no lo creó ARCLI
 
-- **Síntoma:** "… ya existe y no lo creó arcli".
-- **Causa:** en macOS y Linux arcli solo reemplaza el `ARCLI.app` o `ARCLI.desktop` que creó él. En Windows reemplaza `ARCLI.lnk` sin preguntar.
+- **Síntoma:** "… ya existe y no lo creó ARCLI".
+- **Causa:** en macOS y Linux ARCLI solo reemplaza el `ARCLI.app` o `ARCLI.desktop` que creó él. En Windows reemplaza `ARCLI.lnk` sin preguntar.
 - **Solución:** borrá ese archivo o creá el acceso directo en otra carpeta.
 
 ### `DESKTOP_SHORTCUT_ERROR`
@@ -471,20 +471,20 @@ arcli acceso-directo ~/Documentos
 ### En Linux el escritorio dice que el lanzador no es confiable
 
 - **Síntoma:** al hacer doble clic en `ARCLI.desktop` aparece "lanzador no confiable" o se abre como texto.
-- **Causa:** arcli lo marca como confiable con `gio`. Si `gio` no está o el escritorio no lo respeta, queda sin marcar.
+- **Causa:** ARCLI lo marca como confiable con `gio`. Si `gio` no está o el escritorio no lo respeta, queda sin marcar.
 - **Solución:** clic derecho sobre el ícono y "Permitir ejecutar".
 
-### El ícono dejó de abrir arcli
+### El ícono dejó de abrir ARCLI
 
-- **Síntoma:** la ventana dice "arcli terminó con un error" o se cierra enseguida.
-- **Causa:** el acceso directo guarda las rutas de Node y de arcli del momento en que se creó. Si después moviste o reinstalaste Node (por ejemplo, con otra versión) o desinstalaste arcli, esas rutas ya no existen.
+- **Síntoma:** la ventana dice "ARCLI terminó con un error" o se cierra enseguida.
+- **Causa:** el acceso directo guarda las rutas de Node y de ARCLI del momento en que se creó. Si después moviste o reinstalaste Node (por ejemplo, con otra versión) o desinstalaste ARCLI, esas rutas ya no existen.
 - **Solución:** volvé a crearlo con `arcli acceso-directo`. Reemplaza al anterior.
 - **Documentación relacionada:** [Acceso directo](cli-reference.md#acceso-directo)
 
-### El ícono dice "No se encontró arcli instalado"
+### El ícono dice "No se encontró ARCLI instalado"
 
-- **Síntoma:** al abrir el ícono aparece "No se encontró arcli instalado".
-- **Causa:** no hay un `arcli` instalado que el acceso directo pueda abrir. Pasa si lo creaste desde el código fuente (`yarn dev acceso-directo`) sin tener arcli instalado, o si cambiaste de versión de Node (por ejemplo con nvm) y arcli quedó instalado en la anterior.
+- **Síntoma:** al abrir el ícono aparece "No se encontró ARCLI instalado".
+- **Causa:** no hay un `arcli` instalado que el acceso directo pueda abrir. Pasa si lo creaste desde el código fuente (`yarn dev acceso-directo`) sin tener ARCLI instalado, o si cambiaste de versión de Node (por ejemplo con nvm) y ARCLI quedó instalado en la anterior.
 - **Solución:** instalalo con `npm install -g arcli` y volvé a abrir el ícono. No hace falta recrear el acceso directo.
 - **Documentación relacionada:** [Acceso directo](cli-reference.md#acceso-directo)
 
@@ -495,7 +495,7 @@ Un error del PDF no deshace la emisión: el comprobante ya tiene CAE. **No lo vu
 ### `PDF_PLUGIN_MISSING`
 
 - **Síntoma:** "Para generar PDFs falta instalar el plugin de PDF".
-- **Causa:** el plugin no se descarga solo con `--json` o sin terminal. También aparece si una versión nueva de arcli usa otra versión del plugin.
+- **Causa:** el plugin no se descarga solo con `--json` o sin terminal. También aparece si una versión nueva de ARCLI usa otra versión del plugin.
 - **Solución:** `arcli pdf instalar`. Para ver qué hay instalado: `arcli pdf`.
 
 ### `PDF_PLUGIN_INSTALL_ERROR`
@@ -524,4 +524,4 @@ arcli config establecer emisor.inicioActividades 1/03/2020
 
 - **Síntoma:** "No se pudo generar el PDF".
 - **Causa habitual:** el navegador no arranca. Pasa en servidores sin entorno gráfico o con un Chrome muy viejo.
-- **Solución:** probá con otro navegador (`arcli config establecer pdfNavegador <ruta>`) o borrá esa config para que arcli use el que descargó el plugin.
+- **Solución:** probá con otro navegador (`arcli config establecer pdfNavegador <ruta>`) o borrá esa config para que ARCLI use el que descargó el plugin.

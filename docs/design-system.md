@@ -26,7 +26,7 @@ Solo tokens de `UI_THEME.colors`, cada uno con un significado. No se usan como a
 | `muted`      | Secundario: etiquetas de config, datos sin cargar     |
 | `subtle`     | Títulos de datos crudos: se ven, sin competir         |
 | `neutral`    | Color por defecto de la terminal                      |
-| `highlight`  | Invita a una acción, como actualizar arcli            |
+| `highlight`  | Invita a una acción, como actualizar ARCLI            |
 | `testing`    | El entorno de testing                                 |
 | `production` | El entorno de producción                              |
 | `logo`       | El celeste de la bandera, solo en el logo             |
@@ -115,6 +115,7 @@ Cada dato tiene su helper. Antes de escribir un formato, buscá si ya existe.
 
 - **Voseo y tildes:** `Revisá`, `Usá`, `¿Emitimos?`. Sí/no con tilde: `sí`.
 - **Letra del comprobante en mayúscula:** `factura C`. Los atajos van en minúscula: `fc`.
+- **ARCLI en mayúscula cuando se nombra el programa:** `Cerrar ARCLI`. En minúscula solo como comando, entre backticks: `` `arcli config revisar` ``.
 - **Comandos, opciones y argumentos entre backticks:** `` `arcli config revisar` ``, `` `--monto` ``, no entre comillas.
 - **Monto al pedir, importe al mostrar.** "Comprobante" donde también puede ser un recibo.
 - **Un error dice qué pasó y qué hacer,** sin repetir: lo que va en la sugerencia no va en el mensaje.

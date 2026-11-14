@@ -35,9 +35,9 @@ Si querés armar un comando sin perderte, este orden suele funcionar bien:
 
 Con eso ya tenés la base. Después sumás fechas de servicio, JSON, salida estructurada o asociado solo si ese caso lo necesita.
 
-## Cómo pensar los comprobantes en arcli
+## Cómo pensar los comprobantes en ARCLI
 
-arcli trabaja con dos ideas al mismo tiempo:
+ARCLI trabaja con dos ideas al mismo tiempo:
 
 - **familias**, como `factura` o `nota-credito`
 - **letras**, como `a`, `b` o `c`
@@ -120,7 +120,7 @@ Ejemplo simple de prioridad:
 - en `voucher.json` mandás `puntoVenta = 5`
 - y en CLI ejecutás `--pv 7`
 
-arcli usa `7`, porque el flag explícito siempre pisa JSON y config.
+ARCLI usa `7`, porque el flag explícito siempre pisa JSON y config.
 
 ### Exclusividades importantes
 
@@ -164,7 +164,7 @@ Esta sección describe qué existe. Más abajo vas a encontrar qué hace falta e
 
 ### Ejecución
 
-Estos flags controlan si arcli previsualiza o emite de verdad.
+Estos flags controlan si ARCLI previsualiza o emite de verdad.
 
 | Flag              | Alias   | Tipo      | Valor por defecto                                             | Descripción                     |
 | ----------------- | ------- | --------- | ------------------------------------------------------------- | ------------------------------- |
@@ -236,16 +236,16 @@ En casi todos los casos te va a interesar mirar primero:
 
 En moneda extranjera (`--moneda USD`) hay dos formas de informar la cotización:
 
-- **Te pagan en pesos** (default): pasá `--cotizacion-moneda` con la cotización acordada. Sin ella, arcli usa la oficial de ARCA y lo avisa en "Avisos". No puede ser `1`.
-- **Te pagan en la moneda extranjera**: pasá `--misma-moneda`. arcli consulta la cotización oficial a ARCA y la muestra en la vista previa. No se combina con `--cotizacion-moneda`.
+- **Te pagan en pesos** (default): pasá `--cotizacion-moneda` con la cotización acordada. Sin ella, ARCLI usa la oficial de ARCA y lo avisa en "Avisos". No puede ser `1`.
+- **Te pagan en la moneda extranjera**: pasá `--misma-moneda`. ARCLI consulta la cotización oficial a ARCA y la muestra en la vista previa. No se combina con `--cotizacion-moneda`.
 
 En pesos la cotización siempre es `1` y `--misma-moneda` no aplica. Detalle en [Moneda y cotización](validation-rules.md#moneda-y-cotización).
 
-`--moneda` acepta el código ISO o el de ARCA, en mayúsculas o minúsculas: `ARS` y `PES` son lo mismo, como `USD` y `DOL`, `EUR` y `060` o `UYU` y `011`. arcli traduce el ISO al código de ARCA antes de enviar y la vista previa muestra el nombre con el ISO (`Pesos uruguayos (UYU)`). Están todas las monedas de la tabla de ARCA (`arcli parametros monedas`) que tienen código ISO; un código que no está en esa tabla se manda tal cual y lo rechaza ARCA si no existe. Lo mismo vale para `codigoMoneda` en el JSON y la clave `moneda` de la config.
+`--moneda` acepta el código ISO o el de ARCA, en mayúsculas o minúsculas: `ARS` y `PES` son lo mismo, como `USD` y `DOL`, `EUR` y `060` o `UYU` y `011`. ARCLI traduce el ISO al código de ARCA antes de enviar y la vista previa muestra el nombre con el ISO (`Pesos uruguayos (UYU)`). Están todas las monedas de la tabla de ARCA (`arcli parametros monedas`) que tienen código ISO; un código que no está en esa tabla se manda tal cual y lo rechaza ARCA si no existe. Lo mismo vale para `codigoMoneda` en el JSON y la clave `moneda` de la config.
 
 `--alicuota` acepta alias: `general` (21), `reducida` (10.5), `incrementada` (27) y `cero` (0). Para una factura con ítems a distintas alícuotas, repetí `--alicuota TASA:MONTO` (por ejemplo `--alicuota general:1210 --alicuota reducida:552,50`); el total se calcula solo. Ver [Varias alícuotas](validation-rules.md#varias-alícuotas-en-un-comprobante).
 
-`--monto` siempre es el total del comprobante. Si informás `--exento` o `--nogravado`, arcli los descuenta del total y calcula neto e IVA sobre el resto. Ejemplo: `fb -m 1196 --exento 50 --nogravado 25` da neto 926,45 e IVA 194,55. El flag es `--nogravado`, sin guion, porque el CLI interpreta cualquier `--no-*` como la negación de otro flag.
+`--monto` siempre es el total del comprobante. Si informás `--exento` o `--nogravado`, ARCLI los descuenta del total y calcula neto e IVA sobre el resto. Ejemplo: `fb -m 1196 --exento 50 --nogravado 25` da neto 926,45 e IVA 194,55. El flag es `--nogravado`, sin guion, porque el CLI interpreta cualquier `--no-*` como la negación de otro flag.
 
 Los montos usan formato argentino: el punto separa miles y la coma separa decimales. `15000`, `15.000`, `1500,50` y `1.500,50` son válidos; `1500.50` da error, igual que el texto sobrante (`12abc`) y más de 2 decimales. La cotización acepta hasta 6. Vale para `--monto`, `--exento`, `--nogravado`, `--cotizacion-moneda` y el monto de `--alicuota TASA:MONTO`. En el JSON de `--cargar` los montos son números, también con 2 decimales como máximo (la cotización, 6).
 
@@ -325,7 +325,7 @@ Estos flags controlan el PDF del comprobante emitido. Los datos que se pasan ac�
 
 ### Comando `arcli pdf`
 
-Instala o revisa el plugin que genera los PDFs. No viene con arcli porque pesa unos 160 MB.
+Instala o revisa el plugin que genera los PDFs. No viene con ARCLI porque pesa unos 160 MB.
 
 | Comando                 | Descripción                                            |
 | ----------------------- | ------------------------------------------------------ |
@@ -562,7 +562,7 @@ Las notas de crédito y débito `E` tienen su propia sección: [Notas de crédit
 
 #### Credenciales
 
-WSFEX pide un certificado autorizado al servicio `wsfex`. arcli usa `exportacion.cert.<entorno>` y `exportacion.key.<entorno>` si están configurados; si no, cae en `cert.<entorno>` y `key.<entorno>`. El par se resuelve junto: si configurás solo una de las dos claves de exportación, el comando corta antes de ir a ARCA. Ver [Configuración](configuration.md#certificados-de-exportación-wsfex).
+WSFEX pide un certificado autorizado al servicio `wsfex`. ARCLI usa `exportacion.cert.<entorno>` y `exportacion.key.<entorno>` si están configurados; si no, cae en `cert.<entorno>` y `key.<entorno>`. El par se resuelve junto: si configurás solo una de las dos claves de exportación, el comando corta antes de ir a ARCA. Ver [Configuración](configuration.md#certificados-de-exportación-wsfex).
 
 #### Qué necesitás para emitir este comprobante
 
@@ -662,7 +662,7 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
   --item "002|Soporte|2|250|unidades" --previsualizar
 ```
 
-WSFEX no valida que `Imp_total` coincida con la suma de los ítems, así que arcli lo valida antes de ir a ARCA: si la suma no da `--monto`, el comando corta con un error de validación.
+WSFEX no valida que `Imp_total` coincida con la suma de los ítems, así que ARCLI lo valida antes de ir a ARCA: si la suma no da `--monto`, el comando corta con un error de validación.
 
 #### Qué no aplica
 
@@ -679,7 +679,7 @@ Los defaults de config de esos campos (concepto, IVA receptor, alícuota, CBU) n
 #### Vista previa, numeración y PDF
 
 - La vista previa consulta las tablas de WSFEX (países, monedas, unidades, incoterms, idiomas, actividades), la cotización y el ID de la solicitud, pero no emite.
-- WSFEX numera por punto de venta y tipo de comprobante. Sin `--numero`, arcli consulta el último (`FEXGetLast_CMP`) y usa el siguiente, también en la vista previa; si pasás otro, ARCA rechaza el comprobante. El ID de la solicitud también se consulta (`FEXGetLast_ID`). Fijá los dos con `--numero` e `--id-solicitud` si emitís en paralelo.
+- WSFEX numera por punto de venta y tipo de comprobante. Sin `--numero`, ARCLI consulta el último (`FEXGetLast_CMP`) y usa el siguiente, también en la vista previa; si pasás otro, ARCA rechaza el comprobante. El ID de la solicitud también se consulta (`FEXGetLast_ID`). Fijá los dos con `--numero` e `--id-solicitud` si emitís en paralelo.
 - El PDF se genera después de emitir, como en el resto de los comprobantes. Se guarda como `factura-e_<pv>-<numero>.pdf` y usa el diseño de exportación: ítems reales, país de destino, CUIT del país, ID impositivo, divisa, forma y fecha de pago, incoterm y la leyenda de IVA exento. Ver [PDF](pdf.md#factura-de-exportación-e).
 - Un comprobante rechazado por WSFEX sale como respuesta válida con exit code `2`, igual que en las letras A, B y C.
 
@@ -689,7 +689,7 @@ El JSON de salida y el de `--cargar` están en [Entrada y salida](input-output.m
 
 `arcli nce` (`nota-credito e`, tipo ARCA `21`) y `arcli nde` (`nota-debito e`, tipo `20`) ajustan una Factura de exportación `E` ya emitida por WSFEX. Usan el mismo servicio, credenciales y flags que `fe`, más el comprobante asociado.
 
-Antes de armar la nota, arcli consulta el asociado en ARCA (`FEXGetCMP`) y toma de ahí lo que no venga por flag: cliente, domicilio, ID impositivo, país de destino, CUIT del país, tipo de exportación, moneda y cotización, idioma, incoterm, forma de pago y actividad. Por eso alcanza con el monto, el asociado y el número:
+Antes de armar la nota, ARCLI consulta el asociado en ARCA (`FEXGetCMP`) y toma de ahí lo que no venga por flag: cliente, domicilio, ID impositivo, país de destino, CUIT del país, tipo de exportación, moneda y cotización, idioma, incoterm, forma de pago y actividad. Por eso alcanza con el monto, el asociado y el número:
 
 ```bash
 arcli nce -m 500 --ar 1 --numero 1
@@ -824,7 +824,7 @@ Usa el servicio `ws_sr_constancia_inscripcion`, que hay que autorizar aparte de 
 
 ### IVA receptor desde el padrón
 
-Al facturar con `--cuit` sin `--ir` (ni `ivaReceptor` en el JSON), arcli consulta el padrón y usa esa condición IVA, aunque la config tenga un `ivaReceptor` por defecto. También completa el nombre y el domicilio del receptor para el PDF, si no los pasaste. La vista previa lo marca: `IVA receptor   Responsable inscripto (padrón)`.
+Al facturar con `--cuit` sin `--ir` (ni `ivaReceptor` en el JSON), ARCLI consulta el padrón y usa esa condición IVA, aunque la config tenga un `ivaReceptor` por defecto. También completa el nombre y el domicilio del receptor para el PDF, si no los pasaste. La vista previa lo marca: `IVA receptor   Responsable inscripto (padrón)`.
 
 | Caso                                            | Resultado                                                   |
 | ----------------------------------------------- | ----------------------------------------------------------- |
@@ -855,11 +855,11 @@ arcli completado desinstalar
 
 Pedir el comando ya es la confirmación: no vuelve a preguntar, como `arcli pdf instalar`. Con `--json` devuelve `{ "cambio", "instalado", "ruta", "shell" }`. Si no se puede saber el shell, da `INPUT_VALIDATION_ERROR` y hay que indicarlo. Un programa no puede cambiar la terminal que ya está abierta: después de instalar, abrí una nueva.
 
-`arcli completado <bash|zsh|fish>` solo imprime el script, para instalarlo a mano. Cada Tab le pregunta a la versión instalada qué sigue, así que después de actualizar arcli no hay que reinstalar nada. En el modo interactivo está en Configuración → Autocompletado.
+`arcli completado <bash|zsh|fish>` solo imprime el script, para instalarlo a mano. Cada Tab le pregunta a la versión instalada qué sigue, así que después de actualizar ARCLI no hay que reinstalar nada. En el modo interactivo está en Configuración → Autocompletado.
 
 ## Acceso directo
 
-Crea un ícono que abre arcli en su modo interactivo con doble clic, sin escribir comandos:
+Crea un ícono que abre ARCLI en su modo interactivo con doble clic, sin escribir comandos:
 
 ```bash
 arcli acceso-directo                # en el escritorio
@@ -872,12 +872,12 @@ arcli acceso-directo ~/Documentos   # en otra carpeta, que tiene que existir
 | Windows | `ARCLI.lnk`     | En `acceso-directo/`, junto al archivo de config |
 | Linux   | `ARCLI.desktop` | En `acceso-directo/`, junto al archivo de config |
 
-Abre una terminal con arcli. Si termina con un error, la ventana espera un Enter para que se pueda leer. Con `--json` devuelve `{ "reemplazado", "ruta", "usaArcliInstalado" }`.
+Abre una terminal con ARCLI. Si termina con un error, la ventana espera un Enter para que se pueda leer. Con `--json` devuelve `{ "reemplazado", "ruta", "usaArcliInstalado" }`.
 
 - **Creado desde el código fuente** (`yarn dev acceso-directo`): abre el `arcli` instalado en lugar del `.ts` del repo, que Node no puede correr sin el cargador de `yarn dev`. Lo avisa al crearlo y en `usaArcliInstalado`. Si no hay un `arcli` instalado, el ícono avisa que falta instalarlo.
 
-- **Repetirlo:** actualiza el acceso directo de esa carpeta. En macOS y Linux, si ya hay un archivo con ese nombre que no creó arcli, da `INPUT_VALIDATION_ERROR` y no lo toca.
-- **Si cambiás Node o arcli de lugar:** el acceso directo guarda sus rutas al crearse. Si ya no están, prueba con el `arcli` del `PATH`; si tampoco anda, volvé a correr el comando.
+- **Repetirlo:** actualiza el acceso directo de esa carpeta. En macOS y Linux, si ya hay un archivo con ese nombre que no creó ARCLI, da `INPUT_VALIDATION_ERROR` y no lo toca.
+- **Si cambiás Node o ARCLI de lugar:** el acceso directo guarda sus rutas al crearse. Si ya no están, prueba con el `arcli` del `PATH`; si tampoco anda, volvé a correr el comando.
 - **Quitarlo:** borrá el ícono como cualquier archivo.
 - En el modo interactivo está en Configuración → Acceso directo en el escritorio.
 

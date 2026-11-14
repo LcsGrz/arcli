@@ -60,7 +60,7 @@ arcli nce -m 500 --ar 1 --apv 4
 
 ### Resultado esperado
 
-- cliente, destino, moneda, cotización y actividad salen de la factura, que arcli consulta en ARCA
+- cliente, destino, moneda, cotización y actividad salen de la factura, que ARCLI consulta en ARCA
 - la vista previa muestra la factura asociada con su fecha y su total
 
 ### Errores comunes

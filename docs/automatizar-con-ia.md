@@ -2,7 +2,7 @@
 
 # Automatizar con IA
 
-arcli está pensado para que un asistente con acceso a la terminal (Claude, ChatGPT, Copilot) pueda emitir por vos, con reglas claras y una salida `--json` que no cambia de forma.
+ARCLI está pensado para que un asistente con acceso a la terminal (Claude, ChatGPT, Copilot) pueda emitir por vos, con reglas claras y una salida `--json` que no cambia de forma.
 
 ## Qué leerle al asistente
 

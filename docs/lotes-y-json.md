@@ -23,7 +23,7 @@ arcli fc --cargar ./voucher.json
 
 ### Resultado esperado
 
-- arcli mezcla flags, JSON y config usando esta prioridad:
+- ARCLI mezcla flags, JSON y config usando esta prioridad:
   - flags
   - JSON
   - config
@@ -66,7 +66,7 @@ arcli fc --cargar ./voucher-batch.json --json --bruto
 
 ### Cuándo usarlo
 
-Cuando querés consumir arcli desde un script o pipeline.
+Cuando querés consumir ARCLI desde un script o pipeline.
 
 ### Requisitos
 

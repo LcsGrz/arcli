@@ -67,7 +67,7 @@ arcli fc -m 15000 --consumidor-final
 
 ### Resultado esperado
 
-- arcli completa el resto desde config
+- ARCLI completa el resto desde config
 - el payload sale igual de explícito en la preview
 
 ### Errores comunes

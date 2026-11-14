@@ -2,7 +2,7 @@
 
 # Cómo obtener los certificados de ARCA (testing y producción)
 
-Para que arcli pueda hablar con ARCA necesitás un certificado y una clave privada por entorno. La guía se dividió en dos, una por entorno:
+Para que ARCLI pueda hablar con ARCA necesitás un certificado y una clave privada por entorno. La guía se dividió en dos, una por entorno:
 
 - **[Certificado de testing](certificado-testing.md):** para probar sin validez fiscal. Empezá por acá.
 - **[Certificado de producción](certificado-produccion.md):** para facturar de verdad, con el punto de venta para web service y cómo renovarlo.

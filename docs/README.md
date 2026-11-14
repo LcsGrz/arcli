@@ -1,4 +1,4 @@
-# Documentación de arcli
+# Documentación de ARCLI
 
 [← README](../README.md)
 
@@ -33,7 +33,7 @@ También en el [sitio de documentación](https://lcsgrz.github.io/arcli/), con b
 - [Referencia del CLI](cli-reference.md): comandos y flags.
 - [Configuración](configuration.md): claves, ubicación del archivo y variables de entorno.
 - [Entrada y salida](input-output.md): JSON de entrada, JSON de salida y formato de errores.
-- [Reglas de validación](validation-rules.md): qué valida arcli y qué rechaza ARCA.
+- [Reglas de validación](validation-rules.md): qué valida ARCLI y qué rechaza ARCA.
 - [Glosario](glossary.md): CAE, WSAA, punto de venta y demás términos.
 - [Limitaciones](limitations.md): qué no hace y por qué.
 - [llms.txt](../llms.txt): referencia condensada para agentes de IA con acceso a terminal.

@@ -14,7 +14,7 @@ Si sos responsable inscripto, emitís comprobantes **A** y **B**, con el IVA dis
 | Nota de débito                 | `nda`  | `ndb`  |
 | Factura de Crédito Electrónica | `fcea` | `fceb` |
 
-Con `--cuit` y sin `--ir`, arcli toma la condición frente al IVA del receptor del padrón de ARCA. Las alícuotas, varias por comprobante y el IVA automático están en las [reglas de validación](validation-rules.md#iva-automático). Las notas se explican en [notas de crédito y débito](notas-credito-debito.md) y la FCE en [su página](fce.md).
+Con `--cuit` y sin `--ir`, ARCLI toma la condición frente al IVA del receptor del padrón de ARCA. Las alícuotas, varias por comprobante y el IVA automático están en las [reglas de validación](validation-rules.md#iva-automático). Las notas se explican en [notas de crédito y débito](notas-credito-debito.md) y la FCE en [su página](fce.md).
 
 ## Factura A con CUIT
 
