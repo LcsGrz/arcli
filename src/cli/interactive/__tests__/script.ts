@@ -51,24 +51,27 @@ export function createScript(steps: ReadonlyArray<readonly [RegExp, ScriptedAnsw
     return step.answer;
   }
 
-  const chooseStep = vi.fn(async <T>(message: string, allChoices: ReadonlyArray<Choice<T> | Separator>) => {
-    const answer = nextSingle(message);
+  // El valor por defecto no cambia la respuesta: queda en `mock.calls` para verificar que opcion arranca marcada.
+  const chooseStep = vi.fn(
+    async <T>(message: string, allChoices: ReadonlyArray<Choice<T> | Separator>, _defaultValue?: T) => {
+      const answer = nextSingle(message);
 
-    if (answer === BACK) {
-      return BACK;
-    }
+      if (answer === BACK) {
+        return BACK;
+      }
 
-    const choices = onlyChoices(allChoices);
-    const choice = choices.find((item) => item.name.includes(answer));
+      const choices = onlyChoices(allChoices);
+      const choice = choices.find((item) => item.name.includes(answer));
 
-    if (!choice) {
-      throw new Error(
-        `"${answer}" no esta entre las opciones de "${message}": ${choices.map((item) => item.name).join(' | ')}`,
-      );
-    }
+      if (!choice) {
+        throw new Error(
+          `"${answer}" no esta entre las opciones de "${message}": ${choices.map((item) => item.name).join(' | ')}`,
+        );
+      }
 
-    return choice.value;
-  });
+      return choice.value;
+    },
+  );
 
   // Devuelve lo marcado en el orden de las opciones, como el checkbox real.
   const chooseManyStep = vi.fn(

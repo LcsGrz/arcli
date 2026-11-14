@@ -1,5 +1,4 @@
 import { DEFAULT_IVA_RATE } from '../../modules/billing/billing.amounts';
-import { DEFAULT_CURRENCY_CODE } from '../../modules/billing/billing.constants';
 import { type BillingCommandInput, billingCommandSchema } from '../../modules/billing/billing.schemas';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { EXPORT_VOUCHER_KIND, type ExportVoucherKind } from '../../modules/export/export.types';
@@ -12,7 +11,7 @@ import {
 } from '../../modules/interactive/choices';
 import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 
-import { type AdvancedOptions, askAdvancedOptions } from './advanced-options';
+import { type AdvancedOptions, askAdvancedOptions, initialAdvancedOptions } from './advanced-options';
 import { runExportFlow } from './export.flow';
 import { markIfNew } from './new-mark';
 import { askTextStep, chooseStep } from './prompts';
@@ -22,7 +21,7 @@ import {
   type ReceiverFromPadron,
   receiverInputFields,
 } from './receiver-padron';
-import { type InteractiveSession, previewAndEmit } from './session';
+import { type InteractiveSession, previewAndEmit, requirePointOfSale } from './session';
 import { normalizeDocumentNumber, validateAmount, validateCbu } from './validators';
 
 export interface InvoiceState {
@@ -185,9 +184,20 @@ export function buildInvoiceInput(state: InvoiceState, session: InteractiveSessi
 }
 
 /** Sin `voucherKind` pregunta el comprobante; "Emitir recibo" lo pasa ya elegido. */
-export async function runInvoiceFlow(session: InteractiveSession, voucherKind?: VoucherKindDefinition): Promise<void> {
+export async function runInvoiceFlow(
+  baseSession: InteractiveSession,
+  voucherKind?: VoucherKindDefinition,
+): Promise<void> {
+  // Antes del primer paso, tambien para la E: sin punto de venta no tiene sentido completar todo.
+  const ready = await requirePointOfSale(baseSession);
+
+  if (!ready) {
+    return;
+  }
+
+  const { session } = ready;
   const state = await runWizard(invoiceSteps(session), {
-    advanced: { currencyCode: DEFAULT_CURRENCY_CODE, sameCurrency: false },
+    advanced: initialAdvancedOptions(session.runtime.config),
     voucherKind,
   });
 

@@ -1,4 +1,5 @@
 import { formatArgentineAmountInput } from '../../lib/numbers/argentine-amount';
+import { quoteShellArgument as quote } from '../../lib/shell/shell-argument';
 import { DEFAULT_EXPORT_PAYMENT_TERMS } from '../export/export.mappers';
 import {
   DEFAULT_EXPORT_TYPE,
@@ -8,11 +9,6 @@ import {
   type ExportVoucherInput,
   isExportNote,
 } from '../export/export.types';
-
-/** Comillas solo cuando hacen falta, para que se pueda pegar en bash, zsh o fish. */
-function quote(value: string): string {
-  return /^[\w./:,-]+$/.test(value) ? value : `"${value.replace(/(["\\$`])/g, '\\$1')}"`;
-}
 
 /** Un `--item` en el formato del CLI: `codigo|descripcion|cantidad|precio|unidad`, sin las partes por defecto. */
 function itemArgument(item: ExportItemInput): string {
@@ -41,6 +37,9 @@ export function buildExportEquivalentCommand(
   const kind = input.voucherKind ?? EXPORT_VOUCHER_KIND;
   const parts = ['arcli', kind.shortcut, '-m', formatArgentineAmountInput(input.amount ?? 0)];
   const associated = input.associatedVoucher;
+
+  // Solo si se eligio en el asistente: sin el, el comando pegado usa el de la config.
+  if (input.pointOfSale !== undefined) parts.push('--pv', String(input.pointOfSale));
 
   if (isExportNote(kind) && associated?.number !== undefined) {
     parts.push('--ar', String(associated.number));

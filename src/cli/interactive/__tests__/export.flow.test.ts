@@ -134,7 +134,7 @@ describe('runExportFlow', () => {
       [/Fecha de pago/, ''],
       [/actividad/, '620100'],
       [/Agregamos algún opcional/, []],
-      [/Emitimos la factura de exportación E en testing/, 'Emitir ahora'],
+      [/Emitimos la factura de exportación E en testing/, 'Sí, emitir ahora'],
       [/Guardamos la actividad 620100/, 'Sí, guardar'],
     ]);
 
@@ -176,7 +176,7 @@ describe('runExportFlow', () => {
       [/Forma de pago/, 'Carta de crédito'],
       [/Fecha de pago/, '15/11/2026'],
       [/Agregamos algún opcional/, []],
-      [/Emitimos/, 'Cancelar'],
+      [/Emitimos/, 'No, dejar sin emitir'],
     ]);
 
     await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
@@ -221,7 +221,7 @@ describe('runExportFlow', () => {
       [/Observaciones comerciales/, ''],
       [/Descripción del incoterm FOB/, 'Free on board, Buenos Aires'],
       [/Cotización de USD/, '1.200,5'],
-      [/Emitimos/, 'Emitir ahora'],
+      [/Emitimos/, 'Sí, emitir ahora'],
     ]);
     vi.spyOn(gateway, 'getLanguages').mockResolvedValue([
       { id: 1, name: 'Español' },
@@ -275,7 +275,7 @@ describe('runExportFlow', () => {
       [/Forma de pago/, 'Transferencia Internacional'],
       [/Fecha de pago/, ''],
       [/Agregamos algún opcional/, []],
-      [/Emitimos/, 'Cancelar'],
+      [/Emitimos/, 'No, dejar sin emitir'],
     ]);
 
     await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));

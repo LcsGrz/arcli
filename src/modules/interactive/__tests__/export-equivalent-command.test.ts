@@ -48,4 +48,13 @@ describe('buildExportEquivalentCommand', () => {
 
     expect(command).toBe('arcli nce -m 100 --ar 3 --apv 4 --ac nde --item "Ajuste|1|100" --produccion --emitir');
   });
+
+  it('lleva --pv solo si el punto de venta se eligió en el asistente', () => {
+    const base = { amount: 100, emit: false } as const;
+
+    expect(buildExportEquivalentCommand({ ...base, pointOfSale: 7 }, { environment: 'testing' })).toBe(
+      'arcli fe -m 100 --pv 7 --testing --emitir',
+    );
+    expect(buildExportEquivalentCommand(base, { environment: 'testing' })).not.toContain('--pv');
+  });
 });
