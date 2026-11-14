@@ -24,7 +24,8 @@ export default defineConfig({
       logo: { alt: 'arcli', src: './src/assets/logo.svg' },
       sidebar: [
         { items: [{ autogenerate: { directory: 'empezar' } }], label: 'Empezar' },
-        { items: [{ autogenerate: { directory: 'guias' } }], label: 'Guías' },
+        { items: [{ autogenerate: { directory: 'comprobantes' } }], label: 'Comprobantes' },
+        { items: [{ autogenerate: { directory: 'mas' } }], label: 'Más' },
         { items: [{ autogenerate: { directory: 'referencia' } }], label: 'Referencia' },
         { items: [{ autogenerate: { directory: 'ayuda' } }], label: 'Ayuda' },
       ],

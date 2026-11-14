@@ -7,7 +7,9 @@
 
 Este archivo es una referencia densa para que un agente con acceso a shell pueda construir
 comandos `arcli` correctos sin tener que ir probando `--ayuda` a ciegas. Para el detalle
-completo de cada tema, ver los docs linkeados al final.
+completo de cada tema, ver los docs linkeados al final. **Toda la documentación junta, en un
+solo archivo de texto:** https://lcsgrz.github.io/arcli/llms-full.txt (cada página también está
+en Markdown, por ejemplo https://lcsgrz.github.io/arcli/referencia/comandos.md).
 
 ## Reglas para agentes
 
@@ -333,7 +335,8 @@ en uso), cada comando que va a ARCA avisa en stderr (nunca en stdout) y la factu
 
 ## Más detalle
 
-Los docs no vienen en el paquete de npm: están en GitHub.
+Los docs no vienen en el paquete de npm: están en GitHub y en https://lcsgrz.github.io/arcli/.
+Todo junto para leer de una vez: https://lcsgrz.github.io/arcli/llms-full.txt.
 
 - https://github.com/LcsGrz/arcli/blob/main/docs/cli-reference.md: referencia completa de comandos y flags.
 - https://github.com/LcsGrz/arcli/blob/main/docs/configuration.md: config persistente, claves soportadas, ticketPath.

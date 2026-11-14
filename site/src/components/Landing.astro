@@ -16,7 +16,7 @@ const steps = [
     title: 'Instalá arcli',
   },
   {
-    href: url('empezar/certificados/'),
+    href: url('empezar/certificado-testing/'),
     text: 'arcli arma el pedido; vos lo subís a ARCA con tu clave fiscal. La guía tiene cada pantalla.',
     title: 'Sacá el certificado',
   },
@@ -182,7 +182,7 @@ const withCode = (text: string) => text.replace(/`([^`]+)`/g, '<code>$1</code>')
         El asistente y los comandos validan y emiten exactamente igual. Cada paso del asistente te muestra el comando
         equivalente, así pasás de uno a otro cuando quieras.
       </p>
-      <a class="link" href={url('guias/patrones-de-uso/')}>Ver ejemplos de cada caso <Icon name="right-arrow" size="1rem" /></a>
+      <a class="link" href={url('comprobantes/monotributo/')}>Ver ejemplos de cada caso <Icon name="right-arrow" size="1rem" /></a>
     </div>
     <pre class="snippet"><code><span class="c"># Factura C a consumidor final, por servicios</span>
 <span class="p">$</span> arcli fc -m 15000 --cs --consumidor-final

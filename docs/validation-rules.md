@@ -4,7 +4,7 @@
 
 Resumen rápido:
 
-- primero ARCLI valida flags, tipos y combinaciones
+- primero arcli valida flags, tipos y combinaciones
 - después aplica reglas de negocio del comprobante
 - por último pueden aparecer restricciones o errores propios de ARCA
 
@@ -45,7 +45,7 @@ La idea de esta guía es separar esas tres capas para que sea más fácil entend
 
 ### Fechas aceptadas
 
-ARCLI interpreta las fechas en formato argentino (día primero), con mes y año opcionales:
+arcli interpreta las fechas en formato argentino (día primero), con mes y año opcionales:
 
 - `D` o `DD`
 - `D-MM` o `D/MM`
@@ -55,18 +55,18 @@ ARCLI interpreta las fechas en formato argentino (día primero), con mes y año 
 Reglas de interpretación:
 
 - "hoy" es siempre el día en Argentina, aunque el equipo esté en otra zona horaria (por ejemplo un servidor en UTC después de las 21 h)
-- si omitís el año, ARCLI usa el de la fecha más cercana a hoy: el 5/1/2027, `1/12` es el 1/12/2026; el 28/12/2026, `10/1` es el 10/1/2027. Para una fecha a más de seis meses, escribí el año
-- si omitís mes y año, ARCLI usa el mes y año actuales
+- si omitís el año, arcli usa el de la fecha más cercana a hoy: el 5/1/2027, `1/12` es el 1/12/2026; el 28/12/2026, `10/1` es el 10/1/2027. Para una fecha a más de seis meses, escribí el año
+- si omitís mes y año, arcli usa el mes y año actuales
 - un año de 2 dígitos se interpreta como `20YY`
 - no se pueden mezclar separadores dentro de la misma fecha (por ejemplo, `5-3/26` no es válido)
 
 Formatos como `YYYY-MM-DD` no son válidos.
 
-Si el formato no coincide, ARCLI corta antes de armar el payload.
+Si el formato no coincide, arcli corta antes de armar el payload.
 
 ### Emisión en producción
 
-ARCLI no tiene una regla aparte para producción: emite si `--emitir` lo pide o, sin `--emitir` ni `--previsualizar`, si lo pide `"emitir"` del JSON de `--cargar` o `config.emitir`. Con `entorno produccion` y `emitir true` en la config, un comando sin flags emite en producción sin preguntar. Si nada pide emitir, en una terminal se muestra la vista previa y se pregunta; con `--json` o sin terminal no se emite. Detalle en [Emisión en producción](cli-reference.md#emisión-en-producción).
+arcli no tiene una regla aparte para producción: emite si `--emitir` lo pide o, sin `--emitir` ni `--previsualizar`, si lo pide `"emitir"` del JSON de `--cargar` o `config.emitir`. Con `entorno produccion` y `emitir true` en la config, un comando sin flags emite en producción sin preguntar. Si nada pide emitir, en una terminal se muestra la vista previa y se pregunta; con `--json` o sin terminal no se emite. Detalle en [Emisión en producción](cli-reference.md#emisión-en-producción).
 
 ## 2. Reglas de negocio
 
@@ -101,7 +101,7 @@ ARCLI no tiene una regla aparte para producción: emite si `--emitir` lo pide o,
 
 ### Fecha del comprobante
 
-ARCA solo acepta una `CbteFch` cercana a la fecha de envío (errores 10016 y 10152). ARCLI lo valida antes de llamar al servicio:
+ARCA solo acepta una `CbteFch` cercana a la fecha de envío (errores 10016 y 10152). arcli lo valida antes de llamar al servicio:
 
 | Comprobante                       | Desde         | Hasta         | Fecha futura               |
 | --------------------------------- | ------------- | ------------- | -------------------------- |
@@ -118,16 +118,16 @@ ARCA además exige que la fecha no sea anterior a la del último comprobante emi
 Si usás consumidor final:
 
 - el documento debe ser `0`
-- el IVA receptor debe ser `consumidor-final`: con `--consumidor-final` (o `tipoDocumento: "consumidor-final"` en el JSON) ARCLI ya lo asume y no hace falta `--ir-cf`, aunque la config tenga otro `ivaReceptor`. Un IVA explícito distinto (`--ir-rm` con `--cfinal`) es error
+- el IVA receptor debe ser `consumidor-final`: con `--consumidor-final` (o `tipoDocumento: "consumidor-final"` en el JSON) arcli ya lo asume y no hace falta `--ir-cf`, aunque la config tenga otro `ivaReceptor`. Un IVA explícito distinto (`--ir-rm` con `--cfinal`) es error
 - el total en pesos tiene que ser menor a `$ 10.000.000`. Desde ese monto hay que identificarlo con `--dni`, `--cuit` o `--cuil` ([RG 5700/2025](https://www.consejosalta.org.ar/wp-content/uploads/ARCA-5700.pdf)). En moneda extranjera se compara `monto × cotización`.
 
 #### CUIT, CUIL y DNI
 
-- si el tipo de documento no es `consumidor-final`, ARCLI exige `numeroDocumento`
+- si el tipo de documento no es `consumidor-final`, arcli exige `numeroDocumento`
 
 ### IVA receptor
 
-ARCLI exige una única fuente de IVA receptor:
+arcli exige una única fuente de IVA receptor:
 
 - `--iva-receptor <tipo>`
 - `--ir <tipo>`
@@ -135,7 +135,7 @@ ARCLI exige una única fuente de IVA receptor:
 - `--consumidor-final`, que implica `consumidor-final`
 - o un default configurado
 
-Además, la condición tiene que ser válida para la letra del comprobante. ARCLI aplica la misma tabla que devuelve ARCA en `FEParamGetCondicionIvaReceptor` (error 10243):
+Además, la condición tiene que ser válida para la letra del comprobante. arcli aplica la misma tabla que devuelve ARCA en `FEParamGetCondicionIvaReceptor` (error 10243):
 
 | Letra | IVA receptor admitido                                                                                                                               |
 | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -160,7 +160,7 @@ No aplica a:
 - `factura-credito-electronica`
 - `recibo` (`rc`)
 
-Para notas, ARCLI acepta un comprobante asociado **o** un período asociado (`PeriodoAsoc`), pero no ambos (10197).
+Para notas, arcli acepta un comprobante asociado **o** un período asociado (`PeriodoAsoc`), pero no ambos (10197).
 
 Período asociado (`--periodo-desde` y `--periodo-hasta`):
 
@@ -187,7 +187,7 @@ Además:
 
 ### Crédito electrónico (FCE)
 
-ARCLI arma `Opcionales` (los "Adicionales por R.G.") según el comprobante:
+arcli arma `Opcionales` (los "Adicionales por R.G.") según el comprobante:
 
 | Comprobante                          | `Opcionales`                                                 | Reglas                                                                                                                                                                                                  |
 | ------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -197,7 +197,7 @@ ARCLI arma `Opcionales` (los "Adicionales por R.G.") según el comprobante:
 
 ### Régimen FCE del receptor
 
-Con `config.verificarFce` en `true`, ARCLI consulta `wsfecred` (`consultarMontoObligadoRecepcion`) antes de la vista previa. La consulta corre en facturas comunes y FCE con `--cuit` del receptor, usando la fecha del comprobante. Los avisos posibles son:
+Con `config.verificarFce` en `true`, arcli consulta `wsfecred` (`consultarMontoObligadoRecepcion`) antes de la vista previa. La consulta corre en facturas comunes y FCE con `--cuit` del receptor, usando la fecha del comprobante. Los avisos posibles son:
 
 | Comprobante            | Receptor                             | Aviso                               |
 | ---------------------- | ------------------------------------ | ----------------------------------- |
@@ -216,8 +216,8 @@ Los avisos aparecen en la salida de texto (panel "Avisos") y en el campo `avisos
 | Caso                                | `MonCotiz`          | `CanMisMonExt` | Regla                                                                                                                                                                                                                              |
 | ----------------------------------- | ------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Pesos                               | `1`                 | no se envía    | Una cotización distinta de `1` da error (ARCA 10039 y 10241). `--misma-moneda` da error.                                                                                                                                           |
-| Moneda extranjera, pago en pesos    | `--cm` o la oficial | `N`            | Sin `--cm`, ARCLI usa la oficial de ARCA y lo avisa. `--cm 1` da error. ARCA la acepta entre el 2% y el 400% de la oficial (10119).                                                                                                |
-| Moneda extranjera, `--misma-moneda` | la oficial de ARCA  | `S`            | ARCLI la consulta antes de la vista previa porque ARCA exige el valor exacto (10038). La fecha del comprobante tiene que ser la de hoy: la cotización de un día pasado no se puede consultar y la de uno futuro todavía no existe. |
+| Moneda extranjera, pago en pesos    | `--cm` o la oficial | `N`            | Sin `--cm`, arcli usa la oficial de ARCA y lo avisa. `--cm 1` da error. ARCA la acepta entre el 2% y el 400% de la oficial (10119).                                                                                                |
+| Moneda extranjera, `--misma-moneda` | la oficial de ARCA  | `S`            | arcli la consulta antes de la vista previa porque ARCA exige el valor exacto (10038). La fecha del comprobante tiene que ser la de hoy: la cotización de un día pasado no se puede consultar y la de uno futuro todavía no existe. |
 
 La clave `cotizacion` de la config (deprecada) se usa como default en moneda extranjera sin `--misma-moneda` ni `--cm`, con un aviso; si vale `1` o no está, se usa la oficial de ARCA.
 
@@ -237,7 +237,7 @@ WSFEX tiene su propio contrato: las reglas de concepto, fecha de servicio, IVA r
 | Bloques vacíos     | En la factura, `Cmps_asoc` y `Opcionales` no se envían: ARCA rechaza el bloque vacío (error 1820 el de `Cmps_asoc`)                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `--incoterm`       | Código de la tabla, sin importar mayúsculas. Si no pasás `--incoterms-desc`, la descripción sale de la tabla                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `--idioma`         | Código de la tabla; por defecto `1` (español)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| Permisos           | `--permiso` requiere `--permiso-existente` y `--permiso-existente` sin permisos es error. Se deduplican y solo aplican a `--tipo-expo 1`: en `2` (servicios) y `4` (otros) ARCA exige `Permiso_existente` vacío (error 1550), así que ARCLI manda el campo en `""` y rechaza los permisos. Sin permisos el campo `Permisos` no se envía: ARCA lo rechaza (error 1720) cuando `Permiso_existente` es `N`                                                                                                                                                                      |
+| Permisos           | `--permiso` requiere `--permiso-existente` y `--permiso-existente` sin permisos es error. Se deduplican y solo aplican a `--tipo-expo 1`: en `2` (servicios) y `4` (otros) ARCA exige `Permiso_existente` vacío (error 1550), así que arcli manda el campo en `""` y rechaza los permisos. Sin permisos el campo `Permisos` no se envía: ARCA lo rechaza (error 1720) cuando `Permiso_existente` es `N`                                                                                                                                                                      |
 | Numeración         | WSFEX numera por punto de venta y tipo: sin `--numero` sale del último de ese tipo más uno (`FEXGetLast_CMP`). `--numero`, `--id-solicitud` y `--punto-venta` son enteros positivos (máximo 99.999.999); sin `--id-solicitud` sale del último de WSFEX más uno                                                                                                                                                                                                                                                                                                               |
 | Fecha              | La del comprobante no puede ser futura; `--fecha-pago` por defecto es la del comprobante                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | Moneda             | Por defecto `DOL` (dólares); `--moneda` acepta `ARS`/`PES` y el resto de la tabla de monedas de WSFEX (`DOL`, `PES`, `060`…). La cotización que falta sale de `FEXGetPARAM_MON_CON_COTIZACION`, la cotización de aduana de WSFEX, pedida con la fecha del comprobante —por defecto hoy— en `yyyymmdd` (`Fecha_CTZ`). ARCA publica la del día una vez por día: hasta entonces se usa la última publicada y la vista previa avisa de qué día es. Para fijar otra, `--cotizacion-moneda`, que tiene que ser mayor a 1. En pesos la cotización es 1 y `--misma-moneda` no aplica |
@@ -260,7 +260,7 @@ WSFEX tiene su propio contrato: las reglas de concepto, fecha de servicio, IVA r
 
 ### IVA automático
 
-ARCLI calcula IVA automáticamente en todos los comprobantes letra `A` y `B`, sea cual sea el IVA receptor. Los letra `C` no informan IVA.
+arcli calcula IVA automáticamente en todos los comprobantes letra `A` y `B`, sea cual sea el IVA receptor. Los letra `C` no informan IVA.
 
 El total se reparte así (ARCA 10048):
 
@@ -304,4 +304,4 @@ El Recibo C (`rc`, tipo ARCA 15) usa las mismas validaciones y el mismo armado q
 
 ## 3. Restricciones y errores de ARCA
 
-Hay rechazos que ARCLI no puede anticipar: errores transitorios de WSAA (`coe.alreadyAuthenticated`, `Transacción Activa`), receptor igual al emisor, observaciones de padrón y fechas anteriores al último comprobante emitido. Ver [Troubleshooting](troubleshooting.md#arca) y [Limitaciones](limitations.md).
+Hay rechazos que arcli no puede anticipar: errores transitorios de WSAA (`coe.alreadyAuthenticated`, `Transacción Activa`), receptor igual al emisor, observaciones de padrón y fechas anteriores al último comprobante emitido. Ver [Troubleshooting](troubleshooting.md#arca) y [Limitaciones](limitations.md).

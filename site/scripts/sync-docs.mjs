@@ -19,7 +19,7 @@ export const BASE = '/arcli';
 const REPO = 'https://github.com/LcsGrz/arcli';
 
 /** Secciones generadas: se borran y se vuelven a escribir en cada corrida. */
-const GENERATED_SECTIONS = ['empezar', 'guias', 'referencia', 'ayuda'];
+const GENERATED_SECTIONS = ['empezar', 'comprobantes', 'mas', 'referencia', 'ayuda'];
 
 /**
  * Que pagina sale de cada archivo. `label` es el nombre corto del menu; sin el, el titulo del documento.
@@ -27,11 +27,20 @@ const GENERATED_SECTIONS = ['empezar', 'guias', 'referencia', 'ayuda'];
  */
 const PAGES = [
   { label: 'Instalar y configurar', slug: 'empezar/instalar', src: 'README.md', title: 'Instalar y configurar arcli' },
-  { label: 'Obtener el certificado', slug: 'empezar/certificados', src: 'docs/obtencion-certificados.md' },
+  { label: 'Certificado de testing', slug: 'empezar/certificado-testing', src: 'docs/certificado-testing.md' },
+  { label: 'Certificado de producción', slug: 'empezar/certificado-produccion', src: 'docs/certificado-produccion.md' },
+  { label: 'Cambiar de entorno', slug: 'empezar/entornos', src: 'docs/entornos.md' },
   { label: 'Modo interactivo', slug: 'empezar/modo-interactivo', src: 'docs/modo-interactivo.md' },
   { label: 'Cómo funciona', slug: 'empezar/como-funciona', src: 'docs/mental-model.md' },
-  { label: 'Patrones de uso', slug: 'guias/patrones-de-uso', src: 'docs/usage-patterns.md' },
-  { label: 'PDF de comprobantes', slug: 'guias/pdf', src: 'docs/pdf.md' },
+  { label: 'Monotributo (C)', slug: 'comprobantes/monotributo', src: 'docs/comprobantes-monotributo.md' },
+  { label: 'Responsable inscripto (A y B)', slug: 'comprobantes/responsable-inscripto', src: 'docs/comprobantes-responsable-inscripto.md' },
+  { label: 'Notas de crédito y débito', slug: 'comprobantes/notas', src: 'docs/notas-credito-debito.md' },
+  { label: 'Crédito electrónica (FCE)', slug: 'comprobantes/fce', src: 'docs/fce.md' },
+  { label: 'Exportación (E)', slug: 'comprobantes/exportacion', src: 'docs/exportacion.md' },
+  { label: 'Consultas sin emitir', slug: 'mas/consultas', src: 'docs/consultas.md' },
+  { label: 'PDF de comprobantes', slug: 'mas/pdf', src: 'docs/pdf.md' },
+  { label: 'Lotes y JSON', slug: 'mas/lotes-y-json', src: 'docs/lotes-y-json.md' },
+  { label: 'Automatizar con IA', slug: 'mas/automatizar-con-ia', src: 'docs/automatizar-con-ia.md' },
   { label: 'Comandos y flags', slug: 'referencia/comandos', src: 'docs/cli-reference.md' },
   { label: 'Configuración', slug: 'referencia/configuracion', src: 'docs/configuration.md' },
   { label: 'Entrada y salida (JSON)', slug: 'referencia/entrada-y-salida', src: 'docs/input-output.md' },
@@ -41,6 +50,18 @@ const PAGES = [
   { label: 'Problemas frecuentes', slug: 'ayuda/problemas-frecuentes', src: 'docs/troubleshooting.md' },
   { label: 'Novedades', slug: 'ayuda/novedades', src: 'CHANGELOG.md', title: 'Novedades de cada versión' },
 ];
+
+/**
+ * Archivos que quedaron como indice en docs/ (para no romper los links de GitHub que ya circulan, y los que imprimen
+ * las versiones publicadas del CLI): en el sitio, sus links van a la pagina que tiene el contenido.
+ */
+const ALIASES = {
+  'docs/obtencion-certificados.md': 'docs/certificado-testing.md',
+  'docs/usage-patterns.md': 'docs/comprobantes-monotributo.md',
+};
+
+/** Avisos de GitHub (`> [!TIP]`) a los de Starlight (`:::tip`): en GitHub se ven bien y en el sitio, con color. */
+const ALERT_KINDS = { CAUTION: 'danger', IMPORTANT: 'note', NOTE: 'note', TIP: 'tip', WARNING: 'caution' };
 
 /** Del README solo van las secciones para quien usa arcli; el resto (desarrollo, licencia...) queda en GitHub. */
 const README_FIRST_SECTION = '## Empezar sin saber de terminal';
@@ -87,7 +108,12 @@ function rewriteTarget(src, target, includedReadmeAnchors) {
     return `${REPO}/blob/main/README.md#${anchor}`;
   }
 
-  const page = bySource.get(resolved);
+  // El punto de venta quedo en la guia de produccion; el resto del indice de certificados, en la de testing.
+  const aliased =
+    resolved === 'docs/obtencion-certificados.md' && anchor === 'punto-de-venta-para-web-service'
+      ? 'docs/certificado-produccion.md'
+      : (ALIASES[resolved] ?? resolved);
+  const page = bySource.get(aliased);
 
   if (page) {
     return pageUrl(page, anchor);
@@ -177,9 +203,58 @@ function writeBrand() {
   writeFileSync(target, `${JSON.stringify({ banner, splitColumn: Number(split[1]), version }, null, 2)}\n`);
 }
 
+/** Escribe en `public/` (se sirve tal cual, en la raiz del sitio). */
+function writePublic(path, text) {
+  const target = join(siteDir, 'public', path);
+
+  mkdirSync(dirname(target), { recursive: true });
+  writeFileSync(target, text);
+}
+
+/**
+ * El CHANGELOG sigue Keep a Changelog (`## [2.4.0] - 2026-11-08`, lo leen herramientas); en el sitio las fechas van en
+ * formato argentino: `## 2.4.0 · 08/11/2026`.
+ */
+function argentineVersionDates(text) {
+  return text
+    .replace(/^## \[([^\]]+)\] - (\d{4})-(\d{2})-(\d{2})$/gm, '## $1 · $4/$3/$2')
+    .replace(/^## \[Sin publicar\]$/m, '## Sin publicar');
+}
+
+/** Convierte cada bloque `> [!TIPO]` en `:::tipo ... :::`, fuera de los bloques de codigo. */
+function githubAlertsToAsides(text) {
+  const lines = text.split('\n');
+  const out = [];
+  let inCode = false;
+
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index];
+
+    if (line.startsWith('```')) inCode = !inCode;
+
+    const alert = !inCode && line.match(/^> \[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*$/);
+
+    if (!alert) {
+      out.push(line);
+      continue;
+    }
+
+    out.push(`:::${ALERT_KINDS[alert[1]]}`);
+
+    while (index + 1 < lines.length && lines[index + 1].startsWith('>')) {
+      out.push(lines[++index].replace(/^> ?/, ''));
+    }
+
+    out.push(':::');
+  }
+
+  return out.join('\n');
+}
+
 function sync() {
   for (const section of GENERATED_SECTIONS) {
     rmSync(join(contentDir, section), { force: true, recursive: true });
+    rmSync(join(siteDir, 'public', section), { force: true, recursive: true });
   }
 
   const readme = readFileSync(join(repoDir, 'README.md'), 'utf8');
@@ -187,12 +262,20 @@ function sync() {
     readme.slice(readme.indexOf(README_FIRST_SECTION), readme.indexOf(README_END_SECTION)),
   );
 
+  const fullText = [];
+
   for (const page of PAGES) {
     const { body, title } = extractBody(page, readFileSync(join(repoDir, page.src), 'utf8'));
     const target = join(contentDir, `${page.slug}.md`);
 
     mkdirSync(dirname(target), { recursive: true });
-    writeFileSync(target, `${frontmatter(page, title)}\n${rewriteLinks(page.src, body, includedReadmeAnchors)}\n`);
+    const shown = page.src === 'CHANGELOG.md' ? argentineVersionDates(body) : body;
+    const content = rewriteLinks(page.src, githubAlertsToAsides(shown), includedReadmeAnchors);
+
+    writeFileSync(target, `${frontmatter(page, title)}\n${content}\n`);
+    fullText.push(`# ${title}\n\nFuente: ${REPO}/blob/main/${page.src}\n\n${body}\n`);
+    // Cada pagina tambien en Markdown, para asistentes de IA.
+    writePublic(`${page.slug}.md`, `# ${title}\n\n${body}\n`);
   }
 
   const assetsDir = join(siteDir, 'public/assets');
@@ -213,6 +296,13 @@ function sync() {
   cpSync(join(repoDir, 'docs/assets/imagenes/arcliIcon.svg'), join(siteDir, 'public/favicon.svg'));
 
   writeBrand();
+
+  // Para asistentes de IA: llms.txt (el resumen curado) y llms-full.txt (todo junto), en la raiz del sitio.
+  writePublic('llms.txt', readFileSync(join(repoDir, 'llms.txt'), 'utf8'));
+  writePublic(
+    'llms-full.txt',
+    `# arcli: documentación completa\n\nTodas las páginas de https://lcsgrz.github.io/arcli/ en un solo archivo. El resumen para agentes está en https://lcsgrz.github.io/arcli/llms.txt.\n\n${fullText.join('\n---\n\n')}`,
+  );
 
   console.log(`Sitio: ${PAGES.length} páginas generadas desde docs/.`);
 }

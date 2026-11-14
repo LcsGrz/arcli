@@ -2,17 +2,17 @@
 
 # Glosario
 
-Términos de facturación electrónica argentina que aparecen en la documentación de ARCLI. Pensado para alguien que nunca facturó por ARCA/AFIP y necesita una referencia rápida sin salir de los docs.
+Términos de facturación electrónica argentina que aparecen en la documentación de arcli. Pensado para alguien que nunca facturó por ARCA/AFIP y necesita una referencia rápida sin salir de los docs.
 
 ## Organismo y servicios
 
 ### Testing y producción
 
-Testing (homologación) es el ambiente de prueba de ARCA: podés emitir sin que cuente, y los comprobantes no tienen validez fiscal. Producción es el real: lo que emitís ahí vale y no se borra. ARCLI arranca en testing.
+Testing (homologación) es el ambiente de prueba de ARCA: podés emitir sin que cuente, y los comprobantes no tienen validez fiscal. Producción es el real: lo que emitís ahí vale y no se borra. arcli arranca en testing.
 
 ### ARCA / AFIP
 
-ARCA (Agencia de Recaudación y Control Aduanero) es el organismo que sucedió a AFIP como autoridad fiscal argentina. ARCLI habla con los web services de ARCA para autorizar comprobantes; en la documentación y en el código, "ARCA" y "AFIP" se usan como sinónimos del mismo organismo.
+ARCA (Agencia de Recaudación y Control Aduanero) es el organismo que sucedió a AFIP como autoridad fiscal argentina. arcli habla con los web services de ARCA para autorizar comprobantes; en la documentación y en el código, "ARCA" y "AFIP" se usan como sinónimos del mismo organismo.
 
 ### WSAA
 
@@ -20,7 +20,7 @@ Web Service de Autenticación y Autorización. Es el servicio de ARCA que entreg
 
 ### TA
 
-Ticket de Acceso. Credencial temporal que devuelve WSAA y que habilita a operar contra los servicios de facturación de ARCA por un tiempo limitado. Si ARCLI pide uno nuevo mientras el anterior sigue vigente, ARCA responde `coe.alreadyAuthenticated` (ver [Troubleshooting](troubleshooting.md)).
+Ticket de Acceso. Credencial temporal que devuelve WSAA y que habilita a operar contra los servicios de facturación de ARCA por un tiempo limitado. Si arcli pide uno nuevo mientras el anterior sigue vigente, ARCA responde `coe.alreadyAuthenticated` (ver [Troubleshooting](troubleshooting.md)).
 
 ### Padrón
 
@@ -28,7 +28,7 @@ Base de datos de ARCA con la situación fiscal de cada CUIT. Un comprobante pued
 
 ### wsfe / wsfex / wsfecred / ws_sr_constancia_inscripcion
 
-Servicios web de ARCA que usa ARCLI: `wsfe` emite las facturas, notas y recibos A, B y C; `wsfex`, la factura de exportación E; `wsfecred` consulta el régimen FCE del receptor; `ws_sr_constancia_inscripcion` es el padrón (`arcli padron` y el IVA receptor desde el padrón). Cada uno se autoriza aparte en ARCA. Ver [Qué servicios autorizar](obtencion-certificados.md#qué-servicios-autorizar).
+Servicios web de ARCA que usa arcli: `wsfe` emite las facturas, notas y recibos A, B y C; `wsfex`, la factura de exportación E; `wsfecred` consulta el régimen FCE del receptor; `ws_sr_constancia_inscripcion` es el padrón (`arcli padron` y el IVA receptor desde el padrón). Cada uno se autoriza aparte en ARCA. Ver [Qué servicios autorizar](certificado-testing.md#qué-servicios-autorizar).
 
 ### CSR y alias
 
@@ -46,7 +46,7 @@ Formas de identificar al receptor de un comprobante:
 
 ### Consumidor final
 
-Categoría de receptor sin documento identificable. ARCLI la representa con documento `0` e IVA receptor `consumidor-final`: `--consumidor-final` alcanza para las dos cosas.
+Categoría de receptor sin documento identificable. arcli la representa con documento `0` e IVA receptor `consumidor-final`: `--consumidor-final` alcanza para las dos cosas.
 
 ### Condición IVA (IVA receptor)
 
@@ -70,7 +70,7 @@ Ejemplos en [Las fechas de un comprobante](cli-reference.md#las-fechas-de-un-com
 
 ### Comprobante asociado / `CbtesAsoc`
 
-El comprobante original que una nota de crédito o débito ajusta o anula. `CbtesAsoc` es el nombre del campo tal cual lo espera ARCA dentro del payload; en ARCLI se arma con `--ac`/`--at`, `--apv`, `--ar` y `--acuit`. En notas comunes, la alternativa es el período asociado (`PeriodoAsoc`), que se arma con `--periodo-desde` y `--periodo-hasta`.
+El comprobante original que una nota de crédito o débito ajusta o anula. `CbtesAsoc` es el nombre del campo tal cual lo espera ARCA dentro del payload; en arcli se arma con `--ac`/`--at`, `--apv`, `--ar` y `--acuit`. En notas comunes, la alternativa es el período asociado (`PeriodoAsoc`), que se arma con `--periodo-desde` y `--periodo-hasta`.
 
 ### `DocTipo` / `DocNro`
 
@@ -78,7 +78,7 @@ Campos del payload de ARCA para la identidad del receptor: `DocTipo` indica el t
 
 ### `CbteTipo` / tipo ARCA
 
-Código numérico con el que ARCA identifica cada tipo de comprobante (Factura A, Nota de crédito B, etc). En ARCLI aparece como `tipoArca` en la salida `--json` y es lo que distingue, por ejemplo, una factura común de su versión de crédito electrónica aunque compartan la misma letra.
+Código numérico con el que ARCA identifica cada tipo de comprobante (Factura A, Nota de crédito B, etc). En arcli aparece como `tipoArca` en la salida `--json` y es lo que distingue, por ejemplo, una factura común de su versión de crédito electrónica aunque compartan la misma letra.
 
 ### Factura de crédito electrónica (FCE)
 
@@ -100,11 +100,11 @@ Código de Autorización Electrónico. El número que ARCA devuelve al aprobar u
 
 ### Alícuota
 
-El porcentaje de IVA aplicado. ARCLI calcula el IVA automáticamente en las letras `A` y `B`, con `21%` por defecto; se cambia con `--alicuota` o `config.alicuota` (ver [IVA automático](validation-rules.md#iva-automático)).
+El porcentaje de IVA aplicado. arcli calcula el IVA automáticamente en las letras `A` y `B`, con `21%` por defecto; se cambia con `--alicuota` o `config.alicuota` (ver [IVA automático](validation-rules.md#iva-automático)).
 
 ### Estado vs. resultado
 
 - `resultado` es el valor crudo que devuelve ARCA (por ejemplo `A` de aprobado o `R` de rechazado).
-- `estado` es la normalización que hace ARCLI (`aprobado`, `observado`, `rechazado`), distinguiendo si hubo observaciones aunque ARCA haya aprobado.
+- `estado` es la normalización que hace arcli (`aprobado`, `observado`, `rechazado`), distinguiendo si hubo observaciones aunque ARCA haya aprobado.
 
 Ver el detalle completo en [Entrada y salida](input-output.md#estado-vs-resultado).

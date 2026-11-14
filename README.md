@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/LcsGrz/arcli/main/docs/assets/imagenes/arcliChip.png" alt="ARCLI" width="560">
+  <img src="https://raw.githubusercontent.com/LcsGrz/arcli/main/docs/assets/imagenes/arcliChip.png" alt="arcli" width="560">
 </p>
 
 <p align="center">
@@ -18,8 +18,8 @@ Si usás un asistente de IA que puede manejar tu computadora (Claude, ChatGPT, G
 
 1. Instalá Node.js 22.22.1 o superior desde [nodejs.org](https://nodejs.org/es/download) (la versión LTS).
 2. Abrí la terminal (en Mac: Cmd+Espacio y escribí "Terminal"; en Windows: menú Inicio y escribí "PowerShell") y pegá `npm install -g arcli`.
-3. Pegá `arcli acceso-directo`: deja un ícono de ARCLI en el escritorio.
-4. Abrí ARCLI con doble clic en el ícono y seguí la configuración guiada. Desde ahí sacás el certificado de ARCA y emitís tu primera factura de prueba en testing, sin validez fiscal.
+3. Pegá `arcli acceso-directo`: deja un ícono de arcli en el escritorio.
+4. Abrí arcli con doble clic en el ícono y seguí la configuración guiada. Desde ahí sacás el certificado de ARCA y emitís tu primera factura de prueba en testing, sin validez fiscal.
 
 Más adelante va a haber un instalador que no necesita Node.
 
@@ -69,11 +69,11 @@ Instalá o actualizá arcli en esta computadora. Es un programa para emitir fact
 Si podés ejecutar comandos, hacelo vos; si no, guiame paso a paso, como a alguien que nunca usó la terminal. No toques certificados, claves ni la configuración de arcli, y no emitas comprobantes.
 ```
 
-Después abrí ARCLI con doble clic en el ícono y seguí la configuración guiada.
+Después abrí arcli con doble clic en el ícono y seguí la configuración guiada.
 
 Opcional: autocompletado con Tab de comandos, flags y valores, en bash, zsh o fish. Se instala con `arcli completado instalar` y se saca con `arcli completado desinstalar` ([detalle](docs/cli-reference.md#autocompletado)).
 
-Opcional: un ícono para abrir ARCLI con doble clic, con `arcli acceso-directo` ([detalle](docs/cli-reference.md#acceso-directo)).
+Opcional: un ícono para abrir arcli con doble clic, con `arcli acceso-directo` ([detalle](docs/cli-reference.md#acceso-directo)).
 
 ## Configuración
 
@@ -117,9 +117,9 @@ Por defecto se usa el entorno `testing`, con `cert.testing` y `key.testing`. Par
 
 ## Documentación
 
-El índice completo está en [docs/](https://github.com/LcsGrz/arcli/blob/main/docs/README.md). Lo principal:
+Está en el [sitio de documentación](https://lcsgrz.github.io/arcli/), con buscador, y el índice completo en [docs/](https://github.com/LcsGrz/arcli/blob/main/docs/README.md). Lo principal:
 
-- [Modo interactivo](https://github.com/LcsGrz/arcli/blob/main/docs/modo-interactivo.md) y [Patrones de uso](https://github.com/LcsGrz/arcli/blob/main/docs/usage-patterns.md)
+- [Modo interactivo](https://github.com/LcsGrz/arcli/blob/main/docs/modo-interactivo.md) y los [comprobantes por perfil](https://github.com/LcsGrz/arcli/blob/main/docs/README.md#comprobantes)
 - [Referencia del CLI](https://github.com/LcsGrz/arcli/blob/main/docs/cli-reference.md) y [Configuración](https://github.com/LcsGrz/arcli/blob/main/docs/configuration.md)
 - [Entrada y salida](https://github.com/LcsGrz/arcli/blob/main/docs/input-output.md): formato del JSON
 - [PDF de comprobantes](https://github.com/LcsGrz/arcli/blob/main/docs/pdf.md)
@@ -149,7 +149,7 @@ Antes de preguntar, puede que ya esté en [Troubleshooting](https://github.com/L
 
 ## Estabilidad
 
-ARCLI usa [versionado semántico](https://semver.org/lang/es/). Son contrato público, y solo cambian de forma incompatible en una versión mayor y avisándolo en el [CHANGELOG](https://github.com/LcsGrz/arcli/blob/main/CHANGELOG.md):
+arcli usa [versionado semántico](https://semver.org/lang/es/). Son contrato público, y solo cambian de forma incompatible en una versión mayor y avisándolo en el [CHANGELOG](https://github.com/LcsGrz/arcli/blob/main/CHANGELOG.md):
 
 - los comandos y sus flags,
 - las claves de configuración,
