@@ -1,6 +1,7 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { DEFAULT_IVA_RATE } from '../../modules/billing/billing.amounts';
 import { creditNoteOverTotalHint } from '../../modules/billing/billing.associated-lookup';
+import { DEFAULT_CURRENCY_CODE } from '../../modules/billing/billing.constants';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
 import { formatVoucherLabel, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import {
@@ -26,13 +27,19 @@ import { type IssuedVoucher, resolveDocumentType } from '../../modules/vouchers/
 import { formatVoucherNumber } from '../../modules/vouchers/voucher-history.presenter';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 
+import { type AdvancedOptionKey, type AdvancedOptions, askAdvancedOptions } from './advanced-options';
 import { runExportNoteFlow } from './export-note.flow';
 import { pickInvoice } from './invoice-picker';
 import { markIfNew } from './new-mark';
 import { askTextStep, chooseStep } from './prompts';
-import { askReceiverIvaCondition, type ReceiverFromPadron, receiverInputFields } from './receiver-padron';
+import {
+  askDocumentNumber,
+  askReceiverIvaCondition,
+  type ReceiverFromPadron,
+  receiverInputFields,
+} from './receiver-padron';
 import { type InteractiveSession, previewAndEmit, requirePointOfSale } from './session';
-import { normalizeDocumentNumber, validateAmount, validateCuit, validateDate, validateDni } from './validators';
+import { normalizeDocumentNumber, validateAmount, validateDate } from './validators';
 
 const CONCEPTS_BY_CODE: Record<number, BillingConcept> = {
   1: 'productos',
@@ -43,6 +50,8 @@ const CONCEPTS_BY_CODE: Record<number, BillingConcept> = {
 export type NoteKind = 'credito' | 'debito';
 
 export interface NoteState {
+  /** Fecha, fechas de servicio y vencimiento; en las de periodo, la moneda, y en las parciales, exento y no gravado. */
+  readonly advanced?: AdvancedOptions;
   readonly cancellation?: boolean;
   readonly concept?: BillingConcept;
   readonly documentNumber?: number;
@@ -76,6 +85,21 @@ function describeInvoice(state: NoteState, invoice: IssuedVoucher): string {
   return state.invoicePointOfSale === undefined
     ? name
     : `${name} ${formatVoucherNumber(state.invoicePointOfSale, invoice.number)}`;
+}
+
+const DEFAULT_NOTE_ADVANCED: AdvancedOptions = { currencyCode: DEFAULT_CURRENCY_CODE, sameCurrency: false };
+
+/**
+ * Opcionales que la nota no ofrece: la alicuota tiene su paso, la moneda es la de la factura (solo se elige en las de
+ * periodo) y, si anula el total, exento y no gravado se copian de la factura.
+ */
+function hiddenNoteOptions(state: NoteState): AdvancedOptionKey[] {
+  return [
+    'alicuota',
+    'transferencia',
+    ...(isPeriod(state) ? [] : (['divisas'] as const)),
+    ...(state.annulsTotal ? (['exento'] as const) : []),
+  ];
 }
 
 async function askNoteAmount(
@@ -248,10 +272,7 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
     {
       name: 'documento',
       run: async (state) => {
-        const isCuit = state.documentType === 'cuit';
-        const answer = await askTextStep(isCuit ? 'CUIT del receptor:' : 'DNI del receptor:', {
-          validate: isCuit ? validateCuit : validateDni,
-        });
+        const answer = await askDocumentNumber(state.documentType);
 
         return answer === BACK ? BACK : { documentNumber: normalizeDocumentNumber(answer) };
       },
@@ -307,6 +328,20 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
       },
       skip: (state) => !state.invoiceKind?.isElectronicCredit,
     },
+    {
+      name: 'avanzadas',
+      run: async (state) => {
+        const invoiceKind = requireStepValue(state.invoiceKind, 'invoiceKind');
+        const advanced = await askAdvancedOptions(state.advanced ?? DEFAULT_NOTE_ADVANCED, {
+          concept: state.concept ?? 'servicios',
+          defaultIvaRate: state.ivaRate ?? DEFAULT_IVA_RATE,
+          hidden: hiddenNoteOptions(state),
+          voucherKind: noteKindChoices(state.kind ?? 'credito', invoiceKind),
+        });
+
+        return advanced === BACK ? BACK : { advanced };
+      },
+    },
   ];
 
   // La nota E tiene su propio asistente: despues del selector, ningun paso de A, B y C aplica.
@@ -326,8 +361,14 @@ export function buildNoteInput(
   const invoice = state.invoice;
   // Una nota va en la moneda de su factura; si la anula entera, tambien copia exento y no gravado.
   const copy = !isPeriod(state) && invoice ? copyInvoiceAmounts(invoice, invoiceKind.letter) : undefined;
+  const advanced = state.advanced ?? DEFAULT_NOTE_ADVANCED;
+  // La de periodo no tiene factura de donde copiar la moneda: va la elegida en los opcionales.
+  const currency = isPeriod(state)
+    ? { currencyCode: advanced.currencyCode, exchangeRate: advanced.exchangeRate, sameCurrency: advanced.sameCurrency }
+    : { currencyCode: copy?.currencyCode, exchangeRate: copy?.exchangeRate };
 
   return billingCommandSchema.parse({
+    ...currency,
     associatedPeriod: isPeriod(state) ? { desde: state.periodFrom, hasta: state.periodTo } : undefined,
     associatedVoucher:
       !isPeriod(state) && invoice
@@ -339,20 +380,22 @@ export function buildNoteInput(
             shortcut: invoiceKind.shortcut,
           }
         : undefined,
+    billingDate: advanced.billingDate,
     cancellation: state.cancellation ?? false,
     concept: state.concept,
-    currencyCode: copy?.currencyCode,
     documentNumber: state.documentType === 'consumidor-final' ? undefined : state.documentNumber,
     documentType: state.documentType,
-    exchangeRate: copy?.exchangeRate,
-    exemptAmount: state.annulsTotal ? copy?.exemptAmount : undefined,
+    exemptAmount: state.annulsTotal ? copy?.exemptAmount : advanced.exemptAmount,
     ivaCondition: state.ivaCondition,
     ...receiverInputFields(state),
     ivaRate:
       state.ivaRate === DEFAULT_IVA_RATE && !session.runtime.config.alicuotaPorDefecto ? undefined : state.ivaRate,
     shortcut: noteKind.shortcut,
+    paymentDueDate: advanced.paymentDueDate,
+    serviceEndDate: advanced.serviceEndDate,
+    serviceStartDate: advanced.serviceStartDate,
     totalAmount: state.totalAmount,
-    untaxedAmount: state.annulsTotal ? copy?.untaxedAmount : undefined,
+    untaxedAmount: state.annulsTotal ? copy?.untaxedAmount : advanced.untaxedAmount,
   });
 }
 
@@ -363,7 +406,7 @@ export async function runNoteFlow(session: InteractiveSession, kind: NoteKind): 
     return;
   }
 
-  const state = await runWizard(noteSteps(session, pointOfSale), { kind });
+  const state = await runWizard(noteSteps(session, pointOfSale), { advanced: DEFAULT_NOTE_ADVANCED, kind });
 
   if (!state || state.exported) {
     return;

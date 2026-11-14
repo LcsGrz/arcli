@@ -1,6 +1,14 @@
-import { ARGENTINE_DATE_FORMAT_HINT, parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
+import {
+  ARGENTINE_DATE_FORMAT_HINT,
+  formatDateAsArcaDate,
+  parseArgentineDateInputAsArcaDate,
+} from '../../lib/dates/arca-date';
+import { InputValidationError } from '../../lib/errors/app-error';
 import { parseCuit } from '../../lib/identity/cuit';
 import { EXCHANGE_RATE_DECIMALS, parseArgentineAmount } from '../../lib/numbers/argentine-amount';
+import type { BillingConcept } from '../../modules/billing/billing.schemas';
+import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
+import { validateBillingDateWindow } from '../../modules/billing/billing.validation';
 
 export function validateAmount(value: string): string | true {
   const result = parseArgentineAmount(value);
@@ -12,6 +20,12 @@ export function validateCuit(value: string): string | true {
   const result = parseCuit(value);
 
   return result.ok ? true : `El CUIT ${result.reason}.`;
+}
+
+export function validateCuil(value: string): string | true {
+  const result = parseCuit(value);
+
+  return result.ok ? true : `El CUIL ${result.reason}.`;
 }
 
 export function validateDni(value: string): string | true {
@@ -33,6 +47,37 @@ export function validateDate(value: string): string | true {
     return true;
   } catch {
     return `Fecha inválida. ${ARGENTINE_DATE_FORMAT_HINT}`;
+  }
+}
+
+/** Fecha del comprobante: la misma ventana que el CLI (`--fecha`), que depende del concepto y del comprobante. */
+export function validateBillingDate(
+  value: string,
+  concept: BillingConcept,
+  voucherKind: VoucherKindDefinition,
+  now = new Date(),
+): string | true {
+  const valid = validateDate(value);
+
+  if (valid !== true) {
+    return valid;
+  }
+
+  try {
+    validateBillingDateWindow(
+      parseArgentineDateInputAsArcaDate(value, now),
+      formatDateAsArcaDate(now),
+      concept,
+      voucherKind,
+    );
+
+    return true;
+  } catch (error) {
+    if (error instanceof InputValidationError) {
+      return error.message;
+    }
+
+    throw error;
   }
 }
 

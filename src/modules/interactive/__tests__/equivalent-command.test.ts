@@ -100,4 +100,30 @@ describe('buildEquivalentCommand', () => {
 
     expect({ ...reparsed, dryRun: false }).toEqual({ ...original, dryRun: false });
   });
+
+  it('incluye fecha, CUIL, otra moneda y las fechas y montos opcionales de una nota, y el parser los lee igual', () => {
+    const original = input({
+      associatedPeriod: { desde: '1/10', hasta: '31/10' },
+      billingDate: '31/10',
+      cancellation: false,
+      currencyCode: 'EUR',
+      documentNumber: 20333333334,
+      documentType: 'cuil',
+      emit: true,
+      exemptAmount: 50,
+      ivaCondition: 'consumidor-final',
+      paymentDueDate: '15/11',
+      sameCurrency: true,
+      serviceEndDate: '31/10',
+      serviceStartDate: '1/10',
+      shortcut: 'ncb',
+      totalAmount: 1210,
+    });
+    const command = buildEquivalentCommand(original, { environment: 'testing' });
+
+    expect(command).toBe(
+      'arcli ncb -m 1210 --cs --cuil 20333333334 --ir consumidor-final -f 31/10 --moneda EUR --misma-moneda --exento 50 --sd 1/10 --sh 31/10 --vto 15/11 --pd 1/10 --ph 31/10 --testing --emitir',
+    );
+    expect({ ...parseCommand(command, 'ncb'), dryRun: false }).toEqual({ ...original, dryRun: false });
+  });
 });
