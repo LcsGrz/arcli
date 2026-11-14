@@ -36,14 +36,14 @@ vi.mock('../../../modules/config/config.service', () => ({
     public ensureInitialized() {}
     public getConfig() {
       return {
-        cert: { testing: store['cert.testing'] },
+        cert: { produccion: store['cert.produccion'], testing: store['cert.testing'] },
         conceptoPorDefecto: store.concepto,
         condicionVenta: store.condicionVenta,
         cuit: store.cuit,
         emisor: { razonSocial: store['emisor.razonSocial'] },
-        entornoPorDefecto: 'testing',
+        entornoPorDefecto: store.entorno ?? 'testing',
         ivaReceptorPorDefecto: store.ivaReceptor,
-        key: { testing: store['key.testing'] },
+        key: { produccion: store['key.produccion'], testing: store['key.testing'] },
         output: {},
         puntoVentaPorDefecto: store.puntoVenta ? Number(store.puntoVenta) : undefined,
       };
@@ -151,6 +151,52 @@ describe('runGuidedSetup', () => {
     expect(runGenerateCertificate).toHaveBeenCalledWith('testing');
     expect(askTextMock).toHaveBeenCalledTimes(2);
     expect(store).toMatchObject({ 'key.testing': '/arcli/certificados/testing.key', puntoVenta: '3' });
+  });
+
+  it('con entorno produccion pide el certificado de produccion', async () => {
+    store.entorno = 'produccion';
+    askTextMock
+      .mockResolvedValueOnce('20123456786')
+      .mockResolvedValueOnce('/certs/produccion.crt')
+      .mockResolvedValueOnce('/certs/produccion.key')
+      .mockResolvedValueOnce('3');
+    chooseStepMock
+      .mockResolvedValueOnce('tengo')
+      .mockResolvedValueOnce('servicios')
+      .mockResolvedValueOnce('consumidor-final');
+    vi.mocked(confirm).mockResolvedValueOnce(false);
+
+    await runGuidedSetup();
+
+    expect(chooseStepMock).toHaveBeenNthCalledWith(
+      1,
+      '¿Ya tenés el certificado de producción de ARCA?',
+      expect.anything(),
+    );
+    expect(store).toMatchObject({
+      'cert.produccion': '/certs/produccion.crt',
+      'key.produccion': '/certs/produccion.key',
+    });
+    expect(store['cert.testing']).toBeUndefined();
+    expect(
+      stripAnsi(
+        vi
+          .mocked(process.stdout.write)
+          .mock.calls.map(([chunk]) => String(chunk))
+          .join(''),
+      ),
+    ).toContain('Ya podés emitir en producción');
+  });
+
+  it('respeta --produccion de `arcli interactivo` aunque la config diga testing', async () => {
+    vi.mocked(runGenerateCertificate).mockResolvedValueOnce(BACK);
+    // Volver desde el certificado vuelve al CUIT, y Esc ahi cancela la guiada.
+    askTextMock.mockResolvedValueOnce('20123456786').mockResolvedValueOnce(BACK);
+    chooseStepMock.mockResolvedValueOnce('sacar');
+
+    await runGuidedSetup({ produccion: true });
+
+    expect(runGenerateCertificate).toHaveBeenCalledWith('produccion');
   });
 
   it('valida con las mismas reglas que config establecer y no deja vacio lo obligatorio', async () => {

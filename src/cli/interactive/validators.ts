@@ -6,6 +6,7 @@ import {
 import { InputValidationError } from '../../lib/errors/app-error';
 import { parseCuit } from '../../lib/identity/cuit';
 import { EXCHANGE_RATE_DECIMALS, parseArgentineAmount } from '../../lib/numbers/argentine-amount';
+import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import type { BillingConcept } from '../../modules/billing/billing.schemas';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { validateBillingDateWindow } from '../../modules/billing/billing.validation';
@@ -34,6 +35,13 @@ export function validateDni(value: string): string | true {
 
 export function validateCbu(value: string): string | true {
   return /^\d{22}$/.test(value) ? true : 'El CBU tiene 22 dígitos.';
+}
+
+/** Como `--alias`: vacio vale (no se informa); si no, de 6 a 20 letras, números, puntos o guiones. */
+export function validateOptionalCbuAlias(value: string): string | true {
+  return !value.trim() || /^[A-Za-z0-9.-]{6,20}$/.test(value.trim())
+    ? true
+    : 'El alias tiene entre 6 y 20 letras, números, puntos o guiones.';
 }
 
 export function normalizeDocumentNumber(value: string): number {
@@ -79,6 +87,12 @@ export function validateBillingDate(
 
     throw error;
   }
+}
+
+export function validatePointOfSale(value: string): string | true {
+  const number = parseStrictInteger(value);
+
+  return number !== undefined && number >= 1 ? true : 'El punto de venta tiene que ser un número entero positivo.';
 }
 
 /** Monto opcional: vacio es "no", si no tiene que ser un monto valido. */

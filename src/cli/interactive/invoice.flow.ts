@@ -1,7 +1,7 @@
 import { DEFAULT_IVA_RATE } from '../../modules/billing/billing.amounts';
-import { DEFAULT_CURRENCY_CODE } from '../../modules/billing/billing.constants';
 import { type BillingCommandInput, billingCommandSchema } from '../../modules/billing/billing.schemas';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
+import type { ArcliConfig } from '../../modules/config/config.schemas';
 import { EXPORT_VOUCHER_KIND, type ExportVoucherKind } from '../../modules/export/export.types';
 import { parseAmountInput } from '../../modules/interactive/amount-input';
 import {
@@ -10,9 +10,9 @@ import {
   invoiceKindChoices,
   receiverChoices,
 } from '../../modules/interactive/choices';
-import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
+import { BACK, type Back, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 
-import { type AdvancedOptions, askAdvancedOptions } from './advanced-options';
+import { type AdvancedOptions, askAdvancedOptions, initialAdvancedOptions } from './advanced-options';
 import { runExportFlow } from './export.flow';
 import { markIfNew } from './new-mark';
 import { askTextStep, chooseStep } from './prompts';
@@ -23,12 +23,14 @@ import {
   receiverInputFields,
 } from './receiver-padron';
 import { offerSavingToConfig } from './save-to-config';
-import { type InteractiveSession, previewAndEmit } from './session';
-import { normalizeDocumentNumber, validateAmount, validateCbu } from './validators';
+import { type InteractiveSession, previewAndEmit, requirePointOfSale } from './session';
+import { normalizeDocumentNumber, validateAmount, validateCbu, validateOptionalCbuAlias } from './validators';
 
 export interface InvoiceState {
   readonly advanced: AdvancedOptions;
   readonly cbu?: string;
+  /** Alias del CBU escrito a mano junto con el CBU; sin el, va el de la config. */
+  readonly cbuAlias?: string;
   readonly concept?: BillingCommandInput['concept'];
   readonly documentNumber?: number;
   readonly documentType?: BillingCommandInput['documentType'];
@@ -129,11 +131,7 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
     },
     {
       name: 'cbu',
-      run: async () => {
-        const cbu = await askTextStep('CBU del emisor (22 dígitos):', { validate: validateCbu });
-
-        return cbu === BACK ? BACK : { cbu };
-      },
+      run: () => askCbuStep(config),
       skip: (state) => !isFceInvoice(state) || Boolean(config.cbu),
     },
     {
@@ -170,7 +168,7 @@ export function buildInvoiceInput(state: InvoiceState, session: InteractiveSessi
     ...state.advanced,
     cbu: isFceInvoice(state) ? (state.cbu ?? config.cbu) : undefined,
     // Como en el CLI: en una FCE el alias de la config se informa junto con el CBU.
-    cbuAlias: isFceInvoice(state) ? config.aliasCbu : undefined,
+    cbuAlias: isFceInvoice(state) ? (state.cbuAlias ?? config.aliasCbu) : undefined,
     concept: state.concept,
     documentNumber: state.documentNumber,
     documentType: state.documentType,
@@ -185,19 +183,58 @@ export function buildInvoiceInput(state: InvoiceState, session: InteractiveSessi
   });
 }
 
-/** Si el CBU de la FCE se escribio a mano (no habia en la config), ofrece guardarlo, como la actividad de la E. */
+/**
+ * El CBU de la FCE cuando la config no tiene uno y, si tampoco tiene alias, el alias (Enter lo omite, como sin
+ * `--alias`). Lo comparten "Emitir factura" y "Repetir".
+ */
+export async function askCbuStep(
+  config: Pick<ArcliConfig, 'aliasCbu'>,
+): Promise<Back | Pick<InvoiceState, 'cbu' | 'cbuAlias'>> {
+  const cbu = await askTextStep('CBU del emisor (22 dígitos):', { validate: validateCbu });
+
+  if (cbu === BACK || config.aliasCbu) {
+    return cbu === BACK ? BACK : { cbu, cbuAlias: undefined };
+  }
+
+  const alias = await askTextStep('Alias del CBU (Enter para omitir):', { validate: validateOptionalCbuAlias });
+
+  return alias === BACK ? BACK : { cbu, cbuAlias: alias.trim() || undefined };
+}
+
+/**
+ * Si el CBU de la FCE se escribio a mano (no habia en la config), ofrece guardarlo, con el alias si se escribio, como
+ * la actividad de la E.
+ */
 export async function offerSavingCbu(session: InteractiveSession, state: InvoiceState): Promise<void> {
-  if (!state.cbu || session.runtime.config.cbu || !isFceInvoice(state)) {
+  const { cbu, cbuAlias } = state;
+
+  if (!cbu || session.runtime.config.cbu || !isFceInvoice(state)) {
     return;
   }
 
-  await offerSavingToConfig('¿Guardamos el CBU en la config para la próxima?', 'cbu', state.cbu);
+  await offerSavingToConfig(
+    cbuAlias
+      ? `¿Guardamos el CBU y el alias ${cbuAlias} en la config para la próxima?`
+      : '¿Guardamos el CBU en la config para la próxima?',
+    [['cbu', cbu], ...(cbuAlias ? [['aliasCbu', cbuAlias] as const] : [])],
+  );
 }
 
 /** Sin `voucherKind` pregunta el comprobante; "Emitir recibo" lo pasa ya elegido. */
-export async function runInvoiceFlow(session: InteractiveSession, voucherKind?: VoucherKindDefinition): Promise<void> {
+export async function runInvoiceFlow(
+  baseSession: InteractiveSession,
+  voucherKind?: VoucherKindDefinition,
+): Promise<void> {
+  // Antes del primer paso, tambien para la E: sin punto de venta no tiene sentido completar todo.
+  const ready = await requirePointOfSale(baseSession);
+
+  if (!ready) {
+    return;
+  }
+
+  const { session } = ready;
   const state = await runWizard(invoiceSteps(session), {
-    advanced: { currencyCode: DEFAULT_CURRENCY_CODE, sameCurrency: false },
+    advanced: initialAdvancedOptions(session.runtime.config),
     voucherKind,
   });
 

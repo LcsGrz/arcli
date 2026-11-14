@@ -16,13 +16,13 @@ import { noticePanel, writeTerminalOutput } from '../../ui';
 
 import { askAdvancedOptions, askExchangeRate } from './advanced-options';
 import { runExportRepeatFlow } from './export-repeat.flow';
-import { buildInvoiceInput, type InvoiceState, offerSavingCbu } from './invoice.flow';
+import { askCbuStep, buildInvoiceInput, type InvoiceState, offerSavingCbu } from './invoice.flow';
 import { pickInvoice } from './invoice-picker';
 import { markIfNew } from './new-mark';
 import { askTextStep, chooseStep } from './prompts';
 import { askReceiverIvaCondition } from './receiver-padron';
 import { type InteractiveSession, previewAndEmit, requirePointOfSale } from './session';
-import { validateAmount, validateCbu, validateDate } from './validators';
+import { validateAmount, validateDate } from './validators';
 
 const CONCEPTS_BY_CODE: Record<number, BillingConcept> = {
   1: 'productos',
@@ -225,11 +225,7 @@ export function repeatSteps(
     },
     {
       name: 'cbu',
-      run: async () => {
-        const cbu = await askTextStep('CBU del emisor (22 dígitos):', { validate: validateCbu });
-
-        return cbu === BACK ? BACK : { cbu };
-      },
+      run: () => askCbuStep(config),
       skip: (state) => state.voucherKind?.family !== 'factura-credito-electronica' || Boolean(config.cbu),
     },
     {
@@ -259,12 +255,14 @@ export function repeatSteps(
   ];
 }
 
-export async function runRepeatFlow(session: InteractiveSession): Promise<void> {
-  const pointOfSale = requirePointOfSale(session);
+export async function runRepeatFlow(baseSession: InteractiveSession): Promise<void> {
+  const ready = await requirePointOfSale(baseSession);
 
-  if (!pointOfSale) {
+  if (!ready) {
     return;
   }
+
+  const { pointOfSale, session } = ready;
 
   const state = await runWizard(repeatSteps(session, pointOfSale), {
     advanced: { currencyCode: DEFAULT_CURRENCY_CODE, sameCurrency: false },

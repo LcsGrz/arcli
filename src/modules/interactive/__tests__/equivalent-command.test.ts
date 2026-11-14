@@ -7,13 +7,20 @@ import { type BillingCommandInput, billingCommandSchema } from '../../billing/bi
 import type { VoucherShortcut } from '../../billing/billing.types';
 import { buildEquivalentCommand } from '../equivalent-command';
 
+/** Separa el comando como lo haria la shell: comillas dobles, con `\` para escapar. */
+function shellWords(command: string): string[] {
+  return [...command.matchAll(/"((?:\\.|[^"\\])*)"|(\S+)/g)].map(([, quoted, plain]) =>
+    quoted === undefined ? plain : quoted.replace(/\\(.)/g, '$1'),
+  );
+}
+
 function parseCommand(command: string, shortcut: VoucherShortcut): BillingCommandInput {
   const program = new Command();
 
   registerGlobalOptions(program);
   registerBillingOptions(program);
   program.exitOverride();
-  program.parse(command.split(' ').slice(2), { from: 'user' });
+  program.parse(shellWords(command).slice(2), { from: 'user' });
 
   return parseBillingCommandInput(program, shortcut);
 }
@@ -125,5 +132,26 @@ describe('buildEquivalentCommand', () => {
       'arcli ncb -m 1210 --cs --cuil 20333333334 --ir consumidor-final -f 31/10 --moneda EUR --misma-moneda --exento 50 --sd 1/10 --sh 31/10 --vto 15/11 --pd 1/10 --ph 31/10 --testing --emitir',
     );
     expect({ ...parseCommand(command, 'ncb'), dryRun: false }).toEqual({ ...original, dryRun: false });
+  });
+
+  it('lleva nombre y domicilio del padrón entre comillas, y el parser los lee igual', () => {
+    const original = input({
+      documentNumber: 30709965812,
+      documentType: 'cuit',
+      emit: true,
+      ivaCondition: 'responsable-inscripto',
+      receiverAddress: 'Av. Corrientes 1234, Piso 5 "B"',
+      receiverName: 'ACME S.A.',
+      shortcut: 'fa',
+    });
+    const command = buildEquivalentCommand(original, { environment: 'testing' });
+
+    expect(command).toBe(
+      'arcli fa -m 1000 --cs --cuit 30709965812 --ir responsable-inscripto --receptor-nombre "ACME S.A." --receptor-domicilio "Av. Corrientes 1234, Piso 5 \\"B\\"" --testing --emitir',
+    );
+    expect(parseCommand(command, 'fa')).toMatchObject({
+      receiverAddress: 'Av. Corrientes 1234, Piso 5 "B"',
+      receiverName: 'ACME S.A.',
+    });
   });
 });

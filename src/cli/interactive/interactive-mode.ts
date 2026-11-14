@@ -9,7 +9,7 @@ import {
 } from '../../modules/config/certificate-expiry';
 import { type ArcliEnvironment, formatEnvironmentLabel } from '../../modules/config/config.schemas';
 import { ConfigService } from '../../modules/config/config.service';
-import { listMissingSetupKeys } from '../../modules/interactive/config-fields';
+import { listMissingSetupKeys, resolveActiveEnvironment } from '../../modules/interactive/config-fields';
 import { CONFIG_MENU_NEW_OPTIONS } from '../../modules/interactive/new-options';
 import { type ArcaHealth, checkArcaHealth } from '../../modules/parameters/health';
 import { checkForUpdate, type UpdateCheckResult } from '../../modules/update-check/update-check.service';
@@ -55,13 +55,16 @@ type MenuOption =
   | 'repetir'
   | 'salir';
 
-function listMissingSetup(): string[] {
+/** Lo que falta para emitir en el entorno activo: el de la config o el de `--produccion`/`--testing`. */
+function listMissingSetup(options: GlobalCliOptions): string[] {
   const service = new ConfigService();
 
   try {
     service.ensureInitialized();
 
-    return listMissingSetupKeys(service.getConfig());
+    const config = service.getConfig();
+
+    return listMissingSetupKeys(config, resolveActiveEnvironment(config, options));
   } finally {
     service.close();
   }
@@ -83,7 +86,7 @@ async function runOption(
   options: GlobalCliOptions,
 ): Promise<void> {
   if (option === 'config') {
-    await runConfigMenu();
+    await runConfigMenu(options);
 
     return;
   }
@@ -226,14 +229,14 @@ export async function runInteractiveMode(options: GlobalCliOptions = {}): Promis
   let menuUnderHeader = true;
 
   // Primera vez: sin CUIT, certificado o punto de venta no se puede hacer nada, asi que se ofrece la guia.
-  if (listMissingSetup().length > 0) {
+  if (listMissingSetup(options).length > 0) {
     menuUnderHeader = false;
 
     try {
       if (
         await confirm('Falta completar la configuración. ¿La hacemos ahora, paso a paso?', 'Sí, configurar', 'Después')
       ) {
-        await runGuidedSetup();
+        await runGuidedSetup(options);
         writeTerminalOutput(await buildHeader(options));
         menuUnderHeader = true;
       }

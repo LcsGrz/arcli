@@ -16,7 +16,12 @@ import {
 } from '../../modules/completion/installer';
 import { COMPLETION_SHELLS, type CompletionShell } from '../../modules/completion/shell-scripts';
 import { formatConfigAsText, formatConfigDoctorAsText } from '../../modules/config/config.presenter';
-import type { ArcliConfig, ConfigPublicKey } from '../../modules/config/config.schemas';
+import {
+  type ArcliConfig,
+  type ArcliEnvironment,
+  type ConfigPublicKey,
+  formatEnvironmentLabel,
+} from '../../modules/config/config.schemas';
 import { CONFIG_SECTIONS } from '../../modules/config/config.sections';
 import { ConfigService, validateConfigValue } from '../../modules/config/config.service';
 import { buildConfigDoctorReport } from '../../modules/config/config-doctor';
@@ -27,6 +32,7 @@ import {
   type ConfigField,
   describeConfigValue,
   getConfigField,
+  resolveActiveEnvironment,
 } from '../../modules/interactive/config-fields';
 import { BACK, type Back, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { formatPdfPluginStatusAsText } from '../../modules/pdf/pdf.presenter';
@@ -34,23 +40,29 @@ import { PdfPlugin } from '../../services/pdf/pdf-plugin';
 import { bold, noticePanel, uiSymbol, writeTerminalOutput } from '../../ui';
 import { buildRuntimeChecks } from '../commands/config.command';
 import { startSpinner } from '../spinner';
+import type { GlobalCliOptions } from '../types';
 
 import { runCertificateMenu, runGenerateCertificate } from './certificate.flow';
 import { markIfNew } from './new-mark';
 import { askTextStep, type Choice, chooseOne, chooseStep, confirm, fitPageSize } from './prompts';
 
+/** `--produccion` o `--testing` de `arcli interactivo`: la configuracion guiada pide el certificado de ese entorno. */
+type EnvironmentFlags = Pick<GlobalCliOptions, 'produccion' | 'testing'>;
+
 const CLEAR = '__borrar__';
 const KEEP = '__mantener__';
 
-/** Lo que pide la configuracion guiada, en orden. Los primeros cuatro son obligatorios para emitir. */
-const GUIDED_KEYS: readonly ConfigPublicKey[] = [
-  'cuit',
-  'cert.testing',
-  'key.testing',
-  'puntoVenta',
-  'concepto',
-  'ivaReceptor',
-];
+/**
+ * Lo que pide la configuracion guiada, en orden. Los primeros cuatro son obligatorios para emitir; el certificado y la
+ * clave son los del entorno en que se va a emitir.
+ */
+function guidedKeys(environment: ArcliEnvironment): readonly ConfigPublicKey[] {
+  return ['cuit', `cert.${environment}`, `key.${environment}`, 'puntoVenta', 'concepto', 'ivaReceptor'];
+}
+
+function requiredGuidedKeys(environment: ArcliEnvironment): readonly ConfigPublicKey[] {
+  return ['cuit', `cert.${environment}`, `key.${environment}`, 'puntoVenta'];
+}
 const ISSUER_KEYS: readonly ConfigPublicKey[] = [
   'emisor.razonSocial',
   'emisor.domicilio',
@@ -176,21 +188,24 @@ async function askField(
 }
 
 interface GuidedState {
-  /** El certificado de testing se saco desde el paso: la clave ya quedo configurada (o pendiente), no se pide. */
+  /** El certificado se saco desde el paso: la clave ya quedo configurada (o pendiente), no se pide. */
   readonly certificateFromArca?: boolean;
 }
 
-/** Sin certificado de testing, ofrece sacarlo en el momento en lugar de pedir la ruta de uno que no existe. */
-async function askTestingCertificate(required: boolean): Promise<Back | GuidedState> {
-  if (!readConfig().cert.testing) {
-    const choice = await chooseStep<'sacar' | 'tengo'>('¿Ya tenés el certificado de testing de ARCA?', [
-      { description: 'Te pido la ruta del .crt y de la clave', name: 'Sí, tengo los archivos', value: 'tengo' },
-      {
-        description: 'Armamos la clave y el pedido para subir a ARCA',
-        name: 'No, sacarlo ahora',
-        value: 'sacar',
-      },
-    ]);
+/** Sin certificado del entorno, ofrece sacarlo en el momento en lugar de pedir la ruta de uno que no existe. */
+async function askCertificate(environment: ArcliEnvironment, required: boolean): Promise<Back | GuidedState> {
+  if (!readConfig().cert[environment]) {
+    const choice = await chooseStep<'sacar' | 'tengo'>(
+      `¿Ya tenés el certificado de ${formatEnvironmentLabel(environment)} de ARCA?`,
+      [
+        { description: 'Te pido la ruta del .crt y de la clave', name: 'Sí, tengo los archivos', value: 'tengo' },
+        {
+          description: 'Armamos la clave y el pedido para subir a ARCA',
+          name: 'No, sacarlo ahora',
+          value: 'sacar',
+        },
+      ],
+    );
 
     if (choice === BACK) {
       return BACK;
@@ -204,13 +219,13 @@ async function askTestingCertificate(required: boolean): Promise<Back | GuidedSt
         ),
       );
 
-      const result = await runGenerateCertificate('testing');
+      const result = await runGenerateCertificate(environment);
 
       return result === BACK ? BACK : { certificateFromArca: true };
     }
   }
 
-  const result = await askField(getConfigField('cert.testing'), readConfig(), { required });
+  const result = await askField(getConfigField(`cert.${environment}`), readConfig(), { required });
 
   return result === BACK ? BACK : { certificateFromArca: false };
 }
@@ -218,24 +233,31 @@ async function askTestingCertificate(required: boolean): Promise<Back | GuidedSt
 function fieldSteps(
   keys: readonly ConfigPublicKey[],
   required: readonly ConfigPublicKey[],
+  environment: ArcliEnvironment = 'testing',
 ): Array<WizardStep<GuidedState>> {
   return keys.map((key) => ({
     name: key,
     run: async () => {
-      if (key === 'cert.testing') {
-        return askTestingCertificate(required.includes(key));
+      if (key === `cert.${environment}`) {
+        return askCertificate(environment, required.includes(key));
       }
 
       const result = await askField(getConfigField(key), readConfig(), { required: required.includes(key) });
 
       return result === BACK ? BACK : {};
     },
-    skip: (state: GuidedState) => key === 'key.testing' && state.certificateFromArca === true,
+    skip: (state: GuidedState) => key === `key.${environment}` && state.certificateFromArca === true,
   }));
 }
 
-/** Configuracion guiada: lo minimo para emitir, los defaults mas usados y, si se quiere, los datos del PDF. */
-export async function runGuidedSetup(): Promise<void> {
+/**
+ * Configuracion guiada: lo minimo para emitir, los defaults mas usados y, si se quiere, los datos del PDF. El
+ * certificado es el del entorno activo (la config, o `--produccion`/`--testing` de `arcli interactivo`).
+ */
+export async function runGuidedSetup(flags: EnvironmentFlags = {}): Promise<void> {
+  const environment = resolveActiveEnvironment(readConfig(), flags);
+  const environmentLabel = formatEnvironmentLabel(environment);
+
   writeTerminalOutput(
     noticePanel(
       'Vamos a dejar todo listo para emitir. Si todavía no tenés certificado, en el paso del certificado lo sacamos juntos.',
@@ -243,7 +265,10 @@ export async function runGuidedSetup(): Promise<void> {
     ),
   );
 
-  const completed = await runWizard(fieldSteps(GUIDED_KEYS, ['cuit', 'cert.testing', 'key.testing', 'puntoVenta']), {});
+  const completed = await runWizard(
+    fieldSteps(guidedKeys(environment), requiredGuidedKeys(environment), environment),
+    {},
+  );
 
   if (!completed) {
     writeTerminalOutput(noticePanel('Configuración guiada cancelada. Lo ya respondido quedó guardado.', 'muted'));
@@ -259,12 +284,12 @@ export async function runGuidedSetup(): Promise<void> {
   const config = readConfig();
 
   writeTerminalOutput(
-    !config.cert.testing || !config.key.testing
+    !config.cert[environment] || !config.key[environment]
       ? noticePanel(
-          `Configuración guardada, pero falta cargar el certificado de testing. Cuando lo bajes de ARCA, entrá a Configuración ${uiSymbol('arrow')} Certificados de ARCA ${uiSymbol('arrow')} Cargar el certificado (.crt).`,
+          `Configuración guardada, pero falta cargar el certificado de ${environmentLabel}. Cuando lo bajes de ARCA, entrá a Configuración ${uiSymbol('arrow')} Certificados de ARCA ${uiSymbol('arrow')} Cargar el certificado (.crt).`,
           'warning',
         )
-      : noticePanel('Configuración guardada. Ya podés emitir en testing.', 'success'),
+      : noticePanel(`Configuración guardada. Ya podés emitir en ${environmentLabel}.`, 'success'),
   );
 }
 
@@ -427,7 +452,7 @@ function showConfig(): void {
 }
 
 /** Submenu de configuracion: ver, revisar, configuracion guiada, modificar y el plugin de PDF. */
-export async function runConfigMenu(): Promise<void> {
+export async function runConfigMenu(flags: EnvironmentFlags = {}): Promise<void> {
   for (;;) {
     const option = await chooseOne<ConfigOption>(
       'Configuración',
@@ -492,7 +517,7 @@ export async function runConfigMenu(): Promise<void> {
       writeTerminalOutput(formatConfigDoctorAsText(buildConfigDoctorReport(config, buildRuntimeChecks(config))));
     }
 
-    if (option === 'guiada') await runGuidedSetup();
+    if (option === 'guiada') await runGuidedSetup(flags);
     if (option === 'cambiar') await runChangeField();
     if (option === 'certificados') await runCertificateMenu();
     if (option === 'pdf') await runPdfPluginMenu();

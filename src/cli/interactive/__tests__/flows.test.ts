@@ -6,10 +6,18 @@ import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../../../modules/vouchers/voucher-history';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import { stripAnsi } from '../../../ui';
+import { initialAdvancedOptions } from '../advanced-options';
 import { runExportFlow } from '../export.flow';
 import { runExportRepeatFlow } from '../export-repeat.flow';
 import { runHistoryFlow } from '../history.flow';
-import { buildInvoiceInput, type InvoiceState, invoiceSteps, offerSavingCbu } from '../invoice.flow';
+import {
+  askCbuStep,
+  buildInvoiceInput,
+  type InvoiceState,
+  invoiceSteps,
+  offerSavingCbu,
+  runInvoiceFlow,
+} from '../invoice.flow';
 import { buildNoteInput, noteSteps } from '../note.flow';
 import { repeatSteps } from '../repeat.flow';
 import type { InteractiveSession } from '../session';
@@ -69,6 +77,13 @@ function createSession(vouchers: IssuedVoucher[] = [], arca: unknown = {}): Inte
   };
 }
 
+/** La misma sesion con otra config (y su punto de venta, como lo resuelve ArcaContextResolver). */
+function withConfig(session: InteractiveSession, config: Record<string, unknown>): InteractiveSession {
+  const merged = { ...session.runtime.config, ...config } as ResolvedArcaRuntime['config'];
+
+  return { ...session, runtime: { ...session.runtime, config: merged, pointOfSale: merged.puntoVentaPorDefecto } };
+}
+
 const invoice = (overrides: Partial<IssuedVoucher> = {}): IssuedVoucher => ({
   cae: '86400940834693',
   concept: 2,
@@ -94,6 +109,70 @@ describe('flujos del modo interactivo', () => {
   });
 
   describe('factura', () => {
+    it('sin punto de venta en la config lo pide antes que el comprobante; Esc vuelve al menú', async () => {
+      script = createScript([[/Punto de venta/, BACK]]);
+
+      await runInvoiceFlow(withConfig(createSession(), {}));
+
+      expect(script.asked).toEqual([expect.stringMatching(/Punto de venta/)]);
+    });
+
+    it('el punto de venta escrito al empezar llega a la E', async () => {
+      script = createScript([
+        [/Punto de venta/, '7'],
+        [/comprobante/, 'Factura de exportación E'],
+      ]);
+
+      await runInvoiceFlow(withConfig(createSession(), {}));
+
+      expect(runExportFlow).toHaveBeenLastCalledWith(
+        expect.objectContaining({ runtime: expect.objectContaining({ pointOfSale: 7 }), typedPointOfSale: 7 }),
+      );
+    });
+
+    it('arranca en la moneda de la config, como el CLI sin --moneda', async () => {
+      script = createScript([
+        [/comprobante/, 'Factura C'],
+        [/A quién/, 'Consumidor final'],
+        [/Qué estás facturando/, 'Servicios'],
+        [/Monto total/, '100'],
+        [/Agregamos/, []],
+      ]);
+
+      const session = withConfig(createSession(), { monedaPorDefecto: 'USD', puntoVentaPorDefecto: 3 });
+      const state = await runWizard(invoiceSteps(session), {
+        advanced: initialAdvancedOptions(session.runtime.config),
+      });
+      const offered = script.chooseManyStep.mock.calls[0][1] as ReadonlyArray<{ description?: string; value: unknown }>;
+
+      expect(offered.find((choice) => choice.value === 'divisas')?.description).toBe(
+        'dólares, cotización oficial de ARCA',
+      );
+      expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
+        currencyCode: 'USD',
+        exchangeRate: undefined,
+        sameCurrency: false,
+      });
+    });
+
+    it('la moneda inicial: pesos sin config, la de la config y su cotización guardada', () => {
+      expect(initialAdvancedOptions({})).toEqual({ currencyCode: 'ARS', sameCurrency: false });
+      expect(initialAdvancedOptions({ cotizacionPorDefecto: 1, monedaPorDefecto: 'PES' })).toEqual({
+        currencyCode: 'ARS',
+        sameCurrency: false,
+      });
+      expect(initialAdvancedOptions({ cotizacionPorDefecto: 1, monedaPorDefecto: 'DOL' })).toEqual({
+        currencyCode: 'USD',
+        exchangeRate: undefined,
+        sameCurrency: false,
+      });
+      expect(initialAdvancedOptions({ cotizacionPorDefecto: 1200, monedaPorDefecto: 'EUR' })).toEqual({
+        currencyCode: 'EUR',
+        exchangeRate: 1200,
+        sameCurrency: false,
+      });
+    });
+
     it('la factura E se elige en el mismo selector y corre su propio asistente', async () => {
       script = createScript([[/comprobante/, 'Factura de exportación E']]);
 
@@ -173,6 +252,7 @@ describe('flujos del modo interactivo', () => {
         [/Qué estás facturando/, 'Servicios'],
         [/Monto total/, '1105'],
         [/CBU/, '0110599520000012345678'],
+        [/Alias del CBU/, 'mi.alias.cbu'],
         [/Agregamos/, ['Modalidad', 'Alícuota', 'Vencimiento']],
         [/Alícuota/, '10,5%'],
         [/Vencimiento del pago/, '30/10'],
@@ -184,6 +264,7 @@ describe('flujos del modo interactivo', () => {
 
       expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
         cbu: '0110599520000012345678',
+        cbuAlias: 'mi.alias.cbu',
         documentNumber: 30709965812,
         documentType: 'cuit',
         ivaRate: '10.5',
@@ -219,6 +300,36 @@ describe('flujos del modo interactivo', () => {
       script = createScript([]);
       await offerSavingCbu(configured, state);
       await offerSavingCbu(createSession(), { ...state, cbu: undefined });
+
+      // Con el alias escrito a mano, se guardan los dos.
+      savedConfig.mockClear();
+      script = createScript([[/Guardamos el CBU y el alias mi.alias.cbu/, 'Sí, guardar']]);
+      await offerSavingCbu(createSession(), { ...state, cbuAlias: 'mi.alias.cbu' });
+      expect(savedConfig).toHaveBeenCalledWith('cbu', '0110599520000012345678');
+      expect(savedConfig).toHaveBeenCalledWith('aliasCbu', 'mi.alias.cbu');
+    });
+
+    it('con alias en la config no pregunta el alias, y Enter lo omite', async () => {
+      const withAlias = createSession();
+      const configured = {
+        ...withAlias,
+        runtime: { ...withAlias.runtime, config: { ...withAlias.runtime.config, aliasCbu: 'mi.alias.cbu' } },
+      } as InteractiveSession;
+
+      script = createScript([[/CBU del emisor/, '0110599520000012345678']]);
+      await expect(askCbuStep(configured.runtime.config)).resolves.toEqual({
+        cbu: '0110599520000012345678',
+        cbuAlias: undefined,
+      });
+
+      script = createScript([
+        [/CBU del emisor/, '0110599520000012345678'],
+        [/Alias del CBU/, ''],
+      ]);
+      await expect(askCbuStep(createSession().runtime.config)).resolves.toEqual({
+        cbu: '0110599520000012345678',
+        cbuAlias: undefined,
+      });
     });
 
     it('en una FCE informa el alias del CBU de la config, como el CLI', () => {
@@ -886,6 +997,66 @@ describe('flujos del modo interactivo', () => {
       expect(
         (script.chooseManyStep.mock.calls[0][1] as ReadonlyArray<{ value: unknown }>).map((choice) => choice.value),
       ).toEqual(['fecha', 'servicio']);
+    });
+
+    it('usa los defaults de la config: IVA receptor, concepto y alícuota en las de período, y su moneda', async () => {
+      script = createScript([
+        [/Sobre qué comprobante/, 'Factura B'],
+        [/A qué la asociamos/, 'A un período'],
+        [/Período desde/, '1/9'],
+        [/Período hasta/, '30/9'],
+        [/A quién va la nota/, 'Con CUIT'],
+        [/CUIT del receptor/, '30-70996581-2'],
+        [/concepto ajusta/, 'Productos'],
+        [/Monto de la nota/, '121'],
+        [/Condición frente al IVA/, 'Sujeto exento'],
+        [/Alícuota/, '10,5%'],
+        [/Agregamos/, []],
+      ]);
+
+      const session = withConfig(createSession(), {
+        alicuotaPorDefecto: '10.5',
+        conceptoPorDefecto: 'productos',
+        consultarPadron: false,
+        ivaReceptorPorDefecto: 'sujeto-exento',
+        monedaPorDefecto: 'USD',
+        puntoVentaPorDefecto: 3,
+      });
+      const state = await runWizard(noteSteps(session, 3), {
+        advanced: initialAdvancedOptions(session.runtime.config),
+        kind: 'credito',
+      });
+      const defaultOf = (question: RegExp) =>
+        script.chooseStep.mock.calls.find(([message]) => question.test(message))?.[2];
+
+      expect(defaultOf(/concepto ajusta/)).toBe('productos');
+      expect(defaultOf(/Condición frente al IVA/)).toBe('sujeto-exento');
+      expect(defaultOf(/Alícuota/)).toBe('10.5');
+      expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
+        currencyCode: 'USD',
+        ivaCondition: 'sujeto-exento',
+        ivaRate: '10.5',
+      });
+    });
+
+    it('sobre una factura de la que no se deduce la alícuota, propone la de la config', async () => {
+      script = createScript([
+        [/Sobre qué comprobante/, 'Factura B'],
+        [/A qué la asociamos/, 'A una factura'],
+        [/Sobre qué factura B/, '00003-00000014'],
+        [/Monto de la nota de crédito/, '100'],
+        [/Alícuota de IVA del comprobante/, '27%'],
+        [/Agregamos/, []],
+      ]);
+
+      const session = withConfig(createSession([invoice({ ivaAmount: 262.5, netAmount: 1500, total: 1762.5 })]), {
+        alicuotaPorDefecto: '27',
+        puntoVentaPorDefecto: 3,
+      });
+
+      await runWizard(noteSteps(session, 3), { kind: 'credito' });
+
+      expect(script.chooseStep.mock.calls.find(([message]) => /Alícuota/.test(message))?.[2]).toBe('27');
     });
 
     it('una ND por periodo puede ir en otra moneda', async () => {

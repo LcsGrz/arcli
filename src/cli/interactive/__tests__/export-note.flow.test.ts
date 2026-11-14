@@ -135,7 +135,7 @@ describe('runExportNoteFlow', () => {
       [/Monto de la nota de crédito de exportación E \(DOL\)/, '500'],
       [/Detalle de la nota/, 'Descuento por volumen'],
       [/Agregamos algún opcional/, []],
-      [/Emitimos la nota de crédito de exportación E en testing/, 'Emitir ahora'],
+      [/Emitimos la nota de crédito de exportación E en testing/, 'Sí, emitir ahora'],
     ]);
 
     await runExportNoteFlow(createSession(), 'credito');
@@ -171,7 +171,7 @@ describe('runExportNoteFlow', () => {
       [/Detalle de la nota/, ''],
       [/Permisos de embarque/, '26001EC01000123A'],
       [/Agregamos algún opcional/, []],
-      [/Emitimos la nota de débito de exportación E en testing/, 'Cancelar'],
+      [/Emitimos la nota de débito de exportación E en testing/, 'No, dejar sin emitir'],
     ]);
 
     await runExportNoteFlow(createSession(), 'debito');
@@ -211,7 +211,7 @@ describe('runExportNoteFlow', () => {
       [/Agregamos algún opcional/, ['Observaciones']],
       [/^Observaciones \(/, 'Ajuste de la ND'],
       [/Observaciones comerciales/, 'Sin cargo'],
-      [/Emitimos/, 'Cancelar'],
+      [/Emitimos/, 'No, dejar sin emitir'],
     ]);
 
     await runExportNoteFlow(createSession(), 'credito');

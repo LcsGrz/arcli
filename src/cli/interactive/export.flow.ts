@@ -1,9 +1,5 @@
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
-import {
-  formatEmissionQuestion,
-  formatVoucherWithArticle,
-  NOTHING_EMITTED_NOTICE,
-} from '../../modules/billing/billing.mappers';
+import { formatEmissionQuestion, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import { DEFAULT_EXPORT_PAYMENT_TERMS, resolveExportDestinationCountry } from '../../modules/export/export.mappers';
 import { formatExportResultAsText } from '../../modules/export/export.presenter';
 import { ExportService } from '../../modules/export/export.service';
@@ -25,10 +21,10 @@ import { attachExportPdf } from '../commands/export.command.pdf';
 import { withSpinner } from '../spinner';
 
 import { askCountryCuit, askExportOptions, type ExportOptions, isCountryCuitMissing } from './export-options';
-import { askEmission, completeIssuer } from './pdf.flow';
-import { askTextStep, chooseStep, confirm, isPromptCancellation } from './prompts';
+import { completeIssuer } from './pdf.flow';
+import { askTextStep, chooseStep, isPromptCancellation } from './prompts';
 import { offerSavingToConfig } from './save-to-config';
-import { formatEquivalentCommand, type InteractiveSession } from './session';
+import { confirmEmission, formatEquivalentCommand, type InteractiveSession } from './session';
 import { validateAmount, validateDate } from './validators';
 
 interface ExportFlowState {
@@ -336,10 +332,12 @@ function exportSteps(
 export async function emitExportVoucher(
   session: InteractiveSession,
   gateway: ExportGateway,
-  input: ExportVoucherInput,
+  rawInput: ExportVoucherInput,
   activity?: number,
 ): Promise<void> {
   const { runtime } = session;
+  // ExportService toma el de la config: uno elegido en el asistente va en la entrada (y en el comando equivalente).
+  const input: ExportVoucherInput = { ...rawInput, pointOfSale: rawInput.pointOfSale ?? session.typedPointOfSale };
   const service = new ExportService();
   const resolved = await withSpinner('Consultando WSFEX...', () => service.resolve(input, gateway, runtime));
   const preview = service.preview(resolved, runtime, resolved.warnings);
@@ -351,24 +349,13 @@ export async function emitExportVoucher(
 
   const label = formatVoucherWithArticle(input.voucherKind ?? EXPORT_VOUCHER_KIND);
 
-  const emission = await askEmission(
+  const emission = await confirmEmission(
     formatEmissionQuestion(label, runtime.environment),
-    'Emitir ahora',
+    runtime.environment,
     runtime.config.pdf,
   );
 
   if (!emission) {
-    writeTerminalOutput(noticePanel(NOTHING_EMITTED_NOTICE, 'muted'));
-
-    return;
-  }
-
-  if (
-    runtime.environment === 'produccion' &&
-    !(await confirm('Vas a emitir un comprobante real en PRODUCCIÓN. ¿Confirmás?', 'Sí, emitir en producción'))
-  ) {
-    writeTerminalOutput(noticePanel(NOTHING_EMITTED_NOTICE, 'muted'));
-
     return;
   }
 
@@ -452,10 +439,8 @@ export async function runExportFlow(session: InteractiveSession): Promise<typeof
   await emitExportVoucher(session, gateway, input, activity);
 
   if (state.activity !== undefined && configuredActivity === undefined) {
-    await offerSavingToConfig(
-      `¿Guardamos la actividad ${state.activity} en la config para la próxima?`,
-      'exportacion.actividad',
-      String(state.activity),
-    );
+    await offerSavingToConfig(`¿Guardamos la actividad ${state.activity} en la config para la próxima?`, [
+      ['exportacion.actividad', String(state.activity)],
+    ]);
   }
 }

@@ -50,12 +50,14 @@ async function browseExportVouchers(
  * Consultar comprobantes de cualquier tipo, tambien la E: la lista de los ultimos, cargar mas o buscar por numero.
  * Al elegir uno muestra el detalle y vuelve a la lista.
  */
-export async function runHistoryFlow(session: InteractiveSession): Promise<void> {
-  const pointOfSale = requirePointOfSale(session);
+export async function runHistoryFlow(baseSession: InteractiveSession): Promise<void> {
+  const ready = await requirePointOfSale(baseSession);
 
-  if (!pointOfSale) {
+  if (!ready) {
     return;
   }
+
+  const { pointOfSale, session } = ready;
 
   const selected = await chooseStep(
     '¿Qué comprobantes querés consultar?',

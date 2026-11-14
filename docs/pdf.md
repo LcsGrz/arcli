@@ -54,7 +54,7 @@ Los flags ganan sobre la config en cada corrida:
 - `--exportar-pdf` (alias `--pdf`): genera el PDF.
 - `--sin-pdf`: no lo genera.
 
-En el [modo interactivo](modo-interactivo.md#pdf), con `nunca`, la confirmación antes de emitir ofrece **Emitir y generar el PDF** para ese comprobante.
+En el [modo interactivo](modo-interactivo.md#pdf), con `nunca`, la confirmación antes de emitir ofrece **Sí, emitir y generar el PDF** para ese comprobante.
 
 Nunca se genera un PDF de una vista previa (sin `--emitir`) ni de un comprobante rechazado, porque no tienen CAE. Un comprobante **observado** sí tiene CAE y sí lleva PDF.
 

@@ -5,7 +5,7 @@ import {
   SALE_CONDITION_LABELS,
   type SaleConditionKey,
 } from '../../modules/billing/sale-condition';
-import type { ArcliConfig, ArcliPdfMode } from '../../modules/config/config.schemas';
+import type { ArcliConfig } from '../../modules/config/config.schemas';
 import { ConfigService } from '../../modules/config/config.service';
 import { parseConfigValue } from '../../modules/config/config-value-parser';
 import { canHavePdf, resolvePdfDecision } from '../../modules/pdf/pdf-decision';
@@ -15,34 +15,6 @@ import { writePdfOutcomes } from '../commands/billing.command.output';
 import { attachPdfs } from '../commands/billing.command.pdf';
 
 import { askText, chooseOne, confirm, isPromptCancellation } from './prompts';
-
-/** La respuesta a "¿Emitimos…?": no emitir, emitir, o emitir y generar el PDF aunque la config diga `nunca`. */
-export type EmissionAnswer = 'emitir' | 'emitir-con-pdf' | false;
-
-/**
- * La confirmacion antes de emitir. Con `pdf nunca` suma "Emitir y generar el PDF", el `--exportar-pdf` del
- * asistente: no se pregunta nada de mas, y quien quiere el PDF de este comprobante lo elige aca. Esc cuenta como no.
- */
-export async function askEmission(message: string, yesLabel: string, pdfMode?: ArcliPdfMode): Promise<EmissionAnswer> {
-  if (pdfMode !== 'nunca') {
-    return (await confirm(message, yesLabel)) ? 'emitir' : false;
-  }
-
-  return chooseOne<EmissionAnswer>(
-    message,
-    [
-      { name: yesLabel, value: 'emitir' },
-      {
-        description: 'Solo esta vez: en la config el PDF está en `nunca`',
-        name: 'Emitir y generar el PDF',
-        value: 'emitir-con-pdf',
-      },
-      { name: 'Cancelar', value: false },
-    ],
-    undefined,
-    { escapeValue: false },
-  );
-}
 
 type IssuerKey = 'cuit' | 'emisor.domicilio' | 'emisor.inicioActividades' | 'emisor.razonSocial';
 
@@ -141,7 +113,7 @@ export async function completeIssuer(config: ArcliConfig): Promise<ArcliConfig> 
 
 /**
  * Despues de emitir: pregunta si se quiere el PDF (segun la config) y los datos que solo van en el PDF. Con
- * `input.pdf` en `true` ("Emitir y generar el PDF") lo genera aunque la config diga `nunca`, como `--exportar-pdf`.
+ * `input.pdf` en `true` ("Sí, emitir y generar el PDF") lo genera aunque la config diga `nunca`, como `--exportar-pdf`.
  */
 export async function offerPdf(
   config: ArcliConfig,

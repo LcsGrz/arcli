@@ -79,7 +79,7 @@ const gateway: ExportGateway = {
   getVoucher: vi.fn(async (query) => (query.number === 1 && query.pointOfSale === 4 ? INVOICE : null)),
 };
 
-const confirmFromScript = (message: string, yesLabel: string, noLabel = 'Cancelar') =>
+const confirmFromScript = (message: string, yesLabel: string, noLabel = 'No') =>
   script.chooseStep(message, [
     { name: yesLabel, value: true },
     { name: noLabel, value: false },
@@ -151,7 +151,7 @@ describe('runExportRepeatFlow', () => {
       [/Permisos de embarque/, '26001EC01000123A'],
       [/Fecha de pago/, ''],
       [/Agregamos algún opcional/, []],
-      [/Emitimos la factura de exportación E en testing/, 'Emitir ahora'],
+      [/Emitimos la factura de exportación E en testing/, 'Sí, emitir ahora'],
     ]);
 
     await runExportRepeatFlow(createSession(), 4);
@@ -195,7 +195,7 @@ describe('runExportRepeatFlow', () => {
       [/Permisos de embarque/, ''],
       [/Fecha de pago/, ''],
       [/Agregamos algún opcional/, []],
-      [/Emitimos/, 'Cancelar'],
+      [/Emitimos/, 'No, dejar sin emitir'],
     ]);
 
     await runExportRepeatFlow(createSession(), 4);
@@ -213,13 +213,31 @@ describe('runExportRepeatFlow', () => {
       [/Permisos de embarque/, ''],
       [/Fecha de pago/, ''],
       [/Agregamos algún opcional/, []],
-      [/Emitimos/, 'Emitir y generar el PDF'],
+      [/Emitimos/, 'Sí, emitir y generar el PDF'],
     ]);
 
     await runExportRepeatFlow(createSession({ pdf: 'nunca' }), 4);
 
     expect(gateway.authorize).toHaveBeenCalledTimes(1);
     expect(vi.mocked(attachExportPdf).mock.calls[0]?.[1].input.pdf).toBe(true);
+  });
+
+  it('el punto de venta escrito a mano llega a la emisión y al comando equivalente', async () => {
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      [/Mismo monto/, 'Sí'],
+      [/Permisos de embarque/, ''],
+      [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
+      [/Emitimos/, 'Sí, emitir ahora'],
+    ]);
+
+    const session = createSession();
+
+    await runExportRepeatFlow({ ...session, typedPointOfSale: 4 }, 4);
+
+    expect(gateway.authorize).toHaveBeenCalledWith(expect.objectContaining({ Punto_vta: 4 }));
+    expect(printed()).toContain('--pv 4');
   });
 
   it('volver desde la lista vuelve al selector de comprobantes', async () => {

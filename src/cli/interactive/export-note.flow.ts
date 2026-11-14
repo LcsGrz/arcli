@@ -265,14 +265,16 @@ export function buildExportNoteInput(kind: 'credito' | 'debito', state: ExportNo
  * vuelve desde el primer paso, para volver al selector de comprobantes.
  */
 export async function runExportNoteFlow(
-  session: InteractiveSession,
+  baseSession: InteractiveSession,
   kind: 'credito' | 'debito',
 ): Promise<typeof BACK | void> {
-  const pointOfSale = requirePointOfSale(session);
+  const ready = await requirePointOfSale(baseSession);
 
-  if (!pointOfSale) {
+  if (!ready) {
     return;
   }
+
+  const { pointOfSale, session } = ready;
 
   const gateway = new ArcaClientFactory().createExportGateway(session.runtime);
   const state = await runWizard(exportNoteSteps(kind, gateway, pointOfSale), {});
