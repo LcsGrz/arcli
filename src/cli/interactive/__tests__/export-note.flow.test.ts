@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { arcliConfigSchema } from '../../../modules/config/config.schemas';
 import type { ExportGateway, ExportIssuedVoucher } from '../../../modules/export/export.types';
+import { BACK } from '../../../modules/interactive/wizard';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
 import { stripAnsi } from '../../../ui';
@@ -67,6 +68,7 @@ const gateway: ExportGateway = {
 
 vi.mock('../prompts', () => ({
   askTextStep: (...args: Parameters<typeof script.askTextStep>) => script.askTextStep(...args),
+  chooseManyStep: (...args: Parameters<typeof script.chooseManyStep>) => script.chooseManyStep(...args),
   chooseStep: (...args: Parameters<typeof script.chooseStep>) => script.chooseStep(...args),
   confirm: (message: string, yesLabel: string, noLabel = 'Cancelar') =>
     script.chooseStep(message, [
@@ -114,6 +116,9 @@ describe('runExportNoteFlow', () => {
   beforeEach(() => {
     vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
     vi.mocked(gateway.authorize).mockClear();
+    vi.mocked(gateway.getVoucher).mockImplementation(async (query) =>
+      query.number === INVOICE.number ? INVOICE : null,
+    );
   });
 
   afterEach(() => {
@@ -123,11 +128,13 @@ describe('runExportNoteFlow', () => {
 
   it('busca la factura E, vuelve a preguntar si no existe y emite la nota de crédito con sus datos', async () => {
     script = createScript([
+      [/sobre la factura E o sobre otra nota E/, 'Sobre la factura E'],
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '9'],
       [/Número de la factura E/, '1'],
       [/Monto de la nota de crédito de exportación E \(DOL\)/, '500'],
       [/Detalle de la nota/, 'Descuento por volumen'],
+      [/Agregamos algún opcional/, []],
       [/Emitimos la nota de crédito de exportación E en testing/, 'Emitir ahora'],
     ]);
 
@@ -157,11 +164,13 @@ describe('runExportNoteFlow', () => {
       .mockResolvedValueOnce({ ...INVOICE, exportType: 1 })
       .mockResolvedValueOnce({ ...INVOICE, exportType: 1 });
     script = createScript([
+      [/sobre la factura E o sobre otra nota E/, 'Sobre la factura E'],
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
       [/Monto de la nota de débito de exportación E/, '100'],
       [/Detalle de la nota/, ''],
       [/Permisos de embarque/, '26001EC01000123A'],
+      [/Agregamos algún opcional/, []],
       [/Emitimos la nota de débito de exportación E en testing/, 'Cancelar'],
     ]);
 
@@ -172,11 +181,66 @@ describe('runExportNoteFlow', () => {
 
   it('en la nota de crédito no deja pasar del total de la factura', async () => {
     script = createScript([
+      [/sobre la factura E o sobre otra nota E/, 'Sobre la factura E'],
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
       [/Monto de la nota de crédito/, '2000'],
     ]);
 
     await expect(runExportNoteFlow(createSession(), 'credito')).rejects.toThrow(/No puede superar el total/);
+  });
+
+  it('ajusta otra nota E con --ac y suma los opcionales, sin ofrecer la cotización en servicios', async () => {
+    const debitNote: ExportIssuedVoucher = {
+      ...INVOICE,
+      arcaType: 20,
+      associatedVoucher: { arcaType: 19, number: 1, pointOfSale: 4 },
+      number: 3,
+      total: 200,
+    };
+
+    vi.mocked(gateway.getVoucher).mockImplementation(async (query) =>
+      query.arcaType === 20 && query.number === 3 ? debitNote : null,
+    );
+    script = createScript([
+      [/sobre la factura E o sobre otra nota E/, 'Sobre una nota de débito E'],
+      [/Punto de venta de la nota de débito E/, '4'],
+      [/Número de la nota de débito E/, '3'],
+      [/Monto de la nota de crédito/, '200'],
+      [/Detalle de la nota/, ''],
+      [/Agregamos algún opcional/, ['Observaciones']],
+      [/^Observaciones \(/, 'Ajuste de la ND'],
+      [/Observaciones comerciales/, 'Sin cargo'],
+      [/Emitimos/, 'Cancelar'],
+    ]);
+
+    await runExportNoteFlow(createSession(), 'credito');
+
+    expect(printed()).toContain('Nota de débito de exportación E 00004-00000003');
+    expect(script.chooseManyStep.mock.calls[0]?.[1].map((choice) => choice.name)).toEqual([
+      'Ítems',
+      'Idioma',
+      'Observaciones',
+    ]);
+    expect(printed()).toContain(
+      'arcli nce -m 200 --ar 3 --apv 4 --ac nde --observaciones "Ajuste de la ND" --obs-comerciales "Sin cargo" --testing --emitir',
+    );
+  });
+
+  it('en servicios no deja que una nota de débito ajuste otra nota y vuelve a preguntar el número', async () => {
+    const creditNote: ExportIssuedVoucher = { ...INVOICE, arcaType: 21, number: 2, total: 100 };
+
+    vi.mocked(gateway.getVoucher).mockImplementation(async (query) => (query.arcaType === 21 ? creditNote : null));
+    script = createScript([
+      [/sobre la factura E o sobre otra nota E/, 'Sobre una nota de crédito E'],
+      [/Punto de venta de la nota de crédito E/, '4'],
+      [/Número de la nota de crédito E/, '2'],
+      [/Número de la nota de crédito E/, BACK],
+      [/Punto de venta de la nota de crédito E/, BACK],
+      [/sobre la factura E o sobre otra nota E/, BACK],
+    ]);
+
+    await expect(runExportNoteFlow(createSession(), 'debito')).resolves.toBe(BACK);
+    expect(printed()).toContain('En servicios una nota de débito E solo ajusta una factura E');
   });
 });
