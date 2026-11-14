@@ -37,6 +37,13 @@ export function validateCbu(value: string): string | true {
   return /^\d{22}$/.test(value) ? true : 'El CBU tiene 22 dígitos.';
 }
 
+/** Como `--alias`: vacio vale (no se informa); si no, de 6 a 20 letras, números, puntos o guiones. */
+export function validateOptionalCbuAlias(value: string): string | true {
+  return !value.trim() || /^[A-Za-z0-9.-]{6,20}$/.test(value.trim())
+    ? true
+    : 'El alias tiene entre 6 y 20 letras, números, puntos o guiones.';
+}
+
 export function normalizeDocumentNumber(value: string): number {
   return Number(value.replace(/[-.]/g, ''));
 }

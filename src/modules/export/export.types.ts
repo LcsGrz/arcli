@@ -250,6 +250,18 @@ export interface ExportVoucherQuery {
   readonly pointOfSale: number;
 }
 
+/** Un renglon de `Items` de un comprobante E ya autorizado, como lo devuelve `FEXGetCMP`. */
+export interface ExportIssuedItem {
+  readonly code?: string;
+  readonly description: string;
+  /** `Pro_bonificacion`: el CLI no la informa, asi que un item con bonificacion no se puede repetir tal cual. */
+  readonly discount: number;
+  readonly quantity: number;
+  readonly total: number;
+  readonly unit: number;
+  readonly unitPrice: number;
+}
+
 /**
  * Un comprobante E ya autorizado, como lo devuelve `FEXGetCMP`. La nota toma de aca los datos del cliente, el
  * destino y la moneda, y ARCA compara varios contra los del asociado (errores 2049 a 2053).
@@ -274,12 +286,16 @@ export interface ExportIssuedVoucher {
   readonly exportType: ExportType;
   readonly incoterm?: string;
   readonly incotermDescription?: string;
+  /** Los renglones del comprobante: al repetir una factura E se copian. */
+  readonly items?: readonly ExportIssuedItem[];
   readonly language?: number;
   readonly number: number;
   readonly paymentTerms?: string;
   readonly pointOfSale: number;
   /** `A` aprobado, `R` rechazado. */
   readonly result?: string;
+  /** `CanMisMonExt`: `true` si se cobro en la misma moneda extranjera. Solo en la factura. */
+  readonly sameCurrency?: boolean;
   readonly total: number;
 }
 

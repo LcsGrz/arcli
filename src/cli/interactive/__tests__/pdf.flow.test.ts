@@ -74,6 +74,18 @@ describe('offerPdf', () => {
     expect(attachPdfsMock).not.toHaveBeenCalled();
   });
 
+  it('with nunca, "Emitir y generar el PDF" generates it without asking whether to', async () => {
+    askTextMock.mockResolvedValue('');
+
+    await offerPdf({ ...CONFIG, pdf: 'nunca' }, { ...input, pdf: true }, result);
+
+    expect(confirmMock).not.toHaveBeenCalled();
+    expect(attachPdfsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ inputs: [expect.objectContaining({ pdf: true })] }),
+    );
+    askTextMock.mockReset();
+  });
+
   it('says the voucher was already issued when Ctrl+C cancels a PDF question', async () => {
     const cancellation = Object.assign(new Error('User force closed the prompt'), { name: 'ExitPromptError' });
 

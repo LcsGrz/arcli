@@ -1,21 +1,14 @@
 import { formatVoucherLabel } from '../../modules/billing/billing.mappers';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { VOUCHER_KIND_MAP, VOUCHER_SHORTCUTS } from '../../modules/billing/voucher-kind-map';
-import {
-  formatExportVoucherDetailAsText,
-  formatExportVoucherPickerRows,
-} from '../../modules/export/export.history.presenter';
-import {
-  EXPORT_VOUCHER_KINDS,
-  type ExportIssuedVoucher,
-  type ExportVoucherKind,
-} from '../../modules/export/export.types';
+import { formatExportVoucherDetailAsText } from '../../modules/export/export.history.presenter';
+import { EXPORT_VOUCHER_KINDS, type ExportVoucherKind } from '../../modules/export/export.types';
 import { BACK } from '../../modules/interactive/wizard';
 import { formatVoucherDetailAsText } from '../../modules/vouchers/voucher-history.presenter';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { writeTerminalOutput } from '../../ui';
 
-import { pickInvoice, pickVoucher } from './invoice-picker';
+import { pickExportVoucher, pickInvoice } from './invoice-picker';
 import { chooseStep } from './prompts';
 import { type InteractiveSession, requirePointOfSale } from './session';
 
@@ -36,31 +29,21 @@ async function browseExportVouchers(
   pointOfSale: number,
 ): Promise<void> {
   const gateway = new ArcaClientFactory().createExportGateway(session.runtime);
-  const { arcaType } = voucherKind;
 
-  await pickVoucher<ExportIssuedVoucher>(
-    session,
-    {
-      message: `¿Qué ${formatVoucherLabel(voucherKind)} querés ver?`,
-      onPick: (picked) =>
-        writeTerminalOutput(
-          formatExportVoucherDetailAsText({
-            environment: session.runtime.environment,
-            pointOfSale: picked.pointOfSale,
-            voucher: picked.invoice,
-            voucherKind,
-          }),
-        ),
-      pointOfSale,
-      voucherKind,
-    },
-    {
-      formatRows: (_pointOfSale, vouchers, separator, width) =>
-        formatExportVoucherPickerRows(vouchers, separator, width),
-      getLastNumber: (from) => gateway.getLastVoucherNumber(arcaType, from),
-      getVoucher: (number, from) => gateway.getVoucher({ arcaType, number, pointOfSale: from }),
-    },
-  );
+  await pickExportVoucher(session, gateway, {
+    message: `¿Qué ${formatVoucherLabel(voucherKind)} querés ver?`,
+    onPick: (picked) =>
+      writeTerminalOutput(
+        formatExportVoucherDetailAsText({
+          environment: session.runtime.environment,
+          pointOfSale: picked.pointOfSale,
+          voucher: picked.invoice,
+          voucherKind,
+        }),
+      ),
+    pointOfSale,
+    voucherKind,
+  });
 }
 
 /**

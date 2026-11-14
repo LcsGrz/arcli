@@ -65,14 +65,14 @@ Con el asistente, el aviso de nueva versión no se repite al salir. En los coman
 
 Primero pregunta solo lo **requerido**:
 
-| Paso | Pregunta         | Detalle                                                                                                              |
-| ---- | ---------------- | -------------------------------------------------------------------------------------------------------------------- |
-| 1    | Comprobante      | Factura A, B o C, comunes o de crédito electrónica (FCE), o la de exportación E ([abajo](#factura-de-exportación-e)) |
-| 2    | Receptor         | Consumidor final, CUIT, DNI o CUIL. En la A solo CUIT, porque la A no admite consumidor final                        |
-| 3    | IVA del receptor | Solo las condiciones válidas para la letra elegida. Con consumidor final no se pregunta                              |
-| 4    | Concepto         | Servicios, productos o ambos. Arranca en `config.concepto` si está configurado                                       |
-| 5    | Monto total      | Acepta `150000`, `150.000`, `1500,50` o `1.500,50` (punto para miles, coma para decimales)                           |
-| 6    | CBU              | Solo en facturas FCE y si no hay `config.cbu`                                                                        |
+| Paso | Pregunta         | Detalle                                                                                                                                                             |
+| ---- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Comprobante      | Factura A, B o C, comunes o de crédito electrónica (FCE), o la de exportación E ([abajo](#factura-de-exportación-e))                                                |
+| 2    | Receptor         | Consumidor final, CUIT, DNI o CUIL. En la A solo CUIT, porque la A no admite consumidor final                                                                       |
+| 3    | IVA del receptor | Solo las condiciones válidas para la letra elegida. Con consumidor final no se pregunta                                                                             |
+| 4    | Concepto         | Servicios, productos o ambos. Arranca en `config.concepto` si está configurado                                                                                      |
+| 5    | Monto total      | Acepta `150000`, `150.000`, `1500,50` o `1.500,50` (punto para miles, coma para decimales)                                                                          |
+| 6    | CBU              | Solo en facturas FCE y si no hay `config.cbu`. Si tampoco hay `aliasCbu`, pide el alias (Enter lo omite). Después de la confirmación ofrece guardarlos en la config |
 
 Después, **una sola pregunta con todos los opcionales** (ver abajo). Enter sin marcar nada sigue con los valores por defecto.
 
@@ -118,7 +118,9 @@ La factura y las notas E terminan con **"¿Agregamos algún opcional?"**, que fu
 
 ### PDF
 
-Después de emitir, si `config.pdf` es `preguntar` (el valor por defecto), pregunta **"¿Generamos el PDF del comprobante?"**. Con `siempre` lo genera sin preguntar y con `nunca` no pregunta nada. Lo mismo vale para las notas de crédito y débito.
+Después de emitir, si `config.pdf` es `preguntar` (el valor por defecto), pregunta **"¿Generamos el PDF del comprobante?"**. Con `siempre` lo genera sin preguntar y con `nunca` no pregunta nada. Lo mismo vale para las notas de crédito y débito y para la `E`.
+
+Con `nunca`, la pregunta "¿Emitimos…?" suma una tercera opción, entre las otras dos: **Sí, emitir y generar el PDF**. Es el `--exportar-pdf` del asistente, solo para ese comprobante. No agrega ninguna pregunta: con "Sí, emitir ahora" todo sigue como siempre. En producción, la segunda confirmación es la misma y el PDF se respeta.
 
 Si respondés que sí, pregunta cuatro datos opcionales que solo van en el PDF: la descripción, el nombre y el domicilio del receptor, y la condición de venta. Para esta última muestra una lista (Omitir, Contado, Tarjeta de Débito, Tarjeta de Crédito, Cuenta Corriente, Cheque, Transferencia Bancaria, Otros medios de pago electrónico, Otra) con la de la config (`condicionVenta`) marcada, así que Enter la mantiene. "Omitir" también evita que reaparezca el valor configurado; "Otra" pide el texto: Enter deja "Otra", o el texto libre que tenía la config. Si faltan datos del emisor (razón social, domicilio, inicio de actividades), los pregunta una vez y ofrece guardarlos en la config. Si falta el plugin, ofrece instalarlo. Ver [PDF de comprobantes](pdf.md).
 
@@ -182,20 +184,37 @@ Cliente, destino, moneda, cotización, idioma, incoterm y actividad salen del as
 
 ## Repetir un comprobante anterior
 
-Para quien factura o cobra lo mismo seguido. Elegís si es una factura o un Recibo C y uno de los últimos 15 emitidos, y se copian el receptor, el concepto, el monto y la alícuota (cuando se puede deducir de los importes). **Las fechas no se copian:** el comprobante sale con fecha de hoy, salvo que elijas otra en los opcionales.
+Para quien factura o cobra lo mismo seguido. Elegís si es una factura, un Recibo C o una factura de exportación `E` ([abajo](#repetir-una-factura-e)) y uno de los últimos 15 emitidos, y se copian el receptor, el concepto, el monto y la alícuota (cuando se puede deducir de los importes). **Las fechas no se copian:** el comprobante sale con fecha de hoy, salvo que elijas otra en los opcionales.
 
 | Paso | Pregunta             | Detalle                                                                                                                                                                                                                                                   |
 | ---- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1    | Tipo de comprobante  | Factura A, B o C, comunes o FCE, o Recibo C                                                                                                                                                                                                               |
+| 1    | Tipo de comprobante  | Factura A, B o C, comunes o FCE, Recibo C o factura de exportación E                                                                                                                                                                                      |
 | 2    | Comprobante          | Uno de los últimos emitidos en el punto de venta configurado. Como en las notas, se pueden cargar más o ingresar el número a mano                                                                                                                         |
 | 3    | IVA del receptor     | Solo si no era consumidor final: ARCA no devuelve la condición IVA de la factura                                                                                                                                                                          |
 | 4    | Monto                | El mismo o uno nuevo, en la moneda del original                                                                                                                                                                                                           |
 | 5    | ¿Cómo te pagan?      | Solo si el original era en moneda extranjera (dólares, euros u otra): el nuevo sale en esa moneda y la cotización se vuelve a cargar. En pesos ingresás la cotización acordada; en la moneda del comprobante se usa la oficial de ARCA (`--misma-moneda`) |
 | 6    | Período del servicio | Este mes, el mes pasado, solo hoy u otro. No se pregunta si el concepto es solo productos                                                                                                                                                                 |
-| 7    | CBU                  | Solo en FCE sin `config.cbu`                                                                                                                                                                                                                              |
+| 7    | CBU                  | Solo en FCE sin `config.cbu`, con el alias si no hay `aliasCbu`; después de la confirmación ofrece guardarlos en la config, como en "Emitir factura"                                                                                                      |
 | 8    | Opcionales           | La misma selección múltiple de "Emitir factura". Si el original era en moneda extranjera, no ofrece cambiar la moneda: el monto está en esa moneda                                                                                                        |
 
 Después sigue igual que una factura nueva: vista previa, comando equivalente y confirmación.
+
+### Repetir una factura E
+
+Elegís una de las últimas facturas `E` (con **Cargar más…** e **Ingresar el número a mano…**, como en "Consultar comprobantes") y se copian de lo que ARCA devuelve de ella (`FEXGetCMP`): el cliente, su domicilio e ID impositivo, el destino y su CUIT, el tipo de exportación, la moneda y si se cobró en esa moneda, el incoterm y su descripción, los ítems, la forma de pago, el idioma y la actividad. **No se copian** las fechas (sale con la de hoy), la cotización (la de aduana del día, salvo que cargues otra en los opcionales), los permisos de embarque ni las observaciones.
+
+| Paso | Pregunta             | Detalle                                                                                                                                                      |
+| ---- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1    | Comprobante          | Una de las últimas facturas `E` del punto de venta                                                                                                           |
+| 2    | Monto                | El mismo o uno nuevo, en la moneda del original. Con otro monto los ítems copiados no suman, así que sale un renglón con el total: los podés cargar de nuevo |
+| 3    | ¿Te pagan en…?       | Solo si ARCA no devolvió si se cobró en la misma moneda                                                                                                      |
+| 4    | CUIT del país        | Solo si la factura no lo trae y ARCA no publica uno para el destino                                                                                          |
+| 5    | Permisos de embarque | Solo en bienes, opcional: son de cada embarque                                                                                                               |
+| 6    | Fecha de pago        | Opcional; por defecto la del comprobante                                                                                                                     |
+| 7    | Actividad            | Solo si la factura no la trae y no está `exportacion.actividad`                                                                                              |
+| 8    | Opcionales           | Los [de la E](#opcionales-de-la-e), con lo copiado ya cargado                                                                                                |
+
+Un solo renglón por el total se repite como descripción (`--descripcion`) y varios, como `--item`. Si algún ítem tiene bonificación, que el asistente no informa, o los ítems no suman el total, avisa y sale un renglón con el monto total. Después muestra la vista previa, el comando `arcli fe` equivalente y pregunta si emitir, como una factura `E` nueva.
 
 ## Consultar comprobantes
 

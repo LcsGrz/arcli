@@ -1,15 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BillingService } from '../../../modules/billing/billing.service';
-import { getVoucherKindByShortcut } from '../../../modules/billing/voucher-kind-map';
+import { getVoucherKindByShortcut, VOUCHER_KIND_MAP } from '../../../modules/billing/voucher-kind-map';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../../../modules/vouchers/voucher-history';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import { stripAnsi } from '../../../ui';
 import { initialAdvancedOptions } from '../advanced-options';
 import { runExportFlow } from '../export.flow';
+import { runExportRepeatFlow } from '../export-repeat.flow';
 import { runHistoryFlow } from '../history.flow';
-import { buildInvoiceInput, invoiceSteps, runInvoiceFlow } from '../invoice.flow';
+import {
+  askCbuStep,
+  buildInvoiceInput,
+  type InvoiceState,
+  invoiceSteps,
+  offerSavingCbu,
+  runInvoiceFlow,
+} from '../invoice.flow';
 import { buildNoteInput, noteSteps } from '../note.flow';
 import { repeatSteps } from '../repeat.flow';
 import type { InteractiveSession } from '../session';
@@ -19,6 +27,18 @@ import { createScript, onlyChoices } from './script';
 let script = createScript([]);
 
 vi.mock('../export.flow', () => ({ runExportFlow: vi.fn(async () => undefined) }));
+vi.mock('../export-repeat.flow', () => ({ runExportRepeatFlow: vi.fn(async () => undefined) }));
+
+const savedConfig = vi.fn();
+
+vi.mock('../../../modules/config/config.service', () => ({
+  ConfigService: class {
+    public close() {}
+    public setValue(key: string, value: string) {
+      savedConfig(key, value);
+    }
+  },
+}));
 
 vi.mock('../prompts', () => ({
   askTextStep: (...args: Parameters<typeof script.askTextStep>) => script.askTextStep(...args),
@@ -26,6 +46,11 @@ vi.mock('../prompts', () => ({
   chooseStep: (...args: Parameters<typeof script.chooseStep>) => script.chooseStep(...args),
   chooseStepWhileLoading: (...args: Parameters<typeof script.chooseStepWhileLoading>) =>
     script.chooseStepWhileLoading(...args),
+  confirm: (message: string, yesLabel: string, noLabel = 'Cancelar') =>
+    script.chooseStep(message, [
+      { name: yesLabel, value: true },
+      { name: noLabel, value: false },
+    ]),
   eraseLastAnswer: () => undefined,
   fitPageSize: () => 12,
 }));
@@ -227,6 +252,7 @@ describe('flujos del modo interactivo', () => {
         [/Qué estás facturando/, 'Servicios'],
         [/Monto total/, '1105'],
         [/CBU/, '0110599520000012345678'],
+        [/Alias del CBU/, 'mi.alias.cbu'],
         [/Agregamos/, ['Modalidad', 'Alícuota', 'Vencimiento']],
         [/Alícuota/, '10,5%'],
         [/Vencimiento del pago/, '30/10'],
@@ -238,12 +264,71 @@ describe('flujos del modo interactivo', () => {
 
       expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
         cbu: '0110599520000012345678',
+        cbuAlias: 'mi.alias.cbu',
         documentNumber: 30709965812,
         documentType: 'cuit',
         ivaRate: '10.5',
         paymentDueDate: '30/10',
         shortcut: 'fcea',
         transferMode: 'adc',
+      });
+    });
+
+    it('ofrece guardar en la config el CBU escrito a mano, como la actividad de la E', async () => {
+      const state: InvoiceState = {
+        advanced: { currencyCode: 'ARS', sameCurrency: false },
+        cbu: '0110599520000012345678',
+        voucherKind: VOUCHER_KIND_MAP.fcea,
+      };
+
+      script = createScript([[/Guardamos el CBU en la config/, 'Sí, guardar']]);
+      await offerSavingCbu(createSession(), state);
+      expect(savedConfig).toHaveBeenCalledWith('cbu', '0110599520000012345678');
+
+      savedConfig.mockClear();
+      script = createScript([[/Guardamos el CBU/, 'No']]);
+      await offerSavingCbu(createSession(), state);
+      expect(savedConfig).not.toHaveBeenCalled();
+
+      // Con el CBU en la config no se pregunto, asi que no hay nada que guardar.
+      const withCbu = createSession();
+      const configured = {
+        ...withCbu,
+        runtime: { ...withCbu.runtime, config: { ...withCbu.runtime.config, cbu: '0110599520000012345678' } },
+      } as InteractiveSession;
+
+      script = createScript([]);
+      await offerSavingCbu(configured, state);
+      await offerSavingCbu(createSession(), { ...state, cbu: undefined });
+
+      // Con el alias escrito a mano, se guardan los dos.
+      savedConfig.mockClear();
+      script = createScript([[/Guardamos el CBU y el alias mi.alias.cbu/, 'Sí, guardar']]);
+      await offerSavingCbu(createSession(), { ...state, cbuAlias: 'mi.alias.cbu' });
+      expect(savedConfig).toHaveBeenCalledWith('cbu', '0110599520000012345678');
+      expect(savedConfig).toHaveBeenCalledWith('aliasCbu', 'mi.alias.cbu');
+    });
+
+    it('con alias en la config no pregunta el alias, y Enter lo omite', async () => {
+      const withAlias = createSession();
+      const configured = {
+        ...withAlias,
+        runtime: { ...withAlias.runtime, config: { ...withAlias.runtime.config, aliasCbu: 'mi.alias.cbu' } },
+      } as InteractiveSession;
+
+      script = createScript([[/CBU del emisor/, '0110599520000012345678']]);
+      await expect(askCbuStep(configured.runtime.config)).resolves.toEqual({
+        cbu: '0110599520000012345678',
+        cbuAlias: undefined,
+      });
+
+      script = createScript([
+        [/CBU del emisor/, '0110599520000012345678'],
+        [/Alias del CBU/, ''],
+      ]);
+      await expect(askCbuStep(createSession().runtime.config)).resolves.toEqual({
+        cbu: '0110599520000012345678',
+        cbuAlias: undefined,
       });
     });
 
@@ -499,6 +584,31 @@ describe('flujos del modo interactivo', () => {
 
   describe('repetir factura', () => {
     const today = new Date('2026-10-05T15:00:00Z');
+
+    it('la factura E se elige en el mismo selector y corre su propio asistente', async () => {
+      script = createScript([[/comprobante querés repetir/, 'Factura de exportación E']]);
+
+      const state = await runWizard(repeatSteps(createSession(), 3, today), {
+        advanced: { currencyCode: 'ARS', sameCurrency: false },
+      });
+
+      expect(runExportRepeatFlow).toHaveBeenCalledWith(expect.anything(), 3);
+      expect(state).toMatchObject({ exported: true });
+    });
+
+    it('volver desde el asistente de la E vuelve al selector de comprobantes', async () => {
+      vi.mocked(runExportRepeatFlow).mockResolvedValueOnce(BACK);
+      script = createScript([
+        [/comprobante querés repetir/, 'Factura de exportación E'],
+        [/comprobante querés repetir/, BACK],
+      ]);
+
+      expect(
+        await runWizard(repeatSteps(createSession(), 3, today), {
+          advanced: { currencyCode: 'ARS', sameCurrency: false },
+        }),
+      ).toBeUndefined();
+    });
 
     it('copia receptor, concepto, monto y alicuota con el periodo del mes pasado', async () => {
       script = createScript([

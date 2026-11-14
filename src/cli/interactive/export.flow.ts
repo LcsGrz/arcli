@@ -1,6 +1,5 @@
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import { formatEmissionQuestion, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
-import { ConfigService } from '../../modules/config/config.service';
 import { DEFAULT_EXPORT_PAYMENT_TERMS, resolveExportDestinationCountry } from '../../modules/export/export.mappers';
 import { formatExportResultAsText } from '../../modules/export/export.presenter';
 import { ExportService } from '../../modules/export/export.service';
@@ -23,7 +22,8 @@ import { withSpinner } from '../spinner';
 
 import { askCountryCuit, askExportOptions, type ExportOptions, isCountryCuitMissing } from './export-options';
 import { completeIssuer } from './pdf.flow';
-import { askTextStep, chooseStep, confirm, isPromptCancellation } from './prompts';
+import { askTextStep, chooseStep, isPromptCancellation } from './prompts';
+import { offerSavingToConfig } from './save-to-config';
 import { confirmEmission, formatEquivalentCommand, type InteractiveSession } from './session';
 import { validateAmount, validateDate } from './validators';
 
@@ -325,21 +325,6 @@ function exportSteps(
   ];
 }
 
-/** Ofrece guardar la actividad que se escribio a mano, para no volver a preguntarla. */
-async function offerSavingActivity(activity: number): Promise<void> {
-  if (!(await confirm(`¿Guardamos la actividad ${activity} en la config para la próxima?`, 'Sí, guardar', 'No'))) {
-    return;
-  }
-
-  const service = new ConfigService();
-
-  try {
-    service.setValue('exportacion.actividad', String(activity));
-  } finally {
-    service.close();
-  }
-}
-
 /**
  * Vista previa, comando equivalente, confirmacion, emision y PDF: lo mismo para la factura y las notas E. Sin
  * `activity` (las notas la toman del asociado), el comando equivalente no la repite.
@@ -364,7 +349,13 @@ export async function emitExportVoucher(
 
   const label = formatVoucherWithArticle(input.voucherKind ?? EXPORT_VOUCHER_KIND);
 
-  if (!(await confirmEmission(formatEmissionQuestion(label, runtime.environment), runtime.environment))) {
+  const emission = await confirmEmission(
+    formatEmissionQuestion(label, runtime.environment),
+    runtime.environment,
+    runtime.config.pdf,
+  );
+
+  if (!emission) {
     return;
   }
 
@@ -381,7 +372,8 @@ export async function emitExportVoucher(
     const withPdf = await attachExportPdf(result, {
       completeConfig: completeIssuer,
       config: runtime.config,
-      input,
+      // "Emitir y generar el PDF" es el `--exportar-pdf` del asistente: le gana a `pdf nunca`.
+      input: emission === 'emitir-con-pdf' ? { ...input, pdf: true } : input,
       interactive: true,
     });
 
@@ -447,6 +439,8 @@ export async function runExportFlow(session: InteractiveSession): Promise<typeof
   await emitExportVoucher(session, gateway, input, activity);
 
   if (state.activity !== undefined && configuredActivity === undefined) {
-    await offerSavingActivity(state.activity);
+    await offerSavingToConfig(`¿Guardamos la actividad ${state.activity} en la config para la próxima?`, [
+      ['exportacion.actividad', String(state.activity)],
+    ]);
   }
 }

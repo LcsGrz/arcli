@@ -54,6 +54,8 @@ Los flags ganan sobre la config en cada corrida:
 - `--exportar-pdf` (alias `--pdf`): genera el PDF.
 - `--sin-pdf`: no lo genera.
 
+En el [modo interactivo](modo-interactivo.md#pdf), con `nunca`, la confirmación antes de emitir ofrece **Sí, emitir y generar el PDF** para ese comprobante.
+
 Nunca se genera un PDF de una vista previa (sin `--emitir`) ni de un comprobante rechazado, porque no tienen CAE. Un comprobante **observado** sí tiene CAE y sí lleva PDF.
 
 En un lote (`--cargar` con un array) se genera un PDF por comprobante, y si hay que preguntar, se pregunta una sola vez para todo el lote. Cada ítem del JSON puede traer `"pdf": true` o `"pdf": false`.

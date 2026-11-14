@@ -111,7 +111,10 @@ export async function completeIssuer(config: ArcliConfig): Promise<ArcliConfig> 
   return completed;
 }
 
-/** Despues de emitir: pregunta si se quiere el PDF (segun la config) y los datos que solo van en el PDF. */
+/**
+ * Despues de emitir: pregunta si se quiere el PDF (segun la config) y los datos que solo van en el PDF. Con
+ * `input.pdf` en `true` ("Sí, emitir y generar el PDF") lo genera aunque la config diga `nunca`, como `--exportar-pdf`.
+ */
 export async function offerPdf(
   config: ArcliConfig,
   input: BillingCommandInput,
@@ -121,7 +124,7 @@ export async function offerPdf(
     return;
   }
 
-  const decision = resolvePdfDecision({ interactive: true, mode: config.pdf });
+  const decision = resolvePdfDecision({ flag: input.pdf, interactive: true, mode: config.pdf });
 
   if (decision === 'omitir') {
     return;

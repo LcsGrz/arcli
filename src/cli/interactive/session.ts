@@ -7,6 +7,7 @@ import { prepareBillingInput, resolveFceWarningsInOrder } from '../../modules/bi
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import { BillingService } from '../../modules/billing/billing.service';
 import type { BillingGateway } from '../../modules/billing/billing.types.internal';
+import type { ArcliPdfMode } from '../../modules/config/config.schemas';
 import { buildEquivalentCommand } from '../../modules/interactive/equivalent-command';
 import { BACK } from '../../modules/interactive/wizard';
 import type { VoucherHistoryGateway } from '../../modules/vouchers/voucher-history';
@@ -23,7 +24,7 @@ import { startSpinner } from '../spinner';
 import type { GlobalCliOptions } from '../types';
 
 import { offerPdf } from './pdf.flow';
-import { askTextStep, confirm } from './prompts';
+import { askTextStep, chooseOne, confirm } from './prompts';
 import { validatePointOfSale } from './validators';
 
 export interface InteractiveSession {
@@ -109,15 +110,44 @@ export const EMIT_IN_PRODUCTION_LABEL = 'Sí, emitir en producción';
 export const DO_NOT_EMIT_LABEL = 'No, dejar sin emitir';
 export const PRODUCTION_CONFIRMATION = 'Vas a emitir un comprobante real en PRODUCCIÓN. ¿Confirmás?';
 
-/** "¿Emitimos?" y, en produccion, la segunda confirmacion. Si no, avisa que no se emitio nada. */
+export const EMIT_WITH_PDF_LABEL = 'Sí, emitir y generar el PDF';
+
+/** La respuesta a "¿Emitimos?": no emitir, emitir, o emitir y generar el PDF aunque la config diga `nunca`. */
+export type EmissionAnswer = 'emitir' | 'emitir-con-pdf' | false;
+
+/**
+ * "¿Emitimos?" y, en produccion, la segunda confirmacion. Si no, avisa que no se emitio nada. Con `pdf nunca` suma
+ * "Sí, emitir y generar el PDF", el `--exportar-pdf` del asistente: no se pregunta nada de mas, y quien quiere el PDF
+ * de este comprobante lo elige aca. Esc cuenta como no.
+ */
 export async function confirmEmission(
   question: string,
   environment: ResolvedArcaRuntime['environment'],
-): Promise<boolean> {
+  pdfMode?: ArcliPdfMode,
+): Promise<EmissionAnswer> {
+  const answer: EmissionAnswer =
+    pdfMode === 'nunca'
+      ? await chooseOne<EmissionAnswer>(
+          question,
+          [
+            { name: EMIT_NOW_LABEL, value: 'emitir' },
+            {
+              description: 'Solo esta vez: en la config el PDF está en `nunca`',
+              name: EMIT_WITH_PDF_LABEL,
+              value: 'emitir-con-pdf',
+            },
+            { name: DO_NOT_EMIT_LABEL, value: false },
+          ],
+          undefined,
+          { escapeValue: false },
+        )
+      : (await confirm(question, EMIT_NOW_LABEL, DO_NOT_EMIT_LABEL)) && 'emitir';
   const confirmed =
-    (await confirm(question, EMIT_NOW_LABEL, DO_NOT_EMIT_LABEL)) &&
+    answer &&
     (environment !== 'produccion' ||
-      (await confirm(PRODUCTION_CONFIRMATION, EMIT_IN_PRODUCTION_LABEL, DO_NOT_EMIT_LABEL)));
+      (await confirm(PRODUCTION_CONFIRMATION, EMIT_IN_PRODUCTION_LABEL, DO_NOT_EMIT_LABEL)))
+      ? answer
+      : false;
 
   if (!confirmed) {
     writeTerminalOutput(noticePanel(NOTHING_EMITTED_NOTICE, 'muted'));
@@ -170,7 +200,13 @@ export async function previewAndEmit(session: InteractiveSession, rawInput: Bill
 
   const label = formatVoucherWithArticle(preview.voucherKind);
 
-  if (!(await confirmEmission(formatEmissionQuestion(label, runtime.environment), runtime.environment))) {
+  const emission = await confirmEmission(
+    formatEmissionQuestion(label, runtime.environment),
+    runtime.environment,
+    runtime.config.pdf,
+  );
+
+  if (!emission) {
     return;
   }
 
@@ -188,7 +224,7 @@ export async function previewAndEmit(session: InteractiveSession, rawInput: Bill
     writeTerminalOutput(
       formatBillingOutputs([result], { environment: runtime.environment, previewShown: true, raw: false }),
     );
-    await offerPdf(runtime.config, input, result);
+    await offerPdf(runtime.config, { ...input, pdf: emission === 'emitir-con-pdf' || undefined }, result);
   } catch (error) {
     spinner?.stop();
     throw error;

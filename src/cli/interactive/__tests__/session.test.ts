@@ -4,10 +4,15 @@ import { billingCommandSchema } from '../../../modules/billing/billing.schemas';
 import { BillingService } from '../../../modules/billing/billing.service';
 import { BACK } from '../../../modules/interactive/wizard';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
-import { askTextStep, confirm } from '../prompts';
+import { offerPdf } from '../pdf.flow';
+import { askTextStep, chooseOne, confirm } from '../prompts';
 import { type InteractiveSession, previewAndEmit, requirePointOfSale } from '../session';
 
-vi.mock('../prompts', () => ({ askTextStep: vi.fn(), confirm: vi.fn() }));
+vi.mock('../prompts', () => ({ askTextStep: vi.fn(), chooseOne: vi.fn(), confirm: vi.fn() }));
+vi.mock('../pdf.flow', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../pdf.flow')>()),
+  offerPdf: vi.fn(async () => undefined),
+}));
 
 const confirmMock = vi.mocked(confirm);
 const askTextStepMock = vi.mocked(askTextStep);
@@ -15,12 +20,13 @@ const askTextStepMock = vi.mocked(askTextStep);
 function createSession(
   environment: 'produccion' | 'testing',
   pointOfSale: number | null = 3,
+  pdf?: 'nunca',
 ): InteractiveSession & {
   readonly createVoucher: ReturnType<typeof vi.fn>;
 } {
   const createVoucher = vi.fn(async () => ({ response: {} }) as never);
   const runtime = {
-    config: { cert: {}, entornoPorDefecto: environment, key: {}, output: {} },
+    config: { cert: {}, entornoPorDefecto: environment, key: {}, output: {}, pdf },
     context: { cuit: 20333333334 },
     environment,
     outputJson: false,
@@ -54,6 +60,8 @@ describe('previewAndEmit', () => {
     vi.restoreAllMocks();
     confirmMock.mockReset();
     askTextStepMock.mockReset();
+    vi.mocked(chooseOne).mockReset();
+    vi.mocked(offerPdf).mockClear();
   });
 
   it('no emite si el usuario cancela', async () => {
@@ -73,6 +81,76 @@ describe('previewAndEmit', () => {
 
     expect(confirmMock).toHaveBeenCalledTimes(1);
     expect(session.createVoucher).toHaveBeenCalledTimes(1);
+  });
+
+  it('con `pdf nunca` se puede emitir y generar el PDF desde la confirmacion', async () => {
+    const session = createSession('testing', 3, 'nunca');
+
+    vi.mocked(chooseOne).mockResolvedValueOnce('emitir-con-pdf');
+    await previewAndEmit(session, input);
+
+    expect(confirmMock).not.toHaveBeenCalled();
+    expect(session.createVoucher).toHaveBeenCalledTimes(1);
+    expect(offerPdf).toHaveBeenCalledWith(
+      expect.objectContaining({ pdf: 'nunca' }),
+      expect.objectContaining({ pdf: true }),
+      expect.anything(),
+    );
+  });
+
+  it('con `pdf nunca` la opcion del PDF va entre emitir y no emitir, con los mismos botones', async () => {
+    const session = createSession('testing', 3, 'nunca');
+
+    vi.mocked(chooseOne).mockResolvedValueOnce(false);
+    await previewAndEmit(session, input);
+
+    expect(session.createVoucher).not.toHaveBeenCalled();
+    expect(chooseOne).toHaveBeenCalledWith(
+      expect.stringContaining('Emitimos'),
+      [
+        expect.objectContaining({ name: 'Sí, emitir ahora', value: 'emitir' }),
+        expect.objectContaining({ name: 'Sí, emitir y generar el PDF', value: 'emitir-con-pdf' }),
+        expect.objectContaining({ name: 'No, dejar sin emitir', value: false }),
+      ],
+      undefined,
+      { escapeValue: false },
+    );
+  });
+
+  it('en produccion, emitir con PDF pide la segunda confirmacion y respeta el PDF', async () => {
+    const declined = createSession('produccion', 3, 'nunca');
+
+    vi.mocked(chooseOne).mockResolvedValueOnce('emitir-con-pdf');
+    confirmMock.mockResolvedValueOnce(false);
+    await previewAndEmit(declined, input);
+    expect(declined.createVoucher).not.toHaveBeenCalled();
+    expect(offerPdf).not.toHaveBeenCalled();
+
+    const accepted = createSession('produccion', 3, 'nunca');
+
+    vi.mocked(chooseOne).mockResolvedValueOnce('emitir-con-pdf');
+    confirmMock.mockResolvedValueOnce(true);
+    await previewAndEmit(accepted, input);
+    expect(confirmMock).toHaveBeenCalledWith(
+      expect.stringContaining('PRODUCCIÓN'),
+      'Sí, emitir en producción',
+      'No, dejar sin emitir',
+    );
+    expect(accepted.createVoucher).toHaveBeenCalledTimes(1);
+    expect(offerPdf).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ pdf: true }), expect.anything());
+  });
+
+  it('sin elegir el PDF, la config decide como siempre', async () => {
+    const session = createSession('testing');
+
+    confirmMock.mockResolvedValueOnce(true);
+    await previewAndEmit(session, input);
+
+    expect(offerPdf).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ pdf: undefined }),
+      expect.anything(),
+    );
   });
 
   it('en produccion pide una segunda confirmacion antes de emitir', async () => {
