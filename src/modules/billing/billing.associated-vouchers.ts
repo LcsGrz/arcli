@@ -62,7 +62,7 @@ export function resolveAssociatedVouchers(options: ResolveAssociatedVoucherOptio
     );
   }
 
-  // En una nota FCE sin `--afecha` la fecha sale de ARCA al emitir (checkAssociatedInArca); la vista previa va sin ella.
+  // En una nota FCE sin `--afecha` la fecha sale de ARCA (checkAssociatedInArca, antes de la vista previa).
   const associatedDate = resolveAssociatedVoucherDate(associatedVoucher.fecha, billingDate, voucherKind);
 
   return [

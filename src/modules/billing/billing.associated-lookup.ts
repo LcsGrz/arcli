@@ -1,5 +1,6 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
+import { formatArgentineAmountInput } from '../../lib/numbers/argentine-amount';
 import type { ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../vouchers/voucher-history';
 import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
@@ -24,6 +25,36 @@ function describeAssociated(arcaType: number, pointOfSale: number, number: numbe
   return `${name} ${formatVoucherNumber(pointOfSale, number)}`;
 }
 
+/** El total del asociado para una frase: `la factura C 00003-00000045, de $ 120.000`. */
+function describeTotal(associatedLabel: string, total: number, currency: string | undefined): string {
+  return `${associatedLabel}, de ${formatMoneyLabel(total, currency)}`;
+}
+
+/**
+ * El error de una NC que supera a su asociado, igual en A, B, C, FCE y E, con la sugerencia de anularlo entero.
+ * `associatedLabel` es el asociado con articulo, letra y numero: `la factura C 00003-00000045`.
+ */
+export function creditNoteOverTotalError(options: {
+  readonly associatedCurrency?: string;
+  readonly associatedLabel: string;
+  readonly associatedTotal: number;
+  readonly noteCurrency: string;
+  readonly noteTotal: number;
+}): InputValidationError {
+  const { associatedCurrency, associatedLabel, associatedTotal, noteCurrency, noteTotal } = options;
+
+  return new InputValidationError(
+    `La nota de crédito por ${formatMoneyLabel(noteTotal, noteCurrency)} no puede superar el total de ${describeTotal(associatedLabel, associatedTotal, associatedCurrency ?? noteCurrency)}.`,
+    undefined,
+    `Para anularla entera usá \`--monto ${formatArgentineAmountInput(associatedTotal)}\`.`,
+  );
+}
+
+/** El mismo aviso en el paso del monto del asistente: `No puede superar el total de la factura C 00003-00000045, de $ 120.000.` */
+export function creditNoteOverTotalHint(associatedLabel: string, total: number, currency?: string): string {
+  return `No puede superar el total de ${describeTotal(associatedLabel, total, currency)}.`;
+}
+
 /**
  * El tope de la NC, con el mismo criterio que las notas E: solo si van en la misma moneda, porque en otra moneda los
  * totales no se comparan.
@@ -41,9 +72,13 @@ export function assertCreditNoteWithinAssociated(options: {
   }
 
   if (note.total > associated.total) {
-    throw new InputValidationError(
-      `La nota de crédito (${formatMoneyLabel(note.total, note.currencyCode)}) no puede superar el total de ${associatedLabel} (${formatMoneyLabel(associated.total, associated.currency ?? note.currencyCode)}).`,
-    );
+    throw creditNoteOverTotalError({
+      associatedCurrency: associated.currency,
+      associatedLabel,
+      associatedTotal: associated.total,
+      noteCurrency: note.currencyCode,
+      noteTotal: note.total,
+    });
   }
 }
 
@@ -71,25 +106,37 @@ function shouldLookUpAssociated(
   return needsDate || CREDIT_NOTE_FAMILIES.has(voucherKind.family);
 }
 
+export interface CheckedAssociated {
+  readonly input: BillingCommandInput;
+  /** Si ARCA no respondio y la nota igual se puede emitir: el tope de la NC queda sin controlar. */
+  readonly warnings: readonly string[];
+}
+
+function reasonOf(error: unknown): string {
+  return error instanceof Error ? error.message : 'error desconocido';
+}
+
 /**
- * Lo que se controla contra el asociado al emitir una nota A, B, C o FCE, con una sola consulta a ARCA y sin sumar
- * llamadas a la vista previa: que una NC no supere el total del asociado y, en una nota FCE sin `--afecha`, la fecha
- * del asociado. Devuelve la entrada con esa fecha, para que el payload la lleve.
+ * Lo que se controla contra el asociado de una nota A, B, C o FCE, con una sola consulta a ARCA antes de la vista
+ * previa: que una NC no supere el total del asociado y, en una nota FCE sin `--afecha`, la fecha del asociado.
+ * Devuelve la entrada con esa fecha, asi la vista previa la muestra y la emision no vuelve a consultar.
  *
- * Si ARCA no tiene el asociado, la nota FCE sin fecha no se puede armar y frena; en el resto ARCA decide al emitir.
+ * Si ARCA no tiene el asociado o no responde, la nota FCE sin fecha no se puede armar y frena; en el resto ARCA
+ * decide al emitir (si no respondio, con un aviso).
  */
 export async function checkAssociatedInArca(options: {
   readonly gateway: Pick<VoucherHistoryGateway, 'getVoucher'>;
   readonly input: BillingCommandInput;
   readonly runtime: ResolvedArcaRuntime;
   readonly service: Pick<BillingService, 'buildVoucherPayload'>;
-}): Promise<BillingCommandInput> {
+}): Promise<CheckedAssociated> {
   const { gateway, input, runtime, service } = options;
   const voucherKind = getVoucherKindByShortcut(input.shortcut);
   const associated = input.associatedVoucher;
+  const unchanged: CheckedAssociated = { input, warnings: [] };
 
   if (!voucherKind || !associated || !shouldLookUpAssociated(input, voucherKind, runtime.context.cuit)) {
-    return input;
+    return unchanged;
   }
 
   // Valida la entrada antes de consultar: si la nota no se puede armar, no hace falta ir a ARCA.
@@ -97,20 +144,38 @@ export async function checkAssociatedInArca(options: {
   const reference = payload.CbtesAsoc?.[0];
 
   if (!reference) {
-    return input;
+    return unchanged;
   }
 
-  const voucher = await gateway.getVoucher(reference.Nro, reference.PtoVta, reference.Tipo);
   const label = describeAssociated(reference.Tipo, reference.PtoVta, reference.Nro);
+  const needsDate = voucherKind.isElectronicCredit && !associated.fecha;
+  let voucher: IssuedVoucher | undefined;
+
+  try {
+    voucher = await gateway.getVoucher(reference.Nro, reference.PtoVta, reference.Tipo);
+  } catch (error) {
+    if (needsDate) {
+      throw new InputValidationError(
+        `No se pudo consultar en ARCA ${label} para tomar su fecha: ${reasonOf(error)}`,
+        undefined,
+        'Probá de nuevo en un rato o pasá la fecha del asociado con `--afecha <fecha>`.',
+      );
+    }
+
+    return {
+      input,
+      warnings: [`No se pudo verificar en ARCA que la nota de crédito no supere ${label}: ${reasonOf(error)}`],
+    };
+  }
 
   if (!voucher) {
-    if (voucherKind.isElectronicCredit && !associated.fecha) {
+    if (needsDate) {
       throw new InputValidationError(
         `ARCA no tiene ${label}, así que no se puede tomar su fecha. Revisá \`--ac\`, \`--apv\` y \`--ar\`.`,
       );
     }
 
-    return input;
+    return unchanged;
   }
 
   if (CREDIT_NOTE_FAMILIES.has(voucherKind.family)) {
@@ -121,9 +186,12 @@ export async function checkAssociatedInArca(options: {
     });
   }
 
-  if (!voucherKind.isElectronicCredit || associated.fecha) {
-    return input;
+  if (!needsDate) {
+    return unchanged;
   }
 
-  return { ...input, associatedVoucher: { ...associated, fecha: formatArcaDateAsArgentineDate(voucher.date) } };
+  return {
+    input: { ...input, associatedVoucher: { ...associated, fecha: formatArcaDateAsArgentineDate(voucher.date) } },
+    warnings: [],
+  };
 }

@@ -544,7 +544,7 @@ Acá se combinan las dos reglas anteriores:
 
 **Opcional**
 
-- `--afecha`: sin ella, al emitir arcli consulta el asociado en ARCA y toma su fecha. La vista previa no la consulta, así que la muestra sin la fecha del asociado
+- `--afecha`: sin ella, arcli consulta el asociado en ARCA y toma su fecha; la vista previa ya la muestra
 - `--anulacion` si la nota anula una factura que el comprador rechazó
 
 No llevan CBU, alias, transferencia ni vencimiento de pago.

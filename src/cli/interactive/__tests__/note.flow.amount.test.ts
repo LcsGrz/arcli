@@ -42,6 +42,7 @@ function amountStep(shortcut: VoucherShortcut) {
   const state: NoteState = {
     invoice: isLetterC ? { ...invoice, ivaAmount: 0, netAmount: 121 } : invoice,
     invoiceKind,
+    invoicePointOfSale: 3,
     kind: 'credito',
     target: 'factura',
   };
@@ -63,7 +64,9 @@ describe.each<VoucherShortcut>(['fa', 'fb', 'fc', 'fcea', 'fceb', 'fcec', 'rc'])
         [/Monto de la nota de crédito/, '121,01'],
       ]);
 
-      await expect(amountStep(shortcut)()).rejects.toThrow(/No puede superar el total del comprobante \(\$ 121\)/);
+      await expect(amountStep(shortcut)()).rejects.toThrow(
+        new RegExp(`No puede superar el total de (la|el) .+ 00003-00000014, de \\$ 121\\.$`),
+      );
     });
 
     it('acepta el total justo', async () => {

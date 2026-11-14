@@ -30,10 +30,11 @@ export class ConfigurationError extends AppError {
 }
 
 export class InputValidationError extends AppError {
-  public constructor(message: string, details?: Record<string, unknown>) {
+  public constructor(message: string, details?: Record<string, unknown>, suggestion?: string) {
     super(message, {
       code: 'INPUT_VALIDATION_ERROR',
       details,
+      suggestion,
     });
     this.name = 'InputValidationError';
   }

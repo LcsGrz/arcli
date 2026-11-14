@@ -103,7 +103,7 @@ export interface BillingCommandOptions {
 export interface BillingCommandGateways {
   readonly billing: BillingGateway;
   readonly fce: FceObligationGateway;
-  /** Para consultar el comprobante asociado de una nota al emitir. */
+  /** Para consultar el comprobante asociado de una nota antes de la vista previa. */
   readonly history: Pick<VoucherHistoryGateway, 'getVoucher'>;
   readonly padron: PadronGateway;
 }
@@ -149,7 +149,19 @@ export async function executeBillingCommand(
     const prepared = await prepareBatch({
       inputs: plan.inputs,
       plan,
-      resolve: (input) => prepareBillingInput(service, input, gateways),
+      // El asociado de una nota se consulta aca, una vez: la vista previa ya muestra su fecha y el tope de la NC,
+      // y la emision usa la entrada completada sin volver a consultar.
+      resolve: async (input) => {
+        const entry = await prepareBillingInput(service, input, gateways);
+        const checked = await checkAssociatedInArca({
+          gateway: gateways.history,
+          input: entry.input,
+          runtime,
+          service,
+        });
+
+        return { input: checked.input, warnings: [...entry.warnings, ...checked.warnings] };
+      },
       validate: ({ input }) => {
         service.buildVoucherPayload(input, runtime);
       },
@@ -179,12 +191,12 @@ export async function executeBillingCommand(
       return;
     }
 
-    const { previewShown } = preview;
+    const { inputs, previewShown } = preview;
 
-    const emitting = preview.inputs.some((input) => input.emit);
+    const emitting = inputs.some((input) => input.emit);
     const emittedVouchers =
-      preview.inputs.length > 1
-        ? `${preview.inputs.length} comprobantes`
+      inputs.length > 1
+        ? `${inputs.length} comprobantes`
         : voucherKind
           ? formatVoucherWithArticle(voucherKind)
           : 'el comprobante';
@@ -192,20 +204,6 @@ export async function executeBillingCommand(
     spinner = runtime.outputJson
       ? null
       : startSpinner(emitting ? `Emitiendo ${emittedVouchers} en ARCA...` : 'Preparando la vista previa...');
-
-    // El asociado de las notas se consulta recien al emitir, para no sumar llamadas a la vista previa. En un lote se
-    // controlan todos antes de emitir el primero.
-    const inputs = emitting
-      ? await prepareBatch({
-          inputs: preview.inputs,
-          plan,
-          resolve: (input) =>
-            input.emit && !input.dryRun
-              ? checkAssociatedInArca({ gateway: gateways.history, input, runtime, service })
-              : Promise.resolve(input),
-          validate: () => undefined,
-        })
-      : preview.inputs;
 
     const deliveryOptions = {
       config: runtime.config,

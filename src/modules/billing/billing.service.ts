@@ -90,7 +90,7 @@ export class BillingService {
     }
 
     // Resguardo: una nota FCE no llega a ARCA sin la fecha del asociado (10158). Sin `--afecha` la completa
-    // checkAssociatedInArca antes de emitir; si quien llama no la consulto, se frena aca.
+    // checkAssociatedInArca antes de la vista previa; si quien llama no la consulto, se frena aca.
     if (voucherKind.isElectronicCredit && payload.CbtesAsoc?.some((associated) => !associated.CbteFch)) {
       throw new InputValidationError(
         `${formatVoucherSubject(voucherKind)} requiere la fecha del comprobante asociado. Usá \`--afecha <fecha>\`.`,

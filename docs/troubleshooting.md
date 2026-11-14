@@ -258,16 +258,16 @@ arcli fc ayuda
 
 - **Severidad:** ocasional
 - **Síntoma:** `ARCA no tiene la factura de crédito electrónica ..., así que no se puede tomar su fecha.`
-- **Causa:** en NC/ND FCE, ARCA exige la fecha de la factura asociada (10158). Sin `--afecha`, arcli la busca en ARCA al emitir y no la encontró.
-- **Solución:** revisar `--ac`, `--apv` y `--ar`: tienen que apuntar a una factura FCE tuya ya emitida.
+- **Causa:** en NC/ND FCE, ARCA exige la fecha de la factura asociada (10158). Sin `--afecha`, arcli la busca en ARCA antes de la vista previa y no la encontró o ARCA no respondió.
+- **Solución:** revisar `--ac`, `--apv` y `--ar`: tienen que apuntar a una factura FCE tuya ya emitida. Si ARCA no respondió, reintentar o pasar la fecha con `--afecha`.
 - **Documentación relacionada:** [Crédito electrónico (FCE)](validation-rules.md#crédito-electrónico-fce)
 
 ### La nota de crédito supera el total de la factura
 
 - **Severidad:** ocasional
-- **Síntoma:** `La nota de crédito ($ ...) no puede superar el total de la factura ...`
-- **Causa:** al emitir una NC, arcli consulta el asociado en ARCA y la NC es mayor que su total (en la misma moneda). No se emite nada.
-- **Solución:** bajar `--monto` o revisar `--ar` y `--apv`, por si apuntan a otra factura.
+- **Síntoma:** `La nota de crédito por $ 150.000 no puede superar el total de la factura C 00003-00000045, de $ 120.000.`
+- **Causa:** antes de la vista previa, arcli consulta el asociado en ARCA y la NC es mayor que su total (en la misma moneda). Pasa igual en A, B, C, FCE y `E`. No se emite nada.
+- **Solución:** bajar `--monto` (la sugerencia trae el `--monto` para anularla entera) o revisar `--ar` y `--apv`, por si apuntan a otra factura.
 - **Documentación relacionada:** [Crédito electrónico (FCE)](validation-rules.md#crédito-electrónico-fce)
 
 ### La suma de las alícuotas no coincide con el total
