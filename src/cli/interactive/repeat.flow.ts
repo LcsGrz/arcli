@@ -233,12 +233,14 @@ export function repeatSteps(
   ];
 }
 
-export async function runRepeatFlow(session: InteractiveSession): Promise<void> {
-  const pointOfSale = requirePointOfSale(session);
+export async function runRepeatFlow(baseSession: InteractiveSession): Promise<void> {
+  const ready = await requirePointOfSale(baseSession);
 
-  if (!pointOfSale) {
+  if (!ready) {
     return;
   }
+
+  const { pointOfSale, session } = ready;
 
   const state = await runWizard(repeatSteps(session, pointOfSale), {
     advanced: { currencyCode: DEFAULT_CURRENCY_CODE, sameCurrency: false },

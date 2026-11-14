@@ -7,6 +7,7 @@ import {
   type ArcliConfig,
   arcliDefaultConceptSchema,
   arcliDefaultIvaConditionSchema,
+  type ArcliEnvironment,
   arcliEnvironmentSchema,
   arcliPdfModeSchema,
   type ConfigPublicKey,
@@ -194,12 +195,25 @@ export function describeConfigValue(field: ConfigField, config: ArcliConfig): st
   return field.path ? maskPath(value) : (field.choiceLabels?.[value] ?? value);
 }
 
+/** El entorno en que va a emitir el asistente: el de `--produccion` o `--testing` de `arcli interactivo`, o el de la config. */
+export function resolveActiveEnvironment(
+  config: Pick<ArcliConfig, 'entornoPorDefecto'>,
+  flags: { readonly produccion?: boolean; readonly testing?: boolean } = {},
+): ArcliEnvironment {
+  if (flags.produccion && !flags.testing) return 'produccion';
+  if (flags.testing && !flags.produccion) return 'testing';
+
+  return config.entornoPorDefecto;
+}
+
 /**
  * Lo minimo para emitir: sin esto el modo interactivo no puede crear la sesion con ARCA. El certificado es el del
  * entorno activo: quien emite solo en produccion no necesita el de testing.
  */
-export function listMissingSetupKeys(config: ArcliConfig): ConfigPublicKey[] {
-  const environment = config.entornoPorDefecto;
+export function listMissingSetupKeys(
+  config: ArcliConfig,
+  environment: ArcliEnvironment = config.entornoPorDefecto,
+): ConfigPublicKey[] {
   const required: readonly ConfigPublicKey[] = ['cuit', `cert.${environment}`, `key.${environment}`, 'puntoVenta'];
 
   return required.filter((key) => !getConfigField(key).read(config));

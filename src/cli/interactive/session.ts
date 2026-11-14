@@ -8,6 +8,7 @@ import type { BillingCommandInput } from '../../modules/billing/billing.schemas'
 import { BillingService } from '../../modules/billing/billing.service';
 import type { BillingGateway } from '../../modules/billing/billing.types.internal';
 import { buildEquivalentCommand } from '../../modules/interactive/equivalent-command';
+import { BACK } from '../../modules/interactive/wizard';
 import type { VoucherHistoryGateway } from '../../modules/vouchers/voucher-history';
 import { ArcaBillingGateway } from '../../services/arca/arca-billing.gateway';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
@@ -22,7 +23,8 @@ import { startSpinner } from '../spinner';
 import type { GlobalCliOptions } from '../types';
 
 import { offerPdf } from './pdf.flow';
-import { confirm } from './prompts';
+import { askTextStep, confirm } from './prompts';
+import { validatePointOfSale } from './validators';
 
 export interface InteractiveSession {
   readonly arca: Arca;
@@ -30,6 +32,11 @@ export interface InteractiveSession {
   readonly historyGateway: VoucherHistoryGateway;
   readonly runtime: ResolvedArcaRuntime;
   readonly service: BillingService;
+  /**
+   * El punto de venta se escribio en el asistente porque la config no tiene uno: la entrada y el comando equivalente
+   * lo llevan explicito, porque el comando pegado no lo encontraria en la config.
+   */
+  readonly typedPointOfSale?: number;
 }
 
 const PREVIEW_GATEWAY: BillingGateway = {
@@ -58,17 +65,65 @@ export function createInteractiveSession(options: GlobalCliOptions): Interactive
   };
 }
 
-export function requirePointOfSale(session: InteractiveSession): number | undefined {
-  if (!session.runtime.pointOfSale) {
-    writeTerminalOutput(
-      noticePanel(
-        `Falta el punto de venta. Cargalo en Configuración ${uiSymbol('arrow')} Modificar configuración ${uiSymbol('arrow')} Punto de venta.`,
-        'warning',
-      ),
-    );
+export interface SessionWithPointOfSale {
+  readonly pointOfSale: number;
+  /** La misma sesion, con el punto de venta elegido en `runtime`: emitir y consultar usan ese. */
+  readonly session: InteractiveSession;
+}
+
+/**
+ * El punto de venta del flujo, antes del primer paso. El de la config, sin preguntar; si no hay, lo pide (Esc vuelve
+ * al menu) y sugiere guardarlo para no escribirlo cada vez.
+ */
+export async function requirePointOfSale(session: InteractiveSession): Promise<SessionWithPointOfSale | undefined> {
+  const configured = session.runtime.pointOfSale;
+
+  if (configured) {
+    return { pointOfSale: configured, session };
   }
 
-  return session.runtime.pointOfSale;
+  writeTerminalOutput(
+    noticePanel(
+      `No hay un punto de venta en la configuración. Para no escribirlo cada vez, cargalo en Configuración ${uiSymbol('arrow')} Modificar configuración ${uiSymbol('arrow')} Punto de venta.`,
+      'muted',
+    ),
+  );
+
+  const answer = await askTextStep('Punto de venta:', { validate: validatePointOfSale });
+
+  if (answer === BACK) {
+    return undefined;
+  }
+
+  const pointOfSale = Number(answer);
+
+  return {
+    pointOfSale,
+    session: { ...session, runtime: { ...session.runtime, pointOfSale }, typedPointOfSale: pointOfSale },
+  };
+}
+
+/** Los botones de "¿Emitimos?": los mismos que la pregunta de los comandos con flags. */
+export const EMIT_NOW_LABEL = 'Sí, emitir ahora';
+export const EMIT_IN_PRODUCTION_LABEL = 'Sí, emitir en producción';
+export const DO_NOT_EMIT_LABEL = 'No, dejar sin emitir';
+export const PRODUCTION_CONFIRMATION = 'Vas a emitir un comprobante real en PRODUCCIÓN. ¿Confirmás?';
+
+/** "¿Emitimos?" y, en produccion, la segunda confirmacion. Si no, avisa que no se emitio nada. */
+export async function confirmEmission(
+  question: string,
+  environment: ResolvedArcaRuntime['environment'],
+): Promise<boolean> {
+  const confirmed =
+    (await confirm(question, EMIT_NOW_LABEL, DO_NOT_EMIT_LABEL)) &&
+    (environment !== 'produccion' ||
+      (await confirm(PRODUCTION_CONFIRMATION, EMIT_IN_PRODUCTION_LABEL, DO_NOT_EMIT_LABEL)));
+
+  if (!confirmed) {
+    writeTerminalOutput(noticePanel(NOTHING_EMITTED_NOTICE, 'muted'));
+  }
+
+  return confirmed;
 }
 
 export function formatEquivalentCommand(command: string): string {
@@ -87,10 +142,15 @@ export function formatEquivalentCommand(command: string): string {
 export async function previewAndEmit(session: InteractiveSession, rawInput: BillingCommandInput): Promise<void> {
   const { runtime, service } = session;
   // Lo mismo que con flags: padron, cotizacion oficial ("me pagan en dolares") y sus avisos, antes de la vista previa.
-  const prepared = await prepareBillingInput(service, rawInput, {
-    billing: session.billingGateway,
-    padron: new ArcaPadronGateway(session.arca),
-  });
+  const pointOfSale = rawInput.pointOfSale ?? session.typedPointOfSale;
+  const prepared = await prepareBillingInput(
+    service,
+    { ...rawInput, pointOfSale },
+    {
+      billing: session.billingGateway,
+      padron: new ArcaPadronGateway(session.arca),
+    },
+  );
   const input: BillingCommandInput = { ...prepared.input, dryRun: true, emit: false };
   const fceWarnings = runtime.config.verificarFce
     ? await resolveFceWarningsInOrder(service, [input], new ArcaFceObligationGateway(session.arca))
@@ -110,18 +170,7 @@ export async function previewAndEmit(session: InteractiveSession, rawInput: Bill
 
   const label = formatVoucherWithArticle(preview.voucherKind);
 
-  if (!(await confirm(formatEmissionQuestion(label, runtime.environment), 'Emitir ahora'))) {
-    writeTerminalOutput(noticePanel(NOTHING_EMITTED_NOTICE, 'muted'));
-
-    return;
-  }
-
-  if (
-    runtime.environment === 'produccion' &&
-    !(await confirm('Vas a emitir un comprobante real en PRODUCCIÓN. ¿Confirmás?', 'Sí, emitir en producción'))
-  ) {
-    writeTerminalOutput(noticePanel(NOTHING_EMITTED_NOTICE, 'muted'));
-
+  if (!(await confirmEmission(formatEmissionQuestion(label, runtime.environment), runtime.environment))) {
     return;
   }
 

@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 
 import type { ArcliConfig } from '../../config/config.schemas';
 import { validateConfigValue } from '../../config/config.service';
-import { CONFIG_FIELDS, describeConfigValue, getConfigField, listMissingSetupKeys } from '../config-fields';
+import {
+  CONFIG_FIELDS,
+  describeConfigValue,
+  getConfigField,
+  listMissingSetupKeys,
+  resolveActiveEnvironment,
+} from '../config-fields';
 import { currentMonthPeriod, previousMonthPeriod } from '../periods';
 
 const BASE = {
@@ -38,6 +44,23 @@ describe('config-fields', () => {
         puntoVentaPorDefecto: 3,
       }),
     ).toEqual([]);
+  });
+
+  it('with --produccion or --testing, checks the certificate of that environment', () => {
+    const testingOnly = {
+      ...BASE,
+      cert: { testing: '/t.crt' },
+      cuit: '20123456786',
+      key: { testing: '/t.key' },
+      puntoVentaPorDefecto: 3,
+    } satisfies ArcliConfig;
+
+    expect(listMissingSetupKeys(testingOnly, resolveActiveEnvironment(testingOnly, { produccion: true }))).toEqual([
+      'cert.produccion',
+      'key.produccion',
+    ]);
+    expect(resolveActiveEnvironment({ entornoPorDefecto: 'produccion' }, { testing: true })).toBe('testing');
+    expect(resolveActiveEnvironment({ entornoPorDefecto: 'produccion' })).toBe('produccion');
   });
 
   it('masks paths and formats dates when describing values', () => {

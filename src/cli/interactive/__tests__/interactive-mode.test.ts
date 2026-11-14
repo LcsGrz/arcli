@@ -266,6 +266,18 @@ describe('runInteractiveMode', () => {
     expect(runGuidedSetup).toHaveBeenCalledTimes(1);
   });
 
+  it('con --produccion revisa y guía la configuración de producción', async () => {
+    vi.mocked(listMissingSetupKeys).mockReturnValueOnce(['cert.produccion']);
+    vi.mocked(confirm).mockResolvedValueOnce(true);
+    chooseOneMock.mockResolvedValueOnce('config').mockResolvedValueOnce('salir');
+
+    await runInteractiveMode({ produccion: true });
+
+    expect(listMissingSetupKeys).toHaveBeenCalledWith(expect.anything(), 'produccion');
+    expect(runGuidedSetup).toHaveBeenCalledWith({ produccion: true });
+    expect(runConfigMenu).toHaveBeenCalledWith({ produccion: true });
+  });
+
   it('no ofrece la guia si la configuracion esta completa', async () => {
     chooseOneMock.mockResolvedValueOnce('salir');
 

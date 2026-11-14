@@ -1,9 +1,5 @@
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
-import {
-  formatEmissionQuestion,
-  formatVoucherWithArticle,
-  NOTHING_EMITTED_NOTICE,
-} from '../../modules/billing/billing.mappers';
+import { formatEmissionQuestion, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import { ConfigService } from '../../modules/config/config.service';
 import { DEFAULT_EXPORT_PAYMENT_TERMS, resolveExportDestinationCountry } from '../../modules/export/export.mappers';
 import { formatExportResultAsText } from '../../modules/export/export.presenter';
@@ -28,7 +24,7 @@ import { withSpinner } from '../spinner';
 import { askCountryCuit, askExportOptions, type ExportOptions, isCountryCuitMissing } from './export-options';
 import { completeIssuer } from './pdf.flow';
 import { askTextStep, chooseStep, confirm, isPromptCancellation } from './prompts';
-import { formatEquivalentCommand, type InteractiveSession } from './session';
+import { confirmEmission, formatEquivalentCommand, type InteractiveSession } from './session';
 import { validateAmount, validateDate } from './validators';
 
 interface ExportFlowState {
@@ -351,10 +347,12 @@ async function offerSavingActivity(activity: number): Promise<void> {
 export async function emitExportVoucher(
   session: InteractiveSession,
   gateway: ExportGateway,
-  input: ExportVoucherInput,
+  rawInput: ExportVoucherInput,
   activity?: number,
 ): Promise<void> {
   const { runtime } = session;
+  // ExportService toma el de la config: uno elegido en el asistente va en la entrada (y en el comando equivalente).
+  const input: ExportVoucherInput = { ...rawInput, pointOfSale: rawInput.pointOfSale ?? session.typedPointOfSale };
   const service = new ExportService();
   const resolved = await withSpinner('Consultando WSFEX...', () => service.resolve(input, gateway, runtime));
   const preview = service.preview(resolved, runtime, resolved.warnings);
@@ -366,18 +364,7 @@ export async function emitExportVoucher(
 
   const label = formatVoucherWithArticle(input.voucherKind ?? EXPORT_VOUCHER_KIND);
 
-  if (!(await confirm(formatEmissionQuestion(label, runtime.environment), 'Emitir ahora'))) {
-    writeTerminalOutput(noticePanel(NOTHING_EMITTED_NOTICE, 'muted'));
-
-    return;
-  }
-
-  if (
-    runtime.environment === 'produccion' &&
-    !(await confirm('Vas a emitir un comprobante real en PRODUCCIÓN. ¿Confirmás?', 'Sí, emitir en producción'))
-  ) {
-    writeTerminalOutput(noticePanel(NOTHING_EMITTED_NOTICE, 'muted'));
-
+  if (!(await confirmEmission(formatEmissionQuestion(label, runtime.environment), runtime.environment))) {
     return;
   }
 

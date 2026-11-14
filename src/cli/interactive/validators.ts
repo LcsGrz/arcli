@@ -6,6 +6,7 @@ import {
 import { InputValidationError } from '../../lib/errors/app-error';
 import { parseCuit } from '../../lib/identity/cuit';
 import { EXCHANGE_RATE_DECIMALS, parseArgentineAmount } from '../../lib/numbers/argentine-amount';
+import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import type { BillingConcept } from '../../modules/billing/billing.schemas';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { validateBillingDateWindow } from '../../modules/billing/billing.validation';
@@ -79,6 +80,12 @@ export function validateBillingDate(
 
     throw error;
   }
+}
+
+export function validatePointOfSale(value: string): string | true {
+  const number = parseStrictInteger(value);
+
+  return number !== undefined && number >= 1 ? true : 'El punto de venta tiene que ser un número entero positivo.';
 }
 
 /** Monto opcional: vacio es "no", si no tiene que ser un monto valido. */

@@ -4,6 +4,7 @@ import { isForeignCurrency } from '../../modules/billing/billing.currency';
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { findArcaCurrency, toIsoCurrencyCode } from '../../modules/billing/currency-codes';
+import type { ArcliConfig } from '../../modules/config/config.schemas';
 import { parseAmountInput, parseExchangeRateInput } from '../../modules/interactive/amount-input';
 import { currencyChoices, ivaRateChoices } from '../../modules/interactive/choices';
 import { BACK, type Back } from '../../modules/interactive/wizard';
@@ -43,6 +44,28 @@ interface AdvancedContext {
   readonly voucherKind: VoucherKindDefinition;
 }
 
+/**
+ * Como el CLI sin `--moneda`: arranca en la moneda de la config y, si es extranjera, con su cotizacion guardada
+ * (deprecada) o, sin ella, la oficial de ARCA.
+ */
+export function initialAdvancedOptions(
+  config: Pick<ArcliConfig, 'cotizacionPorDefecto' | 'monedaPorDefecto'>,
+): AdvancedOptions {
+  const currencyCode = config.monedaPorDefecto;
+
+  if (!currencyCode || !isForeignCurrency({ currencyCode })) {
+    return { currencyCode: DEFAULT_CURRENCY_CODE, sameCurrency: false };
+  }
+
+  const rate = config.cotizacionPorDefecto;
+
+  return {
+    currencyCode: toIsoCurrencyCode(currencyCode),
+    exchangeRate: rate !== undefined && rate !== DEFAULT_EXCHANGE_RATE ? rate : undefined,
+    sameCurrency: false,
+  };
+}
+
 /** Como se nombra la moneda en las preguntas: "dólares", "euros"; si no esta en la tabla, su codigo. */
 function currencyName(currencyCode: string): string {
   const iso = toIsoCurrencyCode(currencyCode);
@@ -61,9 +84,10 @@ function describeCurrency(options: AdvancedOptions): string {
 
   const name = currencyName(options.currencyCode);
 
-  return options.sameCurrency
+  // Sin cotizacion (la moneda de la config, sin `cotizacion`), el CLI usa la oficial de ARCA.
+  return options.sameCurrency || options.exchangeRate === undefined
     ? `${name}, cotización oficial de ARCA`
-    : `${name}, cotización ${formatExchangeRate(options.exchangeRate ?? DEFAULT_EXCHANGE_RATE)}`;
+    : `${name}, cotización ${formatExchangeRate(options.exchangeRate)}`;
 }
 
 function describeAmounts(options: AdvancedOptions): string {
