@@ -11,19 +11,21 @@ import { ExportService } from '../../modules/export/export.service';
 import {
   EXPORT_VOUCHER_KIND,
   type ExportCountry,
+  type ExportCountryCuit,
   type ExportGateway,
   type ExportType,
   type ExportVoucherInput,
 } from '../../modules/export/export.types';
 import { parseAmountInput } from '../../modules/interactive/amount-input';
 import { buildExportEquivalentCommand } from '../../modules/interactive/export-equivalent-command';
-import { BACK, runWizard, type WizardStep } from '../../modules/interactive/wizard';
+import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { formatPdfOutcomeAsText } from '../../modules/pdf/pdf.presenter';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 import { attachExportPdf } from '../commands/export.command.pdf';
 import { withSpinner } from '../spinner';
 
+import { askCountryCuit, askExportOptions, type ExportOptions, isCountryCuitMissing } from './export-options';
 import { completeIssuer } from './pdf.flow';
 import { askTextStep, chooseStep, confirm, isPromptCancellation } from './prompts';
 import { formatEquivalentCommand, type InteractiveSession } from './session';
@@ -35,21 +37,38 @@ interface ExportFlowState {
   readonly clientAddress?: string;
   readonly clientName?: string;
   readonly clientTaxId?: string;
+  /** El destino como esta en la tabla de ARCA, para el CUIT del pais. */
+  readonly country?: ExportCountry;
+  /** ARCA no publica un CUIT para el destino: hay que pedirlo (`--cuit-pais`). */
+  readonly countryCuitMissing?: boolean;
   readonly currencyCode?: 'DOL' | 'PES';
   readonly description?: string;
   readonly destinationCountry?: string;
   readonly exportType?: ExportType;
   readonly incoterm?: string;
+  /** Nombre del incoterm en la tabla de ARCA: la descripcion que va si no se escribe otra. */
+  readonly incotermName?: string;
+  readonly options: ExportOptions;
   readonly paymentDate?: string;
   readonly paymentTerms?: string;
   readonly permits?: readonly string[];
   readonly sameCurrency?: boolean;
 }
 
-/** Lo que el asistente necesita de WSFEX antes de preguntar: paises para validar el destino y la tabla de actividades. */
+/**
+ * Lo que el asistente necesita de WSFEX antes de preguntar: paises para validar el destino, sus CUIT y la tabla de
+ * actividades.
+ */
 interface ExportTables {
   readonly activities: ReadonlySet<number>;
   readonly countries: readonly ExportCountry[];
+  readonly countryCuits: readonly ExportCountryCuit[];
+}
+
+interface ExportFlowLoaders {
+  readonly incoterms: () => Promise<ReadonlyArray<{ readonly code: string; readonly name: string }>>;
+  readonly languages: ExportGateway['getLanguages'];
+  readonly units: ExportGateway['getUnits'];
 }
 
 function required(label: string): (value: string) => string | true {
@@ -108,7 +127,7 @@ export async function askPermitsStep(): Promise<typeof BACK | { readonly permits
 function exportSteps(
   tables: ExportTables,
   configuredActivity: number | undefined,
-  incoterms: () => Promise<ReadonlyArray<{ readonly code: string; readonly name: string }>>,
+  loaders: ExportFlowLoaders,
 ): Array<WizardStep<ExportFlowState>> {
   return [
     {
@@ -139,10 +158,32 @@ function exportSteps(
           },
         );
 
-        return answer === BACK
-          ? BACK
-          : { destinationCountry: resolveExportDestinationCountry(answer, tables.countries).name };
+        if (answer === BACK) {
+          return BACK;
+        }
+
+        const country = resolveExportDestinationCountry(answer, tables.countries);
+
+        return {
+          country,
+          countryCuitMissing: isCountryCuitMissing({ country, countryCuits: tables.countryCuits }),
+          destinationCountry: country.name,
+        };
       },
+    },
+    {
+      // Sin esto no hay salida: ARCA rechaza la E sin `Cuit_pais_cliente`.
+      name: 'cuit-pais',
+      run: async (state) => {
+        const country = requireStepValue(state.country, 'country');
+        const cuit = await askCountryCuit(
+          { country, countryCuits: tables.countryCuits },
+          `ARCA no tiene un CUIT publicado para ${country.name}. Escribí el CUIT del país o buscalo por nombre:`,
+        );
+
+        return cuit === BACK ? BACK : { options: { ...state.options, clientCountryCuit: cuit } };
+      },
+      skip: (state) => !state.countryCuitMissing,
     },
     {
       name: 'id-impositivo',
@@ -216,13 +257,18 @@ function exportSteps(
     {
       name: 'incoterm',
       run: async () => {
-        const list = await withSpinner('Consultando incoterms...', incoterms);
+        const list = await withSpinner('Consultando incoterms...', loaders.incoterms);
         const incoterm = await chooseStep('Incoterm:', [
           { name: 'Sin incoterm', value: '' },
           ...list.map((entry) => ({ name: entry.code, value: entry.code })),
         ]);
 
-        return incoterm === BACK ? BACK : { incoterm: incoterm || undefined };
+        return incoterm === BACK
+          ? BACK
+          : {
+              incoterm: incoterm || undefined,
+              incotermName: list.find((entry) => entry.code === incoterm)?.name,
+            };
       },
       skip: (state) => state.exportType !== 1,
     },
@@ -259,6 +305,26 @@ function exportSteps(
         return answer === BACK ? BACK : { activity: parseStrictInteger(answer) };
       },
       skip: () => configuredActivity !== undefined,
+    },
+    {
+      name: 'opcionales',
+      run: async (state) => {
+        const country = requireStepValue(state.country, 'country');
+        const currencyCode = state.currencyCode ?? 'DOL';
+        const options = await askExportOptions(state.options, {
+          amount: requireStepValue(state.amount, 'amount'),
+          countryCuit: { country, countryCuits: tables.countryCuits },
+          currencyCode,
+          defaultExchangeRate: currencyCode === 'PES' ? undefined : 'la de aduana que publica ARCA',
+          defaultLanguage: 'Español',
+          incoterm: state.incoterm ? { code: state.incoterm, description: state.incotermName } : undefined,
+          languages: loaders.languages,
+          sameCurrency: state.sameCurrency,
+          units: loaders.units,
+        });
+
+        return options === BACK ? BACK : { options };
+      },
     },
   ];
 }
@@ -354,11 +420,16 @@ export async function runExportFlow(session: InteractiveSession): Promise<typeof
   const tables = await withSpinner('Consultando las tablas de WSFEX...', async () => ({
     activities: new Set((await gateway.getActivities()).map((activity) => activity.id)),
     countries: await gateway.getDestinationCountries(),
+    countryCuits: await gateway.getDestinationCountryCuits(),
   }));
   const configuredActivity = config.exportacion?.actividad;
-  const state = await runWizard(
-    exportSteps(tables, configuredActivity, () => gateway.getIncoterms()),
-    {},
+  const state = await runWizard<ExportFlowState>(
+    exportSteps(tables, configuredActivity, {
+      incoterms: () => gateway.getIncoterms(),
+      languages: () => gateway.getLanguages(),
+      units: () => gateway.getUnits(),
+    }),
+    { options: {} },
   );
 
   if (!state) {
@@ -367,6 +438,7 @@ export async function runExportFlow(session: InteractiveSession): Promise<typeof
 
   const activity = (state.activity ?? configuredActivity) as number;
   const input: ExportVoucherInput = {
+    ...state.options,
     activity,
     amount: state.amount,
     clientAddress: state.clientAddress,
