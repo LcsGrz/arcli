@@ -6,7 +6,7 @@ import { renderKeyValueRows, resolveKeyValueLabelWidth, uiSymbol } from '../../u
 import { formatCurrencyLabel, formatMoneyLabel } from '../billing/billing.labels';
 import { formatLatestVouchersTitle, formatNoVouchersEmitted } from '../billing/billing.mappers';
 import { formatEnvironmentLabel } from '../config/config.schemas';
-import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
+import { alignVoucherPickerRows, formatVoucherNumber } from '../vouchers/voucher-history.presenter';
 
 import {
   EXPORT_TYPES,
@@ -52,6 +52,25 @@ function formatListRow(voucher: ExportIssuedVoucher): string {
   ]
     .join('  ')
     .trimEnd();
+}
+
+/** Filas para elegir un comprobante E en el modo interactivo: numero, fecha, cliente, total y CAE. */
+export function formatExportVoucherPickerRows(
+  vouchers: readonly ExportIssuedVoucher[],
+  separator: string,
+  width?: number,
+): string[] {
+  return alignVoucherPickerRows(
+    vouchers.map((voucher) => ({
+      cae: voucher.cae ? `CAE ${voucher.cae}` : '',
+      date: formatArcaDateAsArgentineDate(voucher.date),
+      number: formatVoucherNumber(voucher.pointOfSale, voucher.number),
+      receiver: voucher.clientName,
+      total: formatMoneyLabel(voucher.total, voucher.currencyCode),
+    })),
+    separator,
+    width,
+  );
 }
 
 export function formatExportVoucherListAsText(report: ExportVoucherListReport): string {
