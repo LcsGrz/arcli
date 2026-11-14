@@ -140,18 +140,25 @@ function assertSameTotal(total: Big, amount: number): void {
   }
 }
 
+function sumItems(inputs: readonly ExportItemInput[]): Big {
+  return inputs.reduce(
+    (sum, item) => sum.plus(new Big(item.quantity).times(item.unitPrice).round(2, Big.roundHalfUp)),
+    new Big(0),
+  );
+}
+
+/** Suma de los items como la valida el CLI: cada renglon redondeado a dos decimales. */
+export function sumExportItems(inputs: readonly ExportItemInput[]): number {
+  return roundAmount(sumItems(inputs));
+}
+
 /** Se valida antes de consultar ARCA: un total que no cierra no tiene por que autenticar en WSAA. */
 export function assertExportItemsTotal(inputs: readonly ExportItemInput[] | undefined, amount: number): void {
   if (!inputs || inputs.length === 0) {
     return;
   }
 
-  const total = inputs.reduce(
-    (sum, item) => sum.plus(new Big(item.quantity).times(item.unitPrice).round(2, Big.roundHalfUp)),
-    new Big(0),
-  );
-
-  assertSameTotal(total, amount);
+  assertSameTotal(sumItems(inputs), amount);
 }
 
 /**

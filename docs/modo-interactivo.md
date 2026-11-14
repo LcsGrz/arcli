@@ -80,24 +80,39 @@ Después muestra la vista previa (la misma de `--previsualizar`), el comando equ
 
 La `E` se elige en el mismo selector, pero tiene su propio asistente porque no lleva receptor argentino, concepto ni IVA. Valida y emite igual que `arcli fe`:
 
-| Paso | Pregunta              | Detalle                                                                                                             |
-| ---- | --------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| 1    | Cliente               | Nombre o razón social del cliente del exterior                                                                      |
-| 2    | Domicilio             | Domicilio del cliente                                                                                               |
-| 3    | País de destino       | Nombre o código de la tabla de WSFEX (`ESTADOS UNIDOS` o `212`). Argentina no se acepta                             |
-| 4    | ID impositivo         | Opcional (Enter para omitirlo)                                                                                      |
-| 5    | Qué exportás          | Servicios (por defecto), bienes u otros                                                                             |
-| 6    | Monto total           | Igual que en la factura común                                                                                       |
-| 7    | Descripción           | Opcional; por defecto "Según detalle"                                                                               |
-| 8    | Moneda                | Dólares (`DOL`, con la cotización de aduana que publica ARCA) o pesos (`PES`)                                       |
-| 9    | ¿Te pagan en dólares? | Solo en dólares: si sí, ARCA lo registra como cancelación en la misma moneda (`--misma-moneda`)                     |
-| 10   | Incoterm              | Solo en bienes, de la tabla de WSFEX, o sin incoterm                                                                |
-| 11   | Permisos de embarque  | Solo en bienes, opcional: los ya existentes en ARCA, separados por coma (`--permiso` con `--permiso-existente`)     |
-| 12   | Forma de pago         | Por defecto "Transferencia Internacional"                                                                           |
-| 13   | Fecha de pago         | Opcional; por defecto la del comprobante                                                                            |
-| 14   | Actividad             | Solo si no está `exportacion.actividad`; se valida contra la tabla de WSFEX y después ofrece guardarla en la config |
+| Paso | Pregunta              | Detalle                                                                                                                               |
+| ---- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Cliente               | Nombre o razón social del cliente del exterior                                                                                        |
+| 2    | Domicilio             | Domicilio del cliente                                                                                                                 |
+| 3    | País de destino       | Nombre o código de la tabla de WSFEX (`ESTADOS UNIDOS` o `212`). Argentina no se acepta                                               |
+| 4    | CUIT del país         | Solo si ARCA no publica un CUIT para el destino: escribís el CUIT o buscás el país por nombre y lo elegís de la lista (`--cuit-pais`) |
+| 5    | ID impositivo         | Opcional (Enter para omitirlo)                                                                                                        |
+| 6    | Qué exportás          | Servicios (por defecto), bienes u otros                                                                                               |
+| 7    | Monto total           | Igual que en la factura común                                                                                                         |
+| 8    | Descripción           | Opcional; por defecto "Según detalle"                                                                                                 |
+| 9    | Moneda                | Dólares (`DOL`, con la cotización de aduana que publica ARCA) o pesos (`PES`)                                                         |
+| 10   | ¿Te pagan en dólares? | Solo en dólares: si sí, ARCA lo registra como cancelación en la misma moneda (`--misma-moneda`)                                       |
+| 11   | Incoterm              | Solo en bienes, de la tabla de WSFEX, o sin incoterm                                                                                  |
+| 12   | Permisos de embarque  | Solo en bienes, opcional: los ya existentes en ARCA, separados por coma (`--permiso` con `--permiso-existente`)                       |
+| 13   | Forma de pago         | Por defecto "Transferencia Internacional"                                                                                             |
+| 14   | Fecha de pago         | Opcional; por defecto la del comprobante                                                                                              |
+| 15   | Actividad             | Solo si no está `exportacion.actividad`; se valida contra la tabla de WSFEX y después ofrece guardarla en la config                   |
+| 16   | Opcionales            | Una sola pregunta, como en A, B y C ([abajo](#opcionales-de-la-e))                                                                    |
 
 Después muestra la vista previa, el comando `arcli fe` equivalente y pregunta si emitir (dos veces en producción). El PDF sigue la misma regla que el resto. Volver desde el primer paso vuelve al selector de comprobantes.
+
+#### Opcionales de la E
+
+La factura y las notas E terminan con **"¿Agregamos algún opcional?"**, que funciona igual que [los de A, B y C](#opcionales): se marca con espacio, Enter sigue y después pregunta solo lo marcado. Se valida igual que con los flags.
+
+| Opción                   | Qué pregunta                                                                                                                                                                             | Cuándo aparece                                              |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Ítems                    | Uno por uno: descripción, cantidad, precio unitario y unidad (de la tabla de WSFEX). Enter en la descripción termina; si la suma no da el monto total, avisa y sigue pidiendo (`--item`) | Siempre. Sin ítems va un renglón con el monto total         |
+| Idioma                   | Español, inglés o portugués, de la tabla de WSFEX (`--idioma`)                                                                                                                           | Siempre. Por defecto español; en las notas, el del asociado |
+| CUIT del país            | El CUIT o el país por nombre, de la tabla de ARCA; tiene que ser el del destino (`--cuit-pais`)                                                                                          | Factura                                                     |
+| Observaciones            | Las observaciones y las observaciones comerciales (`--observaciones` y `--obs-comerciales`)                                                                                              | Siempre                                                     |
+| Descripción del incoterm | El texto, con la descripción de la tabla de ARCA como valor por defecto (`--incoterms-desc`)                                                                                             | Si hay incoterm                                             |
+| Cotización               | La cotización a mano, en lugar de la de aduana que publica ARCA o la del asociado (`--cm`)                                                                                               | En moneda extranjera. En las notas, salvo en servicios      |
 
 ### PDF
 
@@ -147,15 +162,17 @@ La nota hereda de la factura el concepto, el receptor (tipo y número de documen
 
 Al elegir **Factura de exportación E** como comprobante original, la nota sigue estos pasos:
 
-| Paso | Pregunta                     | Detalle                                                                                       |
-| ---- | ---------------------------- | --------------------------------------------------------------------------------------------- |
-| 1    | Punto de venta de la factura | Por defecto, el configurado                                                                   |
-| 2    | Número de la factura         | La busca en ARCA y muestra a quién y por cuánto fue; si no existe, avisa y vuelve a preguntar |
-| 3    | Monto                        | En la moneda de la factura. En crédito no puede superar su total                              |
-| 4    | Detalle                      | Opcional; por defecto "Según detalle"                                                         |
-| 5    | Permisos de embarque         | Solo si la factura es de bienes, opcional: van con `--permiso`, sin `--permiso-existente`     |
+| Paso | Pregunta                    | Detalle                                                                                                                                                                                   |
+| ---- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Sobre qué va la nota        | La factura E (por defecto, Enter) u otra nota de débito o crédito E (`--ac nde` o `--ac nce`)                                                                                             |
+| 2    | Punto de venta del asociado | Por defecto, el configurado                                                                                                                                                               |
+| 3    | Número del asociado         | Lo busca en ARCA y muestra a quién y por cuánto fue. Si no existe, o si la nota no puede ajustarlo (en servicios, una nota de débito solo ajusta una factura), avisa y vuelve a preguntar |
+| 4    | Monto                       | En la moneda del asociado. En crédito no puede superar su total, salvo que ajuste otra nota de crédito                                                                                    |
+| 5    | Detalle                     | Opcional; por defecto "Según detalle"                                                                                                                                                     |
+| 6    | Permisos de embarque        | Solo si el asociado es de bienes, opcional: van con `--permiso`, sin `--permiso-existente`                                                                                                |
+| 7    | Opcionales                  | Ítems, idioma, observaciones, descripción del incoterm y cotización ([arriba](#opcionales-de-la-e))                                                                                       |
 
-Cliente, destino, moneda, cotización y actividad salen de la factura, y el número de la nota, del último que tiene ARCA. Después muestra la vista previa y el comando equivalente (`arcli nce …` o `arcli nde …`), y pregunta antes de emitir, como la factura E.
+Cliente, destino, moneda, cotización, idioma, incoterm y actividad salen del asociado, y el número de la nota, del último que tiene ARCA. Después muestra la vista previa y el comando equivalente (`arcli nce …` o `arcli nde …`), y pregunta antes de emitir, como la factura E.
 
 ## Repetir un comprobante anterior
 

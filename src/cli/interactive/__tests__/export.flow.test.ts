@@ -55,6 +55,7 @@ const gateway: ExportGateway = {
 
 vi.mock('../prompts', () => ({
   askTextStep: (...args: Parameters<typeof script.askTextStep>) => script.askTextStep(...args),
+  chooseManyStep: (...args: Parameters<typeof script.chooseManyStep>) => script.chooseManyStep(...args),
   chooseStep: (...args: Parameters<typeof script.chooseStep>) => script.chooseStep(...args),
   confirm: (message: string, yesLabel: string, noLabel = 'Cancelar') =>
     script.chooseStep(message, [
@@ -132,6 +133,7 @@ describe('runExportFlow', () => {
       [/Forma de pago/, 'Transferencia Internacional'],
       [/Fecha de pago/, ''],
       [/actividad/, '620100'],
+      [/Agregamos algún opcional/, []],
       [/Emitimos la factura de exportación E en testing/, 'Emitir ahora'],
       [/Guardamos la actividad 620100/, 'Sí, guardar'],
     ]);
@@ -173,6 +175,7 @@ describe('runExportFlow', () => {
       [/Permisos de embarque/, '26001EC01000123A, 26001EC01000124B'],
       [/Forma de pago/, 'Carta de crédito'],
       [/Fecha de pago/, '15/11/2026'],
+      [/Agregamos algún opcional/, []],
       [/Emitimos/, 'Cancelar'],
     ]);
 
@@ -184,6 +187,100 @@ describe('runExportFlow', () => {
     expect(printed()).toContain(
       '--tipo-expo 1 --actividad 620100 --moneda PES --incoterm FOB --permiso 26001EC01000123A --permiso 26001EC01000124B --permiso-existente --forma-pago "Carta de crédito" --fecha-pago 15/11/2026',
     );
+  });
+
+  it('con los opcionales informa ítems, idioma, observaciones, descripción del incoterm y cotización', async () => {
+    script = createScript([
+      [/cliente del exterior/, 'ACME LLC'],
+      [/Domicilio/, '123 Main St'],
+      [/País de destino/, '212'],
+      [/ID impositivo/, ''],
+      [/Qué exportás/, 'Bienes'],
+      [/Monto total/, '1.500'],
+      [/Descripción/, ''],
+      [/moneda/, 'Dólares'],
+      [/Te pagan en dólares/, 'No'],
+      [/Incoterm/, 'FOB'],
+      [/Permisos de embarque/, ''],
+      [/Forma de pago/, 'Transferencia Internacional'],
+      [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, ['Ítems', 'Idioma', 'Observaciones', 'Descripción del incoterm', 'Cotización']],
+      [/Descripción del ítem 1/, 'Bienes varios'],
+      [/Cantidad/, '2'],
+      [/Precio unitario/, '500'],
+      [/Unidad/, 'kilogramos'],
+      // La suma (1.000) no da el monto: avisa y sigue pidiendo ítems.
+      [/Descripción del ítem 2 \(Enter para terminar\)/, ''],
+      [/Descripción del ítem 2/, 'Flete'],
+      [/Cantidad/, '1'],
+      [/Precio unitario/, '500'],
+      [/Unidad/, 'unidades'],
+      [/Descripción del ítem 3/, ''],
+      [/Idioma del comprobante/, 'Inglés'],
+      [/^Observaciones \(/, 'Pedido 42'],
+      [/Observaciones comerciales/, ''],
+      [/Descripción del incoterm FOB/, 'Free on board, Buenos Aires'],
+      [/Cotización de USD/, '1.200,5'],
+      [/Emitimos/, 'Emitir ahora'],
+    ]);
+    vi.spyOn(gateway, 'getLanguages').mockResolvedValue([
+      { id: 1, name: 'Español' },
+      { id: 2, name: 'Inglés' },
+    ]);
+    vi.spyOn(gateway, 'getUnits').mockResolvedValue([
+      { id: 1, name: 'kilogramos' },
+      { id: 7, name: 'unidades' },
+    ]);
+
+    await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+    expect(printed()).toContain('La suma de los ítems (1.000) no coincide con el monto total (1.500)');
+    expect(gateway.authorize).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Idioma_cbte: 2,
+        Incoterms: 'FOB',
+        Incoterms_Ds: 'Free on board, Buenos Aires',
+        Items: {
+          Item: [
+            expect.objectContaining({ Pro_ds: 'Bienes varios', Pro_qty: 2, Pro_total_item: 1000, Pro_umed: 1 }),
+            expect.objectContaining({ Pro_ds: 'Flete', Pro_qty: 1, Pro_total_item: 500, Pro_umed: 7 }),
+          ],
+        },
+        Moneda_ctz: 1200.5,
+        Obs: 'Pedido 42',
+      }),
+    );
+    expect(printed()).toContain(
+      '--item "Bienes varios|2|500|1" --item "Flete|1|500" --moneda DOL --cm 1200,50 --incoterm FOB --incoterms-desc "Free on board, Buenos Aires" --idioma 2 --observaciones "Pedido 42" --testing --emitir',
+    );
+  });
+
+  it('si ARCA no tiene CUIT para el destino, lo pide y se puede buscar por nombre', async () => {
+    vi.spyOn(gateway, 'getDestinationCountries').mockResolvedValue([{ code: 999, name: 'ATLANTIDA' }]);
+    vi.spyOn(gateway, 'getDestinationCountryCuits').mockResolvedValue([
+      { countryName: 'ESTADOS UNIDOS - Persona Jurídica', cuit: 55000002126 },
+      { countryName: 'OTROS PAISES - Persona Jurídica', cuit: 55000009999 },
+    ]);
+    script = createScript([
+      [/cliente del exterior/, 'ACME LLC'],
+      [/Domicilio/, '123 Main St'],
+      [/País de destino/, 'atlantida'],
+      [/ARCA no tiene un CUIT publicado para ATLANTIDA/, 'otros'],
+      [/CUIT del país/, 'OTROS PAISES'],
+      [/ID impositivo/, ''],
+      [/Qué exportás/, 'Servicios'],
+      [/Monto total/, '100'],
+      [/Descripción/, ''],
+      [/moneda/, 'Pesos'],
+      [/Forma de pago/, 'Transferencia Internacional'],
+      [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
+      [/Emitimos/, 'Cancelar'],
+    ]);
+
+    await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+    expect(printed()).toContain('--pais-destino ATLANTIDA --cuit-pais 55000009999');
   });
 
   it('valida el país contra la tabla de ARCA: Argentina no es destino de exportación', async () => {
