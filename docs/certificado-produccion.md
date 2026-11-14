@@ -19,9 +19,19 @@ Son los mismos 5 pasos que en el [certificado de testing](certificado-testing.md
 
 ## 2. Generar la clave y obtener el certificado
 
-**Con arcli (recomendado):** `arcli certificado generar --produccion`, subí el CSR como se muestra abajo y,
-con el `.crt` descargado, `arcli certificado importar produccion.crt`. Configura `cert.produccion` y
-`key.produccion`, así que en el paso 4 solo queda revisar.
+**Con arcli (recomendado).** Generá el pedido:
+
+```bash
+arcli certificado generar --produccion
+```
+
+Subí el CSR como se muestra abajo y, con el `.crt` descargado, cargalo:
+
+```bash
+arcli certificado importar produccion.crt
+```
+
+Configura `cert.produccion` y `key.produccion`, así que en el paso 4 solo queda revisar.
 
 **Para renovar** un certificado que está por vencer, es el mismo flujo: `generar` deja la clave nueva
 pendiente y no toca la actual, así que seguís facturando hasta que `importar` carga el certificado nuevo.

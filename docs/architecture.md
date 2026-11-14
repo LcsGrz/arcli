@@ -2,7 +2,7 @@
 
 # Arquitectura
 
-Cómo está organizado el código de ARCLI y dónde tocar para extenderlo. Pensado para contributors; para usar el CLI no hace falta.
+Cómo está organizado el código de arcli y dónde tocar para extenderlo. Pensado para contributors; para usar el CLI no hace falta.
 
 Stack: TypeScript estricto (ESM), Node.js, [commander](https://github.com/tj/commander.js), [zod](https://zod.dev), [`@arcasdk/core`](https://github.com/ralcorta/arcasdk) para hablar con ARCA, `conf` para la configuración persistente y `@inquirer` para el modo interactivo.
 
@@ -51,7 +51,7 @@ Reglas de dependencia:
 
 ## El plugin de PDF
 
-`@arcasdk/pdf` renderiza con Puppeteer y descarga un navegador, así que **no es dependencia de ARCLI**. Se instala con `npm install --ignore-scripts` en `<carpeta de config>/plugins/pdf` y se carga con `createRequire` (`src/services/pdf/pdf-plugin.ts`). ARCLI fija una versión del plugin; si cambia, `arcli pdf` lo avisa. Comportamiento para usuarios: [PDF de comprobantes](pdf.md).
+`@arcasdk/pdf` renderiza con Puppeteer y descarga un navegador, así que **no es dependencia de arcli**. Se instala con `npm install --ignore-scripts` en `<carpeta de config>/plugins/pdf` y se carga con `createRequire` (`src/services/pdf/pdf-plugin.ts`). arcli fija una versión del plugin; si cambia, `arcli pdf` lo avisa. Comportamiento para usuarios: [PDF de comprobantes](pdf.md).
 
 ## Cómo extender
 
@@ -85,7 +85,7 @@ Comandos, flags, claves de config y JSON son contrato público. Antes de cambiar
 - **Una sola ruta de validación.** El asistente arma `BillingCommandInput` y pasa por `BillingService`, igual que los flags: mismas validaciones, vista previa y emisión.
 - **Wizard, no pantalla completa.** Prompts encadenados con `@inquirer`.
 - **`testing` por defecto.** Con la config por defecto, emitir en producción pide `--produccion` y además `--emitir` o confirmar en la terminal. Quien guarda `entorno produccion` y `emitir true` emite sin flags: es a propósito.
-- **Todo visible.** Lo que ARCLI envía a ARCA se puede ver en la vista previa, en `--json` o en `--bruto`.
+- **Todo visible.** Lo que arcli envía a ARCA se puede ver en la vista previa, en `--json` o en `--bruto`.
 - **Lo escrito gana.** Cada dato se resuelve por nivel: el flag del comando, después el JSON de `--cargar` y por último la config. El primer nivel que dice algo decide; solo es error que un mismo nivel pida dos cosas opuestas (por ejemplo `--emitir --previsualizar`).
 - **Formato argentino para montos escritos.** Flags, modo interactivo y config usan `src/lib/numbers/argentine-amount.ts`: punto para miles, coma para decimales. El JSON usa números.
 - **Fecha argentina.** "Hoy" sale de `toArgentineCalendarDate` (`src/lib/dates/arca-date.ts`), con la zona `America/Argentina/Buenos_Aires`, sin importar la del equipo. Las cuentas de calendario se hacen en un solo sistema (UTC o local), nunca mezclando.

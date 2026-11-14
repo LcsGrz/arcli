@@ -1,8 +1,8 @@
 [← Volver al README](README.md)
 
-# Contribuir a ARCLI
+# Contribuir a arcli
 
-Gracias por querer mejorar ARCLI. Se aceptan bugs, mejoras de uso, documentación y features nuevas. Si ya tenés el cambio hecho, abrí el PR directo y contá en la descripción qué problema resuelve. Si todavía no empezaste algo grande o que cambia el contrato (ver abajo), conviene abrir antes un issue, así no trabajás en algo que después no entra. Si tenés una pregunta, usá [Discussions](https://github.com/LcsGrz/arcli/discussions).
+Gracias por querer mejorar arcli. Se aceptan bugs, mejoras de uso, documentación y features nuevas. Si ya tenés el cambio hecho, abrí el PR directo y contá en la descripción qué problema resuelve. Si todavía no empezaste algo grande o que cambia el contrato (ver abajo), conviene abrir antes un issue, así no trabajás en algo que después no entra. Si tenés una pregunta, usá [Discussions](https://github.com/LcsGrz/arcli/discussions).
 
 Participar en el proyecto implica respetar el [código de conducta](CODE_OF_CONDUCT.md).
 

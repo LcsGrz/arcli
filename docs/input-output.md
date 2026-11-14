@@ -2,13 +2,13 @@
 
 # Entrada y salida
 
-Contrato formal de entrada y salida de ARCLI.
+Contrato formal de entrada y salida de arcli.
 
 Este documento asume el flujo descrito en [mental-model.md](mental-model.md) (`Input -> Validación -> Solicitud -> ARCA -> Output`, con prioridad `flags > JSON > config > defaults`) y se enfoca en el contrato concreto de cada formato.
 
 ## Formato de input: objeto
 
-Cuando usás `--cargar`, ARCLI espera un objeto JSON o un array de objetos.
+Cuando usás `--cargar`, arcli espera un objeto JSON o un array de objetos.
 
 ```bash
 arcli fc --cargar ./voucher.json
@@ -206,7 +206,7 @@ Cada ítem:
 | ---------------- | ---------------- | --------- | --------------------------------------------------------- |
 | `cantidad`       | number           | sí        | `Pro_qty`                                                 |
 | `descripcion`    | string           | sí        | `Pro_ds`                                                  |
-| `precioUnitario` | number           | sí        | `Pro_precio_uni`; el total del renglón lo calcula ARCLI   |
+| `precioUnitario` | number           | sí        | `Pro_precio_uni`; el total del renglón lo calcula arcli   |
 | `codigo`         | string           | no        | `Pro_codigo`                                              |
 | `unidad`         | string \| number | no        | Código de ARCA o nombre de la tabla (`7`, `"kilogramos"`) |
 
@@ -326,7 +326,7 @@ Una actividad que no está en la tabla de actividades de WSFEX es `INPUT_VALIDAT
 
 ## Formato de input: batch
 
-Si el archivo contiene un array, ARCLI procesa un lote del mismo comando. **Un array es siempre un lote, aunque tenga un solo elemento**: la salida `--json` es un array y los errores son `BATCH_VALIDATION_ERROR` / `BATCH_EMISSION_ERROR` con el índice. Un objeto suelto es un solo comprobante: sale un objeto y los errores son los de siempre (`INPUT_VALIDATION_ERROR`, etc.).
+Si el archivo contiene un array, arcli procesa un lote del mismo comando. **Un array es siempre un lote, aunque tenga un solo elemento**: la salida `--json` es un array y los errores son `BATCH_VALIDATION_ERROR` / `BATCH_EMISSION_ERROR` con el índice. Un objeto suelto es un solo comprobante: sale un objeto y los errores son los de siempre (`INPUT_VALIDATION_ERROR`, etc.).
 
 ```json
 [
@@ -349,10 +349,10 @@ Si el archivo contiene un array, ARCLI procesa un lote del mismo comando. **Un a
 
 ### Validación y errores del lote
 
-**Antes de emitir el primer comprobante, ARCLI valida todos los del lote**: la forma del JSON, las consultas a ARCA que se hacen antes de emitir (IVA receptor desde el padrón, cotización oficial) y las reglas de negocio (IVA receptor por letra, fechas, FCE, montos…).
+**Antes de emitir el primer comprobante, arcli valida todos los del lote**: la forma del JSON, las consultas a ARCA que se hacen antes de emitir (IVA receptor desde el padrón, cotización oficial) y las reglas de negocio (IVA receptor por letra, fechas, FCE, montos…).
 
 - Si alguno es inválido o falla su consulta, **no se emite ninguno** y el error `BATCH_VALIDATION_ERROR` lista **todos** los ítems con problemas, con su índice (desde 1) y el motivo.
-- Si la emisión se corta a mitad del lote (red, ARCA), ARCLI **muestra primero los comprobantes ya procesados**, con su PDF si corresponde (según `pdf` o `--exportar-pdf`, igual que en un lote completo; en `--json`, cada uno con su campo `pdf`), y después el error `BATCH_EMISSION_ERROR`, que indica en qué ítem falló y cuáles quedaron sin procesar. **No vuelvas a cargar los ya emitidos**. Si viene `detalles.sinConfirmar`, el que falló puede haberse emitido igual: verificalo con `arcli ultimos` antes de reintentarlo. Si no viene, falló antes de emitir (login, último número) y ya está en `detalles.sinProcesar`. Después reintentá los de `sinProcesar`.
+- Si la emisión se corta a mitad del lote (red, ARCA), arcli **muestra primero los comprobantes ya procesados**, con su PDF si corresponde (según `pdf` o `--exportar-pdf`, igual que en un lote completo; en `--json`, cada uno con su campo `pdf`), y después el error `BATCH_EMISSION_ERROR`, que indica en qué ítem falló y cuáles quedaron sin procesar. **No vuelvas a cargar los ya emitidos**. Si viene `detalles.sinConfirmar`, el que falló puede haberse emitido igual: verificalo con `arcli ultimos` antes de reintentarlo. Si no viene, falló antes de emitir (login, último número) y ya está en `detalles.sinProcesar`. Después reintentá los de `sinProcesar`.
 
 ```json
 {
@@ -415,19 +415,19 @@ Todas se sacan en la 3.0.0.
 
 ### Caso simple
 
-ARCLI serializa un resumen del resultado. Con `--bruto` se agrega además el campo `respuesta` (ver [abajo](#output-con---bruto)); el resto no cambia.
+arcli serializa un resumen del resultado. Con `--bruto` se agrega además el campo `respuesta` (ver [abajo](#output-con---bruto)); el resto no cambia.
 
 | Campo              | Tipo                                                             | Descripción                                                                                                                                                                              |
 | ------------------ | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `atajo`            | `string`                                                         | Atajo del comprobante                                                                                                                                                                    |
-| `avisos`           | `string[]`                                                       | Avisos de ARCLI: régimen FCE, padrón, certificado por vencer, cotización oficial usada por defecto, clave `cotizacion` deprecada o flags salteados (ver [abajo](#aviso-del-certificado)) |
+| `avisos`           | `string[]`                                                       | Avisos de arcli: régimen FCE, padrón, certificado por vencer, cotización oficial usada por defecto, clave `cotizacion` deprecada o flags salteados (ver [abajo](#aviso-del-certificado)) |
 | `cae`              | `string \| null`                                                 | CAE informado por ARCA                                                                                                                                                                   |
 | `caeVencimiento`   | `string \| null`                                                 | Vencimiento del CAE                                                                                                                                                                      |
 | `comprobante`      | `string`                                                         | Nombre visible del comprobante                                                                                                                                                           |
 | `deprecado`        | `string[]`, opcional                                             | Claves de esta respuesta que se sacan en la 3.0.0 (ver [Estabilidad del contrato](#estabilidad-del-contrato))                                                                            |
 | `entorno`          | `"testing" \| "produccion"`                                      | Entorno en que se emitió o previsualizó                                                                                                                                                  |
 | `errores`          | `object[]`                                                       | Errores de ARCA, con `codigo` y `mensaje`                                                                                                                                                |
-| `estado`           | `"aprobado" \| "observado" \| "rechazado" \| "previsualizacion"` | Estado normalizado que arma ARCLI; `previsualizacion` en la vista previa, sin emitir                                                                                                     |
+| `estado`           | `"aprobado" \| "observado" \| "rechazado" \| "previsualizacion"` | Estado normalizado que arma arcli; `previsualizacion` en la vista previa, sin emitir                                                                                                     |
 | `eventos`          | `object[]`                                                       | Eventos de ARCA, con `codigo` y `mensaje`                                                                                                                                                |
 | `numero`           | `number \| null`                                                 | Número del comprobante emitido; `null` en una previsualización                                                                                                                           |
 | `observaciones`    | `string[]`                                                       | Observaciones amigables                                                                                                                                                                  |
@@ -437,7 +437,7 @@ ARCLI serializa un resumen del resultado. Con `--bruto` se agrega además el cam
 | `puntoVenta`       | `number`                                                         | Punto de venta del comprobante                                                                                                                                                           |
 | `resultado`        | `string \| null`                                                 | Resultado original de ARCA, por ejemplo `A` o `R`                                                                                                                                        |
 | `solicitud`        | `object`                                                         | Solicitud enviada o previsualizada; si se emitió, con el número en `CbteDesde` y `CbteHasta`                                                                                             |
-| `sugerencias`      | `string[]`                                                       | Sugerencias generadas por ARCLI                                                                                                                                                          |
+| `sugerencias`      | `string[]`                                                       | Sugerencias generadas por arcli                                                                                                                                                          |
 | `tipoArca`         | `number`                                                         | Tipo ARCA del comprobante                                                                                                                                                                |
 
 ### Aviso del certificado
@@ -460,12 +460,12 @@ En texto sale solo el banner del principio, no se repite en el panel de avisos. 
 No significan lo mismo:
 
 - `resultado` es el valor original que llega de ARCA
-- `estado` es una normalización que hace ARCLI
+- `estado` es una normalización que hace arcli
 
 Ejemplo:
 
 - ARCA puede devolver `resultado: "A"`
-- ARCLI puede devolver:
+- arcli puede devolver:
   - `estado: "aprobado"` si no hay observaciones
   - `estado: "observado"` si hubo observaciones
 - En la vista previa no se emite: `estado: "previsualizacion"` y `resultado: null`
@@ -497,7 +497,7 @@ Ejemplo:
 
 ## Output batch en JSON
 
-Cuando `--cargar` trae un array, ARCLI devuelve un array, aunque tenga un solo elemento. Con flags o un objeto devuelve un objeto.
+Cuando `--cargar` trae un array, arcli devuelve un array, aunque tenga un solo elemento. Con flags o un objeto devuelve un objeto.
 
 Cada ítem agrega:
 
@@ -843,7 +843,7 @@ Los errores de los dos comandos son los `CERTIFICATE_*` de la [tabla de códigos
 
 | Campo               | Tipo      | Descripción                                                                                     |
 | ------------------- | --------- | ----------------------------------------------------------------------------------------------- |
-| `reemplazado`       | `boolean` | Ya había un acceso directo de ARCLI en esa carpeta y se actualizó                               |
+| `reemplazado`       | `boolean` | Ya había un acceso directo de arcli en esa carpeta y se actualizó                               |
 | `ruta`              | `string`  | Ruta del acceso directo                                                                         |
 | `usaArcliInstalado` | `boolean` | Se creó desde el código fuente (`yarn dev`): abre el `arcli` instalado en lugar del que lo creó |
 

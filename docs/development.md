@@ -2,7 +2,7 @@
 
 # Desarrollo
 
-Cómo trabajar en ARCLI localmente, probarlo y publicar una versión. Para entender el código, ver [Arquitectura](architecture.md). Para el flujo de contribución, [CONTRIBUTING](../CONTRIBUTING.md).
+Cómo trabajar en arcli localmente, probarlo y publicar una versión. Para entender el código, ver [Arquitectura](architecture.md). Para el flujo de contribución, [CONTRIBUTING](../CONTRIBUTING.md).
 
 ## Entorno
 

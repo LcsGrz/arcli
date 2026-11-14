@@ -2,7 +2,7 @@
 
 # PDF de comprobantes
 
-ARCLI puede generar el PDF de cada comprobante que emitís, con el QR de ARCA. Es el archivo que le mandás al cliente.
+arcli puede generar el PDF de cada comprobante que emitís, con el QR de ARCA. Es el archivo que le mandás al cliente.
 
 ## Ejemplo: factura con PDF
 
@@ -54,11 +54,11 @@ arcli config establecer emisor.inicioActividades 1/03/2020
 arcli fc -m 150000 --cs --cfinal --emitir --exportar-pdf --descripcion "Servicios de septiembre"
 ```
 
-La primera vez, ARCLI ofrece descargar el plugin de PDF. El archivo queda en `~/arcli/comprobantes/testing/20123456786/factura-c_0003-00000125.pdf` (en producción, sin la carpeta `testing/`).
+La primera vez, arcli ofrece descargar el plugin de PDF. El archivo queda en `~/arcli/comprobantes/testing/20123456786/factura-c_0003-00000125.pdf` (en producción, sin la carpeta `testing/`).
 
 ## El plugin de PDF
 
-El PDF lo arma [`@arcasdk/pdf`](https://www.afipts.com/packages/pdf), que usa un navegador sin ventana (Chrome) para dibujarlo. Como pesa bastante, **no viene con ARCLI**: se descarga recién cuando alguien lo necesita. Si nunca generás un PDF, ARCLI sigue pesando lo mismo.
+El PDF lo arma [`@arcasdk/pdf`](https://www.afipts.com/packages/pdf), que usa un navegador sin ventana (Chrome) para dibujarlo. Como pesa bastante, **no viene con arcli**: se descarga recién cuando alguien lo necesita. Si nunca generás un PDF, arcli sigue pesando lo mismo.
 
 ```bash
 arcli pdf              # estado: instalado o no, versión, navegador
@@ -67,11 +67,11 @@ arcli pdf desinstalar  # borrar el plugin y el navegador descargado
 ```
 
 - **Tamaño:** unos 160 MB. Si no tenés Chrome, Chromium o Edge instalado, se descarga un navegador y se suman unos 200 MB.
-- **Navegador:** ARCLI busca, en este orden, la config `pdfNavegador`, la variable `PUPPETEER_EXECUTABLE_PATH`, un Chrome, Chromium o Edge instalado en el sistema y, por último, el navegador que descargó el plugin.
+- **Navegador:** arcli busca, en este orden, la config `pdfNavegador`, la variable `PUPPETEER_EXECUTABLE_PATH`, un Chrome, Chromium o Edge instalado en el sistema y, por último, el navegador que descargó el plugin.
 - **Dónde se instala:** en `plugins/pdf/`, junto al archivo de configuración (ver `arcli config ruta`). `arcli pdf desinstalar` borra esa carpeta entera.
-- **Con qué se instala:** con `npm`, aunque hayas instalado ARCLI con pnpm, Yarn o bun: npm viene con Node, y así el plugin queda en una carpeta `node_modules` común que ARCLI sabe cargar.
+- **Con qué se instala:** con `npm`, aunque hayas instalado arcli con pnpm, Yarn o bun: npm viene con Node, y así el plugin queda en una carpeta `node_modules` común que arcli sabe cargar.
 - **Cuándo se descarga solo:** solo en una terminal interactiva, y siempre preguntando antes. Con `--json` o sin terminal (scripts, CI, agentes) **nunca** se descarga solo: el comprobante sale con el error `PDF_PLUGIN_MISSING` en `pdf.error` y hay que correr `arcli pdf instalar` antes.
-- **Versión:** ARCLI usa una versión fija del plugin, probada con ARCLI. Si cambia en una versión nueva de ARCLI, `arcli pdf` lo indica y `arcli pdf instalar` la actualiza.
+- **Versión:** arcli usa una versión fija del plugin, probada con arcli. Si cambia en una versión nueva de arcli, `arcli pdf` lo indica y `arcli pdf instalar` la actualiza.
 
 ## Cuándo se genera
 
@@ -129,7 +129,7 @@ El CUIT es el de siempre (`cuit`). Si falta algún dato obligatorio, el PDF no s
 
 Al facturar con `--cuit` y sin `--ir` (con `consultarPadron` activo, como viene por defecto), el nombre y el domicilio del receptor que no pases salen del padrón de ARCA. Con `--ir` explícito no se consulta el padrón y valen los de la tabla.
 
-Estos datos **solo van en el PDF**: ARCA no los recibe. Si los pasás y al final no se genera ningún PDF, ARCLI avisa que no quedaron en ningún lado.
+Estos datos **solo van en el PDF**: ARCA no los recibe. Si los pasás y al final no se genera ningún PDF, arcli avisa que no quedaron en ningún lado.
 
 La condición de venta es `contado`, `tarjeta-debito`, `tarjeta-credito`, `cuenta-corriente`, `cheque`, `transferencia`, `otros-medios-electronicos` u `otra`, que se imprimen con su nombre, o cualquier otro texto, que se imprime tal cual: así no se limitan automatizaciones ni valores que ARCA no cataloga. Para no pasarla siempre: `arcli config establecer condicionVenta contado`. Para omitir ese default en un comprobante, usá `--sin-condicion-venta` o `"condicionVenta": null` en el JSON. En el modo interactivo se elige de una lista con la de la config marcada.
 
@@ -155,14 +155,14 @@ La `E` usa el diseño de exportación de `@arcasdk/pdf`, con los mismos datos qu
 - el QR de ARCA, con el CUIT del país como documento del receptor.
 
 - El nombre y el domicilio del cliente no son datos solo del PDF: salen de `--cliente` y `--domicilio-cliente` y ARCA los guarda. `--receptor-nombre` y `--receptor-domicilio` no existen en `fe`.
-- `--descripcion` es la descripción del renglón único que arma ARCLI cuando no pasás `--item` (por defecto "Según detalle"). Con ítems, los renglones son los `--item`.
+- `--descripcion` es la descripción del renglón único que arma arcli cuando no pasás `--item` (por defecto "Según detalle"). Con ítems, los renglones son los `--item`.
 - `emisor.condicionIva` sin configurar sale como "Responsable Inscripto", igual que en `A` y `B`.
 
 ## Leyendas obligatorias
 
-ARCLI agrega al PDF las leyendas que pide la normativa y que la plantilla de `@arcasdk/pdf` no trae. Salen debajo del CAE, en la línea de "Observaciones":
+arcli agrega al PDF las leyendas que pide la normativa y que la plantilla de `@arcasdk/pdf` no trae. Salen debajo del CAE, en la línea de "Observaciones":
 
-- **Comprobantes B (RG 5614, Ley 27.743):** "Régimen de Transparencia Fiscal al Consumidor (Ley 27.743)", con el **IVA Contenido** del comprobante y **Otros Impuestos Nacionales Indirectos** en `$ 0,00` (ARCLI no informa tributos).
+- **Comprobantes B (RG 5614, Ley 27.743):** "Régimen de Transparencia Fiscal al Consumidor (Ley 27.743)", con el **IVA Contenido** del comprobante y **Otros Impuestos Nacionales Indirectos** en `$ 0,00` (arcli no informa tributos).
 - **Comprobantes A a un monotributista (RG 5003):** "El crédito fiscal discriminado en el presente comprobante, sólo podrá ser computado a efectos del Régimen de Sostenimiento e Inclusión Fiscal para Pequeños Contribuyentes de la Ley Nº 27.618". Aplica si la condición IVA del receptor es responsable monotributo, monotributista social o monotributo trabajador independiente promovido.
 
 Las facturas C no llevan ninguna de las dos.
