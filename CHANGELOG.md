@@ -10,6 +10,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### Agregado
 
+- **La E en "Consultar comprobantes" del modo interactivo:** la lista de tipos ahora incluye la factura de exportación `E` y sus notas de crédito y débito (`fe`, `nce`, `nde`), con los últimos emitidos, **Cargar más…**, **Ingresar el número a mano…** y el mismo detalle que `arcli consultar fe`. Antes solo estaban los 19 tipos de A, B y C.
 - **Permisos de embarque en el modo interactivo:** la factura `E` de bienes pregunta los permisos de embarque ya existentes (opcional, separados por coma), igual que `--permiso` con `--permiso-existente`. Las notas `E` sobre una factura de bienes también los preguntan.
 - **`ultimos` y `consultar` con la E:** `arcli ultimos fe` (también `nde` y `nce`) lista los últimos comprobantes de exportación y `arcli consultar fe <numero>` muestra uno, con cliente, destino, moneda, total y comprobante asociado. El JSON de la E tiene sus propias claves (`cliente`, `destino`, `moneda`, `total`, `comprobanteAsociado`), porque no tiene receptor con documento ni IVA.
 - **`ARCLI_CONFIG_DIR`:** una variable de entorno para usar otra carpeta de config, con su `config.json`, tickets, plugins y certificados. Sirve para tener una config aparte sin tocar la de siempre. Sin la variable, todo sigue igual.

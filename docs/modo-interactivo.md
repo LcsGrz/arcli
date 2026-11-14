@@ -178,9 +178,9 @@ Después sigue igual que una factura nueva: vista previa, comando equivalente y 
 
 ![Consultar comprobantes: lista, cargar más y detalle de una Factura C](assets/demo/consultar.gif)
 
-Elegís el tipo (cualquiera de los 19) y aparece la lista de los últimos 15 emitidos en el punto de venta configurado, con el mismo formato que `arcli ultimos`: número, fecha, receptor, total y CAE. Igual que al elegir la factura de una nota, abajo están **Cargar más…** e **Ingresar el número a mano…** (punto de venta y número).
+Elegís el tipo (cualquiera de los 19 de A, B y C, o la factura de exportación `E` y sus notas de crédito y débito) y aparece la lista de los últimos 15 emitidos en el punto de venta configurado, con el mismo formato que `arcli ultimos`: número, fecha, receptor, total y CAE. En la `E` va el nombre del cliente en lugar del receptor. Igual que al elegir la factura de una nota, abajo están **Cargar más…** e **Ingresar el número a mano…** (punto de venta y número).
 
-Al elegir uno se muestra lo mismo que `arcli consultar`: CAE, vencimiento, importes y receptor. Después vuelve a la lista, con lo que ya estaba cargado, para ver otro. **Esc** o **"← Volver"** sale al menú.
+Al elegir uno se muestra lo mismo que `arcli consultar`: CAE, vencimiento, importes y receptor. En la `E`, cliente, destino, tipo de exportación, moneda, total y, en las notas, la factura que ajustan. Después vuelve a la lista, con lo que ya estaba cargado, para ver otro. **Esc** o **"← Volver"** sale al menú.
 
 ## Configuración
 
