@@ -62,6 +62,7 @@ export function resolveAssociatedVouchers(options: ResolveAssociatedVoucherOptio
     );
   }
 
+  // En una nota FCE sin `--afecha` la fecha sale de ARCA (checkAssociatedInArca, antes de la vista previa).
   const associatedDate = resolveAssociatedVoucherDate(associatedVoucher.fecha, billingDate, voucherKind);
 
   return [
@@ -101,12 +102,6 @@ function resolveAssociatedVoucherDate(
   voucherKind: VoucherKindDefinition,
 ): string | undefined {
   if (!rawDate) {
-    if (voucherKind.isElectronicCredit) {
-      throw new InputValidationError(
-        `${formatVoucherSubject(voucherKind)} requiere la fecha del comprobante asociado. Usá \`--afecha <fecha>\`.`,
-      );
-    }
-
     return undefined;
   }
 

@@ -1,8 +1,9 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { DEFAULT_IVA_RATE } from '../../modules/billing/billing.amounts';
+import { creditNoteOverTotalHint } from '../../modules/billing/billing.associated-lookup';
 import { DEFAULT_CURRENCY_CODE } from '../../modules/billing/billing.constants';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
-import { formatVoucherLabel } from '../../modules/billing/billing.mappers';
+import { formatVoucherLabel, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import {
   type BillingCommandInput,
   billingCommandSchema,
@@ -23,6 +24,7 @@ import {
 import { copyInvoiceAmounts } from '../../modules/interactive/invoice-copy';
 import { BACK, type Back, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { type IssuedVoucher, resolveDocumentType } from '../../modules/vouchers/voucher-history';
+import { formatVoucherNumber } from '../../modules/vouchers/voucher-history.presenter';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 
 import { type AdvancedOptionKey, type AdvancedOptions, askAdvancedOptions } from './advanced-options';
@@ -76,6 +78,15 @@ export interface NoteState {
 
 const isPeriod = (state: NoteState): boolean => state.target === 'periodo';
 
+/** `la factura C 00003-00000045`, para el aviso del tope de la NC. */
+function describeInvoice(state: NoteState, invoice: IssuedVoucher): string {
+  const name = state.invoiceKind ? formatVoucherWithArticle(state.invoiceKind) : 'el comprobante';
+
+  return state.invoicePointOfSale === undefined
+    ? name
+    : `${name} ${formatVoucherNumber(state.invoicePointOfSale, invoice.number)}`;
+}
+
 const DEFAULT_NOTE_ADVANCED: AdvancedOptions = { currencyCode: DEFAULT_CURRENCY_CODE, sameCurrency: false };
 
 /**
@@ -120,7 +131,7 @@ async function askNoteAmount(
 
       return (parseAmountInput(value) ?? 0) <= invoice.total
         ? true
-        : `No puede superar el total del comprobante (${formatMoneyLabel(invoice.total, invoice.currency)}).`;
+        : creditNoteOverTotalHint(describeInvoice(state, invoice), invoice.total, invoice.currency);
     },
   });
 

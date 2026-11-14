@@ -1,7 +1,7 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
-import { formatMoneyLabel } from '../billing/billing.labels';
+import { creditNoteOverTotalError } from '../billing/billing.associated-lookup';
 import { formatVoucherSubject, formatVoucherWithArticle } from '../billing/billing.mappers';
 import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
 
@@ -208,9 +208,13 @@ export function assertExportNoteMatchesAssociated(options: {
 
   if (kind === EXPORT_CREDIT_NOTE_KIND && associated.arcaType !== EXPORT_CREDIT_NOTE_KIND.arcaType && sameCurrency) {
     if (note.amount > associated.total) {
-      throw new InputValidationError(
-        `La nota de crédito (${formatMoneyLabel(note.amount, note.currencyCode)}) no puede superar el total de ${label} (${formatMoneyLabel(associated.total, associated.currencyCode)}).`,
-      );
+      throw creditNoteOverTotalError({
+        associatedCurrency: associated.currencyCode,
+        associatedLabel: label,
+        associatedTotal: associated.total,
+        noteCurrency: note.currencyCode,
+        noteTotal: note.amount,
+      });
     }
   }
 

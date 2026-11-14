@@ -1188,13 +1188,31 @@ describe('billing.service', () => {
       ).toThrow(/no lleva `--cbu`/);
     });
 
-    it('requires the associated voucher date on FCE notes', () => {
-      expect(() =>
-        new BillingService().buildVoucherPayload(
-          fceNote({ associatedVoucher: { numero: 7, puntoVenta: 3, shortcut: 'fcea' } }),
-          createRuntime(),
-        ),
-      ).toThrow(/requiere la fecha del comprobante asociado/);
+    it('previews an FCE note without the associated date: it comes from ARCA when emitting', () => {
+      const payload = new BillingService().buildVoucherPayload(
+        fceNote({ associatedVoucher: { numero: 7, puntoVenta: 3, shortcut: 'fcea' } }),
+        createRuntime(),
+      );
+
+      expect(payload.CbtesAsoc).toEqual([{ Cuit: '20123456786', Nro: 7, PtoVta: 3, Tipo: 201 }]);
+    });
+
+    it('never emits an FCE note without the associated date', async () => {
+      const gateway = { createVoucher: vi.fn(), getNextVoucherNumber: vi.fn(), getQuotation: vi.fn() };
+
+      await expect(
+        new BillingService().execute({
+          gateway,
+          input: fceNote({
+            associatedVoucher: { numero: 7, puntoVenta: 3, shortcut: 'fcea' },
+            dryRun: false,
+            emit: true,
+          }),
+          runtime: createRuntime(),
+        }),
+      ).rejects.toThrow(/requiere la fecha del comprobante asociado/);
+      expect(gateway.getNextVoucherNumber).not.toHaveBeenCalled();
+      expect(gateway.createVoucher).not.toHaveBeenCalled();
     });
 
     it('rejects an associated voucher date after the note date', () => {

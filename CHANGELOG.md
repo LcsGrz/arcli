@@ -20,6 +20,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### Cambiado
 
+- **Una nota de crédito mayor que su factura ya no se emite:** en una NC A, B, C o FCE, arcli consulta en ARCA el comprobante asociado antes de la vista previa y, si la nota supera su total (en la misma moneda), frena con un error de validación (`INPUT_VALIDATION_ERROR`) que sugiere el `--monto` para anularla entera. Antes la mandaba igual y decidía ARCA. Es el mismo control que ya tenían las notas `E` y el modo interactivo, y ahora los tres dicen lo mismo: `La nota de crédito por $ 150.000 no puede superar el total de la factura C 00003-00000045, de $ 120.000.` La consulta es una por nota y se reusa al emitir. En un lote, el error sale con su índice antes de preguntar si se emite. Solo se consulta un asociado tuyo; con `--acuit` de otro CUIT no se controla, y si ARCA no responde la nota sigue con un aviso.
+- **`--afecha` deja de ser obligatoria en las notas FCE:** en `ncea`…`ndec`, sin `--afecha`, arcli toma la fecha del asociado de ARCA, como en las notas `E`, y la vista previa ya la muestra. Si la pasás, se sigue usando la tuya. Si ARCA no tiene el asociado o no responde, frena y sugiere pasar `--afecha`.
 - **`--numero` deja de ser obligatorio en `fe`, `nde` y `nce`:** sin el flag, arcli consulta en ARCA el último número de ese tipo en el punto de venta y usa el siguiente, también en la vista previa. `--numero` (o `numero` en `--cargar`) sigue andando para fijarlo a mano. El modo interactivo ya no lo pregunta. Si una emisión de la E queda sin confirmar (`EMISSION_UNCERTAIN`), la sugerencia ahora también manda a verificarla con `arcli consultar`.
 
 ### Arreglado

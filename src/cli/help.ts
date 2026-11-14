@@ -67,7 +67,7 @@ function createRules(scope: HelpScope): string {
   if (scope.isNote) {
     rules.push(
       scope.isElectronicCredit
-        ? 'Asociado: la factura FCE con --ac o --at, --apv, --ar y --afecha; --acuit toma tu CUIT. Con --anulacion, anula una factura que rechazó el comprador.'
+        ? 'Asociado: la factura FCE con --ac o --at, --apv y --ar (la fecha sale de ARCA si falta --afecha); --acuit toma tu CUIT. Con --anulacion, anula una factura que rechazó el comprador.'
         : 'Asociado: el comprobante con --ac o --at, --apv, --ar y --acuit, o un período con --periodo-desde y --periodo-hasta.',
     );
   } else if (scope.isElectronicCredit) {

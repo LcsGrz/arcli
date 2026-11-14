@@ -1,6 +1,7 @@
 import { formatArcaDateAsArgentineDate, formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
+import { creditNoteOverTotalHint } from '../../modules/billing/billing.associated-lookup';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
 import { formatVoucherLabel } from '../../modules/billing/billing.mappers';
 import { assertExportNoteMatchesAssociated } from '../../modules/export/export.notes';
@@ -189,7 +190,11 @@ export function exportNoteSteps(
 
             return (parseAmountInput(value) ?? 0) <= invoice.total
               ? true
-              : `No puede superar el total de ${associatedName(state.associatedKind)} (${formatMoneyLabel(invoice.total, invoice.currencyCode)}).`;
+              : creditNoteOverTotalHint(
+                  `${associatedName(state.associatedKind)} ${formatVoucherNumber(invoice.pointOfSale, invoice.number)}`,
+                  invoice.total,
+                  invoice.currencyCode,
+                );
           },
         });
 
