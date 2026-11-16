@@ -45,6 +45,7 @@ Actualizá la documentación que describe lo que cambiaste:
 | Si cambia                                    | Revisá                                                                                                 |
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
 | Comandos o flags                             | `README.md`, [referencia del CLI](docs/cli-reference.md), `llms.txt`                                   |
+| Opciones de un comprobante                   | `scripts/docs/comprobantes.ts` y `yarn docs:comprobantes` (escribe `docs/comprobantes/`)               |
 | Claves de config o variables de entorno      | [configuración](docs/configuration.md), `llms.txt`                                                     |
 | JSON de entrada o salida, códigos de error   | [entrada y salida](docs/input-output.md), `llms.txt`                                                   |
 | Validaciones                                 | [reglas de validación](docs/validation-rules.md), `llms.txt`                                           |

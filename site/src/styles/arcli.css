@@ -73,3 +73,120 @@ header.header::after {
   --sl-text-h4: 1.05rem;
   --sl-color-bg-sidebar: var(--sl-color-black);
 }
+
+/* Opciones de cada comprobante: una tarjeta por opción, con una fila por flag (corto | largo | qué es) */
+.arcli-opts {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.sl-markdown-content .arcli-opt {
+  margin: 0;
+  padding: 0.85rem 1.1rem 0.6rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-inline-start: 3px solid var(--opt-bar);
+  border-radius: 0.55rem;
+  background: var(--sl-color-gray-6);
+}
+
+.arcli-opt-req {
+  --opt-bar: var(--arcli-celeste);
+}
+
+.arcli-opt-opt {
+  --opt-bar: var(--arcli-lavanda);
+}
+
+.arcli-opt-run {
+  --opt-bar: color-mix(in srgb, var(--sl-color-gray-3) 45%, transparent);
+}
+
+.sl-markdown-content .arcli-opt-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  margin: 0;
+}
+
+.arcli-opt-top b {
+  color: var(--sl-color-white);
+  font-weight: 600;
+}
+
+.arcli-ej {
+  color: var(--sl-color-gray-3);
+  font-size: var(--sl-text-xs);
+}
+
+.sl-markdown-content .arcli-opt p {
+  margin: 0.3rem 0 0;
+  color: var(--sl-color-gray-2);
+  font-size: var(--sl-text-sm);
+}
+
+.sl-markdown-content .arcli-opt-rows {
+  margin-top: 0.55rem;
+}
+
+.sl-markdown-content .arcli-opt-row {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 21rem) minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0.2rem 1rem;
+  margin: 0;
+  padding: 0.45rem 0;
+  border-top: 1px dashed var(--sl-color-gray-5);
+  font-size: var(--sl-text-sm);
+}
+
+.arcli-opt-row .s code {
+  color: var(--sl-color-text-accent);
+  font-weight: 600;
+}
+
+.arcli-opt-run .arcli-opt-row .s code {
+  color: var(--sl-color-gray-2);
+}
+
+.arcli-opt-row .l code {
+  overflow-wrap: anywhere;
+}
+
+.arcli-opt-row .w {
+  color: var(--sl-color-gray-2);
+}
+
+.sl-markdown-content details.arcli-more {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.sl-markdown-content details.arcli-more > summary {
+  padding: 0.45rem 0;
+  border-top: 1px dashed var(--sl-color-gray-5);
+  color: var(--sl-color-text-accent);
+  font-size: var(--sl-text-sm);
+  cursor: pointer;
+}
+
+@media (max-width: 44rem) {
+  .sl-markdown-content .arcli-opt-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .arcli-opt-row .s:empty {
+    display: none;
+  }
+
+  .arcli-opt-row .s:empty + .l {
+    grid-column: 1 / -1;
+  }
+
+  .arcli-opt-row .w {
+    grid-column: 1 / -1;
+  }
+}

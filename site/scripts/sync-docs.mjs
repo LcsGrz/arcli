@@ -6,7 +6,7 @@
  * estan en el sitio a GitHub, imagenes a `public/assets` y "Editar esta pagina" al archivo original en `dev`.
  * Lo generado esta en `.gitignore`; las paginas propias del sitio (como `index.mdx`) no se tocan.
  */
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -30,6 +30,38 @@ const SECTIONS = [
   { dir: 'referencia', label: 'Referencia' },
   { dir: 'ayuda', label: 'Ayuda' },
 ];
+
+/**
+ * Las paginas de `docs/comprobantes/` (las genera `yarn docs:comprobantes`): primero "¿Cuál me toca?" y despues una por
+ * comprobante, agrupadas por familia en el orden del comentario `<!-- arcli: familia=... orden=... -->`.
+ */
+function voucherPages() {
+  const dir = 'docs/comprobantes';
+  const pages = readdirSync(join(repoDir, dir))
+    .filter((file) => file.endsWith('.md') && file !== 'README.md')
+    .map((file) => {
+      const text = readFileSync(join(repoDir, dir, file), 'utf8');
+      const meta = text.match(/<!-- arcli: familia="([^"]+)" icono="([^"]+)" orden="(\d+)" -->/);
+      const title = text.match(/^# (.+)$/m);
+
+      if (!meta || !title) throw new Error(`${dir}/${file}: falta el título o el comentario de la familia.`);
+
+      return {
+        group: meta[1],
+        icon: meta[2],
+        label: title[1],
+        order: Number(meta[3]),
+        slug: `comprobantes/${file.replace(/\.md$/, '')}`,
+        src: `${dir}/${file}`,
+      };
+    })
+    .sort((a, b) => a.order - b.order);
+
+  return [
+    { icon: 'pregunta', label: '¿Cuál me toca?', slug: 'comprobantes/cual-me-toca', src: `${dir}/README.md` },
+    ...pages,
+  ];
+}
 
 /**
  * Que pagina sale de cada archivo. `label` es el nombre corto del menu; sin el, el titulo del documento.
@@ -59,26 +91,22 @@ const PAGES = [
   { icon: 'capas', label: 'Cómo funciona', slug: 'empezar/como-funciona', src: 'docs/mental-model.md' },
   { icon: 'chat', label: 'Asistente', slug: 'uso/asistente', src: 'docs/modo-interactivo.md' },
   { icon: 'chispa', label: 'Con IA', slug: 'uso/con-ia', src: 'docs/automatizar-con-ia.md' },
+  ...voucherPages(),
   {
-    icon: 'factura',
-    label: 'Monotributo (C)',
-    slug: 'comprobantes/monotributo',
-    src: 'docs/comprobantes-monotributo.md',
-  },
-  {
-    icon: 'factura',
-    label: 'Responsable inscripto (A y B)',
-    slug: 'comprobantes/responsable-inscripto',
-    src: 'docs/comprobantes-responsable-inscripto.md',
-  },
-  {
+    group: 'Explicaciones',
     icon: 'libro',
-    label: 'Notas de crédito y débito',
+    label: 'Cómo funcionan las notas',
     slug: 'comprobantes/notas',
     src: 'docs/notas-credito-debito.md',
   },
-  { icon: 'banco', label: 'Crédito electrónica (FCE)', slug: 'comprobantes/fce', src: 'docs/fce.md' },
-  { icon: 'mundo', label: 'Exportación (E)', slug: 'comprobantes/exportacion', src: 'docs/exportacion.md' },
+  { group: 'Explicaciones', icon: 'libro', label: 'Qué es la FCE', slug: 'comprobantes/fce', src: 'docs/fce.md' },
+  {
+    group: 'Explicaciones',
+    icon: 'libro',
+    label: 'Exportación paso a paso',
+    slug: 'comprobantes/exportacion',
+    src: 'docs/exportacion.md',
+  },
   { icon: 'lupa', label: 'Consultas sin emitir', slug: 'mas/consultas', src: 'docs/consultas.md' },
   { icon: 'pdf', label: 'PDF de comprobantes', slug: 'mas/pdf', src: 'docs/pdf.md' },
   { icon: 'pila', label: 'Lotes y JSON', slug: 'mas/lotes-y-json', src: 'docs/lotes-y-json.md' },
@@ -109,7 +137,7 @@ const PAGES = [
  */
 const ALIASES = {
   'docs/obtencion-certificados.md': 'docs/certificado-testing.md',
-  'docs/usage-patterns.md': 'docs/comprobantes-monotributo.md',
+  'docs/usage-patterns.md': 'docs/comprobantes/README.md',
 };
 
 /** Avisos de GitHub (`> [!TIP]`) a los de Starlight (`:::tip`): en GitHub se ven bien y en el sitio, con color. */
@@ -201,7 +229,7 @@ function rewriteLinks(src, text, includedReadmeAnchors) {
     .join('');
 }
 
-function frontmatter(page, title) {
+function frontmatter(page, title, extra = {}) {
   const quote = (value) => JSON.stringify(value);
   const order = PAGES.filter((other) => other.slug.split('/')[0] === page.slug.split('/')[0]).indexOf(page) + 1;
 
@@ -212,6 +240,7 @@ function frontmatter(page, title) {
     'sidebar:',
     `  label: ${quote(page.label ?? title)}`,
     `  order: ${order}`,
+    ...Object.entries(extra).map(([key, value]) => `${key}: ${quote(value)}`),
     '---',
     '',
   ].join('\n');
@@ -316,6 +345,62 @@ function argentineVersionDates(text) {
     .replace(/^## \[Sin publicar\]$/m, '## Sin publicar');
 }
 
+const escapeHtml = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/** Markdown en linea (codigo y negrita) a HTML, para lo que va adentro de una tarjeta. */
+const inlineHtml = (text) =>
+  escapeHtml(text)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+
+/** Celdas de una fila de tabla, con `\|` adentro de una celda. */
+const tableCells = (line) =>
+  line
+    .replace(/^\|\s*|\s*\|$/g, '')
+    .split(/\s*(?<!\\)\|\s*/)
+    .map((value) => value.replace(/\\\|/g, '|'));
+
+/**
+ * En `docs/comprobantes/`, cada `### Opción` (texto, tabla Corto | Largo | Qué es y `Ej.:`) despues de
+ * `<!-- arcli: opciones=req|opt|run -->` pasa a una tarjeta: barra celeste lo obligatorio, lavanda lo opcional y gris lo
+ * de ejecucion. Mas de 5 filas: se ven 4 y "Ver las N" muestra el resto.
+ */
+function optionCards(text) {
+  return text.replace(/<!-- arcli: opciones=(req|opt|run) -->\n([\s\S]*?)(?=\n## |$)/g, (_, kind, block) => {
+    const cards = block
+      .split(/^### /m)
+      .slice(1)
+      .map((chunk) => {
+        const lines = chunk.trim().split('\n');
+        const name = lines.shift();
+        const prose = lines.filter((line) => line && !line.startsWith('|') && !line.startsWith('Ej.:')).join(' ');
+        const rows = lines
+          .filter((line) => line.startsWith('|'))
+          .slice(2)
+          .map(tableCells);
+        const ej = lines.find((line) => line.startsWith('Ej.:'))?.replace(/^Ej\.:\s*/, '') ?? '';
+        const row = ([short, long, what]) =>
+          `<div class="arcli-opt-row"><span class="s">${inlineHtml(short)}</span><span class="l">${inlineHtml(long)}</span><span class="w">${inlineHtml(what)}</span></div>`;
+        const shown = rows.length > 5 ? rows.slice(0, 4) : rows;
+        const rest =
+          rows.length > 5
+            ? `<details class="arcli-more"><summary>Ver las ${rows.length}</summary>${rows.slice(4).map(row).join('')}</details>`
+            : '';
+
+        return `<div class="arcli-opt arcli-opt-${kind}"><div class="arcli-opt-top"><b>${inlineHtml(name)}</b>${ej ? `<span class="arcli-ej">Ej.: ${inlineHtml(ej)}</span>` : ''}</div>${prose ? `<p>${inlineHtml(prose)}</p>` : ''}<div class="arcli-opt-rows">${shown.map(row).join('')}${rest}</div></div>`;
+      });
+
+    return `<div class="arcli-opts">${cards.join('')}</div>\n`;
+  });
+}
+
+/** La familia ("Monotributo · C") del comentario de la pagina, para el chip arriba del titulo. */
+function voucherMeta(text) {
+  const meta = text.match(/<!-- arcli: familia="([^"]+)"[^>]*-->\n*/);
+
+  return meta ? { body: text.replace(meta[0], ''), familia: meta[1] } : { body: text, familia: null };
+}
+
 /** Convierte cada bloque `> [!TIPO]` en `:::tipo ... :::`, fuera de los bloques de codigo. */
 function githubAlertsToAsides(text) {
   const lines = text.split('\n');
@@ -365,9 +450,10 @@ async function sync() {
 
     mkdirSync(dirname(target), { recursive: true });
     const shown = page.src === 'CHANGELOG.md' ? argentineVersionDates(body) : body;
-    const content = rewriteLinks(page.src, githubAlertsToAsides(shown), includedReadmeAnchors);
+    const { body: withoutMeta, familia } = voucherMeta(shown.replace(/^<!-- Generado[^\n]*\n+/, ''));
+    const content = optionCards(rewriteLinks(page.src, githubAlertsToAsides(withoutMeta), includedReadmeAnchors));
 
-    writeFileSync(target, `${frontmatter(page, title)}\n${content}\n`);
+    writeFileSync(target, `${frontmatter(page, title, familia ? { familia } : {})}\n${content}\n`);
     fullText.push(`# ${title}\n\nFuente: ${REPO}/blob/main/${page.src}\n\n${body}\n`);
     // Cada pagina tambien en Markdown, para asistentes de IA.
     writePublic(`${page.slug}.md`, `# ${title}\n\n${body}\n`);

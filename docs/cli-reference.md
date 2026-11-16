@@ -893,5 +893,5 @@ Todos los comandos de esta referencia son estables, salvo `storybook`, una herra
 
 ## Ver también
 
-- Casos completos paso a paso: [monotributo](comprobantes-monotributo.md), [responsable inscripto](comprobantes-responsable-inscripto.md), [notas](notas-credito-debito.md), [FCE](fce.md), [exportación](exportacion.md) y [lotes](lotes-y-json.md).
+- Cada comprobante, con sus opciones: [¿qué comprobante me toca?](comprobantes/README.md). Casos completos paso a paso: [monotributo](comprobantes-monotributo.md), [responsable inscripto](comprobantes-responsable-inscripto.md), [notas](notas-credito-debito.md), [FCE](fce.md), [exportación](exportacion.md) y [lotes](lotes-y-json.md).
 - [Reglas de validación](validation-rules.md) y [Troubleshooting](troubleshooting.md): qué rechaza el CLI y cómo resolverlo.

@@ -15,8 +15,8 @@ También en el [sitio de documentación](https://lcsgrz.github.io/arcli/), con b
 
 ## Comprobantes
 
-- [Monotributo: Factura C, notas y Recibo C](comprobantes-monotributo.md)
-- [Responsable inscripto: Facturas A y B](comprobantes-responsable-inscripto.md)
+- [¿Qué comprobante me toca?](comprobantes/README.md): una página por comprobante, con un ejemplo y todas sus opciones.
+- Recetas por perfil: [monotributo](comprobantes-monotributo.md) y [responsable inscripto](comprobantes-responsable-inscripto.md).
 - [Notas de crédito y débito](notas-credito-debito.md)
 - [Factura de Crédito Electrónica (FCE)](fce.md)
 - [Exportación: Factura E y sus notas](exportacion.md)
