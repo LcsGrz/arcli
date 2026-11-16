@@ -62,7 +62,7 @@ export async function runHistoryFlow(baseSession: InteractiveSession): Promise<v
   const selected = await chooseStep(
     '¿Qué comprobantes querés consultar?',
     HISTORY_VOUCHER_KINDS.map((option) => ({
-      name: `${option.kind.displayName} (${option.kind.shortcut})`,
+      name: option.kind.displayName,
       value: option,
     })),
   );

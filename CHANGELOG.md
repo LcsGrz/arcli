@@ -31,6 +31,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **`--numero` deja de ser obligatorio en `fe`, `nde` y `nce`:** sin el flag, arcli consulta en ARCA el último número de ese tipo en el punto de venta y usa el siguiente, también en la vista previa. `--numero` (o `numero` en `--cargar`) sigue andando para fijarlo a mano. El modo interactivo ya no lo pregunta. Si una emisión de la E queda sin confirmar (`EMISSION_UNCERTAIN`), la sugerencia ahora también manda a verificarla con `arcli consultar`.
 - **Mismos botones al emitir en el modo interactivo y en el CLI:** el asistente pregunta "¿Emitimos…?" con **Sí, emitir ahora** y **No, dejar sin emitir**, como los comandos con flags (antes, "Emitir ahora" y "Cancelar"). En producción sigue pidiendo una segunda confirmación, ahora con **Sí, emitir en producción** y **No, dejar sin emitir**. El CLI con flags sigue preguntando una sola vez.
 - **El modo interactivo pide el punto de venta al empezar si la config no tiene uno:** factura, recibo, factura `E`, notas, repetir y consultar lo preguntan antes del primer paso, en lugar de completar todo y frenar al final con un error que hablaba de flags del CLI. El comando equivalente lo lleva con `--pv`. Con un punto de venta en la config, no cambia nada.
+- **Listas del modo interactivo sin el atajo del comando:** al elegir el comprobante (al emitir, en las notas y en Consultas) dice "Factura C" en lugar de "Factura C (fc)". El comando se sigue mostrando al final, en el comando equivalente.
 
 ### Deprecado
 

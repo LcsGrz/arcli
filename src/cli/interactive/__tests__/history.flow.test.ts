@@ -119,9 +119,9 @@ describe('consultar comprobantes de exportación E', () => {
 
     expect(names).toHaveLength(22);
     expect(names.slice(-3)).toEqual([
-      'Factura de exportación E (fe)',
-      'Nota de débito de exportación E (nde)',
-      'Nota de crédito de exportación E (nce)',
+      'Factura de exportación E',
+      'Nota de débito de exportación E',
+      'Nota de crédito de exportación E',
     ]);
     expect(createExportGateway).not.toHaveBeenCalled();
   });
