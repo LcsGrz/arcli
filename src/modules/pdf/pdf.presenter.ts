@@ -32,7 +32,7 @@ export interface PdfPluginStatusView {
 
 const BROWSER_SOURCE_LABELS: Record<NonNullable<PdfPluginStatusView['browserSource']>, string> = {
   config: 'pdfNavegador (config)',
-  descargado: 'descargado por arcli',
+  descargado: 'descargado por ARCLI',
   entorno: 'PUPPETEER_EXECUTABLE_PATH',
   sistema: 'instalado en el sistema',
 };
@@ -55,7 +55,7 @@ export function formatPdfPluginStatusAsJson(status: PdfPluginStatusView): string
 export function formatPdfPluginStatusAsText(status: PdfPluginStatusView, title = 'Plugin de PDF'): string {
   const rows: Array<readonly [string, string]> = [
     ['Estado', status.installed ? 'instalado' : 'no instalado'],
-    ['Versión', status.installedVersion ?? `no instalada (arcli usa la ${status.version})`],
+    ['Versión', status.installedVersion ?? `no instalada (ARCLI usa la ${status.version})`],
     [
       'Navegador',
       status.browser ? `${status.browser} (${BROWSER_SOURCE_LABELS[status.browserSource ?? 'sistema']})` : 'ninguno',

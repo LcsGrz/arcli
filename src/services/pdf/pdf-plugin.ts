@@ -238,7 +238,7 @@ export class PdfPlugin {
       throw new PdfError(
         'PDF_PLUGIN_MISSING',
         installedVersion
-          ? `El plugin de PDF está en la versión ${installedVersion} y arcli usa la ${PDF_PLUGIN_VERSION}.`
+          ? `El plugin de PDF está en la versión ${installedVersion} y ARCLI usa la ${PDF_PLUGIN_VERSION}.`
           : 'Para generar PDFs falta instalar el plugin de PDF.',
         { suggestion: PDF_INSTALL_SUGGESTION },
       );

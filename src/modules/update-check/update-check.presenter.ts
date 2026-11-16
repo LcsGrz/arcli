@@ -100,7 +100,7 @@ export function renderUpdateDetails(result: UpdateCheckResult, entries: readonly
   const howTo = renderPanel({
     borderType: 'command',
     content: [
-      'Para actualizar, arcli se cierra y deja este comando copiado. Pegalo en la terminal y apretá Enter:',
+      'Para actualizar, ARCLI se cierra y deja este comando copiado. Pegalo en la terminal y apretá Enter:',
       '',
       bold(colorize(resolveUpdateCommand(), 'info')),
     ],
