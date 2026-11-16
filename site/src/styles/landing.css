@@ -5287,3 +5287,10 @@
 .arcli-landing .pick-do q::after {
   content: close-quote;
 }
+
+/* El pedido a la IA es texto, no código: sin el fondo ni el borde del bloque */
+.arcli-landing .pick-do q {
+  padding: 0;
+  border: 0;
+  background: none;
+}
