@@ -874,8 +874,8 @@ header.header {
   border-radius: 0.4rem;
   background: #fff;
   box-shadow:
-    0 0 0 1px rgb(116 172 223 / 0.08),
-    0 30px 70px -30px rgb(116 172 223 / 0.45);
+    0 0 0 1px rgb(116 172 223 / 0.05),
+    0 40px 90px -40px rgb(116 172 223 / 0.45);
 }
 
 /* Pestañas: los pasos arrancan con el mismo aire que el resto de la caja */
@@ -885,15 +885,20 @@ header.header {
 
 /* Un aviso adentro de un paso: el mismo espacio arriba y abajo */
 .sl-markdown-content .arcli-steps .arcli-block > .starlight-aside {
-  margin: 0.5rem 0;
+  margin: 0.5rem 0 0;
+}
+
+/* Si el paso termina con un aviso, la línea que separa la sección ya trae su espacio */
+.sl-markdown-content .arcli-steps > .arcli-block:last-child:has(> .starlight-aside) {
+  padding-bottom: 0;
 }
 
 /* Problemas frecuentes: el buscador queda arriba al bajar */
 .sl-markdown-content .arcli-faq-search {
   position: sticky;
-  top: calc(var(--sl-nav-height) + 0.75rem);
+  top: var(--sl-nav-height);
   z-index: 5;
-  padding: 0.5rem 0;
+  padding: 0.75rem 0;
   background: var(--sl-color-black);
 }
 
@@ -911,4 +916,47 @@ header.header {
 
 .arcli-way .do > code {
   white-space: nowrap;
+}
+
+/* Pestañas: el mismo espacio arriba y abajo, y un solo espacio antes de un aviso */
+.sl-markdown-content .arcli-tabs [role='tabpanel'] {
+  padding-bottom: 1.5rem;
+}
+
+.sl-markdown-content .arcli-tabs ol > li:last-child {
+  padding-bottom: 0;
+}
+
+/* Formas de uso: el pedido sin el margen que Starlight pone entre elementos */
+.sl-markdown-content .arcli-way .do > * {
+  margin-top: 0;
+}
+
+/* Barra de desplazamiento del menú y del índice, con los colores del sitio */
+.sidebar-pane,
+.right-sidebar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--sl-color-gray-5) transparent;
+}
+
+.sidebar-pane::-webkit-scrollbar,
+.right-sidebar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sidebar-pane::-webkit-scrollbar-thumb,
+.right-sidebar::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 99px;
+  background: var(--sl-color-gray-5) padding-box;
+}
+
+.sidebar-pane::-webkit-scrollbar-thumb:hover,
+.right-sidebar::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--arcli-celeste) 55%, transparent) padding-box;
+}
+
+.sidebar-pane::-webkit-scrollbar-track,
+.right-sidebar::-webkit-scrollbar-track {
+  background: transparent;
 }
