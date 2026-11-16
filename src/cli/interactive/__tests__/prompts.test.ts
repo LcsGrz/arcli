@@ -1,6 +1,6 @@
 import input from '@inquirer/input';
 import select, { Separator } from '@inquirer/select';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest';
 
 import { BACK } from '../../../modules/interactive/wizard';
 import { stripAnsi } from '../../../ui';
@@ -24,7 +24,15 @@ const selectMock = vi.mocked(select);
 const inputMock = vi.mocked(input);
 
 describe('prompts', () => {
+  // Las respuestas dejan su linea "✔ pregunta respuesta" en stdout: se captura para mirarla y no ensuciar la salida.
+  let write: MockInstance<typeof process.stdout.write>;
+
+  beforeEach(() => {
+    write = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+  });
+
   afterEach(() => {
+    write.mockRestore();
     vi.clearAllMocks();
   });
 
@@ -74,15 +82,12 @@ describe('prompts', () => {
   });
 
   it('chooseStepWhileLoading devuelve la opcion elegida antes de que termine la carga', async () => {
-    const write = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
-
     selectMock.mockResolvedValueOnce('a' as never);
 
     const result = await chooseStepWhileLoading('¿Cual?', [{ name: 'A', value: 'a' }], 'a', 12, new Promise(() => {}));
 
     expect(result).toEqual({ answer: 'a' });
     expect(String(write.mock.calls[0]?.[0])).toContain('A');
-    write.mockRestore();
   });
 
   it('askText recorta la respuesta', async () => {
@@ -108,7 +113,6 @@ describe('prompts', () => {
   });
 
   it('Esc vuelve al paso anterior en texto y en listas, sin dejar la pregunta en pantalla', async () => {
-    const write = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
     const waitForAbort = (_config: unknown, context?: { signal?: AbortSignal }) =>
       new Promise((_resolve, reject) => {
         context?.signal?.addEventListener('abort', () =>
@@ -130,19 +134,15 @@ describe('prompts', () => {
     expect(await list).toBe(BACK);
     expect(inputMock.mock.calls[0]?.[1]).toMatchObject({ clearPromptOnDone: true });
     expect(write).not.toHaveBeenCalled();
-    write.mockRestore();
   });
 
   it('al responder deja la linea "✔ pregunta respuesta" sin la ayuda de Esc', async () => {
-    const write = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
-
     inputMock.mockResolvedValueOnce('150' as never);
     await askTextStep('Monto:');
 
     const line = stripAnsi(String(write.mock.calls[0]?.[0]));
 
     expect(line).toBe('✔ Monto: 150\n');
-    write.mockRestore();
   });
 
   it('Esc en una confirmacion cuenta como no', async () => {

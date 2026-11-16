@@ -396,7 +396,7 @@ describe('executeExportCommand: codigo de salida', () => {
   it('detiene el spinner si la emision falla', async () => {
     const failing = gateway({ authorize: vi.fn(async () => Promise.reject(new Error('socket hang up'))) });
 
-    await expect(run([...BASE, '--emitir'], { gateway: failing, json: false })).rejects.toThrow();
+    await expect(run([...BASE, '--emitir'], { gateway: failing, json: false })).rejects.toThrow('socket hang up');
     expect(spinner.stop).toHaveBeenCalled();
   });
 });

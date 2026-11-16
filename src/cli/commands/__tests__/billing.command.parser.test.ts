@@ -374,7 +374,7 @@ describe('billing.command.parser', () => {
     expect(input.transferMode).toBe('adc');
     expect(() =>
       parseBillingCommandInput(createCommand(['--monto', '1000', '--cs', '--ir-ri', '--transferencia', 'xyz']), 'fcea'),
-    ).toThrow();
+    ).toThrow(expect.objectContaining({ issues: [expect.objectContaining({ path: ['transferMode'] })] }));
   });
 
   it('parses the IVA rate and the exempt and untaxed amounts', () => {
