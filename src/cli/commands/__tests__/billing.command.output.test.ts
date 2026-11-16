@@ -80,7 +80,7 @@ describe('writeBillingCommandResults', () => {
 
     const [jsonPayload] = vi.mocked(writeTerminalJson).mock.calls[0]!;
 
-    expect(() => JSON.parse(jsonPayload)).not.toThrow();
+    expect(JSON.parse(jsonPayload)).toMatchObject({ cae: '12345678901234' });
     expect(JSON.parse(jsonPayload)).not.toBeInstanceOf(Array);
   });
 

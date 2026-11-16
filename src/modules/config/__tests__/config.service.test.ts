@@ -2,6 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ZodError } from 'zod';
 
 import { ConfigurationError } from '../../../lib/errors/app-error';
 import { resolveRowsPerList, ROWS_PER_LIST_DEPRECATION_WARNING } from '../config.schemas';
@@ -75,8 +76,13 @@ describe('config.service', () => {
     try {
       service.setValue('cuit', '20123456786');
 
-      expect(() => service.setValue('cuit', 'abc')).toThrow();
+      // Los rechazos de cada clave se prueban en config-value-parser; acá, que pasan por el alias y no se guardan.
+      expect(() => service.setValue('cuit', 'abc')).toThrow(/El CUIT "abc" no es válido/);
+      expect(() => service.setValue('entorno', 'demo')).toThrow(
+        expect.objectContaining({ issues: [expect.objectContaining({ values: ['testing', 'produccion'] })] }),
+      );
       expect(service.getConfig().cuit).toBe('20123456786');
+      expect(service.getConfig().entornoPorDefecto).toBe('testing');
       expect(JSON.parse(readFileSync(service.getPath(), 'utf8')).cuit).toBe('20123456786');
     } finally {
       service.close();
@@ -89,7 +95,7 @@ describe('config.service', () => {
     try {
       writeFileSync(service.getPath(), JSON.stringify({ cuit: 'abc', puntoVentaPorDefecto: 3 }));
 
-      expect(() => service.getConfig()).toThrow();
+      expect(() => service.getConfig()).toThrow(ZodError);
       expect(service.unsetValue('cuit').puntoVentaPorDefecto).toBe(3);
 
       writeFileSync(service.getPath(), JSON.stringify({ cuit: 'abc' }));
@@ -226,26 +232,6 @@ describe('config.service', () => {
       service.setValue('ticketPath', customTicketPath);
 
       expect(service.resolveTicketPath(service.getConfig())).toBe(customTicketPath);
-    } finally {
-      service.close();
-    }
-  });
-
-  it('rejects invalid values', () => {
-    const service = createService();
-    const cwd = temporaryDirectories[temporaryDirectories.length - 1]!;
-    const invalidPemPath = writePemFile(cwd, 'invalid-testing.key', 'NOT-A-PEM');
-
-    try {
-      expect(() => service.setValue('entorno', 'demo')).toThrow();
-      expect(() => service.setValue('concepto', 'cosas')).toThrow();
-      expect(() => service.setValue('ivaReceptor', 'algo-raro')).toThrow();
-      expect(() => service.setValue('cotizacion', '0')).toThrow();
-      expect(() => service.setValue('puntoVenta', '0')).toThrow();
-      expect(() => service.setValue('emitir', 'tal-vez')).toThrow();
-      expect(() => service.setValue('json', 'tal-vez')).toThrow();
-      expect(() => service.setValue('cuit', '123')).toThrow();
-      expect(() => service.setValue('key.testing', invalidPemPath)).toThrow(/formato PEM inválido/);
     } finally {
       service.close();
     }

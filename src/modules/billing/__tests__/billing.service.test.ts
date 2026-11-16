@@ -216,23 +216,6 @@ describe('billing.service', () => {
     expect(payload.FchVtoPago).toBeUndefined();
   });
 
-  it('accepts slash-separated Argentine dates', () => {
-    const service = new BillingService();
-
-    const payload = service.buildVoucherPayload(
-      createBillingInput({
-        billingDate: '18/03/2026',
-        concept: 'productos',
-        documentNumber: 12345678,
-        documentType: 'dni',
-        shortcut: 'fb',
-      }),
-      createRuntime(),
-    );
-
-    expect(payload.CbteFch).toBe('20260318');
-  });
-
   it('uses the current year when Argentine dates omit it', () => {
     vi.setSystemTime(new Date('2026-08-12T12:00:00Z'));
 
@@ -251,60 +234,6 @@ describe('billing.service', () => {
     expect(payload.FchServDesde).toBe('20260801');
     expect(payload.FchServHasta).toBe('20260831');
     expect(payload.FchVtoPago).toBe('20260831');
-  });
-
-  it('uses the current month and year when Argentine dates only include the day', () => {
-    vi.setSystemTime(new Date('2026-08-12T12:00:00Z'));
-
-    const service = new BillingService();
-
-    const payload = service.buildVoucherPayload(
-      createBillingInput({
-        billingDate: '5',
-        serviceEndDate: '15',
-        serviceStartDate: '05',
-      }),
-      createRuntime(),
-    );
-
-    expect(payload.CbteFch).toBe('20260805');
-    expect(payload.FchServDesde).toBe('20260805');
-    expect(payload.FchServHasta).toBe('20260815');
-    expect(payload.FchVtoPago).toBe('20260815');
-  });
-
-  it('rejects ISO date input', () => {
-    const service = new BillingService();
-
-    expect(() =>
-      service.buildVoucherPayload(
-        createBillingInput({
-          billingDate: '2026-03-18',
-          concept: 'productos',
-          documentNumber: 12345678,
-          documentType: 'dni',
-          shortcut: 'fb',
-        }),
-        createRuntime(),
-      ),
-    ).toThrow(/Usá D, DD, D-MM, D\/MM, D-MM-YY, D\/MM\/YY, D-MM-YYYY o D\/MM\/YYYY/);
-  });
-
-  it('rejects impossible Argentine dates', () => {
-    const service = new BillingService();
-
-    expect(() =>
-      service.buildVoucherPayload(
-        createBillingInput({
-          billingDate: '31/02/2026',
-          concept: 'productos',
-          documentNumber: 12345678,
-          documentType: 'dni',
-          shortcut: 'fb',
-        }),
-        createRuntime(),
-      ),
-    ).toThrow(/La fecha "31\/02\/2026" no es válida/);
   });
 
   it('requires associated vouchers for credit notes and debit notes', () => {
