@@ -115,6 +115,36 @@ const link = (title: string) => {
 };
 const either = (...titles: string[]) => titles.map(link).join(' \\| ');
 
+/** Las filas de la tabla de todos los comprobantes: el tipo y, en cada letra, el atajo con link a su página. */
+const TABLE_ROWS: readonly (readonly [string, readonly string[]])[] = [
+  ['Factura', ['Factura A', 'Factura B', 'Factura C', 'Factura E']],
+  ['Nota de crédito', ['Nota de crédito A', 'Nota de crédito B', 'Nota de crédito C', 'Nota de crédito E']],
+  ['Nota de débito', ['Nota de débito A', 'Nota de débito B', 'Nota de débito C', 'Nota de débito E']],
+  ['Recibo', ['', '', 'Recibo C', '']],
+  ['FCE', ['FCE A', 'FCE B', 'FCE C', '']],
+  ['Nota de crédito FCE', ['Nota de crédito FCE A', 'Nota de crédito FCE B', 'Nota de crédito FCE C', '']],
+  ['Nota de débito FCE', ['Nota de débito FCE A', 'Nota de débito FCE B', 'Nota de débito FCE C', '']],
+];
+
+function allVouchersTable(): string[] {
+  const cellFor = (title: string) => {
+    if (!title) return '–';
+    const page = VOUCHER_PAGES.find((candidate) => candidate.title === title);
+
+    if (!page) throw new Error(`No hay página de comprobante "${title}".`);
+
+    return `[\`${page.atajo}\`](${page.file})`;
+  };
+
+  return [
+    '<!-- arcli: atajos -->',
+    '',
+    '| Comprobante | A | B | C | E |',
+    '| --- | --- | --- | --- | --- |',
+    ...TABLE_ROWS.map(([name, titles]) => `| ${name} | ${titles.map(cellFor).join(' | ')} |`),
+  ];
+}
+
 /** "¿Cuál me toca?": la entrada a los comprobantes. */
 export function renderIndex(): string {
   return [
@@ -144,13 +174,9 @@ export function renderIndex(): string {
     '',
     '## Todos los comprobantes',
     '',
-    ...['Monotributo · C', 'Responsable inscripto · A', 'Responsable inscripto · B', 'Exportación · E'].flatMap(
-      (family) => [
-        `- **${family.replace(' · ', ' ')}:** ${VOUCHER_PAGES.filter((page) => page.familia === family)
-          .map((page) => `[${page.title}](${page.file}) (\`${page.atajo}\`)`)
-          .join(', ')}`,
-      ],
-    ),
+    'Un atajo por comprobante, cada uno con su página: la fila es el tipo y la columna, la letra.',
+    '',
+    ...allVouchersTable(),
     '',
     'Para entender cada uno: [notas de crédito y débito](../notas-credito-debito.md), [Factura de Crédito Electrónica](../fce.md) y [exportación paso a paso](../exportacion.md).',
     '',

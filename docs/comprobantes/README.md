@@ -24,9 +24,18 @@ Una **nota de crédito** resta (un descuento, una devolución, una factura mal h
 
 ## Todos los comprobantes
 
-- **Monotributo C:** [Factura C](factura-c.md) (`fc`), [Nota de crédito C](nota-credito-c.md) (`ncc`), [Nota de débito C](nota-debito-c.md) (`ndc`), [Recibo C](recibo-c.md) (`rc`), [FCE C](fce-c.md) (`fcec`), [Nota de crédito FCE C](nota-credito-fce-c.md) (`ncec`), [Nota de débito FCE C](nota-debito-fce-c.md) (`ndec`)
-- **Responsable inscripto A:** [Factura A](factura-a.md) (`fa`), [Nota de crédito A](nota-credito-a.md) (`nca`), [Nota de débito A](nota-debito-a.md) (`nda`), [FCE A](fce-a.md) (`fcea`), [Nota de crédito FCE A](nota-credito-fce-a.md) (`ncea`), [Nota de débito FCE A](nota-debito-fce-a.md) (`ndea`)
-- **Responsable inscripto B:** [Factura B](factura-b.md) (`fb`), [Nota de crédito B](nota-credito-b.md) (`ncb`), [Nota de débito B](nota-debito-b.md) (`ndb`), [FCE B](fce-b.md) (`fceb`), [Nota de crédito FCE B](nota-credito-fce-b.md) (`nceb`), [Nota de débito FCE B](nota-debito-fce-b.md) (`ndeb`)
-- **Exportación E:** [Factura E](factura-e.md) (`fe`), [Nota de crédito E](nota-credito-e.md) (`nce`), [Nota de débito E](nota-debito-e.md) (`nde`)
+Un atajo por comprobante, cada uno con su página: la fila es el tipo y la columna, la letra.
+
+<!-- arcli: atajos -->
+
+| Comprobante | A | B | C | E |
+| --- | --- | --- | --- | --- |
+| Factura | [`fa`](factura-a.md) | [`fb`](factura-b.md) | [`fc`](factura-c.md) | [`fe`](factura-e.md) |
+| Nota de crédito | [`nca`](nota-credito-a.md) | [`ncb`](nota-credito-b.md) | [`ncc`](nota-credito-c.md) | [`nce`](nota-credito-e.md) |
+| Nota de débito | [`nda`](nota-debito-a.md) | [`ndb`](nota-debito-b.md) | [`ndc`](nota-debito-c.md) | [`nde`](nota-debito-e.md) |
+| Recibo | – | – | [`rc`](recibo-c.md) | – |
+| FCE | [`fcea`](fce-a.md) | [`fceb`](fce-b.md) | [`fcec`](fce-c.md) | – |
+| Nota de crédito FCE | [`ncea`](nota-credito-fce-a.md) | [`nceb`](nota-credito-fce-b.md) | [`ncec`](nota-credito-fce-c.md) | – |
+| Nota de débito FCE | [`ndea`](nota-debito-fce-a.md) | [`ndeb`](nota-debito-fce-b.md) | [`ndec`](nota-debito-fce-c.md) | – |
 
 Para entender cada uno: [notas de crédito y débito](../notas-credito-debito.md), [Factura de Crédito Electrónica](../fce.md) y [exportación paso a paso](../exportacion.md).

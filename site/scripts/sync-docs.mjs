@@ -670,8 +670,16 @@ function gifs(text) {
   );
 }
 
+/** `<!-- arcli: atajos -->` y la tabla siguiente: la grilla de atajos por letra, con las letras centradas. */
+function shortcutGrids(text) {
+  return text.replace(
+    /<!-- arcli: atajos -->\n+((?:\|.*\n?)+)/g,
+    (_, table) => `<div class="arcli-atajos">\n\n${table.trim()}\n\n</div>\n`,
+  );
+}
+
 /** Lo que el sitio dibuja distinto que GitHub, en orden: tarjetas, chat, carteles, formas de uso, pasos, problemas y novedades. */
-const SITE_TRANSFORMS = [gifs, optionCards, chats, samples, ways, steps, tabs, problems, releases];
+const SITE_TRANSFORMS = [gifs, shortcutGrids, optionCards, chats, samples, ways, steps, tabs, problems, releases];
 
 /** Convierte cada bloque `> [!TIPO]` en `:::tipo ... :::`, fuera de los bloques de codigo. */
 function githubAlertsToAsides(text) {

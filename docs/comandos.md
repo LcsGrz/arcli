@@ -8,6 +8,8 @@ Todos los comandos de ARCLI. Cada uno tiene su ayuda en la terminal: `arcli <com
 
 Un atajo por comprobante: `arcli fc` es lo mismo que `arcli factura c`. Cada uno lleva a su página, con todas sus opciones.
 
+<!-- arcli: atajos -->
+
 | Familia                       | A                                            | B                                            | C                                            | E                                       |
 | ----------------------------- | -------------------------------------------- | -------------------------------------------- | -------------------------------------------- | --------------------------------------- |
 | `factura`                     | [`fa`](comprobantes/factura-a.md)            | [`fb`](comprobantes/factura-b.md)            | [`fc`](comprobantes/factura-c.md)            | [`fe`](comprobantes/factura-e.md)       |
