@@ -6,7 +6,7 @@ import { createProgram } from '../program';
 // salida en texto o JSON y los errores, sin red.
 const runtime = {
   certificateNotices: [],
-  config: { comprobantesPorLista: undefined as number | undefined },
+  config: { filasPorLista: undefined as number | undefined },
   environment: 'testing' as const,
   outputJson: false,
   pointOfSale: 3 as number | undefined,
@@ -74,7 +74,7 @@ async function run(...args: string[]): Promise<void> {
 beforeEach(() => {
   runtime.outputJson = false;
   runtime.pointOfSale = 3;
-  runtime.config.comprobantesPorLista = undefined;
+  runtime.config.filasPorLista = undefined;
   for (const mock of [...Object.values(parameters), ...Object.values(history), padron.getTaxpayer, fce.getObligation]) {
     mock.mockReset();
   }
@@ -147,9 +147,9 @@ describe('arcli estado', () => {
 });
 
 describe('arcli ultimos y consultar', () => {
-  it('ultimos usa comprobantesPorLista de la config', async () => {
+  it('ultimos usa filasPorLista de la config', async () => {
     runtime.outputJson = true;
-    runtime.config.comprobantesPorLista = 2;
+    runtime.config.filasPorLista = 2;
     history.getLastNumber.mockResolvedValue(10);
     history.getVoucher.mockImplementation(async (number: number) => ({
       date: '20261105',

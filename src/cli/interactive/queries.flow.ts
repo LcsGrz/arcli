@@ -1,6 +1,7 @@
 import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { formatCuit } from '../../lib/identity/format-cuit';
 import { toIsoCurrencyCode } from '../../modules/billing/currency-codes';
+import { resolveRowsPerList } from '../../modules/config/config.schemas';
 import { formatFceObligationAsText } from '../../modules/fce/fce-obligation.presenter';
 import { BACK } from '../../modules/interactive/wizard';
 import { taxpayerNotFoundError } from '../../modules/padron/padron';
@@ -20,7 +21,6 @@ import {
   formatQuotationAsText,
   PARAMETER_TABLE_HELP,
 } from '../../modules/parameters/parameters.presenter';
-import { RECENT_VOUCHERS_LIMIT } from '../../modules/vouchers/voucher-history';
 import { ArcaFceObligationGateway } from '../../services/arca/arca-fce-obligation.gateway';
 import { ArcaPadronGateway } from '../../services/arca/arca-padron.gateway';
 import { ArcaParametersGateway } from '../../services/arca/arca-parameters.gateway';
@@ -51,9 +51,9 @@ type QueryOption = 'comprobantes' | 'cotizacion' | 'cuit' | 'fce' | 'tablas';
 /** Lo que pasa despues de una consulta: seguir en el submenu, o volver al menu principal (se emitio una factura). */
 type QueryOutcome = 'menu' | 'seguir';
 
-/** Filas por pagina de las tablas de ARCA: las mismas que en las listas de comprobantes (`comprobantesPorLista`). */
+/** Filas por pagina de las tablas de ARCA: las mismas que en las listas de comprobantes (`filasPorLista`). */
 function rowsPerPage(session: InteractiveSession): number {
-  return session.runtime.config.comprobantesPorLista ?? RECENT_VOUCHERS_LIMIT;
+  return resolveRowsPerList(session.runtime.config);
 }
 
 /**

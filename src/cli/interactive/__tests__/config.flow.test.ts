@@ -286,7 +286,7 @@ describe('runConfigMenu', () => {
     await runConfigMenu();
 
     expect(stripAnsi(printed)).toContain('20-33333333-4');
-    expect(stripAnsi(printed)).toContain('Comprobantes por lista');
+    expect(stripAnsi(printed)).toContain('Filas por lista');
   });
 
   it('borra un dato de texto con "-"', async () => {

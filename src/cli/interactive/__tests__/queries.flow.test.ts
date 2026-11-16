@@ -309,7 +309,7 @@ describe('Consultas del modo interactivo', () => {
       expect(filterLists).toHaveLength(0);
     });
 
-    it('una tabla que no entra en una página (`comprobantesPorLista`) va en la lista filtrable', async () => {
+    it('una tabla que no entra en una página (`filasPorLista`) va en la lista filtrable', async () => {
       listTable.mockResolvedValueOnce(
         Array.from({ length: 6 }, (_, index) => ({ description: `Tributo ${index + 1}`, id: String(index + 1) })),
       );
@@ -320,7 +320,7 @@ describe('Consultas del modo interactivo', () => {
         [/consultar/, BACK],
       ]);
 
-      await runQueriesMenu(createSession({ comprobantesPorLista: 5 }));
+      await runQueriesMenu(createSession({ filasPorLista: 5 }));
 
       expect(filterLists).toEqual([
         { header: expect.stringMatching(/CÓDIGO\s+TRIBUTO/), message: 'Tributos', rows: expect.any(Array) },

@@ -84,6 +84,46 @@ describe('config.presenter', () => {
     expect(text).toMatch(/Emitir sin `--emitir`\s+sí/);
   });
 
+  describe('filasPorLista en el JSON', () => {
+    const base = {
+      cert: {},
+      emisor: {},
+      entornoPorDefecto: 'testing' as const,
+      key: {},
+      output: { brutoPorDefecto: false, emitirPorDefecto: false, jsonPorDefecto: false },
+    };
+    const paths = { pdfFolder: '/pdfs', ticketPath: '/tickets' };
+    const parse = (value: string): Record<string, unknown> => JSON.parse(value) as Record<string, unknown>;
+
+    it('trae filasPorLista y, con el mismo valor, comprobantesPorLista deprecada', () => {
+      const json = parse(formatConfig({ ...base, comprobantesPorLista: 8 }, paths));
+
+      expect(json).toMatchObject({ comprobantesPorLista: 8, filasPorLista: 8 });
+      expect(json.deprecado).toEqual([expect.stringContaining('`filasPorLista`')]);
+    });
+
+    it('con las dos, gana filasPorLista', () => {
+      const json = parse(formatConfig({ ...base, comprobantesPorLista: 8, filasPorLista: 20 }, paths));
+
+      expect(json).toMatchObject({ comprobantesPorLista: 20, filasPorLista: 20 });
+    });
+
+    it('sin valor no trae ninguna ni deprecado', () => {
+      const json = parse(formatConfig(base, paths));
+
+      expect(json).not.toHaveProperty('filasPorLista');
+      expect(json).not.toHaveProperty('comprobantesPorLista');
+      expect(json).not.toHaveProperty('deprecado');
+    });
+
+    it('el texto la muestra como Filas por lista, con el valor de la vieja si es la unica', () => {
+      const text = stripAnsi(formatConfigAsText({ ...base, comprobantesPorLista: 8 }, paths));
+
+      expect(text).toMatch(/Filas por lista\s+8/);
+      expect(text).not.toContain('Comprobantes por lista');
+    });
+  });
+
   it('serializes revision with masked runtime-friendly details', () => {
     const report = buildConfigDoctorReport(
       {

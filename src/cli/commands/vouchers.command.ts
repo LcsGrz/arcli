@@ -5,7 +5,7 @@ import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import { formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { getVoucherKindByShortcut, VOUCHER_SHORTCUTS } from '../../modules/billing/voucher-kind-map';
-import { formatEnvironmentLabel } from '../../modules/config/config.schemas';
+import { formatEnvironmentLabel, resolveRowsPerList } from '../../modules/config/config.schemas';
 import { listRecentExportVouchers } from '../../modules/export/export.history';
 import {
   formatExportVoucherDetailAsJson,
@@ -104,7 +104,7 @@ export function registerVoucherQueryCommands(program: Command): void {
       .description('listar los últimos comprobantes emitidos en ARCA')
       .option(
         '--cantidad <numero>',
-        `cuántos comprobantes mostrar (1 a ${MAX_RECENT_VOUCHERS}; por defecto config.comprobantesPorLista o ${RECENT_VOUCHERS_LIMIT})`,
+        `cuántos comprobantes mostrar (1 a ${MAX_RECENT_VOUCHERS}; por defecto config.filasPorLista o ${RECENT_VOUCHERS_LIMIT})`,
         integerOption('--cantidad'),
       ),
   ).addHelpText('after', createVoucherQueryHelp());
@@ -122,7 +122,7 @@ export function registerVoucherQueryCommands(program: Command): void {
 
     if (query.service === 'wsfex') {
       const { gateway, runtime } = createExportQuery(self);
-      const limit = cantidad ?? runtime.config.comprobantesPorLista ?? RECENT_VOUCHERS_LIMIT;
+      const limit = cantidad ?? resolveRowsPerList(runtime.config);
       const pointOfSale = requirePointOfSale(options, runtime);
       const vouchers = await withQuerySpinner(runtime, () =>
         listRecentExportVouchers(gateway, pointOfSale, query.kind.arcaType, { limit }),
@@ -139,7 +139,7 @@ export function registerVoucherQueryCommands(program: Command): void {
 
     const voucherKind = query.kind;
     const { gateway, runtime } = createContext(self);
-    const limit = cantidad ?? runtime.config.comprobantesPorLista ?? RECENT_VOUCHERS_LIMIT;
+    const limit = cantidad ?? resolveRowsPerList(runtime.config);
     const pointOfSale = requirePointOfSale(options, runtime);
     const vouchers = await withQuerySpinner(runtime, () =>
       listRecentVouchers(gateway, pointOfSale, voucherKind.arcaType, { limit }),

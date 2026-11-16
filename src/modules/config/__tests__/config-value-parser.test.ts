@@ -57,7 +57,7 @@ describe('config-value-parser', () => {
 
   it('reports invalid values as input errors, not unexpected ones', () => {
     expect(() => parseConfigValue('puntoVentaPorDefecto', 'abc')).toThrow(InputValidationError);
-    expect(() => parseConfigValue('comprobantesPorLista', '99')).toThrow(InputValidationError);
+    expect(() => parseConfigValue('filasPorLista', '99')).toThrow(InputValidationError);
   });
 
   it('normalizes the default IVA rate', () => {
@@ -80,10 +80,10 @@ describe('config-value-parser', () => {
   });
 
   it('valida la cantidad de comprobantes por lista entre 1 y 50', () => {
-    expect(parseConfigValue('comprobantesPorLista', ' 25 ')).toBe(25);
-    expect(() => parseConfigValue('comprobantesPorLista', '0')).toThrow(/entre 1 y 50/);
-    expect(() => parseConfigValue('comprobantesPorLista', '51')).toThrow(/entre 1 y 50/);
-    expect(() => parseConfigValue('comprobantesPorLista', '2.5')).toThrow(/entre 1 y 50/);
+    expect(parseConfigValue('filasPorLista', ' 25 ')).toBe(25);
+    expect(() => parseConfigValue('filasPorLista', '0')).toThrow(/entre 1 y 50/);
+    expect(() => parseConfigValue('filasPorLista', '51')).toThrow(/entre 1 y 50/);
+    expect(() => parseConfigValue('filasPorLista', '2.5')).toThrow(/entre 1 y 50/);
   });
 
   it('rejects non-positive numbers and integers', () => {

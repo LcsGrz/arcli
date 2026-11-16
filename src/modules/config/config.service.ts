@@ -10,13 +10,13 @@ import {
   CONFIG_DEFAULTS,
   ConfigPublicKey,
   configPublicKeySchema,
+  ROWS_PER_LIST_DEPRECATION_WARNING,
 } from './config.schemas';
 import { type CanonicalConfigKey, parseConfigValue } from './config-value-parser';
 
 const CONFIG_KEY_ALIASES: Record<ConfigPublicKey, CanonicalConfigKey> = {
   alicuota: 'alicuotaPorDefecto',
   aliasCbu: 'aliasCbu',
-  comprobantesPorLista: 'comprobantesPorLista',
   cbu: 'cbu',
   'cert.produccion': 'cert.produccion',
   'cert.testing': 'cert.testing',
@@ -37,6 +37,7 @@ const CONFIG_KEY_ALIASES: Record<ConfigPublicKey, CanonicalConfigKey> = {
   'exportacion.cert.testing': 'exportacion.cert.testing',
   'exportacion.key.produccion': 'exportacion.key.produccion',
   'exportacion.key.testing': 'exportacion.key.testing',
+  filasPorLista: 'filasPorLista',
   ivaReceptor: 'ivaReceptorPorDefecto',
   json: 'output.jsonPorDefecto',
   'key.produccion': 'key.produccion',
@@ -51,6 +52,31 @@ const CONFIG_KEY_ALIASES: Record<ConfigPublicKey, CanonicalConfigKey> = {
   verificarFce: 'verificarFce',
   consultarPadron: 'consultarPadron',
 };
+
+/**
+ * Claves deprecadas que `config establecer` y `config eliminar` todavia aceptan, con la clave que las reemplaza. No
+ * son claves publicas: no salen en la ayuda, el autocompletado ni `arcli config`. Se sacan en la 3.0.0.
+ */
+const DEPRECATED_CONFIG_KEYS: Readonly<
+  Record<string, { readonly replacement: ConfigPublicKey; readonly warning: string }>
+> = {
+  comprobantesPorLista: { replacement: 'filasPorLista', warning: ROWS_PER_LIST_DEPRECATION_WARNING },
+};
+
+/**
+ * Claves guardadas que se borran al cambiar o borrar la clave publica: la deprecada no puede quedar en el archivo
+ * con otro valor, porque se seguiria leyendo si se borra la nueva.
+ */
+const LEGACY_STORED_KEYS: Partial<Record<ConfigPublicKey, readonly string[]>> = {
+  filasPorLista: ['comprobantesPorLista'],
+};
+
+/** El aviso de una clave deprecada (`comprobantesPorLista`), para mostrarlo al guardarla o borrarla. */
+export function deprecatedConfigKeyWarning(rawKey: string): string | undefined {
+  const key = rawKey.trim();
+
+  return Object.hasOwn(DEPRECATED_CONFIG_KEYS, key) ? DEPRECATED_CONFIG_KEYS[key].warning : undefined;
+}
 
 /** Valida un valor como lo haria `arcli config establecer`, sin guardarlo. Lanza un Error con el motivo. */
 export function validateConfigValue(publicKey: ConfigPublicKey, rawValue: string): void {
@@ -180,14 +206,20 @@ export class ConfigService {
     const canonicalKey = CONFIG_KEY_ALIASES[key];
     const parsedValue = parseConfigValue(canonicalKey, rawValue);
 
-    return this.saveIfValid((draft) => setAtPath(draft, canonicalKey, parsedValue));
+    return this.saveIfValid((draft) => {
+      deleteLegacyKeys(draft, key);
+      setAtPath(draft, canonicalKey, parsedValue);
+    });
   }
 
   public unsetValue(rawKey: string): ArcliConfig {
     const key = this.resolveKey(rawKey);
     const canonicalKey = CONFIG_KEY_ALIASES[key];
 
-    return this.saveIfValid((draft) => deleteAtPath(draft, canonicalKey));
+    return this.saveIfValid((draft) => {
+      deleteLegacyKeys(draft, key);
+      deleteAtPath(draft, canonicalKey);
+    });
   }
 
   /**
@@ -206,7 +238,17 @@ export class ConfigService {
   }
 
   private resolveKey(rawKey: string): ConfigPublicKey {
-    return configPublicKeySchema.parse(rawKey.trim());
+    const key = rawKey.trim();
+
+    return Object.hasOwn(DEPRECATED_CONFIG_KEYS, key)
+      ? DEPRECATED_CONFIG_KEYS[key].replacement
+      : configPublicKeySchema.parse(key);
+  }
+}
+
+function deleteLegacyKeys(draft: Record<string, unknown>, key: ConfigPublicKey): void {
+  for (const legacyKey of LEGACY_STORED_KEYS[key] ?? []) {
+    deleteAtPath(draft, legacyKey);
   }
 }
 

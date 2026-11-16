@@ -15,7 +15,7 @@ Set TypingSpeed 70ms
 Hide
 Type "source scripts/demo/setup.sh" Enter
 # Listas cortas para que el detalle entre en pantalla junto con la lista (config de demo, no la tuya).
-Type "arcli config establecer comprobantesPorLista 5 >/dev/null && clear" Enter
+Type "arcli config establecer filasPorLista 5 >/dev/null && clear" Enter
 Sleep 1.5s
 Show
 

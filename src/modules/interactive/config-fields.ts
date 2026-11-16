@@ -11,6 +11,7 @@ import {
   arcliEnvironmentSchema,
   arcliPdfModeSchema,
   type ConfigPublicKey,
+  resolveConfiguredRowsPerList,
 } from '../config/config.schemas';
 import { CONFIG_LABELS } from '../config/config.sections';
 import { MAX_RECENT_VOUCHERS, RECENT_VOUCHERS_LIMIT } from '../vouchers/voucher-history';
@@ -109,8 +110,8 @@ const FIELD_DEFINITIONS: ReadonlyArray<Omit<ConfigField, 'label'>> = [
   },
   {
     hint: `1 a ${MAX_RECENT_VOUCHERS}, por defecto ${RECENT_VOUCHERS_LIMIT}`,
-    key: 'comprobantesPorLista',
-    read: (c) => c.comprobantesPorLista?.toString(),
+    key: 'filasPorLista',
+    read: (c) => resolveConfiguredRowsPerList(c)?.toString(),
   },
   { hint: '22 dígitos', key: 'cbu', read: (c) => c.cbu },
   { key: 'aliasCbu', read: (c) => c.aliasCbu },

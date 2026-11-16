@@ -3,14 +3,11 @@ import { Separator } from '@inquirer/select';
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import { formatNoVouchersEmitted, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
+import { resolveRowsPerList } from '../../modules/config/config.schemas';
 import { formatExportVoucherPickerRows } from '../../modules/export/export.history.presenter';
 import type { ExportGateway, ExportIssuedVoucher, ExportVoucherKind } from '../../modules/export/export.types';
 import { BACK, type Back } from '../../modules/interactive/wizard';
-import {
-  fetchVouchersBackwards,
-  type IssuedVoucher,
-  RECENT_VOUCHERS_LIMIT,
-} from '../../modules/vouchers/voucher-history';
+import { fetchVouchersBackwards, type IssuedVoucher } from '../../modules/vouchers/voucher-history';
 import { formatVoucherNumber, formatVoucherPickerRows } from '../../modules/vouchers/voucher-history.presenter';
 import { colorize, noticePanel, statusBarWidth, uiSymbol, writeTerminalOutput } from '../../ui';
 import { withSpinner } from '../spinner';
@@ -158,7 +155,7 @@ export async function pickVoucher<T extends { readonly number: number }>(
 ): Promise<Back | PickedVoucher<T>> {
   const { message, onPick, pointOfSale, voucherKind } = options;
   // Comprobantes por tanda: los primeros y cada "cargar mas".
-  const pageSize = session.runtime.config.comprobantesPorLista ?? RECENT_VOUCHERS_LIMIT;
+  const pageSize = resolveRowsPerList(session.runtime.config);
   const listFrom = (fromNumber: number): Promise<T[]> =>
     fetchVouchersBackwards(fromNumber, (number) => source.getVoucher(number, pointOfSale), { limit: pageSize });
   const { invoices, lastNumber } = await withSpinner('Buscando en ARCA...', async () => {
