@@ -124,9 +124,16 @@ const PAGES = [
     src: 'docs/exportacion.md',
   },
   { icon: 'lupa', label: 'Consultas sin emitir', slug: 'mas/consultas', src: 'docs/consultas.md' },
-  { icon: 'pdf', label: 'PDF de comprobantes', slug: 'mas/pdf', src: 'docs/pdf.md' },
+  { icon: 'pdf', label: 'PDF de comprobantes', slug: 'mas/pdf', src: 'docs/pdf-en-corto.md' },
+  { hidden: true, label: 'PDF de comprobantes: guía completa', slug: 'mas/pdf-completo', src: 'docs/pdf.md' },
   { icon: 'pila', label: 'Lotes y JSON', slug: 'mas/lotes-y-json', src: 'docs/lotes-y-json.md' },
-  { icon: 'lista', label: 'Comandos y flags', slug: 'referencia/comandos', src: 'docs/cli-reference.md' },
+  { icon: 'lista', label: 'Comandos y flags', slug: 'referencia/comandos', src: 'docs/comandos.md' },
+  {
+    hidden: true,
+    label: 'Referencia completa del CLI',
+    slug: 'referencia/comandos-completo',
+    src: 'docs/cli-reference.md',
+  },
   { icon: 'ajustes', label: 'Configuración', slug: 'referencia/configuracion', src: 'docs/configuration.md' },
   {
     icon: 'llaves',

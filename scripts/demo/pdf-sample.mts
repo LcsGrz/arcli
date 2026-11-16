@@ -17,21 +17,22 @@ service.close();
 
 const renderer = new PdfPlugin({ path: pluginPath }).load();
 const folder = mkdtempSync(join(tmpdir(), 'arcli-pdf-sample-'));
-const voucherKind = getVoucherKindByShortcut('fb');
+const voucherKind = getVoucherKindByShortcut('fc');
 
 if (!voucherKind) {
-  throw new Error('fb');
+  throw new Error('fc');
 }
 
 const path = await exportBillingPdf({
   config: {
     cuit: '20111111112',
-    emisor: { domicilio: 'Av. Siempreviva 742, CABA', inicioActividades: '20200301', razonSocial: 'Tu Empresa SRL' },
+    emisor: { domicilio: 'Av. Siempreviva 742, CABA', inicioActividades: '20200301', razonSocial: 'Ana Gómez' },
   },
   extras: {
-    descripcion: 'Servicios de desarrollo - septiembre',
+    descripcion: 'Desarrollo de software - octubre',
+    
     receptorDomicilio: 'Calle Falsa 123, CABA',
-    receptorNombre: 'Cliente Ejemplo SA',
+    receptorNombre: 'Juan Pérez',
   },
   folder,
   renderer,
@@ -40,37 +41,36 @@ const path = await exportBillingPdf({
     environment: 'produccion',
     payload: {
       CantReg: 1,
-      CbteFch: '20261005',
-      CbteTipo: 6,
+      CbteFch: '20261108',
+      CbteTipo: 11,
       Concepto: 2,
-      CondicionIVAReceptorId: 4,
-      DocNro: 30000000007,
-      DocTipo: 80,
-      FchServDesde: '20260901',
-      FchServHasta: '20260930',
-      FchVtoPago: '20261015',
-      ImpIVA: 26250,
-      ImpNeto: 125000,
+      CondicionIVAReceptorId: 5,
+      DocNro: 0,
+      DocTipo: 99,
+      FchServDesde: '20261001',
+      FchServHasta: '20261031',
+      FchVtoPago: '20261118',
+      ImpIVA: 0,
+      ImpNeto: 15000,
       ImpOpEx: 0,
       ImpTotConc: 0,
-      ImpTotal: 151250,
+      ImpTotal: 15000,
       ImpTrib: 0,
-      Iva: [{ BaseImp: 125000, Id: 5, Importe: 26250 }],
       MonCotiz: 1,
       MonId: 'PES',
       PtoVta: 3,
     },
     response: {
-      cae: '76123456789012',
-      caeVencimiento: '20261015',
+      cae: '86451064378488',
+      caeVencimiento: '20261118',
       errors: [],
       events: [],
       observaciones: [],
       observacion: null,
       raw: {
-        cae: '76123456789012',
-        caeFchVto: '20261015',
-        response: { FeDetResp: { FECAEDetResponse: [{ CbteDesde: 125 }] } },
+        cae: '86451064378488',
+        caeFchVto: '20261118',
+        response: { FeDetResp: { FECAEDetResponse: [{ CbteDesde: 118 }] } },
       },
       resultado: 'A',
       suggestions: [],

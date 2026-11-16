@@ -7,11 +7,16 @@ También en el [sitio de documentación](https://lcsgrz.github.io/arcli/), con b
 ## Empezar
 
 1. [Instalación y primeros pasos](../README.md#instalación): instalar y configurar.
-2. [Certificado de testing](certificado-testing.md): para probar sin validez fiscal.
-3. [Certificado de producción](certificado-produccion.md): para facturar de verdad, con el punto de venta para web service.
+2. [Certificado de testing](certificado-testing.md): para probar sin validez fiscal ([guía completa](certificado-testing-completa.md)).
+3. [Certificado de producción](certificado-produccion.md): para facturar de verdad, con el punto de venta para web service ([guía completa](certificado-produccion-completa.md)).
 4. [Cambiar de entorno](entornos.md): testing y producción, y el checklist antes de la primera factura real.
-5. [Modo interactivo](modo-interactivo.md): el asistente que se abre con `arcli`, sin recordar flags.
-6. [Modelo mental](mental-model.md): cómo fluye un comando, de la entrada a ARCA.
+5. [Cómo funciona](mental-model.md): del dato al CAE, y qué pasa si un dato está en dos lugares.
+
+## Formas de uso
+
+- [Asistente](formas-de-uso/asistente.md): `arcli` sin nada más, paso a paso ([guía completa del modo interactivo](modo-interactivo.md)).
+- [Comandos](formas-de-uso/comandos.md): todo en una línea, para facturar seguido o automatizar.
+- [Con IA](formas-de-uso/con-ia.md): se lo pedís a tu asistente de IA ([guía completa](automatizar-con-ia.md)).
 
 ## Comprobantes
 
@@ -24,13 +29,12 @@ También en el [sitio de documentación](https://lcsgrz.github.io/arcli/), con b
 ## Más
 
 - [Consultas sin emitir](consultas.md): últimos comprobantes, estado de ARCA, tablas, padrón.
-- [PDF de comprobantes](pdf.md): plugin, datos del emisor, carpeta y nombre de los archivos.
+- [PDF de comprobantes](pdf-en-corto.md): cómo se activa y dónde queda ([guía completa](pdf.md): leyendas, datos opcionales y la E).
 - [Lotes, JSON y automatización](lotes-y-json.md)
-- [Automatizar con IA](automatizar-con-ia.md): `llms.txt`, reglas para agentes y códigos de salida.
 
 ## Referencia
 
-- [Referencia del CLI](cli-reference.md): comandos y flags.
+- [Comandos y flags](comandos.md): todos los comandos, en una página ([referencia completa del CLI](cli-reference.md)).
 - [Configuración](configuration.md): claves, ubicación del archivo y variables de entorno.
 - [Entrada y salida](input-output.md): JSON de entrada, JSON de salida y formato de errores.
 - [Reglas de validación](validation-rules.md): qué valida ARCLI y qué rechaza ARCA.
