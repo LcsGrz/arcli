@@ -550,7 +550,7 @@ starlight-toc nav > ul > li:first-child:has(> a[href='#_top']) {
 }
 
 /* Código en línea con borde, como en la maqueta */
-.sl-markdown-content :not(pre) > code {
+.sl-markdown-content :not(pre) > code:not(.not-content *) {
   padding: 0.1rem 0.4rem;
   border: 1px solid var(--sl-color-gray-5);
   border-radius: 0.35rem;
@@ -689,12 +689,12 @@ starlight-toc nav > ul > li:first-child:has(> a[href='#_top']) {
   padding-top: 0.75rem !important;
 }
 
-.sl-markdown-content a:not(.arcli-way):not(.arcli-gif a) {
+.sl-markdown-content a:not(.arcli-way):not(.not-content *) {
   color: var(--arcli-celeste);
 }
 
 /* Tablas en una caja, con el encabezado de fondo */
-.sl-markdown-content table {
+.sl-markdown-content table:not(.not-content *) {
   width: 100%;
   border: 1px solid var(--sl-color-gray-5);
   border-collapse: separate;
