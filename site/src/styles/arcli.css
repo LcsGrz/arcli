@@ -507,3 +507,167 @@ header.header::after {
   --sl-font: 'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --sl-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 }
+
+/* ======================= Como la maqueta: marco de cada página ======================= */
+
+/* Menú: un poco más ancho y con la letra de la maqueta, así "Responsable inscripto" entra en una línea */
+:root {
+  --sl-sidebar-width: 19rem;
+}
+
+/* Sin la línea de Starlight entre el título y el texto */
+.content-panel {
+  border-top: 0 !important;
+}
+
+.content-panel + .content-panel {
+  padding-top: 0.5rem;
+}
+
+/* Cada sección empieza con una línea, como en la maqueta */
+.sl-markdown-content > .sl-heading-wrapper.level-h2 {
+  margin-top: 2.75rem;
+  padding-top: 2.25rem;
+  border-top: 1px solid var(--sl-color-gray-5);
+}
+
+/* Índice de la derecha: "EN ESTA PÁGINA" chico, sin "Sinopsis" */
+.right-sidebar-panel h2 {
+  color: var(--sl-color-gray-3) !important;
+  font: 600 0.72rem / 1.4 var(--sl-font-mono) !important;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+starlight-toc nav > ul > li:first-child:has(> a[href='#_top']) {
+  display: none;
+}
+
+.right-sidebar-panel a {
+  font-size: var(--sl-text-sm) !important;
+}
+
+/* Código en línea con borde, como en la maqueta */
+.sl-markdown-content :not(pre) > code {
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.35rem;
+  background: var(--sl-color-gray-6);
+}
+
+/* "Copiar" siempre a la vista */
+.expressive-code .copy button {
+  opacity: 1 !important;
+}
+
+/* Avisos sutiles: borde de color y un fondo apenas teñido */
+.starlight-aside {
+  border: 1px solid color-mix(in srgb, var(--sl-color-asides-border) 45%, transparent);
+  border-inline-start: 3px solid var(--sl-color-asides-border);
+  border-radius: 0.6rem;
+  background: color-mix(in srgb, var(--sl-color-asides-border) 8%, var(--sl-color-black)) !important;
+}
+
+.starlight-aside--tip {
+  --sl-color-asides-border: var(--arcli-verde);
+  --sl-color-asides-text-accent: var(--arcli-verde);
+}
+
+.starlight-aside--note {
+  --sl-color-asides-border: var(--arcli-celeste);
+  --sl-color-asides-text-accent: var(--arcli-celeste);
+}
+
+.starlight-aside--caution {
+  --sl-color-asides-border: var(--arcli-sol);
+  --sl-color-asides-text-accent: var(--arcli-sol);
+}
+
+.starlight-aside--danger {
+  --sl-color-asides-border: #f38ba8;
+  --sl-color-asides-text-accent: #f38ba8;
+}
+
+/* Bloques de código: el título a la izquierda y sin los tres puntos de la ventana */
+.expressive-code .frame.is-terminal .header::before {
+  display: none !important;
+}
+
+.expressive-code .frame.is-terminal .header {
+  justify-content: flex-start !important;
+  padding-inline: 1rem !important;
+  font-family: var(--sl-font-mono) !important;
+  font-size: 0.78rem !important;
+}
+
+/* Pestañas: Windows, macOS, Linux */
+.sl-markdown-content .arcli-tabs {
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.6rem;
+  overflow: hidden;
+}
+
+.sl-markdown-content .arcli-tabs [role='tablist'] {
+  display: flex;
+  margin: 0;
+  border-bottom: 1px solid var(--sl-color-gray-5);
+  background: var(--sl-color-gray-6);
+}
+
+.arcli-tabs [role='tab'] {
+  padding: 0.65rem 1rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--sl-color-gray-3);
+  font: inherit;
+  cursor: pointer;
+}
+
+.arcli-tabs [role='tab'][aria-selected='true'] {
+  border-bottom-color: var(--arcli-celeste);
+  color: var(--sl-color-white);
+}
+
+.sl-markdown-content .arcli-tabs [role='tabpanel'] {
+  margin: 0;
+  padding: 0.5rem 1.25rem 1.25rem;
+}
+
+.arcli-tabs [role='tabpanel'][hidden] {
+  display: none;
+}
+
+/* Las listas numeradas de una pestaña, como pasos */
+.sl-markdown-content .arcli-tabs ol {
+  padding: 0;
+  list-style: none;
+  counter-reset: paso;
+}
+
+.sl-markdown-content .arcli-tabs ol > li {
+  position: relative;
+  padding: 0.15rem 0 1rem 2.75rem;
+  counter-increment: paso;
+}
+
+.sl-markdown-content .arcli-tabs ol > li::before {
+  content: counter(paso);
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  place-items: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border: 1px solid color-mix(in srgb, var(--arcli-celeste) 55%, transparent);
+  border-radius: 50%;
+  background: var(--sl-color-accent-low);
+  color: var(--sl-color-text-accent);
+  font: 700 0.85rem / 1 var(--sl-font-mono);
+}
+
+.sl-markdown-content .arcli-tabs [role='tab'] {
+  margin: 0;
+  font-size: var(--sl-text-sm);
+}

@@ -14,7 +14,9 @@ export default defineConfig({
   integrations: [
     starlight({
       components: {
+        Footer: './src/components/Footer.astro',
         Header: './src/components/Header.astro',
+        PageSidebar: './src/components/PageSidebar.astro',
         PageTitle: './src/components/PageTitle.astro',
         Sidebar: './src/components/Sidebar.astro',
         SiteTitle: './src/components/SiteTitle.astro',
@@ -44,7 +46,28 @@ export default defineConfig({
           tag: 'meta',
         },
       ],
+      // Bloques de código como en la maqueta: título ("Terminal") y "Copiar", sin los tres puntos de la ventana.
+      expressiveCode: {
+        styleOverrides: {
+          borderColor: '#313244',
+          borderRadius: '0.6rem',
+          codeBackground: '#11111b',
+          frames: {
+            editorActiveTabBackground: '#11111b',
+            editorTabBarBackground: '#11111b',
+            editorTabBarBorderBottomColor: '#313244',
+            frameBoxShadowCssValue: 'none',
+            terminalBackground: '#11111b',
+            terminalTitlebarBackground: '#11111b',
+            terminalTitlebarBorderBottomColor: '#313244',
+            terminalTitlebarDotsOpacity: '0',
+            terminalTitlebarForeground: '#a6adc8',
+          },
+        },
+      },
       lastUpdated: false,
+      // El índice de la derecha, solo con las secciones (##).
+      tableOfContents: { maxHeadingLevel: 2, minHeadingLevel: 2 },
       locales: { root: { label: 'Español', lang: 'es' } },
       logo: { alt: 'arcli', src: './src/assets/logo.svg' },
       sidebar,

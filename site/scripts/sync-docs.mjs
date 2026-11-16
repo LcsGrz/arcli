@@ -68,13 +68,7 @@ function voucherPages() {
  * El orden del menu es el de esta lista dentro de cada seccion.
  */
 const PAGES = [
-  {
-    icon: 'descarga',
-    label: 'Instalar y configurar',
-    slug: 'empezar/instalar',
-    src: 'README.md',
-    title: 'Instalar y configurar ARCLI',
-  },
+  { icon: 'descarga', label: 'Instalar y configurar', slug: 'empezar/instalar', src: 'docs/instalar.md' },
   {
     icon: 'frasco',
     label: 'Certificado de testing',
@@ -173,6 +167,15 @@ const README_END_SECTION = '## Documentación';
 /** Carpetas de `docs/assets` que usan las paginas (las cintas de VHS no). */
 const ASSET_FOLDERS = ['certificados', 'demo', 'imagenes'];
 
+/** Anclas del README que tienen su lugar en docs/instalar.md (la pagina "Instalar y configurar"). */
+const README_TO_INSTALL = {
+  '': '',
+  configuración: 'configurar',
+  'empezar-sin-saber-de-terminal': 'instalar-a-mano',
+  instalación: 'instalar-a-mano',
+  'instalar-o-actualizar-con-ia': 'con-un-asistente-de-ia',
+};
+
 const bySource = new Map(PAGES.map((page) => [page.src, page]));
 
 /** Anclas de GitHub y de Astro: las dos usan github-slugger, asi que alcanza con conservarlas. */
@@ -209,8 +212,13 @@ function rewriteTarget(src, target, includedReadmeAnchors) {
     return `${BASE}/`;
   }
 
-  if (resolved === 'README.md' && anchor && !includedReadmeAnchors.has(anchor)) {
-    return `${REPO}/blob/main/README.md#${anchor}`;
+  // Del README, la instalacion y la configuracion estan en "Instalar y configurar"; el resto queda en GitHub.
+  if (resolved === 'README.md') {
+    const local = README_TO_INSTALL[anchor ?? ''];
+
+    return local === undefined
+      ? `${REPO}/blob/main/README.md${anchor ? `#${anchor}` : ''}`
+      : pageUrl(bySource.get('docs/instalar.md'), local);
   }
 
   // El punto de venta quedo en la guia de produccion; el resto del indice de certificados, en la de testing.
@@ -581,8 +589,80 @@ function releases(text, page) {
   return [head.trim(), ...recent, older.length ? `## Versiones anteriores\n\n${older.join('\n')}` : ''].join('\n\n');
 }
 
+/**
+ * En el texto corrido, "ARCLI" va en negrita (como en la maqueta); no en titulos, codigo, links ni lineas de HTML.
+ * Los bloques de comandos llevan el titulo "Terminal" (expressive-code lo muestra arriba, con "Copiar").
+ */
+function markdownTouches(text) {
+  return text
+    .split(/(^ *```[\s\S]*?^ *```)/m)
+    .map((part, index) => {
+      if (index % 2 === 1)
+        return part.replace(
+          /^( *)```(bash|sh|shell|powershell)\n/,
+          (_, indent, lang) => `${indent}\`\`\`${lang} title="${lang === 'powershell' ? 'PowerShell' : 'Terminal'}"\n`,
+        );
+
+      return part
+        .split('\n')
+        .map((line) => {
+          if (/^\s*(#|<)/.test(line)) return line;
+
+          return line
+            .split(/(`[^`]*`|\[[^\]]*\]\([^)]*\))/)
+            .map((piece, i) => (i % 2 === 1 ? piece : piece.replace(/(?<![\w*])ARCLI(?![\w*])/g, '**ARCLI**')))
+            .join('');
+        })
+        .join('\n');
+    })
+    .join('');
+}
+
+/**
+ * `<!-- arcli: pestañas=grupo -->` y despues `### Windows`, `### macOS`... hasta el proximo `##`: pestañas. La eleccion
+ * se recuerda por grupo en todas las paginas (`public/arcli.js`). En GitHub se leen como subtitulos.
+ */
+function tabs(text) {
+  return text.replace(/<!-- arcli: pestañas=([\w-]+) -->\n([\s\S]*?)(?=\n## |$)/g, (_, group, block) => {
+    const panels = block
+      .split(/^### /m)
+      .slice(1)
+      .map((chunk) => {
+        const [name, ...rest] = chunk.split('\n');
+
+        return { body: rest.join('\n').trim(), id: headingSlug(name.trim()), name: name.trim() };
+      });
+    const buttons = panels
+      .map(
+        (panel, i) =>
+          `<button type="button" role="tab" aria-selected="${i === 0}" data-tab="${panel.id}">${panel.name}</button>`,
+      )
+      .join('');
+    const bodies = panels
+      .map(
+        (panel, i) =>
+          `<div role="tabpanel" data-panel="${panel.id}"${i === 0 ? '' : ' hidden'}>\n\n${panel.body}\n\n</div>`,
+      )
+      .join('\n');
+
+    return `<div class="arcli-tabs" data-sync="${group}"><div role="tablist">${buttons}</div>\n${bodies}\n</div>\n`;
+  });
+}
+
+/** `<!-- arcli: prompt-instalacion -->` y el link de la linea siguiente: el prompt del README, para copiar. */
+function installPrompt(text) {
+  return text.replace(/<!-- arcli: prompt-instalacion -->\n+[^\n]*\n/, () => {
+    const readme = readFileSync(join(repoDir, 'README.md'), 'utf8');
+    const prompt = readme
+      .slice(readme.indexOf('### Instalar o actualizar con IA'))
+      .match(/```text\n([\s\S]*?)\n```/)?.[1];
+
+    return `\`\`\`text title="Prompt"\n${prompt}\n\`\`\`\n`;
+  });
+}
+
 /** Lo que el sitio dibuja distinto que GitHub, en orden: tarjetas, chat, carteles, formas de uso, pasos, problemas y novedades. */
-const SITE_TRANSFORMS = [optionCards, chats, samples, ways, steps, problems, releases];
+const SITE_TRANSFORMS = [optionCards, chats, samples, ways, steps, tabs, problems, releases];
 
 /** Convierte cada bloque `> [!TIPO]` en `:::tipo ... :::`, fuera de los bloques de codigo. */
 function githubAlertsToAsides(text) {
@@ -602,11 +682,23 @@ function githubAlertsToAsides(text) {
       continue;
     }
 
-    out.push(`:::${ALERT_KINDS[alert[1]]}`);
+    const body = [];
 
     while (index + 1 < lines.length && lines[index + 1].startsWith('>')) {
-      out.push(lines[++index].replace(/^> ?/, ''));
+      body.push(lines[++index].replace(/^> ?/, ''));
     }
+
+    // "**La forma más fácil:** texto" pasa a ser el titulo del aviso, como en la maqueta.
+    const titled = body[0]?.match(/^\*\*([^*]+?)[:.]?\*\*[:.]?\s+(.*)$/);
+
+    if (titled) {
+      out.push(`:::${ALERT_KINDS[alert[1]]}[${titled[1]}]`);
+      body[0] = titled[2].charAt(0).toUpperCase() + titled[2].slice(1);
+    } else {
+      out.push(`:::${ALERT_KINDS[alert[1]]}`);
+    }
+
+    out.push(...body);
 
     out.push(':::');
   }
@@ -636,7 +728,7 @@ async function sync() {
     const { body: withoutMeta, familia } = voucherMeta(shown.replace(/^<!-- Generado[^\n]*\n+/, ''));
     const content = SITE_TRANSFORMS.reduce(
       (text, transform) => transform(text, page),
-      rewriteLinks(page.src, githubAlertsToAsides(withoutMeta), includedReadmeAnchors),
+      rewriteLinks(page.src, githubAlertsToAsides(markdownTouches(installPrompt(withoutMeta))), includedReadmeAnchors),
     );
 
     writeFileSync(target, `${frontmatter(page, title, familia ? { familia } : {})}\n${content}\n`);

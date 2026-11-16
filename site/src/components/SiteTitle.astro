@@ -1,36 +1,39 @@
 ---
-/** Titulo del encabezado: el icono y "ARCLI" con los colores del logo de la terminal. */
-import logo from '../assets/logo.svg';
+/** El logo del encabezado: el mismo ASCII de la terminal, en chico (sale del CLI, `brand.json`). */
+import brand from '../generated/brand.json';
 
 const home = import.meta.env.BASE_URL;
+const escape = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const logo = brand.banner
+  .map((line) => `<span class="ar">${escape(line.slice(0, brand.splitColumn))}</span><span class="cli">${escape(line.slice(brand.splitColumn))}</span>`)
+  .join('\n');
 ---
 
-<a href={home} class="site-title">
-  <img src={logo.src} alt="" width="28" height="28" />
-  <span><span class="ar">AR</span><span class="cli">CLI</span></span>
-</a>
+<a href={home} class="site-title" aria-label="ARCLI, inicio"><pre class="logo-mini" aria-hidden="true" set:html={logo} /></a>
 
 <style>
   .site-title {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
     text-decoration: none;
-    font-family: var(--sl-font-system-mono);
-    font-size: 1.15rem;
+  }
+
+  .logo-mini {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    font-family: var(--sl-font-mono);
+    font-size: 0.23rem;
+    line-height: 1.12;
     font-weight: 700;
-    letter-spacing: 0.04em;
   }
 
-  img {
-    border-radius: 0.4rem;
-  }
-
-  .ar {
+  .logo-mini :global(.ar) {
     color: var(--arcli-celeste);
   }
 
-  .cli {
+  .logo-mini :global(.cli) {
     color: var(--arcli-lavanda);
   }
 </style>

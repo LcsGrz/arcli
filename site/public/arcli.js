@@ -43,3 +43,41 @@ function openTarget() {
 
 addEventListener('hashchange', openTarget);
 document.addEventListener('DOMContentLoaded', openTarget);
+
+// Pestañas (Windows, macOS, Linux...): la elección se recuerda por grupo en todas las páginas.
+function selectTab(group, id) {
+  for (const tabs of document.querySelectorAll(`.arcli-tabs[data-sync="${group}"]`)) {
+    if (!tabs.querySelector(`[data-tab="${id}"]`)) continue;
+    for (const button of tabs.querySelectorAll('[data-tab]'))
+      button.setAttribute('aria-selected', String(button.dataset.tab === id));
+    for (const panel of tabs.querySelectorAll(':scope > [data-panel]')) panel.hidden = panel.dataset.panel !== id;
+  }
+}
+
+document.addEventListener('click', (event) => {
+  const button = event.target.closest('.arcli-tabs [data-tab]');
+  if (!button) return;
+  const group = button.closest('.arcli-tabs').dataset.sync;
+  selectTab(group, button.dataset.tab);
+  try {
+    localStorage.setItem(`arcli-tab-${group}`, button.dataset.tab);
+  } catch {}
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  for (const tabs of document.querySelectorAll('.arcli-tabs')) {
+    let saved = null;
+    try {
+      saved = localStorage.getItem(`arcli-tab-${tabs.dataset.sync}`);
+    } catch {}
+    if (!saved && tabs.dataset.sync === 'so')
+      saved = /Mac/.test(navigator.platform)
+        ? 'macos'
+        : /Win/.test(navigator.platform)
+          ? 'windows'
+          : /Linux/.test(navigator.platform)
+            ? 'linux'
+            : null;
+    if (saved) selectTab(tabs.dataset.sync, saved);
+  }
+});
