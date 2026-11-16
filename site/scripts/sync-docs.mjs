@@ -344,10 +344,22 @@ function writeBrand(stars) {
 
   const banner = [...block[1].matchAll(/'([^']*)'/g)].map((match) => match[1].replace(/\s+$/, ''));
   const { version } = JSON.parse(readFileSync(join(repoDir, 'package.json'), 'utf8'));
+  // El prompt para instalar con IA, el mismo del README (la portada lo copia con un botón).
+  const readme = readFileSync(join(repoDir, 'README.md'), 'utf8');
+  const prompt = readme
+    .slice(readme.indexOf('### Instalar o actualizar con IA'))
+    .match(/```text\n([\s\S]*?)\n```/)?.[1];
+
+  if (!prompt) {
+    throw new Error('README.md: no encontré el prompt de "### Instalar o actualizar con IA".');
+  }
   const target = join(siteDir, 'src/generated/brand.json');
 
   mkdirSync(dirname(target), { recursive: true });
-  writeFileSync(target, `${JSON.stringify({ banner, splitColumn: Number(split[1]), stars, version }, null, 2)}\n`);
+  writeFileSync(
+    target,
+    `${JSON.stringify({ banner, installPrompt: prompt, splitColumn: Number(split[1]), stars, version }, null, 2)}\n`,
+  );
 }
 
 /** Escribe en `public/` (se sirve tal cual, en la raiz del sitio). */

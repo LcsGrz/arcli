@@ -29,6 +29,16 @@ export default defineConfig({
       head: [
         // Comportamiento de las páginas generadas: "Ver las N", el buscador de problemas y abrir lo plegado por link.
         { attrs: { defer: true, src: '/arcli/arcli.js' }, tag: 'script' },
+        // Geist y JetBrains Mono, las fuentes de la maqueta.
+        { attrs: { href: 'https://fonts.googleapis.com', rel: 'preconnect' }, tag: 'link' },
+        { attrs: { crossorigin: true, href: 'https://fonts.gstatic.com', rel: 'preconnect' }, tag: 'link' },
+        {
+          attrs: {
+            href: 'https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap',
+            rel: 'stylesheet',
+          },
+          tag: 'link',
+        },
         {
           attrs: { content: 'https://lcsgrz.github.io/arcli/assets/imagenes/social-preview.png', property: 'og:image' },
           tag: 'meta',

@@ -501,3 +501,9 @@ header.header::after {
   color: var(--sl-color-gray-3);
   font: 0.8rem var(--sl-font-system-mono);
 }
+
+/* Las fuentes de la maqueta (se cargan en astro.config.mjs) */
+:root {
+  --sl-font: 'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --sl-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}

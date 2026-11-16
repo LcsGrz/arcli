@@ -3,11 +3,13 @@
 import Default from '@astrojs/starlight/components/PageTitle.astro';
 
 const familia = Astro.locals.starlightRoute.entry.data.familia;
+// La portada tiene su propio título (Landing.astro).
+const isHome = Astro.locals.starlightRoute.id === '';
 const match = familia?.match(/^(.+) · ([A-Z])$/);
 ---
 
 {match && <p class={`familia familia-${match[2].toLowerCase()}`}>{match[1]}</p>}
-<Default><slot /></Default>
+{!isHome && <Default><slot /></Default>}
 
 <style>
   .familia {
