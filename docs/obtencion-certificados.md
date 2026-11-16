@@ -15,8 +15,8 @@ Está en [certificado de testing](certificado-testing.md#qué-servicios-autoriza
 
 ## 3. Autorizar el servicio web
 
-Testing: [autorizar el servicio web](certificado-testing.md#3-autorizar-el-servicio-web). Producción: [autorizar el servicio web](certificado-produccion.md#3-autorizar-el-servicio-web).
+Testing: [autorizar el servicio web](certificado-testing-completa.md#3-autorizar-el-servicio-web). Producción: [autorizar el servicio web](certificado-produccion-completa.md#3-autorizar-el-servicio-web).
 
 ## Punto de venta para web service
 
-Está en [certificado de producción](certificado-produccion.md#punto-de-venta-para-web-service).
+Está en [certificado de producción](certificado-produccion-completa.md#punto-de-venta-para-web-service).

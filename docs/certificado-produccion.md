@@ -1,213 +1,119 @@
-[← Documentación](README.md)
+[← Volver a la documentación](README.md)
 
 # Certificado de producción
 
-Para emitir comprobantes con validez fiscal necesitás un certificado de **producción**, distinto del de testing, y un punto de venta para web service. Si todavía no probaste en testing, empezá por el [certificado de testing](certificado-testing.md): los pasos son casi los mismos.
+Para facturar con validez fiscal. Son los mismos pasos que en testing; cambian el lugar donde se baja el certificado y cómo se autoriza. Tardás unos 20 minutos y necesitás tu clave fiscal nivel 3.
 
-> Contenido adaptado de los tutoriales de [afipts.com](https://www.afipts.com) (ver
-> [fuentes](#fuentes) al final). Las capturas son de ese sitio; los pasos y comandos
-> están reescritos y verificados para esta guía.
+> [!TIP]
+> **También desde el asistente:** abrí ARCLI → Configuración → Certificados de ARCA → Sacar o renovar un certificado → Producción. Te va diciendo qué hacer en ARCA.
 
-Repetí el mismo flujo del [certificado de testing](certificado-testing.md), con dos diferencias: la aplicación para generar el certificado no
-es WSASS sino **"Administración de Certificados Digitales"**, y la autorización del
-servicio web se hace desde el Administrador de Relaciones en vez de WSASS.
+## Pasos
 
-## 1. Habilitar el administrador de certificados
+<!-- arcli: pasos -->
 
-Son los mismos 5 pasos que en el [certificado de testing](certificado-testing.md#1-habilitar-el-administrador-de-certificados), eligiendo el mismo servicio
-**Administración de Certificados Digitales** para tu usuario en producción.
+### 1. Habilitá el administrador de certificados
 
-## 2. Generar la clave y obtener el certificado
+Una sola vez: si ya lo hiciste para testing, salteá este paso. Si no, con tu clave fiscal, en el **Administrador de Relaciones de Clave Fiscal**: Adherir Servicio → ARCA → Servicios Interactivos → **Administración de Certificados Digitales**, y confirmá.
 
-**Con ARCLI (recomendado).** Generá el pedido:
+<details>
+<summary>Ver capturas (5)</summary>
+
+1. Buscá el Administrador de Relaciones de Clave Fiscal
+   ![Buscador de ARCA con el Administrador de Relaciones](assets/certificados/arca-buscar-administrador-relaciones.png)
+2. Elegí el contribuyente
+   ![Selección del contribuyente](assets/certificados/arca-seleccionar-contribuyente.png)
+3. Tocá "Adherir Servicio"
+   ![Botón Adherir Servicio](assets/certificados/arca-adherir-servicio.png)
+4. Elegí Administración de Certificados Digitales
+   ![Servicio Administración de Certificados Digitales](assets/certificados/arca-elegir-administracion-certificados.png)
+5. Confirmá la relación
+   ![Confirmación de la adhesión](assets/certificados/arca-confirmar-adhesion.png)
+
+</details>
+
+### 2. Generá el pedido con ARCLI
 
 ```bash
 arcli certificado generar --produccion
 ```
 
-Subí el CSR como se muestra abajo y, con el `.crt` descargado, cargalo:
+Te dice dónde quedó el pedido (el CSR). La clave privada queda guardada en tu computadora.
+
+### 3. Subilo en Administración de Certificados Digitales y bajá el certificado
+
+Entrá desde el escritorio de ARCA y elegí **Agregar alias**. Poné un alias, subí el CSR con **Examinar…** y confirmá. En la lista, tocá **Ver** en tu alias y descargá el certificado. Después cargalo:
 
 ```bash
 arcli certificado importar produccion.crt
 ```
 
-Configura `cert.produccion` y `key.produccion`, así que en el paso 4 solo queda revisar.
+<details>
+<summary>Ver capturas (4)</summary>
 
-**Para renovar** un certificado que está por vencer, es el mismo flujo: `generar` deja la clave nueva
-pendiente y no toca la actual, así que seguís facturando hasta que `importar` carga el certificado nuevo.
-Acordate de volver a crear las relaciones del paso 3 si usás un alias nuevo.
+1. Agregar alias
+   ![Botón Agregar alias](assets/certificados/produccion-agregar-alias.png)
+2. El alias y el CSR para subir
+   ![Formulario del alias con el CSR](assets/certificados/produccion-agregar-alias-formulario.png)
+3. Ver el certificado en la lista
+   ![Lista de certificados](assets/certificados/produccion-certificados-lista.png)
+4. Descargarlo (estado VALIDO)
+   ![Descarga del certificado](assets/certificados/produccion-certificado-descargar.png)
 
-**Con openssl.** Mismos comandos que en testing, con un archivo distinto:
+</details>
 
-```bash
-openssl genrsa -out produccion.key 2048
-openssl req -new -key produccion.key -subj "/C=AR/O=[empresa]/CN=[nombre]/serialNumber=CUIT [CUIT]" -out produccion.csr
-```
+### 4. Autorizalo a los servicios que vas a usar
 
-Entrá a **"Administración de Certificados Digitales"** desde el escritorio de ARCA y
-elegí **"Agregar alias"**:
+En producción no se hace en WSASS sino en el **Administrador de Relaciones**: **Nueva Relación** → Buscar servicio → ARCA → Web Services → el servicio. En Representante, elegí el **Computador Fiscal** de tu certificado y confirmá. Una relación por cada servicio de [esta tabla](certificado-testing.md#qué-servicios-autorizar) que necesites.
 
-![Agregar alias en Administración de Certificados Digitales](assets/certificados/produccion-agregar-alias.png)
+<details>
+<summary>Ver capturas (5)</summary>
 
-Completá el **Alias** y subí el CSR con **"Examinar..."**: con ARCLI, el archivo que te indicó `generar`;
-con openssl, `produccion.csr`:
+1. Nueva Relación: buscar el servicio
+   ![Buscar el servicio](assets/certificados/produccion-autorizar-buscar-servicio.png)
+2. Elegir el web service
+   ![Elegir el web service](assets/certificados/produccion-autorizar-elegir-webservice.png)
+3. Buscar el representante
+   ![Buscar el representante](assets/certificados/produccion-autorizar-buscar-representante.png)
+4. Elegir el Computador Fiscal
+   ![Elegir el Computador Fiscal](assets/certificados/produccion-autorizar-elegir-representante.png)
+5. Confirmar la relación
+   ![Confirmar la relación](assets/certificados/produccion-autorizar-confirmar.png)
 
-![Formulario de alias con CSR para subir](assets/certificados/produccion-agregar-alias-formulario.png)
+</details>
 
-Confirmá con **"Agregar Alias"**. En la lista de certificados, hacé clic en **"Ver"** para
-tu alias:
+### 5. Creá un punto de venta para web service
 
-![Lista de certificados con la opción Ver](assets/certificados/produccion-certificados-lista.png)
-
-Y descargá el certificado desde el ícono de descarga (columna **Descargar**, estado
-`VALIDO`):
-
-![Detalle del certificado con el boton de descarga](assets/certificados/produccion-certificado-descargar.png)
-
-El CSR ya no es necesario después de este paso, podés borrarlo.
-
-## 3. Autorizar el servicio web
-
-En producción esto se hace desde el **Administrador de Relaciones**, no desde WSASS.
-Elegí **"Nueva Relación"** y presioná **"Buscar"** junto a Servicio:
-
-![Buscar el servicio a autorizar](assets/certificados/produccion-autorizar-buscar-servicio.png)
-
-Navegá a **ARCA → Web Services** y elegí el servicio que necesitás (ej. `wsfe`). Creá una relación por cada servicio de [Qué servicios autorizar](certificado-testing.md#qué-servicios-autorizar) que vayas a usar:
-
-![Elegir el web service de la lista](assets/certificados/produccion-autorizar-elegir-webservice.png)
-
-Presioná **"Buscar"** junto a Representante:
-
-![Buscar el representante (computador fiscal)](assets/certificados/produccion-autorizar-buscar-representante.png)
-
-Elegí el **Computador Fiscal** asociado a tu certificado y confirmá:
-
-![Elegir el computador fiscal y confirmar](assets/certificados/produccion-autorizar-elegir-representante.png)
-
-Por último, confirmá la relación completa:
-
-![Confirmar la autorización final](assets/certificados/produccion-autorizar-confirmar.png)
-
-## 4. Configurar ARCLI
-
-Hay dos formas, según cómo generaste la clave en el paso 2:
-
-- **Con `arcli certificado` (recomendada):** si usaste `generar` e `importar`, ya está: `importar` guardó el certificado junto a la clave y configuró `cert.produccion` y `key.produccion`. Solo falta revisar.
-- **Con openssl:** cargá a mano las rutas del certificado y de la clave:
-
-  ```bash
-  arcli config establecer cert.produccion /ruta/a/produccion.crt
-  arcli config establecer key.produccion /ruta/a/produccion.key
-  ```
-
-En los dos casos, revisá la config y probá la conexión con ARCA:
-
-```bash
-arcli config revisar
-arcli estado --produccion
-```
-
-Para emitir de verdad en producción, pasá además `--produccion --emitir` en el
-comando de facturación: ver [cambiar de entorno](entornos.md).
-
-## Punto de venta para web service
-
-Para emitir en producción también necesitás un punto de venta dado de alta para **web
-service**. No sirve cualquiera: ARCA rechaza el comprobante (error `10005`, "El punto de
-venta informado debe estar dado de alta y ser del tipo RECE") si el número que configurás
-en ARCLI es de otro sistema, como los de **Comprobantes en línea** ("Factura en línea"),
-Facturador o talonarios manuales. Cada sistema usa sus propios puntos de venta: si ya
-facturás desde la web de ARCA, creá uno nuevo para ARCLI.
-
-> **Monotributistas, desde el 1/11/2026:** con la
-> [RG 5893/2026](https://www.boletinoficial.gob.ar/detalleAviso/primera/346598/20260831),
-> si no tenés un punto de venta electrónico habilitado, ARCA te da de alta uno de oficio
-> para **Comprobantes en línea**, con la opción "Factura en línea - Monotributo". Ese
-> punto de venta no sirve para ARCLI: creá otro para web service.
-
-En testing no hace falta: ARCA no controla el punto de venta y cualquier número sirve.
-
-> En producción, la factura de exportación (`arcli fe`) usa **WSFEX - Factura Electrónica de Exportación**, que es un sistema de puntos de venta distinto del de facturación (`wsfe`): un punto de venta habilitado solo para facturación electrónica no sirve para exportación. Dalo de alta con ese sistema si vas a emitir comprobantes `E`.
-
-### 1. Ver si ya tenés uno
-
-Con el certificado de producción configurado:
+Fijate si ya tenés uno:
 
 ```bash
 arcli parametros puntos-venta --produccion
 ```
 
-La lista trae solo los puntos de venta de web service (CAE o CAEA); los bloqueados o dados de baja salen marcados. Si el
-tuyo no aparece, o la lista está vacía, seguí con el paso 2. `arcli estado --produccion`
-también avisa si el punto de venta configurado no está entre los habilitados.
-
-### 2. Crearlo en ARCA
-
-1. Entrá al portal de ARCA con tu Clave Fiscal y abrí el servicio **"Administración de
-   puntos de venta y domicilios"**. Si no lo ves, adherilo desde el Administrador de
-   Relaciones, como hiciste con el de certificados.
-2. Elegí tu CUIT y entrá a **"A/B/M de puntos de venta"**.
-3. Presioná **"Agregar"** (o "Alta") y completá:
-   - **Número:** uno que no uses en ningún otro sistema (por ejemplo `2` si el `1` es de
-     Comprobantes en línea).
-   - **Sistema:** el de web services que corresponde a tu condición. Según la tabla de
-     ARCA, **"Factura Electrónica - Monotributo - Webservices"** si sos monotributista, o
-     **"Factura Electrónica - RI IVA - Aplicativo y Webservices"** si sos responsable
-     inscripto. En algunas pantallas aparece como "RECE para aplicativo y web services".
-     No elijas una opción que diga "Comprobantes en Línea" ni "Factuweb".
-   - **Domicilio:** el domicilio desde el que facturás.
-4. Confirmá.
-
-Después, revisá que aparezca y guardalo en ARCLI:
+Si la lista está vacía, crealo en **Administración de puntos de venta y domicilios** → A/B/M de puntos de venta → Agregar. En Sistema elegí **Factura Electrónica - Monotributo - Webservices** o, si sos responsable inscripto, **RI IVA - Aplicativo y Webservices**. Después guardalo:
 
 ```bash
-arcli parametros puntos-venta --produccion
 arcli config establecer puntoVenta 2
+```
+
+> [!WARNING]
+> **El de Factura en línea no sirve.** Cada sistema usa sus propios puntos de venta: con uno de Comprobantes en línea, ARCA rechaza con el error `10005`. La Factura E necesita además uno del sistema WSFEX.
+
+## Revisar que quedó bien
+
+```bash
 arcli estado --produccion
 ```
+
+Si dice que ARCA responde y el punto de venta está habilitado, ya podés emitir con validez fiscal.
 
 ## Renovar el certificado
 
-### Cuándo usarlo
+Es el mismo camino: `generar` deja la clave nueva aparte y seguís facturando con la actual hasta que `importar` carga el certificado nuevo. Si usás un alias nuevo, repetí el paso 4.
 
-Cuando `arcli config revisar` o el aviso de cada comando dicen que el certificado vence pronto, o para sacar el primero.
+## ¿Preferís openssl?
 
-### Comando
-
-```bash
-arcli certificado generar --produccion
-# en ARCA: subís el CSR que muestra y bajás el .crt
-arcli certificado importar produccion.crt
-```
-
-### Resultado esperado
-
-- hasta importar seguís facturando con el certificado actual: `generar` no toca la clave activa
-- `importar` dice qué cargó (entorno, CUIT, alias y vencimiento) y deja el par anterior como `.anterior.*`
-
-### Errores comunes
-
-- importar el `.crt` de otro CSR (`CERTIFICATE_KEY_MISMATCH`): usá el del último `generar`
-- olvidar autorizar los servicios web si cambiaste de alias
+Los comandos para generar la clave a mano, el detalle del punto de venta y las fuentes están en la [versión completa de esta guía](certificado-produccion-completa.md).
 
 ## Siguiente paso
 
-Revisá todo con el checklist de [cambiar de entorno](entornos.md#antes-de-la-primera-factura-real) antes de emitir la primera factura real.
-
----
-
-## Fuentes
-
-Tutoriales originales de afipts.com en los que se basa esta guía:
-
-- [Habilitar administrador de certificados de producción](https://www.afipts.com/tutorial/enable-production-certificate-manager.html)
-- [Obtener certificado de producción](https://www.afipts.com/tutorial/obtain-production-certificate.html)
-- [Autorizar servicio web de producción](https://www.afipts.com/tutorial/authorize-web-production-service.html)
-
-Punto de venta para web service:
-
-- [Puntos de venta: para qué se utiliza cada sistema](https://www.afip.gob.ar/facturacion/documentos/puntos-de-venta.pdf) (ARCA)
-- [Acciones a realizar para consumir un web service de factura electrónica](https://www.afip.gob.ar/fe/documentos/AccionesarealizarparaconsumirunWebservicedeFacturaElectr.pdf) (ARCA)
-- [Manual del desarrollador de WSFEv1](https://www.afip.gob.ar/ws/documentacion/manuales/manual-desarrollador-ARCA-COMPG.pdf) (ARCA, error `10005` y `FEParamGetPtosVenta`)
-- [RG 5893/2026](https://www.boletinoficial.gob.ar/detalleAviso/primera/346598/20260831) (Boletín Oficial)
+Antes de la primera factura real, repasá [cambiar de entorno](entornos.md).

@@ -87,10 +87,26 @@ const PAGES = [
     slug: 'empezar/certificado-produccion',
     src: 'docs/certificado-produccion.md',
   },
+  {
+    hidden: true,
+    label: 'Certificado de testing: guía completa',
+    slug: 'empezar/certificado-testing-completo',
+    src: 'docs/certificado-testing-completa.md',
+  },
+  {
+    hidden: true,
+    label: 'Certificado de producción: guía completa',
+    slug: 'empezar/certificado-produccion-completo',
+    src: 'docs/certificado-produccion-completa.md',
+  },
   { icon: 'flechas', label: 'Cambiar de entorno', slug: 'empezar/entornos', src: 'docs/entornos.md' },
   { icon: 'capas', label: 'Cómo funciona', slug: 'empezar/como-funciona', src: 'docs/mental-model.md' },
-  { icon: 'chat', label: 'Asistente', slug: 'uso/asistente', src: 'docs/modo-interactivo.md' },
-  { icon: 'chispa', label: 'Con IA', slug: 'uso/con-ia', src: 'docs/automatizar-con-ia.md' },
+  { icon: 'chat', label: 'Asistente', slug: 'uso/asistente', src: 'docs/formas-de-uso/asistente.md' },
+  { icon: 'terminal', label: 'Comandos', slug: 'uso/comandos', src: 'docs/formas-de-uso/comandos.md' },
+  { icon: 'chispa', label: 'Con IA', slug: 'uso/con-ia', src: 'docs/formas-de-uso/con-ia.md' },
+  // Las guías completas: no van en el menú, se llega desde el link al final de la versión corta.
+  { hidden: true, label: 'Modo interactivo', slug: 'uso/asistente-completo', src: 'docs/modo-interactivo.md' },
+  { hidden: true, label: 'Automatizar con IA', slug: 'uso/con-ia-completo', src: 'docs/automatizar-con-ia.md' },
   ...voucherPages(),
   {
     group: 'Explicaciones',
@@ -193,7 +209,7 @@ function rewriteTarget(src, target, includedReadmeAnchors) {
   // El punto de venta quedo en la guia de produccion; el resto del indice de certificados, en la de testing.
   const aliased =
     resolved === 'docs/obtencion-certificados.md' && anchor === 'punto-de-venta-para-web-service'
-      ? 'docs/certificado-produccion.md'
+      ? 'docs/certificado-produccion-completa.md'
       : (ALIASES[resolved] ?? resolved);
   const page = bySource.get(aliased);
 
@@ -293,7 +309,7 @@ function writeSidebar() {
   const sidebar = SECTIONS.map(({ dir, label }) => {
     const items = [];
 
-    for (const page of PAGES.filter((other) => other.slug.split('/')[0] === dir)) {
+    for (const page of PAGES.filter((other) => other.slug.split('/')[0] === dir && !other.hidden)) {
       const link = { attrs: { 'data-icon': page.icon }, label: page.label ?? page.title, slug: page.slug };
       const last = items.at(-1);
 
@@ -394,6 +410,37 @@ function optionCards(text) {
   });
 }
 
+/** `<!-- arcli: chat -->` y una cita con **Vos:** y **Tu asistente:**: en el sitio, como una conversación. */
+function chats(text) {
+  return text.replace(/<!-- arcli: chat -->\n+((?:>.*\n?)+)/g, (_, quote) => {
+    const messages = quote
+      .split('\n')
+      .map((line) => line.replace(/^>\s?/, '').trim())
+      .filter(Boolean)
+      .map((line) => {
+        const match = line.match(/^\*\*(Vos|Tu asistente):\*\*\s*(.*)$/);
+
+        return match
+          ? `<div class="arcli-msg ${match[1] === 'Vos' ? 'user' : 'bot'}"><span class="who">${match[1]}</span>${inlineHtml(match[2])}</div>`
+          : '';
+      })
+      .join('');
+
+    return `<div class="arcli-chat">${messages}</div>\n`;
+  });
+}
+
+/**
+ * `<!-- arcli: pasos -->` y despues `### 1. ...`, `### 2. ...` hasta el proximo `##`: en el sitio, pasos numerados con
+ * una linea que los une. En GitHub se leen como subtitulos numerados.
+ */
+function steps(text) {
+  return text.replace(
+    /<!-- arcli: pasos -->\n([\s\S]*?)(?=\n## |$)/g,
+    (_, block) => `<div class="arcli-steps">\n\n${block.trim().replace(/^### \d+\. /gm, '### ')}\n\n</div>\n`,
+  );
+}
+
 /** La familia ("Monotributo · C") del comentario de la pagina, para el chip arriba del titulo. */
 function voucherMeta(text) {
   const meta = text.match(/<!-- arcli: familia="([^"]+)"[^>]*-->\n*/);
@@ -451,7 +498,9 @@ async function sync() {
     mkdirSync(dirname(target), { recursive: true });
     const shown = page.src === 'CHANGELOG.md' ? argentineVersionDates(body) : body;
     const { body: withoutMeta, familia } = voucherMeta(shown.replace(/^<!-- Generado[^\n]*\n+/, ''));
-    const content = optionCards(rewriteLinks(page.src, githubAlertsToAsides(withoutMeta), includedReadmeAnchors));
+    const content = steps(
+      chats(optionCards(rewriteLinks(page.src, githubAlertsToAsides(withoutMeta), includedReadmeAnchors))),
+    );
 
     writeFileSync(target, `${frontmatter(page, title, familia ? { familia } : {})}\n${content}\n`);
     fullText.push(`# ${title}\n\nFuente: ${REPO}/blob/main/${page.src}\n\n${body}\n`);

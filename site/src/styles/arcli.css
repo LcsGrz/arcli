@@ -190,3 +190,117 @@ header.header::after {
     grid-column: 1 / -1;
   }
 }
+
+/* Con IA: la conversación de ejemplo, con marco como los GIF */
+.sl-markdown-content .arcli-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 1.25rem 0;
+  padding: 1.1rem 1.2rem;
+  border: 1px solid #313244;
+  border-radius: 0.75rem;
+  background: #11111b;
+  box-shadow: 0 30px 70px -40px rgb(116 172 223 / 0.4);
+}
+
+.sl-markdown-content .arcli-msg {
+  max-width: 85%;
+  margin: 0;
+  padding: 0.55rem 0.8rem;
+  border-radius: 0.6rem;
+  color: #cdd6f4;
+  font-size: var(--sl-text-sm);
+}
+
+.arcli-msg .who {
+  display: block;
+  margin-bottom: 0.15rem;
+  color: #a6adc8;
+  font: 600 0.68rem / 1.4 var(--sl-font-system-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.arcli-msg.user {
+  align-self: flex-end;
+  background: #2a3550;
+}
+
+.arcli-msg.bot {
+  align-self: flex-start;
+  border: 1px solid #313244;
+  background: #1e1e2e;
+}
+
+.arcli-msg strong {
+  color: #fff;
+}
+
+/* Pasos numerados: un círculo por paso y una línea que los une, como en Instalar */
+.arcli-steps {
+  counter-reset: paso;
+}
+
+.sl-markdown-content .arcli-steps > .sl-heading-wrapper {
+  position: relative;
+  counter-increment: paso;
+  margin-top: 0;
+  margin-top: 0;
+  padding: 0.15rem 0 0.4rem 2.75rem;
+}
+
+.sl-markdown-content .arcli-steps > .sl-heading-wrapper h3 {
+  font-size: var(--sl-text-base);
+}
+
+.sl-markdown-content .arcli-steps > .sl-heading-wrapper::before {
+  content: counter(paso);
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  place-items: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border: 1px solid color-mix(in srgb, var(--arcli-celeste) 55%, transparent);
+  border-radius: 50%;
+  background: var(--sl-color-accent-low);
+  color: var(--sl-color-text-accent);
+  font: 700 0.85rem / 1 var(--sl-font-system-mono);
+}
+
+.sl-markdown-content .arcli-steps > :not(.sl-heading-wrapper) {
+  margin-top: 0;
+  margin-inline-start: 0.925rem;
+  padding: 0.5rem 0 0.5rem 1.825rem;
+  border-inline-start: 1px solid var(--sl-color-gray-5);
+}
+
+.sl-markdown-content .arcli-steps > :not(.sl-heading-wrapper):has(+ .sl-heading-wrapper),
+.sl-markdown-content .arcli-steps > :last-child {
+  padding-bottom: 1.5rem;
+}
+
+.sl-markdown-content .arcli-steps > :last-child {
+  border-inline-start-color: transparent;
+}
+
+/* Capturas plegadas: un número, el texto y la imagen */
+.sl-markdown-content details {
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.55rem;
+}
+
+.sl-markdown-content details > summary {
+  color: var(--sl-color-text-accent);
+  font-size: var(--sl-text-sm);
+  cursor: pointer;
+}
+
+.sl-markdown-content details img {
+  margin-top: 0.5rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.4rem;
+}
