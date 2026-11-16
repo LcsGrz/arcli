@@ -16,6 +16,8 @@ vi.mock('../../../ui', async (importOriginal) => {
   return {
     ...actual,
     writeTerminalOutput: vi.fn(),
+    // La linea "✔ pregunta respuesta" de la confirmacion: sin esto queda impresa en la salida de los tests.
+    writeTerminalRaw: vi.fn(),
   };
 });
 

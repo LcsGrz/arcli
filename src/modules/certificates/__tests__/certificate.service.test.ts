@@ -1,7 +1,7 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { readArcaCertificate } from '../../../lib/security/arca-certificate';
 import type { ArcliConfig } from '../../config/config.schemas';
@@ -9,6 +9,14 @@ import { CertificateService } from '../certificate.service';
 import { resolveCertificateFiles } from '../certificate-store';
 
 import { signRequestLikeArca } from './fake-arca-ca';
+
+// Una clave RSA por pedido tardaba segundos en toda la suite: se generan unas pocas por archivo y se reusan.
+vi.mock('node:crypto', async (importOriginal) => {
+  const original = await importOriginal<typeof import('node:crypto')>();
+  const { pooledGenerateKeyPairSync } = await import('./rsa-key-pool');
+
+  return { ...original, generateKeyPairSync: pooledGenerateKeyPairSync(original.generateKeyPairSync) };
+});
 
 const CUIT = '20123456786';
 const directories: string[] = [];

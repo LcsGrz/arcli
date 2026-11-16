@@ -10,6 +10,14 @@ import { askTextStep, chooseStep, confirm } from '../prompts';
 
 vi.mock('../prompts', () => ({ askTextStep: vi.fn(), chooseStep: vi.fn(), confirm: vi.fn() }));
 
+// Pocas claves RSA por archivo, reusadas: generar una por pedido hacía lento el archivo.
+vi.mock('node:crypto', async (importOriginal) => {
+  const original = await importOriginal<typeof import('node:crypto')>();
+  const { pooledGenerateKeyPairSync } = await import('../../../modules/certificates/__tests__/rsa-key-pool');
+
+  return { ...original, generateKeyPairSync: pooledGenerateKeyPairSync(original.generateKeyPairSync) };
+});
+
 const state = vi.hoisted(() => ({ config: {} as Record<string, unknown>, root: '' }));
 
 vi.mock('../../../modules/config/config.service', () => ({
