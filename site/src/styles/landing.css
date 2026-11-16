@@ -5204,3 +5204,9 @@
 :root:has(.arcli-landing) .content-panel:first-of-type {
   display: none;
 }
+
+.arcli-landing .hero .tagline {
+  margin: 0.6rem auto 0;
+  color: var(--fg-mute);
+  font-size: 0.95rem;
+}
