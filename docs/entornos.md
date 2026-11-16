@@ -4,13 +4,13 @@
 
 ARCLI trabaja con dos entornos de ARCA. **Testing** es para probar sin validez fiscal; **producción** emite comprobantes reales. Cada uno tiene su propio certificado.
 
-|                    | Testing                                                | Producción                                                                                     |
-| ------------------ | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
-| **Para qué**       | Probar todo lo que quieras                             | Facturar de verdad                                                                             |
-| **Validez fiscal** | No                                                     | Sí: no se borra, se compensa con una nota de crédito                                           |
-| **Certificado**    | El de testing ([cómo sacarlo](certificado-testing.md)) | Otro, el de producción ([cómo sacarlo](certificado-produccion.md))                             |
+|                    | Testing                                                | Producción                                                                                              |
+| ------------------ | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| **Para qué**       | Probar todo lo que quieras                             | Facturar de verdad                                                                                      |
+| **Validez fiscal** | No                                                     | Sí: no se borra, se compensa con una nota de crédito                                                    |
+| **Certificado**    | El de testing ([cómo sacarlo](certificado-testing.md)) | Otro, el de producción ([cómo sacarlo](certificado-produccion.md))                                      |
 | **Punto de venta** | Cualquier número                                       | Uno dado de alta [para web service](certificado-produccion-completa.md#punto-de-venta-para-web-service) |
-| **Cómo se elige**  | `--testing` (por defecto)                              | `--produccion`                                                                                 |
+| **Cómo se elige**  | `--testing` (por defecto)                              | `--produccion`                                                                                          |
 
 ## Elegir el entorno en cada comando
 
