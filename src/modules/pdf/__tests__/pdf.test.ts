@@ -5,7 +5,7 @@ import type { BillingExecutionResult } from '../../billing/billing.types.interna
 import { getVoucherKindByShortcut } from '../../billing/voucher-kind-map';
 import { PdfError } from '../pdf.errors';
 import { mapBillingResultToPdfData } from '../pdf-data.mapper';
-import { canHavePdf, resolvePdfDecision } from '../pdf-decision';
+import { canHavePdf, planEmissionConfirmation, resolvePdfAfterConfirmation, resolvePdfDecision } from '../pdf-decision';
 import { buildPdfFileName } from '../pdf-file-name';
 import { listMissingIssuerKeys, resolvePdfIssuer } from '../pdf-issuer';
 
@@ -79,6 +79,49 @@ describe('resolvePdfDecision', () => {
     expect(resolvePdfDecision({ interactive: false })).toBe('omitir');
     expect(resolvePdfDecision({ interactive: false, mode: 'siempre' })).toBe('generar');
     expect(resolvePdfDecision({ interactive: true, mode: 'nunca' })).toBe('omitir');
+  });
+});
+
+describe('planEmissionConfirmation', () => {
+  it('offers the PDF option whatever the config says', () => {
+    expect(planEmissionConfirmation({ flags: [undefined] })).toEqual({ initial: 'emitir', offerPdf: true });
+    expect(planEmissionConfirmation({ flags: [undefined], mode: 'preguntar' })).toEqual({
+      initial: 'emitir',
+      offerPdf: true,
+    });
+    expect(planEmissionConfirmation({ flags: [undefined], mode: 'nunca' })).toEqual({
+      initial: 'emitir',
+      offerPdf: true,
+    });
+  });
+
+  it('starts on the PDF option with `siempre`', () => {
+    expect(planEmissionConfirmation({ flags: [undefined], mode: 'siempre' })).toEqual({
+      initial: 'emitir-con-pdf',
+      offerPdf: true,
+    });
+  });
+
+  it('only asks to emit when a flag already decided the PDF', () => {
+    expect(planEmissionConfirmation({ flags: [true], mode: 'siempre' })).toEqual({
+      initial: 'emitir',
+      offerPdf: false,
+    });
+    expect(planEmissionConfirmation({ flags: [false], mode: 'nunca' })).toEqual({ initial: 'emitir', offerPdf: false });
+  });
+
+  it('offers the option in a batch when some voucher has no decision', () => {
+    expect(planEmissionConfirmation({ flags: [true, undefined] }).offerPdf).toBe(true);
+    expect(planEmissionConfirmation({ flags: [true, false] }).offerPdf).toBe(false);
+  });
+});
+
+describe('resolvePdfAfterConfirmation', () => {
+  it('lets the flag win and otherwise follows the choice', () => {
+    expect(resolvePdfAfterConfirmation(false, 'emitir-con-pdf')).toBe(false);
+    expect(resolvePdfAfterConfirmation(true, 'emitir')).toBe(true);
+    expect(resolvePdfAfterConfirmation(undefined, 'emitir-con-pdf')).toBe(true);
+    expect(resolvePdfAfterConfirmation(undefined, 'emitir')).toBe(false);
   });
 });
 

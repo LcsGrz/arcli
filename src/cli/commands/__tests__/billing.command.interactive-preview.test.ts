@@ -161,7 +161,7 @@ describe('runInteractiveBillingPreview', () => {
 
   it('shows a preview and switches inputs to real emission when the user confirms', async () => {
     setTty(true);
-    vi.mocked(select).mockResolvedValue(true);
+    vi.mocked(select).mockResolvedValue('emitir');
 
     const outcome = await runInteractiveBillingPreview({
       inputs: [createInput()],
@@ -175,10 +175,74 @@ describe('runInteractiveBillingPreview', () => {
     expect(writeTerminalOutput).toHaveBeenCalledTimes(1);
     expect(outcome).toEqual({
       confirmedInteractively: true,
-      inputs: [createInput({ dryRun: false, emit: true })],
+      // "Sí, emitir ahora" también decide el PDF: después de emitir no se pregunta.
+      inputs: [createInput({ dryRun: false, emit: true, pdf: false })],
       previewShown: true,
       proceed: true,
     });
+  });
+
+  it('offers emitting with the PDF and, if chosen, generates it whatever the config says', async () => {
+    setTty(true);
+    vi.mocked(select).mockResolvedValue('emitir-con-pdf');
+
+    const outcome = await runInteractiveBillingPreview({
+      inputs: [createInput()],
+      modeSource: 'default',
+      runtime: createRuntime({ config: { ...createRuntime().config, pdf: 'nunca' } }),
+      service: new BillingService(),
+      useRaw: false,
+      voucherLabel: 'Factura A',
+    });
+
+    expect(vi.mocked(select).mock.lastCall?.[0]).toMatchObject({
+      choices: [
+        { name: 'Sí, emitir ahora', value: 'emitir' },
+        { name: 'Sí, emitir y generar el PDF', value: 'emitir-con-pdf' },
+        { name: 'No, dejar sin emitir', value: false },
+      ],
+      default: 'emitir',
+    });
+    expect(outcome.inputs).toEqual([createInput({ dryRun: false, emit: true, pdf: true })]);
+  });
+
+  it('starts on the PDF option with `pdf siempre`', async () => {
+    setTty(true);
+    vi.mocked(select).mockResolvedValue('emitir');
+
+    const outcome = await runInteractiveBillingPreview({
+      inputs: [createInput()],
+      modeSource: 'default',
+      runtime: createRuntime({ config: { ...createRuntime().config, pdf: 'siempre' } }),
+      service: new BillingService(),
+      useRaw: false,
+      voucherLabel: 'Factura A',
+    });
+
+    expect(vi.mocked(select).mock.lastCall?.[0]).toMatchObject({ default: 'emitir-con-pdf' });
+    expect(outcome.inputs[0]?.pdf).toBe(false);
+  });
+
+  it('only asks to emit when a flag already decided the PDF, and keeps the flag', async () => {
+    setTty(true);
+    vi.mocked(select).mockResolvedValue('emitir');
+
+    const outcome = await runInteractiveBillingPreview({
+      inputs: [createInput({ pdf: true })],
+      modeSource: 'default',
+      runtime: createRuntime({ config: { ...createRuntime().config, pdf: 'nunca' } }),
+      service: new BillingService(),
+      useRaw: false,
+      voucherLabel: 'Factura A',
+    });
+
+    expect(vi.mocked(select).mock.lastCall?.[0]).toMatchObject({
+      choices: [
+        { name: 'Sí, emitir ahora', value: 'emitir' },
+        { name: 'No, dejar sin emitir', value: false },
+      ],
+    });
+    expect(outcome.inputs[0]?.pdf).toBe(true);
   });
 
   it('keeps the original inputs and stops the flow when the user declines', async () => {
@@ -205,7 +269,7 @@ describe('runInteractiveBillingPreview', () => {
 
   it('names the environment in the question, also for a batch', async () => {
     setTty(true);
-    vi.mocked(select).mockResolvedValue(true);
+    vi.mocked(select).mockResolvedValue('emitir');
 
     await runInteractiveBillingPreview({
       inputs: [createInput()],

@@ -184,7 +184,8 @@ describe('runExportRepeatFlow', () => {
     // El CUIT del país es el que ARCA publica para el destino: no hace falta repetirlo.
     expect(printed()).not.toContain('--cuit-pais');
     expect(printed()).toContain('--item "Bienes varios|2|500|1" --item "Flete|1|500"');
-    expect(vi.mocked(attachExportPdf).mock.calls[0]?.[1].input.pdf).toBeUndefined();
+    // "Sí, emitir ahora" ya decidió el PDF: después de emitir no se pregunta.
+    expect(vi.mocked(attachExportPdf).mock.calls[0]?.[1].input.pdf).toBe(false);
   });
 
   it('con otro monto avisa que los ítems no se copian y sale un renglón con el total', async () => {
@@ -206,7 +207,7 @@ describe('runExportRepeatFlow', () => {
     expect(printed()).toContain('arcli fe -m 2000');
   });
 
-  it('con `pdf nunca` la confirmación ofrece emitir y generar el PDF, solo esta vez', async () => {
+  it('con `pdf nunca` la confirmación también ofrece emitir y generar el PDF', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       [/Mismo monto/, 'Sí'],

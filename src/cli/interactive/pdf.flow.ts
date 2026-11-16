@@ -112,8 +112,8 @@ export async function completeIssuer(config: ArcliConfig): Promise<ArcliConfig> 
 }
 
 /**
- * Despues de emitir: pregunta si se quiere el PDF (segun la config) y los datos que solo van en el PDF. Con
- * `input.pdf` en `true` ("Sí, emitir y generar el PDF") lo genera aunque la config diga `nunca`, como `--exportar-pdf`.
+ * Despues de emitir: genera el PDF si `input.pdf` es `true` ("Sí, emitir y generar el PDF") y pide los datos que solo
+ * van en el PDF. El asistente siempre lo decide en la confirmacion; sin `input.pdf`, decide la config.
  */
 export async function offerPdf(
   config: ArcliConfig,

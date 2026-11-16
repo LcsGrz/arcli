@@ -14,12 +14,13 @@ import {
   type ExportVoucherKind,
 } from '../../modules/export/export.types';
 import { formatPdfOutcomeAsText } from '../../modules/pdf/pdf.presenter';
+import { planEmissionConfirmation, resolvePdfAfterConfirmation } from '../../modules/pdf/pdf-decision';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import type { ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
 import { noticePanel, writeTerminalJson, writeTerminalOutput } from '../../ui';
 import { certificateWarnings, resolveArcaRuntime } from '../arca-runtime';
 import { getGlobalOptions } from '../global-options';
-import { chooseOne } from '../interactive/prompts';
+import { askEmission } from '../interactive/emission-prompt';
 import { startSpinner } from '../spinner';
 
 import { REJECTED_EXIT_CODE } from './billing.command.shared';
@@ -60,22 +61,6 @@ function resolveWarnings(
   const ignored = input.items && input.items.length > 0 && input.description?.trim() ? [ITEMS_DESCRIPTION_WARNING] : [];
 
   return [...certificateWarningsList, ...ignored];
-}
-
-/** Esc cuenta como no, igual que en A, B y C. */
-async function promptForEmission(
-  voucherKind: ExportVoucherKind,
-  environment: 'produccion' | 'testing',
-): Promise<boolean> {
-  return chooseOne(
-    formatEmissionQuestion(formatVoucherWithArticle(voucherKind), environment),
-    [
-      { name: 'Sí, emitir ahora', value: true },
-      { name: 'No, dejar sin emitir', value: false },
-    ],
-    true,
-    { escapeLabel: 'no emitir', escapeValue: false },
-  );
 }
 
 export interface ExportCommandOptions {
@@ -133,6 +118,7 @@ export async function executeExportCommand(
 
     let result = service.preview(resolved, runtime, warnings);
     let previewShown = false;
+    let pdfInput = plan.input;
 
     if (!plan.input.emit) {
       // Sin flags de emision y con terminal: se muestra la vista previa y se pregunta. Con --json o sin
@@ -150,12 +136,19 @@ export async function executeExportCommand(
 
       writeTerminalOutput(formatExportResultAsText(result, { environment: runtime.environment, raw: useRaw }));
 
-      if (!(await promptForEmission(voucherKind, runtime.environment))) {
+      // Esc cuenta como no, igual que en A, B y C. Si ningun flag decidio el PDF, la pregunta tambien lo decide.
+      const choice = await askEmission(
+        formatEmissionQuestion(formatVoucherWithArticle(voucherKind), runtime.environment),
+        planEmissionConfirmation({ flags: [plan.input.pdf], mode: runtime.config.pdf }),
+      );
+
+      if (!choice) {
         writeTerminalOutput(noticePanel(NOTHING_EMITTED_NOTICE, 'muted'));
 
         return;
       }
 
+      pdfInput = { ...plan.input, pdf: resolvePdfAfterConfirmation(plan.input.pdf, choice) };
       previewShown = true;
     }
 
@@ -168,7 +161,7 @@ export async function executeExportCommand(
 
     result = await attachExportPdf(result, {
       config: runtime.config,
-      input: plan.input,
+      input: pdfInput,
       interactive,
     });
 
