@@ -1,6 +1,5 @@
 import { Separator } from '@inquirer/select';
 
-import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import { formatNoVouchersEmitted, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { resolveRowsPerList } from '../../modules/config/config.schemas';
@@ -14,6 +13,7 @@ import { withSpinner } from '../spinner';
 
 import { askTextStep, type Choice, chooseStep, chooseStepWhileLoading, eraseLastAnswer, fitPageSize } from './prompts';
 import type { InteractiveSession } from './session';
+import { validatePositiveInteger } from './validators';
 
 /** Comprobante elegido y el punto de venta donde se emitio (a mano puede ser otro que el configurado). */
 export interface PickedVoucher<T> {
@@ -65,14 +65,6 @@ const COLUMN_SEPARATOR = ` ${uiSymbol('separator')} `;
  */
 function listRule(): Separator {
   return new Separator(colorize(uiSymbol('rule').repeat(statusBarWidth() - 1), 'muted'));
-}
-
-function validatePositiveInteger(label: string): (value: string) => string | true {
-  return (value) => {
-    const number = parseStrictInteger(value);
-
-    return number !== undefined && number > 0 ? true : `${label} tiene que ser un número entero mayor a 0.`;
-  };
 }
 
 /** Pide punto de venta y numero, y lo busca en ARCA. Volver o un comprobante inexistente vuelven a la lista. */

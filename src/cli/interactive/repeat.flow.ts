@@ -1,34 +1,31 @@
-import { DEFAULT_IVA_RATE } from '../../modules/billing/billing.amounts';
 import { DEFAULT_CURRENCY_CODE } from '../../modules/billing/billing.constants';
 import { isForeignCurrency } from '../../modules/billing/billing.currency';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
-import type { BillingConcept } from '../../modules/billing/billing.schemas';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { toIsoCurrencyCode } from '../../modules/billing/currency-codes';
 import { EXPORT_VOUCHER_KIND, type ExportVoucherKind } from '../../modules/export/export.types';
 import { parseAmountInput } from '../../modules/interactive/amount-input';
 import { exportInvoiceChoice, invoiceKindChoices, reciboChoice } from '../../modules/interactive/choices';
-import { copyInvoiceAmounts } from '../../modules/interactive/invoice-copy';
+import {
+  copyInvoiceAmounts,
+  copyInvoiceReceiver,
+  UNSUPPORTED_DOCUMENT_TYPE_NOTICE,
+} from '../../modules/interactive/invoice-copy';
+import { defaultIvaRate } from '../../modules/interactive/iva-rate';
 import { currentMonthPeriod, previousMonthPeriod, type ServicePeriod } from '../../modules/interactive/periods';
 import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
-import { type IssuedVoucher, resolveDocumentType } from '../../modules/vouchers/voucher-history';
+import type { IssuedVoucher } from '../../modules/vouchers/voucher-history';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 
-import { askAdvancedOptions, askExchangeRate } from './advanced-options';
+import { askAdvancedOptions, askExchangeRate, askServicePeriod } from './advanced-options';
 import { runExportRepeatFlow } from './export-repeat.flow';
-import { askCbuStep, buildInvoiceInput, type InvoiceState, offerSavingCbu } from './invoice.flow';
+import { buildInvoiceInput, cbuStep, type InvoiceState, offerSavingCbu } from './invoice.flow';
 import { pickInvoice } from './invoice-picker';
 import { markIfNew } from './new-mark';
 import { askTextStep, chooseStep } from './prompts';
 import { askReceiverIvaCondition } from './receiver-padron';
 import { type InteractiveSession, previewAndEmit, requirePointOfSale } from './session';
-import { validateAmount, validateDate } from './validators';
-
-const CONCEPTS_BY_CODE: Record<number, BillingConcept> = {
-  1: 'productos',
-  2: 'servicios',
-  3: 'productos-servicios',
-};
+import { validateAmount } from './validators';
 
 export interface RepeatState extends InvoiceState {
   readonly original?: IssuedVoucher;
@@ -93,15 +90,10 @@ export function repeatSteps(
         }
 
         const original = picked.invoice;
-        const documentType = resolveDocumentType(original.documentTypeCode);
+        const receiver = copyInvoiceReceiver(original);
 
-        if (!documentType) {
-          writeTerminalOutput(
-            noticePanel(
-              'El comprobante tiene un tipo de documento que el asistente no soporta. Usá los flags del CLI.',
-              'warning',
-            ),
-          );
+        if (!receiver) {
+          writeTerminalOutput(noticePanel(UNSUPPORTED_DOCUMENT_TYPE_NOTICE, 'warning'));
 
           return BACK;
         }
@@ -124,10 +116,7 @@ export function repeatSteps(
             sameCurrency: false,
             untaxedAmount: copy.untaxedAmount,
           },
-          concept: CONCEPTS_BY_CODE[original.concept ?? 2] ?? 'servicios',
-          documentNumber: documentType === 'consumidor-final' ? undefined : original.documentNumber,
-          documentType,
-          ivaCondition: documentType === 'consumidor-final' ? 'consumidor-final' : undefined,
+          ...receiver,
           original,
           totalAmount: original.total,
         };
@@ -211,29 +200,19 @@ export function repeatSteps(
           return { advanced: { ...advanced, serviceEndDate: choice.to, serviceStartDate: choice.from } };
         }
 
-        const from = await askTextStep('Servicio desde:', { validate: validateDate });
+        const typed = await askServicePeriod(advanced);
 
-        if (from === BACK) {
-          return BACK;
-        }
-
-        const to = await askTextStep('Servicio hasta:', { validate: validateDate });
-
-        return to === BACK ? BACK : { advanced: { ...advanced, serviceEndDate: to, serviceStartDate: from } };
+        return typed === BACK ? BACK : { advanced: typed };
       },
       skip: (state) => state.concept === 'productos',
     },
-    {
-      name: 'cbu',
-      run: () => askCbuStep(config),
-      skip: (state) => state.voucherKind?.family !== 'factura-credito-electronica' || Boolean(config.cbu),
-    },
+    cbuStep<RepeatState>(config),
     {
       name: 'opcionales',
       run: async (state) => {
         const advanced = await askAdvancedOptions(state.advanced, {
           concept: state.concept ?? 'servicios',
-          defaultIvaRate: state.advanced.ivaRate ?? config.alicuotaPorDefecto ?? DEFAULT_IVA_RATE,
+          defaultIvaRate: defaultIvaRate(config, state.advanced.ivaRate),
           // En moneda extranjera el monto esta en esa moneda: cambiarla a pesos lo emitiria como si fueran pesos.
           fixedCurrency: Boolean(foreignCurrencyOf(state.original)),
           // Sin alicuota deducida de la factura, que la elija en lugar de caer en la de la config.

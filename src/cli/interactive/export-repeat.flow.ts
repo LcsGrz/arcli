@@ -21,7 +21,7 @@ import { askCountryCuit, askExportOptions, type ExportOptions, isCountryCuitMiss
 import { pickExportVoucher } from './invoice-picker';
 import { askTextStep, chooseStep } from './prompts';
 import type { InteractiveSession } from './session';
-import { validateAmount, validateDate } from './validators';
+import { validateAmount, validateOptionalDate, validatePositiveInteger } from './validators';
 
 export interface ExportRepeatState {
   /** Lo copiado de la factura, con el monto y los items ya ajustados si se cambio el monto. */
@@ -37,16 +37,6 @@ export interface ExportRepeatState {
 export interface ExportRepeatTables {
   readonly countries: readonly ExportCountry[];
   readonly countryCuits: readonly ExportCountryCuit[];
-}
-
-function optionalDate(value: string): string | true {
-  return value.trim() ? validateDate(value) : true;
-}
-
-function validateActivity(value: string): string | true {
-  const number = parseStrictInteger(value);
-
-  return number !== undefined && number >= 1 ? true : 'La actividad tiene que ser un número entero mayor a 0.';
 }
 
 /** El CUIT que ARCA publica para el destino, o `undefined` si no tiene. */
@@ -209,7 +199,7 @@ export function exportRepeatSteps(
       name: 'fecha-pago',
       run: async () => {
         const answer = await askTextStep('Fecha de pago (Enter para la fecha del comprobante):', {
-          validate: optionalDate,
+          validate: validateOptionalDate,
         });
 
         return answer === BACK ? BACK : { paymentDate: answer.trim() || undefined };
@@ -220,7 +210,7 @@ export function exportRepeatSteps(
       name: 'actividad',
       run: async (state) => {
         const answer = await askTextStep('Código de actividad de WSFEX (por ejemplo 620100):', {
-          validate: validateActivity,
+          validate: validatePositiveInteger('La actividad'),
         });
 
         return answer === BACK

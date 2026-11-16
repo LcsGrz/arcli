@@ -89,11 +89,21 @@ export function validateBillingDate(
   }
 }
 
-export function validatePointOfSale(value: string): string | true {
-  const number = parseStrictInteger(value);
-
-  return number !== undefined && number >= 1 ? true : 'El punto de venta tiene que ser un número entero positivo.';
+/** Fecha opcional: vacia vale (va la de por defecto); si no, tiene que ser una fecha valida. */
+export function validateOptionalDate(value: string): string | true {
+  return value.trim() ? validateDate(value) : true;
 }
+
+/** Un entero mayor a 0 (punto de venta, numero de comprobante, actividad); `label` nombra el dato en el error. */
+export function validatePositiveInteger(label: string): (value: string) => string | true {
+  return (value) => {
+    const number = parseStrictInteger(value);
+
+    return number !== undefined && number >= 1 ? true : `${label} tiene que ser un número entero positivo.`;
+  };
+}
+
+export const validatePointOfSale = validatePositiveInteger('El punto de venta');
 
 /** Monto opcional: vacio es "no", si no tiene que ser un monto valido. */
 export function validateOptionalAmount(value: string): string | true {

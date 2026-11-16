@@ -1,16 +1,11 @@
-import { DEFAULT_IVA_RATE } from '../../modules/billing/billing.amounts';
 import { isIvaConditionAllowed } from '../../modules/billing/billing.iva-receptor';
 import { type BillingCommandInput, billingCommandSchema } from '../../modules/billing/billing.schemas';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import type { ArcliConfig } from '../../modules/config/config.schemas';
 import { EXPORT_VOUCHER_KIND, type ExportVoucherKind } from '../../modules/export/export.types';
 import { parseAmountInput } from '../../modules/interactive/amount-input';
-import {
-  conceptChoices,
-  exportInvoiceChoice,
-  invoiceKindChoices,
-  receiverChoices,
-} from '../../modules/interactive/choices';
+import { conceptChoices, exportInvoiceChoice, invoiceKindChoices } from '../../modules/interactive/choices';
+import { defaultIvaRate, explicitIvaRate } from '../../modules/interactive/iva-rate';
 import { BACK, type Back, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 
 import { type AdvancedOptions, askAdvancedOptions, initialAdvancedOptions } from './advanced-options';
@@ -18,14 +13,14 @@ import { runExportFlow } from './export.flow';
 import { markIfNew } from './new-mark';
 import { askTextStep, chooseStep } from './prompts';
 import {
-  askDocumentNumber,
   askReceiverIvaCondition,
   type ReceiverFromPadron,
   receiverInputFields,
+  receiverSteps,
 } from './receiver-padron';
 import { offerSavingToConfig } from './save-to-config';
 import { type InteractiveSession, previewAndEmit, requirePointOfSale } from './session';
-import { normalizeDocumentNumber, validateAmount, validateCbu, validateOptionalCbuAlias } from './validators';
+import { validateAmount, validateCbu, validateOptionalCbuAlias } from './validators';
 
 export interface InvoiceState {
   readonly advanced: AdvancedOptions;
@@ -92,33 +87,11 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
     skip: (state) => Boolean(state.voucherKind),
   };
   const billingSteps: Array<WizardStep<InvoiceState>> = [
-    {
-      name: 'receptor',
-      run: async (state) => {
-        const documentType = await chooseStep(
-          isReceipt(state) ? '¿A quién le hacés el recibo?' : '¿A quién le facturás?',
-          receiverChoices(state.voucherKind?.letter ?? 'c'),
-        );
-
-        return documentType === BACK
-          ? BACK
-          : {
-              documentNumber: undefined,
-              documentType,
-              ivaCondition: documentType === 'consumidor-final' ? 'consumidor-final' : undefined,
-            };
-      },
+    ...receiverSteps<InvoiceState>({
+      letter: (state) => state.voucherKind?.letter ?? 'c',
+      message: (state) => (isReceipt(state) ? '¿A quién le hacés el recibo?' : '¿A quién le facturás?'),
       skip: (state) => Boolean(state.receiverFromQuery),
-    },
-    {
-      name: 'documento',
-      run: async (state) => {
-        const answer = await askDocumentNumber(state.documentType);
-
-        return answer === BACK ? BACK : { documentNumber: normalizeDocumentNumber(answer) };
-      },
-      skip: (state) => state.documentType === 'consumidor-final' || Boolean(state.receiverFromQuery),
-    },
+    }),
     {
       name: 'iva-receptor',
       run: async (state) => {
@@ -146,17 +119,13 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
         return answer === BACK ? BACK : { totalAmount: parseAmountInput(answer) };
       },
     },
-    {
-      name: 'cbu',
-      run: () => askCbuStep(config),
-      skip: (state) => !isFceInvoice(state) || Boolean(config.cbu),
-    },
+    cbuStep(config),
     {
       name: 'avanzadas',
       run: async (state) => {
         const advanced = await askAdvancedOptions(state.advanced, {
           concept: state.concept ?? 'servicios',
-          defaultIvaRate: config.alicuotaPorDefecto ?? DEFAULT_IVA_RATE,
+          defaultIvaRate: defaultIvaRate(config),
           voucherKind: requireStepValue(state.voucherKind, 'voucherKind'),
         });
 
@@ -178,8 +147,7 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
 export function buildInvoiceInput(state: InvoiceState, session: InteractiveSession): BillingCommandInput {
   const { config } = session.runtime;
   const voucherKind = requireStepValue(state.voucherKind, 'voucherKind');
-  const ivaRate =
-    voucherKind.letter === 'c' ? undefined : (state.advanced.ivaRate ?? config.alicuotaPorDefecto ?? DEFAULT_IVA_RATE);
+  const ivaRate = voucherKind.letter === 'c' ? undefined : defaultIvaRate(config, state.advanced.ivaRate);
 
   return billingCommandSchema.parse({
     ...state.advanced,
@@ -191,13 +159,20 @@ export function buildInvoiceInput(state: InvoiceState, session: InteractiveSessi
     documentType: state.documentType,
     ivaCondition: state.ivaCondition,
     ...receiverInputFields(state),
-    // 21% sin alicuota configurada es el default del CLI. Si hay config, se deja explicito para que el
-    // comando equivalente no tome la de la config.
-    ivaRate: ivaRate === DEFAULT_IVA_RATE && !config.alicuotaPorDefecto ? undefined : ivaRate,
+    ivaRate: explicitIvaRate(ivaRate, config),
     shortcut: voucherKind.shortcut,
     totalAmount: state.totalAmount,
     transferMode: isFceInvoice(state) ? state.advanced.transferMode : undefined,
   });
+}
+
+/** El paso del CBU de "Emitir factura" y "Repetir": solo en facturas FCE, si la config no tiene uno. */
+export function cbuStep<S extends InvoiceState>(config: Pick<ArcliConfig, 'aliasCbu' | 'cbu'>): WizardStep<S> {
+  return {
+    name: 'cbu',
+    run: () => askCbuStep(config) as Promise<Back | Partial<S>>,
+    skip: (state) => !isFceInvoice(state) || Boolean(config.cbu),
+  };
 }
 
 /**

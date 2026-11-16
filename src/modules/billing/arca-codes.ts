@@ -74,6 +74,10 @@ export function conceptCode(concept: BillingConcept): number {
   return CONCEPTS[concept].code;
 }
 
+export function conceptFromCode(code: number | undefined): BillingConcept | undefined {
+  return findByCode(CONCEPTS, code);
+}
+
 export function conceptLabel(code: number | undefined): string {
   return labelOf(CONCEPTS, code);
 }

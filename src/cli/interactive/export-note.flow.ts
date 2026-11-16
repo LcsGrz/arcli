@@ -26,7 +26,7 @@ import { askPermitsStep, emitExportVoucher } from './export.flow';
 import { askExportOptions, type ExportOptions } from './export-options';
 import { askTextStep, chooseStep } from './prompts';
 import { type InteractiveSession, requirePointOfSale } from './session';
-import { validateAmount } from './validators';
+import { validateAmount, validatePositiveInteger } from './validators';
 
 export interface ExportNoteState {
   readonly amount?: number;
@@ -48,14 +48,6 @@ const ASSOCIATED_NAMES: Record<ExportVoucherKind['shortcut'], string> = {
 
 function associatedName(kind: ExportVoucherKind | undefined): string {
   return ASSOCIATED_NAMES[(kind ?? EXPORT_VOUCHER_KIND).shortcut];
-}
-
-function validatePositiveInteger(label: string): (value: string) => string | true {
-  return (value) => {
-    const number = parseStrictInteger(value);
-
-    return number !== undefined && number >= 1 ? true : `${label} tiene que ser un número entero positivo.`;
-  };
 }
 
 /** "Factura de exportación E 00004-00000001 del 30/10/2026 a ACME LLC, por 1.500 USD". */
