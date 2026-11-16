@@ -2,7 +2,7 @@
 name: release
 description: Saca una versión de arcli a npm. Arma el PR release/vX.Y.Z de dev a main, crea la release de GitHub (que crea el tag y dispara el workflow Release) y vuelve a llevar main a dev.
 disable-model-invocation: true
-argument-hint: "[patch|minor|major]"
+argument-hint: '[patch|minor|major]'
 ---
 
 # Release de arcli
@@ -35,12 +35,12 @@ Creá `release/vX.Y.Z` desde `origin/<base>` y tocá exactamente tres archivos:
 
 - `CHANGELOG.md`:
   - Renombrá las entradas a `## [X.Y.Z] - AAAA-MM-DD` (fecha de hoy) y dejá arriba un `## [Sin publicar]` vacío.
-  - Debajo del título, un párrafo que resuma qué cambia para quien usa el CLI y cierre diciendo qué del contrato **no** cambia, como en 1.8.0 y 1.7.1.
+  - Debajo del título, un párrafo que resuma qué cambia para quien usa el CLI y cierre diciendo qué del contrato **no** cambia, como en 2.4.0.
   - Al final: `[Sin publicar]` compara `vX.Y.Z...HEAD` y se suma `[X.Y.Z]: .../compare/vANTERIOR...vX.Y.Z`.
 - `package.json`: `"version"`.
 - `src/cli/version.ts`: `CLI_VERSION`. Un test verifica que coincida con `package.json`.
 
-Después corré `yarn typecheck`, `yarn lint`, `yarn test` y `yarn build`, y `node dist/cli/index.js --version` tiene que imprimir `X.Y.Z`. Anotá cuántos tests pasaron.
+Después corré `yarn lint && yarn open-source:check` (lo mismo que el CI: typecheck, tests, build, e2e y `pack:check`), y `node dist/cli/index.js --version` tiene que imprimir `X.Y.Z`. Anotá cuántos tests pasaron.
 
 **Listo cuando:** el diff toca solo esos tres archivos, todo pasa y la versión compilada es `X.Y.Z`.
 
@@ -61,8 +61,8 @@ Qué cambia del contrato y qué no.
 
 ### Verificación
 
-- `yarn typecheck`, `yarn lint` y `yarn test` (N tests) pasan.
-- `yarn build` OK y `arcli --version` devuelve `X.Y.Z`.
+- `yarn lint` y `yarn open-source:check` (N tests) pasan.
+- `arcli --version` devuelve `X.Y.Z`.
 ```
 
 Después esperá el CI del PR con `gh pr checks --watch`. Si falla, arreglalo en la rama y repetí la verificación del paso 3.
@@ -77,14 +77,14 @@ Pedí el ok para mergear. El merge es squash: `gh pr merge <N> --squash --delete
 
 ## 6. Gate 3: tag, release de GitHub y npm
 
-Pedí el ok una sola vez y mostrá las notas antes: crear la release ya publica en npm. Esto publica en npm, y una versión publicada en npm no se puede volver a usar.
+Pedí el ok una sola vez, con las notas a la vista: crear la release dispara la publicación en npm, y una versión publicada no se puede reusar.
 
 1. Notas: el cuerpo de la sección `[X.Y.Z]` del CHANGELOG, sin la línea `## [X.Y.Z] - fecha`. Guardalo en un archivo del scratchpad.
 2. `gh release create vX.Y.Z --target main --title vX.Y.Z --notes-file <archivo>`. Esto crea también el tag y dispara el workflow `Release`, que publica en npm.
 3. Buscá el run con `gh run list --workflow release.yml --limit 1` y seguilo con `gh run watch <id> --exit-status`. Cuando `build` termina, `publish` espera la aprobación del environment `npm`: avisale al usuario que la apruebe en Actions ("Review deployments"). No la apruebes vos.
 4. Confirmá con `npm view arcli version`, que tiene que devolver `X.Y.Z`. Puede tardar unos minutos en propagarse.
 
-Si el workflow falla, mostrá el log (`gh run view <id> --log-failed`) y frená. No borres el tag ni la release sin que el usuario lo pida.
+Si el workflow falla, mostrá el log (`gh run view <id> --log-failed`) y frená. La salida es arreglar la causa y usar "Re-run jobs" en Actions sobre el mismo tag; el tag y la release se borran solo si el usuario lo pide.
 
 **Listo cuando:** la release de GitHub `vX.Y.Z` existe, el run de Release terminó en verde y npm sirve `X.Y.Z`.
 

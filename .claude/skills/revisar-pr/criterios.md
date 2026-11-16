@@ -25,10 +25,8 @@ Todo lo que el CLI hace por flags existe también en lo demás. Es lo que más v
 
 - **Una sola fuente:** los datos salen del mapa o catálogo que ya existe, sin tablas paralelas (#78).
 - **Sin defaults inventados:** nada específico del emisor hardcodeado; va a una clave de config más un flag (`620900` en #67).
-- **Capas:** el parseo en `src/cli/`, las reglas en `src/modules/`, ARCA en `src/services/`, y los barrels de UI.
 - **Precedencia completa:** flag, JSON y config, y una forma de omitir el valor configurado para un comprobante puntual (#74).
 - **Flags que no aplican:** en `factura <letra>` se saltean con aviso; en los atajos estrictos son opción desconocida (#67).
-- **Dependencias:** revisá antes si `@arcasdk/core` o el toolchain ya lo cubren.
 
 ## Errores
 
@@ -46,6 +44,5 @@ Todo lo que el CLI hace por flags existe también en lo demás. Es lo que más v
 ## Docs
 
 - Recorré la tabla de `CONTRIBUTING.md` por cada cambio visible, como hace la skill `sincronizar-docs`. Un cambio suele caer en varias filas.
-- Las decisiones de diseño y las capas, en `docs/architecture.md`. Lo que le puede pasar a quien usa el CLI, en `docs/troubleshooting.md`.
 - **CHANGELOG:** la entrada está en `[Sin publicar]`, nunca en una versión ya publicada (#78). Va una entrada por funcionalidad, y los bugs del propio PR no llevan "Corregido" (#67). Dice qué cambia para quien usa el CLI, en su idioma. Si fue un aporte grande, lleva crédito.
 - Lo que el comando dice en los docs coincide con lo que hace: corré los ejemplos nuevos.
