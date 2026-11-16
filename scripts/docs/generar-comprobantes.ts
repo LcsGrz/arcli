@@ -1,7 +1,7 @@
 /**
  * Escribe `docs/comprobantes/*.md` desde `comprobantes.ts`:
  *   yarn docs:comprobantes
- * `src/cli/__tests__/comprobantes-docs.test.ts` falla si quedaron desactualizados.
+ * `scripts/docs/comprobantes-docs.test.ts` falla si quedaron desactualizados.
  */
 import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 

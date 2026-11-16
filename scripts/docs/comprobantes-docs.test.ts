@@ -2,18 +2,18 @@ import { Command } from 'commander';
 import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-import { OPTIONS, VOUCHER_PAGES } from '../../../scripts/docs/comprobantes';
-import { renderAll } from '../../../scripts/docs/comprobantes-md';
-import { EXPORT_VOUCHER_KINDS } from '../../modules/export/export.types';
-import { registerBillingOptions } from '../commands/billing.command.options';
-import { registerExportOptions } from '../commands/export.command.options';
-import { registerGlobalOptions } from '../global-options';
+import { OPTIONS, VOUCHER_PAGES } from './comprobantes';
+import { renderAll } from './comprobantes-md';
+import { EXPORT_VOUCHER_KINDS } from '../../src/modules/export/export.types';
+import { registerBillingOptions } from '../../src/cli/commands/billing.command.options';
+import { registerExportOptions } from '../../src/cli/commands/export.command.options';
+import { registerGlobalOptions } from '../../src/cli/global-options';
 
 /**
  * `docs/comprobantes/` se genera desde `scripts/docs/comprobantes.ts`, la única fuente de las opciones de cada
  * comprobante. Si falla: `yarn docs:comprobantes`, o sumá a `comprobantes.ts` el flag que falta.
  */
-const dir = new URL('../../../docs/comprobantes/', import.meta.url);
+const dir = new URL('../../docs/comprobantes/', import.meta.url);
 
 /** Flags que no van en las páginas de comprobantes, con el motivo. */
 const NOT_IN_VOUCHER_PAGES = new Set([

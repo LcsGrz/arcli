@@ -1,6 +1,6 @@
 /**
  * Una sola fuente para las páginas de cada comprobante (`docs/comprobantes/*.md`): qué opciones lleva cada uno, con
- * su corto, su largo y qué es. `generar-comprobantes.ts` escribe los `.md` y `comprobantes-docs.test.ts` controla que
+ * su corto, su largo y qué es. `generar-comprobantes.ts` escribe los `.md` y `scripts/docs/comprobantes-docs.test.ts` controla que
  * estén al día y que cada flag del CLI esté acá. El sitio los toma de `docs/` y dibuja cada opción como tarjeta.
  *
  * Los textos siguen el design system: voseo, corto primero, y el valor de cada flag explicado fila por fila.
