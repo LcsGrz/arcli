@@ -175,7 +175,8 @@ async function askBillingDate(current: AdvancedOptions, context: AdvancedContext
   return date === BACK ? BACK : { ...current, billingDate: date };
 }
 
-async function askServicePeriod(current: AdvancedOptions): Promise<AdvancedOptions | Back> {
+/** Desde y hasta del servicio. Lo comparten los opcionales y el paso del periodo de "Repetir". */
+export async function askServicePeriod(current: AdvancedOptions): Promise<AdvancedOptions | Back> {
   const start = await askTextStep('Servicio desde:', { validate: validateDate });
 
   if (start === BACK) {

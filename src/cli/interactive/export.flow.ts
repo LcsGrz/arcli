@@ -26,7 +26,7 @@ import { completeIssuer } from './pdf.flow';
 import { askTextStep, chooseStep, isPromptCancellation } from './prompts';
 import { offerSavingToConfig } from './save-to-config';
 import { confirmEmission, formatEquivalentCommand, type InteractiveSession } from './session';
-import { validateAmount, validateDate } from './validators';
+import { validateAmount, validateOptionalDate, validatePositiveInteger } from './validators';
 
 interface ExportFlowState {
   readonly activity?: number;
@@ -72,10 +72,6 @@ function required(label: string): (value: string) => string | true {
   return (value) => (value.trim() ? true : `${label} es obligatorio.`);
 }
 
-function optionalDate(value: string): string | true {
-  return value.trim() ? validateDate(value) : true;
-}
-
 function validateCountry(countries: readonly ExportCountry[]): (value: string) => string | true {
   return (value) => {
     try {
@@ -88,16 +84,14 @@ function validateCountry(countries: readonly ExportCountry[]): (value: string) =
   };
 }
 
-function validatePositiveInteger(label: string, allowed?: ReadonlySet<number>): (value: string) => string | true {
+/** Un entero positivo que, si ARCA devolvio la tabla, esta en las actividades de WSFEX. */
+function validateActivity(allowed: ReadonlySet<number>): (value: string) => string | true {
   return (value) => {
-    const number = parseStrictInteger(value);
+    const valid = validatePositiveInteger('La actividad')(value);
+    const number = parseStrictInteger(value) as number;
 
-    if (number === undefined || number < 1) {
-      return `${label} tiene que ser un número entero mayor a 0.`;
-    }
-
-    return !allowed || allowed.size === 0 || allowed.has(number)
-      ? true
+    return valid !== true || allowed.size === 0 || allowed.has(number)
+      ? valid
       : `${number} no está en la tabla de actividades de WSFEX (ARCA la rechaza con el error 2105).`;
   };
 }
@@ -286,7 +280,7 @@ function exportSteps(
       name: 'fecha-pago',
       run: async () => {
         const answer = await askTextStep('Fecha de pago (Enter para la fecha del comprobante):', {
-          validate: optionalDate,
+          validate: validateOptionalDate,
         });
 
         return answer === BACK ? BACK : { paymentDate: optional(answer) };
@@ -296,7 +290,7 @@ function exportSteps(
       name: 'actividad',
       run: async () => {
         const answer = await askTextStep('Código de actividad de WSFEX (por ejemplo 620100):', {
-          validate: validatePositiveInteger('La actividad', tables.activities),
+          validate: validateActivity(tables.activities),
         });
 
         return answer === BACK ? BACK : { activity: parseStrictInteger(answer) };

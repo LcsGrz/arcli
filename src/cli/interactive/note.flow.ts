@@ -1,5 +1,4 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
-import { DEFAULT_IVA_RATE } from '../../modules/billing/billing.amounts';
 import { creditNoteOverTotalHint } from '../../modules/billing/billing.associated-lookup';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
 import { formatVoucherLabel, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
@@ -17,12 +16,16 @@ import {
   invoiceKindChoices,
   ivaRateChoices,
   noteKindChoices,
-  receiverChoices,
   reciboChoice,
 } from '../../modules/interactive/choices';
-import { copyInvoiceAmounts } from '../../modules/interactive/invoice-copy';
+import {
+  copyInvoiceAmounts,
+  copyInvoiceReceiver,
+  UNSUPPORTED_DOCUMENT_TYPE_NOTICE,
+} from '../../modules/interactive/invoice-copy';
+import { defaultIvaRate, explicitIvaRate } from '../../modules/interactive/iva-rate';
 import { BACK, type Back, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
-import { type IssuedVoucher, resolveDocumentType } from '../../modules/vouchers/voucher-history';
+import type { IssuedVoucher } from '../../modules/vouchers/voucher-history';
 import { formatVoucherNumber } from '../../modules/vouchers/voucher-history.presenter';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 
@@ -37,19 +40,13 @@ import { pickInvoice } from './invoice-picker';
 import { markIfNew } from './new-mark';
 import { askTextStep, chooseStep } from './prompts';
 import {
-  askDocumentNumber,
   askReceiverIvaCondition,
   type ReceiverFromPadron,
   receiverInputFields,
+  receiverSteps,
 } from './receiver-padron';
 import { type InteractiveSession, previewAndEmit, requirePointOfSale } from './session';
-import { normalizeDocumentNumber, validateAmount, validateDate } from './validators';
-
-const CONCEPTS_BY_CODE: Record<number, BillingConcept> = {
-  1: 'productos',
-  2: 'servicios',
-  3: 'productos-servicios',
-};
+import { validateAmount, validateDate } from './validators';
 
 export type NoteKind = 'credito' | 'debito';
 
@@ -205,15 +202,10 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
         }
 
         const { invoice } = picked;
-        const documentType = resolveDocumentType(invoice.documentTypeCode);
+        const receiver = copyInvoiceReceiver(invoice);
 
-        if (!documentType) {
-          writeTerminalOutput(
-            noticePanel(
-              'El comprobante tiene un tipo de documento que el asistente no soporta. Usá los flags del CLI.',
-              'warning',
-            ),
-          );
+        if (!receiver) {
+          writeTerminalOutput(noticePanel(UNSUPPORTED_DOCUMENT_TYPE_NOTICE, 'warning'));
 
           return BACK;
         }
@@ -227,15 +219,7 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
         }
 
         // La nota hereda de la factura el receptor, el concepto, la moneda y la alicuota (si se puede deducir).
-        return {
-          concept: CONCEPTS_BY_CODE[invoice.concept ?? 2] ?? 'servicios',
-          documentNumber: documentType === 'consumidor-final' ? undefined : invoice.documentNumber,
-          documentType,
-          invoice,
-          invoicePointOfSale: picked.pointOfSale,
-          ivaCondition: documentType === 'consumidor-final' ? 'consumidor-final' : undefined,
-          ivaRate: copy.ivaRate,
-        };
+        return { ...receiver, invoice, invoicePointOfSale: picked.pointOfSale, ivaRate: copy.ivaRate };
       },
       skip: isPeriod,
     },
@@ -254,33 +238,11 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
       },
       skip: (state) => !isPeriod(state),
     },
-    {
-      name: 'receptor',
-      run: async (state) => {
-        const documentType = await chooseStep(
-          '¿A quién va la nota?',
-          receiverChoices(state.invoiceKind?.letter ?? 'c'),
-        );
-
-        return documentType === BACK
-          ? BACK
-          : {
-              documentNumber: undefined,
-              documentType,
-              ivaCondition: documentType === 'consumidor-final' ? 'consumidor-final' : undefined,
-            };
-      },
+    ...receiverSteps<NoteState>({
+      letter: (state) => state.invoiceKind?.letter ?? 'c',
+      message: () => '¿A quién va la nota?',
       skip: (state) => !isPeriod(state),
-    },
-    {
-      name: 'documento',
-      run: async (state) => {
-        const answer = await askDocumentNumber(state.documentType);
-
-        return answer === BACK ? BACK : { documentNumber: normalizeDocumentNumber(answer) };
-      },
-      skip: (state) => !isPeriod(state) || state.documentType === 'consumidor-final',
-    },
+    }),
     {
       name: 'concepto',
       run: async () => {
@@ -312,8 +274,8 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
         const ivaRate = await chooseStep(
           isPeriod(state) ? 'Alícuota de IVA:' : 'Alícuota de IVA del comprobante:',
           ivaRateChoices(),
-          // Como el CLI sin `--alicuota`: la de la config o 21%.
-          state.ivaRate ?? config.alicuotaPorDefecto ?? DEFAULT_IVA_RATE,
+          // La deducida de la factura o, como el CLI sin `--alicuota`, la de la config o 21%.
+          defaultIvaRate(config, state.ivaRate),
         );
 
         return ivaRate === BACK ? BACK : { ivaRate };
@@ -339,7 +301,7 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
         const invoiceKind = requireStepValue(state.invoiceKind, 'invoiceKind');
         const advanced = await askAdvancedOptions(state.advanced ?? initialAdvancedOptions(config), {
           concept: state.concept ?? 'servicios',
-          defaultIvaRate: state.ivaRate ?? DEFAULT_IVA_RATE,
+          defaultIvaRate: defaultIvaRate(config, state.ivaRate),
           hidden: hiddenNoteOptions(state),
           voucherKind: noteKindChoices(state.kind ?? 'credito', invoiceKind),
         });
@@ -393,8 +355,7 @@ export function buildNoteInput(
     exemptAmount: state.annulsTotal ? copy?.exemptAmount : advanced.exemptAmount,
     ivaCondition: state.ivaCondition,
     ...receiverInputFields(state),
-    ivaRate:
-      state.ivaRate === DEFAULT_IVA_RATE && !session.runtime.config.alicuotaPorDefecto ? undefined : state.ivaRate,
+    ivaRate: explicitIvaRate(state.ivaRate, session.runtime.config),
     shortcut: noteKind.shortcut,
     paymentDueDate: advanced.paymentDueDate,
     serviceEndDate: advanced.serviceEndDate,
