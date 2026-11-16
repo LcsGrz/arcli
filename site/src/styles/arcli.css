@@ -965,3 +965,8 @@ header.header {
 .starlight-aside__icon {
   font-size: 1.1em !important;
 }
+
+/* Un desplegable abierto (problemas, capturas, versiones): el fondo un poco más claro */
+.sl-markdown-content details:not(.not-content *):not(.arcli-more)[open] {
+  background: color-mix(in srgb, var(--sl-color-white) 4%, var(--sl-color-gray-6));
+}
