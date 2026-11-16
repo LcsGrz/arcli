@@ -304,3 +304,118 @@ header.header::after {
   border: 1px solid var(--sl-color-gray-5);
   border-radius: 0.4rem;
 }
+
+/* Carteles de muestra en Cómo funciona: chicos, para no competir con el texto */
+.sl-markdown-content .arcli-sample {
+  display: grid;
+  gap: 0.15rem;
+  width: fit-content;
+  min-width: min(100%, 15rem);
+  padding: 0.45rem 0.7rem;
+  border: 1px solid #313244;
+  border-radius: 0.5rem;
+  background: #11111b;
+  color: #cdd6f4;
+  font: 0.72rem / 1.5 var(--sl-font-system-mono);
+}
+
+.arcli-sample b {
+  color: #89b4fa;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.arcli-sample-error {
+  border-color: rgb(243 139 168 / 0.5) !important;
+}
+
+.arcli-sample-error b {
+  color: #f38ba8;
+}
+
+.arcli-sample .row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.arcli-sample i {
+  color: #a6adc8;
+  font-style: normal;
+}
+
+/* Formas de uso en filas, como en la portada */
+.sl-markdown-content .arcli-ways {
+  display: grid;
+  margin-top: 1rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.6rem;
+  background: var(--sl-color-gray-6);
+  overflow: hidden;
+}
+
+.sl-markdown-content .arcli-way {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) 6.5rem;
+  align-items: center;
+  gap: 1rem;
+  margin: 0;
+  padding: 0.8rem 1.1rem;
+  color: var(--sl-color-gray-2);
+  text-decoration: none;
+}
+
+.arcli-way + .arcli-way {
+  border-top: 1px solid var(--sl-color-gray-5);
+}
+
+.arcli-way:hover {
+  background: var(--sl-color-accent-low);
+}
+
+.arcli-way .q {
+  color: var(--sl-color-white);
+  font-weight: 600;
+}
+
+.arcli-way .do {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.arcli-way small {
+  flex: 0 0 3.4rem;
+  color: var(--sl-color-gray-3);
+  font-size: var(--sl-text-xs);
+}
+
+.arcli-way q {
+  font-style: italic;
+}
+
+.arcli-way .go {
+  justify-self: end;
+  color: var(--sl-color-text-accent);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+@media (max-width: 44rem) {
+  .sl-markdown-content .arcli-way {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .arcli-way .do {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+/* Lo que va envuelto adentro de un paso (carteles, capturas) sigue la línea del paso */
+.sl-markdown-content .arcli-steps .arcli-block > * {
+  margin-top: 0;
+}

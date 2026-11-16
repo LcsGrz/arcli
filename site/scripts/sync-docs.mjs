@@ -435,10 +435,15 @@ function chats(text) {
  * una linea que los une. En GitHub se leen como subtitulos numerados.
  */
 function steps(text) {
-  return text.replace(
-    /<!-- arcli: pasos -->\n([\s\S]*?)(?=\n## |$)/g,
-    (_, block) => `<div class="arcli-steps">\n\n${block.trim().replace(/^### \d+\. /gm, '### ')}\n\n</div>\n`,
-  );
+  return text.replace(/<!-- arcli: pasos -->\n([\s\S]*?)(?=\n## |$)/g, (_, block) => {
+    // Un desplegable de capturas va envuelto, asi su borde no corta la linea que une los pasos.
+    const body = block
+      .trim()
+      .replace(/^### \d+\. /gm, '### ')
+      .replace(/^<details>[\s\S]*?^<\/details>/gm, (details) => `<div class="arcli-block">\n\n${details}\n\n</div>`);
+
+    return `<div class="arcli-steps">\n\n${body}\n\n</div>\n`;
+  });
 }
 
 /** La familia ("Monotributo · C") del comentario de la pagina, para el chip arriba del titulo. */
@@ -447,6 +452,51 @@ function voucherMeta(text) {
 
   return meta ? { body: text.replace(meta[0], ''), familia: meta[1] } : { body: text, familia: null };
 }
+
+/**
+ * `<!-- arcli: muestra=error|vista -->` y un bloque de texto: un cartel chico, como el que se ve en la terminal. La
+ * primera linea es el titulo; en las demas, dos o mas espacios separan etiqueta y valor.
+ */
+function samples(text) {
+  return text.replace(/<!-- arcli: muestra=(error|vista) -->\n+```text\n([\s\S]*?)\n```\n?/g, (_, kind, block) => {
+    const [title, ...lines] = block.split('\n');
+    const row = (line) => {
+      const [label, value] = line.split(/\s{2,}/);
+
+      return value
+        ? `<span class="row"><span>${inlineHtml(label)}</span><i>${inlineHtml(value)}</i></span>`
+        : `<span>${inlineHtml(line)}</span>`;
+    };
+
+    return `<div class="arcli-block"><div class="arcli-sample arcli-sample-${kind}"><b>${inlineHtml(title)}</b>${lines.map(row).join('')}</div></div>\n`;
+  });
+}
+
+/**
+ * `<!-- arcli: formas -->` y una tabla "Si querés | Escribís | Forma": filas que llevan a cada forma de uso, como en
+ * la portada. Va despues de reescribir los links, asi el link de la tercera columna ya apunta al sitio.
+ */
+function ways(text) {
+  return text.replace(/<!-- arcli: formas -->\n+((?:\|.*\n?)+)/g, (_, table) => {
+    const rows = table
+      .trim()
+      .split('\n')
+      .slice(2)
+      .map(tableCells)
+      .map(([wish, write, way]) => {
+        const link = way.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+        const said = write.startsWith('"');
+        const what = said ? `<q>${inlineHtml(write.replace(/^"|"$/g, ''))}</q>` : inlineHtml(write);
+
+        return `<a class="arcli-way" href="${link?.[2] ?? '#'}"><span class="q">${inlineHtml(wish)}</span><span class="do"><small>${said ? 'Le pedís' : 'Escribís'}</small>${what}</span><span class="go">${inlineHtml(link?.[1] ?? way)} →</span></a>`;
+      });
+
+    return `<div class="arcli-ways">${rows.join('')}</div>\n`;
+  });
+}
+
+/** Lo que el sitio dibuja distinto que GitHub, en orden: tarjetas, chat, carteles, formas de uso y pasos. */
+const SITE_TRANSFORMS = [optionCards, chats, samples, ways, steps];
 
 /** Convierte cada bloque `> [!TIPO]` en `:::tipo ... :::`, fuera de los bloques de codigo. */
 function githubAlertsToAsides(text) {
@@ -498,8 +548,9 @@ async function sync() {
     mkdirSync(dirname(target), { recursive: true });
     const shown = page.src === 'CHANGELOG.md' ? argentineVersionDates(body) : body;
     const { body: withoutMeta, familia } = voucherMeta(shown.replace(/^<!-- Generado[^\n]*\n+/, ''));
-    const content = steps(
-      chats(optionCards(rewriteLinks(page.src, githubAlertsToAsides(withoutMeta), includedReadmeAnchors))),
+    const content = SITE_TRANSFORMS.reduce(
+      (text, transform) => transform(text),
+      rewriteLinks(page.src, githubAlertsToAsides(withoutMeta), includedReadmeAnchors),
     );
 
     writeFileSync(target, `${frontmatter(page, title, familia ? { familia } : {})}\n${content}\n`);
