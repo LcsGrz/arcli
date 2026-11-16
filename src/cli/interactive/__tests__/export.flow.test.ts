@@ -56,6 +56,7 @@ const gateway: ExportGateway = {
 vi.mock('../prompts', () => ({
   askTextStep: (...args: Parameters<typeof script.askTextStep>) => script.askTextStep(...args),
   chooseManyStep: (...args: Parameters<typeof script.chooseManyStep>) => script.chooseManyStep(...args),
+  chooseOne: (...args: Parameters<typeof script.chooseStep>) => script.chooseStep(args[0], args[1]),
   chooseStep: (...args: Parameters<typeof script.chooseStep>) => script.chooseStep(...args),
   confirm: (message: string, yesLabel: string, noLabel = 'Cancelar') =>
     script.chooseStep(message, [

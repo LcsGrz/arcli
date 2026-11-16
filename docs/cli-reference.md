@@ -143,7 +143,7 @@ Usalos cuando necesitás controlar el entorno, la salida o el modo de inspecció
 El entorno y la decisión de emitir son independientes:
 
 - **Entorno:** `--testing` o `--produccion`; sin flag, `config.entorno` (`testing` por defecto).
-- **Emitir:** `--emitir` o `--previsualizar`; sin flag, `emitir`/`previsualizar` del JSON de `--cargar`; si tampoco, `config.emitir` (`false` por defecto). Si nada pide emitir, en una terminal se muestra la vista previa y se pregunta, nombrando el entorno: `¿Emitimos la factura B en PRODUCCIÓN?` (Esc cuenta como no, igual que en el modo interactivo, y también en las preguntas del PDF); con `--json` o sin terminal no se emite.
+- **Emitir:** `--emitir` o `--previsualizar`; sin flag, `emitir`/`previsualizar` del JSON de `--cargar`; si tampoco, `config.emitir` (`false` por defecto). Si nada pide emitir, en una terminal se muestra la vista previa y se pregunta, nombrando el entorno: `¿Emitimos la factura B en PRODUCCIÓN?`, con las opciones **Sí, emitir ahora**, **Sí, emitir y generar el PDF** y **No, dejar sin emitir** (la del PDF no aparece con `--exportar-pdf` o `--sin-pdf`; ver [PDF](pdf.md#cuándo-se-genera)). Esc cuenta como no, igual que en el modo interactivo, y también en las preguntas del PDF; con `--json` o sin terminal no se emite.
 
 Así, `--produccion --emitir` emite en producción sin preguntar, y también lo hace un comando sin flags si la config tiene `entorno produccion` y `emitir true`. Es a propósito, para quien no quiere confirmar cada vez. Para no depender de la config (scripts, agentes), pasá siempre el entorno y `--emitir` o `--previsualizar`.
 
@@ -321,7 +321,7 @@ Estos flags controlan el PDF del comprobante emitido. Los datos que se pasan ac�
 
 `--condicion-venta` acepta `contado`, `tarjeta-debito`, `tarjeta-credito`, `cuenta-corriente`, `cheque`, `transferencia`, `otros-medios-electronicos` u `otra`, que se imprimen con su nombre (`cuenta-corriente` sale "Cuenta Corriente"). Cualquier otro texto se imprime tal cual: `--cv "Billetera virtual"`. `--sin-condicion-venta` permite omitirla en un comprobante aunque exista un valor en la config; no se combina con `--condicion-venta` ni `--cv`. Solo en A, B y C; en la factura `E` va `--forma-pago`, que sí viaja a ARCA.
 
-`--exportar-pdf` y `--sin-pdf` no se combinan. Sin ninguno de los dos, decide `config.pdf` (`preguntar` por defecto: en una terminal pregunta, con `--json` o sin terminal no genera).
+`--exportar-pdf` y `--sin-pdf` no se combinan. Sin ninguno de los dos, si confirmás la emisión a mano lo decide la opción que elijas (**Sí, emitir ahora** o **Sí, emitir y generar el PDF**); si se emite sin confirmar, decide `config.pdf` (`preguntar` por defecto: en una terminal pregunta después de emitir, con `--json` o sin terminal no genera).
 
 ### Comando `arcli pdf`
 

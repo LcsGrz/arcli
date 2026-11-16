@@ -15,6 +15,7 @@ import { parseAmountInput } from '../../modules/interactive/amount-input';
 import { buildExportEquivalentCommand } from '../../modules/interactive/export-equivalent-command';
 import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { formatPdfOutcomeAsText } from '../../modules/pdf/pdf.presenter';
+import { planEmissionConfirmation, resolvePdfAfterConfirmation } from '../../modules/pdf/pdf-decision';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 import { attachExportPdf } from '../commands/export.command.pdf';
@@ -352,7 +353,7 @@ export async function emitExportVoucher(
   const emission = await confirmEmission(
     formatEmissionQuestion(label, runtime.environment),
     runtime.environment,
-    runtime.config.pdf,
+    planEmissionConfirmation({ flags: [input.pdf], mode: runtime.config.pdf }),
   );
 
   if (!emission) {
@@ -372,8 +373,8 @@ export async function emitExportVoucher(
     const withPdf = await attachExportPdf(result, {
       completeConfig: completeIssuer,
       config: runtime.config,
-      // "Emitir y generar el PDF" es el `--exportar-pdf` del asistente: le gana a `pdf nunca`.
-      input: emission === 'emitir-con-pdf' ? { ...input, pdf: true } : input,
+      // Lo elegido en "¿Emitimos?" decide el PDF: despues de emitir no se pregunta nada mas.
+      input: { ...input, pdf: resolvePdfAfterConfirmation(input.pdf, emission) },
       interactive: true,
     });
 

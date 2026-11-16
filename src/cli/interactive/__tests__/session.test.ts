@@ -15,12 +15,13 @@ vi.mock('../pdf.flow', async (importOriginal) => ({
 }));
 
 const confirmMock = vi.mocked(confirm);
+const chooseOneMock = vi.mocked(chooseOne);
 const askTextStepMock = vi.mocked(askTextStep);
 
 function createSession(
   environment: 'produccion' | 'testing',
   pointOfSale: number | null = 3,
-  pdf?: 'nunca',
+  pdf?: 'nunca' | 'preguntar' | 'siempre',
 ): InteractiveSession & {
   readonly createVoucher: ReturnType<typeof vi.fn>;
 } {
@@ -60,36 +61,58 @@ describe('previewAndEmit', () => {
     vi.restoreAllMocks();
     confirmMock.mockReset();
     askTextStepMock.mockReset();
-    vi.mocked(chooseOne).mockReset();
+    chooseOneMock.mockReset();
     vi.mocked(offerPdf).mockClear();
   });
 
   it('no emite si el usuario cancela', async () => {
     const session = createSession('testing');
 
-    confirmMock.mockResolvedValueOnce(false);
+    chooseOneMock.mockResolvedValueOnce(false);
     await previewAndEmit(session, input);
 
     expect(session.createVoucher).not.toHaveBeenCalled();
+    expect(offerPdf).not.toHaveBeenCalled();
   });
 
   it('emite en testing con una sola confirmacion', async () => {
     const session = createSession('testing');
 
-    confirmMock.mockResolvedValueOnce(true);
+    chooseOneMock.mockResolvedValueOnce('emitir');
     await previewAndEmit(session, input);
 
-    expect(confirmMock).toHaveBeenCalledTimes(1);
+    expect(chooseOneMock).toHaveBeenCalledTimes(1);
+    expect(confirmMock).not.toHaveBeenCalled();
     expect(session.createVoucher).toHaveBeenCalledTimes(1);
   });
 
-  it('con `pdf nunca` se puede emitir y generar el PDF desde la confirmacion', async () => {
+  it.each([undefined, 'preguntar', 'siempre', 'nunca'] as const)(
+    'con `pdf %s` ofrece emitir, emitir con PDF y no emitir, con los mismos botones que el CLI',
+    async (pdf) => {
+      const session = createSession('testing', 3, pdf);
+
+      chooseOneMock.mockResolvedValueOnce(false);
+      await previewAndEmit(session, input);
+
+      expect(chooseOneMock).toHaveBeenCalledWith(
+        expect.stringContaining('Emitimos'),
+        [
+          { name: 'Sí, emitir ahora', value: 'emitir' },
+          { name: 'Sí, emitir y generar el PDF', value: 'emitir-con-pdf' },
+          { name: 'No, dejar sin emitir', value: false },
+        ],
+        pdf === 'siempre' ? 'emitir-con-pdf' : 'emitir',
+        { escapeLabel: 'no emitir', escapeValue: false },
+      );
+    },
+  );
+
+  it('emitir y generar el PDF lo genera aunque la config diga `nunca`', async () => {
     const session = createSession('testing', 3, 'nunca');
 
-    vi.mocked(chooseOne).mockResolvedValueOnce('emitir-con-pdf');
+    chooseOneMock.mockResolvedValueOnce('emitir-con-pdf');
     await previewAndEmit(session, input);
 
-    expect(confirmMock).not.toHaveBeenCalled();
     expect(session.createVoucher).toHaveBeenCalledTimes(1);
     expect(offerPdf).toHaveBeenCalledWith(
       expect.objectContaining({ pdf: 'nunca' }),
@@ -98,29 +121,23 @@ describe('previewAndEmit', () => {
     );
   });
 
-  it('con `pdf nunca` la opcion del PDF va entre emitir y no emitir, con los mismos botones', async () => {
-    const session = createSession('testing', 3, 'nunca');
+  it('emitir ahora no genera el PDF ni pregunta después, aunque la config diga `siempre`', async () => {
+    const session = createSession('testing', 3, 'siempre');
 
-    vi.mocked(chooseOne).mockResolvedValueOnce(false);
+    chooseOneMock.mockResolvedValueOnce('emitir');
     await previewAndEmit(session, input);
 
-    expect(session.createVoucher).not.toHaveBeenCalled();
-    expect(chooseOne).toHaveBeenCalledWith(
-      expect.stringContaining('Emitimos'),
-      [
-        expect.objectContaining({ name: 'Sí, emitir ahora', value: 'emitir' }),
-        expect.objectContaining({ name: 'Sí, emitir y generar el PDF', value: 'emitir-con-pdf' }),
-        expect.objectContaining({ name: 'No, dejar sin emitir', value: false }),
-      ],
-      undefined,
-      { escapeValue: false },
+    expect(offerPdf).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ pdf: false }),
+      expect.anything(),
     );
   });
 
   it('en produccion, emitir con PDF pide la segunda confirmacion y respeta el PDF', async () => {
     const declined = createSession('produccion', 3, 'nunca');
 
-    vi.mocked(chooseOne).mockResolvedValueOnce('emitir-con-pdf');
+    chooseOneMock.mockResolvedValueOnce('emitir-con-pdf');
     confirmMock.mockResolvedValueOnce(false);
     await previewAndEmit(declined, input);
     expect(declined.createVoucher).not.toHaveBeenCalled();
@@ -128,7 +145,7 @@ describe('previewAndEmit', () => {
 
     const accepted = createSession('produccion', 3, 'nunca');
 
-    vi.mocked(chooseOne).mockResolvedValueOnce('emitir-con-pdf');
+    chooseOneMock.mockResolvedValueOnce('emitir-con-pdf');
     confirmMock.mockResolvedValueOnce(true);
     await previewAndEmit(accepted, input);
     expect(confirmMock).toHaveBeenCalledWith(
@@ -140,29 +157,18 @@ describe('previewAndEmit', () => {
     expect(offerPdf).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ pdf: true }), expect.anything());
   });
 
-  it('sin elegir el PDF, la config decide como siempre', async () => {
-    const session = createSession('testing');
-
-    confirmMock.mockResolvedValueOnce(true);
-    await previewAndEmit(session, input);
-
-    expect(offerPdf).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ pdf: undefined }),
-      expect.anything(),
-    );
-  });
-
   it('en produccion pide una segunda confirmacion antes de emitir', async () => {
     const declined = createSession('produccion');
 
-    confirmMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    chooseOneMock.mockResolvedValueOnce('emitir');
+    confirmMock.mockResolvedValueOnce(false);
     await previewAndEmit(declined, input);
     expect(declined.createVoucher).not.toHaveBeenCalled();
 
     const accepted = createSession('produccion');
 
-    confirmMock.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
+    chooseOneMock.mockResolvedValueOnce('emitir');
+    confirmMock.mockResolvedValueOnce(true);
     await previewAndEmit(accepted, input);
     expect(accepted.createVoucher).toHaveBeenCalledTimes(1);
     expect(confirmMock).toHaveBeenLastCalledWith(
@@ -172,24 +178,11 @@ describe('previewAndEmit', () => {
     );
   });
 
-  it('usa los mismos botones que la pregunta del CLI', async () => {
-    const session = createSession('testing');
-
-    confirmMock.mockResolvedValueOnce(false);
-    await previewAndEmit(session, input);
-
-    expect(confirmMock).toHaveBeenCalledWith(
-      expect.stringContaining('Emitimos'),
-      'Sí, emitir ahora',
-      'No, dejar sin emitir',
-    );
-  });
-
   it('el comando equivalente lleva nombre y domicilio del padrón, porque con --ir el CLI no lo consulta', async () => {
     const session = createSession('testing');
     const write = vi.mocked(process.stdout.write);
 
-    confirmMock.mockResolvedValueOnce(false);
+    chooseOneMock.mockResolvedValueOnce(false);
     await previewAndEmit(session, {
       ...input,
       documentNumber: 30709965812,
@@ -212,7 +205,7 @@ describe('previewAndEmit', () => {
     const write = vi.mocked(process.stdout.write);
 
     expect(ready?.pointOfSale).toBe(7);
-    confirmMock.mockResolvedValueOnce(true);
+    chooseOneMock.mockResolvedValueOnce('emitir');
     await previewAndEmit(ready!.session, input);
 
     expect(write.mock.calls.map(([chunk]) => String(chunk)).join('')).toContain('--consumidor-final --pv 7 --testing');
@@ -225,7 +218,7 @@ describe('previewAndEmit', () => {
     const session = createSession('testing');
     const write = vi.mocked(process.stdout.write);
 
-    confirmMock.mockResolvedValueOnce(false);
+    chooseOneMock.mockResolvedValueOnce(false);
     await previewAndEmit(session, input);
 
     expect(write.mock.calls.map(([chunk]) => String(chunk)).join('')).toContain(
@@ -238,7 +231,7 @@ describe('previewAndEmit', () => {
     const write = vi.mocked(process.stdout.write);
 
     vi.mocked(session.billingGateway.getQuotation).mockResolvedValueOnce(1415.25);
-    confirmMock.mockResolvedValueOnce(false);
+    chooseOneMock.mockResolvedValueOnce(false);
     await previewAndEmit(session, { ...input, currencyCode: 'USD' });
 
     expect(session.billingGateway.getQuotation).toHaveBeenCalledWith('DOL');
