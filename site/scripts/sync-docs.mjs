@@ -19,36 +19,88 @@ export const BASE = '/arcli';
 const REPO = 'https://github.com/LcsGrz/arcli';
 
 /** Secciones generadas: se borran y se vuelven a escribir en cada corrida. */
-const GENERATED_SECTIONS = ['empezar', 'comprobantes', 'mas', 'referencia', 'ayuda'];
+const GENERATED_SECTIONS = ['empezar', 'uso', 'comprobantes', 'mas', 'referencia', 'ayuda'];
+
+/** Las secciones del menu, en orden, con su nombre y la entrada del encabezado. */
+const SECTIONS = [
+  { dir: 'empezar', label: 'Empezar' },
+  { dir: 'uso', label: 'Formas de uso' },
+  { dir: 'comprobantes', label: 'Comprobantes' },
+  { dir: 'mas', label: 'Más' },
+  { dir: 'referencia', label: 'Referencia' },
+  { dir: 'ayuda', label: 'Ayuda' },
+];
 
 /**
  * Que pagina sale de cada archivo. `label` es el nombre corto del menu; sin el, el titulo del documento.
  * El orden del menu es el de esta lista dentro de cada seccion.
  */
 const PAGES = [
-  { label: 'Instalar y configurar', slug: 'empezar/instalar', src: 'README.md', title: 'Instalar y configurar arcli' },
-  { label: 'Certificado de testing', slug: 'empezar/certificado-testing', src: 'docs/certificado-testing.md' },
-  { label: 'Certificado de producción', slug: 'empezar/certificado-produccion', src: 'docs/certificado-produccion.md' },
-  { label: 'Cambiar de entorno', slug: 'empezar/entornos', src: 'docs/entornos.md' },
-  { label: 'Modo interactivo', slug: 'empezar/modo-interactivo', src: 'docs/modo-interactivo.md' },
-  { label: 'Cómo funciona', slug: 'empezar/como-funciona', src: 'docs/mental-model.md' },
-  { label: 'Monotributo (C)', slug: 'comprobantes/monotributo', src: 'docs/comprobantes-monotributo.md' },
-  { label: 'Responsable inscripto (A y B)', slug: 'comprobantes/responsable-inscripto', src: 'docs/comprobantes-responsable-inscripto.md' },
-  { label: 'Notas de crédito y débito', slug: 'comprobantes/notas', src: 'docs/notas-credito-debito.md' },
-  { label: 'Crédito electrónica (FCE)', slug: 'comprobantes/fce', src: 'docs/fce.md' },
-  { label: 'Exportación (E)', slug: 'comprobantes/exportacion', src: 'docs/exportacion.md' },
-  { label: 'Consultas sin emitir', slug: 'mas/consultas', src: 'docs/consultas.md' },
-  { label: 'PDF de comprobantes', slug: 'mas/pdf', src: 'docs/pdf.md' },
-  { label: 'Lotes y JSON', slug: 'mas/lotes-y-json', src: 'docs/lotes-y-json.md' },
-  { label: 'Automatizar con IA', slug: 'mas/automatizar-con-ia', src: 'docs/automatizar-con-ia.md' },
-  { label: 'Comandos y flags', slug: 'referencia/comandos', src: 'docs/cli-reference.md' },
-  { label: 'Configuración', slug: 'referencia/configuracion', src: 'docs/configuration.md' },
-  { label: 'Entrada y salida (JSON)', slug: 'referencia/entrada-y-salida', src: 'docs/input-output.md' },
-  { label: 'Reglas de validación', slug: 'referencia/validaciones', src: 'docs/validation-rules.md' },
-  { label: 'Glosario', slug: 'referencia/glosario', src: 'docs/glossary.md' },
-  { label: 'Limitaciones', slug: 'referencia/limitaciones', src: 'docs/limitations.md' },
-  { label: 'Problemas frecuentes', slug: 'ayuda/problemas-frecuentes', src: 'docs/troubleshooting.md' },
-  { label: 'Novedades', slug: 'ayuda/novedades', src: 'CHANGELOG.md', title: 'Novedades de cada versión' },
+  {
+    icon: 'descarga',
+    label: 'Instalar y configurar',
+    slug: 'empezar/instalar',
+    src: 'README.md',
+    title: 'Instalar y configurar ARCLI',
+  },
+  {
+    icon: 'frasco',
+    label: 'Certificado de testing',
+    slug: 'empezar/certificado-testing',
+    src: 'docs/certificado-testing.md',
+  },
+  {
+    icon: 'escudo',
+    label: 'Certificado de producción',
+    slug: 'empezar/certificado-produccion',
+    src: 'docs/certificado-produccion.md',
+  },
+  { icon: 'flechas', label: 'Cambiar de entorno', slug: 'empezar/entornos', src: 'docs/entornos.md' },
+  { icon: 'capas', label: 'Cómo funciona', slug: 'empezar/como-funciona', src: 'docs/mental-model.md' },
+  { icon: 'chat', label: 'Asistente', slug: 'uso/asistente', src: 'docs/modo-interactivo.md' },
+  { icon: 'chispa', label: 'Con IA', slug: 'uso/con-ia', src: 'docs/automatizar-con-ia.md' },
+  {
+    icon: 'factura',
+    label: 'Monotributo (C)',
+    slug: 'comprobantes/monotributo',
+    src: 'docs/comprobantes-monotributo.md',
+  },
+  {
+    icon: 'factura',
+    label: 'Responsable inscripto (A y B)',
+    slug: 'comprobantes/responsable-inscripto',
+    src: 'docs/comprobantes-responsable-inscripto.md',
+  },
+  {
+    icon: 'libro',
+    label: 'Notas de crédito y débito',
+    slug: 'comprobantes/notas',
+    src: 'docs/notas-credito-debito.md',
+  },
+  { icon: 'banco', label: 'Crédito electrónica (FCE)', slug: 'comprobantes/fce', src: 'docs/fce.md' },
+  { icon: 'mundo', label: 'Exportación (E)', slug: 'comprobantes/exportacion', src: 'docs/exportacion.md' },
+  { icon: 'lupa', label: 'Consultas sin emitir', slug: 'mas/consultas', src: 'docs/consultas.md' },
+  { icon: 'pdf', label: 'PDF de comprobantes', slug: 'mas/pdf', src: 'docs/pdf.md' },
+  { icon: 'pila', label: 'Lotes y JSON', slug: 'mas/lotes-y-json', src: 'docs/lotes-y-json.md' },
+  { icon: 'lista', label: 'Comandos y flags', slug: 'referencia/comandos', src: 'docs/cli-reference.md' },
+  { icon: 'ajustes', label: 'Configuración', slug: 'referencia/configuracion', src: 'docs/configuration.md' },
+  {
+    icon: 'llaves',
+    label: 'Entrada y salida (JSON)',
+    slug: 'referencia/entrada-y-salida',
+    src: 'docs/input-output.md',
+  },
+  { icon: 'check', label: 'Reglas de validación', slug: 'referencia/validaciones', src: 'docs/validation-rules.md' },
+  { icon: 'glosario', label: 'Glosario', slug: 'referencia/glosario', src: 'docs/glossary.md' },
+  { icon: 'alerta', label: 'Limitaciones', slug: 'referencia/limitaciones', src: 'docs/limitations.md' },
+  { icon: 'llave', label: 'Problemas frecuentes', slug: 'ayuda/problemas-frecuentes', src: 'docs/troubleshooting.md' },
+  {
+    icon: 'campana',
+    label: 'Novedades',
+    slug: 'ayuda/novedades',
+    src: 'CHANGELOG.md',
+    title: 'Novedades de cada versión',
+  },
 ];
 
 /**
@@ -94,7 +146,9 @@ function rewriteTarget(src, target, includedReadmeAnchors) {
   if (/^(https?:|mailto:|#)/.test(target)) {
     const github = target.match(/^https:\/\/github\.com\/LcsGrz\/arcli\/blob\/main\/([^#?]+)(?:#(.*))?$/);
 
-    return github ? rewriteTarget('', github[1], includedReadmeAnchors).replace(/#$/, '') + (github[2] ? `#${github[2]}` : '') : target;
+    return github
+      ? rewriteTarget('', github[1], includedReadmeAnchors).replace(/#$/, '') + (github[2] ? `#${github[2]}` : '')
+      : target;
   }
 
   const [path, anchor] = target.split('#');
@@ -135,8 +189,14 @@ function rewriteLinks(src, text, includedReadmeAnchors) {
       index % 2 === 1
         ? part
         : part
-            .replace(/(!?\[[^\]]*\]\()([^)\s]+)(\))/g, (_, open, target, close) => open + rewriteTarget(src, target, includedReadmeAnchors) + close)
-            .replace(/(<img\s[^>]*src=")([^"]+)(")/g, (_, open, target, close) => open + rewriteTarget(src, target, includedReadmeAnchors) + close),
+            .replace(
+              /(!?\[[^\]]*\]\()([^)\s]+)(\))/g,
+              (_, open, target, close) => open + rewriteTarget(src, target, includedReadmeAnchors) + close,
+            )
+            .replace(
+              /(<img\s[^>]*src=")([^"]+)(")/g,
+              (_, open, target, close) => open + rewriteTarget(src, target, includedReadmeAnchors) + close,
+            ),
     )
     .join('');
 }
@@ -186,7 +246,42 @@ function extractBody(page, raw) {
  * El logo ASCII y la version salen del CLI (`renderLogo.ts` y `package.json`), para que la portada muestre lo mismo
  * que la terminal sin copiarlo a mano.
  */
-function writeBrand() {
+async function githubStars() {
+  try {
+    const response = await fetch('https://api.github.com/repos/LcsGrz/arcli', { signal: AbortSignal.timeout(5000) });
+
+    return response.ok ? (await response.json()).stargazers_count : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * El menu: una seccion por carpeta, en el orden de `SECTIONS`, y cada pagina con su icono (`data-icon`, lo dibuja
+ * `Sidebar.astro`). Las paginas con `group` van juntas en un grupo plegable; "Monotributo · C" lleva la letra al lado.
+ */
+function writeSidebar() {
+  const sidebar = SECTIONS.map(({ dir, label }) => {
+    const items = [];
+
+    for (const page of PAGES.filter((other) => other.slug.split('/')[0] === dir)) {
+      const link = { attrs: { 'data-icon': page.icon }, label: page.label ?? page.title, slug: page.slug };
+      const last = items.at(-1);
+
+      if (page.group && last?.items && last.label === page.group) last.items.push(link);
+      else if (page.group) items.push({ collapsed: true, items: [link], label: page.group });
+      else items.push(link);
+    }
+
+    return { items, label };
+  }).filter((section) => section.items.length > 0);
+  const target = join(siteDir, 'src/generated/sidebar.json');
+
+  mkdirSync(dirname(target), { recursive: true });
+  writeFileSync(target, `${JSON.stringify(sidebar, null, 2)}\n`);
+}
+
+function writeBrand(stars) {
   const logoSource = readFileSync(join(repoDir, 'src/ui/primitives/renderLogo.ts'), 'utf8');
   const block = logoSource.match(/ARCLI_ASCII_BANNER = \[([\s\S]*?)\]\.join/);
   const split = logoSource.match(/ARCLI_BANNER_AR_CLI_SPLIT_COLUMN = (\d+)/);
@@ -200,7 +295,7 @@ function writeBrand() {
   const target = join(siteDir, 'src/generated/brand.json');
 
   mkdirSync(dirname(target), { recursive: true });
-  writeFileSync(target, `${JSON.stringify({ banner, splitColumn: Number(split[1]), version }, null, 2)}\n`);
+  writeFileSync(target, `${JSON.stringify({ banner, splitColumn: Number(split[1]), stars, version }, null, 2)}\n`);
 }
 
 /** Escribe en `public/` (se sirve tal cual, en la raiz del sitio). */
@@ -251,7 +346,7 @@ function githubAlertsToAsides(text) {
   return out.join('\n');
 }
 
-function sync() {
+async function sync() {
   for (const section of GENERATED_SECTIONS) {
     rmSync(join(contentDir, section), { force: true, recursive: true });
     rmSync(join(siteDir, 'public', section), { force: true, recursive: true });
@@ -295,7 +390,8 @@ function sync() {
   cpSync(join(repoDir, 'docs/assets/imagenes/arcliIcon.svg'), join(siteDir, 'src/assets/logo.svg'));
   cpSync(join(repoDir, 'docs/assets/imagenes/arcliIcon.svg'), join(siteDir, 'public/favicon.svg'));
 
-  writeBrand();
+  writeBrand(await githubStars());
+  writeSidebar();
 
   // Para asistentes de IA: llms.txt (el resumen curado) y llms-full.txt (todo junto), en la raiz del sitio.
   writePublic('llms.txt', readFileSync(join(repoDir, 'llms.txt'), 'utf8'));
@@ -307,4 +403,4 @@ function sync() {
   console.log(`Sitio: ${PAGES.length} páginas generadas desde docs/.`);
 }
 
-sync();
+await sync();

@@ -1,0 +1,17 @@
+---
+/**
+ * Como el de Starlight, pero sin preferencia guardada arranca en oscuro (no en el del sistema): es el tema de la
+ * terminal y de la portada. `ThemeSelect.astro` cambia entre oscuro, claro y automático.
+ */
+---
+
+{/* En linea para que no parpadee al cargar. */}
+<script is:inline>
+  window.StarlightThemeProvider = (() => {
+    const stored = typeof localStorage !== 'undefined' && localStorage.getItem('starlight-theme');
+    const theme = stored === 'auto' ? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : stored || 'dark';
+    document.documentElement.dataset.theme = theme === 'light' ? 'light' : 'dark';
+
+    return { updatePickers() {} };
+  })();
+</script>

@@ -1,0 +1,201 @@
+---
+/** Como `SidebarSublist` de Starlight, con iconos por pagina y la letra de la familia en los grupos de comprobantes. */
+import SidebarRestorePoint from '@astrojs/starlight/components/SidebarRestorePoint.astro';
+import type { StarlightRouteData } from '@astrojs/starlight/route-data';
+
+import { ICONS, type IconName } from '../icons';
+import Icon from './Icon.astro';
+
+type Entry = StarlightRouteData['sidebar'][number];
+
+interface Props {
+  nested?: boolean;
+  sublist: Entry[];
+}
+
+const { nested, sublist } = Astro.props;
+
+const hasCurrent = (entry: Entry): boolean =>
+  entry.type === 'link' ? entry.isCurrent : entry.entries.some((child) => hasCurrent(child));
+
+/** "Monotributo · C" -> { name: "Monotributo", letter: "C" }. */
+const family = (label: string) => {
+  const match = label.match(/^(.+) · ([A-Z])$/);
+
+  return match ? { letter: match[2], name: match[1] } : { letter: null, name: label };
+};
+
+const iconOf = (attrs: Record<string, unknown>): IconName | null => {
+  const name = attrs['data-icon'];
+
+  return typeof name === 'string' && name in ICONS ? (name as IconName) : null;
+};
+---
+
+<ul class:list={{ 'top-level': !nested }}>
+  {
+    sublist.map((entry) => {
+      if (entry.type === 'link') {
+        const icon = iconOf(entry.attrs);
+        const { 'data-icon': _icon, ...attrs } = entry.attrs;
+
+        return (
+          <li>
+            <a href={entry.href} aria-current={entry.isCurrent ? 'page' : undefined} class:list={[{ large: !nested }, attrs.class]} {...attrs}>
+              {icon && <Icon name={icon} />}
+              <span>{entry.label}</span>
+            </a>
+          </li>
+        );
+      }
+
+      const { letter, name } = family(entry.label);
+      const isSection = !nested;
+
+      return (
+        <li>
+          {isSection ? (
+            <>
+              <p class="section-label">{entry.label}</p>
+              <Astro.self sublist={entry.entries} nested />
+            </>
+          ) : (
+            <details class="sub-group" open={hasCurrent(entry) || !entry.collapsed}>
+              <summary>
+                {letter ? <span class={`chip chip-${letter.toLowerCase()}`}>{letter}</span> : <Icon name="libro" />}
+                <span class="group-name">{name}</span>
+                <small>{entry.entries.length}</small>
+                <Icon name="caret" class="caret" size="0.9rem" />
+              </summary>
+              <SidebarRestorePoint />
+              <Astro.self sublist={entry.entries} nested />
+            </details>
+          )}
+        </li>
+      );
+    })
+  }
+</ul>
+
+<style>
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .top-level > li + li {
+    margin-top: 1.25rem;
+  }
+
+  .section-label {
+    margin: 0 0 0.4rem;
+    color: var(--sl-color-gray-3);
+    font: 600 0.72rem / 1.4 var(--sl-font-system-mono);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .top-level > li > ul {
+    border-inline-start: 1px solid var(--sl-color-hairline);
+  }
+
+  a,
+  summary {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.32rem 0.7rem;
+    border-inline-start: 1px solid transparent;
+    margin-inline-start: -1px;
+    color: var(--sl-color-gray-2);
+    font-size: var(--sl-text-sm);
+    line-height: 1.4;
+    text-decoration: none;
+  }
+
+  a:hover,
+  summary:hover {
+    color: var(--sl-color-white);
+  }
+
+  a[aria-current='page'] {
+    border-inline-start-color: var(--sl-color-text-accent);
+    color: var(--sl-color-text-accent);
+    font-weight: 600;
+  }
+
+  a :global(.arcli-icon),
+  summary :global(.arcli-icon) {
+    flex: none;
+    opacity: 0.75;
+  }
+
+  summary {
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+  }
+
+  summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .group-name {
+    flex: 1;
+  }
+
+  summary small {
+    color: var(--sl-color-gray-4);
+    font: 500 0.7rem / 1 var(--sl-font-system-mono);
+  }
+
+  summary :global(.caret) {
+    opacity: 0.5;
+    transform: rotate(0deg);
+    transition: transform 0.15s;
+  }
+
+  details[open] > summary {
+    color: var(--sl-color-white);
+  }
+
+  details[open] > summary :global(.caret) {
+    transform: rotate(90deg);
+  }
+
+  .sub-group > ul {
+    margin-inline-start: 0.85rem;
+    border-inline-start: 1px solid var(--sl-color-hairline);
+  }
+
+  /* La letra de la familia, con los mismos colores suaves en todo el sitio */
+  .chip {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    width: 1.1rem;
+    height: 1.1rem;
+    border-radius: 0.3rem;
+    border: 1px solid color-mix(in srgb, var(--chip) 38%, transparent);
+    background: color-mix(in srgb, var(--chip) 16%, transparent);
+    color: color-mix(in srgb, var(--chip) 85%, var(--sl-color-gray-2));
+    font: 700 0.64rem / 1 var(--sl-font-system-mono);
+  }
+
+  .chip-c {
+    --chip: var(--arcli-verde);
+  }
+
+  .chip-a {
+    --chip: var(--arcli-celeste);
+  }
+
+  .chip-b {
+    --chip: var(--arcli-lavanda);
+  }
+
+  .chip-e {
+    --chip: var(--arcli-sol);
+  }
+</style>

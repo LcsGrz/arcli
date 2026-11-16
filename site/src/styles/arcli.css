@@ -28,3 +28,48 @@
   display: block;
   overflow-x: auto;
 }
+
+:root {
+  --arcli-sol: #f9d77e;
+  --arcli-hdr-hi: #2c2c42;
+  --arcli-hdr-lo: #181825;
+  /* Menu mas ancho y texto a 46rem, como en la maqueta */
+  --sl-sidebar-width: 17rem;
+  --sl-content-width: 46rem;
+}
+
+:root[data-theme='light'] {
+  --arcli-sol: #9a6b00;
+  --arcli-hdr-hi: #ffffff;
+  --arcli-hdr-lo: #eef1f7;
+}
+
+/* Encabezado con el degradé de la imagen de portada y una línea celeste a lavanda abajo */
+header.header {
+  background:
+    radial-gradient(
+      ellipse 60% 300% at 50% 0%,
+      color-mix(in srgb, var(--arcli-hdr-hi) 95%, transparent),
+      transparent 80%
+    ),
+    var(--arcli-hdr-lo);
+  border-bottom-color: transparent;
+}
+
+header.header::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--arcli-celeste) 30%, var(--arcli-lavanda) 70%, transparent);
+  opacity: 0.7;
+}
+
+/* Tamaños de la maqueta: título de 2.5rem, secciones de 1.5rem y el menú del mismo fondo que la página */
+:root {
+  --sl-text-h1: 2.5rem;
+  --sl-text-h2: 1.5rem;
+  --sl-text-h3: 1.2rem;
+  --sl-text-h4: 1.05rem;
+  --sl-color-bg-sidebar: var(--sl-color-black);
+}
