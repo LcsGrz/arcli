@@ -862,13 +862,13 @@ header.header {
 }
 
 /* Imágenes: el lugar reservado (ancho y alto los pone sync-docs) y un fondo gris mientras cargan */
-.sl-markdown-content img {
+.sl-markdown-content img:not(.not-content *) {
   height: auto;
   background: var(--sl-color-gray-6);
 }
 
 /* El PDF de ejemplo, centrado y con sombra, como las capturas de la portada */
-.sl-markdown-content img[src$='pdf-factura.png'] {
+.sl-markdown-content img[src$='pdf-factura.png']:not(.not-content *) {
   display: block;
   margin-inline: auto;
   border-radius: 0.4rem;
@@ -959,4 +959,9 @@ header.header {
 .sidebar-pane::-webkit-scrollbar-track,
 .right-sidebar::-webkit-scrollbar-track {
   background: transparent;
+}
+
+/* El ícono de los avisos, apenas más grande que su título */
+.starlight-aside__icon {
+  font-size: 1.1em !important;
 }

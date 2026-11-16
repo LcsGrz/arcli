@@ -1,7 +1,7 @@
 ---
 /**
- * Como el de Starlight, pero sin preferencia guardada arranca en oscuro (no en el del sistema): es el tema de la
- * terminal y de la portada. `ThemeSelect.astro` cambia entre oscuro, claro y automático.
+ * Como el de Starlight: sin preferencia guardada sigue el tema del sistema. La portada es siempre oscura.
+ * `ThemeSelect.astro` cambia entre automático, claro y oscuro.
  */
 ---
 
@@ -9,7 +9,7 @@
 <script is:inline>
   window.StarlightThemeProvider = (() => {
     const stored = typeof localStorage !== 'undefined' && localStorage.getItem('starlight-theme');
-    const theme = stored === 'auto' ? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : stored || 'dark';
+    const theme = stored === 'light' || stored === 'dark' ? stored : matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
     // La portada es siempre oscura: el tema elegido vale para las docs.
     const home = /^\/arcli\/?$/.test(location.pathname);
     document.documentElement.dataset.theme = home || theme !== 'light' ? 'dark' : 'light';
