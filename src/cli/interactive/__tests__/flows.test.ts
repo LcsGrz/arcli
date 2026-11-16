@@ -14,6 +14,7 @@ import {
   askCbuStep,
   buildInvoiceInput,
   type InvoiceState,
+  invoiceStateForReceiver,
   invoiceSteps,
   offerSavingCbu,
   runInvoiceFlow,
@@ -170,6 +171,59 @@ describe('flujos del modo interactivo', () => {
         currencyCode: 'EUR',
         exchangeRate: 1200,
         sameCurrency: false,
+      });
+    });
+
+    describe('con el receptor de "Datos de un CUIT"', () => {
+      const receiver = {
+        address: 'Av. Siempreviva 742',
+        cuit: 20201797064,
+        ivaCondition: 'responsable-inscripto' as const,
+        name: 'Empresa de Ejemplo SRL',
+      };
+
+      it('no pregunta el receptor ni la condición IVA si sirve para la letra, y no ofrece la E', async () => {
+        script = createScript([
+          [/comprobante/, 'Factura A'],
+          [/Qué estás facturando/, 'Servicios'],
+          [/Monto total/, '1000'],
+          [/Agregamos/, []],
+        ]);
+
+        const session = createSession();
+        const state = await runWizard(invoiceSteps(session), {
+          advanced: initialAdvancedOptions(session.runtime.config),
+          ...invoiceStateForReceiver(receiver),
+        });
+        const kinds = onlyChoices(script.chooseStep.mock.calls[0][1]).map((choice) => choice.name);
+
+        expect(kinds.some((name) => name.includes('exportación'))).toBe(false);
+        expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
+          documentNumber: 20201797064,
+          documentType: 'cuit',
+          ivaCondition: 'responsable-inscripto',
+          ivaConditionSource: 'padron',
+          receiverAddress: 'Av. Siempreviva 742',
+          receiverName: 'Empresa de Ejemplo SRL',
+        });
+      });
+
+      it('si la condición del padrón no sirve para la letra, la pregunta', async () => {
+        script = createScript([
+          [/comprobante/, 'Factura B'],
+          [/Condición frente al IVA de Empresa de Ejemplo SRL/, 'Sujeto exento'],
+          [/Qué estás facturando/, 'Servicios'],
+          [/Monto total/, '1000'],
+          [/Agregamos/, []],
+        ]);
+
+        const session = createSession();
+        const state = await runWizard(invoiceSteps(session), {
+          advanced: initialAdvancedOptions(session.runtime.config),
+          ...invoiceStateForReceiver(receiver),
+        });
+
+        expect(state).toMatchObject({ documentNumber: 20201797064, ivaCondition: 'sujeto-exento' });
       });
     });
 

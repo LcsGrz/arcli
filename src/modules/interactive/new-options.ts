@@ -6,6 +6,8 @@ export const NEW_OPTION_SINCE = {
   'acceso-directo': '2.4.0',
   autocompletado: '2.2.0',
   certificados: '2.3.0',
+  consultas: '2.5.0',
+  'donde-config': '2.5.0',
   'factura-e': '2.2.0',
   'notas-e': '2.5.0',
   recibo: '2.3.0',
@@ -15,7 +17,12 @@ export const NEW_OPTION_SINCE = {
 export type NewOption = keyof typeof NEW_OPTION_SINCE;
 
 /** Las opciones de Configuracion que tienen marca: el menu principal la marca mientras haya alguna nueva. */
-export const CONFIG_MENU_NEW_OPTIONS: readonly NewOption[] = ['certificados', 'autocompletado', 'acceso-directo'];
+export const CONFIG_MENU_NEW_OPTIONS: readonly NewOption[] = [
+  'certificados',
+  'autocompletado',
+  'acceso-directo',
+  'donde-config',
+];
 
 const NEW_FOR_MINOR_VERSIONS = 2;
 

@@ -1,7 +1,6 @@
 import type { Command } from 'commander';
 
-import { AppError } from '../../lib/errors/app-error';
-import { formatEnvironmentLabel } from '../../modules/config/config.schemas';
+import { taxpayerNotFoundError } from '../../modules/padron/padron';
 import { formatPadronAsJson, formatPadronAsText } from '../../modules/padron/padron.presenter';
 import { ArcaPadronGateway } from '../../services/arca/arca-padron.gateway';
 import { createArcaQuery, withQuerySpinner, writeQueryOutput } from '../arca-query';
@@ -26,16 +25,7 @@ export function registerPadronCommand(program: Command): void {
     const taxpayer = await withQuerySpinner(runtime, () => gateway.getTaxpayer(cuit), 'Consultando el padrón...');
 
     if (!taxpayer) {
-      throw new AppError(
-        `El CUIT ${cuit} no figura en el padrón de ARCA (${formatEnvironmentLabel(runtime.environment)}).`,
-        {
-          code: 'TAXPAYER_NOT_FOUND',
-          suggestion:
-            runtime.environment === 'testing'
-              ? 'El padrón de testing tiene datos ficticios: probá con 20201797064.'
-              : 'Revisá el número.',
-        },
-      );
+      throw taxpayerNotFoundError(cuit, runtime.environment);
     }
 
     const report = { environment: runtime.environment, taxpayer };

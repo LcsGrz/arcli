@@ -33,11 +33,11 @@ import type { GlobalCliOptions } from '../types';
 import { CLI_VERSION } from '../version';
 
 import { runConfigMenu, runGuidedSetup } from './config.flow';
-import { runHistoryFlow } from './history.flow';
 import { runInvoiceFlow } from './invoice.flow';
 import { markIfNew } from './new-mark';
 import { runNoteFlow } from './note.flow';
 import { chooseOne, confirm, isPromptCancellation } from './prompts';
+import { runQueriesMenu } from './queries.flow';
 import { runRepeatFlow } from './repeat.flow';
 import { createInteractiveSession, type InteractiveSession } from './session';
 import { runStatusFlow } from './status.flow';
@@ -46,9 +46,9 @@ import { runUpdateFlow } from './update.flow';
 type MenuOption =
   | 'actualizar'
   | 'config'
+  | 'consultas'
   | 'estado'
   | 'factura'
-  | 'historial'
   | 'nota-credito'
   | 'nota-debito'
   | 'recibo'
@@ -102,7 +102,7 @@ async function runOption(
   if (option === 'repetir') await runRepeatFlow(session);
   if (option === 'nota-credito') await runNoteFlow(session, 'credito');
   if (option === 'nota-debito') await runNoteFlow(session, 'debito');
-  if (option === 'historial') await runHistoryFlow(session);
+  if (option === 'consultas') await runQueriesMenu(session);
   if (option === 'estado') await runStatusFlow(session);
 }
 
@@ -275,11 +275,14 @@ export async function runInteractiveMode(options: GlobalCliOptions = {}): Promis
             value: 'nota-credito',
           },
           { description: 'Cargo adicional sobre una factura', name: 'Emitir nota de débito', value: 'nota-debito' },
-          {
-            description: 'Los últimos de cada tipo, o buscar uno por número',
-            name: 'Consultar comprobantes',
-            value: 'historial',
-          },
+          markIfNew(
+            {
+              description: 'Tus comprobantes, CUITs, cotizaciones y tablas de ARCA',
+              name: 'Consultas',
+              value: 'consultas',
+            },
+            'consultas',
+          ),
           { description: 'Servidores, punto de venta y cotización del dólar', name: 'Estado de ARCA', value: 'estado' },
           markIfNew(
             {

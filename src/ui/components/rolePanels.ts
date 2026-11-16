@@ -55,8 +55,8 @@ export function checklistPanel(title: string, content: PanelContent, status: Pan
 }
 
 /** Listado en tabla, como los últimos comprobantes. Sin color. */
-export function listingPanel(title: string, content: PanelContent): string {
-  return statusPanelFor('listing', 'wide', title, content);
+export function listingPanel(title: string, content: PanelContent, status?: PanelStatus): string {
+  return statusPanelFor('listing', 'wide', title, content, status);
 }
 
 /** Observaciones y avisos. */

@@ -41,11 +41,18 @@ import {
   formatConfigAsText,
   formatConfigDoctor,
   formatConfigDoctorAsText,
+  formatConfigLocationAsText,
 } from '../config/config.presenter';
 import type { ArcliConfig } from '../config/config.schemas';
 import { buildConfigDoctorReport } from '../config/config-doctor';
+import { formatFceObligationAsText } from '../fce/fce-obligation.presenter';
 import { formatPadronAsText } from '../padron/padron.presenter';
-import { formatParameterTablesAsText, formatStatusAsText } from '../parameters/parameters.presenter';
+import {
+  formatParameterEntriesAsText,
+  formatParameterTablesAsText,
+  formatQuotationAsText,
+  formatStatusAsText,
+} from '../parameters/parameters.presenter';
 import { formatPdfPluginStatusAsText } from '../pdf/pdf.presenter';
 import { renderUpdateDetails, renderUpdateNoticePanel } from '../update-check/update-check.presenter';
 import type { UpdateCheckResult } from '../update-check/update-check.service';
@@ -376,7 +383,7 @@ function buildQueriesScene(): string {
   const voucherKind = createVoucherKind({});
 
   return [
-    sceneTitle('Consultas', 'Padrón, estado, listados, parámetros y plugin de PDF'),
+    sceneTitle('Consultas', 'Padrón, FCE, estado, listados, parámetros, cotización, config y plugin de PDF'),
     formatPadronAsText({
       environment: 'testing',
       taxpayer: {
@@ -422,7 +429,25 @@ function buildQueriesScene(): string {
     }),
     formatVoucherListAsText({ environment: 'testing', pointOfSale: 3, voucherKind, vouchers: [] }),
     formatVoucherDetailAsText({ environment: 'testing', pointOfSale: 3, voucher: createSampleVoucher(), voucherKind }),
+    formatFceObligationAsText({
+      cuit: 20333333334,
+      environment: 'testing',
+      issueDate: '20261116',
+      obligation: { minimumAmount: 3_958_316, obligated: true },
+    }),
     formatParameterTablesAsText(),
+    formatParameterEntriesAsText(
+      'iva-receptor',
+      [
+        { description: 'IVA Responsable Inscripto', detail: 'A/M/C', id: '1' },
+        { description: 'IVA Sujeto Exento', detail: 'B/C', id: '4' },
+        { description: 'Consumidor Final', detail: 'B/C', id: '5' },
+        { description: 'Responsable Monotributo', detail: 'A/M/C', id: '6' },
+      ],
+      'testing',
+    ),
+    formatQuotationAsText({ currency: '060', date: '20261116', rate: 1520.75 }, 'testing'),
+    formatConfigLocationAsText('/ruta/a/arcli/config.json'),
     formatPdfPluginStatusAsText({
       browser: '/ruta/al/navegador',
       browserSource: 'sistema',

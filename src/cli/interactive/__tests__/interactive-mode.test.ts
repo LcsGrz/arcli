@@ -8,10 +8,10 @@ import { checkForUpdate } from '../../../modules/update-check/update-check.servi
 import { stripAnsi } from '../../../ui';
 import { CLI_VERSION } from '../../version';
 import { runConfigMenu, runGuidedSetup } from '../config.flow';
-import { runHistoryFlow } from '../history.flow';
 import { runInteractiveMode } from '../interactive-mode';
 import { runInvoiceFlow } from '../invoice.flow';
 import { chooseOne, confirm } from '../prompts';
+import { runQueriesMenu } from '../queries.flow';
 import { runRepeatFlow } from '../repeat.flow';
 import { createInteractiveSession } from '../session';
 import { runUpdateFlow } from '../update.flow';
@@ -40,7 +40,7 @@ vi.mock('../repeat.flow', () => ({ runRepeatFlow: vi.fn() }));
 vi.mock('../status.flow', () => ({ runStatusFlow: vi.fn() }));
 vi.mock('../invoice.flow', () => ({ runInvoiceFlow: vi.fn() }));
 vi.mock('../note.flow', () => ({ runNoteFlow: vi.fn() }));
-vi.mock('../history.flow', () => ({ runHistoryFlow: vi.fn() }));
+vi.mock('../queries.flow', () => ({ runQueriesMenu: vi.fn() }));
 vi.mock('../update.flow', () => ({ runUpdateFlow: vi.fn() }));
 vi.mock('../../../modules/parameters/health', () => ({ checkArcaHealth: vi.fn(async () => 'funcionando') }));
 vi.mock('../../../modules/update-check/update-check.service', () => ({ checkForUpdate: vi.fn(async () => null) }));
@@ -221,12 +221,12 @@ describe('runInteractiveMode', () => {
   });
 
   it('corre el flujo elegido y vuelve al menu', async () => {
-    chooseOneMock.mockResolvedValueOnce('factura').mockResolvedValueOnce('historial').mockResolvedValueOnce('salir');
+    chooseOneMock.mockResolvedValueOnce('factura').mockResolvedValueOnce('consultas').mockResolvedValueOnce('salir');
 
     await runInteractiveMode();
 
     expect(runInvoiceFlow).toHaveBeenCalledTimes(1);
-    expect(runHistoryFlow).toHaveBeenCalledTimes(1);
+    expect(runQueriesMenu).toHaveBeenCalledTimes(1);
   });
 
   it('Ctrl+C dentro de un flujo cancela y vuelve al menu', async () => {

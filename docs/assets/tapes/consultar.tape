@@ -21,9 +21,12 @@ Show
 
 Type "arcli" Sleep 600ms Enter
 Sleep 2.5s
-# Consultar comprobantes
+# Consultas
 Down 5
 Sleep 500ms
+Enter
+Sleep 1s
+# Mis comprobantes
 Enter
 Sleep 1s
 # Factura C
