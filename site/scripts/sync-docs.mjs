@@ -532,6 +532,17 @@ const headingSlug = (heading) =>
     .replace(/[^\p{L}\p{N}\s-]/gu, '')
     .replace(/\s/g, '-');
 
+/** El color de la etiqueta de severidad, por su primera palabra: crítico y alta en rojo, frecuente y común en amarillo. */
+function severityKind(text) {
+  const first = text.toLowerCase().split(/[\s(]/)[0];
+
+  if (/^(crítico|alta)$/.test(first)) return 'alta';
+  if (/^(frecuente|común)$/.test(first)) return 'frecuente';
+  if (first === 'media') return 'media';
+
+  return 'baja';
+}
+
 /**
  * Problemas frecuentes: cada `### problema` pasa a un desplegable con su severidad al lado, agrupados por tema (`##`),
  * con un buscador arriba (`public/arcli.js`). El desplegable conserva el ancla del titulo, asi los links siguen andando.
@@ -551,7 +562,7 @@ function problems(text, page) {
         .replace(/^- \*\*Severidad:\*\* .+\n/m, '')
         .trim();
 
-      return `<details class="arcli-faq" id="${headingSlug(name.replace(/`/g, ''))}">\n<summary><span class="t">${inlineHtml(name)}</span>${severity ? `<span class="sev">${inlineHtml(severity[1])}</span>` : ''}</summary>\n\n${body}\n\n</details>\n`;
+      return `<details class="arcli-faq" id="${headingSlug(name.replace(/`/g, ''))}">\n<summary><span class="t">${inlineHtml(name)}</span>${severity ? `<span class="sev sev-${severityKind(severity[1])}">${inlineHtml(severity[1])}</span>` : ''}</summary>\n\n${body}\n\n</details>\n`;
     });
 
     return `<section class="arcli-faq-section">\n\n${title.trim()}\n\n${faqs.join('\n')}\n</section>\n`;
