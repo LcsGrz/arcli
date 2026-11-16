@@ -50,7 +50,7 @@ export const CONFIG_SECTIONS: readonly ConfigSection[] = [
     label: 'Datos del emisor (PDF)',
   },
   { id: 'pdf', keys: ['pdf', 'pdfCarpeta', 'pdfNavegador', 'condicionVenta'], label: 'PDF' },
-  { id: 'salida', keys: ['comprobantesPorLista', 'emitir', 'json', 'bruto'], label: 'Salida y listados' },
+  { id: 'salida', keys: ['filasPorLista', 'emitir', 'json', 'bruto'], label: 'Salida y listados' },
 ];
 
 /** Nombre de cada dato, igual en `arcli config` y en el modo interactivo. */
@@ -61,7 +61,6 @@ export const CONFIG_LABELS: Record<ConfigPublicKey, string> = {
   cbu: 'CBU',
   'cert.produccion': 'Certificado de producción',
   'cert.testing': 'Certificado de testing',
-  comprobantesPorLista: 'Comprobantes por lista',
   concepto: 'Concepto',
   condicionVenta: 'Condición de venta (PDF de A, B y C)',
   cotizacion: 'Cotización (deprecada)',
@@ -79,6 +78,7 @@ export const CONFIG_LABELS: Record<ConfigPublicKey, string> = {
   'exportacion.cert.testing': 'Certificado de exportación (testing)',
   'exportacion.key.produccion': 'Clave de exportación (producción)',
   'exportacion.key.testing': 'Clave de exportación (testing)',
+  filasPorLista: 'Filas por lista',
   ivaReceptor: 'IVA del receptor',
   json: 'Salida JSON',
   'key.produccion': 'Clave privada de producción',

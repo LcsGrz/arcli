@@ -296,7 +296,7 @@ arcli config establecer <clave> <valor>
 arcli config eliminar <clave>
 ```
 
-Claves válidas: `cuit`, `cbu`, `aliasCbu` (solo facturas FCE), `verificarFce`, `consultarPadron` (por defecto `true`), `alicuota`, `puntoVenta`, `comprobantesPorLista` (1 a 50, por defecto 15), `concepto`, `ivaReceptor`, `moneda`, `cotizacion` (deprecada: se saca en la 3.0.0; mejor `--cm` o la oficial),
+Claves válidas: `cuit`, `cbu`, `aliasCbu` (solo facturas FCE), `verificarFce`, `consultarPadron` (por defecto `true`), `alicuota`, `puntoVenta`, `filasPorLista` (1 a 50, por defecto 15: filas de `ultimos` y de las listas del modo interactivo; `comprobantesPorLista` es su nombre viejo, deprecado: se lee y `config establecer` la guarda como `filasPorLista`, hasta la 3.0.0), `concepto`, `ivaReceptor`, `moneda`, `cotizacion` (deprecada: se saca en la 3.0.0; mejor `--cm` o la oficial),
 `entorno` (`testing`/`produccion`), `emitir`, `json`, `bruto` (booleanos: `true/false`,
 `si/no`, `1/0`), `cert.testing`, `cert.produccion`, `key.testing`, `key.produccion`
 (rutas a archivos PEM, se validan al guardar), `exportacion.cert.testing`, `exportacion.cert.produccion`,
@@ -310,13 +310,13 @@ por CUIT emisor, los de testing en `testing/<CUIT>/`, y nunca se pisa un PDF exi
 
 `config revisar` también avisa si un certificado ya venció o vence en menos de 30 días, y revisa el plugin de PDF (chequeo "Plugin de PDF": instalado, versión y navegador; si falta, solo avisa con `pdf=siempre`). Con `--json` devuelve
 `{ok, chequeos: [{categoria: "ok"|"warning"|"error", etiqueta, detalle}]}`; `ok: false` sale igual con exit code `0`.
-`arcli config --json` devuelve la config con las rutas enmascaradas (`cert`, `key`, `emisor` y `exportacion` como objetos).
+`arcli config --json` devuelve la config con las rutas enmascaradas (`cert`, `key`, `emisor` y `exportacion` como objetos). Si `filasPorLista` tiene valor, también trae `comprobantesPorLista` con el mismo (deprecada) y `deprecado`.
 Además, a menos de 30 días de vencer cualquiera de los certificados configurados (testing o producción, sin importar el entorno
 en uso), cada comando que va a ARCA avisa en stderr (nunca en stdout) y la facturación lo suma a `avisos` del JSON.
 
 ## Otros comandos
 
-- `arcli ultimos <tipo> [--cantidad N] [--pv N] [--json]`: últimos comprobantes emitidos (de 1 a 50; por defecto `config.comprobantesPorLista` o 15), del más nuevo al más viejo. `tipo` es el atajo (`fb`, `nca`, `rc`, `fe`, `nde`, `nce`…). La E sale con `cliente`, `destino`, `moneda`, `total` y `comprobanteAsociado` en lugar de receptor e importes.
+- `arcli ultimos <tipo> [--cantidad N] [--pv N] [--json]`: últimos comprobantes emitidos (de 1 a 50; por defecto `config.filasPorLista` o 15), del más nuevo al más viejo. `tipo` es el atajo (`fb`, `nca`, `rc`, `fe`, `nde`, `nce`…). La E sale con `cliente`, `destino`, `moneda`, `total` y `comprobanteAsociado` en lugar de receptor e importes.
 - `arcli consultar <tipo> <numero> [--pv N] [--json]`: detalle de un comprobante emitido (CAE, vencimiento, importes, receptor). Si no existe, el error es `VOUCHER_NOT_FOUND`. Sirve para verificar después de emitir, también la E (`EMISSION_UNCERTAIN` de la E sugiere `arcli consultar fe <numero>`).
 - `arcli certificado generar [--testing|--produccion] [--alias <alias>] [--reemplazar] [--json]`: crea la clave privada y el CSR para subir a ARCA en `certificados/<CUIT>/` junto a la config (sin `openssl`). La clave queda pendiente: la activa sigue andando hasta importar. Con un pedido pendiente da `CERTIFICATE_REQUEST_PENDING`; `--reemplazar` lo descarta. El JSON trae `csr`, `pasos`, `rutaCsr` y `rutaClave`. Un agente nunca ve la clave fiscal: la persona sube el CSR y baja el `.crt` en ARCA.
 - `arcli certificado importar <archivo> [--testing|--produccion] [--reemplazar] [--json]`: valida el `.crt` de ARCA (X.509, CUIT, vencimiento, que corresponda a la clave del pedido), deduce el entorno del emisor, lo guarda y configura `cert.<entorno>`/`key.<entorno>`. Devuelve `{alias, cuit, entorno, reemplazado, rutaCertificado, rutaClave, vence}`. Si ya había otro certificado configurado, sin TTY o con `--json` hace falta `--reemplazar` (si no, `CERTIFICATE_REPLACE_CONFIRMATION`). Otros errores: `CERTIFICATE_INVALID`, `CERTIFICATE_CUIT_MISMATCH`, `CERTIFICATE_EXPIRED`, `CERTIFICATE_ENVIRONMENT_UNKNOWN`, `CERTIFICATE_KEY_MISMATCH`.

@@ -22,7 +22,6 @@ import {
 export type CanonicalConfigKey =
   | 'alicuotaPorDefecto'
   | 'aliasCbu'
-  | 'comprobantesPorLista'
   | 'cbu'
   | 'cert.produccion'
   | 'cert.testing'
@@ -42,6 +41,7 @@ export type CanonicalConfigKey =
   | 'exportacion.cert.testing'
   | 'exportacion.key.produccion'
   | 'exportacion.key.testing'
+  | 'filasPorLista'
   | 'ivaReceptorPorDefecto'
   | 'key.produccion'
   | 'key.testing'
@@ -199,8 +199,6 @@ export function parseConfigValue(key: CanonicalConfigKey, value: string): boolea
       return parseIvaRate(value);
     case 'aliasCbu':
       return parseCbuAlias(value);
-    case 'comprobantesPorLista':
-      return parseRecentCount(value);
     case 'cbu':
       return parseCbu(value);
     case 'conceptoPorDefecto':
@@ -211,6 +209,8 @@ export function parseConfigValue(key: CanonicalConfigKey, value: string): boolea
       return parseExchangeRate(value);
     case 'cuit':
       return parseConfigCuit(value);
+    case 'filasPorLista':
+      return parseRecentCount(value);
     case 'emisor.condicionIva':
       return arcliDefaultIvaConditionSchema.parse(value.trim().toLowerCase());
     case 'emisor.domicilio':

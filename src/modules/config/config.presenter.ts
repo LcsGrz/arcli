@@ -17,13 +17,14 @@ import {
 import { RECENT_VOUCHERS_LIMIT } from '../vouchers/voucher-history';
 
 import type { ArcliConfig, ConfigPublicKey } from './config.schemas';
-import { formatEnvironmentLabel, isPadronLookupEnabled } from './config.schemas';
+import { formatEnvironmentLabel, isPadronLookupEnabled, resolveConfiguredRowsPerList } from './config.schemas';
 import { CONFIG_LABELS, CONFIG_SECTIONS } from './config.sections';
 import { CONFIG_DOCTOR_SECTIONS, type ConfigDoctorReport } from './config-doctor';
 
 interface PublicConfigSnapshot {
   readonly alicuota?: ArcliConfig['alicuotaPorDefecto'];
   readonly aliasCbu?: string;
+  /** Deprecada hasta la 3.0.0: el mismo valor que `filasPorLista`, para quien ya la leia. */
   readonly comprobantesPorLista?: number;
   readonly cbu?: string;
   readonly cert: {
@@ -34,6 +35,8 @@ interface PublicConfigSnapshot {
   readonly condicionVenta?: string;
   readonly cotizacion?: number;
   readonly cuit?: string;
+  /** Solo si la respuesta trae una clave deprecada (`comprobantesPorLista`). */
+  readonly deprecado?: readonly string[];
   readonly emisor: ArcliConfig['emisor'];
   readonly emitir: boolean;
   readonly entorno: 'produccion' | 'testing';
@@ -48,6 +51,7 @@ interface PublicConfigSnapshot {
       readonly testing?: string;
     };
   };
+  readonly filasPorLista?: number;
   readonly ivaReceptor?: ArcliConfig['ivaReceptorPorDefecto'];
   readonly json: boolean;
   readonly key: {
@@ -74,10 +78,12 @@ export interface ConfigPathSnapshot {
 
 function toPublicSnapshot(config: ArcliConfig, paths: ConfigPathSnapshot): PublicConfigSnapshot {
   const dedicated = config.exportacion;
+  const rowsPerList = resolveConfiguredRowsPerList(config);
+
   return {
     alicuota: config.alicuotaPorDefecto,
     aliasCbu: config.aliasCbu,
-    comprobantesPorLista: config.comprobantesPorLista,
+    comprobantesPorLista: rowsPerList,
     cbu: config.cbu,
     cert: {
       produccion: config.cert.produccion ? maskPath(config.cert.produccion) : undefined,
@@ -101,6 +107,7 @@ function toPublicSnapshot(config: ArcliConfig, paths: ConfigPathSnapshot): Publi
         testing: dedicated?.key.testing ? maskPath(dedicated.key.testing) : undefined,
       },
     },
+    filasPorLista: rowsPerList,
     ivaReceptor: config.ivaReceptorPorDefecto,
     json: config.output.jsonPorDefecto,
     key: {
@@ -116,6 +123,7 @@ function toPublicSnapshot(config: ArcliConfig, paths: ConfigPathSnapshot): Publi
     ticketPath: maskPath(paths.ticketPath),
     verificarFce: config.verificarFce,
     consultarPadron: isPadronLookupEnabled(config),
+    deprecado: rowsPerList === undefined ? undefined : [ROWS_PER_LIST_JSON_DEPRECATION],
   };
 }
 
@@ -145,6 +153,9 @@ export function formatConfigPathAsJson(configPath: string): string {
   return JSON.stringify({ ruta: configPath }, null, 2);
 }
 
+const ROWS_PER_LIST_JSON_DEPRECATION =
+  '`comprobantesPorLista` se saca en la 3.0.0: usá `filasPorLista`, que trae el mismo valor.';
+
 const NOT_SET = 'sin configurar';
 
 type PublicConfigValue = (config: PublicConfigSnapshot) => number | string;
@@ -160,7 +171,6 @@ const CONFIG_TEXT_VALUES: Record<ConfigPublicKey, PublicConfigValue> = {
   cbu: (c) => notSet(c.cbu),
   'cert.produccion': (c) => notSet(c.cert.produccion),
   'cert.testing': (c) => notSet(c.cert.testing),
-  comprobantesPorLista: (c) => c.comprobantesPorLista ?? `${RECENT_VOUCHERS_LIMIT} (por defecto)`,
   concepto: (c) => notSet(c.concepto),
   condicionVenta: (c) => notSet(c.condicionVenta),
   cotizacion: (c) => formatExchangeRate(c.cotizacion ?? 1),
@@ -179,6 +189,7 @@ const CONFIG_TEXT_VALUES: Record<ConfigPublicKey, PublicConfigValue> = {
   'exportacion.cert.testing': (c) => notSet(c.exportacion.cert.testing),
   'exportacion.key.produccion': (c) => notSet(c.exportacion.key.produccion),
   'exportacion.key.testing': (c) => notSet(c.exportacion.key.testing),
+  filasPorLista: (c) => c.filasPorLista ?? `${RECENT_VOUCHERS_LIMIT} (por defecto)`,
   ivaReceptor: (c) => notSet(c.ivaReceptor),
   json: (c) => yesNo(c.json),
   'key.produccion': (c) => notSet(c.key.produccion),

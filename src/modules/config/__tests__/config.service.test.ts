@@ -4,7 +4,8 @@ import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ConfigurationError } from '../../../lib/errors/app-error';
-import { ConfigService, resolveConfigDirectory } from '../config.service';
+import { resolveRowsPerList, ROWS_PER_LIST_DEPRECATION_WARNING } from '../config.schemas';
+import { ConfigService, deprecatedConfigKeyWarning, resolveConfigDirectory } from '../config.service';
 
 const temporaryDirectories: string[] = [];
 
@@ -271,6 +272,107 @@ describe('config.service', () => {
     expect((thrown as ConfigurationError).details).toEqual({ path: configPath });
     expect((thrown as ConfigurationError).suggestion).toMatch(/arcli config/);
     expect(readFileSync(configPath, 'utf8')).toBe(corruptContent);
+  });
+});
+
+describe('filasPorLista y la clave deprecada comprobantesPorLista', () => {
+  function readStoredFile(service: ConfigService): Record<string, unknown> {
+    return JSON.parse(readFileSync(service.getPath(), 'utf8')) as Record<string, unknown>;
+  }
+
+  it('lee comprobantesPorLista si es la unica que esta en el archivo', () => {
+    const service = createService();
+
+    try {
+      writeFileSync(service.getPath(), JSON.stringify({ comprobantesPorLista: 8 }));
+
+      expect(resolveRowsPerList(service.getConfig())).toBe(8);
+    } finally {
+      service.close();
+    }
+  });
+
+  it('con las dos en el archivo gana filasPorLista', () => {
+    const service = createService();
+
+    try {
+      writeFileSync(service.getPath(), JSON.stringify({ comprobantesPorLista: 8, filasPorLista: 20 }));
+
+      expect(resolveRowsPerList(service.getConfig())).toBe(20);
+    } finally {
+      service.close();
+    }
+  });
+
+  it('sin ninguna, usa 15', () => {
+    const service = createService();
+
+    try {
+      expect(resolveRowsPerList(service.getConfig())).toBe(15);
+    } finally {
+      service.close();
+    }
+  });
+
+  it('establecer comprobantesPorLista guarda filasPorLista y saca la vieja del archivo', () => {
+    const service = createService();
+
+    try {
+      writeFileSync(service.getPath(), JSON.stringify({ comprobantesPorLista: 8 }));
+
+      const config = service.setValue(' comprobantesPorLista ', '25');
+
+      expect(config.filasPorLista).toBe(25);
+      expect(config.comprobantesPorLista).toBeUndefined();
+      expect(readStoredFile(service)).toMatchObject({ filasPorLista: 25 });
+      expect(readStoredFile(service)).not.toHaveProperty('comprobantesPorLista');
+    } finally {
+      service.close();
+    }
+  });
+
+  it('establecer comprobantesPorLista valida el rango como filasPorLista', () => {
+    const service = createService();
+
+    try {
+      expect(() => service.setValue('comprobantesPorLista', '99')).toThrow(/entre 1 y 50/);
+    } finally {
+      service.close();
+    }
+  });
+
+  it('establecer filasPorLista tambien saca la vieja, para que no vuelva al borrar la nueva', () => {
+    const service = createService();
+
+    try {
+      writeFileSync(service.getPath(), JSON.stringify({ comprobantesPorLista: 8 }));
+      service.setValue('filasPorLista', '30');
+
+      expect(readStoredFile(service)).not.toHaveProperty('comprobantesPorLista');
+      expect(resolveRowsPerList(service.unsetValue('filasPorLista'))).toBe(15);
+    } finally {
+      service.close();
+    }
+  });
+
+  it('eliminar cualquiera de las dos borra las dos', () => {
+    const service = createService();
+
+    try {
+      writeFileSync(service.getPath(), JSON.stringify({ comprobantesPorLista: 8, filasPorLista: 20 }));
+      service.unsetValue('comprobantesPorLista');
+
+      expect(readStoredFile(service)).not.toHaveProperty('comprobantesPorLista');
+      expect(readStoredFile(service)).not.toHaveProperty('filasPorLista');
+    } finally {
+      service.close();
+    }
+  });
+
+  it('solo la clave deprecada trae aviso', () => {
+    expect(deprecatedConfigKeyWarning(' comprobantesPorLista')).toBe(ROWS_PER_LIST_DEPRECATION_WARNING);
+    expect(deprecatedConfigKeyWarning('filasPorLista')).toBeUndefined();
+    expect(deprecatedConfigKeyWarning('toString')).toBeUndefined();
   });
 });
 

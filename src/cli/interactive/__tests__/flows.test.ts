@@ -1169,7 +1169,7 @@ describe('flujos del modo interactivo', () => {
       const vouchers = Array.from({ length: 12 }, (_, index) => invoice({ ivaAmount: 0, number: index + 1 }));
       const session = createSession(vouchers);
 
-      Object.assign(session.runtime.config, { comprobantesPorLista: 8 });
+      Object.assign(session.runtime.config, { filasPorLista: 8 });
       const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
       const [firstList, secondList] = script.chooseStep.mock.calls
         .filter(([message]) => /Sobre qué factura C/.test(message))

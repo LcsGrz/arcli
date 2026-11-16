@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { billingConceptValueSchema, billingIvaConditionSchema, billingIvaRateSchema } from '../billing/billing.schemas';
 import { saleConditionSchema } from '../billing/sale-condition';
-import { MAX_RECENT_VOUCHERS } from '../vouchers/voucher-history';
+import { MAX_RECENT_VOUCHERS, RECENT_VOUCHERS_LIMIT } from '../vouchers/voucher-history';
 
 export const arcliEnvironmentSchema = z.enum(['testing', 'produccion']);
 export const arcliDefaultConceptSchema = billingConceptValueSchema;
@@ -84,7 +84,9 @@ export const arcliConfigSchema = z.object({
   pdfNavegador: z.string().trim().min(1).optional(),
   /** Condicion de venta del PDF de A, B y C cuando el comprobante no trae una. */
   condicionVenta: saleConditionSchema.optional(),
-  /** Cuantos comprobantes muestran `arcli ultimos` y las listas del modo interactivo. */
+  /** Filas de `arcli ultimos` y de las listas del modo interactivo (comprobantes, tablas de ARCA, monedas). */
+  filasPorLista: z.number().int().min(1).max(MAX_RECENT_VOUCHERS).optional(),
+  /** Deprecada hasta la 3.0.0: se lee si no hay `filasPorLista`, y `config establecer` la pasa a `filasPorLista`. */
   comprobantesPorLista: z.number().int().min(1).max(MAX_RECENT_VOUCHERS).optional(),
   puntoVentaPorDefecto: z.number().int().positive().optional(),
   ticketPath: z.string().trim().min(1).optional(),
@@ -114,6 +116,24 @@ export type ArcliPdfMode = z.infer<typeof arcliPdfModeSchema>;
 export const COTIZACION_DEPRECATION_WARNING =
   'La clave "cotizacion" está deprecada y se va a sacar en la 3.0.0: una cotización guardada queda vieja. Sin ella se usa la cotización oficial de ARCA; para otra, pasá `--cm` al facturar.';
 
+/**
+ * Filas por pagina de las listas: `filasPorLista`, o la clave deprecada `comprobantesPorLista` si es la unica que
+ * esta en el archivo.
+ */
+export function resolveConfiguredRowsPerList(
+  config: Pick<ArcliConfig, 'comprobantesPorLista' | 'filasPorLista'>,
+): number | undefined {
+  return config.filasPorLista ?? config.comprobantesPorLista;
+}
+
+export function resolveRowsPerList(config: Pick<ArcliConfig, 'comprobantesPorLista' | 'filasPorLista'>): number {
+  return resolveConfiguredRowsPerList(config) ?? RECENT_VOUCHERS_LIMIT;
+}
+
+/** `comprobantesPorLista` se renombro a `filasPorLista` porque tambien cuenta tablas y monedas (CONF-1). */
+export const ROWS_PER_LIST_DEPRECATION_WARNING =
+  'La clave "comprobantesPorLista" está deprecada y se va a sacar en la 3.0.0: usá `filasPorLista`.';
+
 export const CONFIG_DEFAULTS: ArcliConfig = {
   cert: {},
   emisor: {},
@@ -131,7 +151,6 @@ export const CONFIG_DEFAULTS: ArcliConfig = {
 export const configPublicKeySchema = z.enum([
   'alicuota',
   'aliasCbu',
-  'comprobantesPorLista',
   'cbu',
   'cert.produccion',
   'cert.testing',
@@ -152,6 +171,7 @@ export const configPublicKeySchema = z.enum([
   'exportacion.cert.testing',
   'exportacion.key.produccion',
   'exportacion.key.testing',
+  'filasPorLista',
   'ivaReceptor',
   'json',
   'key.produccion',

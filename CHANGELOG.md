@@ -10,7 +10,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### Agregado
 
-- **Consultas en el modo interactivo:** "Consultar comprobantes" pasa a ser **Consultas**, con todo lo que el CLI consulta: **Mis comprobantes** (lo de antes), **Datos de un CUIT** (`arcli padron`), **Si un cliente recibe FCE** (`arcli fce-obligado`, con la fecha de hoy), **Cotización de una moneda** y **Tablas de ARCA** (las nueve de `arcli parametros`). Después del padrón, **Emitir una factura a este CUIT** arranca la factura con el CUIT, el nombre, el domicilio y la condición IVA ya cargados. Las tablas largas y la lista de monedas se filtran escribiendo (`eur`, `060` o `usd`) y se desplazan con las flechas; las filas por página son las de `comprobantesPorLista`. Un error de ARCA vuelve a Consultas en lugar de al menú. Configuración suma **Dónde está la config** (`arcli config ruta`).
+- **Clave de config `filasPorLista`** (1 a 50, por defecto 15): reemplaza a `comprobantesPorLista`, que ya no cuenta solo comprobantes sino también las filas de las tablas de ARCA y la lista de monedas del modo interactivo. Hace lo mismo: cuántas filas muestran `arcli ultimos` (sin `--cantidad`) y las listas del modo interactivo. `arcli config establecer filasPorLista 25`.
+- **Consultas en el modo interactivo:** "Consultar comprobantes" pasa a ser **Consultas**, con todo lo que el CLI consulta: **Mis comprobantes** (lo de antes), **Datos de un CUIT** (`arcli padron`), **Si un cliente recibe FCE** (`arcli fce-obligado`, con la fecha de hoy), **Cotización de una moneda** y **Tablas de ARCA** (las nueve de `arcli parametros`). Después del padrón, **Emitir una factura a este CUIT** arranca la factura con el CUIT, el nombre, el domicilio y la condición IVA ya cargados. Las tablas largas y la lista de monedas se filtran escribiendo (`eur`, `060` o `usd`) y se desplazan con las flechas; las filas por página son las de `filasPorLista`. Un error de ARCA vuelve a Consultas en lugar de al menú. Configuración suma **Dónde está la config** (`arcli config ruta`).
 - **Encabezado y ayuda en `arcli parametros <tabla>`:** el listado tiene una fila de encabezado (`CÓDIGO`, la descripción y, en `iva-receptor` y `puntos-venta`, una tercera columna) y al pie para qué sirve el código en ARCLI. Es salida humana: el `--json` no cambia.
 - **Repetir una factura E en el modo interactivo:** "Repetir un comprobante anterior" ahora ofrece la factura de exportación `E`. Copia de la factura que devuelve ARCA el cliente, el destino, la moneda, el incoterm, los ítems, la forma de pago, el idioma y la actividad; sale con fecha de hoy y la cotización del día, y pregunta el monto, los permisos de embarque y la fecha de pago. Si algún ítem tiene bonificación o no suman el total, avisa y sale un renglón con el monto total.
 - **Alias del CBU y guardar el CBU escrito a mano:** si en una FCE del modo interactivo el CBU se escribe porque no está en la config, también pide el alias cuando falta `aliasCbu` (Enter lo omite, como sin `--alias`), y al final ofrece guardar los dos (`cbu` y `aliasCbu`), como ya pasaba con la actividad de la `E`.
@@ -31,6 +32,10 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Mismos botones al emitir en el modo interactivo y en el CLI:** el asistente pregunta "¿Emitimos…?" con **Sí, emitir ahora** y **No, dejar sin emitir**, como los comandos con flags (antes, "Emitir ahora" y "Cancelar"). En producción sigue pidiendo una segunda confirmación, ahora con **Sí, emitir en producción** y **No, dejar sin emitir**. El CLI con flags sigue preguntando una sola vez.
 - **El modo interactivo pide el punto de venta al empezar si la config no tiene uno:** factura, recibo, factura `E`, notas, repetir y consultar lo preguntan antes del primer paso, en lugar de completar todo y frenar al final con un error que hablaba de flags del CLI. El comando equivalente lo lleva con `--pv`. Con un punto de venta en la config, no cambia nada.
 
+### Deprecado
+
+- **`comprobantesPorLista`**, ahora `filasPorLista`; se saca en la 3.0.0. Hasta entonces se sigue leyendo del archivo de config (si están las dos, gana `filasPorLista`), `arcli config establecer comprobantesPorLista N` avisa y guarda `filasPorLista` (y saca la vieja), y `arcli config --json` trae las dos con el mismo valor, más `deprecado`.
+
 ### Arreglado
 
 - **El comando equivalente del modo interactivo saca el mismo PDF:** con un CUIT, ahora lleva el nombre y el domicilio que trajo el padrón (`--receptor-nombre` y `--receptor-domicilio`). Como siempre lleva `--ir`, el CLI no consultaba el padrón y el comando pegado generaba el PDF sin esos datos.
@@ -45,6 +50,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Certificados:** la guía para obtenerlos, el README y la resolución de problemas muestran las dos formas de cargar el certificado: `arcli certificado generar` e `importar` (la recomendada, con la que ya no hay que configurar nada) o, si la clave se hizo con openssl, las rutas a mano con `arcli config establecer`.
 - **Sitio de documentación:** [lcsgrz.github.io/arcli](https://lcsgrz.github.io/arcli/), con menú por tarea (Empezar, Guías, Referencia, Ayuda), buscador, modo oscuro y buena lectura en el celular. Tiene las mismas guías que `docs/` y se actualiza con cada versión.
 - **Instalar o actualizar con IA:** el README trae un prompt corto, listo para copiar en un asistente de IA (Claude, ChatGPT, Gemini, Copilot…), que revisa Node, instala o actualiza arcli, lo verifica y crea el acceso directo la primera vez. Si el asistente no puede ejecutar comandos, te guía paso a paso.
+
 
 ## [2.4.0] - 2026-11-08
 

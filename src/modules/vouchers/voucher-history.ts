@@ -26,7 +26,7 @@ export interface VoucherHistoryGateway {
   getVoucher(number: number, pointOfSale: number, voucherType: number): Promise<IssuedVoucher | undefined>;
 }
 
-/** Cuantos comprobantes listar si no se pide otra cantidad; se cambia con `config.comprobantesPorLista`. */
+/** Cuantos comprobantes listar si no se pide otra cantidad; se cambia con `config.filasPorLista`. */
 export const RECENT_VOUCHERS_LIMIT = 15;
 export const MAX_RECENT_VOUCHERS = 50;
 
