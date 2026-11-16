@@ -33,7 +33,7 @@ export function invoiceKindChoices(): Array<InteractiveChoice<VoucherKindDefinit
       ? 'Factura de Crédito Electrónica MiPyMEs, para grandes empresas'
       : INVOICE_DESCRIPTIONS[definition.letter];
 
-    return { description, name: `${definition.displayName} (${shortcut})`, value: definition };
+    return { description, name: definition.displayName, value: definition };
   });
 }
 
@@ -43,7 +43,7 @@ export function reciboChoice(): InteractiveChoice<VoucherKindDefinition> {
 
   return {
     description: 'Comprobante de un cobro; lo emiten monotributistas y exentos',
-    name: `${definition.displayName} (${definition.shortcut})`,
+    name: definition.displayName,
     value: definition,
   };
 }
@@ -52,7 +52,7 @@ export function reciboChoice(): InteractiveChoice<VoucherKindDefinition> {
 export function exportInvoiceChoice(): InteractiveChoice<ExportVoucherKind> {
   return {
     description: 'A un cliente del exterior: servicios o bienes',
-    name: `${EXPORT_VOUCHER_KIND.displayName} (${EXPORT_VOUCHER_KIND.shortcut})`,
+    name: EXPORT_VOUCHER_KIND.displayName,
     value: EXPORT_VOUCHER_KIND,
   };
 }
