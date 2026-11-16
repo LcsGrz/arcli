@@ -27,14 +27,14 @@ El modo interactivo no agrega comandos de emisión ni cambia flags, claves de co
 3. **Repetir un comprobante anterior**
 4. **Emitir nota de crédito**
 5. **Emitir nota de débito**
-6. **Consultar comprobantes**
+6. **Consultas**
 7. **Estado de ARCA**
 8. **Configuración**
 9. **Salir**
 
 Si hay una versión nueva de ARCLI, el menú suma arriba de todo **Actualizar a la versión X.Y.Z** (ver [Actualizar](#actualizar)).
 
-**Opciones nuevas.** Lo que se sumó en las últimas versiones lleva `(nuevo)` al final, en color: Emitir recibo, Certificados de ARCA y Acceso directo en el escritorio en Configuración, Recibo C y Factura de exportación E al elegir sobre qué comprobante va una nota. Configuración también lo lleva mientras tenga alguna opción nueva adentro. La marca se va sola dos versiones menores después de la que trajo la opción.
+**Opciones nuevas.** Lo que se sumó en las últimas versiones lleva `(nuevo)` al final, en color: Emitir recibo, Consultas y sus consultas nuevas, Certificados de ARCA, Acceso directo en el escritorio y Dónde está la config en Configuración, Recibo C y Factura de exportación E al elegir sobre qué comprobante va una nota. Configuración también lo lleva mientras tenga alguna opción nueva adentro. La marca se va sola dos versiones menores después de la que trajo la opción.
 
 Debajo del logo va la versión de ARCLI. Arriba del menú, la barra de estado muestra a la izquierda quién emite (la razón social de `emisor.razonSocial` o, si no está, el CUIT) y el punto de venta, y a la derecha cómo está ARCA y el entorno (`TESTING` en naranja o `PRODUCCIÓN` en celeste):
 
@@ -201,7 +201,7 @@ Después sigue igual que una factura nueva: vista previa, comando equivalente y 
 
 ### Repetir una factura E
 
-Elegís una de las últimas facturas `E` (con **Cargar más…** e **Ingresar el número a mano…**, como en "Consultar comprobantes") y se copian de lo que ARCA devuelve de ella (`FEXGetCMP`): el cliente, su domicilio e ID impositivo, el destino y su CUIT, el tipo de exportación, la moneda y si se cobró en esa moneda, el incoterm y su descripción, los ítems, la forma de pago, el idioma y la actividad. **No se copian** las fechas (sale con la de hoy), la cotización (la de aduana del día, salvo que cargues otra en los opcionales), los permisos de embarque ni las observaciones.
+Elegís una de las últimas facturas `E` (con **Cargar más…** e **Ingresar el número a mano…**, como en [Mis comprobantes](#mis-comprobantes)) y se copian de lo que ARCA devuelve de ella (`FEXGetCMP`): el cliente, su domicilio e ID impositivo, el destino y su CUIT, el tipo de exportación, la moneda y si se cobró en esa moneda, el incoterm y su descripción, los ítems, la forma de pago, el idioma y la actividad. **No se copian** las fechas (sale con la de hoy), la cotización (la de aduana del día, salvo que cargues otra en los opcionales), los permisos de embarque ni las observaciones.
 
 | Paso | Pregunta             | Detalle                                                                                                                                                      |
 | ---- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -216,13 +216,36 @@ Elegís una de las últimas facturas `E` (con **Cargar más…** e **Ingresar el
 
 Un solo renglón por el total se repite como descripción (`--descripcion`) y varios, como `--item`. Si algún ítem tiene bonificación, que el asistente no informa, o los ítems no suman el total, avisa y sale un renglón con el monto total. Después muestra la vista previa, el comando `arcli fe` equivalente y pregunta si emitir, como una factura `E` nueva.
 
-## Consultar comprobantes
+## Consultas
 
-![Consultar comprobantes: lista, cargar más y detalle de una Factura C](assets/demo/consultar.gif)
+Lo que el CLI consulta con `ultimos`, `consultar`, `padron`, `fce-obligado` y `parametros`, sin escribir comandos. Un error de ARCA (por ejemplo, sin conexión) se muestra y vuelve a este menú.
+
+| Opción                   | Qué hace                                                                                                                                                                      |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Mis comprobantes         | Los últimos emitidos de cada tipo, o uno por número ([abajo](#mis-comprobantes))                                                                                              |
+| Datos de un CUIT         | Pide el CUIT y muestra lo mismo que `arcli padron`. Después ofrece **Emitir una factura a este CUIT**                                                                         |
+| Si un cliente recibe FCE | Pide el CUIT y muestra lo mismo que `arcli fce-obligado`, con la fecha de hoy (para otra fecha, `arcli fce-obligado --fecha`)                                                 |
+| Cotización de una moneda | Elegís la moneda de la tabla de ARCA (el dólar primero) y muestra la cotización oficial, como `arcli parametros cotizacion`. Después vuelve a la lista                        |
+| Tablas de ARCA           | Las nueve de `arcli parametros`: puntos de venta, comprobantes, documentos, alícuotas, IVA del receptor, monedas, conceptos, opcionales y tributos ([abajo](#tablas-de-arca)) |
+
+**Emitir una factura a este CUIT** arranca "Emitir factura" con el CUIT, el nombre, el domicilio y la condición frente al IVA del padrón ya cargados: no pregunta a quién le facturás y pasa directo al comprobante, el concepto y el monto. La condición IVA se pregunta solo si el padrón no la informa o no sirve para la letra elegida (por ejemplo, un responsable inscripto en una factura B). Volver desde el primer paso vuelve a la pregunta; al terminar, vuelve al menú principal.
+
+### Tablas de ARCA
+
+La lista muestra el nombre de cada tabla, y la línea de abajo, para qué sirve su código en ARCLI. Cada tabla se muestra con una fila de encabezado (`CÓDIGO` o `NÚMERO`, la descripción y, si la tabla tiene, una tercera columna, como las letras que admite cada condición IVA) y esa misma ayuda.
+
+- **Si entra en una página**, va en un recuadro, igual que `arcli parametros <tabla>`.
+- **Si no entra**, va en una lista que se filtra escribiendo y se desplaza con las flechas. Enter o Esc vuelven a la lista de tablas.
+
+Las filas por página son las de `comprobantesPorLista` (15 por defecto). La lista de monedas de **Cotización de una moneda** es la misma: se filtra por nombre, código de ARCA o ISO (`eur`, `060` o `usd`) y se elige con Enter.
+
+### Mis comprobantes
+
+![Mis comprobantes: lista, cargar más y detalle de una Factura C](assets/demo/consultar.gif)
 
 Elegís el tipo (cualquiera de los 19 de A, B y C, o la factura de exportación `E` y sus notas de crédito y débito) y aparece la lista de los últimos 15 emitidos en el punto de venta configurado, con el mismo formato que `arcli ultimos`: número, fecha, receptor, total y CAE. En la `E` va el nombre del cliente en lugar del receptor. Igual que al elegir la factura de una nota, abajo están **Cargar más…** e **Ingresar el número a mano…** (punto de venta y número).
 
-Al elegir uno se muestra lo mismo que `arcli consultar`: CAE, vencimiento, importes y receptor. En la `E`, cliente, destino, tipo de exportación, moneda, total y, en las notas, la factura que ajustan. Después vuelve a la lista, con lo que ya estaba cargado, para ver otro. **Esc** o **"← Volver"** sale al menú.
+Al elegir uno se muestra lo mismo que `arcli consultar`: CAE, vencimiento, importes y receptor. En la `E`, cliente, destino, tipo de exportación, moneda, total y, en las notas, la factura que ajustan. Después vuelve a la lista, con lo que ya estaba cargado, para ver otro. **Esc** o **"← Volver"** vuelve a Consultas.
 
 ## Configuración
 
@@ -236,6 +259,7 @@ Al elegir uno se muestra lo mismo que `arcli consultar`: CAE, vencimiento, impor
 | Plugin de PDF                   | Estado del plugin; instalarlo, actualizarlo o desinstalarlo                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | Autocompletado                  | Si está instalado el autocompletado con Tab; instalarlo o desinstalarlo (como `arcli completado`)                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | Acceso directo en el escritorio | Crea o actualiza el ícono para abrir ARCLI con doble clic (como `arcli acceso-directo`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Dónde está la config            | El archivo de configuración y su carpeta (con los certificados, los tickets y el plugin de PDF), como `arcli config ruta`                                                                                                                                                                                                                                                                                                                                                                                                                               |
 
 Cada respuesta se valida igual que en `arcli config establecer` y se guarda en el momento: si cortás a mitad, lo ya respondido queda guardado. En las rutas del certificado y de la clave podés arrastrar el archivo a la terminal. Si en la guiada dejás el certificado para después, al terminar te dice que falta cargarlo y dónde. Al volver al menú, la barra se actualiza con lo que cambiaste.
 

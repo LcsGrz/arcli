@@ -5,6 +5,7 @@ import { emitKeypressEvents } from 'node:readline';
 import { BACK, type Back } from '../../modules/interactive/wizard';
 import { bold, colorize, uiSymbol, usesAsciiBorders, writeTerminalRaw } from '../../ui';
 
+import { filterList, type FilterListRow } from './filter-list';
 import { multiSelect } from './multi-select';
 
 export interface Choice<T> {
@@ -150,9 +151,10 @@ export function fitPageSize(count: number): number {
   return Math.max(12, Math.min(count, available));
 }
 
-const BACK_CHOICE = { name: `${uiSymbol('back')} Volver`, value: BACK } as const;
+/** "← Volver" al final de una lista, separado de las opciones por `BACK_SPACER`. */
+export const BACK_CHOICE = { name: `${uiSymbol('back')} Volver`, value: BACK } as const;
 // Linea en blanco entre las opciones y "Volver".
-const BACK_SPACER = new Separator(' ');
+export const BACK_SPACER = new Separator(' ');
 // Alternativa a Esc, por si la terminal no la manda.
 const BACK_TEXT = '<';
 const ESCAPE_REASON = 'esc';
@@ -169,7 +171,8 @@ function writeAnsweredLine(message: string, answer: string): void {
  */
 async function runStepPrompt<T>(
   run: (context: { clearPromptOnDone: boolean; signal: AbortSignal }) => Promise<T>,
-  answeredLine: (answer: T) => { readonly answer: string; readonly message: string },
+  /** Sin linea (`undefined`), el prompt se borra y no deja rastro, como una lista que solo se mira. */
+  answeredLine: (answer: T) => { readonly answer: string; readonly message: string } | undefined,
   signal?: AbortSignal,
 ): Promise<{ readonly aborted: true } | { readonly answer: Back | T }> {
   const controller = new AbortController();
@@ -189,7 +192,9 @@ async function runStepPrompt<T>(
     const answer = await run({ clearPromptOnDone: true, signal: controller.signal });
     const line = answeredLine(answer);
 
-    writeAnsweredLine(line.message, line.answer);
+    if (line) {
+      writeAnsweredLine(line.message, line.answer);
+    }
 
     return { answer };
   } catch (error) {
@@ -347,4 +352,75 @@ export async function chooseManyStep<T>(
   );
 
   return 'answer' in result ? result.answer : BACK;
+}
+
+export type { FilterListRow } from './filter-list';
+
+interface FilterListOptions<T> {
+  readonly defaultValue?: T;
+  readonly header?: string;
+  readonly help?: string;
+  readonly pageSize: number;
+}
+
+/**
+ * Elegir de una lista que se filtra escribiendo (por ejemplo "eur" o "060" para el euro) y se desplaza con las
+ * flechas. Esc vuelve al paso anterior.
+ */
+export async function chooseFromFilterList<T>(
+  message: string,
+  rows: ReadonlyArray<FilterListRow<T>>,
+  options: FilterListOptions<T>,
+): Promise<Back | T> {
+  const result = await runStepPrompt(
+    (context) =>
+      filterList<T>(
+        {
+          default: options.defaultValue,
+          header: options.header,
+          help: options.help,
+          message,
+          mode: 'elegir',
+          pageSize: options.pageSize,
+          rows,
+          theme: STEP_THEME,
+        },
+        context,
+      ),
+    (answer) => {
+      const row = rows.find((item) => item.value === answer);
+
+      return { answer: row?.short ?? row?.label.replace(/\s+/g, ' ').trim() ?? '', message };
+    },
+  );
+
+  if (!('answer' in result) || result.answer === BACK || result.answer === undefined) {
+    return BACK;
+  }
+
+  return result.answer;
+}
+
+/** Una tabla larga para mirar: se filtra escribiendo y se desplaza con las flechas. Enter o Esc la cierran. */
+export async function browseFilterList(
+  message: string,
+  rows: readonly string[],
+  options: Omit<FilterListOptions<string>, 'defaultValue'>,
+): Promise<void> {
+  await runStepPrompt(
+    (context) =>
+      filterList<string>(
+        {
+          header: options.header,
+          help: options.help,
+          message,
+          mode: 'ver',
+          pageSize: options.pageSize,
+          rows: rows.map((label) => ({ label, value: label })),
+          theme: STEP_THEME,
+        },
+        context,
+      ),
+    () => undefined,
+  );
 }

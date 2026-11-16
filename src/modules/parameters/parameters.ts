@@ -1,4 +1,5 @@
 import { InputValidationError } from '../../lib/errors/app-error';
+import { toArcaCurrencyCode } from '../billing/currency-codes';
 
 /** Tablas de referencia de ARCA (wsfe) que se pueden consultar con `arcli parametros <tabla>`. */
 export const PARAMETER_TABLES = {
@@ -78,4 +79,16 @@ export function salesPointToEntry(point: SalesPoint): ParameterEntry {
     id: String(point.number),
     validTo: point.closedOn,
   };
+}
+
+/**
+ * Las monedas que tienen cotizacion, para elegir una en el asistente: sin pesos y con el dolar primero, el resto en
+ * el orden de ARCA.
+ */
+export function quotableCurrencies(entries: readonly ParameterEntry[]): ParameterEntry[] {
+  const pesos = toArcaCurrencyCode('ARS');
+  const dollar = toArcaCurrencyCode('USD');
+  const foreign = entries.filter((entry) => entry.id !== pesos);
+
+  return [...foreign.filter((entry) => entry.id === dollar), ...foreign.filter((entry) => entry.id !== dollar)];
 }
