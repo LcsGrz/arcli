@@ -1,4 +1,4 @@
-# arcli
+# ARCLI
 
 > CLI de Node/TypeScript para emitir y previsualizar comprobantes ARCA (ex AFIP) desde
 > terminal: facturas, notas de crédito/débito (comunes y FCE), Recibo C, Factura de exportación E y sus notas,
@@ -7,7 +7,9 @@
 
 Este archivo es una referencia densa para que un agente con acceso a shell pueda construir
 comandos `arcli` correctos sin tener que ir probando `--ayuda` a ciegas. Para el detalle
-completo de cada tema, ver los docs linkeados al final.
+completo de cada tema, ver los docs linkeados al final. **Toda la documentación junta, en un
+solo archivo de texto:** https://lcsgrz.github.io/arcli/llms-full.txt (cada página también está
+en Markdown, por ejemplo https://lcsgrz.github.io/arcli/referencia/comandos.md).
 
 ## Reglas para agentes
 
@@ -124,7 +126,7 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
   (manda `CanMisMonExt` en `S`: el pago se cancela en la misma moneda extranjera),
   `--observaciones <texto>`, `--obs-comerciales <texto>`, `--descripcion <texto>`, `--cargar <path>`,
   `--exportar-pdf` (`--pdf`), `--sin-pdf`, `--previsualizar`, `--emitir`, `--json`, `--bruto`.
-- La fecha del comprobante no puede ser futura. WSFEX numera por punto de venta y tipo: sin `--numero <n>`, arcli usa el siguiente al último de ARCA (también en la vista previa).
+- La fecha del comprobante no puede ser futura. WSFEX numera por punto de venta y tipo: sin `--numero <n>`, ARCLI usa el siguiente al último de ARCA (también en la vista previa).
 - `fe` es estricto: un flag de A/B/C es opción desconocida. `factura <letra>` acepta en A/B/C los flags de la E, y en
   la E los de A/B/C, y los saltea con un aviso en `avisos` (`factura a --incoterm`, `factura e --alicuota`).
   Las reglas de cada letra siguen valiendo: `factura c --alicuota` es error, como `fc --alicuota`.
@@ -182,7 +184,7 @@ arcli nce -m 500 --ar 1 --apv 4 --previsualizar --json
 ## Modo no interactivo
 
 Sin `--emitir` ni `--previsualizar`, decide `"emitir"` del JSON de `--cargar` y, si no está,
-`config.emitir`. Si nada pide emitir y la sesión es interactiva (TTY), arcli muestra una vista
+`config.emitir`. Si nada pide emitir y la sesión es interactiva (TTY), ARCLI muestra una vista
 previa y pregunta. **Con `--json`, o cuando stdin/stdout no son un TTY (scripts, agentes, CI),
 nunca pregunta**: no emite, salvo que el JSON de `--cargar` tenga `"emitir": true` (en un lote, cada
 elemento decide) o `config.emitir` sea `true`, y en esos casos emite sin confirmar. `--previsualizar` en el comando
@@ -333,7 +335,8 @@ en uso), cada comando que va a ARCA avisa en stderr (nunca en stdout) y la factu
 
 ## Más detalle
 
-Los docs no vienen en el paquete de npm: están en GitHub.
+Los docs no vienen en el paquete de npm: están en GitHub y en https://lcsgrz.github.io/arcli/.
+Todo junto para leer de una vez: https://lcsgrz.github.io/arcli/llms-full.txt.
 
 - https://github.com/LcsGrz/arcli/blob/main/docs/cli-reference.md: referencia completa de comandos y flags.
 - https://github.com/LcsGrz/arcli/blob/main/docs/configuration.md: config persistente, claves soportadas, ticketPath.

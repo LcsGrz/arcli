@@ -1,0 +1,208 @@
+<!-- Generado por `yarn docs:comprobantes` desde scripts/docs/comprobantes.ts: se edita allá, no acá. -->
+
+[← Comprobantes](README.md)
+
+# FCE C
+
+<!-- arcli: familia="Monotributo · C" icono="banco" orden="5" -->
+
+Factura de Crédito Electrónica C: monotributo a una empresa obligada a recibirla.
+
+`arcli fcec` | `arcli factura-credito-electronica c`
+
+## Ejemplo
+
+```bash
+arcli fcec -m 1500000 --cs --cuit 30546689979 --cbu 0110599520000012345678
+```
+
+Sin `--emitir` muestra la vista previa y pregunta antes de emitir. También se emite desde el [asistente](../modo-interactivo.md), sin recordar flags.
+
+## Obligatorio
+
+Sin esto no se puede emitir. Lo que guardaste en la config no hace falta repetirlo.
+
+<!-- arcli: opciones=req -->
+
+### Importe
+
+El total del comprobante, en formato argentino: punto para miles y coma para decimales.
+
+| Largo | Corto | Qué es |
+| --- | --- | --- |
+| `--monto <número>` | `-m` | 15000, 15.000 o 1.500,50 |
+
+Ej.: `-m 15000`
+
+### Concepto
+
+Qué facturás. `-c` es el corto de `--concepto`. Si lo guardás en la config (`concepto`), no hace falta.
+
+| Largo | Corto | Qué es |
+| --- | --- | --- |
+| `--concepto servicios` | `--cs` | Servicios |
+| `--concepto productos` | `--cp` | Productos |
+| `--concepto productos-servicios` | `--csp` | Productos y servicios |
+
+Ej.: `--cs`
+
+### Receptor
+
+Su condición IVA sale del padrón de ARCA.
+
+| Largo | Corto | Qué es |
+| --- | --- | --- |
+| `--cuit <número>` |  | El CUIT del receptor |
+
+Ej.: `--cuit 20168598204`
+
+### CBU
+
+Donde te pagan. Una vez guardado en la config, no hace falta.
+
+| Largo | Corto | Qué es |
+| --- | --- | --- |
+| `--cbu <22 dígitos>` |  | Tu CBU |
+
+Ej.: `--cbu 0110599520000012345678`
+
+## Opcional
+
+Más datos del comprobante, o cambiar lo que viene de la config.
+
+<!-- arcli: opciones=opt -->
+
+### Cobro
+
+Datos extra del cobro de la FCE.
+
+| Largo | Corto | Qué es |
+| --- | --- | --- |
+| `--alias <alias>` |  | Alias del CBU |
+| `--transferencia <sca\|adc>` |  | Modalidad de transferencia; por defecto sca |
+
+Ej.: `--transferencia adc`
+
+### Punto de venta
+
+Si no es el de la config.
+
+| Largo | Corto | Qué es |
+| --- | --- | --- |
+| `--punto-venta <número>` | `--pv` | Un punto de venta para web service |
+
+Ej.: `--pv 3`
+
+### Fecha
+
+Si no es hoy.
+
+| Largo | Corto | Qué es |
+| --- | --- | --- |
+| `--fecha <fecha>` | `-f` | D, D/M, D/M/AA o D/M/AAAA |
+
+Ej.: `-f 31/10`
+
+### Período del servicio
+
+Solo con servicios. Sin estos flags, el mes en curso.
+
+| Largo | Corto | Qué es |
+| --- | --- | --- |
+| `--servicio-desde <fecha>` | `--sd` | Inicio del servicio |
+| `--servicio-hasta <fecha>` | `--sh` | Fin del servicio |
+| `--vencimiento <fecha>` | `--vto` | Vencimiento del pago; por defecto, el fin del servicio |
+
+Ej.: `--sd 1/10 --sh 31/10`
+
+### Moneda extranjera
+
+Sin `--cm`, la cotización oficial de ARCA.
+
+| Largo | Corto | Qué es |
+| --- | --- | --- |
+| `--moneda <código>` | `--mda` | ISO (USD, EUR) o de ARCA (DOL, 060) |
+| `--cotizacion-moneda <número>` | `--cm` | Cotización, por ejemplo 1.452,50 |
+| `--misma-moneda` |  | Te pagan en esa misma moneda |
+
+Ej.: `--moneda USD`
+
+### Datos del PDF
+
+Solo cambian el PDF, no lo que se informa a ARCA.
+
+| Largo | Corto | Qué es |
+| --- | --- | --- |
+| `--descripcion <texto>` |  | Detalle; por defecto, "Según detalle" |
+| `--condicion-venta <tipo>` | `--cv` | contado, transferencia, tarjeta-debito, tarjeta-credito, cuenta-corriente, cheque, otros-medios-electronicos, otra o un texto |
+| `--sin-condicion-venta` |  | Sin condición de venta, aunque esté en la config |
+| `--receptor-nombre <texto>` |  | Nombre o razón social del receptor |
+| `--receptor-domicilio <texto>` |  | Domicilio del receptor |
+
+Ej.: `--cv transferencia`
+
+## Al ejecutar
+
+No cambian el comprobante: cómo corre ARCLI esta vez. Son los mismos en todos los comprobantes.
+
+<!-- arcli: opciones=run -->
+
+### Vista previa o emisión
+
+Sin ninguno, muestra la vista previa y pregunta antes de emitir.
+
+| Largo | Corto | Qué es |
+| --- | --- | --- |
+| `--previsualizar` |  | Solo la vista previa: no emite |
+| `--emitir` |  | Emite sin preguntar |
+
+Ej.: `--emitir`
+
+### Entorno
+
+Si no es el de la config.
+
+| Largo | Corto | Qué es |
+| --- | --- | --- |
+| `--testing` |  | Homologación: no vale fiscalmente |
+| `--produccion` |  | Comprobantes reales |
+
+Ej.: `--produccion`
+
+### PDF
+
+Aunque la config diga otra cosa.
+
+| Largo | Corto | Qué es |
+| --- | --- | --- |
+| `--exportar-pdf` | `--pdf` | Genera el PDF |
+| `--sin-pdf` |  | No lo genera |
+
+Ej.: `--pdf`
+
+### Salida
+
+| Largo | Corto | Qué es |
+| --- | --- | --- |
+| `--json` |  | JSON, para scripts e IAs |
+| `--bruto` |  | Suma la respuesta cruda de ARCA |
+
+Ej.: `--json`
+
+### Desde un archivo
+
+| Largo | Corto | Qué es |
+| --- | --- | --- |
+| `--cargar <archivo>` |  | Los datos desde un JSON, también varios comprobantes |
+
+Ej.: `--cargar facturas.json`
+
+## Para tener en cuenta
+
+- Para saber si el receptor está obligado: `arcli fce-obligado <CUIT>`.
+
+## No aplica
+
+Estos flags no van en este comprobante: `--pd`, `--ph`, `--ac`.
+
+Todas las reglas, en [reglas de validación](../validation-rules.md); todos los flags, en la [referencia del CLI](../cli-reference.md).

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/LcsGrz/arcli/main/docs/assets/imagenes/arcliChip.png" alt="ARCLI" width="560">
+  <img src="https://raw.githubusercontent.com/LcsGrz/arcli/main/docs/assets/imagenes/arcliChip.png" alt="arcli" width="560">
 </p>
 
 <p align="center">
@@ -56,21 +56,21 @@ yarn global add arcli   # Yarn 1; Yarn 2 o superior no instala paquetes globales
 
 Para probarlo sin instalar nada: `npx arcli --ayuda`.
 
-Para actualizar, repetí la instalación con `arcli@latest` (por ejemplo, `npm install -g arcli@latest`). Cuando hay una versión nueva, el aviso de arcli muestra el comando del gestor con que lo instalaste. Funciona en macOS, Linux y Windows.
+Para actualizar, repetí la instalación con `arcli@latest` (por ejemplo, `npm install -g arcli@latest`). Cuando hay una versión nueva, el aviso de ARCLI muestra el comando del gestor con que lo instalaste. Funciona en macOS, Linux y Windows.
 
 ### Instalar o actualizar con IA
 
 Copiá esto y pegáselo a tu asistente de IA. Sirve para instalar y para actualizar:
 
 ```text
-Instalá o actualizá arcli en esta computadora. Es un programa para emitir facturas de ARCA: https://www.npmjs.com/package/arcli
+Instalá o actualizá ARCLI en esta computadora. Es un programa para emitir facturas de ARCA: https://www.npmjs.com/package/arcli
 
 1. Revisá si tengo Node.js 22.22.1 o superior (node --version). Si no lo tengo o es más viejo, instalá la versión LTS de https://nodejs.org con el instalador oficial para mi sistema.
-2. Instalá o actualizá arcli con: npm install -g arcli@latest. Si da un error de permisos, explicame la opción más segura antes de usar sudo o permisos de administrador.
+2. Instalá o actualizá ARCLI con: npm install -g arcli@latest. Si da un error de permisos, explicame la opción más segura antes de usar sudo o permisos de administrador.
 3. Verificá con arcli --version y decime qué versión quedó.
 4. Si es la primera vez que lo instalo, creá el ícono en el escritorio con: arcli acceso-directo
 
-Si podés ejecutar comandos, hacelo vos; si no, guiame paso a paso, como a alguien que nunca usó la terminal. No toques certificados, claves ni la configuración de arcli, y no emitas comprobantes.
+Si podés ejecutar comandos, hacelo vos; si no, guiame paso a paso, como a alguien que nunca usó la terminal. No toques certificados, claves ni la configuración de ARCLI, y no emitas comprobantes.
 ```
 
 Después abrí ARCLI con doble clic en el ícono y seguí la configuración guiada.
@@ -121,9 +121,9 @@ Por defecto se usa el entorno `testing`, con `cert.testing` y `key.testing`. Par
 
 ## Documentación
 
-El índice completo está en [docs/](https://github.com/LcsGrz/arcli/blob/main/docs/README.md). Lo principal:
+Está en el [sitio de documentación](https://lcsgrz.github.io/arcli/), con buscador, y el índice completo en [docs/](https://github.com/LcsGrz/arcli/blob/main/docs/README.md). Lo principal:
 
-- [Modo interactivo](https://github.com/LcsGrz/arcli/blob/main/docs/modo-interactivo.md) y [Patrones de uso](https://github.com/LcsGrz/arcli/blob/main/docs/usage-patterns.md)
+- [Modo interactivo](https://github.com/LcsGrz/arcli/blob/main/docs/modo-interactivo.md) y los [comprobantes por perfil](https://github.com/LcsGrz/arcli/blob/main/docs/README.md#comprobantes)
 - [Referencia del CLI](https://github.com/LcsGrz/arcli/blob/main/docs/cli-reference.md) y [Configuración](https://github.com/LcsGrz/arcli/blob/main/docs/configuration.md)
 - [Entrada y salida](https://github.com/LcsGrz/arcli/blob/main/docs/input-output.md): formato del JSON
 - [PDF de comprobantes](https://github.com/LcsGrz/arcli/blob/main/docs/pdf.md)

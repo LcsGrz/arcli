@@ -1,0 +1,94 @@
+---
+/** El tema en un solo boton: automático (por defecto, el del sistema) → claro → oscuro. Va despues de las estrellas de GitHub. */
+import Icon from './Icon.astro';
+---
+
+<arcli-theme-button>
+  <button type="button" class="theme-btn" aria-label="Tema automático. Cambiar a claro" title="Tema automático. Cambiar a claro">
+    <span data-theme-icon="auto"><Icon name="monitor" size="1.05rem" /></span>
+    <span data-theme-icon="light" hidden><Icon name="sol" size="1.05rem" /></span>
+    <span data-theme-icon="dark" hidden><Icon name="luna" size="1.05rem" /></span>
+  </button>
+</arcli-theme-button>
+
+<script>
+  type Theme = 'auto' | 'dark' | 'light';
+
+  const KEY = 'starlight-theme';
+  const NEXT: Record<Theme, Theme> = { auto: 'light', dark: 'auto', light: 'dark' };
+  const LABEL: Record<Theme, string> = { auto: 'automático', dark: 'oscuro', light: 'claro' };
+
+  const stored = (): Theme => {
+    const value = typeof localStorage !== 'undefined' ? localStorage.getItem(KEY) : null;
+
+    return value === 'dark' || value === 'light' ? value : 'auto';
+  };
+
+  const system = (): 'dark' | 'light' => (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+
+  function apply(theme: Theme): void {
+    // En la portada el tema no aplica: siempre oscura (ThemeProvider.astro).
+    if (!('home' in document.documentElement.dataset)) document.documentElement.dataset.theme = theme === 'auto' ? system() : theme;
+
+    for (const button of document.querySelectorAll<HTMLButtonElement>('arcli-theme-button button')) {
+      for (const icon of button.querySelectorAll<HTMLElement>('[data-theme-icon]')) icon.hidden = icon.dataset.themeIcon !== theme;
+      const text = `Tema ${LABEL[theme]}. Cambiar a ${LABEL[NEXT[theme]]}`;
+      button.title = text;
+      button.setAttribute('aria-label', text);
+    }
+  }
+
+  matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
+    if (stored() === 'auto') apply('auto');
+  });
+
+  class ArcliThemeButton extends HTMLElement {
+    connectedCallback() {
+      apply(stored());
+      this.querySelector('button')?.addEventListener('click', () => {
+        const next = NEXT[stored()];
+
+        try {
+          localStorage.setItem(KEY, next);
+        } catch {}
+        apply(next);
+      });
+    }
+  }
+
+  customElements.define('arcli-theme-button', ArcliThemeButton);
+</script>
+
+<style>
+  .theme-btn {
+    display: grid;
+    place-items: center;
+    width: 2.1rem;
+    height: 2.1rem;
+    padding: 0;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    background: none;
+    color: var(--sl-color-gray-2);
+    cursor: pointer;
+  }
+
+  .theme-btn:hover {
+    border-color: var(--sl-color-gray-4);
+    color: var(--sl-color-white);
+  }
+
+  .theme-btn span {
+    display: grid;
+    place-items: center;
+  }
+
+  .theme-btn [hidden] {
+    display: none;
+  }
+
+  /* En la portada no hay tema para elegir */
+  :global(:root[data-home]) arcli-theme-button {
+    display: none;
+  }
+</style>

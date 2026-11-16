@@ -42,19 +42,20 @@ El alcance de comprobantes es Factura, Nota de Crédito y Nota de Débito A, B y
 
 Actualizá la documentación que describe lo que cambiaste:
 
-| Si cambia                                    | Revisá                                                                                |
-| -------------------------------------------- | ------------------------------------------------------------------------------------- |
-| Comandos o flags                             | `README.md`, [referencia del CLI](docs/cli-reference.md), `llms.txt`                  |
-| Claves de config o variables de entorno      | [configuración](docs/configuration.md), `llms.txt`                                    |
-| JSON de entrada o salida, códigos de error   | [entrada y salida](docs/input-output.md), `llms.txt`                                  |
-| Validaciones                                 | [reglas de validación](docs/validation-rules.md), `llms.txt`                          |
-| Flujos de uso o textos de error              | [patrones de uso](docs/usage-patterns.md), [troubleshooting](docs/troubleshooting.md) |
-| Modo interactivo                             | [modo interactivo](docs/modo-interactivo.md)                                          |
-| Pantallas que salen en una demo              | guiones de `docs/assets/tapes/` (y avisar que hay que regrabar el GIF)                |
-| Salida en terminal (paneles, textos)         | [design system](docs/design-system.md)                                                |
-| Módulos, capas o gateways                    | [arquitectura](docs/architecture.md)                                                  |
-| Servicios de ARCA que hay que autorizar      | [obtención de certificados](docs/obtencion-certificados.md)                           |
-| Alcance, estructura o comandos de desarrollo | `AGENTS.md`                                                                           |
+| Si cambia                                    | Revisá                                                                                                 |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Comandos o flags                             | `README.md`, [referencia del CLI](docs/cli-reference.md), `llms.txt`                                   |
+| Opciones de un comprobante                   | `scripts/docs/comprobantes.ts` y `yarn docs:comprobantes` (escribe `docs/comprobantes/`)               |
+| Claves de config o variables de entorno      | [configuración](docs/configuration.md), `llms.txt`                                                     |
+| JSON de entrada o salida, códigos de error   | [entrada y salida](docs/input-output.md), `llms.txt`                                                   |
+| Validaciones                                 | [reglas de validación](docs/validation-rules.md), `llms.txt`                                           |
+| Flujos de uso o textos de error              | las páginas de [comprobantes](docs/README.md#comprobantes), [troubleshooting](docs/troubleshooting.md) |
+| Modo interactivo                             | [modo interactivo](docs/modo-interactivo.md)                                                           |
+| Pantallas que salen en una demo              | guiones de `docs/assets/tapes/` (y avisar que hay que regrabar el GIF)                                 |
+| Salida en terminal (paneles, textos)         | [design system](docs/design-system.md)                                                                 |
+| Módulos, capas o gateways                    | [arquitectura](docs/architecture.md)                                                                   |
+| Servicios de ARCA que hay que autorizar      | [certificado de testing](docs/certificado-testing.md#qué-servicios-autorizar)                          |
+| Alcance, estructura o comandos de desarrollo | `AGENTS.md`                                                                                            |
 
 Un cambio suele caer en varias filas: un comando nuevo con `--json` es también JSON de salida y, si suma errores, mensajes de error.
 

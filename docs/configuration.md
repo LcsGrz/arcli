@@ -35,45 +35,91 @@ En esa carpeta también quedan `certificados/<CUIT>/` (con la clave privada), `t
 
 ## Claves soportadas
 
-| Clave                         | Tipo                            | Valor por defecto      | Descripción                                                                                                                                                                                                                                           |
-| ----------------------------- | ------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `cert.testing`                | string                          | ninguno                | Ruta al certificado de testing                                                                                                                                                                                                                        |
-| `cert.produccion`             | string                          | ninguno                | Ruta al certificado de producción                                                                                                                                                                                                                     |
-| `key.testing`                 | string                          | ninguno                | Ruta a la clave privada de testing                                                                                                                                                                                                                    |
-| `key.produccion`              | string                          | ninguno                | Ruta a la clave privada de producción                                                                                                                                                                                                                 |
-| `exportacion.cert.testing`    | string                          | ninguno                | Ruta al certificado del servicio `wsfex` para testing; si falta, se usa `cert.testing`                                                                                                                                                                |
-| `exportacion.cert.produccion` | string                          | ninguno                | Ruta al certificado del servicio `wsfex` para producción; si falta, se usa `cert.produccion`                                                                                                                                                          |
-| `exportacion.key.testing`     | string                          | ninguno                | Ruta a la clave privada del servicio `wsfex` para testing; si falta, se usa `key.testing`                                                                                                                                                             |
-| `exportacion.key.produccion`  | string                          | ninguno                | Ruta a la clave privada del servicio `wsfex` para producción; si falta, se usa `key.produccion`                                                                                                                                                       |
-| `exportacion.actividad`       | number                          | ninguno                | Código de la tabla de actividades de WSFEX que informa la factura de exportación `E`, por ejemplo `620100`; `--actividad` lo pisa                                                                                                                     |
-| `cuit`                        | string                          | ninguno                | CUIT del emisor                                                                                                                                                                                                                                       |
-| `alicuota`                    | string                          | `21`                   | Alícuota de IVA por defecto: alias (`general`, `reducida`, `incrementada`, `cero`) o número (solo letras A y B)                                                                                                                                       |
-| `cbu`                         | string                          | ninguno                | CBU del emisor (solo facturas FCE)                                                                                                                                                                                                                    |
-| `aliasCbu`                    | string                          | ninguno                | Alias del CBU (solo facturas FCE)                                                                                                                                                                                                                     |
-| `verificarFce`                | boolean                         | `false`                | Consultar el régimen FCE del receptor al facturar                                                                                                                                                                                                     |
-| `consultarPadron`             | boolean                         | `true`                 | Completar el IVA receptor desde el padrón al facturar con `--cuit` y sin `--ir`. Ver [IVA receptor desde el padrón](cli-reference.md#iva-receptor-desde-el-padrón)                                                                                    |
-| `concepto`                    | string                          | ninguno                | Concepto por defecto: `productos`, `servicios` o `productos-servicios`                                                                                                                                                                                |
-| `cotizacion`                  | number                          | `1`                    | **Deprecada, se saca en la 3.0.0.** Cotización por defecto en moneda extranjera; `1` es no tenerla. Si está, cada factura que la usa lo avisa. Sin ella, en moneda extranjera se usa la cotización oficial de ARCA salvo `--cm`                       |
-| `entorno`                     | `testing \| produccion`         | `testing`              | Entorno por defecto                                                                                                                                                                                                                                   |
-| `emitir`                      | boolean                         | `false`                | Emisión por defecto                                                                                                                                                                                                                                   |
-| `ivaReceptor`                 | string                          | ninguno                | IVA receptor por defecto: uno de los valores de `--iva-receptor` (ver [referencia](cli-reference.md)), por ejemplo `consumidor-final`                                                                                                                 |
-| `json`                        | boolean                         | `false`                | Salida JSON por defecto                                                                                                                                                                                                                               |
-| `moneda`                      | string                          | `PES`                  | Moneda por defecto de A, B, C y FCE: código ISO o de ARCA, indistinto (`ARS`/`PES`, `USD`/`DOL`, `UYU`/`011`…). Ver [moneda y cotización](validation-rules.md#moneda-y-cotización). `arcli fe` va en `DOL` salvo `--moneda`                           |
-| `bruto`                       | boolean                         | `false`                | Respuesta bruta por defecto                                                                                                                                                                                                                           |
-| `puntoVenta`                  | number                          | ninguno                | Punto de venta por defecto                                                                                                                                                                                                                            |
-| `filasPorLista`               | number                          | `15`                   | Cuántas filas muestran `arcli ultimos` (si no pasás `--cantidad`) y las listas del modo interactivo (comprobantes, tablas de ARCA y monedas), de 1 a 50                                                                                               |
-| `comprobantesPorLista`        | number                          | `15`                   | **Deprecada, se saca en la 3.0.0:** el nombre viejo de `filasPorLista`. Si está en el archivo se sigue leyendo (si están las dos, gana `filasPorLista`); `config establecer` y `config eliminar` la aceptan con un aviso y la pasan a `filasPorLista` |
-| `ticketPath`                  | string                          | ver abajo              | Carpeta donde se guarda el ticket WSAA                                                                                                                                                                                                                |
-| `pdf`                         | `siempre \| preguntar \| nunca` | `preguntar`            | Cuándo generar el PDF del comprobante emitido. Ver [PDF](pdf.md)                                                                                                                                                                                      |
-| `pdfCarpeta`                  | string                          | `~/arcli/comprobantes` | Carpeta donde se guardan los PDFs                                                                                                                                                                                                                     |
-| `pdfNavegador`                | string                          | automático             | Ruta a Chrome, Chromium o Edge para generar los PDFs                                                                                                                                                                                                  |
-| `condicionVenta`              | string                          | ninguno                | Condición de venta del PDF de A, B y C si el comprobante no la sobrescribe, hasta 100 caracteres; `--sin-condicion-venta` o JSON `null` la omiten para ese comprobante. Ver [PDF](pdf.md#del-comprobante-flags-opcionales)                            |
-| `emisor.razonSocial`          | string                          | ninguno                | Nombre o razón social del emisor (solo PDF)                                                                                                                                                                                                           |
-| `emisor.domicilio`            | string                          | ninguno                | Domicilio comercial del emisor (solo PDF)                                                                                                                                                                                                             |
-| `emisor.inicioActividades`    | fecha                           | ninguno                | Inicio de actividades, con año: `1/03/2020` (solo PDF)                                                                                                                                                                                                |
-| `emisor.iibb`                 | string                          | sin valor (`-` en PDF) | Ingresos Brutos del emisor (solo PDF)                                                                                                                                                                                                                 |
-| `emisor.condicionIva`         | string                          | según la letra         | Condición de IVA del emisor (solo PDF): los mismos valores que `ivaReceptor`, por ejemplo `responsable-inscripto`, `responsable-monotributo` o `sujeto-exento`. Sin valor, sale de la letra: `A` y `B`, responsable inscripto; `C`, monotributo       |
-| `emisor.logo`                 | string                          | ninguno                | Ruta a un logo PNG o JPG (solo PDF)                                                                                                                                                                                                                   |
+### Cuenta
+
+Quién factura y dónde.
+
+| Clave        | Tipo                    | Valor por defecto | Descripción                |
+| ------------ | ----------------------- | ----------------- | -------------------------- |
+| `cuit`       | string                  | ninguno           | CUIT del emisor            |
+| `entorno`    | `testing \| produccion` | `testing`         | Entorno por defecto        |
+| `puntoVenta` | number                  | ninguno           | Punto de venta por defecto |
+
+### Certificados
+
+Los arma `arcli certificado`: casi nunca hace falta tocarlas.
+
+| Clave             | Tipo   | Valor por defecto | Descripción                           |
+| ----------------- | ------ | ----------------- | ------------------------------------- |
+| `cert.testing`    | string | ninguno           | Ruta al certificado de testing        |
+| `cert.produccion` | string | ninguno           | Ruta al certificado de producción     |
+| `key.testing`     | string | ninguno           | Ruta a la clave privada de testing    |
+| `key.produccion`  | string | ninguno           | Ruta a la clave privada de producción |
+
+### Al facturar
+
+Valores por defecto, para no repetir flags.
+
+| Clave             | Tipo    | Valor por defecto | Descripción                                                                                                                                                                                                                     |
+| ----------------- | ------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `alicuota`        | string  | `21`              | Alícuota de IVA por defecto: alias (`general`, `reducida`, `incrementada`, `cero`) o número (solo letras A y B)                                                                                                                 |
+| `consultarPadron` | boolean | `true`            | Completar el IVA receptor desde el padrón al facturar con `--cuit` y sin `--ir`. Ver [IVA receptor desde el padrón](cli-reference.md#iva-receptor-desde-el-padrón)                                                              |
+| `concepto`        | string  | ninguno           | Concepto por defecto: `productos`, `servicios` o `productos-servicios`                                                                                                                                                          |
+| `cotizacion`      | number  | `1`               | **Deprecada, se saca en la 3.0.0.** Cotización por defecto en moneda extranjera; `1` es no tenerla. Si está, cada factura que la usa lo avisa. Sin ella, en moneda extranjera se usa la cotización oficial de ARCA salvo `--cm` |
+| `emitir`          | boolean | `false`           | Emisión por defecto                                                                                                                                                                                                             |
+| `ivaReceptor`     | string  | ninguno           | IVA receptor por defecto: uno de los valores de `--iva-receptor` (ver [referencia](cli-reference.md)), por ejemplo `consumidor-final`                                                                                           |
+| `moneda`          | string  | `PES`             | Moneda por defecto de A, B, C y FCE: código ISO o de ARCA, indistinto (`ARS`/`PES`, `USD`/`DOL`, `UYU`/`011`…). Ver [moneda y cotización](validation-rules.md#moneda-y-cotización). `arcli fe` va en `DOL` salvo `--moneda`     |
+| `condicionVenta`  | string  | ninguno           | Condición de venta del PDF de A, B y C si el comprobante no la sobrescribe, hasta 100 caracteres; `--sin-condicion-venta` o JSON `null` la omiten para ese comprobante. Ver [PDF](pdf.md#del-comprobante-flags-opcionales)      |
+
+### FCE
+
+Solo si emitís Factura de Crédito Electrónica.
+
+| Clave          | Tipo    | Valor por defecto | Descripción                                       |
+| -------------- | ------- | ----------------- | ------------------------------------------------- |
+| `cbu`          | string  | ninguno           | CBU del emisor (solo facturas FCE)                |
+| `aliasCbu`     | string  | ninguno           | Alias del CBU (solo facturas FCE)                 |
+| `verificarFce` | boolean | `false`           | Consultar el régimen FCE del receptor al facturar |
+
+### Exportación
+
+Solo si emitís la Factura E.
+
+| Clave                         | Tipo   | Valor por defecto | Descripción                                                                                                                       |
+| ----------------------------- | ------ | ----------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `exportacion.cert.testing`    | string | ninguno           | Ruta al certificado del servicio `wsfex` para testing; si falta, se usa `cert.testing`                                            |
+| `exportacion.cert.produccion` | string | ninguno           | Ruta al certificado del servicio `wsfex` para producción; si falta, se usa `cert.produccion`                                      |
+| `exportacion.key.testing`     | string | ninguno           | Ruta a la clave privada del servicio `wsfex` para testing; si falta, se usa `key.testing`                                         |
+| `exportacion.key.produccion`  | string | ninguno           | Ruta a la clave privada del servicio `wsfex` para producción; si falta, se usa `key.produccion`                                   |
+| `exportacion.actividad`       | number | ninguno           | Código de la tabla de actividades de WSFEX que informa la factura de exportación `E`, por ejemplo `620100`; `--actividad` lo pisa |
+
+### PDF y datos del emisor
+
+Lo que va impreso en el PDF y dónde se guarda.
+
+| Clave                      | Tipo                            | Valor por defecto      | Descripción                                                                                                                                                                                                                                     |
+| -------------------------- | ------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pdf`                      | `siempre \| preguntar \| nunca` | `preguntar`            | Cuándo generar el PDF del comprobante emitido. Ver [PDF](pdf.md)                                                                                                                                                                                |
+| `pdfCarpeta`               | string                          | `~/arcli/comprobantes` | Carpeta donde se guardan los PDFs                                                                                                                                                                                                               |
+| `pdfNavegador`             | string                          | automático             | Ruta a Chrome, Chromium o Edge para generar los PDFs                                                                                                                                                                                            |
+| `emisor.razonSocial`       | string                          | ninguno                | Nombre o razón social del emisor (solo PDF)                                                                                                                                                                                                     |
+| `emisor.domicilio`         | string                          | ninguno                | Domicilio comercial del emisor (solo PDF)                                                                                                                                                                                                       |
+| `emisor.inicioActividades` | fecha                           | ninguno                | Inicio de actividades, con año: `1/03/2020` (solo PDF)                                                                                                                                                                                          |
+| `emisor.iibb`              | string                          | sin valor (`-` en PDF) | Ingresos Brutos del emisor (solo PDF)                                                                                                                                                                                                           |
+| `emisor.condicionIva`      | string                          | según la letra         | Condición de IVA del emisor (solo PDF): los mismos valores que `ivaReceptor`, por ejemplo `responsable-inscripto`, `responsable-monotributo` o `sujeto-exento`. Sin valor, sale de la letra: `A` y `B`, responsable inscripto; `C`, monotributo |
+| `emisor.logo`              | string                          | ninguno                | Ruta a un logo PNG o JPG (solo PDF)                                                                                                                                                                                                             |
+
+### Salida y listados
+
+Para scripts, automatización y las listas.
+
+| Clave                  | Tipo    | Valor por defecto | Descripción                                                                                                                                                                                                                                           |
+| ---------------------- | ------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `json`                 | boolean | `false`           | Salida JSON por defecto                                                                                                                                                                                                                               |
+| `bruto`                | boolean | `false`           | Respuesta bruta por defecto                                                                                                                                                                                                                           |
+| `filasPorLista`        | number  | `15`              | Cuántas filas muestran `arcli ultimos` (si no pasás `--cantidad`) y las listas del modo interactivo (comprobantes, tablas de ARCA y monedas), de 1 a 50                                                                                               |
+| `comprobantesPorLista` | number  | `15`              | **Deprecada, se saca en la 3.0.0:** el nombre viejo de `filasPorLista`. Si está en el archivo se sigue leyendo (si están las dos, gana `filasPorLista`); `config establecer` y `config eliminar` la aceptan con un aviso y la pasan a `filasPorLista` |
+| `ticketPath`           | string  | ver abajo         | Carpeta donde se guarda el ticket WSAA                                                                                                                                                                                                                |
 
 > Para claves booleanas, ARCLI acepta `true` / `false`, `sí` / `no` o `1` / `0`.
 
@@ -100,7 +146,7 @@ Reglas:
 
 Las claves aparecen en la sección **Certificados** de `arcli config`, se validan como PEM al guardarlas y `arcli config revisar` avisa si el par quedó incompleto o si el certificado de exportación está por vencer.
 
-Cómo autorizar el servicio: [Autorizar el servicio web](obtencion-certificados.md#3-autorizar-el-servicio-web).
+Cómo autorizar el servicio: [Autorizar el servicio web](certificado-testing-completa.md#3-autorizar-el-servicio-web).
 
 La actividad que informa la `E` se guarda una vez con `arcli config establecer exportacion.actividad <codigo>` (sección **Factura de exportación (E)** de `arcli config`); `--actividad` la pisa. Tiene que ser un código de la tabla de actividades de WSFEX, que no es la del padrón: por ejemplo, `620100` para servicios de consultores en informática.
 
@@ -168,7 +214,7 @@ arcli config revisar --json
 - el estado de la config persistente
 - el vencimiento de los certificados de los dos entornos
 - la validación real (CUIT, certificado y clave legibles) del entorno por defecto y de cualquier otro que tenga `cert` o `key` configurados
-- el plugin de PDF, como `arcli pdf estado`: si está instalado, si es la versión que usa arcli y si encontró un navegador. Con `pdf=siempre` avisa si falta; con `preguntar` (por defecto) lo revisa solo si está instalado, y con `nunca`, no lo revisa. El plugin nunca bloquea la emisión.
+- el plugin de PDF, como `arcli pdf estado`: si está instalado, si es la versión que usa ARCLI y si encontró un navegador. Con `pdf=siempre` avisa si falta; con `preguntar` (por defecto) lo revisa solo si está instalado, y con `nunca`, no lo revisa. El plugin nunca bloquea la emisión.
 
 No recibe `--testing` ni `--produccion`: revisa los dos entornos de una vez.
 

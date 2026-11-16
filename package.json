@@ -59,7 +59,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc --project tsconfig.typecheck.json",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
-    "test:arca": "vitest run --config vitest.arca.config.ts"
+    "test:arca": "vitest run --config vitest.arca.config.ts",
+    "docs:comprobantes": "tsx scripts/docs/generar-comprobantes.ts"
   },
   "lint-staged": {
     "src/**/*.{ts,tsx}": [

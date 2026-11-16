@@ -1,0 +1,16 @@
+---
+/**
+ * El menu de Starlight con dos cambios: cada pagina lleva su icono (`data-icon`, lo pone `sync-docs.mjs`) y los grupos
+ * de comprobantes ("Monotributo · C") muestran la letra en un chip de color a la izquierda, en lugar del icono.
+ */
+import MobileMenuFooter from 'virtual:starlight/components/MobileMenuFooter';
+import SidebarPersister from '@astrojs/starlight/components/SidebarPersister.astro';
+
+import SidebarList from './SidebarList.astro';
+
+const { sidebar } = Astro.locals.starlightRoute;
+---
+
+<SidebarPersister><SidebarList sublist={sidebar} /></SidebarPersister>
+
+<div class="md:sl-hidden"><MobileMenuFooter /></div>

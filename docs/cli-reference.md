@@ -681,7 +681,7 @@ Los defaults de config de esos campos (concepto, IVA receptor, alícuota, CBU) n
 #### Vista previa, numeración y PDF
 
 - La vista previa consulta las tablas de WSFEX (países, monedas, unidades, incoterms, idiomas, actividades), la cotización y el ID de la solicitud, pero no emite.
-- WSFEX numera por punto de venta y tipo de comprobante. Sin `--numero`, arcli consulta el último (`FEXGetLast_CMP`) y usa el siguiente, también en la vista previa; si pasás otro, ARCA rechaza el comprobante. El ID de la solicitud también se consulta (`FEXGetLast_ID`). Fijá los dos con `--numero` e `--id-solicitud` si emitís en paralelo.
+- WSFEX numera por punto de venta y tipo de comprobante. Sin `--numero`, ARCLI consulta el último (`FEXGetLast_CMP`) y usa el siguiente, también en la vista previa; si pasás otro, ARCA rechaza el comprobante. El ID de la solicitud también se consulta (`FEXGetLast_ID`). Fijá los dos con `--numero` e `--id-solicitud` si emitís en paralelo.
 - El PDF se genera después de emitir, como en el resto de los comprobantes. Se guarda como `factura-e_<pv>-<numero>.pdf` y usa el diseño de exportación: ítems reales, país de destino, CUIT del país, ID impositivo, divisa, forma y fecha de pago, incoterm y la leyenda de IVA exento. Ver [PDF](pdf.md#factura-de-exportación-e).
 - Un comprobante rechazado por WSFEX sale como respuesta válida con exit code `2`, igual que en las letras A, B y C.
 
@@ -801,7 +801,7 @@ arcli fce-obligado 30546689979 --fecha 15/10 --json
 | `--fecha <fecha>`                     | `-f`    | Fecha de emisión a consultar; por defecto hoy |
 | `--json`, `--testing`, `--produccion` | ninguno | Flags globales                                |
 
-Usa el servicio `wsfecred`, que hay que autorizar aparte de `wsfe`. Ver [Autorizar el servicio web](obtencion-certificados.md#3-autorizar-el-servicio-web).
+Usa el servicio `wsfecred`, que hay que autorizar aparte de `wsfe`. Ver [Autorizar el servicio web](certificado-testing-completa.md#3-autorizar-el-servicio-web).
 
 Si activás `arcli config establecer verificarFce true`, la misma consulta corre en cada factura con CUIT del receptor y deja un aviso si el comprobante no coincide con el régimen. Por ejemplo, una `fa` a un receptor obligado por encima del mínimo. El aviso no frena la emisión. Ver [Régimen FCE del receptor](validation-rules.md#régimen-fce-del-receptor).
 
@@ -822,7 +822,7 @@ arcli padron 20201797064 --json
 
 La condición IVA sale de los impuestos activos: monotributo es `responsable-monotributo`, IVA es `responsable-inscripto` e IVA exento es `sujeto-exento`. Con otros datos queda sin informar (`condicionIva: null`). Si el CUIT no está en el padrón, termina con el error `TAXPAYER_NOT_FOUND`. En testing el padrón tiene datos ficticios: `20201797064` devuelve datos completos. El JSON está en [Entrada y salida](input-output.md#padrón-padron).
 
-Usa el servicio `ws_sr_constancia_inscripcion`, que hay que autorizar aparte de `wsfe`. Ver [Autorizar el servicio web](obtencion-certificados.md#3-autorizar-el-servicio-web).
+Usa el servicio `ws_sr_constancia_inscripcion`, que hay que autorizar aparte de `wsfe`. Ver [Autorizar el servicio web](certificado-testing-completa.md#3-autorizar-el-servicio-web).
 
 ### IVA receptor desde el padrón
 
@@ -857,7 +857,7 @@ arcli completado desinstalar
 
 Pedir el comando ya es la confirmación: no vuelve a preguntar, como `arcli pdf instalar`. Con `--json` devuelve `{ "cambio", "instalado", "ruta", "shell" }`. Si no se puede saber el shell, da `INPUT_VALIDATION_ERROR` y hay que indicarlo. Un programa no puede cambiar la terminal que ya está abierta: después de instalar, abrí una nueva.
 
-`arcli completado <bash|zsh|fish>` solo imprime el script, para instalarlo a mano. Cada Tab le pregunta a la versión instalada qué sigue, así que después de actualizar arcli no hay que reinstalar nada. En el modo interactivo está en Configuración → Autocompletado.
+`arcli completado <bash|zsh|fish>` solo imprime el script, para instalarlo a mano. Cada Tab le pregunta a la versión instalada qué sigue, así que después de actualizar ARCLI no hay que reinstalar nada. En el modo interactivo está en Configuración → Autocompletado.
 
 ## Acceso directo
 
@@ -893,5 +893,5 @@ Todos los comandos de esta referencia son estables, salvo `storybook`, una herra
 
 ## Ver también
 
-- [Patrones de uso](usage-patterns.md): casos completos paso a paso.
+- Cada comprobante, con sus opciones: [¿qué comprobante me toca?](comprobantes/README.md). Casos completos paso a paso: [monotributo](comprobantes-monotributo.md), [responsable inscripto](comprobantes-responsable-inscripto.md), [notas](notas-credito-debito.md), [FCE](fce.md), [exportación](exportacion.md) y [lotes](lotes-y-json.md).
 - [Reglas de validación](validation-rules.md) y [Troubleshooting](troubleshooting.md): qué rechaza el CLI y cómo resolverlo.

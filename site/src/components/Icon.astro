@@ -1,0 +1,26 @@
+---
+/** Un icono de `icons.ts`, del color del texto. Decorativo: lo nombra el texto de al lado. */
+import { ICONS, type IconName } from '../icons';
+
+interface Props {
+  class?: string;
+  name: IconName;
+  size?: string;
+}
+
+const { class: className, name, size = '1rem' } = Astro.props;
+---
+
+<svg
+  class:list={['arcli-icon', className]}
+  viewBox="0 0 24 24"
+  width={size}
+  height={size}
+  fill="none"
+  stroke="currentColor"
+  stroke-width="1.8"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  aria-hidden="true"
+  set:html={ICONS[name]}
+/>

@@ -1,6 +1,6 @@
 [← Documentación](README.md)
 
-# Troubleshooting
+# Problemas frecuentes
 
 Errores frecuentes agrupados por categoría: síntoma, causa y solución.
 
@@ -21,7 +21,7 @@ Si usás el asistente (`arcli` sin argumentos): Configuración → Revisar confi
 
 ### `arcli` no se reconoce como comando
 
-- **Síntoma:** `command not found: arcli` o "arcli no se reconoce como un comando interno o externo".
+- **Síntoma:** `command not found: arcli` o "'arcli' no se reconoce como un comando interno o externo".
 - **Causa:** la terminal se abrió antes de instalar, o la carpeta de los paquetes globales de npm no está en el `PATH`.
 - **Solución:** cerrá y abrí la terminal. Si sigue, `npm prefix -g` te dice la carpeta: sumala al `PATH`.
 
@@ -123,7 +123,7 @@ arcli fc -m 1000 --pv 3 --cs --consumidor-final
   - `CERTIFICATE_INVALID`: el archivo no tiene un certificado X.509.
   - `CERTIFICATE_CUIT_MISMATCH`: el certificado es de otro CUIT que el de la config.
   - `CERTIFICATE_EXPIRED`: el `.crt` que querés cargar ya venció.
-  - `CERTIFICATE_ENVIRONMENT_UNKNOWN`: arcli no reconoce al emisor como una autoridad de ARCA, así que no sabe de qué entorno es.
+  - `CERTIFICATE_ENVIRONMENT_UNKNOWN`: ARCLI no reconoce al emisor como una autoridad de ARCA, así que no sabe de qué entorno es.
   - `CERTIFICATE_REPLACE_CONFIRMATION`: ya había otro certificado y, sin terminal o con `--json`, no se puede preguntar.
 - **Solución:** importá el certificado del pedido pendiente o descartalo con `--reemplazar`; usá el `.crt` tal como lo bajaste de ARCA, sin abrirlo ni guardarlo con otro programa; bajalo con la clave fiscal del CUIT configurado; si está vencido, generá uno nuevo; si es de ARCA, indicá el entorno con `--testing` o `--produccion`; para reemplazar sin preguntar, sumá `--reemplazar`.
 - **Documentación relacionada:** [Comando `arcli certificado`](cli-reference.md#comando-arcli-certificado), [códigos de error](input-output.md#códigos-de-error)
@@ -292,7 +292,7 @@ arcli fc ayuda
 - **Síntoma:** error `WSFE_SERVICE_NOT_AUTHORIZED` ("El certificado no está autorizado para facturar (servicio wsfe). No se emitió nada.") al facturar o con `ultimos` y `consultar`.
 - **Causa:** sacaste e importaste el certificado, pero falta autorizarlo a facturar en ARCA.
 - **Solución:** en testing, WSASS → "Crear autorización a servicio" con el mismo nombre del certificado y el servicio `wsfe`; en producción, el Administrador de Relaciones de Clave Fiscal. No se emitió nada: después de autorizarlo, reintentá igual.
-- **Documentación relacionada:** [Autorizar el servicio web](obtencion-certificados.md#3-autorizar-el-servicio-web)
+- **Documentación relacionada:** [Autorizar el servicio web](certificado-testing-completa.md#3-autorizar-el-servicio-web)
 
 ### `wsfecred` no autorizado
 
@@ -300,7 +300,7 @@ arcli fc ayuda
 - **Síntoma:** `El certificado no está autorizado para el servicio wsfecred ...` (ARCA responde `coe.notAuthorized`).
 - **Causa:** el certificado solo tiene autorizado `wsfe`. La consulta del régimen FCE usa otro servicio.
 - **Solución:** crear la autorización para `wsfecred` igual que la de `wsfe`, en WSASS (testing) o en el Administrador de Relaciones (producción). Si no la necesitás, desactivá el chequeo con `arcli config eliminar verificarFce`.
-- **Documentación relacionada:** [Autorizar el servicio web](obtencion-certificados.md#3-autorizar-el-servicio-web)
+- **Documentación relacionada:** [Autorizar el servicio web](certificado-testing-completa.md#3-autorizar-el-servicio-web)
 
 ### `ws_sr_constancia_inscripcion` no autorizado
 
@@ -315,9 +315,9 @@ arcli fc ayuda
 ### `dh key too small` en producción
 
 - **Severidad:** media
-- **Síntoma:** en una versión anterior de arcli, los comandos de producción fallan con `dh key too small` o `ERR_SSL_DH_KEY_TOO_SMALL`, con certificado, clave y punto de venta correctos. En testing andan.
+- **Síntoma:** en una versión anterior de ARCLI, los comandos de producción fallan con `dh key too small` o `ERR_SSL_DH_KEY_TOO_SMALL`, con certificado, clave y punto de venta correctos. En testing andan.
 - **Causa:** WSFE y WSFEX de producción prefieren un intercambio DHE con una clave de 1024 bits, y OpenSSL la rechaza con `SECLEVEL=2`, el nivel de Debian 13 y otras distros.
-- **Solución:** actualizar arcli. Si no podés, corré el CLI con `node --tls-cipher-list='DEFAULT:!DHE' "$(which arcli)"` más los argumentos de siempre.
+- **Solución:** actualizar ARCLI. Si no podés, corré el CLI con `node --tls-cipher-list='DEFAULT:!DHE' "$(which arcli)"` más los argumentos de siempre.
 - **Documentación relacionada:** [Arquitectura](architecture.md)
 
 ### `coe.alreadyAuthenticated`
@@ -364,13 +364,13 @@ arcli fc ayuda
 
 - **Severidad:** común en producción
 - **Síntoma:** el comprobante sale `rechazado` con el error `10005` ("El punto de venta informado debe estar dado de alta y ser del tipo RECE"), y la sugerencia habla de un punto de venta para web service. `arcli estado --produccion` dice que el punto de venta no está habilitado para web service.
-- **Causa:** el punto de venta configurado no es de web service. Pasa con los de Comprobantes en línea ("Factura en línea"), Facturador o talonarios manuales. Desde el 1/11/2026, por la RG 5893/2026, ARCA da de alta de oficio un punto de venta "Factura en línea - Monotributo" a los monotributistas que no tienen uno electrónico: ese tampoco sirve para arcli.
+- **Causa:** el punto de venta configurado no es de web service. Pasa con los de Comprobantes en línea ("Factura en línea"), Facturador o talonarios manuales. Desde el 1/11/2026, por la RG 5893/2026, ARCA da de alta de oficio un punto de venta "Factura en línea - Monotributo" a los monotributistas que no tienen uno electrónico: ese tampoco sirve para ARCLI.
 - **Solución:** `arcli parametros puntos-venta --produccion` lista los habilitados para web service. Si el tuyo no está, creá uno nuevo con sistema de web services en "Administración de puntos de venta y domicilios" y guardalo con `arcli config establecer puntoVenta <numero>`.
-- **Documentación relacionada:** [Punto de venta para web service](obtencion-certificados.md#punto-de-venta-para-web-service)
+- **Documentación relacionada:** [Punto de venta para web service](certificado-produccion-completa.md#punto-de-venta-para-web-service)
 
 ### Rechazos de ARCA por código
 
-Cuando ARCA rechaza o deja una observación con alguno de estos códigos, `sugerencias` del JSON (y el panel de la salida humana) dice qué pasó y qué hacer. Los que arcli valida antes de enviar (por ejemplo, la ventana de fechas o el IVA receptor por letra) casi nunca llegan a ARCA, pero si llegan, el texto es el mismo.
+Cuando ARCA rechaza o deja una observación con alguno de estos códigos, `sugerencias` del JSON (y el panel de la salida humana) dice qué pasó y qué hacer. Los que ARCLI valida antes de enviar (por ejemplo, la ventana de fechas o el IVA receptor por letra) casi nunca llegan a ARCA, pero si llegan, el texto es el mismo.
 
 | Código          | Qué pasó                                                                                                                                                          | Qué hacer                                                                                                       |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
@@ -380,7 +380,7 @@ Cuando ARCA rechaza o deja una observación con alguno de estos códigos, `suger
 | `10243`         | El IVA receptor no es válido para la letra                                                                                                                        | Ver [El comprobante no admite el IVA receptor](#el-comprobante-no-admite-el-iva-receptor)                       |
 | `10174`         | El CBU de la factura FCE no está registrado a nombre del emisor                                                                                                   | Usá un CBU propio registrado en ARCA (`--cbu` o la clave `cbu`)                                                 |
 | `10119`         | La cotización está fuera del rango que acepta ARCA: entre el 2% y el 400% de la oficial                                                                           | Revisá `--cotizacion-moneda` contra `arcli parametros cotizacion <moneda>`                                      |
-| `10038`         | Con `--misma-moneda`, la cotización enviada ya no es la oficial exacta                                                                                            | Volvé a emitir: arcli consulta la oficial en ese momento                                                        |
+| `10038`         | Con `--misma-moneda`, la cotización enviada ya no es la oficial exacta                                                                                            | Volvé a emitir: ARCLI consulta la oficial en ese momento                                                        |
 | `10017`/`10217` | Observación sobre la condición del receptor; el comprobante puede estar aprobado                                                                                  | Ver [Observaciones de padrón](#observaciones-de-padrón)                                                         |
 
 También se reconocen por el mensaje, sin código: receptor igual al emisor, `Transacción Activa`, CUIT receptor inexistente y detalle de IVA obligatorio. Si ARCA rechaza con otro código, `sugerencias` pide revisar `errores` y `observaciones`.
@@ -392,7 +392,7 @@ También se reconocen por el mensaje, sin código: receptor igual al emisor, `Tr
 - **Severidad:** solo si pasás `--numero` a mano
 - **Síntoma:** ARCA rechaza la `E` con un error de correlatividad del número.
 - **Causa:** WSFEX numera por punto de venta y tipo de comprobante, y el número tiene que ser el siguiente al último autorizado.
-- **Solución:** sacá `--numero`: arcli consulta el último en ARCA (`FEXGetLast_CMP`) y usa el siguiente. Para ver los últimos, `arcli ultimos fe` (o `nde`, `nce`). Un rechazo no emite nada.
+- **Solución:** sacá `--numero`: ARCLI consulta el último en ARCA (`FEXGetLast_CMP`) y usa el siguiente. Para ver los últimos, `arcli ultimos fe` (o `nde`, `nce`). Un rechazo no emite nada.
 - **Documentación relacionada:** [Referencia del CLI](cli-reference.md#factura-de-exportación-e-wsfex)
 
 ### Factura E: falta la actividad o no está en la tabla de WSFEX

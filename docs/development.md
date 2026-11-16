@@ -31,6 +31,7 @@ yarn dev --ayuda
 | `yarn lint`              | ESLint y Prettier (`yarn lint:eslint`, `yarn lint:prettier`)                               |
 | `yarn lint:eslint:fix`   | Corrige lo que ESLint puede arreglar solo                                                  |
 | `yarn lint:prettier:fix` | Formatea con Prettier                                                                      |
+| `yarn docs:comprobantes` | Escribe `docs/comprobantes/` desde `scripts/docs/comprobantes.ts`                          |
 | `yarn pack:check`        | Empaqueta `dist`, lo instala en una carpeta temporal y corre `arcli --version` y `--ayuda` |
 | `yarn open-source:check` | `typecheck`, `test:coverage`, `build`, `test:e2e` y `pack:check`                           |
 
@@ -138,7 +139,7 @@ Versionado: cambios que rompen el contrato del CLI → mayor; flags, comandos o 
 
 ## Trabajar con agentes
 
-Las instrucciones para agentes están en [AGENTS.md](../AGENTS.md) y la referencia para quien usa el CLI desde un agente, en [llms.txt](../llms.txt). Para Claude Code, el repo trae además `.claude/settings.json`, las skills de `.claude/skills/` y los agentes de `.claude/agents/`. Quien mantiene arcli revisa los PRs de terceros con `/revisar-pr <N>`. Tu config personal para este repo va en `.claude/settings.local.json`, que está ignorado.
+Las instrucciones para agentes están en [AGENTS.md](../AGENTS.md) y la referencia para quien usa el CLI desde un agente, en [llms.txt](../llms.txt). Para Claude Code, el repo trae además `.claude/settings.json`, las skills de `.claude/skills/` y los agentes de `.claude/agents/`. Quien mantiene ARCLI revisa los PRs de terceros con `/revisar-pr <N>`. Tu config personal para este repo va en `.claude/settings.local.json`, que está ignorado.
 
 ### Verificación al terminar (hook Stop)
 
@@ -163,15 +164,30 @@ Para desactivarlo: `"disableAllHooks": true` en `.claude/settings.local.json`, o
 
 ### Permisos
 
-`.claude/settings.json` le impide a Claude leer o editar certificados, claves y tickets de ARCA (`*.key`, `*.pem`, `*.p12`, `*.pfx`, `TA-*.json`, en el repo y en tu home) y correr `npm publish` o `yarn publish`: se publica solo con el workflow `Release`. Las reglas de lectura frenan las herramientas de archivos de Claude, no a un script que los abra, así que no es una barrera completa. El repo no habilita mergear PRs ni publicar sin confirmación: si mantenés arcli y lo querés, sumalo en tu `.claude/settings.local.json`.
+`.claude/settings.json` le impide a Claude leer o editar certificados, claves y tickets de ARCA (`*.key`, `*.pem`, `*.p12`, `*.pfx`, `TA-*.json`, en el repo y en tu home) y correr `npm publish` o `yarn publish`: se publica solo con el workflow `Release`. Las reglas de lectura frenan las herramientas de archivos de Claude, no a un script que los abra, así que no es una barrera completa. El repo no habilita mergear PRs ni publicar sin confirmación: si mantenés ARCLI y lo querés, sumalo en tu `.claude/settings.local.json`.
 
 ## Sitio de documentación
 
 `lcsgrz.github.io/arcli` es un sitio de [Starlight](https://starlight.astro.build) que vive en `site/`, con su propio `package.json`: Astro no entra a las dependencias del CLI ni al paquete de npm.
 
-Las páginas **no se editan en `site/`**: `site/scripts/sync-docs.mjs` las genera desde `docs/`, `README.md` (de "Empezar sin saber de terminal" hasta "Uso") y `CHANGELOG.md`, y lo generado está en el `.gitignore` de `site/`. Así `docs/` sigue siendo la única fuente, los links de GitHub no se rompen y los tests de docs no cambian. El script saca el título al frontmatter, cambia los links entre docs por los del sitio, manda a GitHub los que apuntan a archivos que no están en el sitio (arquitectura, desarrollo, design system) y apunta "Editar esta página" al archivo original en `dev`. Lo que es solo del sitio, como la portada (`site/src/content/docs/index.mdx`), sí se edita ahí.
+Las páginas **no se editan en `site/`**: `site/scripts/sync-docs.mjs` las genera desde `docs/`, `README.md` (de "Empezar sin saber de terminal" hasta "Uso") y `CHANGELOG.md`, y lo generado está en el `.gitignore` de `site/`. Así `docs/` sigue siendo la única fuente, los links de GitHub no se rompen y los tests de docs no cambian. El script saca el título al frontmatter, cambia los links entre docs por los del sitio, manda a GitHub los que apuntan a archivos que no están en el sitio (arquitectura, desarrollo, design system) y apunta "Editar esta página" al archivo original en `dev`. Lo que es solo del sitio, como la portada (`site/src/components/landing-body.html` y `Landing.astro`), sí se edita ahí.
 
-Para sumar una página, agregala a `PAGES` en `sync-docs.mjs`: el orden de esa lista es el del menú.
+Para sumar una página, agregala a `PAGES` en `sync-docs.mjs`: el orden de esa lista es el del menú. Los avisos de GitHub (`> [!TIP]`, `> [!CAUTION]`…) se convierten en los avisos de colores del sitio. `obtencion-certificados.md` y `usage-patterns.md` quedan en `docs/` como índice, porque hay links que ya circulan y las versiones publicadas del CLI imprimen el de los certificados; en el sitio, sus links van a la página que tiene el contenido (`ALIASES`).
+
+Lo que en el sitio se ve distinto que en GitHub se marca en `docs/` con un comentario, que GitHub no muestra:
+
+| Comentario                                        | En el sitio                                                                                    |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `<!-- arcli: pasos -->`                           | Los `### 1. …` hasta el próximo `##`, como pasos numerados unidos por una línea                |
+| `<!-- arcli: opciones=req\|opt\|run -->`          | Cada `### opción` (tabla Largo \| Corto \| Qué es) como tarjeta; lo genera `docs:comprobantes` |
+| `<!-- arcli: familia="…" icono="…" orden="…" -->` | La familia arriba del título y el lugar en el menú de comprobantes                             |
+| `<!-- arcli: chat -->`                            | La cita con **Vos:** y **Tu asistente:** como una conversación                                 |
+| `<!-- arcli: muestra=error\|vista -->`            | El bloque de texto siguiente como un cartel chico                                              |
+| `<!-- arcli: formas -->`                          | La tabla siguiente como filas que llevan a cada forma de uso                                   |
+
+Además, Problemas frecuentes pasa cada problema a un desplegable con buscador y Novedades pliega las versiones viejas. Las páginas con `hidden: true` en `PAGES` (las guías completas) se generan pero no van en el menú: se llega desde el link de su versión corta. El menú y sus iconos salen de `PAGES` (`src/generated/sidebar.json`), y el comportamiento de esas páginas está en `site/public/arcli.js`.
+
+Para asistentes de IA, el build publica en la raíz del sitio `llms.txt` (el mismo del repo), `llms-full.txt` (todas las páginas juntas) y cada página en Markdown (`/referencia/comandos.md`).
 
 ```bash
 cd site
@@ -186,7 +202,7 @@ Se publica desde `main` con la release, así que el sitio muestra lo que está e
 
 Están en `docs/assets/demo/` y se regeneran con scripts para que no queden desactualizados:
 
-- **GIF** (`interactivo.gif`, `consultar.gif`, `comandos.gif`) y **video promocional** (`promo.mp4`, 16:9 para redes): los graba [VHS](https://github.com/charmbracelet/vhs) a partir de los guiones de `docs/assets/tapes/`. `scripts/demo/record.sh` usa un `HOME` temporal con una copia de tu config sin las credenciales de producción, así la grabación no muestra tus rutas ni el aviso de vencimiento de ese certificado, y **emite comprobantes reales en testing**. Es para quien mantiene el repo. El certificado de testing siempre es del CUIT de quien lo genera, así que `scripts/demo/mask-cuit.mjs` lo reemplaza por `20-11111111-2` en todo lo que arcli escribe en la terminal.
+- **GIF** (`interactivo.gif`, `consultar.gif`, `comandos.gif`) y **video promocional** (`promo.mp4`, 16:9 para redes): los graba [VHS](https://github.com/charmbracelet/vhs) a partir de los guiones de `docs/assets/tapes/`. `scripts/demo/record.sh` usa un `HOME` temporal con una copia de tu config sin las credenciales de producción, así la grabación no muestra tus rutas ni el aviso de vencimiento de ese certificado, y **emite comprobantes reales en testing**. Es para quien mantiene el repo. El certificado de testing siempre es del CUIT de quien lo genera, así que `scripts/demo/mask-cuit.mjs` lo reemplaza por `20-11111111-2` en todo lo que ARCLI escribe en la terminal.
 
   ```bash
   brew install vhs
@@ -195,7 +211,7 @@ Están en `docs/assets/demo/` y se regeneran con scripts para que no queden desa
 
   Para grabar solo algunos, pasá los guiones: `scripts/demo/record.sh docs/assets/tapes/consultar.tape`. `consultar.tape` solo lee; `interactivo.tape`, `comandos.tape` y `promo.tape` emiten.
 
-- **PDF de ejemplo** (`pdf-factura.png`): `scripts/demo/pdf-sample.mts` arma una Factura B con datos ficticios, sin consultar ARCA. Necesita el plugin de PDF instalado y macOS (`qlmanage`).
+- **PDF de ejemplo** (`pdf-factura.png`): `scripts/demo/pdf-sample.mts` arma una Factura C de $ 15.000 a consumidor final, con datos ficticios, sin consultar ARCA. Necesita el plugin de PDF instalado y macOS (`qlmanage`).
 
   ```bash
   node --import tsx scripts/demo/pdf-sample.mts

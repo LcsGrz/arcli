@@ -23,8 +23,950 @@
   --sl-color-gray-6: #eeeef2;
 }
 
-/* Las tablas de referencia son anchas: que se desplacen en vez de romper el celular. */
-.sl-markdown-content table {
+/* Las tablas de referencia son anchas: en el celular se desplazan en vez de romper la página. */
+@media (max-width: 50rem) {
+  .sl-markdown-content table {
+    display: block;
+    overflow-x: auto;
+  }
+}
+
+:root {
+  --arcli-sol: #f9d77e;
+  --arcli-hdr-hi: #2c2c42;
+  --arcli-hdr-lo: #181825;
+  /* Menu mas ancho y texto a 46rem, como en la maqueta */
+  --sl-sidebar-width: 17rem;
+  --sl-content-width: 46rem;
+}
+
+:root[data-theme='light'] {
+  --arcli-sol: #9a6b00;
+  --arcli-hdr-hi: #ffffff;
+  --arcli-hdr-lo: #eef1f7;
+}
+
+/* Encabezado con el degradé de la imagen de portada y una línea celeste a lavanda abajo */
+header.header {
+  background:
+    radial-gradient(
+      ellipse 60% 300% at 50% 0%,
+      color-mix(in srgb, var(--arcli-hdr-hi) 95%, transparent),
+      transparent 80%
+    ),
+    var(--arcli-hdr-lo);
+  border-bottom-color: transparent;
+}
+
+header.header::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--arcli-celeste) 30%, var(--arcli-lavanda) 70%, transparent);
+  opacity: 0.7;
+}
+
+/* Tamaños de la maqueta: título de 2.5rem, secciones de 1.5rem y el menú del mismo fondo que la página */
+:root {
+  --sl-text-h1: 2.5rem;
+  --sl-text-h2: 1.5rem;
+  --sl-text-h3: 1.2rem;
+  --sl-text-h4: 1.05rem;
+  --sl-color-bg-sidebar: var(--sl-color-black);
+}
+
+/* Opciones de cada comprobante: una tarjeta por opción, con una fila por flag (corto | largo | qué es) */
+.arcli-opts {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.sl-markdown-content .arcli-opt {
+  margin: 0;
+  padding: 0.85rem 1.1rem 0.6rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-inline-start: 3px solid var(--opt-bar);
+  border-radius: 0.55rem;
+  background: var(--sl-color-gray-6);
+}
+
+.arcli-opt-req {
+  --opt-bar: var(--arcli-celeste);
+}
+
+.arcli-opt-opt {
+  --opt-bar: var(--arcli-lavanda);
+}
+
+.arcli-opt-run {
+  --opt-bar: color-mix(in srgb, var(--sl-color-gray-3) 45%, transparent);
+}
+
+.sl-markdown-content .arcli-opt-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  margin: 0;
+}
+
+.arcli-opt-top b {
+  color: var(--sl-color-white);
+  font-weight: 600;
+}
+
+.arcli-ej {
+  color: var(--sl-color-gray-3);
+  font-size: var(--sl-text-xs);
+}
+
+.sl-markdown-content .arcli-opt p {
+  margin: 0.3rem 0 0;
+  color: var(--sl-color-gray-2);
+  font-size: var(--sl-text-sm);
+}
+
+.sl-markdown-content .arcli-opt-rows {
+  margin-top: 0.55rem;
+}
+
+.sl-markdown-content .arcli-opt-row {
+  display: grid;
+  grid-template-columns: minmax(0, 21rem) 5.5rem minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0.2rem 1rem;
+  margin: 0;
+  padding: 0.45rem 0;
+  border-top: 1px dashed var(--sl-color-gray-5);
+  font-size: var(--sl-text-sm);
+}
+
+.arcli-opt-row .s code {
+  color: var(--sl-color-text-accent);
+  font-weight: 600;
+}
+
+.arcli-opt-run .arcli-opt-row .s code {
+  color: var(--sl-color-gray-2);
+}
+
+.arcli-opt-row .l code {
+  overflow-wrap: anywhere;
+}
+
+.arcli-opt-row .w {
+  color: var(--sl-color-gray-2);
+}
+
+.sl-markdown-content details.arcli-more {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.sl-markdown-content details.arcli-more > summary {
+  padding: 0.45rem 0;
+  border-top: 1px dashed var(--sl-color-gray-5);
+  color: var(--sl-color-text-accent);
+  font-size: var(--sl-text-sm);
+  cursor: pointer;
+}
+
+@media (max-width: 44rem) {
+  .sl-markdown-content .arcli-opt-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .arcli-opt-row .s:empty {
+    display: none;
+  }
+
+  .arcli-opt-row .w {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Con IA: la conversación de ejemplo, con marco como los GIF */
+.sl-markdown-content .arcli-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 1.25rem 0;
+  padding: 1.1rem 1.2rem;
+  border: 1px solid #313244;
+  border-radius: 0.75rem;
+  background: #11111b;
+  box-shadow: 0 30px 70px -40px rgb(116 172 223 / 0.4);
+}
+
+.sl-markdown-content .arcli-msg {
+  max-width: 85%;
+  margin: 0;
+  padding: 0.55rem 0.8rem;
+  border-radius: 0.6rem;
+  color: #cdd6f4;
+  font-size: var(--sl-text-sm);
+}
+
+.arcli-msg .who {
   display: block;
-  overflow-x: auto;
+  margin-bottom: 0.15rem;
+  color: #a6adc8;
+  font: 600 0.68rem / 1.4 var(--sl-font-system-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.arcli-msg.user {
+  align-self: flex-end;
+  background: #2a3550;
+}
+
+.arcli-msg.bot {
+  align-self: flex-start;
+  border: 1px solid #313244;
+  background: #1e1e2e;
+}
+
+.arcli-msg strong {
+  color: #fff;
+}
+
+/* Pasos numerados: un círculo por paso y una línea que los une, como en Instalar */
+.arcli-steps {
+  counter-reset: paso;
+}
+
+.sl-markdown-content .arcli-steps > .sl-heading-wrapper {
+  position: relative;
+  counter-increment: paso;
+  margin-top: 0;
+  margin-top: 0;
+  padding: 0.15rem 0 0.4rem 2.75rem;
+}
+
+.sl-markdown-content .arcli-steps > .sl-heading-wrapper h3 {
+  font-size: var(--sl-text-base);
+}
+
+.sl-markdown-content .arcli-steps > .sl-heading-wrapper::before {
+  content: counter(paso);
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  place-items: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border: 1px solid color-mix(in srgb, var(--arcli-celeste) 55%, transparent);
+  border-radius: 50%;
+  background: var(--sl-color-accent-low);
+  color: var(--sl-color-text-accent);
+  font: 700 0.85rem / 1 var(--sl-font-system-mono);
+}
+
+.sl-markdown-content .arcli-steps > :not(.sl-heading-wrapper) {
+  margin-top: 0;
+  margin-inline-start: 0.925rem;
+  padding: 0.5rem 0 0.5rem 1.825rem;
+  border-inline-start: 1px solid var(--sl-color-gray-5);
+}
+
+.sl-markdown-content .arcli-steps > :not(.sl-heading-wrapper):has(+ .sl-heading-wrapper),
+.sl-markdown-content .arcli-steps > :last-child {
+  padding-bottom: 1.5rem;
+}
+
+.sl-markdown-content .arcli-steps > :last-child {
+  border-inline-start-color: transparent;
+}
+
+/* Capturas plegadas: un número, el texto y la imagen */
+.sl-markdown-content details:not(.not-content *) {
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.55rem;
+}
+
+.sl-markdown-content details:not(.not-content *) > summary {
+  color: var(--sl-color-text-accent);
+  font-size: var(--sl-text-sm);
+  cursor: pointer;
+}
+
+.sl-markdown-content details:not(.not-content *) img {
+  margin-top: 0.5rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.4rem;
+}
+
+/* Carteles de muestra en Cómo funciona: chicos, para no competir con el texto */
+.sl-markdown-content .arcli-sample {
+  display: grid;
+  gap: 0.15rem;
+  width: fit-content;
+  min-width: min(100%, 15rem);
+  padding: 0.45rem 0.7rem;
+  border: 1px solid #313244;
+  border-radius: 0.5rem;
+  background: #11111b;
+  color: #cdd6f4;
+  font: 0.72rem / 1.5 var(--sl-font-system-mono);
+}
+
+.arcli-sample b {
+  color: #89b4fa;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.arcli-sample-error {
+  border-color: rgb(243 139 168 / 0.5) !important;
+}
+
+.arcli-sample-error b {
+  color: #f38ba8;
+}
+
+.arcli-sample .row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.arcli-sample i {
+  color: #a6adc8;
+  font-style: normal;
+}
+
+/* Formas de uso en filas, como en la portada */
+.sl-markdown-content .arcli-ways {
+  display: grid;
+  margin-top: 1rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.6rem;
+  background: var(--sl-color-gray-6);
+  overflow: hidden;
+}
+
+.sl-markdown-content .arcli-way {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) 6.5rem;
+  align-items: center;
+  gap: 1rem;
+  margin: 0;
+  padding: 0.8rem 1.1rem;
+  color: var(--sl-color-gray-2);
+  text-decoration: none;
+}
+
+.arcli-way + .arcli-way {
+  border-top: 1px solid var(--sl-color-gray-5);
+}
+
+.arcli-way:hover {
+  background: var(--sl-color-accent-low);
+}
+
+.arcli-way .q {
+  color: var(--sl-color-white);
+  font-weight: 600;
+}
+
+.arcli-way .do {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.arcli-way small {
+  flex: 0 0 3.4rem;
+  color: var(--sl-color-gray-3);
+  font-size: var(--sl-text-xs);
+}
+
+.arcli-way q {
+  font-style: italic;
+}
+
+.arcli-way .go {
+  justify-self: end;
+  color: var(--sl-color-text-accent);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+@media (max-width: 44rem) {
+  .sl-markdown-content .arcli-way {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .arcli-way .do {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+/* Lo que va envuelto adentro de un paso (carteles, capturas) sigue la línea del paso */
+.sl-markdown-content .arcli-steps .arcli-block > * {
+  margin-top: 0;
+}
+
+/* Problemas frecuentes: buscador y un desplegable por problema */
+.sl-markdown-content .arcli-faq-search input {
+  width: 100%;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.6rem;
+  background: var(--sl-color-gray-6);
+  color: var(--sl-color-white);
+  font: inherit;
+}
+
+.sl-markdown-content .arcli-faq-search input:focus {
+  border-color: var(--sl-color-text-accent);
+  outline: none;
+}
+
+.sl-markdown-content details.arcli-faq {
+  margin-top: 0.5rem;
+  padding: 0;
+  background: var(--sl-color-gray-6);
+}
+
+.sl-markdown-content details.arcli-faq > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1rem;
+  color: var(--sl-color-white);
+  font-size: var(--sl-text-base);
+  font-weight: 500;
+}
+
+.sl-markdown-content details.arcli-faq[open] > summary {
+  border-bottom: 1px solid var(--sl-color-gray-5);
+}
+
+.sl-markdown-content details.arcli-faq > :not(summary) {
+  margin-inline: 1rem;
+}
+
+.sl-markdown-content details.arcli-faq > :last-child {
+  margin-bottom: 0.9rem;
+}
+
+.arcli-faq .sev {
+  padding: 0.05rem 0.5rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 99px;
+  color: var(--sl-color-gray-2);
+  font: 600 0.68rem / 1.5 var(--sl-font-system-mono);
+}
+
+.arcli-faq-section[hidden],
+.arcli-faq[hidden] {
+  display: none;
+}
+
+/* Novedades: la fecha abajo de la versión, y las viejas plegadas */
+.sl-markdown-content .arcli-date {
+  margin-top: 0.2rem;
+  color: var(--sl-color-gray-3);
+  font: 0.8rem var(--sl-font-system-mono);
+}
+
+.sl-markdown-content details.arcli-ver {
+  margin-top: 0.4rem;
+}
+
+.sl-markdown-content details.arcli-ver > summary {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  color: var(--sl-color-white);
+  font-size: var(--sl-text-base);
+}
+
+.arcli-ver small {
+  color: var(--sl-color-gray-3);
+  font: 0.8rem var(--sl-font-system-mono);
+}
+
+/* Las fuentes de la maqueta (se cargan en astro.config.mjs) */
+:root {
+  --sl-font: 'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --sl-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+/* ======================= Como la maqueta: marco de cada página ======================= */
+
+/* Menú: un poco más ancho y con la letra de la maqueta, así "Responsable inscripto" entra en una línea */
+:root {
+  --sl-sidebar-width: 19rem;
+}
+
+/* Sin la línea de Starlight entre el título y el texto */
+.content-panel {
+  border-top: 0 !important;
+}
+
+.content-panel + .content-panel {
+  padding-top: 0.5rem;
+}
+
+/* Cada sección empieza con una línea, como en la maqueta */
+.sl-markdown-content > .sl-heading-wrapper.level-h2 {
+  margin-top: 2.75rem;
+  padding-top: 2.25rem;
+  border-top: 1px solid var(--sl-color-gray-5);
+}
+
+/* Índice de la derecha: "EN ESTA PÁGINA" chico, sin "Sinopsis" */
+.right-sidebar-panel h2 {
+  color: var(--sl-color-gray-3) !important;
+  font: 600 0.72rem / 1.4 var(--sl-font-mono) !important;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+starlight-toc nav > ul > li:first-child:has(> a[href='#_top']) {
+  display: none;
+}
+
+.right-sidebar-panel a {
+  font-size: var(--sl-text-sm) !important;
+}
+
+/* Código en línea con borde, como en la maqueta */
+.sl-markdown-content :not(pre) > code:not(.not-content *) {
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.35rem;
+  background: var(--sl-color-gray-6);
+}
+
+/* "Copiar" siempre a la vista */
+.expressive-code .copy button {
+  opacity: 1 !important;
+}
+
+/* Avisos sutiles: borde de color y un fondo apenas teñido */
+.starlight-aside {
+  border: 1px solid color-mix(in srgb, var(--sl-color-asides-border) 45%, transparent);
+  border-inline-start: 3px solid var(--sl-color-asides-border);
+  border-radius: 0.6rem;
+  background: color-mix(in srgb, var(--sl-color-asides-border) 8%, var(--sl-color-black)) !important;
+}
+
+.starlight-aside--tip {
+  --sl-color-asides-border: var(--arcli-verde);
+  --sl-color-asides-text-accent: var(--arcli-verde);
+}
+
+.starlight-aside--note {
+  --sl-color-asides-border: var(--arcli-celeste);
+  --sl-color-asides-text-accent: var(--arcli-celeste);
+}
+
+.starlight-aside--caution {
+  --sl-color-asides-border: var(--arcli-sol);
+  --sl-color-asides-text-accent: var(--arcli-sol);
+}
+
+.starlight-aside--danger {
+  --sl-color-asides-border: #f38ba8;
+  --sl-color-asides-text-accent: #f38ba8;
+}
+
+/* Bloques de código: el título a la izquierda y sin los tres puntos de la ventana */
+.expressive-code .frame.is-terminal .header::before {
+  display: none !important;
+}
+
+.expressive-code .frame.is-terminal .header {
+  justify-content: flex-start !important;
+  padding-inline: 1rem !important;
+  font-family: var(--sl-font-mono) !important;
+  font-size: 0.78rem !important;
+}
+
+/* Pestañas: Windows, macOS, Linux */
+.sl-markdown-content .arcli-tabs {
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.6rem;
+  overflow: hidden;
+}
+
+.sl-markdown-content .arcli-tabs [role='tablist'] {
+  display: flex;
+  margin: 0;
+  border-bottom: 1px solid var(--sl-color-gray-5);
+  background: var(--sl-color-gray-6);
+}
+
+.arcli-tabs [role='tab'] {
+  padding: 0.65rem 1rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--sl-color-gray-3);
+  font: inherit;
+  cursor: pointer;
+}
+
+.arcli-tabs [role='tab'][aria-selected='true'] {
+  border-bottom-color: var(--arcli-celeste);
+  color: var(--sl-color-white);
+}
+
+.sl-markdown-content .arcli-tabs [role='tabpanel'] {
+  margin: 0;
+  padding: 0.5rem 1.25rem 1.25rem;
+}
+
+.arcli-tabs [role='tabpanel'][hidden] {
+  display: none;
+}
+
+/* Las listas numeradas de una pestaña, como pasos */
+.sl-markdown-content .arcli-tabs ol {
+  padding: 0;
+  list-style: none;
+  counter-reset: paso;
+}
+
+.sl-markdown-content .arcli-tabs ol > li {
+  position: relative;
+  padding: 0.15rem 0 1rem 2.75rem;
+  counter-increment: paso;
+}
+
+.sl-markdown-content .arcli-tabs ol > li::before {
+  content: counter(paso);
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  place-items: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border: 1px solid color-mix(in srgb, var(--arcli-celeste) 55%, transparent);
+  border-radius: 50%;
+  background: var(--sl-color-accent-low);
+  color: var(--sl-color-text-accent);
+  font: 700 0.85rem / 1 var(--sl-font-mono);
+}
+
+.sl-markdown-content .arcli-tabs [role='tab'] {
+  margin: 0;
+  font-size: var(--sl-text-sm);
+}
+
+/* ======================= Como la maqueta: texto, tablas, links, código y GIF ======================= */
+:root {
+  --sl-content-width: 56rem;
+  --sl-line-height: 1.65;
+}
+
+/* La introducción pegada al título */
+.content-panel:first-of-type {
+  padding-bottom: 0;
+}
+
+.content-panel + .content-panel {
+  padding-top: 0.75rem !important;
+}
+
+.sl-markdown-content a:not(.arcli-way):not(.not-content *) {
+  color: var(--arcli-celeste);
+}
+
+/* Tablas en una caja, con el encabezado de fondo */
+.sl-markdown-content table:not(.not-content *) {
+  width: 100%;
+  border: 1px solid var(--sl-color-gray-5);
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 0.6rem;
+  font-size: var(--sl-text-sm);
+}
+
+.sl-markdown-content th {
+  background: var(--sl-color-gray-6);
+  color: var(--sl-color-white);
+  font-weight: 600;
+}
+
+.sl-markdown-content th,
+.sl-markdown-content td {
+  padding: 0.55rem 0.9rem;
+  border-bottom: 1px solid var(--sl-color-gray-5);
+}
+
+.sl-markdown-content tr:last-child td {
+  border-bottom: 0;
+}
+
+/* Código de un solo color, como en la terminal, y "Copiar" arriba, en el encabezado */
+.expressive-code .frame pre span {
+  color: #cdd6f4 !important;
+}
+
+.expressive-code .frame.has-title .copy {
+  inset-block-start: 0.2rem !important;
+}
+
+.expressive-code .frame.has-title .copy button {
+  width: 1.9rem !important;
+  height: 1.9rem !important;
+}
+
+/* GIF con marco y leyenda */
+.sl-markdown-content .arcli-gif {
+  margin: 1.25rem 0;
+}
+
+.arcli-gif img {
+  display: block;
+  width: 100%;
+  border: 1px solid #313244;
+  border-radius: 0.75rem;
+  box-shadow: 0 30px 70px -40px rgb(116 172 223 / 0.4);
+}
+
+.arcli-gif figcaption {
+  margin-top: 0.6rem;
+  color: var(--sl-color-gray-3);
+  font-size: var(--sl-text-sm);
+}
+
+/* ======================= Ancho máximo de 96rem, como en la maqueta ======================= */
+:root {
+  --arcli-gutter: max(0px, calc((100vw - 96rem) / 2));
+}
+
+header.header {
+  padding-inline: calc(var(--sl-nav-pad-x) + var(--arcli-gutter)) !important;
+}
+
+@media (min-width: 50rem) {
+  .sidebar-pane {
+    inset-inline-start: var(--arcli-gutter) !important;
+  }
+
+  :root[data-has-sidebar] .main-frame {
+    padding-inline: calc(var(--sl-content-inline-start) + var(--arcli-gutter)) var(--arcli-gutter);
+  }
+}
+
+/* Tablas de ancho completo en pantallas grandes (Starlight las deja en bloque) */
+@media (min-width: 50rem) {
+  .sl-markdown-content table:not(.not-content *) {
+    display: table;
+  }
+}
+
+/* "Copiar" con su centro sobre la línea de abajo del encabezado del bloque */
+.expressive-code .frame.has-title .copy {
+  inset-block-start: 1rem !important;
+}
+
+/* El pie del sitio, sin espacio de más abajo */
+.content-panel:has(.site-foot) {
+  padding-bottom: 0;
+}
+
+/* La portada: de borde a borde y sin espacio entre el encabezado y el degradé */
+:root[data-home] .content-panel,
+:root[data-home] .main-frame .sl-container {
+  max-width: none;
+  padding: 0 !important;
+}
+
+:root[data-home] .content-panel .site-foot {
+  max-width: 72rem;
+  margin-inline: auto;
+  padding-inline: 1.5rem;
+}
+
+/* El índice de la derecha más angosto que el menú, como en la maqueta; el texto arranca junto al menú */
+@media (min-width: 72rem) {
+  .right-sidebar-container {
+    width: 15rem !important;
+  }
+
+  :root[data-has-sidebar][data-has-toc] .main-pane {
+    --sl-content-margin-inline: 0 auto;
+    width: calc(100% - 15rem) !important;
+  }
+}
+
+/* Problemas frecuentes: la línea arriba de cada tema y un "+" a la derecha de cada problema */
+.sl-markdown-content .arcli-faq-section > .sl-heading-wrapper.level-h2 {
+  margin-top: 2.75rem;
+  padding-top: 2.25rem;
+  border-top: 1px solid var(--sl-color-gray-5);
+}
+
+.sl-markdown-content details.arcli-faq > summary {
+  list-style: none;
+}
+
+.sl-markdown-content details.arcli-faq > summary::-webkit-details-marker,
+.sl-markdown-content details.arcli-faq > summary::marker {
+  display: none;
+  content: '';
+}
+
+.sl-markdown-content details.arcli-faq > summary::after {
+  content: '+';
+  margin-inline-start: auto;
+  color: var(--sl-color-gray-3);
+  font-size: 1.1rem;
+}
+
+.sl-markdown-content details.arcli-faq[open] > summary::after {
+  content: '−';
+}
+
+.sl-markdown-content details.arcli-faq > summary::before {
+  display: none !important;
+}
+
+/* Grilla de atajos (Comandos y ¿Cuál me toca?): letras centradas y cada atajo como link */
+.arcli-atajos th:not(:first-child),
+.arcli-atajos td:not(:first-child) {
+  width: 14%;
+  text-align: center;
+}
+
+.arcli-atajos td a {
+  text-decoration: none;
+}
+
+.arcli-atajos td a code {
+  color: var(--arcli-celeste);
+  font-weight: 600;
+}
+
+.arcli-atajos td a:hover code {
+  border-color: var(--arcli-celeste);
+}
+
+/* Imágenes: el lugar reservado (ancho y alto los pone sync-docs) y un fondo gris mientras cargan */
+.sl-markdown-content img:not(.not-content *) {
+  height: auto;
+  background: var(--sl-color-gray-6);
+}
+
+/* El PDF de ejemplo, centrado y con sombra, como las capturas de la portada */
+.sl-markdown-content img[src$='pdf-factura.png']:not(.not-content *) {
+  display: block;
+  margin-inline: auto;
+  border-radius: 0.4rem;
+  background: #fff;
+  box-shadow:
+    0 0 0 1px rgb(116 172 223 / 0.05),
+    0 40px 90px -40px rgb(116 172 223 / 0.45);
+}
+
+/* Pestañas: los pasos arrancan con el mismo aire que el resto de la caja */
+.sl-markdown-content .arcli-tabs [role='tabpanel'] {
+  padding-top: 1.5rem;
+}
+
+/* Un aviso adentro de un paso: el mismo espacio arriba y abajo */
+.sl-markdown-content .arcli-steps .arcli-block > .starlight-aside {
+  margin: 0.5rem 0 0;
+}
+
+/* Si el paso termina con un aviso, la línea que separa la sección ya trae su espacio */
+.sl-markdown-content .arcli-steps > .arcli-block:last-child:has(> .starlight-aside) {
+  padding-bottom: 0;
+}
+
+/* Problemas frecuentes: el buscador queda arriba al bajar */
+.sl-markdown-content .arcli-faq-search {
+  position: sticky;
+  top: var(--sl-nav-height);
+  z-index: 5;
+  padding: 0.75rem 0;
+  background: var(--sl-color-black);
+}
+
+/* Formas de uso: cada fila en una línea y el pedido del tamaño de los comandos */
+.sl-markdown-content .arcli-way {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 6.5rem;
+}
+
+.arcli-way q {
+  overflow: hidden;
+  font-size: var(--sl-text-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.arcli-way .do > code {
+  white-space: nowrap;
+}
+
+/* Pestañas: el mismo espacio arriba y abajo, y un solo espacio antes de un aviso */
+.sl-markdown-content .arcli-tabs [role='tabpanel'] {
+  padding-bottom: 1.5rem;
+}
+
+.sl-markdown-content .arcli-tabs ol > li:last-child {
+  padding-bottom: 0;
+}
+
+/* Formas de uso: el pedido sin el margen que Starlight pone entre elementos */
+.sl-markdown-content .arcli-way .do > * {
+  margin-top: 0;
+}
+
+/* Barra de desplazamiento del menú y del índice, con los colores del sitio */
+.sidebar-pane,
+.right-sidebar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--sl-color-gray-5) transparent;
+}
+
+.sidebar-pane::-webkit-scrollbar,
+.right-sidebar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sidebar-pane::-webkit-scrollbar-thumb,
+.right-sidebar::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 99px;
+  background: var(--sl-color-gray-5) padding-box;
+}
+
+.sidebar-pane::-webkit-scrollbar-thumb:hover,
+.right-sidebar::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--arcli-celeste) 55%, transparent) padding-box;
+}
+
+.sidebar-pane::-webkit-scrollbar-track,
+.right-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* El ícono de los avisos, apenas más grande que su título */
+.starlight-aside__icon {
+  font-size: 1.1em !important;
+}
+
+/* Un desplegable abierto (problemas, capturas, versiones): el fondo un poco más claro */
+.sl-markdown-content details:not(.not-content *):not(.arcli-more)[open] {
+  background: color-mix(in srgb, var(--sl-color-white) 4%, var(--sl-color-gray-6));
 }

@@ -1,0 +1,256 @@
+---
+/**
+ * Pie de cada página, como en la maqueta: "¿Te sirvió?", editar en GitHub, anterior y siguiente, y el pie del sitio
+ * con el logo y los links. "¿Te sirvió?" solo agradece: no se guarda nada.
+ */
+import brand from '../generated/brand.json';
+
+const { editUrl, pagination } = Astro.locals.starlightRoute;
+const isHome = Astro.locals.starlightRoute.id === '';
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const url = (path: string) => `${base}/${path}`;
+const escape = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const logo = brand.banner
+  .map((line) => `<span class="ar">${escape(line.slice(0, brand.splitColumn))}</span><span class="cli">${escape(line.slice(brand.splitColumn))}</span>`)
+  .join('\n');
+const label = (link: { label: string } | undefined) => link?.label;
+---
+
+{
+  !isHome && (
+    <>
+      <div class="page-foot">
+        <div class="helpful">
+          <span>¿Te sirvió esta página?</span>
+          <button type="button" data-helpful="si">Sí</button>
+          <button type="button" data-helpful="no">No</button>
+        </div>
+        {editUrl && <a href={editUrl.toString()}>Editar esta página en GitHub</a>}
+      </div>
+      <nav class="pager" aria-label="Página anterior y siguiente">
+        {pagination.prev && (
+          <a href={pagination.prev.href}>
+            <span>Anterior</span>
+            {label(pagination.prev)}
+          </a>
+        )}
+        {pagination.next && (
+          <a class="next" href={pagination.next.href}>
+            <span>Siguiente</span>
+            {label(pagination.next)}
+          </a>
+        )}
+      </nav>
+    </>
+  )
+}
+
+<footer class="site-foot">
+  <div class="cols">
+    <div class="brand">
+      <a href={url('')} aria-label="ARCLI, inicio"><pre class="logo-mini" aria-hidden="true" set:html={logo} /></a>
+      <p>Facturación electrónica de ARCA desde la terminal. Hecho en Argentina por LcsGrz.</p>
+    </div>
+    <div>
+      <h4>Empezar</h4>
+      <ul>
+        <li><a href={url('empezar/instalar/')}>Instalar y configurar</a></li>
+        <li><a href={url('empezar/certificado-testing/')}>Obtener el certificado</a></li>
+        <li><a href={url('uso/asistente/')}>Asistente</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Referencia</h4>
+      <ul>
+        <li><a href={url('referencia/comandos/')}>Comandos y flags</a></li>
+        <li><a href={url('ayuda/problemas-frecuentes/')}>Problemas frecuentes</a></li>
+        <li><a href={url('ayuda/novedades/')}>Novedades</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Proyecto</h4>
+      <ul>
+        <li><a href="https://github.com/LcsGrz/arcli">GitHub</a></li>
+        <li><a href="https://www.npmjs.com/package/arcli">npm</a></li>
+        <li><a href="https://github.com/LcsGrz/arcli/issues">Reportar un problema</a></li>
+        <li><a href="https://cafecito.app/lcsgrz">Invitar un cafecito</a></li>
+      </ul>
+    </div>
+  </div>
+  <p class="disclaimer"><strong>ARCLI</strong> es un proyecto independiente y no está afiliado a ARCA. Licencia MIT.</p>
+</footer>
+
+<script>
+  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-helpful]')) {
+    button.addEventListener('click', () => {
+      const text = document.querySelector('.helpful span');
+      if (text)
+        text.textContent =
+          button.dataset.helpful === 'si' ? '¡Gracias! Si querés, dejale una estrella en GitHub.' : 'Gracias. Contanos qué faltó en un issue de GitHub.';
+      for (const other of document.querySelectorAll<HTMLButtonElement>('[data-helpful]')) other.disabled = true;
+    });
+  }
+</script>
+
+<style>
+  .page-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem 2rem;
+    margin-top: 3rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--sl-color-gray-5);
+    font-size: var(--sl-text-sm);
+  }
+
+  .helpful {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--sl-color-gray-3);
+  }
+
+  .helpful button {
+    padding: 0.2rem 0.65rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.4rem;
+    background: none;
+    color: var(--sl-color-white);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .helpful button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .page-foot > a {
+    color: var(--arcli-celeste);
+    text-decoration: none;
+  }
+
+  .pager {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+
+  .pager a {
+    display: grid;
+    gap: 0.2rem;
+    padding: 0.9rem 1.1rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.6rem;
+    color: var(--arcli-celeste);
+    font-size: 1.1rem;
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .pager a:hover {
+    border-color: var(--arcli-celeste);
+  }
+
+  .pager span {
+    color: var(--sl-color-gray-3);
+    font-size: var(--sl-text-sm);
+    font-weight: 400;
+  }
+
+  .pager .next {
+    grid-column: 2;
+    text-align: end;
+  }
+
+  .site-foot {
+    margin-top: 4rem;
+    padding-top: 2.5rem;
+    border-top: 1px solid var(--sl-color-gray-5);
+  }
+
+  .cols {
+    display: grid;
+    grid-template-columns: 1.4fr repeat(3, 1fr);
+    gap: 2rem;
+  }
+
+  .brand a {
+    text-decoration: none;
+  }
+
+  .logo-mini {
+    margin: 0;
+    font-size: 0.3rem;
+    line-height: 1.15;
+    font-weight: 700;
+    background: none;
+    border: 0;
+    padding: 0;
+  }
+
+  .logo-mini :global(.ar) {
+    color: var(--arcli-celeste);
+  }
+
+  .logo-mini :global(.cli) {
+    color: var(--arcli-lavanda);
+  }
+
+  .brand p {
+    margin-top: 0.9rem;
+    color: var(--sl-color-gray-3);
+    font-size: var(--sl-text-sm);
+  }
+
+  h4 {
+    margin: 0 0 0.75rem;
+    color: var(--sl-color-white);
+    font-size: var(--sl-text-sm);
+  }
+
+  ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  li + li {
+    margin-top: 0.5rem;
+  }
+
+  ul a {
+    color: var(--sl-color-gray-3);
+    font-size: var(--sl-text-sm);
+    text-decoration: none;
+  }
+
+  ul a:hover {
+    color: var(--sl-color-white);
+  }
+
+  .disclaimer {
+    margin: 2rem 0 0;
+    padding: 1.25rem 0;
+    border-top: 1px solid var(--sl-color-gray-5);
+    color: var(--sl-color-gray-3);
+    font-size: var(--sl-text-xs);
+  }
+
+  .disclaimer strong {
+    color: var(--sl-color-white);
+  }
+
+  @media (max-width: 50rem) {
+    .cols {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .cols .brand {
+      grid-column: 1 / -1;
+    }
+  }
+</style>
