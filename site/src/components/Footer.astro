@@ -178,6 +178,10 @@ const label = (link: { label: string } | undefined) => link?.label;
     gap: 2rem;
   }
 
+  .brand a {
+    text-decoration: none;
+  }
+
   .logo-mini {
     margin: 0;
     font-size: 0.3rem;
@@ -229,8 +233,8 @@ const label = (link: { label: string } | undefined) => link?.label;
   }
 
   .disclaimer {
-    margin-top: 2rem;
-    padding-top: 1.25rem;
+    margin: 2rem 0 0;
+    padding: 1.25rem 0;
     border-top: 1px solid var(--sl-color-gray-5);
     color: var(--sl-color-gray-3);
     font-size: var(--sl-text-xs);

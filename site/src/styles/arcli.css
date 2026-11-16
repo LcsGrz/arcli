@@ -676,7 +676,7 @@ starlight-toc nav > ul > li:first-child:has(> a[href='#_top']) {
 
 /* ======================= Como la maqueta: texto, tablas, links, código y GIF ======================= */
 :root {
-  --sl-content-width: 50rem;
+  --sl-content-width: 56rem;
   --sl-line-height: 1.65;
 }
 
@@ -750,4 +750,97 @@ starlight-toc nav > ul > li:first-child:has(> a[href='#_top']) {
   margin-top: 0.6rem;
   color: var(--sl-color-gray-3);
   font-size: var(--sl-text-sm);
+}
+
+/* ======================= Ancho máximo de 96rem, como en la maqueta ======================= */
+:root {
+  --arcli-gutter: max(0px, calc((100vw - 96rem) / 2));
+}
+
+header.header {
+  padding-inline: calc(var(--sl-nav-pad-x) + var(--arcli-gutter)) !important;
+}
+
+@media (min-width: 50rem) {
+  .sidebar-pane {
+    inset-inline-start: var(--arcli-gutter) !important;
+  }
+
+  :root[data-has-sidebar] .main-frame {
+    padding-inline: calc(var(--sl-content-inline-start) + var(--arcli-gutter)) var(--arcli-gutter);
+  }
+}
+
+/* Tablas de ancho completo en pantallas grandes (Starlight las deja en bloque) */
+@media (min-width: 50rem) {
+  .sl-markdown-content table:not(.not-content *) {
+    display: table;
+  }
+}
+
+/* "Copiar" con su centro sobre la línea de abajo del encabezado del bloque */
+.expressive-code .frame.has-title .copy {
+  inset-block-start: 1rem !important;
+}
+
+/* El pie del sitio, sin espacio de más abajo */
+.content-panel:has(.site-foot) {
+  padding-bottom: 0;
+}
+
+/* La portada: de borde a borde y sin espacio entre el encabezado y el degradé */
+:root[data-home] .content-panel,
+:root[data-home] .main-frame .sl-container {
+  max-width: none;
+  padding: 0 !important;
+}
+
+:root[data-home] .content-panel .site-foot {
+  max-width: 72rem;
+  margin-inline: auto;
+  padding-inline: 1.5rem;
+}
+
+/* El índice de la derecha más angosto que el menú, como en la maqueta; el texto arranca junto al menú */
+@media (min-width: 72rem) {
+  .right-sidebar-container {
+    width: 15rem !important;
+  }
+
+  :root[data-has-sidebar][data-has-toc] .main-pane {
+    --sl-content-margin-inline: 0 auto;
+    width: calc(100% - 15rem) !important;
+  }
+}
+
+/* Problemas frecuentes: la línea arriba de cada tema y un "+" a la derecha de cada problema */
+.sl-markdown-content .arcli-faq-section > .sl-heading-wrapper.level-h2 {
+  margin-top: 2.75rem;
+  padding-top: 2.25rem;
+  border-top: 1px solid var(--sl-color-gray-5);
+}
+
+.sl-markdown-content details.arcli-faq > summary {
+  list-style: none;
+}
+
+.sl-markdown-content details.arcli-faq > summary::-webkit-details-marker,
+.sl-markdown-content details.arcli-faq > summary::marker {
+  display: none;
+  content: '';
+}
+
+.sl-markdown-content details.arcli-faq > summary::after {
+  content: '+';
+  margin-inline-start: auto;
+  color: var(--sl-color-gray-3);
+  font-size: 1.1rem;
+}
+
+.sl-markdown-content details.arcli-faq[open] > summary::after {
+  content: '−';
+}
+
+.sl-markdown-content details.arcli-faq > summary::before {
+  display: none !important;
 }
