@@ -661,8 +661,17 @@ function installPrompt(text) {
   });
 }
 
+/** Un GIF solo en su linea pasa a una figura con marco y, abajo, su texto alternativo como leyenda. */
+function gifs(text) {
+  return text.replace(
+    /^!\[([^\]]+)\]\(([^)\s]+\.gif)\)$/gm,
+    (_, alt, src) =>
+      `<figure class="arcli-gif"><img src="${src}" alt="${alt}" loading="lazy"><figcaption>${inlineHtml(alt)}</figcaption></figure>`,
+  );
+}
+
 /** Lo que el sitio dibuja distinto que GitHub, en orden: tarjetas, chat, carteles, formas de uso, pasos, problemas y novedades. */
-const SITE_TRANSFORMS = [optionCards, chats, samples, ways, steps, tabs, problems, releases];
+const SITE_TRANSFORMS = [gifs, optionCards, chats, samples, ways, steps, tabs, problems, releases];
 
 /** Convierte cada bloque `> [!TIPO]` en `:::tipo ... :::`, fuera de los bloques de codigo. */
 function githubAlertsToAsides(text) {
