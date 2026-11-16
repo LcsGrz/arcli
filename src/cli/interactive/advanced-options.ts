@@ -4,15 +4,17 @@ import { isForeignCurrency } from '../../modules/billing/billing.currency';
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { findArcaCurrency, toIsoCurrencyCode } from '../../modules/billing/currency-codes';
+import type { ArcliConfig } from '../../modules/config/config.schemas';
 import { parseAmountInput, parseExchangeRateInput } from '../../modules/interactive/amount-input';
-import { ivaRateChoices } from '../../modules/interactive/choices';
+import { currencyChoices, ivaRateChoices } from '../../modules/interactive/choices';
 import { BACK, type Back } from '../../modules/interactive/wizard';
 
 import { askTextStep, chooseManyStep, chooseStep } from './prompts';
-import { validateDate, validateExchangeRate, validateOptionalAmount } from './validators';
+import { validateBillingDate, validateDate, validateExchangeRate, validateOptionalAmount } from './validators';
 
 export type AdvancedOptions = Pick<
   BillingCommandInput,
+  | 'billingDate'
   | 'currencyCode'
   | 'exchangeRate'
   | 'exemptAmount'
@@ -25,7 +27,8 @@ export type AdvancedOptions = Pick<
   | 'untaxedAmount'
 >;
 
-export type AdvancedOptionKey = 'alicuota' | 'divisas' | 'exento' | 'servicio' | 'transferencia' | 'vencimiento';
+export type AdvancedOptionKey =
+  'alicuota' | 'divisas' | 'exento' | 'fecha' | 'servicio' | 'transferencia' | 'vencimiento';
 type Option = AdvancedOptionKey;
 
 interface AdvancedContext {
@@ -34,9 +37,33 @@ interface AdvancedContext {
   readonly defaultIvaRate: NonNullable<BillingCommandInput['ivaRate']>;
   /** La moneda no se puede cambiar: al repetir un comprobante en moneda extranjera, el monto ya esta en esa moneda. */
   readonly fixedCurrency?: boolean;
+  /** Opciones que no se ofrecen: en las notas, la alicuota (tiene su paso) o la moneda (la de la factura). */
+  readonly hidden?: readonly Option[];
   /** Opciones que arrancan marcadas, por ejemplo la alicuota al repetir una factura de la que no se deduce. */
   readonly preselected?: readonly Option[];
   readonly voucherKind: VoucherKindDefinition;
+}
+
+/**
+ * Como el CLI sin `--moneda`: arranca en la moneda de la config y, si es extranjera, con su cotizacion guardada
+ * (deprecada) o, sin ella, la oficial de ARCA.
+ */
+export function initialAdvancedOptions(
+  config: Pick<ArcliConfig, 'cotizacionPorDefecto' | 'monedaPorDefecto'>,
+): AdvancedOptions {
+  const currencyCode = config.monedaPorDefecto;
+
+  if (!currencyCode || !isForeignCurrency({ currencyCode })) {
+    return { currencyCode: DEFAULT_CURRENCY_CODE, sameCurrency: false };
+  }
+
+  const rate = config.cotizacionPorDefecto;
+
+  return {
+    currencyCode: toIsoCurrencyCode(currencyCode),
+    exchangeRate: rate !== undefined && rate !== DEFAULT_EXCHANGE_RATE ? rate : undefined,
+    sameCurrency: false,
+  };
 }
 
 /** Como se nombra la moneda en las preguntas: "dólares", "euros"; si no esta en la tabla, su codigo. */
@@ -57,9 +84,10 @@ function describeCurrency(options: AdvancedOptions): string {
 
   const name = currencyName(options.currencyCode);
 
-  return options.sameCurrency
+  // Sin cotizacion (la moneda de la config, sin `cotizacion`), el CLI usa la oficial de ARCA.
+  return options.sameCurrency || options.exchangeRate === undefined
     ? `${name}, cotización oficial de ARCA`
-    : `${name}, cotización ${formatExchangeRate(options.exchangeRate ?? DEFAULT_EXCHANGE_RATE)}`;
+    : `${name}, cotización ${formatExchangeRate(options.exchangeRate)}`;
 }
 
 function describeAmounts(options: AdvancedOptions): string {
@@ -102,10 +130,11 @@ export async function askExchangeRate(current: AdvancedOptions, currencyCode: st
 }
 
 async function askCurrency(current: AdvancedOptions): Promise<AdvancedOptions | Back> {
-  const currency = await chooseStep('Moneda del comprobante:', [
-    { name: 'Pesos', value: 'PES' as const },
-    { name: 'Dólares (USD)', value: 'USD' as const },
-  ]);
+  const currency = await chooseStep(
+    'Moneda del comprobante:',
+    currencyChoices(),
+    isForeignCurrency(current) && current.currencyCode ? toIsoCurrencyCode(current.currencyCode) : 'PES',
+  );
 
   if (currency === BACK) {
     return BACK;
@@ -138,7 +167,16 @@ async function askExemptAmounts(current: AdvancedOptions): Promise<AdvancedOptio
   return { ...current, exemptAmount: parseAmountInput(exempt), untaxedAmount: parseAmountInput(untaxed) };
 }
 
-async function askServicePeriod(current: AdvancedOptions): Promise<AdvancedOptions | Back> {
+async function askBillingDate(current: AdvancedOptions, context: AdvancedContext): Promise<AdvancedOptions | Back> {
+  const date = await askTextStep('Fecha del comprobante:', {
+    validate: (value) => validateBillingDate(value, context.concept, context.voucherKind),
+  });
+
+  return date === BACK ? BACK : { ...current, billingDate: date };
+}
+
+/** Desde y hasta del servicio. Lo comparten los opcionales y el paso del periodo de "Repetir". */
+export async function askServicePeriod(current: AdvancedOptions): Promise<AdvancedOptions | Back> {
   const start = await askTextStep('Servicio desde:', { validate: validateDate });
 
   if (start === BACK) {
@@ -179,8 +217,12 @@ function optionalChoices(options: AdvancedOptions, context: AdvancedContext) {
   const usesService = context.concept !== 'productos';
   const isFceInvoice = context.voucherKind.family === 'factura-credito-electronica';
   const discriminatesIva = context.voucherKind.letter !== 'c';
+  // Como el CLI: vencimiento en servicios y en la factura FCE; las notas FCE no lo llevan.
+  const usesDueDate = isFceInvoice || (usesService && !context.voucherKind.isElectronicCredit);
+  const hidden = new Set(context.hidden ?? []);
 
   return [
+    { description: options.billingDate ?? 'hoy', name: 'Fecha del comprobante', value: 'fecha' as const },
     ...(discriminatesIva
       ? [
           {
@@ -205,7 +247,7 @@ function optionalChoices(options: AdvancedOptions, context: AdvancedContext) {
           },
         ]
       : []),
-    ...(usesService || isFceInvoice
+    ...(usesDueDate
       ? [
           {
             description: options.paymentDueDate ?? 'por defecto',
@@ -223,7 +265,17 @@ function optionalChoices(options: AdvancedOptions, context: AdvancedContext) {
           },
         ]
       : []),
-  ];
+  ].filter((choice) => !hidden.has(choice.value));
+}
+
+/** Lo que ya no aplica (por ejemplo, fechas de servicio si se cambio a productos) no llega al comprobante. */
+function dropUnavailable(options: AdvancedOptions, available: ReadonlySet<Option>): AdvancedOptions {
+  return {
+    ...options,
+    ...(available.has('exento') ? {} : { exemptAmount: undefined, untaxedAmount: undefined }),
+    ...(available.has('servicio') ? {} : { serviceEndDate: undefined, serviceStartDate: undefined }),
+    ...(available.has('vencimiento') ? {} : { paymentDueDate: undefined }),
+  };
 }
 
 /**
@@ -239,6 +291,7 @@ export async function askAdvancedOptions(
     alicuota: (current) => askIvaRate(current, context),
     divisas: askCurrency,
     exento: askExemptAmounts,
+    fecha: (current) => askBillingDate(current, context),
     servicio: askServicePeriod,
     transferencia: askTransferMode,
     vencimiento: askPaymentDueDate,
@@ -273,7 +326,7 @@ export async function askAdvancedOptions(
     }
 
     if (completed) {
-      return options;
+      return dropUnavailable(options, new Set(optionalChoices(options, context).map((choice) => choice.value)));
     }
   }
 }

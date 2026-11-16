@@ -48,7 +48,8 @@ const after = fingerprint(changedSourceFiles());
 if (failures.length > 0) {
   saveStamp({ ...stamp, failed: after });
   process.stderr.write(
-    `Verificación de src/ fallida (hook Stop, scripts/agent/stop-check.mjs):\n\n${failures.join('\n\n')}\n`,
+    `Verificación de src/ fallida (hook Stop, scripts/agent/stop-check.mjs):\n\n${failures.join('\n\n')}\n\n` +
+      'Arreglalo antes de terminar; si el error no lo causó tu cambio, decilo.\n',
   );
   process.exit(2);
 }
@@ -61,9 +62,8 @@ if (remind) {
     hookSpecificOutput: {
       hookEventName: 'Stop',
       additionalContext:
-        'Cambió src/cli o src/modules/config y en esta rama no se tocó ningún doc. Si el cambio afecta comandos, flags, ' +
-        'claves de config, JSON, validaciones o mensajes, actualizá lo que pide la tabla de CONTRIBUTING.md#documentación ' +
-        '(skill sincronizar-docs, si existe). Si es un cambio interno, decilo y seguí.',
+        'Cambió src/cli o src/modules/config y en esta rama no se tocó ningún doc. Si hay un cambio visible para quien ' +
+        'usa el CLI, corré la skill sincronizar-docs (tabla de CONTRIBUTING.md#documentación). Si es interno, decilo y seguí.',
     },
   });
 }

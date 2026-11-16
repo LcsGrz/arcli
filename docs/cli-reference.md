@@ -143,7 +143,7 @@ Usalos cuando necesitás controlar el entorno, la salida o el modo de inspecció
 El entorno y la decisión de emitir son independientes:
 
 - **Entorno:** `--testing` o `--produccion`; sin flag, `config.entorno` (`testing` por defecto).
-- **Emitir:** `--emitir` o `--previsualizar`; sin flag, `emitir`/`previsualizar` del JSON de `--cargar`; si tampoco, `config.emitir` (`false` por defecto). Si nada pide emitir, en una terminal se muestra la vista previa y se pregunta, nombrando el entorno: `¿Emitimos la factura B en PRODUCCIÓN?` (Esc cuenta como no, igual que en el modo interactivo, y también en las preguntas del PDF); con `--json` o sin terminal no se emite.
+- **Emitir:** `--emitir` o `--previsualizar`; sin flag, `emitir`/`previsualizar` del JSON de `--cargar`; si tampoco, `config.emitir` (`false` por defecto). Si nada pide emitir, en una terminal se muestra la vista previa y se pregunta, nombrando el entorno: `¿Emitimos la factura B en PRODUCCIÓN?`, con las opciones **Sí, emitir ahora**, **Sí, emitir y generar el PDF** y **No, dejar sin emitir** (la del PDF no aparece con `--exportar-pdf` o `--sin-pdf`; ver [PDF](pdf.md#cuándo-se-genera)). Esc cuenta como no, igual que en el modo interactivo, y también en las preguntas del PDF; con `--json` o sin terminal no se emite.
 
 Así, `--produccion --emitir` emite en producción sin preguntar, y también lo hace un comando sin flags si la config tiene `entorno produccion` y `emitir true`. Es a propósito, para quien no quiere confirmar cada vez. Para no depender de la config (scripts, agentes), pasá siempre el entorno y `--emitir` o `--previsualizar`.
 
@@ -321,7 +321,7 @@ Estos flags controlan el PDF del comprobante emitido. Los datos que se pasan ac�
 
 `--condicion-venta` acepta `contado`, `tarjeta-debito`, `tarjeta-credito`, `cuenta-corriente`, `cheque`, `transferencia`, `otros-medios-electronicos` u `otra`, que se imprimen con su nombre (`cuenta-corriente` sale "Cuenta Corriente"). Cualquier otro texto se imprime tal cual: `--cv "Billetera virtual"`. `--sin-condicion-venta` permite omitirla en un comprobante aunque exista un valor en la config; no se combina con `--condicion-venta` ni `--cv`. Solo en A, B y C; en la factura `E` va `--forma-pago`, que sí viaja a ARCA.
 
-`--exportar-pdf` y `--sin-pdf` no se combinan. Sin ninguno de los dos, decide `config.pdf` (`preguntar` por defecto: en una terminal pregunta, con `--json` o sin terminal no genera).
+`--exportar-pdf` y `--sin-pdf` no se combinan. Sin ninguno de los dos, si confirmás la emisión a mano lo decide la opción que elijas (**Sí, emitir ahora** o **Sí, emitir y generar el PDF**); si se emite sin confirmar, decide `config.pdf` (`preguntar` por defecto: en una terminal pregunta después de emitir, con `--json` o sin terminal no genera).
 
 ### Comando `arcli pdf`
 
@@ -365,7 +365,8 @@ Consultan a ARCA sin emitir nada. Usan el entorno y el punto de venta de la conf
 | `arcli parametros <tabla>`             | `puntos-venta`, `comprobantes`, `documentos`, `alicuotas`, `iva-receptor`, `monedas`, `conceptos`, `opcionales` o `tributos` |
 | `arcli parametros cotizacion <moneda>` | Cotización oficial de ARCA, por ejemplo `USD`                                                                                |
 
-- Las tablas muestran solo los valores vigentes hoy, salvo `puntos-venta`, que también lista los bloqueados o dados de baja, marcados.
+- Las tablas muestran solo los valores vigentes hoy, salvo `puntos-venta`, que también lista los bloqueados o dados de baja, con su estado.
+- En texto, cada tabla tiene una fila de encabezado (`CÓDIGO`, o `NÚMERO` en `puntos-venta`, la descripción y, en `iva-receptor` y `puntos-venta`, una tercera columna) y al pie para qué sirve el código en ARCLI, por ejemplo que `--moneda` acepta el código o el ISO. El `--json` no cambia.
 - **Puntos de venta en testing:** ARCA no los informa, así que `parametros puntos-venta` sale vacío y `estado` no puede verificar el punto de venta. En testing cualquier número sirve.
 - En producción, `estado` avisa si el punto de venta configurado no existe para tu CUIT, está bloqueado o dado de baja.
 - `estado` con `listo: false` sale con exit code `0`: es un diagnóstico, no un error. Si ARCA no responde, el error es `ARCA_UNAVAILABLE`.
@@ -539,11 +540,12 @@ Acá se combinan las dos reglas anteriores:
 **Obligatorio**
 
 - todo lo base de una factura
-- bloque de asociado completo, incluida `--afecha`
+- bloque de asociado: `--ac` o `--at`, `--apv` y `--ar`
 - el asociado tiene que ser del propio emisor: `--acuit` se puede omitir y toma el CUIT configurado
 
 **Opcional**
 
+- `--afecha`: sin ella, arcli consulta el asociado en ARCA y toma su fecha; la vista previa ya la muestra
 - `--anulacion` si la nota anula una factura que el comprador rechazó
 
 No llevan CBU, alias, transferencia ni vencimiento de pago.
@@ -551,7 +553,7 @@ No llevan CBU, alias, transferencia ni vencimiento de pago.
 #### Ejemplo mínimo funcional
 
 ```bash
-arcli ncea -m 1 --cs --cuit 20168598204 --ir-ri --ac fcea --apv 3 --ar 6 --afecha 01-03-2026
+arcli ncea -m 1 --cs --cuit 20168598204 --ir-ri --ac fcea --apv 3 --ar 6
 ```
 
 ### Factura de exportación `E` (WSFEX)
@@ -778,10 +780,10 @@ arcli consultar fb 14             # detalle de la factura B número 14
 arcli consultar fb 14 --json      # lo mismo, en JSON
 ```
 
-| Comando                           | Argumentos                                                 | Flags                                                                                                                                      |
-| --------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `arcli ultimos <tipo>`            | `tipo`: atajo del comprobante (`fa`, `fb`, `nca`, `fcea`…) | `--cantidad <n>` (1 a 50; por defecto `config.comprobantesPorLista` o 15), `--pv` / `--punto-venta`, `--json`, `--testing`, `--produccion` |
-| `arcli consultar <tipo> <numero>` | `tipo` y número del comprobante                            | `--pv` / `--punto-venta`, `--json`, `--testing`, `--produccion`                                                                            |
+| Comando                           | Argumentos                                                 | Flags                                                                                                                               |
+| --------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `arcli ultimos <tipo>`            | `tipo`: atajo del comprobante (`fa`, `fb`, `nca`, `fcea`…) | `--cantidad <n>` (1 a 50; por defecto `config.filasPorLista` o 15), `--pv` / `--punto-venta`, `--json`, `--testing`, `--produccion` |
+| `arcli consultar <tipo> <numero>` | `tipo` y número del comprobante                            | `--pv` / `--punto-venta`, `--json`, `--testing`, `--produccion`                                                                     |
 
 Sin `--pv` usan el punto de venta de la config. Aceptan también la `E` (`fe`, `nde`, `nce`), que se consulta en WSFEX con su certificado. Si el comprobante no existe, `consultar` termina con el error `VOUCHER_NOT_FOUND`. El formato del JSON está en [Entrada y salida](input-output.md#comprobantes-emitidos-ultimos-y-consultar).
 

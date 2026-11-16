@@ -408,6 +408,7 @@ Una clave del JSON no cambia sin aviso. Antes de sacarla o de cambiarle el tipo,
 | `cuit` como número                         | `padron`, `fce-obligado` | Leelo como texto: en la 3.0.0 es un string                 |
 | `detalles.errors`                          | errores de ARCA          | `detalles.errores`, con `codigo` y `mensaje`               |
 | `monto` en `--cargar`                      | factura E                | `montoTotal`; este aviso sale en `avisos` y en la terminal |
+| `comprobantesPorLista`                     | `config --json`          | `filasPorLista`, que trae el mismo valor                   |
 
 Todas se sacan en la 3.0.0.
 
@@ -738,7 +739,7 @@ En testing, `puntos-venta` sale con `valores: []`: ARCA no informa puntos de ven
 }
 ```
 
-Las claves son las de [configuración](configuration.md), salvo que `cert.*`, `key.*`, `emisor.*` y `exportacion.*` van anidadas en los objetos `cert`, `key`, `emisor` y `exportacion` (vacíos si no hay nada; `exportacion` trae a su vez `cert`, `key` y, si está, `actividad`). `emitir`, `entorno`, `exportacion`, `json`, `bruto`, `pdf`, `pdfCarpeta`, `moneda`, `cotizacion`, `consultarPadron` y `ticketPath` siempre aparecen, con su valor por defecto si no se configuraron; el resto, solo si tiene valor.
+Las claves son las de [configuración](configuration.md), salvo que `cert.*`, `key.*`, `emisor.*` y `exportacion.*` van anidadas en los objetos `cert`, `key`, `emisor` y `exportacion` (vacíos si no hay nada; `exportacion` trae a su vez `cert`, `key` y, si está, `actividad`). `emitir`, `entorno`, `exportacion`, `json`, `bruto`, `pdf`, `pdfCarpeta`, `moneda`, `cotizacion`, `consultarPadron` y `ticketPath` siempre aparecen, con su valor por defecto si no se configuraron; el resto, solo si tiene valor. Si `filasPorLista` tiene valor (o el archivo tiene la clave vieja `comprobantesPorLista`), sale también `comprobantesPorLista` con el mismo valor, deprecada hasta la 3.0.0, y `deprecado` lo avisa (ver [Estabilidad del contrato](#estabilidad-del-contrato)).
 
 `arcli config revisar --json`:
 

@@ -4,7 +4,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { VoucherShortcut } from '../../../modules/billing/billing.types';
 import { arcliConfigSchema } from '../../../modules/config/config.schemas';
+import type { IssuedVoucher } from '../../../modules/vouchers/voucher-history';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import {
   type BillingCommandDependencies,
@@ -49,6 +51,7 @@ function gateways(overrides: Partial<BillingCommandGateways['billing']> = {}): B
       ...overrides,
     },
     fce: { getObligation: vi.fn() } as never,
+    history: { getVoucher: vi.fn(async () => undefined) },
     padron: { getTaxpayer: vi.fn(async () => null) },
   };
 }
@@ -74,9 +77,11 @@ async function run(
     readonly config?: Record<string, unknown>;
     readonly gateways?: BillingCommandGateways;
     readonly json?: boolean;
+    readonly shortcut?: VoucherShortcut;
   } = {},
 ): Promise<BillingCommandGateways> {
-  const command = new Command('fc');
+  const shortcut = options.shortcut ?? 'fc';
+  const command = new Command(shortcut);
   const used = options.gateways ?? gateways();
   const dependencies: BillingCommandDependencies = {
     createGateways: () => used,
@@ -84,8 +89,8 @@ async function run(
   };
 
   registerBillingCommandOptions(command);
-  command.parse(['node', 'fc', ...args]);
-  await executeBillingCommand(command, 'fc', {}, dependencies);
+  command.parse(['node', shortcut, ...args]);
+  await executeBillingCommand(command, shortcut, {}, dependencies);
 
   return used;
 }
@@ -353,5 +358,135 @@ describe('sin flag de emision no se emite (el comando entero, con --json)', () =
 
     expect(JSON.parse(stdout)).toMatchObject({ estado: 'previsualizacion' });
     expect(used.billing.createVoucher).not.toHaveBeenCalled();
+  });
+});
+
+/** Una factura C 3-12 de $ 800 y una FCE A 3-7 de $ 5.000, tal como las devuelve ARCA. */
+function issued(overrides: Partial<IssuedVoucher> = {}): IssuedVoucher {
+  return {
+    currency: 'PES',
+    date: '20260310',
+    documentNumber: 0,
+    documentTypeCode: 99,
+    ivaAmount: 0,
+    netAmount: 800,
+    number: 12,
+    result: 'A',
+    total: 800,
+    ...overrides,
+  };
+}
+
+function withAssociated(voucher: IssuedVoucher | undefined): BillingCommandGateways {
+  return { ...gateways(), history: { getVoucher: vi.fn(async () => voucher) } };
+}
+
+const CREDIT_NOTE_C = [
+  '-m',
+  '1000',
+  '--cs',
+  '--cfinal',
+  '--ac',
+  'fc',
+  '--apv',
+  '3',
+  '--ar',
+  '12',
+  '--acuit',
+  '20111111112',
+];
+const CREDIT_NOTE_FCE = [
+  ...['-m', '1000', '--cs', '--cuit', '30709965812', '--ir-ri', '--fecha', '18/03/2026'],
+  ...['--ac', 'fcea', '--apv', '3', '--ar', '7'],
+];
+
+describe('notas con el asociado consultado en ARCA una vez, antes de la vista previa (REV-45, REV-46)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('la vista previa de una NC mayor que su factura ya es un error, con la sugerencia', async () => {
+    const used = withAssociated(issued());
+
+    await expect(run(CREDIT_NOTE_C, { gateways: used, shortcut: 'ncc' })).rejects.toMatchObject({
+      code: 'INPUT_VALIDATION_ERROR',
+      message: 'La nota de crédito por $ 1.000 no puede superar el total de la factura C 00003-00000012, de $ 800.',
+      suggestion: 'Para anularla entera usá `--monto 800`.',
+    });
+    expect(used.history.getVoucher).toHaveBeenCalledTimes(1);
+    expect(used.billing.createVoucher).not.toHaveBeenCalled();
+  });
+
+  it('una NC dentro del total se emite consultando el asociado una sola vez', async () => {
+    const used = await run([...CREDIT_NOTE_C, '--emitir'], {
+      gateways: withAssociated(issued({ total: 1000 })),
+      shortcut: 'ncc',
+    });
+
+    expect(JSON.parse(stdout)).toMatchObject({ estado: 'aprobado' });
+    expect(used.history.getVoucher).toHaveBeenCalledTimes(1);
+    expect(used.billing.createVoucher).toHaveBeenCalledTimes(1);
+  });
+
+  it('si ARCA no responde, la NC se previsualiza igual, con un aviso', async () => {
+    const used = { ...gateways(), history: { getVoucher: vi.fn(async () => Promise.reject(new Error('timeout'))) } };
+
+    await run(CREDIT_NOTE_C, { gateways: used, shortcut: 'ncc' });
+
+    expect(JSON.parse(stdout)).toMatchObject({
+      avisos: [expect.stringContaining('No se pudo verificar en ARCA que la nota de crédito no supere')],
+      estado: 'previsualizacion',
+    });
+  });
+
+  it('en un lote, una NC mayor que su factura sale en la vista previa con su indice', async () => {
+    const path = join(directory, 'notas.json');
+    const item = (montoTotal: number) => ({
+      comprobanteAsociado: { atajo: 'fc', cuit: '20111111112', numero: 12, puntoVenta: 3 },
+      concepto: 'servicios',
+      ivaReceptor: 'consumidor-final',
+      montoTotal,
+      tipoDocumento: 'consumidor-final',
+    });
+
+    writeFileSync(path, JSON.stringify([item(500), item(5000)]));
+
+    const used = withAssociated(issued());
+
+    await expect(run(['--cargar', path], { gateways: used, shortcut: 'ncc' })).rejects.toMatchObject({
+      code: 'BATCH_VALIDATION_ERROR',
+      message: expect.stringContaining('#2: La nota de crédito por $ 5.000 no puede superar'),
+    });
+    expect(used.billing.createVoucher).not.toHaveBeenCalled();
+  });
+
+  it('la vista previa de una nota FCE sin --afecha ya trae la fecha del asociado', async () => {
+    const used = await run(CREDIT_NOTE_FCE, {
+      gateways: withAssociated(issued({ date: '20260305', number: 7, total: 5000 })),
+      shortcut: 'ncea',
+    });
+
+    expect(JSON.parse(stdout)).toMatchObject({
+      estado: 'previsualizacion',
+      solicitud: { CbtesAsoc: [expect.objectContaining({ CbteFch: '20260305', Nro: 7, Tipo: 201 })] },
+    });
+    expect(used.history.getVoucher).toHaveBeenCalledWith(7, 3, 201);
+  });
+
+  it('una nota FCE sin --afecha se emite con la fecha del asociado, sin volver a consultarlo', async () => {
+    const used = await run([...CREDIT_NOTE_FCE, '--emitir'], {
+      gateways: withAssociated(issued({ date: '20260305', number: 7, total: 5000 })),
+      shortcut: 'ncea',
+    });
+
+    expect(used.history.getVoucher).toHaveBeenCalledTimes(1);
+    expect(used.billing.createVoucher).toHaveBeenCalledWith(
+      expect.objectContaining({ CbtesAsoc: [expect.objectContaining({ CbteFch: '20260305', Nro: 7, Tipo: 201 })] }),
+    );
   });
 });

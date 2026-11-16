@@ -367,13 +367,28 @@ function createTestProgram(): Command {
   return program;
 }
 
+const configs = new Map<string, ReturnType<ConfigService['getConfig']>>();
+
+/**
+ * La config de `BASE_CONFIG` mas `settings`, por el `ConfigService` real (valida cada valor como `config establecer`).
+ * Se arma una vez por combinacion: escribirla en disco era casi todo el tiempo del archivo y la mayoria comparte la misma.
+ */
 function createConfig(settings: ReadonlyArray<readonly [string, string]>) {
+  const id = JSON.stringify(settings);
+  const cached = configs.get(id);
+
+  if (cached) return cached;
+
   const service = new ConfigService({ cwd: mkdtempSync(join(tmpdir(), 'arcli-ejemplos-')) });
 
   try {
     for (const [key, value] of [...BASE_CONFIG, ...settings]) service.setValue(key, value);
 
-    return service.getConfig();
+    const config = service.getConfig();
+
+    configs.set(id, config);
+
+    return config;
   } finally {
     service.close();
   }

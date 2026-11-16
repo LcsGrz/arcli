@@ -1,8 +1,10 @@
+import { X509Certificate } from 'node:crypto';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
+import { formatArcaDateAsArgentineDate, formatDateAsArcaDate } from '../../../lib/dates/arca-date';
 import {
   createSelfSignedCertificate,
   OPENSSL_WARM_UP_TIMEOUT_MS,
@@ -322,9 +324,14 @@ describe('arca-context.resolver', () => {
   describe('certificate expiry', () => {
     const DAY = 24 * 60 * 60 * 1000;
 
-    function resolveWithCertificate(days: number, now?: Date) {
+    /** Instante a `days` dias del vencimiento del certificado: el resultado no depende del reloj real. */
+    function daysBeforeExpiry(pem: string, days: number): Date {
+      return new Date(new Date(new X509Certificate(pem).validTo).getTime() - days * DAY);
+    }
+
+    function resolveWithCertificate(certificateDays: number, remainingDays: number) {
       const cwd = createTempDirectory();
-      const certificate = createSelfSignedCertificate(days);
+      const certificate = createSelfSignedCertificate(certificateDays);
       const configService = createConfigService(cwd);
 
       configService.setValue('cuit', '20123456786');
@@ -332,28 +339,35 @@ describe('arca-context.resolver', () => {
       configService.setValue('key.testing', certificate.keyPath);
 
       try {
-        return new ArcaContextResolver({ configService, now }).resolve();
+        return new ArcaContextResolver({
+          configService,
+          now: daysBeforeExpiry(certificate.pem, remainingDays),
+        }).resolve();
       } finally {
         configService.close();
       }
     }
 
     it('flags a certificate that expires within 30 days', () => {
-      expect(resolveWithCertificate(10).certificateExpiry).toMatchObject({
+      const expiryDate = formatArcaDateAsArgentineDate(
+        formatDateAsArcaDate(daysBeforeExpiry(createSelfSignedCertificate(10).pem, 0)),
+      );
+
+      expect(resolveWithCertificate(10, 10).certificateExpiry).toMatchObject({
         environment: 'testing',
         expired: false,
-        message: expect.stringMatching(/^El certificado de testing vence el \d{2}\/\d{2}\/\d{4} \(en (9|10) días\)/),
+        message: expect.stringContaining(`El certificado de testing vence el ${expiryDate} (en 10 días)`),
       });
     }, 10_000);
 
     it('flags an expired certificate without failing to resolve', () => {
-      const runtime = resolveWithCertificate(10, new Date(Date.now() + 20 * DAY));
+      const runtime = resolveWithCertificate(10, -10);
 
       expect(runtime.certificateExpiry).toMatchObject({ environment: 'testing', expired: true });
     }, 10_000);
 
     it('stays silent for a certificate far from expiring', () => {
-      const runtime = resolveWithCertificate(365);
+      const runtime = resolveWithCertificate(365, 365);
 
       expect(runtime.certificateExpiry).toBeUndefined();
       expect(runtime.certificateNotices).toEqual([]);
@@ -371,7 +385,7 @@ describe('arca-context.resolver', () => {
       configService.setValue('cert.produccion', production.certPath);
 
       try {
-        const runtime = new ArcaContextResolver({ configService }).resolve();
+        const runtime = new ArcaContextResolver({ configService, now: daysBeforeExpiry(production.pem, 10) }).resolve();
 
         expect(runtime.environment).toBe('testing');
         expect(runtime.certificateExpiry).toBeUndefined();

@@ -75,26 +75,40 @@ arcli pdf desinstalar  # borrar el plugin y el navegador descargado
 
 ## Cuándo se genera
 
-La config `pdf` define qué pasa cuando no pasás ningún flag:
+Los flags ganan siempre:
 
-| `pdf`                     | En una terminal    | Con `--json` o sin terminal |
-| ------------------------- | ------------------ | --------------------------- |
-| `preguntar` (por defecto) | Pregunta al emitir | No genera                   |
-| `siempre`                 | Genera             | Genera                      |
-| `nunca`                   | No genera          | No genera                   |
+- `--exportar-pdf` (alias `--pdf`): genera el PDF.
+- `--sin-pdf`: no lo genera.
+
+Sin flags, depende de si confirmás la emisión a mano.
+
+### Si confirmás antes de emitir
+
+Sin `--emitir` ni `--previsualizar` (y sin `emitir true` en la config), en una terminal ARCLI muestra la vista previa y pregunta "¿Emitimos la factura C en testing?" con tres opciones, diga lo que diga la config `pdf`:
+
+- **Sí, emitir ahora**: emite sin PDF.
+- **Sí, emitir y generar el PDF**: emite y genera el PDF.
+- **No, dejar sin emitir**.
+
+Lo que elegís decide: después de emitir no se pregunta nada más del PDF. Con `pdf siempre` la opción marcada al empezar es **Sí, emitir y generar el PDF**; con `preguntar` o `nunca`, **Sí, emitir ahora**. Con `--exportar-pdf` o `--sin-pdf` el PDF ya está decidido y la pregunta solo ofrece **Sí, emitir ahora** y **No, dejar sin emitir**. Vale para todos los comprobantes y también en el [modo interactivo](modo-interactivo.md#pdf).
+
+### Si se emite sin confirmar
+
+Con `--emitir`, con `emitir true` en la config, con `--json` o sin terminal, decide la config `pdf`:
+
+| `pdf`                     | En una terminal            | Con `--json` o sin terminal |
+| ------------------------- | -------------------------- | --------------------------- |
+| `preguntar` (por defecto) | Pregunta después de emitir | No genera                   |
+| `siempre`                 | Genera                     | Genera                      |
+| `nunca`                   | No genera                  | No genera                   |
 
 ```bash
 arcli config establecer pdf siempre
 ```
 
-Los flags ganan sobre la config en cada corrida:
-
-- `--exportar-pdf` (alias `--pdf`): genera el PDF.
-- `--sin-pdf`: no lo genera.
-
 Nunca se genera un PDF de una vista previa (sin `--emitir`) ni de un comprobante rechazado, porque no tienen CAE. Un comprobante **observado** sí tiene CAE y sí lleva PDF.
 
-En un lote (`--cargar` con un array) se genera un PDF por comprobante, y si hay que preguntar, se pregunta una sola vez para todo el lote. Cada ítem del JSON puede traer `"pdf": true` o `"pdf": false`.
+En un lote (`--cargar` con un array) se genera un PDF por comprobante. La respuesta a "¿Emitimos?", o a la pregunta del PDF después de emitir, vale para todo el lote. Cada ítem del JSON puede traer `"pdf": true` o `"pdf": false`, que le gana a esa respuesta.
 
 ## Si el PDF falla, el comprobante ya está emitido
 

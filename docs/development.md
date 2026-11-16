@@ -128,7 +128,7 @@ Las actions están fijadas por SHA (con la versión en un comentario), para que 
 
 1. Crear la rama `release/vX.Y.Z` desde `dev` (desde `main` si es un hotfix).
 2. En `CHANGELOG.md`, pasar las entradas de "Sin publicar" a una sección `[X.Y.Z] - AAAA-MM-DD` y actualizar los links de comparación del final.
-3. Subir la versión en `package.json` y en `src/cli/version.ts` (un test verifica que coincidan).
+3. Subir la versión en `package.json` y en `src/cli/version.ts` (`yarn test:e2e` y `pack:check` verifican que coincidan).
 4. Abrir el PR contra `main`, esperar el CI y mergear con squash.
 5. Crear la release de GitHub `vX.Y.Z` sobre `main`, con las notas del changelog: crea el tag y dispara `Release`. Cuando `build` termina, aprobá el deploy al environment `npm` en Actions y `publish` publica en npm.
 6. Si `Release` falla, arreglar la causa y usar "Re-run jobs" en Actions: vuelve a correr sobre el mismo tag.

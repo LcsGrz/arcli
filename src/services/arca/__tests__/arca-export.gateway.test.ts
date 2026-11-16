@@ -86,6 +86,7 @@ describe('ArcaExportGateway.getVoucher', () => {
       exportType: 2,
       incoterm: undefined,
       incotermDescription: undefined,
+      items: [],
       language: 1,
       number: 1,
       paymentTerms: 'Transferencia Internacional',
@@ -94,6 +95,42 @@ describe('ArcaExportGateway.getVoucher', () => {
       total: 200,
     });
     expect(getCmp).toHaveBeenCalledWith({ Cmp: { Cbte_nro: 1, Cbte_tipo: 20, Punto_vta: 4 } });
+  });
+
+  it('mapea los ítems y CanMisMonExt de una factura, para repetirla', async () => {
+    const invoice = {
+      ...DEBIT_NOTE,
+      CanMisMonExt: 'S',
+      Cbte_tipo: 19,
+      Cmps_asoc: undefined,
+      Imp_total: 1500,
+      Items: {
+        Item: [
+          {
+            Pro_bonificacion: 0,
+            Pro_codigo: '001',
+            Pro_ds: 'Consultoría',
+            Pro_precio_uni: 500,
+            Pro_qty: 2,
+            Pro_total_item: 1000,
+            Pro_umed: 7,
+          },
+          { Pro_bonificacion: 0, Pro_codigo: '', Pro_ds: 'Soporte', Pro_precio_uni: 500, Pro_qty: 1, Pro_umed: 7 },
+          { Pro_ds: '', Pro_precio_uni: 1, Pro_qty: 1 },
+        ],
+      },
+    };
+    const gateway = createGateway({
+      getCmp: vi.fn(async () => ({ FEXGetCMPResult: { ...EMPTY_RESULT, FEXResultGet: invoice } })),
+    });
+
+    const voucher = await gateway.getVoucher({ arcaType: 19, number: 1, pointOfSale: 4 });
+
+    expect(voucher?.sameCurrency).toBe(true);
+    expect(voucher?.items).toEqual([
+      { code: '001', description: 'Consultoría', discount: 0, quantity: 2, total: 1000, unit: 7, unitPrice: 500 },
+      { code: undefined, description: 'Soporte', discount: 0, quantity: 1, total: 0, unit: 7, unitPrice: 500 },
+    ]);
   });
 
   it('un comprobante inexistente (error 1020) es null', async () => {

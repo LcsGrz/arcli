@@ -3,7 +3,7 @@ import { DEPRECATED_POINT_OF_SALE_OBJECT } from '../../lib/json/deprecations';
 import { POINT_OF_SALE_GUIDE_URL } from '../../lib/links';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { listingPanel, noticePanel, sheetPanel } from '../../ui/components';
-import { renderKeyValueRows, resolveKeyValueLabelWidth, uiSymbol } from '../../ui/primitives';
+import { bold, renderKeyValueRows, resolveKeyValueLabelWidth, uiSymbol } from '../../ui/primitives';
 import { formatEnvironmentLabel } from '../config/config.schemas';
 
 import {
@@ -55,15 +55,63 @@ export function formatParameterEntriesAsText(
     return noticePanel(reason, 'muted');
   }
 
-  const idWidth = Math.max(...entries.map((entry) => entry.id.length));
-  const rows = entries.map((entry) =>
-    [entry.id.padStart(idWidth), entry.description, entry.detail ? `(${entry.detail})` : ''].filter(Boolean).join('  '),
-  );
+  const { header, rows } = formatParameterRows(table, entries);
 
   return listingPanel(
     `${PARAMETER_TABLES[table]} ${uiSymbol('separator')} ${formatEnvironmentLabel(environment)}`,
-    rows,
+    [bold(header), ...rows],
+    { footer: PARAMETER_TABLE_HELP[table], footerTone: 'muted' },
   );
+}
+
+/** Encabezado de cada columna: la de la izquierda es el codigo; la tercera, solo en las tablas que tienen detalle. */
+const PARAMETER_TABLE_COLUMNS: Record<ParameterTable, readonly [id: string, description: string, detail?: string]> = {
+  alicuotas: ['CÓDIGO', 'ALÍCUOTA'],
+  comprobantes: ['CÓDIGO', 'COMPROBANTE'],
+  conceptos: ['CÓDIGO', 'CONCEPTO'],
+  documentos: ['CÓDIGO', 'DOCUMENTO'],
+  'iva-receptor': ['CÓDIGO', 'CONDICIÓN', 'COMPROBANTES'],
+  monedas: ['CÓDIGO', 'MONEDA'],
+  opcionales: ['CÓDIGO', 'DATO OPCIONAL'],
+  'puntos-venta': ['NÚMERO', 'TIPO DE EMISIÓN', 'ESTADO'],
+  tributos: ['CÓDIGO', 'TRIBUTO'],
+};
+
+/** Para que sirve el codigo de cada tabla en ARCLI: va al pie del listado y en la ayuda del asistente. */
+export const PARAMETER_TABLE_HELP: Record<ParameterTable, string> = {
+  alicuotas: '`--alicuota` va con la tasa (`21`, `10.5`), no con el código.',
+  comprobantes: 'ARCLI los elige por atajo (`fc`, `nca`); el código es el de `--at`, el tipo del asociado.',
+  conceptos: '`--concepto` va con el nombre: `productos`, `servicios` o `productos-servicios`.',
+  documentos: 'El documento del receptor: en ARCLI va con `--cuit`, `--cuil`, `--dni` o `--cfinal`.',
+  'iva-receptor':
+    '`--ir` va con el nombre (`responsable-inscripto`) o un atajo (`--ir-ri`). Comprobantes: las letras que la admiten.',
+  monedas: '`--moneda` acepta este código o el ISO: `060` o `EUR`.',
+  opcionales: 'Datos que ARCA acepta además de los básicos. ARCLI completa solo los que usa, como el CBU de la FCE.',
+  'puntos-venta': 'El número va en `--pv` o en la config (`puntoVenta`). Solo sirven los de web service.',
+  tributos: 'ARCLI todavía no informa tributos, como las percepciones de IIBB.',
+};
+
+/**
+ * Filas alineadas de una tabla de ARCA con su encabezado: codigo, descripcion y, si la tabla lo tiene, el detalle.
+ * Las usan el listado de `arcli parametros` y la lista filtrable del asistente.
+ */
+export function formatParameterRows(
+  table: ParameterTable,
+  entries: readonly ParameterEntry[],
+): { readonly header: string; readonly rows: string[] } {
+  const [idTitle, descriptionTitle, detailTitle] = PARAMETER_TABLE_COLUMNS[table];
+  const hasDetail = detailTitle !== undefined && entries.some((entry) => entry.detail);
+  const idWidth = Math.max(idTitle.length, ...entries.map((entry) => entry.id.length));
+  const descriptionWidth = Math.max(descriptionTitle.length, ...entries.map((entry) => entry.description.length));
+  const line = (id: string, description: string, detail: string) =>
+    (hasDetail ? [id.padEnd(idWidth), description.padEnd(descriptionWidth), detail] : [id.padEnd(idWidth), description])
+      .join('  ')
+      .trimEnd();
+
+  return {
+    header: line(idTitle, descriptionTitle, detailTitle ?? ''),
+    rows: entries.map((entry) => line(entry.id, entry.description, entry.detail ?? '')),
+  };
 }
 
 export function formatParameterEntriesAsJson(

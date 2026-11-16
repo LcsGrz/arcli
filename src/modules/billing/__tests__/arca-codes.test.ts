@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   BILLING_IVA_RATES,
   conceptCode,
+  conceptFromCode,
   conceptLabel,
   documentTypeCode,
   documentTypeFromCode,
@@ -42,7 +43,13 @@ describe('catálogo de códigos ARCA', () => {
     ['productos-servicios', 3],
   ] as const)('concepto %s es %i', (concept, code) => {
     expect(conceptCode(concept)).toBe(code);
+    expect(conceptFromCode(code)).toBe(concept);
     expect(conceptLabel(code)).not.toBe(String(code));
+  });
+
+  it('un concepto que ARCA no informa o que no está en la tabla no se reconoce', () => {
+    expect(conceptFromCode(undefined)).toBeUndefined();
+    expect(conceptFromCode(9)).toBeUndefined();
   });
 
   it('tipo de documento en las dos direcciones', () => {

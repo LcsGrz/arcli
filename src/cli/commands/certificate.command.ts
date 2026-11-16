@@ -120,8 +120,8 @@ export function registerCertificateCommand(program: Command): void {
       .command('importar')
       .argument('<archivo>', 'el .crt que bajaste de ARCA')
       .description('validar el certificado, guardarlo y configurarlo; el entorno sale del certificado')
-      .option('--testing', 'es de testing: solo si arcli no reconoce quién lo firmó')
-      .option('--produccion', 'es de producción: solo si arcli no reconoce quién lo firmó'),
+      .option('--testing', 'es de testing: solo si ARCLI no reconoce quién lo firmó')
+      .option('--produccion', 'es de producción: solo si ARCLI no reconoce quién lo firmó'),
   )
     .option('--reemplazar', 'reemplazar el certificado configurado sin preguntar')
     .action(async (file: string, options: CertificateCommandOptions, command: Command) => {

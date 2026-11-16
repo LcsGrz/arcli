@@ -1,4 +1,5 @@
 import { formatArgentineAmountInput } from '../../lib/numbers/argentine-amount';
+import { quoteShellArgument } from '../../lib/shell/shell-argument';
 import { DEFAULT_CURRENCY_CODE } from '../billing/billing.constants';
 import { isForeignCurrency } from '../billing/billing.currency';
 import { resolveBillingCurrencyCode } from '../billing/billing.mappers';
@@ -65,6 +66,9 @@ export function buildEquivalentCommand(
     ...identityFlags(input),
   ];
 
+  // Con `--ir` el CLI no consulta el padron: nombre y domicilio van explicitos para que el PDF salga igual.
+  if (input.receiverName) parts.push('--receptor-nombre', quoteShellArgument(input.receiverName));
+  if (input.receiverAddress) parts.push('--receptor-domicilio', quoteShellArgument(input.receiverAddress));
   if (input.pointOfSale) parts.push('--pv', String(input.pointOfSale));
   if (input.billingDate) parts.push('-f', input.billingDate);
   if (isForeignCurrency(input)) {

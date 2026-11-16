@@ -1,7 +1,7 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
-import { DEFAULT_IVA_RATE } from '../../modules/billing/billing.amounts';
+import { creditNoteOverTotalHint } from '../../modules/billing/billing.associated-lookup';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
-import { formatVoucherLabel } from '../../modules/billing/billing.mappers';
+import { formatVoucherLabel, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import {
   type BillingCommandInput,
   billingCommandSchema,
@@ -16,31 +16,43 @@ import {
   invoiceKindChoices,
   ivaRateChoices,
   noteKindChoices,
-  receiverChoices,
   reciboChoice,
 } from '../../modules/interactive/choices';
-import { copyInvoiceAmounts } from '../../modules/interactive/invoice-copy';
+import {
+  copyInvoiceAmounts,
+  copyInvoiceReceiver,
+  UNSUPPORTED_DOCUMENT_TYPE_NOTICE,
+} from '../../modules/interactive/invoice-copy';
+import { defaultIvaRate, explicitIvaRate } from '../../modules/interactive/iva-rate';
 import { BACK, type Back, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
-import { type IssuedVoucher, resolveDocumentType } from '../../modules/vouchers/voucher-history';
+import type { IssuedVoucher } from '../../modules/vouchers/voucher-history';
+import { formatVoucherNumber } from '../../modules/vouchers/voucher-history.presenter';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 
+import {
+  type AdvancedOptionKey,
+  type AdvancedOptions,
+  askAdvancedOptions,
+  initialAdvancedOptions,
+} from './advanced-options';
 import { runExportNoteFlow } from './export-note.flow';
 import { pickInvoice } from './invoice-picker';
 import { markIfNew } from './new-mark';
 import { askTextStep, chooseStep } from './prompts';
-import { askReceiverIvaCondition, type ReceiverFromPadron, receiverInputFields } from './receiver-padron';
+import {
+  askReceiverIvaCondition,
+  type ReceiverFromPadron,
+  receiverInputFields,
+  receiverSteps,
+} from './receiver-padron';
 import { type InteractiveSession, previewAndEmit, requirePointOfSale } from './session';
-import { normalizeDocumentNumber, validateAmount, validateCuit, validateDate, validateDni } from './validators';
-
-const CONCEPTS_BY_CODE: Record<number, BillingConcept> = {
-  1: 'productos',
-  2: 'servicios',
-  3: 'productos-servicios',
-};
+import { validateAmount, validateDate } from './validators';
 
 export type NoteKind = 'credito' | 'debito';
 
 export interface NoteState {
+  /** Fecha, fechas de servicio y vencimiento; en las de periodo, la moneda, y en las parciales, exento y no gravado. */
+  readonly advanced?: AdvancedOptions;
   readonly cancellation?: boolean;
   readonly concept?: BillingConcept;
   readonly documentNumber?: number;
@@ -66,6 +78,28 @@ export interface NoteState {
 }
 
 const isPeriod = (state: NoteState): boolean => state.target === 'periodo';
+
+/** `la factura C 00003-00000045`, para el aviso del tope de la NC. */
+function describeInvoice(state: NoteState, invoice: IssuedVoucher): string {
+  const name = state.invoiceKind ? formatVoucherWithArticle(state.invoiceKind) : 'el comprobante';
+
+  return state.invoicePointOfSale === undefined
+    ? name
+    : `${name} ${formatVoucherNumber(state.invoicePointOfSale, invoice.number)}`;
+}
+
+/**
+ * Opcionales que la nota no ofrece: la alicuota tiene su paso, la moneda es la de la factura (solo se elige en las de
+ * periodo) y, si anula el total, exento y no gravado se copian de la factura.
+ */
+function hiddenNoteOptions(state: NoteState): AdvancedOptionKey[] {
+  return [
+    'alicuota',
+    'transferencia',
+    ...(isPeriod(state) ? [] : (['divisas'] as const)),
+    ...(state.annulsTotal ? (['exento'] as const) : []),
+  ];
+}
 
 async function askNoteAmount(
   state: NoteState,
@@ -96,7 +130,7 @@ async function askNoteAmount(
 
       return (parseAmountInput(value) ?? 0) <= invoice.total
         ? true
-        : `No puede superar el total del comprobante (${formatMoneyLabel(invoice.total, invoice.currency)}).`;
+        : creditNoteOverTotalHint(describeInvoice(state, invoice), invoice.total, invoice.currency);
     },
   });
 
@@ -105,6 +139,7 @@ async function askNoteAmount(
 
 /** Pasos del flujo de notas; cada uno se puede deshacer con "Volver". */
 export function noteSteps(session: InteractiveSession, pointOfSale: number): Array<WizardStep<NoteState>> {
+  const { config } = session.runtime;
   const steps: Array<WizardStep<NoteState>> = [
     {
       name: 'tipo-factura',
@@ -167,15 +202,10 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
         }
 
         const { invoice } = picked;
-        const documentType = resolveDocumentType(invoice.documentTypeCode);
+        const receiver = copyInvoiceReceiver(invoice);
 
-        if (!documentType) {
-          writeTerminalOutput(
-            noticePanel(
-              'El comprobante tiene un tipo de documento que el asistente no soporta. Usá los flags del CLI.',
-              'warning',
-            ),
-          );
+        if (!receiver) {
+          writeTerminalOutput(noticePanel(UNSUPPORTED_DOCUMENT_TYPE_NOTICE, 'warning'));
 
           return BACK;
         }
@@ -189,15 +219,7 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
         }
 
         // La nota hereda de la factura el receptor, el concepto, la moneda y la alicuota (si se puede deducir).
-        return {
-          concept: CONCEPTS_BY_CODE[invoice.concept ?? 2] ?? 'servicios',
-          documentNumber: documentType === 'consumidor-final' ? undefined : invoice.documentNumber,
-          documentType,
-          invoice,
-          invoicePointOfSale: picked.pointOfSale,
-          ivaCondition: documentType === 'consumidor-final' ? 'consumidor-final' : undefined,
-          ivaRate: copy.ivaRate,
-        };
+        return { ...receiver, invoice, invoicePointOfSale: picked.pointOfSale, ivaRate: copy.ivaRate };
       },
       skip: isPeriod,
     },
@@ -216,40 +238,15 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
       },
       skip: (state) => !isPeriod(state),
     },
-    {
-      name: 'receptor',
-      run: async (state) => {
-        const documentType = await chooseStep(
-          '¿A quién va la nota?',
-          receiverChoices(state.invoiceKind?.letter ?? 'c'),
-        );
-
-        return documentType === BACK
-          ? BACK
-          : {
-              documentNumber: undefined,
-              documentType,
-              ivaCondition: documentType === 'consumidor-final' ? 'consumidor-final' : undefined,
-            };
-      },
+    ...receiverSteps<NoteState>({
+      letter: (state) => state.invoiceKind?.letter ?? 'c',
+      message: () => '¿A quién va la nota?',
       skip: (state) => !isPeriod(state),
-    },
-    {
-      name: 'documento',
-      run: async (state) => {
-        const isCuit = state.documentType === 'cuit';
-        const answer = await askTextStep(isCuit ? 'CUIT del receptor:' : 'DNI del receptor:', {
-          validate: isCuit ? validateCuit : validateDni,
-        });
-
-        return answer === BACK ? BACK : { documentNumber: normalizeDocumentNumber(answer) };
-      },
-      skip: (state) => !isPeriod(state) || state.documentType === 'consumidor-final',
-    },
+    }),
     {
       name: 'concepto',
       run: async () => {
-        const concept = await chooseStep('¿Qué concepto ajusta la nota?', conceptChoices());
+        const concept = await chooseStep('¿Qué concepto ajusta la nota?', conceptChoices(), config.conceptoPorDefecto);
 
         return concept === BACK ? BACK : { concept };
       },
@@ -267,7 +264,7 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
       name: 'iva-receptor',
       run: async (state) => {
         // ARCA no devuelve la condicion IVA de la factura, asi que se pregunta, filtrada por la letra.
-        return askReceiverIvaCondition(session, state, state.invoiceKind?.letter ?? 'c');
+        return askReceiverIvaCondition(session, state, state.invoiceKind?.letter ?? 'c', config.ivaReceptorPorDefecto);
       },
       skip: (state) => state.documentType === 'consumidor-final',
     },
@@ -277,6 +274,8 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
         const ivaRate = await chooseStep(
           isPeriod(state) ? 'Alícuota de IVA:' : 'Alícuota de IVA del comprobante:',
           ivaRateChoices(),
+          // La deducida de la factura o, como el CLI sin `--alicuota`, la de la config o 21%.
+          defaultIvaRate(config, state.ivaRate),
         );
 
         return ivaRate === BACK ? BACK : { ivaRate };
@@ -295,6 +294,20 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
         return cancellation === BACK ? BACK : { cancellation };
       },
       skip: (state) => !state.invoiceKind?.isElectronicCredit,
+    },
+    {
+      name: 'avanzadas',
+      run: async (state) => {
+        const invoiceKind = requireStepValue(state.invoiceKind, 'invoiceKind');
+        const advanced = await askAdvancedOptions(state.advanced ?? initialAdvancedOptions(config), {
+          concept: state.concept ?? 'servicios',
+          defaultIvaRate: defaultIvaRate(config, state.ivaRate),
+          hidden: hiddenNoteOptions(state),
+          voucherKind: noteKindChoices(state.kind ?? 'credito', invoiceKind),
+        });
+
+        return advanced === BACK ? BACK : { advanced };
+      },
     },
   ];
 
@@ -315,8 +328,14 @@ export function buildNoteInput(
   const invoice = state.invoice;
   // Una nota va en la moneda de su factura; si la anula entera, tambien copia exento y no gravado.
   const copy = !isPeriod(state) && invoice ? copyInvoiceAmounts(invoice, invoiceKind.letter) : undefined;
+  const advanced = state.advanced ?? initialAdvancedOptions(session.runtime.config);
+  // La de periodo no tiene factura de donde copiar la moneda: va la elegida en los opcionales.
+  const currency = isPeriod(state)
+    ? { currencyCode: advanced.currencyCode, exchangeRate: advanced.exchangeRate, sameCurrency: advanced.sameCurrency }
+    : { currencyCode: copy?.currencyCode, exchangeRate: copy?.exchangeRate };
 
   return billingCommandSchema.parse({
+    ...currency,
     associatedPeriod: isPeriod(state) ? { desde: state.periodFrom, hasta: state.periodTo } : undefined,
     associatedVoucher:
       !isPeriod(state) && invoice
@@ -328,31 +347,37 @@ export function buildNoteInput(
             shortcut: invoiceKind.shortcut,
           }
         : undefined,
+    billingDate: advanced.billingDate,
     cancellation: state.cancellation ?? false,
     concept: state.concept,
-    currencyCode: copy?.currencyCode,
     documentNumber: state.documentType === 'consumidor-final' ? undefined : state.documentNumber,
     documentType: state.documentType,
-    exchangeRate: copy?.exchangeRate,
-    exemptAmount: state.annulsTotal ? copy?.exemptAmount : undefined,
+    exemptAmount: state.annulsTotal ? copy?.exemptAmount : advanced.exemptAmount,
     ivaCondition: state.ivaCondition,
     ...receiverInputFields(state),
-    ivaRate:
-      state.ivaRate === DEFAULT_IVA_RATE && !session.runtime.config.alicuotaPorDefecto ? undefined : state.ivaRate,
+    ivaRate: explicitIvaRate(state.ivaRate, session.runtime.config),
     shortcut: noteKind.shortcut,
+    paymentDueDate: advanced.paymentDueDate,
+    serviceEndDate: advanced.serviceEndDate,
+    serviceStartDate: advanced.serviceStartDate,
     totalAmount: state.totalAmount,
-    untaxedAmount: state.annulsTotal ? copy?.untaxedAmount : undefined,
+    untaxedAmount: state.annulsTotal ? copy?.untaxedAmount : advanced.untaxedAmount,
   });
 }
 
-export async function runNoteFlow(session: InteractiveSession, kind: NoteKind): Promise<void> {
-  const pointOfSale = requirePointOfSale(session);
+export async function runNoteFlow(baseSession: InteractiveSession, kind: NoteKind): Promise<void> {
+  const ready = await requirePointOfSale(baseSession);
 
-  if (!pointOfSale) {
+  if (!ready) {
     return;
   }
 
-  const state = await runWizard(noteSteps(session, pointOfSale), { kind });
+  const { pointOfSale, session } = ready;
+  // La moneda solo se usa en las de periodo; las de una factura van en la de la factura.
+  const state = await runWizard(noteSteps(session, pointOfSale), {
+    advanced: initialAdvancedOptions(session.runtime.config),
+    kind,
+  });
 
   if (!state || state.exported) {
     return;

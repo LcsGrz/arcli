@@ -62,26 +62,31 @@ beforeEach(() => setJsonDefault(false));
 afterEach(() => setJsonDefault(false));
 
 describe('JSON output resolved the same way in every command', () => {
+  // Una clave propia de cada salida: confirma que es el JSON del comando y no otro documento.
   it.each([
-    [['pdf']],
-    [['pdf', 'estado']],
-    [['parametros']],
-    [['config']],
-    [['config', 'ruta']],
-    [['config', 'revisar']],
-  ])('%j prints JSON with json=true in the config', async (argv) => {
+    [['pdf'], 'instalado'],
+    [['pdf', 'estado'], 'instalado'],
+    [['parametros'], 'tablas'],
+    [['config'], 'entorno'],
+    [['config', 'ruta'], 'ruta'],
+    [['config', 'revisar'], 'chequeos'],
+  ])('%j prints JSON with json=true in the config', async (argv, key) => {
     setJsonDefault(true);
 
     const { error, stdout } = await run(argv);
 
     expect(error).toBeUndefined();
-    expect(() => JSON.parse(stdout) as unknown).not.toThrow();
+    expect(JSON.parse(stdout)).toHaveProperty(key);
   });
 
-  it.each([[['pdf']], [['parametros']], [['config', 'ruta']]])('%j prints JSON with --json', async (argv) => {
+  it.each([
+    [['pdf'], 'instalado'],
+    [['parametros'], 'tablas'],
+    [['config', 'ruta'], 'ruta'],
+  ])('%j prints JSON with --json', async (argv, key) => {
     const { stdout } = await run([...argv, '--json']);
 
-    expect(() => JSON.parse(stdout) as unknown).not.toThrow();
+    expect(JSON.parse(stdout)).toHaveProperty(key);
   });
 
   it('lets --json win over json=false and prints text without either', async () => {

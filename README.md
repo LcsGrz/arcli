@@ -8,7 +8,11 @@
   <a href="https://github.com/LcsGrz/arcli/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/arcli.svg" alt="license: MIT"></a>
 </p>
 
-CLI para previsualizar y emitir comprobantes electrónicos de ARCA (ex AFIP) desde la terminal. Sin emitir hasta que lo pedís, con validaciones locales y salida lista para automatizar.
+<h3 align="center">El CLI de facturación electrónica de ARCA (ex AFIP), desde tu terminal</h3>
+
+Emití facturas, consultá comprobantes y automatizá tu facturación con comandos, un asistente interactivo o tu IA favorita. Nada se emite hasta que lo pedís.
+
+**Gratis. De código abierto. Sin entrar al portal de ARCA.**
 
 <p align="center"><img src="https://raw.githubusercontent.com/LcsGrz/arcli/main/docs/assets/demo/interactivo.gif" alt="Modo interactivo de arcli emitiendo una Factura C en testing" width="760"></p>
 

@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
 import { stripAnsi } from '../../../ui/primitives';
-import { filterCurrentEntries, type ParametersGateway, resolveParameterTable, salesPointToEntry } from '../parameters';
+import {
+  filterCurrentEntries,
+  type ParametersGateway,
+  quotableCurrencies,
+  resolveParameterTable,
+  salesPointToEntry,
+} from '../parameters';
 import {
   formatParameterEntriesAsText,
+  formatParameterRows,
   formatQuotationAsText,
   formatStatusAsJson,
   formatStatusAsText,
@@ -42,6 +49,43 @@ describe('parameters', () => {
       id: '3',
     });
     expect(salesPointToEntry({ blocked: false, emissionType: 'CAE', number: 4 }).detail).toBe('habilitado');
+  });
+
+  it('lists a table with a header row and what the code is for', () => {
+    const text = stripAnsi(
+      formatParameterEntriesAsText(
+        'iva-receptor',
+        [
+          { description: 'IVA Responsable Inscripto', detail: 'A/M/C', id: '1' },
+          { description: 'Consumidor Final', detail: 'B/C', id: '5' },
+        ],
+        'testing',
+      ),
+    );
+
+    expect(text).toMatch(/CÓDIGO\s+CONDICIÓN\s+COMPROBANTES/);
+    expect(text).toMatch(/1\s+IVA Responsable Inscripto\s+A\/M\/C/);
+    expect(text).toContain('`--ir` va con el nombre');
+  });
+
+  it('aligns the columns under the header, and skips the detail column when no entry has one', () => {
+    const { header, rows } = formatParameterRows('monedas', [
+      { description: 'Dólar Estadounidense', id: 'DOL' },
+      { description: 'Euro', id: '060' },
+    ]);
+
+    expect(header).toBe('CÓDIGO  MONEDA');
+    expect(rows).toEqual(['DOL     Dólar Estadounidense', '060     Euro']);
+  });
+
+  it('offers the dollar first and no pesos to quote', () => {
+    const currencies = quotableCurrencies([
+      { description: 'Pesos Argentinos', id: 'PES' },
+      { description: 'Euro', id: '060' },
+      { description: 'Dólar Estadounidense', id: 'DOL' },
+    ]);
+
+    expect(currencies.map((entry) => entry.id)).toEqual(['DOL', '060']);
   });
 
   it('explains empty sales points in testing', () => {

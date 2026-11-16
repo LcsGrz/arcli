@@ -1,33 +1,32 @@
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
-import {
-  formatEmissionQuestion,
-  formatVoucherWithArticle,
-  NOTHING_EMITTED_NOTICE,
-} from '../../modules/billing/billing.mappers';
-import { ConfigService } from '../../modules/config/config.service';
+import { formatEmissionQuestion, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import { DEFAULT_EXPORT_PAYMENT_TERMS, resolveExportDestinationCountry } from '../../modules/export/export.mappers';
 import { formatExportResultAsText } from '../../modules/export/export.presenter';
 import { ExportService } from '../../modules/export/export.service';
 import {
   EXPORT_VOUCHER_KIND,
   type ExportCountry,
+  type ExportCountryCuit,
   type ExportGateway,
   type ExportType,
   type ExportVoucherInput,
 } from '../../modules/export/export.types';
 import { parseAmountInput } from '../../modules/interactive/amount-input';
 import { buildExportEquivalentCommand } from '../../modules/interactive/export-equivalent-command';
-import { BACK, runWizard, type WizardStep } from '../../modules/interactive/wizard';
+import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { formatPdfOutcomeAsText } from '../../modules/pdf/pdf.presenter';
+import { planEmissionConfirmation, resolvePdfAfterConfirmation } from '../../modules/pdf/pdf-decision';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 import { attachExportPdf } from '../commands/export.command.pdf';
 import { withSpinner } from '../spinner';
 
+import { askCountryCuit, askExportOptions, type ExportOptions, isCountryCuitMissing } from './export-options';
 import { completeIssuer } from './pdf.flow';
-import { askTextStep, chooseStep, confirm, isPromptCancellation } from './prompts';
-import { formatEquivalentCommand, type InteractiveSession } from './session';
-import { validateAmount, validateDate } from './validators';
+import { askTextStep, chooseStep, isPromptCancellation } from './prompts';
+import { offerSavingToConfig } from './save-to-config';
+import { confirmEmission, formatEquivalentCommand, type InteractiveSession } from './session';
+import { validateAmount, validateOptionalDate, validatePositiveInteger } from './validators';
 
 interface ExportFlowState {
   readonly activity?: number;
@@ -35,29 +34,42 @@ interface ExportFlowState {
   readonly clientAddress?: string;
   readonly clientName?: string;
   readonly clientTaxId?: string;
+  /** El destino como esta en la tabla de ARCA, para el CUIT del pais. */
+  readonly country?: ExportCountry;
+  /** ARCA no publica un CUIT para el destino: hay que pedirlo (`--cuit-pais`). */
+  readonly countryCuitMissing?: boolean;
   readonly currencyCode?: 'DOL' | 'PES';
   readonly description?: string;
   readonly destinationCountry?: string;
   readonly exportType?: ExportType;
   readonly incoterm?: string;
+  /** Nombre del incoterm en la tabla de ARCA: la descripcion que va si no se escribe otra. */
+  readonly incotermName?: string;
+  readonly options: ExportOptions;
   readonly paymentDate?: string;
   readonly paymentTerms?: string;
   readonly permits?: readonly string[];
   readonly sameCurrency?: boolean;
 }
 
-/** Lo que el asistente necesita de WSFEX antes de preguntar: paises para validar el destino y la tabla de actividades. */
+/**
+ * Lo que el asistente necesita de WSFEX antes de preguntar: paises para validar el destino, sus CUIT y la tabla de
+ * actividades.
+ */
 interface ExportTables {
   readonly activities: ReadonlySet<number>;
   readonly countries: readonly ExportCountry[];
+  readonly countryCuits: readonly ExportCountryCuit[];
+}
+
+interface ExportFlowLoaders {
+  readonly incoterms: () => Promise<ReadonlyArray<{ readonly code: string; readonly name: string }>>;
+  readonly languages: ExportGateway['getLanguages'];
+  readonly units: ExportGateway['getUnits'];
 }
 
 function required(label: string): (value: string) => string | true {
   return (value) => (value.trim() ? true : `${label} es obligatorio.`);
-}
-
-function optionalDate(value: string): string | true {
-  return value.trim() ? validateDate(value) : true;
 }
 
 function validateCountry(countries: readonly ExportCountry[]): (value: string) => string | true {
@@ -72,16 +84,14 @@ function validateCountry(countries: readonly ExportCountry[]): (value: string) =
   };
 }
 
-function validatePositiveInteger(label: string, allowed?: ReadonlySet<number>): (value: string) => string | true {
+/** Un entero positivo que, si ARCA devolvio la tabla, esta en las actividades de WSFEX. */
+function validateActivity(allowed: ReadonlySet<number>): (value: string) => string | true {
   return (value) => {
-    const number = parseStrictInteger(value);
+    const valid = validatePositiveInteger('La actividad')(value);
+    const number = parseStrictInteger(value) as number;
 
-    if (number === undefined || number < 1) {
-      return `${label} tiene que ser un número entero mayor a 0.`;
-    }
-
-    return !allowed || allowed.size === 0 || allowed.has(number)
-      ? true
+    return valid !== true || allowed.size === 0 || allowed.has(number)
+      ? valid
       : `${number} no está en la tabla de actividades de WSFEX (ARCA la rechaza con el error 2105).`;
   };
 }
@@ -108,7 +118,7 @@ export async function askPermitsStep(): Promise<typeof BACK | { readonly permits
 function exportSteps(
   tables: ExportTables,
   configuredActivity: number | undefined,
-  incoterms: () => Promise<ReadonlyArray<{ readonly code: string; readonly name: string }>>,
+  loaders: ExportFlowLoaders,
 ): Array<WizardStep<ExportFlowState>> {
   return [
     {
@@ -139,10 +149,32 @@ function exportSteps(
           },
         );
 
-        return answer === BACK
-          ? BACK
-          : { destinationCountry: resolveExportDestinationCountry(answer, tables.countries).name };
+        if (answer === BACK) {
+          return BACK;
+        }
+
+        const country = resolveExportDestinationCountry(answer, tables.countries);
+
+        return {
+          country,
+          countryCuitMissing: isCountryCuitMissing({ country, countryCuits: tables.countryCuits }),
+          destinationCountry: country.name,
+        };
       },
+    },
+    {
+      // Sin esto no hay salida: ARCA rechaza la E sin `Cuit_pais_cliente`.
+      name: 'cuit-pais',
+      run: async (state) => {
+        const country = requireStepValue(state.country, 'country');
+        const cuit = await askCountryCuit(
+          { country, countryCuits: tables.countryCuits },
+          `ARCA no tiene un CUIT publicado para ${country.name}. Escribí el CUIT del país o buscalo por nombre:`,
+        );
+
+        return cuit === BACK ? BACK : { options: { ...state.options, clientCountryCuit: cuit } };
+      },
+      skip: (state) => !state.countryCuitMissing,
     },
     {
       name: 'id-impositivo',
@@ -216,13 +248,18 @@ function exportSteps(
     {
       name: 'incoterm',
       run: async () => {
-        const list = await withSpinner('Consultando incoterms...', incoterms);
+        const list = await withSpinner('Consultando incoterms...', loaders.incoterms);
         const incoterm = await chooseStep('Incoterm:', [
           { name: 'Sin incoterm', value: '' },
           ...list.map((entry) => ({ name: entry.code, value: entry.code })),
         ]);
 
-        return incoterm === BACK ? BACK : { incoterm: incoterm || undefined };
+        return incoterm === BACK
+          ? BACK
+          : {
+              incoterm: incoterm || undefined,
+              incotermName: list.find((entry) => entry.code === incoterm)?.name,
+            };
       },
       skip: (state) => state.exportType !== 1,
     },
@@ -243,7 +280,7 @@ function exportSteps(
       name: 'fecha-pago',
       run: async () => {
         const answer = await askTextStep('Fecha de pago (Enter para la fecha del comprobante):', {
-          validate: optionalDate,
+          validate: validateOptionalDate,
         });
 
         return answer === BACK ? BACK : { paymentDate: optional(answer) };
@@ -253,29 +290,34 @@ function exportSteps(
       name: 'actividad',
       run: async () => {
         const answer = await askTextStep('Código de actividad de WSFEX (por ejemplo 620100):', {
-          validate: validatePositiveInteger('La actividad', tables.activities),
+          validate: validateActivity(tables.activities),
         });
 
         return answer === BACK ? BACK : { activity: parseStrictInteger(answer) };
       },
       skip: () => configuredActivity !== undefined,
     },
+    {
+      name: 'opcionales',
+      run: async (state) => {
+        const country = requireStepValue(state.country, 'country');
+        const currencyCode = state.currencyCode ?? 'DOL';
+        const options = await askExportOptions(state.options, {
+          amount: requireStepValue(state.amount, 'amount'),
+          countryCuit: { country, countryCuits: tables.countryCuits },
+          currencyCode,
+          defaultExchangeRate: currencyCode === 'PES' ? undefined : 'la de aduana que publica ARCA',
+          defaultLanguage: 'Español',
+          incoterm: state.incoterm ? { code: state.incoterm, description: state.incotermName } : undefined,
+          languages: loaders.languages,
+          sameCurrency: state.sameCurrency,
+          units: loaders.units,
+        });
+
+        return options === BACK ? BACK : { options };
+      },
+    },
   ];
-}
-
-/** Ofrece guardar la actividad que se escribio a mano, para no volver a preguntarla. */
-async function offerSavingActivity(activity: number): Promise<void> {
-  if (!(await confirm(`¿Guardamos la actividad ${activity} en la config para la próxima?`, 'Sí, guardar', 'No'))) {
-    return;
-  }
-
-  const service = new ConfigService();
-
-  try {
-    service.setValue('exportacion.actividad', String(activity));
-  } finally {
-    service.close();
-  }
 }
 
 /**
@@ -285,10 +327,12 @@ async function offerSavingActivity(activity: number): Promise<void> {
 export async function emitExportVoucher(
   session: InteractiveSession,
   gateway: ExportGateway,
-  input: ExportVoucherInput,
+  rawInput: ExportVoucherInput,
   activity?: number,
 ): Promise<void> {
   const { runtime } = session;
+  // ExportService toma el de la config: uno elegido en el asistente va en la entrada (y en el comando equivalente).
+  const input: ExportVoucherInput = { ...rawInput, pointOfSale: rawInput.pointOfSale ?? session.typedPointOfSale };
   const service = new ExportService();
   const resolved = await withSpinner('Consultando WSFEX...', () => service.resolve(input, gateway, runtime));
   const preview = service.preview(resolved, runtime, resolved.warnings);
@@ -300,18 +344,13 @@ export async function emitExportVoucher(
 
   const label = formatVoucherWithArticle(input.voucherKind ?? EXPORT_VOUCHER_KIND);
 
-  if (!(await confirm(formatEmissionQuestion(label, runtime.environment), 'Emitir ahora'))) {
-    writeTerminalOutput(noticePanel(NOTHING_EMITTED_NOTICE, 'muted'));
+  const emission = await confirmEmission(
+    formatEmissionQuestion(label, runtime.environment),
+    runtime.environment,
+    planEmissionConfirmation({ flags: [input.pdf], mode: runtime.config.pdf }),
+  );
 
-    return;
-  }
-
-  if (
-    runtime.environment === 'produccion' &&
-    !(await confirm('Vas a emitir un comprobante real en PRODUCCIÓN. ¿Confirmás?', 'Sí, emitir en producción'))
-  ) {
-    writeTerminalOutput(noticePanel(NOTHING_EMITTED_NOTICE, 'muted'));
-
+  if (!emission) {
     return;
   }
 
@@ -328,7 +367,8 @@ export async function emitExportVoucher(
     const withPdf = await attachExportPdf(result, {
       completeConfig: completeIssuer,
       config: runtime.config,
-      input,
+      // Lo elegido en "¿Emitimos?" decide el PDF: despues de emitir no se pregunta nada mas.
+      input: { ...input, pdf: resolvePdfAfterConfirmation(input.pdf, emission) },
       interactive: true,
     });
 
@@ -354,11 +394,16 @@ export async function runExportFlow(session: InteractiveSession): Promise<typeof
   const tables = await withSpinner('Consultando las tablas de WSFEX...', async () => ({
     activities: new Set((await gateway.getActivities()).map((activity) => activity.id)),
     countries: await gateway.getDestinationCountries(),
+    countryCuits: await gateway.getDestinationCountryCuits(),
   }));
   const configuredActivity = config.exportacion?.actividad;
-  const state = await runWizard(
-    exportSteps(tables, configuredActivity, () => gateway.getIncoterms()),
-    {},
+  const state = await runWizard<ExportFlowState>(
+    exportSteps(tables, configuredActivity, {
+      incoterms: () => gateway.getIncoterms(),
+      languages: () => gateway.getLanguages(),
+      units: () => gateway.getUnits(),
+    }),
+    { options: {} },
   );
 
   if (!state) {
@@ -367,6 +412,7 @@ export async function runExportFlow(session: InteractiveSession): Promise<typeof
 
   const activity = (state.activity ?? configuredActivity) as number;
   const input: ExportVoucherInput = {
+    ...state.options,
     activity,
     amount: state.amount,
     clientAddress: state.clientAddress,
@@ -388,6 +434,8 @@ export async function runExportFlow(session: InteractiveSession): Promise<typeof
   await emitExportVoucher(session, gateway, input, activity);
 
   if (state.activity !== undefined && configuredActivity === undefined) {
-    await offerSavingActivity(state.activity);
+    await offerSavingToConfig(`¿Guardamos la actividad ${state.activity} en la config para la próxima?`, [
+      ['exportacion.actividad', String(state.activity)],
+    ]);
   }
 }

@@ -7,9 +7,11 @@ import {
   type ArcliConfig,
   arcliDefaultConceptSchema,
   arcliDefaultIvaConditionSchema,
+  type ArcliEnvironment,
   arcliEnvironmentSchema,
   arcliPdfModeSchema,
   type ConfigPublicKey,
+  resolveConfiguredRowsPerList,
 } from '../config/config.schemas';
 import { CONFIG_LABELS } from '../config/config.sections';
 import { MAX_RECENT_VOUCHERS, RECENT_VOUCHERS_LIMIT } from '../vouchers/voucher-history';
@@ -108,8 +110,8 @@ const FIELD_DEFINITIONS: ReadonlyArray<Omit<ConfigField, 'label'>> = [
   },
   {
     hint: `1 a ${MAX_RECENT_VOUCHERS}, por defecto ${RECENT_VOUCHERS_LIMIT}`,
-    key: 'comprobantesPorLista',
-    read: (c) => c.comprobantesPorLista?.toString(),
+    key: 'filasPorLista',
+    read: (c) => resolveConfiguredRowsPerList(c)?.toString(),
   },
   { hint: '22 dígitos', key: 'cbu', read: (c) => c.cbu },
   { key: 'aliasCbu', read: (c) => c.aliasCbu },
@@ -194,12 +196,25 @@ export function describeConfigValue(field: ConfigField, config: ArcliConfig): st
   return field.path ? maskPath(value) : (field.choiceLabels?.[value] ?? value);
 }
 
+/** El entorno en que va a emitir el asistente: el de `--produccion` o `--testing` de `arcli interactivo`, o el de la config. */
+export function resolveActiveEnvironment(
+  config: Pick<ArcliConfig, 'entornoPorDefecto'>,
+  flags: { readonly produccion?: boolean; readonly testing?: boolean } = {},
+): ArcliEnvironment {
+  if (flags.produccion && !flags.testing) return 'produccion';
+  if (flags.testing && !flags.produccion) return 'testing';
+
+  return config.entornoPorDefecto;
+}
+
 /**
  * Lo minimo para emitir: sin esto el modo interactivo no puede crear la sesion con ARCA. El certificado es el del
  * entorno activo: quien emite solo en produccion no necesita el de testing.
  */
-export function listMissingSetupKeys(config: ArcliConfig): ConfigPublicKey[] {
-  const environment = config.entornoPorDefecto;
+export function listMissingSetupKeys(
+  config: ArcliConfig,
+  environment: ArcliEnvironment = config.entornoPorDefecto,
+): ConfigPublicKey[] {
   const required: readonly ConfigPublicKey[] = ['cuit', `cert.${environment}`, `key.${environment}`, 'puntoVenta'];
 
   return required.filter((key) => !getConfigField(key).read(config));

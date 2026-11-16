@@ -332,11 +332,41 @@ describe('executeExportCommand: la decision de emitir', () => {
 
   it('en una terminal sin flags pregunta, y si la respuesta es si, emite', async () => {
     setTerminal(true);
-    vi.mocked(chooseOne).mockResolvedValueOnce(true);
+    vi.mocked(chooseOne).mockResolvedValueOnce('emitir');
 
     const used = await run(BASE, { json: false });
 
     expect(used.authorize).toHaveBeenCalledTimes(1);
+  });
+
+  it('la confirmación ofrece emitir con PDF, con el cursor ahí si la config dice `siempre`', async () => {
+    setTerminal(true);
+    vi.mocked(chooseOne).mockResolvedValue(false);
+
+    await run(BASE, { config: { pdf: 'nunca' }, json: false });
+    await run(BASE, { config: { pdf: 'siempre' }, json: false });
+
+    const [[, choices, initial], [, , initialWithSiempre]] = vi.mocked(chooseOne).mock.calls;
+
+    expect(choices).toEqual([
+      { name: 'Sí, emitir ahora', value: 'emitir' },
+      { name: 'Sí, emitir y generar el PDF', value: 'emitir-con-pdf' },
+      { name: 'No, dejar sin emitir', value: false },
+    ]);
+    expect(initial).toBe('emitir');
+    expect(initialWithSiempre).toBe('emitir-con-pdf');
+  });
+
+  it('con `--sin-pdf` la confirmación solo pregunta si emitir', async () => {
+    setTerminal(true);
+    vi.mocked(chooseOne).mockResolvedValueOnce(false);
+
+    await run([...BASE, '--sin-pdf'], { config: { pdf: 'siempre' }, json: false });
+
+    expect(vi.mocked(chooseOne).mock.calls[0]?.[1]).toEqual([
+      { name: 'Sí, emitir ahora', value: 'emitir' },
+      { name: 'No, dejar sin emitir', value: false },
+    ]);
   });
 
   it('en una terminal con --previsualizar no pregunta', async () => {
@@ -366,7 +396,7 @@ describe('executeExportCommand: codigo de salida', () => {
   it('detiene el spinner si la emision falla', async () => {
     const failing = gateway({ authorize: vi.fn(async () => Promise.reject(new Error('socket hang up'))) });
 
-    await expect(run([...BASE, '--emitir'], { gateway: failing, json: false })).rejects.toThrow();
+    await expect(run([...BASE, '--emitir'], { gateway: failing, json: false })).rejects.toThrow('socket hang up');
     expect(spinner.stop).toHaveBeenCalled();
   });
 });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { IssuedVoucher } from '../../vouchers/voucher-history';
-import { copyInvoiceAmounts } from '../invoice-copy';
+import { copyInvoiceAmounts, copyInvoiceReceiver } from '../invoice-copy';
 
 function invoice(overrides: Partial<IssuedVoucher> = {}): IssuedVoucher {
   return {
@@ -53,5 +53,33 @@ describe('copyInvoiceAmounts', () => {
       ivaRate: undefined,
       limitation: undefined,
     });
+  });
+});
+
+describe('copyInvoiceReceiver', () => {
+  it('copies the CUIT and the concept; the IVA condition is asked later', () => {
+    expect(copyInvoiceReceiver(invoice({ concept: 1 }))).toEqual({
+      concept: 'productos',
+      documentNumber: 20111111112,
+      documentType: 'cuit',
+      ivaCondition: undefined,
+    });
+  });
+
+  it('a consumer has no document number and its IVA condition is already known', () => {
+    expect(copyInvoiceReceiver(invoice({ concept: 3, documentNumber: 0, documentTypeCode: 99 }))).toEqual({
+      concept: 'productos-servicios',
+      documentNumber: undefined,
+      documentType: 'consumidor-final',
+      ivaCondition: 'consumidor-final',
+    });
+  });
+
+  it('falls back to services when ARCA does not report the concept', () => {
+    expect(copyInvoiceReceiver(invoice())?.concept).toBe('servicios');
+  });
+
+  it('returns undefined for a document type ARCLI does not handle', () => {
+    expect(copyInvoiceReceiver(invoice({ documentTypeCode: 1 }))).toBeUndefined();
   });
 });
