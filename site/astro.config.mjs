@@ -31,12 +31,13 @@ export default defineConfig({
       head: [
         // Comportamiento de las páginas generadas: "Ver las N", el buscador de problemas y abrir lo plegado por link.
         { attrs: { defer: true, src: '/arcli/arcli.js' }, tag: 'script' },
-        // Geist y JetBrains Mono, las fuentes de la maqueta.
+        // Geist y JetBrains Mono, las fuentes de la maqueta. `display=optional`: si no llegan enseguida, esa visita
+        // sigue con la del sistema, así el texto (y sobre todo el código) no cambia de tamaño mientras carga.
         { attrs: { href: 'https://fonts.googleapis.com', rel: 'preconnect' }, tag: 'link' },
         { attrs: { crossorigin: true, href: 'https://fonts.gstatic.com', rel: 'preconnect' }, tag: 'link' },
         {
           attrs: {
-            href: 'https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap',
+            href: 'https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=optional',
             rel: 'stylesheet',
           },
           tag: 'link',

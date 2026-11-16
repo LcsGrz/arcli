@@ -5278,3 +5278,12 @@
 :root[data-home] .site-foot {
   margin-top: 0;
 }
+
+/* El pedido a la IA entre comillas, como en Cómo funciona (la base del sitio se las saca a <q>) */
+.arcli-landing .pick-do q::before {
+  content: open-quote;
+}
+
+.arcli-landing .pick-do q::after {
+  content: close-quote;
+}
