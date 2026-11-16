@@ -28,18 +28,18 @@ Sin esto no se puede emitir. Lo que guardaste en la config no hace falta repetir
 
 El total del comprobante, en formato argentino: punto para miles y coma para decimales.
 
-| Corto | Largo | Qué es |
+| Largo | Corto | Qué es |
 | --- | --- | --- |
-| `-m` | `--monto <número>` | 15000, 15.000 o 1.500,50 |
+| `--monto <número>` | `-m` | 15000, 15.000 o 1.500,50 |
 
 Ej.: `-m 15000`
 
 ### Cliente del exterior
 
-| Corto | Largo | Qué es |
+| Largo | Corto | Qué es |
 | --- | --- | --- |
-|  | `--cliente <texto>` | Nombre o razón social |
-|  | `--domicilio-cliente <texto>` | Domicilio en el exterior |
+| `--cliente <texto>` |  | Nombre o razón social |
+| `--domicilio-cliente <texto>` |  | Domicilio en el exterior |
 
 Ej.: `--cliente "ACME LLC"`
 
@@ -47,9 +47,9 @@ Ej.: `--cliente "ACME LLC"`
 
 El CUIT del país sale solo de la tabla de ARCA.
 
-| Corto | Largo | Qué es |
+| Largo | Corto | Qué es |
 | --- | --- | --- |
-|  | `--pais-destino <código\|nombre>` | Por código (203) o nombre (Brasil) |
+| `--pais-destino <código\|nombre>` |  | Por código (203) o nombre (Brasil) |
 
 Ej.: `--pais-destino Brasil`
 
@@ -57,9 +57,9 @@ Ej.: `--pais-destino Brasil`
 
 Mejor guardarla en la config (`exportacion.actividad`).
 
-| Corto | Largo | Qué es |
+| Largo | Corto | Qué es |
 | --- | --- | --- |
-|  | `--actividad <código>` | Código de la tabla de actividades de WSFEX |
+| `--actividad <código>` |  | Código de la tabla de actividades de WSFEX |
 
 Ej.: `--actividad 620100`
 
@@ -71,11 +71,11 @@ Más datos del comprobante, o cambiar lo que viene de la config.
 
 ### Tipo de exportación
 
-| Corto | Largo | Qué es |
+| Largo | Corto | Qué es |
 | --- | --- | --- |
-|  | `--tipo-expo 1` | Bienes |
-|  | `--tipo-expo 2` | Servicios (por defecto) |
-|  | `--tipo-expo 4` | Otros |
+| `--tipo-expo 1` |  | Bienes |
+| `--tipo-expo 2` |  | Servicios (por defecto) |
+| `--tipo-expo 4` |  | Otros |
 
 Ej.: `--tipo-expo 1`
 
@@ -83,32 +83,32 @@ Ej.: `--tipo-expo 1`
 
 Repetible. La suma tiene que dar el monto. Sin ítems, va un renglón con `--descripcion`.
 
-| Corto | Largo | Qué es |
+| Largo | Corto | Qué es |
 | --- | --- | --- |
-|  | `--item <partes>` | "código\|descripción\|cantidad\|precio\|unidad" |
-|  | `--descripcion <texto>` | Detalle cuando no hay ítems |
+| `--item <partes>` |  | "código\|descripción\|cantidad\|precio\|unidad" |
+| `--descripcion <texto>` |  | Detalle cuando no hay ítems |
 
 Ej.: `--item "001|Servicio|1|1500|7"`
 
 ### Más datos del cliente
 
-| Corto | Largo | Qué es |
+| Largo | Corto | Qué es |
 | --- | --- | --- |
-|  | `--id-impositivo <texto>` | Su ID impositivo en su país |
-|  | `--cuit-pais <número>` | CUIT del país, si no querés el de la tabla |
+| `--id-impositivo <texto>` |  | Su ID impositivo en su país |
+| `--cuit-pais <número>` |  | CUIT del país, si no querés el de la tabla |
 
 Ej.: `--id-impositivo 12-3456789`
 
 ### Datos del comprobante
 
-| Corto | Largo | Qué es |
+| Largo | Corto | Qué es |
 | --- | --- | --- |
-|  | `--incoterm <código>` | En bienes, por ejemplo FOB |
-|  | `--incoterms-desc <texto>` | Descripción del incoterm |
-|  | `--idioma <1\|2\|3>` | Español (por defecto), inglés o portugués |
-|  | `--forma-pago <texto>` | Por defecto, "Transferencia Internacional" |
-|  | `--observaciones <texto>` | Observaciones |
-|  | `--obs-comerciales <texto>` | Observaciones comerciales |
+| `--incoterm <código>` |  | En bienes, por ejemplo FOB |
+| `--incoterms-desc <texto>` |  | Descripción del incoterm |
+| `--idioma <1\|2\|3>` |  | Español (por defecto), inglés o portugués |
+| `--forma-pago <texto>` |  | Por defecto, "Transferencia Internacional" |
+| `--observaciones <texto>` |  | Observaciones |
+| `--obs-comerciales <texto>` |  | Observaciones comerciales |
 
 Ej.: `--idioma 2`
 
@@ -116,10 +116,10 @@ Ej.: `--idioma 2`
 
 Solo en bienes (`--tipo-expo 1`). Repetible.
 
-| Corto | Largo | Qué es |
+| Largo | Corto | Qué es |
 | --- | --- | --- |
-|  | `--permiso <id>` | Un permiso de embarque |
-|  | `--permiso-existente` | El permiso ya existe en ARCA |
+| `--permiso <id>` |  | Un permiso de embarque |
+| `--permiso-existente` |  | El permiso ya existe en ARCA |
 
 Ej.: `--permiso 26001EC01000123A`
 
@@ -127,12 +127,12 @@ Ej.: `--permiso 26001EC01000123A`
 
 Por defecto, dólares. Sin `--cm`, la cotización de aduana que publica ARCA.
 
-| Corto | Largo | Qué es |
+| Largo | Corto | Qué es |
 | --- | --- | --- |
-| `--mda` | `--moneda <código>` | ISO (USD, EUR) o de ARCA (DOL, 060) |
-| `--cm` | `--cotizacion-moneda <número>` | Cotización |
-|  | `--misma-moneda` | Te pagan en esa misma moneda |
-|  | `--fecha-pago <fecha>` | Fecha de pago; por defecto, la del comprobante |
+| `--moneda <código>` | `--mda` | ISO (USD, EUR) o de ARCA (DOL, 060) |
+| `--cotizacion-moneda <número>` | `--cm` | Cotización |
+| `--misma-moneda` |  | Te pagan en esa misma moneda |
+| `--fecha-pago <fecha>` |  | Fecha de pago; por defecto, la del comprobante |
 
 Ej.: `--moneda EUR`
 
@@ -140,9 +140,9 @@ Ej.: `--moneda EUR`
 
 Si no es el de la config.
 
-| Corto | Largo | Qué es |
+| Largo | Corto | Qué es |
 | --- | --- | --- |
-| `--pv` | `--punto-venta <número>` | Un punto de venta para web service |
+| `--punto-venta <número>` | `--pv` | Un punto de venta para web service |
 
 Ej.: `--pv 3`
 
@@ -150,9 +150,9 @@ Ej.: `--pv 3`
 
 Si no es hoy.
 
-| Corto | Largo | Qué es |
+| Largo | Corto | Qué es |
 | --- | --- | --- |
-| `-f` | `--fecha <fecha>` | D, D/M, D/M/AA o D/M/AAAA |
+| `--fecha <fecha>` | `-f` | D, D/M, D/M/AA o D/M/AAAA |
 
 Ej.: `-f 31/10`
 
@@ -160,10 +160,10 @@ Ej.: `-f 31/10`
 
 Por defecto, la que sigue en ARCA.
 
-| Corto | Largo | Qué es |
+| Largo | Corto | Qué es |
 | --- | --- | --- |
-|  | `--numero <número>` | Número del comprobante |
-|  | `--id-solicitud <número>` | ID de la solicitud |
+| `--numero <número>` |  | Número del comprobante |
+| `--id-solicitud <número>` |  | ID de la solicitud |
 
 Ej.: `--numero 12`
 
@@ -177,10 +177,10 @@ No cambian el comprobante: cómo corre ARCLI esta vez. Son los mismos en todos l
 
 Sin ninguno, muestra la vista previa y pregunta antes de emitir.
 
-| Corto | Largo | Qué es |
+| Largo | Corto | Qué es |
 | --- | --- | --- |
-|  | `--previsualizar` | Solo la vista previa: no emite |
-|  | `--emitir` | Emite sin preguntar |
+| `--previsualizar` |  | Solo la vista previa: no emite |
+| `--emitir` |  | Emite sin preguntar |
 
 Ej.: `--emitir`
 
@@ -188,10 +188,10 @@ Ej.: `--emitir`
 
 Si no es el de la config.
 
-| Corto | Largo | Qué es |
+| Largo | Corto | Qué es |
 | --- | --- | --- |
-|  | `--testing` | Homologación: no vale fiscalmente |
-|  | `--produccion` | Comprobantes reales |
+| `--testing` |  | Homologación: no vale fiscalmente |
+| `--produccion` |  | Comprobantes reales |
 
 Ej.: `--produccion`
 
@@ -199,27 +199,27 @@ Ej.: `--produccion`
 
 Aunque la config diga otra cosa.
 
-| Corto | Largo | Qué es |
+| Largo | Corto | Qué es |
 | --- | --- | --- |
-| `--pdf` | `--exportar-pdf` | Genera el PDF |
-|  | `--sin-pdf` | No lo genera |
+| `--exportar-pdf` | `--pdf` | Genera el PDF |
+| `--sin-pdf` |  | No lo genera |
 
 Ej.: `--pdf`
 
 ### Salida
 
-| Corto | Largo | Qué es |
+| Largo | Corto | Qué es |
 | --- | --- | --- |
-|  | `--json` | JSON, para scripts e IAs |
-|  | `--bruto` | Suma la respuesta cruda de ARCA |
+| `--json` |  | JSON, para scripts e IAs |
+| `--bruto` |  | Suma la respuesta cruda de ARCA |
 
 Ej.: `--json`
 
 ### Desde un archivo
 
-| Corto | Largo | Qué es |
+| Largo | Corto | Qué es |
 | --- | --- | --- |
-|  | `--cargar <archivo>` | Los datos desde un JSON, también varios comprobantes |
+| `--cargar <archivo>` |  | Los datos desde un JSON, también varios comprobantes |
 
 Ej.: `--cargar facturas.json`
 

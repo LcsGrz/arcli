@@ -404,7 +404,7 @@ const tableCells = (line) =>
     .map((value) => value.replace(/\\\|/g, '|'));
 
 /**
- * En `docs/comprobantes/`, cada `### Opción` (texto, tabla Corto | Largo | Qué es y `Ej.:`) despues de
+ * En `docs/comprobantes/`, cada `### Opción` (texto, tabla Largo | Corto | Qué es y `Ej.:`) despues de
  * `<!-- arcli: opciones=req|opt|run -->` pasa a una tarjeta: barra celeste lo obligatorio, lavanda lo opcional y gris lo
  * de ejecucion. Mas de 5 filas: se ven 4 y "Ver las N" muestra el resto.
  */
@@ -422,8 +422,8 @@ function optionCards(text) {
           .slice(2)
           .map(tableCells);
         const ej = lines.find((line) => line.startsWith('Ej.:'))?.replace(/^Ej\.:\s*/, '') ?? '';
-        const row = ([short, long, what]) =>
-          `<div class="arcli-opt-row"><span class="s">${inlineHtml(short)}</span><span class="l">${inlineHtml(long)}</span><span class="w">${inlineHtml(what)}</span></div>`;
+        const row = ([long, short, what]) =>
+          `<div class="arcli-opt-row"><span class="l">${inlineHtml(long)}</span><span class="s">${inlineHtml(short)}</span><span class="w">${inlineHtml(what)}</span></div>`;
         const shown = rows.length > 5 ? rows.slice(0, 4) : rows;
         const rest =
           rows.length > 5
@@ -467,7 +467,9 @@ function steps(text) {
     const body = block
       .trim()
       .replace(/^### \d+\. /gm, '### ')
-      .replace(/^<details>[\s\S]*?^<\/details>/gm, (details) => `<div class="arcli-block">\n\n${details}\n\n</div>`);
+      .replace(/^<details>[\s\S]*?^<\/details>/gm, (details) => `<div class="arcli-block">\n\n${details}\n\n</div>`)
+      // Los avisos también, para que tengan el mismo espacio arriba y abajo.
+      .replace(/^:::\w+(?:\[[^\]]*\])?\n[\s\S]*?^:::$/gm, (aside) => `<div class="arcli-block">\n\n${aside}\n\n</div>`);
 
     return `<div class="arcli-steps">\n\n${body}\n\n</div>\n`;
   });
@@ -657,7 +659,7 @@ function installPrompt(text) {
       .slice(readme.indexOf('### Instalar o actualizar con IA'))
       .match(/```text\n([\s\S]*?)\n```/)?.[1];
 
-    return `\`\`\`text title="Prompt"\n${prompt}\n\`\`\`\n`;
+    return `\`\`\`text title="Prompt" frame="terminal" wrap\n${prompt}\n\`\`\`\n`;
   });
 }
 
@@ -678,8 +680,58 @@ function shortcutGrids(text) {
   );
 }
 
+/** Ancho y alto de un PNG o GIF de `docs/assets`, leidos del archivo; `null` si no se puede. */
+function imageSize(url) {
+  const file = url.startsWith(`${BASE}/assets/`) ? join(repoDir, 'docs', url.slice(BASE.length + 1)) : null;
+
+  if (!file || !existsSync(file)) return null;
+
+  const head = readFileSync(file).subarray(0, 32);
+
+  if (head.toString('ascii', 1, 4) === 'PNG') return { height: head.readUInt32BE(20), width: head.readUInt32BE(16) };
+  if (head.toString('ascii', 0, 3) === 'GIF') return { height: head.readUInt16LE(8), width: head.readUInt16LE(6) };
+
+  return null;
+}
+
+/**
+ * Las imagenes llevan su ancho y alto, asi el navegador les reserva el lugar antes de cargarlas y el texto no salta.
+ * Mientras cargan se ve un fondo gris (arcli.css).
+ */
+function sizedImages(text) {
+  return text
+    .replace(/!\[([^\]]*)\]\(([^)\s]+\.(?:png|gif))\)/g, (match, alt, src) => {
+      const size = imageSize(src);
+
+      return size
+        ? `<img src="${src}" alt="${alt}" width="${size.width}" height="${size.height}" loading="lazy" decoding="async">`
+        : match;
+    })
+    .replace(/<img src="([^"]+\.(?:png|gif))"([^>]*)>/g, (match, src, rest) => {
+      if (/\bheight=/.test(rest)) return match;
+      const size = imageSize(src);
+      if (!size) return match;
+      const width = Number(rest.match(/\bwidth="(\d+)"/)?.[1] ?? size.width);
+      const sized = /\bwidth=/.test(rest) ? rest : `${rest} width="${width}"`;
+
+      return `<img src="${src}"${sized} height="${Math.round((width * size.height) / size.width)}">`;
+    });
+}
+
 /** Lo que el sitio dibuja distinto que GitHub, en orden: tarjetas, chat, carteles, formas de uso, pasos, problemas y novedades. */
-const SITE_TRANSFORMS = [gifs, shortcutGrids, optionCards, chats, samples, ways, steps, tabs, problems, releases];
+const SITE_TRANSFORMS = [
+  gifs,
+  sizedImages,
+  shortcutGrids,
+  optionCards,
+  chats,
+  samples,
+  ways,
+  steps,
+  tabs,
+  problems,
+  releases,
+];
 
 /** Convierte cada bloque `> [!TIPO]` en `:::tipo ... :::`, fuera de los bloques de codigo. */
 function githubAlertsToAsides(text) {

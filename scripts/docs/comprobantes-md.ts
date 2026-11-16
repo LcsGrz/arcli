@@ -25,8 +25,8 @@ function optionBlock(key: OptionKey, page: VoucherPage): string {
   const lines = [`### ${option.name}`, ''];
 
   if (option.text) lines.push(option.text, '');
-  lines.push('| Corto | Largo | Qué es |', '| --- | --- | --- |');
-  for (const [short, long, what] of rows) lines.push(`| ${code(short)} | ${code(long)} | ${cell(what)} |`);
+  lines.push('| Largo | Corto | Qué es |', '| --- | --- | --- |');
+  for (const [short, long, what] of rows) lines.push(`| ${code(long)} | ${code(short)} | ${cell(what)} |`);
   lines.push('', `Ej.: \`${option.ej}\``);
 
   return lines.join('\n');

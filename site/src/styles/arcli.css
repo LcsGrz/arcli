@@ -135,7 +135,7 @@ header.header::after {
 
 .sl-markdown-content .arcli-opt-row {
   display: grid;
-  grid-template-columns: 5.5rem minmax(0, 21rem) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 21rem) 5.5rem minmax(0, 1fr);
   align-items: baseline;
   gap: 0.2rem 1rem;
   margin: 0;
@@ -182,10 +182,6 @@ header.header::after {
 
   .arcli-opt-row .s:empty {
     display: none;
-  }
-
-  .arcli-opt-row .s:empty + .l {
-    grid-column: 1 / -1;
   }
 
   .arcli-opt-row .w {
@@ -863,4 +859,56 @@ header.header {
 
 .arcli-atajos td a:hover code {
   border-color: var(--arcli-celeste);
+}
+
+/* Imágenes: el lugar reservado (ancho y alto los pone sync-docs) y un fondo gris mientras cargan */
+.sl-markdown-content img {
+  height: auto;
+  background: var(--sl-color-gray-6);
+}
+
+/* El PDF de ejemplo, centrado y con sombra, como las capturas de la portada */
+.sl-markdown-content img[src$='pdf-factura.png'] {
+  display: block;
+  margin-inline: auto;
+  border-radius: 0.4rem;
+  background: #fff;
+  box-shadow:
+    0 0 0 1px rgb(116 172 223 / 0.08),
+    0 30px 70px -30px rgb(116 172 223 / 0.45);
+}
+
+/* Pestañas: los pasos arrancan con el mismo aire que el resto de la caja */
+.sl-markdown-content .arcli-tabs [role='tabpanel'] {
+  padding-top: 1.5rem;
+}
+
+/* Un aviso adentro de un paso: el mismo espacio arriba y abajo */
+.sl-markdown-content .arcli-steps .arcli-block > .starlight-aside {
+  margin: 0.5rem 0;
+}
+
+/* Problemas frecuentes: el buscador queda arriba al bajar */
+.sl-markdown-content .arcli-faq-search {
+  position: sticky;
+  top: calc(var(--sl-nav-height) + 0.75rem);
+  z-index: 5;
+  padding: 0.5rem 0;
+  background: var(--sl-color-black);
+}
+
+/* Formas de uso: cada fila en una línea y el pedido del tamaño de los comandos */
+.sl-markdown-content .arcli-way {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 6.5rem;
+}
+
+.arcli-way q {
+  overflow: hidden;
+  font-size: var(--sl-text-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.arcli-way .do > code {
+  white-space: nowrap;
 }

@@ -28,9 +28,9 @@ Sin esto no se puede emitir. Lo que guardaste en la config no hace falta repetir
 
 El total del comprobante, en formato argentino: punto para miles y coma para decimales.
 
-| Corto | Largo | Qué es |
+| Largo | Corto | Qué es |
 | --- | --- | --- |
-| `-m` | `--monto <número>` | 15000, 15.000 o 1.500,50 |
+| `--monto <número>` | `-m` | 15000, 15.000 o 1.500,50 |
 
 Ej.: `-m 15000`
 
@@ -38,11 +38,11 @@ Ej.: `-m 15000`
 
 Qué facturás. `-c` es el corto de `--concepto`. Si lo guardás en la config (`concepto`), no hace falta.
 
-| Corto | Largo | Qué es |
+| Largo | Corto | Qué es |
 | --- | --- | --- |
-| `--cs` | `--concepto servicios` | Servicios |
-| `--cp` | `--concepto productos` | Productos |
-| `--csp` | `--concepto productos-servicios` | Productos y servicios |
+| `--concepto servicios` | `--cs` | Servicios |
+| `--concepto productos` | `--cp` | Productos |
+| `--concepto productos-servicios` | `--csp` | Productos y servicios |
 
 Ej.: `--cs`
 
@@ -50,19 +50,19 @@ Ej.: `--cs`
 
 Cómo está inscripto a quien le facturás. `--ir` es el corto de `--iva-receptor`. Con `--cuit` sale sola del padrón de ARCA; si no, va una de estas o la de la config (`ivaReceptor`).
 
-| Corto | Largo | Qué es |
+| Largo | Corto | Qué es |
 | --- | --- | --- |
-| `--ir-cf` | `--iva-receptor consumidor-final` | Consumidor final |
-| `--ir-ri` | `--iva-receptor responsable-inscripto` | Responsable inscripto |
-| `--ir-rm` | `--iva-receptor responsable-monotributo` | Monotributo |
-| `--ir-se` | `--iva-receptor sujeto-exento` | Exento |
-| `--ir-snc` | `--iva-receptor sujeto-no-categorizado` | Sujeto no categorizado |
-| `--ir-ms` | `--iva-receptor monotributista-social` | Monotributista social |
-| `--ir-mtip` | `--iva-receptor monotributo-trabajador-independiente-promovido` | Monotributo trabajador independiente promovido |
-| `--ir-ce` | `--iva-receptor cliente-del-exterior` | Cliente del exterior |
-| `--ir-pe` | `--iva-receptor proveedor-del-exterior` | Proveedor del exterior |
-| `--ir-il` | `--iva-receptor iva-liberado` | IVA liberado |
-| `--ir-ina` | `--iva-receptor iva-no-alcanzado` | IVA no alcanzado |
+| `--iva-receptor consumidor-final` | `--ir-cf` | Consumidor final |
+| `--iva-receptor responsable-inscripto` | `--ir-ri` | Responsable inscripto |
+| `--iva-receptor responsable-monotributo` | `--ir-rm` | Monotributo |
+| `--iva-receptor sujeto-exento` | `--ir-se` | Exento |
+| `--iva-receptor sujeto-no-categorizado` | `--ir-snc` | Sujeto no categorizado |
+| `--iva-receptor monotributista-social` | `--ir-ms` | Monotributista social |
+| `--iva-receptor monotributo-trabajador-independiente-promovido` | `--ir-mtip` | Monotributo trabajador independiente promovido |
+| `--iva-receptor cliente-del-exterior` | `--ir-ce` | Cliente del exterior |
+| `--iva-receptor proveedor-del-exterior` | `--ir-pe` | Proveedor del exterior |
+| `--iva-receptor iva-liberado` | `--ir-il` | IVA liberado |
+| `--iva-receptor iva-no-alcanzado` | `--ir-ina` | IVA no alcanzado |
 
 Ej.: `--ir-cf`
 
@@ -70,13 +70,13 @@ Ej.: `--ir-cf`
 
 Atajo, punto de venta y número del comprobante. O un período entero, con `--pd` y `--ph`.
 
-| Corto | Largo | Qué es |
+| Largo | Corto | Qué es |
 | --- | --- | --- |
-|  | `--ac <atajo>` | Atajo del comprobante: fc, rc, fa… |
-| `--apv` | `--asociado-punto-venta <número>` | Su punto de venta |
-|  | `--ar <número>` | Su número |
-|  | `--acuit <cuit>` | El CUIT del emisor: el tuyo |
-|  | `--at <número>` | Tipo ARCA, en vez de --ac |
+| `--ac <atajo>` |  | Atajo del comprobante: fc, rc, fa… |
+| `--asociado-punto-venta <número>` | `--apv` | Su punto de venta |
+| `--ar <número>` |  | Su número |
+| `--acuit <cuit>` |  | El CUIT del emisor: el tuyo |
+| `--at <número>` |  | Tipo ARCA, en vez de --ac |
 
 Ej.: `--ac fc --apv 3 --ar 142 --acuit 20333333334`
 
@@ -90,10 +90,10 @@ Más datos del comprobante, o cambiar lo que viene de la config.
 
 Para ajustar un período entero, por ejemplo un descuento sobre el mes. No va con `--ac`.
 
-| Corto | Largo | Qué es |
+| Largo | Corto | Qué es |
 | --- | --- | --- |
-| `--pd` | `--periodo-desde <fecha>` | Inicio del período |
-| `--ph` | `--periodo-hasta <fecha>` | Fin del período |
+| `--periodo-desde <fecha>` | `--pd` | Inicio del período |
+| `--periodo-hasta <fecha>` | `--ph` | Fin del período |
 
 Ej.: `--pd 1/9 --ph 30/9`
 
@@ -101,12 +101,12 @@ Ej.: `--pd 1/9 --ph 30/9`
 
 A quién le facturás. Sin ninguno, consumidor final. Desde $ 10.000.000 hay que identificarlo.
 
-| Corto | Largo | Qué es |
+| Largo | Corto | Qué es |
 | --- | --- | --- |
-| `--cfinal` | `--consumidor-final` | Consumidor final, sin identificar |
-|  | `--cuit <número>` | Con CUIT: la condición IVA sale del padrón |
-|  | `--cuil <número>` | Con CUIL |
-|  | `--dni <número>` | Con DNI |
+| `--consumidor-final` | `--cfinal` | Consumidor final, sin identificar |
+| `--cuit <número>` |  | Con CUIT: la condición IVA sale del padrón |
+| `--cuil <número>` |  | Con CUIL |
+| `--dni <número>` |  | Con DNI |
 
 Ej.: `--cuit 20168598204`
 
@@ -114,9 +114,9 @@ Ej.: `--cuit 20168598204`
 
 Si no es el de la config.
 
-| Corto | Largo | Qué es |
+| Largo | Corto | Qué es |
 | --- | --- | --- |
-| `--pv` | `--punto-venta <número>` | Un punto de venta para web service |
+| `--punto-venta <número>` | `--pv` | Un punto de venta para web service |
 
 Ej.: `--pv 3`
 
@@ -124,9 +124,9 @@ Ej.: `--pv 3`
 
 Si no es hoy.
 
-| Corto | Largo | Qué es |
+| Largo | Corto | Qué es |
 | --- | --- | --- |
-| `-f` | `--fecha <fecha>` | D, D/M, D/M/AA o D/M/AAAA |
+| `--fecha <fecha>` | `-f` | D, D/M, D/M/AA o D/M/AAAA |
 
 Ej.: `-f 31/10`
 
@@ -134,11 +134,11 @@ Ej.: `-f 31/10`
 
 Solo con servicios. Sin estos flags, el mes en curso.
 
-| Corto | Largo | Qué es |
+| Largo | Corto | Qué es |
 | --- | --- | --- |
-| `--sd` | `--servicio-desde <fecha>` | Inicio del servicio |
-| `--sh` | `--servicio-hasta <fecha>` | Fin del servicio |
-| `--vto` | `--vencimiento <fecha>` | Vencimiento del pago; por defecto, el fin del servicio |
+| `--servicio-desde <fecha>` | `--sd` | Inicio del servicio |
+| `--servicio-hasta <fecha>` | `--sh` | Fin del servicio |
+| `--vencimiento <fecha>` | `--vto` | Vencimiento del pago; por defecto, el fin del servicio |
 
 Ej.: `--sd 1/10 --sh 31/10`
 
@@ -146,11 +146,11 @@ Ej.: `--sd 1/10 --sh 31/10`
 
 Sin `--cm`, la cotización oficial de ARCA.
 
-| Corto | Largo | Qué es |
+| Largo | Corto | Qué es |
 | --- | --- | --- |
-| `--mda` | `--moneda <código>` | ISO (USD, EUR) o de ARCA (DOL, 060) |
-| `--cm` | `--cotizacion-moneda <número>` | Cotización, por ejemplo 1.452,50 |
-|  | `--misma-moneda` | Te pagan en esa misma moneda |
+| `--moneda <código>` | `--mda` | ISO (USD, EUR) o de ARCA (DOL, 060) |
+| `--cotizacion-moneda <número>` | `--cm` | Cotización, por ejemplo 1.452,50 |
+| `--misma-moneda` |  | Te pagan en esa misma moneda |
 
 Ej.: `--moneda USD`
 
@@ -158,13 +158,13 @@ Ej.: `--moneda USD`
 
 Solo cambian el PDF, no lo que se informa a ARCA.
 
-| Corto | Largo | Qué es |
+| Largo | Corto | Qué es |
 | --- | --- | --- |
-|  | `--descripcion <texto>` | Detalle; por defecto, "Según detalle" |
-| `--cv` | `--condicion-venta <tipo>` | contado, transferencia, tarjeta-debito, tarjeta-credito, cuenta-corriente, cheque, otros-medios-electronicos, otra o un texto |
-|  | `--sin-condicion-venta` | Sin condición de venta, aunque esté en la config |
-|  | `--receptor-nombre <texto>` | Nombre o razón social del receptor |
-|  | `--receptor-domicilio <texto>` | Domicilio del receptor |
+| `--descripcion <texto>` |  | Detalle; por defecto, "Según detalle" |
+| `--condicion-venta <tipo>` | `--cv` | contado, transferencia, tarjeta-debito, tarjeta-credito, cuenta-corriente, cheque, otros-medios-electronicos, otra o un texto |
+| `--sin-condicion-venta` |  | Sin condición de venta, aunque esté en la config |
+| `--receptor-nombre <texto>` |  | Nombre o razón social del receptor |
+| `--receptor-domicilio <texto>` |  | Domicilio del receptor |
 
 Ej.: `--cv transferencia`
 
@@ -178,10 +178,10 @@ No cambian el comprobante: cómo corre ARCLI esta vez. Son los mismos en todos l
 
 Sin ninguno, muestra la vista previa y pregunta antes de emitir.
 
-| Corto | Largo | Qué es |
+| Largo | Corto | Qué es |
 | --- | --- | --- |
-|  | `--previsualizar` | Solo la vista previa: no emite |
-|  | `--emitir` | Emite sin preguntar |
+| `--previsualizar` |  | Solo la vista previa: no emite |
+| `--emitir` |  | Emite sin preguntar |
 
 Ej.: `--emitir`
 
@@ -189,10 +189,10 @@ Ej.: `--emitir`
 
 Si no es el de la config.
 
-| Corto | Largo | Qué es |
+| Largo | Corto | Qué es |
 | --- | --- | --- |
-|  | `--testing` | Homologación: no vale fiscalmente |
-|  | `--produccion` | Comprobantes reales |
+| `--testing` |  | Homologación: no vale fiscalmente |
+| `--produccion` |  | Comprobantes reales |
 
 Ej.: `--produccion`
 
@@ -200,27 +200,27 @@ Ej.: `--produccion`
 
 Aunque la config diga otra cosa.
 
-| Corto | Largo | Qué es |
+| Largo | Corto | Qué es |
 | --- | --- | --- |
-| `--pdf` | `--exportar-pdf` | Genera el PDF |
-|  | `--sin-pdf` | No lo genera |
+| `--exportar-pdf` | `--pdf` | Genera el PDF |
+| `--sin-pdf` |  | No lo genera |
 
 Ej.: `--pdf`
 
 ### Salida
 
-| Corto | Largo | Qué es |
+| Largo | Corto | Qué es |
 | --- | --- | --- |
-|  | `--json` | JSON, para scripts e IAs |
-|  | `--bruto` | Suma la respuesta cruda de ARCA |
+| `--json` |  | JSON, para scripts e IAs |
+| `--bruto` |  | Suma la respuesta cruda de ARCA |
 
 Ej.: `--json`
 
 ### Desde un archivo
 
-| Corto | Largo | Qué es |
+| Largo | Corto | Qué es |
 | --- | --- | --- |
-|  | `--cargar <archivo>` | Los datos desde un JSON, también varios comprobantes |
+| `--cargar <archivo>` |  | Los datos desde un JSON, también varios comprobantes |
 
 Ej.: `--cargar facturas.json`
 

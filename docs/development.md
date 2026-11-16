@@ -179,7 +179,7 @@ Lo que en el sitio se ve distinto que en GitHub se marca en `docs/` con un comen
 | Comentario                                        | En el sitio                                                                                    |
 | ------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | `<!-- arcli: pasos -->`                           | Los `### 1. …` hasta el próximo `##`, como pasos numerados unidos por una línea                |
-| `<!-- arcli: opciones=req\|opt\|run -->`          | Cada `### opción` (tabla Corto \| Largo \| Qué es) como tarjeta; lo genera `docs:comprobantes` |
+| `<!-- arcli: opciones=req\|opt\|run -->`          | Cada `### opción` (tabla Largo \| Corto \| Qué es) como tarjeta; lo genera `docs:comprobantes` |
 | `<!-- arcli: familia="…" icono="…" orden="…" -->` | La familia arriba del título y el lugar en el menú de comprobantes                             |
 | `<!-- arcli: chat -->`                            | La cita con **Vos:** y **Tu asistente:** como una conversación                                 |
 | `<!-- arcli: muestra=error\|vista -->`            | El bloque de texto siguiente como un cartel chico                                              |
