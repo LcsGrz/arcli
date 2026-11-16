@@ -57,7 +57,7 @@ export const ARCA_REJECTIONS: readonly ArcaRejection[] = [
   {
     codes: [10038],
     guide: `${TROUBLESHOOTING_URL}#rechazos-de-arca-por-código`,
-    todo: 'Volvé a emitir con `--misma-moneda`: arcli consulta la oficial en ese momento.',
+    todo: 'Volvé a emitir con `--misma-moneda`: ARCLI consulta la oficial en ese momento.',
     what: 'Con `--misma-moneda` ARCA exige la cotización oficial exacta y la que se envió ya no coincide.',
   },
   {

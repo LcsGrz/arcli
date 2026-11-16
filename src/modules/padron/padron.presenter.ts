@@ -66,7 +66,7 @@ export function formatPadronAsText(report: PadronReport): string {
     ...taxpayer.notices.map((notice) => ['Aviso de ARCA', notice] as const),
   ];
   const footer = taxpayer.ivaCondition
-    ? `Con \`--cuit ${taxpayer.cuit}\`, arcli completa solo el IVA receptor.`
+    ? `Con \`--cuit ${taxpayer.cuit}\`, ARCLI completa solo el IVA receptor.`
     : 'El padrón no informa la condición IVA: indicala con `--ir` al facturar.';
 
   return sheetPanel(

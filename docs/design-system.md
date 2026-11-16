@@ -116,6 +116,7 @@ Cada dato tiene su helper. Antes de escribir un formato, buscá si ya existe.
 - **Voseo y tildes:** `Revisá`, `Usá`, `¿Emitimos?`. Sí/no con tilde: `sí`.
 - **Letra del comprobante en mayúscula:** `factura C`. Los atajos van en minúscula: `fc`.
 - **Comandos, opciones y argumentos entre backticks:** `` `arcli config revisar` ``, `` `--monto` ``, no entre comillas.
+- **El programa es ARCLI; el comando, `arcli`:** `ARCLI usa la versión…`, pero `` `arcli config` ``. Paquete, rutas, variables y `--json` no cambian.
 - **Monto al pedir, importe al mostrar.** "Comprobante" donde también puede ser un recibo.
 - **Un error dice qué pasó y qué hacer,** sin repetir: lo que va en la sugerencia no va en el mensaje.
 - **Opción nueva en un menú:** `(nuevo)` al final del texto, en `highlight`, con `markIfNew`. La versión en que apareció va en `NEW_OPTION_SINCE` y la marca se apaga sola dos versiones menores después. Un submenú que se mira poco, como Configuración, la lleva mientras tenga alguna opción nueva adentro. La respuesta ("✔ pregunta respuesta") queda sin la marca.

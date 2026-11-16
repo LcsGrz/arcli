@@ -413,7 +413,7 @@ export function createPadronHelp(): string {
       'Para qué sirve',
       [
         '  - Ver razón social, domicilio fiscal, condición IVA, impuestos y actividad de un CUIT.',
-        '  - Al facturar con --cuit, arcli usa el mismo dato para completar el IVA receptor si no pasás --ir.',
+        '  - Al facturar con --cuit, ARCLI usa el mismo dato para completar el IVA receptor si no pasás --ir.',
       ].join('\n'),
     ),
     '',
@@ -437,7 +437,7 @@ export function createCompletionHelp(): string {
       'Para qué sirve',
       compactList([
         'Completar con Tab comandos, flags y valores: arcli f<Tab>, arcli fc --ir<Tab>, arcli config establecer <Tab>.',
-        'La lista sale de la versión instalada: después de actualizar arcli no hay que reinstalar nada.',
+        'La lista sale de la versión instalada: después de actualizar ARCLI no hay que reinstalar nada.',
       ]),
     ),
     '',
