@@ -49,7 +49,7 @@ yarn install --frozen-lockfile --ignore-scripts
 git merge-tree --write-tree --name-only origin/dev HEAD
 ```
 
-Anotá los conflictos contra `dev`. Todo lo que corras del PR en los pasos siguientes va en este worktree, con un `HOME` temporal, así no alcanza la config ni los certificados reales.
+Anotá los conflictos contra `dev`. Todo lo que corras del PR en los pasos siguientes va en este worktree, con un `HOME` temporal (`HOME=$(mktemp -d) yarn …`; para el CLI, también `ARCLI_CONFIG_DIR=$(mktemp -d)`), así no alcanza la config ni los certificados reales.
 
 **Listo cuando:** el worktree está instalado y sabés qué conflictos hay, o que no hay ninguno.
 
@@ -67,10 +67,10 @@ Hacelo en este orden, para que las dos lecturas sean independientes:
 
 En el worktree, con `HOME` temporal:
 
-- `yarn typecheck`, `yarn lint` y la suite completa, y `yarn open-source:check` si toca el empaquetado, dependencias o el arranque.
+- `yarn lint` y `yarn open-source:check` (typecheck, tests, build, e2e y `pack:check`, lo mismo que el CI).
 - **El test detecta el bug:** revertí el arreglo sin tocar el test (`git checkout origin/dev -- <archivos de src sin tests>`, y al terminar `git checkout HEAD -- <los mismos>`) y confirmá que falla. Un test que pasa igual no cuenta como cobertura.
 - **El problema se reproduce:** corré el flujo real con `yarn dev`, antes y después del cambio, en lo que se pueda sin credenciales.
-- **Contra ARCA:** si el cambio habla con ARCA y la prueba necesita credenciales, pedí el ok: es la única excepción al `HOME` temporal. Decí exactamente qué comando vas a correr y en qué entorno. Emitir en testing necesita un ok por separado. En producción, solo lectura y solo si la persona lo pide. Si no se puede probar, el informe lo dice.
+- **Contra ARCA:** si el cambio habla con ARCA y la prueba necesita credenciales, pedí el ok: es la única excepción al `HOME` temporal. Decí exactamente qué comando vas a correr y en qué entorno; la suite contra ARCA testing es `yarn build && yarn test:arca` ([docs/development.md](../../../docs/development.md#contra-arca-testing)). Emitir en testing necesita un ok por separado. En producción, solo lectura y solo si la persona lo pide. Si no se puede probar, el informe lo dice.
 
 **Listo cuando:** cada chequeo tiene un resultado o una razón para no haberse hecho, y sabés cuáles pasaron de verdad y cuáles los afirma solo el PR.
 
