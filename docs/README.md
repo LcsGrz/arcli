@@ -44,7 +44,7 @@ También en el [sitio de documentación](https://lcsgrz.github.io/arcli/), con b
 
 ## Ayuda
 
-- [Troubleshooting](troubleshooting.md): errores frecuentes, causa y solución.
+- [Problemas frecuentes](troubleshooting.md): errores frecuentes, causa y solución.
 - [CHANGELOG](../CHANGELOG.md): novedades de cada versión.
 
 ## Para contribuir

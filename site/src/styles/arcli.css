@@ -419,3 +419,85 @@ header.header::after {
 .sl-markdown-content .arcli-steps .arcli-block > * {
   margin-top: 0;
 }
+
+/* Problemas frecuentes: buscador y un desplegable por problema */
+.sl-markdown-content .arcli-faq-search input {
+  width: 100%;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.6rem;
+  background: var(--sl-color-gray-6);
+  color: var(--sl-color-white);
+  font: inherit;
+}
+
+.sl-markdown-content .arcli-faq-search input:focus {
+  border-color: var(--sl-color-text-accent);
+  outline: none;
+}
+
+.sl-markdown-content details.arcli-faq {
+  margin-top: 0.5rem;
+  padding: 0;
+  background: var(--sl-color-gray-6);
+}
+
+.sl-markdown-content details.arcli-faq > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1rem;
+  color: var(--sl-color-white);
+  font-size: var(--sl-text-base);
+  font-weight: 500;
+}
+
+.sl-markdown-content details.arcli-faq[open] > summary {
+  border-bottom: 1px solid var(--sl-color-gray-5);
+}
+
+.sl-markdown-content details.arcli-faq > :not(summary) {
+  margin-inline: 1rem;
+}
+
+.sl-markdown-content details.arcli-faq > :last-child {
+  margin-bottom: 0.9rem;
+}
+
+.arcli-faq .sev {
+  padding: 0.05rem 0.5rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 99px;
+  color: var(--sl-color-gray-2);
+  font: 600 0.68rem / 1.5 var(--sl-font-system-mono);
+}
+
+.arcli-faq-section[hidden],
+.arcli-faq[hidden] {
+  display: none;
+}
+
+/* Novedades: la fecha abajo de la versión, y las viejas plegadas */
+.sl-markdown-content .arcli-date {
+  margin-top: 0.2rem;
+  color: var(--sl-color-gray-3);
+  font: 0.8rem var(--sl-font-system-mono);
+}
+
+.sl-markdown-content details.arcli-ver {
+  margin-top: 0.4rem;
+}
+
+.sl-markdown-content details.arcli-ver > summary {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  color: var(--sl-color-white);
+  font-size: var(--sl-text-base);
+}
+
+.arcli-ver small {
+  color: var(--sl-color-gray-3);
+  font: 0.8rem var(--sl-font-system-mono);
+}

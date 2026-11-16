@@ -1,6 +1,6 @@
 [← Documentación](README.md)
 
-# Troubleshooting
+# Problemas frecuentes
 
 Errores frecuentes agrupados por categoría: síntoma, causa y solución.
 

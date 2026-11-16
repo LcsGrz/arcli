@@ -27,12 +27,8 @@ export default defineConfig({
       description: 'Emití facturas electrónicas de ARCA (ex AFIP) desde la terminal o con un asistente paso a paso.',
       favicon: '/favicon.svg',
       head: [
-        // "Ver las N" en las tarjetas de opciones: al tocarlo se muestran todas y el botón desaparece.
-        {
-          content:
-            "document.addEventListener('click',(e)=>{const s=e.target.closest('details.arcli-more>summary');if(!s)return;e.preventDefault();const d=s.parentElement;s.remove();d.replaceWith(...d.childNodes);});",
-          tag: 'script',
-        },
+        // Comportamiento de las páginas generadas: "Ver las N", el buscador de problemas y abrir lo plegado por link.
+        { attrs: { defer: true, src: '/arcli/arcli.js' }, tag: 'script' },
         {
           attrs: { content: 'https://lcsgrz.github.io/arcli/assets/imagenes/social-preview.png', property: 'og:image' },
           tag: 'meta',

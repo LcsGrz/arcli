@@ -502,8 +502,75 @@ function ways(text) {
   });
 }
 
-/** Lo que el sitio dibuja distinto que GitHub, en orden: tarjetas, chat, carteles, formas de uso y pasos. */
-const SITE_TRANSFORMS = [optionCards, chats, samples, ways, steps];
+/** El ancla de GitHub (y de Astro) de un titulo. */
+const headingSlug = (heading) =>
+  heading
+    .toLowerCase()
+    .trim()
+    .replace(/[^\p{L}\p{N}\s-]/gu, '')
+    .replace(/\s/g, '-');
+
+/**
+ * Problemas frecuentes: cada `### problema` pasa a un desplegable con su severidad al lado, agrupados por tema (`##`),
+ * con un buscador arriba (`public/arcli.js`). El desplegable conserva el ancla del titulo, asi los links siguen andando.
+ */
+function problems(text, page) {
+  if (page.src !== 'docs/troubleshooting.md') return text;
+
+  const [head, ...parts] = text.split(/^(?=## )/m);
+  const sections = parts.map((part) => {
+    const [title, ...items] = part.split(/^(?=### )/m);
+    const faqs = items.map((item) => {
+      const [line, ...rest] = item.split('\n');
+      const name = line.replace(/^### /, '');
+      const severity = rest.join('\n').match(/^- \*\*Severidad:\*\* (.+)$/m);
+      const body = rest
+        .join('\n')
+        .replace(/^- \*\*Severidad:\*\* .+\n/m, '')
+        .trim();
+
+      return `<details class="arcli-faq" id="${headingSlug(name.replace(/`/g, ''))}">\n<summary><span class="t">${inlineHtml(name)}</span>${severity ? `<span class="sev">${inlineHtml(severity[1])}</span>` : ''}</summary>\n\n${body}\n\n</details>\n`;
+    });
+
+    return `<section class="arcli-faq-section">\n\n${title.trim()}\n\n${faqs.join('\n')}\n</section>\n`;
+  });
+  const search =
+    '<div class="arcli-faq-search"><input type="search" placeholder="Buscá lo que ves: EACCES, punto de venta, 10005…" aria-label="Buscar un problema"></div>\n<p class="arcli-faq-empty" hidden>No encontramos ese problema. Probá con otra palabra o mirá los errores de ARCA más abajo.</p>\n';
+
+  return `${head.trim()}\n\n${search}\n${sections.join('\n')}`;
+}
+
+/**
+ * Novedades: sin "Sin publicar" (es lo que todavia no salio), las ultimas tres versiones abiertas con la fecha abajo y
+ * el resto en un desplegable por version.
+ */
+function releases(text, page) {
+  if (page.src !== 'CHANGELOG.md') return text;
+
+  const [head, ...parts] = text.split(/^(?=## )/m);
+  const versions = parts.filter((part) => !/^## Sin publicar/.test(part));
+  const dated = (part) => {
+    const [line, ...rest] = part.split('\n');
+    const match = line.match(/^## (.+?) · (.+)$/);
+
+    return { body: rest.join('\n').trim(), date: match?.[2] ?? '', version: match?.[1] ?? line.replace(/^## /, '') };
+  };
+  const recent = versions.slice(0, 3).map((part) => {
+    const { body, date, version } = dated(part);
+
+    return `## ${version}\n\n<p class="arcli-date">${date}</p>\n\n${body}\n`;
+  });
+  const older = versions.slice(3).map((part) => {
+    const { body, date, version } = dated(part);
+
+    return `<details class="arcli-ver" id="${headingSlug(version)}">\n<summary><b>${version}</b><small>${date}</small></summary>\n\n${body.replace(/^### (.+)$/gm, '**$1**')}\n\n</details>\n`;
+  });
+
+  return [head.trim(), ...recent, older.length ? `## Versiones anteriores\n\n${older.join('\n')}` : ''].join('\n\n');
+}
+
+/** Lo que el sitio dibuja distinto que GitHub, en orden: tarjetas, chat, carteles, formas de uso, pasos, problemas y novedades. */
+const SITE_TRANSFORMS = [optionCards, chats, samples, ways, steps, problems, releases];
 
 /** Convierte cada bloque `> [!TIPO]` en `:::tipo ... :::`, fuera de los bloques de codigo. */
 function githubAlertsToAsides(text) {
@@ -556,7 +623,7 @@ async function sync() {
     const shown = page.src === 'CHANGELOG.md' ? argentineVersionDates(body) : body;
     const { body: withoutMeta, familia } = voucherMeta(shown.replace(/^<!-- Generado[^\n]*\n+/, ''));
     const content = SITE_TRANSFORMS.reduce(
-      (text, transform) => transform(text),
+      (text, transform) => transform(text, page),
       rewriteLinks(page.src, githubAlertsToAsides(withoutMeta), includedReadmeAnchors),
     );
 
