@@ -7,9 +7,14 @@ import { prepareBillingInput, resolveFceWarningsInOrder } from '../../modules/bi
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import { BillingService } from '../../modules/billing/billing.service';
 import type { BillingGateway } from '../../modules/billing/billing.types.internal';
-import type { ArcliPdfMode } from '../../modules/config/config.schemas';
 import { buildEquivalentCommand } from '../../modules/interactive/equivalent-command';
 import { BACK } from '../../modules/interactive/wizard';
+import {
+  type EmissionChoice,
+  type EmissionConfirmationPlan,
+  planEmissionConfirmation,
+  resolvePdfAfterConfirmation,
+} from '../../modules/pdf/pdf-decision';
 import type { VoucherHistoryGateway } from '../../modules/vouchers/voucher-history';
 import { ArcaBillingGateway } from '../../services/arca/arca-billing.gateway';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
@@ -23,8 +28,9 @@ import { formatBillingOutputs } from '../commands/billing.command.output';
 import { startSpinner } from '../spinner';
 import type { GlobalCliOptions } from '../types';
 
+import { askEmission, DO_NOT_EMIT_LABEL } from './emission-prompt';
 import { offerPdf } from './pdf.flow';
-import { askTextStep, chooseOne, confirm } from './prompts';
+import { askTextStep, confirm } from './prompts';
 import { validatePointOfSale } from './validators';
 
 export interface InteractiveSession {
@@ -104,44 +110,24 @@ export async function requirePointOfSale(session: InteractiveSession): Promise<S
   };
 }
 
-/** Los botones de "¿Emitimos?": los mismos que la pregunta de los comandos con flags. */
-export const EMIT_NOW_LABEL = 'Sí, emitir ahora';
+/** La segunda confirmacion, en produccion. Los botones de "¿Emitimos?" estan en `emission-prompt`. */
 export const EMIT_IN_PRODUCTION_LABEL = 'Sí, emitir en producción';
-export const DO_NOT_EMIT_LABEL = 'No, dejar sin emitir';
 export const PRODUCTION_CONFIRMATION = 'Vas a emitir un comprobante real en PRODUCCIÓN. ¿Confirmás?';
 
-export const EMIT_WITH_PDF_LABEL = 'Sí, emitir y generar el PDF';
-
-/** La respuesta a "¿Emitimos?": no emitir, emitir, o emitir y generar el PDF aunque la config diga `nunca`. */
-export type EmissionAnswer = 'emitir' | 'emitir-con-pdf' | false;
+/** La respuesta a "¿Emitimos?": no emitir, emitir, o emitir y generar el PDF. */
+export type EmissionAnswer = EmissionChoice | false;
 
 /**
- * "¿Emitimos?" y, en produccion, la segunda confirmacion. Si no, avisa que no se emitio nada. Con `pdf nunca` suma
- * "Sí, emitir y generar el PDF", el `--exportar-pdf` del asistente: no se pregunta nada de mas, y quien quiere el PDF
- * de este comprobante lo elige aca. Esc cuenta como no.
+ * "¿Emitimos?" y, en produccion, la segunda confirmacion. Si no, avisa que no se emitio nada. Las opciones salen de
+ * `planEmissionConfirmation`: siempre se puede elegir emitir con o sin PDF, y lo elegido decide (despues de emitir no
+ * se pregunta nada mas del PDF). Esc cuenta como no.
  */
 export async function confirmEmission(
   question: string,
   environment: ResolvedArcaRuntime['environment'],
-  pdfMode?: ArcliPdfMode,
+  plan: EmissionConfirmationPlan,
 ): Promise<EmissionAnswer> {
-  const answer: EmissionAnswer =
-    pdfMode === 'nunca'
-      ? await chooseOne<EmissionAnswer>(
-          question,
-          [
-            { name: EMIT_NOW_LABEL, value: 'emitir' },
-            {
-              description: 'Solo esta vez: en la config el PDF está en `nunca`',
-              name: EMIT_WITH_PDF_LABEL,
-              value: 'emitir-con-pdf',
-            },
-            { name: DO_NOT_EMIT_LABEL, value: false },
-          ],
-          undefined,
-          { escapeValue: false },
-        )
-      : (await confirm(question, EMIT_NOW_LABEL, DO_NOT_EMIT_LABEL)) && 'emitir';
+  const answer = await askEmission(question, plan);
   const confirmed =
     answer &&
     (environment !== 'produccion' ||
@@ -203,7 +189,7 @@ export async function previewAndEmit(session: InteractiveSession, rawInput: Bill
   const emission = await confirmEmission(
     formatEmissionQuestion(label, runtime.environment),
     runtime.environment,
-    runtime.config.pdf,
+    planEmissionConfirmation({ flags: [input.pdf], mode: runtime.config.pdf }),
   );
 
   if (!emission) {
@@ -224,7 +210,7 @@ export async function previewAndEmit(session: InteractiveSession, rawInput: Bill
     writeTerminalOutput(
       formatBillingOutputs([result], { environment: runtime.environment, previewShown: true, raw: false }),
     );
-    await offerPdf(runtime.config, { ...input, pdf: emission === 'emitir-con-pdf' || undefined }, result);
+    await offerPdf(runtime.config, { ...input, pdf: resolvePdfAfterConfirmation(input.pdf, emission) }, result);
   } catch (error) {
     spinner?.stop();
     throw error;

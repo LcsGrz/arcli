@@ -76,7 +76,7 @@ Primero pregunta solo lo **requerido**:
 
 Después, **una sola pregunta con todos los opcionales** (ver abajo). Enter sin marcar nada sigue con los valores por defecto.
 
-Después muestra la vista previa (la misma de `--previsualizar`), el comando equivalente y pregunta si emitir, con los mismos botones que los comandos con flags: **Sí, emitir ahora** o **No, dejar sin emitir**. En **producción** pide una segunda confirmación (**Sí, emitir en producción** o **No, dejar sin emitir**); el CLI con flags pregunta una sola vez.
+Después muestra la vista previa (la misma de `--previsualizar`), el comando equivalente y pregunta si emitir, con los mismos botones que los comandos con flags: **Sí, emitir ahora**, **Sí, emitir y generar el PDF** (ver [PDF](#pdf)) o **No, dejar sin emitir**. En **producción** pide una segunda confirmación (**Sí, emitir en producción** o **No, dejar sin emitir**); el CLI con flags pregunta una sola vez.
 
 ### Factura de exportación (E)
 
@@ -118,11 +118,9 @@ La factura y las notas E terminan con **"¿Agregamos algún opcional?"**, que fu
 
 ### PDF
 
-Después de emitir, si `config.pdf` es `preguntar` (el valor por defecto), pregunta **"¿Generamos el PDF del comprobante?"**. Con `siempre` lo genera sin preguntar y con `nunca` no pregunta nada. Lo mismo vale para las notas de crédito y débito y para la `E`.
+El PDF se elige en la pregunta **"¿Emitimos…?"**, que siempre tiene tres opciones: **Sí, emitir ahora**, **Sí, emitir y generar el PDF** y **No, dejar sin emitir**. Lo elegido decide, diga lo que diga `config.pdf`: después de emitir no se pregunta nada más del PDF. La config solo elige dónde arranca el cursor: con `siempre`, en **Sí, emitir y generar el PDF**; con `preguntar` (el valor por defecto) o `nunca`, en **Sí, emitir ahora**. Lo mismo vale para las notas de crédito y débito, el recibo y la `E`. En producción, la segunda confirmación es la misma y el PDF se respeta. Es la misma pregunta que hacen los comandos con flags: ver [PDF de comprobantes](pdf.md#cuándo-se-genera).
 
-Con `nunca`, la pregunta "¿Emitimos…?" suma una tercera opción, entre las otras dos: **Sí, emitir y generar el PDF**. Es el `--exportar-pdf` del asistente, solo para ese comprobante. No agrega ninguna pregunta: con "Sí, emitir ahora" todo sigue como siempre. En producción, la segunda confirmación es la misma y el PDF se respeta.
-
-Si respondés que sí, pregunta cuatro datos opcionales que solo van en el PDF: la descripción, el nombre y el domicilio del receptor, y la condición de venta. Para esta última muestra una lista (Omitir, Contado, Tarjeta de Débito, Tarjeta de Crédito, Cuenta Corriente, Cheque, Transferencia Bancaria, Otros medios de pago electrónico, Otra) con la de la config (`condicionVenta`) marcada, así que Enter la mantiene. "Omitir" también evita que reaparezca el valor configurado; "Otra" pide el texto: Enter deja "Otra", o el texto libre que tenía la config. Si faltan datos del emisor (razón social, domicilio, inicio de actividades), los pregunta una vez y ofrece guardarlos en la config. Si falta el plugin, ofrece instalarlo. Ver [PDF de comprobantes](pdf.md).
+Si elegís el PDF, pregunta cuatro datos opcionales que solo van en el PDF: la descripción, el nombre y el domicilio del receptor, y la condición de venta. Para esta última muestra una lista (Omitir, Contado, Tarjeta de Débito, Tarjeta de Crédito, Cuenta Corriente, Cheque, Transferencia Bancaria, Otros medios de pago electrónico, Otra) con la de la config (`condicionVenta`) marcada, así que Enter la mantiene. "Omitir" también evita que reaparezca el valor configurado; "Otra" pide el texto: Enter deja "Otra", o el texto libre que tenía la config. Si faltan datos del emisor (razón social, domicilio, inicio de actividades), los pregunta una vez y ofrece guardarlos en la config. Si falta el plugin, ofrece instalarlo. Ver [PDF de comprobantes](pdf.md).
 
 El comando equivalente se muestra antes de emitir, así que no incluye la descripción ni la condición de venta del PDF. Siempre lleva el entorno (`--testing` o `--produccion`): si después cambiás el entorno en la config, el comando pegado sigue emitiendo donde lo armaste. Con un CUIT, lleva el nombre y el domicilio que trajo el padrón (`--receptor-nombre` y `--receptor-domicilio`): como también lleva `--ir`, el CLI no vuelve a consultar el padrón y sin esos flags el PDF saldría sin ellos.
 
