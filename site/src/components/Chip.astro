@@ -1,0 +1,13 @@
+---
+/**
+ * Un chip de color (`.arcli-chip` de `styles/arcli.css`): `color` es su `--chip` y, sin `color`, es gris. El tamaño lo
+ * pone cada lugar con `class`. Las páginas generadas (tipos de cambio y severidad) usan la clase directo.
+ */
+import type { HTMLAttributes } from 'astro/types';
+
+type Props = HTMLAttributes<'a'> & { as?: 'a' | 'p' | 'span'; color?: string };
+
+const { as: Tag = 'span', class: className, color, ...attrs } = Astro.props;
+---
+
+<Tag class:list={['arcli-chip', !color && 'arcli-chip-gris', className]} style={color ? `--chip: ${color}` : undefined} {...attrs}><slot /></Tag>

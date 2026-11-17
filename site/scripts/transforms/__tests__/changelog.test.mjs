@@ -20,10 +20,10 @@ describe('releases', () => {
     expect(releases(input)).toBe(
       [
         '# Cambios\n\nIntro.',
-        '## 2.5.0\n\n<p class="arcli-date">05/11/2026</p>\n\n### <span class="arcli-kind arcli-kind-agregado">Agregado</span>\n\n- Algo 5.\n',
-        '## 2.4.0\n\n<p class="arcli-date">04/11/2026</p>\n\n### <span class="arcli-kind arcli-kind-agregado">Agregado</span>\n\n- Algo 4.\n',
-        '## 2.3.0\n\n<p class="arcli-date">03/11/2026</p>\n\n### <span class="arcli-kind arcli-kind-agregado">Agregado</span>\n\n- Algo 3.\n',
-        '## Versiones anteriores\n\n<details class="arcli-ver" id="220">\n<summary><b>2.2.0</b><small>02/11/2026</small></summary>\n\n<p><span class="arcli-kind arcli-kind-agregado">Agregado</span></p>\n\n- Algo 2.\n\n</details>\n',
+        '## 2.5.0\n\n<p class="arcli-date">05/11/2026</p>\n\n### <span class="arcli-chip arcli-kind arcli-kind-agregado">Agregado</span>\n\n- Algo 5.\n',
+        '## 2.4.0\n\n<p class="arcli-date">04/11/2026</p>\n\n### <span class="arcli-chip arcli-kind arcli-kind-agregado">Agregado</span>\n\n- Algo 4.\n',
+        '## 2.3.0\n\n<p class="arcli-date">03/11/2026</p>\n\n### <span class="arcli-chip arcli-kind arcli-kind-agregado">Agregado</span>\n\n- Algo 3.\n',
+        '## Versiones anteriores\n\n<details class="arcli-ver" id="220">\n<summary><b>2.2.0</b><small>02/11/2026</small></summary>\n\n<p><span class="arcli-chip arcli-kind arcli-kind-agregado">Agregado</span></p>\n\n- Algo 2.\n\n</details>\n',
       ].join('\n\n'),
     );
   });
@@ -35,7 +35,7 @@ describe('releases', () => {
     ['Otra cosa', 'otro'],
   ])('el tipo "%s" va con el chip %s', (name, kind) => {
     expect(releases(`# C\n\n## 1.0.0 · 01/01/2026\n\n### ${name}\n`)).toContain(
-      `<span class="arcli-kind arcli-kind-${kind}">${name}</span>`,
+      `<span class="arcli-chip arcli-kind arcli-kind-${kind}">${name}</span>`,
     );
   });
 

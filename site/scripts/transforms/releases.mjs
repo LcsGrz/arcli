@@ -21,7 +21,7 @@ function changeKindChip(name) {
     .trim();
   const kind = /puede afectar/.test(key) ? 'aviso' : (CHANGE_KINDS[key] ?? 'otro');
 
-  return `<span class="arcli-kind arcli-kind-${kind}">${name}</span>`;
+  return `<span class="arcli-chip arcli-kind arcli-kind-${kind}">${name}</span>`;
 }
 
 /**

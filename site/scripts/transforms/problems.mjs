@@ -132,7 +132,7 @@ export function problems(text) {
       const rows = faqRows(body);
       const level = severity && severityParts(severity[1], name);
 
-      return `<details class="arcli-faq" id="${headingSlug(name.replace(/`/g, ''))}">\n<summary><span class="t">${inlineHtml(name)}${level?.note ? `<span class="sub">${inlineHtml(level.note)}.</span>` : ''}</span>${level ? `<span class="sev sev-${level.kind}">${level.level}</span>` : ''}</summary>\n\n${rows ?? body}\n\n</details>\n`;
+      return `<details class="arcli-faq" id="${headingSlug(name.replace(/`/g, ''))}">\n<summary><span class="t">${inlineHtml(name)}${level?.note ? `<span class="sub">${inlineHtml(level.note)}.</span>` : ''}</span>${level ? `<span class="arcli-chip sev sev-${level.kind}">${level.level}</span>` : ''}</summary>\n\n${rows ?? body}\n\n</details>\n`;
     });
 
     return `<section class="arcli-faq-section">\n\n${title.trim()}\n\n${faqs.join('\n')}\n</section>\n`;

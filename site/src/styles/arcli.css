@@ -416,9 +416,6 @@ header.header::after {
 
 .arcli-faq .sev {
   padding: 0.05rem 0.5rem;
-  border: 1px solid var(--sl-color-gray-5);
-  border-radius: 99px;
-  color: var(--sl-color-gray-2);
   font: 600 0.68rem / 1.5 var(--sl-font-system-mono);
 }
 
@@ -451,14 +448,35 @@ header.header::after {
   font: 0.8rem var(--sl-font-system-mono);
 }
 
+/*
+ * Chip de color: la familia del título y la letra del menú (Chip.astro), la versión del encabezado, los tipos de cambio
+ * de Novedades y la severidad de Problemas frecuentes. El color es `--chip`; borde, fondo y texto lo mezclan en la
+ * proporción de `--chip-line`, `--chip-fill` y `--chip-text`. El tamaño y la letra los pone cada lugar.
+ */
+.arcli-chip {
+  --chip-line: 38%;
+  --chip-fill: 16%;
+  --chip-text: 85%;
+  /* Los colores van aparte del `border` y sin `background`: sin `--chip` (la versión) quedan sin valor, pero el ancho
+     y el estilo del borde siguen. */
+  border: 1px solid;
+  border-color: color-mix(in srgb, var(--chip) var(--chip-line), transparent);
+  border-radius: 99px;
+  background-color: color-mix(in srgb, var(--chip) var(--chip-fill), transparent);
+  color: color-mix(in srgb, var(--chip) var(--chip-text), var(--sl-color-gray-2));
+}
+
+/* Sin color (la versión del encabezado): el borde y el texto en gris */
+.arcli-chip-gris {
+  border-color: var(--sl-color-gray-5);
+  background-color: transparent;
+  color: var(--sl-color-gray-2);
+}
+
 /* Novedades: cada tipo de cambio (Agregado, Cambiado...) es un chip, como la familia de los comprobantes */
 .sl-markdown-content .arcli-kind {
   display: inline-block;
   padding: 0.15rem 0.6rem;
-  border: 1px solid color-mix(in srgb, var(--kind) 38%, transparent);
-  border-radius: 99px;
-  background: color-mix(in srgb, var(--kind) 16%, transparent);
-  color: color-mix(in srgb, var(--kind) 85%, var(--sl-color-gray-2));
   font: 600 0.78rem / 1.5 var(--sl-font-system-mono);
 }
 
@@ -467,33 +485,33 @@ header.header::after {
 }
 
 .arcli-kind-agregado {
-  --kind: var(--arcli-verde);
+  --chip: var(--arcli-verde);
 }
 
 .arcli-kind-cambiado {
-  --kind: var(--arcli-celeste);
+  --chip: var(--arcli-celeste);
 }
 
 .arcli-kind-arreglado {
-  --kind: var(--arcli-sol);
+  --chip: var(--arcli-sol);
 }
 
 .arcli-kind-deprecado,
 .arcli-kind-aviso {
-  --kind: var(--arcli-naranja);
+  --chip: var(--arcli-naranja);
 }
 
 .arcli-kind-eliminado,
 .arcli-kind-seguridad {
-  --kind: var(--arcli-rojo);
+  --chip: var(--arcli-rojo);
 }
 
 .arcli-kind-documentacion {
-  --kind: var(--arcli-lavanda);
+  --chip: var(--arcli-lavanda);
 }
 
 .arcli-kind-otro {
-  --kind: var(--sl-color-gray-3);
+  --chip: var(--sl-color-gray-3);
 }
 
 /* ======================= Como la maqueta: marco de cada página ======================= */
@@ -978,26 +996,26 @@ header.header {
 
 /* Etiqueta de severidad a la derecha, con un color sutil según el tipo */
 .arcli-faq .sev {
+  --chip-line: 40%;
+  --chip-fill: 12%;
+  --chip-text: 80%;
   margin-inline-start: auto;
-  border-color: color-mix(in srgb, var(--sev) 40%, transparent) !important;
-  background: color-mix(in srgb, var(--sev) 12%, transparent);
-  color: color-mix(in srgb, var(--sev) 80%, var(--sl-color-gray-2)) !important;
 }
 
 .arcli-faq .sev-alta {
-  --sev: var(--arcli-rojo);
+  --chip: var(--arcli-rojo);
 }
 
 .arcli-faq .sev-frecuente {
-  --sev: var(--arcli-sol);
+  --chip: var(--arcli-sol);
 }
 
 .arcli-faq .sev-media {
-  --sev: var(--arcli-celeste);
+  --chip: var(--arcli-celeste);
 }
 
 .arcli-faq .sev-baja {
-  --sev: var(--sl-color-gray-3);
+  --chip: var(--sl-color-gray-3);
 }
 
 /* Con etiqueta, la etiqueta va a la derecha y el "+" al lado; sin etiqueta, el "+" va a la derecha */

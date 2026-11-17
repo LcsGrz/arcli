@@ -27,7 +27,7 @@ describe('problems (Problemas frecuentes)', () => {
     expect(problems(input)).toBe(
       `Intro.\n\n${SEARCH}\n` +
         '<section class="arcli-faq-section">\n\n## Instalación\n\n' +
-        '<details class="arcli-faq" id="no-encuentra-arcli">\n<summary><span class="t">No encuentra <code>arcli</code><span class="sub">En Windows.</span></span><span class="sev sev-frecuente">frecuente</span></summary>\n\n' +
+        '<details class="arcli-faq" id="no-encuentra-arcli">\n<summary><span class="t">No encuentra <code>arcli</code><span class="sub">En Windows.</span></span><span class="arcli-chip sev sev-frecuente">frecuente</span></summary>\n\n' +
         '<div class="arcli-faq-row"><b>Síntoma</b><div>\n\nLa terminal dice que no conoce el comando.\n\n\n\n</div></div>\n' +
         '<div class="arcli-faq-row"><b>Solución</b><div>\n\nReinstalá.\n  ```bash\n  npm i -g arcli\n  ```\n\n\n\n</div></div>\n' +
         '\n<div class="arcli-faq-more">\n\nMás en [Instalar](/empezar/instalar/)\n\n</div>\n' +
@@ -42,7 +42,7 @@ describe('problems (Problemas frecuentes)', () => {
 
     expect(output).toContain('<pre class="arcli-salida">El punto de venta no existe</pre>');
     expect(output).toContain('Al emitir aparece el mensaje de abajo.');
-    expect(output).toContain('<span class="sev sev-media">a veces</span>');
+    expect(output).toContain('<span class="arcli-chip sev sev-media">a veces</span>');
   });
 
   it('si el sintoma es solo el mensaje, no lo repite', () => {

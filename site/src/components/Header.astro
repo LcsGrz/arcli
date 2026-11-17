@@ -10,6 +10,7 @@ import ThemeSelect from 'virtual:starlight/components/ThemeSelect';
 import brand from '../generated/brand.json';
 import sidebar from '../generated/sidebar.json';
 import { REPO_URL, url } from '../lib/site';
+import Chip from './Chip.astro';
 import Icon from './Icon.astro';
 
 type Item = { slug?: string; items?: Item[] };
@@ -31,7 +32,7 @@ const current = Astro.locals.starlightRoute.id.split('/')[0];
 <div class="header">
   <div class="brand">
     <SiteTitle />
-    <a class="version" href={url('ayuda/novedades/')} title="Novedades de esta versión">v{brand.version}</a>
+    <Chip as="a" class="version" href={url('ayuda/novedades/')} title="Novedades de esta versión">v{brand.version}</Chip>
   </div>
   <nav class="sections" aria-label="Secciones">
     {sections.map((section) => <a href={section.href} aria-current={section.dir === current ? 'true' : undefined}>{section.label}</a>)}
@@ -66,9 +67,6 @@ const current = Astro.locals.starlightRoute.id.split('/')[0];
 
   .version {
     padding: 0.1rem 0.5rem;
-    border: 1px solid var(--sl-color-gray-5);
-    border-radius: 99px;
-    color: var(--sl-color-gray-2);
     font: 600 0.72rem / 1.5 var(--sl-font-system-mono);
     text-decoration: none;
   }
