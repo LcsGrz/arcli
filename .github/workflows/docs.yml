@@ -1,4 +1,4 @@
-# Sitio de documentación (site/, Starlight) en GitHub Pages: lcsgrz.github.io/arcli.
+# Sitio de documentación (site/, Starlight) en GitHub Pages: arcli.com.ar.
 # Se publica con cada release, para que coincida con lo que está en npm, o a mano desde main.
 # En los PRs que tocan docs solo se construye: falla si hay links internos rotos.
 name: Docs

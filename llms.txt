@@ -330,8 +330,8 @@ en uso), cada comando que va a ARCA avisa en stderr (nunca en stdout) y la factu
 
 ## Más detalle
 
-Los docs no vienen en el paquete de npm: están en GitHub y en https://lcsgrz.github.io/arcli/.
-Todo junto para leer de una vez: https://lcsgrz.github.io/arcli/llms-full.txt.
+Los docs no vienen en el paquete de npm: están en GitHub y en https://arcli.com.ar/.
+Todo junto para leer de una vez: https://arcli.com.ar/llms-full.txt.
 Cada página del sitio también está en Markdown, con la ruta terminada en `.md` (por ejemplo `referencia/comandos.md`).
 
 - https://github.com/LcsGrz/arcli/blob/main/docs/cli-reference.md: referencia completa de comandos y flags.

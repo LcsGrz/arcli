@@ -168,7 +168,7 @@ Para desactivarlo: `"disableAllHooks": true` en `.claude/settings.local.json`, o
 
 ## Sitio de documentación
 
-`lcsgrz.github.io/arcli` es un sitio de [Starlight](https://starlight.astro.build) que vive en `site/`, con su propio `package.json`: Astro no entra a las dependencias del CLI ni al paquete de npm.
+[arcli.com.ar](https://arcli.com.ar) es un sitio de [Starlight](https://starlight.astro.build) que vive en `site/`, con su propio `package.json`: Astro no entra a las dependencias del CLI ni al paquete de npm.
 
 Las páginas **no se editan en `site/`**: `site/scripts/sync-docs.mjs` las genera desde `docs/`, `README.md` (de "Empezar sin saber de terminal" hasta "Uso") y `CHANGELOG.md`, y lo generado está en el `.gitignore` de `site/`. Así `docs/` sigue siendo la única fuente, los links de GitHub no se rompen y los tests de docs no cambian. El script saca el título al frontmatter, cambia los links entre docs por los del sitio, manda a GitHub los que apuntan a archivos que no están en el sitio (arquitectura, desarrollo, design system) y apunta "Editar esta página" al archivo original en `dev`. Lo que es solo del sitio, como la portada (`site/src/components/landing-body.html` y `Landing.astro`), sí se edita ahí.
 
@@ -192,7 +192,7 @@ Para asistentes de IA, el build publica en la raíz del sitio `llms.txt` (el mis
 ```bash
 cd site
 yarn install
-yarn dev       # genera las páginas y abre el sitio en localhost:4321/arcli
+yarn dev       # genera las páginas y abre el sitio en localhost:4321
 yarn build     # genera, construye y revisa los links internos (scripts/check-links.mjs)
 ```
 

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { POINT_OF_SALE_GUIDE_URL } from '../../../lib/links';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import { EmissionUncertainError } from '../billing.errors';
 import type { BillingCommandInput } from '../billing.schemas';
@@ -1386,7 +1387,7 @@ describe('billing.service', () => {
 
     expect(summary.status).toBe('rechazado');
     expect(summary.suggestions).toEqual([expect.stringContaining('Factura en línea')]);
-    expect(summary.suggestions[0]).toContain('obtencion-certificados.md#punto-de-venta-para-web-service');
+    expect(summary.suggestions[0]).toContain(POINT_OF_SALE_GUIDE_URL);
   });
 
   it('recognizes the point of sale rejection by its message when the code is missing', () => {

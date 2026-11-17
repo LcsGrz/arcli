@@ -8,9 +8,8 @@ import { defineConfig } from 'astro/config';
 const sidebarFile = new URL('./src/generated/sidebar.json', import.meta.url);
 const sidebar = existsSync(sidebarFile) ? JSON.parse(readFileSync(sidebarFile, 'utf8')) : [];
 
-// `base` tiene que coincidir con BASE de scripts/sync-docs.mjs: el sitio vive en lcsgrz.github.io/arcli.
+// El sitio vive en la raiz de arcli.com.ar, sin `base`: los links de scripts/sync-docs.mjs empiezan en `/`.
 export default defineConfig({
-  base: '/arcli',
   integrations: [
     starlight({
       components: {
@@ -30,7 +29,7 @@ export default defineConfig({
       favicon: '/favicon.svg',
       head: [
         // Comportamiento de las páginas generadas: "Ver las N", el buscador de problemas y abrir lo plegado por link.
-        { attrs: { defer: true, src: '/arcli/arcli.js' }, tag: 'script' },
+        { attrs: { defer: true, src: '/arcli.js' }, tag: 'script' },
         // Geist y JetBrains Mono, las fuentes de la maqueta. `display=optional`: si no llegan enseguida, esa visita
         // sigue con la del sistema, así el texto (y sobre todo el código) no cambia de tamaño mientras carga.
         { attrs: { href: 'https://fonts.googleapis.com', rel: 'preconnect' }, tag: 'link' },
@@ -43,7 +42,7 @@ export default defineConfig({
           tag: 'link',
         },
         {
-          attrs: { content: 'https://lcsgrz.github.io/arcli/assets/imagenes/social-preview.png', property: 'og:image' },
+          attrs: { content: 'https://arcli.com.ar/assets/imagenes/social-preview.png', property: 'og:image' },
           tag: 'meta',
         },
       ],
@@ -79,5 +78,5 @@ export default defineConfig({
       title: 'arcli',
     }),
   ],
-  site: 'https://lcsgrz.github.io',
+  site: 'https://arcli.com.ar',
 });

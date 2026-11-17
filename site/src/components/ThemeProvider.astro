@@ -11,7 +11,7 @@
     const stored = typeof localStorage !== 'undefined' && localStorage.getItem('starlight-theme');
     const theme = stored === 'light' || stored === 'dark' ? stored : matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
     // La portada es siempre oscura: el tema elegido vale para las docs.
-    const home = /^\/arcli\/?$/.test(location.pathname);
+    const home = location.pathname === '/';
     document.documentElement.dataset.theme = home || theme !== 'light' ? 'dark' : 'light';
     if (home) document.documentElement.dataset.home = '';
 

@@ -6,7 +6,6 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const BASE = '/arcli/';
 const dist = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
 function htmlFiles(dir) {
@@ -31,10 +30,10 @@ const broken = [];
 for (const file of htmlFiles(dist)) {
   const html = readFileSync(file, 'utf8');
 
-  for (const [, raw] of html.matchAll(/(?:href|src)="(\/arcli\/[^"]*)"/g)) {
+  for (const [, raw] of html.matchAll(/(?:href|src)="(\/(?!\/)[^"]*)"/g)) {
     const href = raw.replaceAll('&amp;', '&');
     const [path, anchor] = href.split('#');
-    const relative = decodeURIComponent(path.slice(BASE.length));
+    const relative = decodeURIComponent(path.slice(1));
     const target = relative === '' || relative.endsWith('/') ? join(dist, relative, 'index.html') : join(dist, relative);
 
     if (!existsSync(target)) {

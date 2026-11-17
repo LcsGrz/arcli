@@ -448,7 +448,7 @@ Si a alguno de los certificados configurados (de testing o de producción, sin i
 ```json
 {
   "avisos": [
-    "El certificado de producción vence el 20/11/2026 (en 10 días). Renovalo: https://github.com/LcsGrz/arcli/blob/main/docs/obtencion-certificados.md"
+    "El certificado de producción vence el 20/11/2026 (en 10 días). Renovalo: https://arcli.com.ar/empezar/certificado-testing/"
   ],
   "...": "..."
 }
@@ -800,7 +800,7 @@ Las claves son las de [configuración](configuration.md), salvo que `cert.*`, `k
   "csr": "-----BEGIN CERTIFICATE REQUEST-----\n...\n-----END CERTIFICATE REQUEST-----\n",
   "cuit": "20123456786",
   "entorno": "produccion",
-  "guia": "https://github.com/LcsGrz/arcli/blob/main/docs/obtencion-certificados.md",
+  "guia": "https://arcli.com.ar/empezar/certificado-testing/",
   "pasos": ["1. Entrá a ARCA con tu clave fiscal y abrí \"Administración de Certificados Digitales\".", "..."],
   "rutaClave": "/Users/ana/Library/Preferences/arcli/certificados/20123456786/produccion.nueva.key",
   "rutaCsr": "/Users/ana/Library/Preferences/arcli/certificados/20123456786/produccion.nueva.csr"
@@ -987,7 +987,7 @@ Con el certificado del entorno vencido, los comandos que van a ARCA cortan antes
   "codigo": "CERTIFICATE_EXPIRED",
   "detalles": { "entorno": "produccion", "vencimiento": "20/11/2026" },
   "error": "El certificado de producción venció el 20/11/2026: ARCA no lo acepta.",
-  "sugerencia": "Renovalo con `arcli certificado generar --produccion` y cargá el .crt de ARCA con `arcli certificado importar <archivo>`. Guía: https://github.com/LcsGrz/arcli/blob/main/docs/obtencion-certificados.md"
+  "sugerencia": "Renovalo con `arcli certificado generar --produccion` y cargá el .crt de ARCA con `arcli certificado importar <archivo>`. Guía: https://arcli.com.ar/empezar/certificado-testing/"
 }
 ```
 

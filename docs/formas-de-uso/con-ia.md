@@ -23,7 +23,7 @@ Un asistente que pueda usar la terminal de tu computadora, como Claude Code, Cod
 La primera vez, decile que lea la guía para asistentes:
 
 ```text title="Pedido" frame="terminal" wrap
-Usá arcli para emitir una Factura C de $ 15.000 por servicios a consumidor final, en testing. Leé primero https://lcsgrz.github.io/arcli/llms.txt, mostrame la vista previa y esperá que te confirme antes de emitir.
+Usá arcli para emitir una Factura C de $ 15.000 por servicios a consumidor final, en testing. Leé primero https://arcli.com.ar/llms.txt, mostrame la vista previa y esperá que te confirme antes de emitir.
 ```
 
 ## Qué hace el asistente

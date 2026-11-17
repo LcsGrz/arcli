@@ -27,6 +27,10 @@ describe('help', () => {
     expect(missing).toEqual([]);
   });
 
+  it('links the documentation site in the main help', () => {
+    expect(createProgramHelp()).toContain('Documentación: https://arcli.com.ar');
+  });
+
   it('lists the bordes storybook scene', () => {
     expect(createStorybookHelp()).toContain('arcli storybook bordes');
   });

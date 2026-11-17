@@ -2,6 +2,7 @@ import { Separator } from '@inquirer/select';
 import { join } from 'node:path';
 
 import { AppError } from '../../lib/errors/app-error';
+import { DOCS_SITE_URL } from '../../lib/links';
 import { normalizeDroppedPath } from '../../lib/paths/dropped-path';
 import {
   formatCompletionResultAsText,
@@ -264,7 +265,7 @@ export async function runGuidedSetup(flags: EnvironmentFlags = {}): Promise<void
 
   writeTerminalOutput(
     noticePanel(
-      'Vamos a dejar todo listo para emitir. Si todavía no tenés certificado, en el paso del certificado lo sacamos juntos.',
+      `Vamos a dejar todo listo para emitir. Si todavía no tenés certificado, en el paso del certificado lo sacamos juntos. Las guías, con capturas de ARCA, están en ${DOCS_SITE_URL}`,
       'info',
     ),
   );
