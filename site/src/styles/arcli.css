@@ -1029,3 +1029,66 @@ header.header {
 .sl-markdown-content details.arcli-faq > summary:has(.sev)::after {
   margin-inline-start: 0.75rem;
 }
+
+/* Problemas frecuentes: cada problema en dos columnas (Síntoma, Causa, Solución) y las salidas de ARCLI como en la terminal */
+.sl-markdown-content .arcli-faq-row {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr);
+  gap: 1rem;
+  padding: 0.85rem 0;
+  border-top: 1px dashed var(--sl-color-gray-5);
+}
+
+.sl-markdown-content details.arcli-faq > .arcli-faq-row:nth-child(2) {
+  border-top: 0;
+}
+
+.arcli-faq-row > b {
+  color: var(--sl-color-white);
+  font-weight: 600;
+}
+
+.sl-markdown-content .arcli-faq-row > div {
+  display: grid;
+  gap: 0.6rem;
+  min-width: 0;
+  margin: 0;
+}
+
+.sl-markdown-content .arcli-faq-row > div > * {
+  margin: 0;
+}
+
+.sl-markdown-content .arcli-salida {
+  margin: 0;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid rgb(243 139 168 / 0.45);
+  border-radius: 0.5rem;
+  background: #11111b;
+  color: #cdd6f4;
+  font: 0.82rem / 1.6 var(--sl-font-mono);
+  white-space: pre-wrap;
+}
+
+.sl-markdown-content .arcli-faq-more {
+  margin: 0;
+  padding: 0.75rem 0 0;
+  border-top: 1px dashed var(--sl-color-gray-5);
+  color: var(--sl-color-gray-3);
+  font-size: var(--sl-text-sm);
+}
+
+@media (max-width: 34rem) {
+  .sl-markdown-content .arcli-faq-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.35rem;
+  }
+}
+
+.sl-markdown-content .arcli-faq-more > p {
+  margin: 0;
+}
+
+.sl-markdown-content .arcli-faq-more a {
+  color: var(--arcli-celeste);
+}

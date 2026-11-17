@@ -543,6 +543,73 @@ function severityKind(text) {
   return 'baja';
 }
 
+/** Mensajes de otros programas (npm, PowerShell, Windows, Node) que pueden aparecer citados en un síntoma. */
+const FOREIGN_OUTPUT = /^(npm|command not found|'arcli'|arcli\.ps1|dh key|ERR_|coe\.)/i;
+
+/**
+ * Las salidas de ARCLI citadas en un síntoma: lo que va entre backticks o comillas, empieza con mayúscula (o con "…")
+ * y es una frase. Lo que viene de otro programa queda en el texto.
+ */
+function arcliMessages(text) {
+  // `markdownTouches` ya puso ARCLI en negrita: adentro de un mensaje no va.
+  const quoted = [...text.matchAll(/`([^`]+)`|"([^"]+)"/g)].map((match) =>
+    (match[1] ?? match[2]).replace(/\*\*/g, '').trim(),
+  );
+
+  return quoted.filter(
+    (message) => /^[A-ZÁÉÍÓÚÑ.…]/.test(message) && /\s/.test(message) && !FOREIGN_OUTPUT.test(message),
+  );
+}
+
+/**
+ * El cuerpo de un problema en dos columnas: cada `- **Síntoma:**`, `**Causa:**`, `**Solución:**`… es una fila con la
+ * etiqueta a la izquierda; lo que sigue a la viñeta (código, sublistas) va en la misma fila. Si el síntoma cita una
+ * salida de ARCLI, se muestra como en la terminal; si el síntoma es solo ese mensaje, sin repetirlo en el texto.
+ */
+function faqRows(body) {
+  const lines = body.split('\n');
+  const rows = [];
+  let more = null;
+
+  for (const line of lines) {
+    const label = line.match(/^- \*\*([^*]+?):\*\*\s*(.*)$/);
+
+    if (label && label[1] === 'Documentación relacionada') more = label[2];
+    else if (label) rows.push({ content: [label[2]], label: label[1] });
+    else if (rows.length > 0 && !more) rows.at(-1).content.push(line);
+    else if (!more) return null;
+  }
+
+  if (rows.length === 0) return null;
+
+  const html = rows.map(({ content, label }) => {
+    let text = content.join('\n').trim();
+    let output = '';
+
+    if (label === 'Síntoma') {
+      const messages = arcliMessages(text);
+      const rest = text
+        .replace(/`[^`]+`|"[^"]+"/g, (quote) =>
+          messages.includes(quote.slice(1, -1).replace(/\*\*/g, '').trim()) ? '' : quote,
+        )
+        .replace(/\b(o|y|error|mensaje|como|con|un|el|aviso|al emitir|al facturar)\b/gi, '')
+        .replace(/[\s.,;:()…-]/g, '');
+
+      if (messages.length > 0) {
+        output = `<pre class="arcli-salida">${messages.map((message) => escapeHtml(message)).join('\n')}</pre>`;
+        if (rest === '') text = '';
+      }
+    }
+
+    // Sin la etiqueta en negrita, la oración arranca en mayúscula.
+    text = text.replace(/^[a-záéíóúñ]/, (letter) => letter.toUpperCase());
+
+    return `<div class="arcli-faq-row"><b>${label}</b><div>\n\n${text}\n\n${output}\n\n</div></div>`;
+  });
+
+  return `${html.join('\n')}\n${more ? `\n<div class="arcli-faq-more">\n\nMás en ${more}\n\n</div>\n` : ''}`;
+}
+
 /**
  * Problemas frecuentes: cada `### problema` pasa a un desplegable con su severidad al lado, agrupados por tema (`##`),
  * con un buscador arriba (`public/arcli.js`). El desplegable conserva el ancla del titulo, asi los links siguen andando.
@@ -561,8 +628,9 @@ function problems(text, page) {
         .join('\n')
         .replace(/^- \*\*Severidad:\*\* .+\n/m, '')
         .trim();
+      const rows = faqRows(body);
 
-      return `<details class="arcli-faq" id="${headingSlug(name.replace(/`/g, ''))}">\n<summary><span class="t">${inlineHtml(name)}</span>${severity ? `<span class="sev sev-${severityKind(severity[1])}">${inlineHtml(severity[1])}</span>` : ''}</summary>\n\n${body}\n\n</details>\n`;
+      return `<details class="arcli-faq" id="${headingSlug(name.replace(/`/g, ''))}">\n<summary><span class="t">${inlineHtml(name)}</span>${severity ? `<span class="sev sev-${severityKind(severity[1])}">${inlineHtml(severity[1])}</span>` : ''}</summary>\n\n${rows ?? body}\n\n</details>\n`;
     });
 
     return `<section class="arcli-faq-section">\n\n${title.trim()}\n\n${faqs.join('\n')}\n</section>\n`;
