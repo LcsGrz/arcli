@@ -3,32 +3,39 @@
  * Portada del sitio, como quedó en la maqueta (DOCS-5): logo, demo, instalación y después ¿Qué facturás?, Para empezar,
  * Cómo es facturar, Formas de uso, Características, ¿Factura en línea o ARCLI?, Seguridad, preguntas y el cierre.
  *
- * Las secciones están en `landing/` y sus textos en `data/landing.ts`; el CSS en `styles/landing.css`, todo dentro de
- * `.arcli-landing` para no tocar las docs. El HTML de debajo del hero sigue en `landing-body.html` (se edita ahí).
+ * Cada sección es un componente de `landing/` y sus textos y listas están en `data/landing.ts`. El CSS está en
+ * `styles/landing.css`, todo dentro de `.arcli-landing` para no tocar las docs. El logo, la versión y el prompt de
+ * instalación salen del CLI y del README (`brand.json`).
  *
  * Pendiente: la sección Comunidad, con comentarios reales y el permiso de cada autor (DOCS-4).
  */
 import '../styles/landing.css';
 
-import { ICONS, type IconName } from '../icons';
-import { url } from '../lib/site';
-import body from './landing-body.html?raw';
+import Compare from './landing/Compare.astro';
+import Cta from './landing/Cta.astro';
+import Faq from './landing/Faq.astro';
+import Features from './landing/Features.astro';
+import FirstSteps from './landing/FirstSteps.astro';
 import Hero from './landing/Hero.astro';
-
-/** `<svg data-icon="flecha" ...></svg>` -> el mismo `<svg>` con el dibujo de `icons.ts` adentro. */
-const withIcons = (html: string) =>
-  html.replace(/<svg data-icon="([\w-]+)"([^>]*)><\/svg>/g, (_, name: string, attrs: string) => {
-    if (!(name in ICONS)) throw new Error(`landing-body.html: no hay un ícono "${name}" en icons.ts.`);
-
-    return `<svg${attrs}>${ICONS[name as IconName]}</svg>`;
-  });
-
-const rest = withIcons(body.replaceAll('%BASE%/', url()));
+import HowItWorks from './landing/HowItWorks.astro';
+import Trust from './landing/Trust.astro';
+import Vouchers from './landing/Vouchers.astro';
+import Ways from './landing/Ways.astro';
 ---
 
 <div class="arcli-landing not-content">
   <Hero />
-  <Fragment set:html={rest} />
+  <div class="lbody">
+    <Vouchers />
+    <FirstSteps />
+    <HowItWorks />
+    <Ways />
+    <Features />
+    <Compare />
+    <Trust />
+  </div>
+  <Faq />
+  <Cta />
 </div>
 
 <script>
@@ -36,15 +43,4 @@ const rest = withIcons(body.replaceAll('%BASE%/', url()));
 
   const root = document.querySelector<HTMLElement>('.arcli-landing');
   if (root) startRolls(root);
-
-  // ¿Qué facturás?: pestañas por perfil.
-  for (const seg of document.querySelectorAll<HTMLElement>('[data-seg]')) {
-    const section = seg.closest('.wrap');
-    for (const button of seg.querySelectorAll<HTMLElement>('[data-seg-v]')) {
-      button.addEventListener('click', () => {
-        for (const other of seg.querySelectorAll('[data-seg-v]')) other.setAttribute('aria-selected', String(other === button));
-        for (const panel of section?.querySelectorAll<HTMLElement>('[data-seg-p]') ?? []) panel.hidden = panel.dataset.segP !== button.dataset.segV;
-      });
-    }
-  }
 </script>

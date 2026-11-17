@@ -1,0 +1,23 @@
+---
+/** Preguntas frecuentes, en dos columnas y con la primera abierta. */
+import { FAQ, SECTIONS } from '../../data/landing';
+import Rich from './Rich.astro';
+import Section from './Section.astro';
+---
+
+<Section id="preguntas" {...SECTIONS.faq}>
+  <div class="faq">
+    {
+      FAQ.map((column, columnIndex) => (
+        <div>
+          {column.map((item, index) => (
+            <details open={columnIndex === 0 && index === 0}>
+              <summary>{item.question}</summary>
+              <p><Rich text={item.answer} /></p>
+            </details>
+          ))}
+        </div>
+      ))
+    }
+  </div>
+</Section>

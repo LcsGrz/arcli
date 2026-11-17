@@ -1,6 +1,6 @@
 /**
- * Iconos del sitio: trazos de 24x24, que `Icon.astro` dibuja con `stroke` (salvo `github`, que es relleno). En la
- * portada, `<svg data-icon="nombre" ...></svg>` de `landing-body.html` se completa con el de acá (`Landing.astro`).
+ * Iconos del sitio: trazos de 24x24, que `Icon.astro` dibuja con `stroke` (salvo `github`, que es relleno). La
+ * portada los usa con `landing/LandingIcon.astro`, de puntas rectas.
  */
 export const ICONS = {
   descarga: '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>',
@@ -40,7 +40,7 @@ export const ICONS = {
   monitor: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
   estrella: '<path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"/>',
   grilla: '<path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/>',
-  // Los de abajo los usan la portada (`landing-body.html`, con `data-icon`), el encabezado y el índice.
+  // Los de abajo los usan la portada (`components/landing/`), el encabezado y el índice.
   flecha: '<path d="M5 12h14M13 6l6 6-6 6"/>',
   copiar: '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>',
   tilde: '<path d="m5 12 5 5L20 7"/>',

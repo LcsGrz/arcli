@@ -1,0 +1,16 @@
+---
+/** Para empezar: los tres pasos hasta la primera factura, con lo que tarda cada uno. */
+import { FIRST_STEPS, SECTIONS } from '../../data/landing';
+import Rich from './Rich.astro';
+import Section from './Section.astro';
+---
+
+<Section {...SECTIONS.firstSteps}>
+  <ol class="timeline">
+    {
+      FIRST_STEPS.map((step, index) => (
+        <li><span class="tl-n">{index + 1}</span><h3>{step.title}</h3><p><Rich text={step.text} /></p><span class="time">{step.time}</span></li>
+      ))
+    }
+  </ol>
+</Section>
