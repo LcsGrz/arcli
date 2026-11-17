@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { CERTIFICATE_GUIDE_URL } from '../../lib/links';
+import { CERTIFICATE_GUIDE_URL, certificateRenewalGuideUrl, PRODUCTION_RENEWAL_GUIDE_URL } from '../../lib/links';
 import type { CertificateExpiryNotice } from '../../modules/config/certificate-expiry';
 import { formatEnvironmentLabel } from '../../modules/config/config.schemas';
 import type { ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
@@ -28,7 +28,7 @@ function notice(expired: boolean, environment: 'produccion' | 'testing' = 'produ
     environment,
     expired,
     expiresOn: '20/11/2026',
-    message: `${summary} Renovalo: ${CERTIFICATE_GUIDE_URL}`,
+    message: `${summary} Renovalo: ${certificateRenewalGuideUrl(environment)}`,
     summary,
   };
 }
@@ -69,7 +69,7 @@ describe('certificate notice in commands', () => {
     expect(resolveArcaRuntime({})).toBe(resolvedRuntime.current);
     expect(stdout).toBe('');
     expect(stripAnsi(stderr)).toContain('El certificado de producción vence el 20/11/2026 (en 10 días).');
-    expect(stripAnsi(stderr)).toContain(`Renovalo: ${CERTIFICATE_GUIDE_URL}`);
+    expect(stripAnsi(stderr)).toContain(`Renovalo: ${PRODUCTION_RENEWAL_GUIDE_URL}`);
   });
 
   it('leaves a single blank line before the command output, which brings its own', () => {
@@ -94,6 +94,8 @@ describe('certificate notice in commands', () => {
     expect(plain).toContain('El certificado de testing vence el 20/11/2026 (en 10 días).');
     expect(plain).toContain('El certificado de producción vence el 20/11/2026 (en 10 días).');
     expect(plain.match(/Renovalo:/g)).toHaveLength(1);
+    // Con testing en el aviso, la guia de siempre: renovar en testing es sacarlo de nuevo.
+    expect(plain).toContain(`Renovalo: ${CERTIFICATE_GUIDE_URL}`);
     expect(plain.match(/┌/g)).toHaveLength(1);
   });
 

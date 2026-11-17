@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 
 import { formatArcaDateAsArgentineDate, formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { AppError } from '../../lib/errors/app-error';
-import { CERTIFICATE_GUIDE_URL } from '../../lib/links';
+import { certificateRenewalGuideUrl } from '../../lib/links';
 import {
   type CertificateExpiry,
   isCertificateExpiringSoon,
@@ -60,7 +60,7 @@ export function describeCertificateExpiry(
     environment,
     expired: expiry.isExpired,
     expiresOn,
-    message: `${summary} Renovalo: ${CERTIFICATE_GUIDE_URL}`,
+    message: `${summary} Renovalo: ${certificateRenewalGuideUrl(environment)}`,
     summary,
   };
 }
@@ -137,7 +137,7 @@ export class CertificateExpiredError extends AppError {
       {
         code: 'CERTIFICATE_EXPIRED',
         details: { entorno: notice.environment, vencimiento: notice.expiresOn },
-        suggestion: `Renovalo con \`arcli certificado generar --${notice.environment}\` y cargá el .crt de ARCA con \`arcli certificado importar <archivo>\`. Guía: ${CERTIFICATE_GUIDE_URL}`,
+        suggestion: `Renovalo con \`arcli certificado generar --${notice.environment}\` y cargá el .crt de ARCA con \`arcli certificado importar <archivo>\`. Guía: ${certificateRenewalGuideUrl(notice.environment)}`,
       },
     );
     this.name = 'CertificateExpiredError';

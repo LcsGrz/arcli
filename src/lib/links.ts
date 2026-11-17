@@ -7,6 +7,17 @@ export const DOCS_SITE_URL = 'https://arcli.com.ar';
  */
 export const CERTIFICATE_GUIDE_URL = `${DOCS_SITE_URL}/empezar/certificado-testing/`;
 
+/** Seccion "Renovar el certificado" de la guia de produccion. */
+export const PRODUCTION_RENEWAL_GUIDE_URL = `${DOCS_SITE_URL}/empezar/certificado-produccion/#renovar-el-certificado`;
+
+/**
+ * Adonde mandar para renovar el certificado de un entorno: en produccion, su seccion de renovar; en testing, la guia
+ * de siempre (renovarlo es sacarlo de nuevo).
+ */
+export function certificateRenewalGuideUrl(environment: 'produccion' | 'testing'): string {
+  return environment === 'produccion' ? PRODUCTION_RENEWAL_GUIDE_URL : CERTIFICATE_GUIDE_URL;
+}
+
 /** Seccion de la guia completa de produccion que explica como ver o crear un punto de venta para web service. */
 export const POINT_OF_SALE_GUIDE_URL = `${DOCS_SITE_URL}/empezar/certificado-produccion-completo/#punto-de-venta-para-web-service`;
 

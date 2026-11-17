@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { CERTIFICATE_GUIDE_URL } from '../../../lib/links';
+import { PRODUCTION_RENEWAL_GUIDE_URL } from '../../../lib/links';
 import { CertificateExpiredError, type CertificateExpiryNotice } from '../../../modules/config/certificate-expiry';
 import { listMissingSetupKeys } from '../../../modules/interactive/config-fields';
 import { checkArcaHealth } from '../../../modules/parameters/health';
@@ -68,7 +68,7 @@ function certificateNotice(expired: boolean): CertificateExpiryNotice {
     environment: 'produccion',
     expired,
     expiresOn: '20/11/2026',
-    message: `${summary} Renovalo: ${CERTIFICATE_GUIDE_URL}`,
+    message: `${summary} Renovalo: ${PRODUCTION_RENEWAL_GUIDE_URL}`,
     summary,
   };
 }
@@ -135,7 +135,7 @@ describe('runInteractiveMode', () => {
 
     expect(barIndex).toBeGreaterThanOrEqual(0);
     expect(boxIndex).toBeGreaterThan(barIndex);
-    expect(plain).toContain(`Renovalo: ${CERTIFICATE_GUIDE_URL}`);
+    expect(plain).toContain(`Renovalo: ${PRODUCTION_RENEWAL_GUIDE_URL}`);
     expect(plain.slice(barIndex, boxIndex)).toMatch(/┌/);
   });
 
@@ -174,7 +174,7 @@ describe('runInteractiveMode', () => {
     expect(checkArcaHealth).not.toHaveBeenCalled();
     expect(plain).toMatch(/━━ certificado vencido ━+ ARCA SIN VERIFICAR ━ PRODUCCIÓN ━━/);
     expect(plain).toContain('El certificado de producción venció el 20/11/2026.');
-    expect(plain).toContain(`Renovalo: ${CERTIFICATE_GUIDE_URL}`);
+    expect(plain).toContain(`Renovalo: ${PRODUCTION_RENEWAL_GUIDE_URL}`);
   });
 
   it('la barra muestra si ARCA anda con demoras', async () => {
