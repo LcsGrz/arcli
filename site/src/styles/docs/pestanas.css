@@ -27,6 +27,13 @@
   font-size: var(--sl-text-sm);
 }
 
+/* El foco de teclado, celeste como en la portada (`.arcli-landing :focus-visible`). Hacia adentro, porque la caja
+   recorta lo que sale (`overflow: hidden`). Con clic no se ve. */
+.arcli-tabs [role='tab']:focus-visible {
+  outline: 2px solid var(--arcli-celeste);
+  outline-offset: -2px;
+}
+
 .arcli-tabs [role='tab'][aria-selected='true'] {
   border-bottom-color: var(--arcli-celeste);
   color: var(--sl-color-white);
