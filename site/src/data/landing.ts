@@ -5,6 +5,7 @@
  * El logo, la versión y el prompt de instalación no están acá: salen del CLI y del README (`generated/brand.json`). Los
  * atajos y las páginas de los comprobantes salen de `generated/comprobantes.json` (de `docs/comprobantes/`).
  */
+import { nodeVersion } from '../generated/brand.json';
 import COMPROBANTES from '../generated/comprobantes.json';
 
 /** Una línea de `Snippet.astro`: el comentario y el comando, sin el `$`. */
@@ -129,6 +130,9 @@ export interface InstallOption {
   readonly note: string;
 }
 
+/** La versión mínima de Node.js, de `engines` del `package.json` del CLI. */
+const NODE = nodeVersion;
+
 /** Las notas de npm y yarn son las de `docs/instalar.md` y el README. */
 export const INSTALL: readonly InstallOption[] = [
   {
@@ -141,9 +145,9 @@ export const INSTALL: readonly InstallOption[] = [
     cmd: 'npm install -g arcli',
     key: 'npm',
     label: 'npm',
-    note: 'Necesitás Node.js 22.22.1 o superior. Para actualizar, el mismo comando con arcli@latest.',
+    note: `Necesitás Node.js ${NODE} o superior. Para actualizar, el mismo comando con arcli@latest.`,
   },
-  { cmd: 'pnpm add -g arcli', key: 'pnpm', label: 'pnpm', note: 'Necesitás Node.js 22.22.1 o superior.' },
+  { cmd: 'pnpm add -g arcli', key: 'pnpm', label: 'pnpm', note: `Necesitás Node.js ${NODE} o superior.` },
   {
     cmd: 'yarn global add arcli',
     key: 'yarn',

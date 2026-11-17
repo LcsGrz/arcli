@@ -42,25 +42,35 @@ const [first] = DEMOS;
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   let chatTimer: ReturnType<typeof setTimeout> | undefined;
 
-  /** El chat desde el principio: el encabezado y un mensaje cada 1,3 s (los tuyos) o 2,1 s (los de la IA). */
+  /**
+   * El chat desde el principio: el encabezado y un mensaje cada 1,3 s (los tuyos) o 2,1 s (los de la IA); 5 s después
+   * del último, vuelve a empezar. Con movimiento reducido se muestra entero una vez y queda quieto, sin timers.
+   */
   function playChat() {
     if (!chat || !messages) return;
     clearTimeout(chatTimer);
     const [head, ...items] = [...messages.content.children];
     chat.replaceChildren(head.cloneNode(true));
+    const show = (template: Element) => {
+      const item = template.cloneNode(true) as HTMLElement;
+      chat.append(item);
+      syncRolls(item, false);
+      return item;
+    };
+    if (reduceMotion) {
+      items.forEach(show);
+      return;
+    }
     let step = 0;
     const next = () => {
       if (step >= items.length) {
         chatTimer = setTimeout(playChat, 5000);
         return;
       }
-      const item = items[step++].cloneNode(true) as HTMLElement;
-      chat.append(item);
-      syncRolls(item, false);
+      const item = show(items[step++]);
       chatTimer = setTimeout(next, item.classList.contains('user') ? 1300 : 2100);
     };
-    if (reduceMotion) items.forEach(() => next());
-    else next();
+    next();
   }
 
   tabs?.addEventListener('tabchange', (event) => {

@@ -106,18 +106,21 @@ describe('buildSidebar', () => {
 });
 
 describe('brandData', () => {
-  it('lee el logo y la columna de renderLogo.ts y la version de package.json', () => {
+  it('lee el logo y la columna de renderLogo.ts y la version y el Node minimo de package.json', () => {
     const logoSource =
       "const ARCLI_BANNER_AR_CLI_SPLIT_COLUMN = 12;\nexport const ARCLI_ASCII_BANNER = [\n  ' ab  ',\n  'cd',\n].join('\\n');";
+    const packageJson = '{"version":"1.2.3","engines":{"node":">=22.22.1"}}';
 
-    expect(brandData({ installPrompt: 'P', logoSource, packageJson: '{"version":"1.2.3"}', stars: 7 })).toEqual({
+    expect(brandData({ installPrompt: 'P', logoSource, packageJson, stars: 7 })).toEqual({
       banner: [' ab', 'cd'],
       installPrompt: 'P',
+      nodeVersion: '22.22.1',
       splitColumn: 12,
       stars: 7,
       version: '1.2.3',
     });
     expect(() => brandData({ logoSource: '', packageJson: '{}' })).toThrow('renderLogo.ts');
+    expect(() => brandData({ logoSource, packageJson: '{"engines":{"node":"^22"}}' })).toThrow('engines.node');
   });
 });
 

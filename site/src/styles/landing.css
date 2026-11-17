@@ -1266,7 +1266,7 @@
 
 .arcli-landing .pick-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) 7.5rem;
   align-items: center;
   gap: 1.25rem;
   padding: var(--pad-row);
@@ -1338,17 +1338,6 @@
   .arcli-landing .pick-do {
     grid-column: 1 / -1;
     grid-row: 2;
-  }
-}
-
-/* v10.1: filas alineadas, letra a la izquierda, PDF derecho, nombre de la IA */
-.arcli-landing .pick-row {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) 7.5rem;
-}
-
-@media (max-width: 52rem) {
-  .arcli-landing .pick-row {
-    grid-template-columns: minmax(0, 1fr) auto;
   }
 }
 
