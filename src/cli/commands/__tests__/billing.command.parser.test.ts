@@ -341,6 +341,30 @@ describe('billing.command.parser', () => {
     expect(regular.cbuAlias).toBeUndefined();
   });
 
+  it.each(['20-11111111-2', '20.11111111.2', '20 11111111 2', ' 20111111112 '])(
+    'accepts --cuit %j with dashes, dots or spaces',
+    (cuit) => {
+      const input = parseBillingCommandInput(
+        createCommand(['--monto', '1000', '--cs', '--ir-rm', '--cuit', cuit]),
+        'fc',
+      );
+
+      expect(input).toMatchObject({ documentNumber: 20111111112, documentType: 'cuit' });
+    },
+  );
+
+  it('accepts a 22-digit --cbu and rejects any other length or characters', () => {
+    const parse = (cbu: string) =>
+      parseBillingCommandInput(createCommand(['--monto', '1000', '--cs', '--ir-ri', '--cbu', cbu]), 'fcea');
+
+    expect(parse('0110599520000012345678').cbu).toBe('0110599520000012345678');
+    expect(parse(' 0110599520000012345678 ').cbu).toBe('0110599520000012345678');
+    expect(() => parse('011059952000001234567')).toThrow(/22 dígitos/);
+    expect(() => parse('01105995200000123456789')).toThrow(/22 dígitos/);
+    expect(() => parse('0110-5995-2000-0012-3456-78')).toThrow(/22 dígitos/);
+    expect(() => parse('011059952000001234567a')).toThrow(/22 dígitos/);
+  });
+
   it('parses FCE flags', () => {
     const input = parseBillingCommandInput(
       createCommand([

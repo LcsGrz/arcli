@@ -8,6 +8,7 @@ import {
   formatExchangeRate,
   hasAtMostDecimals,
   parseArgentineAmount,
+  roundToCents,
 } from '../argentine-amount';
 
 describe('parseArgentineAmount', () => {
@@ -111,5 +112,42 @@ describe('hasAtMostDecimals', () => {
     [Number.NaN, 2, false],
   ])('%s con hasta %s decimales: %s', (value, decimals, expected) => {
     expect(hasAtMostDecimals(value, decimals)).toBe(expected);
+  });
+});
+
+describe('roundToCents', () => {
+  it.each([
+    [1500, 1500],
+    [1500.5, 1500.5],
+    // Sumas y restas de importes de 2 decimales, que es lo que redondea hoy (PDF y total de la E).
+    [0.1 + 0.2, 0.3],
+    [1452.1 + 304.94, 1757.04],
+    [1000.3 - 210.1, 790.2],
+  ])('%s queda en %s', (value, expected) => {
+    expect(roundToCents(value)).toBe(expected);
+  });
+
+  it.each([
+    [0.005, 0.01],
+    [0.015, 0.02],
+    [0.125, 0.13],
+    [1.235, 1.24],
+    [10.005, 10.01],
+    [1234.565, 1234.57],
+  ])('la mitad exacta %s sube a %s', (value, expected) => {
+    expect(roundToCents(value)).toBe(expected);
+  });
+
+  /**
+   * Bug latente: `Math.round(value * 100)` trabaja sobre el float, y 1.005 * 100 da 100.49999999999999, así que
+   * algunas mitades bajan. Hoy no llega a un monto: `roundToCents` solo recibe sumas y restas de importes que ya
+   * tienen 2 decimales como máximo (validados al leerlos), y esas nunca caen en una mitad. Arreglarlo (con Big y
+   * `roundHalfUp`) cambiaría montos si algún día se redondea un valor con 3 decimales; queda para decidir aparte.
+   */
+  it.fails.each([
+    [1.005, 1.01],
+    [0.285, 0.29],
+  ])('la mitad exacta %s sube a %s (falla: punto flotante)', (value, expected) => {
+    expect(roundToCents(value)).toBe(expected);
   });
 });

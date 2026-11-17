@@ -107,6 +107,7 @@ describe('config-value-parser', () => {
   it('accepts the CUIT with or without dashes and checks its check digit', () => {
     expect(parseConfigValue('cuit', '  20123456786  ')).toBe('20123456786');
     expect(parseConfigValue('cuit', '20-12345678-6')).toBe('20123456786');
+    expect(parseConfigValue('cuit', '20 12345678 6')).toBe('20123456786');
     expect(() => parseConfigValue('cuit', '20-12345678-9')).toThrow(/dígito verificador/);
     expect(() => parseConfigValue('cuit', '123')).toThrow(/debe tener 11 dígitos/);
   });

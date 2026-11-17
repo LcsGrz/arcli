@@ -42,7 +42,7 @@ export function cuitOption(flag: string): (value: string) => string {
   };
 }
 
-/** CUIT, CUIL o DNI: acepta guiones y puntos (`20-11111111-2`). */
+/** CUIT, CUIL o DNI: acepta guiones, puntos y espacios (`20-11111111-2`). */
 export function documentNumberOption(flag: string): (value: string) => number {
   return (value) => {
     const parsed = parseDocumentNumber(value);

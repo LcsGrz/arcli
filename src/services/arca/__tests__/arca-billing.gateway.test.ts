@@ -81,4 +81,28 @@ describe('ArcaBillingGateway', () => {
 
     await expect(gateway.getNextVoucherNumber(3, 11)).rejects.toBe(wsaaError);
   });
+
+  it.each([
+    ['zero', { resultGet: { monCotiz: 0 } }],
+    ['negative', { resultGet: { monCotiz: -1 } }],
+    ['missing', { resultGet: {} }],
+  ])('fails with ARCA_QUOTATION_ERROR when the quotation is %s', async (_label, response) => {
+    const gateway = createGateway({ getQuotation: vi.fn(async () => response) });
+
+    await expect(gateway.getQuotation('DOL')).rejects.toMatchObject({
+      code: 'ARCA_QUOTATION_ERROR',
+      details: { errores: [] },
+      message: 'ARCA no devolvió una cotización válida para DOL.',
+    });
+  });
+
+  it('keeps the ARCA errors of a failed quotation in detalles.errores, and the deprecated errors key', async () => {
+    const errors = { err: [{ code: 600, msg: 'Moneda inexistente' }] };
+    const gateway = createGateway({ getQuotation: vi.fn(async () => ({ errors })) });
+
+    await expect(gateway.getQuotation('XXX')).rejects.toMatchObject({
+      code: 'ARCA_QUOTATION_ERROR',
+      details: { deprecado: [expect.any(String)], errores: [{ codigo: 600, mensaje: 'Moneda inexistente' }], errors },
+    });
+  });
 });

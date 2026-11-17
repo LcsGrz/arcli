@@ -60,4 +60,36 @@ describe('resolveBillingDateRange', () => {
       serviceStartDate: '20261201',
     });
   });
+
+  describe('ventana de productos: hasta 5 días antes y 5 después, futura solo en el mes actual', () => {
+    const products = (billingDate: string) => serviceInput({ billingDate, concept: 'productos' });
+    const resolve = (billingDate: string, today: string) => () =>
+      resolveBillingDateRange(products(billingDate), invoiceC, today);
+
+    it.each([
+      ['15/03/2026', '20260315'],
+      ['5/03/2026', '20260305'],
+      ['10/03/2026', '20260310'],
+    ])('el 10/03 acepta %s', (billingDate, expected) => {
+      expect(resolve(billingDate, '20260310')()).toEqual({ billingDate: expected });
+    });
+
+    it('el día 6 ya está fuera, para adelante y para atrás', () => {
+      expect(resolve('16/03/2026', '20260310')).toThrow(/hasta 5 días antes y 5 después de hoy/);
+      expect(resolve('4/03/2026', '20260310')).toThrow(/hasta 5 días antes y 5 después de hoy/);
+    });
+
+    it('dentro de los 5 días pero en el mes siguiente es error; en el anterior, no', () => {
+      expect(resolve('2/04/2026', '20260330')).toThrow(/cae en otro mes/);
+      expect(resolve('31/03/2026', '20260330')()).toEqual({ billingDate: '20260331' });
+      expect(resolve('28/02/2026', '20260302')()).toEqual({ billingDate: '20260228' });
+    });
+
+    it('cuenta los 5 días cruzando un 29/02', () => {
+      expect(resolve('24/02/2028', '20280229')()).toEqual({ billingDate: '20280224' });
+      expect(resolve('23/02/2028', '20280229')).toThrow(/hasta 5 días antes/);
+      expect(resolve('25/02/2028', '20280301')()).toEqual({ billingDate: '20280225' });
+      expect(resolve('24/02/2028', '20280301')).toThrow(/hasta 5 días antes/);
+    });
+  });
 });

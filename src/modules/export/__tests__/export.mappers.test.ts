@@ -122,6 +122,12 @@ describe('resolveExportQuotation', () => {
     );
   });
 
+  it('sin cotizacion para la moneda es ARCA_QUOTATION_ERROR, sin detalles de ARCA', () => {
+    expect(() => resolveExportQuotation('019', QUOTATIONS, '20261028')).toThrow(
+      expect.objectContaining({ code: 'ARCA_QUOTATION_ERROR', details: undefined }),
+    );
+  });
+
   it('pide la cotizacion por flag cuando ARCA no publico ninguna', () => {
     expect(() => resolveExportQuotation('DOL', [], '20270105')).toThrow(
       /no informó la cotización de DOL para el 05\/01\/2027\. Informá la cotización con --cotizacion-moneda\./,
