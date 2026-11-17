@@ -43,8 +43,13 @@ export function parseArgentineAmount(
   return { ok: true, value: amount };
 }
 
+/**
+ * Redondea a centavos con Big y mitad hacia arriba, como los importes de billing: `1.005` da `1.01`, que con
+ * `Math.round(value * 100)` daba `1` por el punto flotante. Con signo, la mitad se aleja del cero (`-1.005` da
+ * `-1.01`), simetrico a los positivos, igual que `Big.roundHalfUp` en billing. Un valor no finito sale igual.
+ */
 export function roundToCents(value: number): number {
-  return Math.round(value * 100) / 100;
+  return Number.isFinite(value) ? new Big(value).round(AMOUNT_DECIMALS, Big.roundHalfUp).toNumber() : value;
 }
 
 /** Escribe un numero como lo lee `parseArgentineAmount`: `1234.5` pasa a `1234,50`. */

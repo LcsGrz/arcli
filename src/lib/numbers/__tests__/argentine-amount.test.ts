@@ -138,16 +138,33 @@ describe('roundToCents', () => {
     expect(roundToCents(value)).toBe(expected);
   });
 
-  /**
-   * Bug latente: `Math.round(value * 100)` trabaja sobre el float, y 1.005 * 100 da 100.49999999999999, así que
-   * algunas mitades bajan. Hoy no llega a un monto: `roundToCents` solo recibe sumas y restas de importes que ya
-   * tienen 2 decimales como máximo (validados al leerlos), y esas nunca caen en una mitad. Arreglarlo (con Big y
-   * `roundHalfUp`) cambiaría montos si algún día se redondea un valor con 3 decimales; queda para decidir aparte.
-   */
-  it.fails.each([
+  // Antes, con `Math.round(value * 100)` sobre float, estas bajaban: 1.005 * 100 da 100.49999999999999.
+  it.each([
     [1.005, 1.01],
     [0.285, 0.29],
-  ])('la mitad exacta %s sube a %s (falla: punto flotante)', (value, expected) => {
+    [1.045, 1.05],
+  ])('la mitad exacta %s sube a %s, también donde el float la dejaba abajo', (value, expected) => {
     expect(roundToCents(value)).toBe(expected);
+  });
+
+  it.each([
+    [-1.005, -1.01],
+    [-0.125, -0.13],
+    [-1500.5, -1500.5],
+  ])('con signo, la mitad se aleja del cero como Big.roundHalfUp en billing: %s da %s', (value, expected) => {
+    expect(roundToCents(value)).toBe(expected);
+  });
+
+  it('un importe que ya tiene 2 decimales no cambia', () => {
+    for (let cents = 0; cents <= 200_000; cents += 7) {
+      const amount = cents / 100;
+
+      expect(roundToCents(amount)).toBe(amount);
+    }
+  });
+
+  it('un valor no finito sale igual', () => {
+    expect(roundToCents(Number.NaN)).toBeNaN();
+    expect(roundToCents(Number.POSITIVE_INFINITY)).toBe(Number.POSITIVE_INFINITY);
   });
 });
