@@ -55,6 +55,7 @@ const COMMANDER_MESSAGES: ReadonlyArray<readonly [RegExp, string]> = [
     /too many arguments(?: for '([^']+)')?\. Expected (\d+) arguments? but got (\d+): (.*)\./,
     'sobran argumentos: espera $2 y recibió $3 ($4).',
   ],
+  [/option '([^']+)' cannot be used with option '([^']+)'/, 'la opción `$1` no se puede usar junto con la opción `$2`'],
   [/ cannot be used with /, ' no se puede usar junto con '],
   [/\(Did you mean ([^?]+)\?\)/, '(¿quisiste decir `$1`?)'],
 ];
