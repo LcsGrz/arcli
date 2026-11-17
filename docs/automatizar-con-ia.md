@@ -7,7 +7,7 @@ ARCLI está pensado para que un asistente con acceso a la terminal (Claude, Chat
 ## Qué leerle al asistente
 
 - **[`llms.txt`](../llms.txt):** referencia condensada de comandos, flags y reglas, en un solo archivo. Es el punto de partida.
-- **`llms-full.txt`:** toda la documentación junta, para el asistente que quiera leer todo. Está en el [sitio de documentación](https://lcsgrz.github.io/arcli/llms-full.txt).
+- **`llms-full.txt`:** toda la documentación junta, para el asistente que quiera leer todo. Está en el [sitio de documentación](https://arcli.com.ar/llms-full.txt).
 
 ## Las reglas que siguen los agentes
 
@@ -27,7 +27,7 @@ ARCLI está pensado para que un asistente con acceso a la terminal (Claude, Chat
 ## Un pedido de ejemplo
 
 ```text
-Usá arcli para emitir una Factura C de $ 15.000 por servicios a consumidor final, en testing. Leé primero https://lcsgrz.github.io/arcli/llms.txt, mostrame la vista previa y esperá que te confirme antes de emitir.
+Usá arcli para emitir una Factura C de $ 15.000 por servicios a consumidor final, en testing. Leé primero https://arcli.com.ar/llms.txt, mostrame la vista previa y esperá que te confirme antes de emitir.
 ```
 
 Para lotes y scripts sin asistente, ver [lotes, JSON y automatización](lotes-y-json.md).

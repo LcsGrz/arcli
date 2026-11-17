@@ -14,8 +14,8 @@ const siteDir = join(dirname(fileURLToPath(import.meta.url)), '..');
 const repoDir = join(siteDir, '..');
 const contentDir = join(siteDir, 'src/content/docs');
 
-/** Tiene que coincidir con `base` de astro.config.mjs. */
-export const BASE = '/arcli';
+/** Prefijo de los links internos: el sitio esta en la raiz de arcli.com.ar (astro.config.mjs no tiene `base`). */
+export const BASE = '';
 const REPO = 'https://github.com/LcsGrz/arcli';
 
 /** Secciones generadas: se borran y se vuelven a escribir en cada corrida. */
@@ -945,7 +945,7 @@ async function sync() {
   writePublic('llms.txt', readFileSync(join(repoDir, 'llms.txt'), 'utf8'));
   writePublic(
     'llms-full.txt',
-    `# arcli: documentación completa\n\nTodas las páginas de https://lcsgrz.github.io/arcli/ en un solo archivo. El resumen para agentes está en https://lcsgrz.github.io/arcli/llms.txt.\n\n${fullText.join('\n---\n\n')}`,
+    `# arcli: documentación completa\n\nTodas las páginas de https://arcli.com.ar/ en un solo archivo. El resumen para agentes está en https://arcli.com.ar/llms.txt.\n\n${fullText.join('\n---\n\n')}`,
   );
 
   console.log(`Sitio: ${PAGES.length} páginas generadas desde docs/.`);

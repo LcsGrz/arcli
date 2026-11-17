@@ -1,6 +1,7 @@
 import { Separator } from '@inquirer/select';
 
 import { formatCuit } from '../../lib/identity/format-cuit';
+import { DOCS_SITE_URL } from '../../lib/links';
 import { VOUCHER_KIND_MAP } from '../../modules/billing/voucher-kind-map';
 import {
   CertificateExpiredError,
@@ -337,5 +338,5 @@ export async function runInteractiveMode(options: GlobalCliOptions = {}): Promis
     }
   }
 
-  writeTerminalOutput(colorize('¡Hasta la próxima!', 'muted'));
+  writeTerminalOutput(colorize(`¡Hasta la próxima! Guías y ayuda: ${DOCS_SITE_URL}`, 'muted'));
 }

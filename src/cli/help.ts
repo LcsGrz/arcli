@@ -1,6 +1,6 @@
 import { type Command, Help } from 'commander';
 
-import { CERTIFICATE_GUIDE_URL } from '../lib/links';
+import { CERTIFICATE_GUIDE_URL, DOCS_SITE_URL } from '../lib/links';
 import type { VoucherFamily, VoucherLetter, VoucherShortcut } from '../modules/billing/billing.types';
 import {
   getVoucherFamilyLetters,
@@ -132,6 +132,7 @@ function createProgramMore(): string {
       'Autocompletado con Tab de comandos y flags: arcli completado instalar',
       'Ícono para abrir ARCLI con doble clic: arcli acceso-directo',
       'Para scripts, usá --json: la salida en texto puede cambiar.',
+      `Documentación: ${DOCS_SITE_URL}`,
       `Repositorio: https://github.com/LcsGrz/arcli ${uiSymbol('separator')} Actualizar: ${resolveUpdateCommand()}`,
     ]),
   );

@@ -3,7 +3,6 @@ import { uiSymbol } from '../../ui/primitives';
 import { isNewerVersion } from './update-check.service';
 
 const CHANGELOG_URL = (version: string) => `https://raw.githubusercontent.com/LcsGrz/arcli/v${version}/CHANGELOG.md`;
-export const CHANGELOG_PAGE_URL = 'https://github.com/LcsGrz/arcli/blob/main/CHANGELOG.md';
 const FETCH_TIMEOUT_MS = 3000;
 // Lo que entra en un renglon del panel junto a la etiqueta ("nuevo", "arreglo"), en una terminal de 92 columnas.
 const MAX_LEAD_LENGTH = 70;

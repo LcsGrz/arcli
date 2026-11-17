@@ -70,7 +70,7 @@ describe('storybook.showcase', () => {
 
     expect(output).toContain('El certificado de producción vence el 20/11/2026 (en 10 días).');
     expect(output).toContain('El certificado de producción venció el 20/11/2026.');
-    expect(output).toContain('Renovalo: https://github.com/LcsGrz/arcli/blob/main/docs/obtencion-certificados.md');
+    expect(output).toContain('Renovalo: https://arcli.com.ar/empezar/certificado-testing/');
   });
 
   it('renders a focused colors scene', () => {
