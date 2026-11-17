@@ -106,21 +106,29 @@ describe('steps (<!-- arcli: pasos -->)', () => {
       ].join('\n'),
     );
   });
+
+  it('dos bloques del mismo grupo no repiten ids', () => {
+    const block = '<!-- arcli: pestañas=so -->\n### Windows\nUno.\n';
+    const output = tabs(`${block}\n## Otra\n\n${block}`);
+
+    expect(output).toContain('id="tab-so-1-windows"');
+    expect(output).toContain('id="tab-so-2-windows"');
+  });
 });
 
 describe('tabs (<!-- arcli: pestañas=grupo -->)', () => {
-  it('cada ### es una pestaña; la primera abierta', () => {
+  it('cada ### es una pestaña; la primera abierta y la unica que entra con Tab', () => {
     const input = '<!-- arcli: pestañas=so -->\n### Windows\nUno.\n### macOS\nDos.\n\n## Despues';
 
     expect(tabs(input)).toBe(
       [
-        '<div class="arcli-tabs" data-sync="so"><div role="tablist"><button type="button" role="tab" aria-selected="true" data-tab="windows">Windows</button><button type="button" role="tab" aria-selected="false" data-tab="macos">macOS</button></div>',
-        '<div role="tabpanel" data-panel="windows">',
+        '<div class="arcli-tabs" data-sync="so"><div role="tablist"><button type="button" role="tab" id="tab-so-1-windows" aria-selected="true" aria-controls="panel-so-1-windows" data-tab="windows">Windows</button><button type="button" role="tab" id="tab-so-1-macos" aria-selected="false" aria-controls="panel-so-1-macos" tabindex="-1" data-tab="macos">macOS</button></div>',
+        '<div role="tabpanel" id="panel-so-1-windows" aria-labelledby="tab-so-1-windows" data-panel="windows">',
         '',
         'Uno.',
         '',
         '</div>',
-        '<div role="tabpanel" data-panel="macos" hidden>',
+        '<div role="tabpanel" id="panel-so-1-macos" aria-labelledby="tab-so-1-macos" data-panel="macos" hidden>',
         '',
         'Dos.',
         '',

@@ -187,7 +187,7 @@ Lo que en el sitio se ve distinto que en GitHub se marca en `docs/` con un comen
 | `<!-- arcli: muestra=error\|vista -->`            | El bloque de texto siguiente como un cartel chico                                              |
 | `<!-- arcli: formas -->`                          | La tabla siguiente como filas que llevan a cada forma de uso                                   |
 
-Además, Problemas frecuentes pasa cada problema a un desplegable con buscador y Novedades pliega las versiones viejas. Las páginas con `hidden: true` en `PAGES` (las guías completas) se generan pero no van en el menú: se llega desde el link de su versión corta. El menú y sus iconos salen de `PAGES` (`src/generated/sidebar.json`), y el comportamiento de esas páginas está en `site/public/arcli.js`.
+Además, Problemas frecuentes pasa cada problema a un desplegable con buscador y Novedades pliega las versiones viejas. Las páginas con `hidden: true` en `PAGES` (las guías completas) se generan pero no van en el menú: se llega desde el link de su versión corta. El menú y sus iconos salen de `PAGES` (`src/generated/sidebar.json`), y el comportamiento de esas páginas (pestañas, desplegables y el buscador) está en `site/src/lib/docs/`, que carga `site/src/components/MarkdownContent.astro`.
 
 El sitio también publica `robots.txt` (permite todo y apunta a `sitemap-index.xml`, que arma Starlight), `site.webmanifest` y los íconos de respaldo del favicon (ver [Ícono](#imágenes-y-gif-del-readme)); esos están en `site/public/` y se commitean. Las visitas se cuentan con Cloudflare Web Analytics (sin cookies): el script va en `head` de `astro.config.mjs` y solo sale en el build, no en `yarn dev`.
 

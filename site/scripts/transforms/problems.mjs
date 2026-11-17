@@ -121,7 +121,7 @@ function faqRows(body) {
 
 /**
  * Problemas frecuentes: cada `### problema` pasa a un desplegable con su severidad al lado, agrupados por tema (`##`),
- * con un buscador arriba (`public/arcli.js`). El desplegable conserva el ancla del titulo, asi los links siguen andando.
+ * con un buscador arriba (`src/lib/docs/problems.ts`). El desplegable conserva el ancla del titulo, asi los links siguen andando.
  */
 export function problems(text) {
   const [head, ...parts] = text.split(/^(?=## )/m);

@@ -32,6 +32,7 @@ export default defineConfig({
       components: {
         Footer: './src/components/Footer.astro',
         Header: './src/components/Header.astro',
+        MarkdownContent: './src/components/MarkdownContent.astro',
         PageSidebar: './src/components/PageSidebar.astro',
         PageTitle: './src/components/PageTitle.astro',
         Sidebar: './src/components/Sidebar.astro',
@@ -52,8 +53,6 @@ export default defineConfig({
       description: 'Emití facturas electrónicas de ARCA (ex AFIP) desde la terminal o con un asistente paso a paso.',
       favicon: '/favicon.svg',
       head: [
-        // Comportamiento de las páginas generadas: "Ver las N", el buscador de problemas y abrir lo plegado por link.
-        { attrs: { defer: true, src: '/arcli.js' }, tag: 'script' },
         // Respaldo del favicon.svg para navegadores sin SVG (`sizes` evita que Chrome lo prefiera al SVG), el ícono de
         // inicio de iOS y el manifiesto. Los genera scripts/icono/generar.py en public/, desde el mismo ícono.
         { attrs: { href: '/favicon.ico', rel: 'icon', sizes: '32x32' }, tag: 'link' },
