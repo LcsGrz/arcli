@@ -8,6 +8,17 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+## [2.5.0] - 2026-11-17
+
+Completa lo que trajo la 2: las notas de crédito y débito de la factura de exportación `E`, el modo interactivo al nivel del CLI (consultas, opcionales, repetir la `E`, el PDF al confirmar) y el sitio de documentación en [arcli.com.ar](https://arcli.com.ar). Puede afectar scripts:
+
+- Una nota de crédito A, B, C o FCE mayor que su factura ahora frena antes de ir a ARCA con `INPUT_VALIDATION_ERROR`.
+- `--afecha` en las notas FCE y `--numero` en `fe`, `nde` y `nce` dejan de ser obligatorios: sin ellos, ARCLI los toma de ARCA.
+- `arcli config --json` trae `filasPorLista` y, mientras dure la deprecación, también `comprobantesPorLista` y `deprecado`.
+- En `arcli certificado generar --json`, `guia` apunta a arcli.com.ar.
+
+No cambian los nombres de comandos, flags ni claves existentes, ni las claves del `--json` y de `--cargar`, ni los `codigo` de error. Hay deprecaciones para la 3.0.0: ver "Deprecado".
+
 ### Agregado
 
 - **Clave de config `filasPorLista`** (1 a 50, por defecto 15): reemplaza a `comprobantesPorLista`, que ya no cuenta solo comprobantes sino también las filas de las tablas de ARCA y la lista de monedas del modo interactivo. Hace lo mismo: cuántas filas muestran `arcli ultimos` (sin `--cantidad`) y las listas del modo interactivo. `arcli config establecer filasPorLista 25`.
@@ -44,7 +55,6 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **El comando equivalente del modo interactivo saca el mismo PDF:** con un CUIT, ahora lleva el nombre y el domicilio que trajo el padrón (`--receptor-nombre` y `--receptor-domicilio`). Como siempre lleva `--ir`, el CLI no consultaba el padrón y el comando pegado generaba el PDF sin esos datos.
 - **El modo interactivo usa los defaults de la config, como el CLI:** la factura y el recibo arrancan en la moneda de la config (`moneda`) en lugar de siempre en pesos; con una extranjera, sin tocar nada, va con la cotización oficial de ARCA (o la guardada en `cotizacion`), igual que sin `--moneda`. Las notas de crédito y débito proponen el IVA receptor de la config (`ivaReceptor`), la alícuota (`alicuota`) cuando no sale de la factura y, en las de período, el concepto (`concepto`) y la moneda. Al repetir un comprobante se sigue usando la moneda del original.
 - **Configuración guiada en el entorno activo:** pide el certificado y la clave del entorno en que se va a emitir (`entorno`, o `arcli interactivo --produccion`/`--testing`), no siempre los de testing. Con `entorno produccion`, el asistente proponía la guiada al abrir pero nunca completaba lo que faltaba. El chequeo al abrir también respeta `--produccion`/`--testing`.
-
 - **Repetir un comprobante en moneda extranjera:** en el modo interactivo, repetir una factura o un recibo en dólares, euros u otra moneda ahora sale en la moneda del original y solo pregunta la cotización (la acordada o la oficial de ARCA). Antes arrancaba en pesos: si se desmarcaba "Moneda extranjera", el monto en dólares se emitía como si fueran pesos, y uno en euros no se podía repetir. Si ARCA no tiene la cotización oficial, no se emite.
 - **El modo interactivo avisa lo mismo que los comandos con flags:** en moneda extranjera, que usa la cotización oficial de ARCA. Antes ese aviso solo salía con flags. La preparación de la emisión ahora es una sola para los dos.
 
@@ -546,7 +556,8 @@ Primera versión publicada en npm.
 - `llms.txt`: referencia condensada para que un agente de IA con acceso a terminal ejecute el CLI.
 - Publicación con npm Trusted Publishers (OIDC).
 
-[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v2.4.0...HEAD
+[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v2.5.0...HEAD
+[2.5.0]: https://github.com/LcsGrz/arcli/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/LcsGrz/arcli/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/LcsGrz/arcli/compare/v2.2.1...v2.3.0
 [2.2.1]: https://github.com/LcsGrz/arcli/compare/v2.2.0...v2.2.1
