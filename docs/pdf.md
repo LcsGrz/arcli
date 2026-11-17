@@ -4,6 +4,44 @@
 
 ARCLI puede generar el PDF de cada comprobante que emitís, con el QR de ARCA. Es el archivo que le mandás al cliente.
 
+## Ejemplo: factura con PDF
+
+### Cuándo usarlo
+
+Cuando además de emitir querés el PDF con el QR de ARCA para mandarle al cliente.
+
+### Requisitos
+
+- datos del emisor en la config: `emisor.razonSocial`, `emisor.domicilio` y `emisor.inicioActividades`
+- el plugin de PDF (`arcli pdf instalar`, o aceptar la descarga la primera vez en una terminal)
+
+### Comando
+
+```bash
+arcli fc -m 150000 --cs --cfinal --emitir --exportar-pdf \
+  --descripcion "Servicios de septiembre" --condicion-venta contado --receptor-nombre "Cliente SA"
+```
+
+Si siempre querés el PDF, guardalo en la config y no hace falta el flag:
+
+```bash
+arcli config establecer pdf siempre
+```
+
+### Resultado esperado
+
+- el comprobante emitido, con su CAE
+- debajo, `PDF guardado en ~/arcli/comprobantes/20123456786/factura-c_0003-00000125.pdf` (una subcarpeta por CUIT; en testing, dentro de `testing/`)
+- con `--json`, la clave `pdf` con la `ruta`
+
+### Errores comunes
+
+- faltan datos del emisor (`PDF_ISSUER_INCOMPLETE`): el comprobante se emite igual, sin PDF
+- falta el plugin con `--json` o en un script (`PDF_PLUGIN_MISSING`): instalalo antes con `arcli pdf instalar`
+- pasar `--descripcion` sin `--emitir`: en la vista previa no hay PDF
+
+Detalle completo en [PDF de comprobantes](pdf.md).
+
 ## Resumen
 
 ```bash
@@ -37,26 +75,40 @@ arcli pdf desinstalar  # borrar el plugin y el navegador descargado
 
 ## Cuándo se genera
 
-La config `pdf` define qué pasa cuando no pasás ningún flag:
+Los flags ganan siempre:
 
-| `pdf`                     | En una terminal    | Con `--json` o sin terminal |
-| ------------------------- | ------------------ | --------------------------- |
-| `preguntar` (por defecto) | Pregunta al emitir | No genera                   |
-| `siempre`                 | Genera             | Genera                      |
-| `nunca`                   | No genera          | No genera                   |
+- `--exportar-pdf` (alias `--pdf`): genera el PDF.
+- `--sin-pdf`: no lo genera.
+
+Sin flags, depende de si confirmás la emisión a mano.
+
+### Si confirmás antes de emitir
+
+Sin `--emitir` ni `--previsualizar` (y sin `emitir true` en la config), en una terminal ARCLI muestra la vista previa y pregunta "¿Emitimos la factura C en testing?" con tres opciones, diga lo que diga la config `pdf`:
+
+- **Sí, emitir ahora**: emite sin PDF.
+- **Sí, emitir y generar el PDF**: emite y genera el PDF.
+- **No, dejar sin emitir**.
+
+Lo que elegís decide: después de emitir no se pregunta nada más del PDF. Con `pdf siempre` la opción marcada al empezar es **Sí, emitir y generar el PDF**; con `preguntar` o `nunca`, **Sí, emitir ahora**. Con `--exportar-pdf` o `--sin-pdf` el PDF ya está decidido y la pregunta solo ofrece **Sí, emitir ahora** y **No, dejar sin emitir**. Vale para todos los comprobantes y también en el [modo interactivo](modo-interactivo.md#pdf).
+
+### Si se emite sin confirmar
+
+Con `--emitir`, con `emitir true` en la config, con `--json` o sin terminal, decide la config `pdf`:
+
+| `pdf`                     | En una terminal            | Con `--json` o sin terminal |
+| ------------------------- | -------------------------- | --------------------------- |
+| `preguntar` (por defecto) | Pregunta después de emitir | No genera                   |
+| `siempre`                 | Genera                     | Genera                      |
+| `nunca`                   | No genera                  | No genera                   |
 
 ```bash
 arcli config establecer pdf siempre
 ```
 
-Los flags ganan sobre la config en cada corrida:
-
-- `--exportar-pdf` (alias `--pdf`): genera el PDF.
-- `--sin-pdf`: no lo genera.
-
 Nunca se genera un PDF de una vista previa (sin `--emitir`) ni de un comprobante rechazado, porque no tienen CAE. Un comprobante **observado** sí tiene CAE y sí lleva PDF.
 
-En un lote (`--cargar` con un array) se genera un PDF por comprobante, y si hay que preguntar, se pregunta una sola vez para todo el lote. Cada ítem del JSON puede traer `"pdf": true` o `"pdf": false`.
+En un lote (`--cargar` con un array) se genera un PDF por comprobante. La respuesta a "¿Emitimos?", o a la pregunta del PDF después de emitir, vale para todo el lote. Cada ítem del JSON puede traer `"pdf": true` o `"pdf": false`, que le gana a esa respuesta.
 
 ## Si el PDF falla, el comprobante ya está emitido
 
@@ -106,10 +158,11 @@ El Recibo C usa la misma plantilla que la Factura C con el título `RECIBO C`, `
 La `E` usa el diseño de exportación de `@arcasdk/pdf`, con los mismos datos que la E de Comprobantes en línea, y no discrimina IVA. Imprime:
 
 - los ítems que viajaron a WSFEX (código, descripción con su unidad, cantidad, precio unitario y total);
-- el título `FACTURA DE EXPORTACIÓN`;
+- el título `FACTURA DE EXPORTACIÓN`, `NOTA DE CRÉDITO DE EXPORTACIÓN` o `NOTA DE DÉBITO DE EXPORTACIÓN`;
+- en las notas, el comprobante asociado;
 - el cliente con su domicilio, el CUIT del país con su descripción de ARCA (`55000004242 (POLONIA - Persona Jurídica)`) y el ID impositivo;
 - la divisa con su código ISO y su nombre (`USD - Dólar Estadounidense`; WSFEX la llama `DOL`) y el destino del comprobante;
-- una tabla con la forma de pago, la fecha de pago y el incoterm;
+- una tabla con la forma de pago, la fecha de pago (las notas no la llevan) y el incoterm;
 - el tipo de cambio y el importe total en la moneda del comprobante;
 - la leyenda `IVA EXENTO OPERACIÓN DE EXPORTACIÓN` debajo de la condición frente al IVA del emisor;
 - las observaciones comerciales y las observaciones, debajo del CAE;
@@ -133,7 +186,7 @@ Las facturas C no llevan ninguna de las dos.
 - **Carpeta:** la config `pdfCarpeta`. Por defecto es `~/arcli/comprobantes`, una ruta fija para que los PDFs no queden repartidos según desde dónde corriste el comando.
 - **Una subcarpeta por CUIT emisor:** `~/arcli/comprobantes/20123456786/`. Así dos emisores con el mismo punto de venta y número no se pisan.
 - **Testing:** los PDFs de testing van a `testing/<CUIT>/` y llevan al pie "COMPROBANTE DE PRUEBA - SIN VALIDEZ FISCAL".
-- **Nombre:** `<tipo>-<letra>_<punto de venta>-<número>.pdf`, con el punto de venta en 4 dígitos y el número en 8. Por ejemplo, `factura-c_0003-00000125.pdf`, `nota-credito-a_0003-00000007.pdf`, `recibo-c_0003-00000003.pdf` o `factura-e_0003-00000012.pdf`.
+- **Nombre:** `<tipo>-<letra>_<punto de venta>-<número>.pdf`, con el punto de venta en 4 dígitos y el número en 8. Por ejemplo, `factura-c_0003-00000125.pdf`, `nota-credito-a_0003-00000007.pdf`, `recibo-c_0003-00000003.pdf`, `factura-e_0003-00000012.pdf` o `nota-credito-e_0004-00000001.pdf`.
 - **Nunca se pisa un PDF:** si el archivo ya existe, el nuevo se guarda como `factura-c_0003-00000125-2.pdf`, `-3` y así.
 
 ```bash

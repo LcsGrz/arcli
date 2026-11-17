@@ -1,3 +1,5 @@
+<!-- El PR va contra `dev`, no contra `main` (la que GitHub propone por default): `main` solo recibe releases y hotfixes. -->
+
 ## Qué cambia
 
 <!-- Qué cambia para quien usa el CLI. Si es interno (refactor, tests, CI), decilo. -->

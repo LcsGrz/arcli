@@ -1,10 +1,12 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ZodError } from 'zod';
 
 import { ConfigurationError } from '../../../lib/errors/app-error';
-import { ConfigService } from '../config.service';
+import { resolveRowsPerList, ROWS_PER_LIST_DEPRECATION_WARNING } from '../config.schemas';
+import { ConfigService, deprecatedConfigKeyWarning, resolveConfigDirectory } from '../config.service';
 
 const temporaryDirectories: string[] = [];
 
@@ -74,8 +76,13 @@ describe('config.service', () => {
     try {
       service.setValue('cuit', '20123456786');
 
-      expect(() => service.setValue('cuit', 'abc')).toThrow();
+      // Los rechazos de cada clave se prueban en config-value-parser; acá, que pasan por el alias y no se guardan.
+      expect(() => service.setValue('cuit', 'abc')).toThrow(/El CUIT "abc" no es válido/);
+      expect(() => service.setValue('entorno', 'demo')).toThrow(
+        expect.objectContaining({ issues: [expect.objectContaining({ values: ['testing', 'produccion'] })] }),
+      );
       expect(service.getConfig().cuit).toBe('20123456786');
+      expect(service.getConfig().entornoPorDefecto).toBe('testing');
       expect(JSON.parse(readFileSync(service.getPath(), 'utf8')).cuit).toBe('20123456786');
     } finally {
       service.close();
@@ -88,7 +95,7 @@ describe('config.service', () => {
     try {
       writeFileSync(service.getPath(), JSON.stringify({ cuit: 'abc', puntoVentaPorDefecto: 3 }));
 
-      expect(() => service.getConfig()).toThrow();
+      expect(() => service.getConfig()).toThrow(ZodError);
       expect(service.unsetValue('cuit').puntoVentaPorDefecto).toBe(3);
 
       writeFileSync(service.getPath(), JSON.stringify({ cuit: 'abc' }));
@@ -230,26 +237,6 @@ describe('config.service', () => {
     }
   });
 
-  it('rejects invalid values', () => {
-    const service = createService();
-    const cwd = temporaryDirectories[temporaryDirectories.length - 1]!;
-    const invalidPemPath = writePemFile(cwd, 'invalid-testing.key', 'NOT-A-PEM');
-
-    try {
-      expect(() => service.setValue('entorno', 'demo')).toThrow();
-      expect(() => service.setValue('concepto', 'cosas')).toThrow();
-      expect(() => service.setValue('ivaReceptor', 'algo-raro')).toThrow();
-      expect(() => service.setValue('cotizacion', '0')).toThrow();
-      expect(() => service.setValue('puntoVenta', '0')).toThrow();
-      expect(() => service.setValue('emitir', 'tal-vez')).toThrow();
-      expect(() => service.setValue('json', 'tal-vez')).toThrow();
-      expect(() => service.setValue('cuit', '123')).toThrow();
-      expect(() => service.setValue('key.testing', invalidPemPath)).toThrow(/formato PEM inválido/);
-    } finally {
-      service.close();
-    }
-  });
-
   it('reports a corrupt config file as a configuration error with its path, without touching it', () => {
     const cwd = mkdtempSync(join(tmpdir(), 'arcli-config-test-'));
     const configPath = join(cwd, 'config.json');
@@ -271,5 +258,134 @@ describe('config.service', () => {
     expect((thrown as ConfigurationError).details).toEqual({ path: configPath });
     expect((thrown as ConfigurationError).suggestion).toMatch(/arcli config/);
     expect(readFileSync(configPath, 'utf8')).toBe(corruptContent);
+  });
+});
+
+describe('filasPorLista y la clave deprecada comprobantesPorLista', () => {
+  function readStoredFile(service: ConfigService): Record<string, unknown> {
+    return JSON.parse(readFileSync(service.getPath(), 'utf8')) as Record<string, unknown>;
+  }
+
+  it('lee comprobantesPorLista si es la unica que esta en el archivo', () => {
+    const service = createService();
+
+    try {
+      writeFileSync(service.getPath(), JSON.stringify({ comprobantesPorLista: 8 }));
+
+      expect(resolveRowsPerList(service.getConfig())).toBe(8);
+    } finally {
+      service.close();
+    }
+  });
+
+  it('con las dos en el archivo gana filasPorLista', () => {
+    const service = createService();
+
+    try {
+      writeFileSync(service.getPath(), JSON.stringify({ comprobantesPorLista: 8, filasPorLista: 20 }));
+
+      expect(resolveRowsPerList(service.getConfig())).toBe(20);
+    } finally {
+      service.close();
+    }
+  });
+
+  it('sin ninguna, usa 15', () => {
+    const service = createService();
+
+    try {
+      expect(resolveRowsPerList(service.getConfig())).toBe(15);
+    } finally {
+      service.close();
+    }
+  });
+
+  it('establecer comprobantesPorLista guarda filasPorLista y saca la vieja del archivo', () => {
+    const service = createService();
+
+    try {
+      writeFileSync(service.getPath(), JSON.stringify({ comprobantesPorLista: 8 }));
+
+      const config = service.setValue(' comprobantesPorLista ', '25');
+
+      expect(config.filasPorLista).toBe(25);
+      expect(config.comprobantesPorLista).toBeUndefined();
+      expect(readStoredFile(service)).toMatchObject({ filasPorLista: 25 });
+      expect(readStoredFile(service)).not.toHaveProperty('comprobantesPorLista');
+    } finally {
+      service.close();
+    }
+  });
+
+  it('establecer comprobantesPorLista valida el rango como filasPorLista', () => {
+    const service = createService();
+
+    try {
+      expect(() => service.setValue('comprobantesPorLista', '99')).toThrow(/entre 1 y 50/);
+    } finally {
+      service.close();
+    }
+  });
+
+  it('establecer filasPorLista tambien saca la vieja, para que no vuelva al borrar la nueva', () => {
+    const service = createService();
+
+    try {
+      writeFileSync(service.getPath(), JSON.stringify({ comprobantesPorLista: 8 }));
+      service.setValue('filasPorLista', '30');
+
+      expect(readStoredFile(service)).not.toHaveProperty('comprobantesPorLista');
+      expect(resolveRowsPerList(service.unsetValue('filasPorLista'))).toBe(15);
+    } finally {
+      service.close();
+    }
+  });
+
+  it('eliminar cualquiera de las dos borra las dos', () => {
+    const service = createService();
+
+    try {
+      writeFileSync(service.getPath(), JSON.stringify({ comprobantesPorLista: 8, filasPorLista: 20 }));
+      service.unsetValue('comprobantesPorLista');
+
+      expect(readStoredFile(service)).not.toHaveProperty('comprobantesPorLista');
+      expect(readStoredFile(service)).not.toHaveProperty('filasPorLista');
+    } finally {
+      service.close();
+    }
+  });
+
+  it('solo la clave deprecada trae aviso', () => {
+    expect(deprecatedConfigKeyWarning(' comprobantesPorLista')).toBe(ROWS_PER_LIST_DEPRECATION_WARNING);
+    expect(deprecatedConfigKeyWarning('filasPorLista')).toBeUndefined();
+    expect(deprecatedConfigKeyWarning('toString')).toBeUndefined();
+  });
+});
+
+describe('ARCLI_CONFIG_DIR', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('usa esa carpeta para el config.json y sus carpetas', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'arcli-config-dir-'));
+
+    vi.stubEnv('ARCLI_CONFIG_DIR', ` ${directory} `);
+
+    const service = new ConfigService();
+
+    try {
+      expect(resolveConfigDirectory()).toBe(directory);
+      expect(service.getPath()).toBe(join(directory, 'config.json'));
+    } finally {
+      service.close();
+      rmSync(directory, { force: true, recursive: true });
+    }
+  });
+
+  it('vacia o sin definir, usa la carpeta de siempre', () => {
+    vi.stubEnv('ARCLI_CONFIG_DIR', '  ');
+
+    expect(resolveConfigDirectory()).toBeUndefined();
   });
 });

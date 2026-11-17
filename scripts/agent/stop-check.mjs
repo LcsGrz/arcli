@@ -13,7 +13,9 @@ import process from 'node:process';
 const MAX_LINES = 40;
 const LINTABLE = /\.(?:[cm]?[jt]sx?|json)$/;
 const TESTABLE = /\.(?:[cm]?[jt]sx?)$/;
-const CONTRACT = /^src\/(?:cli|modules\/config)\/(?!(?:.*\/)?__tests__\/)/;
+// Lo que ve quien usa el CLI: comandos (src/cli) y las validaciones y textos de cada módulo. Quedan afuera
+// los tests, la storybook (solo desarrollo) y los tipos internos (*.internal.ts).
+const CONTRACT = /^src\/(?:cli|modules\/(?!storybook\/)[^/]+)\/(?!(?:.*\/)?__tests__\/)(?!.*\.internal\.ts$)/;
 const DOCS = ['CHANGELOG.md', 'README.md', 'llms.txt', 'docs'];
 
 const input = readInput();
@@ -48,7 +50,8 @@ const after = fingerprint(changedSourceFiles());
 if (failures.length > 0) {
   saveStamp({ ...stamp, failed: after });
   process.stderr.write(
-    `Verificación de src/ fallida (hook Stop, scripts/agent/stop-check.mjs):\n\n${failures.join('\n\n')}\n`,
+    `Verificación de src/ fallida (hook Stop, scripts/agent/stop-check.mjs):\n\n${failures.join('\n\n')}\n\n` +
+      'Arreglalo antes de terminar; si el error no lo causó tu cambio, decilo.\n',
   );
   process.exit(2);
 }
@@ -61,9 +64,8 @@ if (remind) {
     hookSpecificOutput: {
       hookEventName: 'Stop',
       additionalContext:
-        'Cambió src/cli o src/modules/config y en esta rama no se tocó ningún doc. Si el cambio afecta comandos, flags, ' +
-        'claves de config, JSON, validaciones o mensajes, actualizá lo que pide la tabla de CONTRIBUTING.md#documentación ' +
-        '(skill sincronizar-docs, si existe). Si es un cambio interno, decilo y seguí.',
+        'Cambió src/cli o src/modules (validaciones, mensajes o JSON) y en esta rama no se tocó ningún doc. Si hay un cambio visible para quien ' +
+        'usa el CLI, corré la skill sincronizar-docs (tabla de CONTRIBUTING.md#documentación). Si es interno, decilo y seguí.',
     },
   });
 }
@@ -83,7 +85,7 @@ function fingerprint(files) {
 
 function needsDocsReminder(files) {
   if (!files.some((file) => CONTRACT.test(file))) return false;
-  const base = git('merge-base', 'HEAD', 'origin/main').trim() || git('merge-base', 'HEAD', 'main').trim();
+  const base = git('merge-base', 'HEAD', 'origin/dev').trim() || git('merge-base', 'HEAD', 'dev').trim();
   if (!base) return false;
   return lines(git('diff', '--name-only', base, '--', ...DOCS)).length === 0 && untracked(...DOCS).length === 0;
 }

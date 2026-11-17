@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { stripAnsi } from '../../primitives/text';
 import { certificateBanner } from '../certificateBanner';
 
-const GUIDE = 'https://github.com/LcsGrz/arcli/blob/main/docs/obtencion-certificados.md';
+const GUIDE = 'https://arcli.com.ar/empezar/certificado-testing/';
 
 describe('certificateBanner', () => {
   afterEach(() => {

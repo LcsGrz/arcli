@@ -15,8 +15,8 @@ import {
   EXPORT_TYPE_VALUES,
   EXPORT_TYPES,
   EXPORT_TYPES_WITHOUT_PERMITS,
-  EXPORT_VOUCHER_KIND,
   type ExportActivity,
+  type ExportAssociatedVoucherPayload,
   type ExportCountry,
   type ExportCountryCuit,
   type ExportCurrencyResolution,
@@ -25,7 +25,9 @@ import {
   type ExportQuotation,
   type ExportType,
   type ExportVoucherInput,
+  type ExportVoucherKind,
   type ExportVoucherPayload,
+  isExportNote,
   MAX_EXPORT_VOUCHER_NUMBER,
 } from './export.types';
 
@@ -42,6 +44,8 @@ type ExportConfig = Pick<ArcliConfig, 'puntoVentaPorDefecto'>;
 
 export interface BuildExportResolution {
   readonly activity: number;
+  /** Solo en las notas: va en `Cmps_asoc`. */
+  readonly associatedVoucher?: ExportAssociatedVoucherPayload;
   readonly clientCountryCuit: number;
   readonly currency: ExportCurrencyResolution['fields'];
   readonly destinationCountry: ExportCountry;
@@ -53,6 +57,7 @@ export interface BuildExportResolution {
   readonly pointOfSale: number;
   readonly requestId: number;
   readonly voucherDate: string;
+  readonly voucherKind: ExportVoucherKind;
   readonly voucherNumber: number;
 }
 
@@ -379,12 +384,14 @@ function requiresEmptyPermitsExisting(exportType: ExportType): boolean {
 
 /**
  * Con `Permiso_existente = N` ARCA rechaza el campo `Permisos` (error 1720), y en los tipos 2 y 4 pide el campo
- * vacio y no admite permisos (error 1550): sin permisos no se manda.
+ * vacio y no admite permisos (error 1550): sin permisos no se manda. En las notas de bienes los permisos son
+ * opcionales y van con `Permiso_existente` vacio (tabla de la 1720), asi que no piden `--permiso-existente`.
  */
 function resolvePermits(
   input: ExportVoucherInput,
   destinationCountry: number,
   exportType: ExportType,
+  isNote: boolean,
 ): ExportVoucherPayload['Permisos'] {
   const permits = (input.permits ?? []).map((permit) => permit.trim()).filter(Boolean);
 
@@ -402,7 +409,7 @@ function resolvePermits(
     );
   }
 
-  if (!input.permitsExisting) {
+  if (!isNote && !input.permitsExisting) {
     throw new InputValidationError(
       'Los permisos de embarque van con `--permiso-existente`: ARCA necesita saber que el permiso ya existe.',
     );
@@ -415,7 +422,8 @@ function resolvePermits(
  * Arma el `Cmp` de `FEXAuthorize` con los datos ya resueltos contra las tablas de ARCA.
  *
  * Los bloques vacios no van: `Permisos` sin permisos (error 1720), `Cmps_asoc` y `Opcionales` sin filas (error 1820
- * el primero). `Actividades`, en cambio, siempre lleva una `Actividad` (error 2100).
+ * el primero). `Actividades`, en cambio, siempre lleva una `Actividad` (error 2100). Las notas llevan `Cmps_asoc` y
+ * `Permiso_existente` vacio (1550), y no llevan `Fecha_pago` (1673) ni `CanMisMonExt` (1605).
  */
 export function buildExportPayload(input: ExportVoucherInput, resolution: BuildExportResolution): ExportVoucherPayload {
   const clientName = requireText(input.clientName, 'el nombre del cliente', '`--cliente`');
@@ -425,26 +433,30 @@ export function buildExportPayload(input: ExportVoucherInput, resolution: BuildE
     throw new InputValidationError('Falta el importe total o no es válido. Usá `--monto`.');
   }
 
-  const permits = resolvePermits(input, resolution.destinationCountry.code, resolution.exportType);
-  /** En servicios y otros ARCA pide el campo vacio; en el resto, `N` sin permisos y `S` con permisos. */
-  const permitsExisting: ExportVoucherPayload['Permiso_existente'] = requiresEmptyPermitsExisting(resolution.exportType)
-    ? ''
-    : input.permitsExisting
-      ? 'S'
-      : 'N';
+  const isNote = isExportNote(resolution.voucherKind);
+
+  if (isNote && !resolution.associatedVoucher) {
+    throw new InputValidationError('Falta el comprobante asociado de la nota. Usá `--ar`.');
+  }
+
+  const permits = resolvePermits(input, resolution.destinationCountry.code, resolution.exportType, isNote);
+  /** En notas, servicios y otros ARCA pide el campo vacio; en el resto, `N` sin permisos y `S` con permisos. */
+  const permitsExisting: ExportVoucherPayload['Permiso_existente'] =
+    isNote || requiresEmptyPermitsExisting(resolution.exportType) ? '' : input.permitsExisting ? 'S' : 'N';
 
   return {
     // Actividades va siempre con una: con el bloque vacio ARCA contesta 2100.
     Actividades: { Actividad: [{ Id: resolution.activity }] },
-    CanMisMonExt: resolution.currency.CanMisMonExt,
+    ...(isNote ? {} : { CanMisMonExt: resolution.currency.CanMisMonExt }),
     Cbte_nro: resolution.voucherNumber,
-    Cbte_Tipo: EXPORT_VOUCHER_KIND.arcaType,
+    Cbte_Tipo: resolution.voucherKind.arcaType,
     Cliente: clientName,
+    ...(resolution.associatedVoucher ? { Cmps_asoc: { Cmp_asoc: [resolution.associatedVoucher] } } : {}),
     Cuit_pais_cliente: resolution.clientCountryCuit,
     Domicilio_cliente: clientAddress,
     Dst_cmp: resolution.destinationCountry.code,
     Fecha_cbte: resolution.voucherDate,
-    Fecha_pago: resolution.paymentDate,
+    ...(isNote ? {} : { Fecha_pago: resolution.paymentDate }),
     Forma_pago: input.paymentTerms?.trim() || DEFAULT_EXPORT_PAYMENT_TERMS,
     Id: resolution.requestId,
     Id_impositivo: input.clientTaxId?.trim() ?? '',

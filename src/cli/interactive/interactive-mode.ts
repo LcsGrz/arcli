@@ -1,6 +1,7 @@
 import { Separator } from '@inquirer/select';
 
 import { formatCuit } from '../../lib/identity/format-cuit';
+import { DOCS_SITE_URL } from '../../lib/links';
 import { VOUCHER_KIND_MAP } from '../../modules/billing/voucher-kind-map';
 import {
   CertificateExpiredError,
@@ -9,7 +10,7 @@ import {
 } from '../../modules/config/certificate-expiry';
 import { type ArcliEnvironment, formatEnvironmentLabel } from '../../modules/config/config.schemas';
 import { ConfigService } from '../../modules/config/config.service';
-import { listMissingSetupKeys } from '../../modules/interactive/config-fields';
+import { listMissingSetupKeys, resolveActiveEnvironment } from '../../modules/interactive/config-fields';
 import { CONFIG_MENU_NEW_OPTIONS } from '../../modules/interactive/new-options';
 import { type ArcaHealth, checkArcaHealth } from '../../modules/parameters/health';
 import { checkForUpdate, type UpdateCheckResult } from '../../modules/update-check/update-check.service';
@@ -33,11 +34,11 @@ import type { GlobalCliOptions } from '../types';
 import { CLI_VERSION } from '../version';
 
 import { runConfigMenu, runGuidedSetup } from './config.flow';
-import { runHistoryFlow } from './history.flow';
 import { runInvoiceFlow } from './invoice.flow';
 import { markIfNew } from './new-mark';
 import { runNoteFlow } from './note.flow';
 import { chooseOne, confirm, isPromptCancellation } from './prompts';
+import { runQueriesMenu } from './queries.flow';
 import { runRepeatFlow } from './repeat.flow';
 import { createInteractiveSession, type InteractiveSession } from './session';
 import { runStatusFlow } from './status.flow';
@@ -46,22 +47,25 @@ import { runUpdateFlow } from './update.flow';
 type MenuOption =
   | 'actualizar'
   | 'config'
+  | 'consultas'
   | 'estado'
   | 'factura'
-  | 'historial'
   | 'nota-credito'
   | 'nota-debito'
   | 'recibo'
   | 'repetir'
   | 'salir';
 
-function listMissingSetup(): string[] {
+/** Lo que falta para emitir en el entorno activo: el de la config o el de `--produccion`/`--testing`. */
+function listMissingSetup(options: GlobalCliOptions): string[] {
   const service = new ConfigService();
 
   try {
     service.ensureInitialized();
 
-    return listMissingSetupKeys(service.getConfig());
+    const config = service.getConfig();
+
+    return listMissingSetupKeys(config, resolveActiveEnvironment(config, options));
   } finally {
     service.close();
   }
@@ -83,7 +87,7 @@ async function runOption(
   options: GlobalCliOptions,
 ): Promise<void> {
   if (option === 'config') {
-    await runConfigMenu();
+    await runConfigMenu(options);
 
     return;
   }
@@ -99,7 +103,7 @@ async function runOption(
   if (option === 'repetir') await runRepeatFlow(session);
   if (option === 'nota-credito') await runNoteFlow(session, 'credito');
   if (option === 'nota-debito') await runNoteFlow(session, 'debito');
-  if (option === 'historial') await runHistoryFlow(session);
+  if (option === 'consultas') await runQueriesMenu(session);
   if (option === 'estado') await runStatusFlow(session);
 }
 
@@ -226,14 +230,14 @@ export async function runInteractiveMode(options: GlobalCliOptions = {}): Promis
   let menuUnderHeader = true;
 
   // Primera vez: sin CUIT, certificado o punto de venta no se puede hacer nada, asi que se ofrece la guia.
-  if (listMissingSetup().length > 0) {
+  if (listMissingSetup(options).length > 0) {
     menuUnderHeader = false;
 
     try {
       if (
         await confirm('Falta completar la configuración. ¿La hacemos ahora, paso a paso?', 'Sí, configurar', 'Después')
       ) {
-        await runGuidedSetup();
+        await runGuidedSetup(options);
         writeTerminalOutput(await buildHeader(options));
         menuUnderHeader = true;
       }
@@ -272,11 +276,14 @@ export async function runInteractiveMode(options: GlobalCliOptions = {}): Promis
             value: 'nota-credito',
           },
           { description: 'Cargo adicional sobre una factura', name: 'Emitir nota de débito', value: 'nota-debito' },
-          {
-            description: 'Los últimos de cada tipo, o buscar uno por número',
-            name: 'Consultar comprobantes',
-            value: 'historial',
-          },
+          markIfNew(
+            {
+              description: 'Tus comprobantes, CUITs, cotizaciones y tablas de ARCA',
+              name: 'Consultas',
+              value: 'consultas',
+            },
+            'consultas',
+          ),
           { description: 'Servidores, punto de venta y cotización del dólar', name: 'Estado de ARCA', value: 'estado' },
           markIfNew(
             {
@@ -331,5 +338,5 @@ export async function runInteractiveMode(options: GlobalCliOptions = {}): Promis
     }
   }
 
-  writeTerminalOutput(colorize('¡Hasta la próxima!', 'muted'));
+  writeTerminalOutput(colorize(`¡Hasta la próxima! Guías y ayuda: ${DOCS_SITE_URL}`, 'muted'));
 }

@@ -1,23 +1,18 @@
-# arcli
+# ARCLI
 
 > CLI de Node/TypeScript para emitir y previsualizar comprobantes ARCA (ex AFIP) desde
-> terminal: facturas, notas de crédito/débito (comunes y FCE), Recibo C y Factura de exportación E,
+> terminal: facturas, notas de crédito/débito (comunes y FCE), Recibo C, Factura de exportación E y sus notas,
 > en testing o producción.
 > Salida humana por defecto, `--json` para scripts/agentes. Repo: https://github.com/LcsGrz/arcli
 
-Este archivo es una referencia densa para que un agente con acceso a shell pueda construir
-comandos `arcli` correctos sin tener que ir probando `--ayuda` a ciegas. Para el detalle
-completo de cada tema, ver los docs linkeados al final.
-
 ## Reglas para agentes
 
-- Siempre `--json` y el entorno explícito (`--testing` o `--produccion`).
-- Primero `--previsualizar`; `--emitir` solo cuando la persona confirmó ese comprobante.
-- **En producción, emitir es irreversible:** el comprobante tiene validez fiscal y no se borra; solo se compensa con
-  una nota de crédito. No emitas en producción sin confirmación explícita de la persona. En testing no tiene validez fiscal.
+- Siempre explícitos `--json`, el entorno (`--testing` o `--produccion`) y `--previsualizar` o `--emitir`: así el
+  resultado no depende de la config ni de un prompt.
+- Primero `--previsualizar`, y `--emitir` cuando la persona confirmó ese comprobante: **en producción emitir es
+  irreversible** (tiene validez fiscal y solo se compensa con una nota de crédito); en testing no tiene validez fiscal.
 - **Se emitió si y solo si** `previsualizacion` es `false` y `cae` no es `null`. En la vista previa, `estado` es
   `previsualizacion`.
-- Exit codes: `0` ok (aprobado u observado), `2` rechazado por ARCA, `1` error (mirar `codigo`).
 - Reintentos:
   - Se puede reintentar igual: `TRANSIENT_ERROR`, `ARCA_LAST_VOUCHER_ERROR` (salvo un punto de venta no habilitado)
     y `UNEXPECTED_ERROR` de red. No se emitió nada.
@@ -30,6 +25,14 @@ completo de cada tema, ver los docs linkeados al final.
   certificado configurado.
 - Para saber si un punto de venta sirve sin emitir: `arcli ultimos fc --pv N --json` (solo lectura). Si no está
   habilitado, da `ARCA_LAST_VOUCHER_ERROR`. En testing, `estado` no lo puede confirmar.
+
+## Exit codes
+
+| exit | cuándo |
+|---|---|
+| `0` | Aprobado, observado (tiene CAE) o vista previa. |
+| `2` | ARCA rechazó el comprobante (A, B, C o E); en un lote, al menos uno. Sale por stdout como respuesta válida: revisar `estado`, `resultado` y `errores` de cada uno. |
+| `1` | Cualquier error: JSON en stderr, mirar `codigo` (ver "Salida de error"). |
 
 ## Ejemplos (A, B, C y notas)
 
@@ -48,7 +51,7 @@ Requiere Node.js 22.22.1 o superior. Para instalar o actualizar: `npm install -g
 deja un ícono para abrir el modo interactivo; no toques certificados ni config sin que te lo pida.
 
 ```bash
-npm install -g arcli   # o: yarn dev <comando>  si corrés desde el repo
+npm install -g arcli
 arcli config establecer cuit <11 dígitos>
 arcli config establecer puntoVenta <numero>
 # Certificado, una de dos (recomendada: certificado generar + importar):
@@ -66,7 +69,7 @@ config, la facturación falla con `CONFIGURATION_ERROR`, y sin punto de venta (`
 
 ## Salida humana
 
-Con la salida redirigida (pipe o archivo) no hay colores, así que `--json` se puede pasar directo a `jq`. `NO_COLOR` desactiva los colores, `FORCE_COLOR=1` los fuerza y `ARCLI_ASCII=1` dibuja los paneles y símbolos en ASCII puro. En terminales que los soportan, las rutas son links clickeables (`FORCE_HYPERLINK=0` los apaga; con la salida redirigida no hay). Ninguna cambia el contenido de `--json`; para parsear, usar siempre `--json`.
+Con la salida redirigida (pipe o archivo) no hay colores, así que `--json` se puede pasar directo a `jq`. `NO_COLOR` desactiva los colores, `FORCE_COLOR=1` los fuerza y `ARCLI_ASCII=1` dibuja los paneles y símbolos en ASCII puro. En terminales que los soportan, las rutas son links clickeables (`FORCE_HYPERLINK=0` los apaga; con la salida redirigida no hay). Ninguna cambia el contenido de `--json`; para parsear, usar siempre `--json`. `ARCLI_CONFIG_DIR=<carpeta>` usa otra carpeta de config (con sus tickets y certificados), por ejemplo para probar sin tocar la config real.
 
 ## Modo interactivo (no usar desde un agente)
 
@@ -89,6 +92,7 @@ Shortcuts (`family` = comando alternativo `arcli <family> <letra>`, ej. `arcli f
 | ncea, nceb, ncec | Nota de crédito electrónica A/B/C | nota-credito-electronica | sí |
 | ndea, ndeb, ndec | Nota de débito electrónica A/B/C | nota-debito-electronica | sí |
 | rc | Recibo C (solo letra C) | recibo | no |
+| fe, nce, nde | Factura, Nota de crédito y Nota de débito de exportación E (WSFEX, ver abajo) | factura, nota-credito, nota-debito | nce y nde sí |
 
 ## Factura de exportación E (WSFEX)
 
@@ -99,14 +103,11 @@ acepta un solo objeto, no un array.
 
 ```bash
 arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 203 \
-  --numero 1 --actividad 620100 --item "001|Servicios de consultoría|1|1500|unidad" --previsualizar --json
+  --actividad 620100 --item "001|Servicios de consultoría|1|1500|unidad" --previsualizar --json
 ```
 
 - Requeridos: `-m, --monto <n>`, `--cliente <texto>`, `--domicilio-cliente <texto>`,
-  `--pais-destino <codigo|nombre>` (código de ARCA o nombre, ej. `203` o `Brasil`), `--numero <n>` (el
-  siguiente al último E de ese punto de venta; arcli todavía no lo puede consultar en WSFEX porque
-  `@arcasdk/core` arma mal `FEXGetLast_CMP`. No lo adivines: pedíselo a la persona. Un número equivocado es un
-  rechazo, exit `2`, no una duplicación) y la actividad: `--actividad <codigo>` o la clave
+  `--pais-destino <codigo|nombre>` (código de ARCA o nombre, ej. `203` o `Brasil`) y la actividad: `--actividad <codigo>` o la clave
   `exportacion.actividad`. No hay default: tiene que ser un código de la tabla de actividades de WSFEX,
   que no es la del padrón (ej. `620100`; `620900` no está). Si no está en la tabla es
   `INPUT_VALIDATION_ERROR` con las que empiezan igual.
@@ -118,15 +119,15 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
   `--tipo-expo <1|2|4>` (`2` servicios por defecto, `1` bienes, `4` otros).
 - `--incoterm <codigo>`,
   `--incoterms-desc <texto>`, `--idioma <codigo>` (`1` español por defecto, `2` inglés, `3` portugués),
-  `--forma-pago <texto>` (por defecto `Transferencia Internacional`), `--permiso <id>` (repetible, requiere
-  `--permiso-existente` y solo se acepta con `--tipo-expo 1`), `--permiso-existente`,
+  `--forma-pago <texto>` (por defecto `Transferencia Internacional`), `--permiso <id>` (repetible, solo con
+  `--tipo-expo 1`; en la factura requiere `--permiso-existente`), `--permiso-existente`,
   `--id-solicitud <n>` (sin flag, el siguiente de WSFEX), `--punto-venta <n>` (`--pv`), `-f, --fecha <fecha>`, `--fecha-pago <fecha>`,
   `--moneda <codigo>` (`--mda`; por defecto `DOL`), `--cotizacion-moneda <n>` (`--cm`; sin flag, la de
   aduana que publica ARCA; la clave `cotizacion` de la config no aplica), `--misma-moneda`
   (manda `CanMisMonExt` en `S`: el pago se cancela en la misma moneda extranjera),
   `--observaciones <texto>`, `--obs-comerciales <texto>`, `--descripcion <texto>`, `--cargar <path>`,
   `--exportar-pdf` (`--pdf`), `--sin-pdf`, `--previsualizar`, `--emitir`, `--json`, `--bruto`.
-- La fecha del comprobante no puede ser futura. WSFEX numera por punto de venta y tipo.
+- La fecha del comprobante no puede ser futura. WSFEX numera por punto de venta y tipo: sin `--numero <n>`, ARCLI usa el siguiente al último de ARCA (también en la vista previa).
 - `fe` es estricto: un flag de A/B/C es opción desconocida. `factura <letra>` acepta en A/B/C los flags de la E, y en
   la E los de A/B/C, y los saltea con un aviso en `avisos` (`factura a --incoterm`, `factura e --alicuota`).
   Las reglas de cada letra siguen valiendo: `factura c --alicuota` es error, como `fc --alicuota`.
@@ -134,9 +135,30 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
   si no, `cert.<entorno>`/`key.<entorno>`; el certificado tiene que estar autorizado a `wsfex` (si no,
   `WSFEX_SERVICE_NOT_AUTHORIZED`). Con la
   mitad del par configurada, el comando corta antes de ir a ARCA.
-- Un rechazo de WSFEX sale como respuesta válida con exit code `2`, igual que en las letras A, B y C.
 - PDF: `factura-e_<pv>-<numero>.pdf`, con el diseño de exportación (divisa, destino, forma y fecha de
   pago, incoterm, leyenda de IVA exento).
+
+### Notas de crédito y débito E
+
+`arcli nce` (`nota-credito e`, tipo 21) y `arcli nde` (`nota-debito e`, tipo 20) ajustan una E ya emitida.
+Mismos flags que `fe` más el asociado; cliente, domicilio, destino, CUIT del país, tipo de exportación,
+moneda, cotización, idioma, incoterm, forma de pago y actividad salen del asociado (consultado en ARCA con
+`FEXGetCMP`) si no vienen por flag.
+
+```bash
+arcli nce -m 500 --ar 1 --apv 4 --previsualizar --json
+```
+
+- Asociado: `--ar <n>` (requerido), `--apv <n>` (`--asociado-punto-venta`; por defecto el de la nota),
+  `--ac <fe|nde|nce>` (por defecto `fe`) o `--at <19|20|21>`. `--acuit` solo puede ser el CUIT emisor;
+  `--afecha` no se usa. En `--cargar`: `comprobanteAsociado` `{numero, puntoVenta, atajo|tipo}`.
+- No llevan `--fecha-pago`, `--misma-moneda` ni `--permiso-existente` (en `nce`/`nde` son opción
+  desconocida; en el JSON, `INPUT_VALIDATION_ERROR`). En bienes, `--permiso` (o `permisos`) es opcional
+  y va sin `--permiso-existente`: ARCA pide `Permiso_existente` vacío.
+- Antes de emitir valida: asociado existente y aprobado, nota no anterior al asociado, NC no mayor al
+  total del asociado (misma moneda) y, en servicios (`tipoExpo` 2), mismo tipo, destino, moneda (o pesos) y
+  cotización que el asociado; ND solo sobre factura, NC no sobre otra NC.
+- PDF: `nota-credito-e_<pv>-<numero>.pdf` / `nota-debito-e_<pv>-<numero>.pdf`.
 
 ## Flags principales (alias corto entre paréntesis)
 
@@ -150,25 +172,23 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
 - Punto de venta: `--punto-venta <n>` (alias `--pv`). Si no se pasa, usa el default de config.
 - Moneda: `--moneda <codigo>` (alias `--mda`): código ISO o de ARCA, indistinto (`ARS`=`PES`, `USD`=`DOL`, `EUR`=`060`, `BRL`=`012`, `UYU`=`011`, `CLP`=`033`…; el ISO se traduce al de ARCA). Están todas las de `arcli parametros monedas` que tienen ISO; un código fuera de la tabla va tal cual y `--cotizacion-moneda <n>` (alias `--cm`). En moneda extranjera sin `--cm` se usa la cotización oficial de ARCA (con un aviso en `avisos`) y `--cm 1` es error; si el pago es en la misma moneda extranjera, usar `--misma-moneda` en lugar de `--cm` (consulta la cotización oficial a ARCA; la fecha del comprobante tiene que ser hoy). En pesos no pasar cotización distinta de 1.
 - Fechas: `-f, --fecha <fecha>` acepta formato argentino día-primero: `D`, `DD`, `D/M`, `DD/MM`, `D-M-YY`, `DD-MM-YYYY` (con `-` o `/`); sin mes usa el actual; sin año, el de la fecha más cercana a hoy (en enero, `1/12` es diciembre pasado). También `--servicio-desde`/`--sd` y `--servicio-hasta`/`--sh`. `-d, --dia <n>` está deprecado (avisa): fija solo el vencimiento en el próximo día `n`; usá `--vencimiento` o `--vto`. "Hoy" es siempre la fecha argentina, aunque el equipo esté en UTC. `--vencimiento <fecha>` (alias `--vto`) fija `FchVtoPago` aparte del período de servicio (servicios y facturas FCE; no en productos ni NC/ND FCE). Ventana de `--fecha` respecto de hoy: productos ±5 días, servicios ±10, FCE −5/+1; en productos y FCE una fecha futura tiene que caer en el mes actual.
-- Comprobante asociado (obligatorio en notas de crédito/débito): `--ac <shortcut>` (una factura, ej. `fc`, o en notas C un recibo, `rc`), `--apv <n>` (punto de venta, alias `--asociado-punto-venta`), `--ar <n>` (número), `--acuit <n>` (CUIT del emisor del comprobante asociado, normalmente el tuyo; obligatorio en notas comunes), `--at <n>` (tipo ARCA, alternativa a `--ac`; no combinar ambos), `--afecha <fecha>` (fecha del asociado, opcional salvo en NC/ND FCE). En notas comunes, en lugar del bloque `--ac` se puede usar un período: `--periodo-desde <fecha>` y `--periodo-hasta <fecha>` (alias `--pd`/`--ph`); no se combinan con `--ac`/`--at`, no aplican a FCE y el período no puede terminar después de la nota.
-- Crédito electrónico (FCE): las facturas `fcea/fceb/fcec` requieren `--cbu <22 dígitos>` (o `arcli config establecer cbu ...`); opcionales `--alias <alias>` y `--transferencia sca|adc` (default `sca`). Las NC/ND FCE (`ncea`…`ndec`) requieren `--afecha`, aceptan `--anulacion`, toman `--acuit` del CUIT emisor si se omite y no aceptan `--cbu`/`--alias`/`--transferencia`. Fuera de FCE esos flags dan error.
+- Comprobante asociado (obligatorio en notas de crédito/débito): `--ac <shortcut>` (una factura, ej. `fc`, o en notas C un recibo, `rc`), `--apv <n>` (punto de venta, alias `--asociado-punto-venta`), `--ar <n>` (número), `--acuit <n>` (CUIT del emisor del comprobante asociado, normalmente el tuyo; obligatorio en notas comunes), `--at <n>` (tipo ARCA, alternativa a `--ac`; no combinar ambos), `--afecha <fecha>` (fecha del asociado, opcional; en NC/ND FCE, si falta, se toma del asociado en ARCA). En notas comunes, en lugar del bloque `--ac` se puede usar un período: `--periodo-desde <fecha>` y `--periodo-hasta <fecha>` (alias `--pd`/`--ph`); no se combinan con `--ac`/`--at`, no aplican a FCE y el período no puede terminar después de la nota. En una NC (A, B, C o FCE), arcli consulta el asociado propio en ARCA antes de la vista previa (una vez por nota) y, si la NC supera su total en la misma moneda, da `INPUT_VALIDATION_ERROR` con `sugerencia` del `--monto` que la anula entera; en un lote, `BATCH_VALIDATION_ERROR`.
+- Crédito electrónico (FCE): las facturas `fcea/fceb/fcec` requieren `--cbu <22 dígitos>` (o `arcli config establecer cbu ...`); opcionales `--alias <alias>` y `--transferencia sca|adc` (default `sca`). Las NC/ND FCE (`ncea`…`ndec`) toman la fecha del asociado de ARCA si falta `--afecha`, aceptan `--anulacion`, toman `--acuit` del CUIT emisor si se omite y no aceptan `--cbu`/`--alias`/`--transferencia`. Fuera de FCE esos flags dan error.
 - Padrón: al facturar con `--cuit` y sin `--ir`/`ivaReceptor`, se usa la condición IVA del padrón de ARCA antes que el `ivaReceptor` de la config; si el padrón no responde o no la informa, se usa la config con un aviso en `avisos`, y sin config es `INPUT_VALIDATION_ERROR`. Se desactiva con `arcli config establecer consultarPadron false`. Para no depender del padrón, pasá `--ir` explícito.
 - Régimen FCE al facturar: con `arcli config establecer verificarFce true`, cada factura con CUIT consulta si el receptor está obligado a recibir FCE y devuelve avisos en `avisos` (JSON) sin bloquear.
 - Ejecución: `--previsualizar` (solo arma y muestra la solicitud) vs `--emitir` (real contra ARCA), mutuamente excluyentes. `--produccion --emitir` emite de verdad sin confirmación adicional. Qué pasa sin ninguno de los dos: ver "Modo no interactivo".
 - Salida: `--json` (estructurada, para scripts/agentes — desactiva el aviso de nueva versión), `--bruto` (incluye la respuesta cruda de ARCA). `--bruto` solo existe en los comandos de facturación; en `padron`, `fce-obligado`, `ultimos`, `consultar`, `parametros` y `estado` se ignora con un aviso en stderr. En todos los comandos, sin `--json` decide la clave de config `json`.
 - `--cargar <path.json>`: carga uno o un array de comprobantes desde un JSON en vez de flags (ver forma abajo). Los flags pisan lo que venga del archivo.
-- PDF: `--exportar-pdf` (alias `--pdf`) genera el PDF con QR después de emitir; `--sin-pdf` no lo genera; sin flag decide `config pdf` (`preguntar` por defecto, que sin TTY o con `--json` no genera). Datos que solo van en el PDF (ARCA no los recibe): `--descripcion <texto>`, `--condicion-venta <tipo>` (alias `--cv`; `contado`, `tarjeta-debito`, `tarjeta-credito`, `cuenta-corriente`, `cheque`, `transferencia`, `otros-medios-electronicos`, `otra` o un texto libre que se imprime tal cual; JSON `condicionVenta`; default en la config `condicionVenta`), `--sin-condicion-venta` (o JSON `condicionVenta: null`) para omitir ese default, `--receptor-nombre <texto>`, `--receptor-domicilio <texto>`. Requiere el plugin (`arcli pdf instalar`, ~160 MB; desde un agente instalarlo antes, porque sin TTY nunca se descarga solo) y `emisor.razonSocial`, `emisor.domicilio`, `emisor.inicioActividades` en la config. Detalle: https://github.com/LcsGrz/arcli/blob/main/docs/pdf.md.
+- PDF: `--exportar-pdf` (alias `--pdf`) lo genera después de emitir y `--sin-pdf` no; sin flag decide la clave `pdf` (`preguntar` por defecto: con `--json` o sin TTY no genera). Solo para el PDF (ARCA no los recibe): `--descripcion <texto>`, `--condicion-venta <tipo>` (`--cv`; JSON `condicionVenta`), `--sin-condicion-venta`, `--receptor-nombre <texto>`, `--receptor-domicilio <texto>`. Antes de pedirlo: `arcli pdf instalar` (sin TTY nunca se descarga solo) y `emisor.razonSocial`, `emisor.domicilio` y `emisor.inicioActividades` en la config. Valores y detalle: https://github.com/LcsGrz/arcli/blob/main/docs/pdf.md.
 
 ## Modo no interactivo
 
 Sin `--emitir` ni `--previsualizar`, decide `"emitir"` del JSON de `--cargar` y, si no está,
-`config.emitir`. Si nada pide emitir y la sesión es interactiva (TTY), arcli muestra una vista
+`config.emitir`. Si nada pide emitir y la sesión es interactiva (TTY), ARCLI muestra una vista
 previa y pregunta. **Con `--json`, o cuando stdin/stdout no son un TTY (scripts, agentes, CI),
 nunca pregunta**: no emite, salvo que el JSON de `--cargar` tenga `"emitir": true` (en un lote, cada
 elemento decide) o `config.emitir` sea `true`, y en esos casos emite sin confirmar. `--previsualizar` en el comando
-pisa lo que diga el archivo (en producción también, si `config.entorno` es `produccion`). Para invocar desde un
-agente, siempre pasar `--emitir` o `--previsualizar` (y `--testing` o `--produccion`) de forma
-explícita y no depender de la config ni del prompt.
+pisa lo que diga el archivo (en producción también, si `config.entorno` es `produccion`).
 
 ## Forma del JSON de `--cargar` (un objeto o un array de estos)
 
@@ -226,7 +246,8 @@ Una clave desconocida (`montototal`, `vencimiento`, `moneda`) o un tipo incorrec
 }
 ```
 
-En la factura E (`fe`) el objeto agrega `exportacion` (`cliente`, `destino`, `domicilioCliente`,
+En la E (`fe`, `nce`, `nde`) el objeto agrega `exportacion` (`cliente`, `comprobanteAsociado` —`null` en la
+factura; en las notas `{atajo, tipoArca, puntoVenta, numero, fecha, total}`—, `destino`, `domicilioCliente`,
 `incoterm`, `items`, `permisos`, `tipoExpo`), `numero` sale también en la vista previa y `solicitud`
 es el `Cmp` de WSFEX con los nombres de ARCA (`Dst_cmp`, `Moneda_Id`, `Items.Item`…).
 
@@ -238,10 +259,8 @@ Con `--cargar` y un array la salida es un array de estos objetos (con `indice`),
 solo elemento; con un objeto o con flags, un objeto. Con `--bruto` se agrega `respuesta` con la respuesta
 cruda del SDK; el resto de los campos no cambia.
 
-**Importante:** un comprobante rechazado por ARCA (`"estado": "rechazado"`) es una respuesta
-válida, no una excepción: sale por stdout como cualquier resultado y el proceso termina con
-exit code `2`. En un lote, `2` si ARCA rechazó al menos uno; para saber cuáles, revisar
-`estado`/`resultado`/`errores` de cada uno. `observado` es aprobado (tiene CAE) y sale con `0`. `previsualizacion` = vista previa: no se emitió nada.
+`"estado": "rechazado"` es una respuesta válida, no un error (exit code `2`, ver "Exit codes"). `observado` es
+aprobado (tiene CAE). `previsualizacion` = vista previa: no se emitió nada.
 
 ## Salida de error
 
@@ -262,8 +281,7 @@ y `FCE_OBLIGATION_ERROR` (`fce-obligado`; con `verificarFce` al facturar salen c
 `EMISSION_UNCERTAIN` en `fe` trae `detalles.numero` y `detalles.idSolicitud`: reintentar con esos mismos `--numero` e `--id-solicitud`, nunca con otros (ARCA no autoriza dos veces el mismo número).
 Los errores de `arcli certificado` están en "Otros comandos".
 `PDF_PLUGIN_INSTALL_ERROR` sale de `arcli pdf instalar`. `sugerencia` está siempre: `null` si no hay nada que sugerir.
-Qué hacer con cada código: tabla "Códigos de error" de https://github.com/LcsGrz/arcli/blob/main/docs/input-output.md. Los errores de uso (opción desconocida, valor faltante, comando inexistente) también salen en este JSON como `INPUT_VALIDATION_ERROR`, con el mensaje de commander en `error`. El proceso termina con
-exit code `1` en cualquier error. Resumen: `0` aprobado (u observado), `1` error, `2` rechazado por ARCA.
+Qué hacer con cada código: tabla "Códigos de error" de https://github.com/LcsGrz/arcli/blob/main/docs/input-output.md. Los errores de uso (opción desconocida, valor faltante, comando inexistente) también salen en este JSON como `INPUT_VALIDATION_ERROR`, con el mensaje de commander en `error`.
 
 ## Comando `config`
 
@@ -275,7 +293,7 @@ arcli config establecer <clave> <valor>
 arcli config eliminar <clave>
 ```
 
-Claves válidas: `cuit`, `cbu`, `aliasCbu` (solo facturas FCE), `verificarFce`, `consultarPadron` (por defecto `true`), `alicuota`, `puntoVenta`, `comprobantesPorLista` (1 a 50, por defecto 15), `concepto`, `ivaReceptor`, `moneda`, `cotizacion` (deprecada: se saca en la 3.0.0; mejor `--cm` o la oficial),
+Claves válidas: `cuit`, `cbu`, `aliasCbu` (solo facturas FCE), `verificarFce`, `consultarPadron` (por defecto `true`), `alicuota`, `puntoVenta`, `filasPorLista` (1 a 50, por defecto 15: filas de `ultimos` y de las listas del modo interactivo; `comprobantesPorLista` es su nombre viejo, deprecado: se lee y `config establecer` la guarda como `filasPorLista`, hasta la 3.0.0), `concepto`, `ivaReceptor`, `moneda`, `cotizacion` (deprecada: se saca en la 3.0.0; mejor `--cm` o la oficial),
 `entorno` (`testing`/`produccion`), `emitir`, `json`, `bruto` (booleanos: `true/false`,
 `si/no`, `1/0`), `cert.testing`, `cert.produccion`, `key.testing`, `key.produccion`
 (rutas a archivos PEM, se validan al guardar), `exportacion.cert.testing`, `exportacion.cert.produccion`,
@@ -289,14 +307,14 @@ por CUIT emisor, los de testing en `testing/<CUIT>/`, y nunca se pisa un PDF exi
 
 `config revisar` también avisa si un certificado ya venció o vence en menos de 30 días, y revisa el plugin de PDF (chequeo "Plugin de PDF": instalado, versión y navegador; si falta, solo avisa con `pdf=siempre`). Con `--json` devuelve
 `{ok, chequeos: [{categoria: "ok"|"warning"|"error", etiqueta, detalle}]}`; `ok: false` sale igual con exit code `0`.
-`arcli config --json` devuelve la config con las rutas enmascaradas (`cert`, `key`, `emisor` y `exportacion` como objetos).
+`arcli config --json` devuelve la config con las rutas enmascaradas (`cert`, `key`, `emisor` y `exportacion` como objetos). Si `filasPorLista` tiene valor, también trae `comprobantesPorLista` con el mismo (deprecada) y `deprecado`.
 Además, a menos de 30 días de vencer cualquiera de los certificados configurados (testing o producción, sin importar el entorno
 en uso), cada comando que va a ARCA avisa en stderr (nunca en stdout) y la facturación lo suma a `avisos` del JSON.
 
 ## Otros comandos
 
-- `arcli ultimos <tipo> [--cantidad N] [--pv N] [--json]`: últimos comprobantes emitidos (de 1 a 50; por defecto `config.comprobantesPorLista` o 15), del más nuevo al más viejo. `tipo` es el atajo (`fb`, `nca`, `rc`…); todavía no acepta `fe`.
-- `arcli consultar <tipo> <numero> [--pv N] [--json]`: detalle de un comprobante emitido (CAE, vencimiento, importes, receptor). Si no existe, el error es `VOUCHER_NOT_FOUND`. Sirve para verificar después de emitir. Todavía no acepta `fe`.
+- `arcli ultimos <tipo> [--cantidad N] [--pv N] [--json]`: últimos comprobantes emitidos (de 1 a 50; por defecto `config.filasPorLista` o 15), del más nuevo al más viejo. `tipo` es el atajo (`fb`, `nca`, `rc`, `fe`, `nde`, `nce`…). La E sale con `cliente`, `destino`, `moneda`, `total` y `comprobanteAsociado` en lugar de receptor e importes.
+- `arcli consultar <tipo> <numero> [--pv N] [--json]`: detalle de un comprobante emitido (CAE, vencimiento, importes, receptor). Si no existe, el error es `VOUCHER_NOT_FOUND`. Sirve para verificar después de emitir, también la E (`EMISSION_UNCERTAIN` de la E sugiere `arcli consultar fe <numero>`).
 - `arcli certificado generar [--testing|--produccion] [--alias <alias>] [--reemplazar] [--json]`: crea la clave privada y el CSR para subir a ARCA en `certificados/<CUIT>/` junto a la config (sin `openssl`). La clave queda pendiente: la activa sigue andando hasta importar. Con un pedido pendiente da `CERTIFICATE_REQUEST_PENDING`; `--reemplazar` lo descarta. El JSON trae `csr`, `pasos`, `rutaCsr` y `rutaClave`. Un agente nunca ve la clave fiscal: la persona sube el CSR y baja el `.crt` en ARCA.
 - `arcli certificado importar <archivo> [--testing|--produccion] [--reemplazar] [--json]`: valida el `.crt` de ARCA (X.509, CUIT, vencimiento, que corresponda a la clave del pedido), deduce el entorno del emisor, lo guarda y configura `cert.<entorno>`/`key.<entorno>`. Devuelve `{alias, cuit, entorno, reemplazado, rutaCertificado, rutaClave, vence}`. Si ya había otro certificado configurado, sin TTY o con `--json` hace falta `--reemplazar` (si no, `CERTIFICATE_REPLACE_CONFIRMATION`). Otros errores: `CERTIFICATE_INVALID`, `CERTIFICATE_CUIT_MISMATCH`, `CERTIFICATE_EXPIRED`, `CERTIFICATE_ENVIRONMENT_UNKNOWN`, `CERTIFICATE_KEY_MISMATCH`.
 - `arcli padron <cuit> [--json]`: consulta en ARCA (`ws_sr_constancia_inscripcion`) nombre, domicilio fiscal, `condicionIva` (`responsable-inscripto`, `responsable-monotributo`, `sujeto-exento` o `null` si no se puede deducir), impuestos y actividades. CUIT inexistente: error `TAXPAYER_NOT_FOUND`.
@@ -312,7 +330,9 @@ en uso), cada comando que va a ARCA avisa en stderr (nunca en stdout) y la factu
 
 ## Más detalle
 
-Los docs no vienen en el paquete de npm: están en GitHub.
+Los docs no vienen en el paquete de npm: están en GitHub y en https://arcli.com.ar/.
+Todo junto para leer de una vez: https://arcli.com.ar/llms-full.txt.
+Cada página del sitio también está en Markdown, con la ruta terminada en `.md` (por ejemplo `referencia/comandos.md`).
 
 - https://github.com/LcsGrz/arcli/blob/main/docs/cli-reference.md: referencia completa de comandos y flags.
 - https://github.com/LcsGrz/arcli/blob/main/docs/configuration.md: config persistente, claves soportadas, ticketPath.

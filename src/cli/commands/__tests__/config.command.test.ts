@@ -30,8 +30,16 @@ const CONFIG = {
 
 let storedConfig: ArcliConfig = CONFIG;
 
-vi.mock('../../../modules/config/config.service', () => ({
+vi.mock('../../../modules/config/config.service', async (importOriginal) => ({
+  deprecatedConfigKeyWarning: (await importOriginal<typeof import('../../../modules/config/config.service')>())
+    .deprecatedConfigKeyWarning,
   ConfigService: class {
+    public setValue(): ArcliConfig {
+      return storedConfig;
+    }
+    public unsetValue(): ArcliConfig {
+      return storedConfig;
+    }
     public close(): void {}
     public ensureInitialized(): ArcliConfig {
       return storedConfig;
@@ -107,6 +115,31 @@ describe('arcli config', () => {
       expect(JSON.parse(output)).toHaveProperty('cuit', '20123456786');
     } finally {
       write.mockRestore();
+    }
+  });
+
+  it.each([
+    [['establecer', 'comprobantesPorLista', '20'], true],
+    [['eliminar', 'comprobantesPorLista'], true],
+    [['establecer', 'filasPorLista', '20'], false],
+  ])('config %j avisa la clave deprecada: %s', async (args, warns) => {
+    const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+
+    try {
+      await createProgram().parseAsync(['node', 'arcli', 'config', ...args, '--json']);
+
+      const notice = stderr.mock.calls.map(([chunk]) => String(chunk)).join('');
+
+      if (warns) {
+        expect(notice).toContain('"comprobantesPorLista" está deprecada');
+        expect(notice).toContain('filasPorLista');
+      } else {
+        expect(notice).not.toContain('deprecada');
+      }
+    } finally {
+      stdout.mockRestore();
+      stderr.mockRestore();
     }
   });
 

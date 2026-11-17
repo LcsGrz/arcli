@@ -1,7 +1,8 @@
+import { CHANGELOG_PAGE_URL } from '../../lib/links';
 import { noticePanel } from '../../ui/components';
 import { bold, colorize, renderPanel, uiSymbol, type UiTextColor } from '../../ui/primitives';
 
-import { CHANGELOG_PAGE_URL, type ChangelogChange, type ChangelogChangeKind, type ChangelogEntry } from './changelog';
+import { type ChangelogChange, type ChangelogChangeKind, type ChangelogEntry } from './changelog';
 import { resolveUpdateCommand } from './package-manager';
 import type { UpdateCheckResult } from './update-check.service';
 
@@ -100,7 +101,7 @@ export function renderUpdateDetails(result: UpdateCheckResult, entries: readonly
   const howTo = renderPanel({
     borderType: 'command',
     content: [
-      'Para actualizar, arcli se cierra y deja este comando copiado. Pegalo en la terminal y apretá Enter:',
+      'Para actualizar, ARCLI se cierra y deja este comando copiado. Pegalo en la terminal y apretá Enter:',
       '',
       bold(colorize(resolveUpdateCommand(), 'info')),
     ],

@@ -1,6 +1,6 @@
 [← Documentación](README.md)
 
-# Troubleshooting
+# Problemas frecuentes
 
 Errores frecuentes agrupados por categoría: síntoma, causa y solución.
 
@@ -21,7 +21,7 @@ Si usás el asistente (`arcli` sin argumentos): Configuración → Revisar confi
 
 ### `arcli` no se reconoce como comando
 
-- **Síntoma:** `command not found: arcli` o "arcli no se reconoce como un comando interno o externo".
+- **Síntoma:** `command not found: arcli` o "'arcli' no se reconoce como un comando interno o externo".
 - **Causa:** la terminal se abrió antes de instalar, o la carpeta de los paquetes globales de npm no está en el `PATH`.
 - **Solución:** cerrá y abrí la terminal. Si sigue, `npm prefix -g` te dice la carpeta: sumala al `PATH`.
 
@@ -49,7 +49,7 @@ Formatos: [Entrada y salida](input-output.md).
 
 ### Falta CUIT del emisor
 
-- **Severidad:** común
+- **Severidad:** frecuente
 - **Síntoma:** error de configuración indicando que falta el CUIT.
 - **Causa:** no existe `cuit` en la config persistente.
 - **Solución:**
@@ -63,7 +63,7 @@ arcli config revisar
 
 ### Falta punto de venta
 
-- **Severidad:** común
+- **Severidad:** frecuente
 - **Síntoma:** el flujo corta antes de emitir con un mensaje sobre punto de venta.
 - **Causa:** no llegó `puntoVenta` por flags ni por config.
 - **Solución:**
@@ -109,7 +109,7 @@ arcli fc -m 1000 --pv 3 --cs --consumidor-final
 
 ### Al importar: el certificado no corresponde a la clave
 
-- **Severidad:** media
+- **Severidad:** a veces
 - **Síntoma:** `arcli certificado importar` corta con `El certificado no corresponde a la clave del último pedido` (`CERTIFICATE_KEY_MISMATCH`). No se toca la config.
 - **Causa:** el `.crt` se creó en ARCA con otro CSR: uno de un pedido anterior que descartaste con `--reemplazar`, uno armado en otra computadora o uno hecho con `openssl`.
 - **Solución:** en ARCA, creá el certificado con el CSR del último `arcli certificado generar` (está en `certificados/<CUIT>/<entorno>.nueva.csr`, junto a la config) y volvé a importar. Si el certificado es de un par que armaste con `openssl`, configuralo con `arcli config establecer cert.<entorno>` y `key.<entorno>`.
@@ -117,20 +117,20 @@ arcli fc -m 1000 --pv 3 --cs --consumidor-final
 
 ### Al importar: otros rechazos del certificado
 
-- **Severidad:** media
+- **Severidad:** a veces
 - **Síntoma:** `arcli certificado generar` o `importar` corta sin tocar la config. El código del JSON dice cuál es:
   - `CERTIFICATE_REQUEST_PENDING` (`generar`): ya hay un pedido de ese entorno sin importar.
   - `CERTIFICATE_INVALID`: el archivo no tiene un certificado X.509.
   - `CERTIFICATE_CUIT_MISMATCH`: el certificado es de otro CUIT que el de la config.
   - `CERTIFICATE_EXPIRED`: el `.crt` que querés cargar ya venció.
-  - `CERTIFICATE_ENVIRONMENT_UNKNOWN`: arcli no reconoce al emisor como una autoridad de ARCA, así que no sabe de qué entorno es.
+  - `CERTIFICATE_ENVIRONMENT_UNKNOWN`: ARCLI no reconoce al emisor como una autoridad de ARCA, así que no sabe de qué entorno es.
   - `CERTIFICATE_REPLACE_CONFIRMATION`: ya había otro certificado y, sin terminal o con `--json`, no se puede preguntar.
 - **Solución:** importá el certificado del pedido pendiente o descartalo con `--reemplazar`; usá el `.crt` tal como lo bajaste de ARCA, sin abrirlo ni guardarlo con otro programa; bajalo con la clave fiscal del CUIT configurado; si está vencido, generá uno nuevo; si es de ARCA, indicá el entorno con `--testing` o `--produccion`; para reemplazar sin preguntar, sumá `--reemplazar`.
 - **Documentación relacionada:** [Comando `arcli certificado`](cli-reference.md#comando-arcli-certificado), [códigos de error](input-output.md#códigos-de-error)
 
 ### Certificado por vencer o vencido
 
-- **Severidad:** alta (crítico si ya venció)
+- **Severidad:** crítico, si ya venció (antes es un aviso)
 - **Síntoma:** a menos de 30 días de vencer cualquiera de los certificados configurados (también el de producción si trabajás en testing), cada comando que va a ARCA empieza con el aviso `El certificado de <entorno> vence el dd/mm/aaaa (en N días)` (en stderr; en el modo interactivo, un recuadro debajo de la barra). Si ya venció el del entorno que usás, el comando corta con `Certificado vencido` (`CERTIFICATE_EXPIRED` en el JSON, con `detalles.entorno` y `detalles.vencimiento`) sin llegar a ARCA.
 - **Causa:** los certificados de ARCA vencen (por defecto, a los 2 años). Vencido, WSAA rechaza el login, así que no se puede emitir ni consultar en ese entorno.
 - **Solución:** renovalo con `arcli certificado generar` (o en el modo interactivo: Configuración → Certificados de ARCA). Arma una clave y un pedido nuevos sin tocar los actuales, así que seguís facturando hasta cargar el certificado nuevo. Subí el CSR en ARCA, bajá el `.crt` y cargalo; si usás un alias nuevo, autorizá de nuevo los servicios web:
@@ -172,7 +172,7 @@ O abrí `arcli` y elegí "Configuración" para la configuración guiada.
 
 ### Falta un dato obligatorio
 
-- **Severidad:** común
+- **Severidad:** frecuente
 - **Síntoma:** `INPUT_VALIDATION_ERROR` o mensaje como `Falta el dato: monto.`
 - **Causa:** falta un dato obligatorio en flags o JSON.
 - **Solución:** revisar `ayuda` del comando puntual y completar los campos faltantes.
@@ -185,8 +185,8 @@ arcli fc ayuda
 
 ### Clave desconocida o tipo incorrecto en el JSON de `--cargar`
 
-- **Severidad:** común
-- **Síntoma:** `INPUT_VALIDATION_ERROR` (o `BATCH_VALIDATION_ERROR` en un lote) con `La clave "montototal" no existe` o `"puntoVenta" tiene que ser un número y llegó el texto "3"`.
+- **Severidad:** frecuente
+- **Síntoma:** `INPUT_VALIDATION_ERROR` (o `BATCH_VALIDATION_ERROR` en un lote) con `La clave "montototal" no existe: ¿quisiste decir "montoTotal"?` o `"puntoVenta" tiene que ser un número y llegó el texto "3".`
 - **Causa:** el JSON trae una clave que ARCLI no conoce (un typo o el nombre de un flag, como `vencimiento` en vez de `vencimientoPago`) o un valor con otro tipo (un número entre comillas, `"true"` en vez de `true`, `null`).
 - **Solución:** usá la clave que sugiere el mensaje y escribí los números sin comillas. La lista completa está en [entrada y salida](input-output.md#campos-soportados).
 
@@ -254,12 +254,20 @@ arcli fc ayuda
 - **Solución:** pasar `--cbu <22 dígitos>` o configurarlo una vez con `arcli config establecer cbu <22 dígitos>`.
 - **Documentación relacionada:** [Crédito electrónico (FCE)](validation-rules.md#crédito-electrónico-fce)
 
-### NC/ND FCE sin fecha del asociado
+### NC/ND FCE: ARCA no tiene el asociado
 
-- **Severidad:** frecuente
-- **Síntoma:** `La nota de crédito electrónica ... requiere la fecha del comprobante asociado.`
-- **Causa:** en NC/ND FCE, ARCA exige la fecha de la factura asociada (10158).
-- **Solución:** agregar `--afecha <fecha>` con la fecha de la factura FCE original.
+- **Severidad:** ocasional
+- **Síntoma:** `ARCA no tiene la factura de crédito electrónica ..., así que no se puede tomar su fecha.`
+- **Causa:** en NC/ND FCE, ARCA exige la fecha de la factura asociada (10158). Sin `--afecha`, arcli la busca en ARCA antes de la vista previa y no la encontró o ARCA no respondió.
+- **Solución:** revisar `--ac`, `--apv` y `--ar`: tienen que apuntar a una factura FCE tuya ya emitida. Si ARCA no respondió, reintentar o pasar la fecha con `--afecha`.
+- **Documentación relacionada:** [Crédito electrónico (FCE)](validation-rules.md#crédito-electrónico-fce)
+
+### La nota de crédito supera el total de la factura
+
+- **Severidad:** ocasional
+- **Síntoma:** `La nota de crédito por $ 150.000 no puede superar el total de la factura C 00003-00000045, de $ 120.000.`
+- **Causa:** antes de la vista previa, arcli consulta el asociado en ARCA y la NC es mayor que su total (en la misma moneda). Pasa igual en A, B, C, FCE y `E`. No se emite nada.
+- **Solución:** bajar `--monto` (la sugerencia trae el `--monto` para anularla entera) o revisar `--ar` y `--apv`, por si apuntan a otra factura.
 - **Documentación relacionada:** [Crédito electrónico (FCE)](validation-rules.md#crédito-electrónico-fce)
 
 ### La suma de las alícuotas no coincide con el total
@@ -280,23 +288,23 @@ arcli fc ayuda
 
 ### `wsfe` no autorizado
 
-- **Severidad:** frecuente la primera vez
+- **Severidad:** frecuente, la primera vez
 - **Síntoma:** error `WSFE_SERVICE_NOT_AUTHORIZED` ("El certificado no está autorizado para facturar (servicio wsfe). No se emitió nada.") al facturar o con `ultimos` y `consultar`.
 - **Causa:** sacaste e importaste el certificado, pero falta autorizarlo a facturar en ARCA.
 - **Solución:** en testing, WSASS → "Crear autorización a servicio" con el mismo nombre del certificado y el servicio `wsfe`; en producción, el Administrador de Relaciones de Clave Fiscal. No se emitió nada: después de autorizarlo, reintentá igual.
-- **Documentación relacionada:** [Autorizar el servicio web](obtencion-certificados.md#3-autorizar-el-servicio-web)
+- **Documentación relacionada:** [Autorizar el servicio web](certificado-testing-completa.md#3-autorizar-el-servicio-web)
 
 ### `wsfecred` no autorizado
 
-- **Severidad:** frecuente si usás `fce-obligado` o `verificarFce`
+- **Severidad:** frecuente, si usás `fce-obligado` o `verificarFce`
 - **Síntoma:** `El certificado no está autorizado para el servicio wsfecred ...` (ARCA responde `coe.notAuthorized`).
 - **Causa:** el certificado solo tiene autorizado `wsfe`. La consulta del régimen FCE usa otro servicio.
 - **Solución:** crear la autorización para `wsfecred` igual que la de `wsfe`, en WSASS (testing) o en el Administrador de Relaciones (producción). Si no la necesitás, desactivá el chequeo con `arcli config eliminar verificarFce`.
-- **Documentación relacionada:** [Autorizar el servicio web](obtencion-certificados.md#3-autorizar-el-servicio-web)
+- **Documentación relacionada:** [Autorizar el servicio web](certificado-testing-completa.md#3-autorizar-el-servicio-web)
 
 ### `ws_sr_constancia_inscripcion` no autorizado
 
-- **Severidad:** frecuente si usás `arcli padron` o facturás con `--cuit` sin `--ir`
+- **Severidad:** frecuente, si usás `arcli padron` o facturás con `--cuit` sin `--ir`
 - **Síntoma:** `arcli padron` falla con `El certificado no está autorizado para el servicio ws_sr_constancia_inscripcion ...`. Al facturar no corta: aparece el aviso `No se pudo consultar el padrón de ARCA` y se usa el `ivaReceptor` de la config.
 - **Causa:** el certificado solo tiene autorizado `wsfe`. El padrón usa otro servicio.
 - **Solución:** crear la autorización para `ws_sr_constancia_inscripcion` igual que la de `wsfe`. Si no la necesitás, desactivá la consulta con `arcli config establecer consultarPadron false`.
@@ -306,10 +314,10 @@ arcli fc ayuda
 
 ### `dh key too small` en producción
 
-- **Severidad:** media
-- **Síntoma:** en una versión anterior de arcli, los comandos de producción fallan con `dh key too small` o `ERR_SSL_DH_KEY_TOO_SMALL`, con certificado, clave y punto de venta correctos. En testing andan.
+- **Severidad:** a veces
+- **Síntoma:** en una versión anterior de ARCLI, los comandos de producción fallan con `dh key too small` o `ERR_SSL_DH_KEY_TOO_SMALL`, con certificado, clave y punto de venta correctos. En testing andan.
 - **Causa:** WSFE y WSFEX de producción prefieren un intercambio DHE con una clave de 1024 bits, y OpenSSL la rechaza con `SECLEVEL=2`, el nivel de Debian 13 y otras distros.
-- **Solución:** actualizar arcli. Si no podés, corré el CLI con `node --tls-cipher-list='DEFAULT:!DHE' "$(which arcli)"` más los argumentos de siempre.
+- **Solución:** actualizar ARCLI. Si no podés, corré el CLI con `node --tls-cipher-list='DEFAULT:!DHE' "$(which arcli)"` más los argumentos de siempre.
 - **Documentación relacionada:** [Arquitectura](architecture.md)
 
 ### `coe.alreadyAuthenticated`
@@ -354,15 +362,15 @@ arcli fc ayuda
 
 ### ARCA rechaza por punto de venta
 
-- **Severidad:** común en producción
+- **Severidad:** frecuente, en producción
 - **Síntoma:** el comprobante sale `rechazado` con el error `10005` ("El punto de venta informado debe estar dado de alta y ser del tipo RECE"), y la sugerencia habla de un punto de venta para web service. `arcli estado --produccion` dice que el punto de venta no está habilitado para web service.
-- **Causa:** el punto de venta configurado no es de web service. Pasa con los de Comprobantes en línea ("Factura en línea"), Facturador o talonarios manuales. Desde el 1/11/2026, por la RG 5893/2026, ARCA da de alta de oficio un punto de venta "Factura en línea - Monotributo" a los monotributistas que no tienen uno electrónico: ese tampoco sirve para arcli.
+- **Causa:** el punto de venta configurado no es de web service. Pasa con los de Comprobantes en línea ("Factura en línea"), Facturador o talonarios manuales. Desde el 1/11/2026, por la RG 5893/2026, ARCA da de alta de oficio un punto de venta "Factura en línea - Monotributo" a los monotributistas que no tienen uno electrónico: ese tampoco sirve para ARCLI.
 - **Solución:** `arcli parametros puntos-venta --produccion` lista los habilitados para web service. Si el tuyo no está, creá uno nuevo con sistema de web services en "Administración de puntos de venta y domicilios" y guardalo con `arcli config establecer puntoVenta <numero>`.
-- **Documentación relacionada:** [Punto de venta para web service](obtencion-certificados.md#punto-de-venta-para-web-service)
+- **Documentación relacionada:** [Punto de venta para web service](certificado-produccion-completa.md#punto-de-venta-para-web-service)
 
 ### Rechazos de ARCA por código
 
-Cuando ARCA rechaza o deja una observación con alguno de estos códigos, `sugerencias` del JSON (y el panel de la salida humana) dice qué pasó y qué hacer. Los que arcli valida antes de enviar (por ejemplo, la ventana de fechas o el IVA receptor por letra) casi nunca llegan a ARCA, pero si llegan, el texto es el mismo.
+Cuando ARCA rechaza o deja una observación con alguno de estos códigos, `sugerencias` del JSON (y el panel de la salida humana) dice qué pasó y qué hacer. Los que ARCLI valida antes de enviar (por ejemplo, la ventana de fechas o el IVA receptor por letra) casi nunca llegan a ARCA, pero si llegan, el texto es el mismo.
 
 | Código          | Qué pasó                                                                                                                                                          | Qué hacer                                                                                                       |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
@@ -372,24 +380,24 @@ Cuando ARCA rechaza o deja una observación con alguno de estos códigos, `suger
 | `10243`         | El IVA receptor no es válido para la letra                                                                                                                        | Ver [El comprobante no admite el IVA receptor](#el-comprobante-no-admite-el-iva-receptor)                       |
 | `10174`         | El CBU de la factura FCE no está registrado a nombre del emisor                                                                                                   | Usá un CBU propio registrado en ARCA (`--cbu` o la clave `cbu`)                                                 |
 | `10119`         | La cotización está fuera del rango que acepta ARCA: entre el 2% y el 400% de la oficial                                                                           | Revisá `--cotizacion-moneda` contra `arcli parametros cotizacion <moneda>`                                      |
-| `10038`         | Con `--misma-moneda`, la cotización enviada ya no es la oficial exacta                                                                                            | Volvé a emitir: arcli consulta la oficial en ese momento                                                        |
+| `10038`         | Con `--misma-moneda`, la cotización enviada ya no es la oficial exacta                                                                                            | Volvé a emitir: ARCLI consulta la oficial en ese momento                                                        |
 | `10017`/`10217` | Observación sobre la condición del receptor; el comprobante puede estar aprobado                                                                                  | Ver [Observaciones de padrón](#observaciones-de-padrón)                                                         |
 
 También se reconocen por el mensaje, sin código: receptor igual al emisor, `Transacción Activa`, CUIT receptor inexistente y detalle de IVA obligatorio. Si ARCA rechaza con otro código, `sugerencias` pide revisar `errores` y `observaciones`.
 
 - **Documentación relacionada:** [Reglas de validación](validation-rules.md), [Entrada y salida](input-output.md)
 
-### Factura E: falta el número del comprobante
+### Factura E: el número no es el que sigue
 
-- **Severidad:** siempre, en cada `E`
-- **Síntoma:** ``Falta el número del comprobante. Usá `--numero`: arcli todavía no puede consultar en WSFEX el último emitido.``
-- **Causa:** WSFEX numera por punto de venta y tipo de comprobante, y el último se consulta con `FEXGetLast_CMP`, que lleva el punto de venta y el tipo **dentro** del bloque `Auth`. `@arcasdk/core` arma ese bloque pisándolo entero, así que la consulta no funciona (ARCA contesta 1606 o 1000). Hasta que se arregle en el SDK, el número lo indicás vos.
-- **Solución:** pasá `--numero` con el siguiente al último `E` que emitiste en ese punto de venta (`1` si es el primero). Si no es el correcto, ARCA rechaza el comprobante y no se emite nada.
+- **Severidad:** ocasional, solo si pasás `--numero` a mano
+- **Síntoma:** ARCA rechaza la `E` con un error de correlatividad del número.
+- **Causa:** WSFEX numera por punto de venta y tipo de comprobante, y el número tiene que ser el siguiente al último autorizado.
+- **Solución:** sacá `--numero`: ARCLI consulta el último en ARCA (`FEXGetLast_CMP`) y usa el siguiente. Para ver los últimos, `arcli ultimos fe` (o `nde`, `nce`). Un rechazo no emite nada.
 - **Documentación relacionada:** [Referencia del CLI](cli-reference.md#factura-de-exportación-e-wsfex)
 
 ### Factura E: falta la actividad o no está en la tabla de WSFEX
 
-- **Severidad:** frecuente la primera vez que se emite una `E`
+- **Severidad:** frecuente, la primera vez que se emite una `E`
 - **Síntoma:** `Falta la actividad de exportación.` o `La actividad 620900 no está en la tabla de actividades de WSFEX y ARCA la rechaza (error 2105).`
 - **Causa:** la `E` informa siempre una actividad (ARCA rechaza `Actividades` vacío con el error 2100) y solo acepta los códigos de su propia tabla (`FEXGetPARAM_Actividades`), que **no es la del padrón y es más chica**: por ejemplo, `620900` (servicios de informática N.C.P.) no está; para informática están `620100` (consultores en informática y suministros de programas) y `620300` (consultores en tecnología de la información).
 - **Solución:** elegí la que corresponda a tu actividad declarada (el error lista las que empiezan igual) y guardala con `arcli config establecer exportacion.actividad <codigo>`, o pasala con `--actividad`.
@@ -397,7 +405,7 @@ También se reconocen por el mensaje, sin código: receptor igual al emisor, `Tr
 
 ### Factura E: el certificado no está autorizado a `wsfex`
 
-- **Severidad:** frecuente la primera vez
+- **Severidad:** frecuente, la primera vez
 - **Síntoma:** error `WSFEX_SERVICE_NOT_AUTHORIZED` ("El certificado no está autorizado para el servicio wsfex"), incluso con `--previsualizar`.
 - **Causa:** la vista previa ya consulta las tablas de WSFEX, y el certificado no tiene la relación con el servicio `wsfex`.
 - **Solución:** autorizá el certificado a `wsfex` igual que a `wsfe` (WSASS en testing, Administrador de Relaciones en producción), o configurá uno propio con `exportacion.cert.*` y `exportacion.key.*`.
@@ -405,7 +413,7 @@ También se reconocen por el mensaje, sin código: receptor igual al emisor, `Tr
 
 ### Factura E: la cotización no es la del día
 
-- **Severidad:** normal (pasa casi siempre con la fecha de hoy)
+- **Severidad:** frecuente, casi siempre con la fecha de hoy
 - **Síntoma:** aviso `ARCA no publicó la cotización de DOL del <fecha>: se usa la del <fecha anterior>`.
 - **Causa:** la `E` usa la cotización de aduana de WSFEX (`FEXGetPARAM_MON_CON_COTIZACION`), que ARCA publica una vez por día. Mientras no sale la de hoy, se usa la última publicada.
 - **Solución:** no hace falta hacer nada. Para fijar otra cotización, pasá `--cotizacion-moneda <valor>` (o `--cm`).
@@ -433,7 +441,7 @@ También se reconocen por el mensaje, sin código: receptor igual al emisor, `Tr
 
 ### Los bordes de los paneles se ven como `?` o cuadraditos
 
-- **Severidad:** ocasional (terminales viejas, por ejemplo el `cmd` clásico de Windows, o fuentes sin caracteres de caja)
+- **Severidad:** ocasional, en terminales viejas (como el `cmd` clásico de Windows) o fuentes sin caracteres de caja
 - **Síntoma:** los bordes de los paneles muestran `?`, `�` o cuadrados en lugar de líneas.
 - **Causa:** la terminal o la fuente no tiene los caracteres de caja Unicode que usa ARCLI (`╒`, `┃`, `╏`, `╓`, `╌`, `┈`, `━`, `▎`…).
 - **Solución:** usar una terminal moderna (Windows Terminal, iTerm2, la de VS Code) o activar los bordes y símbolos ASCII con `ARCLI_ASCII=1`. También cambia los símbolos del modo interactivo (`✔`, `❯`, `↑↓`); las tildes y la `ñ` se mantienen.

@@ -1,6 +1,6 @@
 import { type Command, Help } from 'commander';
 
-import { CERTIFICATE_GUIDE_URL } from '../lib/links';
+import { CERTIFICATE_GUIDE_URL, DOCS_SITE_URL } from '../lib/links';
 import type { VoucherFamily, VoucherLetter, VoucherShortcut } from '../modules/billing/billing.types';
 import {
   getVoucherFamilyLetters,
@@ -14,9 +14,14 @@ import { CONFIG_LABELS, CONFIG_SECTIONS } from '../modules/config/config.section
 import {
   buildMinimalFamilyExample,
   buildMinimalShortcutExample,
-  EXPORT_MINIMAL_EXAMPLE,
+  exportMinimalExample,
 } from '../modules/examples/examples';
-import { EXPORT_VOUCHER_KIND } from '../modules/export/export.types';
+import {
+  EXPORT_VOUCHER_KIND,
+  type ExportVoucherKind,
+  getExportVoucherKindByFamily,
+  isExportNote,
+} from '../modules/export/export.types';
 import { CONFIG_FIELDS } from '../modules/interactive/config-fields';
 import { resolveUpdateCommand } from '../modules/update-check/package-manager';
 import { renderLogo, uiSymbol } from '../ui';
@@ -62,7 +67,7 @@ function createRules(scope: HelpScope): string {
   if (scope.isNote) {
     rules.push(
       scope.isElectronicCredit
-        ? 'Asociado: la factura FCE con --ac o --at, --apv, --ar y --afecha; --acuit toma tu CUIT. Con --anulacion, anula una factura que rechazó el comprador.'
+        ? 'Asociado: la factura FCE con --ac o --at, --apv y --ar (la fecha sale de ARCA si falta --afecha); --acuit toma tu CUIT. Con --anulacion, anula una factura que rechazó el comprador.'
         : 'Asociado: el comprobante con --ac o --at, --apv, --ar y --acuit, o un período con --periodo-desde y --periodo-hasta.',
     );
   } else if (scope.isElectronicCredit) {
@@ -80,11 +85,12 @@ function compactList(values: readonly string[]): string {
   return values.map((value) => `  - ${value}`).join('\n');
 }
 
-/** Un atajo por letra (`-` si la familia no tiene esa letra); la E (exportacion, WSFEX) solo existe en `factura`. */
+/** Un atajo por letra (`-` si la familia no tiene esa letra); la E (exportacion, WSFEX) en factura y notas. */
 function familyShortcuts(family: VoucherFamily): readonly string[] {
   const shortcuts = VOUCHER_LETTERS.map((letter) => getVoucherKindByFamilyAndLetter(family, letter)?.shortcut ?? '-');
+  const exportKind = getExportVoucherKindByFamily(family);
 
-  return family === EXPORT_VOUCHER_KIND.family ? [...shortcuts, EXPORT_VOUCHER_KIND.shortcut] : shortcuts;
+  return exportKind ? [...shortcuts, exportKind.shortcut] : shortcuts;
 }
 
 /** Los atajos en una tabla familia × letra, en lugar de un renglón por atajo en la lista de comandos. */
@@ -126,6 +132,7 @@ function createProgramMore(): string {
       'Autocompletado con Tab de comandos y flags: arcli completado instalar',
       'Ícono para abrir ARCLI con doble clic: arcli acceso-directo',
       'Para scripts, usá --json: la salida en texto puede cambiar.',
+      `Documentación: ${DOCS_SITE_URL}`,
       `Repositorio: https://github.com/LcsGrz/arcli ${uiSymbol('separator')} Actualizar: ${resolveUpdateCommand()}`,
     ]),
   );
@@ -162,9 +169,9 @@ function createShortcutSummary(shortcut: VoucherShortcut): string {
 
 function createFamilySummary(family: VoucherFamily): string {
   const [a, b, c] = familyShortcuts(family);
-  const hasExport = family === EXPORT_VOUCHER_KIND.family;
-  const summary = hasExport
-    ? `${FAMILY_LABELS[family]}, letras A, B, C y E (exportación): arcli ${family} <a|b|c|e>. Atajos: ${a}, ${b}, ${c} y ${EXPORT_VOUCHER_KIND.shortcut}. Los flags que no aplican a la letra se saltean con un aviso.`
+  const exportKind = getExportVoucherKindByFamily(family);
+  const summary = exportKind
+    ? `${FAMILY_LABELS[family]}, letras A, B, C y E (exportación): arcli ${family} <a|b|c|e>. Atajos: ${a}, ${b}, ${c} y ${exportKind.shortcut}. Los flags que no aplican a la letra se saltean con un aviso.`
     : getVoucherFamilyLetters(family).length === 1
       ? `${FAMILY_LABELS[family]}, solo letra C: arcli ${family} c. Atajo: ${c}.`
       : `${FAMILY_LABELS[family]}, letras A, B y C: arcli ${family} <a|b|c>. Atajos: ${a}, ${b} y ${c}.`;
@@ -180,8 +187,10 @@ function createFamilySummary(family: VoucherFamily): string {
 
           return definition ? [`Letra ${letter.toUpperCase()}: ${buildMinimalFamilyExample(definition)}`] : [];
         }),
-        ...(hasExport
-          ? [`Letra E: ${EXPORT_MINIMAL_EXAMPLE.replace('arcli fe -m', `arcli ${family} e --monto`)}`]
+        ...(exportKind
+          ? [
+              `Letra E: ${exportMinimalExample(exportKind).replace(`arcli ${exportKind.shortcut} -m`, `arcli ${family} e --monto`)}`,
+            ]
           : []),
         `Desde un JSON: arcli ${family} c --cargar ./voucher.json --json`,
       ]),
@@ -405,7 +414,7 @@ export function createPadronHelp(): string {
       'Para qué sirve',
       [
         '  - Ver razón social, domicilio fiscal, condición IVA, impuestos y actividad de un CUIT.',
-        '  - Al facturar con --cuit, arcli usa el mismo dato para completar el IVA receptor si no pasás --ir.',
+        '  - Al facturar con --cuit, ARCLI usa el mismo dato para completar el IVA receptor si no pasás --ir.',
       ].join('\n'),
     ),
     '',
@@ -429,7 +438,7 @@ export function createCompletionHelp(): string {
       'Para qué sirve',
       compactList([
         'Completar con Tab comandos, flags y valores: arcli f<Tab>, arcli fc --ir<Tab>, arcli config establecer <Tab>.',
-        'La lista sale de la versión instalada: después de actualizar arcli no hay que reinstalar nada.',
+        'La lista sale de la versión instalada: después de actualizar ARCLI no hay que reinstalar nada.',
       ]),
     ),
     '',
@@ -457,13 +466,14 @@ export function createVoucherQueryHelp(): string {
         '  - arcli ultimos nca --cantidad 25   últimas 25 notas de crédito A',
         '  - arcli consultar fb 14             detalle de la factura B número 14',
         '  - arcli consultar fb 14 --json      lo mismo, en JSON',
+        '  - arcli ultimos fe --pv 4           últimas facturas de exportación E del punto de venta 4',
       ].join('\n'),
     ),
     '',
     section(
       'Detalles',
       [
-        '  - El tipo es el atajo del comprobante: fa, fb, fc, nca, ndb, fcea, etc.',
+        '  - El tipo es el atajo del comprobante: fa, fb, fc, nca, ndb, fcea, fe, nce, etc. La E se consulta en WSFEX.',
         '  - Sin --pv usa el punto de venta de la config.',
         '  - Solo consulta: no emite ni modifica nada.',
       ].join('\n'),
@@ -492,9 +502,29 @@ export function createShortcutHelp(shortcut: VoucherShortcut): string {
   ].join('\n');
 }
 
-/** Ayuda de `arcli fe`: la E no tiene concepto, IVA ni receptor argentino, asi que no usa las reglas de A, B y C. */
-export function createExportShortcutHelp(): string {
-  const { arcaType, displayName, family, letter, shortcut } = EXPORT_VOUCHER_KIND;
+/** Lo que cambia entre la factura y las notas E. */
+function exportVoucherRules(kind: ExportVoucherKind): string[] {
+  if (!isExportNote(kind)) {
+    return [
+      'Sin flags sale de servicios (--tipo-expo 2), en dólares (USD) y con forma de pago "Transferencia Internacional".',
+      'La actividad sale de --actividad o de exportacion.actividad en la config.',
+    ];
+  }
+
+  return [
+    'Ajusta una factura E ya emitida: --ar es su número y --apv su punto de venta (por defecto, el de la nota). Para ajustar otra nota E, --ac nde o --ac nce.',
+    'Cliente, destino, tipo de exportación, moneda, cotización y actividad salen del comprobante asociado; un flag los reemplaza.',
+    'En servicios (--tipo-expo 2) ARCA exige el mismo destino, moneda y cotización que el asociado.',
+    'No lleva fecha de pago, --misma-moneda ni --permiso-existente. En bienes (--tipo-expo 1), los permisos de embarque son opcionales: van con --permiso.',
+  ];
+}
+
+/** Ayuda de `arcli fe`, `nde` y `nce`: la E no tiene concepto, IVA ni receptor argentino, asi que no usa las reglas de A, B y C. */
+export function createExportShortcutHelp(kind: ExportVoucherKind = EXPORT_VOUCHER_KIND): string {
+  const { arcaType, displayName, family, letter, shortcut } = kind;
+  const minimal = exportMinimalExample(kind);
+  const file = isExportNote(kind) ? `./${shortcut}.json` : './factura-e.json';
+  const item = isExportNote(kind) ? '"001|Ajuste de precio|1|500|unidades"' : '"001|Consultoría|10|150|unidades"';
 
   return [
     '',
@@ -502,19 +532,18 @@ export function createExportShortcutHelp(): string {
       'Comprobante',
       compactList([
         `${displayName}, tipo ARCA ${arcaType}, por WSFEX. Es lo mismo que arcli ${family} ${letter}.`,
-        'Sin flags sale de servicios (--tipo-expo 2), en dólares (USD) y con forma de pago "Transferencia Internacional".',
-        'La actividad sale de --actividad o de exportacion.actividad en la config.',
-        '--numero es obligatorio: arcli todavía no puede consultar en WSFEX el último comprobante emitido.',
+        ...exportVoucherRules(kind),
+        `Sin --numero toma el siguiente al último de ARCA en el punto de venta. Para verlos: arcli ultimos ${shortcut}.`,
       ]),
     ),
     '',
     section(
       'Ejemplos',
       compactList([
-        `Vista previa: ${EXPORT_MINIMAL_EXAMPLE}`,
-        `Emitir: ${EXPORT_MINIMAL_EXAMPLE} --emitir`,
-        `Con ítems, que tienen que sumar --monto: ${EXPORT_MINIMAL_EXAMPLE} --item "001|Consultoría|10|150|unidades"`,
-        `Desde un JSON: arcli ${shortcut} --cargar ./factura-e.json --json`,
+        `Vista previa: ${minimal}`,
+        `Emitir: ${minimal} --emitir`,
+        `Con ítems, que tienen que sumar --monto: ${minimal} --item ${item}`,
+        `Desde un JSON: arcli ${shortcut} --cargar ${file} --json`,
         'Más ejemplos: arcli ejemplos',
       ]),
     ),

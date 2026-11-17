@@ -42,9 +42,11 @@ try {
 
   if (!tarball) {
     // --ignore-scripts: el prepack haria otro build; aca se prueba el que ya esta.
-    const [packed] = JSON.parse(
+    const output = JSON.parse(
       run(npm(['pack', resolve('.'), '--ignore-scripts', '--json', '--pack-destination', workDirectory])),
     );
+    // npm 11 devuelve una lista; npm 12, un objeto por nombre de paquete.
+    const [packed] = Array.isArray(output) ? output : Object.values(output);
 
     tarball = join(workDirectory, packed.filename);
   }

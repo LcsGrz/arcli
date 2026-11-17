@@ -1,21 +1,25 @@
 import type { Command } from 'commander';
 
+import { checkAssociatedInArca } from '../../modules/billing/billing.associated-lookup';
 import { DEFAULT_EXCHANGE_RATE } from '../../modules/billing/billing.constants';
-import { exchangeRateWarnings } from '../../modules/billing/billing.currency';
-import { DUE_DAY_DEPRECATION_WARNING } from '../../modules/billing/billing.date-range';
 import { formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
+import { prepareBillingInput, resolveFceWarningsInOrder } from '../../modules/billing/billing.prepare';
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import { BillingService } from '../../modules/billing/billing.service';
 import type { VoucherShortcut } from '../../modules/billing/billing.types';
-import type { BillingExecutionResult } from '../../modules/billing/billing.types.internal';
+import type { BillingExecutionResult, BillingGateway } from '../../modules/billing/billing.types.internal';
 import { getVoucherKindByShortcut } from '../../modules/billing/voucher-kind-map';
 import type { ArcliConfig } from '../../modules/config/config.schemas';
 import { isPadronLookupEnabled } from '../../modules/config/config.schemas';
 import type { FceObligationGateway } from '../../modules/fce/fce-obligation';
+import type { PadronGateway } from '../../modules/padron/padron';
+import type { VoucherHistoryGateway } from '../../modules/vouchers/voucher-history';
 import { ArcaBillingGateway } from '../../services/arca/arca-billing.gateway';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
+import type { ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
 import { ArcaFceObligationGateway } from '../../services/arca/arca-fce-obligation.gateway';
 import { ArcaPadronGateway } from '../../services/arca/arca-padron.gateway';
+import { ArcaVoucherHistoryGateway } from '../../services/arca/arca-voucher-history.gateway';
 import { certificateWarnings, resolveArcaRuntime } from '../arca-runtime';
 import { getGlobalOptions, registerGlobalOptions } from '../global-options';
 import { startSpinner } from '../spinner';
@@ -90,71 +94,86 @@ export async function writeResultsWithPdfs(
   writePdfOutcomes(results, await attachPdfs(pdfOptions));
 }
 
-async function resolveFceWarnings(
-  inputs: readonly BillingCommandInput[],
-  service: BillingService,
-  gateway: FceObligationGateway,
-): Promise<string[][]> {
-  const warnings: string[][] = [];
-
-  // Secuencial a proposito: cada consulta a wsfecred reutiliza el mismo ticket WSAA.
-  for (const input of inputs) {
-    warnings.push(await service.resolveFceWarnings(input, gateway));
-  }
-
-  return warnings;
-}
-
 export interface BillingCommandOptions {
   /** Avisos que arma quien llama, como los flags de la E salteados en `arcli factura a`. */
   readonly extraWarnings?: readonly string[];
 }
 
+/** Los gateways de ARCA que usa el comando. */
+export interface BillingCommandGateways {
+  readonly billing: BillingGateway;
+  readonly fce: FceObligationGateway;
+  /** Para consultar el comprobante asociado de una nota antes de la vista previa. */
+  readonly history: Pick<VoucherHistoryGateway, 'getVoucher'>;
+  readonly padron: PadronGateway;
+}
+
+/** Lo que el comando toma de afuera: en los tests, una config y un ARCA falsos. */
+export interface BillingCommandDependencies {
+  readonly createGateways: (runtime: ResolvedArcaRuntime) => BillingCommandGateways;
+  readonly resolveRuntime: typeof resolveArcaRuntime;
+}
+
+const DEFAULT_DEPENDENCIES: BillingCommandDependencies = {
+  createGateways: (runtime) => {
+    const arca = new ArcaClientFactory().create(runtime);
+
+    return {
+      billing: new ArcaBillingGateway(arca),
+      fce: new ArcaFceObligationGateway(arca),
+      history: new ArcaVoucherHistoryGateway(arca),
+      padron: new ArcaPadronGateway(arca),
+    };
+  },
+  resolveRuntime: resolveArcaRuntime,
+};
+
 export async function executeBillingCommand(
   command: Command,
   shortcut: VoucherShortcut,
   options: BillingCommandOptions = {},
+  dependencies: BillingCommandDependencies = DEFAULT_DEPENDENCIES,
 ): Promise<void> {
   const globalOptions = getGlobalOptions(command);
   let spinner: ReturnType<typeof startSpinner> = null;
   const voucherKind = getVoucherKindByShortcut(shortcut);
 
   try {
-    const runtime = resolveArcaRuntime(globalOptions);
+    const runtime = dependencies.resolveRuntime(globalOptions);
     const plan = parseBillingCommandPlan(command, shortcut, resolveBillingCommandDefaults(runtime.config));
     const service = new BillingService();
-    const arca = new ArcaClientFactory().create(runtime);
-    const gateway = new ArcaBillingGateway(arca);
+    const gateways = dependencies.createGateways(runtime);
+    const gateway = gateways.billing;
     const useRaw = typeof globalOptions.bruto === 'boolean' ? globalOptions.bruto : runtime.outputRaw;
-    const padronGateway = new ArcaPadronGateway(arca);
     // En un lote, un fallo del padron o de la cotizacion sale con su indice, junto a los de validacion.
     const prepared = await prepareBatch({
       inputs: plan.inputs,
       plan,
+      // El asociado de una nota se consulta aca, una vez: la vista previa ya muestra su fecha y el tope de la NC,
+      // y la emision usa la entrada completada sin volver a consultar.
       resolve: async (input) => {
-        const resolution = await service.resolveIvaConditionFromPadron(input, padronGateway);
+        const entry = await prepareBillingInput(service, input, gateways);
+        const checked = await checkAssociatedInArca({
+          gateway: gateways.history,
+          input: entry.input,
+          runtime,
+          service,
+        });
 
-        return {
-          input: await service.resolveExchangeRate(resolution.input, gateway),
-          warnings: resolution.warnings,
-        };
+        return { input: checked.input, warnings: [...entry.warnings, ...checked.warnings] };
       },
       validate: ({ input }) => {
         service.buildVoucherPayload(input, runtime);
       },
     });
     const plannedInputs = prepared.map(({ input }) => input);
-    const padronWarnings = prepared.map(({ warnings }) => warnings);
-
     const fceWarnings = runtime.config.verificarFce
-      ? await resolveFceWarnings(plannedInputs, service, new ArcaFceObligationGateway(arca))
+      ? await resolveFceWarningsInOrder(service, plannedInputs, gateways.fce)
       : [];
-    const warnings = plannedInputs.map((input, position) => [
+    const warnings = prepared.map((entry, position) => [
       ...certificateWarnings(runtime),
       ...(options.extraWarnings ?? []),
-      ...(input.dueDay ? [DUE_DAY_DEPRECATION_WARNING] : []),
-      ...exchangeRateWarnings(input),
-      ...(padronWarnings[position] ?? []),
+      ...entry.warnings,
       ...(fceWarnings[position] ?? []),
     ]);
 

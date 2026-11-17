@@ -3,6 +3,8 @@ version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
+    # main es la rama default (lo publicado); el trabajo entra por dev.
+    target-branch: dev
     schedule:
       interval: monthly
     groups:
@@ -10,7 +12,16 @@ updates:
         patterns: ['*']
 
   - package-ecosystem: npm
+    directory: /site
+    schedule:
+      interval: monthly
+    groups:
+      sitio:
+        patterns: ['*']
+
+  - package-ecosystem: npm
     directory: /
+    target-branch: dev
     schedule:
       interval: monthly
     open-pull-requests-limit: 5
@@ -25,3 +36,6 @@ updates:
       # typescript-eslint todavia pide TypeScript < 6.1: el salto se hace a mano (BACKLOG, Mantenimiento).
       - dependency-name: typescript
         update-types: ['version-update:semver-major', 'version-update:semver-minor']
+      # Los tipos siguen al Node minimo de engines (22): con los de una version mayor, el typecheck acepta APIs que en 22 no existen.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']

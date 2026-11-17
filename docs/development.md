@@ -26,11 +26,14 @@ yarn dev --ayuda
 | `yarn typecheck`         | Chequeo de tipos de código y tests                                                         |
 | `yarn test`              | Suite de Vitest                                                                            |
 | `yarn test:coverage`     | Suite con cobertura (falla si baja de los pisos configurados)                              |
+| `yarn test:e2e`          | Tests de punta a punta sobre el `dist/` compilado (antes, `yarn build`)                    |
+| `yarn test:arca`         | Tests contra ARCA testing con tu config; solo local (antes, `yarn build`)                  |
 | `yarn lint`              | ESLint y Prettier (`yarn lint:eslint`, `yarn lint:prettier`)                               |
 | `yarn lint:eslint:fix`   | Corrige lo que ESLint puede arreglar solo                                                  |
 | `yarn lint:prettier:fix` | Formatea con Prettier                                                                      |
+| `yarn docs:comprobantes` | Escribe `docs/comprobantes/` desde `scripts/docs/comprobantes.ts`                          |
 | `yarn pack:check`        | Empaqueta `dist`, lo instala en una carpeta temporal y corre `arcli --version` y `--ayuda` |
-| `yarn open-source:check` | `typecheck`, `test:coverage`, `build` y `pack:check`                                       |
+| `yarn open-source:check` | `typecheck`, `test:coverage`, `build`, `test:e2e` y `pack:check`                           |
 
 Husky corre `lint-staged` en cada commit: chequeo de tipos, ESLint y los tests relacionados con lo modificado.
 
@@ -49,6 +52,24 @@ yarn test
 ```
 
 Para cambios de empaquetado o publicación, `yarn open-source:check`.
+
+### De punta a punta
+
+`src/cli/__tests__/e2e/*.e2e.ts` corre el `arcli` compilado (`dist/cli/index.js`) como un proceso aparte y compara lo que ve quien lo usa: la salida, que `--json` sea un solo documento JSON, el código de salida y lo que queda en la config. Cada test usa una carpeta de config vacía con `ARCLI_CONFIG_DIR`, sin red ni certificados, así que corre en el CI en los tres sistemas operativos. Van con `yarn test:e2e` después de `yarn build`; `yarn test` no los toma (no terminan en `.test.ts`).
+
+Sirven para lo que los tests unitarios no ven: el empaquetado de ESM, los errores de uso de commander, que nada escriba texto alrededor del JSON. Lo que necesita a ARCA (emitir, consultar) sigue en los unitarios, con ARCA simulado.
+
+### Contra ARCA testing
+
+`src/cli/__tests__/e2e/*.arca.ts` corre el `arcli` compilado contra ARCA testing, con tu config y tu certificado: `estado`, una tabla de `parametros`, `padron` y `fce-obligado` con los CUITs de prueba, una vista previa y una Factura C de prueba que después busca con `consultar`. Todo va con `--testing`, que el helper agrega siempre, así que no puede tocar producción. Los comprobantes de testing no tienen validez fiscal.
+
+```bash
+yarn build && yarn test:arca
+# con un punto de venta de exportación, también la E: últimos, número siguiente y notas
+yarn build && ARCLI_ARCA_PV_E=4 yarn test:arca
+```
+
+No corre en el CI (necesita credenciales y se niega si encuentra `CI`) ni con `yarn test`. Conviene correrlo antes de una release y después de tocar algo que hable con ARCA: atrapa lo que los tests con ARCA simulado no ven, como una respuesta con otra forma o un error nuevo del SDK.
 
 `src/cli/__tests__/docs-sync.test.ts` recorre el programa de commander y falla si un comando no aparece en `docs/` o en `llms.txt`, si un flag no aparece en `docs/cli-reference.md` o en `llms.txt`, o si una clave pública de config no aparece en `docs/configuration.md` o en `llms.txt`. Solo verifica que se mencione, no que la descripción esté bien. Lo que no se documenta a propósito va en `UNDOCUMENTED_FLAGS`, con el motivo.
 
@@ -74,14 +95,29 @@ yarn dev storybook              # todas las escenas
 yarn dev storybook colores      # o: bordes, certificados, componentes, comprobantes, configuracion, consultas, errores, json
 ```
 
+## Ramas
+
+- **`dev`**: donde se trabaja. Cada cambio sale de `dev` en una rama corta y vuelve con un PR a `dev`, mergeado con squash.
+- **`main`**: lo publicado en npm y rama default de GitHub, para que quien entra al repo vea el código y las docs de la versión que instaló. Cada commit es una versión (`vX.Y.Z (#N)`) o un hotfix, así que siempre se puede sacar un arreglo sin arrastrar lo que está a medio hacer en `dev`. Exige historia lineal.
+
+Las dos están protegidas: piden PR y el CI en verde (`validate`) y no aceptan force push ni borrado, tampoco a admins.
+
+**Release:** `release/vX.Y.Z` sale de `dev` y entra a `main` con squash (ver [Sacar una versión](#sacar-una-versión)). Si `main` no vuelve a `dev`, el próximo squash a `main` trae conflictos. Por eso después de cada release se abre un PR `main` → `dev` y se mergea con **merge commit**, nunca con squash (`dev` no exige historia lineal justamente para esto).
+
+**Hotfix:** para un bug de una versión publicada que no puede esperar a la próxima. Rama `fix/<tema>` desde `main`, PR a `main` (squash) y release patch desde `main`. Después, el mismo PR `main` → `dev` con merge commit.
+
+Como `main` es la default, GitHub y `gh pr create` proponen `main` como base: los PRs de trabajo se abren con `--base dev`, y Dependabot tiene `target-branch: dev`. Si un PR de trabajo llega apuntando a `main`, se le cambia la base a `dev` (`gh pr edit <N> --base dev`) antes de mergear.
+
 ## CI y publicación
 
-Hay dos workflows en `.github/workflows/`:
+Hay tres workflows en `.github/workflows/`:
 
-- **CI** (`ci.yml`): en cada push y pull request instala sin scripts de dependencias (`--ignore-scripts`) y corre lint, typecheck, tests con cobertura, build y `pack:check`. En Linux con Node 22 (el mínimo de `engines`), 24 y 26; en Windows y macOS con Node 24.
+- **CI** (`ci.yml`): en cada push a `main` o `dev` y en cada pull request instala sin scripts de dependencias (`--ignore-scripts`) y corre lint, typecheck, tests con cobertura, build, los tests de punta a punta y `pack:check`. En Linux con Node 22 (el mínimo de `engines`), 24 y 26; en Windows y macOS con Node 24.
 - **Release** (`release.yml`): se dispara al publicar una release de GitHub y publica en npm lo que apunta su tag. Falla si el tag no coincide con la versión de `package.json` o no está en `main`. Tiene dos jobs: `build` valida, empaqueta y prueba el `.tgz` sin permiso para publicar; `publish` solo baja ese `.tgz` y lo publica. No usa cache y no corre scripts de dependencias.
 
   `publish` corre en el environment `npm`, que solo acepta tags `v*` y espera tu aprobación en Actions ("Review deployments"). Los tags `v*` están protegidos por un ruleset ("Tags de release"): solo un admin del repo los puede crear, mover o borrar.
+
+- **Docs** (`docs.yml`): construye el [sitio de documentación](#sitio-de-documentación) en los PRs que tocan docs (falla si hay links internos rotos) y lo publica en GitHub Pages al publicar una release o a mano desde `main`.
 
 - **Dependabot** (`dependabot.yml`): una vez por mes, PRs agrupados para las actions y las dependencias de npm.
 
@@ -91,18 +127,19 @@ Las actions están fijadas por SHA (con la versión en un comentario), para que 
 
 ### Sacar una versión
 
-1. Crear la rama `release/vX.Y.Z`.
+1. Crear la rama `release/vX.Y.Z` desde `dev` (desde `main` si es un hotfix).
 2. En `CHANGELOG.md`, pasar las entradas de "Sin publicar" a una sección `[X.Y.Z] - AAAA-MM-DD` y actualizar los links de comparación del final.
-3. Subir la versión en `package.json` y en `src/cli/version.ts` (un test verifica que coincidan).
-4. Abrir el PR, esperar el CI y mergear.
+3. Subir la versión en `package.json` y en `src/cli/version.ts` (`yarn test:e2e` y `pack:check` verifican que coincidan).
+4. Abrir el PR contra `main`, esperar el CI y mergear con squash.
 5. Crear la release de GitHub `vX.Y.Z` sobre `main`, con las notas del changelog: crea el tag y dispara `Release`. Cuando `build` termina, aprobá el deploy al environment `npm` en Actions y `publish` publica en npm.
 6. Si `Release` falla, arreglar la causa y usar "Re-run jobs" en Actions: vuelve a correr sobre el mismo tag.
+7. Abrir el PR `main` → `dev` y mergearlo con merge commit (ver [Ramas](#ramas)).
 
 Versionado: cambios que rompen el contrato del CLI → mayor; flags, comandos o claves nuevas y validaciones que adelantan rechazos de ARCA → menor; correcciones sin cambio de contrato → patch.
 
 ## Trabajar con agentes
 
-Las instrucciones para agentes están en [AGENTS.md](../AGENTS.md) y la referencia para quien usa el CLI desde un agente, en [llms.txt](../llms.txt). Para Claude Code, el repo trae además `.claude/settings.json`, las skills de `.claude/skills/` y los agentes de `.claude/agents/`. Quien mantiene arcli revisa los PRs de terceros con `/revisar-pr <N>`. Tu config personal para este repo va en `.claude/settings.local.json`, que está ignorado.
+Las instrucciones para agentes están en [AGENTS.md](../AGENTS.md) y la referencia para quien usa el CLI desde un agente, en [llms.txt](../llms.txt). Para Claude Code, el repo trae además `.claude/settings.json`, las skills de `.claude/skills/` y los agentes de `.claude/agents/`. Quien mantiene ARCLI revisa los PRs de terceros con `/revisar-pr <N>`. Tu config personal para este repo va en `.claude/settings.local.json`, que está ignorado.
 
 ### Verificación al terminar (hook Stop)
 
@@ -111,7 +148,7 @@ Las instrucciones para agentes están en [AGENTS.md](../AGENTS.md) y la referenc
 - Si `src/` no cambió desde la última verificación verde de la sesión, sale enseguida (~0,1 s).
 - Si cambió, corre `eslint --fix` y `vitest related` sobre los archivos cambiados y `tsc` sobre todo el proyecto (~3 s). Si algo falla, le pasa a Claude las primeras 40 líneas de cada error y Claude sigue trabajando.
 - Nunca bloquea dos veces por el mismo diff: si Claude vuelve a terminar sin cambiar nada, solo te muestra un aviso.
-- Si cambió `src/cli/` o `src/modules/config/` y en la rama no se tocó ningún doc (`docs/`, `README.md`, `llms.txt`, `CHANGELOG.md`), le recuerda a Claude la [tabla de documentación](../CONTRIBUTING.md#documentación). Una vez por sesión.
+- Si cambió `src/cli/` o `src/modules/` (salvo tests, `storybook/` y `*.internal.ts`) y en la rama no se tocó ningún doc (`docs/`, `README.md`, `llms.txt`, `CHANGELOG.md`), le recuerda a Claude la [tabla de documentación](../CONTRIBUTING.md#documentación). Una vez por sesión.
 
 Ve todos los cambios, también los hechos por Bash, porque compara contra `git diff HEAD`. No reemplaza a `yarn test` completo ni al CI. Lo que ya está commiteado no lo vuelve a mirar (eso lo cubre lint-staged).
 
@@ -127,13 +164,47 @@ Para desactivarlo: `"disableAllHooks": true` en `.claude/settings.local.json`, o
 
 ### Permisos
 
-`.claude/settings.json` le impide a Claude leer o editar certificados, claves y tickets de ARCA (`*.key`, `*.pem`, `*.p12`, `*.pfx`, `TA-*.json`, en el repo y en tu home) y correr `npm publish` o `yarn publish`: se publica solo con el workflow `Release`. Las reglas de lectura frenan las herramientas de archivos de Claude, no a un script que los abra, así que no es una barrera completa. El repo no habilita mergear PRs ni publicar sin confirmación: si mantenés arcli y lo querés, sumalo en tu `.claude/settings.local.json`.
+`.claude/settings.json` le impide a Claude leer o editar certificados, claves y tickets de ARCA (`*.key`, `*.pem`, `*.p12`, `*.pfx`, `TA-*.json`, en el repo y en tu home) y correr `npm publish` o `yarn publish`: se publica solo con el workflow `Release`. Las reglas de lectura frenan las herramientas de archivos de Claude, no a un script que los abra, así que no es una barrera completa. El repo no habilita mergear PRs ni publicar sin confirmación: si mantenés ARCLI y lo querés, sumalo en tu `.claude/settings.local.json`.
+
+## Sitio de documentación
+
+[arcli.com.ar](https://arcli.com.ar) es un sitio de [Starlight](https://starlight.astro.build) que vive en `site/`, con su propio `package.json`: Astro no entra a las dependencias del CLI ni al paquete de npm.
+
+Las páginas **no se editan en `site/`**: `site/scripts/sync-docs.mjs` las genera desde `docs/`, `README.md` (el prompt para instalar con IA, que copian la portada y "Instalar y configurar") y `CHANGELOG.md`, y lo generado está en el `.gitignore` de `site/`. Así `docs/` sigue siendo la única fuente, los links de GitHub no se rompen y los tests de docs no cambian. El script saca el título al frontmatter, cambia los links entre docs por los del sitio, manda a GitHub los que apuntan a archivos que no están en el sitio (arquitectura, desarrollo, design system) y apunta "Editar esta página" al archivo original en `dev`. Lo que es solo del sitio, como la portada (`site/src/components/landing-body.html` y `Landing.astro`), sí se edita ahí.
+
+Para sumar una página, agregala a `PAGES` en `sync-docs.mjs`: el orden de esa lista es el del menú. Su descripción (la de los buscadores y la vista previa al compartir el link) sale del primer párrafo después del título: las oraciones enteras que entran en 160 caracteres, y en los comprobantes, antes, "Cómo emitir una Factura A con ARCLI.". Si ese párrafo no dice para qué sirve la página, escribí una oración en `description` dentro de `PAGES`. El build falla si una página queda sin descripción, pasa de 160 caracteres o repite la de otra. Los avisos de GitHub (`> [!TIP]`, `> [!CAUTION]`…) se convierten en los avisos de colores del sitio. `obtencion-certificados.md` y `usage-patterns.md` quedan en `docs/` como índice, porque hay links que ya circulan y las versiones publicadas del CLI imprimen el de los certificados; en el sitio, sus links van a la página que tiene el contenido (`ALIASES`).
+
+Lo que en el sitio se ve distinto que en GitHub se marca en `docs/` con un comentario, que GitHub no muestra:
+
+| Comentario                                        | En el sitio                                                                                    |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `<!-- arcli: pasos -->`                           | Los `### 1. …` hasta el próximo `##`, como pasos numerados unidos por una línea                |
+| `<!-- arcli: opciones=req\|opt\|run -->`          | Cada `### opción` (tabla Largo \| Corto \| Qué es) como tarjeta; lo genera `docs:comprobantes` |
+| `<!-- arcli: familia="…" icono="…" orden="…" -->` | La familia arriba del título y el lugar en el menú de comprobantes                             |
+| `<!-- arcli: chat -->`                            | La cita con **Vos:** y **Tu asistente:** como una conversación                                 |
+| `<!-- arcli: muestra=error\|vista -->`            | El bloque de texto siguiente como un cartel chico                                              |
+| `<!-- arcli: formas -->`                          | La tabla siguiente como filas que llevan a cada forma de uso                                   |
+
+Además, Problemas frecuentes pasa cada problema a un desplegable con buscador y Novedades pliega las versiones viejas. Las páginas con `hidden: true` en `PAGES` (las guías completas) se generan pero no van en el menú: se llega desde el link de su versión corta. El menú y sus iconos salen de `PAGES` (`src/generated/sidebar.json`), y el comportamiento de esas páginas está en `site/public/arcli.js`.
+
+El sitio también publica `robots.txt` (permite todo y apunta a `sitemap-index.xml`, que arma Starlight), `site.webmanifest` y los íconos de respaldo del favicon (ver [Ícono](#imágenes-y-gif-del-readme)); esos están en `site/public/` y se commitean. Las visitas se cuentan con Cloudflare Web Analytics (sin cookies): el script va en `head` de `astro.config.mjs` y solo sale en el build, no en `yarn dev`.
+
+Para asistentes de IA, el build publica en la raíz del sitio `llms.txt` (el mismo del repo), `llms-full.txt` (todas las páginas juntas) y cada página en Markdown (`/referencia/comandos.md`).
+
+```bash
+cd site
+yarn install
+yarn dev       # genera las páginas y abre el sitio en localhost:4321
+yarn build     # genera, construye y revisa los links internos y las descripciones (scripts/check-links.mjs)
+```
+
+Se publica desde `main` con la release, así que el sitio muestra lo que está en npm. Para publicarlo sin release: Actions → Docs → Run workflow sobre `main`.
 
 ## Imágenes y GIF del README
 
 Están en `docs/assets/demo/` y se regeneran con scripts para que no queden desactualizados:
 
-- **GIF** (`interactivo.gif`, `consultar.gif`, `comandos.gif`) y **video promocional** (`promo.mp4`, 16:9 para redes): los graba [VHS](https://github.com/charmbracelet/vhs) a partir de los guiones de `docs/assets/tapes/`. `scripts/demo/record.sh` usa un `HOME` temporal con una copia de tu config sin las credenciales de producción, así la grabación no muestra tus rutas ni el aviso de vencimiento de ese certificado, y **emite comprobantes reales en testing**. Es para quien mantiene el repo. El certificado de testing siempre es del CUIT de quien lo genera, así que `scripts/demo/mask-cuit.mjs` lo reemplaza por `20-11111111-2` en todo lo que arcli escribe en la terminal.
+- **GIF** (`interactivo.gif`, `consultar.gif`, `comandos.gif`) y **video promocional** (`promo.mp4`, 16:9 para redes): los graba [VHS](https://github.com/charmbracelet/vhs) a partir de los guiones de `docs/assets/tapes/`. `scripts/demo/record.sh` usa un `HOME` temporal con una copia de tu config sin las credenciales de producción, así la grabación no muestra tus rutas ni el aviso de vencimiento de ese certificado, y **emite comprobantes reales en testing**. Es para quien mantiene el repo. El certificado de testing siempre es del CUIT de quien lo genera, así que `scripts/demo/mask-cuit.mjs` lo reemplaza por `20-11111111-2` en todo lo que ARCLI escribe en la terminal.
 
   ```bash
   brew install vhs
@@ -142,13 +213,13 @@ Están en `docs/assets/demo/` y se regeneran con scripts para que no queden desa
 
   Para grabar solo algunos, pasá los guiones: `scripts/demo/record.sh docs/assets/tapes/consultar.tape`. `consultar.tape` solo lee; `interactivo.tape`, `comandos.tape` y `promo.tape` emiten.
 
-- **PDF de ejemplo** (`pdf-factura.png`): `scripts/demo/pdf-sample.mts` arma una Factura B con datos ficticios, sin consultar ARCA. Necesita el plugin de PDF instalado y macOS (`qlmanage`).
+- **PDF de ejemplo** (`pdf-factura.png`): `scripts/demo/pdf-sample.mts` arma una Factura C de $ 15.000 a consumidor final, con datos ficticios, sin consultar ARCA. Necesita el plugin de PDF instalado y macOS (`qlmanage`).
 
   ```bash
   node --import tsx scripts/demo/pdf-sample.mts
   ```
 
-- **Ícono** (`docs/assets/imagenes/arcliIcon.*` y los de `assets/acceso-directo/` que usa `arcli acceso-directo`): `scripts/icono/generar.py` los arma a partir del logo ASCII. Necesita macOS (`iconutil`) y `rsvg-convert` (`brew install librsvg`).
+- **Ícono** (`docs/assets/imagenes/arcliIcon.*`, los de `assets/acceso-directo/` que usa `arcli acceso-directo` y los del sitio en `site/public/`: `favicon.ico`, `apple-touch-icon.png`, `icon-192.png` e `icon-512.png`): `scripts/icono/generar.py` los arma a partir del logo ASCII. Necesita macOS (`iconutil`) y `rsvg-convert` (`brew install librsvg`).
 
   ```bash
   python3 scripts/icono/generar.py

@@ -1,8 +1,7 @@
-import type { ICbtesAsoc, IIva, INextVoucher } from '@arcasdk/core/lib/domain/types/voucher.types';
-
 import { formatDateAsArcaDate, parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import type { ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
+import type { ICbtesAsoc, IIva, INextVoucher } from '../../services/arca/arca-sdk.types';
 import { evaluateFceObligation, type FceObligationGateway, shouldCheckFceObligation } from '../fce/fce-obligation';
 import type { PadronGateway } from '../padron/padron';
 
@@ -15,6 +14,7 @@ import { EmissionUncertainError } from './billing.errors';
 import { resolveElectronicCreditOptionals } from './billing.fce';
 import { validateConsumerIdentification, validateIvaConditionForVoucher } from './billing.iva-receptor';
 import {
+  formatVoucherSubject,
   resolveBillingConceptCode,
   resolveBillingCurrencyCode,
   resolveBillingDocumentTypeCode,
@@ -46,7 +46,10 @@ export class BillingService {
    * Completa la cotizacion oficial en moneda extranjera sin --cm: con --misma-moneda es obligatoria y sin ella es el
    * default. Se resuelve antes de la vista previa para que el preview muestre el valor que se va a enviar.
    */
-  public async resolveExchangeRate(input: BillingCommandInput, gateway: BillingGateway): Promise<BillingCommandInput> {
+  public async resolveExchangeRate(
+    input: BillingCommandInput,
+    gateway: Pick<BillingGateway, 'getQuotation'>,
+  ): Promise<BillingCommandInput> {
     if (!needsOfficialExchangeRate(input)) {
       return input;
     }
@@ -84,6 +87,14 @@ export class BillingService {
         voucherKind,
         warnings: options.warnings ?? [],
       };
+    }
+
+    // Resguardo: una nota FCE no llega a ARCA sin la fecha del asociado (10158). Sin `--afecha` la completa
+    // checkAssociatedInArca antes de la vista previa; si quien llama no la consulto, se frena aca.
+    if (voucherKind.isElectronicCredit && payload.CbtesAsoc?.some((associated) => !associated.CbteFch)) {
+      throw new InputValidationError(
+        `${formatVoucherSubject(voucherKind)} requiere la fecha del comprobante asociado. Usá \`--afecha <fecha>\`.`,
+      );
     }
 
     // Fuera del try: si falla la autenticacion o el pedido del ultimo numero, no se envio nada a ARCA

@@ -1,4 +1,6 @@
+import { AppError } from '../../lib/errors/app-error';
 import type { BillingIvaCondition } from '../billing/billing.schemas';
+import { type ArcliEnvironment, formatEnvironmentLabel } from '../config/config.schemas';
 
 /** Impuestos del padron que definen la condicion frente al IVA. */
 export const PADRON_TAX_IDS = {
@@ -65,4 +67,15 @@ export function deriveIvaCondition(input: {
   }
 
   return null;
+}
+
+/** El CUIT no esta en el padron: lo dicen `arcli padron` y "Datos de un CUIT" del asistente. */
+export function taxpayerNotFoundError(cuit: number, environment: ArcliEnvironment): AppError {
+  return new AppError(`El CUIT ${cuit} no figura en el padrón de ARCA (${formatEnvironmentLabel(environment)}).`, {
+    code: 'TAXPAYER_NOT_FOUND',
+    suggestion:
+      environment === 'testing'
+        ? 'El padrón de testing tiene datos ficticios: probá con 20201797064.'
+        : 'Revisá el número.',
+  });
 }

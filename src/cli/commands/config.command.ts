@@ -13,7 +13,7 @@ import {
   type ArcliEnvironment,
   COTIZACION_DEPRECATION_WARNING,
 } from '../../modules/config/config.schemas';
-import { ConfigService } from '../../modules/config/config.service';
+import { ConfigService, deprecatedConfigKeyWarning } from '../../modules/config/config.service';
 import { buildConfigDoctorReport, type ConfigDoctorRuntimeCheck } from '../../modules/config/config-doctor';
 import { ArcaContextResolver } from '../../services/arca/arca-context.resolver';
 import { PdfPlugin } from '../../services/pdf/pdf-plugin';
@@ -36,6 +36,15 @@ function printConfigResult(textValue: string, jsonValue: string, useJson = false
   }
 
   writeTerminalOutput(textValue);
+}
+
+/** Una clave deprecada (`comprobantesPorLista`) se guarda con su reemplazo: se avisa para que la cambien. */
+function warnIfDeprecatedKey(key: string): void {
+  const warning = deprecatedConfigKeyWarning(key);
+
+  if (warning) {
+    writeTerminalNotice(() => warning);
+  }
 }
 
 const ENVIRONMENTS: readonly ArcliEnvironment[] = ['testing', 'produccion'];
@@ -145,6 +154,8 @@ export function registerConfigCommand(program: Command): void {
           writeTerminalNotice(() => COTIZACION_DEPRECATION_WARNING);
         }
 
+        warnIfDeprecatedKey(key);
+
         printConfigResult(
           formatConfigAsText(config, paths),
           formatConfig(config, paths),
@@ -168,6 +179,8 @@ export function registerConfigCommand(program: Command): void {
       try {
         const config = service.unsetValue(key);
         const paths = service.resolvePaths(config);
+
+        warnIfDeprecatedKey(key);
         printConfigResult(
           formatConfigAsText(config, paths),
           formatConfig(config, paths),

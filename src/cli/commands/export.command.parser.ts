@@ -7,11 +7,15 @@ import {
   mapExportJsonItems,
   readExportJsonInput,
 } from '../../modules/export/export.json-input';
-import type {
-  ExportItemInput,
-  ExportModeSource,
-  ExportType,
-  ExportVoucherInput,
+import {
+  EXPORT_VOUCHER_KIND,
+  type ExportAssociatedVoucherInput,
+  type ExportItemInput,
+  type ExportModeSource,
+  type ExportType,
+  type ExportVoucherInput,
+  type ExportVoucherKind,
+  isExportNote,
 } from '../../modules/export/export.types';
 
 export interface ExportCommandPlan {
@@ -25,6 +29,8 @@ export interface ExportCommandPlan {
 export interface ExportCommandDefaults {
   /** `output.emitirPorDefecto` de la config. */
   readonly defaultEmit?: boolean;
+  /** Que E arma el comando. Sin esto, la factura. */
+  readonly voucherKind?: ExportVoucherKind;
 }
 
 function pickString(...values: unknown[]): string | undefined {
@@ -104,11 +110,33 @@ export function parseExportCommandPlan(command: Command, defaults: ExportCommand
 
   // Igual que en A, B y C: los flags ganan y, sin ellos, vale `"pdf"` del archivo.
   const pdf = exportPdf ? true : skipPdf ? false : file?.pdf;
+  const voucherKind = defaults.voucherKind ?? EXPORT_VOUCHER_KIND;
+  const associatedFile = file?.comprobanteAsociado;
+
+  if (associatedFile && !isExportNote(voucherKind)) {
+    throw new InputValidationError(
+      'La factura E no lleva comprobante asociado: sacá "comprobanteAsociado" del JSON o usá `arcli nce` o `arcli nde`.',
+    );
+  }
+
+  // `arcli factura e` tambien tiene `--ac`, `--ar`... de A, B y C: en la factura E se saltean con un aviso.
+  const associatedVoucher: ExportAssociatedVoucherInput | undefined = isExportNote(voucherKind)
+    ? {
+        arcaType: pickNumber(options.at, associatedFile?.tipo),
+        cuit: pickString(options.acuit, associatedFile?.cuit),
+        // `--afecha` es de A, B y C: en `arcli nota-credito e` se saltea con un aviso. Del JSON, se avisa que no se usa.
+        date: associatedFile?.fecha,
+        number: pickNumber(options.ar, associatedFile?.numero),
+        pointOfSale: pickNumber(options.apv, options.asociadoPuntoVenta, associatedFile?.puntoVenta),
+        shortcut: pickString(options.ac, associatedFile?.atajo),
+      }
+    : undefined;
 
   return {
     input: {
       activity: pickNumber(options.actividad, file?.actividad),
       amount: pickNumber(options.monto, file?.montoTotal, file?.monto),
+      associatedVoucher,
       clientAddress: pickString(options.domicilioCliente, file?.domicilioCliente),
       clientCountryCuit: pickNumber(options.cuitPais, file?.cuitPais),
       clientName: pickString(options.cliente, file?.cliente),
@@ -133,8 +161,10 @@ export function parseExportCommandPlan(command: Command, defaults: ExportCommand
       permitsExisting: pickBoolean(options.permisoExistente, file?.permisoExistente),
       pointOfSale: pickNumber(options.puntoVenta, options.pv, file?.puntoVenta),
       requestId: pickNumber(options.idSolicitud, file?.idSolicitud),
-      sameCurrency: pickBoolean(options.mismaMoneda, file?.mismaMoneda),
+      // En `arcli nota-credito e`, `--misma-moneda` es el de A, B y C y se saltea con un aviso.
+      sameCurrency: pickBoolean(isExportNote(voucherKind) ? undefined : options.mismaMoneda, file?.mismaMoneda),
       voucherDate: pickString(options.fecha, file?.fechaComprobante),
+      voucherKind,
       voucherNumber: pickNumber(options.numero, file?.numero),
     },
     modeSource,

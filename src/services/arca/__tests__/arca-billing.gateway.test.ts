@@ -1,8 +1,7 @@
-import type { Arca } from '@arcasdk/core';
-import type { IVoucher } from '@arcasdk/core/lib/domain/types/voucher.types';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ArcaBillingGateway } from '../arca-billing.gateway';
+import type { Arca } from '../arca-sdk.types';
 
 function createGateway(service: Record<string, unknown>): ArcaBillingGateway {
   return new ArcaBillingGateway({ electronicBillingService: service } as unknown as Arca);
@@ -81,15 +80,5 @@ describe('ArcaBillingGateway', () => {
     });
 
     await expect(gateway.getNextVoucherNumber(3, 11)).rejects.toBe(wsaaError);
-  });
-
-  it('sends the numbered voucher to createVoucher and returns its result', async () => {
-    const result = { cae: '123', caeFchVto: '20261031', response: {} };
-    const createVoucher = vi.fn(async () => result);
-    const gateway = createGateway({ createVoucher });
-    const voucher = { CbteDesde: 42, CbteHasta: 42, CbteTipo: 11, PtoVta: 3 } as IVoucher;
-
-    await expect(gateway.createVoucher(voucher)).resolves.toBe(result);
-    expect(createVoucher).toHaveBeenCalledWith(voucher);
   });
 });

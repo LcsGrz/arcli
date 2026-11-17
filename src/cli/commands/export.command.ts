@@ -7,14 +7,20 @@ import {
 } from '../../modules/billing/billing.mappers';
 import { formatExportResultAsJson, formatExportResultAsText } from '../../modules/export/export.presenter';
 import { ExportService } from '../../modules/export/export.service';
-import { EXPORT_VOUCHER_KIND, type ExportExecutionResult } from '../../modules/export/export.types';
+import {
+  EXPORT_VOUCHER_KIND,
+  type ExportExecutionResult,
+  type ExportGateway,
+  type ExportVoucherKind,
+} from '../../modules/export/export.types';
 import { formatPdfOutcomeAsText } from '../../modules/pdf/pdf.presenter';
+import { planEmissionConfirmation, resolvePdfAfterConfirmation } from '../../modules/pdf/pdf-decision';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
-import { ArcaExportGateway } from '../../services/arca/arca-export.gateway';
+import type { ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
 import { noticePanel, writeTerminalJson, writeTerminalOutput } from '../../ui';
 import { certificateWarnings, resolveArcaRuntime } from '../arca-runtime';
 import { getGlobalOptions } from '../global-options';
-import { chooseOne } from '../interactive/prompts';
+import { askEmission } from '../interactive/emission-prompt';
 import { startSpinner } from '../spinner';
 
 import { REJECTED_EXIT_CODE } from './billing.command.shared';
@@ -57,39 +63,44 @@ function resolveWarnings(
   return [...certificateWarningsList, ...ignored];
 }
 
-/** Esc cuenta como no, igual que en A, B y C. */
-async function promptForEmission(environment: 'produccion' | 'testing'): Promise<boolean> {
-  return chooseOne(
-    formatEmissionQuestion(formatVoucherWithArticle(EXPORT_VOUCHER_KIND), environment),
-    [
-      { name: 'Sí, emitir ahora', value: true },
-      { name: 'No, dejar sin emitir', value: false },
-    ],
-    true,
-    { escapeLabel: 'no emitir', escapeValue: false },
-  );
-}
-
 export interface ExportCommandOptions {
   /** Avisos que arma quien llama, como los flags de A, B y C salteados en `arcli factura e`. */
   readonly extraWarnings?: readonly string[];
+  /** Factura, nota de debito o nota de credito E. Sin esto, factura. */
+  readonly voucherKind?: ExportVoucherKind;
 }
+
+/** Lo que el comando toma de afuera: en los tests, una config y un WSFEX falsos. */
+export interface ExportCommandDependencies {
+  readonly createGateway: (runtime: ResolvedArcaRuntime) => ExportGateway;
+  readonly resolveRuntime: typeof resolveArcaRuntime;
+}
+
+const DEFAULT_DEPENDENCIES: ExportCommandDependencies = {
+  createGateway: (runtime) => new ArcaClientFactory().createExportGateway(runtime),
+  resolveRuntime: resolveArcaRuntime,
+};
 
 /**
  * Un comprobante por ejecucion: resuelve el payload contra WSFEX, muestra la vista previa si corresponde,
  * emite y, si hay CAE, genera el PDF.
  */
-export async function executeExportCommand(command: Command, options: ExportCommandOptions = {}): Promise<void> {
+export async function executeExportCommand(
+  command: Command,
+  options: ExportCommandOptions = {},
+  dependencies: ExportCommandDependencies = DEFAULT_DEPENDENCIES,
+): Promise<void> {
   const globalOptions = getGlobalOptions(command);
   let spinner: ReturnType<typeof startSpinner> = null;
 
   try {
-    const runtime = resolveArcaRuntime(globalOptions);
-    const plan = parseExportCommandPlan(command, { defaultEmit: runtime.config.output.emitirPorDefecto });
+    const runtime = dependencies.resolveRuntime(globalOptions);
+    const voucherKind = options.voucherKind ?? EXPORT_VOUCHER_KIND;
+    const plan = parseExportCommandPlan(command, { defaultEmit: runtime.config.output.emitirPorDefecto, voucherKind });
     const useRaw = typeof globalOptions.bruto === 'boolean' ? globalOptions.bruto : runtime.outputRaw;
     const interactive = !runtime.outputJson && Boolean(process.stdin.isTTY && process.stdout.isTTY);
     const service = new ExportService();
-    const gateway = new ArcaExportGateway(new ArcaClientFactory().createForExport(runtime));
+    const gateway = dependencies.createGateway(runtime);
 
     spinner = runtime.outputJson ? null : startSpinner('Consultando WSFEX...');
 
@@ -107,6 +118,7 @@ export async function executeExportCommand(command: Command, options: ExportComm
 
     let result = service.preview(resolved, runtime, warnings);
     let previewShown = false;
+    let pdfInput = plan.input;
 
     if (!plan.input.emit) {
       // Sin flags de emision y con terminal: se muestra la vista previa y se pregunta. Con --json o sin
@@ -124,18 +136,23 @@ export async function executeExportCommand(command: Command, options: ExportComm
 
       writeTerminalOutput(formatExportResultAsText(result, { environment: runtime.environment, raw: useRaw }));
 
-      if (!(await promptForEmission(runtime.environment))) {
+      // Esc cuenta como no, igual que en A, B y C. Si ningun flag decidio el PDF, la pregunta tambien lo decide.
+      const choice = await askEmission(
+        formatEmissionQuestion(formatVoucherWithArticle(voucherKind), runtime.environment),
+        planEmissionConfirmation({ flags: [plan.input.pdf], mode: runtime.config.pdf }),
+      );
+
+      if (!choice) {
         writeTerminalOutput(noticePanel(NOTHING_EMITTED_NOTICE, 'muted'));
 
         return;
       }
 
+      pdfInput = { ...plan.input, pdf: resolvePdfAfterConfirmation(plan.input.pdf, choice) };
       previewShown = true;
     }
 
-    spinner = runtime.outputJson
-      ? null
-      : startSpinner(`Emitiendo ${formatVoucherWithArticle(EXPORT_VOUCHER_KIND)} en ARCA...`);
+    spinner = runtime.outputJson ? null : startSpinner(`Emitiendo ${formatVoucherWithArticle(voucherKind)} en ARCA...`);
 
     result = await service.execute({ gateway, resolved, runtime, warnings });
 
@@ -144,7 +161,7 @@ export async function executeExportCommand(command: Command, options: ExportComm
 
     result = await attachExportPdf(result, {
       config: runtime.config,
-      input: plan.input,
+      input: pdfInput,
       interactive,
     });
 

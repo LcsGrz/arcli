@@ -2,9 +2,14 @@ import { formatEmissionQuestion, NOTHING_EMITTED_NOTICE } from '../../modules/bi
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import type { BillingService } from '../../modules/billing/billing.service';
 import type { BillingExecutionResult, BillingGateway } from '../../modules/billing/billing.types.internal';
+import {
+  type EmissionChoice,
+  planEmissionConfirmation,
+  resolvePdfAfterConfirmation,
+} from '../../modules/pdf/pdf-decision';
 import type { ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
 import { noticePanel, writeTerminalOutput } from '../../ui';
-import { chooseOne } from '../interactive/prompts';
+import { askEmission } from '../interactive/emission-prompt';
 
 import { formatBillingOutputs } from './billing.command.output';
 
@@ -15,28 +20,16 @@ export interface InteractiveBillingPreviewOutcome {
   readonly proceed: boolean;
 }
 
-/** Esc cuenta como no, igual que en el modo interactivo. */
-async function promptForEmission(
-  count: number,
-  voucherLabel: string,
-  environment: ResolvedArcaRuntime['environment'],
-): Promise<boolean> {
-  return chooseOne(
-    formatEmissionQuestion(count > 1 ? `los ${count} comprobantes` : voucherLabel, environment),
-    [
-      { name: 'Sí, emitir ahora', value: true },
-      { name: 'No, dejar sin emitir', value: false },
-    ],
-    true,
-    { escapeLabel: 'no emitir', escapeValue: false },
-  );
-}
-
-function applyEmitDecision(inputs: BillingCommandInput[], shouldEmit: boolean): BillingCommandInput[] {
+/**
+ * Esc cuenta como no, igual que en el modo interactivo. Si ningun flag decidio el PDF, la pregunta tambien lo
+ * decide: despues de emitir no se pregunta nada mas.
+ */
+function applyEmitDecision(inputs: BillingCommandInput[], choice: EmissionChoice): BillingCommandInput[] {
   return inputs.map((input) => ({
     ...input,
-    dryRun: !shouldEmit,
-    emit: shouldEmit,
+    dryRun: false,
+    emit: true,
+    pdf: resolvePdfAfterConfirmation(input.pdf, choice),
   }));
 }
 
@@ -93,9 +86,13 @@ export async function runInteractiveBillingPreview(options: {
     formatBillingOutputs(previewResults, { environment: options.runtime.environment, raw: options.useRaw }),
   );
 
-  const confirmed = await promptForEmission(options.inputs.length, options.voucherLabel, options.runtime.environment);
+  const count = options.inputs.length;
+  const choice = await askEmission(
+    formatEmissionQuestion(count > 1 ? `los ${count} comprobantes` : options.voucherLabel, options.runtime.environment),
+    planEmissionConfirmation({ flags: options.inputs.map((input) => input.pdf), mode: options.runtime.config.pdf }),
+  );
 
-  if (!confirmed) {
+  if (!choice) {
     writeTerminalOutput(noticePanel(NOTHING_EMITTED_NOTICE, 'muted'));
 
     return {
@@ -108,7 +105,7 @@ export async function runInteractiveBillingPreview(options: {
 
   return {
     confirmedInteractively: true,
-    inputs: applyEmitDecision(options.inputs, true),
+    inputs: applyEmitDecision(options.inputs, choice),
     previewShown: true,
     proceed: true,
   };

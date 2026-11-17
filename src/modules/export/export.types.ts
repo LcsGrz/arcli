@@ -1,11 +1,7 @@
-import type { IFEXAuthorizeOutput } from '@arcasdk/core/lib/application/dto/fex';
-
+import type { IFEXAuthorizeOutput } from '../../services/arca/arca-sdk.types';
 import type { PdfOutcome } from '../pdf/pdf.types';
 
-/**
- * WSFEX solo emite comprobantes de exportacion, asi que la letra es siempre E y el tipo de comprobante
- * 19 (Factura E). Notas de credito y debito E quedan para mas adelante.
- */
+/** WSFEX solo emite comprobantes de exportacion, asi que la letra es siempre E. 19 es la Factura E. */
 export const EXPORT_VOUCHER_KIND = {
   arcaType: 19,
   displayName: 'Factura de exportación E',
@@ -14,7 +10,45 @@ export const EXPORT_VOUCHER_KIND = {
   shortcut: 'fe',
 } as const;
 
-export type ExportVoucherKind = typeof EXPORT_VOUCHER_KIND;
+/** 20, "Nota de Débito por operaciones con el Exterior". */
+export const EXPORT_DEBIT_NOTE_KIND = {
+  arcaType: 20,
+  displayName: 'Nota de débito de exportación E',
+  family: 'nota-debito',
+  letter: 'e',
+  shortcut: 'nde',
+} as const;
+
+/** 21, "Nota de Crédito por operaciones con el Exterior". */
+export const EXPORT_CREDIT_NOTE_KIND = {
+  arcaType: 21,
+  displayName: 'Nota de crédito de exportación E',
+  family: 'nota-credito',
+  letter: 'e',
+  shortcut: 'nce',
+} as const;
+
+export const EXPORT_VOUCHER_KINDS = [EXPORT_VOUCHER_KIND, EXPORT_DEBIT_NOTE_KIND, EXPORT_CREDIT_NOTE_KIND] as const;
+
+export type ExportVoucherKind = (typeof EXPORT_VOUCHER_KINDS)[number];
+
+/** La E de una familia de A, B y C (`factura`, `nota-credito`, `nota-debito`), si la tiene. */
+export function getExportVoucherKindByFamily(family: string): ExportVoucherKind | undefined {
+  return EXPORT_VOUCHER_KINDS.find((kind) => kind.family === family);
+}
+
+export function getExportVoucherKindByShortcut(shortcut: string): ExportVoucherKind | undefined {
+  return EXPORT_VOUCHER_KINDS.find((kind) => kind.shortcut === shortcut.trim().toLowerCase());
+}
+
+export function getExportVoucherKindByArcaType(arcaType: number): ExportVoucherKind | undefined {
+  return EXPORT_VOUCHER_KINDS.find((kind) => kind.arcaType === arcaType);
+}
+
+/** Las notas E llevan comprobante asociado y no llevan permisos, fecha de pago ni `CanMisMonExt`. */
+export function isExportNote(kind: ExportVoucherKind): boolean {
+  return kind.arcaType !== EXPORT_VOUCHER_KIND.arcaType;
+}
 
 /** Tabla FEXGetPARAM_Tipo_Expo. */
 export const EXPORT_TYPES = {
@@ -91,20 +125,22 @@ export interface ExportItemPayload {
  */
 export interface ExportVoucherPayload {
   readonly Actividades: { Actividad: ExportActivityPayload[] };
-  readonly CanMisMonExt: 'N' | 'S';
+  /** Solo en la factura: en las notas ARCA lo rechaza (error 1605). */
+  readonly CanMisMonExt?: 'N' | 'S';
   readonly Cbte_nro: number;
   readonly Cbte_Tipo: number;
   readonly Cliente: string;
   /**
-   * ARCA rechaza el bloque vacio (error 1820: "Si envia Cmps_asoc, Cmp_asoc es obligatorio"), asi que solo va en el
-   * `Cmp` cuando el comprobante informa comprobantes asociados: hoy nunca.
+   * Solo en las notas, con la factura o nota E que ajustan. ARCA rechaza el bloque vacio (error 1820) y en la
+   * factura no lo acepta (error 1755).
    */
   readonly Cmps_asoc?: { Cmp_asoc: ExportAssociatedVoucherPayload[] };
   readonly Cuit_pais_cliente: number;
   readonly Domicilio_cliente: string;
   readonly Dst_cmp: number;
   readonly Fecha_cbte: string;
-  readonly Fecha_pago: string;
+  /** Solo en la factura: en las notas ARCA lo rechaza (error 1673). */
+  readonly Fecha_pago?: string;
   readonly Forma_pago: string;
   readonly Id: number;
   readonly Id_impositivo: string;
@@ -195,6 +231,8 @@ export interface ExportCurrencyResolution {
 
 /** Nombres de las tablas de ARCA que se muestran en texto, PDF y JSON. */
 export interface ExportDisplayInfo {
+  /** Solo en las notas: el comprobante que ajustan, con lo que trajo `FEXGetCMP`. */
+  readonly associatedVoucher?: ExportAssociatedVoucherDisplay;
   /** Nombre de la fila de DST_CUIT del CUIT del pais, con el tipo de entidad: "POLONIA - Persona Jurídica". */
   readonly countryCuitName?: string;
   readonly countryName?: string;
@@ -205,17 +243,86 @@ export interface ExportDisplayInfo {
   readonly unitNames: Readonly<Record<number, string>>;
 }
 
+/** Que comprobante E pedirle a `FEXGetCMP`. */
+export interface ExportVoucherQuery {
+  readonly arcaType: number;
+  readonly number: number;
+  readonly pointOfSale: number;
+}
+
+/** Un renglon de `Items` de un comprobante E ya autorizado, como lo devuelve `FEXGetCMP`. */
+export interface ExportIssuedItem {
+  readonly code?: string;
+  readonly description: string;
+  /** `Pro_bonificacion`: el CLI no la informa, asi que un item con bonificacion no se puede repetir tal cual. */
+  readonly discount: number;
+  readonly quantity: number;
+  readonly total: number;
+  readonly unit: number;
+  readonly unitPrice: number;
+}
+
+/**
+ * Un comprobante E ya autorizado, como lo devuelve `FEXGetCMP`. La nota toma de aca los datos del cliente, el
+ * destino y la moneda, y ARCA compara varios contra los del asociado (errores 2049 a 2053).
+ */
+export interface ExportIssuedVoucher {
+  readonly activities: readonly number[];
+  readonly arcaType: number;
+  /** El comprobante que este ajusta, si es una nota: ARCA mira su tipo en la ND de servicios (error 2055). */
+  readonly associatedVoucher?: ExportVoucherQuery;
+  readonly cae?: string;
+  /** yyyymmdd */
+  readonly caeExpiration?: string;
+  readonly clientAddress: string;
+  readonly clientCountryCuit?: number;
+  readonly clientName: string;
+  readonly clientTaxId?: string;
+  readonly currencyCode: string;
+  /** yyyymmdd */
+  readonly date: string;
+  readonly destinationCountry: number;
+  readonly exchangeRate: number;
+  readonly exportType: ExportType;
+  readonly incoterm?: string;
+  readonly incotermDescription?: string;
+  /** Los renglones del comprobante: al repetir una factura E se copian. */
+  readonly items?: readonly ExportIssuedItem[];
+  readonly language?: number;
+  readonly number: number;
+  readonly paymentTerms?: string;
+  readonly pointOfSale: number;
+  /** `A` aprobado, `R` rechazado. */
+  readonly result?: string;
+  /** `CanMisMonExt`: `true` si se cobro en la misma moneda extranjera. Solo en la factura. */
+  readonly sameCurrency?: boolean;
+  readonly total: number;
+}
+
+/** El asociado de una nota, para la vista previa y el JSON. */
+export interface ExportAssociatedVoucherDisplay {
+  readonly currencyCode: string;
+  /** yyyymmdd */
+  readonly date: string;
+  readonly displayName: string;
+  readonly total: number;
+}
+
 /** Lo que el modulo necesita de ARCA. `authorize` es la unica llamada que emite. */
 export interface ExportGateway {
   authorize(payload: ExportVoucherPayload): Promise<IFEXAuthorizeOutput>;
   /** Tabla de actividades de WSFEX: el `Cmp` solo acepta estos codigos, no los del padron. */
   getActivities(): Promise<readonly ExportActivity[]>;
+  /** Un comprobante E ya emitido (`FEXGetCMP`), o `null` si ARCA no lo tiene. */
+  getVoucher(query: ExportVoucherQuery): Promise<ExportIssuedVoucher | null>;
   getCurrencies(): Promise<readonly ExportCurrency[]>;
   getDestinationCountries(): Promise<readonly ExportCountry[]>;
   getDestinationCountryCuits(): Promise<readonly ExportCountryCuit[]>;
   getIncoterms(): Promise<readonly ExportIncoterm[]>;
   getLanguages(): Promise<readonly ExportLanguage[]>;
   getLastRequestId(): Promise<number>;
+  /** El ultimo numero autorizado de ese tipo en el punto de venta (`FEXGetLast_CMP`); 0 si no hay ninguno. */
+  getLastVoucherNumber(arcaType: number, pointOfSale: number): Promise<number>;
   /**
    * Cotizaciones de aduana que WSFEX tiene publicadas para `arcaDate` (`yyyymmdd`). Devuelve solo las monedas con
    * cotizacion y, en `date`, el dia al que corresponde: si la del dia pedido todavia no salio, es la anterior.
@@ -235,11 +342,25 @@ export interface ExportItemInput {
 
 export type ExportModeSource = 'default' | 'file' | 'flags';
 
+/** El comprobante que ajusta una nota E, como llega de `--ac`/`--at`, `--apv`, `--ar` y `--acuit`. */
+export interface ExportAssociatedVoucherInput {
+  readonly arcaType?: number;
+  readonly cuit?: string;
+  /** `--afecha`: en la E la fecha sale de ARCA, asi que solo se avisa que no se usa. */
+  readonly date?: string;
+  readonly number?: number;
+  readonly pointOfSale?: number;
+  /** Atajo: `fe`, `nde` o `nce`. */
+  readonly shortcut?: string;
+}
+
 /** Lo que llega de los flags o del JSON de `--cargar`; sin defaults de config todavia. */
 export interface ExportVoucherInput {
   /** Codigo de la tabla de actividades de WSFEX; sin flag sale de `exportacion.actividad`. */
   readonly activity?: number;
   readonly amount?: number;
+  /** Solo en las notas. */
+  readonly associatedVoucher?: ExportAssociatedVoucherInput;
   readonly clientAddress?: string;
   readonly clientCountryCuit?: number;
   readonly clientName?: string;
@@ -266,6 +387,8 @@ export interface ExportVoucherInput {
   readonly requestId?: number;
   readonly sameCurrency?: boolean;
   readonly voucherDate?: string;
+  /** Factura, nota de debito o nota de credito E. Sin esto, factura. */
+  readonly voucherKind?: ExportVoucherKind;
   readonly voucherNumber?: number;
 }
 
@@ -302,6 +425,7 @@ export interface ExportExecutionResult {
 export interface ResolvedExportVoucher {
   readonly display: ExportDisplayInfo;
   readonly payload: ExportVoucherPayload;
+  readonly voucherKind: ExportVoucherKind;
   /** Avisos de la resolucion, como la cotizacion tomada de un dia anterior. */
   readonly warnings?: readonly string[];
 }

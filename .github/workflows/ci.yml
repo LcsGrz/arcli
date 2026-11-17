@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - master
+      - dev
   pull_request:
 
 permissions:
@@ -60,6 +60,10 @@ jobs:
 
       - name: Build
         run: yarn build
+
+      # El dist/ compilado como proceso aparte: salida, JSON y exit code, sin red ni certificados.
+      - name: Tests de punta a punta
+        run: yarn test:e2e
 
       - name: El paquete se instala y arranca
         run: yarn pack:check

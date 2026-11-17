@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { CERTIFICATE_GUIDE_URL } from '../../../lib/links';
+import { CERTIFICATE_GUIDE_URL, PRODUCTION_RENEWAL_GUIDE_URL } from '../../../lib/links';
 import {
   createSelfSignedCertificate,
   OPENSSL_WARM_UP_TIMEOUT_MS,
@@ -38,7 +38,7 @@ describe('describeCertificateExpiry', () => {
       environment: 'produccion',
       expired: false,
       expiresOn: '20/11/2026',
-      message: `El certificado de producción vence el 20/11/2026 (en 10 días). Renovalo: ${CERTIFICATE_GUIDE_URL}`,
+      message: `El certificado de producción vence el 20/11/2026 (en 10 días). Renovalo: ${PRODUCTION_RENEWAL_GUIDE_URL}`,
       summary: 'El certificado de producción vence el 20/11/2026 (en 10 días).',
     });
   });
@@ -53,7 +53,7 @@ describe('describeCertificateExpiry', () => {
   it('describes an expired certificate', () => {
     expect(noticeAt('2026-11-25T12:00:00-03:00')).toMatchObject({
       expired: true,
-      message: `El certificado de producción venció el 20/11/2026. Renovalo: ${CERTIFICATE_GUIDE_URL}`,
+      message: `El certificado de producción venció el 20/11/2026. Renovalo: ${PRODUCTION_RENEWAL_GUIDE_URL}`,
     });
   });
 });
@@ -128,7 +128,7 @@ describe('CertificateExpiredError', () => {
     expect(error.message).toBe('El certificado de producción venció el 20/11/2026: ARCA no lo acepta.');
     expect(error.details).toEqual({ entorno: 'produccion', vencimiento: '20/11/2026' });
     expect(error.suggestion).toContain('arcli certificado generar --produccion');
-    expect(error.suggestion).toContain(CERTIFICATE_GUIDE_URL);
+    expect(error.suggestion).toContain(PRODUCTION_RENEWAL_GUIDE_URL);
     expect(error.notice).toBe(notice);
   });
 });

@@ -1,6 +1,5 @@
-import type { IIva } from '@arcasdk/core/lib/domain/types/voucher.types';
-
 import { roundToCents } from '../../lib/numbers/argentine-amount';
+import type { IIva } from '../../services/arca/arca-sdk.types';
 import { CONSUMER_DOCUMENT_TYPE_CODE } from '../billing/arca-codes';
 import { resolveIvaRateLabel } from '../billing/billing.amounts';
 import { formatIvaConditionLabel } from '../billing/billing.labels';
@@ -24,7 +23,9 @@ const DOCUMENT_TYPE_NAMES: Readonly<Record<number, string>> = {
 
 const CURRENCY_CODES: Readonly<Record<string, string>> = { PES: 'PES', DOL: 'DOL' };
 
-const EMPTY_TEXT = '- -';
+// Un solo guion para el dato que falta. La plantilla escribe el valor tal cual (el helper `docNumber` no agrega nada),
+// pero si el domicilio llega vacio pone su propio "- -": por eso se lo manda siempre.
+const EMPTY_TEXT = '-';
 
 function capitalizeWords(value: string): string {
   return value.replace(/(^|\s)(\p{L})/gu, (_, space: string, letter: string) => `${space}${letter.toUpperCase()}`);
@@ -157,7 +158,7 @@ export function mapBillingResultToPdfData(
       // Consumidor final sin documento: el QR igual sale con tipo 99 y numero 0 (el SDK usa `Number(nro) || 0`).
       documentoNro: isUnidentified ? EMPTY_TEXT : String(payload.DocNro),
       documentoTipo: isUnidentified ? 'Documento' : (DOCUMENT_TYPE_NAMES[payload.DocTipo] ?? String(payload.DocTipo)),
-      domicilio: extras.receptorDomicilio?.trim() || undefined,
+      domicilio: extras.receptorDomicilio?.trim() || EMPTY_TEXT,
       razonSocial: extras.receptorNombre?.trim() || (isConsumer ? 'Consumidor Final' : EMPTY_TEXT),
     },
   };
@@ -174,8 +175,12 @@ function resolveExportVoucherNumber(result: ExportExecutionResult): number {
   return number;
 }
 
-/** El titulo que lleva la E de Comprobantes en linea, en lugar del "FACTURA" de la plantilla. */
-const EXPORT_VOUCHER_TITLE = 'FACTURA DE EXPORTACIÓN';
+/** El titulo que lleva la E de Comprobantes en linea, en lugar del "FACTURA" de la plantilla. Por tipo ARCA. */
+const EXPORT_VOUCHER_TITLES: Readonly<Record<number, string>> = {
+  19: 'FACTURA DE EXPORTACIÓN',
+  20: 'NOTA DE DÉBITO DE EXPORTACIÓN',
+  21: 'NOTA DE CRÉDITO DE EXPORTACIÓN',
+};
 
 /**
  * WSFEX usa sus propios codigos de moneda (`DOL`, `060`), pero la E de Comprobantes en linea muestra la divisa con
@@ -238,10 +243,17 @@ export function mapExportResultToPdfData(
     caeFechaVencimiento: response.caeVencimiento,
     cbteDesde: number,
     cbteFecha: payload.Fecha_cbte,
-    cbteDescripcion: EXPORT_VOUCHER_TITLE,
+    cbteDescripcion: EXPORT_VOUCHER_TITLES[payload.Cbte_Tipo],
     cbteHasta: number,
     cbteLetra: result.voucherKind.letter.toUpperCase(),
     cbteTipo: payload.Cbte_Tipo,
+    cbtesAsociados: payload.Cmps_asoc?.Cmp_asoc.map((voucher) => ({
+      cuit: String(voucher.Cbte_cuit),
+      fecha: display.associatedVoucher?.date,
+      numero: voucher.Cbte_nro,
+      puntoVenta: voucher.Cbte_punto_vta,
+      tipo: voucher.Cbte_tipo,
+    })),
     concepto: payload.Tipo_expo === 2 ? 2 : 1,
     condicionIvaExportacion: EXPORT_IVA_LEGEND,
     cotizacion: payload.Moneda_ctz,

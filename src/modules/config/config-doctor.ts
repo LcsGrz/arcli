@@ -114,7 +114,7 @@ function buildPdfPluginCheck(plugin: ConfigDoctorPdfPlugin): ConfigDoctorReport[
 
   if (plugin.installedVersion !== plugin.version) {
     return warning(
-      `Está instalada la versión ${plugin.installedVersion} y arcli usa la ${plugin.version}. Actualizalo con \`arcli pdf instalar\`.`,
+      `Está instalada la versión ${plugin.installedVersion} y ARCLI usa la ${plugin.version}. Actualizalo con \`arcli pdf instalar\`.`,
     );
   }
 

@@ -1,4 +1,4 @@
-import type { CreateVoucherResultDto } from '@arcasdk/core/lib/application/dto/electronic-billing';
+import type { CreateVoucherResultDto } from '../../services/arca/arca-sdk.types';
 
 import { findArcaRejections, formatArcaRejection } from './arca-rejections';
 import type { BillingResponseSummary } from './billing.types.internal';

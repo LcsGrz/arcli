@@ -1,23 +1,30 @@
-import type { Arca } from '@arcasdk/core';
-import type { IFEXAuthorizeInput, IFEXAuthorizeOutput } from '@arcasdk/core/lib/application/dto/fex';
-
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { AppError } from '../../lib/errors/app-error';
-import type {
-  ExportActivity,
-  ExportCountry,
-  ExportCountryCuit,
-  ExportCurrency,
-  ExportGateway,
-  ExportIncoterm,
-  ExportLanguage,
-  ExportQuotation,
-  ExportUnit,
-  ExportVoucherPayload,
+import {
+  DEFAULT_EXPORT_UNIT_CODE,
+  type ExportActivity,
+  type ExportCountry,
+  type ExportCountryCuit,
+  type ExportCurrency,
+  type ExportGateway,
+  type ExportIncoterm,
+  type ExportIssuedItem,
+  type ExportIssuedVoucher,
+  type ExportLanguage,
+  type ExportQuotation,
+  type ExportType,
+  type ExportUnit,
+  type ExportVoucherPayload,
+  type ExportVoucherQuery,
 } from '../../modules/export/export.types';
+
+import type { Arca, IFEXAuthorizeInput, IFEXAuthorizeOutput, IFEXGetLast_CMPInput } from './arca-sdk.types';
 
 const NOT_AUTHORIZED_MESSAGE =
   'El certificado no está autorizado para el servicio wsfex (factura de exportación). Autorizalo igual que wsfe: en testing desde WSASS ("Crear autorización a servicio") y en producción desde el Administrador de Relaciones.';
+
+/** `FEXGetCMP`: "Comprobante inexistente". */
+const VOUCHER_NOT_FOUND_ERROR = 1020;
 
 interface FexError {
   readonly ErrCode?: number;
@@ -57,6 +64,105 @@ function parseWsfexQuotationDate(value: string): string | undefined {
   return match ? `${match[3]}${match[2].padStart(2, '0')}${match[1].padStart(2, '0')}` : undefined;
 }
 
+function readNumber(value: unknown): number | undefined {
+  const parsed = typeof value === 'string' && value.trim() ? Number(value) : value;
+
+  return typeof parsed === 'number' && Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function readOptionalText(value: unknown): string | undefined {
+  return readText(value) || undefined;
+}
+
+/** Los arrays de `FEXGetCMP` vienen envueltos (`Actividades.Actividad`, `Cmps_asoc.Cmp_asoc`). */
+function readRows(value: unknown, key: string): Array<Record<string, unknown>> {
+  const wrapper = value as Record<string, unknown> | undefined;
+
+  return asArray(wrapper?.[key] as Record<string, unknown> | Array<Record<string, unknown>> | undefined);
+}
+
+function isExportType(value: number | undefined): value is ExportType {
+  return value === 1 || value === 2 || value === 4;
+}
+
+function mapAssociatedVoucher(row: Record<string, unknown> | undefined): ExportVoucherQuery | undefined {
+  const arcaType = readNumber(row?.Cbte_tipo);
+  const number = readNumber(row?.Cbte_nro);
+  const pointOfSale = readNumber(row?.Cbte_punto_vta);
+
+  return arcaType && number && pointOfSale ? { arcaType, number, pointOfSale } : undefined;
+}
+
+/** Un renglon de `Items.Item`; sin descripcion, cantidad o precio no sirve para repetirlo y se descarta. */
+function mapIssuedItem(row: Record<string, unknown>): ExportIssuedItem[] {
+  const description = readText(row.Pro_ds);
+  const quantity = readNumber(row.Pro_qty);
+  const unitPrice = readNumber(row.Pro_precio_uni);
+
+  if (!description || quantity === undefined || unitPrice === undefined) {
+    return [];
+  }
+
+  return [
+    {
+      code: readOptionalText(row.Pro_codigo),
+      description,
+      discount: readNumber(row.Pro_bonificacion) ?? 0,
+      quantity,
+      total: readNumber(row.Pro_total_item) ?? 0,
+      unit: readNumber(row.Pro_umed) ?? DEFAULT_EXPORT_UNIT_CODE,
+      unitPrice,
+    },
+  ];
+}
+
+function readSameCurrency(value: unknown): boolean | undefined {
+  const text = readText(value).toUpperCase();
+
+  return text === 'S' ? true : text === 'N' ? false : undefined;
+}
+
+/** Sin numero, tipo de exportacion o moneda no sirve como asociado: se trata como que no existe. */
+function mapIssuedVoucher(row: Record<string, unknown> | undefined): ExportIssuedVoucher | null {
+  const number = readNumber(row?.Cbte_nro);
+  const exportType = readNumber(row?.Tipo_expo);
+  const currencyCode = readText(row?.Moneda_Id);
+
+  if (!row || !number || !isExportType(exportType) || !currencyCode) {
+    return null;
+  }
+
+  // Sin incoterm ARCA devuelve `Incoterms_Ds` en "0": copiado a la nota, seria el error 1641.
+  const incoterm = readOptionalText(row.Incoterms);
+
+  return {
+    activities: readRows(row.Actividades, 'Actividad').flatMap((activity) => readNumber(activity.Id) ?? []),
+    arcaType: readNumber(row.Cbte_tipo) ?? 0,
+    associatedVoucher: mapAssociatedVoucher(readRows(row.Cmps_asoc, 'Cmp_asoc')[0]),
+    cae: readOptionalText(row.Cae),
+    caeExpiration: readOptionalText(row.Fch_venc_Cae),
+    clientAddress: readText(row.Domicilio_cliente),
+    clientCountryCuit: readNumber(row.Cuit_pais_cliente),
+    clientName: readText(row.Cliente),
+    clientTaxId: readOptionalText(row.Id_impositivo),
+    currencyCode,
+    date: readText(row.Fecha_cbte),
+    destinationCountry: readNumber(row.Dst_cmp) ?? 0,
+    exchangeRate: readNumber(row.Moneda_ctz) ?? 0,
+    exportType,
+    incoterm,
+    incotermDescription: incoterm ? readOptionalText(row.Incoterms_Ds) : undefined,
+    items: readRows(row.Items, 'Item').flatMap(mapIssuedItem),
+    language: readNumber(row.Idioma_cbte),
+    number,
+    paymentTerms: readOptionalText(row.Forma_pago),
+    pointOfSale: readNumber(row.Punto_vta) ?? 0,
+    result: readOptionalText(row.Resultado),
+    sameCurrency: readSameCurrency(row.CanMisMonExt),
+    total: readNumber(row.Imp_total) ?? 0,
+  };
+}
+
 /** WSFEX no lanza: devuelve `FEXErr` con codigo 0 cuando salio todo bien. */
 function assertNoError(result: FexResult | undefined, operation: string): void {
   const error = result?.FEXErr;
@@ -69,8 +175,19 @@ function assertNoError(result: FexResult | undefined, operation: string): void {
   }
 }
 
+/** El bloque `Auth` de WSFEX (token, firma y CUIT), recien pedido a WSAA o tomado del ticket guardado. */
+export type WsfexAuthenticator = () => Promise<{
+  readonly Cuit: number;
+  readonly Sign: string;
+  readonly Token: string;
+}>;
+
 export class ArcaExportGateway implements ExportGateway {
-  public constructor(private readonly arca: Arca) {}
+  /** Sin `authenticate` no se puede consultar el ultimo numero: ver `getLastVoucherNumber`. */
+  public constructor(
+    private readonly arca: Arca,
+    private readonly authenticate?: WsfexAuthenticator,
+  ) {}
 
   /** Todas las llamadas autentican en WSAA: si el certificado no esta autorizado a wsfex, el error lo dice. */
   private async call<T>(request: (service: Arca['wsfexService']) => Promise<T>): Promise<T> {
@@ -116,6 +233,27 @@ export class ArcaExportGateway implements ExportGateway {
 
       return Number.isInteger(id) && id > 0 ? [{ id, name }] : [];
     });
+  }
+
+  /**
+   * `FEXGetCMP` devuelve el comprobante completo, aunque el tipo del SDK solo declare la numeracion: se lee como
+   * registro tolerante. A diferencia de `FEXGetLast_CMP`, lleva el `Cmp` fuera de `Auth`, asi que el SDK no lo pisa.
+   * Un comprobante que no existe vuelve con el error 1020 y un `FEXResultGet` en ceros (probado en testing).
+   */
+  public async getVoucher(query: ExportVoucherQuery): Promise<ExportIssuedVoucher | null> {
+    const data = (
+      await this.call((service) =>
+        service.getCmp({ Cmp: { Cbte_nro: query.number, Cbte_tipo: query.arcaType, Punto_vta: query.pointOfSale } }),
+      )
+    ).FEXGetCMPResult;
+
+    if (data?.FEXErr?.ErrCode === VOUCHER_NOT_FOUND_ERROR) {
+      return null;
+    }
+
+    assertNoError(data, 'el comprobante asociado');
+
+    return mapIssuedVoucher(data?.FEXResultGet as Record<string, unknown> | undefined);
   }
 
   public async getCurrencies(): Promise<ExportCurrency[]> {
@@ -190,6 +328,31 @@ export class ArcaExportGateway implements ExportGateway {
 
       return Number.isInteger(id) ? [{ id, name: readText(row.Umed_Ds) }] : [];
     });
+  }
+
+  /**
+   * `FEXGetLast_CMP` lleva `Pto_venta` y `Cbte_Tipo` dentro de `Auth`, pero `@arcasdk/core` arma
+   * `{ Auth: {Token, Sign, Cuit}, ...params }`: si los mandamos en un `Auth` propio, el suyo se pierde, y sin ellos ARCA
+   * contesta 1606 (ralcorta/arcasdk#238 lo arregla y sigue abierto). Con el `Auth` completo, token y firma incluidos,
+   * el nuestro gana y llega entero.
+   */
+  public async getLastVoucherNumber(arcaType: number, pointOfSale: number): Promise<number> {
+    if (!this.authenticate) {
+      throw new AppError('El gateway de WSFEX se creó sin autenticador: no puede consultar el último número.', {
+        code: 'UNEXPECTED_ERROR',
+      });
+    }
+
+    const auth = await this.authenticate();
+    const data = (
+      await this.call((service) =>
+        service.getLastCmp({ Auth: { ...auth, Cbte_Tipo: arcaType, Pto_venta: pointOfSale } } as IFEXGetLast_CMPInput),
+      )
+    ).FEXGetLast_CMPResult;
+
+    assertNoError(data, 'el último número');
+
+    return Number(data?.FEXResult_LastCMP?.Cbte_nro) || 0;
   }
 
   public async getLastRequestId(): Promise<number> {

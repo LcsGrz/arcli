@@ -1,4 +1,4 @@
-import { CERTIFICATE_GUIDE_URL } from '../lib/links';
+import { CERTIFICATE_GUIDE_URL, PRODUCTION_RENEWAL_GUIDE_URL } from '../lib/links';
 import type { CertificateExpiryNotice } from '../modules/config/certificate-expiry';
 import { ArcaContextResolver, type ResolvedArcaRuntime } from '../services/arca/arca-context.resolver';
 import { certificateBanner, writeTerminalNotice } from '../ui';
@@ -18,7 +18,10 @@ export function renderCertificateNotices(notices: readonly CertificateExpiryNoti
 
   return certificateBanner({
     expired: notices.some((notice) => notice.expired),
-    guideUrl: CERTIFICATE_GUIDE_URL,
+    // Un solo link para todos: el de renovar en produccion si son todos de produccion, si no la guia de siempre.
+    guideUrl: notices.every((notice) => notice.environment === 'produccion')
+      ? PRODUCTION_RENEWAL_GUIDE_URL
+      : CERTIFICATE_GUIDE_URL,
     summary: notices.map((notice) => notice.summary).join('\n'),
   });
 }

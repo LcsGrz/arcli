@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+import { TROUBLESHOOTING_URL } from '../../../lib/links';
 import { ARCA_REJECTIONS, findArcaRejections, formatArcaRejection } from '../arca-rejections';
 import { mapBillingResponse } from '../billing-response';
 
@@ -30,7 +31,7 @@ describe('tabla de rechazos de ARCA', () => {
     const slugs = headingSlugs(TROUBLESHOOTING);
 
     for (const guide of ARCA_REJECTIONS.flatMap((rejection) => rejection.guide ?? [])) {
-      const [, anchor] = guide.split('troubleshooting.md#');
+      const [, anchor] = guide.split(`${TROUBLESHOOTING_URL}#`);
 
       if (anchor) {
         expect(slugs, `no existe #${anchor}`).toContain(anchor);

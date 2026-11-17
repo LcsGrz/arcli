@@ -1,6 +1,15 @@
-import { ARGENTINE_DATE_FORMAT_HINT, parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
+import {
+  ARGENTINE_DATE_FORMAT_HINT,
+  formatDateAsArcaDate,
+  parseArgentineDateInputAsArcaDate,
+} from '../../lib/dates/arca-date';
+import { InputValidationError } from '../../lib/errors/app-error';
 import { parseCuit } from '../../lib/identity/cuit';
 import { EXCHANGE_RATE_DECIMALS, parseArgentineAmount } from '../../lib/numbers/argentine-amount';
+import { parseStrictInteger } from '../../lib/numbers/strict-integer';
+import type { BillingConcept } from '../../modules/billing/billing.schemas';
+import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
+import { validateBillingDateWindow } from '../../modules/billing/billing.validation';
 
 export function validateAmount(value: string): string | true {
   const result = parseArgentineAmount(value);
@@ -14,12 +23,25 @@ export function validateCuit(value: string): string | true {
   return result.ok ? true : `El CUIT ${result.reason}.`;
 }
 
+export function validateCuil(value: string): string | true {
+  const result = parseCuit(value);
+
+  return result.ok ? true : `El CUIL ${result.reason}.`;
+}
+
 export function validateDni(value: string): string | true {
   return /^\d{7,8}$/.test(value.replace(/\./g, '')) ? true : 'El DNI tiene 7 u 8 dígitos.';
 }
 
 export function validateCbu(value: string): string | true {
   return /^\d{22}$/.test(value) ? true : 'El CBU tiene 22 dígitos.';
+}
+
+/** Como `--alias`: vacio vale (no se informa); si no, de 6 a 20 letras, números, puntos o guiones. */
+export function validateOptionalCbuAlias(value: string): string | true {
+  return !value.trim() || /^[A-Za-z0-9.-]{6,20}$/.test(value.trim())
+    ? true
+    : 'El alias tiene entre 6 y 20 letras, números, puntos o guiones.';
 }
 
 export function normalizeDocumentNumber(value: string): number {
@@ -35,6 +57,53 @@ export function validateDate(value: string): string | true {
     return `Fecha inválida. ${ARGENTINE_DATE_FORMAT_HINT}`;
   }
 }
+
+/** Fecha del comprobante: la misma ventana que el CLI (`--fecha`), que depende del concepto y del comprobante. */
+export function validateBillingDate(
+  value: string,
+  concept: BillingConcept,
+  voucherKind: VoucherKindDefinition,
+  now = new Date(),
+): string | true {
+  const valid = validateDate(value);
+
+  if (valid !== true) {
+    return valid;
+  }
+
+  try {
+    validateBillingDateWindow(
+      parseArgentineDateInputAsArcaDate(value, now),
+      formatDateAsArcaDate(now),
+      concept,
+      voucherKind,
+    );
+
+    return true;
+  } catch (error) {
+    if (error instanceof InputValidationError) {
+      return error.message;
+    }
+
+    throw error;
+  }
+}
+
+/** Fecha opcional: vacia vale (va la de por defecto); si no, tiene que ser una fecha valida. */
+export function validateOptionalDate(value: string): string | true {
+  return value.trim() ? validateDate(value) : true;
+}
+
+/** Un entero mayor a 0 (punto de venta, numero de comprobante, actividad); `label` nombra el dato en el error. */
+export function validatePositiveInteger(label: string): (value: string) => string | true {
+  return (value) => {
+    const number = parseStrictInteger(value);
+
+    return number !== undefined && number >= 1 ? true : `${label} tiene que ser un número entero positivo.`;
+  };
+}
+
+export const validatePointOfSale = validatePositiveInteger('El punto de venta');
 
 /** Monto opcional: vacio es "no", si no tiene que ser un monto valido. */
 export function validateOptionalAmount(value: string): string | true {

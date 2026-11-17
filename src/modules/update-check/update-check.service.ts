@@ -1,5 +1,7 @@
 import Conf from 'conf';
 
+import { resolveConfigDirectory } from '../config/config.service';
+
 const PACKAGE_NAME = 'arcli';
 const REGISTRY_URL = `https://registry.npmjs.org/${PACKAGE_NAME}/latest`;
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
@@ -64,7 +66,7 @@ async function fetchLatestVersion(): Promise<string | null> {
 function createCacheStore(cwd?: string): Conf<UpdateCheckCache> {
   return new Conf<UpdateCheckCache>({
     configName: 'update-cache',
-    cwd,
+    cwd: cwd ?? resolveConfigDirectory(),
     defaults: CACHE_DEFAULTS,
     projectName: PACKAGE_NAME,
     projectSuffix: '',

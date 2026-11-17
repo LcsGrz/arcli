@@ -1,6 +1,7 @@
 """Genera el ícono de ARCLI: el logo ASCII sobre un fondo con una onda de caracteres.
 
-Escribe docs/assets/imagenes/arcliIcon.{svg,png} y assets/acceso-directo/arcli.{icns,ico,png}.
+Escribe docs/assets/imagenes/arcliIcon.{svg,png}, assets/acceso-directo/arcli.{icns,ico,png} y los íconos del sitio
+(site/public: favicon.ico, apple-touch-icon.png, icon-192.png e icon-512.png).
 Necesita macOS (iconutil), rsvg-convert (`brew install librsvg`) y la fuente Menlo.
 
     python3 scripts/icono/generar.py
@@ -17,6 +18,7 @@ from xml.sax.saxutils import escape
 ROOT = Path(__file__).resolve().parents[2]
 DOCS = ROOT / 'docs/assets/imagenes'
 ASSETS = ROOT / 'assets/acceso-directo'
+SITE = ROOT / 'site/public'
 
 # Copia textual de ARCLI_ASCII_BANNER (src/ui/primitives/renderLogo.ts); AR termina en la columna 23.
 BANNER = [
@@ -46,8 +48,8 @@ def wave(row, col, rows, cols):
     return RAMP[min(len(RAMP) - 1, int(level * len(RAMP)))], 0.10 + 0.26 * level
 
 
-def logo_svg(with_wave, full_bleed):
-    """El ícono completo, o sin onda y sin margen exterior para 32 y 48 px."""
+def logo_svg(with_wave, full_bleed, radius=RADIUS):
+    """El ícono completo, o sin onda y sin margen exterior para 32 y 48 px. `radius=0`: cuadrado, para iOS."""
     lw = BOX * SAFE / LOGO_COLS
     lh = lw * CELL_RATIO
     cols, rows = int(BOX // lw) + 1, int(BOX // lh) + 1
@@ -60,8 +62,8 @@ def logo_svg(with_wave, full_bleed):
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{CANVAS}" height="{CANVAS}" viewBox="{view_box}">',
         '<defs><radialGradient id="fondo" cx="50%" cy="35%" r="70%"><stop offset="0" stop-color="#262637"/>'
         '<stop offset="1" stop-color="#181825"/></radialGradient>'
-        f'<clipPath id="caja"><rect x="{ORIGIN}" y="{ORIGIN}" width="{BOX}" height="{BOX}" rx="{RADIUS}"/></clipPath></defs>',
-        f'<rect x="{ORIGIN}" y="{ORIGIN}" width="{BOX}" height="{BOX}" rx="{RADIUS}" fill="url(#fondo)"/>',
+        f'<clipPath id="caja"><rect x="{ORIGIN}" y="{ORIGIN}" width="{BOX}" height="{BOX}" rx="{radius}"/></clipPath></defs>',
+        f'<rect x="{ORIGIN}" y="{ORIGIN}" width="{BOX}" height="{BOX}" rx="{radius}" fill="url(#fondo)"/>',
         f'<g clip-path="url(#caja)" font-family="{FONT}" text-anchor="middle">',
     ]
     if with_wave:
@@ -114,7 +116,9 @@ def main():
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
         full, small, tiny = tmp / 'icono.svg', tmp / 'chico.svg', tmp / 'ar.svg'
+        square = tmp / 'cuadrado.svg'
         full.write_text(logo_svg(True, False), encoding='utf-8')
+        square.write_text(logo_svg(True, True, 0), encoding='utf-8')
         small.write_text(logo_svg(False, True), encoding='utf-8')
         tiny.write_text(ar_svg(), encoding='utf-8')
 
@@ -137,6 +141,13 @@ def main():
 
         shutil.copy(full, DOCS / 'arcliIcon.svg')
         png(full, CANVAS, DOCS / 'arcliIcon.png')
+
+        # Sitio: favicon.svg lo copia site/scripts/sync-docs.mjs; estos son el respaldo para navegadores sin SVG, el
+        # ícono de inicio de iOS (cuadrado y sin margen: iOS redondea las esquinas) y los del site.webmanifest.
+        ico([(s, sizes[s]) for s in (48, 32, 16)], SITE / 'favicon.ico')
+        png(square, 180, SITE / 'apple-touch-icon.png')
+        png(full, 192, SITE / 'icon-192.png')
+        shutil.copy(sizes[512], SITE / 'icon-512.png')
 
 
 if __name__ == '__main__':

@@ -87,23 +87,25 @@ function widenSeparators(separator: string, count: number, extra: number): strin
   });
 }
 
+/** Las columnas de una fila del selector del modo interactivo. */
+export interface VoucherPickerColumns {
+  readonly cae: string;
+  readonly date: string;
+  readonly number: string;
+  readonly receiver: string;
+  readonly total: string;
+}
+
 /**
- * Filas para elegir un comprobante: cada columna mide lo justo para el dato mas largo de la lista y las separa
+ * Alinea las filas del selector: cada columna mide lo justo para el dato mas largo de la lista y las separa
  * `separator`. Con `width`, los separadores se agrandan para que las filas ocupen ese ancho, si entran.
+ * La usan A, B y C y tambien la E, que tiene cliente en vez de receptor con documento.
  */
-export function formatVoucherPickerRows(
-  pointOfSale: number,
-  vouchers: readonly IssuedVoucher[],
+export function alignVoucherPickerRows(
+  columns: readonly VoucherPickerColumns[],
   separator: string,
   width?: number,
 ): string[] {
-  const columns = vouchers.map((voucher) => ({
-    cae: voucher.cae ? `CAE ${voucher.cae}` : '',
-    date: formatArcaDateAsArgentineDate(voucher.date),
-    number: formatVoucherNumber(pointOfSale, voucher.number),
-    receiver: formatReceiver(voucher),
-    total: formatMoneyLabel(voucher.total, voucher.currency),
-  }));
   const receiverWidth = Math.max(0, ...columns.map((column) => column.receiver.length));
   const totalWidth = Math.max(0, ...columns.map((column) => column.total.length));
   const cells = columns.map((column) =>
@@ -122,6 +124,26 @@ export function formatVoucherPickerRows(
 
   return cells.map((row) =>
     row.map((cell, index) => (index === 0 ? cell : `${separators[index - 1]}${cell}`)).join(''),
+  );
+}
+
+/** Filas para elegir un comprobante A, B o C: numero, fecha, receptor, total y CAE. */
+export function formatVoucherPickerRows(
+  pointOfSale: number,
+  vouchers: readonly IssuedVoucher[],
+  separator: string,
+  width?: number,
+): string[] {
+  return alignVoucherPickerRows(
+    vouchers.map((voucher) => ({
+      cae: voucher.cae ? `CAE ${voucher.cae}` : '',
+      date: formatArcaDateAsArgentineDate(voucher.date),
+      number: formatVoucherNumber(pointOfSale, voucher.number),
+      receiver: formatReceiver(voucher),
+      total: formatMoneyLabel(voucher.total, voucher.currency),
+    })),
+    separator,
+    width,
   );
 }
 

@@ -2,7 +2,7 @@
 
 # Modo interactivo
 
-`arcli` sin argumentos abre un asistente que pregunta paso a paso qué querés emitir. Está pensado para quien factura de vez en cuando y no quiere recordar flags. Usa las mismas validaciones y la misma vista previa que el resto del CLI, y antes de emitir muestra el **comando equivalente**, así podés copiarlo y la próxima vez hacerlo directo.
+`arcli` sin argumentos abre un asistente que pregunta paso a paso qué querés emitir. Está pensado para quien factura de vez en cuando y no quiere recordar flags. Arma, valida y emite con el mismo código que los comandos con flags y muestra la misma vista previa. La diferencia es cuándo avisa: cada respuesta se valida en su paso, antes de seguir (por ejemplo, el monto de una nota de crédito que supera a su factura), en lugar de todo junto al final. Antes de emitir muestra el **comando equivalente**, así podés copiarlo y la próxima vez hacerlo directo.
 
 ```bash
 arcli               # en una terminal interactiva abre el asistente
@@ -27,14 +27,14 @@ El modo interactivo no agrega comandos de emisión ni cambia flags, claves de co
 3. **Repetir un comprobante anterior**
 4. **Emitir nota de crédito**
 5. **Emitir nota de débito**
-6. **Consultar comprobantes**
+6. **Consultas**
 7. **Estado de ARCA**
 8. **Configuración**
 9. **Salir**
 
 Si hay una versión nueva de ARCLI, el menú suma arriba de todo **Actualizar a la versión X.Y.Z** (ver [Actualizar](#actualizar)).
 
-**Opciones nuevas.** Lo que se sumó en las últimas versiones lleva `(nuevo)` al final, en color: Emitir recibo, Certificados de ARCA y Acceso directo en el escritorio en Configuración, y Recibo C al elegir sobre qué comprobante va una nota. Configuración también lo lleva mientras tenga alguna opción nueva adentro. La marca se va sola dos versiones menores después de la que trajo la opción.
+**Opciones nuevas.** Lo que se sumó en las últimas versiones lleva `(nuevo)` al final, en color: Emitir recibo, Consultas y sus consultas nuevas, Certificados de ARCA, Acceso directo en el escritorio y Dónde está la config en Configuración, Recibo C y Factura de exportación E al elegir sobre qué comprobante va una nota. Configuración también lo lleva mientras tenga alguna opción nueva adentro. La marca se va sola dos versiones menores después de la que trajo la opción.
 
 Debajo del logo va la versión de ARCLI. Arriba del menú, la barra de estado muestra a la izquierda quién emite (la razón social de `emisor.razonSocial` o, si no está, el CUIT) y el punto de venta, y a la derecha cómo está ARCA y el entorno (`TESTING` en naranja o `PRODUCCIÓN` en celeste):
 
@@ -46,7 +46,7 @@ Debajo del logo va la versión de ARCLI. Arriba del menú, la barra de estado mu
 | **ARCA sin respuesta** | Error de red, o ARCA no contestó en 5 segundos                                   |
 | **ARCA sin verificar** | Falta completar la configuración o el certificado venció, así que no se consulta |
 
-La consulta es la misma de `arcli estado` sin el punto de venta (no pide autenticación) y se hace al abrir el asistente. **Si falta algo obligatorio** (CUIT, certificado y clave de testing o punto de venta), al abrir el asistente propone hacer la [configuración guiada](#configuración).
+La consulta es la misma de `arcli estado` sin el punto de venta (no pide autenticación) y se hace al abrir el asistente. **Si falta algo obligatorio** (CUIT, certificado y clave del entorno activo o punto de venta), al abrir el asistente propone hacer la [configuración guiada](#configuración). El entorno activo es el de la config, o el de `arcli interactivo --produccion` o `--testing`.
 
 **Certificado por vencer.** Si a alguno de los certificados configurados (de testing o de producción, sin importar el entorno activo) le quedan menos de 30 días, debajo de la barra va un recuadro amarillo, con una línea por certificado, la fecha, los días que faltan y el link a la [guía para renovarlo](obtencion-certificados.md). Queda arriba de todo lo que hagas en la sesión. Si alguno ya venció, el recuadro es rojo. Si es el del entorno activo, además la barra dice `certificado vencido` y `ARCA SIN VERIFICAR`, y emitir o consultar muestra el error `Certificado vencido` sin llegar a ARCA. La configuración sigue disponible para cargar el certificado nuevo.
 
@@ -61,64 +61,82 @@ Con el asistente, el aviso de nueva versión no se repite al salir. En los coman
 
 ## Emitir factura
 
+**Punto de venta.** Factura, recibo, factura E, notas, repetir y consultar usan el punto de venta de la config sin preguntar. Si la config no tiene uno, lo piden antes del primer paso (Esc vuelve al menú) y el comando equivalente lo lleva con `--pv`. Para no escribirlo cada vez, cargalo en Configuración → Modificar configuración → Punto de venta.
+
 Primero pregunta solo lo **requerido**:
 
-| Paso | Pregunta         | Detalle                                                                                                              |
-| ---- | ---------------- | -------------------------------------------------------------------------------------------------------------------- |
-| 1    | Comprobante      | Factura A, B o C, comunes o de crédito electrónica (FCE), o la de exportación E ([abajo](#factura-de-exportación-e)) |
-| 2    | Receptor         | Consumidor final, CUIT o DNI. En la A solo CUIT, porque la A no admite consumidor final                              |
-| 3    | IVA del receptor | Solo las condiciones válidas para la letra elegida. Con consumidor final no se pregunta                              |
-| 4    | Concepto         | Servicios, productos o ambos. Arranca en `config.concepto` si está configurado                                       |
-| 5    | Monto total      | Acepta `150000`, `150.000`, `1500,50` o `1.500,50` (punto para miles, coma para decimales)                           |
-| 6    | CBU              | Solo en facturas FCE y si no hay `config.cbu`                                                                        |
+| Paso | Pregunta         | Detalle                                                                                                                                                             |
+| ---- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Comprobante      | Factura A, B o C, comunes o de crédito electrónica (FCE), o la de exportación E ([abajo](#factura-de-exportación-e))                                                |
+| 2    | Receptor         | Consumidor final, CUIT, DNI o CUIL, y el número. En la A solo CUIT, porque la A no admite consumidor final                                                          |
+| 3    | IVA del receptor | Solo las condiciones válidas para la letra elegida. Con consumidor final no se pregunta                                                                             |
+| 4    | Concepto         | Servicios, productos o ambos. Arranca en `config.concepto` si está configurado                                                                                      |
+| 5    | Monto total      | Acepta `150000`, `150.000`, `1500,50` o `1.500,50` (punto para miles, coma para decimales)                                                                          |
+| 6    | CBU              | Solo en facturas FCE y si no hay `config.cbu`. Si tampoco hay `aliasCbu`, pide el alias (Enter lo omite). Después de la confirmación ofrece guardarlos en la config |
 
 Después, **una sola pregunta con todos los opcionales** (ver abajo). Enter sin marcar nada sigue con los valores por defecto.
 
-Después muestra la vista previa (la misma de `--previsualizar`), el comando equivalente y pregunta si emitir. En **producción** pide una segunda confirmación.
+Después muestra la vista previa (la misma de `--previsualizar`), el comando equivalente y pregunta si emitir, con los mismos botones que los comandos con flags: **Sí, emitir ahora**, **Sí, emitir y generar el PDF** (ver [PDF](#pdf)) o **No, dejar sin emitir**. En **producción** pide una segunda confirmación (**Sí, emitir en producción** o **No, dejar sin emitir**); el CLI con flags pregunta una sola vez.
 
 ### Factura de exportación (E)
 
 La `E` se elige en el mismo selector, pero tiene su propio asistente porque no lleva receptor argentino, concepto ni IVA. Valida y emite igual que `arcli fe`:
 
-| Paso | Pregunta              | Detalle                                                                                                             |
-| ---- | --------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| 1    | Cliente               | Nombre o razón social del cliente del exterior                                                                      |
-| 2    | Domicilio             | Domicilio del cliente                                                                                               |
-| 3    | País de destino       | Nombre o código de la tabla de WSFEX (`ESTADOS UNIDOS` o `212`). Argentina no se acepta                             |
-| 4    | ID impositivo         | Opcional (Enter para omitirlo)                                                                                      |
-| 5    | Qué exportás          | Servicios (por defecto), bienes u otros                                                                             |
-| 6    | Monto total           | Igual que en la factura común                                                                                       |
-| 7    | Descripción           | Opcional; por defecto "Según detalle"                                                                               |
-| 8    | Moneda                | Dólares (`DOL`, con la cotización de aduana que publica ARCA) o pesos (`PES`)                                       |
-| 9    | ¿Te pagan en dólares? | Solo en dólares: si sí, ARCA lo registra como cancelación en la misma moneda (`--misma-moneda`)                     |
-| 10   | Incoterm              | Solo en bienes, de la tabla de WSFEX, o sin incoterm                                                                |
-| 11   | Forma de pago         | Por defecto "Transferencia Internacional"                                                                           |
-| 12   | Fecha de pago         | Opcional; por defecto la del comprobante                                                                            |
-| 13   | Actividad             | Solo si no está `exportacion.actividad`; se valida contra la tabla de WSFEX y después ofrece guardarla en la config |
-| 14   | Número                | El siguiente al último `E` de ese punto de venta (`1` si es el primero): ARCLI todavía no lo puede consultar        |
+| Paso | Pregunta              | Detalle                                                                                                                               |
+| ---- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Cliente               | Nombre o razón social del cliente del exterior                                                                                        |
+| 2    | Domicilio             | Domicilio del cliente                                                                                                                 |
+| 3    | País de destino       | Nombre o código de la tabla de WSFEX (`ESTADOS UNIDOS` o `212`). Argentina no se acepta                                               |
+| 4    | CUIT del país         | Solo si ARCA no publica un CUIT para el destino: escribís el CUIT o buscás el país por nombre y lo elegís de la lista (`--cuit-pais`) |
+| 5    | ID impositivo         | Opcional (Enter para omitirlo)                                                                                                        |
+| 6    | Qué exportás          | Servicios (por defecto), bienes u otros                                                                                               |
+| 7    | Monto total           | Igual que en la factura común                                                                                                         |
+| 8    | Descripción           | Opcional; por defecto "Según detalle"                                                                                                 |
+| 9    | Moneda                | Dólares (`DOL`, con la cotización de aduana que publica ARCA) o pesos (`PES`)                                                         |
+| 10   | ¿Te pagan en dólares? | Solo en dólares: si sí, ARCA lo registra como cancelación en la misma moneda (`--misma-moneda`)                                       |
+| 11   | Incoterm              | Solo en bienes, de la tabla de WSFEX, o sin incoterm                                                                                  |
+| 12   | Permisos de embarque  | Solo en bienes, opcional: los ya existentes en ARCA, separados por coma (`--permiso` con `--permiso-existente`)                       |
+| 13   | Forma de pago         | Por defecto "Transferencia Internacional"                                                                                             |
+| 14   | Fecha de pago         | Opcional; por defecto la del comprobante                                                                                              |
+| 15   | Actividad             | Solo si no está `exportacion.actividad`; se valida contra la tabla de WSFEX y después ofrece guardarla en la config                   |
+| 16   | Opcionales            | Una sola pregunta, como en A, B y C ([abajo](#opcionales-de-la-e))                                                                    |
 
 Después muestra la vista previa, el comando `arcli fe` equivalente y pregunta si emitir (dos veces en producción). El PDF sigue la misma regla que el resto. Volver desde el primer paso vuelve al selector de comprobantes.
 
+#### Opcionales de la E
+
+La factura y las notas E terminan con **"¿Agregamos algún opcional?"**, que funciona igual que [los de A, B y C](#opcionales): se marca con espacio, Enter sigue y después pregunta solo lo marcado. Se valida igual que con los flags.
+
+| Opción                   | Qué pregunta                                                                                                                                                                             | Cuándo aparece                                              |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Ítems                    | Uno por uno: descripción, cantidad, precio unitario y unidad (de la tabla de WSFEX). Enter en la descripción termina; si la suma no da el monto total, avisa y sigue pidiendo (`--item`) | Siempre. Sin ítems va un renglón con el monto total         |
+| Idioma                   | Español, inglés o portugués, de la tabla de WSFEX (`--idioma`)                                                                                                                           | Siempre. Por defecto español; en las notas, el del asociado |
+| CUIT del país            | El CUIT o el país por nombre, de la tabla de ARCA; tiene que ser el del destino (`--cuit-pais`)                                                                                          | Factura                                                     |
+| Observaciones            | Las observaciones y las observaciones comerciales (`--observaciones` y `--obs-comerciales`)                                                                                              | Siempre                                                     |
+| Descripción del incoterm | El texto, con la descripción de la tabla de ARCA como valor por defecto (`--incoterms-desc`)                                                                                             | Si hay incoterm                                             |
+| Cotización               | La cotización a mano, en lugar de la de aduana que publica ARCA o la del asociado (`--cm`)                                                                                               | En moneda extranjera. En las notas, salvo en servicios      |
+
 ### PDF
 
-Después de emitir, si `config.pdf` es `preguntar` (el valor por defecto), pregunta **"¿Generamos el PDF del comprobante?"**. Con `siempre` lo genera sin preguntar y con `nunca` no pregunta nada. Lo mismo vale para las notas de crédito y débito.
+El PDF se elige en la pregunta **"¿Emitimos…?"**, que siempre tiene tres opciones: **Sí, emitir ahora**, **Sí, emitir y generar el PDF** y **No, dejar sin emitir**. Lo elegido decide, diga lo que diga `config.pdf`: después de emitir no se pregunta nada más del PDF. La config solo elige dónde arranca el cursor: con `siempre`, en **Sí, emitir y generar el PDF**; con `preguntar` (el valor por defecto) o `nunca`, en **Sí, emitir ahora**. Lo mismo vale para las notas de crédito y débito, el recibo y la `E`. En producción, la segunda confirmación es la misma y el PDF se respeta. Es la misma pregunta que hacen los comandos con flags: ver [PDF de comprobantes](pdf.md#cuándo-se-genera).
 
-Si respondés que sí, pregunta cuatro datos opcionales que solo van en el PDF: la descripción, el nombre y el domicilio del receptor, y la condición de venta. Para esta última muestra una lista (Omitir, Contado, Tarjeta de Débito, Tarjeta de Crédito, Cuenta Corriente, Cheque, Transferencia Bancaria, Otros medios de pago electrónico, Otra) con la de la config (`condicionVenta`) marcada, así que Enter la mantiene. "Omitir" también evita que reaparezca el valor configurado; "Otra" pide el texto: Enter deja "Otra", o el texto libre que tenía la config. Si faltan datos del emisor (razón social, domicilio, inicio de actividades), los pregunta una vez y ofrece guardarlos en la config. Si falta el plugin, ofrece instalarlo. Ver [PDF de comprobantes](pdf.md).
+Si elegís el PDF, pregunta cuatro datos opcionales que solo van en el PDF: la descripción, el nombre y el domicilio del receptor, y la condición de venta. Para esta última muestra una lista (Omitir, Contado, Tarjeta de Débito, Tarjeta de Crédito, Cuenta Corriente, Cheque, Transferencia Bancaria, Otros medios de pago electrónico, Otra) con la de la config (`condicionVenta`) marcada, así que Enter la mantiene. "Omitir" también evita que reaparezca el valor configurado; "Otra" pide el texto: Enter deja "Otra", o el texto libre que tenía la config. Si faltan datos del emisor (razón social, domicilio, inicio de actividades), los pregunta una vez y ofrece guardarlos en la config. Si falta el plugin, ofrece instalarlo. Ver [PDF de comprobantes](pdf.md).
 
-El comando equivalente se muestra antes de emitir, así que no incluye los flags del PDF. Siempre lleva el entorno (`--testing` o `--produccion`): si después cambiás el entorno en la config, el comando pegado sigue emitiendo donde lo armaste.
+El comando equivalente se muestra antes de emitir, así que no incluye la descripción ni la condición de venta del PDF. Siempre lleva el entorno (`--testing` o `--produccion`): si después cambiás el entorno en la config, el comando pegado sigue emitiendo donde lo armaste. Con un CUIT, lleva el nombre y el domicilio que trajo el padrón (`--receptor-nombre` y `--receptor-domicilio`): como también lleva `--ir`, el CLI no vuelve a consultar el padrón y sin esos flags el PDF saldría sin ellos.
 
 ### Opcionales
 
 Antes de la vista previa aparece **"¿Agregamos algún opcional?"**: una lista donde marcás con **espacio** lo que querés cambiar y confirmás con **Enter**. Cada opción muestra el valor que se va a usar si no la marcás. Después pregunta solo lo que marcaste, en orden.
 
-| Opción                      | Qué pregunta                                                                                                                   | Cuándo aparece                      |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------- |
-| Alícuota de IVA             | La alícuota. Por defecto `config.alicuota` o 21%                                                                               | A y B                               |
-| Moneda extranjera           | Pesos o dólares. En dólares, si te pagan en pesos (ingresás la cotización) o en dólares (se usa la cotización oficial de ARCA) | Siempre                             |
-| Importe exento o no gravado | La parte exenta y la no gravada del monto total                                                                                | A y B                               |
-| Período del servicio        | Desde y hasta                                                                                                                  | Si el concepto no es solo productos |
-| Vencimiento del pago        | La fecha                                                                                                                       | En servicios y en facturas FCE      |
-| Modalidad de transferencia  | SCA (por defecto) o ADC                                                                                                        | Facturas FCE                        |
+| Opción                      | Qué pregunta                                                                                                                                                                                                                                                                                                                                                                                            | Cuándo aparece                      |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| Fecha del comprobante       | La fecha (`--fecha`), por ejemplo para facturar con fecha de fin de mes. Por defecto hoy. Acepta lo mismo que el CLI: hasta 10 días antes o después de hoy en servicios, 5 en productos, y en FCE 5 antes y 1 después; las fechas futuras de productos y FCE, dentro del mes                                                                                                                            | Siempre                             |
+| Alícuota de IVA             | La alícuota. Por defecto `config.alicuota` o 21%                                                                                                                                                                                                                                                                                                                                                        | A y B                               |
+| Moneda extranjera           | Pesos, dólares, euros u otra de la tabla de ARCA (`arcli parametros monedas`). En otra moneda, si te pagan en pesos (ingresás la cotización) o en esa moneda (se usa la cotización oficial de ARCA, `--misma-moneda`). Arranca en `config.moneda`, como el CLI sin `--moneda`: sin marcarla, una moneda extranjera de la config va con la cotización oficial de ARCA (o `config.cotizacion`, deprecada) | Siempre                             |
+| Importe exento o no gravado | La parte exenta y la no gravada del monto total                                                                                                                                                                                                                                                                                                                                                         | A y B                               |
+| Período del servicio        | Desde y hasta                                                                                                                                                                                                                                                                                                                                                                                           | Si el concepto no es solo productos |
+| Vencimiento del pago        | La fecha                                                                                                                                                                                                                                                                                                                                                                                                | En servicios y en facturas FCE      |
+| Modalidad de transferencia  | SCA (por defecto) o ADC                                                                                                                                                                                                                                                                                                                                                                                 | Facturas FCE                        |
 
 "Volver" en una de esas preguntas vuelve a la lista, con lo marcado y lo ya respondido. "← Volver" en la lista vuelve al monto.
 
@@ -132,40 +150,104 @@ Emite un Recibo C (`rc`), el comprobante de un cobro. Sigue los mismos pasos que
 
 Se elige desde el menú: **Emitir nota de crédito** (descuento, devolución o anulación) o **Emitir nota de débito** (cargo adicional). Las dos siguen los mismos pasos.
 
-| Paso | Pregunta              | Detalle                                                                                                                                                                                                                                                                                                                                                                                    |
-| ---- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1    | Comprobante original  | Factura A, B o C, comunes o FCE, o Recibo C                                                                                                                                                                                                                                                                                                                                                |
-| 2    | Comprobante o período | En notas comunes, se elige si asociarla al comprobante (una factura o un recibo) o a un período (desde y hasta). Con período, se pregunta además el receptor y el concepto. Las notas FCE siempre van sobre una factura                                                                                                                                                                    |
-| 3    | Factura               | Lista las últimas 15 facturas de ese tipo emitidas en el punto de venta configurado (la cantidad se cambia con `config.comprobantesPorLista`), consultadas a ARCA, con número, fecha, receptor, total y CAE. Abajo de la lista: **Cargar más…** trae las anteriores, e **Ingresar el número a mano…** pide punto de venta y número (sirve para una factura vieja o de otro punto de venta) |
-| 4    | Monto                 | En crédito: anular el total o ingresar un monto parcial (no puede superar el total de la factura). En débito: el monto a sumar                                                                                                                                                                                                                                                             |
-| 5    | IVA del receptor      | Solo si la factura no era a consumidor final: ARCA no devuelve la condición IVA, así que se pregunta, filtrada por la letra                                                                                                                                                                                                                                                                |
-| 6    | Anulación             | Solo en NC/ND FCE: si la factura fue rechazada por el comprador                                                                                                                                                                                                                                                                                                                            |
+| Paso | Pregunta             | Detalle                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ---- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1    | Comprobante original | Factura A, B o C, comunes o FCE, Recibo C o la de exportación E ([abajo](#nota-de-crédito-o-débito-e))                                                                                                                                                                                                                                                                                                                                     |
+| 2    | A qué la asociamos   | En notas comunes, a un comprobante (una factura o un recibo) o a un período. Las notas FCE siempre van sobre una factura, porque ARCA no acepta período en ellas                                                                                                                                                                                                                                                                           |
+| 3    | Factura              | Sobre un comprobante: lista las últimas 15 facturas de ese tipo emitidas en el punto de venta configurado (la cantidad se cambia con `config.filasPorLista`), consultadas a ARCA, con número, fecha, receptor, total y CAE. Abajo de la lista: **Cargar más…** trae las anteriores, e **Ingresar el número a mano…** pide punto de venta y número (sirve para una factura vieja o de otro punto de venta)                                  |
+| 3    | Período              | Sobre un período: desde y hasta (`--periodo-desde` y `--periodo-hasta`)                                                                                                                                                                                                                                                                                                                                                                    |
+| 4    | Receptor             | Solo sobre un período: consumidor final, CUIT, DNI o CUIL, y el número, como en "Emitir factura"                                                                                                                                                                                                                                                                                                                                           |
+| 5    | Concepto             | Solo sobre un período. Arranca en `config.concepto` si está configurado                                                                                                                                                                                                                                                                                                                                                                    |
+| 6    | Monto                | En crédito sobre un comprobante: anular el total o ingresar un monto parcial, que no puede superar el total (si la factura tiene varias alícuotas o tributos, solo parcial). En débito o sobre un período: el monto                                                                                                                                                                                                                        |
+| 7    | IVA del receptor     | Si no es consumidor final, filtrada por la letra. Sobre un comprobante se pregunta porque ARCA no devuelve la condición IVA. Con un CUIT propone la del padrón                                                                                                                                                                                                                                                                             |
+| 8    | Alícuota de IVA      | Solo en A y B. Sobre un comprobante, solo si no se puede deducir de sus importes; sobre un período, siempre. Arranca en la deducida o, si no hay, en `config.alicuota` o 21%                                                                                                                                                                                                                                                               |
+| 9    | Anulación            | Solo en NC/ND FCE: si la factura fue rechazada por el comprador                                                                                                                                                                                                                                                                                                                                                                            |
+| 10   | Opcionales           | La misma selección múltiple de "Emitir factura", con lo que aplica a una nota: fecha del comprobante, período del servicio y vencimiento del pago (estos dos como en la factura; las notas FCE no llevan vencimiento), importe exento o no gravado (A y B, salvo que anule el total, porque ahí se copian de la factura) y moneda (solo en las notas por período: las de una factura van en su moneda). La alícuota no está: tiene su paso |
 
 La nota hereda de la factura el concepto, el receptor (tipo y número de documento), la moneda y la alícuota de IVA cuando se puede deducir de los importes. El comprobante asociado se completa solo: tipo, punto de venta (el de la factura, aunque sea otro que el configurado), número, CUIT del emisor y fecha.
 
+Lo que no sale de la factura arranca en los defaults de la config, como en el CLI: el IVA del receptor en `config.ivaReceptor` (salvo que el padrón diga otro), la alícuota (si no se deduce de la factura) en `config.alicuota` o 21%, y en las de período, el concepto en `config.concepto` y la moneda en `config.moneda`.
+
+### Nota de crédito o débito E
+
+Al elegir **Factura de exportación E** como comprobante original, la nota sigue estos pasos:
+
+| Paso | Pregunta                    | Detalle                                                                                                                                                                                   |
+| ---- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Sobre qué va la nota        | La factura E (por defecto, Enter) u otra nota de débito o crédito E (`--ac nde` o `--ac nce`)                                                                                             |
+| 2    | Punto de venta del asociado | Por defecto, el configurado                                                                                                                                                               |
+| 3    | Número del asociado         | Lo busca en ARCA y muestra a quién y por cuánto fue. Si no existe, o si la nota no puede ajustarlo (en servicios, una nota de débito solo ajusta una factura), avisa y vuelve a preguntar |
+| 4    | Monto                       | En la moneda del asociado. En crédito no puede superar su total, salvo que ajuste otra nota de crédito                                                                                    |
+| 5    | Detalle                     | Opcional; por defecto "Según detalle"                                                                                                                                                     |
+| 6    | Permisos de embarque        | Solo si el asociado es de bienes, opcional: van con `--permiso`, sin `--permiso-existente`                                                                                                |
+| 7    | Opcionales                  | Ítems, idioma, observaciones, descripción del incoterm y cotización ([arriba](#opcionales-de-la-e))                                                                                       |
+
+Cliente, destino, moneda, cotización, idioma, incoterm y actividad salen del asociado, y el número de la nota, del último que tiene ARCA. Después muestra la vista previa y el comando equivalente (`arcli nce …` o `arcli nde …`), y pregunta antes de emitir, como la factura E.
+
 ## Repetir un comprobante anterior
 
-Para quien factura o cobra lo mismo seguido. Elegís si es una factura o un Recibo C y uno de los últimos 15 emitidos, y se copian el receptor, el concepto, el monto y la alícuota (cuando se puede deducir de los importes). **Las fechas no se copian:** el comprobante sale con fecha de hoy.
+Para quien factura o cobra lo mismo seguido. Elegís si es una factura, un Recibo C o una factura de exportación `E` ([abajo](#repetir-una-factura-e)) y uno de los últimos 15 emitidos, y se copian el receptor, el concepto, el monto y la alícuota (cuando se puede deducir de los importes). **Las fechas no se copian:** el comprobante sale con fecha de hoy, salvo que elijas otra en los opcionales.
 
-| Paso | Pregunta             | Detalle                                                                                                                                                       |
-| ---- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1    | Tipo de comprobante  | Factura A, B o C, comunes o FCE, o Recibo C                                                                                                                   |
-| 2    | Comprobante          | Uno de los últimos emitidos en el punto de venta configurado. Como en las notas, se pueden cargar más o ingresar el número a mano                             |
-| 3    | IVA del receptor     | Solo si no era consumidor final: ARCA no devuelve la condición IVA de la factura                                                                              |
-| 4    | Monto                | El mismo o uno nuevo                                                                                                                                          |
-| 5    | Período del servicio | Este mes, el mes pasado, solo hoy u otro. No se pregunta si el concepto es solo productos                                                                     |
-| 6    | CBU                  | Solo en FCE sin `config.cbu`                                                                                                                                  |
-| 7    | Opcionales           | La misma selección múltiple de "Emitir factura". Si la original era en dólares, arranca con la moneda marcada, porque la cotización hay que volver a cargarla |
+| Paso | Pregunta             | Detalle                                                                                                                                                                                                                                                   |
+| ---- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Tipo de comprobante  | Factura A, B o C, comunes o FCE, Recibo C o factura de exportación E                                                                                                                                                                                      |
+| 2    | Comprobante          | Uno de los últimos emitidos en el punto de venta configurado. Como en las notas, se pueden cargar más o ingresar el número a mano                                                                                                                         |
+| 3    | IVA del receptor     | Solo si no era consumidor final: ARCA no devuelve la condición IVA de la factura                                                                                                                                                                          |
+| 4    | Monto                | El mismo o uno nuevo, en la moneda del original. Si tiene varias alícuotas o tributos, pide el monto directamente                                                                                                                                         |
+| 5    | ¿Cómo te pagan?      | Solo si el original era en moneda extranjera (dólares, euros u otra): el nuevo sale en esa moneda y la cotización se vuelve a cargar. En pesos ingresás la cotización acordada; en la moneda del comprobante se usa la oficial de ARCA (`--misma-moneda`) |
+| 6    | Período del servicio | Este mes, el mes pasado, solo hoy u otro. No se pregunta si el concepto es solo productos                                                                                                                                                                 |
+| 7    | CBU                  | Solo en FCE sin `config.cbu`, con el alias si no hay `aliasCbu`; después de la confirmación ofrece guardarlos en la config, como en "Emitir factura"                                                                                                      |
+| 8    | Opcionales           | La misma selección múltiple de "Emitir factura". Si el original era en moneda extranjera, no ofrece cambiar la moneda: el monto está en esa moneda. En A y B, si no se pudo deducir la alícuota, esa opción arranca marcada                               |
 
 Después sigue igual que una factura nueva: vista previa, comando equivalente y confirmación.
 
-## Consultar comprobantes
+### Repetir una factura E
 
-![Consultar comprobantes: lista, cargar más y detalle de una Factura C](assets/demo/consultar.gif)
+Elegís una de las últimas facturas `E` (con **Cargar más…** e **Ingresar el número a mano…**, como en [Mis comprobantes](#mis-comprobantes)) y se copian de lo que ARCA devuelve de ella (`FEXGetCMP`): el cliente, su domicilio e ID impositivo, el destino y su CUIT, el tipo de exportación, la moneda y si se cobró en esa moneda, el incoterm y su descripción, los ítems, la forma de pago, el idioma y la actividad. **No se copian** las fechas (sale con la de hoy), la cotización (la de aduana del día, salvo que cargues otra en los opcionales), los permisos de embarque ni las observaciones.
 
-Elegís el tipo (cualquiera de los 19) y aparece la lista de los últimos 15 emitidos en el punto de venta configurado, con el mismo formato que `arcli ultimos`: número, fecha, receptor, total y CAE. Igual que al elegir la factura de una nota, abajo están **Cargar más…** e **Ingresar el número a mano…** (punto de venta y número).
+| Paso | Pregunta             | Detalle                                                                                                                                                      |
+| ---- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1    | Comprobante          | Una de las últimas facturas `E` del punto de venta                                                                                                           |
+| 2    | Monto                | El mismo o uno nuevo, en la moneda del original. Con otro monto los ítems copiados no suman, así que sale un renglón con el total: los podés cargar de nuevo |
+| 3    | ¿Te pagan en…?       | Solo si ARCA no devolvió si se cobró en la misma moneda                                                                                                      |
+| 4    | CUIT del país        | Solo si la factura no lo trae y ARCA no publica uno para el destino                                                                                          |
+| 5    | Permisos de embarque | Solo en bienes, opcional: son de cada embarque                                                                                                               |
+| 6    | Fecha de pago        | Opcional; por defecto la del comprobante                                                                                                                     |
+| 7    | Actividad            | Solo si la factura no la trae y no está `exportacion.actividad`                                                                                              |
+| 8    | Opcionales           | Los [de la E](#opcionales-de-la-e), con lo copiado ya cargado                                                                                                |
 
-Al elegir uno se muestra lo mismo que `arcli consultar`: CAE, vencimiento, importes y receptor. Después vuelve a la lista, con lo que ya estaba cargado, para ver otro. **Esc** o **"← Volver"** sale al menú.
+Un solo renglón por el total se repite como descripción (`--descripcion`) y varios, como `--item`. Si algún ítem tiene bonificación, que el asistente no informa, o los ítems no suman el total, avisa y sale un renglón con el monto total. Después muestra la vista previa, el comando `arcli fe` equivalente y pregunta si emitir, como una factura `E` nueva.
+
+## Consultas
+
+Lo que el CLI consulta con `ultimos`, `consultar`, `padron`, `fce-obligado` y `parametros`, sin escribir comandos. Un error de ARCA (por ejemplo, sin conexión) se muestra y vuelve a este menú.
+
+| Opción                   | Qué hace                                                                                                                                                                      |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Mis comprobantes         | Los últimos emitidos de cada tipo, o uno por número ([abajo](#mis-comprobantes))                                                                                              |
+| Datos de un CUIT         | Pide el CUIT y muestra lo mismo que `arcli padron`. Después ofrece **Emitir una factura a este CUIT**                                                                         |
+| Si un cliente recibe FCE | Pide el CUIT y muestra lo mismo que `arcli fce-obligado`, con la fecha de hoy (para otra fecha, `arcli fce-obligado --fecha`)                                                 |
+| Cotización de una moneda | Elegís la moneda de la tabla de ARCA (el dólar primero) y muestra la cotización oficial, como `arcli parametros cotizacion`. Después vuelve a la lista                        |
+| Tablas de ARCA           | Las nueve de `arcli parametros`: puntos de venta, comprobantes, documentos, alícuotas, IVA del receptor, monedas, conceptos, opcionales y tributos ([abajo](#tablas-de-arca)) |
+
+**Emitir una factura a este CUIT** arranca "Emitir factura" con el CUIT, el nombre, el domicilio y la condición frente al IVA del padrón ya cargados: no pregunta a quién le facturás y pasa directo al comprobante, el concepto y el monto. La condición IVA se pregunta solo si el padrón no la informa o no sirve para la letra elegida (por ejemplo, un responsable inscripto en una factura B). Volver desde el primer paso vuelve a la pregunta; al terminar, vuelve al menú principal.
+
+### Tablas de ARCA
+
+La lista muestra el nombre de cada tabla, y la línea de abajo, para qué sirve su código en ARCLI. Cada tabla se muestra con una fila de encabezado (`CÓDIGO` o `NÚMERO`, la descripción y, si la tabla tiene, una tercera columna, como las letras que admite cada condición IVA) y esa misma ayuda.
+
+- **Si entra en una página**, va en un recuadro, igual que `arcli parametros <tabla>`.
+- **Si no entra**, va en una lista que se filtra escribiendo y se desplaza con las flechas. Enter o Esc vuelven a la lista de tablas.
+
+Las filas por página son las de `filasPorLista` (15 por defecto). La lista de monedas de **Cotización de una moneda** es la misma: se filtra por nombre, código de ARCA o ISO (`eur`, `060` o `usd`) y se elige con Enter.
+
+### Mis comprobantes
+
+![Mis comprobantes: lista, cargar más y detalle de una Factura C](assets/demo/consultar.gif)
+
+Elegís el tipo (cualquiera de los 19 de A, B y C, o la factura de exportación `E` y sus notas de crédito y débito) y aparece la lista de los últimos 15 emitidos en el punto de venta configurado, con el mismo formato que `arcli ultimos`: número, fecha, receptor, total y CAE. En la `E` va el nombre del cliente en lugar del receptor. Igual que al elegir la factura de una nota, abajo están **Cargar más…** e **Ingresar el número a mano…** (punto de venta y número).
+
+Al elegir uno se muestra lo mismo que `arcli consultar`: CAE, vencimiento, importes y receptor. En la `E`, cliente, destino, tipo de exportación, moneda, total y, en las notas, la factura que ajustan. Después vuelve a la lista, con lo que ya estaba cargado, para ver otro. **Esc** o **"← Volver"** vuelve a Consultas.
 
 ## Configuración
 
@@ -173,12 +255,13 @@ Al elegir uno se muestra lo mismo que `arcli consultar`: CAE, vencimiento, impor
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Ver configuración               | Todos los datos guardados, igual que `arcli config`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | Revisar configuración           | Lo mismo que `arcli config revisar`: defaults, credenciales y validación contra ARCA                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| Configuración guiada            | Pregunta CUIT, certificado y clave de testing, punto de venta, concepto e IVA del receptor por defecto, y si querés, los datos del emisor para el PDF. Propone lo que ya está guardado. Si no tenés certificado de testing, ofrece sacarlo ahí mismo (como "Certificados de ARCA") y no pide la clave                                                                                                                                                                                                                                                   |
+| Configuración guiada            | Pregunta CUIT, certificado y clave del entorno activo (`config.entorno`, o el de `arcli interactivo --produccion` o `--testing`), punto de venta, concepto e IVA del receptor por defecto, y si querés, los datos del emisor para el PDF. Propone lo que ya está guardado. Si no tenés certificado de ese entorno, ofrece sacarlo ahí mismo (como "Certificados de ARCA") y no pide la clave                                                                                                                                                            |
 | Modificar configuración         | Lista los datos con las mismas secciones y el mismo orden que `arcli config` (cuenta, certificados, al facturar, FCE, factura de exportación, datos del emisor, PDF y salida), con el valor actual abajo del marcado. No incluye `emitir`, `json` ni `bruto`, que solo cambian el CLI con flags. Elegís uno y lo cambiás; en los de texto, `-` lo borra. Después vuelve a la lista, hasta "← Volver"                                                                                                                                                    |
 | Certificados de ARCA            | Una caja por entorno, con el título en su color: alias, vencimiento (con los días que faltan), certificado, clave y si hay un pedido sin importar. "Sacar o renovar un certificado" pide entorno y alias, muestra el CSR y los pasos en ARCA como `arcli certificado generar`; si ya hay un pedido pendiente, ofrece verlo de nuevo o descartarlo. "Cargar el certificado (.crt)" pide la ruta (podés arrastrar el archivo a la terminal), lo valida y lo configura como `arcli certificado importar`; si ya había otro, pregunta antes de reemplazarlo |
 | Plugin de PDF                   | Estado del plugin; instalarlo, actualizarlo o desinstalarlo                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | Autocompletado                  | Si está instalado el autocompletado con Tab; instalarlo o desinstalarlo (como `arcli completado`)                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | Acceso directo en el escritorio | Crea o actualiza el ícono para abrir ARCLI con doble clic (como `arcli acceso-directo`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Dónde está la config            | El archivo de configuración y su carpeta (con los certificados, los tickets y el plugin de PDF), como `arcli config ruta`                                                                                                                                                                                                                                                                                                                                                                                                                               |
 
 Cada respuesta se valida igual que en `arcli config establecer` y se guarda en el momento: si cortás a mitad, lo ya respondido queda guardado. En las rutas del certificado y de la clave podés arrastrar el archivo a la terminal. Si en la guiada dejás el certificado para después, al terminar te dice que falta cargarlo y dónde. Al volver al menú, la barra se actualiza con lo que cambiaste.
 
@@ -203,8 +286,10 @@ Muestra lo mismo que `arcli estado` (servidores, tiempo de respuesta y punto de 
 
 ## Qué no hace (todavía)
 
-- Varias alícuotas en un mismo comprobante: se resuelven con el comando equivalente y `--alicuota TASA:MONTO`.
+- Varias alícuotas en un mismo comprobante: se resuelven con el comando equivalente y `--alicuota TASA:MONTO`. Por lo mismo, una nota sobre una factura con varias alícuotas solo puede ser parcial, y al repetirla hay que elegir la alícuota.
 - Facturas por lote: siguen siendo `--cargar` con un JSON.
+- Monedas que ARCA publica solo con un código numérico (`002`, dólar libre, y `049`, oro): van con `--moneda` en el CLI.
+- Una factura `E` en otra moneda que dólares o pesos: el asistente ofrece solo esas dos, y el resto va con `arcli fe --moneda`, por ejemplo `--moneda EUR`.
 
 ## Ver también
 

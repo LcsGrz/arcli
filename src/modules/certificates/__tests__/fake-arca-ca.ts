@@ -1,8 +1,9 @@
+import { generateKeyPairSync } from 'node:crypto';
 import forge from 'node-forge';
 
 /**
  * Una autoridad que firma como ARCA ("Computadores Test" o "Computadores", con O=AFIP), para probar `importar` sin
- * certificados reales. Las claves RSA de forge tardan: se generan una vez por autoridad.
+ * certificados reales. La clave de cada autoridad la genera `node:crypto` (las de forge tardan) una vez por archivo.
  */
 const authorities = new Map<string, { cert: forge.pki.Certificate; key: forge.pki.rsa.PrivateKey }>();
 
@@ -13,7 +14,15 @@ function authority(commonName: string) {
     return cached;
   }
 
-  const keys = forge.pki.rsa.generateKeyPair(1024);
+  const pair = generateKeyPairSync('rsa', {
+    modulusLength: 1024,
+    privateKeyEncoding: { format: 'pem', type: 'pkcs8' },
+    publicKeyEncoding: { format: 'pem', type: 'spki' },
+  });
+  const keys = {
+    privateKey: forge.pki.privateKeyFromPem(pair.privateKey) as forge.pki.rsa.PrivateKey,
+    publicKey: forge.pki.publicKeyFromPem(pair.publicKey) as forge.pki.rsa.PublicKey,
+  };
   const cert = forge.pki.createCertificate();
   const name = [
     { name: 'countryName', value: 'AR' },

@@ -8,6 +8,7 @@ import type {
   BillingIvaRate,
 } from '../billing/billing.schemas';
 import type { VoucherKindDefinition, VoucherLetter, VoucherShortcut } from '../billing/billing.types';
+import { ARCA_CURRENCIES } from '../billing/currency-codes';
 import { VOUCHER_KIND_MAP } from '../billing/voucher-kind-map';
 import { EXPORT_VOUCHER_KIND, type ExportVoucherKind } from '../export/export.types';
 
@@ -32,7 +33,7 @@ export function invoiceKindChoices(): Array<InteractiveChoice<VoucherKindDefinit
       ? 'Factura de Crédito Electrónica MiPyMEs, para grandes empresas'
       : INVOICE_DESCRIPTIONS[definition.letter];
 
-    return { description, name: `${definition.displayName} (${shortcut})`, value: definition };
+    return { description, name: definition.displayName, value: definition };
   });
 }
 
@@ -42,7 +43,7 @@ export function reciboChoice(): InteractiveChoice<VoucherKindDefinition> {
 
   return {
     description: 'Comprobante de un cobro; lo emiten monotributistas y exentos',
-    name: `${definition.displayName} (${definition.shortcut})`,
+    name: definition.displayName,
     value: definition,
   };
 }
@@ -51,7 +52,7 @@ export function reciboChoice(): InteractiveChoice<VoucherKindDefinition> {
 export function exportInvoiceChoice(): InteractiveChoice<ExportVoucherKind> {
   return {
     description: 'A un cliente del exterior: servicios o bienes',
-    name: `${EXPORT_VOUCHER_KIND.displayName} (${EXPORT_VOUCHER_KIND.shortcut})`,
+    name: EXPORT_VOUCHER_KIND.displayName,
     value: EXPORT_VOUCHER_KIND,
   };
 }
@@ -74,7 +75,7 @@ export function receiverChoices(letter: VoucherLetter): Array<InteractiveChoice<
   choices.push({ name: 'Con CUIT', value: 'cuit' });
 
   if (letter !== 'a') {
-    choices.push({ name: 'Con DNI', value: 'dni' });
+    choices.push({ name: 'Con DNI', value: 'dni' }, { name: 'Con CUIL', value: 'cuil' });
   }
 
   return choices;
@@ -100,4 +101,20 @@ export function ivaRateChoices(): Array<InteractiveChoice<BillingIvaRate>> {
     name: `${rate.replace('.', ',')}%`,
     value: rate,
   }));
+}
+
+/**
+ * Monedas del comprobante: pesos y despues las de la tabla de ARCA con codigo ISO, en su orden (dolares y euros
+ * primero). Las que ARCA publica solo con un codigo numerico (`002`, oro) quedan para el CLI.
+ */
+export function currencyChoices(): Array<InteractiveChoice<string>> {
+  return ARCA_CURRENCIES.flatMap((currency) => {
+    const code = currency.iso ?? (/^[A-Z]{3}$/.test(currency.arca) ? currency.arca : undefined);
+
+    if (!code) {
+      return [];
+    }
+
+    return code === 'ARS' ? [{ name: 'Pesos', value: 'PES' }] : [{ name: `${currency.name} (${code})`, value: code }];
+  });
 }

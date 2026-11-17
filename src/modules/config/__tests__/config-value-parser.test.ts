@@ -8,6 +8,11 @@ import { parseConfigValue } from '../config-value-parser';
 
 const temporaryDirectories: string[] = [];
 
+/** Error de zod de un valor fuera del enum, con los valores válidos que muestra la CLI. */
+function enumRejection(values: unknown) {
+  return expect.objectContaining({ issues: [expect.objectContaining({ code: 'invalid_value', values })] });
+}
+
 function writePemFile(filename: string, content: string): string {
   const directory = mkdtempSync(join(tmpdir(), 'arcli-config-value-parser-'));
 
@@ -34,9 +39,13 @@ describe('config-value-parser', () => {
   });
 
   it('rejects values outside of the supported enums', () => {
-    expect(() => parseConfigValue('entornoPorDefecto', 'demo')).toThrow();
-    expect(() => parseConfigValue('conceptoPorDefecto', 'cosas')).toThrow();
-    expect(() => parseConfigValue('ivaReceptorPorDefecto', 'algo-raro')).toThrow();
+    expect(() => parseConfigValue('entornoPorDefecto', 'demo')).toThrow(enumRejection(['testing', 'produccion']));
+    expect(() => parseConfigValue('conceptoPorDefecto', 'cosas')).toThrow(
+      enumRejection(['productos', 'productos-servicios', 'servicios']),
+    );
+    expect(() => parseConfigValue('ivaReceptorPorDefecto', 'algo-raro')).toThrow(
+      enumRejection(expect.arrayContaining(['consumidor-final', 'responsable-inscripto'])),
+    );
   });
 
   it('normalizes the currency code to uppercase', () => {
@@ -57,7 +66,7 @@ describe('config-value-parser', () => {
 
   it('reports invalid values as input errors, not unexpected ones', () => {
     expect(() => parseConfigValue('puntoVentaPorDefecto', 'abc')).toThrow(InputValidationError);
-    expect(() => parseConfigValue('comprobantesPorLista', '99')).toThrow(InputValidationError);
+    expect(() => parseConfigValue('filasPorLista', '99')).toThrow(InputValidationError);
   });
 
   it('normalizes the default IVA rate', () => {
@@ -80,10 +89,10 @@ describe('config-value-parser', () => {
   });
 
   it('valida la cantidad de comprobantes por lista entre 1 y 50', () => {
-    expect(parseConfigValue('comprobantesPorLista', ' 25 ')).toBe(25);
-    expect(() => parseConfigValue('comprobantesPorLista', '0')).toThrow(/entre 1 y 50/);
-    expect(() => parseConfigValue('comprobantesPorLista', '51')).toThrow(/entre 1 y 50/);
-    expect(() => parseConfigValue('comprobantesPorLista', '2.5')).toThrow(/entre 1 y 50/);
+    expect(parseConfigValue('filasPorLista', ' 25 ')).toBe(25);
+    expect(() => parseConfigValue('filasPorLista', '0')).toThrow(/entre 1 y 50/);
+    expect(() => parseConfigValue('filasPorLista', '51')).toThrow(/entre 1 y 50/);
+    expect(() => parseConfigValue('filasPorLista', '2.5')).toThrow(/entre 1 y 50/);
   });
 
   it('rejects non-positive numbers and integers', () => {
@@ -99,6 +108,7 @@ describe('config-value-parser', () => {
     expect(parseConfigValue('cuit', '  20123456786  ')).toBe('20123456786');
     expect(parseConfigValue('cuit', '20-12345678-6')).toBe('20123456786');
     expect(() => parseConfigValue('cuit', '20-12345678-9')).toThrow(/dígito verificador/);
+    expect(() => parseConfigValue('cuit', '123')).toThrow(/debe tener 11 dígitos/);
   });
 
   it('trims free-form string keys without transforming them', () => {
@@ -149,7 +159,7 @@ describe('config-value-parser', () => {
 
   it('parses the PDF mode and folder', () => {
     expect(parseConfigValue('pdf', 'Siempre')).toBe('siempre');
-    expect(() => parseConfigValue('pdf', 'a-veces')).toThrow();
+    expect(() => parseConfigValue('pdf', 'a-veces')).toThrow(enumRejection(['siempre', 'preguntar', 'nunca']));
     expect(parseConfigValue('pdfCarpeta', '/tmp/comprobantes')).toBe(resolve('/tmp/comprobantes'));
   });
 

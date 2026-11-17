@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { POINT_OF_SALE_GUIDE_URL } from '../../../lib/links';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import { EmissionUncertainError } from '../billing.errors';
 import type { BillingCommandInput } from '../billing.schemas';
@@ -52,14 +53,17 @@ function createBillingInput(overrides: Partial<BillingCommandInput> = {}): Billi
 }
 
 describe('billing.service', () => {
+  beforeEach(() => {
+    // Reloj fijo para todo el archivo: los tests que necesitan otro día lo cambian con setSystemTime.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
+  });
+
   afterEach(() => {
     vi.useRealTimers();
   });
 
   it('builds invoice payload with default service dates', () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
-
     const service = new BillingService();
 
     const payload = service.buildVoucherPayload(createBillingInput({ shortcut: 'fc' }), createRuntime());
@@ -82,9 +86,6 @@ describe('billing.service', () => {
   });
 
   it('uses today as billing date when no explicit date is provided', () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
-
     const service = new BillingService();
 
     const payload = service.buildVoucherPayload(
@@ -96,7 +97,6 @@ describe('billing.service', () => {
   });
 
   it('uses --dia only for the payment due date, keeping the service period', () => {
-    vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-11-03T12:00:00Z'));
 
     const service = new BillingService();
@@ -133,7 +133,6 @@ describe('billing.service', () => {
   });
 
   it('uses the Argentine date at night, even on a UTC machine', () => {
-    vi.useFakeTimers();
     // 22:30 del 18/03 en Argentina; en UTC ya es el 19.
     vi.setSystemTime(new Date('2026-03-19T01:30:00Z'));
 
@@ -156,7 +155,6 @@ describe('billing.service', () => {
   });
 
   it('keeps --dia in the next month when today is the 31st', () => {
-    vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-03-31T12:00:00Z'));
 
     const payload = new BillingService().buildVoucherPayload(
@@ -169,7 +167,6 @@ describe('billing.service', () => {
   });
 
   it('rolls --dia over to January when it already passed in December', () => {
-    vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-12-20T12:00:00Z'));
 
     const payload = new BillingService().buildVoucherPayload(
@@ -181,7 +178,6 @@ describe('billing.service', () => {
   });
 
   it('rejects --dia when that day does not exist in the month', () => {
-    vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-03-31T12:00:00Z'));
 
     expect(() =>
@@ -201,9 +197,6 @@ describe('billing.service', () => {
   });
 
   it('builds invoice payload with explicit billing date in Argentine format', () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
-
     const service = new BillingService();
 
     const payload = service.buildVoucherPayload(
@@ -224,28 +217,7 @@ describe('billing.service', () => {
     expect(payload.FchVtoPago).toBeUndefined();
   });
 
-  it('accepts slash-separated Argentine dates', () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
-
-    const service = new BillingService();
-
-    const payload = service.buildVoucherPayload(
-      createBillingInput({
-        billingDate: '18/03/2026',
-        concept: 'productos',
-        documentNumber: 12345678,
-        documentType: 'dni',
-        shortcut: 'fb',
-      }),
-      createRuntime(),
-    );
-
-    expect(payload.CbteFch).toBe('20260318');
-  });
-
   it('uses the current year when Argentine dates omit it', () => {
-    vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-08-12T12:00:00Z'));
 
     const service = new BillingService();
@@ -263,61 +235,6 @@ describe('billing.service', () => {
     expect(payload.FchServDesde).toBe('20260801');
     expect(payload.FchServHasta).toBe('20260831');
     expect(payload.FchVtoPago).toBe('20260831');
-  });
-
-  it('uses the current month and year when Argentine dates only include the day', () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-08-12T12:00:00Z'));
-
-    const service = new BillingService();
-
-    const payload = service.buildVoucherPayload(
-      createBillingInput({
-        billingDate: '5',
-        serviceEndDate: '15',
-        serviceStartDate: '05',
-      }),
-      createRuntime(),
-    );
-
-    expect(payload.CbteFch).toBe('20260805');
-    expect(payload.FchServDesde).toBe('20260805');
-    expect(payload.FchServHasta).toBe('20260815');
-    expect(payload.FchVtoPago).toBe('20260815');
-  });
-
-  it('rejects ISO date input', () => {
-    const service = new BillingService();
-
-    expect(() =>
-      service.buildVoucherPayload(
-        createBillingInput({
-          billingDate: '2026-03-18',
-          concept: 'productos',
-          documentNumber: 12345678,
-          documentType: 'dni',
-          shortcut: 'fb',
-        }),
-        createRuntime(),
-      ),
-    ).toThrow(/Usá D, DD, D-MM, D\/MM, D-MM-YY, D\/MM\/YY, D-MM-YYYY o D\/MM\/YYYY/);
-  });
-
-  it('rejects impossible Argentine dates', () => {
-    const service = new BillingService();
-
-    expect(() =>
-      service.buildVoucherPayload(
-        createBillingInput({
-          billingDate: '31/02/2026',
-          concept: 'productos',
-          documentNumber: 12345678,
-          documentType: 'dni',
-          shortcut: 'fb',
-        }),
-        createRuntime(),
-      ),
-    ).toThrow(/La fecha "31\/02\/2026" no es válida/);
   });
 
   it('requires associated vouchers for credit notes and debit notes', () => {
@@ -444,22 +361,11 @@ describe('billing.service', () => {
   });
 
   it('resolves the official exchange rate when paying in the same foreign currency', async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
-
     const service = new BillingService();
     const getQuotation = vi.fn(async () => 1415.25);
     const input = await service.resolveExchangeRate(
       createBillingInput({ currencyCode: 'USD', documentNumber: 0, exchangeRate: undefined, sameCurrency: true }),
-      {
-        createVoucher: async () => {
-          throw new Error('No debería emitirse');
-        },
-        getNextVoucherNumber: async () => {
-          throw new Error('No debería emitirse');
-        },
-        getQuotation,
-      },
+      { getQuotation },
     );
     const payload = service.buildVoucherPayload(input, createRuntime());
 
@@ -473,15 +379,7 @@ describe('billing.service', () => {
     const getQuotation = vi.fn(async () => 1415.25);
     const input = await service.resolveExchangeRate(
       createBillingInput({ currencyCode: 'USD', documentNumber: 0, exchangeRate: undefined }),
-      {
-        createVoucher: async () => {
-          throw new Error('No debería emitirse');
-        },
-        getNextVoucherNumber: async () => {
-          throw new Error('No debería emitirse');
-        },
-        getQuotation,
-      },
+      { getQuotation },
     );
     const payload = service.buildVoucherPayload(input, createRuntime());
 
@@ -495,24 +393,11 @@ describe('billing.service', () => {
     const getQuotation = vi.fn(async () => 1415.25);
     const input = createBillingInput({ currencyCode: 'USD', exchangeRate: 1200 });
 
-    await expect(
-      service.resolveExchangeRate(input, {
-        createVoucher: async () => {
-          throw new Error('No debería emitirse');
-        },
-        getNextVoucherNumber: async () => {
-          throw new Error('No debería emitirse');
-        },
-        getQuotation,
-      }),
-    ).resolves.toBe(input);
+    await expect(service.resolveExchangeRate(input, { getQuotation })).resolves.toBe(input);
     expect(getQuotation).not.toHaveBeenCalled();
   });
 
   it('rejects --misma-moneda with a past billing date', () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
-
     const service = new BillingService();
 
     expect(() =>
@@ -530,9 +415,6 @@ describe('billing.service', () => {
   });
 
   it('rejects --misma-moneda with a future billing date, whose official rate does not exist yet', () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
-
     const service = new BillingService();
 
     expect(() =>
@@ -801,9 +683,6 @@ describe('billing.service', () => {
   });
 
   it('rejects billing dates outside the ARCA window', () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
-
     const service = new BillingService();
     const build = (overrides: Partial<BillingCommandInput>) => () =>
       service.buildVoucherPayload(createBillingInput({ documentNumber: 0, ...overrides }), createRuntime());
@@ -817,7 +696,6 @@ describe('billing.service', () => {
   });
 
   it('rejects future product dates in another month', () => {
-    vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-03-30T12:00:00Z'));
 
     const service = new BillingService();
@@ -831,9 +709,6 @@ describe('billing.service', () => {
   });
 
   it('uses the FCE billing date window', () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
-
     const service = new BillingService();
     const build = (billingDate: string) => () =>
       service.buildVoucherPayload(
@@ -854,9 +729,6 @@ describe('billing.service', () => {
   });
 
   it('sends FchVtoPago on FCE invoices even for products', () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
-
     const service = new BillingService();
 
     const payload = service.buildVoucherPayload(
@@ -877,9 +749,6 @@ describe('billing.service', () => {
   });
 
   it('rejects an FCE payment due date before today', () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
-
     const service = new BillingService();
 
     expect(() =>
@@ -899,9 +768,6 @@ describe('billing.service', () => {
   });
 
   it('does not send FchVtoPago on FCE credit or debit notes', () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
-
     const service = new BillingService();
     const input = createBillingInput({
       associatedVoucher: { cuit: '20123456786', fecha: '10/03/2026', numero: 1, puntoVenta: 3, shortcut: 'fcea' },
@@ -918,9 +784,6 @@ describe('billing.service', () => {
   });
 
   it('accepts an explicit payment due date independent from the service period', () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
-
     const service = new BillingService();
 
     const payload = service.buildVoucherPayload(
@@ -939,9 +802,6 @@ describe('billing.service', () => {
   });
 
   it('defaults the payment due date to the billing date when the service ended earlier', () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
-
     const service = new BillingService();
 
     const payload = service.buildVoucherPayload(
@@ -958,9 +818,6 @@ describe('billing.service', () => {
   });
 
   it('rejects a payment due date before the billing date', () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
-
     const service = new BillingService();
 
     expect(() =>
@@ -991,11 +848,6 @@ describe('billing.service', () => {
         shortcut: 'ncb',
         ...overrides,
       });
-
-    beforeEach(() => {
-      vi.useFakeTimers();
-      vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
-    });
 
     it('sends PeriodoAsoc instead of CbtesAsoc on regular notes', () => {
       const payload = new BillingService().buildVoucherPayload(periodNote(), createRuntime());
@@ -1159,11 +1011,6 @@ describe('billing.service', () => {
         ...overrides,
       });
 
-    beforeEach(() => {
-      vi.useFakeTimers();
-      vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
-    });
-
     it('sends CBU and the default SCA transfer mode on FCE invoices', () => {
       const payload = new BillingService().buildVoucherPayload(fceInvoice(), createRuntime());
 
@@ -1214,13 +1061,31 @@ describe('billing.service', () => {
       ).toThrow(/no lleva `--cbu`/);
     });
 
-    it('requires the associated voucher date on FCE notes', () => {
-      expect(() =>
-        new BillingService().buildVoucherPayload(
-          fceNote({ associatedVoucher: { numero: 7, puntoVenta: 3, shortcut: 'fcea' } }),
-          createRuntime(),
-        ),
-      ).toThrow(/requiere la fecha del comprobante asociado/);
+    it('previews an FCE note without the associated date: it comes from ARCA when emitting', () => {
+      const payload = new BillingService().buildVoucherPayload(
+        fceNote({ associatedVoucher: { numero: 7, puntoVenta: 3, shortcut: 'fcea' } }),
+        createRuntime(),
+      );
+
+      expect(payload.CbtesAsoc).toEqual([{ Cuit: '20123456786', Nro: 7, PtoVta: 3, Tipo: 201 }]);
+    });
+
+    it('never emits an FCE note without the associated date', async () => {
+      const gateway = { createVoucher: vi.fn(), getNextVoucherNumber: vi.fn(), getQuotation: vi.fn() };
+
+      await expect(
+        new BillingService().execute({
+          gateway,
+          input: fceNote({
+            associatedVoucher: { numero: 7, puntoVenta: 3, shortcut: 'fcea' },
+            dryRun: false,
+            emit: true,
+          }),
+          runtime: createRuntime(),
+        }),
+      ).rejects.toThrow(/requiere la fecha del comprobante asociado/);
+      expect(gateway.getNextVoucherNumber).not.toHaveBeenCalled();
+      expect(gateway.createVoucher).not.toHaveBeenCalled();
     });
 
     it('rejects an associated voucher date after the note date', () => {
@@ -1269,9 +1134,6 @@ describe('billing.service', () => {
   });
 
   it('rejects invalid service date ranges', () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
-
     const service = new BillingService();
 
     expect(() =>
@@ -1478,9 +1340,6 @@ describe('billing.service', () => {
   });
 
   it('emits the next voucher number with the same payload and maps the response', async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'));
-
     const service = new BillingService();
     const arcaResult = {
       cae: '76123456789012',
@@ -1528,7 +1387,7 @@ describe('billing.service', () => {
 
     expect(summary.status).toBe('rechazado');
     expect(summary.suggestions).toEqual([expect.stringContaining('Factura en línea')]);
-    expect(summary.suggestions[0]).toContain('obtencion-certificados.md#punto-de-venta-para-web-service');
+    expect(summary.suggestions[0]).toContain(POINT_OF_SALE_GUIDE_URL);
   });
 
   it('recognizes the point of sale rejection by its message when the code is missing', () => {

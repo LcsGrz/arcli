@@ -69,8 +69,8 @@ Después cambian algunas cosas según la familia:
 | Comando                       | Argumentos     | Descripción                                                        |
 | ----------------------------- | -------------- | ------------------------------------------------------------------ |
 | `factura`                     | `<a\|b\|c\|e>` | Emite o previsualiza Factura A, B, C o la de exportación E (WSFEX) |
-| `nota-credito`                | `<a\|b\|c>`    | Emite o previsualiza Nota de crédito A, B o C                      |
-| `nota-debito`                 | `<a\|b\|c>`    | Emite o previsualiza Nota de débito A, B o C                       |
+| `nota-credito`                | `<a\|b\|c\|e>` | Emite o previsualiza Nota de crédito A, B, C o la de exportación E |
+| `nota-debito`                 | `<a\|b\|c\|e>` | Emite o previsualiza Nota de débito A, B, C o la de exportación E  |
 | `factura-credito-electronica` | `<a\|b\|c>`    | Emite o previsualiza Factura de crédito electrónica A, B o C       |
 | `nota-credito-electronica`    | `<a\|b\|c>`    | Emite o previsualiza Nota de crédito electrónica A, B o C          |
 | `nota-debito-electronica`     | `<a\|b\|c>`    | Emite o previsualiza Nota de débito electrónica A, B o C           |
@@ -90,6 +90,8 @@ Después cambian algunas cosas según la familia:
 | `ndb`    | `nota-debito b`                 |
 | `ndc`    | `nota-debito c`                 |
 | `fe`     | `factura e`                     |
+| `nce`    | `nota-credito e`                |
+| `nde`    | `nota-debito e`                 |
 | `fcea`   | `factura-credito-electronica a` |
 | `fceb`   | `factura-credito-electronica b` |
 | `fcec`   | `factura-credito-electronica c` |
@@ -101,7 +103,7 @@ Después cambian algunas cosas según la familia:
 | `ndec`   | `nota-debito-electronica c`     |
 | `rc`     | `recibo c`                      |
 
-`arcli factura e` y `arcli fe` son la misma Factura de exportación `E`: la letra `E` de la familia `factura` se resuelve por WSFEX, con sus propios flags (ver [Factura de exportación](#factura-de-exportación-e-wsfex)).
+`arcli factura e` y `arcli fe` son la misma Factura de exportación `E`: la letra `E` de la familia `factura` se resuelve por WSFEX, con sus propios flags (ver [Factura de exportación](#factura-de-exportación-e-wsfex)). Lo mismo pasa con `nota-credito e` (`nce`) y `nota-debito e` (`nde`): ver [Notas de crédito y débito de exportación](#notas-de-crédito-y-débito-de-exportación-e).
 
 ## Cómo funcionan los flags
 
@@ -141,7 +143,7 @@ Usalos cuando necesitás controlar el entorno, la salida o el modo de inspecció
 El entorno y la decisión de emitir son independientes:
 
 - **Entorno:** `--testing` o `--produccion`; sin flag, `config.entorno` (`testing` por defecto).
-- **Emitir:** `--emitir` o `--previsualizar`; sin flag, `emitir`/`previsualizar` del JSON de `--cargar`; si tampoco, `config.emitir` (`false` por defecto). Si nada pide emitir, en una terminal se muestra la vista previa y se pregunta, nombrando el entorno: `¿Emitimos la factura B en PRODUCCIÓN?` (Esc cuenta como no, igual que en el modo interactivo, y también en las preguntas del PDF); con `--json` o sin terminal no se emite.
+- **Emitir:** `--emitir` o `--previsualizar`; sin flag, `emitir`/`previsualizar` del JSON de `--cargar`; si tampoco, `config.emitir` (`false` por defecto). Si nada pide emitir, en una terminal se muestra la vista previa y se pregunta, nombrando el entorno: `¿Emitimos la factura B en PRODUCCIÓN?`, con las opciones **Sí, emitir ahora**, **Sí, emitir y generar el PDF** y **No, dejar sin emitir** (la del PDF no aparece con `--exportar-pdf` o `--sin-pdf`; ver [PDF](pdf.md#cuándo-se-genera)). Esc cuenta como no, igual que en el modo interactivo, y también en las preguntas del PDF; con `--json` o sin terminal no se emite.
 
 Así, `--produccion --emitir` emite en producción sin preguntar, y también lo hace un comando sin flags si la config tiene `entorno produccion` y `emitir true`. Es a propósito, para quien no quiere confirmar cada vez. Para no depender de la config (scripts, agentes), pasá siempre el entorno y `--emitir` o `--previsualizar`.
 
@@ -319,7 +321,7 @@ Estos flags controlan el PDF del comprobante emitido. Los datos que se pasan ac�
 
 `--condicion-venta` acepta `contado`, `tarjeta-debito`, `tarjeta-credito`, `cuenta-corriente`, `cheque`, `transferencia`, `otros-medios-electronicos` u `otra`, que se imprimen con su nombre (`cuenta-corriente` sale "Cuenta Corriente"). Cualquier otro texto se imprime tal cual: `--cv "Billetera virtual"`. `--sin-condicion-venta` permite omitirla en un comprobante aunque exista un valor en la config; no se combina con `--condicion-venta` ni `--cv`. Solo en A, B y C; en la factura `E` va `--forma-pago`, que sí viaja a ARCA.
 
-`--exportar-pdf` y `--sin-pdf` no se combinan. Sin ninguno de los dos, decide `config.pdf` (`preguntar` por defecto: en una terminal pregunta, con `--json` o sin terminal no genera).
+`--exportar-pdf` y `--sin-pdf` no se combinan. Sin ninguno de los dos, si confirmás la emisión a mano lo decide la opción que elijas (**Sí, emitir ahora** o **Sí, emitir y generar el PDF**); si se emite sin confirmar, decide `config.pdf` (`preguntar` por defecto: en una terminal pregunta después de emitir, con `--json` o sin terminal no genera).
 
 ### Comando `arcli pdf`
 
@@ -363,7 +365,8 @@ Consultan a ARCA sin emitir nada. Usan el entorno y el punto de venta de la conf
 | `arcli parametros <tabla>`             | `puntos-venta`, `comprobantes`, `documentos`, `alicuotas`, `iva-receptor`, `monedas`, `conceptos`, `opcionales` o `tributos` |
 | `arcli parametros cotizacion <moneda>` | Cotización oficial de ARCA, por ejemplo `USD`                                                                                |
 
-- Las tablas muestran solo los valores vigentes hoy, salvo `puntos-venta`, que también lista los bloqueados o dados de baja, marcados.
+- Las tablas muestran solo los valores vigentes hoy, salvo `puntos-venta`, que también lista los bloqueados o dados de baja, con su estado.
+- En texto, cada tabla tiene una fila de encabezado (`CÓDIGO`, o `NÚMERO` en `puntos-venta`, la descripción y, en `iva-receptor` y `puntos-venta`, una tercera columna) y al pie para qué sirve el código en ARCLI, por ejemplo que `--moneda` acepta el código o el ISO. El `--json` no cambia.
 - **Puntos de venta en testing:** ARCA no los informa, así que `parametros puntos-venta` sale vacío y `estado` no puede verificar el punto de venta. En testing cualquier número sirve.
 - En producción, `estado` avisa si el punto de venta configurado no existe para tu CUIT, está bloqueado o dado de baja.
 - `estado` con `listo: false` sale con exit code `0`: es un diagnóstico, no un error. Si ARCA no responde, el error es `ARCA_UNAVAILABLE`.
@@ -537,11 +540,12 @@ Acá se combinan las dos reglas anteriores:
 **Obligatorio**
 
 - todo lo base de una factura
-- bloque de asociado completo, incluida `--afecha`
+- bloque de asociado: `--ac` o `--at`, `--apv` y `--ar`
 - el asociado tiene que ser del propio emisor: `--acuit` se puede omitir y toma el CUIT configurado
 
 **Opcional**
 
+- `--afecha`: sin ella, arcli consulta el asociado en ARCA y toma su fecha; la vista previa ya la muestra
 - `--anulacion` si la nota anula una factura que el comprador rechazó
 
 No llevan CBU, alias, transferencia ni vencimiento de pago.
@@ -549,14 +553,14 @@ No llevan CBU, alias, transferencia ni vencimiento de pago.
 #### Ejemplo mínimo funcional
 
 ```bash
-arcli ncea -m 1 --cs --cuit 20168598204 --ir-ri --ac fcea --apv 3 --ar 6 --afecha 01-03-2026
+arcli ncea -m 1 --cs --cuit 20168598204 --ir-ri --ac fcea --apv 3 --ar 6
 ```
 
 ### Factura de exportación `E` (WSFEX)
 
 `arcli fe` y `arcli factura e` hacen lo mismo: emiten o previsualizan una Factura de exportación `E` con el servicio `wsfex`, que tiene sus propios datos y su propio certificado autorizado. No es una letra más de la familia de facturas: no lleva concepto, IVA ni receptor con CUIT/CUIL/DNI, y en cambio lleva país de destino, incoterm, permisos de embarque e ítems reales.
 
-Las notas de crédito y débito `E` todavía no están soportadas.
+Las notas de crédito y débito `E` tienen su propia sección: [Notas de crédito y débito de exportación](#notas-de-crédito-y-débito-de-exportación-e).
 
 #### Credenciales
 
@@ -569,7 +573,6 @@ WSFEX pide un certificado autorizado al servicio `wsfex`. ARCLI usa `exportacion
 - importe total: `--monto`
 - cliente y domicilio en el exterior: `--cliente`, `--domicilio-cliente`
 - país de destino: `--pais-destino`, por código (`203`) o por nombre (`Brasil`)
-- número del comprobante: `--numero`, el siguiente al último `E` emitido en ese punto de venta (`1` si es el primero). ARCLI todavía no lo puede consultar: `@arcasdk/core` arma mal el pedido de `FEXGetLast_CMP`
 - actividad: `--actividad` o la clave `exportacion.actividad` de la config, con un código de la tabla de actividades de WSFEX
 
 **Opcional**
@@ -580,7 +583,7 @@ WSFEX pide un certificado autorizado al servicio `wsfex`. ARCLI usa `exportacion
 - `--item` para el detalle real; sin ítems va un renglón con `--descripcion`
 - `--incoterm` y `--incoterms-desc`, `--idioma`, `--forma-pago` (por defecto `Transferencia Internacional`)
 - `--permiso` y `--permiso-existente` para permisos de embarque (solo con `--tipo-expo 1`; en `2` y `4` ARCA exige `Permiso_existente` vacío)
-- `--id-solicitud` si lo querés fijar a mano (por defecto, el siguiente de WSFEX)
+- `--numero` y `--id-solicitud` si los querés fijar a mano (por defecto, los siguientes de WSFEX)
 - punto de venta si no está en config: `--punto-venta` o `--pv`
 - moneda y cotización: `--moneda` (por defecto `DOL`), `--mda`, `--cotizacion-moneda`, `--cm`, `--misma-moneda`
 - PDF: `--exportar-pdf`, `--pdf` o `--sin-pdf`
@@ -592,7 +595,7 @@ La actividad no tiene default: cada emisor tiene la suya. La tabla de actividade
 
 El pago de una exportación se hace en la moneda extranjera del comprobante (`Moneda_Id`/`Moneda_ctz`). Si además se cobra en esa misma moneda, `--misma-moneda` manda `CanMisMonExt` en `S`, que es el campo de WSFEX que lo declara; sin el flag va en `N`.
 
-La `E` no lleva comprobantes asociados ni datos opcionales todavía, así que `solicitud` no incluye `Cmps_asoc` ni `Opcionales`: ARCA rechaza esos bloques vacíos (error 1820 el primero).
+La factura `E` no lleva comprobantes asociados ni datos opcionales, así que `solicitud` no incluye `Cmps_asoc` ni `Opcionales`: ARCA rechaza esos bloques vacíos (error 1820 el primero) y no acepta asociados en la factura (error 1755).
 
 #### Ejemplo mínimo funcional
 
@@ -619,35 +622,35 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
 
 #### Resumen rápido de parámetros
 
-| Parámetro                         | Alias           | Tipo                                 | Requerido   | Cuándo usarlo                                                                      |
-| --------------------------------- | --------------- | ------------------------------------ | ----------- | ---------------------------------------------------------------------------------- |
-| `--monto <numero>`                | `-m`            | `number`                             | Sí          | Siempre                                                                            |
-| `--cliente <texto>`               | ninguno         | `string`                             | Sí          | Siempre: nombre o razón social del cliente del exterior                            |
-| `--domicilio-cliente <texto>`     | ninguno         | `string`                             | Sí          | Siempre                                                                            |
-| `--pais-destino <codigo\|nombre>` | ninguno         | `string`                             | Sí          | Siempre: código de ARCA o nombre tal como lo informa ARCA                          |
-| `--id-impositivo <texto>`         | ninguno         | `string`                             | No          | ID fiscal del cliente en su país                                                   |
-| `--cuit-pais <numero>`            | ninguno         | `integer`                            | No          | CUIT del país del cliente; sin el flag sale de la tabla de ARCA                    |
-| `--tipo-expo <1\|2\|4>`           | ninguno         | `1` bienes, `2` servicios, `4` otros | No          | Por defecto `2` (servicios)                                                        |
-| `--actividad <codigo>`            | ninguno         | `integer`                            | Condicional | Si no está `exportacion.actividad` en la config; código de la tabla de WSFEX       |
-| `--item <partes>`                 | ninguno         | `string` repetible                   | No          | `codigo\|descripcion\|cantidad\|precio\|unidad`; la suma debe dar `--monto`        |
-| `--incoterm <codigo>`             | ninguno         | `string`                             | No          | Por ejemplo `FOB`; se valida contra la tabla de ARCA                               |
-| `--incoterms-desc <texto>`        | ninguno         | `string`                             | No          | Por defecto, la descripción de la tabla de ARCA                                    |
-| `--idioma <codigo>`               | ninguno         | `integer`                            | No          | `1` español (por defecto), `2` inglés, `3` portugués                               |
-| `--forma-pago <texto>`            | ninguno         | `string`                             | No          | Por defecto `Transferencia Internacional`                                          |
-| `--permiso <id>`                  | ninguno         | `string` repetible                   | No          | Permiso de embarque ya existente; requiere `--permiso-existente` y `--tipo-expo 1` |
-| `--permiso-existente`             | ninguno         | `boolean`                            | No          | Marca que los permisos informados ya están en ARCA                                 |
-| `--numero <numero>`               | ninguno         | `integer`                            | Sí          | El siguiente al último `E` de ese punto de venta                                   |
-| `--id-solicitud <numero>`         | ninguno         | `integer`                            | No          | Por defecto, el siguiente de WSFEX                                                 |
-| `--punto-venta <numero>`          | `--pv <numero>` | `integer`                            | Condicional | Si no está en config                                                               |
-| `--fecha <fecha>`                 | `-f`            | `string`                             | No          | No admite fechas futuras                                                           |
-| `--fecha-pago <fecha>`            | ninguno         | `string`                             | No          | Por defecto, la fecha del comprobante                                              |
-| `--moneda <codigo>`               | `--mda`         | `string`                             | No          | Código ISO o de ARCA, por ejemplo `USD` o `DOL`; por defecto `DOL`                 |
-| `--cotizacion-moneda <numero>`    | `--cm`          | `number`                             | No          | Sin flag se usa la última cotización de aduana publicada por ARCA                  |
-| `--misma-moneda`                  | ninguno         | `boolean`                            | No          | El pago se cancela en la misma moneda extranjera: manda `CanMisMonExt` en `S`      |
-| `--observaciones <texto>`         | ninguno         | `string`                             | No          | Observaciones del comprobante                                                      |
-| `--obs-comerciales <texto>`       | ninguno         | `string`                             | No          | Observaciones comerciales                                                          |
-| `--descripcion <texto>`           | ninguno         | `string`                             | No          | Solo sin `--item`; también va al PDF                                               |
-| `--cargar <ruta>`                 | ninguno         | `string`                             | No          | Un objeto con un comprobante, no un lote                                           |
+| Parámetro                         | Alias           | Tipo                                 | Requerido   | Cuándo usarlo                                                                                            |
+| --------------------------------- | --------------- | ------------------------------------ | ----------- | -------------------------------------------------------------------------------------------------------- |
+| `--monto <numero>`                | `-m`            | `number`                             | Sí          | Siempre                                                                                                  |
+| `--cliente <texto>`               | ninguno         | `string`                             | Sí          | Siempre: nombre o razón social del cliente del exterior                                                  |
+| `--domicilio-cliente <texto>`     | ninguno         | `string`                             | Sí          | Siempre                                                                                                  |
+| `--pais-destino <codigo\|nombre>` | ninguno         | `string`                             | Sí          | Siempre: código de ARCA o nombre tal como lo informa ARCA                                                |
+| `--id-impositivo <texto>`         | ninguno         | `string`                             | No          | ID fiscal del cliente en su país                                                                         |
+| `--cuit-pais <numero>`            | ninguno         | `integer`                            | No          | CUIT del país del cliente; sin el flag sale de la tabla de ARCA                                          |
+| `--tipo-expo <1\|2\|4>`           | ninguno         | `1` bienes, `2` servicios, `4` otros | No          | Por defecto `2` (servicios)                                                                              |
+| `--actividad <codigo>`            | ninguno         | `integer`                            | Condicional | Si no está `exportacion.actividad` en la config; código de la tabla de WSFEX                             |
+| `--item <partes>`                 | ninguno         | `string` repetible                   | No          | `codigo\|descripcion\|cantidad\|precio\|unidad`; la suma debe dar `--monto`                              |
+| `--incoterm <codigo>`             | ninguno         | `string`                             | No          | Por ejemplo `FOB`; se valida contra la tabla de ARCA                                                     |
+| `--incoterms-desc <texto>`        | ninguno         | `string`                             | No          | Por defecto, la descripción de la tabla de ARCA                                                          |
+| `--idioma <codigo>`               | ninguno         | `integer`                            | No          | `1` español (por defecto), `2` inglés, `3` portugués                                                     |
+| `--forma-pago <texto>`            | ninguno         | `string`                             | No          | Por defecto `Transferencia Internacional`                                                                |
+| `--permiso <id>`                  | ninguno         | `string` repetible                   | No          | Permiso de embarque ya existente; solo con `--tipo-expo 1`. En la factura requiere `--permiso-existente` |
+| `--permiso-existente`             | ninguno         | `boolean`                            | No          | Marca que los permisos informados ya están en ARCA                                                       |
+| `--numero <numero>`               | ninguno         | `integer`                            | No          | Por defecto, el siguiente al último de ese tipo en el punto de venta                                     |
+| `--id-solicitud <numero>`         | ninguno         | `integer`                            | No          | Por defecto, el siguiente de WSFEX                                                                       |
+| `--punto-venta <numero>`          | `--pv <numero>` | `integer`                            | Condicional | Si no está en config                                                                                     |
+| `--fecha <fecha>`                 | `-f`            | `string`                             | No          | No admite fechas futuras                                                                                 |
+| `--fecha-pago <fecha>`            | ninguno         | `string`                             | No          | Por defecto, la fecha del comprobante                                                                    |
+| `--moneda <codigo>`               | `--mda`         | `string`                             | No          | Código ISO o de ARCA, por ejemplo `USD` o `DOL`; por defecto `DOL`                                       |
+| `--cotizacion-moneda <numero>`    | `--cm`          | `number`                             | No          | Sin flag se usa la última cotización de aduana publicada por ARCA                                        |
+| `--misma-moneda`                  | ninguno         | `boolean`                            | No          | El pago se cancela en la misma moneda extranjera: manda `CanMisMonExt` en `S`                            |
+| `--observaciones <texto>`         | ninguno         | `string`                             | No          | Observaciones del comprobante                                                                            |
+| `--obs-comerciales <texto>`       | ninguno         | `string`                             | No          | Observaciones comerciales                                                                                |
+| `--descripcion <texto>`           | ninguno         | `string`                             | No          | Solo sin `--item`; también va al PDF                                                                     |
+| `--cargar <ruta>`                 | ninguno         | `string`                             | No          | Un objeto con un comprobante, no un lote                                                                 |
 
 Los flags globales (`--testing`, `--produccion`, `--json`, `--bruto`) y los de modo (`--previsualizar`, `--emitir`) funcionan igual que en el resto de los comprobantes.
 
@@ -678,11 +681,53 @@ Los defaults de config de esos campos (concepto, IVA receptor, alícuota, CBU) n
 #### Vista previa, numeración y PDF
 
 - La vista previa consulta las tablas de WSFEX (países, monedas, unidades, incoterms, idiomas, actividades), la cotización y el ID de la solicitud, pero no emite.
-- WSFEX numera por punto de venta y tipo de comprobante. `--numero` es obligatorio mientras `@arcasdk/core` no permita consultar el último (`FEXGetLast_CMP`); si te equivocás, ARCA rechaza el comprobante. El ID de la solicitud sí se consulta (`FEXGetLast_ID`); fijalo con `--id-solicitud` si emitís en paralelo.
+- WSFEX numera por punto de venta y tipo de comprobante. Sin `--numero`, ARCLI consulta el último (`FEXGetLast_CMP`) y usa el siguiente, también en la vista previa; si pasás otro, ARCA rechaza el comprobante. El ID de la solicitud también se consulta (`FEXGetLast_ID`). Fijá los dos con `--numero` e `--id-solicitud` si emitís en paralelo.
 - El PDF se genera después de emitir, como en el resto de los comprobantes. Se guarda como `factura-e_<pv>-<numero>.pdf` y usa el diseño de exportación: ítems reales, país de destino, CUIT del país, ID impositivo, divisa, forma y fecha de pago, incoterm y la leyenda de IVA exento. Ver [PDF](pdf.md#factura-de-exportación-e).
 - Un comprobante rechazado por WSFEX sale como respuesta válida con exit code `2`, igual que en las letras A, B y C.
 
 El JSON de salida y el de `--cargar` están en [Entrada y salida](input-output.md#factura-de-exportación-e).
+
+### Notas de crédito y débito de exportación `E`
+
+`arcli nce` (`nota-credito e`, tipo ARCA `21`) y `arcli nde` (`nota-debito e`, tipo `20`) ajustan una Factura de exportación `E` ya emitida por WSFEX. Usan el mismo servicio, credenciales y flags que `fe`, más el comprobante asociado.
+
+Antes de armar la nota, ARCLI consulta el asociado en ARCA (`FEXGetCMP`) y toma de ahí lo que no venga por flag: cliente, domicilio, ID impositivo, país de destino, CUIT del país, tipo de exportación, moneda y cotización, idioma, incoterm, forma de pago y actividad. Por eso alcanza con el monto, el asociado y el número:
+
+```bash
+arcli nce -m 500 --ar 1 --numero 1
+```
+
+#### Comprobante asociado
+
+| Parámetro          | Alias                             | Tipo      | Requerido | Cuándo usarlo                                                                 |
+| ------------------ | --------------------------------- | --------- | --------- | ----------------------------------------------------------------------------- |
+| `--ar <numero>`    | ninguno                           | `integer` | Sí        | Número del comprobante que ajusta la nota                                     |
+| `--apv <numero>`   | `--asociado-punto-venta <numero>` | `integer` | No        | Punto de venta del asociado; por defecto, el de la nota                       |
+| `--ac <atajo>`     | ninguno                           | `string`  | No        | `fe` (por defecto), `nde` o `nce`, para ajustar otra nota `E`                 |
+| `--at <numero>`    | ninguno                           | `integer` | No        | Lo mismo por tipo ARCA: `19`, `20` o `21`                                     |
+| `--acuit <numero>` | ninguno                           | `string`  | No        | No hace falta: el asociado de una `E` siempre es del CUIT emisor (error 2031) |
+
+`--afecha` no se usa: la fecha del asociado sale de ARCA.
+
+#### Qué valida antes de emitir
+
+- que el asociado exista en ARCA y esté aprobado;
+- que la nota no sea anterior al asociado;
+- que una nota de crédito no supere el total del asociado, si van en la misma moneda;
+- en servicios (`--tipo-expo 2`), lo que ARCA compara contra el asociado: mismo tipo de exportación (2049), mismo país de destino (2050), misma moneda o pesos (2051) y la misma cotización (2053). Además, una nota de débito solo ajusta una factura (2041, 2042) y una nota de crédito, una factura o una nota de débito (2045).
+
+#### Qué no aplica
+
+Las notas `E` no llevan fecha de pago (ARCA la rechaza, error 1673), `--misma-moneda` (1605) ni `--permiso-existente` (`Permiso_existente` va vacío, 1550): `nce` y `nde` no tienen esos flags. En las de bienes (`--tipo-expo 1`), los permisos de embarque son opcionales y van con `--permiso`, sin `--permiso-existente`. En `arcli nota-credito e` y `nota-debito e` los flags de A, B y C se saltean con un aviso, igual que en `factura e`.
+
+#### Ejemplos
+
+```bash
+arcli nde -m 200 --ar 1 --apv 4 --numero 1 --item "001|Ajuste de precio|1|200|unidades" --previsualizar
+arcli nce -m 100 --ac nde --ar 1 --numero 2 --emitir --json
+```
+
+El PDF se guarda como `nota-credito-e_<pv>-<numero>.pdf` o `nota-debito-e_<pv>-<numero>.pdf`, con el comprobante asociado.
 
 ## Ejemplos útiles
 
@@ -735,12 +780,12 @@ arcli consultar fb 14             # detalle de la factura B número 14
 arcli consultar fb 14 --json      # lo mismo, en JSON
 ```
 
-| Comando                           | Argumentos                                                 | Flags                                                                                                                                      |
-| --------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `arcli ultimos <tipo>`            | `tipo`: atajo del comprobante (`fa`, `fb`, `nca`, `fcea`…) | `--cantidad <n>` (1 a 50; por defecto `config.comprobantesPorLista` o 15), `--pv` / `--punto-venta`, `--json`, `--testing`, `--produccion` |
-| `arcli consultar <tipo> <numero>` | `tipo` y número del comprobante                            | `--pv` / `--punto-venta`, `--json`, `--testing`, `--produccion`                                                                            |
+| Comando                           | Argumentos                                                 | Flags                                                                                                                               |
+| --------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `arcli ultimos <tipo>`            | `tipo`: atajo del comprobante (`fa`, `fb`, `nca`, `fcea`…) | `--cantidad <n>` (1 a 50; por defecto `config.filasPorLista` o 15), `--pv` / `--punto-venta`, `--json`, `--testing`, `--produccion` |
+| `arcli consultar <tipo> <numero>` | `tipo` y número del comprobante                            | `--pv` / `--punto-venta`, `--json`, `--testing`, `--produccion`                                                                     |
 
-Sin `--pv` usan el punto de venta de la config. Todavía no aceptan la Factura de exportación `E` (`fe`). Si el comprobante no existe, `consultar` termina con el error `VOUCHER_NOT_FOUND`. El formato del JSON está en [Entrada y salida](input-output.md#comprobantes-emitidos-ultimos-y-consultar).
+Sin `--pv` usan el punto de venta de la config. Aceptan también la `E` (`fe`, `nde`, `nce`), que se consulta en WSFEX con su certificado. Si el comprobante no existe, `consultar` termina con el error `VOUCHER_NOT_FOUND`. El formato del JSON está en [Entrada y salida](input-output.md#comprobantes-emitidos-ultimos-y-consultar).
 
 ## Consultar el régimen FCE
 
@@ -756,7 +801,7 @@ arcli fce-obligado 30546689979 --fecha 15/10 --json
 | `--fecha <fecha>`                     | `-f`    | Fecha de emisión a consultar; por defecto hoy |
 | `--json`, `--testing`, `--produccion` | ninguno | Flags globales                                |
 
-Usa el servicio `wsfecred`, que hay que autorizar aparte de `wsfe`. Ver [Autorizar el servicio web](obtencion-certificados.md#3-autorizar-el-servicio-web).
+Usa el servicio `wsfecred`, que hay que autorizar aparte de `wsfe`. Ver [Autorizar el servicio web](certificado-testing-completa.md#3-autorizar-el-servicio-web).
 
 Si activás `arcli config establecer verificarFce true`, la misma consulta corre en cada factura con CUIT del receptor y deja un aviso si el comprobante no coincide con el régimen. Por ejemplo, una `fa` a un receptor obligado por encima del mínimo. El aviso no frena la emisión. Ver [Régimen FCE del receptor](validation-rules.md#régimen-fce-del-receptor).
 
@@ -777,7 +822,7 @@ arcli padron 20201797064 --json
 
 La condición IVA sale de los impuestos activos: monotributo es `responsable-monotributo`, IVA es `responsable-inscripto` e IVA exento es `sujeto-exento`. Con otros datos queda sin informar (`condicionIva: null`). Si el CUIT no está en el padrón, termina con el error `TAXPAYER_NOT_FOUND`. En testing el padrón tiene datos ficticios: `20201797064` devuelve datos completos. El JSON está en [Entrada y salida](input-output.md#padrón-padron).
 
-Usa el servicio `ws_sr_constancia_inscripcion`, que hay que autorizar aparte de `wsfe`. Ver [Autorizar el servicio web](obtencion-certificados.md#3-autorizar-el-servicio-web).
+Usa el servicio `ws_sr_constancia_inscripcion`, que hay que autorizar aparte de `wsfe`. Ver [Autorizar el servicio web](certificado-testing-completa.md#3-autorizar-el-servicio-web).
 
 ### IVA receptor desde el padrón
 
@@ -812,7 +857,7 @@ arcli completado desinstalar
 
 Pedir el comando ya es la confirmación: no vuelve a preguntar, como `arcli pdf instalar`. Con `--json` devuelve `{ "cambio", "instalado", "ruta", "shell" }`. Si no se puede saber el shell, da `INPUT_VALIDATION_ERROR` y hay que indicarlo. Un programa no puede cambiar la terminal que ya está abierta: después de instalar, abrí una nueva.
 
-`arcli completado <bash|zsh|fish>` solo imprime el script, para instalarlo a mano. Cada Tab le pregunta a la versión instalada qué sigue, así que después de actualizar arcli no hay que reinstalar nada. En el modo interactivo está en Configuración → Autocompletado.
+`arcli completado <bash|zsh|fish>` solo imprime el script, para instalarlo a mano. Cada Tab le pregunta a la versión instalada qué sigue, así que después de actualizar ARCLI no hay que reinstalar nada. En el modo interactivo está en Configuración → Autocompletado.
 
 ## Acceso directo
 
@@ -848,5 +893,5 @@ Todos los comandos de esta referencia son estables, salvo `storybook`, una herra
 
 ## Ver también
 
-- [Patrones de uso](usage-patterns.md): casos completos paso a paso.
+- Cada comprobante, con sus opciones: [¿qué comprobante me toca?](comprobantes/README.md). Casos completos paso a paso: [monotributo](comprobantes-monotributo.md), [responsable inscripto](comprobantes-responsable-inscripto.md), [notas](notas-credito-debito.md), [FCE](fce.md), [exportación](exportacion.md) y [lotes](lotes-y-json.md).
 - [Reglas de validación](validation-rules.md) y [Troubleshooting](troubleshooting.md): qué rechaza el CLI y cómo resolverlo.

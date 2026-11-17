@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { EXPORT_VOUCHER_KIND } from '../../../modules/export/export.types';
 import { registerExportOptions } from '../export.command.options';
 import { parseExportCommandPlan } from '../export.command.parser';
 
@@ -30,7 +31,7 @@ function planFromFile(content: Record<string, unknown>, defaultEmit = false, arg
 
   const command = new Command();
 
-  registerExportOptions(command);
+  registerExportOptions(command, EXPORT_VOUCHER_KIND);
   command.parse(['node', 'test', '--cargar', path, ...args], { from: 'node' });
 
   const plan = parseExportCommandPlan(command, { defaultEmit });

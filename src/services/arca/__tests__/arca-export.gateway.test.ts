@@ -6,8 +6,158 @@ import { ArcaExportGateway } from '../arca-export.gateway';
 const EMPTY_RESULT = { FEXErr: { ErrCode: 0, ErrMsg: '' }, FEXEvents: { EventCode: 0, EventMsg: '' } };
 
 function createGateway(service: Record<string, unknown>): ArcaExportGateway {
-  return new ArcaExportGateway({ wsfexService: service } as unknown as Arca);
+  return new ArcaExportGateway({ wsfexService: service } as unknown as Arca, async () => AUTH);
 }
+
+const AUTH = { Cuit: 20409509763, Sign: 'firma', Token: 'token' };
+
+describe('ArcaExportGateway.getLastVoucherNumber', () => {
+  it('manda Pto_venta y Cbte_Tipo dentro de un Auth completo, para que el SDK no lo pise', async () => {
+    const getLastCmp = vi.fn(async () => ({
+      FEXGetLast_CMPResult: { ...EMPTY_RESULT, FEXResult_LastCMP: { Cbte_fecha: '20261109', Cbte_nro: 2 } },
+    }));
+
+    await expect(createGateway({ getLastCmp }).getLastVoucherNumber(20, 4)).resolves.toBe(2);
+    expect(getLastCmp).toHaveBeenCalledWith({ Auth: { ...AUTH, Cbte_Tipo: 20, Pto_venta: 4 } });
+  });
+
+  it('sin comprobantes es 0', async () => {
+    const getLastCmp = vi.fn(async () => ({
+      FEXGetLast_CMPResult: { ...EMPTY_RESULT, FEXResult_LastCMP: { Cbte_nro: 0 } },
+    }));
+
+    await expect(createGateway({ getLastCmp }).getLastVoucherNumber(19, 3)).resolves.toBe(0);
+  });
+
+  it('un error de ARCA se informa', async () => {
+    const getLastCmp = vi.fn(async () => ({
+      FEXGetLast_CMPResult: { FEXErr: { ErrCode: 1607, ErrMsg: 'Pto_venta invalido' } },
+    }));
+
+    await expect(createGateway({ getLastCmp }).getLastVoucherNumber(19, 0)).rejects.toThrow(/Pto_venta invalido/);
+  });
+});
+
+describe('ArcaExportGateway.getVoucher', () => {
+  /** La nota de debito E que devolvio FEXGetCMP en testing, recortada. */
+  const DEBIT_NOTE = {
+    Actividades: { Actividad: [{ Id: 620100 }] },
+    Cae: '76453017205088',
+    Fch_venc_Cae: '20261109',
+    Cbte_nro: 1,
+    Cbte_tipo: 20,
+    Cliente: 'ACME LLC',
+    Cmps_asoc: { Cmp_asoc: [{ Cbte_cuit: 20409509763, Cbte_nro: 1, Cbte_punto_vta: 4, Cbte_tipo: 19 }] },
+    Cuit_pais_cliente: 55000002126,
+    Domicilio_cliente: '123 Main St, Miami, FL',
+    Dst_cmp: 212,
+    Fecha_cbte: '20261109',
+    Forma_pago: 'Transferencia Internacional',
+    Id_impositivo: '12-3456789',
+    Idioma_cbte: 1,
+    Imp_total: 200,
+    Incoterms: '',
+    Incoterms_Ds: '0',
+    Moneda_ctz: 1174.605,
+    Moneda_Id: 'DOL',
+    Punto_vta: 4,
+    Resultado: 'A',
+    Tipo_expo: 2,
+  };
+
+  it('consulta FEXGetCMP y mapea el comprobante, sin el Incoterms_Ds "0" de ARCA', async () => {
+    const getCmp = vi.fn(async () => ({ FEXGetCMPResult: { ...EMPTY_RESULT, FEXResultGet: DEBIT_NOTE } }));
+    const gateway = createGateway({ getCmp });
+
+    await expect(gateway.getVoucher({ arcaType: 20, number: 1, pointOfSale: 4 })).resolves.toEqual({
+      activities: [620100],
+      arcaType: 20,
+      associatedVoucher: { arcaType: 19, number: 1, pointOfSale: 4 },
+      cae: '76453017205088',
+      caeExpiration: '20261109',
+      clientAddress: '123 Main St, Miami, FL',
+      clientCountryCuit: 55000002126,
+      clientName: 'ACME LLC',
+      clientTaxId: '12-3456789',
+      currencyCode: 'DOL',
+      date: '20261109',
+      destinationCountry: 212,
+      exchangeRate: 1174.605,
+      exportType: 2,
+      incoterm: undefined,
+      incotermDescription: undefined,
+      items: [],
+      language: 1,
+      number: 1,
+      paymentTerms: 'Transferencia Internacional',
+      pointOfSale: 4,
+      result: 'A',
+      total: 200,
+    });
+    expect(getCmp).toHaveBeenCalledWith({ Cmp: { Cbte_nro: 1, Cbte_tipo: 20, Punto_vta: 4 } });
+  });
+
+  it('mapea los ítems y CanMisMonExt de una factura, para repetirla', async () => {
+    const invoice = {
+      ...DEBIT_NOTE,
+      CanMisMonExt: 'S',
+      Cbte_tipo: 19,
+      Cmps_asoc: undefined,
+      Imp_total: 1500,
+      Items: {
+        Item: [
+          {
+            Pro_bonificacion: 0,
+            Pro_codigo: '001',
+            Pro_ds: 'Consultoría',
+            Pro_precio_uni: 500,
+            Pro_qty: 2,
+            Pro_total_item: 1000,
+            Pro_umed: 7,
+          },
+          { Pro_bonificacion: 0, Pro_codigo: '', Pro_ds: 'Soporte', Pro_precio_uni: 500, Pro_qty: 1, Pro_umed: 7 },
+          { Pro_ds: '', Pro_precio_uni: 1, Pro_qty: 1 },
+        ],
+      },
+    };
+    const gateway = createGateway({
+      getCmp: vi.fn(async () => ({ FEXGetCMPResult: { ...EMPTY_RESULT, FEXResultGet: invoice } })),
+    });
+
+    const voucher = await gateway.getVoucher({ arcaType: 19, number: 1, pointOfSale: 4 });
+
+    expect(voucher?.sameCurrency).toBe(true);
+    expect(voucher?.items).toEqual([
+      { code: '001', description: 'Consultoría', discount: 0, quantity: 2, total: 1000, unit: 7, unitPrice: 500 },
+      { code: undefined, description: 'Soporte', discount: 0, quantity: 1, total: 0, unit: 7, unitPrice: 500 },
+    ]);
+  });
+
+  it('un comprobante inexistente (error 1020) es null', async () => {
+    const gateway = createGateway({
+      getCmp: vi.fn(async () => ({
+        FEXGetCMPResult: {
+          FEXErr: { ErrCode: 1020, ErrMsg: 'Comprobante inexistente' },
+          FEXResultGet: { Cbte_nro: 0, Tipo_expo: 0 },
+        },
+      })),
+    });
+
+    await expect(gateway.getVoucher({ arcaType: 19, number: 99, pointOfSale: 4 })).resolves.toBeNull();
+  });
+
+  it('otro error de ARCA se informa', async () => {
+    const gateway = createGateway({
+      getCmp: vi.fn(async () => ({
+        FEXGetCMPResult: { FEXErr: { ErrCode: 1510, ErrMsg: 'Punto de venta invalido' } },
+      })),
+    });
+
+    await expect(gateway.getVoucher({ arcaType: 19, number: 1, pointOfSale: 0 })).rejects.toThrow(
+      /Punto de venta invalido/,
+    );
+  });
+});
 
 describe('ArcaExportGateway', () => {
   it('mapea los paises de destino, ignorando codigos invalidos', async () => {
