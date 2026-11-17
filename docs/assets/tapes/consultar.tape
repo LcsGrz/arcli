@@ -5,7 +5,7 @@ Output docs/assets/demo/consultar.gif
 Require node
 Set Shell "bash"
 Set FontSize 15
-Set Width 1100
+Set Width 1000
 Set Height 1000
 Set Padding 20
 Set Theme "TokyoNight"
