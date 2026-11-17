@@ -13,7 +13,9 @@ import process from 'node:process';
 const MAX_LINES = 40;
 const LINTABLE = /\.(?:[cm]?[jt]sx?|json)$/;
 const TESTABLE = /\.(?:[cm]?[jt]sx?)$/;
-const CONTRACT = /^src\/(?:cli|modules\/config)\/(?!(?:.*\/)?__tests__\/)/;
+// Lo que ve quien usa el CLI: comandos (src/cli) y las validaciones y textos de cada módulo. Quedan afuera
+// los tests, la storybook (solo desarrollo) y los tipos internos (*.internal.ts).
+const CONTRACT = /^src\/(?:cli|modules\/(?!storybook\/)[^/]+)\/(?!(?:.*\/)?__tests__\/)(?!.*\.internal\.ts$)/;
 const DOCS = ['CHANGELOG.md', 'README.md', 'llms.txt', 'docs'];
 
 const input = readInput();
@@ -62,7 +64,7 @@ if (remind) {
     hookSpecificOutput: {
       hookEventName: 'Stop',
       additionalContext:
-        'Cambió src/cli o src/modules/config y en esta rama no se tocó ningún doc. Si hay un cambio visible para quien ' +
+        'Cambió src/cli o src/modules (validaciones, mensajes o JSON) y en esta rama no se tocó ningún doc. Si hay un cambio visible para quien ' +
         'usa el CLI, corré la skill sincronizar-docs (tabla de CONTRIBUTING.md#documentación). Si es interno, decilo y seguí.',
     },
   });
