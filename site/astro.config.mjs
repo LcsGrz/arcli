@@ -44,9 +44,22 @@ export default defineConfig({
       // novedades.css, opciones.css antes que desplegables.css).
       customCss: [
         './src/styles/tokens.css',
-        ...['marco', 'contenido', 'codigo', 'opciones', 'desplegables', 'chat', 'pasos', 'muestra', 'formas', 'chip', 'problemas', 'novedades', 'pestanas', 'atajos'].map(
-          (name) => `./src/styles/docs/${name}.css`,
-        ),
+        ...[
+          'marco',
+          'contenido',
+          'codigo',
+          'opciones',
+          'desplegables',
+          'chat',
+          'pasos',
+          'muestra',
+          'formas',
+          'chip',
+          'problemas',
+          'novedades',
+          'pestanas',
+          'atajos',
+        ].map((name) => `./src/styles/docs/${name}.css`),
       ],
       // La 404 es la de src/content/docs/404.md, en español y con el buscador.
       disable404Route: true,

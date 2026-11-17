@@ -2,12 +2,13 @@ import { Command } from 'commander';
 import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-import { OPTIONS, VOUCHER_PAGES } from './comprobantes';
-import { renderAll } from './comprobantes-md';
-import { EXPORT_VOUCHER_KINDS } from '../../src/modules/export/export.types';
 import { registerBillingOptions } from '../../src/cli/commands/billing.command.options';
 import { registerExportOptions } from '../../src/cli/commands/export.command.options';
 import { registerGlobalOptions } from '../../src/cli/global-options';
+import { EXPORT_VOUCHER_KINDS } from '../../src/modules/export/export.types';
+
+import { OPTIONS, VOUCHER_PAGES } from './comprobantes';
+import { renderAll } from './comprobantes-md';
 
 /**
  * `docs/comprobantes/` se genera desde `scripts/docs/comprobantes.ts`, la única fuente de las opciones de cada
