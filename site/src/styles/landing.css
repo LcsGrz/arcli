@@ -5345,3 +5345,20 @@
   border: 0;
   background: none;
 }
+
+/* Pestañas de la demo en una sola fila en el celular: las cuatro del mismo ancho, con letra más chica. */
+@media (max-width: 36rem) {
+  .arcli-landing .demo-tabs {
+    flex-wrap: nowrap;
+    gap: 0.25rem;
+  }
+
+  .arcli-landing .demo-tabs .tab {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0.4rem 0.35rem;
+    font-size: 0.8rem;
+    text-align: center;
+    white-space: nowrap;
+  }
+}
