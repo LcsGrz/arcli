@@ -74,7 +74,6 @@
   --arcli-celeste-strong: #9cc6ee;
   --arcli-celeste-glow: rgb(116 172 223 / 0.16);
   --arcli-on-accent: #10121c;
-  --arcli-estrella-btn: #c88a04;
 }
 
 /* Fuentes: Geist y JetBrains Mono, se cargan en astro.config.mjs. */
@@ -106,9 +105,7 @@
   /* El brillo celeste debajo de los paneles de terminal y los GIF */
   --arcli-shadow-glow: 0 30px 70px -40px rgb(116 172 223 / 0.4);
   /* El PDF de ejemplo */
-  --arcli-shadow-pdf:
-    0 0 0 1px rgb(116 172 223 / 0.05),
-    0 40px 90px -40px rgb(116 172 223 / 0.45);
+  --arcli-shadow-pdf: 0 0 0 1px rgb(116 172 223 / 0.05), 0 40px 90px -40px rgb(116 172 223 / 0.45);
 }
 
 /* Anchos: el menú entra "Responsable inscripto" en una línea, el texto a 56rem y todo el sitio hasta 96rem. */
