@@ -206,10 +206,60 @@ describe('mapBillingResultToPdfData', () => {
       importeNetoGravado: 150000,
       importeTotal: 150000,
       items: [{ descripcion: 'Servicios de septiembre', subtotal: 150000 }],
-      receptor: { documentoNro: '- -', documentoTipo: 'Documento', razonSocial: 'Consumidor Final' },
+      receptor: { documentoNro: '-', documentoTipo: 'Documento', domicilio: '-', razonSocial: 'Consumidor Final' },
     });
     expect(data.iva).toBeUndefined();
     expect(data.cbteDescripcion).toBeUndefined();
+  });
+
+  it('prints a single dash for an unidentified consumer without document nor address', () => {
+    const data = mapBillingResultToPdfData(createResult('fc', { ImpNeto: 1000, ImpTotal: 1000 }), issuer, {
+      receptorDomicilio: '   ',
+    });
+
+    // La plantilla pone "- -" si el domicilio llega vacio: siempre se manda un valor.
+    expect(data.receptor).toEqual({
+      condicionIva: 'Consumidor Final',
+      documentoNro: '-',
+      documentoTipo: 'Documento',
+      domicilio: '-',
+      razonSocial: 'Consumidor Final',
+    });
+  });
+
+  it('prints a single dash for a recibo C to an unidentified consumer', () => {
+    const data = mapBillingResultToPdfData(createResult('rc', { ImpNeto: 1000, ImpTotal: 1000 }), issuer);
+
+    expect(data.receptor).toMatchObject({ documentoNro: '-', domicilio: '-', razonSocial: 'Consumidor Final' });
+  });
+
+  it('prints a single dash for an identified receiver without name nor address', () => {
+    const data = mapBillingResultToPdfData(
+      createResult('fc', { CondicionIVAReceptorId: 6, DocNro: 20111111112, DocTipo: 80, ImpTotal: 1000 }),
+      issuer,
+    );
+
+    expect(data.receptor).toMatchObject({
+      documentoNro: '20111111112',
+      documentoTipo: 'CUIT',
+      domicilio: '-',
+      razonSocial: '-',
+    });
+  });
+
+  it('keeps the document of an identified consumer', () => {
+    const data = mapBillingResultToPdfData(
+      createResult('fc', { DocNro: 30111222, DocTipo: 96, ImpTotal: 1000 }),
+      issuer,
+      { receptorDomicilio: ' Calle Falsa 123 ', receptorNombre: 'Juan Pérez' },
+    );
+
+    expect(data.receptor).toMatchObject({
+      documentoNro: '30111222',
+      documentoTipo: 'DNI',
+      domicilio: 'Calle Falsa 123',
+      razonSocial: 'Juan Pérez',
+    });
   });
 
   it('titles a recibo C and keeps ARCA type 15 for the QR', () => {
