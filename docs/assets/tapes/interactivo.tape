@@ -4,7 +4,7 @@ Output docs/assets/demo/interactivo.gif
 Require node
 Set Shell "bash"
 Set FontSize 15
-Set Width 1100
+Set Width 1000
 Set Height 780
 Set Padding 20
 Set Theme "TokyoNight"
