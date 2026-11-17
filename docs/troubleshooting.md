@@ -186,7 +186,7 @@ arcli fc ayuda
 ### Clave desconocida o tipo incorrecto en el JSON de `--cargar`
 
 - **Severidad:** común
-- **Síntoma:** `INPUT_VALIDATION_ERROR` (o `BATCH_VALIDATION_ERROR` en un lote) con `La clave "montototal" no existe` o `"puntoVenta" tiene que ser un número y llegó el texto "3"`.
+- **Síntoma:** `INPUT_VALIDATION_ERROR` (o `BATCH_VALIDATION_ERROR` en un lote) con `La clave "montototal" no existe: ¿quisiste decir "montoTotal"?` o `"puntoVenta" tiene que ser un número y llegó el texto "3".`
 - **Causa:** el JSON trae una clave que ARCLI no conoce (un typo o el nombre de un flag, como `vencimiento` en vez de `vencimientoPago`) o un valor con otro tipo (un número entre comillas, `"true"` en vez de `true`, `null`).
 - **Solución:** usá la clave que sugiere el mensaje y escribí los números sin comillas. La lista completa está en [entrada y salida](input-output.md#campos-soportados).
 

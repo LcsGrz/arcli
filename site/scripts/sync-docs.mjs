@@ -557,7 +557,7 @@ function arcliMessages(text) {
   );
 
   return quoted.filter(
-    (message) => /^[A-ZÁÉÍÓÚÑ.…]/.test(message) && /\s/.test(message) && !FOREIGN_OUTPUT.test(message),
+    (message) => /^[A-ZÁÉÍÓÚÑ.…"]/.test(message) && /\s/.test(message) && !FOREIGN_OUTPUT.test(message),
   );
 }
 
@@ -566,6 +566,33 @@ function arcliMessages(text) {
  * etiqueta a la izquierda; lo que sigue a la viñeta (código, sublistas) va en la misma fila. Si el síntoma cita una
  * salida de ARCLI, se muestra como en la terminal; si el síntoma es solo ese mensaje, sin repetirlo en el texto.
  */
+/** El texto del síntoma nombra el mensaje que ya muestra el bloque de abajo, en vez de repetirlo. */
+function pointToOutput(text, messages) {
+  const marked = text.replace(/`([^`]+)`|"([^"]+)"/g, (quote, code, plain) =>
+    messages.includes((code ?? plain).replace(/\*\*/g, '').trim()) ? '\u0001' : quote,
+  );
+
+  const grouped = marked
+    .replace(/\s*\(\u0001\)/g, '')
+    .replace(/(?:un )?mensaje como \u0001/g, '\u0001')
+    .replace(/\u0001(?:\s*(?:,|o|y)\s*\u0001)+/g, 'los mensajes de abajo');
+  // Si nombra dos mensajes por separado, cada uno es una línea del bloque.
+  const separate = grouped.split('\u0001').length - 1;
+  const ordinals = ['primera', 'segunda', 'tercera'];
+  let index = 0;
+  const pointed = grouped
+    .replace(/(?:el )?aviso \u0001|\u0001/g, (match) => {
+      const line = separate > 1 ? `la ${ordinals[index++] ?? 'otra'} línea de abajo` : null;
+
+      if (match.startsWith('el aviso') || match.startsWith('aviso'))
+        return line ? `el aviso de ${line}` : 'el aviso de abajo';
+      return line ?? 'el mensaje de abajo';
+    })
+    .replace(/^el /, 'El ');
+
+  return /[.:)!?]$/.test(pointed) ? pointed : `${pointed}.`;
+}
+
 function faqRows(body) {
   const lines = body.split('\n');
   const rows = [];
@@ -592,12 +619,12 @@ function faqRows(body) {
         .replace(/`[^`]+`|"[^"]+"/g, (quote) =>
           messages.includes(quote.slice(1, -1).replace(/\*\*/g, '').trim()) ? '' : quote,
         )
-        .replace(/\b(o|y|error|mensaje|como|con|un|el|aviso|al emitir|al facturar)\b/gi, '')
+        .replace(/\b(o|y|error|arca|mensaje|como|con|un|el|aviso|al emitir|al facturar)\b/gi, '')
         .replace(/[\s.,;:()…-]/g, '');
 
       if (messages.length > 0) {
         output = `<pre class="arcli-salida">${messages.map((message) => escapeHtml(message)).join('\n')}</pre>`;
-        if (rest === '') text = '';
+        text = rest === '' ? '' : pointToOutput(text, messages);
       }
     }
 
