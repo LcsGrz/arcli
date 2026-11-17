@@ -19,21 +19,22 @@ yarn dev --ayuda
 
 ## Scripts
 
-| Script                   | Qué hace                                                                                   |
-| ------------------------ | ------------------------------------------------------------------------------------------ |
-| `yarn dev`               | Corre el CLI desde el código fuente                                                        |
-| `yarn build`             | Compila TypeScript a `dist/`                                                               |
-| `yarn typecheck`         | Chequeo de tipos de código y tests                                                         |
-| `yarn test`              | Suite de Vitest                                                                            |
-| `yarn test:coverage`     | Suite con cobertura (falla si baja de los pisos configurados)                              |
-| `yarn test:e2e`          | Tests de punta a punta sobre el `dist/` compilado (antes, `yarn build`)                    |
-| `yarn test:arca`         | Tests contra ARCA testing con tu config; solo local (antes, `yarn build`)                  |
-| `yarn lint`              | ESLint y Prettier (`yarn lint:eslint`, `yarn lint:prettier`)                               |
-| `yarn lint:eslint:fix`   | Corrige lo que ESLint puede arreglar solo                                                  |
-| `yarn lint:prettier:fix` | Formatea con Prettier                                                                      |
-| `yarn docs:comprobantes` | Escribe `docs/comprobantes/` desde `scripts/docs/comprobantes.ts`                          |
-| `yarn pack:check`        | Empaqueta `dist`, lo instala en una carpeta temporal y corre `arcli --version` y `--ayuda` |
-| `yarn open-source:check` | `typecheck`, `test:coverage`, `build`, `test:e2e` y `pack:check`                           |
+| Script                     | Qué hace                                                                                   |
+| -------------------------- | ------------------------------------------------------------------------------------------ |
+| `yarn dev`                 | Corre el CLI desde el código fuente                                                        |
+| `yarn build`               | Compila TypeScript a `dist/`                                                               |
+| `yarn typecheck`           | Chequeo de tipos de código y tests                                                         |
+| `yarn test`                | Suite de Vitest                                                                            |
+| `yarn test:coverage`       | Suite con cobertura (falla si baja de los pisos configurados)                              |
+| `yarn test:e2e`            | Tests de punta a punta sobre el `dist/` compilado (antes, `yarn build`)                    |
+| `yarn test:arca`           | Tests contra ARCA testing con tu config; solo local (antes, `yarn build`)                  |
+| `yarn lint`                | ESLint y Prettier (`yarn lint:eslint`, `yarn lint:prettier`)                               |
+| `yarn lint:eslint:fix`     | Corrige lo que ESLint puede arreglar solo                                                  |
+| `yarn lint:prettier:fix`   | Formatea con Prettier                                                                      |
+| `yarn docs:comprobantes`   | Escribe `docs/comprobantes/` desde `scripts/docs/comprobantes.ts`                          |
+| `yarn contrato:actualizar` | Regenera la lista del contrato público (`src/cli/__tests__/public-contract.txt`)           |
+| `yarn pack:check`          | Empaqueta `dist`, lo instala en una carpeta temporal y corre `arcli --version` y `--ayuda` |
+| `yarn open-source:check`   | `typecheck`, `test:coverage`, `build`, `test:e2e` y `pack:check`                           |
 
 Husky corre `lint-staged` en cada commit: chequeo de tipos, ESLint y los tests relacionados con lo modificado.
 
@@ -72,6 +73,10 @@ yarn build && ARCLI_ARCA_PV_E=4 yarn test:arca
 No corre en el CI (necesita credenciales y se niega si encuentra `CI`) ni con `yarn test`. Conviene correrlo antes de una release y después de tocar algo que hable con ARCA: atrapa lo que los tests con ARCA simulado no ven, como una respuesta con otra forma o un error nuevo del SDK.
 
 `src/cli/__tests__/docs-sync.test.ts` recorre el programa de commander y falla si un comando no aparece en `docs/` o en `llms.txt`, si un flag no aparece en `docs/cli-reference.md` o en `llms.txt`, o si una clave pública de config no aparece en `docs/configuration.md` o en `llms.txt`. Solo verifica que se mencione, no que la descripción esté bien. Lo que no se documenta a propósito va en `UNDOCUMENTED_FLAGS`, con el motivo.
+
+`src/cli/__tests__/public-contract.test.ts` mira el contrato en la otra dirección. `src/cli/__tests__/public-contract.txt` es la lista commiteada de comandos, flags (también los alias ocultos, como `--pv`, `--mda` o `--pdf`, y los cortos, como `-m`) y claves de config (también las deprecadas), una por línea, generada desde el programa de commander y el esquema de config. El test falla si algo de la lista ya no está en el código, con un mensaje que recuerda que es contrato público y que lo viejo sigue andando, deprecado, hasta la próxima versión mayor (ver [AGENTS.md](../AGENTS.md#contrato-público)). También falla si hay algo nuevo que no está en la lista: `yarn contrato:actualizar` la regenera, y el cambio queda en el diff del PR. Sacar una línea a propósito (en una versión mayor) se hace con el mismo script y se explica en el PR y en `CHANGELOG.md`.
+
+El mismo test compara los códigos de error: cada código de la tabla de [códigos de error](input-output.md#códigos-de-error) tiene que existir en `src/`, y cada literal con forma de código (`'MAYUSCULAS_CON_GUION_BAJO'`) de `src/`, estar en la tabla. La fila `PDF_*` cubre los que lista [Errores del PDF](input-output.md#errores-del-pdf). Un literal con esa forma que no es un código de error (una variable de entorno) va en `NOT_ERROR_CODES`, con el motivo.
 
 `src/cli/__tests__/examples-valid.test.ts` toma cada ejemplo de facturación de la ayuda (`--ayuda` de cada atajo y familia), de `arcli ejemplos` y de los bloques `bash` de `docs/`, `README.md` y `llms.txt`, más los JSON de entrada para `--cargar`, y los pasa por el parser real hasta armar la solicitud a ARCA, con una config mínima (CUIT y punto de venta), un padrón falso y un reloj fijo, sin red. En un bloque de los docs, los `arcli config establecer` anteriores al ejemplo cuentan como config. Si falla, lista el archivo y la línea de cada ejemplo con su error. Un ejemplo inválido a propósito va en `EXCLUDED_EXAMPLES`, con el motivo.
 
