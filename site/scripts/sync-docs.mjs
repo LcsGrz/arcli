@@ -532,15 +532,15 @@ const headingSlug = (heading) =>
     .replace(/[^\p{L}\p{N}\s-]/gu, '')
     .replace(/\s/g, '-');
 
-/** El color de la etiqueta de severidad, por su primera palabra: crítico y alta en rojo, frecuente y común en amarillo. */
-function severityKind(text) {
-  const first = text.toLowerCase().split(/[\s(]/)[0];
+/**
+ * La severidad es `nivel` o `nivel, aclaración`: el nivel (crítico, frecuente, a veces u ocasional) va en el chip y la
+ * aclaración debajo del título.
+ */
+function severityParts(text) {
+  const [, level, note] = text.match(/^([^,]+)(?:,\s*(.+))?$/);
+  const kind = { 'a veces': 'media', crítico: 'alta', frecuente: 'frecuente' }[level.trim()] ?? 'baja';
 
-  if (/^(crítico|alta)$/.test(first)) return 'alta';
-  if (/^(frecuente|común)$/.test(first)) return 'frecuente';
-  if (first === 'media') return 'media';
-
-  return 'baja';
+  return { kind, level: level.trim(), note: note && note.charAt(0).toUpperCase() + note.slice(1) };
 }
 
 /** Mensajes de otros programas (npm, PowerShell, Windows, Node) que pueden aparecer citados en un síntoma. */
@@ -656,8 +656,9 @@ function problems(text, page) {
         .replace(/^- \*\*Severidad:\*\* .+\n/m, '')
         .trim();
       const rows = faqRows(body);
+      const level = severity && severityParts(severity[1]);
 
-      return `<details class="arcli-faq" id="${headingSlug(name.replace(/`/g, ''))}">\n<summary><span class="t">${inlineHtml(name)}</span>${severity ? `<span class="sev sev-${severityKind(severity[1])}">${inlineHtml(severity[1])}</span>` : ''}</summary>\n\n${rows ?? body}\n\n</details>\n`;
+      return `<details class="arcli-faq" id="${headingSlug(name.replace(/`/g, ''))}">\n<summary><span class="t">${inlineHtml(name)}${level?.note ? `<span class="sub">${inlineHtml(level.note)}.</span>` : ''}</span>${level ? `<span class="sev sev-${level.kind}">${level.level}</span>` : ''}</summary>\n\n${rows ?? body}\n\n</details>\n`;
     });
 
     return `<section class="arcli-faq-section">\n\n${title.trim()}\n\n${faqs.join('\n')}\n</section>\n`;

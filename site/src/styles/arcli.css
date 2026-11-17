@@ -1092,3 +1092,35 @@ header.header {
 .sl-markdown-content .arcli-faq-more a {
   color: var(--arcli-celeste);
 }
+
+/* El título (con su aclaración debajo) ocupa el ancho; el chip y el "+" quedan en una línea, centrados */
+.sl-markdown-content details.arcli-faq > summary {
+  flex-wrap: nowrap;
+}
+
+.arcli-faq > summary > .t {
+  flex: 1;
+  min-width: 0;
+}
+
+.arcli-faq > summary > .sev,
+.sl-markdown-content details.arcli-faq > summary::after {
+  flex: none;
+}
+
+.arcli-faq .sev {
+  white-space: nowrap;
+}
+
+.arcli-faq .sub {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--sl-color-gray-3);
+  font-size: var(--sl-text-sm);
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+.arcli-faq .sub code {
+  white-space: nowrap;
+}
