@@ -777,9 +777,34 @@ function problems(text, page) {
   return `${head.trim()}\n\n${search}\n${sections.join('\n')}`;
 }
 
+/** Color del chip de cada tipo de cambio de Novedades; lo que no esta aca sale en gris (`arcli-kind-otro`). */
+const CHANGE_KINDS = {
+  agregado: 'agregado',
+  arreglado: 'arreglado',
+  cambiado: 'cambiado',
+  corregido: 'arreglado',
+  deprecado: 'deprecado',
+  documentacion: 'documentacion',
+  eliminado: 'eliminado',
+  seguridad: 'seguridad',
+};
+
+/** El tipo de cambio (`Agregado`, `⚠️ Puede afectar…`) como chip. El texto no cambia, asi el ancla sigue siendo `#agregado`. */
+function changeKindChip(name) {
+  const key = name
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .trim();
+  const kind = /puede afectar/.test(key) ? 'aviso' : (CHANGE_KINDS[key] ?? 'otro');
+
+  return `<span class="arcli-kind arcli-kind-${kind}">${name}</span>`;
+}
+
 /**
  * Novedades: sin "Sin publicar" (es lo que todavia no salio), las ultimas tres versiones abiertas con la fecha abajo y
- * el resto en un desplegable por version.
+ * el resto en un desplegable por version. Los tipos de cambio (`### Agregado`...) van como chips de color: en las
+ * abiertas siguen siendo titulos con su ancla y en las plegadas, un parrafo (como antes, cuando iban en negrita).
  */
 function releases(text, page) {
   if (page.src !== 'CHANGELOG.md') return text;
@@ -795,12 +820,12 @@ function releases(text, page) {
   const recent = versions.slice(0, 3).map((part) => {
     const { body, date, version } = dated(part);
 
-    return `## ${version}\n\n<p class="arcli-date">${date}</p>\n\n${body}\n`;
+    return `## ${version}\n\n<p class="arcli-date">${date}</p>\n\n${body.replace(/^### (.+)$/gm, (_, name) => `### ${changeKindChip(name)}`)}\n`;
   });
   const older = versions.slice(3).map((part) => {
     const { body, date, version } = dated(part);
 
-    return `<details class="arcli-ver" id="${headingSlug(version)}">\n<summary><b>${version}</b><small>${date}</small></summary>\n\n${body.replace(/^### (.+)$/gm, '**$1**')}\n\n</details>\n`;
+    return `<details class="arcli-ver" id="${headingSlug(version)}">\n<summary><b>${version}</b><small>${date}</small></summary>\n\n${body.replace(/^### (.+)$/gm, (_, name) => `<p>${changeKindChip(name)}</p>`)}\n\n</details>\n`;
   });
 
   return [head.trim(), ...recent, older.length ? `## Versiones anteriores\n\n${older.join('\n')}` : ''].join('\n\n');

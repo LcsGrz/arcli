@@ -492,6 +492,11 @@
     0 40px 90px -40px rgb(116 172 223 / 0.45);
 }
 
+/* `display: block` le gana al atributo `hidden`: sin esto, en "Con IA" el GIF seguía visible arriba del chat. */
+.arcli-landing .window img[hidden] {
+  display: none;
+}
+
 .arcli-landing .window img {
   display: block;
   width: 100%;
