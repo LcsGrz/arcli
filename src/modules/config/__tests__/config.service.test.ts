@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ZodError } from 'zod';
 
 import { ConfigurationError } from '../../../lib/errors/app-error';
+import { formatConfig } from '../config.presenter';
 import { resolveRowsPerList, ROWS_PER_LIST_DEPRECATION_WARNING } from '../config.schemas';
 import { ConfigService, deprecatedConfigKeyWarning, resolveConfigDirectory } from '../config.service';
 
@@ -359,6 +360,120 @@ describe('filasPorLista y la clave deprecada comprobantesPorLista', () => {
     expect(deprecatedConfigKeyWarning(' comprobantesPorLista')).toBe(ROWS_PER_LIST_DEPRECATION_WARNING);
     expect(deprecatedConfigKeyWarning('filasPorLista')).toBeUndefined();
     expect(deprecatedConfigKeyWarning('toString')).toBeUndefined();
+  });
+});
+
+describe('config escrita por una versión anterior', () => {
+  /**
+   * Un config.json como lo dejaba la 2.0: los nombres guardados (`puntoVentaPorDefecto`, `output.emitirPorDefecto`…)
+   * no son las claves públicas, todavía no existían `output.brutoPorDefecto` ni `filasPorLista`, y tiene la
+   * `cotizacion` deprecada con un valor propio y `comprobantesPorLista`.
+   */
+  const OLD_CONFIG = {
+    alicuotaPorDefecto: '21',
+    cbu: '0110599520000012345678',
+    comprobantesPorLista: 8,
+    conceptoPorDefecto: 'servicios',
+    cotizacionPorDefecto: 1350.5,
+    cuit: '20123456786',
+    entornoPorDefecto: 'produccion',
+    ivaReceptorPorDefecto: 'consumidor-final',
+    monedaPorDefecto: 'dol',
+    output: { emitirPorDefecto: true, jsonPorDefecto: false },
+    puntoVentaPorDefecto: 3,
+  };
+
+  function serviceWithOldConfig(): ConfigService {
+    const service = createService();
+
+    writeFileSync(service.getPath(), JSON.stringify(OLD_CONFIG));
+
+    return service;
+  }
+
+  it('se lee con los defaults de las claves nuevas', () => {
+    const service = serviceWithOldConfig();
+
+    try {
+      const config = service.getConfig();
+
+      expect(config).toMatchObject({
+        alicuotaPorDefecto: '21',
+        cotizacionPorDefecto: 1350.5,
+        entornoPorDefecto: 'produccion',
+        monedaPorDefecto: 'DOL',
+        output: { brutoPorDefecto: false, emitirPorDefecto: true, jsonPorDefecto: false },
+        puntoVentaPorDefecto: 3,
+      });
+      expect(resolveRowsPerList(config)).toBe(8);
+    } finally {
+      service.close();
+    }
+  });
+
+  it('config --json la muestra con las claves públicas actuales', () => {
+    const service = serviceWithOldConfig();
+
+    try {
+      const config = service.getConfig();
+      const snapshot = JSON.parse(formatConfig(config, service.resolvePaths(config))) as Record<string, unknown>;
+
+      expect(snapshot).toMatchObject({
+        alicuota: '21',
+        bruto: false,
+        comprobantesPorLista: 8,
+        concepto: 'servicios',
+        cotizacion: 1350.5,
+        emitir: true,
+        entorno: 'produccion',
+        filasPorLista: 8,
+        ivaReceptor: 'consumidor-final',
+        moneda: 'DOL',
+        puntoVenta: 3,
+      });
+    } finally {
+      service.close();
+    }
+  });
+
+  it('establecer y eliminar por la clave pública tocan el nombre guardado y dejan el resto', () => {
+    const service = serviceWithOldConfig();
+
+    try {
+      expect(service.setValue('cotizacion', '1400').cotizacionPorDefecto).toBe(1400);
+      expect(service.setValue('puntoVenta', '5').puntoVentaPorDefecto).toBe(5);
+
+      service.unsetValue('cotizacion');
+
+      // Eliminar vuelve al default (1), que es "sin cotización propia": la factura usa la oficial de ARCA.
+      const config = service.getConfig();
+
+      expect(config.cotizacionPorDefecto).toBe(1);
+      expect(config).toMatchObject({ comprobantesPorLista: 8, cuit: '20123456786', puntoVentaPorDefecto: 5 });
+
+      const stored = JSON.parse(readFileSync(service.getPath(), 'utf8')) as Record<string, unknown>;
+
+      expect(stored).not.toHaveProperty('cotizacion');
+      expect(stored).not.toHaveProperty('puntoVenta');
+    } finally {
+      service.close();
+    }
+  });
+
+  it('initialize no pisa los valores viejos con los defaults', () => {
+    const service = serviceWithOldConfig();
+
+    try {
+      service.initialize();
+
+      expect(JSON.parse(readFileSync(service.getPath(), 'utf8'))).toMatchObject({
+        comprobantesPorLista: 8,
+        cotizacionPorDefecto: 1350.5,
+        output: { brutoPorDefecto: false, emitirPorDefecto: true },
+      });
+    } finally {
+      service.close();
+    }
   });
 });
 

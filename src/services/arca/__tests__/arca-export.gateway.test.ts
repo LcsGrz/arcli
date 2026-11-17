@@ -374,3 +374,53 @@ describe('ArcaExportGateway', () => {
     expect(authorize).toHaveBeenCalledWith({ Cmp: payload });
   });
 });
+
+describe('ArcaExportGateway: ARCA_EXPORT_ERROR en cada tabla', () => {
+  const FAILURE = {
+    FEXErr: { ErrCode: 1000, ErrMsg: 'Error interno de la aplicacion' },
+    FEXEvents: { EventCode: 0, EventMsg: '' },
+  };
+
+  it.each([
+    ['getActivities', 'getParamActividades', 'FEXGetPARAM_ActividadesResult', 'las actividades'],
+    ['getCurrencies', 'getParamMon', 'FEXGetPARAM_MONResult', 'las monedas'],
+    ['getDestinationCountries', 'getParamDstPais', 'FEXGetPARAM_DST_paisResult', 'los países de destino'],
+    ['getDestinationCountryCuits', 'getParamDstCuit', 'FEXGetPARAM_DST_CUITResult', 'los CUIT de países'],
+    ['getIncoterms', 'getParamIncoterms', 'FEXGetPARAM_IncotermsResult', 'los incoterms'],
+    ['getLanguages', 'getParamIdiomas', 'FEXGetPARAM_IdiomasResult', 'los idiomas'],
+    ['getUnits', 'getParamUMed', 'FEXGetPARAM_UMedResult', 'las unidades de medida'],
+    ['getLastRequestId', 'getLastId', 'FEXGetLast_IDResult', 'el último ID de solicitud'],
+  ] as const)('%s: código, mensaje y detalles.errores', async (method, sdkMethod, resultKey, operation) => {
+    const gateway = createGateway({ [sdkMethod]: vi.fn(async () => ({ [resultKey]: FAILURE })) });
+
+    await expect(gateway[method]()).rejects.toMatchObject({
+      code: 'ARCA_EXPORT_ERROR',
+      details: { errores: [{ codigo: 1000, mensaje: 'Error interno de la aplicacion' }] },
+      message: `ARCA devolvió un error al consultar ${operation}: Error interno de la aplicacion`,
+    });
+  });
+
+  it('las cotizaciones nombran la fecha consultada', async () => {
+    const gateway = createGateway({
+      getParamMonConCotizacion: vi.fn(async () => ({ FEXGetPARAM_MON_CON_COTIZACIONResult: FAILURE })),
+    });
+
+    await expect(gateway.getQuotations('20261028')).rejects.toMatchObject({
+      code: 'ARCA_EXPORT_ERROR',
+      details: { errores: [{ codigo: 1000 }] },
+      message: expect.stringMatching(/al consultar las cotizaciones al 28\/10\/2026/),
+    });
+  });
+
+  it('sin mensaje, el error nombra el código', async () => {
+    const gateway = createGateway({
+      getParamMon: vi.fn(async () => ({ FEXGetPARAM_MONResult: { FEXErr: { ErrCode: 1600 } } })),
+    });
+
+    await expect(gateway.getCurrencies()).rejects.toMatchObject({
+      code: 'ARCA_EXPORT_ERROR',
+      details: { errores: [{ codigo: 1600, mensaje: '' }] },
+      message: 'ARCA devolvió un error al consultar las monedas: 1600',
+    });
+  });
+});

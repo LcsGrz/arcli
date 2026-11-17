@@ -223,6 +223,15 @@ describe('ExportService.resolve', () => {
     await expect(service.resolve(INPUT, gateway, RUNTIME, NOW)).rejects.toThrow(/--cotizacion-moneda/);
   });
 
+  it('sin cotizacion para la moneda (el gateway descarta las de 0) es ARCA_QUOTATION_ERROR', async () => {
+    const gateway = createGateway({ getQuotations: vi.fn(async () => []) });
+
+    await expect(service.resolve(INPUT, gateway, RUNTIME, NOW)).rejects.toMatchObject({
+      code: 'ARCA_QUOTATION_ERROR',
+      message: expect.stringMatching(/no informó la cotización de DOL para el 01\/06\/2026\. Informá/),
+    });
+  });
+
   it('respeta la moneda, el tipo y la forma de pago que vienen por flag', async () => {
     const resolved = await service.resolve(
       { ...INPUT, currencyCode: 'ARS', exportType: 1, paymentTerms: 'Carta de credito' },

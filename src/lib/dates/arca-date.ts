@@ -80,7 +80,9 @@ export function parseArgentineDateInputAsArcaDate(value: string, referenceDate =
 
 /**
  * Sin año, el de la fecha mas cercana a hoy: el 5/1 `1/12` es diciembre pasado y el 28/12 `10/1` es enero que
- * viene. A igual distancia gana el año actual.
+ * viene. A igual distancia gana el año actual. Solo cuentan los años donde la fecha existe: el 1/9/2028 `29/2` es el
+ * 29/02/2028, aunque el 1/3/2029 (lo que daria `Date.UTC` para un 29/02/2029) este mas cerca. Si no existe en
+ * ninguno, devuelve el actual y la fecha da error.
  */
 function resolveYear(explicitYear: string | undefined, month: number, day: number, today: CalendarDate): string {
   if (explicitYear) {
@@ -89,9 +91,12 @@ function resolveYear(explicitYear: string | undefined, month: number, day: numbe
 
   const todayTime = Date.UTC(today.year, today.month - 1, today.day);
   const distance = (year: number) => Math.abs(Date.UTC(year, month - 1, day) - todayTime);
-  const closest = [today.year, today.year - 1, today.year + 1].reduce((best, year) =>
-    distance(year) < distance(best) ? year : best,
+  const exists = (year: number) => new Date(Date.UTC(year, month - 1, day)).getUTCDate() === day;
+  const candidates = [today.year, today.year - 1, today.year + 1].filter(exists);
+  const closest = candidates.reduce<number | undefined>(
+    (best, year) => (best === undefined || distance(year) < distance(best) ? year : best),
+    undefined,
   );
 
-  return String(closest);
+  return String(closest ?? today.year);
 }

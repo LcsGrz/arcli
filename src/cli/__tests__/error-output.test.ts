@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { Command, InvalidArgumentError, Option } from 'commander';
+import { describe, expect, it, vi } from 'vitest';
 import { z, type ZodError } from 'zod';
 
 import { billingCommandSchema } from '../../modules/billing/billing.schemas';
 import { stripAnsi } from '../../ui';
-import { formatCliError, shouldPrintErrorAsJson } from '../error-output';
+import { configureUsageErrors, formatCliError, reportCliError, shouldPrintErrorAsJson } from '../error-output';
 
 describe('shouldPrintErrorAsJson', () => {
   it('uses JSON with --json without reading the config', () => {
@@ -126,5 +127,71 @@ describe('formatCliError', () => {
 
     expect(Object.keys(json).sort()).toEqual(['codigo', 'detalles', 'error', 'sugerencia']);
     expect(json.sugerencia).toBeNull();
+  });
+});
+
+/** Un programa chico con los casos de commander que el CLI real no produce con un solo comando. */
+function createUsageProgram(): Command {
+  const program = new Command('arcli');
+
+  configureUsageErrors(program);
+  program
+    .command('emitir')
+    .requiredOption('--pv <numero>', 'punto de venta')
+    .option('--monto <numero>', 'monto', () => {
+      throw new InvalidArgumentError('no es un número.');
+    })
+    .addOption(new Option('--testing', 'testing').conflicts('produccion'))
+    .option('--produccion', 'producción')
+    .action(() => undefined);
+  program.command('tabla').action(() => undefined);
+  program.command('tablo').action(() => undefined);
+
+  return program;
+}
+
+/** Corre el programa y devuelve el JSON de error que imprime `reportCliError`. */
+function usageErrorJson(argv: string[]): { readonly exitCode: number; readonly json: Record<string, unknown> } {
+  const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+
+  try {
+    let thrown: unknown;
+
+    try {
+      createUsageProgram().parse(['node', 'arcli', ...argv]);
+    } catch (error) {
+      thrown = error;
+    }
+
+    if (thrown === undefined) {
+      throw new Error('se esperaba un error de uso');
+    }
+
+    const exitCode = reportCliError(thrown, true);
+    const output = stderr.mock.calls.map(([chunk]) => String(chunk)).join('');
+
+    return { exitCode, json: JSON.parse(output) as Record<string, unknown> };
+  } finally {
+    stderr.mockRestore();
+  }
+}
+
+describe('traducción de los errores de uso de commander', () => {
+  it.each([
+    [['emitir'], 'falta la opción obligatoria `--pv <numero>`'],
+    [
+      ['emitir', '--pv', '1', '--monto', 'x'],
+      "el valor 'x' de la opción `--monto <numero>` no es válido. no es un número.",
+    ],
+    [
+      ['emitir', '--pv', '1', '--testing', '--produccion'],
+      'la opción `--testing` no se puede usar junto con la opción `--produccion`',
+    ],
+    [['tabl'], 'comando desconocido `tabl` (¿quisiste decir alguno de `tabla`, `tablo`?)'],
+  ])('%j', (argv, message) => {
+    const { exitCode, json } = usageErrorJson(argv);
+
+    expect(json).toMatchObject({ codigo: 'INPUT_VALIDATION_ERROR', error: message });
+    expect(exitCode).toBe(1);
   });
 });

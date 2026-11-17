@@ -35,7 +35,7 @@ La idea de esta guía es separar esas tres capas para que sea más fácil entend
 - `--monto` debe ser un número positivo
 - `--dia` (deprecado: usá `--vencimiento` o `--vto`) debe ser un entero entre `1` y `31`. Fija solo el vencimiento: este mes si el día todavía no pasó y si no, el siguiente; si ese mes no tiene ese día (`--dia 31` en abril), da error. No se combina con `--vencimiento`/`--vto`
 - `--punto-venta`, `--pv`, `--at`, `--apv`, `--ar` deben ser enteros positivos, escritos solo con dígitos (`3a` da error)
-- `--cuit`, `--cuil`, `--acuit` y `--dni` aceptan guiones y puntos (`20-33333333-4`), pero nada más. Lo mismo el CUIT de `arcli padron`, `arcli fce-obligado`, `config establecer cuit` y `comprobanteAsociado.cuit` en el JSON
+- `--cuit`, `--cuil`, `--acuit` y `--dni` aceptan guiones, puntos y espacios (`20-33333333-4`, `20 33333333 4`), pero nada más. Lo mismo el CUIT de `arcli padron`, `arcli fce-obligado`, `config establecer cuit` y `comprobanteAsociado.cuit` en el JSON
 - `--at` se valida igual que `--ac`: una NC A no puede asociar una factura B. Si en el JSON vienen `tipo` y `atajo`, tienen que coincidir
 - `--cotizacion-moneda` y `--cm` deben ser números positivos
 - Todo CUIT o CUIL debe tener 11 dígitos y un dígito verificador válido: un número mal tipeado da error antes de llegar a ARCA
@@ -55,7 +55,7 @@ ARCLI interpreta las fechas en formato argentino (día primero), con mes y año 
 Reglas de interpretación:
 
 - "hoy" es siempre el día en Argentina, aunque el equipo esté en otra zona horaria (por ejemplo un servidor en UTC después de las 21 h)
-- si omitís el año, ARCLI usa el de la fecha más cercana a hoy: el 5/1/2027, `1/12` es el 1/12/2026; el 28/12/2026, `10/1` es el 10/1/2027. Para una fecha a más de seis meses, escribí el año
+- si omitís el año, ARCLI usa el de la fecha más cercana a hoy: el 5/1/2027, `1/12` es el 1/12/2026; el 28/12/2026, `10/1` es el 10/1/2027. Cuenta solo un año donde esa fecha existe: el 1/9/2028, `29/2` es el 29/2/2028. Para una fecha a más de seis meses, escribí el año
 - si omitís mes y año, ARCLI usa el mes y año actuales
 - un año de 2 dígitos se interpreta como `20YY`
 - no se pueden mezclar separadores dentro de la misma fecha (por ejemplo, `5-3/26` no es válido)
