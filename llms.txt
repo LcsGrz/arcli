@@ -5,21 +5,14 @@
 > en testing o producción.
 > Salida humana por defecto, `--json` para scripts/agentes. Repo: https://github.com/LcsGrz/arcli
 
-Este archivo es una referencia densa para que un agente con acceso a shell pueda construir
-comandos `arcli` correctos sin tener que ir probando `--ayuda` a ciegas. Para el detalle
-completo de cada tema, ver los docs linkeados al final. **Toda la documentación junta, en un
-solo archivo de texto:** https://lcsgrz.github.io/arcli/llms-full.txt (cada página también está
-en Markdown, por ejemplo https://lcsgrz.github.io/arcli/referencia/comandos.md).
-
 ## Reglas para agentes
 
-- Siempre `--json` y el entorno explícito (`--testing` o `--produccion`).
-- Primero `--previsualizar`; `--emitir` solo cuando la persona confirmó ese comprobante.
-- **En producción, emitir es irreversible:** el comprobante tiene validez fiscal y no se borra; solo se compensa con
-  una nota de crédito. No emitas en producción sin confirmación explícita de la persona. En testing no tiene validez fiscal.
+- Siempre explícitos `--json`, el entorno (`--testing` o `--produccion`) y `--previsualizar` o `--emitir`: así el
+  resultado no depende de la config ni de un prompt.
+- Primero `--previsualizar`, y `--emitir` cuando la persona confirmó ese comprobante: **en producción emitir es
+  irreversible** (tiene validez fiscal y solo se compensa con una nota de crédito); en testing no tiene validez fiscal.
 - **Se emitió si y solo si** `previsualizacion` es `false` y `cae` no es `null`. En la vista previa, `estado` es
   `previsualizacion`.
-- Exit codes: `0` ok (aprobado u observado), `2` rechazado por ARCA, `1` error (mirar `codigo`).
 - Reintentos:
   - Se puede reintentar igual: `TRANSIENT_ERROR`, `ARCA_LAST_VOUCHER_ERROR` (salvo un punto de venta no habilitado)
     y `UNEXPECTED_ERROR` de red. No se emitió nada.
@@ -32,6 +25,14 @@ en Markdown, por ejemplo https://lcsgrz.github.io/arcli/referencia/comandos.md).
   certificado configurado.
 - Para saber si un punto de venta sirve sin emitir: `arcli ultimos fc --pv N --json` (solo lectura). Si no está
   habilitado, da `ARCA_LAST_VOUCHER_ERROR`. En testing, `estado` no lo puede confirmar.
+
+## Exit codes
+
+| exit | cuándo |
+|---|---|
+| `0` | Aprobado, observado (tiene CAE) o vista previa. |
+| `2` | ARCA rechazó el comprobante (A, B, C o E); en un lote, al menos uno. Sale por stdout como respuesta válida: revisar `estado`, `resultado` y `errores` de cada uno. |
+| `1` | Cualquier error: JSON en stderr, mirar `codigo` (ver "Salida de error"). |
 
 ## Ejemplos (A, B, C y notas)
 
@@ -50,7 +51,7 @@ Requiere Node.js 22.22.1 o superior. Para instalar o actualizar: `npm install -g
 deja un ícono para abrir el modo interactivo; no toques certificados ni config sin que te lo pida.
 
 ```bash
-npm install -g arcli   # o: yarn dev <comando>  si corrés desde el repo
+npm install -g arcli
 arcli config establecer cuit <11 dígitos>
 arcli config establecer puntoVenta <numero>
 # Certificado, una de dos (recomendada: certificado generar + importar):
@@ -134,7 +135,6 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
   si no, `cert.<entorno>`/`key.<entorno>`; el certificado tiene que estar autorizado a `wsfex` (si no,
   `WSFEX_SERVICE_NOT_AUTHORIZED`). Con la
   mitad del par configurada, el comando corta antes de ir a ARCA.
-- Un rechazo de WSFEX sale como respuesta válida con exit code `2`, igual que en las letras A, B y C.
 - PDF: `factura-e_<pv>-<numero>.pdf`, con el diseño de exportación (divisa, destino, forma y fecha de
   pago, incoterm, leyenda de IVA exento).
 
@@ -179,7 +179,7 @@ arcli nce -m 500 --ar 1 --apv 4 --previsualizar --json
 - Ejecución: `--previsualizar` (solo arma y muestra la solicitud) vs `--emitir` (real contra ARCA), mutuamente excluyentes. `--produccion --emitir` emite de verdad sin confirmación adicional. Qué pasa sin ninguno de los dos: ver "Modo no interactivo".
 - Salida: `--json` (estructurada, para scripts/agentes — desactiva el aviso de nueva versión), `--bruto` (incluye la respuesta cruda de ARCA). `--bruto` solo existe en los comandos de facturación; en `padron`, `fce-obligado`, `ultimos`, `consultar`, `parametros` y `estado` se ignora con un aviso en stderr. En todos los comandos, sin `--json` decide la clave de config `json`.
 - `--cargar <path.json>`: carga uno o un array de comprobantes desde un JSON en vez de flags (ver forma abajo). Los flags pisan lo que venga del archivo.
-- PDF: `--exportar-pdf` (alias `--pdf`) genera el PDF con QR después de emitir; `--sin-pdf` no lo genera; sin flag decide `config pdf` (`preguntar` por defecto, que sin TTY o con `--json` no genera); en una terminal sin `--emitir`, la confirmación "¿Emitimos…?" ofrece "Sí, emitir ahora" (sin PDF) y "Sí, emitir y generar el PDF", y eso decide en lugar de la config. Datos que solo van en el PDF (ARCA no los recibe): `--descripcion <texto>`, `--condicion-venta <tipo>` (alias `--cv`; `contado`, `tarjeta-debito`, `tarjeta-credito`, `cuenta-corriente`, `cheque`, `transferencia`, `otros-medios-electronicos`, `otra` o un texto libre que se imprime tal cual; JSON `condicionVenta`; default en la config `condicionVenta`), `--sin-condicion-venta` (o JSON `condicionVenta: null`) para omitir ese default, `--receptor-nombre <texto>`, `--receptor-domicilio <texto>`. Requiere el plugin (`arcli pdf instalar`, ~160 MB; desde un agente instalarlo antes, porque sin TTY nunca se descarga solo) y `emisor.razonSocial`, `emisor.domicilio`, `emisor.inicioActividades` en la config. Detalle: https://github.com/LcsGrz/arcli/blob/main/docs/pdf.md.
+- PDF: `--exportar-pdf` (alias `--pdf`) lo genera después de emitir y `--sin-pdf` no; sin flag decide la clave `pdf` (`preguntar` por defecto: con `--json` o sin TTY no genera). Solo para el PDF (ARCA no los recibe): `--descripcion <texto>`, `--condicion-venta <tipo>` (`--cv`; JSON `condicionVenta`), `--sin-condicion-venta`, `--receptor-nombre <texto>`, `--receptor-domicilio <texto>`. Antes de pedirlo: `arcli pdf instalar` (sin TTY nunca se descarga solo) y `emisor.razonSocial`, `emisor.domicilio` y `emisor.inicioActividades` en la config. Valores y detalle: https://github.com/LcsGrz/arcli/blob/main/docs/pdf.md.
 
 ## Modo no interactivo
 
@@ -188,9 +188,7 @@ Sin `--emitir` ni `--previsualizar`, decide `"emitir"` del JSON de `--cargar` y,
 previa y pregunta. **Con `--json`, o cuando stdin/stdout no son un TTY (scripts, agentes, CI),
 nunca pregunta**: no emite, salvo que el JSON de `--cargar` tenga `"emitir": true` (en un lote, cada
 elemento decide) o `config.emitir` sea `true`, y en esos casos emite sin confirmar. `--previsualizar` en el comando
-pisa lo que diga el archivo (en producción también, si `config.entorno` es `produccion`). Para invocar desde un
-agente, siempre pasar `--emitir` o `--previsualizar` (y `--testing` o `--produccion`) de forma
-explícita y no depender de la config ni del prompt.
+pisa lo que diga el archivo (en producción también, si `config.entorno` es `produccion`).
 
 ## Forma del JSON de `--cargar` (un objeto o un array de estos)
 
@@ -261,10 +259,8 @@ Con `--cargar` y un array la salida es un array de estos objetos (con `indice`),
 solo elemento; con un objeto o con flags, un objeto. Con `--bruto` se agrega `respuesta` con la respuesta
 cruda del SDK; el resto de los campos no cambia.
 
-**Importante:** un comprobante rechazado por ARCA (`"estado": "rechazado"`) es una respuesta
-válida, no una excepción: sale por stdout como cualquier resultado y el proceso termina con
-exit code `2`. En un lote, `2` si ARCA rechazó al menos uno; para saber cuáles, revisar
-`estado`/`resultado`/`errores` de cada uno. `observado` es aprobado (tiene CAE) y sale con `0`. `previsualizacion` = vista previa: no se emitió nada.
+`"estado": "rechazado"` es una respuesta válida, no un error (exit code `2`, ver "Exit codes"). `observado` es
+aprobado (tiene CAE). `previsualizacion` = vista previa: no se emitió nada.
 
 ## Salida de error
 
@@ -285,8 +281,7 @@ y `FCE_OBLIGATION_ERROR` (`fce-obligado`; con `verificarFce` al facturar salen c
 `EMISSION_UNCERTAIN` en `fe` trae `detalles.numero` y `detalles.idSolicitud`: reintentar con esos mismos `--numero` e `--id-solicitud`, nunca con otros (ARCA no autoriza dos veces el mismo número).
 Los errores de `arcli certificado` están en "Otros comandos".
 `PDF_PLUGIN_INSTALL_ERROR` sale de `arcli pdf instalar`. `sugerencia` está siempre: `null` si no hay nada que sugerir.
-Qué hacer con cada código: tabla "Códigos de error" de https://github.com/LcsGrz/arcli/blob/main/docs/input-output.md. Los errores de uso (opción desconocida, valor faltante, comando inexistente) también salen en este JSON como `INPUT_VALIDATION_ERROR`, con el mensaje de commander en `error`. El proceso termina con
-exit code `1` en cualquier error. Resumen: `0` aprobado (u observado), `1` error, `2` rechazado por ARCA.
+Qué hacer con cada código: tabla "Códigos de error" de https://github.com/LcsGrz/arcli/blob/main/docs/input-output.md. Los errores de uso (opción desconocida, valor faltante, comando inexistente) también salen en este JSON como `INPUT_VALIDATION_ERROR`, con el mensaje de commander en `error`.
 
 ## Comando `config`
 
@@ -337,6 +332,7 @@ en uso), cada comando que va a ARCA avisa en stderr (nunca en stdout) y la factu
 
 Los docs no vienen en el paquete de npm: están en GitHub y en https://lcsgrz.github.io/arcli/.
 Todo junto para leer de una vez: https://lcsgrz.github.io/arcli/llms-full.txt.
+Cada página del sitio también está en Markdown, con la ruta terminada en `.md` (por ejemplo `referencia/comandos.md`).
 
 - https://github.com/LcsGrz/arcli/blob/main/docs/cli-reference.md: referencia completa de comandos y flags.
 - https://github.com/LcsGrz/arcli/blob/main/docs/configuration.md: config persistente, claves soportadas, ticketPath.
