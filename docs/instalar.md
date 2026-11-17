@@ -72,7 +72,7 @@ Copiá esto y pegáselo a tu asistente. Sirve para instalar y para actualizar.
 
 <!-- arcli: prompt-instalacion -->
 
-El texto para copiar está en el [README](../README.md#instalar-o-actualizar-con-ia).
+El texto para copiar está en el [README](../README.md#empezar), en "Que lo instale tu IA".
 
 ## Configurar
 

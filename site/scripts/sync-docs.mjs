@@ -206,8 +206,24 @@ const ALIASES = {
 const ALERT_KINDS = { CAUTION: 'danger', IMPORTANT: 'note', NOTE: 'note', TIP: 'tip', WARNING: 'caution' };
 
 /** Del README solo van las secciones para quien usa arcli; el resto (desarrollo, licencia...) queda en GitHub. */
-const README_FIRST_SECTION = '## Empezar sin saber de terminal';
+const README_FIRST_SECTION = '## Empezar';
 const README_END_SECTION = '## Documentación';
+
+/** Lo que abre el plegable del README con el prompt para instalar con IA. */
+const README_PROMPT_SUMMARY = '<summary>Que lo instale tu IA';
+
+/** El prompt para instalar o actualizar con IA: el bloque `text` del plegable del README. */
+function readmeInstallPrompt() {
+  const readme = readFileSync(join(repoDir, 'README.md'), 'utf8');
+  const start = readme.indexOf(README_PROMPT_SUMMARY);
+  const prompt = start === -1 ? undefined : readme.slice(start).match(/```text\n([\s\S]*?)\n```/)?.[1];
+
+  if (!prompt) {
+    throw new Error(`README.md: no encontré el prompt de "${README_PROMPT_SUMMARY}".`);
+  }
+
+  return prompt;
+}
 
 /** Carpetas de `docs/assets` que usan las paginas (las cintas de VHS no). */
 const ASSET_FOLDERS = ['certificados', 'demo', 'imagenes'];
@@ -216,6 +232,7 @@ const ASSET_FOLDERS = ['certificados', 'demo', 'imagenes'];
 const README_TO_INSTALL = {
   '': '',
   configuración: 'configurar',
+  empezar: 'instalar-a-mano',
   'empezar-sin-saber-de-terminal': 'instalar-a-mano',
   instalación: 'instalar-a-mano',
   'instalar-o-actualizar-con-ia': 'con-un-asistente-de-ia',
@@ -443,14 +460,7 @@ function writeBrand(stars) {
   const banner = [...block[1].matchAll(/'([^']*)'/g)].map((match) => match[1].replace(/\s+$/, ''));
   const { version } = JSON.parse(readFileSync(join(repoDir, 'package.json'), 'utf8'));
   // El prompt para instalar con IA, el mismo del README (la portada lo copia con un botón).
-  const readme = readFileSync(join(repoDir, 'README.md'), 'utf8');
-  const prompt = readme
-    .slice(readme.indexOf('### Instalar o actualizar con IA'))
-    .match(/```text\n([\s\S]*?)\n```/)?.[1];
-
-  if (!prompt) {
-    throw new Error('README.md: no encontré el prompt de "### Instalar o actualizar con IA".');
-  }
+  const prompt = readmeInstallPrompt();
   const target = join(siteDir, 'src/generated/brand.json');
 
   mkdirSync(dirname(target), { recursive: true });
@@ -859,10 +869,7 @@ function tabs(text) {
 /** `<!-- arcli: prompt-instalacion -->` y el link de la linea siguiente: el prompt del README, para copiar. */
 function installPrompt(text) {
   return text.replace(/<!-- arcli: prompt-instalacion -->\n+[^\n]*\n/, () => {
-    const readme = readFileSync(join(repoDir, 'README.md'), 'utf8');
-    const prompt = readme
-      .slice(readme.indexOf('### Instalar o actualizar con IA'))
-      .match(/```text\n([\s\S]*?)\n```/)?.[1];
+    const prompt = readmeInstallPrompt();
 
     return `\`\`\`text title="Prompt" frame="terminal" wrap\n${prompt}\n\`\`\`\n`;
   });
