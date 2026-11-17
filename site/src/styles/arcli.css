@@ -966,7 +966,161 @@ header.header {
   font-size: 1.1em !important;
 }
 
-/* Un desplegable abierto (problemas, capturas, versiones): el fondo un poco más claro */
+/* Un desplegable abierto (problemas, capturas, versiones): se aclara el contenido y el encabezado queda igual */
+.sl-markdown-content details:not(.not-content *):not(.arcli-more) {
+  --arcli-details-bg: transparent;
+  padding: 0;
+  overflow: hidden;
+  background: var(--arcli-details-bg);
+}
+
+.sl-markdown-content details.arcli-faq:not(.not-content *):not(.arcli-more) {
+  --arcli-details-bg: var(--sl-color-gray-6);
+}
+
+.sl-markdown-content details:not(.not-content *):not(.arcli-more) > summary {
+  /* Starlight le pone un margen negativo: con él, la línea de abajo se salía de la caja */
+  margin: 0;
+  padding: 0.6rem 0.9rem;
+  background: var(--arcli-details-bg);
+}
+
 .sl-markdown-content details:not(.not-content *):not(.arcli-more)[open] {
   background: color-mix(in srgb, var(--sl-color-white) 4%, var(--sl-color-gray-6));
+}
+
+.sl-markdown-content details:not(.not-content *):not(.arcli-more)[open] > summary {
+  border-bottom: 1px solid var(--sl-color-gray-5);
+}
+
+.sl-markdown-content details:not(.not-content *):not(.arcli-more) > :not(summary) {
+  margin-inline: 0.9rem;
+}
+
+.sl-markdown-content details:not(.not-content *):not(.arcli-more)[open] > :last-child {
+  margin-bottom: 0.9rem;
+}
+
+/* Etiqueta de severidad a la derecha, con un color sutil según el tipo */
+.arcli-faq .sev {
+  margin-inline-start: auto;
+  border-color: color-mix(in srgb, var(--sev) 40%, transparent) !important;
+  background: color-mix(in srgb, var(--sev) 12%, transparent);
+  color: color-mix(in srgb, var(--sev) 80%, var(--sl-color-gray-2)) !important;
+}
+
+.arcli-faq .sev-alta {
+  --sev: #f38ba8;
+}
+
+.arcli-faq .sev-frecuente {
+  --sev: var(--arcli-sol);
+}
+
+.arcli-faq .sev-media {
+  --sev: var(--arcli-celeste);
+}
+
+.arcli-faq .sev-baja {
+  --sev: var(--sl-color-gray-3);
+}
+
+/* Con etiqueta, la etiqueta va a la derecha y el "+" al lado; sin etiqueta, el "+" va a la derecha */
+.sl-markdown-content details.arcli-faq > summary:has(.sev)::after {
+  margin-inline-start: 0.75rem;
+}
+
+/* Problemas frecuentes: cada problema en dos columnas (Síntoma, Causa, Solución) y las salidas de ARCLI como en la terminal */
+.sl-markdown-content .arcli-faq-row {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr);
+  gap: 1rem;
+  padding: 0.85rem 0;
+  border-top: 1px dashed var(--sl-color-gray-5);
+}
+
+.sl-markdown-content details.arcli-faq > .arcli-faq-row:nth-child(2) {
+  border-top: 0;
+}
+
+.arcli-faq-row > b {
+  color: var(--sl-color-white);
+  font-weight: 600;
+}
+
+.sl-markdown-content .arcli-faq-row > div {
+  display: grid;
+  gap: 0.6rem;
+  min-width: 0;
+  margin: 0;
+}
+
+.sl-markdown-content .arcli-faq-row > div > * {
+  margin: 0;
+}
+
+.sl-markdown-content .arcli-salida {
+  margin: 0;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid rgb(243 139 168 / 0.45);
+  border-radius: 0.5rem;
+  background: #11111b;
+  color: #cdd6f4;
+  font: 0.82rem / 1.6 var(--sl-font-mono);
+  white-space: pre-wrap;
+}
+
+.sl-markdown-content .arcli-faq-more {
+  margin: 0;
+  padding: 0.75rem 0 0;
+  border-top: 1px dashed var(--sl-color-gray-5);
+  color: var(--sl-color-gray-3);
+  font-size: var(--sl-text-sm);
+}
+
+@media (max-width: 34rem) {
+  .sl-markdown-content .arcli-faq-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.35rem;
+  }
+}
+
+.sl-markdown-content .arcli-faq-more > p {
+  margin: 0;
+}
+
+.sl-markdown-content .arcli-faq-more a {
+  color: var(--arcli-celeste);
+}
+
+/* El título (con su aclaración debajo) ocupa el ancho; el chip y el "+" quedan en una línea, centrados */
+.sl-markdown-content details.arcli-faq > summary {
+  flex-wrap: nowrap;
+}
+
+.arcli-faq > summary > .t {
+  flex: 1;
+  min-width: 0;
+}
+
+.arcli-faq > summary > .sev,
+.sl-markdown-content details.arcli-faq > summary::after {
+  flex: none;
+}
+
+.arcli-faq .sev {
+  white-space: nowrap;
+}
+
+.arcli-faq .sub {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--sl-color-gray-3);
+  font-size: var(--sl-text-sm);
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+.arcli-faq .sub code {
+  white-space: nowrap;
 }

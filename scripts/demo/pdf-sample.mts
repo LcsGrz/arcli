@@ -30,7 +30,6 @@ const path = await exportBillingPdf({
   },
   extras: {
     descripcion: 'Desarrollo de software - octubre',
-    
     receptorDomicilio: 'Calle Falsa 123, CABA',
     receptorNombre: 'Juan Pérez',
   },
