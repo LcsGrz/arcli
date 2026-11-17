@@ -6,8 +6,8 @@ Require node
 Require jq
 Set Shell "bash"
 Set FontSize 22
-Set Width 1600
-Set Height 900
+Set Width 1440
+Set Height 810
 Set Padding 28
 Set Theme "TokyoNight"
 Set WindowBar Colorful
@@ -70,7 +70,7 @@ Sleep 1s
 
 # 5. Cierre: placa centrada, sin prompt ni cursor
 Hide
-Type "PS1='' && clear && printf '\e[?25l\n\n\n\n\n\n\n\n\n\n\n                       \e[1;36marcli\e[0m  ·  facturación electrónica de ARCA desde la terminal\n\n\n                                       \e[1mnpm install -g arcli\e[0m\n\n\n                                \e[2mgithub.com/LcsGrz/arcli  ·  open source\e[0m'" Enter
+Type "PS1='' && clear && printf '\e[?25l\n\n\n\n\n\n\n\n\n\n\n                   \e[1;36mARCLI\e[0m  ·  facturación electrónica de ARCA desde tu terminal\n\n\n                                      \e[1mnpm install -g arcli\e[0m\n\n\n                           \e[2marcli.com.ar  ·  gratis y de código abierto\e[0m'" Enter
 Sleep 300ms
 Show
 Sleep 5s

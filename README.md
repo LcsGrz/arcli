@@ -25,8 +25,6 @@ Si usás un asistente de IA que puede manejar tu computadora (Claude, ChatGPT, G
 3. Pegá `arcli acceso-directo`: deja un ícono de ARCLI en el escritorio.
 4. Abrí ARCLI con doble clic en el ícono y seguí la configuración guiada. Desde ahí sacás el certificado de ARCA y emitís tu primera factura de prueba en testing, sin validez fiscal.
 
-Más adelante va a haber un instalador que no necesita Node.
-
 ## Características
 
 - **Modo interactivo:** `arcli` sin argumentos abre un asistente que guía la emisión, repite facturas anteriores, arma notas de crédito y débito, consulta comprobantes y configura el CLI. Cada paso muestra el comando equivalente.
