@@ -1,4 +1,40 @@
-/* Con IA: la conversación de ejemplo, con marco como los GIF */
+/*
+ * El chat con una IA, una sola fuente para los dos: la conversación de "Con IA" en las docs (`.arcli-chat`, de
+ * `scripts/transforms/chats.mjs`) y la demo de la portada (`.arcli-landing .chat`, de `Demo.astro`). Las burbujas
+ * comparten forma y colores; la portada las agranda, les pone la punta del lado de quien habla y las anima al aparecer.
+ */
+
+/* Las dos: burbujas a un lado o al otro, con el nombre arriba */
+
+.sl-markdown-content .arcli-msg,
+.arcli-landing .msg {
+  max-width: 85%;
+}
+
+.arcli-msg.user,
+.arcli-landing .msg.user {
+  align-self: flex-end;
+  background: var(--arcli-term-user);
+}
+
+.arcli-msg.bot,
+.arcli-landing .msg.bot {
+  align-self: flex-start;
+  border: 1px solid var(--arcli-term-line);
+  background: var(--arcli-term-raised);
+}
+
+.arcli-msg .who,
+.arcli-landing .msg .who {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Docs: la conversación de ejemplo, con marco como los GIF */
+
 .sl-markdown-content .arcli-chat {
   display: flex;
   flex-direction: column;
@@ -12,7 +48,6 @@
 }
 
 .sl-markdown-content .arcli-msg {
-  max-width: 85%;
   margin: 0;
   padding: 0.55rem 0.8rem;
   border-radius: 0.6rem;
@@ -21,25 +56,104 @@
 }
 
 .arcli-msg .who {
-  display: block;
   margin-bottom: 0.15rem;
   color: var(--arcli-term-fg-soft);
-  font: 600 0.68rem / 1.4 var(--sl-font-system-mono);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.arcli-msg.user {
-  align-self: flex-end;
-  background: var(--arcli-term-user);
-}
-
-.arcli-msg.bot {
-  align-self: flex-start;
-  border: 1px solid var(--arcli-term-line);
-  background: var(--arcli-term-raised);
+  font-family: var(--sl-font-system-mono);
+  line-height: 1.4;
 }
 
 .arcli-msg strong {
   color: var(--arcli-term-strong);
+}
+
+/* Portada: la demo "Con IA", una conversación animada en la ventana de los GIF */
+
+.arcli-landing .chat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  aspect-ratio: 1100 / 780;
+  padding: clamp(1rem, 3vw, 2rem);
+  overflow: hidden;
+  text-align: left;
+  color: var(--arcli-term-fg);
+  font-size: clamp(0.78rem, 1.5vw, 0.92rem);
+}
+
+.arcli-landing .chat[hidden] {
+  display: none;
+}
+
+.arcli-landing .msg {
+  padding: 0.7rem 0.95rem;
+  border-radius: 0.8rem;
+  line-height: 1.5;
+  animation: aparece 0.3s ease both;
+}
+
+.arcli-landing .msg.user {
+  border-bottom-right-radius: 0.2rem;
+}
+
+.arcli-landing .msg.bot {
+  border-bottom-left-radius: 0.2rem;
+}
+
+.arcli-landing .msg .who {
+  margin-bottom: 0.2rem;
+  color: var(--arcli-term-fg-mute);
+  font-family: var(--font-mono);
+  line-height: 1;
+}
+
+.arcli-landing .msg pre {
+  margin: 0.5rem 0 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.4rem;
+  background: var(--arcli-term-bg);
+  color: var(--arcli-term-green);
+  font-size: 0.85em;
+  white-space: pre-wrap;
+}
+
+.arcli-landing .msg .msg-text {
+  margin: 0.75rem 0 0;
+}
+
+.arcli-landing .msg pre .k {
+  color: var(--arcli-term-blue);
+}
+
+/* El encabezado del chat: con quién hablás y que ARCLI corre en tu computadora */
+
+.arcli-landing .chat-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--arcli-term-line);
+  color: var(--arcli-term-fg-soft);
+  font-size: 0.85em;
+}
+
+.arcli-landing .chat-head b {
+  color: var(--arcli-term-fg);
+  font-weight: 600;
+}
+
+.arcli-landing .chat-head .local {
+  margin-left: auto;
+  padding: 0.1rem 0.55rem;
+  border: 1px solid var(--arcli-term-line);
+  border-radius: 99px;
+  font: 500 0.78em / 1.6 var(--font-mono);
+  color: var(--arcli-term-green);
+}
+
+@keyframes aparece {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
 }

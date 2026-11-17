@@ -779,77 +779,7 @@
   padding: 0;
 }
 
-/* Demo con IA: una conversacion animada */
-.arcli-landing .chat {
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-  aspect-ratio: 1100 / 780;
-  padding: clamp(1rem, 3vw, 2rem);
-  overflow: hidden;
-  text-align: left;
-  color: var(--arcli-term-fg);
-  font-size: clamp(0.78rem, 1.5vw, 0.92rem);
-}
-
-.arcli-landing .chat[hidden] {
-  display: none;
-}
-
-.arcli-landing .msg {
-  max-width: 85%;
-  padding: 0.7rem 0.95rem;
-  border-radius: 0.8rem;
-  line-height: 1.5;
-  animation: aparece 0.3s ease both;
-}
-
-.arcli-landing .msg.user {
-  align-self: flex-end;
-  background: var(--arcli-term-user);
-  border-bottom-right-radius: 0.2rem;
-}
-
-.arcli-landing .msg.bot {
-  align-self: flex-start;
-  background: var(--arcli-term-raised);
-  border: 1px solid var(--arcli-term-line);
-  border-bottom-left-radius: 0.2rem;
-}
-
-.arcli-landing .msg .who {
-  display: block;
-  margin-bottom: 0.2rem;
-  font: 600 0.68rem / 1 var(--font-mono);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--arcli-term-fg-mute);
-}
-
-.arcli-landing .msg pre {
-  margin: 0.5rem 0 0;
-  padding: 0.55rem 0.7rem;
-  border-radius: 0.4rem;
-  background: var(--arcli-term-bg);
-  color: var(--arcli-term-green);
-  font-size: 0.85em;
-  white-space: pre-wrap;
-}
-
-.arcli-landing .msg .msg-text {
-  margin: 0.75rem 0 0;
-}
-
-.arcli-landing .msg pre .k {
-  color: var(--arcli-term-blue);
-}
-
-@keyframes aparece {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-}
+/* El chat de la demo "Con IA" está en docs/chat.css, junto con el de las docs. */
 
 /* El perfil de cada grupo de atajos (Cómo es facturar) */
 
@@ -912,31 +842,6 @@
 
 .arcli-landing .msg .who .ai-track > span {
   color: var(--arcli-term-blue);
-}
-
-.arcli-landing .chat-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem 0.75rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--arcli-term-line);
-  color: var(--arcli-term-fg-soft);
-  font-size: 0.85em;
-}
-
-.arcli-landing .chat-head b {
-  color: var(--arcli-term-fg);
-  font-weight: 600;
-}
-
-.arcli-landing .chat-head .local {
-  margin-left: auto;
-  padding: 0.1rem 0.55rem;
-  border: 1px solid var(--arcli-term-line);
-  border-radius: 99px;
-  font: 500 0.78em / 1.6 var(--font-mono);
-  color: var(--arcli-term-green);
 }
 
 /* ---------- Lo que sigue a la presentacion: variantes ---------- */
