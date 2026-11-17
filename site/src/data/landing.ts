@@ -183,9 +183,6 @@ export interface Profile {
 /** Las letras de cada perfil. */
 const PROFILE_LETTERS: Record<ProfileKey, readonly string[]> = { expo: ['e'], mono: ['c'], ri: ['a', 'b'] };
 
-/** Los atajos que el chipboard todavía no muestra. */
-const HIDDEN_CHIPS = new Set(['ncec', 'ndec', 'nda', 'ndb', 'ncea', 'ndea', 'nceb', 'ndeb']);
-
 /** Los tipos (`factura`, `nota-credito`…) en el orden de los datos. */
 const KINDS = [...new Set(COMPROBANTES.map((voucher) => voucher.comando))];
 
@@ -199,7 +196,7 @@ function profileChips(key: ProfileKey): string[] {
         (voucher) => voucher.atajo,
       ),
     ),
-  ).filter((atajo) => !HIDDEN_CHIPS.has(atajo));
+  );
 }
 
 /** Una fila desde sus atajos: la página es la del primero; falla si un atajo no está en los datos. */

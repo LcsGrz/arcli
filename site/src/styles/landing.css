@@ -1198,6 +1198,15 @@
   padding: 0;
 }
 
+/* En el celular, la etiqueta arriba de sus atajos: con la columna de 9.5rem al lado, los doce de responsable
+   inscripto bajaban en cuatro filas desparejas. */
+@media (max-width: 36rem) {
+  .arcli-landing .chipboard li {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--gap-sm);
+  }
+}
+
 .arcli-landing .preview {
   font-family: var(--font-mono);
   font-size: 0.85rem;
