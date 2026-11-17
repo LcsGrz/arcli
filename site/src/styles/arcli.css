@@ -500,6 +500,61 @@ header.header::after {
   font: 0.8rem var(--sl-font-system-mono);
 }
 
+/* Novedades: cada tipo de cambio (Agregado, Cambiado...) es un chip, como la familia de los comprobantes */
+:root {
+  --arcli-naranja: #fab387;
+  --arcli-rojo: #f38ba8;
+}
+
+:root[data-theme='light'] {
+  --arcli-naranja: #a8521a;
+  --arcli-rojo: #b4344f;
+}
+
+.sl-markdown-content .arcli-kind {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border: 1px solid color-mix(in srgb, var(--kind) 38%, transparent);
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--kind) 16%, transparent);
+  color: color-mix(in srgb, var(--kind) 85%, var(--sl-color-gray-2));
+  font: 600 0.78rem / 1.5 var(--sl-font-system-mono);
+}
+
+.sl-markdown-content h3:has(> .arcli-kind) {
+  margin-top: 1.75rem;
+}
+
+.arcli-kind-agregado {
+  --kind: var(--arcli-verde);
+}
+
+.arcli-kind-cambiado {
+  --kind: var(--arcli-celeste);
+}
+
+.arcli-kind-arreglado {
+  --kind: var(--arcli-sol);
+}
+
+.arcli-kind-deprecado,
+.arcli-kind-aviso {
+  --kind: var(--arcli-naranja);
+}
+
+.arcli-kind-eliminado,
+.arcli-kind-seguridad {
+  --kind: var(--arcli-rojo);
+}
+
+.arcli-kind-documentacion {
+  --kind: var(--arcli-lavanda);
+}
+
+.arcli-kind-otro {
+  --kind: var(--sl-color-gray-3);
+}
+
 /* Las fuentes de la maqueta (se cargan en astro.config.mjs) */
 :root {
   --sl-font: 'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;

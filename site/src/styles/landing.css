@@ -1,4 +1,5 @@
-/* Layout: una columna centrada de 72rem; el logo ASCII de la terminal es el titulo y la terminal es la protagonista. */
+/* Layout: una columna centrada de 72rem; el logo ASCII de la terminal es el titulo y la terminal es la protagonista.
+   La portada es siempre oscura (ThemeProvider.astro), aunque el sistema o las docs esten en claro. */
 .arcli-landing {
   --bg: #181825;
   --star-on-btn: #c88a04;
@@ -20,6 +21,8 @@
   --glow: rgb(116 172 223 / 0.16);
   --font-text: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  /* Escala tipografica. -1: texto de tarjetas compactas, tablas y notas; 0: texto corrido y de tarjetas;
+     1: titulo de tarjeta o de fila; 2: titulo de paso del recorrido; 3: h2 de seccion; 4: h1. */
   --step--1: 0.875rem;
   --step-0: 1rem;
   --step-1: 1.125rem;
@@ -27,38 +30,20 @@
   --step-3: clamp(1.6rem, 3vw, 2.2rem);
   --step-4: clamp(2rem, 5vw, 3.3rem);
   --radius: 0.75rem;
-  color-scheme: dark;
-}
 
-/* Oscuro elegido en las docs (y siempre en la portada), aunque el sistema este en claro. */
-.arcli-landing {
-  --bg: #181825;
-  --star-on-btn: #c88a04;
-  --bg-raised: #1e1e2e;
-  --panel: #11111b;
-  --line: #313244;
-  --line-soft: #26263a;
-  --fg: #e6e7f2;
-  --fg-soft: #a6a9c4;
-  --fg-mute: #7f849c;
-  --celeste: #74acdf;
-  --celeste-strong: #9cc6ee;
-  --celeste-wash: #1f2f45;
-  --lavanda: #c6c9f0;
-  --verde: #a6e3a1;
-  --sol: #f9d77e;
-  --rojo: #f38ba8;
-  --on-accent: #10121c;
-  --glow: rgb(116 172 223 / 0.16);
-  --font-text: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-  --step--1: 0.875rem;
-  --step-0: 1rem;
-  --step-1: 1.125rem;
-  --step-2: 1.4rem;
-  --step-3: clamp(1.6rem, 3vw, 2.2rem);
-  --step-4: clamp(2rem, 5vw, 3.3rem);
-  --radius: 0.75rem;
+  /* Escala de espaciado de las secciones: usarla en vez de valores sueltos. */
+  --space-section: clamp(5rem, 11vw, 8rem); /* entre secciones (y el cierre arriba y abajo) */
+  --space-eyebrow: 0.75rem; /* etiqueta -> h2 */
+  --space-lead: 1rem; /* h2 -> bajada */
+  --space-content: 2rem; /* titulo o bajada -> contenido de la seccion */
+  --space-related: 1rem; /* contenido -> nota o bloque que lo acompana */
+  --gap-sm: 0.5rem; /* entre filas de una lista de tarjetas */
+  --gap: 1rem; /* entre tarjetas o items de una grilla */
+  --gap-lg: 1.5rem; /* entre columnas o bloques grandes */
+  --gap-col: 2.5rem; /* entre columnas de texto (caracteristicas, preguntas) */
+  --pad-card: 1.25rem; /* interno de tarjetas y paneles */
+  --pad-row: 1rem 1.25rem; /* interno de filas clicables (comprobantes, formas de uso) */
+  --pad-item: 1rem; /* alto de items separados por linea (caracteristicas, preguntas) */
 
   color-scheme: dark;
 }
@@ -492,6 +477,11 @@
     0 40px 90px -40px rgb(116 172 223 / 0.45);
 }
 
+/* `display: block` le gana al atributo `hidden`: sin esto, en "Con IA" el GIF seguía visible arriba del chat. */
+.arcli-landing .window img[hidden] {
+  display: none;
+}
+
 .arcli-landing .window img {
   display: block;
   width: 100%;
@@ -512,11 +502,11 @@
 /* ---------- Secciones ---------- */
 
 .arcli-landing section.block {
-  padding-block: clamp(5rem, 11vw, 8rem) 0;
+  padding-block: var(--space-section) 0;
 }
 
 .arcli-landing .eyebrow {
-  margin: 0 0 0.7rem;
+  margin: 0 0 var(--space-eyebrow);
   font: 600 0.75rem / 1 var(--font-mono);
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -534,7 +524,7 @@
 
 .arcli-landing .section-lead {
   max-width: 60ch;
-  margin: 0.9rem 0 0;
+  margin: var(--space-lead) 0 0;
   color: var(--fg-soft);
 }
 
@@ -920,8 +910,8 @@
 .arcli-landing .faq {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0 2.5rem;
-  margin-top: 2rem;
+  gap: 0 var(--gap-col);
+  margin-top: var(--space-content);
 }
 
 @media (max-width: 54rem) {
@@ -938,7 +928,8 @@
   display: flex;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1.1rem 0;
+  padding: var(--pad-item) 0;
+  font-size: var(--step-1);
   font-weight: 600;
   cursor: pointer;
   list-style: none;
@@ -961,14 +952,14 @@
 }
 
 .arcli-landing details p {
-  margin: 0 0 1.2rem;
+  margin: 0 0 var(--pad-item);
   color: var(--fg-soft);
-  font-size: 0.95rem;
+  font-size: var(--step-0);
 }
 
 /* Cierre */
 .arcli-landing .cta {
-  padding-block: clamp(4.5rem, 10vw, 7rem);
+  padding-block: var(--space-section);
   text-align: center;
 }
 
@@ -978,7 +969,7 @@
 
 .arcli-landing .cta p {
   max-width: 52ch;
-  margin: 0.9rem auto 0;
+  margin: var(--space-lead) auto 0;
   color: var(--fg-soft);
 }
 
@@ -1650,7 +1641,7 @@
 .arcli-landing table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.88rem;
+  font-size: var(--step--1);
 }
 
 .arcli-landing th,
@@ -2216,8 +2207,8 @@
 }
 
 .arcli-landing .versus-note {
-  margin: 1rem 0 0;
-  font-size: 0.88rem;
+  margin: var(--space-related) 0 0;
+  font-size: var(--step--1);
   color: var(--fg-mute);
 }
 
@@ -3186,8 +3177,8 @@
   position: relative;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1.5rem;
-  margin: 2.5rem 0 0;
+  gap: var(--gap-lg);
+  margin: var(--space-content) 0 0;
   padding: 0;
   list-style: none;
 }
@@ -3221,6 +3212,7 @@
 
 .arcli-landing .timeline h3 {
   margin: 1rem 0 0.35rem;
+  font-size: var(--step-1);
 }
 
 .arcli-landing .timeline p {
@@ -3249,7 +3241,7 @@
   display: inline-flex;
   flex-wrap: wrap;
   gap: 0.25rem;
-  margin-top: 1.75rem;
+  margin-top: var(--space-content);
   padding: 0.3rem;
   border: 1px solid var(--line);
   border-radius: 0.7rem;
@@ -3275,8 +3267,8 @@
 .arcli-landing .seg-panel {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
-  gap: 1.5rem;
-  margin-top: 1.25rem;
+  gap: var(--gap-lg);
+  margin-top: var(--gap-lg);
   align-items: start;
 }
 
@@ -3292,7 +3284,7 @@
 
 .arcli-landing .vlist {
   display: grid;
-  gap: 0.5rem;
+  gap: var(--gap-sm);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -3303,13 +3295,13 @@
   grid-template-columns: 6.5rem minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.9rem;
-  padding: 0.8rem 1rem;
+  padding: var(--pad-row);
   border: 1px solid var(--line);
   border-radius: 0.6rem;
   background: var(--bg-raised);
   color: var(--fg-soft);
   text-decoration: none;
-  font-size: 0.9rem;
+  font-size: var(--step--1);
 }
 
 .arcli-landing .vlist a::after {
@@ -3397,7 +3389,7 @@
 }
 
 .arcli-landing .cmp {
-  margin-top: 1.75rem;
+  margin-top: var(--space-content);
 }
 
 .arcli-landing .cmp th:last-child,
@@ -3419,7 +3411,7 @@
 .arcli-landing .zz {
   display: grid;
   gap: clamp(3rem, 7vw, 5rem);
-  margin-top: 2.75rem;
+  margin-top: var(--space-content);
 }
 
 .arcli-landing .zz-row {
@@ -3461,7 +3453,7 @@
 }
 
 .arcli-landing .zz-visual {
-  padding: clamp(1rem, 3vw, 1.75rem);
+  padding: var(--pad-card);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--bg-raised);
@@ -3531,15 +3523,15 @@
 }
 
 .arcli-landing .zz-visual.result-visual {
-  padding: 1.25rem;
+  padding: var(--pad-card);
 }
 
 .arcli-landing .strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1rem;
+  gap: var(--gap);
   margin: 0;
-  padding: 1.25rem;
+  padding: var(--pad-card);
   list-style: none;
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -3549,7 +3541,7 @@
   display: flex;
   gap: 0.65rem;
   align-items: flex-start;
-  font-size: 0.9rem;
+  font-size: var(--step--1);
   color: var(--fg-soft);
 }
 
@@ -3640,8 +3632,8 @@
 .arcli-landing .feat-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.9rem 2.5rem;
-  margin: 1.75rem 0 0;
+  gap: var(--pad-item) var(--gap-col);
+  margin: var(--space-content) 0 0;
   padding: 0;
   list-style: none;
 }
@@ -3656,7 +3648,7 @@
   display: grid;
   grid-template-columns: 1.4rem minmax(0, 1fr);
   gap: 0.75rem;
-  padding-bottom: 0.9rem;
+  padding-bottom: var(--pad-item);
   border-bottom: 1px solid var(--line-soft);
   color: var(--fg-soft);
 }
@@ -4090,7 +4082,7 @@
 /* Formas de uso · Elegir por lo que queres */
 .arcli-landing .pick {
   display: grid;
-  margin-top: 2rem;
+  margin-top: var(--space-content);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--bg-raised);
@@ -4103,7 +4095,7 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) auto;
   align-items: center;
   gap: 1.25rem;
-  padding: 1.1rem 1.4rem;
+  padding: var(--pad-row);
   color: var(--fg-soft);
   text-decoration: none;
 }
@@ -4119,7 +4111,7 @@
 .arcli-landing .pick-q {
   color: var(--fg);
   font-weight: 600;
-  font-size: 1.05rem;
+  font-size: var(--step-1);
 }
 
 .arcli-landing .pick-do {
@@ -5238,8 +5230,8 @@
 
 /* El panel del resultado, separado de los bordes como el PDF */
 .arcli-landing .result-visual .panel {
-  left: 1.25rem;
-  bottom: 1.25rem;
+  left: var(--pad-card);
+  bottom: var(--pad-card);
 }
 
 .arcli-landing .pick-table .sep {
@@ -5264,14 +5256,73 @@
   font-size: 0.95rem;
 }
 
-/* Franja de seguridad: cada ítem centrado, en vertical y en horizontal */
+/* Franja de seguridad: los ítems en fila, repartidos con space-around, y si no entran bajan a la línea siguiente.
+   Cada ítem toma el ancho de su texto, con el ícono centrado en vertical y el texto a la izquierda. */
 .arcli-landing .strip {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
   align-items: center;
 }
 
 .arcli-landing .strip li {
   align-items: center;
-  justify-content: center;
+}
+
+/* En el celular, una columna que toma el ancho del ítem más largo y se centra en la franja: adentro todo va a la
+   izquierda y los íconos quedan en la misma vertical. Es grid y no flex en columna porque así la columna se centra
+   sin achicar el borde de la franja. */
+@media (max-width: 36rem) {
+  .arcli-landing .strip {
+    display: grid;
+    grid-template-columns: fit-content(100%);
+    justify-content: center;
+  }
+}
+
+/* El cierre: de la bajada a los botones, lo mismo que del título al contenido en las secciones */
+.arcli-landing .cta .actions {
+  margin-top: var(--space-content);
+}
+
+/* ¿Qué facturás? en el celular: tres segmentos iguales a lo ancho, en vez de botones que saltan de línea.
+   "Responsable inscripto" baja a dos líneas dentro de su segmento. */
+@media (max-width: 36rem) {
+  .arcli-landing .seg {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .arcli-landing .seg button {
+    min-height: 2.75rem;
+    padding-inline: 0.25rem;
+    font-size: clamp(0.8rem, 3.8vw, 0.92rem);
+    text-align: center;
+    text-wrap: balance;
+  }
+}
+
+/* Comprobantes en el celular: el atajo arriba del nombre, para que el texto use todo el ancho */
+@media (max-width: 36rem) {
+  .arcli-landing .vlist a {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 0.25rem;
+  }
+
+  .arcli-landing .vlist code {
+    grid-row: 1;
+    grid-column: 1;
+  }
+
+  .arcli-landing .vlist a > span {
+    grid-column: 1;
+  }
+
+  .arcli-landing .vlist a::after {
+    grid-row: 1 / span 2;
+    grid-column: 2;
+  }
 }
 
 /* El cierre: el pie del sitio va enseguida, como en la maqueta */
@@ -5293,4 +5344,21 @@
   padding: 0;
   border: 0;
   background: none;
+}
+
+/* Pestañas de la demo en una sola fila en el celular: las cuatro del mismo ancho, con letra más chica. */
+@media (max-width: 36rem) {
+  .arcli-landing .demo-tabs {
+    flex-wrap: nowrap;
+    gap: 0.25rem;
+  }
+
+  .arcli-landing .demo-tabs .tab {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0.4rem 0.35rem;
+    font-size: 0.8rem;
+    text-align: center;
+    white-space: nowrap;
+  }
 }
