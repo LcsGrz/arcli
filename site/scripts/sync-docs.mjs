@@ -7,7 +7,7 @@
  * Lo generado esta en `.gitignore`; las paginas propias del sitio (como `index.mdx`) no se tocan.
  *
  * Este archivo solo orquesta. Que paginas hay: `pages.mjs`. Que le pasa al Markdown: `transforms/` (el orden, en
- * `transforms/index.mjs`). Lo que se escribe aparte (menu, marca, llms-full, imagenes): `outputs/`.
+ * `transforms/index.mjs`). Lo que se escribe aparte (menu, marca, comprobantes, llms-full, imagenes): `outputs/`.
  */
 import { readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
@@ -16,8 +16,10 @@ import { extractBody } from './lib/body.mjs';
 import { imageSize } from './lib/images.mjs';
 import { contentDir, repoDir, siteDir } from './lib/paths.mjs';
 import { readmeInstallPrompt } from './lib/readme.mjs';
+import { readVouchers } from './lib/vouchers.mjs';
 import { copyAssets } from './outputs/assets.mjs';
 import { brandData, githubStars } from './outputs/brand.mjs';
+import { vouchersData } from './outputs/comprobantes.mjs';
 import { pageDescription } from './outputs/description.mjs';
 import { writeFile, writeGenerated, writePublic } from './outputs/files.mjs';
 import { frontmatter } from './outputs/frontmatter.mjs';
@@ -67,6 +69,7 @@ async function sync() {
     }),
   );
   writeGenerated('sidebar.json', buildSidebar(SECTIONS, PAGES));
+  writeGenerated('comprobantes.json', vouchersData(readVouchers()));
 
   // Para asistentes de IA: llms.txt (el resumen curado) y llms-full.txt (todo junto), en la raiz del sitio.
   writePublic('llms.txt', read('llms.txt'));

@@ -2,10 +2,7 @@
  * Que paginas tiene el sitio y de donde sale cada una: el menu (secciones, orden, iconos, grupos), los alias y las
  * carpetas de imagenes. Solo datos; la logica esta en `transforms/` y `outputs/`.
  */
-import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
-
-import { repoDir } from './lib/paths.mjs';
+import { readVouchers, VOUCHER_DIR } from './lib/vouchers.mjs';
 
 /** Secciones generadas: se borran y se vuelven a escribir en cada corrida. */
 export const GENERATED_SECTIONS = ['empezar', 'uso', 'comprobantes', 'mas', 'referencia', 'ayuda'];
@@ -25,27 +22,14 @@ export const SECTIONS = [
  * comprobante, agrupadas por familia en el orden del comentario `<!-- arcli: familia=... orden=... -->`.
  */
 function voucherPages() {
-  const dir = 'docs/comprobantes';
-  const pages = readdirSync(join(repoDir, dir))
-    .filter((file) => file.endsWith('.md') && file !== 'README.md')
-    .map((file) => {
-      const text = readFileSync(join(repoDir, dir, file), 'utf8');
-      const meta = text.match(/<!-- arcli: familia="([^"]+)" icono="([^"]+)" orden="(\d+)" -->/);
-      const title = text.match(/^# (.+)$/m);
-
-      if (!meta || !title) throw new Error(`${dir}/${file}: falta el título o el comentario de la familia.`);
-
-      return {
-        group: meta[1],
-        icon: meta[2],
-        label: title[1],
-        order: Number(meta[3]),
-        slug: `comprobantes/${file.replace(/\.md$/, '')}`,
-        src: `${dir}/${file}`,
-        voucher: true,
-      };
-    })
-    .sort((a, b) => a.order - b.order);
+  const pages = readVouchers().map((voucher) => ({
+    group: voucher.familia,
+    icon: voucher.icono,
+    label: voucher.titulo,
+    slug: `comprobantes/${voucher.slug}`,
+    src: `${VOUCHER_DIR}/${voucher.slug}.md`,
+    voucher: true,
+  }));
 
   return [
     {
@@ -54,7 +38,7 @@ function voucherPages() {
       icon: 'pregunta',
       label: '¿Cuál me toca?',
       slug: 'comprobantes/cual-me-toca',
-      src: `${dir}/README.md`,
+      src: `${VOUCHER_DIR}/README.md`,
     },
     ...pages,
   ];

@@ -2,8 +2,10 @@
  * Textos y listas de la portada (`components/landing/`). Los textos con formato usan la marca de `lib/rich.ts`
  * (`ARCLI`, `**negrita**`, `[link](ruta/)` y `{ia}`). Las rutas son del sitio, sin `/` adelante (`url()` le pone la base).
  *
- * El logo, la versión y el prompt de instalación no están acá: salen del CLI y del README (`generated/brand.json`).
+ * El logo, la versión y el prompt de instalación no están acá: salen del CLI y del README (`generated/brand.json`). Los
+ * atajos y las páginas de los comprobantes salen de `generated/comprobantes.json` (de `docs/comprobantes/`).
  */
+import COMPROBANTES from '../generated/comprobantes.json';
 
 /** Una línea de `Snippet.astro`: el comentario y el comando, sin el `$`. */
 export interface SnippetLine {
@@ -165,10 +167,12 @@ export interface VoucherRow {
   readonly title: string;
 }
 
+export type ProfileKey = 'expo' | 'mono' | 'ri';
+
 export interface Profile {
   /** Los atajos de "Cómo es facturar" (el chipboard). */
   readonly chips: readonly string[];
-  readonly key: 'expo' | 'mono' | 'ri';
+  readonly key: ProfileKey;
   readonly label: string;
   readonly rows: readonly VoucherRow[];
   /** El nombre corto, en el chipboard. */
@@ -176,21 +180,51 @@ export interface Profile {
   readonly snippet: readonly SnippetLine[];
 }
 
+/** Las letras de cada perfil. */
+const PROFILE_LETTERS: Record<ProfileKey, readonly string[]> = { expo: ['e'], mono: ['c'], ri: ['a', 'b'] };
+
+/** Los atajos que el chipboard todavía no muestra. */
+const HIDDEN_CHIPS = new Set(['ncec', 'ndec', 'nda', 'ndb', 'ncea', 'ndea', 'nceb', 'ndeb']);
+
+/** Los tipos (`factura`, `nota-credito`…) en el orden de los datos. */
+const KINDS = [...new Set(COMPROBANTES.map((voucher) => voucher.comando))];
+
+/** Los atajos de un perfil, por tipo y, dentro de cada tipo, por letra (fa fb, nca ncb…). */
+function profileChips(key: ProfileKey): string[] {
+  const letters = PROFILE_LETTERS[key];
+
+  return KINDS.flatMap((kind) =>
+    letters.flatMap((letter) =>
+      COMPROBANTES.filter((voucher) => voucher.comando === kind && voucher.letra === letter).map(
+        (voucher) => voucher.atajo,
+      ),
+    ),
+  ).filter((atajo) => !HIDDEN_CHIPS.has(atajo));
+}
+
+/** Una fila desde sus atajos: la página es la del primero; falla si un atajo no está en los datos. */
+function row(atajos: readonly string[], title: string, text: string): VoucherRow {
+  const [first] = atajos.map((atajo) => {
+    const voucher = COMPROBANTES.find((item) => item.atajo === atajo);
+
+    if (!voucher) throw new Error(`landing.ts: el atajo ${atajo} no está en generated/comprobantes.json.`);
+
+    return voucher;
+  });
+
+  return { atajo: atajos.join(' · '), slug: first.slug, text, title };
+}
+
 export const PROFILES: readonly Profile[] = [
   {
-    chips: ['fc', 'ncc', 'ndc', 'rc', 'fcec'],
+    chips: profileChips('mono'),
     key: 'mono',
     label: 'Monotributo',
     rows: [
-      { atajo: 'fc', slug: 'factura-c', text: 'A consumidor final o a empresas', title: 'Factura C' },
-      {
-        atajo: 'ncc · ndc',
-        slug: 'nota-credito-c',
-        text: 'Sobre una factura o un recibo',
-        title: 'Notas de crédito y débito C',
-      },
-      { atajo: 'rc', slug: 'recibo-c', text: 'Para documentar un cobro', title: 'Recibo C' },
-      { atajo: 'fcec', slug: 'fce-c', text: 'A empresas obligadas a recibirla', title: 'FCE C' },
+      row(['fc'], 'Factura C', 'A consumidor final o a empresas'),
+      row(['ncc', 'ndc'], 'Notas de crédito y débito C', 'Sobre una factura o un recibo'),
+      row(['rc'], 'Recibo C', 'Para documentar un cobro'),
+      row(['fcec'], 'FCE C', 'A empresas obligadas a recibirla'),
     ],
     short: 'Monotributo',
     snippet: [
@@ -202,15 +236,15 @@ export const PROFILES: readonly Profile[] = [
     ],
   },
   {
-    chips: ['fa', 'fb', 'nca', 'ncb', 'fcea', 'fceb'],
+    chips: profileChips('ri'),
     key: 'ri',
     label: 'Responsable inscripto',
     rows: [
-      { atajo: 'fa', slug: 'factura-a', text: 'A otro responsable inscripto', title: 'Factura A' },
-      { atajo: 'fb', slug: 'factura-b', text: 'A consumidor final, monotributo o exento', title: 'Factura B' },
-      { atajo: 'nca · nda', slug: 'nota-credito-a', text: 'Sobre una Factura A', title: 'Notas A' },
-      { atajo: 'ncb · ndb', slug: 'nota-credito-b', text: 'Sobre una Factura B', title: 'Notas B' },
-      { atajo: 'fcea · fceb', slug: 'fce-a', text: 'A empresas obligadas a recibirla', title: 'FCE A y B' },
+      row(['fa'], 'Factura A', 'A otro responsable inscripto'),
+      row(['fb'], 'Factura B', 'A consumidor final, monotributo o exento'),
+      row(['nca', 'nda'], 'Notas A', 'Sobre una Factura A'),
+      row(['ncb', 'ndb'], 'Notas B', 'Sobre una Factura B'),
+      row(['fcea', 'fceb'], 'FCE A y B', 'A empresas obligadas a recibirla'),
     ],
     short: 'Resp. inscripto',
     snippet: [
@@ -219,12 +253,12 @@ export const PROFILES: readonly Profile[] = [
     ],
   },
   {
-    chips: ['fe', 'nce', 'nde'],
+    chips: profileChips('expo'),
     key: 'expo',
     label: 'Exportador',
     rows: [
-      { atajo: 'fe', slug: 'factura-e', text: 'Bienes o servicios al exterior', title: 'Factura E' },
-      { atajo: 'nce · nde', slug: 'nota-credito-e', text: 'Toman los datos de la factura', title: 'Notas E' },
+      row(['fe'], 'Factura E', 'Bienes o servicios al exterior'),
+      row(['nce', 'nde'], 'Notas E', 'Toman los datos de la factura'),
     ],
     short: 'Exportador',
     snippet: [

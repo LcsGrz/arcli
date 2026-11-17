@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import { extractBody } from '../../lib/body.mjs';
+import { parseVoucher, readVouchers } from '../../lib/vouchers.mjs';
 import { brandData } from '../brand.mjs';
+import { vouchersData } from '../comprobantes.mjs';
 import { pageDescription } from '../description.mjs';
 import { frontmatter } from '../frontmatter.mjs';
 import { llmsFull } from '../llms.mjs';
@@ -131,5 +133,45 @@ describe('llmsFull', () => {
         '# A\n\nFuente: https://github.com/LcsGrz/arcli/blob/main/docs/a.md\n\nUno.\n\n---\n\n# B\n\nFuente: https://github.com/LcsGrz/arcli/blob/main/docs/b.md\n\nDos.\n',
       ),
     ).toBe(true);
+  });
+});
+
+describe('comprobantes.json', () => {
+  const md = [
+    '[← Comprobantes](README.md)',
+    '',
+    '# Nota de crédito FCE A',
+    '',
+    '<!-- arcli: familia="Responsable inscripto · A" icono="menos" orden="12" -->',
+    '',
+    'Resta sobre una FCE A.',
+    '',
+    '`arcli ncea` | `arcli nota-credito-electronica a`',
+  ].join('\n');
+
+  it('cada comprobante sale de su .md: atajo, tipo, familia, letra, pagina y titulo', () => {
+    expect(vouchersData([parseVoucher('nota-credito-fce-a.md', md)])).toEqual([
+      {
+        atajo: 'ncea',
+        comando: 'nota-credito-electronica',
+        familia: 'Responsable inscripto · A',
+        letra: 'a',
+        slug: 'nota-credito-fce-a',
+        titulo: 'Nota de crédito FCE A',
+      },
+    ]);
+  });
+
+  it('falla si falta la linea de comandos', () => {
+    expect(() => parseVoucher('x.md', md.replace(/`arcli ncea`.*/, ''))).toThrow('docs/comprobantes/x.md');
+  });
+
+  it('las paginas de docs/comprobantes/, en orden y con un atajo distinto cada una', () => {
+    const data = vouchersData(readVouchers());
+    const atajos = data.map((voucher) => voucher.atajo);
+
+    expect(atajos.slice(0, 7)).toEqual(['fc', 'ncc', 'ndc', 'rc', 'fcec', 'ncec', 'ndec']);
+    expect(new Set(atajos).size).toBe(atajos.length);
+    expect(data.find((voucher) => voucher.atajo === 'nde')).toMatchObject({ letra: 'e', slug: 'nota-debito-e' });
   });
 });
