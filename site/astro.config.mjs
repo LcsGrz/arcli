@@ -4,6 +4,8 @@ import { existsSync, readFileSync } from 'node:fs';
 
 import { defineConfig } from 'astro/config';
 
+import { NPM_URL, REPO_URL } from './src/lib/site';
+
 // El menu lo arma scripts/sync-docs.mjs (corre antes de `astro dev` y `astro build`), con un icono por pagina.
 const sidebarFile = new URL('./src/generated/sidebar.json', import.meta.url);
 const sidebar = existsSync(sidebarFile) ? JSON.parse(readFileSync(sidebarFile, 'utf8')) : [];
@@ -95,8 +97,8 @@ export default defineConfig({
       logo: { alt: 'arcli', src: './src/assets/logo.svg' },
       sidebar,
       social: [
-        { href: 'https://github.com/LcsGrz/arcli', icon: 'github', label: 'GitHub' },
-        { href: 'https://www.npmjs.com/package/arcli', icon: 'npm', label: 'npm' },
+        { href: REPO_URL, icon: 'github', label: 'GitHub' },
+        { href: NPM_URL, icon: 'npm', label: 'npm' },
       ],
       title: 'arcli',
     }),

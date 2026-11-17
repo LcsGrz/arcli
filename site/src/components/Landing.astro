@@ -11,25 +11,23 @@
 import '../styles/landing.css';
 
 import brand from '../generated/brand.json';
+import { url } from '../lib/site';
+import AsciiLogo from './AsciiLogo.astro';
 import body from './landing-body.html?raw';
 
-const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-const escape = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-const width = Math.max(...brand.banner.map((line) => line.length));
-const logo = `<div class="logo" role="img" aria-label="ARCLI"><pre aria-hidden="true" id="logo">${brand.banner
-  .map((line) => `<span class="ar">${escape(line.slice(0, brand.splitColumn))}</span><span class="cli">${escape(line.slice(brand.splitColumn))}</span>`)
-  .join('\n')}\n<span class="sign">${'-LcsGrz'.padStart(width)}</span></pre></div>`;
-const html = body.replaceAll('%BASE%', base).replaceAll('%VERSION%', brand.version).replace('%LOGO%', logo);
+// El HTML se corta donde va el logo (`%LOGO%`), que es un componente.
+const [beforeLogo, afterLogo] = body.replaceAll('%BASE%/', url()).replaceAll('%VERSION%', brand.version).split('%LOGO%');
 ---
 
 <div class="arcli-landing not-content" data-prompt={brand.installPrompt}>
-  <Fragment set:html={html} />
+  <Fragment set:html={beforeLogo} /><AsciiLogo variant="hero" /><Fragment set:html={afterLogo} />
 </div>
 
 <script>
+  import { escapeHtml, url } from '../lib/site';
+
   // Nombre de la IA que va cambiando (Claude, ChatGPT...), la demo, la instalación y las pestañas de comprobantes.
   const root = document.querySelector<HTMLElement>('.arcli-landing');
-  const esc = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const NAMES = ['Claude', 'ChatGPT', 'Gemini', 'Copilot'];
@@ -77,9 +75,9 @@ const html = body.replaceAll('%BASE%', base).replaceAll('%VERSION%', brand.versi
     current = key;
     const item = INSTALL[key];
     code.className = key === 'ia' ? 'prompt-ai' : '';
-    code.innerHTML = key === 'ia' ? esc(item.text) : `<span class="dollar">$ </span>${esc(item.text)}`;
+    code.innerHTML = key === 'ia' ? escapeHtml(item.text) : `<span class="dollar">$ </span>${escapeHtml(item.text)}`;
     note.innerHTML =
-      key === 'ia' ? `Copialo y pegáselo a ${rollHtml()}: revisa Node, instala <strong>ARCLI</strong> y crea el ícono. Sirve también para actualizar.` : esc(item.note);
+      key === 'ia' ? `Copialo y pegáselo a ${rollHtml()}: revisa Node, instala <strong>ARCLI</strong> y crea el ícono. Sirve también para actualizar.` : escapeHtml(item.note);
     syncRolls(note, false);
     for (const tab of document.querySelectorAll<HTMLElement>('[data-install]')) tab.setAttribute('aria-selected', String(tab.dataset.install === key));
   }
@@ -101,15 +99,14 @@ const html = body.replaceAll('%BASE%', base).replaceAll('%VERSION%', brand.versi
   showInstall('ia');
 
   // Demo: el asistente, los comandos, la conversación con una IA y las consultas.
-  const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   const DEMOS: Record<string, { alt?: string; caption: string; src?: string }> = {
     asistente: {
       alt: 'El asistente de ARCLI emitiendo una Factura C en testing',
       caption: 'Una Factura C en testing con el asistente: monto, receptor, vista previa, comando equivalente y CAE.',
-      src: `${base}/assets/demo/interactivo.gif`,
+      src: url('assets/demo/interactivo.gif'),
     },
-    comandos: { alt: 'ARCLI emitiendo con un comando y flags', caption: 'Lo mismo con un comando: vista previa, confirmación y CAE. Ideal para repetir o automatizar.', src: `${base}/assets/demo/comandos.gif` },
-    consultas: { alt: 'ARCLI consultando los últimos comprobantes', caption: 'Los últimos comprobantes emitidos y el detalle de uno, sin emitir nada.', src: `${base}/assets/demo/consultar.gif` },
+    comandos: { alt: 'ARCLI emitiendo con un comando y flags', caption: 'Lo mismo con un comando: vista previa, confirmación y CAE. Ideal para repetir o automatizar.', src: url('assets/demo/comandos.gif') },
+    consultas: { alt: 'ARCLI consultando los últimos comprobantes', caption: 'Los últimos comprobantes emitidos y el detalle de uno, sin emitir nada.', src: url('assets/demo/consultar.gif') },
     ia: { caption: 'Le pedís la factura a tu asistente de IA (Claude, ChatGPT, Gemini u otro) en tus palabras: usa ARCLI para armar el comando, te muestra la vista previa y emite cuando confirmás.' },
   };
   const CHAT = [

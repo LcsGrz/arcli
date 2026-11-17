@@ -2,14 +2,14 @@
 /** El título de Starlight y, en los comprobantes, la familia arriba ("Monotributo"), con el color de su letra. */
 import Default from '@astrojs/starlight/components/PageTitle.astro';
 
+import { isHome } from '../lib/site';
+
 const familia = Astro.locals.starlightRoute.entry.data.familia;
-// La portada tiene su propio título (Landing.astro).
-const isHome = Astro.locals.starlightRoute.id === '';
 const match = familia?.match(/^(.+) · ([A-Z])$/);
 ---
 
 {match && <p class={`familia familia-${match[2].toLowerCase()}`}>{match[1]}</p>}
-{!isHome && <Default><slot /></Default>}
+{!isHome(Astro.locals.starlightRoute) && <Default><slot /></Default>}
 
 <style>
   .familia {
