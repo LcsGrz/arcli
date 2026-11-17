@@ -53,29 +53,42 @@ function voucherPages() {
         order: Number(meta[3]),
         slug: `comprobantes/${file.replace(/\.md$/, '')}`,
         src: `${dir}/${file}`,
+        voucher: true,
       };
     })
     .sort((a, b) => a.order - b.order);
 
   return [
-    { icon: 'pregunta', label: '¿Cuál me toca?', slug: 'comprobantes/cual-me-toca', src: `${dir}/README.md` },
+    {
+      description:
+        'Qué comprobante te toca según tu condición frente al IVA y a quién le facturás, con una página por comprobante.',
+      icon: 'pregunta',
+      label: '¿Cuál me toca?',
+      slug: 'comprobantes/cual-me-toca',
+      src: `${dir}/README.md`,
+    },
     ...pages,
   ];
 }
 
 /**
  * Que pagina sale de cada archivo. `label` es el nombre corto del menu; sin el, el titulo del documento.
- * El orden del menu es el de esta lista dentro de cada seccion.
+ * El orden del menu es el de esta lista dentro de cada seccion. `description` (meta y vista previa al compartir) sale
+ * de la introduccion del documento (ver `pageDescription`); se declara aca solo cuando esa introduccion no sirve sola.
  */
 const PAGES = [
   { icon: 'descarga', label: 'Instalar y configurar', slug: 'empezar/instalar', src: 'docs/instalar.md' },
   {
+    description:
+      'Cómo sacar el certificado de testing de ARCA para probar ARCLI sin validez fiscal: 4 pasos, unos 15 minutos.',
     icon: 'frasco',
     label: 'Certificado de testing',
     slug: 'empezar/certificado-testing',
     src: 'docs/certificado-testing.md',
   },
   {
+    description:
+      'Cómo sacar el certificado de producción de ARCA para facturar con validez fiscal: los mismos pasos que en testing.',
     icon: 'escudo',
     label: 'Certificado de producción',
     slug: 'empezar/certificado-produccion',
@@ -96,11 +109,25 @@ const PAGES = [
   { icon: 'flechas', label: 'Cambiar de entorno', slug: 'empezar/entornos', src: 'docs/entornos.md' },
   { icon: 'capas', label: 'Cómo funciona', slug: 'empezar/como-funciona', src: 'docs/mental-model.md' },
   { icon: 'chat', label: 'Asistente', slug: 'uso/asistente', src: 'docs/formas-de-uso/asistente.md' },
-  { icon: 'terminal', label: 'Comandos', slug: 'uso/comandos', src: 'docs/formas-de-uso/comandos.md' },
+  {
+    description:
+      'Emití con ARCLI en una línea: conviene si facturás seguido, si repetís siempre lo mismo o para automatizar.',
+    icon: 'terminal',
+    label: 'Comandos',
+    slug: 'uso/comandos',
+    src: 'docs/formas-de-uso/comandos.md',
+  },
   { icon: 'chispa', label: 'Con IA', slug: 'uso/con-ia', src: 'docs/formas-de-uso/con-ia.md' },
   // Las guías completas: no van en el menú, se llega desde el link al final de la versión corta.
   { hidden: true, label: 'Modo interactivo', slug: 'uso/asistente-completo', src: 'docs/modo-interactivo.md' },
-  { hidden: true, label: 'Automatizar con IA', slug: 'uso/con-ia-completo', src: 'docs/automatizar-con-ia.md' },
+  {
+    description:
+      'Cómo un asistente de IA con acceso a la terminal emite con ARCLI: reglas claras y una salida --json estable.',
+    hidden: true,
+    label: 'Automatizar con IA',
+    slug: 'uso/con-ia-completo',
+    src: 'docs/automatizar-con-ia.md',
+  },
   ...voucherPages(),
   {
     group: 'Explicaciones',
@@ -117,12 +144,20 @@ const PAGES = [
     slug: 'comprobantes/exportacion',
     src: 'docs/exportacion.md',
   },
-  { icon: 'lupa', label: 'Consultas sin emitir', slug: 'mas/consultas', src: 'docs/consultas.md' },
+  {
+    description:
+      'Consultá en ARCA sin emitir nada: tus comprobantes, el estado de ARCA, sus tablas y los datos de un CUIT.',
+    icon: 'lupa',
+    label: 'Consultas sin emitir',
+    slug: 'mas/consultas',
+    src: 'docs/consultas.md',
+  },
   { icon: 'pdf', label: 'PDF de comprobantes', slug: 'mas/pdf', src: 'docs/pdf-en-corto.md' },
   { hidden: true, label: 'PDF de comprobantes: guía completa', slug: 'mas/pdf-completo', src: 'docs/pdf.md' },
   { icon: 'pila', label: 'Lotes y JSON', slug: 'mas/lotes-y-json', src: 'docs/lotes-y-json.md' },
   { icon: 'lista', label: 'Comandos y flags', slug: 'referencia/comandos', src: 'docs/comandos.md' },
   {
+    description: 'La referencia completa de ARCLI: cada comando con sus flags, sus valores y ejemplos.',
     hidden: true,
     label: 'Referencia completa del CLI',
     slug: 'referencia/comandos-completo',
@@ -130,16 +165,26 @@ const PAGES = [
   },
   { icon: 'ajustes', label: 'Configuración', slug: 'referencia/configuracion', src: 'docs/configuration.md' },
   {
+    description:
+      'El formato de entrada (`--cargar`) y de salida (`--json`) de ARCLI, para scripts, sistemas propios e IA.',
     icon: 'llaves',
     label: 'Entrada y salida (JSON)',
     slug: 'referencia/entrada-y-salida',
     src: 'docs/input-output.md',
   },
-  { icon: 'check', label: 'Reglas de validación', slug: 'referencia/validaciones', src: 'docs/validation-rules.md' },
+  {
+    description:
+      'Qué controla ARCLI antes de mandar un comprobante a ARCA y qué restricciones y errores devuelve ARCA.',
+    icon: 'check',
+    label: 'Reglas de validación',
+    slug: 'referencia/validaciones',
+    src: 'docs/validation-rules.md',
+  },
   { icon: 'glosario', label: 'Glosario', slug: 'referencia/glosario', src: 'docs/glossary.md' },
   { icon: 'alerta', label: 'Limitaciones', slug: 'referencia/limitaciones', src: 'docs/limitations.md' },
   { icon: 'llave', label: 'Problemas frecuentes', slug: 'ayuda/problemas-frecuentes', src: 'docs/troubleshooting.md' },
   {
+    description: 'Qué cambió en cada versión de ARCLI y qué tenés que tener en cuenta si ya lo usás.',
     icon: 'campana',
     label: 'Novedades',
     slug: 'ayuda/novedades',
@@ -260,13 +305,58 @@ function rewriteLinks(src, text, includedReadmeAnchors) {
     .join('');
 }
 
-function frontmatter(page, title, extra = {}) {
+/** Largo maximo de la descripcion: lo que muestran los buscadores sin cortarla. */
+const DESCRIPTION_MAX = 160;
+
+/** Markdown en linea a texto plano: links, codigo y negrita. */
+const plainText = (text) =>
+  text
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/[`*_]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+/**
+ * La descripcion de la pagina (`<meta name="description">` y `og:description`): la de `PAGES` o, si no tiene, las
+ * oraciones enteras del primer parrafo de la introduccion que entran en DESCRIPTION_MAX. En un comprobante, antes va
+ * "Cómo emitir una Factura A con ARCLI.", porque su introduccion no lo nombra. Falla si queda vacia o larga.
+ */
+function pageDescription(page, title, body) {
+  const intro = body.split(/\n{2,}/).find((part) => /^[\p{L}¿¡`*[]/u.test(part.trim()) && !/^\*\s/.test(part));
+  const article = /^Recibo/.test(title) ? 'un' : 'una';
+  const lead = page.voucher ? `Cómo emitir ${article} ${title} con ARCLI. ` : '';
+  let description = plainText(page.description ?? '');
+
+  if (!description && intro) {
+    for (const sentence of plainText(intro).split(/(?<=[.!?])\s+/)) {
+      const next = `${description} ${sentence}`.trim();
+
+      if (`${lead}${next}`.length > DESCRIPTION_MAX) break;
+      description = next;
+    }
+
+    description = `${lead}${description}`.trim();
+  }
+
+  if (!description || description === lead.trim()) {
+    throw new Error(`${page.src}: la página queda sin descripción. Declarala en PAGES (sync-docs.mjs).`);
+  }
+
+  if (description.length > DESCRIPTION_MAX) {
+    throw new Error(`${page.src}: la descripción pasa de ${DESCRIPTION_MAX} caracteres (${description.length}).`);
+  }
+
+  return description;
+}
+
+function frontmatter(page, title, description, extra = {}) {
   const quote = (value) => JSON.stringify(value);
   const order = PAGES.filter((other) => other.slug.split('/')[0] === page.slug.split('/')[0]).indexOf(page) + 1;
 
   return [
     '---',
     `title: ${quote(title)}`,
+    `description: ${quote(description)}`,
     `editUrl: ${quote(`${REPO}/edit/dev/${page.src}`)}`,
     'sidebar:',
     `  label: ${quote(page.label ?? title)}`,
@@ -915,7 +1005,9 @@ async function sync() {
       rewriteLinks(page.src, githubAlertsToAsides(markdownTouches(installPrompt(withoutMeta))), includedReadmeAnchors),
     );
 
-    writeFileSync(target, `${frontmatter(page, title, familia ? { familia } : {})}\n${content}\n`);
+    const description = pageDescription(page, title, withoutMeta);
+
+    writeFileSync(target, `${frontmatter(page, title, description, familia ? { familia } : {})}\n${content}\n`);
     fullText.push(`# ${title}\n\nFuente: ${REPO}/blob/main/${page.src}\n\n${body}\n`);
     // Cada pagina tambien en Markdown, para asistentes de IA.
     writePublic(`${page.slug}.md`, `# ${title}\n\n${body}\n`);
