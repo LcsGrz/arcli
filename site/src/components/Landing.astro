@@ -147,23 +147,48 @@ const html = body.replaceAll('%BASE%', base).replaceAll('%VERSION%', brand.versi
     else next();
   }
 
-  for (const tab of document.querySelectorAll<HTMLElement>('[data-demo]')) {
-    tab.addEventListener('click', () => {
-      const key = tab.dataset.demo ?? 'asistente';
-      const demo = DEMOS[key];
-      const isChat = key === 'ia';
-      if (demoImg) demoImg.hidden = isChat;
-      if (chat) chat.hidden = !isChat;
-      if (isChat) playChat();
-      else {
-        clearTimeout(chatTimer);
-        if (demoImg && demo.src) {
-          demoImg.src = demo.src;
-          demoImg.alt = demo.alt ?? '';
-        }
+  const demoTabs = [...document.querySelectorAll<HTMLElement>('[data-demo]')];
+  const demoPanel = document.getElementById('demo-panel');
+
+  function showDemo(tab: HTMLElement) {
+    const key = tab.dataset.demo ?? 'asistente';
+    const demo = DEMOS[key];
+    const isChat = key === 'ia';
+    if (demoImg) demoImg.hidden = isChat;
+    if (chat) chat.hidden = !isChat;
+    if (isChat) playChat();
+    else {
+      clearTimeout(chatTimer);
+      if (demoImg && demo.src) {
+        demoImg.src = demo.src;
+        demoImg.alt = demo.alt ?? '';
       }
-      if (demoCaption) demoCaption.textContent = demo.caption;
-      for (const other of document.querySelectorAll('[data-demo]')) other.setAttribute('aria-selected', String(other === tab));
+    }
+    if (demoCaption) demoCaption.textContent = demo.caption;
+    demoPanel?.setAttribute('aria-labelledby', tab.id);
+    for (const other of demoTabs) {
+      other.setAttribute('aria-selected', String(other === tab));
+      other.tabIndex = other === tab ? 0 : -1;
+    }
+  }
+
+  // Con teclado, como en cualquier tablist: las flechas, Inicio y Fin cambian de pestaña.
+  const DEMO_KEYS: Record<string, (index: number) => number> = {
+    ArrowLeft: (index) => (index - 1 + demoTabs.length) % demoTabs.length,
+    ArrowRight: (index) => (index + 1) % demoTabs.length,
+    End: () => demoTabs.length - 1,
+    Home: () => 0,
+  };
+
+  for (const [index, tab] of demoTabs.entries()) {
+    tab.addEventListener('click', () => showDemo(tab));
+    tab.addEventListener('keydown', (event) => {
+      const move = DEMO_KEYS[event.key];
+      if (!move) return;
+      event.preventDefault();
+      const next = demoTabs[move(index)];
+      showDemo(next);
+      next.focus();
     });
   }
 
