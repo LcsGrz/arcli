@@ -30,6 +30,11 @@ export default defineConfig({
       head: [
         // Comportamiento de las páginas generadas: "Ver las N", el buscador de problemas y abrir lo plegado por link.
         { attrs: { defer: true, src: '/arcli.js' }, tag: 'script' },
+        // Respaldo del favicon.svg para navegadores sin SVG (`sizes` evita que Chrome lo prefiera al SVG), el ícono de
+        // inicio de iOS y el manifiesto. Los genera scripts/icono/generar.py en public/, desde el mismo ícono.
+        { attrs: { href: '/favicon.ico', rel: 'icon', sizes: '32x32' }, tag: 'link' },
+        { attrs: { href: '/apple-touch-icon.png', rel: 'apple-touch-icon' }, tag: 'link' },
+        { attrs: { href: '/site.webmanifest', rel: 'manifest' }, tag: 'link' },
         // Geist y JetBrains Mono, las fuentes de la maqueta. `display=optional`: si no llegan enseguida, esa visita
         // sigue con la del sistema, así el texto (y sobre todo el código) no cambia de tamaño mientras carga.
         { attrs: { href: 'https://fonts.googleapis.com', rel: 'preconnect' }, tag: 'link' },
