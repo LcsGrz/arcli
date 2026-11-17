@@ -8,12 +8,12 @@
 
       <div class="demo" id="demo">
         <div class="demo-tabs" role="tablist" aria-label="Demostraciones">
-          <button class="tab" role="tab" id="demo-asistente" aria-selected="true" data-demo="asistente">Asistente</button>
-          <button class="tab" role="tab" id="demo-comandos" aria-selected="false" data-demo="comandos">Comandos</button>
-          <button class="tab" role="tab" id="demo-ia" aria-selected="false" data-demo="ia">Con IA</button>
-          <button class="tab" role="tab" id="demo-consultas" aria-selected="false" data-demo="consultas">Consultas</button>
+          <button class="tab" role="tab" id="demo-asistente" aria-selected="true" aria-controls="demo-panel" data-demo="asistente">Asistente</button>
+          <button class="tab" role="tab" id="demo-comandos" aria-selected="false" aria-controls="demo-panel" tabindex="-1" data-demo="comandos">Comandos</button>
+          <button class="tab" role="tab" id="demo-ia" aria-selected="false" aria-controls="demo-panel" tabindex="-1" data-demo="ia">Con IA</button>
+          <button class="tab" role="tab" id="demo-consultas" aria-selected="false" aria-controls="demo-panel" tabindex="-1" data-demo="consultas">Consultas</button>
         </div>
-        <figure class="window" style="margin:0 auto">
+        <figure class="window" id="demo-panel" role="tabpanel" aria-labelledby="demo-asistente" style="margin:0 auto">
           <img id="demo-img" src="%BASE%/assets/demo/interactivo.gif" alt="El asistente de arcli emitiendo una Factura C en testing" width="1100" height="780">
           <div class="chat" id="demo-chat" hidden="" aria-live="polite"></div>
         </figure>
