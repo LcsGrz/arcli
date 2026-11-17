@@ -567,8 +567,8 @@ starlight-toc nav > ul > li:first-child:has(> a[href='#_top']) {
 }
 
 .starlight-aside--danger {
-  --sl-color-asides-border: var(--arcli-term-red);
-  --sl-color-asides-text-accent: var(--arcli-term-red);
+  --sl-color-asides-border: var(--arcli-rojo);
+  --sl-color-asides-text-accent: var(--arcli-rojo);
 }
 
 /* Bloques de código: el título a la izquierda y sin los tres puntos de la ventana */
@@ -985,7 +985,7 @@ header.header {
 }
 
 .arcli-faq .sev-alta {
-  --sev: var(--arcli-term-red);
+  --sev: var(--arcli-rojo);
 }
 
 .arcli-faq .sev-frecuente {
