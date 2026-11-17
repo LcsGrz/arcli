@@ -24,6 +24,15 @@ const HEADER = [
   '# Una línea que se va es un cambio que rompe: ver "Contrato público" en AGENTS.md.',
 ];
 
+/**
+ * Comandos internos, con sus flags: no son contrato. Los atajos y familias (`fc`, `factura`…) también están ocultos
+ * en la ayuda, pero son públicos y quedan en la lista.
+ */
+const INTERNAL_COMMANDS = new Set([
+  '__completar', // lo llama el script de autocompletado en cada Tab; no se usa a mano
+  'storybook', // herramienta de desarrollo para ver la UI sin ARCA
+]);
+
 function collectCommands(program: Command): string[] {
   const entries: string[] = [];
   const walk = (command: Command, path: string[]) => {
@@ -37,7 +46,9 @@ function collectCommands(program: Command): string[] {
         if (flag) entries.push(`flag ${name} ${flag}`);
       }
     }
-    for (const sub of command.commands) walk(sub, [...path, sub.name()]);
+    for (const sub of command.commands) {
+      if (!INTERNAL_COMMANDS.has(sub.name())) walk(sub, [...path, sub.name()]);
+    }
   };
   walk(program, []);
   return entries;
@@ -114,10 +125,6 @@ describe('contrato público', () => {
  * existir en `src/` y cada uno de `src/`, estar en la tabla. La fila `PDF_*` cubre los códigos que lista la sección
  * "Errores del PDF".
  */
-const NOT_ERROR_CODES = new Set([
-  'PUPPETEER_EXECUTABLE_PATH', // variable de entorno que se muestra en el diagnóstico del PDF
-]);
-
 const root = new URL('../../../', import.meta.url);
 const inputOutput = readFileSync(new URL('docs/input-output.md', root), 'utf8');
 
@@ -148,12 +155,29 @@ function sourceFiles(dir: URL): URL[] {
   });
 }
 
-function sourceErrorCodes(): string[] {
-  const codes = sourceFiles(new URL('src/', root)).flatMap((file) =>
-    [...readFileSync(file, 'utf8').matchAll(/'([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)'/g)].map((match) => match[1] ?? ''),
-  );
+/**
+ * No hay una lista única de códigos: cada error pasa el suyo a `AppError`. Se toman los literales de donde se asigna
+ * un código: `code: '…'` y `codigo: … '…'` (`AppError`, el JSON de errores), el primer argumento de una función o
+ * clase `…Error(…)` (`PdfError`, `certificateError`) y las uniones `type …ErrorCode`. Una comparación
+ * (`error.code === '…'`) o cualquier otra constante en MAYUSCULAS no cuenta.
+ */
+const ERROR_CODE_SITES = [
+  /\b(?:code|codigo):[^\n]*/g,
+  /\w*Error\(\s*'[A-Z][A-Z0-9_]*'/g,
+  /\btype \w*ErrorCode\s*=[^;]*;/g,
+];
 
-  return [...new Set(codes)].filter((code) => !NOT_ERROR_CODES.has(code)).sort();
+function sourceErrorCodes(): string[] {
+  const codes = sourceFiles(new URL('src/', root)).flatMap((file) => {
+    const source = readFileSync(file, 'utf8');
+    return ERROR_CODE_SITES.flatMap((site) =>
+      [...source.matchAll(site)].flatMap((siteMatch) =>
+        [...siteMatch[0].matchAll(/'([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)'/g)].map((match) => match[1] ?? ''),
+      ),
+    );
+  });
+
+  return [...new Set(codes)].sort();
 }
 
 describe('códigos de error documentados', () => {
@@ -170,7 +194,6 @@ describe('códigos de error documentados', () => {
   });
 
   it('cada código de src/ está en la tabla de docs/input-output.md', () => {
-    // Si el literal no es un código de error (una variable de entorno, por ejemplo), sumalo a NOT_ERROR_CODES.
     expect(inSource.filter((code) => !documented.includes(code))).toEqual([]);
   });
 });

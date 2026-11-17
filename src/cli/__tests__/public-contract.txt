@@ -39,7 +39,6 @@ clave puntoVenta
 clave ticketPath
 clave verificarFce
 comando arcli
-comando arcli __completar
 comando arcli acceso-directo
 comando arcli certificado
 comando arcli certificado generar
@@ -92,7 +91,6 @@ comando arcli pdf estado
 comando arcli pdf instalar
 comando arcli rc
 comando arcli recibo
-comando arcli storybook
 comando arcli ultimos
 flag arcli --bruto
 flag arcli --json
