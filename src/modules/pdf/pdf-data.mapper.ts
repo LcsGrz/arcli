@@ -23,7 +23,9 @@ const DOCUMENT_TYPE_NAMES: Readonly<Record<number, string>> = {
 
 const CURRENCY_CODES: Readonly<Record<string, string>> = { PES: 'PES', DOL: 'DOL' };
 
-const EMPTY_TEXT = '- -';
+// Un solo guion para el dato que falta. La plantilla escribe el valor tal cual (el helper `docNumber` no agrega nada),
+// pero si el domicilio llega vacio pone su propio "- -": por eso se lo manda siempre.
+const EMPTY_TEXT = '-';
 
 function capitalizeWords(value: string): string {
   return value.replace(/(^|\s)(\p{L})/gu, (_, space: string, letter: string) => `${space}${letter.toUpperCase()}`);
@@ -156,7 +158,7 @@ export function mapBillingResultToPdfData(
       // Consumidor final sin documento: el QR igual sale con tipo 99 y numero 0 (el SDK usa `Number(nro) || 0`).
       documentoNro: isUnidentified ? EMPTY_TEXT : String(payload.DocNro),
       documentoTipo: isUnidentified ? 'Documento' : (DOCUMENT_TYPE_NAMES[payload.DocTipo] ?? String(payload.DocTipo)),
-      domicilio: extras.receptorDomicilio?.trim() || undefined,
+      domicilio: extras.receptorDomicilio?.trim() || EMPTY_TEXT,
       razonSocial: extras.receptorNombre?.trim() || (isConsumer ? 'Consumidor Final' : EMPTY_TEXT),
     },
   };
