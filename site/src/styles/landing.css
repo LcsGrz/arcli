@@ -5256,34 +5256,27 @@
   font-size: 0.95rem;
 }
 
-/* Franja de seguridad: cada ítem centrado, en vertical y en horizontal */
+/* Franja de seguridad: los ítems en fila, repartidos con space-around, y si no entran bajan a la línea siguiente.
+   Cada ítem toma el ancho de su texto, con el ícono centrado en vertical y el texto a la izquierda. */
 .arcli-landing .strip {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
   align-items: center;
 }
 
 .arcli-landing .strip li {
   align-items: center;
-  justify-content: center;
 }
 
-/* En dos columnas o en una, centrar cada ítem deja los íconos a distintas alturas y el texto suelto: las columnas
-   toman el ancho de su contenido y se centran en la franja, y adentro todo va a la izquierda, con los íconos en
-   la misma vertical. */
-@media (max-width: 60rem) {
-  .arcli-landing .strip {
-    grid-template-columns: repeat(2, fit-content(50%));
-    justify-content: center;
-    column-gap: var(--gap-col);
-  }
-
-  .arcli-landing .strip li {
-    justify-content: flex-start;
-  }
-}
-
+/* En el celular, una columna que toma el ancho del ítem más largo y se centra en la franja: adentro todo va a la
+   izquierda y los íconos quedan en la misma vertical. Es grid y no flex en columna porque así la columna se centra
+   sin achicar el borde de la franja. */
 @media (max-width: 36rem) {
   .arcli-landing .strip {
+    display: grid;
     grid-template-columns: fit-content(100%);
+    justify-content: center;
   }
 }
 
