@@ -1,26 +1,29 @@
 /* Layout: una columna centrada de 72rem; el logo ASCII de la terminal es el titulo y la terminal es la protagonista.
    La portada es siempre oscura (ThemeProvider.astro), aunque el sistema o las docs esten en claro. */
 .arcli-landing {
-  --bg: #181825;
-  --star-on-btn: #c88a04;
-  --bg-raised: #1e1e2e;
-  --panel: #11111b;
-  --line: #313244;
-  --line-soft: #26263a;
-  --fg: #e6e7f2;
-  --fg-soft: #a6a9c4;
-  --fg-mute: #7f849c;
-  --celeste: #74acdf;
-  --celeste-strong: #9cc6ee;
-  --celeste-wash: #1f2f45;
-  --lavanda: #c6c9f0;
-  --verde: #a6e3a1;
-  --sol: #f9d77e;
-  --rojo: #f38ba8;
-  --on-accent: #10121c;
-  --glow: rgb(116 172 223 / 0.16);
+  /* Alias cortos de los tokens de tokens.css. La portada es siempre oscura: dan los valores del tema oscuro. */
+  --bg: var(--sl-color-black);
+  --star-on-btn: var(--arcli-estrella-btn);
+  --bg-raised: var(--arcli-term-raised);
+  --panel: var(--arcli-term-bg);
+  --line: var(--arcli-term-line);
+  --line-soft: var(--arcli-portada-line-soft);
+  --fg: var(--arcli-portada-fg);
+  --fg-soft: var(--arcli-portada-fg-soft);
+  --fg-mute: var(--arcli-term-fg-mute);
+  --celeste: var(--arcli-celeste);
+  --celeste-strong: var(--arcli-celeste-strong);
+  --celeste-wash: var(--sl-color-accent-low);
+  --lavanda: var(--arcli-lavanda);
+  --verde: var(--arcli-verde);
+  --sol: var(--arcli-sol);
+  --rojo: var(--arcli-rojo);
+  --on-accent: var(--arcli-on-accent);
+  --glow: var(--arcli-celeste-glow);
+  /* Como --sl-font, con ui-sans-serif antes de system-ui */
   --font-text: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --font-mono: var(--sl-font-mono);
+  --radius: var(--arcli-radius-xl);
   /* Escala tipografica. -1: texto de tarjetas compactas, tablas y notas; 0: texto corrido y de tarjetas;
      1: titulo de tarjeta o de fila; 2: titulo de paso del recorrido; 3: h2 de seccion; 4: h1. */
   --step--1: 0.875rem;
@@ -29,7 +32,6 @@
   --step-2: 1.4rem;
   --step-3: clamp(1.6rem, 3vw, 2.2rem);
   --step-4: clamp(2rem, 5vw, 3.3rem);
-  --radius: 0.75rem;
 
   /* Escala de espaciado de las secciones: usarla en vez de valores sueltos. */
   --space-section: clamp(5rem, 11vw, 8rem); /* entre secciones (y el cierre arriba y abajo) */
@@ -3801,8 +3803,8 @@
 }
 
 .arcli-landing {
-  --hdr-hi: #2c2c42;
-  --hdr-lo: #181825;
+  --hdr-hi: var(--arcli-hdr-hi);
+  --hdr-lo: var(--arcli-hdr-lo);
 }
 
 .arcli-landing .nav {

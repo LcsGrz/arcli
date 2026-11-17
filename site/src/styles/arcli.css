@@ -1,49 +1,9 @@
-/* Los colores del logo de arcli: celeste sobre el fondo oscuro del ícono. */
-:root {
-  --arcli-celeste: #74acdf;
-  --arcli-lavanda: #c6c9f0;
-  --arcli-verde: #a6e3a1;
-  --arcli-panel: #11111b;
-  --sl-color-accent-low: #1f2f45;
-  --sl-color-accent: #74acdf;
-  --sl-color-accent-high: #d4e7f7;
-  --sl-color-black: #181825;
-  --sl-color-gray-6: #262637;
-}
-
-:root[data-theme='light'] {
-  --arcli-celeste: #2c6aa3;
-  --arcli-lavanda: #3d3f66;
-  --arcli-verde: #3a8a3f;
-  --arcli-panel: #f4f5f9;
-  --sl-color-accent-low: #d4e7f7;
-  --sl-color-accent: #2c6aa3;
-  --sl-color-accent-high: #173a5c;
-  --sl-color-black: #ffffff;
-  --sl-color-gray-6: #eeeef2;
-}
-
 /* Las tablas de referencia son anchas: en el celular se desplazan en vez de romper la página. */
 @media (max-width: 50rem) {
   .sl-markdown-content table {
     display: block;
     overflow-x: auto;
   }
-}
-
-:root {
-  --arcli-sol: #f9d77e;
-  --arcli-hdr-hi: #2c2c42;
-  --arcli-hdr-lo: #181825;
-  /* Menu mas ancho y texto a 46rem, como en la maqueta */
-  --sl-sidebar-width: 17rem;
-  --sl-content-width: 46rem;
-}
-
-:root[data-theme='light'] {
-  --arcli-sol: #9a6b00;
-  --arcli-hdr-hi: #ffffff;
-  --arcli-hdr-lo: #eef1f7;
 }
 
 /* Encabezado con el degradé de la imagen de portada y una línea celeste a lavanda abajo */
@@ -65,15 +25,6 @@ header.header::after {
   height: 1px;
   background: linear-gradient(90deg, transparent, var(--arcli-celeste) 30%, var(--arcli-lavanda) 70%, transparent);
   opacity: 0.7;
-}
-
-/* Tamaños de la maqueta: título de 2.5rem, secciones de 1.5rem y el menú del mismo fondo que la página */
-:root {
-  --sl-text-h1: 2.5rem;
-  --sl-text-h2: 1.5rem;
-  --sl-text-h3: 1.2rem;
-  --sl-text-h4: 1.05rem;
-  --sl-color-bg-sidebar: var(--sl-color-black);
 }
 
 /* Opciones de cada comprobante: una tarjeta por opción, con una fila por flag (corto | largo | qué es) */
@@ -501,16 +452,6 @@ header.header::after {
 }
 
 /* Novedades: cada tipo de cambio (Agregado, Cambiado...) es un chip, como la familia de los comprobantes */
-:root {
-  --arcli-naranja: #fab387;
-  --arcli-rojo: #f38ba8;
-}
-
-:root[data-theme='light'] {
-  --arcli-naranja: #a8521a;
-  --arcli-rojo: #b4344f;
-}
-
 .sl-markdown-content .arcli-kind {
   display: inline-block;
   padding: 0.15rem 0.6rem;
@@ -555,18 +496,7 @@ header.header::after {
   --kind: var(--sl-color-gray-3);
 }
 
-/* Las fuentes de la maqueta (se cargan en astro.config.mjs) */
-:root {
-  --sl-font: 'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --sl-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-}
-
 /* ======================= Como la maqueta: marco de cada página ======================= */
-
-/* Menú: un poco más ancho y con la letra de la maqueta, así "Responsable inscripto" entra en una línea */
-:root {
-  --sl-sidebar-width: 19rem;
-}
 
 /* Sin la línea de Starlight entre el título y el texto */
 .content-panel {
@@ -726,10 +656,6 @@ starlight-toc nav > ul > li:first-child:has(> a[href='#_top']) {
 }
 
 /* ======================= Como la maqueta: texto, tablas, links, código y GIF ======================= */
-:root {
-  --sl-content-width: 56rem;
-  --sl-line-height: 1.65;
-}
 
 /* La introducción pegada al título */
 .content-panel:first-of-type {
@@ -803,11 +729,7 @@ starlight-toc nav > ul > li:first-child:has(> a[href='#_top']) {
   font-size: var(--sl-text-sm);
 }
 
-/* ======================= Ancho máximo de 96rem, como en la maqueta ======================= */
-:root {
-  --arcli-gutter: max(0px, calc((100vw - 96rem) / 2));
-}
-
+/* ======================= Ancho máximo de 96rem (--arcli-gutter), como en la maqueta ======================= */
 header.header {
   padding-inline: calc(var(--sl-nav-pad-x) + var(--arcli-gutter)) !important;
 }
@@ -855,12 +777,12 @@ header.header {
 /* El índice de la derecha más angosto que el menú, como en la maqueta; el texto arranca junto al menú */
 @media (min-width: 72rem) {
   .right-sidebar-container {
-    width: 15rem !important;
+    width: var(--arcli-toc-width) !important;
   }
 
   :root[data-has-sidebar][data-has-toc] .main-pane {
     --sl-content-margin-inline: 0 auto;
-    width: calc(100% - 15rem) !important;
+    width: calc(100% - var(--arcli-toc-width)) !important;
   }
 }
 

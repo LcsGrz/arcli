@@ -37,7 +37,7 @@ export default defineConfig({
         ThemeProvider: './src/components/ThemeProvider.astro',
         ThemeSelect: './src/components/ThemeSelect.astro',
       },
-      customCss: ['./src/styles/arcli.css'],
+      customCss: ['./src/styles/tokens.css', './src/styles/arcli.css'],
       // La 404 es la de src/content/docs/404.md, en español y con el buscador.
       disable404Route: true,
       description: 'Emití facturas electrónicas de ARCA (ex AFIP) desde la terminal o con un asistente paso a paso.',
