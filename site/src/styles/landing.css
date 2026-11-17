@@ -365,7 +365,7 @@
 
 .arcli-landing .window {
   max-width: 60rem;
-  margin-inline: auto;
+  margin: 0 auto;
   border: 1px solid var(--arcli-term-line);
   border-radius: var(--radius);
   background: var(--panel);
@@ -760,6 +760,10 @@
   margin: var(--space-related) 0 0;
   font-size: var(--step--1);
   color: var(--fg-mute);
+}
+
+.arcli-landing .versus-note a {
+  color: var(--celeste);
 }
 
 .arcli-landing .install-foot {
@@ -1330,7 +1334,7 @@
   font-weight: inherit;
 }
 
-.arcli-landing [data-seg-p] pre {
+.arcli-landing .seg-panel pre {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }

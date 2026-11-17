@@ -1,0 +1,6 @@
+---
+/** El nombre de la IA que rota (`roll.ts`): la lista, con el primero repetido al final para volver sin salto. */
+import { AI_NAMES } from '../../data/landing';
+---
+
+<span class="ai-roll"><span class="ai-track">{[...AI_NAMES, AI_NAMES[0]].map((name) => <span>{name}</span>)}</span></span>

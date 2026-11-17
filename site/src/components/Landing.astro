@@ -3,18 +3,17 @@
  * Portada del sitio, como quedó en la maqueta (DOCS-5): logo, demo, instalación y después ¿Qué facturás?, Para empezar,
  * Cómo es facturar, Formas de uso, Características, ¿Factura en línea o ARCLI?, Seguridad, preguntas y el cierre.
  *
- * El HTML está en `landing-body.html` (se edita ahí) y su CSS en `styles/landing.css`, todo dentro de `.arcli-landing`
- * para no tocar las docs. El logo, la versión y el prompt de instalación salen del CLI y del README (`brand.json`).
+ * Las secciones están en `landing/` y sus textos en `data/landing.ts`; el CSS en `styles/landing.css`, todo dentro de
+ * `.arcli-landing` para no tocar las docs. El HTML de debajo del hero sigue en `landing-body.html` (se edita ahí).
  *
  * Pendiente: la sección Comunidad, con comentarios reales y el permiso de cada autor (DOCS-4).
  */
 import '../styles/landing.css';
 
-import brand from '../generated/brand.json';
 import { ICONS, type IconName } from '../icons';
 import { url } from '../lib/site';
-import AsciiLogo from './AsciiLogo.astro';
 import body from './landing-body.html?raw';
+import Hero from './landing/Hero.astro';
 
 /** `<svg data-icon="flecha" ...></svg>` -> el mismo `<svg>` con el dibujo de `icons.ts` adentro. */
 const withIcons = (html: string) =>
@@ -24,179 +23,19 @@ const withIcons = (html: string) =>
     return `<svg${attrs}>${ICONS[name as IconName]}</svg>`;
   });
 
-// El HTML se corta donde va el logo (`%LOGO%`), que es un componente.
-const [beforeLogo, afterLogo] = withIcons(body.replaceAll('%BASE%/', url()).replaceAll('%VERSION%', brand.version)).split('%LOGO%');
+const rest = withIcons(body.replaceAll('%BASE%/', url()));
 ---
 
-<div class="arcli-landing not-content" data-prompt={brand.installPrompt}>
-  <Fragment set:html={beforeLogo} /><AsciiLogo variant="hero" /><Fragment set:html={afterLogo} />
+<div class="arcli-landing not-content">
+  <Hero />
+  <Fragment set:html={rest} />
 </div>
 
 <script>
-  import { escapeHtml, url } from '../lib/site';
+  import { startRolls } from './landing/roll';
 
-  // Nombre de la IA que va cambiando (Claude, ChatGPT...), la demo, la instalación y las pestañas de comprobantes.
   const root = document.querySelector<HTMLElement>('.arcli-landing');
-  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  const NAMES = ['Claude', 'ChatGPT', 'Gemini', 'Copilot'];
-  const rollHtml = () => `<span class="ai-roll"><span class="ai-track">${[...NAMES, NAMES[0]].map((name) => `<span>${name}</span>`).join('')}</span></span>`;
-  let aiIndex = 0;
-
-  function syncRolls(scope: ParentNode, animate: boolean) {
-    for (const roll of scope.querySelectorAll<HTMLElement>('.ai-roll')) {
-      const track = roll.firstElementChild as HTMLElement;
-      track.style.transition = animate ? 'transform 0.28s cubic-bezier(0.3, 1.3, 0.5, 1)' : 'none';
-      track.style.transform = `translateY(-${aiIndex * 1.3}em)`;
-      const width = track.children[aiIndex]?.getBoundingClientRect().width;
-      if (width) roll.style.width = `${width}px`;
-    }
-  }
-
-  if (root && !reduceMotion) {
-    setInterval(() => {
-      aiIndex += 1;
-      syncRolls(root, true);
-      if (aiIndex === NAMES.length) {
-        setTimeout(() => {
-          aiIndex = 0;
-          syncRolls(root, false);
-        }, 320);
-      }
-    }, 1500);
-  }
-
-  // Instalación: con IA (el prompt del README) o con npm, pnpm o yarn.
-  const prompt = root?.dataset.prompt ?? '';
-  const INSTALL: Record<string, { copy: string; note: string; text: string }> = {
-    ia: { copy: prompt, note: '', text: prompt },
-    npm: { copy: 'npm install -g arcli', note: 'Necesitás Node.js 22.22.1 o superior. Para actualizar, el mismo comando con arcli@latest.', text: 'npm install -g arcli' },
-    pnpm: { copy: 'pnpm add -g arcli', note: 'Necesitás Node.js 22.22.1 o superior.', text: 'pnpm add -g arcli' },
-    yarn: { copy: 'yarn global add arcli', note: 'Solo Yarn 1: Yarn 2 o superior no instala paquetes globales.', text: 'yarn global add arcli' },
-  };
-  const code = document.getElementById('install-code');
-  const note = document.getElementById('install-note');
-  const copyButton = document.getElementById('install-copy');
-  let current = 'ia';
-
-  function showInstall(key: string) {
-    if (!code || !note) return;
-    current = key;
-    const item = INSTALL[key];
-    code.className = key === 'ia' ? 'prompt-ai' : '';
-    code.innerHTML = key === 'ia' ? escapeHtml(item.text) : `<span class="dollar">$ </span>${escapeHtml(item.text)}`;
-    note.innerHTML =
-      key === 'ia' ? `Copialo y pegáselo a ${rollHtml()}: revisa Node, instala <strong>ARCLI</strong> y crea el ícono. Sirve también para actualizar.` : escapeHtml(item.note);
-    syncRolls(note, false);
-    for (const tab of document.querySelectorAll<HTMLElement>('[data-install]')) tab.setAttribute('aria-selected', String(tab.dataset.install === key));
-  }
-
-  for (const tab of document.querySelectorAll<HTMLElement>('[data-install]')) tab.addEventListener('click', () => showInstall(tab.dataset.install ?? 'ia'));
-
-  copyButton?.addEventListener('click', async () => {
-    const label = copyButton.querySelector('span');
-    try {
-      await navigator.clipboard.writeText(INSTALL[current].copy);
-      if (label) label.textContent = 'Copiado';
-    } catch {
-      if (code) getSelection()?.selectAllChildren(code);
-      if (label) label.textContent = 'Seleccionado: ⌘C';
-    }
-    setTimeout(() => label && (label.textContent = 'Copiar'), 1800);
-  });
-
-  showInstall('ia');
-
-  // Demo: el asistente, los comandos, la conversación con una IA y las consultas.
-  const DEMOS: Record<string, { alt?: string; caption: string; src?: string }> = {
-    asistente: {
-      alt: 'El asistente de ARCLI emitiendo una Factura C en testing',
-      caption: 'Una Factura C en testing con el asistente: monto, receptor, vista previa, comando equivalente y CAE.',
-      src: url('assets/demo/interactivo.gif'),
-    },
-    comandos: { alt: 'ARCLI emitiendo con un comando y flags', caption: 'Lo mismo con un comando: vista previa, confirmación y CAE. Ideal para repetir o automatizar.', src: url('assets/demo/comandos.gif') },
-    consultas: { alt: 'ARCLI consultando los últimos comprobantes', caption: 'Los últimos comprobantes emitidos y el detalle de uno, sin emitir nada.', src: url('assets/demo/consultar.gif') },
-    ia: { caption: 'Le pedís la factura a tu asistente de IA (Claude, ChatGPT, Gemini u otro) en tus palabras: usa ARCLI para armar el comando, te muestra la vista previa y emite cuando confirmás.' },
-  };
-  const CHAT = [
-    { html: () => `Hola ${rollHtml()}, facturale $ 150.000 a Juan Pérez, consumidor final, por el desarrollo de octubre. En testing.`, who: 'user' },
-    { html: () => 'Uso <strong>ARCLI</strong>, que tenés instalado, para armar la vista previa:<pre><span class="k">$</span> arcli fc -m 150000 --cs --consumidor-final --testing --json</pre>', who: 'bot' },
-    { html: () => 'Es una Factura C de $ 150.000 a consumidor final, por servicios, en el punto de venta 3. ¿La emito?', who: 'bot' },
-    { html: () => 'Sí, emitila.', who: 'user' },
-    {
-      html: () =>
-        '<pre><span class="k">$</span> arcli fc -m 150000 --cs --consumidor-final --testing --emitir --json</pre><p class="msg-text">Listo: <strong>Factura C 00003-00000118</strong>, aprobada. CAE 86451064378488, vence el 18/11/2026.</p>',
-      who: 'bot',
-    },
-  ];
-  const chat = document.getElementById('demo-chat');
-  const demoImg = document.getElementById('demo-img') as HTMLImageElement | null;
-  const demoCaption = document.getElementById('demo-caption');
-  let chatTimer: ReturnType<typeof setTimeout> | undefined;
-
-  function playChat() {
-    if (!chat) return;
-    clearTimeout(chatTimer);
-    chat.innerHTML = '<div class="chat-head"><span>Chat con <b>tu asistente de IA</b></span><span class="local">ARCLI corre en tu computadora</span></div>';
-    let step = 0;
-    const next = () => {
-      if (step >= CHAT.length) {
-        chatTimer = setTimeout(playChat, 5000);
-        return;
-      }
-      const item = CHAT[step++];
-      chat.insertAdjacentHTML('beforeend', `<div class="msg ${item.who}"><span class="who">${item.who === 'user' ? 'Vos' : rollHtml()}</span>${item.html()}</div>`);
-      if (chat.lastElementChild) syncRolls(chat.lastElementChild, false);
-      chatTimer = setTimeout(next, item.who === 'user' ? 1300 : 2100);
-    };
-    if (reduceMotion) CHAT.forEach(() => next());
-    else next();
-  }
-
-  const demoTabs = [...document.querySelectorAll<HTMLElement>('[data-demo]')];
-  const demoPanel = document.getElementById('demo-panel');
-
-  function showDemo(tab: HTMLElement) {
-    const key = tab.dataset.demo ?? 'asistente';
-    const demo = DEMOS[key];
-    const isChat = key === 'ia';
-    if (demoImg) demoImg.hidden = isChat;
-    if (chat) chat.hidden = !isChat;
-    if (isChat) playChat();
-    else {
-      clearTimeout(chatTimer);
-      if (demoImg && demo.src) {
-        demoImg.src = demo.src;
-        demoImg.alt = demo.alt ?? '';
-      }
-    }
-    if (demoCaption) demoCaption.textContent = demo.caption;
-    demoPanel?.setAttribute('aria-labelledby', tab.id);
-    for (const other of demoTabs) {
-      other.setAttribute('aria-selected', String(other === tab));
-      other.tabIndex = other === tab ? 0 : -1;
-    }
-  }
-
-  // Con teclado, como en cualquier tablist: las flechas, Inicio y Fin cambian de pestaña.
-  const DEMO_KEYS: Record<string, (index: number) => number> = {
-    ArrowLeft: (index) => (index - 1 + demoTabs.length) % demoTabs.length,
-    ArrowRight: (index) => (index + 1) % demoTabs.length,
-    End: () => demoTabs.length - 1,
-    Home: () => 0,
-  };
-
-  for (const [index, tab] of demoTabs.entries()) {
-    tab.addEventListener('click', () => showDemo(tab));
-    tab.addEventListener('keydown', (event) => {
-      const move = DEMO_KEYS[event.key];
-      if (!move) return;
-      event.preventDefault();
-      const next = demoTabs[move(index)];
-      showDemo(next);
-      next.focus();
-    });
-  }
+  if (root) startRolls(root);
 
   // ¿Qué facturás?: pestañas por perfil.
   for (const seg of document.querySelectorAll<HTMLElement>('[data-seg]')) {
