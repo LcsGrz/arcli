@@ -88,3 +88,62 @@ describe('docs/comprobantes', () => {
     }
   });
 });
+
+/**
+ * La grilla de atajos de `docs/comandos.md` (`<!-- arcli: atajos -->` y la tabla de abajo) está escrita a mano: tiene
+ * que nombrar cada comprobante de `VOUCHER_PAGES` una vez, en la columna de su letra, con el link a su página y en la
+ * fila de su comando. La de `docs/comprobantes/README.md` la genera `comprobantes-md.ts` (la controla el primer test).
+ */
+const COMMANDS_DOC = new URL('../../docs/comandos.md', import.meta.url);
+
+interface GridCell {
+  readonly atajo: string;
+  readonly href: string;
+  readonly letter: string;
+  readonly row: string;
+}
+
+function gridCells(markdown: string): GridCell[] {
+  const table = markdown.match(/<!-- arcli: atajos -->\n+((?:\|.*\n?)+)/)?.[1];
+
+  if (!table) throw new Error('falta la grilla de atajos');
+
+  const [head = '', , ...rows] = table.trim().split('\n');
+  const split = (line: string) =>
+    line
+      .split('|')
+      .slice(1, -1)
+      .map((cell) => cell.trim());
+  const letters = split(head).slice(1);
+
+  return rows.flatMap((line) => {
+    const [row = '', ...cells] = split(line);
+
+    return cells.flatMap((cell, index) => {
+      const link = cell.match(/^\[`([a-z]+)`\]\(([^)]+)\)$/);
+
+      return link ? [{ atajo: link[1]!, href: link[2]!, letter: letters[index]!.toLowerCase(), row }] : [];
+    });
+  });
+}
+
+describe('grilla de atajos de docs/comandos.md', () => {
+  const cells = gridCells(readFileSync(COMMANDS_DOC, 'utf8'));
+  const pageOf = (atajo: string) => VOUCHER_PAGES.find((page) => page.atajo === atajo);
+
+  it('tiene cada comprobante una vez, con su página y en la columna de su letra', () => {
+    expect(cells.map((cell) => cell.atajo).sort()).toEqual(VOUCHER_PAGES.map((page) => page.atajo).sort());
+    for (const cell of cells) {
+      expect({ href: cell.href, letter: cell.letter }, cell.atajo).toEqual({
+        href: `comprobantes/${pageOf(cell.atajo)?.file}`,
+        letter: pageOf(cell.atajo)?.letter,
+      });
+    }
+  });
+
+  it('cada fila es la de su comando (`arcli nota-credito-electronica a` → `nota-credito-electronica`)', () => {
+    for (const cell of cells) {
+      expect(cell.row, cell.atajo).toBe(`\`${pageOf(cell.atajo)?.familiaComando.split(' ')[1]}\``);
+    }
+  });
+});
