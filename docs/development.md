@@ -186,6 +186,11 @@ Lo que en el sitio se ve distinto que en GitHub se marca en `docs/` con un comen
 | `<!-- arcli: chat -->`                            | La cita con **Vos:** y **Tu asistente:** como una conversación                                 |
 | `<!-- arcli: muestra=error\|vista -->`            | El bloque de texto siguiente como un cartel chico                                              |
 | `<!-- arcli: formas -->`                          | La tabla siguiente como filas que llevan a cada forma de uso                                   |
+| `<!-- arcli: pestañas=grupo -->`                  | Los `### …` hasta el próximo `##` como pestañas; la elección se recuerda por grupo             |
+| `<!-- arcli: atajos -->`                          | La tabla siguiente como la grilla de atajos por letra                                          |
+| `<!-- arcli: prompt-instalacion -->`              | La línea siguiente pasa a ser el prompt de instalación del README, para copiar                 |
+
+Un ejemplo de cada una, y los tokens, componentes y reglas de CSS del sitio, en el [design system del sitio](design-system-sitio.md). `site/scripts/transforms/__tests__/markers-docs.test.mjs` falla si una marca de los transforms no está en esta tabla o en esa página.
 
 Además, Problemas frecuentes pasa cada problema a un desplegable con buscador y Novedades pliega las versiones viejas. Las páginas con `hidden: true` en `PAGES` (las guías completas) se generan pero no van en el menú: se llega desde el link de su versión corta. El menú y sus iconos salen de `PAGES` (`src/generated/sidebar.json`), y el comportamiento de esas páginas (pestañas, desplegables y el buscador) está en `site/src/lib/docs/`, que carga `site/src/components/MarkdownContent.astro`.
 
