@@ -8,6 +8,7 @@ import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.re
 import { stripAnsi } from '../../../ui';
 import { initialAdvancedOptions } from '../advanced-options';
 import { runExportFlow } from '../export.flow';
+import { runExportNoteFlow } from '../export-note.flow';
 import { runExportRepeatFlow } from '../export-repeat.flow';
 import { runHistoryFlow } from '../history.flow';
 import {
@@ -29,6 +30,7 @@ let script = createScript([]);
 
 vi.mock('../export.flow', () => ({ runExportFlow: vi.fn(async () => undefined) }));
 vi.mock('../export-repeat.flow', () => ({ runExportRepeatFlow: vi.fn(async () => undefined) }));
+vi.mock('../export-note.flow', () => ({ runExportNoteFlow: vi.fn(async () => undefined) }));
 
 const savedConfig = vi.fn();
 
@@ -1233,6 +1235,164 @@ describe('flujos del modo interactivo', () => {
       const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
 
       expect(state?.invoice?.number).toBe(14);
+    });
+
+    describe('notas sobre otras notas (NOTAS-1, TUI-12)', () => {
+      const selectorNames = (): string[] =>
+        onlyChoices(script.chooseStep.mock.calls[0][1]).map((choice) => stripAnsi(choice.name).replace(' (nuevo)', ''));
+
+      it('el selector de una NC ofrece las notas de cada letra, la ND FCE y las notas E', async () => {
+        script = createScript([[/Sobre qué comprobante/, BACK]]);
+
+        await runWizard(noteSteps(createSession(), 3), { kind: 'credito' });
+
+        expect(selectorNames()).toEqual([
+          'Factura C',
+          'Nota de crédito C',
+          'Nota de débito C',
+          'Factura B',
+          'Nota de crédito B',
+          'Nota de débito B',
+          'Factura A',
+          'Nota de crédito A',
+          'Nota de débito A',
+          'Factura de crédito electrónica C',
+          'Nota de débito electrónica C',
+          'Factura de crédito electrónica B',
+          'Nota de débito electrónica B',
+          'Factura de crédito electrónica A',
+          'Nota de débito electrónica A',
+          'Recibo C',
+          'Factura de exportación E',
+          'Nota de crédito de exportación E',
+          'Nota de débito de exportación E',
+        ]);
+      });
+
+      it('en una ND, de FCE ofrece solo la NC FCE', async () => {
+        script = createScript([[/Sobre qué comprobante/, BACK]]);
+
+        await runWizard(noteSteps(createSession(), 3), { kind: 'debito' });
+
+        const fce = selectorNames().filter((name) => name.includes('electrónica'));
+
+        expect(fce).toEqual([
+          'Factura de crédito electrónica C',
+          'Nota de crédito electrónica C',
+          'Factura de crédito electrónica B',
+          'Nota de crédito electrónica B',
+          'Factura de crédito electrónica A',
+          'Nota de crédito electrónica A',
+        ]);
+      });
+
+      it('arma una NC C sobre una ND C sin preguntar factura o periodo, con el tope de la ND', async () => {
+        script = createScript([
+          [/Sobre qué comprobante/, 'Nota de débito C'],
+          [/Sobre qué nota de débito C/, '00003-00000014'],
+          [/Total o parcial/, 'Parcial'],
+          [/Monto de la nota de crédito/, '50'],
+          [/Agregamos/, []],
+        ]);
+
+        const session = createSession([invoice({ ivaAmount: 0, netAmount: 121 })]);
+        const getVoucher = vi.spyOn(session.historyGateway, 'getVoucher');
+        const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
+
+        expect(getVoucher).toHaveBeenCalledWith(14, 3, 12);
+        expect(script.asked.some((question) => /asociamos/.test(question))).toBe(false);
+        expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
+          associatedVoucher: { numero: 14, puntoVenta: 3, shortcut: 'ndc' },
+          shortcut: 'ncc',
+          totalAmount: 50,
+        });
+      });
+
+      it('el tope de una NC sobre una ND es el total de la ND, y el aviso la nombra', async () => {
+        script = createScript([
+          [/Sobre qué comprobante/, 'Nota de débito C'],
+          [/Sobre qué nota de débito C/, '00003-00000014'],
+          [/Total o parcial/, 'Parcial'],
+          [/Monto de la nota de crédito/, '200'],
+        ]);
+
+        await expect(
+          runWizard(noteSteps(createSession([invoice({ ivaAmount: 0, netAmount: 121 })]), 3), { kind: 'credito' }),
+        ).rejects.toThrow('No puede superar el total de la nota de débito C 00003-00000014, de $ 121.');
+      });
+
+      it('una NC sobre otra NC no ofrece anular el total ni tiene tope', async () => {
+        script = createScript([
+          [/Sobre qué comprobante/, 'Nota de crédito A'],
+          [/Sobre qué nota de crédito A/, '00003-00000014'],
+          [/Monto de la nota de crédito/, '500'],
+          [/Condición frente al IVA/, 'Responsable inscripto'],
+          [/Agregamos/, []],
+        ]);
+
+        const session = createSession([invoice({ documentNumber: 30709965812, documentTypeCode: 80 })]);
+        const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
+
+        expect(script.asked.some((question) => /Total o parcial/.test(question))).toBe(false);
+        expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
+          associatedVoucher: { shortcut: 'nca' },
+          shortcut: 'nca',
+          totalAmount: 500,
+        });
+      });
+
+      it('una ND FCE sobre una NC FCE es de anulacion, sin preguntarlo', async () => {
+        script = createScript([
+          [/Sobre qué comprobante/, 'Nota de crédito electrónica A'],
+          [/Sobre qué nota de crédito electrónica A/, '00003-00000014'],
+          [/Monto de la nota de débito/, '121'],
+          [/Condición frente al IVA/, 'Responsable inscripto'],
+          [/Agregamos/, []],
+        ]);
+
+        const session = createSession([invoice({ documentNumber: 30709965812, documentTypeCode: 80 })]);
+        const state = await runWizard(noteSteps(session, 3), { kind: 'debito' });
+
+        expect(script.asked.some((question) => /rechazó/.test(question))).toBe(false);
+        expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
+          associatedVoucher: { shortcut: 'ncea' },
+          cancellation: true,
+          shortcut: 'ndea',
+        });
+      });
+
+      it('una ND FCE sobre la factura no es de anulacion, sin preguntarlo', async () => {
+        script = createScript([
+          [/Sobre qué comprobante/, 'Factura de crédito electrónica A'],
+          [/Sobre qué factura de crédito electrónica A/, '00003-00000014'],
+          [/Monto de la nota de débito/, '121'],
+          [/Condición frente al IVA/, 'Responsable inscripto'],
+          [/Agregamos/, []],
+        ]);
+
+        const session = createSession([invoice({ documentNumber: 30709965812, documentTypeCode: 80 })]);
+        const state = await runWizard(noteSteps(session, 3), { kind: 'debito' });
+
+        expect(script.asked.some((question) => /rechazó/.test(question))).toBe(false);
+        expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
+          cancellation: false,
+          shortcut: 'ndea',
+        });
+      });
+
+      it('una nota E sobre otra nota E va al asistente de la E con ese asociado', async () => {
+        script = createScript([[/Sobre qué comprobante/, 'Nota de débito de exportación E']]);
+
+        const session = createSession();
+        const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
+
+        expect(state?.exported).toBe(true);
+        expect(runExportNoteFlow).toHaveBeenCalledWith(
+          session,
+          'credito',
+          expect.objectContaining({ arcaType: 20, shortcut: 'nde' }),
+        );
+      });
     });
   });
 
