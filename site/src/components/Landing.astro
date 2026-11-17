@@ -11,12 +11,21 @@
 import '../styles/landing.css';
 
 import brand from '../generated/brand.json';
+import { ICONS, type IconName } from '../icons';
 import { url } from '../lib/site';
 import AsciiLogo from './AsciiLogo.astro';
 import body from './landing-body.html?raw';
 
+/** `<svg data-icon="flecha" ...></svg>` -> el mismo `<svg>` con el dibujo de `icons.ts` adentro. */
+const withIcons = (html: string) =>
+  html.replace(/<svg data-icon="([\w-]+)"([^>]*)><\/svg>/g, (_, name: string, attrs: string) => {
+    if (!(name in ICONS)) throw new Error(`landing-body.html: no hay un ícono "${name}" en icons.ts.`);
+
+    return `<svg${attrs}>${ICONS[name as IconName]}</svg>`;
+  });
+
 // El HTML se corta donde va el logo (`%LOGO%`), que es un componente.
-const [beforeLogo, afterLogo] = body.replaceAll('%BASE%/', url()).replaceAll('%VERSION%', brand.version).split('%LOGO%');
+const [beforeLogo, afterLogo] = withIcons(body.replaceAll('%BASE%/', url()).replaceAll('%VERSION%', brand.version)).split('%LOGO%');
 ---
 
 <div class="arcli-landing not-content" data-prompt={brand.installPrompt}>
