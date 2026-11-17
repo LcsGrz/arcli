@@ -8,6 +8,10 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+### Corregido
+
+- **`29/2` sin año cerca de un bisiesto:** el año se elegía sin mirar si ese 29/02 existía, así que el 1/9/2028 `--fecha 29/2` (o `--vto`, `--sd`, `--sh`) daba "no es válida" en lugar de tomar el 29/02/2028. Ahora solo cuentan los años donde la fecha existe. No cambia ninguna otra fecha.
+
 ## [2.5.0] - 2026-11-17
 
 Completa lo que trajo la 2: las notas de crédito y débito de la factura de exportación `E`, el modo interactivo al nivel del CLI (consultas, opcionales, repetir la `E`, el PDF al confirmar) y el sitio de documentación en [arcli.com.ar](https://arcli.com.ar). Puede afectar scripts:
