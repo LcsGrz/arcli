@@ -147,10 +147,10 @@ header.header::after {
   gap: 0.6rem;
   margin: 1.25rem 0;
   padding: 1.1rem 1.2rem;
-  border: 1px solid #313244;
+  border: 1px solid var(--arcli-term-line);
   border-radius: 0.75rem;
-  background: #11111b;
-  box-shadow: 0 30px 70px -40px rgb(116 172 223 / 0.4);
+  background: var(--arcli-term-bg);
+  box-shadow: var(--arcli-shadow-glow);
 }
 
 .sl-markdown-content .arcli-msg {
@@ -158,14 +158,14 @@ header.header::after {
   margin: 0;
   padding: 0.55rem 0.8rem;
   border-radius: 0.6rem;
-  color: #cdd6f4;
+  color: var(--arcli-term-fg);
   font-size: var(--sl-text-sm);
 }
 
 .arcli-msg .who {
   display: block;
   margin-bottom: 0.15rem;
-  color: #a6adc8;
+  color: var(--arcli-term-fg-soft);
   font: 600 0.68rem / 1.4 var(--sl-font-system-mono);
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -173,17 +173,17 @@ header.header::after {
 
 .arcli-msg.user {
   align-self: flex-end;
-  background: #2a3550;
+  background: var(--arcli-term-user);
 }
 
 .arcli-msg.bot {
   align-self: flex-start;
-  border: 1px solid #313244;
-  background: #1e1e2e;
+  border: 1px solid var(--arcli-term-line);
+  background: var(--arcli-term-raised);
 }
 
 .arcli-msg strong {
-  color: #fff;
+  color: var(--arcli-term-strong);
 }
 
 /* Pasos numerados: un círculo por paso y una línea que los une, como en Instalar */
@@ -261,15 +261,15 @@ header.header::after {
   width: fit-content;
   min-width: min(100%, 15rem);
   padding: 0.45rem 0.7rem;
-  border: 1px solid #313244;
+  border: 1px solid var(--arcli-term-line);
   border-radius: 0.5rem;
-  background: #11111b;
-  color: #cdd6f4;
+  background: var(--arcli-term-bg);
+  color: var(--arcli-term-fg);
   font: 0.72rem / 1.5 var(--sl-font-system-mono);
 }
 
 .arcli-sample b {
-  color: #89b4fa;
+  color: var(--arcli-term-blue);
   font-size: 0.62rem;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -277,11 +277,11 @@ header.header::after {
 }
 
 .arcli-sample-error {
-  border-color: rgb(243 139 168 / 0.5) !important;
+  border-color: color-mix(in srgb, var(--arcli-term-red) 50%, transparent) !important;
 }
 
 .arcli-sample-error b {
-  color: #f38ba8;
+  color: var(--arcli-term-red);
 }
 
 .arcli-sample .row {
@@ -291,7 +291,7 @@ header.header::after {
 }
 
 .arcli-sample i {
-  color: #a6adc8;
+  color: var(--arcli-term-fg-soft);
   font-style: normal;
 }
 
@@ -567,8 +567,8 @@ starlight-toc nav > ul > li:first-child:has(> a[href='#_top']) {
 }
 
 .starlight-aside--danger {
-  --sl-color-asides-border: #f38ba8;
-  --sl-color-asides-text-accent: #f38ba8;
+  --sl-color-asides-border: var(--arcli-term-red);
+  --sl-color-asides-text-accent: var(--arcli-term-red);
 }
 
 /* Bloques de código: el título a la izquierda y sin los tres puntos de la ventana */
@@ -698,7 +698,7 @@ starlight-toc nav > ul > li:first-child:has(> a[href='#_top']) {
 
 /* Código de un solo color, como en la terminal, y "Copiar" arriba, en el encabezado */
 .expressive-code .frame pre span {
-  color: #cdd6f4 !important;
+  color: var(--arcli-term-fg) !important;
 }
 
 .expressive-code .frame.has-title .copy {
@@ -718,9 +718,9 @@ starlight-toc nav > ul > li:first-child:has(> a[href='#_top']) {
 .arcli-gif img {
   display: block;
   width: 100%;
-  border: 1px solid #313244;
+  border: 1px solid var(--arcli-term-line);
   border-radius: 0.75rem;
-  box-shadow: 0 30px 70px -40px rgb(116 172 223 / 0.4);
+  box-shadow: var(--arcli-shadow-glow);
 }
 
 .arcli-gif figcaption {
@@ -849,10 +849,8 @@ header.header {
   display: block;
   margin-inline: auto;
   border-radius: 0.4rem;
-  background: #fff;
-  box-shadow:
-    0 0 0 1px rgb(116 172 223 / 0.05),
-    0 40px 90px -40px rgb(116 172 223 / 0.45);
+  background: var(--arcli-papel);
+  box-shadow: var(--arcli-shadow-pdf);
 }
 
 /* Pestañas: los pasos arrancan con el mismo aire que el resto de la caja */
@@ -987,7 +985,7 @@ header.header {
 }
 
 .arcli-faq .sev-alta {
-  --sev: #f38ba8;
+  --sev: var(--arcli-term-red);
 }
 
 .arcli-faq .sev-frecuente {
@@ -1039,10 +1037,10 @@ header.header {
 .sl-markdown-content .arcli-salida {
   margin: 0;
   padding: 0.6rem 0.85rem;
-  border: 1px solid rgb(243 139 168 / 0.45);
+  border: 1px solid color-mix(in srgb, var(--arcli-term-red) 45%, transparent);
   border-radius: 0.5rem;
-  background: #11111b;
-  color: #cdd6f4;
+  background: var(--arcli-term-bg);
+  color: var(--arcli-term-fg);
   font: 0.82rem / 1.6 var(--sl-font-mono);
   white-space: pre-wrap;
 }

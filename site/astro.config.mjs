@@ -67,22 +67,24 @@ export default defineConfig({
         },
         ...analytics,
       ],
-      // Bloques de código como en la maqueta: título ("Terminal") y "Copiar", sin los tres puntos de la ventana.
+      // Bloques de código como en la maqueta: título ("Terminal") y "Copiar", sin los tres puntos de la ventana. Los colores
+      // son los tokens de terminal de src/styles/tokens.css.
       expressiveCode: {
         styleOverrides: {
-          borderColor: '#313244',
-          borderRadius: '0.6rem',
+          borderColor: 'var(--arcli-term-line)',
+          borderRadius: 'var(--arcli-radius-lg)',
+          // Con un color fijo (no un token), así expressive-code puede calcular el contraste del texto en el tema claro.
           codeBackground: '#11111b',
           frames: {
-            editorActiveTabBackground: '#11111b',
-            editorTabBarBackground: '#11111b',
-            editorTabBarBorderBottomColor: '#313244',
+            editorActiveTabBackground: 'var(--arcli-term-bg)',
+            editorTabBarBackground: 'var(--arcli-term-bg)',
+            editorTabBarBorderBottomColor: 'var(--arcli-term-line)',
             frameBoxShadowCssValue: 'none',
-            terminalBackground: '#11111b',
-            terminalTitlebarBackground: '#11111b',
-            terminalTitlebarBorderBottomColor: '#313244',
+            terminalBackground: 'var(--arcli-term-bg)',
+            terminalTitlebarBackground: 'var(--arcli-term-bg)',
+            terminalTitlebarBorderBottomColor: 'var(--arcli-term-line)',
             terminalTitlebarDotsOpacity: '0',
-            terminalTitlebarForeground: '#a6adc8',
+            terminalTitlebarForeground: 'var(--arcli-term-fg-soft)',
           },
         },
       },

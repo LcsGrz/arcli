@@ -64,6 +64,8 @@
 
   /* La estrella de GitHub, igual en los dos temas */
   --arcli-estrella: #f9d77e;
+  /* El fondo del PDF de ejemplo */
+  --arcli-papel: #fff;
 }
 
 /* Portada: es siempre oscura, así que estos no cambian con el tema. */
@@ -106,6 +108,9 @@
   --arcli-shadow-glow: 0 30px 70px -40px rgb(116 172 223 / 0.4);
   /* El PDF de ejemplo */
   --arcli-shadow-pdf: 0 0 0 1px rgb(116 172 223 / 0.05), 0 40px 90px -40px rgb(116 172 223 / 0.45);
+  /* Portada: el PDF y el panel de la terminal, que se superponen */
+  --arcli-shadow-pdf-portada: 0 30px 60px -25px rgb(0 0 0 / 0.55);
+  --arcli-shadow-panel: 0 25px 50px -20px rgb(0 0 0 / 0.6);
 }
 
 /* Anchos: el menú entra "Responsable inscripto" en una línea, el texto a 56rem y todo el sitio hasta 96rem. */

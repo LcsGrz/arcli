@@ -119,7 +119,7 @@
   pointer-events: none;
   mask-image: none;
   height: 42rem;
-  background: radial-gradient(ellipse 75% 70% at 50% 28%, #262637, transparent 72%);
+  background: radial-gradient(ellipse 75% 70% at 50% 28%, var(--sl-color-gray-6), transparent 72%);
 }
 
 .arcli-landing .logo {
@@ -366,13 +366,11 @@
 .arcli-landing .window {
   max-width: 60rem;
   margin-inline: auto;
-  border: 1px solid #313244;
+  border: 1px solid var(--arcli-term-line);
   border-radius: var(--radius);
   background: var(--panel);
   overflow: hidden;
-  box-shadow:
-    0 0 0 1px rgb(116 172 223 / 0.05),
-    0 40px 90px -40px rgb(116 172 223 / 0.45);
+  box-shadow: var(--arcli-shadow-pdf);
 }
 
 /* `display: block` le gana al atributo `hidden`: sin esto, en "Con IA" el GIF seguía visible arriba del chat. */
@@ -468,10 +466,10 @@
   aspect-ratio: 210 / 297;
   height: auto;
   object-fit: contain;
-  background: #fff;
+  background: var(--arcli-papel);
   margin-left: auto;
   border-radius: 0.4rem;
-  box-shadow: 0 30px 60px -25px rgb(0 0 0 / 0.55);
+  box-shadow: var(--arcli-shadow-pdf-portada);
   transform: none;
 }
 
@@ -481,18 +479,18 @@
   bottom: 0;
   width: min(21rem, 78%);
   padding: 1rem 1.1rem;
-  border: 1px solid #313244;
+  border: 1px solid var(--arcli-term-line);
   border-radius: 0.6rem;
   background: var(--panel);
-  color: #cdd6f4;
+  color: var(--arcli-term-fg);
   font: 0.78rem / 1.7 var(--font-mono);
-  box-shadow: 0 25px 50px -20px rgb(0 0 0 / 0.6);
+  box-shadow: var(--arcli-shadow-panel);
 }
 
 .arcli-landing .panel-title {
   margin-bottom: 0.5rem;
   text-align: center;
-  color: #74acdf;
+  color: var(--celeste);
   font-weight: 700;
   letter-spacing: 0.1em;
 }
@@ -505,7 +503,7 @@
 }
 
 .arcli-landing .panel dt {
-  color: #a6adc8;
+  color: var(--arcli-term-fg-soft);
 }
 
 .arcli-landing .panel dd {
@@ -517,9 +515,9 @@
 .arcli-landing .panel .ok {
   margin-top: 0.6rem;
   padding-top: 0.5rem;
-  border-top: 1px dashed #45475a;
+  border-top: 1px dashed var(--arcli-term-line-dim);
   text-align: center;
-  color: #94e2d5;
+  color: var(--arcli-term-teal);
   font-weight: 700;
   letter-spacing: 0.1em;
 }
@@ -544,26 +542,26 @@
 .arcli-landing .snippet {
   margin: 0;
   padding: 1.4rem 1.5rem;
-  border: 1px solid #313244;
+  border: 1px solid var(--arcli-term-line);
   border-radius: var(--radius);
   background: var(--panel);
-  color: #cdd6f4;
+  color: var(--arcli-term-fg);
   font-size: 0.84rem;
   line-height: 1.8;
   overflow-x: auto;
 }
 
 .arcli-landing .snippet .c {
-  color: #7f849c;
+  color: var(--arcli-term-fg-mute);
 }
 
 .arcli-landing .snippet .p {
-  color: #a6e3a1;
+  color: var(--arcli-term-green);
   user-select: none;
 }
 
 .arcli-landing .snippet .f {
-  color: #89b4fa;
+  color: var(--arcli-term-blue);
 }
 
 /* Preguntas */
@@ -786,7 +784,7 @@
   padding: clamp(1rem, 3vw, 2rem);
   overflow: hidden;
   text-align: left;
-  color: #cdd6f4;
+  color: var(--arcli-term-fg);
   font-size: clamp(0.78rem, 1.5vw, 0.92rem);
 }
 
@@ -804,14 +802,14 @@
 
 .arcli-landing .msg.user {
   align-self: flex-end;
-  background: #2a3550;
+  background: var(--arcli-term-user);
   border-bottom-right-radius: 0.2rem;
 }
 
 .arcli-landing .msg.bot {
   align-self: flex-start;
-  background: #1e1e2e;
-  border: 1px solid #313244;
+  background: var(--arcli-term-raised);
+  border: 1px solid var(--arcli-term-line);
   border-bottom-left-radius: 0.2rem;
 }
 
@@ -821,15 +819,15 @@
   font: 600 0.68rem / 1 var(--font-mono);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #7f849c;
+  color: var(--arcli-term-fg-mute);
 }
 
 .arcli-landing .msg pre {
   margin: 0.5rem 0 0;
   padding: 0.55rem 0.7rem;
   border-radius: 0.4rem;
-  background: #11111b;
-  color: #a6e3a1;
+  background: var(--arcli-term-bg);
+  color: var(--arcli-term-green);
   font-size: 0.85em;
   white-space: pre-wrap;
 }
@@ -839,7 +837,7 @@
 }
 
 .arcli-landing .msg pre .k {
-  color: #89b4fa;
+  color: var(--arcli-term-blue);
 }
 
 @keyframes aparece {
@@ -909,7 +907,7 @@
 }
 
 .arcli-landing .msg .who .ai-track > span {
-  color: #89b4fa;
+  color: var(--arcli-term-blue);
 }
 
 .arcli-landing .chat-head {
@@ -918,23 +916,23 @@
   align-items: center;
   gap: 0.4rem 0.75rem;
   padding-bottom: 0.75rem;
-  border-bottom: 1px solid #313244;
-  color: #a6adc8;
+  border-bottom: 1px solid var(--arcli-term-line);
+  color: var(--arcli-term-fg-soft);
   font-size: 0.85em;
 }
 
 .arcli-landing .chat-head b {
-  color: #cdd6f4;
+  color: var(--arcli-term-fg);
   font-weight: 600;
 }
 
 .arcli-landing .chat-head .local {
   margin-left: auto;
   padding: 0.1rem 0.55rem;
-  border: 1px solid #313244;
+  border: 1px solid var(--arcli-term-line);
   border-radius: 99px;
   font: 500 0.78em / 1.6 var(--font-mono);
-  color: #a6e3a1;
+  color: var(--arcli-term-green);
 }
 
 /* ---------- Lo que sigue a la presentacion: variantes ---------- */
@@ -960,7 +958,7 @@
   left: 1.2rem;
   right: calc(33% - 1.2rem);
   height: 2px;
-  background: linear-gradient(90deg, var(--celeste), var(--lavanda, #c6c9f0));
+  background: linear-gradient(90deg, var(--celeste), var(--lavanda));
   opacity: 0.6;
 }
 
@@ -1030,7 +1028,7 @@
 
 .arcli-landing .seg button[aria-selected='true'] {
   background: var(--celeste);
-  color: #11111b;
+  color: var(--arcli-term-bg);
   font-weight: 600;
 }
 
@@ -1229,7 +1227,7 @@
 }
 
 .arcli-landing .preview .pv-ask span {
-  color: #a6e3a1;
+  color: var(--arcli-term-green);
 }
 
 .arcli-landing .zz-visual.result-visual {
