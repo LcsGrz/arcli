@@ -57,7 +57,7 @@ const CONFIG_KEY_ALIASES: Record<ConfigPublicKey, CanonicalConfigKey> = {
  * Claves deprecadas que `config establecer` y `config eliminar` todavia aceptan, con la clave que las reemplaza. No
  * son claves publicas: no salen en la ayuda, el autocompletado ni `arcli config`. Se sacan en la 3.0.0.
  */
-const DEPRECATED_CONFIG_KEYS: Readonly<
+export const DEPRECATED_CONFIG_KEYS: Readonly<
   Record<string, { readonly replacement: ConfigPublicKey; readonly warning: string }>
 > = {
   comprobantesPorLista: { replacement: 'filasPorLista', warning: ROWS_PER_LIST_DEPRECATION_WARNING },
