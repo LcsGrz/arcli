@@ -1,0 +1,45 @@
+/* Con IA: la conversación de ejemplo, con marco como los GIF */
+.sl-markdown-content .arcli-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 1.25rem 0;
+  padding: 1.1rem 1.2rem;
+  border: 1px solid var(--arcli-term-line);
+  border-radius: 0.75rem;
+  background: var(--arcli-term-bg);
+  box-shadow: var(--arcli-shadow-glow);
+}
+
+.sl-markdown-content .arcli-msg {
+  max-width: 85%;
+  margin: 0;
+  padding: 0.55rem 0.8rem;
+  border-radius: 0.6rem;
+  color: var(--arcli-term-fg);
+  font-size: var(--sl-text-sm);
+}
+
+.arcli-msg .who {
+  display: block;
+  margin-bottom: 0.15rem;
+  color: var(--arcli-term-fg-soft);
+  font: 600 0.68rem / 1.4 var(--sl-font-system-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.arcli-msg.user {
+  align-self: flex-end;
+  background: var(--arcli-term-user);
+}
+
+.arcli-msg.bot {
+  align-self: flex-start;
+  border: 1px solid var(--arcli-term-line);
+  background: var(--arcli-term-raised);
+}
+
+.arcli-msg strong {
+  color: var(--arcli-term-strong);
+}

@@ -1,0 +1,74 @@
+/* Pestañas (Windows, macOS, Linux): el mismo espacio arriba y abajo, y las listas numeradas de una pestaña como pasos */
+.sl-markdown-content .arcli-tabs {
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.6rem;
+  overflow: hidden;
+}
+
+.sl-markdown-content .arcli-tabs [role='tablist'] {
+  display: flex;
+  margin: 0;
+  border-bottom: 1px solid var(--sl-color-gray-5);
+  background: var(--sl-color-gray-6);
+}
+
+.arcli-tabs [role='tab'] {
+  padding: 0.65rem 1rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--sl-color-gray-3);
+  font: inherit;
+  cursor: pointer;
+}
+
+.sl-markdown-content .arcli-tabs [role='tab'] {
+  margin: 0;
+  font-size: var(--sl-text-sm);
+}
+
+.arcli-tabs [role='tab'][aria-selected='true'] {
+  border-bottom-color: var(--arcli-celeste);
+  color: var(--sl-color-white);
+}
+
+.sl-markdown-content .arcli-tabs [role='tabpanel'] {
+  margin: 0;
+  padding: 1.5rem 1.25rem;
+}
+
+.arcli-tabs [role='tabpanel'][hidden] {
+  display: none;
+}
+
+.sl-markdown-content .arcli-tabs ol {
+  padding: 0;
+  list-style: none;
+  counter-reset: paso;
+}
+
+.sl-markdown-content .arcli-tabs ol > li {
+  position: relative;
+  padding: 0.15rem 0 1rem 2.75rem;
+  counter-increment: paso;
+}
+
+.sl-markdown-content .arcli-tabs ol > li:last-child {
+  padding-bottom: 0;
+}
+
+.sl-markdown-content .arcli-tabs ol > li::before {
+  content: counter(paso);
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  place-items: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border: 1px solid color-mix(in srgb, var(--arcli-celeste) 55%, transparent);
+  border-radius: 50%;
+  background: var(--sl-color-accent-low);
+  color: var(--sl-color-text-accent);
+  font: 700 0.85rem / 1 var(--sl-font-mono);
+}

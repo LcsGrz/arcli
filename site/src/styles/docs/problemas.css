@@ -1,0 +1,210 @@
+/* Problemas frecuentes: buscador fijo arriba, la línea arriba de cada tema y un desplegable por problema */
+
+.sl-markdown-content .arcli-faq-search {
+  position: sticky;
+  top: var(--sl-nav-height);
+  z-index: 5;
+  padding: 0.75rem 0;
+  background: var(--sl-color-black);
+}
+
+.sl-markdown-content .arcli-faq-search input {
+  width: 100%;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.6rem;
+  background: var(--sl-color-gray-6);
+  color: var(--sl-color-white);
+  font: inherit;
+}
+
+.sl-markdown-content .arcli-faq-search input:focus {
+  border-color: var(--sl-color-text-accent);
+  outline: none;
+}
+
+.arcli-faq-section[hidden],
+.arcli-faq[hidden] {
+  display: none;
+}
+
+.sl-markdown-content .arcli-faq-section > .sl-heading-wrapper.level-h2 {
+  margin-top: 2.75rem;
+  padding-top: 2.25rem;
+  border-top: 1px solid var(--sl-color-gray-5);
+}
+
+/* El desplegable: el fondo gris también cerrado */
+.sl-markdown-content details.arcli-faq {
+  margin-top: 0.5rem;
+  padding: 0;
+  background: var(--sl-color-gray-6);
+}
+
+.sl-markdown-content details.arcli-faq:not(.not-content *):not(.arcli-more) {
+  --arcli-details-bg: var(--sl-color-gray-6);
+}
+
+/* El título (con su aclaración debajo) ocupa el ancho; la severidad y el "+" quedan en una línea, centrados */
+.sl-markdown-content details.arcli-faq > summary {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1rem;
+  color: var(--sl-color-white);
+  font-size: var(--sl-text-base);
+  font-weight: 500;
+  list-style: none;
+}
+
+.sl-markdown-content details.arcli-faq[open] > summary {
+  border-bottom: 1px solid var(--sl-color-gray-5);
+}
+
+.sl-markdown-content details.arcli-faq > summary::-webkit-details-marker,
+.sl-markdown-content details.arcli-faq > summary::marker {
+  display: none;
+  content: '';
+}
+
+.sl-markdown-content details.arcli-faq > summary::before {
+  display: none;
+}
+
+/* Un "+" a la derecha; con severidad, la severidad va a la derecha y el "+" al lado */
+.sl-markdown-content details.arcli-faq > summary::after {
+  content: '+';
+  flex: none;
+  margin-inline-start: auto;
+  color: var(--sl-color-gray-3);
+  font-size: 1.1rem;
+}
+
+.sl-markdown-content details.arcli-faq[open] > summary::after {
+  content: '−';
+}
+
+.sl-markdown-content details.arcli-faq > summary:has(.sev)::after {
+  margin-inline-start: 0.75rem;
+}
+
+.arcli-faq > summary > .t {
+  flex: 1;
+  min-width: 0;
+}
+
+.arcli-faq .sub {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--sl-color-gray-3);
+  font-size: var(--sl-text-sm);
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+.arcli-faq .sub code {
+  white-space: nowrap;
+}
+
+/* La severidad: un chip (chip.css) con un color sutil según el nivel */
+.arcli-faq .sev {
+  --chip-line: 40%;
+  --chip-fill: 12%;
+  --chip-text: 80%;
+  margin-inline-start: auto;
+  padding: 0.05rem 0.5rem;
+  font: 600 0.68rem / 1.5 var(--sl-font-system-mono);
+  white-space: nowrap;
+}
+
+.arcli-faq > summary > .sev {
+  flex: none;
+}
+
+.arcli-faq .sev-alta {
+  --chip: var(--arcli-rojo);
+}
+
+.arcli-faq .sev-frecuente {
+  --chip: var(--arcli-sol);
+}
+
+.arcli-faq .sev-media {
+  --chip: var(--arcli-celeste);
+}
+
+.arcli-faq .sev-baja {
+  --chip: var(--sl-color-gray-3);
+}
+
+.sl-markdown-content details.arcli-faq > :not(summary) {
+  margin-inline: 1rem;
+}
+
+.sl-markdown-content details.arcli-faq > :last-child {
+  margin-bottom: 0.9rem;
+}
+
+/* Cada problema en dos columnas (Síntoma, Causa, Solución) y las salidas de ARCLI como en la terminal */
+.sl-markdown-content .arcli-faq-row {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr);
+  gap: 1rem;
+  padding: 0.85rem 0;
+  border-top: 1px dashed var(--sl-color-gray-5);
+}
+
+.sl-markdown-content details.arcli-faq > .arcli-faq-row:nth-child(2) {
+  border-top: 0;
+}
+
+.arcli-faq-row > b {
+  color: var(--sl-color-white);
+  font-weight: 600;
+}
+
+.sl-markdown-content .arcli-faq-row > div {
+  display: grid;
+  gap: 0.6rem;
+  min-width: 0;
+  margin: 0;
+}
+
+.sl-markdown-content .arcli-faq-row > div > * {
+  margin: 0;
+}
+
+.sl-markdown-content .arcli-salida {
+  margin: 0;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--arcli-term-red) 45%, transparent);
+  border-radius: 0.5rem;
+  background: var(--arcli-term-bg);
+  color: var(--arcli-term-fg);
+  font: 0.82rem / 1.6 var(--sl-font-mono);
+  white-space: pre-wrap;
+}
+
+.sl-markdown-content .arcli-faq-more {
+  margin: 0;
+  padding: 0.75rem 0 0;
+  border-top: 1px dashed var(--sl-color-gray-5);
+  color: var(--sl-color-gray-3);
+  font-size: var(--sl-text-sm);
+}
+
+.sl-markdown-content .arcli-faq-more > p {
+  margin: 0;
+}
+
+.sl-markdown-content .arcli-faq-more a {
+  color: var(--arcli-celeste);
+}
+
+@media (max-width: 34rem) {
+  .sl-markdown-content .arcli-faq-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.35rem;
+  }
+}

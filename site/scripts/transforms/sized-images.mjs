@@ -1,6 +1,6 @@
 /**
  * Las imagenes llevan su ancho y alto, asi el navegador les reserva el lugar antes de cargarlas y el texto no salta.
- * Mientras cargan se ve un fondo gris (arcli.css). `imageSize(url)` devuelve `{ width, height }` o `null`.
+ * Mientras cargan se ve un fondo gris (styles/docs/contenido.css). `imageSize(url)` devuelve `{ width, height }` o `null`.
  */
 export function sizedImages(text, { imageSize }) {
   return text
