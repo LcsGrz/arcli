@@ -4,6 +4,7 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/arcli"><img src="https://img.shields.io/npm/v/arcli.svg" alt="npm version"></a>
+  <a href="https://www.npmjs.com/package/arcli"><img src="https://img.shields.io/npm/dm/arcli.svg" alt="descargas por mes"></a>
   <a href="https://github.com/LcsGrz/arcli/actions/workflows/ci.yml"><img src="https://github.com/LcsGrz/arcli/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/LcsGrz/arcli/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/arcli.svg" alt="license: MIT"></a>
 </p>
@@ -14,51 +15,41 @@ Emití facturas, consultá comprobantes y automatizá tu facturación con comand
 
 **Gratis. De código abierto. Sin entrar al portal de ARCA.**
 
+<p align="center"><a href="https://arcli.com.ar/">Sitio</a> · <a href="https://arcli.com.ar/empezar/instalar/">Empezar</a> · <a href="https://arcli.com.ar/uso/asistente/">Formas de uso</a> · <a href="https://arcli.com.ar/uso/con-ia/">Con IA</a> · <a href="https://arcli.com.ar/ayuda/novedades/">Novedades</a></p>
+
 <p align="center"><img src="https://raw.githubusercontent.com/LcsGrz/arcli/main/docs/assets/demo/interactivo.gif" alt="Modo interactivo de arcli emitiendo una Factura C en testing" width="760"></p>
 
-## Empezar sin saber de terminal
+<p align="center"><sub>ARCLI es un proyecto independiente, no es de ARCA. Usa los web services oficiales de ARCA con tu propio certificado.</sub></p>
 
-Si usás un asistente de IA que puede manejar tu computadora (Claude, ChatGPT, Gemini, Copilot…), copiale el prompt de [Instalar o actualizar con IA](#instalar-o-actualizar-con-ia): hace los pasos 1 a 3 por vos. Si no, son estos:
+## Elegí cómo usarlo
+
+| Si querés…                              | Usá                                                          | Así                                           |
+| --------------------------------------- | ------------------------------------------------------------ | --------------------------------------------- |
+| Que te guíe paso a paso                 | el [asistente](https://arcli.com.ar/uso/asistente/)          | `arcli`                                       |
+| Facturar en una línea o desde un script | [comandos](https://arcli.com.ar/uso/comandos/)               | `arcli fc -m 15000 --cs --cfinal`             |
+| Pedírselo a tu IA                       | [Claude, ChatGPT, Gemini…](https://arcli.com.ar/uso/con-ia/) | "Facturale $ 15.000 a Juan, consumidor final" |
+
+## Qué facturás
+
+| Si sos…               | Comprobantes                                                |
+| --------------------- | ----------------------------------------------------------- |
+| Monotributista        | Factura, notas de crédito y débito C, y Recibo C            |
+| Responsable inscripto | A y B con sus notas, y Factura de Crédito Electrónica (FCE) |
+| Exportador            | Factura de exportación E y sus notas                        |
+
+Cada comprobante tiene su página en [arcli.com.ar](https://arcli.com.ar/comprobantes/cual-me-toca/), con cuál te toca y cómo emitirlo.
+
+## Empezar
 
 1. Instalá Node.js 22.22.1 o superior desde [nodejs.org](https://nodejs.org/es/download) (la versión LTS).
 2. Abrí la terminal (en Mac: Cmd+Espacio y escribí "Terminal"; en Windows: menú Inicio y escribí "PowerShell") y pegá `npm install -g arcli`.
 3. Pegá `arcli acceso-directo`: deja un ícono de ARCLI en el escritorio.
 4. Abrí ARCLI con doble clic en el ícono y seguí la configuración guiada. Desde ahí sacás el certificado de ARCA y emitís tu primera factura de prueba en testing, sin validez fiscal.
 
-## Características
+<details>
+<summary>Que lo instale tu IA (Claude, ChatGPT, Gemini, Copilot…)</summary>
 
-- **Modo interactivo:** `arcli` sin argumentos abre un asistente que guía la emisión, repite facturas anteriores, arma notas de crédito y débito, consulta comprobantes y configura el CLI. Cada paso muestra el comando equivalente.
-- **Vista previa por defecto:** sin `--emitir`, muestra la solicitud y, en una terminal, pregunta antes de emitir.
-- **Comprobantes:** Factura, Nota de Crédito y Nota de Débito A, B y C; sus versiones de Factura de Crédito Electrónica (FCE), con CBU, transferencia, anulación y consulta del régimen del receptor; y Recibo C.
-- **Factura de exportación E y sus notas:** `arcli fe` emite con WSFEX, con cliente y país de destino, incoterm, ítems detallados y permisos de embarque, y `arcli nce` / `arcli nde` la ajustan tomando sus datos de ARCA; acepta certificado propio con `exportacion.cert.*` / `exportacion.key.*`.
-- **Entrada y salida flexibles:** flags o JSON (incluso lotes); salida legible, `--json` o respuesta bruta de ARCA.
-- **Validaciones locales** basadas en el manual de ARCA, para detectar errores antes de llamar al servicio.
-- **Consultas sin emitir:** últimos comprobantes, detalle de uno, estado de los servidores, tablas de parámetros, cotización oficial y padrón de un CUIT.
-- **IVA receptor automático:** con `--cuit` y sin `--ir`, toma la condición IVA del padrón de ARCA.
-- **PDF con el QR de ARCA** mediante un plugin que se descarga solo si lo usás.
-
-## Instalación
-
-Requiere Node.js 22.22.1 o superior. Si no lo tenés, bajá la versión LTS de [nodejs.org](https://nodejs.org/es/download): trae `npm`.
-
-```bash
-npm install -g arcli
-```
-
-También con otros gestores de paquetes:
-
-```bash
-pnpm add -g arcli
-yarn global add arcli   # Yarn 1; Yarn 2 o superior no instala paquetes globales
-```
-
-Para probarlo sin instalar nada: `npx arcli --ayuda`.
-
-Para actualizar, repetí la instalación con `arcli@latest` (por ejemplo, `npm install -g arcli@latest`). Cuando hay una versión nueva, el aviso de ARCLI muestra el comando del gestor con que lo instalaste. Funciona en macOS, Linux y Windows.
-
-### Instalar o actualizar con IA
-
-Copiá esto y pegáselo a tu asistente de IA. Sirve para instalar y para actualizar:
+Si tu asistente de IA puede manejar tu computadora, copiale esto: hace los pasos 1 a 3 por vos. Sirve para instalar y para actualizar.
 
 ```text
 Instalá o actualizá ARCLI en esta computadora. Es un programa para emitir facturas de ARCA: https://www.npmjs.com/package/arcli
@@ -71,17 +62,46 @@ Instalá o actualizá ARCLI en esta computadora. Es un programa para emitir fact
 Si podés ejecutar comandos, hacelo vos; si no, guiame paso a paso, como a alguien que nunca usó la terminal. No toques certificados, claves ni la configuración de ARCLI, y no emitas comprobantes.
 ```
 
-Después abrí ARCLI con doble clic en el ícono y seguí la configuración guiada.
+</details>
 
-Opcional: autocompletado con Tab de comandos, flags y valores, en bash, zsh o fish. Se instala con `arcli completado instalar` y se saca con `arcli completado desinstalar` ([detalle](docs/cli-reference.md#autocompletado)).
+<details>
+<summary>Con pnpm, yarn o sin instalar (npx)</summary>
 
-Opcional: un ícono para abrir ARCLI con doble clic, con `arcli acceso-directo` ([detalle](docs/cli-reference.md#acceso-directo)).
+```bash
+pnpm add -g arcli
+yarn global add arcli   # Yarn 1; Yarn 2 o superior no instala paquetes globales
+npx arcli@latest --ayuda   # probarlo sin instalar nada
+```
 
-## Configuración
+Para actualizar, repetí la instalación con `arcli@latest` (por ejemplo, `npm install -g arcli@latest`); cuando hay una versión nueva, ARCLI te avisa con el comando de tu gestor. Funciona en macOS, Linux y Windows.
 
-Necesitás tu CUIT, un punto de venta y un certificado con su clave privada de ARCA. Si todavía no tenés el certificado, `arcli certificado generar` arma el pedido para ARCA y `arcli certificado importar` carga el que te devuelve; el paso a paso está en [Cómo obtener los certificados](https://github.com/LcsGrz/arcli/blob/main/docs/obtencion-certificados.md).
+Opcional: [autocompletado](https://arcli.com.ar/referencia/comandos-completo/#autocompletado) con Tab en bash, zsh o fish (`arcli completado instalar`) y el [acceso directo](https://arcli.com.ar/referencia/comandos-completo/#acceso-directo) del escritorio (`arcli acceso-directo`).
 
-Lo más simple es correr `arcli` y seguir la configuración guiada. Para hacerlo por comandos (por ejemplo, en un servidor):
+</details>
+
+## Qué trae
+
+- **Vista previa siempre primero:** nada se emite sin `--emitir` o tu confirmación.
+- **Validaciones antes de ir a ARCA,** con el motivo y cómo arreglarlo.
+- **Consultas sin emitir:** tus comprobantes, el padrón de un CUIT, la cotización y el estado de ARCA.
+- **PDF con el QR de ARCA,** al confirmar la emisión.
+- **Lotes y JSON para automatizar,** con una salida `--json` estable.
+- **Repetir una factura anterior** desde el asistente.
+
+## Seguridad
+
+- **Arranca en testing,** sin validez fiscal. Producción la elegís vos.
+- **Tu certificado y tu clave quedan en tu computadora,** y tus comprobantes solo van a ARCA. Aparte, ARCLI consulta npm y GitHub para avisarte de versiones nuevas, y baja el plugin de PDF solo si lo pedís.
+- **Código abierto:** podés revisar todo lo que hace.
+
+## Documentación
+
+Está en [arcli.com.ar](https://arcli.com.ar/), con buscador: [certificados](https://arcli.com.ar/empezar/certificado-testing/), [comprobantes](https://arcli.com.ar/comprobantes/cual-me-toca/), [comandos](https://arcli.com.ar/referencia/comandos/), [configuración](https://arcli.com.ar/referencia/configuracion/), [PDF](https://arcli.com.ar/mas/pdf/) y [problemas frecuentes](https://arcli.com.ar/ayuda/problemas-frecuentes/). Para agentes de IA con acceso a la terminal, [llms.txt](https://arcli.com.ar/llms.txt).
+
+<details>
+<summary>Configurar por comandos (servidores)</summary>
+
+Lo más simple es correr `arcli` y seguir la configuración guiada. Sin asistente, por ejemplo en un servidor:
 
 ```bash
 arcli config establecer cuit 20168598204
@@ -92,76 +112,29 @@ arcli certificado importar testing.crt  # carga el certificado que te devuelve A
 arcli config revisar
 ```
 
-Esa es la forma recomendada. Si ya tenés el certificado y la clave (por ejemplo, los hiciste con openssl), cargalos directo con `arcli config establecer cert.testing <ruta>` y `arcli config establecer key.testing <ruta>`.
-
-`arcli config revisar` revisa localmente la config de cada entorno (testing y producción): archivos, vencimientos y datos. No prueba el certificado contra ARCA; para eso, `arcli estado`. Todas las claves disponibles están en [Configuración](https://github.com/LcsGrz/arcli/blob/main/docs/configuration.md).
-
-## Uso
-
-```bash
-arcli fc -m 15000 --cs --consumidor-final            # vista previa de una Factura C
-arcli fc -m 15000 --cs --consumidor-final --emitir   # emitir
-arcli fc --cargar ./facturas.json --emitir --json            # lote desde JSON, salida JSON
-arcli fc -m 15000 --cs --consumidor-final --emitir --exportar-pdf
-arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 203 \
-  --actividad 620100 --previsualizar                                        # Factura de exportación E
-```
-
-Otras consultas: `arcli ultimos`, `arcli consultar`, `arcli estado`, `arcli parametros`, `arcli fce-obligado`, `arcli padron`. Para ver todos los comprobantes y ejemplos: `arcli --ayuda` y `arcli ejemplos`.
+Si ya tenés el certificado y la clave, cargalos con `arcli config establecer cert.testing <ruta>` y `key.testing <ruta>`. `arcli config revisar` revisa la config local; `arcli estado` prueba la conexión con ARCA. Los valores se toman en orden `flags > JSON > config > defaults`. Más en [Cómo funciona](https://arcli.com.ar/empezar/como-funciona/) y [Configuración](https://arcli.com.ar/referencia/configuracion/).
 
 <p align="center"><img src="https://raw.githubusercontent.com/LcsGrz/arcli/main/docs/assets/demo/comandos.gif" alt="Vista previa de una Factura C y emisión con salida JSON filtrada con jq" width="760"></p>
 
-La prioridad de los valores es `flags > JSON > config > defaults`. Ver el [modelo mental](https://github.com/LcsGrz/arcli/blob/main/docs/mental-model.md) y la [referencia del CLI](https://github.com/LcsGrz/arcli/blob/main/docs/cli-reference.md).
+</details>
 
-### Testing y producción
+<details>
+<summary>Testing, producción y estabilidad</summary>
 
-Por defecto se usa el entorno `testing`, con `cert.testing` y `key.testing`. Para emitir en producción hay que configurar `cert.produccion` y `key.produccion` y pasar `--produccion` (o guardar `entorno produccion`; en el asistente, Configuración → Modificar configuración → Entorno). Con la config por defecto, además hace falta `--emitir` o confirmar la pregunta.
+Por defecto se usa `testing`, con `cert.testing` y `key.testing`. Para producción configurá `cert.produccion` y `key.produccion` y pasá `--produccion` (o guardá `entorno produccion`). Con la config por defecto, además hace falta `--emitir` o confirmar. Ver [Cambiar de entorno](https://arcli.com.ar/empezar/entornos/).
 
-## Documentación
+ARCLI usa [versionado semántico](https://semver.org/lang/es/): los comandos y sus flags, las claves de configuración y el JSON de entrada (`--cargar`) y salida (`--json`), con sus `codigo` de error, solo cambian de forma incompatible en una versión mayor, avisado en el [CHANGELOG](https://github.com/LcsGrz/arcli/blob/main/CHANGELOG.md). La salida en texto puede cambiar en cualquier versión: para scripts, usá `--json`.
 
-Está en el [sitio de documentación](https://arcli.com.ar/), con buscador, y el índice completo en [docs/](https://github.com/LcsGrz/arcli/blob/main/docs/README.md). Lo principal:
+</details>
 
-- [Modo interactivo](https://github.com/LcsGrz/arcli/blob/main/docs/modo-interactivo.md) y los [comprobantes por perfil](https://github.com/LcsGrz/arcli/blob/main/docs/README.md#comprobantes)
-- [Referencia del CLI](https://github.com/LcsGrz/arcli/blob/main/docs/cli-reference.md) y [Configuración](https://github.com/LcsGrz/arcli/blob/main/docs/configuration.md)
-- [Entrada y salida](https://github.com/LcsGrz/arcli/blob/main/docs/input-output.md): formato del JSON
-- [PDF de comprobantes](https://github.com/LcsGrz/arcli/blob/main/docs/pdf.md)
-- [Cómo obtener los certificados](https://github.com/LcsGrz/arcli/blob/main/docs/obtencion-certificados.md)
-- [Troubleshooting](https://github.com/LcsGrz/arcli/blob/main/docs/troubleshooting.md), [Reglas de validación](https://github.com/LcsGrz/arcli/blob/main/docs/validation-rules.md) y [Limitaciones](https://github.com/LcsGrz/arcli/blob/main/docs/limitations.md)
-- [llms.txt](llms.txt): referencia condensada para agentes de IA con acceso a terminal
-- [Changelog](CHANGELOG.md)
+## Comunidad
 
-## Desarrollo
+- **Dudas de uso:** [GitHub Discussions](https://github.com/LcsGrz/arcli/discussions).
+- **Bugs y propuestas:** [issues](https://github.com/LcsGrz/arcli/issues/new/choose), con las plantillas.
+- **Vulnerabilidades:** en privado, como dice [SECURITY.md](https://github.com/LcsGrz/arcli/blob/main/SECURITY.md).
+- **Colaborar:** [CONTRIBUTING.md](https://github.com/LcsGrz/arcli/blob/main/CONTRIBUTING.md).
 
-```bash
-git clone https://github.com/LcsGrz/arcli.git
-cd arcli
-yarn install
-yarn dev --ayuda
-```
-
-Antes de abrir un PR: `yarn typecheck`, `yarn lint` y `yarn test`. Más en la [guía de desarrollo](https://github.com/LcsGrz/arcli/blob/main/docs/development.md) y la [arquitectura](https://github.com/LcsGrz/arcli/blob/main/docs/architecture.md).
-
-## Ayuda y soporte
-
-- **Preguntas y dudas de uso** (configuración, certificados, cómo facturar algo): [GitHub Discussions](https://github.com/LcsGrz/arcli/discussions).
-- **Bugs y propuestas**: [issues](https://github.com/LcsGrz/arcli/issues/new/choose), con las plantillas.
-- **Vulnerabilidades**: en privado, como dice [SECURITY.md](https://github.com/LcsGrz/arcli/blob/main/SECURITY.md).
-
-Antes de preguntar, puede que ya esté en [Troubleshooting](https://github.com/LcsGrz/arcli/blob/main/docs/troubleshooting.md). No pegues certificados, claves, tickets ni la salida de `--bruto` en ningún lado.
-
-## Estabilidad
-
-ARCLI usa [versionado semántico](https://semver.org/lang/es/). Son contrato público, y solo cambian de forma incompatible en una versión mayor y avisándolo en el [CHANGELOG](https://github.com/LcsGrz/arcli/blob/main/CHANGELOG.md):
-
-- los comandos y sus flags,
-- las claves de configuración,
-- el JSON de entrada (`--cargar`) y de salida (`--json`), incluidos los `codigo` de error.
-
-La salida en texto (tablas, mensajes, colores) es para leer, no para parsear, y puede cambiar en cualquier versión. Para scripts, usá `--json`.
-
-## Contribuir
-
-Leé [CONTRIBUTING.md](https://github.com/LcsGrz/arcli/blob/main/CONTRIBUTING.md) y el [código de conducta](https://github.com/LcsGrz/arcli/blob/main/CODE_OF_CONDUCT.md). Para vulnerabilidades, ver [SECURITY.md](https://github.com/LcsGrz/arcli/blob/main/SECURITY.md); no subas certificados, claves ni tokens reales a issues ni PRs.
+No pegues certificados, claves, tickets ni la salida de `--bruto` en ningún lado. Si te sirve, dejale una estrella o invitame un [Cafecito](https://cafecito.app/lcsgrz).
 
 ## Agradecimientos
 
@@ -171,8 +144,6 @@ Leé [CONTRIBUTING.md](https://github.com/LcsGrz/arcli/blob/main/CONTRIBUTING.md
 - [Guillermo Britos](https://github.com/guillermobr), por el Recibo C.
 - [Kevin Tea](https://github.com/kevintea), por la condición de venta en el PDF.
 
-Si el proyecto te resulta útil, podés dejar una estrella o invitarme un [Cafecito](https://cafecito.app/lcsgrz).
-
 ## Licencia
 
-MIT © [LcsGrz](https://github.com/LcsGrz). Ver [LICENSE](LICENSE).
+MIT © [LcsGrz](https://github.com/LcsGrz). Ver [LICENSE](https://github.com/LcsGrz/arcli/blob/main/LICENSE).

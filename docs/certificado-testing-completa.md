@@ -165,7 +165,7 @@ arcli estado --testing
 
 ## Siguiente paso
 
-Configurá el CUIT y el punto de venta, o corré `arcli` para la [configuración guiada](../README.md#configuración), y emití tu primera factura en testing. Cuando quieras facturar de verdad: [certificado de producción](certificado-produccion-completa.md) y [cambiar de entorno](entornos.md).
+Configurá el CUIT y el punto de venta, o corré `arcli` para la [configuración guiada](instalar.md#configurar), y emití tu primera factura en testing. Cuando quieras facturar de verdad: [certificado de producción](certificado-produccion-completa.md) y [cambiar de entorno](entornos.md).
 
 ---
 

@@ -261,7 +261,7 @@ No son claves de config. Las de color, `FORCE_HYPERLINK` y `ARCLI_ASCII` cambian
 
 ## Qué conviene guardar
 
-Guardá en config lo que se repite en el uso diario: `cuit`, `puntoVenta`, `concepto`, `ivaReceptor`, `cbu` (si emitís facturas FCE) y `alicuota` (si casi siempre facturás con una alícuota distinta de 21%). Un flag siempre pisa lo guardado. Para una configuración inicial, ver [Configuración](../README.md#configuración).
+Guardá en config lo que se repite en el uso diario: `cuit`, `puntoVenta`, `concepto`, `ivaReceptor`, `cbu` (si emitís facturas FCE) y `alicuota` (si casi siempre facturás con una alícuota distinta de 21%). Un flag siempre pisa lo guardado. Para una configuración inicial, ver [Configurar](instalar.md#configurar).
 
 ## Advertencias
 

@@ -16,7 +16,7 @@ Le pedís la factura a tu asistente de IA en tus palabras. El asistente usa ARCL
 
 ## Qué necesitás
 
-Un asistente que pueda usar la terminal de tu computadora, como Claude Code, Codex, Gemini CLI o Copilot en VS Code, y ARCLI [instalado y configurado](../../README.md#instalación).
+Un asistente que pueda usar la terminal de tu computadora, como Claude Code, Codex, Gemini CLI o Copilot en VS Code, y ARCLI [instalado y configurado](../instalar.md).
 
 ## Cómo pedirlo
 
