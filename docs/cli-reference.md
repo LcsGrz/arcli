@@ -455,7 +455,7 @@ Las notas heredan todo lo de una factura, pero suman una regla importante: **sie
 #### Diferencias clave con facturas
 
 - siempre requieren asociado: una factura puntual (`--ac`…) o un período (`--periodo-desde` y `--periodo-hasta`)
-- el asociado debe ser una factura compatible o, en notas C, un Recibo C (`--ac rc`)
+- el asociado debe ser una factura compatible, otra nota de la misma letra (`--ac ndc`, `--ac nca`…) o, en notas C, un Recibo C (`--ac rc`)
 - la letra del asociado debe coincidir con la de la nota
 - `--ac` y `--at` son excluyentes
 

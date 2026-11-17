@@ -82,6 +82,17 @@ export function assertCreditNoteWithinAssociated(options: {
   }
 }
 
+/** Si el total del asociado es tope de la nota: solo en una NC y, como en la E, no si ajusta otra NC. */
+function capsCreditNote(voucherKind: VoucherKindDefinition, associatedArcaType: number | undefined): boolean {
+  const associatedFamily =
+    associatedArcaType === undefined ? undefined : getVoucherKindByArcaType(associatedArcaType)?.family;
+
+  return (
+    CREDIT_NOTE_FAMILIES.has(voucherKind.family) &&
+    (associatedFamily === undefined || !CREDIT_NOTE_FAMILIES.has(associatedFamily))
+  );
+}
+
 /**
  * Si hay que consultar el asociado en ARCA antes de emitir la nota: para el tope de una NC y para la fecha de una
  * nota FCE sin `--afecha`. Solo se consultan comprobantes propios; el de otro CUIT no se puede leer.
@@ -102,8 +113,10 @@ function shouldLookUpAssociated(
   }
 
   const needsDate = voucherKind.isElectronicCredit && !associated.fecha;
+  const associatedType =
+    associated.tipo ?? (associated.shortcut ? getVoucherKindByShortcut(associated.shortcut)?.arcaType : undefined);
 
-  return needsDate || CREDIT_NOTE_FAMILIES.has(voucherKind.family);
+  return needsDate || capsCreditNote(voucherKind, associatedType);
 }
 
 export interface CheckedAssociated {
@@ -178,7 +191,7 @@ export async function checkAssociatedInArca(options: {
     return unchanged;
   }
 
-  if (CREDIT_NOTE_FAMILIES.has(voucherKind.family)) {
+  if (capsCreditNote(voucherKind, reference.Tipo)) {
     assertCreditNoteWithinAssociated({
       associated: voucher,
       associatedLabel: label,

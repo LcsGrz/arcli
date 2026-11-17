@@ -8,6 +8,12 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+### Agregado
+
+- **Notas sobre otras notas en A, B y C:** una nota de crédito o débito puede ajustar otra nota de la misma letra, como permite ARCA (regla 10040): `arcli ncc --ac ndc …`, `arcli nda --ac nca …`. Antes era un error de validación. Una nota de crédito sobre una de débito tiene como tope el total de esa nota; sobre otra nota de crédito no hay tope, como en la `E`. El Recibo C sigue siendo asociado válido de las notas C.
+- **Notas FCE sobre otras notas FCE, con `--anulacion`:** con anulación, la nota de crédito FCE puede ajustar la factura o una nota de débito FCE, y la nota de débito FCE solo una nota de crédito FCE. Sin anulación, el asociado sigue siendo solo la factura FCE. ARCLI ahora lo valida antes de ir a ARCA, con la sugerencia de sumar o sacar `--anulacion`: una nota de débito FCE con `--anulacion` sobre la factura, que ARCA rechazaba, ahora frena antes con `INPUT_VALIDATION_ERROR`.
+- **Notas en el selector del modo interactivo:** en las notas de crédito y débito, "¿Sobre qué comprobante?" muestra también las notas de cada letra que se pueden ajustar y las notas de exportación `E`. La pregunta "¿La nota va sobre la factura E o sobre otra nota E?" ya no está: se elige en ese selector. En FCE, la anulación se completa sola cuando el asociado la define, y solo se pregunta en una nota de crédito sobre la factura.
+
 ### Corregido
 
 - **`29/2` sin año cerca de un bisiesto:** el año se elegía sin mirar si ese 29/02 existía, así que el 1/9/2028 `--fecha 29/2` (o `--vto`, `--sd`, `--sh`) daba "no es válida" en lugar de tomar el 29/02/2028. Ahora solo cuentan los años donde la fecha existe. No cambia ninguna otra fecha.
