@@ -8,6 +8,21 @@ import { defineConfig } from 'astro/config';
 const sidebarFile = new URL('./src/generated/sidebar.json', import.meta.url);
 const sidebar = existsSync(sidebarFile) ? JSON.parse(readFileSync(sidebarFile, 'utf8')) : [];
 
+// Cloudflare Web Analytics (visitas, sin cookies): solo en el build, para no contar `astro dev`. El token es público.
+const analytics = process.argv.includes('dev')
+  ? []
+  : [
+      {
+        attrs: {
+          'data-cf-beacon': '{"token": "b33b6130f08f4210bea678e343d87d24"}',
+          defer: true,
+          src: 'https://static.cloudflareinsights.com/beacon.min.js',
+          type: 'module',
+        },
+        tag: 'script',
+      },
+    ];
+
 // El sitio vive en la raiz de arcli.com.ar, sin `base`: los links de scripts/sync-docs.mjs empiezan en `/`.
 export default defineConfig({
   integrations: [
@@ -50,6 +65,7 @@ export default defineConfig({
           attrs: { content: 'https://arcli.com.ar/assets/imagenes/social-preview.png', property: 'og:image' },
           tag: 'meta',
         },
+        ...analytics,
       ],
       // Bloques de código como en la maqueta: título ("Terminal") y "Copiar", sin los tres puntos de la ventana.
       expressiveCode: {

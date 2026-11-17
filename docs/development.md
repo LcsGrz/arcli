@@ -187,7 +187,7 @@ Lo que en el sitio se ve distinto que en GitHub se marca en `docs/` con un comen
 
 Además, Problemas frecuentes pasa cada problema a un desplegable con buscador y Novedades pliega las versiones viejas. Las páginas con `hidden: true` en `PAGES` (las guías completas) se generan pero no van en el menú: se llega desde el link de su versión corta. El menú y sus iconos salen de `PAGES` (`src/generated/sidebar.json`), y el comportamiento de esas páginas está en `site/public/arcli.js`.
 
-El sitio también publica `robots.txt` (permite todo y apunta a `sitemap-index.xml`, que arma Starlight), `site.webmanifest` y los íconos de respaldo del favicon (ver [Ícono](#imágenes-y-gif-del-readme)); esos están en `site/public/` y se commitean.
+El sitio también publica `robots.txt` (permite todo y apunta a `sitemap-index.xml`, que arma Starlight), `site.webmanifest` y los íconos de respaldo del favicon (ver [Ícono](#imágenes-y-gif-del-readme)); esos están en `site/public/` y se commitean. Las visitas se cuentan con Cloudflare Web Analytics (sin cookies): el script va en `head` de `astro.config.mjs` y solo sale en el build, no en `yarn dev`.
 
 Para asistentes de IA, el build publica en la raíz del sitio `llms.txt` (el mismo del repo), `llms-full.txt` (todas las páginas juntas) y cada página en Markdown (`/referencia/comandos.md`).
 
