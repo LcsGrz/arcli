@@ -7,6 +7,7 @@ import {
   CHANGELOG_PAGE_URL,
   DOCS_SITE_URL,
   POINT_OF_SALE_GUIDE_URL,
+  PRODUCTION_RENEWAL_GUIDE_URL,
   TROUBLESHOOTING_URL,
 } from '../links';
 
@@ -14,6 +15,7 @@ import {
 const PAGE_SOURCES: Record<string, string> = {
   '/ayuda/novedades/': 'CHANGELOG.md',
   '/ayuda/problemas-frecuentes/': 'docs/troubleshooting.md',
+  '/empezar/certificado-produccion/': 'docs/certificado-produccion.md',
   '/empezar/certificado-produccion-completo/': 'docs/certificado-produccion-completa.md',
   '/empezar/certificado-testing/': 'docs/certificado-testing.md',
 };
@@ -34,6 +36,7 @@ describe('links del CLI al sitio', () => {
   it.each([
     ['certificado', CERTIFICATE_GUIDE_URL],
     ['qué servicios autorizar', `${CERTIFICATE_GUIDE_URL}#qué-servicios-autorizar`],
+    ['renovar en producción', PRODUCTION_RENEWAL_GUIDE_URL],
     ['punto de venta', POINT_OF_SALE_GUIDE_URL],
     ['problemas frecuentes', TROUBLESHOOTING_URL],
     ['novedades', CHANGELOG_PAGE_URL],
