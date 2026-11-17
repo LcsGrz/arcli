@@ -1,0 +1,57 @@
+$ arcli ncc -m 1000 --cs --cfinal --ac fc --apv 3 --ar 12 --acuit 20111111112 --emitir --json
+exit: 0
+--- stdout ---
+
+{
+  "atajo": "ncc",
+  "avisos": [],
+  "cae": "76463926585341",
+  "caeVencimiento": "20261127",
+  "comprobante": "Nota de crédito C",
+  "entorno": "testing",
+  "errores": [],
+  "estado": "aprobado",
+  "eventos": [],
+  "observaciones": [],
+  "observacion": null,
+  "numero": 42,
+  "puntoVenta": 3,
+  "solicitud": {
+    "CantReg": 1,
+    "CbteFch": "20261117",
+    "CbteTipo": 13,
+    "Concepto": 2,
+    "CondicionIVAReceptorId": 5,
+    "DocTipo": 99,
+    "FchServDesde": "20261117",
+    "FchServHasta": "20261117",
+    "FchVtoPago": "20261117",
+    "ImpIVA": 0,
+    "ImpNeto": 1000,
+    "ImpOpEx": 0,
+    "ImpTotConc": 0,
+    "ImpTotal": 1000,
+    "ImpTrib": 0,
+    "MonCotiz": 1,
+    "MonId": "PES",
+    "PtoVta": 3,
+    "DocNro": 0,
+    "CbtesAsoc": [
+      {
+        "Cuit": "20111111112",
+        "Nro": 12,
+        "PtoVta": 3,
+        "Tipo": 11
+      }
+    ],
+    "CbteDesde": 42,
+    "CbteHasta": 42
+  },
+  "previsualizacion": false,
+  "resultado": "A",
+  "sugerencias": [],
+  "tipoArca": 13
+}
+
+
+--- stderr ---

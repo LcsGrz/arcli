@@ -1,0 +1,33 @@
+$ arcli parametros cotizacion USD --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "ARCA_QUOTATION_ERROR",
+  "detalles": {
+    "deprecado": [
+      "`detalles.errors` se saca en la 3.0.0: usá `detalles.errores`."
+    ],
+    "errores": [
+      {
+        "code": 600,
+        "msg": "ValidacionDeToken: No aparecio CUIT.",
+        "codigo": 600,
+        "mensaje": "ValidacionDeToken: No aparecio CUIT."
+      }
+    ],
+    "errors": {
+      "err": [
+        {
+          "code": 600,
+          "msg": "ValidacionDeToken: No aparecio CUIT."
+        }
+      ]
+    }
+  },
+  "error": "ARCA no devolvió una cotización para USD.",
+  "sugerencia": null
+}
+

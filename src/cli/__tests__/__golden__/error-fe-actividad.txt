@@ -1,0 +1,13 @@
+$ arcli fe --cliente ACME LLC --domicilio-cliente 123 Main St --pais-destino 212 -m 1500 --item 001|Servicios de consultoría|1|1500|unidad --actividad 620900 --previsualizar --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "INPUT_VALIDATION_ERROR",
+  "detalles": null,
+  "error": "La actividad 620900 no está en la tabla de actividades de WSFEX y ARCA la rechaza (error 2105). Las que empiezan con 620 son 620100. Indicá la que corresponda con `--actividad`.",
+  "sugerencia": null
+}
+

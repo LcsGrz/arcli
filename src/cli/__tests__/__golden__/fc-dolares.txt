@@ -1,0 +1,50 @@
+$ arcli fc -m 1000 --cs --cfinal --mda USD --previsualizar --json
+exit: 0
+--- stdout ---
+
+{
+  "atajo": "fc",
+  "avisos": [
+    "Sin `--cm` se usa la cotización oficial de ARCA para USD (1.452,50). Para usar otra, `--cotizacion-moneda`."
+  ],
+  "cae": null,
+  "caeVencimiento": null,
+  "comprobante": "Factura C",
+  "entorno": "testing",
+  "errores": [],
+  "estado": "previsualizacion",
+  "eventos": [],
+  "observaciones": [],
+  "observacion": null,
+  "numero": null,
+  "puntoVenta": 3,
+  "solicitud": {
+    "CantReg": 1,
+    "CbteFch": "20261117",
+    "CbteTipo": 11,
+    "Concepto": 2,
+    "CondicionIVAReceptorId": 5,
+    "DocTipo": 99,
+    "FchServDesde": "20261117",
+    "FchServHasta": "20261117",
+    "FchVtoPago": "20261117",
+    "ImpIVA": 0,
+    "ImpNeto": 1000,
+    "ImpOpEx": 0,
+    "ImpTotConc": 0,
+    "ImpTotal": 1000,
+    "ImpTrib": 0,
+    "MonCotiz": 1452.5,
+    "MonId": "DOL",
+    "PtoVta": 3,
+    "CanMisMonExt": "N",
+    "DocNro": 0
+  },
+  "previsualizacion": true,
+  "resultado": null,
+  "sugerencias": [],
+  "tipoArca": 11
+}
+
+
+--- stderr ---

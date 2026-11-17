@@ -1,0 +1,13 @@
+$ arcli certificado importar <config>/otro.crt --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "CERTIFICATE_KEY_MISMATCH",
+  "detalles": null,
+  "error": "El certificado no corresponde a ninguna clave de este CUIT.",
+  "sugerencia": "Primero armá el pedido con `arcli certificado generar --testing` y subí ese CSR a ARCA."
+}
+

@@ -1,0 +1,56 @@
+$ arcli fc -m 1000 --cs --cfinal --emitir --exportar-pdf --json
+exit: 0
+--- stdout ---
+
+{
+  "atajo": "fc",
+  "avisos": [],
+  "cae": "76463926585341",
+  "caeVencimiento": "20261127",
+  "comprobante": "Factura C",
+  "entorno": "testing",
+  "errores": [],
+  "estado": "aprobado",
+  "eventos": [],
+  "observaciones": [],
+  "observacion": null,
+  "numero": 42,
+  "puntoVenta": 3,
+  "pdf": {
+    "error": {
+      "codigo": "PDF_ISSUER_INCOMPLETE",
+      "mensaje": "Faltan datos del emisor para el PDF: emisor.razonSocial, emisor.domicilio, emisor.inicioActividades.",
+      "sugerencia": "Configuralos una vez con:\narcli config establecer emisor.razonSocial \"Tu Nombre o Empresa\"\narcli config establecer emisor.domicilio \"Calle 123, Ciudad\"\narcli config establecer emisor.inicioActividades 1/03/2020"
+    }
+  },
+  "solicitud": {
+    "CantReg": 1,
+    "CbteFch": "20261117",
+    "CbteTipo": 11,
+    "Concepto": 2,
+    "CondicionIVAReceptorId": 5,
+    "DocTipo": 99,
+    "FchServDesde": "20261117",
+    "FchServHasta": "20261117",
+    "FchVtoPago": "20261117",
+    "ImpIVA": 0,
+    "ImpNeto": 1000,
+    "ImpOpEx": 0,
+    "ImpTotConc": 0,
+    "ImpTotal": 1000,
+    "ImpTrib": 0,
+    "MonCotiz": 1,
+    "MonId": "PES",
+    "PtoVta": 3,
+    "DocNro": 0,
+    "CbteDesde": 42,
+    "CbteHasta": 42
+  },
+  "previsualizacion": false,
+  "resultado": "A",
+  "sugerencias": [],
+  "tipoArca": 11
+}
+
+
+--- stderr ---

@@ -1,0 +1,13 @@
+$ arcli fc --monto abc --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "INPUT_VALIDATION_ERROR",
+  "detalles": null,
+  "error": "`--monto` \"abc\" no es válido: usá punto para miles y coma para decimales, por ejemplo 15000, 15.000 o 1.500,50.",
+  "sugerencia": null
+}
+

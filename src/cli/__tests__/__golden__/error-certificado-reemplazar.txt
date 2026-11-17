@@ -1,0 +1,13 @@
+$ arcli certificado importar <config>/nuevo.crt --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "CERTIFICATE_REPLACE_CONFIRMATION",
+  "detalles": null,
+  "error": "Ya hay un certificado de testing configurado: .../config/testing.crt.",
+  "sugerencia": "Para reemplazarlo, sumá `--reemplazar`."
+}
+

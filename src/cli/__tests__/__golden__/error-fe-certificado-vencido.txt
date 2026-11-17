@@ -1,0 +1,16 @@
+$ arcli fe --cliente ACME LLC --domicilio-cliente 123 Main St --pais-destino 212 -m 1500 --item 001|Servicios de consultoría|1|1500|unidad --previsualizar --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "CERTIFICATE_EXPIRED",
+  "detalles": {
+    "entorno": "testing",
+    "vencimiento": "01/11/2026"
+  },
+  "error": "El certificado de testing venció el 01/11/2026: ARCA no lo acepta.",
+  "sugerencia": "Renovalo con `arcli certificado generar --testing` y cargá el .crt de ARCA con `arcli certificado importar <archivo>`. Guía: https://arcli.com.ar/empezar/certificado-testing/"
+}
+

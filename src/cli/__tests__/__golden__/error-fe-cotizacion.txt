@@ -1,0 +1,13 @@
+$ arcli fe --cliente ACME LLC --domicilio-cliente 123 Main St --pais-destino 212 -m 1500 --item 001|Servicios de consultoría|1|1500|unidad --previsualizar --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "ARCA_QUOTATION_ERROR",
+  "detalles": null,
+  "error": "ARCA no informó la cotización de DOL para el 17/11/2026. Informá la cotización con --cotizacion-moneda.",
+  "sugerencia": null
+}
+

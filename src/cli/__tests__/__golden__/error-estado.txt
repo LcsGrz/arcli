@@ -1,0 +1,13 @@
+$ arcli estado --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "ARCA_UNAVAILABLE",
+  "detalles": null,
+  "error": "ARCA no respondió: connect ETIMEDOUT",
+  "sugerencia": null
+}
+
