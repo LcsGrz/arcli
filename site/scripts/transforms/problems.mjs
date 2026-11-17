@@ -37,6 +37,11 @@ function arcliMessages(text) {
   );
 }
 
+/*
+ * El \u0001 de las regex es a propósito: marca dónde estaba cada mensaje citado mientras se reescribe el texto, y no
+ * puede aparecer en el Markdown de las docs.
+ */
+/* eslint-disable no-control-regex */
 /** El texto del síntoma nombra el mensaje que ya muestra el bloque de abajo, en vez de repetirlo. */
 function pointToOutput(text, messages) {
   const marked = text.replace(/`([^`]+)`|"([^"]+)"/g, (quote, code, plain) =>
@@ -63,6 +68,7 @@ function pointToOutput(text, messages) {
 
   return /[.:)!?]$/.test(pointed) ? pointed : `${pointed}.`;
 }
+/* eslint-enable no-control-regex */
 
 /**
  * El cuerpo de un problema en dos columnas: cada `- **Síntoma:**`, `**Causa:**`, `**Solución:**`… es una fila con la

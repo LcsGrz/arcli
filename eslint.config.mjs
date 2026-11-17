@@ -129,6 +129,22 @@ export default defineConfig([
   },
 
   // =========================
+  // Sitio (site/): los scripts de sync-docs corren en Node; los componentes .astro no pasan por ESLint
+  // =========================
+  {
+    files: ['site/scripts/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        AbortSignal: 'readonly',
+        URL: 'readonly',
+        console: 'readonly',
+        fetch: 'readonly',
+        process: 'readonly',
+      },
+    },
+  },
+
+  // =========================
   // JSON, JSONC, JSON5 configs
   // =========================
   {
