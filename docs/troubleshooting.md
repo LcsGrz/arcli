@@ -433,7 +433,7 @@ También se reconocen por el mensaje, sin código: receptor igual al emisor, `Tr
 
 ### Factura E de servicios: la cotización es la del día anterior
 
-- **Severidad:** normal en servicios (`--tipo-expo 2`, el default) y con `--misma-moneda`
+- **Severidad:** frecuente, en servicios (`--tipo-expo 2`, el default) y con `--misma-moneda`
 - **Síntoma:** la vista previa trae la cotización del día anterior a la fecha del comprobante, o un aviso `En servicios ARCA exige la cotización de DOL del día hábil anterior…` con la del último día hábil. Con una versión anterior a la 2.5.2, ARCA rechazaba la `E` de servicios con el error 2053 ("Cotizacion informada no valida. (FechaCot utilizada: …)").
 - **Causa:** en servicios ARCA exige la cotización del día hábil anterior a la fecha de emisión (error 2053), y con `--misma-moneda` también.
 - **Solución:** no hace falta hacer nada: ARCLI ya pide esa. Con `--cotizacion-moneda` en servicios, tiene que ser exactamente esa cotización, o ARCA rechaza con 2053.
