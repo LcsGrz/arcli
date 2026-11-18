@@ -702,24 +702,32 @@ Antes de armar la nota, ARCLI consulta el asociado en ARCA (`FEXGetCMP`) y toma 
 arcli nce -m 500 --ar 1
 ```
 
+En bienes y otros (`--tipo-expo 1` o `4`) el asociado es opcional, por ejemplo para un descuento por volumen sobre varias facturas: sin `--ar` la nota no hereda nada y cliente, domicilio, país de destino y lo demás van por flag, como en `fe`. En servicios, ARCA lo exige (error 2047).
+
+```bash
+arcli nce -m 300 --tipo-expo 1 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 212 \
+  --incoterm FOB --actividad 620100 --descripcion "Descuento por volumen" --previsualizar
+```
+
 #### Comprobante asociado
 
-| Parámetro          | Alias                             | Tipo      | Requerido | Cuándo usarlo                                                                 |
-| ------------------ | --------------------------------- | --------- | --------- | ----------------------------------------------------------------------------- |
-| `--ar <numero>`    | ninguno                           | `integer` | Sí        | Número del comprobante que ajusta la nota                                     |
-| `--apv <numero>`   | `--asociado-punto-venta <numero>` | `integer` | No        | Punto de venta del asociado; por defecto, el de la nota                       |
-| `--ac <atajo>`     | ninguno                           | `string`  | No        | `fe` (por defecto), `nde` o `nce`, para ajustar otra nota `E`                 |
-| `--at <numero>`    | ninguno                           | `integer` | No        | Lo mismo por tipo ARCA: `19`, `20` o `21`                                     |
-| `--acuit <numero>` | ninguno                           | `string`  | No        | No hace falta: el asociado de una `E` siempre es del CUIT emisor (error 2031) |
+| Parámetro          | Alias                             | Tipo      | Requerido   | Cuándo usarlo                                                                                                                         |
+| ------------------ | --------------------------------- | --------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `--ar <numero>`    | ninguno                           | `integer` | Condicional | Número del comprobante que ajusta la nota. Obligatorio en servicios (error 2047); en bienes y otros (`--tipo-expo 1` o `4`), opcional |
+| `--apv <numero>`   | `--asociado-punto-venta <numero>` | `integer` | No          | Punto de venta del asociado; por defecto, el de la nota                                                                               |
+| `--ac <atajo>`     | ninguno                           | `string`  | No          | `fe` (por defecto), `nde` o `nce`, para ajustar otra nota `E`                                                                         |
+| `--at <numero>`    | ninguno                           | `integer` | No          | Lo mismo por tipo ARCA: `19`, `20` o `21`                                                                                             |
+| `--acuit <numero>` | ninguno                           | `string`  | No          | No hace falta: el asociado de una `E` siempre es del CUIT emisor (error 2031)                                                         |
 
 `--afecha` no se usa: la fecha del asociado sale de ARCA.
 
 #### Qué valida antes de emitir
 
+- en servicios, que haya asociado (`--ar`, error 2047);
 - que el asociado exista en ARCA y esté aprobado;
 - que la nota no sea anterior al asociado;
 - que una nota de crédito no supere el total del asociado, si van en la misma moneda;
-- en servicios (`--tipo-expo 2`), lo que ARCA compara contra el asociado: mismo tipo de exportación (2049), mismo país de destino (2050), misma moneda o pesos (2051) y la misma cotización (2053). Además, una nota de débito solo ajusta una factura (2041, 2042) y una nota de crédito, una factura o una nota de débito (2045).
+- si la nota es de servicios (`--tipo-expo 2`), lo que ARCA compara contra el asociado: mismo tipo de exportación (2049), mismo país de destino (2050), misma moneda o pesos (2051) y la misma cotización (2053). Además, una nota de débito solo ajusta una factura (2041, 2042) y una nota de crédito, una factura o una nota de débito (2045).
 
 #### Qué no aplica
 

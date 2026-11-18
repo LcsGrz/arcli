@@ -536,6 +536,40 @@ describe('ExportService.resolve: notas E', () => {
     voucherNumber: 5,
   };
 
+  it('en bienes y otros la nota va sin asociado, con los datos por flag (2047 solo en servicios)', async () => {
+    const gateway = createGateway();
+    const resolved = await service.resolve(
+      {
+        ...INPUT,
+        amount: 500,
+        associatedVoucher: {},
+        exportType: 1,
+        items: undefined,
+        voucherKind: EXPORT_CREDIT_NOTE_KIND,
+        voucherNumber: 5,
+      },
+      gateway,
+      RUNTIME,
+      NOW,
+    );
+
+    expect(gateway.getVoucher).not.toHaveBeenCalled();
+    expect(resolved.payload).not.toHaveProperty('Cmps_asoc');
+    expect(resolved.payload).toMatchObject({ Cbte_Tipo: 21, Cliente: 'ACME LLC', Tipo_expo: 1 });
+  });
+
+  it('en servicios la nota sin `--ar` es error (2047), y con `--ac` sin `--ar` falta el numero', async () => {
+    const gateway = createGateway();
+
+    await expect(
+      service.resolve({ ...NOTE_INPUT, associatedVoucher: undefined }, gateway, RUNTIME, NOW),
+    ).rejects.toThrow(/error 2047/);
+    await expect(
+      service.resolve({ ...NOTE_INPUT, associatedVoucher: { shortcut: 'fe' }, exportType: 1 }, gateway, RUNTIME, NOW),
+    ).rejects.toThrow(/Falta el número del comprobante asociado/);
+    expect(gateway.getVoucher).not.toHaveBeenCalled();
+  });
+
   it('arma la nota con el asociado, sin fecha de pago, CanMisMonExt ni permisos', async () => {
     const gateway = createGateway();
     const resolved = await service.resolve(NOTE_INPUT, gateway, RUNTIME, NOW);

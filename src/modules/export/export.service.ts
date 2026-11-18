@@ -34,6 +34,7 @@ import {
   assertExportNoteFields,
   assertExportNoteMatchesAssociated,
   exportAssociatedVoucherWarnings,
+  exportNoteHasAssociated,
   missingExportAssociatedVoucherError,
   resolveExportAssociatedQuery,
 } from './export.notes';
@@ -227,9 +228,11 @@ export class ExportService {
     assertLocalFields(rawInput, voucherKind);
 
     // La nota completa con su asociado lo que no vino por flag: cliente, destino, moneda, cotizacion, tipo.
-    const associated = isExportNote(voucherKind)
-      ? await fetchAssociated(rawInput, gateway, runtime, voucherKind)
-      : undefined;
+    // Sin asociado (solo en notas de bienes y otros, 2047) la nota lleva todo por flag.
+    const associated =
+      isExportNote(voucherKind) && exportNoteHasAssociated(rawInput, voucherKind)
+        ? await fetchAssociated(rawInput, gateway, runtime, voucherKind)
+        : undefined;
     const input = associated ? applyExportAssociatedDefaults(rawInput, associated.voucher) : rawInput;
     const activityCode = input.activity ?? config.exportacion?.actividad;
 

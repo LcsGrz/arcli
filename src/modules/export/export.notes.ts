@@ -6,6 +6,7 @@ import { formatVoucherSubject, formatVoucherWithArticle } from '../billing/billi
 import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
 
 import {
+  DEFAULT_EXPORT_TYPE,
   EXPORT_CREDIT_NOTE_KIND,
   EXPORT_DEBIT_NOTE_KIND,
   EXPORT_VOUCHER_KIND,
@@ -40,6 +41,45 @@ function describeVoucher(voucher: {
 
 function capitalize(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+function missingAssociatedNumberError(kind: ExportVoucherKind): InputValidationError {
+  return new InputValidationError(
+    `Falta el número del comprobante asociado de ${formatVoucherWithArticle(kind)}. Usá \`--ar <número>\` (y \`--apv\` si es de otro punto de venta).`,
+  );
+}
+
+/**
+ * Si la nota va con comprobante asociado. ARCA lo exige solo en las notas de servicios (2047, WSFEX v3.1.0): en bienes
+ * y otros `Cmps_asoc` no es obligatorio (testing aprobó una NC de bienes sin asociado), por ejemplo para un descuento
+ * por volumen sobre varias facturas. Sin `--ar` la nota no hereda nada: cliente, destino y lo demas van por flag. Con
+ * `--ac`, `--at`, `--apv` o `--acuit` y sin `--ar` es error: falta el numero.
+ */
+export function exportNoteHasAssociated(input: ExportVoucherInput, kind: ExportVoucherKind): boolean {
+  const associated = input.associatedVoucher;
+
+  if (associated?.number !== undefined) {
+    return true;
+  }
+
+  const hasOtherData =
+    associated !== undefined &&
+    (Boolean(associated.shortcut?.trim()) ||
+      associated.arcaType !== undefined ||
+      associated.pointOfSale !== undefined ||
+      Boolean(associated.cuit?.trim()));
+
+  if (hasOtherData) {
+    throw missingAssociatedNumberError(kind);
+  }
+
+  if ((input.exportType ?? DEFAULT_EXPORT_TYPE) === SERVICES_EXPORT_TYPE) {
+    throw new InputValidationError(
+      `${formatVoucherSubject(kind)} de servicios lleva el comprobante asociado: ARCA lo exige (error 2047). Usá \`--ar <número>\`, o \`--tipo-expo 1\` o \`4\` si la nota es de bienes u otros.`,
+    );
+  }
+
+  return false;
 }
 
 /** El tipo del asociado por atajo (`--ac fe`) o por codigo (`--at 19`). Sin ninguno, la factura E. */
@@ -82,9 +122,7 @@ export function resolveExportAssociatedQuery(options: {
   const associatedKind = resolveAssociatedKind(input);
 
   if (input?.number === undefined) {
-    throw new InputValidationError(
-      `Falta el número del comprobante asociado: ${formatVoucherWithArticle(kind)} ajusta una factura E. Usá \`--ar <número>\` (y \`--apv\` si es de otro punto de venta).`,
-    );
+    throw missingAssociatedNumberError(kind);
   }
 
   if (!Number.isInteger(input.number) || input.number < 1) {

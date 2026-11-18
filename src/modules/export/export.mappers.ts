@@ -543,8 +543,9 @@ export function buildExportPayload(input: ExportVoucherInput, resolution: BuildE
 
   const isNote = isExportNote(resolution.voucherKind);
 
-  if (isNote && !resolution.associatedVoucher) {
-    throw new InputValidationError('Falta el comprobante asociado de la nota. Usá `--ar`.');
+  // 2047 (WSFEX v3.1.0): el asociado solo es obligatorio en las notas de servicios.
+  if (isNote && !resolution.associatedVoucher && resolution.exportType === SERVICES_EXPORT_TYPE) {
+    throw new InputValidationError('Falta el comprobante asociado de la nota de servicios (error 2047). Usá `--ar`.');
   }
 
   const permits = resolvePermits(input, resolution.destinationCountry.code, resolution.exportType, isNote);

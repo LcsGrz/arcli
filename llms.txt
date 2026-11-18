@@ -155,7 +155,7 @@ moneda, cotización, idioma, incoterm, forma de pago y actividad salen del asoci
 arcli nce -m 500 --ar 1 --apv 4 --previsualizar --json
 ```
 
-- Asociado: `--ar <n>` (requerido), `--apv <n>` (`--asociado-punto-venta`; por defecto el de la nota),
+- Asociado: `--ar <n>` (requerido en servicios, error 2047; opcional con `--tipo-expo 1` o `4`, y entonces cliente, domicilio, destino y lo demás van por flag), `--apv <n>` (`--asociado-punto-venta`; por defecto el de la nota),
   `--ac <fe|nde|nce>` (por defecto `fe`) o `--at <19|20|21>`. `--acuit` solo puede ser el CUIT emisor;
   `--afecha` no se usa. En `--cargar`: `comprobanteAsociado` `{numero, puntoVenta, atajo|tipo}`.
 - No llevan `--fecha-pago`, `--misma-moneda` ni `--permiso-existente` (en `nce`/`nde` son opción
