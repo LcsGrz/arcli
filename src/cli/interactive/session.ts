@@ -1,3 +1,4 @@
+import { checkFceCancellationInRegistry } from '../../modules/billing/billing.associated-lookup';
 import {
   formatEmissionQuestion,
   formatVoucherWithArticle,
@@ -20,6 +21,7 @@ import { ArcaBillingGateway } from '../../services/arca/arca-billing.gateway';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { ArcaContextResolver, type ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
 import { ArcaFceObligationGateway } from '../../services/arca/arca-fce-obligation.gateway';
+import { ArcaFceRegistryGateway } from '../../services/arca/arca-fce-registry.gateway';
 import { ArcaPadronGateway } from '../../services/arca/arca-padron.gateway';
 import type { Arca } from '../../services/arca/arca-sdk.types';
 import { ArcaVoucherHistoryGateway } from '../../services/arca/arca-voucher-history.gateway';
@@ -171,7 +173,14 @@ export async function previewAndEmit(session: InteractiveSession, rawInput: Bill
   const fceWarnings = runtime.config.verificarFce
     ? await resolveFceWarningsInOrder(service, [input], new ArcaFceObligationGateway(session.arca))
     : [];
-  const warnings = [...prepared.warnings, ...(fceWarnings[0] ?? [])];
+  // Como con flags: una nota FCE de anulacion avisa si el comprador no rechazo el asociado en el Registro.
+  const registryWarnings = await checkFceCancellationInRegistry({
+    gateway: new ArcaFceRegistryGateway(session.arca),
+    input,
+    runtime,
+    service,
+  });
+  const warnings = [...prepared.warnings, ...(fceWarnings[0] ?? []), ...registryWarnings];
   const preview = await service.execute({ gateway: PREVIEW_GATEWAY, input, runtime, warnings });
 
   writeTerminalOutput(formatBillingOutputs([preview], { environment: runtime.environment, raw: false }));

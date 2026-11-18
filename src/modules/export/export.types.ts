@@ -68,6 +68,12 @@ export const EXPORT_TYPE_VALUES: readonly ExportType[] = [1, 2, 4];
 export const EXPORT_TYPES_WITHOUT_PERMITS: readonly ExportType[] = [2, 4];
 
 /**
+ * Solo las facturas de servicios (2) y otros (4) llevan fecha de pago: en las de bienes (1) ARCA la rechaza
+ * (error 1673), igual que en las notas.
+ */
+export const EXPORT_TYPES_WITH_PAYMENT_DATE: readonly ExportType[] = [2, 4];
+
+/**
  * Tipo de exportacion por defecto: la exportacion de servicios no lleva permisos de embarque ni bienes
  * fisicos, asi que es la que menos datos pide. Los bienes van con `--tipo-expo 1`.
  */
@@ -139,7 +145,7 @@ export interface ExportVoucherPayload {
   readonly Domicilio_cliente: string;
   readonly Dst_cmp: number;
   readonly Fecha_cbte: string;
-  /** Solo en la factura: en las notas ARCA lo rechaza (error 1673). */
+  /** Solo en la factura de servicios u otros: en bienes y en las notas ARCA lo rechaza (error 1673). */
   readonly Fecha_pago?: string;
   readonly Forma_pago: string;
   readonly Id: number;

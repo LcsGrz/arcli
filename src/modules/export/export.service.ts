@@ -11,6 +11,7 @@ import { type ArcliConfig, MISSING_CUIT_MESSAGE } from '../config/config.schemas
 import { assertExportItemsTotal, buildExportItems, DEFAULT_EXPORT_ITEM_DESCRIPTION } from './export.items';
 import {
   buildExportPayload,
+  exportTypeTakesPaymentDate,
   resolveExportActivity,
   resolveExportClientCountryCuit,
   resolveExportCurrency,
@@ -281,6 +282,12 @@ export class ExportService {
     // La cotizacion de aduana del dia se publica mas tarde: se emite con la ultima disponible, avisando de que dia es.
     const warnings = [
       ...exportAssociatedVoucherWarnings(rawInput.associatedVoucher),
+      // En las notas `--fecha-pago` es un error (ver `assertExportNoteFields`); en la factura de bienes se ignora.
+      ...(!isExportNote(voucherKind) && input.paymentDate?.trim() && !exportTypeTakesPaymentDate(exportType, false)
+        ? [
+            'La factura E de bienes (`--tipo-expo 1`) no lleva fecha de pago: ARCA la rechaza (error 1673). `--fecha-pago` no se usa.',
+          ]
+        : []),
       ...(quotation?.date && quotation.date !== voucherDate
         ? [
             `ARCA no publicó la cotización de ${quotation.code} del ${formatArcaDateAsArgentineDate(

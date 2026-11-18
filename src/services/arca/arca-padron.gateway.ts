@@ -4,6 +4,8 @@ import { AppError } from '../../lib/errors/app-error';
 import {
   deriveIvaCondition,
   type PadronGateway,
+  parseArcaPeriod,
+  parseMonotributoCategoryLetter,
   type Taxpayer,
   type TaxpayerActivity,
   type TaxpayerTax,
@@ -70,8 +72,13 @@ function readTaxes(...sources: Array<UnknownRecord | undefined>): TaxpayerTax[] 
   );
 }
 
+/**
+ * Las actividades del regimen general y las del monotributo, sin repetir: ARCA informa las mismas en los dos
+ * bloques. Se queda la primera de cada id, en el orden en que vienen.
+ */
 function readActivities(...sources: Array<UnknownRecord | undefined>): TaxpayerActivity[] {
-  return sources.flatMap((source) =>
+  const seen = new Set<number>();
+  const activities = sources.flatMap((source) =>
     asArray(source?.actividad ?? source?.actividadMonotributista).flatMap((item) => {
       const activity = asRecord(item);
       const id = Number(activity?.idActividad);
@@ -79,12 +86,31 @@ function readActivities(...sources: Array<UnknownRecord | undefined>): TaxpayerA
       return Number.isInteger(id) ? [{ description: asText(activity?.descripcionActividad) ?? '', id }] : [];
     }),
   );
+
+  return activities.filter(({ id }) => {
+    if (seen.has(id)) return false;
+
+    seen.add(id);
+
+    return true;
+  });
 }
 
-function readMonotributoCategory(monotributo: UnknownRecord | undefined): string | null {
-  const category = monotributo?.categoriaMonotributo;
+type MonotributoCategory = Pick<
+  Taxpayer,
+  'monotributoCategory' | 'monotributoCategoryLetter' | 'monotributoCategorySince'
+>;
 
-  return asText(category) ?? asText(asRecord(category)?.descripcionCategoria);
+/** ARCA la manda como objeto (`descripcionCategoria`, `periodo`...); el SDK la tipa como texto, y se aceptan los dos. */
+function readMonotributoCategory(monotributo: UnknownRecord | undefined): MonotributoCategory {
+  const category = monotributo?.categoriaMonotributo;
+  const description = asText(category) ?? asText(asRecord(category)?.descripcionCategoria);
+
+  return {
+    monotributoCategory: description,
+    monotributoCategoryLetter: parseMonotributoCategoryLetter(description),
+    monotributoCategorySince: parseArcaPeriod(asRecord(category)?.periodo),
+  };
 }
 
 function readNotices(details: UnknownRecord): string[] {
@@ -111,7 +137,7 @@ export function mapTaxpayerDetails(cuit: number, raw: unknown): Taxpayer {
     cuit,
     ivaCondition: deriveIvaCondition({ monotributo: Boolean(monotributo), taxes }),
     keyStatus: asText(details.estadoClave) ?? asText(general?.estadoClave),
-    monotributoCategory: readMonotributoCategory(monotributo),
+    ...readMonotributoCategory(monotributo),
     name: readName(general),
     notices: readNotices(details),
     personType: readPersonType(details.tipoPersona ?? general?.tipoPersona),

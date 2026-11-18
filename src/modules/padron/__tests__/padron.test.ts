@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { deriveIvaCondition, PADRON_TAX_IDS } from '../padron';
+import { deriveIvaCondition, PADRON_TAX_IDS, parseArcaPeriod, parseMonotributoCategoryLetter } from '../padron';
 import { formatPadronAsJson, formatPadronAsText } from '../padron.presenter';
 
 const tax = (id: number, active = true) => ({ active, description: String(id), id });
@@ -26,6 +26,37 @@ describe('deriveIvaCondition', () => {
   });
 });
 
+describe('parseMonotributoCategoryLetter', () => {
+  it('saca la letra del principio de la descripcion de ARCA', () => {
+    expect(parseMonotributoCategoryLetter('E VENTAS DE COSAS MUEBLES')).toBe('E');
+    expect(parseMonotributoCategoryLetter(' k  locaciones de servicio')).toBe('K');
+    expect(parseMonotributoCategoryLetter('A')).toBe('A');
+  });
+
+  it('sin una letra de A a K sola al principio, no la inventa', () => {
+    expect(parseMonotributoCategoryLetter(null)).toBeNull();
+    expect(parseMonotributoCategoryLetter('')).toBeNull();
+    expect(parseMonotributoCategoryLetter('L VENTAS')).toBeNull();
+    expect(parseMonotributoCategoryLetter('EVENTUAL')).toBeNull();
+    expect(parseMonotributoCategoryLetter('CATEGORIA E')).toBeNull();
+  });
+});
+
+describe('parseArcaPeriod', () => {
+  it('acepta yyyymm como numero o texto', () => {
+    expect(parseArcaPeriod(201309)).toBe('201309');
+    expect(parseArcaPeriod(' 202612 ')).toBe('202612');
+  });
+
+  it('descarta lo que no es un periodo', () => {
+    expect(parseArcaPeriod(undefined)).toBeNull();
+    expect(parseArcaPeriod(202613)).toBeNull();
+    expect(parseArcaPeriod(202600)).toBeNull();
+    expect(parseArcaPeriod('20130901')).toBeNull();
+    expect(parseArcaPeriod('abc')).toBeNull();
+  });
+});
+
 describe('padron presenter', () => {
   const taxpayer = {
     activities: [
@@ -37,6 +68,8 @@ describe('padron presenter', () => {
     ivaCondition: 'responsable-inscripto' as const,
     keyStatus: 'ACTIVO',
     monotributoCategory: null,
+    monotributoCategoryLetter: null,
+    monotributoCategorySince: null,
     name: 'VICTORIA CAROLINA DARIO',
     notices: [],
     personType: 'fisica' as const,
@@ -68,5 +101,54 @@ describe('padron presenter', () => {
     expect(formatPadronAsText({ environment: 'testing', taxpayer: { ...taxpayer, ivaCondition: null } })).toContain(
       'indicala con `--ir`',
     );
+  });
+
+  describe('categoria del monotributo', () => {
+    const monotributista = {
+      ...taxpayer,
+      ivaCondition: 'responsable-monotributo' as const,
+      monotributoCategory: 'E VENTAS DE COSAS MUEBLES',
+      monotributoCategoryLetter: 'E' as const,
+      monotributoCategorySince: '201309',
+    };
+
+    it('en el JSON suma la letra y el periodo sin tocar categoriaMonotributo', () => {
+      expect(JSON.parse(formatPadronAsJson({ environment: 'testing', taxpayer: monotributista }))).toMatchObject({
+        categoriaMonotributo: 'E VENTAS DE COSAS MUEBLES',
+        categoriaMonotributoDesde: '201309',
+        categoriaMonotributoLetra: 'E',
+      });
+    });
+
+    it('en texto muestra la letra aparte y el mes desde el que rige', () => {
+      const text = formatPadronAsText({ environment: 'testing', taxpayer: monotributista });
+
+      expect(text).toMatch(/Categoría monotributo\s+E · VENTAS DE COSAS MUEBLES/);
+      expect(text).toMatch(/Categoría vigente desde\s+09\/2013/);
+    });
+
+    it('si no es monotributista, los campos van en null y no hay filas de categoria', () => {
+      expect(JSON.parse(formatPadronAsJson({ environment: 'testing', taxpayer }))).toMatchObject({
+        categoriaMonotributo: null,
+        categoriaMonotributoDesde: null,
+        categoriaMonotributoLetra: null,
+      });
+      expect(formatPadronAsText({ environment: 'testing', taxpayer })).not.toContain('Categoría');
+    });
+
+    it('sin letra ni periodo, muestra la descripcion como viene y N/D', () => {
+      const text = formatPadronAsText({
+        environment: 'testing',
+        taxpayer: {
+          ...monotributista,
+          monotributoCategory: 'SOCIAL',
+          monotributoCategoryLetter: null,
+          monotributoCategorySince: null,
+        },
+      });
+
+      expect(text).toMatch(/Categoría monotributo\s+SOCIAL/);
+      expect(text).toMatch(/Categoría vigente desde\s+N\/D/);
+    });
   });
 });

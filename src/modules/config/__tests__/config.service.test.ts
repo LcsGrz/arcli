@@ -80,7 +80,16 @@ describe('config.service', () => {
       // Los rechazos de cada clave se prueban en config-value-parser; acá, que pasan por el alias y no se guardan.
       expect(() => service.setValue('cuit', 'abc')).toThrow(/El CUIT "abc" no es válido/);
       expect(() => service.setValue('entorno', 'demo')).toThrow(
-        expect.objectContaining({ issues: [expect.objectContaining({ values: ['testing', 'produccion'] })] }),
+        expect.objectContaining({
+          message: '`entorno` no acepta "demo". Valores válidos: testing, produccion.',
+          suggestion: expect.stringContaining('`arcli config establecer --ayuda`'),
+        }),
+      );
+      expect(() => service.setValue('emisor.condicion', 'x')).toThrow(
+        expect.objectContaining({
+          code: 'INPUT_VALIDATION_ERROR',
+          message: 'La clave `emisor.condicion` no existe.',
+        }),
       );
       expect(service.getConfig().cuit).toBe('20123456786');
       expect(service.getConfig().entornoPorDefecto).toBe('testing');

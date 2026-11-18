@@ -51,6 +51,7 @@ function gateways(overrides: Partial<BillingCommandGateways['billing']> = {}): B
       ...overrides,
     },
     fce: { getObligation: vi.fn() } as never,
+    fceRegistry: { getVoucherState: vi.fn(async () => undefined) },
     history: { getVoucher: vi.fn(async () => undefined) },
     padron: { getTaxpayer: vi.fn(async () => null) },
   };
@@ -476,6 +477,47 @@ describe('notas con el asociado consultado en ARCA una vez, antes de la vista pr
       solicitud: { CbtesAsoc: [expect.objectContaining({ CbteFch: '20260305', Nro: 7, Tipo: 201 })] },
     });
     expect(used.history.getVoucher).toHaveBeenCalledWith(7, 3, 201);
+  });
+
+  it('una NC FCE de anulación avisa en `avisos` si el comprador no rechazó el asociado (10154)', async () => {
+    const used = {
+      ...withAssociated(issued({ date: '20260305', number: 7, total: 5000 })),
+      fceRegistry: { getVoucherState: vi.fn(async () => 'Recepcionado' as const) },
+    };
+
+    await run([...CREDIT_NOTE_FCE, '--anulacion'], { gateways: used, shortcut: 'ncea' });
+
+    expect(JSON.parse(stdout)).toMatchObject({
+      avisos: [expect.stringContaining('ARCA la rechaza con el error 10154')],
+      estado: 'previsualizacion',
+    });
+    expect(used.fceRegistry.getVoucherState).toHaveBeenCalledWith({
+      arcaType: 201,
+      cuit: 20111111112,
+      number: 7,
+      pointOfSale: 3,
+    });
+  });
+
+  it('si ARCA rechaza la anulación con 10154, `sugerencias` explica que el comprador tiene que rechazar', async () => {
+    const used = withAssociated(issued({ date: '20260305', number: 7, total: 5000 }));
+
+    used.billing.createVoucher = vi.fn(async () => ({
+      cae: '',
+      caeFchVto: '',
+      response: {
+        Errors: { Err: [{ Code: 10154, Msg: 'Comprobante electronico autorizado, NO rechazado por el Comprador' }] },
+        FeDetResp: { FECAEDetResponse: [{ CbteDesde: 42, CbteHasta: 42, Resultado: 'R' }] },
+      },
+    })) as never;
+
+    await run([...CREDIT_NOTE_FCE, '--anulacion', '--emitir'], { gateways: used, shortcut: 'ncea' });
+
+    expect(JSON.parse(stdout)).toMatchObject({
+      estado: 'rechazado',
+      sugerencias: [expect.stringContaining('el comprador haya rechazado antes el comprobante asociado')],
+    });
+    expect(process.exitCode).toBe(2);
   });
 
   it('una nota FCE sin --afecha se emite con la fecha del asociado, sin volver a consultarlo', async () => {

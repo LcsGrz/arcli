@@ -79,7 +79,6 @@ exit: 0
     "Domicilio_cliente": "123 Main St",
     "Dst_cmp": 212,
     "Fecha_cbte": "20261117",
-    "Fecha_pago": "20261117",
     "Forma_pago": "Transferencia Internacional",
     "Id": 42,
     "Id_impositivo": "",

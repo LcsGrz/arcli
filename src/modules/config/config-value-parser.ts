@@ -1,17 +1,20 @@
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import type { z } from 'zod';
 
 import { parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
-import { InputValidationError } from '../../lib/errors/app-error';
+import { InputIssuesError, InputValidationError } from '../../lib/errors/app-error';
 import { parseCuit } from '../../lib/identity/cuit';
 import { EXCHANGE_RATE_DECIMALS, parseArgentineAmount } from '../../lib/numbers/argentine-amount';
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import { readPemFile } from '../../lib/security/pem';
 import { IVA_RATE_HINT } from '../billing/billing.schemas';
+import { describeZodIssues } from '../billing/billing.zod-errors';
 import { saleConditionSchema } from '../billing/sale-condition';
 import { MAX_RECENT_VOUCHERS } from '../vouchers/voucher-history';
 
 import {
+  arcliConfigSchema,
   arcliDefaultConceptSchema,
   arcliDefaultIvaConditionSchema,
   arcliDefaultIvaRateSchema,
@@ -57,7 +60,36 @@ export type CanonicalConfigKey =
   | 'verificarFce'
   | 'consultarPadron';
 
-function parseBoolean(value: string): boolean {
+/**
+ * Como se nombra el valor en un mensaje: con la clave si se sabe (\`config establecer\`) o "El valor" en el modo
+ * interactivo, donde la pregunta ya dice que dato es.
+ */
+function subjectOf(displayKey: string | undefined): string {
+  return displayKey ? `\`${displayKey}\`` : 'El valor';
+}
+
+/** Un valor de una lista cerrada, con la clave, lo que llego y los valores validos en el mensaje. */
+function parseChoice<T extends string>(
+  schema: z.ZodEnum<Record<T, T>>,
+  value: string,
+  displayKey: string | undefined,
+): T {
+  const result = schema.safeParse(value.trim().toLowerCase());
+
+  if (!result.success) {
+    const subject = displayKey ? `\`${displayKey}\` no acepta` : 'No se acepta';
+
+    // `detalles` del `--json` queda como antes de mejorar el mensaje: los problemas de zod.
+    throw new InputIssuesError(
+      `${subject} "${value}". Valores válidos: ${schema.options.join(', ')}.`,
+      describeZodIssues(result.error),
+    );
+  }
+
+  return result.data;
+}
+
+function parseBoolean(value: string, displayKey?: string): boolean {
   const normalizedValue = value.trim().toLowerCase();
 
   if (normalizedValue === 'true' || normalizedValue === '1' || normalizedValue === 'si' || normalizedValue === 'sí') {
@@ -68,14 +100,16 @@ function parseBoolean(value: string): boolean {
     return false;
   }
 
-  throw new InputValidationError(`El valor "${value}" no es un booleano válido. Usá true/false, si/no o 1/0.`);
+  throw new InputValidationError(
+    `${displayKey ? `\`${displayKey}\` no acepta "${value}"` : `El valor "${value}" no es un booleano válido`}. Usá true/false, si/no o 1/0.`,
+  );
 }
 
-function parseNonEmptyString(value: string): string {
+function parseNonEmptyString(value: string, displayKey?: string): string {
   const normalizedValue = value.trim();
 
   if (!normalizedValue) {
-    throw new InputValidationError('El valor no puede estar vacío.');
+    throw new InputValidationError(`${subjectOf(displayKey)} no puede estar vacío.`);
   }
 
   return normalizedValue;
@@ -101,6 +135,36 @@ function parseConfigCuit(value: string): string {
   return result.value;
 }
 
+/** Una de las condiciones de venta o un texto libre corto, para el PDF. */
+function parseSaleCondition(value: string, displayKey?: string): string {
+  const result = saleConditionSchema.safeParse(value);
+
+  if (!result.success) {
+    const reason = value.trim() ? 'no puede tener más de 100 caracteres' : 'no puede estar vacío';
+
+    throw new InputIssuesError(`${subjectOf(displayKey)} ${reason}.`, describeZodIssues(result.error));
+  }
+
+  return result.data;
+}
+
+/** El codigo de 3 caracteres de ARCA (`PES`, `DOL`, `060`), con el mismo esquema con el que se guarda la config. */
+const currencyKeySchema = arcliConfigSchema.pick({ monedaPorDefecto: true });
+
+function parseCurrencyCode(value: string, displayKey?: string): string {
+  const normalizedValue = value.trim().toUpperCase();
+  const result = currencyKeySchema.safeParse({ monedaPorDefecto: normalizedValue });
+
+  if (!result.success) {
+    throw new InputIssuesError(
+      `${displayKey ? `\`${displayKey}\` no acepta "${value}"` : `El código de moneda "${value}" no es válido`}: tiene que ser un código de moneda de 3 caracteres, como PES o DOL. Los ves con \`arcli parametros monedas\`.`,
+      describeZodIssues(result.error),
+    );
+  }
+
+  return normalizedValue;
+}
+
 function parseCbu(value: string): string {
   const normalizedValue = value.trim();
 
@@ -123,11 +187,13 @@ function parseCbuAlias(value: string): string {
   return normalizedValue;
 }
 
-function parsePositiveInteger(value: string): number {
+function parsePositiveInteger(value: string, displayKey?: string): number {
   const parsedValue = parseStrictInteger(value);
 
   if (parsedValue === undefined || parsedValue <= 0) {
-    throw new InputValidationError(`El valor "${value}" no es un entero positivo válido.`);
+    throw new InputValidationError(
+      `${displayKey ? `\`${displayKey}\` no acepta "${value}": tiene que ser` : `El valor "${value}" no es`} un entero positivo válido.`,
+    );
   }
 
   return parsedValue;
@@ -193,7 +259,15 @@ function parseLogoPath(value: string): string {
   return path;
 }
 
-export function parseConfigValue(key: CanonicalConfigKey, value: string): boolean | number | string {
+/**
+ * Valida y normaliza el valor de una clave. `displayKey` es la clave como la escribio la persona (\`entorno\`, no
+ * \`entornoPorDefecto\`): con ella, los mensajes de los valores que no se explican solos la nombran.
+ */
+export function parseConfigValue(
+  key: CanonicalConfigKey,
+  value: string,
+  displayKey?: string,
+): boolean | number | string {
   switch (key) {
     case 'alicuotaPorDefecto':
       return parseIvaRate(value);
@@ -202,9 +276,9 @@ export function parseConfigValue(key: CanonicalConfigKey, value: string): boolea
     case 'cbu':
       return parseCbu(value);
     case 'conceptoPorDefecto':
-      return arcliDefaultConceptSchema.parse(value.trim().toLowerCase());
+      return parseChoice(arcliDefaultConceptSchema, value, displayKey);
     case 'condicionVenta':
-      return saleConditionSchema.parse(value);
+      return parseSaleCondition(value, displayKey);
     case 'cotizacionPorDefecto':
       return parseExchangeRate(value);
     case 'cuit':
@@ -212,38 +286,38 @@ export function parseConfigValue(key: CanonicalConfigKey, value: string): boolea
     case 'filasPorLista':
       return parseRecentCount(value);
     case 'emisor.condicionIva':
-      return arcliDefaultIvaConditionSchema.parse(value.trim().toLowerCase());
+      return parseChoice(arcliDefaultIvaConditionSchema, value, displayKey);
     case 'emisor.domicilio':
     case 'emisor.iibb':
     case 'emisor.razonSocial':
-      return parseNonEmptyString(value);
+      return parseNonEmptyString(value, displayKey);
     case 'emisor.inicioActividades':
       return parseFullDate(value);
     case 'emisor.logo':
       return parseLogoPath(value);
     case 'entornoPorDefecto':
-      return arcliEnvironmentSchema.parse(value.trim().toLowerCase());
+      return parseChoice(arcliEnvironmentSchema, value, displayKey);
     case 'ivaReceptorPorDefecto':
-      return arcliDefaultIvaConditionSchema.parse(value.trim().toLowerCase());
+      return parseChoice(arcliDefaultIvaConditionSchema, value, displayKey);
     case 'monedaPorDefecto':
-      return value.trim().toUpperCase();
+      return parseCurrencyCode(value, displayKey);
     case 'verificarFce':
     case 'consultarPadron':
     case 'output.emitirPorDefecto':
     case 'output.jsonPorDefecto':
     case 'output.brutoPorDefecto':
-      return parseBoolean(value);
+      return parseBoolean(value, displayKey);
     case 'pdf':
-      return arcliPdfModeSchema.parse(value.trim().toLowerCase());
+      return parseChoice(arcliPdfModeSchema, value, displayKey);
     case 'pdfCarpeta':
-      return resolve(parseNonEmptyString(value));
+      return resolve(parseNonEmptyString(value, displayKey));
     case 'pdfNavegador':
       return parseExistingFile(value, 'el navegador');
     case 'puntoVentaPorDefecto':
     case 'exportacion.actividad':
-      return parsePositiveInteger(value);
+      return parsePositiveInteger(value, displayKey);
     case 'ticketPath':
-      return resolve(parseNonEmptyString(value));
+      return resolve(parseNonEmptyString(value, displayKey));
     case 'cert.produccion':
     case 'cert.testing':
     case 'exportacion.cert.produccion':
@@ -255,6 +329,6 @@ export function parseConfigValue(key: CanonicalConfigKey, value: string): boolea
     case 'exportacion.key.testing':
       return parsePemPath(value, 'clave privada');
     default:
-      return parseNonEmptyString(value);
+      return parseNonEmptyString(value, displayKey);
   }
 }

@@ -1,8 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
+import type { FceRegistryState } from '../../fce/fce-registry';
 import type { IssuedVoucher } from '../../vouchers/voucher-history';
-import { assertCreditNoteWithinAssociated, checkAssociatedInArca } from '../billing.associated-lookup';
+import {
+  assertCreditNoteWithinAssociated,
+  checkAssociatedInArca,
+  checkFceCancellationInRegistry,
+} from '../billing.associated-lookup';
 import type { BillingCommandInput } from '../billing.schemas';
 import { BillingService } from '../billing.service';
 
@@ -131,12 +136,12 @@ describe('checkAssociatedInArca: NC no mayor que el asociado (REV-45)', () => {
     expect(gateway.getVoucher).toHaveBeenCalledWith(5, 3, 12);
   });
 
-  it('una NC sobre otra NC no tiene tope, como en la E, y no consulta ARCA', async () => {
+  it('una NC sobre otra NC no tiene tope, como en la E, pero se consulta para ver que exista (2.5.1)', async () => {
     const input = note({ associatedVoucher: { cuit: String(EMITTER), numero: 5, puntoVenta: 3, shortcut: 'ncc' } });
     const { gateway, result } = check(input, issued({ number: 5, total: 300 }));
 
     await expect(result).resolves.toEqual({ input, warnings: [] });
-    expect(gateway.getVoucher).not.toHaveBeenCalled();
+    expect(gateway.getVoucher).toHaveBeenCalledTimes(1);
   });
 
   it('una NC dentro del total pasa sin cambios', async () => {
@@ -152,10 +157,33 @@ describe('checkAssociatedInArca: NC no mayor que el asociado (REV-45)', () => {
     await expect(check(input, issued({ total: 500 })).result).rejects.toThrow(/no puede superar/);
   });
 
-  it('si ARCA no tiene el asociado de una NC comun, decide ARCA al emitir', async () => {
-    const input = note();
+  it('si ARCA no tiene el asociado propio de una NC comun, es un error de validacion como en la E', async () => {
+    await expect(check(note(), undefined).result).rejects.toMatchObject({
+      code: 'INPUT_VALIDATION_ERROR',
+      message: 'ARCA no tiene la factura C 00003-00000012.',
+      suggestion: 'Revisá `--ar`, `--apv` y `--ac`: el asociado tiene que ser un comprobante tuyo ya emitido.',
+    });
+  });
 
-    await expect(check(input, undefined).result).resolves.toEqual({ input, warnings: [] });
+  it('si ARCA no tiene el asociado propio de una ND comun, tambien frena', async () => {
+    await expect(check(note({ shortcut: 'ndc' }), undefined).result).rejects.toThrow(
+      /ARCA no tiene la factura C 00003-00000012/,
+    );
+  });
+
+  it('una ND comun con el asociado en ARCA pasa sin cambios', async () => {
+    const input = note({ shortcut: 'ndc', totalAmount: 5000 });
+
+    await expect(check(input, issued()).result).resolves.toEqual({ input, warnings: [] });
+  });
+
+  it('si ARCA no responde, una ND comun sigue con un aviso', async () => {
+    const input = note({ shortcut: 'ndc' });
+
+    await expect(check(input, new Error('ARCA no disponible')).result).resolves.toEqual({
+      input,
+      warnings: ['No se pudo verificar en ARCA que exista la factura C 00003-00000012: ARCA no disponible'],
+    });
   });
 
   it('si ARCA no responde, una NC comun sigue con un aviso', async () => {
@@ -169,17 +197,12 @@ describe('checkAssociatedInArca: NC no mayor que el asociado (REV-45)', () => {
     });
   });
 
-  it('no consulta el asociado de otro CUIT ni el de una ND comun', async () => {
-    const otherCuit = check(
-      note({ associatedVoucher: { cuit: '20999999999', numero: 12, puntoVenta: 3, shortcut: 'fc' } }),
-      issued(),
-    );
-    const debit = check(note({ shortcut: 'ndc' }), issued());
+  it('no consulta el asociado de otro CUIT: si no existe, decide ARCA al emitir', async () => {
+    const input = note({ associatedVoucher: { cuit: '20999999999', numero: 12, puntoVenta: 3, shortcut: 'fc' } });
+    const otherCuit = check(input, undefined);
 
-    await otherCuit.result;
-    await debit.result;
+    await expect(otherCuit.result).resolves.toEqual({ input, warnings: [] });
     expect(otherCuit.gateway.getVoucher).not.toHaveBeenCalled();
-    expect(debit.gateway.getVoucher).not.toHaveBeenCalled();
   });
 
   it('una entrada invalida falla antes de consultar ARCA', async () => {
@@ -202,16 +225,13 @@ describe('checkAssociatedInArca: fecha del asociado en notas FCE (REV-46)', () =
     ]);
   });
 
-  it('con --afecha no consulta una ND FCE', async () => {
-    const { gateway } = check(
-      fceNote({
-        associatedVoucher: { fecha: '05/03/2026', numero: 7, puntoVenta: 3, shortcut: 'fcea' },
-        shortcut: 'ndea',
-      }),
-      issued(),
-    );
+  it('con --afecha una ND FCE conserva su fecha (la consulta solo controla que el asociado exista)', async () => {
+    const input = fceNote({
+      associatedVoucher: { fecha: '05/03/2026', numero: 7, puntoVenta: 3, shortcut: 'fcea' },
+      shortcut: 'ndea',
+    });
 
-    expect(gateway.getVoucher).not.toHaveBeenCalled();
+    await expect(check(input, issued({ date: '20260310' })).result).resolves.toEqual({ input, warnings: [] });
   });
 
   it('si ARCA no tiene el asociado, frena: sin fecha la nota FCE no se puede emitir', async () => {
@@ -235,5 +255,83 @@ describe('checkAssociatedInArca: fecha del asociado en notas FCE (REV-46)', () =
     const { input } = await check(fceNote(), issued({ date: '20260320', total: 5000 })).result;
 
     expect(() => new BillingService().buildVoucherPayload(input, runtime)).toThrow(/no puede ser posterior/);
+  });
+});
+
+describe('checkFceCancellationInRegistry: el comprador tiene que rechazar el asociado (10154)', () => {
+  const cancellation = (overrides: Partial<BillingCommandInput> = {}) =>
+    fceNote({
+      associatedVoucher: { fecha: '05/03/2026', numero: 7, puntoVenta: 3, shortcut: 'fcea' },
+      cancellation: true,
+      ...overrides,
+    });
+
+  function registry(state: FceRegistryState | undefined | Error, input = cancellation()) {
+    const gateway = {
+      getVoucherState: vi.fn(async () => {
+        if (state instanceof Error) {
+          throw state;
+        }
+
+        return state;
+      }),
+    };
+    const result = checkFceCancellationInRegistry({ gateway, input, runtime, service: new BillingService() });
+
+    return { gateway, result };
+  }
+
+  it('consulta el asociado propio en el Registro y, si está rechazado, no avisa', async () => {
+    const { gateway, result } = registry('Rechazado');
+
+    expect(await result).toEqual([]);
+    expect(gateway.getVoucherState).toHaveBeenCalledWith({ arcaType: 201, cuit: EMITTER, number: 7, pointOfSale: 3 });
+  });
+
+  it('si no está rechazado avisa el 10154, con el estado y qué hacer', async () => {
+    expect(await registry('Aceptado').result).toEqual([
+      'El comprador no rechazó la factura de crédito electrónica A 00003-00000007 en el Registro de FCE (estado: aceptado) y la nota de anulación lo necesita: ARCA la rechaza con el error 10154. Pedile al comprador que lo rechace o, si no es una anulación, emitila sin `--anulacion`.',
+    ]);
+    expect(await registry('Recepcionado').result).toEqual([expect.stringContaining('(estado: recibido)')]);
+  });
+
+  it('sobre otra nota FCE no sugiere sacar `--anulacion`: ahí es obligatoria', async () => {
+    const overNote = cancellation({
+      associatedVoucher: { fecha: '05/03/2026', numero: 1, puntoVenta: 3, shortcut: 'ndea' },
+    });
+    const warnings = await registry('PendienteRecepcion', overNote).result;
+
+    expect(warnings).toEqual([
+      expect.stringMatching(/nota de débito.*\(estado: pendiente de recepción\).*antes de emitir\.$/),
+    ]);
+    expect(warnings[0]).not.toContain('--anulacion');
+  });
+
+  it('si el Registro no lo tiene, no avisa: que exista lo controla ARCA', async () => {
+    expect(await registry(undefined).result).toEqual([]);
+  });
+
+  it('si wsfecred no responde, avisa sin frenar', async () => {
+    expect(await registry(new Error('El certificado no está autorizado para el servicio wsfecred.')).result).toEqual([
+      'No se pudo consultar en el Registro de FCE si el comprador rechazó la factura de crédito electrónica A 00003-00000007: El certificado no está autorizado para el servicio wsfecred. Si no lo rechazó, ARCA rechaza la nota de anulación con el error 10154.',
+    ]);
+  });
+
+  it('no consulta sin `--anulacion`, en notas comunes ni con el asociado de otro CUIT', async () => {
+    const gateway = { getVoucherState: vi.fn() };
+    const service = new BillingService();
+    const inputs = [
+      cancellation({ cancellation: false }),
+      note(),
+      cancellation({
+        associatedVoucher: { cuit: '30709965812', fecha: '05/03/2026', numero: 7, puntoVenta: 3, shortcut: 'fcea' },
+      }),
+    ];
+
+    for (const input of inputs) {
+      expect(await checkFceCancellationInRegistry({ gateway, input, runtime, service })).toEqual([]);
+    }
+
+    expect(gateway.getVoucherState).not.toHaveBeenCalled();
   });
 });

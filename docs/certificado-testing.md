@@ -23,9 +23,9 @@ Una sola vez. Con tu clave fiscal, en el **Administrador de Relaciones de Clave 
 2. Elegí el contribuyente: en pruebas, vos
    ![Selección del contribuyente](assets/certificados/arca-seleccionar-contribuyente.png)
 3. Tocá "Adherir Servicio"
-   ![Botón Adherir Servicio](assets/certificados/arca-adherir-servicio.png)
+   ![Botón Adherir Servicio](assets/certificados/arca-adherir-servicio.webp)
 4. Elegí Administración de Certificados Digitales
-   ![Servicio Administración de Certificados Digitales](assets/certificados/arca-elegir-administracion-certificados.png)
+   ![Servicio Administración de Certificados Digitales](assets/certificados/arca-elegir-administracion-certificados.webp)
 5. Confirmá la relación
    ![Confirmación de la adhesión](assets/certificados/arca-confirmar-adhesion.png)
 
@@ -83,12 +83,12 @@ Si dice que ARCA responde, ya podés emitir en testing. Un servicio que falte se
 
 ## Qué servicios autorizar
 
-| Para                                                 | Servicio                       | ¿Lo necesitás? |
-| ---------------------------------------------------- | ------------------------------ | -------------- |
-| Facturas y notas A, B y C, y FCE                     | `wsfe`                         | Sí, siempre    |
-| El IVA del receptor desde el padrón y `arcli padron` | `ws_sr_constancia_inscripcion` | Recomendado    |
-| Saber si el receptor está obligado a FCE             | `wsfecred`                     | Si emitís FCE  |
-| Factura de exportación E y sus notas                 | `wsfex`                        | Si exportás    |
+| Para                                                                            | Servicio                       | ¿Lo necesitás? |
+| ------------------------------------------------------------------------------- | ------------------------------ | -------------- |
+| Facturas y notas A, B y C, y FCE                                                | `wsfe`                         | Sí, siempre    |
+| El IVA del receptor desde el padrón y `arcli padron`                            | `ws_sr_constancia_inscripcion` | Recomendado    |
+| Saber si el receptor está obligado a FCE y si rechazó una FCE antes de anularla | `wsfecred`                     | Si emitís FCE  |
+| Factura de exportación E y sus notas                                            | `wsfex`                        | Si exportás    |
 
 ## ¿Preferís openssl?
 

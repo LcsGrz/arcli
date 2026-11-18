@@ -49,6 +49,13 @@ export const ARCA_REJECTIONS: readonly ArcaRejection[] = [
     what: 'El CBU no está registrado a nombre del emisor.',
   },
   {
+    codes: [10154],
+    guide: `${TROUBLESHOOTING_URL}#arca-rechaza-la-nota-fce-de-anulación`,
+    pattern: /NO rechazado por el Comprador/i,
+    todo: 'Pedile al comprador que lo rechace en el Registro de Facturas de Crédito Electrónica y volvé a emitir; si es sobre una factura y no es una anulación, emitila sin `--anulacion`.',
+    what: 'Una nota FCE de anulación necesita que el comprador haya rechazado antes el comprobante asociado, y no lo rechazó.',
+  },
+  {
     codes: [10119],
     guide: `${TROUBLESHOOTING_URL}#rechazos-de-arca-por-código`,
     todo: 'Revisá `--cotizacion-moneda` contra la oficial (`arcli parametros cotizacion <moneda>`).',
@@ -61,10 +68,16 @@ export const ARCA_REJECTIONS: readonly ArcaRejection[] = [
     what: 'Con `--misma-moneda` ARCA exige la cotización oficial exacta y la que se envió ya no coincide.',
   },
   {
-    codes: [10017, 10217],
+    codes: [10017],
     guide: `${TROUBLESHOOTING_URL}#observaciones-de-padrón`,
-    todo: 'No es un rechazo: revisá si el caso es aceptable para tu flujo.',
-    what: 'ARCA dejó una observación sobre la condición del receptor (padrón).',
+    todo: 'Consultá el receptor con `arcli padron <cuit>`: si no está activo, revisá si le corresponde una factura A. Si el comprobante salió aprobado, no es un rechazo.',
+    what: 'El CUIT del receptor no figura activo en el padrón de ARCA, y en A y M ARCA lo pide.',
+  },
+  {
+    codes: [10217],
+    guide: `${TROUBLESHOOTING_URL}#observaciones-de-padrón`,
+    todo: 'No es un rechazo: el comprobante está emitido. Si el receptor no es monotributista, revisalo con `arcli padron <cuit>`; en testing la observación sale también con otros CUITs.',
+    what: 'ARCA ve al receptor como monotributista: el crédito fiscal de la factura A solo lo puede computar por el "Procedimiento permanente de transición al Régimen General".',
   },
   {
     codes: [],
@@ -78,6 +91,14 @@ export const ARCA_REJECTIONS: readonly ArcaRejection[] = [
     pattern: /transacci[oó]n activa|error interno de base de datos/i,
     todo: 'Esperá unos segundos y volvé a intentar la emisión.',
     what: 'ARCA devolvió un error transitorio.',
+  },
+  {
+    // 10015 tambien se usa para otras validaciones del documento: se reconoce por el mensaje.
+    codes: [],
+    guide: `${TROUBLESHOOTING_URL}#el-receptor-no-está-en-los-padrones-de-arca`,
+    pattern: /no se encuentra registrado en los padrones/i,
+    todo: 'Revisá el documento del receptor (`--cuit`, `--cuil` o `--dni`). En testing muchos CUITs no están en el padrón de facturación, aunque `arcli padron` los encuentre: usá uno de prueba o emití a consumidor final.',
+    what: 'ARCA no encuentra el documento del receptor en sus padrones.',
   },
   {
     codes: [],
