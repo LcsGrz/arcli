@@ -625,8 +625,11 @@
   margin-inline: auto;
 }
 
+/* La bajada entra en una línea en escritorio; en el celular, balance reparte las palabras para que no quede una sola
+   abajo */
 .arcli-landing .cta p {
-  max-width: 52ch;
+  max-width: none;
+  text-wrap: balance;
   margin: var(--space-lead) auto 0;
   color: var(--fg-soft);
 }
@@ -1009,10 +1012,27 @@
   margin-top: var(--space-content);
 }
 
+/* La columna de ARCLI: un degradé celeste a lavanda (el mismo en cada celda, así se lee como una columna) y un
+   borde celeste a la izquierda que la separa de Factura en línea */
 .arcli-landing .cmp th:last-child,
 .arcli-landing .cmp td:last-child {
-  background: color-mix(in srgb, var(--celeste) 8%, transparent);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--celeste) 20%, transparent),
+    color-mix(in srgb, var(--lavanda) 10%, transparent)
+  );
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--celeste) 55%, transparent);
   color: var(--fg);
+}
+
+.arcli-landing .cmp th:last-child {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--celeste) 34%, transparent),
+    color-mix(in srgb, var(--lavanda) 20%, transparent)
+  );
+  box-shadow: inset 2px 0 0 var(--celeste);
+  color: var(--celeste-strong);
 }
 
 .arcli-landing .cmp td:first-child {
@@ -1358,9 +1378,9 @@
   font-size: 0.95rem;
 }
 
-/* El cierre: de la bajada a los botones, lo mismo que del título al contenido en las secciones */
+/* El cierre: de la bajada a los botones, un poco más que del título al contenido en las secciones */
 .arcli-landing .cta .actions {
-  margin-top: var(--space-content);
+  margin-top: calc(var(--space-content) + var(--space-related));
 }
 
 /* ¿Qué facturás? en el celular: tres segmentos iguales a lo ancho, en vez de botones que saltan de línea.
