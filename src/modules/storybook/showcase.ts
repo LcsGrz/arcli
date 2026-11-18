@@ -445,7 +445,7 @@ function buildQueriesScene(): string {
       ],
       'testing',
     ),
-    formatQuotationAsText({ currency: '060', date: '20261116', rate: 1520.75 }, 'testing'),
+    formatQuotationAsText({ currency: '060', date: '20261116', rate: 1520.75 }, 'testing', { currencyName: 'Euro' }),
     formatPdfPluginStatusAsText({
       browser: '/ruta/al/navegador',
       browserSource: 'sistema',

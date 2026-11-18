@@ -10,12 +10,14 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### Cambiado
 
-- **Monedas y cotizaciones en el modo interactivo:** en Consultas, "Cotización de una moneda" pasa a ser **Monedas y cotizaciones**, la tabla de monedas de ARCA donde Enter muestra la cotización oficial de la que elegís; monedas sale de **Tablas de ARCA**, que ya no la repite. Volver a elegir una moneda no consulta ARCA otra vez. `arcli parametros monedas` y `arcli parametros cotizacion` no cambian.
+- **Monedas y cotizaciones en el modo interactivo:** en Consultas, "Cotización de una moneda" pasa a ser **Monedas y cotizaciones**, la tabla de monedas de ARCA donde Enter muestra la cotización oficial de la que elegís, con su nombre (`Euro (060)`); monedas sale de **Tablas de ARCA**, que ya no la repite. Volver a elegir una moneda no consulta ARCA otra vez. `arcli parametros monedas` y `arcli parametros cotizacion` no cambian.
 - **Configuración del modo interactivo sin "Dónde está la config":** la ruta sigue en `arcli config ruta`, y la carpeta de certificados, en Ver configuración.
 - **Listas que se filtran escribiendo:** `Filtrar:` tiene una línea en blanco arriba y abajo, así no queda pegado a la pregunta ni a la lista.
+- **Listas largas del modo interactivo:** si no entran en la pantalla, avisan cuántas opciones quedan arriba y abajo (`↑ 3 más`, `↓ 12 más`). Si entran, no cambian.
 
 ### Corregido
 
+- **"← Volver" se iba de la pantalla en las listas largas del modo interactivo:** se desplazaba con las opciones y quedaba fuera de la vista hasta llegar al final. Ahora queda fijo debajo de la lista; se llega con la flecha abajo desde la última opción, y Esc sigue volviendo.
 - **`29/2` sin año cerca de un bisiesto:** el año se elegía sin mirar si ese 29/02 existía, así que el 1/9/2028 `--fecha 29/2` (o `--vto`, `--sd`, `--sh`) daba "no es válida" en lugar de tomar el 29/02/2028. Ahora solo cuentan los años donde la fecha existe. No cambia ninguna otra fecha.
 
 ## [2.5.0] - 2026-11-17

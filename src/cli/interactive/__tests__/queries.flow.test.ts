@@ -63,7 +63,6 @@ vi.mock('../prompts', async (importOriginal) => {
 
   return {
     BACK_CHOICE: original.BACK_CHOICE,
-    BACK_SPACER: original.BACK_SPACER,
     askTextStep: (...args: Parameters<typeof script.askTextStep>) => script.askTextStep(...args),
     browseFilterList: async (message: string, rows: readonly string[], options: { header?: string }) => {
       filterLists.push({ header: options.header, message, rows });
@@ -270,6 +269,8 @@ describe('Consultas del modo interactivo', () => {
     expect(getQuotation).toHaveBeenCalledTimes(1);
     expect(getQuotation).toHaveBeenCalledWith('060');
     expect(stripAnsi(output)).toContain('COTIZACIÓN OFICIAL');
+    // El nombre sale de la tabla de monedas, sin otra consulta a ARCA.
+    expect(stripAnsi(output)).toMatch(/Moneda\s+Euro \(060\)/);
   });
 
   describe('tablas de ARCA', () => {

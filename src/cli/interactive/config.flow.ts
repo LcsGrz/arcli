@@ -320,12 +320,11 @@ async function runChangeField(): Promise<void> {
   for (;;) {
     const config = readConfig();
     const choices = fieldChoicesBySection(config);
-    // +2: el separador y "Volver" que agrega chooseStep.
     const field = await chooseStep<ConfigField>(
       '¿Qué querés modificar?',
       choices,
       lastField,
-      fitPageSize(choices.length + 2),
+      fitPageSize(choices.length),
     );
 
     if (field === BACK) {
@@ -499,11 +498,9 @@ export async function runConfigMenu(flags: EnvironmentFlags = {}): Promise<void>
           },
           'acceso-directo',
         ),
-        new Separator(' '),
-        { name: `${uiSymbol('back')} Volver al menú`, value: 'volver' },
       ],
       undefined,
-      { escapeValue: 'volver' },
+      { back: { label: `${uiSymbol('back')} Volver al menú`, value: 'volver' }, escapeValue: 'volver' },
     );
 
     if (option === 'volver') {

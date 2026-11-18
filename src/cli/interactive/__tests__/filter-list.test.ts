@@ -27,7 +27,11 @@ const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
 /** Corre el prompt de verdad: las teclas entran por `input` y lo dibujado sale por `output`. */
 async function run(
   keys: readonly string[],
-  options: { readonly mode?: 'elegir' | 'ver'; readonly pageSize?: number } = {},
+  options: {
+    readonly mode?: 'elegir' | 'ver';
+    readonly pageSize?: number;
+    readonly rows?: ReadonlyArray<FilterListRow<string>>;
+  } = {},
 ) {
   const input = new PassThrough();
   const output = new PassThrough();
@@ -44,7 +48,7 @@ async function run(
       message: '¿De qué moneda?',
       mode: options.mode ?? 'elegir',
       pageSize: options.pageSize ?? 10,
-      rows: CURRENCIES,
+      rows: options.rows ?? CURRENCIES,
       theme: THEME,
     },
     { input, output },
@@ -99,6 +103,16 @@ describe('filterList', () => {
 
     expect(screen).toContain('Nada coincide con "xy".');
     expect(answer).toBe('DOL');
+  });
+
+  it('si no entran todas, avisa cuantas quedan arriba y abajo; si entran, nada', async () => {
+    const rows = Array.from({ length: 10 }, (_, index) => ({ label: `Fila ${index + 1}`, value: String(index) }));
+    const { screen } = await run([DOWN, DOWN, DOWN, DOWN, ENTER], { pageSize: 3, rows });
+    const { screen: fits } = await run([ENTER]);
+
+    expect(screen).toContain('↓ 7 más');
+    expect(screen).toMatch(/↑ 3 más\n {2}Fila 4\n❯ Fila 5\n {2}Fila 6\n {2}↓ 4 más/);
+    expect(fits).not.toContain('más');
   });
 
   it('para mirar, Enter la cierra sin elegir', async () => {

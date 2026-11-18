@@ -1,15 +1,18 @@
 import input from '@inquirer/input';
-import select, { Separator } from '@inquirer/select';
+import { Separator } from '@inquirer/select';
 import { emitKeypressEvents } from 'node:readline';
 
 import { BACK, type Back } from '../../modules/interactive/wizard';
 import { bold, colorize, uiSymbol, usesAsciiBorders, writeTerminalRaw } from '../../ui';
 
 import { filterList, type FilterListRow } from './filter-list';
+import { listSelect } from './list-select';
 import { multiSelect } from './multi-select';
 
 export interface Choice<T> {
   readonly description?: string;
+  /** Se ve apagada y no se puede elegir; con texto, ese texto va al lado. */
+  readonly disabled?: boolean | string;
   readonly name: string;
   /** Lo que queda en la linea "✔ pregunta respuesta" al elegirla; por defecto, `name`. */
   readonly short?: string;
@@ -74,23 +77,29 @@ const TEXT_THEME = {
 
 /**
  * Una lista simple. Con `escapeValue`, Esc la cierra devolviendo ese valor (por ejemplo, "volver", "no" o
- * "salir") y la ayuda de teclas lo muestra con `escapeLabel`; sin el, Esc no hace nada. Con `compactTop`, una
- * sola linea en blanco arriba en lugar de dos.
+ * "salir") y la ayuda de teclas lo muestra con `escapeLabel`; sin el, Esc no hace nada. Con `back`, un boton
+ * ("← Volver") fijo debajo de las opciones, que no se desplaza con ellas. Con `compactTop`, una sola linea en blanco
+ * arriba en lugar de dos.
  */
 export async function chooseOne<T>(
   message: string,
   choices: ReadonlyArray<Choice<T> | Separator>,
   defaultValue?: T,
-  options: { readonly compactTop?: boolean; readonly escapeLabel?: string; readonly escapeValue?: T } = {},
+  options: {
+    readonly back?: { readonly label: string; readonly value: T };
+    readonly compactTop?: boolean;
+    readonly escapeLabel?: string;
+    readonly escapeValue?: T;
+  } = {},
 ): Promise<T> {
-  const { compactTop = false, escapeLabel = 'volver', escapeValue } = options;
+  const { back, compactTop = false, escapeLabel = 'volver', escapeValue } = options;
   const prefix = compactTop ? COMPACT_PROMPT_PREFIX : PROMPT_PREFIX;
   const config = {
-    choices: [...choices],
+    back,
+    choices,
     default: defaultValue,
-    loop: false,
     message,
-    pageSize: 12,
+    pageSize: MIN_PAGE_SIZE,
     theme:
       escapeValue === undefined
         ? { ...MENU_THEME, prefix }
@@ -98,12 +107,12 @@ export async function chooseOne<T>(
   };
 
   if (escapeValue === undefined) {
-    return select<T>(config);
+    return listSelect<T, T>(config);
   }
 
   const result = await runStepPrompt(
-    (context) => select<T>(config, context),
-    (answer) => ({ answer: choiceName(choices, answer), message }),
+    (context) => listSelect<T, T>(config, context),
+    (answer) => ({ answer: back && answer === back.value ? back.label : choiceName(choices, answer), message }),
   );
 
   return 'answer' in result && result.answer !== BACK ? result.answer : escapeValue;
@@ -143,18 +152,24 @@ export function isPromptCancellation(error: unknown): boolean {
 
 // Lineas que ocupa el prompt fuera de la lista: linea en blanco, pregunta, descripcion y ayuda de teclas.
 const PROMPT_CHROME_LINES = 6;
+// "← Volver" y la linea en blanco que lo separa de las opciones, fijos debajo de la lista.
+const BACK_LINES = 2;
+// Los avisos "↑ 3 más" y "↓ 12 más" de una lista que se desplaza.
+const SCROLL_HINT_LINES = 2;
+const MIN_PAGE_SIZE = 12;
 
-/** Alto de lista para `count` opciones: todas si entran en la terminal, si no las que entren (minimo 12). */
-export function fitPageSize(count: number): number {
-  const available = (process.stdout.rows || 24) - PROMPT_CHROME_LINES;
+/**
+ * Alto de la parte que se desplaza para `count` filas: todas si entran en la terminal (junto con "Volver", salvo con
+ * `back: false`), si no las que entren con los avisos de arriba y abajo (minimo 12).
+ */
+export function fitPageSize(count: number, options: { readonly back?: boolean } = {}): number {
+  const available = (process.stdout.rows || 24) - PROMPT_CHROME_LINES - (options.back === false ? 0 : BACK_LINES);
 
-  return Math.max(12, Math.min(count, available));
+  return count <= available ? Math.max(MIN_PAGE_SIZE, count) : Math.max(MIN_PAGE_SIZE, available - SCROLL_HINT_LINES);
 }
 
-/** "← Volver" al final de una lista, separado de las opciones por `BACK_SPACER`. */
+/** "← Volver" al final de una lista, fijo debajo de las opciones aunque la lista se desplace. */
 export const BACK_CHOICE = { name: `${uiSymbol('back')} Volver`, value: BACK } as const;
-// Linea en blanco entre las opciones y "Volver".
-export const BACK_SPACER = new Separator(' ');
 // Alternativa a Esc, por si la terminal no la manda.
 const BACK_TEXT = '<';
 const ESCAPE_REASON = 'esc';
@@ -209,22 +224,6 @@ async function runStepPrompt<T>(
   }
 }
 
-function stepConfig<T>(
-  message: string,
-  choices: ReadonlyArray<Choice<T> | Separator>,
-  defaultValue: T | undefined,
-  pageSize: number,
-) {
-  return {
-    choices: [...choices, BACK_SPACER, BACK_CHOICE],
-    default: defaultValue,
-    loop: false,
-    message,
-    pageSize,
-    theme: STEP_THEME,
-  };
-}
-
 function choiceName<T>(choices: ReadonlyArray<Choice<T> | Separator>, answer: Back | T): string {
   if (answer === BACK) {
     return BACK_CHOICE.name;
@@ -243,7 +242,18 @@ async function selectStep<T>(
   signal?: AbortSignal,
 ) {
   return runStepPrompt(
-    (context) => select<Back | T>(stepConfig(message, choices, defaultValue, pageSize), context),
+    (context) =>
+      listSelect<T, Back>(
+        {
+          back: { label: BACK_CHOICE.name, value: BACK },
+          choices,
+          default: defaultValue,
+          message,
+          pageSize,
+          theme: STEP_THEME,
+        },
+        context,
+      ),
     (answer) => ({ answer: choiceName(choices, answer), message }),
     signal,
   );

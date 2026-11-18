@@ -35,7 +35,6 @@ import { markIfNew } from './new-mark';
 import {
   askTextStep,
   BACK_CHOICE,
-  BACK_SPACER,
   browseFilterList,
   chooseFromFilterList,
   chooseOne,
@@ -174,7 +173,11 @@ async function runQuotationQuery(session: InteractiveSession): Promise<void> {
 
     quotations.set(currency, quotation);
 
-    writeTerminalOutput(formatQuotationAsText(quotation, session.runtime.environment));
+    writeTerminalOutput(
+      formatQuotationAsText(quotation, session.runtime.environment, {
+        currencyName: currencies.find((entry) => entry.id === currency)?.description,
+      }),
+    );
   }
 }
 
@@ -286,11 +289,9 @@ export async function runQueriesMenu(session: InteractiveSession): Promise<void>
           },
           'consultas',
         ),
-        BACK_SPACER,
-        BACK_CHOICE,
       ],
       last,
-      { escapeValue: BACK },
+      { back: { label: BACK_CHOICE.name, value: BACK }, escapeValue: BACK },
     );
 
     if (option === BACK) {

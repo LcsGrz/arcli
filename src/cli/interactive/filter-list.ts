@@ -6,12 +6,13 @@ import {
   makeTheme,
   useKeypress,
   useMemo,
-  usePagination,
   usePrefix,
   useState,
 } from '@inquirer/core';
 
 import { bold, colorize, uiSymbol } from '../../ui';
+
+import { scrollHint, scrollWindow } from './scroll-window';
 
 type HelpKey = [string, string];
 
@@ -115,18 +116,17 @@ export const filterList = createPrompt(<T>(config: FilterListConfig<T>, done: (v
     }
   });
 
-  const page = usePagination({
-    active,
-    items: visible,
-    loop: false,
-    pageSize: config.pageSize,
-    renderItem({ isActive, item }) {
-      const cursor = isActive ? uiSymbol('pointer') : ' ';
-      const line = `${cursor} ${item.label}`;
+  const window = scrollWindow(visible.length, active, config.pageSize);
+  const page = [
+    ...(window.scrolls ? [scrollHint('above', window.start)] : []),
+    ...visible.slice(window.start, window.end).map((item, offset) => {
+      const isActive = window.start + offset === active;
+      const line = `${isActive ? uiSymbol('pointer') : ' '} ${item.label}`;
 
       return isActive ? theme.style.highlight(line) : line;
-    },
-  });
+    }),
+    ...(window.scrolls ? [scrollHint('below', visible.length - window.end)] : []),
+  ].join('\n');
   const message = theme.style.message(config.message, status);
 
   if (status === 'done') {

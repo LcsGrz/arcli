@@ -135,9 +135,18 @@ export function formatParameterEntriesAsJson(
   );
 }
 
-export function formatQuotationAsText(quotation: Quotation, environment: Environment): string {
+/**
+ * Con `currencyName` (la descripcion de la tabla de monedas, si ya se tiene), la moneda sale con su nombre:
+ * "Euro (060)". ARCA no lo manda con la cotizacion, y pedirlo aparte cuesta otra consulta.
+ */
+export function formatQuotationAsText(
+  quotation: Quotation,
+  environment: Environment,
+  options: { readonly currencyName?: string } = {},
+): string {
+  const name = options.currencyName?.trim();
   const rows = [
-    ['Moneda', quotation.currency],
+    ['Moneda', name ? `${name} (${quotation.currency})` : quotation.currency],
     ['Cotización', formatExchangeRate(quotation.rate)],
     ['Fecha', quotation.date ? formatArcaDateAsArgentineDate(quotation.date) : 'N/D'],
   ] as const;
