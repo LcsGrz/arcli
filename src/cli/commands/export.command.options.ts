@@ -145,9 +145,13 @@ const EXPORT_OPTIONS: readonly ExportOptionDefinition[] = [
     parser: integerOption('--punto-venta'),
   },
   { description: 'alias de --punto-venta', flags: '--pv <numero>', hidden: true, parser: integerOption('--pv') },
-  { description: 'fecha del comprobante; acepta D, D/M, D/M/YY o D/M/YYYY con - o /', flags: '-f, --fecha <fecha>' },
   {
-    description: 'fecha de pago, solo en servicios y otros; por defecto la del comprobante',
+    description:
+      'fecha del comprobante; acepta D, D/M, D/M/YY o D/M/YYYY con - o /, hoy, ayer, +N o -N (días desde hoy)',
+    flags: '-f, --fecha <fecha>',
+  },
+  {
+    description: 'fecha de pago, solo en servicios y otros; por defecto la del comprobante; también hoy, ayer, +N o -N',
     flags: '--fecha-pago <fecha>',
     only: 'factura',
   },

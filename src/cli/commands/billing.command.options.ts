@@ -27,7 +27,10 @@ export function registerBillingOptions(command: Command): void {
     .option('--punto-venta <numero>', 'punto de venta (alias: --pv)', integerOption('--punto-venta'))
     .option('--pv <numero>', 'alias de --punto-venta', integerOption('--pv'))
     .option('--cargar <ruta>', 'cargar datos base desde un archivo JSON')
-    .option('-f, --fecha <fecha>', 'fecha del comprobante; acepta D, D/M, D/M/YY o D/M/YYYY con - o /')
+    .option(
+      '-f, --fecha <fecha>',
+      'fecha del comprobante; acepta D, D/M, D/M/YY o D/M/YYYY con - o /, hoy, ayer, +N o -N (días desde hoy)',
+    )
     .option('-c, --concepto <tipo>', 'productos, servicios o productos y servicios (alias: --cs, --cp, --csp)')
     .option('--cs', 'usar concepto servicios')
     .option('--cp', 'usar concepto productos')
@@ -66,10 +69,19 @@ export function registerBillingOptions(command: Command): void {
     .option('--ir-se', 'IVA receptor: sujeto exento')
     .option('--ir-snc', 'IVA receptor: sujeto no categorizado')
     .option('--sd <fecha>', 'alias de --servicio-desde')
-    .option('--servicio-desde <fecha>', 'fecha de inicio de servicio (alias: --sd)')
+    .option(
+      '--servicio-desde <fecha>',
+      'fecha de inicio de servicio; también hoy, ayer, +N, -N, mes-actual o mes-pasado (el día 1) (alias: --sd)',
+    )
     .option('--sh <fecha>', 'alias de --servicio-hasta')
-    .option('--servicio-hasta <fecha>', 'fecha de fin de servicio (alias: --sh)')
-    .option('--vencimiento <fecha>', 'fecha de vencimiento del pago; por defecto el fin del servicio (alias: --vto)')
+    .option(
+      '--servicio-hasta <fecha>',
+      'fecha de fin de servicio; también hoy, ayer, +N, -N, mes-actual o mes-pasado (el último día) (alias: --sh)',
+    )
+    .option(
+      '--vencimiento <fecha>',
+      'fecha de vencimiento del pago; por defecto el fin del servicio; también hoy, ayer, +N o -N (alias: --vto)',
+    )
     .option('--vto <fecha>', 'alias de --vencimiento')
     .option('--at <numero>', 'tipo ARCA del comprobante asociado', integerOption('--at'))
     .option(
@@ -89,11 +101,20 @@ export function registerBillingOptions(command: Command): void {
       'CUIT del comprobante asociado; en NC/ND FCE por defecto el CUIT emisor',
       cuitOption('--acuit'),
     )
-    .option('--periodo-desde <fecha>', 'inicio del período asociado; alternativa a --ac en notas comunes (alias: --pd)')
+    .option(
+      '--periodo-desde <fecha>',
+      'inicio del período asociado; alternativa a --ac en notas comunes; también hoy, ayer, +N, -N, mes-actual o mes-pasado (el día 1) (alias: --pd)',
+    )
     .option('--pd <fecha>', 'alias de --periodo-desde')
-    .option('--periodo-hasta <fecha>', 'fin del período asociado; alternativa a --ac en notas comunes (alias: --ph)')
+    .option(
+      '--periodo-hasta <fecha>',
+      'fin del período asociado; alternativa a --ac en notas comunes; también hoy, ayer, +N, -N, mes-actual o mes-pasado (el último día) (alias: --ph)',
+    )
     .option('--ph <fecha>', 'alias de --periodo-hasta')
-    .option('--afecha <fecha>', 'fecha del comprobante asociado; en NC/ND FCE, sin ella sale de ARCA')
+    .option(
+      '--afecha <fecha>',
+      'fecha del comprobante asociado; también hoy, ayer, +N o -N; en NC/ND FCE, sin ella sale de ARCA',
+    )
     .option('--cbu <cbu>', 'CBU del emisor para facturas FCE (22 dígitos)')
     .option('--alias <alias>', 'alias del CBU del emisor para facturas FCE')
     .option('--transferencia <modalidad>', 'modalidad de transferencia FCE: sca o adc (por defecto sca)')

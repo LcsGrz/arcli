@@ -1,5 +1,6 @@
 import type { Command } from 'commander';
 
+import { resolveRelativeDateInput } from '../../lib/dates/relative-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { readJsonFile } from '../../lib/files/read-json-file';
 import {
@@ -135,6 +136,9 @@ export function parseExportCommandPlan(command: Command, defaults: ExportCommand
   // Igual que en A, B y C: los flags ganan y, sin ellos, vale `"pdf"` del archivo.
   const pdf = exportPdf ? true : skipPdf ? false : file?.pdf;
   const voucherKind = defaults.voucherKind ?? EXPORT_VOUCHER_KIND;
+  // Las fechas relativas (`hoy`, `+10`...) se resuelven aca, para flags y `--cargar`. En la E todas son de un dia.
+  const now = new Date();
+  const day = (value: string | undefined) => resolveRelativeDateInput(value, 'day', now);
   const associatedFile = file?.comprobanteAsociado;
 
   if (associatedFile && !isExportNote(voucherKind)) {
@@ -149,7 +153,7 @@ export function parseExportCommandPlan(command: Command, defaults: ExportCommand
         arcaType: pickNumber(options.at, associatedFile?.tipo),
         cuit: pickString(options.acuit, associatedFile?.cuit),
         // `--afecha` es de A, B y C: en `arcli nota-credito e` se saltea con un aviso. Del JSON, se avisa que no se usa.
-        date: associatedFile?.fecha,
+        date: day(associatedFile?.fecha),
         number: pickNumber(options.ar, associatedFile?.numero),
         pointOfSale: pickNumber(options.apv, options.asociadoPuntoVenta, associatedFile?.puntoVenta),
         shortcut: pickString(options.ac, associatedFile?.atajo),
@@ -181,7 +185,7 @@ export function parseExportCommandPlan(command: Command, defaults: ExportCommand
       language: pickNumber(options.idioma, file?.idioma),
       modeSource,
       observations: pickString(options.observaciones, file?.observaciones),
-      paymentDate: pickString(options.fechaPago, file?.fechaPago),
+      paymentDate: day(pickString(options.fechaPago, file?.fechaPago)),
       paymentTerms: pickString(options.formaPago, file?.formaPago),
       pdf,
       permits: pickList(options.permiso, file?.permisos),
@@ -190,7 +194,7 @@ export function parseExportCommandPlan(command: Command, defaults: ExportCommand
       requestId: pickNumber(options.idSolicitud, file?.idSolicitud),
       // En `arcli nota-credito e`, `--misma-moneda` es el de A, B y C y se saltea con un aviso.
       sameCurrency: pickBoolean(isExportNote(voucherKind) ? undefined : options.mismaMoneda, file?.mismaMoneda),
-      voucherDate: pickString(options.fecha, file?.fechaComprobante),
+      voucherDate: day(pickString(options.fecha, file?.fechaComprobante)),
       voucherKind,
       voucherNumber: pickNumber(options.numero, file?.numero),
     },
