@@ -8,7 +8,9 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
-Arreglos de una revisión de la factura `E` y de las notas contra los manuales de ARCA. Puede afectar scripts:
+## [2.5.2] - 2026-11-18
+
+Arreglos de una revisión de la factura `E` y de las notas contra los manuales de ARCA. Lo más importante: se pueden volver a hacer notas sobre facturas de Comprobantes en línea o de un controlador fiscal, y la `E` de servicios en moneda extranjera y la `E` en pesos ya no salen rechazadas en producción. Puede afectar scripts:
 
 - En la `E` en pesos, `solicitud` del `--json` ya no trae `CanMisMonExt`.
 - En la `E` a un destino sin CUIT en la tabla de ARCA, con `--id-impositivo` y sin `--cuit-pais`, ya no hay error: `solicitud` no trae `Cuit_pais_cliente` y `exportacion.cuitPaisCliente` es `null`.
@@ -593,7 +595,8 @@ Primera versión publicada en npm.
 - `llms.txt`: referencia condensada para que un agente de IA con acceso a terminal ejecute el CLI.
 - Publicación con npm Trusted Publishers (OIDC).
 
-[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v2.5.1...HEAD
+[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v2.5.2...HEAD
+[2.5.2]: https://github.com/LcsGrz/arcli/compare/v2.5.1...v2.5.2
 [2.5.1]: https://github.com/LcsGrz/arcli/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/LcsGrz/arcli/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/LcsGrz/arcli/compare/v2.3.0...v2.4.0
