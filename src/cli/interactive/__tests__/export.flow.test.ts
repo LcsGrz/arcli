@@ -53,6 +53,13 @@ const gateway: ExportGateway = {
   getVoucher: async () => null,
 };
 
+// El comando equivalente sale con las comillas de la shell del SO: POSIX fijo para que el CI en Windows espere lo mismo.
+vi.mock('../../../lib/shell/shell-argument', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../lib/shell/shell-argument')>();
+
+  return { ...actual, formatShellCommand: (args: readonly string[]) => actual.formatShellCommand(args, 'linux') };
+});
+
 vi.mock('../prompts', () => ({
   askTextStep: (...args: Parameters<typeof script.askTextStep>) => script.askTextStep(...args),
   chooseManyStep: (...args: Parameters<typeof script.chooseManyStep>) => script.chooseManyStep(...args),
@@ -157,7 +164,7 @@ describe('runExportFlow', () => {
       }),
     );
     expect(printed()).toContain(
-      'arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino "ESTADOS UNIDOS" --id-impositivo 12-3456789 --actividad 620100 --descripcion "Consultoría de software" --moneda DOL --misma-moneda --testing --emitir',
+      "arcli fe -m 1500 --cliente 'ACME LLC' --domicilio-cliente '123 Main St' --pais-destino 'ESTADOS UNIDOS' --id-impositivo 12-3456789 --actividad 620100 --descripcion 'Consultoría de software' --moneda DOL --misma-moneda --testing --emitir",
     );
     expect(savedConfig).toHaveBeenCalledWith('exportacion.actividad', '620100');
   });
@@ -186,7 +193,7 @@ describe('runExportFlow', () => {
     expect(savedConfig).not.toHaveBeenCalled();
     expect(printed()).toContain('No se emitió nada.');
     expect(printed()).toContain(
-      '--tipo-expo 1 --actividad 620100 --moneda PES --incoterm FOB --permiso 26001EC01000123A --permiso 26001EC01000124B --permiso-existente --forma-pago "Carta de crédito" --fecha-pago 15/11/2026',
+      "--tipo-expo 1 --actividad 620100 --moneda PES --incoterm FOB --permiso 26001EC01000123A --permiso 26001EC01000124B --permiso-existente --forma-pago 'Carta de crédito' --fecha-pago 15/11/2026",
     );
   });
 
@@ -252,7 +259,7 @@ describe('runExportFlow', () => {
       }),
     );
     expect(printed()).toContain(
-      '--item "Bienes varios|2|500|1" --item "Flete|1|500" --moneda DOL --cm 1200,50 --incoterm FOB --incoterms-desc "Free on board, Buenos Aires" --idioma 2 --observaciones "Pedido 42" --testing --emitir',
+      "--item 'Bienes varios|2|500|1' --item 'Flete|1|500' --moneda DOL --cm 1200,50 --incoterm FOB --incoterms-desc 'Free on board, Buenos Aires' --idioma 2 --observaciones 'Pedido 42' --testing --emitir",
     );
   });
 

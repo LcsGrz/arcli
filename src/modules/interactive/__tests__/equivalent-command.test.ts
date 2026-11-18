@@ -7,11 +7,33 @@ import { type BillingCommandInput, billingCommandSchema } from '../../billing/bi
 import type { VoucherShortcut } from '../../billing/billing.types';
 import { buildEquivalentCommand } from '../equivalent-command';
 
-/** Separa el comando como lo haria la shell: comillas dobles, con `\` para escapar. */
+/** Separa el comando como lo haria una shell POSIX: `'...'` es literal y `\\` escapa el caracter que sigue. */
 function shellWords(command: string): string[] {
-  return [...command.matchAll(/"((?:\\.|[^"\\])*)"|(\S+)/g)].map(([, quoted, plain]) =>
-    quoted === undefined ? plain : quoted.replace(/\\(.)/g, '$1'),
-  );
+  const words: string[] = [];
+  let word: string | undefined;
+
+  for (let index = 0; index < command.length; index += 1) {
+    const char = command[index];
+
+    if (char === ' ') {
+      if (word !== undefined) words.push(word);
+      word = undefined;
+    } else if (char === "'") {
+      const close = command.indexOf("'", index + 1);
+
+      word = (word ?? '') + command.slice(index + 1, close);
+      index = close;
+    } else if (char === '\\') {
+      index += 1;
+      word = (word ?? '') + command[index];
+    } else {
+      word = (word ?? '') + char;
+    }
+  }
+
+  if (word !== undefined) words.push(word);
+
+  return words;
 }
 
 function parseCommand(command: string, shortcut: VoucherShortcut): BillingCommandInput {
@@ -37,20 +59,20 @@ function input(overrides: Record<string, unknown>): BillingCommandInput {
 
 describe('buildEquivalentCommand', () => {
   it('arma el comando de una factura a consumidor final, con el entorno explicito', () => {
-    expect(buildEquivalentCommand(input({}), { environment: 'testing' })).toBe(
+    expect(buildEquivalentCommand(input({}), { environment: 'testing', platform: 'linux' })).toBe(
       'arcli fc -m 1000 --cs --consumidor-final --testing --emitir',
     );
   });
 
   it('sin documento, --ir solo si el IVA receptor no es consumidor final, y al reparsearlo da la misma entrada', () => {
     const exempt = input({ ivaCondition: 'sujeto-exento' });
-    const command = buildEquivalentCommand(exempt, { environment: 'testing' });
+    const command = buildEquivalentCommand(exempt, { environment: 'testing', platform: 'linux' });
 
     expect(command).toBe('arcli fc -m 1000 --cs --consumidor-final --ir sujeto-exento --testing --emitir');
     expect(parseCommand(command, 'fc').ivaCondition).toBe('sujeto-exento');
-    expect(parseCommand(buildEquivalentCommand(input({}), { environment: 'testing' }), 'fc').ivaCondition).toBe(
-      'consumidor-final',
-    );
+    expect(
+      parseCommand(buildEquivalentCommand(input({}), { environment: 'testing', platform: 'linux' }), 'fc').ivaCondition,
+    ).toBe('consumidor-final');
   });
 
   it('agrega --produccion y los datos de FCE', () => {
@@ -64,7 +86,7 @@ describe('buildEquivalentCommand', () => {
         shortcut: 'fcea',
         transferMode: 'adc',
       }),
-      { environment: 'produccion' },
+      { environment: 'produccion', platform: 'linux' },
     );
 
     expect(command).toBe(
@@ -73,22 +95,28 @@ describe('buildEquivalentCommand', () => {
   });
 
   it('con moneda extranjera en la config, un comprobante en pesos lleva --moneda ARS', () => {
-    expect(buildEquivalentCommand(input({}), { defaultCurrency: 'USD', environment: 'testing' })).toContain(
-      '--moneda ARS',
-    );
-    expect(buildEquivalentCommand(input({}), { defaultCurrency: 'ARS', environment: 'testing' })).not.toContain(
-      '--moneda',
-    );
+    expect(
+      buildEquivalentCommand(input({}), { defaultCurrency: 'USD', environment: 'testing', platform: 'linux' }),
+    ).toContain('--moneda ARS');
+    expect(
+      buildEquivalentCommand(input({}), { defaultCurrency: 'ARS', environment: 'testing', platform: 'linux' }),
+    ).not.toContain('--moneda');
   });
 
   it('incluye la moneda extranjera', () => {
     expect(
-      buildEquivalentCommand(input({ currencyCode: 'USD', exchangeRate: 1200 }), { environment: 'testing' }),
+      buildEquivalentCommand(input({ currencyCode: 'USD', exchangeRate: 1200 }), {
+        environment: 'testing',
+        platform: 'linux',
+      }),
     ).toContain('--moneda USD --cm 1200');
     expect(
-      buildEquivalentCommand(input({ currencyCode: 'USD', sameCurrency: true }), { environment: 'testing' }),
+      buildEquivalentCommand(input({ currencyCode: 'USD', sameCurrency: true }), {
+        environment: 'testing',
+        platform: 'linux',
+      }),
     ).toContain('--moneda USD --misma-moneda');
-    expect(buildEquivalentCommand(input({}), { environment: 'testing' })).not.toContain('--moneda');
+    expect(buildEquivalentCommand(input({}), { environment: 'testing', platform: 'linux' })).not.toContain('--moneda');
   });
 
   it('genera un comando que el parser vuelve a leer igual', () => {
@@ -102,7 +130,7 @@ describe('buildEquivalentCommand', () => {
       shortcut: 'ncb',
       totalAmount: 1500.5,
     });
-    const command = buildEquivalentCommand(original, { environment: 'testing' });
+    const command = buildEquivalentCommand(original, { environment: 'testing', platform: 'linux' });
     const reparsed = parseCommand(command, 'ncb');
 
     expect({ ...reparsed, dryRun: false }).toEqual({ ...original, dryRun: false });
@@ -126,7 +154,7 @@ describe('buildEquivalentCommand', () => {
       shortcut: 'ncb',
       totalAmount: 1210,
     });
-    const command = buildEquivalentCommand(original, { environment: 'testing' });
+    const command = buildEquivalentCommand(original, { environment: 'testing', platform: 'linux' });
 
     expect(command).toBe(
       'arcli ncb -m 1210 --cs --cuil 20333333334 --ir consumidor-final -f 31/10 --moneda EUR --misma-moneda --exento 50 --sd 1/10 --sh 31/10 --vto 15/11 --pd 1/10 --ph 31/10 --testing --emitir',
@@ -144,14 +172,47 @@ describe('buildEquivalentCommand', () => {
       receiverName: 'ACME S.A.',
       shortcut: 'fa',
     });
-    const command = buildEquivalentCommand(original, { environment: 'testing' });
+    const command = buildEquivalentCommand(original, { environment: 'testing', platform: 'linux' });
 
     expect(command).toBe(
-      'arcli fa -m 1000 --cs --cuit 30709965812 --ir responsable-inscripto --receptor-nombre "ACME S.A." --receptor-domicilio "Av. Corrientes 1234, Piso 5 \\"B\\"" --testing --emitir',
+      `arcli fa -m 1000 --cs --cuit 30709965812 --ir responsable-inscripto --receptor-nombre 'ACME S.A.' --receptor-domicilio 'Av. Corrientes 1234, Piso 5 "B"' --testing --emitir`,
     );
     expect(parseCommand(command, 'fa')).toMatchObject({
       receiverAddress: 'Av. Corrientes 1234, Piso 5 "B"',
       receiverName: 'ACME S.A.',
     });
+  });
+
+  it('con !, $, backtick y comilla simple en el nombre, la shell lo lee tal cual', () => {
+    const receiverName = "Hola! $HOME `id` O'Brien Muñoz";
+    const original = input({
+      documentNumber: 30709965812,
+      documentType: 'cuit',
+      ivaCondition: 'responsable-inscripto',
+      receiverName,
+      shortcut: 'fa',
+    });
+    const command = buildEquivalentCommand(original, { environment: 'testing', platform: 'linux' });
+
+    expect(command).toContain(`--receptor-nombre 'Hola! $HOME \`id\` O'\\''Brien Muñoz'`);
+    expect(parseCommand(command, 'fa').receiverName).toBe(receiverName);
+  });
+
+  it('en Windows usa las comillas de PowerShell y pone entre comillas los montos con coma', () => {
+    const command = buildEquivalentCommand(
+      input({
+        documentNumber: 30709965812,
+        documentType: 'cuit',
+        ivaCondition: 'responsable-inscripto',
+        receiverName: "O'Brien",
+        shortcut: 'fa',
+        totalAmount: 1500.5,
+      }),
+      { environment: 'testing', platform: 'win32' },
+    );
+
+    expect(command).toBe(
+      "arcli fa -m '1500,50' --cs --cuit 30709965812 --ir responsable-inscripto --receptor-nombre 'O''Brien' --testing --emitir",
+    );
   });
 });
