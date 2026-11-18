@@ -928,6 +928,7 @@ describe('flujos del modo interactivo', () => {
         [/Qué factura\?/, 'Factura B'],
         [/A qué la asociamos/, 'A una factura'],
         [/Sobre qué factura B/, '00003-00000014'],
+        [/En qué moneda va la nota/, 'En DOL, como el comprobante'],
         [/Total o parcial/, 'Anular el total'],
         [/Agregamos/, []],
       ]);
@@ -941,6 +942,66 @@ describe('flujos del modo interactivo', () => {
         exemptAmount: 10,
         totalAmount: 131,
       });
+    });
+
+    it('una ND sobre una factura en dolares puede ir en pesos, por una diferencia de cambio (REGLAS-4)', async () => {
+      script = createScript([
+        [/Sobre qué comprobante/, 'Facturas'],
+        [/Qué factura\?/, 'Factura B'],
+        [/A qué la asociamos/, 'A una factura'],
+        [/Sobre qué factura B/, '00003-00000014'],
+        [/En qué moneda va la nota/, 'En pesos'],
+        [/Monto de la nota de débito/, '25.000'],
+        [/Agregamos/, []],
+      ]);
+
+      const session = createSession([invoice({ currency: 'DOL', exchangeRate: 1450, total: 121 })]);
+      const state = await runWizard(noteSteps(session, 3), { kind: 'debito' });
+
+      expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
+        currencyCode: 'PES',
+        exchangeRate: undefined,
+        shortcut: 'ndb',
+        totalAmount: 25_000,
+      });
+    });
+
+    it('una NC en pesos sobre una factura en dolares no ofrece anular el total ni tiene su tope', async () => {
+      script = createScript([
+        [/Sobre qué comprobante/, 'Facturas'],
+        [/Qué factura\?/, 'Factura B'],
+        [/A qué la asociamos/, 'A una factura'],
+        [/Sobre qué factura B/, '00003-00000014'],
+        [/En qué moneda va la nota/, 'En pesos'],
+        [/Monto de la nota de crédito/, '25.000'],
+        [/Agregamos/, []],
+      ]);
+
+      const session = createSession([invoice({ currency: 'DOL', exchangeRate: 1450, total: 121 })]);
+      const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
+
+      expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
+        currencyCode: 'PES',
+        totalAmount: 25_000,
+      });
+      expect(script.asked.some((question) => /Total o parcial/.test(question))).toBe(false);
+    });
+
+    it('sobre una factura en pesos no pregunta la moneda', async () => {
+      script = createScript([
+        [/Sobre qué comprobante/, 'Facturas'],
+        [/Qué factura\?/, 'Factura B'],
+        [/A qué la asociamos/, 'A una factura'],
+        [/Sobre qué factura B/, '00003-00000014'],
+        [/Monto de la nota de débito/, '100'],
+        [/Agregamos/, []],
+      ]);
+
+      const session = createSession([invoice()]);
+      const state = await runWizard(noteSteps(session, 3), { kind: 'debito' });
+
+      expect(buildNoteInput(state as NonNullable<typeof state>, session, 3).currencyCode).toBe('PES');
+      expect(script.asked.some((question) => /moneda va la nota/.test(question))).toBe(false);
     });
 
     it('con varias alicuotas no ofrece anular el total', async () => {
@@ -1045,6 +1106,7 @@ describe('flujos del modo interactivo', () => {
         [/Qué factura\?/, 'Factura B'],
         [/A qué la asociamos/, 'A una factura'],
         [/Sobre qué factura B/, '00003-00000014'],
+        [/En qué moneda va la nota/, 'En DOL, como el comprobante'],
         [/Total o parcial/, 'Parcial'],
         [/Monto de la nota de crédito/, '60,50'],
         [/Agregamos/, ['Fecha', 'Importe exento', 'Período', 'Vencimiento']],
