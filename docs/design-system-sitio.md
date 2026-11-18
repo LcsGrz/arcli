@@ -15,7 +15,7 @@ El sitio vive en `site/` (Astro + Starlight). Cómo se genera desde `docs/` y c�
 5. **Un componente antes que HTML repetido.** Si un ícono, chip o logo ya tiene componente, se usa ese.
 6. **Se lee sin color.** Como en la terminal: el color refuerza (la letra del comprobante, la severidad), pero el texto dice lo mismo.
 7. **Claro y oscuro.** Las docs tienen los dos temas; la portada y los paneles de terminal son siempre oscuros. Cada cambio se mira en los dos temas, a 1440 y a 390 px.
-8. **Con teclado.** Lo que se toca con el mouse se toca con el teclado, con el foco visible (`:focus-visible`, celeste) y sin foco al hacer clic.
+8. **Con teclado.** Lo que se toca con el mouse se toca con el teclado, con el foco visible (`:focus-visible`, celeste, en `marco.css` para todo el sitio) y sin foco al hacer clic. Lo que se desplaza de costado (una tabla en el celular, un bloque de la portada) también entra con Tab.
 
 ## Tokens
 
@@ -29,15 +29,17 @@ La marca cambia con el tema: en claro, cada color es una versión más oscura qu
 | ----------------- | --------- | --------- | -------------------------------------------------------------------------------------------- |
 | `--arcli-celeste` | `#74acdf` | `#2c6aa3` | El acento: links, foco, pestaña elegida, aviso `note`, "Cambiado", la letra A, "AR" del logo |
 | `--arcli-lavanda` | `#c6c9f0` | `#3d3f66` | Lo opcional (tarjetas `opt`), la letra B, "CLI" del logo                                     |
-| `--arcli-verde`   | `#a6e3a1` | `#3a8a3f` | Salió bien: aviso `tip`, "Agregado", la letra C                                              |
-| `--arcli-sol`     | `#f9d77e` | `#9a6b00` | Atención: aviso `caution`, "Arreglado", severidad "frecuente", la letra E                    |
+| `--arcli-verde`   | `#a6e3a1` | `#327a37` | Salió bien: aviso `tip`, "Agregado", la letra C                                              |
+| `--arcli-sol`     | `#f9d77e` | `#8a5f00` | Atención: aviso `caution`, "Arreglado", severidad "frecuente", la letra E                    |
 | `--arcli-naranja` | `#fab387` | `#a8521a` | "Deprecado" y "Aviso" en Novedades                                                           |
 | `--arcli-rojo`    | `#f38ba8` | `#b4344f` | Error o peligro: aviso `danger`, "Eliminado", "Seguridad", severidad "crítico"               |
 | `--arcli-panel`   | `#11111b` | `#f4f5f9` | Un panel de las docs que sigue el tema (hoy sin uso)                                         |
 | `--arcli-hdr-hi`  | `#2c2c42` | `#ffffff` | El degradé del encabezado (arriba); `--arcli-hdr-lo`, abajo                                  |
 | `--sl-color-*`    |           |           | Los de Starlight: el acento y los grises (`gray-1` a `gray-6`) del tema                      |
 
-Los grises del texto y las líneas son los de Starlight (`--sl-color-white`, `--sl-color-gray-2`, `--sl-color-gray-5`…): siguen el tema solos.
+Los grises del texto y las líneas son los de Starlight (`--sl-color-white`, `--sl-color-gray-2`, `--sl-color-gray-5`…): siguen el tema solos. En oscuro, `--sl-color-gray-3` (el texto secundario) es más claro que el de Starlight para llegar a 4,5:1 también sobre una pestaña o un desplegable abierto.
+
+**Contraste.** Todo texto llega a 4,5:1 contra su fondo, en claro y en oscuro, también dentro de un desplegable abierto o un chip. Un color nuevo se prueba en los dos temas (por ejemplo, con axe o Lighthouse).
 
 **Terminal** (`--arcli-term-*`, Catppuccin Mocha): iguales en los dos temas, porque un panel de terminal es siempre oscuro. Para todo lo que imita la terminal: la demo, el chat, las muestras, los bloques de código. Si el panel es de terminal, va `--arcli-term-red`, no `--arcli-rojo`, que en claro perdería contraste sobre el fondo oscuro.
 
@@ -232,4 +234,4 @@ Los de `docs/`, por parte: `marco` (encabezado, anchos, índice, la portada de b
 
 ### Código
 
-Los bloques de código son de expressive-code y se configuran en `astro.config.mjs`. `codeBackground` queda en `#11111b` (el valor de `--arcli-term-bg`): con `var()`, expressive-code no puede calcular el contraste y en el tema claro aclaraba el texto. Si cambia `--arcli-term-bg`, cambia ahí también.
+Los bloques de código son de expressive-code y se configuran en `astro.config.mjs`. Usan solo el tema oscuro (`themes: ['starlight-dark']`): son paneles de terminal, oscuros también en el tema claro. `codeBackground` queda en `#11111b` (el valor de `--arcli-term-bg`): con `var()`, expressive-code no puede calcular el contraste y en el tema claro aclaraba el texto. Si cambia `--arcli-term-bg`, cambia ahí también.

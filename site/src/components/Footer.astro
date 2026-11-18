@@ -42,11 +42,11 @@ const label = (link: { label: string } | undefined) => link?.label;
 <footer class="site-foot">
   <div class="cols">
     <div class="brand">
-      <a href={url()} aria-label="ARCLI, inicio"><AsciiLogo variant="footer" /></a>
+      <a href={url()}><span class="sr-only">ARCLI, inicio</span><AsciiLogo variant="footer" /></a>
       <p>Facturación electrónica de ARCA desde la terminal. Hecho en Argentina por LcsGrz.</p>
     </div>
     <div>
-      <h4>Empezar</h4>
+      <h2>Empezar</h2>
       <ul>
         <li><a href={url('empezar/instalar/')}>Instalar y configurar</a></li>
         <li><a href={url('empezar/certificado-testing/')}>Obtener el certificado</a></li>
@@ -54,7 +54,7 @@ const label = (link: { label: string } | undefined) => link?.label;
       </ul>
     </div>
     <div>
-      <h4>Referencia</h4>
+      <h2>Referencia</h2>
       <ul>
         <li><a href={url('referencia/comandos/')}>Comandos y flags</a></li>
         <li><a href={url('ayuda/problemas-frecuentes/')}>Problemas frecuentes</a></li>
@@ -62,7 +62,7 @@ const label = (link: { label: string } | undefined) => link?.label;
       </ul>
     </div>
     <div>
-      <h4>Proyecto</h4>
+      <h2>Proyecto</h2>
       <ul>
         <li><a href={REPO_URL}>GitHub</a></li>
         <li><a href={NPM_URL}>npm</a></li>
@@ -182,7 +182,7 @@ const label = (link: { label: string } | undefined) => link?.label;
     font-size: var(--sl-text-sm);
   }
 
-  h4 {
+  h2 {
     margin: 0 0 0.75rem;
     color: var(--sl-color-white);
     font-size: var(--sl-text-sm);
