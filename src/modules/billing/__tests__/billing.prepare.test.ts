@@ -53,6 +53,17 @@ describe('prepareBillingInput', () => {
 
     expect(prepared.warnings).toEqual([expect.stringContaining('--dia')]);
   });
+
+  it('si "dia" vino del JSON de --cargar, el aviso nombra la clave y no el flag', async () => {
+    const prepared = await prepareBillingInput(service, input({ dueDay: 10, fromFile: ['dueDay'] }), {
+      billing: { getQuotation: vi.fn() },
+      padron: PADRON,
+    });
+
+    expect(prepared.warnings).toEqual([
+      'La clave "dia" del JSON de `--cargar` está deprecada y se va a sacar en una próxima versión: usá "vencimientoPago" (por ejemplo, `"vencimientoPago": "10"`).',
+    ]);
+  });
 });
 
 describe('resolveFceWarningsInOrder', () => {

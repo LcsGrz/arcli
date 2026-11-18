@@ -54,7 +54,7 @@ exit: 0
   "previsualizacion": false,
   "resultado": "A",
   "sugerencias": [
-    "ARCA dejó una observación sobre la condición del receptor (padrón). No es un rechazo: revisá si el caso es aceptable para tu flujo. Más info: https://arcli.com.ar/ayuda/problemas-frecuentes/#observaciones-de-padrón"
+    "ARCA ve al receptor como monotributista: el crédito fiscal de la factura A solo lo puede computar por el \"Procedimiento permanente de transición al Régimen General\". No es un rechazo: el comprobante está emitido. Si el receptor no es monotributista, revisalo con `arcli padron <cuit>`; en testing la observación sale también con otros CUITs. Más info: https://arcli.com.ar/ayuda/problemas-frecuentes/#observaciones-de-padrón"
   ],
   "tipoArca": 11
 }

@@ -76,6 +76,25 @@ describe('mapTaxpayerDetails', () => {
       notices: ['El domicilio fiscal no esta confirmado'],
     });
   });
+
+  it('no repite las actividades que vienen en el regimen general y en el monotributo, y conserva el orden', () => {
+    // Como 20000000001 en ARCA testing (18/11/2026): las mismas actividades en los dos bloques.
+    const activity = (idActividad: number, descripcionActividad: string) => ({ descripcionActividad, idActividad });
+    const taxpayer = mapTaxpayerDetails(20000000001, {
+      datosMonotributo: {
+        actividadMonotributista: [activity(352020, 'DISTRIBUCION DE GAS'), activity(551021, 'HOSPEDAJE')],
+      },
+      datosRegimenGeneral: {
+        actividad: [activity(14121, 'CRIA DE GANADO'), activity(352020, 'DISTRIBUCION DE GAS')],
+      },
+    });
+
+    expect(taxpayer.activities).toEqual([
+      { description: 'CRIA DE GANADO', id: 14121 },
+      { description: 'DISTRIBUCION DE GAS', id: 352020 },
+      { description: 'HOSPEDAJE', id: 551021 },
+    ]);
+  });
 });
 
 describe('ArcaPadronGateway', () => {

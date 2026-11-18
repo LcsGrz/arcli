@@ -165,6 +165,10 @@ export const billingCommandSchema = z.object({
   pdfDescription: z.string().trim().min(1).max(200).optional(),
   pointOfSale: z.number().int().positive().optional(),
   receiverAddress: z.string().trim().min(1).max(200).optional(),
+  /** Datos que salieron del JSON de `--cargar` y no de un flag: los avisos nombran la clave del JSON. */
+  fromFile: z
+    .array(z.enum(['dueDay', 'pdfDescription', 'receiverAddress', 'receiverName', 'saleCondition']))
+    .optional(),
   /** Que datos del receptor completo el padron (no los paso quien factura). */
   receiverFromPadron: z.array(z.enum(['address', 'name'])).optional(),
   receiverName: z.string().trim().min(1).max(200).optional(),

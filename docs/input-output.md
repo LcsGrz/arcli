@@ -57,6 +57,7 @@ Cada objeto se valida contra esta lista antes de mezclarlo con los flags y la co
 - **Una clave que no está en las tablas es un error** (`INPUT_VALIDATION_ERROR`) que la nombra y, si se parece a una válida o a un flag, sugiere la correcta: `"montototal"` → `montoTotal`, `"vencimiento"` → `vencimientoPago`, `"moneda"` → `codigoMoneda`. Vale también dentro de `comprobanteAsociado`, `periodoAsociado` y cada ítem de `alicuotas`.
 - **Un tipo incorrecto es un error**, no se descarta: `"puntoVenta": "3"` falla con "tiene que ser un número". Los números van sin comillas y los booleanos son `true` o `false`, no `"true"`. `null` tampoco vale (salvo en `condicionVenta`, donde omite el valor de la config): para no informar un campo, omití la clave. La única clave que acepta texto o número es la tasa de IVA (`alicuotaIva` y `tasa` en `alicuotas`).
 - En un lote, cada ítem se valida por separado y el error sale en `BATCH_VALIDATION_ERROR` con su índice (ver [abajo](#validación-y-errores-del-lote)). Un array vacío también es error.
+- Los avisos de `avisos` nombran la clave del JSON cuando el dato vino de `--cargar`, y el flag cuando vino de un flag: por ejemplo, `"descripcion"` o `"receptorNombre"` sin PDF, `"dia"` (deprecada) o `"descripcion"` con `"items"` en la `E`.
 
 Con un solo comprobante, `detalles.campos` lista cada problema con su ruta en el JSON:
 
@@ -192,7 +193,7 @@ La factura `E` (`arcli fe` o `arcli factura e`) y sus notas de crédito y débit
 | `permisos`, `permisoExistente`              | string[], boolean | no        | IDs de permiso de embarque y si ya están informados en ARCA; solo con `tipoExpo: 1`                                                                                |
 | `idSolicitud`                               | number            | no        | ID de la solicitud; si falta se pide a WSFEX                                                                                                                       |
 | `puntoVenta`                                | number            | no        | Por defecto, el de la config                                                                                                                                       |
-| `fechaComprobante`, `fechaPago`             | string            | no        | Formato argentino: `27/10/2026`, `27-10-26` o solo día y mes                                                                                                       |
+| `fechaComprobante`, `fechaPago`             | string            | no        | Formato argentino: `27/10/2026`, `27-10-26` o solo día y mes. `fechaPago` no va en bienes (`tipoExpo: 1`): se ignora con un aviso                                  |
 | `codigoMoneda`, `cotizacionMoneda`          | string, number    | no        | `USD` viaja como `DOL` (por defecto); sin cotización se usa la de aduana que publica ARCA                                                                          |
 | `mismaMoneda`                               | boolean           | no        | Pago en la misma moneda extranjera (`CanMisMonExt` en `S`). No cambia la cotización: sale de `cotizacionMoneda` o, sin ella, de la de aduana                       |
 | `observaciones`, `observacionesComerciales` | string            | no        | Van a `Obs` y `Obs_comerciales`                                                                                                                                    |
@@ -226,7 +227,6 @@ En una nota, `cliente`, `domicilioCliente`, `paisDestino`, `actividad` y la mone
 ```json
 {
   "montoTotal": 500,
-  "numero": 1,
   "comprobanteAsociado": { "atajo": "fe", "puntoVenta": 4, "numero": 1 },
   "previsualizar": true
 }
@@ -240,7 +240,6 @@ Una factura:
   "domicilioCliente": "123 Main St",
   "paisDestino": 203,
   "montoTotal": 1500,
-  "numero": 1,
   "actividad": 620100,
   "tipoExpo": 2,
   "incoterm": "FOB",
@@ -261,7 +260,7 @@ Una factura:
 
 ### Output JSON
 
-Es el mismo resumen que A, B y C (`atajo`, `cae`, `estado`, `errores`, `observaciones`, `pdf`…) con `atajo: "fe"` y `tipoArca: 19` (`nce` y `21`, `nde` y `20` en las notas), y `numero`, también en la vista previa, porque lo informás vos. Suma un bloque `exportacion` con lo que WSFEX tiene y `wsfe` no. `solicitud` es el `Cmp` de WSFEX, con los nombres de ARCA.
+Es el mismo resumen que A, B y C (`atajo`, `cae`, `estado`, `errores`, `observaciones`, `pdf`…) con `atajo: "fe"` y `tipoArca: 19` (`nce` y `21`, `nde` y `20` en las notas), y `numero`, también en la vista previa: el de `numero` o, si falta, el siguiente que ARCLI consulta en WSFEX. Suma un bloque `exportacion` con lo que WSFEX tiene y `wsfe` no. `solicitud` es el `Cmp` de WSFEX, con los nombres de ARCA.
 
 ```json
 {
@@ -316,7 +315,7 @@ Es el mismo resumen que A, B y C (`atajo`, `cae`, `estado`, `errores`, `observac
 }
 ```
 
-En las notas, `solicitud` lleva `Cmps_asoc` con el asociado y `Permiso_existente` vacío (con `Permisos` solo si la nota de bienes los informa), y no lleva `Fecha_pago` ni `CanMisMonExt`.
+En las notas, `solicitud` lleva `Cmps_asoc` con el asociado y `Permiso_existente` vacío (con `Permisos` solo si la nota de bienes los informa), y no lleva `Fecha_pago` ni `CanMisMonExt`. La factura de bienes (`tipoExpo: 1`) tampoco lleva `Fecha_pago`: ARCA la rechaza (error 1673).
 
 `exportacion.destino.nombre`, `exportacion.incotermDescripcion` y `exportacion.items[].unidad` salen de las tablas de WSFEX; si la tabla no trae el nombre, quedan en `null` y el código numérico sigue disponible. `exportacion.actividad` lista los códigos de actividad informados en `solicitud.Actividades` (de `--actividad` o de `exportacion.actividad`) y `exportacion.mismaMoneda` indica si el pago se cancela en la misma moneda extranjera (`solicitud.CanMisMonExt` en `S`).
 
@@ -606,7 +605,7 @@ Si no hubo emisión real, `respuesta` no se serializa como `null`. En su lugar:
 
 | Campo                  | Tipo                             | Descripción                                                                                                          |
 | ---------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `actividades`          | `{ descripcion, id }[]`          | Actividades; la primera es la principal                                                                              |
+| `actividades`          | `{ descripcion, id }[]`          | Actividades, sin repetir; la primera es la principal                                                                 |
 | `avisos`               | `string[]`                       | Observaciones de ARCA sobre la constancia                                                                            |
 | `categoriaMonotributo` | `string \| null`                 | Categoría, si es monotributista                                                                                      |
 | `condicionIva`         | `string \| null`                 | `responsable-inscripto`, `responsable-monotributo` o `sujeto-exento`; `null` si no se puede deducir de los impuestos |
