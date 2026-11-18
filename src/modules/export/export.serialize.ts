@@ -64,6 +64,11 @@ function formatExportBlock(result: ExportExecutionResult): Record<string, unknow
     })),
     mismaMoneda: payload.CanMisMonExt === 'S',
     permisos: payload.Permisos?.Permiso ?? [],
+    // Aditivo: lo que contesto `FEXCheck_Permiso` de cada permiso; vacio si el comprobante no lleva permisos.
+    verificacionPermisos: (display.permitChecks ?? []).map((check) => ({
+      estado: check.status,
+      permiso: check.permit,
+    })),
     tipoExpo: payload.Tipo_expo,
   };
 }

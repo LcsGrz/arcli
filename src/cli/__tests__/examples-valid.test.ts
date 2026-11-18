@@ -75,6 +75,7 @@ const gateway: BillingGateway = {
 /** Las tablas de WSFEX que usan los ejemplos de la factura E, sin red. */
 const exportGateway: ExportGateway = {
   authorize: () => Promise.reject(new Error('los ejemplos no emiten')),
+  checkPermit: async () => 'OK',
   getActivities: async () => [{ id: 620100, name: 'SERVICIOS DE CONSULTORES EN INFORMATICA' }],
   getCurrencies: async () => [{ code: 'DOL', name: 'Dólar Estadounidense' }],
   getDestinationCountries: async () => [

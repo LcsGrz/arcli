@@ -61,6 +61,7 @@ exit: 2
     ],
     "mismaMoneda": false,
     "permisos": [],
+    "verificacionPermisos": [],
     "tipoExpo": 2
   },
   "numero": 8,

@@ -100,4 +100,29 @@ describe('formatExportPayloadTable', () => {
     expect(table(result())).toMatch(/Idioma\s+1 - Español/);
     expect(table(result({}, { languageName: undefined }))).toMatch(/Idioma\s+1\n/);
   });
+
+  it('muestra al lado de cada permiso de embarque lo que contesto ARCA', () => {
+    const permits = {
+      Permiso_existente: 'S' as const,
+      Permisos: {
+        Permiso: [
+          { Dst_merc: 212, Id_permiso: 'P1' },
+          { Dst_merc: 212, Id_permiso: 'P2' },
+        ],
+      },
+    };
+    const checks = {
+      permitChecks: [
+        { permit: 'P1', status: 'valido' as const },
+        { permit: 'P2', status: 'sin-verificar' as const },
+      ],
+    };
+
+    const production = { ...result(permits, checks), environment: 'produccion' as const };
+
+    expect(table(production)).toMatch(/Permisos de embarque\s+P1 \(válido en ARCA\), P2 \(sin verificar\)/);
+    // Testing contesta OK a cualquier permiso: no se promete que sea valido.
+    expect(table(result(permits, checks))).toMatch(/Permisos de embarque\s+P1 \(OK en testing\), P2/);
+    expect(table(result(permits))).toMatch(/Permisos de embarque\s+P1, P2\n?/);
+  });
 });

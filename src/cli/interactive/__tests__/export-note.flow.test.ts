@@ -58,6 +58,7 @@ const gateway: ExportGateway = {
       },
     },
   })),
+  checkPermit: async () => 'OK',
   getActivities: async () => [{ id: 620100, name: 'SERVICIOS DE CONSULTORES EN INFORMATICA' }],
   getCurrencies: async () => [{ code: 'DOL', name: 'Dólar Estadounidense' }],
   getDestinationCountries: async () => [{ code: 212, name: 'ESTADOS UNIDOS' }],

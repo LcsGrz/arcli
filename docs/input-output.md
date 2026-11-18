@@ -293,7 +293,8 @@ Es el mismo resumen que A, B y C (`atajo`, `cae`, `estado`, `errores`, `observac
     ],
     "mismaMoneda": false,
     "permisos": [],
-    "tipoExpo": 2
+    "tipoExpo": 2,
+    "verificacionPermisos": []
   },
   "solicitud": { "Cbte_Tipo": 19, "Imp_total": 1500 },
   "tipoArca": 19
@@ -322,6 +323,8 @@ En las notas, `solicitud` lleva `Cmps_asoc` con el asociado y `Permiso_existente
 Una actividad que no está en la tabla de actividades de WSFEX es `INPUT_VALIDATION_ERROR` antes de ir a ARCA, porque ARCA la rechaza (error 2105). En `arcli factura e`, los flags de A, B y C que se saltean salen en `avisos`. En la factura, `solicitud` no trae `Cmps_asoc` ni `Opcionales`: ARCA rechaza esos bloques vacíos (error 1820 el primero).
 
 `solicitud` no incluye `Permisos` cuando el comprobante no informa permisos de embarque: ARCA rechaza ese campo (error 1720) si `Permiso_existente` es `N`. En las exportaciones de servicios (`tipoExpo: 2`) y otros (`tipoExpo: 4`) ARCA exige ese campo **vacío** (error 1550), así que `solicitud.Permiso_existente` sale `""` y los permisos de embarque no se admiten.
+
+`exportacion.verificacionPermisos` trae lo que contestó ARCA (`FEXCheck_Permiso`) de cada permiso de embarque, consultado antes de la vista previa: `[{ "permiso": "26001EC01000123A", "estado": "valido" }]`. `estado` es `valido` (ARCA contestó `OK`) o `sin-verificar` (la consulta falló o ARCA no contestó ni `OK` ni `NO`; el motivo va en `avisos`). Sin permisos es `[]`. Si ARCA contesta `NO`, el comando termina en `INPUT_VALIDATION_ERROR` con `detalles.permisos` (los permisos que ARCA no reconoce) y no se emite. En testing ARCA contesta `OK` a cualquier permiso: no lo compara con la Aduana.
 
 ## Formato de input: batch
 

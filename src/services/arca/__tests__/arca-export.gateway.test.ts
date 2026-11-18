@@ -424,3 +424,34 @@ describe('ArcaExportGateway: ARCA_EXPORT_ERROR en cada tabla', () => {
     });
   });
 });
+
+describe('ArcaExportGateway.checkPermit', () => {
+  it('manda el permiso y el destino y devuelve el Status en mayúsculas', async () => {
+    const checkPermiso = vi.fn(async () => ({
+      FEXCheck_PermisoResult: { ...EMPTY_RESULT, FEXResultGet: { Status: ' ok ' } },
+    }));
+
+    await expect(createGateway({ checkPermiso }).checkPermit('26001EC01000123A', 203)).resolves.toBe('OK');
+    expect(checkPermiso).toHaveBeenCalledWith({ Dst_merc: 203, ID_Permiso: '26001EC01000123A' });
+  });
+
+  it('sin FEXResultGet devuelve vacío', async () => {
+    const checkPermiso = vi.fn(async () => ({ FEXCheck_PermisoResult: EMPTY_RESULT }));
+
+    await expect(createGateway({ checkPermiso }).checkPermit('X', 203)).resolves.toBe('');
+  });
+
+  it('un FEXErr se informa como error de ARCA', async () => {
+    // Lo que contesto testing con un destino fuera de la tabla.
+    const checkPermiso = vi.fn(async () => ({
+      FEXCheck_PermisoResult: {
+        FEXErr: { ErrCode: 1810, ErrMsg: 'Dst_merc: debe ser alguno de los habilitados a la fecha de autorizacion.' },
+      },
+    }));
+
+    await expect(createGateway({ checkPermiso }).checkPermit('X', 9999)).rejects.toMatchObject({
+      code: 'ARCA_EXPORT_ERROR',
+      message: expect.stringContaining('el permiso de embarque X'),
+    });
+  });
+});

@@ -114,7 +114,7 @@ Ej.: `--idioma 2`
 
 ### Permisos de embarque
 
-Solo en bienes (`--tipo-expo 1`). Repetible.
+Solo en bienes (`--tipo-expo 1`). Repetible. ARCLI consulta cada uno en ARCA antes de emitir: si ARCA dice que no es válido para el país de destino, frena con un error.
 
 | Largo | Corto | Qué es |
 | --- | --- | --- |

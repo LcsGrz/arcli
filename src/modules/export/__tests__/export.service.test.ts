@@ -44,6 +44,7 @@ function createGateway(overrides: Partial<ExportGateway> = {}): ExportGateway {
       { code: 203, name: 'Brasil' },
       { code: 212, name: 'Chile' },
     ]),
+    checkPermit: vi.fn(async () => 'OK'),
     getActivities: vi.fn(async () => [
       { id: 46201, name: 'VENTA AL POR MAYOR DE MATERIAS PRIMAS' },
       { id: 620100, name: 'SERVICIOS DE CONSULTORES EN INFORMATICA' },
@@ -156,6 +157,55 @@ describe('ExportService.resolve', () => {
     expect(gateway.getQuotations).toHaveBeenCalledWith('20260601');
     // Sin permisos de embarque el Cmp no lleva Permisos: ARCA lo rechaza (1720) con Permiso_existente = N.
     expect(resolved.payload).not.toHaveProperty('Permisos');
+  });
+
+  it('sin permisos de embarque no consulta FEXCheck_Permiso', async () => {
+    const gateway = createGateway();
+    const resolved = await service.resolve({ ...INPUT, exportType: 1 }, gateway, RUNTIME, NOW);
+
+    expect(gateway.checkPermit).not.toHaveBeenCalled();
+    expect(resolved.display.permitChecks).toBeUndefined();
+  });
+
+  it('consulta cada permiso de embarque con el destino y guarda lo que contesto ARCA', async () => {
+    const gateway = createGateway();
+    const resolved = await service.resolve(
+      { ...INPUT, exportType: 1, permits: ['P1', 'P2'], permitsExisting: true },
+      gateway,
+      RUNTIME,
+      NOW,
+    );
+
+    expect(gateway.checkPermit).toHaveBeenCalledWith('P1', 203);
+    expect(gateway.checkPermit).toHaveBeenCalledWith('P2', 203);
+    expect(resolved.display.permitChecks).toEqual([
+      { permit: 'P1', status: 'valido' },
+      { permit: 'P2', status: 'valido' },
+    ]);
+  });
+
+  it('un permiso que ARCA no reconoce corta antes de emitir', async () => {
+    const gateway = createGateway({ checkPermit: vi.fn(async () => 'NO') });
+
+    await expect(
+      service.resolve({ ...INPUT, exportType: 1, permits: ['P1'], permitsExisting: true }, gateway, RUNTIME, NOW),
+    ).rejects.toThrow('ARCA dice que el permiso de embarque P1 no es válido para el destino 203 - Brasil');
+    expect(gateway.authorize).not.toHaveBeenCalled();
+  });
+
+  it('si FEXCheck_Permiso falla, sigue con un aviso', async () => {
+    const gateway = createGateway({ checkPermit: vi.fn().mockRejectedValue(new Error('timeout')) });
+    const resolved = await service.resolve(
+      { ...INPUT, exportType: 1, permits: ['P1'], permitsExisting: true },
+      gateway,
+      RUNTIME,
+      NOW,
+    );
+
+    expect(resolved.display.permitChecks).toEqual([{ permit: 'P1', status: 'sin-verificar' }]);
+    expect(resolved.warnings).toContain(
+      'No se pudo verificar el permiso de embarque P1 en ARCA (timeout): revisalo antes de emitir.',
+    );
   });
 
   it('en una exportacion de servicios deja vacio Permiso_existente, como pide ARCA (1550)', async () => {
