@@ -1,5 +1,5 @@
 import { generateKeyPairSync } from 'node:crypto';
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import forge from 'node-forge';
@@ -962,6 +962,39 @@ describe('otros comandos que van a ARCA', () => {
 
     return golden('error-parametros-cotizacion', ['parametros', 'cotizacion', 'USD', '--json']);
   });
+});
+
+describe('monotributo', () => {
+  // La pagina real de ARCA (valores desde el 1/08/2026), sin red.
+  const PAGE = readFileSync(
+    new URL('../../modules/monotributo/__tests__/fixtures/categorias.html', import.meta.url),
+    'utf8',
+  );
+
+  beforeEach(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(PAGE)),
+    );
+    // El CUIT de la config es monotributista, categoria E.
+    sdk.padron.getTaxpayerDetails.mockResolvedValue({
+      datosGenerales: { apellido: 'PEREZ', estadoClave: 'ACTIVO', nombre: 'JUAN', tipoPersona: 'FISICA' },
+      datosMonotributo: {
+        categoriaMonotributo: { descripcionCategoria: 'E LOCACIONES DE SERVICIO', idCategoria: 47, periodo: 202602 },
+      },
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('la tabla leída de ARCA, con la categoría del padrón', () => golden('monotributo', ['monotributo', '--json']));
+
+  it('una categoría', () => golden('monotributo-categoria', ['monotributo', '--categoria', 'k', '--json']));
+
+  it('INPUT_VALIDATION_ERROR: una letra que no es categoría', () =>
+    golden('error-monotributo-categoria', ['monotributo', '--categoria', 'Z', '--json']));
 });
 
 describe('json en la config, sin --json', () => {

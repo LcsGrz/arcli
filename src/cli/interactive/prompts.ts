@@ -5,6 +5,7 @@ import { emitKeypressEvents } from 'node:readline';
 import { BACK, type Back } from '../../modules/interactive/wizard';
 import { bold, colorize, uiSymbol, usesAsciiBorders, writeTerminalRaw } from '../../ui';
 
+import { blockPager } from './block-pager';
 import { filterList, type FilterListRow } from './filter-list';
 import { listSelect } from './list-select';
 import { multiSelect } from './multi-select';
@@ -448,6 +449,34 @@ export async function browseFilterList(
           mode: 'ver',
           pageSize: options.pageSize,
           rows: rows.map((label) => ({ label, value: label })),
+          theme: STEP_THEME,
+        },
+        context,
+      ),
+    () => undefined,
+  );
+}
+
+/**
+ * Un contenido en bloques para mirar, que se recorren con ← y → (`render` dibuja cada uno). Enter o Esc lo cierran y
+ * no deja rastro en pantalla.
+ */
+export async function browseBlocks<B extends string>(
+  message: string,
+  blocks: readonly B[],
+  render: (block: B) => string,
+  keys: ReadonlyArray<readonly [key: string, action: string]>,
+): Promise<void> {
+  await runStepPrompt(
+    (context) =>
+      blockPager<B>(
+        {
+          blocks,
+          help: keys
+            .map(([key, action]) => `${bold(key)} ${colorize(action, 'muted')}`)
+            .join(colorize(` ${uiSymbol('separator')} `, 'muted')),
+          message,
+          render,
           theme: STEP_THEME,
         },
         context,

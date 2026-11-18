@@ -10,6 +10,7 @@ import { registerExamplesCommand } from './commands/examples.command';
 import { registerExportShortcutCommand } from './commands/export-shortcut.command';
 import { registerFceObligationCommand } from './commands/fce-obligation.command';
 import { registerInteractiveCommand } from './commands/interactive.command';
+import { registerMonotributoCommand } from './commands/monotributo.command';
 import { registerPadronCommand } from './commands/padron.command';
 import { registerParametersCommands } from './commands/parameters.command';
 import { registerPdfCommand } from './commands/pdf.command';
@@ -48,6 +49,7 @@ export function createProgram(): Command {
   registerExportShortcutCommand(program);
   registerFceObligationCommand(program);
   registerInteractiveCommand(program);
+  registerMonotributoCommand(program);
   registerPadronCommand(program);
   registerPdfCommand(program);
   registerParametersCommands(program);

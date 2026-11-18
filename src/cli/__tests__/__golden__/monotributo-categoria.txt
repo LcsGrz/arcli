@@ -1,0 +1,35 @@
+$ arcli monotributo --categoria k --json
+exit: 0
+--- stdout ---
+
+{
+  "vigenteDesde": "20260801",
+  "fuente": "arca",
+  "consultadaEl": "20261117",
+  "url": "https://www.afip.gob.ar/monotributo/categorias.asp",
+  "tuCategoria": "E",
+  "categorias": [
+    {
+      "categoria": "K",
+      "ingresosBrutosHasta": 126610838.75,
+      "superficieHastaM2": 200,
+      "energiaHastaKwh": 20000,
+      "alquileresHasta": 8378658.45,
+      "precioUnitarioMaximo": 716840.77,
+      "impuestoIntegrado": {
+        "servicios": 1368514.2,
+        "ventas": 456171.4
+      },
+      "aporteSipa": 158049.02,
+      "obraSocial": 87882.82,
+      "cuotaMensual": {
+        "servicios": 1614446.04,
+        "ventas": 702103.24
+      }
+    }
+  ],
+  "avisos": []
+}
+
+
+--- stderr ---

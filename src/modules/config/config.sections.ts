@@ -1,7 +1,7 @@
 import type { ConfigPublicKey } from './config.schemas';
 
 export type ConfigSectionId =
-  'certificados' | 'cuenta' | 'emisor' | 'exportacion' | 'facturacion' | 'fce' | 'pdf' | 'salida';
+  'certificados' | 'cuenta' | 'emisor' | 'exportacion' | 'facturacion' | 'fce' | 'monotributo' | 'pdf' | 'salida';
 
 export interface ConfigSection {
   readonly id: ConfigSectionId;
@@ -37,6 +37,7 @@ export const CONFIG_SECTIONS: readonly ConfigSection[] = [
   },
   { id: 'fce', keys: ['cbu', 'aliasCbu', 'verificarFce'], label: 'Factura de crédito electrónica (FCE)' },
   { id: 'exportacion', keys: ['exportacion.actividad'], label: 'Factura de exportación (E)' },
+  { id: 'monotributo', keys: ['monotributo.tope'], label: 'Monotributo' },
   {
     id: 'emisor',
     keys: [
@@ -84,6 +85,7 @@ export const CONFIG_LABELS: Record<ConfigPublicKey, string> = {
   'key.produccion': 'Clave privada de producción',
   'key.testing': 'Clave privada de testing',
   moneda: 'Moneda',
+  'monotributo.tope': 'Tope de ingresos anuales propio',
   pdf: 'Cuándo generar el PDF',
   pdfCarpeta: 'Carpeta de PDFs',
   pdfNavegador: 'Navegador para PDFs',

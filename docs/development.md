@@ -33,6 +33,7 @@ yarn dev --ayuda
 | `yarn lint:prettier:fix`   | Formatea con Prettier                                                                      |
 | `yarn docs:comprobantes`   | Escribe `docs/comprobantes/` desde `scripts/docs/comprobantes.ts`                          |
 | `yarn contrato:actualizar` | Regenera la lista del contrato público (`src/cli/__tests__/public-contract.txt`)           |
+| `yarn monotributo:tabla`   | Actualiza la tabla de categorías incluida desde la página de ARCA (ver abajo)              |
 | `yarn pack:check`          | Empaqueta `dist`, lo instala en una carpeta temporal y corre `arcli --version` y `--ayuda` |
 | `yarn open-source:check`   | `typecheck`, `test:coverage`, `build`, `test:e2e` y `pack:check`                           |
 
@@ -139,6 +140,7 @@ Las actions están fijadas por SHA (con la versión en un comentario), para que 
 1. Crear la rama `release/vX.Y.Z` desde `dev` (desde `main` si es un hotfix).
 2. En `CHANGELOG.md`, pasar las entradas de "Sin publicar" a una sección `[X.Y.Z] - AAAA-MM-DD` y actualizar los links de comparación del final.
 3. Subir la versión en `package.json` y en `src/cli/version.ts` (`yarn test:e2e` y `pack:check` verifican que coincidan).
+   - **En febrero y agosto, además, la tabla del monotributo.** ARCLI trae una copia de la tabla de categorías (`src/modules/monotributo/monotributo.bundled.ts`) para cuando no puede leer la página de ARCA. ARCA la actualiza en febrero y agosto: en la primera release después de que publique los valores nuevos, corré `yarn monotributo:tabla` (lee la página con el mismo parser y control que `arcli monotributo --actualizar`, y no escribe nada si no pasa), después `yarn lint:prettier:fix`, y revisá el diff: la vigencia nueva y los importes. Si la página no se puede leer, `yarn monotributo:tabla pagina.html` toma una copia guardada desde el navegador. Si el formato cambió, actualizá también el HTML de prueba (`src/modules/monotributo/__tests__/fixtures/categorias.html`).
 4. Abrir el PR contra `main`, esperar el CI y mergear con squash.
 5. Crear la release de GitHub `vX.Y.Z` sobre `main`, con las notas del changelog: crea el tag y dispara `Release`. Cuando `build` termina, aprobá el deploy al environment `npm` en Actions y `publish` publica en npm.
 6. Si `Release` falla, arreglar la causa y usar "Re-run jobs" en Actions: vuelve a correr sobre el mismo tag.

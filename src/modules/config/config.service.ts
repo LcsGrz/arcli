@@ -44,6 +44,7 @@ const CONFIG_KEY_ALIASES: Record<ConfigPublicKey, CanonicalConfigKey> = {
   'key.produccion': 'key.produccion',
   'key.testing': 'key.testing',
   moneda: 'monedaPorDefecto',
+  'monotributo.tope': 'monotributo.tope',
   bruto: 'output.brutoPorDefecto',
   pdf: 'pdf',
   pdfCarpeta: 'pdfCarpeta',

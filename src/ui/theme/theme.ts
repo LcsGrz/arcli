@@ -75,10 +75,13 @@ export type UiSymbolName =
   | 'keysMove'
   | 'moreAbove'
   | 'moreBelow'
+  | 'moreLeft'
+  | 'moreRight'
   | 'pointer'
   | 'rule'
   | 'selected'
   | 'separator'
+  | 'squared'
   | 'unselected';
 export type UiWidthPreset = 'compact' | 'standard' | 'ticket' | 'wide';
 export interface UiWidthRange {
@@ -330,10 +333,13 @@ export const UI_THEME: UiTheme = {
     keysMove: { ascii: 'arriba/abajo', unicode: '↑↓' },
     moreAbove: { ascii: '^', unicode: '↑' },
     moreBelow: { ascii: 'v', unicode: '↓' },
+    moreLeft: { ascii: '<', unicode: '←' },
+    moreRight: { ascii: '>', unicode: '→' },
     pointer: { ascii: '>', unicode: '❯' },
     rule: { ascii: '-', unicode: '┈' },
     selected: { ascii: '[x]', unicode: '◉' },
     separator: { ascii: '-', unicode: '·' },
+    squared: { ascii: '2', unicode: '²' },
     unselected: { ascii: '[ ]', unicode: '◯' },
   },
   table: {

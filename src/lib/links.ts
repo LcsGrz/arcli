@@ -24,5 +24,8 @@ export const POINT_OF_SALE_GUIDE_URL = `${DOCS_SITE_URL}/empezar/certificado-pro
 /** Problemas frecuentes, con la tabla de rechazos de ARCA por codigo. */
 export const TROUBLESHOOTING_URL = `${DOCS_SITE_URL}/ayuda/problemas-frecuentes/`;
 
+/** Issues del repo, para avisar de un problema. */
+export const ISSUES_URL = 'https://github.com/LcsGrz/arcli/issues';
+
 /** Novedades de cada version (el CHANGELOG en el sitio). */
 export const CHANGELOG_PAGE_URL = `${DOCS_SITE_URL}/ayuda/novedades/`;

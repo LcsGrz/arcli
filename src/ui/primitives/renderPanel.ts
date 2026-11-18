@@ -132,6 +132,17 @@ function formatTitle(title: string | undefined, color: UiTextColor | undefined):
   return color ? colorize(normalizedTitle, color) : normalizedTitle;
 }
 
+/**
+ * Columnas para el contenido de un panel de `preset` en esta terminal (sin bordes ni margen): lo que entra en una
+ * fila sin partirse. Para elegir entre una tabla en columnas y otra apilada en una terminal angosta.
+ */
+export function panelContentWidth(preset: UiWidthPreset = 'standard'): number {
+  const padding = resolvePadding();
+  const width = Math.max(MIN_PANEL_WIDTH, fitToTerminal(UI_THEME.widths[preset].max, MIN_PANEL_WIDTH));
+
+  return width - (padding.left ?? 0) - (padding.right ?? 0) - 2;
+}
+
 export function renderPanel(props: RenderPanelProps): string {
   const borderType = props.borderType ?? 'common';
 

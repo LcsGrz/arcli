@@ -7,6 +7,7 @@ import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.re
 import { stripAnsi } from '../../../ui';
 import { runHistoryFlow } from '../history.flow';
 import { runInvoiceFlow } from '../invoice.flow';
+import { runMonotributoQuery } from '../monotributo.flow';
 import type { FilterListRow } from '../prompts';
 import { runQueriesMenu } from '../queries.flow';
 import type { InteractiveSession } from '../session';
@@ -39,6 +40,7 @@ vi.mock('../../../services/arca/arca-parameters.gateway', () => ({
 }));
 vi.mock('../history.flow', () => ({ runHistoryFlow: vi.fn() }));
 vi.mock('../invoice.flow', () => ({ runInvoiceFlow: vi.fn() }));
+vi.mock('../monotributo.flow', () => ({ runMonotributoQuery: vi.fn() }));
 
 /** Filas que mostro la ultima lista filtrable, para revisar el orden y el encabezado. */
 const filterLists: Array<{ header?: string; message: string; rows: readonly string[] }> = [];
@@ -157,6 +159,27 @@ describe('Consultas del modo interactivo', () => {
     await runQueriesMenu(createSession());
 
     expect(runHistoryFlow).toHaveBeenCalledTimes(1);
+  });
+
+  it('"Categorías del monotributo" va entre monedas y tablas, y vuelve al submenú', async () => {
+    script = createScript([
+      [/consultar/, 'Categorías del monotributo'],
+      [/consultar/, BACK],
+    ]);
+
+    await runQueriesMenu(createSession());
+
+    const names = (script.chooseStep.mock.calls[0]?.[1] ?? []).map((choice) =>
+      stripAnsi((choice as { name: string }).name),
+    );
+
+    expect(runMonotributoQuery).toHaveBeenCalledTimes(1);
+    expect(names.findIndex((name) => name.startsWith('Categorías del monotributo'))).toBe(
+      names.findIndex((name) => name.startsWith('Monedas y cotizaciones')) + 1,
+    );
+    expect(names.findIndex((name) => name.startsWith('Tablas de ARCA'))).toBe(
+      names.findIndex((name) => name.startsWith('Categorías del monotributo')) + 1,
+    );
   });
 
   describe('datos de un CUIT', () => {

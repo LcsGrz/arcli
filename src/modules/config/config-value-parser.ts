@@ -49,6 +49,7 @@ export type CanonicalConfigKey =
   | 'key.produccion'
   | 'key.testing'
   | 'monedaPorDefecto'
+  | 'monotributo.tope'
   | 'output.emitirPorDefecto'
   | 'output.jsonPorDefecto'
   | 'output.brutoPorDefecto'
@@ -211,6 +212,19 @@ function parseRecentCount(value: string): number {
   return parsedValue;
 }
 
+/** Un importe en pesos mayor a cero, escrito como en los flags: `30.000.000` o `30000000,50`. */
+function parsePositiveAmount(value: string, displayKey?: string): number {
+  const result = parseArgentineAmount(value);
+
+  if (!result.ok || result.value <= 0) {
+    throw new InputValidationError(
+      `${subjectOf(displayKey)} no acepta "${value}": tiene que ser un importe en pesos mayor a cero, por ejemplo 30.000.000.`,
+    );
+  }
+
+  return result.value;
+}
+
 function parseExchangeRate(value: string): number {
   const result = parseArgentineAmount(value, { maxDecimals: EXCHANGE_RATE_DECIMALS });
 
@@ -301,6 +315,8 @@ export function parseConfigValue(
       return parseChoice(arcliDefaultIvaConditionSchema, value, displayKey);
     case 'monedaPorDefecto':
       return parseCurrencyCode(value, displayKey);
+    case 'monotributo.tope':
+      return parsePositiveAmount(value, displayKey);
     case 'verificarFce':
     case 'consultarPadron':
     case 'output.emitirPorDefecto':

@@ -8,6 +8,7 @@ export const NEW_OPTION_SINCE = {
   certificados: '2.3.0',
   consultas: '2.5.0',
   'factura-e': '2.2.0',
+  monotributo: '2.6.0',
   'notas-e': '2.5.0',
   'notas-sobre-notas': '2.6.0',
   recibo: '2.3.0',
