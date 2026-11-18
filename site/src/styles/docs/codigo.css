@@ -1,0 +1,35 @@
+/*
+ * Bloques de código (expressive-code), como en la terminal: de un solo color, el título a la izquierda, sin los tres
+ * puntos de la ventana y "Copiar" siempre a la vista, arriba, con su centro sobre la línea de abajo del encabezado. Los
+ * colores y bordes están en `expressiveCode.styleOverrides` de `astro.config.mjs`.
+ */
+
+.expressive-code .frame pre span {
+  color: var(--arcli-term-fg);
+}
+
+.expressive-code .frame.is-terminal .header {
+  justify-content: flex-start;
+  padding-inline: 1rem;
+  font-family: var(--sl-font-mono);
+  font-size: 0.78rem;
+}
+
+.expressive-code .frame.is-terminal .header::before {
+  display: none;
+}
+
+/* `!important`: expressive-code no va en una capa y, con el mouse sobre el bloque, lo baja a 0.75 con un selector más
+   específico (`.frame:hover .copy button:not(:hover)`). */
+.expressive-code .copy button {
+  opacity: 1 !important;
+}
+
+.expressive-code .frame.has-title .copy {
+  inset-block-start: 1rem;
+}
+
+.expressive-code .frame.has-title .copy button {
+  width: 1.9rem;
+  height: 1.9rem;
+}

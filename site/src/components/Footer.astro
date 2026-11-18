@@ -3,21 +3,15 @@
  * Pie de cada página, como en la maqueta: "¿Te sirvió?", editar en GitHub, anterior y siguiente, y el pie del sitio
  * con el logo y los links. "¿Te sirvió?" solo agradece: no se guarda nada.
  */
-import brand from '../generated/brand.json';
+import { CAFECITO_URL, isHome, ISSUES_URL, NPM_URL, REPO_URL, url } from '../lib/site';
+import AsciiLogo from './AsciiLogo.astro';
 
 const { editUrl, pagination } = Astro.locals.starlightRoute;
-const isHome = Astro.locals.starlightRoute.id === '';
-const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-const url = (path: string) => `${base}/${path}`;
-const escape = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-const logo = brand.banner
-  .map((line) => `<span class="ar">${escape(line.slice(0, brand.splitColumn))}</span><span class="cli">${escape(line.slice(brand.splitColumn))}</span>`)
-  .join('\n');
 const label = (link: { label: string } | undefined) => link?.label;
 ---
 
 {
-  !isHome && (
+  !isHome(Astro.locals.starlightRoute) && (
     <>
       <div class="page-foot">
         <div class="helpful">
@@ -48,7 +42,7 @@ const label = (link: { label: string } | undefined) => link?.label;
 <footer class="site-foot">
   <div class="cols">
     <div class="brand">
-      <a href={url('')} aria-label="ARCLI, inicio"><pre class="logo-mini" aria-hidden="true" set:html={logo} /></a>
+      <a href={url()} aria-label="ARCLI, inicio"><AsciiLogo variant="footer" /></a>
       <p>Facturación electrónica de ARCA desde la terminal. Hecho en Argentina por LcsGrz.</p>
     </div>
     <div>
@@ -70,10 +64,10 @@ const label = (link: { label: string } | undefined) => link?.label;
     <div>
       <h4>Proyecto</h4>
       <ul>
-        <li><a href="https://github.com/LcsGrz/arcli">GitHub</a></li>
-        <li><a href="https://www.npmjs.com/package/arcli">npm</a></li>
-        <li><a href="https://github.com/LcsGrz/arcli/issues">Reportar un problema</a></li>
-        <li><a href="https://cafecito.app/lcsgrz">Invitar un cafecito</a></li>
+        <li><a href={REPO_URL}>GitHub</a></li>
+        <li><a href={NPM_URL}>npm</a></li>
+        <li><a href={ISSUES_URL}>Reportar un problema</a></li>
+        <li><a href={CAFECITO_URL}>Invitar un cafecito</a></li>
       </ul>
     </div>
   </div>
@@ -180,24 +174,6 @@ const label = (link: { label: string } | undefined) => link?.label;
 
   .brand a {
     text-decoration: none;
-  }
-
-  .logo-mini {
-    margin: 0;
-    font-size: 0.3rem;
-    line-height: 1.15;
-    font-weight: 700;
-    background: none;
-    border: 0;
-    padding: 0;
-  }
-
-  .logo-mini :global(.ar) {
-    color: var(--arcli-celeste);
-  }
-
-  .logo-mini :global(.cli) {
-    color: var(--arcli-lavanda);
   }
 
   .brand p {

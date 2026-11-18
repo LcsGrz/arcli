@@ -1,0 +1,14 @@
+---
+/** Un bloque de comandos (`pre.snippet`): cada línea con su comentario, el `$` y las flags de color. */
+import type { SnippetLine } from '../../data/landing';
+
+import { commandParts } from '../../lib/rich';
+
+interface Props {
+  readonly lines: readonly SnippetLine[];
+}
+
+const { lines } = Astro.props;
+---
+
+<pre class="snippet"><code>{lines.map((line, index) => <>{index > 0 && '\n\n'}<span class="c"># {line.comment}</span>{'\n'}<span class="p">$ </span>{commandParts(line.cmd).map((part) => (part.flag ? <span class="f">{part.text}</span> : part.text))}</>)}</code></pre>

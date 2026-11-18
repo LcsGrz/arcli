@@ -1,0 +1,16 @@
+---
+/** Seguridad: la franja con cuatro garantías, sin encabezado. */
+import { TRUST } from '../../data/landing';
+import LandingIcon from './LandingIcon.astro';
+import Section from './Section.astro';
+---
+
+<Section>
+  <ul class="strip">
+    {
+      TRUST.map((item) => (
+        <li><LandingIcon name={item.icon} /><span><b>{item.title}</b>{item.text}</span></li>
+      ))
+    }
+  </ul>
+</Section>

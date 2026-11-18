@@ -1,0 +1,16 @@
+---
+/** Características: lo que hace por vos, con un tilde cada una. */
+import { FEATURES, SECTIONS } from '../../data/landing';
+import LandingIcon from './LandingIcon.astro';
+import Section from './Section.astro';
+---
+
+<Section {...SECTIONS.features}>
+  <ul class="feat-list">
+    {
+      FEATURES.map((feature) => (
+        <li><LandingIcon name="tilde" stroke-width="2" /><span><b>{feature.title}</b> {feature.text}</span></li>
+      ))
+    }
+  </ul>
+</Section>

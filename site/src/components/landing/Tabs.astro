@@ -1,0 +1,55 @@
+---
+/**
+ * Pestañas de la portada (demo, instalación y "¿Qué facturás?"): botones `role="tab"` con la primera elegida. El clic
+ * y el teclado (flechas, Inicio y Fin) son los de `lib/tabs.ts`, como en las docs. Al elegir una, la lista avisa con
+ * un evento `tabchange` (la clave en `detail`) y cada sección muestra lo suyo.
+ *
+ * Con `controls`, todas las pestañas manejan el mismo panel (ese id), que queda nombrado por la elegida.
+ */
+interface Props {
+  readonly class: string;
+  readonly controls?: string;
+  /** El id de cada pestaña es `idPrefix` + su clave. */
+  readonly idPrefix?: string;
+  readonly items: readonly { readonly badge?: string; readonly key: string; readonly label: string }[];
+  readonly label: string;
+  /** La clase de cada botón. */
+  readonly tabClass?: string;
+}
+
+const { class: className, controls, idPrefix, items, label, tabClass } = Astro.props;
+---
+
+<div class={className} role="tablist" aria-label={label} data-tabs>
+  {
+    items.map((item, index) => (
+      <button
+        class={tabClass}
+        type="button"
+        role="tab"
+        id={idPrefix && `${idPrefix}${item.key}`}
+        aria-selected={String(index === 0)}
+        aria-controls={controls}
+        tabindex={index === 0 ? undefined : -1}
+        data-tab={item.key}
+      >
+        {item.label}{item.badge && <span class="badge">{item.badge}</span>}
+      </button>
+    ))
+  }
+</div>
+
+<script>
+  import { connectTabs, markSelected, tabsOf } from '../../lib/tabs';
+
+  for (const list of document.querySelectorAll<HTMLElement>('[data-tabs]')) {
+    const tabs = tabsOf(list);
+
+    connectTabs(list, (tab) => {
+      markSelected(tabs, tab);
+      const panel = tab.getAttribute('aria-controls');
+      if (panel) document.getElementById(panel)?.setAttribute('aria-labelledby', tab.id);
+      list.dispatchEvent(new CustomEvent('tabchange', { detail: tab.dataset.tab }));
+    });
+  }
+</script>
