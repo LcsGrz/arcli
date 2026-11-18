@@ -8,6 +8,10 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+### Corregido
+
+- **Una nota A, B, C o FCE con un asociado propio que no existe ya no se emite:** antes de la vista previa ARCLI consultaba el asociado, veía que no estaba y seguía, y ARCA testing llegó a aprobar una NC asociada a una factura inexistente. Ahora frena con `INPUT_VALIDATION_ERROR` ("ARCA no tiene la factura B 00003-00099999.", con la sugerencia de revisar `--ar`, `--apv` y `--ac`), como en las notas `E`. También en las notas de débito, que antes no se consultaban. El asociado de otro CUIT no se puede consultar y sigue decidiéndolo ARCA; si ARCA no responde, la nota sigue con un aviso.
+
 ## [2.5.0] - 2026-11-17
 
 Completa lo que trajo la 2: las notas de crédito y débito de la factura de exportación `E`, el modo interactivo al nivel del CLI (consultas, opcionales, repetir la `E`, el PDF al confirmar) y el sitio de documentación en [arcli.com.ar](https://arcli.com.ar). Puede afectar scripts:

@@ -254,13 +254,13 @@ arcli fc ayuda
 - **Solución:** pasar `--cbu <22 dígitos>` o configurarlo una vez con `arcli config establecer cbu <22 dígitos>`.
 - **Documentación relacionada:** [Crédito electrónico (FCE)](validation-rules.md#crédito-electrónico-fce)
 
-### NC/ND FCE: ARCA no tiene el asociado
+### NC/ND: ARCA no tiene el asociado
 
 - **Severidad:** ocasional
-- **Síntoma:** `ARCA no tiene la factura de crédito electrónica ..., así que no se puede tomar su fecha.`
-- **Causa:** en NC/ND FCE, ARCA exige la fecha de la factura asociada (10158). Sin `--afecha`, arcli la busca en ARCA antes de la vista previa y no la encontró o ARCA no respondió.
-- **Solución:** revisar `--ac`, `--apv` y `--ar`: tienen que apuntar a una factura FCE tuya ya emitida. Si ARCA no respondió, reintentar o pasar la fecha con `--afecha`.
-- **Documentación relacionada:** [Crédito electrónico (FCE)](validation-rules.md#crédito-electrónico-fce)
+- **Síntoma:** `ARCA no tiene la factura B 00003-00099999.` En NC/ND FCE sin `--afecha`: `ARCA no tiene la factura de crédito electrónica ..., así que no se puede tomar su fecha.`
+- **Causa:** antes de la vista previa, arcli consulta en ARCA el asociado propio de la nota (A, B, C, FCE y `E`) y no existe. En NC/ND FCE, además, ARCA exige la fecha del asociado (10158) y sin `--afecha` arcli la toma de esa consulta. Hasta la 2.5.0, una nota A, B o C con un asociado inexistente se emitía: ARCA testing llega a aprobarla.
+- **Solución:** revisar `--ac`, `--apv` y `--ar`: tienen que apuntar a un comprobante tuyo ya emitido (`arcli ultimos <atajo>` lista los últimos). Si ARCA no respondió, una nota FCE sin `--afecha` también frena: reintentar o pasar la fecha con `--afecha`.
+- **Documentación relacionada:** [Comprobantes asociados](validation-rules.md#comprobantes-asociados)
 
 ### La nota de crédito supera el total de la factura
 

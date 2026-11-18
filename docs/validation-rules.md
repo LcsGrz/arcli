@@ -184,7 +184,8 @@ Además:
 - la letra debe coincidir
 - la categoría electrónica debe coincidir
 - `--afecha` es opcional y no puede ser posterior a la fecha de la nota (10159). En NC/ND FCE ARCA la exige (10158): sin `--afecha`, ARCLI la toma del asociado en ARCA antes de la vista previa; si ARCA no lo tiene o no responde, es error
-- una nota de crédito no puede superar el total del asociado cuando van en la misma moneda. Se controla antes de la vista previa, con una consulta del asociado en ARCA (`FECompConsultar`) por nota que se reusa al emitir, y es un `INPUT_VALIDATION_ERROR` con la sugerencia del `--monto` que la anula entera. Solo se consulta un asociado del propio emisor; si ARCA no responde, la nota sigue con un aviso
+- si el asociado es del propio emisor, tiene que existir en ARCA. Antes de la vista previa, ARCLI consulta el asociado en ARCA (`FECompConsultar`), una vez por nota y se reusa al emitir; si ARCA no lo tiene, es `INPUT_VALIDATION_ERROR`, como en las notas `E` (ARCA testing llega a aprobar una nota asociada a un comprobante que no existe). El asociado de otro CUIT no se puede consultar y lo decide ARCA al emitir. Si ARCA no responde, la nota sigue con un aviso
+- una nota de crédito no puede superar el total del asociado cuando van en la misma moneda. Se controla con la misma consulta y es un `INPUT_VALIDATION_ERROR` con la sugerencia del `--monto` que la anula entera
 
 ### Crédito electrónico (FCE)
 
