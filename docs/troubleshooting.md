@@ -362,6 +362,14 @@ arcli fc ayuda
 - **Solución:** no son rechazos: si el comprobante salió `observado`, está emitido. Revisá el receptor con `arcli padron <cuit>` y si le corresponde la letra.
 - **Documentación relacionada:** [Limitaciones actuales](limitations.md)
 
+### El receptor no está en los padrones de ARCA
+
+- **Severidad:** frecuente, en testing
+- **Síntoma:** el comprobante sale `rechazado` con la observación "… DocNro 20201797064 no se encuentra registrado en los padrones de AFIP …" (código `10015`) y `errores` vacío.
+- **Causa:** ARCA no encuentra el documento del receptor. En testing, el padrón de facturación es otro que el de `arcli padron`, y muchos CUITs que este encuentra no están.
+- **Solución:** revisar `--cuit`, `--cuil` o `--dni` (o el documento del JSON de `--cargar`). En testing, usar un CUIT de prueba, como `20333333334`, o emitir a consumidor final. No se emitió nada.
+- **Documentación relacionada:** [Reglas de validación](validation-rules.md)
+
 ### ARCA rechaza por punto de venta
 
 - **Severidad:** frecuente, en producción
@@ -386,7 +394,7 @@ Cuando ARCA rechaza o deja una observación con alguno de estos códigos, `suger
 | `10017`         | El CUIT del receptor de una A no figura activo en el padrón; el comprobante puede estar aprobado                                                                  | Ver [Observaciones de padrón](#observaciones-de-padrón)                                                         |
 | `10217`         | El receptor de una A es monotributista: el crédito fiscal solo se computa por el Procedimiento permanente de transición. El comprobante está aprobado             | Ver [Observaciones de padrón](#observaciones-de-padrón)                                                         |
 
-También se reconocen por el mensaje, sin código: receptor igual al emisor, `Transacción Activa`, CUIT receptor inexistente y detalle de IVA obligatorio. Si ARCA rechaza con otro código, `sugerencias` pide revisar `errores` y `observaciones`.
+También se reconocen por el mensaje, sin código: receptor igual al emisor, `Transacción Activa`, receptor que no está en los padrones (ver [El receptor no está en los padrones de ARCA](#el-receptor-no-está-en-los-padrones-de-arca)), CUIT receptor inexistente y detalle de IVA obligatorio. Si ARCA rechaza con otro código, `sugerencias` pide revisar `errores` y `observaciones`.
 
 - **Documentación relacionada:** [Reglas de validación](validation-rules.md), [Entrada y salida](input-output.md)
 

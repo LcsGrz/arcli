@@ -86,6 +86,14 @@ export const ARCA_REJECTIONS: readonly ArcaRejection[] = [
     what: 'ARCA devolvió un error transitorio.',
   },
   {
+    // 10015 tambien se usa para otras validaciones del documento: se reconoce por el mensaje.
+    codes: [],
+    guide: `${TROUBLESHOOTING_URL}#el-receptor-no-está-en-los-padrones-de-arca`,
+    pattern: /no se encuentra registrado en los padrones/i,
+    todo: 'Revisá el documento del receptor (`--cuit`, `--cuil` o `--dni`). En testing muchos CUITs no están en el padrón de facturación, aunque `arcli padron` los encuentre: usá uno de prueba o emití a consumidor final.',
+    what: 'ARCA no encuentra el documento del receptor en sus padrones.',
+  },
+  {
     codes: [],
     pattern: /cuit receptora.*no existe/i,
     todo: 'Revisá el CUIT del receptor o, en testing, emití con uno válido del padrón de prueba.',

@@ -97,6 +97,36 @@ describe('mapBillingResponse: sugerencias', () => {
     expect(formatArcaRejection(monotributo)).not.toMatch(/condición del receptor/);
   });
 
+  it('un receptor que no está en los padrones (10015, solo en observaciones) tiene su sugerencia', () => {
+    // Respuesta real de ARCA testing (18/11/2026): `fb --cuit 20201797064`.
+    const summary = mapBillingResponse({
+      cae: '',
+      caeFchVto: '',
+      response: {
+        FeDetResp: {
+          FECAEDetResponse: [
+            {
+              Observaciones: {
+                Obs: [
+                  {
+                    Code: 10015,
+                    Msg: 'Factura B (CbteDesde igual a CbteHasta), DocTipo: 80, DocNro 20201797064 no se encuentra registrado en los padrones de AFIP y no corresponde a una cuit pais.',
+                  },
+                ],
+              },
+              Resultado: 'R',
+            },
+          ],
+        },
+      },
+    } as never);
+
+    expect(summary.status).toBe('rechazado');
+    expect(summary.suggestions).toEqual([
+      expect.stringMatching(/^ARCA no encuentra el documento del receptor en sus padrones\. Revisá el documento/),
+    ]);
+  });
+
   it('un rechazo sin código conocido pide revisar errores y observaciones', () => {
     const summary = mapBillingResponse({
       cae: '',
