@@ -85,6 +85,13 @@ const confirmFromScript = (message: string, yesLabel: string, noLabel = 'No') =>
     { name: noLabel, value: false },
   ]);
 
+// El comando equivalente sale con las comillas de la shell del SO: POSIX fijo para que el CI en Windows espere lo mismo.
+vi.mock('../../../lib/shell/shell-argument', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../lib/shell/shell-argument')>();
+
+  return { ...actual, formatShellCommand: (args: readonly string[]) => actual.formatShellCommand(args, 'linux') };
+});
+
 vi.mock('../prompts', () => ({
   askTextStep: (...args: Parameters<typeof script.askTextStep>) => script.askTextStep(...args),
   chooseManyStep: (...args: Parameters<typeof script.chooseManyStep>) => script.chooseManyStep(...args),
@@ -184,7 +191,7 @@ describe('runExportRepeatFlow', () => {
     expect(printed()).toContain('Se copian el cliente ACME LLC, ESTADOS UNIDOS, la moneda, el incoterm y los ítems.');
     // El CUIT del país es el que ARCA publica para el destino: no hace falta repetirlo.
     expect(printed()).not.toContain('--cuit-pais');
-    expect(printed()).toContain('--item "Bienes varios|2|500|1" --item "Flete|1|500"');
+    expect(printed()).toContain("--item 'Bienes varios|2|500|1' --item 'Flete|1|500'");
     // "Sí, emitir ahora" ya decidió el PDF: después de emitir no se pregunta.
     expect(vi.mocked(attachExportPdf).mock.calls[0]?.[1].input.pdf).toBe(false);
   });

@@ -1,5 +1,5 @@
 import { formatArgentineAmountInput } from '../../lib/numbers/argentine-amount';
-import { quoteShellArgument } from '../../lib/shell/shell-argument';
+import { formatShellCommand } from '../../lib/shell/shell-argument';
 import { DEFAULT_CURRENCY_CODE } from '../billing/billing.constants';
 import { isForeignCurrency } from '../billing/billing.currency';
 import { resolveBillingCurrencyCode } from '../billing/billing.mappers';
@@ -55,6 +55,8 @@ export function buildEquivalentCommand(
     /** `moneda` de la config: si es extranjera, el comando en pesos lo tiene que decir o tomaria esa. */
     readonly defaultCurrency?: string;
     readonly environment: 'produccion' | 'testing';
+    /** Para qué shell van las comillas (POSIX o PowerShell en `win32`); por defecto, la de este SO. */
+    readonly platform?: NodeJS.Platform;
   },
 ): string {
   const parts = [
@@ -67,8 +69,8 @@ export function buildEquivalentCommand(
   ];
 
   // Con `--ir` el CLI no consulta el padron: nombre y domicilio van explicitos para que el PDF salga igual.
-  if (input.receiverName) parts.push('--receptor-nombre', quoteShellArgument(input.receiverName));
-  if (input.receiverAddress) parts.push('--receptor-domicilio', quoteShellArgument(input.receiverAddress));
+  if (input.receiverName) parts.push('--receptor-nombre', input.receiverName);
+  if (input.receiverAddress) parts.push('--receptor-domicilio', input.receiverAddress);
   if (input.pointOfSale) parts.push('--pv', String(input.pointOfSale));
   if (input.billingDate) parts.push('-f', input.billingDate);
   if (isForeignCurrency(input)) {
@@ -104,5 +106,5 @@ export function buildEquivalentCommand(
 
   parts.push('--emitir');
 
-  return parts.join(' ');
+  return formatShellCommand(parts, options.platform);
 }

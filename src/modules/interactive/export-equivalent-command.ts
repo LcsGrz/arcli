@@ -1,5 +1,5 @@
 import { formatArgentineAmountInput } from '../../lib/numbers/argentine-amount';
-import { quoteShellArgument as quote } from '../../lib/shell/shell-argument';
+import { formatShellCommand } from '../../lib/shell/shell-argument';
 import { DEFAULT_EXPORT_PAYMENT_TERMS } from '../export/export.mappers';
 import {
   DEFAULT_EXPORT_TYPE,
@@ -32,7 +32,12 @@ function itemArgument(item: ExportItemInput): string {
  */
 export function buildExportEquivalentCommand(
   input: ExportVoucherInput,
-  options: { readonly activity?: number; readonly environment: 'produccion' | 'testing' },
+  options: {
+    readonly activity?: number;
+    readonly environment: 'produccion' | 'testing';
+    /** Para qué shell van las comillas (POSIX o PowerShell en `win32`); por defecto, la de este SO. */
+    readonly platform?: NodeJS.Platform;
+  },
 ): string {
   const kind = input.voucherKind ?? EXPORT_VOUCHER_KIND;
   const parts = ['arcli', kind.shortcut, '-m', formatArgentineAmountInput(input.amount ?? 0)];
@@ -49,7 +54,7 @@ export function buildExportEquivalentCommand(
   }
 
   const text = (flag: string, value: string | undefined) => {
-    if (value?.trim()) parts.push(flag, quote(value.trim()));
+    if (value?.trim()) parts.push(flag, value.trim());
   };
 
   text('--cliente', input.clientName);
@@ -86,5 +91,5 @@ export function buildExportEquivalentCommand(
   // Siempre explicito: si la config cambia de entorno, el comando pegado sigue emitiendo donde se armo.
   parts.push(`--${options.environment}`, '--emitir');
 
-  return parts.join(' ');
+  return formatShellCommand(parts, options.platform);
 }
