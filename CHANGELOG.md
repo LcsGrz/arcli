@@ -12,6 +12,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 - **Una nota A, B, C o FCE con un asociado propio que no existe ya no se emite:** antes de la vista previa ARCLI consultaba el asociado, veía que no estaba y seguía, y ARCA testing llegó a aprobar una NC asociada a una factura inexistente. Ahora frena con `INPUT_VALIDATION_ERROR` ("ARCA no tiene la factura B 00003-00099999.", con la sugerencia de revisar `--ar`, `--apv` y `--ac`), como en las notas `E`. También en las notas de débito, que antes no se consultaban. El asociado de otro CUIT no se puede consultar y sigue decidiéndolo ARCA; si ARCA no responde, la nota sigue con un aviso.
 - **`arcli padron --json` repetía actividades:** ARCA informa las mismas en el régimen general y en el monotributo, y `actividades` las traía dos veces (también el "y N más" de la salida humana). Ahora van sin repetir, en el mismo orden. Las claves no cambian.
+- **La sugerencia de la observación `10217` decía otra cosa:** hablaba de "la condición del receptor (padrón)", igual que la `10017`. Ahora cada una explica la suya: la `10217` es la del crédito fiscal de una factura A a un monotributista ("Procedimiento permanente de transición al Régimen General") y la `10017`, la de un receptor que no figura activo en el padrón.
 
 ## [2.5.0] - 2026-11-17
 

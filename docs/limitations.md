@@ -61,8 +61,8 @@ Todavía no se soportan los tributos (`Tributos` / `ImpTrib`), como las percepci
 
 Algunos CUIT de testing aprueban y devuelven observaciones como:
 
-- `10217`
-- `10017`
+- `10217`: el receptor de una A figura como monotributista (sale también con CUITs que no lo son)
+- `10017`: el receptor de una A no figura activo en el padrón
 
 No siempre indican un error del CLI.
 

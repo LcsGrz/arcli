@@ -88,6 +88,15 @@ describe('mapBillingResponse: sugerencias', () => {
     expect(summary.suggestions).toEqual([expect.stringContaining('No es un rechazo')]);
   });
 
+  it('separa el 10017 (receptor no activo) del 10217 (crédito fiscal de un monotributista)', () => {
+    const [inactive] = findArcaRejections([10017], '');
+    const [monotributo] = findArcaRejections([10217], '');
+
+    expect(formatArcaRejection(inactive)).toMatch(/no figura activo en el padrón/);
+    expect(formatArcaRejection(monotributo)).toMatch(/monotributista.*Procedimiento permanente de transición/);
+    expect(formatArcaRejection(monotributo)).not.toMatch(/condición del receptor/);
+  });
+
   it('un rechazo sin código conocido pide revisar errores y observaciones', () => {
     const summary = mapBillingResponse({
       cae: '',

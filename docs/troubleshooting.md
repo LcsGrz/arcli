@@ -356,8 +356,10 @@ arcli fc ayuda
 
 - **Severidad:** frecuente
 - **Síntoma:** el comprobante aprueba, pero devuelve observaciones como `10217` o `10017`.
-- **Causa:** condición del receptor o del entorno de testing.
-- **Solución:** revisar si el caso es aceptable para tu flujo y distinguirlo de un rechazo real.
+- **Causa:** la condición del receptor en el padrón de ARCA:
+  - `10217`: el receptor de una factura A está activo como monotributista. ARCA la aprueba con la leyenda "El crédito fiscal discriminado en el presente comprobante solo podrá ser computado a efectos del Procedimiento permanente de transición al Régimen General". En testing sale también con CUITs que no son monotributistas.
+  - `10017`: el CUIT del receptor de una factura A no figura activo en el padrón de ARCA.
+- **Solución:** no son rechazos: si el comprobante salió `observado`, está emitido. Revisá el receptor con `arcli padron <cuit>` y si le corresponde la letra.
 - **Documentación relacionada:** [Limitaciones actuales](limitations.md)
 
 ### ARCA rechaza por punto de venta
@@ -381,7 +383,8 @@ Cuando ARCA rechaza o deja una observación con alguno de estos códigos, `suger
 | `10174`         | El CBU de la factura FCE no está registrado a nombre del emisor                                                                                                   | Usá un CBU propio registrado en ARCA (`--cbu` o la clave `cbu`)                                                 |
 | `10119`         | La cotización está fuera del rango que acepta ARCA: entre el 2% y el 400% de la oficial                                                                           | Revisá `--cotizacion-moneda` contra `arcli parametros cotizacion <moneda>`                                      |
 | `10038`         | Con `--misma-moneda`, la cotización enviada ya no es la oficial exacta                                                                                            | Volvé a emitir: ARCLI consulta la oficial en ese momento                                                        |
-| `10017`/`10217` | Observación sobre la condición del receptor; el comprobante puede estar aprobado                                                                                  | Ver [Observaciones de padrón](#observaciones-de-padrón)                                                         |
+| `10017`         | El CUIT del receptor de una A no figura activo en el padrón; el comprobante puede estar aprobado                                                                  | Ver [Observaciones de padrón](#observaciones-de-padrón)                                                         |
+| `10217`         | El receptor de una A es monotributista: el crédito fiscal solo se computa por el Procedimiento permanente de transición. El comprobante está aprobado             | Ver [Observaciones de padrón](#observaciones-de-padrón)                                                         |
 
 También se reconocen por el mensaje, sin código: receptor igual al emisor, `Transacción Activa`, CUIT receptor inexistente y detalle de IVA obligatorio. Si ARCA rechaza con otro código, `sugerencias` pide revisar `errores` y `observaciones`.
 
