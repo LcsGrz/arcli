@@ -12,15 +12,12 @@ import type { VoucherKindDefinition } from '../../modules/billing/billing.types'
 import { EXPORT_VOUCHER_KINDS, type ExportVoucherKind } from '../../modules/export/export.types';
 import { parseAmountInput } from '../../modules/interactive/amount-input';
 import {
-  associableNoteChoices,
-  conceptChoices,
-  exportInvoiceChoice,
-  exportNoteChoices,
-  invoiceKindChoices,
-  ivaRateChoices,
-  noteKindChoices,
-  reciboChoice,
-} from '../../modules/interactive/choices';
+  type AssociatedFamily,
+  type AssociatedKind,
+  associatedKindGroups,
+  groupNewOptions,
+} from '../../modules/interactive/associated-kinds';
+import { conceptChoices, ivaRateChoices, noteKindChoices } from '../../modules/interactive/choices';
 import {
   copyInvoiceAmounts,
   copyInvoiceReceiver,
@@ -116,17 +113,69 @@ function requiredCancellation(state: NoteState): boolean | undefined {
   return resolveRequiredCancellation(noteKindChoices(state.kind ?? 'credito', invoiceKind).family, invoiceKind.family);
 }
 
-/** Las facturas de A, B, C y FCE, cada una seguida de las notas de su letra que la nota puede ajustar, y despues la E. */
-function associatedKindChoices(kind: NoteKind) {
-  return [
-    ...invoiceKindChoices().flatMap((choice) => [
-      choice,
-      ...associableNoteChoices(kind, choice.value).map((note) => markIfNew(note, 'notas-sobre-notas')),
-    ]),
-    markIfNew(reciboChoice(), 'recibo'),
-    markIfNew(exportInvoiceChoice(), 'notas-e'),
-    ...exportNoteChoices().map((note) => markIfNew(note, 'notas-sobre-notas')),
-  ];
+/**
+ * "¿Sobre qué comprobante?" en dos niveles: la familia y, si tiene mas de una opcion, el comprobante. Volver desde el
+ * segundo nivel vuelve a las familias; desde el primer paso de la nota E, a los comprobantes de exportacion.
+ */
+async function askAssociatedKind(
+  session: InteractiveSession,
+  state: NoteState,
+): Promise<Back | Pick<NoteState, 'exported' | 'invoiceKind' | 'target'>> {
+  const kind = state.kind ?? 'credito';
+  const groups = associatedKindGroups(kind);
+  // Arranca en la primera opcion; al volver de un nivel queda marcado lo que se habia elegido.
+  let picked: AssociatedKind | undefined;
+  let family: AssociatedFamily | undefined;
+
+  for (;;) {
+    const chosen = await chooseStep(
+      '¿Sobre qué comprobante?',
+      groups.map((group) =>
+        markIfNew({ description: group.description, name: group.name, value: group.family }, groupNewOptions(group)),
+      ),
+      family,
+    );
+
+    if (chosen === BACK) {
+      return BACK;
+    }
+
+    family = chosen;
+    const { options, question } = requireStepValue(
+      groups.find((group) => group.family === chosen),
+      'la familia del comprobante',
+    );
+    const only = options.length === 1 ? options[0]?.value : undefined;
+
+    for (;;) {
+      const value: AssociatedKind | Back =
+        only ??
+        (await chooseStep(
+          question,
+          options.map(({ newOption, ...option }) => (newOption ? markIfNew(option, newOption) : option)),
+          picked,
+        ));
+
+      if (value === BACK) {
+        break;
+      }
+
+      picked = value;
+
+      if (!isExportKind(value)) {
+        return { invoiceKind: value, target: 'factura' };
+      }
+
+      if ((await runExportNoteFlow(session, kind, value)) !== BACK) {
+        return { exported: true };
+      }
+
+      // Sin segundo nivel, Volver desde la nota E vuelve a las familias.
+      if (only) {
+        break;
+      }
+    }
+  }
 }
 
 function isExportKind(kind: ExportVoucherKind | VoucherKindDefinition): kind is ExportVoucherKind {
@@ -199,27 +248,7 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
   const steps: Array<WizardStep<NoteState>> = [
     {
       name: 'tipo-factura',
-      run: async (state) => {
-        // Volver desde el primer paso de la nota E vuelve a este selector.
-        for (;;) {
-          const invoiceKind = await chooseStep<ExportVoucherKind | VoucherKindDefinition>(
-            '¿Sobre qué comprobante?',
-            associatedKindChoices(state.kind ?? 'credito'),
-          );
-
-          if (invoiceKind === BACK) {
-            return BACK;
-          }
-
-          if (!isExportKind(invoiceKind)) {
-            return { invoiceKind, target: 'factura' };
-          }
-
-          if ((await runExportNoteFlow(session, state.kind ?? 'credito', invoiceKind)) !== BACK) {
-            return { exported: true };
-          }
-        }
-      },
+      run: (state) => askAssociatedKind(session, state),
     },
     {
       name: 'asociacion',

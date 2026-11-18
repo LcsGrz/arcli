@@ -24,7 +24,7 @@ export interface InteractiveChoice<T> {
   readonly value: T;
 }
 
-const INVOICE_DESCRIPTIONS: Record<VoucherLetter, string> = {
+export const INVOICE_DESCRIPTIONS: Readonly<Record<VoucherLetter, string>> = {
   a: 'Entre responsables inscriptos, o de RI a monotributista',
   b: 'De responsable inscripto a consumidor final, exento u otros',
   c: 'La emiten monotributistas y exentos',
