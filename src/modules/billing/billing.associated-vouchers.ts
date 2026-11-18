@@ -40,7 +40,7 @@ export function resolveAssociatedVouchers(options: ResolveAssociatedVoucherOptio
   }
 
   const associatedVoucher = input.associatedVoucher;
-  // En NC/ND FCE el asociado siempre es del propio emisor (10155), asi que el CUIT puede omitirse.
+  // En NC/ND FCE el asociado siempre es del propio emisor (10155, WSFEv1 v4.7), asi que el CUIT puede omitirse.
   const associatedCuit = associatedVoucher?.cuit ?? (voucherKind.isElectronicCredit ? String(emitterCuit) : undefined);
   const associatedVoucherType =
     associatedVoucher?.tipo ?? resolveAssociatedVoucherType(associatedVoucher?.shortcut, requireVoucherKind);
@@ -127,13 +127,13 @@ function resolveAssociatedVoucherType(
   return requireVoucherKind(shortcut).arcaType;
 }
 
-/** NC y ND A, B y C asocian facturas, recibos y otras notas de la misma letra (regla 10040). */
+/** NC y ND A, B y C asocian facturas, recibos y otras notas de la misma letra (regla 10040, WSFEv1 v4.7). */
 const COMMON_NOTE_ASSOCIABLE_FAMILIES: readonly VoucherFamily[] = ['factura', 'nota-credito', 'nota-debito', 'recibo'];
 
 /**
  * Lo que puede asociar una nota segun su familia y si es de anulacion. Una nota FCE sin anulacion solo asocia la
  * factura FCE (10156, 10157); con anulacion, la NC asocia la factura o una ND FCE y la ND solo una NC FCE (10183,
- * 10186, 10193). En A, B y C la anulacion no cambia nada.
+ * 10186, 10187, 10193; WSFEv1 v4.7). En A, B y C la anulacion no cambia nada.
  */
 export function listAssociableFamilies(noteFamily: VoucherFamily, cancellation: boolean): readonly VoucherFamily[] {
   switch (noteFamily) {

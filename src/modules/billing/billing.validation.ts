@@ -6,6 +6,7 @@ import { formatDocumentFlag, formatVoucherSubject, formatVoucherWithArticle } fr
 import type { BillingCommandInput, BillingConcept } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
 
+/** ARCA 10032 (WSFEv1 v4.7). */
 export function ensureDateOrder(serviceStartDate: string, serviceEndDate: string): void {
   if (serviceStartDate > serviceEndDate) {
     throw new InputValidationError('La fecha de inicio de servicio no puede ser posterior a la fecha de fin.');
@@ -36,6 +37,8 @@ export function validateConceptDateInputs(input: BillingCommandInput, voucherKin
     }
   }
 
+  // Productos sin fechas de servicio ni vencimiento: sin confirmar, el manual WSFEv1 v4.7 no las prohibe (10049 y
+  // 10031 solo las piden en servicios). En NC/ND FCE el vencimiento si es de ARCA (10175).
   if (input.concept === 'productos') {
     if (hasAnyServiceDate) {
       throw new InputValidationError(
@@ -46,6 +49,7 @@ export function validateConceptDateInputs(input: BillingCommandInput, voucherKin
     return;
   }
 
+  // ARCA 10031 y 10033 (WSFEv1 v4.7).
   if (hasPartialServiceDate) {
     throw new InputValidationError(
       'Si informás fechas de servicio, tenés que enviar ambas: `--servicio-desde` y `--servicio-hasta`.',
@@ -54,6 +58,8 @@ export function validateConceptDateInputs(input: BillingCommandInput, voucherKin
 }
 
 export function validateDocumentIdentity(input: BillingCommandInput, voucherKind: VoucherKindDefinition): void {
+  // Consumidor final con documento 0 y numero obligatorio en el resto: ARCA 10015 (WSFEv1 v4.7). Que el IVA receptor
+  // sea consumidor final esta sin confirmar; el formato del CUIT y del DNI es propio.
   if (input.documentType === 'consumidor-final') {
     if (input.ivaCondition !== 'consumidor-final') {
       throw new InputValidationError(
@@ -97,7 +103,7 @@ interface BillingDateWindow {
   readonly sameMonthWhenFuture: boolean;
 }
 
-/** Ventana de CbteFch respecto de hoy segun ARCA (errores 10016 y 10152). */
+/** Ventana de CbteFch respecto de hoy segun ARCA: 10016 el rango y 10152 el mes (WSFEv1 v4.7). */
 function resolveBillingDateWindow(concept: BillingConcept, voucherKind: VoucherKindDefinition): BillingDateWindow {
   if (voucherKind.isElectronicCredit) {
     return { maxDaysAfter: 1, maxDaysBefore: 5, sameMonthWhenFuture: true };

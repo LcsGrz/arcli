@@ -7,7 +7,7 @@ import type { VoucherKindDefinition, VoucherLetter } from './billing.types';
 
 /**
  * Condiciones IVA del receptor admitidas por letra, segun FEParamGetCondicionIvaReceptor.
- * ARCA rechaza las demas combinaciones con el error 10243.
+ * ARCA rechaza las demas combinaciones con el error 10243 (WSFEv1 v4.7). `yarn test:arca` la compara con la de ARCA.
  */
 const IVA_CONDITIONS_BY_LETTER: Record<VoucherLetter, readonly BillingIvaCondition[]> = {
   a: [
@@ -40,7 +40,7 @@ const IVA_CONDITIONS_BY_LETTER: Record<VoucherLetter, readonly BillingIvaConditi
   ],
 };
 
-/** RG 5700/2025: desde $ 10.000.000 hay que identificar al consumidor final. */
+/** RG 5700/2025: desde $ 10.000.000 hay que identificar al consumidor final (ARCA 10015, WSFEv1 v4.7). */
 const CONSUMER_IDENTIFICATION_THRESHOLD = 10_000_000;
 
 export function listAllowedIvaConditions(letter: VoucherLetter): readonly BillingIvaCondition[] {

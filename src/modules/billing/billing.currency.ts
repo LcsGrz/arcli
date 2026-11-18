@@ -20,7 +20,7 @@ export function isForeignCurrency(input: { readonly currencyCode?: string }): bo
 }
 
 /**
- * Con CanMisMonExt = S, ARCA exige la cotizacion oficial exacta (error 10038), asi que el CLI la consulta en lugar de
+ * Con CanMisMonExt = S, ARCA exige la cotizacion oficial exacta (error 10038, WSFEv1 v4.7), asi que el CLI la consulta en lugar de
  * pedirsela al usuario. Sin --misma-moneda y sin --cm tambien se usa la oficial: es el default (REV-35).
  */
 export function needsOfficialExchangeRate(input: CurrencyInput): boolean {
@@ -68,7 +68,7 @@ export function resolveBillingCurrencyFields(
       );
     }
 
-    // ARCA rechaza CanMisMonExt cuando MonId = PES (error 10241).
+    // ARCA rechaza CanMisMonExt cuando MonId = PES (error 10241, WSFEv1 v4.7); MonCotiz 1 en pesos es la 10039.
     return {
       MonCotiz: DEFAULT_EXCHANGE_RATE,
       MonId: currencyCode,

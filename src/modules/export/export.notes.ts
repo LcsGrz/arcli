@@ -19,7 +19,7 @@ import {
   getExportVoucherKindByShortcut,
 } from './export.types';
 
-/** Servicios: el tipo de exportacion en el que ARCA compara la nota contra el asociado (errores 2048 a 2055). */
+/** Servicios: el tipo de exportacion en el que ARCA compara la nota contra el asociado (2048 a 2055, WSFEX v3.1.0). */
 const SERVICES_EXPORT_TYPE = 2;
 
 const ASSOCIATED_SHORTCUTS = EXPORT_VOUCHER_KINDS.map((kind) => `\`${kind.shortcut}\``)

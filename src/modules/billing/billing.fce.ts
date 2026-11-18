@@ -30,7 +30,7 @@ function listInvoiceOnlyFlags(input: FceInput): string[] {
 }
 
 /**
- * Arma `Opcionales` segun el tipo de comprobante:
+ * Arma `Opcionales` segun el tipo de comprobante (codigos de WSFEv1 v4.7; 10165, 10166 y 10215 son los formatos):
  * - factura FCE: CBU obligatorio (10168), alias opcional y modalidad de transferencia obligatoria (10216)
  * - NC/ND FCE: solo el codigo de anulacion, obligatorio (10173); sin CBU, alias ni transferencia (10172)
  * - resto: ningun opcional de FCE (10169)
