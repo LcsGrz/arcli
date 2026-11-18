@@ -1,0 +1,98 @@
+import { InputValidationError } from '../errors/app-error';
+
+import { addDaysToArcaDate, formatArcaDateAsArgentineDate, formatDateAsArcaDate } from './arca-date';
+import { monthArcaPeriod } from './periods';
+
+/**
+ * Que fecha es un flag o una clave: un dia suelto (`--fecha`, `--vto`...) o una punta de un rango (`--sd`/`--sh`,
+ * `--pd`/`--ph`). Las palabras de mes solo valen en las puntas: en "desde" dan el dia 1 y en "hasta", el ultimo.
+ */
+export type DateInputRole = 'day' | 'from' | 'to';
+
+/** Tope de `+N` y `-N`: mas que cualquier vencimiento real, y frena un typo antes de que la fecha salga de rango. */
+export const MAX_RELATIVE_DAYS = 999;
+
+const MONTH_WORDS = { 'mes-actual': 0, 'mes-pasado': 1 } as const;
+
+const DAY_WORDS_HINT = '`hoy`, `ayer`, `+N` o `-N` (días desde hoy)';
+const MONTH_WORDS_HINT = '`mes-actual` o `mes-pasado`';
+
+function isMonthWord(value: string): value is keyof typeof MONTH_WORDS {
+  return value in MONTH_WORDS;
+}
+
+/** Una palabra (letras y guiones) o algo que empieza con `+`/`-`: nunca es una fecha escrita a mano. */
+function looksRelative(value: string): boolean {
+  return /^[+-]/.test(value) || /^[a-zñáéíóú-]+$/.test(value);
+}
+
+function formatHint(role: DateInputRole): string {
+  return role === 'day'
+    ? `Usá una fecha (D, D/MM o D/MM/YYYY) o ${DAY_WORDS_HINT}.`
+    : `Usá una fecha (D, D/MM o D/MM/YYYY), ${DAY_WORDS_HINT} o ${MONTH_WORDS_HINT}.`;
+}
+
+/**
+ * La fecha ARCA (yyyymmdd) de una fecha relativa (`hoy`, `ayer`, `+N`, `-N`, `mes-actual`, `mes-pasado`), sin
+ * distinguir mayusculas. `now` es la referencia: "hoy" es su fecha argentina. Devuelve `undefined` si el valor no es
+ * relativo (una fecha escrita a mano sigue su camino de siempre) y tira si parece relativo pero no es valido.
+ */
+export function parseRelativeDateAsArcaDate(value: string, role: DateInputRole, now: Date): string | undefined {
+  const normalized = value.trim().toLowerCase();
+
+  if (!looksRelative(normalized)) {
+    return undefined;
+  }
+
+  const today = formatDateAsArcaDate(now);
+
+  if (normalized === 'hoy') {
+    return today;
+  }
+
+  if (normalized === 'ayer') {
+    return addDaysToArcaDate(today, -1);
+  }
+
+  if (isMonthWord(normalized)) {
+    if (role === 'day') {
+      throw new InputValidationError(
+        `\`${value.trim()}\` es un mes y esta fecha es de un día: las palabras de mes valen solo en desde y hasta (\`--sd\`/\`--sh\`, \`--pd\`/\`--ph\`). Acá usá una fecha o ${DAY_WORDS_HINT}.`,
+      );
+    }
+
+    const period = monthArcaPeriod(now, MONTH_WORDS[normalized]);
+
+    return role === 'from' ? period.from : period.to;
+  }
+
+  const offset = /^([+-])(\d+)$/.exec(normalized);
+
+  if (!offset) {
+    throw new InputValidationError(`La fecha "${value.trim()}" no es válida. ${formatHint(role)}`);
+  }
+
+  const days = Number(offset[2]);
+
+  if (days > MAX_RELATIVE_DAYS) {
+    throw new InputValidationError(
+      `La fecha "${value.trim()}" está demasiado lejos: \`+N\` y \`-N\` van hasta ${MAX_RELATIVE_DAYS} días.`,
+    );
+  }
+
+  return addDaysToArcaDate(today, offset[1] === '-' ? -days : days);
+}
+
+/**
+ * Lo que leen los flags y `--cargar`: una fecha relativa pasa a DD/MM/YYYY (con año, asi no se reinterpreta) y una
+ * escrita a mano queda igual. Asi la vista previa, las validaciones y el `--json` ven siempre la fecha resuelta.
+ */
+export function resolveRelativeDateInput<T extends string | undefined>(value: T, role: DateInputRole, now: Date): T {
+  if (value === undefined) {
+    return value;
+  }
+
+  const arcaDate = parseRelativeDateAsArcaDate(value, role, now);
+
+  return (arcaDate === undefined ? value : formatArcaDateAsArgentineDate(arcaDate)) as T;
+}
