@@ -296,9 +296,9 @@ arcli fc ayuda
 
 ### `wsfecred` no autorizado
 
-- **Severidad:** frecuente, si usás `fce-obligado` o `verificarFce`
-- **Síntoma:** `El certificado no está autorizado para el servicio wsfecred ...` (ARCA responde `coe.notAuthorized`).
-- **Causa:** el certificado solo tiene autorizado `wsfe`. La consulta del régimen FCE usa otro servicio.
+- **Severidad:** frecuente, si usás `fce-obligado`, `verificarFce` o notas FCE con `--anulacion`
+- **Síntoma:** `El certificado no está autorizado para el servicio wsfecred ...` (ARCA responde `coe.notAuthorized`). En una nota FCE con `--anulacion` sale como aviso en la vista previa y la nota se puede emitir igual.
+- **Causa:** el certificado solo tiene autorizado `wsfe`. La consulta del régimen FCE y la del Registro de FCE usan otro servicio.
 - **Solución:** crear la autorización para `wsfecred` igual que la de `wsfe`, en WSASS (testing) o en el Administrador de Relaciones (producción). Si no la necesitás, desactivá el chequeo con `arcli config eliminar verificarFce`.
 - **Documentación relacionada:** [Autorizar el servicio web](certificado-testing-completa.md#3-autorizar-el-servicio-web)
 
@@ -378,6 +378,14 @@ arcli fc ayuda
 - **Solución:** `arcli parametros puntos-venta --produccion` lista los habilitados para web service. Si el tuyo no está, creá uno nuevo con sistema de web services en "Administración de puntos de venta y domicilios" y guardalo con `arcli config establecer puntoVenta <numero>`.
 - **Documentación relacionada:** [Punto de venta para web service](certificado-produccion-completa.md#punto-de-venta-para-web-service)
 
+### ARCA rechaza la nota FCE de anulación
+
+- **Severidad:** frecuente, en notas FCE con `--anulacion`
+- **Síntoma:** la NC o ND FCE con `--anulacion` sale `rechazada` con el error `10154` ("Comprobante electronico autorizado, NO rechazado por el Comprador"). Antes, la vista previa ya avisa que el comprador no rechazó el asociado en el Registro de FCE.
+- **Causa:** una nota de anulación solo vale si el comprador rechazó antes el comprobante asociado en el Registro de Facturas de Crédito Electrónica. Si lo recibió y no lo rechazó, o ya lo aceptó, ARCA rechaza la nota. Una nota sobre otra nota FCE siempre es de anulación, así que la nota asociada también tiene que estar rechazada.
+- **Solución:** pedile al comprador que rechace el comprobante en el Registro de FCE (en el servicio "Sistema de Cuentas Corrientes de Facturas de Crédito Electrónica MiPyMEs" de ARCA) y volvé a emitir. Si la nota no es una anulación (por ejemplo, un ajuste de precio sobre una factura aceptada), emitila sin `--anulacion`. Un rechazo no emite nada.
+- **Documentación relacionada:** [Factura de Crédito Electrónica](fce.md)
+
 ### Rechazos de ARCA por código
 
 Cuando ARCA rechaza o deja una observación con alguno de estos códigos, `sugerencias` del JSON (y el panel de la salida humana) dice qué pasó y qué hacer. Los que ARCLI valida antes de enviar (por ejemplo, la ventana de fechas o el IVA receptor por letra) casi nunca llegan a ARCA, pero si llegan, el texto es el mismo.
@@ -388,6 +396,7 @@ Cuando ARCA rechaza o deja una observación con alguno de estos códigos, `suger
 | `10016`         | El número o la fecha no es el próximo a autorizar: otro comprobante del mismo tipo y punto de venta se emitió en el medio, o la fecha es anterior a la del último | Mirá el último con `arcli ultimos` y reintentá; si emitís varios, de a uno (ver [Limitaciones](limitations.md)) |
 | `10152`         | La fecha del comprobante está fuera del rango que acepta ARCA                                                                                                     | Ver [Fecha del comprobante fuera de rango](#fecha-del-comprobante-fuera-de-rango)                               |
 | `10243`         | El IVA receptor no es válido para la letra                                                                                                                        | Ver [El comprobante no admite el IVA receptor](#el-comprobante-no-admite-el-iva-receptor)                       |
+| `10154`         | La nota FCE de anulación necesita que el comprador haya rechazado antes el asociado, y no lo rechazó                                                              | Ver [ARCA rechaza la nota FCE de anulación](#arca-rechaza-la-nota-fce-de-anulación)                             |
 | `10174`         | El CBU de la factura FCE no está registrado a nombre del emisor                                                                                                   | Usá un CBU propio registrado en ARCA (`--cbu` o la clave `cbu`)                                                 |
 | `10119`         | La cotización está fuera del rango que acepta ARCA: entre el 2% y el 400% de la oficial                                                                           | Revisá `--cotizacion-moneda` contra `arcli parametros cotizacion <moneda>`                                      |
 | `10038`         | Con `--misma-moneda`, la cotización enviada ya no es la oficial exacta                                                                                            | Volvé a emitir: ARCLI consulta la oficial en ese momento                                                        |

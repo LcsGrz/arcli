@@ -2,6 +2,7 @@ import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { formatArgentineAmountInput } from '../../lib/numbers/argentine-amount';
 import type { ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
+import { FCE_REGISTRY_STATE_LABELS, type FceRegistryGateway, type FceRegistryState } from '../fce/fce-registry';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../vouchers/voucher-history';
 import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
 
@@ -210,4 +211,70 @@ export async function checkAssociatedInArca(options: {
     input: { ...input, associatedVoucher: { ...associated, fecha: formatArcaDateAsArgentineDate(voucher.date) } },
     warnings: [],
   };
+}
+
+/**
+ * Una nota FCE de anulacion necesita que el comprador haya rechazado antes el asociado en el Registro de FCE; si no,
+ * ARCA la rechaza con 10154. Se consulta el estado en wsfecred y se avisa, sin frenar: el Registro puede cambiar
+ * entre la vista previa y la emision, y un rechazo de ARCA no emite nada. Solo comprobantes propios.
+ *
+ * Va despues de `checkAssociatedInArca`, con la entrada que ya tiene la fecha del asociado.
+ */
+export async function checkFceCancellationInRegistry(options: {
+  readonly gateway: Pick<FceRegistryGateway, 'getVoucherState'>;
+  readonly input: BillingCommandInput;
+  readonly runtime: ResolvedArcaRuntime;
+  readonly service: Pick<BillingService, 'buildVoucherPayload'>;
+}): Promise<string[]> {
+  const { gateway, input, runtime, service } = options;
+  const voucherKind = getVoucherKindByShortcut(input.shortcut);
+  const associated = input.associatedVoucher;
+  const emitterCuit = runtime.context.cuit;
+
+  if (
+    !voucherKind?.isElectronicCredit ||
+    !voucherKind.requiresAssociatedVoucher ||
+    !input.cancellation ||
+    !associated?.numero ||
+    !associated.puntoVenta ||
+    (associated.cuit !== undefined && associated.cuit.replace(/\D/g, '') !== String(emitterCuit))
+  ) {
+    return [];
+  }
+
+  const reference = service.buildVoucherPayload(input, runtime, voucherKind).CbtesAsoc?.[0];
+
+  if (!reference) {
+    return [];
+  }
+
+  const label = describeAssociated(reference.Tipo, reference.PtoVta, reference.Nro);
+  let state: FceRegistryState | undefined;
+
+  try {
+    state = await gateway.getVoucherState({
+      arcaType: reference.Tipo,
+      cuit: emitterCuit,
+      number: reference.Nro,
+      pointOfSale: reference.PtoVta,
+    });
+  } catch (error) {
+    return [
+      `No se pudo consultar en el Registro de FCE si el comprador rechazó ${label}: ${reasonOf(error).replace(/\.$/, '')}. Si no lo rechazó, ARCA rechaza la nota de anulación con el error 10154.`,
+    ];
+  }
+
+  // Sin estado, el Registro no lo tiene: que exista lo controla ARCA al emitir.
+  if (state === undefined || state === 'Rechazado') {
+    return [];
+  }
+
+  const overInvoice = getVoucherKindByArcaType(reference.Tipo)?.family === 'factura-credito-electronica';
+  const todo = overInvoice
+    ? 'Pedile al comprador que lo rechace o, si no es una anulación, emitila sin `--anulacion`.'
+    : 'Pedile al comprador que lo rechace antes de emitir.';
+
+  return [
+    `El comprador no rechazó ${label} en el Registro de FCE (estado: ${FCE_REGISTRY_STATE_LABELS[state]}) y la nota de anulación lo necesita: ARCA la rechaza con el error 10154. ${todo}`,
+  ];
 }

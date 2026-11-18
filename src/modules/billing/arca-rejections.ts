@@ -49,6 +49,13 @@ export const ARCA_REJECTIONS: readonly ArcaRejection[] = [
     what: 'El CBU no está registrado a nombre del emisor.',
   },
   {
+    codes: [10154],
+    guide: `${TROUBLESHOOTING_URL}#arca-rechaza-la-nota-fce-de-anulación`,
+    pattern: /NO rechazado por el Comprador/i,
+    todo: 'Pedile al comprador que lo rechace en el Registro de Facturas de Crédito Electrónica y volvé a emitir; si es sobre una factura y no es una anulación, emitila sin `--anulacion`.',
+    what: 'Una nota FCE de anulación necesita que el comprador haya rechazado antes el comprobante asociado, y no lo rechazó.',
+  },
+  {
     codes: [10119],
     guide: `${TROUBLESHOOTING_URL}#rechazos-de-arca-por-código`,
     todo: 'Revisá `--cotizacion-moneda` contra la oficial (`arcli parametros cotizacion <moneda>`).',
