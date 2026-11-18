@@ -76,15 +76,12 @@ function validateCountryCuit(context: ExportCountryCuitContext, cuit: number): s
   }
 }
 
-/** `true` si la tabla DST_CUIT de ARCA no tiene CUIT para el destino: entonces hay que pedirlo. */
+/**
+ * `true` si la tabla DST_CUIT de ARCA no tiene CUIT para el destino: entonces se pregunta, y si se deja vacio el ID
+ * impositivo pasa a ser obligatorio (ARCA pide uno de los dos, error 1580).
+ */
 export function isCountryCuitMissing(context: ExportCountryCuitContext): boolean {
-  try {
-    resolveExportClientCountryCuit({ country: context.country, countries: context.countryCuits });
-
-    return false;
-  } catch {
-    return true;
-  }
+  return resolveExportClientCountryCuit({ country: context.country, countries: context.countryCuits }) === undefined;
 }
 
 function findCountryCuits(context: ExportCountryCuitContext, search: string): ExportCountryCuit[] {
@@ -95,14 +92,18 @@ function findCountryCuits(context: ExportCountryCuitContext, search: string): Ex
 
 /**
  * El CUIT del pais del cliente (`--cuit-pais`): se escribe el numero o se busca el pais por nombre en la tabla de
- * ARCA y se elige de la lista. Es la salida cuando ARCA no publica un CUIT para el destino.
+ * ARCA y se elige de la lista. Con `optional`, Enter lo deja sin CUIT (`undefined`): la E va con el ID impositivo.
  */
-export async function askCountryCuit(context: ExportCountryCuitContext, message: string): Promise<Back | number> {
+export async function askCountryCuit(
+  context: ExportCountryCuitContext,
+  message: string,
+  options: { readonly optional?: boolean } = {},
+): Promise<Back | number | undefined> {
   for (;;) {
     const answer = await askTextStep(message, {
       validate: (value) => {
         if (!value.trim()) {
-          return 'Escribí el CUIT o parte del nombre del país.';
+          return options.optional ? true : 'Escribí el CUIT o parte del nombre del país.';
         }
 
         const cuit = parseStrictInteger(value);
@@ -119,6 +120,10 @@ export async function askCountryCuit(context: ExportCountryCuitContext, message:
 
     if (answer === BACK) {
       return BACK;
+    }
+
+    if (!answer.trim()) {
+      return undefined;
     }
 
     const typed = parseStrictInteger(answer);
@@ -301,7 +306,7 @@ async function askIncotermDescription(
   };
 }
 
-/** Mismas reglas que `--cm`: un numero valido y, en moneda extranjera, mayor a 1. */
+/** Mismas reglas que `--cm`: un numero valido y, en moneda extranjera, mayor a 0. */
 function validateExportExchangeRate(context: ExportOptionsContext): (value: string) => string | true {
   return (value) => {
     const valid = validateExchangeRate(value);

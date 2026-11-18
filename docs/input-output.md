@@ -185,7 +185,7 @@ La factura `E` (`arcli fe` o `arcli factura e`) y sus notas de crédito y débit
 | `actividad`                                 | number            | sí\*      | Código de la tabla de actividades de WSFEX. \*Si falta, sale de `exportacion.actividad`                                                                            |
 | `items`                                     | array             | no        | Renglones (ver abajo). Sin ítems va uno solo con `descripcion` por el total                                                                                        |
 | `idImpositivo`                              | string            | no        | ID impositivo del cliente en su país                                                                                                                               |
-| `cuitPais`                                  | number            | no        | CUIT del país del cliente; si falta sale de la tabla de ARCA                                                                                                       |
+| `cuitPais`                                  | number            | no        | CUIT del país del cliente; si falta sale de la tabla de ARCA, y si la tabla no trae el destino va solo `idImpositivo` (1580)                                       |
 | `tipoExpo`                                  | `1` \| `2` \| `4` | no        | `2` servicios (por defecto), `1` bienes, `4` otros                                                                                                                 |
 | `incoterm`, `descripcionIncoterm`           | string            | no        | Código y descripción del incoterm (`FOB`, `CIF`…)                                                                                                                  |
 | `idioma`                                    | number            | no        | `1` español (por defecto), `2` inglés, `3` portugués                                                                                                               |
@@ -316,7 +316,7 @@ Es el mismo resumen que A, B y C (`atajo`, `cae`, `estado`, `errores`, `observac
 }
 ```
 
-En las notas, `solicitud` lleva `Cmps_asoc` con el asociado y `Permiso_existente` vacío (con `Permisos` solo si la nota de bienes los informa), y no lleva `Fecha_pago` ni `CanMisMonExt`. La factura de bienes (`tipoExpo: 1`) tampoco lleva `Fecha_pago`: ARCA la rechaza (error 1673).
+En las notas, `solicitud` lleva `Cmps_asoc` con el asociado y `Permiso_existente` vacío (con `Permisos` solo si la nota de bienes los informa), y no lleva `Fecha_pago` ni `CanMisMonExt`. La factura de bienes (`tipoExpo: 1`) tampoco lleva `Fecha_pago`: ARCA la rechaza (error 1673). La factura en pesos (`PES`) no lleva `CanMisMonExt`: ARCA pide que no se informe (error 1605). Si la tabla de ARCA no trae CUIT para el destino y no se pasa `--cuit-pais`, `solicitud` no lleva `Cuit_pais_cliente` y `exportacion.cuitPaisCliente` es `null`: la `E` va solo con el ID impositivo (error 1580).
 
 `exportacion.destino.nombre`, `exportacion.incotermDescripcion` y `exportacion.items[].unidad` salen de las tablas de WSFEX; si la tabla no trae el nombre, quedan en `null` y el código numérico sigue disponible. `exportacion.actividad` lista los códigos de actividad informados en `solicitud.Actividades` (de `--actividad` o de `exportacion.actividad`) y `exportacion.mismaMoneda` indica si el pago se cancela en la misma moneda extranjera (`solicitud.CanMisMonExt` en `S`).
 
