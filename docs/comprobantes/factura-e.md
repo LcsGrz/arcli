@@ -132,7 +132,7 @@ Por defecto, dólares. Sin `--cm`, la cotización de aduana que publica ARCA.
 | `--moneda <código>` | `--mda` | ISO (USD, EUR) o de ARCA (DOL, 060) |
 | `--cotizacion-moneda <número>` | `--cm` | Cotización |
 | `--misma-moneda` |  | Te pagan en esa misma moneda |
-| `--fecha-pago <fecha>` |  | Fecha de pago; por defecto, la del comprobante |
+| `--fecha-pago <fecha>` |  | Fecha de pago, solo en servicios y otros; por defecto, la del comprobante |
 
 Ej.: `--moneda EUR`
 

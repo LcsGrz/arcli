@@ -328,7 +328,6 @@ describe('buildExportPayload', () => {
       Domicilio_cliente: 'Av. Paulista 1000',
       Dst_cmp: 203,
       Fecha_cbte: '20260601',
-      Fecha_pago: '20260601',
       Forma_pago: 'Transferencia Internacional',
       Id: 7,
       Id_impositivo: '123456789',
@@ -350,6 +349,15 @@ describe('buildExportPayload', () => {
     // Los bloques vacios tambien se rechazan: Cmps_asoc da 1820 y Opcionales no se informa.
     expect(payload).not.toHaveProperty('Cmps_asoc');
     expect(payload).not.toHaveProperty('Opcionales');
+  });
+
+  it('en bienes no manda Fecha_pago, que ARCA rechaza (error 1673)', () => {
+    expect(buildExportPayload(input, resolution)).not.toHaveProperty('Fecha_pago');
+  });
+
+  it('en servicios y otros manda Fecha_pago', () => {
+    expect(buildExportPayload(input, { ...resolution, exportType: 2 }).Fecha_pago).toBe('20260601');
+    expect(buildExportPayload(input, { ...resolution, exportType: 4 }).Fecha_pago).toBe('20260601');
   });
 
   it('respeta la forma de pago que informa el usuario', () => {
