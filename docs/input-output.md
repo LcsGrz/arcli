@@ -606,7 +606,7 @@ Si no hubo emisión real, `respuesta` no se serializa como `null`. En su lugar:
 
 | Campo                  | Tipo                             | Descripción                                                                                                          |
 | ---------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `actividades`          | `{ descripcion, id }[]`          | Actividades; la primera es la principal                                                                              |
+| `actividades`          | `{ descripcion, id }[]`          | Actividades, sin repetir; la primera es la principal                                                                 |
 | `avisos`               | `string[]`                       | Observaciones de ARCA sobre la constancia                                                                            |
 | `categoriaMonotributo` | `string \| null`                 | Categoría, si es monotributista                                                                                      |
 | `condicionIva`         | `string \| null`                 | `responsable-inscripto`, `responsable-monotributo` o `sujeto-exento`; `null` si no se puede deducir de los impuestos |
