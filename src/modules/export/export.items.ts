@@ -163,7 +163,7 @@ export function assertExportItemsTotal(inputs: readonly ExportItemInput[] | unde
 
 /**
  * Un item sin `--item` resume el comprobante en un renglon con el total. Con items, la suma tiene que dar
- * el monto: ARCA no valida `Imp_total` contra los items, asi que se valida aca.
+ * el monto, y se valida aca. El manual WSFEX v3.1.0 si lo pone como control (1610).
  */
 export function buildExportItems(
   inputs: readonly ExportItemInput[] | undefined,

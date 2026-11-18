@@ -194,7 +194,7 @@ export function resolveExportQuotation(
 }
 
 /**
- * WSFEX exige una `Actividad` (error 2100) y solo acepta los codigos de su propia tabla, que no es la del padron y
+ * WSFEX exige una `Actividad` (error 2100, WSFEX v3.1.0) y solo acepta los codigos de su propia tabla, que no es la del padron y
  * es mas chica (error 2105 al emitir). Cada emisor tiene la suya, asi que no hay default: sale de `--actividad` o de
  * `exportacion.actividad`. Los nombres de la tabla llegan con la codificacion rota, por eso los mensajes solo dan codigos.
  */
@@ -266,6 +266,7 @@ export function resolveExportDestinationCountry(
     );
   }
 
+  // Propia: WSFEX v3.1.0 no tiene ese control y ARCA testing aprueba una E con destino 200 (TEST-8).
   if (country.code === ARGENTINA_COUNTRY_CODE) {
     throw new InputValidationError(
       'Argentina no es un destino de exportación: usá `arcli factura a` o `arcli factura b`.',
@@ -431,7 +432,7 @@ export function resolveExportNumber(options: {
   return next;
 }
 
-/** En los tipos 2 (servicios) y 4 (otros) ARCA exige `Permiso_existente` vacio, no `N` (error 1550). */
+/** En los tipos 2 (servicios) y 4 (otros) ARCA exige `Permiso_existente` vacio, no `N` (error 1550, WSFEX v3.1.0). */
 function requiresEmptyPermitsExisting(exportType: ExportType): boolean {
   return EXPORT_TYPES_WITHOUT_PERMITS.includes(exportType);
 }
@@ -472,7 +473,10 @@ function resolvePermits(
   return { Permiso: [...new Set(permits)].map((id) => ({ Dst_merc: destinationCountry, Id_permiso: id })) };
 }
 
-/** `Fecha_pago` va solo en la factura de servicios u otros: en bienes y en las notas ARCA la rechaza (error 1673). */
+/**
+ * `Fecha_pago` va solo en la factura de servicios u otros (1672): en las notas ARCA la rechaza (1673, WSFEX v3.1.0) y en
+ * bienes tambien, aunque el manual no lo diga (visto en testing, #204).
+ */
 export function exportTypeTakesPaymentDate(exportType: ExportType, isNote: boolean): boolean {
   return !isNote && EXPORT_TYPES_WITH_PAYMENT_DATE.includes(exportType);
 }

@@ -100,7 +100,10 @@ function assertRequiredFields(input: ExportVoucherInput, activity: number | unde
   }
 }
 
-/** WSFEX no acepta comprobantes con fecha futura. Las fechas pasadas si son validas. */
+/**
+ * Sin confirmar: el manual WSFEX v3.1.0 acepta hasta 5 dias despues de hoy (1500) y, en servicios, dentro del mes.
+ * Las fechas pasadas si son validas.
+ */
 function assertNotFuture(voucherDate: string, now: Date): void {
   const today = formatDateAsArcaDate(now);
 

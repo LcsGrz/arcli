@@ -80,7 +80,7 @@ function resolvePaymentDateFromDueDay(dueDay: number, todayArcaDate: string): st
 }
 
 /**
- * Que fechas lleva el comprobante:
+ * Que fechas lleva el comprobante (codigos de WSFEv1 v4.7):
  * - servicios: FchServDesde, FchServHasta y FchVtoPago (10049)
  * - factura FCE: FchVtoPago siempre, aunque sea de productos (10163)
  * - NC/ND FCE: sin FchVtoPago salvo anulacion (10175)
@@ -130,7 +130,7 @@ export function resolveBillingDateRange(
     return { billingDate, ...serviceDates };
   }
 
-  // FCE: el vencimiento no puede ser anterior a la fecha del comprobante ni a hoy (10164).
+  // FCE: el vencimiento no puede ser anterior a la fecha del comprobante ni a hoy (10164, WSFEv1 v4.7).
   const minimumPaymentDueDate = isElectronicCreditInvoice(voucherKind) ? maxArcaDate(billingDate, today) : billingDate;
   const paymentDueDate = input.paymentDueDate
     ? parseArgentineDateInputAsArcaDate(input.paymentDueDate, referenceDate)

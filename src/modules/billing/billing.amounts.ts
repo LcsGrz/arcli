@@ -45,7 +45,8 @@ function validateLetterCAmounts(input: TaxAmountsInput, voucherKind: VoucherKind
 
 /**
  * Reparte el total entre no gravado, exento, neto gravado e IVA.
- * ImpTotal = ImpTotConc + ImpOpEx + ImpNeto + ImpIVA (10048); la C no informa IVA (10071).
+ * ImpTotal = ImpTotConc + ImpOpEx + ImpNeto + ImpIVA (10048); la C no informa IVA (10071) ni exento o no gravado
+ * (10043, 10044). Codigos de WSFEv1 v4.7.
  */
 export function resolveTaxAmounts(input: TaxAmountsInput, voucherKind: VoucherKindDefinition): TaxAmounts {
   if (voucherKind.letter === 'c') {

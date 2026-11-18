@@ -10,7 +10,9 @@ const MINIMUM_PERIOD_DATE = '20060101';
 
 /**
  * PeriodoAsoc es la alternativa a CbtesAsoc para NC/ND que ajustan un periodo y no una factura puntual (10197).
- * No aplica a facturas (10198) ni a comprobantes FCE (10196).
+ * No aplica a facturas (10198) ni a comprobantes FCE (10196). Codigos de WSFEv1 v4.7: 10199 y 10203 las dos fechas,
+ * 10206 el minimo, 10207 el orden y 10208 el tope. Que no vaya junto con CbtesAsoc tambien es la 10197: el texto dice
+ * "o" y ARCA testing rechaza los dos juntos.
  */
 export function resolveAssociatedPeriod(
   input: Pick<BillingCommandInput, 'associatedPeriod' | 'associatedVoucher'>,

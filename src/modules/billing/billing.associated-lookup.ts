@@ -58,7 +58,8 @@ export function creditNoteOverTotalHint(associatedLabel: string, total: number, 
 }
 
 /**
- * El tope de la NC, con el mismo criterio que las notas E: solo si van en la misma moneda, porque en otra moneda los
+ * Propia: ARCA solo observa una NC que supera al asociado (10237, WSFEv1 v4.7) y la aprueba igual; en WSFEX no hay
+ * control. El tope de la NC, con el mismo criterio que las notas E: solo si van en la misma moneda, porque en otra moneda los
  * totales no se comparan.
  */
 export function assertCreditNoteWithinAssociated(options: {
@@ -118,7 +119,8 @@ function shouldLookUpAssociated(
 }
 
 /**
- * El asociado propio no existe en ARCA. Mismo error que en las notas E: ARCA testing llega a aprobar una nota A, B
+ * Mas estricta que ARCA: en A, B y C un asociado que no existe es una observacion (10041, WSFEv1 v4.7), en FCE un
+ * rechazo (10160). El asociado propio no existe en ARCA. Mismo error que en las notas E: ARCA testing llega a aprobar una nota A, B
  * o C asociada a un comprobante que no existe.
  */
 export function missingAssociatedVoucherError(associatedLabel: string, reason?: string): InputValidationError {
