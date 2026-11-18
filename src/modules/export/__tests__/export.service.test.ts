@@ -122,7 +122,6 @@ describe('ExportService.resolve', () => {
       Cuit_pais_cliente: 55000000050,
       Dst_cmp: 203,
       Fecha_cbte: '20260601',
-      Fecha_pago: '20260601',
       Id: 8,
       Idioma_cbte: 1,
       Imp_total: 1500,
@@ -164,6 +163,35 @@ describe('ExportService.resolve', () => {
 
     expect(resolved.payload.Permiso_existente).toBe('');
     expect(resolved.payload).not.toHaveProperty('Permisos');
+  });
+
+  it('en servicios manda la fecha de pago de `--fecha-pago` sin avisos', async () => {
+    const resolved = await service.resolve(
+      { ...INPUT, exportType: 2, paymentDate: '15/06/2026' },
+      createGateway(),
+      RUNTIME,
+      NOW,
+    );
+
+    expect(resolved.payload.Fecha_pago).toBe('20260615');
+    expect(resolved.warnings).toEqual([]);
+  });
+
+  it('en bienes no manda la fecha de pago (ARCA la rechaza, 1673) y avisa si vino `--fecha-pago`', async () => {
+    const withoutDate = await service.resolve({ ...INPUT, exportType: 1 }, createGateway(), RUNTIME, NOW);
+    const withDate = await service.resolve(
+      { ...INPUT, exportType: 1, paymentDate: '15/06/2026' },
+      createGateway(),
+      RUNTIME,
+      NOW,
+    );
+
+    expect(withoutDate.payload).not.toHaveProperty('Fecha_pago');
+    expect(withoutDate.warnings).toEqual([]);
+    expect(withDate.payload).not.toHaveProperty('Fecha_pago');
+    expect(withDate.warnings).toEqual([
+      'La factura E de bienes (`--tipo-expo 1`) no lleva fecha de pago: ARCA la rechaza (error 1673). `--fecha-pago` no se usa.',
+    ]);
   });
 
   it('sin moneda ni tipo usa los defaults: servicios, dolares y transferencia internacional', async () => {

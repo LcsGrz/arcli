@@ -192,7 +192,7 @@ La factura `E` (`arcli fe` o `arcli factura e`) y sus notas de crédito y débit
 | `permisos`, `permisoExistente`              | string[], boolean | no        | IDs de permiso de embarque y si ya están informados en ARCA; solo con `tipoExpo: 1`                                                                                |
 | `idSolicitud`                               | number            | no        | ID de la solicitud; si falta se pide a WSFEX                                                                                                                       |
 | `puntoVenta`                                | number            | no        | Por defecto, el de la config                                                                                                                                       |
-| `fechaComprobante`, `fechaPago`             | string            | no        | Formato argentino: `27/10/2026`, `27-10-26` o solo día y mes                                                                                                       |
+| `fechaComprobante`, `fechaPago`             | string            | no        | Formato argentino: `27/10/2026`, `27-10-26` o solo día y mes. `fechaPago` no va en bienes (`tipoExpo: 1`): se ignora con un aviso                                  |
 | `codigoMoneda`, `cotizacionMoneda`          | string, number    | no        | `USD` viaja como `DOL` (por defecto); sin cotización se usa la de aduana que publica ARCA                                                                          |
 | `mismaMoneda`                               | boolean           | no        | Pago en la misma moneda extranjera (`CanMisMonExt` en `S`). No cambia la cotización: sale de `cotizacionMoneda` o, sin ella, de la de aduana                       |
 | `observaciones`, `observacionesComerciales` | string            | no        | Van a `Obs` y `Obs_comerciales`                                                                                                                                    |
@@ -316,7 +316,7 @@ Es el mismo resumen que A, B y C (`atajo`, `cae`, `estado`, `errores`, `observac
 }
 ```
 
-En las notas, `solicitud` lleva `Cmps_asoc` con el asociado y `Permiso_existente` vacío (con `Permisos` solo si la nota de bienes los informa), y no lleva `Fecha_pago` ni `CanMisMonExt`.
+En las notas, `solicitud` lleva `Cmps_asoc` con el asociado y `Permiso_existente` vacío (con `Permisos` solo si la nota de bienes los informa), y no lleva `Fecha_pago` ni `CanMisMonExt`. La factura de bienes (`tipoExpo: 1`) tampoco lleva `Fecha_pago`: ARCA la rechaza (error 1673).
 
 `exportacion.destino.nombre`, `exportacion.incotermDescripcion` y `exportacion.items[].unidad` salen de las tablas de WSFEX; si la tabla no trae el nombre, quedan en `null` y el código numérico sigue disponible. `exportacion.actividad` lista los códigos de actividad informados en `solicitud.Actividades` (de `--actividad` o de `exportacion.actividad`) y `exportacion.mismaMoneda` indica si el pago se cancela en la misma moneda extranjera (`solicitud.CanMisMonExt` en `S`).
 

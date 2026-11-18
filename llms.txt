@@ -121,7 +121,7 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
   `--incoterms-desc <texto>`, `--idioma <codigo>` (`1` español por defecto, `2` inglés, `3` portugués),
   `--forma-pago <texto>` (por defecto `Transferencia Internacional`), `--permiso <id>` (repetible, solo con
   `--tipo-expo 1`; en la factura requiere `--permiso-existente`), `--permiso-existente`,
-  `--id-solicitud <n>` (sin flag, el siguiente de WSFEX), `--punto-venta <n>` (`--pv`), `-f, --fecha <fecha>`, `--fecha-pago <fecha>`,
+  `--id-solicitud <n>` (sin flag, el siguiente de WSFEX), `--punto-venta <n>` (`--pv`), `-f, --fecha <fecha>`, `--fecha-pago <fecha>` (solo servicios y otros; en bienes no se manda, con un aviso),
   `--moneda <codigo>` (`--mda`; por defecto `DOL`), `--cotizacion-moneda <n>` (`--cm`; sin flag, la de
   aduana que publica ARCA; la clave `cotizacion` de la config no aplica), `--misma-moneda`
   (manda `CanMisMonExt` en `S`: el pago se cancela en la misma moneda extranjera),

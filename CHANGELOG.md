@@ -8,6 +8,10 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+### Corregido
+
+- **La factura `E` de bienes se puede emitir:** ARCLI mandaba siempre la fecha de pago y ARCA rechazaba la `E` de bienes (`--tipo-expo 1`) con el error 1673. Ahora la fecha de pago va solo en servicios y otros (`--tipo-expo 2` y `4`), como pide ARCA. En bienes, `--fecha-pago` (o `fechaPago` de `--cargar`) se sigue aceptando pero no se usa y sale un aviso en `avisos`; `solicitud` del `--json` deja de traer `Fecha_pago`, porque ya no se manda. El modo interactivo no pregunta la fecha de pago en bienes. Las notas `E` no cambian.
+
 ## [2.5.0] - 2026-11-17
 
 Completa lo que trajo la 2: las notas de crédito y débito de la factura de exportación `E`, el modo interactivo al nivel del CLI (consultas, opcionales, repetir la `E`, el PDF al confirmar) y el sitio de documentación en [arcli.com.ar](https://arcli.com.ar). Puede afectar scripts:
