@@ -103,7 +103,7 @@ Si no es hoy.
 
 | Largo | Corto | Qué es |
 | --- | --- | --- |
-| `--fecha <fecha>` | `-f` | D, D/M, D/M/AA o D/M/AAAA |
+| `--fecha <fecha>` | `-f` | D, D/M, D/M/AA o D/M/AAAA, o hoy, ayer, +N o -N (días desde hoy) |
 
 Ej.: `-f 31/10`
 
