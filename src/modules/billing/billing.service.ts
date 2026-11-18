@@ -13,6 +13,7 @@ import {
   needsOfficialExchangeRate,
   resolveBillingCurrencyFields,
   resolveSameCurrencyQuotationDate,
+  validateExchangeRateRange,
 } from './billing.currency';
 import { resolveBillingDateRange } from './billing.date-range';
 import { EmissionUncertainError } from './billing.errors';
@@ -76,6 +77,40 @@ export class BillingService {
       // Con --misma-moneda la oficial es obligatoria, no un default: no hace falta avisar.
       exchangeRateSource: input.sameCurrency ? undefined : 'arca',
     };
+  }
+
+  /**
+   * Compara la cotizacion que paso el usuario (`--cm`, el JSON o la config) con la oficial de ARCA y frena si esta
+   * fuera del rango de la 10119. Si la consulta falla devuelve el aviso y sigue: ARCA decide al emitir.
+   */
+  public async checkExchangeRateRange(
+    input: BillingCommandInput,
+    gateway: Pick<BillingGateway, 'getQuotation'>,
+  ): Promise<string[]> {
+    if (
+      !isForeignCurrency(input) ||
+      input.sameCurrency ||
+      input.exchangeRateSource === 'arca' ||
+      typeof input.exchangeRate !== 'number'
+    ) {
+      return [];
+    }
+
+    let official: number;
+
+    try {
+      official = await gateway.getQuotation(resolveBillingCurrencyCode(input.currencyCode));
+    } catch (error) {
+      const reason = error instanceof Error ? error.message.replace(/\.$/, '') : 'error desconocido';
+
+      return [
+        `No se pudo comparar la cotización con la oficial de ARCA: ${reason}. ARCA la rechaza si no está entre el 2 % y el 500 % de la oficial (error 10119).`,
+      ];
+    }
+
+    validateExchangeRateRange(input, official);
+
+    return [];
   }
 
   public async resolveIvaConditionFromPadron(

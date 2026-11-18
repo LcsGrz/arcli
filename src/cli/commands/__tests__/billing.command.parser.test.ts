@@ -215,6 +215,20 @@ describe('billing.command.parser', () => {
       expect(input.exchangeRate).toBe(1200);
     });
 
+    it('marks a cotizacionMoneda from the file, so the range error names the JSON key', () => {
+      const fromFile = parseBillingCommandInput(
+        createCommand(['--cargar', writeJsonInput({ codigoMoneda: 'USD', cotizacionMoneda: 1200 })]),
+        'fc',
+      );
+      const fromFlag = parseBillingCommandInput(
+        createCommand(['--cargar', writeJsonInput({ codigoMoneda: 'USD', cotizacionMoneda: 1200 }), '--cm', '1.300']),
+        'fc',
+      );
+
+      expect(fromFile.fromFile).toContain('exchangeRate');
+      expect(fromFlag.fromFile ?? []).not.toContain('exchangeRate');
+    });
+
     it('uses --misma-moneda instead of the file cotizacionMoneda', () => {
       const input = parseBillingCommandInput(
         createCommand(['--cargar', writeJsonInput({ codigoMoneda: 'USD', cotizacionMoneda: 1200 }), '--misma-moneda']),

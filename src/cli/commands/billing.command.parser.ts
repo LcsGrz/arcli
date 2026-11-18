@@ -204,6 +204,7 @@ type FileField = NonNullable<BillingCommandInput['fromFile']>[number];
 
 const FILE_FIELD_KEYS: Readonly<Record<FileField, keyof BillingJsonInput>> = {
   dueDay: 'dia',
+  exchangeRate: 'cotizacionMoneda',
   pdfDescription: 'descripcion',
   receiverAddress: 'receptorDomicilio',
   receiverName: 'receptorNombre',
@@ -406,6 +407,8 @@ function parseBillingCommandInputFromSource(
     commandOptions.sinCondicionVenta === true ? null : (flagSaleCondition ?? fileInput?.condicionVenta);
   const fromFile = resolveFileFields(fileInput, {
     dueDay: commandOptions.dia,
+    // --misma-moneda tambien descarta la cotizacion del archivo.
+    exchangeRate: flagExchangeRate ?? (flagSameCurrency ? true : undefined),
     pdfDescription: commandOptions.descripcion,
     receiverAddress: commandOptions.receptorDomicilio,
     receiverName: commandOptions.receptorNombre,

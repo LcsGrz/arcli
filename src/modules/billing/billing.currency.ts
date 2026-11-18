@@ -60,6 +60,54 @@ export function resolveSameCurrencyQuotationDate(billingDate: string, today: str
   return billingDate < today ? addDaysToArcaDate(billingDate, -1) : undefined;
 }
 
+/**
+ * ARCA 10119 (WSFEv1 v4.7, p. 57): en moneda extranjera la cotizacion no puede ser "inferior al 2% ni superior en un
+ * 400%" de la oficial. ARCA testing lo confirma con 500 %: aprueba 4,99 veces la oficial y rechaza 5,01, y aprueba
+ * el 2,1 % y rechaza el 1,9 % (18/11/2026).
+ */
+const EXCHANGE_RATE_MIN_RATIO = 0.02;
+const EXCHANGE_RATE_MAX_RATIO = 5;
+
+/** Que dato poner en la sugerencia cuando la cotizacion esta fuera de rango. */
+function describeExchangeRateSource(input: Pick<BillingCommandInput, 'exchangeRateSource' | 'fromFile'>): string {
+  if (input.exchangeRateSource === 'config') {
+    return 'la clave `cotizacion` de la config (`arcli config eliminar cotizacion`)';
+  }
+
+  return input.fromFile?.includes('exchangeRate') ? '`"cotizacionMoneda"` del JSON de `--cargar`' : '`--cm`';
+}
+
+/**
+ * Frena antes de ARCA una cotizacion fuera del rango de la 10119. `official` es la que devuelve
+ * `FEParamGetCotizacion`. La cotizacion 1 en moneda extranjera tiene su propio error, mas claro
+ * (`resolveBillingCurrencyFields`).
+ */
+export function validateExchangeRateRange(
+  input: Pick<BillingCommandInput, 'currencyCode' | 'exchangeRate' | 'exchangeRateSource' | 'fromFile'>,
+  official: number,
+): void {
+  const rate = input.exchangeRate;
+
+  if (typeof rate !== 'number' || rate === DEFAULT_EXCHANGE_RATE || official <= 0) {
+    return;
+  }
+
+  const min = official * EXCHANGE_RATE_MIN_RATIO;
+  const max = official * EXCHANGE_RATE_MAX_RATIO;
+
+  if (rate >= min && rate <= max) {
+    return;
+  }
+
+  const code = input.currencyCode.trim().toUpperCase();
+
+  throw new InputValidationError(
+    `La cotización de ${code} (${formatExchangeRate(rate)}) está fuera de lo que acepta ARCA: entre el 2 % y el 500 % de la oficial (${formatExchangeRate(official)}), o sea de ${formatExchangeRate(min)} a ${formatExchangeRate(max)}.`,
+    undefined,
+    `Revisá ${describeExchangeRateSource(input)}, o sacala para usar la oficial de ARCA.`,
+  );
+}
+
 export function resolveBillingCurrencyFields(input: CurrencyInput): BillingCurrencyFields {
   const currencyCode = resolveBillingCurrencyCode(input.currencyCode);
   const inputCurrencyCode = input.currencyCode.trim().toUpperCase();
