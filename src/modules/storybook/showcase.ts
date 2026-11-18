@@ -41,7 +41,6 @@ import {
   formatConfigAsText,
   formatConfigDoctor,
   formatConfigDoctorAsText,
-  formatConfigLocationAsText,
 } from '../config/config.presenter';
 import type { ArcliConfig } from '../config/config.schemas';
 import { buildConfigDoctorReport } from '../config/config-doctor';
@@ -447,7 +446,6 @@ function buildQueriesScene(): string {
       'testing',
     ),
     formatQuotationAsText({ currency: '060', date: '20261116', rate: 1520.75 }, 'testing'),
-    formatConfigLocationAsText('/ruta/a/arcli/config.json'),
     formatPdfPluginStatusAsText({
       browser: '/ruta/al/navegador',
       browserSource: 'sistema',

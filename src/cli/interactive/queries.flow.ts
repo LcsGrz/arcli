@@ -13,6 +13,7 @@ import {
   type ParameterEntry,
   type ParameterTable,
   quotableCurrencies,
+  type Quotation,
   salesPointToEntry,
 } from '../../modules/parameters/parameters';
 import {
@@ -134,8 +135,9 @@ async function loadTable(session: InteractiveSession, table: ParameterTable): Pr
 }
 
 /**
- * "Cotización de una moneda": se elige de la tabla de monedas de ARCA, filtrando por nombre o codigo ("eur" o
- * "060"), y se muestra la cotizacion oficial, como `arcli parametros cotizacion`. Despues vuelve a la lista.
+ * "Monedas y cotizaciones": la tabla de monedas de ARCA (sin el peso), que se filtra por nombre o codigo ("eur" o
+ * "060"); Enter muestra la cotizacion oficial, como `arcli parametros cotizacion`, y vuelve a la lista. ARCA da la
+ * cotizacion de a una moneda: cada una se pide la primera vez que se elige y despues sale de lo ya consultado.
  */
 async function runQuotationQuery(session: InteractiveSession): Promise<void> {
   const currencies = quotableCurrencies(await loadTable(session, 'monedas'));
@@ -147,13 +149,14 @@ async function runQuotationQuery(session: InteractiveSession): Promise<void> {
     short: entry.description,
     value: entry.id,
   }));
+  const quotations = new Map<string, Quotation>();
   let last: string | undefined;
 
   for (;;) {
     const currency = await chooseFromFilterList('¿De qué moneda?', choices, {
       defaultValue: last,
       header,
-      help: 'Escribí el nombre o el código, por ejemplo "eur" o "060".',
+      help: 'Escribí el nombre o el código, por ejemplo "eur" o "060", y Enter muestra la cotización oficial.',
       pageSize: Math.min(rowsPerPage(session), fitPageSize(choices.length)),
     });
 
@@ -163,16 +166,23 @@ async function runQuotationQuery(session: InteractiveSession): Promise<void> {
 
     last = currency;
 
-    const quotation = await withSpinner('Consultando la cotización...', () =>
-      new ArcaParametersGateway(session.arca).getQuotation(currency),
-    );
+    const quotation =
+      quotations.get(currency) ??
+      (await withSpinner('Consultando la cotización...', () =>
+        new ArcaParametersGateway(session.arca).getQuotation(currency),
+      ));
+
+    quotations.set(currency, quotation);
 
     writeTerminalOutput(formatQuotationAsText(quotation, session.runtime.environment));
   }
 }
 
+/** Las tablas de "Tablas de ARCA": las de `arcli parametros` menos monedas, que esta en "Monedas y cotizaciones". */
+const BROWSABLE_TABLES = PARAMETER_TABLE_NAMES.filter((name) => name !== 'monedas');
+
 /**
- * "Tablas de ARCA": las mismas de `arcli parametros`. Una tabla que entra en una pagina se muestra en su panel; una
+ * "Tablas de ARCA": las mismas de `arcli parametros`, menos monedas. Una tabla que entra en una pagina se muestra en su panel; una
  * mas larga, en una lista que se filtra escribiendo y se desplaza con las flechas.
  */
 async function runTablesQuery(session: InteractiveSession): Promise<void> {
@@ -181,7 +191,7 @@ async function runTablesQuery(session: InteractiveSession): Promise<void> {
   for (;;) {
     const table = await chooseStep<ParameterTable>(
       '¿Qué tabla querés ver?',
-      PARAMETER_TABLE_NAMES.map((name) => ({
+      BROWSABLE_TABLES.map((name) => ({
         description: PARAMETER_TABLE_HELP[name],
         name: PARAMETER_TABLES[name],
         value: name,
@@ -261,12 +271,16 @@ export async function runQueriesMenu(session: InteractiveSession): Promise<void>
           'consultas',
         ),
         markIfNew(
-          { description: 'La cotización oficial de ARCA', name: 'Cotización de una moneda', value: 'cotizacion' },
+          {
+            description: 'Las monedas de ARCA y la cotización oficial de cada una',
+            name: 'Monedas y cotizaciones',
+            value: 'cotizacion',
+          },
           'consultas',
         ),
         markIfNew(
           {
-            description: 'Puntos de venta, comprobantes, documentos, alícuotas, monedas y más',
+            description: 'Puntos de venta, comprobantes, documentos, alícuotas y más',
             name: 'Tablas de ARCA',
             value: 'tablas',
           },

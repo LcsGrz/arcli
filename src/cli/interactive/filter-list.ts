@@ -140,6 +140,8 @@ export const filterList = createPrompt(<T>(config: FilterListConfig<T>, done: (v
   const body = visible.length > 0 ? page : colorize(`  Nada coincide con "${term.trim()}".`, 'muted');
   const keys: HelpKey[] = [['↑↓', 'navigate'], ...(config.mode === 'elegir' ? [['⏎', 'select'] as HelpKey] : [])];
   const lines = [
+    // Una linea en blanco entre "Filtrar:" y la lista, y otra arriba (en `top`), para que el filtro no quede pegado.
+    ' ',
     config.header ? `  ${bold(config.header)}` : '',
     body,
     count,
@@ -150,7 +152,7 @@ export const filterList = createPrompt(<T>(config: FilterListConfig<T>, done: (v
   // Con dos partes, el cursor queda despues de lo escrito y la lista va debajo. El mensaje activo termina en un salto
   // de linea (el estilo de las listas), asi que el filtro queda en su propia linea.
   const head = [prefix, message].filter(Boolean).join(' ');
-  const top = `${head}${head.endsWith('\n') ? '' : ' '}${colorize('Filtrar:', 'muted')} ${term}`;
+  const top = `${head}${head.endsWith('\n') ? '\n' : ' '}${colorize('Filtrar:', 'muted')} ${term}`;
 
   return [top, lines.filter(Boolean).join('\n').trimEnd()];
 });

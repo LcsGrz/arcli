@@ -247,14 +247,15 @@ describe('Consultas del modo interactivo', () => {
     expect(stripAnsi(output)).toContain('RÉGIMEN FCE MIPYMES');
   });
 
-  it('cotización: dólar primero y sin pesos; muestra la cotización y vuelve a la lista', async () => {
+  it('monedas y cotizaciones: dólar primero y sin pesos; muestra la cotización y vuelve a la lista', async () => {
     listTable.mockResolvedValueOnce([
       { description: 'Pesos Argentinos', id: 'PES' },
       { description: 'Euro', id: '060' },
       { description: 'Dólar Estadounidense', id: 'DOL' },
     ]);
     script = createScript([
-      [/consultar/, 'Cotización de una moneda'],
+      [/consultar/, 'Monedas y cotizaciones'],
+      [/moneda/, 'Euro'],
       [/moneda/, 'Euro'],
       [/moneda/, BACK],
       [/consultar/, BACK],
@@ -265,12 +266,14 @@ describe('Consultas del modo interactivo', () => {
     expect(listTable).toHaveBeenCalledWith('monedas');
     expect(filterLists[0]?.header).toMatch(/CÓDIGO\s+MONEDA/);
     expect(filterLists[0]?.rows.map((row) => row.split(/\s+/)[0])).toEqual(['DOL', '060']);
+    // ARCA da la cotización de a una moneda; la segunda vez sale de lo ya consultado.
+    expect(getQuotation).toHaveBeenCalledTimes(1);
     expect(getQuotation).toHaveBeenCalledWith('060');
     expect(stripAnsi(output)).toContain('COTIZACIÓN OFICIAL');
   });
 
   describe('tablas de ARCA', () => {
-    it('ofrece las nueve tablas de `arcli parametros`, con la ayuda abajo', async () => {
+    it('ofrece las tablas de `arcli parametros` menos monedas, con la ayuda abajo', async () => {
       script = createScript([
         [/consultar/, 'Tablas de ARCA'],
         [/tabla/, BACK],
@@ -281,7 +284,8 @@ describe('Consultas del modo interactivo', () => {
 
       const [, choices] = script.chooseStep.mock.calls[1] ?? [];
 
-      expect(choices).toHaveLength(9);
+      expect(choices).toHaveLength(8);
+      expect(choices).not.toContainEqual(expect.objectContaining({ value: 'monedas' }));
       expect(choices?.[0]).toMatchObject({
         description: expect.stringContaining('--alicuota'),
         name: 'Alícuotas de IVA',

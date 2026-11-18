@@ -1,5 +1,3 @@
-import { dirname } from 'node:path';
-
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { formatCuit } from '../../lib/identity/format-cuit';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
@@ -129,23 +127,6 @@ function toPublicSnapshot(config: ArcliConfig, paths: ConfigPathSnapshot): Publi
 
 export function formatConfig(config: ArcliConfig, paths: ConfigPathSnapshot): string {
   return JSON.stringify(toPublicSnapshot(config, paths), null, 2);
-}
-
-/**
- * "Dónde está la config" del asistente: el archivo y su carpeta, que se abren con un clic. `arcli config ruta` sigue
- * imprimiendo la ruta sola, para usarla en un script.
- */
-export function formatConfigLocationAsText(configPath: string): string {
-  const rows = [
-    ['Archivo', pathLink(configPath, configPath)],
-    ['Carpeta', pathLink(dirname(configPath), dirname(configPath))],
-  ] as const;
-
-  return sheetPanel(
-    'Dónde está la config',
-    renderKeyValueRows(rows, { labelWidth: resolveKeyValueLabelWidth('standard', rows) }),
-    { footer: 'En la carpeta también están los certificados, los tickets de ARCA y el plugin de PDF.' },
-  );
 }
 
 /** `{ "ruta": "..." }`, como `ruta` en el JSON de `pdf desinstalar`. */
