@@ -88,8 +88,20 @@ export const DEFAULT_EXPORT_UNIT_CODE = 7;
 /** Idioma por defecto del comprobante. 1 = Espanol. */
 export const DEFAULT_EXPORT_LANGUAGE = 1;
 
-/** Tope de numeracion de ARCA. */
+/** Tope del numero de comprobante: de 1 a 99.999.999 (1520, WSFEX v3.1.0). */
 export const MAX_EXPORT_VOUCHER_NUMBER = 99_999_999;
+
+/** Tope del punto de venta de la E: de 1 a 99.998 (1510, WSFEX v3.1.0). */
+export const MAX_EXPORT_POINT_OF_SALE = 99_998;
+
+/** Tope del ID de la solicitud: `Id` es `Long (N15)` en la tabla de campos de WSFEX v3.1.0. */
+export const MAX_EXPORT_REQUEST_ID = 999_999_999_999_999;
+
+/**
+ * Unidades "solo total": 0, 97 (sena o anticipo) y 99 (bonificacion) van sin cantidad ni precio (1775, WSFEX v3.1.0).
+ * ARCLI pide cantidad y precio mayores a 0 en cada item, asi que no las acepta (EXPO-10 las va a habilitar).
+ */
+export const EXPORT_TOTAL_ONLY_UNIT_CODES: readonly number[] = [0, 97, 99];
 
 export interface ExportPermitPayload {
   readonly Dst_merc: number;

@@ -545,7 +545,16 @@ const FE = [
   ...['--cliente', 'ACME LLC', '--domicilio-cliente', '123 Main St', '--pais-destino', '212', '-m', '1500'],
   ...['--item', '001|Servicios de consultoría|1|1500|unidad'],
 ];
-const FE_GOODS = [...FE, '--tipo-expo', '1', '--permiso-existente', '--permiso', '26001EC01000123A'];
+const FE_GOODS = [
+  ...FE,
+  '--tipo-expo',
+  '1',
+  '--incoterm',
+  'FOB',
+  '--permiso-existente',
+  '--permiso',
+  '26001EC01000123A',
+];
 const NCE = ['nce', '-m', '500', '--ar', '1', '--apv', '4', '--pv', '4'];
 
 function batchItem(montoTotal: number, extra: Record<string, unknown> = {}) {

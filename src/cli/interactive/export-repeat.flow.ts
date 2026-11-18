@@ -17,11 +17,17 @@ import { noticePanel, writeTerminalOutput } from '../../ui';
 import { withSpinner } from '../spinner';
 
 import { askPermitsStep, emitExportVoucher } from './export.flow';
-import { askCountryCuit, askExportOptions, type ExportOptions, isCountryCuitMissing } from './export-options';
+import {
+  askCountryCuit,
+  askExportOptions,
+  type ExportOptions,
+  isCountryCuitMissing,
+  validateExportPaymentDate,
+} from './export-options';
 import { pickExportVoucher } from './invoice-picker';
 import { askTextStep, chooseStep } from './prompts';
 import type { InteractiveSession } from './session';
-import { validateAmount, validateOptionalDate, validatePositiveInteger } from './validators';
+import { validateAmount, validatePositiveInteger } from './validators';
 
 export interface ExportRepeatState {
   /** Lo copiado de la factura, con el monto y los items ya ajustados si se cambio el monto. */
@@ -197,7 +203,7 @@ export function exportRepeatSteps(
       name: 'fecha-pago',
       run: async () => {
         const answer = await askTextStep('Fecha de pago (Enter para la fecha del comprobante):', {
-          validate: validateOptionalDate,
+          validate: validateExportPaymentDate(),
         });
 
         return answer === BACK ? BACK : { paymentDate: answer.trim() || undefined };
@@ -237,7 +243,11 @@ export function exportRepeatSteps(
           amount: requireStepValue(copy.amount, 'amount'),
           countryCuit: { country, countryCuits: tables.countryCuits },
           currencyCode,
-          defaultExchangeRate: currencyCode === 'PES' ? undefined : 'la de aduana que publica ARCA',
+          // En servicios y con el pago en dolares ARCA exige la suya (2053, 1604): no se ofrece otra.
+          defaultExchangeRate:
+            currencyCode === 'PES' || copy.exportType === 2 || copy.sameCurrency
+              ? undefined
+              : 'la de aduana que publica ARCA',
           defaultLanguage: 'Español',
           // Sin descripcion por defecto: la copiada ya esta en las opciones y Enter la mantiene.
           incoterm: copy.incoterm ? { code: copy.incoterm } : undefined,

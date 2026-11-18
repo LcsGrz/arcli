@@ -465,12 +465,53 @@ describe('ExportService.resolve', () => {
     expect(gateway.getLastVoucherNumber).not.toHaveBeenCalled();
   });
 
-  it('no consulta la cotizacion si viene por flag', async () => {
+  it('en bienes no consulta la cotizacion si viene por flag', async () => {
     const gateway = createGateway();
-    const resolved = await service.resolve({ ...INPUT, exchangeRate: 1000 }, gateway, RUNTIME, NOW);
+    const resolved = await service.resolve({ ...INPUT, exchangeRate: 1000, exportType: 1 }, gateway, RUNTIME, NOW);
 
     expect(resolved.payload.Moneda_ctz).toBe(1000);
     expect(gateway.getQuotations).not.toHaveBeenCalled();
+  });
+
+  it('en servicios y con `--misma-moneda`, `--cotizacion-moneda` tiene que ser la de ARCA (2053, 1604)', async () => {
+    const official = await service.resolve({ ...INPUT, exchangeRate: 900.5 }, createGateway(), RUNTIME, NOW);
+
+    expect(official.payload.Moneda_ctz).toBe(900.5);
+    await expect(service.resolve({ ...INPUT, exchangeRate: 1000 }, createGateway(), RUNTIME, NOW)).rejects.toThrow(
+      /900,50 del 31\/05\/2026.*error 2053/,
+    );
+    await expect(
+      service.resolve(
+        { ...INPUT, exchangeRate: 1000, exportType: 1, sameCurrency: true },
+        createGateway(),
+        RUNTIME,
+        NOW,
+      ),
+    ).rejects.toThrow(/Con `--misma-moneda`.*error 1604/);
+  });
+
+  it('frena antes lo que ARCA rechaza: incoterm (1640, 1641), fecha de pago (1674), unidad 99 (1775) y largos', async () => {
+    const reject = (input: Partial<ExportVoucherInput>) =>
+      expect(service.resolve({ ...INPUT, ...input }, createGateway(), RUNTIME, NOW)).rejects.toThrow();
+
+    await reject({ exportType: 1, incoterm: undefined });
+    await expect(
+      service.resolve({ ...INPUT, incoterm: undefined, incotermDescription: 'Puerto' }, createGateway(), RUNTIME, NOW),
+    ).rejects.toThrow(/error 1641/);
+    await expect(
+      service.resolve({ ...INPUT, paymentDate: '31/05/2026' }, createGateway(), RUNTIME, NOW),
+    ).rejects.toThrow(/error 1674/);
+    await expect(
+      service.resolve(
+        { ...INPUT, items: [{ description: 'Descuento', quantity: 1, unit: 99, unitPrice: 1500 }] },
+        createGateway({ getUnits: vi.fn(async () => [{ id: 99, name: 'bonificación' }]) }),
+        RUNTIME,
+        NOW,
+      ),
+    ).rejects.toThrow(/error 1775/);
+    await reject({ clientName: 'a'.repeat(201) });
+    await reject({ voucherNumber: 100_000_000 });
+    await reject({ pointOfSale: 99_999 });
   });
 
   it('valida los datos obligatorios antes de ir a ARCA', async () => {

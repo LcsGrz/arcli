@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   assertExportClientIdentification,
+  assertExportIncoterm,
+  assertExportTextLengths,
   assertExportVoucherDate,
   buildExportPayload,
   resolveExportActivity,
@@ -10,6 +12,7 @@ import {
   resolveExportDestinationCountry,
   resolveExportIncoterm,
   resolveExportNumber,
+  resolveExportPointOfSale,
   resolveExportQuotation,
   resolveExportQuotationDate,
   resolveExportType,
@@ -362,17 +365,66 @@ describe('resolveExportActivity', () => {
 });
 
 describe('resolveExportNumber', () => {
+  const base = { label: 'El numero', max: 99_999_999 };
+
   it('toma el indicado por el usuario', () => {
-    expect(resolveExportNumber({ label: 'El numero', last: 10, provided: 3 })).toBe(3);
+    expect(resolveExportNumber({ ...base, last: 10, provided: 3 })).toBe(3);
   });
 
   it('sigue al ultimo de ARCA', () => {
-    expect(resolveExportNumber({ label: 'El numero', last: 10 })).toBe(11);
-    expect(resolveExportNumber({ label: 'El numero', last: 0 })).toBe(1);
+    expect(resolveExportNumber({ ...base, last: 10 })).toBe(11);
+    expect(resolveExportNumber({ ...base, last: 0 })).toBe(1);
   });
 
-  it('no permite pasar el maximo de ARCA', () => {
-    expect(() => resolveExportNumber({ label: 'El numero', last: 99_999_999 })).toThrow(/máximo/);
+  it('no permite pasar el maximo de ARCA, tampoco con el indicado por el usuario (1520)', () => {
+    expect(() => resolveExportNumber({ ...base, last: 99_999_999 })).toThrow(/máximo/);
+    expect(() => resolveExportNumber({ ...base, code: 1520, last: 0, provided: 100_000_000 })).toThrow(
+      /99999999.*error 1520/,
+    );
+    expect(resolveExportNumber({ ...base, last: 0, provided: 99_999_999 })).toBe(99_999_999);
+  });
+});
+
+describe('resolveExportPointOfSale (1510)', () => {
+  it('va de 1 a 99.998', () => {
+    expect(resolveExportPointOfSale(99_998, {})).toBe(99_998);
+    expect(() => resolveExportPointOfSale(99_999, {})).toThrow(/1 a 99998.*error 1510/);
+  });
+});
+
+describe('assertExportIncoterm', () => {
+  it('la factura de bienes lleva incoterm (1640); servicios, otros y las notas no', () => {
+    expect(() => assertExportIncoterm({ exportType: 1, isNote: false })).toThrow(/error 1640/);
+    expect(() => assertExportIncoterm({ exportType: 1, incoterm: 'FOB', isNote: false })).not.toThrow();
+    expect(() => assertExportIncoterm({ exportType: 2, isNote: false })).not.toThrow();
+    expect(() => assertExportIncoterm({ exportType: 1, isNote: true })).not.toThrow();
+  });
+
+  it('la descripcion del incoterm va con incoterm (1641)', () => {
+    expect(() => assertExportIncoterm({ exportType: 2, incotermDescription: 'Puerto', isNote: false })).toThrow(
+      /error 1641/,
+    );
+  });
+});
+
+describe('assertExportTextLengths', () => {
+  it('frena los textos mas largos que los de ARCA, con el codigo y el flag', () => {
+    expect(() => assertExportTextLengths({ clientName: 'a'.repeat(200), emit: false })).not.toThrow();
+    expect(() => assertExportTextLengths({ clientName: 'a'.repeat(201), emit: false })).toThrow(
+      /200 caracteres y tiene 201.*error 1651.*--cliente/,
+    );
+    expect(() => assertExportTextLengths({ clientAddress: 'a'.repeat(301), emit: false })).toThrow(/error 1661/);
+    expect(() => assertExportTextLengths({ emit: false, observations: 'a'.repeat(1001) })).toThrow(/error 1665/);
+    expect(() => assertExportTextLengths({ commercialObservations: 'a'.repeat(4001), emit: false })).toThrow(
+      /--obs-comerciales/,
+    );
+    expect(() => assertExportTextLengths({ emit: false, incotermDescription: 'a'.repeat(21) })).toThrow(/error 1642/);
+    expect(() => assertExportTextLengths({ emit: false, paymentTerms: 'a'.repeat(51) })).toThrow(/--forma-pago/);
+    expect(() => assertExportTextLengths({ clientTaxId: 'a'.repeat(51), emit: false })).toThrow(/--id-impositivo/);
+  });
+
+  it('cuenta caracteres, no unidades UTF-16', () => {
+    expect(() => assertExportTextLengths({ emit: false, incotermDescription: '🚢'.repeat(20) })).not.toThrow();
   });
 });
 

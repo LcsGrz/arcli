@@ -9,9 +9,16 @@ import { AMOUNT_DECIMALS, formatExchangeRate, hasAtMostDecimals } from '../../li
 import { EmissionUncertainError } from '../billing/billing.errors';
 import { type ArcliConfig, MISSING_CUIT_MESSAGE } from '../config/config.schemas';
 
-import { assertExportItemsTotal, buildExportItems, DEFAULT_EXPORT_ITEM_DESCRIPTION } from './export.items';
+import {
+  assertExportItemsTotal,
+  assertExportItemTexts,
+  buildExportItems,
+  DEFAULT_EXPORT_ITEM_DESCRIPTION,
+} from './export.items';
 import {
   assertExportClientIdentification,
+  assertExportIncoterm,
+  assertExportTextLengths,
   assertExportVoucherDate,
   buildExportPayload,
   type ExportQuotationDate,
@@ -53,6 +60,8 @@ import {
   type ExportVoucherKind,
   getExportVoucherKindByArcaType,
   isExportNote,
+  MAX_EXPORT_REQUEST_ID,
+  MAX_EXPORT_VOUCHER_NUMBER,
   type ResolvedExportVoucher,
 } from './export.types';
 
@@ -79,7 +88,54 @@ function assertLocalFields(input: ExportVoucherInput, kind: ExportVoucherKind): 
     assertExportNoteFields(input, kind);
   }
 
+  assertExportTextLengths(input);
+  assertExportItemTexts(input.items);
   assertExportItemsTotal(input.items, input.amount);
+}
+
+/**
+ * 1674 (WSFEX v3.1.0): en la factura de servicios y otros, la fecha de pago es igual o posterior a la del comprobante.
+ * En bienes y en las notas no va.
+ */
+function assertExportPaymentDate(options: {
+  readonly paymentDate: string;
+  readonly takesPaymentDate: boolean;
+  readonly voucherDate: string;
+}): void {
+  if (options.takesPaymentDate && options.paymentDate < options.voucherDate) {
+    throw new InputValidationError(
+      `La fecha de pago (${formatArcaDateAsArgentineDate(options.paymentDate)}) no puede ser anterior a la del comprobante (${formatArcaDateAsArgentineDate(options.voucherDate)}): ARCA la rechaza (error 1674). Revisá \`--fecha-pago\`.`,
+    );
+  }
+}
+
+/**
+ * En la factura de servicios en moneda extranjera ARCA exige exactamente la cotizacion de aduana del dia habil anterior
+ * (2053, WSFEX v3.1.0), y con `--misma-moneda`, la oficial de ese dia (historial 3.0.0 y 1604). Una
+ * `--cotizacion-moneda` distinta sale rechazada: se compara con la de ARCA y se frena antes. Si ARCA no informa la
+ * moneda, no hay contra que comparar y sigue.
+ */
+function assertExportExchangeRateMatches(options: {
+  readonly exportType: ExportType;
+  readonly given: number;
+  readonly official: ExportQuotation | undefined;
+}): void {
+  const { given, official } = options;
+
+  if (!official || official.rate === given) {
+    return;
+  }
+
+  const subject =
+    options.exportType === 2
+      ? 'En servicios ARCA exige la cotización de aduana'
+      : 'Con `--misma-moneda` ARCA exige la cotización oficial';
+  const code = options.exportType === 2 ? 2053 : 1604;
+  const day = official.date ? ` del ${formatArcaDateAsArgentineDate(official.date)}` : '';
+
+  throw new InputValidationError(
+    `${subject} de ${official.code} del día hábil anterior, ${formatExchangeRate(official.rate)}${day}, y \`--cotizacion-moneda\` es ${formatExchangeRate(given)}: ARCA la rechaza (error ${code}). Sacá \`--cotizacion-moneda\` y ARCLI usa la de ARCA.`,
+  );
 }
 
 /**
@@ -240,6 +296,17 @@ export class ExportService {
     const paymentDate = input.paymentDate?.trim() ? parseArgentineDateInputAsArcaDate(input.paymentDate) : voucherDate;
 
     assertExportVoucherDate({ exportType, today: formatDateAsArcaDate(now), voucherDate });
+    assertExportPaymentDate({
+      paymentDate,
+      takesPaymentDate: exportTypeTakesPaymentDate(exportType, isExportNote(voucherKind)),
+      voucherDate,
+    });
+    assertExportIncoterm({
+      exportType,
+      incoterm: input.incoterm,
+      incotermDescription: input.incotermDescription,
+      isNote: isExportNote(voucherKind),
+    });
 
     const countryList = await gateway.getDestinationCountries();
     const destinationCountry = resolveExportDestinationCountry(input.destinationCountry, countryList);
@@ -283,17 +350,37 @@ export class ExportService {
           quotationDate.date,
         )
       : undefined;
+
+    // `--cotizacion-moneda` en la factura de servicios o con `--misma-moneda`: tiene que ser la de ARCA (2053, 1604).
+    if (
+      !currency.needsQuotation &&
+      currency.fields.Moneda_Id !== 'PES' &&
+      quotationDate.rule === 'previous-business-day'
+    ) {
+      const code = currency.fields.Moneda_Id.trim().toUpperCase();
+
+      assertExportExchangeRateMatches({
+        exportType,
+        given: currency.fields.Moneda_ctz,
+        official: (await gateway.getQuotations(quotationDate.date)).find(
+          (entry) => entry.code.trim().toUpperCase() === code,
+        ),
+      });
+    }
     const exchangeRate = quotation?.rate ?? currency.fields.Moneda_ctz;
     const pointOfSale = resolveExportPointOfSale(input.pointOfSale, config);
     // WSFEX numera por punto de venta y tipo. Sin `--numero`, el siguiente al ultimo que tiene ARCA: es una lectura.
     const voucherNumber = resolveExportNumber({
+      code: 1520,
       label: 'El número del comprobante',
+      max: MAX_EXPORT_VOUCHER_NUMBER,
       last:
         input.voucherNumber === undefined ? await gateway.getLastVoucherNumber(voucherKind.arcaType, pointOfSale) : 0,
       provided: input.voucherNumber,
     });
     const requestId = resolveExportNumber({
       label: 'El ID de la solicitud',
+      max: MAX_EXPORT_REQUEST_ID,
       last: input.requestId === undefined ? await gateway.getLastRequestId() : 0,
       provided: input.requestId,
     });

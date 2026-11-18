@@ -6,6 +6,7 @@ import { roundAmount } from '../billing/billing.amounts';
 
 import {
   DEFAULT_EXPORT_UNIT_CODE,
+  EXPORT_TOTAL_ONLY_UNIT_CODES,
   type ExportItemInput,
   type ExportItemPayload,
   type ExportUnit,
@@ -13,6 +14,68 @@ import {
 
 export const DEFAULT_EXPORT_ITEM_DESCRIPTION = 'Según detalle';
 
+/** Largos maximos del item: codigo (1760) y descripcion (1770), WSFEX v3.1.0. */
+export const MAX_EXPORT_ITEM_CODE_LENGTH = 50;
+export const MAX_EXPORT_ITEM_DESCRIPTION_LENGTH = 4000;
+
+/** Cantidad de caracteres como los cuenta ARCA, no unidades UTF-16: un emoji es uno. */
+export function textLength(value: string): number {
+  return [...value].length;
+}
+
+/** El error de un texto mas largo que lo que acepta ARCA, o `undefined` si entra. */
+export function exportTextLengthError(options: {
+  readonly code?: number;
+  readonly label: string;
+  readonly max: number;
+  readonly value: string | undefined;
+}): string | undefined {
+  const length = textLength(options.value?.trim() ?? '');
+
+  if (length <= options.max) {
+    return undefined;
+  }
+
+  return `${options.label} no puede tener más de ${formatArgentineAmount(options.max)} caracteres y tiene ${formatArgentineAmount(length)}: ARCA lo rechaza${options.code === undefined ? '' : ` (error ${options.code})`}.`;
+}
+
+/**
+ * Codigo y descripcion de cada item, antes de ir a ARCA: el codigo hasta 50 caracteres (1760) y la descripcion hasta
+ * 4000 (1770, WSFEX v3.1.0).
+ */
+export function assertExportItemTexts(inputs: readonly ExportItemInput[] | undefined): void {
+  for (const item of inputs ?? []) {
+    const error =
+      exportTextLengthError({
+        code: 1760,
+        label: `El código del ítem "${item.code ?? ''}"`,
+        max: MAX_EXPORT_ITEM_CODE_LENGTH,
+        value: item.code,
+      }) ??
+      exportTextLengthError({
+        code: 1770,
+        label: 'La descripción de un ítem',
+        max: MAX_EXPORT_ITEM_DESCRIPTION_LENGTH,
+        value: item.description,
+      });
+
+    if (error) {
+      throw new InputValidationError(error);
+    }
+  }
+}
+
+/**
+ * 1775 (WSFEX v3.1.0): con las unidades 0, 97 (sena o anticipo) y 99 (bonificacion) ARCA pide cantidad y precio en 0.
+ * ARCLI pide cantidad y precio mayores a 0, asi que no las acepta.
+ */
+function assertNotTotalOnlyUnit(unit: number, description: string): void {
+  if (EXPORT_TOTAL_ONLY_UNIT_CODES.includes(unit)) {
+    throw new InputValidationError(
+      `La unidad ${unit} del ítem "${description}" va sin cantidad ni precio y ARCLI todavía no la acepta: ARCA rechaza un ítem así con cantidad y precio (error 1775). Usá otra unidad.`,
+    );
+  }
+}
 const ITEM_FORMAT_HINT =
   'Usá `--item "codigo|descripcion|cantidad|precio|unidad"` (el código y la unidad son opcionales).';
 
@@ -203,6 +266,10 @@ export function buildExportItems(
       throw new InputValidationError(`El precio del ítem "${item.description}" tiene que ser mayor a 0.`);
     }
 
+    const unit = resolveUnitCode(item.unit, units);
+
+    assertNotTotalOnlyUnit(unit, item.description.trim());
+
     return {
       Pro_bonificacion: 0,
       Pro_codigo: item.code?.trim() ?? '',
@@ -210,7 +277,7 @@ export function buildExportItems(
       Pro_precio_uni: item.unitPrice,
       Pro_qty: quantity.toNumber(),
       Pro_total_item: roundAmount(quantity.times(item.unitPrice)),
-      Pro_umed: resolveUnitCode(item.unit, units),
+      Pro_umed: unit,
     };
   });
 

@@ -250,7 +250,7 @@ describe('runExportFlow', () => {
       [/Idioma del comprobante/, 'Inglés'],
       [/^Observaciones \(/, 'Pedido 42'],
       [/Observaciones comerciales/, ''],
-      [/Descripción del incoterm FOB/, 'Free on board, Buenos Aires'],
+      [/Descripción del incoterm FOB/, 'Free on board, BA'],
       [/Cotización de USD/, '1.200,5'],
       [/Emitimos/, 'Sí, emitir ahora'],
     ]);
@@ -270,7 +270,7 @@ describe('runExportFlow', () => {
       expect.objectContaining({
         Idioma_cbte: 2,
         Incoterms: 'FOB',
-        Incoterms_Ds: 'Free on board, Buenos Aires',
+        Incoterms_Ds: 'Free on board, BA',
         Items: {
           Item: [
             expect.objectContaining({ Pro_ds: 'Bienes varios', Pro_qty: 2, Pro_total_item: 1000, Pro_umed: 1 }),
@@ -282,7 +282,7 @@ describe('runExportFlow', () => {
       }),
     );
     expect(printed()).toContain(
-      "--item 'Bienes varios|2|500|1' --item 'Flete|1|500' --moneda DOL --cm 1200,50 --incoterm FOB --incoterms-desc 'Free on board, Buenos Aires' --idioma 2 --observaciones 'Pedido 42' --testing --emitir",
+      "--item 'Bienes varios|2|500|1' --item 'Flete|1|500' --moneda DOL --cm 1200,50 --incoterm FOB --incoterms-desc 'Free on board, BA' --idioma 2 --observaciones 'Pedido 42' --testing --emitir",
     );
   });
 

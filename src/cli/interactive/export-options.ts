@@ -1,10 +1,17 @@
+import { formatDateAsArcaDate, parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
 import { formatArgentineAmount, formatExchangeRate, parseArgentineAmount } from '../../lib/numbers/argentine-amount';
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import { sumExportItems } from '../../modules/export/export.items';
-import { resolveExportClientCountryCuit, resolveExportCurrency } from '../../modules/export/export.mappers';
+import {
+  type ExportTextField,
+  exportTextFieldError,
+  resolveExportClientCountryCuit,
+  resolveExportCurrency,
+} from '../../modules/export/export.mappers';
 import {
   DEFAULT_EXPORT_LANGUAGE,
   DEFAULT_EXPORT_UNIT_CODE,
+  EXPORT_TOTAL_ONLY_UNIT_CODES,
   type ExportCountry,
   type ExportCountryCuit,
   type ExportItemInput,
@@ -18,7 +25,38 @@ import { noticePanel, writeTerminalOutput } from '../../ui';
 import { withSpinner } from '../spinner';
 
 import { askTextStep, chooseManyStep, chooseStep } from './prompts';
-import { validateExchangeRate } from './validators';
+import { validateExchangeRate, validateOptionalDate } from './validators';
+
+/**
+ * Un texto de la E con el largo maximo de ARCA, como el flag (`assertExportTextLengths`). Con `required`, vacio es
+ * error con ese nombre (`El cliente es obligatorio.`).
+ */
+export function validateExportText(field: ExportTextField, required?: string): (value: string) => string | true {
+  return (value) => {
+    if (required && !value.trim()) {
+      return `${required} es obligatorio.`;
+    }
+
+    return exportTextFieldError(field, value) ?? true;
+  };
+}
+
+/**
+ * Fecha de pago opcional: igual o posterior a la del comprobante, que en el asistente es hoy (1674, WSFEX v3.1.0).
+ */
+export function validateExportPaymentDate(now = new Date()): (value: string) => string | true {
+  return (value) => {
+    const valid = validateOptionalDate(value);
+
+    if (valid !== true || !value.trim()) {
+      return valid;
+    }
+
+    return parseArgentineDateInputAsArcaDate(value, now) < formatDateAsArcaDate(now)
+      ? 'La fecha de pago no puede ser anterior a la del comprobante (hoy): ARCA la rechaza (error 1674).'
+      : true;
+  };
+}
 
 /** Lo opcional de una E: lo que el CLI tiene con flags y el asistente no pregunta si no se marca. */
 export type ExportOptions = Pick<
@@ -160,7 +198,11 @@ function validateItemDescription(value: string, allowEmpty: boolean): string | t
     return allowEmpty ? true : 'Cada ítem necesita una descripción.';
   }
 
-  return value.includes('|') ? 'La descripción no puede llevar "|".' : true;
+  if (value.includes('|')) {
+    return 'La descripción no puede llevar "|".';
+  }
+
+  return exportTextFieldError('description', value) ?? true;
 }
 
 /** Cantidad o precio de un item, como `--item`: hasta seis decimales y mayor a 0. */
@@ -228,11 +270,13 @@ async function askItems(current: ExportOptions, context: ExportOptionsContext): 
       return BACK;
     }
 
+    // Sin 0, 97 (seña o anticipo) ni 99 (bonificación): van sin cantidad ni precio (1775) y ARCLI todavía no las acepta.
+    const selectable = units.filter((entry) => !EXPORT_TOTAL_ONLY_UNIT_CODES.includes(entry.id));
     const unit =
-      units.length > 0
+      selectable.length > 0
         ? await chooseStep(
             'Unidad:',
-            units.map((entry) => ({ name: entry.name, value: entry.id })),
+            selectable.map((entry) => ({ name: entry.name, value: entry.id })),
             DEFAULT_EXPORT_UNIT_CODE,
           )
         : DEFAULT_EXPORT_UNIT_CODE;
@@ -269,13 +313,17 @@ async function askLanguage(
 }
 
 async function askObservations(current: ExportOptions): Promise<Back | ExportOptions> {
-  const observations = await askTextStep('Observaciones (Enter si no hay):');
+  const observations = await askTextStep('Observaciones (Enter si no hay):', {
+    validate: validateExportText('observations'),
+  });
 
   if (observations === BACK) {
     return BACK;
   }
 
-  const commercial = await askTextStep('Observaciones comerciales (Enter si no hay):');
+  const commercial = await askTextStep('Observaciones comerciales (Enter si no hay):', {
+    validate: validateExportText('commercialObservations'),
+  });
 
   return commercial === BACK
     ? BACK
@@ -292,6 +340,7 @@ async function askIncotermDescription(
 ): Promise<Back | ExportOptions> {
   const answer = await askTextStep(`Descripción del incoterm ${incoterm.code}:`, {
     defaultValue: current.incotermDescription ?? incoterm.description,
+    validate: validateExportText('incotermDescription'),
   });
 
   if (answer === BACK) {

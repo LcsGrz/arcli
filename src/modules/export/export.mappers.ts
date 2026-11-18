@@ -10,6 +10,7 @@ import { roundToCents } from '../../lib/numbers/argentine-amount';
 import { resolveBillingCurrencyCode } from '../billing/billing.mappers';
 import type { ArcliConfig } from '../config/config.schemas';
 
+import { exportTextLengthError, MAX_EXPORT_ITEM_DESCRIPTION_LENGTH } from './export.items';
 import {
   DEFAULT_EXPORT_CURRENCY_CODE,
   DEFAULT_EXPORT_LANGUAGE,
@@ -31,7 +32,7 @@ import {
   type ExportVoucherKind,
   type ExportVoucherPayload,
   isExportNote,
-  MAX_EXPORT_VOUCHER_NUMBER,
+  MAX_EXPORT_POINT_OF_SALE,
 } from './export.types';
 
 /** Codigo de pais de Argentina en la tabla DST_pais: no es un destino de exportacion. */
@@ -417,6 +418,71 @@ export function assertExportClientIdentification(options: {
   }
 }
 
+/** Los textos de la E con su largo maximo en WSFEX v3.1.0: el codigo de control, si el manual lo da, y el flag. */
+export const EXPORT_TEXT_LIMITS = {
+  clientAddress: { code: 1661, flag: '--domicilio-cliente', label: 'El domicilio del cliente', max: 300 },
+  clientName: { code: 1651, flag: '--cliente', label: 'El nombre del cliente', max: 200 },
+  // Tabla de campos: `ID_impositivo` String (C50), sin codigo de control.
+  clientTaxId: { code: undefined, flag: '--id-impositivo', label: 'El ID impositivo del cliente', max: 50 },
+  commercialObservations: {
+    code: 1665,
+    flag: '--obs-comerciales',
+    label: 'Las observaciones comerciales',
+    max: 4000,
+  },
+  // Sin `--item`, la descripcion es el `Pro_ds` del unico renglon.
+  description: { code: 1770, flag: '--descripcion', label: 'La descripción', max: MAX_EXPORT_ITEM_DESCRIPTION_LENGTH },
+  incotermDescription: { code: 1642, flag: '--incoterms-desc', label: 'La descripción del incoterm', max: 20 },
+  observations: { code: 1665, flag: '--observaciones', label: 'Las observaciones', max: 1000 },
+  // Tabla de campos: `Forma_pago` String (C50), sin codigo de control.
+  paymentTerms: { code: undefined, flag: '--forma-pago', label: 'La forma de pago', max: 50 },
+} as const;
+
+export type ExportTextField = keyof typeof EXPORT_TEXT_LIMITS;
+
+/** El error de largo de un texto de la E, para el CLI y el asistente; `undefined` si entra. */
+export function exportTextFieldError(field: ExportTextField, value: string | undefined): string | undefined {
+  const limit = EXPORT_TEXT_LIMITS[field];
+
+  return exportTextLengthError({ code: limit.code, label: limit.label, max: limit.max, value });
+}
+
+/** Los largos maximos de los textos de la E (1642, 1651, 1661, 1665, 1770 y la tabla de campos), antes de ir a ARCA. */
+export function assertExportTextLengths(input: ExportVoucherInput): void {
+  for (const field of Object.keys(EXPORT_TEXT_LIMITS) as ExportTextField[]) {
+    const error = exportTextFieldError(field, input[field]);
+
+    if (error) {
+      throw new InputValidationError(`${error} Acortá \`${EXPORT_TEXT_LIMITS[field].flag}\`.`);
+    }
+  }
+}
+
+/**
+ * El incoterm de la E (WSFEX v3.1.0): obligatorio en la factura de bienes (1640) y la descripcion solo con incoterm
+ * (1641). En las notas el incoterm puede venir del asociado.
+ */
+export function assertExportIncoterm(options: {
+  readonly exportType: ExportType;
+  readonly incoterm?: string;
+  readonly incotermDescription?: string;
+  readonly isNote: boolean;
+}): void {
+  const hasIncoterm = Boolean(options.incoterm?.trim());
+
+  if (!options.isNote && options.exportType === 1 && !hasIncoterm) {
+    throw new InputValidationError(
+      'La factura E de bienes (`--tipo-expo 1`) lleva incoterm: ARCA lo exige (error 1640). Usá `--incoterm`, por ejemplo `FOB`.',
+    );
+  }
+
+  if (options.incotermDescription?.trim() && !hasIncoterm) {
+    throw new InputValidationError(
+      '`--incoterms-desc` va con un incoterm: ARCA rechaza la descripción sola (error 1641). Sumá `--incoterm` o sacá `--incoterms-desc`.',
+    );
+  }
+}
+
 /** `--incoterm` se compara contra la tabla de ARCA, sin importar mayusculas. */
 export function resolveExportIncoterm(
   value: string | undefined,
@@ -439,6 +505,15 @@ export function resolveExportIncoterm(
   return incoterm;
 }
 
+/** 1510 (WSFEX v3.1.0): el punto de venta de la E va de 1 a 99.998. */
+export function assertExportPointOfSaleRange(pointOfSale: number, label: string): void {
+  if (pointOfSale > MAX_EXPORT_POINT_OF_SALE) {
+    throw new InputValidationError(
+      `${label} de la E va de 1 a ${MAX_EXPORT_POINT_OF_SALE}: ARCA rechaza ${pointOfSale} (error 1510).`,
+    );
+  }
+}
+
 export function resolveExportPointOfSale(value: number | undefined, config: ExportConfig): number {
   const pointOfSale = value ?? config.puntoVentaPorDefecto;
 
@@ -452,30 +527,36 @@ export function resolveExportPointOfSale(value: number | undefined, config: Expo
     throw new InputValidationError('El punto de venta tiene que ser un número entero positivo.');
   }
 
+  assertExportPointOfSaleRange(pointOfSale, 'El punto de venta');
+
   return pointOfSale;
 }
 
-/** Numero del comprobante o de la solicitud: el indicado por el usuario o el que sigue al ultimo de ARCA. */
+/**
+ * Numero del comprobante o de la solicitud: el indicado por el usuario o el que sigue al ultimo de ARCA, hasta `max`
+ * (el comprobante, 99.999.999 por la 1520; la solicitud, 15 digitos).
+ */
 export function resolveExportNumber(options: {
+  /** El control de ARCA que fija el tope, si el manual lo da. */
+  readonly code?: number;
   readonly label: string;
   readonly last: number;
+  readonly max: number;
   readonly provided?: number;
 }): number {
-  if (options.provided !== undefined) {
-    if (!Number.isInteger(options.provided) || options.provided < 1) {
-      throw new InputValidationError(`${options.label} tiene que ser un número entero positivo.`);
-    }
+  const value = options.provided ?? (Number.isFinite(options.last) ? options.last : 0) + 1;
 
-    return options.provided;
+  if (options.provided !== undefined && (!Number.isInteger(options.provided) || options.provided < 1)) {
+    throw new InputValidationError(`${options.label} tiene que ser un número entero positivo.`);
   }
 
-  const next = (Number.isFinite(options.last) ? options.last : 0) + 1;
-
-  if (next > MAX_EXPORT_VOUCHER_NUMBER) {
-    throw new InputValidationError(`${options.label} supera el máximo de ARCA (${MAX_EXPORT_VOUCHER_NUMBER}).`);
+  if (value > options.max) {
+    throw new InputValidationError(
+      `${options.label} supera el máximo de ARCA (${options.max})${options.code === undefined ? '' : ` y ARCA lo rechaza (error ${options.code})`}.`,
+    );
   }
 
-  return next;
+  return value;
 }
 
 /** En los tipos 2 (servicios) y 4 (otros) ARCA exige `Permiso_existente` vacio, no `N` (error 1550, WSFEX v3.1.0). */

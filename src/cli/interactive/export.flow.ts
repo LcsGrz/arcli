@@ -21,12 +21,19 @@ import { noticePanel, writeTerminalOutput } from '../../ui';
 import { attachExportPdf } from '../commands/export.command.pdf';
 import { withSpinner } from '../spinner';
 
-import { askCountryCuit, askExportOptions, type ExportOptions, isCountryCuitMissing } from './export-options';
+import {
+  askCountryCuit,
+  askExportOptions,
+  type ExportOptions,
+  isCountryCuitMissing,
+  validateExportPaymentDate,
+  validateExportText,
+} from './export-options';
 import { completeIssuer } from './pdf.flow';
 import { askTextStep, chooseStep, isPromptCancellation } from './prompts';
 import { offerSavingToConfig } from './save-to-config';
 import { confirmEmission, formatEquivalentCommand, type InteractiveSession } from './session';
-import { validateAmount, validateOptionalDate, validatePositiveInteger } from './validators';
+import { validateAmount, validatePositiveInteger } from './validators';
 
 interface ExportFlowState {
   readonly activity?: number;
@@ -66,10 +73,6 @@ interface ExportFlowLoaders {
   readonly incoterms: () => Promise<ReadonlyArray<{ readonly code: string; readonly name: string }>>;
   readonly languages: ExportGateway['getLanguages'];
   readonly units: ExportGateway['getUnits'];
-}
-
-function requiredText(label: string): (value: string) => string | true {
-  return (value) => (value.trim() ? true : `${label} es obligatorio.`);
 }
 
 function validateCountry(countries: readonly ExportCountry[]): (value: string) => string | true {
@@ -129,7 +132,7 @@ function exportSteps(
       name: 'cliente',
       run: async () => {
         const answer = await askTextStep('Nombre o razón social del cliente del exterior:', {
-          validate: requiredText('El cliente'),
+          validate: validateExportText('clientName', 'El cliente'),
         });
 
         return answer === BACK ? BACK : { clientName: answer.trim() };
@@ -138,7 +141,9 @@ function exportSteps(
     {
       name: 'domicilio',
       run: async () => {
-        const answer = await askTextStep('Domicilio del cliente:', { validate: requiredText('El domicilio') });
+        const answer = await askTextStep('Domicilio del cliente:', {
+          validate: validateExportText('clientAddress', 'El domicilio'),
+        });
 
         return answer === BACK ? BACK : { clientAddress: answer.trim() };
       },
@@ -190,7 +195,7 @@ function exportSteps(
           required
             ? 'ID impositivo del cliente en su país (sin CUIT del país, ARCA lo pide):'
             : 'ID impositivo del cliente en su país (Enter para omitirlo):',
-          required ? { validate: requiredText('El ID impositivo') } : undefined,
+          { validate: validateExportText('clientTaxId', required ? 'El ID impositivo' : undefined) },
         );
 
         return answer === BACK ? BACK : { clientTaxId: optional(answer) };
@@ -224,7 +229,9 @@ function exportSteps(
     {
       name: 'descripcion',
       run: async () => {
-        const answer = await askTextStep('Descripción del servicio o producto (Enter para "Según detalle"):');
+        const answer = await askTextStep('Descripción del servicio o producto (Enter para "Según detalle"):', {
+          validate: validateExportText('description'),
+        });
 
         return answer === BACK ? BACK : { description: optional(answer) };
       },
@@ -262,15 +269,16 @@ function exportSteps(
       name: 'incoterm',
       run: async () => {
         const list = await withSpinner('Consultando incoterms...', loaders.incoterms);
-        const incoterm = await chooseStep('Incoterm:', [
-          { name: 'Sin incoterm', value: '' },
-          ...list.map((entry) => ({ name: entry.code, value: entry.code })),
-        ]);
+        // Sin "Sin incoterm": la factura de bienes lo exige (error 1640).
+        const incoterm = await chooseStep(
+          'Incoterm:',
+          list.map((entry) => ({ name: entry.code, value: entry.code })),
+        );
 
         return incoterm === BACK
           ? BACK
           : {
-              incoterm: incoterm || undefined,
+              incoterm,
               incotermName: list.find((entry) => entry.code === incoterm)?.name,
             };
       },
@@ -284,7 +292,10 @@ function exportSteps(
     {
       name: 'forma-pago',
       run: async () => {
-        const answer = await askTextStep('Forma de pago:', { defaultValue: DEFAULT_EXPORT_PAYMENT_TERMS });
+        const answer = await askTextStep('Forma de pago:', {
+          defaultValue: DEFAULT_EXPORT_PAYMENT_TERMS,
+          validate: validateExportText('paymentTerms'),
+        });
 
         return answer === BACK ? BACK : { paymentTerms: optional(answer) };
       },
@@ -293,7 +304,7 @@ function exportSteps(
       name: 'fecha-pago',
       run: async () => {
         const answer = await askTextStep('Fecha de pago (Enter para la fecha del comprobante):', {
-          validate: validateOptionalDate,
+          validate: validateExportPaymentDate(),
         });
 
         return answer === BACK ? BACK : { paymentDate: optional(answer) };
@@ -325,7 +336,11 @@ function exportSteps(
           amount: requireStepValue(state.amount, 'amount'),
           countryCuit: { country, countryCuits: tables.countryCuits },
           currencyCode,
-          defaultExchangeRate: currencyCode === 'PES' ? undefined : 'la de aduana que publica ARCA',
+          // En servicios y con el pago en dolares ARCA exige la suya (2053, 1604): no se ofrece otra.
+          defaultExchangeRate:
+            currencyCode === 'PES' || state.exportType === 2 || state.sameCurrency
+              ? undefined
+              : 'la de aduana que publica ARCA',
           defaultLanguage: 'Español',
           incoterm: state.incoterm ? { code: state.incoterm, description: state.incotermName } : undefined,
           languages: loaders.languages,

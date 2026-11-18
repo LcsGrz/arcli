@@ -5,6 +5,7 @@ import { creditNoteOverTotalError } from '../billing/billing.associated-lookup';
 import { formatVoucherSubject, formatVoucherWithArticle } from '../billing/billing.mappers';
 import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
 
+import { assertExportPointOfSaleRange } from './export.mappers';
 import {
   DEFAULT_EXPORT_TYPE,
   EXPORT_CREDIT_NOTE_KIND,
@@ -136,6 +137,8 @@ export function resolveExportAssociatedQuery(options: {
       'El punto de venta del comprobante asociado tiene que ser un número entero positivo.',
     );
   }
+
+  assertExportPointOfSaleRange(pointOfSale, 'El punto de venta del comprobante asociado');
 
   if (input.cuit !== undefined && emitterCuit !== undefined && input.cuit.replace(/\D/g, '') !== emitterCuit) {
     throw new InputValidationError(
