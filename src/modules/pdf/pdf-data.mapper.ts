@@ -192,9 +192,17 @@ function formatExportDivisa(result: ExportExecutionResult): string {
   return result.display.currencyName ? `${isoCode} - ${result.display.currencyName}` : isoCode;
 }
 
-/** Como en ARCA: "55000004242 (POLONIA - Persona Jurídica)", con el tipo de entidad de la tabla DST_CUIT. */
-function formatExportCountryCuit(result: ExportExecutionResult): string {
+/**
+ * Como en ARCA: "55000004242 (POLONIA - Persona Jurídica)", con el tipo de entidad de la tabla DST_CUIT. Sin CUIT del
+ * pais (la E va solo con el ID impositivo, error 1580) no hay que mostrar.
+ */
+function formatExportCountryCuit(result: ExportExecutionResult): string | undefined {
   const { Cuit_pais_cliente: cuit } = result.payload;
+
+  if (cuit === undefined) {
+    return undefined;
+  }
+
   const name = result.display.countryCuitName ?? result.display.countryName;
 
   return name ? `${cuit} (${name})` : String(cuit);
@@ -273,8 +281,9 @@ export function mapExportResultToPdfData(
     receptor: {
       condicionIva: 'Cliente del exterior',
       cuitPais: formatExportCountryCuit(result),
-      documentoNro: String(payload.Cuit_pais_cliente),
-      documentoTipo: 'CUIT',
+      // Sin CUIT del pais, el documento del cliente es su ID impositivo.
+      documentoNro: payload.Cuit_pais_cliente === undefined ? payload.Id_impositivo : String(payload.Cuit_pais_cliente),
+      documentoTipo: payload.Cuit_pais_cliente === undefined ? 'Otro' : 'CUIT',
       domicilio: extras.receptorDomicilio?.trim() || payload.Domicilio_cliente,
       idImpositivo: payload.Id_impositivo || undefined,
       razonSocial: extras.receptorNombre?.trim() || payload.Cliente,

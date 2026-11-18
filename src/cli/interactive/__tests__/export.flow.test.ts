@@ -290,6 +290,33 @@ describe('runExportFlow', () => {
     expect(printed()).toContain('--pais-destino ATLANTIDA --cuit-pais 55000009999');
   });
 
+  it('sin CUIT para el destino se puede dejar vacio: entonces pide el ID impositivo (error 1580)', async () => {
+    vi.spyOn(gateway, 'getDestinationCountries').mockResolvedValue([{ code: 999, name: 'ATLANTIDA' }]);
+    vi.spyOn(gateway, 'getDestinationCountryCuits').mockResolvedValue([
+      { countryName: 'ESTADOS UNIDOS - Persona Jurídica', cuit: 55000002126 },
+    ]);
+    script = createScript([
+      [/cliente del exterior/, 'ACME LLC'],
+      [/Domicilio/, '123 Main St'],
+      [/País de destino/, 'atlantida'],
+      [/dejalo vacío para informar solo el ID impositivo/, ''],
+      [/ID impositivo del cliente en su país \(sin CUIT del país, ARCA lo pide\)/, 'IE1234567T'],
+      [/Qué exportás/, 'Servicios'],
+      [/Monto total/, '100'],
+      [/Descripción/, ''],
+      [/moneda/, 'Pesos'],
+      [/Forma de pago/, 'Transferencia Internacional'],
+      [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
+      [/Emitimos/, 'No, dejar sin emitir'],
+    ]);
+
+    await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+    expect(printed()).toContain('--pais-destino ATLANTIDA --id-impositivo IE1234567T');
+    expect(printed()).not.toContain('--cuit-pais');
+  });
+
   it('valida el país contra la tabla de ARCA: Argentina no es destino de exportación', async () => {
     script = createScript([
       [/cliente del exterior/, 'ACME LLC'],

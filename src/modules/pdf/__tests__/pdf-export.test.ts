@@ -144,4 +144,15 @@ describe('mapExportResultToPdfData', () => {
         .receptor.cuitPais,
     ).toBe('55000002126 (ESTADOS UNIDOS)');
   });
+
+  it('sin CUIT del pais el documento del cliente es su ID impositivo', () => {
+    const result = createResult({ Cuit_pais_cliente: undefined, Id_impositivo: 'IE1234567T' });
+
+    expect(mapExportResultToPdfData(result, ISSUER).receptor).toMatchObject({
+      cuitPais: undefined,
+      documentoNro: 'IE1234567T',
+      documentoTipo: 'Otro',
+      idImpositivo: 'IE1234567T',
+    });
+  });
 });

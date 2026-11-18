@@ -68,7 +68,7 @@ interface ExportFlowLoaders {
   readonly units: ExportGateway['getUnits'];
 }
 
-function required(label: string): (value: string) => string | true {
+function requiredText(label: string): (value: string) => string | true {
   return (value) => (value.trim() ? true : `${label} es obligatorio.`);
 }
 
@@ -125,7 +125,7 @@ function exportSteps(
       name: 'cliente',
       run: async () => {
         const answer = await askTextStep('Nombre o razón social del cliente del exterior:', {
-          validate: required('El cliente'),
+          validate: requiredText('El cliente'),
         });
 
         return answer === BACK ? BACK : { clientName: answer.trim() };
@@ -134,7 +134,7 @@ function exportSteps(
     {
       name: 'domicilio',
       run: async () => {
-        const answer = await askTextStep('Domicilio del cliente:', { validate: required('El domicilio') });
+        const answer = await askTextStep('Domicilio del cliente:', { validate: requiredText('El domicilio') });
 
         return answer === BACK ? BACK : { clientAddress: answer.trim() };
       },
@@ -163,13 +163,14 @@ function exportSteps(
       },
     },
     {
-      // Sin esto no hay salida: ARCA rechaza la E sin `Cuit_pais_cliente`.
+      // ARCA pide el CUIT del pais o el ID impositivo (error 1580): si se deja vacio, el ID impositivo es obligatorio.
       name: 'cuit-pais',
       run: async (state) => {
         const country = requireStepValue(state.country, 'country');
         const cuit = await askCountryCuit(
           { country, countryCuits: tables.countryCuits },
-          `ARCA no tiene un CUIT publicado para ${country.name}. Escribí el CUIT del país o buscalo por nombre:`,
+          `ARCA no tiene un CUIT publicado para ${country.name}. Escribí el CUIT del país, buscalo por nombre o dejalo vacío para informar solo el ID impositivo del cliente:`,
+          { optional: true },
         );
 
         return cuit === BACK ? BACK : { options: { ...state.options, clientCountryCuit: cuit } };
@@ -178,8 +179,15 @@ function exportSteps(
     },
     {
       name: 'id-impositivo',
-      run: async () => {
-        const answer = await askTextStep('ID impositivo del cliente en su país (Enter para omitirlo):');
+      run: async (state) => {
+        // Sin CUIT del pais, ARCA pide el ID impositivo (error 1580).
+        const required = state.countryCuitMissing && state.options.clientCountryCuit === undefined;
+        const answer = await askTextStep(
+          required
+            ? 'ID impositivo del cliente en su país (sin CUIT del país, ARCA lo pide):'
+            : 'ID impositivo del cliente en su país (Enter para omitirlo):',
+          required ? { validate: requiredText('El ID impositivo') } : undefined,
+        );
 
         return answer === BACK ? BACK : { clientTaxId: optional(answer) };
       },
