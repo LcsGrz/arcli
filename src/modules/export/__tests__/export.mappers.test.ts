@@ -82,6 +82,20 @@ describe('resolveExportCurrency', () => {
     expect(() => resolveExportCurrency({ currencyCode: 'ARS', sameCurrency: true })).toThrow(/moneda extranjera/);
   });
 
+  it('acepta cotizaciones menores a 1, como la del guarani: ARCA pide mayor a 0 (errores 1600 y 1602)', () => {
+    expect(resolveExportCurrency({ currencyCode: '029', exchangeRate: 0.19 })).toEqual({
+      fields: { CanMisMonExt: 'N', Moneda_ctz: 0.19, Moneda_Id: '029' },
+      needsQuotation: false,
+    });
+  });
+
+  it('rechaza una cotizacion en 0 o negativa en moneda extranjera', () => {
+    expect(() => resolveExportCurrency({ currencyCode: 'USD', exchangeRate: 0 })).toThrow(
+      'La cotización de USD tiene que ser mayor a 0.',
+    );
+    expect(() => resolveExportCurrency({ currencyCode: '029', exchangeRate: -1 })).toThrow(/mayor a 0/);
+  });
+
   it('marca CanMisMonExt cuando el pago es en la misma moneda', () => {
     expect(resolveExportCurrency({ currencyCode: 'USD', exchangeRate: 900, sameCurrency: true }).fields).toEqual({
       CanMisMonExt: 'S',

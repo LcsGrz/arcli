@@ -110,8 +110,10 @@ export function resolveExportCurrency(
 
   const rate = input.exchangeRate;
 
-  if (rate !== undefined && rate <= LOCAL_EXCHANGE_RATE) {
-    throw new InputValidationError(`La cotización de ${displayCode} tiene que ser mayor a 1.`);
+  // ARCA pide una cotizacion mayor a 0 (errores 1600 y 1602): hay monedas que valen menos de un peso, como el
+  // guarani o el peso colombiano, y una nota sobre una factura en esas monedas hereda su cotizacion.
+  if (rate !== undefined && !(rate > 0)) {
+    throw new InputValidationError(`La cotización de ${displayCode} tiene que ser mayor a 0.`);
   }
 
   return {

@@ -11,6 +11,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 ### Corregido
 
 - **La factura `E` en pesos ya no manda `CanMisMonExt`:** ARCLI lo mandaba en `N` en toda factura `E`, y con `--moneda ARS` (o `PES`) ARCA pide que ese campo no se informe (error 1605). Testing lo acepta, pero en producción la `E` en pesos saldría rechazada. Ahora no se manda, así que `solicitud` del `--json` de una `E` en pesos deja de traer `CanMisMonExt`; `exportacion.mismaMoneda` sigue en `false`. En moneda extranjera no cambia nada.
+- **La `E` acepta cotizaciones menores a 1:** `--cotizacion-moneda` (o `cotizacionMoneda` de `--cargar`, o la cotización del modo interactivo) tenía que ser mayor a 1, y hay monedas que valen menos de un peso, como el guaraní (`029`) o el peso colombiano (`032`). Además, toda nota `E` sobre una factura en esas monedas fallaba, porque hereda su cotización. Ahora alcanza con que sea mayor a 0, como pide ARCA (error 1600). En A, B y C no había esa regla: solo se rechaza la cotización 1 en moneda extranjera.
 
 ## [2.5.1] - 2026-11-18
 

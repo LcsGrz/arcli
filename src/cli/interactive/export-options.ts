@@ -301,7 +301,7 @@ async function askIncotermDescription(
   };
 }
 
-/** Mismas reglas que `--cm`: un numero valido y, en moneda extranjera, mayor a 1. */
+/** Mismas reglas que `--cm`: un numero valido y, en moneda extranjera, mayor a 0. */
 function validateExportExchangeRate(context: ExportOptionsContext): (value: string) => string | true {
   return (value) => {
     const valid = validateExchangeRate(value);
