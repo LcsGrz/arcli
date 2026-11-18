@@ -227,7 +227,6 @@ En una nota, `cliente`, `domicilioCliente`, `paisDestino`, `actividad` y la mone
 ```json
 {
   "montoTotal": 500,
-  "numero": 1,
   "comprobanteAsociado": { "atajo": "fe", "puntoVenta": 4, "numero": 1 },
   "previsualizar": true
 }
@@ -241,7 +240,6 @@ Una factura:
   "domicilioCliente": "123 Main St",
   "paisDestino": 203,
   "montoTotal": 1500,
-  "numero": 1,
   "actividad": 620100,
   "tipoExpo": 2,
   "incoterm": "FOB",
@@ -262,7 +260,7 @@ Una factura:
 
 ### Output JSON
 
-Es el mismo resumen que A, B y C (`atajo`, `cae`, `estado`, `errores`, `observaciones`, `pdf`…) con `atajo: "fe"` y `tipoArca: 19` (`nce` y `21`, `nde` y `20` en las notas), y `numero`, también en la vista previa, porque lo informás vos. Suma un bloque `exportacion` con lo que WSFEX tiene y `wsfe` no. `solicitud` es el `Cmp` de WSFEX, con los nombres de ARCA.
+Es el mismo resumen que A, B y C (`atajo`, `cae`, `estado`, `errores`, `observaciones`, `pdf`…) con `atajo: "fe"` y `tipoArca: 19` (`nce` y `21`, `nde` y `20` en las notas), y `numero`, también en la vista previa: el de `numero` o, si falta, el siguiente que ARCLI consulta en WSFEX. Suma un bloque `exportacion` con lo que WSFEX tiene y `wsfe` no. `solicitud` es el `Cmp` de WSFEX, con los nombres de ARCA.
 
 ```json
 {

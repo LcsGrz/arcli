@@ -601,7 +601,7 @@ La factura `E` no lleva comprobantes asociados ni datos opcionales, así que `so
 
 ```bash
 arcli fe --monto 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 203 \
-  --numero 1 --actividad 620100
+  --actividad 620100
 ```
 
 Con los datos del receptor del exterior (CUIT del país, ID impositivo, razón social y domicilio), ítems, incoterm y
@@ -609,7 +609,7 @@ salida JSON:
 
 ```bash
 arcli fe -m 1500 --cliente "ACME LLC" --id-impositivo "12-3456789" --domicilio-cliente "123 Main St" \
-  --pais-destino 212 --cuit-pais 55000002126 --tipo-expo 1 --incoterm FOB --numero 2 --actividad 620100 \
+  --pais-destino 212 --cuit-pais 55000002126 --tipo-expo 1 --incoterm FOB --actividad 620100 \
   --item "001|Bienes varios|1|1500|unidad" --emitir --json
 ```
 
@@ -617,7 +617,7 @@ Cobrando en dólares, con la cotización de aduana de ARCA (sin `--cm`) y el pag
 
 ```bash
 arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 212 \
-  --numero 3 --actividad 620100 --misma-moneda --previsualizar
+  --actividad 620100 --misma-moneda --previsualizar
 ```
 
 #### Resumen rápido de parámetros
@@ -660,7 +660,7 @@ Cada `--item` se separa con `|` para no pelear con las comas de los importes. La
 
 ```bash
 arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 203 \
-  --numero 4 --actividad 620100 --item "001|Servicio de consultoría|1|1000|unidad" \
+  --actividad 620100 --item "001|Servicio de consultoría|1|1000|unidad" \
   --item "002|Soporte|2|250|unidades" --previsualizar
 ```
 
@@ -691,10 +691,10 @@ El JSON de salida y el de `--cargar` están en [Entrada y salida](input-output.m
 
 `arcli nce` (`nota-credito e`, tipo ARCA `21`) y `arcli nde` (`nota-debito e`, tipo `20`) ajustan una Factura de exportación `E` ya emitida por WSFEX. Usan el mismo servicio, credenciales y flags que `fe`, más el comprobante asociado.
 
-Antes de armar la nota, ARCLI consulta el asociado en ARCA (`FEXGetCMP`) y toma de ahí lo que no venga por flag: cliente, domicilio, ID impositivo, país de destino, CUIT del país, tipo de exportación, moneda y cotización, idioma, incoterm, forma de pago y actividad. Por eso alcanza con el monto, el asociado y el número:
+Antes de armar la nota, ARCLI consulta el asociado en ARCA (`FEXGetCMP`) y toma de ahí lo que no venga por flag: cliente, domicilio, ID impositivo, país de destino, CUIT del país, tipo de exportación, moneda y cotización, idioma, incoterm, forma de pago y actividad. Por eso alcanza con el monto y el asociado (el número de la nota también sale de ARCA):
 
 ```bash
-arcli nce -m 500 --ar 1 --numero 1
+arcli nce -m 500 --ar 1
 ```
 
 #### Comprobante asociado
@@ -723,8 +723,8 @@ Las notas `E` no llevan fecha de pago (ARCA la rechaza, error 1673), `--misma-mo
 #### Ejemplos
 
 ```bash
-arcli nde -m 200 --ar 1 --apv 4 --numero 1 --item "001|Ajuste de precio|1|200|unidades" --previsualizar
-arcli nce -m 100 --ac nde --ar 1 --numero 2 --emitir --json
+arcli nde -m 200 --ar 1 --apv 4 --item "001|Ajuste de precio|1|200|unidades" --previsualizar
+arcli nce -m 100 --ac nde --ar 1 --emitir --json
 ```
 
 El PDF se guarda como `nota-credito-e_<pv>-<numero>.pdf` o `nota-debito-e_<pv>-<numero>.pdf`, con el comprobante asociado.
