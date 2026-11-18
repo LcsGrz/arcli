@@ -18,6 +18,30 @@ import {
   isExportNote,
 } from '../../modules/export/export.types';
 
+export const ITEMS_DESCRIPTION_WARNING =
+  '`--descripcion` se usa solo cuando no hay `--item`: el detalle del comprobante sale de los items.';
+
+/** `--descripcion` con ítems no se usa. Si la descripción o los ítems vinieron del JSON, nombra sus claves. */
+function itemsDescriptionWarnings(options: {
+  readonly descriptionFromFile: boolean;
+  readonly hasDescription: boolean;
+  readonly hasItems: boolean;
+  readonly itemsFromFile: boolean;
+}): string[] {
+  if (!options.hasDescription || !options.hasItems) {
+    return [];
+  }
+
+  if (!options.descriptionFromFile && !options.itemsFromFile) {
+    return [ITEMS_DESCRIPTION_WARNING];
+  }
+
+  const description = options.descriptionFromFile ? 'La clave "descripcion" del JSON de `--cargar`' : '`--descripcion`';
+  const items = options.itemsFromFile ? '"items"' : '`--item`';
+
+  return [`${description} se usa solo cuando no hay ${items}: el detalle del comprobante sale de los ítems.`];
+}
+
 export interface ExportCommandPlan {
   readonly input: ExportVoucherInput;
   /** De donde salio la decision de emitir: define si se pregunta antes de emitir. */
@@ -132,6 +156,9 @@ export function parseExportCommandPlan(command: Command, defaults: ExportCommand
       }
     : undefined;
 
+  const description = pickString(options.descripcion, file?.descripcion);
+  const items = pickItems(options.item, mapExportJsonItems(file?.items));
+
   return {
     input: {
       activity: pickNumber(options.actividad, file?.actividad),
@@ -143,14 +170,14 @@ export function parseExportCommandPlan(command: Command, defaults: ExportCommand
       clientTaxId: pickString(options.idImpositivo, file?.idImpositivo),
       commercialObservations: pickString(options.obsComerciales, file?.observacionesComerciales),
       currencyCode: currency,
-      description: pickString(options.descripcion, file?.descripcion),
+      description,
       destinationCountry: destination === undefined ? undefined : String(destination),
       emit,
       exchangeRate: pickNumber(options.cotizacionMoneda, options.cm, file?.cotizacionMoneda),
       exportType: pickNumber(options.tipoExpo, file?.tipoExpo) as ExportType | undefined,
       incoterm: pickString(options.incoterm, file?.incoterm),
       incotermDescription: pickString(options.incotermsDesc, file?.descripcionIncoterm),
-      items: pickItems(options.item, mapExportJsonItems(file?.items)),
+      items,
       language: pickNumber(options.idioma, file?.idioma),
       modeSource,
       observations: pickString(options.observaciones, file?.observaciones),
@@ -168,6 +195,14 @@ export function parseExportCommandPlan(command: Command, defaults: ExportCommand
       voucherNumber: pickNumber(options.numero, file?.numero),
     },
     modeSource,
-    warnings: exportJsonInputWarnings(file),
+    warnings: [
+      ...exportJsonInputWarnings(file),
+      ...itemsDescriptionWarnings({
+        descriptionFromFile: typeof options.descripcion !== 'string',
+        hasDescription: Boolean(description?.trim()),
+        hasItems: Boolean(items && items.length > 0),
+        itemsFromFile: !(Array.isArray(options.item) && options.item.length > 0),
+      }),
+    ],
   };
 }

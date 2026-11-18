@@ -778,6 +778,33 @@ describe('billing.command.parser', () => {
       expect(parse([]).saleCondition).toBeUndefined();
     });
 
+    it('marca los datos con aviso que vinieron del JSON de --cargar, salvo los que pisa un flag', () => {
+      const parse = (args: string[]) =>
+        parseBillingCommandInput(createCommand(['--monto', '1000', ...args]), 'fc', defaults);
+      const file = writeJsonInput({
+        condicionVenta: 'cheque',
+        descripcion: 'Servicio',
+        dia: 10,
+        receptorDomicilio: 'Calle 1',
+        receptorNombre: 'Cliente SA',
+      });
+
+      expect(parse(['--cargar', file]).fromFile).toEqual([
+        'dueDay',
+        'pdfDescription',
+        'receiverAddress',
+        'receiverName',
+        'saleCondition',
+      ]);
+      expect(parse(['--cargar', file, '--descripcion', 'Otra', '--sin-condicion-venta']).fromFile).toEqual([
+        'dueDay',
+        'receiverAddress',
+        'receiverName',
+      ]);
+      expect(parse(['--descripcion', 'Otra']).fromFile).toBeUndefined();
+      expect(parse(['--cargar', writeJsonInput({ condicionVenta: null })]).fromFile).toBeUndefined();
+    });
+
     it('rejects a sale condition together with --sin-condicion-venta', () => {
       expect(() =>
         parseBillingCommandInput(

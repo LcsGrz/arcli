@@ -57,6 +57,7 @@ Cada objeto se valida contra esta lista antes de mezclarlo con los flags y la co
 - **Una clave que no está en las tablas es un error** (`INPUT_VALIDATION_ERROR`) que la nombra y, si se parece a una válida o a un flag, sugiere la correcta: `"montototal"` → `montoTotal`, `"vencimiento"` → `vencimientoPago`, `"moneda"` → `codigoMoneda`. Vale también dentro de `comprobanteAsociado`, `periodoAsociado` y cada ítem de `alicuotas`.
 - **Un tipo incorrecto es un error**, no se descarta: `"puntoVenta": "3"` falla con "tiene que ser un número". Los números van sin comillas y los booleanos son `true` o `false`, no `"true"`. `null` tampoco vale (salvo en `condicionVenta`, donde omite el valor de la config): para no informar un campo, omití la clave. La única clave que acepta texto o número es la tasa de IVA (`alicuotaIva` y `tasa` en `alicuotas`).
 - En un lote, cada ítem se valida por separado y el error sale en `BATCH_VALIDATION_ERROR` con su índice (ver [abajo](#validación-y-errores-del-lote)). Un array vacío también es error.
+- Los avisos de `avisos` nombran la clave del JSON cuando el dato vino de `--cargar`, y el flag cuando vino de un flag: por ejemplo, `"descripcion"` o `"receptorNombre"` sin PDF, `"dia"` (deprecada) o `"descripcion"` con `"items"` en la `E`.
 
 Con un solo comprobante, `detalles.campos` lista cada problema con su ruta en el JSON:
 
