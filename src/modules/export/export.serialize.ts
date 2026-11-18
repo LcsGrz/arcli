@@ -45,7 +45,8 @@ function formatExportBlock(result: ExportExecutionResult): Record<string, unknow
           total: display.associatedVoucher?.total ?? null,
         }
       : null,
-    cuitPaisCliente: payload.Cuit_pais_cliente,
+    // Sin CUIT del pais la E va solo con el ID impositivo (error 1580).
+    cuitPaisCliente: payload.Cuit_pais_cliente ?? null,
     destino: { codigo: payload.Dst_cmp, nombre: display.countryName ?? null },
     domicilioCliente: payload.Domicilio_cliente,
     formaPago: payload.Forma_pago,

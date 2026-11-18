@@ -141,7 +141,8 @@ export interface ExportVoucherPayload {
    * factura no lo acepta (error 1755).
    */
   readonly Cmps_asoc?: { Cmp_asoc: ExportAssociatedVoucherPayload[] };
-  readonly Cuit_pais_cliente: number;
+  /** CUIT del pais del cliente. Sin el, ARCA pide `Id_impositivo` (error 1580). */
+  readonly Cuit_pais_cliente?: number;
   readonly Domicilio_cliente: string;
   readonly Dst_cmp: number;
   readonly Fecha_cbte: string;

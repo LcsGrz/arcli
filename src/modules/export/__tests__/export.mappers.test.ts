@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  assertExportClientIdentification,
   buildExportPayload,
   resolveExportActivity,
   resolveExportClientCountryCuit,
@@ -189,6 +190,21 @@ describe('resolveExportDestinationCountry', () => {
   });
 });
 
+describe('assertExportClientIdentification', () => {
+  const country = { code: 415, name: 'IRLANDA' };
+
+  it('alcanza con el CUIT del pais o con el ID impositivo', () => {
+    expect(() => assertExportClientIdentification({ clientCountryCuit: 55000000050, country })).not.toThrow();
+    expect(() => assertExportClientIdentification({ clientTaxId: 'IE1234567T', country })).not.toThrow();
+  });
+
+  it('sin ninguno de los dos pide uno, como ARCA (error 1580)', () => {
+    expect(() => assertExportClientIdentification({ clientTaxId: '  ', country })).toThrow(
+      'La tabla de ARCA no tiene CUIT para "IRLANDA" y ARCA pide el CUIT del país o el ID impositivo del cliente (error 1580). Indicá el ID impositivo con `--id-impositivo` o el CUIT del país con `--cuit-pais`.',
+    );
+  });
+});
+
 describe('resolveExportClientCountryCuit', () => {
   it('lo resuelve desde el pais de destino, sin el tipo de entidad que agrega la tabla', () => {
     expect(resolveExportClientCountryCuit({ countries: COUNTRY_CUITS, country: { code: 203, name: 'Brasil' } })).toBe(
@@ -249,10 +265,10 @@ describe('resolveExportClientCountryCuit', () => {
     ).toThrow(/no existe en la tabla/);
   });
 
-  it('avisa cuando el pais no tiene CUIT en la tabla', () => {
-    expect(() =>
+  it('sin CUIT en la tabla ni por flag no hay CUIT: la E va con el ID impositivo (error 1580)', () => {
+    expect(
       resolveExportClientCountryCuit({ countries: COUNTRY_CUITS, country: { code: 999, name: 'Narnia' } }),
-    ).toThrow(/--cuit-pais/);
+    ).toBeUndefined();
   });
 
   it('acepta el CUIT cuando las dos tablas nombran distinto al pais', () => {
@@ -394,6 +410,13 @@ describe('buildExportPayload', () => {
     // Los bloques vacios tambien se rechazan: Cmps_asoc da 1820 y Opcionales no se informa.
     expect(payload).not.toHaveProperty('Cmps_asoc');
     expect(payload).not.toHaveProperty('Opcionales');
+  });
+
+  it('sin CUIT del pais no manda Cuit_pais_cliente y va con el ID impositivo (error 1580)', () => {
+    const payload = buildExportPayload(input, { ...resolution, clientCountryCuit: undefined });
+
+    expect(payload).not.toHaveProperty('Cuit_pais_cliente');
+    expect(payload.Id_impositivo).toBe('123456789');
   });
 
   it('la factura en pesos no manda CanMisMonExt, que ARCA rechaza en produccion (error 1605)', () => {

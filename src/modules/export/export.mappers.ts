@@ -52,7 +52,8 @@ export interface BuildExportResolution {
   readonly activity: number;
   /** Solo en las notas: va en `Cmps_asoc`. */
   readonly associatedVoucher?: ExportAssociatedVoucherPayload;
-  readonly clientCountryCuit: number;
+  /** Sin CUIT del pais la E va solo con el ID impositivo (error 1580). */
+  readonly clientCountryCuit?: number;
   readonly currency: ExportCurrencyResolution['fields'];
   readonly destinationCountry: ExportCountry;
   readonly exportType: ExportType;
@@ -315,31 +316,25 @@ function pickCountryCuit(entries: readonly ExportCountryCuit[]): ExportCountryCu
 }
 
 /**
- * WSFEX pide el CUIT del pais del cliente. Se resuelve con la tabla DST_CUIT, que nombra cada pais con el tipo de
+ * WSFEX pide el CUIT del pais del cliente o su ID impositivo: con uno alcanza (error 1580). Se resuelve con la tabla DST_CUIT, que nombra cada pais con el tipo de
  * entidad ("ESTADOS UNIDOS - Persona Jurídica"), mientras que la tabla de destinos dice solo "ESTADOS UNIDOS": por
  * eso se compara sin el sufijo. Si el CUIT viene por flag se valida contra la tabla, salvo para los paises cuyo
- * nombre no coincide entre las dos tablas ("CHINA" y "CHINA REP.POPULAR"), donde solo se acepta que exista.
+ * nombre no coincide entre las dos tablas ("CHINA" y "CHINA REP.POPULAR"), donde solo se acepta que exista. Si la
+ * tabla no trae el destino y no vino por flag, no hay CUIT: la E va solo con el ID impositivo (ver
+ * `assertExportClientIdentification`).
  */
 export function resolveExportClientCountryCuit(options: {
   readonly country: ExportCountry;
   readonly countries: readonly ExportCountryCuit[];
   readonly cuit?: number;
-}): number {
+}): number | undefined {
   const destination = normalizeCountryName(options.country.name);
   const forDestination = options.countries.filter(
     (entry) => normalizeCountryName(countryNameWithoutEntity(entry.countryName)) === destination,
   );
 
   if (options.cuit === undefined) {
-    const resolved = pickCountryCuit(forDestination);
-
-    if (!resolved) {
-      throw new InputValidationError(
-        `La tabla de ARCA no tiene CUIT para "${options.country.name}". Indicalo con \`--cuit-pais\`.`,
-      );
-    }
-
-    return resolved.cuit;
+    return pickCountryCuit(forDestination)?.cuit;
   }
 
   const match = options.countries.find((entry) => entry.cuit === options.cuit);
@@ -357,6 +352,22 @@ export function resolveExportClientCountryCuit(options: {
   }
 
   return options.cuit;
+}
+
+/**
+ * ARCA pide el CUIT del pais del cliente o su ID impositivo, al menos uno (error 1580). Sin CUIT (la tabla no trae el
+ * destino, como pasa con Irlanda, Alemania o las zonas francas) la E va solo con el ID impositivo.
+ */
+export function assertExportClientIdentification(options: {
+  readonly clientCountryCuit?: number;
+  readonly clientTaxId?: string;
+  readonly country: ExportCountry;
+}): void {
+  if (options.clientCountryCuit === undefined && !options.clientTaxId?.trim()) {
+    throw new InputValidationError(
+      `La tabla de ARCA no tiene CUIT para "${options.country.name}" y ARCA pide el CUIT del país o el ID impositivo del cliente (error 1580). Indicá el ID impositivo con \`--id-impositivo\` o el CUIT del país con \`--cuit-pais\`.`,
+    );
+  }
 }
 
 /** `--incoterm` se compara contra la tabla de ARCA, sin importar mayusculas. */
@@ -501,7 +512,7 @@ export function buildExportPayload(input: ExportVoucherInput, resolution: BuildE
     Cbte_Tipo: resolution.voucherKind.arcaType,
     Cliente: clientName,
     ...(resolution.associatedVoucher ? { Cmps_asoc: { Cmp_asoc: [resolution.associatedVoucher] } } : {}),
-    Cuit_pais_cliente: resolution.clientCountryCuit,
+    ...(resolution.clientCountryCuit === undefined ? {} : { Cuit_pais_cliente: resolution.clientCountryCuit }),
     Domicilio_cliente: clientAddress,
     Dst_cmp: resolution.destinationCountry.code,
     Fecha_cbte: resolution.voucherDate,

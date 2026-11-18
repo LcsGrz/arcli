@@ -300,6 +300,33 @@ describe('ExportService.resolve', () => {
     await expect(service.resolve(INPUT, gateway, RUNTIME, NOW)).rejects.toThrow(/--cotizacion-moneda/);
   });
 
+  it('si la tabla no trae CUIT para el destino, va solo con el ID impositivo (error 1580)', async () => {
+    const gateway = createGateway({
+      getDestinationCountries: vi.fn(async () => [{ code: 415, name: 'IRLANDA' }]),
+    });
+    const resolved = await service.resolve(
+      { ...INPUT, clientTaxId: 'IE1234567T', destinationCountry: 'irlanda' },
+      gateway,
+      RUNTIME,
+      NOW,
+    );
+
+    expect(resolved.payload).not.toHaveProperty('Cuit_pais_cliente');
+    expect(resolved.payload.Id_impositivo).toBe('IE1234567T');
+    expect(resolved.display.countryCuitName).toBeUndefined();
+  });
+
+  it('sin CUIT del pais ni ID impositivo pide uno de los dos antes de emitir', async () => {
+    const gateway = createGateway({
+      getDestinationCountries: vi.fn(async () => [{ code: 415, name: 'IRLANDA' }]),
+    });
+
+    await expect(
+      service.resolve({ ...INPUT, clientTaxId: undefined, destinationCountry: '415' }, gateway, RUNTIME, NOW),
+    ).rejects.toThrow(/ARCA pide el CUIT del país o el ID impositivo del cliente \(error 1580\)/);
+    expect(gateway.authorize).not.toHaveBeenCalled();
+  });
+
   it('respeta la moneda, el tipo y la forma de pago que vienen por flag', async () => {
     const resolved = await service.resolve(
       { ...INPUT, currencyCode: 'ARS', exportType: 1, paymentTerms: 'Carta de credito' },

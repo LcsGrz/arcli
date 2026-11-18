@@ -115,7 +115,8 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
   el código y con 3 la unidad (por defecto `unidad`, código `7`). La suma de los ítems tiene que dar
   `--monto`: se valida antes de ir a ARCA. Sin `--item` va un renglón con `--descripcion`.
 - Opcionales: `--id-impositivo <texto>`, `--cuit-pais <n>` (sin flag sale del país de destino; si ARCA no
-  publica un CUIT para ese país, el flag es obligatorio),
+  publica un CUIT para ese país, la `E` va solo con `--id-impositivo`, que entonces es obligatorio: ARCA pide uno de
+  los dos, error 1580),
   `--tipo-expo <1|2|4>` (`2` servicios por defecto, `1` bienes, `4` otros).
 - `--incoterm <codigo>`,
   `--incoterms-desc <texto>`, `--idioma <codigo>` (`1` español por defecto, `2` inglés, `3` portugués),

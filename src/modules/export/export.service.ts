@@ -10,6 +10,7 @@ import { type ArcliConfig, MISSING_CUIT_MESSAGE } from '../config/config.schemas
 
 import { assertExportItemsTotal, buildExportItems, DEFAULT_EXPORT_ITEM_DESCRIPTION } from './export.items';
 import {
+  assertExportClientIdentification,
   buildExportPayload,
   type ExportQuotationDate,
   exportTypeTakesPaymentDate,
@@ -230,6 +231,12 @@ export class ExportService {
       cuit: input.clientCountryCuit,
     });
 
+    assertExportClientIdentification({
+      clientCountryCuit,
+      clientTaxId: input.clientTaxId,
+      country: destinationCountry,
+    });
+
     const units = await gateway.getUnits();
     const items = buildExportItems(
       input.items,
@@ -313,7 +320,10 @@ export class ExportService {
     const currencyCode = payload.Moneda_Id.trim().toUpperCase();
     const display: ExportDisplayInfo = {
       ...(associated ? { associatedVoucher: describeAssociated(associated.voucher) } : {}),
-      countryCuitName: countryCuits.find((entry) => entry.cuit === clientCountryCuit)?.countryName,
+      countryCuitName:
+        clientCountryCuit === undefined
+          ? undefined
+          : countryCuits.find((entry) => entry.cuit === clientCountryCuit)?.countryName,
       countryName: destinationCountry.name,
       currencyName: (await gateway.getCurrencies()).find((entry) => entry.code.trim().toUpperCase() === currencyCode)
         ?.name,

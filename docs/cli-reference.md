@@ -578,7 +578,8 @@ WSFEX pide un certificado autorizado al servicio `wsfex`. ARCLI usa `exportacion
 **Opcional**
 
 - `--id-impositivo` y `--cuit-pais` (sin `--cuit-pais` se resuelve desde el país de destino; si ARCA no
-  publica un CUIT para ese país, el flag es obligatorio)
+  publica un CUIT para ese país —Irlanda, Alemania, las zonas francas…—, la `E` va solo con `--id-impositivo`:
+  ARCA pide uno de los dos, error 1580)
 - `--tipo-expo` (`1` bienes, `2` servicios, `4` otros; por defecto `2`)
 - `--item` para el detalle real; sin ítems va un renglón con `--descripcion`
 - `--incoterm` y `--incoterms-desc`, `--idioma`, `--forma-pago` (por defecto `Transferencia Internacional`)
@@ -629,7 +630,7 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
 | `--domicilio-cliente <texto>`     | ninguno         | `string`                             | Sí          | Siempre                                                                                                                                                 |
 | `--pais-destino <codigo\|nombre>` | ninguno         | `string`                             | Sí          | Siempre: código de ARCA o nombre tal como lo informa ARCA                                                                                               |
 | `--id-impositivo <texto>`         | ninguno         | `string`                             | No          | ID fiscal del cliente en su país                                                                                                                        |
-| `--cuit-pais <numero>`            | ninguno         | `integer`                            | No          | CUIT del país del cliente; sin el flag sale de la tabla de ARCA                                                                                         |
+| `--cuit-pais <numero>`            | ninguno         | `integer`                            | No          | CUIT del país del cliente; sin el flag sale de la tabla de ARCA, y si la tabla no trae el destino va solo `--id-impositivo` (1580)                      |
 | `--tipo-expo <1\|2\|4>`           | ninguno         | `1` bienes, `2` servicios, `4` otros | No          | Por defecto `2` (servicios)                                                                                                                             |
 | `--actividad <codigo>`            | ninguno         | `integer`                            | Condicional | Si no está `exportacion.actividad` en la config; código de la tabla de WSFEX                                                                            |
 | `--item <partes>`                 | ninguno         | `string` repetible                   | No          | `codigo\|descripcion\|cantidad\|precio\|unidad`; la suma debe dar `--monto`                                                                             |

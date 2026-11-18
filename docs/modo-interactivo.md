@@ -82,24 +82,24 @@ Después muestra la vista previa (la misma de `--previsualizar`), el comando equ
 
 La `E` se elige en el mismo selector, pero tiene su propio asistente porque no lleva receptor argentino, concepto ni IVA. Valida y emite igual que `arcli fe`:
 
-| Paso | Pregunta              | Detalle                                                                                                                               |
-| ---- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| 1    | Cliente               | Nombre o razón social del cliente del exterior                                                                                        |
-| 2    | Domicilio             | Domicilio del cliente                                                                                                                 |
-| 3    | País de destino       | Nombre o código de la tabla de WSFEX (`ESTADOS UNIDOS` o `212`). Argentina no se acepta                                               |
-| 4    | CUIT del país         | Solo si ARCA no publica un CUIT para el destino: escribís el CUIT o buscás el país por nombre y lo elegís de la lista (`--cuit-pais`) |
-| 5    | ID impositivo         | Opcional (Enter para omitirlo)                                                                                                        |
-| 6    | Qué exportás          | Servicios (por defecto), bienes u otros                                                                                               |
-| 7    | Monto total           | Igual que en la factura común                                                                                                         |
-| 8    | Descripción           | Opcional; por defecto "Según detalle"                                                                                                 |
-| 9    | Moneda                | Dólares (`DOL`, con la cotización de aduana que publica ARCA) o pesos (`PES`)                                                         |
-| 10   | ¿Te pagan en dólares? | Solo en dólares: si sí, ARCA lo registra como cancelación en la misma moneda (`--misma-moneda`)                                       |
-| 11   | Incoterm              | Solo en bienes, de la tabla de WSFEX, o sin incoterm                                                                                  |
-| 12   | Permisos de embarque  | Solo en bienes, opcional: los ya existentes en ARCA, separados por coma (`--permiso` con `--permiso-existente`)                       |
-| 13   | Forma de pago         | Por defecto "Transferencia Internacional"                                                                                             |
-| 14   | Fecha de pago         | Opcional; por defecto la del comprobante. En bienes no se pregunta                                                                    |
-| 15   | Actividad             | Solo si no está `exportacion.actividad`; se valida contra la tabla de WSFEX y después ofrece guardarla en la config                   |
-| 16   | Opcionales            | Una sola pregunta, como en A, B y C ([abajo](#opcionales-de-la-e))                                                                    |
+| Paso | Pregunta              | Detalle                                                                                                                                                                                                                                       |
+| ---- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Cliente               | Nombre o razón social del cliente del exterior                                                                                                                                                                                                |
+| 2    | Domicilio             | Domicilio del cliente                                                                                                                                                                                                                         |
+| 3    | País de destino       | Nombre o código de la tabla de WSFEX (`ESTADOS UNIDOS` o `212`). Argentina no se acepta                                                                                                                                                       |
+| 4    | CUIT del país         | Solo si ARCA no publica un CUIT para el destino: escribís el CUIT, buscás el país por nombre y lo elegís de la lista (`--cuit-pais`) o lo dejás vacío; entonces el ID impositivo del paso siguiente es obligatorio (ARCA pide uno de los dos) |
+| 5    | ID impositivo         | Opcional (Enter para omitirlo)                                                                                                                                                                                                                |
+| 6    | Qué exportás          | Servicios (por defecto), bienes u otros                                                                                                                                                                                                       |
+| 7    | Monto total           | Igual que en la factura común                                                                                                                                                                                                                 |
+| 8    | Descripción           | Opcional; por defecto "Según detalle"                                                                                                                                                                                                         |
+| 9    | Moneda                | Dólares (`DOL`, con la cotización de aduana que publica ARCA) o pesos (`PES`)                                                                                                                                                                 |
+| 10   | ¿Te pagan en dólares? | Solo en dólares: si sí, ARCA lo registra como cancelación en la misma moneda (`--misma-moneda`)                                                                                                                                               |
+| 11   | Incoterm              | Solo en bienes, de la tabla de WSFEX, o sin incoterm                                                                                                                                                                                          |
+| 12   | Permisos de embarque  | Solo en bienes, opcional: los ya existentes en ARCA, separados por coma (`--permiso` con `--permiso-existente`)                                                                                                                               |
+| 13   | Forma de pago         | Por defecto "Transferencia Internacional"                                                                                                                                                                                                     |
+| 14   | Fecha de pago         | Opcional; por defecto la del comprobante. En bienes no se pregunta                                                                                                                                                                            |
+| 15   | Actividad             | Solo si no está `exportacion.actividad`; se valida contra la tabla de WSFEX y después ofrece guardarla en la config                                                                                                                           |
+| 16   | Opcionales            | Una sola pregunta, como en A, B y C ([abajo](#opcionales-de-la-e))                                                                                                                                                                            |
 
 Después muestra la vista previa, el comando `arcli fe` equivalente y pregunta si emitir (dos veces en producción). El PDF sigue la misma regla que el resto. Volver desde el primer paso vuelve al selector de comprobantes.
 
@@ -210,7 +210,7 @@ Elegís una de las últimas facturas `E` (con **Cargar más…** e **Ingresar el
 | 1    | Comprobante          | Una de las últimas facturas `E` del punto de venta                                                                                                           |
 | 2    | Monto                | El mismo o uno nuevo, en la moneda del original. Con otro monto los ítems copiados no suman, así que sale un renglón con el total: los podés cargar de nuevo |
 | 3    | ¿Te pagan en…?       | Solo si ARCA no devolvió si se cobró en la misma moneda                                                                                                      |
-| 4    | CUIT del país        | Solo si la factura no lo trae y ARCA no publica uno para el destino                                                                                          |
+| 4    | CUIT del país        | Solo si la factura no lo trae, tampoco trae ID impositivo y ARCA no publica uno para el destino                                                              |
 | 5    | Permisos de embarque | Solo en bienes, opcional: son de cada embarque                                                                                                               |
 | 6    | Fecha de pago        | Opcional; por defecto la del comprobante. En bienes no se pregunta                                                                                           |
 | 7    | Actividad            | Solo si la factura no la trae y no está `exportacion.actividad`                                                                                              |
