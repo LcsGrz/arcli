@@ -40,15 +40,16 @@ export function resolveAssociatedVouchers(options: ResolveAssociatedVoucherOptio
   }
 
   const associatedVoucher = input.associatedVoucher;
-  // En NC/ND FCE el asociado siempre es del propio emisor (10155, WSFEv1 v4.7), asi que el CUIT puede omitirse.
-  const associatedCuit = associatedVoucher?.cuit ?? (voucherKind.isElectronicCredit ? String(emitterCuit) : undefined);
+  // Sin `--acuit` el asociado es del propio emisor. ARCA solo exige el CUIT en las notas FCE (10151, WSFEv1 v4.7), donde
+  // ademas tiene que ser el del emisor (10155); en A, B y C es opcional (p. 31).
+  const associatedCuit = associatedVoucher?.cuit ?? String(emitterCuit);
   const associatedVoucherType =
     associatedVoucher?.tipo ?? resolveAssociatedVoucherType(associatedVoucher?.shortcut, requireVoucherKind);
   const associatedVoucherKind = resolveAssociatedVoucherKind(associatedVoucher, requireVoucherKind);
 
-  if (!associatedVoucher?.numero || !associatedVoucher.puntoVenta || !associatedVoucherType || !associatedCuit) {
+  if (!associatedVoucher?.numero || !associatedVoucher.puntoVenta || !associatedVoucherType) {
     throw new InputValidationError(
-      `${formatVoucherSubject(voucherKind)} requiere comprobante asociado. Usá \`--ac\` o \`--at\`, junto con \`--apv\` o \`--asociado-punto-venta\`, \`--ar\` y \`--acuit\`${voucherKind.isElectronicCredit ? '' : ', o un período con `--periodo-desde` y `--periodo-hasta`'}.`,
+      `${formatVoucherSubject(voucherKind)} requiere comprobante asociado. Usá \`--ac\` o \`--at\`, junto con \`--apv\` o \`--asociado-punto-venta\` y \`--ar\`${voucherKind.isElectronicCredit ? '' : ' (y `--acuit` si es de otro CUIT), o un período con `--periodo-desde` y `--periodo-hasta`'}.`,
     );
   }
 

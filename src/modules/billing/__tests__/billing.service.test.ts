@@ -251,6 +251,34 @@ describe('billing.service', () => {
     ).toThrow(/requiere comprobante asociado/);
   });
 
+  it('takes the emitter CUIT when a common note omits --acuit, as ARCA only requires it in FCE (10151)', () => {
+    const payload = new BillingService().buildVoucherPayload(
+      createBillingInput({
+        associatedVoucher: { numero: 1, puntoVenta: 9, shortcut: 'fb' },
+        documentNumber: 0,
+        shortcut: 'ncb',
+      }),
+      createRuntime(),
+    );
+
+    expect(payload.CbtesAsoc).toEqual([{ Cuit: '20123456786', Nro: 1, PtoVta: 9, Tipo: 6 }]);
+  });
+
+  it('does not ask for --acuit when the associated voucher is incomplete', () => {
+    expect(() =>
+      new BillingService().buildVoucherPayload(
+        createBillingInput({
+          associatedVoucher: { puntoVenta: 9, shortcut: 'fb' },
+          documentNumber: 0,
+          shortcut: 'ncb',
+        }),
+        createRuntime(),
+      ),
+    ).toThrow(
+      'La nota de crédito B requiere comprobante asociado. Usá `--ac` o `--at`, junto con `--apv` o `--asociado-punto-venta` y `--ar` (y `--acuit` si es de otro CUIT), o un período con `--periodo-desde` y `--periodo-hasta`.',
+    );
+  });
+
   it('includes associated voucher data when provided', () => {
     const service = new BillingService();
 
