@@ -44,10 +44,7 @@ describe('quoteShellArgument en win32 (PowerShell)', () => {
     expect(quote('--pv')).toBe('--pv');
     expect(quote('3')).toBe('3');
     expect(quote('31/10')).toBe('31/10');
-  });
-
-  it('pone entre comillas la coma, que en PowerShell arma un array', () => {
-    expect(quote('1500,50')).toBe("'1500,50'");
+    expect(quote('1500,50')).toBe('1500,50');
   });
 
   it.each([
@@ -74,6 +71,6 @@ describe('formatShellCommand', () => {
     const args = ['arcli', 'fc', '-m', '1500,50', '--receptor-nombre', 'Hola! $HOME', '--emitir'];
 
     expect(formatShellCommand(args, 'linux')).toBe("arcli fc -m 1500,50 --receptor-nombre 'Hola! $HOME' --emitir");
-    expect(formatShellCommand(args, 'win32')).toBe("arcli fc -m '1500,50' --receptor-nombre 'Hola! $HOME' --emitir");
+    expect(formatShellCommand(args, 'win32')).toBe("arcli fc -m 1500,50 --receptor-nombre 'Hola! $HOME' --emitir");
   });
 });

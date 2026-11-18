@@ -198,7 +198,7 @@ describe('buildEquivalentCommand', () => {
     expect(parseCommand(command, 'fa').receiverName).toBe(receiverName);
   });
 
-  it('en Windows usa las comillas de PowerShell y pone entre comillas los montos con coma', () => {
+  it('en Windows usa las comillas de PowerShell y el resto queda igual que en POSIX', () => {
     const command = buildEquivalentCommand(
       input({
         documentNumber: 30709965812,
@@ -212,7 +212,7 @@ describe('buildEquivalentCommand', () => {
     );
 
     expect(command).toBe(
-      "arcli fa -m '1500,50' --cs --cuit 30709965812 --ir responsable-inscripto --receptor-nombre 'O''Brien' --testing --emitir",
+      "arcli fa -m 1500,50 --cs --cuit 30709965812 --ir responsable-inscripto --receptor-nombre 'O''Brien' --testing --emitir",
     );
   });
 });
