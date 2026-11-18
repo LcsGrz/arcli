@@ -2,7 +2,7 @@ import Conf from 'conf';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
-import { ConfigurationError } from '../../lib/errors/app-error';
+import { ConfigurationError, InputValidationError } from '../../lib/errors/app-error';
 
 import {
   ArcliConfig,
@@ -76,6 +76,22 @@ export function deprecatedConfigKeyWarning(rawKey: string): string | undefined {
   const key = rawKey.trim();
 
   return Object.hasOwn(DEPRECATED_CONFIG_KEYS, key) ? DEPRECATED_CONFIG_KEYS[key].warning : undefined;
+}
+
+/** Donde ver las claves y sus valores, si el rechazo no trae una sugerencia propia. */
+export const CONFIG_SET_HELP_SUGGESTION =
+  'Mirá cada clave con sus valores válidos en `arcli config establecer --ayuda`, y la config actual con `arcli config`.';
+
+function withConfigHelp<T>(parse: () => T): T {
+  try {
+    return parse();
+  } catch (error) {
+    if (error instanceof InputValidationError && !error.suggestion) {
+      throw new InputValidationError(error.message, error.details, CONFIG_SET_HELP_SUGGESTION);
+    }
+
+    throw error;
+  }
 }
 
 /** Valida un valor como lo haria `arcli config establecer`, sin guardarlo. Lanza un Error con el motivo. */
@@ -204,7 +220,7 @@ export class ConfigService {
   public setValue(rawKey: string, rawValue: string): ArcliConfig {
     const key = this.resolveKey(rawKey);
     const canonicalKey = CONFIG_KEY_ALIASES[key];
-    const parsedValue = parseConfigValue(canonicalKey, rawValue);
+    const parsedValue = withConfigHelp(() => parseConfigValue(canonicalKey, rawValue, key));
 
     return this.saveIfValid((draft) => {
       deleteLegacyKeys(draft, key);
@@ -240,9 +256,17 @@ export class ConfigService {
   private resolveKey(rawKey: string): ConfigPublicKey {
     const key = rawKey.trim();
 
-    return Object.hasOwn(DEPRECATED_CONFIG_KEYS, key)
-      ? DEPRECATED_CONFIG_KEYS[key].replacement
-      : configPublicKeySchema.parse(key);
+    if (Object.hasOwn(DEPRECATED_CONFIG_KEYS, key)) {
+      return DEPRECATED_CONFIG_KEYS[key].replacement;
+    }
+
+    const result = configPublicKeySchema.safeParse(key);
+
+    if (!result.success) {
+      throw new InputValidationError(`La clave \`${key}\` no existe.`, undefined, CONFIG_SET_HELP_SUGGESTION);
+    }
+
+    return result.data;
   }
 }
 
