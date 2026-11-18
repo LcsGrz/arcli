@@ -41,11 +41,7 @@ export interface ExportRepeatTables {
 
 /** El CUIT que ARCA publica para el destino, o `undefined` si no tiene. */
 function defaultCountryCuit(country: ExportCountry, countryCuits: readonly ExportCountryCuit[]): number | undefined {
-  try {
-    return resolveExportClientCountryCuit({ country, countries: countryCuits });
-  } catch {
-    return undefined;
-  }
+  return resolveExportClientCountryCuit({ country, countries: countryCuits });
 }
 
 /** Lo que se copia en `options` (los opcionales de la E), para que la seleccion de opcionales lo muestre. */
@@ -184,9 +180,11 @@ export function exportRepeatSteps(
 
         return cuit === BACK ? BACK : { options: { ...state.options, clientCountryCuit: cuit } };
       },
+      // Con el ID impositivo de la factura alcanza: ARCA pide uno de los dos (error 1580).
       skip: (state) =>
         !state.country ||
         state.options?.clientCountryCuit !== undefined ||
+        Boolean(state.copy?.clientTaxId?.trim()) ||
         !isCountryCuitMissing({ country: state.country, countryCuits: tables.countryCuits }),
     },
     {

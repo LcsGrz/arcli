@@ -1,6 +1,6 @@
 {
   "name": "arcli",
-  "version": "2.5.1",
+  "version": "2.5.2",
   "description": "Facturá en ARCA (ex AFIP) desde tu terminal: con comandos, un asistente o tu IA.",
   "keywords": [
     "arca",

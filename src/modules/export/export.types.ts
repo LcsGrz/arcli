@@ -141,7 +141,8 @@ export interface ExportVoucherPayload {
    * factura no lo acepta (error 1755).
    */
   readonly Cmps_asoc?: { Cmp_asoc: ExportAssociatedVoucherPayload[] };
-  readonly Cuit_pais_cliente: number;
+  /** CUIT del pais del cliente. Sin el, ARCA pide `Id_impositivo` (error 1580). */
+  readonly Cuit_pais_cliente?: number;
   readonly Domicilio_cliente: string;
   readonly Dst_cmp: number;
   readonly Fecha_cbte: string;
@@ -222,9 +223,9 @@ export interface ExportQuotation {
   readonly rate: number;
 }
 
-/** `Moneda_Id`, `Moneda_ctz` y `CanMisMonExt` ya resueltos. */
+/** `Moneda_Id`, `Moneda_ctz` y `CanMisMonExt` ya resueltos. En pesos no hay `CanMisMonExt` (error 1605). */
 export interface ExportCurrencyFields {
-  readonly CanMisMonExt: 'N' | 'S';
+  readonly CanMisMonExt?: 'N' | 'S';
   readonly Moneda_ctz: number;
   readonly Moneda_Id: string;
 }
