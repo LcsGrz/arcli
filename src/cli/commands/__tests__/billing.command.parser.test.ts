@@ -365,6 +365,18 @@ describe('billing.command.parser', () => {
     expect(() => parse('011059952000001234567a')).toThrow(/22 dígitos/);
   });
 
+  it.each([
+    ['0110599420000012345678', /bloque de banco y sucursal/],
+    ['0110599520000012345677', /bloque de la cuenta/],
+  ])('rejects a CBU %j with a wrong check digit, from --cbu or from --cargar', (cbu, reason) => {
+    const parse = (args: string[]) =>
+      parseBillingCommandInput(createCommand(['--monto', '1000', '--cs', '--ir-ri', ...args]), 'fcea');
+
+    expect(() => parse(['--cbu', cbu])).toThrow(reason);
+    expect(() => parse(['--cargar', writeJsonInput({ cbu })])).toThrow(reason);
+    expect(parse(['--cargar', writeJsonInput({ cbu: '0110599520000012345678' })]).cbu).toBe('0110599520000012345678');
+  });
+
   it('parses FCE flags', () => {
     const input = parseBillingCommandInput(
       createCommand([

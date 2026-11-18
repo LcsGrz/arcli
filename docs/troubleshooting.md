@@ -254,6 +254,14 @@ arcli fc ayuda
 - **Solución:** pasar `--cbu <22 dígitos>` o configurarlo una vez con `arcli config establecer cbu <22 dígitos>`.
 - **Documentación relacionada:** [Crédito electrónico (FCE)](validation-rules.md#crédito-electrónico-fce)
 
+### CBU con el dígito verificador mal
+
+- **Severidad:** ocasional
+- **Síntoma:** `El CBU no es válido: no coincide el dígito verificador del bloque de banco y sucursal (los primeros 8 dígitos).` (o `del bloque de la cuenta (los últimos 14 dígitos)`).
+- **Causa:** algún dígito del CBU está mal escrito o cambiado de lugar. ARCLI controla los dos dígitos verificadores antes de ir a ARCA.
+- **Solución:** copiá el CBU de nuevo desde el home banking o la constancia del banco. El mensaje dice en qué bloque está el error.
+- **Documentación relacionada:** [Crédito electrónico (FCE)](validation-rules.md#crédito-electrónico-fce)
+
 ### NC/ND: ARCA no tiene el asociado
 
 - **Severidad:** ocasional

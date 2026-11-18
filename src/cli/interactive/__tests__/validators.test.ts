@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { validateOptionalDate, validatePointOfSale, validatePositiveInteger } from '../validators';
+import { validateCbu, validateOptionalDate, validatePointOfSale, validatePositiveInteger } from '../validators';
 
 describe('validatePositiveInteger', () => {
   const validateNumber = validatePositiveInteger('El número');
@@ -24,5 +24,14 @@ describe('validateOptionalDate', () => {
     expect(validateOptionalDate('  ')).toBe(true);
     expect(validateOptionalDate('15/10/2026')).toBe(true);
     expect(validateOptionalDate('32/10/2026')).toMatch(/Fecha inválida/);
+  });
+});
+
+describe('validateCbu', () => {
+  it('usa la misma regla que `--cbu`: 22 dígitos y los dos verificadores', () => {
+    expect(validateCbu('0110599520000012345678')).toBe(true);
+    expect(validateCbu('123')).toMatch(/22 dígitos/);
+    expect(validateCbu('0110599420000012345678')).toMatch(/bloque de banco y sucursal/);
+    expect(validateCbu('0110599520000012345677')).toMatch(/bloque de la cuenta/);
   });
 });

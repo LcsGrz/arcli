@@ -193,11 +193,11 @@ Además:
 
 ARCLI arma `Opcionales` (los "Adicionales por R.G.") según el comprobante:
 
-| Comprobante                          | `Opcionales`                                                 | Reglas                                                                                                                                                                                                                           |
-| ------------------------------------ | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Factura FCE (`fcea`, `fceb`, `fcec`) | `2101` CBU, `2102` alias (si se informa), `27` transferencia | El CBU es obligatorio (10168) y tiene 22 dígitos (10165). El alias tiene de 6 a 20 caracteres (10166). La transferencia es `SCA` o `ADC`, por defecto `SCA` (10216). `--anulacion` da error (10171).                             |
-| NC/ND FCE (`ncea`…`ndec`)            | `22` anulación: `S` con `--anulacion`, si no `N`             | Obligatorio (10173). `--cbu`, `--alias` y `--transferencia` dan error (10172). Sin `--afecha`, la fecha del asociado sale de ARCA (10158). El asociado tiene que ser del CUIT emisor (10155), así que `--acuit` se puede omitir. |
-| Resto                                | ninguno                                                      | `--cbu`, `--alias`, `--transferencia` y `--anulacion` dan error (10169).                                                                                                                                                         |
+| Comprobante                          | `Opcionales`                                                 | Reglas                                                                                                                                                                                                                                                                    |
+| ------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Factura FCE (`fcea`, `fceb`, `fcec`) | `2101` CBU, `2102` alias (si se informa), `27` transferencia | El CBU es obligatorio (10168) y tiene 22 dígitos (10165) con sus dos dígitos verificadores (regla propia de ARCLI, ver abajo). El alias tiene de 6 a 20 caracteres (10166). La transferencia es `SCA` o `ADC`, por defecto `SCA` (10216). `--anulacion` da error (10171). |
+| NC/ND FCE (`ncea`…`ndec`)            | `22` anulación: `S` con `--anulacion`, si no `N`             | Obligatorio (10173). `--cbu`, `--alias` y `--transferencia` dan error (10172). Sin `--afecha`, la fecha del asociado sale de ARCA (10158). El asociado tiene que ser del CUIT emisor (10155), así que `--acuit` se puede omitir.                                          |
+| Resto                                | ninguno                                                      | `--cbu`, `--alias`, `--transferencia` y `--anulacion` dan error (10169).                                                                                                                                                                                                  |
 
 ### Régimen FCE del receptor
 
@@ -210,6 +210,8 @@ Con `config.verificarFce` en `true`, ARCLI consulta `wsfecred` (`consultarMontoO
 | `fcea`, `fceb`, `fcec` | obligado, pero monto < mínimo        | Corresponde `fa`, `fb` o `fc`       |
 
 Los avisos aparecen en la salida de texto (panel "Avisos") y en el campo `avisos` del JSON. No frenan la emisión. Si la consulta falla, por ejemplo porque el certificado no tiene autorizado `wsfecred`, el motivo también llega como aviso.
+
+El CBU se valida igual en `--cbu`, la clave `cbu` del JSON de `--cargar`, `config establecer cbu` (y la config ya guardada) y el modo interactivo. Además del largo, ARCLI controla los dos dígitos verificadores, una regla propia y no de ARCA, para frenar un CBU mal escrito antes de ir a ARCA. El CBU tiene dos bloques: banco y sucursal (los primeros 8 dígitos; los 7 primeros con pesos 7 1 3 9 7 1 3) y cuenta (los últimos 14; los 13 primeros con pesos 3 9 7 1 3 9 7 1 3 9 7 1 3). El último dígito de cada bloque es `(10 − suma % 10) % 10`. Si no coincide, es un `INPUT_VALIDATION_ERROR` que dice qué bloque está mal. No se controla que el código de banco exista.
 
 `config.cbu` y `config.aliasCbu` solo se aplican a facturas FCE. ARCA además exige que el CBU esté registrado a nombre del emisor (10174), cosa que no se puede validar localmente.
 

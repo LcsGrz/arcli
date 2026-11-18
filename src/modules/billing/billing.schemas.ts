@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { describeInvalidCbu, parseCbu } from '../../lib/identity/cbu';
 import { parseCuit } from '../../lib/identity/cuit';
 import { AMOUNT_DECIMALS, EXCHANGE_RATE_DECIMALS, hasAtMostDecimals } from '../../lib/numbers/argentine-amount';
 
@@ -120,16 +121,25 @@ const billingAssociatedPeriodSchema = z
   })
   .optional();
 
+/** CBU de 22 dígitos con sus dos verificadores, el mismo en flags, `--cargar` y la config. */
+export const cbuSchema = z.string().transform((value, context) => {
+  const result = parseCbu(value);
+
+  if (!result.ok) {
+    context.addIssue({ code: 'custom', message: describeInvalidCbu(result.reason) });
+
+    return z.NEVER;
+  }
+
+  return result.value;
+});
+
 export const billingCommandSchema = z.object({
   associatedPeriod: billingAssociatedPeriodSchema,
   associatedVoucher: billingAssociatedVoucherSchema,
   billingDate: z.string().trim().optional(),
   cancellation: z.boolean().default(false),
-  cbu: z
-    .string()
-    .trim()
-    .regex(/^\d{22}$/, 'El CBU debe tener 22 dígitos')
-    .optional(),
+  cbu: cbuSchema.optional(),
   cbuAlias: z
     .string()
     .trim()
