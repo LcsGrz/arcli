@@ -194,7 +194,7 @@ describe('assertExportNoteMatchesAssociated', () => {
 describe('exportAssociatedVoucherWarnings', () => {
   it('avisa que la fecha del asociado no se usa', () => {
     expect(exportAssociatedVoucherWarnings({ date: '30/10', number: 1 })).toEqual([
-      expect.stringContaining('`--afecha` no se usa'),
+      expect.stringContaining('"comprobanteAsociado.fecha" del JSON de `--cargar` no se usa'),
     ]);
     expect(exportAssociatedVoucherWarnings({ number: 1 })).toEqual([]);
   });

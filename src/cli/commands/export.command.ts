@@ -27,9 +27,6 @@ import { REJECTED_EXIT_CODE } from './billing.command.shared';
 import { parseExportCommandPlan } from './export.command.parser';
 import { attachExportPdf } from './export.command.pdf';
 
-const ITEMS_DESCRIPTION_WARNING =
-  '`--descripcion` se usa solo cuando no hay `--item`: el detalle del comprobante sale de los items.';
-
 function writeExportResult(
   result: ExportExecutionResult,
   options: {
@@ -52,15 +49,6 @@ function writeExportResult(
       raw: options.raw,
     }),
   );
-}
-
-function resolveWarnings(
-  certificateWarningsList: readonly string[],
-  input: { readonly description?: string; readonly items?: readonly unknown[] },
-): string[] {
-  const ignored = input.items && input.items.length > 0 && input.description?.trim() ? [ITEMS_DESCRIPTION_WARNING] : [];
-
-  return [...certificateWarningsList, ...ignored];
 }
 
 export interface ExportCommandOptions {
@@ -107,7 +95,7 @@ export async function executeExportCommand(
     const resolved = await service.resolve(plan.input, gateway, runtime);
     // Los avisos de la resolucion (por ejemplo, la cotizacion de un dia anterior) van con los del certificado.
     const warnings = [
-      ...resolveWarnings(certificateWarnings(runtime), plan.input),
+      ...certificateWarnings(runtime),
       ...plan.warnings,
       ...(options.extraWarnings ?? []),
       ...(resolved.warnings ?? []),

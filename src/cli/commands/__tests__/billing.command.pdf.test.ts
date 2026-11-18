@@ -7,7 +7,12 @@ import { getVoucherKindByShortcut } from '../../../modules/billing/voucher-kind-
 import type { ArcliConfig } from '../../../modules/config/config.schemas';
 import { PdfError } from '../../../modules/pdf/pdf.errors';
 import type { PdfPlugin } from '../../../services/pdf/pdf-plugin';
-import { attachPdfs, PDF_ONLY_FLAGS_WARNING, type PdfStepDependencies } from '../billing.command.pdf';
+import {
+  attachPdfs,
+  PDF_ONLY_FLAGS_WARNING,
+  pdfOnlyDataWarning,
+  type PdfStepDependencies,
+} from '../billing.command.pdf';
 
 vi.mock('../../spinner', () => ({ startSpinner: () => null }));
 vi.mock('node:fs', async (importOriginal) => ({
@@ -240,6 +245,30 @@ describe('attachPdfs', () => {
     );
 
     expect(result.warnings).toEqual(['otro aviso', PDF_ONLY_FLAGS_WARNING]);
+  });
+
+  it('si los datos del PDF vinieron del JSON de --cargar, el aviso nombra sus claves y no los flags', () => {
+    expect(
+      pdfOnlyDataWarning(
+        input({
+          fromFile: ['pdfDescription', 'receiverName'],
+          pdfDescription: 'Servicio',
+          receiverName: 'Cliente SA',
+        }),
+      ),
+    ).toBe(
+      'Las claves "descripcion" y "receptorNombre" del JSON de `--cargar` solo se usan en el PDF; no se generó ninguno.',
+    );
+    expect(pdfOnlyDataWarning(input({ fromFile: ['receiverAddress'], receiverAddress: 'Calle 1' }))).toBe(
+      'La clave "receptorDomicilio" del JSON de `--cargar` solo se usa en el PDF; no se generó ninguno.',
+    );
+    expect(
+      pdfOnlyDataWarning(input({ fromFile: ['saleCondition'], pdfDescription: 'Servicio', saleCondition: 'Contado' })),
+    ).toBe(
+      '`--descripcion` y la clave "condicionVenta" del JSON de `--cargar` solo se usan en el PDF; no se generó ninguno.',
+    );
+    expect(pdfOnlyDataWarning(input({ pdfDescription: 'Servicio' }))).toBe(PDF_ONLY_FLAGS_WARNING);
+    expect(pdfOnlyDataWarning(input())).toBeUndefined();
   });
 
   it('does not warn about the receiver the padron filled in', async () => {
