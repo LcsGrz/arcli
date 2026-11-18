@@ -1234,6 +1234,36 @@ describe('flujos del modo interactivo', () => {
 
       expect(state?.invoice?.number).toBe(14);
     });
+
+    it('si no existe y su punto de venta no es de web service, explica como hacer la nota (REGLAS-1)', async () => {
+      let printed = '';
+
+      vi.mocked(process.stdout.write).mockImplementation((chunk) => {
+        printed += String(chunk);
+        return true;
+      });
+      script = createScript([
+        [/Sobre qué comprobante/, 'Factura C'],
+        [/A qué la asociamos/, 'A una factura'],
+        [/Sobre qué factura C/, 'Ingresar el número a mano'],
+        [/Punto de venta/, '50'],
+        [/^Número/, '15'],
+        [/Sobre qué factura C/, '00003-00000014'],
+        [/Total o parcial/, 'Anular el total'],
+        [/Agregamos/, []],
+      ]);
+
+      // Sin lista de puntos de venta (el ARCA falso no la tiene), decide el ultimo numero: en el 50 no hay ninguno.
+      const session = createSession([invoice({ ivaAmount: 0 })]);
+      vi.spyOn(session.historyGateway, 'getLastNumber').mockImplementation(async (pointOfSale) =>
+        pointOfSale === 50 ? 0 : 14,
+      );
+      await runWizard(noteSteps(session, 3), { kind: 'credito' });
+
+      expect(stripAnsi(printed).replace(/[│┃╏\s]+/g, ' ')).toContain(
+        'ARCA no tiene la factura C N° 00050-00000015 y el punto de venta 50 no es de web service. Si es de Comprobantes en línea o de un controlador fiscal, el asistente no puede copiar sus datos: asociá la nota a un período, o hacela con `arcli` pasando `--apv 50 --ar 15 --afecha <fecha>`.',
+      );
+    });
   });
 
   describe('consultar comprobantes', () => {

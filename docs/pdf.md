@@ -166,7 +166,7 @@ La `E` usa el diseño de exportación de `@arcasdk/pdf`, con los mismos datos qu
 - el tipo de cambio y el importe total en la moneda del comprobante;
 - la leyenda `IVA EXENTO OPERACIÓN DE EXPORTACIÓN` debajo de la condición frente al IVA del emisor;
 - las observaciones comerciales y las observaciones, debajo del CAE;
-- el QR de ARCA, con el CUIT del país como documento del receptor.
+- el QR de ARCA, con el CUIT del país como documento del receptor. Sin CUIT del país (la `E` va solo con el ID impositivo), el documento del receptor es el ID impositivo.
 
 - El nombre y el domicilio del cliente no son datos solo del PDF: salen de `--cliente` y `--domicilio-cliente` y ARCA los guarda. `--receptor-nombre` y `--receptor-domicilio` no existen en `fe`.
 - `--descripcion` es la descripción del renglón único que arma ARCLI cuando no pasás `--item` (por defecto "Según detalle"). Con ítems, los renglones son los `--item`.

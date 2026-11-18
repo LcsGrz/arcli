@@ -51,7 +51,7 @@ function gateways(overrides: Partial<BillingCommandGateways['billing']> = {}): B
       ...overrides,
     },
     fce: { getObligation: vi.fn() } as never,
-    history: { getVoucher: vi.fn(async () => undefined) },
+    history: { getLastNumber: vi.fn(async () => 0), getVoucher: vi.fn(async () => undefined) },
     padron: { getTaxpayer: vi.fn(async () => null) },
   };
 }
@@ -378,7 +378,7 @@ function issued(overrides: Partial<IssuedVoucher> = {}): IssuedVoucher {
 }
 
 function withAssociated(voucher: IssuedVoucher | undefined): BillingCommandGateways {
-  return { ...gateways(), history: { getVoucher: vi.fn(async () => voucher) } };
+  return { ...gateways(), history: { getLastNumber: vi.fn(async () => 12), getVoucher: vi.fn(async () => voucher) } };
 }
 
 const CREDIT_NOTE_C = [
@@ -434,7 +434,13 @@ describe('notas con el asociado consultado en ARCA una vez, antes de la vista pr
   });
 
   it('si ARCA no responde, la NC se previsualiza igual, con un aviso', async () => {
-    const used = { ...gateways(), history: { getVoucher: vi.fn(async () => Promise.reject(new Error('timeout'))) } };
+    const used = {
+      ...gateways(),
+      history: {
+        getLastNumber: vi.fn(async () => 12),
+        getVoucher: vi.fn(async () => Promise.reject(new Error('timeout'))),
+      },
+    };
 
     await run(CREDIT_NOTE_C, { gateways: used, shortcut: 'ncc' });
 

@@ -2,6 +2,7 @@ import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { formatArgentineAmountInput } from '../../lib/numbers/argentine-amount';
 import type { ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
+import type { ParametersGateway } from '../parameters/parameters';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../vouchers/voucher-history';
 import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
 
@@ -116,6 +117,78 @@ export function missingAssociatedVoucherError(associatedLabel: string, reason?: 
   );
 }
 
+/**
+ * De donde es el punto de venta de un asociado que ARCA no tiene:
+ * - `web-service`: uno de los puntos de venta de web service del emisor. Ahi el comprobante tendria que estar, asi
+ *   que casi seguro es un numero mal escrito.
+ * - `other`: no es de web service (Comprobantes en linea, controlador fiscal, otro sistema). `FECompConsultar` no
+ *   ve esos comprobantes y ARCA los acepta como asociados (10041 solo controla los de un punto de venta electronico;
+ *   10211 y 10212 prevén los de controlador fiscal o FactuWeb).
+ * - `unknown`: ARCA no respondio y no se sabe.
+ */
+export type AssociatedPointOfSaleOrigin = 'other' | 'unknown' | 'web-service';
+
+/**
+ * Clasifica el punto de venta con `FEParamGetPtosVenta`, que lista solo los de web service (CAE y CAEA). En testing
+ * esa lista viene vacia ("Sin Resultados", 602), asi que si no hay lista se mira si ARCA tiene comprobantes de ese
+ * tipo en ese punto de venta (`FECompUltimoAutorizado`): si tiene, es de web service.
+ */
+export async function classifyAssociatedPointOfSale(options: {
+  readonly history: Pick<VoucherHistoryGateway, 'getLastNumber'>;
+  readonly pointOfSale: number;
+  readonly salesPoints?: Pick<ParametersGateway, 'getSalesPoints'>;
+  readonly voucherType: number;
+}): Promise<AssociatedPointOfSaleOrigin> {
+  const { history, pointOfSale, salesPoints, voucherType } = options;
+  let listed: readonly number[] | undefined;
+
+  try {
+    listed = salesPoints ? (await salesPoints.getSalesPoints()).map((point) => point.number) : undefined;
+  } catch {
+    listed = undefined;
+  }
+
+  if (listed && listed.length > 0) {
+    return listed.includes(pointOfSale) ? 'web-service' : 'other';
+  }
+
+  try {
+    if ((await history.getLastNumber(pointOfSale, voucherType)) > 0) {
+      return 'web-service';
+    }
+  } catch {
+    return 'unknown';
+  }
+
+  return listed ? 'other' : 'unknown';
+}
+
+/**
+ * El aviso de un asociado que ARCA no tiene en un punto de venta que no es de web service (o que no se pudo
+ * clasificar): la nota sigue, sin controlar su tope, y si falta la fecha se recuerda la 10211.
+ */
+function missingAssociatedWarning(options: {
+  readonly hasDate: boolean;
+  readonly isCreditNote: boolean;
+  readonly label: string;
+  readonly origin: Exclude<AssociatedPointOfSaleOrigin, 'web-service'>;
+  readonly pointOfSale: number;
+}): string {
+  const { hasDate, isCreditNote, label, origin, pointOfSale } = options;
+  const where =
+    origin === 'other'
+      ? `el punto de venta ${pointOfSale} no es de web service`
+      : `no se pudo consultar si el punto de venta ${pointOfSale} es de web service`;
+
+  return [
+    `No se encontró ${label} en ARCA y ${where}: si es de Comprobantes en línea, de un controlador fiscal o de otro sistema, está bien; si no, revisá \`--ar\`, \`--apv\` y \`--ac\`.`,
+    ...(isCreditNote ? ['No se pudo controlar que la nota de crédito no lo supere.'] : []),
+    ...(hasDate
+      ? []
+      : ['Si es de un controlador fiscal o de FactuWeb, ARCA pide su fecha (error 10211): pasala con `--afecha`.']),
+  ].join(' ');
+}
+
 export interface CheckedAssociated {
   readonly input: BillingCommandInput;
   /** Si ARCA no respondio y la nota igual se puede emitir: el asociado y el tope de la NC quedan sin controlar. */
@@ -131,16 +204,19 @@ function reasonOf(error: unknown): string {
  * vista previa: que exista, que una NC no supere su total y, en una nota FCE sin `--afecha`, su fecha. Devuelve la
  * entrada con esa fecha, asi la vista previa la muestra y la emision no vuelve a consultar.
  *
- * Si ARCA no tiene el asociado, frena como en las notas E. Si no responde, la nota FCE sin fecha no se puede armar y
- * frena; el resto sigue con un aviso y ARCA decide al emitir.
+ * Si ARCA no tiene el asociado y su punto de venta es de web service del emisor, frena como en las notas E: es casi
+ * seguro un numero mal escrito. Si el punto de venta no es de web service (Comprobantes en linea, controlador
+ * fiscal), sigue con un aviso; la nota FCE sin fecha frena pidiendo `--afecha`. Si ARCA no responde, la nota FCE sin
+ * fecha no se puede armar y frena; el resto sigue con un aviso y ARCA decide al emitir.
  */
 export async function checkAssociatedInArca(options: {
-  readonly gateway: Pick<VoucherHistoryGateway, 'getVoucher'>;
+  readonly gateway: Pick<VoucherHistoryGateway, 'getLastNumber' | 'getVoucher'>;
   readonly input: BillingCommandInput;
   readonly runtime: ResolvedArcaRuntime;
+  readonly salesPoints?: Pick<ParametersGateway, 'getSalesPoints'>;
   readonly service: Pick<BillingService, 'buildVoucherPayload'>;
 }): Promise<CheckedAssociated> {
-  const { gateway, input, runtime, service } = options;
+  const { gateway, input, runtime, salesPoints, service } = options;
   const voucherKind = getVoucherKindByShortcut(input.shortcut);
   const associated = input.associatedVoucher;
   const unchanged: CheckedAssociated = { input, warnings: [] };
@@ -180,7 +256,37 @@ export async function checkAssociatedInArca(options: {
   }
 
   if (!voucher) {
-    throw missingAssociatedVoucherError(label, needsDate ? 'no se puede tomar su fecha' : undefined);
+    const origin = await classifyAssociatedPointOfSale({
+      history: gateway,
+      pointOfSale: reference.PtoVta,
+      salesPoints,
+      voucherType: reference.Tipo,
+    });
+
+    if (origin === 'web-service') {
+      throw missingAssociatedVoucherError(label, needsDate ? 'no se puede tomar su fecha' : undefined);
+    }
+
+    if (needsDate) {
+      throw new InputValidationError(
+        `No se encontró ${label} en ARCA, así que no se puede tomar su fecha.`,
+        undefined,
+        'Si es de Comprobantes en línea o de un controlador fiscal, pasá su fecha con `--afecha <fecha>`. Si no, revisá `--ar`, `--apv` y `--ac`.',
+      );
+    }
+
+    return {
+      input,
+      warnings: [
+        missingAssociatedWarning({
+          hasDate: Boolean(associated.fecha),
+          isCreditNote: CREDIT_NOTE_FAMILIES.has(voucherKind.family),
+          label,
+          origin,
+          pointOfSale: reference.PtoVta,
+        }),
+      ],
+    };
   }
 
   if (CREDIT_NOTE_FAMILIES.has(voucherKind.family)) {

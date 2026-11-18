@@ -1,5 +1,6 @@
 import { Separator } from '@inquirer/select';
 
+import { classifyAssociatedPointOfSale } from '../../modules/billing/billing.associated-lookup';
 import { formatNoVouchersEmitted, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { resolveRowsPerList } from '../../modules/config/config.schemas';
@@ -8,6 +9,7 @@ import type { ExportGateway, ExportIssuedVoucher, ExportVoucherKind } from '../.
 import { BACK, type Back } from '../../modules/interactive/wizard';
 import { fetchVouchersBackwards, type IssuedVoucher } from '../../modules/vouchers/voucher-history';
 import { formatVoucherNumber, formatVoucherPickerRows } from '../../modules/vouchers/voucher-history.presenter';
+import { ArcaParametersGateway } from '../../services/arca/arca-parameters.gateway';
 import { colorize, noticePanel, statusBarWidth, uiSymbol, writeTerminalOutput } from '../../ui';
 import { withSpinner } from '../spinner';
 
@@ -31,6 +33,8 @@ export interface VoucherSource<T extends { readonly number: number }> {
   getLastNumber(pointOfSale: number): Promise<number>;
   getVoucher(number: number, pointOfSale: number): Promise<T | null | undefined>;
   formatRows(pointOfSale: number, vouchers: readonly T[], separator: string, width: number): string[];
+  /** El aviso cuando el comprobante ingresado a mano no existe, si hay algo mas que decir que "No existe". */
+  describeMissing?(pointOfSale: number, number: number): Promise<string | undefined>;
 }
 
 /** Solo el nombre y la familia: tambien la E, que no es un VoucherKindDefinition. */
@@ -48,6 +52,11 @@ interface PickVoucherOptions<T> {
 }
 
 interface PickInvoiceOptions extends PickVoucherOptions<IssuedVoucher> {
+  /**
+   * Para una nota: si el comprobante a mano no existe y su punto de venta no es de web service (Comprobantes en
+   * linea, controlador fiscal), el aviso explica que la nota se puede hacer igual, por periodo o con flags.
+   */
+  readonly forNote?: boolean;
   readonly voucherKind: VoucherKindDefinition;
 }
 
@@ -90,12 +99,16 @@ async function askVoucherByNumber<T extends { readonly number: number }>(
 
   const pointOfSale = Number(pointOfSaleAnswer.trim());
   const number = Number(numberAnswer.trim());
-  const invoice = await withSpinner('Buscando en ARCA...', () => source.getVoucher(number, pointOfSale));
+  const { invoice, missing } = await withSpinner('Buscando en ARCA...', async () => {
+    const found = await source.getVoucher(number, pointOfSale);
+
+    return { invoice: found, missing: found ? undefined : await source.describeMissing?.(pointOfSale, number) };
+  });
 
   if (!invoice) {
     writeTerminalOutput(
       noticePanel(
-        `No existe ${formatVoucherWithArticle(voucherKind)} N° ${formatVoucherNumber(pointOfSale, number)}.`,
+        missing ?? `No existe ${formatVoucherWithArticle(voucherKind)} N° ${formatVoucherNumber(pointOfSale, number)}.`,
         'warning',
       ),
     );
@@ -104,6 +117,22 @@ async function askVoucherByNumber<T extends { readonly number: number }>(
   }
 
   return { invoice, pointOfSale };
+}
+
+/**
+ * Una factura que ARCA no tiene, en un punto de venta que no es de web service: el asistente no puede copiar sus
+ * datos, pero la nota se puede hacer por periodo o con flags (ver `checkAssociatedInArca`).
+ */
+export function missingNonWebServiceInvoiceNotice(
+  voucherKind: VoucherKindDefinition,
+  pointOfSale: number,
+  number: number,
+): string {
+  const flags = `hacela con \`arcli\` pasando \`--apv ${pointOfSale} --ar ${number} --afecha <fecha>\``;
+  // Las notas FCE no aceptan periodo asociado (10196).
+  const way = voucherKind.isElectronicCredit ? flags : `asociá la nota a un período, o ${flags}`;
+
+  return `ARCA no tiene ${formatVoucherWithArticle(voucherKind)} N° ${formatVoucherNumber(pointOfSale, number)} y el punto de venta ${pointOfSale} no es de web service. Si es de Comprobantes en línea o de un controlador fiscal, el asistente no puede copiar sus datos: ${way}.`;
 }
 
 /** Un comprobante A, B o C emitido, por wsfe. Ver `pickVoucher`. */
@@ -115,6 +144,22 @@ export async function pickInvoice(
   const { arcaType } = options.voucherKind;
 
   return pickVoucher(session, options, {
+    ...(options.forNote
+      ? {
+          describeMissing: async (pointOfSale: number, number: number) => {
+            const origin = await classifyAssociatedPointOfSale({
+              history: historyGateway,
+              pointOfSale,
+              salesPoints: new ArcaParametersGateway(session.arca),
+              voucherType: arcaType,
+            });
+
+            return origin === 'web-service'
+              ? undefined
+              : missingNonWebServiceInvoiceNotice(options.voucherKind, pointOfSale, number);
+          },
+        }
+      : {}),
     formatRows: formatVoucherPickerRows,
     getLastNumber: (pointOfSale) => historyGateway.getLastNumber(pointOfSale, arcaType),
     getVoucher: (number, pointOfSale) => historyGateway.getVoucher(number, pointOfSale, arcaType),

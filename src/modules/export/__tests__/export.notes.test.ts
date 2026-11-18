@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { resolveExportCurrency } from '../export.mappers';
 import {
   applyExportAssociatedDefaults,
   assertExportNoteFields,
@@ -113,6 +114,13 @@ describe('assertExportNoteFields', () => {
 });
 
 describe('applyExportAssociatedDefaults', () => {
+  it('hereda una cotizacion menor a 1, como la del guarani, y la nota la acepta', () => {
+    const note = applyExportAssociatedDefaults(INPUT, { ...INVOICE, currencyCode: '029', exchangeRate: 0.19 });
+
+    expect(note.exchangeRate).toBe(0.19);
+    expect(resolveExportCurrency(note).fields).toMatchObject({ Moneda_ctz: 0.19, Moneda_Id: '029' });
+  });
+
   it('completa la nota con los datos del asociado', () => {
     expect(applyExportAssociatedDefaults(INPUT, INVOICE)).toMatchObject({
       activity: 620100,

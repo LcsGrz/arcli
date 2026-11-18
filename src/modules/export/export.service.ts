@@ -10,7 +10,9 @@ import { type ArcliConfig, MISSING_CUIT_MESSAGE } from '../config/config.schemas
 
 import { assertExportItemsTotal, buildExportItems, DEFAULT_EXPORT_ITEM_DESCRIPTION } from './export.items';
 import {
+  assertExportClientIdentification,
   buildExportPayload,
+  type ExportQuotationDate,
   exportTypeTakesPaymentDate,
   resolveExportActivity,
   resolveExportClientCountryCuit,
@@ -21,6 +23,7 @@ import {
   resolveExportNumber,
   resolveExportPointOfSale,
   resolveExportQuotation,
+  resolveExportQuotationDate,
   resolveExportType,
   resolveExportVoucherDate,
 } from './export.mappers';
@@ -40,6 +43,8 @@ import {
   type ExportExecutionResult,
   type ExportGateway,
   type ExportIssuedVoucher,
+  type ExportQuotation,
+  type ExportType,
   type ExportVoucherInput,
   type ExportVoucherKind,
   getExportVoucherKindByArcaType,
@@ -145,6 +150,37 @@ async function fetchAssociated(
   };
 }
 
+/**
+ * Aviso de que dia es la cotizacion, solo si no es la del dia que se pidio. En servicios y con el pago en la misma
+ * moneda se pide el dia anterior al comprobante: sale el aviso cuando ese dia no hubo (un fin de semana o un feriado)
+ * y ARCA devolvio la del ultimo dia habil. En el resto, cuando ARCA todavia no publico la de la fecha del comprobante.
+ */
+function exportQuotationWarnings(
+  quotation: ExportQuotation,
+  quotationDate: ExportQuotationDate,
+  exportType: ExportType,
+): string[] {
+  if (!quotation.date || quotation.date === quotationDate.date) {
+    return [];
+  }
+
+  const used = `la del ${formatArcaDateAsArgentineDate(quotation.date)} (${formatExchangeRate(quotation.rate)})`;
+
+  if (quotationDate.rule === 'previous-business-day') {
+    const subject = exportType === 2 ? 'En servicios' : 'Con `--misma-moneda`';
+
+    return [
+      `${subject} ARCA exige la cotización de ${quotation.code} del día hábil anterior a la fecha del comprobante (error 2053): se usa ${used}, la última que publicó hasta el ${formatArcaDateAsArgentineDate(quotationDate.date)}.`,
+    ];
+  }
+
+  return [
+    `ARCA no publicó la cotización de ${quotation.code} del ${formatArcaDateAsArgentineDate(
+      quotationDate.date,
+    )}: se usa ${used}. Para usar otra, \`--cotizacion-moneda\`.`,
+  ];
+}
+
 function describeAssociated(voucher: ExportIssuedVoucher): ExportDisplayInfo['associatedVoucher'] {
   return {
     currencyCode: voucher.currencyCode,
@@ -195,6 +231,12 @@ export class ExportService {
       cuit: input.clientCountryCuit,
     });
 
+    assertExportClientIdentification({
+      clientCountryCuit,
+      clientTaxId: input.clientTaxId,
+      country: destinationCountry,
+    });
+
     const units = await gateway.getUnits();
     const items = buildExportItems(
       input.items,
@@ -208,8 +250,19 @@ export class ExportService {
     const languages = await gateway.getLanguages();
     const languageId = resolveExportLanguage(input.language, languages);
     const currency = resolveExportCurrency(input);
+    const quotationDate = resolveExportQuotationDate({
+      exportType,
+      isNote: isExportNote(voucherKind),
+      sameCurrency: currency.fields.CanMisMonExt === 'S',
+      today: formatDateAsArcaDate(now),
+      voucherDate,
+    });
     const quotation = currency.needsQuotation
-      ? resolveExportQuotation(currency.fields.Moneda_Id, await gateway.getQuotations(voucherDate), voucherDate)
+      ? resolveExportQuotation(
+          currency.fields.Moneda_Id,
+          await gateway.getQuotations(quotationDate.date),
+          quotationDate.date,
+        )
       : undefined;
     const exchangeRate = quotation?.rate ?? currency.fields.Moneda_ctz;
     const pointOfSale = resolveExportPointOfSale(input.pointOfSale, config);
@@ -267,7 +320,10 @@ export class ExportService {
     const currencyCode = payload.Moneda_Id.trim().toUpperCase();
     const display: ExportDisplayInfo = {
       ...(associated ? { associatedVoucher: describeAssociated(associated.voucher) } : {}),
-      countryCuitName: countryCuits.find((entry) => entry.cuit === clientCountryCuit)?.countryName,
+      countryCuitName:
+        clientCountryCuit === undefined
+          ? undefined
+          : countryCuits.find((entry) => entry.cuit === clientCountryCuit)?.countryName,
       countryName: destinationCountry.name,
       currencyName: (await gateway.getCurrencies()).find((entry) => entry.code.trim().toUpperCase() === currencyCode)
         ?.name,
@@ -284,13 +340,7 @@ export class ExportService {
             'La factura E de bienes (`--tipo-expo 1`) no lleva fecha de pago: ARCA la rechaza (error 1673). `--fecha-pago` no se usa.',
           ]
         : []),
-      ...(quotation?.date && quotation.date !== voucherDate
-        ? [
-            `ARCA no publicó la cotización de ${quotation.code} del ${formatArcaDateAsArgentineDate(
-              voucherDate,
-            )}: se usa la del ${formatArcaDateAsArgentineDate(quotation.date)} (${formatExchangeRate(quotation.rate)}). Para usar otra, \`--cotizacion-moneda\`.`,
-          ]
-        : []),
+      ...(quotation ? exportQuotationWarnings(quotation, quotationDate, exportType) : []),
     ];
 
     return { display, payload, voucherKind, warnings };
