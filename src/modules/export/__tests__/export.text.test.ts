@@ -84,6 +84,13 @@ describe('formatExportPayloadTable', () => {
     expect(text).not.toContain('Fecha de pago');
   });
 
+  it('sin CUIT del pais no muestra esa fila y el ID impositivo va despues del domicilio', () => {
+    const text = table(result({ Cuit_pais_cliente: undefined, Id_impositivo: 'IE1234567T' }));
+
+    expect(text).not.toContain('CUIT del país');
+    expect(text).toMatch(/Domicilio del cliente\s+123 Main St\s+ID impositivo del cliente\s+IE1234567T/);
+  });
+
   it('muestra el importe con el codigo de la moneda, no con el $ de los pesos', () => {
     expect(table(result())).toMatch(/Importe total\s+1\.500,50 USD/);
     expect(table(result({ Moneda_ctz: 1, Moneda_Id: 'PES' }))).toMatch(/Importe total\s+\$ 1\.500,50/);

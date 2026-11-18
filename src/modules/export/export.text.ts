@@ -120,7 +120,9 @@ function formatPayloadRows(result: ExportExecutionResult): Rows {
   const rows: Rows = [
     ...(associated ? [['Comprobante asociado', associated] as const] : []),
     ['Cliente', payload.Cliente],
-    ['CUIT del país del cliente', formatCuit(payload.Cuit_pais_cliente)],
+    ...(payload.Cuit_pais_cliente === undefined
+      ? []
+      : [['CUIT del país del cliente', formatCuit(payload.Cuit_pais_cliente)] as const]),
     ['Domicilio del cliente', payload.Domicilio_cliente],
     ['País de destino', formatCountry(result)],
     ['Tipo de exportación', formatExportType(result)],
@@ -136,7 +138,11 @@ function formatPayloadRows(result: ExportExecutionResult): Rows {
   ];
 
   if (payload.Id_impositivo) {
-    rows.splice(associated ? 4 : 3, 0, ['ID impositivo del cliente', payload.Id_impositivo]);
+    // Despues del domicilio, con o sin la fila del CUIT del pais.
+    rows.splice(rows.findIndex(([label]) => label === 'Domicilio del cliente') + 1, 0, [
+      'ID impositivo del cliente',
+      payload.Id_impositivo,
+    ]);
   }
 
   const permits = payload.Permisos?.Permiso ?? [];

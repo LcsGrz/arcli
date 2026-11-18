@@ -4,9 +4,7 @@ exit: 2
 
 {
   "atajo": "fe",
-  "avisos": [
-    "ARCA no publicó la cotización de DOL del 17/11/2026: se usa la del 16/11/2026 (1.450,25). Para usar otra, `--cotizacion-moneda`."
-  ],
+  "avisos": [],
   "cae": null,
   "caeVencimiento": null,
   "comprobante": "Factura de exportación E",
