@@ -49,7 +49,8 @@ const LOCAL_EXCHANGE_RATE = 1;
 type ExportConfig = Pick<ArcliConfig, 'puntoVentaPorDefecto'>;
 
 export interface BuildExportResolution {
-  readonly activity: number;
+  /** Sin actividad no va el bloque `Actividades` (no es obligatorio; vacio es el error 2100). */
+  readonly activity?: number;
   /** Solo en las notas: va en `Cmps_asoc`. */
   readonly associatedVoucher?: ExportAssociatedVoucherPayload;
   /** Sin CUIT del pais la E va solo con el ID impositivo (error 1580). */
@@ -238,9 +239,10 @@ export function resolveExportQuotation(
 }
 
 /**
- * WSFEX exige una `Actividad` (error 2100, WSFEX v3.1.0) y solo acepta los codigos de su propia tabla, que no es la del padron y
- * es mas chica (error 2105 al emitir). Cada emisor tiene la suya, asi que no hay default: sale de `--actividad` o de
- * `exportacion.actividad`. Los nombres de la tabla llegan con la codificacion rota, por eso los mensajes solo dan codigos.
+ * La actividad es opcional (`Actividades` no es obligatorio en WSFEX v3.1.0; la 2100 solo prohibe el bloque vacio),
+ * pero si se informa, ARCA solo acepta los codigos de su propia tabla, que no es la del padron y es mas chica (error
+ * 2105 al emitir). Sale de `--actividad` o de `exportacion.actividad`: no hay default. Los nombres de la tabla llegan
+ * con la codificacion rota, por eso los mensajes solo dan codigos.
  */
 export function resolveExportActivity(value: number, activities: readonly ExportActivity[] = []): number {
   if (!Number.isInteger(value) || value < 1) {
@@ -529,7 +531,7 @@ export function exportTypeTakesPaymentDate(exportType: ExportType, isNote: boole
  * Arma el `Cmp` de `FEXAuthorize` con los datos ya resueltos contra las tablas de ARCA.
  *
  * Los bloques vacios no van: `Permisos` sin permisos (error 1720), `Cmps_asoc` y `Opcionales` sin filas (error 1820
- * el primero). `Actividades`, en cambio, siempre lleva una `Actividad` (error 2100). Las notas llevan `Cmps_asoc` y
+ * el primero), y `Actividades` sin actividad (error 2100). Las notas llevan `Cmps_asoc` y
  * `Permiso_existente` vacio (1550), y no llevan `Fecha_pago` (1673) ni `CanMisMonExt` (1605). La factura de bienes
  * tampoco lleva `Fecha_pago` (1673): solo va en servicios y otros. La factura en pesos no lleva `CanMisMonExt` (1605).
  */
@@ -554,8 +556,8 @@ export function buildExportPayload(input: ExportVoucherInput, resolution: BuildE
     isNote || requiresEmptyPermitsExisting(resolution.exportType) ? '' : input.permitsExisting ? 'S' : 'N';
 
   return {
-    // Actividades va siempre con una: con el bloque vacio ARCA contesta 2100.
-    Actividades: { Actividad: [{ Id: resolution.activity }] },
+    // Sin actividad el bloque no va: vacio, ARCA contesta 2100.
+    ...(resolution.activity === undefined ? {} : { Actividades: { Actividad: [{ Id: resolution.activity }] } }),
     ...(isNote || !resolution.currency.CanMisMonExt ? {} : { CanMisMonExt: resolution.currency.CanMisMonExt }),
     Cbte_nro: resolution.voucherNumber,
     Cbte_Tipo: resolution.voucherKind.arcaType,

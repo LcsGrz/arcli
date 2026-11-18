@@ -106,9 +106,10 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
   --actividad 620100 --item "001|Servicios de consultoría|1|1500|unidad" --previsualizar --json
 ```
 
-- Requeridos: `-m, --monto <n>`, `--cliente <texto>`, `--domicilio-cliente <texto>`,
-  `--pais-destino <codigo|nombre>` (código de ARCA o nombre, ej. `203` o `Brasil`) y la actividad: `--actividad <codigo>` o la clave
-  `exportacion.actividad`. No hay default: tiene que ser un código de la tabla de actividades de WSFEX,
+- Requeridos: `-m, --monto <n>`, `--cliente <texto>`, `--domicilio-cliente <texto>` y
+  `--pais-destino <codigo|nombre>` (código de ARCA o nombre, ej. `203` o `Brasil`). La actividad es opcional:
+  `--actividad <codigo>` o la clave `exportacion.actividad`; sin ninguna, la `E` va sin `Actividades` (ARCA no la
+  exige). No hay default: si se informa, tiene que ser un código de la tabla de actividades de WSFEX,
   que no es la del padrón (ej. `620100`; `620900` no está). Si no está en la tabla es
   `INPUT_VALIDATION_ERROR` con las que empiezan igual.
 - `--item <partes>` (repetible): `codigo|descripcion|cantidad|precio|unidad`; con 4 partes se omite

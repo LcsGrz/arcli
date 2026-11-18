@@ -84,9 +84,13 @@ function validateCountry(countries: readonly ExportCountry[]): (value: string) =
   };
 }
 
-/** Un entero positivo que, si ARCA devolvio la tabla, esta en las actividades de WSFEX. */
+/** Vacio (la E va sin actividad) o un entero positivo que, si ARCA devolvio la tabla, esta en las de WSFEX. */
 function validateActivity(allowed: ReadonlySet<number>): (value: string) => string | true {
   return (value) => {
+    if (!value.trim()) {
+      return true;
+    }
+
     const valid = validatePositiveInteger('La actividad')(value);
     const number = parseStrictInteger(value) as number;
 
@@ -300,11 +304,15 @@ function exportSteps(
     {
       name: 'actividad',
       run: async () => {
-        const answer = await askTextStep('Código de actividad de WSFEX (por ejemplo 620100):', {
-          validate: validateActivity(tables.activities),
-        });
+        // Opcional: ARCA no exige `Actividades` (la 2100 solo prohibe el bloque vacio).
+        const answer = await askTextStep(
+          'Código de actividad de WSFEX, por ejemplo 620100 (Enter para no informarla):',
+          {
+            validate: validateActivity(tables.activities),
+          },
+        );
 
-        return answer === BACK ? BACK : { activity: parseStrictInteger(answer) };
+        return answer === BACK ? BACK : { activity: answer.trim() ? parseStrictInteger(answer) : undefined };
       },
       skip: () => configuredActivity !== undefined,
     },
@@ -421,7 +429,7 @@ export async function runExportFlow(session: InteractiveSession): Promise<typeof
     return BACK;
   }
 
-  const activity = (state.activity ?? configuredActivity) as number;
+  const activity = state.activity ?? configuredActivity;
   const input: ExportVoucherInput = {
     ...state.options,
     activity,

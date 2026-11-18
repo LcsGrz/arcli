@@ -433,11 +433,11 @@ También se reconocen por el mensaje, sin código: receptor igual al emisor, `Tr
 - **Solución:** usá una fecha dentro de la ventana; si ya emitiste una con fecha futura, emití las siguientes con esa fecha o una posterior, o esperá a ese día.
 - **Documentación relacionada:** [Reglas de validación](validation-rules.md#factura-de-exportación-e)
 
-### Factura E: falta la actividad o no está en la tabla de WSFEX
+### Factura E: la actividad no está en la tabla de WSFEX
 
-- **Severidad:** frecuente, la primera vez que se emite una `E`
-- **Síntoma:** `Falta la actividad de exportación.` o `La actividad 620900 no está en la tabla de actividades de WSFEX y ARCA la rechaza (error 2105).`
-- **Causa:** la `E` informa siempre una actividad (ARCA rechaza `Actividades` vacío con el error 2100) y solo acepta los códigos de su propia tabla (`FEXGetPARAM_Actividades`), que **no es la del padrón y es más chica**: por ejemplo, `620900` (servicios de informática N.C.P.) no está; para informática están `620100` (consultores en informática y suministros de programas) y `620300` (consultores en tecnología de la información).
+- **Severidad:** frecuente, la primera vez que se emite una `E` con actividad
+- **Síntoma:** `La actividad 620900 no está en la tabla de actividades de WSFEX y ARCA la rechaza (error 2105).`
+- **Causa:** la actividad es opcional (sin `--actividad` ni `exportacion.actividad`, la `E` va sin ella), pero si la informás, ARCA solo acepta los códigos de su propia tabla (`FEXGetPARAM_Actividades`), que **no es la del padrón y es más chica**: por ejemplo, `620900` (servicios de informática N.C.P.) no está; para informática están `620100` (consultores en informática y suministros de programas) y `620300` (consultores en tecnología de la información).
 - **Solución:** elegí la que corresponda a tu actividad declarada (el error lista las que empiezan igual) y guardala con `arcli config establecer exportacion.actividad <codigo>`, o pasala con `--actividad`.
 - **Documentación relacionada:** [Reglas de validación](validation-rules.md#factura-de-exportación-e), [Configuración](configuration.md)
 

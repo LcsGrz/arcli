@@ -425,12 +425,13 @@ describe('ExportService.resolve', () => {
     expect(gateway.authorize).not.toHaveBeenCalled();
   });
 
-  it('pide la actividad antes de ir a ARCA si no viene por flag ni por config', async () => {
+  it('sin actividad por flag ni por config no manda el bloque Actividades ni consulta la tabla (2100 es el bloque vacio)', async () => {
     const gateway = createGateway();
     const runtime = { ...RUNTIME, config: arcliConfigSchema.parse({ cuit: '20111111112', puntoVentaPorDefecto: 3 }) };
+    const resolved = await service.resolve(INPUT, gateway, runtime, NOW);
 
-    await expect(service.resolve(INPUT, gateway, runtime, NOW)).rejects.toThrow(/Falta la actividad de exportación/);
-    expect(gateway.getDestinationCountries).not.toHaveBeenCalled();
+    expect(resolved.payload).not.toHaveProperty('Actividades');
+    expect(gateway.getActivities).not.toHaveBeenCalled();
   });
 
   it('rechaza un monto con más de 2 decimales, como A, B y C, en lugar de redondearlo', async () => {

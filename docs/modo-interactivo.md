@@ -100,7 +100,7 @@ La `E` se elige en el mismo selector, pero tiene su propio asistente porque no l
 | 12   | Permisos de embarque  | Solo en bienes, opcional: los ya existentes en ARCA, separados por coma (`--permiso` con `--permiso-existente`)                                                                                                                               |
 | 13   | Forma de pago         | Por defecto "Transferencia Internacional"                                                                                                                                                                                                     |
 | 14   | Fecha de pago         | Opcional; por defecto la del comprobante. En bienes no se pregunta                                                                                                                                                                            |
-| 15   | Actividad             | Solo si no está `exportacion.actividad`; se valida contra la tabla de WSFEX y después ofrece guardarla en la config                                                                                                                           |
+| 15   | Actividad             | Solo si no está `exportacion.actividad`. Opcional: con Enter la `E` va sin actividad. Se valida contra la tabla de WSFEX y, si la escribís, después ofrece guardarla en la config                                                             |
 | 16   | Opcionales            | Una sola pregunta, como en A, B y C ([abajo](#opcionales-de-la-e))                                                                                                                                                                            |
 
 Después muestra la vista previa, el comando `arcli fe` equivalente y pregunta si emitir (dos veces en producción). El PDF sigue la misma regla que el resto. Volver desde el primer paso vuelve al selector de comprobantes.
@@ -214,7 +214,7 @@ Elegís una de las últimas facturas `E` (con **Cargar más…** e **Ingresar el
 | 4    | CUIT del país        | Solo si la factura no lo trae, tampoco trae ID impositivo y ARCA no publica uno para el destino                                                              |
 | 5    | Permisos de embarque | Solo en bienes, opcional: son de cada embarque                                                                                                               |
 | 6    | Fecha de pago        | Opcional; por defecto la del comprobante. En bienes no se pregunta                                                                                           |
-| 7    | Actividad            | Solo si la factura no la trae y no está `exportacion.actividad`                                                                                              |
+| 7    | Actividad            | Solo si la factura no la trae y no está `exportacion.actividad`. Opcional: con Enter va sin actividad                                                        |
 | 8    | Opcionales           | Los [de la E](#opcionales-de-la-e), con lo copiado ya cargado                                                                                                |
 
 Un solo renglón por el total se repite como descripción (`--descripcion`) y varios, como `--item`. Si algún ítem tiene bonificación, que el asistente no informa, o los ítems no suman el total, avisa y sale un renglón con el monto total. Después muestra la vista previa, el comando `arcli fe` equivalente y pregunta si emitir, como una factura `E` nueva.

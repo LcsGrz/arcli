@@ -82,8 +82,11 @@ function assertLocalFields(input: ExportVoucherInput, kind: ExportVoucherKind): 
   assertExportItemsTotal(input.items, input.amount);
 }
 
-/** Lo que pide la factura (y la nota, ya completada con su asociado) antes de consultar las tablas. */
-function assertRequiredFields(input: ExportVoucherInput, activity: number | undefined): void {
+/**
+ * Lo que pide la factura (y la nota, ya completada con su asociado) antes de consultar las tablas. La actividad no:
+ * `Actividades` no es obligatorio en WSFEX v3.1.0 (la 2100 solo prohibe el bloque vacio).
+ */
+function assertRequiredFields(input: ExportVoucherInput): void {
   if (!input.clientName?.trim()) {
     throw new InputValidationError('Falta el nombre del cliente. Usá `--cliente`.');
   }
@@ -94,12 +97,6 @@ function assertRequiredFields(input: ExportVoucherInput, activity: number | unde
 
   if (!input.destinationCountry?.trim()) {
     throw new InputValidationError('Falta el país de destino. Usá `--pais-destino`.');
-  }
-
-  if (activity === undefined) {
-    throw new InputValidationError(
-      'Falta la actividad de exportación. Usá `--actividad` o guardala con `arcli config establecer exportacion.actividad <código>`: es el código de la tabla de actividades de WSFEX, por ejemplo 620100.',
-    );
   }
 }
 
@@ -236,7 +233,7 @@ export class ExportService {
     const input = associated ? applyExportAssociatedDefaults(rawInput, associated.voucher) : rawInput;
     const activityCode = input.activity ?? config.exportacion?.actividad;
 
-    assertRequiredFields(input, activityCode);
+    assertRequiredFields(input);
 
     const exportType = resolveExportType(input.exportType);
     const voucherDate = resolveExportVoucherDate(input.voucherDate, now);
@@ -301,7 +298,9 @@ export class ExportService {
       provided: input.requestId,
     });
 
-    const activity = resolveExportActivity(activityCode as number, await gateway.getActivities());
+    // Sin `--actividad` ni `exportacion.actividad` la E va sin el bloque `Actividades`: ARCA no lo exige.
+    const activity =
+      activityCode === undefined ? undefined : resolveExportActivity(activityCode, await gateway.getActivities());
     const payload = buildExportPayload(input, {
       activity,
       clientCountryCuit,

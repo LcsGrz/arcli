@@ -130,7 +130,8 @@ export interface ExportItemPayload {
  * asi que no se traduce.
  */
 export interface ExportVoucherPayload {
-  readonly Actividades: { Actividad: ExportActivityPayload[] };
+  /** Opcional: sin actividad no va (ARCA rechaza el bloque vacio, error 2100). */
+  readonly Actividades?: { Actividad: ExportActivityPayload[] };
   /** Solo en la factura: en las notas ARCA lo rechaza (error 1605). */
   readonly CanMisMonExt?: 'N' | 'S';
   readonly Cbte_nro: number;

@@ -206,16 +206,24 @@ export function exportRepeatSteps(
       skip: (state) => state.copy?.exportType === 1,
     },
     {
-      // La factura siempre tiene actividad; esto es por si ARCA no la devolvio y tampoco esta en la config.
+      // La factura no trae actividad y tampoco esta en la config. Es opcional: ARCA no exige `Actividades`.
       name: 'actividad',
       run: async (state) => {
-        const answer = await askTextStep('Código de actividad de WSFEX (por ejemplo 620100):', {
-          validate: validatePositiveInteger('La actividad'),
-        });
+        const answer = await askTextStep(
+          'Código de actividad de WSFEX, por ejemplo 620100 (Enter para no informarla):',
+          {
+            validate: (value) => (value.trim() ? validatePositiveInteger('La actividad')(value) : true),
+          },
+        );
 
         return answer === BACK
           ? BACK
-          : { copy: { ...requireStepValue(state.copy, 'copy'), activity: parseStrictInteger(answer) } };
+          : {
+              copy: {
+                ...requireStepValue(state.copy, 'copy'),
+                activity: answer.trim() ? parseStrictInteger(answer) : undefined,
+              },
+            };
       },
       skip: (state) => state.copy?.activity !== undefined || configuredActivity !== undefined,
     },

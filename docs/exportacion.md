@@ -21,7 +21,7 @@ Cuando le vendés servicios o bienes a un cliente del exterior. Va por el servic
 ### Requisitos
 
 - certificado autorizado a `wsfex` (ver [certificados](obtencion-certificados.md))
-- la actividad de la tabla de WSFEX, por flag o en `exportacion.actividad`
+- opcional: la actividad de la tabla de WSFEX, por flag o en `exportacion.actividad`
 
 ### Comando
 
