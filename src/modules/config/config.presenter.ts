@@ -1,6 +1,6 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { formatCuit } from '../../lib/identity/format-cuit';
-import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
+import { formatArgentineMoney, formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { maskPath } from '../../lib/paths/mask-path';
 import { checklistPanel, sheetPanel } from '../../ui/components';
 import {
@@ -57,6 +57,10 @@ interface PublicConfigSnapshot {
     readonly testing?: string;
   };
   readonly moneda?: string;
+  /** Solo si hay `monotributo.tope`. */
+  readonly monotributo?: {
+    readonly tope: number;
+  };
   readonly pdf: NonNullable<ArcliConfig['pdf']>;
   readonly pdfCarpeta: string;
   readonly pdfNavegador?: string;
@@ -113,6 +117,7 @@ function toPublicSnapshot(config: ArcliConfig, paths: ConfigPathSnapshot): Publi
       testing: config.key.testing ? maskPath(config.key.testing) : undefined,
     },
     moneda: config.monedaPorDefecto,
+    monotributo: config.monotributo?.tope === undefined ? undefined : { tope: config.monotributo.tope },
     pdf: config.pdf ?? 'preguntar',
     pdfCarpeta: maskPath(paths.pdfFolder),
     pdfNavegador: config.pdfNavegador ? maskPath(config.pdfNavegador) : undefined,
@@ -176,6 +181,7 @@ const CONFIG_TEXT_VALUES: Record<ConfigPublicKey, PublicConfigValue> = {
   'key.produccion': (c) => notSet(c.key.produccion),
   'key.testing': (c) => notSet(c.key.testing),
   moneda: (c) => c.moneda ?? 'PES',
+  'monotributo.tope': (c) => (c.monotributo ? formatArgentineMoney(c.monotributo.tope) : 'el de tu categoría'),
   pdf: (c) => c.pdf,
   pdfCarpeta: (c) => c.pdfCarpeta,
   pdfNavegador: (c) => c.pdfNavegador ?? 'automático',

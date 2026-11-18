@@ -73,6 +73,12 @@ export const arcliConfigSchema = z.object({
     })
     .optional(),
   key: certificatePathsSchema.default({}),
+  /** Monotributo: `tope` pisa el tope de ingresos anuales de la categoria (para `arcli monotributo` y el resumen). */
+  monotributo: z
+    .object({
+      tope: z.number().positive().optional(),
+    })
+    .optional(),
   output: z
     .object({
       emitirPorDefecto: z.boolean().default(false),
@@ -178,6 +184,7 @@ export const configPublicKeySchema = z.enum([
   'key.produccion',
   'key.testing',
   'moneda',
+  'monotributo.tope',
   'bruto',
   'pdf',
   'pdfCarpeta',

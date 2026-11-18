@@ -239,6 +239,7 @@ describe('runConfigMenu', () => {
       'Al facturar',
       'Factura de crédito electrónica (FCE)',
       'Factura de exportación (E)',
+      'Monotributo',
       'Datos del emisor (PDF)',
       'PDF',
       'Salida y listados',

@@ -31,6 +31,7 @@ import { withSpinner } from '../spinner';
 
 import { runHistoryFlow } from './history.flow';
 import { runInvoiceFlow } from './invoice.flow';
+import { runMonotributoQuery } from './monotributo.flow';
 import { markIfNew } from './new-mark';
 import {
   askTextStep,
@@ -47,7 +48,7 @@ import {
 import type { InteractiveSession } from './session';
 import { normalizeDocumentNumber, validateCuit } from './validators';
 
-type QueryOption = 'comprobantes' | 'cotizacion' | 'cuit' | 'fce' | 'tablas';
+type QueryOption = 'comprobantes' | 'cotizacion' | 'cuit' | 'fce' | 'monotributo' | 'tablas';
 
 /** Lo que pasa despues de una consulta: seguir en el submenu, o volver al menu principal (se emitio una factura). */
 type QueryOutcome = 'menu' | 'seguir';
@@ -240,6 +241,9 @@ async function runQuery(session: InteractiveSession, option: QueryOption): Promi
     case 'cotizacion':
       await runQuotationQuery(session);
       return 'seguir';
+    case 'monotributo':
+      await runMonotributoQuery(session);
+      return 'seguir';
     case 'tablas':
       await runTablesQuery(session);
       return 'seguir';
@@ -247,8 +251,8 @@ async function runQuery(session: InteractiveSession, option: QueryOption): Promi
 }
 
 /**
- * Submenu "Consultas": los comprobantes emitidos y lo que el CLI consulta con `padron`, `fce-obligado` y
- * `parametros`. Un error de ARCA se muestra y vuelve a este submenu; Ctrl+C vuelve al menu principal.
+ * Submenu "Consultas": los comprobantes emitidos y lo que el CLI consulta con `padron`, `fce-obligado`,
+ * `monotributo` y `parametros`. Un error de ARCA se muestra y vuelve a este submenu; Ctrl+C vuelve al menu principal.
  */
 export async function runQueriesMenu(session: InteractiveSession): Promise<void> {
   let last: QueryOption | undefined;
@@ -281,6 +285,14 @@ export async function runQueriesMenu(session: InteractiveSession): Promise<void>
             value: 'cotizacion',
           },
           'consultas',
+        ),
+        markIfNew(
+          {
+            description: 'Topes de ingresos y cuota mensual de cada categoría',
+            name: 'Categorías del monotributo',
+            value: 'monotributo',
+          },
+          'monotributo',
         ),
         markIfNew(
           {

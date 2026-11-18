@@ -63,6 +63,7 @@ Se elige por lo que se muestra, no por cómo se ve. Cada rol tiene su función, 
 - **Ancho visible:** se mide con `visibleWidth` (columnas de la terminal, como boxen), nunca con `length`: un emoji o un carácter chino ocupan dos columnas y una `é` pegada desde macOS (NFD) ocupa una. Los cortes de una palabra larga caen entre grafemas, sin partir un emoji ni una letra de su acento.
 - **Listas:** `• texto` o `1. texto`. Al partirse, la línea sigue alineada al texto.
 - **Barra de estado:** una línea; en una terminal angosta, una por lado. Nunca esconde el entorno.
+- **Tablas que no entran a lo ancho:** se mide el lugar con `panelContentWidth` y, si las columnas no entran, cada fila se parte en líneas (como `arcli monotributo` en 40 columnas: el tope arriba y las cuotas abajo) en vez de dejar que la terminal la corte. Una tabla con muchas columnas se parte en bloques, con la columna que identifica la fila en cada uno: uno debajo del otro, con `1/2  sigue abajo: … ↓`, o de a uno con `←`/`→` en el modo interactivo.
 
 ## Símbolos
 
@@ -85,6 +86,9 @@ Se piden con `uiSymbol('check')`, nunca escritos a mano en un presenter. Cada un
 | `keyEnter`   | `⏎`     | `enter`        | Ayuda de teclas         |
 | `moreAbove`  | `↑`     | `^`            | Opciones ocultas arriba |
 | `moreBelow`  | `↓`     | `v`            | Opciones ocultas abajo  |
+| `moreLeft`   | `←`     | `<`            | Bloque a la izquierda   |
+| `moreRight`  | `→`     | `>`            | Bloque a la derecha     |
+| `squared`    | `²`     | `2`            | Metros cuadrados (`m²`) |
 
 ## Formatos
 

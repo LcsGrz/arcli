@@ -34,7 +34,7 @@ El modo interactivo no agrega comandos de emisión ni cambia flags, claves de co
 
 Si hay una versión nueva de ARCLI, el menú suma arriba de todo **Actualizar a la versión X.Y.Z** (ver [Actualizar](#actualizar)).
 
-**Opciones nuevas.** Lo que se sumó en las últimas versiones lleva `(nuevo)` al final, en color: Emitir recibo (y adentro los recibos A y B), Consultas y sus consultas nuevas, Certificados de ARCA, Acceso directo en el escritorio en Configuración, y, al elegir sobre qué comprobante va una nota, los tipos con opciones nuevas y esas opciones adentro (las notas sobre otras notas, las de exportación E y los recibos A y B). Configuración también lo lleva mientras tenga alguna opción nueva adentro. La marca se va sola dos versiones menores después de la que trajo la opción.
+**Opciones nuevas.** Lo que se sumó en las últimas versiones lleva `(nuevo)` al final, en color: Emitir recibo (y adentro los recibos A y B), Consultas y sus consultas nuevas (Categorías del monotributo), Certificados de ARCA, Acceso directo en el escritorio en Configuración, y, al elegir sobre qué comprobante va una nota, los tipos con opciones nuevas y esas opciones adentro (las notas sobre otras notas, las de exportación E y los recibos A y B). Configuración también lo lleva mientras tenga alguna opción nueva adentro. La marca se va sola dos versiones menores después de la que trajo la opción.
 
 **Listas largas.** Si una lista no entra en la pantalla, se desplaza con las flechas y avisa, en gris, cuántas opciones quedan arriba (`↑ 3 más`) y abajo (`↓ 12 más`). **← Volver** queda fijo debajo de la lista, separado por una línea en blanco: se llega bajando desde la última opción, y Esc hace lo mismo. Vale también para las listas que se filtran escribiendo, como la de monedas.
 
@@ -221,17 +221,29 @@ Un solo renglón por el total se repite como descripción (`--descripcion`) y va
 
 ## Consultas
 
-Lo que el CLI consulta con `ultimos`, `consultar`, `padron`, `fce-obligado` y `parametros`, sin escribir comandos. Un error de ARCA (por ejemplo, sin conexión) se muestra y vuelve a este menú.
+Lo que el CLI consulta con `ultimos`, `consultar`, `padron`, `fce-obligado`, `monotributo` y `parametros`, sin escribir comandos. Un error de ARCA (por ejemplo, sin conexión) se muestra y vuelve a este menú.
 
-| Opción                   | Qué hace                                                                                                                                                                                                                |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Mis comprobantes         | Los últimos emitidos de cada tipo, o uno por número ([abajo](#mis-comprobantes))                                                                                                                                        |
-| Datos de un CUIT         | Pide el CUIT y muestra lo mismo que `arcli padron`. Después ofrece **Emitir una factura a este CUIT**                                                                                                                   |
-| Si un cliente recibe FCE | Pide el CUIT y muestra lo mismo que `arcli fce-obligado`, con la fecha de hoy (para otra fecha, `arcli fce-obligado --fecha`)                                                                                           |
-| Monedas y cotizaciones   | Las monedas de la tabla de ARCA (el dólar primero, sin el peso), filtrando por nombre o código. Enter muestra la cotización oficial con el nombre de la moneda, como `arcli parametros cotizacion`, y vuelve a la lista |
-| Tablas de ARCA           | Las de `arcli parametros` menos monedas, que está en Monedas y cotizaciones: puntos de venta, comprobantes, documentos, alícuotas, IVA del receptor, conceptos, opcionales y tributos ([abajo](#tablas-de-arca))        |
+| Opción                     | Qué hace                                                                                                                                                                                                                |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Mis comprobantes           | Los últimos emitidos de cada tipo, o uno por número ([abajo](#mis-comprobantes))                                                                                                                                        |
+| Datos de un CUIT           | Pide el CUIT y muestra lo mismo que `arcli padron`. Después ofrece **Emitir una factura a este CUIT**                                                                                                                   |
+| Si un cliente recibe FCE   | Pide el CUIT y muestra lo mismo que `arcli fce-obligado`, con la fecha de hoy (para otra fecha, `arcli fce-obligado --fecha`)                                                                                           |
+| Monedas y cotizaciones     | Las monedas de la tabla de ARCA (el dólar primero, sin el peso), filtrando por nombre o código. Enter muestra la cotización oficial con el nombre de la moneda, como `arcli parametros cotizacion`, y vuelve a la lista |
+| Categorías del monotributo | Topes de ingresos y cuota mensual de cada categoría, como `arcli monotributo`, y después **¿Y ahora?** ([abajo](#categorías-del-monotributo))                                                                           |
+| Tablas de ARCA             | Las de `arcli parametros` menos monedas, que está en Monedas y cotizaciones: puntos de venta, comprobantes, documentos, alícuotas, IVA del receptor, conceptos, opcionales y tributos ([abajo](#tablas-de-arca))        |
 
 **Emitir una factura a este CUIT** arranca "Emitir factura" con el CUIT, el nombre, el domicilio y la condición frente al IVA del padrón ya cargados: no pregunta a quién le facturás y pasa directo al comprobante, el concepto y el monto. La condición IVA se pregunta solo si el padrón no la informa o no sirve para la letra elegida (por ejemplo, un responsable inscripto en una factura B). Volver desde el primer paso vuelve a la pregunta; al terminar, vuelve al menú principal.
+
+### Categorías del monotributo
+
+Muestra la tabla de `arcli monotributo`, con tu categoría marcada si el padrón la informa, y los avisos arriba (tabla vieja, sin conexión). Después pregunta **¿Y ahora?**:
+
+| Opción                     | Qué hace                                                                                                                                         |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Ver una categoría completa | Elegís la letra (con su tope; la tuya viene marcada) y muestra lo mismo que `arcli monotributo --categoria`                                      |
+| Ver todas las columnas     | Límites anuales y cuota mensual, un bloque por vez con la columna de categoría fija: **←** y **→** pasan de uno a otro, **Enter** vuelve al menú |
+| Actualizar desde ARCA      | Vuelve a leer la tabla en la página de ARCA y tu categoría en el padrón, como `arcli monotributo --actualizar`, y la muestra de nuevo            |
+| ← Volver                   | Vuelve a Consultas                                                                                                                               |
 
 ### Tablas de ARCA
 

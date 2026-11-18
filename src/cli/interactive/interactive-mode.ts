@@ -273,11 +273,11 @@ export async function runInteractiveMode(options: GlobalCliOptions = {}): Promis
           { description: 'Cargo adicional sobre una factura', name: 'Emitir nota de débito', value: 'nota-debito' },
           markIfNew(
             {
-              description: 'Tus comprobantes, CUITs, cotizaciones y tablas de ARCA',
+              description: 'Tus comprobantes, CUITs, cotizaciones, monotributo y tablas de ARCA',
               name: 'Consultas',
               value: 'consultas',
             },
-            'consultas',
+            ['consultas', 'monotributo'],
           ),
           { description: 'Servidores, punto de venta y cotización del dólar', name: 'Estado de ARCA', value: 'estado' },
           markIfNew(

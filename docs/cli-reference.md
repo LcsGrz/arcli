@@ -135,7 +135,7 @@ Usalos cuando necesitás controlar el entorno, la salida o el modo de inspecció
 | Comando                                                                                 | Flags globales que acepta                        |
 | --------------------------------------------------------------------------------------- | ------------------------------------------------ |
 | comprobantes (`fa`, `fc`, `nca`, `factura`, ...)                                        | `--testing`, `--produccion`, `--json`, `--bruto` |
-| `padron`, `fce-obligado`, `ultimos`, `consultar`, `parametros`, `estado`                | `--testing`, `--produccion`, `--json`            |
+| `padron`, `fce-obligado`, `ultimos`, `consultar`, `parametros`, `estado`, `monotributo` | `--testing`, `--produccion`, `--json`            |
 | `certificado generar`, `certificado importar`                                           | `--testing`, `--produccion`, `--json`            |
 | `interactivo`                                                                           | `--testing`, `--produccion`                      |
 | `config` (y sus subcomandos), `pdf` (y sus subcomandos), `completado`, `acceso-directo` | `--json`                                         |
@@ -841,6 +841,43 @@ Al facturar con `--cuit` sin `--ir` (ni `ivaReceptor` en el JSON), ARCLI consult
 | Lo mismo, sin `ivaReceptor` en la config        | Error `INPUT_VALIDATION_ERROR`: indicala con `--ir`         |
 
 Para no consultarlo: `arcli config establecer consultarPadron false`. El modo interactivo hace la misma consulta al cargar un CUIT y propone esa condición, marcada "(según el padrón)".
+
+## Categorías del monotributo
+
+`arcli monotributo` muestra las 11 categorías (A a K) con el tope de ingresos anuales y la cuota mensual de servicios y de ventas. Si el CUIT de la config es monotributista, su fila sale marcada con `❯` y "tu categoría".
+
+```bash
+arcli monotributo
+arcli monotributo --categoria E
+arcli monotributo --completa
+arcli monotributo --actualizar
+arcli monotributo --json
+```
+
+| Flag                                  | Alias   | Descripción                                                                                     |
+| ------------------------------------- | ------- | ----------------------------------------------------------------------------------------------- |
+| `--categoria <letra>`                 | ninguno | Una categoría completa: límites anuales, cuota mensual con su desglose y la categoría siguiente |
+| `--completa`                          | ninguno | Todas las columnas, en dos bloques: límites anuales y cuota mensual en pesos                    |
+| `--actualizar`                        | ninguno | Vuelve a leer la tabla en la página de ARCA y tu categoría en el padrón                         |
+| `--json`, `--testing`, `--produccion` | ninguno | Flags globales                                                                                  |
+
+`--categoria` acepta una letra de la A a la K, en mayúscula o minúscula; otra cosa es `INPUT_VALIDATION_ERROR`. No se usa junto con `--completa`.
+
+**De dónde sale la tabla.** ARCA no tiene un web service con las categorías: ARCLI lee la [página de categorías](https://www.afip.gob.ar/monotributo/categorias.asp), que es pública y no usa el certificado, y la guarda en la carpeta de config (`monotributo.json`) con la fecha de consulta y la de vigencia. La lee la primera vez que corrés el comando y después solo con `--actualizar` (o "Actualizar desde ARCA" en el modo interactivo). ARCLI trae además una tabla incluida, con los valores vigentes al publicarse la versión: se usa si no hay conexión, si la página cambió y no se puede leer, o si es más nueva que la guardada.
+
+Antes de usar lo leído, ARCLI lo controla: 11 filas de la A a la K, topes que crecen y cuotas que son la suma de impuesto integrado, aporte jubilatorio (SIPA) y obra social. Si algo no da, descarta la lectura, avisa y sigue con la guardada o la incluida. Los avisos salen arriba de la tabla, en stderr:
+
+| Situación                                               | Aviso                                                                                                                 |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Sin conexión, ARCA no respondió a tiempo o dio un error | "No se pudo consultar la tabla en ARCA (sin conexión). Se muestra la incluida en ARCLI x.y.z, vigente desde el …"     |
+| La página cambió y no pasa el control                   | "La página de ARCA cambió y ARCLI no pudo leer la tabla. Se usa la guardada el …. Si sigue, avisanos en GitHub: …"    |
+| Ya pasó el 1/2 o el 1/8 y la tabla rige desde antes     | "ARCA actualiza las categorías en febrero y agosto. La tabla guardada es del … y puede haber una nueva. Actualizala…" |
+
+**Tu categoría.** Sale del padrón (`ws_sr_constancia_inscripcion`) con el CUIT y el certificado de la config, en el entorno activo. Se consulta una vez y se guarda junto con la tabla; `--actualizar` la vuelve a leer. Sin certificado, sin el servicio autorizado o si el CUIT no es monotributista, no se marca ninguna fila y el comando sigue igual. En testing el padrón tiene datos ficticios, así que tu CUIT real no aparece.
+
+**Tu tope.** Con `monotributo.tope` en la config (ver [Configuración](configuration.md)), la tabla lo muestra debajo, junto a la fuente.
+
+En una terminal angosta, cada categoría ocupa dos líneas: el tope arriba y las dos cuotas abajo. El JSON está en [Entrada y salida](input-output.md#categorías-del-monotributo-monotributo).
 
 ## Autocompletado
 

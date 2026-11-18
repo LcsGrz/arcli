@@ -45,6 +45,14 @@ import {
 import type { ArcliConfig } from '../config/config.schemas';
 import { buildConfigDoctorReport } from '../config/config-doctor';
 import { formatFceObligationAsText } from '../fce/fce-obligation.presenter';
+import { BUNDLED_MONOTRIBUTO_TABLE } from '../monotributo/monotributo.bundled';
+import {
+  formatMonotributoCategoryAsText,
+  formatMonotributoFullAsText,
+  formatMonotributoNotices,
+  formatMonotributoSummaryAsText,
+  type MonotributoReport,
+} from '../monotributo/monotributo.presenter';
 import { formatPadronAsText } from '../padron/padron.presenter';
 import {
   formatParameterEntriesAsText,
@@ -378,11 +386,28 @@ function createSampleVoucher(partial: Partial<IssuedVoucher> = {}): IssuedVouche
   };
 }
 
+/** `arcli monotributo` con la tabla incluida, consultada en ARCA, con la E marcada y un aviso. */
+function createSampleMonotributoReport(partial: Partial<MonotributoReport> = {}): MonotributoReport {
+  return {
+    consultedOn: '20261118',
+    notices: [],
+    ownCategory: 'E',
+    source: 'arca',
+    table: BUNDLED_MONOTRIBUTO_TABLE,
+    version: '2.6.0',
+    ...partial,
+  };
+}
+
 function buildQueriesScene(): string {
   const voucherKind = createVoucherKind({});
+  const monotributo = createSampleMonotributoReport();
 
   return [
-    sceneTitle('Consultas', 'Padrón, FCE, estado, listados, parámetros, cotización, config y plugin de PDF'),
+    sceneTitle(
+      'Consultas',
+      'Padrón, FCE, estado, listados, parámetros, cotización, monotributo, config y plugin de PDF',
+    ),
     formatPadronAsText({
       environment: 'testing',
       taxpayer: {
@@ -448,6 +473,17 @@ function buildQueriesScene(): string {
       'testing',
     ),
     formatQuotationAsText({ currency: '060', date: '20261116', rate: 1520.75 }, 'testing', { currencyName: 'Euro' }),
+    formatMonotributoSummaryAsText(monotributo, { hints: true }),
+    formatMonotributoNotices([
+      'No se pudo consultar la tabla en ARCA (sin conexión). Se muestra la incluida en ARCLI 2.6.0, vigente desde el 01/08/2026.',
+    ]) ?? '',
+    // Una terminal de 40 columnas: cada categoria en dos lineas.
+    formatMonotributoSummaryAsText(
+      createSampleMonotributoReport({ consultedOn: null, ownCategory: 'K', source: 'incluida' }),
+      { hints: true, width: 34 },
+    ),
+    formatMonotributoCategoryAsText(monotributo, 'E'),
+    formatMonotributoFullAsText(monotributo),
     formatPdfPluginStatusAsText({
       browser: '/ruta/al/navegador',
       browserSource: 'sistema',

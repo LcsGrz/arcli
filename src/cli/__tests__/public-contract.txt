@@ -32,6 +32,7 @@ clave json
 clave key.produccion
 clave key.testing
 clave moneda
+clave monotributo.tope
 clave pdf
 clave pdfCarpeta
 clave pdfNavegador
@@ -65,6 +66,7 @@ comando arcli fceb
 comando arcli fcec
 comando arcli fe
 comando arcli interactivo
+comando arcli monotributo
 comando arcli nca
 comando arcli ncb
 comando arcli ncc
@@ -801,6 +803,12 @@ flag arcli fe -f
 flag arcli fe -m
 flag arcli interactivo --produccion
 flag arcli interactivo --testing
+flag arcli monotributo --actualizar
+flag arcli monotributo --categoria
+flag arcli monotributo --completa
+flag arcli monotributo --json
+flag arcli monotributo --produccion
+flag arcli monotributo --testing
 flag arcli nca --ac
 flag arcli nca --acuit
 flag arcli nca --afecha

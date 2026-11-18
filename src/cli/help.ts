@@ -431,6 +431,40 @@ export function createPadronHelp(): string {
   ].join('\n');
 }
 
+export function createMonotributoHelp(): string {
+  return [
+    '',
+    section(
+      'Para qué sirve',
+      compactList([
+        'Ver las 11 categorías del monotributo (A a K): hasta cuánto podés facturar por año y cuánto pagás por mes.',
+        'Si tu CUIT es monotributista, tu categoría sale marcada (la lee una vez del padrón con tu certificado).',
+      ]),
+    ),
+    '',
+    section(
+      'Ejemplos',
+      compactList([
+        'arcli monotributo',
+        'arcli monotributo --categoria E',
+        'arcli monotributo --completa',
+        'arcli monotributo --actualizar',
+        'arcli monotributo --json',
+      ]),
+    ),
+    '',
+    section(
+      'De dónde sale',
+      compactList([
+        'De la página de categorías de ARCA, sin certificado. ARCLI la guarda y la vuelve a leer con --actualizar.',
+        'Sin conexión, o si la página cambió, usa la guardada o la tabla incluida en ARCLI.',
+        'ARCA actualiza las categorías en febrero y agosto.',
+      ]),
+    ),
+    '',
+  ].join('\n');
+}
+
 export function createCompletionHelp(): string {
   return [
     '',

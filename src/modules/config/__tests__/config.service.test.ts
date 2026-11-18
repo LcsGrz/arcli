@@ -166,6 +166,22 @@ describe('config.service', () => {
     }
   });
 
+  it('guarda monotributo.tope como importe en pesos y lo valida', () => {
+    const service = createService();
+
+    try {
+      expect(service.setValue('monotributo.tope', '30.000.000').monotributo?.tope).toBe(30_000_000);
+      expect(service.setValue('monotributo.tope', '1.234,50').monotributo?.tope).toBe(1234.5);
+      expect(() => service.setValue('monotributo.tope', '0')).toThrow(
+        '`monotributo.tope` no acepta "0": tiene que ser un importe en pesos mayor a cero, por ejemplo 30.000.000.',
+      );
+      expect(() => service.setValue('monotributo.tope', 'mucho')).toThrow('no acepta "mucho"');
+      expect(service.unsetValue('monotributo.tope').monotributo?.tope).toBeUndefined();
+    } finally {
+      service.close();
+    }
+  });
+
   it('stores scalar values with public aliases', () => {
     const service = createService();
 

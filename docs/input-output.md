@@ -729,6 +729,56 @@ En testing, `puntos-venta` sale con `valores: []`: ARCA no informa puntos de ven
 
 `moneda` es el código de ARCA (`USD` sale como `DOL`) y `fecha` (`yyyymmdd`) puede ser `null`.
 
+## Categorías del monotributo (`monotributo`)
+
+`arcli monotributo --json` devuelve la tabla de categorías que se usó (no necesita config ni certificado):
+
+```json
+{
+  "vigenteDesde": "20260801",
+  "fuente": "arca",
+  "consultadaEl": "20261118",
+  "url": "https://www.afip.gob.ar/monotributo/categorias.asp",
+  "tuCategoria": "E",
+  "categorias": [
+    {
+      "categoria": "A",
+      "ingresosBrutosHasta": 12009410.45,
+      "superficieHastaM2": 30,
+      "energiaHastaKwh": 3330,
+      "alquileresHasta": 2792886.15,
+      "precioUnitarioMaximo": 716840.77,
+      "impuestoIntegrado": { "servicios": 5585.77, "ventas": 5585.77 },
+      "aporteSipa": 18246.86,
+      "obraSocial": 25694.55,
+      "cuotaMensual": { "servicios": 49527.18, "ventas": 49527.18 }
+    }
+  ],
+  "avisos": []
+}
+```
+
+| Campo                               | Tipo                                 | Descripción                                                                                                     |
+| ----------------------------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| `vigenteDesde`                      | `string`                             | Desde cuándo rigen los valores, formato ARCA `yyyymmdd`                                                         |
+| `fuente`                            | `"arca" \| "guardada" \| "incluida"` | `arca`: leída ahora de la página; `guardada`: la de una consulta anterior; `incluida`: la que viene con ARCLI   |
+| `consultadaEl`                      | `string \| null`                     | Cuándo se leyó de ARCA, `yyyymmdd`; `null` para la incluida                                                     |
+| `url`                               | `string`                             | Página de ARCA de donde sale la tabla                                                                           |
+| `tuCategoria`                       | `string \| null`                     | Letra de la categoría del CUIT de la config según el padrón; `null` si no se pudo consultar o no es monotributo |
+| `categorias[].categoria`            | `string`                             | Letra, de `A` a `K`                                                                                             |
+| `categorias[].ingresosBrutosHasta`  | `number`                             | Tope de ingresos brutos anuales, en pesos                                                                       |
+| `categorias[].superficieHastaM2`    | `number`                             | Superficie afectada máxima, en m²                                                                               |
+| `categorias[].energiaHastaKwh`      | `number`                             | Energía eléctrica consumida por año, en kWh                                                                     |
+| `categorias[].alquileresHasta`      | `number`                             | Alquileres devengados por año, en pesos                                                                         |
+| `categorias[].precioUnitarioMaximo` | `number`                             | Precio unitario máximo, solo para venta de cosas muebles                                                        |
+| `categorias[].impuestoIntegrado`    | `{ servicios, ventas }`              | Impuesto integrado mensual: locaciones y prestaciones de servicios, y venta de cosas muebles                    |
+| `categorias[].aporteSipa`           | `number`                             | Aporte jubilatorio (SIPA) mensual                                                                               |
+| `categorias[].obraSocial`           | `number`                             | Aporte de obra social mensual, por titular (cada adherente suma lo mismo)                                       |
+| `categorias[].cuotaMensual`         | `{ servicios, ventas }`              | Total mensual: impuesto integrado + SIPA + obra social                                                          |
+| `avisos`                            | `string[]`                           | Tabla vieja, sin conexión o página que cambió; los mismos textos que en la salida humana                        |
+
+Los importes son números en pesos. Con `--categoria E`, `categorias` trae solo esa. Sin conexión o si la página no se pudo leer, no es un error: sale la tabla guardada o la incluida, con `fuente` y `avisos` que lo dicen. Una letra fuera de `A` a `K` en `--categoria` es `INPUT_VALIDATION_ERROR`.
+
 ## Configuración (`config` y `config revisar`)
 
 `arcli config --json` (y `config establecer` o `config eliminar` con `--json`, que devuelven la config resultante) muestra la config con las rutas enmascaradas. Las claves sin valor no aparecen:
@@ -756,7 +806,7 @@ En testing, `puntos-venta` sale con `valores: []`: ARCA no informa puntos de ven
 }
 ```
 
-Las claves son las de [configuración](configuration.md), salvo que `cert.*`, `key.*`, `emisor.*` y `exportacion.*` van anidadas en los objetos `cert`, `key`, `emisor` y `exportacion` (vacíos si no hay nada; `exportacion` trae a su vez `cert`, `key` y, si está, `actividad`). `emitir`, `entorno`, `exportacion`, `json`, `bruto`, `pdf`, `pdfCarpeta`, `moneda`, `cotizacion`, `consultarPadron` y `ticketPath` siempre aparecen, con su valor por defecto si no se configuraron; el resto, solo si tiene valor. Si `filasPorLista` tiene valor (o el archivo tiene la clave vieja `comprobantesPorLista`), sale también `comprobantesPorLista` con el mismo valor, deprecada hasta la 3.0.0, y `deprecado` lo avisa (ver [Estabilidad del contrato](#estabilidad-del-contrato)).
+Las claves son las de [configuración](configuration.md), salvo que `cert.*`, `key.*`, `emisor.*` y `exportacion.*` van anidadas en los objetos `cert`, `key`, `emisor` y `exportacion` (vacíos si no hay nada; `exportacion` trae a su vez `cert`, `key` y, si está, `actividad`). `emitir`, `entorno`, `exportacion`, `json`, `bruto`, `pdf`, `pdfCarpeta`, `moneda`, `cotizacion`, `consultarPadron` y `ticketPath` siempre aparecen, con su valor por defecto si no se configuraron; el resto, solo si tiene valor. `monotributo` sale solo con `monotributo.tope` configurado: `{ "tope": 30000000 }`. Si `filasPorLista` tiene valor (o el archivo tiene la clave vieja `comprobantesPorLista`), sale también `comprobantesPorLista` con el mismo valor, deprecada hasta la 3.0.0, y `deprecado` lo avisa (ver [Estabilidad del contrato](#estabilidad-del-contrato)).
 
 `arcli config revisar --json`:
 

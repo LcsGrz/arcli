@@ -1,0 +1,215 @@
+$ arcli monotributo --json
+exit: 0
+--- stdout ---
+
+{
+  "vigenteDesde": "20260801",
+  "fuente": "arca",
+  "consultadaEl": "20261117",
+  "url": "https://www.afip.gob.ar/monotributo/categorias.asp",
+  "tuCategoria": "E",
+  "categorias": [
+    {
+      "categoria": "A",
+      "ingresosBrutosHasta": 12009410.45,
+      "superficieHastaM2": 30,
+      "energiaHastaKwh": 3330,
+      "alquileresHasta": 2792886.15,
+      "precioUnitarioMaximo": 716840.77,
+      "impuestoIntegrado": {
+        "servicios": 5585.77,
+        "ventas": 5585.77
+      },
+      "aporteSipa": 18246.86,
+      "obraSocial": 25694.55,
+      "cuotaMensual": {
+        "servicios": 49527.18,
+        "ventas": 49527.18
+      }
+    },
+    {
+      "categoria": "B",
+      "ingresosBrutosHasta": 17595182.74,
+      "superficieHastaM2": 45,
+      "energiaHastaKwh": 5000,
+      "alquileresHasta": 2792886.15,
+      "precioUnitarioMaximo": 716840.77,
+      "impuestoIntegrado": {
+        "servicios": 10612.98,
+        "ventas": 10612.98
+      },
+      "aporteSipa": 20071.55,
+      "obraSocial": 25694.55,
+      "cuotaMensual": {
+        "servicios": 56379.08,
+        "ventas": 56379.08
+      }
+    },
+    {
+      "categoria": "C",
+      "ingresosBrutosHasta": 24670494.31,
+      "superficieHastaM2": 60,
+      "energiaHastaKwh": 6700,
+      "alquileresHasta": 3816944.41,
+      "precioUnitarioMaximo": 716840.77,
+      "impuestoIntegrado": {
+        "servicios": 18246.86,
+        "ventas": 16757.32
+      },
+      "aporteSipa": 22078.71,
+      "obraSocial": 25694.55,
+      "cuotaMensual": {
+        "servicios": 66020.12,
+        "ventas": 64530.58
+      }
+    },
+    {
+      "categoria": "D",
+      "ingresosBrutosHasta": 30628651.43,
+      "superficieHastaM2": 85,
+      "energiaHastaKwh": 10000,
+      "alquileresHasta": 3816944.41,
+      "precioUnitarioMaximo": 716840.77,
+      "impuestoIntegrado": {
+        "servicios": 29790.79,
+        "ventas": 27742.67
+      },
+      "aporteSipa": 24286.58,
+      "obraSocial": 30535.56,
+      "cuotaMensual": {
+        "servicios": 84612.93,
+        "ventas": 82564.81
+      }
+    },
+    {
+      "categoria": "E",
+      "ingresosBrutosHasta": 36028231.33,
+      "superficieHastaM2": 110,
+      "energiaHastaKwh": 13000,
+      "alquileresHasta": 4841002.66,
+      "precioUnitarioMaximo": 716840.77,
+      "impuestoIntegrado": {
+        "servicios": 55857.73,
+        "ventas": 44313.79
+      },
+      "aporteSipa": 26715.24,
+      "obraSocial": 37238.48,
+      "cuotaMensual": {
+        "servicios": 119811.45,
+        "ventas": 108267.51
+      }
+    },
+    {
+      "categoria": "F",
+      "ingresosBrutosHasta": 45151659.41,
+      "superficieHastaM2": 150,
+      "energiaHastaKwh": 16500,
+      "alquileresHasta": 4841002.66,
+      "precioUnitarioMaximo": 716840.77,
+      "impuestoIntegrado": {
+        "servicios": 78573.2,
+        "ventas": 57719.64
+      },
+      "aporteSipa": 29386.76,
+      "obraSocial": 42824.25,
+      "cuotaMensual": {
+        "servicios": 150784.21,
+        "ventas": 129930.65
+      }
+    },
+    {
+      "categoria": "G",
+      "ingresosBrutosHasta": 53995798.87,
+      "superficieHastaM2": 200,
+      "energiaHastaKwh": 20000,
+      "alquileresHasta": 5771964.69,
+      "precioUnitarioMaximo": 716840.77,
+      "impuestoIntegrado": {
+        "servicios": 142995.76,
+        "ventas": 71497.87
+      },
+      "aporteSipa": 41141.46,
+      "obraSocial": 46175.72,
+      "cuotaMensual": {
+        "servicios": 230312.94,
+        "ventas": 158815.05
+      }
+    },
+    {
+      "categoria": "H",
+      "ingresosBrutosHasta": 81924660.37,
+      "superficieHastaM2": 200,
+      "energiaHastaKwh": 20000,
+      "alquileresHasta": 8378658.45,
+      "precioUnitarioMaximo": 716840.77,
+      "impuestoIntegrado": {
+        "servicios": 409623.31,
+        "ventas": 204811.64
+      },
+      "aporteSipa": 57598.04,
+      "obraSocial": 55485.33,
+      "cuotaMensual": {
+        "servicios": 522706.68,
+        "ventas": 317895.01
+      }
+    },
+    {
+      "categoria": "I",
+      "ingresosBrutosHasta": 91699761.9,
+      "superficieHastaM2": 200,
+      "energiaHastaKwh": 20000,
+      "alquileresHasta": 8378658.45,
+      "precioUnitarioMaximo": 716840.77,
+      "impuestoIntegrado": {
+        "servicios": 814591.79,
+        "ventas": 325836.71
+      },
+      "aporteSipa": 80637.26,
+      "obraSocial": 68518.81,
+      "cuotaMensual": {
+        "servicios": 963747.86,
+        "ventas": 474992.78
+      }
+    },
+    {
+      "categoria": "J",
+      "ingresosBrutosHasta": 105012519.2,
+      "superficieHastaM2": 200,
+      "energiaHastaKwh": 20000,
+      "alquileresHasta": 8378658.45,
+      "precioUnitarioMaximo": 716840.77,
+      "impuestoIntegrado": {
+        "servicios": 977510.14,
+        "ventas": 391004.07
+      },
+      "aporteSipa": 112892.16,
+      "obraSocial": 76897.46,
+      "cuotaMensual": {
+        "servicios": 1167299.76,
+        "ventas": 580793.69
+      }
+    },
+    {
+      "categoria": "K",
+      "ingresosBrutosHasta": 126610838.75,
+      "superficieHastaM2": 200,
+      "energiaHastaKwh": 20000,
+      "alquileresHasta": 8378658.45,
+      "precioUnitarioMaximo": 716840.77,
+      "impuestoIntegrado": {
+        "servicios": 1368514.2,
+        "ventas": 456171.4
+      },
+      "aporteSipa": 158049.02,
+      "obraSocial": 87882.82,
+      "cuotaMensual": {
+        "servicios": 1614446.04,
+        "ventas": 702103.24
+      }
+    }
+  ],
+  "avisos": []
+}
+
+
+--- stderr ---
