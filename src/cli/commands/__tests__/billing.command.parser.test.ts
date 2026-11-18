@@ -247,7 +247,24 @@ describe('billing.command.parser', () => {
       '1200',
     ]);
 
-    expect(() => parseBillingCommandInput(command, 'fc')).toThrow(/la cotización se toma de ARCA/);
+    expect(() => parseBillingCommandInput(command, 'fc')).toThrow(
+      'Con `--misma-moneda` la cotización se toma de ARCA. Sacá `--cotizacion-moneda` o `--cm`.',
+    );
+  });
+
+  it('names the JSON keys, not the flags, when mismaMoneda and cotizacionMoneda both come from --cargar', () => {
+    const command = createCommand([
+      '--monto',
+      '1000',
+      '--cs',
+      '--ir-cf',
+      '--cargar',
+      writeJsonInput({ codigoMoneda: 'USD', cotizacionMoneda: 1200, mismaMoneda: true }),
+    ]);
+
+    expect(() => parseBillingCommandInput(command, 'fc')).toThrow(
+      'Con `"mismaMoneda": true` la cotización se toma de ARCA. Sacá `"cotizacionMoneda"` del JSON de `--cargar`.',
+    );
   });
 
   it('applies the default exchange rate only to foreign currency', () => {

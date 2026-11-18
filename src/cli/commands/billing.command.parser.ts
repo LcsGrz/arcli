@@ -353,8 +353,11 @@ function parseBillingCommandInputFromSource(
   const explicitExchangeRate = flagExchangeRate ?? (flagSameCurrency ? undefined : fileInput?.cotizacionMoneda);
 
   if (sameCurrency && typeof explicitExchangeRate === 'number') {
+    // Un flag descarta lo del archivo, asi que sin `--misma-moneda` las dos claves vienen del JSON.
     throw new InputValidationError(
-      'Con `--misma-moneda` la cotización se toma de ARCA. Sacá `--cotizacion-moneda` o `--cm`.',
+      flagSameCurrency
+        ? 'Con `--misma-moneda` la cotización se toma de ARCA. Sacá `--cotizacion-moneda` o `--cm`.'
+        : 'Con `"mismaMoneda": true` la cotización se toma de ARCA. Sacá `"cotizacionMoneda"` del JSON de `--cargar`.',
     );
   }
 
