@@ -51,6 +51,17 @@ describe('tabla de rechazos de ARCA', () => {
     expect(findArcaRejections([99999], 'otra cosa')).toEqual([]);
   });
 
+  it('10154: la nota FCE de anulación pide que el comprador rechace el asociado, por código o por mensaje', () => {
+    const [rejection] = findArcaRejections([10154], '');
+
+    expect(formatArcaRejection(rejection)).toMatch(
+      /^Una nota FCE de anulación necesita que el comprador haya rechazado.*Pedile al comprador que lo rechace.*sin `--anulacion`.*Más info: https:.*#arca-rechaza-la-nota-fce-de-anulación$/,
+    );
+    expect(findArcaRejections([], 'Comprobante electronico autorizado, NO rechazado por el Comprador')).toEqual([
+      rejection,
+    ]);
+  });
+
   it('el texto dice qué pasó, qué hacer y el link', () => {
     const [rejection] = findArcaRejections([10174], '');
 

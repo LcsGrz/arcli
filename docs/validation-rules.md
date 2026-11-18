@@ -182,6 +182,7 @@ Además:
 
 - en NC/ND A, B y C el asociado es una factura u otra nota de la misma letra (NC o ND), y en la C también un Recibo C (10040). Ej.: una NC C sobre una ND C, `--ac ndc`
 - en NC/ND FCE el asociado depende de `--anulacion`: sin anulación, solo la factura FCE (10156, 10157); con anulación, la NC asocia la factura o una ND FCE y la ND solo una NC FCE (10183, 10186, 10193). Otro asociado es error, con la sugerencia de sumar o sacar `--anulacion` si con eso vale
+- con `--anulacion`, ARCA exige que el comprador haya rechazado antes el asociado en el Registro de FCE (10154). ARCLI consulta su estado en `wsfecred` (`consultarHistorialEstadosComprobante`) antes de la vista previa y, si no está rechazado o la consulta falla, lo avisa en `avisos` sin frenar. Solo se consulta un asociado del propio emisor
 - la letra debe coincidir
 - la categoría electrónica debe coincidir
 - `--afecha` es opcional y no puede ser posterior a la fecha de la nota (10159). En NC/ND FCE ARCA la exige (10158): sin `--afecha`, ARCLI la toma del asociado en ARCA antes de la vista previa; si ARCA no lo tiene o no responde, es error
