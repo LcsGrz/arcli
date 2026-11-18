@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   assertExportClientIdentification,
+  assertExportVoucherDate,
   buildExportPayload,
   resolveExportActivity,
   resolveExportClientCountryCuit,
@@ -134,6 +135,35 @@ describe('resolveExportQuotationDate', () => {
     });
     expect(resolveExportQuotationDate({ ...base, exportType: 4, voucherDate: '20261118' }).date).toBe('20261118');
     expect(resolveExportQuotationDate({ ...base, isNote: true, voucherDate: '20261118' }).date).toBe('20261118');
+  });
+
+  it('con fecha futura en bienes es la de hoy: no hay cotizacion de un dia que no llego', () => {
+    expect(resolveExportQuotationDate({ ...base, exportType: 1, voucherDate: '20261121' }).date).toBe('20261118');
+  });
+});
+
+describe('assertExportVoucherDate (ARCA 1500)', () => {
+  const today = '20261118';
+
+  it('acepta de hoy - 5 a hoy + 5', () => {
+    for (const voucherDate of ['20261113', '20261118', '20261123']) {
+      expect(() => assertExportVoucherDate({ exportType: 1, today, voucherDate })).not.toThrow();
+    }
+  });
+
+  it('rechaza mas de 5 dias antes o despues, con el rango', () => {
+    expect(() => assertExportVoucherDate({ exportType: 1, today, voucherDate: '20261112' })).toThrow(
+      /del 13\/11\/2026 al 23\/11\/2026.*error 1500/,
+    );
+    expect(() => assertExportVoucherDate({ exportType: 4, today, voucherDate: '20261124' })).toThrow(/error 1500/);
+  });
+
+  it('en servicios no deja pasar el fin de mes', () => {
+    expect(() => assertExportVoucherDate({ exportType: 2, today: '20261128', voucherDate: '20261130' })).not.toThrow();
+    expect(() => assertExportVoucherDate({ exportType: 2, today: '20261128', voucherDate: '20261201' })).toThrow(
+      /al 30\/11\/2026.*fin de mes/,
+    );
+    expect(() => assertExportVoucherDate({ exportType: 1, today: '20261128', voucherDate: '20261201' })).not.toThrow();
   });
 });
 

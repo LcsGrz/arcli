@@ -1,4 +1,5 @@
 import {
+  addDaysToArcaDate,
   formatArcaDateAsArgentineDate,
   formatDateAsArcaDate,
   parseArgentineDateInputAsArcaDate,
@@ -11,6 +12,7 @@ import { type ArcliConfig, MISSING_CUIT_MESSAGE } from '../config/config.schemas
 import { assertExportItemsTotal, buildExportItems, DEFAULT_EXPORT_ITEM_DESCRIPTION } from './export.items';
 import {
   assertExportClientIdentification,
+  assertExportVoucherDate,
   buildExportPayload,
   type ExportQuotationDate,
   exportTypeTakesPaymentDate,
@@ -100,18 +102,30 @@ function assertRequiredFields(input: ExportVoucherInput, activity: number | unde
   }
 }
 
-/**
- * Sin confirmar: el manual WSFEX v3.1.0 acepta hasta 5 dias despues de hoy (1500) y, en servicios, dentro del mes.
- * Las fechas pasadas si son validas.
- */
-function assertNotFuture(voucherDate: string, now: Date): void {
-  const today = formatDateAsArcaDate(now);
+/** Como se nombran en plural los comprobantes del mismo tipo, para el aviso de la fecha futura. */
+const PLURAL_NAMES: Record<ExportVoucherKind['shortcut'], string> = {
+  fe: 'facturas E',
+  nce: 'notas de crédito E',
+  nde: 'notas de débito E',
+};
 
-  if (voucherDate > today) {
-    throw new InputValidationError(
-      `La fecha del comprobante (${formatArcaDateAsArgentineDate(voucherDate)}) no puede ser futura.`,
-    );
+/**
+ * ARCA 1535 (WSFEX v3.1.0) controla la secuencia por punto de venta, tipo, numero y fecha: despues de una E con fecha
+ * futura, una del mismo punto de venta y tipo con fecha anterior sale rechazada. Se avisa en la vista previa.
+ */
+function exportFutureDateWarnings(options: {
+  readonly kind: ExportVoucherKind;
+  readonly pointOfSale: number;
+  readonly today: string;
+  readonly voucherDate: string;
+}): string[] {
+  if (options.voucherDate <= options.today) {
+    return [];
   }
+
+  return [
+    `La fecha del comprobante (${formatArcaDateAsArgentineDate(options.voucherDate)}) es futura: las próximas ${PLURAL_NAMES[options.kind.shortcut]} del punto de venta ${options.pointOfSale} van a tener que llevar esa fecha o una posterior, porque ARCA rechaza una anterior (error 1535).`,
+  ];
 }
 
 interface ResolvedAssociatedVoucher {
@@ -163,6 +177,7 @@ function exportQuotationWarnings(
   quotation: ExportQuotation,
   quotationDate: ExportQuotationDate,
   exportType: ExportType,
+  voucherDate: string,
 ): string[] {
   if (!quotation.date || quotation.date === quotationDate.date) {
     return [];
@@ -174,7 +189,7 @@ function exportQuotationWarnings(
     const subject = exportType === 2 ? 'En servicios' : 'Con `--misma-moneda`';
 
     return [
-      `${subject} ARCA exige la cotización de ${quotation.code} del día hábil anterior a la fecha del comprobante (error 2053): se usa ${used}, la última que publicó hasta el ${formatArcaDateAsArgentineDate(quotationDate.date)}.`,
+      `${subject} ARCA exige la cotización de ${quotation.code} del día hábil anterior a ${quotationDate.date < addDaysToArcaDate(voucherDate, -1) ? 'hoy, porque la fecha del comprobante es futura' : 'la fecha del comprobante'} (error 2053): se usa ${used}, la última que publicó hasta el ${formatArcaDateAsArgentineDate(quotationDate.date)}.`,
     ];
   }
 
@@ -224,7 +239,7 @@ export class ExportService {
     const voucherDate = resolveExportVoucherDate(input.voucherDate, now);
     const paymentDate = input.paymentDate?.trim() ? parseArgentineDateInputAsArcaDate(input.paymentDate) : voucherDate;
 
-    assertNotFuture(voucherDate, now);
+    assertExportVoucherDate({ exportType, today: formatDateAsArcaDate(now), voucherDate });
 
     const countryList = await gateway.getDestinationCountries();
     const destinationCountry = resolveExportDestinationCountry(input.destinationCountry, countryList);
@@ -341,13 +356,14 @@ export class ExportService {
     // La cotizacion de aduana del dia se publica mas tarde: se emite con la ultima disponible, avisando de que dia es.
     const warnings = [
       ...exportAssociatedVoucherWarnings(rawInput.associatedVoucher),
+      ...exportFutureDateWarnings({ kind: voucherKind, pointOfSale, today: formatDateAsArcaDate(now), voucherDate }),
       // En las notas `--fecha-pago` es un error (ver `assertExportNoteFields`); en la factura de bienes se ignora.
       ...(!isExportNote(voucherKind) && input.paymentDate?.trim() && !exportTypeTakesPaymentDate(exportType, false)
         ? [
             'La factura E de bienes (`--tipo-expo 1`) no lleva fecha de pago: ARCA la rechaza (error 1673). `--fecha-pago` no se usa.',
           ]
         : []),
-      ...(quotation ? exportQuotationWarnings(quotation, quotationDate, exportType) : []),
+      ...(quotation ? exportQuotationWarnings(quotation, quotationDate, exportType, voucherDate) : []),
       ...(permitChecks?.warnings ?? []),
     ];
 

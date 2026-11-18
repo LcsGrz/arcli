@@ -133,7 +133,7 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
   ARCA contesta `NO`, `INPUT_VALIDATION_ERROR` con `detalles.permisos` y no se emite; si la consulta
   falla, sigue con un aviso en `avisos`. El resultado va en `exportacion.verificacionPermisos`
   (`[{permiso, estado: valido|sin-verificar}]`). En testing ARCA contesta `OK` a cualquier permiso.
-- La fecha del comprobante no puede ser futura. WSFEX numera por punto de venta y tipo: sin `--numero <n>`, ARCLI usa el siguiente al último de ARCA (también en la vista previa).
+- La fecha del comprobante (factura y notas E) va de 5 días antes a 5 días después de hoy y, en servicios, no después del fin de mes (ARCA 1500). Una fecha futura obliga a que las siguientes de ese punto de venta y tipo tengan esa fecha o una posterior (1535): sale un aviso en `avisos`. WSFEX numera por punto de venta y tipo: sin `--numero <n>`, ARCLI usa el siguiente al último de ARCA (también en la vista previa).
 - `fe` es estricto: un flag de A/B/C es opción desconocida. `factura <letra>` acepta en A/B/C los flags de la E, y en
   la E los de A/B/C, y los saltea con un aviso en `avisos` (`factura a --incoterm`, `factura e --alicuota`).
   Las reglas de cada letra siguen valiendo: `factura c --alicuota` es error, como `fc --alicuota`.

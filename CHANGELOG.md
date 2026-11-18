@@ -29,6 +29,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Configuración del modo interactivo sin "Dónde está la config":** la ruta sigue en `arcli config ruta`, y la carpeta de certificados, en Ver configuración.
 - **Listas que se filtran escribiendo:** `Filtrar:` tiene una línea en blanco arriba y abajo, así no queda pegado a la pregunta ni a la lista.
 - **Listas largas del modo interactivo:** si no entran en la pantalla, avisan cuántas opciones quedan arriba y abajo (`↑ 3 más`, `↓ 12 más`). Si entran, no cambian.
+- **La `E` acepta fechas de hasta 5 días adelante y frena las de más de 5 días atrás:** la factura y las notas `E` (`fe`, `nde`, `nce`) frenaban toda fecha futura y no ponían límite hacia atrás. Ahora `--fecha` (o `fechaComprobante` de `--cargar`) va de 5 días antes a 5 días después de hoy y, en servicios, no después del fin de mes, como ARCA (error 1500): por ejemplo, facturar el viernes con la fecha del embarque del lunes. Una fecha de más de 5 días atrás, que ARCA rechazaba, ahora frena antes con `INPUT_VALIDATION_ERROR`. Con fecha futura, la cotización de aduana es la de hoy (en servicios y con `--misma-moneda`, la del día hábil anterior a hoy), y la vista previa avisa en `avisos` que las siguientes de ese punto de venta y tipo van a tener que llevar esa fecha o una posterior (ARCA las rechaza con el error 1535). No cambia ninguna clave del `--json`.
 
 ### Corregido
 

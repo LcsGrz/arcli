@@ -269,14 +269,14 @@ describe('ExportService.resolve', () => {
 
     const backdated = createGateway();
     const resolved = await service.resolve(
-      { ...INPUT, exportType: 1, voucherDate: '18/03/2026' },
+      { ...INPUT, exportType: 1, voucherDate: '29/05/2026' },
       backdated,
       RUNTIME,
       NOW,
     );
 
-    expect(resolved.payload.Fecha_cbte).toBe('20260318');
-    expect(backdated.getQuotations).toHaveBeenCalledWith('20260318');
+    expect(resolved.payload.Fecha_cbte).toBe('20260529');
+    expect(backdated.getQuotations).toHaveBeenCalledWith('20260529');
   });
 
   it('en servicios pide la cotizacion del dia anterior a la fecha del comprobante (error 2053)', async () => {
@@ -487,10 +487,24 @@ describe('ExportService.resolve', () => {
     expect(gateway.getDestinationCountries).not.toHaveBeenCalled();
   });
 
-  it('rechaza una fecha futura', async () => {
+  it('rechaza una fecha de mas de 5 dias antes o despues de hoy (error 1500)', async () => {
     await expect(
-      service.resolve({ ...INPUT, voucherDate: '10/06/2026' }, createGateway(), RUNTIME, NOW),
-    ).rejects.toThrow(/no puede ser futura/);
+      service.resolve({ ...INPUT, voucherDate: '07/06/2026' }, createGateway(), RUNTIME, NOW),
+    ).rejects.toThrow(/error 1500/);
+    await expect(
+      service.resolve({ ...INPUT, voucherDate: '26/05/2026' }, createGateway(), RUNTIME, NOW),
+    ).rejects.toThrow(/error 1500/);
+  });
+
+  it('acepta una fecha futura de hasta 5 dias, con la cotizacion del dia habil anterior a hoy y un aviso (1535)', async () => {
+    const gateway = createGateway();
+    const resolved = await service.resolve({ ...INPUT, voucherDate: '03/06/2026' }, gateway, RUNTIME, NOW);
+
+    expect(resolved.payload.Fecha_cbte).toBe('20260603');
+    expect(gateway.getQuotations).toHaveBeenCalledWith('20260531');
+    expect(resolved.warnings).toContainEqual(
+      expect.stringMatching(/próximas facturas E del punto de venta 3 .*error 1535/),
+    );
   });
 
   it('usa el punto de venta de la config y falla si no hay ninguno', async () => {

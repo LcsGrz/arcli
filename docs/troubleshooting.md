@@ -425,6 +425,14 @@ También se reconocen por el mensaje, sin código: receptor igual al emisor, `Tr
 - **Solución:** sacá `--numero`: ARCLI consulta el último en ARCA (`FEXGetLast_CMP`) y usa el siguiente. Para ver los últimos, `arcli ultimos fe` (o `nde`, `nce`). Un rechazo no emite nada.
 - **Documentación relacionada:** [Referencia del CLI](cli-reference.md#factura-de-exportación-e-wsfex)
 
+### Factura E: la fecha está fuera de rango o es anterior a la de la última
+
+- **Severidad:** ocasional, con `--fecha`
+- **Síntoma:** `La fecha del comprobante (...) está fuera de lo que acepta ARCA: del ... al ... (error 1500).`, o ARCA rechaza con el error 1535 una `E` con fecha anterior a la de la última del mismo punto de venta y tipo.
+- **Causa:** la `E` y sus notas aceptan de 5 días antes a 5 días después de hoy y, en servicios, no después del fin de mes (error 1500). Además, ARCA controla la secuencia con la fecha: después de una `E` con fecha futura, las siguientes de ese punto de venta y tipo tienen que llevar esa fecha o una posterior (error 1535). La vista previa lo avisa.
+- **Solución:** usá una fecha dentro de la ventana; si ya emitiste una con fecha futura, emití las siguientes con esa fecha o una posterior, o esperá a ese día.
+- **Documentación relacionada:** [Reglas de validación](validation-rules.md#factura-de-exportación-e)
+
 ### Factura E: falta la actividad o no está en la tabla de WSFEX
 
 - **Severidad:** frecuente, la primera vez que se emite una `E`

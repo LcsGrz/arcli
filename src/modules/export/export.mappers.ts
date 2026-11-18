@@ -83,6 +83,47 @@ export function resolveExportVoucherDate(value: string | undefined, now = new Da
   return value?.trim() ? parseArgentineDateInputAsArcaDate(value) : formatDateAsArcaDate(now);
 }
 
+/** Cuantos dias antes y despues de la fecha de envio acepta ARCA la fecha de la E (1500, WSFEX v3.1.0). */
+export const EXPORT_DATE_WINDOW_DAYS = 5;
+
+/** Ultimo dia del mes de una fecha ARCA (yyyymmdd). */
+function lastDayOfMonth(arcaDate: string): string {
+  const year = Number(arcaDate.slice(0, 4));
+  const month = Number(arcaDate.slice(4, 6));
+  const day = new Date(Date.UTC(year, month, 0)).getUTCDate();
+
+  return `${arcaDate.slice(0, 6)}${String(day).padStart(2, '0')}`;
+}
+
+/**
+ * ARCA 1500 (WSFEX v3.1.0): la fecha de la factura y de las notas E va de hoy - 5 a hoy + 5 (N = fecha de envio) y,
+ * en servicios, no puede pasar del mes en curso. Testing lo confirma: +1 aprobada, +6 y -6 rechazadas con el periodo
+ * en el mensaje. Una fecha futura vale (por ejemplo, la del embarque del lunes), pero traba el punto de venta: ver
+ * `exportFutureDateWarning`.
+ */
+export function assertExportVoucherDate(options: {
+  readonly exportType: ExportType;
+  readonly today: string;
+  readonly voucherDate: string;
+}): void {
+  const { exportType, today, voucherDate } = options;
+  const from = addDaysToArcaDate(today, -EXPORT_DATE_WINDOW_DAYS);
+  const windowEnd = addDaysToArcaDate(today, EXPORT_DATE_WINDOW_DAYS);
+  const monthEnd = lastDayOfMonth(today);
+  const capsAtMonthEnd = exportType === SERVICES_EXPORT_TYPE && monthEnd < windowEnd;
+  const to = capsAtMonthEnd ? monthEnd : windowEnd;
+
+  if (voucherDate >= from && voucherDate <= to) {
+    return;
+  }
+
+  const range = `del ${formatArcaDateAsArgentineDate(from)} al ${formatArcaDateAsArgentineDate(to)}`;
+
+  throw new InputValidationError(
+    `La fecha del comprobante (${formatArcaDateAsArgentineDate(voucherDate)}) está fuera de lo que acepta ARCA: ${range}, hasta ${EXPORT_DATE_WINDOW_DAYS} días antes o después de hoy${capsAtMonthEnd ? ' y, en servicios, no después del fin de mes' : ''} (error 1500).`,
+  );
+}
+
 /**
  * Acepta `ARS`, `USD` o los codigos de ARCA (`PES`, `DOL`). Sin `--moneda` la exportacion va en dolares; la moneda
  * de la config es la de los comprobantes locales. Sin `--cotizacion-moneda` se usa la de aduana que publica ARCA
@@ -149,6 +190,8 @@ export interface ExportQuotationDate {
  * en la misma moneda (`CanMisMonExt` en `S`), lo mismo, por el historial 3.0.0 del manual. Se consulta el dia
  * anterior y WSFEX devuelve la ultima publicada hasta ese dia, que en un lunes o despues de un feriado es la del
  * ultimo dia habil. Las notas heredan la cotizacion del asociado (2053) y bienes y otros siguen con la del dia.
+ * Con fecha futura (1500 la acepta hasta 5 dias) no hay cotizacion de ese dia: se toma la de hoy o, en servicios y con
+ * `--misma-moneda`, la del dia habil anterior a hoy, como pide el manual (2053 e historial 3.0.0).
  */
 export function resolveExportQuotationDate(options: {
   readonly exportType: ExportType;
@@ -158,12 +201,13 @@ export function resolveExportQuotationDate(options: {
   readonly voucherDate: string;
 }): ExportQuotationDate {
   const { exportType, isNote, sameCurrency, today, voucherDate } = options;
+  const reference = minArcaDate(voucherDate, today);
 
   if (isNote || (exportType !== SERVICES_EXPORT_TYPE && !sameCurrency)) {
-    return { date: voucherDate, rule: 'voucher-date' };
+    return { date: reference, rule: 'voucher-date' };
   }
 
-  return { date: addDaysToArcaDate(minArcaDate(voucherDate, today), -1), rule: 'previous-business-day' };
+  return { date: addDaysToArcaDate(reference, -1), rule: 'previous-business-day' };
 }
 
 /**
