@@ -1,0 +1,133 @@
+/*
+ * El marco de cada página, sobre el de Starlight: encabezado, ancho máximo, paneles, índice de la derecha, barras de
+ * desplazamiento y la portada de borde a borde. Starlight pone sus estilos en `@layer starlight.*`, así que estos
+ * ganan sin `!important`.
+ */
+
+/* Encabezado con el degradé de la imagen de portada, una línea celeste a lavanda abajo y el ancho máximo (--arcli-gutter) */
+header.header {
+  padding-inline: calc(var(--sl-nav-pad-x) + var(--arcli-gutter));
+  background:
+    radial-gradient(
+      ellipse 60% 300% at 50% 0%,
+      color-mix(in srgb, var(--arcli-hdr-hi) 95%, transparent),
+      transparent 80%
+    ),
+    var(--arcli-hdr-lo);
+  border-bottom-color: transparent;
+}
+
+header.header::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--arcli-celeste) 30%, var(--arcli-lavanda) 70%, transparent);
+  opacity: 0.7;
+}
+
+/* Ancho máximo de 96rem (--arcli-gutter), como en la maqueta */
+@media (min-width: 50rem) {
+  .sidebar-pane {
+    inset-inline-start: var(--arcli-gutter);
+  }
+
+  :root[data-has-sidebar] .main-frame {
+    padding-inline: calc(var(--sl-content-inline-start) + var(--arcli-gutter)) var(--arcli-gutter);
+  }
+}
+
+/* Sin la línea de Starlight entre el título y el texto, y la introducción pegada al título */
+.content-panel {
+  border-top: 0;
+}
+
+.content-panel:first-of-type {
+  padding-bottom: 0;
+}
+
+.content-panel + .content-panel {
+  padding-top: 0.75rem;
+}
+
+/* El pie del sitio, sin espacio de más abajo */
+.content-panel:has(.site-foot) {
+  padding-bottom: 0;
+}
+
+/* Cada sección empieza con una línea, como en la maqueta */
+.sl-markdown-content > .sl-heading-wrapper.level-h2 {
+  margin-top: 2.75rem;
+  padding-top: 2.25rem;
+  border-top: 1px solid var(--sl-color-gray-5);
+}
+
+/* Índice de la derecha: "EN ESTA PÁGINA" chico, sin "Sinopsis" */
+.right-sidebar-panel h2 {
+  color: var(--sl-color-gray-3);
+  font: 600 0.72rem / 1.4 var(--sl-font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+starlight-toc nav > ul > li:first-child:has(> a[href='#_top']) {
+  display: none;
+}
+
+.right-sidebar-panel a {
+  font-size: var(--sl-text-sm);
+}
+
+/* El índice de la derecha más angosto que el menú, como en la maqueta; el texto arranca junto al menú */
+@media (min-width: 72rem) {
+  .right-sidebar-container {
+    width: var(--arcli-toc-width);
+  }
+
+  :root[data-has-sidebar][data-has-toc] .main-pane {
+    --sl-content-margin-inline: 0 auto;
+    width: calc(100% - var(--arcli-toc-width));
+  }
+}
+
+/* Barra de desplazamiento del menú y del índice, con los colores del sitio */
+.sidebar-pane,
+.right-sidebar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--sl-color-gray-5) transparent;
+}
+
+.sidebar-pane::-webkit-scrollbar,
+.right-sidebar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sidebar-pane::-webkit-scrollbar-thumb,
+.right-sidebar::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 99px;
+  background: var(--sl-color-gray-5) padding-box;
+}
+
+.sidebar-pane::-webkit-scrollbar-thumb:hover,
+.right-sidebar::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--arcli-celeste) 55%, transparent) padding-box;
+}
+
+.sidebar-pane::-webkit-scrollbar-track,
+.right-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* La portada: de borde a borde y sin espacio entre el encabezado y el degradé */
+:root[data-home] .content-panel,
+:root[data-home] .main-frame .sl-container {
+  max-width: none;
+  padding: 0;
+}
+
+:root[data-home] .content-panel .site-foot {
+  max-width: 72rem;
+  margin-inline: auto;
+  padding-inline: 1.5rem;
+}

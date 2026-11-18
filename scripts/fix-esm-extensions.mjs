@@ -2,7 +2,8 @@ import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from '
 import { dirname, join, resolve } from 'node:path';
 
 const distPath = resolve(process.cwd(), 'dist');
-const importExportPattern = /((?:^|\n)\s*(?:import|export)(?:\s+type)?\s+(?:[^'"]+?\s+from\s+)?)(['"])(\.\.?\/[^'"]+)\2/g;
+const importExportPattern =
+  /((?:^|\n)\s*(?:import|export)(?:\s+type)?\s+(?:[^'"]+?\s+from\s+)?)(['"])(\.\.?\/[^'"]+)\2/g;
 
 function resolveSpecifier(fileDir, specifier) {
   const target = join(fileDir, specifier);

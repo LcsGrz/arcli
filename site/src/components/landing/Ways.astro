@@ -1,0 +1,16 @@
+---
+/** Formas de uso: una fila por forma (asistente, comandos, con IA), con lo que escribís o pedís y el link. */
+import { SECTIONS, WAYS } from '../../data/landing';
+import { url } from '../../lib/site';
+import Section from './Section.astro';
+---
+
+<Section {...SECTIONS.ways}>
+  <div class="pick">
+    {
+      WAYS.map((way) => (
+        <a class="pick-row" href={url(way.href)}><span class="pick-q">{way.question}</span><span class="pick-do"><small>{way.verb}</small>{way.kind === 'cmd' ? <code>{way.do}</code> : <q>{way.do}</q>}</span><span class="pick-go">{way.target} <span aria-hidden="true">→</span></span></a>
+      ))
+    }
+  </div>
+</Section>

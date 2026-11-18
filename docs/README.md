@@ -52,5 +52,6 @@ También en el [sitio de documentación](https://arcli.com.ar/), con buscador.
 - [Guía de desarrollo](development.md): entorno local, scripts, tests, CI y releases.
 - [Arquitectura](architecture.md): capas, flujo de una emisión y cómo extender el CLI.
 - [Design system](design-system.md): paneles, colores, símbolos, formatos y textos de la terminal.
+- [Design system del sitio](design-system-sitio.md): tokens, componentes, marcas de Markdown y CSS de arcli.com.ar.
 - [CONTRIBUTING](../CONTRIBUTING.md): flujo de trabajo y reglas del contrato público.
 - [SECURITY](../SECURITY.md).

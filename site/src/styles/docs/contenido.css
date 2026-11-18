@@ -1,0 +1,120 @@
+/* El texto de las páginas, como en la maqueta: links, código en línea, tablas, avisos, imágenes y GIF */
+
+.sl-markdown-content a:not(.arcli-way):not(.not-content *) {
+  color: var(--arcli-celeste);
+}
+
+/* Código en línea con borde */
+.sl-markdown-content :not(pre) > code:not(.not-content *) {
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.35rem;
+  background: var(--sl-color-gray-6);
+}
+
+/* Tablas en una caja, con el encabezado de fondo */
+.sl-markdown-content table:not(.not-content *) {
+  width: 100%;
+  border: 1px solid var(--sl-color-gray-5);
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 0.6rem;
+  font-size: var(--sl-text-sm);
+}
+
+.sl-markdown-content th {
+  background: var(--sl-color-gray-6);
+  color: var(--sl-color-white);
+  font-weight: 600;
+}
+
+.sl-markdown-content th,
+.sl-markdown-content td {
+  padding: 0.55rem 0.9rem;
+  border-bottom: 1px solid var(--sl-color-gray-5);
+}
+
+.sl-markdown-content tr:last-child td {
+  border-bottom: 0;
+}
+
+/* Las tablas de referencia son anchas: en el celular se desplazan en vez de romper la página; en pantallas grandes
+   ocupan todo el ancho (Starlight las deja en bloque) */
+@media (max-width: 50rem) {
+  .sl-markdown-content table {
+    display: block;
+    overflow-x: auto;
+  }
+}
+
+@media (min-width: 50rem) {
+  .sl-markdown-content table:not(.not-content *) {
+    display: table;
+  }
+}
+
+/* Avisos sutiles: borde de color, un fondo apenas teñido y el ícono apenas más grande que su título */
+.starlight-aside {
+  border: 1px solid color-mix(in srgb, var(--sl-color-asides-border) 45%, transparent);
+  border-inline-start: 3px solid var(--sl-color-asides-border);
+  border-radius: 0.6rem;
+  background: color-mix(in srgb, var(--sl-color-asides-border) 8%, var(--sl-color-black));
+}
+
+.starlight-aside--tip {
+  --sl-color-asides-border: var(--arcli-verde);
+  --sl-color-asides-text-accent: var(--arcli-verde);
+}
+
+.starlight-aside--note {
+  --sl-color-asides-border: var(--arcli-celeste);
+  --sl-color-asides-text-accent: var(--arcli-celeste);
+}
+
+.starlight-aside--caution {
+  --sl-color-asides-border: var(--arcli-sol);
+  --sl-color-asides-text-accent: var(--arcli-sol);
+}
+
+.starlight-aside--danger {
+  --sl-color-asides-border: var(--arcli-rojo);
+  --sl-color-asides-text-accent: var(--arcli-rojo);
+}
+
+.starlight-aside__icon {
+  font-size: 1.1em;
+}
+
+/* Imágenes: el lugar reservado (ancho y alto los pone sync-docs) y un fondo gris mientras cargan */
+.sl-markdown-content img:not(.not-content *) {
+  height: auto;
+  background: var(--sl-color-gray-6);
+}
+
+/* El PDF de ejemplo, centrado y con sombra, como las capturas de la portada */
+.sl-markdown-content img[src$='pdf-factura.png']:not(.not-content *) {
+  display: block;
+  margin-inline: auto;
+  border-radius: 0.4rem;
+  background: var(--arcli-papel);
+  box-shadow: var(--arcli-shadow-pdf);
+}
+
+/* GIF con marco y leyenda */
+.sl-markdown-content .arcli-gif {
+  margin: 1.25rem 0;
+}
+
+.arcli-gif img {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--arcli-term-line);
+  border-radius: 0.75rem;
+  box-shadow: var(--arcli-shadow-glow);
+}
+
+.arcli-gif figcaption {
+  margin-top: 0.6rem;
+  color: var(--sl-color-gray-3);
+  font-size: var(--sl-text-sm);
+}

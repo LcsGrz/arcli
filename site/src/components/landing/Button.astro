@@ -1,0 +1,16 @@
+---
+/** Un botón de la portada (`.btn`): `primary` lleva la flecha. `href` es una ruta del sitio. */
+import type { LandingLink } from '../../data/landing';
+
+import { url } from '../../lib/site';
+import LandingIcon from './LandingIcon.astro';
+
+interface Props {
+  readonly link: LandingLink;
+  readonly variant: 'ghost' | 'primary';
+}
+
+const { link, variant } = Astro.props;
+---
+
+<a class:list={['btn', variant]} href={url(link.href)}>{link.text}{variant === 'primary' && <LandingIcon name="flecha" size="17" stroke-width="2.2" />}</a>

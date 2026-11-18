@@ -1,0 +1,62 @@
+/* Pasos numerados: un círculo por paso y una línea que los une, como en Instalar */
+.arcli-steps {
+  counter-reset: paso;
+}
+
+.sl-markdown-content .arcli-steps > .sl-heading-wrapper {
+  position: relative;
+  counter-increment: paso;
+  margin-top: 0;
+  padding: 0.15rem 0 0.4rem 2.75rem;
+}
+
+.sl-markdown-content .arcli-steps > .sl-heading-wrapper h3 {
+  font-size: var(--sl-text-base);
+}
+
+.sl-markdown-content .arcli-steps > .sl-heading-wrapper::before {
+  content: counter(paso);
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  place-items: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border: 1px solid color-mix(in srgb, var(--arcli-celeste) 55%, transparent);
+  border-radius: 50%;
+  background: var(--sl-color-accent-low);
+  color: var(--sl-color-text-accent);
+  font: 700 0.85rem / 1 var(--sl-font-system-mono);
+}
+
+.sl-markdown-content .arcli-steps > :not(.sl-heading-wrapper) {
+  margin-top: 0;
+  margin-inline-start: 0.925rem;
+  padding: 0.5rem 0 0.5rem 1.825rem;
+  border-inline-start: 1px solid var(--sl-color-gray-5);
+}
+
+.sl-markdown-content .arcli-steps > :not(.sl-heading-wrapper):has(+ .sl-heading-wrapper),
+.sl-markdown-content .arcli-steps > :last-child {
+  padding-bottom: 1.5rem;
+}
+
+.sl-markdown-content .arcli-steps > :last-child {
+  border-inline-start-color: transparent;
+}
+
+/* Lo que va envuelto adentro de un paso (carteles, capturas) sigue la línea del paso */
+.sl-markdown-content .arcli-steps .arcli-block > * {
+  margin-top: 0;
+}
+
+/* Un aviso adentro de un paso: el mismo espacio arriba y abajo */
+.sl-markdown-content .arcli-steps .arcli-block > .starlight-aside {
+  margin: 0.5rem 0 0;
+}
+
+/* Si el paso termina con un aviso, la línea que separa la sección ya trae su espacio */
+.sl-markdown-content .arcli-steps > .arcli-block:last-child:has(> .starlight-aside) {
+  padding-bottom: 0;
+}

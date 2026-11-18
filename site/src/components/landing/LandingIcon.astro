@@ -1,0 +1,10 @@
+---
+/** Un ícono de la portada: el de `Icon.astro`, pero con las puntas rectas, como en la maqueta. */
+import type { ComponentProps } from 'astro/types';
+
+import Icon from '../Icon.astro';
+
+type Props = ComponentProps<typeof Icon>;
+---
+
+<Icon stroke-linecap={undefined} stroke-linejoin={undefined} {...Astro.props} />

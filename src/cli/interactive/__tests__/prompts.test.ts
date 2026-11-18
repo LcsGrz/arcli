@@ -1,9 +1,9 @@
 import input from '@inquirer/input';
-import select, { Separator } from '@inquirer/select';
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest';
 
 import { BACK } from '../../../modules/interactive/wizard';
 import { stripAnsi } from '../../../ui';
+import { listSelect } from '../list-select';
 import {
   askText,
   askTextStep,
@@ -14,13 +14,10 @@ import {
   isPromptCancellation,
 } from '../prompts';
 
-vi.mock('@inquirer/select', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@inquirer/select')>()),
-  default: vi.fn(),
-}));
+vi.mock('../list-select', () => ({ listSelect: vi.fn() }));
 vi.mock('@inquirer/input', () => ({ default: vi.fn() }));
 
-const selectMock = vi.mocked(select);
+const selectMock = vi.mocked(listSelect);
 const inputMock = vi.mocked(input);
 
 describe('prompts', () => {
@@ -49,20 +46,31 @@ describe('prompts', () => {
         'a',
       ),
     ).toBe('b');
-    expect(selectMock.mock.calls[0]?.[0]).toMatchObject({ default: 'a', loop: false, message: '¿Cual?' });
+    expect(selectMock.mock.calls[0]?.[0]).toMatchObject({ default: 'a', message: '¿Cual?' });
   });
 
-  it('chooseStep agrega "Volver" al final de las opciones', async () => {
+  it('chooseStep agrega "Volver" fijo debajo de las opciones', async () => {
     selectMock.mockResolvedValueOnce(BACK as never);
 
     expect(await chooseStep('¿Cual?', [{ name: 'A', value: 'a' }])).toBe(BACK);
+    expect(selectMock.mock.calls[0]?.[0]).toMatchObject({
+      back: { label: '← Volver', value: BACK },
+      choices: [{ name: 'A', value: 'a' }],
+    });
+    // La respuesta queda como "✔ ¿Cual? ← Volver".
+    expect(stripAnsi(String(write.mock.calls[0]?.[0]))).toBe('✔ ¿Cual? ← Volver\n');
+  });
 
-    const choices = (selectMock.mock.calls[0]?.[0] as unknown as { choices: Array<{ name: string; value: unknown }> })
-      .choices;
+  it('chooseOne con `back` deja la respuesta con el texto del boton', async () => {
+    selectMock.mockResolvedValueOnce('volver' as never);
 
-    expect(choices.at(-1)).toEqual({ name: '← Volver', value: BACK });
-    // Una linea en blanco separa "Volver" de las opciones.
-    expect(Separator.isSeparator(choices.at(-2))).toBe(true);
+    expect(
+      await chooseOne('¿Cual?', [{ name: 'A', value: 'a' }], undefined, {
+        back: { label: '← Volver al menú', value: 'volver' },
+        escapeValue: 'volver',
+      }),
+    ).toBe('volver');
+    expect(stripAnsi(String(write.mock.calls[0]?.[0]))).toBe('✔ ¿Cual? ← Volver al menú\n');
   });
 
   it('chooseStepWhileLoading devuelve lo cargado y cierra la lista sin dejar rastro', async () => {

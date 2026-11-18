@@ -201,8 +201,7 @@ export async function pickVoucher<T extends { readonly number: number }>(
       value: BY_NUMBER,
     });
 
-    // +2: el separador y "Volver" que agrega chooseStep.
-    const pageSizeOnScreen = fitPageSize(choices.length + 2);
+    const pageSizeOnScreen = fitPageSize(choices.length);
     let answer: Back | PickerChoice<T>;
 
     if (loading) {

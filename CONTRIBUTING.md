@@ -53,6 +53,7 @@ Actualizá la documentación que describe lo que cambiaste:
 | Modo interactivo                             | [modo interactivo](docs/modo-interactivo.md)                                                           |
 | Pantallas que salen en una demo              | guiones de `docs/assets/tapes/` (y avisar que hay que regrabar el GIF)                                 |
 | Salida en terminal (paneles, textos)         | [design system](docs/design-system.md)                                                                 |
+| Estilo, componentes o marcas del sitio       | [design system del sitio](docs/design-system-sitio.md)                                                 |
 | Módulos, capas o gateways                    | [arquitectura](docs/architecture.md)                                                                   |
 | Servicios de ARCA que hay que autorizar      | [certificado de testing](docs/certificado-testing.md#qué-servicios-autorizar)                          |
 | Alcance, estructura o comandos de desarrollo | `AGENTS.md`                                                                                            |

@@ -19,7 +19,15 @@ const THEME = {
 const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
 
 /** Corre el prompt de verdad: las teclas entran por `input` y lo dibujado sale por `output`. */
-async function run(keys: readonly string[], selected: readonly string[] = []) {
+async function run(
+  keys: readonly string[],
+  selected: readonly string[] = [],
+  choices: ReadonlyArray<{ readonly name: string; readonly value: string }> = [
+    { name: 'Moneda extranjera', value: 'moneda' },
+    { name: 'Exento', value: 'exento' },
+  ],
+  pageSize = 12,
+) {
   const input = new PassThrough();
   const output = new PassThrough();
   let screen = '';
@@ -31,12 +39,9 @@ async function run(keys: readonly string[], selected: readonly string[] = []) {
   const answer = multiSelect(
     {
       backLabel: '← Volver',
-      choices: [
-        { name: 'Moneda extranjera', value: 'moneda' },
-        { name: 'Exento', value: 'exento' },
-      ],
+      choices,
       message: '¿Agregamos algún opcional?',
-      pageSize: 12,
+      pageSize,
       selected,
       theme: THEME,
     },
@@ -52,6 +57,17 @@ async function run(keys: readonly string[], selected: readonly string[] = []) {
 }
 
 describe('multiSelect', () => {
+  it('si no entran todas, avisa cuantas quedan arriba y abajo y "Volver" no se desplaza', async () => {
+    const many = Array.from({ length: 10 }, (_, index) => ({ name: `Opción ${index + 1}`, value: String(index + 1) }));
+    const { answer, screen } = await run([DOWN, DOWN, DOWN, DOWN, DOWN, DOWN, ENTER], [], many, 4);
+
+    expect(screen).toContain('↓ 6 más');
+    expect(screen).toMatch(
+      /↑ 4 más\n {2}◯ Opción 5\n.*\n❯ ◯ Opción 7\n {2}◯ Opción 8\n {2}↓ 2 más\s*\n\s*\n {2}← Volver/,
+    );
+    expect(answer).toEqual([]);
+  });
+
   it('muestra "Volver" como un boton, sin circulo, y el cursor separado del icono', async () => {
     const { screen } = await run([ENTER]);
 

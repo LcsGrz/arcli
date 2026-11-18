@@ -1,0 +1,24 @@
+/*
+ * Chip de color: la familia del título y la letra del menú (Chip.astro), la versión del encabezado, los tipos de cambio
+ * de Novedades y la severidad de Problemas frecuentes. El color es `--chip`; borde, fondo y texto lo mezclan en la
+ * proporción de `--chip-line`, `--chip-fill` y `--chip-text`. El tamaño y la letra los pone cada lugar.
+ */
+.arcli-chip {
+  --chip-line: 38%;
+  --chip-fill: 16%;
+  --chip-text: 85%;
+  /* Los colores van aparte del `border` y sin `background`: sin `--chip` (la versión) quedan sin valor, pero el ancho
+     y el estilo del borde siguen. */
+  border: 1px solid;
+  border-color: color-mix(in srgb, var(--chip) var(--chip-line), transparent);
+  border-radius: 99px;
+  background-color: color-mix(in srgb, var(--chip) var(--chip-fill), transparent);
+  color: color-mix(in srgb, var(--chip) var(--chip-text), var(--sl-color-gray-2));
+}
+
+/* Sin color (la versión del encabezado): el borde y el texto en gris */
+.arcli-chip-gris {
+  border-color: var(--sl-color-gray-5);
+  background-color: transparent;
+  color: var(--sl-color-gray-2);
+}

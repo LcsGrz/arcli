@@ -1,60 +1,58 @@
 ---
 /**
  * El logo de arcli como texto, igual que en la terminal (`src/ui/primitives/renderLogo.ts`): "AR" en celeste y "CLI"
- * en el color del texto. Sale de `src/generated/brand.json`, que arma scripts/sync-docs.mjs desde el CLI.
+ * en lavanda. Sale de `src/generated/brand.json`, que arma scripts/sync-docs.mjs desde el CLI.
+ *
+ * - `header` y `footer`: chico, en el encabezado y en el pie de cada página.
+ * - `hero`: el de la portada, con la firma abajo; su tamaño y colores están en `styles/landing.css` (`.logo`).
  */
 import brand from '../generated/brand.json';
+import { escapeHtml } from '../lib/site';
 
 interface Props {
-  readonly signature?: boolean;
-  readonly size?: 'hero' | 'small';
+  readonly variant: 'footer' | 'header' | 'hero';
 }
 
-const { signature = true, size = 'hero' } = Astro.props;
+const { variant } = Astro.props;
 const width = Math.max(...brand.banner.map((line) => line.length));
-const lines = brand.banner.map((line) => [line.slice(0, brand.splitColumn), line.slice(brand.splitColumn)]);
+const lines = brand.banner
+  .map((line) => `<span class="ar">${escapeHtml(line.slice(0, brand.splitColumn))}</span><span class="cli">${escapeHtml(line.slice(brand.splitColumn))}</span>`)
+  .join('\n');
 ---
 
-<div class:list={['ascii-logo', size]} style={`--logo-cols: ${width}`} role="img" aria-label="ARCLI">
-  <pre aria-hidden="true">{lines.map(([ar, cli]) => <span class="line"><span class="ar">{ar}</span><span class="cli">{cli}</span>{'\n'}</span>)}{signature && <span class="signature">{'-LcsGrz'.padStart(width)}</span>}</pre>
-</div>
+{
+  variant === 'hero' ? (
+    <div class="logo" role="img" aria-label="ARCLI"><pre aria-hidden="true" set:html={`${lines}\n<span class="sign">${'-LcsGrz'.padStart(width)}</span>`} /></div>
+  ) : (
+    <pre class="logo-mini" data-size={variant} aria-hidden="true" set:html={lines} />
+  )
+}
 
 <style>
-  .ascii-logo {
-    container-type: inline-size;
-    width: 100%;
-    max-width: 46rem;
-    margin-inline: auto;
-  }
-
-  .ascii-logo.small {
-    max-width: 22rem;
-  }
-
-  pre {
+  .logo-mini {
     margin: 0;
     padding: 0;
-    overflow: hidden;
-    background: none;
     border: 0;
-    font-family: var(--sl-font-system-mono);
-    /* El dibujo ocupa todo el ancho disponible: el tamaño de letra sale del ancho, no al reves. */
-    font-size: calc(100cqi / (var(--logo-cols) * 0.6));
-    line-height: 1.18;
-    font-weight: 600;
-    white-space: pre;
+    background: none;
+    font-weight: 700;
   }
 
-  .ar {
+  .logo-mini[data-size='header'] {
+    font-family: var(--sl-font-mono);
+    font-size: 0.22rem;
+    line-height: 1.12;
+  }
+
+  .logo-mini[data-size='footer'] {
+    font-size: 0.3rem;
+    line-height: 1.15;
+  }
+
+  .logo-mini :global(.ar) {
     color: var(--arcli-celeste);
   }
 
-  .cli {
+  .logo-mini :global(.cli) {
     color: var(--arcli-lavanda);
-  }
-
-  .signature {
-    color: var(--sl-color-gray-3);
-    font-weight: 400;
   }
 </style>

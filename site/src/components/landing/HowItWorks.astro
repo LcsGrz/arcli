@@ -1,0 +1,43 @@
+---
+/** Cómo es facturar: los cuatro pasos, cada uno con su visual (atajos, comandos, vista previa y resultado). */
+import { HOW_PREVIEW, HOW_RESULT, HOW_SNIPPET, HOW_STEPS, PROFILES, SECTIONS } from '../../data/landing';
+import { url } from '../../lib/site';
+import Section from './Section.astro';
+import Snippet from './Snippet.astro';
+import Step from './Step.astro';
+import TermPanel from './TermPanel.astro';
+---
+
+<Section {...SECTIONS.howItWorks}>
+  <div class="zz">
+    <Step n="01" {...HOW_STEPS.pick}>
+      <div class="zz-visual">
+        <ul class="chipboard">
+          {
+            PROFILES.map((profile) => (
+              <li><span class="persona-tag">{profile.short}</span><div class="chips">{profile.chips.map((chip) => <code>{chip}</code>)}</div></li>
+            ))
+          }
+        </ul>
+      </div>
+    </Step>
+    <Step n="02" reverse {...HOW_STEPS.data}>
+      <div class="zz-visual">
+        <Snippet lines={HOW_SNIPPET} />
+      </div>
+    </Step>
+    <Step n="03" {...HOW_STEPS.review}>
+      <TermPanel class="zz-visual preview" label={HOW_PREVIEW.label} rows={HOW_PREVIEW.rows} title={HOW_PREVIEW.title} titleClass="pv-title">
+        <div class="pv-ask">{HOW_PREVIEW.ask} <span>{HOW_PREVIEW.hint}</span></div>
+      </TermPanel>
+    </Step>
+    <Step n="04" reverse {...HOW_STEPS.result}>
+      <div class="zz-visual result-visual">
+        <img class="pdf" src={url(HOW_RESULT.pdfSrc)} alt={HOW_RESULT.pdfAlt} width="707" height="1000" loading="lazy" />
+        <TermPanel class="panel" label={HOW_RESULT.label} rows={HOW_RESULT.rows} title={HOW_RESULT.title} titleClass="panel-title">
+          <div class="ok">{HOW_RESULT.status}</div>
+        </TermPanel>
+      </div>
+    </Step>
+  </div>
+</Section>

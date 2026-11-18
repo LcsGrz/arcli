@@ -200,7 +200,11 @@ export const OPTIONS = {
     name: 'Datos de la FCE',
     rows: [
       ['', '--afecha <fecha>', 'Fecha de la factura; sin el flag, ARCLI la consulta en ARCA'],
-      ['', '--anulacion', 'Anula un comprobante que el comprador rechazó: la NC ajusta la factura o una ND FCE, y la ND solo una NC FCE'],
+      [
+        '',
+        '--anulacion',
+        'Anula un comprobante que el comprador rechazó: la NC ajusta la factura o una ND FCE, y la ND solo una NC FCE',
+      ],
     ],
     text: '',
   },

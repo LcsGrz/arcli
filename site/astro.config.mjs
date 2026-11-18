@@ -4,6 +4,8 @@ import { existsSync, readFileSync } from 'node:fs';
 
 import { defineConfig } from 'astro/config';
 
+import { NPM_URL, REPO_URL } from './src/lib/site';
+
 // El menu lo arma scripts/sync-docs.mjs (corre antes de `astro dev` y `astro build`), con un icono por pagina.
 const sidebarFile = new URL('./src/generated/sidebar.json', import.meta.url);
 const sidebar = existsSync(sidebarFile) ? JSON.parse(readFileSync(sidebarFile, 'utf8')) : [];
@@ -30,6 +32,7 @@ export default defineConfig({
       components: {
         Footer: './src/components/Footer.astro',
         Header: './src/components/Header.astro',
+        MarkdownContent: './src/components/MarkdownContent.astro',
         PageSidebar: './src/components/PageSidebar.astro',
         PageTitle: './src/components/PageTitle.astro',
         Sidebar: './src/components/Sidebar.astro',
@@ -37,14 +40,32 @@ export default defineConfig({
         ThemeProvider: './src/components/ThemeProvider.astro',
         ThemeSelect: './src/components/ThemeSelect.astro',
       },
-      customCss: ['./src/styles/arcli.css'],
+      // Los estilos de las docs, un archivo por parte; el orden importa (desplegables.css antes que problemas.css y
+      // novedades.css, opciones.css antes que desplegables.css).
+      customCss: [
+        './src/styles/tokens.css',
+        ...[
+          'marco',
+          'contenido',
+          'codigo',
+          'opciones',
+          'desplegables',
+          'chat',
+          'pasos',
+          'muestra',
+          'formas',
+          'chip',
+          'problemas',
+          'novedades',
+          'pestanas',
+          'atajos',
+        ].map((name) => `./src/styles/docs/${name}.css`),
+      ],
       // La 404 es la de src/content/docs/404.md, en español y con el buscador.
       disable404Route: true,
       description: 'Emití facturas electrónicas de ARCA (ex AFIP) desde la terminal o con un asistente paso a paso.',
       favicon: '/favicon.svg',
       head: [
-        // Comportamiento de las páginas generadas: "Ver las N", el buscador de problemas y abrir lo plegado por link.
-        { attrs: { defer: true, src: '/arcli.js' }, tag: 'script' },
         // Respaldo del favicon.svg para navegadores sin SVG (`sizes` evita que Chrome lo prefiera al SVG), el ícono de
         // inicio de iOS y el manifiesto. Los genera scripts/icono/generar.py en public/, desde el mismo ícono.
         { attrs: { href: '/favicon.ico', rel: 'icon', sizes: '32x32' }, tag: 'link' },
@@ -67,22 +88,24 @@ export default defineConfig({
         },
         ...analytics,
       ],
-      // Bloques de código como en la maqueta: título ("Terminal") y "Copiar", sin los tres puntos de la ventana.
+      // Bloques de código como en la maqueta: título ("Terminal") y "Copiar", sin los tres puntos de la ventana. Los colores
+      // son los tokens de terminal de src/styles/tokens.css.
       expressiveCode: {
         styleOverrides: {
-          borderColor: '#313244',
-          borderRadius: '0.6rem',
+          borderColor: 'var(--arcli-term-line)',
+          borderRadius: 'var(--arcli-radius-lg)',
+          // Con un color fijo (no un token), así expressive-code puede calcular el contraste del texto en el tema claro.
           codeBackground: '#11111b',
           frames: {
-            editorActiveTabBackground: '#11111b',
-            editorTabBarBackground: '#11111b',
-            editorTabBarBorderBottomColor: '#313244',
+            editorActiveTabBackground: 'var(--arcli-term-bg)',
+            editorTabBarBackground: 'var(--arcli-term-bg)',
+            editorTabBarBorderBottomColor: 'var(--arcli-term-line)',
             frameBoxShadowCssValue: 'none',
-            terminalBackground: '#11111b',
-            terminalTitlebarBackground: '#11111b',
-            terminalTitlebarBorderBottomColor: '#313244',
+            terminalBackground: 'var(--arcli-term-bg)',
+            terminalTitlebarBackground: 'var(--arcli-term-bg)',
+            terminalTitlebarBorderBottomColor: 'var(--arcli-term-line)',
             terminalTitlebarDotsOpacity: '0',
-            terminalTitlebarForeground: '#a6adc8',
+            terminalTitlebarForeground: 'var(--arcli-term-fg-soft)',
           },
         },
       },
@@ -93,8 +116,8 @@ export default defineConfig({
       logo: { alt: 'arcli', src: './src/assets/logo.svg' },
       sidebar,
       social: [
-        { href: 'https://github.com/LcsGrz/arcli', icon: 'github', label: 'GitHub' },
-        { href: 'https://www.npmjs.com/package/arcli', icon: 'npm', label: 'npm' },
+        { href: REPO_URL, icon: 'github', label: 'GitHub' },
+        { href: NPM_URL, icon: 'npm', label: 'npm' },
       ],
       title: 'arcli',
     }),
