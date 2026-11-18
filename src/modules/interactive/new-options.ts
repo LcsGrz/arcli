@@ -7,9 +7,9 @@ export const NEW_OPTION_SINCE = {
   autocompletado: '2.2.0',
   certificados: '2.3.0',
   consultas: '2.5.0',
-  'donde-config': '2.5.0',
   'factura-e': '2.2.0',
   'notas-e': '2.5.0',
+  'notas-sobre-notas': '2.6.0',
   recibo: '2.3.0',
   'repetir-e': '2.5.0',
 } as const satisfies Record<string, `${number}.${number}.${number}`>;
@@ -17,12 +17,7 @@ export const NEW_OPTION_SINCE = {
 export type NewOption = keyof typeof NEW_OPTION_SINCE;
 
 /** Las opciones de Configuracion que tienen marca: el menu principal la marca mientras haya alguna nueva. */
-export const CONFIG_MENU_NEW_OPTIONS: readonly NewOption[] = [
-  'certificados',
-  'autocompletado',
-  'acceso-directo',
-  'donde-config',
-];
+export const CONFIG_MENU_NEW_OPTIONS: readonly NewOption[] = ['certificados', 'autocompletado', 'acceso-directo'];
 
 const NEW_FOR_MINOR_VERSIONS = 2;
 

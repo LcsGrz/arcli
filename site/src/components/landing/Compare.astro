@@ -1,0 +1,23 @@
+---
+/** ¿Factura en línea o ARCLI?: la tabla comparativa y el aviso de los puntos de venta. */
+import { COMPARE, SECTIONS } from '../../data/landing';
+import { url } from '../../lib/site';
+import Rich from './Rich.astro';
+import Section from './Section.astro';
+---
+
+<Section {...SECTIONS.compare}>
+  <div class="table-wrap cmp">
+    <table>
+      <thead><tr><th></th>{COMPARE.head.map((cell) => <th><Rich text={cell} /></th>)}</tr></thead>
+      <tbody>
+        {
+          COMPARE.rows.map((row) => (
+            <tr><td>{row.cells[0]}</td><td class={'no' in row ? 'no' : undefined}>{row.cells[1]}</td><td>{row.cells[2]}</td></tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </div>
+  <p class="versus-note"><Rich text={COMPARE.note} /> <a href={url(COMPARE.noteLink.href)}>{COMPARE.noteLink.text}</a>.</p>
+</Section>

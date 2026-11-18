@@ -1,0 +1,19 @@
+/* Grilla de atajos (Comandos y ¿Cuál me toca?): letras centradas y cada atajo como link */
+.arcli-atajos th:not(:first-child),
+.arcli-atajos td:not(:first-child) {
+  width: 14%;
+  text-align: center;
+}
+
+.arcli-atajos td a {
+  text-decoration: none;
+}
+
+.arcli-atajos td a code {
+  color: var(--arcli-celeste);
+  font-weight: 600;
+}
+
+.arcli-atajos td a:hover code {
+  border-color: var(--arcli-celeste);
+}

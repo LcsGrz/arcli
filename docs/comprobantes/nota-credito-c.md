@@ -6,7 +6,7 @@
 
 <!-- arcli: familia="Monotributo · C" icono="menos" orden="2" -->
 
-Resta sobre una Factura C o un Recibo C: un descuento, una devolución o una anulación.
+Resta sobre una Factura C, un Recibo C u otra nota C: un descuento, una devolución o una anulación.
 
 `arcli ncc` | `arcli nota-credito c`
 
@@ -68,11 +68,11 @@ Ej.: `--ir-cf`
 
 ### Comprobante que ajusta
 
-Atajo, punto de venta y número del comprobante. O un período entero, con `--pd` y `--ph`.
+Atajo, punto de venta y número del comprobante: una factura u otra nota de la misma letra. O un período entero, con `--pd` y `--ph`.
 
 | Largo | Corto | Qué es |
 | --- | --- | --- |
-| `--ac <atajo>` |  | Atajo del comprobante: fc, rc, fa… |
+| `--ac <atajo>` |  | Atajo del comprobante: fc, rc, ndc… |
 | `--asociado-punto-venta <número>` | `--apv` | Su punto de venta |
 | `--ar <número>` |  | Su número |
 | `--acuit <cuit>` |  | El CUIT del emisor: el tuyo |

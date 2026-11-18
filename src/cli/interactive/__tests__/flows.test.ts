@@ -8,6 +8,7 @@ import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.re
 import { stripAnsi } from '../../../ui';
 import { initialAdvancedOptions } from '../advanced-options';
 import { runExportFlow } from '../export.flow';
+import { runExportNoteFlow } from '../export-note.flow';
 import { runExportRepeatFlow } from '../export-repeat.flow';
 import { runHistoryFlow } from '../history.flow';
 import {
@@ -29,6 +30,7 @@ let script = createScript([]);
 
 vi.mock('../export.flow', () => ({ runExportFlow: vi.fn(async () => undefined) }));
 vi.mock('../export-repeat.flow', () => ({ runExportRepeatFlow: vi.fn(async () => undefined) }));
+vi.mock('../export-note.flow', () => ({ runExportNoteFlow: vi.fn(async () => undefined) }));
 
 const savedConfig = vi.fn();
 
@@ -869,7 +871,8 @@ describe('flujos del modo interactivo', () => {
   describe('notas', () => {
     it('arma una NC por el total sobre una factura de la lista', async () => {
       script = createScript([
-        [/Sobre qué comprobante/, 'Factura B'],
+        [/Sobre qué comprobante/, 'Facturas'],
+        [/Qué factura\?/, 'Factura B'],
         [/A qué la asociamos/, 'A una factura'],
         [/Sobre qué factura B/, '00003-00000014'],
         [/Total o parcial/, 'Anular el total'],
@@ -890,7 +893,8 @@ describe('flujos del modo interactivo', () => {
 
     it('una NC sobre una factura en dolares va en dolares y, si la anula entera, copia el exento', async () => {
       script = createScript([
-        [/Sobre qué comprobante/, 'Factura B'],
+        [/Sobre qué comprobante/, 'Facturas'],
+        [/Qué factura\?/, 'Factura B'],
         [/A qué la asociamos/, 'A una factura'],
         [/Sobre qué factura B/, '00003-00000014'],
         [/Total o parcial/, 'Anular el total'],
@@ -910,7 +914,8 @@ describe('flujos del modo interactivo', () => {
 
     it('con varias alicuotas no ofrece anular el total', async () => {
       script = createScript([
-        [/Sobre qué comprobante/, 'Factura B'],
+        [/Sobre qué comprobante/, 'Facturas'],
+        [/Qué factura\?/, 'Factura B'],
         [/A qué la asociamos/, 'A una factura'],
         [/Sobre qué factura B/, '00003-00000014'],
         [/Monto de la nota de crédito/, '100'],
@@ -931,7 +936,8 @@ describe('flujos del modo interactivo', () => {
 
     it('en FCE no ofrece periodo, pregunta el IVA receptor y la anulacion', async () => {
       script = createScript([
-        [/Sobre qué comprobante/, 'Factura de crédito electrónica A'],
+        [/Sobre qué comprobante/, 'Facturas'],
+        [/Qué factura\?/, 'Factura de crédito electrónica A'],
         [/Sobre qué factura de crédito electrónica A/, '00003-00000014'],
         [/Total o parcial/, 'Parcial'],
         [/Monto de la nota de crédito/, '60,50'],
@@ -974,7 +980,8 @@ describe('flujos del modo interactivo', () => {
 
     it('arma una NC asociada a un periodo', async () => {
       script = createScript([
-        [/Sobre qué comprobante/, 'Factura B'],
+        [/Sobre qué comprobante/, 'Facturas'],
+        [/Qué factura\?/, 'Factura B'],
         [/A qué la asociamos/, 'A un período'],
         [/Período desde/, '1/9'],
         [/Período hasta/, '30/9'],
@@ -1002,7 +1009,8 @@ describe('flujos del modo interactivo', () => {
       vi.setSystemTime(new Date('2026-10-25T12:00:00-03:00'));
 
       script = createScript([
-        [/Sobre qué comprobante/, 'Factura B'],
+        [/Sobre qué comprobante/, 'Facturas'],
+        [/Qué factura\?/, 'Factura B'],
         [/A qué la asociamos/, 'A una factura'],
         [/Sobre qué factura B/, '00003-00000014'],
         [/Total o parcial/, 'Parcial'],
@@ -1037,7 +1045,8 @@ describe('flujos del modo interactivo', () => {
 
     it('si la NC anula el total no ofrece exento, y en FCE no ofrece vencimiento', async () => {
       script = createScript([
-        [/Sobre qué comprobante/, 'Factura de crédito electrónica B'],
+        [/Sobre qué comprobante/, 'Facturas'],
+        [/Qué factura\?/, 'Factura de crédito electrónica B'],
         [/Sobre qué factura de crédito electrónica B/, '00003-00000014'],
         [/Total o parcial/, 'Anular el total'],
         [/rechazó la factura/, 'No'],
@@ -1055,7 +1064,8 @@ describe('flujos del modo interactivo', () => {
 
     it('usa los defaults de la config: IVA receptor, concepto y alícuota en las de período, y su moneda', async () => {
       script = createScript([
-        [/Sobre qué comprobante/, 'Factura B'],
+        [/Sobre qué comprobante/, 'Facturas'],
+        [/Qué factura\?/, 'Factura B'],
         [/A qué la asociamos/, 'A un período'],
         [/Período desde/, '1/9'],
         [/Período hasta/, '30/9'],
@@ -1095,7 +1105,8 @@ describe('flujos del modo interactivo', () => {
 
     it('sobre una factura de la que no se deduce la alícuota, propone la de la config', async () => {
       script = createScript([
-        [/Sobre qué comprobante/, 'Factura B'],
+        [/Sobre qué comprobante/, 'Facturas'],
+        [/Qué factura\?/, 'Factura B'],
         [/A qué la asociamos/, 'A una factura'],
         [/Sobre qué factura B/, '00003-00000014'],
         [/Monto de la nota de crédito/, '100'],
@@ -1115,7 +1126,8 @@ describe('flujos del modo interactivo', () => {
 
     it('una ND por periodo puede ir en otra moneda', async () => {
       script = createScript([
-        [/Sobre qué comprobante/, 'Factura C'],
+        [/Sobre qué comprobante/, 'Facturas'],
+        [/Qué factura\?/, 'Factura C'],
         [/A qué la asociamos/, 'A un período'],
         [/Período desde/, '1/9'],
         [/Período hasta/, '30/9'],
@@ -1143,7 +1155,8 @@ describe('flujos del modo interactivo', () => {
 
     it('si no hay facturas solo ofrece ingresarla a mano', async () => {
       script = createScript([
-        [/Sobre qué comprobante/, 'Factura B'],
+        [/Sobre qué comprobante/, 'Facturas'],
+        [/Qué factura\?/, 'Factura B'],
         [/A qué la asociamos/, 'A una factura'],
         [/Sobre qué factura B/, BACK],
         [/A qué la asociamos/, BACK],
@@ -1151,14 +1164,15 @@ describe('flujos del modo interactivo', () => {
       ]);
 
       expect(await runWizard(noteSteps(createSession([]), 3), { kind: 'debito' })).toBeUndefined();
-      expect(onlyChoices(script.chooseStep.mock.calls[2][1]).map((choice) => choice.name)).toEqual([
+      expect(onlyChoices(script.chooseStep.mock.calls[3][1]).map((choice) => choice.name)).toEqual([
         '# Ingresar el número a mano…',
       ]);
     });
 
     it('carga mas facturas, de a la cantidad configurada, y deja elegir una vieja', async () => {
       script = createScript([
-        [/Sobre qué comprobante/, 'Factura C'],
+        [/Sobre qué comprobante/, 'Facturas'],
+        [/Qué factura\?/, 'Factura C'],
         [/A qué la asociamos/, 'A una factura'],
         [/Sobre qué factura C/, 'Cargar más'],
         [/Sobre qué factura C/, '00003-00000003'],
@@ -1196,7 +1210,8 @@ describe('flujos del modo interactivo', () => {
 
     it('ingresa a mano una factura de otro punto de venta', async () => {
       script = createScript([
-        [/Sobre qué comprobante/, 'Factura C'],
+        [/Sobre qué comprobante/, 'Facturas'],
+        [/Qué factura\?/, 'Factura C'],
         [/A qué la asociamos/, 'A una factura'],
         [/Sobre qué factura C/, 'Ingresar el número a mano'],
         [/Punto de venta/, '5'],
@@ -1219,7 +1234,8 @@ describe('flujos del modo interactivo', () => {
 
     it('si la factura ingresada a mano no existe vuelve a la lista', async () => {
       script = createScript([
-        [/Sobre qué comprobante/, 'Factura C'],
+        [/Sobre qué comprobante/, 'Facturas'],
+        [/Qué factura\?/, 'Factura C'],
         [/A qué la asociamos/, 'A una factura'],
         [/Sobre qué factura C/, 'Ingresar el número a mano'],
         [/Punto de venta/, '3'],
@@ -1233,6 +1249,244 @@ describe('flujos del modo interactivo', () => {
       const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
 
       expect(state?.invoice?.number).toBe(14);
+    });
+
+    describe('notas sobre otras notas (NOTAS-1, TUI-12)', () => {
+      /** Las opciones de la ultima vez que se pregunto `question`, sin la marca "(nuevo)". */
+      const optionNames = (question: RegExp): string[] => {
+        const call = script.chooseStep.mock.calls.filter(([message]) => question.test(message)).at(-1);
+
+        return onlyChoices(call?.[1] ?? []).map((choice) => stripAnsi(choice.name).replace(' (nuevo)', ''));
+      };
+
+      /** Entra a cada familia con mas de una opcion y vuelve, para ver sus opciones. */
+      const browseFamilies = () =>
+        createScript([
+          [/Sobre qué comprobante/, 'Facturas'],
+          [/Qué factura\?/, BACK],
+          [/Sobre qué comprobante/, 'Notas de crédito'],
+          [/Qué nota de crédito\?/, BACK],
+          [/Sobre qué comprobante/, 'Notas de débito'],
+          [/Qué nota de débito\?/, BACK],
+          [/Sobre qué comprobante/, BACK],
+        ]);
+
+      it('el selector agrupa por tipo de documento; las familias con opciones nuevas llevan la marca', async () => {
+        script = createScript([[/Sobre qué comprobante/, BACK]]);
+
+        await runWizard(noteSteps(createSession(), 3), { kind: 'credito' });
+
+        const names = onlyChoices(script.chooseStep.mock.calls[0][1]).map((choice) => stripAnsi(choice.name));
+
+        expect(names).toEqual(['Facturas (nuevo)', 'Notas de crédito (nuevo)', 'Notas de débito (nuevo)', 'Recibo C']);
+      });
+
+      it('en una NC: todas las facturas, las NC comunes y E, y las ND comunes, FCE y E', async () => {
+        script = browseFamilies();
+
+        await runWizard(noteSteps(createSession(), 3), { kind: 'credito' });
+
+        expect(optionNames(/Qué factura\?/)).toEqual([
+          'Factura C',
+          'Factura B',
+          'Factura A',
+          'Factura de crédito electrónica C',
+          'Factura de crédito electrónica B',
+          'Factura de crédito electrónica A',
+          'Factura de exportación E',
+        ]);
+        expect(optionNames(/Qué nota de crédito\?/)).toEqual([
+          'Nota de crédito C',
+          'Nota de crédito B',
+          'Nota de crédito A',
+          'Nota de crédito de exportación E',
+        ]);
+        expect(optionNames(/Qué nota de débito\?/)).toEqual([
+          'Nota de débito C',
+          'Nota de débito B',
+          'Nota de débito A',
+          'Nota de débito electrónica C',
+          'Nota de débito electrónica B',
+          'Nota de débito electrónica A',
+          'Nota de débito de exportación E',
+        ]);
+      });
+
+      it('en una ND, las NC FCE estan entre las notas de credito y las ND FCE no', async () => {
+        script = browseFamilies();
+
+        await runWizard(noteSteps(createSession(), 3), { kind: 'debito' });
+
+        expect(optionNames(/Qué nota de crédito\?/)).toEqual([
+          'Nota de crédito C',
+          'Nota de crédito B',
+          'Nota de crédito A',
+          'Nota de crédito electrónica C',
+          'Nota de crédito electrónica B',
+          'Nota de crédito electrónica A',
+          'Nota de crédito de exportación E',
+        ]);
+        expect(optionNames(/Qué nota de débito\?/)).toEqual([
+          'Nota de débito C',
+          'Nota de débito B',
+          'Nota de débito A',
+          'Nota de débito de exportación E',
+        ]);
+      });
+
+      it('volver desde el segundo nivel vuelve a las familias, con la elegida marcada', async () => {
+        script = createScript([
+          [/Sobre qué comprobante/, 'Notas de débito'],
+          [/Qué nota de débito\?/, BACK],
+          [/Sobre qué comprobante/, BACK],
+        ]);
+
+        expect(await runWizard(noteSteps(createSession(), 3), { kind: 'credito' })).toBeUndefined();
+        expect(script.chooseStep.mock.calls[0][2]).toBeUndefined();
+        expect(script.chooseStep.mock.calls[2][2]).toBe('nota-debito');
+      });
+
+      it('una familia con una sola opcion, como el Recibo C, no tiene segundo nivel', async () => {
+        script = createScript([
+          [/Sobre qué comprobante/, 'Recibo C'],
+          [/A qué la asociamos/, BACK],
+          [/Sobre qué comprobante/, BACK],
+        ]);
+
+        await runWizard(noteSteps(createSession(), 3), { kind: 'credito' });
+
+        expect(script.asked).toEqual(['¿Sobre qué comprobante?', '¿A qué la asociamos?', '¿Sobre qué comprobante?']);
+      });
+
+      it('arma una NC C sobre una ND C sin preguntar factura o periodo, con el tope de la ND', async () => {
+        script = createScript([
+          [/Sobre qué comprobante/, 'Notas de débito'],
+          [/Qué nota de débito\?/, 'Nota de débito C'],
+          [/Sobre qué nota de débito C/, '00003-00000014'],
+          [/Total o parcial/, 'Parcial'],
+          [/Monto de la nota de crédito/, '50'],
+          [/Agregamos/, []],
+        ]);
+
+        const session = createSession([invoice({ ivaAmount: 0, netAmount: 121 })]);
+        const getVoucher = vi.spyOn(session.historyGateway, 'getVoucher');
+        const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
+
+        expect(getVoucher).toHaveBeenCalledWith(14, 3, 12);
+        expect(script.asked.some((question) => /asociamos/.test(question))).toBe(false);
+        expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
+          associatedVoucher: { numero: 14, puntoVenta: 3, shortcut: 'ndc' },
+          shortcut: 'ncc',
+          totalAmount: 50,
+        });
+      });
+
+      it('el tope de una NC sobre una ND es el total de la ND, y el aviso la nombra', async () => {
+        script = createScript([
+          [/Sobre qué comprobante/, 'Notas de débito'],
+          [/Qué nota de débito\?/, 'Nota de débito C'],
+          [/Sobre qué nota de débito C/, '00003-00000014'],
+          [/Total o parcial/, 'Parcial'],
+          [/Monto de la nota de crédito/, '200'],
+        ]);
+
+        await expect(
+          runWizard(noteSteps(createSession([invoice({ ivaAmount: 0, netAmount: 121 })]), 3), { kind: 'credito' }),
+        ).rejects.toThrow('No puede superar el total de la nota de débito C 00003-00000014, de $ 121.');
+      });
+
+      it('una NC sobre otra NC no ofrece anular el total ni tiene tope', async () => {
+        script = createScript([
+          [/Sobre qué comprobante/, 'Notas de crédito'],
+          [/Qué nota de crédito\?/, 'Nota de crédito A'],
+          [/Sobre qué nota de crédito A/, '00003-00000014'],
+          [/Monto de la nota de crédito/, '500'],
+          [/Condición frente al IVA/, 'Responsable inscripto'],
+          [/Agregamos/, []],
+        ]);
+
+        const session = createSession([invoice({ documentNumber: 30709965812, documentTypeCode: 80 })]);
+        const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
+
+        expect(script.asked.some((question) => /Total o parcial/.test(question))).toBe(false);
+        expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
+          associatedVoucher: { shortcut: 'nca' },
+          shortcut: 'nca',
+          totalAmount: 500,
+        });
+      });
+
+      it('una ND FCE sobre una NC FCE es de anulacion, sin preguntarlo', async () => {
+        script = createScript([
+          [/Sobre qué comprobante/, 'Notas de crédito'],
+          [/Qué nota de crédito\?/, 'Nota de crédito electrónica A'],
+          [/Sobre qué nota de crédito electrónica A/, '00003-00000014'],
+          [/Monto de la nota de débito/, '121'],
+          [/Condición frente al IVA/, 'Responsable inscripto'],
+          [/Agregamos/, []],
+        ]);
+
+        const session = createSession([invoice({ documentNumber: 30709965812, documentTypeCode: 80 })]);
+        const state = await runWizard(noteSteps(session, 3), { kind: 'debito' });
+
+        expect(script.asked.some((question) => /rechazó/.test(question))).toBe(false);
+        expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
+          associatedVoucher: { shortcut: 'ncea' },
+          cancellation: true,
+          shortcut: 'ndea',
+        });
+      });
+
+      it('una ND FCE sobre la factura no es de anulacion, sin preguntarlo', async () => {
+        script = createScript([
+          [/Sobre qué comprobante/, 'Facturas'],
+          [/Qué factura\?/, 'Factura de crédito electrónica A'],
+          [/Sobre qué factura de crédito electrónica A/, '00003-00000014'],
+          [/Monto de la nota de débito/, '121'],
+          [/Condición frente al IVA/, 'Responsable inscripto'],
+          [/Agregamos/, []],
+        ]);
+
+        const session = createSession([invoice({ documentNumber: 30709965812, documentTypeCode: 80 })]);
+        const state = await runWizard(noteSteps(session, 3), { kind: 'debito' });
+
+        expect(script.asked.some((question) => /rechazó/.test(question))).toBe(false);
+        expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
+          cancellation: false,
+          shortcut: 'ndea',
+        });
+      });
+
+      it('una nota E sobre otra nota E va al asistente de la E con ese asociado', async () => {
+        script = createScript([
+          [/Sobre qué comprobante/, 'Notas de débito'],
+          [/Qué nota de débito\?/, 'Nota de débito de exportación E'],
+        ]);
+
+        const session = createSession();
+        const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
+
+        expect(state?.exported).toBe(true);
+        expect(runExportNoteFlow).toHaveBeenCalledWith(
+          session,
+          'credito',
+          expect.objectContaining({ arcaType: 20, shortcut: 'nde' }),
+        );
+      });
+
+      it('volver desde el asistente de la E vuelve a la lista donde estaba la E', async () => {
+        vi.mocked(runExportNoteFlow).mockResolvedValueOnce(BACK);
+        script = createScript([
+          [/Sobre qué comprobante/, 'Facturas'],
+          [/Qué factura\?/, 'Factura de exportación E'],
+          [/Qué factura\?/, BACK],
+          [/Sobre qué comprobante/, BACK],
+        ]);
+
+        expect(await runWizard(noteSteps(createSession(), 3), { kind: 'credito' })).toBeUndefined();
+        expect(script.chooseStep.mock.calls[2][2]).toMatchObject({ shortcut: 'fe' });
+        expect(script.chooseStep.mock.calls[3][2]).toBe('factura');
+      });
     });
   });
 

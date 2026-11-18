@@ -16,11 +16,7 @@ import {
   uninstallCompletion,
 } from '../../modules/completion/installer';
 import { COMPLETION_SHELLS, type CompletionShell } from '../../modules/completion/shell-scripts';
-import {
-  formatConfigAsText,
-  formatConfigDoctorAsText,
-  formatConfigLocationAsText,
-} from '../../modules/config/config.presenter';
+import { formatConfigAsText, formatConfigDoctorAsText } from '../../modules/config/config.presenter';
 import {
   type ArcliConfig,
   type ArcliEnvironment,
@@ -324,12 +320,11 @@ async function runChangeField(): Promise<void> {
   for (;;) {
     const config = readConfig();
     const choices = fieldChoicesBySection(config);
-    // +2: el separador y "Volver" que agrega chooseStep.
     const field = await chooseStep<ConfigField>(
       '¿Qué querés modificar?',
       choices,
       lastField,
-      fitPageSize(choices.length + 2),
+      fitPageSize(choices.length),
     );
 
     if (field === BACK) {
@@ -431,16 +426,7 @@ async function runCompletionMenu(): Promise<void> {
 }
 
 type ConfigOption =
-  | 'acceso-directo'
-  | 'cambiar'
-  | 'certificados'
-  | 'completado'
-  | 'donde'
-  | 'guiada'
-  | 'pdf'
-  | 'revisar'
-  | 'ver'
-  | 'volver';
+  'acceso-directo' | 'cambiar' | 'certificados' | 'completado' | 'guiada' | 'pdf' | 'revisar' | 'ver' | 'volver';
 
 /** Un error aca no corta el menu: se avisa y se puede seguir (por ejemplo, si no hay escritorio). */
 function runDesktopShortcut(): void {
@@ -512,19 +498,9 @@ export async function runConfigMenu(flags: EnvironmentFlags = {}): Promise<void>
           },
           'acceso-directo',
         ),
-        markIfNew(
-          {
-            description: 'El archivo de configuración y su carpeta, como `arcli config ruta`',
-            name: 'Dónde está la config',
-            value: 'donde',
-          },
-          'donde-config',
-        ),
-        new Separator(' '),
-        { name: `${uiSymbol('back')} Volver al menú`, value: 'volver' },
       ],
       undefined,
-      { escapeValue: 'volver' },
+      { back: { label: `${uiSymbol('back')} Volver al menú`, value: 'volver' }, escapeValue: 'volver' },
     );
 
     if (option === 'volver') {
@@ -545,7 +521,5 @@ export async function runConfigMenu(flags: EnvironmentFlags = {}): Promise<void>
     if (option === 'pdf') await runPdfPluginMenu();
     if (option === 'completado') await runCompletionMenu();
     if (option === 'acceso-directo') runDesktopShortcut();
-    if (option === 'donde')
-      writeTerminalOutput(formatConfigLocationAsText(withConfigService((service) => service.getPath())));
   }
 }

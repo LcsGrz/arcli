@@ -6,12 +6,13 @@ import {
   makeTheme,
   useKeypress,
   useMemo,
-  usePagination,
   usePrefix,
   useState,
 } from '@inquirer/core';
 
 import { bold, colorize, uiSymbol } from '../../ui';
+
+import { scrollHint, scrollWindow } from './scroll-window';
 
 type HelpKey = [string, string];
 
@@ -26,6 +27,8 @@ export interface FilterListRow<T> {
 }
 
 export interface FilterListConfig<T> {
+  /** "← Volver" fijo debajo de la lista, separado por una linea en blanco; elegirlo cierra la lista sin respuesta. */
+  readonly back?: string;
   readonly default?: T;
   /** Fila de encabezado (CÓDIGO, DESCRIPCIÓN…), fija arriba de la lista. */
   readonly header?: string;
@@ -70,6 +73,15 @@ export function filterRows<T>(rows: ReadonlyArray<FilterListRow<T>>, term: strin
   return rows.filter((row) => normalize(`${row.label} ${row.keywords ?? ''}`).includes(needle));
 }
 
+/** La posicion de "Volver": despues de la ultima fila. */
+const BACK_ROW = -1;
+
+function renderBack(label: string, isActive: boolean, highlight: (text: string) => string): string {
+  const line = `${isActive ? uiSymbol('pointer') : ' '} ${label}`;
+
+  return isActive ? highlight(line) : line;
+}
+
 /**
  * Lista que se filtra escribiendo y se desplaza con las flechas, con un encabezado fijo arriba. Para las tablas de
  * ARCA que no entran en una pagina y para elegir una moneda. @inquirer/search no viene con ARCLI y no deja poner
@@ -90,9 +102,9 @@ export const filterList = createPrompt(<T>(config: FilterListConfig<T>, done: (v
 
   useKeypress((key, rl) => {
     if (isEnterKey(key)) {
-      const row = visible[active];
+      const row = active === BACK_ROW ? undefined : visible[active];
 
-      if (config.mode === 'ver') {
+      if (config.mode === 'ver' || active === BACK_ROW) {
         setStatus('done');
         done(undefined);
       } else if (row) {
@@ -104,9 +116,11 @@ export const filterList = createPrompt(<T>(config: FilterListConfig<T>, done: (v
       rl.clearLine(0);
       rl.write(term);
 
-      const next = active + (isUpKey(key) ? -1 : 1);
+      // Las filas que se recorren con las flechas, con "Volver" al final.
+      const order = [...visible.keys(), ...(config.back ? [BACK_ROW] : [])];
+      const next = order[order.indexOf(active) + (isUpKey(key) ? -1 : 1)];
 
-      if (next >= 0 && next < visible.length) {
+      if (next !== undefined) {
         setActive(next);
       }
     } else if (rl.line !== term) {
@@ -115,18 +129,18 @@ export const filterList = createPrompt(<T>(config: FilterListConfig<T>, done: (v
     }
   });
 
-  const page = usePagination({
-    active,
-    items: visible,
-    loop: false,
-    pageSize: config.pageSize,
-    renderItem({ isActive, item }) {
-      const cursor = isActive ? uiSymbol('pointer') : ' ';
-      const line = `${cursor} ${item.label}`;
+  // Con "Volver" marcado, la pagina queda al final, porque se llega desde la ultima fila.
+  const window = scrollWindow(visible.length, active === BACK_ROW ? visible.length - 1 : active, config.pageSize);
+  const page = [
+    ...(window.scrolls ? [scrollHint('above', window.start)] : []),
+    ...visible.slice(window.start, window.end).map((item, offset) => {
+      const isActive = window.start + offset === active;
+      const line = `${isActive ? uiSymbol('pointer') : ' '} ${item.label}`;
 
       return isActive ? theme.style.highlight(line) : line;
-    },
-  });
+    }),
+    ...(window.scrolls ? [scrollHint('below', visible.length - window.end)] : []),
+  ].join('\n');
   const message = theme.style.message(config.message, status);
 
   if (status === 'done') {
@@ -140,9 +154,12 @@ export const filterList = createPrompt(<T>(config: FilterListConfig<T>, done: (v
   const body = visible.length > 0 ? page : colorize(`  Nada coincide con "${term.trim()}".`, 'muted');
   const keys: HelpKey[] = [['↑↓', 'navigate'], ...(config.mode === 'elegir' ? [['⏎', 'select'] as HelpKey] : [])];
   const lines = [
+    // Una linea en blanco entre "Filtrar:" y la lista, y otra arriba (en `top`), para que el filtro no quede pegado.
+    ' ',
     config.header ? `  ${bold(config.header)}` : '',
     body,
     count,
+    ...(config.back ? [' ', renderBack(config.back, active === BACK_ROW, theme.style.highlight)] : []),
     ' ',
     config.help ? theme.style.description(config.help) : '',
     theme.style.keysHelpTip(keys),
@@ -150,7 +167,7 @@ export const filterList = createPrompt(<T>(config: FilterListConfig<T>, done: (v
   // Con dos partes, el cursor queda despues de lo escrito y la lista va debajo. El mensaje activo termina en un salto
   // de linea (el estilo de las listas), asi que el filtro queda en su propia linea.
   const head = [prefix, message].filter(Boolean).join(' ');
-  const top = `${head}${head.endsWith('\n') ? '' : ' '}${colorize('Filtrar:', 'muted')} ${term}`;
+  const top = `${head}${head.endsWith('\n') ? '\n' : ' '}${colorize('Filtrar:', 'muted')} ${term}`;
 
   return [top, lines.filter(Boolean).join('\n').trimEnd()];
 });

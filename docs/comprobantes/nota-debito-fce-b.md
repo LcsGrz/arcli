@@ -62,7 +62,7 @@ Ej.: `--cuit 20168598204`
 
 | Largo | Corto | Qué es |
 | --- | --- | --- |
-| `--ac <atajo>` |  | fcec, fcea o fceb |
+| `--ac <atajo>` |  | fcec, fcea o fceb; con --anulacion, también una nota FCE |
 | `--asociado-punto-venta <número>` | `--apv` | Su punto de venta |
 | `--ar <número>` |  | Su número |
 | `--at <número>` |  | Tipo ARCA, en vez de --ac |
@@ -80,7 +80,7 @@ Más datos del comprobante, o cambiar lo que viene de la config.
 | Largo | Corto | Qué es |
 | --- | --- | --- |
 | `--afecha <fecha>` |  | Fecha de la factura; sin el flag, ARCLI la consulta en ARCA |
-| `--anulacion` |  | Anula una factura que el comprador rechazó |
+| `--anulacion` |  | Anula un comprobante que el comprador rechazó: la NC ajusta la factura o una ND FCE, y la ND solo una NC FCE |
 
 Ej.: `--anulacion`
 

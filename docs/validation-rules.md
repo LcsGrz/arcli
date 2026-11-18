@@ -180,11 +180,12 @@ Con período asociado no hace falta ninguno de estos flags, `--acuit` incluido.
 
 Además:
 
-- el asociado debe ser una factura o un Recibo C, no otra nota
+- en NC/ND A, B y C el asociado es una factura u otra nota de la misma letra (NC o ND), y en la C también un Recibo C (10040). Ej.: una NC C sobre una ND C, `--ac ndc`
+- en NC/ND FCE el asociado depende de `--anulacion`: sin anulación, solo la factura FCE (10156, 10157); con anulación, la NC asocia la factura o una ND FCE y la ND solo una NC FCE (10183, 10186, 10193). Otro asociado es error, con la sugerencia de sumar o sacar `--anulacion` si con eso vale
 - la letra debe coincidir
 - la categoría electrónica debe coincidir
 - `--afecha` es opcional y no puede ser posterior a la fecha de la nota (10159). En NC/ND FCE ARCA la exige (10158): sin `--afecha`, ARCLI la toma del asociado en ARCA antes de la vista previa; si ARCA no lo tiene o no responde, es error
-- una nota de crédito no puede superar el total del asociado cuando van en la misma moneda. Se controla antes de la vista previa, con una consulta del asociado en ARCA (`FECompConsultar`) por nota que se reusa al emitir, y es un `INPUT_VALIDATION_ERROR` con la sugerencia del `--monto` que la anula entera. Solo se consulta un asociado del propio emisor; si ARCA no responde, la nota sigue con un aviso
+- una nota de crédito no puede superar el total del asociado (factura, recibo o nota de débito) cuando van en la misma moneda; sobre otra nota de crédito no hay tope, como en la `E`. Se controla antes de la vista previa, con una consulta del asociado en ARCA (`FECompConsultar`) por nota que se reusa al emitir, y es un `INPUT_VALIDATION_ERROR` con la sugerencia del `--monto` que la anula entera. Solo se consulta un asociado del propio emisor; si ARCA no responde, la nota sigue con un aviso
 
 ### Crédito electrónico (FCE)
 

@@ -73,6 +73,8 @@ export type UiSymbolName =
   | 'ellipsis'
   | 'keyEnter'
   | 'keysMove'
+  | 'moreAbove'
+  | 'moreBelow'
   | 'pointer'
   | 'rule'
   | 'selected'
@@ -326,6 +328,8 @@ export const UI_THEME: UiTheme = {
     ellipsis: { ascii: '...', unicode: '…' },
     keyEnter: { ascii: 'enter', unicode: '⏎' },
     keysMove: { ascii: 'arriba/abajo', unicode: '↑↓' },
+    moreAbove: { ascii: '^', unicode: '↑' },
+    moreBelow: { ascii: 'v', unicode: '↓' },
     pointer: { ascii: '>', unicode: '❯' },
     rule: { ascii: '-', unicode: '┈' },
     selected: { ascii: '[x]', unicode: '◉' },

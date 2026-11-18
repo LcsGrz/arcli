@@ -1,0 +1,33 @@
+---
+/** ¿Qué facturás?: una pestaña por perfil, con sus comprobantes y dos ejemplos. */
+import { PROFILES, SECTIONS } from '../../data/landing';
+import { url } from '../../lib/site';
+import Section from './Section.astro';
+import Snippet from './Snippet.astro';
+import Tabs from './Tabs.astro';
+---
+
+<Section {...SECTIONS.vouchers}>
+  <Tabs class="seg" label="Tu situación" items={PROFILES} />
+  {
+    PROFILES.map((profile, index) => (
+      <div class="seg-panel" data-panel={profile.key} hidden={index > 0}>
+        <ul class="vlist">
+          {profile.rows.map((row) => (
+            <li><a href={url(`comprobantes/${row.slug}/`)}><code>{row.atajo}</code><span><b>{row.title}</b>{row.text}</span></a></li>
+          ))}
+        </ul>
+        <Snippet lines={profile.snippet} />
+      </div>
+    ))
+  }
+</Section>
+
+<script>
+  const tabs = document.querySelector('.seg');
+  const panels = document.querySelectorAll<HTMLElement>('.seg-panel');
+
+  tabs?.addEventListener('tabchange', (event) => {
+    for (const panel of panels) panel.hidden = panel.dataset.panel !== (event as CustomEvent<string>).detail;
+  });
+</script>

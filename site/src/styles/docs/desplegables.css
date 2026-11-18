@@ -1,0 +1,51 @@
+/*
+ * Desplegables de las docs (capturas plegadas, problemas, versiones): una caja con borde; abierto, se aclara el
+ * contenido y el encabezado queda igual. Los de cada componente (problemas.css, novedades.css) van después.
+ */
+.sl-markdown-content details:not(.not-content *) {
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.55rem;
+}
+
+.sl-markdown-content details:not(.not-content *) > summary {
+  color: var(--sl-color-text-accent);
+  font-size: var(--sl-text-sm);
+  cursor: pointer;
+}
+
+.sl-markdown-content details:not(.not-content *) img {
+  margin-top: 0.5rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.4rem;
+}
+
+.sl-markdown-content details:not(.not-content *):not(.arcli-more) {
+  --arcli-details-bg: transparent;
+  padding: 0;
+  overflow: hidden;
+  background: var(--arcli-details-bg);
+}
+
+.sl-markdown-content details:not(.not-content *):not(.arcli-more) > summary {
+  /* Starlight le pone un margen negativo: con él, la línea de abajo se salía de la caja */
+  margin: 0;
+  padding: 0.6rem 0.9rem;
+  background: var(--arcli-details-bg);
+}
+
+.sl-markdown-content details:not(.not-content *):not(.arcli-more)[open] {
+  background: color-mix(in srgb, var(--sl-color-white) 4%, var(--sl-color-gray-6));
+}
+
+.sl-markdown-content details:not(.not-content *):not(.arcli-more)[open] > summary {
+  border-bottom: 1px solid var(--sl-color-gray-5);
+}
+
+.sl-markdown-content details:not(.not-content *):not(.arcli-more) > :not(summary) {
+  margin-inline: 0.9rem;
+}
+
+.sl-markdown-content details:not(.not-content *):not(.arcli-more)[open] > :last-child {
+  margin-bottom: 0.9rem;
+}

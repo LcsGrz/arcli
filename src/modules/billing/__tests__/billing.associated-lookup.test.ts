@@ -120,6 +120,25 @@ describe('checkAssociatedInArca: NC no mayor que el asociado (REV-45)', () => {
     expect(gateway.getVoucher).toHaveBeenCalledWith(12, 3, 11);
   });
 
+  it('con una ND como asociado compara contra el total de la ND y la nombra en el error', async () => {
+    const input = note({ associatedVoucher: { cuit: String(EMITTER), numero: 5, puntoVenta: 3, shortcut: 'ndc' } });
+    const { gateway, result } = check(input, issued({ number: 5, total: 300 }));
+
+    await expect(result).rejects.toMatchObject({
+      message:
+        'La nota de crédito por $ 1.000 no puede superar el total de la nota de débito C 00003-00000005, de $ 300.',
+    });
+    expect(gateway.getVoucher).toHaveBeenCalledWith(5, 3, 12);
+  });
+
+  it('una NC sobre otra NC no tiene tope, como en la E, y no consulta ARCA', async () => {
+    const input = note({ associatedVoucher: { cuit: String(EMITTER), numero: 5, puntoVenta: 3, shortcut: 'ncc' } });
+    const { gateway, result } = check(input, issued({ number: 5, total: 300 }));
+
+    await expect(result).resolves.toEqual({ input, warnings: [] });
+    expect(gateway.getVoucher).not.toHaveBeenCalled();
+  });
+
   it('una NC dentro del total pasa sin cambios', async () => {
     const input = note({ totalAmount: 800 });
 

@@ -10,13 +10,14 @@ En el [modo interactivo](modo-interactivo.md) elegís la factura de una lista y 
 
 ### Cuándo usarlo
 
-Cuando necesitás anular o ajustar una factura previa.
+Cuando necesitás anular o ajustar una factura previa, o una nota ya emitida (por ejemplo, una nota de crédito que corrige una de débito).
 
 ### Requisitos
 
 - datos completos del asociado
-- misma letra que la factura referenciada
-- asociado del tipo factura o Recibo C, no otra nota
+- misma letra que el comprobante referenciado
+- asociado del tipo factura, otra nota (`--ac nda`, `--ac ncc`…) o, en la C, Recibo C
+- en FCE, una nota sobre otra nota FCE va con `--anulacion`: la NC ajusta la factura o una ND FCE, y la ND solo una NC FCE ([reglas](validation-rules.md#comprobantes-asociados))
 
 ### Comando
 
@@ -38,4 +39,5 @@ arcli nca -m 5000 --cs --cuit 20168598204 --ir-ri \
 
 - faltan `--apv`, `--ar` o `--acuit`
 - usar `--ac` y `--at` juntos
-- referenciar otra nota en lugar de una factura
+- referenciar un comprobante de otra letra
+- en FCE, asociar una nota FCE sin `--anulacion`, o una ND FCE con `--anulacion` sobre la factura

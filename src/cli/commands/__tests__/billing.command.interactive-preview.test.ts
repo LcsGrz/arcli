@@ -5,10 +5,7 @@ import { BillingService } from '../../../modules/billing/billing.service';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import { runInteractiveBillingPreview } from '../billing.command.interactive-preview';
 
-vi.mock('@inquirer/select', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@inquirer/select')>()),
-  default: vi.fn(),
-}));
+vi.mock('../../interactive/list-select', () => ({ listSelect: vi.fn() }));
 
 vi.mock('../../../ui', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../ui')>();
@@ -21,9 +18,8 @@ vi.mock('../../../ui', async (importOriginal) => {
   };
 });
 
-import select from '@inquirer/select';
-
 import { writeTerminalOutput } from '../../../ui';
+import { listSelect as select } from '../../interactive/list-select';
 
 function createRuntime(overrides: Partial<ResolvedArcaRuntime> = {}): ResolvedArcaRuntime {
   return {

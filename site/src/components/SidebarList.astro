@@ -4,6 +4,8 @@ import SidebarRestorePoint from '@astrojs/starlight/components/SidebarRestorePoi
 import type { StarlightRouteData } from '@astrojs/starlight/route-data';
 
 import { ICONS, type IconName } from '../icons';
+import { parseFamily } from '../lib/familia';
+import Chip from './Chip.astro';
 import Icon from './Icon.astro';
 
 type Entry = StarlightRouteData['sidebar'][number];
@@ -17,13 +19,6 @@ const { nested, sublist } = Astro.props;
 
 const hasCurrent = (entry: Entry): boolean =>
   entry.type === 'link' ? entry.isCurrent : entry.entries.some((child) => hasCurrent(child));
-
-/** "Monotributo · C" -> { name: "Monotributo", letter: "C" }. */
-const family = (label: string) => {
-  const match = label.match(/^(.+) · ([A-Z])$/);
-
-  return match ? { letter: match[2], name: match[1] } : { letter: null, name: label };
-};
 
 const iconOf = (attrs: Record<string, unknown>): IconName | null => {
   const name = attrs['data-icon'];
@@ -49,7 +44,7 @@ const iconOf = (attrs: Record<string, unknown>): IconName | null => {
         );
       }
 
-      const { letter, name } = family(entry.label);
+      const family = parseFamily(entry.label);
       const isSection = !nested;
 
       return (
@@ -62,8 +57,8 @@ const iconOf = (attrs: Record<string, unknown>): IconName | null => {
           ) : (
             <details class="sub-group" open={hasCurrent(entry) || !entry.collapsed}>
               <summary>
-                {letter ? <span class={`chip chip-${letter.toLowerCase()}`}>{letter}</span> : <Icon name="libro" />}
-                <span class="group-name">{name}</span>
+                {family ? <Chip class="chip" color={family.color}>{family.letter}</Chip> : <Icon name="libro" />}
+                <span class="group-name">{family?.name ?? entry.label}</span>
                 <small>{entry.entries.length}</small>
                 <Icon name="caret" class="caret" size="0.9rem" />
               </summary>
@@ -169,7 +164,7 @@ const iconOf = (attrs: Record<string, unknown>): IconName | null => {
     border-inline-start: 1px solid var(--sl-color-hairline);
   }
 
-  /* La letra de la familia, con los mismos colores suaves en todo el sitio */
+  /* La letra de la familia: un chip cuadrado (el color, de lib/familia.ts) */
   .chip {
     display: inline-grid;
     place-items: center;
@@ -177,25 +172,6 @@ const iconOf = (attrs: Record<string, unknown>): IconName | null => {
     width: 1.1rem;
     height: 1.1rem;
     border-radius: 0.3rem;
-    border: 1px solid color-mix(in srgb, var(--chip) 38%, transparent);
-    background: color-mix(in srgb, var(--chip) 16%, transparent);
-    color: color-mix(in srgb, var(--chip) 85%, var(--sl-color-gray-2));
     font: 700 0.64rem / 1 var(--sl-font-system-mono);
-  }
-
-  .chip-c {
-    --chip: var(--arcli-verde);
-  }
-
-  .chip-a {
-    --chip: var(--arcli-celeste);
-  }
-
-  .chip-b {
-    --chip: var(--arcli-lavanda);
-  }
-
-  .chip-e {
-    --chip: var(--arcli-sol);
   }
 </style>

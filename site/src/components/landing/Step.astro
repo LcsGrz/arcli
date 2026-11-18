@@ -1,0 +1,29 @@
+---
+/** Un paso de "Cómo es facturar" (`.zz-row`): número, título, texto y link opcional; el visual va en el slot. */
+import type { LandingLink } from '../../data/landing';
+
+import { url } from '../../lib/site';
+import LandingIcon from './LandingIcon.astro';
+import Rich from './Rich.astro';
+
+interface Props {
+  readonly link?: LandingLink;
+  readonly n: string;
+  /** Con el visual a la izquierda. */
+  readonly reverse?: boolean;
+  readonly text: string;
+  readonly title: string;
+}
+
+const { link, n, reverse = false, text, title } = Astro.props;
+---
+
+<div class:list={['zz-row', reverse && 'rev']}>
+  <div class="zz-text">
+    <span class="zz-n">{n}</span>
+    <h3>{title}</h3>
+    <p><Rich text={text} /></p>
+    {link && <a class="link" href={url(link.href)}>{link.text} <LandingIcon name="flecha" size="16" stroke-width="2.2" /></a>}
+  </div>
+  <slot />
+</div>

@@ -8,8 +8,23 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+### Agregado
+
+- **Notas sobre otras notas en A, B y C:** una nota de crédito o débito puede ajustar otra nota de la misma letra, como permite ARCA (regla 10040): `arcli ncc --ac ndc …`, `arcli nda --ac nca …`. Antes era un error de validación. Una nota de crédito sobre una de débito tiene como tope el total de esa nota; sobre otra nota de crédito no hay tope, como en la `E`. El Recibo C sigue siendo asociado válido de las notas C.
+- **Notas FCE sobre otras notas FCE, con `--anulacion`:** con anulación, la nota de crédito FCE puede ajustar la factura o una nota de débito FCE, y la nota de débito FCE solo una nota de crédito FCE. Sin anulación, el asociado sigue siendo solo la factura FCE. ARCLI lo valida antes de ir a ARCA, con la sugerencia de sumar o sacar `--anulacion`.
+- **Notas en el selector del modo interactivo:** en las notas de crédito y débito, "¿Sobre qué comprobante?" se elige en dos pasos: primero el tipo de documento (facturas, notas de crédito, notas de débito o Recibo C) y después el comprobante, de C a A, los FCE y el de exportación `E`, así la lista no se alarga. Suma las notas de cada letra que se pueden ajustar y las notas de exportación `E`. La pregunta "¿La nota va sobre la factura E o sobre otra nota E?" ya no está: se elige en ese selector. En FCE, la anulación se completa sola cuando el asociado la define, y solo se pregunta en una nota de crédito sobre la factura.
+
+### Cambiado
+
+- **Nota de débito FCE con `--anulacion` sobre la factura:** ahora frena antes de ir a ARCA con `INPUT_VALIDATION_ERROR` y la sugerencia de sacar `--anulacion`. Antes llegaba a ARCA, que la rechazaba: con anulación, una nota de débito FCE solo ajusta una nota de crédito FCE.
+- **Monedas y cotizaciones en el modo interactivo:** en Consultas, "Cotización de una moneda" pasa a ser **Monedas y cotizaciones**, la tabla de monedas de ARCA donde Enter muestra la cotización oficial de la que elegís, con su nombre (`Euro (060)`); monedas sale de **Tablas de ARCA**, que ya no la repite. Volver a elegir una moneda no consulta ARCA otra vez. `arcli parametros monedas` y `arcli parametros cotizacion` no cambian.
+- **Configuración del modo interactivo sin "Dónde está la config":** la ruta sigue en `arcli config ruta`, y la carpeta de certificados, en Ver configuración.
+- **Listas que se filtran escribiendo:** `Filtrar:` tiene una línea en blanco arriba y abajo, así no queda pegado a la pregunta ni a la lista.
+- **Listas largas del modo interactivo:** si no entran en la pantalla, avisan cuántas opciones quedan arriba y abajo (`↑ 3 más`, `↓ 12 más`). Si entran, no cambian.
+
 ### Corregido
 
+- **"← Volver" se iba de la pantalla en las listas largas del modo interactivo:** se desplazaba con las opciones y quedaba fuera de la vista hasta llegar al final. Ahora queda fijo debajo de la lista, también en las que se filtran escribiendo (monedas y tablas largas de ARCA), que no lo tenían; se llega con la flecha abajo desde la última opción, y Esc sigue volviendo. En una terminal baja, la lista se achica para que entre.
 - **`29/2` sin año cerca de un bisiesto:** el año se elegía sin mirar si ese 29/02 existía, así que el 1/9/2028 `--fecha 29/2` (o `--vto`, `--sd`, `--sh`) daba "no es válida" en lugar de tomar el 29/02/2028. Ahora solo cuentan los años donde la fecha existe. No cambia ninguna otra fecha.
 
 ## [2.5.0] - 2026-11-17

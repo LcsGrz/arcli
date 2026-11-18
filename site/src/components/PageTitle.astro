@@ -2,40 +2,21 @@
 /** El título de Starlight y, en los comprobantes, la familia arriba ("Monotributo"), con el color de su letra. */
 import Default from '@astrojs/starlight/components/PageTitle.astro';
 
-const familia = Astro.locals.starlightRoute.entry.data.familia;
-// La portada tiene su propio título (Landing.astro).
-const isHome = Astro.locals.starlightRoute.id === '';
-const match = familia?.match(/^(.+) · ([A-Z])$/);
+import { parseFamily } from '../lib/familia';
+import { isHome } from '../lib/site';
+import Chip from './Chip.astro';
+
+const family = parseFamily(Astro.locals.starlightRoute.entry.data.familia);
 ---
 
-{match && <p class={`familia familia-${match[2].toLowerCase()}`}>{match[1]}</p>}
-{!isHome && <Default><slot /></Default>}
+{family && <Chip as="p" class="familia" color={family.color}>{family.name}</Chip>}
+{!isHome(Astro.locals.starlightRoute) && <Default><slot /></Default>}
 
 <style>
   .familia {
     width: fit-content;
     margin: 1rem 0 -0.25rem;
     padding: 0.15rem 0.6rem;
-    border: 1px solid color-mix(in srgb, var(--fam) 38%, transparent);
-    border-radius: 99px;
-    background: color-mix(in srgb, var(--fam) 16%, transparent);
-    color: color-mix(in srgb, var(--fam) 85%, var(--sl-color-gray-2));
     font: 600 0.72rem / 1.5 var(--sl-font-system-mono);
-  }
-
-  .familia-c {
-    --fam: var(--arcli-verde);
-  }
-
-  .familia-a {
-    --fam: var(--arcli-celeste);
-  }
-
-  .familia-b {
-    --fam: var(--arcli-lavanda);
-  }
-
-  .familia-e {
-    --fam: var(--arcli-sol);
   }
 </style>

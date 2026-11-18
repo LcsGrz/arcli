@@ -1055,6 +1055,60 @@ describe('billing.service', () => {
       expect(regular.CbtesAsoc).toEqual([{ CbteFch: '20260310', Cuit: '20123456786', Nro: 7, PtoVta: 3, Tipo: 201 }]);
     });
 
+    describe('asociado segun la anulacion (10156, 10157, 10183, 10186, 10193)', () => {
+      const over = (shortcut: 'ncea' | 'ndea', associated: string, cancellation: boolean) =>
+        fceNote({
+          associatedVoucher: { fecha: '10/03/2026', numero: 7, puntoVenta: 3, shortcut: associated },
+          cancellation,
+          shortcut,
+        });
+
+      it.each([
+        ['ncea', 'fcea', false, 201],
+        ['ndea', 'fcea', false, 201],
+        ['ncea', 'fcea', true, 201],
+        ['ncea', 'ndea', true, 202],
+        ['ndea', 'ncea', true, 203],
+      ] as const)('una %s sobre una %s con anulacion %s es valida', (shortcut, associated, cancellation, tipo) => {
+        const payload = new BillingService().buildVoucherPayload(
+          over(shortcut, associated, cancellation),
+          createRuntime(),
+        );
+
+        expect(payload.CbtesAsoc).toEqual([expect.objectContaining({ Tipo: tipo })]);
+      });
+
+      it('sin --anulacion solo asocia la factura FCE, y sugiere sumarla si con ella vale', () => {
+        expect(() => new BillingService().buildVoucherPayload(over('ncea', 'ndea', false), createRuntime())).toThrow(
+          expect.objectContaining({
+            message:
+              'La nota de crédito electrónica A sin `--anulacion` solo puede asociar una factura de crédito electrónica A, no la nota de débito electrónica A.',
+            suggestion: 'Sumá `--anulacion` para asociar la nota de débito electrónica A.',
+          }),
+        );
+      });
+
+      it('con --anulacion una ND FCE solo asocia una NC FCE, no la factura', () => {
+        expect(() => new BillingService().buildVoucherPayload(over('ndea', 'fcea', true), createRuntime())).toThrow(
+          expect.objectContaining({
+            message:
+              'La nota de débito electrónica A con `--anulacion` solo puede asociar una nota de crédito electrónica A, no la factura de crédito electrónica A.',
+            suggestion: 'Sacá `--anulacion` para asociar la factura de crédito electrónica A.',
+          }),
+        );
+      });
+
+      it('una NC FCE nunca asocia otra NC FCE', () => {
+        const run = (cancellation: boolean) => () =>
+          new BillingService().buildVoucherPayload(over('ncea', 'ncea', cancellation), createRuntime());
+
+        expect(run(false)).toThrow(expect.objectContaining({ suggestion: undefined }));
+        expect(run(true)).toThrow(
+          'La nota de crédito electrónica A con `--anulacion` solo puede asociar una factura de crédito electrónica A o una nota de débito electrónica A, no la nota de crédito electrónica A.',
+        );
+      });
+    });
+
     it('rejects invoice-only optionals on FCE notes', () => {
       expect(() =>
         new BillingService().buildVoucherPayload(fceNote({ cbu: '0110599520000012345678' }), createRuntime()),
@@ -1218,24 +1272,59 @@ describe('billing.service', () => {
     ).toThrow(/El atajo "fa" es el tipo 1, no el 6/);
   });
 
-  it('rejects associated vouchers that are not invoices when shortcut is provided', () => {
-    const service = new BillingService();
+  describe('notas sobre otras notas (NOTAS-1, regla 10040)', () => {
+    const noteOver = (shortcut: BillingCommandInput['shortcut'], associated: string) =>
+      createBillingInput({
+        associatedVoucher: { cuit: '20123456786', numero: 99, puntoVenta: 3, shortcut: associated },
+        documentNumber: 20123456786,
+        documentType: 'cuit',
+        ivaCondition: shortcut.endsWith('a') ? 'responsable-inscripto' : 'sujeto-exento',
+        shortcut,
+      });
 
-    expect(() =>
-      service.buildVoucherPayload(
+    it.each([
+      ['nca', 'nda', 2],
+      ['nda', 'nca', 3],
+      ['nca', 'nca', 3],
+      ['ncb', 'ndb', 7],
+      ['ndb', 'ncb', 8],
+      ['ncc', 'ndc', 12],
+      ['ndc', 'ncc', 13],
+      ['ndc', 'ndc', 12],
+    ] as const)('una %s puede asociar una %s de la misma letra', (shortcut, associated, tipo) => {
+      const payload = new BillingService().buildVoucherPayload(noteOver(shortcut, associated), createRuntime());
+
+      expect(payload.CbtesAsoc).toEqual([expect.objectContaining({ Nro: 99, Tipo: tipo })]);
+    });
+
+    it.each([
+      ['nca', 'ndb'],
+      ['ndb', 'ncc'],
+      ['ncc', 'nda'],
+    ] as const)('una %s no asocia una %s de otra letra', (shortcut, associated) => {
+      expect(() => new BillingService().buildVoucherPayload(noteOver(shortcut, associated), createRuntime())).toThrow(
+        /misma letra/,
+      );
+    });
+
+    it('una nota comun no asocia una nota FCE', () => {
+      expect(() => new BillingService().buildVoucherPayload(noteOver('nca', 'ndea'), createRuntime())).toThrow(
+        /misma categoría electrónica/,
+      );
+    });
+
+    it('valida igual el asociado por codigo ARCA (--at)', () => {
+      const payload = new BillingService().buildVoucherPayload(
         createBillingInput({
-          associatedVoucher: {
-            cuit: '20123456786',
-            numero: 99,
-            puntoVenta: 3,
-            shortcut: 'nda',
-          },
+          associatedVoucher: { cuit: '20123456786', numero: 99, puntoVenta: 3, tipo: 12 },
           documentNumber: 0,
-          shortcut: 'nca',
+          shortcut: 'ncc',
         }),
         createRuntime(),
-      ),
-    ).toThrow(/debe ser una factura o un recibo, no otra nota/);
+      );
+
+      expect(payload.CbtesAsoc).toEqual([expect.objectContaining({ Tipo: 12 })]);
+    });
   });
 
   it('accepts a recibo C as the associated voucher of a C note', () => {

@@ -1,0 +1,78 @@
+/* Formas de uso en filas, como en la portada: cada fila en una línea y el pedido del tamaño de los comandos */
+.sl-markdown-content .arcli-ways {
+  display: grid;
+  margin-top: 1rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.6rem;
+  background: var(--sl-color-gray-6);
+  overflow: hidden;
+}
+
+.sl-markdown-content .arcli-way {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 6.5rem;
+  align-items: center;
+  gap: 1rem;
+  margin: 0;
+  padding: 0.8rem 1.1rem;
+  color: var(--sl-color-gray-2);
+  text-decoration: none;
+}
+
+.arcli-way + .arcli-way {
+  border-top: 1px solid var(--sl-color-gray-5);
+}
+
+.arcli-way:hover {
+  background: var(--sl-color-accent-low);
+}
+
+.arcli-way .q {
+  color: var(--sl-color-white);
+  font-weight: 600;
+}
+
+.arcli-way .do {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+/* El pedido sin el margen que Starlight pone entre elementos */
+.sl-markdown-content .arcli-way .do > * {
+  margin-top: 0;
+}
+
+.arcli-way .do > code {
+  white-space: nowrap;
+}
+
+.arcli-way small {
+  flex: 0 0 3.4rem;
+  color: var(--sl-color-gray-3);
+  font-size: var(--sl-text-xs);
+}
+
+.arcli-way q {
+  overflow: hidden;
+  font-size: var(--sl-text-sm);
+  font-style: italic;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.arcli-way .go {
+  justify-self: end;
+  color: var(--sl-color-text-accent);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* En el celular, el pedido pasa a una segunda línea (las columnas siguen siendo las de arriba) */
+@media (max-width: 44rem) {
+  .arcli-way .do {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}

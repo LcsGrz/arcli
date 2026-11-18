@@ -105,6 +105,17 @@ describe('entorno en el texto', () => {
   });
 });
 
+describe('formatQuotationAsText', () => {
+  it('muestra el nombre de la moneda junto al código si se lo pasan', () => {
+    const quotation = { currency: '060', date: '20261116', rate: 1520.75 };
+
+    expect(stripAnsi(formatQuotationAsText(quotation, 'testing', { currencyName: 'Euro' }))).toMatch(
+      /Moneda\s+Euro \(060\)/,
+    );
+    expect(stripAnsi(formatQuotationAsText(quotation, 'testing'))).toMatch(/Moneda\s+060\s/);
+  });
+});
+
 describe('buildStatusReport', () => {
   it('is ready when servers are OK and the point of sale is enabled', async () => {
     const report = await buildStatusReport({
