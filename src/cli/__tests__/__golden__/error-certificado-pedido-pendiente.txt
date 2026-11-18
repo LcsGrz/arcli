@@ -1,0 +1,13 @@
+$ arcli certificado generar --testing --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "CERTIFICATE_REQUEST_PENDING",
+  "detalles": null,
+  "error": "Ya hay un pedido de certificado de testing sin importar.",
+  "sugerencia": "Si ya subiste el CSR a ARCA, importá el certificado con `arcli certificado importar <archivo>`. Para descartarlo y armar otro, sumá `--reemplazar`."
+}
+

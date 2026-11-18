@@ -1,0 +1,13 @@
+$ arcli fe --cliente ACME LLC --domicilio-cliente 123 Main St --pais-destino 212 -m 1500 --item 001|Servicios de consultoría|1|1500|unidad --previsualizar --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "WSFEX_SERVICE_NOT_AUTHORIZED",
+  "detalles": null,
+  "error": "El certificado no está autorizado para el servicio wsfex (factura de exportación). Autorizalo igual que wsfe: en testing desde WSASS (\"Crear autorización a servicio\") y en producción desde el Administrador de Relaciones.",
+  "sugerencia": null
+}
+

@@ -1,0 +1,20 @@
+$ arcli fc --cs --cfinal --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "INPUT_VALIDATION_ERROR",
+  "detalles": [
+    {
+      "mensaje": "Falta el dato: monto.",
+      "ruta": [
+        "montoTotal"
+      ]
+    }
+  ],
+  "error": "Hay parámetros inválidos o incompletos en la entrada.",
+  "sugerencia": null
+}
+

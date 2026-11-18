@@ -1,0 +1,13 @@
+$ arcli consultar fc 99 --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "VOUCHER_NOT_FOUND",
+  "detalles": null,
+  "error": "No existe la factura C N° 00003-00000099 en ARCA (testing).",
+  "sugerencia": null
+}
+

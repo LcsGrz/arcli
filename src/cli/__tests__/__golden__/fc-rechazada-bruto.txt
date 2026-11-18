@@ -1,0 +1,91 @@
+$ arcli fc -m 1000 --cs --cfinal --emitir --json --bruto
+exit: 2
+--- stdout ---
+
+{
+  "atajo": "fc",
+  "avisos": [],
+  "cae": null,
+  "caeVencimiento": null,
+  "comprobante": "Factura C",
+  "entorno": "testing",
+  "errores": [],
+  "estado": "rechazado",
+  "eventos": [],
+  "observaciones": [
+    "Condicion IVA receptor no valida."
+  ],
+  "observacion": "Condicion IVA receptor no valida.",
+  "numero": 42,
+  "puntoVenta": 3,
+  "solicitud": {
+    "CantReg": 1,
+    "CbteFch": "20261117",
+    "CbteTipo": 11,
+    "Concepto": 2,
+    "CondicionIVAReceptorId": 5,
+    "DocTipo": 99,
+    "FchServDesde": "20261117",
+    "FchServHasta": "20261117",
+    "FchVtoPago": "20261117",
+    "ImpIVA": 0,
+    "ImpNeto": 1000,
+    "ImpOpEx": 0,
+    "ImpTotConc": 0,
+    "ImpTotal": 1000,
+    "ImpTrib": 0,
+    "MonCotiz": 1,
+    "MonId": "PES",
+    "PtoVta": 3,
+    "DocNro": 0,
+    "CbteDesde": 42,
+    "CbteHasta": 42
+  },
+  "previsualizacion": false,
+  "resultado": "R",
+  "sugerencias": [
+    "El IVA receptor no es válido para la letra del comprobante. Usá un IVA receptor válido para la letra (con `--ir`) o consultá el del receptor con `arcli padron <cuit>`. Más info: https://arcli.com.ar/ayuda/problemas-frecuentes/#el-comprobante-no-admite-el-iva-receptor"
+  ],
+  "tipoArca": 11,
+  "respuesta": {
+    "cae": "",
+    "caeFchVto": "",
+    "response": {
+      "FeCabResp": {
+        "CantReg": 1,
+        "CbteTipo": 11,
+        "Cuit": 20111111112,
+        "FchProceso": "20261117120000",
+        "PtoVta": 3,
+        "Reproceso": "N",
+        "Resultado": "R"
+      },
+      "FeDetResp": {
+        "FECAEDetResponse": [
+          {
+            "CAE": "",
+            "CAEFchVto": "",
+            "CbteDesde": 42,
+            "CbteFch": "20261117",
+            "CbteHasta": 42,
+            "Concepto": 2,
+            "DocNro": 0,
+            "DocTipo": 99,
+            "Observaciones": {
+              "Obs": [
+                {
+                  "Code": 10243,
+                  "Msg": "Condicion IVA receptor no valida."
+                }
+              ]
+            },
+            "Resultado": "R"
+          }
+        ]
+      }
+    }
+  }
+}
+
+
+--- stderr ---

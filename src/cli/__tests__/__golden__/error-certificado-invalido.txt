@@ -1,0 +1,13 @@
+$ arcli certificado importar <config>/roto.crt --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "CERTIFICATE_INVALID",
+  "detalles": null,
+  "error": "El archivo no tiene un certificado: falta el bloque \"-----BEGIN CERTIFICATE-----\".",
+  "sugerencia": "Usá el .crt que bajaste de ARCA, sin abrirlo ni guardarlo con otro programa."
+}
+

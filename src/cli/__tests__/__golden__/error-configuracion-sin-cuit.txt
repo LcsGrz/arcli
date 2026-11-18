@@ -1,0 +1,13 @@
+$ arcli fc -m 1000 --cs --cfinal --previsualizar --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "CONFIGURATION_ERROR",
+  "detalles": null,
+  "error": "Falta el CUIT. Configuralo con `arcli config establecer cuit <valor>`.",
+  "sugerencia": null
+}
+

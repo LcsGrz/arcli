@@ -1,0 +1,22 @@
+$ arcli fc -m 1000 --cs --cfinal --emitir --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "ARCA_LAST_VOUCHER_ERROR",
+  "detalles": {
+    "errores": [
+      {
+        "code": 11002,
+        "msg": "El punto de venta no se encuentra habilitado a usar el presente WS.",
+        "codigo": 11002,
+        "mensaje": "El punto de venta no se encuentra habilitado a usar el presente WS."
+      }
+    ]
+  },
+  "error": "ARCA devolvió un error al pedir el último comprobante del punto de venta 3: 11002 El punto de venta no se encuentra habilitado a usar el presente WS.",
+  "sugerencia": "El punto de venta no está habilitado para web service (los de \"Factura en línea\" no sirven). Revisá los habilitados con `arcli parametros puntos-venta` o creá uno para web service: https://arcli.com.ar/empezar/certificado-produccion-completo/#punto-de-venta-para-web-service"
+}
+

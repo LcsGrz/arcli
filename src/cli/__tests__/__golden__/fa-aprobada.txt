@@ -1,0 +1,56 @@
+$ arcli fa -m 12100 --cs --cuit 30709965812 --ir-ri --emitir --json
+exit: 0
+--- stdout ---
+
+{
+  "atajo": "fa",
+  "avisos": [],
+  "cae": "76463926585341",
+  "caeVencimiento": "20261127",
+  "comprobante": "Factura A",
+  "entorno": "testing",
+  "errores": [],
+  "estado": "aprobado",
+  "eventos": [],
+  "observaciones": [],
+  "observacion": null,
+  "numero": 42,
+  "puntoVenta": 3,
+  "solicitud": {
+    "CantReg": 1,
+    "CbteFch": "20261117",
+    "CbteTipo": 1,
+    "Concepto": 2,
+    "CondicionIVAReceptorId": 1,
+    "DocTipo": 80,
+    "FchServDesde": "20261117",
+    "FchServHasta": "20261117",
+    "FchVtoPago": "20261117",
+    "ImpIVA": 2100,
+    "ImpNeto": 10000,
+    "ImpOpEx": 0,
+    "ImpTotConc": 0,
+    "ImpTotal": 12100,
+    "ImpTrib": 0,
+    "MonCotiz": 1,
+    "MonId": "PES",
+    "PtoVta": 3,
+    "Iva": [
+      {
+        "BaseImp": 10000,
+        "Id": 5,
+        "Importe": 2100
+      }
+    ],
+    "DocNro": 30709965812,
+    "CbteDesde": 42,
+    "CbteHasta": 42
+  },
+  "previsualizacion": false,
+  "resultado": "A",
+  "sugerencias": [],
+  "tipoArca": 1
+}
+
+
+--- stderr ---

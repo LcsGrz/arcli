@@ -1,0 +1,13 @@
+$ arcli ncc -m 1000 --cs --cfinal --ac fc --apv 3 --ar 12 --acuit 20111111112 --previsualizar --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "INPUT_VALIDATION_ERROR",
+  "detalles": null,
+  "error": "La nota de crédito por $ 1.000 no puede superar el total de la factura C 00003-00000012, de $ 800.",
+  "sugerencia": "Para anularla entera usá `--monto 800`."
+}
+

@@ -1,0 +1,29 @@
+$ arcli fce-obligado 30709965812 --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "FCE_OBLIGATION_ERROR",
+  "detalles": {
+    "deprecado": [
+      "`detalles.errors` se saca en la 3.0.0: usá `detalles.errores`."
+    ],
+    "errores": [
+      {
+        "codigo": 1101,
+        "mensaje": "El CUIT consultado no es valido."
+      }
+    ],
+    "errors": [
+      {
+        "codigo": 1101,
+        "descripcion": "El CUIT consultado no es valido."
+      }
+    ]
+  },
+  "error": "ARCA no pudo informar si el receptor está obligado a FCE: 1101 El CUIT consultado no es valido.",
+  "sugerencia": null
+}
+

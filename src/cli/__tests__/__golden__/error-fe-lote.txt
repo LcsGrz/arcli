@@ -1,0 +1,13 @@
+$ arcli fe --cargar <config>/lote.json --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "INPUT_VALIDATION_ERROR",
+  "detalles": null,
+  "error": "El JSON de `--cargar` de una E tiene que ser un objeto con un comprobante, no un array.",
+  "sugerencia": null
+}
+
