@@ -454,9 +454,18 @@ async function runCli(args: readonly string[]): Promise<{ code: number; stderr: 
   return { code, stderr, stdout };
 }
 
-/** La carpeta temporal cambia en cada corrida: en el archivo dorado se ve como `<config>`. */
+/**
+ * La carpeta temporal cambia en cada corrida: en el archivo dorado se ve como `<config>`. En Windows la ruta usa `\`
+ * (y `\\` dentro de un JSON): se buscan esas formas y lo que sigue a `<config>` pasa a `/`, asi el archivo es el mismo
+ * en todos los sistemas.
+ */
 function normalize(text: string): string {
-  return [realpathSync(configDir), configDir].reduce((result, path) => result.split(path).join('<config>'), text);
+  const paths = [...new Set([realpathSync(configDir), realpathSync.native(configDir), configDir])];
+  const forms = paths.flatMap((path) => [path.replaceAll('\\', '\\\\'), path]);
+
+  return forms
+    .reduce((result, path) => result.split(path).join('<config>'), text)
+    .replace(/<config>(?:\\{1,2}[\w.-]+)+/g, (match) => match.replace(/\\{1,2}/g, '/'));
 }
 
 async function golden(name: string, args: readonly string[], setup: Setup = {}): Promise<void> {
