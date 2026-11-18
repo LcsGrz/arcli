@@ -397,38 +397,58 @@ describe('billing.service', () => {
     expect(getQuotation).not.toHaveBeenCalled();
   });
 
-  it('rejects --misma-moneda with a past billing date', () => {
+  it('with --misma-moneda and a past date, asks ARCA for the rate of the business day before that date (10038)', async () => {
     const service = new BillingService();
+    const getQuotation = vi.fn(async () => 1410.5);
+    const input = await service.resolveExchangeRate(
+      createBillingInput({
+        billingDate: '16/03/2026',
+        currencyCode: 'USD',
+        documentNumber: 0,
+        exchangeRate: undefined,
+        sameCurrency: true,
+      }),
+      { getQuotation },
+    );
+    const payload = service.buildVoucherPayload(input, createRuntime());
 
-    expect(() =>
-      service.buildVoucherPayload(
-        createBillingInput({
-          billingDate: '17/03/2026',
-          currencyCode: 'USD',
-          documentNumber: 0,
-          exchangeRate: 1415.25,
-          sameCurrency: true,
-        }),
-        createRuntime(),
-      ),
-    ).toThrow(/tiene que ser la de hoy/);
+    expect(getQuotation).toHaveBeenCalledWith('DOL', '20260315');
+    expect(payload).toMatchObject({ CanMisMonExt: 'S', CbteFch: '20260316', MonCotiz: 1410.5 });
   });
 
-  it('rejects --misma-moneda with a future billing date, whose official rate does not exist yet', () => {
+  it('with --misma-moneda and a future date, uses the current official rate (10038)', async () => {
     const service = new BillingService();
+    const getQuotation = vi.fn(async () => 1415.25);
+    const input = await service.resolveExchangeRate(
+      createBillingInput({
+        billingDate: '19/03/2026',
+        currencyCode: 'USD',
+        documentNumber: 0,
+        exchangeRate: undefined,
+        sameCurrency: true,
+      }),
+      { getQuotation },
+    );
+    const payload = service.buildVoucherPayload(input, createRuntime());
 
-    expect(() =>
-      service.buildVoucherPayload(
-        createBillingInput({
-          billingDate: '19/03/2026',
-          currencyCode: 'USD',
-          documentNumber: 0,
-          exchangeRate: 1415.25,
-          sameCurrency: true,
-        }),
-        createRuntime(),
-      ),
-    ).toThrow(/tiene que ser la de hoy/);
+    expect(getQuotation).toHaveBeenCalledWith('DOL');
+    expect(payload).toMatchObject({ CanMisMonExt: 'S', CbteFch: '20260319', MonCotiz: 1415.25 });
+  });
+
+  it('without --misma-moneda, a past date still uses the current official rate as the default', async () => {
+    const getQuotation = vi.fn(async () => 1415.25);
+
+    await new BillingService().resolveExchangeRate(
+      createBillingInput({
+        billingDate: '16/03/2026',
+        currencyCode: 'USD',
+        documentNumber: 0,
+        exchangeRate: undefined,
+      }),
+      { getQuotation },
+    );
+
+    expect(getQuotation).toHaveBeenCalledWith('DOL');
   });
 
   it('discriminates IVA in factura A for a monotributista', () => {

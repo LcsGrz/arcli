@@ -1,3 +1,4 @@
+import { addDaysToArcaDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 
@@ -49,11 +50,17 @@ export function exchangeRateWarnings(
   return [];
 }
 
-export function resolveBillingCurrencyFields(
-  input: CurrencyInput,
-  billingDate: string,
-  today: string,
-): BillingCurrencyFields {
+/**
+ * De que dia es la cotizacion oficial que va con `--misma-moneda`, segun la 10038 (WSFEv1 v4.7, p. 46): la del dia
+ * habil anterior a la fecha del comprobante si esa fecha ya paso, y si no (hoy o futura) la del dia habil anterior a
+ * hoy, que es la vigente. Devuelve el dia desde el que se busca hacia atras (`yyyymmdd`), o `undefined` para la
+ * vigente.
+ */
+export function resolveSameCurrencyQuotationDate(billingDate: string, today: string): string | undefined {
+  return billingDate < today ? addDaysToArcaDate(billingDate, -1) : undefined;
+}
+
+export function resolveBillingCurrencyFields(input: CurrencyInput): BillingCurrencyFields {
   const currencyCode = resolveBillingCurrencyCode(input.currencyCode);
   const inputCurrencyCode = input.currencyCode.trim().toUpperCase();
 
@@ -76,14 +83,7 @@ export function resolveBillingCurrencyFields(
   }
 
   if (input.sameCurrency) {
-    // ARCA exige la cotizacion oficial del dia del comprobante (10038): la de un dia pasado no se puede consultar y
-    // la de uno futuro todavia no existe.
-    if (billingDate !== today) {
-      throw new InputValidationError(
-        'Con `--misma-moneda` la fecha del comprobante tiene que ser la de hoy: ARCA exige la cotización oficial de ese día y solo se puede consultar la vigente. Sacá `--fecha` para emitir con la de hoy.',
-      );
-    }
-
+    // La de la fecha que pide la 10038 la completa BillingService.resolveExchangeRate antes de la vista previa.
     if (typeof input.exchangeRate !== 'number') {
       throw new InputValidationError(`No se pudo obtener la cotización oficial de ${inputCurrencyCode} desde ARCA.`);
     }

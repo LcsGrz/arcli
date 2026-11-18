@@ -1,3 +1,4 @@
+import { addDaysToArcaDate, formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { AppError } from '../../lib/errors/app-error';
 import type { BillingGateway } from '../../modules/billing/billing.types.internal';
 
@@ -30,7 +31,11 @@ export class ArcaBillingGateway implements BillingGateway {
     return this.arca.electronicBillingService.createVoucher(voucher);
   }
 
-  public async getQuotation(currencyCode: string): Promise<number> {
+  public async getQuotation(currencyCode: string, arcaDate?: string): Promise<number> {
+    if (arcaDate) {
+      return this.getQuotationUpTo(currencyCode, arcaDate);
+    }
+
     const result = await this.arca.electronicBillingService
       .getQuotation(currencyCode)
       .catch(rethrowIfWsfeNotAuthorized);
@@ -45,4 +50,77 @@ export class ArcaBillingGateway implements BillingGateway {
 
     return exchangeRate;
   }
+
+  /**
+   * La ultima cotizacion publicada hasta `arcaDate`. `FEParamGetCotizacion` acepta `FchCotiz` desde la v4.0 del
+   * manual (WSFEv1 v4.7, pp. 13 y 119), pero el SDK no la manda: se llama al metodo con `genericService`. Un dia sin
+   * cotizacion (fin de semana o feriado en produccion) responde 602 "Sin Resultados": se pide el anterior, hasta
+   * `QUOTATION_LOOKBACK_DAYS` dias.
+   */
+  private async getQuotationUpTo(currencyCode: string, arcaDate: string): Promise<number> {
+    let date = arcaDate;
+    let errors: ArcaQuotationError[] = [];
+
+    for (let attempt = 0; attempt < QUOTATION_LOOKBACK_DAYS; attempt += 1) {
+      const response = (await this.arca.genericService
+        .call('wsfe', 'FEParamGetCotizacion', { FchCotiz: date, MonId: currencyCode })
+        .catch(rethrowIfWsfeNotAuthorized)) as RawQuotationResponse | undefined;
+      const result = response?.FEParamGetCotizacionResult;
+      const exchangeRate = Number(result?.ResultGet?.MonCotiz);
+
+      if (Number.isFinite(exchangeRate) && exchangeRate > 0) {
+        return exchangeRate;
+      }
+
+      errors = asArray(result?.Errors?.Err).map((error) => ({
+        code: Number(error.Code),
+        msg: String(error.Msg ?? ''),
+      }));
+
+      if (!errors.some((error) => error.code === NO_RESULTS_ERROR)) {
+        break;
+      }
+
+      date = addDaysToArcaDate(date, -1);
+    }
+
+    throw new AppError(
+      `ARCA no devolvió una cotización válida para ${currencyCode} al ${formatArcaDateAsArgentineDate(arcaDate)}.`,
+      {
+        code: 'ARCA_QUOTATION_ERROR',
+        details: withDeprecatedErrors({ err: errors }, toDetailErrors(errors)),
+      },
+    );
+  }
+}
+
+/** "Sin Resultados" de los metodos de parametros de WSFE. */
+const NO_RESULTS_ERROR = 602;
+/** Cuantos dias para atras se busca una cotizacion publicada: alcanza para un fin de semana largo. */
+const QUOTATION_LOOKBACK_DAYS = 7;
+
+interface ArcaQuotationError {
+  readonly code: number;
+  readonly msg: string;
+}
+
+interface RawQuotationResponse {
+  readonly FEParamGetCotizacionResult?: {
+    readonly Errors?: { readonly Err?: RawArcaError | RawArcaError[] };
+    readonly ResultGet?: { readonly FchCotiz?: string; readonly MonCotiz?: number | string };
+  };
+}
+
+interface RawArcaError {
+  readonly Code?: number | string;
+  readonly Msg?: string;
+}
+
+/** El XML de ARCA trae un solo elemento donde el WSDL promete un array. */
+function asArray<T>(value: T | T[] | undefined): T[] {
+  if (value === undefined) {
+    return [];
+  }
+
+  return Array.isArray(value) ? value : [value];
 }

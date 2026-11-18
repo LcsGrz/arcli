@@ -8,7 +8,12 @@ import type { PadronGateway } from '../padron/padron';
 import { resolveTaxAmounts, sumTaxAmounts } from './billing.amounts';
 import { resolveAssociatedPeriod } from './billing.associated-period';
 import { resolveAssociatedVouchers } from './billing.associated-vouchers';
-import { isForeignCurrency, needsOfficialExchangeRate, resolveBillingCurrencyFields } from './billing.currency';
+import {
+  isForeignCurrency,
+  needsOfficialExchangeRate,
+  resolveBillingCurrencyFields,
+  resolveSameCurrencyQuotationDate,
+} from './billing.currency';
 import { resolveBillingDateRange } from './billing.date-range';
 import { EmissionUncertainError } from './billing.errors';
 import { resolveElectronicCreditOptionals } from './billing.fce';
@@ -54,9 +59,20 @@ export class BillingService {
       return input;
     }
 
+    // Con --misma-moneda y una fecha pasada, ARCA exige la del dia habil anterior a esa fecha (10038).
+    const quotationDate = input.sameCurrency
+      ? resolveSameCurrencyQuotationDate(
+          input.billingDate ? parseArgentineDateInputAsArcaDate(input.billingDate) : formatDateAsArcaDate(new Date()),
+          formatDateAsArcaDate(new Date()),
+        )
+      : undefined;
+    const currencyCode = resolveBillingCurrencyCode(input.currencyCode);
+
     return {
       ...input,
-      exchangeRate: await gateway.getQuotation(resolveBillingCurrencyCode(input.currencyCode)),
+      exchangeRate: quotationDate
+        ? await gateway.getQuotation(currencyCode, quotationDate)
+        : await gateway.getQuotation(currencyCode),
       // Con --misma-moneda la oficial es obligatoria, no un default: no hace falta avisar.
       exchangeRateSource: input.sameCurrency ? undefined : 'arca',
     };
@@ -187,7 +203,7 @@ export class BillingService {
       requireVoucherKind: (shortcut) => this.requireVoucherKind(shortcut),
       voucherKind,
     });
-    const currencyFields = resolveBillingCurrencyFields(input, dateRange.billingDate, formatDateAsArcaDate(new Date()));
+    const currencyFields = resolveBillingCurrencyFields(input);
     const taxAmounts = resolveTaxAmounts(input, voucherKind);
 
     validateDocumentIdentity(input, voucherKind);
