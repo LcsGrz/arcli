@@ -162,7 +162,7 @@ La `E` usa el diseño de exportación de `@arcasdk/pdf`, con los mismos datos qu
 - en las notas, el comprobante asociado;
 - el cliente con su domicilio, el CUIT del país con su descripción de ARCA (`55000004242 (POLONIA - Persona Jurídica)`) y el ID impositivo;
 - la divisa con su código ISO y su nombre (`USD - Dólar Estadounidense`; WSFEX la llama `DOL`) y el destino del comprobante;
-- una tabla con la forma de pago, la fecha de pago (las notas no la llevan) y el incoterm;
+- una tabla con la forma de pago, la fecha de pago (las notas y la factura de bienes no la llevan) y el incoterm;
 - el tipo de cambio y el importe total en la moneda del comprobante;
 - la leyenda `IVA EXENTO OPERACIÓN DE EXPORTACIÓN` debajo de la condición frente al IVA del emisor;
 - las observaciones comerciales y las observaciones, debajo del CAE;

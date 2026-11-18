@@ -27,6 +27,27 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **"← Volver" se iba de la pantalla en las listas largas del modo interactivo:** se desplazaba con las opciones y quedaba fuera de la vista hasta llegar al final. Ahora queda fijo debajo de la lista, también en las que se filtran escribiendo (monedas y tablas largas de ARCA), que no lo tenían; se llega con la flecha abajo desde la última opción, y Esc sigue volviendo. En una terminal baja, la lista se achica para que entre.
 - **`29/2` sin año cerca de un bisiesto:** el año se elegía sin mirar si ese 29/02 existía, así que el 1/9/2028 `--fecha 29/2` (o `--vto`, `--sd`, `--sh`) daba "no es válida" en lugar de tomar el 29/02/2028. Ahora solo cuentan los años donde la fecha existe. No cambia ninguna otra fecha.
 
+## [2.5.1] - 2026-11-18
+
+Arreglos de un chequeo de la 2.5.0 contra ARCA testing. Lo más importante: la factura `E` de bienes se puede volver a emitir (ARCA la rechazaba con el error 1673). Puede afectar scripts:
+
+- Una nota A, B, C o FCE cuyo asociado propio no existe en ARCA ahora frena antes de ir a ARCA con `INPUT_VALIDATION_ERROR`. Las notas de débito también consultan el asociado antes de la vista previa.
+- `arcli padron --json` trae cada actividad una sola vez.
+- En la `E` de bienes, `solicitud` del `--json` ya no trae `Fecha_pago`, porque no se manda a ARCA; `--fecha-pago` se acepta y se ignora con un aviso.
+
+Fuera de `Fecha_pago` en la `solicitud` de la `E` de bienes, no cambia ningún comando, flag, clave de config ni clave de `--json`.
+
+### Corregido
+
+- **La factura `E` de bienes se puede emitir:** ARCLI mandaba siempre la fecha de pago y ARCA rechazaba la `E` de bienes (`--tipo-expo 1`) con el error 1673. Ahora la fecha de pago va solo en servicios y otros (`--tipo-expo 2` y `4`), como pide ARCA. En bienes, `--fecha-pago` (o `fechaPago` de `--cargar`) se sigue aceptando pero no se usa y sale un aviso en `avisos`; `solicitud` del `--json` deja de traer `Fecha_pago`, porque ya no se manda. El modo interactivo no pregunta la fecha de pago en bienes. Las notas `E` no cambian.
+- **Una nota A, B, C o FCE con un asociado propio que no existe ya no se emite:** antes de la vista previa ARCLI consultaba el asociado, veía que no estaba y seguía, y ARCA testing llegó a aprobar una NC asociada a una factura inexistente. Ahora frena con `INPUT_VALIDATION_ERROR` ("ARCA no tiene la factura B 00003-00099999.", con la sugerencia de revisar `--ar`, `--apv` y `--ac`), como en las notas `E`. También en las notas de débito, que antes no se consultaban. El asociado de otro CUIT no se puede consultar y sigue decidiéndolo ARCA; si ARCA no responde, la nota sigue con un aviso.
+- **`arcli padron --json` repetía actividades:** ARCA informa las mismas en el régimen general y en el monotributo, y `actividades` las traía dos veces (también el "y N más" de la salida humana). Ahora van sin repetir, en el mismo orden. Las claves no cambian.
+- **La sugerencia de la observación `10217` decía otra cosa:** hablaba de "la condición del receptor (padrón)", igual que la `10017`. Ahora cada una explica la suya: la `10217` es la del crédito fiscal de una factura A a un monotributista ("Procedimiento permanente de transición al Régimen General") y la `10017`, la de un receptor que no figura activo en el padrón.
+- **Receptor que no está en los padrones de ARCA:** el rechazo "DocNro … no se encuentra registrado en los padrones" llega en `observaciones` con `errores` vacío y solo traía la sugerencia genérica. Ahora `sugerencias` dice que se revise el documento del receptor y que en testing muchos CUITs no están en el padrón de facturación.
+- **Errores de `arcli config establecer` que no decían qué clave fallaba:** `config establecer emisor.condicionIva Inscripto` respondía "Entrada tiene un valor no soportado" y sugería `arcli ayuda`. Ahora el mensaje nombra la clave, el valor recibido y los valores válidos (`` `emisor.condicionIva` no acepta "Inscripto". Valores válidos: … ``), y la sugerencia lleva a `arcli config establecer --ayuda` y `arcli config`. Igual en `entorno`, `concepto`, `ivaReceptor`, `pdf`, `moneda`, las claves de sí/no, los números y los textos vacíos, y una clave que no existe lo dice. En `--json` cambian solo `error` y `sugerencia`: `codigo` sigue siendo `INPUT_VALIDATION_ERROR` y `detalles` trae lo mismo que antes.
+- **Los avisos de `--cargar` nombraban flags:** con `descripcion`, `condicionVenta`, `receptorNombre` o `receptorDomicilio` en el JSON y sin PDF, el aviso hablaba de `--descripcion`, `--receptor-nombre`… aunque los datos vinieron del archivo. Ahora nombra las claves del JSON (`Las claves "descripcion" y "receptorNombre" del JSON de \`--cargar\` solo se usan en el PDF…`), y solo las que vinieron. Igual con `"dia"` (deprecada), con `"descripcion"` junto a `"items"` en la `E` y con `"comprobanteAsociado.fecha"` en las notas `E`. Solo cambia el texto de `avisos`.
+- **Ejemplos de la `E` con número fijo:** `ejemplos/factura-exportacion-e.json` traía `"numero": 3` y los ejemplos de `fe`, `nce` y `nde` de la documentación, `--numero` o `"numero"`: copiados tal cual, ARCA los rechazaba por correlatividad. Desde la 2.5.0 el número es opcional, así que los ejemplos ya no lo traen y ARCLI toma el siguiente.
+
 ## [2.5.0] - 2026-11-17
 
 Completa lo que trajo la 2: las notas de crédito y débito de la factura de exportación `E`, el modo interactivo al nivel del CLI (consultas, opcionales, repetir la `E`, el PDF al confirmar) y el sitio de documentación en [arcli.com.ar](https://arcli.com.ar). Puede afectar scripts:
@@ -575,7 +596,8 @@ Primera versión publicada en npm.
 - `llms.txt`: referencia condensada para que un agente de IA con acceso a terminal ejecute el CLI.
 - Publicación con npm Trusted Publishers (OIDC).
 
-[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v2.5.0...HEAD
+[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v2.5.1...HEAD
+[2.5.1]: https://github.com/LcsGrz/arcli/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/LcsGrz/arcli/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/LcsGrz/arcli/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/LcsGrz/arcli/compare/v2.2.1...v2.3.0

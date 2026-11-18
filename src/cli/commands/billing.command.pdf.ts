@@ -53,16 +53,62 @@ export interface PdfStepOptions {
   readonly results: readonly BillingExecutionResult[];
 }
 
+type PdfOnlyField = 'pdfDescription' | 'receiverAddress' | 'receiverName' | 'saleCondition';
+
+/** Cada dato que solo va en el PDF, con su flag y su clave del JSON de `--cargar`, en el orden del aviso. */
+const PDF_ONLY_FIELDS: ReadonlyArray<{ readonly field: PdfOnlyField; readonly flag: string; readonly key: string }> = [
+  { field: 'pdfDescription', flag: '--descripcion', key: 'descripcion' },
+  { field: 'saleCondition', flag: '--condicion-venta', key: 'condicionVenta' },
+  { field: 'receiverName', flag: '--receptor-nombre', key: 'receptorNombre' },
+  { field: 'receiverAddress', flag: '--receptor-domicilio', key: 'receptorDomicilio' },
+];
+
 /** Datos que solo van en el PDF y pasó quien factura; lo que completó el padrón no cuenta. */
-function hasPdfOnlyData(input: BillingCommandInput | undefined): boolean {
+function pdfOnlyFields(input: BillingCommandInput | undefined): PdfOnlyField[] {
   const fromPadron = input?.receiverFromPadron ?? [];
 
-  return Boolean(
-    input?.pdfDescription ||
-    input?.saleCondition ||
-    (input?.receiverName && !fromPadron.includes('name')) ||
-    (input?.receiverAddress && !fromPadron.includes('address')),
+  return PDF_ONLY_FIELDS.flatMap(({ field }) => {
+    const passed =
+      field === 'receiverName'
+        ? Boolean(input?.receiverName) && !fromPadron.includes('name')
+        : field === 'receiverAddress'
+          ? Boolean(input?.receiverAddress) && !fromPadron.includes('address')
+          : Boolean(input?.[field]);
+
+    return passed ? [field] : [];
+  });
+}
+
+function joinWithAnd(parts: readonly string[]): string {
+  return parts.length <= 1 ? (parts[0] ?? '') : `${parts.slice(0, -1).join(', ')} y ${parts.at(-1)}`;
+}
+
+/**
+ * El aviso de los datos que solo van en el PDF cuando no se generó ninguno. Con flags es el de siempre; si alguno
+ * vino del JSON de `--cargar`, nombra esas claves y no los flags.
+ */
+export function pdfOnlyDataWarning(input: BillingCommandInput | undefined): string | undefined {
+  const fields = pdfOnlyFields(input);
+  const fromFile = fields.filter((field) => input?.fromFile?.includes(field));
+
+  if (fields.length === 0) {
+    return undefined;
+  }
+
+  if (fromFile.length === 0) {
+    return PDF_ONLY_FLAGS_WARNING;
+  }
+
+  const flags = PDF_ONLY_FIELDS.filter(({ field }) => fields.includes(field) && !fromFile.includes(field)).map(
+    ({ flag }) => `\`${flag}\``,
   );
+  const keys = PDF_ONLY_FIELDS.filter(({ field }) => fromFile.includes(field)).map(({ key }) => `"${key}"`);
+  const keysLabel = `${keys.length === 1 ? 'la clave' : 'las claves'} ${joinWithAnd(keys)} del JSON de \`--cargar\``;
+  const subject = flags.length > 0 ? `${joinWithAnd(flags)} y ${keysLabel}` : keysLabel;
+
+  const verb = fields.length === 1 ? 'se usa' : 'se usan';
+
+  return `${subject[0]?.toUpperCase() ?? ''}${subject.slice(1)} solo ${verb} en el PDF; no se generó ninguno.`;
 }
 
 function resolveSaleCondition(input: BillingCommandInput | undefined, config: ArcliConfig): string | undefined {
@@ -208,8 +254,10 @@ export async function attachPdfs(
     }
 
     // Avisa que esos datos no quedaron en ningun lado: ARCA no los recibe.
-    if (canHavePdf(result) && hasPdfOnlyData(options.inputs[index])) {
-      return { ...result, warnings: [...(result.warnings ?? []), PDF_ONLY_FLAGS_WARNING] };
+    const warning = canHavePdf(result) ? pdfOnlyDataWarning(options.inputs[index]) : undefined;
+
+    if (warning) {
+      return { ...result, warnings: [...(result.warnings ?? []), warning] };
     }
 
     return result;

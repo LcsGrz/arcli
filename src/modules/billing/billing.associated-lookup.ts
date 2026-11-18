@@ -94,7 +94,7 @@ function capsCreditNote(voucherKind: VoucherKindDefinition, associatedArcaType: 
 }
 
 /**
- * Si hay que consultar el asociado en ARCA antes de emitir la nota: para el tope de una NC y para la fecha de una
+ * Si hay que consultar el asociado en ARCA antes de emitir la nota: que exista, el tope de una NC y la fecha de una
  * nota FCE sin `--afecha`. Solo se consultan comprobantes propios; el de otro CUIT no se puede leer.
  */
 function shouldLookUpAssociated(
@@ -112,16 +112,24 @@ function shouldLookUpAssociated(
     return false;
   }
 
-  const needsDate = voucherKind.isElectronicCredit && !associated.fecha;
-  const associatedType =
-    associated.tipo ?? (associated.shortcut ? getVoucherKindByShortcut(associated.shortcut)?.arcaType : undefined);
+  return true;
+}
 
-  return needsDate || capsCreditNote(voucherKind, associatedType);
+/**
+ * El asociado propio no existe en ARCA. Mismo error que en las notas E: ARCA testing llega a aprobar una nota A, B
+ * o C asociada a un comprobante que no existe.
+ */
+export function missingAssociatedVoucherError(associatedLabel: string, reason?: string): InputValidationError {
+  return new InputValidationError(
+    `ARCA no tiene ${associatedLabel}${reason ? `, así que ${reason}` : ''}.`,
+    undefined,
+    'Revisá `--ar`, `--apv` y `--ac`: el asociado tiene que ser un comprobante tuyo ya emitido.',
+  );
 }
 
 export interface CheckedAssociated {
   readonly input: BillingCommandInput;
-  /** Si ARCA no respondio y la nota igual se puede emitir: el tope de la NC queda sin controlar. */
+  /** Si ARCA no respondio y la nota igual se puede emitir: el asociado y el tope de la NC quedan sin controlar. */
   readonly warnings: readonly string[];
 }
 
@@ -130,12 +138,12 @@ function reasonOf(error: unknown): string {
 }
 
 /**
- * Lo que se controla contra el asociado de una nota A, B, C o FCE, con una sola consulta a ARCA antes de la vista
- * previa: que una NC no supere el total del asociado y, en una nota FCE sin `--afecha`, la fecha del asociado.
- * Devuelve la entrada con esa fecha, asi la vista previa la muestra y la emision no vuelve a consultar.
+ * Lo que se controla contra el asociado propio de una nota A, B, C o FCE, con una sola consulta a ARCA antes de la
+ * vista previa: que exista, que una NC no supere su total y, en una nota FCE sin `--afecha`, su fecha. Devuelve la
+ * entrada con esa fecha, asi la vista previa la muestra y la emision no vuelve a consultar.
  *
- * Si ARCA no tiene el asociado o no responde, la nota FCE sin fecha no se puede armar y frena; en el resto ARCA
- * decide al emitir (si no respondio, con un aviso).
+ * Si ARCA no tiene el asociado, frena como en las notas E. Si no responde, la nota FCE sin fecha no se puede armar y
+ * frena; el resto sigue con un aviso y ARCA decide al emitir.
  */
 export async function checkAssociatedInArca(options: {
   readonly gateway: Pick<VoucherHistoryGateway, 'getVoucher'>;
@@ -175,20 +183,15 @@ export async function checkAssociatedInArca(options: {
       );
     }
 
-    return {
-      input,
-      warnings: [`No se pudo verificar en ARCA que la nota de crédito no supere ${label}: ${reasonOf(error)}`],
-    };
+    const unchecked = CREDIT_NOTE_FAMILIES.has(voucherKind.family)
+      ? `que la nota de crédito no supere ${label}`
+      : `que exista ${label}`;
+
+    return { input, warnings: [`No se pudo verificar en ARCA ${unchecked}: ${reasonOf(error)}`] };
   }
 
   if (!voucher) {
-    if (needsDate) {
-      throw new InputValidationError(
-        `ARCA no tiene ${label}, así que no se puede tomar su fecha. Revisá \`--ac\`, \`--apv\` y \`--ar\`.`,
-      );
-    }
-
-    return unchanged;
+    throw missingAssociatedVoucherError(label, needsDate ? 'no se puede tomar su fecha' : undefined);
   }
 
   if (capsCreditNote(voucherKind, reference.Tipo)) {
