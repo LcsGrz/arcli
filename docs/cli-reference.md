@@ -809,7 +809,7 @@ El JSON está en [Entrada y salida](input-output.md#régimen-fce-fce-obligado).
 
 ## Consultar el padrón
 
-`arcli padron <cuit>` muestra lo que ARCA tiene de un CUIT: nombre o razón social, domicilio fiscal, condición frente al IVA, impuestos, categoría de monotributo y actividad principal.
+`arcli padron <cuit>` muestra lo que ARCA tiene de un CUIT: nombre o razón social, domicilio fiscal, condición frente al IVA, impuestos, categoría de monotributo (la letra, el tipo de actividad y desde qué mes rige) y actividad principal.
 
 ```bash
 arcli padron 20201797064
@@ -820,7 +820,7 @@ arcli padron 20201797064 --json
 | ------------------------------------- | ------- | -------------- |
 | `--json`, `--testing`, `--produccion` | ninguno | Flags globales |
 
-La condición IVA sale de los impuestos activos: monotributo es `responsable-monotributo`, IVA es `responsable-inscripto` e IVA exento es `sujeto-exento`. Con otros datos queda sin informar (`condicionIva: null`). Si el CUIT no está en el padrón, termina con el error `TAXPAYER_NOT_FOUND`. En testing el padrón tiene datos ficticios: `20201797064` devuelve datos completos. El JSON está en [Entrada y salida](input-output.md#padrón-padron).
+La condición IVA sale de los impuestos activos: monotributo es `responsable-monotributo`, IVA es `responsable-inscripto` e IVA exento es `sujeto-exento`. Con otros datos queda sin informar (`condicionIva: null`). Si el CUIT no está en el padrón, termina con el error `TAXPAYER_NOT_FOUND`. En testing el padrón tiene datos ficticios: `20201797064` devuelve datos completos y `20333333334` es un monotributista. El JSON está en [Entrada y salida](input-output.md#padrón-padron).
 
 Usa el servicio `ws_sr_constancia_inscripcion`, que hay que autorizar aparte de `wsfe`. Ver [Autorizar el servicio web](certificado-testing-completa.md#3-autorizar-el-servicio-web).
 

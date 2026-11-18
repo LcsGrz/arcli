@@ -90,17 +90,18 @@ Se piden con `uiSymbol('check')`, nunca escritos a mano en un presenter. Cada un
 
 Cada dato tiene su helper. Antes de escribir un formato, buscá si ya existe.
 
-| Dato              | Se ve                         | Helper                   |
-| ----------------- | ----------------------------- | ------------------------ |
-| Pesos             | `$ 1.500`, `$ 1.500,50`       | `formatMoneyLabel`       |
-| Moneda extranjera | `1.500,50 USD`                | `formatMoneyLabel`       |
-| Cotización        | `1.250,50`, hasta 6 decimales | `formatExchangeRate`     |
-| Porcentaje        | `21%`, `10,5%`                | `resolveIvaRateLabel`    |
-| CUIT o CUIL       | `20-33333333-4`               | `formatCuit`             |
-| DNI               | `12.345.678`                  | `formatNumericLabel`     |
-| Comprobante       | `00001-00001234`              | `formatVoucherNumber`    |
-| Fecha             | `20/03/2026`                  | `formatDateLabel`        |
-| Entorno           | `producción`, `testing`       | `formatEnvironmentLabel` |
+| Dato              | Se ve                         | Helper                              |
+| ----------------- | ----------------------------- | ----------------------------------- |
+| Pesos             | `$ 1.500`, `$ 1.500,50`       | `formatMoneyLabel`                  |
+| Moneda extranjera | `1.500,50 USD`                | `formatMoneyLabel`                  |
+| Cotización        | `1.250,50`, hasta 6 decimales | `formatExchangeRate`                |
+| Porcentaje        | `21%`, `10,5%`                | `resolveIvaRateLabel`               |
+| CUIT o CUIL       | `20-33333333-4`               | `formatCuit`                        |
+| DNI               | `12.345.678`                  | `formatNumericLabel`                |
+| Comprobante       | `00001-00001234`              | `formatVoucherNumber`               |
+| Fecha             | `20/03/2026`                  | `formatDateLabel`                   |
+| Período (mes)     | `09/2013`                     | `formatArcaPeriodAsArgentinePeriod` |
+| Entorno           | `producción`, `testing`       | `formatEnvironmentLabel`            |
 
 - **Centavos:** si hay, siempre dos (`12,50`, nunca `12,5`); si no hay, ninguno. El PDF queda aparte: su plantilla imprime siempre `$ 1.500,00`.
 - **Punto de venta y número de comprobante:** sin separador de miles.
