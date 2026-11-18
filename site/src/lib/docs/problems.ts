@@ -1,4 +1,8 @@
-/** Problemas frecuentes (`scripts/transforms/problems.mjs`): el buscador filtra mientras escribís y abre los que coinciden. */
+/**
+ * Problemas frecuentes (`scripts/transforms/problems.mjs`): el buscador filtra mientras escribís y abre los que
+ * coinciden. Cuántos quedan se avisa en `.arcli-faq-status` (`role="status"`), que el lector de pantalla lee sin mover
+ * el foco del buscador.
+ */
 export function initProblemSearch() {
   document.addEventListener('input', (event) => {
     const input = (event.target as Element | null)?.closest<HTMLInputElement>('.arcli-faq-search input');
@@ -19,5 +23,16 @@ export function initProblemSearch() {
 
     const empty = document.querySelector<HTMLElement>('.arcli-faq-empty');
     if (empty) empty.hidden = shown > 0;
+
+    const status = document.querySelector<HTMLElement>('.arcli-faq-status');
+    if (status) status.textContent = problemsStatus(query, shown, empty?.textContent ?? '');
   });
+}
+
+/** Lo que lee el lector de pantalla después de cada búsqueda; sin búsqueda, nada. */
+export function problemsStatus(query: string, shown: number, emptyText: string): string {
+  if (!query) return '';
+  if (shown === 0) return emptyText;
+
+  return shown === 1 ? '1 problema encontrado.' : `${shown} problemas encontrados.`;
 }

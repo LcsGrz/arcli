@@ -6,11 +6,18 @@ import { formatVoucherText, type VoucherTextOptions } from '../billing/voucher-t
 import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
 
 import { formatRawExportResponse } from './export.serialize';
-import { EXPORT_TYPES, type ExportExecutionResult } from './export.types';
+import { EXPORT_TYPES, type ExportExecutionResult, type ExportPermitCheckStatus } from './export.types';
 
 export type ExportTextOptions = VoucherTextOptions;
 
 type Rows = Array<readonly [string, string]>;
+
+/** `invalido` no llega a la vista previa: corta antes con un error. */
+const PERMIT_STATUS_LABELS: Record<ExportPermitCheckStatus, string> = {
+  invalido: 'ARCA no lo reconoce',
+  'sin-verificar': 'sin verificar',
+  valido: 'válido en ARCA',
+};
 
 function formatCountry(result: ExportExecutionResult): string {
   const { Dst_cmp: code } = result.payload;
@@ -92,6 +99,21 @@ function formatAssociatedVoucher(result: ExportExecutionResult): string | undefi
     : `Tipo ${associated.Cbte_tipo} ${number}`;
 }
 
+/** El permiso con lo que contesto ARCA en la vista previa, si se consulto. */
+function formatPermit(result: ExportExecutionResult, permit: string): string {
+  const status = result.display.permitChecks?.find((check) => check.permit === permit)?.status;
+
+  if (!status) {
+    return permit;
+  }
+
+  // Testing contesta OK a cualquier permiso: decir "valido" ahi seria prometer algo que ARCA no miro.
+  const label =
+    status === 'valido' && result.environment === 'testing' ? 'OK en testing' : PERMIT_STATUS_LABELS[status];
+
+  return `${permit} (${label})`;
+}
+
 function formatPayloadRows(result: ExportExecutionResult): Rows {
   const { payload } = result;
   const associated = formatAssociatedVoucher(result);
@@ -120,7 +142,7 @@ function formatPayloadRows(result: ExportExecutionResult): Rows {
   const permits = payload.Permisos?.Permiso ?? [];
 
   if (permits.length > 0) {
-    rows.push(['Permisos de embarque', permits.map((permit) => permit.Id_permiso).join(', ')]);
+    rows.push(['Permisos de embarque', permits.map((permit) => formatPermit(result, permit.Id_permiso)).join(', ')]);
   }
 
   if (payload.Obs) {

@@ -28,6 +28,10 @@ export interface BillingDateRange {
 export const DUE_DAY_DEPRECATION_WARNING =
   '`--dia` está deprecado y se va a sacar en una próxima versión: usá `--vencimiento` o `--vto` (por ejemplo, `--vto 10`).';
 
+/** El mismo aviso cuando `dia` vino del JSON de `--cargar`: nombra la clave, no el flag. */
+export const DUE_DAY_FILE_DEPRECATION_WARNING =
+  'La clave "dia" del JSON de `--cargar` está deprecada y se va a sacar en una próxima versión: usá "vencimientoPago" (por ejemplo, `"vencimientoPago": "10"`).';
+
 const MONTH_NAMES = [
   'enero',
   'febrero',

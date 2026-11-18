@@ -51,6 +51,17 @@ describe('tabla de rechazos de ARCA', () => {
     expect(findArcaRejections([99999], 'otra cosa')).toEqual([]);
   });
 
+  it('10154: la nota FCE de anulación pide que el comprador rechace el asociado, por código o por mensaje', () => {
+    const [rejection] = findArcaRejections([10154], '');
+
+    expect(formatArcaRejection(rejection)).toMatch(
+      /^Una nota FCE de anulación necesita que el comprador haya rechazado.*Pedile al comprador que lo rechace.*sin `--anulacion`.*Más info: https:.*#arca-rechaza-la-nota-fce-de-anulación$/,
+    );
+    expect(findArcaRejections([], 'Comprobante electronico autorizado, NO rechazado por el Comprador')).toEqual([
+      rejection,
+    ]);
+  });
+
   it('el texto dice qué pasó, qué hacer y el link', () => {
     const [rejection] = findArcaRejections([10174], '');
 
@@ -86,6 +97,45 @@ describe('mapBillingResponse: sugerencias', () => {
 
     expect(summary.status).toBe('observado');
     expect(summary.suggestions).toEqual([expect.stringContaining('No es un rechazo')]);
+  });
+
+  it('separa el 10017 (receptor no activo) del 10217 (crédito fiscal de un monotributista)', () => {
+    const [inactive] = findArcaRejections([10017], '');
+    const [monotributo] = findArcaRejections([10217], '');
+
+    expect(formatArcaRejection(inactive)).toMatch(/no figura activo en el padrón/);
+    expect(formatArcaRejection(monotributo)).toMatch(/monotributista.*Procedimiento permanente de transición/);
+    expect(formatArcaRejection(monotributo)).not.toMatch(/condición del receptor/);
+  });
+
+  it('un receptor que no está en los padrones (10015, solo en observaciones) tiene su sugerencia', () => {
+    // Respuesta real de ARCA testing (18/11/2026): `fb --cuit 20201797064`.
+    const summary = mapBillingResponse({
+      cae: '',
+      caeFchVto: '',
+      response: {
+        FeDetResp: {
+          FECAEDetResponse: [
+            {
+              Observaciones: {
+                Obs: [
+                  {
+                    Code: 10015,
+                    Msg: 'Factura B (CbteDesde igual a CbteHasta), DocTipo: 80, DocNro 20201797064 no se encuentra registrado en los padrones de AFIP y no corresponde a una cuit pais.',
+                  },
+                ],
+              },
+              Resultado: 'R',
+            },
+          ],
+        },
+      },
+    } as never);
+
+    expect(summary.status).toBe('rechazado');
+    expect(summary.suggestions).toEqual([
+      expect.stringMatching(/^ARCA no encuentra el documento del receptor en sus padrones\. Revisá el documento/),
+    ]);
   });
 
   it('un rechazo sin código conocido pide revisar errores y observaciones', () => {

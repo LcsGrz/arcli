@@ -47,7 +47,7 @@ export interface Demo {
   readonly caption: string;
   readonly key: DemoKey;
   readonly label: string;
-  /** El GIF, en `public/`; sin `src` es el chat. */
+  /** El GIF, en su WebP (lo genera `scripts/outputs/assets.mjs` desde el GIF de `docs/assets`); sin `src` es el chat. */
   readonly src?: string;
 }
 
@@ -57,14 +57,14 @@ export const DEMOS: readonly Demo[] = [
     caption: 'Una Factura C en testing con el asistente: monto, receptor, vista previa, comando equivalente y CAE.',
     key: 'asistente',
     label: 'Asistente',
-    src: 'assets/demo/interactivo.gif',
+    src: 'assets/demo/interactivo.webp',
   },
   {
     alt: 'ARCLI emitiendo con un comando y flags',
     caption: 'Lo mismo con un comando: vista previa, confirmación y CAE. Ideal para repetir o automatizar.',
     key: 'comandos',
     label: 'Comandos',
-    src: 'assets/demo/comandos.gif',
+    src: 'assets/demo/comandos.webp',
   },
   {
     caption:
@@ -77,7 +77,7 @@ export const DEMOS: readonly Demo[] = [
     caption: 'Los últimos comprobantes emitidos y el detalle de uno, sin emitir nada.',
     key: 'consultas',
     label: 'Consultas',
-    src: 'assets/demo/consultar.gif',
+    src: 'assets/demo/consultar.webp',
   },
 ];
 
@@ -371,7 +371,7 @@ export const HOW_PREVIEW = {
 export const HOW_RESULT = {
   label: 'Resultado de una emisión aprobada',
   pdfAlt: 'PDF de una Factura C generado por ARCLI',
-  pdfSrc: 'assets/demo/pdf-factura.png',
+  pdfSrc: 'assets/demo/pdf-factura.webp',
   rows: [
     ['CAE', '86451064378488'],
     ['Número', '00003-00000118'],

@@ -54,6 +54,7 @@ const sdk = vi.hoisted(() => ({
   wsfecred: { consultarMontoObligadoRecepcion: vi.fn() },
   wsfex: {
     authorize: vi.fn(),
+    checkPermiso: vi.fn(),
     getCmp: vi.fn(),
     getLastCmp: vi.fn(),
     getLastId: vi.fn(),
@@ -258,6 +259,9 @@ function resetSdk(): void {
 
   sdk.wsfex.authorize.mockImplementation(wsfexAnswer('A'));
   sdk.wsfex.getCmp.mockResolvedValue(EXPORT_INVOICE);
+  sdk.wsfex.checkPermiso.mockResolvedValue({
+    FEXCheck_PermisoResult: { ...NO_FEX_ERROR, FEXResultGet: { Status: 'OK' } },
+  });
   sdk.wsfex.getLastCmp.mockResolvedValue({
     FEXGetLast_CMPResult: { ...NO_FEX_ERROR, FEXResult_LastCMP: { Cbte_nro: 7 } },
   });
@@ -541,6 +545,7 @@ const FE = [
   ...['--cliente', 'ACME LLC', '--domicilio-cliente', '123 Main St', '--pais-destino', '212', '-m', '1500'],
   ...['--item', '001|Servicios de consultoría|1|1500|unidad'],
 ];
+const FE_GOODS = [...FE, '--tipo-expo', '1', '--permiso-existente', '--permiso', '26001EC01000123A'];
 const NCE = ['nce', '-m', '500', '--ar', '1', '--apv', '4', '--pv', '4'];
 
 function batchItem(montoTotal: number, extra: Record<string, unknown> = {}) {
@@ -803,6 +808,15 @@ describe('factura E y sus notas', () => {
       '--json',
     ]));
 
+  it('fe de bienes con permiso de embarque verificado', () =>
+    golden('fe-bienes-permiso', [...FE_GOODS, '--previsualizar', '--json']));
+
+  it('fe de bienes con un permiso que ARCA no pudo verificar: aviso', () => {
+    sdk.wsfex.checkPermiso.mockRejectedValue(new Error('socket hang up'));
+
+    return golden('fe-bienes-permiso-sin-verificar', [...FE_GOODS, '--previsualizar', '--json']);
+  });
+
   it('nce vista previa', () => golden('nce-previsualizar', [...NCE, '--previsualizar', '--json']));
   it('nce aprobada', () => golden('nce-aprobada', [...NCE, '--emitir', '--json']));
   it('nde aprobada', () =>
@@ -813,6 +827,14 @@ describe('factura E y sus notas', () => {
 
   it('INPUT_VALIDATION_ERROR: actividad fuera de la tabla', () =>
     golden('error-fe-actividad', [...FE, '--actividad', '620900', '--previsualizar', '--json']));
+
+  it('INPUT_VALIDATION_ERROR: permiso de embarque que ARCA no reconoce', () => {
+    sdk.wsfex.checkPermiso.mockResolvedValue({
+      FEXCheck_PermisoResult: { ...NO_FEX_ERROR, FEXResultGet: { Status: 'NO' } },
+    });
+
+    return golden('error-fe-permiso-invalido', [...FE_GOODS, '--emitir', '--json']);
+  });
 
   it('EMISSION_UNCERTAIN con numero e ID de solicitud', () => {
     sdk.wsfex.authorize.mockRejectedValue(new Error('socket hang up'));
@@ -862,6 +884,33 @@ describe('otros comandos que van a ARCA', () => {
     });
 
     return golden('error-ultimos', ['ultimos', 'fc', '--json']);
+  });
+
+  it('padron de un responsable inscripto', () => golden('padron', ['padron', String(CLIENT_CUIT), '--json']));
+
+  it('padron de un monotributista, con la letra y el periodo de la categoria', () => {
+    // Recortado de la respuesta real de ARCA testing para 20333333334 (17/11/2026).
+    sdk.padron.getTaxpayerDetails.mockResolvedValue({
+      datosGenerales: {
+        apellido: 'PEREZ TEST',
+        domicilioFiscal: { codPostal: '1406', direccion: 'MARTINEZ VICTOR 423' },
+        estadoClave: 'ACTIVO',
+        nombre: 'JUAN',
+        tipoPersona: 'FISICA',
+      },
+      datosMonotributo: {
+        actividadMonotributista: { descripcionActividad: 'CULTIVO DE FRUTAS DE CAROZO', idActividad: 12320 },
+        categoriaMonotributo: {
+          descripcionCategoria: 'E VENTAS DE COSAS MUEBLES',
+          idCategoria: 47,
+          idImpuesto: 20,
+          periodo: 201309,
+        },
+        impuesto: [{ descripcionImpuesto: 'MONOTRIBUTO', estadoImpuesto: 'AC', idImpuesto: 20, periodo: 201309 }],
+      },
+    });
+
+    return golden('padron-monotributista', ['padron', '20333333334', '--json']);
   });
 
   it('TAXPAYER_NOT_FOUND', () => {

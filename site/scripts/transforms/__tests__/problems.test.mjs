@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { problems } from '../problems.mjs';
 
 const SEARCH =
-  '<div class="arcli-faq-search"><input type="search" placeholder="Buscá lo que ves: EACCES, punto de venta, 10005…" aria-label="Buscar un problema"></div>\n<p class="arcli-faq-empty" hidden>No encontramos ese problema. Probá con otra palabra o mirá los errores de ARCA más abajo.</p>\n';
+  '<div class="arcli-faq-search"><input type="search" placeholder="Buscá lo que ves: EACCES, punto de venta, 10005…" aria-label="Buscar un problema"></div>\n<p class="arcli-faq-empty" hidden>No encontramos ese problema. Probá con otra palabra o mirá los errores de ARCA más abajo.</p>\n<p class="arcli-faq-status sr-only" role="status"></p>\n';
 
 describe('problems (Problemas frecuentes)', () => {
   it('cada ### pasa a un desplegable con severidad, filas y "Más en", agrupados por ##', () => {

@@ -61,10 +61,10 @@ Todavía no se soportan los tributos (`Tributos` / `ImpTrib`), como las percepci
 
 Algunos CUIT de testing aprueban y devuelven observaciones como:
 
-- `10217`
-- `10017`
+- `10217`: el receptor de una A figura como monotributista (sale también con CUITs que no lo son)
+- `10017`: el receptor de una A no figura activo en el padrón
 
-No siempre indican un error del CLI.
+No siempre indican un error del CLI. Otros CUITs que `arcli padron` encuentra no están en el padrón de facturación de testing y ARCA rechaza el comprobante (ver [El receptor no está en los padrones de ARCA](troubleshooting.md#el-receptor-no-está-en-los-padrones-de-arca)).
 
 ### Casos sensibles al paralelismo
 

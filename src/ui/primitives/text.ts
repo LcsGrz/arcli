@@ -1,3 +1,5 @@
+import stringWidth from 'string-width';
+
 import { UI_THEME, type UiColorToken } from '../theme/theme';
 
 const BOLD = '\u001B[1m';
@@ -31,7 +33,8 @@ export function renderForTarget<T>(target: OutputTarget, render: () => T): T {
 /**
  * Colores solo en una terminal real. Con la salida redirigida (pipe, archivo, `| jq`) `isTTY` es
  * `undefined`: antes se trataba como terminal y el JSON salia con codigos ANSI que lo rompian.
- * `NO_COLOR` los apaga siempre; `FORCE_COLOR` los fuerza aunque no haya terminal.
+ * Precedencia: `NO_COLOR` los apaga siempre; `FORCE_COLOR` decide despues (los fuerza aunque no haya terminal, o los
+ * apaga con `0`/`false`); `TERM=dumb` (una terminal sin secuencias de escape) los apaga; si no, solo con TTY.
  */
 export function shouldUseColor(target: OutputTarget = defaultTarget): boolean {
   if (process.env.NO_COLOR) {
@@ -42,6 +45,10 @@ export function shouldUseColor(target: OutputTarget = defaultTarget): boolean {
 
   if (forceColor !== undefined && forceColor !== '') {
     return forceColor !== '0' && forceColor.toLowerCase() !== 'false';
+  }
+
+  if (process.env.TERM === 'dumb') {
+    return false;
   }
 
   const stream = target === 'stderr' ? process.stderr : process.stdout;
@@ -93,14 +100,81 @@ export function toneText(value: string, color: UiTextColor): string {
   return color === 'muted' ? colorize(value, color) : bold(colorize(value, color));
 }
 
+// Colores (SGR) y links (OSC 8): ninguno ocupa columnas.
+// eslint-disable-next-line no-control-regex
+const ANSI_ANYWHERE = /\u001B\[[0-9;]*m|\u001B\]8;[^;]*;.*?(?:\u0007|\u001B\\)/;
+const ANSI_ALL = new RegExp(ANSI_ANYWHERE.source, 'g');
+const ANSI_SEQUENCE = new RegExp(`^(?:${ANSI_ANYWHERE.source})`);
+
 export function stripAnsi(value: string): string {
-  // Colores (SGR) y links (OSC 8): ninguno ocupa columnas.
-  // eslint-disable-next-line no-control-regex
-  return value.replace(/\u001B\[[0-9;]*m|\u001B\]8;[^;]*;.*?(?:\u0007|\u001B\\)/g, '');
+  return value.replace(ANSI_ALL, '');
 }
+
+/**
+ * Columnas que ocupa `value` en la terminal, sin contar los codigos ANSI. Un emoji o un caracter chino ocupan dos y
+ * una `é` armada con su acento aparte (NFD, como la pega macOS) ocupa una: `length` cuenta unidades de UTF-16 y
+ * desarmaba los paneles. Mide igual que boxen, que dibuja el borde con `string-width`.
+ */
+export function visibleWidth(value: string): number {
+  return stringWidth(stripAnsi(value));
+}
+
+/** `value` con espacios a la derecha hasta ocupar `width` columnas visibles (`padEnd` cuenta unidades de UTF-16). */
+export function padEndVisible(value: string, width: number): string {
+  return `${value}${' '.repeat(Math.max(0, width - visibleWidth(value)))}`;
+}
+
+const graphemeSegmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
 
 export function flattenVisibleLines(lines: readonly string[]): string[] {
   return lines.flatMap((line) => line.split('\n'));
+}
+
+// Corta `line` en la columna visible `column`, sin partir secuencias ANSI ni grafemas (un emoji, una letra con su
+// acento aparte): los codigos que caen antes de esa columna (por ejemplo el cierre de una etiqueta en negrita) quedan
+// en la primera parte. Si el primer grafema no entra (un emoji de dos columnas con una libre) va igual: si no, el
+// corte de palabras largas no avanzaria.
+function splitAtVisibleColumn(line: string, column: number): [string, string] {
+  let visible = 0;
+  let index = 0;
+
+  while (index < line.length && visible < column) {
+    const rest = line.slice(index);
+    const ansi = ANSI_SEQUENCE.exec(rest);
+
+    if (ansi) {
+      index += ansi[0].length;
+      continue;
+    }
+
+    // El texto hasta el proximo codigo ANSI, de a un grafema.
+    const nextAnsi = rest.search(ANSI_ANYWHERE);
+    const plain = nextAnsi === -1 ? rest : rest.slice(0, nextAnsi);
+    let full = false;
+
+    for (const { segment } of graphemeSegmenter.segment(plain)) {
+      const width = stringWidth(segment);
+
+      if (visible > 0 && visible + width > column) {
+        full = true;
+        break;
+      }
+
+      visible += width;
+      index += segment.length;
+    }
+
+    if (full) {
+      break;
+    }
+  }
+
+  // Los codigos ANSI pegados al corte tambien van con la primera parte.
+  for (let ansi = ANSI_SEQUENCE.exec(line.slice(index)); ansi; ansi = ANSI_SEQUENCE.exec(line.slice(index))) {
+    index += ansi[0].length;
+  }
+
+  return [line.slice(0, index), line.slice(index)];
 }
 
 export function wrapPlainText(value: string, width: number): string[] {
@@ -109,7 +183,7 @@ export function wrapPlainText(value: string, width: number): string[] {
   }
 
   return value.split('\n').flatMap((line) => {
-    if (line.length <= width) {
+    if (visibleWidth(line) <= width) {
       return [line];
     }
 
@@ -120,7 +194,7 @@ export function wrapPlainText(value: string, width: number): string[] {
     for (const word of words) {
       const candidate = currentLine ? `${currentLine} ${word}` : word;
 
-      if (stripAnsi(candidate).length <= width) {
+      if (visibleWidth(candidate) <= width) {
         currentLine = candidate;
         continue;
       }
@@ -129,16 +203,18 @@ export function wrapPlainText(value: string, width: number): string[] {
         wrapped.push(currentLine);
       }
 
-      if (stripAnsi(word).length <= width) {
+      if (visibleWidth(word) <= width) {
         currentLine = word;
         continue;
       }
 
       let remaining = word;
 
-      while (stripAnsi(remaining).length > width) {
-        wrapped.push(remaining.slice(0, width));
-        remaining = remaining.slice(width);
+      while (visibleWidth(remaining) > width) {
+        const [head, tail] = splitAtVisibleColumn(remaining, width);
+
+        wrapped.push(head);
+        remaining = tail;
       }
 
       currentLine = remaining;
@@ -162,7 +238,7 @@ function wrapWords(words: readonly string[], firstPrefix: string, continuationPr
   for (const word of words) {
     const candidate = currentHasWords ? `${currentLine} ${word}` : `${currentLine}${word}`;
 
-    if (stripAnsi(candidate).length <= width) {
+    if (visibleWidth(candidate) <= width) {
       currentLine = candidate;
       currentHasWords = true;
       continue;
@@ -180,12 +256,13 @@ function wrapWords(words: readonly string[], firstPrefix: string, continuationPr
 
     let remaining = word;
 
-    while (stripAnsi(remaining).length > Math.max(1, width - stripAnsi(prefix).length)) {
-      const room = Math.max(1, width - stripAnsi(prefix).length);
+    for (let room = Math.max(1, width - visibleWidth(prefix)); visibleWidth(remaining) > room;) {
+      const [head, tail] = splitAtVisibleColumn(remaining, room);
 
-      wrapped.push(`${prefix}${remaining.slice(0, room)}`);
-      remaining = remaining.slice(room);
+      wrapped.push(`${prefix}${head}`);
+      remaining = tail;
       prefix = continuationPrefix;
+      room = Math.max(1, width - visibleWidth(prefix));
     }
 
     currentLine = `${prefix}${remaining}`;
@@ -197,35 +274,6 @@ function wrapWords(words: readonly string[], firstPrefix: string, continuationPr
   }
 
   return wrapped;
-}
-
-// eslint-disable-next-line no-control-regex
-const ANSI_SEQUENCE = /^(?:\u001B\[[0-9;]*m|\u001B\]8;[^;]*;.*?(?:\u0007|\u001B\\))/;
-
-// Corta `line` en la columna visible `column`, sin partir secuencias ANSI: los codigos que caen
-// antes de esa columna (por ejemplo el cierre de una etiqueta en negrita) quedan en la primera parte.
-function splitAtVisibleColumn(line: string, column: number): [string, string] {
-  let visible = 0;
-  let index = 0;
-
-  while (index < line.length && visible < column) {
-    const ansi = ANSI_SEQUENCE.exec(line.slice(index));
-
-    if (ansi) {
-      index += ansi[0].length;
-      continue;
-    }
-
-    visible += 1;
-    index += 1;
-  }
-
-  // Los codigos ANSI pegados al corte tambien van con la primera parte.
-  for (let ansi = ANSI_SEQUENCE.exec(line.slice(index)); ansi; ansi = ANSI_SEQUENCE.exec(line.slice(index))) {
-    index += ansi[0].length;
-  }
-
-  return [line.slice(0, index), line.slice(index)];
 }
 
 // Saca los espacios del final sin perder los codigos ANSI que haya entre ellos (el cierre de una negrita).
@@ -246,7 +294,9 @@ const LIST_ITEM_MARKER = /^(?:[•*-]|\d+\.)\s+/;
 const NO_COLUMNS: ReadonlySet<number> = new Set();
 
 function labelColumnWidth(line: string): number | null {
-  return LABEL_VALUE_LINE.exec(stripAnsi(line))?.[1]?.length ?? null;
+  const prefix = LABEL_VALUE_LINE.exec(stripAnsi(line))?.[1];
+
+  return prefix === undefined ? null : visibleWidth(prefix);
 }
 
 // La etiqueta de una fila apilada, por palabras. Si se parte, cada linea abre y cierra su estilo: un panel dibuja
@@ -254,7 +304,7 @@ function labelColumnWidth(line: string): number | null {
 function wrapLabel(label: string, indent: string, width: number): string[] {
   const visible = stripAnsi(label).trim();
 
-  if (indent.length + visible.length <= width) {
+  if (indent.length + visibleWidth(visible) <= width) {
     return [label];
   }
 
@@ -286,10 +336,10 @@ export function wrapIndentedPlainText(
   return value.split('\n').flatMap((line) => {
     // La columna se busca sobre el texto visible: con ANSI (etiquetas en negrita) la regex cortaria mal.
     const columnMatch = LABEL_VALUE_LINE.exec(stripAnsi(line));
-    const prefixWidth = columnMatch?.[1]?.length ?? 0;
+    const prefixWidth = visibleWidth(columnMatch?.[1] ?? '');
     const stacked = columnMatch !== null && stackedColumns.has(prefixWidth);
 
-    if (stripAnsi(line).length <= width && !stacked) {
+    if (visibleWidth(line) <= width && !stacked) {
       return [line];
     }
 
@@ -341,7 +391,7 @@ export function wrapPanelLines(lines: readonly string[], width: number): string[
   for (const line of flattened) {
     const column = labelColumnWidth(line);
 
-    if (column !== null && stripAnsi(line).length > width && width - column < MIN_VALUE_COLUMN_WIDTH) {
+    if (column !== null && visibleWidth(line) > width && width - column < MIN_VALUE_COLUMN_WIDTH) {
       stackedColumns.add(column);
     }
   }
@@ -350,12 +400,12 @@ export function wrapPanelLines(lines: readonly string[], width: number): string[
 }
 
 export function maxVisibleWidth(lines: readonly string[]): number {
-  return Math.max(...flattenVisibleLines(lines).map((line) => stripAnsi(line).length), 0);
+  return Math.max(...flattenVisibleLines(lines).map((line) => visibleWidth(line)), 0);
 }
 
 export function centerText(value: string, width: number): string {
-  const visibleWidth = stripAnsi(value).length;
-  const leftPadding = Math.max(0, Math.floor((width - visibleWidth) / 2));
+  const valueWidth = visibleWidth(value);
+  const leftPadding = Math.max(0, Math.floor((width - valueWidth) / 2));
 
   return `${' '.repeat(leftPadding)}${value}`;
 }

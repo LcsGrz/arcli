@@ -8,6 +8,13 @@ import { offerPdf } from '../pdf.flow';
 import { askTextStep, chooseOne, confirm } from '../prompts';
 import { type InteractiveSession, previewAndEmit, requirePointOfSale } from '../session';
 
+// El comando equivalente sale con las comillas de la shell del SO: POSIX fijo para que el CI en Windows espere lo mismo.
+vi.mock('../../../lib/shell/shell-argument', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../lib/shell/shell-argument')>();
+
+  return { ...actual, formatShellCommand: (args: readonly string[]) => actual.formatShellCommand(args, 'linux') };
+});
+
 vi.mock('../prompts', () => ({ askTextStep: vi.fn(), chooseOne: vi.fn(), confirm: vi.fn() }));
 vi.mock('../pdf.flow', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../pdf.flow')>()),
@@ -194,7 +201,7 @@ describe('previewAndEmit', () => {
     });
 
     expect(write.mock.calls.map(([chunk]) => String(chunk)).join('')).toContain(
-      '--ir responsable-inscripto --receptor-nombre "ACME SA" --receptor-domicilio "Av. Siempre Viva 742"',
+      "--ir responsable-inscripto --receptor-nombre 'ACME SA' --receptor-domicilio 'Av. Siempre Viva 742'",
     );
   });
 

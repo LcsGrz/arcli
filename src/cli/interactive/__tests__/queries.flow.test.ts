@@ -97,6 +97,8 @@ const TAXPAYER: Taxpayer = {
   ivaCondition: 'responsable-inscripto',
   keyStatus: 'ACTIVO',
   monotributoCategory: null,
+  monotributoCategoryLetter: null,
+  monotributoCategorySince: null,
   name: 'Empresa de Ejemplo SRL',
   notices: [],
   personType: 'juridica',

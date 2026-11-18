@@ -14,6 +14,7 @@ import {
   DEFAULT_EXPORT_TYPE,
   EXPORT_TYPE_VALUES,
   EXPORT_TYPES,
+  EXPORT_TYPES_WITH_PAYMENT_DATE,
   EXPORT_TYPES_WITHOUT_PERMITS,
   type ExportActivity,
   type ExportAssociatedVoucherPayload,
@@ -418,12 +419,18 @@ function resolvePermits(
   return { Permiso: [...new Set(permits)].map((id) => ({ Dst_merc: destinationCountry, Id_permiso: id })) };
 }
 
+/** `Fecha_pago` va solo en la factura de servicios u otros: en bienes y en las notas ARCA la rechaza (error 1673). */
+export function exportTypeTakesPaymentDate(exportType: ExportType, isNote: boolean): boolean {
+  return !isNote && EXPORT_TYPES_WITH_PAYMENT_DATE.includes(exportType);
+}
+
 /**
  * Arma el `Cmp` de `FEXAuthorize` con los datos ya resueltos contra las tablas de ARCA.
  *
  * Los bloques vacios no van: `Permisos` sin permisos (error 1720), `Cmps_asoc` y `Opcionales` sin filas (error 1820
  * el primero). `Actividades`, en cambio, siempre lleva una `Actividad` (error 2100). Las notas llevan `Cmps_asoc` y
- * `Permiso_existente` vacio (1550), y no llevan `Fecha_pago` (1673) ni `CanMisMonExt` (1605).
+ * `Permiso_existente` vacio (1550), y no llevan `Fecha_pago` (1673) ni `CanMisMonExt` (1605). La factura de bienes
+ * tampoco lleva `Fecha_pago` (1673): solo va en servicios y otros.
  */
 export function buildExportPayload(input: ExportVoucherInput, resolution: BuildExportResolution): ExportVoucherPayload {
   const clientName = requireText(input.clientName, 'el nombre del cliente', '`--cliente`');
@@ -456,7 +463,7 @@ export function buildExportPayload(input: ExportVoucherInput, resolution: BuildE
     Domicilio_cliente: clientAddress,
     Dst_cmp: resolution.destinationCountry.code,
     Fecha_cbte: resolution.voucherDate,
-    ...(isNote ? {} : { Fecha_pago: resolution.paymentDate }),
+    ...(exportTypeTakesPaymentDate(resolution.exportType, isNote) ? { Fecha_pago: resolution.paymentDate } : {}),
     Forma_pago: input.paymentTerms?.trim() || DEFAULT_EXPORT_PAYMENT_TERMS,
     Id: resolution.requestId,
     Id_impositivo: input.clientTaxId?.trim() ?? '',

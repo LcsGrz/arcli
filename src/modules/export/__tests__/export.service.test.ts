@@ -44,6 +44,7 @@ function createGateway(overrides: Partial<ExportGateway> = {}): ExportGateway {
       { code: 203, name: 'Brasil' },
       { code: 212, name: 'Chile' },
     ]),
+    checkPermit: vi.fn(async () => 'OK'),
     getActivities: vi.fn(async () => [
       { id: 46201, name: 'VENTA AL POR MAYOR DE MATERIAS PRIMAS' },
       { id: 620100, name: 'SERVICIOS DE CONSULTORES EN INFORMATICA' },
@@ -122,7 +123,6 @@ describe('ExportService.resolve', () => {
       Cuit_pais_cliente: 55000000050,
       Dst_cmp: 203,
       Fecha_cbte: '20260601',
-      Fecha_pago: '20260601',
       Id: 8,
       Idioma_cbte: 1,
       Imp_total: 1500,
@@ -159,11 +159,89 @@ describe('ExportService.resolve', () => {
     expect(resolved.payload).not.toHaveProperty('Permisos');
   });
 
+  it('sin permisos de embarque no consulta FEXCheck_Permiso', async () => {
+    const gateway = createGateway();
+    const resolved = await service.resolve({ ...INPUT, exportType: 1 }, gateway, RUNTIME, NOW);
+
+    expect(gateway.checkPermit).not.toHaveBeenCalled();
+    expect(resolved.display.permitChecks).toBeUndefined();
+  });
+
+  it('consulta cada permiso de embarque con el destino y guarda lo que contesto ARCA', async () => {
+    const gateway = createGateway();
+    const resolved = await service.resolve(
+      { ...INPUT, exportType: 1, permits: ['P1', 'P2'], permitsExisting: true },
+      gateway,
+      RUNTIME,
+      NOW,
+    );
+
+    expect(gateway.checkPermit).toHaveBeenCalledWith('P1', 203);
+    expect(gateway.checkPermit).toHaveBeenCalledWith('P2', 203);
+    expect(resolved.display.permitChecks).toEqual([
+      { permit: 'P1', status: 'valido' },
+      { permit: 'P2', status: 'valido' },
+    ]);
+  });
+
+  it('un permiso que ARCA no reconoce corta antes de emitir', async () => {
+    const gateway = createGateway({ checkPermit: vi.fn(async () => 'NO') });
+
+    await expect(
+      service.resolve({ ...INPUT, exportType: 1, permits: ['P1'], permitsExisting: true }, gateway, RUNTIME, NOW),
+    ).rejects.toThrow('ARCA dice que el permiso de embarque P1 no es válido para el destino 203 - Brasil');
+    expect(gateway.authorize).not.toHaveBeenCalled();
+  });
+
+  it('si FEXCheck_Permiso falla, sigue con un aviso', async () => {
+    const gateway = createGateway({ checkPermit: vi.fn().mockRejectedValue(new Error('timeout')) });
+    const resolved = await service.resolve(
+      { ...INPUT, exportType: 1, permits: ['P1'], permitsExisting: true },
+      gateway,
+      RUNTIME,
+      NOW,
+    );
+
+    expect(resolved.display.permitChecks).toEqual([{ permit: 'P1', status: 'sin-verificar' }]);
+    expect(resolved.warnings).toContain(
+      'No se pudo verificar el permiso de embarque P1 en ARCA (timeout): revisalo antes de emitir.',
+    );
+  });
+
   it('en una exportacion de servicios deja vacio Permiso_existente, como pide ARCA (1550)', async () => {
     const resolved = await service.resolve({ ...INPUT, exportType: 2 }, createGateway(), RUNTIME, NOW);
 
     expect(resolved.payload.Permiso_existente).toBe('');
     expect(resolved.payload).not.toHaveProperty('Permisos');
+  });
+
+  it('en servicios manda la fecha de pago de `--fecha-pago` sin avisos', async () => {
+    const resolved = await service.resolve(
+      { ...INPUT, exportType: 2, paymentDate: '15/06/2026' },
+      createGateway(),
+      RUNTIME,
+      NOW,
+    );
+
+    expect(resolved.payload.Fecha_pago).toBe('20260615');
+    expect(resolved.warnings).toEqual([]);
+  });
+
+  it('en bienes no manda la fecha de pago (ARCA la rechaza, 1673) y avisa si vino `--fecha-pago`', async () => {
+    const withoutDate = await service.resolve({ ...INPUT, exportType: 1 }, createGateway(), RUNTIME, NOW);
+    const withDate = await service.resolve(
+      { ...INPUT, exportType: 1, paymentDate: '15/06/2026' },
+      createGateway(),
+      RUNTIME,
+      NOW,
+    );
+
+    expect(withoutDate.payload).not.toHaveProperty('Fecha_pago');
+    expect(withoutDate.warnings).toEqual([]);
+    expect(withDate.payload).not.toHaveProperty('Fecha_pago');
+    expect(withDate.warnings).toEqual([
+      'La factura E de bienes (`--tipo-expo 1`) no lleva fecha de pago: ARCA la rechaza (error 1673). `--fecha-pago` no se usa.',
+    ]);
   });
 
   it('sin moneda ni tipo usa los defaults: servicios, dolares y transferencia internacional', async () => {

@@ -11,6 +11,7 @@ import { type ArcliConfig, MISSING_CUIT_MESSAGE } from '../config/config.schemas
 import { assertExportItemsTotal, buildExportItems, DEFAULT_EXPORT_ITEM_DESCRIPTION } from './export.items';
 import {
   buildExportPayload,
+  exportTypeTakesPaymentDate,
   resolveExportActivity,
   resolveExportClientCountryCuit,
   resolveExportCurrency,
@@ -31,6 +32,7 @@ import {
   missingExportAssociatedVoucherError,
   resolveExportAssociatedQuery,
 } from './export.notes';
+import { checkExportPermits } from './export.permits';
 import { createDryRunExportResponse, mapExportResponse } from './export.response';
 import {
   EXPORT_VOUCHER_KIND,
@@ -263,6 +265,8 @@ export class ExportService {
       });
     }
 
+    // Ultima lectura antes de emitir: un permiso que ARCA no reconoce corta aca y no en el rechazo de `FEXAuthorize`.
+    const permitChecks = await checkExportPermits(payload, gateway, destinationCountry.name);
     const currencyCode = payload.Moneda_Id.trim().toUpperCase();
     const display: ExportDisplayInfo = {
       ...(associated ? { associatedVoucher: describeAssociated(associated.voucher) } : {}),
@@ -272,11 +276,18 @@ export class ExportService {
         ?.name,
       incotermName: incoterm?.name,
       languageName: languages.find((language) => language.id === languageId)?.name,
+      ...(permitChecks ? { permitChecks: permitChecks.checks } : {}),
       unitNames: Object.fromEntries(units.map((unit) => [unit.id, unit.name])),
     };
     // La cotizacion de aduana del dia se publica mas tarde: se emite con la ultima disponible, avisando de que dia es.
     const warnings = [
       ...exportAssociatedVoucherWarnings(rawInput.associatedVoucher),
+      // En las notas `--fecha-pago` es un error (ver `assertExportNoteFields`); en la factura de bienes se ignora.
+      ...(!isExportNote(voucherKind) && input.paymentDate?.trim() && !exportTypeTakesPaymentDate(exportType, false)
+        ? [
+            'La factura E de bienes (`--tipo-expo 1`) no lleva fecha de pago: ARCA la rechaza (error 1673). `--fecha-pago` no se usa.',
+          ]
+        : []),
       ...(quotation?.date && quotation.date !== voucherDate
         ? [
             `ARCA no publicó la cotización de ${quotation.code} del ${formatArcaDateAsArgentineDate(
@@ -284,6 +295,7 @@ export class ExportService {
             )}: se usa la del ${formatArcaDateAsArgentineDate(quotation.date)} (${formatExchangeRate(quotation.rate)}). Para usar otra, \`--cotizacion-moneda\`.`,
           ]
         : []),
+      ...(permitChecks?.warnings ?? []),
     ];
 
     return { display, payload, voucherKind, warnings };

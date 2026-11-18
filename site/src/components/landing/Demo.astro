@@ -15,7 +15,7 @@ const [first] = DEMOS;
 <div class="demo" id="demo">
   <Tabs class="demo-tabs" label="Demostraciones" items={DEMOS} idPrefix="demo-" controls="demo-panel" tabClass="tab" />
   <figure class="window" id="demo-panel" role="tabpanel" aria-labelledby={`demo-${first.key}`}>
-    <img id="demo-img" src={url(first.src)} alt={first.alt} width="1100" height="780" />
+    <img id="demo-img" src={url(first.src)} alt={first.alt} width="1100" height="780" fetchpriority="high" />
     <div class="chat" id="demo-chat" hidden aria-live="polite"></div>
     <template id="demo-chat-messages">
       <div class="chat-head"><span>{CHAT_HEAD.title} <b>{CHAT_HEAD.who}</b></span><span class="local">{CHAT_HEAD.local}</span></div>

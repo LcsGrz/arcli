@@ -58,6 +58,7 @@ const gateway: ExportGateway = {
       },
     },
   })),
+  checkPermit: async () => 'OK',
   getActivities: async () => [{ id: 620100, name: 'SERVICIOS DE CONSULTORES EN INFORMATICA' }],
   getCurrencies: async () => [{ code: 'DOL', name: 'Dólar Estadounidense' }],
   getDestinationCountries: async () => [{ code: 212, name: 'ESTADOS UNIDOS' }],
@@ -70,6 +71,13 @@ const gateway: ExportGateway = {
   getUnits: async () => [{ id: 7, name: 'unidades' }],
   getVoucher: vi.fn(async (query) => (query.number === INVOICE.number ? INVOICE : null)),
 };
+
+// El comando equivalente sale con las comillas de la shell del SO: POSIX fijo para que el CI en Windows espere lo mismo.
+vi.mock('../../../lib/shell/shell-argument', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../lib/shell/shell-argument')>();
+
+  return { ...actual, formatShellCommand: (args: readonly string[]) => actual.formatShellCommand(args, 'linux') };
+});
 
 vi.mock('../prompts', () => ({
   askTextStep: (...args: Parameters<typeof script.askTextStep>) => script.askTextStep(...args),
@@ -159,7 +167,7 @@ describe('runExportNoteFlow', () => {
       }),
     );
     expect(printed()).toContain(
-      'arcli nce -m 500 --ar 1 --apv 4 --descripcion "Descuento por volumen" --testing --emitir',
+      "arcli nce -m 500 --ar 1 --apv 4 --descripcion 'Descuento por volumen' --testing --emitir",
     );
   });
 
@@ -225,7 +233,7 @@ describe('runExportNoteFlow', () => {
       'Observaciones',
     ]);
     expect(printed()).toContain(
-      'arcli nce -m 200 --ar 3 --apv 4 --ac nde --observaciones "Ajuste de la ND" --obs-comerciales "Sin cargo" --testing --emitir',
+      "arcli nce -m 200 --ar 3 --apv 4 --ac nde --observaciones 'Ajuste de la ND' --obs-comerciales 'Sin cargo' --testing --emitir",
     );
   });
 

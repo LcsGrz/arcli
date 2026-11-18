@@ -68,6 +68,12 @@ export const EXPORT_TYPE_VALUES: readonly ExportType[] = [1, 2, 4];
 export const EXPORT_TYPES_WITHOUT_PERMITS: readonly ExportType[] = [2, 4];
 
 /**
+ * Solo las facturas de servicios (2) y otros (4) llevan fecha de pago: en las de bienes (1) ARCA la rechaza
+ * (error 1673), igual que en las notas.
+ */
+export const EXPORT_TYPES_WITH_PAYMENT_DATE: readonly ExportType[] = [2, 4];
+
+/**
  * Tipo de exportacion por defecto: la exportacion de servicios no lleva permisos de embarque ni bienes
  * fisicos, asi que es la que menos datos pide. Los bienes van con `--tipo-expo 1`.
  */
@@ -139,7 +145,7 @@ export interface ExportVoucherPayload {
   readonly Domicilio_cliente: string;
   readonly Dst_cmp: number;
   readonly Fecha_cbte: string;
-  /** Solo en la factura: en las notas ARCA lo rechaza (error 1673). */
+  /** Solo en la factura de servicios u otros: en bienes y en las notas ARCA lo rechaza (error 1673). */
   readonly Fecha_pago?: string;
   readonly Forma_pago: string;
   readonly Id: number;
@@ -229,6 +235,17 @@ export interface ExportCurrencyResolution {
   readonly needsQuotation: boolean;
 }
 
+/**
+ * Lo que dijo `FEXCheck_Permiso` de un permiso de embarque: `valido` si ARCA contesto `OK`, `invalido` si contesto
+ * `NO` y `sin-verificar` si fallo la consulta o la respuesta no fue ninguna de las dos.
+ */
+export type ExportPermitCheckStatus = 'invalido' | 'sin-verificar' | 'valido';
+
+export interface ExportPermitCheck {
+  readonly permit: string;
+  readonly status: ExportPermitCheckStatus;
+}
+
 /** Nombres de las tablas de ARCA que se muestran en texto, PDF y JSON. */
 export interface ExportDisplayInfo {
   /** Solo en las notas: el comprobante que ajustan, con lo que trajo `FEXGetCMP`. */
@@ -240,6 +257,8 @@ export interface ExportDisplayInfo {
   readonly currencyName?: string;
   readonly incotermName?: string;
   readonly languageName?: string;
+  /** Solo si el comprobante lleva permisos de embarque: lo que contesto ARCA de cada uno en la vista previa. */
+  readonly permitChecks?: readonly ExportPermitCheck[];
   readonly unitNames: Readonly<Record<number, string>>;
 }
 
@@ -313,6 +332,11 @@ export interface ExportGateway {
   authorize(payload: ExportVoucherPayload): Promise<IFEXAuthorizeOutput>;
   /** Tabla de actividades de WSFEX: el `Cmp` solo acepta estos codigos, no los del padron. */
   getActivities(): Promise<readonly ExportActivity[]>;
+  /**
+   * `FEXCheck_Permiso`: el `Status` que ARCA devuelve para un permiso de embarque y su pais de destino (`OK` o
+   * `NO`), tal cual. Es una lectura: no emite nada.
+   */
+  checkPermit(permit: string, destinationCountry: number): Promise<string>;
   /** Un comprobante E ya emitido (`FEXGetCMP`), o `null` si ARCA no lo tiene. */
   getVoucher(query: ExportVoucherQuery): Promise<ExportIssuedVoucher | null>;
   getCurrencies(): Promise<readonly ExportCurrency[]>;

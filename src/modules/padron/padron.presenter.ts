@@ -1,7 +1,8 @@
+import { formatArcaPeriodAsArgentinePeriod } from '../../lib/dates/arca-date';
 import { formatCuit } from '../../lib/identity/format-cuit';
 import { DEPRECATED_CUIT_NUMBER } from '../../lib/json/deprecations';
 import { sheetPanel } from '../../ui/components';
-import { renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui/primitives';
+import { renderKeyValueRows, resolveKeyValueLabelWidth, uiSymbol } from '../../ui/primitives';
 import { ivaConditionCode, ivaConditionLabel } from '../billing/arca-codes';
 
 import type { Taxpayer } from './padron';
@@ -24,6 +25,30 @@ function formatMainActivity(taxpayer: Taxpayer): string {
   return `${main?.description ?? 'N/D'}${more}`;
 }
 
+/** `E · VENTAS DE COSAS MUEBLES`: la letra separada del tipo de actividad, si se pudo leer. */
+function formatMonotributoCategory(taxpayer: Taxpayer): string {
+  const description = taxpayer.monotributoCategory ?? 'N/D';
+  const letter = taxpayer.monotributoCategoryLetter;
+
+  if (!letter) return description;
+
+  const activity = description.trim().slice(letter.length).trim();
+
+  return activity ? `${letter} ${uiSymbol('separator')} ${activity}` : letter;
+}
+
+/** Filas de la categoria; solo para monotributistas. */
+function monotributoRows(taxpayer: Taxpayer): Array<readonly [string, string]> {
+  if (!taxpayer.monotributoCategory) return [];
+
+  const since = taxpayer.monotributoCategorySince;
+
+  return [
+    ['Categoría monotributo', formatMonotributoCategory(taxpayer)],
+    ['Categoría vigente desde', since ? formatArcaPeriodAsArgentinePeriod(since) : 'N/D'],
+  ];
+}
+
 export function formatPadronAsJson(report: PadronReport): string {
   const { taxpayer } = report;
 
@@ -33,6 +58,8 @@ export function formatPadronAsJson(report: PadronReport): string {
       avisos: taxpayer.notices,
       deprecado: [DEPRECATED_CUIT_NUMBER],
       categoriaMonotributo: taxpayer.monotributoCategory,
+      categoriaMonotributoLetra: taxpayer.monotributoCategoryLetter,
+      categoriaMonotributoDesde: taxpayer.monotributoCategorySince,
       condicionIva: taxpayer.ivaCondition,
       cuit: taxpayer.cuit,
       domicilio: taxpayer.address,
@@ -60,7 +87,7 @@ export function formatPadronAsText(report: PadronReport): string {
       'Condición frente al IVA',
       taxpayer.ivaCondition ? ivaConditionLabel(ivaConditionCode(taxpayer.ivaCondition)) : 'N/D',
     ],
-    ...(taxpayer.monotributoCategory ? [['Categoría monotributo', taxpayer.monotributoCategory] as const] : []),
+    ...monotributoRows(taxpayer),
     ...(activeTaxes.length > 0 ? [['Impuestos', activeTaxes.join(', ')] as const] : []),
     ...(taxpayer.activities.length > 0 ? [['Actividad principal', formatMainActivity(taxpayer)] as const] : []),
     ...taxpayer.notices.map((notice) => ['Aviso de ARCA', notice] as const),

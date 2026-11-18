@@ -1,0 +1,31 @@
+$ arcli padron 30709965812 --json
+exit: 0
+--- stdout ---
+
+{
+  "actividades": [],
+  "avisos": [],
+  "deprecado": [
+    "`cuit` pasa a ser texto en la 3.0.0: leelo como texto para que no te afecte."
+  ],
+  "categoriaMonotributo": null,
+  "categoriaMonotributoLetra": null,
+  "categoriaMonotributoDesde": null,
+  "condicionIva": "responsable-inscripto",
+  "cuit": 30709965812,
+  "domicilio": "AV SIEMPRE VIVA 742, CP 1425, CIUDAD AUTONOMA BUENOS AIRES",
+  "entorno": "testing",
+  "estadoClave": "ACTIVO",
+  "impuestos": [
+    {
+      "activo": true,
+      "descripcion": "IVA",
+      "id": 30
+    }
+  ],
+  "nombre": "CLIENTE DE PRUEBA SA",
+  "tipoPersona": "juridica"
+}
+
+
+--- stderr ---
