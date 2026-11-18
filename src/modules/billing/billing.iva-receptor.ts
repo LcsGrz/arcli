@@ -7,7 +7,8 @@ import type { VoucherKindDefinition, VoucherLetter } from './billing.types';
 
 /**
  * Condiciones IVA del receptor admitidas por letra, segun FEParamGetCondicionIvaReceptor.
- * ARCA rechaza las demas combinaciones con el error 10243 (WSFEv1 v4.7). `yarn test:arca` la compara con la de ARCA.
+ * ARCA rechaza las demas combinaciones con el error 10243 (WSFEv1 v4.7). `yarn test:arca` la compara con la de ARCA,
+ * que marca consumidor final solo para C aunque aprueba la B.
  */
 const IVA_CONDITIONS_BY_LETTER: Record<VoucherLetter, readonly BillingIvaCondition[]> = {
   a: [

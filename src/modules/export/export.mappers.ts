@@ -223,6 +223,7 @@ export function resolveExportDestinationCountry(
     );
   }
 
+  // Propia: WSFEX v3.1.0 no tiene ese control y ARCA testing aprueba una E con destino 200 (TEST-8).
   if (country.code === ARGENTINA_COUNTRY_CODE) {
     throw new InputValidationError(
       'Argentina no es un destino de exportación: usá `arcli factura a` o `arcli factura b`.',

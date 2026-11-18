@@ -403,20 +403,20 @@ describe.skipIf(Boolean(process.env.CI))('Reglas copiadas de ARCA contra testing
       {
         base: () => fcProducts,
         blockedBy: () => [...fcProducts, '--servicio-desde', flagDate(today), '--servicio-hasta', flagDate(today)],
-        codes: [],
+        codes: [10049],
         mutate: (request) => {
           request.FchServDesde = today;
           request.FchServHasta = today;
           request.FchVtoPago = today;
         },
-        rule: 'productos con fechas de servicio (sin confirmar)',
+        rule: 'productos con fechas de servicio',
       },
       {
         base: () => fcProducts,
         blockedBy: () => [...fcProducts, '--vencimiento', flagDate(today)],
-        codes: [],
+        codes: [10049],
         mutate: (request) => (request.FchVtoPago = today),
-        rule: 'productos (no FCE) con vencimiento de pago (sin confirmar)',
+        rule: 'productos (no FCE) con vencimiento de pago',
       },
       {
         base: () => fcea,
@@ -475,7 +475,7 @@ describe.skipIf(Boolean(process.env.CI))('Reglas copiadas de ARCA contra testing
         blockedBy: () => [...ncaOverFa(), ...period],
         codes: [10197],
         mutate: (request) => (request.PeriodoAsoc = { FchDesde: shift(today, -30), FchHasta: today }),
-        rule: 'nota con comprobante y período asociados a la vez (sin confirmar)',
+        rule: 'nota con comprobante y período asociados a la vez',
       },
       {
         base: () => fcServices,

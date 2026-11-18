@@ -37,8 +37,8 @@ export function validateConceptDateInputs(input: BillingCommandInput, voucherKin
     }
   }
 
-  // Productos sin fechas de servicio ni vencimiento: sin confirmar, el manual WSFEv1 v4.7 no las prohibe (10049 y
-  // 10031 solo las piden en servicios). En NC/ND FCE el vencimiento si es de ARCA (10175).
+  // Productos sin fechas de servicio ni vencimiento: ARCA 10049 (WSFEv1 v4.7; el texto solo las pide en servicios, pero
+  // ARCA testing las rechaza en productos con ese codigo). En NC/ND FCE el vencimiento es la 10175.
   if (input.concept === 'productos') {
     if (hasAnyServiceDate) {
       throw new InputValidationError(
@@ -59,7 +59,7 @@ export function validateConceptDateInputs(input: BillingCommandInput, voucherKin
 
 export function validateDocumentIdentity(input: BillingCommandInput, voucherKind: VoucherKindDefinition): void {
   // Consumidor final con documento 0 y numero obligatorio en el resto: ARCA 10015 (WSFEv1 v4.7). Que el IVA receptor
-  // sea consumidor final esta sin confirmar; el formato del CUIT y del DNI es propio.
+  // sea consumidor final es propio (ARCA testing acepta otro); el formato del CUIT y del DNI es propio.
   if (input.documentType === 'consumidor-final') {
     if (input.ivaCondition !== 'consumidor-final') {
       throw new InputValidationError(

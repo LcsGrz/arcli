@@ -17,7 +17,9 @@ Muchas reglas de negocio copian un control de ARCA para cortar antes de llamar a
 - **Propia:** formato, combinación de flags o decisión de ARCLI. ARCA no la define y no hay que revisarla cuando sale un manual nuevo.
 - **ARCA `código`:** copiada de un control de ARCA, con su código de error. Los `10xxx` son del manual del desarrollador de WSFEv1 (facturas, notas y recibos A, B y C, y FCE) y los de cuatro dígitos (`1xxx`, `2xxx`), del de WSFEX (la `E`).
 - **Consulta:** ARCLI no copia la regla, le pregunta a ARCA antes de la vista previa (ver [Arquitectura](architecture.md#decisiones-de-diseño)).
-- **Sin confirmar:** ARCLI la aplica como si fuera de ARCA, pero el manual no tiene un código que la respalde.
+- **Sin confirmar:** ARCLI la aplica como si fuera de ARCA, pero el manual no tiene un código que la respalde y `yarn test:arca` no la prueba.
+
+Cuando ARCA testing acepta lo que ARCLI bloquea, la regla figura como propia y dice "ARCA testing lo acepta": queda para decidir si se afloja.
 
 | Servicio | Manual con el que se revisaron los códigos                                                                                                        |
 | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -98,8 +100,8 @@ ARCLI no tiene una regla aparte para producción: emite si `--emitir` lo pide o,
 
 #### `productos`
 
-- no usa `--servicio-desde` ni `--servicio-hasta`. Sin confirmar: el manual exige las fechas de servicio en servicios (10049), pero no las prohíbe en productos
-- no usa `--vencimiento` ni `--dia`, salvo en facturas FCE. Sin confirmar: el manual pide la fecha de inicio si va el vencimiento (10031), pero no lo prohíbe en productos; en FCE sí es de ARCA (10163, 10175)
+- no usa `--servicio-desde` ni `--servicio-hasta` (ARCA 10049: el manual solo dice que son obligatorias en servicios, pero ARCA testing las rechaza en productos con ese código)
+- no usa `--vencimiento` ni `--dia`, salvo en facturas FCE (ARCA 10049, como las fechas de servicio; en FCE, 10163 y 10175)
 
 #### `servicios` y `productos-servicios`
 
@@ -115,7 +117,7 @@ ARCLI no tiene una regla aparte para producción: emite si `--emitir` lo pide o,
 | NC/ND FCE                                                  | no (10175) | —                                                               | `--vencimiento` da error               |
 | Productos (no FCE)                                         | no         | —                                                               | `--vencimiento` da error               |
 
-Los códigos de la tabla son de ARCA; los defaults son propios y el "no" de productos sin FCE está sin confirmar (ver arriba).
+Los códigos de la tabla son de ARCA (el "no" de productos sin FCE, 10049); los defaults son propios.
 
 `--vencimiento` permite separar el vencimiento del período facturado. Por ejemplo, un servicio de febrero facturado el 18/03 que vence el 10/04. `--dia` (deprecado) sigue las mismas reglas que `--vencimiento`.
 
@@ -138,7 +140,7 @@ ARCA además exige que la fecha no sea anterior a la del último comprobante emi
 Si usás consumidor final:
 
 - el documento debe ser `0` (ARCA 10015)
-- el IVA receptor debe ser `consumidor-final`: con `--consumidor-final` (o `tipoDocumento: "consumidor-final"` en el JSON) ARCLI ya lo asume y no hace falta `--ir-cf`, aunque la config tenga otro `ivaReceptor`. Un IVA explícito distinto (`--ir-rm` con `--cfinal`) es error. Sin confirmar: el manual no relaciona el documento con el IVA receptor
+- el IVA receptor debe ser `consumidor-final`: con `--consumidor-final` (o `tipoDocumento: "consumidor-final"` en el JSON) ARCLI ya lo asume y no hace falta `--ir-cf`, aunque la config tenga otro `ivaReceptor`. Un IVA explícito distinto (`--ir-rm` con `--cfinal`) es error. Propia: ARCA testing aprueba una factura B a consumidor final con IVA receptor exento
 - el total en pesos tiene que ser menor a `$ 10.000.000`. Desde ese monto hay que identificarlo con `--dni`, `--cuit` o `--cuil` ([RG 5700/2025](https://www.consejosalta.org.ar/wp-content/uploads/ARCA-5700.pdf)). En moneda extranjera se compara `monto × cotización`. ARCA 10015, que nombra el monto "según RG 4444": el valor lo fija la RG vigente, no el manual
 
 #### CUIT, CUIL y DNI
@@ -155,7 +157,7 @@ ARCLI exige una única fuente de IVA receptor:
 - `--consumidor-final`, que implica `consumidor-final`
 - o un default configurado
 
-Eso es propio. Además, la condición tiene que ser válida para la letra del comprobante. ARCLI aplica la misma tabla que devuelve ARCA en `FEParamGetCondicionIvaReceptor` (ARCA 10243); `yarn test:arca` la compara con la que devuelve ARCA testing:
+Eso es propio. Además, la condición tiene que ser válida para la letra del comprobante. ARCLI aplica la misma tabla que devuelve ARCA en `FEParamGetCondicionIvaReceptor` (ARCA 10243); `yarn test:arca` la compara con la que devuelve ARCA testing. Una diferencia conocida: la tabla de ARCA marca consumidor final solo para `C`, pero ARCA aprueba la factura `B` a consumidor final:
 
 | Letra | IVA receptor admitido                                                                                                                               |
 | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -180,7 +182,7 @@ No aplica a:
 - `factura-credito-electronica`
 - `recibo` (`ra`, `rb`, `rc`)
 
-Para notas, ARCLI acepta un comprobante asociado **o** un período asociado (`PeriodoAsoc`), pero no ambos. ARCA 10197 exige uno de los dos; que no vayan los dos está sin confirmar.
+Para notas, ARCLI acepta un comprobante asociado **o** un período asociado (`PeriodoAsoc`), pero no ambos (ARCA 10197: el manual dice "o", y ARCA testing rechaza los dos juntos con ese código).
 
 Período asociado (`--periodo-desde` y `--periodo-hasta`):
 
@@ -237,11 +239,11 @@ Los avisos aparecen en la salida de texto (panel "Avisos") y en el campo `avisos
 
 `--moneda` acepta el código ISO o el de ARCA de cualquier moneda de la tabla de ARCA (`arcli parametros monedas`) que tenga ISO: `ARS` → `PES`, `USD` → `DOL`, `EUR` → `060`, `UYU` → `011`… Un código que no está en la tabla se envía tal cual.
 
-| Caso                                | `MonCotiz`          | `CanMisMonExt` | Regla                                                                                                                                                                                                                                            |
-| ----------------------------------- | ------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Pesos                               | `1`                 | no se envía    | Una cotización distinta de `1` da error (ARCA 10039). `--misma-moneda` da error (ARCA 10241).                                                                                                                                                    |
-| Moneda extranjera, pago en pesos    | `--cm` o la oficial | `N`            | Sin `--cm`, ARCLI usa la oficial de ARCA y lo avisa (consulta). `--cm 1` da error. ARCA la acepta entre el 2% y el 400% de la oficial (ARCA 10119): `--cm 1` es propia, ARCLI no compara contra la oficial.                                      |
-| Moneda extranjera, `--misma-moneda` | la oficial de ARCA  | `S`            | ARCLI la consulta antes de la vista previa porque ARCA exige el valor exacto (ARCA 10038). La fecha del comprobante tiene que ser la de hoy (propia): la cotización de un día pasado no se puede consultar y la de uno futuro todavía no existe. |
+| Caso                                | `MonCotiz`          | `CanMisMonExt` | Regla                                                                                                                                                                                                                                                                                                           |
+| ----------------------------------- | ------------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pesos                               | `1`                 | no se envía    | Una cotización distinta de `1` da error (ARCA 10039). `--misma-moneda` da error (ARCA 10241).                                                                                                                                                                                                                   |
+| Moneda extranjera, pago en pesos    | `--cm` o la oficial | `N`            | Sin `--cm`, ARCLI usa la oficial de ARCA y lo avisa (consulta). `--cm 1` da error. ARCA la acepta entre el 2% y el 400% de la oficial (ARCA 10119): `--cm 1` es propia, ARCLI no compara contra la oficial.                                                                                                     |
+| Moneda extranjera, `--misma-moneda` | la oficial de ARCA  | `S`            | ARCLI la consulta antes de la vista previa porque ARCA exige el valor exacto (ARCA 10038; ARCA testing tolera hasta 1 de diferencia y rechaza con 10240). La fecha del comprobante tiene que ser la de hoy (propia): la cotización de un día pasado no se puede consultar y la de uno futuro todavía no existe. |
 
 La clave `cotizacion` de la config (deprecada) se usa como default en moneda extranjera sin `--misma-moneda` ni `--cm`, con un aviso; si vale `1` o no está, se usa la oficial de ARCA.
 
@@ -252,7 +254,7 @@ WSFEX tiene su propio contrato: las reglas de concepto, fecha de servicio, IVA r
 | Regla              | Detalle                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Requeridos         | `--monto` > 0, `--cliente`, `--domicilio-cliente`, `--pais-destino`, `--numero` y la actividad (`--actividad` o `exportacion.actividad`). Se validan antes de ir a ARCA (ARCA 1650, 1660, 1560, 1520 y 2100)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| País de destino    | Código (`203`) o nombre (`Brasil`), contra la tabla de WSFEX. Argentina (`200`) da error: para el mercado local van `arcli factura a` o `arcli factura b`. La tabla es consulta; Argentina, sin confirmar                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| País de destino    | Código (`203`) o nombre (`Brasil`), contra la tabla de WSFEX. Argentina (`200`) da error: para el mercado local van `arcli factura a` o `arcli factura b`. La tabla es consulta; Argentina es propia: ARCA testing aprueba una `E` con destino `200`                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | CUIT del país      | `--cuit-pais` tiene que existir en la tabla de CUIT de países y ser del país de destino. Sin el flag se busca por país, prefiriendo la fila de persona jurídica; si la tabla no trae el país, pide el flag. La tabla nombra cada país con el tipo de entidad (`BRASIL - Persona Jurídica`), así que el sufijo, los acentos y las mayúsculas no cuentan, y cuando las dos tablas lo nombran distinto (`CHINA` y `CHINA REP.POPULAR`) solo se valida que el CUIT exista. Consulta de la tabla (ARCA 1570)                                                                                                                                                                                                            |
 | Ítems              | `--item` con 3 a 5 partes separadas por `\|`: cantidad y precio mayores a 0, descripción obligatoria. La unidad es un código de ARCA o el nombre de la tabla de unidades, sin mayúsculas y con singular o plural (`unidad` o `unidades`); una unidad desconocida es error. Formato propio; descripción (ARCA 1770) y unidad contra la tabla (ARCA 1790)                                                                                                                                                                                                                                                                                                                                                            |
 | Suma de ítems      | Se redondea cada renglón a 2 decimales y la suma tiene que coincidir con `--monto`. Se valida antes de WSAA. ARCA 1610 en el manual; el código decía que WSFEX no lo compara                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
@@ -272,16 +274,16 @@ WSFEX tiene su propio contrato: las reglas de concepto, fecha de servicio, IVA r
 
 `nce` y `nde` siguen las reglas de la factura `E`, con estas diferencias. Todo se valida antes de emitir; lo que depende del asociado, después de consultarlo en ARCA (`FEXGetCMP`).
 
-| Regla             | Detalle                                                                                                                                                                                                 |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Asociado          | `--ar` obligatorio (ARCA 2047 y 1820). `--ac` (`fe`, `nde`, `nce`) o `--at` (`19`, `20`, `21`); por defecto una factura `E`. Si van los dos, tienen que coincidir                                       |
-| CUIT del asociado | Siempre el emisor: `--acuit` con otro CUIT es error (ARCA lo rechaza con el 2031)                                                                                                                       |
-| Existencia        | El asociado tiene que existir en ARCA y estar aprobado. Consulta (`FEXGetCMP`; ARCA 1749 y 2048)                                                                                                        |
-| Datos que hereda  | Propio. Cliente, domicilio, ID impositivo, destino, CUIT del país, tipo de exportación, moneda, cotización (si la moneda es la misma), idioma, incoterm, forma de pago y actividad                      |
-| Fecha             | No puede ser anterior a la del asociado. ARCA 2052 en servicios; en bienes y otros, sin confirmar                                                                                                       |
-| Monto de la NC    | No puede superar el total del asociado cuando van en la misma moneda. Sin confirmar: el manual de WSFEX no tiene ese control                                                                            |
-| Servicios (`2`)   | Mismo tipo de exportación (2049), destino (2050), moneda o pesos (2051) y cotización (2053) que el asociado. La ND solo ajusta una factura (2041, 2042); la NC no ajusta otra NC (2045)                 |
-| No van            | `--fecha-pago` (1673), `--misma-moneda` (1605) y `--permiso-existente`. `Permiso_existente` va vacío (1550); en bienes, `--permiso` es opcional y va sin él y `Cmps_asoc` lleva un solo asociado (1754) |
+| Regla             | Detalle                                                                                                                                                                                                                                                                                                                                   |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Asociado          | `--ar` obligatorio (ARCA 2047 y 1820). `--ac` (`fe`, `nde`, `nce`) o `--at` (`19`, `20`, `21`); por defecto una factura `E`. Si van los dos, tienen que coincidir                                                                                                                                                                         |
+| CUIT del asociado | Siempre el emisor: `--acuit` con otro CUIT es error (ARCA lo rechaza con el 2031)                                                                                                                                                                                                                                                         |
+| Existencia        | El asociado tiene que existir en ARCA y estar aprobado. Consulta (`FEXGetCMP`; ARCA 1749 y 2048)                                                                                                                                                                                                                                          |
+| Datos que hereda  | Propio. Cliente, domicilio, ID impositivo, destino, CUIT del país, tipo de exportación, moneda, cotización (si la moneda es la misma), idioma, incoterm, forma de pago y actividad                                                                                                                                                        |
+| Fecha             | No puede ser anterior a la del asociado. ARCA 2052 en servicios; en bienes y otros, sin confirmar                                                                                                                                                                                                                                         |
+| Monto de la NC    | No puede superar el total del asociado cuando van en la misma moneda. Propia: el manual de WSFEX no tiene ese control y ARCA testing aprueba la NC                                                                                                                                                                                        |
+| Servicios (`2`)   | Mismo tipo de exportación (2049), destino (2050), moneda o pesos (2051) y cotización (2053) que el asociado. La ND solo ajusta una factura (2041, 2042); la NC no ajusta otra NC (2045). La 2049 mira la nota de servicios: que una nota de otro tipo sobre una factura de servicios también dé error es propio (ARCA testing la aprueba) |
+| No van            | `--fecha-pago` (1673), `--misma-moneda` (1605, que ARCA testing no aplica: aprueba la nota con `CanMisMonExt` en `S`) y `--permiso-existente`. `Permiso_existente` va vacío (1550); en bienes, `--permiso` es opcional y va sin él y `Cmps_asoc` lleva un solo asociado (1754)                                                            |
 
 ### IVA automático
 
