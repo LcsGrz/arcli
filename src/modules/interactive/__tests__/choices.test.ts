@@ -31,6 +31,9 @@ describe('interactive choices', () => {
   it('en la A solo permite identificar por CUIT', () => {
     expect(receiverChoices('a').map((choice) => choice.value)).toEqual(['cuit']);
     expect(receiverChoices('b').map((choice) => choice.value)).toEqual(['consumidor-final', 'cuit', 'dni', 'cuil']);
+    // La FCE va solo a un CUIT en cualquier letra (10015).
+    expect(receiverChoices('b', true).map((choice) => choice.value)).toEqual(['cuit']);
+    expect(receiverChoices('c', true).map((choice) => choice.value)).toEqual(['cuit']);
   });
 
   it('ofrece pesos y las monedas de ARCA con codigo ISO, sin las que solo tienen codigo numerico', () => {

@@ -25,17 +25,29 @@ function resolveAmount(definition: VoucherKindDefinition): number {
   return 300000;
 }
 
+/**
+ * La A va a un CUIT (10013) y la FCE tambien, en cualquier letra (10015): la B, a un exento, porque no admite
+ * responsable inscripto. El resto, a consumidor final.
+ */
 function resolveIdentityLong(definition: VoucherKindDefinition): string[] {
-  if (definition.letter === 'a') {
+  if (definition.letter === 'a' || (definition.isElectronicCredit && definition.letter === 'c')) {
     return ['--cuit 20168598204', '--iva-receptor responsable-inscripto'];
+  }
+
+  if (definition.isElectronicCredit) {
+    return ['--cuit 20168598204', '--iva-receptor sujeto-exento'];
   }
 
   return ['--consumidor-final', '--iva-receptor consumidor-final'];
 }
 
 function resolveIdentityShort(definition: VoucherKindDefinition): string[] {
-  if (definition.letter === 'a') {
+  if (definition.letter === 'a' || (definition.isElectronicCredit && definition.letter === 'c')) {
     return ['--cuit 20168598204', '--ir-ri'];
+  }
+
+  if (definition.isElectronicCredit) {
+    return ['--cuit 20168598204', '--ir-se'];
   }
 
   return ['--cfinal', '--ir-cf'];

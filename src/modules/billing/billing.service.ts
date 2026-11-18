@@ -30,7 +30,7 @@ import { type PadronResolution, resolveIvaConditionFromPadron } from './billing.
 import type { BillingCommandInput } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
 import type { BillingExecutionResult, BillingGateway } from './billing.types.internal';
-import { validateDocumentIdentity } from './billing.validation';
+import { validateDocumentIdentity, validateUncategorizedReceiver } from './billing.validation';
 import { createDryRunResponse, mapBillingResponse } from './billing-response';
 import { getVoucherKindByShortcut } from './voucher-kind-map';
 
@@ -241,7 +241,8 @@ export class BillingService {
     const currencyFields = resolveBillingCurrencyFields(input);
     const taxAmounts = resolveTaxAmounts(input, voucherKind);
 
-    validateDocumentIdentity(input, voucherKind);
+    validateDocumentIdentity(input, voucherKind, runtime.context.cuit);
+    validateUncategorizedReceiver(input, voucherKind, taxAmounts.netAmount + taxAmounts.ivaAmount);
     validateIvaConditionForVoucher(input.ivaCondition, voucherKind);
     validateConsumerIdentification(input, currencyFields.MonCotiz, voucherKind);
 

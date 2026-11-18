@@ -5,6 +5,7 @@ import { parseCuit } from '../../lib/identity/cuit';
 import { formatDocumentFlag, formatVoucherSubject, formatVoucherWithArticle } from './billing.mappers';
 import type { BillingCommandInput, BillingConcept } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
+import { getVoucherKindByFamilyAndLetter } from './voucher-kind-map';
 
 /** ARCA 10032 (WSFEv1 v4.7). */
 export function ensureDateOrder(serviceStartDate: string, serviceEndDate: string): void {
@@ -57,7 +58,96 @@ export function validateConceptDateInputs(input: BillingCommandInput, voucherKin
   }
 }
 
-export function validateDocumentIdentity(input: BillingCommandInput, voucherKind: VoucherKindDefinition): void {
+/** Que documento de receptor se puede usar: `ra --cuil` y `fceb --dni` se frenan con la misma regla. */
+const DOCUMENT_LABELS: Record<BillingCommandInput['documentType'], string> = {
+  'consumidor-final': 'consumidor final',
+  cuil: 'CUIL',
+  cuit: 'CUIT',
+  dni: 'DNI',
+};
+
+/** La nota o factura comun de la misma letra que una FCE: `fceb` → `fb`. */
+function commonVoucherFor(voucherKind: VoucherKindDefinition): VoucherKindDefinition | undefined {
+  const family = COMMON_FAMILY_OF_FCE[voucherKind.family];
+
+  return (family && getVoucherKindByFamilyAndLetter(family, voucherKind.letter)) || undefined;
+}
+
+const COMMON_FAMILY_OF_FCE: Partial<Record<VoucherKindDefinition['family'], VoucherKindDefinition['family']>> = {
+  'factura-credito-electronica': 'factura',
+  'nota-credito-electronica': 'nota-credito',
+  'nota-debito-electronica': 'nota-debito',
+};
+
+/**
+ * Lo que la letra o la FCE exigen del documento del receptor (WSFEv1 v4.7):
+ * - clase A, solo CUIT (10013). Consumidor final en la A ya lo frena el IVA receptor (10243), con su sugerencia.
+ * - FCE, solo CUIT (10015: "el documento del receptor debe ser 80 CUIT").
+ */
+function validateDocumentTypeForVoucher(input: BillingCommandInput, voucherKind: VoucherKindDefinition): void {
+  if (input.documentType === 'cuit') {
+    return;
+  }
+
+  const document = DOCUMENT_LABELS[input.documentType];
+
+  if (voucherKind.isElectronicCredit) {
+    const common = commonVoucherFor(voucherKind);
+
+    throw new InputValidationError(
+      `${formatVoucherSubject(voucherKind)} solo se emite a un CUIT: ARCA rechaza una FCE ${document === 'consumidor final' ? 'a consumidor final' : `con ${document}`} (error 10015).`,
+      undefined,
+      common
+        ? `Identificá al receptor con \`--cuit\` o, si no tiene, emití ${formatVoucherWithArticle(common)} (\`${common.shortcut}\`).`
+        : 'Identificá al receptor con `--cuit`.',
+    );
+  }
+
+  if (voucherKind.letter === 'a' && input.documentType !== 'consumidor-final') {
+    throw new InputValidationError(
+      `${formatVoucherSubject(voucherKind)} solo se emite a un CUIT: ARCA rechaza un comprobante A con ${document} (error 10013).`,
+      undefined,
+      `Identificá al receptor con \`--cuit\` o, si no tiene CUIT, emití el comprobante B (\`${voucherKind.shortcut.replace(/a$/, 'b')}\`).`,
+    );
+  }
+}
+
+/**
+ * B a un No Categorizado con importe gravado (ARCA 10067, WSFEv1 v4.7, excluyente): si `CbteTipo` es 6, 7 u 8, el
+ * receptor es el CUIT 23000000000 y neto + IVA es mayor a 0, ARCA exige el tributo 13 (percepcion de IVA No
+ * Categorizado, RG 2126/2006). ARCLI no informa tributos, asi que lo frena antes con la salida que tiene.
+ */
+const UNCATEGORIZED_CUIT = 23_000_000_000;
+const UNCATEGORIZED_VOUCHER_TYPES: ReadonlySet<number> = new Set([6, 7, 8]);
+
+export function validateUncategorizedReceiver(
+  input: Pick<BillingCommandInput, 'documentNumber' | 'documentType'>,
+  voucherKind: VoucherKindDefinition,
+  taxedAmount: number,
+): void {
+  if (
+    !UNCATEGORIZED_VOUCHER_TYPES.has(voucherKind.arcaType) ||
+    input.documentType !== 'cuit' ||
+    input.documentNumber !== UNCATEGORIZED_CUIT ||
+    taxedAmount <= 0
+  ) {
+    return;
+  }
+
+  throw new InputValidationError(
+    `${formatVoucherSubject(voucherKind)} a un No Categorizado (CUIT 23000000000) con importe gravado lleva la percepción de IVA No Categorizado (tributo 13), y ARCLI todavía no informa tributos: ARCA la rechaza sin ella (error 10067).`,
+    undefined,
+    'Si la operación es exenta o no gravada, pasá el total con `--exento` o `--nogravado`. Si no, identificá al receptor con su CUIT, DNI o CUIL, o emitila desde Comprobantes en línea.',
+  );
+}
+
+export function validateDocumentIdentity(
+  input: BillingCommandInput,
+  voucherKind: VoucherKindDefinition,
+  emitterCuit?: number,
+): void {
+  validateDocumentTypeForVoucher(input, voucherKind);
+
   // Consumidor final con documento 0 y numero obligatorio en el resto: ARCA 10015 (WSFEv1 v4.7). Que el IVA receptor
   // sea consumidor final es propio (ARCA testing acepta otro); el formato del CUIT y del DNI es propio.
   if (input.documentType === 'consumidor-final') {
@@ -88,6 +178,15 @@ export function validateDocumentIdentity(input: BillingCommandInput, voucherKind
     if (!result.ok) {
       throw new InputValidationError(
         `\`${formatDocumentFlag(input.documentType)}\` ${input.documentNumber} no es válido en ${formatVoucherWithArticle(voucherKind)}: ${result.reason}.`,
+      );
+    }
+
+    // ARCA 10069 (WSFEv1 v4.7): el documento del receptor no puede ser el del emisor.
+    if (emitterCuit !== undefined && input.documentNumber === emitterCuit) {
+      throw new InputValidationError(
+        `El receptor no puede ser el mismo CUIT que emite (${emitterCuit}): ARCA lo rechaza (error 10069).`,
+        undefined,
+        `Revisá \`${formatDocumentFlag(input.documentType)}\`: es el CUIT de la config, no el de tu cliente.`,
       );
     }
   }

@@ -24,7 +24,7 @@ function createRuntime(): ResolvedArcaRuntime {
     },
     context: {
       cert: 'CERT',
-      cuit: 20123456786,
+      cuit: 20409509763,
       key: 'KEY',
       production: false,
     },
@@ -261,7 +261,7 @@ describe('billing.service', () => {
       createRuntime(),
     );
 
-    expect(payload.CbtesAsoc).toEqual([{ Cuit: '20123456786', Nro: 1, PtoVta: 9, Tipo: 6 }]);
+    expect(payload.CbtesAsoc).toEqual([{ Cuit: '20409509763', Nro: 1, PtoVta: 9, Tipo: 6 }]);
   });
 
   it('does not ask for --acuit when the associated voucher is incomplete', () => {
@@ -823,7 +823,7 @@ describe('billing.service', () => {
   it('does not send FchVtoPago on FCE credit or debit notes', () => {
     const service = new BillingService();
     const input = createBillingInput({
-      associatedVoucher: { cuit: '20123456786', fecha: '10/03/2026', numero: 1, puntoVenta: 3, shortcut: 'fcea' },
+      associatedVoucher: { cuit: '20409509763', fecha: '10/03/2026', numero: 1, puntoVenta: 3, shortcut: 'fcea' },
       documentNumber: 20123456786,
       documentType: 'cuit',
       ivaCondition: 'responsable-inscripto',
@@ -1105,7 +1105,7 @@ describe('billing.service', () => {
 
       expect(regular.Opcionales).toEqual([{ Id: '22', Valor: 'N' }]);
       expect(cancellation.Opcionales).toEqual([{ Id: '22', Valor: 'S' }]);
-      expect(regular.CbtesAsoc).toEqual([{ CbteFch: '20260310', Cuit: '20123456786', Nro: 7, PtoVta: 3, Tipo: 201 }]);
+      expect(regular.CbtesAsoc).toEqual([{ CbteFch: '20260310', Cuit: '20409509763', Nro: 7, PtoVta: 3, Tipo: 201 }]);
     });
 
     describe('asociado segun la anulacion (10156, 10157, 10183, 10186, 10193)', () => {
@@ -1174,7 +1174,7 @@ describe('billing.service', () => {
         createRuntime(),
       );
 
-      expect(payload.CbtesAsoc).toEqual([{ Cuit: '20123456786', Nro: 7, PtoVta: 3, Tipo: 201 }]);
+      expect(payload.CbtesAsoc).toEqual([{ Cuit: '20409509763', Nro: 7, PtoVta: 3, Tipo: 201 }]);
     });
 
     it('never emits an FCE note without the associated date', async () => {
@@ -1624,5 +1624,93 @@ describe('billing.service', () => {
     });
     expect(summary.events).toHaveLength(1);
     expect(summary.errors).toHaveLength(1);
+  });
+
+  describe('receptor según la letra y la FCE (REGLAS-12)', () => {
+    const build = (overrides: Partial<BillingCommandInput>) =>
+      new BillingService().buildVoucherPayload(createBillingInput(overrides), createRuntime());
+
+    it.each([
+      ['fa', 'dni', 12345678],
+      ['fa', 'cuil', 20333333334],
+      ['ra', 'cuil', 20333333334],
+      ['nca', 'dni', 12345678],
+    ] as const)('frena %s con %s (ARCA 10013) y sugiere la B', (shortcut, documentType, documentNumber) => {
+      expect(() =>
+        build({
+          associatedVoucher: shortcut === 'nca' ? { numero: 1, puntoVenta: 3, shortcut: 'fa' } : undefined,
+          documentNumber,
+          documentType,
+          ivaCondition: 'responsable-monotributo',
+          shortcut,
+        }),
+      ).toThrow(expect.objectContaining({ code: 'INPUT_VALIDATION_ERROR', message: expect.stringMatching(/10013/) }));
+    });
+
+    it('la sugerencia de la A con DNI apunta al comprobante B de la misma familia', () => {
+      expect(() =>
+        build({
+          documentNumber: 12345678,
+          documentType: 'dni',
+          ivaCondition: 'responsable-monotributo',
+          shortcut: 'ra',
+        }),
+      ).toThrow(
+        expect.objectContaining({
+          message: 'El recibo A solo se emite a un CUIT: ARCA rechaza un comprobante A con DNI (error 10013).',
+          suggestion: 'Identificá al receptor con `--cuit` o, si no tiene CUIT, emití el comprobante B (`rb`).',
+        }),
+      );
+    });
+
+    it.each([
+      ['fceb', 'consumidor-final', undefined, 'a consumidor final'],
+      ['fceb', 'dni', 12345678, 'con DNI'],
+      ['fcec', 'cuil', 20333333334, 'con CUIL'],
+    ] as const)('frena %s a %s (ARCA 10015) y sugiere la común', (shortcut, documentType, documentNumber, what) => {
+      expect(() =>
+        build({
+          cbu: '0110599520000012345678',
+          documentNumber,
+          documentType,
+          ivaCondition: documentType === 'consumidor-final' ? 'consumidor-final' : 'sujeto-exento',
+          shortcut,
+        }),
+      ).toThrow(
+        expect.objectContaining({
+          message: expect.stringContaining(`ARCA rechaza una FCE ${what} (error 10015)`),
+          suggestion: expect.stringContaining(`(\`${shortcut.replace('ce', '')}\`)`),
+        }),
+      );
+    });
+
+    it('frena el receptor igual al emisor (ARCA 10069)', () => {
+      expect(() =>
+        build({ documentNumber: 20409509763, documentType: 'cuit', ivaCondition: 'sujeto-exento', shortcut: 'fb' }),
+      ).toThrow(
+        expect.objectContaining({
+          message: 'El receptor no puede ser el mismo CUIT que emite (20409509763): ARCA lo rechaza (error 10069).',
+        }),
+      );
+    });
+
+    it('frena la B a un No Categorizado con importe gravado, que pide el tributo 13 (ARCA 10067)', () => {
+      const uncategorized = {
+        documentNumber: 23000000000,
+        documentType: 'cuit',
+        ivaCondition: 'sujeto-no-categorizado',
+      } as const;
+
+      expect(() => build({ ...uncategorized, shortcut: 'fb' })).toThrow(
+        expect.objectContaining({
+          message: expect.stringMatching(/No Categorizado .*tributo 13.*error 10067/),
+          suggestion: expect.stringContaining('`--exento` o `--nogravado`'),
+        }),
+      );
+      // Sin neto gravado ARCA no lo pide, y la C y el recibo B no estan en la regla.
+      expect(build({ ...uncategorized, exemptAmount: 1000, shortcut: 'fb' }).ImpNeto).toBe(0);
+      expect(() => build({ ...uncategorized, shortcut: 'fc' })).not.toThrow();
+      expect(() => build({ ...uncategorized, shortcut: 'rb' })).not.toThrow();
+    });
   });
 });

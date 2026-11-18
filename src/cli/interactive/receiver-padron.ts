@@ -33,6 +33,8 @@ interface ReceiverStepState {
 }
 
 interface ReceiverStepOptions<S> {
+  /** Si es una FCE: como la A, solo admite CUIT (10015). */
+  readonly electronicCredit?: (state: S) => boolean;
   /** La letra del comprobante: la A solo admite CUIT. */
   readonly letter: (state: S) => VoucherLetter;
   readonly message: (state: S) => string;
@@ -51,7 +53,10 @@ export function receiverSteps<S extends ReceiverStepState>(
     {
       name: 'receptor',
       run: async (state) => {
-        const documentType = await chooseStep(options.message(state), receiverChoices(options.letter(state)));
+        const documentType = await chooseStep(
+          options.message(state),
+          receiverChoices(options.letter(state), options.electronicCredit?.(state)),
+        );
 
         return documentType === BACK
           ? BACK
