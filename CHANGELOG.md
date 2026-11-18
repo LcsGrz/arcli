@@ -17,7 +17,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### Corregido
 
-- **"← Volver" se iba de la pantalla en las listas largas del modo interactivo:** se desplazaba con las opciones y quedaba fuera de la vista hasta llegar al final. Ahora queda fijo debajo de la lista; se llega con la flecha abajo desde la última opción, y Esc sigue volviendo.
+- **"← Volver" se iba de la pantalla en las listas largas del modo interactivo:** se desplazaba con las opciones y quedaba fuera de la vista hasta llegar al final. Ahora queda fijo debajo de la lista, también en las que se filtran escribiendo (monedas y tablas largas de ARCA), que no lo tenían; se llega con la flecha abajo desde la última opción, y Esc sigue volviendo. En una terminal baja, la lista se achica para que entre.
 - **`29/2` sin año cerca de un bisiesto:** el año se elegía sin mirar si ese 29/02 existía, así que el 1/9/2028 `--fecha 29/2` (o `--vto`, `--sd`, `--sh`) daba "no es válida" en lugar de tomar el 29/02/2028. Ahora solo cuentan los años donde la fecha existe. No cambia ninguna otra fecha.
 
 ## [2.5.0] - 2026-11-17

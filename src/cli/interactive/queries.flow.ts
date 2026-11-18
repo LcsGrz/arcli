@@ -40,6 +40,7 @@ import {
   chooseOne,
   chooseStep,
   confirm,
+  FILTER_LIST_EXTRA_LINES,
   fitPageSize,
   isPromptCancellation,
 } from './prompts';
@@ -156,7 +157,7 @@ async function runQuotationQuery(session: InteractiveSession): Promise<void> {
       defaultValue: last,
       header,
       help: 'Escribí el nombre o el código, por ejemplo "eur" o "060", y Enter muestra la cotización oficial.',
-      pageSize: Math.min(rowsPerPage(session), fitPageSize(choices.length)),
+      pageSize: Math.min(rowsPerPage(session), fitPageSize(choices.length, { extraLines: FILTER_LIST_EXTRA_LINES })),
     });
 
     if (currency === BACK) {
@@ -221,7 +222,7 @@ async function runTablesQuery(session: InteractiveSession): Promise<void> {
     await browseFilterList(PARAMETER_TABLES[table], rows, {
       header,
       help: PARAMETER_TABLE_HELP[table],
-      pageSize: Math.min(pageSize, fitPageSize(rows.length)),
+      pageSize: Math.min(pageSize, fitPageSize(rows.length, { extraLines: FILTER_LIST_EXTRA_LINES })),
     });
   }
 }

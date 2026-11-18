@@ -157,15 +157,27 @@ const BACK_LINES = 2;
 // Los avisos "↑ 3 más" y "↓ 12 más" de una lista que se desplaza.
 const SCROLL_HINT_LINES = 2;
 const MIN_PAGE_SIZE = 12;
+const MIN_SCROLL_PAGE_SIZE = 3;
 
 /**
  * Alto de la parte que se desplaza para `count` filas: todas si entran en la terminal (junto con "Volver", salvo con
- * `back: false`), si no las que entren con los avisos de arriba y abajo (minimo 12).
+ * `back: false`), si no las que entren con los avisos de arriba y abajo. `extraLines`: lo que el prompt suma fuera de
+ * la lista, como el filtro y el encabezado de una lista que se filtra.
  */
-export function fitPageSize(count: number, options: { readonly back?: boolean } = {}): number {
-  const available = (process.stdout.rows || 24) - PROMPT_CHROME_LINES - (options.back === false ? 0 : BACK_LINES);
+export function fitPageSize(
+  count: number,
+  options: { readonly back?: boolean; readonly extraLines?: number } = {},
+): number {
+  const available =
+    (process.stdout.rows || 24) -
+    PROMPT_CHROME_LINES -
+    (options.extraLines ?? 0) -
+    (options.back === false ? 0 : BACK_LINES);
 
-  return count <= available ? Math.max(MIN_PAGE_SIZE, count) : Math.max(MIN_PAGE_SIZE, available - SCROLL_HINT_LINES);
+  // Si no entra, la pagina se achica a lo que entra (con un minimo chico), asi "Volver" no queda fuera de la pantalla.
+  return count <= available
+    ? Math.max(MIN_PAGE_SIZE, count)
+    : Math.max(MIN_SCROLL_PAGE_SIZE, available - SCROLL_HINT_LINES);
 }
 
 /** "← Volver" al final de una lista, fijo debajo de las opciones aunque la lista se desplace. */
@@ -373,6 +385,9 @@ interface FilterListOptions<T> {
   readonly pageSize: number;
 }
 
+/** Lineas que una lista que se filtra suma a las de cualquier lista: "Filtrar:", su linea en blanco, encabezado y cuenta. */
+export const FILTER_LIST_EXTRA_LINES = 4;
+
 /**
  * Elegir de una lista que se filtra escribiendo (por ejemplo "eur" o "060" para el euro) y se desplaza con las
  * flechas. Esc vuelve al paso anterior.
@@ -386,6 +401,7 @@ export async function chooseFromFilterList<T>(
     (context) =>
       filterList<T>(
         {
+          back: BACK_CHOICE.name,
           default: options.defaultValue,
           header: options.header,
           help: options.help,
@@ -398,6 +414,10 @@ export async function chooseFromFilterList<T>(
         context,
       ),
     (answer) => {
+      if (answer === undefined) {
+        return { answer: BACK_CHOICE.name, message };
+      }
+
       const row = rows.find((item) => item.value === answer);
 
       return { answer: row?.short ?? row?.label.replace(/\s+/g, ' ').trim() ?? '', message };
@@ -421,6 +441,7 @@ export async function browseFilterList(
     (context) =>
       filterList<string>(
         {
+          back: BACK_CHOICE.name,
           header: options.header,
           help: options.help,
           message,

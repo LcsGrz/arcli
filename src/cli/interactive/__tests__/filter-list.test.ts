@@ -28,6 +28,7 @@ const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
 async function run(
   keys: readonly string[],
   options: {
+    readonly back?: string;
     readonly mode?: 'elegir' | 'ver';
     readonly pageSize?: number;
     readonly rows?: ReadonlyArray<FilterListRow<string>>;
@@ -43,6 +44,7 @@ async function run(
 
   const answer = filterList(
     {
+      back: options.back,
       header: 'CÓDIGO  MONEDA',
       help: 'Escribí el nombre o el código.',
       message: '¿De qué moneda?',
@@ -113,6 +115,26 @@ describe('filterList', () => {
     expect(screen).toContain('↓ 7 más');
     expect(screen).toMatch(/↑ 3 más\n {2}Fila 4\n❯ Fila 5\n {2}Fila 6\n {2}↓ 4 más/);
     expect(fits).not.toContain('más');
+  });
+
+  it('"Volver" queda fijo debajo de una lista que se desplaza; se llega con la flecha y Enter cierra sin elegir', async () => {
+    const rows = Array.from({ length: 10 }, (_, index) => ({ label: `Fila ${index + 1}`, value: String(index) }));
+    const { answer, screen } = await run([DOWN, DOWN, DOWN, DOWN, DOWN, DOWN, DOWN, DOWN, DOWN, DOWN, ENTER], {
+      back: '← Volver',
+      pageSize: 3,
+      rows,
+    });
+
+    // En la primera pantalla, con la lista arriba de todo, "Volver" ya se ve abajo.
+    expect(screen).toMatch(/❯ Fila 1\n {2}Fila 2\n {2}Fila 3\n {2}↓ 7 más\n\s*\n {2}← Volver/);
+    expect(screen).toMatch(/↑ 7 más\n {2}Fila 8\n {2}Fila 9\n {2}Fila 10\n\s*\n\s*\n❯ ← Volver/);
+    expect(answer).toBeUndefined();
+  });
+
+  it('desde "Volver", la flecha arriba vuelve a la última fila', async () => {
+    const { answer } = await run([DOWN, DOWN, DOWN, UP, ENTER], { back: '← Volver' });
+
+    expect(answer).toBe(CURRENCIES.at(-1)?.value);
   });
 
   it('para mirar, Enter la cierra sin elegir', async () => {

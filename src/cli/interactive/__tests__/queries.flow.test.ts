@@ -84,6 +84,7 @@ vi.mock('../prompts', async (importOriginal) => {
         { name: yesLabel, value: true },
         { name: noLabel, value: false },
       ]),
+    FILTER_LIST_EXTRA_LINES: original.FILTER_LIST_EXTRA_LINES,
     fitPageSize: (count: number) => Math.max(12, count),
     isPromptCancellation: original.isPromptCancellation,
   };

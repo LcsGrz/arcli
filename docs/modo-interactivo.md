@@ -36,7 +36,7 @@ Si hay una versión nueva de ARCLI, el menú suma arriba de todo **Actualizar a 
 
 **Opciones nuevas.** Lo que se sumó en las últimas versiones lleva `(nuevo)` al final, en color: Emitir recibo, Consultas y sus consultas nuevas, Certificados de ARCA, Acceso directo en el escritorio en Configuración, Recibo C y Factura de exportación E al elegir sobre qué comprobante va una nota. Configuración también lo lleva mientras tenga alguna opción nueva adentro. La marca se va sola dos versiones menores después de la que trajo la opción.
 
-**Listas largas.** Si una lista no entra en la pantalla, se desplaza con las flechas y avisa, en gris, cuántas opciones quedan arriba (`↑ 3 más`) y abajo (`↓ 12 más`). **← Volver** queda fijo debajo de la lista, separado por una línea en blanco: se llega bajando desde la última opción, y Esc hace lo mismo.
+**Listas largas.** Si una lista no entra en la pantalla, se desplaza con las flechas y avisa, en gris, cuántas opciones quedan arriba (`↑ 3 más`) y abajo (`↓ 12 más`). **← Volver** queda fijo debajo de la lista, separado por una línea en blanco: se llega bajando desde la última opción, y Esc hace lo mismo. Vale también para las listas que se filtran escribiendo, como la de monedas.
 
 Debajo del logo va la versión de ARCLI. Arriba del menú, la barra de estado muestra a la izquierda quién emite (la razón social de `emisor.razonSocial` o, si no está, el CUIT) y el punto de venta, y a la derecha cómo está ARCA y el entorno (`TESTING` en naranja o `PRODUCCIÓN` en celeste):
 
@@ -239,7 +239,7 @@ Lo que el CLI consulta con `ultimos`, `consultar`, `padron`, `fce-obligado` y `p
 La lista muestra el nombre de cada tabla, y la línea de abajo, para qué sirve su código en ARCLI. Cada tabla se muestra con una fila de encabezado (`CÓDIGO` o `NÚMERO`, la descripción y, si la tabla tiene, una tercera columna, como las letras que admite cada condición IVA) y esa misma ayuda.
 
 - **Si entra en una página**, va en un recuadro, igual que `arcli parametros <tabla>`.
-- **Si no entra**, va en una lista que se filtra escribiendo y se desplaza con las flechas. Enter o Esc vuelven a la lista de tablas.
+- **Si no entra**, va en una lista que se filtra escribiendo y se desplaza con las flechas. Enter, Esc o **← Volver** vuelven a la lista de tablas.
 
 Las filas por página son las de `filasPorLista` (15 por defecto). La lista de **Monedas y cotizaciones** es la misma: se filtra por nombre, código de ARCA o ISO (`eur`, `060` o `usd`) y Enter muestra la cotización oficial. ARCA da la cotización de a una moneda: cada una se consulta la primera vez que la elegís y, mientras sigas en la lista, no se vuelve a pedir.
 
