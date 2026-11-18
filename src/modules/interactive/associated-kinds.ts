@@ -1,12 +1,11 @@
 import type { VoucherKindDefinition } from '../billing/billing.types';
-import type { ExportVoucherKind } from '../export/export.types';
+import { EXPORT_CREDIT_NOTE_KIND, EXPORT_DEBIT_NOTE_KIND, type ExportVoucherKind } from '../export/export.types';
 
 import {
   associableNoteChoices,
   exportInvoiceChoice,
   exportNoteChoices,
   type InteractiveChoice,
-  INVOICE_DESCRIPTIONS,
   invoiceKindChoices,
   reciboChoice,
 } from './choices';
@@ -15,7 +14,7 @@ import type { NewOption } from './new-options';
 export type AssociatedKind = ExportVoucherKind | VoucherKindDefinition;
 
 /** Las familias del selector "¿Sobre qué comprobante?" de una nota. */
-export type AssociatedFamily = 'exportacion' | 'factura' | 'fce' | 'nota' | 'recibo';
+export type AssociatedFamily = 'factura' | 'nota-credito' | 'nota-debito' | 'recibo';
 
 export interface AssociatedKindOption extends InteractiveChoice<AssociatedKind> {
   /** Para la marca "(nuevo)": la opcion que la trajo. */
@@ -31,41 +30,59 @@ export interface AssociatedKindGroup {
   readonly options: readonly AssociatedKindOption[];
 }
 
-function associableNotes(
+const CREDIT_NOTE_FAMILIES: ReadonlySet<VoucherKindDefinition['family']> = new Set([
+  'nota-credito',
+  'nota-credito-electronica',
+]);
+
+/**
+ * Las notas de `side` (credito o debito) que puede ajustar una nota de `kind`: de C a A, despues las FCE de C a A y
+ * al final la de exportacion E.
+ */
+function noteOptions(
   kind: 'credito' | 'debito',
+  side: 'credito' | 'debito',
   invoices: ReadonlyArray<InteractiveChoice<VoucherKindDefinition>>,
-) {
-  return invoices.flatMap((invoice) =>
-    associableNoteChoices(kind, invoice.value).map((note) => ({ ...note, newOption: 'notas-sobre-notas' as const })),
-  );
+): AssociatedKindOption[] {
+  const notes = invoices
+    .flatMap((invoice) => associableNoteChoices(kind, invoice.value))
+    .filter((note) => CREDIT_NOTE_FAMILIES.has(note.value.family) === (side === 'credito'));
+  const exportNote = side === 'credito' ? EXPORT_CREDIT_NOTE_KIND : EXPORT_DEBIT_NOTE_KIND;
+
+  return [...notes, ...exportNoteChoices().filter((note) => note.value === exportNote)].map((note) => ({
+    ...note,
+    newOption: 'notas-sobre-notas',
+  }));
 }
 
 /**
- * Lo que puede ajustar una nota de `kind`, en dos niveles: primero la familia y despues el comprobante. Las letras van
- * de C a A, como en el selector de facturas. En FCE, cada factura va seguida de la nota que permite la anulacion.
+ * Lo que puede ajustar una nota de `kind`, en dos niveles: primero el tipo de documento y despues el comprobante.
+ * Adentro, las letras van de C a A, despues las FCE y al final la E. Solo quedan las familias con alguna opcion.
  */
 export function associatedKindGroups(kind: 'credito' | 'debito'): AssociatedKindGroup[] {
   const invoices = invoiceKindChoices();
   const recibo = reciboChoice();
-  const common = invoices.filter((choice) => !choice.value.isElectronicCredit);
-  const fce = invoices
-    .filter((choice) => choice.value.isElectronicCredit)
-    .map((choice) => ({ ...choice, description: INVOICE_DESCRIPTIONS[choice.value.letter] }));
-
-  return [
+  const groups: AssociatedKindGroup[] = [
     {
-      description: 'Factura A, B o C ya emitida',
+      description: 'A, B o C, de crédito electrónica (FCE) o de exportación E',
       family: 'factura',
-      name: 'Factura',
-      options: common,
+      name: 'Facturas',
+      options: [...invoices, { ...exportInvoiceChoice(), newOption: 'notas-e' }],
       question: '¿Qué factura?',
     },
     {
-      description: 'Para ajustar una nota A, B o C ya emitida',
-      family: 'nota',
-      name: 'Otra nota de crédito o débito',
-      options: associableNotes(kind, common),
-      question: '¿Qué nota?',
+      description: 'Para ajustar una nota de crédito ya emitida',
+      family: 'nota-credito',
+      name: 'Notas de crédito',
+      options: noteOptions(kind, 'credito', invoices),
+      question: '¿Qué nota de crédito?',
+    },
+    {
+      description: 'Para ajustar una nota de débito ya emitida',
+      family: 'nota-debito',
+      name: 'Notas de débito',
+      options: noteOptions(kind, 'debito', invoices),
+      question: '¿Qué nota de débito?',
     },
     {
       description: recibo.description ?? '',
@@ -74,24 +91,9 @@ export function associatedKindGroups(kind: 'credito' | 'debito'): AssociatedKind
       options: [{ ...recibo, newOption: 'recibo' }],
       question: '¿Qué recibo?',
     },
-    {
-      description: 'MiPyMEs, para grandes empresas: la factura o sus notas',
-      family: 'fce',
-      name: 'Factura de crédito electrónica (FCE)',
-      options: fce.flatMap((invoice) => [invoice, ...associableNotes(kind, [invoice])]),
-      question: '¿Qué comprobante FCE?',
-    },
-    {
-      description: 'A un cliente del exterior: la factura o sus notas',
-      family: 'exportacion',
-      name: 'Exportación (E)',
-      options: [
-        { ...exportInvoiceChoice(), newOption: 'notas-e' },
-        ...exportNoteChoices().map((note) => ({ ...note, newOption: 'notas-sobre-notas' as const })),
-      ],
-      question: '¿Qué comprobante de exportación?',
-    },
   ];
+
+  return groups.filter((group) => group.options.length > 0);
 }
 
 /** Las opciones nuevas de una familia: la familia lleva la marca mientras tenga alguna, como un submenu. */

@@ -115,7 +115,7 @@ function requiredCancellation(state: NoteState): boolean | undefined {
 
 /**
  * "¿Sobre qué comprobante?" en dos niveles: la familia y, si tiene mas de una opcion, el comprobante. Volver desde el
- * segundo nivel vuelve a las familias; desde el primer paso de la nota E, a los comprobantes de exportacion.
+ * segundo nivel vuelve a las familias; desde el primer paso de la nota E, a la lista donde estaba la E.
  */
 async function askAssociatedKind(
   session: InteractiveSession,

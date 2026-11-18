@@ -8,24 +8,26 @@ const shortcuts = (kind: 'credito' | 'debito') =>
   );
 
 describe('associatedKindGroups', () => {
-  it('agrupa lo que ajusta una NC por familia, de C a A', () => {
+  it('agrupa lo que ajusta una NC por tipo de documento: C, B, A, despues FCE y al final E', () => {
     expect(shortcuts('credito')).toEqual({
-      exportacion: ['fe', 'nce', 'nde'],
-      factura: ['fc', 'fb', 'fa'],
-      fce: ['fcec', 'ndec', 'fceb', 'ndeb', 'fcea', 'ndea'],
-      nota: ['ncc', 'ndc', 'ncb', 'ndb', 'nca', 'nda'],
+      factura: ['fc', 'fb', 'fa', 'fcec', 'fceb', 'fcea', 'fe'],
+      'nota-credito': ['ncc', 'ncb', 'nca', 'nce'],
+      'nota-debito': ['ndc', 'ndb', 'nda', 'ndec', 'ndeb', 'ndea', 'nde'],
       recibo: ['rc'],
     });
   });
 
-  it('en una ND, la FCE ofrece solo la NC FCE', () => {
-    expect(shortcuts('debito').fce).toEqual(['fcec', 'ncec', 'fceb', 'nceb', 'fcea', 'ncea']);
+  it('en una ND, la FCE suma la NC FCE y no la ND FCE', () => {
+    const groups = shortcuts('debito');
+
+    expect(groups['nota-credito']).toEqual(['ncc', 'ncb', 'nca', 'ncec', 'nceb', 'ncea', 'nce']);
+    expect(groups['nota-debito']).toEqual(['ndc', 'ndb', 'nda', 'nde']);
   });
 
   it('cada familia junta las opciones nuevas que tiene adentro, sin repetir', () => {
     const groups = Object.fromEntries(associatedKindGroups('credito').map((group) => [group.family, group]));
 
-    expect(groupNewOptions(groups.factura!)).toEqual([]);
-    expect(groupNewOptions(groups.exportacion!)).toEqual(['notas-e', 'notas-sobre-notas']);
+    expect(groupNewOptions(groups.factura!)).toEqual(['notas-e']);
+    expect(groupNewOptions(groups['nota-debito']!)).toEqual(['notas-sobre-notas']);
   });
 });
