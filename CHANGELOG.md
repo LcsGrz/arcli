@@ -8,6 +8,10 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+### Corregido
+
+- **La factura `E` en pesos ya no manda `CanMisMonExt`:** ARCLI lo mandaba en `N` en toda factura `E`, y con `--moneda ARS` (o `PES`) ARCA pide que ese campo no se informe (error 1605). Testing lo acepta, pero en producción la `E` en pesos saldría rechazada. Ahora no se manda, así que `solicitud` del `--json` de una `E` en pesos deja de traer `CanMisMonExt`; `exportacion.mismaMoneda` sigue en `false`. En moneda extranjera no cambia nada.
+
 ## [2.5.1] - 2026-11-18
 
 Arreglos de un chequeo de la 2.5.0 contra ARCA testing. Lo más importante: la factura `E` de bienes se puede volver a emitir (ARCA la rechazaba con el error 1673). Puede afectar scripts:
@@ -26,7 +30,7 @@ Fuera de `Fecha_pago` en la `solicitud` de la `E` de bienes, no cambia ningún c
 - **La sugerencia de la observación `10217` decía otra cosa:** hablaba de "la condición del receptor (padrón)", igual que la `10017`. Ahora cada una explica la suya: la `10217` es la del crédito fiscal de una factura A a un monotributista ("Procedimiento permanente de transición al Régimen General") y la `10017`, la de un receptor que no figura activo en el padrón.
 - **Receptor que no está en los padrones de ARCA:** el rechazo "DocNro … no se encuentra registrado en los padrones" llega en `observaciones` con `errores` vacío y solo traía la sugerencia genérica. Ahora `sugerencias` dice que se revise el documento del receptor y que en testing muchos CUITs no están en el padrón de facturación.
 - **Errores de `arcli config establecer` que no decían qué clave fallaba:** `config establecer emisor.condicionIva Inscripto` respondía "Entrada tiene un valor no soportado" y sugería `arcli ayuda`. Ahora el mensaje nombra la clave, el valor recibido y los valores válidos (`` `emisor.condicionIva` no acepta "Inscripto". Valores válidos: … ``), y la sugerencia lleva a `arcli config establecer --ayuda` y `arcli config`. Igual en `entorno`, `concepto`, `ivaReceptor`, `pdf`, `moneda`, las claves de sí/no, los números y los textos vacíos, y una clave que no existe lo dice. En `--json` cambian solo `error` y `sugerencia`: `codigo` sigue siendo `INPUT_VALIDATION_ERROR` y `detalles` trae lo mismo que antes.
-- **Los avisos de `--cargar` nombraban flags:** con `descripcion`, `condicionVenta`, `receptorNombre` o `receptorDomicilio` en el JSON y sin PDF, el aviso hablaba de `--descripcion`, `--receptor-nombre`… aunque los datos vinieron del archivo. Ahora nombra las claves del JSON (`Las claves "descripcion" y "receptorNombre" del JSON de \`--cargar\` solo se usan en el PDF…`), y solo las que vinieron. Igual con `"dia"` (deprecada), con `"descripcion"` junto a `"items"` en la `E` y con `"comprobanteAsociado.fecha"` en las notas `E`. Solo cambia el texto de `avisos`.
+- **Los avisos de `--cargar` nombraban flags:** con `descripcion`, `condicionVenta`, `receptorNombre` o `receptorDomicilio` en el JSON y sin PDF, el aviso hablaba de `--descripcion`, `--receptor-nombre`… aunque los datos vinieron del archivo. Ahora nombra las claves del JSON (`Las claves "descripcion" y "receptorNombre" del JSON de \`--cargar\` solo se usan en el PDF…`), y solo las que vinieron. Igual con `"dia"`(deprecada), con`"descripcion"`junto a`"items"`en la`E`y con`"comprobanteAsociado.fecha"`en las notas`E`. Solo cambia el texto de `avisos`.
 - **Ejemplos de la `E` con número fijo:** `ejemplos/factura-exportacion-e.json` traía `"numero": 3` y los ejemplos de `fe`, `nce` y `nde` de la documentación, `--numero` o `"numero"`: copiados tal cual, ARCA los rechazaba por correlatividad. Desde la 2.5.0 el número es opcional, así que los ejemplos ya no lo traen y ARCLI toma el siguiente.
 
 ## [2.5.0] - 2026-11-17

@@ -52,9 +52,9 @@ describe('resolveExportCurrency', () => {
     });
   });
 
-  it('en pesos la cotizacion es 1 y no hay que consultar ARCA', () => {
+  it('en pesos la cotizacion es 1, no hay que consultar ARCA y no va CanMisMonExt (error 1605)', () => {
     expect(resolveExportCurrency({ currencyCode: 'ARS' })).toEqual({
-      fields: { CanMisMonExt: 'N', Moneda_ctz: 1, Moneda_Id: 'PES' },
+      fields: { Moneda_ctz: 1, Moneda_Id: 'PES' },
       needsQuotation: false,
     });
   });
@@ -349,6 +349,16 @@ describe('buildExportPayload', () => {
     // Los bloques vacios tambien se rechazan: Cmps_asoc da 1820 y Opcionales no se informa.
     expect(payload).not.toHaveProperty('Cmps_asoc');
     expect(payload).not.toHaveProperty('Opcionales');
+  });
+
+  it('la factura en pesos no manda CanMisMonExt, que ARCA rechaza en produccion (error 1605)', () => {
+    const payload = buildExportPayload(input, {
+      ...resolution,
+      currency: resolveExportCurrency({ currencyCode: 'PES' }).fields,
+    });
+
+    expect(payload).not.toHaveProperty('CanMisMonExt');
+    expect(payload).toMatchObject({ Moneda_ctz: 1, Moneda_Id: 'PES' });
   });
 
   it('en bienes no manda Fecha_pago, que ARCA rechaza (error 1673)', () => {

@@ -101,8 +101,9 @@ export function resolveExportCurrency(
       );
     }
 
+    // Con la E en pesos ARCA pide que `CanMisMonExt` no se informe (error 1605): testing lo acepta, produccion no.
     return {
-      fields: { CanMisMonExt: 'N', Moneda_ctz: LOCAL_EXCHANGE_RATE, Moneda_Id: currencyCode },
+      fields: { Moneda_ctz: LOCAL_EXCHANGE_RATE, Moneda_Id: currencyCode },
       needsQuotation: false,
     };
   }
@@ -430,7 +431,7 @@ export function exportTypeTakesPaymentDate(exportType: ExportType, isNote: boole
  * Los bloques vacios no van: `Permisos` sin permisos (error 1720), `Cmps_asoc` y `Opcionales` sin filas (error 1820
  * el primero). `Actividades`, en cambio, siempre lleva una `Actividad` (error 2100). Las notas llevan `Cmps_asoc` y
  * `Permiso_existente` vacio (1550), y no llevan `Fecha_pago` (1673) ni `CanMisMonExt` (1605). La factura de bienes
- * tampoco lleva `Fecha_pago` (1673): solo va en servicios y otros.
+ * tampoco lleva `Fecha_pago` (1673): solo va en servicios y otros. La factura en pesos no lleva `CanMisMonExt` (1605).
  */
 export function buildExportPayload(input: ExportVoucherInput, resolution: BuildExportResolution): ExportVoucherPayload {
   const clientName = requireText(input.clientName, 'el nombre del cliente', '`--cliente`');
@@ -454,7 +455,7 @@ export function buildExportPayload(input: ExportVoucherInput, resolution: BuildE
   return {
     // Actividades va siempre con una: con el bloque vacio ARCA contesta 2100.
     Actividades: { Actividad: [{ Id: resolution.activity }] },
-    ...(isNote ? {} : { CanMisMonExt: resolution.currency.CanMisMonExt }),
+    ...(isNote || !resolution.currency.CanMisMonExt ? {} : { CanMisMonExt: resolution.currency.CanMisMonExt }),
     Cbte_nro: resolution.voucherNumber,
     Cbte_Tipo: resolution.voucherKind.arcaType,
     Cliente: clientName,

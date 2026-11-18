@@ -593,7 +593,7 @@ Sin `--tipo-expo`, `--moneda` ni `--forma-pago`, la `E` sale de servicios (`Tipo
 
 La actividad no tiene default: cada emisor tiene la suya. La tabla de actividades de WSFEX (`FEXGetPARAM_Actividades`) no es la del padrón y es más chica (por ejemplo, `620900` no está y `620100` sí), así que un código que no está es error de validación antes de ir a ARCA, con las actividades que empiezan igual.
 
-El pago de una exportación se hace en la moneda extranjera del comprobante (`Moneda_Id`/`Moneda_ctz`). Si además se cobra en esa misma moneda, `--misma-moneda` manda `CanMisMonExt` en `S`, que es el campo de WSFEX que lo declara; sin el flag va en `N`.
+El pago de una exportación se hace en la moneda extranjera del comprobante (`Moneda_Id`/`Moneda_ctz`). Si además se cobra en esa misma moneda, `--misma-moneda` manda `CanMisMonExt` en `S`, que es el campo de WSFEX que lo declara; sin el flag va en `N`, salvo en pesos, donde ARCA pide que el campo no vaya (error 1605).
 
 La factura `E` no lleva comprobantes asociados ni datos opcionales, así que `solicitud` no incluye `Cmps_asoc` ni `Opcionales`: ARCA rechaza esos bloques vacíos (error 1820 el primero) y no acepta asociados en la factura (error 1755).
 

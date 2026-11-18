@@ -222,9 +222,9 @@ export interface ExportQuotation {
   readonly rate: number;
 }
 
-/** `Moneda_Id`, `Moneda_ctz` y `CanMisMonExt` ya resueltos. */
+/** `Moneda_Id`, `Moneda_ctz` y `CanMisMonExt` ya resueltos. En pesos no hay `CanMisMonExt` (error 1605). */
 export interface ExportCurrencyFields {
-  readonly CanMisMonExt: 'N' | 'S';
+  readonly CanMisMonExt?: 'N' | 'S';
   readonly Moneda_ctz: number;
   readonly Moneda_Id: string;
 }
