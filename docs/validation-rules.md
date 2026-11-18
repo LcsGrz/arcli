@@ -85,6 +85,23 @@ Formatos como `YYYY-MM-DD` no son válidos.
 
 Si el formato no coincide, ARCLI corta antes de armar el payload.
 
+#### Fechas relativas
+
+En los flags de fecha de la facturación y de `fce-obligado`, y en las claves de fecha del JSON de `--cargar`, también valen estas palabras, sin distinguir mayúsculas:
+
+| Palabra      | Dónde vale                                               | Da                                                                  |
+| ------------ | -------------------------------------------------------- | ------------------------------------------------------------------- |
+| `hoy`        | toda fecha                                               | hoy                                                                 |
+| `ayer`       | toda fecha                                               | ayer                                                                |
+| `+N`, `-N`   | toda fecha                                               | N días después o antes de hoy (`+10`, `-1`); `+0` y `-0` son hoy    |
+| `mes-actual` | desde y hasta: `--sd`/`--sh`, `--pd`/`--ph` y sus claves | este mes: el día 1 en desde y el último día del mes en hasta        |
+| `mes-pasado` | desde y hasta: `--sd`/`--sh`, `--pd`/`--ph` y sus claves | el mes anterior: el día 1 en desde y el último día del mes en hasta |
+
+- "Hoy" es la fecha argentina, como en las fechas escritas a mano. El 1/1/2027, `ayer` es el 31/12/2026 y `mes-pasado` va del 1/12/2026 al 31/12/2026; el 31/3/2028, `mes-pasado` va del 1/2/2028 al 29/2/2028.
+- Una palabra de mes en una fecha de un día (`--fecha`, `--vto`, `--afecha`, `--fecha-pago`, `fechaComprobante`…) es `INPUT_VALIDATION_ERROR`.
+- `+N` y `-N` van hasta 999 días; `+`, `+abc` o cualquier otra palabra (`mañana`, `semana-pasada`) son `INPUT_VALIDATION_ERROR`.
+- ARCLI resuelve la palabra antes de todo lo demás: las reglas de fechas (ventana de la fecha del comprobante, período, vencimiento) se aplican a la fecha resuelta, y la vista previa y el `--json` muestran la fecha, nunca la palabra.
+
 ### Emisión en producción
 
 ARCLI no tiene una regla aparte para producción: emite si `--emitir` lo pide o, sin `--emitir` ni `--previsualizar`, si lo pide `"emitir"` del JSON de `--cargar` o `config.emitir`. Con `entorno produccion` y `emitir true` en la config, un comando sin flags emite en producción sin preguntar. Si nada pide emitir, en una terminal se muestra la vista previa y se pregunta; con `--json` o sin terminal no se emite. Detalle en [Emisión en producción](cli-reference.md#emisión-en-producción).
