@@ -21,7 +21,9 @@ La base es `dev`. Solo para un hotfix (un arreglo que ya se mergeó a `main`, ve
 - `main` es ancestro de `origin/dev` (`git merge-base --is-ancestor origin/main origin/dev`). Si no lo es, falta volver a llevar a `dev` la release o el hotfix anterior: hacé el paso 7 antes de seguir.
 - `## [Sin publicar]` en [CHANGELOG.md](../../../CHANGELOG.md) de `<base>` tiene entradas. Si está vacío, revisá `git log --no-merges vANTERIOR..origin/<base>`: si hay cambios que afectan a quien usa el CLI y les falta entrada, avisá y frená. Si no hay nada que publicar, frená.
 
-**Listo cuando:** sabés qué PRs entran (los `#N` de `git log --oneline --no-merges vANTERIOR..origin/<base>`) y tenés las entradas de "Sin publicar".
+- `yarn build && ARCLI_ARCA_PV_E=<pv de la E> yarn test:arca` pasa contra ARCA testing, desde `<base>` actualizada (ver [Contra ARCA testing](../../../docs/development.md#contra-arca-testing)). Usa el certificado de testing de la config y nunca producción; puede emitir comprobantes de prueba. Si falla, frená y mostrale al usuario qué caso falló: un "ARCA aprobó" es una regla local más estricta que ARCA y un código distinto es un manual que cambió, y en los dos casos decide el usuario antes de la release.
+
+**Listo cuando:** sabés qué PRs entran (los `#N` de `git log --oneline --no-merges vANTERIOR..origin/<base>`), tenés las entradas de "Sin publicar" y `yarn test:arca` está en verde.
 
 ## 2. Versión
 
