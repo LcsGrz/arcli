@@ -31,11 +31,11 @@ Emití facturas, consultá comprobantes y automatizá tu facturación con comand
 
 ## Qué facturás
 
-| Si sos…               | Comprobantes                                                |
-| --------------------- | ----------------------------------------------------------- |
-| Monotributista        | Factura, notas de crédito y débito C, y Recibo C            |
-| Responsable inscripto | A y B con sus notas, y Factura de Crédito Electrónica (FCE) |
-| Exportador            | Factura de exportación E y sus notas                        |
+| Si sos…               | Comprobantes                                                              |
+| --------------------- | ------------------------------------------------------------------------- |
+| Monotributista        | Factura, notas de crédito y débito C, y Recibo C                          |
+| Responsable inscripto | A y B con sus notas, Recibo A y B, y Factura de Crédito Electrónica (FCE) |
+| Exportador            | Factura de exportación E y sus notas                                      |
 
 Cada comprobante tiene su página en [arcli.com.ar](https://arcli.com.ar/comprobantes/cual-me-toca/), con cuál te toca y cómo emitirlo.
 

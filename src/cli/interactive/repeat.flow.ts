@@ -5,7 +5,7 @@ import type { VoucherKindDefinition } from '../../modules/billing/billing.types'
 import { toIsoCurrencyCode } from '../../modules/billing/currency-codes';
 import { EXPORT_VOUCHER_KIND, type ExportVoucherKind } from '../../modules/export/export.types';
 import { parseAmountInput } from '../../modules/interactive/amount-input';
-import { exportInvoiceChoice, invoiceKindChoices, reciboChoice } from '../../modules/interactive/choices';
+import { exportInvoiceChoice, invoiceKindChoices, reciboChoices } from '../../modules/interactive/choices';
 import {
   copyInvoiceAmounts,
   copyInvoiceReceiver,
@@ -61,7 +61,7 @@ export function repeatSteps(
       for (;;) {
         const voucherKind = await chooseStep<ExportVoucherKind | VoucherKindDefinition>(
           '¿Qué comprobante querés repetir?',
-          [...invoiceKindChoices(), reciboChoice(), markIfNew(exportInvoiceChoice(), 'repetir-e')],
+          [...invoiceKindChoices(), ...reciboChoices(), markIfNew(exportInvoiceChoice(), 'repetir-e')],
         );
 
         if (voucherKind === BACK) {

@@ -4,7 +4,7 @@
 
 # Nota de débito FCE A
 
-<!-- arcli: familia="Responsable inscripto · A" icono="mas" orden="13" -->
+<!-- arcli: familia="Responsable inscripto · A" icono="mas" orden="14" -->
 
 Suma sobre una FCE A: un cargo que faltó, intereses o una diferencia de precio.
 

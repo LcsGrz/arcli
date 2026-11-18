@@ -158,7 +158,7 @@ No aplica a:
 
 - `factura`
 - `factura-credito-electronica`
-- `recibo` (`rc`)
+- `recibo` (`ra`, `rb`, `rc`)
 
 Para notas, ARCLI acepta un comprobante asociado **o** un período asociado (`PeriodoAsoc`), pero no ambos (10197).
 
@@ -180,7 +180,7 @@ Con período asociado no hace falta ninguno de estos flags, `--acuit` incluido.
 
 Además:
 
-- en NC/ND A, B y C el asociado es una factura u otra nota de la misma letra (NC o ND), y en la C también un Recibo C (10040). Ej.: una NC C sobre una ND C, `--ac ndc`
+- en NC/ND A, B y C el asociado es una factura, un recibo u otra nota de la misma letra (NC o ND) (10040). Ej.: una NC C sobre una ND C, `--ac ndc`, o una NC A sobre un Recibo A, `--ac ra`
 - en NC/ND FCE el asociado depende de `--anulacion`: sin anulación, solo la factura FCE (10156, 10157); con anulación, la NC asocia la factura o una ND FCE y la ND solo una NC FCE (10183, 10186, 10193). Otro asociado es error, con la sugerencia de sumar o sacar `--anulacion` si con eso vale
 - la letra debe coincidir
 - la categoría electrónica debe coincidir
@@ -300,9 +300,17 @@ arcli fa --cs --cuit 30709965812 --ir-ri --alicuota general:1210 --alicuota redu
 - No se puede mezclar `--alicuota TASA` con `--alicuota TASA:MONTO`, ni repetir `--alicuota TASA` sin monto.
 - En JSON: `"alicuotas": [{ "tasa": "general", "monto": 1210 }, { "tasa": "10.5", "monto": 552.5 }]`.
 
-### Recibo C
+### Recibo A, B y C
 
-El Recibo C (`rc`, tipo ARCA 15) usa las mismas validaciones y el mismo armado que la Factura C: letra `C`, sin IVA, sin comprobante asociado y sin FCE. Puede ser el asociado de una nota de crédito o débito C (`--ac rc` o `--at 15`). ARCA es quien acepta o rechaza el tipo según el punto de venta y la condición del emisor.
+Cada recibo usa las mismas validaciones y el mismo armado que la factura de su letra, sin comprobante asociado y sin FCE:
+
+| Recibo | Atajo | Tipo ARCA | Como la     | Receptor e IVA                                                                      |
+| ------ | ----- | --------- | ----------- | ----------------------------------------------------------------------------------- |
+| A      | `ra`  | 4         | Factura `A` | Solo con CUIT y sin consumidor final; discrimina IVA (`--alicuota`, por defecto 21) |
+| B      | `rb`  | 9         | Factura `B` | Consumidor final, DNI, CUIL o CUIT, sin responsable inscripto; el IVA va incluido   |
+| C      | `rc`  | 15        | Factura `C` | Cualquier receptor; sin IVA                                                         |
+
+Cada uno puede ser el asociado de una nota de crédito o débito de su letra (`--ac ra`, `--ac rb`, `--ac rc`, o `--at 4`, `9` o `15`). ARCA es quien acepta o rechaza el tipo según el punto de venta y la condición del emisor: el A y el B los emite un responsable inscripto, y el C un monotributista o exento.
 
 ## 3. Restricciones y errores de ARCA
 

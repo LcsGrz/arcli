@@ -127,7 +127,7 @@ function resolveAssociatedVoucherType(
   return requireVoucherKind(shortcut).arcaType;
 }
 
-/** NC y ND A, B y C asocian facturas, otras notas de la misma letra y, en la C, el Recibo C (regla 10040). */
+/** NC y ND A, B y C asocian facturas, recibos y otras notas de la misma letra (regla 10040). */
 const COMMON_NOTE_ASSOCIABLE_FAMILIES: readonly VoucherFamily[] = ['factura', 'nota-credito', 'nota-debito', 'recibo'];
 
 /**

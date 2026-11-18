@@ -277,8 +277,9 @@ describe('flujos del modo interactivo', () => {
       expect(script.asked.some((question) => /alicuota/i.test(question))).toBe(false);
     });
 
-    it('"Emitir recibo" arranca con el Recibo C elegido y no pregunta el comprobante', async () => {
+    it('"Emitir recibo" pregunta la letra entre los recibos, de C a A, sin facturas', async () => {
       script = createScript([
+        [/Qué recibo querés emitir/, 'Recibo C'],
         [/A quién le hacés el recibo/, 'Consumidor final'],
         [/Qué estás cobrando/, 'Productos'],
         [/Monto total/, '2000'],
@@ -288,14 +289,44 @@ describe('flujos del modo interactivo', () => {
       const session = createSession();
       const state = await runWizard(invoiceSteps(session), {
         advanced: { currencyCode: 'ARS', sameCurrency: false },
-        voucherKind: getVoucherKindByShortcut('rc') ?? undefined,
+        receipt: true,
       });
+      const kinds = onlyChoices(script.chooseStep.mock.calls[0][1]).map((choice) =>
+        stripAnsi(choice.name).replace(' (nuevo)', ''),
+      );
 
+      expect(kinds).toEqual(['Recibo C', 'Recibo B', 'Recibo A']);
       expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
         concept: 'productos',
         documentType: 'consumidor-final',
         shortcut: 'rc',
         totalAmount: 2000,
+      });
+    });
+
+    it('arma un Recibo A con CUIT y condicion IVA, como la Factura A', async () => {
+      script = createScript([
+        [/Qué recibo querés emitir/, 'Recibo A'],
+        [/A quién le hacés el recibo/, 'Con CUIT'],
+        [/CUIT del receptor/, '30-70996581-2'],
+        [/Condición frente al IVA/, 'Responsable inscripto'],
+        [/Qué estás cobrando/, 'Servicios'],
+        [/Monto total/, '1210'],
+        [/Agregamos/, []],
+      ]);
+
+      const session = createSession();
+      const state = await runWizard(invoiceSteps(session), {
+        advanced: { currencyCode: 'ARS', sameCurrency: false },
+        receipt: true,
+      });
+
+      expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
+        documentNumber: 30709965812,
+        documentType: 'cuit',
+        ivaCondition: 'responsable-inscripto',
+        shortcut: 'ra',
+        totalAmount: 1210,
       });
     });
 
@@ -961,7 +992,8 @@ describe('flujos del modo interactivo', () => {
 
     it('arma una NC C sobre un Recibo C', async () => {
       script = createScript([
-        [/Sobre qué comprobante/, 'Recibo C'],
+        [/Sobre qué comprobante/, 'Recibos'],
+        [/Qué recibo\?/, 'Recibo C'],
         [/A qué la asociamos/, 'A un recibo'],
         [/Sobre qué recibo C/, '00003-00000014'],
         [/Total o parcial/, 'Anular el total'],
@@ -1278,7 +1310,12 @@ describe('flujos del modo interactivo', () => {
 
         const names = onlyChoices(script.chooseStep.mock.calls[0][1]).map((choice) => stripAnsi(choice.name));
 
-        expect(names).toEqual(['Facturas (nuevo)', 'Notas de crédito (nuevo)', 'Notas de débito (nuevo)', 'Recibo C']);
+        expect(names).toEqual([
+          'Facturas (nuevo)',
+          'Notas de crédito (nuevo)',
+          'Notas de débito (nuevo)',
+          'Recibos (nuevo)',
+        ]);
       });
 
       it('en una NC: todas las facturas, las NC comunes y E, y las ND comunes, FCE y E', async () => {
@@ -1346,16 +1383,38 @@ describe('flujos del modo interactivo', () => {
         expect(script.chooseStep.mock.calls[2][2]).toBe('nota-debito');
       });
 
-      it('una familia con una sola opcion, como el Recibo C, no tiene segundo nivel', async () => {
+      it('los recibos tienen segundo nivel, de C a A', async () => {
         script = createScript([
-          [/Sobre qué comprobante/, 'Recibo C'],
-          [/A qué la asociamos/, BACK],
+          [/Sobre qué comprobante/, 'Recibos'],
+          [/Qué recibo\?/, BACK],
           [/Sobre qué comprobante/, BACK],
         ]);
 
         await runWizard(noteSteps(createSession(), 3), { kind: 'credito' });
 
-        expect(script.asked).toEqual(['¿Sobre qué comprobante?', '¿A qué la asociamos?', '¿Sobre qué comprobante?']);
+        expect(optionNames(/Qué recibo\?/)).toEqual(['Recibo C', 'Recibo B', 'Recibo A']);
+      });
+
+      it('arma una NC A sobre un Recibo A', async () => {
+        script = createScript([
+          [/Sobre qué comprobante/, 'Recibos'],
+          [/Qué recibo\?/, 'Recibo A'],
+          [/A qué la asociamos/, 'A un recibo'],
+          [/Sobre qué recibo A/, '00003-00000014'],
+          [/Total o parcial/, 'Anular el total'],
+          [/Condición frente al IVA/, 'Responsable inscripto'],
+          [/Agregamos/, []],
+        ]);
+
+        const session = createSession([invoice({ documentNumber: 30709965812, documentTypeCode: 80 })]);
+        const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
+
+        expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
+          associatedVoucher: { numero: 14, puntoVenta: 3, shortcut: 'ra' },
+          ivaCondition: 'responsable-inscripto',
+          shortcut: 'nca',
+          totalAmount: 121,
+        });
       });
 
       it('arma una NC C sobre una ND C sin preguntar factura o periodo, con el tope de la ND', async () => {

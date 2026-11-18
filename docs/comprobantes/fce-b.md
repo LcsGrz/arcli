@@ -4,7 +4,7 @@
 
 # FCE B
 
-<!-- arcli: familia="Responsable inscripto · B" icono="banco" orden="17" -->
+<!-- arcli: familia="Responsable inscripto · B" icono="banco" orden="19" -->
 
 Factura de Crédito Electrónica B, a una empresa obligada a recibirla.
 

@@ -13,6 +13,7 @@ Si sos responsable inscripto, emitís comprobantes **A** y **B**, con el IVA dis
 | Nota de crédito                | `nca`  | `ncb`  |
 | Nota de débito                 | `nda`  | `ndb`  |
 | Factura de Crédito Electrónica | `fcea` | `fceb` |
+| Recibo                         | `ra`   | `rb`   |
 
 Con `--cuit` y sin `--ir`, ARCLI toma la condición frente al IVA del receptor del padrón de ARCA. Las alícuotas, varias por comprobante y el IVA automático están en las [reglas de validación](validation-rules.md#iva-automático). Las notas se explican en [notas de crédito y débito](notas-credito-debito.md) y la FCE en [su página](fce.md).
 
@@ -45,3 +46,26 @@ arcli fa -m 15000 --cs --cuit 20168598204 --ir-ri
 - usar el mismo CUIT que el emisor
 - el padrón no informa la condición IVA del CUIT: pasala con `--ir`
 - CUIT con longitud inválida
+
+## Recibo A y B
+
+### Cuándo usarlo
+
+Cuando tenés que documentar un cobro con recibo en lugar de factura: el A a un responsable inscripto o monotributista (con CUIT), y el B a un consumidor final, exento u otros.
+
+### Comando
+
+```bash
+arcli ra -m 121000 --cs --cuit 20168598204
+arcli rb -m 12100 --cs --cfinal
+```
+
+### Resultado esperado
+
+- el Recibo A (tipo ARCA `4`) discrimina el IVA como la Factura A, y el Recibo B (tipo ARCA `9`) lo lleva incluido como la Factura B
+- si después hay que anularlo o ajustarlo, la nota de la misma letra lo asocia con `--ac ra` o `--ac rb`
+
+### Errores comunes
+
+- en el A, un receptor sin CUIT o consumidor final: como en la Factura A, no se admite
+- pasar un comprobante asociado: el recibo no lleva

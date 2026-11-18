@@ -2,7 +2,6 @@ import { Separator } from '@inquirer/select';
 
 import { formatCuit } from '../../lib/identity/format-cuit';
 import { DOCS_SITE_URL } from '../../lib/links';
-import { VOUCHER_KIND_MAP } from '../../modules/billing/voucher-kind-map';
 import {
   CertificateExpiredError,
   type CertificateExpiryNotice,
@@ -99,7 +98,7 @@ async function runOption(
   }
 
   if (option === 'factura') await runInvoiceFlow(session);
-  if (option === 'recibo') await runInvoiceFlow(session, VOUCHER_KIND_MAP.rc);
+  if (option === 'recibo') await runInvoiceFlow(session, true);
   if (option === 'repetir') await runRepeatFlow(session);
   if (option === 'nota-credito') await runNoteFlow(session, 'credito');
   if (option === 'nota-debito') await runNoteFlow(session, 'debito');
@@ -257,14 +256,10 @@ export async function runInteractiveMode(options: GlobalCliOptions = {}): Promis
         [
           ...(update ? [updateChoice(update), new Separator(' ')] : []),
           { name: 'Emitir factura', value: 'factura' },
-          markIfNew(
-            {
-              description: 'Recibo C por un cobro; lo emiten monotributistas y exentos',
-              name: 'Emitir recibo',
-              value: 'recibo',
-            },
+          markIfNew({ description: 'Recibo A, B o C por un cobro', name: 'Emitir recibo', value: 'recibo' }, [
             'recibo',
-          ),
+            'recibos-a-b',
+          ]),
           {
             description: 'Copia una de las últimas, con fechas nuevas',
             name: 'Repetir un comprobante anterior',

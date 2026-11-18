@@ -4,7 +4,7 @@
 
 # Factura E
 
-<!-- arcli: familia="Exportación · E" icono="mundo" orden="20" -->
+<!-- arcli: familia="Exportación · E" icono="mundo" orden="22" -->
 
 Bienes o servicios a un cliente del exterior. Usa el servicio wsfex, con su propio certificado y punto de venta.
 

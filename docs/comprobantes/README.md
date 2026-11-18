@@ -10,8 +10,8 @@ Depende de tu condición frente al IVA y de a quién le facturás. Cada comproba
 | --- | --- | --- |
 | Monotributo | Cualquiera | [Factura C](factura-c.md) \| [Recibo C](recibo-c.md) |
 | Monotributo | Una empresa obligada a FCE | [FCE C](fce-c.md) |
-| Responsable inscripto | Otro responsable inscripto | [Factura A](factura-a.md) |
-| Responsable inscripto | Consumidor final, monotributo o exento | [Factura B](factura-b.md) |
+| Responsable inscripto | Otro responsable inscripto | [Factura A](factura-a.md) \| [Recibo A](recibo-a.md) |
+| Responsable inscripto | Consumidor final, monotributo o exento | [Factura B](factura-b.md) \| [Recibo B](recibo-b.md) |
 | Responsable inscripto | Una empresa obligada a FCE | [FCE A](fce-a.md) \| [FCE B](fce-b.md) |
 | Cualquiera | Un cliente del exterior | [Factura E](factura-e.md) |
 
@@ -33,7 +33,7 @@ Un atajo por comprobante, cada uno con su página: la fila es el tipo y la colum
 | Factura | [`fa`](factura-a.md) | [`fb`](factura-b.md) | [`fc`](factura-c.md) | [`fe`](factura-e.md) |
 | Nota de crédito | [`nca`](nota-credito-a.md) | [`ncb`](nota-credito-b.md) | [`ncc`](nota-credito-c.md) | [`nce`](nota-credito-e.md) |
 | Nota de débito | [`nda`](nota-debito-a.md) | [`ndb`](nota-debito-b.md) | [`ndc`](nota-debito-c.md) | [`nde`](nota-debito-e.md) |
-| Recibo | – | – | [`rc`](recibo-c.md) | – |
+| Recibo | [`ra`](recibo-a.md) | [`rb`](recibo-b.md) | [`rc`](recibo-c.md) | – |
 | FCE | [`fcea`](fce-a.md) | [`fceb`](fce-b.md) | [`fcec`](fce-c.md) | – |
 | Nota de crédito FCE | [`ncea`](nota-credito-fce-a.md) | [`nceb`](nota-credito-fce-b.md) | [`ncec`](nota-credito-fce-c.md) | – |
 | Nota de débito FCE | [`ndea`](nota-debito-fce-a.md) | [`ndeb`](nota-debito-fce-b.md) | [`ndec`](nota-debito-fce-c.md) | – |

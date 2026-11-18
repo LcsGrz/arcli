@@ -4,7 +4,7 @@
 
 # Nota de débito FCE B
 
-<!-- arcli: familia="Responsable inscripto · B" icono="mas" orden="19" -->
+<!-- arcli: familia="Responsable inscripto · B" icono="mas" orden="21" -->
 
 Suma sobre una FCE B: un cargo que faltó, intereses o una diferencia de precio.
 

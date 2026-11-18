@@ -4,7 +4,7 @@
 
 # Nota de crédito FCE B
 
-<!-- arcli: familia="Responsable inscripto · B" icono="menos" orden="18" -->
+<!-- arcli: familia="Responsable inscripto · B" icono="menos" orden="20" -->
 
 Resta sobre una FCE B: un descuento, una devolución o una anulación.
 

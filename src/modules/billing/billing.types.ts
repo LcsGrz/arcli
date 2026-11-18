@@ -28,6 +28,8 @@ export type VoucherShortcut =
   | 'ndea'
   | 'ndeb'
   | 'ndec'
+  | 'ra'
+  | 'rb'
   | 'rc';
 
 export type VoucherDisplayName =
@@ -49,6 +51,8 @@ export type VoucherDisplayName =
   | 'Nota de débito electrónica A'
   | 'Nota de débito electrónica B'
   | 'Nota de débito electrónica C'
+  | 'Recibo A'
+  | 'Recibo B'
   | 'Recibo C';
 
 export interface VoucherKindDefinition {

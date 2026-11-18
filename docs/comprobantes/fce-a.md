@@ -4,7 +4,7 @@
 
 # FCE A
 
-<!-- arcli: familia="Responsable inscripto · A" icono="banco" orden="11" -->
+<!-- arcli: familia="Responsable inscripto · A" icono="banco" orden="12" -->
 
 Factura de Crédito Electrónica A, a una empresa obligada a recibirla.
 
