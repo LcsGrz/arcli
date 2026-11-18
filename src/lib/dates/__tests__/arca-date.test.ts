@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import { InputValidationError } from '../../errors/app-error';
 import {
+  addDaysToArcaDate,
   diffArcaDatesInDays,
   formatArcaDateAsArgentineDate,
   formatDateAsArcaDate,
   maxArcaDate,
+  minArcaDate,
   parseArgentineDateInputAsArcaDate,
 } from '../arca-date';
 
@@ -23,6 +25,17 @@ describe('arca-date', () => {
     ['05', '20260805'],
   ])('parses %s as %s', (input, expected) => {
     expect(parseArgentineDateInputAsArcaDate(input, referenceDate)).toBe(expected);
+  });
+
+  it('moves an ARCA date by days, across months and years', () => {
+    expect(addDaysToArcaDate('20261116', -1)).toBe('20261115');
+    expect(addDaysToArcaDate('20260301', -1)).toBe('20260228');
+    expect(addDaysToArcaDate('20270101', -1)).toBe('20261231');
+    expect(addDaysToArcaDate('20261231', 1)).toBe('20270101');
+  });
+
+  it('picks the earliest ARCA date', () => {
+    expect(minArcaDate('20261118', '20261116', '20261117')).toBe('20261116');
   });
 
   it('formats a Date as an ARCA date', () => {

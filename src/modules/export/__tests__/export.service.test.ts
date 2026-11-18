@@ -65,7 +65,8 @@ function createGateway(overrides: Partial<ExportGateway> = {}): ExportGateway {
     getLastRequestId: vi.fn(async () => 7),
     getLastVoucherNumber: vi.fn(async () => 41),
     getVoucher: vi.fn(async () => ASSOCIATED_INVOICE),
-    getQuotations: vi.fn(async () => [{ code: 'DOL', date: '20260601', rate: 900.5 }]),
+    // Como WSFEX: la cotizacion del dia pedido.
+    getQuotations: vi.fn(async (arcaDate: string) => [{ code: 'DOL', date: arcaDate, rate: 900.5 }]),
     getUnits: vi.fn(async () => [
       { id: 1, name: 'Kilogramo' },
       { id: 7, name: 'Unidad' },
@@ -205,28 +206,76 @@ describe('ExportService.resolve', () => {
       Permiso_existente: '',
       Tipo_expo: 2,
     });
-    expect(gateway.getQuotations).toHaveBeenCalledWith('20260601');
+    // En servicios, la del dia habil anterior (error 2053).
+    expect(gateway.getQuotations).toHaveBeenCalledWith('20260531');
   });
 
-  it('pide la cotizacion con la fecha del comprobante en yyyymmdd (Fecha_CTZ)', async () => {
+  it('en bienes pide la cotizacion con la fecha del comprobante en yyyymmdd (Fecha_CTZ)', async () => {
     const gateway = createGateway();
 
-    // Sin --fecha la cotizacion es la del dia del comprobante (hoy en Argentina): la consulta va en yyyy-mm-dd.
-    await service.resolve({ ...INPUT, currencyCode: undefined }, gateway, RUNTIME, NOW);
+    // Sin --fecha la cotizacion es la del dia del comprobante (hoy en Argentina): la consulta va en yyyymmdd.
+    await service.resolve({ ...INPUT, exportType: 1 }, gateway, RUNTIME, NOW);
     expect(gateway.getQuotations).toHaveBeenCalledWith('20260601');
 
     const backdated = createGateway();
-    const resolved = await service.resolve({ ...INPUT, voucherDate: '18/03/2026' }, backdated, RUNTIME, NOW);
+    const resolved = await service.resolve(
+      { ...INPUT, exportType: 1, voucherDate: '18/03/2026' },
+      backdated,
+      RUNTIME,
+      NOW,
+    );
 
     expect(resolved.payload.Fecha_cbte).toBe('20260318');
     expect(backdated.getQuotations).toHaveBeenCalledWith('20260318');
   });
 
-  it('usa la ultima cotizacion publicada y avisa de que dia es', async () => {
+  it('en servicios pide la cotizacion del dia anterior a la fecha del comprobante (error 2053)', async () => {
+    const gateway = createGateway();
+
+    await service.resolve({ ...INPUT, currencyCode: undefined }, gateway, RUNTIME, NOW);
+    expect(gateway.getQuotations).toHaveBeenCalledWith('20260531');
+
+    // El caso del rechazo en testing: una E de servicios del 16/11 tiene que ir con la del 15/11.
+    const backdated = createGateway();
+    const resolved = await service.resolve(
+      { ...INPUT, voucherDate: '16/11/2026' },
+      backdated,
+      RUNTIME,
+      new Date('2026-11-18T15:00:00Z'),
+    );
+
+    expect(backdated.getQuotations).toHaveBeenCalledWith('20261115');
+    expect(resolved.payload.Moneda_ctz).toBe(900.5);
+    expect(resolved.warnings).toEqual([]);
+  });
+
+  it('en servicios, un lunes usa la del ultimo dia habil y avisa de que dia es', async () => {
+    // WSFEX devuelve la ultima publicada hasta el dia pedido: el domingo trae la del viernes.
+    const gateway = createGateway({
+      getQuotations: vi.fn(async () => [{ code: 'DOL', date: '20261113', rate: 1179.27 }]),
+    });
+    const resolved = await service.resolve(INPUT, gateway, RUNTIME, new Date('2026-11-16T15:00:00Z'));
+
+    expect(gateway.getQuotations).toHaveBeenCalledWith('20261115');
+    expect(resolved.payload.Moneda_ctz).toBe(1179.27);
+    expect(resolved.warnings).toEqual([
+      'En servicios ARCA exige la cotización de DOL del día hábil anterior a la fecha del comprobante (error 2053): se usa la del 13/11/2026 (1.179,27), la última que publicó hasta el 15/11/2026.',
+    ]);
+  });
+
+  it('con --misma-moneda tambien pide la del dia anterior, en bienes y otros', async () => {
+    const gateway = createGateway();
+    const resolved = await service.resolve({ ...INPUT, exportType: 1, sameCurrency: true }, gateway, RUNTIME, NOW);
+
+    expect(gateway.getQuotations).toHaveBeenCalledWith('20260531');
+    expect(resolved.payload).toMatchObject({ CanMisMonExt: 'S', Moneda_ctz: 900.5 });
+  });
+
+  it('en bienes usa la ultima cotizacion publicada y avisa de que dia es', async () => {
     const gateway = createGateway({
       getQuotations: vi.fn(async () => [{ code: 'DOL', date: '20260529', rate: 895 }]),
     });
-    const resolved = await service.resolve({ ...INPUT, currencyCode: undefined }, gateway, RUNTIME, NOW);
+    const resolved = await service.resolve({ ...INPUT, currencyCode: undefined, exportType: 1 }, gateway, RUNTIME, NOW);
 
     expect(resolved.payload.Moneda_ctz).toBe(895);
     expect(resolved.warnings).toEqual([
@@ -234,7 +283,7 @@ describe('ExportService.resolve', () => {
     ]);
   });
 
-  it('no avisa nada cuando la cotizacion es la del dia del comprobante', async () => {
+  it('no avisa nada cuando la cotizacion es la del dia pedido', async () => {
     const resolved = await service.resolve(INPUT, createGateway(), RUNTIME, NOW);
 
     expect(resolved.warnings).toEqual([]);
@@ -242,11 +291,11 @@ describe('ExportService.resolve', () => {
 
   it('falla con las monedas que si tienen cotizacion cuando ARCA no cotiza la pedida', async () => {
     const gateway = createGateway({
-      getQuotations: vi.fn(async () => [{ code: '060', date: '20260601', rate: 1300 }]),
+      getQuotations: vi.fn(async () => [{ code: '060', date: '20260531', rate: 1300 }]),
     });
 
     await expect(service.resolve(INPUT, gateway, RUNTIME, NOW)).rejects.toThrow(
-      /no informó la cotización de DOL para el 01\/06\/2026\. Las monedas con cotización son 060\./,
+      /no informó la cotización de DOL para el 31\/05\/2026\. Las monedas con cotización son 060\./,
     );
     await expect(service.resolve(INPUT, gateway, RUNTIME, NOW)).rejects.toThrow(/--cotizacion-moneda/);
   });

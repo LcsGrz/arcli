@@ -9,6 +9,7 @@ import {
   resolveExportIncoterm,
   resolveExportNumber,
   resolveExportQuotation,
+  resolveExportQuotationDate,
   resolveExportType,
   resolveExportVoucherDate,
 } from '../export.mappers';
@@ -102,6 +103,36 @@ describe('resolveExportCurrency', () => {
       Moneda_ctz: 900,
       Moneda_Id: 'DOL',
     });
+  });
+});
+
+describe('resolveExportQuotationDate', () => {
+  const base = { exportType: 2 as const, isNote: false, sameCurrency: false, today: '20261118' };
+
+  it('en la factura de servicios es el dia anterior a la fecha del comprobante (error 2053)', () => {
+    expect(resolveExportQuotationDate({ ...base, voucherDate: '20261116' })).toEqual({
+      date: '20261115',
+      rule: 'previous-business-day',
+    });
+  });
+
+  it('con fecha posterior a la de la solicitud es el dia anterior a hoy', () => {
+    expect(resolveExportQuotationDate({ ...base, voucherDate: '20261120' }).date).toBe('20261117');
+  });
+
+  it('con el pago en la misma moneda tambien es el dia anterior, en cualquier tipo', () => {
+    expect(
+      resolveExportQuotationDate({ ...base, exportType: 1, sameCurrency: true, voucherDate: '20261118' }).date,
+    ).toBe('20261117');
+  });
+
+  it('en bienes, otros y las notas es la fecha del comprobante', () => {
+    expect(resolveExportQuotationDate({ ...base, exportType: 1, voucherDate: '20261118' })).toEqual({
+      date: '20261118',
+      rule: 'voucher-date',
+    });
+    expect(resolveExportQuotationDate({ ...base, exportType: 4, voucherDate: '20261118' }).date).toBe('20261118');
+    expect(resolveExportQuotationDate({ ...base, isNote: true, voucherDate: '20261118' }).date).toBe('20261118');
   });
 });
 

@@ -1,6 +1,8 @@
 import {
+  addDaysToArcaDate,
   formatArcaDateAsArgentineDate,
   formatDateAsArcaDate,
+  minArcaDate,
   parseArgentineDateInputAsArcaDate,
 } from '../../lib/dates/arca-date';
 import { AppError, InputValidationError } from '../../lib/errors/app-error';
@@ -37,6 +39,9 @@ const ARGENTINA_COUNTRY_CODE = 200;
 
 /** Forma de pago por defecto: WSFEX la exige y casi todas las exportaciones se cobran por transferencia internacional. */
 export const DEFAULT_EXPORT_PAYMENT_TERMS = 'Transferencia Internacional';
+
+/** Exportacion de servicios: la cotizacion es la del dia habil anterior (error 2053). */
+const SERVICES_EXPORT_TYPE: ExportType = 2;
 
 /** ARCA no acepta cotizaciones en pesos distintas de 1. */
 const LOCAL_EXCHANGE_RATE = 1;
@@ -124,6 +129,40 @@ export function resolveExportCurrency(
     },
     needsQuotation: rate === undefined,
   };
+}
+
+/** De que dia se pide la cotizacion de aduana y por que. */
+export interface ExportQuotationDate {
+  /** Fecha ARCA (yyyymmdd) con la que se consulta `FEXGetPARAM_MON_CON_COTIZACION`. */
+  readonly date: string;
+  /**
+   * `previous-business-day`: ARCA exige la del dia habil anterior (servicios, error 2053, o pago en la misma moneda);
+   * `voucher-date`: la de la fecha del comprobante, o la ultima publicada antes.
+   */
+  readonly rule: 'previous-business-day' | 'voucher-date';
+}
+
+/**
+ * La fecha de la cotizacion que exige ARCA. En la factura de servicios en moneda extranjera tiene que ser la del dia
+ * habil anterior a la fecha de emision, o a la de la solicitud si la factura es posterior (error 2053). Con el pago
+ * en la misma moneda (`CanMisMonExt` en `S`), lo mismo, por el historial 3.0.0 del manual. Se consulta el dia
+ * anterior y WSFEX devuelve la ultima publicada hasta ese dia, que en un lunes o despues de un feriado es la del
+ * ultimo dia habil. Las notas heredan la cotizacion del asociado (2053) y bienes y otros siguen con la del dia.
+ */
+export function resolveExportQuotationDate(options: {
+  readonly exportType: ExportType;
+  readonly isNote: boolean;
+  readonly sameCurrency: boolean;
+  readonly today: string;
+  readonly voucherDate: string;
+}): ExportQuotationDate {
+  const { exportType, isNote, sameCurrency, today, voucherDate } = options;
+
+  if (isNote || (exportType !== SERVICES_EXPORT_TYPE && !sameCurrency)) {
+    return { date: voucherDate, rule: 'voucher-date' };
+  }
+
+  return { date: addDaysToArcaDate(minArcaDate(voucherDate, today), -1), rule: 'previous-business-day' };
 }
 
 /**

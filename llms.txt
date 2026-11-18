@@ -123,7 +123,8 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
   `--tipo-expo 1`; en la factura requiere `--permiso-existente`), `--permiso-existente`,
   `--id-solicitud <n>` (sin flag, el siguiente de WSFEX), `--punto-venta <n>` (`--pv`), `-f, --fecha <fecha>`, `--fecha-pago <fecha>` (solo servicios y otros; en bienes no se manda, con un aviso),
   `--moneda <codigo>` (`--mda`; por defecto `DOL`), `--cotizacion-moneda <n>` (`--cm`; sin flag, la de
-  aduana que publica ARCA; la clave `cotizacion` de la config no aplica), `--misma-moneda`
+  aduana que publica ARCA: en servicios y con `--misma-moneda`, la del día hábil anterior a la fecha del comprobante,
+  como exige ARCA (2053); la clave `cotizacion` de la config no aplica), `--misma-moneda`
   (manda `CanMisMonExt` en `S`: el pago se cancela en la misma moneda extranjera),
   `--observaciones <texto>`, `--obs-comerciales <texto>`, `--descripcion <texto>`, `--cargar <path>`,
   `--exportar-pdf` (`--pdf`), `--sin-pdf`, `--previsualizar`, `--emitir`, `--json`, `--bruto`.
