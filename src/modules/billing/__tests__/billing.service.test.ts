@@ -687,15 +687,20 @@ describe('billing.service', () => {
   it('rejects dni with invalid length', () => {
     const service = new BillingService();
 
-    expect(() =>
-      service.buildVoucherPayload(
-        createBillingInput({
-          documentNumber: 123456,
-          documentType: 'dni',
-        }),
-        createRuntime(),
-      ),
-    ).toThrow(/`--dni` debe tener 7 u 8 dígitos/);
+    for (const documentNumber of [12345, 123456789]) {
+      expect(() =>
+        service.buildVoucherPayload(createBillingInput({ documentNumber, documentType: 'dni' }), createRuntime()),
+      ).toThrow(/`--dni` debe tener de 6 a 8 dígitos/);
+    }
+  });
+
+  it('accepts a 6-digit DNI, which ARCA testing approved', () => {
+    const payload = new BillingService().buildVoucherPayload(
+      createBillingInput({ documentNumber: 543210, documentType: 'dni' }),
+      createRuntime(),
+    );
+
+    expect(payload).toMatchObject({ DocNro: 543210, DocTipo: 96 });
   });
 
   it('rejects service dates for products concept', () => {

@@ -31,7 +31,7 @@ export function validateCuil(value: string): string | true {
 }
 
 export function validateDni(value: string): string | true {
-  return /^\d{7,8}$/.test(value.replace(/\./g, '')) ? true : 'El DNI tiene 7 u 8 dígitos.';
+  return /^\d{6,8}$/.test(value.replace(/\./g, '')) ? true : 'El DNI tiene de 6 a 8 dígitos.';
 }
 
 export function validateCbu(value: string): string | true {
