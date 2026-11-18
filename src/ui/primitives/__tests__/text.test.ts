@@ -1,6 +1,80 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { colorize, renderForTarget, shouldUseColor, stripAnsi, wrapIndentedPlainText, wrapPanelLines } from '../text';
+import {
+  colorize,
+  padEndVisible,
+  renderForTarget,
+  shouldUseColor,
+  stripAnsi,
+  visibleWidth,
+  wrapIndentedPlainText,
+  wrapPanelLines,
+  wrapPlainText,
+} from '../text';
+
+// `é` armada como `e` + acento combinable (NFD), como la pega macOS desde Finder o un PDF.
+const E_NFD = 'é';
+
+describe('visibleWidth', () => {
+  it('cuenta columnas de la terminal, no unidades de UTF-16', () => {
+    expect(visibleWidth('Pesos')).toBe(5);
+    expect(visibleWidth('🧾')).toBe(2);
+    expect(visibleWidth('👩‍💻')).toBe(2);
+    expect(visibleWidth('東京')).toBe(4);
+    expect(visibleWidth(`Jos${E_NFD}`)).toBe(4);
+  });
+
+  it('no cuenta los colores ni los links', () => {
+    expect(visibleWidth('\u001B[1m\u001B[36m🧾 Café\u001B[39m\u001B[22m')).toBe(7);
+    expect(visibleWidth('\u001B]8;;file:///tmp/x\u001B\\x.pdf\u001B]8;;\u001B\\')).toBe(5);
+  });
+
+  it('padEndVisible rellena hasta el ancho visible', () => {
+    expect(padEndVisible('東京', 6)).toBe('東京  ');
+    expect(padEndVisible(`Jos${E_NFD}`, 6)).toBe(`Jos${E_NFD}  `);
+  });
+});
+
+describe('cortes por grafema', () => {
+  it('no parte un emoji ni una letra con su acento al cortar una palabra larga', () => {
+    const word = `ab🧾cd👩‍💻ef${E_NFD}${E_NFD}`;
+    const wrapped = wrapIndentedPlainText(word, 3);
+
+    expect(wrapped.join('')).toBe(word);
+    for (const line of wrapped) {
+      expect(visibleWidth(line)).toBeLessThanOrEqual(3);
+      expect(line.isWellFormed()).toBe(true);
+    }
+    expect(wrapped).toEqual(['ab', '🧾c', 'd👩‍💻', `ef${E_NFD}`, E_NFD]);
+  });
+
+  it('con una sola columna, el emoji va igual en vez de trabarse', () => {
+    expect(wrapPlainText('🧾🧾', 1)).toEqual(['🧾', '🧾']);
+  });
+
+  it('parte CJK por ancho visible', () => {
+    expect(wrapPlainText('東京都港区', 4)).toEqual(['東京', '都港', '区']);
+  });
+
+  it('deja intacta una linea con é NFD que entra', () => {
+    const line = `Raz${E_NFD}n social  Caf${E_NFD}`;
+
+    expect(wrapPlainText(line, visibleWidth(line))).toEqual([line]);
+  });
+
+  it('respeta los codigos ANSI al cortar', () => {
+    const wrapped = wrapPlainText('\u001B[36m東京都港区\u001B[39m', 4);
+
+    expect(wrapped.map(stripAnsi)).toEqual(['東京', '都港', '区']);
+    expect(wrapped.join('')).toBe('\u001B[36m東京都港区\u001B[39m');
+  });
+
+  it('alinea el valor con una etiqueta con emoji o CJK', () => {
+    const wrapped = wrapIndentedPlainText('🧾 Cliente  東京 Café Restaurante Sucursal', 24);
+
+    expect(wrapped).toEqual(['🧾 Cliente  東京 Café', '            Restaurante', '            Sucursal']);
+  });
+});
 
 describe('wrapIndentedPlainText', () => {
   it('keeps the label when the first word of the value does not fit', () => {
@@ -86,15 +160,21 @@ describe('colorize', () => {
 });
 
 describe('shouldUseColor', () => {
-  const saved = { force: process.env.FORCE_COLOR, isTty: process.stdout.isTTY, noColor: process.env.NO_COLOR };
+  const saved = {
+    force: process.env.FORCE_COLOR,
+    isTty: process.stdout.isTTY,
+    noColor: process.env.NO_COLOR,
+    term: process.env.TERM,
+  };
 
   function setEnv(
     isTty: boolean | undefined,
-    env: { readonly FORCE_COLOR?: string; readonly NO_COLOR?: string },
+    env: { readonly FORCE_COLOR?: string; readonly NO_COLOR?: string; readonly TERM?: string },
   ): void {
     Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: isTty });
     delete process.env.FORCE_COLOR;
     delete process.env.NO_COLOR;
+    delete process.env.TERM;
     Object.assign(process.env, env);
   }
 
@@ -103,6 +183,24 @@ describe('shouldUseColor', () => {
 
     if (saved.force !== undefined) process.env.FORCE_COLOR = saved.force;
     if (saved.noColor !== undefined) process.env.NO_COLOR = saved.noColor;
+    if (saved.term !== undefined) process.env.TERM = saved.term;
+  });
+
+  it('no colorea con TERM=dumb aunque sea una terminal', () => {
+    setEnv(true, { TERM: 'dumb' });
+    expect(shouldUseColor()).toBe(false);
+    expect(colorize('hola', 'info')).toBe('hola');
+
+    setEnv(true, { TERM: 'xterm-256color' });
+    expect(shouldUseColor()).toBe(true);
+  });
+
+  it('FORCE_COLOR gana sobre TERM=dumb, y NO_COLOR sobre los dos', () => {
+    setEnv(true, { FORCE_COLOR: '1', TERM: 'dumb' });
+    expect(shouldUseColor()).toBe(true);
+
+    setEnv(true, { FORCE_COLOR: '1', NO_COLOR: '1', TERM: 'dumb' });
+    expect(shouldUseColor()).toBe(false);
   });
 
   it('colorea solo en una terminal real', () => {

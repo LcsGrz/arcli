@@ -99,7 +99,7 @@ La `E` se elige en el mismo selector, pero tiene su propio asistente porque no l
 | 11   | Incoterm              | Solo en bienes, de la tabla de WSFEX, o sin incoterm                                                                                  |
 | 12   | Permisos de embarque  | Solo en bienes, opcional: los ya existentes en ARCA, separados por coma (`--permiso` con `--permiso-existente`)                       |
 | 13   | Forma de pago         | Por defecto "Transferencia Internacional"                                                                                             |
-| 14   | Fecha de pago         | Opcional; por defecto la del comprobante                                                                                              |
+| 14   | Fecha de pago         | Opcional; por defecto la del comprobante. En bienes no se pregunta                                                                    |
 | 15   | Actividad             | Solo si no está `exportacion.actividad`; se valida contra la tabla de WSFEX y después ofrece guardarla en la config                   |
 | 16   | Opcionales            | Una sola pregunta, como en A, B y C ([abajo](#opcionales-de-la-e))                                                                    |
 
@@ -124,7 +124,7 @@ El PDF se elige en la pregunta **"¿Emitimos…?"**, que siempre tiene tres opci
 
 Si elegís el PDF, pregunta cuatro datos opcionales que solo van en el PDF: la descripción, el nombre y el domicilio del receptor, y la condición de venta. Para esta última muestra una lista (Omitir, Contado, Tarjeta de Débito, Tarjeta de Crédito, Cuenta Corriente, Cheque, Transferencia Bancaria, Otros medios de pago electrónico, Otra) con la de la config (`condicionVenta`) marcada, así que Enter la mantiene. "Omitir" también evita que reaparezca el valor configurado; "Otra" pide el texto: Enter deja "Otra", o el texto libre que tenía la config. Si faltan datos del emisor (razón social, domicilio, inicio de actividades), los pregunta una vez y ofrece guardarlos en la config. Si falta el plugin, ofrece instalarlo. Ver [PDF de comprobantes](pdf.md).
 
-El comando equivalente se muestra antes de emitir, así que no incluye la descripción ni la condición de venta del PDF. Siempre lleva el entorno (`--testing` o `--produccion`): si después cambiás el entorno en la config, el comando pegado sigue emitiendo donde lo armaste. Con un CUIT, lleva el nombre y el domicilio que trajo el padrón (`--receptor-nombre` y `--receptor-domicilio`): como también lleva `--ir`, el CLI no vuelve a consultar el padrón y sin esos flags el PDF saldría sin ellos.
+El comando equivalente se muestra antes de emitir, así que no incluye la descripción ni la condición de venta del PDF. Siempre lleva el entorno (`--testing` o `--produccion`): si después cambiás el entorno en la config, el comando pegado sigue emitiendo donde lo armaste. Con un CUIT, lleva el nombre y el domicilio que trajo el padrón (`--receptor-nombre` y `--receptor-domicilio`): como también lleva `--ir`, el CLI no vuelve a consultar el padrón y sin esos flags el PDF saldría sin ellos. Los textos con espacios o símbolos van entre comillas simples (`--receptor-nombre 'ACME S.A.'`), así el comando se pega tal cual en bash, zsh o fish y, en Windows, en PowerShell, aunque tenga `!`, `$` o una comilla. En Windows PowerShell 5.1, una comilla doble dentro de un texto se pierde al pegarlo (`Piso 5 "B"` llega como `Piso 5 B`); PowerShell 7 no tiene ese problema.
 
 ### Opcionales
 
@@ -213,7 +213,7 @@ Elegís una de las últimas facturas `E` (con **Cargar más…** e **Ingresar el
 | 3    | ¿Te pagan en…?       | Solo si ARCA no devolvió si se cobró en la misma moneda                                                                                                      |
 | 4    | CUIT del país        | Solo si la factura no lo trae y ARCA no publica uno para el destino                                                                                          |
 | 5    | Permisos de embarque | Solo en bienes, opcional: son de cada embarque                                                                                                               |
-| 6    | Fecha de pago        | Opcional; por defecto la del comprobante                                                                                                                     |
+| 6    | Fecha de pago        | Opcional; por defecto la del comprobante. En bienes no se pregunta                                                                                           |
 | 7    | Actividad            | Solo si la factura no la trae y no está `exportacion.actividad`                                                                                              |
 | 8    | Opcionales           | Los [de la E](#opcionales-de-la-e), con lo copiado ya cargado                                                                                                |
 

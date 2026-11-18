@@ -72,8 +72,13 @@ function readTaxes(...sources: Array<UnknownRecord | undefined>): TaxpayerTax[] 
   );
 }
 
+/**
+ * Las actividades del regimen general y las del monotributo, sin repetir: ARCA informa las mismas en los dos
+ * bloques. Se queda la primera de cada id, en el orden en que vienen.
+ */
 function readActivities(...sources: Array<UnknownRecord | undefined>): TaxpayerActivity[] {
-  return sources.flatMap((source) =>
+  const seen = new Set<number>();
+  const activities = sources.flatMap((source) =>
     asArray(source?.actividad ?? source?.actividadMonotributista).flatMap((item) => {
       const activity = asRecord(item);
       const id = Number(activity?.idActividad);
@@ -81,6 +86,14 @@ function readActivities(...sources: Array<UnknownRecord | undefined>): TaxpayerA
       return Number.isInteger(id) ? [{ description: asText(activity?.descripcionActividad) ?? '', id }] : [];
     }),
   );
+
+  return activities.filter(({ id }) => {
+    if (seen.has(id)) return false;
+
+    seen.add(id);
+
+    return true;
+  });
 }
 
 type MonotributoCategory = Pick<

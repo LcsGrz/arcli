@@ -1,7 +1,7 @@
 import { type Command, CommanderError } from 'commander';
 import { ZodError } from 'zod';
 
-import { AppError, HELP_SUGGESTION } from '../lib/errors/app-error';
+import { AppError, HELP_SUGGESTION, InputIssuesError } from '../lib/errors/app-error';
 import { describeZodIssues } from '../modules/billing/billing.zod-errors';
 import { formatAppError, formatInputIssues, writeTerminalError, writeTerminalJsonError } from '../ui';
 
@@ -9,6 +9,10 @@ import { readJsonDefault } from './global-options';
 
 /** Cualquier error, como panel o JSON. Los de un esquema los describe billing: la UI no conoce sus campos. */
 export function formatCliError(error: unknown, useJson: boolean): string {
+  if (error instanceof InputIssuesError) {
+    return formatInputIssues(error.issues, useJson, { message: error.message, suggestion: error.suggestion });
+  }
+
   return error instanceof ZodError
     ? formatInputIssues(describeZodIssues(error), useJson)
     : formatAppError(error, useJson);

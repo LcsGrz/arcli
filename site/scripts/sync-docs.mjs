@@ -55,7 +55,7 @@ async function sync() {
     pages.push({ body, page, title });
   }
 
-  copyAssets(ASSET_FOLDERS);
+  await copyAssets(ASSET_FOLDERS);
 
   const stars = await githubStars();
 

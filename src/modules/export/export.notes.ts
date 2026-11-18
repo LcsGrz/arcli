@@ -108,9 +108,16 @@ export function resolveExportAssociatedQuery(options: {
   return { arcaType: associatedKind.arcaType, number: input.number, pointOfSale };
 }
 
-/** Avisos de lo que trae el asociado y no se usa. */
+/**
+ * Avisos de lo que trae el asociado y no se usa. La fecha solo llega del JSON de `--cargar`: `--afecha` se saltea
+ * antes, con el aviso de los flags de A, B y C.
+ */
 export function exportAssociatedVoucherWarnings(input: ExportAssociatedVoucherInput | undefined): string[] {
-  return input?.date ? ['En las notas E la fecha del comprobante asociado sale de ARCA: `--afecha` no se usa.'] : [];
+  return input?.date
+    ? [
+        'En las notas E la fecha del comprobante asociado sale de ARCA: "comprobanteAsociado.fecha" del JSON de `--cargar` no se usa.',
+      ]
+    : [];
 }
 
 /**

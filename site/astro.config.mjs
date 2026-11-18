@@ -91,6 +91,9 @@ export default defineConfig({
       // Bloques de código como en la maqueta: título ("Terminal") y "Copiar", sin los tres puntos de la ventana. Los colores
       // son los tokens de terminal de src/styles/tokens.css.
       expressiveCode: {
+        // Solo el tema oscuro: un bloque de código es un panel de terminal, oscuro también en el tema claro. Con el claro
+        // de Starlight, el fondo del código pasaba a gris claro y el texto (claro) casi no se leía.
+        themes: ['starlight-dark'],
         styleOverrides: {
           borderColor: 'var(--arcli-term-line)',
           borderRadius: 'var(--arcli-radius-lg)',

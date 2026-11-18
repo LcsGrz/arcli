@@ -42,7 +42,7 @@ Husky corre `lint-staged` en cada commit: chequeo de tipos, ESLint y los tests r
 
 Los tests unitarios viven junto al código, en carpetas `__tests__` (por ejemplo `src/modules/billing/__tests__/`). `build` no los publica y `typecheck` sí los valida.
 
-`src/__tests__/setup.ts` corre antes de cada archivo de tests: le da un `HOME` temporal (así ningún test lee ni escribe tu config real) y saca `FORCE_COLOR`, `NO_COLOR` y `ARCLI_ASCII`, para que la suite dé lo mismo en cualquier terminal.
+`src/__tests__/setup.ts` corre antes de cada archivo de tests: le da un `HOME` temporal (así ningún test lee ni escribe tu config real) y saca `FORCE_COLOR`, `NO_COLOR`, `TERM` y `ARCLI_ASCII`, para que la suite dé lo mismo en cualquier terminal.
 
 Antes de cerrar un cambio:
 
@@ -242,3 +242,5 @@ Están en `docs/assets/demo/` y se regeneran con scripts para que no queden desa
   ```
 
 El README las enlaza con URLs absolutas de `raw.githubusercontent.com` porque npmjs.com no muestra imágenes con rutas relativas.
+
+En `docs/` van en PNG o GIF, que es lo que muestra GitHub. El sitio sirve de cada una un WebP sin pérdida (los mismos píxeles y cuadros, con la mitad o menos de peso): lo genera `site/scripts/outputs/assets.mjs` con sharp al construirlo y lo guarda en `site/node_modules/.cache/arcli-webp/`, así `yarn dev` no lo rehace si la imagen no cambió. Una captura nueva va a unos 1400 px de ancho, no a la resolución de una pantalla retina.

@@ -111,7 +111,7 @@
 .arcli-faq .sev {
   --chip-line: 40%;
   --chip-fill: 12%;
-  --chip-text: 80%;
+  --chip-text: 70%;
   margin-inline-start: auto;
   padding: 0.05rem 0.5rem;
   font: 600 0.68rem / 1.5 var(--sl-font-system-mono);

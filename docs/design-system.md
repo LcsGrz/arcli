@@ -9,7 +9,7 @@ El código vive en `src/ui`: tokens en [`theme/theme.ts`](../src/ui/theme/theme.
 ## Principios
 
 1. **Primero el dato.** Lo que no aporta no se muestra: una fila en cero que nadie cargó, un contador vacío, una etiqueta que repite el título.
-2. **Se lee sin color.** El color refuerza, nunca es el único aviso. Con `NO_COLOR`, redirigida o en ASCII, la salida tiene que decir lo mismo.
+2. **Se lee sin color.** El color refuerza, nunca es el único aviso. Con `NO_COLOR`, `TERM=dumb`, redirigida o en ASCII, la salida tiene que decir lo mismo.
 3. **Un dato, un formato.** El mismo CUIT o importe se ve igual en todos los comandos.
 4. **Funciona en cualquier terminal.** De 40 a 140 columnas, fondo claro u oscuro, Unicode o ASCII.
 
@@ -60,6 +60,7 @@ Se elige por lo que se muestra, no por cómo se ve. Cada rol tiene su función, 
 
 - **Ancho:** los paneles miden 92 columnas y se achican con la terminal, con un mínimo de 24. El comprobante mide entre 68 y 80, según su contenido, y va centrado.
 - **Filas etiqueta/valor:** con `renderKeyValueRows`, el valor en una columna alineada. La columna de etiquetas ocupa el 50% del panel en el comprobante y el 30% en el resto (`resolveKeyValueLabelWidth`), o lo que mida la etiqueta más larga. Si una fila no entra y su columna no deja lugar, todas las de esa columna ponen la etiqueta arriba y el valor debajo (`wrapPanelLines`).
+- **Ancho visible:** se mide con `visibleWidth` (columnas de la terminal, como boxen), nunca con `length`: un emoji o un carácter chino ocupan dos columnas y una `é` pegada desde macOS (NFD) ocupa una. Los cortes de una palabra larga caen entre grafemas, sin partir un emoji ni una letra de su acento.
 - **Listas:** `• texto` o `1. texto`. Al partirse, la línea sigue alineada al texto.
 - **Barra de estado:** una línea; en una terminal angosta, una por lado. Nunca esconde el entorno.
 

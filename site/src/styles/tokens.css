@@ -23,6 +23,9 @@
   --sl-color-accent-high: #d4e7f7;
   --sl-color-black: #181825;
   --sl-color-gray-6: #262637;
+  /* El gris del texto secundario, más claro que el de Starlight (#888b96): así llega a 4,5:1 también sobre un
+     desplegable abierto o una pestaña (`gray-6` y un poco más). */
+  --sl-color-gray-3: #979ba5;
   /* El menú del mismo fondo que la página */
   --sl-color-bg-sidebar: var(--sl-color-black);
 }
@@ -30,8 +33,8 @@
 :root[data-theme='light'] {
   --arcli-celeste: #2c6aa3;
   --arcli-lavanda: #3d3f66;
-  --arcli-verde: #3a8a3f;
-  --arcli-sol: #9a6b00;
+  --arcli-verde: #327a37;
+  --arcli-sol: #8a5f00;
   --arcli-naranja: #a8521a;
   --arcli-rojo: #b4344f;
   --arcli-panel: #f4f5f9;
@@ -43,6 +46,8 @@
   --sl-color-accent-high: #173a5c;
   --sl-color-black: #ffffff;
   --sl-color-gray-6: #eeeef2;
+  /* El de Starlight: en claro ya tiene contraste. Hace falta repetirlo para que no quede el del tema oscuro. */
+  --sl-color-gray-3: #555962;
 }
 
 /* Terminal (Catppuccin Mocha): iguales en los dos temas, porque los paneles de terminal son siempre oscuros. */
@@ -53,7 +58,8 @@
   --arcli-term-line-dim: #45475a;
   --arcli-term-fg: #cdd6f4;
   --arcli-term-fg-soft: #a6adc8;
-  --arcli-term-fg-mute: #7f849c;
+  /* Un poco más claro que el overlay1 de Catppuccin (#7f849c), para llegar a 4,5:1 sobre `--arcli-term-raised` */
+  --arcli-term-fg-mute: #878ca4;
   --arcli-term-blue: #89b4fa;
   --arcli-term-green: #a6e3a1;
   --arcli-term-teal: #94e2d5;
