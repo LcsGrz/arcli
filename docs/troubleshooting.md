@@ -419,6 +419,15 @@ También se reconocen por el mensaje, sin código: receptor igual al emisor, `Tr
 - **Solución:** no hace falta hacer nada. Para fijar otra cotización, pasá `--cotizacion-moneda <valor>` (o `--cm`).
 - **Documentación relacionada:** [Reglas de validación](validation-rules.md#factura-de-exportación-e)
 
+### Factura E: ARCA no reconoce el permiso de embarque
+
+- **Severidad:** ocasional, en exportaciones de bienes
+- **Síntoma:** `ARCA dice que el permiso de embarque <permiso> no es válido para el destino <país>: rechazaría el comprobante.` (`INPUT_VALIDATION_ERROR`, con los permisos en `detalles.permisos`), incluso con `--previsualizar`.
+- **Causa:** antes de la vista previa, ARCLI consulta cada `--permiso` en ARCA (`FEXCheck_Permiso`) con el país de destino, y ARCA contestó que esa destinación no existe en la Aduana o es de otro destino. No se emitió nada.
+- **Solución:** revisá el número del permiso (16 caracteres, como figura en la destinación de la Aduana) y que `--pais-destino` sea el de la mercadería.
+- **Si en cambio sale el aviso** `No se pudo verificar el permiso de embarque…`, ARCA no respondió la consulta: el comprobante se puede emitir igual, pero revisá el permiso, porque si es incorrecto ARCA lo rechaza al emitir. En testing ARCA contesta `OK` a cualquier permiso, así que la verificación solo sirve en producción.
+- **Documentación relacionada:** [Reglas de validación](validation-rules.md#factura-de-exportación-e), [Entrada y salida](input-output.md)
+
 ## Batch
 
 ### El lote tiene comprobantes inválidos

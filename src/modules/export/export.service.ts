@@ -31,6 +31,7 @@ import {
   missingExportAssociatedVoucherError,
   resolveExportAssociatedQuery,
 } from './export.notes';
+import { checkExportPermits } from './export.permits';
 import { createDryRunExportResponse, mapExportResponse } from './export.response';
 import {
   EXPORT_VOUCHER_KIND,
@@ -263,6 +264,8 @@ export class ExportService {
       });
     }
 
+    // Ultima lectura antes de emitir: un permiso que ARCA no reconoce corta aca y no en el rechazo de `FEXAuthorize`.
+    const permitChecks = await checkExportPermits(payload, gateway, destinationCountry.name);
     const currencyCode = payload.Moneda_Id.trim().toUpperCase();
     const display: ExportDisplayInfo = {
       ...(associated ? { associatedVoucher: describeAssociated(associated.voucher) } : {}),
@@ -272,6 +275,7 @@ export class ExportService {
         ?.name,
       incotermName: incoterm?.name,
       languageName: languages.find((language) => language.id === languageId)?.name,
+      ...(permitChecks ? { permitChecks: permitChecks.checks } : {}),
       unitNames: Object.fromEntries(units.map((unit) => [unit.id, unit.name])),
     };
     // La cotizacion de aduana del dia se publica mas tarde: se emite con la ultima disponible, avisando de que dia es.
@@ -284,6 +288,7 @@ export class ExportService {
             )}: se usa la del ${formatArcaDateAsArgentineDate(quotation.date)} (${formatExchangeRate(quotation.rate)}). Para usar otra, \`--cotizacion-moneda\`.`,
           ]
         : []),
+      ...(permitChecks?.warnings ?? []),
     ];
 
     return { display, payload, voucherKind, warnings };

@@ -71,6 +71,7 @@ const ASSOCIATED_INVOICE: ExportIssuedVoucher = {
 function gateway(overrides: Partial<ExportGateway> = {}): ExportGateway {
   return {
     authorize: vi.fn(async () => authorization('A')),
+    checkPermit: vi.fn(async () => 'OK'),
     getActivities: vi.fn(async () => [{ id: 620100, name: 'SERVICIOS DE CONSULTORES EN INFORMATICA' }]),
     getCurrencies: vi.fn(async () => [{ code: 'DOL', name: 'Dólar Estadounidense' }]),
     getDestinationCountries: vi.fn(async () => [{ code: 212, name: 'ESTADOS UNIDOS' }]),
@@ -187,6 +188,7 @@ const EXPORT_BLOCK_KEYS = [
   'mismaMoneda',
   'permisos',
   'tipoExpo',
+  'verificacionPermisos',
 ];
 
 const keysOf = (value: unknown): string[] => Object.keys(value as Record<string, unknown>).sort();

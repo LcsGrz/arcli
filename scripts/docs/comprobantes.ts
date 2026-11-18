@@ -293,7 +293,7 @@ export const OPTIONS = {
       ['', '--permiso <id>', 'Un permiso de embarque'],
       ['', '--permiso-existente', 'El permiso ya existe en ARCA'],
     ],
-    text: 'Solo en bienes (`--tipo-expo 1`). Repetible.',
+    text: 'Solo en bienes (`--tipo-expo 1`). Repetible. ARCLI consulta cada uno en ARCA antes de emitir: si ARCA dice que no es válido para el país de destino, frena con un error.',
   },
   permisoNota: {
     ej: '--permiso 26001EC01000123A',
