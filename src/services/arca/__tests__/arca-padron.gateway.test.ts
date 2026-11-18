@@ -43,6 +43,8 @@ describe('mapTaxpayerDetails', () => {
       ivaCondition: 'responsable-inscripto',
       keyStatus: 'ACTIVO',
       monotributoCategory: null,
+      monotributoCategoryLetter: null,
+      monotributoCategorySince: null,
       name: 'VICTORIA CAROLINA DARIO',
       notices: [],
       personType: 'fisica',
@@ -64,7 +66,7 @@ describe('mapTaxpayerDetails', () => {
   it('lee monotributo con la categoria como objeto y los avisos de la constancia', () => {
     const taxpayer = mapTaxpayerDetails(20111111112, {
       datosMonotributo: {
-        categoriaMonotributo: { descripcionCategoria: 'D LOCACIONES DE SERVICIO', idCategoria: 4 },
+        categoriaMonotributo: { descripcionCategoria: 'D LOCACIONES DE SERVICIO', idCategoria: 4, periodo: 202602 },
         impuesto: { descripcionImpuesto: 'MONOTRIBUTO', idImpuesto: 20 },
       },
       errorConstancia: { error: ['El domicilio fiscal no esta confirmado'] },
@@ -73,8 +75,44 @@ describe('mapTaxpayerDetails', () => {
     expect(taxpayer).toMatchObject({
       ivaCondition: 'responsable-monotributo',
       monotributoCategory: 'D LOCACIONES DE SERVICIO',
+      monotributoCategoryLetter: 'D',
+      monotributoCategorySince: '202602',
       notices: ['El domicilio fiscal no esta confirmado'],
     });
+  });
+
+  it('con la categoria como texto o sin periodo valido, no inventa la letra ni el periodo', () => {
+    expect(
+      mapTaxpayerDetails(20111111112, { datosMonotributo: { categoriaMonotributo: 'MONOTRIBUTO SOCIAL' } }),
+    ).toMatchObject({
+      monotributoCategory: 'MONOTRIBUTO SOCIAL',
+      monotributoCategoryLetter: null,
+      monotributoCategorySince: null,
+    });
+    expect(
+      mapTaxpayerDetails(20111111112, {
+        datosMonotributo: { categoriaMonotributo: { descripcionCategoria: 'B VENTAS', periodo: 0 } },
+      }),
+    ).toMatchObject({ monotributoCategoryLetter: 'B', monotributoCategorySince: null });
+  });
+
+  it('no repite las actividades que vienen en el regimen general y en el monotributo, y conserva el orden', () => {
+    // Como 20000000001 en ARCA testing (18/11/2026): las mismas actividades en los dos bloques.
+    const activity = (idActividad: number, descripcionActividad: string) => ({ descripcionActividad, idActividad });
+    const taxpayer = mapTaxpayerDetails(20000000001, {
+      datosMonotributo: {
+        actividadMonotributista: [activity(352020, 'DISTRIBUCION DE GAS'), activity(551021, 'HOSPEDAJE')],
+      },
+      datosRegimenGeneral: {
+        actividad: [activity(14121, 'CRIA DE GANADO'), activity(352020, 'DISTRIBUCION DE GAS')],
+      },
+    });
+
+    expect(taxpayer.activities).toEqual([
+      { description: 'CRIA DE GANADO', id: 14121 },
+      { description: 'DISTRIBUCION DE GAS', id: 352020 },
+      { description: 'HOSPEDAJE', id: 551021 },
+    ]);
   });
 });
 

@@ -52,12 +52,12 @@ Se puede sumar un servicio después, repitiendo solo el paso 3 con el mismo cert
 
 3. Elegí **"Adherir Servicio"**.
 
-   ![Adherir servicio](assets/certificados/arca-adherir-servicio.png)
+   ![Adherir servicio](assets/certificados/arca-adherir-servicio.webp)
 
 4. Buscá **ARCA → Servicios Interactivos → Administración de Certificados Digitales** en
    la lista y seleccionalo.
 
-   ![Elegir Administración de Certificados Digitales en la lista de servicios](assets/certificados/arca-elegir-administracion-certificados.png)
+   ![Elegir Administración de Certificados Digitales en la lista de servicios](assets/certificados/arca-elegir-administracion-certificados.webp)
 
 5. Confirmá la relación.
 

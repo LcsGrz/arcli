@@ -17,6 +17,14 @@ header.header {
   border-bottom-color: transparent;
 }
 
+/* En el celular, el lugar del botón del menú, que va fijo arriba a la derecha (el `padding-inline` de arriba pisaba el
+   de Starlight y el botón tapaba el del buscador) */
+@media (max-width: 49.99rem) {
+  :root[data-has-sidebar] header.header {
+    padding-inline-end: calc(var(--sl-nav-gap) + var(--sl-nav-pad-x) + var(--sl-menu-button-size));
+  }
+}
+
 header.header::after {
   content: '';
   position: absolute;
@@ -130,4 +138,15 @@ starlight-toc nav > ul > li:first-child:has(> a[href='#_top']) {
   max-width: 72rem;
   margin-inline: auto;
   padding-inline: 1.5rem;
+}
+
+/* El foco de teclado en todo el sitio: celeste, como en la portada y las pestañas. En un desplegable va hacia adentro,
+   porque la caja recorta lo que sale. Con clic no se ve. */
+:focus-visible {
+  outline: 2px solid var(--arcli-celeste);
+  outline-offset: 2px;
+}
+
+details > summary:focus-visible {
+  outline-offset: -2px;
 }

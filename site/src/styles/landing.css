@@ -749,7 +749,7 @@
   color: var(--fg-soft);
 }
 
-.arcli-landing tr:last-child td {
+.arcli-landing tr:last-child :is(td, th) {
   border-bottom: 0;
 }
 
@@ -1035,9 +1035,12 @@
   color: var(--celeste-strong);
 }
 
-.arcli-landing .cmp td:first-child {
+/* La primera columna es el encabezado de cada fila (`th scope="row"`), pero se ve como las demás celdas */
+.arcli-landing .cmp tbody th {
+  background: none;
   color: var(--fg-soft);
   font-weight: 500;
+  white-space: normal;
 }
 
 .arcli-landing .cmp .no {

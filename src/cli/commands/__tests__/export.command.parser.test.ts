@@ -55,6 +55,43 @@ describe('parseExportCommandPlan: emitir o previsualizar desde --cargar', () => 
   });
 });
 
+describe('parseExportCommandPlan: avisos de --cargar', () => {
+  const ITEM = { cantidad: 1, codigo: '001', descripcion: 'Servicio', precioUnitario: 1500, unidad: 'unidad' };
+
+  function warningsFromFile(content: Record<string, unknown>, args: string[] = []) {
+    const directory = mkdtempSync(join(tmpdir(), 'arcli-export-cli-'));
+    const path = join(directory, 'factura-e.json');
+
+    directories.push(directory);
+    writeFileSync(path, JSON.stringify({ ...BASE, ...content }));
+
+    const command = new Command();
+
+    registerExportOptions(command, EXPORT_VOUCHER_KIND);
+    command.parse(['node', 'test', '--cargar', path, ...args], { from: 'node' });
+
+    return parseExportCommandPlan(command, {}).warnings;
+  }
+
+  it('"descripcion" con "items" en el JSON nombra las claves, no los flags', () => {
+    expect(warningsFromFile({ descripcion: 'Consultoria', items: [ITEM] })).toEqual([
+      'La clave "descripcion" del JSON de `--cargar` se usa solo cuando no hay "items": el detalle del comprobante sale de los ítems.',
+    ]);
+  });
+
+  it('con --descripcion y --item el aviso es el de los flags', () => {
+    expect(
+      warningsFromFile({}, ['--descripcion', 'Consultoria', '--item', 'Servicio|1|1500']).filter((warning) =>
+        warning.includes('--descripcion'),
+      ),
+    ).toEqual(['`--descripcion` se usa solo cuando no hay `--item`: el detalle del comprobante sale de los items.']);
+  });
+
+  it('sin ítems no avisa', () => {
+    expect(warningsFromFile({ descripcion: 'Consultoria' })).toEqual([]);
+  });
+});
+
 describe('parseExportCommandPlan: PDF', () => {
   it('toma "pdf" del archivo si no hay flags, y los flags le ganan', () => {
     expect(planFromFile({ pdf: true }).pdf).toBe(true);

@@ -254,13 +254,13 @@ arcli fc ayuda
 - **Solución:** pasar `--cbu <22 dígitos>` o configurarlo una vez con `arcli config establecer cbu <22 dígitos>`.
 - **Documentación relacionada:** [Crédito electrónico (FCE)](validation-rules.md#crédito-electrónico-fce)
 
-### NC/ND FCE: ARCA no tiene el asociado
+### NC/ND: ARCA no tiene el asociado
 
 - **Severidad:** ocasional
-- **Síntoma:** `ARCA no tiene la factura de crédito electrónica ..., así que no se puede tomar su fecha.`
-- **Causa:** en NC/ND FCE, ARCA exige la fecha de la factura asociada (10158). Sin `--afecha`, arcli la busca en ARCA antes de la vista previa y no la encontró o ARCA no respondió.
-- **Solución:** revisar `--ac`, `--apv` y `--ar`: tienen que apuntar a una factura FCE tuya ya emitida. Si ARCA no respondió, reintentar o pasar la fecha con `--afecha`.
-- **Documentación relacionada:** [Crédito electrónico (FCE)](validation-rules.md#crédito-electrónico-fce)
+- **Síntoma:** `ARCA no tiene la factura B 00003-00099999.` En NC/ND FCE sin `--afecha`: `ARCA no tiene la factura de crédito electrónica ..., así que no se puede tomar su fecha.`
+- **Causa:** antes de la vista previa, arcli consulta en ARCA el asociado propio de la nota (A, B, C, FCE y `E`) y no existe. En NC/ND FCE, además, ARCA exige la fecha del asociado (10158) y sin `--afecha` arcli la toma de esa consulta. Hasta la 2.5.0, una nota A, B o C con un asociado inexistente se emitía: ARCA testing llega a aprobarla.
+- **Solución:** revisar `--ac`, `--apv` y `--ar`: tienen que apuntar a un comprobante tuyo ya emitido (`arcli ultimos <atajo>` lista los últimos). Si ARCA no respondió, una nota FCE sin `--afecha` también frena: reintentar o pasar la fecha con `--afecha`.
+- **Documentación relacionada:** [Comprobantes asociados](validation-rules.md#comprobantes-asociados)
 
 ### La nota de crédito supera el total de la factura
 
@@ -356,9 +356,19 @@ arcli fc ayuda
 
 - **Severidad:** frecuente
 - **Síntoma:** el comprobante aprueba, pero devuelve observaciones como `10217` o `10017`.
-- **Causa:** condición del receptor o del entorno de testing.
-- **Solución:** revisar si el caso es aceptable para tu flujo y distinguirlo de un rechazo real.
+- **Causa:** la condición del receptor en el padrón de ARCA:
+  - `10217`: el receptor de una factura A está activo como monotributista. ARCA la aprueba con la leyenda "El crédito fiscal discriminado en el presente comprobante solo podrá ser computado a efectos del Procedimiento permanente de transición al Régimen General". En testing sale también con CUITs que no son monotributistas.
+  - `10017`: el CUIT del receptor de una factura A no figura activo en el padrón de ARCA.
+- **Solución:** no son rechazos: si el comprobante salió `observado`, está emitido. Revisá el receptor con `arcli padron <cuit>` y si le corresponde la letra.
 - **Documentación relacionada:** [Limitaciones actuales](limitations.md)
+
+### El receptor no está en los padrones de ARCA
+
+- **Severidad:** frecuente, en testing
+- **Síntoma:** el comprobante sale `rechazado` con la observación "… DocNro 20201797064 no se encuentra registrado en los padrones de AFIP …" (código `10015`) y `errores` vacío.
+- **Causa:** ARCA no encuentra el documento del receptor. En testing, el padrón de facturación es otro que el de `arcli padron`, y muchos CUITs que este encuentra no están.
+- **Solución:** revisar `--cuit`, `--cuil` o `--dni` (o el documento del JSON de `--cargar`). En testing, usar un CUIT de prueba, como `20333333334`, o emitir a consumidor final. No se emitió nada.
+- **Documentación relacionada:** [Reglas de validación](validation-rules.md)
 
 ### ARCA rechaza por punto de venta
 
@@ -390,9 +400,10 @@ Cuando ARCA rechaza o deja una observación con alguno de estos códigos, `suger
 | `10174`         | El CBU de la factura FCE no está registrado a nombre del emisor                                                                                                   | Usá un CBU propio registrado en ARCA (`--cbu` o la clave `cbu`)                                                 |
 | `10119`         | La cotización está fuera del rango que acepta ARCA: entre el 2% y el 400% de la oficial                                                                           | Revisá `--cotizacion-moneda` contra `arcli parametros cotizacion <moneda>`                                      |
 | `10038`         | Con `--misma-moneda`, la cotización enviada ya no es la oficial exacta                                                                                            | Volvé a emitir: ARCLI consulta la oficial en ese momento                                                        |
-| `10017`/`10217` | Observación sobre la condición del receptor; el comprobante puede estar aprobado                                                                                  | Ver [Observaciones de padrón](#observaciones-de-padrón)                                                         |
+| `10017`         | El CUIT del receptor de una A no figura activo en el padrón; el comprobante puede estar aprobado                                                                  | Ver [Observaciones de padrón](#observaciones-de-padrón)                                                         |
+| `10217`         | El receptor de una A es monotributista: el crédito fiscal solo se computa por el Procedimiento permanente de transición. El comprobante está aprobado             | Ver [Observaciones de padrón](#observaciones-de-padrón)                                                         |
 
-También se reconocen por el mensaje, sin código: receptor igual al emisor, `Transacción Activa`, CUIT receptor inexistente y detalle de IVA obligatorio. Si ARCA rechaza con otro código, `sugerencias` pide revisar `errores` y `observaciones`.
+También se reconocen por el mensaje, sin código: receptor igual al emisor, `Transacción Activa`, receptor que no está en los padrones (ver [El receptor no está en los padrones de ARCA](#el-receptor-no-está-en-los-padrones-de-arca)), CUIT receptor inexistente y detalle de IVA obligatorio. Si ARCA rechaza con otro código, `sugerencias` pide revisar `errores` y `observaciones`.
 
 - **Documentación relacionada:** [Reglas de validación](validation-rules.md), [Entrada y salida](input-output.md)
 

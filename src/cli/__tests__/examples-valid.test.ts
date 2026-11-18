@@ -57,6 +57,8 @@ const padron: PadronGateway = {
     ivaCondition: 'responsable-inscripto',
     keyStatus: 'ACTIVO',
     monotributoCategory: null,
+    monotributoCategoryLetter: null,
+    monotributoCategorySince: null,
     name: 'Cliente SA',
     notices: [],
     personType: 'juridica',

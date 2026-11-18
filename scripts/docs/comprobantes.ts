@@ -130,7 +130,7 @@ export const OPTIONS = {
       ['--mda', '--moneda <código>', 'ISO (USD, EUR) o de ARCA (DOL, 060)'],
       ['--cm', '--cotizacion-moneda <número>', 'Cotización'],
       ['', '--misma-moneda', 'Te pagan en esa misma moneda'],
-      ['', '--fecha-pago <fecha>', 'Fecha de pago; por defecto, la del comprobante'],
+      ['', '--fecha-pago <fecha>', 'Fecha de pago, solo en servicios y otros; por defecto, la del comprobante'],
     ],
     text: 'Por defecto, dólares. Sin `--cm`, la cotización de aduana que publica ARCA.',
   },

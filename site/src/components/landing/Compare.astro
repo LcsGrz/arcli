@@ -9,11 +9,11 @@ import Section from './Section.astro';
 <Section {...SECTIONS.compare}>
   <div class="table-wrap cmp">
     <table>
-      <thead><tr><th></th>{COMPARE.head.map((cell) => <th><Rich text={cell} /></th>)}</tr></thead>
+      <thead><tr><th><span class="sr-only">Qué cambia</span></th>{COMPARE.head.map((cell) => <th><Rich text={cell} /></th>)}</tr></thead>
       <tbody>
         {
           COMPARE.rows.map((row) => (
-            <tr><td>{row.cells[0]}</td><td class={'no' in row ? 'no' : undefined}>{row.cells[1]}</td><td>{row.cells[2]}</td></tr>
+            <tr><th scope="row">{row.cells[0]}</th><td class={'no' in row ? 'no' : undefined}>{row.cells[1]}</td><td>{row.cells[2]}</td></tr>
           ))
         }
       </tbody>
