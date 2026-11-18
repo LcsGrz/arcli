@@ -3,16 +3,18 @@ import { resolve } from 'node:path';
 import type { z } from 'zod';
 
 import { parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
-import { InputValidationError } from '../../lib/errors/app-error';
+import { InputIssuesError, InputValidationError } from '../../lib/errors/app-error';
 import { parseCuit } from '../../lib/identity/cuit';
 import { EXCHANGE_RATE_DECIMALS, parseArgentineAmount } from '../../lib/numbers/argentine-amount';
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import { readPemFile } from '../../lib/security/pem';
 import { IVA_RATE_HINT } from '../billing/billing.schemas';
+import { describeZodIssues } from '../billing/billing.zod-errors';
 import { saleConditionSchema } from '../billing/sale-condition';
 import { MAX_RECENT_VOUCHERS } from '../vouchers/voucher-history';
 
 import {
+  arcliConfigSchema,
   arcliDefaultConceptSchema,
   arcliDefaultIvaConditionSchema,
   arcliDefaultIvaRateSchema,
@@ -77,7 +79,11 @@ function parseChoice<T extends string>(
   if (!result.success) {
     const subject = displayKey ? `\`${displayKey}\` no acepta` : 'No se acepta';
 
-    throw new InputValidationError(`${subject} "${value}". Valores válidos: ${schema.options.join(', ')}.`);
+    // `detalles` del `--json` queda como antes de mejorar el mensaje: los problemas de zod.
+    throw new InputIssuesError(
+      `${subject} "${value}". Valores válidos: ${schema.options.join(', ')}.`,
+      describeZodIssues(result.error),
+    );
   }
 
   return result.data;
@@ -131,22 +137,28 @@ function parseConfigCuit(value: string): string {
 
 /** Una de las condiciones de venta o un texto libre corto, para el PDF. */
 function parseSaleCondition(value: string, displayKey?: string): string {
-  const result = saleConditionSchema.safeParse(parseNonEmptyString(value, displayKey));
+  const result = saleConditionSchema.safeParse(value);
 
   if (!result.success) {
-    throw new InputValidationError(`${subjectOf(displayKey)} no puede tener más de 100 caracteres.`);
+    const reason = value.trim() ? 'no puede tener más de 100 caracteres' : 'no puede estar vacío';
+
+    throw new InputIssuesError(`${subjectOf(displayKey)} ${reason}.`, describeZodIssues(result.error));
   }
 
   return result.data;
 }
 
-/** El codigo de 3 caracteres de ARCA (`PES`, `DOL`, `060`); si ARCA lo tiene se ve al facturar. */
+/** El codigo de 3 caracteres de ARCA (`PES`, `DOL`, `060`), con el mismo esquema con el que se guarda la config. */
+const currencyKeySchema = arcliConfigSchema.pick({ monedaPorDefecto: true });
+
 function parseCurrencyCode(value: string, displayKey?: string): string {
   const normalizedValue = value.trim().toUpperCase();
+  const result = currencyKeySchema.safeParse({ monedaPorDefecto: normalizedValue });
 
-  if (!/^[A-Z0-9]{3}$/.test(normalizedValue)) {
-    throw new InputValidationError(
+  if (!result.success) {
+    throw new InputIssuesError(
       `${displayKey ? `\`${displayKey}\` no acepta "${value}"` : `El código de moneda "${value}" no es válido`}: tiene que ser un código de moneda de 3 caracteres, como PES o DOL. Los ves con \`arcli parametros monedas\`.`,
+      describeZodIssues(result.error),
     );
   }
 

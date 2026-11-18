@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { z, type ZodError } from 'zod';
 
+import { InputIssuesError } from '../../lib/errors/app-error';
 import { billingCommandSchema } from '../../modules/billing/billing.schemas';
+import { type CanonicalConfigKey, parseConfigValue } from '../../modules/config/config-value-parser';
 import { stripAnsi } from '../../ui';
 import { formatCliError, shouldPrintErrorAsJson } from '../error-output';
 
@@ -126,5 +128,39 @@ describe('formatCliError', () => {
 
     expect(Object.keys(json).sort()).toEqual(['codigo', 'detalles', 'error', 'sugerencia']);
     expect(json.sugerencia).toBeNull();
+  });
+});
+
+describe('formatCliError: errores de config establecer', () => {
+  function jsonError(key: CanonicalConfigKey, value: string, displayKey: string): Record<string, unknown> {
+    try {
+      parseConfigValue(key, value, displayKey);
+    } catch (error) {
+      return JSON.parse(formatCliError(error, true)) as Record<string, unknown>;
+    }
+
+    throw new Error('debería fallar');
+  }
+
+  it('mejora el mensaje sin cambiar la forma de `detalles` del --json (contrato)', () => {
+    expect(jsonError('entornoPorDefecto', 'demo', 'entorno')).toEqual({
+      codigo: 'INPUT_VALIDATION_ERROR',
+      // Igual que en la 2.5.0, cuando el error salia directo de zod.
+      detalles: [{ mensaje: 'Entrada tiene un valor no soportado. Valores válidos: testing, produccion.', ruta: [] }],
+      error: '`entorno` no acepta "demo". Valores válidos: testing, produccion.',
+      sugerencia: null,
+    });
+    expect(jsonError('monedaPorDefecto', '', 'moneda').detalles).toEqual([
+      { mensaje: 'MonedaPorDefecto debe ser mayor a 3.', ruta: ['monedaPorDefecto'] },
+    ]);
+  });
+
+  it('en texto muestra el mensaje y la sugerencia, sin la lista de zod', () => {
+    const error = new InputIssuesError('`pdf` no acepta "a".', [{ label: 'x', mensaje: 'zod', ruta: [] }], 'Mirá');
+    const panel = stripAnsi(formatCliError(error, false));
+
+    expect(panel).toContain('`pdf` no acepta "a".');
+    expect(panel).toContain('Mirá');
+    expect(panel).not.toContain('zod');
   });
 });

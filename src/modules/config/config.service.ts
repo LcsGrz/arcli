@@ -2,7 +2,8 @@ import Conf from 'conf';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
-import { ConfigurationError, InputValidationError } from '../../lib/errors/app-error';
+import { ConfigurationError, InputIssuesError, InputValidationError } from '../../lib/errors/app-error';
+import { describeZodIssues } from '../billing/billing.zod-errors';
 
 import {
   ArcliConfig,
@@ -86,6 +87,10 @@ function withConfigHelp<T>(parse: () => T): T {
   try {
     return parse();
   } catch (error) {
+    if (error instanceof InputIssuesError && !error.suggestion) {
+      throw new InputIssuesError(error.message, error.issues, CONFIG_SET_HELP_SUGGESTION);
+    }
+
     if (error instanceof InputValidationError && !error.suggestion) {
       throw new InputValidationError(error.message, error.details, CONFIG_SET_HELP_SUGGESTION);
     }
@@ -263,7 +268,11 @@ export class ConfigService {
     const result = configPublicKeySchema.safeParse(key);
 
     if (!result.success) {
-      throw new InputValidationError(`La clave \`${key}\` no existe.`, undefined, CONFIG_SET_HELP_SUGGESTION);
+      throw new InputIssuesError(
+        `La clave \`${key}\` no existe.`,
+        describeZodIssues(result.error),
+        CONFIG_SET_HELP_SUGGESTION,
+      );
     }
 
     return result.data;
