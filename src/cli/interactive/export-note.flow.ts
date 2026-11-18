@@ -24,13 +24,13 @@ import { withSpinner } from '../spinner';
 
 import { askPermitsStep, emitExportVoucher } from './export.flow';
 import { askExportOptions, type ExportOptions } from './export-options';
-import { askTextStep, chooseStep } from './prompts';
+import { askTextStep } from './prompts';
 import { type InteractiveSession, requirePointOfSale } from './session';
 import { validateAmount, validatePositiveInteger } from './validators';
 
 export interface ExportNoteState {
   readonly amount?: number;
-  /** Que ajusta la nota: la factura E (por defecto) u otra nota E (`--ac nde` o `--ac nce`). */
+  /** Que ajusta la nota, elegido en el selector de comprobantes: la factura E u otra nota E (`--ac nde` o `--ac nce`). */
   readonly associatedKind?: ExportVoucherKind;
   readonly description?: string;
   readonly invoice?: ExportIssuedVoucher;
@@ -84,9 +84,9 @@ function validateAssociated(voucherKind: ExportVoucherKind, associated: ExportIs
 }
 
 /**
- * Pasos de la nota E: el comprobante que ajusta, una factura E u otra nota E (se busca en ARCA y de ahi salen cliente,
- * destino y moneda), el monto, el detalle, en bienes los permisos de embarque, y los opcionales. Cada uno se puede
- * deshacer con "Volver".
+ * Pasos de la nota E sobre `associatedKind` (la factura E u otra nota E, elegido en el selector de comprobantes): el
+ * comprobante que ajusta (se busca en ARCA y de ahi salen cliente, destino y moneda), el monto, el detalle, en bienes
+ * los permisos de embarque, y los opcionales. Cada uno se puede deshacer con "Volver".
  */
 export function exportNoteSteps(
   kind: 'credito' | 'debito',
@@ -96,22 +96,6 @@ export function exportNoteSteps(
   const voucherKind = kind === 'credito' ? EXPORT_CREDIT_NOTE_KIND : EXPORT_DEBIT_NOTE_KIND;
 
   return [
-    {
-      name: 'asociado',
-      run: async (state) => {
-        const associatedKind = await chooseStep(
-          '¿La nota va sobre la factura E o sobre otra nota E?',
-          [
-            { name: 'Sobre la factura E', value: EXPORT_VOUCHER_KIND as ExportVoucherKind },
-            { name: 'Sobre una nota de débito E', value: EXPORT_DEBIT_NOTE_KIND },
-            { name: 'Sobre una nota de crédito E', value: EXPORT_CREDIT_NOTE_KIND },
-          ],
-          state.associatedKind ?? EXPORT_VOUCHER_KIND,
-        );
-
-        return associatedKind === BACK ? BACK : { associatedKind };
-      },
-    },
     {
       name: 'punto-venta-factura',
       run: async (state) => {
@@ -253,12 +237,13 @@ export function buildExportNoteInput(kind: 'credito' | 'debito', state: ExportNo
 }
 
 /**
- * Nota de credito o debito E paso a paso. Usa ExportService igual que `arcli nce` y `arcli nde`. Devuelve BACK si se
- * vuelve desde el primer paso, para volver al selector de comprobantes.
+ * Nota de credito o debito E paso a paso sobre `associatedKind`. Usa ExportService igual que `arcli nce` y `arcli nde`.
+ * Devuelve BACK si se vuelve desde el primer paso, para volver al selector de comprobantes.
  */
 export async function runExportNoteFlow(
   baseSession: InteractiveSession,
   kind: 'credito' | 'debito',
+  associatedKind: ExportVoucherKind = EXPORT_VOUCHER_KIND,
 ): Promise<typeof BACK | void> {
   const ready = await requirePointOfSale(baseSession);
 
@@ -269,7 +254,7 @@ export async function runExportNoteFlow(
   const { pointOfSale, session } = ready;
 
   const gateway = new ArcaClientFactory().createExportGateway(session.runtime);
-  const state = await runWizard(exportNoteSteps(kind, gateway, pointOfSale), {});
+  const state = await runWizard(exportNoteSteps(kind, gateway, pointOfSale), { associatedKind });
 
   if (!state) {
     return BACK;

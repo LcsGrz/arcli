@@ -6,7 +6,7 @@
 
 <!-- arcli: familia="Responsable inscripto · B" icono="mas" orden="16" -->
 
-Suma sobre una Factura B: un cargo que faltó, intereses o una diferencia de precio.
+Suma sobre una Factura B u otra nota B: un cargo que faltó, intereses o una diferencia de precio.
 
 `arcli ndb` | `arcli nota-debito b`
 
@@ -64,11 +64,11 @@ Ej.: `--ir-cf`
 
 ### Comprobante que ajusta
 
-Atajo, punto de venta y número del comprobante. O un período entero, con `--pd` y `--ph`.
+Atajo, punto de venta y número del comprobante: una factura u otra nota de la misma letra. O un período entero, con `--pd` y `--ph`.
 
 | Largo | Corto | Qué es |
 | --- | --- | --- |
-| `--ac <atajo>` |  | Atajo del comprobante: fc, rc, fa… |
+| `--ac <atajo>` |  | Atajo del comprobante: fc, rc, ndc… |
 | `--asociado-punto-venta <número>` | `--apv` | Su punto de venta |
 | `--ar <número>` |  | Su número |
 | `--acuit <cuit>` |  | El CUIT del emisor: el tuyo |

@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { arcliConfigSchema } from '../../../modules/config/config.schemas';
-import type { ExportGateway, ExportIssuedVoucher } from '../../../modules/export/export.types';
+import {
+  EXPORT_CREDIT_NOTE_KIND,
+  EXPORT_DEBIT_NOTE_KIND,
+  type ExportGateway,
+  type ExportIssuedVoucher,
+} from '../../../modules/export/export.types';
 import { BACK } from '../../../modules/interactive/wizard';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
@@ -129,7 +134,6 @@ describe('runExportNoteFlow', () => {
 
   it('busca la factura E, vuelve a preguntar si no existe y emite la nota de crédito con sus datos', async () => {
     script = createScript([
-      [/sobre la factura E o sobre otra nota E/, 'Sobre la factura E'],
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '9'],
       [/Número de la factura E/, '1'],
@@ -165,7 +169,6 @@ describe('runExportNoteFlow', () => {
       .mockResolvedValueOnce({ ...INVOICE, exportType: 1 })
       .mockResolvedValueOnce({ ...INVOICE, exportType: 1 });
     script = createScript([
-      [/sobre la factura E o sobre otra nota E/, 'Sobre la factura E'],
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
       [/Monto de la nota de débito de exportación E/, '100'],
@@ -182,7 +185,6 @@ describe('runExportNoteFlow', () => {
 
   it('en la nota de crédito no deja pasar del total de la factura', async () => {
     script = createScript([
-      [/sobre la factura E o sobre otra nota E/, 'Sobre la factura E'],
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
       [/Monto de la nota de crédito/, '2000'],
@@ -204,7 +206,6 @@ describe('runExportNoteFlow', () => {
       query.arcaType === 20 && query.number === 3 ? debitNote : null,
     );
     script = createScript([
-      [/sobre la factura E o sobre otra nota E/, 'Sobre una nota de débito E'],
       [/Punto de venta de la nota de débito E/, '4'],
       [/Número de la nota de débito E/, '3'],
       [/Monto de la nota de crédito/, '200'],
@@ -215,7 +216,7 @@ describe('runExportNoteFlow', () => {
       [/Emitimos/, 'No, dejar sin emitir'],
     ]);
 
-    await runExportNoteFlow(createSession(), 'credito');
+    await runExportNoteFlow(createSession(), 'credito', EXPORT_DEBIT_NOTE_KIND);
 
     expect(printed()).toContain('Nota de débito de exportación E 00004-00000003');
     expect(script.chooseManyStep.mock.calls[0]?.[1].map((choice) => choice.name)).toEqual([
@@ -228,20 +229,24 @@ describe('runExportNoteFlow', () => {
     );
   });
 
+  it('volver desde el primer paso vuelve al selector de comprobantes, sin preguntar sobre qué va la nota', async () => {
+    script = createScript([[/Punto de venta de la factura E/, BACK]]);
+
+    await expect(runExportNoteFlow(createSession(), 'credito')).resolves.toBe(BACK);
+  });
+
   it('en servicios no deja que una nota de débito ajuste otra nota y vuelve a preguntar el número', async () => {
     const creditNote: ExportIssuedVoucher = { ...INVOICE, arcaType: 21, number: 2, total: 100 };
 
     vi.mocked(gateway.getVoucher).mockImplementation(async (query) => (query.arcaType === 21 ? creditNote : null));
     script = createScript([
-      [/sobre la factura E o sobre otra nota E/, 'Sobre una nota de crédito E'],
       [/Punto de venta de la nota de crédito E/, '4'],
       [/Número de la nota de crédito E/, '2'],
       [/Número de la nota de crédito E/, BACK],
       [/Punto de venta de la nota de crédito E/, BACK],
-      [/sobre la factura E o sobre otra nota E/, BACK],
     ]);
 
-    await expect(runExportNoteFlow(createSession(), 'debito')).resolves.toBe(BACK);
+    await expect(runExportNoteFlow(createSession(), 'debito', EXPORT_CREDIT_NOTE_KIND)).resolves.toBe(BACK);
     expect(printed()).toContain('En servicios una nota de débito E solo ajusta una factura E');
   });
 });

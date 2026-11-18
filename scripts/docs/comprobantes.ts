@@ -152,13 +152,13 @@ export const OPTIONS = {
     ej: '--ac fc --apv 3 --ar 142 --acuit 20333333334',
     name: 'Comprobante que ajusta',
     rows: [
-      ['', '--ac <atajo>', 'Atajo del comprobante: fc, rc, fa…'],
+      ['', '--ac <atajo>', 'Atajo del comprobante: fc, rc, ndc…'],
       ['--apv', '--asociado-punto-venta <número>', 'Su punto de venta'],
       ['', '--ar <número>', 'Su número'],
       ['', '--acuit <cuit>', 'El CUIT del emisor: el tuyo'],
       ['', '--at <número>', 'Tipo ARCA, en vez de --ac'],
     ],
-    text: 'Atajo, punto de venta y número del comprobante. O un período entero, con `--pd` y `--ph`.',
+    text: 'Atajo, punto de venta y número del comprobante: una factura u otra nota de la misma letra. O un período entero, con `--pd` y `--ph`.',
   },
   periodo: {
     ej: '--pd 1/9 --ph 30/9',
@@ -188,7 +188,7 @@ export const OPTIONS = {
     ej: '--ac fcec --apv 3 --ar 15',
     name: 'Factura que ajusta',
     rows: [
-      ['', '--ac <atajo>', 'fcec, fcea o fceb'],
+      ['', '--ac <atajo>', 'fcec, fcea o fceb; con --anulacion, también una nota FCE'],
       ['--apv', '--asociado-punto-venta <número>', 'Su punto de venta'],
       ['', '--ar <número>', 'Su número'],
       ['', '--at <número>', 'Tipo ARCA, en vez de --ac'],
@@ -200,7 +200,11 @@ export const OPTIONS = {
     name: 'Datos de la FCE',
     rows: [
       ['', '--afecha <fecha>', 'Fecha de la factura; sin el flag, ARCLI la consulta en ARCA'],
-      ['', '--anulacion', 'Anula una factura que el comprador rechazó'],
+      [
+        '',
+        '--anulacion',
+        'Anula un comprobante que el comprador rechazó: la NC ajusta la factura o una ND FCE, y la ND solo una NC FCE',
+      ],
     ],
     text: '',
   },
@@ -469,7 +473,7 @@ const SPECS: readonly VoucherSpec[] = [
     na: ['--cbu', '--alicuota'],
     opt: ['periodo', 'receptor', ...BASE_OPT],
     req: ['monto', 'concepto', 'ir', 'asociado'],
-    target: 'una Factura C o un Recibo C',
+    target: 'una Factura C, un Recibo C u otra nota C',
     tips: ['El comprobante que ajusta también puede ser un Recibo C: `--ac rc`.', PERIOD_TIP],
   }),
   {
@@ -534,7 +538,7 @@ const SPECS: readonly VoucherSpec[] = [
     na: ['--cbu', '--cfinal'],
     opt: ['periodo', 'irOpt', 'iva', ...BASE_OPT],
     req: ['monto', 'concepto', 'receptorCuit', 'asociado'],
-    target: 'una Factura A',
+    target: 'una Factura A u otra nota A',
     tips: [PERIOD_TIP],
   }),
   {
@@ -585,7 +589,7 @@ const SPECS: readonly VoucherSpec[] = [
     na: ['--cbu'],
     opt: ['periodo', 'receptor', 'iva', ...BASE_OPT],
     req: ['monto', 'concepto', 'ir', 'asociado'],
-    target: 'una Factura B',
+    target: 'una Factura B u otra nota B',
     tips: [PERIOD_TIP],
   }),
   {

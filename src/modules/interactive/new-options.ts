@@ -9,6 +9,7 @@ export const NEW_OPTION_SINCE = {
   consultas: '2.5.0',
   'factura-e': '2.2.0',
   'notas-e': '2.5.0',
+  'notas-sobre-notas': '2.6.0',
   recibo: '2.3.0',
   'repetir-e': '2.5.0',
 } as const satisfies Record<string, `${number}.${number}.${number}`>;

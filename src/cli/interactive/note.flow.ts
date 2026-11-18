@@ -1,5 +1,6 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { creditNoteOverTotalHint } from '../../modules/billing/billing.associated-lookup';
+import { resolveRequiredCancellation } from '../../modules/billing/billing.associated-vouchers';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
 import { formatVoucherLabel, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import {
@@ -8,16 +9,15 @@ import {
   type BillingConcept,
 } from '../../modules/billing/billing.schemas';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
-import { EXPORT_VOUCHER_KIND, type ExportVoucherKind } from '../../modules/export/export.types';
+import { EXPORT_VOUCHER_KINDS, type ExportVoucherKind } from '../../modules/export/export.types';
 import { parseAmountInput } from '../../modules/interactive/amount-input';
 import {
-  conceptChoices,
-  exportInvoiceChoice,
-  invoiceKindChoices,
-  ivaRateChoices,
-  noteKindChoices,
-  reciboChoice,
-} from '../../modules/interactive/choices';
+  type AssociatedFamily,
+  type AssociatedKind,
+  associatedKindGroups,
+  groupNewOptions,
+} from '../../modules/interactive/associated-kinds';
+import { conceptChoices, ivaRateChoices, noteKindChoices } from '../../modules/interactive/choices';
 import {
   copyInvoiceAmounts,
   copyInvoiceReceiver,
@@ -62,6 +62,7 @@ export interface NoteState {
   /** Se eligio una factura E: el asistente de la nota E ya corrio y el resto de los pasos no aplica. */
   readonly exported?: boolean;
   readonly invoice?: IssuedVoucher;
+  /** El tipo del asociado: una factura, un recibo u otra nota de la misma letra. */
   readonly invoiceKind?: VoucherKindDefinition;
   /** Punto de venta de la factura asociada; ingresada a mano puede no ser el configurado. */
   readonly invoicePointOfSale?: number;
@@ -78,6 +79,108 @@ export interface NoteState {
 }
 
 const isPeriod = (state: NoteState): boolean => state.target === 'periodo';
+
+const NOTE_FAMILIES: ReadonlySet<VoucherKindDefinition['family']> = new Set([
+  'nota-credito',
+  'nota-debito',
+  'nota-credito-electronica',
+  'nota-debito-electronica',
+]);
+
+const CREDIT_NOTE_FAMILIES: ReadonlySet<VoucherKindDefinition['family']> = new Set([
+  'nota-credito',
+  'nota-credito-electronica',
+]);
+
+const isOverNote = (state: NoteState): boolean =>
+  Boolean(state.invoiceKind && NOTE_FAMILIES.has(state.invoiceKind.family));
+
+/** Como el CLI y la E: una NC no tiene tope ni se anula entera si ajusta otra NC. */
+const isOverCreditNote = (state: NoteState): boolean =>
+  Boolean(state.invoiceKind && CREDIT_NOTE_FAMILIES.has(state.invoiceKind.family));
+
+/**
+ * En FCE, la anulacion que exige el asociado: una nota sobre otra nota FCE es de anulacion, y una ND FCE sobre la
+ * factura no lo es. Solo una NC FCE sobre la factura deja elegir.
+ */
+function requiredCancellation(state: NoteState): boolean | undefined {
+  const invoiceKind = state.invoiceKind;
+
+  if (!invoiceKind?.isElectronicCredit) {
+    return undefined;
+  }
+
+  return resolveRequiredCancellation(noteKindChoices(state.kind ?? 'credito', invoiceKind).family, invoiceKind.family);
+}
+
+/**
+ * "¿Sobre qué comprobante?" en dos niveles: la familia y, si tiene mas de una opcion, el comprobante. Volver desde el
+ * segundo nivel vuelve a las familias; desde el primer paso de la nota E, a la lista donde estaba la E.
+ */
+async function askAssociatedKind(
+  session: InteractiveSession,
+  state: NoteState,
+): Promise<Back | Pick<NoteState, 'exported' | 'invoiceKind' | 'target'>> {
+  const kind = state.kind ?? 'credito';
+  const groups = associatedKindGroups(kind);
+  // Arranca en la primera opcion; al volver de un nivel queda marcado lo que se habia elegido.
+  let picked: AssociatedKind | undefined;
+  let family: AssociatedFamily | undefined;
+
+  for (;;) {
+    const chosen = await chooseStep(
+      '¿Sobre qué comprobante?',
+      groups.map((group) =>
+        markIfNew({ description: group.description, name: group.name, value: group.family }, groupNewOptions(group)),
+      ),
+      family,
+    );
+
+    if (chosen === BACK) {
+      return BACK;
+    }
+
+    family = chosen;
+    const { options, question } = requireStepValue(
+      groups.find((group) => group.family === chosen),
+      'la familia del comprobante',
+    );
+    const only = options.length === 1 ? options[0]?.value : undefined;
+
+    for (;;) {
+      const value: AssociatedKind | Back =
+        only ??
+        (await chooseStep(
+          question,
+          options.map(({ newOption, ...option }) => (newOption ? markIfNew(option, newOption) : option)),
+          picked,
+        ));
+
+      if (value === BACK) {
+        break;
+      }
+
+      picked = value;
+
+      if (!isExportKind(value)) {
+        return { invoiceKind: value, target: 'factura' };
+      }
+
+      if ((await runExportNoteFlow(session, kind, value)) !== BACK) {
+        return { exported: true };
+      }
+
+      // Sin segundo nivel, Volver desde la nota E vuelve a las familias.
+      if (only) {
+        break;
+      }
+    }
+  }
+}
+
+function isExportKind(kind: ExportVoucherKind | VoucherKindDefinition): kind is ExportVoucherKind {
+  return (EXPORT_VOUCHER_KINDS as readonly unknown[]).includes(kind);
+}
 
 /** `la factura C 00003-00000045`, para el aviso del tope de la NC. */
 function describeInvoice(state: NoteState, invoice: IssuedVoucher): string {
@@ -107,7 +210,9 @@ async function askNoteAmount(
   const invoice = state.invoice;
   const label = state.kind === 'debito' ? 'Monto de la nota de débito:' : 'Monto de la nota de crédito:';
   // Con varias alicuotas o tributos no se puede armar una nota igual a la factura: solo parcial.
-  const canAnnulTotal = Boolean(invoice && !copyInvoiceAmounts(invoice, state.invoiceKind?.letter ?? 'c').limitation);
+  const canAnnulTotal = Boolean(
+    invoice && !isOverCreditNote(state) && !copyInvoiceAmounts(invoice, state.invoiceKind?.letter ?? 'c').limitation,
+  );
 
   if (state.kind === 'credito' && invoice && canAnnulTotal) {
     const scope = await chooseStep('¿Total o parcial?', [
@@ -124,7 +229,7 @@ async function askNoteAmount(
     validate: (value) => {
       const valid = validateAmount(value);
 
-      if (valid !== true || state.kind !== 'credito' || !invoice) {
+      if (valid !== true || state.kind !== 'credito' || !invoice || isOverCreditNote(state)) {
         return valid;
       }
 
@@ -143,28 +248,7 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
   const steps: Array<WizardStep<NoteState>> = [
     {
       name: 'tipo-factura',
-      run: async (state) => {
-        // Volver desde el primer paso de la nota E vuelve a este selector.
-        for (;;) {
-          const invoiceKind = await chooseStep<ExportVoucherKind | VoucherKindDefinition>('¿Sobre qué comprobante?', [
-            ...invoiceKindChoices(),
-            markIfNew(reciboChoice(), 'recibo'),
-            markIfNew(exportInvoiceChoice(), 'notas-e'),
-          ]);
-
-          if (invoiceKind === BACK) {
-            return BACK;
-          }
-
-          if (invoiceKind !== EXPORT_VOUCHER_KIND) {
-            return { invoiceKind: invoiceKind as VoucherKindDefinition, target: 'factura' };
-          }
-
-          if ((await runExportNoteFlow(session, state.kind ?? 'credito')) !== BACK) {
-            return { exported: true };
-          }
-        }
-      },
+      run: (state) => askAssociatedKind(session, state),
     },
     {
       name: 'asociacion',
@@ -184,8 +268,8 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
 
         return target === BACK ? BACK : { target };
       },
-      // ARCA no acepta periodo asociado en notas FCE (10196).
-      skip: (state) => Boolean(state.invoiceKind?.isElectronicCredit),
+      // ARCA no acepta periodo asociado en notas FCE (10196); una nota sobre otra nota ya eligio el comprobante.
+      skip: (state) => Boolean(state.invoiceKind?.isElectronicCredit) || isOverNote(state),
     },
     {
       name: 'factura',
@@ -293,7 +377,8 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
 
         return cancellation === BACK ? BACK : { cancellation };
       },
-      skip: (state) => !state.invoiceKind?.isElectronicCredit,
+      // Solo pregunta si el asociado deja elegir (una NC FCE sobre la factura).
+      skip: (state) => !state.invoiceKind?.isElectronicCredit || requiredCancellation(state) !== undefined,
     },
     {
       name: 'avanzadas',
@@ -348,7 +433,7 @@ export function buildNoteInput(
           }
         : undefined,
     billingDate: advanced.billingDate,
-    cancellation: state.cancellation ?? false,
+    cancellation: requiredCancellation(state) ?? state.cancellation ?? false,
     concept: state.concept,
     documentNumber: state.documentType === 'consumidor-final' ? undefined : state.documentNumber,
     documentType: state.documentType,

@@ -1,3 +1,4 @@
+import { listAssociableFamilies } from '../billing/billing.associated-vouchers';
 import { listAllowedIvaConditions } from '../billing/billing.iva-receptor';
 import { formatIvaConditionLabel } from '../billing/billing.labels';
 import { resolveBillingIvaConditionCode } from '../billing/billing.mappers';
@@ -7,10 +8,15 @@ import type {
   BillingIvaCondition,
   BillingIvaRate,
 } from '../billing/billing.schemas';
-import type { VoucherKindDefinition, VoucherLetter, VoucherShortcut } from '../billing/billing.types';
+import type { VoucherFamily, VoucherKindDefinition, VoucherLetter, VoucherShortcut } from '../billing/billing.types';
 import { ARCA_CURRENCIES } from '../billing/currency-codes';
-import { VOUCHER_KIND_MAP } from '../billing/voucher-kind-map';
-import { EXPORT_VOUCHER_KIND, type ExportVoucherKind } from '../export/export.types';
+import { getVoucherKindByFamilyAndLetter, VOUCHER_KIND_MAP } from '../billing/voucher-kind-map';
+import {
+  EXPORT_CREDIT_NOTE_KIND,
+  EXPORT_DEBIT_NOTE_KIND,
+  EXPORT_VOUCHER_KIND,
+  type ExportVoucherKind,
+} from '../export/export.types';
 
 export interface InteractiveChoice<T> {
   readonly description?: string;
@@ -55,6 +61,48 @@ export function exportInvoiceChoice(): InteractiveChoice<ExportVoucherKind> {
     name: EXPORT_VOUCHER_KIND.displayName,
     value: EXPORT_VOUCHER_KIND,
   };
+}
+
+/** Las notas E que ajusta otra nota E: el CLI las pide con `--ac nce` y `--ac nde`. */
+export function exportNoteChoices(): Array<InteractiveChoice<ExportVoucherKind>> {
+  return [EXPORT_CREDIT_NOTE_KIND, EXPORT_DEBIT_NOTE_KIND].map((kind) => ({
+    description: 'Para ajustar una nota E ya emitida',
+    name: kind.displayName,
+    value: kind,
+  }));
+}
+
+const NOTE_FAMILIES: readonly VoucherFamily[] = [
+  'nota-credito',
+  'nota-debito',
+  'nota-credito-electronica',
+  'nota-debito-electronica',
+];
+
+/**
+ * Las notas que puede ajustar una nota de `kind` de la misma letra y categoria que `invoice`: en A, B y C las dos;
+ * en FCE solo la que permite la anulacion (una NC FCE ajusta una ND FCE, y una ND FCE una NC FCE).
+ */
+export function associableNoteChoices(
+  kind: 'credito' | 'debito',
+  invoice: VoucherKindDefinition,
+): Array<InteractiveChoice<VoucherKindDefinition>> {
+  const noteFamily = noteKindChoices(kind, invoice).family;
+  const families = new Set([...listAssociableFamilies(noteFamily, false), ...listAssociableFamilies(noteFamily, true)]);
+
+  return NOTE_FAMILIES.filter((family) => families.has(family)).flatMap((family) => {
+    const definition = getVoucherKindByFamilyAndLetter(family, invoice.letter);
+
+    if (!definition) {
+      return [];
+    }
+
+    const description = definition.isElectronicCredit
+      ? 'Solo en una nota de anulación'
+      : 'Para ajustar una nota ya emitida';
+
+    return [{ description, name: definition.displayName, value: definition }];
+  });
 }
 
 export function noteKindChoices(kind: 'credito' | 'debito', invoice: VoucherKindDefinition): VoucherKindDefinition {
