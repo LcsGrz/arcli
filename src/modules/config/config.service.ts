@@ -3,6 +3,7 @@ import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
 import { ConfigurationError, InputIssuesError, InputValidationError } from '../../lib/errors/app-error';
+import { parseCbu } from '../../lib/identity/cbu';
 import { describeZodIssues } from '../billing/billing.zod-errors';
 
 import {
@@ -146,6 +147,18 @@ function invalidConfigFileError(path: string): ConfigurationError {
   );
 }
 
+/**
+ * Un CBU guardado que ya no pasa la validación (por ejemplo, desde que se controlan los verificadores): el error
+ * dice que viene de la config, el motivo y cómo cambiarlo.
+ */
+function invalidSavedCbuError(reason: string): InputIssuesError {
+  return new InputIssuesError(
+    `El CBU guardado en la config no es válido: ${reason}.`,
+    [{ label: 'CBU', mensaje: `${reason[0]?.toUpperCase() ?? ''}${reason.slice(1)}.`, ruta: ['cbu'] }],
+    'Cambialo por el correcto con `arcli config establecer cbu <CBU>`; copialo desde el home banking o la constancia del banco.',
+  );
+}
+
 export class ConfigService {
   private readonly store: Conf<ArcliConfig>;
 
@@ -170,7 +183,20 @@ export class ConfigService {
   }
 
   public getConfig(): ArcliConfig {
-    return arcliConfigSchema.parse(this.store.store);
+    const result = arcliConfigSchema.safeParse(this.store.store);
+
+    if (result.success) {
+      return result.data;
+    }
+
+    const savedCbu: unknown = (this.store.store as Record<string, unknown>).cbu;
+    const cbuResult = typeof savedCbu === 'string' ? parseCbu(savedCbu) : undefined;
+
+    if (cbuResult && !cbuResult.ok) {
+      throw invalidSavedCbuError(cbuResult.reason);
+    }
+
+    throw result.error;
   }
 
   public getPath(): string {

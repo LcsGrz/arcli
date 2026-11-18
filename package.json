@@ -1,6 +1,6 @@
 {
   "name": "arcli",
-  "version": "2.5.1",
+  "version": "2.5.2",
   "description": "Facturá en ARCA (ex AFIP) desde tu terminal: con comandos, un asistente o tu IA.",
   "keywords": [
     "arca",
@@ -61,6 +61,7 @@
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
     "test:arca": "vitest run --config vitest.arca.config.ts",
     "docs:comprobantes": "tsx scripts/docs/generar-comprobantes.ts",
+    "docs:readme-iconos": "tsx scripts/docs/generar-readme-iconos.ts",
     "contrato:actualizar": "node ./scripts/update-contract.mjs",
     "monotributo:tabla": "tsx scripts/monotributo/actualizar-tabla.ts"
   },

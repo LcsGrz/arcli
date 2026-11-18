@@ -32,6 +32,7 @@ yarn dev --ayuda
 | `yarn lint:eslint:fix`     | Corrige lo que ESLint puede arreglar solo                                                  |
 | `yarn lint:prettier:fix`   | Formatea con Prettier                                                                      |
 | `yarn docs:comprobantes`   | Escribe `docs/comprobantes/` desde `scripts/docs/comprobantes.ts`                          |
+| `yarn docs:readme-iconos`  | Escribe `docs/assets/iconos/` desde `site/src/icons.ts` y los títulos del README           |
 | `yarn contrato:actualizar` | Regenera la lista del contrato público (`src/cli/__tests__/public-contract.txt`)           |
 | `yarn monotributo:tabla`   | Actualiza la tabla de categorías incluida desde la página de ARCA (ver abajo)              |
 | `yarn pack:check`          | Empaqueta `dist`, lo instala en una carpeta temporal y corre `arcli --version` y `--ayuda` |
@@ -71,7 +72,14 @@ yarn build && yarn test:arca
 yarn build && ARCLI_ARCA_PV_E=4 yarn test:arca
 ```
 
-No corre en el CI (necesita credenciales y se niega si encuentra `CI`) ni con `yarn test`. Conviene correrlo antes de una release y después de tocar algo que hable con ARCA: atrapa lo que los tests con ARCA simulado no ven, como una respuesta con otra forma o un error nuevo del SDK.
+No corre en el CI (necesita credenciales y se niega si encuentra `CI`) ni con `yarn test`. Se corre antes de cada release (la skill `release` frena si falla) y conviene correrlo después de tocar algo que hable con ARCA: atrapa lo que los tests con ARCA simulado no ven, como una respuesta con otra forma o un error nuevo del SDK.
+
+`arca-rules.arca.ts` prueba las reglas que ARCLI copia de ARCA (ver [De dónde sale cada regla](validation-rules.md#de-dónde-sale-cada-regla)). ARCLI corta el caso límite antes de llamar a ARCA, así que cada caso arma la solicitud de un comprobante válido con la vista previa del CLI compilado (el campo `solicitud` del `--json`), comprueba que ARCLI bloquea el caso con los flags (si hay un comando equivalente), cambia en la solicitud solo el dato de la regla y la manda a ARCA testing con los gateways de `src/services/arca`, sin la validación local. Espera el rechazo con el código del manual:
+
+- si ARCA lo aprueba, el test falla con el número y el CAE: la regla local quedó más estricta que ARCA y hay que decidir si se afloja;
+- si lo rechaza con otro código, el test falla con los códigos: el manual cambió o la regla cita mal el código.
+
+También compara las tablas que ARCLI copia (IVA receptor por letra y alícuotas) con las que devuelve ARCA. Un caso que pasa no emite nada; uno que falla por aprobación deja un comprobante de prueba, que el test lista al final. Para la `E` usa una factura de servicios y una de bienes del punto de venta de `ARCLI_ARCA_PV_E`, y una NC y una ND E: si no hay, emitilas antes.
 
 `src/cli/__tests__/docs-sync.test.ts` recorre el programa de commander y falla si un comando no aparece en `docs/` o en `llms.txt`, si un flag no aparece en `docs/cli-reference.md` o en `llms.txt`, o si una clave pública de config no aparece en `docs/configuration.md` o en `llms.txt`. Solo verifica que se mencione, no que la descripción esté bien. Lo que no se documenta a propósito va en `UNDOCUMENTED_FLAGS`, con el motivo.
 

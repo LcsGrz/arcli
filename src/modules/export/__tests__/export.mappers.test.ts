@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  assertExportClientIdentification,
   buildExportPayload,
   resolveExportActivity,
   resolveExportClientCountryCuit,
@@ -9,6 +10,7 @@ import {
   resolveExportIncoterm,
   resolveExportNumber,
   resolveExportQuotation,
+  resolveExportQuotationDate,
   resolveExportType,
   resolveExportVoucherDate,
 } from '../export.mappers';
@@ -52,9 +54,9 @@ describe('resolveExportCurrency', () => {
     });
   });
 
-  it('en pesos la cotizacion es 1 y no hay que consultar ARCA', () => {
+  it('en pesos la cotizacion es 1, no hay que consultar ARCA y no va CanMisMonExt (error 1605)', () => {
     expect(resolveExportCurrency({ currencyCode: 'ARS' })).toEqual({
-      fields: { CanMisMonExt: 'N', Moneda_ctz: 1, Moneda_Id: 'PES' },
+      fields: { Moneda_ctz: 1, Moneda_Id: 'PES' },
       needsQuotation: false,
     });
   });
@@ -82,12 +84,56 @@ describe('resolveExportCurrency', () => {
     expect(() => resolveExportCurrency({ currencyCode: 'ARS', sameCurrency: true })).toThrow(/moneda extranjera/);
   });
 
+  it('acepta cotizaciones menores a 1, como la del guarani: ARCA pide mayor a 0 (errores 1600 y 1602)', () => {
+    expect(resolveExportCurrency({ currencyCode: '029', exchangeRate: 0.19 })).toEqual({
+      fields: { CanMisMonExt: 'N', Moneda_ctz: 0.19, Moneda_Id: '029' },
+      needsQuotation: false,
+    });
+  });
+
+  it('rechaza una cotizacion en 0 o negativa en moneda extranjera', () => {
+    expect(() => resolveExportCurrency({ currencyCode: 'USD', exchangeRate: 0 })).toThrow(
+      'La cotización de USD tiene que ser mayor a 0.',
+    );
+    expect(() => resolveExportCurrency({ currencyCode: '029', exchangeRate: -1 })).toThrow(/mayor a 0/);
+  });
+
   it('marca CanMisMonExt cuando el pago es en la misma moneda', () => {
     expect(resolveExportCurrency({ currencyCode: 'USD', exchangeRate: 900, sameCurrency: true }).fields).toEqual({
       CanMisMonExt: 'S',
       Moneda_ctz: 900,
       Moneda_Id: 'DOL',
     });
+  });
+});
+
+describe('resolveExportQuotationDate', () => {
+  const base = { exportType: 2 as const, isNote: false, sameCurrency: false, today: '20261118' };
+
+  it('en la factura de servicios es el dia anterior a la fecha del comprobante (error 2053)', () => {
+    expect(resolveExportQuotationDate({ ...base, voucherDate: '20261116' })).toEqual({
+      date: '20261115',
+      rule: 'previous-business-day',
+    });
+  });
+
+  it('con fecha posterior a la de la solicitud es el dia anterior a hoy', () => {
+    expect(resolveExportQuotationDate({ ...base, voucherDate: '20261120' }).date).toBe('20261117');
+  });
+
+  it('con el pago en la misma moneda tambien es el dia anterior, en cualquier tipo', () => {
+    expect(
+      resolveExportQuotationDate({ ...base, exportType: 1, sameCurrency: true, voucherDate: '20261118' }).date,
+    ).toBe('20261117');
+  });
+
+  it('en bienes, otros y las notas es la fecha del comprobante', () => {
+    expect(resolveExportQuotationDate({ ...base, exportType: 1, voucherDate: '20261118' })).toEqual({
+      date: '20261118',
+      rule: 'voucher-date',
+    });
+    expect(resolveExportQuotationDate({ ...base, exportType: 4, voucherDate: '20261118' }).date).toBe('20261118');
+    expect(resolveExportQuotationDate({ ...base, isNote: true, voucherDate: '20261118' }).date).toBe('20261118');
   });
 });
 
@@ -147,6 +193,21 @@ describe('resolveExportDestinationCountry', () => {
 
   it('rechaza un pais que no esta en la tabla', () => {
     expect(() => resolveExportDestinationCountry('Marte', COUNTRIES)).toThrow(/no existe en la tabla/);
+  });
+});
+
+describe('assertExportClientIdentification', () => {
+  const country = { code: 415, name: 'IRLANDA' };
+
+  it('alcanza con el CUIT del pais o con el ID impositivo', () => {
+    expect(() => assertExportClientIdentification({ clientCountryCuit: 55000000050, country })).not.toThrow();
+    expect(() => assertExportClientIdentification({ clientTaxId: 'IE1234567T', country })).not.toThrow();
+  });
+
+  it('sin ninguno de los dos pide uno, como ARCA (error 1580)', () => {
+    expect(() => assertExportClientIdentification({ clientTaxId: '  ', country })).toThrow(
+      'La tabla de ARCA no tiene CUIT para "IRLANDA" y ARCA pide el CUIT del país o el ID impositivo del cliente (error 1580). Indicá el ID impositivo con `--id-impositivo` o el CUIT del país con `--cuit-pais`.',
+    );
   });
 });
 
@@ -210,10 +271,10 @@ describe('resolveExportClientCountryCuit', () => {
     ).toThrow(/no existe en la tabla/);
   });
 
-  it('avisa cuando el pais no tiene CUIT en la tabla', () => {
-    expect(() =>
+  it('sin CUIT en la tabla ni por flag no hay CUIT: la E va con el ID impositivo (error 1580)', () => {
+    expect(
       resolveExportClientCountryCuit({ countries: COUNTRY_CUITS, country: { code: 999, name: 'Narnia' } }),
-    ).toThrow(/--cuit-pais/);
+    ).toBeUndefined();
   });
 
   it('acepta el CUIT cuando las dos tablas nombran distinto al pais', () => {
@@ -355,6 +416,23 @@ describe('buildExportPayload', () => {
     // Los bloques vacios tambien se rechazan: Cmps_asoc da 1820 y Opcionales no se informa.
     expect(payload).not.toHaveProperty('Cmps_asoc');
     expect(payload).not.toHaveProperty('Opcionales');
+  });
+
+  it('sin CUIT del pais no manda Cuit_pais_cliente y va con el ID impositivo (error 1580)', () => {
+    const payload = buildExportPayload(input, { ...resolution, clientCountryCuit: undefined });
+
+    expect(payload).not.toHaveProperty('Cuit_pais_cliente');
+    expect(payload.Id_impositivo).toBe('123456789');
+  });
+
+  it('la factura en pesos no manda CanMisMonExt, que ARCA rechaza en produccion (error 1605)', () => {
+    const payload = buildExportPayload(input, {
+      ...resolution,
+      currency: resolveExportCurrency({ currencyCode: 'PES' }).fields,
+    });
+
+    expect(payload).not.toHaveProperty('CanMisMonExt');
+    expect(payload).toMatchObject({ Moneda_ctz: 1, Moneda_Id: 'PES' });
   });
 
   it('en bienes no manda Fecha_pago, que ARCA rechaza (error 1673)', () => {

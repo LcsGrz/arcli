@@ -67,8 +67,24 @@ function issued(overrides: Partial<IssuedVoucher> = {}): IssuedVoucher {
   };
 }
 
-function check(input: BillingCommandInput, voucher: IssuedVoucher | undefined | Error) {
+/**
+ * `salesPoints` son los puntos de venta de web service del emisor (`FEParamGetPtosVenta`) y `lastNumber`, el ultimo
+ * numero de ARCA en el punto de venta del asociado. Por defecto, el PV 3 es de web service.
+ */
+function check(
+  input: BillingCommandInput,
+  voucher: IssuedVoucher | undefined | Error,
+  pointsOfSale: { readonly lastNumber?: Error | number; readonly salesPoints?: Error | number[] } = {},
+) {
+  const { lastNumber = 0, salesPoints = [3] } = pointsOfSale;
   const gateway = {
+    getLastNumber: vi.fn(async () => {
+      if (lastNumber instanceof Error) {
+        throw lastNumber;
+      }
+
+      return lastNumber;
+    }),
     getVoucher: vi.fn(async () => {
       if (voucher instanceof Error) {
         throw voucher;
@@ -77,9 +93,24 @@ function check(input: BillingCommandInput, voucher: IssuedVoucher | undefined | 
       return voucher;
     }),
   };
-  const result = checkAssociatedInArca({ gateway, input, runtime, service: new BillingService() });
+  const parameters = {
+    getSalesPoints: vi.fn(async () => {
+      if (salesPoints instanceof Error) {
+        throw salesPoints;
+      }
 
-  return { gateway, result };
+      return salesPoints.map((number) => ({ blocked: false, emissionType: 'CAE - RECE', number }));
+    }),
+  };
+  const result = checkAssociatedInArca({
+    gateway,
+    input,
+    runtime,
+    salesPoints: parameters,
+    service: new BillingService(),
+  });
+
+  return { gateway, parameters, result };
 }
 
 beforeEach(() => {
@@ -210,6 +241,98 @@ describe('checkAssociatedInArca: NC no mayor que el asociado (REV-45)', () => {
 
     await expect(result).rejects.toThrow(/no discrimina IVA/);
     expect(gateway.getVoucher).not.toHaveBeenCalled();
+  });
+});
+
+describe('checkAssociatedInArca: asociado que ARCA no tiene, segun su punto de venta (REGLAS-1)', () => {
+  const onPointOfSale50 = (overrides: Partial<BillingCommandInput> = {}) =>
+    note({ associatedVoucher: { cuit: String(EMITTER), numero: 15, puntoVenta: 50, shortcut: 'fc' }, ...overrides });
+
+  it('en un punto de venta de web service del emisor frena: es casi seguro un numero mal escrito', async () => {
+    const { parameters, result } = check(note(), undefined, { salesPoints: [3, 9] });
+
+    await expect(result).rejects.toThrow('ARCA no tiene la factura C 00003-00000012.');
+    expect(parameters.getSalesPoints).toHaveBeenCalledTimes(1);
+  });
+
+  it('en un punto de venta que no es de web service sigue con un aviso (Comprobantes en linea, controlador fiscal)', async () => {
+    const input = onPointOfSale50();
+    const { gateway, result } = check(input, undefined, { salesPoints: [3, 9] });
+
+    await expect(result).resolves.toEqual({
+      input,
+      warnings: [
+        'No se encontró la factura C 00050-00000015 en ARCA y el punto de venta 50 no es de web service: si es de Comprobantes en línea, de un controlador fiscal o de otro sistema, está bien; si no, revisá `--ar`, `--apv` y `--ac`. No se pudo controlar que la nota de crédito no lo supere. Si es de un controlador fiscal o de FactuWeb, ARCA pide su fecha (error 10211): pasala con `--afecha`.',
+      ],
+    });
+    // Con la lista de puntos de venta alcanza: no hace falta mirar el ultimo numero.
+    expect(gateway.getLastNumber).not.toHaveBeenCalled();
+  });
+
+  it('una ND con --afecha sobre un asociado de otro sistema solo avisa que no se encontro', async () => {
+    const input = onPointOfSale50({
+      associatedVoucher: { cuit: String(EMITTER), fecha: '10/03/2026', numero: 15, puntoVenta: 50, shortcut: 'fc' },
+      shortcut: 'ndc',
+    });
+
+    await expect(check(input, undefined, { salesPoints: [3] }).result).resolves.toEqual({
+      input,
+      warnings: [
+        'No se encontró la factura C 00050-00000015 en ARCA y el punto de venta 50 no es de web service: si es de Comprobantes en línea, de un controlador fiscal o de otro sistema, está bien; si no, revisá `--ar`, `--apv` y `--ac`.',
+      ],
+    });
+  });
+
+  it('sin lista de puntos de venta (testing devuelve 602) decide el ultimo numero de ARCA en ese punto de venta', async () => {
+    await expect(check(note(), undefined, { lastNumber: 137, salesPoints: [] }).result).rejects.toThrow(
+      /ARCA no tiene la factura C 00003-00000012/,
+    );
+
+    const input = onPointOfSale50();
+    const { gateway, result } = check(input, undefined, { lastNumber: 0, salesPoints: [] });
+
+    await expect(result).resolves.toMatchObject({
+      warnings: [expect.stringContaining('el punto de venta 50 no es de web service')],
+    });
+    expect(gateway.getLastNumber).toHaveBeenCalledWith(50, 11);
+  });
+
+  it('si la consulta de puntos de venta falla, avisa en lugar de frenar', async () => {
+    const input = onPointOfSale50();
+
+    await expect(
+      check(input, undefined, { lastNumber: 0, salesPoints: new Error('ARCA no disponible') }).result,
+    ).resolves.toMatchObject({
+      warnings: [
+        expect.stringContaining(
+          'No se encontró la factura C 00050-00000015 en ARCA y no se pudo consultar si el punto de venta 50 es de web service',
+        ),
+      ],
+    });
+    await expect(
+      check(input, undefined, { lastNumber: new Error('timeout'), salesPoints: new Error('timeout') }).result,
+    ).resolves.toMatchObject({ warnings: [expect.stringContaining('no se pudo consultar')] });
+  });
+
+  it('una nota FCE sobre un asociado de otro sistema sin --afecha frena pidiendo la fecha', async () => {
+    const input = fceNote({ associatedVoucher: { numero: 7, puntoVenta: 50, shortcut: 'fcea' } });
+
+    await expect(check(input, undefined, { salesPoints: [3] }).result).rejects.toMatchObject({
+      code: 'INPUT_VALIDATION_ERROR',
+      message:
+        'No se encontró la factura de crédito electrónica A 00050-00000007 en ARCA, así que no se puede tomar su fecha.',
+      suggestion:
+        'Si es de Comprobantes en línea o de un controlador fiscal, pasá su fecha con `--afecha <fecha>`. Si no, revisá `--ar`, `--apv` y `--ac`.',
+    });
+  });
+
+  it('una nota FCE sobre un asociado de otro sistema con --afecha sigue con el aviso', async () => {
+    const input = fceNote({ associatedVoucher: { fecha: '05/03/2026', numero: 7, puntoVenta: 50, shortcut: 'fcea' } });
+
+    await expect(check(input, undefined, { salesPoints: [3] }).result).resolves.toMatchObject({
+      input,
+      warnings: [expect.stringContaining('No se encontró la factura de crédito electrónica A 00050-00000007 en ARCA')],
+    });
   });
 });
 

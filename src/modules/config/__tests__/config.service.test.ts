@@ -99,6 +99,43 @@ describe('config.service', () => {
     }
   });
 
+  it('says a saved CBU with a wrong check digit comes from the config, why, and how to change it', () => {
+    const service = createService();
+
+    try {
+      writeFileSync(service.getPath(), JSON.stringify({ cbu: '0110599520000012345677', puntoVentaPorDefecto: 3 }));
+
+      expect(() => service.getConfig()).toThrow(
+        expect.objectContaining({
+          code: 'INPUT_VALIDATION_ERROR',
+          issues: [
+            {
+              label: 'CBU',
+              mensaje: 'No coincide el dígito verificador del bloque de la cuenta (los últimos 14 dígitos).',
+              ruta: ['cbu'],
+            },
+          ],
+          message:
+            'El CBU guardado en la config no es válido: no coincide el dígito verificador del bloque de la cuenta (los últimos 14 dígitos).',
+          suggestion: expect.stringContaining('`arcli config establecer cbu <CBU>`'),
+        }),
+      );
+      expect(service.setValue('cbu', '0110599520000012345678').cbu).toBe('0110599520000012345678');
+      expect(service.getConfig().puntoVentaPorDefecto).toBe(3);
+
+      writeFileSync(service.getPath(), JSON.stringify({ cbu: '0110599420000012345678' }));
+
+      expect(() => service.getConfig()).toThrow(
+        expect.objectContaining({
+          issues: [expect.objectContaining({ mensaje: expect.stringMatching(/banco y sucursal/) })],
+        }),
+      );
+      expect(service.unsetValue('cbu').cbu).toBeUndefined();
+    } finally {
+      service.close();
+    }
+  });
+
   it('fixes a config that was already broken by setting or deleting the bad key', () => {
     const service = createService();
 

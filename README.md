@@ -21,7 +21,9 @@ Emití facturas, consultá comprobantes y automatizá tu facturación con comand
 
 <p align="center"><sub>ARCLI es un proyecto independiente, no es de ARCA. Usa los web services oficiales de ARCA con tu propio certificado.</sub></p>
 
-## Elegí cómo usarlo
+<a id="elegí-cómo-usarlo"></a>
+
+## <img src="https://raw.githubusercontent.com/LcsGrz/arcli/main/docs/assets/iconos/flechas.svg" width="24" height="24" alt="" align="absmiddle"> Elegí cómo usarlo
 
 | Si querés…                              | Usá                                                          | Así                                           |
 | --------------------------------------- | ------------------------------------------------------------ | --------------------------------------------- |
@@ -29,7 +31,9 @@ Emití facturas, consultá comprobantes y automatizá tu facturación con comand
 | Facturar en una línea o desde un script | [comandos](https://arcli.com.ar/uso/comandos/)               | `arcli fc -m 15000 --cs --cfinal`             |
 | Pedírselo a tu IA                       | [Claude, ChatGPT, Gemini…](https://arcli.com.ar/uso/con-ia/) | "Facturale $ 15.000 a Juan, consumidor final" |
 
-## Qué facturás
+<a id="qué-facturás"></a>
+
+## <img src="https://raw.githubusercontent.com/LcsGrz/arcli/main/docs/assets/iconos/factura.svg" width="24" height="24" alt="" align="absmiddle"> Qué facturás
 
 | Si sos…               | Comprobantes                                                              |
 | --------------------- | ------------------------------------------------------------------------- |
@@ -39,7 +43,9 @@ Emití facturas, consultá comprobantes y automatizá tu facturación con comand
 
 Cada comprobante tiene su página en [arcli.com.ar](https://arcli.com.ar/comprobantes/cual-me-toca/), con cuál te toca y cómo emitirlo.
 
-## Empezar
+<a id="empezar"></a>
+
+## <img src="https://raw.githubusercontent.com/LcsGrz/arcli/main/docs/assets/iconos/terminal.svg" width="24" height="24" alt="" align="absmiddle"> Empezar
 
 1. Instalá Node.js 22.22.1 o superior desde [nodejs.org](https://nodejs.org/es/download) (la versión LTS).
 2. Abrí la terminal (en Mac: Cmd+Espacio y escribí "Terminal"; en Windows: menú Inicio y escribí "PowerShell") y pegá `npm install -g arcli`.
@@ -79,7 +85,9 @@ Opcional: [autocompletado](https://arcli.com.ar/referencia/comandos-completo/#au
 
 </details>
 
-## Qué trae
+<a id="qué-trae"></a>
+
+## <img src="https://raw.githubusercontent.com/LcsGrz/arcli/main/docs/assets/iconos/pila.svg" width="24" height="24" alt="" align="absmiddle"> Qué trae
 
 - **Vista previa siempre primero:** nada se emite sin `--emitir` o tu confirmación.
 - **Validaciones antes de ir a ARCA,** con el motivo y cómo arreglarlo.
@@ -88,13 +96,17 @@ Opcional: [autocompletado](https://arcli.com.ar/referencia/comandos-completo/#au
 - **Lotes y JSON para automatizar,** con una salida `--json` estable.
 - **Repetir una factura anterior** desde el asistente.
 
-## Seguridad
+<a id="seguridad"></a>
+
+## <img src="https://raw.githubusercontent.com/LcsGrz/arcli/main/docs/assets/iconos/escudo.svg" width="24" height="24" alt="" align="absmiddle"> Seguridad
 
 - **Arranca en testing,** sin validez fiscal. Producción la elegís vos.
 - **Tu certificado y tu clave quedan en tu computadora,** y tus comprobantes solo van a ARCA. Aparte, ARCLI consulta npm y GitHub para avisarte de versiones nuevas, y baja el plugin de PDF solo si lo pedís.
 - **Código abierto:** podés revisar todo lo que hace.
 
-## Documentación
+<a id="documentación"></a>
+
+## <img src="https://raw.githubusercontent.com/LcsGrz/arcli/main/docs/assets/iconos/libro.svg" width="24" height="24" alt="" align="absmiddle"> Documentación
 
 Está en [arcli.com.ar](https://arcli.com.ar/), con buscador: [certificados](https://arcli.com.ar/empezar/certificado-testing/), [comprobantes](https://arcli.com.ar/comprobantes/cual-me-toca/), [comandos](https://arcli.com.ar/referencia/comandos/), [configuración](https://arcli.com.ar/referencia/configuracion/), [PDF](https://arcli.com.ar/mas/pdf/) y [problemas frecuentes](https://arcli.com.ar/ayuda/problemas-frecuentes/). Para agentes de IA con acceso a la terminal, [llms.txt](https://arcli.com.ar/llms.txt).
 
@@ -127,7 +139,9 @@ ARCLI usa [versionado semántico](https://semver.org/lang/es/): los comandos y s
 
 </details>
 
-## Comunidad
+<a id="comunidad"></a>
+
+## <img src="https://raw.githubusercontent.com/LcsGrz/arcli/main/docs/assets/iconos/chat.svg" width="24" height="24" alt="" align="absmiddle"> Comunidad
 
 - **Dudas de uso:** [GitHub Discussions](https://github.com/LcsGrz/arcli/discussions).
 - **Bugs y propuestas:** [issues](https://github.com/LcsGrz/arcli/issues/new/choose), con las plantillas.
@@ -136,7 +150,9 @@ ARCLI usa [versionado semántico](https://semver.org/lang/es/): los comandos y s
 
 No pegues certificados, claves, tickets ni la salida de `--bruto` en ningún lado. Si te sirve, dejale una estrella o invitame un [Cafecito](https://cafecito.app/lcsgrz).
 
-## Agradecimientos
+<a id="agradecimientos"></a>
+
+## <img src="https://raw.githubusercontent.com/LcsGrz/arcli/main/docs/assets/iconos/estrella.svg" width="24" height="24" alt="" align="absmiddle"> Agradecimientos
 
 - [`@arcasdk/core`](https://github.com/ralcorta/arcasdk) y [`@arcasdk/pdf`](https://www.afipts.com/packages/pdf), de [Rodrigo Alcorta](https://github.com/ralcorta).
 - [Arpit Bhayani](https://github.com/arpitbbhayani), por ceder el nombre `arcli` en npm.
@@ -144,6 +160,8 @@ No pegues certificados, claves, tickets ni la salida de `--bruto` en ningún lad
 - [Guillermo Britos](https://github.com/guillermobr), por el Recibo C.
 - [Kevin Tea](https://github.com/kevintea), por la condición de venta en el PDF.
 
-## Licencia
+<a id="licencia"></a>
+
+## <img src="https://raw.githubusercontent.com/LcsGrz/arcli/main/docs/assets/iconos/candado.svg" width="24" height="24" alt="" align="absmiddle"> Licencia
 
 MIT © [LcsGrz](https://github.com/LcsGrz). Ver [LICENSE](https://github.com/LcsGrz/arcli/blob/main/LICENSE).

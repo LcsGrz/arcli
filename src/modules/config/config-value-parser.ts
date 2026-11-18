@@ -4,6 +4,7 @@ import type { z } from 'zod';
 
 import { parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
 import { InputIssuesError, InputValidationError } from '../../lib/errors/app-error';
+import { describeInvalidCbu, parseCbu } from '../../lib/identity/cbu';
 import { parseCuit } from '../../lib/identity/cuit';
 import { EXCHANGE_RATE_DECIMALS, parseArgentineAmount } from '../../lib/numbers/argentine-amount';
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
@@ -166,14 +167,14 @@ function parseCurrencyCode(value: string, displayKey?: string): string {
   return normalizedValue;
 }
 
-function parseCbu(value: string): string {
-  const normalizedValue = value.trim();
+function parseCbuValue(value: string): string {
+  const result = parseCbu(value);
 
-  if (!/^\d{22}$/.test(normalizedValue)) {
-    throw new InputValidationError(`El CBU "${value}" no es válido: debe tener 22 dígitos.`);
+  if (!result.ok) {
+    throw new InputValidationError(describeInvalidCbu(result.reason, value));
   }
 
-  return normalizedValue;
+  return result.value;
 }
 
 function parseCbuAlias(value: string): string {
@@ -288,7 +289,7 @@ export function parseConfigValue(
     case 'aliasCbu':
       return parseCbuAlias(value);
     case 'cbu':
-      return parseCbu(value);
+      return parseCbuValue(value);
     case 'conceptoPorDefecto':
       return parseChoice(arcliDefaultConceptSchema, value, displayKey);
     case 'condicionVenta':

@@ -75,11 +75,11 @@ Valores por defecto, para no repetir flags.
 
 Solo si emitís Factura de Crédito Electrónica.
 
-| Clave          | Tipo    | Valor por defecto | Descripción                                       |
-| -------------- | ------- | ----------------- | ------------------------------------------------- |
-| `cbu`          | string  | ninguno           | CBU del emisor (solo facturas FCE)                |
-| `aliasCbu`     | string  | ninguno           | Alias del CBU (solo facturas FCE)                 |
-| `verificarFce` | boolean | `false`           | Consultar el régimen FCE del receptor al facturar |
+| Clave          | Tipo    | Valor por defecto | Descripción                                                                                                                          |
+| -------------- | ------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `cbu`          | string  | ninguno           | CBU del emisor (solo facturas FCE). Se validan los 22 dígitos y sus [dos verificadores](validation-rules.md#crédito-electrónico-fce) |
+| `aliasCbu`     | string  | ninguno           | Alias del CBU (solo facturas FCE)                                                                                                    |
+| `verificarFce` | boolean | `false`           | Consultar el régimen FCE del receptor al facturar                                                                                    |
 
 ### Exportación
 

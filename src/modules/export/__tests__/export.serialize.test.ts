@@ -189,6 +189,12 @@ describe('serializeExportResult', () => {
     expect(json.exportacion).toMatchObject({ permisos: [{ Dst_merc: 203, Id_permiso: 'P1' }] });
   });
 
+  it('sin CUIT del pais, cuitPaisCliente es null y la solicitud no trae Cuit_pais_cliente', () => {
+    const json = serializeExportResult(result({ payload: payload({ Cuit_pais_cliente: undefined }) }));
+
+    expect(json.exportacion).toMatchObject({ cuitPaisCliente: null });
+  });
+
   it('la solicitud es el Cmp de WSFEX, sin traducir', () => {
     const solicitud = payload({ Id: 99 });
 

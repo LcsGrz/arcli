@@ -1,6 +1,11 @@
 import { z } from 'zod';
 
-import { billingConceptValueSchema, billingIvaConditionSchema, billingIvaRateSchema } from '../billing/billing.schemas';
+import {
+  billingConceptValueSchema,
+  billingIvaConditionSchema,
+  billingIvaRateSchema,
+  cbuSchema,
+} from '../billing/billing.schemas';
 import { saleConditionSchema } from '../billing/sale-condition';
 import { MAX_RECENT_VOUCHERS, RECENT_VOUCHERS_LIMIT } from '../vouchers/voucher-history';
 
@@ -32,11 +37,7 @@ export const arcliConfigSchema = z.object({
     .trim()
     .regex(/^\d{11}$/, 'El CUIT debe tener 11 dígitos')
     .optional(),
-  cbu: z
-    .string()
-    .trim()
-    .regex(/^\d{22}$/, 'El CBU debe tener 22 dígitos')
-    .optional(),
+  cbu: cbuSchema.optional(),
   aliasCbu: z
     .string()
     .trim()

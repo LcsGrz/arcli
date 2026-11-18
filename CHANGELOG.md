@@ -23,6 +23,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### Cambiado
 
+- **CBU con dígitos verificadores:** el CBU de una FCE ya no se acepta solo por tener 22 dígitos: ARCLI controla sus dos dígitos verificadores (el del bloque de banco y sucursal y el de la cuenta) en `--cbu`, la clave `cbu` del JSON de `--cargar`, `arcli config establecer cbu` y el modo interactivo. Si alguno no coincide, frena antes de ir a ARCA con `INPUT_VALIDATION_ERROR` y dice qué bloque está mal. Un CBU real siempre los cumple: si uno que usabas ahora da error, tiene un dígito mal escrito. Si el CBU mal está guardado en la config, los comandos frenan con `El CBU guardado en la config no es válido`, el bloque que falla y la sugerencia de cambiarlo con `arcli config establecer cbu <CBU>`, que funciona aunque la config tenga el CBU mal. No cambia ninguna clave del `--json`.
 - **Nota de débito FCE con `--anulacion` sobre la factura:** ahora frena antes de ir a ARCA con `INPUT_VALIDATION_ERROR` y la sugerencia de sacar `--anulacion`. Antes llegaba a ARCA, que la rechazaba: con anulación, una nota de débito FCE solo ajusta una nota de crédito FCE.
 - **Monedas y cotizaciones en el modo interactivo:** en Consultas, "Cotización de una moneda" pasa a ser **Monedas y cotizaciones**, la tabla de monedas de ARCA donde Enter muestra la cotización oficial de la que elegís, con su nombre (`Euro (060)`); monedas sale de **Tablas de ARCA**, que ya no la repite. Volver a elegir una moneda no consulta ARCA otra vez. `arcli parametros monedas` y `arcli parametros cotizacion` no cambian.
 - **Configuración del modo interactivo sin "Dónde está la config":** la ruta sigue en `arcli config ruta`, y la carpeta de certificados, en Ver configuración.
@@ -36,6 +37,24 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Paneles desarmados con emojis, caracteres chinos o una `é` pegada desde macOS:** ARCLI medía el texto por cantidad de caracteres y no por las columnas que ocupa en la terminal, así que con un nombre como `Café 🧾` o `東京` el borde derecho quedaba corrido. Ahora se mide como la terminal, y una palabra larga se corta sin partir un emoji ni separar una letra de su acento. No cambia el `--json`.
 - **`TERM=dumb` sin colores:** en terminales que no entienden códigos de escape (Emacs `M-x shell`, algunas consolas de CI) la salida traía códigos de color sueltos. Ahora `TERM=dumb` los apaga, como `NO_COLOR`. `FORCE_COLOR=1` sigue forzándolos y `NO_COLOR` sigue ganando sobre los dos.
 - **`29/2` sin año cerca de un bisiesto:** el año se elegía sin mirar si ese 29/02 existía, así que el 1/9/2028 `--fecha 29/2` (o `--vto`, `--sd`, `--sh`) daba "no es válida" en lugar de tomar el 29/02/2028. Ahora solo cuentan los años donde la fecha existe. No cambia ninguna otra fecha.
+
+## [2.5.2] - 2026-11-18
+
+Arreglos de una revisión de la factura `E` y de las notas contra los manuales de ARCA. Lo más importante: se pueden volver a hacer notas sobre facturas de Comprobantes en línea o de un controlador fiscal, y la `E` de servicios en moneda extranjera y la `E` en pesos ya no salen rechazadas en producción. Puede afectar scripts:
+
+- En la `E` en pesos, `solicitud` del `--json` ya no trae `CanMisMonExt`.
+- En la `E` a un destino sin CUIT en la tabla de ARCA, con `--id-impositivo` y sin `--cuit-pais`, ya no hay error: `solicitud` no trae `Cuit_pais_cliente` y `exportacion.cuitPaisCliente` es `null`.
+- Una nota A, B, C o FCE cuyo asociado no está en ARCA y es de un punto de venta que no es de web service ya no frena: sigue con un aviso en `avisos`.
+
+Fuera de eso, no cambia ningún comando, flag, clave de config ni clave de `--json`.
+
+### Corregido
+
+- **Una nota sobre una factura de Comprobantes en línea o de un controlador fiscal se puede volver a hacer:** desde la 2.5.1, una nota A, B, C o FCE cuyo asociado no estaba en ARCA frenaba con `INPUT_VALIDATION_ERROR`, y la consulta de ARCA (`FECompConsultar`) solo ve lo emitido por web service: quien pasaba de Comprobantes en línea a ARCLI no podía hacer una NC sobre una factura vieja. Ahora frena solo si el punto de venta del asociado es uno de tus puntos de venta de web service (ahí es casi seguro un número mal escrito). Si no lo es, la nota sigue con un aviso en `avisos`, sin controlar el tope de la NC, que recuerda pasar `--afecha` (ARCA la exige para controlador fiscal y FactuWeb, error 10211); en NC/ND FCE sin `--afecha` sigue siendo error, porque la fecha no se puede tomar de ARCA. Si no se pueden consultar los puntos de venta, también es un aviso. En el modo interactivo, al ingresar a mano una factura así, el aviso explica que la nota se hace por período o con flags.
+- **La factura `E` en pesos ya no manda `CanMisMonExt`:** ARCLI lo mandaba en `N` en toda factura `E`, y con `--moneda ARS` (o `PES`) ARCA pide que ese campo no se informe (error 1605). Testing lo acepta, pero en producción la `E` en pesos saldría rechazada. Ahora no se manda, así que `solicitud` del `--json` de una `E` en pesos deja de traer `CanMisMonExt`; `exportacion.mismaMoneda` sigue en `false`. En moneda extranjera no cambia nada.
+- **La `E` de servicios en moneda extranjera ya no sale rechazada por la cotización (error 2053):** sin `--cotizacion-moneda`, ARCLI pedía la cotización de aduana del día del comprobante, y en servicios ARCA exige la del día hábil anterior. Una `E` de servicios con fecha pasada salía rechazada siempre, y una de hoy, en cuanto ARCA publicaba la del día. Ahora en servicios (`--tipo-expo 2`, el default) se usa la del día hábil anterior a la fecha del comprobante: un lunes o después de un feriado, la del último día hábil, con un aviso. Con `--misma-moneda` también, en cualquier tipo, como pide el manual de ARCA. Bienes, otros y las notas `E` (que heredan la cotización del asociado) no cambian.
+- **`--cuit-pais` ya no es obligatorio en la `E` cuando ARCA no publica el CUIT del destino:** 155 de los 303 destinos no tienen CUIT en la tabla de ARCA (Irlanda, Alemania, Emiratos, Panamá, Hong Kong, Rusia, las zonas francas y el AAE de Tierra del Fuego, entre otros), y la única salida era pasar el CUIT de otro país. ARCA pide el CUIT del país **o** el ID impositivo del cliente (error 1580), así que ahora alcanza con `--id-impositivo` (o `idImpositivo` de `--cargar`): `Cuit_pais_cliente` no se manda, `solicitud` del `--json` no lo trae y `exportacion.cuitPaisCliente` sale `null`. Sin ninguno de los dos, `INPUT_VALIDATION_ERROR` pide uno. En el modo interactivo el CUIT del país se puede dejar vacío y entonces se pide el ID impositivo. Cuando la tabla trae el CUIT, todo sigue igual.
+- **La `E` acepta cotizaciones menores a 1:** `--cotizacion-moneda` (o `cotizacionMoneda` de `--cargar`, o la cotización del modo interactivo) tenía que ser mayor a 1, y hay monedas que valen menos de un peso, como el guaraní (`029`) o el peso colombiano (`032`). Además, toda nota `E` sobre una factura en esas monedas fallaba, porque hereda su cotización. Ahora alcanza con que sea mayor a 0, como pide ARCA (error 1600). En A, B y C no había esa regla: solo se rechaza la cotización 1 en moneda extranjera.
 
 ## [2.5.1] - 2026-11-18
 
@@ -606,7 +625,8 @@ Primera versión publicada en npm.
 - `llms.txt`: referencia condensada para que un agente de IA con acceso a terminal ejecute el CLI.
 - Publicación con npm Trusted Publishers (OIDC).
 
-[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v2.5.1...HEAD
+[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v2.5.2...HEAD
+[2.5.2]: https://github.com/LcsGrz/arcli/compare/v2.5.1...v2.5.2
 [2.5.1]: https://github.com/LcsGrz/arcli/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/LcsGrz/arcli/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/LcsGrz/arcli/compare/v2.3.0...v2.4.0

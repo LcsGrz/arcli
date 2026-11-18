@@ -19,7 +19,7 @@ import {
   getExportVoucherKindByShortcut,
 } from './export.types';
 
-/** Servicios: el tipo de exportacion en el que ARCA compara la nota contra el asociado (errores 2048 a 2055). */
+/** Servicios: el tipo de exportacion en el que ARCA compara la nota contra el asociado (2048 a 2055, WSFEX v3.1.0). */
 const SERVICES_EXPORT_TYPE = 2;
 
 const ASSOCIATED_SHORTCUTS = EXPORT_VOUCHER_KINDS.map((kind) => `\`${kind.shortcut}\``)
@@ -134,6 +134,7 @@ export function assertExportNoteFields(input: ExportVoucherInput, kind: ExportVo
     );
   }
 
+  // 1605 (WSFEX v3.1.0); ARCA testing no la aplica y aprueba la nota con CanMisMonExt en S (TEST-8).
   if (input.sameCurrency) {
     throw new InputValidationError(
       `${subject} no lleva \`--misma-moneda\`: ARCA solo lo acepta en la factura (error 1605).`,
@@ -231,6 +232,8 @@ export function assertExportNoteMatchesAssociated(options: {
     return;
   }
 
+  // 2049 (WSFEX v3.1.0) mira la nota de servicios; una nota de otro tipo sobre una factura de servicios es propia:
+  // ARCA testing la aprueba (TEST-8).
   if (note.exportType !== associated.exportType) {
     throw new InputValidationError(
       `${capitalize(label)} es de tipo de exportación ${associated.exportType}: en servicios la nota tiene que ser del mismo tipo (error 2049). Sacá \`--tipo-expo\`.`,
