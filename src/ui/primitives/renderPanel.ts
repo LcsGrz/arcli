@@ -15,6 +15,7 @@ import {
   maxVisibleWidth,
   stripAnsi,
   type UiTextColor,
+  visibleWidth,
   wrapPanelLines,
 } from './text';
 
@@ -99,7 +100,7 @@ function joinDividers(box: string, junction: NonNullable<UiBorderStyle['junction
         return line;
       }
 
-      const width = stripAnsi(line).replace(DIVIDER_MARKER, '').length;
+      const width = visibleWidth(line.replace(DIVIDER_MARKER, ''));
 
       return `${left}${fill.repeat(Math.max(0, width - 2))}${right}`;
     })

@@ -200,6 +200,35 @@ export interface BillingCommandPlan {
   readonly total: number;
 }
 
+type FileField = NonNullable<BillingCommandInput['fromFile']>[number];
+
+const FILE_FIELD_KEYS: Readonly<Record<FileField, keyof BillingJsonInput>> = {
+  dueDay: 'dia',
+  pdfDescription: 'descripcion',
+  receiverAddress: 'receptorDomicilio',
+  receiverName: 'receptorNombre',
+  saleCondition: 'condicionVenta',
+};
+
+/** Los datos que avisan algo y salieron del archivo: estan en el JSON y no hay flag que los pise. */
+function resolveFileFields(
+  fileInput: BillingJsonInput | undefined,
+  flags: Readonly<Record<FileField, unknown>>,
+): FileField[] | undefined {
+  if (!fileInput) {
+    return undefined;
+  }
+
+  const fields = (Object.keys(FILE_FIELD_KEYS) as FileField[]).filter(
+    (field) =>
+      flags[field] === undefined &&
+      fileInput[FILE_FIELD_KEYS[field]] !== undefined &&
+      fileInput[FILE_FIELD_KEYS[field]] !== null,
+  );
+
+  return fields.length > 0 ? fields : undefined;
+}
+
 function parseBillingCommandInputFromSource(
   command: Command,
   shortcut: VoucherShortcut,
@@ -372,6 +401,13 @@ function parseBillingCommandInputFromSource(
 
   const saleCondition =
     commandOptions.sinCondicionVenta === true ? null : (flagSaleCondition ?? fileInput?.condicionVenta);
+  const fromFile = resolveFileFields(fileInput, {
+    dueDay: commandOptions.dia,
+    pdfDescription: commandOptions.descripcion,
+    receiverAddress: commandOptions.receptorDomicilio,
+    receiverName: commandOptions.receptorNombre,
+    saleCondition: commandOptions.sinCondicionVenta === true ? null : flagSaleCondition,
+  });
 
   return {
     ...billingCommandSchema.parse({
@@ -395,6 +431,7 @@ function parseBillingCommandInputFromSource(
       exchangeRate,
       exchangeRateSource: configExchangeRate === undefined ? undefined : 'config',
       exemptAmount,
+      fromFile,
       ivaRate: ivaRateAmounts
         ? undefined
         : (flagRates.ivaRate ?? fileInput?.alicuotaIva ?? (usesIvaRateDefault ? defaults.defaultIvaRate : undefined)),

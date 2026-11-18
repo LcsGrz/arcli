@@ -26,11 +26,11 @@ describe('buildExportEquivalentCommand', () => {
         language: 2,
         observations: 'Pedido 42',
       },
-      { activity: 620100, environment: 'testing' },
+      { activity: 620100, environment: 'testing', platform: 'linux' },
     );
 
     expect(command).toBe(
-      'arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino "ESTADOS UNIDOS" --cuit-pais 55000002126 --tipo-expo 1 --actividad 620100 --item "Bienes varios|2|500|1" --item "A1|Flete|1|500|7" --moneda DOL --cm 1174,605 --incoterm FOB --incoterms-desc "Free on board" --idioma 2 --observaciones "Pedido 42" --obs-comerciales "Pago a 30 días" --testing --emitir',
+      "arcli fe -m 1500 --cliente 'ACME LLC' --domicilio-cliente '123 Main St' --pais-destino 'ESTADOS UNIDOS' --cuit-pais 55000002126 --tipo-expo 1 --actividad 620100 --item 'Bienes varios|2|500|1' --item 'A1|Flete|1|500|7' --moneda DOL --cm 1174,605 --incoterm FOB --incoterms-desc 'Free on board' --idioma 2 --observaciones 'Pedido 42' --obs-comerciales 'Pago a 30 días' --testing --emitir",
     );
   });
 
@@ -43,18 +43,18 @@ describe('buildExportEquivalentCommand', () => {
         items: [{ description: 'Ajuste', quantity: 1, unitPrice: 100 }],
         voucherKind: EXPORT_CREDIT_NOTE_KIND,
       },
-      { environment: 'produccion' },
+      { environment: 'produccion', platform: 'linux' },
     );
 
-    expect(command).toBe('arcli nce -m 100 --ar 3 --apv 4 --ac nde --item "Ajuste|1|100" --produccion --emitir');
+    expect(command).toBe("arcli nce -m 100 --ar 3 --apv 4 --ac nde --item 'Ajuste|1|100' --produccion --emitir");
   });
 
   it('lleva --pv solo si el punto de venta se eligió en el asistente', () => {
     const base = { amount: 100, emit: false } as const;
 
-    expect(buildExportEquivalentCommand({ ...base, pointOfSale: 7 }, { environment: 'testing' })).toBe(
-      'arcli fe -m 100 --pv 7 --testing --emitir',
-    );
-    expect(buildExportEquivalentCommand(base, { environment: 'testing' })).not.toContain('--pv');
+    expect(
+      buildExportEquivalentCommand({ ...base, pointOfSale: 7 }, { environment: 'testing', platform: 'linux' }),
+    ).toBe('arcli fe -m 100 --pv 7 --testing --emitir');
+    expect(buildExportEquivalentCommand(base, { environment: 'testing', platform: 'linux' })).not.toContain('--pv');
   });
 });

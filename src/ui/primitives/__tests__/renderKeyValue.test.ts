@@ -13,6 +13,16 @@ describe('renderKeyValueRows', () => {
     expect(lines).toEqual(['CUIT            20-33333333-4', 'Punto de venta  3']);
   });
 
+  it('alinea la columna con etiquetas con emoji, CJK o é NFD', () => {
+    const lines = renderKeyValueRows([
+      ['🧾 Total', '1'],
+      ['東京', '2'],
+      ['Razén', '3'],
+    ]).map(stripAnsi);
+
+    expect(lines).toEqual(['🧾 Total  1', '東京      2', 'Razén     3']);
+  });
+
   it('sangra las filas y muestra N/D si falta el valor', () => {
     expect(renderKeyValueRows([['Alias', '']], { indent: 2 }).map(stripAnsi)).toEqual(['  Alias  N/D']);
   });
