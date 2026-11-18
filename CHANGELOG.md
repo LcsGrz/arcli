@@ -8,6 +8,16 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+## [2.5.1] - 2026-11-18
+
+Arreglos de un chequeo de la 2.5.0 contra ARCA testing. Lo más importante: la factura `E` de bienes se puede volver a emitir (ARCA la rechazaba con el error 1673). Puede afectar scripts:
+
+- Una nota A, B, C o FCE cuyo asociado propio no existe en ARCA ahora frena antes de ir a ARCA con `INPUT_VALIDATION_ERROR`. Las notas de débito también consultan el asociado antes de la vista previa.
+- `arcli padron --json` trae cada actividad una sola vez.
+- En la `E` de bienes, `solicitud` del `--json` ya no trae `Fecha_pago`, porque no se manda a ARCA; `--fecha-pago` se acepta y se ignora con un aviso.
+
+Fuera de `Fecha_pago` en la `solicitud` de la `E` de bienes, no cambia ningún comando, flag, clave de config ni clave de `--json`.
+
 ### Corregido
 
 - **La factura `E` de bienes se puede emitir:** ARCLI mandaba siempre la fecha de pago y ARCA rechazaba la `E` de bienes (`--tipo-expo 1`) con el error 1673. Ahora la fecha de pago va solo en servicios y otros (`--tipo-expo 2` y `4`), como pide ARCA. En bienes, `--fecha-pago` (o `fechaPago` de `--cargar`) se sigue aceptando pero no se usa y sale un aviso en `avisos`; `solicitud` del `--json` deja de traer `Fecha_pago`, porque ya no se manda. El modo interactivo no pregunta la fecha de pago en bienes. Las notas `E` no cambian.
@@ -567,7 +577,8 @@ Primera versión publicada en npm.
 - `llms.txt`: referencia condensada para que un agente de IA con acceso a terminal ejecute el CLI.
 - Publicación con npm Trusted Publishers (OIDC).
 
-[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v2.5.0...HEAD
+[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v2.5.1...HEAD
+[2.5.1]: https://github.com/LcsGrz/arcli/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/LcsGrz/arcli/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/LcsGrz/arcli/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/LcsGrz/arcli/compare/v2.2.1...v2.3.0
