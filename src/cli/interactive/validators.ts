@@ -4,6 +4,7 @@ import {
   parseArgentineDateInputAsArcaDate,
 } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
+import { describeInvalidCbu, parseCbu } from '../../lib/identity/cbu';
 import { parseCuit } from '../../lib/identity/cuit';
 import { EXCHANGE_RATE_DECIMALS, parseArgentineAmount } from '../../lib/numbers/argentine-amount';
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
@@ -34,7 +35,9 @@ export function validateDni(value: string): string | true {
 }
 
 export function validateCbu(value: string): string | true {
-  return /^\d{22}$/.test(value) ? true : 'El CBU tiene 22 dígitos.';
+  const result = parseCbu(value);
+
+  return result.ok ? true : describeInvalidCbu(result.reason);
 }
 
 /** Como `--alias`: vacio vale (no se informa); si no, de 6 a 20 letras, números, puntos o guiones. */

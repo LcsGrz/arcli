@@ -1,6 +1,8 @@
 import {
+  addDaysToArcaDate,
   formatArcaDateAsArgentineDate,
   formatDateAsArcaDate,
+  minArcaDate,
   parseArgentineDateInputAsArcaDate,
 } from '../../lib/dates/arca-date';
 import { AppError, InputValidationError } from '../../lib/errors/app-error';
@@ -38,6 +40,9 @@ const ARGENTINA_COUNTRY_CODE = 200;
 /** Forma de pago por defecto: WSFEX la exige y casi todas las exportaciones se cobran por transferencia internacional. */
 export const DEFAULT_EXPORT_PAYMENT_TERMS = 'Transferencia Internacional';
 
+/** Exportacion de servicios: la cotizacion es la del dia habil anterior (error 2053). */
+const SERVICES_EXPORT_TYPE: ExportType = 2;
+
 /** ARCA no acepta cotizaciones en pesos distintas de 1. */
 const LOCAL_EXCHANGE_RATE = 1;
 
@@ -47,7 +52,8 @@ export interface BuildExportResolution {
   readonly activity: number;
   /** Solo en las notas: va en `Cmps_asoc`. */
   readonly associatedVoucher?: ExportAssociatedVoucherPayload;
-  readonly clientCountryCuit: number;
+  /** Sin CUIT del pais la E va solo con el ID impositivo (error 1580). */
+  readonly clientCountryCuit?: number;
   readonly currency: ExportCurrencyResolution['fields'];
   readonly destinationCountry: ExportCountry;
   readonly exportType: ExportType;
@@ -101,16 +107,19 @@ export function resolveExportCurrency(
       );
     }
 
+    // Con la E en pesos ARCA pide que `CanMisMonExt` no se informe (error 1605): testing lo acepta, produccion no.
     return {
-      fields: { CanMisMonExt: 'N', Moneda_ctz: LOCAL_EXCHANGE_RATE, Moneda_Id: currencyCode },
+      fields: { Moneda_ctz: LOCAL_EXCHANGE_RATE, Moneda_Id: currencyCode },
       needsQuotation: false,
     };
   }
 
   const rate = input.exchangeRate;
 
-  if (rate !== undefined && rate <= LOCAL_EXCHANGE_RATE) {
-    throw new InputValidationError(`La cotización de ${displayCode} tiene que ser mayor a 1.`);
+  // ARCA pide una cotizacion mayor a 0 (errores 1600 y 1602): hay monedas que valen menos de un peso, como el
+  // guarani o el peso colombiano, y una nota sobre una factura en esas monedas hereda su cotizacion.
+  if (rate !== undefined && !(rate > 0)) {
+    throw new InputValidationError(`La cotización de ${displayCode} tiene que ser mayor a 0.`);
   }
 
   return {
@@ -121,6 +130,40 @@ export function resolveExportCurrency(
     },
     needsQuotation: rate === undefined,
   };
+}
+
+/** De que dia se pide la cotizacion de aduana y por que. */
+export interface ExportQuotationDate {
+  /** Fecha ARCA (yyyymmdd) con la que se consulta `FEXGetPARAM_MON_CON_COTIZACION`. */
+  readonly date: string;
+  /**
+   * `previous-business-day`: ARCA exige la del dia habil anterior (servicios, error 2053, o pago en la misma moneda);
+   * `voucher-date`: la de la fecha del comprobante, o la ultima publicada antes.
+   */
+  readonly rule: 'previous-business-day' | 'voucher-date';
+}
+
+/**
+ * La fecha de la cotizacion que exige ARCA. En la factura de servicios en moneda extranjera tiene que ser la del dia
+ * habil anterior a la fecha de emision, o a la de la solicitud si la factura es posterior (error 2053). Con el pago
+ * en la misma moneda (`CanMisMonExt` en `S`), lo mismo, por el historial 3.0.0 del manual. Se consulta el dia
+ * anterior y WSFEX devuelve la ultima publicada hasta ese dia, que en un lunes o despues de un feriado es la del
+ * ultimo dia habil. Las notas heredan la cotizacion del asociado (2053) y bienes y otros siguen con la del dia.
+ */
+export function resolveExportQuotationDate(options: {
+  readonly exportType: ExportType;
+  readonly isNote: boolean;
+  readonly sameCurrency: boolean;
+  readonly today: string;
+  readonly voucherDate: string;
+}): ExportQuotationDate {
+  const { exportType, isNote, sameCurrency, today, voucherDate } = options;
+
+  if (isNote || (exportType !== SERVICES_EXPORT_TYPE && !sameCurrency)) {
+    return { date: voucherDate, rule: 'voucher-date' };
+  }
+
+  return { date: addDaysToArcaDate(minArcaDate(voucherDate, today), -1), rule: 'previous-business-day' };
 }
 
 /**
@@ -274,31 +317,25 @@ function pickCountryCuit(entries: readonly ExportCountryCuit[]): ExportCountryCu
 }
 
 /**
- * WSFEX pide el CUIT del pais del cliente. Se resuelve con la tabla DST_CUIT, que nombra cada pais con el tipo de
+ * WSFEX pide el CUIT del pais del cliente o su ID impositivo: con uno alcanza (error 1580). Se resuelve con la tabla DST_CUIT, que nombra cada pais con el tipo de
  * entidad ("ESTADOS UNIDOS - Persona Jurídica"), mientras que la tabla de destinos dice solo "ESTADOS UNIDOS": por
  * eso se compara sin el sufijo. Si el CUIT viene por flag se valida contra la tabla, salvo para los paises cuyo
- * nombre no coincide entre las dos tablas ("CHINA" y "CHINA REP.POPULAR"), donde solo se acepta que exista.
+ * nombre no coincide entre las dos tablas ("CHINA" y "CHINA REP.POPULAR"), donde solo se acepta que exista. Si la
+ * tabla no trae el destino y no vino por flag, no hay CUIT: la E va solo con el ID impositivo (ver
+ * `assertExportClientIdentification`).
  */
 export function resolveExportClientCountryCuit(options: {
   readonly country: ExportCountry;
   readonly countries: readonly ExportCountryCuit[];
   readonly cuit?: number;
-}): number {
+}): number | undefined {
   const destination = normalizeCountryName(options.country.name);
   const forDestination = options.countries.filter(
     (entry) => normalizeCountryName(countryNameWithoutEntity(entry.countryName)) === destination,
   );
 
   if (options.cuit === undefined) {
-    const resolved = pickCountryCuit(forDestination);
-
-    if (!resolved) {
-      throw new InputValidationError(
-        `La tabla de ARCA no tiene CUIT para "${options.country.name}". Indicalo con \`--cuit-pais\`.`,
-      );
-    }
-
-    return resolved.cuit;
+    return pickCountryCuit(forDestination)?.cuit;
   }
 
   const match = options.countries.find((entry) => entry.cuit === options.cuit);
@@ -316,6 +353,22 @@ export function resolveExportClientCountryCuit(options: {
   }
 
   return options.cuit;
+}
+
+/**
+ * ARCA pide el CUIT del pais del cliente o su ID impositivo, al menos uno (error 1580). Sin CUIT (la tabla no trae el
+ * destino, como pasa con Irlanda, Alemania o las zonas francas) la E va solo con el ID impositivo.
+ */
+export function assertExportClientIdentification(options: {
+  readonly clientCountryCuit?: number;
+  readonly clientTaxId?: string;
+  readonly country: ExportCountry;
+}): void {
+  if (options.clientCountryCuit === undefined && !options.clientTaxId?.trim()) {
+    throw new InputValidationError(
+      `La tabla de ARCA no tiene CUIT para "${options.country.name}" y ARCA pide el CUIT del país o el ID impositivo del cliente (error 1580). Indicá el ID impositivo con \`--id-impositivo\` o el CUIT del país con \`--cuit-pais\`.`,
+    );
+  }
 }
 
 /** `--incoterm` se compara contra la tabla de ARCA, sin importar mayusculas. */
@@ -434,7 +487,7 @@ export function exportTypeTakesPaymentDate(exportType: ExportType, isNote: boole
  * Los bloques vacios no van: `Permisos` sin permisos (error 1720), `Cmps_asoc` y `Opcionales` sin filas (error 1820
  * el primero). `Actividades`, en cambio, siempre lleva una `Actividad` (error 2100). Las notas llevan `Cmps_asoc` y
  * `Permiso_existente` vacio (1550), y no llevan `Fecha_pago` (1673) ni `CanMisMonExt` (1605). La factura de bienes
- * tampoco lleva `Fecha_pago` (1673): solo va en servicios y otros.
+ * tampoco lleva `Fecha_pago` (1673): solo va en servicios y otros. La factura en pesos no lleva `CanMisMonExt` (1605).
  */
 export function buildExportPayload(input: ExportVoucherInput, resolution: BuildExportResolution): ExportVoucherPayload {
   const clientName = requireText(input.clientName, 'el nombre del cliente', '`--cliente`');
@@ -458,12 +511,12 @@ export function buildExportPayload(input: ExportVoucherInput, resolution: BuildE
   return {
     // Actividades va siempre con una: con el bloque vacio ARCA contesta 2100.
     Actividades: { Actividad: [{ Id: resolution.activity }] },
-    ...(isNote ? {} : { CanMisMonExt: resolution.currency.CanMisMonExt }),
+    ...(isNote || !resolution.currency.CanMisMonExt ? {} : { CanMisMonExt: resolution.currency.CanMisMonExt }),
     Cbte_nro: resolution.voucherNumber,
     Cbte_Tipo: resolution.voucherKind.arcaType,
     Cliente: clientName,
     ...(resolution.associatedVoucher ? { Cmps_asoc: { Cmp_asoc: [resolution.associatedVoucher] } } : {}),
-    Cuit_pais_cliente: resolution.clientCountryCuit,
+    ...(resolution.clientCountryCuit === undefined ? {} : { Cuit_pais_cliente: resolution.clientCountryCuit }),
     Domicilio_cliente: clientAddress,
     Dst_cmp: resolution.destinationCountry.code,
     Fecha_cbte: resolution.voucherDate,

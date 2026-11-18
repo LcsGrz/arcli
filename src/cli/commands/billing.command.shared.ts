@@ -14,6 +14,7 @@ import { isPadronLookupEnabled } from '../../modules/config/config.schemas';
 import type { FceObligationGateway } from '../../modules/fce/fce-obligation';
 import type { FceRegistryGateway } from '../../modules/fce/fce-registry';
 import type { PadronGateway } from '../../modules/padron/padron';
+import type { ParametersGateway } from '../../modules/parameters/parameters';
 import type { VoucherHistoryGateway } from '../../modules/vouchers/voucher-history';
 import { ArcaBillingGateway } from '../../services/arca/arca-billing.gateway';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
@@ -21,6 +22,7 @@ import type { ResolvedArcaRuntime } from '../../services/arca/arca-context.resol
 import { ArcaFceObligationGateway } from '../../services/arca/arca-fce-obligation.gateway';
 import { ArcaFceRegistryGateway } from '../../services/arca/arca-fce-registry.gateway';
 import { ArcaPadronGateway } from '../../services/arca/arca-padron.gateway';
+import { ArcaParametersGateway } from '../../services/arca/arca-parameters.gateway';
 import { ArcaVoucherHistoryGateway } from '../../services/arca/arca-voucher-history.gateway';
 import { certificateWarnings, resolveArcaRuntime } from '../arca-runtime';
 import { getGlobalOptions, registerGlobalOptions } from '../global-options';
@@ -107,9 +109,14 @@ export interface BillingCommandGateways {
   readonly fce: FceObligationGateway;
   /** Para avisar si el comprador no rechazó el asociado de una nota FCE de anulación. */
   readonly fceRegistry: Pick<FceRegistryGateway, 'getVoucherState'>;
-  /** Para consultar el comprobante asociado de una nota antes de la vista previa. */
-  readonly history: Pick<VoucherHistoryGateway, 'getVoucher'>;
+  /**
+   * Para consultar el comprobante asociado de una nota antes de la vista previa; si ARCA no lo tiene, el ultimo
+   * numero de su punto de venta dice si es de web service (ver `classifyAssociatedPointOfSale`).
+   */
+  readonly history: Pick<VoucherHistoryGateway, 'getLastNumber' | 'getVoucher'>;
   readonly padron: PadronGateway;
+  /** Los puntos de venta de web service del emisor, para un asociado que ARCA no tiene. */
+  readonly salesPoints?: Pick<ParametersGateway, 'getSalesPoints'>;
 }
 
 /** Lo que el comando toma de afuera: en los tests, una config y un ARCA falsos. */
@@ -128,6 +135,7 @@ const DEFAULT_DEPENDENCIES: BillingCommandDependencies = {
       fceRegistry: new ArcaFceRegistryGateway(arca),
       history: new ArcaVoucherHistoryGateway(arca),
       padron: new ArcaPadronGateway(arca),
+      salesPoints: new ArcaParametersGateway(arca),
     };
   },
   resolveRuntime: resolveArcaRuntime,
@@ -162,6 +170,7 @@ export async function executeBillingCommand(
           gateway: gateways.history,
           input: entry.input,
           runtime,
+          salesPoints: gateways.salesPoints,
           service,
         });
 

@@ -44,6 +44,15 @@ export function diffArcaDatesInDays(from: string, to: string): number {
   return Math.round((arcaDateToUtcTime(to) - arcaDateToUtcTime(from)) / 86_400_000);
 }
 
+/** La fecha ARCA (yyyymmdd) `days` dias despues (o antes, con un numero negativo). */
+export function addDaysToArcaDate(value: string, days: number): string {
+  return new Date(arcaDateToUtcTime(value) + days * 86_400_000).toISOString().slice(0, 10).replace(/-/g, '');
+}
+
+export function minArcaDate(...values: string[]): string {
+  return values.reduce((earliest, value) => (value < earliest ? value : earliest));
+}
+
 export function maxArcaDate(...values: string[]): string {
   return values.reduce((latest, value) => (value > latest ? value : latest));
 }

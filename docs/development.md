@@ -32,6 +32,7 @@ yarn dev --ayuda
 | `yarn lint:eslint:fix`     | Corrige lo que ESLint puede arreglar solo                                                  |
 | `yarn lint:prettier:fix`   | Formatea con Prettier                                                                      |
 | `yarn docs:comprobantes`   | Escribe `docs/comprobantes/` desde `scripts/docs/comprobantes.ts`                          |
+| `yarn docs:readme-iconos`  | Escribe `docs/assets/iconos/` desde `site/src/icons.ts` y los títulos del README           |
 | `yarn contrato:actualizar` | Regenera la lista del contrato público (`src/cli/__tests__/public-contract.txt`)           |
 | `yarn pack:check`          | Empaqueta `dist`, lo instala en una carpeta temporal y corre `arcli --version` y `--ayuda` |
 | `yarn open-source:check`   | `typecheck`, `test:coverage`, `build`, `test:e2e` y `pack:check`                           |

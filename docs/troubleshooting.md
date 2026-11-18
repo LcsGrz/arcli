@@ -254,12 +254,22 @@ arcli fc ayuda
 - **Solución:** pasar `--cbu <22 dígitos>` o configurarlo una vez con `arcli config establecer cbu <22 dígitos>`.
 - **Documentación relacionada:** [Crédito electrónico (FCE)](validation-rules.md#crédito-electrónico-fce)
 
+### CBU con el dígito verificador mal
+
+- **Severidad:** ocasional
+- **Síntoma:** `El CBU no es válido: no coincide el dígito verificador del bloque de banco y sucursal (los primeros 8 dígitos).` (o `del bloque de la cuenta (los últimos 14 dígitos)`).
+- **Causa:** algún dígito del CBU está mal escrito o cambiado de lugar. ARCLI controla los dos dígitos verificadores antes de ir a ARCA.
+- **Solución:** copiá el CBU de nuevo desde el home banking o la constancia del banco. El mensaje dice en qué bloque está el error.
+- **Si está en la config:** cualquier comando frena con `El CBU guardado en la config no es válido: …` y el bloque que falla. Cambialo con `arcli config establecer cbu <CBU>`, que corre aunque la config tenga el CBU mal.
+- **Documentación relacionada:** [Crédito electrónico (FCE)](validation-rules.md#crédito-electrónico-fce)
+
 ### NC/ND: ARCA no tiene el asociado
 
 - **Severidad:** ocasional
 - **Síntoma:** `ARCA no tiene la factura B 00003-00099999.` En NC/ND FCE sin `--afecha`: `ARCA no tiene la factura de crédito electrónica ..., así que no se puede tomar su fecha.`
-- **Causa:** antes de la vista previa, arcli consulta en ARCA el asociado propio de la nota (A, B, C, FCE y `E`) y no existe. En NC/ND FCE, además, ARCA exige la fecha del asociado (10158) y sin `--afecha` arcli la toma de esa consulta. Hasta la 2.5.0, una nota A, B o C con un asociado inexistente se emitía: ARCA testing llega a aprobarla.
+- **Causa:** antes de la vista previa, arcli consulta en ARCA el asociado propio de la nota (A, B, C, FCE y `E`) y no existe en un punto de venta de web service tuyo. En NC/ND FCE, además, ARCA exige la fecha del asociado (10158) y sin `--afecha` arcli la toma de esa consulta. Hasta la 2.5.0, una nota A, B o C con un asociado inexistente se emitía: ARCA testing llega a aprobarla.
 - **Solución:** revisar `--ac`, `--apv` y `--ar`: tienen que apuntar a un comprobante tuyo ya emitido (`arcli ultimos <atajo>` lista los últimos). Si ARCA no respondió, una nota FCE sin `--afecha` también frena: reintentar o pasar la fecha con `--afecha`.
+- **Asociado de Comprobantes en línea o de un controlador fiscal:** si el punto de venta del asociado no es de web service, ARCA no lo tiene para consultar pero lo acepta como asociado. La nota no frena: sale el aviso `No se encontró la factura … en ARCA y el punto de venta … no es de web service`, sin controlar el tope de la NC. Pasá su fecha con `--afecha` (ARCA la exige para controlador fiscal y FactuWeb, error 10211; en NC/ND FCE ARCLI la pide siempre). En el modo interactivo, esa factura no se puede elegir: asociá la nota a un período o hacela con flags. En la 2.5.1 esto frenaba con `ARCA no tiene …`.
 - **Documentación relacionada:** [Comprobantes asociados](validation-rules.md#comprobantes-asociados)
 
 ### La nota de crédito supera el total de la factura
@@ -447,6 +457,14 @@ También se reconocen por el mensaje, sin código: receptor igual al emisor, `Tr
 - **Solución:** revisá el número del permiso (16 caracteres, como figura en la destinación de la Aduana) y que `--pais-destino` sea el de la mercadería.
 - **Si en cambio sale el aviso** `No se pudo verificar el permiso de embarque…`, ARCA no respondió la consulta: el comprobante se puede emitir igual, pero revisá el permiso, porque si es incorrecto ARCA lo rechaza al emitir. En testing ARCA contesta `OK` a cualquier permiso, así que la verificación solo sirve en producción.
 - **Documentación relacionada:** [Reglas de validación](validation-rules.md#factura-de-exportación-e), [Entrada y salida](input-output.md)
+
+### Factura E de servicios: la cotización es la del día anterior
+
+- **Severidad:** frecuente, en servicios (`--tipo-expo 2`, el default) y con `--misma-moneda`
+- **Síntoma:** la vista previa trae la cotización del día anterior a la fecha del comprobante, o un aviso `En servicios ARCA exige la cotización de DOL del día hábil anterior…` con la del último día hábil. Con una versión anterior a la 2.5.2, ARCA rechazaba la `E` de servicios con el error 2053 ("Cotizacion informada no valida. (FechaCot utilizada: …)").
+- **Causa:** en servicios ARCA exige la cotización del día hábil anterior a la fecha de emisión (error 2053), y con `--misma-moneda` también.
+- **Solución:** no hace falta hacer nada: ARCLI ya pide esa. Con `--cotizacion-moneda` en servicios, tiene que ser exactamente esa cotización, o ARCA rechaza con 2053.
+- **Documentación relacionada:** [Reglas de validación](validation-rules.md#factura-de-exportación-e)
 
 ## Batch
 

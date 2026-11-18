@@ -1,6 +1,7 @@
 /**
  * Iconos del sitio: trazos de 24x24, que `Icon.astro` dibuja con `stroke` (salvo `github`, que es relleno). La
- * portada los usa con `landing/LandingIcon.astro`, de puntas rectas.
+ * portada los usa con `landing/LandingIcon.astro`, de puntas rectas. Los títulos del README usan algunos como SVG en
+ * `docs/assets/iconos/`: si cambiás uno, `yarn docs:readme-iconos`.
  */
 export const ICONS = {
   descarga: '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>',
