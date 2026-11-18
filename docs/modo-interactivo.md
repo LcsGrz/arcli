@@ -67,14 +67,14 @@ Con el asistente, el aviso de nueva versión no se repite al salir. En los coman
 
 Primero pregunta solo lo **requerido**:
 
-| Paso | Pregunta         | Detalle                                                                                                                                                             |
-| ---- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1    | Comprobante      | Factura A, B o C, comunes o de crédito electrónica (FCE), o la de exportación E ([abajo](#factura-de-exportación-e))                                                |
-| 2    | Receptor         | Consumidor final, CUIT, DNI o CUIL, y el número. En la A solo CUIT, porque la A no admite consumidor final                                                          |
-| 3    | IVA del receptor | Solo las condiciones válidas para la letra elegida. Con consumidor final no se pregunta                                                                             |
-| 4    | Concepto         | Servicios, productos o ambos. Arranca en `config.concepto` si está configurado                                                                                      |
-| 5    | Monto total      | Acepta `150000`, `150.000`, `1500,50` o `1.500,50` (punto para miles, coma para decimales)                                                                          |
-| 6    | CBU              | Solo en facturas FCE y si no hay `config.cbu`. Si tampoco hay `aliasCbu`, pide el alias (Enter lo omite). Después de la confirmación ofrece guardarlos en la config |
+| Paso | Pregunta         | Detalle                                                                                                                                                                                                               |
+| ---- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Comprobante      | Factura A, B o C, comunes o de crédito electrónica (FCE), o la de exportación E ([abajo](#factura-de-exportación-e))                                                                                                  |
+| 2    | Receptor         | Consumidor final, CUIT, DNI o CUIL, y el número. En la A solo CUIT, porque la A no admite consumidor final                                                                                                            |
+| 3    | IVA del receptor | Solo las condiciones válidas para la letra elegida. Con consumidor final no se pregunta                                                                                                                               |
+| 4    | Concepto         | Servicios, productos o ambos. Arranca en `config.concepto` si está configurado                                                                                                                                        |
+| 5    | Monto total      | Acepta `150000`, `150.000`, `1500,50` o `1.500,50` (punto para miles, coma para decimales)                                                                                                                            |
+| 6    | CBU              | Solo en facturas FCE y si no hay `config.cbu`. Controla los dígitos verificadores, como `--cbu`. Si tampoco hay `aliasCbu`, pide el alias (Enter lo omite). Después de la confirmación ofrece guardarlos en la config |
 
 Después, **una sola pregunta con todos los opcionales** (ver abajo). Enter sin marcar nada sigue con los valores por defecto.
 
