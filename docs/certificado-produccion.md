@@ -23,9 +23,9 @@ Una sola vez: si ya lo hiciste para testing, salteá este paso. Si no, con tu cl
 2. Elegí el contribuyente
    ![Selección del contribuyente](assets/certificados/arca-seleccionar-contribuyente.png)
 3. Tocá "Adherir Servicio"
-   ![Botón Adherir Servicio](assets/certificados/arca-adherir-servicio.png)
+   ![Botón Adherir Servicio](assets/certificados/arca-adherir-servicio.webp)
 4. Elegí Administración de Certificados Digitales
-   ![Servicio Administración de Certificados Digitales](assets/certificados/arca-elegir-administracion-certificados.png)
+   ![Servicio Administración de Certificados Digitales](assets/certificados/arca-elegir-administracion-certificados.webp)
 5. Confirmá la relación
    ![Confirmación de la adhesión](assets/certificados/arca-confirmar-adhesion.png)
 

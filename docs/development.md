@@ -242,3 +242,5 @@ Están en `docs/assets/demo/` y se regeneran con scripts para que no queden desa
   ```
 
 El README las enlaza con URLs absolutas de `raw.githubusercontent.com` porque npmjs.com no muestra imágenes con rutas relativas.
+
+En `docs/` van en PNG o GIF, que es lo que muestra GitHub. El sitio sirve de cada una un WebP sin pérdida (los mismos píxeles y cuadros, con la mitad o menos de peso): lo genera `site/scripts/outputs/assets.mjs` con sharp al construirlo y lo guarda en `site/node_modules/.cache/arcli-webp/`, así `yarn dev` no lo rehace si la imagen no cambió. Una captura nueva va a unos 1400 px de ancho, no a la resolución de una pantalla retina.
