@@ -204,6 +204,8 @@ export function exportRepeatSteps(
 
         return answer === BACK ? BACK : { paymentDate: answer.trim() || undefined };
       },
+      // En bienes ARCA rechaza la fecha de pago (error 1673).
+      skip: (state) => state.copy?.exportType === 1,
     },
     {
       // La factura siempre tiene actividad; esto es por si ARCA no la devolvio y tampoco esta en la config.

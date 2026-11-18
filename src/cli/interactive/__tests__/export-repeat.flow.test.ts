@@ -156,7 +156,6 @@ describe('runExportRepeatFlow', () => {
       [/Cuál repetimos/, '00004-00000001'],
       [/Mismo monto/, 'Sí'],
       [/Permisos de embarque/, '26001EC01000123A'],
-      [/Fecha de pago/, ''],
       [/Agregamos algún opcional/, []],
       [/Emitimos la factura de exportación E en testing/, 'Sí, emitir ahora'],
     ]);
@@ -187,6 +186,8 @@ describe('runExportRepeatFlow', () => {
         Tipo_expo: 1,
       }),
     );
+    // En bienes no se pregunta ni se manda la fecha de pago: ARCA la rechaza (error 1673).
+    expect(vi.mocked(gateway.authorize).mock.calls[0]?.[0]).not.toHaveProperty('Fecha_pago');
     expect(printed()).toContain('Se copian el cliente ACME LLC, ESTADOS UNIDOS, la moneda, el incoterm y los ítems.');
     // El CUIT del país es el que ARCA publica para el destino: no hace falta repetirlo.
     expect(printed()).not.toContain('--cuit-pais');
@@ -195,13 +196,38 @@ describe('runExportRepeatFlow', () => {
     expect(vi.mocked(attachExportPdf).mock.calls[0]?.[1].input.pdf).toBe(false);
   });
 
+  it('en servicios pregunta la fecha de pago, que en bienes no va (ARCA la rechaza, 1673)', async () => {
+    const services: ExportIssuedVoucher = { ...INVOICE, exportType: 2, incoterm: undefined };
+    const original = vi.mocked(gateway.getVoucher).getMockImplementation();
+
+    vi.mocked(gateway.getVoucher).mockImplementation(async (query) =>
+      query.number === 1 && query.pointOfSale === 4 ? services : null,
+    );
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      [/Mismo monto/, 'Sí'],
+      [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
+      [/Emitimos/, 'Sí, emitir ahora'],
+    ]);
+
+    try {
+      await runExportRepeatFlow(createSession(), 4);
+    } finally {
+      vi.mocked(gateway.getVoucher).mockImplementation(original as NonNullable<typeof original>);
+    }
+
+    expect(gateway.authorize).toHaveBeenCalledWith(
+      expect.objectContaining({ Fecha_pago: expect.any(String), Tipo_expo: 2 }),
+    );
+  });
+
   it('con otro monto avisa que los ítems no se copian y sale un renglón con el total', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       [/Mismo monto/, 'No'],
       [/Monto total en DOL/, '2.000'],
       [/Permisos de embarque/, ''],
-      [/Fecha de pago/, ''],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'No, dejar sin emitir'],
     ]);
@@ -219,7 +245,6 @@ describe('runExportRepeatFlow', () => {
       [/Cuál repetimos/, '00004-00000001'],
       [/Mismo monto/, 'Sí'],
       [/Permisos de embarque/, ''],
-      [/Fecha de pago/, ''],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'Sí, emitir y generar el PDF'],
     ]);
@@ -235,7 +260,6 @@ describe('runExportRepeatFlow', () => {
       [/Cuál repetimos/, '00004-00000001'],
       [/Mismo monto/, 'Sí'],
       [/Permisos de embarque/, ''],
-      [/Fecha de pago/, ''],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'Sí, emitir ahora'],
     ]);

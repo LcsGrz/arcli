@@ -2,7 +2,7 @@ import type { FceObligationGateway } from '../fce/fce-obligation';
 import type { PadronGateway } from '../padron/padron';
 
 import { exchangeRateWarnings } from './billing.currency';
-import { DUE_DAY_DEPRECATION_WARNING } from './billing.date-range';
+import { DUE_DAY_DEPRECATION_WARNING, DUE_DAY_FILE_DEPRECATION_WARNING } from './billing.date-range';
 import type { BillingCommandInput } from './billing.schemas';
 import type { BillingService } from './billing.service';
 import type { BillingGateway } from './billing.types.internal';
@@ -36,7 +36,9 @@ export async function prepareBillingInput(
   return {
     input: resolved,
     warnings: [
-      ...(resolved.dueDay ? [DUE_DAY_DEPRECATION_WARNING] : []),
+      ...(resolved.dueDay
+        ? [resolved.fromFile?.includes('dueDay') ? DUE_DAY_FILE_DEPRECATION_WARNING : DUE_DAY_DEPRECATION_WARNING]
+        : []),
       ...exchangeRateWarnings(resolved),
       ...padron.warnings,
     ],

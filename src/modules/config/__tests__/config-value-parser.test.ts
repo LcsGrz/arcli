@@ -8,9 +8,12 @@ import { parseConfigValue } from '../config-value-parser';
 
 const temporaryDirectories: string[] = [];
 
-/** Error de zod de un valor fuera del enum, con los valores válidos que muestra la CLI. */
-function enumRejection(values: unknown) {
-  return expect.objectContaining({ issues: [expect.objectContaining({ code: 'invalid_value', values })] });
+/** Un valor fuera de la lista: error de entrada con lo que llego y los valores validos. */
+function enumRejection(value: string, values: readonly string[]) {
+  return expect.objectContaining({
+    code: 'INPUT_VALIDATION_ERROR',
+    message: `No se acepta "${value}". Valores válidos: ${values.join(', ')}.`,
+  });
 }
 
 function writePemFile(filename: string, content: string): string {
@@ -39,13 +42,40 @@ describe('config-value-parser', () => {
   });
 
   it('rejects values outside of the supported enums', () => {
-    expect(() => parseConfigValue('entornoPorDefecto', 'demo')).toThrow(enumRejection(['testing', 'produccion']));
+    expect(() => parseConfigValue('entornoPorDefecto', 'demo')).toThrow(
+      enumRejection('demo', ['testing', 'produccion']),
+    );
     expect(() => parseConfigValue('conceptoPorDefecto', 'cosas')).toThrow(
-      enumRejection(['productos', 'productos-servicios', 'servicios']),
+      enumRejection('cosas', ['productos', 'productos-servicios', 'servicios']),
     );
-    expect(() => parseConfigValue('ivaReceptorPorDefecto', 'algo-raro')).toThrow(
-      enumRejection(expect.arrayContaining(['consumidor-final', 'responsable-inscripto'])),
+    expect(() => parseConfigValue('ivaReceptorPorDefecto', 'algo-raro')).toThrow(/responsable-inscripto/);
+  });
+
+  it('con la clave como la escribió la persona, el mensaje la nombra junto al valor recibido', () => {
+    expect(() => parseConfigValue('emisor.condicionIva', 'Inscripto', 'emisor.condicionIva')).toThrow(
+      /^`emisor\.condicionIva` no acepta "Inscripto"\. Valores válidos: .*responsable-inscripto/,
     );
+    expect(() => parseConfigValue('entornoPorDefecto', 'demo', 'entorno')).toThrow(
+      '`entorno` no acepta "demo". Valores válidos: testing, produccion.',
+    );
+    expect(() => parseConfigValue('output.emitirPorDefecto', 'quizas', 'emitir')).toThrow(
+      '`emitir` no acepta "quizas". Usá true/false, si/no o 1/0.',
+    );
+    expect(() => parseConfigValue('puntoVentaPorDefecto', 'abc', 'puntoVenta')).toThrow(
+      '`puntoVenta` no acepta "abc": tiene que ser un entero positivo válido.',
+    );
+    expect(() => parseConfigValue('emisor.razonSocial', ' ', 'emisor.razonSocial')).toThrow(
+      '`emisor.razonSocial` no puede estar vacío.',
+    );
+    expect(() => parseConfigValue('condicionVenta', '', 'condicionVenta')).toThrow(
+      '`condicionVenta` no puede estar vacío.',
+    );
+  });
+
+  it('la moneda tiene que ser un código de 3 caracteres', () => {
+    expect(parseConfigValue('monedaPorDefecto', '060')).toBe('060');
+    expect(() => parseConfigValue('monedaPorDefecto', '', 'moneda')).toThrow(/^`moneda` no acepta "": tiene que ser/);
+    expect(() => parseConfigValue('monedaPorDefecto', 'DOLAR')).toThrow(/código de moneda de 3 caracteres/);
   });
 
   it('normalizes the currency code to uppercase', () => {
@@ -160,7 +190,9 @@ describe('config-value-parser', () => {
 
   it('parses the PDF mode and folder', () => {
     expect(parseConfigValue('pdf', 'Siempre')).toBe('siempre');
-    expect(() => parseConfigValue('pdf', 'a-veces')).toThrow(enumRejection(['siempre', 'preguntar', 'nunca']));
+    expect(() => parseConfigValue('pdf', 'a-veces')).toThrow(
+      enumRejection('a-veces', ['siempre', 'preguntar', 'nunca']),
+    );
     expect(parseConfigValue('pdfCarpeta', '/tmp/comprobantes')).toBe(resolve('/tmp/comprobantes'));
   });
 

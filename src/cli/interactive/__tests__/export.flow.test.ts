@@ -169,7 +169,7 @@ describe('runExportFlow', () => {
     expect(savedConfig).toHaveBeenCalledWith('exportacion.actividad', '620100');
   });
 
-  it('en bienes pregunta el incoterm y los permisos, toma la actividad de la config y no emite si se cancela', async () => {
+  it('en bienes pregunta el incoterm y los permisos y no la fecha de pago, toma la actividad de la config y no emite si se cancela', async () => {
     script = createScript([
       [/cliente del exterior/, 'ACME LLC'],
       [/Domicilio/, '123 Main St'],
@@ -182,7 +182,6 @@ describe('runExportFlow', () => {
       [/Incoterm/, 'FOB'],
       [/Permisos de embarque/, '26001EC01000123A, 26001EC01000124B'],
       [/Forma de pago/, 'Carta de crédito'],
-      [/Fecha de pago/, '15/11/2026'],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'No, dejar sin emitir'],
     ]);
@@ -193,7 +192,7 @@ describe('runExportFlow', () => {
     expect(savedConfig).not.toHaveBeenCalled();
     expect(printed()).toContain('No se emitió nada.');
     expect(printed()).toContain(
-      "--tipo-expo 1 --actividad 620100 --moneda PES --incoterm FOB --permiso 26001EC01000123A --permiso 26001EC01000124B --permiso-existente --forma-pago 'Carta de crédito' --fecha-pago 15/11/2026",
+      "--tipo-expo 1 --actividad 620100 --moneda PES --incoterm FOB --permiso 26001EC01000123A --permiso 26001EC01000124B --permiso-existente --forma-pago 'Carta de crédito'",
     );
   });
 
@@ -211,7 +210,6 @@ describe('runExportFlow', () => {
       [/Incoterm/, 'FOB'],
       [/Permisos de embarque/, ''],
       [/Forma de pago/, 'Transferencia Internacional'],
-      [/Fecha de pago/, ''],
       [/Agregamos algún opcional/, ['Ítems', 'Idioma', 'Observaciones', 'Descripción del incoterm', 'Cotización']],
       [/Descripción del ítem 1/, 'Bienes varios'],
       [/Cantidad/, '2'],

@@ -99,7 +99,7 @@ La `E` se elige en el mismo selector, pero tiene su propio asistente porque no l
 | 11   | Incoterm              | Solo en bienes, de la tabla de WSFEX, o sin incoterm                                                                                  |
 | 12   | Permisos de embarque  | Solo en bienes, opcional: los ya existentes en ARCA, separados por coma (`--permiso` con `--permiso-existente`)                       |
 | 13   | Forma de pago         | Por defecto "Transferencia Internacional"                                                                                             |
-| 14   | Fecha de pago         | Opcional; por defecto la del comprobante                                                                                              |
+| 14   | Fecha de pago         | Opcional; por defecto la del comprobante. En bienes no se pregunta                                                                    |
 | 15   | Actividad             | Solo si no está `exportacion.actividad`; se valida contra la tabla de WSFEX y después ofrece guardarla en la config                   |
 | 16   | Opcionales            | Una sola pregunta, como en A, B y C ([abajo](#opcionales-de-la-e))                                                                    |
 
@@ -213,7 +213,7 @@ Elegís una de las últimas facturas `E` (con **Cargar más…** e **Ingresar el
 | 3    | ¿Te pagan en…?       | Solo si ARCA no devolvió si se cobró en la misma moneda                                                                                                      |
 | 4    | CUIT del país        | Solo si la factura no lo trae y ARCA no publica uno para el destino                                                                                          |
 | 5    | Permisos de embarque | Solo en bienes, opcional: son de cada embarque                                                                                                               |
-| 6    | Fecha de pago        | Opcional; por defecto la del comprobante                                                                                                                     |
+| 6    | Fecha de pago        | Opcional; por defecto la del comprobante. En bienes no se pregunta                                                                                           |
 | 7    | Actividad            | Solo si la factura no la trae y no está `exportacion.actividad`                                                                                              |
 | 8    | Opcionales           | Los [de la E](#opcionales-de-la-e), con lo copiado ya cargado                                                                                                |
 

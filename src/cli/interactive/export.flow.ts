@@ -197,7 +197,8 @@ function exportSteps(
           2,
         );
 
-        return exportType === BACK ? BACK : { exportType, incoterm: undefined };
+        // La fecha de pago solo va en servicios y otros: si se vuelve y se elige bienes, no queda la anterior.
+        return exportType === BACK ? BACK : { exportType, incoterm: undefined, paymentDate: undefined };
       },
     },
     {
@@ -285,6 +286,8 @@ function exportSteps(
 
         return answer === BACK ? BACK : { paymentDate: optional(answer) };
       },
+      // En bienes ARCA rechaza la fecha de pago (error 1673).
+      skip: (state) => state.exportType === 1,
     },
     {
       name: 'actividad',
