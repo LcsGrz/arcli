@@ -12,6 +12,8 @@ const TAXPAYER: Taxpayer = {
   ivaCondition: 'responsable-inscripto',
   keyStatus: 'ACTIVO',
   monotributoCategory: null,
+  monotributoCategoryLetter: null,
+  monotributoCategorySince: null,
   name: 'VICTORIA CAROLINA DARIO',
   notices: [],
   personType: 'fisica',

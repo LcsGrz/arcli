@@ -52,6 +52,11 @@ export function formatArcaDateAsArgentineDate(value: string): string {
   return `${value.slice(6, 8)}/${value.slice(4, 6)}/${value.slice(0, 4)}`;
 }
 
+/** Periodo ARCA (yyyymm) como mes y año: `201309` → `09/2013`. */
+export function formatArcaPeriodAsArgentinePeriod(value: string): string {
+  return `${value.slice(4, 6)}/${value.slice(0, 4)}`;
+}
+
 export function parseArgentineDateInputAsArcaDate(value: string, referenceDate = new Date()): string {
   const normalizedValue = value.trim();
   const dateMatch = /^(\d{1,2})(?:([-/])(\d{1,2})(?:\2(\d{2}|\d{4}))?)?$/.exec(normalizedValue);

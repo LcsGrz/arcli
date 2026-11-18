@@ -864,6 +864,33 @@ describe('otros comandos que van a ARCA', () => {
     return golden('error-ultimos', ['ultimos', 'fc', '--json']);
   });
 
+  it('padron de un responsable inscripto', () => golden('padron', ['padron', String(CLIENT_CUIT), '--json']));
+
+  it('padron de un monotributista, con la letra y el periodo de la categoria', () => {
+    // Recortado de la respuesta real de ARCA testing para 20333333334 (17/11/2026).
+    sdk.padron.getTaxpayerDetails.mockResolvedValue({
+      datosGenerales: {
+        apellido: 'PEREZ TEST',
+        domicilioFiscal: { codPostal: '1406', direccion: 'MARTINEZ VICTOR 423' },
+        estadoClave: 'ACTIVO',
+        nombre: 'JUAN',
+        tipoPersona: 'FISICA',
+      },
+      datosMonotributo: {
+        actividadMonotributista: { descripcionActividad: 'CULTIVO DE FRUTAS DE CAROZO', idActividad: 12320 },
+        categoriaMonotributo: {
+          descripcionCategoria: 'E VENTAS DE COSAS MUEBLES',
+          idCategoria: 47,
+          idImpuesto: 20,
+          periodo: 201309,
+        },
+        impuesto: [{ descripcionImpuesto: 'MONOTRIBUTO', estadoImpuesto: 'AC', idImpuesto: 20, periodo: 201309 }],
+      },
+    });
+
+    return golden('padron-monotributista', ['padron', '20333333334', '--json']);
+  });
+
   it('TAXPAYER_NOT_FOUND', () => {
     sdk.padron.getTaxpayerDetails.mockResolvedValue(null);
 

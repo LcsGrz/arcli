@@ -4,6 +4,8 @@ import { AppError } from '../../lib/errors/app-error';
 import {
   deriveIvaCondition,
   type PadronGateway,
+  parseArcaPeriod,
+  parseMonotributoCategoryLetter,
   type Taxpayer,
   type TaxpayerActivity,
   type TaxpayerTax,
@@ -81,10 +83,21 @@ function readActivities(...sources: Array<UnknownRecord | undefined>): TaxpayerA
   );
 }
 
-function readMonotributoCategory(monotributo: UnknownRecord | undefined): string | null {
-  const category = monotributo?.categoriaMonotributo;
+type MonotributoCategory = Pick<
+  Taxpayer,
+  'monotributoCategory' | 'monotributoCategoryLetter' | 'monotributoCategorySince'
+>;
 
-  return asText(category) ?? asText(asRecord(category)?.descripcionCategoria);
+/** ARCA la manda como objeto (`descripcionCategoria`, `periodo`...); el SDK la tipa como texto, y se aceptan los dos. */
+function readMonotributoCategory(monotributo: UnknownRecord | undefined): MonotributoCategory {
+  const category = monotributo?.categoriaMonotributo;
+  const description = asText(category) ?? asText(asRecord(category)?.descripcionCategoria);
+
+  return {
+    monotributoCategory: description,
+    monotributoCategoryLetter: parseMonotributoCategoryLetter(description),
+    monotributoCategorySince: parseArcaPeriod(asRecord(category)?.periodo),
+  };
 }
 
 function readNotices(details: UnknownRecord): string[] {
@@ -111,7 +124,7 @@ export function mapTaxpayerDetails(cuit: number, raw: unknown): Taxpayer {
     cuit,
     ivaCondition: deriveIvaCondition({ monotributo: Boolean(monotributo), taxes }),
     keyStatus: asText(details.estadoClave) ?? asText(general?.estadoClave),
-    monotributoCategory: readMonotributoCategory(monotributo),
+    ...readMonotributoCategory(monotributo),
     name: readName(general),
     notices: readNotices(details),
     personType: readPersonType(details.tipoPersona ?? general?.tipoPersona),

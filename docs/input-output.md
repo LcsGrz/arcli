@@ -592,6 +592,8 @@ Si no hubo emisión real, `respuesta` no se serializa como `null`. En su lugar:
   "actividades": [{ "descripcion": "SERVICIOS DE CONSULTORES EN INFORMATICA", "id": 620100 }],
   "avisos": [],
   "categoriaMonotributo": null,
+  "categoriaMonotributoLetra": null,
+  "categoriaMonotributoDesde": null,
   "condicionIva": "responsable-inscripto",
   "cuit": 20201797064,
   "deprecado": ["`cuit` pasa a ser texto en la 3.0.0: leelo como texto para que no te afecte."],
@@ -604,19 +606,32 @@ Si no hubo emisión real, `respuesta` no se serializa como `null`. En su lugar:
 }
 ```
 
-| Campo                  | Tipo                             | Descripción                                                                                                          |
-| ---------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `actividades`          | `{ descripcion, id }[]`          | Actividades; la primera es la principal                                                                              |
-| `avisos`               | `string[]`                       | Observaciones de ARCA sobre la constancia                                                                            |
-| `categoriaMonotributo` | `string \| null`                 | Categoría, si es monotributista                                                                                      |
-| `condicionIva`         | `string \| null`                 | `responsable-inscripto`, `responsable-monotributo` o `sujeto-exento`; `null` si no se puede deducir de los impuestos |
-| `cuit`                 | `number`                         | CUIT consultado                                                                                                      |
-| `domicilio`            | `string \| null`                 | Domicilio fiscal en una línea                                                                                        |
-| `entorno`              | `"testing" \| "produccion"`      | Entorno consultado                                                                                                   |
-| `estadoClave`          | `string \| null`                 | Estado de la clave fiscal según ARCA, por ejemplo `ACTIVO`                                                           |
-| `impuestos`            | `{ activo, descripcion, id }[]`  | Impuestos inscriptos                                                                                                 |
-| `nombre`               | `string \| null`                 | Razón social, o apellido y nombre                                                                                    |
-| `tipoPersona`          | `"fisica" \| "juridica" \| null` | Tipo de persona                                                                                                      |
+| Campo                       | Tipo                             | Descripción                                                                                                            |
+| --------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `actividades`               | `{ descripcion, id }[]`          | Actividades; la primera es la principal                                                                                |
+| `avisos`                    | `string[]`                       | Observaciones de ARCA sobre la constancia                                                                              |
+| `categoriaMonotributo`      | `string \| null`                 | Categoría, si es monotributista                                                                                        |
+| `categoriaMonotributoLetra` | `string \| null`                 | Letra de la categoría (`A` a `K`), sacada de `categoriaMonotributo`; `null` si no es monotributista o no se puede leer |
+| `categoriaMonotributoDesde` | `string \| null`                 | Período desde el que rige la categoría, formato ARCA `yyyymm` (`201309`); `null` si ARCA no lo informa                 |
+| `condicionIva`              | `string \| null`                 | `responsable-inscripto`, `responsable-monotributo` o `sujeto-exento`; `null` si no se puede deducir de los impuestos   |
+| `cuit`                      | `number`                         | CUIT consultado                                                                                                        |
+| `domicilio`                 | `string \| null`                 | Domicilio fiscal en una línea                                                                                          |
+| `entorno`                   | `"testing" \| "produccion"`      | Entorno consultado                                                                                                     |
+| `estadoClave`               | `string \| null`                 | Estado de la clave fiscal según ARCA, por ejemplo `ACTIVO`                                                             |
+| `impuestos`                 | `{ activo, descripcion, id }[]`  | Impuestos inscriptos                                                                                                   |
+| `nombre`                    | `string \| null`                 | Razón social, o apellido y nombre                                                                                      |
+| `tipoPersona`               | `"fisica" \| "juridica" \| null` | Tipo de persona                                                                                                        |
+
+Para un monotributista, la categoría sale así:
+
+```json
+{
+  "categoriaMonotributo": "E VENTAS DE COSAS MUEBLES",
+  "categoriaMonotributoLetra": "E",
+  "categoriaMonotributoDesde": "201309",
+  "condicionIva": "responsable-monotributo"
+}
+```
 
 Si el CUIT no figura, es el error `TAXPAYER_NOT_FOUND` (ver [códigos](#códigos-de-error)).
 

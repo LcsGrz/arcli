@@ -9,6 +9,34 @@ export const PADRON_TAX_IDS = {
   monotributo: 20,
 } as const;
 
+/** Categorias vigentes del monotributo. */
+export const MONOTRIBUTO_CATEGORY_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'] as const;
+
+export type MonotributoCategoryLetter = (typeof MONOTRIBUTO_CATEGORY_LETTERS)[number];
+
+/**
+ * Letra de la categoria a partir de `descripcionCategoria`, que ARCA arma como letra, espacio y tipo de actividad
+ * (`E VENTAS DE COSAS MUEBLES`). `idCategoria` no sirve: es un codigo interno (47 para esa E). Si la descripcion no
+ * empieza con una letra de A a K sola, devuelve null en lugar de adivinar.
+ */
+export function parseMonotributoCategoryLetter(description: string | null): MonotributoCategoryLetter | null {
+  const first = description?.trim().split(/\s+/)[0]?.toUpperCase();
+
+  return MONOTRIBUTO_CATEGORY_LETTERS.find((letter) => letter === first) ?? null;
+}
+
+/** Periodo ARCA (yyyymm, como numero o texto) validado, o null si no lo es. */
+export function parseArcaPeriod(value: unknown): string | null {
+  const text = typeof value === 'number' ? String(value) : typeof value === 'string' ? value.trim() : '';
+  const match = /^(\d{4})(\d{2})$/.exec(text);
+
+  if (!match) return null;
+
+  const month = Number(match[2]);
+
+  return month >= 1 && month <= 12 ? text : null;
+}
+
 export interface TaxpayerTax {
   readonly active: boolean;
   readonly description: string;
@@ -30,7 +58,12 @@ export interface Taxpayer {
   readonly ivaCondition: BillingIvaCondition | null;
   /** ACTIVO, INACTIVO... tal como lo informa ARCA. */
   readonly keyStatus: string | null;
+  /** Descripcion de la categoria tal como la informa ARCA: `E VENTAS DE COSAS MUEBLES`. */
   readonly monotributoCategory: string | null;
+  /** Letra de la categoria (A a K), sacada de la descripcion; null si no se puede leer. */
+  readonly monotributoCategoryLetter: MonotributoCategoryLetter | null;
+  /** Periodo ARCA (yyyymm) desde el que rige la categoria, o null si no viene. */
+  readonly monotributoCategorySince: string | null;
   /** Razon social, o apellido y nombre de una persona fisica. */
   readonly name: string | null;
   /** Avisos de la constancia (por ejemplo, domicilio fiscal no confirmado). */
