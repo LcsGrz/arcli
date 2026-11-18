@@ -39,12 +39,14 @@ const current = Astro.locals.starlightRoute.id.split('/')[0];
   </nav>
   <div class="search print:hidden"><Search /></div>
   <div class="right print:hidden">
-    <a class="gh-star" href={REPO_URL} aria-label={`Dejá una estrella a ARCLI en GitHub${brand.stars ? `: ${brand.stars} estrellas` : ''}`}>
+    {/* Sin `aria-label`: el lector de pantalla lee lo que se ve ("Star", las estrellas) más lo de `sr-only`, así quien usa
+        el control por voz puede decir "Star" */}
+    <a class="gh-star" href={REPO_URL}>
       <span class="gh-label">
         <Icon name="github" size="15" filled />
-        Star
+        Star<span class="sr-only">: dejá una estrella a ARCLI en GitHub</span>
       </span>
-      {brand.stars !== null && <span class="gh-count"><Icon name="estrella" size="0.85rem" />{brand.stars}</span>}
+      {brand.stars !== null && <span class="gh-count"><Icon name="estrella" size="0.85rem" />{brand.stars}<span class="sr-only"> estrellas</span></span>}
     </a>
     <ThemeSelect />
   </div>

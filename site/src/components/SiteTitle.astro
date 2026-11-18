@@ -4,7 +4,7 @@ import { url } from '../lib/site';
 import AsciiLogo from './AsciiLogo.astro';
 ---
 
-<a href={url()} class="site-title" aria-label="ARCLI, inicio"><AsciiLogo variant="header" /></a>
+<a href={url()} class="site-title"><span class="sr-only">ARCLI, inicio</span><AsciiLogo variant="header" /></a>
 
 <style>
   .site-title {

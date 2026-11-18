@@ -144,7 +144,7 @@ export function problems(text) {
     return `<section class="arcli-faq-section">\n\n${title.trim()}\n\n${faqs.join('\n')}\n</section>\n`;
   });
   const search =
-    '<div class="arcli-faq-search"><input type="search" placeholder="Buscá lo que ves: EACCES, punto de venta, 10005…" aria-label="Buscar un problema"></div>\n<p class="arcli-faq-empty" hidden>No encontramos ese problema. Probá con otra palabra o mirá los errores de ARCA más abajo.</p>\n';
+    '<div class="arcli-faq-search"><input type="search" placeholder="Buscá lo que ves: EACCES, punto de venta, 10005…" aria-label="Buscar un problema"></div>\n<p class="arcli-faq-empty" hidden>No encontramos ese problema. Probá con otra palabra o mirá los errores de ARCA más abajo.</p>\n<p class="arcli-faq-status sr-only" role="status"></p>\n';
 
   return `${head.trim()}\n\n${search}\n${sections.join('\n')}`;
 }
