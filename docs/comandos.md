@@ -18,7 +18,7 @@ Un atajo por comprobante: `arcli fc` es lo mismo que `arcli factura c`. Cada uno
 | `factura-credito-electronica` | [`fcea`](comprobantes/fce-a.md)              | [`fceb`](comprobantes/fce-b.md)              | [`fcec`](comprobantes/fce-c.md)              | –                                       |
 | `nota-credito-electronica`    | [`ncea`](comprobantes/nota-credito-fce-a.md) | [`nceb`](comprobantes/nota-credito-fce-b.md) | [`ncec`](comprobantes/nota-credito-fce-c.md) | –                                       |
 | `nota-debito-electronica`     | [`ndea`](comprobantes/nota-debito-fce-a.md)  | [`ndeb`](comprobantes/nota-debito-fce-b.md)  | [`ndec`](comprobantes/nota-debito-fce-c.md)  | –                                       |
-| `recibo`                      | –                                            | –                                            | [`rc`](comprobantes/recibo-c.md)             | –                                       |
+| `recibo`                      | [`ra`](comprobantes/recibo-a.md)             | [`rb`](comprobantes/recibo-b.md)             | [`rc`](comprobantes/recibo-c.md)             | –                                       |
 
 ¿No sabés cuál? [¿Qué comprobante me toca?](comprobantes/README.md)
 

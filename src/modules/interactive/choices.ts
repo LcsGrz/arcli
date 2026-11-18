@@ -43,15 +43,21 @@ export function invoiceKindChoices(): Array<InteractiveChoice<VoucherKindDefinit
   });
 }
 
-/** El recibo C se emite como una factura C, pero no lleva notas: no está en el selector de facturas de las notas. */
-export function reciboChoice(): InteractiveChoice<VoucherKindDefinition> {
-  const definition = VOUCHER_KIND_MAP.rc;
+const RECEIPT_DESCRIPTIONS: Record<VoucherLetter, string> = {
+  a: 'Por un cobro a un responsable inscripto o monotributista',
+  b: 'Por un cobro a un consumidor final, exento u otros',
+  c: 'Por un cobro; lo emiten monotributistas y exentos',
+};
 
-  return {
-    description: 'Comprobante de un cobro; lo emiten monotributistas y exentos',
-    name: definition.displayName,
-    value: definition,
-  };
+const RECEIPT_SHORTCUTS: readonly VoucherShortcut[] = ['rc', 'rb', 'ra'];
+
+/** Los recibos, de C a A como las facturas: se emiten como una factura de la misma letra. */
+export function reciboChoices(): Array<InteractiveChoice<VoucherKindDefinition>> {
+  return RECEIPT_SHORTCUTS.map((shortcut) => {
+    const definition = VOUCHER_KIND_MAP[shortcut];
+
+    return { description: RECEIPT_DESCRIPTIONS[definition.letter], name: definition.displayName, value: definition };
+  });
 }
 
 /** La factura E va por WSFEX y tiene su propio asistente, pero se elige en el mismo selector que A, B y C. */

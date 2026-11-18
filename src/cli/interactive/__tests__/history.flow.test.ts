@@ -110,14 +110,14 @@ describe('consultar comprobantes de exportación E', () => {
     expect(script.remaining()).toBe(0);
   });
 
-  it('ofrece la E y sus notas además de los 19 tipos de wsfe', async () => {
+  it('ofrece la E y sus notas además de los 21 tipos de wsfe', async () => {
     script = createScript([[/Qué comprobantes querés consultar/, BACK]]);
 
     await runHistoryFlow(createSession());
 
     const names = onlyChoices(script.chooseStep.mock.calls[0][1]).map((choice) => choice.name);
 
-    expect(names).toHaveLength(22);
+    expect(names).toHaveLength(24);
     expect(names.slice(-3)).toEqual([
       'Factura de exportación E',
       'Nota de débito de exportación E',

@@ -4,14 +4,19 @@ import type { VoucherKindDefinition } from '../../modules/billing/billing.types'
 import type { ArcliConfig } from '../../modules/config/config.schemas';
 import { EXPORT_VOUCHER_KIND, type ExportVoucherKind } from '../../modules/export/export.types';
 import { parseAmountInput } from '../../modules/interactive/amount-input';
-import { conceptChoices, exportInvoiceChoice, invoiceKindChoices } from '../../modules/interactive/choices';
+import {
+  conceptChoices,
+  exportInvoiceChoice,
+  invoiceKindChoices,
+  reciboChoices,
+} from '../../modules/interactive/choices';
 import { defaultIvaRate, explicitIvaRate } from '../../modules/interactive/iva-rate';
 import { BACK, type Back, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 
 import { type AdvancedOptions, askAdvancedOptions, initialAdvancedOptions } from './advanced-options';
 import { runExportFlow } from './export.flow';
 import { markIfNew } from './new-mark';
-import { askTextStep, chooseStep } from './prompts';
+import { askTextStep, type Choice, chooseStep } from './prompts';
 import {
   askReceiverIvaCondition,
   type ReceiverFromPadron,
@@ -33,6 +38,8 @@ export interface InvoiceState {
   /** Se eligio la factura E: su asistente ya corrio y el resto de los pasos no aplica. */
   readonly exported?: boolean;
   readonly ivaCondition?: BillingCommandInput['ivaCondition'];
+  /** "Emitir recibo": el selector muestra los recibos A, B y C en lugar de las facturas. */
+  readonly receipt?: boolean;
   readonly receiver?: ReceiverFromPadron;
   /**
    * El receptor llego cargado desde "Datos de un CUIT": no se pregunta a quien se factura, y la condicion IVA del
@@ -53,6 +60,17 @@ const ivaConditionFromQueryFits = (state: InvoiceState): boolean =>
     isIvaConditionAllowed(state.voucherKind.letter, state.ivaCondition),
   );
 
+/** Los recibos en "Emitir recibo"; si no, las facturas y la E, salvo con un CUIT del padron (es para el exterior). */
+function voucherKindChoices(state: InvoiceState): Array<Choice<ExportVoucherKind | VoucherKindDefinition>> {
+  if (state.receipt) {
+    return reciboChoices().map((choice) => (choice.value.letter === 'c' ? choice : markIfNew(choice, 'recibos-a-b')));
+  }
+
+  return state.receiverFromQuery
+    ? invoiceKindChoices()
+    : [...invoiceKindChoices(), markIfNew(exportInvoiceChoice(), 'factura-e')];
+}
+
 /** Pasos del flujo de factura; cada uno se puede deshacer con "Volver". */
 export function invoiceSteps(session: InteractiveSession): Array<WizardStep<InvoiceState>> {
   const { config } = session.runtime;
@@ -62,12 +80,9 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
     run: async (state) => {
       // Volver desde el primer paso de la E vuelve a este selector.
       for (;;) {
-        // Con un CUIT del padron no va la E: es para un cliente del exterior.
         const voucherKind = await chooseStep<ExportVoucherKind | VoucherKindDefinition>(
-          '¿Qué comprobante querés emitir?',
-          state.receiverFromQuery
-            ? invoiceKindChoices()
-            : [...invoiceKindChoices(), markIfNew(exportInvoiceChoice(), 'factura-e')],
+          state.receipt ? '¿Qué recibo querés emitir?' : '¿Qué comprobante querés emitir?',
+          voucherKindChoices(state),
         );
 
         if (voucherKind === BACK) {
@@ -83,7 +98,7 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
         }
       }
     },
-    // "Emitir recibo" arranca con el Recibo C elegido.
+    // Con el comprobante ya elegido no se pregunta.
     skip: (state) => Boolean(state.voucherKind),
   };
   const billingSteps: Array<WizardStep<InvoiceState>> = [
@@ -224,12 +239,12 @@ export function invoiceStateForReceiver(receiver: ReceiverFromPadron): Partial<I
 }
 
 /**
- * Sin `voucherKind` pregunta el comprobante; "Emitir recibo" lo pasa ya elegido. Con `receiver` arranca con el CUIT y
- * la condicion IVA del padron. Devuelve BACK si se volvio antes de la vista previa.
+ * "Emitir factura" pregunta entre las facturas y "Emitir recibo" (`receipt`), entre los recibos. Con `receiver` arranca
+ * con el CUIT y la condicion IVA del padron. Devuelve BACK si se volvio antes de la vista previa.
  */
 export async function runInvoiceFlow(
   baseSession: InteractiveSession,
-  voucherKind?: VoucherKindDefinition,
+  receipt = false,
   receiver?: ReceiverFromPadron,
 ): Promise<Back | undefined> {
   // Antes del primer paso, tambien para la E: sin punto de venta no tiene sentido completar todo.
@@ -242,7 +257,7 @@ export async function runInvoiceFlow(
   const { session } = ready;
   const state = await runWizard(invoiceSteps(session), {
     advanced: initialAdvancedOptions(session.runtime.config),
-    voucherKind,
+    receipt,
     ...(receiver ? invoiceStateForReceiver(receiver) : {}),
   });
 

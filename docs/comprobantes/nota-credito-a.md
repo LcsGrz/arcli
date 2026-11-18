@@ -6,7 +6,7 @@
 
 <!-- arcli: familia="Responsable inscripto · A" icono="menos" orden="9" -->
 
-Resta sobre una Factura A u otra nota A: un descuento, una devolución o una anulación.
+Resta sobre una Factura A, un Recibo A u otra nota A: un descuento, una devolución o una anulación.
 
 `arcli nca` | `arcli nota-credito a`
 
@@ -229,6 +229,7 @@ Ej.: `--cargar facturas.json`
 ## Para tener en cuenta
 
 - La nota de crédito no puede superar el total del comprobante que ajusta, si van en la misma moneda: ARCLI lo revisa antes de emitir.
+- El comprobante que ajusta también puede ser un Recibo A: `--ac ra`.
 - Con un período (`--pd` y `--ph`) en vez de un comprobante, el período no puede terminar después de la fecha de la nota.
 
 ## No aplica

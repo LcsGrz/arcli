@@ -1291,6 +1291,10 @@ describe('billing.service', () => {
       ['ncc', 'ndc', 12],
       ['ndc', 'ncc', 13],
       ['ndc', 'ndc', 12],
+      ['nca', 'ra', 4],
+      ['nda', 'ra', 4],
+      ['ncb', 'rb', 9],
+      ['ndb', 'rb', 9],
     ] as const)('una %s puede asociar una %s de la misma letra', (shortcut, associated, tipo) => {
       const payload = new BillingService().buildVoucherPayload(noteOver(shortcut, associated), createRuntime());
 
@@ -1301,6 +1305,8 @@ describe('billing.service', () => {
       ['nca', 'ndb'],
       ['ndb', 'ncc'],
       ['ncc', 'nda'],
+      ['nca', 'rb'],
+      ['ncb', 'rc'],
     ] as const)('una %s no asocia una %s de otra letra', (shortcut, associated) => {
       expect(() => new BillingService().buildVoucherPayload(noteOver(shortcut, associated), createRuntime())).toThrow(
         /misma letra/,
@@ -1338,6 +1344,35 @@ describe('billing.service', () => {
     );
 
     expect(payload.CbtesAsoc).toEqual([expect.objectContaining({ Nro: 1, PtoVta: 3, Tipo: 15 })]);
+  });
+
+  it('builds a recibo A (4) with discriminated IVA, like the factura A, and rejects a consumidor final', () => {
+    const service = new BillingService();
+    const payload = service.buildVoucherPayload(
+      createBillingInput({
+        documentNumber: 30709965812,
+        documentType: 'cuit',
+        ivaCondition: 'responsable-inscripto',
+        shortcut: 'ra',
+        totalAmount: 1210,
+      }),
+      createRuntime(),
+    );
+
+    expect(payload).toMatchObject({ CbteTipo: 4, ImpIVA: 210, ImpNeto: 1000, ImpTotal: 1210 });
+    expect(payload.Iva).toEqual([{ BaseImp: 1000, Id: 5, Importe: 210 }]);
+    expect(() => service.buildVoucherPayload(createBillingInput({ shortcut: 'ra' }), createRuntime())).toThrow(
+      /consumidor-final/,
+    );
+  });
+
+  it('builds a recibo B (9) for a consumidor final, with the IVA included like the factura B', () => {
+    const payload = new BillingService().buildVoucherPayload(
+      createBillingInput({ shortcut: 'rb', totalAmount: 1210 }),
+      createRuntime(),
+    );
+
+    expect(payload).toMatchObject({ CbteTipo: 9, DocTipo: 99, ImpIVA: 210, ImpNeto: 1000, ImpTotal: 1210 });
   });
 
   it('returns the number it sent to ARCA with the emitted voucher', async () => {

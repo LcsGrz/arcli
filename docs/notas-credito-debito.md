@@ -16,7 +16,7 @@ Cuando necesitás anular o ajustar una factura previa, o una nota ya emitida (po
 
 - datos completos del asociado
 - misma letra que el comprobante referenciado
-- asociado del tipo factura, otra nota (`--ac nda`, `--ac ncc`…) o, en la C, Recibo C
+- asociado del tipo factura, recibo (`--ac ra`, `--ac rb`, `--ac rc`) u otra nota (`--ac nda`, `--ac ncc`…)
 - en FCE, una nota sobre otra nota FCE va con `--anulacion`: la NC ajusta la factura o una ND FCE, y la ND solo una NC FCE ([reglas](validation-rules.md#comprobantes-asociados))
 
 ### Comando

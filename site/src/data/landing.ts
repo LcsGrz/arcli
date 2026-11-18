@@ -243,8 +243,9 @@ export const PROFILES: readonly Profile[] = [
     rows: [
       row(['fa'], 'Factura A', 'A otro responsable inscripto'),
       row(['fb'], 'Factura B', 'A consumidor final, monotributo o exento'),
-      row(['nca', 'nda'], 'Notas A', 'Sobre una Factura A'),
-      row(['ncb', 'ndb'], 'Notas B', 'Sobre una Factura B'),
+      row(['nca', 'nda'], 'Notas A', 'Sobre una factura o un recibo A'),
+      row(['ncb', 'ndb'], 'Notas B', 'Sobre una factura o un recibo B'),
+      row(['ra', 'rb'], 'Recibos A y B', 'Para documentar un cobro'),
       row(['fcea', 'fceb'], 'FCE A y B', 'A empresas obligadas a recibirla'),
     ],
     short: 'Resp. inscripto',

@@ -4,7 +4,7 @@
 
 # Factura B
 
-<!-- arcli: familia="Responsable inscripto · B" icono="factura" orden="14" -->
+<!-- arcli: familia="Responsable inscripto · B" icono="factura" orden="15" -->
 
 Responsable inscripto a consumidor final, monotributista o exento.
 

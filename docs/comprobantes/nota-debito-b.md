@@ -4,9 +4,9 @@
 
 # Nota de débito B
 
-<!-- arcli: familia="Responsable inscripto · B" icono="mas" orden="16" -->
+<!-- arcli: familia="Responsable inscripto · B" icono="mas" orden="17" -->
 
-Suma sobre una Factura B u otra nota B: un cargo que faltó, intereses o una diferencia de precio.
+Suma sobre una Factura B, un Recibo B u otra nota B: un cargo que faltó, intereses o una diferencia de precio.
 
 `arcli ndb` | `arcli nota-debito b`
 
@@ -235,6 +235,7 @@ Ej.: `--cargar facturas.json`
 ## Para tener en cuenta
 
 - La nota de débito suma: no tiene tope.
+- El comprobante que ajusta también puede ser un Recibo B: `--ac rb`.
 - Con un período (`--pd` y `--ph`) en vez de un comprobante, el período no puede terminar después de la fecha de la nota.
 
 ## No aplica

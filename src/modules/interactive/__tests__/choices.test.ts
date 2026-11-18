@@ -7,7 +7,7 @@ import {
   ivaConditionChoices,
   noteKindChoices,
   receiverChoices,
-  reciboChoice,
+  reciboChoices,
 } from '../choices';
 
 describe('interactive choices', () => {
@@ -22,9 +22,10 @@ describe('interactive choices', () => {
     ]);
   });
 
-  it('ofrece el recibo C aparte, para que las notas no lo listen como factura', () => {
-    expect(reciboChoice().value.shortcut).toBe('rc');
+  it('ofrece los recibos aparte, de C a A, para que las notas no los listen como factura', () => {
+    expect(reciboChoices().map((choice) => choice.value.shortcut)).toEqual(['rc', 'rb', 'ra']);
     expect(invoiceKindChoices().map((choice) => choice.value.shortcut)).not.toContain('rc');
+    expect(invoiceKindChoices().map((choice) => choice.value.shortcut)).not.toContain('ra');
   });
 
   it('en la A solo permite identificar por CUIT', () => {

@@ -36,7 +36,7 @@ export function registerBillingFamilyCommands(program: Command): void {
     // `factura`, `nota-debito` y `nota-credito` tambien aceptan la letra E, que se emite por WSFEX.
     const exportKind = getExportVoucherKindByFamily(family);
     const shortcuts = exportKind ? `${familyShortcuts}, ${exportKind.shortcut}` : familyShortcuts;
-    // `recibo` solo tiene la C.
+    // `recibo` no tiene E.
     const letters: readonly string[] = exportKind
       ? [...getVoucherFamilyLetters(family), exportKind.letter]
       : getVoucherFamilyLetters(family);

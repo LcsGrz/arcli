@@ -13,7 +13,7 @@ describe('associatedKindGroups', () => {
       factura: ['fc', 'fb', 'fa', 'fcec', 'fceb', 'fcea', 'fe'],
       'nota-credito': ['ncc', 'ncb', 'nca', 'nce'],
       'nota-debito': ['ndc', 'ndb', 'nda', 'ndec', 'ndeb', 'ndea', 'nde'],
-      recibo: ['rc'],
+      recibo: ['rc', 'rb', 'ra'],
     });
   });
 
@@ -29,5 +29,6 @@ describe('associatedKindGroups', () => {
 
     expect(groupNewOptions(groups.factura!)).toEqual(['notas-e']);
     expect(groupNewOptions(groups['nota-debito']!)).toEqual(['notas-sobre-notas']);
+    expect(groupNewOptions(groups.recibo!)).toEqual(['recibo', 'recibos-a-b']);
   });
 });

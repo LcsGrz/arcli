@@ -7,7 +7,7 @@ import {
   exportNoteChoices,
   type InteractiveChoice,
   invoiceKindChoices,
-  reciboChoice,
+  reciboChoices,
 } from './choices';
 import type { NewOption } from './new-options';
 
@@ -61,7 +61,6 @@ function noteOptions(
  */
 export function associatedKindGroups(kind: 'credito' | 'debito'): AssociatedKindGroup[] {
   const invoices = invoiceKindChoices();
-  const recibo = reciboChoice();
   const groups: AssociatedKindGroup[] = [
     {
       description: 'A, B o C, de crédito electrónica (FCE) o de exportación E',
@@ -85,10 +84,13 @@ export function associatedKindGroups(kind: 'credito' | 'debito'): AssociatedKind
       question: '¿Qué nota de débito?',
     },
     {
-      description: recibo.description ?? '',
+      description: 'Recibo A, B o C por un cobro',
       family: 'recibo',
-      name: recibo.name,
-      options: [{ ...recibo, newOption: 'recibo' }],
+      name: 'Recibos',
+      options: reciboChoices().map((recibo) => ({
+        ...recibo,
+        newOption: recibo.value.letter === 'c' ? 'recibo' : 'recibos-a-b',
+      })),
       question: '¿Qué recibo?',
     },
   ];

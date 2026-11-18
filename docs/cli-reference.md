@@ -74,7 +74,7 @@ Después cambian algunas cosas según la familia:
 | `factura-credito-electronica` | `<a\|b\|c>`    | Emite o previsualiza Factura de crédito electrónica A, B o C       |
 | `nota-credito-electronica`    | `<a\|b\|c>`    | Emite o previsualiza Nota de crédito electrónica A, B o C          |
 | `nota-debito-electronica`     | `<a\|b\|c>`    | Emite o previsualiza Nota de débito electrónica A, B o C           |
-| `recibo`                      | `<c>`          | Emite o previsualiza Recibo C (solo letra C)                       |
+| `recibo`                      | `<a\|b\|c>`    | Emite o previsualiza Recibo A, B o C                               |
 
 ### Shortcuts
 
@@ -101,6 +101,8 @@ Después cambian algunas cosas según la familia:
 | `ndea`   | `nota-debito-electronica a`     |
 | `ndeb`   | `nota-debito-electronica b`     |
 | `ndec`   | `nota-debito-electronica c`     |
+| `ra`     | `recibo a`                      |
+| `rb`     | `recibo b`                      |
 | `rc`     | `recibo c`                      |
 
 `arcli factura e` y `arcli fe` son la misma Factura de exportación `E`: la letra `E` de la familia `factura` se resuelve por WSFEX, con sus propios flags (ver [Factura de exportación](#factura-de-exportación-e-wsfex)). Lo mismo pasa con `nota-credito e` (`nce`) y `nota-debito e` (`nde`): ver [Notas de crédito y débito de exportación](#notas-de-crédito-y-débito-de-exportación-e).
@@ -281,7 +283,7 @@ Las cuatro se escriben igual: formato argentino (día primero), con mes y año o
 
 Estos flags importan solo para notas. Si estás emitiendo una factura, podés ignorarlos.
 
-Dicho más directo: **no aplican a `factura`, `factura-credito-electronica`, `recibo`, `fa`, `fb`, `fc`, `fcea`, `fceb`, `fcec` ni `rc`**.
+Dicho más directo: **no aplican a `factura`, `factura-credito-electronica`, `recibo`, `fa`, `fb`, `fc`, `fcea`, `fceb`, `fcec`, `ra`, `rb` ni `rc`**.
 
 | Flag                              | Alias            | Tipo         | Valor por defecto | Descripción                        |
 | --------------------------------- | ---------------- | ------------ | ----------------- | ---------------------------------- |
@@ -440,11 +442,13 @@ Las facturas no usan comprobante asociado, así que no aplican:
 - `--ar`
 - `--acuit`
 
-### Recibo C
+### Recibo A, B y C
 
-`arcli rc` (o `arcli recibo c`) emite el Recibo C, tipo ARCA 15. Usa los mismos flags y validaciones que la Factura C: sin IVA discriminado, sin comprobante asociado y sin FCE. Una nota de crédito o débito C lo puede asociar con `--ac rc`. Detalle en [Reglas de validación](validation-rules.md#recibo-c).
+`arcli ra`, `arcli rb` y `arcli rc` (o `arcli recibo a`, `b` o `c`) emiten el recibo de un cobro: tipos ARCA 4, 9 y 15. Cada uno usa los mismos flags y validaciones que la factura de su letra: el A discrimina IVA y va a un CUIT, el B lleva el IVA incluido y el C no lleva IVA. Ninguno lleva comprobante asociado ni es FCE. Una nota de crédito o débito de la misma letra lo puede asociar con `--ac ra`, `--ac rb` o `--ac rc`. Detalle en [Reglas de validación](validation-rules.md#recibo-a-b-y-c).
 
 ```bash
+arcli ra -m 121000 --cs --cuit 20168598204
+arcli rb -m 12100 --cs --cfinal
 arcli rc -m 15000 --cs --cfinal
 ```
 
@@ -455,7 +459,7 @@ Las notas heredan todo lo de una factura, pero suman una regla importante: **sie
 #### Diferencias clave con facturas
 
 - siempre requieren asociado: una factura puntual (`--ac`…) o un período (`--periodo-desde` y `--periodo-hasta`)
-- el asociado debe ser una factura compatible, otra nota de la misma letra (`--ac ndc`, `--ac nca`…) o, en notas C, un Recibo C (`--ac rc`)
+- el asociado debe ser una factura compatible, otra nota de la misma letra (`--ac ndc`, `--ac nca`…) o un recibo de la misma letra (`--ac ra`, `--ac rb`, `--ac rc`)
 - la letra del asociado debe coincidir con la de la nota
 - `--ac` y `--at` son excluyentes
 

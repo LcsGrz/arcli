@@ -151,7 +151,7 @@ Va en el renglón de la condición frente al IVA del receptor ("Cond. Venta: Con
 
 El detalle del PDF tiene un renglón por alícuota de IVA con la descripción y su importe neto, o un solo renglón en las facturas `C`. Exento y no gravado van en renglones aparte.
 
-El Recibo C usa la misma plantilla que la Factura C con el título `RECIBO C`, `COD.15` y el QR con el tipo 15. No es el formato de recibo del portal de ARCA.
+Los recibos usan la misma plantilla que la factura de su letra con el título `RECIBO A`, `RECIBO B` o `RECIBO C`, el código (`COD.4`, `COD.9` o `COD.15`) y el QR con ese tipo. El Recibo A discrimina el IVA como la Factura A y el B lo deja incluido como la Factura B. No es el formato de recibo del portal de ARCA.
 
 ### Factura de exportación (E)
 

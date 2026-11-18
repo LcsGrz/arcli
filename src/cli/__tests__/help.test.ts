@@ -77,26 +77,25 @@ describe('help', () => {
     });
   });
 
-  describe('recibo, que solo tiene la letra C', () => {
+  describe('recibo, con las letras A, B y C y sin E', () => {
     const program = createProgram();
     const recibo = program.commands.find((command) => command.name() === 'recibo');
 
-    it('deja vacías la A y la B en la tabla de comprobantes', () => {
-      expect(createProgramHelp()).toMatch(/\n {2}recibo +- +- +rc\n/);
+    it('muestra ra, rb y rc en la tabla de comprobantes, sin E', () => {
+      expect(createProgramHelp()).toMatch(/\n {2}recibo +ra +rb +rc\n/);
     });
 
-    it('no ofrece letras ni reglas de A y B', () => {
-      expect(recibo?.description()).toContain('por letra C con');
-      expect(createFamilyHelp('recibo')).toContain('solo letra C: arcli recibo c. Atajo: rc.');
-      expect(createFamilyHelp('recibo')).not.toContain('IVA (A y B)');
-      expect(createFamilyHelp('factura')).toContain('IVA (A y B)');
+    it('ofrece las letras A, B y C y las reglas de IVA de A y B', () => {
+      expect(recibo?.description()).toContain('por letra A, B o C con');
+      expect(createFamilyHelp('recibo')).toContain('letras A, B y C: arcli recibo <a|b|c>. Atajos: ra, rb y rc.');
+      expect(createFamilyHelp('recibo')).toContain('IVA (A y B)');
     });
 
-    it('rechaza otra letra antes de armar el comprobante', async () => {
+    it('rechaza la E antes de armar el comprobante', async () => {
       recibo?.exitOverride();
 
-      await expect(program.parseAsync(['node', 'arcli', 'recibo', 'a'])).rejects.toThrow(
-        'La letra "a" no es válida. Usá c.',
+      await expect(program.parseAsync(['node', 'arcli', 'recibo', 'e'])).rejects.toThrow(
+        'La letra "e" no es válida. Usá a, b o c.',
       );
     });
   });

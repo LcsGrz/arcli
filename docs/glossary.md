@@ -84,9 +84,9 @@ Código numérico con el que ARCA identifica cada tipo de comprobante (Factura A
 
 Variante electrónica de factura pensada para el régimen de facturación de crédito PyME. Usa la misma estructura que una factura común, con un tipo ARCA distinto y datos de cobro adicionales: CBU del emisor, modalidad de transferencia (`SCA` o `ADC`) y vencimiento de pago. Sus notas de crédito y débito llevan el código de anulación y la fecha de la factura asociada. Ver [Crédito electrónico (FCE)](validation-rules.md#crédito-electrónico-fce).
 
-### Recibo C
+### Recibo A, B y C
 
-Comprobante tipo ARCA `15` (`arcli rc`) para documentar un cobro. Se arma como una Factura C: sin IVA discriminado y sin comprobante asociado. Ver [Recibo C](validation-rules.md#recibo-c).
+Comprobante para documentar un cobro: Recibo A (tipo ARCA `4`, `arcli ra`), B (`9`, `arcli rb`) y C (`15`, `arcli rc`). Cada uno se arma como la factura de su letra (el A discrimina IVA, el B lo lleva incluido y el C no lleva) y ninguno lleva comprobante asociado. Ver [Recibo A, B y C](validation-rules.md#recibo-a-b-y-c).
 
 ### Factura de exportación E
 

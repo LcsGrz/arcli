@@ -4,7 +4,7 @@
 
 # Nota de crédito E
 
-<!-- arcli: familia="Exportación · E" icono="menos" orden="21" -->
+<!-- arcli: familia="Exportación · E" icono="menos" orden="23" -->
 
 Resta sobre una Factura E: un descuento, una devolución o una anulación. Cliente, destino, moneda y actividad salen de la factura, que ARCLI consulta en ARCA.
 

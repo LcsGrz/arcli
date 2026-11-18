@@ -4,9 +4,9 @@
 
 # Nota de crédito B
 
-<!-- arcli: familia="Responsable inscripto · B" icono="menos" orden="15" -->
+<!-- arcli: familia="Responsable inscripto · B" icono="menos" orden="16" -->
 
-Resta sobre una Factura B u otra nota B: un descuento, una devolución o una anulación.
+Resta sobre una Factura B, un Recibo B u otra nota B: un descuento, una devolución o una anulación.
 
 `arcli ncb` | `arcli nota-credito b`
 
@@ -235,6 +235,7 @@ Ej.: `--cargar facturas.json`
 ## Para tener en cuenta
 
 - La nota de crédito no puede superar el total del comprobante que ajusta, si van en la misma moneda: ARCLI lo revisa antes de emitir.
+- El comprobante que ajusta también puede ser un Recibo B: `--ac rb`.
 - Con un período (`--pd` y `--ph`) en vez de un comprobante, el período no puede terminar después de la fecha de la nota.
 
 ## No aplica

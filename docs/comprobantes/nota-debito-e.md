@@ -4,7 +4,7 @@
 
 # Nota de débito E
 
-<!-- arcli: familia="Exportación · E" icono="mas" orden="22" -->
+<!-- arcli: familia="Exportación · E" icono="mas" orden="24" -->
 
 Suma sobre una Factura E: un cargo que faltó, intereses o una diferencia de precio. Cliente, destino, moneda y actividad salen de la factura, que ARCLI consulta en ARCA.
 

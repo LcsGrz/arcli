@@ -19,7 +19,7 @@ arcli
 | Opción del menú           | Para qué                                                                 |
 | ------------------------- | ------------------------------------------------------------------------ |
 | Emitir factura            | A, B, C, FCE o E: [¿qué comprobante me toca?](../comprobantes/README.md) |
-| Emitir recibo             | [Recibo C](../comprobantes/recibo-c.md)                                  |
+| Emitir recibo             | [Recibo A, B o C](../comprobantes/README.md)                             |
 | Notas de crédito y débito | Elegís la factura de una lista                                           |
 | Repetir un comprobante    | Mismo receptor y monto, con fecha de hoy                                 |
 | Consultar comprobantes    | Los últimos emitidos y su detalle                                        |
