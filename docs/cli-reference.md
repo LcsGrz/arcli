@@ -279,6 +279,29 @@ Para facturar con otra fecha, sumá `-f`: por ejemplo, `-f 31/10` el 3/11 (en se
 
 Las cuatro se escriben igual: formato argentino (día primero), con mes y año opcionales; sin año se toma la fecha más cercana a hoy. Detalle completo en [Fechas aceptadas](validation-rules.md#fechas-aceptadas).
 
+También aceptan fechas relativas: `hoy`, `ayer`, `+N` y `-N` (N días desde hoy) en todas, y `mes-actual` y `mes-pasado` solo en desde y hasta (`--sd`/`--sh`, `--pd`/`--ph`): en desde dan el día 1 del mes y en hasta, el último día. La vista previa y el `--json` muestran la fecha resuelta. Detalle en [Fechas relativas](validation-rules.md#fechas-relativas).
+
+```bash
+# Vence en 10 días; se emitió ayer
+arcli fc -m 1000 --cs --cfinal -f ayer --vto +10
+```
+
+#### Abono mensual por cron
+
+Con las palabras de mes, el mismo comando sirve todos los meses. Por ejemplo, para facturar el 1 de cada mes el servicio del mes anterior, con vencimiento a 10 días:
+
+```bash
+arcli fc -m 50.000 --cs --cfinal --sd mes-pasado --sh mes-pasado --vto +10 --emitir
+```
+
+En `crontab -e`, a las 9 del día 1 (sin terminal no pregunta: `--emitir` es lo que hace que emita; sumá `--json` para guardar la respuesta):
+
+```bash
+0 9 1 * * arcli fc -m 50.000 --cs --cfinal --sd mes-pasado --sh mes-pasado --vto +10 --emitir --json >> ~/abono.log 2>&1
+```
+
+"Hoy" es la fecha argentina aunque el servidor esté en otra zona horaria, pero cron dispara en la hora del equipo: en un servidor en UTC, `0 12 1 * *` son las 9 en Argentina.
+
 ### Asociados
 
 Estos flags importan solo para notas. Si estás emitiendo una factura, podés ignorarlos.
@@ -647,8 +670,8 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
 | `--numero <numero>`               | ninguno         | `integer`                            | No          | Por defecto, el siguiente al último de ese tipo en el punto de venta                                                                                    |
 | `--id-solicitud <numero>`         | ninguno         | `integer`                            | No          | Por defecto, el siguiente de WSFEX                                                                                                                      |
 | `--punto-venta <numero>`          | `--pv <numero>` | `integer`                            | Condicional | Si no está en config                                                                                                                                    |
-| `--fecha <fecha>`                 | `-f`            | `string`                             | No          | No admite fechas futuras                                                                                                                                |
-| `--fecha-pago <fecha>`            | ninguno         | `string`                             | No          | Solo en servicios y otros; por defecto, la fecha del comprobante. En bienes no se usa (error 1673)                                                      |
+| `--fecha <fecha>`                 | `-f`            | `string`                             | No          | No admite fechas futuras. También `hoy`, `ayer`, `+N` o `-N` ([fechas relativas](validation-rules.md#fechas-relativas))                                 |
+| `--fecha-pago <fecha>`            | ninguno         | `string`                             | No          | Solo en servicios y otros; por defecto, la fecha del comprobante. En bienes no se usa (error 1673). También `hoy`, `ayer`, `+N` o `-N`                  |
 | `--moneda <codigo>`               | `--mda`         | `string`                             | No          | Código ISO o de ARCA, por ejemplo `USD` o `DOL`; por defecto `DOL`                                                                                      |
 | `--cotizacion-moneda <numero>`    | `--cm`          | `number`                             | No          | Sin flag se usa la cotización de aduana de ARCA: en servicios y con `--misma-moneda`, la del día hábil anterior a la fecha del comprobante (error 2053) |
 | `--misma-moneda`                  | ninguno         | `boolean`                            | No          | El pago se cancela en la misma moneda extranjera: manda `CanMisMonExt` en `S`                                                                           |
@@ -801,10 +824,10 @@ arcli fce-obligado 30546689979
 arcli fce-obligado 30546689979 --fecha 15/10 --json
 ```
 
-| Flag                                  | Alias   | Descripción                                   |
-| ------------------------------------- | ------- | --------------------------------------------- |
-| `--fecha <fecha>`                     | `-f`    | Fecha de emisión a consultar; por defecto hoy |
-| `--json`, `--testing`, `--produccion` | ninguno | Flags globales                                |
+| Flag                                  | Alias   | Descripción                                                                       |
+| ------------------------------------- | ------- | --------------------------------------------------------------------------------- |
+| `--fecha <fecha>`                     | `-f`    | Fecha de emisión a consultar; por defecto hoy. También `hoy`, `ayer`, `+N` o `-N` |
+| `--json`, `--testing`, `--produccion` | ninguno | Flags globales                                                                    |
 
 Usa el servicio `wsfecred`, que hay que autorizar aparte de `wsfe`. Ver [Autorizar el servicio web](certificado-testing-completa.md#3-autorizar-el-servicio-web).
 

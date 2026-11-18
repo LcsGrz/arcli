@@ -1,3 +1,4 @@
+import { currentMonthPeriod, previousMonthPeriod, type ServicePeriod } from '../../lib/dates/periods';
 import { DEFAULT_CURRENCY_CODE } from '../../modules/billing/billing.constants';
 import { isForeignCurrency } from '../../modules/billing/billing.currency';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
@@ -12,7 +13,6 @@ import {
   UNSUPPORTED_DOCUMENT_TYPE_NOTICE,
 } from '../../modules/interactive/invoice-copy';
 import { defaultIvaRate } from '../../modules/interactive/iva-rate';
-import { currentMonthPeriod, previousMonthPeriod, type ServicePeriod } from '../../modules/interactive/periods';
 import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import type { IssuedVoucher } from '../../modules/vouchers/voucher-history';
 import { noticePanel, writeTerminalOutput } from '../../ui';
