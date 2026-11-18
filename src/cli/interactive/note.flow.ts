@@ -192,6 +192,7 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
       run: async (state) => {
         const invoiceKind = requireStepValue(state.invoiceKind, 'invoiceKind');
         const picked = await pickInvoice(session, {
+          forNote: true,
           message: `¿Sobre qué ${formatVoucherLabel(invoiceKind)}?`,
           pointOfSale,
           voucherKind: invoiceKind,
