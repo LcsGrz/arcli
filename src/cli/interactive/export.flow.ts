@@ -181,6 +181,7 @@ function exportSteps(
     },
     {
       // ARCA pide el CUIT del pais o el ID impositivo (error 1580): si se deja vacio, el ID impositivo es obligatorio.
+      dependsOn: ['pais'],
       name: 'cuit-pais',
       run: async (state) => {
         const country = requireStepValue(state.country, 'country');
@@ -195,6 +196,8 @@ function exportSteps(
       skip: (state) => !state.countryCuitMissing,
     },
     {
+      // Sin CUIT del pais es obligatorio.
+      dependsOn: ['pais', 'cuit-pais'],
       name: 'id-impositivo',
       run: async (state, previous) => {
         // Sin CUIT del pais, ARCA pide el ID impositivo (error 1580).
@@ -349,6 +352,7 @@ function exportSteps(
       skip: () => configuredActivity !== undefined,
     },
     {
+      dependsOn: ['pais', 'cuit-pais', 'tipo', 'monto', 'moneda', 'misma-moneda', 'incoterm'],
       name: 'opcionales',
       run: async (state) => {
         const country = requireStepValue(state.country, 'country');
@@ -375,6 +379,7 @@ function exportSteps(
     },
     {
       // Despues de los opcionales: no puede ser anterior a la fecha del comprobante, que se elige ahi (1674).
+      dependsOn: ['opcionales'],
       name: 'fecha-pago',
       run: async (state, previous) => {
         const answer = await askTextStep('Fecha de pago (Enter para la fecha del comprobante):', {

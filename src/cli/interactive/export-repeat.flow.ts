@@ -122,6 +122,7 @@ export function exportRepeatSteps(
       },
     },
     {
+      dependsOn: ['factura'],
       name: 'mismo-monto',
       run: async (state, previous) => {
         const original = requireStepValue(state.original, 'original');
@@ -145,6 +146,8 @@ export function exportRepeatSteps(
       },
     },
     {
+      // Va en la moneda de la factura.
+      dependsOn: ['factura'],
       name: 'monto',
       run: async (state, previous) => {
         const original = requireStepValue(state.original, 'original');
@@ -177,6 +180,8 @@ export function exportRepeatSteps(
       skip: (state) => state.sameAmount === true,
     },
     {
+      // Es sobre la moneda de la factura elegida.
+      dependsOn: ['factura'],
       name: 'misma-moneda',
       // FEXGetCMP casi siempre trae `CanMisMonExt`; si no, se pregunta como en "Emitir factura".
       run: async (state, previous) => {
@@ -195,6 +200,7 @@ export function exportRepeatSteps(
     },
     {
       // La factura no trae CUIT del pais y ARCA no publica uno para el destino: sin esto ARCA la rechaza.
+      dependsOn: ['factura'],
       name: 'cuit-pais',
       run: async (state) => {
         const country = requireStepValue(state.country, 'country');
@@ -242,6 +248,7 @@ export function exportRepeatSteps(
       skip: (state) => state.copy?.activity !== undefined || configuredActivity !== undefined,
     },
     {
+      dependsOn: ['factura', 'mismo-monto', 'monto', 'misma-moneda', 'cuit-pais'],
       name: 'opcionales',
       run: async (state) => {
         const copy = requireStepValue(state.copy, 'copy');
@@ -270,6 +277,7 @@ export function exportRepeatSteps(
     },
     {
       // Despues de los opcionales: no puede ser anterior a la fecha del comprobante, que se elige ahi (1674).
+      dependsOn: ['opcionales'],
       name: 'fecha-pago',
       run: async (state, previous) => {
         const answer = await askTextStep('Fecha de pago (Enter para la fecha del comprobante):', {

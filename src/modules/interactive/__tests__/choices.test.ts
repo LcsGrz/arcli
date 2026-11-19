@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { VOUCHER_KIND_MAP } from '../../billing/voucher-kind-map';
 import {
+  availableChoice,
   currencyChoices,
   invoiceKindChoices,
   ivaConditionChoices,
@@ -9,6 +10,26 @@ import {
   receiverChoices,
   reciboChoices,
 } from '../choices';
+
+describe('availableChoice', () => {
+  const choices = ivaConditionChoices('a');
+
+  it('devuelve la primera candidata que esta entre las opciones', () => {
+    expect(availableChoice(choices, 'responsable-monotributo', 'responsable-inscripto')).toBe(
+      'responsable-monotributo',
+    );
+  });
+
+  it('una respuesta recordada que ya no esta cae en la siguiente, por ejemplo la de la config', () => {
+    expect(availableChoice(choices, 'consumidor-final', undefined, 'responsable-inscripto')).toBe(
+      'responsable-inscripto',
+    );
+  });
+
+  it('sin ninguna que este, undefined: la lista arranca en la primera opcion', () => {
+    expect(availableChoice(choices, 'consumidor-final', undefined)).toBeUndefined();
+  });
+});
 
 describe('interactive choices', () => {
   it('ofrece facturas comunes y FCE', () => {

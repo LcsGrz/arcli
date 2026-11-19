@@ -8,6 +8,10 @@ interface State {
   readonly c?: string;
 }
 
+interface FourState extends State {
+  readonly d?: string;
+}
+
 function scripted(answers: Record<string, Array<string | typeof BACK>>): Array<WizardStep<State>> {
   const take = (name: keyof State) => async () => {
     const answer = answers[name]?.shift();
@@ -58,25 +62,34 @@ describe('runWizard', () => {
     expect(result).toEqual({ a: 'x', b: undefined, c: '3' });
   });
 
-  it('al volver, el paso recibe su ultima respuesta; si una respuesta cambia, los pasos siguientes la olvidan', async () => {
+  /** Pasos a, b, c y d que anotan lo que reciben como ultima respuesta y contestan segun el guion. */
+  function recording(
+    script: Record<string, Array<string | typeof BACK>>,
+    dependsOn: Partial<Record<keyof FourState, readonly string[]>> = {},
+  ) {
     const seen: Array<[string, string | undefined]> = [];
-    const answers: Record<string, Array<string | typeof BACK>> = {
-      a: ['1', '1', '2'],
-      b: ['x', BACK, 'x', BACK, 'y'],
-      c: [BACK, BACK, '3'],
-    };
-    const steps: Array<WizardStep<State>> = (['a', 'b', 'c'] as const).map((name) => ({
+    const steps: Array<WizardStep<FourState>> = (['a', 'b', 'c', 'd'] as const).map((name) => ({
+      dependsOn: dependsOn[name],
       name,
       run: async (_state, previous) => {
         seen.push([name, previous?.[name]]);
-        const answer = answers[name]?.shift();
+        const answer = script[name]?.shift();
 
         return answer === BACK ? BACK : { [name]: answer };
       },
     }));
 
-    // a=1, b=x, c volver, b volver, a=1 (igual), b=x (marcada), c volver, b volver, a=2 (cambia), b=y, c=3.
-    expect(await runWizard(steps, {})).toEqual({ a: '2', b: 'y', c: '3' });
+    return { seen, steps };
+  }
+
+  it('al volver, el paso recibe su ultima respuesta; si una respuesta cambia, olvidan la suya los que dependen de ella', async () => {
+    const { seen, steps } = recording(
+      { a: ['1', '1', '2'], b: ['x', BACK, 'x', BACK, 'y'], c: [BACK, BACK, '3'], d: ['4'] },
+      { b: ['a'] },
+    );
+
+    // a=1, b=x, c volver, b volver, a=1 (igual), b=x (marcada), c volver, b volver, a=2 (cambia), b=y, c=3, d=4.
+    expect(await runWizard(steps, {})).toEqual({ a: '2', b: 'y', c: '3', d: '4' });
     expect(seen).toEqual([
       ['a', undefined],
       ['b', undefined],
@@ -89,7 +102,71 @@ describe('runWizard', () => {
       ['a', '1'],
       ['b', undefined],
       ['c', undefined],
+      ['d', undefined],
     ]);
+  });
+
+  it('olvida tambien las respuestas que dependen de forma indirecta', async () => {
+    // c depende de b y b de a; d no depende de nadie. Se responde todo, se vuelve hasta a y se cambia.
+    const { seen, steps } = recording(
+      { a: ['1', '2'], b: ['x', BACK, 'y'], c: ['3', BACK, '3'], d: [BACK, '4'] },
+      { b: ['a'], c: ['b'] },
+    );
+
+    expect(await runWizard(steps, {})).toEqual({ a: '2', b: 'y', c: '3', d: '4' });
+    expect(seen).toEqual([
+      ['a', undefined],
+      ['b', undefined],
+      ['c', undefined],
+      ['d', undefined],
+      ['c', '3'],
+      ['b', 'x'],
+      ['a', '1'],
+      ['b', undefined],
+      ['c', undefined],
+      ['d', undefined],
+    ]);
+  });
+
+  it('si cambia una respuesta de la que nadie depende, los pasos siguientes conservan la suya', async () => {
+    const { seen, steps } = recording(
+      { a: ['1', '2'], b: ['x', BACK, 'x'], c: ['3', BACK, '3'], d: [BACK, '4'] },
+      { c: ['b'], d: ['c'] },
+    );
+
+    expect(await runWizard(steps, {})).toEqual({ a: '2', b: 'x', c: '3', d: '4' });
+    expect(seen.slice(6)).toEqual([
+      ['a', '1'],
+      ['b', 'x'],
+      ['c', '3'],
+      ['d', undefined],
+    ]);
+  });
+
+  it('un paso que cambia de respuesta no hace olvidar a los anteriores que dependen de otro', async () => {
+    // c cambia: d depende de c y olvida; b depende de a y conserva.
+    const { seen, steps } = recording(
+      { a: ['1'], b: ['x', 'x'], c: ['3', BACK, '5'], d: [BACK, '4'] },
+      { b: ['a'], d: ['c'] },
+    );
+
+    expect(await runWizard(steps, {})).toEqual({ a: '1', b: 'x', c: '5', d: '4' });
+    expect(seen).toEqual([
+      ['a', undefined],
+      ['b', undefined],
+      ['c', undefined],
+      ['d', undefined],
+      ['c', '3'],
+      ['b', 'x'],
+      ['c', '3'],
+      ['d', undefined],
+    ]);
+  });
+
+  it('falla si `dependsOn` no nombra un paso anterior', async () => {
+    const { steps } = recording({ a: ['1'] }, { a: ['b'] });
+
+    await expect(runWizard(steps, {})).rejects.toThrow('El paso a depende de b, que no es un paso anterior.');
   });
 
   it('las respuestas compartidas sobreviven a otra corrida del asistente', async () => {

@@ -24,6 +24,20 @@ export interface InteractiveChoice<T> {
   readonly value: T;
 }
 
+/**
+ * La primera de `candidates` que esta entre las opciones, para la que arranca marcada: una respuesta recordada puede ya
+ * no estar (otra letra, otra lista) y entonces vale la siguiente, por ejemplo la de la config. Sin ninguna, `undefined`
+ * (la lista arranca en la primera opcion).
+ */
+export function availableChoice<T>(
+  choices: ReadonlyArray<{ readonly value: T }>,
+  ...candidates: ReadonlyArray<T | undefined>
+): T | undefined {
+  return candidates.find(
+    (candidate) => candidate !== undefined && choices.some((choice) => choice.value === candidate),
+  );
+}
+
 const INVOICE_DESCRIPTIONS: Record<VoucherLetter, string> = {
   a: 'Entre responsables inscriptos, o de RI a monotributista',
   b: 'De responsable inscripto a consumidor final, exento u otros',

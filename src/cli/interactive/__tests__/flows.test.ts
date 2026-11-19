@@ -547,9 +547,12 @@ describe('flujos del modo interactivo', () => {
 
       expect(input.ivaRate).toBe('10.5');
       expect(input.serviceStartDate).toBeUndefined();
-      // Lo respondido no se aplica al volver a la seleccion, pero la alicuota arranca en la elegida.
-      expect(script.chooseManyStep.mock.calls[1][1]).toContainEqual(
-        expect.objectContaining({ description: '21%', value: 'alicuota' }),
+      // Al volver a la seleccion se ve la alicuota respondida; el periodo quedo a medias y no.
+      expect(script.chooseManyStep.mock.calls[1][1]).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ description: '10,5%', value: 'alicuota' }),
+          expect.objectContaining({ description: 'hoy', value: 'servicio' }),
+        ]),
       );
       expect(ivaRateDefaults).toEqual(['21', '10.5', '10.5']);
     });

@@ -186,6 +186,8 @@ function optionSteps(context: AdvancedContext): Record<Option, Step[]> {
         },
       },
       {
+        // La pregunta nombra la moneda.
+        dependsOn: ['moneda'],
         name: 'pago',
         run: async (current, previous) => {
           const sameCurrency = await askPaymentCurrency(current.currencyCode ?? '', previous?.sameCurrency);
@@ -195,6 +197,7 @@ function optionSteps(context: AdvancedContext): Record<Option, Step[]> {
         skip: (current) => !isForeignCurrency(current),
       },
       {
+        dependsOn: ['moneda', 'pago'],
         name: 'cotizacion',
         run: async (current, previous) => {
           const exchangeRate = await askAgreedExchangeRate(current.currencyCode ?? '', previous?.exchangeRate);
@@ -362,10 +365,42 @@ function dropUnavailable(options: AdvancedOptions, available: ReadonlySet<Option
 }
 
 /**
+ * `initial` con lo respondido en los opcionales `marked`, como si se confirmara cada pregunta con lo que ofrece: un
+ * opcional cuenta solo si todas sus preguntas que aplican tienen respuesta. Los demas quedan como en `initial`.
+ */
+function withAnsweredOptions(
+  initial: AdvancedOptions,
+  marked: readonly Option[],
+  steps: Record<Option, Step[]>,
+  answers: WizardAnswers<AdvancedOptions>,
+): AdvancedOptions {
+  return marked.reduce((options, option) => {
+    let answered = options;
+
+    for (const step of steps[option]) {
+      if (step.skip?.(answered)) {
+        continue;
+      }
+
+      const answer = answers.get(step.name);
+
+      if (!answer) {
+        return options;
+      }
+
+      answered = { ...answered, ...answer };
+    }
+
+    return answered;
+  }, initial);
+}
+
+/**
  * Despues de lo requerido, una sola pregunta con todos los opcionales: se marcan con espacio y Enter sigue
  * (sin marcar nada, todo queda por defecto). Despues se pregunta solo lo marcado, en orden, una pregunta por paso:
- * "Volver" lleva a la pregunta anterior y, desde la primera, a la seleccion con lo marcado. Lo ya respondido no se
- * aplica hasta terminar, pero arranca escrito o marcado al volver a preguntarlo.
+ * "Volver" lleva a la pregunta anterior y, desde la primera, a la seleccion con lo marcado. En la seleccion se ve lo
+ * respondido de los opcionales con todas sus preguntas respondidas; uno a medias se ve como estaba. Con Enter, lo de
+ * los opcionales desmarcados vuelve a como estaba y lo marcado se pregunta de nuevo, escrito o marcado con lo respondido.
  */
 export async function askAdvancedOptions(
   initial: AdvancedOptions,
@@ -374,11 +409,12 @@ export async function askAdvancedOptions(
   const steps = optionSteps(context);
   const answers: WizardAnswers<AdvancedOptions> = new Map();
   let selected: Option[] = [...(context.preselected ?? [])];
+  let shown = initial;
 
   for (;;) {
     const picked = await chooseManyStep<Option>(
       '¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)',
-      optionalChoices(initial, context),
+      optionalChoices(shown, context),
       selected,
     );
 
@@ -388,6 +424,7 @@ export async function askAdvancedOptions(
 
     selected = picked;
 
+    // Desde `initial`: lo de un opcional desmarcado no llega, y lo marcado se vuelve a responder.
     const options = await runWizard(
       picked.flatMap((option) => steps[option]),
       initial,
@@ -397,5 +434,7 @@ export async function askAdvancedOptions(
     if (options) {
       return dropUnavailable(options, new Set(optionalChoices(options, context).map((choice) => choice.value)));
     }
+
+    shown = withAnsweredOptions(initial, picked, steps, answers);
   }
 }

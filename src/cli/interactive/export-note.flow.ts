@@ -114,6 +114,8 @@ export function exportNoteSteps(
       },
     },
     {
+      // Se busca en ARCA en ese punto de venta.
+      dependsOn: ['punto-venta-factura'],
       name: 'factura',
       run: async (state, previous) => {
         const invoicePointOfSale = requireStepValue(state.invoicePointOfSale, 'invoicePointOfSale');
@@ -159,6 +161,8 @@ export function exportNoteSteps(
       },
     },
     {
+      // Va en la moneda de la factura, y en la NC con su total como tope.
+      dependsOn: ['factura'],
       name: 'monto',
       run: async (state, previous) => {
         const invoice = requireStepValue(state.invoice, 'invoice');
@@ -203,6 +207,7 @@ export function exportNoteSteps(
       skip: (state) => state.invoice?.exportType !== 1,
     },
     {
+      dependsOn: ['factura', 'monto'],
       name: 'opcionales',
       run: async (state) => {
         const invoice = requireStepValue(state.invoice, 'invoice');

@@ -96,6 +96,12 @@ describe('multiSelect', () => {
     expect(answer).toEqual(['moneda', 'exento']);
   });
 
+  it('lo marcado que ya no esta entre las opciones (una respuesta vieja) no se devuelve', async () => {
+    const { answer } = await run([ENTER], ['exento', 'alicuota']);
+
+    expect(answer).toEqual(['exento']);
+  });
+
   it('`a` marca todas las opciones y deja afuera a "Volver"', async () => {
     const { answer, screen } = await run(['a', ENTER]);
 

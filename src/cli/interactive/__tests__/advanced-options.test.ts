@@ -131,7 +131,7 @@ describe('askAdvancedOptions: volver desde cada opcional', () => {
     expect(script.askTextStep.mock.calls[3]?.[1]).toMatchObject({ previousAnswer: '5' });
   });
 
-  it('al volver, la moneda y cómo te pagan arrancan marcadas; si cambia una respuesta anterior, se olvidan', async () => {
+  it('al volver, la moneda y cómo te pagan arrancan marcadas; si cambia la fecha, no se olvidan', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-10-01T12:00:00-03:00'));
     script = createScript([
@@ -153,13 +153,14 @@ describe('askAdvancedOptions: volver desde cada opcional', () => {
       currencyCode: 'EUR',
       exchangeRate: 1600.5,
     });
+    // La moneda y cómo te pagan no dependen de la fecha.
     expect(script.chooseStep.mock.calls.map((call) => call[2])).toEqual([
       'PES',
       undefined,
       'pesos',
       'EUR',
-      'PES',
-      undefined,
+      'EUR',
+      'pesos',
     ]);
     expect(script.askTextStep.mock.calls.map((call) => call[1]?.previousAnswer)).toEqual([
       undefined,
@@ -169,23 +170,130 @@ describe('askAdvancedOptions: volver desde cada opcional', () => {
     ]);
   });
 
-  it('volver a la seleccion no aplica lo respondido, pero al marcarlo de nuevo arranca escrito', async () => {
+  it('volver a la seleccion deja aplicado lo respondido; un opcional a medias no, pero arranca escrito', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-10-01T12:00:00-03:00'));
     script = createScript([
       [OPTIONALS, ['Importe exento', 'Fecha']],
       [/Fecha del comprobante/, '01/10/2026'],
+      [/exenta/, '100'],
+      [/no gravada/, BACK],
       [/exenta/, BACK],
       [/Fecha del comprobante/, BACK],
       [OPTIONALS, ['Importe exento', 'Fecha']],
       [/Fecha del comprobante/, '01/10/2026'],
-      [/exenta/, ''],
+      [/exenta/, '100'],
       [/no gravada/, ''],
     ]);
 
-    expect(await askAdvancedOptions(PESOS, context('fa'))).toMatchObject({ billingDate: '01/10/2026' });
-    expect(descriptions(1)['Fecha del comprobante']).toBe('hoy');
-    expect(script.askTextStep.mock.calls[3]?.[1]).toMatchObject({ previousAnswer: '01/10/2026' });
+    expect(await askAdvancedOptions(PESOS, context('fa'))).toMatchObject({
+      billingDate: '01/10/2026',
+      exemptAmount: 100,
+    });
+    expect(descriptions(1)).toMatchObject({
+      'Fecha del comprobante': '01/10/2026',
+      'Importe exento o no gravado': 'sin exento ni no gravado',
+    });
+    expect(script.askTextStep.mock.calls.slice(5).map((call) => call[1]?.previousAnswer)).toEqual([
+      '01/10/2026',
+      '100',
+      undefined,
+    ]);
+  });
+
+  it('desmarcar un opcional respondido lo descarta al seguir; los demas quedan', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-01T12:00:00-03:00'));
+    script = createScript([
+      [OPTIONALS, ['Fecha', 'Período', 'Vencimiento']],
+      [/Fecha del comprobante/, '01/10/2026'],
+      [/Servicio desde/, '01/09/2026'],
+      [/Servicio hasta/, '30/09/2026'],
+      [/Vencimiento del pago/, BACK],
+      [/Servicio hasta/, BACK],
+      [/Servicio desde/, BACK],
+      [/Fecha del comprobante/, BACK],
+      [OPTIONALS, ['Período', 'Vencimiento']],
+      [/Servicio desde/, '01/09/2026'],
+      [/Servicio hasta/, '30/09/2026'],
+      [/Vencimiento del pago/, '15/10/2026'],
+    ]);
+
+    const result = await askAdvancedOptions(PESOS, context('fa'));
+
+    expect(result).toMatchObject({
+      paymentDueDate: '15/10/2026',
+      serviceEndDate: '30/09/2026',
+      serviceStartDate: '01/09/2026',
+    });
+    expect(result).not.toHaveProperty('billingDate', '01/10/2026');
+    // Al volver a la seleccion se ve lo respondido; el vencimiento quedo sin responder.
+    expect(descriptions(1)).toMatchObject({
+      'Fecha del comprobante': '01/10/2026',
+      'Período del servicio': '01/09/2026 al 30/09/2026',
+      'Vencimiento del pago': 'por defecto',
+    });
+    expect(script.askTextStep.mock.calls.slice(7).map((call) => call[1]?.previousAnswer)).toEqual([
+      '01/09/2026',
+      '30/09/2026',
+      undefined,
+    ]);
+  });
+
+  it('desmarcar todo y seguir no deja nada de lo respondido', async () => {
+    script = createScript([
+      [OPTIONALS, ['Moneda extranjera', 'Importe exento']],
+      [/Moneda del comprobante/, 'Dólar'],
+      [/Cómo te pagan/, 'En dólares'],
+      [/exenta/, '100'],
+      [/no gravada/, BACK],
+      [/exenta/, BACK],
+      [/Cómo te pagan/, BACK],
+      [/Moneda del comprobante/, BACK],
+      [OPTIONALS, []],
+    ]);
+
+    expect(await askAdvancedOptions(PESOS, context('fa'))).toEqual(PESOS);
+    expect(descriptions(1)).toMatchObject({
+      'Importe exento o no gravado': 'sin exento ni no gravado',
+      'Moneda extranjera': 'dólares, cotización oficial de ARCA',
+    });
+  });
+
+  it('si cambia la moneda se olvidan cómo te pagan y la cotización, pero no el exento', async () => {
+    script = createScript([
+      [OPTIONALS, ['Moneda extranjera', 'Importe exento']],
+      [/Moneda del comprobante/, 'Dólar'],
+      [/Cómo te pagan/, 'En pesos'],
+      [/Cotización de USD/, '1.000'],
+      [/exenta/, '50'],
+      [/no gravada/, BACK],
+      [/exenta/, BACK],
+      [/Cotización de USD/, BACK],
+      [/Cómo te pagan/, BACK],
+      [/Moneda del comprobante/, 'Euro'],
+      [/Cómo te pagan/, 'En pesos'],
+      [/Cotización de EUR/, '1.200'],
+      [/exenta/, '50'],
+      [/no gravada/, ''],
+    ]);
+
+    expect(await askAdvancedOptions(PESOS, context('fa'))).toMatchObject({
+      currencyCode: 'EUR',
+      exchangeRate: 1200,
+      exemptAmount: 50,
+    });
+    expect(script.chooseStep.mock.calls.map((call) => call[2])).toEqual(['PES', undefined, 'pesos', 'USD', undefined]);
+    expect(script.askTextStep.mock.calls.map((call) => [call[0], call[1]?.previousAnswer])).toEqual([
+      ['Cotización de USD:', undefined],
+      [expect.stringMatching(/exenta/), undefined],
+      [expect.stringMatching(/no gravada/), undefined],
+      [expect.stringMatching(/exenta/), '50'],
+      ['Cotización de USD:', '1000'],
+      ['Cotización de EUR:', undefined],
+      [expect.stringMatching(/exenta/), '50'],
+      [expect.stringMatching(/no gravada/), undefined],
+    ]);
   });
 
   it('"Volver" en la seleccion vuelve al paso anterior', async () => {
