@@ -10,6 +10,7 @@ import {
   formatDateLabel,
   formatDecimalLabel,
   formatDocumentTypeLabel,
+  formatFceOptionalRow,
   formatIvaConditionLabel,
   formatMoneyLabel,
   formatNumericLabel,
@@ -34,13 +35,6 @@ export function formatVoucherSummary(result: BillingExecutionResult): Record<str
     tipoArca: result.voucherKind.arcaType,
   };
 }
-
-const FCE_OPTIONAL_LABELS: Record<string, string> = {
-  '22': 'Anulación',
-  '27': 'Transferencia',
-  '2101': 'CBU',
-  '2102': 'Alias CBU',
-};
 
 /** Una alicuota: su tasa. Varias: el desglose de neto e IVA de cada una. */
 function formatIvaRows(iva: readonly IIva[], currency: string): Array<readonly [string, string]> {
@@ -153,10 +147,10 @@ function formatFriendlyPayloadRows(result: BillingExecutionResult): Array<readon
   }
 
   for (const optional of payload.Opcionales ?? []) {
-    const label = FCE_OPTIONAL_LABELS[optional.Id];
+    const row = formatFceOptionalRow(optional.Id, optional.Valor);
 
-    if (label) {
-      rows.push([label, optional.Id === '22' ? (optional.Valor === 'S' ? 'Sí' : 'No') : optional.Valor]);
+    if (row) {
+      rows.push(row);
     }
   }
 

@@ -821,6 +821,8 @@ arcli consultar fb 14 --json      # lo mismo, en JSON
 | `arcli ultimos <tipo>`            | `tipo`: atajo del comprobante (`fa`, `fb`, `nca`, `fcea`…) | `--cantidad <n>` (1 a 50; por defecto `config.filasPorLista` o 15), `--pv` / `--punto-venta`, `--json`, `--testing`, `--produccion` |
 | `arcli consultar <tipo> <numero>` | `tipo` y número del comprobante                            | `--pv` / `--punto-venta`, `--json`, `--testing`, `--produccion`                                                                     |
 
+`consultar` muestra el CAE, el receptor, los importes con sus alícuotas y tributos, y, si los tiene, el período de servicio, el vencimiento del pago, el comprobante asociado de una nota (o su período asociado), si se cobra en la misma moneda extranjera, los datos de FCE (CBU, alias, transferencia, anulación) y las observaciones de ARCA.
+
 Sin `--pv` usan el punto de venta de la config. Aceptan también la `E` (`fe`, `nde`, `nce`), que se consulta en WSFEX con su certificado. Si el comprobante no existe, `consultar` termina con el error `VOUCHER_NOT_FOUND`. El formato del JSON está en [Entrada y salida](input-output.md#comprobantes-emitidos-ultimos-y-consultar).
 
 ## Consultar el régimen FCE

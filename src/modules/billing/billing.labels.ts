@@ -124,3 +124,21 @@ export function formatDecimalLabel(value: number | undefined): string {
 
   return formatExchangeRate(value);
 }
+
+const FCE_OPTIONAL_LABELS: Record<string, string> = {
+  '22': 'Anulación',
+  '27': 'Transferencia',
+  '2101': 'CBU',
+  '2102': 'Alias CBU',
+};
+
+/** La fila de un opcional de FCE (`Opcionales`): la anulacion como `Sí` o `No`, el resto tal cual. Otro, ninguna. */
+export function formatFceOptionalRow(id: string, value: string): readonly [string, string] | undefined {
+  const label = FCE_OPTIONAL_LABELS[id];
+
+  if (!label) {
+    return undefined;
+  }
+
+  return [label, id === '22' ? (value === 'S' ? 'Sí' : 'No') : value];
+}

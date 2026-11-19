@@ -11,7 +11,7 @@ arcli ultimos fb                  # últimas 15 facturas B del punto de venta co
 arcli consultar fb 14             # detalle de la factura B número 14
 ```
 
-`ultimos` acepta `--cantidad` (hasta 50) y los dos, `--pv` para otro punto de venta. También con la factura de exportación (`fe`, `nce`, `nde`). Detalle en la [referencia](cli-reference.md#consultar-comprobantes-emitidos).
+`consultar` muestra también el comprobante asociado de una nota, el período de servicio, el vencimiento del pago, si se cobra en la misma moneda y los datos de FCE. `ultimos` acepta `--cantidad` (hasta 50) y los dos, `--pv` para otro punto de venta. También con la factura de exportación (`fe`, `nce`, `nde`). Detalle en la [referencia](cli-reference.md#consultar-comprobantes-emitidos).
 
 ## Estado de ARCA y tablas
 
