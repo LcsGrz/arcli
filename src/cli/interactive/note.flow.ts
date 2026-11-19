@@ -523,7 +523,6 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
       skip: (state) => !state.invoiceKind?.isElectronicCredit || requiredCancellation(state) !== undefined,
     },
     {
-      dependsOn: ['tipo-factura', 'asociacion', 'factura', 'concepto', 'alcance', 'monto', 'alicuota'],
       name: 'avanzadas',
       run: async (state) => {
         const invoiceKind = requireStepValue(state.invoiceKind, 'invoiceKind');

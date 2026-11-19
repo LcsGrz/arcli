@@ -310,7 +310,6 @@ export function repeatSteps(
     },
     ...cbuSteps<RepeatState>(config),
     {
-      dependsOn: ['tipo', 'factura', 'pago', 'cotizacion', 'periodo', 'periodo-desde', 'periodo-hasta'],
       name: 'opcionales',
       run: async (state) => {
         const advanced = await askAdvancedOptions(state.advanced, {

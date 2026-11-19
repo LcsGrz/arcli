@@ -602,6 +602,100 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     });
   });
 
+  // REV-65: la fecha de pago depende solo de la fecha del comprobante de los opcionales.
+  describe('la fecha de pago recordada', () => {
+    /** Los pasos con uno mas al final, que vuelve una vez: asi se llega de nuevo a la fecha de pago ya respondida. */
+    async function repeatWithStepAfter() {
+      const original = { ...INVOICE, exportType: 2 as const, incoterm: undefined };
+      const stepsGateway = { ...gateway, getLastVoucherNumber: async () => 1, getVoucher: async () => original };
+      let returned = false;
+      const after = {
+        name: 'despues',
+        run: async () => {
+          if (returned) {
+            return {};
+          }
+
+          returned = true;
+
+          return BACK;
+        },
+      };
+
+      return runWizard([...exportRepeatSteps(createSession(), stepsGateway, TABLES, 4), after], {});
+    }
+
+    function paymentDatePrefills(): Array<string | undefined> {
+      return script.askTextStep.mock.calls
+        .filter(([message]) => /Fecha de pago/.test(message))
+        .map((call) => call[1]?.previousAnswer);
+    }
+
+    it('cambiar otro opcional la conserva', async () => {
+      script = createScript([
+        [/Cuál repetimos/, '00004-00000001'],
+        [/Mismo monto/, 'Sí'],
+        [/Agregamos algún opcional/, ['Observaciones']],
+        [/^Observaciones \(/, 'Pedido 42'],
+        [/Observaciones comerciales/, ''],
+        [/Fecha de pago/, '20/11/2026'],
+        [/Fecha de pago/, BACK],
+        [/Agregamos algún opcional/, ['Observaciones']],
+        [/^Observaciones \(/, 'Pedido 43'],
+        [/Observaciones comerciales/, ''],
+        [/Fecha de pago/, '20/11/2026'],
+      ]);
+
+      expect(await repeatWithStepAfter()).toMatchObject({ paymentDate: '20/11/2026' });
+      expect(paymentDatePrefills()).toEqual([undefined, '20/11/2026', '20/11/2026']);
+    });
+
+    it('cambiar una respuesta anterior a los opcionales (el monto) la conserva', async () => {
+      script = createScript([
+        [/Cuál repetimos/, '00004-00000001'],
+        [/Mismo monto/, 'Sí'],
+        [/Agregamos algún opcional/, []],
+        [/Fecha de pago/, '20/11/2026'],
+        [/Fecha de pago/, BACK],
+        [/Agregamos algún opcional/, BACK],
+        [/Mismo monto/, 'No'],
+        [/Monto total en DOL/, '1.000'],
+        [/Agregamos algún opcional/, []],
+        [/Fecha de pago/, '20/11/2026'],
+      ]);
+
+      expect(await repeatWithStepAfter()).toMatchObject({
+        copy: expect.objectContaining({ amount: 1000 }),
+        paymentDate: '20/11/2026',
+      });
+      expect(paymentDatePrefills()).toEqual([undefined, '20/11/2026', '20/11/2026']);
+    });
+
+    it('cambiar la fecha del comprobante la olvida', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-11-14T12:00:00-03:00'));
+      script = createScript([
+        [/Cuál repetimos/, '00004-00000001'],
+        [/Mismo monto/, 'Sí'],
+        [/Agregamos algún opcional/, ['Fecha del comprobante']],
+        [/Fecha del comprobante/, '14/11/2026'],
+        [/Fecha de pago/, '20/11/2026'],
+        [/Fecha de pago/, BACK],
+        [/Agregamos algún opcional/, ['Fecha del comprobante']],
+        [/Fecha del comprobante/, '16/11/2026'],
+        [/Fecha de pago/, '21/11/2026'],
+      ]);
+
+      try {
+        expect(await repeatWithStepAfter()).toMatchObject({ paymentDate: '21/11/2026' });
+      } finally {
+        vi.useRealTimers();
+      }
+
+      expect(paymentDatePrefills()).toEqual([undefined, '20/11/2026', undefined]);
+    });
+  });
+
   it('con la actividad en la config no la pregunta y la usa', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],

@@ -157,7 +157,6 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
     },
     ...cbuSteps(config),
     {
-      dependsOn: ['comprobante', 'concepto'],
       name: 'avanzadas',
       run: async (state) => {
         const advanced = await askAdvancedOptions(state.advanced, {

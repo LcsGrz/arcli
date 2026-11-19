@@ -163,6 +163,72 @@ describe('runWizard', () => {
     ]);
   });
 
+  describe('con `fields`, solo cuenta el cambio de esos campos', () => {
+    interface FieldsState {
+      readonly options?: { readonly language?: string; readonly voucherDate?: string };
+      readonly paymentDate?: string;
+    }
+
+    /** opcionales, fecha de pago y un paso al final que vuelve una vez, para llegar de nuevo a la fecha ya respondida. */
+    function stepsWith(options: Array<FieldsState['options'] | typeof BACK>) {
+      const seen: Array<string | undefined> = [];
+      let returned = false;
+      const steps: Array<WizardStep<FieldsState>> = [
+        {
+          name: 'opcionales',
+          run: async () => {
+            const answer = options.shift();
+
+            return answer === BACK ? BACK : { options: answer };
+          },
+        },
+        {
+          dependsOn: [{ fields: ['options.voucherDate'], step: 'opcionales' }],
+          name: 'fecha-pago',
+          run: async (_state, previous) => {
+            seen.push(previous?.paymentDate);
+
+            return seen.length === 2 ? BACK : { paymentDate: '20/11/2026' };
+          },
+        },
+        {
+          name: 'despues',
+          run: async () => {
+            const back = !returned;
+
+            returned = true;
+
+            return back ? BACK : {};
+          },
+        },
+      ];
+
+      return { seen, steps };
+    }
+
+    it('si cambia otro campo de la respuesta, conserva la suya', async () => {
+      const { seen, steps } = stepsWith([
+        { language: 'es', voucherDate: '14/11/2026' },
+        { language: 'en', voucherDate: '14/11/2026' },
+      ]);
+
+      await runWizard(steps, {});
+
+      expect(seen).toEqual([undefined, '20/11/2026', '20/11/2026']);
+    });
+
+    it('si cambia uno de esos campos, la olvida', async () => {
+      const { seen, steps } = stepsWith([
+        { language: 'es', voucherDate: '14/11/2026' },
+        { language: 'es', voucherDate: '16/11/2026' },
+      ]);
+
+      await runWizard(steps, {});
+
+      expect(seen).toEqual([undefined, '20/11/2026', undefined]);
+    });
+  });
+
   it('falla si `dependsOn` no nombra un paso anterior', async () => {
     const { steps } = recording({ a: ['1'] }, { a: ['b'] });
 

@@ -207,7 +207,6 @@ export function exportNoteSteps(
       skip: (state) => state.invoice?.exportType !== 1,
     },
     {
-      dependsOn: ['factura', 'monto'],
       name: 'opcionales',
       run: async (state) => {
         const invoice = requireStepValue(state.invoice, 'invoice');

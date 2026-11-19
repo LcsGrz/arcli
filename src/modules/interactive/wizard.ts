@@ -14,15 +14,22 @@ export function requireStepValue<T>(value: T | undefined, name: string): T {
   return value;
 }
 
+/**
+ * Un paso anterior del que depende otro: por nombre (cualquier cambio en su respuesta cuenta) o solo por algunos campos
+ * de su respuesta, con `.` para los anidados (`options.voucherDate`): si cambian otros, no cuenta.
+ */
+export type WizardDependency = string | { readonly fields: readonly string[]; readonly step: string };
+
 export interface WizardStep<S> {
   /** Unico entre los pasos del asistente: con el se recuerda la ultima respuesta del paso. */
   readonly name: string;
   /**
    * Pasos anteriores de los que lee algo para preguntar: el texto, las opciones, la opcion por defecto o la validacion
-   * (por ejemplo, el numero de documento depende del tipo). Si la respuesta de uno de ellos cambia, este paso olvida la
-   * suya, y tambien los que dependen de este.
+   * (por ejemplo, el numero de documento depende del tipo). Si la respuesta de uno de ellos cambia (o, con `fields`, uno
+   * de esos campos), este paso olvida la suya, y tambien los que dependen de este. Solo tiene efecto en un paso que usa
+   * `previous`, o del que depende otro que lo usa.
    */
-  readonly dependsOn?: readonly string[];
+  readonly dependsOn?: readonly WizardDependency[];
   /** Pasos que no aplican al estado actual (por ejemplo, el DNI si el receptor es consumidor final). */
   readonly skip?: (state: S) => boolean;
   /**
@@ -35,14 +42,51 @@ export interface WizardStep<S> {
 /** La ultima respuesta de cada paso, por nombre. Un asistente que se vuelve a correr la puede compartir. */
 export type WizardAnswers<S> = Map<string, Partial<S>>;
 
-/** Los pasos que dependen de `name`, directa o indirectamente: si su respuesta cambia, olvidan la suya. */
-function dependentsOf<S>(steps: ReadonlyArray<WizardStep<S>>, name: string): Set<string> {
+const dependencyStep = (dependency: WizardDependency): string =>
+  typeof dependency === 'string' ? dependency : dependency.step;
+
+function fieldAt(answer: unknown, path: string): unknown {
+  return path
+    .split('.')
+    .reduce<unknown>(
+      (value, key) => (value && typeof value === 'object' ? (value as Record<string, unknown>)[key] : undefined),
+      answer,
+    );
+}
+
+/** Si el cambio de respuesta de `changed` (de `before` a `after`) afecta a quien declara `dependency`. */
+function isAffected(dependency: WizardDependency, changed: string, before: unknown, after: unknown): boolean {
+  if (typeof dependency === 'string') {
+    return dependency === changed;
+  }
+
+  return (
+    dependency.step === changed &&
+    dependency.fields.some((field) => !isDeepStrictEqual(fieldAt(before, field), fieldAt(after, field)))
+  );
+}
+
+/**
+ * Los pasos que dependen del cambio de respuesta de `name`, directa o indirectamente: olvidan la suya. Un paso que
+ * olvida su respuesta cuenta como cambiada entera para los que dependen de el.
+ */
+function dependentsOf<S>(
+  steps: ReadonlyArray<WizardStep<S>>,
+  name: string,
+  before: unknown,
+  after: unknown,
+): Set<string> {
   const dependents = new Set<string>();
-  const pending = [name];
+  const direct = steps.filter((step) =>
+    step.dependsOn?.some((dependency) => isAffected(dependency, name, before, after)),
+  );
+  const pending = direct.map((step) => step.name);
+
+  pending.forEach((dependent) => dependents.add(dependent));
 
   for (let current = pending.pop(); current !== undefined; current = pending.pop()) {
     for (const step of steps) {
-      if (!dependents.has(step.name) && step.dependsOn?.includes(current)) {
+      if (!dependents.has(step.name) && step.dependsOn?.some((dependency) => dependencyStep(dependency) === current)) {
         dependents.add(step.name);
         pending.push(step.name);
       }
@@ -56,7 +100,7 @@ function dependentsOf<S>(steps: ReadonlyArray<WizardStep<S>>, name: string): Set
 function assertDependencies<S>(steps: ReadonlyArray<WizardStep<S>>): void {
   steps.forEach((step, index) => {
     const earlier = new Set(steps.slice(0, index).map((other) => other.name));
-    const unknown = step.dependsOn?.filter((name) => !earlier.has(name)) ?? [];
+    const unknown = step.dependsOn?.map(dependencyStep).filter((name) => !earlier.has(name)) ?? [];
 
     if (unknown.length > 0) {
       throw new Error(`El paso ${step.name} depende de ${unknown.join(', ')}, que no es un paso anterior.`);
@@ -107,7 +151,7 @@ export async function runWizard<S>(
 
     // Tambien sin respuesta anterior: un paso que antes se salteaba puede tener dependientes con respuestas viejas.
     if (!isDeepStrictEqual(previous, result)) {
-      for (const name of dependentsOf(steps, step.name)) {
+      for (const name of dependentsOf(steps, step.name, previous, result)) {
         answers.delete(name);
       }
     }
