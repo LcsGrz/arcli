@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { arcliConfigSchema } from '../../../modules/config/config.schemas';
 import type { ExportGateway, ExportIssuedVoucher } from '../../../modules/export/export.types';
-import { BACK } from '../../../modules/interactive/wizard';
+import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
 import { stripAnsi } from '../../../ui';
 import { attachExportPdf } from '../../commands/export.command.pdf';
-import { runExportRepeatFlow } from '../export-repeat.flow';
+import { buildExportRepeatInput, exportRepeatSteps, runExportRepeatFlow } from '../export-repeat.flow';
 import type { Choice } from '../prompts';
 import type { InteractiveSession } from '../session';
 
@@ -333,5 +333,234 @@ describe('runExportRepeatFlow', () => {
     script = createScript([[/Cuál repetimos/, BACK]]);
 
     await expect(runExportRepeatFlow(createSession(), 4)).resolves.toBe(BACK);
+  });
+});
+
+describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta segun la factura', () => {
+  const TABLES = {
+    countries: [
+      { code: 212, name: 'ESTADOS UNIDOS' },
+      { code: 999, name: 'ATLANTIDA' },
+    ],
+    countryCuits: [{ countryName: 'ESTADOS UNIDOS - Persona Jurídica', cuit: 55000002126 }],
+  };
+
+  /** Los pasos sobre una sola factura E, la 1 del punto de venta 4. */
+  async function repeatOf(original: ExportIssuedVoucher, session = createSession()) {
+    const stepsGateway = { ...gateway, getLastVoucherNumber: async () => 1, getVoucher: async () => original };
+    const state = await runWizard(exportRepeatSteps(session, stepsGateway, TABLES, 4), {});
+
+    return state && buildExportRepeatInput(state, session.runtime.config.exportacion?.actividad);
+  }
+
+  /** Los nombres de los opcionales que ofrece la seleccion la vez `call`. */
+  function offeredOptionals(call = 0): string[] {
+    return (script.chooseManyStep.mock.calls[call]?.[1] ?? []).map((choice) => choice.name);
+  }
+
+  beforeEach(() => {
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    expect(script.remaining()).toBe(0);
+  });
+
+  it('si el destino ya no esta en la tabla de ARCA avisa y vuelve al selector de comprobantes', async () => {
+    script = createScript([[/Cuál repetimos/, '00004-00000001']]);
+
+    expect(await repeatOf({ ...INVOICE, destinationCountry: 1 })).toBeUndefined();
+    expect(printed()).toContain('El destino de la factura (1) ya no está en la tabla de países de ARCA');
+  });
+
+  it('volver desde "¿Mismo monto?" vuelve a la lista', async () => {
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      [/Mismo monto/, BACK],
+      [/Cuál repetimos/, BACK],
+    ]);
+
+    expect(await repeatOf(INVOICE)).toBeUndefined();
+  });
+
+  it('volver desde el monto escrito vuelve a la lista', async () => {
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      [/Mismo monto/, 'No'],
+      [/Monto total en DOL/, BACK],
+      [/Cuál repetimos/, BACK],
+    ]);
+
+    expect(await repeatOf(INVOICE)).toBeUndefined();
+  });
+
+  it('otro monto saca los ítems; volver y elegir "Sí" los trae de nuevo', async () => {
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      [/Mismo monto/, 'No'],
+      [/Monto total en DOL/, '2.000'],
+      [/Permisos de embarque/, BACK],
+      [/Mismo monto/, 'Sí'],
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, []],
+    ]);
+
+    const input = await repeatOf(INVOICE);
+
+    expect(input?.amount).toBe(1500);
+    expect(input?.items?.map((item) => item.description)).toEqual(['Bienes varios', 'Flete']);
+    // En la seleccion de opcionales se ven los ítems recuperados.
+    expect(script.chooseManyStep.mock.calls[0]?.[1].find((choice) => choice.value === 'items')?.description).toBe(
+      '2 ítems',
+    );
+  });
+
+  it('otro monto igual al de la factura deja los ítems sin avisar', async () => {
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      [/Mismo monto/, 'No'],
+      [/Monto total en DOL/, '1.500'],
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, []],
+    ]);
+
+    expect((await repeatOf(INVOICE))?.items).toHaveLength(2);
+    expect(printed()).not.toContain('Con otro monto');
+  });
+
+  it('si la factura no trae `CanMisMonExt` lo pregunta; cobrada en pesos ofrece la cotización', async () => {
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      [/Mismo monto/, 'Sí'],
+      [/Te pagan en la moneda de la factura/, 'No, en pesos'],
+      [/Permisos de embarque/, BACK],
+      [/Te pagan en la moneda de la factura/, BACK],
+      [/Mismo monto/, 'Sí'],
+      [/Te pagan en la moneda de la factura/, 'No, en pesos'],
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, []],
+    ]);
+
+    expect(await repeatOf({ ...INVOICE, sameCurrency: undefined })).toMatchObject({ sameCurrency: false });
+    expect(offeredOptionals()).toContain('Cotización');
+  });
+
+  it('cobrada en la misma moneda o en servicios no ofrece otra cotización', async () => {
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      [/Mismo monto/, 'Sí'],
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, []],
+    ]);
+    await repeatOf(INVOICE);
+    expect(offeredOptionals()).not.toContain('Cotización');
+
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      [/Mismo monto/, 'Sí'],
+      [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
+    ]);
+    await repeatOf({ ...INVOICE, exportType: 2, incoterm: undefined, sameCurrency: false });
+    expect(offeredOptionals()).not.toContain('Cotización');
+    // Sin incoterm tampoco se ofrece su descripcion.
+    expect(offeredOptionals()).not.toContain('Descripción del incoterm');
+  });
+
+  it('una E en pesos no pregunta la moneda de pago ni ofrece cotización', async () => {
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      [/Mismo monto/, 'Sí'],
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, []],
+    ]);
+
+    expect(await repeatOf({ ...INVOICE, currencyCode: 'PES', sameCurrency: undefined })).toMatchObject({
+      currencyCode: 'PES',
+      sameCurrency: false,
+    });
+    expect(offeredOptionals()).not.toContain('Cotización');
+  });
+
+  it('sin CUIT de país publicado ni ID impositivo pregunta el CUIT; volver desde ahi vuelve al monto', async () => {
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      [/Mismo monto/, 'Sí'],
+      [/ARCA no tiene un CUIT publicado para ATLANTIDA/, BACK],
+      [/Mismo monto/, 'Sí'],
+      [/ARCA no tiene un CUIT publicado para ATLANTIDA/, rejecting('55000002126', ['', /Escribí el CUIT/])],
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, []],
+    ]);
+
+    expect(
+      await repeatOf({ ...INVOICE, clientCountryCuit: undefined, clientTaxId: ' ', destinationCountry: 999 }),
+    ).toMatchObject({ clientCountryCuit: 55000002126, destinationCountry: 'ATLANTIDA' });
+  });
+
+  it('con ID impositivo no pregunta el CUIT del país aunque ARCA no tenga uno para el destino', async () => {
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      [/Mismo monto/, 'Sí'],
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, []],
+    ]);
+
+    expect(await repeatOf({ ...INVOICE, clientCountryCuit: undefined, destinationCountry: 999 })).toMatchObject({
+      clientCountryCuit: undefined,
+      clientTaxId: '12-3456789',
+    });
+  });
+
+  it('en servicios, volver desde la fecha de pago vuelve al monto, y la actividad escrita se valida', async () => {
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      [/Mismo monto/, 'Sí'],
+      [/Fecha de pago/, BACK],
+      [/Mismo monto/, 'Sí'],
+      [/Fecha de pago/, ''],
+      [/actividad de WSFEX/, rejecting('620100', ['abc', /La actividad/])],
+      [/Agregamos algún opcional/, BACK],
+      [/actividad de WSFEX/, BACK],
+      [/Fecha de pago/, ''],
+      [/actividad de WSFEX/, '620200'],
+      [/Agregamos algún opcional/, []],
+    ]);
+
+    expect(await repeatOf({ ...INVOICE, activities: [], exportType: 2, incoterm: undefined })).toMatchObject({
+      activity: 620200,
+      paymentDate: undefined,
+    });
+  });
+
+  it('con la actividad en la config no la pregunta y la usa', async () => {
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      [/Mismo monto/, 'Sí'],
+      [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
+    ]);
+
+    expect(
+      await repeatOf(
+        { ...INVOICE, activities: [], exportType: 2, incoterm: undefined },
+        createSession({ exportacion: { actividad: 620100 } }),
+      ),
+    ).toMatchObject({ activity: 620100 });
+  });
+
+  it('los permisos escritos van como existentes', async () => {
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      [/Mismo monto/, 'Sí'],
+      [/Permisos de embarque/, '26001EC01000123A, 26001EC01000124B'],
+      [/Agregamos algún opcional/, []],
+    ]);
+
+    expect(await repeatOf(INVOICE)).toMatchObject({
+      permits: ['26001EC01000123A', '26001EC01000124B'],
+      permitsExisting: true,
+    });
   });
 });
