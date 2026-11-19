@@ -529,6 +529,30 @@ describe('ExportService.resolve', () => {
     expect(gateway.getDestinationCountries).not.toHaveBeenCalled();
   });
 
+  it('rechaza un monto 0 o negativo y pide el domicilio, sin ir a ARCA (TEST-16)', async () => {
+    const gateway = createGateway();
+
+    await expect(service.resolve({ ...INPUT, amount: 0 }, gateway, RUNTIME, NOW)).rejects.toThrow(
+      /Falta el monto total o no es válido/,
+    );
+    await expect(service.resolve({ ...INPUT, amount: -1500 }, gateway, RUNTIME, NOW)).rejects.toThrow(
+      /Falta el monto total o no es válido/,
+    );
+    await expect(service.resolve({ ...INPUT, clientAddress: ' ' }, gateway, RUNTIME, NOW)).rejects.toThrow(
+      /--domicilio-cliente/,
+    );
+    expect(gateway.getDestinationCountries).not.toHaveBeenCalled();
+    expect(gateway.getLastVoucherNumber).not.toHaveBeenCalled();
+  });
+
+  it('en servicios en pesos no consulta la cotizacion (TEST-16)', async () => {
+    const gateway = createGateway();
+    const resolved = await service.resolve({ ...INPUT, currencyCode: 'PES' }, gateway, RUNTIME, NOW);
+
+    expect(resolved.payload).toMatchObject({ Moneda_ctz: 1, Moneda_Id: 'PES' });
+    expect(gateway.getQuotations).not.toHaveBeenCalled();
+  });
+
   it('rechaza una fecha de mas de 5 dias antes o despues de hoy (error 1500)', async () => {
     await expect(
       service.resolve({ ...INPUT, voucherDate: '07/06/2026' }, createGateway(), RUNTIME, NOW),
@@ -660,6 +684,17 @@ describe('ExportService.resolve: notas E', () => {
     await expect(service.resolve({ ...NOTE_INPUT, paymentDate: '01/06' }, gateway, RUNTIME, NOW)).rejects.toThrow(
       /error 1673/,
     );
+    expect(gateway.getVoucher).not.toHaveBeenCalled();
+  });
+
+  it('sin CUIT en la config no consulta el asociado (TEST-16)', async () => {
+    const gateway = createGateway();
+    const runtime = {
+      config: arcliConfigSchema.parse({ exportacion: { actividad: 620100 }, puntoVentaPorDefecto: 3 }),
+      environment: 'testing' as const,
+    };
+
+    await expect(service.resolve(NOTE_INPUT, gateway, runtime, NOW)).rejects.toThrow(/Falta el CUIT/);
     expect(gateway.getVoucher).not.toHaveBeenCalled();
   });
 

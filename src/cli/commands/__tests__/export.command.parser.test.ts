@@ -55,6 +55,38 @@ describe('parseExportCommandPlan: emitir o previsualizar desde --cargar', () => 
   });
 });
 
+describe('parseExportCommandPlan: que no se emita sin querer (TEST-15)', () => {
+  it('sin flags, sin "emitir" y sin config no emite', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'arcli-export-cli-'));
+    const path = join(directory, 'factura-e.json');
+
+    directories.push(directory);
+    writeFileSync(path, JSON.stringify(BASE));
+
+    const command = new Command();
+
+    registerExportOptions(command, EXPORT_VOUCHER_KIND);
+    command.parse(['node', 'test', '--cargar', path], { from: 'node' });
+
+    expect(parseExportCommandPlan(command, {})).toMatchObject({ input: { emit: false }, modeSource: 'default' });
+  });
+
+  it('"emitir": false en el archivo le gana a emitir true en la config', () => {
+    expect(planFromFile({ emitir: false }, true)).toMatchObject({ emit: false, modeSource: 'file' });
+  });
+
+  it('--previsualizar le gana a "emitir": true del archivo', () => {
+    expect(planFromFile({ emitir: true }, true, ['--previsualizar'])).toMatchObject({
+      emit: false,
+      modeSource: 'flags',
+    });
+  });
+
+  it('--emitir y --previsualizar a la vez es un error', () => {
+    expect(() => planFromFile({}, false, ['--emitir', '--previsualizar'])).toThrow(/no los dos/);
+  });
+});
+
 describe('parseExportCommandPlan: avisos de --cargar', () => {
   const ITEM = { cantidad: 1, codigo: '001', descripcion: 'Servicio', precioUnitario: 1500, unidad: 'unidad' };
 

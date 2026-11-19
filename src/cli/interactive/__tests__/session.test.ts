@@ -82,6 +82,16 @@ describe('previewAndEmit', () => {
     expect(offerPdf).not.toHaveBeenCalled();
   });
 
+  it('la vista previa no emite aunque los datos traigan emit true, y si cancela no emite (TEST-15)', async () => {
+    const session = createSession('testing');
+
+    chooseOneMock.mockResolvedValueOnce(false);
+    await previewAndEmit(session, { ...input, dryRun: false, emit: true });
+
+    expect(chooseOneMock).toHaveBeenCalledTimes(1);
+    expect(session.createVoucher).not.toHaveBeenCalled();
+  });
+
   it('emite en testing con una sola confirmacion', async () => {
     const session = createSession('testing');
 

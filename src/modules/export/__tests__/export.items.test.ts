@@ -37,6 +37,23 @@ describe('parseExportItemArgument', () => {
     expect(() => parseExportItemArgument('Servicio|1')).toThrow(/no es válido/);
   });
 
+  it('rechaza un item con menos de tres o más de cinco partes, con el formato (TEST-16)', () => {
+    expect(() => parseExportItemArgument('Servicio|1')).toThrow(/no es válido\. /);
+    expect(() => parseExportItemArgument('001|Servicio|1|1000|unidad|extra')).toThrow(/no es válido\. /);
+  });
+
+  it('rechaza partes vacías (TEST-16)', () => {
+    expect(() => parseExportItemArgument('|1|1000')).toThrow(/falta la descripción/);
+    expect(() => parseExportItemArgument('Servicio||1000')).toThrow(/falta la descripción, la cantidad o el precio/);
+    expect(() => parseExportItemArgument('001| |1|1000|unidad')).toThrow(/falta la descripción/);
+  });
+
+  it('la unidad puede ser el código numérico de ARCA, y vacía usa unidad (TEST-16)', () => {
+    expect(parseExportItemArgument('001|Servicio|1|1000|7')).toMatchObject({ unit: 7 });
+    expect(parseExportItemArgument('Servicio|1|1000|kg')).toMatchObject({ unit: 'kg' });
+    expect(parseExportItemArgument('Servicio|1|1000|')).toMatchObject({ unit: 7 });
+  });
+
   it('rechaza importes con formato invalido', () => {
     expect(() => parseExportItemArgument('Servicio|1|1000.50')).toThrow(/^El precio del ítem/);
   });
