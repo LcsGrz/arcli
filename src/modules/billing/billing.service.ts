@@ -5,6 +5,7 @@ import type { ICbtesAsoc, IIva, INextVoucher } from '../../services/arca/arca-sd
 import { evaluateFceObligation, type FceObligationGateway, shouldCheckFceObligation } from '../fce/fce-obligation';
 import type { PadronGateway } from '../padron/padron';
 
+import { CONSUMER_DOCUMENT_NUMBER } from './arca-codes';
 import { resolveTaxAmounts, sumTaxAmounts } from './billing.amounts';
 import { resolveAssociatedPeriod } from './billing.associated-period';
 import { resolveAssociatedVouchers } from './billing.associated-vouchers';
@@ -307,7 +308,11 @@ export class BillingService {
       payload.Iva = taxAmounts.iva;
     }
 
-    if (typeof input.documentNumber === 'number') {
+    // Consumidor final va siempre con 0, se haya pasado `--cf` o no (REV-63): sin `DocNro`, la solicitud y la vista
+    // previa quedaban distintas a las de `--cf`. La validacion ya frena otro numero.
+    if (input.documentType === 'consumidor-final') {
+      payload.DocNro = CONSUMER_DOCUMENT_NUMBER;
+    } else if (typeof input.documentNumber === 'number') {
       payload.DocNro = input.documentNumber;
     }
 

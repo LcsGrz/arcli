@@ -720,6 +720,54 @@ describe('lotes', () => {
     ]));
 });
 
+describe('consumidor final sin numero (REV-63)', () => {
+  // Sin flag de receptor, el IVA receptor sale de la config; el documento, consumidor final por defecto.
+  const setup: Setup = { config: { ivaReceptorPorDefecto: 'consumidor-final' } };
+
+  /** La `solicitud` del `--json` de un comprobante suelto en vista previa. */
+  async function previewRequest(args: readonly string[]): Promise<Record<string, unknown>> {
+    prepareConfig(setup);
+
+    const result = await runCli([...args, '--previsualizar', '--json']);
+
+    expect(result.stderr).toBe('');
+    expect(result.code).toBe(0);
+
+    return (JSON.parse(result.stdout) as { solicitud: Record<string, unknown> }).solicitud;
+  }
+
+  it('--cfinal manda DocNro 0, como siempre', async () => {
+    expect(await previewRequest(['fc', '-m', '1000', '--cs', '--cfinal'])).toMatchObject({ DocNro: 0, DocTipo: 99 });
+  });
+
+  it('sin flag de receptor: la misma solicitud que con --cfinal', async () => {
+    const withFlag = await previewRequest(['fc', '-m', '1000', '--cs', '--cfinal']);
+    const implicit = await previewRequest(['fc', '-m', '1000', '--cs']);
+
+    expect(implicit).toMatchObject({ DocNro: 0, DocTipo: 99 });
+    expect(implicit).toEqual(withFlag);
+  });
+
+  it('--cargar con tipoDocumento consumidor-final sin numero: la misma solicitud que con --cfinal', async () => {
+    const withFlag = await previewRequest(['fc', '-m', '1000', '--cs', '--cfinal']);
+    const loaded = await previewRequest(['fc', '--cargar', writeInput('fc.json', batchItem(1000))]);
+
+    expect(loaded).toMatchObject({ DocNro: 0, DocTipo: 99 });
+    expect(loaded).toEqual(withFlag);
+  });
+
+  it('la vista previa sin flag de receptor dice Consumidor final, no N/D', async () => {
+    prepareConfig(setup);
+
+    const result = await runCli(['fc', '-m', '1000', '--cs', '--previsualizar']);
+
+    expect(result.stderr).toBe('');
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain('Consumidor final');
+    expect(result.stdout).not.toContain('N/D');
+  });
+});
+
 describe('errores de facturacion (stderr, exit 1)', () => {
   it('INPUT_VALIDATION_ERROR de un flag', () => golden('error-input-flag', ['fc', '--monto', 'abc', '--json']));
   it('INPUT_VALIDATION_ERROR de uso (opcion desconocida)', () =>

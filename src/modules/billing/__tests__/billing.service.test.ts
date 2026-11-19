@@ -90,7 +90,17 @@ describe('billing.service', () => {
     expect(payload.FchServDesde).toBe('20260318');
     expect(payload.FchServHasta).toBe('20260318');
     expect(payload.FchVtoPago).toBe('20260318');
-    expect(payload.DocNro).toBeUndefined();
+    // Consumidor final por defecto va con DocNro 0, igual que `--cf` (REV-63).
+    expect(payload.DocNro).toBe(0);
+  });
+
+  it('sends DocNro 0 for consumidor final with or without an explicit number (REV-63)', () => {
+    const service = new BillingService();
+    const implicit = service.buildVoucherPayload(createBillingInput({ documentNumber: undefined }), createRuntime());
+    const explicit = service.buildVoucherPayload(createBillingInput({ documentNumber: 0 }), createRuntime());
+
+    expect(implicit).toMatchObject({ DocNro: 0, DocTipo: 99 });
+    expect(explicit).toEqual(implicit);
   });
 
   it('uses today as billing date when no explicit date is provided', () => {

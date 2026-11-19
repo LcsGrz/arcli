@@ -36,7 +36,8 @@ exit: 0
       "ImpTrib": 0,
       "MonCotiz": 1,
       "MonId": "PES",
-      "PtoVta": 3
+      "PtoVta": 3,
+      "DocNro": 0
     },
     "previsualizacion": true,
     "resultado": null,
@@ -76,7 +77,8 @@ exit: 0
       "ImpTrib": 0,
       "MonCotiz": 1,
       "MonId": "PES",
-      "PtoVta": 3
+      "PtoVta": 3,
+      "DocNro": 0
     },
     "previsualizacion": true,
     "resultado": null,
