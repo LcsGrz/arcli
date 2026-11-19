@@ -9,7 +9,7 @@ import { stripAnsi } from '../../../ui';
 import { runExportFlow } from '../export.flow';
 import type { InteractiveSession } from '../session';
 
-import { createScript } from './script';
+import { createScript, onlyChoices, rejecting } from './script';
 
 let script = createScript([]);
 const savedConfig = vi.fn();
@@ -349,6 +349,183 @@ describe('runExportFlow', () => {
     ]);
 
     await expect(runExportFlow(createSession())).rejects.toThrow(/Argentina no es un destino de exportación/);
+  });
+
+  describe('reglas de WSFEX en el asistente (#219)', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('los textos más largos que los de ARCA dan el error y vuelven a preguntar', async () => {
+      script = createScript([
+        [
+          /cliente del exterior/,
+          rejecting('ACME LLC', ['', /El cliente es obligatorio/], ['a'.repeat(201), /200 caracteres.*error 1651/]),
+        ],
+        [/Domicilio/, rejecting('123 Main St', ['a'.repeat(301), /300 caracteres.*error 1661/])],
+        [/País de destino/, '212'],
+        [/ID impositivo/, rejecting('', ['a'.repeat(51), /50 caracteres/])],
+        [/Qué exportás/, 'Servicios'],
+        [/Monto total/, '100'],
+        [/Descripción/, rejecting('Consultoría', ['a'.repeat(4001), /más de 4\.000 caracteres.*error 1770/])],
+        [/moneda/, 'Pesos'],
+        [/Forma de pago/, rejecting('Transferencia', ['a'.repeat(51), /50 caracteres/])],
+        [/Fecha de pago/, ''],
+        [/Agregamos algún opcional/, ['Observaciones']],
+        [/^Observaciones \(/, rejecting('Pedido 42', ['a'.repeat(1001), /más de 1\.000 caracteres.*error 1665/])],
+        [/Observaciones comerciales/, rejecting('', ['a'.repeat(4001), /más de 4\.000 caracteres.*error 1665/])],
+        [/Emitimos/, 'No, dejar sin emitir'],
+      ]);
+
+      await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+      expect(gateway.authorize).not.toHaveBeenCalled();
+      expect(printed()).toContain(
+        "--descripcion 'Consultoría' --moneda PES --forma-pago Transferencia --observaciones 'Pedido 42'",
+      );
+    });
+
+    it('la fecha de pago anterior a hoy da el error 1674 y vuelve a preguntar; hoy o después pasa', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-30T12:00:00-03:00'));
+      script = createScript([
+        [/cliente del exterior/, 'ACME LLC'],
+        [/Domicilio/, '123 Main St'],
+        [/País de destino/, '212'],
+        [/ID impositivo/, ''],
+        [/Qué exportás/, 'Servicios'],
+        [/Monto total/, '100'],
+        [/Descripción/, ''],
+        [/moneda/, 'Pesos'],
+        [/Forma de pago/, 'Transferencia Internacional'],
+        [
+          /Fecha de pago/,
+          rejecting('15/11/2026', [
+            '29/10/2026',
+            /^La fecha de pago no puede ser anterior a la del comprobante \(hoy\): ARCA la rechaza \(error 1674\)\.$/,
+          ]),
+        ],
+        [/Agregamos algún opcional/, []],
+        [/Emitimos/, 'No, dejar sin emitir'],
+      ]);
+
+      await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+      const validate = script.askTextStep.mock.calls.find(([message]) => /Fecha de pago/.test(message))?.[1]?.validate;
+
+      expect(validate?.('30/10/2026')).toBe(true);
+      expect(printed()).toContain('--fecha-pago 15/11/2026');
+    });
+
+    it('en bienes el incoterm es obligatorio (1640): no ofrece "Sin incoterm"', async () => {
+      script = createScript([
+        [/cliente del exterior/, 'ACME LLC'],
+        [/Domicilio/, '123 Main St'],
+        [/País de destino/, '212'],
+        [/ID impositivo/, ''],
+        [/Qué exportás/, 'Bienes'],
+        [/Monto total/, '800'],
+        [/Descripción/, ''],
+        [/moneda/, 'Pesos'],
+        [/Incoterm/, 'EXW'],
+        [/Permisos de embarque/, ''],
+        [/Forma de pago/, 'Transferencia Internacional'],
+        [/Agregamos algún opcional/, []],
+        [/Emitimos/, 'No, dejar sin emitir'],
+      ]);
+
+      await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+      const incoterms = script.chooseStep.mock.calls.find(([message]) => /Incoterm/.test(message))?.[1] ?? [];
+
+      expect(onlyChoices(incoterms).map((choice) => choice.name)).toEqual(['EXW', 'FOB']);
+      expect(printed()).toContain('--incoterm EXW');
+    });
+
+    it('en servicios en dólares no ofrece la cotización a mano: ARCA exige la suya (2053)', async () => {
+      script = createScript([
+        [/cliente del exterior/, 'ACME LLC'],
+        [/Domicilio/, '123 Main St'],
+        [/País de destino/, '212'],
+        [/ID impositivo/, ''],
+        [/Qué exportás/, 'Servicios'],
+        [/Monto total/, '100'],
+        [/Descripción/, ''],
+        [/moneda/, 'Dólares'],
+        [/Te pagan en dólares/, 'No'],
+        [/Forma de pago/, 'Transferencia Internacional'],
+        [/Fecha de pago/, ''],
+        [/Agregamos algún opcional/, []],
+        [/Emitimos/, 'No, dejar sin emitir'],
+      ]);
+
+      await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+      const optionals = script.chooseManyStep.mock.calls.find(([message]) => /Agregamos/.test(message))?.[1] ?? [];
+
+      expect(optionals.map((choice) => choice.name)).not.toContain('Cotización');
+      expect(printed()).not.toContain('--cm');
+    });
+
+    it('en bienes con el pago en dólares tampoco ofrece la cotización (1604)', async () => {
+      script = createScript([
+        [/cliente del exterior/, 'ACME LLC'],
+        [/Domicilio/, '123 Main St'],
+        [/País de destino/, '212'],
+        [/ID impositivo/, ''],
+        [/Qué exportás/, 'Bienes'],
+        [/Monto total/, '100'],
+        [/Descripción/, ''],
+        [/moneda/, 'Dólares'],
+        [/Te pagan en dólares/, 'Sí'],
+        [/Incoterm/, 'FOB'],
+        [/Permisos de embarque/, ''],
+        [/Forma de pago/, 'Transferencia Internacional'],
+        [/Agregamos algún opcional/, []],
+        [/Emitimos/, 'No, dejar sin emitir'],
+      ]);
+
+      await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+      const optionals = script.chooseManyStep.mock.calls.find(([message]) => /Agregamos/.test(message))?.[1] ?? [];
+
+      expect(optionals.map((choice) => choice.name)).not.toContain('Cotización');
+      expect(printed()).toContain('--misma-moneda');
+    });
+
+    it('en los ítems no ofrece las unidades 0, 97 y 99, que van sin cantidad ni precio (1775)', async () => {
+      vi.spyOn(gateway, 'getUnits').mockResolvedValue([
+        { id: 0, name: 'sin descripción' },
+        { id: 7, name: 'unidades' },
+        { id: 97, name: 'seña/anticipo' },
+        { id: 99, name: 'bonificación' },
+      ]);
+      script = createScript([
+        [/cliente del exterior/, 'ACME LLC'],
+        [/Domicilio/, '123 Main St'],
+        [/País de destino/, '212'],
+        [/ID impositivo/, ''],
+        [/Qué exportás/, 'Servicios'],
+        [/Monto total/, '100'],
+        [/Descripción/, ''],
+        [/moneda/, 'Pesos'],
+        [/Forma de pago/, 'Transferencia Internacional'],
+        [/Fecha de pago/, ''],
+        [/Agregamos algún opcional/, ['Ítems']],
+        [/Descripción del ítem 1/, 'Consultoría'],
+        [/Cantidad/, '1'],
+        [/Precio unitario/, '100'],
+        [/Unidad/, 'unidades'],
+        [/Descripción del ítem 2/, ''],
+        [/Emitimos/, 'No, dejar sin emitir'],
+      ]);
+
+      await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+      const units = script.chooseStep.mock.calls.find(([message]) => /Unidad/.test(message))?.[1] ?? [];
+
+      expect(onlyChoices(units).map((choice) => choice.name)).toEqual(['unidades']);
+    });
   });
 
   it('volver desde el primer paso vuelve al selector de comprobantes', async () => {

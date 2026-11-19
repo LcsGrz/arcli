@@ -402,3 +402,54 @@ describe('executeExportCommand: codigo de salida', () => {
     expect(spinner.stop).toHaveBeenCalled();
   });
 });
+
+/** La fecha de la E (#219) con las fechas relativas de #217, como la escribe una persona. */
+describe('executeExportCommand: fecha del comprobante (ARCA 1500)', () => {
+  /** En pesos, para que la fecha no dependa de la cotizacion de aduana. */
+  const IN_PESOS = [...BASE.slice(0, -2), '--moneda', 'PES'];
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    // Miércoles 18/11/2026.
+    vi.setSystemTime(new Date('2026-11-18T12:00:00-03:00'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it.each(['-6', '+6'])('`fe --fecha %s` frena antes de ARCA, con el rango que acepta', async (date) => {
+    const used = gateway();
+
+    await expect(run([...IN_PESOS, '--fecha', date, '--emitir'], { gateway: used })).rejects.toMatchObject({
+      code: 'INPUT_VALIDATION_ERROR',
+      message: expect.stringMatching(/del 13\/11\/2026 al 23\/11\/2026.*\(error 1500\)/),
+    });
+    expect(used.authorize).not.toHaveBeenCalled();
+  });
+
+  it('`fe --fecha -5` y `--fecha +5` pasan a la vista previa; la futura avisa del 1535', async () => {
+    await run([...IN_PESOS, '--fecha', '-5']);
+
+    expect(JSON.parse(stdout)).toMatchObject({ estado: 'previsualizacion', solicitud: { Fecha_cbte: '20261113' } });
+
+    stdout = '';
+    await run([...IN_PESOS, '--fecha', '+5']);
+
+    expect(JSON.parse(stdout)).toMatchObject({
+      avisos: expect.arrayContaining([expect.stringContaining('1535')]),
+      solicitud: { Fecha_cbte: '20261123' },
+    });
+  });
+
+  it('en servicios no pasa del fin de mes, aunque esté dentro de los 5 días', async () => {
+    vi.setSystemTime(new Date('2026-11-28T12:00:00-03:00'));
+
+    await expect(run([...IN_PESOS, '--fecha', '+3'])).rejects.toMatchObject({
+      code: 'INPUT_VALIDATION_ERROR',
+      message: expect.stringContaining(
+        'al 30/11/2026, hasta 5 días antes o después de hoy y, en servicios, no después del fin de mes (error 1500)',
+      ),
+    });
+  });
+});

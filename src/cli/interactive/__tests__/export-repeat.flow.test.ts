@@ -11,7 +11,7 @@ import { runExportRepeatFlow } from '../export-repeat.flow';
 import type { Choice } from '../prompts';
 import type { InteractiveSession } from '../session';
 
-import { createScript } from './script';
+import { createScript, rejecting } from './script';
 
 let script = createScript([]);
 
@@ -221,6 +221,62 @@ describe('runExportRepeatFlow', () => {
     expect(gateway.authorize).toHaveBeenCalledWith(
       expect.objectContaining({ Fecha_pago: expect.any(String), Tipo_expo: 2 }),
     );
+  });
+
+  it('sin actividad en la factura ni en la config la pregunta, y Enter la deja sin informar (#219)', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-14T12:00:00-03:00'));
+
+    const services: ExportIssuedVoucher = { ...INVOICE, activities: [], exportType: 2, incoterm: undefined };
+
+    vi.mocked(gateway.getVoucher).mockImplementationOnce(async () => services);
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      [/Mismo monto/, 'Sí'],
+      [/Fecha de pago/, rejecting('20/11/2026', ['13/11/2026', /anterior a la del comprobante \(hoy\).*error 1674/])],
+      [/actividad de WSFEX.*Enter para no informarla/, ''],
+      [/Agregamos algún opcional/, []],
+      [/Emitimos/, 'Sí, emitir ahora'],
+    ]);
+
+    try {
+      await runExportRepeatFlow(createSession(), 4);
+    } finally {
+      vi.useRealTimers();
+    }
+
+    const sent = vi.mocked(gateway.authorize).mock.calls[0]?.[0];
+
+    expect(sent).not.toHaveProperty('Actividades');
+    expect(sent).toMatchObject({ Fecha_pago: '20261120', Tipo_expo: 2 });
+    expect(printed()).not.toContain('--actividad');
+    expect(printed()).toContain('--fecha-pago 20/11/2026');
+  });
+
+  it('no copia los ítems de seña, anticipo o bonificación (1775): sale un renglón con el total', async () => {
+    const withAdvance: ExportIssuedVoucher = {
+      ...INVOICE,
+      items: [
+        { description: 'Bienes varios', discount: 0, quantity: 2, total: 1600, unit: 1, unitPrice: 800 },
+        { description: 'Anticipo', discount: 0, quantity: 0, total: -100, unit: 97, unitPrice: 0 },
+      ],
+    };
+
+    vi.mocked(gateway.getVoucher).mockImplementationOnce(async () => withAdvance);
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      [/Mismo monto/, 'Sí'],
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, []],
+      [/Emitimos/, 'No, dejar sin emitir'],
+    ]);
+
+    await runExportRepeatFlow(createSession(), 4);
+
+    expect(printed().replace(/[│┃╏\s]+/g, ' ')).toContain(
+      'La factura tiene ítems de seña, anticipo o bonificación (unidades 97 y 99), que el asistente no informa: sale un renglón con el monto total.',
+    );
+    expect(printed()).not.toContain('--item');
   });
 
   it('con otro monto avisa que los ítems no se copian y sale un renglón con el total', async () => {
