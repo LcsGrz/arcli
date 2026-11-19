@@ -364,7 +364,7 @@ arcli fc ayuda
 
 ### El comprobante excede el tope de tu categoría de Monotributo
 
-- **Severidad:** informativa
+- **Severidad:** ocasional, solo monotributistas y no es un rechazo
 - **Síntoma:** el comprobante sale aprobado u observado con la observación `10236` ("El monto del comprobante emitido, excede el límite establecido para su categoría de Monotributo") o `10235` ("excede el límite establecido para la categoría máxima de Monotributo"). Con CAEA son la `817` y la `816`.
 - **Causa:** ARCA compara el importe del comprobante con el tope de tu categoría (o de la máxima). No es un rechazo: el comprobante está emitido.
 - **Solución:** con la `10236`, tenelo en cuenta para la próxima recategorización. Con la `10235`, ARCA avisa que quedarías excluido del Monotributo y que tendrías que darte de alta en el régimen general: consultalo con tu contador. Los topes de cada categoría están en `arcli monotributo`.
