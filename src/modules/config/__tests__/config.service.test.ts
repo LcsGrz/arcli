@@ -560,6 +560,7 @@ describe('ARCLI_CONFIG_DIR', () => {
     }
   });
 
+  // Solo resuelve: sin cwd, un ConfigService con la variable vacia apuntaria a la config real.
   it('vacia o sin definir, usa la carpeta de siempre', () => {
     vi.stubEnv('ARCLI_CONFIG_DIR', '  ');
 

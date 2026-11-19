@@ -1,13 +1,18 @@
 import { CommanderError } from 'commander';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ConfigService } from '../../modules/config/config.service';
 import { reportCliError } from '../error-output';
 import { createProgram } from '../program';
 
-// La config vive en el HOME temporal del setup de vitest: no toca la del equipo.
+// Cada test usa su carpeta de config temporal: los comandos la toman de ARCLI_CONFIG_DIR y este helper, de `cwd`.
+let configDir = '';
+
 function setJsonDefault(value: boolean): void {
-  const service = new ConfigService();
+  const service = new ConfigService({ cwd: configDir });
 
   try {
     service.setValue('json', String(value));
@@ -58,8 +63,16 @@ async function runReportingErrors(argv: string[]): Promise<RunResult & { exitCod
   }
 }
 
-beforeEach(() => setJsonDefault(false));
-afterEach(() => setJsonDefault(false));
+beforeEach(() => {
+  configDir = mkdtempSync(join(tmpdir(), 'arcli-output-json-'));
+  vi.stubEnv('ARCLI_CONFIG_DIR', configDir);
+  setJsonDefault(false);
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+  rmSync(configDir, { force: true, recursive: true });
+});
 
 describe('JSON output resolved the same way in every command', () => {
   // Una clave propia de cada salida: confirma que es el JSON del comando y no otro documento.

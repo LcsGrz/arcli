@@ -492,7 +492,7 @@ beforeEach(() => {
   // Con nombre fijo adentro de la temporal: algunos mensajes acortan la ruta a `.../config/archivo`.
   configDir = join(mkdtempSync(join(tmpdir(), 'arcli-golden-')), 'config');
   mkdirSync(configDir);
-  process.env.ARCLI_CONFIG_DIR = configDir;
+  vi.stubEnv('ARCLI_CONFIG_DIR', configDir);
   process.exitCode = undefined;
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(NOW);
@@ -502,7 +502,8 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
-  delete process.env.ARCLI_CONFIG_DIR;
+  // Vuelve al ARCLI_CONFIG_DIR temporal del setup, no a la carpeta real.
+  vi.unstubAllEnvs();
   process.exitCode = undefined;
   rmSync(dirname(configDir), { force: true, recursive: true });
 });
