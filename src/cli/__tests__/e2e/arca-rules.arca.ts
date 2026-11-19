@@ -1321,20 +1321,16 @@ describe.skipIf(Boolean(process.env.CI))('Reglas copiadas de ARCA contra testing
       {
         base: services,
         blockedBy: () => withFlag(services(), '--cliente', ' '),
-        // BUG: docs/validation-rules.md cita 1650 para el cliente obligatorio, pero ARCA testing rechaza el vacío con 1651
-        // ("Campo obligatorio de hasta 200 posiciones"), 19/11/2026.
-        bug: 'ARCA rechaza el cliente vacío con 1651, no con el 1650 que citan los docs.',
-        codes: [1650],
+        // El manual dice 1650, pero ARCA testing rechaza el vacío con 1651 ("Campo obligatorio de hasta 200 posiciones").
+        codes: [1651],
         mutate: (request) => (request.Cliente = ''),
         rule: 'cliente vacío',
       },
       {
         base: services,
         blockedBy: () => withFlag(services(), '--domicilio-cliente', ' '),
-        // BUG: docs/validation-rules.md cita 1660 para el domicilio obligatorio, pero ARCA testing rechaza el vacío con 1661
-        // ("Campo obligatorio de hasta 300 posiciones"), 19/11/2026.
-        bug: 'ARCA rechaza el domicilio vacío con 1661, no con el 1660 que citan los docs.',
-        codes: [1660],
+        // El manual dice 1660, pero ARCA testing rechaza el vacío con 1661 ("Campo obligatorio de hasta 300 posiciones").
+        codes: [1661],
         mutate: (request) => (request.Domicilio_cliente = ''),
         rule: 'domicilio vacío',
       },
@@ -1345,23 +1341,12 @@ describe.skipIf(Boolean(process.env.CI))('Reglas copiadas de ARCA contra testing
         rule: 'país de destino 0',
       },
       {
-        // BUG: docs/validation-rules.md cita 1600 para la moneda, pero ARCA testing rechaza una fuera de la tabla con 1590
-        // ("Campo Moneda_id invalido"), 19/11/2026.
-        bug: 'ARCA rechaza una moneda fuera de la tabla con 1590, no con el 1600 que citan los docs.',
-        base: services,
-        codes: [1600],
-        mutate: (request) => (request.Moneda_Id = 'XYZ'),
-        rule: 'moneda fuera de la tabla (ARCA)',
-      },
-      {
-        // BUG: ARCLI corta `fe --moneda XYZ` antes de ARCA, pero con ARCA_QUOTATION_ERROR (no hay cotización de XYZ) y no
-        // con INPUT_VALIDATION_ERROR de moneda fuera de la tabla de WSFEX (19/11/2026).
-        bug: 'ARCLI corta una moneda fuera de la tabla con ARCA_QUOTATION_ERROR, no con INPUT_VALIDATION_ERROR.',
+        // 1590: "Campo Moneda_id invalido". ARCLI la busca en la tabla de WSFEX y la corta como error de entrada.
         base: services,
         blockedBy: () => [...services(), '--moneda', 'XYZ'],
-        codes: [1600],
+        codes: [1590],
         mutate: (request) => (request.Moneda_Id = 'XYZ'),
-        rule: 'moneda fuera de la tabla (ARCLI la corta como error de entrada)',
+        rule: 'moneda fuera de la tabla',
       },
       {
         base: services,

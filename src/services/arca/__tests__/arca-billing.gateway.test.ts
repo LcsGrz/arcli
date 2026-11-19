@@ -35,6 +35,18 @@ describe('ArcaBillingGateway', () => {
     await expect(gateway.getQuotation('DOL')).rejects.toMatchObject({ code: 'WSFE_SERVICE_NOT_AUTHORIZED' });
   });
 
+  it('reads the codes of the WSFEv1 currency table, and fails with ARCA_PARAMETERS_ERROR on an ARCA error', async () => {
+    const gateway = createGateway({
+      getCurrencyTypes: vi.fn(async () => ({ resultGet: { moneda: [{ desc: 'Dólar', id: 'DOL' }, { id: '060' }] } })),
+    });
+    const failing = createGateway({
+      getCurrencyTypes: vi.fn(async () => ({ errors: { err: [{ code: 600, msg: 'ValidacionDeToken' }] } })),
+    });
+
+    await expect(gateway.getCurrencyCodes()).resolves.toEqual(['DOL', '060']);
+    await expect(failing.getCurrencyCodes()).rejects.toMatchObject({ code: 'ARCA_PARAMETERS_ERROR' });
+  });
+
   it('fails before emitting when the numbering is exhausted', async () => {
     const gateway = createGateway({ getLastVoucher: vi.fn(async () => ({ cbteNro: 99_999_999 })) });
 

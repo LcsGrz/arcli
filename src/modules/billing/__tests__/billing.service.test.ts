@@ -63,6 +63,14 @@ describe('billing.service', () => {
     vi.useRealTimers();
   });
 
+  it('stops a configured point of sale that does not fit in PtoVta (10004)', () => {
+    const service = new BillingService();
+
+    expect(() =>
+      service.buildVoucherPayload(createBillingInput(), { ...createRuntime(), pointOfSale: 100_000 }),
+    ).toThrow('El punto de venta va de 1 a 99998: ARCA rechaza 100000 (error 10004).');
+  });
+
   it('builds invoice payload with default service dates', () => {
     const service = new BillingService();
 

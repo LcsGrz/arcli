@@ -9,6 +9,7 @@ import { resolveTaxAmounts, sumTaxAmounts } from './billing.amounts';
 import { resolveAssociatedPeriod } from './billing.associated-period';
 import { resolveAssociatedVouchers } from './billing.associated-vouchers';
 import {
+  assertCurrencyInTable,
   isForeignCurrency,
   needsOfficialExchangeRate,
   resolveBillingCurrencyFields,
@@ -27,11 +28,12 @@ import {
   resolveBillingIvaConditionCode,
 } from './billing.mappers';
 import { type PadronResolution, resolveIvaConditionFromPadron } from './billing.padron';
-import type { BillingCommandInput } from './billing.schemas';
+import { type BillingCommandInput, describePointOfSaleOutOfRange, MAX_WSFE_POINT_OF_SALE } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
 import type { BillingExecutionResult, BillingGateway } from './billing.types.internal';
 import { validateDocumentIdentity, validateUncategorizedReceiver } from './billing.validation';
 import { createDryRunResponse, mapBillingResponse } from './billing-response';
+import { findArcaCurrency } from './currency-codes';
 import { getVoucherKindByShortcut } from './voucher-kind-map';
 
 export interface BillingExecutionOptions {
@@ -52,6 +54,31 @@ export class BillingService {
    * Completa la cotizacion oficial en moneda extranjera sin --cm: con --misma-moneda es obligatoria y sin ella es el
    * default. Se resuelve antes de la vista previa para que el preview muestre el valor que se va a enviar.
    */
+  /**
+   * Una moneda que ARCLI no conoce se busca en la tabla de WSFEv1 antes de pedir su cotizacion: si no esta, es error
+   * de entrada (10037). Las de `ARCA_CURRENCIES` no se consultan. Si la tabla no se puede leer, sigue: decide ARCA.
+   */
+  public async assertKnownCurrency(
+    input: BillingCommandInput,
+    gateway: Pick<BillingGateway, 'getCurrencyCodes'>,
+  ): Promise<void> {
+    const arcaCode = resolveBillingCurrencyCode(input.currencyCode);
+
+    if (!gateway.getCurrencyCodes || !isForeignCurrency(input) || findArcaCurrency(arcaCode)) {
+      return;
+    }
+
+    let table: readonly string[];
+
+    try {
+      table = await gateway.getCurrencyCodes();
+    } catch {
+      return;
+    }
+
+    assertCurrencyInTable({ arcaCode, requested: input.currencyCode, service: 'wsfe', table });
+  }
+
   public async resolveExchangeRate(
     input: BillingCommandInput,
     gateway: Pick<BillingGateway, 'getQuotation'>,
@@ -225,6 +252,11 @@ export class BillingService {
       throw new InputValidationError(
         'Falta el punto de venta. Usá `--punto-venta` o `--pv`, o configuralo con `arcli config establecer puntoVenta <valor>`.',
       );
+    }
+
+    // El de `--pv` lo frena la entrada; el de la config, aca.
+    if (pointOfSale > MAX_WSFE_POINT_OF_SALE) {
+      throw new InputValidationError(describePointOfSaleOutOfRange('El punto de venta', pointOfSale, 10004));
     }
 
     const dateRange = resolveBillingDateRange(input, voucherKind);

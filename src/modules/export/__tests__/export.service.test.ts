@@ -350,6 +350,22 @@ describe('ExportService.resolve', () => {
     await expect(service.resolve(INPUT, gateway, RUNTIME, NOW)).rejects.toThrow(/--cotizacion-moneda/);
   });
 
+  it('una moneda que no esta en la tabla de WSFEX es error de entrada (1590), sin pedir la cotizacion', async () => {
+    const gateway = createGateway();
+
+    for (const exchangeRate of [undefined, 10]) {
+      await expect(
+        service.resolve({ ...INPUT, currencyCode: 'XYZ', exchangeRate }, gateway, RUNTIME, NOW),
+      ).rejects.toMatchObject({
+        code: 'INPUT_VALIDATION_ERROR',
+        message: 'La moneda XYZ no está en la tabla de monedas de ARCA: la rechaza al emitir (error 1590).',
+        suggestion: expect.stringMatching(/`--moneda`/),
+      });
+    }
+
+    expect(gateway.getQuotations).not.toHaveBeenCalled();
+  });
+
   it('sin cotizacion para la moneda (el gateway descarta las de 0) es ARCA_QUOTATION_ERROR', async () => {
     const gateway = createGateway({ getQuotations: vi.fn(async () => []) });
 

@@ -162,3 +162,30 @@ export function resolveBillingCurrencyFields(input: CurrencyInput): BillingCurre
     MonId: currencyCode,
   };
 }
+
+/** Con que codigo rechaza ARCA una moneda que no esta en su tabla: `MonId` en WSFEv1 y `Moneda_Id` en WSFEX. */
+export const UNKNOWN_CURRENCY_ERROR = { wsfe: 10_037, wsfex: 1590 } as const;
+
+/**
+ * Una moneda que no esta en la tabla de ARCA es un error de entrada, igual en A, B, C y en la E: WSFEv1 la rechaza
+ * al emitir con la 10037 y WSFEX con la 1590 (ARCA testing, 19/11/2026). `table` son los codigos de esa tabla; si
+ * ARCA no la informo (vacia), no se controla y decide ARCA.
+ */
+export function assertCurrencyInTable(options: {
+  readonly arcaCode: string;
+  readonly requested: string;
+  readonly service: keyof typeof UNKNOWN_CURRENCY_ERROR;
+  readonly table: readonly string[];
+}): void {
+  const code = options.arcaCode.trim().toUpperCase();
+
+  if (options.table.length === 0 || options.table.some((entry) => entry.trim().toUpperCase() === code)) {
+    return;
+  }
+
+  throw new InputValidationError(
+    `La moneda ${options.requested.trim().toUpperCase()} no está en la tabla de monedas de ARCA: la rechaza al emitir (error ${UNKNOWN_CURRENCY_ERROR[options.service]}).`,
+    undefined,
+    'Revisá `--moneda` (o `codigoMoneda` del JSON de `--cargar`): va el código de ARCA, como `DOL` o `060`, o su ISO, como `USD` o `EUR`. Las monedas de ARCA están en `arcli parametros monedas`.',
+  );
+}
