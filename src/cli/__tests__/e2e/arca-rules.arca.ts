@@ -231,8 +231,9 @@ describe.skipIf(Boolean(process.env.CI))('Reglas copiadas de ARCA contra testing
   }
 
   /**
-   * Lo que ARCA acepta aunque su tabla no lo diga: la tabla de testing marca consumidor final (5) como "C/49", sin la
-   * B, pero ARCA aprueba la factura B a consumidor final (visto en testing el 18/11/2026).
+   * Lo que ARCA acepta aunque su tabla no lo diga: la respuesta de testing marca consumidor final (5) como "C/49", sin
+   * la B, pero la tabla del manual (WSFEv1 v4.7, p. 203) lo marca en B, C y 49 y ARCA aprueba la factura B a
+   * consumidor final (visto en testing el 18/11/2026). La diferencia es de testing, no de ARCLI.
    */
   const KNOWN_TABLE_GAPS: Readonly<Record<VoucherLetter, readonly number[]>> = {
     a: [],

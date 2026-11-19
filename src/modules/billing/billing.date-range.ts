@@ -83,7 +83,7 @@ function resolvePaymentDateFromDueDay(dueDay: number, todayArcaDate: string): st
  * Que fechas lleva el comprobante (codigos de WSFEv1 v4.7):
  * - servicios: FchServDesde, FchServHasta y FchVtoPago (10049)
  * - factura FCE: FchVtoPago siempre, aunque sea de productos (10163)
- * - NC/ND FCE: sin FchVtoPago salvo anulacion (10175)
+ * - NC/ND FCE: sin FchVtoPago. La 10175 lo permite (opcional) en las de anulacion; no mandarlo nunca es propio
  */
 function shouldSendPaymentDueDate(input: BillingCommandInput, voucherKind: VoucherKindDefinition): boolean {
   if (voucherKind.isElectronicCredit) {

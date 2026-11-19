@@ -39,7 +39,8 @@ export function validateConceptDateInputs(input: BillingCommandInput, voucherKin
   }
 
   // Productos sin fechas de servicio ni vencimiento: ARCA 10049 (WSFEv1 v4.7; el texto solo las pide en servicios, pero
-  // ARCA testing las rechaza en productos con ese codigo). En NC/ND FCE el vencimiento es la 10175.
+  // ARCA testing las rechaza en productos con ese codigo). En NC/ND FCE el vencimiento es la 10175, que lo prohibe
+  // salvo en las de anulacion, donde es opcional: que tambien se frene ahi es propio.
   if (input.concept === 'productos') {
     if (hasAnyServiceDate) {
       throw new InputValidationError(

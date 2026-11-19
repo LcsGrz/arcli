@@ -108,6 +108,8 @@ function resolveAssociatedVoucherDate(
 
   const associatedDate = parseArgentineDateInputAsArcaDate(rawDate);
 
+  // Propia: en FCE es la 10159, pero en las notas comunes ARCA acepta un asociado posterior del mismo mes (10210, WSFEv1
+  // v4.7) y testing aprobo una NC B anterior a su factura. Una nota anterior a lo que ajusta es casi seguro un error.
   if (associatedDate > billingDate) {
     throw new InputValidationError(
       `La fecha del comprobante asociado (${formatArcaDateAsArgentineDate(associatedDate)}) no puede ser posterior a la de ${formatVoucherWithArticle(voucherKind)} (${formatArcaDateAsArgentineDate(billingDate)}).`,
@@ -134,7 +136,9 @@ const COMMON_NOTE_ASSOCIABLE_FAMILIES: readonly VoucherFamily[] = ['factura', 'n
 /**
  * Lo que puede asociar una nota segun su familia y si es de anulacion. Una nota FCE sin anulacion solo asocia la
  * factura FCE (10156, 10157); con anulacion, la NC asocia la factura o una ND FCE y la ND solo una NC FCE (10183,
- * 10186, 10187, 10193; WSFEv1 v4.7). En A, B y C la anulacion no cambia nada.
+ * WSFEv1 v4.7). La 10186, la 10187 y la 10193 (A, B y C) dicen lo mismo en su segunda oracion, pero la primera habla
+ * de asociar "un comprobante de credito": el texto es ambiguo y la fuente es la 10183. En A, B y C la anulacion no
+ * cambia nada.
  */
 export function listAssociableFamilies(noteFamily: VoucherFamily, cancellation: boolean): readonly VoucherFamily[] {
   switch (noteFamily) {
