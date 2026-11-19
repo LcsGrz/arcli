@@ -471,11 +471,12 @@ describe('configuración: volver, cancelar y dejar como estaba', () => {
     expect(printed()).toContain('Ya podés emitir en testing');
   });
 
+  // Entre comillas simples o dobles. Los espacios escapados con "\" no se prueban aca: en Windows "\" separa carpetas.
   it('un archivo arrastrado a la terminal se guarda sin comillas', async () => {
     askTextMock
       .mockResolvedValueOnce('20123456786')
       .mockResolvedValueOnce("'/mis certs/testing.crt'")
-      .mockResolvedValueOnce('/mis\\ certs/testing.key')
+      .mockResolvedValueOnce('"/mis certs/testing.key"')
       .mockResolvedValueOnce('3');
     chooseStepMock
       .mockResolvedValueOnce('tengo')
