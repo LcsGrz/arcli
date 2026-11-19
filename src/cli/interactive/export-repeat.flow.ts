@@ -2,6 +2,7 @@ import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
 import { resolveExportClientCountryCuit } from '../../modules/export/export.mappers';
 import {
+  DEFAULT_EXPORT_TYPE,
   EXPORT_VOUCHER_KIND,
   type ExportCountry,
   type ExportCountryCuit,
@@ -22,6 +23,7 @@ import {
   askExportOptions,
   type ExportOptions,
   isCountryCuitMissing,
+  notAfterPaymentDate,
   validateExportPaymentDate,
 } from './export-options';
 import { pickExportVoucher } from './invoice-picker';
@@ -105,7 +107,7 @@ export function exportRepeatSteps(
 
         writeTerminalOutput(
           noticePanel(
-            `Se copian el cliente ${original.clientName}, ${country.name}, la moneda, el incoterm y los ítems. Las fechas son nuevas y la cotización, la de hoy.`,
+            `Se copian el cliente ${original.clientName}, ${country.name}, la moneda, el incoterm y los ítems. Las fechas son nuevas y la cotización, la de la fecha del comprobante.`,
             'info',
           ),
         );
@@ -249,11 +251,13 @@ export function exportRepeatSteps(
               ? undefined
               : 'la de aduana que publica ARCA',
           defaultLanguage: 'Español',
+          exportType: copy.exportType ?? DEFAULT_EXPORT_TYPE,
           // Sin descripcion por defecto: la copiada ya esta en las opciones y Enter la mantiene.
           incoterm: copy.incoterm ? { code: copy.incoterm } : undefined,
           languages: () => gateway.getLanguages(),
           sameCurrency: copy.sameCurrency,
           units: () => gateway.getUnits(),
+          voucherDateRule: notAfterPaymentDate(state.paymentDate),
         });
 
         return options === BACK ? BACK : { options };

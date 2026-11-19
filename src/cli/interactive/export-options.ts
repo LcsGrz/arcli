@@ -1,4 +1,8 @@
-import { formatDateAsArcaDate, parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
+import {
+  formatArcaDateAsArgentineDate,
+  formatDateAsArcaDate,
+  parseArgentineDateInputAsArcaDate,
+} from '../../lib/dates/arca-date';
 import { formatArgentineAmount, formatExchangeRate, parseArgentineAmount } from '../../lib/numbers/argentine-amount';
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import { sumExportItems } from '../../modules/export/export.items';
@@ -16,6 +20,7 @@ import {
   type ExportCountryCuit,
   type ExportItemInput,
   type ExportLanguage,
+  type ExportType,
   type ExportUnit,
   type ExportVoucherInput,
 } from '../../modules/export/export.types';
@@ -25,7 +30,7 @@ import { noticePanel, writeTerminalOutput } from '../../ui';
 import { withSpinner } from '../spinner';
 
 import { askTextStep, chooseManyStep, chooseStep } from './prompts';
-import { validateExchangeRate, validateOptionalDate } from './validators';
+import { validateExchangeRate, validateExportVoucherDate, validateOptionalDate } from './validators';
 
 /**
  * Un texto de la E con el largo maximo de ARCA, como el flag (`assertExportTextLengths`). Con `required`, vacio es
@@ -42,7 +47,8 @@ export function validateExportText(field: ExportTextField, required?: string): (
 }
 
 /**
- * Fecha de pago opcional: igual o posterior a la del comprobante, que en el asistente es hoy (1674, WSFEX v3.1.0).
+ * Fecha de pago opcional: igual o posterior a la del comprobante, que en este paso es hoy (1674, WSFEX v3.1.0). Si
+ * despues se elige otra en los opcionales, ahi se controla que no pase esta (`notAfterPaymentDate`).
  */
 export function validateExportPaymentDate(now = new Date()): (value: string) => string | true {
   return (value) => {
@@ -68,9 +74,10 @@ export type ExportOptions = Pick<
   | 'items'
   | 'language'
   | 'observations'
+  | 'voucherDate'
 >;
 
-export type ExportOptionKey = 'cotizacion' | 'cuit-pais' | 'idioma' | 'incoterm' | 'items' | 'observaciones';
+export type ExportOptionKey = 'cotizacion' | 'cuit-pais' | 'fecha' | 'idioma' | 'incoterm' | 'items' | 'observaciones';
 
 /** El CUIT del pais se elige contra la tabla DST_CUIT, con el destino ya elegido. */
 export interface ExportCountryCuitContext {
@@ -88,11 +95,33 @@ export interface ExportOptionsContext {
   readonly defaultExchangeRate?: string;
   /** Idioma que se usa si no se elige otro, para mostrar en la lista. */
   readonly defaultLanguage: string;
+  /** La ventana de la fecha del comprobante depende del tipo: en servicios no pasa del fin de mes (1500). */
+  readonly exportType: ExportType;
   /** Incoterm elegido (o el del asociado), con la descripcion por defecto. Sin esto no se ofrece la descripcion. */
   readonly incoterm?: { readonly code: string; readonly description?: string };
   readonly languages: () => Promise<readonly ExportLanguage[]>;
   readonly sameCurrency?: boolean;
   readonly units: () => Promise<readonly ExportUnit[]>;
+  /**
+   * Otra regla de la fecha del comprobante (yyyymmdd), ademas de la ventana de ARCA: no antes de la del asociado,
+   * no despues de la de pago. Devuelve el error o `true`.
+   */
+  readonly voucherDateRule?: (voucherDate: string) => string | true;
+}
+
+/** La fecha del comprobante no puede pasar la de pago ya respondida (1674). Sin fecha de pago, cualquiera. */
+export function notAfterPaymentDate(paymentDate: string | undefined): (voucherDate: string) => string | true {
+  return (voucherDate) => {
+    if (!paymentDate?.trim()) {
+      return true;
+    }
+
+    const payment = parseArgentineDateInputAsArcaDate(paymentDate);
+
+    return voucherDate > payment
+      ? `La fecha del comprobante no puede ser posterior a la de pago (${formatArcaDateAsArgentineDate(payment)}): ARCA la rechaza (error 1674).`
+      : true;
+  };
 }
 
 function errorMessage(error: unknown): string {
@@ -294,6 +323,26 @@ async function askItems(current: ExportOptions, context: ExportOptionsContext): 
   }
 }
 
+/**
+ * Fecha del comprobante (`--fecha`), con las reglas del CLI. Se guarda completa (dd/mm/aaaa): el comando equivalente
+ * pegado otro dia sigue emitiendo con la misma fecha. La cotizacion la busca ExportService para esa fecha.
+ */
+async function askVoucherDate(current: ExportOptions, context: ExportOptionsContext): Promise<Back | ExportOptions> {
+  const answer = await askTextStep('Fecha del comprobante:', {
+    validate: (value) => {
+      const valid = validateExportVoucherDate(value, context.exportType);
+
+      return valid === true && context.voucherDateRule
+        ? context.voucherDateRule(parseArgentineDateInputAsArcaDate(value))
+        : valid;
+    },
+  });
+
+  return answer === BACK
+    ? BACK
+    : { ...current, voucherDate: formatArcaDateAsArgentineDate(parseArgentineDateInputAsArcaDate(answer)) };
+}
+
 async function askLanguage(
   current: ExportOptions,
   context: ExportOptionsContext,
@@ -407,6 +456,7 @@ function describeObservations(options: ExportOptions): string {
 
 function optionalChoices(options: ExportOptions, context: ExportOptionsContext, languageNames: Map<number, string>) {
   return [
+    { description: options.voucherDate ?? 'hoy', name: 'Fecha del comprobante', value: 'fecha' as const },
     { description: describeItems(options), name: 'Ítems', value: 'items' as const },
     {
       description:
@@ -477,6 +527,7 @@ export async function askExportOptions(
 
       return cuit === BACK ? BACK : { ...current, clientCountryCuit: cuit };
     },
+    fecha: (current) => askVoucherDate(current, context),
     idioma: (current) => askLanguage(current, context, languageNames),
     incoterm: (current) =>
       context.incoterm ? askIncotermDescription(current, context.incoterm) : Promise.resolve(current),

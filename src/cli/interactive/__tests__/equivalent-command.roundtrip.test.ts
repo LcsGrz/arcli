@@ -700,6 +700,32 @@ describe('el comando equivalente de la E con textos raros pasa por el parser rea
     });
   });
 
+  it('la fecha del comprobante elegida en los opcionales va con `--fecha` (EXPO-11)', async () => {
+    const input: ExportVoucherInput = {
+      amount: 1500,
+      clientAddress: '123 Main St',
+      clientName: 'ACME LLC',
+      currencyCode: 'DOL',
+      destinationCountry: 'ESTADOS UNIDOS',
+      emit: false,
+      exportType: 2,
+      sameCurrency: true,
+      voucherDate: '16/11/2026',
+    };
+
+    expect(buildExportEquivalentCommand(input, { activity: 620100, environment: 'testing' })).toContain(
+      '--fecha 16/11/2026',
+    );
+    await expectSameExportRequest(input);
+    await expectSameExportRequest({
+      amount: 500,
+      associatedVoucher: { number: 1, pointOfSale: 4 },
+      emit: false,
+      voucherDate: '17/11/2026',
+      voucherKind: EXPORT_CREDIT_NOTE_KIND,
+    });
+  });
+
   it('una NC E sobre la factura, con su asociado', async () => {
     await expectSameExportRequest({
       amount: 500,
