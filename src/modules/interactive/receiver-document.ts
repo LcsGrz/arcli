@@ -1,7 +1,7 @@
+import { CONSUMER_DOCUMENT_NUMBER } from '../billing/arca-codes';
 import type { BillingCommandInput } from '../billing/billing.schemas';
 
-/** El `DocNro` de consumidor final sin identificar: 0, el mismo que manda `--cf`. */
-export const CONSUMER_DOCUMENT_NUMBER = 0;
+export { CONSUMER_DOCUMENT_NUMBER };
 
 /**
  * El numero de documento que el asistente pasa a la entrada del CLI. A consumidor final no se pregunta, pero va 0

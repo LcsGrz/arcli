@@ -52,6 +52,8 @@ const IVA_RATES: Readonly<Record<BillingIvaRate, { readonly id: number; readonly
 
 /** `DocTipo` de consumidor final: va con `DocNro` 0 si no se identifica. */
 export const CONSUMER_DOCUMENT_TYPE_CODE = DOCUMENT_TYPES['consumidor-final'].code;
+/** `DocNro` de consumidor final sin identificar: el mismo 0 para `--cf`, el receptor por defecto y el asistente. */
+export const CONSUMER_DOCUMENT_NUMBER = 0;
 /** `CondicionIVAReceptorId` de consumidor final. */
 export const CONSUMER_IVA_CONDITION_CODE = IVA_CONDITIONS['consumidor-final'].code;
 

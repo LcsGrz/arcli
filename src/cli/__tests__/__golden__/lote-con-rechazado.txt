@@ -37,6 +37,7 @@ exit: 2
       "MonCotiz": 1,
       "MonId": "PES",
       "PtoVta": 3,
+      "DocNro": 0,
       "CbteDesde": 42,
       "CbteHasta": 42
     },
@@ -81,6 +82,7 @@ exit: 2
       "MonCotiz": 1,
       "MonId": "PES",
       "PtoVta": 3,
+      "DocNro": 0,
       "CbteDesde": 42,
       "CbteHasta": 42
     },
