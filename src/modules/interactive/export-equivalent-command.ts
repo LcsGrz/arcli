@@ -70,6 +70,8 @@ export function buildExportEquivalentCommand(
   if (options.activity !== undefined) parts.push('--actividad', String(options.activity));
 
   if (input.voucherNumber !== undefined) parts.push('--numero', String(input.voucherNumber));
+  // Completa (dd/mm/aaaa) desde el asistente: el comando pegado otro dia emite con la misma fecha.
+  text('--fecha', input.voucherDate);
 
   text('--descripcion', input.description);
   for (const item of input.items ?? []) text('--item', itemArgument(item));

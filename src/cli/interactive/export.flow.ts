@@ -26,6 +26,7 @@ import {
   askExportOptions,
   type ExportOptions,
   isCountryCuitMissing,
+  notAfterPaymentDate,
   validateExportPaymentDate,
   validateExportText,
 } from './export-options';
@@ -352,10 +353,12 @@ function exportSteps(
               ? undefined
               : 'la de aduana que publica ARCA',
           defaultLanguage: 'Español',
+          exportType: requireStepValue(state.exportType, 'exportType'),
           incoterm: state.incoterm ? { code: state.incoterm, description: state.incotermName } : undefined,
           languages: loaders.languages,
           sameCurrency: state.sameCurrency,
           units: loaders.units,
+          voucherDateRule: notAfterPaymentDate(state.paymentDate),
         });
 
         return options === BACK ? BACK : { options };

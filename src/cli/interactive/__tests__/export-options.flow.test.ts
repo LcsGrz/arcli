@@ -3,7 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ExportUnit } from '../../../modules/export/export.types';
 import { BACK } from '../../../modules/interactive/wizard';
 import { stripAnsi } from '../../../ui';
-import { askCountryCuit, askExportOptions, type ExportOptionsContext, isCountryCuitMissing } from '../export-options';
+import {
+  askCountryCuit,
+  askExportOptions,
+  type ExportOptionsContext,
+  isCountryCuitMissing,
+  notAfterPaymentDate,
+} from '../export-options';
 
 import { createScript, rejecting } from './script';
 
@@ -30,6 +36,7 @@ function context(overrides: Partial<ExportOptionsContext> = {}): ExportOptionsCo
     amount: 1500,
     currencyCode: 'DOL',
     defaultLanguage: 'Español',
+    exportType: 2,
     languages: async () => [
       { id: 1, name: 'Español' },
       { id: 2, name: 'Inglés' },
@@ -84,7 +91,7 @@ describe('askExportOptions', () => {
   it('solo ofrece CUIT del país, incoterm y cotización cuando el contexto los tiene', async () => {
     script = createScript([[OPTIONALS, []]]);
     await askExportOptions({}, context());
-    expect(Object.keys(optionalDescriptions(0))).toEqual(['Ítems', 'Idioma', 'Observaciones']);
+    expect(Object.keys(optionalDescriptions(0))).toEqual(['Fecha del comprobante', 'Ítems', 'Idioma', 'Observaciones']);
 
     script = createScript([[OPTIONALS, []]]);
     await askExportOptions(
@@ -99,6 +106,7 @@ describe('askExportOptions', () => {
       'CUIT del país': 'el de la tabla de ARCA',
       Cotización: '1.450,25',
       'Descripción del incoterm': 'Free on board',
+      'Fecha del comprobante': 'hoy',
       Idioma: 'Español',
       Observaciones: 'sin observaciones',
       Ítems: 'un renglón con el monto total',
@@ -297,6 +305,82 @@ describe('askExportOptions', () => {
       context({ defaultExchangeRate: '1.400,00' }),
     );
     expect(optionalDescriptions(0)['Cotización']).toBe('1.450,25');
+  });
+
+  describe('fecha del comprobante', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('acepta lo mismo que `--fecha` (hasta 5 días antes o después), la guarda completa y la muestra en la lista', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-11-18T12:00:00-03:00'));
+      script = createScript([
+        [OPTIONALS, ['Fecha del comprobante']],
+        [
+          /Fecha del comprobante/,
+          rejecting(
+            '16/11',
+            ['12/11/2026', /del 13\/11\/2026 al 23\/11\/2026.*error 1500/],
+            ['24/11/2026', /error 1500/],
+            ['31/11/2026', /Fecha inválida/],
+            ['hoy', /Fecha inválida/],
+          ),
+        ],
+      ]);
+
+      const answered = await askExportOptions({}, context());
+
+      expect(answered).toEqual({ voucherDate: '16/11/2026' });
+
+      script = createScript([[OPTIONALS, []]]);
+      await askExportOptions(answered as Exclude<typeof answered, typeof BACK>, context());
+      expect(optionalDescriptions(0)['Fecha del comprobante']).toBe('16/11/2026');
+    });
+
+    it('en servicios no pasa del fin de mes; en bienes sí', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-11-28T12:00:00-03:00'));
+      script = createScript([
+        [OPTIONALS, ['Fecha del comprobante']],
+        [/Fecha del comprobante/, rejecting('30/11/2026', ['01/12/2026', /al 30\/11\/2026.*fin de mes.*error 1500/])],
+      ]);
+
+      expect(await askExportOptions({}, context({ exportType: 2 }))).toEqual({ voucherDate: '30/11/2026' });
+
+      script = createScript([
+        [OPTIONALS, ['Fecha del comprobante']],
+        [/Fecha del comprobante/, '03/12/2026'],
+      ]);
+
+      expect(await askExportOptions({}, context({ exportType: 1 }))).toEqual({ voucherDate: '03/12/2026' });
+    });
+
+    it('suma la regla del flujo (fecha de pago, asociado) a la ventana de ARCA', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-11-18T12:00:00-03:00'));
+      script = createScript([
+        [OPTIONALS, ['Fecha del comprobante']],
+        [
+          /Fecha del comprobante/,
+          rejecting('18/11/2026', ['20/11/2026', /posterior a la de pago \(19\/11\/2026\).*1674/]),
+        ],
+      ]);
+
+      expect(await askExportOptions({}, context({ voucherDateRule: notAfterPaymentDate('19/11/2026') }))).toEqual({
+        voucherDate: '18/11/2026',
+      });
+    });
+
+    it('volver desde la fecha vuelve a la selección', async () => {
+      script = createScript([
+        [OPTIONALS, ['Fecha del comprobante']],
+        [/Fecha del comprobante/, BACK],
+        [OPTIONALS, []],
+      ]);
+
+      expect(await askExportOptions({}, context())).toEqual({});
+    });
   });
 
   it('cotización en otra moneda usa su código', async () => {

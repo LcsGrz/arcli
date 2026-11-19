@@ -59,10 +59,15 @@ function describeInvoice(invoice: ExportIssuedVoucher): string {
 
 /**
  * Lo que ARCA controla entre el tipo de la nota y el de su asociado (una ND de servicios solo ajusta una factura,
- * una NC no ajusta otra NC...), con las mismas reglas que el CLI, antes de pedir el monto. El monto y la fecha se
- * validan despues, en la vista previa.
+ * una NC no ajusta otra NC...), con las mismas reglas que el CLI, antes de pedir el monto. Con `date` (la fecha elegida
+ * en los opcionales; por defecto hoy) controla tambien que la nota no sea anterior al asociado. El monto se valida
+ * despues, en la vista previa.
  */
-function validateAssociated(voucherKind: ExportVoucherKind, associated: ExportIssuedVoucher): string | true {
+function validateAssociated(
+  voucherKind: ExportVoucherKind,
+  associated: ExportIssuedVoucher,
+  date = formatDateAsArcaDate(new Date()),
+): string | true {
   try {
     assertExportNoteMatchesAssociated({
       associated,
@@ -70,7 +75,7 @@ function validateAssociated(voucherKind: ExportVoucherKind, associated: ExportIs
       note: {
         amount: 0,
         currencyCode: associated.currencyCode,
-        date: formatDateAsArcaDate(new Date()),
+        date,
         destinationCountry: associated.destinationCountry,
         exchangeRate: associated.exchangeRate,
         exportType: associated.exportType,
@@ -207,9 +212,12 @@ export function exportNoteSteps(
             ? `la de ${name} (${formatExchangeRate(invoice.exchangeRate)})`
             : undefined,
           defaultLanguage: `el de ${name}`,
+          exportType: invoice.exportType,
           incoterm: invoice.incoterm ? { code: invoice.incoterm, description: invoice.incotermDescription } : undefined,
           languages: () => gateway.getLanguages(),
           units: () => gateway.getUnits(),
+          // No antes de la fecha del asociado: el mismo control que con flags.
+          voucherDateRule: (date) => validateAssociated(voucherKind, invoice, date),
         });
 
         return options === BACK ? BACK : { options };

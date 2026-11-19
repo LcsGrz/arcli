@@ -244,6 +244,7 @@ describe('runExportNoteFlow', () => {
 
     expect(printed()).toContain('Nota de débito de exportación E 00004-00000003');
     expect(script.chooseManyStep.mock.calls[0]?.[1].map((choice) => choice.name)).toEqual([
+      'Fecha del comprobante',
       'Ítems',
       'Idioma',
       'Observaciones',
@@ -251,6 +252,36 @@ describe('runExportNoteFlow', () => {
     expect(printed()).toContain(
       "arcli nce -m 200 --ar 3 --apv 4 --ac nde --observaciones 'Ajuste de la ND' --obs-comerciales 'Sin cargo' --testing --emitir",
     );
+  });
+
+  it('la fecha de la nota va en los opcionales: no antes de la factura ni fuera de lo que acepta ARCA (EXPO-11)', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-02T12:00:00-03:00'));
+    script = createScript([
+      [/Punto de venta de la factura E/, '4'],
+      [/Número de la factura E/, '1'],
+      [/Monto de la nota de crédito/, '100'],
+      [/Detalle de la nota/, ''],
+      [/Agregamos algún opcional/, ['Fecha del comprobante']],
+      [
+        /Fecha del comprobante/,
+        rejecting(
+          '31/10',
+          ['27/10/2026', /error 1500/],
+          ['29/10/2026', /no puede ser anterior a la de la factura.*30\/10\/2026/],
+        ),
+      ],
+      [/Emitimos/, 'Sí, emitir ahora'],
+    ]);
+
+    try {
+      await runExportNoteFlow(createSession(), 'credito');
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(gateway.authorize).toHaveBeenCalledWith(expect.objectContaining({ Fecha_cbte: '20261031' }));
+    expect(printed()).toContain('arcli nce -m 100 --ar 1 --apv 4 --fecha 31/10/2026 --testing --emitir');
   });
 
   it('volver desde el primer paso vuelve al selector de comprobantes, sin preguntar sobre qué va la nota', async () => {

@@ -419,6 +419,44 @@ describe('runExportFlow', () => {
       expect(printed()).toContain('--fecha-pago 15/11/2026');
     });
 
+    it('la fecha del comprobante va en los opcionales con las reglas de `--fecha`, y la cotización es la de esa fecha (EXPO-11)', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-11-18T12:00:00-03:00'));
+      const quotations = vi.spyOn(gateway, 'getQuotations');
+
+      script = createScript([
+        [/cliente del exterior/, 'ACME LLC'],
+        [/Domicilio/, '123 Main St'],
+        [/País de destino/, '212'],
+        [/ID impositivo/, ''],
+        [/Qué exportás/, 'Servicios'],
+        [/Monto total/, '100'],
+        [/Descripción/, ''],
+        [/moneda/, 'Dólares'],
+        [/Te pagan en dólares/, 'No'],
+        [/Forma de pago/, 'Transferencia Internacional'],
+        [/Fecha de pago/, '19/11/2026'],
+        [/Agregamos algún opcional/, ['Fecha del comprobante']],
+        [
+          /Fecha del comprobante/,
+          rejecting(
+            '16/11',
+            ['12/11/2026', /del 13\/11\/2026 al 23\/11\/2026.*error 1500/],
+            ['20/11/2026', /posterior a la de pago \(19\/11\/2026\).*error 1674/],
+          ),
+        ],
+        [/Emitimos/, 'No, dejar sin emitir'],
+      ]);
+
+      await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+      // Servicios en dólares: la de aduana del día hábil anterior a la fecha elegida (EXPO-7), no la de hoy.
+      expect(quotations).toHaveBeenCalledWith('20261115');
+      expect(quotations).not.toHaveBeenCalledWith('20261117');
+      expect(printed()).toContain('--fecha 16/11/2026');
+      expect(printed()).toContain('--fecha-pago 19/11/2026');
+    });
+
     it('en bienes el incoterm es obligatorio (1640): no ofrece "Sin incoterm"', async () => {
       script = createScript([
         [/cliente del exterior/, 'ACME LLC'],

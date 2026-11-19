@@ -253,6 +253,32 @@ describe('runExportRepeatFlow', () => {
     expect(printed()).toContain('--fecha-pago 20/11/2026');
   });
 
+  it('la fecha no se copia: se elige en los opcionales, con las reglas de `--fecha` y la cotización de esa fecha (EXPO-11)', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-14T12:00:00-03:00'));
+    const quotations = vi.spyOn(gateway, 'getQuotations');
+
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      [/Mismo monto/, 'Sí'],
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, ['Fecha del comprobante']],
+      [/Fecha del comprobante/, rejecting('10/11', ['08/11/2026', /del 09\/11\/2026 al 19\/11\/2026.*error 1500/])],
+      [/Emitimos/, 'Sí, emitir ahora'],
+    ]);
+
+    try {
+      await runExportRepeatFlow(createSession(), 4);
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(gateway.authorize).toHaveBeenCalledWith(expect.objectContaining({ Fecha_cbte: '20261110' }));
+    // Cobrada en dólares: la cotización del día hábil anterior a la fecha elegida (EXPO-7).
+    expect(quotations).toHaveBeenCalledWith('20261109');
+    expect(printed()).toContain('--fecha 10/11/2026');
+  });
+
   it('no copia los ítems de seña, anticipo o bonificación (1775): sale un renglón con el total', async () => {
     const withAdvance: ExportIssuedVoucher = {
       ...INVOICE,

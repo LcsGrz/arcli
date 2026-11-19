@@ -11,6 +11,8 @@ import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import type { BillingConcept } from '../../modules/billing/billing.schemas';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { validateBillingDateWindow } from '../../modules/billing/billing.validation';
+import { assertExportVoucherDate } from '../../modules/export/export.mappers';
+import type { ExportType } from '../../modules/export/export.types';
 
 export function validateAmount(value: string): string | true {
   const result = parseArgentineAmount(value);
@@ -81,6 +83,34 @@ export function validateBillingDate(
       concept,
       voucherKind,
     );
+
+    return true;
+  } catch (error) {
+    if (error instanceof InputValidationError) {
+      return error.message;
+    }
+
+    throw error;
+  }
+}
+
+/**
+ * Fecha de la factura o nota E: la misma ventana que `--fecha` en `arcli fe` (`assertExportVoucherDate`, error 1500),
+ * que en servicios no pasa del fin de mes.
+ */
+export function validateExportVoucherDate(value: string, exportType: ExportType, now = new Date()): string | true {
+  const valid = validateDate(value);
+
+  if (valid !== true) {
+    return valid;
+  }
+
+  try {
+    assertExportVoucherDate({
+      exportType,
+      today: formatDateAsArcaDate(now),
+      voucherDate: parseArgentineDateInputAsArcaDate(value, now),
+    });
 
     return true;
   } catch (error) {
