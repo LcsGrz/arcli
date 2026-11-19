@@ -156,8 +156,13 @@ export function formatEquivalentCommand(command: string): string {
 /**
  * Paso final comun a todos los flujos: vista previa, comando equivalente, confirmacion y emision.
  * Usa BillingService igual que los comandos con flags, asi que valida y emite exactamente lo mismo.
+ * `flowWarnings` son avisos que solo sabe el flujo, como el de un asociado de otro sistema en una nota.
  */
-export async function previewAndEmit(session: InteractiveSession, rawInput: BillingCommandInput): Promise<void> {
+export async function previewAndEmit(
+  session: InteractiveSession,
+  rawInput: BillingCommandInput,
+  flowWarnings: readonly string[] = [],
+): Promise<void> {
   const { runtime, service } = session;
   // Lo mismo que con flags: padron, cotizacion oficial ("me pagan en dolares") y sus avisos, antes de la vista previa.
   const pointOfSale = rawInput.pointOfSale ?? session.typedPointOfSale;
@@ -180,7 +185,7 @@ export async function previewAndEmit(session: InteractiveSession, rawInput: Bill
     runtime,
     service,
   });
-  const warnings = [...prepared.warnings, ...(fceWarnings[0] ?? []), ...registryWarnings];
+  const warnings = [...flowWarnings, ...prepared.warnings, ...(fceWarnings[0] ?? []), ...registryWarnings];
   const preview = await service.execute({ gateway: PREVIEW_GATEWAY, input, runtime, warnings });
 
   writeTerminalOutput(formatBillingOutputs([preview], { environment: runtime.environment, raw: false }));

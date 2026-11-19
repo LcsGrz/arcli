@@ -101,7 +101,7 @@ Si no es hoy.
 
 | Largo | Corto | Qué es |
 | --- | --- | --- |
-| `--fecha <fecha>` | `-f` | D, D/M, D/M/AA o D/M/AAAA |
+| `--fecha <fecha>` | `-f` | D, D/M, D/M/AA o D/M/AAAA, o hoy, ayer, +N o -N (días desde hoy) |
 
 Ej.: `-f 31/10`
 
@@ -111,8 +111,8 @@ Solo con servicios. Sin estos flags, el mes en curso.
 
 | Largo | Corto | Qué es |
 | --- | --- | --- |
-| `--servicio-desde <fecha>` | `--sd` | Inicio del servicio |
-| `--servicio-hasta <fecha>` | `--sh` | Fin del servicio |
+| `--servicio-desde <fecha>` | `--sd` | Inicio del servicio; mes-actual o mes-pasado dan el día 1 |
+| `--servicio-hasta <fecha>` | `--sh` | Fin del servicio; mes-actual o mes-pasado dan el último día |
 | `--vencimiento <fecha>` | `--vto` | Vencimiento del pago; por defecto, el fin del servicio |
 
 Ej.: `--sd 1/10 --sh 31/10`

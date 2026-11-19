@@ -100,15 +100,15 @@ export const OPTIONS = {
   fecha: {
     ej: '-f 31/10',
     name: 'Fecha',
-    rows: [['-f', '--fecha <fecha>', 'D, D/M, D/M/AA o D/M/AAAA']],
+    rows: [['-f', '--fecha <fecha>', 'D, D/M, D/M/AA o D/M/AAAA, o hoy, ayer, +N o -N (días desde hoy)']],
     text: 'Si no es hoy.',
   },
   servicio: {
     ej: '--sd 1/10 --sh 31/10',
     name: 'Período del servicio',
     rows: [
-      ['--sd', '--servicio-desde <fecha>', 'Inicio del servicio'],
-      ['--sh', '--servicio-hasta <fecha>', 'Fin del servicio'],
+      ['--sd', '--servicio-desde <fecha>', 'Inicio del servicio; mes-actual o mes-pasado dan el día 1'],
+      ['--sh', '--servicio-hasta <fecha>', 'Fin del servicio; mes-actual o mes-pasado dan el último día'],
       ['--vto', '--vencimiento <fecha>', 'Vencimiento del pago; por defecto, el fin del servicio'],
     ],
     text: 'Solo con servicios. Sin estos flags, el mes en curso.',
@@ -164,8 +164,8 @@ export const OPTIONS = {
     ej: '--pd 1/9 --ph 30/9',
     name: 'Período, en vez de un comprobante',
     rows: [
-      ['--pd', '--periodo-desde <fecha>', 'Inicio del período'],
-      ['--ph', '--periodo-hasta <fecha>', 'Fin del período'],
+      ['--pd', '--periodo-desde <fecha>', 'Inicio del período; mes-actual o mes-pasado dan el día 1'],
+      ['--ph', '--periodo-hasta <fecha>', 'Fin del período; mes-actual o mes-pasado dan el último día'],
     ],
     text: 'Para ajustar un período entero, por ejemplo un descuento sobre el mes. No va con `--ac`.',
   },

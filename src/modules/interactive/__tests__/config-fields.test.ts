@@ -9,7 +9,6 @@ import {
   listMissingSetupKeys,
   resolveActiveEnvironment,
 } from '../config-fields';
-import { currentMonthPeriod, previousMonthPeriod } from '../periods';
 
 const BASE = {
   cert: {},
@@ -100,12 +99,5 @@ describe('config-fields', () => {
     const keys = CONFIG_FIELDS.map((field) => field.key);
 
     expect(new Set(keys).size).toBe(keys.length);
-  });
-});
-
-describe('periods', () => {
-  it('builds the current and previous month, also across years', () => {
-    expect(currentMonthPeriod(new Date('2026-02-10T15:00:00Z'))).toEqual({ from: '01/02/2026', to: '28/02/2026' });
-    expect(previousMonthPeriod(new Date('2026-01-10T15:00:00Z'))).toEqual({ from: '01/12/2025', to: '31/12/2025' });
   });
 });

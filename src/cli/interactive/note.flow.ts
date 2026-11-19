@@ -1,5 +1,9 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
-import { creditNoteOverTotalHint } from '../../modules/billing/billing.associated-lookup';
+import {
+  creditNoteOverTotalHint,
+  describeAssociated,
+  missingAssociatedWarning,
+} from '../../modules/billing/billing.associated-lookup';
 import { resolveRequiredCancellation } from '../../modules/billing/billing.associated-vouchers';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
 import { formatVoucherLabel, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
@@ -36,7 +40,7 @@ import {
   initialAdvancedOptions,
 } from './advanced-options';
 import { runExportNoteFlow } from './export-note.flow';
-import { pickInvoice } from './invoice-picker';
+import { type OtherSystemInvoice, pickNoteInvoice } from './invoice-picker';
 import { markIfNew } from './new-mark';
 import { askTextStep, chooseStep } from './prompts';
 import {
@@ -53,6 +57,8 @@ export type NoteKind = 'credito' | 'debito';
 export interface NoteState {
   /** Fecha, fechas de servicio y vencimiento; en las de periodo, la moneda, y en las parciales, exento y no gravado. */
   readonly advanced?: AdvancedOptions;
+  /** La fecha del asociado de otro sistema, que ARCA no tiene (`--afecha`). */
+  readonly associatedDate?: string;
   readonly cancellation?: boolean;
   readonly concept?: BillingConcept;
   readonly documentNumber?: number;
@@ -71,6 +77,11 @@ export interface NoteState {
   readonly ivaRate?: BillingCommandInput['ivaRate'];
   /** Credito o debito: viene del menu principal. */
   readonly kind?: NoteKind;
+  /**
+   * El asociado ingresado a mano que ARCA no tiene, de un punto de venta que no es de web service (Comprobantes en
+   * linea, controlador fiscal): no hay de donde copiar sus datos, asi que se preguntan como en una de periodo.
+   */
+  readonly otherSystemInvoice?: OtherSystemInvoice;
   readonly periodFrom?: string;
   readonly periodTo?: string;
   /** Sobre una factura de la lista o sobre un periodo (solo notas comunes). */
@@ -79,6 +90,9 @@ export interface NoteState {
 }
 
 const isPeriod = (state: NoteState): boolean => state.target === 'periodo';
+
+/** Sin factura de ARCA de donde copiar receptor, concepto, moneda y alicuota: una de periodo o una de otro sistema. */
+const asksOwnData = (state: NoteState): boolean => isPeriod(state) || Boolean(state.otherSystemInvoice);
 
 const NOTE_FAMILIES: ReadonlySet<VoucherKindDefinition['family']> = new Set([
   'nota-credito',
@@ -199,7 +213,7 @@ function hiddenNoteOptions(state: NoteState): AdvancedOptionKey[] {
   return [
     'alicuota',
     'transferencia',
-    ...(isPeriod(state) ? [] : (['divisas'] as const)),
+    ...(asksOwnData(state) ? [] : (['divisas'] as const)),
     ...(state.annulsTotal ? (['exento'] as const) : []),
   ];
 }
@@ -275,8 +289,7 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
       name: 'factura',
       run: async (state) => {
         const invoiceKind = requireStepValue(state.invoiceKind, 'invoiceKind');
-        const picked = await pickInvoice(session, {
-          forNote: true,
+        const picked = await pickNoteInvoice(session, {
           message: `¿Sobre qué ${formatVoucherLabel(invoiceKind)}?`,
           pointOfSale,
           voucherKind: invoiceKind,
@@ -284,6 +297,10 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
 
         if (picked === BACK) {
           return BACK;
+        }
+
+        if ('otherSystem' in picked) {
+          return { invoice: undefined, invoicePointOfSale: picked.pointOfSale, otherSystemInvoice: picked };
         }
 
         const { invoice } = picked;
@@ -309,6 +326,21 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
       skip: isPeriod,
     },
     {
+      name: 'fecha-asociado',
+      run: async (state) => {
+        const invoiceKind = requireStepValue(state.invoiceKind, 'invoiceKind');
+        const other = requireStepValue(state.otherSystemInvoice, 'otherSystemInvoice');
+        const associatedDate = await askTextStep(
+          `Fecha ${withPreposition(invoiceKind)} ${formatVoucherNumber(other.pointOfSale, other.number)}:`,
+          { validate: validateDate },
+        );
+
+        return associatedDate === BACK ? BACK : { associatedDate };
+      },
+      // ARCA la pide para controlador fiscal y FactuWeb (10211) y en FCE no se puede tomar de ARCA: siempre.
+      skip: (state) => !state.otherSystemInvoice,
+    },
+    {
       name: 'periodo',
       run: async () => {
         const periodFrom = await askTextStep('Período desde:', { validate: validateDate });
@@ -326,7 +358,7 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
     ...receiverSteps<NoteState>({
       letter: (state) => state.invoiceKind?.letter ?? 'c',
       message: () => '¿A quién va la nota?',
-      skip: (state) => !isPeriod(state),
+      skip: (state) => !asksOwnData(state),
     }),
     {
       name: 'concepto',
@@ -335,7 +367,7 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
 
         return concept === BACK ? BACK : { concept };
       },
-      skip: (state) => !isPeriod(state),
+      skip: (state) => !asksOwnData(state),
     },
     {
       name: 'monto',
@@ -357,7 +389,7 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
       name: 'alicuota',
       run: async (state) => {
         const ivaRate = await chooseStep(
-          isPeriod(state) ? 'Alícuota de IVA:' : 'Alícuota de IVA del comprobante:',
+          asksOwnData(state) ? 'Alícuota de IVA:' : 'Alícuota de IVA del comprobante:',
           ivaRateChoices(),
           // La deducida de la factura o, como el CLI sin `--alicuota`, la de la config o 21%.
           defaultIvaRate(config, state.ivaRate),
@@ -366,7 +398,7 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
         return ivaRate === BACK ? BACK : { ivaRate };
       },
       // En la C no hay IVA; si la factura deja deducir la alicuota, no se pregunta.
-      skip: (state) => state.invoiceKind?.letter === 'c' || (!isPeriod(state) && Boolean(state.ivaRate)),
+      skip: (state) => state.invoiceKind?.letter === 'c' || (!asksOwnData(state) && Boolean(state.ivaRate)),
     },
     {
       name: 'anulacion',
@@ -415,16 +447,23 @@ export function buildNoteInput(
   // Una nota va en la moneda de su factura; si la anula entera, tambien copia exento y no gravado.
   const copy = !isPeriod(state) && invoice ? copyInvoiceAmounts(invoice, invoiceKind.letter) : undefined;
   const advanced = state.advanced ?? initialAdvancedOptions(session.runtime.config);
-  // La de periodo no tiene factura de donde copiar la moneda: va la elegida en los opcionales.
-  const currency = isPeriod(state)
+  // La de periodo o de otro sistema no tiene factura de donde copiar la moneda: va la elegida en los opcionales.
+  const currency = asksOwnData(state)
     ? { currencyCode: advanced.currencyCode, exchangeRate: advanced.exchangeRate, sameCurrency: advanced.sameCurrency }
     : { currencyCode: copy?.currencyCode, exchangeRate: copy?.exchangeRate };
 
   return billingCommandSchema.parse({
     ...currency,
     associatedPeriod: isPeriod(state) ? { desde: state.periodFrom, hasta: state.periodTo } : undefined,
-    associatedVoucher:
-      !isPeriod(state) && invoice
+    associatedVoucher: state.otherSystemInvoice
+      ? {
+          cuit: String(session.runtime.context.cuit),
+          fecha: state.associatedDate,
+          numero: state.otherSystemInvoice.number,
+          puntoVenta: state.otherSystemInvoice.pointOfSale,
+          shortcut: invoiceKind.shortcut,
+        }
+      : !isPeriod(state) && invoice
         ? {
             cuit: String(session.runtime.context.cuit),
             fecha: formatArcaDateAsArgentineDate(invoice.date),
@@ -469,5 +508,35 @@ export async function runNoteFlow(baseSession: InteractiveSession, kind: NoteKin
     return;
   }
 
-  await previewAndEmit(session, buildNoteInput(state, session, pointOfSale));
+  await previewAndEmit(session, buildNoteInput(state, session, pointOfSale), noteWarnings(state));
+}
+
+/** `de la factura C`, `del recibo C`: para "Fecha de…". */
+function withPreposition(invoiceKind: VoucherKindDefinition): string {
+  const named = formatVoucherWithArticle(invoiceKind);
+
+  return named.startsWith('el ') ? `del ${named.slice(3)}` : `de ${named}`;
+}
+
+/**
+ * Los avisos de la vista previa que el asistente sabe y `previewAndEmit` no: el de un asociado de otro sistema, con
+ * el mismo texto que con flags (`checkAssociatedInArca`).
+ */
+export function noteWarnings(state: NoteState): string[] {
+  const other = state.otherSystemInvoice;
+  const invoiceKind = state.invoiceKind;
+
+  if (!other || !invoiceKind) {
+    return [];
+  }
+
+  return [
+    missingAssociatedWarning({
+      hasDate: Boolean(state.associatedDate),
+      isCreditNote: state.kind !== 'debito',
+      label: describeAssociated(invoiceKind.arcaType, other.pointOfSale, other.number),
+      origin: other.origin,
+      pointOfSale: other.pointOfSale,
+    }),
+  ];
 }
