@@ -9,8 +9,29 @@ export function onlyChoices<T>(choices: ReadonlyArray<Choice<T> | Separator>): A
   return choices.filter((item): item is Choice<T> => !Separator.isSeparator(item));
 }
 
-/** Respuesta guionada: el texto de la opcion a elegir, lo que se tipea, las opciones a marcar, o "volver". */
-export type ScriptedAnswer = readonly string[] | string | typeof BACK;
+/**
+ * Lo que se tipea despues de intentos que el validador rechaza: cada intento tiene que dar un error que coincida con su
+ * regex, como el prompt real, que muestra el error y vuelve a preguntar sin salir del paso.
+ */
+export interface TypedAfterRejections {
+  readonly answer: string;
+  readonly rejected: ReadonlyArray<readonly [string, RegExp]>;
+}
+
+/** `[/DNI/, rejecting('123456', ['12345', /de 6 a 8/])]`: tipea 12345, ve el error y despues tipea 123456. */
+export function rejecting(answer: string, ...rejected: ReadonlyArray<readonly [string, RegExp]>): TypedAfterRejections {
+  return { answer, rejected };
+}
+
+/**
+ * Respuesta guionada: el texto de la opcion a elegir, lo que se tipea (con intentos rechazados antes, si los hay), las
+ * opciones a marcar, o "volver".
+ */
+export type ScriptedAnswer = readonly string[] | string | TypedAfterRejections | typeof BACK;
+
+function isTypedAfterRejections(answer: ScriptedAnswer): answer is TypedAfterRejections {
+  return typeof answer === 'object' && answer !== null && 'rejected' in answer;
+}
 
 interface ScriptStep {
   readonly answer: ScriptedAnswer;
@@ -26,10 +47,10 @@ export function createScript(steps: ReadonlyArray<readonly [RegExp, ScriptedAnsw
   const asked: string[] = [];
 
   /** Para preguntas de una sola respuesta: una lista de opciones solo vale en la seleccion multiple. */
-  function nextSingle(message: string): string | typeof BACK {
+  function nextSingle(message: string): string | TypedAfterRejections | typeof BACK {
     const answer = next(message);
 
-    if (typeof answer !== 'string' && answer !== BACK) {
+    if (typeof answer !== 'string' && answer !== BACK && !isTypedAfterRejections(answer)) {
       throw new Error(`"${message}" espera una sola respuesta y el guion tiene una lista`);
     }
 
@@ -60,6 +81,10 @@ export function createScript(steps: ReadonlyArray<readonly [RegExp, ScriptedAnsw
         return BACK;
       }
 
+      if (typeof answer !== 'string') {
+        throw new Error(`"${message}" es una lista: no se tipea, y el guion tiene intentos rechazados`);
+      }
+
       const choices = onlyChoices(allChoices);
       const choice = choices.find((item) => item.name.includes(answer));
 
@@ -82,6 +107,10 @@ export function createScript(steps: ReadonlyArray<readonly [RegExp, ScriptedAnsw
         return BACK;
       }
 
+      if (isTypedAfterRejections(answer)) {
+        throw new Error(`"${message}" es una seleccion multiple: no se tipea`);
+      }
+
       const names = typeof answer === 'string' ? [answer] : answer;
 
       for (const name of names) {
@@ -98,10 +127,22 @@ export function createScript(steps: ReadonlyArray<readonly [RegExp, ScriptedAnsw
 
   const askTextStep = vi.fn(
     async (message: string, options: { readonly validate?: (value: string) => string | true } = {}) => {
-      const answer = nextSingle(message);
+      const scripted = nextSingle(message);
 
-      if (answer === BACK) {
+      if (scripted === BACK) {
         return BACK;
+      }
+
+      const answer = typeof scripted === 'string' ? scripted : scripted.answer;
+
+      for (const [value, error] of typeof scripted === 'string' ? [] : scripted.rejected) {
+        const result = options.validate?.(value) ?? true;
+
+        if (result === true || !error.test(result)) {
+          throw new Error(
+            `"${value.length > 40 ? `${value.slice(0, 40)}…` : value}" tenia que dar un error como ${error} en "${message}" y dio ${result === true ? 'valido' : `"${result}"`}`,
+          );
+        }
       }
 
       const valid = options.validate?.(answer) ?? true;

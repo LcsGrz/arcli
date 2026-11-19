@@ -14,7 +14,7 @@ import { stripAnsi } from '../../../ui';
 import { runExportNoteFlow } from '../export-note.flow';
 import type { InteractiveSession } from '../session';
 
-import { createScript } from './script';
+import { createScript, rejecting } from './script';
 
 let script = createScript([]);
 
@@ -169,6 +169,22 @@ describe('runExportNoteFlow', () => {
     expect(printed()).toContain(
       "arcli nce -m 500 --ar 1 --apv 4 --descripcion 'Descuento por volumen' --testing --emitir",
     );
+  });
+
+  it('el detalle de la nota más largo que el de ARCA da el error 1770 y vuelve a preguntar (#219)', async () => {
+    script = createScript([
+      [/Punto de venta de la factura E/, '4'],
+      [/Número de la factura E/, '1'],
+      [/Monto de la nota de crédito/, '500'],
+      [/Detalle de la nota/, rejecting('Descuento', ['a'.repeat(4001), /más de 4\.000 caracteres.*error 1770/])],
+      [/Agregamos algún opcional/, []],
+      [/Emitimos/, 'No, dejar sin emitir'],
+    ]);
+
+    await runExportNoteFlow(createSession(), 'credito');
+
+    expect(gateway.authorize).not.toHaveBeenCalled();
+    expect(printed()).toContain('arcli nce -m 500 --ar 1 --apv 4 --descripcion Descuento --testing --emitir');
   });
 
   it('en bienes pregunta los permisos de embarque y los informa sin --permiso-existente', async () => {
