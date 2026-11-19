@@ -10,18 +10,19 @@ export default defineConfig({
       include: ['src/**/*.ts'],
       provider: 'v8',
       reporter: ['text', 'lcov'],
-      // Unos 2 puntos debajo de lo medido (16/11/2026: 83 ramas, 93 funciones, 91 líneas; billing 88, 99 y 94), para
-      // que una baja se note. Si la cobertura sube, subilos.
+      // Un punto debajo de lo medido, redondeado hacia abajo, para que una baja se note sin que la diferencia entre
+      // sistemas operativos rompa el CI (19/11/2026, TEST-9: 91,5 ramas, 96,7 funciones, 96,2 líneas y 96,2
+      // sentencias; billing 90,6, 99,2, 96,5 y 96,6). Si la cobertura sube, subilos.
       thresholds: {
-        branches: 81,
-        functions: 91,
-        lines: 88,
-        statements: 88,
+        branches: 90,
+        functions: 95,
+        lines: 95,
+        statements: 95,
         'src/modules/billing/**': {
-          branches: 86,
-          functions: 97,
-          lines: 92,
-          statements: 92,
+          branches: 89,
+          functions: 98,
+          lines: 95,
+          statements: 95,
         },
       },
     },

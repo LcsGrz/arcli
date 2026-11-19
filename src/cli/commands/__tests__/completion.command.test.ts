@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { currentCompletionEnvironment, resolveCompletionPath } from '../../../modules/completion/installer';
+import { stripAnsi } from '../../../ui';
 import { createProgram } from '../../program';
 
 async function run(argv: string[]): Promise<{ error?: unknown; stdout: string }> {
@@ -86,5 +87,70 @@ describe('arcli completado instalar y desinstalar', () => {
   it('completes the subcommands and shells after completado', async () => {
     expect(await complete('completado', '')).toEqual(['instalar', 'desinstalar', 'bash', 'zsh', 'fish']);
     expect(await complete('completado', 'instalar', 'z')).toEqual(['zsh']);
+  });
+});
+
+describe('arcli completado sin shell: el de $SHELL, en texto o --json', () => {
+  let shell: string | undefined;
+
+  beforeEach(() => {
+    shell = process.env.SHELL;
+  });
+
+  afterEach(() => {
+    process.env.SHELL = shell;
+  });
+
+  it('muestra si esta instalado en el shell de $SHELL, en texto y en JSON', async () => {
+    process.env.SHELL = '/usr/bin/fish';
+
+    const text = stripAnsi((await run(['completado'])).stdout);
+    const json = JSON.parse((await run(['completado', '--json'])).stdout) as unknown;
+
+    expect(text).toMatch(/fish/);
+    expect(json).toMatchObject({ instalado: false, shell: 'fish' });
+  });
+
+  it('instala y desinstala en texto con el shell de $SHELL', async () => {
+    process.env.SHELL = '/bin/zsh';
+
+    const rc = resolveCompletionPath('zsh', currentCompletionEnvironment());
+    const installed = stripAnsi((await run(['completado', 'instalar'])).stdout);
+
+    expect(readFileSync(rc, 'utf8')).toContain('arcli completado zsh');
+    expect(installed).toContain('zsh');
+
+    await run(['completado', 'desinstalar']);
+
+    expect(readFileSync(rc, 'utf8')).not.toContain('arcli completado');
+  });
+
+  it('si no reconoce $SHELL pide indicarlo, nombrando el que encontro', async () => {
+    process.env.SHELL = '/bin/tcsh';
+    expect((await run(['completado', 'instalar'])).error).toMatchObject({
+      code: 'INPUT_VALIDATION_ERROR',
+      message: expect.stringContaining('(/bin/tcsh). Indicalo: bash, zsh o fish.'),
+    });
+
+    delete process.env.SHELL;
+    expect((await run(['completado'])).error).toMatchObject({
+      message: 'No se pudo saber qué shell usás. Indicalo: bash, zsh o fish.',
+    });
+  });
+});
+
+describe('arcli __completar sin candidatos', () => {
+  it('no escribe nada si ninguna opcion empieza asi', async () => {
+    expect((await run(['__completar', '--', 'fc', '--zzz'])).stdout).toBe('');
+  });
+
+  it('una clave de config sin valores fijos no ofrece valores', async () => {
+    expect(await complete('config', 'establecer', 'cuit', '')).toEqual([]);
+  });
+
+  it('completa monedas, alícuotas y comprobantes asociados', async () => {
+    expect(await complete('fc', '--moneda', 'US')).toContain('USD');
+    expect(await complete('fa', '--alicuota', '10')).toContain('10.5');
+    expect(await complete('nca', '--ac', 'fc')).toContain('fc');
   });
 });

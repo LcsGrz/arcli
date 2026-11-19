@@ -6,6 +6,7 @@ import { BACK } from '../../../modules/interactive/wizard';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
 import { stripAnsi } from '../../../ui';
+import { attachExportPdf } from '../../commands/export.command.pdf';
 import { runExportFlow } from '../export.flow';
 import type { InteractiveSession } from '../session';
 
@@ -71,6 +72,7 @@ vi.mock('../prompts', () => ({
       { name: yesLabel, value: true },
       { name: noLabel, value: false },
     ]),
+  isPromptCancellation: (error: unknown) => error instanceof Error && error.name === 'ExitPromptError',
 }));
 
 vi.mock('../../../services/arca/arca-client.factory', () => ({
@@ -82,7 +84,7 @@ vi.mock('../../../services/arca/arca-client.factory', () => ({
 }));
 
 vi.mock('../../commands/export.command.pdf', () => ({
-  attachExportPdf: async (result: unknown) => result,
+  attachExportPdf: vi.fn(async (result: unknown) => result),
 }));
 
 vi.mock('../../../modules/config/config.service', () => ({
@@ -532,5 +534,224 @@ describe('runExportFlow', () => {
     script = createScript([[/cliente del exterior/, BACK]]);
 
     await expect(runExportFlow(createSession())).resolves.toBe(BACK);
+  });
+});
+
+describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de emitir', () => {
+  beforeEach(() => {
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    vi.mocked(gateway.authorize).mockClear();
+    vi.mocked(attachExportPdf).mockClear();
+    savedConfig.mockClear();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    expect(script.remaining()).toBe(0);
+  });
+
+  /** Una E de servicios en dólares cobrada en dólares hasta la confirmación, con lo que respondan las ultimas. */
+  const servicesUntilConfirmation = (confirmation: string) =>
+    createScript([
+      [/cliente del exterior/, 'ACME LLC'],
+      [/Domicilio/, '123 Main St'],
+      [/País de destino/, '212'],
+      [/ID impositivo/, ''],
+      [/Qué exportás/, 'Servicios'],
+      [/Monto total/, '1.500'],
+      [/Descripción/, ''],
+      [/moneda/, 'Dólares'],
+      [/Te pagan en dólares/, 'Sí'],
+      [/Forma de pago/, ''],
+      [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
+      [/Emitimos/, confirmation],
+    ]);
+
+  it('volver desde los opcionales hasta el cliente pasa por cada paso y sale al selector', async () => {
+    script = createScript([
+      [/cliente del exterior/, 'ACME LLC'],
+      [/Domicilio/, '123 Main St'],
+      [/País de destino/, 'atlantida'],
+      [/ARCA no tiene un CUIT publicado/, '55000002126'],
+      [/ID impositivo/, '12-3456789'],
+      [/Qué exportás/, 'Bienes'],
+      [/Monto total/, '800'],
+      [/Descripción/, 'Café'],
+      [/moneda/, 'Dólares'],
+      [/Te pagan en dólares/, 'No'],
+      [/Incoterm/, 'FOB'],
+      [/Permisos de embarque/, '26001EC01000123A'],
+      [/Forma de pago/, 'Carta de crédito'],
+      [/actividad/, '620100'],
+      [/Agregamos algún opcional/, BACK],
+      [/actividad/, BACK],
+      [/Forma de pago/, BACK],
+      [/Permisos de embarque/, BACK],
+      [/Incoterm/, BACK],
+      [/Te pagan en dólares/, BACK],
+      [/moneda/, BACK],
+      [/Descripción/, BACK],
+      [/Monto total/, BACK],
+      [/Qué exportás/, BACK],
+      [/ID impositivo/, BACK],
+      [/ARCA no tiene un CUIT publicado/, BACK],
+      [/País de destino/, BACK],
+      [/Domicilio/, BACK],
+      [/cliente del exterior/, BACK],
+    ]);
+    vi.spyOn(gateway, 'getDestinationCountries').mockResolvedValue([
+      { code: 212, name: 'ESTADOS UNIDOS' },
+      { code: 999, name: 'ATLANTIDA' },
+    ]);
+
+    await expect(runExportFlow(createSession())).resolves.toBe(BACK);
+    expect(gateway.authorize).not.toHaveBeenCalled();
+  });
+
+  it('pasar de bienes a servicios no deja el incoterm ni los permisos elegidos', async () => {
+    script = createScript([
+      [/cliente del exterior/, 'ACME LLC'],
+      [/Domicilio/, '123 Main St'],
+      [/País de destino/, '212'],
+      [/ID impositivo/, ''],
+      [/Qué exportás/, 'Bienes'],
+      [/Monto total/, '1.500'],
+      [/Descripción/, ''],
+      [/moneda/, 'Pesos'],
+      [/Incoterm/, 'FOB'],
+      [/Permisos de embarque/, '26001EC01000123A'],
+      [/Forma de pago/, BACK],
+      [/Permisos de embarque/, BACK],
+      [/Incoterm/, BACK],
+      [/moneda/, BACK],
+      [/Descripción/, BACK],
+      [/Monto total/, BACK],
+      [/Qué exportás/, 'Servicios'],
+      [/Monto total/, '1.500'],
+      [/Descripción/, ''],
+      [/moneda/, 'Pesos'],
+      [/Forma de pago/, ''],
+      [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
+      [/Emitimos/, 'Sí, emitir ahora'],
+    ]);
+
+    await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+    const sent = vi.mocked(gateway.authorize).mock.calls[0]?.[0];
+
+    expect(sent).toMatchObject({ Tipo_expo: 2 });
+    expect(sent?.Incoterms).toBeFalsy();
+    expect(sent?.Permisos).toBeFalsy();
+    expect(printed()).not.toContain('--incoterm');
+    expect(printed()).not.toContain('--permiso');
+  });
+
+  it('una actividad que no esta en la tabla de WSFEX se rechaza; sin tabla, cualquiera vale', async () => {
+    script = createScript([
+      [/cliente del exterior/, 'ACME LLC'],
+      [/Domicilio/, '123 Main St'],
+      [/País de destino/, '212'],
+      [/ID impositivo/, ''],
+      [/Qué exportás/, 'Servicios'],
+      [/Monto total/, '100'],
+      [/Descripción/, ''],
+      [/moneda/, 'Pesos'],
+      [/Forma de pago/, ''],
+      [/Fecha de pago/, ''],
+      [/actividad/, rejecting('620100', ['999999', /no está en la tabla de actividades.*2105/], ['abc', /actividad/i])],
+      [/Agregamos algún opcional/, []],
+      [/Emitimos/, 'No, dejar sin emitir'],
+      [/Guardamos la actividad 620100/, 'No'],
+    ]);
+
+    await runExportFlow(createSession());
+
+    // ARCA no devolvio la tabla: no se puede controlar, asi que se acepta.
+    vi.spyOn(gateway, 'getActivities').mockResolvedValue([]);
+    script = createScript([
+      [/cliente del exterior/, 'ACME LLC'],
+      [/Domicilio/, '123 Main St'],
+      [/País de destino/, '212'],
+      [/ID impositivo/, ''],
+      [/Qué exportás/, 'Servicios'],
+      [/Monto total/, '100'],
+      [/Descripción/, ''],
+      [/moneda/, 'Pesos'],
+      [/Forma de pago/, ''],
+      [/Fecha de pago/, ''],
+      [/actividad/, '999999'],
+      [/Agregamos algún opcional/, []],
+      [/Emitimos/, 'No, dejar sin emitir'],
+      [/Guardamos la actividad 999999/, 'No'],
+    ]);
+
+    await runExportFlow(createSession());
+
+    expect(printed()).toContain('--actividad 999999');
+  });
+
+  it('si ARCA falla al emitir, el error llega al menu y no se ofrece el PDF ni guardar la actividad', async () => {
+    vi.mocked(gateway.authorize).mockRejectedValueOnce(new Error('ECONNRESET: ARCA no respondió'));
+    script = servicesUntilConfirmation('Sí, emitir ahora');
+
+    await expect(runExportFlow(createSession({ exportacion: { actividad: 620100 } }))).rejects.toThrow('ECONNRESET');
+    expect(attachExportPdf).not.toHaveBeenCalled();
+  });
+
+  it('si ARCA rechaza la E, lo muestra y no hay PDF', async () => {
+    vi.mocked(gateway.authorize).mockResolvedValueOnce({
+      FEXAuthorizeResult: {
+        FEXErr: { ErrCode: 1580, ErrMsg: 'Debe informar el CUIT del país o el ID impositivo' },
+        FEXEvents: { EventCode: 0, EventMsg: '' },
+      },
+    } as IFEXAuthorizeOutput);
+    script = servicesUntilConfirmation('Sí, emitir ahora');
+
+    await runExportFlow(createSession({ exportacion: { actividad: 620100 } })).catch(() => undefined);
+
+    expect(printed()).toMatch(/1580|CUIT del país/);
+  });
+
+  it('con el PDF generado, muestra dónde quedó', async () => {
+    vi.mocked(attachExportPdf).mockImplementationOnce(
+      async (result) =>
+        ({
+          ...(result as object),
+          pdf: { path: '/tmp/fe-4-7.pdf' },
+        }) as never,
+    );
+    script = servicesUntilConfirmation('Sí, emitir ahora');
+
+    await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+    expect(printed()).toContain('PDF guardado en /tmp/fe-4-7.pdf');
+  });
+
+  it('Ctrl+C mientras se piden los datos del PDF no dice "No se emitió nada": ya quedó emitida', async () => {
+    vi.mocked(attachExportPdf).mockRejectedValueOnce(Object.assign(new Error('Ctrl+C'), { name: 'ExitPromptError' }));
+    script = servicesUntilConfirmation('Sí, emitir ahora');
+
+    await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+    expect(gateway.authorize).toHaveBeenCalledOnce();
+    expect(printed()).toContain('El comprobante ya quedó emitido; no se generó el PDF.');
+    expect(printed()).not.toContain('No se emitió nada');
+  });
+
+  it('otro error del PDF despues de emitir no se tapa', async () => {
+    vi.mocked(attachExportPdf).mockRejectedValueOnce(new Error('disco lleno'));
+    script = servicesUntilConfirmation('Sí, emitir ahora');
+
+    await expect(runExportFlow(createSession({ exportacion: { actividad: 620100 } }))).rejects.toThrow('disco lleno');
+  });
+
+  it('si ARCA falla al leer las tablas, no pregunta nada', async () => {
+    vi.spyOn(gateway, 'getDestinationCountries').mockRejectedValueOnce(new Error('ARCA no responde'));
+    script = createScript([]);
+
+    await expect(runExportFlow(createSession())).rejects.toThrow('ARCA no responde');
+    expect(script.asked).toEqual([]);
   });
 });

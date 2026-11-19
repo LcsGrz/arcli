@@ -216,3 +216,53 @@ describe('buildEquivalentCommand', () => {
     );
   });
 });
+
+describe('buildEquivalentCommand: asociados incompletos y varias alícuotas', () => {
+  it('un asociado por tipo de ARCA va con --at, y el parser lo lee igual', () => {
+    const note = input({
+      associatedVoucher: { cuit: '20111111112', fecha: '01/11/2026', numero: 7, puntoVenta: 2, tipo: 1 },
+      shortcut: 'nca',
+    });
+    const command = buildEquivalentCommand(note, { environment: 'testing', platform: 'linux' });
+
+    expect(command).toContain('--at 1 --apv 2 --ar 7 --acuit 20111111112 --afecha 01/11/2026');
+    expect(parseCommand(command, 'nca').associatedVoucher).toMatchObject({ numero: 7, puntoVenta: 2, tipo: 1 });
+  });
+
+  it('lo que falta del asociado no se inventa', () => {
+    expect(
+      buildEquivalentCommand(input({ associatedVoucher: { shortcut: 'fc' }, shortcut: 'ncc' }), {
+        environment: 'testing',
+        platform: 'linux',
+      }),
+    ).toBe('arcli ncc -m 1000 --cs --consumidor-final --ac fc --testing --emitir');
+  });
+
+  it('un periodo con solo el desde lleva solo --pd', () => {
+    expect(
+      buildEquivalentCommand(input({ associatedPeriod: { desde: '01/10/2026' }, shortcut: 'ncc' }), {
+        environment: 'testing',
+        platform: 'linux',
+      }),
+    ).toContain('--pd 01/10/2026 --testing');
+  });
+
+  it('varias alícuotas con su base van una por --alicuota', () => {
+    const command = buildEquivalentCommand(
+      input({
+        documentNumber: 30709965812,
+        documentType: 'cuit',
+        ivaCondition: 'responsable-inscripto',
+        ivaRateAmounts: [
+          { amount: 1000, rate: '21' },
+          { amount: 500.5, rate: '10.5' },
+        ],
+        shortcut: 'fa',
+        totalAmount: 1763.05,
+      }),
+      { environment: 'testing', platform: 'linux' },
+    );
+
+    expect(command).toContain('--alicuota 21:1000 --alicuota 10.5:500,50');
+  });
+});

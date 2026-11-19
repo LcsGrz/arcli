@@ -267,3 +267,59 @@ describe('requirePointOfSale', () => {
     expect(askTextStepMock).toHaveBeenCalledWith('Punto de venta:', expect.anything());
   });
 });
+
+describe('previewAndEmit: cancelar y ARCA que falla en cada momento', () => {
+  const cancellation = () => Object.assign(new Error('Ctrl+C'), { name: 'ExitPromptError' });
+
+  beforeEach(() => {
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    confirmMock.mockReset();
+    chooseOneMock.mockReset();
+    vi.mocked(offerPdf).mockClear();
+  });
+
+  it('Ctrl+C en "¿Emitimos?" no emite: el error llega al menú, que dice "No se emitió nada"', async () => {
+    const session = createSession('testing');
+
+    chooseOneMock.mockRejectedValueOnce(cancellation());
+
+    await expect(previewAndEmit(session, input)).rejects.toMatchObject({ name: 'ExitPromptError' });
+    expect(session.createVoucher).not.toHaveBeenCalled();
+  });
+
+  it('Ctrl+C en la segunda confirmación de producción tampoco emite', async () => {
+    const session = createSession('produccion');
+
+    chooseOneMock.mockResolvedValueOnce('emitir');
+    confirmMock.mockRejectedValueOnce(cancellation());
+
+    await expect(previewAndEmit(session, input)).rejects.toMatchObject({ name: 'ExitPromptError' });
+    expect(session.createVoucher).not.toHaveBeenCalled();
+  });
+
+  it('si ARCA falla al emitir, el error llega al menú y no se ofrece el PDF', async () => {
+    const session = createSession('testing', 3, 'siempre');
+
+    session.createVoucher.mockRejectedValueOnce(new Error('ECONNRESET'));
+    chooseOneMock.mockResolvedValueOnce('emitir-con-pdf');
+
+    await expect(previewAndEmit(session, input)).rejects.toThrow('ECONNRESET');
+    expect(offerPdf).not.toHaveBeenCalled();
+  });
+
+  it('si ARCA falla al pedir la cotización oficial para la vista previa, no pregunta nada', async () => {
+    const session = createSession('testing');
+
+    vi.mocked(session.billingGateway.getQuotation).mockRejectedValueOnce(new Error('ARCA no responde'));
+
+    await expect(previewAndEmit(session, { ...input, currencyCode: 'USD', sameCurrency: true })).rejects.toThrow(
+      'ARCA no responde',
+    );
+    expect(chooseOneMock).not.toHaveBeenCalled();
+    expect(session.createVoucher).not.toHaveBeenCalled();
+  });
+});

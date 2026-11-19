@@ -7,6 +7,7 @@ import {
   formatExportVoucherDetailAsText,
   formatExportVoucherListAsJson,
   formatExportVoucherListAsText,
+  formatExportVoucherPickerRows,
 } from '../export.history.presenter';
 import { EXPORT_CREDIT_NOTE_KIND, EXPORT_VOUCHER_KIND, type ExportIssuedVoucher } from '../export.types';
 
@@ -93,5 +94,100 @@ describe('salida de ultimos y consultar con la E', () => {
       total: 500,
     });
     expect(JSON.parse(formatExportVoucherListAsJson({ ...report, vouchers: [NOTE] })).comprobantes).toHaveLength(1);
+  });
+});
+
+describe('salida de la E con datos que faltan, en pesos o rechazada', () => {
+  const report = { environment: 'produccion' as const, pointOfSale: 4, voucherKind: EXPORT_VOUCHER_KIND };
+  /** Una factura en pesos, sin asociado, CAE, ID impositivo, CUIT de país ni resultado. */
+  const BARE: ExportIssuedVoucher = {
+    ...NOTE,
+    arcaType: 19,
+    associatedVoucher: undefined,
+    cae: undefined,
+    caeExpiration: undefined,
+    clientCountryCuit: undefined,
+    clientTaxId: undefined,
+    currencyCode: 'PES',
+    exchangeRate: 1,
+    result: undefined,
+  };
+
+  it('el detalle no muestra las filas sin dato, ni cotización en pesos, ni resultado', () => {
+    const text = stripAnsi(formatExportVoucherDetailAsText({ ...report, voucher: BARE }));
+
+    expect(text).not.toContain('Comprobante asociado');
+    expect(text).not.toContain('ID impositivo');
+    expect(text).not.toContain('CUIT del país');
+    expect(text).not.toContain('Vencimiento CAE');
+    expect(text).not.toContain('cotización');
+    expect(text).toMatch(/CAE\s+N\/D/);
+    expect(text).not.toContain('APROBADO');
+    expect(text).not.toContain('RECHAZADO');
+  });
+
+  it('el detalle de una moneda extranjera muestra la cotización, y el CUIT del país con guiones', () => {
+    const text = stripAnsi(formatExportVoucherDetailAsText({ ...report, voucher: NOTE }));
+
+    expect(text.replace(/[│\s]+/g, ' ')).toMatch(/cotización 1\.174,605/);
+    expect(text).toMatch(/CUIT del país del cliente\s+55-00000212-6/);
+    expect(text).toMatch(/Vencimiento CAE\s+19\/11\/2026/);
+  });
+
+  it('una rechazada lo dice al pie', () => {
+    expect(stripAnsi(formatExportVoucherDetailAsText({ ...report, voucher: { ...BARE, result: 'R' } }))).toContain(
+      'RECHAZADO',
+    );
+  });
+
+  it('un asociado de un tipo que no es E se nombra por su tipo de ARCA', () => {
+    const voucher = { ...NOTE, associatedVoucher: { arcaType: 1, number: 7, pointOfSale: 2 } };
+
+    expect(stripAnsi(formatExportVoucherDetailAsText({ ...report, voucher }))).toMatch(
+      /Comprobante asociado\s+Tipo 1 00002-00000007/,
+    );
+    expect(JSON.parse(formatExportVoucherDetailAsJson({ ...report, voucher })).comprobanteAsociado).toEqual({
+      atajo: null,
+      numero: 7,
+      puntoVenta: 2,
+      tipoArca: 1,
+    });
+  });
+
+  it('el listado deja el CAE vacio si no lo tiene', () => {
+    const text = stripAnsi(formatExportVoucherListAsText({ ...report, vouchers: [BARE] }));
+
+    expect(text).toMatch(/00004-00000001 {2}09\/11\/2026 {2}ACME LLC\s+\$ 500\s*$/m);
+    expect(text).not.toContain('CAE');
+    expect(text).toContain('PRODUCCIÓN');
+  });
+
+  it('el JSON pone null en lo que falta, sin sacar claves', () => {
+    const json = JSON.parse(formatExportVoucherDetailAsJson({ ...report, voucher: BARE }));
+
+    expect(json).toMatchObject({
+      cae: null,
+      caeVencimiento: null,
+      comprobanteAsociado: null,
+      cuitPaisCliente: null,
+      entorno: 'produccion',
+      idImpositivo: null,
+      resultado: null,
+    });
+    expect(JSON.parse(formatExportVoucherListAsJson({ ...report, vouchers: [] }))).toEqual({
+      atajo: 'fe',
+      comprobante: 'Factura de exportación E',
+      comprobantes: [],
+      entorno: 'produccion',
+      puntoVenta: 4,
+      tipoArca: 19,
+    });
+  });
+
+  it('las filas del selector del asistente llevan número, fecha, cliente, total y CAE si lo tiene', () => {
+    const rows = formatExportVoucherPickerRows([NOTE, BARE], ' · ').map(stripAnsi);
+
+    expect(rows[0]).toMatch(/00004-00000001.*09\/11\/2026.*ACME LLC.*500 USD.*CAE 76453017205075/);
+    expect(rows[1]).not.toContain('CAE');
   });
 });
