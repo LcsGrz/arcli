@@ -43,6 +43,15 @@ describe('parameters', () => {
     expect(filterCurrentEntries(entries, '20261005').map((entry) => entry.id)).toEqual(['1', '2']);
   });
 
+  it('keeps an entry that expires today and drops one that expired yesterday (TEST-19)', () => {
+    const entries = [
+      { description: 'vence hoy', id: '1', validTo: '20261005' },
+      { description: 'venció ayer', id: '2', validTo: '20261004' },
+    ];
+
+    expect(filterCurrentEntries(entries, '20261005').map((entry) => entry.id)).toEqual(['1']);
+  });
+
   it('describes sales points', () => {
     expect(salesPointToEntry({ blocked: true, emissionType: 'CAE', number: 3 })).toMatchObject({
       detail: 'bloqueado',

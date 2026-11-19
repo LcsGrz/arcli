@@ -48,6 +48,11 @@ describe('parseArcaPeriod', () => {
     expect(parseArcaPeriod(' 202612 ')).toBe('202612');
   });
 
+  it('acepta enero, el borde inferior del mes (TEST-19)', () => {
+    expect(parseArcaPeriod(202601)).toBe('202601');
+    expect(parseArcaPeriod('201901')).toBe('201901');
+  });
+
   it('descarta lo que no es un periodo', () => {
     expect(parseArcaPeriod(undefined)).toBeNull();
     expect(parseArcaPeriod(202613)).toBeNull();
