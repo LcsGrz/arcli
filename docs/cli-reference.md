@@ -217,14 +217,14 @@ En casi todos los casos te va a interesar mirar primero:
 | Flag                           | Alias           | Tipo                                                  | Valor por defecto                        | Descripción                                      |
 | ------------------------------ | --------------- | ----------------------------------------------------- | ---------------------------------------- | ------------------------------------------------ |
 | `--cargar <ruta>`              | ninguno         | `string`                                              | ninguno                                  | Carga datos base desde un archivo JSON           |
-| `--monto <numero>`             | `-m`            | `number`                                              | requerido                                | Importe total del comprobante                    |
+| `--monto <numero>`             | `-m`            | `number`                                              | requerido                                | Importe total del comprobante, hasta 13 enteros  |
 | `--alicuota <tasa>`            | ninguno         | `'0' \| '2.5' \| '5' \| '10.5' \| '21' \| '27'`       | `config.alicuota` o `21`                 | Alícuota de IVA (solo `A` y `B`)                 |
 | `--alicuota <tasa>:<monto>`    | ninguno         | repetible                                             | ninguno                                  | Varias alícuotas: monto con IVA de cada una      |
 | `--exento <numero>`            | ninguno         | `number`                                              | `0`                                      | Parte exenta del monto (solo `A` y `B`)          |
 | `--nogravado <numero>`         | ninguno         | `number`                                              | `0`                                      | Parte no gravada del monto (solo `A` y `B`)      |
 | `--fecha <fecha>`              | `-f`            | `string`                                              | hoy                                      | Fecha del comprobante                            |
 | `--dia <numero>`               | `-d`            | `integer`                                             | ninguno                                  | Deprecado: usá `--vencimiento` o `--vto`         |
-| `--punto-venta <numero>`       | `--pv`          | `integer`                                             | `config.puntoVenta`                      | Punto de venta                                   |
+| `--punto-venta <numero>`       | `--pv`          | `integer`                                             | `config.puntoVenta`                      | Punto de venta, de 1 a 99.998 (error 10004)      |
 | `--concepto <tipo>`            | `-c`            | `'productos' \| 'servicios' \| 'productos-servicios'` | `config.concepto`                        | `productos`, `servicios` o `productos-servicios` |
 | `--cs`                         | ninguno         | `boolean`                                             | `false`                                  | Equivale a `--concepto servicios`                |
 | `--cp`                         | ninguno         | `boolean`                                             | `false`                                  | Equivale a `--concepto productos`                |
@@ -243,7 +243,7 @@ En moneda extranjera (`--moneda USD`) hay dos formas de informar la cotización:
 
 En pesos la cotización siempre es `1` y `--misma-moneda` no aplica. Detalle en [Moneda y cotización](validation-rules.md#moneda-y-cotización).
 
-`--moneda` acepta el código ISO o el de ARCA, en mayúsculas o minúsculas: `ARS` y `PES` son lo mismo, como `USD` y `DOL`, `EUR` y `060` o `UYU` y `011`. ARCLI traduce el ISO al código de ARCA antes de enviar y la vista previa muestra el nombre con el ISO (`Pesos uruguayos (UYU)`). Están todas las monedas de la tabla de ARCA (`arcli parametros monedas`) que tienen código ISO; un código que no está en esa tabla se manda tal cual y lo rechaza ARCA si no existe. Lo mismo vale para `codigoMoneda` en el JSON y la clave `moneda` de la config.
+`--moneda` acepta el código ISO o el de ARCA, en mayúsculas o minúsculas: `ARS` y `PES` son lo mismo, como `USD` y `DOL`, `EUR` y `060` o `UYU` y `011`. ARCLI traduce el ISO al código de ARCA antes de enviar y la vista previa muestra el nombre con el ISO (`Pesos uruguayos (UYU)`). Están todas las monedas de la tabla de ARCA (`arcli parametros monedas`) que tienen código ISO; un código que no está en esa tabla se busca en la de ARCA antes de la vista previa (en la `E`, en la de WSFEX): si ARCA no la tiene, es `INPUT_VALIDATION_ERROR` (ARCA la rechazaría con 10037, en la `E` con 1590), con o sin `--cm`. Si la tabla no se puede consultar, sigue y decide ARCA. Lo mismo vale para `codigoMoneda` en el JSON y la clave `moneda` de la config.
 
 `--alicuota` acepta alias: `general` (21), `reducida` (10.5), `incrementada` (27) y `cero` (0). Para una factura con ítems a distintas alícuotas, repetí `--alicuota TASA:MONTO` (por ejemplo `--alicuota general:1210 --alicuota reducida:552,50`); el total se calcula solo. Ver [Varias alícuotas](validation-rules.md#varias-alícuotas-en-un-comprobante).
 
@@ -308,16 +308,16 @@ Estos flags importan solo para notas. Si estás emitiendo una factura, podés ig
 
 Dicho más directo: **no aplican a `factura`, `factura-credito-electronica`, `recibo`, `fa`, `fb`, `fc`, `fcea`, `fceb`, `fcec`, `ra`, `rb` ni `rc`**.
 
-| Flag                              | Alias            | Tipo         | Valor por defecto | Descripción                        |
-| --------------------------------- | ---------------- | ------------ | ----------------- | ---------------------------------- |
-| `--ac <atajo>`                    | ninguno          | `string`     | ninguno           | Atajo del comprobante asociado     |
-| `--at <numero>`                   | ninguno          | `integer`    | ninguno           | Tipo ARCA del comprobante asociado |
-| `--asociado-punto-venta <numero>` | `--apv <numero>` | `integer`    | ninguno           | Punto de venta del asociado        |
-| `--ar <numero>`                   | ninguno          | `integer`    | ninguno           | Número del comprobante asociado    |
-| `--acuit <numero>`                | ninguno          | `string(11)` | el CUIT emisor    | CUIT del comprobante asociado      |
-| `--afecha <fecha>`                | ninguno          | `string`     | ninguno           | Fecha del comprobante asociado     |
-| `--periodo-desde <fecha>`         | `--pd <fecha>`   | `string`     | ninguno           | Inicio del período asociado        |
-| `--periodo-hasta <fecha>`         | `--ph <fecha>`   | `string`     | ninguno           | Fin del período asociado           |
+| Flag                              | Alias            | Tipo         | Valor por defecto | Descripción                                                     |
+| --------------------------------- | ---------------- | ------------ | ----------------- | --------------------------------------------------------------- |
+| `--ac <atajo>`                    | ninguno          | `string`     | ninguno           | Atajo del comprobante asociado                                  |
+| `--at <numero>`                   | ninguno          | `integer`    | ninguno           | Tipo ARCA del comprobante asociado                              |
+| `--asociado-punto-venta <numero>` | `--apv <numero>` | `integer`    | ninguno           | Punto de venta del asociado, hasta 99.998 (error 10058)         |
+| `--ar <numero>`                   | ninguno          | `integer`    | ninguno           | Número del comprobante asociado, hasta 99.999.999 (error 10059) |
+| `--acuit <numero>`                | ninguno          | `string(11)` | el CUIT emisor    | CUIT del comprobante asociado                                   |
+| `--afecha <fecha>`                | ninguno          | `string`     | ninguno           | Fecha del comprobante asociado                                  |
+| `--periodo-desde <fecha>`         | `--pd <fecha>`   | `string`     | ninguno           | Inicio del período asociado                                     |
+| `--periodo-hasta <fecha>`         | `--ph <fecha>`   | `string`     | ninguno           | Fin del período asociado                                        |
 
 ### Crédito electrónico (FCE)
 

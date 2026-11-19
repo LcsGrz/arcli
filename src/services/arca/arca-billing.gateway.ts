@@ -31,6 +31,22 @@ export class ArcaBillingGateway implements BillingGateway {
     return this.arca.electronicBillingService.createVoucher(voucher);
   }
 
+  public async getCurrencyCodes(): Promise<string[]> {
+    const result = (await this.arca.electronicBillingService
+      .getCurrencyTypes()
+      .catch(rethrowIfWsfeNotAuthorized)) as RawCurrencyTypesResult;
+    const errors = result.errors?.err ?? [];
+
+    if (errors.length > 0) {
+      throw new AppError(`ARCA devolvió un error al consultar las monedas: ${errors.map((e) => e.msg).join('; ')}`, {
+        code: 'ARCA_PARAMETERS_ERROR',
+        details: { errores: toDetailErrors(errors) },
+      });
+    }
+
+    return (result.resultGet?.moneda ?? []).map((row) => String(row.id));
+  }
+
   public async getQuotation(currencyCode: string, arcaDate?: string): Promise<number> {
     if (arcaDate) {
       return this.getQuotationUpTo(currencyCode, arcaDate);
@@ -98,6 +114,11 @@ export class ArcaBillingGateway implements BillingGateway {
 const NO_RESULTS_ERROR = 602;
 /** Cuantos dias para atras se busca una cotizacion publicada: alcanza para un fin de semana largo. */
 const QUOTATION_LOOKBACK_DAYS = 7;
+
+interface RawCurrencyTypesResult {
+  readonly errors?: { readonly err?: ReadonlyArray<{ readonly code: number; readonly msg: string }> };
+  readonly resultGet?: { readonly moneda?: ReadonlyArray<{ readonly id: number | string }> };
+}
 
 interface ArcaQuotationError {
   readonly code: number;

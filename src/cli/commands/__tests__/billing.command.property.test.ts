@@ -354,9 +354,9 @@ describe('billing por flags (propiedades)', () => {
     );
   });
 
-  // WSFEv1 tipa PtoVta como N5, CbteDesde/Nro como N8 e ImpTotal como Double 13+2. La E ya pone topes (`--pv` hasta
-  // 99.998 por la 1510, `--numero` hasta 99.999.999 por la 1520), pero A, B y C no: lo que no entra en el campo lo
-  // rechaza ARCA al emitir, en lugar de ARCLI con un error de entrada antes de la vista previa.
+  // WSFEv1 tipa PtoVta como Int (5), de 1 a 99.998 (10004); CbteDesde y el Nro del asociado como Long (8), hasta
+  // 99.999.999 (10008, 10059), e ImpTotal como Double (13+2). Lo que no entra en el campo es un error de entrada antes
+  // de la vista previa, igual que en la E (1510 y 1520).
   const rejectsOutOfField = (shortcut: VoucherShortcut, args: (value: number) => string[], min: number) =>
     fc.assert(
       fc.property(fc.integer({ max: Number.MAX_SAFE_INTEGER, min }), instant, (value, now) => {
@@ -365,22 +365,16 @@ describe('billing por flags (propiedades)', () => {
       { numRuns: 30 },
     );
 
-  // BUG: `--monto` no tiene tope. Contraejemplo mínimo: `arcli fb --cp --dni 12345678 --monto 10000000000000`
-  // (14 enteros) arma el pedido con ImpTotal 10000000000000. Sin documento lo frena otra regla (consumidor final
-  // sin identificar), no el tope.
-  it.skip('BUG: un --monto de más de 13 enteros es un error de entrada', () => {
+  // Con DNI: sin documento lo frena otra regla (consumidor final sin identificar), no el tope.
+  it('un --monto de más de 13 enteros es un error de entrada', () => {
     rejectsOutOfField('fb', (value) => ['--cp', '--dni=12345678', `--monto=${value}`], 10_000_000_000_000);
   });
 
-  // BUG: `--pv` no tiene tope en A, B y C. Contraejemplo mínimo: `arcli fb --cp --monto 100 --pv 100000` arma el pedido
-  // con PtoVta 100000.
-  it.skip('BUG: un --pv de más de 5 dígitos es un error de entrada', () => {
+  it('un --pv de más de 5 dígitos es un error de entrada', () => {
     rejectsOutOfField('fb', (value) => ['--cp', '--monto=100', `--pv=${value}`], 100_000);
   });
 
-  // BUG: `--ar` no tiene tope en A, B y C. Contraejemplo mínimo: `arcli ncb --cp --monto 100 --ac fb --apv 1
-  // --ar 100000000` arma el pedido con CbtesAsoc[0].Nro 100000000.
-  it.skip('BUG: un --ar de más de 8 dígitos es un error de entrada', () => {
+  it('un --ar de más de 8 dígitos es un error de entrada', () => {
     rejectsOutOfField('ncb', (value) => ['--cp', '--monto=100', '--ac=fb', '--apv=1', `--ar=${value}`], 100_000_000);
   });
 });

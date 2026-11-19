@@ -72,8 +72,8 @@ export const ISO_CURRENCY_ALIASES: readonly string[] = ARCA_CURRENCIES.flatMap((
 );
 
 /**
- * El codigo de ARCA de `code`, que puede ser el ISO o el de ARCA. Uno que no esta en la tabla se manda tal cual:
- * ARCA suma monedas y las rechaza ella si no existen.
+ * El codigo de ARCA de `code`, que puede ser el ISO o el de ARCA. Uno que no esta en la lista queda tal cual: ARCA
+ * suma monedas, asi que antes de la vista previa se busca en su tabla (`BillingService.assertKnownCurrency`).
  */
 export function toArcaCurrencyCode(code: string): string {
   const normalized = code.trim().toUpperCase();

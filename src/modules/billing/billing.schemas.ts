@@ -2,7 +2,12 @@ import { z } from 'zod';
 
 import { describeInvalidCbu, parseCbu } from '../../lib/identity/cbu';
 import { parseCuit } from '../../lib/identity/cuit';
-import { AMOUNT_DECIMALS, EXCHANGE_RATE_DECIMALS, hasAtMostDecimals } from '../../lib/numbers/argentine-amount';
+import {
+  AMOUNT_DECIMALS,
+  EXCHANGE_RATE_DECIMALS,
+  formatArgentineAmount,
+  hasAtMostDecimals,
+} from '../../lib/numbers/argentine-amount';
 
 import { DEFAULT_CURRENCY_CODE } from './billing.constants';
 import { saleConditionSchema } from './sale-condition';
@@ -84,9 +89,34 @@ function positiveAmountSchema(decimals = AMOUNT_DECIMALS) {
     .refine((value) => hasAtMostDecimals(value, decimals), { message: `Usá hasta ${decimals} decimales.` });
 }
 
+/** Tope de los importes de WSFEv1: Double (13+2), menos que 10^13. */
+export const WSFE_AMOUNT_LIMIT = 10_000_000_000_000;
+
+/** PtoVta es Int (5) y va de 1 a 99.998 (WSFEv1, 10004; el del asociado, 10058). */
+export const MAX_WSFE_POINT_OF_SALE = 99_998;
+
+/** CbteDesde, CbteHasta y el Nro del asociado son Long (8): de 1 a 99.999.999 (WSFEv1, 10008 y 10059). */
+export const MAX_WSFE_VOUCHER_NUMBER = 99_999_999;
+
+/**
+ * Importe de A, B, C, FCE o recibo: los importes de WSFEv1 (ImpTotal, ImpNeto, ImpIVA, BaseImp...) son Double (13+2),
+ * hasta 13 enteros, y ARCA controla la precision con la 10056 ("Importes en general"). Los que arma ARCLI salen del
+ * total o de las alicuotas, asi que alcanza con topear lo que entra.
+ */
+function billingAmountSchema(label: string) {
+  return positiveAmountSchema().refine((value) => value < WSFE_AMOUNT_LIMIT, {
+    message: `${label} supera el máximo de ARCA: hasta 13 enteros (${formatArgentineAmount(WSFE_AMOUNT_LIMIT - 0.01)}).`,
+  });
+}
+
+/** El mensaje del punto de venta fuera de rango, igual en la entrada y en la config. */
+export function describePointOfSaleOutOfRange(label: string, value: unknown, code: number): string {
+  return `${label} va de 1 a ${MAX_WSFE_POINT_OF_SALE}: ARCA rechaza ${String(value)} (error ${code}).`;
+}
+
 /** Una alicuota con el importe que le corresponde, IVA incluido (igual que --monto). */
 const billingIvaRateAmountSchema = z.object({
-  amount: positiveAmountSchema(),
+  amount: billingAmountSchema('El importe de la alícuota'),
   rate: billingIvaRateSchema,
 });
 
@@ -107,8 +137,24 @@ const billingAssociatedVoucherSchema = z
       })
       .optional(),
     fecha: z.string().trim().optional(),
-    numero: z.number().int().positive().optional(),
-    puntoVenta: z.number().int().positive().optional(),
+    numero: z
+      .number()
+      .int()
+      .positive()
+      .max(MAX_WSFE_VOUCHER_NUMBER, {
+        error: (issue) =>
+          `El número del comprobante asociado va de 1 a ${MAX_WSFE_VOUCHER_NUMBER}: ARCA rechaza ${String(issue.input)} (error 10059).`,
+      })
+      .optional(),
+    puntoVenta: z
+      .number()
+      .int()
+      .positive()
+      .max(MAX_WSFE_POINT_OF_SALE, {
+        error: (issue) =>
+          describePointOfSaleOutOfRange('El punto de venta del comprobante asociado', issue.input, 10058),
+      })
+      .optional(),
     shortcut: z.string().trim().min(1).optional(),
     tipo: z.number().int().positive().optional(),
   })
@@ -152,7 +198,7 @@ export const billingCommandSchema = z.object({
   dryRun: z.boolean().default(false),
   emit: z.boolean().default(false),
   exchangeRate: positiveAmountSchema(EXCHANGE_RATE_DECIMALS).optional(),
-  exemptAmount: positiveAmountSchema().optional(),
+  exemptAmount: billingAmountSchema('El importe exento').optional(),
   ivaRate: billingIvaRateSchema.optional(),
   ivaRateAmounts: z.array(billingIvaRateAmountSchema).min(1).optional(),
   dueDay: z.number().int().min(1).max(31).optional(),
@@ -173,7 +219,14 @@ export const billingCommandSchema = z.object({
   pdf: z.boolean().optional(),
   /** Solo para el PDF: ARCA no guarda descripcion ni datos del receptor. */
   pdfDescription: z.string().trim().min(1).max(200).optional(),
-  pointOfSale: z.number().int().positive().optional(),
+  pointOfSale: z
+    .number()
+    .int()
+    .positive()
+    .max(MAX_WSFE_POINT_OF_SALE, {
+      error: (issue) => describePointOfSaleOutOfRange('El punto de venta', issue.input, 10004),
+    })
+    .optional(),
   receiverAddress: z.string().trim().min(1).max(200).optional(),
   /** Datos que salieron del JSON de `--cargar` y no de un flag: los avisos nombran la clave del JSON. */
   fromFile: z
@@ -188,8 +241,8 @@ export const billingCommandSchema = z.object({
   serviceEndDate: z.string().trim().optional(),
   serviceStartDate: z.string().trim().optional(),
   shortcut: z.string().trim().min(1),
-  totalAmount: positiveAmountSchema(),
-  untaxedAmount: positiveAmountSchema().optional(),
+  totalAmount: billingAmountSchema('El monto'),
+  untaxedAmount: billingAmountSchema('El importe no gravado').optional(),
   transferMode: z
     .string()
     .trim()

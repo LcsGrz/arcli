@@ -61,6 +61,41 @@ describe('billing.command.parser', () => {
     expect(() => parse(100.555)).toThrow(/hasta 2 decimales/);
   });
 
+  it('stops values that do not fit in the WSFEv1 fields, from flags or from --cargar (REGLAS-18)', () => {
+    const parse = (args: string[]) => parseBillingCommandInput(createCommand(['--cs', '--ir-cf', ...args]), 'ncb');
+    const associated = ['--ac', 'fb', '--apv', '1', '--ar', '1'];
+
+    expect(parse(['--monto', '9999999999999,99', ...associated]).totalAmount).toBe(9_999_999_999_999.99);
+    expect(() => parse(['--monto', '10000000000000', ...associated])).toThrow(
+      'El monto supera el máximo de ARCA: hasta 13 enteros (9.999.999.999.999,99).',
+    );
+    expect(() => parse(['--cargar', writeJsonInput({ montoTotal: 10_000_000_000_000 }), ...associated])).toThrow(
+      /El monto supera el máximo de ARCA/,
+    );
+    expect(() => parse(['--monto', '100', '--exento', '10000000000000', ...associated])).toThrow(
+      /El importe exento supera el máximo de ARCA/,
+    );
+
+    expect(parse(['--monto', '100', '--pv', '99998', ...associated]).pointOfSale).toBe(99_998);
+    expect(() => parse(['--monto', '100', '--pv', '99999', ...associated])).toThrow(
+      'El punto de venta va de 1 a 99998: ARCA rechaza 99999 (error 10004).',
+    );
+    expect(() => parse(['--cargar', writeJsonInput({ puntoVenta: 100_000 }), ...associated])).toThrow(/error 10004/);
+
+    expect(() => parse(['--monto', '100', '--ac', 'fb', '--apv', '99999', '--ar', '1'])).toThrow(
+      'El punto de venta del comprobante asociado va de 1 a 99998: ARCA rechaza 99999 (error 10058).',
+    );
+    expect(parse(['--monto', '100', '--ac', 'fb', '--apv', '1', '--ar', '99999999']).associatedVoucher?.numero).toBe(
+      99_999_999,
+    );
+    expect(() => parse(['--monto', '100', '--ac', 'fb', '--apv', '1', '--ar', '100000000'])).toThrow(
+      'El número del comprobante asociado va de 1 a 99999999: ARCA rechaza 100000000 (error 10059).',
+    );
+    expect(() =>
+      parse(['--cargar', writeJsonInput({ comprobanteAsociado: { atajo: 'fb', numero: 100_000_000, puntoVenta: 1 } })]),
+    ).toThrow(/error 10059/);
+  });
+
   it('defaults to safe dry-run when emit is absent', () => {
     const command = createCommand(['--monto', '1000']);
     const input = parseBillingCommandInput(command, 'fa', {

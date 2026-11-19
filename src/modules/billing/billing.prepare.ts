@@ -9,7 +9,7 @@ import type { BillingGateway } from './billing.types.internal';
 
 /** Lo que consulta la preparacion: ninguna de estas llamadas emite. */
 export interface BillingPreparationGateways {
-  readonly billing: Pick<BillingGateway, 'getQuotation'>;
+  readonly billing: Pick<BillingGateway, 'getCurrencyCodes' | 'getQuotation'>;
   readonly padron: PadronGateway;
 }
 
@@ -31,6 +31,9 @@ export async function prepareBillingInput(
   gateways: BillingPreparationGateways,
 ): Promise<PreparedBillingInput> {
   const padron = await service.resolveIvaConditionFromPadron(input, gateways.padron);
+
+  await service.assertKnownCurrency(padron.input, gateways.billing);
+
   const resolved = await service.resolveExchangeRate(padron.input, gateways.billing);
   const exchangeRateRange = await service.checkExchangeRateRange(resolved, gateways.billing);
 

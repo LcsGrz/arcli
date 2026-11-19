@@ -13,6 +13,11 @@ export interface BillingGateway {
    * (`yyyymmdd`), la ultima publicada hasta ese dia.
    */
   getQuotation(currencyCode: string, arcaDate?: string): Promise<number>;
+  /**
+   * Los codigos de la tabla de monedas de WSFEv1 (`FEParamGetTiposMonedas`). Opcional: un gateway sin ella (los
+   * dobles de los tests, la sesion sin ARCA) no controla la moneda y decide ARCA.
+   */
+  getCurrencyCodes?(): Promise<readonly string[]>;
 }
 
 export interface BillingResponseSummary {

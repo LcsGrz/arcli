@@ -45,6 +45,61 @@ describe('prepareBillingInput', () => {
     expect(prepared.warnings).toEqual([expect.stringContaining('cotización oficial')]);
   });
 
+  describe('moneda que no esta en la tabla de WSFEv1 (10037)', () => {
+    it('es error de entrada antes de pedir la cotizacion, con o sin --cm', async () => {
+      const getQuotation = vi.fn(async () => 1000);
+      const getCurrencyCodes = vi.fn(async () => ['PES', 'DOL', '060']);
+
+      for (const exchangeRate of [undefined, 1000]) {
+        await expect(
+          prepareBillingInput(service, input({ currencyCode: 'xyz', exchangeRate }), {
+            billing: { getCurrencyCodes, getQuotation },
+            padron: PADRON,
+          }),
+        ).rejects.toMatchObject({
+          code: 'INPUT_VALIDATION_ERROR',
+          message: 'La moneda XYZ no está en la tabla de monedas de ARCA: la rechaza al emitir (error 10037).',
+          suggestion: expect.stringMatching(/`--moneda`.*`arcli parametros monedas`/),
+        });
+      }
+
+      expect(getQuotation).not.toHaveBeenCalled();
+    });
+
+    it('una que ARCA suma a su tabla pasa, y las que ARCLI conoce no consultan la tabla', async () => {
+      const getCurrencyCodes = vi.fn(async () => ['PES', 'DOL', 'NUE']);
+      const billing = { getCurrencyCodes, getQuotation: vi.fn(async () => 10) };
+
+      await expect(
+        prepareBillingInput(service, input({ currencyCode: 'NUE', exchangeRate: undefined }), {
+          billing,
+          padron: PADRON,
+        }),
+      ).resolves.toMatchObject({ input: { exchangeRate: 10 } });
+      expect(getCurrencyCodes).toHaveBeenCalledTimes(1);
+
+      await prepareBillingInput(service, input({ currencyCode: 'EUR', exchangeRate: undefined }), {
+        billing,
+        padron: PADRON,
+      });
+      expect(getCurrencyCodes).toHaveBeenCalledTimes(1);
+    });
+
+    it('si la tabla no se puede leer, sigue y decide ARCA', async () => {
+      const billing = {
+        getCurrencyCodes: vi.fn(async () => Promise.reject(new Error('ARCA no responde'))),
+        getQuotation: vi.fn(async () => 10),
+      };
+
+      await expect(
+        prepareBillingInput(service, input({ currencyCode: 'XYZ', exchangeRate: undefined }), {
+          billing,
+          padron: PADRON,
+        }),
+      ).resolves.toMatchObject({ input: { exchangeRate: 10 } });
+    });
+  });
+
   describe('cotizacion fuera del rango de la 10119 (2 % a 500 % de la oficial)', () => {
     const gateways = (official: number) => ({
       billing: { getQuotation: vi.fn(async () => official) },

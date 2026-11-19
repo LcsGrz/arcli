@@ -6,6 +6,7 @@ import {
 } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { AMOUNT_DECIMALS, formatExchangeRate, hasAtMostDecimals } from '../../lib/numbers/argentine-amount';
+import { assertCurrencyInTable } from '../billing/billing.currency';
 import { EmissionUncertainError } from '../billing/billing.errors';
 import { type ArcliConfig, MISSING_CUIT_MESSAGE } from '../config/config.schemas';
 
@@ -336,6 +337,16 @@ export class ExportService {
     const languages = await gateway.getLanguages();
     const languageId = resolveExportLanguage(input.language, languages);
     const currency = resolveExportCurrency(input);
+    // Se consulta siempre: la vista previa muestra el nombre de la moneda. Una extranjera que no esta en la tabla es
+    // error de entrada (1590), antes de buscar su cotizacion; los pesos no se controlan.
+    const currencies = await gateway.getCurrencies();
+
+    assertCurrencyInTable({
+      arcaCode: currency.fields.Moneda_Id,
+      requested: input.currencyCode?.trim() || currency.fields.Moneda_Id,
+      service: 'wsfex',
+      table: currency.fields.Moneda_Id === 'PES' ? [] : currencies.map((entry) => entry.code),
+    });
     const quotationDate = resolveExportQuotationDate({
       exportType,
       isNote: isExportNote(voucherKind),
@@ -435,8 +446,7 @@ export class ExportService {
           ? undefined
           : countryCuits.find((entry) => entry.cuit === clientCountryCuit)?.countryName,
       countryName: destinationCountry.name,
-      currencyName: (await gateway.getCurrencies()).find((entry) => entry.code.trim().toUpperCase() === currencyCode)
-        ?.name,
+      currencyName: currencies.find((entry) => entry.code.trim().toUpperCase() === currencyCode)?.name,
       incotermName: incoterm?.name,
       languageName: languages.find((language) => language.id === languageId)?.name,
       ...(permitChecks ? { permitChecks: permitChecks.checks } : {}),
