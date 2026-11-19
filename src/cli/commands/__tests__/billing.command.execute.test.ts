@@ -474,7 +474,7 @@ describe('notas con el asociado consultado en ARCA una vez, antes de la vista pr
 
   it('la vista previa de una nota FCE sin --afecha ya trae la fecha del asociado', async () => {
     const used = await run(CREDIT_NOTE_FCE, {
-      gateways: withAssociated(issued({ date: '20260305', number: 7, total: 5000 })),
+      gateways: withAssociated(issued({ date: '20260305', documentNumber: 30709965812, number: 7, total: 5000 })),
       shortcut: 'ncea',
     });
 
@@ -487,7 +487,7 @@ describe('notas con el asociado consultado en ARCA una vez, antes de la vista pr
 
   it('una NC FCE de anulación avisa en `avisos` si el comprador no rechazó el asociado (10154)', async () => {
     const used = {
-      ...withAssociated(issued({ date: '20260305', number: 7, total: 5000 })),
+      ...withAssociated(issued({ date: '20260305', documentNumber: 30709965812, number: 7, total: 5000 })),
       fceRegistry: { getVoucherState: vi.fn(async () => 'Recepcionado' as const) },
     };
 
@@ -506,7 +506,7 @@ describe('notas con el asociado consultado en ARCA una vez, antes de la vista pr
   });
 
   it('si ARCA rechaza la anulación con 10154, `sugerencias` explica que el comprador tiene que rechazar', async () => {
-    const used = withAssociated(issued({ date: '20260305', number: 7, total: 5000 }));
+    const used = withAssociated(issued({ date: '20260305', documentNumber: 30709965812, number: 7, total: 5000 }));
 
     used.billing.createVoucher = vi.fn(async () => ({
       cae: '',
@@ -528,7 +528,7 @@ describe('notas con el asociado consultado en ARCA una vez, antes de la vista pr
 
   it('una nota FCE sin --afecha se emite con la fecha del asociado, sin volver a consultarlo', async () => {
     const used = await run([...CREDIT_NOTE_FCE, '--emitir'], {
-      gateways: withAssociated(issued({ date: '20260305', number: 7, total: 5000 })),
+      gateways: withAssociated(issued({ date: '20260305', documentNumber: 30709965812, number: 7, total: 5000 })),
       shortcut: 'ncea',
     });
 

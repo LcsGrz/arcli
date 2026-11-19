@@ -86,13 +86,13 @@ Comandos, flags, claves de config y JSON son contrato público. Antes de cambiar
 - **Consultar antes que copiar.** Una regla de ARCA copiada en ARCLI queda vieja en silencio: si ARCA la afloja, ARCLI sigue bloqueando algo válido. Cuando ARCA tiene un método de consulta, la vista previa le pregunta en lugar de copiar la regla, y si la consulta falla sigue con un aviso (salvo que sin ese dato no se pueda armar el comprobante). Lo que no se puede consultar se copia citando el código y el manual, en [validation-rules](validation-rules.md#de-dónde-sale-cada-regla) y en un comentario donde se aplica, y `yarn test:arca` manda el caso límite a ARCA testing para ver que lo sigue rechazando. Ya consultan:
   - el último número autorizado (`FECompUltimoAutorizado`, y `FEXGetLast_CMP` y `FEXGetLast_ID` en la `E`), en vez de numerar localmente;
   - el padrón (`arcli padron` y el IVA receptor automático con `consultarPadron`);
-  - la cotización oficial (`FEParamGetCotizacion`, y `FEXGetPARAM_MON_CON_COTIZACION` en la `E`);
-  - el asociado de una nota (`FECompConsultar`, y `FEXGetCMP` en la `E`): que exista, el tope de la NC, la fecha de una nota FCE y los datos que hereda una nota `E`;
+  - la cotización oficial (`FEParamGetCotizacion`, y `FEXGetPARAM_MON_CON_COTIZACION` en la `E`): la que va con `--misma-moneda` y la que se compara con `--cm` (10119). Con una fecha pasada y `--misma-moneda` se pide con `FchCotiz`, que el SDK no manda: `ArcaBillingGateway` llama al método con `genericService` de `@arcasdk/core`;
+  - el asociado de una nota (`FECompConsultar`, y `FEXGetCMP` en la `E`): que exista, el tope de la NC, la fecha de una nota FCE, que una nota FCE coincida con él en moneda, receptor y fecha, y los datos que hereda una nota `E`;
   - el estado del asociado de una nota FCE de anulación en el Registro de FCE (`wsfecred`, `consultarHistorialEstadosComprobante`);
   - el régimen FCE del receptor (`wsfecred`, `consultarMontoObligadoRecepcion`, con `verificarFce`);
   - los permisos de embarque de la `E` (`FEXCheck_Permiso`);
   - las tablas de WSFEX: países, CUIT de países, monedas, unidades, incoterms, idiomas y actividades.
-    Siguen copiadas, porque ARCA no tiene cómo preguntarlas antes de emitir: la ventana de fechas, el IVA receptor por letra (`FEParamGetCondicionIvaReceptor` existe, pero su tabla no coincide con lo que ARCA acepta: marca consumidor final solo para `C`) y los ids de alícuota, que `yarn test:arca` compara con las tablas de ARCA.
+    Siguen copiadas, porque ARCA no tiene cómo preguntarlas antes de emitir: la ventana de fechas, el IVA receptor por letra (`FEParamGetCondicionIvaReceptor` existe, pero en testing su tabla no coincide con lo que ARCA acepta: marca consumidor final solo para `C`, y la del manual también para `B`), el documento del receptor por letra y en FCE, y los ids de alícuota, que `yarn test:arca` compara con las tablas de ARCA.
 - **CLI primero.** El flujo principal se piensa desde la terminal; el modo interactivo es una capa encima y no agrega comandos de emisión.
 - **Una sola ruta de validación.** El asistente arma `BillingCommandInput` y pasa por `BillingService`, igual que los flags: mismas validaciones, vista previa y emisión.
 - **Wizard, no pantalla completa.** Prompts encadenados con `@inquirer`.

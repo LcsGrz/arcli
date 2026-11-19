@@ -149,13 +149,13 @@ export const OPTIONS = {
     text: 'El monto es el total con IVA: ARCLI calcula el neto y el IVA.',
   },
   asociado: {
-    ej: '--ac fc --apv 3 --ar 142 --acuit 20333333334',
+    ej: '--ac fc --apv 3 --ar 142',
     name: 'Comprobante que ajusta',
     rows: [
       ['', '--ac <atajo>', 'Atajo del comprobante: fc, rc, ndc…'],
       ['--apv', '--asociado-punto-venta <número>', 'Su punto de venta'],
       ['', '--ar <número>', 'Su número'],
-      ['', '--acuit <cuit>', 'El CUIT del emisor: el tuyo'],
+      ['', '--acuit <cuit>', 'El CUIT de quien lo emitió; sin él, el tuyo'],
       ['', '--at <número>', 'Tipo ARCA, en vez de --ac'],
     ],
     text: 'Atajo, punto de venta y número del comprobante: una factura u otra nota de la misma letra. O un período entero, con `--pd` y `--ph`.',
@@ -467,7 +467,7 @@ const SPECS: readonly VoucherSpec[] = [
   },
   ...notes({
     atajos: ['ncc', 'ndc'],
-    ej: 'arcli ncc -m 5000 --cs --cfinal --ac fc --apv 3 --ar 142 --acuit 20333333334',
+    ej: 'arcli ncc -m 5000 --cs --cfinal --ac fc --apv 3 --ar 142',
     familia: 'Monotributo · C',
     letter: 'c',
     na: ['--cbu', '--alicuota'],
@@ -532,10 +532,10 @@ const SPECS: readonly VoucherSpec[] = [
   },
   ...notes({
     atajos: ['nca', 'nda'],
-    ej: 'arcli nca -m 1210 --cs --cuit 20168598204 --ac fa --apv 3 --ar 6 --acuit 20333333334',
+    ej: 'arcli nca -m 1210 --cs --cuit 20168598204 --ac fa --apv 3 --ar 6',
     familia: 'Responsable inscripto · A',
     letter: 'a',
-    na: ['--cbu', '--cfinal'],
+    na: ['--cbu', '--cfinal', '--dni'],
     opt: ['periodo', 'irOpt', 'iva', ...BASE_OPT],
     req: ['monto', 'concepto', 'receptorCuit', 'asociado'],
     target: 'una Factura A, un Recibo A u otra nota A',
@@ -598,7 +598,7 @@ const SPECS: readonly VoucherSpec[] = [
   },
   ...notes({
     atajos: ['ncb', 'ndb'],
-    ej: 'arcli ncb -m 1210 --cs --cfinal --ac fb --apv 3 --ar 9 --acuit 20333333334',
+    ej: 'arcli ncb -m 1210 --cs --cfinal --ac fb --apv 3 --ar 9',
     familia: 'Responsable inscripto · B',
     letter: 'b',
     na: ['--cbu'],

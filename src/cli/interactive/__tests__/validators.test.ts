@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { validateCbu, validateOptionalDate, validatePointOfSale, validatePositiveInteger } from '../validators';
+import {
+  validateCbu,
+  validateDni,
+  validateOptionalDate,
+  validatePointOfSale,
+  validatePositiveInteger,
+} from '../validators';
 
 describe('validatePositiveInteger', () => {
   const validateNumber = validatePositiveInteger('El número');
@@ -33,5 +39,15 @@ describe('validateCbu', () => {
     expect(validateCbu('123')).toMatch(/22 dígitos/);
     expect(validateCbu('0110599420000012345678')).toMatch(/bloque de banco y sucursal/);
     expect(validateCbu('0110599520000012345677')).toMatch(/bloque de la cuenta/);
+  });
+});
+
+describe('validateDni', () => {
+  it.each(['543210', '12.345.678', '1234567'])('acepta %s', (value) => {
+    expect(validateDni(value)).toBe(true);
+  });
+
+  it.each(['12345', '123456789'])('rechaza %s', (value) => {
+    expect(validateDni(value)).toBe('El DNI tiene de 6 a 8 dígitos.');
   });
 });

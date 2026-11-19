@@ -205,6 +205,7 @@ type FileField = NonNullable<BillingCommandInput['fromFile']>[number];
 
 const FILE_FIELD_KEYS: Readonly<Record<FileField, keyof BillingJsonInput>> = {
   dueDay: 'dia',
+  exchangeRate: 'cotizacionMoneda',
   pdfDescription: 'descripcion',
   receiverAddress: 'receptorDomicilio',
   receiverName: 'receptorNombre',
@@ -354,8 +355,11 @@ function parseBillingCommandInputFromSource(
   const explicitExchangeRate = flagExchangeRate ?? (flagSameCurrency ? undefined : fileInput?.cotizacionMoneda);
 
   if (sameCurrency && typeof explicitExchangeRate === 'number') {
+    // Un flag descarta lo del archivo, asi que sin `--misma-moneda` las dos claves vienen del JSON.
     throw new InputValidationError(
-      'Con `--misma-moneda` la cotización se toma de ARCA. Sacá `--cotizacion-moneda` o `--cm`.',
+      flagSameCurrency
+        ? 'Con `--misma-moneda` la cotización se toma de ARCA. Sacá `--cotizacion-moneda` o `--cm`.'
+        : 'Con `"mismaMoneda": true` la cotización se toma de ARCA. Sacá `"cotizacionMoneda"` del JSON de `--cargar`.',
     );
   }
 
@@ -414,6 +418,8 @@ function parseBillingCommandInputFromSource(
     commandOptions.sinCondicionVenta === true ? null : (flagSaleCondition ?? fileInput?.condicionVenta);
   const fromFile = resolveFileFields(fileInput, {
     dueDay: commandOptions.dia,
+    // --misma-moneda tambien descarta la cotizacion del archivo.
+    exchangeRate: flagExchangeRate ?? (flagSameCurrency ? true : undefined),
     pdfDescription: commandOptions.descripcion,
     receiverAddress: commandOptions.receptorDomicilio,
     receiverName: commandOptions.receptorNombre,

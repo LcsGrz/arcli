@@ -105,4 +105,56 @@ describe('ArcaBillingGateway', () => {
       details: { deprecado: [expect.any(String)], errores: [{ codigo: 600, mensaje: 'Moneda inexistente' }], errors },
     });
   });
+
+  describe('with a date (FchCotiz, which the SDK does not send)', () => {
+    function createDatedGateway(call: ReturnType<typeof vi.fn>): ArcaBillingGateway {
+      return new ArcaBillingGateway({ genericService: { call } } as unknown as Arca);
+    }
+
+    const found = (rate: number, date: string) => ({
+      FEParamGetCotizacionResult: { ResultGet: { FchCotiz: date, MonCotiz: rate, MonId: 'DOL' } },
+    });
+    const noResults = { FEParamGetCotizacionResult: { Errors: { Err: { Code: 602, Msg: 'Sin Resultados' } } } };
+
+    it('calls FEParamGetCotizacion with FchCotiz through the generic service', async () => {
+      const call = vi.fn(async () => found(1179.909, '20261115'));
+
+      await expect(createDatedGateway(call).getQuotation('DOL', '20261115')).resolves.toBe(1179.909);
+      expect(call).toHaveBeenCalledWith('wsfe', 'FEParamGetCotizacion', { FchCotiz: '20261115', MonId: 'DOL' });
+    });
+
+    it('goes back one day at a time while ARCA has no rate for that day (602: a weekend or a holiday)', async () => {
+      const call = vi
+        .fn()
+        .mockResolvedValueOnce(noResults)
+        .mockResolvedValueOnce(noResults)
+        .mockResolvedValueOnce(found(1179.27, '20261113'));
+
+      await expect(createDatedGateway(call).getQuotation('DOL', '20261115')).resolves.toBe(1179.27);
+      expect(call.mock.calls.map((args) => (args[2] as { FchCotiz: string }).FchCotiz)).toEqual([
+        '20261115',
+        '20261114',
+        '20261113',
+      ]);
+    });
+
+    it('stops at another ARCA error and after a week without rates', async () => {
+      const invalid = {
+        FEParamGetCotizacionResult: { Errors: { Err: [{ Code: 12002, Msg: 'FchCotiz no es una fecha valida' }] } },
+      };
+      const failing = vi.fn(async () => invalid);
+      const empty = vi.fn(async () => noResults);
+
+      await expect(createDatedGateway(failing).getQuotation('DOL', '20261115')).rejects.toMatchObject({
+        code: 'ARCA_QUOTATION_ERROR',
+        details: { errores: [{ codigo: 12002 }] },
+      });
+      expect(failing).toHaveBeenCalledTimes(1);
+      await expect(createDatedGateway(empty).getQuotation('DOL', '20261115')).rejects.toMatchObject({
+        code: 'ARCA_QUOTATION_ERROR',
+        message: 'ARCA no devolvió una cotización válida para DOL al 15/11/2026.',
+      });
+      expect(empty).toHaveBeenCalledTimes(7);
+    });
+  });
 });

@@ -8,7 +8,13 @@ import type { PadronGateway } from '../padron/padron';
 import { resolveTaxAmounts, sumTaxAmounts } from './billing.amounts';
 import { resolveAssociatedPeriod } from './billing.associated-period';
 import { resolveAssociatedVouchers } from './billing.associated-vouchers';
-import { isForeignCurrency, needsOfficialExchangeRate, resolveBillingCurrencyFields } from './billing.currency';
+import {
+  isForeignCurrency,
+  needsOfficialExchangeRate,
+  resolveBillingCurrencyFields,
+  resolveSameCurrencyQuotationDate,
+  validateExchangeRateRange,
+} from './billing.currency';
 import { resolveBillingDateRange } from './billing.date-range';
 import { EmissionUncertainError } from './billing.errors';
 import { resolveElectronicCreditOptionals } from './billing.fce';
@@ -24,7 +30,7 @@ import { type PadronResolution, resolveIvaConditionFromPadron } from './billing.
 import type { BillingCommandInput } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
 import type { BillingExecutionResult, BillingGateway } from './billing.types.internal';
-import { validateDocumentIdentity } from './billing.validation';
+import { validateDocumentIdentity, validateUncategorizedReceiver } from './billing.validation';
 import { createDryRunResponse, mapBillingResponse } from './billing-response';
 import { getVoucherKindByShortcut } from './voucher-kind-map';
 
@@ -54,12 +60,57 @@ export class BillingService {
       return input;
     }
 
+    // Con --misma-moneda y una fecha pasada, ARCA exige la del dia habil anterior a esa fecha (10038).
+    const quotationDate = input.sameCurrency
+      ? resolveSameCurrencyQuotationDate(
+          input.billingDate ? parseArgentineDateInputAsArcaDate(input.billingDate) : formatDateAsArcaDate(new Date()),
+          formatDateAsArcaDate(new Date()),
+        )
+      : undefined;
+    const currencyCode = resolveBillingCurrencyCode(input.currencyCode);
+
     return {
       ...input,
-      exchangeRate: await gateway.getQuotation(resolveBillingCurrencyCode(input.currencyCode)),
+      exchangeRate: quotationDate
+        ? await gateway.getQuotation(currencyCode, quotationDate)
+        : await gateway.getQuotation(currencyCode),
       // Con --misma-moneda la oficial es obligatoria, no un default: no hace falta avisar.
       exchangeRateSource: input.sameCurrency ? undefined : 'arca',
     };
+  }
+
+  /**
+   * Compara la cotizacion que paso el usuario (`--cm`, el JSON o la config) con la oficial de ARCA y frena si esta
+   * fuera del rango de la 10119. Si la consulta falla devuelve el aviso y sigue: ARCA decide al emitir.
+   */
+  public async checkExchangeRateRange(
+    input: BillingCommandInput,
+    gateway: Pick<BillingGateway, 'getQuotation'>,
+  ): Promise<string[]> {
+    if (
+      !isForeignCurrency(input) ||
+      input.sameCurrency ||
+      input.exchangeRateSource === 'arca' ||
+      typeof input.exchangeRate !== 'number'
+    ) {
+      return [];
+    }
+
+    let official: number;
+
+    try {
+      official = await gateway.getQuotation(resolveBillingCurrencyCode(input.currencyCode));
+    } catch (error) {
+      const reason = error instanceof Error ? error.message.replace(/\.$/, '') : 'error desconocido';
+
+      return [
+        `No se pudo comparar la cotización con la oficial de ARCA: ${reason}. ARCA la rechaza si no está entre el 2 % y el 500 % de la oficial (error 10119).`,
+      ];
+    }
+
+    validateExchangeRateRange(input, official);
+
+    return [];
   }
 
   public async resolveIvaConditionFromPadron(
@@ -187,10 +238,11 @@ export class BillingService {
       requireVoucherKind: (shortcut) => this.requireVoucherKind(shortcut),
       voucherKind,
     });
-    const currencyFields = resolveBillingCurrencyFields(input, dateRange.billingDate, formatDateAsArcaDate(new Date()));
+    const currencyFields = resolveBillingCurrencyFields(input);
     const taxAmounts = resolveTaxAmounts(input, voucherKind);
 
-    validateDocumentIdentity(input, voucherKind);
+    validateDocumentIdentity(input, voucherKind, runtime.context.cuit);
+    validateUncategorizedReceiver(input, voucherKind, taxAmounts.netAmount + taxAmounts.ivaAmount);
     validateIvaConditionForVoucher(input.ivaCondition, voucherKind);
     validateConsumerIdentification(input, currencyFields.MonCotiz, voucherKind);
 

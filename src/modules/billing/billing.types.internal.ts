@@ -8,7 +8,11 @@ export interface BillingGateway {
   createVoucher(voucher: IVoucher): Promise<CreateVoucherResultDto>;
   /** Autentica y pide el ultimo numero autorizado. Un error aca no emitio nada. */
   getNextVoucherNumber(pointOfSale: number, voucherType: number): Promise<number>;
-  getQuotation(currencyCode: string): Promise<number>;
+  /**
+   * La cotizacion oficial de ARCA. Sin `arcaDate`, la vigente (la del dia habil anterior a hoy); con `arcaDate`
+   * (`yyyymmdd`), la ultima publicada hasta ese dia.
+   */
+  getQuotation(currencyCode: string, arcaDate?: string): Promise<number>;
 }
 
 export interface BillingResponseSummary {

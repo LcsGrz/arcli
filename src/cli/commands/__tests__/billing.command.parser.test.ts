@@ -215,6 +215,20 @@ describe('billing.command.parser', () => {
       expect(input.exchangeRate).toBe(1200);
     });
 
+    it('marks a cotizacionMoneda from the file, so the range error names the JSON key', () => {
+      const fromFile = parseBillingCommandInput(
+        createCommand(['--cargar', writeJsonInput({ codigoMoneda: 'USD', cotizacionMoneda: 1200 })]),
+        'fc',
+      );
+      const fromFlag = parseBillingCommandInput(
+        createCommand(['--cargar', writeJsonInput({ codigoMoneda: 'USD', cotizacionMoneda: 1200 }), '--cm', '1.300']),
+        'fc',
+      );
+
+      expect(fromFile.fromFile).toContain('exchangeRate');
+      expect(fromFlag.fromFile ?? []).not.toContain('exchangeRate');
+    });
+
     it('uses --misma-moneda instead of the file cotizacionMoneda', () => {
       const input = parseBillingCommandInput(
         createCommand(['--cargar', writeJsonInput({ codigoMoneda: 'USD', cotizacionMoneda: 1200 }), '--misma-moneda']),
@@ -247,7 +261,24 @@ describe('billing.command.parser', () => {
       '1200',
     ]);
 
-    expect(() => parseBillingCommandInput(command, 'fc')).toThrow(/la cotización se toma de ARCA/);
+    expect(() => parseBillingCommandInput(command, 'fc')).toThrow(
+      'Con `--misma-moneda` la cotización se toma de ARCA. Sacá `--cotizacion-moneda` o `--cm`.',
+    );
+  });
+
+  it('names the JSON keys, not the flags, when mismaMoneda and cotizacionMoneda both come from --cargar', () => {
+    const command = createCommand([
+      '--monto',
+      '1000',
+      '--cs',
+      '--ir-cf',
+      '--cargar',
+      writeJsonInput({ codigoMoneda: 'USD', cotizacionMoneda: 1200, mismaMoneda: true }),
+    ]);
+
+    expect(() => parseBillingCommandInput(command, 'fc')).toThrow(
+      'Con `"mismaMoneda": true` la cotización se toma de ARCA. Sacá `"cotizacionMoneda"` del JSON de `--cargar`.',
+    );
   });
 
   it('applies the default exchange rate only to foreign currency', () => {

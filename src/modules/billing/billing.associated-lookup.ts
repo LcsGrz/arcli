@@ -7,8 +7,9 @@ import type { ParametersGateway } from '../parameters/parameters';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../vouchers/voucher-history';
 import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
 
+import { ARCA_LOCAL_CURRENCY_CODE } from './billing.currency';
 import { formatMoneyLabel } from './billing.labels';
-import { formatVoucherWithArticle } from './billing.mappers';
+import { formatVoucherSubject, formatVoucherWithArticle } from './billing.mappers';
 import type { BillingCommandInput } from './billing.schemas';
 import type { BillingService } from './billing.service';
 import type { VoucherKindDefinition } from './billing.types';
@@ -82,6 +83,49 @@ export function assertCreditNoteWithinAssociated(options: {
       noteCurrency: note.currencyCode,
       noteTotal: note.total,
     });
+  }
+}
+
+/**
+ * Lo que una nota FCE tiene que compartir con su asociado, segun el manual (WSFEv1 v4.7, sin probar en testing: hace
+ * falta un escenario FCE con otro receptor o moneda):
+ * - la moneda, o pesos para ajustar una diferencia de cambio (10181);
+ * - emisor y receptor (10183; el emisor ya lo controla la 10155 en `resolveAssociatedVouchers`);
+ * - la fecha del asociado, si se paso `--afecha` (10160: "con la misma fecha informada en el asociado").
+ */
+export function assertFceNoteMatchesAssociated(options: {
+  readonly associated: Pick<IssuedVoucher, 'currency' | 'date' | 'documentNumber'>;
+  readonly associatedLabel: string;
+  readonly note: { readonly currencyCode: string; readonly date?: string; readonly documentNumber: number };
+  readonly voucherKind: VoucherKindDefinition;
+}): void {
+  const { associated, associatedLabel, note, voucherKind } = options;
+  const subject = formatVoucherWithArticle(voucherKind);
+  const associatedCurrency = associated.currency?.trim().toUpperCase();
+  const noteCurrency = note.currencyCode.trim().toUpperCase();
+
+  if (associatedCurrency && noteCurrency !== associatedCurrency && noteCurrency !== ARCA_LOCAL_CURRENCY_CODE) {
+    throw new InputValidationError(
+      `${formatVoucherSubject(voucherKind)} va en la moneda de ${associatedLabel} (${associatedCurrency}) o en pesos, no en ${noteCurrency}: ARCA la rechaza (error 10181).`,
+      undefined,
+      `Usá \`--moneda ${associatedCurrency}\`, o pesos si ajusta una diferencia de cambio.`,
+    );
+  }
+
+  if (associated.documentNumber !== note.documentNumber) {
+    throw new InputValidationError(
+      `${formatVoucherSubject(voucherKind)} tiene que ir al mismo receptor que ${associatedLabel} (${associated.documentNumber}), no a ${note.documentNumber}: ARCA la rechaza (error 10183).`,
+      undefined,
+      `Usá \`--cuit ${associated.documentNumber}\`.`,
+    );
+  }
+
+  if (note.date && note.date !== associated.date) {
+    throw new InputValidationError(
+      `La fecha del asociado (${formatArcaDateAsArgentineDate(note.date)}) no es la de ${associatedLabel} en ARCA (${formatArcaDateAsArgentineDate(associated.date)}): en ${subject} ARCA la rechaza (error 10160).`,
+      undefined,
+      `Usá \`--afecha ${formatArcaDateAsArgentineDate(associated.date)}\`, o sacala y ARCLI la toma de ARCA.`,
+    );
   }
 }
 
@@ -302,6 +346,15 @@ export async function checkAssociatedInArca(options: {
         }),
       ],
     };
+  }
+
+  if (voucherKind.isElectronicCredit) {
+    assertFceNoteMatchesAssociated({
+      associated: voucher,
+      associatedLabel: label,
+      note: { currencyCode: payload.MonId, date: reference.CbteFch, documentNumber: payload.DocNro ?? 0 },
+      voucherKind,
+    });
   }
 
   if (capsCreditNote(voucherKind, reference.Tipo)) {

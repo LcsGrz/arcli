@@ -28,6 +28,12 @@ import {
   UNSUPPORTED_DOCUMENT_TYPE_NOTICE,
 } from '../../modules/interactive/invoice-copy';
 import { defaultIvaRate, explicitIvaRate } from '../../modules/interactive/iva-rate';
+import {
+  canChooseNoteCurrency,
+  type NoteCurrency,
+  noteCurrencyChoices,
+  resolveNoteCurrency,
+} from '../../modules/interactive/note-currency';
 import { BACK, type Back, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import type { IssuedVoucher } from '../../modules/vouchers/voucher-history';
 import { formatVoucherNumber } from '../../modules/vouchers/voucher-history.presenter';
@@ -61,6 +67,8 @@ export interface NoteState {
   readonly associatedDate?: string;
   readonly cancellation?: boolean;
   readonly concept?: BillingConcept;
+  /** Sobre un comprobante en moneda extranjera: en esa moneda o en pesos (diferencia de cambio). */
+  readonly currency?: NoteCurrency;
   readonly documentNumber?: number;
   readonly documentType?: BillingCommandInput['documentType'];
   /** Anula la factura entera: la nota copia exento y no gravado. */
@@ -206,8 +214,8 @@ function describeInvoice(state: NoteState, invoice: IssuedVoucher): string {
 }
 
 /**
- * Opcionales que la nota no ofrece: la alicuota tiene su paso, la moneda es la de la factura (solo se elige en las de
- * periodo) y, si anula el total, exento y no gravado se copian de la factura.
+ * Opcionales que la nota no ofrece: la alicuota tiene su paso, la moneda es la de la factura o pesos (tiene su paso; en
+ * los opcionales solo se elige en las de periodo) y, si anula el total, exento y no gravado se copian de la factura.
  */
 function hiddenNoteOptions(state: NoteState): AdvancedOptionKey[] {
   return [
@@ -223,9 +231,14 @@ async function askNoteAmount(
 ): Promise<Back | { readonly annulsTotal: boolean; readonly totalAmount: number | undefined }> {
   const invoice = state.invoice;
   const label = state.kind === 'debito' ? 'Monto de la nota de débito:' : 'Monto de la nota de crédito:';
+  // En pesos sobre un comprobante en otra moneda los totales no se comparan: ni tope ni anular el total.
+  const inInvoiceCurrency = state.currency !== 'pesos';
   // Con varias alicuotas o tributos no se puede armar una nota igual a la factura: solo parcial.
   const canAnnulTotal = Boolean(
-    invoice && !isOverCreditNote(state) && !copyInvoiceAmounts(invoice, state.invoiceKind?.letter ?? 'c').limitation,
+    invoice &&
+    inInvoiceCurrency &&
+    !isOverCreditNote(state) &&
+    !copyInvoiceAmounts(invoice, state.invoiceKind?.letter ?? 'c').limitation,
   );
 
   if (state.kind === 'credito' && invoice && canAnnulTotal) {
@@ -243,7 +256,7 @@ async function askNoteAmount(
     validate: (value) => {
       const valid = validateAmount(value);
 
-      if (valid !== true || state.kind !== 'credito' || !invoice || isOverCreditNote(state)) {
+      if (valid !== true || state.kind !== 'credito' || !invoice || !inInvoiceCurrency || isOverCreditNote(state)) {
         return valid;
       }
 
@@ -321,9 +334,26 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
         }
 
         // La nota hereda de la factura el receptor, el concepto, la moneda y la alicuota (si se puede deducir).
-        return { ...receiver, invoice, invoicePointOfSale: picked.pointOfSale, ivaRate: copy.ivaRate };
+        return {
+          ...receiver,
+          currency: undefined,
+          invoice,
+          invoicePointOfSale: picked.pointOfSale,
+          ivaRate: copy.ivaRate,
+        };
       },
       skip: isPeriod,
+    },
+    {
+      name: 'moneda',
+      run: async (state) => {
+        const invoice = requireStepValue(state.invoice, 'invoice');
+        const currency = await chooseStep('¿En qué moneda va la nota?', noteCurrencyChoices(invoice), state.currency);
+
+        return currency === BACK ? BACK : { currency };
+      },
+      // Solo sobre un comprobante en moneda extranjera; la de periodo elige la moneda en los opcionales.
+      skip: (state) => isPeriod(state) || !canChooseNoteCurrency(state.invoice),
     },
     {
       name: 'fecha-asociado',
@@ -444,13 +474,13 @@ export function buildNoteInput(
   const invoiceKind = requireStepValue(state.invoiceKind, 'invoiceKind');
   const noteKind = noteKindChoices(state.kind ?? 'credito', invoiceKind);
   const invoice = state.invoice;
-  // Una nota va en la moneda de su factura; si la anula entera, tambien copia exento y no gravado.
+  // Una nota va en la moneda de su factura o en pesos; si la anula entera, tambien copia exento y no gravado.
   const copy = !isPeriod(state) && invoice ? copyInvoiceAmounts(invoice, invoiceKind.letter) : undefined;
   const advanced = state.advanced ?? initialAdvancedOptions(session.runtime.config);
   // La de periodo o de otro sistema no tiene factura de donde copiar la moneda: va la elegida en los opcionales.
   const currency = asksOwnData(state)
     ? { currencyCode: advanced.currencyCode, exchangeRate: advanced.exchangeRate, sameCurrency: advanced.sameCurrency }
-    : { currencyCode: copy?.currencyCode, exchangeRate: copy?.exchangeRate };
+    : resolveNoteCurrency(copy, state.currency);
 
   return billingCommandSchema.parse({
     ...currency,
@@ -498,7 +528,7 @@ export async function runNoteFlow(baseSession: InteractiveSession, kind: NoteKin
   }
 
   const { pointOfSale, session } = ready;
-  // La moneda solo se usa en las de periodo; las de una factura van en la de la factura.
+  // La moneda de los opcionales solo se usa en las de periodo; las de una factura van en la de la factura o en pesos.
   const state = await runWizard(noteSteps(session, pointOfSale), {
     advanced: initialAdvancedOptions(session.runtime.config),
     kind,

@@ -6,9 +6,9 @@ import type { BillingCommandInput, BillingIvaCondition } from './billing.schemas
 import type { VoucherKindDefinition, VoucherLetter } from './billing.types';
 
 /**
- * Condiciones IVA del receptor admitidas por letra, segun FEParamGetCondicionIvaReceptor.
- * ARCA rechaza las demas combinaciones con el error 10243 (WSFEv1 v4.7). `yarn test:arca` la compara con la de ARCA,
- * que marca consumidor final solo para C aunque aprueba la B.
+ * Condiciones IVA del receptor admitidas por letra, segun la tabla del manual (WSFEv1 v4.7, p. 203), que marca
+ * consumidor final en B, C y 49. ARCA rechaza las demas combinaciones con el error 10243. `yarn test:arca` la compara
+ * con la de FEParamGetCondicionIvaReceptor de testing, que trae consumidor final solo como "C/49" aunque aprueba la B.
  */
 const IVA_CONDITIONS_BY_LETTER: Record<VoucherLetter, readonly BillingIvaCondition[]> = {
   a: [
@@ -41,7 +41,10 @@ const IVA_CONDITIONS_BY_LETTER: Record<VoucherLetter, readonly BillingIvaConditi
   ],
 };
 
-/** RG 5700/2025: desde $ 10.000.000 hay que identificar al consumidor final (ARCA 10015, WSFEv1 v4.7). */
+/**
+ * RG 5700/2025: desde $ 10.000.000 hay que identificar al consumidor final (ARCA 10015, WSFEv1 v4.7). El texto de la
+ * 10015 nombra solo la B, pero ARCA testing tambien rechaza la C con ese codigo (18/11/2026): no aflojarla en la C.
+ */
 const CONSUMER_IDENTIFICATION_THRESHOLD = 10_000_000;
 
 export function listAllowedIvaConditions(letter: VoucherLetter): readonly BillingIvaCondition[] {

@@ -118,10 +118,20 @@ export function noteKindChoices(kind: 'credito' | 'debito', invoice: VoucherKind
   return VOUCHER_KIND_MAP[shortcut];
 }
 
-export function receiverChoices(letter: VoucherLetter): Array<InteractiveChoice<BillingDocumentType>> {
+/**
+ * A quien puede ir el comprobante: la A solo a un CUIT (10013; consumidor final tampoco, 10243) y la FCE, en
+ * cualquier letra, tambien solo a un CUIT (10015, WSFEv1 v4.7).
+ */
+export function receiverChoices(
+  letter: VoucherLetter,
+  electronicCredit = false,
+): Array<InteractiveChoice<BillingDocumentType>> {
+  if (electronicCredit) {
+    return [{ name: 'Con CUIT', value: 'cuit' }];
+  }
+
   const choices: Array<InteractiveChoice<BillingDocumentType>> = [];
 
-  // La A no admite consumidor final (10243), asi que solo se identifica por CUIT.
   if (listAllowedIvaConditions(letter).includes('consumidor-final')) {
     choices.push({ name: 'Consumidor final (sin identificar)', value: 'consumidor-final' });
   }

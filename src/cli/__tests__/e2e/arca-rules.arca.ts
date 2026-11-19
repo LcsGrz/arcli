@@ -33,11 +33,16 @@ const CLI = resolve('dist/cli/index.js');
 
 /** CUITs de prueba de ARCA testing: uno con padrón completo (RI) y uno que recibe FCE. */
 const RECEIVER_CUIT = '30546689979';
+/** El CUIT genérico de un receptor No Categorizado (10067). */
+const UNCATEGORIZED_CUIT = '23000000000';
 const FCE_RECEIVER_CUIT = '30500010912';
 const CBU = '0110599520000012345678';
 
 /** Punto de venta de exportación (WSFEX) de tu testing. Sin la variable, los casos de la E se saltean. */
 const EXPORT_POINT_OF_SALE = process.env.ARCLI_ARCA_PV_E?.trim();
+/** Punto de venta de WSFE para los casos de A, B, C y FCE. Sin la variable, el de la config. */
+const POINT_OF_SALE = process.env.ARCLI_ARCA_PV?.trim();
+const pointOfSaleFlags = (): string[] => (POINT_OF_SALE ? ['--pv', POINT_OF_SALE] : []);
 
 type Request = Record<string, unknown>;
 
@@ -89,7 +94,7 @@ function previewRequest(args: readonly string[]): Request {
   const cached = previews.get(key);
 
   if (!cached) {
-    const { code, json } = arcli(...args, '--previsualizar');
+    const { code, json } = arcli(...args, ...pointOfSaleFlags(), '--previsualizar');
 
     if (code !== 0 || !json.solicitud) {
       throw new Error(`La vista previa base \`arcli ${key}\` falló: ${JSON.stringify(json)}`);
@@ -102,7 +107,7 @@ function previewRequest(args: readonly string[]): Request {
 }
 
 function expectCliBlocks(args: readonly string[]): void {
-  const { code, json } = arcli(...args, '--previsualizar');
+  const { code, json } = arcli(...args, ...pointOfSaleFlags(), '--previsualizar');
 
   expect(code, `\`arcli ${args.join(' ')}\` tendría que cortar antes de ARCA`).not.toBe(0);
   expect(json.codigo).toBe('INPUT_VALIDATION_ERROR');
@@ -212,7 +217,13 @@ describe.skipIf(Boolean(process.env.CI))('Reglas copiadas de ARCA contra testing
 
   /** El último comprobante de un tipo en el punto de venta de la config, para asociarlo. */
   function lastVoucher(shortcut: string, ...extra: string[]): { fecha: string; numero: number; total: number } {
-    const { code, json } = arcli('ultimos', shortcut, '--cantidad', '1', ...extra);
+    const { code, json } = arcli(
+      'ultimos',
+      shortcut,
+      '--cantidad',
+      '1',
+      ...(extra.length > 0 ? extra : pointOfSaleFlags()),
+    );
     const [last] = (json.comprobantes ?? []) as Array<{ fecha: string; importes?: { total: number }; numero: number }>;
 
     if (code !== 0 || !last) {
@@ -223,8 +234,9 @@ describe.skipIf(Boolean(process.env.CI))('Reglas copiadas de ARCA contra testing
   }
 
   /**
-   * Lo que ARCA acepta aunque su tabla no lo diga: la tabla de testing marca consumidor final (5) como "C/49", sin la
-   * B, pero ARCA aprueba la factura B a consumidor final (visto en testing el 18/11/2026).
+   * Lo que ARCA acepta aunque su tabla no lo diga: la respuesta de testing marca consumidor final (5) como "C/49", sin
+   * la B, pero la tabla del manual (WSFEv1 v4.7, p. 203) lo marca en B, C y 49 y ARCA aprueba la factura B a
+   * consumidor final (visto en testing el 18/11/2026). La diferencia es de testing, no de ARCLI.
    */
   const KNOWN_TABLE_GAPS: Readonly<Record<VoucherLetter, readonly number[]>> = {
     a: [],
@@ -303,6 +315,12 @@ describe.skipIf(Boolean(process.env.CI))('Reglas copiadas de ARCA contra testing
     }
 
     let emitter: Record<string, unknown> | undefined;
+    /** La cotización oficial del dólar, para las notas FCE en otra moneda. */
+    let officialDollar = 0;
+
+    beforeAll(async () => {
+      officialDollar = await billing.getQuotation('DOL');
+    });
     /** CUIT y punto de venta de la config, para los flags del asociado. */
     const config = (): Record<string, unknown> => (emitter ??= arcli('config').json);
 
@@ -323,7 +341,7 @@ describe.skipIf(Boolean(process.env.CI))('Reglas copiadas de ARCA contra testing
         '--ar',
         String(invoice.numero),
         '--apv',
-        String(json.puntoVenta),
+        POINT_OF_SALE ?? String(json.puntoVenta),
         '--acuit',
         String(json.cuit),
       ];
@@ -337,7 +355,7 @@ describe.skipIf(Boolean(process.env.CI))('Reglas copiadas de ARCA contra testing
       FCE_RECEIVER_CUIT,
       '--ir-ri',
       '--apv',
-      String(config().puntoVenta),
+      POINT_OF_SALE ?? String(config().puntoVenta),
       '--ac',
       'fcea',
       '--ar',
@@ -465,6 +483,45 @@ describe.skipIf(Boolean(process.env.CI))('Reglas copiadas de ARCA contra testing
         mutate: (request) => (request.CondicionIVAReceptorId = ivaConditionCode('responsable-inscripto')),
         rule: 'factura B con IVA receptor responsable inscripto',
       },
+      {
+        base: () => fa,
+        blockedBy: () => ['fa', '-m', '1210', '--cs', '--dni', '12345678', '--ir-ri'],
+        // Testing también devuelve la 10015 ("documento del receptor").
+        codes: [10013],
+        mutate: (request) => {
+          request.DocTipo = 96;
+          request.DocNro = 12_345_678;
+        },
+        rule: 'factura A con DNI',
+      },
+      {
+        base: () => fcea,
+        blockedBy: () => ['fceb', '-m', '5000000', '--cp', '--dni', '12345678', '--ir-cf', '--cbu', CBU],
+        // Una FCE A con DNI choca también con la 10013; la B a DNI necesitaría un receptor obligado que sea exento.
+        codes: [10015, 10013],
+        mutate: (request) => {
+          request.DocTipo = 96;
+          request.DocNro = 12_345_678;
+        },
+        rule: 'FCE con DNI',
+      },
+      {
+        base: () => fa,
+        blockedBy: () => ['fa', '-m', '1210', '--cs', '--cuit', String(config().cuit), '--ir-ri'],
+        codes: [10069],
+        mutate: (request) => (request.DocNro = Number(config().cuit)),
+        rule: 'receptor igual al emisor',
+      },
+      {
+        base: () => ['fb', '-m', '1000', '--cs', '--cuit', RECEIVER_CUIT, '--ir-se'],
+        blockedBy: () => ['fb', '-m', '1000', '--cs', '--cuit', UNCATEGORIZED_CUIT, '--ir-snc'],
+        codes: [10067],
+        mutate: (request) => {
+          request.DocNro = Number(UNCATEGORIZED_CUIT);
+          request.CondicionIVAReceptorId = ivaConditionCode('sujeto-no-categorizado');
+        },
+        rule: 'factura B a un No Categorizado con IVA y sin el tributo 13',
+      },
       // Comprobantes y período asociados
       {
         base: () => ncaOverFa(),
@@ -591,6 +648,30 @@ describe.skipIf(Boolean(process.env.CI))('Reglas copiadas de ARCA contra testing
       },
       {
         base: () => nceaOverFcea(),
+        blockedBy: () => [...nceaOverFcea(), '--moneda', 'USD'],
+        codes: [10181],
+        mutate: (request) => {
+          request.MonId = 'DOL';
+          request.MonCotiz = officialDollar;
+        },
+        rule: 'NC FCE en otra moneda que su asociado (ni la misma ni pesos)',
+      },
+      {
+        base: () => nceaOverFcea(),
+        blockedBy: () => nceaOverFcea().map((arg, index, all) => (all[index - 1] === '--cuit' ? RECEIVER_CUIT : arg)),
+        codes: [10183],
+        mutate: (request) => (request.DocNro = Number(RECEIVER_CUIT)),
+        rule: 'NC FCE a otro receptor que el de su asociado',
+      },
+      {
+        base: () => nceaOverFcea(),
+        blockedBy: () => [...nceaOverFcea(), '--afecha', flagDate(shift(lastVoucher('fcea').fecha, -1))],
+        codes: [10160],
+        mutate: (request) => (associated(request).CbteFch = shift(lastVoucher('fcea').fecha, -1)),
+        rule: 'NC FCE con una fecha del asociado anterior a la real',
+      },
+      {
+        base: () => nceaOverFcea(),
         blockedBy: () => ['ncea', '-m', '100', '--cp', '--cuit', FCE_RECEIVER_CUIT, '--ir-ri', ...period],
         codes: [10196],
         mutate: (request) => (request.PeriodoAsoc = { FchDesde: shift(today, -30), FchHasta: today }),
@@ -667,6 +748,24 @@ describe.skipIf(Boolean(process.env.CI))('Reglas copiadas de ARCA contra testing
         codes: [10038, 10240],
         mutate: (request) => (request.MonCotiz = Math.round(Number(request.MonCotiz) * 150) / 100),
         rule: 'misma moneda con una cotización distinta de la oficial',
+      },
+      // Con fecha pasada ARCLI pide la cotización del día hábil anterior (FchCotiz, REGLAS-2), pero ARCA testing no
+      // controla la 10038 en una fecha pasada: aprobó un recibo B con 1,5 veces la cotización de ese día (18/11/2026).
+      // No hay caso que mandar.
+      {
+        base: () => [...fcServices, '--moneda', 'USD'],
+        blockedBy: () => [...fcServices, '--moneda', 'USD', '--cm', '99999999'],
+        // El manual dice "superior en un 400 %": ARCA testing rechaza desde 5 veces la oficial.
+        codes: [10119],
+        mutate: (request) => (request.MonCotiz = Math.round(Number(request.MonCotiz) * 501) / 100),
+        rule: 'cotización mayor al 500 % de la oficial',
+      },
+      {
+        base: () => [...fcServices, '--moneda', 'USD'],
+        blockedBy: () => [...fcServices, '--moneda', 'USD', '--cm', '2'],
+        codes: [10119],
+        mutate: (request) => (request.MonCotiz = Math.round(Number(request.MonCotiz) * 1.9) / 100),
+        rule: 'cotización menor al 2 % de la oficial',
       },
       // Importes
       {

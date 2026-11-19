@@ -67,6 +67,10 @@ function issued(overrides: Partial<IssuedVoucher> = {}): IssuedVoucher {
   };
 }
 
+/** El asociado de `fceNote`: una factura FCE al mismo receptor, en pesos. */
+const fceIssued = (overrides: Partial<IssuedVoucher> = {}) =>
+  issued({ documentNumber: 30709965812, documentTypeCode: 80, ...overrides });
+
 /**
  * `salesPoints` son los puntos de venta de web service del emisor (`FEParamGetPtosVenta`) y `lastNumber`, el ultimo
  * numero de ARCA en el punto de venta del asociado. Por defecto, el PV 3 es de web service.
@@ -182,10 +186,10 @@ describe('checkAssociatedInArca: NC no mayor que el asociado (REV-45)', () => {
   });
 
   it('una NC FCE con --afecha igual controla el tope y conserva la fecha', async () => {
-    const input = fceNote({ associatedVoucher: { fecha: '05/03/2026', numero: 7, puntoVenta: 3, shortcut: 'fcea' } });
+    const input = fceNote({ associatedVoucher: { fecha: '10/03/2026', numero: 7, puntoVenta: 3, shortcut: 'fcea' } });
 
-    await expect(check(input, issued({ total: 5000 })).result).resolves.toEqual({ input, warnings: [] });
-    await expect(check(input, issued({ total: 500 })).result).rejects.toThrow(/no puede superar/);
+    await expect(check(input, fceIssued({ total: 5000 })).result).resolves.toEqual({ input, warnings: [] });
+    await expect(check(input, fceIssued({ total: 500 })).result).rejects.toThrow(/no puede superar/);
   });
 
   it('si ARCA no tiene el asociado propio de una NC comun, es un error de validacion como en la E', async () => {
@@ -338,7 +342,7 @@ describe('checkAssociatedInArca: asociado que ARCA no tiene, segun su punto de v
 
 describe('checkAssociatedInArca: fecha del asociado en notas FCE (REV-46)', () => {
   it('sin --afecha toma la fecha del asociado en ARCA', async () => {
-    const { gateway, result } = check(fceNote({ shortcut: 'ndea' }), issued({ date: '20260310' }));
+    const { gateway, result } = check(fceNote({ shortcut: 'ndea' }), fceIssued({ date: '20260310' }));
     const { input } = await result;
 
     expect(gateway.getVoucher).toHaveBeenCalledWith(7, 3, 201);
@@ -348,13 +352,13 @@ describe('checkAssociatedInArca: fecha del asociado en notas FCE (REV-46)', () =
     ]);
   });
 
-  it('con --afecha una ND FCE conserva su fecha (la consulta solo controla que el asociado exista)', async () => {
+  it('con --afecha igual a la de ARCA una ND FCE conserva su fecha', async () => {
     const input = fceNote({
-      associatedVoucher: { fecha: '05/03/2026', numero: 7, puntoVenta: 3, shortcut: 'fcea' },
+      associatedVoucher: { fecha: '10/03/2026', numero: 7, puntoVenta: 3, shortcut: 'fcea' },
       shortcut: 'ndea',
     });
 
-    await expect(check(input, issued({ date: '20260310' })).result).resolves.toEqual({ input, warnings: [] });
+    await expect(check(input, fceIssued({ date: '20260310' })).result).resolves.toEqual({ input, warnings: [] });
   });
 
   it('si ARCA no tiene el asociado, frena: sin fecha la nota FCE no se puede emitir', async () => {
@@ -375,9 +379,57 @@ describe('checkAssociatedInArca: fecha del asociado en notas FCE (REV-46)', () =
   });
 
   it('una fecha de ARCA posterior a la nota sigue siendo un error', async () => {
-    const { input } = await check(fceNote(), issued({ date: '20260320', total: 5000 })).result;
+    const { input } = await check(fceNote(), fceIssued({ date: '20260320', total: 5000 })).result;
 
     expect(() => new BillingService().buildVoucherPayload(input, runtime)).toThrow(/no puede ser posterior/);
+  });
+});
+
+describe('checkAssociatedInArca: la nota FCE coincide con su asociado (REGLAS-12)', () => {
+  it('frena otra moneda que la del asociado (10181)', async () => {
+    const input = fceNote({ currencyCode: 'EUR', exchangeRate: 1300 });
+
+    await expect(check(input, fceIssued({ currency: 'DOL', total: 5000 })).result).rejects.toMatchObject({
+      code: 'INPUT_VALIDATION_ERROR',
+      message:
+        'La nota de crédito electrónica A va en la moneda de la factura de crédito electrónica A 00003-00000007 (DOL) o en pesos, no en 060: ARCA la rechaza (error 10181).',
+      suggestion: 'Usá `--moneda DOL`, o pesos si ajusta una diferencia de cambio.',
+    });
+  });
+
+  it('acepta la misma moneda o pesos, para una diferencia de cambio (10181)', async () => {
+    const dollars = fceNote({ currencyCode: 'USD', exchangeRate: 1300, shortcut: 'ndea' });
+    const pesos = fceNote({ shortcut: 'ndea' });
+
+    await expect(check(dollars, fceIssued({ currency: 'DOL' })).result).resolves.toMatchObject({ warnings: [] });
+    await expect(check(pesos, fceIssued({ currency: 'DOL' })).result).resolves.toMatchObject({ warnings: [] });
+  });
+
+  it('frena otro receptor que el del asociado (10183)', async () => {
+    await expect(check(fceNote(), fceIssued({ documentNumber: 30546689979 })).result).rejects.toMatchObject({
+      message: expect.stringContaining('al mismo receptor que la factura de crédito electrónica A 00003-00000007'),
+      suggestion: 'Usá `--cuit 30546689979`.',
+    });
+  });
+
+  it('frena un --afecha distinto de la fecha del asociado en ARCA (10160)', async () => {
+    const input = fceNote({ associatedVoucher: { fecha: '05/03/2026', numero: 7, puntoVenta: 3, shortcut: 'fcea' } });
+
+    await expect(check(input, fceIssued({ date: '20260310', total: 5000 })).result).rejects.toMatchObject({
+      message:
+        'La fecha del asociado (05/03/2026) no es la de la factura de crédito electrónica A 00003-00000007 en ARCA (10/03/2026): en la nota de crédito electrónica A ARCA la rechaza (error 10160).',
+      suggestion: 'Usá `--afecha 10/03/2026`, o sacala y ARCLI la toma de ARCA.',
+    });
+  });
+
+  it('en las notas comunes no compara moneda, receptor ni fecha', async () => {
+    const input = note({
+      associatedVoucher: { cuit: String(EMITTER), fecha: '01/03/2026', numero: 12, puntoVenta: 3, shortcut: 'fc' },
+    });
+
+    await expect(
+      check(input, issued({ currency: 'DOL', date: '20260310', documentNumber: 30546689979 })).result,
+    ).resolves.toEqual({ input, warnings: [] });
   });
 });
 
