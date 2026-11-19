@@ -7,6 +7,7 @@ export const NEW_OPTION_SINCE = {
   autocompletado: '2.2.0',
   certificados: '2.3.0',
   consultas: '2.5.0',
+  'datos-consumidor-final': '2.6.0',
   'factura-e': '2.2.0',
   monotributo: '2.6.0',
   'notas-e': '2.5.0',

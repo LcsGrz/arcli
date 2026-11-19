@@ -174,7 +174,7 @@ Si usás consumidor final:
 
 - el documento debe ser `0` (ARCA 10015)
 - el IVA receptor debe ser `consumidor-final`: con `--consumidor-final` (o `tipoDocumento: "consumidor-final"` en el JSON) ARCLI ya lo asume y no hace falta `--ir-cf`, aunque la config tenga otro `ivaReceptor`. Un IVA explícito distinto (`--ir-rm` con `--cfinal`) es error. Propia: ARCA testing aprueba una factura B a consumidor final con IVA receptor exento
-- el total en pesos tiene que ser menor a `$ 10.000.000`. Desde ese monto hay que identificarlo con `--dni`, `--cuit` o `--cuil` ([RG 5700/2025](https://www.consejosalta.org.ar/wp-content/uploads/ARCA-5700.pdf)). En moneda extranjera se compara `monto × cotización`. ARCA 10015, que nombra el monto "según RG 4444": el valor lo fija la RG vigente, no el manual. El texto de la 10015 habla solo de la `B`, pero ARCA testing también rechaza la `C` con ese código: vale para las dos
+- el total en pesos tiene que ser menor a `$ 10.000.000`. Desde ese monto hay que identificarlo con `--dni`, `--cuit` o `--cuil` ([RG 5700/2025](https://www.consejosalta.org.ar/wp-content/uploads/ARCA-5700.pdf)). En moneda extranjera se compara `monto × cotización`. ARCA 10015, que nombra el monto "según RG 4444": el valor lo fija la RG vigente, no el manual. El texto de la 10015 habla solo de la `B`, pero ARCA testing también rechaza la `C` con ese código: vale para las dos. En el modo interactivo, el asistente pide el documento (DNI, CUIT o CUIL) cuando el total llega a ese monto y antes lo ofrece en los opcionales ([Modo interactivo](modo-interactivo.md#emitir-factura))
 
 #### CUIT, CUIL y DNI
 

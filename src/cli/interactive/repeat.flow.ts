@@ -19,8 +19,16 @@ import type { IssuedVoucher } from '../../modules/vouchers/voucher-history';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 
 import { askAdvancedOptions, askAgreedExchangeRate, askPaymentCurrency, askServiceDate } from './advanced-options';
+import { requiredConsumerSteps } from './consumer-identification';
 import { runExportRepeatFlow } from './export-repeat.flow';
-import { buildInvoiceInput, cbuSteps, type InvoiceState, offerSavingCbu } from './invoice.flow';
+import {
+  buildInvoiceInput,
+  cbuSteps,
+  invoiceConsumerAmount,
+  type InvoiceState,
+  offerSavingCbu,
+  offersConsumerData,
+} from './invoice.flow';
 import { pickInvoice } from './invoice-picker';
 import { markIfNew } from './new-mark';
 import { askTextStep, chooseStep } from './prompts';
@@ -104,6 +112,12 @@ export function repeatSteps(
     },
   };
   const periods = { actual: currentMonthPeriod(today), anterior: previousMonthPeriod(today) } as const;
+  // El receptor sale del comprobante elegido: si cambia, el documento escrito antes no se ofrece.
+  const consumerOptions = {
+    advanced: (state: RepeatState) => state.advanced,
+    amount: invoiceConsumerAmount,
+    dependsOn: ['factura'],
+  };
   const billingSteps: Array<WizardStep<RepeatState>> = [
     {
       dependsOn: ['tipo'],
@@ -262,6 +276,8 @@ export function repeatSteps(
       },
       skip: (state) => !foreignCurrencyOf(state.original) || Boolean(state.advanced.sameCurrency),
     },
+    // Con un monto nuevo desde el tope, el documento del consumidor final, si el total en pesos ya se sabe.
+    ...requiredConsumerSteps<RepeatState>({ ...consumerOptions, name: 'cf' }),
     {
       name: 'periodo',
       run: async (state, previous) => {
@@ -314,6 +330,7 @@ export function repeatSteps(
       run: async (state) => {
         const advanced = await askAdvancedOptions(state.advanced, {
           concept: state.concept ?? 'servicios',
+          consumer: offersConsumerData(state),
           defaultIvaRate: defaultIvaRate(config, state.advanced.ivaRate),
           // En moneda extranjera el monto esta en esa moneda: cambiarla a pesos lo emitiria como si fueran pesos.
           fixedCurrency: Boolean(foreignCurrencyOf(state.original)),
@@ -325,6 +342,8 @@ export function repeatSteps(
         return advanced === BACK ? BACK : { advanced };
       },
     },
+    // Con la cotizacion oficial de ARCA, recien despues de los opcionales se sabe si el total llega al tope.
+    ...requiredConsumerSteps<RepeatState>({ ...consumerOptions, name: 'cf-final', session }),
   ];
 
   return [

@@ -45,7 +45,12 @@ const IVA_CONDITIONS_BY_LETTER: Record<VoucherLetter, readonly BillingIvaConditi
  * RG 5700/2025: desde $ 10.000.000 hay que identificar al consumidor final (ARCA 10015, WSFEv1 v4.7). El texto de la
  * 10015 nombra solo la B, pero ARCA testing tambien rechaza la C con ese codigo (18/11/2026): no aflojarla en la C.
  */
-const CONSUMER_IDENTIFICATION_THRESHOLD = 10_000_000;
+export const CONSUMER_IDENTIFICATION_THRESHOLD = 10_000_000;
+
+/** Si un total en pesos (total × cotizacion) obliga a identificar al consumidor final (RG 5700/2025). */
+export function requiresConsumerIdentification(totalInPesos: number): boolean {
+  return totalInPesos >= CONSUMER_IDENTIFICATION_THRESHOLD;
+}
 
 export function listAllowedIvaConditions(letter: VoucherLetter): readonly BillingIvaCondition[] {
   return IVA_CONDITIONS_BY_LETTER[letter];
@@ -80,7 +85,7 @@ export function validateConsumerIdentification(
     return;
   }
 
-  if (input.totalAmount * exchangeRate >= CONSUMER_IDENTIFICATION_THRESHOLD) {
+  if (requiresConsumerIdentification(input.totalAmount * exchangeRate)) {
     throw new InputValidationError(
       `${formatVoucherSubject(voucherKind)} de ${formatArgentineMoney(CONSUMER_IDENTIFICATION_THRESHOLD)} o más requiere identificar al consumidor final. Usá \`--dni\`, \`--cuit\` o \`--cuil\`.`,
     );

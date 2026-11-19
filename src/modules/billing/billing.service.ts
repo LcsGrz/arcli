@@ -50,6 +50,11 @@ interface CliVoucherPayload extends Omit<INextVoucher, 'CbtesAsoc' | 'DocNro'> {
   Iva?: IIva[];
 }
 
+type ExchangeRateInput = Pick<
+  BillingCommandInput,
+  'billingDate' | 'currencyCode' | 'exchangeRate' | 'exchangeRateSource' | 'sameCurrency'
+>;
+
 export class BillingService {
   /**
    * Completa la cotizacion oficial en moneda extranjera sin --cm: con --misma-moneda es obligatoria y sin ella es el
@@ -80,10 +85,11 @@ export class BillingService {
     assertCurrencyInTable({ arcaCode, requested: input.currencyCode, service: 'wsfe', table });
   }
 
-  public async resolveExchangeRate(
-    input: BillingCommandInput,
+  /** Completa la cotizacion oficial de ARCA si hace falta. Tambien la usa el asistente, con solo los datos de moneda. */
+  public async resolveExchangeRate<I extends ExchangeRateInput>(
+    input: I,
     gateway: Pick<BillingGateway, 'getQuotation'>,
-  ): Promise<BillingCommandInput> {
+  ): Promise<I> {
     if (!needsOfficialExchangeRate(input)) {
       return input;
     }

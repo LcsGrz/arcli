@@ -22,6 +22,7 @@ import {
   groupNewOptions,
 } from '../../modules/interactive/associated-kinds';
 import { conceptChoices, ivaRateChoices, noteKindChoices } from '../../modules/interactive/choices';
+import { isConsumerIdentified, resolveReceiverIdentity } from '../../modules/interactive/consumer-identification';
 import {
   copyInvoiceAmounts,
   copyInvoiceReceiver,
@@ -34,7 +35,6 @@ import {
   noteCurrencyChoices,
   resolveNoteCurrency,
 } from '../../modules/interactive/note-currency';
-import { receiverDocumentNumber } from '../../modules/interactive/receiver-document';
 import { BACK, type Back, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import type { IssuedVoucher } from '../../modules/vouchers/voucher-history';
 import { formatVoucherNumber } from '../../modules/vouchers/voucher-history.presenter';
@@ -46,6 +46,7 @@ import {
   askAdvancedOptions,
   initialAdvancedOptions,
 } from './advanced-options';
+import { requiredConsumerSteps } from './consumer-identification';
 import { runExportNoteFlow } from './export-note.flow';
 import { type OtherSystemInvoice, pickNoteInvoice } from './invoice-picker';
 import { markIfNew } from './new-mark';
@@ -225,7 +226,8 @@ function hiddenNoteOptions(state: NoteState): AdvancedOptionKey[] {
   return [
     'alicuota',
     'transferencia',
-    ...(asksOwnData(state) ? [] : (['divisas'] as const)),
+    // Sobre un comprobante, la moneda y el receptor son los suyos.
+    ...(asksOwnData(state) ? [] : (['divisas', 'consumidor'] as const)),
     ...(state.annulsTotal ? (['exento'] as const) : []),
   ];
 }
@@ -296,6 +298,17 @@ async function askNoteAmount(
 /** Pasos del flujo de notas; cada uno se puede deshacer con "Volver". */
 export function noteSteps(session: InteractiveSession, pointOfSale: number): Array<WizardStep<NoteState>> {
   const { config } = session.runtime;
+  const advancedOf = (state: NoteState): AdvancedOptions => state.advanced ?? initialAdvancedOptions(config);
+  // El receptor sale de la factura o se pregunta: si cambia, el documento escrito antes no se ofrece.
+  const consumerOptions = {
+    advanced: advancedOf,
+    amount: (state: NoteState) => ({
+      ...noteCurrency(state, advancedOf(state)),
+      billingDate: advancedOf(state).billingDate,
+      totalAmount: state.totalAmount,
+    }),
+    dependsOn: ['factura', 'receptor'],
+  };
   const steps: Array<WizardStep<NoteState>> = [
     {
       name: 'tipo-factura',
@@ -470,6 +483,9 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
       run: (state, previous) => askNoteAmount(state, previous?.totalAmount),
       skip: (state) => state.annulsTotal === true,
     },
+    // Desde el tope, el documento del consumidor final, si el total en pesos ya se sabe. Como con flags, tambien en
+    // una nota sobre una factura a consumidor final (por ejemplo, una de debito mas grande que la factura).
+    ...requiredConsumerSteps<NoteState>({ ...consumerOptions, name: 'cf' }),
     {
       // Las opciones son las de la letra, y la marcada sale del padron con el CUIT (de la factura o escrito).
       dependsOn: ['tipo-factura', 'factura', 'receptor', 'documento'],
@@ -526,8 +542,9 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
       name: 'avanzadas',
       run: async (state) => {
         const invoiceKind = requireStepValue(state.invoiceKind, 'invoiceKind');
-        const advanced = await askAdvancedOptions(state.advanced ?? initialAdvancedOptions(config), {
+        const advanced = await askAdvancedOptions(advancedOf(state), {
           concept: state.concept ?? 'servicios',
+          consumer: state.documentType === 'consumidor-final' && !isConsumerIdentified(state.advanced),
           defaultIvaRate: defaultIvaRate(config, state.ivaRate),
           hidden: hiddenNoteOptions(state),
           voucherKind: noteKindChoices(state.kind ?? 'credito', invoiceKind),
@@ -536,6 +553,8 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
         return advanced === BACK ? BACK : { advanced };
       },
     },
+    // En una de periodo la moneda se elige en los opcionales: recien ahi se sabe si el total llega al tope.
+    ...requiredConsumerSteps<NoteState>({ ...consumerOptions, name: 'cf-final', session }),
   ];
 
   // La nota E tiene su propio asistente: despues del selector, ningun paso de A, B y C aplica.
@@ -556,10 +575,8 @@ export function buildNoteInput(
   // Una nota va en la moneda de su factura o en pesos; si la anula entera, tambien copia exento y no gravado.
   const copy = !isPeriod(state) && invoice ? copyInvoiceAmounts(invoice, invoiceKind.letter) : undefined;
   const advanced = state.advanced ?? initialAdvancedOptions(session.runtime.config);
-  // La de periodo o de otro sistema no tiene factura de donde copiar la moneda: va la elegida en los opcionales.
-  const currency = asksOwnData(state)
-    ? { currencyCode: advanced.currencyCode, exchangeRate: advanced.exchangeRate, sameCurrency: advanced.sameCurrency }
-    : resolveNoteCurrency(copy, state.currency);
+  const currency = noteCurrency(state, advanced);
+  const receiver = resolveReceiverIdentity(state, advanced);
 
   return billingCommandSchema.parse({
     ...currency,
@@ -584,10 +601,10 @@ export function buildNoteInput(
     billingDate: advanced.billingDate,
     cancellation: requiredCancellation(state) ?? state.cancellation ?? false,
     concept: state.concept,
-    documentNumber: receiverDocumentNumber(state),
-    documentType: state.documentType,
+    documentNumber: receiver.documentNumber,
+    documentType: receiver.documentType,
     exemptAmount: state.annulsTotal ? copy?.exemptAmount : advanced.exemptAmount,
-    ivaCondition: state.ivaCondition,
+    ivaCondition: receiver.ivaCondition,
     ...receiverInputFields(state),
     ivaRate: explicitIvaRate(state.ivaRate, session.runtime.config),
     shortcut: noteKind.shortcut,
@@ -597,6 +614,28 @@ export function buildNoteInput(
     totalAmount: state.totalAmount,
     untaxedAmount: state.annulsTotal ? copy?.untaxedAmount : advanced.untaxedAmount,
   });
+}
+
+/**
+ * La moneda y la cotizacion de la nota. La de periodo o de otro sistema no tiene factura de donde copiarlas: van las
+ * elegidas en los opcionales. Sobre un comprobante, las suyas o pesos.
+ */
+function noteCurrency(
+  state: NoteState,
+  advanced: AdvancedOptions,
+): { readonly currencyCode?: string; readonly exchangeRate?: number; readonly sameCurrency?: boolean } {
+  if (asksOwnData(state)) {
+    return {
+      currencyCode: advanced.currencyCode,
+      exchangeRate: advanced.exchangeRate,
+      sameCurrency: advanced.sameCurrency,
+    };
+  }
+
+  const invoiceKind = state.invoiceKind;
+  const copy = state.invoice && invoiceKind ? copyInvoiceAmounts(state.invoice, invoiceKind.letter) : undefined;
+
+  return resolveNoteCurrency(copy, state.currency);
 }
 
 export async function runNoteFlow(baseSession: InteractiveSession, kind: NoteKind): Promise<void> {

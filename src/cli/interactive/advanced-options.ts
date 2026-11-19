@@ -7,8 +7,11 @@ import { findArcaCurrency, toIsoCurrencyCode } from '../../modules/billing/curre
 import type { ArcliConfig } from '../../modules/config/config.schemas';
 import { amountInputText, parseAmountInput, parseExchangeRateInput } from '../../modules/interactive/amount-input';
 import { currencyChoices, ivaRateChoices } from '../../modules/interactive/choices';
+import { type ConsumerIdentity, describeConsumerIdentity } from '../../modules/interactive/consumer-identification';
 import { BACK, type Back, runWizard, type WizardAnswers, type WizardStep } from '../../modules/interactive/wizard';
 
+import { askConsumerDocumentNumber, askConsumerDocumentType } from './consumer-identification';
+import { markIfNew } from './new-mark';
 import { askTextStep, chooseManyStep, chooseStep } from './prompts';
 import { validateBillingDate, validateDate, validateExchangeRate, validateOptionalAmount } from './validators';
 
@@ -25,14 +28,20 @@ export type AdvancedOptions = Pick<
   | 'serviceStartDate'
   | 'transferMode'
   | 'untaxedAmount'
->;
+> &
+  ConsumerIdentity;
 
 export type AdvancedOptionKey =
-  'alicuota' | 'divisas' | 'exento' | 'fecha' | 'servicio' | 'transferencia' | 'vencimiento';
+  'alicuota' | 'consumidor' | 'divisas' | 'exento' | 'fecha' | 'servicio' | 'transferencia' | 'vencimiento';
 type Option = AdvancedOptionKey;
 
 interface AdvancedContext {
   readonly concept: BillingCommandInput['concept'];
+  /**
+   * El receptor es consumidor final sin identificar: se ofrece cargar su documento ("Datos del consumidor final"), que
+   * hace falta desde el tope de la RG 5700/2025 y antes es opcional.
+   */
+  readonly consumer?: boolean;
   /** Alicuota que se usa si no se elige otra: la de la config o 21%. */
   readonly defaultIvaRate: NonNullable<BillingCommandInput['ivaRate']>;
   /** La moneda no se puede cambiar: al repetir un comprobante en moneda extranjera, el monto ya esta en esa moneda. */
@@ -161,6 +170,33 @@ function optionSteps(context: AdvancedContext): Record<Option, Step[]> {
           );
 
           return ivaRate === BACK ? BACK : { ivaRate };
+        },
+      },
+    ],
+    consumidor: [
+      {
+        name: 'consumidor-documento',
+        run: async (current, previous) => {
+          const documentType = await askConsumerDocumentType(
+            previous?.consumerDocumentType ?? current.consumerDocumentType,
+          );
+
+          return documentType === BACK
+            ? BACK
+            : { consumerDocumentNumber: undefined, consumerDocumentType: documentType };
+        },
+      },
+      {
+        // La pregunta y la validacion cambian con el tipo.
+        dependsOn: ['consumidor-documento'],
+        name: 'consumidor-numero',
+        run: async (current, previous) => {
+          const documentNumber = await askConsumerDocumentNumber(
+            current.consumerDocumentType ?? 'dni',
+            previous?.consumerDocumentNumber,
+          );
+
+          return documentNumber === BACK ? BACK : { consumerDocumentNumber: documentNumber };
         },
       },
     ],
@@ -308,6 +344,18 @@ function optionalChoices(options: AdvancedOptions, context: AdvancedContext) {
   const hidden = new Set(context.hidden ?? []);
 
   return [
+    ...(context.consumer
+      ? [
+          markIfNew(
+            {
+              description: describeConsumerIdentity(options),
+              name: 'Datos del consumidor final',
+              value: 'consumidor' as const,
+            },
+            'datos-consumidor-final',
+          ),
+        ]
+      : []),
     { description: options.billingDate ?? 'hoy', name: 'Fecha del comprobante', value: 'fecha' as const },
     ...(discriminatesIva
       ? [

@@ -12,19 +12,23 @@ import type { InteractiveSession } from './session';
 import { normalizeDocumentNumber, validateCuil, validateCuit, validateDni } from './validators';
 
 const DOCUMENT_PROMPTS = {
-  cuil: { message: 'CUIL del receptor:', validate: validateCuil },
-  cuit: { message: 'CUIT del receptor:', validate: validateCuit },
-  dni: { message: 'DNI del receptor:', validate: validateDni },
+  cuil: { label: 'CUIL', validate: validateCuil },
+  cuit: { label: 'CUIT', validate: validateCuit },
+  dni: { label: 'DNI', validate: validateDni },
 } as const;
 
-/** El numero del documento elegido para el receptor: CUIT, CUIL o DNI, cada uno con su validacion. */
+/**
+ * El numero del documento elegido: CUIT, CUIL o DNI, cada uno con su validacion. `owner` completa la pregunta ("DNI
+ * del receptor:", "DNI del consumidor final:").
+ */
 export async function askDocumentNumber(
   documentType: BillingCommandInput['documentType'] | undefined,
   previous?: number,
+  owner = 'del receptor',
 ): Promise<Back | string> {
   const prompt = DOCUMENT_PROMPTS[documentType === 'cuil' || documentType === 'dni' ? documentType : 'cuit'];
 
-  return askTextStep(prompt.message, {
+  return askTextStep(`${prompt.label} ${owner}:`, {
     previousAnswer: previous === undefined ? undefined : String(previous),
     validate: prompt.validate,
   });
