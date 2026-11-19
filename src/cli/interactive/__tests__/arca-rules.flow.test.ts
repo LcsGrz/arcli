@@ -165,7 +165,7 @@ describe('reglas de ARCA en el asistente (#220)', () => {
       });
 
       expect(choicesOf(/A quién/)).toEqual(
-        expect.arrayContaining(['Consumidor final (sin identificar)', 'Con CUIT', 'Con DNI', 'Con CUIL']),
+        expect.arrayContaining(['Consumidor final', 'Con CUIT', 'Con DNI', 'Con CUIL']),
       );
     });
 

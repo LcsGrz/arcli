@@ -227,7 +227,7 @@ arcli fc ayuda
 - **Severidad:** ocasional
 - **Síntoma:** `... de $ 10.000.000 o más requiere identificar al consumidor final.`
 - **Causa:** la RG 5700/2025 obliga a identificar al consumidor final desde ese monto.
-- **Solución:** reemplazar `--consumidor-final` por `--dni`, `--cuit` o `--cuil`, manteniendo `--ir-cf`.
+- **Solución:** reemplazar `--consumidor-final` por `--dni`, `--cuit` o `--cuil`, manteniendo `--ir-cf`. En el modo interactivo no hace falta: desde ese monto el asistente pide el documento.
 - **Documentación relacionada:** [Consumidor final](validation-rules.md#consumidor-final)
 
 ### Fecha del comprobante fuera de rango

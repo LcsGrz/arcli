@@ -377,7 +377,7 @@ export async function chooseManyStep<T>(
           ? BACK_CHOICE.name
           : choices
               .filter((choice) => answer.includes(choice.value))
-              .map((choice) => choice.name)
+              .map((choice) => choice.short ?? choice.name)
               .join(', '),
       message,
     }),

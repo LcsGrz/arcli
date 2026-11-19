@@ -147,7 +147,8 @@ export function receiverChoices(
   const choices: Array<InteractiveChoice<BillingDocumentType>> = [];
 
   if (listAllowedIvaConditions(letter).includes('consumidor-final')) {
-    choices.push({ name: 'Consumidor final (sin identificar)', value: 'consumidor-final' });
+    // Sin identificar o, desde el tope de la RG 5700/2025 (o en los opcionales), con su documento.
+    choices.push({ name: 'Consumidor final', value: 'consumidor-final' });
   }
 
   choices.push({ name: 'Con CUIT', value: 'cuit' });

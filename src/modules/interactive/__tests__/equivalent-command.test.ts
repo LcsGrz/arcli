@@ -157,7 +157,7 @@ describe('buildEquivalentCommand', () => {
     const command = buildEquivalentCommand(original, { environment: 'testing', platform: 'linux' });
 
     expect(command).toBe(
-      'arcli ncb -m 1210 --cs --cuil 20333333334 --ir consumidor-final -f 31/10 --moneda EUR --misma-moneda --exento 50 --sd 1/10 --sh 31/10 --vto 15/11 --pd 1/10 --ph 31/10 --testing --emitir',
+      'arcli ncb -m 1210 --cs --cuil 20333333334 --ir-cf -f 31/10 --moneda EUR --misma-moneda --exento 50 --sd 1/10 --sh 31/10 --vto 15/11 --pd 1/10 --ph 31/10 --testing --emitir',
     );
     expect({ ...parseCommand(command, 'ncb'), dryRun: false }).toEqual({ ...original, dryRun: false });
   });

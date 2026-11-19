@@ -20,7 +20,10 @@ function identityFlags(input: BillingCommandInput): string[] {
       : ['--consumidor-final', '--ir', input.ivaCondition];
   }
 
-  return [`--${input.documentType}`, String(input.documentNumber), '--ir', input.ivaCondition];
+  // Un consumidor final identificado, como lo pide el CLI: `--dni N --ir-cf`.
+  const ivaFlags = input.ivaCondition === 'consumidor-final' ? ['--ir-cf'] : ['--ir', input.ivaCondition];
+
+  return [`--${input.documentType}`, String(input.documentNumber), ...ivaFlags];
 }
 
 /**
