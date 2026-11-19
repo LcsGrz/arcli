@@ -103,6 +103,7 @@
     "eslint-plugin-jsonc": "3.4.2",
     "eslint-plugin-prettier": "5.5.7",
     "eslint-plugin-simple-import-sort": "14.0.0",
+    "fast-check": "4.10.3",
     "husky": "9.1.7",
     "lint-staged": "17.6.0",
     "prettier": "3.9.10",

@@ -56,6 +56,10 @@ yarn test
 
 Para cambios de empaquetado o publicación, `yarn open-source:check`.
 
+### Propiedades
+
+Los `*.property.test.ts` usan [fast-check](https://fast-check.dev) para probar invariantes con entradas generadas en lugar de ejemplos fijos: que un monto formateado se lea igual, que neto + IVA + exento + no gravado den el total al centavo, que las fechas relativas den `desde ≤ hasta` en cualquier mes, que cualquier flag o JSON de `--cargar` termine en un pedido a ARCA válido o en un error de entrada. Corren con `yarn test`, con `fc.assert` adentro de un `it` de Vitest y pocas corridas (`numRuns`) para que sigan rápidos. Si fallan, fast-check imprime el contraejemplo mínimo y la semilla: `fc.assert(..., { seed, path })` lo repite. Un bug que encuentran y no se arregla en el mismo cambio queda en `it.skip` con un comentario `BUG:` y el contraejemplo.
+
 ### De punta a punta
 
 `src/cli/__tests__/e2e/*.e2e.ts` corre el `arcli` compilado (`dist/cli/index.js`) como un proceso aparte y compara lo que ve quien lo usa: la salida, que `--json` sea un solo documento JSON, el código de salida y lo que queda en la config. Cada test usa una carpeta de config vacía con `ARCLI_CONFIG_DIR`, sin red ni certificados, así que corre en el CI en los tres sistemas operativos. Van con `yarn test:e2e` después de `yarn build`; `yarn test` no los toma (no terminan en `.test.ts`).
