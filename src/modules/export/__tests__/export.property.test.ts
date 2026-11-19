@@ -224,6 +224,28 @@ describe('ExportService.resolve (propiedades)', () => {
     );
   });
 
+  // Contraejemplo de CI (semilla 1223193937): una moneda que no está en la tabla de WSFEX salía como
+  // ARCA_QUOTATION_ERROR (no había cotización de "BRASIL") en vez de error de entrada (REGLAS-19).
+  it('una moneda que no está en la tabla de WSFEX es un error de entrada, no de cotización', async () => {
+    const now = new Date('2000-01-01T00:00:00Z');
+
+    vi.setSystemTime(now);
+
+    const fields = {
+      amount: 1,
+      clientAddress: '!',
+      clientName: '!',
+      currencyCode: 'brasil',
+      destinationCountry: 'brasil',
+      emit: false,
+    };
+
+    await expect(service.resolve(fields, createGateway(), RUNTIME, now)).rejects.toMatchObject({
+      code: 'INPUT_VALIDATION_ERROR',
+      message: expect.stringMatching(/La moneda BRASIL no está en la tabla de monedas de ARCA.*1590/),
+    });
+  });
+
   it('con datos cualquiera da un Cmp o un error de entrada, nunca una excepción', async () => {
     const noisyText = fc.option(fc.oneof(fc.string({ maxLength: 10 }), fc.constantFrom('brasil', 'FOB', 'USD', '')), {
       nil: undefined,
