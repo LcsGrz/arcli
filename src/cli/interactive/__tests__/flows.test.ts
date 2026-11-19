@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BillingService } from '../../../modules/billing/billing.service';
 import { getVoucherKindByShortcut, VOUCHER_KIND_MAP } from '../../../modules/billing/voucher-kind-map';
+import { buildEquivalentCommand } from '../../../modules/interactive/equivalent-command';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../../../modules/vouchers/voucher-history';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
@@ -20,7 +21,7 @@ import {
   offerSavingCbu,
   runInvoiceFlow,
 } from '../invoice.flow';
-import { buildNoteInput, noteSteps } from '../note.flow';
+import { buildNoteInput, noteSteps, noteWarnings } from '../note.flow';
 import { repeatSteps } from '../repeat.flow';
 import type { InteractiveSession } from '../session';
 
@@ -1345,35 +1346,136 @@ describe('flujos del modo interactivo', () => {
       expect(state?.invoice?.number).toBe(14);
     });
 
-    it('si no existe y su punto de venta no es de web service, explica como hacer la nota (REGLAS-1)', async () => {
-      let printed = '';
+    describe('sobre una factura de otro sistema (REGLAS-17)', () => {
+      /** El unico punto de venta de web service es el 3 (`FEParamGetPtosVenta`): el 50 es de otro sistema. */
+      const sessionWithOtherSystem = () => {
+        const arca = {
+          electronicBillingService: {
+            getSalesPoints: async () => ({ resultGet: { ptoVenta: [{ bloqueado: 'N', emisionTipo: 'CAE', nro: 3 }] } }),
+          },
+        };
 
-      vi.mocked(process.stdout.write).mockImplementation((chunk) => {
-        printed += String(chunk);
-        return true;
+        return withConfig(createSession([invoice({ ivaAmount: 0 })], arca), {
+          consultarPadron: false,
+          puntoVentaPorDefecto: 3,
+        });
+      };
+
+      const capturePrinted = (): (() => string) => {
+        let printed = '';
+
+        vi.mocked(process.stdout.write).mockImplementation((chunk) => {
+          printed += String(chunk);
+          return true;
+        });
+
+        return () => stripAnsi(printed).replace(/[│┃╏\s]+/g, ' ');
+      };
+
+      it('si no existe y su punto de venta no es de web service, avisa y pregunta lo que no puede copiar', async () => {
+        const printed = capturePrinted();
+
+        script = createScript([
+          [/Sobre qué comprobante/, 'Facturas'],
+          [/Qué factura\?/, 'Factura C'],
+          [/A qué la asociamos/, 'A una factura'],
+          [/Sobre qué factura C/, 'Ingresar el número a mano'],
+          [/Punto de venta/, '50'],
+          [/^Número/, '15'],
+          [/^Fecha de la factura C 00050-00000015/, '10/11/2026'],
+          [/A quién va la nota/, 'Con CUIT'],
+          [/CUIT del receptor/, '30-70996581-2'],
+          [/concepto ajusta/, 'Servicios'],
+          // Sin tope: no hay total contra el cual controlar.
+          [/Monto de la nota de crédito/, '50000'],
+          [/Condición frente al IVA/, 'Responsable monotributo'],
+          [/Agregamos/, []],
+        ]);
+
+        const session = sessionWithOtherSystem();
+        const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
+        const input = buildNoteInput(state as NonNullable<typeof state>, session, 3);
+
+        expect(printed()).toContain(
+          'ARCA no tiene la factura C N° 00050-00000015 y el punto de venta 50 no es de web service. Si es de Comprobantes en línea o de un controlador fiscal, seguí: como no se pueden copiar sus datos, te los pregunto. Si no, volvé y revisá el número.',
+        );
+        expect(script.asked).not.toContainEqual(expect.stringMatching(/Total o parcial/));
+        expect(input).toMatchObject({
+          associatedVoucher: { cuit: '20333333334', fecha: '10/11/2026', numero: 15, puntoVenta: 50, shortcut: 'fc' },
+          concept: 'servicios',
+          documentNumber: 30709965812,
+          documentType: 'cuit',
+          ivaCondition: 'responsable-monotributo',
+          shortcut: 'ncc',
+          totalAmount: 50000,
+        });
+        expect(noteWarnings(state as NonNullable<typeof state>)).toEqual([
+          'No se encontró la factura C 00050-00000015 en ARCA y el punto de venta 50 no es de web service: si es de Comprobantes en línea, de un controlador fiscal o de otro sistema, está bien; si no, revisá `--ar`, `--apv` y `--ac`. No se pudo controlar que la nota de crédito no lo supere.',
+        ]);
+        expect(buildEquivalentCommand(input, { environment: 'testing', platform: 'linux' })).toContain(
+          '--ac fc --apv 50 --ar 15 --acuit 20333333334 --afecha 10/11/2026',
+        );
       });
-      script = createScript([
-        [/Sobre qué comprobante/, 'Facturas'],
-        [/Qué factura\?/, 'Factura C'],
-        [/A qué la asociamos/, 'A una factura'],
-        [/Sobre qué factura C/, 'Ingresar el número a mano'],
-        [/Punto de venta/, '50'],
-        [/^Número/, '15'],
-        [/Sobre qué factura C/, '00003-00000014'],
-        [/Total o parcial/, 'Anular el total'],
-        [/Agregamos/, []],
-      ]);
 
-      // Sin lista de puntos de venta (el ARCA falso no la tiene), decide el ultimo numero: en el 50 no hay ninguno.
-      const session = createSession([invoice({ ivaAmount: 0 })]);
-      vi.spyOn(session.historyGateway, 'getLastNumber').mockImplementation(async (pointOfSale) =>
-        pointOfSale === 50 ? 0 : 14,
-      );
-      await runWizard(noteSteps(session, 3), { kind: 'credito' });
+      it('en A y B pregunta la alícuota y deja elegir la moneda, como en una de período', async () => {
+        capturePrinted();
+        script = createScript([
+          [/Sobre qué comprobante/, 'Facturas'],
+          [/Qué factura\?/, 'Factura B'],
+          [/A qué la asociamos/, 'A una factura'],
+          [/Sobre qué factura B/, 'Ingresar el número a mano'],
+          [/Punto de venta/, '50'],
+          [/^Número/, '15'],
+          [/^Fecha de la factura B/, '10/11/2026'],
+          [/A quién va la nota/, 'Consumidor final'],
+          [/concepto ajusta/, 'Productos'],
+          [/Monto de la nota de débito/, '100'],
+          [/^Alícuota de IVA:/, '10,5%'],
+          [/Agregamos/, ['Moneda extranjera']],
+          [/Moneda del comprobante/, 'Dólares estadounidenses'],
+          [/Cómo te pagan/, 'En dólares'],
+        ]);
 
-      expect(stripAnsi(printed).replace(/[│┃╏\s]+/g, ' ')).toContain(
-        'ARCA no tiene la factura C N° 00050-00000015 y el punto de venta 50 no es de web service. Si es de Comprobantes en línea o de un controlador fiscal, el asistente no puede copiar sus datos: asociá la nota a un período, o hacela con `arcli` pasando `--apv 50 --ar 15 --afecha <fecha>`.',
-      );
+        const session = sessionWithOtherSystem();
+        const state = await runWizard(noteSteps(session, 3), { kind: 'debito' });
+
+        expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
+          associatedVoucher: { fecha: '10/11/2026', numero: 15, puntoVenta: 50, shortcut: 'fb' },
+          currencyCode: 'USD',
+          documentType: 'consumidor-final',
+          ivaRate: '10.5',
+          sameCurrency: true,
+          shortcut: 'ndb',
+        });
+        // Una ND no tiene tope: el aviso no lo menciona.
+        expect(noteWarnings(state as NonNullable<typeof state>)[0]).not.toContain('nota de crédito');
+      });
+
+      it('volver desde la fecha vuelve a la lista', async () => {
+        capturePrinted();
+        script = createScript([
+          [/Sobre qué comprobante/, 'Facturas'],
+          [/Qué factura\?/, 'Factura C'],
+          [/A qué la asociamos/, 'A una factura'],
+          [/Sobre qué factura C/, 'Ingresar el número a mano'],
+          [/Punto de venta/, '50'],
+          [/^Número/, '15'],
+          [/^Fecha de la factura C/, BACK],
+          [/Sobre qué factura C/, '00003-00000014'],
+          [/Total o parcial/, 'Anular el total'],
+          [/Agregamos/, []],
+        ]);
+
+        const session = sessionWithOtherSystem();
+        const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
+
+        expect(state?.otherSystemInvoice).toBeUndefined();
+        expect(noteWarnings(state as NonNullable<typeof state>)).toEqual([]);
+        expect(buildNoteInput(state as NonNullable<typeof state>, session, 3).associatedVoucher).toMatchObject({
+          numero: 14,
+          puntoVenta: 3,
+        });
+      });
     });
 
     describe('notas sobre otras notas (NOTAS-1, TUI-12)', () => {

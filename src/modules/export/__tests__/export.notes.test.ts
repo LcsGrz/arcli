@@ -178,7 +178,7 @@ describe('assertExportNoteMatchesAssociated', () => {
   });
 
   it('en servicios pide el mismo tipo, destino, moneda y cotizacion (2049 a 2053)', () => {
-    expect(check({ exportType: 4 })).toThrow(/error 2049/);
+    expect(check({}, { exportType: 1 })).toThrow(/error 2049/);
     expect(check({ destinationCountry: 203 })).toThrow(/error 2050/);
     expect(check({ currencyCode: '060' })).toThrow(/error 2051/);
     expect(check({ currencyCode: 'PES', exchangeRate: 1 })).not.toThrow();
@@ -196,6 +196,13 @@ describe('assertExportNoteMatchesAssociated', () => {
 
   it('en bienes no aplica las reglas de servicios', () => {
     expect(check({ destinationCountry: 203, exchangeRate: 1200, exportType: 1 }, { exportType: 1 })).not.toThrow();
+  });
+
+  it('una nota de bienes u otros sobre un comprobante de servicios no pasa por 2040 a 2055: miran el tipo de la nota', () => {
+    expect(check({ destinationCountry: 212, exchangeRate: 1200, exportType: 4 })).not.toThrow();
+    expect(check({ currencyCode: '060', exportType: 1 })).not.toThrow();
+    expect(check({ exportType: 4 }, { arcaType: 21 })).not.toThrow();
+    expect(check({ exportType: 1 }, { arcaType: 21 }, EXPORT_DEBIT_NOTE_KIND)).not.toThrow();
   });
 });
 

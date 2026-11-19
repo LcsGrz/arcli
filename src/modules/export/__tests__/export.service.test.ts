@@ -269,14 +269,14 @@ describe('ExportService.resolve', () => {
 
     const backdated = createGateway();
     const resolved = await service.resolve(
-      { ...INPUT, exportType: 1, voucherDate: '18/03/2026' },
+      { ...INPUT, exportType: 1, voucherDate: '29/05/2026' },
       backdated,
       RUNTIME,
       NOW,
     );
 
-    expect(resolved.payload.Fecha_cbte).toBe('20260318');
-    expect(backdated.getQuotations).toHaveBeenCalledWith('20260318');
+    expect(resolved.payload.Fecha_cbte).toBe('20260529');
+    expect(backdated.getQuotations).toHaveBeenCalledWith('20260529');
   });
 
   it('en servicios pide la cotizacion del dia anterior a la fecha del comprobante (error 2053)', async () => {
@@ -425,12 +425,13 @@ describe('ExportService.resolve', () => {
     expect(gateway.authorize).not.toHaveBeenCalled();
   });
 
-  it('pide la actividad antes de ir a ARCA si no viene por flag ni por config', async () => {
+  it('sin actividad por flag ni por config no manda el bloque Actividades ni consulta la tabla (2100 es el bloque vacio)', async () => {
     const gateway = createGateway();
     const runtime = { ...RUNTIME, config: arcliConfigSchema.parse({ cuit: '20111111112', puntoVentaPorDefecto: 3 }) };
+    const resolved = await service.resolve(INPUT, gateway, runtime, NOW);
 
-    await expect(service.resolve(INPUT, gateway, runtime, NOW)).rejects.toThrow(/Falta la actividad de exportación/);
-    expect(gateway.getDestinationCountries).not.toHaveBeenCalled();
+    expect(resolved.payload).not.toHaveProperty('Actividades');
+    expect(gateway.getActivities).not.toHaveBeenCalled();
   });
 
   it('rechaza un monto con más de 2 decimales, como A, B y C, en lugar de redondearlo', async () => {
@@ -464,12 +465,53 @@ describe('ExportService.resolve', () => {
     expect(gateway.getLastVoucherNumber).not.toHaveBeenCalled();
   });
 
-  it('no consulta la cotizacion si viene por flag', async () => {
+  it('en bienes no consulta la cotizacion si viene por flag', async () => {
     const gateway = createGateway();
-    const resolved = await service.resolve({ ...INPUT, exchangeRate: 1000 }, gateway, RUNTIME, NOW);
+    const resolved = await service.resolve({ ...INPUT, exchangeRate: 1000, exportType: 1 }, gateway, RUNTIME, NOW);
 
     expect(resolved.payload.Moneda_ctz).toBe(1000);
     expect(gateway.getQuotations).not.toHaveBeenCalled();
+  });
+
+  it('en servicios y con `--misma-moneda`, `--cotizacion-moneda` tiene que ser la de ARCA (2053, 1604)', async () => {
+    const official = await service.resolve({ ...INPUT, exchangeRate: 900.5 }, createGateway(), RUNTIME, NOW);
+
+    expect(official.payload.Moneda_ctz).toBe(900.5);
+    await expect(service.resolve({ ...INPUT, exchangeRate: 1000 }, createGateway(), RUNTIME, NOW)).rejects.toThrow(
+      /900,50 del 31\/05\/2026.*error 2053/,
+    );
+    await expect(
+      service.resolve(
+        { ...INPUT, exchangeRate: 1000, exportType: 1, sameCurrency: true },
+        createGateway(),
+        RUNTIME,
+        NOW,
+      ),
+    ).rejects.toThrow(/Con `--misma-moneda`.*error 1604/);
+  });
+
+  it('frena antes lo que ARCA rechaza: incoterm (1640, 1641), fecha de pago (1674), unidad 99 (1775) y largos', async () => {
+    const reject = (input: Partial<ExportVoucherInput>) =>
+      expect(service.resolve({ ...INPUT, ...input }, createGateway(), RUNTIME, NOW)).rejects.toThrow();
+
+    await reject({ exportType: 1, incoterm: undefined });
+    await expect(
+      service.resolve({ ...INPUT, incoterm: undefined, incotermDescription: 'Puerto' }, createGateway(), RUNTIME, NOW),
+    ).rejects.toThrow(/error 1641/);
+    await expect(
+      service.resolve({ ...INPUT, paymentDate: '31/05/2026' }, createGateway(), RUNTIME, NOW),
+    ).rejects.toThrow(/error 1674/);
+    await expect(
+      service.resolve(
+        { ...INPUT, items: [{ description: 'Descuento', quantity: 1, unit: 99, unitPrice: 1500 }] },
+        createGateway({ getUnits: vi.fn(async () => [{ id: 99, name: 'bonificación' }]) }),
+        RUNTIME,
+        NOW,
+      ),
+    ).rejects.toThrow(/error 1775/);
+    await reject({ clientName: 'a'.repeat(201) });
+    await reject({ voucherNumber: 100_000_000 });
+    await reject({ pointOfSale: 99_999 });
   });
 
   it('valida los datos obligatorios antes de ir a ARCA', async () => {
@@ -487,10 +529,24 @@ describe('ExportService.resolve', () => {
     expect(gateway.getDestinationCountries).not.toHaveBeenCalled();
   });
 
-  it('rechaza una fecha futura', async () => {
+  it('rechaza una fecha de mas de 5 dias antes o despues de hoy (error 1500)', async () => {
     await expect(
-      service.resolve({ ...INPUT, voucherDate: '10/06/2026' }, createGateway(), RUNTIME, NOW),
-    ).rejects.toThrow(/no puede ser futura/);
+      service.resolve({ ...INPUT, voucherDate: '07/06/2026' }, createGateway(), RUNTIME, NOW),
+    ).rejects.toThrow(/error 1500/);
+    await expect(
+      service.resolve({ ...INPUT, voucherDate: '26/05/2026' }, createGateway(), RUNTIME, NOW),
+    ).rejects.toThrow(/error 1500/);
+  });
+
+  it('acepta una fecha futura de hasta 5 dias, con la cotizacion del dia habil anterior a hoy y un aviso (1535)', async () => {
+    const gateway = createGateway();
+    const resolved = await service.resolve({ ...INPUT, voucherDate: '03/06/2026' }, gateway, RUNTIME, NOW);
+
+    expect(resolved.payload.Fecha_cbte).toBe('20260603');
+    expect(gateway.getQuotations).toHaveBeenCalledWith('20260531');
+    expect(resolved.warnings).toContainEqual(
+      expect.stringMatching(/próximas facturas E del punto de venta 3 .*error 1535/),
+    );
   });
 
   it('usa el punto de venta de la config y falla si no hay ninguno', async () => {
@@ -521,6 +577,40 @@ describe('ExportService.resolve: notas E', () => {
     voucherKind: EXPORT_CREDIT_NOTE_KIND,
     voucherNumber: 5,
   };
+
+  it('en bienes y otros la nota va sin asociado, con los datos por flag (2047 solo en servicios)', async () => {
+    const gateway = createGateway();
+    const resolved = await service.resolve(
+      {
+        ...INPUT,
+        amount: 500,
+        associatedVoucher: {},
+        exportType: 1,
+        items: undefined,
+        voucherKind: EXPORT_CREDIT_NOTE_KIND,
+        voucherNumber: 5,
+      },
+      gateway,
+      RUNTIME,
+      NOW,
+    );
+
+    expect(gateway.getVoucher).not.toHaveBeenCalled();
+    expect(resolved.payload).not.toHaveProperty('Cmps_asoc');
+    expect(resolved.payload).toMatchObject({ Cbte_Tipo: 21, Cliente: 'ACME LLC', Tipo_expo: 1 });
+  });
+
+  it('en servicios la nota sin `--ar` es error (2047), y con `--ac` sin `--ar` falta el numero', async () => {
+    const gateway = createGateway();
+
+    await expect(
+      service.resolve({ ...NOTE_INPUT, associatedVoucher: undefined }, gateway, RUNTIME, NOW),
+    ).rejects.toThrow(/error 2047/);
+    await expect(
+      service.resolve({ ...NOTE_INPUT, associatedVoucher: { shortcut: 'fe' }, exportType: 1 }, gateway, RUNTIME, NOW),
+    ).rejects.toThrow(/Falta el número del comprobante asociado/);
+    expect(gateway.getVoucher).not.toHaveBeenCalled();
+  });
 
   it('arma la nota con el asociado, sin fecha de pago, CanMisMonExt ni permisos', async () => {
     const gateway = createGateway();

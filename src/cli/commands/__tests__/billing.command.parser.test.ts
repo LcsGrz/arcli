@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { needsPadronLookup } from '../../../modules/billing/billing.padron';
 import {
@@ -1065,5 +1065,84 @@ describe('--cargar JSON validation', () => {
         'fc',
       ),
     ).toThrow(/vacío/);
+  });
+});
+
+describe('billing.command.parser: fechas relativas', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    // 1/1/2027 a las 10 hs en Argentina.
+    vi.setSystemTime(new Date('2027-01-01T13:00:00Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const BASE_FLAGS = ['--monto', '1000', '--cs', '--cfinal'];
+
+  it('resuelve las palabras de los flags: un día o las puntas del mes', () => {
+    const input = parseBillingCommandInput(
+      createCommand([...BASE_FLAGS, '--fecha', 'HOY', '--sd', 'mes-pasado', '--sh', 'Mes-Pasado', '--vto', '+10']),
+      'fc',
+    );
+
+    expect(input).toMatchObject({
+      billingDate: '01/01/2027',
+      paymentDueDate: '11/01/2027',
+      serviceEndDate: '31/12/2026',
+      serviceStartDate: '01/12/2026',
+    });
+  });
+
+  it('resuelve el período y la fecha del asociado de una nota', () => {
+    const withPeriod = parseBillingCommandInput(
+      createCommand([...BASE_FLAGS, '--pd', 'mes-actual', '--ph', 'mes-actual']),
+      'ncc',
+    );
+    const withAssociated = parseBillingCommandInput(
+      createCommand([...BASE_FLAGS, '--ac', 'fc', '--apv', '1', '--ar', '5', '--afecha', 'ayer']),
+      'ncc',
+    );
+
+    expect(withPeriod.associatedPeriod).toEqual({ desde: '01/01/2027', hasta: '31/01/2027' });
+    expect(withAssociated.associatedVoucher?.fecha).toBe('31/12/2026');
+  });
+
+  it('acepta las mismas palabras en las claves de fecha de --cargar', () => {
+    const input = parseBillingCommandInput(
+      createCommand([
+        '--cargar',
+        writeJsonInput({
+          fechaComprobante: '-1',
+          servicioDesde: 'mes-actual',
+          servicioHasta: 'mes-actual',
+          vencimientoPago: '+5',
+        }),
+      ]),
+      'fc',
+    );
+
+    expect(input).toMatchObject({
+      billingDate: '31/12/2026',
+      paymentDueDate: '06/01/2027',
+      serviceEndDate: '31/01/2027',
+      serviceStartDate: '01/01/2027',
+    });
+  });
+
+  it('deja igual las fechas escritas a mano', () => {
+    const input = parseBillingCommandInput(createCommand([...BASE_FLAGS, '--sd', '1/12', '--sh', '31/12/2026']), 'fc');
+
+    expect(input).toMatchObject({ serviceEndDate: '31/12/2026', serviceStartDate: '1/12' });
+  });
+
+  it('una palabra de mes en una fecha de un día es un error, también desde --cargar', () => {
+    expect(() => parseBillingCommandInput(createCommand([...BASE_FLAGS, '--vto', 'mes-pasado']), 'fc')).toThrow(
+      /valen solo en desde y hasta/,
+    );
+    expect(() =>
+      parseBillingCommandInput(createCommand(['--cargar', writeJsonInput({ fechaComprobante: 'mes-actual' })]), 'fc'),
+    ).toThrow(/valen solo en desde y hasta/);
   });
 });

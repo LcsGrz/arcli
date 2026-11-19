@@ -100,15 +100,15 @@ export const OPTIONS = {
   fecha: {
     ej: '-f 31/10',
     name: 'Fecha',
-    rows: [['-f', '--fecha <fecha>', 'D, D/M, D/M/AA o D/M/AAAA']],
+    rows: [['-f', '--fecha <fecha>', 'D, D/M, D/M/AA o D/M/AAAA, o hoy, ayer, +N o -N (días desde hoy)']],
     text: 'Si no es hoy.',
   },
   servicio: {
     ej: '--sd 1/10 --sh 31/10',
     name: 'Período del servicio',
     rows: [
-      ['--sd', '--servicio-desde <fecha>', 'Inicio del servicio'],
-      ['--sh', '--servicio-hasta <fecha>', 'Fin del servicio'],
+      ['--sd', '--servicio-desde <fecha>', 'Inicio del servicio; mes-actual o mes-pasado dan el día 1'],
+      ['--sh', '--servicio-hasta <fecha>', 'Fin del servicio; mes-actual o mes-pasado dan el último día'],
       ['--vto', '--vencimiento <fecha>', 'Vencimiento del pago; por defecto, el fin del servicio'],
     ],
     text: 'Solo con servicios. Sin estos flags, el mes en curso.',
@@ -164,8 +164,8 @@ export const OPTIONS = {
     ej: '--pd 1/9 --ph 30/9',
     name: 'Período, en vez de un comprobante',
     rows: [
-      ['--pd', '--periodo-desde <fecha>', 'Inicio del período'],
-      ['--ph', '--periodo-hasta <fecha>', 'Fin del período'],
+      ['--pd', '--periodo-desde <fecha>', 'Inicio del período; mes-actual o mes-pasado dan el día 1'],
+      ['--ph', '--periodo-hasta <fecha>', 'Fin del período; mes-actual o mes-pasado dan el último día'],
     ],
     text: 'Para ajustar un período entero, por ejemplo un descuento sobre el mes. No va con `--ac`.',
   },
@@ -243,7 +243,7 @@ export const OPTIONS = {
     ej: '--actividad 620100',
     name: 'Actividad',
     rows: [['', '--actividad <código>', 'Código de la tabla de actividades de WSFEX']],
-    text: 'Mejor guardarla en la config (`exportacion.actividad`).',
+    text: 'Sin actividad, la E va sin ella. Si la usás, mejor guardarla en la config (`exportacion.actividad`).',
   },
   clienteExtra: {
     ej: '--id-impositivo 12-3456789',
@@ -277,8 +277,8 @@ export const OPTIONS = {
     ej: '--idioma 2',
     name: 'Datos del comprobante',
     rows: [
-      ['', '--incoterm <código>', 'En bienes, por ejemplo FOB'],
-      ['', '--incoterms-desc <texto>', 'Descripción del incoterm'],
+      ['', '--incoterm <código>', 'Obligatorio en bienes, por ejemplo FOB'],
+      ['', '--incoterms-desc <texto>', 'Descripción del incoterm, hasta 20 caracteres'],
       ['', '--idioma <1|2|3>', 'Español (por defecto), inglés o portugués'],
       ['', '--forma-pago <texto>', 'Por defecto, "Transferencia Internacional"'],
       ['', '--observaciones <texto>', 'Observaciones'],
@@ -319,7 +319,7 @@ export const OPTIONS = {
       ['', '--ac <atajo>', 'fe (por defecto), nde o nce'],
       ['', '--at <número>', 'Tipo ARCA: 19, 20 o 21'],
     ],
-    text: 'Cliente, destino, moneda y actividad salen de ella.',
+    text: 'Cliente, destino, moneda y actividad salen de ella. Obligatoria en servicios; en bienes y otros (`--tipo-expo 1` o `4`) es opcional, y sin ella los datos del cliente van por flag.',
   },
 
   // Al ejecutar: no cambian el comprobante.
@@ -662,8 +662,8 @@ const SPECS: readonly VoucherSpec[] = [
       'Bienes o servicios a un cliente del exterior. Usa el servicio wsfex, con su propio certificado y punto de venta.',
     letter: 'e',
     na: ['--cuit', '--ir', '--concepto'],
-    opt: ['tipoExpo', 'item', 'clienteExtra', 'expoDatos', 'permiso', 'monedaE', ...EXPO_OPT],
-    req: ['monto', 'cliente', 'pais', 'actividad'],
+    opt: ['tipoExpo', 'actividad', 'item', 'clienteExtra', 'expoDatos', 'permiso', 'monedaE', ...EXPO_OPT],
+    req: ['monto', 'cliente', 'pais'],
     tips: [
       'El CUIT del país de destino sale solo de la tabla de ARCA.',
       'Sin `--numero`, ARCLI toma el que sigue en ARCA para ese punto de venta.',

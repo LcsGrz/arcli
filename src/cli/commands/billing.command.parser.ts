@@ -1,6 +1,7 @@
 import Big from 'big.js';
 import type { Command } from 'commander';
 
+import { type DateInputRole, resolveRelativeDateInput } from '../../lib/dates/relative-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { readJsonFile } from '../../lib/files/read-json-file';
 import { parseArgentineAmount } from '../../lib/numbers/argentine-amount';
@@ -382,9 +383,19 @@ function parseBillingCommandInputFromSource(
   // La C no discrimina IVA: la alicuota de la config solo aplica a A y B.
   const usesIvaRateDefault = voucherKind?.letter !== 'c';
 
+  // Las fechas relativas (`hoy`, `+10`, `mes-pasado`...) se resuelven aca, una vez para flags y `--cargar`: cada campo
+  // dice si es un dia o una punta de un rango. Lo que sigue (validaciones, vista previa, `--json`) ve la fecha resuelta.
+  const now = new Date();
+  const date = (value: string | undefined, role: DateInputRole) => resolveRelativeDateInput(value, role, now);
   const periodFrom = pickString(commandOptions.periodoDesde, commandOptions.pd);
   const periodTo = pickString(commandOptions.periodoHasta, commandOptions.ph);
-  const associatedPeriod = periodFrom || periodTo ? { desde: periodFrom, hasta: periodTo } : fileInput?.periodoAsociado;
+  const rawAssociatedPeriod =
+    periodFrom || periodTo ? { desde: periodFrom, hasta: periodTo } : fileInput?.periodoAsociado;
+  const associatedPeriod = rawAssociatedPeriod && {
+    desde: date(rawAssociatedPeriod.desde, 'from'),
+    hasta: date(rawAssociatedPeriod.hasta, 'to'),
+  };
+  const associatedVoucher = mergeAssociatedVoucher(associatedVoucherFromFlags, associatedVoucherFromFile);
 
   const flagRates = parseIvaRateFlags(commandOptions.alicuota as string[] | undefined);
   const fileRateAmounts = fileInput?.alicuotas?.map((item) => ({ amount: item.monto, rate: item.tasa }));
@@ -418,8 +429,8 @@ function parseBillingCommandInputFromSource(
   return {
     ...billingCommandSchema.parse({
       associatedPeriod,
-      associatedVoucher: mergeAssociatedVoucher(associatedVoucherFromFlags, associatedVoucherFromFile),
-      billingDate: pickString(commandOptions.fecha, fileInput?.fechaComprobante),
+      associatedVoucher: associatedVoucher && { ...associatedVoucher, fecha: date(associatedVoucher.fecha, 'day') },
+      billingDate: date(pickString(commandOptions.fecha, fileInput?.fechaComprobante), 'day'),
       cancellation: commandOptions.anulacion === true || fileInput?.anulacion === true,
       cbu: pickString(commandOptions.cbu, fileInput?.cbu, usesFceDefaults ? defaults.defaultCbu : undefined),
       cbuAlias: pickString(
@@ -445,7 +456,10 @@ function parseBillingCommandInputFromSource(
       // Sin valor todavia: lo completa el padron antes de emitir (ver `ivaConditionSource`).
       ivaCondition: resolvedIvaCondition ?? 'consumidor-final',
       ivaConditionSource,
-      paymentDueDate: pickString(commandOptions.vencimiento, commandOptions.vto, fileInput?.vencimientoPago),
+      paymentDueDate: date(
+        pickString(commandOptions.vencimiento, commandOptions.vto, fileInput?.vencimientoPago),
+        'day',
+      ),
       pdf: resolvePdfFlag(commandOptions, fileInput),
       pdfDescription: pickString(commandOptions.descripcion, fileInput?.descripcion),
       pointOfSale: pickNumber(commandOptions.puntoVenta, commandOptions.pv, fileInput?.puntoVenta),
@@ -453,8 +467,11 @@ function parseBillingCommandInputFromSource(
       receiverName: pickString(commandOptions.receptorNombre, fileInput?.receptorNombre),
       saleCondition,
       sameCurrency,
-      serviceEndDate: pickString(commandOptions.servicioHasta, commandOptions.sh, fileInput?.servicioHasta),
-      serviceStartDate: pickString(commandOptions.servicioDesde, commandOptions.sd, fileInput?.servicioDesde),
+      serviceEndDate: date(pickString(commandOptions.servicioHasta, commandOptions.sh, fileInput?.servicioHasta), 'to'),
+      serviceStartDate: date(
+        pickString(commandOptions.servicioDesde, commandOptions.sd, fileInput?.servicioDesde),
+        'from',
+      ),
       shortcut,
       // Sin redondear: un monto con mas de 2 decimales es un error del schema, no se ajusta en silencio.
       totalAmount,

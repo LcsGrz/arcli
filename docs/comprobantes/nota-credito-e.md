@@ -36,7 +36,7 @@ Ej.: `-m 15000`
 
 ### Factura que ajusta
 
-Cliente, destino, moneda y actividad salen de ella.
+Cliente, destino, moneda y actividad salen de ella. Obligatoria en servicios; en bienes y otros (`--tipo-expo 1` o `4`) es opcional, y sin ella los datos del cliente van por flag.
 
 | Largo | Corto | Qué es |
 | --- | --- | --- |
@@ -78,8 +78,8 @@ Ej.: `--item "001|Servicio|1|1500|7"`
 
 | Largo | Corto | Qué es |
 | --- | --- | --- |
-| `--incoterm <código>` |  | En bienes, por ejemplo FOB |
-| `--incoterms-desc <texto>` |  | Descripción del incoterm |
+| `--incoterm <código>` |  | Obligatorio en bienes, por ejemplo FOB |
+| `--incoterms-desc <texto>` |  | Descripción del incoterm, hasta 20 caracteres |
 | `--idioma <1\|2\|3>` |  | Español (por defecto), inglés o portugués |
 | `--forma-pago <texto>` |  | Por defecto, "Transferencia Internacional" |
 | `--observaciones <texto>` |  | Observaciones |
@@ -103,7 +103,7 @@ Si no es hoy.
 
 | Largo | Corto | Qué es |
 | --- | --- | --- |
-| `--fecha <fecha>` | `-f` | D, D/M, D/M/AA o D/M/AAAA |
+| `--fecha <fecha>` | `-f` | D, D/M, D/M/AA o D/M/AAAA, o hoy, ayer, +N o -N (días desde hoy) |
 
 Ej.: `-f 31/10`
 

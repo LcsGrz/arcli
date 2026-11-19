@@ -5,7 +5,9 @@ import { creditNoteOverTotalError } from '../billing/billing.associated-lookup';
 import { formatVoucherSubject, formatVoucherWithArticle } from '../billing/billing.mappers';
 import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
 
+import { assertExportPointOfSaleRange } from './export.mappers';
 import {
+  DEFAULT_EXPORT_TYPE,
   EXPORT_CREDIT_NOTE_KIND,
   EXPORT_DEBIT_NOTE_KIND,
   EXPORT_VOUCHER_KIND,
@@ -19,7 +21,7 @@ import {
   getExportVoucherKindByShortcut,
 } from './export.types';
 
-/** Servicios: el tipo de exportacion en el que ARCA compara la nota contra el asociado (2048 a 2055, WSFEX v3.1.0). */
+/** Servicios: el tipo de la nota en el que ARCA la compara con el asociado (2040 a 2055, WSFEX v3.1.0). */
 const SERVICES_EXPORT_TYPE = 2;
 
 const ASSOCIATED_SHORTCUTS = EXPORT_VOUCHER_KINDS.map((kind) => `\`${kind.shortcut}\``)
@@ -40,6 +42,45 @@ function describeVoucher(voucher: {
 
 function capitalize(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+function missingAssociatedNumberError(kind: ExportVoucherKind): InputValidationError {
+  return new InputValidationError(
+    `Falta el número del comprobante asociado de ${formatVoucherWithArticle(kind)}. Usá \`--ar <número>\` (y \`--apv\` si es de otro punto de venta).`,
+  );
+}
+
+/**
+ * Si la nota va con comprobante asociado. ARCA lo exige solo en las notas de servicios (2047, WSFEX v3.1.0): en bienes
+ * y otros `Cmps_asoc` no es obligatorio (testing aprobó una NC de bienes sin asociado), por ejemplo para un descuento
+ * por volumen sobre varias facturas. Sin `--ar` la nota no hereda nada: cliente, destino y lo demas van por flag. Con
+ * `--ac`, `--at`, `--apv` o `--acuit` y sin `--ar` es error: falta el numero.
+ */
+export function exportNoteHasAssociated(input: ExportVoucherInput, kind: ExportVoucherKind): boolean {
+  const associated = input.associatedVoucher;
+
+  if (associated?.number !== undefined) {
+    return true;
+  }
+
+  const hasOtherData =
+    associated !== undefined &&
+    (Boolean(associated.shortcut?.trim()) ||
+      associated.arcaType !== undefined ||
+      associated.pointOfSale !== undefined ||
+      Boolean(associated.cuit?.trim()));
+
+  if (hasOtherData) {
+    throw missingAssociatedNumberError(kind);
+  }
+
+  if ((input.exportType ?? DEFAULT_EXPORT_TYPE) === SERVICES_EXPORT_TYPE) {
+    throw new InputValidationError(
+      `${formatVoucherSubject(kind)} de servicios lleva el comprobante asociado: ARCA lo exige (error 2047). Usá \`--ar <número>\`, o \`--tipo-expo 1\` o \`4\` si la nota es de bienes u otros.`,
+    );
+  }
+
+  return false;
 }
 
 /** El tipo del asociado por atajo (`--ac fe`) o por codigo (`--at 19`). Sin ninguno, la factura E. */
@@ -82,9 +123,7 @@ export function resolveExportAssociatedQuery(options: {
   const associatedKind = resolveAssociatedKind(input);
 
   if (input?.number === undefined) {
-    throw new InputValidationError(
-      `Falta el número del comprobante asociado: ${formatVoucherWithArticle(kind)} ajusta una factura E. Usá \`--ar <número>\` (y \`--apv\` si es de otro punto de venta).`,
-    );
+    throw missingAssociatedNumberError(kind);
   }
 
   if (!Number.isInteger(input.number) || input.number < 1) {
@@ -98,6 +137,8 @@ export function resolveExportAssociatedQuery(options: {
       'El punto de venta del comprobante asociado tiene que ser un número entero positivo.',
     );
   }
+
+  assertExportPointOfSaleRange(pointOfSale, 'El punto de venta del comprobante asociado');
 
   if (input.cuit !== undefined && emitterCuit !== undefined && input.cuit.replace(/\D/g, '') !== emitterCuit) {
     throw new InputValidationError(
@@ -180,10 +221,11 @@ export function applyExportAssociatedDefaults(
 }
 
 /**
- * Lo que ARCA va a controlar contra el asociado, validado antes de emitir. En servicios (tipo 2) ARCA pide el mismo
- * tipo, destino y moneda (o pesos), la misma cotizacion y una fecha igual o posterior (2049 a 2053); una ND solo
- * ajusta una factura (2041, 2042) y una NC, una factura o una ND (2045). La fecha y el tope de la NC valen para todos
- * los tipos: una nota anterior al comprobante que ajusta, o una NC mayor, no tienen sentido.
+ * Lo que ARCA va a controlar contra el asociado, validado antes de emitir. En la nota de servicios (tipo 2) ARCA pide
+ * el mismo tipo, destino y moneda (o pesos), la misma cotizacion y una fecha igual o posterior (2049 a 2053); una ND
+ * solo ajusta una factura (2041, 2042) y una NC, una factura o una ND (2045). Lo que manda es el tipo de la nota, no el
+ * del asociado. La fecha y el tope de la NC valen para todos los tipos: una nota anterior al comprobante que ajusta, o
+ * una NC mayor, no tienen sentido (propias).
  */
 export function assertExportNoteMatchesAssociated(options: {
   readonly associated: ExportIssuedVoucher;
@@ -226,14 +268,14 @@ export function assertExportNoteMatchesAssociated(options: {
     }
   }
 
-  const isServices = note.exportType === SERVICES_EXPORT_TYPE || associated.exportType === SERVICES_EXPORT_TYPE;
-
-  if (!isServices) {
+  // 2040 a 2055 (WSFEX v3.1.0) miran el tipo de la nota: "Si está autorizando un comprobante de Servicio". Una nota
+  // de bienes u otros ajusta cualquier factura, ND o NC sin esos controles: ARCA testing aprobó una NC de tipo 4 sobre
+  // una factura de servicios, con otro destino y otra cotización (REGLAS-7).
+  if (note.exportType !== SERVICES_EXPORT_TYPE) {
     return;
   }
 
-  // 2049 (WSFEX v3.1.0) mira la nota de servicios; una nota de otro tipo sobre una factura de servicios es propia:
-  // ARCA testing la aprueba (TEST-8).
+  // 2049: la nota de servicios solo ajusta un comprobante de servicios.
   if (note.exportType !== associated.exportType) {
     throw new InputValidationError(
       `${capitalize(label)} es de tipo de exportación ${associated.exportType}: en servicios la nota tiene que ser del mismo tipo (error 2049). Sacá \`--tipo-expo\`.`,

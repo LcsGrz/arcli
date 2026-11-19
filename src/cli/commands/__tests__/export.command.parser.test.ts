@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EXPORT_VOUCHER_KIND } from '../../../modules/export/export.types';
 import { registerExportOptions } from '../export.command.options';
@@ -100,5 +100,48 @@ describe('parseExportCommandPlan: PDF', () => {
 
   it('--exportar-pdf y --sin-pdf a la vez es un error', () => {
     expect(() => planFromFile({}, false, ['--exportar-pdf', '--sin-pdf'])).toThrow(/no ambos a la vez/);
+  });
+});
+
+describe('parseExportCommandPlan: fechas relativas', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-03-31T15:00:00Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function datesFromFile(content: Record<string, unknown>, args: string[] = []) {
+    const directory = mkdtempSync(join(tmpdir(), 'arcli-export-cli-'));
+    const path = join(directory, 'factura-e.json');
+
+    directories.push(directory);
+    writeFileSync(path, JSON.stringify({ ...BASE, ...content }));
+
+    const command = new Command();
+
+    registerExportOptions(command, EXPORT_VOUCHER_KIND);
+    command.parse(['node', 'test', '--cargar', path, ...args], { from: 'node' });
+
+    const { input } = parseExportCommandPlan(command, {});
+
+    return { paymentDate: input.paymentDate, voucherDate: input.voucherDate };
+  }
+
+  it('resuelve --fecha y --fecha-pago, y las claves del JSON', () => {
+    expect(datesFromFile({}, ['--fecha', 'ayer', '--fecha-pago', '+1'])).toEqual({
+      paymentDate: '01/04/2026',
+      voucherDate: '30/03/2026',
+    });
+    expect(datesFromFile({ fechaComprobante: 'hoy', fechaPago: '+30' })).toEqual({
+      paymentDate: '30/04/2026',
+      voucherDate: '31/03/2026',
+    });
+  });
+
+  it('en la E no hay palabras de mes', () => {
+    expect(() => datesFromFile({}, ['--fecha-pago', 'mes-pasado'])).toThrow(/valen solo en desde y hasta/);
   });
 });

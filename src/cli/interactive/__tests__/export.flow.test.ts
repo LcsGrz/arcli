@@ -170,6 +170,30 @@ describe('runExportFlow', () => {
     expect(savedConfig).toHaveBeenCalledWith('exportacion.actividad', '620100');
   });
 
+  it('la actividad es opcional: con Enter la E va sin el bloque Actividades y no ofrece guardarla', async () => {
+    script = createScript([
+      [/cliente del exterior/, 'ACME LLC'],
+      [/Domicilio/, '123 Main St'],
+      [/País de destino/, '212'],
+      [/ID impositivo/, ''],
+      [/Qué exportás/, 'Servicios'],
+      [/Monto total/, '100'],
+      [/Descripción/, ''],
+      [/moneda/, 'Pesos'],
+      [/Forma de pago/, 'Transferencia Internacional'],
+      [/Fecha de pago/, ''],
+      [/actividad.*Enter para no informarla/, ''],
+      [/Agregamos algún opcional/, []],
+      [/Emitimos/, 'Sí, emitir ahora'],
+    ]);
+
+    await runExportFlow(createSession());
+
+    expect(vi.mocked(gateway.authorize).mock.calls[0]?.[0]).not.toHaveProperty('Actividades');
+    expect(printed()).not.toContain('--actividad');
+    expect(savedConfig).not.toHaveBeenCalled();
+  });
+
   it('en bienes pregunta el incoterm y los permisos y no la fecha de pago, toma la actividad de la config y no emite si se cancela', async () => {
     script = createScript([
       [/cliente del exterior/, 'ACME LLC'],
@@ -226,7 +250,7 @@ describe('runExportFlow', () => {
       [/Idioma del comprobante/, 'Inglés'],
       [/^Observaciones \(/, 'Pedido 42'],
       [/Observaciones comerciales/, ''],
-      [/Descripción del incoterm FOB/, 'Free on board, Buenos Aires'],
+      [/Descripción del incoterm FOB/, 'Free on board, BA'],
       [/Cotización de USD/, '1.200,5'],
       [/Emitimos/, 'Sí, emitir ahora'],
     ]);
@@ -246,7 +270,7 @@ describe('runExportFlow', () => {
       expect.objectContaining({
         Idioma_cbte: 2,
         Incoterms: 'FOB',
-        Incoterms_Ds: 'Free on board, Buenos Aires',
+        Incoterms_Ds: 'Free on board, BA',
         Items: {
           Item: [
             expect.objectContaining({ Pro_ds: 'Bienes varios', Pro_qty: 2, Pro_total_item: 1000, Pro_umed: 1 }),
@@ -258,7 +282,7 @@ describe('runExportFlow', () => {
       }),
     );
     expect(printed()).toContain(
-      "--item 'Bienes varios|2|500|1' --item 'Flete|1|500' --moneda DOL --cm 1200,50 --incoterm FOB --incoterms-desc 'Free on board, Buenos Aires' --idioma 2 --observaciones 'Pedido 42' --testing --emitir",
+      "--item 'Bienes varios|2|500|1' --item 'Flete|1|500' --moneda DOL --cm 1200,50 --incoterm FOB --incoterms-desc 'Free on board, BA' --idioma 2 --observaciones 'Pedido 42' --testing --emitir",
     );
   });
 

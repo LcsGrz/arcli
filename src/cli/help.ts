@@ -46,6 +46,7 @@ const CORE_RULES = [
   'Un solo concepto: --concepto o uno entre --cs, --cp y --csp.',
   'Con servicios: --servicio-desde y --servicio-hasta para el período, y --vto para el vencimiento.',
   'Sin --fecha usa hoy. Lo que no pasás por flag sale del JSON de --cargar o de la config.',
+  'Fechas: además de D/M/YYYY, hoy, ayer, +N y -N (días desde hoy). En desde y hasta (--sd/--sh, --pd/--ph) también mes-actual y mes-pasado: el día 1 en desde y el último día en hasta.',
 ];
 
 interface HelpScope {

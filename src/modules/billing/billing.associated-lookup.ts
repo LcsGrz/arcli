@@ -21,7 +21,7 @@ const CREDIT_NOTE_FAMILIES: ReadonlySet<VoucherKindDefinition['family']> = new S
 ]);
 
 /** `la factura A 00003-00000012`, para usar dentro de una frase. */
-function describeAssociated(arcaType: number, pointOfSale: number, number: number): string {
+export function describeAssociated(arcaType: number, pointOfSale: number, number: number): string {
   const kind = getVoucherKindByArcaType(arcaType);
   const name = kind ? formatVoucherWithArticle(kind) : `el comprobante tipo ${arcaType}`;
 
@@ -223,9 +223,10 @@ export async function classifyAssociatedPointOfSale(options: {
 
 /**
  * El aviso de un asociado que ARCA no tiene en un punto de venta que no es de web service (o que no se pudo
- * clasificar): la nota sigue, sin controlar su tope, y si falta la fecha se recuerda la 10211.
+ * clasificar): la nota sigue, sin controlar su tope, y si falta la fecha se recuerda la 10211. Lo usan los flags y el
+ * modo interactivo.
  */
-function missingAssociatedWarning(options: {
+export function missingAssociatedWarning(options: {
   readonly hasDate: boolean;
   readonly isCreditNote: boolean;
   readonly label: string;

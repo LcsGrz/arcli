@@ -126,7 +126,9 @@ function formatPayloadRows(result: ExportExecutionResult): Rows {
     ['Domicilio del cliente', payload.Domicilio_cliente],
     ['País de destino', formatCountry(result)],
     ['Tipo de exportación', formatExportType(result)],
-    ['Actividad', payload.Actividades.Actividad.map((activity) => activity.Id).join(', ')],
+    ...(payload.Actividades
+      ? [['Actividad', payload.Actividades.Actividad.map((activity) => activity.Id).join(', ')] as const]
+      : []),
     ['Incoterm', formatIncoterm(result)],
     ['Idioma', formatLanguage(result)],
     ['Moneda', formatCurrency(result)],

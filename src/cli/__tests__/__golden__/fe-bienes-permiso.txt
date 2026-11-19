@@ -1,4 +1,4 @@
-$ arcli fe --cliente ACME LLC --domicilio-cliente 123 Main St --pais-destino 212 -m 1500 --item 001|Servicios de consultoría|1|1500|unidad --tipo-expo 1 --permiso-existente --permiso 26001EC01000123A --previsualizar --json
+$ arcli fe --cliente ACME LLC --domicilio-cliente 123 Main St --pais-destino 212 -m 1500 --item 001|Servicios de consultoría|1|1500|unidad --tipo-expo 1 --incoterm FOB --permiso-existente --permiso 26001EC01000123A --previsualizar --json
 exit: 0
 --- stdout ---
 
@@ -29,8 +29,8 @@ exit: 0
     "formaPago": "Transferencia Internacional",
     "idImpositivo": null,
     "idioma": 1,
-    "incoterm": null,
-    "incotermDescripcion": null,
+    "incoterm": "FOB",
+    "incotermDescripcion": "Free on Board",
     "items": [
       {
         "cantidad": 1,
@@ -84,8 +84,8 @@ exit: 0
     "Id_impositivo": "",
     "Idioma_cbte": 1,
     "Imp_total": 1500,
-    "Incoterms": "",
-    "Incoterms_Ds": "",
+    "Incoterms": "FOB",
+    "Incoterms_Ds": "Free on Board",
     "Items": {
       "Item": [
         {
