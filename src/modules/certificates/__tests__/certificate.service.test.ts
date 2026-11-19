@@ -167,6 +167,40 @@ describe('CertificateService', () => {
     );
   });
 
+  it('rejects a certificate that does not match the configured key when there is no pending request (TEST-21)', () => {
+    const { config, root, service } = setup();
+
+    service.import({ content: signRequestLikeArca(service.generate({ environment: 'testing' }).csrPem) });
+
+    const files = resolveCertificateFiles(root, CUIT, 'testing');
+    const before = readFileSync(files.certificate, 'utf8');
+    const other = setup().service.generate({ environment: 'testing' });
+
+    expect(() => service.import({ content: signRequestLikeArca(other.csrPem) })).toThrow(
+      expect.objectContaining({ code: 'CERTIFICATE_KEY_MISMATCH', message: expect.stringContaining('ninguna clave') }),
+    );
+    expect(readFileSync(files.certificate, 'utf8')).toBe(before);
+    expect(config().key.testing).toBe(files.key);
+  });
+
+  it('re-importing the active certificate keeps its key in place (TEST-21)', () => {
+    const { config, root, service } = setup();
+    const certificate = signRequestLikeArca(service.generate({ environment: 'testing' }).csrPem);
+
+    service.import({ content: certificate });
+
+    const files = resolveCertificateFiles(root, CUIT, 'testing');
+    const key = readFileSync(files.key, 'utf8');
+
+    expect(service.import({ content: certificate, environment: 'testing' })).toMatchObject({
+      keyPath: files.key,
+      replaced: false,
+    });
+    expect(readFileSync(files.key, 'utf8')).toBe(key);
+    expect(existsSync(files.previousKey)).toBe(false);
+    expect(config().key.testing).toBe(files.key);
+  });
+
   it('accepts an unknown issuer with an explicit environment, and rejects a contradicting one', () => {
     const { service } = setup();
     const csr = service.generate({ environment: 'produccion' }).csrPem;

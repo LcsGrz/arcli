@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { checkForUpdate } from '../update-check.service';
+import { checkForUpdate, isNewerVersion } from '../update-check.service';
 
 const temporaryDirectories: string[] = [];
 let originalStderrIsTty: boolean | undefined;
@@ -99,5 +99,45 @@ describe('checkForUpdate', () => {
     const result = await checkForUpdate('0.1.0', { cwd: createCwd() });
 
     expect(result).toBeNull();
+  });
+});
+
+// Con la 3.0.0 planeada, un error en la comparacion de major dejaria a todos sin aviso (TEST-21).
+describe('isNewerVersion', () => {
+  it.each([
+    ['3.0.0', '2.5.2', true],
+    ['2.5.2', '3.0.0', false],
+    ['10.0.0', '9.9.9', true],
+    ['2.6.0', '2.5.9', true],
+    ['2.5.9', '2.6.0', false],
+    ['2.5.3', '2.5.2', true],
+    ['2.5.2', '2.5.3', false],
+    ['2.5.2', '2.5.2', false],
+  ])('%s contra la instalada %s: %s', (latest, current, expected) => {
+    expect(isNewerVersion(latest, current)).toBe(expected);
+  });
+});
+
+describe('checkForUpdate: cache', () => {
+  it('si la consulta falla, mantiene la version cacheada y la sigue avisando', async () => {
+    const cwd = createCwd();
+
+    mockRegistryResponse('0.2.0');
+    await checkForUpdate('0.1.0', { cwd });
+
+    mockRegistryResponse(null);
+    expect(await checkForUpdate('0.1.0', { cwd, maxAgeMs: -1 })).toEqual({
+      currentVersion: '0.1.0',
+      latestVersion: '0.2.0',
+    });
+  });
+
+  it('una respuesta sin `ok` no cuenta aunque traiga una version', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ json: async () => ({ version: '9.0.0' }), ok: false })),
+    );
+
+    expect(await checkForUpdate('0.1.0', { cwd: createCwd() })).toBeNull();
   });
 });
