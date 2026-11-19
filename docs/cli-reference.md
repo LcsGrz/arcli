@@ -600,10 +600,10 @@ WSFEX pide un certificado autorizado al servicio `wsfex`. ARCLI usa `exportacion
 - importe total: `--monto`
 - cliente y domicilio en el exterior: `--cliente`, `--domicilio-cliente`
 - país de destino: `--pais-destino`, por código (`203`) o por nombre (`Brasil`)
-- actividad: `--actividad` o la clave `exportacion.actividad` de la config, con un código de la tabla de actividades de WSFEX
 
 **Opcional**
 
+- actividad: `--actividad` o la clave `exportacion.actividad` de la config, con un código de la tabla de actividades de WSFEX. Sin ninguna, la `E` va sin el bloque `Actividades`
 - `--id-impositivo` y `--cuit-pais` (sin `--cuit-pais` se resuelve desde el país de destino; si ARCA no
   publica un CUIT para ese país —Irlanda, Alemania, las zonas francas…—, la `E` va solo con `--id-impositivo`:
   ARCA pide uno de los dos, error 1580)
@@ -619,7 +619,7 @@ WSFEX pide un certificado autorizado al servicio `wsfex`. ARCLI usa `exportacion
 
 Sin `--tipo-expo`, `--moneda` ni `--forma-pago`, la `E` sale de servicios (`Tipo_expo` `2`), en dólares (`DOL`) y con forma de pago `Transferencia Internacional`. Las claves `moneda` y `cotizacion` de la config son de los comprobantes locales y no aplican a exportación.
 
-La actividad no tiene default: cada emisor tiene la suya. La tabla de actividades de WSFEX (`FEXGetPARAM_Actividades`) no es la del padrón y es más chica (por ejemplo, `620900` no está y `620100` sí), así que un código que no está es error de validación antes de ir a ARCA, con las actividades que empiezan igual.
+La actividad es opcional y no tiene default: cada emisor tiene la suya. Si no la informás, la `E` va sin actividad, que ARCA no exige. La tabla de actividades de WSFEX (`FEXGetPARAM_Actividades`) no es la del padrón y es más chica (por ejemplo, `620900` no está y `620100` sí), así que un código que no está es error de validación antes de ir a ARCA, con las actividades que empiezan igual.
 
 El pago de una exportación se hace en la moneda extranjera del comprobante (`Moneda_Id`/`Moneda_ctz`). Si además se cobra en esa misma moneda, `--misma-moneda` manda `CanMisMonExt` en `S`, que es el campo de WSFEX que lo declara; sin el flag va en `N`, salvo en pesos, donde ARCA pide que el campo no vaya (error 1605).
 
@@ -650,41 +650,41 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
 
 #### Resumen rápido de parámetros
 
-| Parámetro                         | Alias           | Tipo                                 | Requerido   | Cuándo usarlo                                                                                                                                           |
-| --------------------------------- | --------------- | ------------------------------------ | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--monto <numero>`                | `-m`            | `number`                             | Sí          | Siempre                                                                                                                                                 |
-| `--cliente <texto>`               | ninguno         | `string`                             | Sí          | Siempre: nombre o razón social del cliente del exterior                                                                                                 |
-| `--domicilio-cliente <texto>`     | ninguno         | `string`                             | Sí          | Siempre                                                                                                                                                 |
-| `--pais-destino <codigo\|nombre>` | ninguno         | `string`                             | Sí          | Siempre: código de ARCA o nombre tal como lo informa ARCA                                                                                               |
-| `--id-impositivo <texto>`         | ninguno         | `string`                             | No          | ID fiscal del cliente en su país                                                                                                                        |
-| `--cuit-pais <numero>`            | ninguno         | `integer`                            | No          | CUIT del país del cliente; sin el flag sale de la tabla de ARCA, y si la tabla no trae el destino va solo `--id-impositivo` (1580)                      |
-| `--tipo-expo <1\|2\|4>`           | ninguno         | `1` bienes, `2` servicios, `4` otros | No          | Por defecto `2` (servicios)                                                                                                                             |
-| `--actividad <codigo>`            | ninguno         | `integer`                            | Condicional | Si no está `exportacion.actividad` en la config; código de la tabla de WSFEX                                                                            |
-| `--item <partes>`                 | ninguno         | `string` repetible                   | No          | `codigo\|descripcion\|cantidad\|precio\|unidad`; la suma debe dar `--monto`                                                                             |
-| `--incoterm <codigo>`             | ninguno         | `string`                             | No          | Por ejemplo `FOB`; se valida contra la tabla de ARCA                                                                                                    |
-| `--incoterms-desc <texto>`        | ninguno         | `string`                             | No          | Por defecto, la descripción de la tabla de ARCA                                                                                                         |
-| `--idioma <codigo>`               | ninguno         | `integer`                            | No          | `1` español (por defecto), `2` inglés, `3` portugués                                                                                                    |
-| `--forma-pago <texto>`            | ninguno         | `string`                             | No          | Por defecto `Transferencia Internacional`                                                                                                               |
-| `--permiso <id>`                  | ninguno         | `string` repetible                   | No          | Permiso de embarque ya existente; solo con `--tipo-expo 1`. En la factura requiere `--permiso-existente`                                                |
-| `--permiso-existente`             | ninguno         | `boolean`                            | No          | Marca que los permisos informados ya están en ARCA                                                                                                      |
-| `--numero <numero>`               | ninguno         | `integer`                            | No          | Por defecto, el siguiente al último de ese tipo en el punto de venta                                                                                    |
-| `--id-solicitud <numero>`         | ninguno         | `integer`                            | No          | Por defecto, el siguiente de WSFEX                                                                                                                      |
-| `--punto-venta <numero>`          | `--pv <numero>` | `integer`                            | Condicional | Si no está en config                                                                                                                                    |
-| `--fecha <fecha>`                 | `-f`            | `string`                             | No          | No admite fechas futuras. También `hoy`, `ayer`, `+N` o `-N` ([fechas relativas](validation-rules.md#fechas-relativas))                                 |
-| `--fecha-pago <fecha>`            | ninguno         | `string`                             | No          | Solo en servicios y otros; por defecto, la fecha del comprobante. En bienes no se usa (error 1673). También `hoy`, `ayer`, `+N` o `-N`                  |
-| `--moneda <codigo>`               | `--mda`         | `string`                             | No          | Código ISO o de ARCA, por ejemplo `USD` o `DOL`; por defecto `DOL`                                                                                      |
-| `--cotizacion-moneda <numero>`    | `--cm`          | `number`                             | No          | Sin flag se usa la cotización de aduana de ARCA: en servicios y con `--misma-moneda`, la del día hábil anterior a la fecha del comprobante (error 2053) |
-| `--misma-moneda`                  | ninguno         | `boolean`                            | No          | El pago se cancela en la misma moneda extranjera: manda `CanMisMonExt` en `S`                                                                           |
-| `--observaciones <texto>`         | ninguno         | `string`                             | No          | Observaciones del comprobante                                                                                                                           |
-| `--obs-comerciales <texto>`       | ninguno         | `string`                             | No          | Observaciones comerciales                                                                                                                               |
-| `--descripcion <texto>`           | ninguno         | `string`                             | No          | Solo sin `--item`; también va al PDF                                                                                                                    |
-| `--cargar <ruta>`                 | ninguno         | `string`                             | No          | Un objeto con un comprobante, no un lote                                                                                                                |
+| Parámetro                         | Alias           | Tipo                                 | Requerido   | Cuándo usarlo                                                                                                                                                                                                           |
+| --------------------------------- | --------------- | ------------------------------------ | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--monto <numero>`                | `-m`            | `number`                             | Sí          | Siempre                                                                                                                                                                                                                 |
+| `--cliente <texto>`               | ninguno         | `string`                             | Sí          | Siempre: nombre o razón social del cliente del exterior                                                                                                                                                                 |
+| `--domicilio-cliente <texto>`     | ninguno         | `string`                             | Sí          | Siempre                                                                                                                                                                                                                 |
+| `--pais-destino <codigo\|nombre>` | ninguno         | `string`                             | Sí          | Siempre: código de ARCA o nombre tal como lo informa ARCA                                                                                                                                                               |
+| `--id-impositivo <texto>`         | ninguno         | `string`                             | No          | ID fiscal del cliente en su país                                                                                                                                                                                        |
+| `--cuit-pais <numero>`            | ninguno         | `integer`                            | No          | CUIT del país del cliente; sin el flag sale de la tabla de ARCA, y si la tabla no trae el destino va solo `--id-impositivo` (1580)                                                                                      |
+| `--tipo-expo <1\|2\|4>`           | ninguno         | `1` bienes, `2` servicios, `4` otros | No          | Por defecto `2` (servicios)                                                                                                                                                                                             |
+| `--actividad <codigo>`            | ninguno         | `integer`                            | No          | Código de la tabla de WSFEX; por defecto `exportacion.actividad`. Sin ninguno, la `E` va sin actividad                                                                                                                  |
+| `--item <partes>`                 | ninguno         | `string` repetible                   | No          | `codigo\|descripcion\|cantidad\|precio\|unidad`; la suma debe dar `--monto`                                                                                                                                             |
+| `--incoterm <codigo>`             | ninguno         | `string`                             | Condicional | Obligatorio en bienes (`--tipo-expo 1`, error 1640). Por ejemplo `FOB`; se valida contra la tabla de ARCA                                                                                                               |
+| `--incoterms-desc <texto>`        | ninguno         | `string`                             | No          | Por defecto, la descripción de la tabla de ARCA. Solo con `--incoterm` (error 1641) y hasta 20 caracteres (1642)                                                                                                        |
+| `--idioma <codigo>`               | ninguno         | `integer`                            | No          | `1` español (por defecto), `2` inglés, `3` portugués                                                                                                                                                                    |
+| `--forma-pago <texto>`            | ninguno         | `string`                             | No          | Por defecto `Transferencia Internacional`                                                                                                                                                                               |
+| `--permiso <id>`                  | ninguno         | `string` repetible                   | No          | Permiso de embarque ya existente; solo con `--tipo-expo 1`. En la factura requiere `--permiso-existente`                                                                                                                |
+| `--permiso-existente`             | ninguno         | `boolean`                            | No          | Marca que los permisos informados ya están en ARCA                                                                                                                                                                      |
+| `--numero <numero>`               | ninguno         | `integer`                            | No          | Por defecto, el siguiente al último de ese tipo en el punto de venta. Hasta 99.999.999 (error 1520)                                                                                                                     |
+| `--id-solicitud <numero>`         | ninguno         | `integer`                            | No          | Por defecto, el siguiente de WSFEX. Hasta 15 dígitos                                                                                                                                                                    |
+| `--punto-venta <numero>`          | `--pv <numero>` | `integer`                            | Condicional | Si no está en config. Hasta 99.998 (error 1510)                                                                                                                                                                         |
+| `--fecha <fecha>`                 | `-f`            | `string`                             | No          | De 5 días antes a 5 días después de hoy; en servicios, no después del fin de mes (error 1500). También `hoy`, `ayer`, `+N` o `-N` ([fechas relativas](validation-rules.md#fechas-relativas))                            |
+| `--fecha-pago <fecha>`            | ninguno         | `string`                             | No          | Solo en servicios y otros; por defecto, la fecha del comprobante, y no anterior a ella (error 1674). En bienes no se usa (error 1673). También `hoy`, `ayer`, `+N` o `-N`                                               |
+| `--moneda <codigo>`               | `--mda`         | `string`                             | No          | Código ISO o de ARCA, por ejemplo `USD` o `DOL`; por defecto `DOL`                                                                                                                                                      |
+| `--cotizacion-moneda <numero>`    | `--cm`          | `number`                             | No          | Sin flag se usa la cotización de aduana de ARCA. En servicios y con `--misma-moneda`, ARCA exige la del día hábil anterior a la fecha del comprobante (errores 2053 y 1604): si la pasás, tiene que ser esa, o es error |
+| `--misma-moneda`                  | ninguno         | `boolean`                            | No          | El pago se cancela en la misma moneda extranjera: manda `CanMisMonExt` en `S`                                                                                                                                           |
+| `--observaciones <texto>`         | ninguno         | `string`                             | No          | Observaciones del comprobante                                                                                                                                                                                           |
+| `--obs-comerciales <texto>`       | ninguno         | `string`                             | No          | Observaciones comerciales                                                                                                                                                                                               |
+| `--descripcion <texto>`           | ninguno         | `string`                             | No          | Solo sin `--item`; también va al PDF                                                                                                                                                                                    |
+| `--cargar <ruta>`                 | ninguno         | `string`                             | No          | Un objeto con un comprobante, no un lote                                                                                                                                                                                |
 
 Los flags globales (`--testing`, `--produccion`, `--json`, `--bruto`) y los de modo (`--previsualizar`, `--emitir`) funcionan igual que en el resto de los comprobantes.
 
 #### Ítems
 
-Cada `--item` se separa con `|` para no pelear con las comas de los importes. La forma completa es `codigo|descripcion|cantidad|precio|unidad`; con cuatro partes se omite el código y con tres la unidad, que queda en `unidad` (código `7` de ARCA). La unidad puede ser el código numérico o el nombre de la tabla de unidades, que se compara sin mayúsculas y acepta singular o plural (`unidad` o `unidades`).
+Cada `--item` se separa con `|` para no pelear con las comas de los importes. La forma completa es `codigo|descripcion|cantidad|precio|unidad`; con cuatro partes se omite el código y con tres la unidad, que queda en `unidad` (código `7` de ARCA). La unidad puede ser el código numérico o el nombre de la tabla de unidades, que se compara sin mayúsculas y acepta singular o plural (`unidad` o `unidades`). Las unidades 0, 97 (seña o anticipo) y 99 (bonificación) no se aceptan: ARCA las pide sin cantidad ni precio (error 1775). El código va hasta 50 caracteres y la descripción hasta 4000.
 
 ```bash
 arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 203 \
@@ -725,24 +725,32 @@ Antes de armar la nota, ARCLI consulta el asociado en ARCA (`FEXGetCMP`) y toma 
 arcli nce -m 500 --ar 1
 ```
 
+En bienes y otros (`--tipo-expo 1` o `4`) el asociado es opcional, por ejemplo para un descuento por volumen sobre varias facturas: sin `--ar` la nota no hereda nada y cliente, domicilio, país de destino y lo demás van por flag, como en `fe`. En servicios, ARCA lo exige (error 2047).
+
+```bash
+arcli nce -m 300 --tipo-expo 1 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 212 \
+  --incoterm FOB --actividad 620100 --descripcion "Descuento por volumen" --previsualizar
+```
+
 #### Comprobante asociado
 
-| Parámetro          | Alias                             | Tipo      | Requerido | Cuándo usarlo                                                                 |
-| ------------------ | --------------------------------- | --------- | --------- | ----------------------------------------------------------------------------- |
-| `--ar <numero>`    | ninguno                           | `integer` | Sí        | Número del comprobante que ajusta la nota                                     |
-| `--apv <numero>`   | `--asociado-punto-venta <numero>` | `integer` | No        | Punto de venta del asociado; por defecto, el de la nota                       |
-| `--ac <atajo>`     | ninguno                           | `string`  | No        | `fe` (por defecto), `nde` o `nce`, para ajustar otra nota `E`                 |
-| `--at <numero>`    | ninguno                           | `integer` | No        | Lo mismo por tipo ARCA: `19`, `20` o `21`                                     |
-| `--acuit <numero>` | ninguno                           | `string`  | No        | No hace falta: el asociado de una `E` siempre es del CUIT emisor (error 2031) |
+| Parámetro          | Alias                             | Tipo      | Requerido   | Cuándo usarlo                                                                                                                         |
+| ------------------ | --------------------------------- | --------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `--ar <numero>`    | ninguno                           | `integer` | Condicional | Número del comprobante que ajusta la nota. Obligatorio en servicios (error 2047); en bienes y otros (`--tipo-expo 1` o `4`), opcional |
+| `--apv <numero>`   | `--asociado-punto-venta <numero>` | `integer` | No          | Punto de venta del asociado; por defecto, el de la nota                                                                               |
+| `--ac <atajo>`     | ninguno                           | `string`  | No          | `fe` (por defecto), `nde` o `nce`, para ajustar otra nota `E`                                                                         |
+| `--at <numero>`    | ninguno                           | `integer` | No          | Lo mismo por tipo ARCA: `19`, `20` o `21`                                                                                             |
+| `--acuit <numero>` | ninguno                           | `string`  | No          | No hace falta: el asociado de una `E` siempre es del CUIT emisor (error 2031)                                                         |
 
 `--afecha` no se usa: la fecha del asociado sale de ARCA.
 
 #### Qué valida antes de emitir
 
+- en servicios, que haya asociado (`--ar`, error 2047);
 - que el asociado exista en ARCA y esté aprobado;
 - que la nota no sea anterior al asociado;
 - que una nota de crédito no supere el total del asociado, si van en la misma moneda;
-- en servicios (`--tipo-expo 2`), lo que ARCA compara contra el asociado: mismo tipo de exportación (2049), mismo país de destino (2050), misma moneda o pesos (2051) y la misma cotización (2053). Además, una nota de débito solo ajusta una factura (2041, 2042) y una nota de crédito, una factura o una nota de débito (2045).
+- si la nota es de servicios (`--tipo-expo 2`), lo que ARCA compara contra el asociado: mismo tipo de exportación (2049), mismo país de destino (2050), misma moneda o pesos (2051) y la misma cotización (2053). Además, una nota de débito solo ajusta una factura (2041, 2042) y una nota de crédito, una factura o una nota de débito (2045).
 
 #### Qué no aplica
 

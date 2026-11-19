@@ -21,7 +21,7 @@ Cuando le vendés servicios o bienes a un cliente del exterior. Va por el servic
 ### Requisitos
 
 - certificado autorizado a `wsfex` (ver [certificados](obtencion-certificados.md))
-- la actividad de la tabla de WSFEX, por flag o en `exportacion.actividad`
+- opcional: la actividad de la tabla de WSFEX, por flag o en `exportacion.actividad`
 
 ### Comando
 
@@ -50,7 +50,7 @@ Para ajustar una factura de exportación ya emitida: un descuento o una devoluci
 
 ### Requisitos
 
-- el número de la factura E (y su punto de venta, si es otro que el de la nota)
+- el número de la factura E (y su punto de venta, si es otro que el de la nota). En bienes y otros (`--tipo-expo 1` o `4`) es opcional: sin `--ar`, cliente, domicilio y destino van por flag
 
 ### Comando
 

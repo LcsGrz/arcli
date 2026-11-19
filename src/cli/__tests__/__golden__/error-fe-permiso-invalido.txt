@@ -1,4 +1,4 @@
-$ arcli fe --cliente ACME LLC --domicilio-cliente 123 Main St --pais-destino 212 -m 1500 --item 001|Servicios de consultoría|1|1500|unidad --tipo-expo 1 --permiso-existente --permiso 26001EC01000123A --emitir --json
+$ arcli fe --cliente ACME LLC --domicilio-cliente 123 Main St --pais-destino 212 -m 1500 --item 001|Servicios de consultoría|1|1500|unidad --tipo-expo 1 --incoterm FOB --permiso-existente --permiso 26001EC01000123A --emitir --json
 exit: 1
 --- stdout ---
 

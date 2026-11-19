@@ -10,6 +10,7 @@ import { roundToCents } from '../../lib/numbers/argentine-amount';
 import { resolveBillingCurrencyCode } from '../billing/billing.mappers';
 import type { ArcliConfig } from '../config/config.schemas';
 
+import { exportTextLengthError, MAX_EXPORT_ITEM_DESCRIPTION_LENGTH } from './export.items';
 import {
   DEFAULT_EXPORT_CURRENCY_CODE,
   DEFAULT_EXPORT_LANGUAGE,
@@ -31,7 +32,7 @@ import {
   type ExportVoucherKind,
   type ExportVoucherPayload,
   isExportNote,
-  MAX_EXPORT_VOUCHER_NUMBER,
+  MAX_EXPORT_POINT_OF_SALE,
 } from './export.types';
 
 /** Codigo de pais de Argentina en la tabla DST_pais: no es un destino de exportacion. */
@@ -49,7 +50,8 @@ const LOCAL_EXCHANGE_RATE = 1;
 type ExportConfig = Pick<ArcliConfig, 'puntoVentaPorDefecto'>;
 
 export interface BuildExportResolution {
-  readonly activity: number;
+  /** Sin actividad no va el bloque `Actividades` (no es obligatorio; vacio es el error 2100). */
+  readonly activity?: number;
   /** Solo en las notas: va en `Cmps_asoc`. */
   readonly associatedVoucher?: ExportAssociatedVoucherPayload;
   /** Sin CUIT del pais la E va solo con el ID impositivo (error 1580). */
@@ -81,6 +83,47 @@ function requireText(value: string | undefined, description: string, flag: strin
 /** La fecha del comprobante, en formato ARCA: por defecto hoy en Argentina. */
 export function resolveExportVoucherDate(value: string | undefined, now = new Date()): string {
   return value?.trim() ? parseArgentineDateInputAsArcaDate(value) : formatDateAsArcaDate(now);
+}
+
+/** Cuantos dias antes y despues de la fecha de envio acepta ARCA la fecha de la E (1500, WSFEX v3.1.0). */
+export const EXPORT_DATE_WINDOW_DAYS = 5;
+
+/** Ultimo dia del mes de una fecha ARCA (yyyymmdd). */
+function lastDayOfMonth(arcaDate: string): string {
+  const year = Number(arcaDate.slice(0, 4));
+  const month = Number(arcaDate.slice(4, 6));
+  const day = new Date(Date.UTC(year, month, 0)).getUTCDate();
+
+  return `${arcaDate.slice(0, 6)}${String(day).padStart(2, '0')}`;
+}
+
+/**
+ * ARCA 1500 (WSFEX v3.1.0): la fecha de la factura y de las notas E va de hoy - 5 a hoy + 5 (N = fecha de envio) y,
+ * en servicios, no puede pasar del mes en curso. Testing lo confirma: +1 aprobada, +6 y -6 rechazadas con el periodo
+ * en el mensaje. Una fecha futura vale (por ejemplo, la del embarque del lunes), pero traba el punto de venta: ver
+ * `exportFutureDateWarning`.
+ */
+export function assertExportVoucherDate(options: {
+  readonly exportType: ExportType;
+  readonly today: string;
+  readonly voucherDate: string;
+}): void {
+  const { exportType, today, voucherDate } = options;
+  const from = addDaysToArcaDate(today, -EXPORT_DATE_WINDOW_DAYS);
+  const windowEnd = addDaysToArcaDate(today, EXPORT_DATE_WINDOW_DAYS);
+  const monthEnd = lastDayOfMonth(today);
+  const capsAtMonthEnd = exportType === SERVICES_EXPORT_TYPE && monthEnd < windowEnd;
+  const to = capsAtMonthEnd ? monthEnd : windowEnd;
+
+  if (voucherDate >= from && voucherDate <= to) {
+    return;
+  }
+
+  const range = `del ${formatArcaDateAsArgentineDate(from)} al ${formatArcaDateAsArgentineDate(to)}`;
+
+  throw new InputValidationError(
+    `La fecha del comprobante (${formatArcaDateAsArgentineDate(voucherDate)}) está fuera de lo que acepta ARCA: ${range}, hasta ${EXPORT_DATE_WINDOW_DAYS} días antes o después de hoy${capsAtMonthEnd ? ' y, en servicios, no después del fin de mes' : ''} (error 1500).`,
+  );
 }
 
 /**
@@ -149,6 +192,8 @@ export interface ExportQuotationDate {
  * en la misma moneda (`CanMisMonExt` en `S`), lo mismo, por el historial 3.0.0 del manual. Se consulta el dia
  * anterior y WSFEX devuelve la ultima publicada hasta ese dia, que en un lunes o despues de un feriado es la del
  * ultimo dia habil. Las notas heredan la cotizacion del asociado (2053) y bienes y otros siguen con la del dia.
+ * Con fecha futura (1500 la acepta hasta 5 dias) no hay cotizacion de ese dia: se toma la de hoy o, en servicios y con
+ * `--misma-moneda`, la del dia habil anterior a hoy, como pide el manual (2053 e historial 3.0.0).
  */
 export function resolveExportQuotationDate(options: {
   readonly exportType: ExportType;
@@ -158,12 +203,13 @@ export function resolveExportQuotationDate(options: {
   readonly voucherDate: string;
 }): ExportQuotationDate {
   const { exportType, isNote, sameCurrency, today, voucherDate } = options;
+  const reference = minArcaDate(voucherDate, today);
 
   if (isNote || (exportType !== SERVICES_EXPORT_TYPE && !sameCurrency)) {
-    return { date: voucherDate, rule: 'voucher-date' };
+    return { date: reference, rule: 'voucher-date' };
   }
 
-  return { date: addDaysToArcaDate(minArcaDate(voucherDate, today), -1), rule: 'previous-business-day' };
+  return { date: addDaysToArcaDate(reference, -1), rule: 'previous-business-day' };
 }
 
 /**
@@ -194,9 +240,10 @@ export function resolveExportQuotation(
 }
 
 /**
- * WSFEX exige una `Actividad` (error 2100, WSFEX v3.1.0) y solo acepta los codigos de su propia tabla, que no es la del padron y
- * es mas chica (error 2105 al emitir). Cada emisor tiene la suya, asi que no hay default: sale de `--actividad` o de
- * `exportacion.actividad`. Los nombres de la tabla llegan con la codificacion rota, por eso los mensajes solo dan codigos.
+ * La actividad es opcional (`Actividades` no es obligatorio en WSFEX v3.1.0; la 2100 solo prohibe el bloque vacio),
+ * pero si se informa, ARCA solo acepta los codigos de su propia tabla, que no es la del padron y es mas chica (error
+ * 2105 al emitir). Sale de `--actividad` o de `exportacion.actividad`: no hay default. Los nombres de la tabla llegan
+ * con la codificacion rota, por eso los mensajes solo dan codigos.
  */
 export function resolveExportActivity(value: number, activities: readonly ExportActivity[] = []): number {
   if (!Number.isInteger(value) || value < 1) {
@@ -371,6 +418,71 @@ export function assertExportClientIdentification(options: {
   }
 }
 
+/** Los textos de la E con su largo maximo en WSFEX v3.1.0: el codigo de control, si el manual lo da, y el flag. */
+export const EXPORT_TEXT_LIMITS = {
+  clientAddress: { code: 1661, flag: '--domicilio-cliente', label: 'El domicilio del cliente', max: 300 },
+  clientName: { code: 1651, flag: '--cliente', label: 'El nombre del cliente', max: 200 },
+  // Tabla de campos: `ID_impositivo` String (C50), sin codigo de control.
+  clientTaxId: { code: undefined, flag: '--id-impositivo', label: 'El ID impositivo del cliente', max: 50 },
+  commercialObservations: {
+    code: 1665,
+    flag: '--obs-comerciales',
+    label: 'Las observaciones comerciales',
+    max: 4000,
+  },
+  // Sin `--item`, la descripcion es el `Pro_ds` del unico renglon.
+  description: { code: 1770, flag: '--descripcion', label: 'La descripción', max: MAX_EXPORT_ITEM_DESCRIPTION_LENGTH },
+  incotermDescription: { code: 1642, flag: '--incoterms-desc', label: 'La descripción del incoterm', max: 20 },
+  observations: { code: 1665, flag: '--observaciones', label: 'Las observaciones', max: 1000 },
+  // Tabla de campos: `Forma_pago` String (C50), sin codigo de control.
+  paymentTerms: { code: undefined, flag: '--forma-pago', label: 'La forma de pago', max: 50 },
+} as const;
+
+export type ExportTextField = keyof typeof EXPORT_TEXT_LIMITS;
+
+/** El error de largo de un texto de la E, para el CLI y el asistente; `undefined` si entra. */
+export function exportTextFieldError(field: ExportTextField, value: string | undefined): string | undefined {
+  const limit = EXPORT_TEXT_LIMITS[field];
+
+  return exportTextLengthError({ code: limit.code, label: limit.label, max: limit.max, value });
+}
+
+/** Los largos maximos de los textos de la E (1642, 1651, 1661, 1665, 1770 y la tabla de campos), antes de ir a ARCA. */
+export function assertExportTextLengths(input: ExportVoucherInput): void {
+  for (const field of Object.keys(EXPORT_TEXT_LIMITS) as ExportTextField[]) {
+    const error = exportTextFieldError(field, input[field]);
+
+    if (error) {
+      throw new InputValidationError(`${error} Acortá \`${EXPORT_TEXT_LIMITS[field].flag}\`.`);
+    }
+  }
+}
+
+/**
+ * El incoterm de la E (WSFEX v3.1.0): obligatorio en la factura de bienes (1640) y la descripcion solo con incoterm
+ * (1641). En las notas el incoterm puede venir del asociado.
+ */
+export function assertExportIncoterm(options: {
+  readonly exportType: ExportType;
+  readonly incoterm?: string;
+  readonly incotermDescription?: string;
+  readonly isNote: boolean;
+}): void {
+  const hasIncoterm = Boolean(options.incoterm?.trim());
+
+  if (!options.isNote && options.exportType === 1 && !hasIncoterm) {
+    throw new InputValidationError(
+      'La factura E de bienes (`--tipo-expo 1`) lleva incoterm: ARCA lo exige (error 1640). Usá `--incoterm`, por ejemplo `FOB`.',
+    );
+  }
+
+  if (options.incotermDescription?.trim() && !hasIncoterm) {
+    throw new InputValidationError(
+      '`--incoterms-desc` va con un incoterm: ARCA rechaza la descripción sola (error 1641). Sumá `--incoterm` o sacá `--incoterms-desc`.',
+    );
+  }
+}
+
 /** `--incoterm` se compara contra la tabla de ARCA, sin importar mayusculas. */
 export function resolveExportIncoterm(
   value: string | undefined,
@@ -393,6 +505,15 @@ export function resolveExportIncoterm(
   return incoterm;
 }
 
+/** 1510 (WSFEX v3.1.0): el punto de venta de la E va de 1 a 99.998. */
+export function assertExportPointOfSaleRange(pointOfSale: number, label: string): void {
+  if (pointOfSale > MAX_EXPORT_POINT_OF_SALE) {
+    throw new InputValidationError(
+      `${label} de la E va de 1 a ${MAX_EXPORT_POINT_OF_SALE}: ARCA rechaza ${pointOfSale} (error 1510).`,
+    );
+  }
+}
+
 export function resolveExportPointOfSale(value: number | undefined, config: ExportConfig): number {
   const pointOfSale = value ?? config.puntoVentaPorDefecto;
 
@@ -406,30 +527,36 @@ export function resolveExportPointOfSale(value: number | undefined, config: Expo
     throw new InputValidationError('El punto de venta tiene que ser un número entero positivo.');
   }
 
+  assertExportPointOfSaleRange(pointOfSale, 'El punto de venta');
+
   return pointOfSale;
 }
 
-/** Numero del comprobante o de la solicitud: el indicado por el usuario o el que sigue al ultimo de ARCA. */
+/**
+ * Numero del comprobante o de la solicitud: el indicado por el usuario o el que sigue al ultimo de ARCA, hasta `max`
+ * (el comprobante, 99.999.999 por la 1520; la solicitud, 15 digitos).
+ */
 export function resolveExportNumber(options: {
+  /** El control de ARCA que fija el tope, si el manual lo da. */
+  readonly code?: number;
   readonly label: string;
   readonly last: number;
+  readonly max: number;
   readonly provided?: number;
 }): number {
-  if (options.provided !== undefined) {
-    if (!Number.isInteger(options.provided) || options.provided < 1) {
-      throw new InputValidationError(`${options.label} tiene que ser un número entero positivo.`);
-    }
+  const value = options.provided ?? (Number.isFinite(options.last) ? options.last : 0) + 1;
 
-    return options.provided;
+  if (options.provided !== undefined && (!Number.isInteger(options.provided) || options.provided < 1)) {
+    throw new InputValidationError(`${options.label} tiene que ser un número entero positivo.`);
   }
 
-  const next = (Number.isFinite(options.last) ? options.last : 0) + 1;
-
-  if (next > MAX_EXPORT_VOUCHER_NUMBER) {
-    throw new InputValidationError(`${options.label} supera el máximo de ARCA (${MAX_EXPORT_VOUCHER_NUMBER}).`);
+  if (value > options.max) {
+    throw new InputValidationError(
+      `${options.label} supera el máximo de ARCA (${options.max})${options.code === undefined ? '' : ` y ARCA lo rechaza (error ${options.code})`}.`,
+    );
   }
 
-  return next;
+  return value;
 }
 
 /** En los tipos 2 (servicios) y 4 (otros) ARCA exige `Permiso_existente` vacio, no `N` (error 1550, WSFEX v3.1.0). */
@@ -485,7 +612,7 @@ export function exportTypeTakesPaymentDate(exportType: ExportType, isNote: boole
  * Arma el `Cmp` de `FEXAuthorize` con los datos ya resueltos contra las tablas de ARCA.
  *
  * Los bloques vacios no van: `Permisos` sin permisos (error 1720), `Cmps_asoc` y `Opcionales` sin filas (error 1820
- * el primero). `Actividades`, en cambio, siempre lleva una `Actividad` (error 2100). Las notas llevan `Cmps_asoc` y
+ * el primero), y `Actividades` sin actividad (error 2100). Las notas llevan `Cmps_asoc` y
  * `Permiso_existente` vacio (1550), y no llevan `Fecha_pago` (1673) ni `CanMisMonExt` (1605). La factura de bienes
  * tampoco lleva `Fecha_pago` (1673): solo va en servicios y otros. La factura en pesos no lleva `CanMisMonExt` (1605).
  */
@@ -499,8 +626,9 @@ export function buildExportPayload(input: ExportVoucherInput, resolution: BuildE
 
   const isNote = isExportNote(resolution.voucherKind);
 
-  if (isNote && !resolution.associatedVoucher) {
-    throw new InputValidationError('Falta el comprobante asociado de la nota. Usá `--ar`.');
+  // 2047 (WSFEX v3.1.0): el asociado solo es obligatorio en las notas de servicios.
+  if (isNote && !resolution.associatedVoucher && resolution.exportType === SERVICES_EXPORT_TYPE) {
+    throw new InputValidationError('Falta el comprobante asociado de la nota de servicios (error 2047). Usá `--ar`.');
   }
 
   const permits = resolvePermits(input, resolution.destinationCountry.code, resolution.exportType, isNote);
@@ -509,8 +637,8 @@ export function buildExportPayload(input: ExportVoucherInput, resolution: BuildE
     isNote || requiresEmptyPermitsExisting(resolution.exportType) ? '' : input.permitsExisting ? 'S' : 'N';
 
   return {
-    // Actividades va siempre con una: con el bloque vacio ARCA contesta 2100.
-    Actividades: { Actividad: [{ Id: resolution.activity }] },
+    // Sin actividad el bloque no va: vacio, ARCA contesta 2100.
+    ...(resolution.activity === undefined ? {} : { Actividades: { Actividad: [{ Id: resolution.activity }] } }),
     ...(isNote || !resolution.currency.CanMisMonExt ? {} : { CanMisMonExt: resolution.currency.CanMisMonExt }),
     Cbte_nro: resolution.voucherNumber,
     Cbte_Tipo: resolution.voucherKind.arcaType,

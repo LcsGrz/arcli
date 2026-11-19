@@ -106,34 +106,39 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
   --actividad 620100 --item "001|Servicios de consultoría|1|1500|unidad" --previsualizar --json
 ```
 
-- Requeridos: `-m, --monto <n>`, `--cliente <texto>`, `--domicilio-cliente <texto>`,
-  `--pais-destino <codigo|nombre>` (código de ARCA o nombre, ej. `203` o `Brasil`) y la actividad: `--actividad <codigo>` o la clave
-  `exportacion.actividad`. No hay default: tiene que ser un código de la tabla de actividades de WSFEX,
+- Requeridos: `-m, --monto <n>`, `--cliente <texto>`, `--domicilio-cliente <texto>` y
+  `--pais-destino <codigo|nombre>` (código de ARCA o nombre, ej. `203` o `Brasil`). La actividad es opcional:
+  `--actividad <codigo>` o la clave `exportacion.actividad`; sin ninguna, la `E` va sin `Actividades` (ARCA no la
+  exige). No hay default: si se informa, tiene que ser un código de la tabla de actividades de WSFEX,
   que no es la del padrón (ej. `620100`; `620900` no está). Si no está en la tabla es
   `INPUT_VALIDATION_ERROR` con las que empiezan igual.
 - `--item <partes>` (repetible): `codigo|descripcion|cantidad|precio|unidad`; con 4 partes se omite
   el código y con 3 la unidad (por defecto `unidad`, código `7`). La suma de los ítems tiene que dar
-  `--monto`: se valida antes de ir a ARCA. Sin `--item` va un renglón con `--descripcion`.
+  `--monto`: se valida antes de ir a ARCA. Sin `--item` va un renglón con `--descripcion`. Las unidades 0, 97 y
+  99 (seña, anticipo, bonificación) son error: ARCA las pide sin cantidad ni precio (1775).
 - Opcionales: `--id-impositivo <texto>`, `--cuit-pais <n>` (sin flag sale del país de destino; si ARCA no
   publica un CUIT para ese país, la `E` va solo con `--id-impositivo`, que entonces es obligatorio: ARCA pide uno de
   los dos, error 1580),
   `--tipo-expo <1|2|4>` (`2` servicios por defecto, `1` bienes, `4` otros).
-- `--incoterm <codigo>`,
-  `--incoterms-desc <texto>`, `--idioma <codigo>` (`1` español por defecto, `2` inglés, `3` portugués),
+- `--incoterm <codigo>` (obligatorio en la factura de bienes, 1640),
+  `--incoterms-desc <texto>` (solo con `--incoterm`, 1641; hasta 20 caracteres, 1642), `--idioma <codigo>` (`1` español por defecto, `2` inglés, `3` portugués),
   `--forma-pago <texto>` (por defecto `Transferencia Internacional`), `--permiso <id>` (repetible, solo con
   `--tipo-expo 1`; en la factura requiere `--permiso-existente`), `--permiso-existente`,
-  `--id-solicitud <n>` (sin flag, el siguiente de WSFEX), `--punto-venta <n>` (`--pv`), `-f, --fecha <fecha>`, `--fecha-pago <fecha>` (solo servicios y otros; en bienes no se manda, con un aviso),
+  `--id-solicitud <n>` (sin flag, el siguiente de WSFEX; hasta 15 dígitos), `--punto-venta <n>` (`--pv`; hasta 99998, 1510), `--numero <n>` (hasta 99999999, 1520), `-f, --fecha <fecha>`, `--fecha-pago <fecha>` (solo servicios y otros, no anterior a la del comprobante, 1674; en bienes no se manda, con un aviso),
   `--moneda <codigo>` (`--mda`; por defecto `DOL`), `--cotizacion-moneda <n>` (`--cm`; sin flag, la de
   aduana que publica ARCA: en servicios y con `--misma-moneda`, la del día hábil anterior a la fecha del comprobante,
-  como exige ARCA (2053); la clave `cotizacion` de la config no aplica), `--misma-moneda`
+  como exige ARCA (2053); ahí `--cm` tiene que ser esa misma o es `INPUT_VALIDATION_ERROR` (2053, 1604); la clave
+  `cotizacion` de la config no aplica), `--misma-moneda`
   (manda `CanMisMonExt` en `S`: el pago se cancela en la misma moneda extranjera),
-  `--observaciones <texto>`, `--obs-comerciales <texto>`, `--descripcion <texto>`, `--cargar <path>`,
+  `--observaciones <texto>`, `--obs-comerciales <texto>`, `--descripcion <texto>`, `--cargar <path>`
+  (largos máximos de ARCA: `--cliente` 200, `--domicilio-cliente` 300, `--observaciones` 1000,
+  `--obs-comerciales` y `--descripcion` 4000, `--forma-pago` e `--id-impositivo` 50),
   `--exportar-pdf` (`--pdf`), `--sin-pdf`, `--previsualizar`, `--emitir`, `--json`, `--bruto`.
 - Cada `--permiso` se consulta en ARCA (`FEXCheck_Permiso`, con el destino) antes de la vista previa: si
   ARCA contesta `NO`, `INPUT_VALIDATION_ERROR` con `detalles.permisos` y no se emite; si la consulta
   falla, sigue con un aviso en `avisos`. El resultado va en `exportacion.verificacionPermisos`
   (`[{permiso, estado: valido|sin-verificar}]`). En testing ARCA contesta `OK` a cualquier permiso.
-- La fecha del comprobante no puede ser futura. WSFEX numera por punto de venta y tipo: sin `--numero <n>`, ARCLI usa el siguiente al último de ARCA (también en la vista previa).
+- La fecha del comprobante (factura y notas E) va de 5 días antes a 5 días después de hoy y, en servicios, no después del fin de mes (ARCA 1500). Una fecha futura obliga a que las siguientes de ese punto de venta y tipo tengan esa fecha o una posterior (1535): sale un aviso en `avisos`. WSFEX numera por punto de venta y tipo: sin `--numero <n>`, ARCLI usa el siguiente al último de ARCA (también en la vista previa).
 - `fe` es estricto: un flag de A/B/C es opción desconocida. `factura <letra>` acepta en A/B/C los flags de la E, y en
   la E los de A/B/C, y los saltea con un aviso en `avisos` (`factura a --incoterm`, `factura e --alicuota`).
   Las reglas de cada letra siguen valiendo: `factura c --alicuota` es error, como `fc --alicuota`.
@@ -155,7 +160,7 @@ moneda, cotización, idioma, incoterm, forma de pago y actividad salen del asoci
 arcli nce -m 500 --ar 1 --apv 4 --previsualizar --json
 ```
 
-- Asociado: `--ar <n>` (requerido), `--apv <n>` (`--asociado-punto-venta`; por defecto el de la nota),
+- Asociado: `--ar <n>` (requerido en servicios, error 2047; opcional con `--tipo-expo 1` o `4`, y entonces cliente, domicilio, destino y lo demás van por flag), `--apv <n>` (`--asociado-punto-venta`; por defecto el de la nota),
   `--ac <fe|nde|nce>` (por defecto `fe`) o `--at <19|20|21>`. `--acuit` solo puede ser el CUIT emisor;
   `--afecha` no se usa. En `--cargar`: `comprobanteAsociado` `{numero, puntoVenta, atajo|tipo}`.
 - No llevan `--fecha-pago`, `--misma-moneda` ni `--permiso-existente` (en `nce`/`nde` son opción

@@ -53,16 +53,6 @@ El CUIT del país sale solo de la tabla de ARCA.
 
 Ej.: `--pais-destino Brasil`
 
-### Actividad
-
-Mejor guardarla en la config (`exportacion.actividad`).
-
-| Largo | Corto | Qué es |
-| --- | --- | --- |
-| `--actividad <código>` |  | Código de la tabla de actividades de WSFEX |
-
-Ej.: `--actividad 620100`
-
 ## Opcional
 
 Más datos del comprobante, o cambiar lo que viene de la config.
@@ -78,6 +68,16 @@ Más datos del comprobante, o cambiar lo que viene de la config.
 | `--tipo-expo 4` |  | Otros |
 
 Ej.: `--tipo-expo 1`
+
+### Actividad
+
+Sin actividad, la E va sin ella. Si la usás, mejor guardarla en la config (`exportacion.actividad`).
+
+| Largo | Corto | Qué es |
+| --- | --- | --- |
+| `--actividad <código>` |  | Código de la tabla de actividades de WSFEX |
+
+Ej.: `--actividad 620100`
 
 ### Ítems
 
@@ -103,8 +103,8 @@ Ej.: `--id-impositivo 12-3456789`
 
 | Largo | Corto | Qué es |
 | --- | --- | --- |
-| `--incoterm <código>` |  | En bienes, por ejemplo FOB |
-| `--incoterms-desc <texto>` |  | Descripción del incoterm |
+| `--incoterm <código>` |  | Obligatorio en bienes, por ejemplo FOB |
+| `--incoterms-desc <texto>` |  | Descripción del incoterm, hasta 20 caracteres |
 | `--idioma <1\|2\|3>` |  | Español (por defecto), inglés o portugués |
 | `--forma-pago <texto>` |  | Por defecto, "Transferencia Internacional" |
 | `--observaciones <texto>` |  | Observaciones |

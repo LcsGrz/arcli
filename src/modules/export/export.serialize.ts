@@ -32,7 +32,8 @@ function formatExportBlock(result: ExportExecutionResult): Record<string, unknow
   const associated = payload.Cmps_asoc?.Cmp_asoc[0];
 
   return {
-    actividad: payload.Actividades.Actividad.map((activity) => activity.Id),
+    // Vacio si la E va sin actividad.
+    actividad: payload.Actividades?.Actividad.map((activity) => activity.Id) ?? [],
     cliente: payload.Cliente,
     // Solo en las notas; en la factura, null.
     comprobanteAsociado: associated

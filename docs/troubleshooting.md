@@ -425,11 +425,19 @@ También se reconocen por el mensaje, sin código: receptor igual al emisor, `Tr
 - **Solución:** sacá `--numero`: ARCLI consulta el último en ARCA (`FEXGetLast_CMP`) y usa el siguiente. Para ver los últimos, `arcli ultimos fe` (o `nde`, `nce`). Un rechazo no emite nada.
 - **Documentación relacionada:** [Referencia del CLI](cli-reference.md#factura-de-exportación-e-wsfex)
 
-### Factura E: falta la actividad o no está en la tabla de WSFEX
+### Factura E: la fecha está fuera de rango o es anterior a la de la última
 
-- **Severidad:** frecuente, la primera vez que se emite una `E`
-- **Síntoma:** `Falta la actividad de exportación.` o `La actividad 620900 no está en la tabla de actividades de WSFEX y ARCA la rechaza (error 2105).`
-- **Causa:** la `E` informa siempre una actividad (ARCA rechaza `Actividades` vacío con el error 2100) y solo acepta los códigos de su propia tabla (`FEXGetPARAM_Actividades`), que **no es la del padrón y es más chica**: por ejemplo, `620900` (servicios de informática N.C.P.) no está; para informática están `620100` (consultores en informática y suministros de programas) y `620300` (consultores en tecnología de la información).
+- **Severidad:** ocasional, con `--fecha`
+- **Síntoma:** `La fecha del comprobante (...) está fuera de lo que acepta ARCA: del ... al ... (error 1500).`, o ARCA rechaza con el error 1535 una `E` con fecha anterior a la de la última del mismo punto de venta y tipo.
+- **Causa:** la `E` y sus notas aceptan de 5 días antes a 5 días después de hoy y, en servicios, no después del fin de mes (error 1500). Además, ARCA controla la secuencia con la fecha: después de una `E` con fecha futura, las siguientes de ese punto de venta y tipo tienen que llevar esa fecha o una posterior (error 1535). La vista previa lo avisa.
+- **Solución:** usá una fecha dentro de la ventana; si ya emitiste una con fecha futura, emití las siguientes con esa fecha o una posterior, o esperá a ese día.
+- **Documentación relacionada:** [Reglas de validación](validation-rules.md#factura-de-exportación-e)
+
+### Factura E: la actividad no está en la tabla de WSFEX
+
+- **Severidad:** frecuente, la primera vez que se emite una `E` con actividad
+- **Síntoma:** `La actividad 620900 no está en la tabla de actividades de WSFEX y ARCA la rechaza (error 2105).`
+- **Causa:** la actividad es opcional (sin `--actividad` ni `exportacion.actividad`, la `E` va sin ella), pero si la informás, ARCA solo acepta los códigos de su propia tabla (`FEXGetPARAM_Actividades`), que **no es la del padrón y es más chica**: por ejemplo, `620900` (servicios de informática N.C.P.) no está; para informática están `620100` (consultores en informática y suministros de programas) y `620300` (consultores en tecnología de la información).
 - **Solución:** elegí la que corresponda a tu actividad declarada (el error lista las que empiezan igual) y guardala con `arcli config establecer exportacion.actividad <codigo>`, o pasala con `--actividad`.
 - **Documentación relacionada:** [Reglas de validación](validation-rules.md#factura-de-exportación-e), [Configuración](configuration.md)
 
@@ -463,7 +471,7 @@ También se reconocen por el mensaje, sin código: receptor igual al emisor, `Tr
 - **Severidad:** frecuente, en servicios (`--tipo-expo 2`, el default) y con `--misma-moneda`
 - **Síntoma:** la vista previa trae la cotización del día anterior a la fecha del comprobante, o un aviso `En servicios ARCA exige la cotización de DOL del día hábil anterior…` con la del último día hábil. Con una versión anterior a la 2.5.2, ARCA rechazaba la `E` de servicios con el error 2053 ("Cotizacion informada no valida. (FechaCot utilizada: …)").
 - **Causa:** en servicios ARCA exige la cotización del día hábil anterior a la fecha de emisión (error 2053), y con `--misma-moneda` también.
-- **Solución:** no hace falta hacer nada: ARCLI ya pide esa. Con `--cotizacion-moneda` en servicios, tiene que ser exactamente esa cotización, o ARCA rechaza con 2053.
+- **Solución:** no hace falta hacer nada: ARCLI ya pide esa. Con `--cotizacion-moneda` en servicios (o con `--misma-moneda`), tiene que ser exactamente esa cotización: si no coincide, ARCLI frena antes con `INPUT_VALIDATION_ERROR` y la que corresponde. Sacá `--cotizacion-moneda`.
 - **Documentación relacionada:** [Reglas de validación](validation-rules.md#factura-de-exportación-e)
 
 ## Batch

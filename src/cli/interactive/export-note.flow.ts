@@ -23,7 +23,7 @@ import { noticePanel, writeTerminalOutput } from '../../ui';
 import { withSpinner } from '../spinner';
 
 import { askPermitsStep, emitExportVoucher } from './export.flow';
-import { askExportOptions, type ExportOptions } from './export-options';
+import { askExportOptions, type ExportOptions, validateExportText } from './export-options';
 import { askTextStep } from './prompts';
 import { type InteractiveSession, requirePointOfSale } from './session';
 import { validateAmount, validatePositiveInteger } from './validators';
@@ -180,7 +180,9 @@ export function exportNoteSteps(
     {
       name: 'descripcion',
       run: async () => {
-        const answer = await askTextStep('Detalle de la nota (Enter para "Según detalle"):');
+        const answer = await askTextStep('Detalle de la nota (Enter para "Según detalle"):', {
+          validate: validateExportText('description'),
+        });
 
         return answer === BACK ? BACK : { description: answer.trim() || undefined };
       },

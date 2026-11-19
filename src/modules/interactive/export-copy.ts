@@ -2,6 +2,7 @@ import { sumExportItems } from '../export/export.items';
 import {
   DEFAULT_EXPORT_LANGUAGE,
   DEFAULT_EXPORT_UNIT_CODE,
+  EXPORT_TOTAL_ONLY_UNIT_CODES,
   type ExportIssuedItem,
   type ExportIssuedVoucher,
   type ExportVoucherInput,
@@ -61,6 +62,14 @@ function copyItems(
     return {
       limitation:
         'La factura tiene ítems con bonificación, que el asistente no informa: sale un renglón con el monto total.',
+    };
+  }
+
+  // 1775: las unidades 0, 97 y 99 van sin cantidad ni precio, y ARCLI todavia no las acepta.
+  if (items.some((item) => EXPORT_TOTAL_ONLY_UNIT_CODES.includes(item.unit))) {
+    return {
+      limitation:
+        'La factura tiene ítems de seña, anticipo o bonificación (unidades 97 y 99), que el asistente no informa: sale un renglón con el monto total.',
     };
   }
 
