@@ -162,9 +162,12 @@ describe.skipIf(Boolean(process.env.CI))('Reglas copiadas de ARCA contra testing
     };
   }
 
-  async function sendWsfex(request: Request): Promise<ArcaOutcome> {
+  /** Con `keepNumber` va el `Cbte_nro` de la solicitud (para probar su tope) en lugar del siguiente de ARCA. */
+  async function sendWsfex(request: Request, options: { readonly keepNumber?: boolean } = {}): Promise<ArcaOutcome> {
     const payload = request as unknown as ExportVoucherPayload & Request;
-    const number = (await exportGateway.getLastVoucherNumber(Number(payload.Cbte_Tipo), Number(payload.Punto_vta))) + 1;
+    const number = options.keepNumber
+      ? Number(payload.Cbte_nro)
+      : (await exportGateway.getLastVoucherNumber(Number(payload.Cbte_Tipo), Number(payload.Punto_vta))) + 1;
     const id = (await exportGateway.getLastRequestId()) + 1;
     const response = mapExportResponse(await exportGateway.authorize({ ...payload, Cbte_nro: number, Id: id }));
     const approved = response.resultado === 'A' && response.errors.length === 0;
@@ -729,48 +732,100 @@ describe.skipIf(Boolean(process.env.CI))('Reglas copiadas de ARCA contra testing
   describe.skipIf(!EXPORT_POINT_OF_SALE)('WSFEX v3.1.0: factura y notas E (ARCLI_ARCA_PV_E)', () => {
     const pv = EXPORT_POINT_OF_SALE ?? '';
     const client = ['--cliente', 'ACME LLC', '--domicilio-cliente', '123 Main St', '--actividad', '620100', '--pv', pv];
-    const services = ['fe', '-m', '100', '--pais-destino', '212', ...client];
-    const goods = ['fe', '-m', '100', '--pais-destino', '212', '--tipo-expo', '1', '--incoterm', 'FOB', ...client];
+    const servicesArgs = ['fe', '-m', '100', '--pais-destino', '212', ...client];
+    const goodsArgs = ['fe', '-m', '100', '--pais-destino', '212', '--tipo-expo', '1', '--incoterm', 'FOB', ...client];
 
-    const invoices = new Map<number, { fecha: string; numero: number }>();
+    let nextInvoiceDate: string | undefined;
 
-    /** La última factura E de ese tipo de exportación a otro país, para asociar las notas. Una por corrida. */
-    function lastInvoice(exportType: 1 | 2): { fecha: string; numero: number } {
-      const cached = invoices.get(exportType);
+    /**
+     * La fecha de la próxima factura E del punto de venta: hoy, o la de la última si es futura. Después de una E con
+     * fecha futura ARCA rechaza las anteriores con 1535, que taparía el código de cada caso.
+     */
+    function invoiceDate(): string {
+      nextInvoiceDate ??= [today, lastVoucher('fe', '--pv', pv).fecha].sort().at(-1) as string;
+
+      return nextInvoiceDate;
+    }
+
+    /** `args` con `flag` en `value`: reemplaza el valor si el flag ya está, si no lo agrega. */
+    function withFlag(args: readonly string[], flag: string, value: string): string[] {
+      const index = args.indexOf(flag);
+
+      return index === -1 ? [...args, flag, value] : [...args.slice(0, index + 1), value, ...args.slice(index + 2)];
+    }
+
+    const services = (): string[] => withFlag(servicesArgs, '--fecha', flagDate(invoiceDate()));
+    const goods = (): string[] => withFlag(goodsArgs, '--fecha', flagDate(invoiceDate()));
+
+    function firstItem(request: Request): Record<string, unknown> {
+      return (request.Items as { Item: Array<Record<string, unknown>> }).Item[0] as Record<string, unknown>;
+    }
+
+    interface LastVoucher {
+      readonly fecha: string;
+      readonly numero: number;
+    }
+
+    const lastByType = new Map<string, LastVoucher>();
+
+    /** El último comprobante E (`fe`, `nce`, `nde`) de ese tipo de exportación a otro país, para asociar las notas. */
+    function lastOfType(shortcut: 'fe' | 'nce' | 'nde', exportType: 1 | 2): LastVoucher {
+      const key = `${shortcut}-${exportType}`;
+      const cached = lastByType.get(key);
 
       if (cached) {
         return cached;
       }
 
-      const { json } = arcli('ultimos', 'fe', '--pv', pv, '--cantidad', '20');
+      const { json } = arcli('ultimos', shortcut, '--pv', pv, '--cantidad', '20');
       const vouchers = (json.comprobantes ?? []) as Array<{
         destino?: { codigo?: number };
         fecha: string;
         numero: number;
         tipoExpo: number;
       }>;
-      const invoice = vouchers.find((voucher) => voucher.tipoExpo === exportType && voucher.destino?.codigo !== 200);
+      const voucher = vouchers.find((entry) => entry.tipoExpo === exportType && entry.destino?.codigo !== 200);
 
-      if (!invoice) {
-        throw new Error(`No hay facturas E de tipo ${exportType} en testing para asociar: emití una antes.`);
+      if (!voucher) {
+        throw new Error(`No hay ${shortcut} de tipo ${exportType} en testing para asociar: emití uno antes.`);
       }
 
-      invoices.set(exportType, invoice);
+      lastByType.set(key, voucher);
 
-      return invoice;
+      return voucher;
     }
 
-    const lastServicesInvoice = (): { fecha: string; numero: number } => lastInvoice(2);
+    const lastInvoice = (exportType: 1 | 2): LastVoucher => lastOfType('fe', exportType);
+    const lastServicesInvoice = (): LastVoucher => lastInvoice(2);
 
-    const note = (shortcut: 'nce' | 'nde'): string[] => [
-      shortcut,
-      '-m',
-      '1',
-      '--ar',
-      String(lastServicesInvoice().numero),
-      '--pv',
-      pv,
-    ];
+    const latest = (...dates: string[]): string => [...dates].sort().at(-1) as string;
+
+    /** La fecha de una nota: no anterior a la del asociado ni a la de la última nota de ese tipo (2052 y 1535). */
+    function noteDate(shortcut: 'nce' | 'nde', associatedDate: string): string {
+      return latest(today, associatedDate, lastVoucher(shortcut, '--pv', pv).fecha);
+    }
+
+    /** Una nota sobre `associated` (por defecto, la última factura E de servicios), con su `--fecha`. */
+    function noteOn(
+      shortcut: 'nce' | 'nde',
+      associatedVoucher: LastVoucher = lastServicesInvoice(),
+      ...extra: string[]
+    ): string[] {
+      return [
+        shortcut,
+        '-m',
+        '1',
+        '--ar',
+        String(associatedVoucher.numero),
+        '--pv',
+        pv,
+        ...extra,
+        '--fecha',
+        flagDate(noteDate(shortcut, associatedVoucher.fecha)),
+      ];
+    }
+
+    const note = (shortcut: 'nce' | 'nde'): string[] => noteOn(shortcut);
 
     function associated(request: Request): Record<string, unknown> {
       return (request.Cmps_asoc as { Cmp_asoc: Array<Record<string, unknown>> }).Cmp_asoc[0] as Record<string, unknown>;
@@ -780,6 +835,8 @@ describe.skipIf(Boolean(process.env.CI))('Reglas copiadas de ARCA contra testing
       readonly base: () => readonly string[];
       readonly blockedBy?: () => readonly string[];
       readonly codes: readonly number[];
+      /** Manda el `Cbte_nro` de la solicitud, no el siguiente de ARCA. */
+      readonly keepNumber?: boolean;
       readonly mutate: (request: Request) => void;
       readonly rule: string;
     }
@@ -787,39 +844,40 @@ describe.skipIf(Boolean(process.env.CI))('Reglas copiadas de ARCA contra testing
     const cases: readonly WsfexCase[] = [
       {
         // ARCLI no corta: saca la fecha de pago de la factura de bienes y lo avisa.
-        base: () => goods,
+        base: goods,
         codes: [1673],
         mutate: (request) => (request.Fecha_pago = today),
         rule: 'factura de bienes con fecha de pago',
       },
       {
-        base: () => services,
+        base: services,
         codes: [1550],
         mutate: (request) => (request.Permiso_existente = 'N'),
         rule: 'factura de servicios con Permiso_existente N',
       },
       {
-        base: () => goods,
-        blockedBy: () => [...goods, '--permiso', '26001EC01000012X'],
+        base: goods,
+        blockedBy: () => [...goods(), '--permiso', '26001EC01000012X'],
         codes: [1720],
         mutate: (request) => (request.Permisos = { Permiso: [{ Dst_merc: 212, Id_permiso: '26001EC01000012X' }] }),
         rule: 'permisos con Permiso_existente N',
       },
       {
-        base: () => services,
+        base: services,
+        // Sin el bloque, ARCA aprueba (REGLAS-11): lo que rechaza es el bloque vacío.
         codes: [2100],
         mutate: (request) => (request.Actividades = {}),
-        rule: 'sin actividad',
+        rule: 'bloque Actividades vacío',
       },
       {
-        base: () => services,
-        blockedBy: () => services.map((arg) => (arg === '620100' ? '999999' : arg)),
+        base: services,
+        blockedBy: () => withFlag(services(), '--actividad', '999999'),
         codes: [2105],
         mutate: (request) => (request.Actividades = { Actividad: [{ Id: 999_999 }] }),
         rule: 'actividad fuera de la tabla de WSFEX',
       },
       {
-        base: () => services,
+        base: services,
         codes: [1820, 1755],
         mutate: (request) => (request.Cmps_asoc = {}),
         rule: 'factura con Cmps_asoc vacío',
@@ -847,67 +905,37 @@ describe.skipIf(Boolean(process.env.CI))('Reglas copiadas de ARCA contra testing
       },
       {
         base: () => note('nce'),
-        blockedBy: () => [
-          'nce',
-          '-m',
-          '1',
-          '--ac',
-          'nce',
-          '--ar',
-          String(lastVoucher('nce', '--pv', pv).numero),
-          '--pv',
-          pv,
-        ],
+        blockedBy: () => noteOn('nce', lastOfType('nce', 2), '--ac', 'nce'),
         codes: [2045],
         mutate: (request) => {
           associated(request).Cbte_tipo = 21;
-          associated(request).Cbte_nro = lastVoucher('nce', '--pv', pv).numero;
+          associated(request).Cbte_nro = lastOfType('nce', 2).numero;
         },
         rule: 'NC de servicios sobre otra NC',
       },
       {
         base: () => note('nde'),
-        blockedBy: () => [
-          'nde',
-          '-m',
-          '1',
-          '--ac',
-          'nde',
-          '--ar',
-          String(lastVoucher('nde', '--pv', pv).numero),
-          '--pv',
-          pv,
-        ],
+        blockedBy: () => noteOn('nde', lastOfType('nde', 2), '--ac', 'nde'),
         codes: [2041],
         mutate: (request) => {
           associated(request).Cbte_tipo = 20;
-          associated(request).Cbte_nro = lastVoucher('nde', '--pv', pv).numero;
+          associated(request).Cbte_nro = lastOfType('nde', 2).numero;
         },
         rule: 'ND de servicios sobre otra ND',
       },
       {
         base: () => note('nde'),
-        blockedBy: () => [
-          'nde',
-          '-m',
-          '1',
-          '--ac',
-          'nce',
-          '--ar',
-          String(lastVoucher('nce', '--pv', pv).numero),
-          '--pv',
-          pv,
-        ],
+        blockedBy: () => noteOn('nde', lastOfType('nce', 2), '--ac', 'nce'),
         codes: [2042],
         mutate: (request) => {
           associated(request).Cbte_tipo = 21;
-          associated(request).Cbte_nro = lastVoucher('nce', '--pv', pv).numero;
+          associated(request).Cbte_nro = lastOfType('nce', 2).numero;
         },
         rule: 'ND de servicios sobre una NC',
       },
       {
-        base: () => ['nce', '-m', '1', '--ar', String(lastInvoice(1).numero), '--pv', pv],
-        blockedBy: () => ['nce', '-m', '1', '--ar', String(lastInvoice(1).numero), '--pv', pv, '--tipo-expo', '2'],
+        base: () => noteOn('nce', lastInvoice(1)),
+        blockedBy: () => noteOn('nce', lastInvoice(1), '--tipo-expo', '2'),
         codes: [2049],
         mutate: (request) => {
           request.Tipo_expo = 2;
@@ -940,11 +968,134 @@ describe.skipIf(Boolean(process.env.CI))('Reglas copiadas de ARCA contra testing
       },
       {
         base: () => note('nce'),
-        blockedBy: () => [...note('nce'), '--fecha', flagDate(shift(lastServicesInvoice().fecha, -1))],
+        blockedBy: () => withFlag(note('nce'), '--fecha', flagDate(shift(lastServicesInvoice().fecha, -1))),
         // El caso aislado necesita un asociado posterior a la última nota; si no, ARCA corta antes con 1535.
         codes: [2052, 1535],
         mutate: (request) => (request.Fecha_cbte = shift(lastServicesInvoice().fecha, -1)),
         rule: 'nota de servicios anterior al asociado',
+      },
+      {
+        base: () => note('nce'),
+        blockedBy: () => ['nce', '-m', '1', '--pv', pv],
+        codes: [2047],
+        mutate: (request) => delete request.Cmps_asoc,
+        rule: 'nota de servicios sin asociado',
+      },
+      {
+        base: services,
+        blockedBy: () => withFlag(servicesArgs, '--fecha', flagDate(shift(today, -6))),
+        codes: [1500],
+        mutate: (request) => {
+          request.Fecha_cbte = shift(today, -6);
+          request.Fecha_pago = shift(today, -6);
+        },
+        rule: 'fecha de más de 5 días atrás',
+      },
+      {
+        base: services,
+        blockedBy: () => withFlag(servicesArgs, '--fecha', flagDate(shift(today, 6))),
+        codes: [1500],
+        mutate: (request) => {
+          request.Fecha_cbte = shift(today, 6);
+          request.Fecha_pago = shift(today, 6);
+        },
+        rule: 'fecha de más de 5 días adelante',
+      },
+      {
+        base: goods,
+        blockedBy: () => withFlag(goods(), '--incoterm', ''),
+        codes: [1640],
+        mutate: (request) => {
+          request.Incoterms = '';
+          request.Incoterms_Ds = '';
+        },
+        rule: 'factura de bienes sin incoterm',
+      },
+      {
+        base: services,
+        blockedBy: () => [...services(), '--incoterms-desc', 'Puerto'],
+        codes: [1641],
+        mutate: (request) => (request.Incoterms_Ds = 'Puerto'),
+        rule: 'descripción del incoterm sin incoterm',
+      },
+      {
+        base: goods,
+        blockedBy: () => [...goods(), '--incoterms-desc', 'x'.repeat(21)],
+        codes: [1642],
+        mutate: (request) => (request.Incoterms_Ds = 'x'.repeat(21)),
+        rule: 'descripción del incoterm de más de 20 caracteres',
+      },
+      {
+        base: services,
+        blockedBy: () => [...services(), '--fecha-pago', flagDate(shift(invoiceDate(), -1))],
+        codes: [1674],
+        mutate: (request) => (request.Fecha_pago = shift(String(request.Fecha_cbte), -1)),
+        rule: 'fecha de pago anterior a la del comprobante',
+      },
+      {
+        base: services,
+        blockedBy: () => [...services(), '--cotizacion-moneda', '2'],
+        codes: [2053],
+        mutate: (request) => (request.Moneda_ctz = Number(request.Moneda_ctz) + 1),
+        rule: 'factura de servicios con otra cotización',
+      },
+      {
+        base: () => [...goods(), '--misma-moneda'],
+        blockedBy: () => [...goods(), '--misma-moneda', '--cotizacion-moneda', '2'],
+        codes: [1604],
+        mutate: (request) => (request.Moneda_ctz = Number(request.Moneda_ctz) + 2),
+        rule: 'pago en la misma moneda con otra cotización',
+      },
+      {
+        base: services,
+        blockedBy: () => [...services(), '--item', 'Descuento|1|100|99'],
+        codes: [1775],
+        mutate: (request) => (firstItem(request).Pro_umed = 99),
+        rule: 'ítem con unidad 99 y cantidad y precio',
+      },
+      {
+        base: services,
+        blockedBy: () => withFlag(services(), '--pv', '99999'),
+        codes: [1510],
+        keepNumber: true,
+        mutate: (request) => (request.Punto_vta = 99_999),
+        rule: 'punto de venta mayor a 99998',
+      },
+      {
+        base: services,
+        blockedBy: () => [...services(), '--numero', '100000000'],
+        codes: [1520],
+        keepNumber: true,
+        mutate: (request) => (request.Cbte_nro = 100_000_000),
+        rule: 'número mayor a 99999999',
+      },
+      {
+        base: services,
+        blockedBy: () => withFlag(services(), '--cliente', 'A'.repeat(201)),
+        codes: [1651],
+        mutate: (request) => (request.Cliente = 'A'.repeat(201)),
+        rule: 'cliente de más de 200 caracteres',
+      },
+      {
+        base: services,
+        blockedBy: () => withFlag(services(), '--domicilio-cliente', 'A'.repeat(301)),
+        codes: [1661],
+        mutate: (request) => (request.Domicilio_cliente = 'A'.repeat(301)),
+        rule: 'domicilio de más de 300 caracteres',
+      },
+      {
+        base: services,
+        blockedBy: () => [...services(), '--observaciones', 'A'.repeat(1001)],
+        codes: [1665],
+        mutate: (request) => (request.Obs = 'A'.repeat(1001)),
+        rule: 'observaciones de más de 1000 caracteres',
+      },
+      {
+        base: services,
+        blockedBy: () => [...services(), '--descripcion', 'A'.repeat(4001)],
+        codes: [1770],
+        mutate: (request) => (firstItem(request).Pro_ds = 'A'.repeat(4001)),
+        rule: 'descripción de ítem de más de 4000 caracteres',
       },
     ];
 
@@ -959,7 +1110,7 @@ describe.skipIf(Boolean(process.env.CI))('Reglas copiadas de ARCA contra testing
         const request = previewRequest(testCase.base());
 
         testCase.mutate(request);
-        expectRejected(await sendWsfex(request), testCase.codes, testCase.rule);
+        expectRejected(await sendWsfex(request, { keepNumber: testCase.keepNumber }), testCase.codes, testCase.rule);
       });
     }
   });

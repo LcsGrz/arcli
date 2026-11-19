@@ -40,8 +40,9 @@ export function exportTextLengthError(options: {
 }
 
 /**
- * Codigo y descripcion de cada item, antes de ir a ARCA: el codigo hasta 50 caracteres (1760) y la descripcion hasta
- * 4000 (1770, WSFEX v3.1.0).
+ * Codigo y descripcion de cada item, antes de ir a ARCA: la descripcion hasta 4000 caracteres (1770, WSFEX v3.1.0).
+ * El codigo hasta 50 es propio: el manual lo pone como control (1760), pero ARCA testing aprobo uno de 51 (19-4-22 y
+ * 19-4-23 del 19/11/2026). Se deja como en el manual porque produccion puede aplicarlo.
  */
 export function assertExportItemTexts(inputs: readonly ExportItemInput[] | undefined): void {
   for (const item of inputs ?? []) {

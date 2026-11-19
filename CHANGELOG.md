@@ -40,7 +40,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
   - `--cotizacion-moneda` en la factura de servicios o con `--misma-moneda` distinta de la que exige ARCA, la de aduana del día hábil anterior (2053 y 1604): ARCLI la compara con la de ARCA y el error dice cuál corresponde. Si coincide, sigue. En el modo interactivo la cotización a mano ya no se ofrece en esos casos;
   - ítems con las unidades 0, 97 (seña o anticipo) o 99 (bonificación), que ARCA pide sin cantidad ni precio (1775). En el modo interactivo no aparecen en la lista de unidades, y Repetir no copia los ítems de una factura que las tenga;
   - punto de venta (`--pv`, `--apv`) mayor a 99.998 (1510), y `--numero` mayor a 99.999.999 (1520) también cuando lo pasás a mano. `--id-solicitud`, en cambio, ahora acepta hasta 15 dígitos, como el campo de ARCA (antes, 99.999.999);
-  - textos más largos que los de ARCA: `--cliente` 200 caracteres (1651), `--domicilio-cliente` 300 (1661), `--observaciones` 1000 y `--obs-comerciales` 4000 (1665), `--descripcion` y la descripción de un ítem 4000 (1770), el código de un ítem 50 (1760), y `--forma-pago` e `--id-impositivo` 50.
+  - textos más largos que los de ARCA: `--cliente` 200 caracteres (1651), `--domicilio-cliente` 300 (1661), `--observaciones` 1000 y `--obs-comerciales` 4000 (1665), `--descripcion` y la descripción de un ítem 4000 (1770), el código de un ítem 50 (1760; ARCA testing no lo aplica, producción puede), y `--forma-pago` e `--id-impositivo` 50.
 
   No cambia ninguna clave del `--json`.
 
