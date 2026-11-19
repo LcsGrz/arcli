@@ -8,14 +8,13 @@ import { addDaysToArcaDate, formatDateAsArcaDate, maxArcaDate } from '../../../l
 import { ArcaBillingGateway } from '../../../services/arca/arca-billing.gateway';
 import { ArcaClientFactory } from '../../../services/arca/arca-client.factory';
 import { ArcaContextResolver } from '../../../services/arca/arca-context.resolver';
-import type { Arca } from '../../../services/arca/arca-sdk.types';
 
 import { assertArcaTestingReady } from './arca-guard';
 
 /**
  * Flujos completos contra ARCA testing (TEST-11): emiten de verdad con el `arcli` compilado y después leen de ARCA lo
- * que quedó (`consultar`, `ultimos` y, para lo que `consultar` no muestra, `FECompConsultar` crudo) para comparar
- * importes, tipo, asociados, moneda y cotización con lo pedido. Cada corrida emite comprobantes nuevos y toma los números
+ * que quedó (`consultar` y `ultimos`) para comparar importes, tipo, asociados, período, vencimiento, moneda y
+ * cotización con lo pedido. Cada corrida emite comprobantes nuevos y toma los números
  * de lo que devuelve ARCA, así que se puede repetir.
  *
  * Solo testing y solo local: el test se niega en el CI y si la config o el contexto no dan `testing`, y cada llamada
@@ -69,14 +68,22 @@ interface Amounts {
 /** Lo que devuelve `consultar` de un comprobante de WSFE. */
 interface WsfeVoucher {
   readonly cae: string;
+  readonly comprobantesAsociados: Array<{ cuit: string | null; numero: number; puntoVenta: number; tipoArca: number }>;
+  readonly concepto: number;
   readonly cotizacion: number;
   readonly fecha: string;
   readonly importes: Amounts;
+  readonly mismaMoneda: boolean | null;
   readonly moneda: string;
   readonly numero: number;
   readonly numeroDocumento: number;
+  readonly opcionales: Array<{ id: string; valor: string }>;
   readonly resultado: string;
+  readonly servicioDesde: string | null;
+  readonly servicioHasta: string | null;
   readonly tipoArca: number;
+  readonly tipoDocumento: number;
+  readonly vencimientoPago: string | null;
 }
 
 /** Lo que devuelve `consultar` de una E. */
@@ -127,10 +134,6 @@ function previousMonth(arcaDate: string): { readonly from: string; readonly to: 
   return { from: format(first), to: format(last) };
 }
 
-function asArray<T>(value: T | T[] | undefined): T[] {
-  return Array.isArray(value) ? value : value === undefined || value === null ? [] : [value];
-}
-
 /** Aprobado (o observado, que tiene CAE) y con número: lo anota en `emitted`. */
 function expectIssued(result: CliResult, label: string): Json {
   expect(result.code, `${label}: ${JSON.stringify(result.json)}`).toBe(0);
@@ -158,7 +161,6 @@ afterAll(() => {
 
 describe.skipIf(Boolean(process.env.CI) || !POINT_OF_SALE)('Flujos de WSFE contra testing (ARCLI_ARCA_PV)', () => {
   const pv = POINT_OF_SALE ?? '';
-  let arca: Arca;
   let billing: ArcaBillingGateway;
   let issuerCuit: number;
 
@@ -169,8 +171,7 @@ describe.skipIf(Boolean(process.env.CI) || !POINT_OF_SALE)('Flujos de WSFE contr
       throw new Error('Los flujos contra ARCA corren solo en testing.');
     }
 
-    arca = new ArcaClientFactory().create(runtime);
-    billing = new ArcaBillingGateway(arca);
+    billing = new ArcaBillingGateway(new ArcaClientFactory().create(runtime));
     issuerCuit = Number(runtime.context.cuit);
   });
 
@@ -196,30 +197,20 @@ describe.skipIf(Boolean(process.env.CI) || !POINT_OF_SALE)('Flujos de WSFE contr
     return (json.comprobantes as Array<{ fecha: string; numero: number }>)[0];
   }
 
-  /**
-   * `FECompConsultar` crudo: `consultar` (y el SDK, en `getVoucherInfo`) no devuelve los comprobantes asociados, el
-   * período de servicio, el vencimiento ni `CanMisMonExt`.
-   */
-  async function rawVoucher(shortcut: keyof typeof ARCA_TYPE, number: unknown): Promise<Json> {
-    const response = (await arca.genericService.call('wsfe', 'FECompConsultar', {
-      FeCompConsReq: { CbteNro: Number(number), CbteTipo: ARCA_TYPE[shortcut], PtoVta: Number(pv) },
-    })) as { FECompConsultarResult?: { ResultGet?: Json } };
-    const voucher = response.FECompConsultarResult?.ResultGet;
-
-    if (!voucher) {
-      throw new Error(`FECompConsultar no devolvió ${shortcut} ${String(number)}: ${JSON.stringify(response)}`);
-    }
-
-    return voucher;
+  /** Los asociados que `consultar` devuelve, sin la fecha ni el atajo, para comparar con lo emitido. */
+  function associatedOf(
+    stored: WsfeVoucher,
+  ): Array<{ cuit: string | null; numero: number; puntoVenta: number; tipoArca: number }> {
+    return stored.comprobantesAsociados.map(({ cuit, numero, puntoVenta, tipoArca }) => ({
+      cuit,
+      numero,
+      puntoVenta,
+      tipoArca,
+    }));
   }
 
-  function associatedOf(raw: Json): Array<{ Cuit: number; Nro: number; PtoVta: number; Tipo: number }> {
-    return asArray((raw.CbtesAsoc as { CbteAsoc?: Json | Json[] } | undefined)?.CbteAsoc).map((entry) => ({
-      Cuit: Number(entry.Cuit),
-      Nro: Number(entry.Nro),
-      PtoVta: Number(entry.PtoVta),
-      Tipo: Number(entry.Tipo),
-    }));
+  function associatedTo(numero: unknown, tipoArca: number) {
+    return [{ cuit: String(issuerCuit), numero: Number(numero), puntoVenta: Number(pv), tipoArca }];
   }
 
   /** Lo que `consultar` devuelve tiene que ser lo que se emitió: CAE, tipo, importes, moneda y cotización. */
@@ -273,11 +264,13 @@ describe.skipIf(Boolean(process.env.CI) || !POINT_OF_SALE)('Flujos de WSFE contr
 
     expect(request).toMatchObject({ CanMisMonExt: 'S', CbteFch: date, MonCotiz: expectedRate, MonId: 'DOL' });
     expect(expectedRate).toBeGreaterThan(1);
-    expectStored(consult(shortcut, issued.numero), issued, {});
-    expect(await rawVoucher(shortcut, issued.numero)).toMatchObject({ CanMisMonExt: 'S', MonId: 'DOL' });
+    const stored = consult(shortcut, issued.numero);
+
+    expectStored(stored, issued, {});
+    expect(stored).toMatchObject({ mismaMoneda: true, moneda: 'DOL' });
   });
 
-  it('factura A, NC A parcial y ND A sobre la misma factura', async () => {
+  it('factura A, NC A parcial y ND A sobre la misma factura', () => {
     const invoice = emit('fa', '-m', '1210', '--cs', '--cuit', RECEIVER_CUIT, '--ir-ri');
 
     expectStored(consult('fa', invoice.numero), invoice, { iva: 210, neto: 1000, total: 1210 });
@@ -286,16 +279,16 @@ describe.skipIf(Boolean(process.env.CI) || !POINT_OF_SALE)('Flujos de WSFE contr
     const credit = emit('nca', '-m', '121', '--cs', '--cuit', RECEIVER_CUIT, '--ir-ri', ...association);
     const debit = emit('nda', '-m', '242', '--cs', '--cuit', RECEIVER_CUIT, '--ir-ri', ...association);
 
-    expectStored(consult('nca', credit.numero), credit, { iva: 21, neto: 100, total: 121 });
-    expectStored(consult('nda', debit.numero), debit, { iva: 42, neto: 200, total: 242 });
+    const storedCredit = consult('nca', credit.numero);
+    const storedDebit = consult('nda', debit.numero);
 
-    const expected = [{ Cuit: issuerCuit, Nro: invoice.numero, PtoVta: Number(pv), Tipo: ARCA_TYPE.fa }];
-
-    expect(associatedOf(await rawVoucher('nca', credit.numero))).toEqual(expected);
-    expect(associatedOf(await rawVoucher('nda', debit.numero))).toEqual(expected);
+    expectStored(storedCredit, credit, { iva: 21, neto: 100, total: 121 });
+    expectStored(storedDebit, debit, { iva: 42, neto: 200, total: 242 });
+    expect(associatedOf(storedCredit)).toEqual(associatedTo(invoice.numero, ARCA_TYPE.fa));
+    expect(associatedOf(storedDebit)).toEqual(associatedTo(invoice.numero, ARCA_TYPE.fa));
   });
 
-  it('NC B por el total de la factura B', async () => {
+  it('NC B por el total de la factura B', () => {
     const invoice = emit('fb', '-m', '1000', '--cs', '--cfinal');
     const stored = consult('fb', invoice.numero);
 
@@ -316,10 +309,10 @@ describe.skipIf(Boolean(process.env.CI) || !POINT_OF_SALE)('Flujos de WSFE contr
     );
 
     // La NC total repite los importes de la factura: mismo neto e IVA, no solo el total.
-    expectStored(consult('ncb', credit.numero), credit, stored.importes);
-    expect(associatedOf(await rawVoucher('ncb', credit.numero))).toEqual([
-      { Cuit: issuerCuit, Nro: invoice.numero, PtoVta: Number(pv), Tipo: ARCA_TYPE.fb },
-    ]);
+    const storedCredit = consult('ncb', credit.numero);
+
+    expectStored(storedCredit, credit, stored.importes);
+    expect(associatedOf(storedCredit)).toEqual(associatedTo(invoice.numero, ARCA_TYPE.fb));
 
     // Y ARCLI corta una segunda NC que pasa el total.
     const over = arcli(
@@ -343,29 +336,27 @@ describe.skipIf(Boolean(process.env.CI) || !POINT_OF_SALE)('Flujos de WSFE contr
     expect(over.json.codigo).toBe('INPUT_VALIDATION_ERROR');
   });
 
-  it('FCE A con su NC y su ND', async () => {
+  it('FCE A con su NC y su ND', () => {
     const invoice = emit('fcea', '-m', '5000000', '--cp', '--cuit', FCE_RECEIVER_CUIT, '--ir-ri', '--cbu', CBU);
 
-    expectStored(consult('fcea', invoice.numero), invoice, { total: 5_000_000 });
-    expect(await rawVoucher('fcea', invoice.numero)).toMatchObject({
-      Opcionales: { Opcional: expect.arrayContaining([expect.objectContaining({ Id: '2101', Valor: CBU })]) },
-    });
+    const storedInvoice = consult('fcea', invoice.numero);
+
+    expectStored(storedInvoice, invoice, { total: 5_000_000 });
+    expect(storedInvoice.opcionales).toContainEqual({ id: '2101', valor: CBU });
 
     const note = ['-m', '100', '--cp', '--cuit', FCE_RECEIVER_CUIT, '--ir-ri', '--ac', 'fcea'];
     const association = ['--ar', String(invoice.numero), '--apv', pv];
     const credit = emit('ncea', ...note, ...association);
     const debit = emit('ndea', ...note, ...association);
 
-    expectStored(consult('ncea', credit.numero), credit, { total: 100 });
-    expectStored(consult('ndea', debit.numero), debit, { total: 100 });
-
-    for (const [shortcut, number] of [
-      ['ncea', credit.numero],
-      ['ndea', debit.numero],
+    for (const [shortcut, note] of [
+      ['ncea', credit],
+      ['ndea', debit],
     ] as const) {
-      expect(associatedOf(await rawVoucher(shortcut, number)), shortcut).toEqual([
-        { Cuit: issuerCuit, Nro: invoice.numero, PtoVta: Number(pv), Tipo: ARCA_TYPE.fcea },
-      ]);
+      const stored = consult(shortcut, note.numero);
+
+      expectStored(stored, note, { total: 100 });
+      expect(associatedOf(stored), shortcut).toEqual(associatedTo(invoice.numero, ARCA_TYPE.fcea));
     }
   });
 
@@ -384,7 +375,7 @@ describe.skipIf(Boolean(process.env.CI) || !POINT_OF_SALE)('Flujos de WSFE contr
     ]);
   });
 
-  it('--cargar: un JSON de ejemplo y un lote', async () => {
+  it('--cargar: un JSON de ejemplo y un lote', () => {
     const folder = mkdtempSync(join(tmpdir(), 'arcli-arca-'));
 
     try {
@@ -414,11 +405,10 @@ describe.skipIf(Boolean(process.env.CI) || !POINT_OF_SALE)('Flujos de WSFE contr
 
       const issued = expectIssued(arcli('fc', '--cargar', single), 'fc --cargar');
 
-      expectStored(consult('fc', issued.numero), issued, { total: 1000 });
-      expect(await rawVoucher('fc', issued.numero)).toMatchObject({
-        DocTipo: 99,
-        FchVtoPago: addDaysToArcaDate(today, 10),
-      });
+      const stored = consult('fc', issued.numero);
+
+      expectStored(stored, issued, { total: 1000 });
+      expect(stored).toMatchObject({ tipoDocumento: 99, vencimientoPago: addDaysToArcaDate(today, 10) });
 
       const batch = join(folder, 'lote.json');
       const base = { concepto: 'servicios', emitir: true, ivaReceptor: 'consumidor-final', puntoVenta: Number(pv) };
@@ -454,7 +444,7 @@ describe.skipIf(Boolean(process.env.CI) || !POINT_OF_SALE)('Flujos de WSFE contr
     }
   });
 
-  it('fechas relativas: --sd mes-pasado --sh mes-pasado --vto +10', async () => {
+  it('fechas relativas: --sd mes-pasado --sh mes-pasado --vto +10', () => {
     const issued = emit(
       'fc',
       '-m',
@@ -475,12 +465,14 @@ describe.skipIf(Boolean(process.env.CI) || !POINT_OF_SALE)('Flujos de WSFE contr
       FchServHasta: period.to,
       FchVtoPago: addDaysToArcaDate(today, 10),
     });
-    expectStored(consult('fc', issued.numero), issued, { total: 1 });
-    expect(await rawVoucher('fc', issued.numero)).toMatchObject({
-      Concepto: 2,
-      FchServDesde: period.from,
-      FchServHasta: period.to,
-      FchVtoPago: addDaysToArcaDate(today, 10),
+    const stored = consult('fc', issued.numero);
+
+    expectStored(stored, issued, { total: 1 });
+    expect(stored).toMatchObject({
+      concepto: 2,
+      servicioDesde: period.from,
+      servicioHasta: period.to,
+      vencimientoPago: addDaysToArcaDate(today, 10),
     });
   });
 

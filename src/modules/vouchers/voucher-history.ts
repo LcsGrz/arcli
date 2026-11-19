@@ -1,8 +1,42 @@
 import { BILLING_IVA_RATES, documentTypeFromCode, ivaRateFactor } from '../billing/arca-codes';
 import type { BillingDocumentType, BillingIvaRate } from '../billing/billing.schemas';
 
+/** Un comprobante asociado (`CbtesAsoc`): el que ajusta una nota. */
+export interface IssuedAssociatedVoucher {
+  readonly arcaType: number;
+  /** CUIT del emisor del asociado; ARCA lo devuelve como texto. */
+  readonly cuit?: string;
+  readonly date?: string;
+  readonly number: number;
+  readonly pointOfSale: number;
+}
+
+/** Una alicuota de IVA (`Iva.AlicIva`), con el codigo de ARCA (`5` es 21%). */
+export interface IssuedIvaAliquot {
+  readonly amount: number;
+  readonly base: number;
+  readonly id: number;
+}
+
+/** Un tributo (`Tributos.Tributo`). */
+export interface IssuedTax {
+  readonly amount: number;
+  readonly base: number;
+  readonly description?: string;
+  readonly id: number;
+  readonly rate: number;
+}
+
+/** Un dato opcional (`Opcionales.Opcional`): en FCE, CBU, alias, transferencia o anulacion. */
+export interface IssuedOptional {
+  readonly id: string;
+  readonly value: string;
+}
+
 /** Comprobante ya emitido, tal como lo devuelve ARCA (FECompConsultar). Fechas en formato yyyymmdd. */
 export interface IssuedVoucher {
+  readonly associatedPeriod?: { readonly from: string; readonly to: string };
+  readonly associatedVouchers?: readonly IssuedAssociatedVoucher[];
   readonly cae?: string;
   readonly caeExpiration?: string;
   readonly concept?: number;
@@ -12,10 +46,20 @@ export interface IssuedVoucher {
   readonly documentTypeCode: number;
   readonly exchangeRate?: number;
   readonly exemptAmount?: number;
+  readonly ivaAliquots?: readonly IssuedIvaAliquot[];
   readonly ivaAmount: number;
   readonly netAmount: number;
   readonly number: number;
+  readonly observations?: readonly string[];
+  readonly optionals?: readonly IssuedOptional[];
+  readonly paymentDueDate?: string;
+  readonly receiverIvaConditionCode?: number;
   readonly result?: string;
+  /** `CanMisMonExt`: `true` si se cobra en la misma moneda extranjera; `undefined` si ARCA no lo informa. */
+  readonly sameCurrency?: boolean;
+  readonly serviceFrom?: string;
+  readonly serviceTo?: string;
+  readonly taxes?: readonly IssuedTax[];
   readonly taxesAmount?: number;
   readonly total: number;
   readonly untaxedAmount?: number;

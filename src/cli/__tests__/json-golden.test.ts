@@ -41,6 +41,7 @@ const CLIENT_CUIT = 30709965812;
 
 /** El SDK falso: cada test cambia lo que devuelve con `mockResolvedValue` o `mockRejectedValue`. */
 const sdk = vi.hoisted(() => ({
+  generic: { call: vi.fn() },
   padron: { getTaxpayerDetails: vi.fn() },
   wsfe: {
     createVoucher: vi.fn(),
@@ -48,7 +49,6 @@ const sdk = vi.hoisted(() => ({
     getQuotation: vi.fn(),
     getSalesPoints: vi.fn(),
     getServerStatus: vi.fn(),
-    getVoucherInfo: vi.fn(),
     getVoucherTypes: vi.fn(),
   },
   wsfecred: { consultarMontoObligadoRecepcion: vi.fn() },
@@ -73,6 +73,7 @@ vi.mock('@arcasdk/core', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   Arca: class {
     public readonly electronicBillingService = sdk.wsfe;
+    public readonly genericService = sdk.generic;
     public readonly registerInscriptionProofService = sdk.padron;
     public readonly wsfecredService = sdk.wsfecred;
     public readonly wsfexService = sdk.wsfex;
@@ -148,22 +149,41 @@ function wsfeAnswer(
 /** `FECompConsultar` de la factura que ajusta una nota: la 3-12, del 10/11, aprobada. */
 function issuedVoucher(overrides: Record<string, unknown> = {}) {
   return {
-    cbteFch: '20261110',
-    codAutorizacion: '76000000000012',
-    concepto: 2,
-    docNro: 0,
-    docTipo: 99,
-    fchVto: '20261120',
-    impIVA: 0,
-    impNeto: 5000,
-    impOpEx: 0,
-    impTotConc: 0,
-    impTotal: 5000,
-    impTrib: 0,
-    monCotiz: 1,
-    monId: 'PES',
-    resultado: 'A',
+    CbteFch: '20261110',
+    CodAutorizacion: '76000000000012',
+    Concepto: 2,
+    DocNro: 0,
+    DocTipo: 99,
+    FchVto: '20261120',
+    ImpIVA: 0,
+    ImpNeto: 5000,
+    ImpOpEx: 0,
+    ImpTotConc: 0,
+    ImpTotal: 5000,
+    ImpTrib: 0,
+    MonCotiz: 1,
+    MonId: 'PES',
+    Resultado: 'A',
     ...overrides,
+  };
+}
+
+/** `FECompConsultar` por `genericService` (SDK-13): devuelve `resultGet`, o el 602 si es `null`. */
+function consulting(resultGet: Record<string, unknown> | null) {
+  return async (_service: string, method: string) => {
+    if (method !== 'FECompConsultar') {
+      throw new Error(`genericService.call(${method}) sin respuesta falsa`);
+    }
+
+    return {
+      FECompConsultarResult: resultGet
+        ? { ResultGet: resultGet }
+        : {
+            Errors: {
+              Err: [{ Code: 602, Msg: 'No existen datos en nuestros registros para los parametros ingresados.' }],
+            },
+          },
+    };
   };
 }
 
@@ -238,7 +258,7 @@ function resetSdk(): void {
   sdk.wsfe.getLastVoucher.mockResolvedValue({ cbteNro: 41 });
   sdk.wsfe.createVoucher.mockImplementation(wsfeAnswer('A'));
   sdk.wsfe.getQuotation.mockResolvedValue({ resultGet: { fchCotiz: '20261116', monCotiz: 1452.5, monId: 'DOL' } });
-  sdk.wsfe.getVoucherInfo.mockResolvedValue(issuedVoucher());
+  sdk.generic.call.mockImplementation(consulting(issuedVoucher()));
   sdk.wsfe.getServerStatus.mockResolvedValue({ appServer: 'OK', authServer: 'OK', dbServer: 'OK' });
   sdk.padron.getTaxpayerDetails.mockResolvedValue({
     datosGenerales: {
@@ -632,7 +652,9 @@ describe('FCE', () => {
   it('fcea aprobada', () => golden('fcea-aprobada', [...FCEA, '--emitir', '--json']));
 
   it('ncea aprobada con el asociado', () => {
-    sdk.wsfe.getVoucherInfo.mockResolvedValue(issuedVoucher({ docNro: CLIENT_CUIT, docTipo: 80, impTotal: 5000000 }));
+    sdk.generic.call.mockImplementation(
+      consulting(issuedVoucher({ DocNro: CLIENT_CUIT, DocTipo: 80, ImpTotal: 5000000 })),
+    );
 
     return golden('ncea-aprobada', [
       ...['ncea', '-m', '1000000', '--cs', '--cuit', String(CLIENT_CUIT), '--ir-ri'],
@@ -713,7 +735,7 @@ describe('errores de facturacion (stderr, exit 1)', () => {
     ]));
 
   it('INPUT_VALIDATION_ERROR: NC mayor que su factura', () => {
-    sdk.wsfe.getVoucherInfo.mockResolvedValue(issuedVoucher({ impTotal: 800 }));
+    sdk.generic.call.mockImplementation(consulting(issuedVoucher({ ImpTotal: 800 })));
 
     return golden('error-input-nc-mayor', [...NCC, '--previsualizar', '--json']);
   });
@@ -883,9 +905,41 @@ describe('factura E y sus notas', () => {
 
 describe('otros comandos que van a ARCA', () => {
   it('VOUCHER_NOT_FOUND', () => {
-    sdk.wsfe.getVoucherInfo.mockResolvedValue(null);
+    sdk.generic.call.mockImplementation(consulting(null));
 
     return golden('error-consultar-no-existe', ['consultar', 'fc', '99', '--json']);
+  });
+
+  it('consultar una NC A con asociado, período, vencimiento, misma moneda y opcionales (SDK-13)', () => {
+    sdk.generic.call.mockImplementation(
+      consulting(
+        issuedVoucher({
+          CanMisMonExt: 'S',
+          CbteFch: '20261115',
+          CbtesAsoc: { CbteAsoc: [{ CbteFch: '20261110', Cuit: String(CUIT), Nro: 12, PtoVta: 3, Tipo: 1 }] },
+          CondicionIVAReceptorId: 1,
+          DocNro: CLIENT_CUIT,
+          DocTipo: 80,
+          FchServDesde: '20261001',
+          FchServHasta: '20261031',
+          FchVtoPago: '20261125',
+          ImpIVA: 21,
+          ImpNeto: 100,
+          ImpTotal: 156,
+          ImpTrib: 35,
+          Iva: { AlicIva: [{ BaseImp: 100, Id: 5, Importe: 21 }] },
+          MonCotiz: 1452.5,
+          MonId: 'DOL',
+          Observaciones: {
+            Obs: [{ Code: 10217, Msg: 'El credito fiscal discriminado sera de uso exclusivo del receptor.' }],
+          },
+          Opcionales: { Opcional: [{ Id: '22', Valor: 'N' }] },
+          Tributos: { Tributo: [{ Alic: 35, BaseImp: 100, Desc: 'Percepción IIBB', Id: 2, Importe: 35 }] },
+        }),
+      ),
+    );
+
+    return golden('consultar-nca', ['consultar', 'nca', '13', '--json']);
   });
 
   it('ARCA_LAST_VOUCHER_ERROR en ultimos', () => {

@@ -567,7 +567,18 @@ Si no hubo emisión real, `respuesta` no se serializa como `null`. En su lugar:
       "numero": 12,
       "numeroDocumento": 0,
       "resultado": "A",
-      "tipoDocumento": 99
+      "tipoDocumento": 99,
+      "alicuotasIva": [{ "baseImponible": 1000.45, "id": 4, "importe": 105.05 }],
+      "comprobantesAsociados": [],
+      "condicionIvaReceptor": 5,
+      "mismaMoneda": null,
+      "observaciones": [],
+      "opcionales": [],
+      "periodoAsociado": null,
+      "servicioDesde": "20261001",
+      "servicioHasta": "20261031",
+      "tributos": [],
+      "vencimientoPago": "20261011"
     }
   ],
   "entorno": "testing",
@@ -575,16 +586,36 @@ Si no hubo emisión real, `respuesta` no se serializa como `null`. En su lugar:
 }
 ```
 
-`arcli consultar <tipo> <numero> --json` devuelve un solo comprobante, con los mismos campos al primer nivel (sin el array `comprobantes`).
+`arcli consultar <tipo> <numero> --json` devuelve un solo comprobante, con los mismos campos al primer nivel (sin el array `comprobantes`). En una nota, el asociado sale así:
 
-| Campo                     | Tipo             | Descripción                                                           |
-| ------------------------- | ---------------- | --------------------------------------------------------------------- |
-| `fecha`, `caeVencimiento` | `string`         | Formato ARCA `yyyymmdd`                                               |
-| `concepto`                | `number`         | `1` productos, `2` servicios, `3` productos y servicios               |
-| `tipoDocumento`           | `number`         | Código de ARCA: `80` CUIT, `86` CUIL, `96` DNI, `99` consumidor final |
-| `moneda`                  | `string`         | Código de ARCA (`PES`, `DOL`…)                                        |
-| `importes`                | `object`         | `total`, `neto`, `iva`, `exento`, `noGravado` y `tributos`            |
-| `resultado`               | `string \| null` | `A` aprobado, `R` rechazado                                           |
+```json
+{
+  "comprobantesAsociados": [
+    { "atajo": "fb", "cuit": "20111111112", "fecha": "20261001", "numero": 12, "puntoVenta": 3, "tipoArca": 6 }
+  ]
+}
+```
+
+| Campo                            | Tipo              | Descripción                                                                                                                                                         |
+| -------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `fecha`, `caeVencimiento`        | `string`          | Formato ARCA `yyyymmdd`                                                                                                                                             |
+| `concepto`                       | `number`          | `1` productos, `2` servicios, `3` productos y servicios                                                                                                             |
+| `tipoDocumento`                  | `number`          | Código de ARCA: `80` CUIT, `86` CUIL, `96` DNI, `99` consumidor final                                                                                               |
+| `moneda`                         | `string`          | Código de ARCA (`PES`, `DOL`…)                                                                                                                                      |
+| `importes`                       | `object`          | `total`, `neto`, `iva`, `exento`, `noGravado` y `tributos`                                                                                                          |
+| `resultado`                      | `string \| null`  | `A` aprobado, `R` rechazado                                                                                                                                         |
+| `comprobantesAsociados`          | `object[]`        | Los que ajusta una nota: `tipoArca`, `atajo` (`null` si no es de ARCLI), `puntoVenta`, `numero`, `cuit` y `fecha` (`null` si ARCA no los informa); `[]` si no tiene |
+| `periodoAsociado`                | `object \| null`  | `desde` y `hasta` (`yyyymmdd`) de una nota por período, en lugar de un comprobante                                                                                  |
+| `servicioDesde`, `servicioHasta` | `string \| null`  | Período de servicio (`yyyymmdd`), en servicios o productos y servicios                                                                                              |
+| `vencimientoPago`                | `string \| null`  | Vencimiento del pago (`yyyymmdd`)                                                                                                                                   |
+| `mismaMoneda`                    | `boolean \| null` | `true` si se cobra en la misma moneda extranjera (`CanMisMonExt`); `null` si ARCA no lo informa                                                                     |
+| `condicionIvaReceptor`           | `number \| null`  | Código de ARCA de la condición IVA del receptor (`1` responsable inscripto, `5` consumidor final…)                                                                  |
+| `alicuotasIva`                   | `object[]`        | Cada alícuota: `id` (código de ARCA, `5` es 21%), `baseImponible` e `importe`                                                                                       |
+| `tributos`                       | `object[]`        | Cada tributo: `id`, `descripcion`, `baseImponible`, `alicuota` e `importe`                                                                                          |
+| `opcionales`                     | `object[]`        | Datos opcionales con `id` y `valor`: en FCE, `2101` CBU, `2102` alias, `27` transferencia y `22` anulación (`S`/`N`)                                                |
+| `observaciones`                  | `string[]`        | Observaciones de ARCA al autorizarlo                                                                                                                                |
+
+De `comprobantesAsociados` en adelante, las listas salen `[]` y el resto `null` cuando ARCA no los informa. La `E` (`fe`, `nce`, `nde`) tiene su propio formato.
 
 ## Padrón (`padron`)
 

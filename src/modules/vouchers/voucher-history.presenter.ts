@@ -1,17 +1,22 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { formatCuit } from '../../lib/identity/format-cuit';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
-import { listingPanel, noticePanel, ticketPanel } from '../../ui/components';
+import { attentionPanel, listingPanel, noticePanel, ticketPanel } from '../../ui/components';
 import { renderKeyValueRows, resolveKeyValueLabelWidth, uiSymbol } from '../../ui/primitives';
-import { CONSUMER_DOCUMENT_TYPE_CODE, isTaxIdDocumentType } from '../billing/arca-codes';
+import { CONSUMER_DOCUMENT_TYPE_CODE, CONSUMER_IVA_CONDITION_CODE, isTaxIdDocumentType } from '../billing/arca-codes';
+import { resolveIvaRateLabel } from '../billing/billing.amounts';
 import {
   formatConceptLabel,
   formatCurrencyLabel,
+  formatFceOptionalRow,
+  formatIvaConditionLabel,
   formatMoneyLabel,
   formatNumericLabel,
+  formatTaxIdLabel,
 } from '../billing/billing.labels';
 import { formatLatestVouchersTitle, formatNoVouchersEmitted } from '../billing/billing.mappers';
 import type { VoucherKindDefinition } from '../billing/billing.types';
+import { getVoucherKindByArcaType } from '../billing/voucher-kind-map';
 import { formatEnvironmentLabel } from '../config/config.schemas';
 
 import type { IssuedVoucher } from './voucher-history';
@@ -180,6 +185,46 @@ function serializeVoucher(voucher: IssuedVoucher): Record<string, unknown> {
     numeroDocumento: voucher.documentNumber,
     resultado: voucher.result ?? null,
     tipoDocumento: voucher.documentTypeCode,
+    ...serializeVoucherDetail(voucher),
+  };
+}
+
+/**
+ * Lo que `getVoucherInfo` del SDK descartaba (SDK-13), con las claves de `--cargar` donde coinciden. Son campos
+ * nuevos: las listas salen vacias y el resto en `null` si ARCA no los informa.
+ */
+function serializeVoucherDetail(voucher: IssuedVoucher): Record<string, unknown> {
+  return {
+    alicuotasIva: (voucher.ivaAliquots ?? []).map((aliquot) => ({
+      baseImponible: aliquot.base,
+      id: aliquot.id,
+      importe: aliquot.amount,
+    })),
+    comprobantesAsociados: (voucher.associatedVouchers ?? []).map((associated) => ({
+      atajo: getVoucherKindByArcaType(associated.arcaType)?.shortcut ?? null,
+      cuit: associated.cuit ?? null,
+      fecha: associated.date ?? null,
+      numero: associated.number,
+      puntoVenta: associated.pointOfSale,
+      tipoArca: associated.arcaType,
+    })),
+    condicionIvaReceptor: voucher.receiverIvaConditionCode ?? null,
+    mismaMoneda: voucher.sameCurrency ?? null,
+    observaciones: voucher.observations ?? [],
+    opcionales: (voucher.optionals ?? []).map((optional) => ({ id: optional.id, valor: optional.value })),
+    periodoAsociado: voucher.associatedPeriod
+      ? { desde: voucher.associatedPeriod.from, hasta: voucher.associatedPeriod.to }
+      : null,
+    servicioDesde: voucher.serviceFrom ?? null,
+    servicioHasta: voucher.serviceTo ?? null,
+    tributos: (voucher.taxes ?? []).map((tax) => ({
+      alicuota: tax.rate,
+      baseImponible: tax.base,
+      descripcion: tax.description ?? null,
+      id: tax.id,
+      importe: tax.amount,
+    })),
+    vencimientoPago: voucher.paymentDueDate ?? null,
   };
 }
 
@@ -213,36 +258,124 @@ export function formatVoucherDetailAsJson(report: VoucherDetailReport): string {
   );
 }
 
+type Row = readonly [string, string];
+
+/** El IVA del receptor, salvo el de consumidor final sin identificar, que ya dice la fila del receptor. */
+function formatReceiverIvaRows(voucher: IssuedVoucher): Row[] {
+  const code = voucher.receiverIvaConditionCode;
+
+  if (code === undefined) {
+    return [];
+  }
+
+  if (voucher.documentTypeCode === CONSUMER_DOCUMENT_TYPE_CODE && code === CONSUMER_IVA_CONDITION_CODE) {
+    return [];
+  }
+
+  return [['IVA receptor', formatIvaConditionLabel(code)]];
+}
+
+/** Una alicuota: su tasa. Varias: el IVA y la base de cada una. Como en la vista previa al emitir. */
+function formatIvaAliquotRows(voucher: IssuedVoucher): Row[] {
+  const aliquots = voucher.ivaAliquots ?? [];
+  const label = (id: number) => resolveIvaRateLabel(id) ?? String(id);
+
+  if (aliquots.length === 1 && aliquots[0]) {
+    return [['Alícuota de IVA', label(aliquots[0].id)]];
+  }
+
+  return aliquots.map((aliquot) => [
+    `IVA ${label(aliquot.id)}`,
+    `${formatMoneyLabel(aliquot.amount, voucher.currency)} sobre ${formatMoneyLabel(aliquot.base, voucher.currency)}`,
+  ]);
+}
+
+function formatTaxRows(voucher: IssuedVoucher): Row[] {
+  return (voucher.taxes ?? []).map((tax) => [
+    tax.description ?? `Tributo ${tax.id}`,
+    formatMoneyLabel(tax.amount, voucher.currency),
+  ]);
+}
+
+/** Periodo de servicio, vencimiento del pago, asociados, periodo asociado y opcionales de FCE: solo si hay. */
+function formatVoucherExtraRows(voucher: IssuedVoucher): Row[] {
+  const rows: Row[] = [];
+
+  if (voucher.serviceFrom) rows.push(['Servicio desde', formatArcaDateAsArgentineDate(voucher.serviceFrom)]);
+  if (voucher.serviceTo) rows.push(['Servicio hasta', formatArcaDateAsArgentineDate(voucher.serviceTo)]);
+  if (voucher.paymentDueDate) {
+    rows.push(['Vencimiento del pago', formatArcaDateAsArgentineDate(voucher.paymentDueDate)]);
+  }
+
+  for (const associated of voucher.associatedVouchers ?? []) {
+    const name = getVoucherKindByArcaType(associated.arcaType)?.displayName ?? `Tipo ${associated.arcaType}`;
+
+    rows.push(
+      ['Comprobante asociado', name],
+      ['Número asociado', formatVoucherNumber(associated.pointOfSale, associated.number)],
+    );
+
+    if (associated.cuit) rows.push(['CUIT asociado', formatTaxIdLabel(associated.cuit)]);
+    if (associated.date) rows.push(['Fecha asociado', formatArcaDateAsArgentineDate(associated.date)]);
+  }
+
+  if (voucher.associatedPeriod) {
+    rows.push([
+      'Período asociado',
+      `${formatArcaDateAsArgentineDate(voucher.associatedPeriod.from)} al ${formatArcaDateAsArgentineDate(voucher.associatedPeriod.to)}`,
+    ]);
+  }
+
+  for (const optional of voucher.optionals ?? []) {
+    const row = formatFceOptionalRow(optional.id, optional.value);
+
+    if (row) rows.push(row);
+  }
+
+  return rows;
+}
+
 export function formatVoucherDetailAsText(report: VoucherDetailReport): string {
   const { pointOfSale, voucher, voucherKind } = report;
-  const rows: Array<readonly [string, string]> = [
+  const foreignCurrency = Boolean(voucher.currency && voucher.currency !== 'PES');
+  const rows: Row[] = [
     ['Número', formatVoucherNumber(pointOfSale, voucher.number)],
     ['Fecha del comprobante', formatArcaDateAsArgentineDate(voucher.date)],
     ['Receptor', formatReceiver(voucher)],
+    ...formatReceiverIvaRows(voucher),
     ['Concepto', formatConceptLabel(voucher.concept)],
     ['Moneda', formatCurrencyLabel(voucher.currency)],
   ];
 
-  if (voucher.currency && voucher.currency !== 'PES') {
+  if (foreignCurrency) {
     rows.push(['Cotización', formatExchangeRate(voucher.exchangeRate ?? 1)]);
+
+    if (voucher.sameCurrency) rows.push(['Pago en la misma moneda', 'Sí']);
   }
 
   rows.push(['Importe neto', formatMoneyLabel(voucher.netAmount, voucher.currency)]);
 
   if (voucher.ivaAmount) rows.push(['Importe IVA', formatMoneyLabel(voucher.ivaAmount, voucher.currency)]);
 
+  rows.push(...formatIvaAliquotRows(voucher));
+
   if (voucher.exemptAmount) rows.push(['Importe exento', formatMoneyLabel(voucher.exemptAmount, voucher.currency)]);
   if (voucher.untaxedAmount)
     rows.push(['Importe no gravado', formatMoneyLabel(voucher.untaxedAmount, voucher.currency)]);
   if (voucher.taxesAmount) rows.push(['Importe tributos', formatMoneyLabel(voucher.taxesAmount, voucher.currency)]);
 
-  rows.push(['Importe total', formatMoneyLabel(voucher.total, voucher.currency)], ['CAE', voucher.cae ?? 'N/D']);
+  rows.push(
+    ...formatTaxRows(voucher),
+    ['Importe total', formatMoneyLabel(voucher.total, voucher.currency)],
+    ...formatVoucherExtraRows(voucher),
+    ['CAE', voucher.cae ?? 'N/D'],
+  );
 
   if (voucher.caeExpiration) {
     rows.push(['Vencimiento CAE', formatArcaDateAsArgentineDate(voucher.caeExpiration)]);
   }
 
-  return ticketPanel(
+  const ticket = ticketPanel(
     voucherKind.displayName,
     renderKeyValueRows(rows, { labelWidth: resolveKeyValueLabelWidth('ticket', rows) }),
     {
@@ -250,4 +383,12 @@ export function formatVoucherDetailAsText(report: VoucherDetailReport): string {
       tone: voucher.result === 'R' ? 'danger' : 'success',
     },
   );
+  const observations = voucher.observations ?? [];
+
+  return observations.length > 0
+    ? [
+        ticket,
+        attentionPanel('Observaciones', observations.map((item, index) => `${index + 1}. ${item}`).join('\n')),
+      ].join('\n\n')
+    : ticket;
 }
