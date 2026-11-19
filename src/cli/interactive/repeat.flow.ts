@@ -8,6 +8,7 @@ import { EXPORT_VOUCHER_KIND, type ExportVoucherKind } from '../../modules/expor
 import { parseAmountInput } from '../../modules/interactive/amount-input';
 import { exportInvoiceChoice, invoiceKindChoices, reciboChoices } from '../../modules/interactive/choices';
 import {
+  copiedReceiverNotice,
   copyInvoiceAmounts,
   copyInvoiceReceiver,
   UNSUPPORTED_DOCUMENT_TYPE_NOTICE,
@@ -25,7 +26,7 @@ import { markIfNew } from './new-mark';
 import { askTextStep, chooseStep } from './prompts';
 import { askReceiverIvaCondition } from './receiver-padron';
 import { type InteractiveSession, previewAndEmit, requirePointOfSale } from './session';
-import { validateAmount } from './validators';
+import { normalizeDocumentNumber, validateAmount, validateCuit } from './validators';
 
 export interface RepeatState extends InvoiceState {
   readonly original?: IssuedVoucher;
@@ -90,12 +91,33 @@ export function repeatSteps(
         }
 
         const original = picked.invoice;
-        const receiver = copyInvoiceReceiver(original);
+        const copied = copyInvoiceReceiver(original);
 
-        if (!receiver) {
+        if (!copied) {
           writeTerminalOutput(noticePanel(UNSUPPORTED_DOCUMENT_TYPE_NOTICE, 'warning'));
 
           return BACK;
+        }
+
+        // Una A (o FCE) vieja a un DNI, CUIL o consumidor final: se pide el CUIT ya, no en el rechazo de la vista previa.
+        const receiverNotice = copiedReceiverNotice(copied, voucherKind);
+        let receiver = copied;
+
+        if (receiverNotice) {
+          writeTerminalOutput(noticePanel(receiverNotice, 'warning'));
+
+          const cuit = await askTextStep('CUIT del receptor:', { validate: validateCuit });
+
+          if (cuit === BACK) {
+            return BACK;
+          }
+
+          receiver = {
+            ...copied,
+            documentNumber: normalizeDocumentNumber(cuit),
+            documentType: 'cuit',
+            ivaCondition: undefined,
+          };
         }
 
         const copy = copyInvoiceAmounts(original, voucherKind.letter);

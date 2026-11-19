@@ -245,6 +245,14 @@ export function resolveExportQuotation(
  * 2105 al emitir). Sale de `--actividad` o de `exportacion.actividad`: no hay default. Los nombres de la tabla llegan
  * con la codificacion rota, por eso los mensajes solo dan codigos.
  */
+/**
+ * El aviso de una tabla de WSFEX que ARCA devolvio vacia: el dato no se pudo validar y va como se escribio
+ * (`resolveExportActivity`, `resolveExportIncoterm`). Si esta mal, lo rechaza ARCA al emitir.
+ */
+export function exportEmptyTableWarning(table: 'actividades' | 'incoterms', value: number | string): string {
+  return `ARCA devolvió vacía la tabla de ${table} de WSFEX: ${value} va sin validar y, si no es válido, ARCA lo rechaza al emitir.`;
+}
+
 export function resolveExportActivity(value: number, activities: readonly ExportActivity[] = []): number {
   if (!Number.isInteger(value) || value < 1) {
     throw new InputValidationError('La actividad tiene que ser un número entero positivo. Usá `--actividad`.');
@@ -483,7 +491,10 @@ export function assertExportIncoterm(options: {
   }
 }
 
-/** `--incoterm` se compara contra la tabla de ARCA, sin importar mayusculas. */
+/**
+ * `--incoterm` se compara contra la tabla de ARCA, sin importar mayusculas. Si ARCA la devuelve vacia no se valida
+ * (como la actividad): va el codigo escrito, que tambien es la descripcion por defecto, y el servicio avisa.
+ */
 export function resolveExportIncoterm(
   value: string | undefined,
   incoterms: readonly ExportIncoterm[],
@@ -492,6 +503,10 @@ export function resolveExportIncoterm(
 
   if (!trimmed) {
     return undefined;
+  }
+
+  if (incoterms.length === 0) {
+    return { code: trimmed.toUpperCase(), name: trimmed.toUpperCase() };
   }
 
   const incoterm = incoterms.find((entry) => entry.code.trim().toUpperCase() === trimmed.toUpperCase());

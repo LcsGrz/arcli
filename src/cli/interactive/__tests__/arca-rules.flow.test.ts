@@ -346,7 +346,7 @@ describe('reglas de ARCA en el asistente (#220)', () => {
       expect(printed()).toMatch(/Moneda +Pesos argentinos \(ARS\)/);
       // Pesos es la moneda por defecto: el comando no la nombra, y con flags la nota va en pesos igual.
       expect(printed()).toContain(
-        'arcli ndb -m 25000 --cs --consumidor-final --ac fb --apv 3 --ar 14 --acuit 20333333334 --afecha 10/11/2026 --testing --emitir',
+        'arcli ndb -m 25000 --cs --consumidor-final --ac fb --apv 3 --ar 14 --afecha 10/11/2026 --testing --emitir',
       );
     });
 

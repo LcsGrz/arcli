@@ -441,6 +441,19 @@ describe('ExportService.resolve', () => {
     expect(gateway.authorize).not.toHaveBeenCalled();
   });
 
+  it('con las tablas de incoterms y actividades vacías no valida contra ellas y avisa (REV-62)', async () => {
+    const gateway = createGateway({ getActivities: vi.fn(async () => []), getIncoterms: vi.fn(async () => []) });
+    const resolved = await service.resolve({ ...INPUT, activity: 999999, exportType: 1 }, gateway, RUNTIME, NOW);
+
+    expect(resolved.payload).toMatchObject({ Actividades: { Actividad: [{ Id: 999999 }] }, Incoterms: 'FOB' });
+    expect(resolved.warnings).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/tabla de actividades de WSFEX: 999999 va sin validar/),
+        expect.stringMatching(/tabla de incoterms de WSFEX: FOB va sin validar/),
+      ]),
+    );
+  });
+
   it('sin actividad por flag ni por config no manda el bloque Actividades ni consulta la tabla (2100 es el bloque vacio)', async () => {
     const gateway = createGateway();
     const runtime = { ...RUNTIME, config: arcliConfigSchema.parse({ cuit: '20111111112', puntoVentaPorDefecto: 3 }) };

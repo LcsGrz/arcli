@@ -4,6 +4,7 @@ import { DEFAULT_CURRENCY_CODE } from '../billing/billing.constants';
 import { isForeignCurrency } from '../billing/billing.currency';
 import { resolveBillingCurrencyCode } from '../billing/billing.mappers';
 import type { BillingCommandInput } from '../billing/billing.schemas';
+import { getVoucherKindByShortcut } from '../billing/voucher-kind-map';
 
 const CONCEPT_FLAGS: Record<BillingCommandInput['concept'], string> = {
   productos: '--cp',
@@ -22,7 +23,17 @@ function identityFlags(input: BillingCommandInput): string[] {
   return [`--${input.documentType}`, String(input.documentNumber), '--ir', input.ivaCondition];
 }
 
-function associatedFlags(input: BillingCommandInput): string[] {
+/**
+ * `--acuit` solo si hace falta: sin el flag el asociado es del CUIT emisor, salvo en las notas FCE, donde ARCA
+ * exige el CUIT (10151) y el comando lo muestra siempre.
+ */
+function needsAssociatedCuit(input: BillingCommandInput, cuit: string, issuerCuit: number | undefined): boolean {
+  if (issuerCuit === undefined || cuit.replace(/\D/g, '') !== String(issuerCuit)) return true;
+
+  return getVoucherKindByShortcut(input.shortcut)?.isElectronicCredit ?? true;
+}
+
+function associatedFlags(input: BillingCommandInput, issuerCuit: number | undefined): string[] {
   const flags: string[] = [];
   const associated = input.associatedVoucher;
 
@@ -35,7 +46,8 @@ function associatedFlags(input: BillingCommandInput): string[] {
 
     if (associated.puntoVenta) flags.push('--apv', String(associated.puntoVenta));
     if (associated.numero) flags.push('--ar', String(associated.numero));
-    if (associated.cuit) flags.push('--acuit', associated.cuit);
+    if (associated.cuit && needsAssociatedCuit(input, associated.cuit, issuerCuit))
+      flags.push('--acuit', associated.cuit);
     if (associated.fecha) flags.push('--afecha', associated.fecha);
   }
 
@@ -55,6 +67,8 @@ export function buildEquivalentCommand(
     /** `moneda` de la config: si es extranjera, el comando en pesos lo tiene que decir o tomaria esa. */
     readonly defaultCurrency?: string;
     readonly environment: 'produccion' | 'testing';
+    /** CUIT emisor: un asociado de ese CUIT en una nota común va sin `--acuit`, porque es lo que toma el CLI sin el flag. */
+    readonly issuerCuit?: number;
     /** Para qué shell van las comillas (POSIX o PowerShell en `win32`); por defecto, la de este SO. */
     readonly platform?: NodeJS.Platform;
   },
@@ -98,7 +112,7 @@ export function buildEquivalentCommand(
   if (input.cbuAlias) parts.push('--alias', input.cbuAlias);
   if (input.transferMode) parts.push('--transferencia', input.transferMode);
 
-  parts.push(...associatedFlags(input));
+  parts.push(...associatedFlags(input, options.issuerCuit));
 
   if (input.cancellation) parts.push('--anulacion');
   // Siempre explicito: si la config cambia de entorno, el comando pegado sigue emitiendo donde se armo.

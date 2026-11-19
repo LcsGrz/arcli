@@ -344,6 +344,10 @@ describe('resolveExportIncoterm', () => {
   it('rechaza uno que no esta en la tabla', () => {
     expect(() => resolveExportIncoterm('XYZ', incoterms)).toThrow(/no existe en la tabla/);
   });
+
+  it('si ARCA devuelve la tabla vacia no valida, como la actividad (REV-62)', () => {
+    expect(resolveExportIncoterm('fob', [])).toEqual({ code: 'FOB', name: 'FOB' });
+  });
 });
 
 describe('resolveExportActivity', () => {

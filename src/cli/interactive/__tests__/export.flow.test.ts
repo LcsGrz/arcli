@@ -648,7 +648,7 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
     expect(printed()).not.toContain('--permiso');
   });
 
-  it('una actividad que no esta en la tabla de WSFEX se rechaza; sin tabla, cualquiera vale', async () => {
+  it('una actividad que no esta en la tabla de WSFEX se rechaza; sin tabla, cualquiera vale y avisa', async () => {
     script = createScript([
       [/cliente del exterior/, 'ACME LLC'],
       [/Domicilio/, '123 Main St'],
@@ -662,8 +662,8 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       [/Fecha de pago/, ''],
       [/actividad/, rejecting('620100', ['999999', /no está en la tabla de actividades.*2105/], ['abc', /actividad/i])],
       [/Agregamos algún opcional/, []],
+      // Sin emitir no se ofrece guardar la actividad (REV-62).
       [/Emitimos/, 'No, dejar sin emitir'],
-      [/Guardamos la actividad 620100/, 'No'],
     ]);
 
     await runExportFlow(createSession());
@@ -684,12 +684,38 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       [/actividad/, '999999'],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'No, dejar sin emitir'],
-      [/Guardamos la actividad 999999/, 'No'],
     ]);
 
     await runExportFlow(createSession());
 
     expect(printed()).toContain('--actividad 999999');
+    expect(printed()).toMatch(/tabla de actividades de WSFEX: 999999 va sin validar/);
+    expect(savedConfig).not.toHaveBeenCalled();
+  });
+
+  it('sin tabla de incoterms, el de una E de bienes se escribe a mano y va sin validar, con aviso (REV-62)', async () => {
+    vi.spyOn(gateway, 'getIncoterms').mockResolvedValue([]);
+    script = createScript([
+      [/cliente del exterior/, 'ACME LLC'],
+      [/Domicilio/, '123 Main St'],
+      [/País de destino/, '212'],
+      [/ID impositivo/, ''],
+      [/Qué exportás/, 'Bienes'],
+      [/Monto total/, '100'],
+      [/Descripción/, ''],
+      [/moneda/, 'Pesos'],
+      [/Incoterm \(ARCA no devolvió la lista\)/, rejecting('fob', ['', /obligatorio/])],
+      [/Permisos de embarque/, ''],
+      [/Forma de pago/, ''],
+      [/actividad/, ''],
+      [/Agregamos algún opcional/, []],
+      [/Emitimos/, 'No, dejar sin emitir'],
+    ]);
+
+    await runExportFlow(createSession());
+
+    expect(printed()).toContain('--incoterm FOB');
+    expect(printed()).toMatch(/tabla de incoterms de WSFEX: FOB va sin validar/);
   });
 
   it('si ARCA falla al emitir, el error llega al menu y no se ofrece el PDF ni guardar la actividad', async () => {
