@@ -47,10 +47,16 @@ export function validateExportText(field: ExportTextField, required?: string): (
 }
 
 /**
- * Fecha de pago opcional: igual o posterior a la del comprobante, que en este paso es hoy (1674, WSFEX v3.1.0). Si
- * despues se elige otra en los opcionales, ahi se controla que no pase esta (`notAfterPaymentDate`).
+ * Fecha de pago opcional: igual o posterior a la del comprobante (1674, WSFEX v3.1.0), como `--fecha-pago`. Se
+ * pregunta despues de los opcionales, asi ya se sabe la del comprobante (`voucherDate`, dd/mm/aaaa); sin ella, hoy.
  */
-export function validateExportPaymentDate(now = new Date()): (value: string) => string | true {
+export function validateExportPaymentDate(
+  voucherDate: string | undefined,
+  now = new Date(),
+): (value: string) => string | true {
+  const voucher = voucherDate ? parseArgentineDateInputAsArcaDate(voucherDate, now) : formatDateAsArcaDate(now);
+  const label = voucherDate ? formatArcaDateAsArgentineDate(voucher) : 'hoy';
+
   return (value) => {
     const valid = validateOptionalDate(value);
 
@@ -58,8 +64,8 @@ export function validateExportPaymentDate(now = new Date()): (value: string) => 
       return valid;
     }
 
-    return parseArgentineDateInputAsArcaDate(value, now) < formatDateAsArcaDate(now)
-      ? 'La fecha de pago no puede ser anterior a la del comprobante (hoy): ARCA la rechaza (error 1674).'
+    return parseArgentineDateInputAsArcaDate(value, now) < voucher
+      ? `La fecha de pago no puede ser anterior a la del comprobante (${label}): ARCA la rechaza (error 1674).`
       : true;
   };
 }
@@ -103,25 +109,10 @@ export interface ExportOptionsContext {
   readonly sameCurrency?: boolean;
   readonly units: () => Promise<readonly ExportUnit[]>;
   /**
-   * Otra regla de la fecha del comprobante (yyyymmdd), ademas de la ventana de ARCA: no antes de la del asociado,
-   * no despues de la de pago. Devuelve el error o `true`.
+   * Otra regla de la fecha del comprobante (yyyymmdd), ademas de la ventana de ARCA: en las notas, no antes de la del
+   * asociado. Devuelve el error o `true`.
    */
   readonly voucherDateRule?: (voucherDate: string) => string | true;
-}
-
-/** La fecha del comprobante no puede pasar la de pago ya respondida (1674). Sin fecha de pago, cualquiera. */
-export function notAfterPaymentDate(paymentDate: string | undefined): (voucherDate: string) => string | true {
-  return (voucherDate) => {
-    if (!paymentDate?.trim()) {
-      return true;
-    }
-
-    const payment = parseArgentineDateInputAsArcaDate(paymentDate);
-
-    return voucherDate > payment
-      ? `La fecha del comprobante no puede ser posterior a la de pago (${formatArcaDateAsArgentineDate(payment)}): ARCA la rechaza (error 1674).`
-      : true;
-  };
 }
 
 function errorMessage(error: unknown): string {

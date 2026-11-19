@@ -207,8 +207,8 @@ describe('runExportRepeatFlow', () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       [/Mismo monto/, 'Sí'],
-      [/Fecha de pago/, ''],
       [/Agregamos algún opcional/, []],
+      [/Fecha de pago/, ''],
       [/Emitimos/, 'Sí, emitir ahora'],
     ]);
 
@@ -233,9 +233,9 @@ describe('runExportRepeatFlow', () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       [/Mismo monto/, 'Sí'],
-      [/Fecha de pago/, rejecting('20/11/2026', ['13/11/2026', /anterior a la del comprobante \(hoy\).*error 1674/])],
       [/actividad de WSFEX.*Enter para no informarla/, ''],
       [/Agregamos algún opcional/, []],
+      [/Fecha de pago/, rejecting('20/11/2026', ['13/11/2026', /anterior a la del comprobante \(hoy\).*error 1674/])],
       [/Emitimos/, 'Sí, emitir ahora'],
     ]);
 
@@ -277,6 +277,39 @@ describe('runExportRepeatFlow', () => {
     // Cobrada en dólares: la cotización del día hábil anterior a la fecha elegida (EXPO-7).
     expect(quotations).toHaveBeenCalledWith('20261109');
     expect(printed()).toContain('--fecha 10/11/2026');
+  });
+
+  it('la fecha de pago se valida contra la fecha del comprobante elegida, no contra hoy, como `--fecha-pago` (EXPO-12)', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-14T12:00:00-03:00'));
+    vi.mocked(gateway.getVoucher).mockImplementationOnce(async () => ({
+      ...INVOICE,
+      exportType: 2,
+      incoterm: undefined,
+    }));
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      [/Mismo monto/, 'Sí'],
+      [/Agregamos algún opcional/, ['Fecha del comprobante']],
+      [/Fecha del comprobante/, '10/11/2026'],
+      [
+        /Fecha de pago/,
+        rejecting('12/11/2026', ['09/11/2026', /anterior a la del comprobante \(10\/11\/2026\).*error 1674/]),
+      ],
+      [/Emitimos/, 'Sí, emitir ahora'],
+    ]);
+
+    try {
+      await runExportRepeatFlow(createSession(), 4);
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(gateway.authorize).toHaveBeenCalledWith(
+      expect.objectContaining({ Fecha_cbte: '20261110', Fecha_pago: '20261112' }),
+    );
+    expect(printed()).toContain('--fecha 10/11/2026');
+    expect(printed()).toContain('--fecha-pago 12/11/2026');
   });
 
   it('no copia los ítems de seña, anticipo o bonificación (1775): sale un renglón con el total', async () => {
@@ -494,8 +527,8 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       [/Mismo monto/, 'Sí'],
-      [/Fecha de pago/, ''],
       [/Agregamos algún opcional/, []],
+      [/Fecha de pago/, ''],
     ]);
     await repeatOf({ ...INVOICE, exportType: 2, incoterm: undefined, sameCurrency: false });
     expect(offeredOptionals()).not.toContain('Cotización');
@@ -548,19 +581,19 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     });
   });
 
-  it('en servicios, volver desde la fecha de pago vuelve al monto, y la actividad escrita se valida', async () => {
+  it('en servicios, volver desde la fecha de pago vuelve a los opcionales, y la actividad escrita se valida', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       [/Mismo monto/, 'Sí'],
-      [/Fecha de pago/, BACK],
-      [/Mismo monto/, 'Sí'],
-      [/Fecha de pago/, ''],
       [/actividad de WSFEX/, rejecting('620100', ['abc', /La actividad/])],
+      [/Agregamos algún opcional/, []],
+      [/Fecha de pago/, BACK],
       [/Agregamos algún opcional/, BACK],
       [/actividad de WSFEX/, BACK],
-      [/Fecha de pago/, ''],
+      [/Mismo monto/, 'Sí'],
       [/actividad de WSFEX/, '620200'],
       [/Agregamos algún opcional/, []],
+      [/Fecha de pago/, ''],
     ]);
 
     expect(await repeatOf({ ...INVOICE, activities: [], exportType: 2, incoterm: undefined })).toMatchObject({
@@ -573,8 +606,8 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       [/Mismo monto/, 'Sí'],
-      [/Fecha de pago/, ''],
       [/Agregamos algún opcional/, []],
+      [/Fecha de pago/, ''],
     ]);
 
     expect(
