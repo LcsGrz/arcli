@@ -726,6 +726,26 @@ describe('el comando equivalente de la E con textos raros pasa por el parser rea
     });
   });
 
+  it('una fecha de pago anterior a hoy pero no a la del comprobante va con `--fecha-pago` y el servicio la acepta (EXPO-12)', async () => {
+    const input: ExportVoucherInput = {
+      amount: 1500,
+      clientAddress: '123 Main St',
+      clientName: 'ACME LLC',
+      currencyCode: 'DOL',
+      destinationCountry: 'ESTADOS UNIDOS',
+      emit: false,
+      exportType: 2,
+      paymentDate: '17/11/2026',
+      sameCurrency: true,
+      voucherDate: '16/11/2026',
+    };
+
+    expect(buildExportEquivalentCommand(input, { activity: 620100, environment: 'testing' })).toContain(
+      '--fecha-pago 17/11/2026',
+    );
+    await expectSameExportRequest(input);
+  });
+
   it('una NC E sobre la factura, con su asociado', async () => {
     await expectSameExportRequest({
       amount: 500,

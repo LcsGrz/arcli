@@ -26,7 +26,6 @@ import {
   askExportOptions,
   type ExportOptions,
   isCountryCuitMissing,
-  notAfterPaymentDate,
   validateExportPaymentDate,
   validateExportText,
 } from './export-options';
@@ -334,19 +333,6 @@ function exportSteps(
       },
     },
     {
-      name: 'fecha-pago',
-      run: async (_state, previous) => {
-        const answer = await askTextStep('Fecha de pago (Enter para la fecha del comprobante):', {
-          previousAnswer: previous?.paymentDate,
-          validate: validateExportPaymentDate(),
-        });
-
-        return answer === BACK ? BACK : { paymentDate: optional(answer) };
-      },
-      // En bienes ARCA rechaza la fecha de pago (error 1673).
-      skip: (state) => state.exportType === 1,
-    },
-    {
       name: 'actividad',
       run: async (_state, previous) => {
         // Opcional: ARCA no exige `Actividades` (la 2100 solo prohibe el bloque vacio).
@@ -382,11 +368,24 @@ function exportSteps(
           languages: loaders.languages,
           sameCurrency: state.sameCurrency,
           units: loaders.units,
-          voucherDateRule: notAfterPaymentDate(state.paymentDate),
         });
 
         return options === BACK ? BACK : { options };
       },
+    },
+    {
+      // Despues de los opcionales: no puede ser anterior a la fecha del comprobante, que se elige ahi (1674).
+      name: 'fecha-pago',
+      run: async (state, previous) => {
+        const answer = await askTextStep('Fecha de pago (Enter para la fecha del comprobante):', {
+          previousAnswer: previous?.paymentDate,
+          validate: validateExportPaymentDate(state.options.voucherDate),
+        });
+
+        return answer === BACK ? BACK : { paymentDate: optional(answer) };
+      },
+      // En bienes ARCA rechaza la fecha de pago (error 1673).
+      skip: (state) => state.exportType === 1,
     },
   ];
 }

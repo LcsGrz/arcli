@@ -23,7 +23,6 @@ import {
   askExportOptions,
   type ExportOptions,
   isCountryCuitMissing,
-  notAfterPaymentDate,
   validateExportPaymentDate,
 } from './export-options';
 import { pickExportVoucher } from './invoice-picker';
@@ -220,19 +219,6 @@ export function exportRepeatSteps(
       skip: (state) => state.copy?.exportType !== 1,
     },
     {
-      name: 'fecha-pago',
-      run: async (_state, previous) => {
-        const answer = await askTextStep('Fecha de pago (Enter para la fecha del comprobante):', {
-          previousAnswer: previous?.paymentDate,
-          validate: validateExportPaymentDate(),
-        });
-
-        return answer === BACK ? BACK : { paymentDate: answer.trim() || undefined };
-      },
-      // En bienes ARCA rechaza la fecha de pago (error 1673).
-      skip: (state) => state.copy?.exportType === 1,
-    },
-    {
       // La factura no trae actividad y tampoco esta en la config. Es opcional: ARCA no exige `Actividades`.
       name: 'actividad',
       run: async (state, previous) => {
@@ -277,11 +263,24 @@ export function exportRepeatSteps(
           languages: () => gateway.getLanguages(),
           sameCurrency: copy.sameCurrency,
           units: () => gateway.getUnits(),
-          voucherDateRule: notAfterPaymentDate(state.paymentDate),
         });
 
         return options === BACK ? BACK : { options };
       },
+    },
+    {
+      // Despues de los opcionales: no puede ser anterior a la fecha del comprobante, que se elige ahi (1674).
+      name: 'fecha-pago',
+      run: async (state, previous) => {
+        const answer = await askTextStep('Fecha de pago (Enter para la fecha del comprobante):', {
+          previousAnswer: previous?.paymentDate,
+          validate: validateExportPaymentDate(state.options?.voucherDate),
+        });
+
+        return answer === BACK ? BACK : { paymentDate: answer.trim() || undefined };
+      },
+      // En bienes ARCA rechaza la fecha de pago (error 1673).
+      skip: (state) => state.copy?.exportType === 1,
     },
   ];
 }

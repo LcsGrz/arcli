@@ -3,13 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ExportUnit } from '../../../modules/export/export.types';
 import { BACK } from '../../../modules/interactive/wizard';
 import { stripAnsi } from '../../../ui';
-import {
-  askCountryCuit,
-  askExportOptions,
-  type ExportOptionsContext,
-  isCountryCuitMissing,
-  notAfterPaymentDate,
-} from '../export-options';
+import { askCountryCuit, askExportOptions, type ExportOptionsContext, isCountryCuitMissing } from '../export-options';
 
 import { createScript, rejecting } from './script';
 
@@ -378,18 +372,20 @@ describe('askExportOptions', () => {
       expect(await askExportOptions({}, context({ exportType: 1 }))).toEqual({ voucherDate: '03/12/2026' });
     });
 
-    it('suma la regla del flujo (fecha de pago, asociado) a la ventana de ARCA', async () => {
+    it('suma la regla del flujo (en las notas, el asociado) a la ventana de ARCA', async () => {
       vi.useFakeTimers({ toFake: ['Date'] });
       vi.setSystemTime(new Date('2026-11-18T12:00:00-03:00'));
       script = createScript([
         [OPTIONALS, ['Fecha del comprobante']],
-        [
-          /Fecha del comprobante/,
-          rejecting('18/11/2026', ['20/11/2026', /posterior a la de pago \(19\/11\/2026\).*1674/]),
-        ],
+        [/Fecha del comprobante/, rejecting('18/11/2026', ['20/11/2026', /^Posterior al 19\/11\/2026\.$/])],
       ]);
 
-      expect(await askExportOptions({}, context({ voucherDateRule: notAfterPaymentDate('19/11/2026') }))).toEqual({
+      expect(
+        await askExportOptions(
+          {},
+          context({ voucherDateRule: (date) => (date > '20261119' ? 'Posterior al 19/11/2026.' : true) }),
+        ),
+      ).toEqual({
         voucherDate: '18/11/2026',
       });
     });
