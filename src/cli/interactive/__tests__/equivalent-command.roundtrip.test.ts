@@ -232,6 +232,7 @@ async function expectSameBillingRequest(
     const line = buildEquivalentCommand(input, {
       defaultCurrency: withConfig.monedaPorDefecto,
       environment: 'testing',
+      issuerCuit: runtime.context.cuit,
       platform,
     });
     const call = await parseWithProgram(line, platform);
@@ -479,7 +480,8 @@ describe('el comando equivalente del asistente pasa por el parser real y arma la
         [invoice({ documentNumber: 30709965812, documentTypeCode: 80 })],
       );
 
-      await expectSameBillingRequest(input);
+      // En FCE el CUIT del asociado sigue explícito aunque sea el del emisor: ARCA lo exige (10151).
+      expect((await expectSameBillingRequest(input)).line).toContain('--acuit 20111111112');
     });
 
     it('NC C sobre una factura de otro sistema, con su fecha', async () => {
@@ -509,9 +511,8 @@ describe('el comando equivalente del asistente pasa por el parser real y arma la
       expect(script.remaining()).toBe(0);
       const input = buildNoteInput(state as NonNullable<typeof state>, session, 3);
 
-      expect((await expectSameBillingRequest(input)).line).toContain(
-        '--ac fc --apv 50 --ar 15 --acuit 20111111112 --afecha 10/11/2026',
-      );
+      // El asociado es del CUIT emisor: sin `--acuit`, que en una nota común es lo que toma el CLI (REV-59).
+      expect((await expectSameBillingRequest(input)).line).toContain('--ac fc --apv 50 --ar 15 --afecha 10/11/2026');
       expect(await payloadOf(input)).toMatchObject({ DocNro: 0, DocTipo: 99 });
     });
   });

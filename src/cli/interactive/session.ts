@@ -194,6 +194,7 @@ export async function previewAndEmit(
       buildEquivalentCommand(input, {
         defaultCurrency: runtime.config.monedaPorDefecto,
         environment: runtime.environment,
+        issuerCuit: runtime.context.cuit,
       }),
     ),
   );

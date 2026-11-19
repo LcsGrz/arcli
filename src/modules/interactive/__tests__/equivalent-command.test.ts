@@ -229,6 +229,25 @@ describe('buildEquivalentCommand: asociados incompletos y varias alícuotas', ()
     expect(parseCommand(command, 'nca').associatedVoucher).toMatchObject({ numero: 7, puntoVenta: 2, tipo: 1 });
   });
 
+  it('sin --acuit en una nota común cuando el asociado es del CUIT emisor (REV-59)', () => {
+    const associatedVoucher = { cuit: '20111111112', fecha: '01/11/2026', numero: 7, puntoVenta: 2, shortcut: 'fa' };
+    const options = { environment: 'testing', issuerCuit: 20111111112, platform: 'linux' } as const;
+
+    expect(buildEquivalentCommand(input({ associatedVoucher, shortcut: 'nca' }), options)).not.toContain('--acuit');
+    expect(
+      buildEquivalentCommand(
+        input({ associatedVoucher: { ...associatedVoucher, cuit: '20333333334' }, shortcut: 'nca' }),
+        options,
+      ),
+    ).toContain('--acuit 20333333334');
+    expect(
+      buildEquivalentCommand(
+        input({ associatedVoucher: { ...associatedVoucher, shortcut: 'fcea' }, shortcut: 'ncea' }),
+        options,
+      ),
+    ).toContain('--acuit 20111111112');
+  });
+
   it('lo que falta del asociado no se inventa', () => {
     expect(
       buildEquivalentCommand(input({ associatedVoucher: { shortcut: 'fc' }, shortcut: 'ncc' }), {

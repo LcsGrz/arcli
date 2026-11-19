@@ -21,6 +21,7 @@ import {
   assertExportTextLengths,
   assertExportVoucherDate,
   buildExportPayload,
+  exportEmptyTableWarning,
   type ExportQuotationDate,
   exportTypeTakesPaymentDate,
   resolveExportActivity,
@@ -331,7 +332,8 @@ export class ExportService {
       input.description?.trim() || DEFAULT_EXPORT_ITEM_DESCRIPTION,
     );
 
-    const incoterm = resolveExportIncoterm(input.incoterm, input.incoterm?.trim() ? await gateway.getIncoterms() : []);
+    const incotermTable = input.incoterm?.trim() ? await gateway.getIncoterms() : undefined;
+    const incoterm = resolveExportIncoterm(input.incoterm, incotermTable ?? []);
     // Se consulta siempre: la vista previa muestra el nombre del idioma, tambien el de por defecto.
     const languages = await gateway.getLanguages();
     const languageId = resolveExportLanguage(input.language, languages);
@@ -386,8 +388,8 @@ export class ExportService {
     });
 
     // Sin `--actividad` ni `exportacion.actividad` la E va sin el bloque `Actividades`: ARCA no lo exige.
-    const activity =
-      activityCode === undefined ? undefined : resolveExportActivity(activityCode, await gateway.getActivities());
+    const activityTable = activityCode === undefined ? undefined : await gateway.getActivities();
+    const activity = activityCode === undefined ? undefined : resolveExportActivity(activityCode, activityTable ?? []);
     const payload = buildExportPayload(input, {
       activity,
       clientCountryCuit,
@@ -454,6 +456,10 @@ export class ExportService {
         : []),
       ...(quotation ? exportQuotationWarnings(quotation, quotationDate, exportType, voucherDate) : []),
       ...(permitChecks?.warnings ?? []),
+      ...(activity !== undefined && activityTable?.length === 0
+        ? [exportEmptyTableWarning('actividades', activity)]
+        : []),
+      ...(incoterm && incotermTable?.length === 0 ? [exportEmptyTableWarning('incoterms', incoterm.code)] : []),
     ];
 
     return { display, payload, voucherKind, warnings };

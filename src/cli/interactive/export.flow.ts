@@ -269,6 +269,16 @@ function exportSteps(
       name: 'incoterm',
       run: async () => {
         const list = await withSpinner('Consultando incoterms...', loaders.incoterms);
+
+        // ARCA devolvio la tabla vacia: se escribe a mano y va sin validar, como la actividad (el servicio avisa).
+        if (list.length === 0) {
+          const typed = await askTextStep('Incoterm (ARCA no devolvió la lista), por ejemplo FOB:', {
+            validate: (value) => (value.trim() ? true : 'El incoterm es obligatorio en la factura E de bienes.'),
+          });
+
+          return typed === BACK ? BACK : { incoterm: typed.trim().toUpperCase(), incotermName: undefined };
+        }
+
         // Sin "Sin incoterm": la factura de bienes lo exige (error 1640).
         const incoterm = await chooseStep(
           'Incoterm:',
@@ -356,14 +366,14 @@ function exportSteps(
 
 /**
  * Vista previa, comando equivalente, confirmacion, emision y PDF: lo mismo para la factura y las notas E. Sin
- * `activity` (las notas la toman del asociado), el comando equivalente no la repite.
+ * `activity` (las notas la toman del asociado), el comando equivalente no la repite. Devuelve si se emitio.
  */
 export async function emitExportVoucher(
   session: InteractiveSession,
   gateway: ExportGateway,
   rawInput: ExportVoucherInput,
   activity?: number,
-): Promise<void> {
+): Promise<boolean> {
   const { runtime } = session;
   // ExportService toma el de la config: uno elegido en el asistente va en la entrada (y en el comando equivalente).
   const input: ExportVoucherInput = { ...rawInput, pointOfSale: rawInput.pointOfSale ?? session.typedPointOfSale };
@@ -385,7 +395,7 @@ export async function emitExportVoucher(
   );
 
   if (!emission) {
-    return;
+    return false;
   }
 
   const result = await withSpinner(`Emitiendo ${label} en ARCA...`, () =>
@@ -416,6 +426,8 @@ export async function emitExportVoucher(
 
     writeTerminalOutput(noticePanel('El comprobante ya quedó emitido; no se generó el PDF.', 'muted'));
   }
+
+  return true;
 }
 
 /**
@@ -465,9 +477,10 @@ export async function runExportFlow(session: InteractiveSession): Promise<typeof
     sameCurrency: state.sameCurrency,
   };
 
-  await emitExportVoucher(session, gateway, input, activity);
+  const emitted = await emitExportVoucher(session, gateway, input, activity);
 
-  if (state.activity !== undefined && configuredActivity === undefined) {
+  // Guardar una actividad que no llego a ARCA (dejada sin emitir) no tiene sentido: no se sabe si la acepta.
+  if (emitted && state.activity !== undefined && configuredActivity === undefined) {
     await offerSavingToConfig(`¿Guardamos la actividad ${state.activity} en la config para la próxima?`, [
       ['exportacion.actividad', String(state.activity)],
     ]);

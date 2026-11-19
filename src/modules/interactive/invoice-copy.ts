@@ -1,5 +1,6 @@
 import { conceptFromCode } from '../billing/arca-codes';
 import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/billing.currency';
+import { formatVoucherSubject } from '../billing/billing.mappers';
 import type {
   BillingConcept,
   BillingDocumentType,
@@ -8,6 +9,8 @@ import type {
 } from '../billing/billing.schemas';
 import type { VoucherKindDefinition } from '../billing/billing.types';
 import { inferIvaRate, type IssuedVoucher, resolveDocumentType } from '../vouchers/voucher-history';
+
+import { receiverChoices } from './choices';
 
 /** Lo que se puede copiar de una factura emitida para repetirla o para una nota sobre ella. */
 export interface InvoiceCopy {
@@ -80,4 +83,28 @@ export function copyInvoiceReceiver(invoice: IssuedVoucher): InvoiceReceiverCopy
     documentType,
     ivaCondition: consumer ? 'consumidor-final' : undefined,
   };
+}
+
+const COPIED_DOCUMENT_LABELS: Record<BillingDocumentType, string> = {
+  'consumidor-final': 'a consumidor final',
+  cuil: 'a un CUIL',
+  cuit: 'a un CUIT',
+  dni: 'a un DNI',
+};
+
+/**
+ * Al repetir un comprobante, el aviso si su receptor ya no se admite en ese tipo: la A y la FCE solo van a un CUIT
+ * (10013, 10015). Una A vieja a un DNI llegaba a la vista previa y recien ahi se rechazaba. `undefined` si se admite.
+ */
+export function copiedReceiverNotice(
+  receiver: Pick<InvoiceReceiverCopy, 'documentType'>,
+  voucherKind: VoucherKindDefinition,
+): string | undefined {
+  const allowed = receiverChoices(voucherKind.letter, voucherKind.isElectronicCredit).some(
+    (choice) => choice.value === receiver.documentType,
+  );
+
+  return allowed
+    ? undefined
+    : `${formatVoucherSubject(voucherKind)} original fue ${COPIED_DOCUMENT_LABELS[receiver.documentType]}, pero ARCA solo admite un CUIT como receptor (error ${voucherKind.isElectronicCredit ? 10015 : 10013}). Ingresá el CUIT del receptor.`;
 }

@@ -10,7 +10,7 @@ import { buildInvoiceInput } from '../invoice.flow';
 import { type RepeatState, repeatSteps, runRepeatFlow } from '../repeat.flow';
 import { type InteractiveSession, previewAndEmit } from '../session';
 
-import { createScript } from './script';
+import { createScript, rejecting } from './script';
 
 let script = createScript([]);
 
@@ -323,10 +323,11 @@ describe('repetir un comprobante con datos que ya no valen', () => {
     expect(script.remaining()).toBe(0);
   });
 
-  it('una Factura A a un DNI (ARCA hoy pide CUIT) no llega a emitirse: la vista previa la rechaza', async () => {
+  it('una Factura A a un DNI (ARCA pide CUIT, 10013) avisa al elegirla y pide el CUIT, y la vista previa pasa (REV-62)', async () => {
     script = createScript([
       [/comprobante querés repetir/, 'Factura A'],
       [/Cuál repetimos/, '00003-00000014'],
+      [/CUIT del receptor/, rejecting('30-70996581-2', ['30123456', /CUIT/])],
       [/Condición frente al IVA/, 'Responsable inscripto'],
       [/Mismo monto/, 'Sí'],
       [/Período del servicio/, 'Solo hoy'],
@@ -339,8 +340,9 @@ describe('repetir un comprobante con datos que ya no valen', () => {
     const state = await runWizard(repeatSteps(session, 3, TODAY), INITIAL);
     const input = buildInvoiceInput(state as NonNullable<typeof state>, session);
 
-    expect(input).toMatchObject({ documentNumber: 30123456, documentType: 'dni', shortcut: 'fa' });
-    await expect(preview(input)).rejects.toThrow(/CUIT|DNI|documento/i);
+    expect(printed()).toMatch(/La factura A original fue a un DNI.*10013/s);
+    expect(input).toMatchObject({ documentNumber: 30709965812, documentType: 'cuit', shortcut: 'fa' });
+    await expect(preview(input)).resolves.toBeDefined();
   });
 
   it('un comprobante de un concepto que ARCA ya no informa se repite como servicios', async () => {
