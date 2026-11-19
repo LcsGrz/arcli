@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -9,6 +9,8 @@ import { ArcaBillingGateway } from '../../../services/arca/arca-billing.gateway'
 import { ArcaClientFactory } from '../../../services/arca/arca-client.factory';
 import { ArcaContextResolver } from '../../../services/arca/arca-context.resolver';
 import type { Arca } from '../../../services/arca/arca-sdk.types';
+
+import { assertArcaTestingReady } from './arca-guard';
 
 /**
  * Flujos completos contra ARCA testing (TEST-11): emiten de verdad con el `arcli` compilado y después leen de ARCA lo
@@ -144,22 +146,8 @@ function expectIssued(result: CliResult, label: string): Json {
 }
 
 beforeAll(() => {
-  if (process.env.CI) {
-    throw new Error('Los tests contra ARCA no corren en el CI: usan tu certificado de testing.');
-  }
-
-  if (!existsSync(CLI)) {
-    throw new Error('No está dist/cli/index.js: corré `yarn build` antes de `yarn test:arca`.');
-  }
-
-  // Cada llamada va con `--testing`, pero si la config dice producción mejor no tocar nada.
-  const config = arcli('config');
-
-  if (config.code !== 0 || config.json.entorno !== 'testing') {
-    throw new Error(
-      `La config de arcli no está en testing (entorno: ${String(config.json.entorno)}): no se emite nada.`,
-    );
-  }
+  // Fuera del CI, `dist/` compilado, la config en testing y el certificado de testing: si no, no emite nada.
+  assertArcaTestingReady();
 });
 
 afterAll(() => {

@@ -1,7 +1,8 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
+
+import { assertArcaTestingReady } from './arca-guard';
 
 /**
  * El `arcli` compilado contra ARCA testing, con tu config y tu certificado de testing. Solo local y a pedido
@@ -29,13 +30,7 @@ function arcli(...args: string[]): { readonly code: number | null; readonly json
 }
 
 beforeAll(() => {
-  if (process.env.CI) {
-    throw new Error('Los tests contra ARCA no corren en el CI: usan tu certificado de testing.');
-  }
-
-  if (!existsSync(CLI)) {
-    throw new Error('No está dist/cli/index.js: corré `yarn build` antes de `yarn test:arca`.');
-  }
+  assertArcaTestingReady();
 });
 
 describe('ARCA testing', () => {

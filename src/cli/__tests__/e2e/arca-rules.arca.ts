@@ -1,5 +1,4 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -15,6 +14,8 @@ import { ArcaClientFactory } from '../../../services/arca/arca-client.factory';
 import { ArcaContextResolver } from '../../../services/arca/arca-context.resolver';
 import type { ArcaExportGateway } from '../../../services/arca/arca-export.gateway';
 import type { IVoucher } from '../../../services/arca/arca-sdk.types';
+
+import { assertArcaTestingReady } from './arca-guard';
 
 /**
  * Las reglas que ARCLI copia de ARCA, contra ARCA testing (TEST-8; ver "De dónde sale cada regla" en
@@ -199,9 +200,8 @@ describe.skipIf(Boolean(process.env.CI))('Reglas copiadas de ARCA contra testing
   }
 
   beforeAll(() => {
-    if (!existsSync(CLI)) {
-      throw new Error('No está dist/cli/index.js: corré `yarn build` antes de `yarn test:arca`.');
-    }
+    // Fuera del CI, `dist/` compilado, la config en testing y el certificado de testing: si no, no manda nada.
+    assertArcaTestingReady();
 
     const runtime = new ArcaContextResolver({ options: { testing: true } }).resolve();
 
@@ -313,7 +313,9 @@ describe.skipIf(Boolean(process.env.CI))('Reglas copiadas de ARCA contra testing
     }
 
     interface WsfeCase {
-      /** `BUG:` por qué el caso está salteado: una diferencia con ARCA anotada, sin arreglar. */
+      /** `TESTING LAXO:` ARCA testing no aplica el control y aprueba: el caso queda salteado, con lo que se vio. */
+      readonly testingLax?: string;
+      /** `BUG:` una diferencia de ARCLI (código, docs o validación) con ARCA, anotada y sin arreglar: el caso se saltea. */
       readonly bug?: string;
       readonly base: () => readonly string[];
       readonly blockedBy?: () => readonly string[];
@@ -752,9 +754,9 @@ describe.skipIf(Boolean(process.env.CI))('Reglas copiadas de ARCA contra testing
       },
       {
         base: () => [...fcServices, '--moneda', 'USD', '--misma-moneda'],
-        // BUG: el 19/11/2026 (después de medianoche) ARCA testing aprobó la Factura C 9-17 en dólares con misma moneda y
-        // 1,5 veces la oficial, sin observaciones: la regla local (10038/10240) quedó más estricta que ARCA testing.
-        bug: 'ARCA testing aprobó misma moneda con 1,5 veces la cotización oficial (fc 9-17, 19/11/2026).',
+        // TESTING LAXO: el 19/11/2026 ARCA testing aprobó la Factura C 9-17 en dólares con misma moneda y 1,5 veces la
+        // oficial, sin observaciones. Es testing, no ARCLI: la regla (10038/10240) sigue.
+        testingLax: 'ARCA testing aprobó misma moneda con 1,5 veces la cotización oficial (fc 9-17, 19/11/2026).',
         // ARCA testing tolera hasta 1 de diferencia con la oficial y rechaza con 10240, no con 10038.
         codes: [10038, 10240],
         mutate: (request) => (request.MonCotiz = Math.round(Number(request.MonCotiz) * 150) / 100),
@@ -821,12 +823,106 @@ describe.skipIf(Boolean(process.env.CI))('Reglas copiadas de ARCA contra testing
         },
         rule: 'letra C con importe no gravado',
       },
+      // TEST-13: bordes que faltaban. Del lado de afuera: ARCA tiene que rechazar con el código del manual.
+      {
+        base: () => fcProducts,
+        blockedBy: () => [...fcProducts, '--fecha', flagDate(shift(today, 6))],
+        codes: [10016],
+        mutate: (request) => (request.CbteFch = shift(today, 6)),
+        rule: 'productos con fecha de hoy + 6',
+      },
+      {
+        base: () => fcServices,
+        blockedBy: () => [...fcServices, '--fecha', flagDate(shift(today, 11))],
+        codes: [10016],
+        mutate: (request) => {
+          request.CbteFch = shift(today, 11);
+          request.FchServDesde = shift(today, 11);
+          request.FchServHasta = shift(today, 11);
+          request.FchVtoPago = shift(today, 11);
+        },
+        rule: 'servicios con fecha de hoy + 11',
+      },
+      {
+        base: () => fcea,
+        blockedBy: () => [...fcea, '--fecha', flagDate(shift(today, -6))],
+        codes: [10016],
+        mutate: (request) => (request.CbteFch = shift(today, -6)),
+        rule: 'FCE con fecha de hoy − 6',
+      },
+      {
+        base: () => fcServices,
+        codes: [10031, 10033],
+        mutate: (request) => delete request.FchServDesde,
+        rule: 'servicio sin fecha de inicio',
+      },
+      {
+        // ARCLI suma los montos de una alícuota repetida: no hay flag que la mande dos veces.
+        base: () => fa,
+        codes: [10022],
+        mutate: (request) =>
+          (request.Iva = [
+            { BaseImp: 500, Id: 5, Importe: 105 },
+            { BaseImp: 500, Id: 5, Importe: 105 },
+          ]),
+        rule: 'la misma alícuota dos veces en Iva',
+      },
+      {
+        base: () => fa,
+        blockedBy: () => [...fa, '--exento', '1000', '--nogravado', '1000'],
+        codes: [10045],
+        mutate: (request) => {
+          request.ImpOpEx = 1000;
+          request.ImpTotConc = 1000;
+          request.ImpNeto = -790;
+          request.ImpIVA = 0;
+          delete request.Iva;
+        },
+        rule: 'exento y no gravado mayores que el total (neto negativo)',
+      },
+      {
+        base: () => ncaOverFa(),
+        codes: [10057],
+        mutate: (request) => delete associated(request).Tipo,
+        rule: 'asociado sin tipo',
+      },
+      {
+        base: () => ncaOverFa(),
+        codes: [10058],
+        mutate: (request) => delete associated(request).PtoVta,
+        rule: 'asociado sin punto de venta',
+      },
+      {
+        base: () => ncaOverFa(),
+        codes: [10059],
+        mutate: (request) => delete associated(request).Nro,
+        rule: 'asociado sin número',
+      },
+      {
+        base: () => nceaOverFcea(),
+        codes: [10151],
+        mutate: (request) => delete associated(request).Cuit,
+        rule: 'NC FCE sin el CUIT del asociado',
+      },
+      {
+        base: () => ['ncc', '-m', '1', '--cs', '--cfinal', ...period],
+        codes: [10199, 10203],
+        mutate: (request) => (request.PeriodoAsoc = { FchDesde: shift(today, -30) }),
+        rule: 'período asociado con una sola fecha',
+      },
+      {
+        base: () => fcea,
+        blockedBy: () => [...fcea, '--alias', 'a'.repeat(21)],
+        codes: [10166],
+        mutate: (request) => setOptional(request, '2102', 'a'.repeat(21)),
+        rule: 'factura FCE con un alias de 21 caracteres',
+      },
     ];
 
     for (const testCase of cases) {
       const label = testCase.codes.length > 0 ? testCase.codes.join('/') : 'sin código';
 
-      it.skipIf(Boolean(testCase.bug))(`${label}: ${testCase.rule}`, async () => {
+      it.skipIf(Boolean(testCase.testingLax ?? testCase.bug))(`${label}: ${testCase.rule}`, async () => {
         if (testCase.blockedBy) {
           expectCliBlocks(testCase.blockedBy());
         }
@@ -942,7 +1038,9 @@ describe.skipIf(Boolean(process.env.CI))('Reglas copiadas de ARCA contra testing
     }
 
     interface WsfexCase {
-      /** `BUG:` por qué el caso está salteado: una diferencia con ARCA anotada, sin arreglar. */
+      /** `TESTING LAXO:` ARCA testing no aplica el control y aprueba: el caso queda salteado, con lo que se vio. */
+      readonly testingLax?: string;
+      /** `BUG:` una diferencia de ARCLI (código, docs o validación) con ARCA, anotada y sin arreglar: el caso se saltea. */
       readonly bug?: string;
       readonly base: () => readonly string[];
       readonly blockedBy?: () => readonly string[];
@@ -1153,9 +1251,9 @@ describe.skipIf(Boolean(process.env.CI))('Reglas copiadas de ARCA contra testing
       },
       {
         base: () => [...goods(), '--misma-moneda'],
-        // BUG: el 19/11/2026 ARCA testing aprobó la E de bienes 4-30 con `CanMisMonExt` S y la cotización oficial + 2,
-        // sin error 1604: la regla local quedó más estricta que ARCA testing.
-        bug: 'ARCA testing aprobó misma moneda con la cotización oficial + 2 (fe 4-30, 19/11/2026).',
+        // TESTING LAXO: el 19/11/2026 ARCA testing aprobó la E de bienes 4-30 con `CanMisMonExt` S y la cotización
+        // oficial + 2, sin error 1604. Es testing, no ARCLI: la regla sigue.
+        testingLax: 'ARCA testing aprobó misma moneda con la cotización oficial + 2 (fe 4-30, 19/11/2026).',
         blockedBy: () => [...goods(), '--misma-moneda', '--cotizacion-moneda', '2'],
         codes: [1604],
         mutate: (request) => (request.Moneda_ctz = Number(request.Moneda_ctz) + 2),
@@ -1212,12 +1310,103 @@ describe.skipIf(Boolean(process.env.CI))('Reglas copiadas de ARCA contra testing
         mutate: (request) => (firstItem(request).Pro_ds = 'A'.repeat(4001)),
         rule: 'descripción de ítem de más de 4000 caracteres',
       },
+      // TEST-13: bordes que faltaban.
+      {
+        base: services,
+        blockedBy: () => withFlag(services(), '--tipo-expo', '3'),
+        codes: [1540],
+        mutate: (request) => (request.Tipo_expo = 3),
+        rule: 'tipo de exportación 3',
+      },
+      {
+        base: services,
+        blockedBy: () => withFlag(services(), '--cliente', ' '),
+        // BUG: docs/validation-rules.md cita 1650 para el cliente obligatorio, pero ARCA testing rechaza el vacío con 1651
+        // ("Campo obligatorio de hasta 200 posiciones"), 19/11/2026.
+        bug: 'ARCA rechaza el cliente vacío con 1651, no con el 1650 que citan los docs.',
+        codes: [1650],
+        mutate: (request) => (request.Cliente = ''),
+        rule: 'cliente vacío',
+      },
+      {
+        base: services,
+        blockedBy: () => withFlag(services(), '--domicilio-cliente', ' '),
+        // BUG: docs/validation-rules.md cita 1660 para el domicilio obligatorio, pero ARCA testing rechaza el vacío con 1661
+        // ("Campo obligatorio de hasta 300 posiciones"), 19/11/2026.
+        bug: 'ARCA rechaza el domicilio vacío con 1661, no con el 1660 que citan los docs.',
+        codes: [1660],
+        mutate: (request) => (request.Domicilio_cliente = ''),
+        rule: 'domicilio vacío',
+      },
+      {
+        base: services,
+        codes: [1560],
+        mutate: (request) => (request.Dst_cmp = 0),
+        rule: 'país de destino 0',
+      },
+      {
+        // BUG: docs/validation-rules.md cita 1600 para la moneda, pero ARCA testing rechaza una fuera de la tabla con 1590
+        // ("Campo Moneda_id invalido"), 19/11/2026.
+        bug: 'ARCA rechaza una moneda fuera de la tabla con 1590, no con el 1600 que citan los docs.',
+        base: services,
+        codes: [1600],
+        mutate: (request) => (request.Moneda_Id = 'XYZ'),
+        rule: 'moneda fuera de la tabla (ARCA)',
+      },
+      {
+        // BUG: ARCLI corta `fe --moneda XYZ` antes de ARCA, pero con ARCA_QUOTATION_ERROR (no hay cotización de XYZ) y no
+        // con INPUT_VALIDATION_ERROR de moneda fuera de la tabla de WSFEX (19/11/2026).
+        bug: 'ARCLI corta una moneda fuera de la tabla con ARCA_QUOTATION_ERROR, no con INPUT_VALIDATION_ERROR.',
+        base: services,
+        blockedBy: () => [...services(), '--moneda', 'XYZ'],
+        codes: [1600],
+        mutate: (request) => (request.Moneda_Id = 'XYZ'),
+        rule: 'moneda fuera de la tabla (ARCLI la corta como error de entrada)',
+      },
+      {
+        base: services,
+        blockedBy: () => [...services(), '--idioma', '9'],
+        codes: [1630],
+        mutate: (request) => (request.Idioma_cbte = 9),
+        rule: 'idioma fuera de la tabla',
+      },
+      {
+        base: () => note('nce'),
+        codes: [2048],
+        mutate: (request) => (associated(request).Cbte_nro = 99_999_999),
+        rule: 'nota de servicios con un asociado que no existe',
+      },
+      {
+        base: services,
+        blockedBy: () => [...services(), '--obs-comerciales', 'A'.repeat(4001)],
+        codes: [1665],
+        mutate: (request) => (request.Obs_comerciales = 'A'.repeat(4001)),
+        rule: 'observaciones comerciales de más de 4000 caracteres',
+      },
+      {
+        // El manual da el largo (C50) sin código de control: cualquier rechazo sirve.
+        // TESTING LAXO: el 19/11/2026 ARCA testing aprobó la E 4-34 con una forma de pago de 51 caracteres. ARCLI sigue
+        // cortando en 50, el largo del manual.
+        testingLax: 'ARCA testing aprobó una forma de pago de 51 caracteres (fe 4-34, 19/11/2026).',
+        base: services,
+        blockedBy: () => [...services(), '--forma-pago', 'A'.repeat(51)],
+        codes: [],
+        mutate: (request) => (request.Forma_pago = 'A'.repeat(51)),
+        rule: 'forma de pago de más de 50 caracteres',
+      },
+      {
+        base: services,
+        blockedBy: () => [...services(), '--id-impositivo', 'A'.repeat(51)],
+        codes: [],
+        mutate: (request) => (request.Id_impositivo = 'A'.repeat(51)),
+        rule: 'ID impositivo de más de 50 caracteres',
+      },
     ];
 
     for (const testCase of cases) {
       const label = testCase.codes.length > 0 ? testCase.codes.join('/') : 'sin código';
 
-      it.skipIf(Boolean(testCase.bug))(`${label}: ${testCase.rule}`, async () => {
+      it.skipIf(Boolean(testCase.testingLax ?? testCase.bug))(`${label}: ${testCase.rule}`, async () => {
         if (testCase.blockedBy) {
           expectCliBlocks(testCase.blockedBy());
         }
