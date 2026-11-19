@@ -203,6 +203,21 @@ describe('resolveOwnCategory', () => {
     expect(lookup).toHaveBeenCalledTimes(3);
   });
 
+  // TEST-21: cada caso con su propia categoria guardada, para que uno no tape al otro.
+  it.each([
+    ['otro CUIT', { cuit: '20201797064' }],
+    ['otro entorno', { environment: 'produccion' as const }],
+  ])('no reusa la categoría guardada con %s', async (_case, overrides) => {
+    const store = new MemoryMonotributoStore({
+      ownCategory: { consultedOn: '20261101', cuit: '20333333334', environment: 'testing', letter: 'D' },
+    });
+    const lookup = vi.fn(async () => 'E' as const);
+
+    await expect(resolveOwnCategory({ ...base, ...overrides, lookup, store })).resolves.toBe('E');
+    expect(lookup).toHaveBeenCalledOnce();
+    expect(store.readOwnCategory()).toMatchObject({ letter: 'E', ...overrides });
+  });
+
   it('si el padrón falla no marca nada, no guarda y no lanza', async () => {
     const store = new MemoryMonotributoStore();
     const lookup = vi.fn(async () => {

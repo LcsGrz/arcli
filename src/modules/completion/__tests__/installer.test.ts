@@ -108,8 +108,40 @@ describe('installCompletion y uninstallCompletion', () => {
 
     expect(readFileSync(path, 'utf8')).toContain('arcli completado fish | source');
 
-    uninstallCompletion('fish', environment);
-
+    expect(uninstallCompletion('fish', environment)).toMatchObject({ changed: true, installed: false });
     expect(existsSync(path)).toBe(false);
+  });
+
+  // TEST-21: huecos de Stryker.
+  it('with an rc that does not end in a newline, the block goes on its own lines', () => {
+    const environment = createEnvironment();
+    const rc = join(environment.home, '.zshrc');
+
+    writeFileSync(rc, 'alias ll="ls -l"');
+    installCompletion('zsh', environment);
+
+    const [first, blank, marker, activation] = readFileSync(rc, 'utf8').split('\n');
+
+    expect(first).toBe('alias ll="ls -l"');
+    expect(blank).toBe('');
+    expect(marker).toMatch(/^#/);
+    expect(activation).toContain('eval "$(arcli completado zsh)"');
+    expect(getCompletionState('zsh', environment).installed).toBe(true);
+  });
+
+  it('a commented activation line does not count as installed', () => {
+    const environment = createEnvironment();
+    const rc = join(environment.home, '.zshrc');
+
+    writeFileSync(rc, '# eval "$(arcli completado zsh)"\n');
+
+    expect(getCompletionState('zsh', environment).installed).toBe(false);
+    expect(installCompletion('zsh', environment).changed).toBe(true);
+  });
+
+  it('uninstalling fish when it was not installed does nothing', () => {
+    const environment = createEnvironment();
+
+    expect(uninstallCompletion('fish', environment)).toMatchObject({ changed: false, installed: false });
   });
 });
