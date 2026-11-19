@@ -360,3 +360,121 @@ describe('Consultas del modo interactivo', () => {
     });
   });
 });
+
+describe('Consultas: volver, datos que faltan y tablas vacias', () => {
+  beforeEach(() => {
+    output = '';
+    errors = '';
+    filterLists.length = 0;
+    vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
+      output += String(chunk);
+
+      return true;
+    });
+    vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+      errors += String(chunk);
+
+      return true;
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    getTaxpayer.mockReset();
+    listTable.mockReset();
+    getObligation.mockClear();
+    vi.mocked(runInvoiceFlow).mockReset();
+    expect(script.remaining()).toBe(0);
+  });
+
+  it('volver al pedir el CUIT del padrón o el del cliente FCE no consulta ARCA', async () => {
+    script = createScript([
+      [/consultar/, 'Datos de un CUIT'],
+      [/CUIT a consultar/, BACK],
+      [/consultar/, 'Si un cliente recibe FCE'],
+      [/CUIT del cliente/, BACK],
+      [/consultar/, BACK],
+    ]);
+
+    await runQueriesMenu(createSession());
+
+    expect(getTaxpayer).not.toHaveBeenCalled();
+    expect(getObligation).not.toHaveBeenCalled();
+  });
+
+  it('un CUIT sin nombre, domicilio ni condición en el padrón se nombra por su número y la factura los pregunta', async () => {
+    getTaxpayer.mockResolvedValueOnce({ ...TAXPAYER, address: null, ivaCondition: null, name: null });
+    vi.mocked(runInvoiceFlow).mockResolvedValueOnce(undefined);
+    script = createScript([
+      [/consultar/, 'Datos de un CUIT'],
+      [/CUIT a consultar/, '20-20179706-4'],
+      [/Le emitimos una factura a 20-20179706-4/, 'Emitir una factura a este CUIT'],
+    ]);
+
+    await runQueriesMenu(createSession());
+
+    expect(runInvoiceFlow).toHaveBeenCalledWith(expect.anything(), undefined, {
+      address: undefined,
+      cuit: 20201797064,
+      ivaCondition: undefined,
+      name: undefined,
+    });
+  });
+
+  it('sin puntos de venta en ARCA, la tabla lo muestra vacía sin romperse', async () => {
+    script = createScript([
+      [/consultar/, 'Tablas de ARCA'],
+      [/tabla/, 'Puntos de venta'],
+      [/tabla/, BACK],
+      [/consultar/, BACK],
+    ]);
+
+    await runQueriesMenu(createSession());
+
+    expect(errors).toBe('');
+    expect(stripAnsi(output).toUpperCase()).toContain('PUNTOS DE VENTA');
+    expect(filterLists).toHaveLength(0);
+  });
+
+  it('una tabla de ARCA vacía tampoco rompe, y al volver queda marcada la elegida', async () => {
+    listTable.mockResolvedValueOnce([]);
+    script = createScript([
+      [/consultar/, 'Tablas de ARCA'],
+      [/tabla/, 'Conceptos'],
+      [/tabla/, BACK],
+      [/consultar/, BACK],
+    ]);
+
+    await runQueriesMenu(createSession());
+
+    expect(errors).toBe('');
+    expect(script.chooseStep.mock.calls[2]?.[2]).toBe('conceptos');
+  });
+
+  it('si ARCA no devuelve monedas, la lista queda vacía y se puede volver', async () => {
+    listTable.mockResolvedValueOnce([]);
+    script = createScript([
+      [/consultar/, 'Monedas y cotizaciones'],
+      [/moneda/, BACK],
+      [/consultar/, BACK],
+    ]);
+
+    await runQueriesMenu(createSession());
+
+    expect(filterLists[0]?.rows).toEqual([]);
+    expect(getQuotation).not.toHaveBeenCalledWith(expect.anything());
+  });
+
+  it('si ARCA falla al leer una tabla, avisa y sigue en el submenú', async () => {
+    listTable.mockRejectedValueOnce(new Error('ETIMEDOUT: ARCA tardó demasiado'));
+    script = createScript([
+      [/consultar/, 'Tablas de ARCA'],
+      [/tabla/, 'Conceptos'],
+      [/consultar/, BACK],
+    ]);
+
+    await runQueriesMenu(createSession());
+
+    expect(stripAnsi(errors)).toContain('ETIMEDOUT');
+  });
+});

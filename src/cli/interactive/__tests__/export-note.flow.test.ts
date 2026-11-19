@@ -7,11 +7,11 @@ import {
   type ExportGateway,
   type ExportIssuedVoucher,
 } from '../../../modules/export/export.types';
-import { BACK } from '../../../modules/interactive/wizard';
+import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
 import { stripAnsi } from '../../../ui';
-import { runExportNoteFlow } from '../export-note.flow';
+import { buildExportNoteInput, exportNoteSteps, runExportNoteFlow } from '../export-note.flow';
 import type { InteractiveSession } from '../session';
 
 import { createScript, rejecting } from './script';
@@ -272,5 +272,155 @@ describe('runExportNoteFlow', () => {
 
     await expect(runExportNoteFlow(createSession(), 'debito', EXPORT_CREDIT_NOTE_KIND)).resolves.toBe(BACK);
     expect(printed()).toContain('En servicios una nota de débito E solo ajusta una factura E');
+  });
+});
+
+describe('runExportNoteFlow: volver en cada paso, PV propio y cotización del asociado', () => {
+  beforeEach(() => {
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    vi.mocked(gateway.authorize).mockClear();
+    vi.mocked(gateway.getVoucher).mockClear();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    expect(script.remaining()).toBe(0);
+  });
+
+  it('volver desde los opcionales hasta el punto de venta pasa por cada paso y sale al selector', async () => {
+    vi.mocked(gateway.getVoucher).mockResolvedValue({ ...INVOICE, exportType: 1, incoterm: 'FOB' });
+    script = createScript([
+      [/Punto de venta de la factura E/, '4'],
+      [/Número de la factura E/, '1'],
+      [/Monto de la nota de crédito/, '100'],
+      [/Detalle de la nota/, ''],
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, BACK],
+      [/Permisos de embarque/, BACK],
+      [/Detalle de la nota/, BACK],
+      [/Monto de la nota de crédito/, BACK],
+      [/Número de la factura E/, BACK],
+      [/Punto de venta de la factura E/, BACK],
+    ]);
+
+    await expect(runExportNoteFlow(createSession(), 'credito')).resolves.toBe(BACK);
+    expect(gateway.authorize).not.toHaveBeenCalled();
+  });
+
+  it('busca la factura en otro punto de venta escrito a mano', async () => {
+    vi.mocked(gateway.getVoucher).mockImplementation(async (query) =>
+      query.pointOfSale === 7 ? { ...INVOICE, pointOfSale: 7 } : null,
+    );
+    script = createScript([
+      [/Punto de venta de la factura E/, rejecting('7', ['0', /punto de venta/i], ['abc', /punto de venta/i])],
+      [/Número de la factura E/, '1'],
+      [/Monto de la nota de débito/, '50'],
+      [/Detalle de la nota/, 'Ajuste'],
+      [/Agregamos algún opcional/, []],
+      [/Emitimos/, 'No, dejar sin emitir'],
+    ]);
+
+    await runExportNoteFlow(createSession(), 'debito');
+
+    expect(gateway.getVoucher).toHaveBeenCalledWith(expect.objectContaining({ number: 1, pointOfSale: 7 }));
+    expect(script.askTextStep.mock.calls[0]?.[1]).toMatchObject({ defaultValue: '4' });
+    expect(printed()).toContain('--apv 7');
+  });
+
+  it('en bienes en dólares ofrece la cotización del asociado; sobre otra NC no hay tope', async () => {
+    const creditNote = { ...INVOICE, arcaType: 21, exportType: 1 as const, incoterm: 'FOB', total: 100 };
+
+    vi.mocked(gateway.getVoucher).mockResolvedValue(creditNote);
+    vi.spyOn(gateway, 'getIncoterms').mockResolvedValue([{ code: 'FOB', name: 'FOB' }]);
+    script = createScript([
+      [/Punto de venta de la nota de crédito E/, '4'],
+      [/Número de la nota de crédito E/, '1'],
+      [/Monto de la nota de crédito/, '5.000'],
+      [/Detalle de la nota/, ''],
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, []],
+      [/Emitimos/, 'No, dejar sin emitir'],
+    ]);
+
+    await runExportNoteFlow(createSession(), 'credito', EXPORT_CREDIT_NOTE_KIND);
+
+    const names = (script.chooseManyStep.mock.calls[0]?.[1] ?? []).map((choice) => [choice.name, choice.description]);
+
+    expect(names).toContainEqual(['Cotización', 'la de la nota de crédito E (1.174,605)']);
+    expect(names).toContainEqual(['Descripción del incoterm', 'FOB']);
+  });
+
+  it('una E en pesos no ofrece la cotización', async () => {
+    vi.mocked(gateway.getVoucher).mockResolvedValue({ ...INVOICE, currencyCode: 'PES', exportType: 1 });
+    script = createScript([
+      [/Punto de venta/, '4'],
+      [/Número/, '1'],
+      [/Monto de la nota de débito.*\(PES\)/, '100'],
+      [/Detalle de la nota/, ''],
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, BACK],
+      [/Permisos de embarque/, BACK],
+      [/Detalle de la nota/, BACK],
+      [/Monto/, BACK],
+      [/Número/, BACK],
+      [/Punto de venta/, BACK],
+    ]);
+
+    await runExportNoteFlow(createSession(), 'debito');
+
+    expect((script.chooseManyStep.mock.calls[0]?.[1] ?? []).map((choice) => choice.name)).not.toContain('Cotización');
+  });
+
+  it('si ARCA falla al buscar la factura, el error llega al menu', async () => {
+    vi.mocked(gateway.getVoucher).mockRejectedValueOnce(new Error('ARCA no responde'));
+    script = createScript([
+      [/Punto de venta/, '4'],
+      [/Número/, '1'],
+    ]);
+
+    await expect(runExportNoteFlow(createSession(), 'credito')).rejects.toThrow('ARCA no responde');
+  });
+});
+
+describe('notas E: sin punto de venta y sin asociado elegido', () => {
+  beforeEach(() => {
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    expect(script.remaining()).toBe(0);
+  });
+
+  it('sin punto de venta lo pide, y volver ahí no pregunta nada de la nota', async () => {
+    script = createScript([[/^Punto de venta:/, BACK]]);
+
+    const session = createSession();
+
+    await runExportNoteFlow(
+      { ...session, runtime: { ...session.runtime, pointOfSale: undefined } as ResolvedArcaRuntime },
+      'credito',
+    );
+
+    expect(gateway.getVoucher).not.toHaveBeenCalled();
+  });
+
+  it('sin asociado elegido, los pasos ajustan la factura E', async () => {
+    vi.mocked(gateway.getVoucher).mockResolvedValue(INVOICE);
+    script = createScript([
+      [/Punto de venta de la factura E/, '4'],
+      [/Número de la factura E/, '1'],
+      [/Monto de la nota de crédito/, '100'],
+      [/Detalle/, ''],
+      [/Agregamos algún opcional/, []],
+    ]);
+
+    const state = await runWizard(exportNoteSteps('credito', gateway, 4), {});
+
+    expect(buildExportNoteInput('credito', state as NonNullable<typeof state>)).toMatchObject({
+      amount: 100,
+      associatedVoucher: { number: 1, pointOfSale: 4, shortcut: undefined },
+      voucherKind: EXPORT_CREDIT_NOTE_KIND,
+    });
   });
 });

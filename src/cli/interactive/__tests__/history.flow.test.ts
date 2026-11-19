@@ -182,3 +182,60 @@ describe('consultar comprobantes de exportación E', () => {
     expect(printed()).toContain('No existe la factura de exportación E N° 00007-00000001.');
   });
 });
+
+describe('consultar comprobantes A, B y C con datos raros', () => {
+  beforeEach(() => {
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    expect(script.remaining()).toBe(0);
+  });
+
+  it('un comprobante sin CAE, con un documento que ARCLI no conoce y en otra moneda se lista y se muestra', async () => {
+    const odd = {
+      cae: undefined,
+      concept: 3,
+      currency: '060',
+      date: '20261031',
+      documentNumber: 1234567,
+      documentTypeCode: 89,
+      exchangeRate: 1600.25,
+      ivaAmount: 0,
+      netAmount: 0,
+      number: 2,
+      result: 'R',
+      total: 0,
+    };
+    const session = createSession();
+
+    vi.mocked(session.historyGateway.getLastNumber).mockResolvedValue(2);
+    vi.mocked(session.historyGateway.getVoucher).mockImplementation(async (number) => (number === 2 ? odd : undefined));
+    script = createScript([
+      [/Qué comprobantes querés consultar/, 'Factura C'],
+      [/Qué factura C querés ver/, '00004-00000002'],
+      [/Qué factura C querés ver/, BACK],
+    ]);
+
+    await runHistoryFlow(session);
+
+    const output = printed();
+
+    expect(output).toContain('00004-00000002');
+    expect(output).toMatch(/RECHAZAD/);
+    expect(output).toMatch(/N\/D|sin CAE/i);
+  });
+
+  it('un punto de venta sin comprobantes lo dice, y volver sale de la consulta', async () => {
+    script = createScript([
+      [/Qué comprobantes querés consultar/, 'Nota de crédito B'],
+      [/Qué nota de crédito B querés ver/, BACK],
+    ]);
+
+    await runHistoryFlow(createSession());
+
+    expect(printed()).toContain('en el punto de venta 4');
+  });
+});

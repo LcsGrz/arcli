@@ -1,8 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
+import { getVoucherKindByShortcut } from '../../../modules/billing/voucher-kind-map';
 import {
+  validateAmount,
+  validateBillingDate,
   validateCbu,
+  validateCuil,
+  validateCuit,
   validateDni,
+  validateExchangeRate,
+  validateOptionalAmount,
+  validateOptionalCbuAlias,
   validateOptionalDate,
   validatePointOfSale,
   validatePositiveInteger,
@@ -49,5 +57,39 @@ describe('validateDni', () => {
 
   it.each(['12345', '123456789'])('rechaza %s', (value) => {
     expect(validateDni(value)).toBe('El DNI tiene de 6 a 8 dígitos.');
+  });
+});
+
+describe('lo que una persona tipea mal', () => {
+  it.each([
+    ['monto', validateAmount, ['abc', '1.5.00', '-10', '']],
+    ['CUIT', validateCuit, ['20-12345678-0', '123', 'veinte']],
+    ['CUIL', validateCuil, ['20123', 'x']],
+    ['alias del CBU', validateOptionalCbuAlias, ['corto', 'con espacios no', 'ñandú.alias', 'a'.repeat(21)]],
+    ['cotización', validateExchangeRate, ['abc', '1', '1,0', '1.234,5678901']],
+  ] as const)('%s: rechaza lo invalido con un mensaje', (_, validate, values) => {
+    for (const value of values) {
+      expect(validate(value), value).toEqual(expect.any(String));
+    }
+  });
+
+  it('acepta los formatos argentinos y los alias validos, y vacio en lo opcional', () => {
+    expect(validateAmount('1.500,50')).toBe(true);
+    expect(validateCuit('20-12345678-6')).toBe(true);
+    expect(validateCuil('20123456786')).toBe(true);
+    expect(validateOptionalCbuAlias('')).toBe(true);
+    expect(validateOptionalCbuAlias('mi.alias-cbu')).toBe(true);
+    expect(validateOptionalAmount('  ')).toBe(true);
+    expect(validateOptionalAmount('x')).toEqual(expect.any(String));
+    expect(validateExchangeRate('1.185,50')).toBe(true);
+  });
+
+  it('la fecha del comprobante usa la ventana del CLI segun el concepto', () => {
+    const now = new Date('2026-11-18T15:00:00-03:00');
+    const fc = getVoucherKindByShortcut('fc')!;
+
+    expect(validateBillingDate('18/11/2026', 'productos', fc, now)).toBe(true);
+    expect(validateBillingDate('31/02/2026', 'productos', fc, now)).toMatch(/Fecha inválida/);
+    expect(validateBillingDate('01/01/2026', 'productos', fc, now)).toEqual(expect.any(String));
   });
 });

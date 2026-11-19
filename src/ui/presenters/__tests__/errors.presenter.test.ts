@@ -114,3 +114,44 @@ describe('errors.presenter', () => {
     expect(json.sugerencia).toBeNull();
   });
 });
+
+describe('titulos y sugerencias por codigo', () => {
+  it.each([
+    ['BATCH_VALIDATION_ERROR', 'LOTE INVÁLIDO', 'Corregí esos comprobantes'],
+    ['BATCH_EMISSION_ERROR', 'LOTE INTERRUMPIDO', 'ya se emitieron'],
+    ['EMISSION_UNCERTAIN', 'EMISIÓN SIN CONFIRMAR', undefined],
+    ['PDF_GENERATION_ERROR', 'PDF NO GENERADO', undefined],
+    ['PDF_ISSUER_INCOMPLETE', 'PDF NO GENERADO', undefined],
+    ['PDF_PLUGIN_MISSING', 'PDF NO GENERADO', undefined],
+    ['PDF_PLUGIN_INSTALL_ERROR', 'PLUGIN DE PDF NO INSTALADO', undefined],
+  ])('%s se titula "%s"', (code, title, hint) => {
+    const output = formatAppError(new AppError('Algo pasó.', { code }), false).replace(/\s+/g, ' ');
+
+    expect(output).toContain(title);
+
+    if (hint) {
+      expect(output).toContain(hint);
+    }
+  });
+
+  it('los detalles vacios, nulos u objetos no se muestran en texto; en JSON van los que tienen valor', () => {
+    const error = new AppError('Falló.', {
+      code: 'INPUT_VALIDATION_ERROR',
+      details: { lista: [1, 2], nada: null, path: '/tmp/x.json', vacio: '' },
+    });
+
+    const text = formatAppError(error, false);
+
+    expect(text).toContain('Ruta:');
+    expect(text).not.toContain('lista');
+    expect(text).not.toContain('nada');
+    expect(JSON.parse(formatAppError(error, true)).detalles).toEqual({ lista: [1, 2], ruta: '/tmp/x.json' });
+  });
+
+  it('un error de sesion abierta en WSAA o de transaccion activa se reconoce como transitorio', () => {
+    expect(JSON.parse(formatAppError(new Error('coe.alreadyAuthenticated'), true))).toMatchObject({
+      codigo: 'TRANSIENT_ERROR',
+    });
+    expect(formatAppError(new Error('Transacción Activa en ARCA'), false)).toContain('reintentá');
+  });
+});

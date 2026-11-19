@@ -298,3 +298,79 @@ describe('runRepeatFlow', () => {
     expect(previewAndEmit).not.toHaveBeenCalled();
   });
 });
+
+describe('repetir un comprobante con datos que ya no valen', () => {
+  const preview = (input: ReturnType<typeof buildInvoiceInput>) =>
+    new BillingService().execute({
+      gateway: {
+        createVoucher: async () => {
+          throw new Error('no emite');
+        },
+        getNextVoucherNumber: async () => 1,
+        getQuotation: async () => 1450,
+      },
+      input: { ...input, dryRun: true, emit: false },
+      runtime: createSession().runtime,
+      warnings: [],
+    });
+
+  beforeEach(() => {
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    expect(script.remaining()).toBe(0);
+  });
+
+  it('una Factura A a un DNI (ARCA hoy pide CUIT) no llega a emitirse: la vista previa la rechaza', async () => {
+    script = createScript([
+      [/comprobante querés repetir/, 'Factura A'],
+      [/Cuál repetimos/, '00003-00000014'],
+      [/Condición frente al IVA/, 'Responsable inscripto'],
+      [/Mismo monto/, 'Sí'],
+      [/Período del servicio/, 'Solo hoy'],
+      [/Agregamos/, []],
+    ]);
+
+    const session = createSession([
+      invoice({ documentNumber: 30123456, documentTypeCode: 96, ivaAmount: 21, netAmount: 100 }),
+    ]);
+    const state = await runWizard(repeatSteps(session, 3, TODAY), INITIAL);
+    const input = buildInvoiceInput(state as NonNullable<typeof state>, session);
+
+    expect(input).toMatchObject({ documentNumber: 30123456, documentType: 'dni', shortcut: 'fa' });
+    await expect(preview(input)).rejects.toThrow(/CUIT|DNI|documento/i);
+  });
+
+  it('un comprobante de un concepto que ARCA ya no informa se repite como servicios', async () => {
+    script = createScript([
+      [/comprobante querés repetir/, 'Factura C'],
+      [/Cuál repetimos/, '00003-00000014'],
+      [/Mismo monto/, 'Sí'],
+      [/Período del servicio/, 'Solo hoy'],
+      [/Agregamos/, []],
+    ]);
+
+    const session = createSession([invoice({ concept: 9 })]);
+    const state = await runWizard(repeatSteps(session, 3, TODAY), INITIAL);
+
+    expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({ concept: 'servicios' });
+  });
+
+  it('un comprobante con datos raros (sin CAE, total 0) igual se puede elegir y pide otro monto', async () => {
+    script = createScript([
+      [/comprobante querés repetir/, 'Factura C'],
+      [/Cuál repetimos/, '00003-00000014'],
+      [/Mismo monto/, 'No'],
+      [/Monto total/, '100'],
+      [/Período del servicio/, 'Solo hoy'],
+      [/Agregamos/, []],
+    ]);
+
+    const session = createSession([invoice({ cae: undefined as never, ivaAmount: 0, netAmount: 0, total: 0 })]);
+    const state = await runWizard(repeatSteps(session, 3, TODAY), INITIAL);
+
+    expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({ totalAmount: 100 });
+  });
+});

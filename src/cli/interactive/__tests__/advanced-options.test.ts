@@ -1,0 +1,230 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import { getVoucherKindByShortcut } from '../../../modules/billing/voucher-kind-map';
+import { BACK } from '../../../modules/interactive/wizard';
+import { askAdvancedOptions, askExchangeRate, initialAdvancedOptions } from '../advanced-options';
+
+import { createScript, rejecting } from './script';
+
+let script = createScript([]);
+
+vi.mock('../prompts', () => ({
+  askTextStep: (...args: Parameters<typeof script.askTextStep>) => script.askTextStep(...args),
+  chooseManyStep: (...args: Parameters<typeof script.chooseManyStep>) => script.chooseManyStep(...args),
+  chooseStep: (...args: Parameters<typeof script.chooseStep>) => script.chooseStep(...args),
+}));
+
+const OPTIONALS = /Agregamos/;
+const PESOS = { currencyCode: 'ARS', sameCurrency: false } as const;
+
+function context(shortcut: string, overrides: Record<string, unknown> = {}) {
+  return {
+    concept: 'servicios' as const,
+    defaultIvaRate: '21' as const,
+    voucherKind: getVoucherKindByShortcut(shortcut as never)!,
+    ...overrides,
+  };
+}
+
+/** Las descripciones de la seleccion la vez `call`, por nombre de la opcion. */
+function descriptions(call: number): Record<string, string | undefined> {
+  return Object.fromEntries(
+    (script.chooseManyStep.mock.calls[call]?.[1] ?? []).map((choice) => [choice.name, choice.description]),
+  );
+}
+
+afterEach(() => {
+  expect(script.remaining()).toBe(0);
+});
+
+describe('askAdvancedOptions: volver desde cada opcional', () => {
+  it.each([
+    ['la fecha', 'Fecha del comprobante', [[/Fecha del comprobante/, BACK]]],
+    ['la alícuota', 'Alícuota de IVA', [[/Alícuota/, BACK]]],
+    ['la moneda', 'Moneda extranjera', [[/Moneda del comprobante/, BACK]]],
+    [
+      'cómo te pagan',
+      'Moneda extranjera',
+      [
+        [/Moneda del comprobante/, 'Euro'],
+        [/Cómo te pagan/, BACK],
+      ],
+    ],
+    [
+      'la cotización',
+      'Moneda extranjera',
+      [
+        [/Moneda del comprobante/, 'Dólar'],
+        [/Cómo te pagan/, 'En pesos'],
+        [/Cotización de USD/, BACK],
+      ],
+    ],
+    ['el exento', 'Importe exento', [[/exenta/, BACK]]],
+    [
+      'el no gravado',
+      'Importe exento',
+      [
+        [/exenta/, '10'],
+        [/no gravada/, BACK],
+      ],
+    ],
+    ['el desde', 'Período', [[/Servicio desde/, BACK]]],
+    [
+      'el hasta',
+      'Período',
+      [
+        [/Servicio desde/, '01/10/2026'],
+        [/Servicio hasta/, BACK],
+      ],
+    ],
+    ['el vencimiento', 'Vencimiento', [[/Vencimiento del pago/, BACK]]],
+    ['la modalidad', 'Modalidad', [[/Modalidad de transferencia/, BACK]]],
+  ] as const)('volver desde %s vuelve a la seleccion con esa opcion marcada y sin cambios', async (_, name, steps) => {
+    script = createScript([[OPTIONALS, [name]], ...steps, [OPTIONALS, []]]);
+
+    expect(await askAdvancedOptions(PESOS, context('fcea'))).toEqual(PESOS);
+    expect(script.chooseManyStep.mock.calls[1]?.[2]).toHaveLength(1);
+  });
+
+  it('"Volver" en la seleccion vuelve al paso anterior', async () => {
+    script = createScript([[OPTIONALS, BACK]]);
+
+    expect(await askAdvancedOptions(PESOS, context('fc'))).toBe(BACK);
+  });
+});
+
+describe('askAdvancedOptions: lo respondido se ve en la seleccion', () => {
+  it('moneda con cotización acordada, exento y no gravado, período y vencimiento', async () => {
+    script = createScript([
+      [OPTIONALS, ['Moneda extranjera', 'Importe exento', 'Período', 'Vencimiento']],
+      [/Moneda del comprobante/, 'Euro'],
+      [/Cómo te pagan/, 'En pesos'],
+      [/Cotización de EUR/, rejecting('1.600,5', ['1', /cotización acordada/], ['abc', /inválida/])],
+      [/exenta/, '100'],
+      [/no gravada/, '20,50'],
+      [/Servicio desde/, '01/10/2026'],
+      [/Servicio hasta/, '31/10/2026'],
+      [/Vencimiento del pago/, BACK],
+      [OPTIONALS, []],
+    ]);
+
+    expect(await askAdvancedOptions(PESOS, context('fa'))).toMatchObject({
+      currencyCode: 'EUR',
+      exchangeRate: 1600.5,
+      exemptAmount: 100,
+      sameCurrency: false,
+      serviceEndDate: '31/10/2026',
+      serviceStartDate: '01/10/2026',
+      untaxedAmount: 20.5,
+    });
+    expect(descriptions(1)).toMatchObject({
+      'Importe exento o no gravado': 'exento 100, no gravado 20,50',
+      'Moneda extranjera': 'euros, cotización 1.600,50',
+      'Período del servicio': '01/10/2026 al 31/10/2026',
+      'Vencimiento del pago': 'por defecto',
+    });
+  });
+
+  it('cobrado en la moneda usa la oficial; volver a pesos borra la cotización', async () => {
+    script = createScript([
+      [OPTIONALS, ['Moneda extranjera']],
+      [/Moneda del comprobante/, 'Dólar'],
+      [/Cómo te pagan/, 'En dólares'],
+    ]);
+
+    const inDollars = await askAdvancedOptions(PESOS, context('fb'));
+
+    expect(inDollars).toMatchObject({ currencyCode: 'USD', exchangeRate: undefined, sameCurrency: true });
+
+    script = createScript([
+      [OPTIONALS, ['Moneda extranjera']],
+      [/Moneda del comprobante/, 'Pesos'],
+    ]);
+
+    expect(await askAdvancedOptions({ ...PESOS, currencyCode: 'USD', exchangeRate: 1200 }, context('fb'))).toEqual({
+      ...PESOS,
+      currencyCode: 'ARS',
+      exchangeRate: undefined,
+    });
+    // La lista arranca con la moneda que estaba elegida.
+    expect(script.chooseStep.mock.calls[0]?.[2]).toBe('USD');
+    expect(descriptions(0)['Moneda extranjera']).toBe('dólares, cotización 1.200');
+  });
+
+  it('una moneda que no esta en la tabla de ARCA se nombra por su código', async () => {
+    script = createScript([[/Cómo te pagan/, 'En XYZ']]);
+
+    expect(await askExchangeRate(PESOS, 'XYZ')).toMatchObject({ currencyCode: 'XYZ', sameCurrency: true });
+  });
+
+  it('pasar a productos no deja las fechas de servicio ni el vencimiento ya cargados', async () => {
+    script = createScript([[OPTIONALS, []]]);
+
+    expect(
+      await askAdvancedOptions(
+        { ...PESOS, paymentDueDate: '30/11/2026', serviceEndDate: '31/10/2026', serviceStartDate: '01/10/2026' },
+        context('fa', { concept: 'productos' }),
+      ),
+    ).toEqual({ ...PESOS, paymentDueDate: undefined, serviceEndDate: undefined, serviceStartDate: undefined });
+    expect(Object.keys(descriptions(0))).not.toContain('Período del servicio');
+  });
+
+  it('en la C no hay alícuota ni exento: si venian cargados, no llegan', async () => {
+    script = createScript([[OPTIONALS, []]]);
+
+    expect(await askAdvancedOptions({ ...PESOS, exemptAmount: 10, untaxedAmount: 5 }, context('fc'))).toMatchObject({
+      exemptAmount: undefined,
+      untaxedAmount: undefined,
+    });
+    expect(Object.keys(descriptions(0))).toEqual([
+      'Fecha del comprobante',
+      'Moneda extranjera',
+      'Período del servicio',
+      'Vencimiento del pago',
+    ]);
+  });
+
+  it('con la moneda fija (repetir en moneda extranjera) no la ofrece; la FCE ofrece la modalidad', async () => {
+    script = createScript([
+      [OPTIONALS, ['Modalidad', 'Alícuota']],
+      [/Alícuota/, '10,5%'],
+      [/Modalidad de transferencia/, 'ADC'],
+      [OPTIONALS, []],
+    ]);
+
+    // Una segunda vuelta muestra lo elegido.
+    const first = await askAdvancedOptions(PESOS, context('fcea', { fixedCurrency: true }));
+
+    await askAdvancedOptions(first as typeof PESOS, context('fcea', { fixedCurrency: true }));
+
+    expect(Object.keys(descriptions(0))).not.toContain('Moneda extranjera');
+    expect(descriptions(1)).toMatchObject({ 'Alícuota de IVA': '10,5%', 'Modalidad de transferencia': 'ADC' });
+    // La modalidad arranca en la elegida.
+    expect(first).toMatchObject({ ivaRate: '10.5', transferMode: 'adc' });
+  });
+
+  it('las notas FCE no ofrecen vencimiento', async () => {
+    script = createScript([[OPTIONALS, []]]);
+
+    await askAdvancedOptions(PESOS, context('ncea'));
+
+    expect(Object.keys(descriptions(0))).not.toContain('Vencimiento del pago');
+  });
+});
+
+describe('initialAdvancedOptions', () => {
+  it('arranca en pesos sin config, y en la moneda de la config con su cotización si no es 1', () => {
+    expect(initialAdvancedOptions({})).toEqual({ currencyCode: 'ARS', sameCurrency: false });
+    expect(initialAdvancedOptions({ monedaPorDefecto: 'DOL' })).toEqual({
+      currencyCode: 'USD',
+      exchangeRate: undefined,
+      sameCurrency: false,
+    });
+    expect(initialAdvancedOptions({ cotizacionPorDefecto: 1200, monedaPorDefecto: 'USD' })).toMatchObject({
+      exchangeRate: 1200,
+    });
+    expect(initialAdvancedOptions({ cotizacionPorDefecto: 1, monedaPorDefecto: 'USD' })).toMatchObject({
+      exchangeRate: undefined,
+    });
+  });
+});
