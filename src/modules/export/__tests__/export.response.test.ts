@@ -110,6 +110,16 @@ describe('mapExportResponse', () => {
     expect(summary.observacion).toBe('Observacion informativa');
   });
 
+  it('el estado sale de Resultado y las observaciones (TEST-16)', () => {
+    expect(mapExportResponse(authorization()).status).toBe('aprobado');
+    expect(mapExportResponse(authorization({ Motivos_Obs: 'Obs' })).status).toBe('observado');
+    expect(mapExportResponse(authorization({ Motivos_Obs: '   ' })).status).toBe('aprobado');
+    expect(mapExportResponse(authorization({ Resultado: 'R' })).status).toBe('rechazado');
+    expect(mapExportResponse(authorization({ Motivos_Obs: 'Obs', Resultado: 'R' })).status).toBe('rechazado');
+    // Sin Resultado no hay aprobacion que mostrar: no puede salir `aprobado` en el --json.
+    expect(mapExportResponse(authorization({ Resultado: '' })).status).toBe('observado');
+  });
+
   it('la vista previa no tiene CAE ni respuesta cruda', () => {
     expect(createDryRunExportResponse()).toMatchObject({ cae: null, raw: null, status: 'previsualizacion' });
   });

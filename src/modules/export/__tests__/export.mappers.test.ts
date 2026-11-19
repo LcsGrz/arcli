@@ -11,6 +11,7 @@ import {
   resolveExportCurrency,
   resolveExportDestinationCountry,
   resolveExportIncoterm,
+  resolveExportLanguage,
   resolveExportNumber,
   resolveExportPointOfSale,
   resolveExportQuotation,
@@ -167,6 +168,14 @@ describe('assertExportVoucherDate (ARCA 1500)', () => {
       /al 30\/11\/2026.*fin de mes/,
     );
     expect(() => assertExportVoucherDate({ exportType: 1, today: '20261128', voucherDate: '20261201' })).not.toThrow();
+  });
+
+  it('en servicios, si el fin de mes es el último día de la ventana, el tope es el de los 5 días (TEST-17)', () => {
+    // El 25/11 la ventana termina el 30/11, que también es el fin de mes: el error no culpa al fin de mes.
+    expect(() => assertExportVoucherDate({ exportType: 2, today: '20261125', voucherDate: '20261130' })).not.toThrow();
+    expect(() => assertExportVoucherDate({ exportType: 2, today: '20261125', voucherDate: '20261201' })).toThrow(
+      /al 30\/11\/2026, hasta 5 días antes o después de hoy \(error 1500\)/,
+    );
   });
 });
 
@@ -376,6 +385,12 @@ describe('resolveExportNumber', () => {
     expect(resolveExportNumber({ ...base, last: 0 })).toBe(1);
   });
 
+  it('el indicado por el usuario empieza en 1 (TEST-16)', () => {
+    expect(resolveExportNumber({ ...base, last: 10, provided: 1 })).toBe(1);
+    expect(() => resolveExportNumber({ ...base, last: 10, provided: 0 })).toThrow(/entero positivo/);
+    expect(() => resolveExportNumber({ ...base, last: 10, provided: -3 })).toThrow(/entero positivo/);
+  });
+
   it('no permite pasar el maximo de ARCA, tampoco con el indicado por el usuario (1520)', () => {
     expect(() => resolveExportNumber({ ...base, last: 99_999_999 })).toThrow(/máximo/);
     expect(() => resolveExportNumber({ ...base, code: 1520, last: 0, provided: 100_000_000 })).toThrow(
@@ -385,9 +400,26 @@ describe('resolveExportNumber', () => {
   });
 });
 
+describe('resolveExportLanguage (TEST-16)', () => {
+  const languages = [{ id: 1 }, { id: 2 }];
+
+  it('valida el idioma contra la tabla de ARCA', () => {
+    expect(resolveExportLanguage(2, languages)).toBe(2);
+    expect(() => resolveExportLanguage(9, languages)).toThrow(/idioma 9 no existe/);
+  });
+
+  it('sin tabla no valida, y sin idioma va el de siempre', () => {
+    expect(resolveExportLanguage(9, [])).toBe(9);
+    expect(resolveExportLanguage(undefined, languages)).toBe(1);
+  });
+});
+
 describe('resolveExportPointOfSale (1510)', () => {
   it('va de 1 a 99.998', () => {
     expect(resolveExportPointOfSale(99_998, {})).toBe(99_998);
+    expect(resolveExportPointOfSale(1, {})).toBe(1);
+    expect(() => resolveExportPointOfSale(0, {})).toThrow(/entero positivo/);
+    expect(() => resolveExportPointOfSale(undefined, { puntoVentaPorDefecto: 0 })).toThrow(/entero positivo/);
     expect(() => resolveExportPointOfSale(99_999, {})).toThrow(/1 a 99998.*error 1510/);
   });
 });
@@ -578,5 +610,24 @@ describe('buildExportPayload', () => {
     expect(() => buildExportPayload({ ...input, clientName: ' ' }, resolution)).toThrow(/--cliente/);
     expect(() => buildExportPayload({ ...input, clientAddress: undefined }, resolution)).toThrow(/--domicilio-cliente/);
     expect(() => buildExportPayload({ ...input, amount: undefined }, resolution)).toThrow(/--monto/);
+  });
+
+  it('rechaza un monto 0 o negativo (TEST-16)', () => {
+    expect(() => buildExportPayload({ ...input, amount: 0 }, resolution)).toThrow(/--monto/);
+    expect(() => buildExportPayload({ ...input, amount: -10 }, resolution)).toThrow(/--monto/);
+  });
+
+  it('--permiso-existente sin permisos es un error (TEST-16)', () => {
+    expect(() => buildExportPayload({ ...input, permitsExisting: true }, resolution)).toThrow(/al menos un permiso/);
+    expect(() => buildExportPayload({ ...input, permits: [' '], permitsExisting: true }, resolution)).toThrow(
+      /al menos un permiso/,
+    );
+  });
+
+  it('la nota de servicios pide el asociado (error 2047); la de bienes no (TEST-16)', () => {
+    const note = { ...resolution, voucherKind: EXPORT_CREDIT_NOTE_KIND };
+
+    expect(() => buildExportPayload(input, { ...note, exportType: 2 })).toThrow(/error 2047/);
+    expect(() => buildExportPayload(input, note)).not.toThrow();
   });
 });

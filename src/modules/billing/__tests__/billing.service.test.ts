@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { POINT_OF_SALE_GUIDE_URL } from '../../../lib/links';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import { EmissionUncertainError } from '../billing.errors';
-import type { BillingCommandInput } from '../billing.schemas';
+import { type BillingCommandInput, billingCommandSchema } from '../billing.schemas';
 import { BillingService } from '../billing.service';
 import { mapBillingResponse } from '../billing-response';
 
@@ -954,6 +954,17 @@ describe('billing.service', () => {
       ).toThrow(/no puede ser posterior/);
     });
 
+    it('acepta los bordes del período: desde el 01/01/2006, desde = hasta y hasta = fecha de la nota (TEST-17)', () => {
+      const period = (desde: string, hasta: string) =>
+        new BillingService().buildVoucherPayload(periodNote({ associatedPeriod: { desde, hasta } }), createRuntime())
+          .PeriodoAsoc;
+
+      expect(period('01/01/2006', '31/01/2006')).toEqual({ FchDesde: '20060101', FchHasta: '20060131' });
+      expect(period('10/03/2026', '10/03/2026')).toEqual({ FchDesde: '20260310', FchHasta: '20260310' });
+      expect(period('01/03/2026', '18/03/2026')).toEqual({ FchDesde: '20260301', FchHasta: '20260318' });
+      expect(() => period('31/12/2005', '31/01/2006')).toThrow(/posterior al 01\/01\/2006/);
+    });
+
     it('rejects periods before 2006', () => {
       expect(() =>
         new BillingService().buildVoucherPayload(
@@ -1224,6 +1235,20 @@ describe('billing.service', () => {
       ).toThrow(/`--cbu` solo aplica a comprobantes de crédito electrónica/);
     });
 
+    it('acepta un asociado con la misma fecha que la nota (TEST-17)', () => {
+      const payload = new BillingService().buildVoucherPayload(
+        createBillingInput({
+          associatedVoucher: { cuit: '20123456786', fecha: '18/03/2026', numero: 7, puntoVenta: 3, shortcut: 'fb' },
+          billingDate: '18/03/2026',
+          documentNumber: 0,
+          shortcut: 'ncb',
+        }),
+        createRuntime(),
+      );
+
+      expect(payload.CbtesAsoc?.[0]?.CbteFch).toBe('20260318');
+    });
+
     it('keeps the associated date optional on regular credit notes', () => {
       const payload = new BillingService().buildVoucherPayload(
         createBillingInput({
@@ -1467,6 +1492,40 @@ describe('billing.service', () => {
       errors: [],
       events: [],
       resultado: null,
+    });
+  });
+
+  describe('emisión segura (TEST-15): solo emite con dryRun false y emit true', () => {
+    it.each([
+      { dryRun: true, emit: false, emits: false },
+      { dryRun: true, emit: true, emits: false },
+      { dryRun: false, emit: false, emits: false },
+      { dryRun: false, emit: true, emits: true },
+    ])('dryRun $dryRun y emit $emit → emite: $emits', async ({ dryRun, emit, emits }) => {
+      const createVoucher = vi.fn(async () => ({ cae: '76123456789012', caeFchVto: '20261103', response: {} }));
+      const getNextVoucherNumber = vi.fn(async () => 7);
+
+      const result = await new BillingService().execute({
+        gateway: { createVoucher, getNextVoucherNumber, getQuotation: async () => 1 },
+        input: createBillingInput({ documentNumber: 0, dryRun, emit }),
+        runtime: createRuntime(),
+      });
+
+      expect(result.dryRun).toBe(!emits);
+      expect(createVoucher).toHaveBeenCalledTimes(emits ? 1 : 0);
+      expect(getNextVoucherNumber).toHaveBeenCalledTimes(emits ? 1 : 0);
+    });
+
+    it('el schema deja emit y dryRun en false si no vienen', () => {
+      const parsed = billingCommandSchema.parse({
+        concept: 'servicios',
+        ivaCondition: 'consumidor-final',
+        shortcut: 'fb',
+        totalAmount: 1000,
+      });
+
+      expect(parsed.emit).toBe(false);
+      expect(parsed.dryRun).toBe(false);
     });
   });
 
