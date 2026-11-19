@@ -302,6 +302,8 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
       run: (state, previous) => askAssociatedKind(session, state, previous?.invoiceKind),
     },
     {
+      // "A una factura" o "A un recibo", segun el asociado.
+      dependsOn: ['tipo-factura'],
       name: 'asociacion',
       run: async (state, previous) => {
         const target = await chooseStep(
@@ -327,6 +329,7 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
       skip: (state) => Boolean(state.invoiceKind?.isElectronicCredit) || isOverNote(state),
     },
     {
+      dependsOn: ['tipo-factura'],
       name: 'factura',
       run: async (state, previous) => {
         const invoiceKind = requireStepValue(state.invoiceKind, 'invoiceKind');
@@ -378,6 +381,8 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
       skip: isPeriod,
     },
     {
+      // Las opciones son la moneda de la factura y pesos.
+      dependsOn: ['factura'],
       name: 'moneda',
       run: async (state, previous) => {
         const invoice = requireStepValue(state.invoice, 'invoice');
@@ -393,6 +398,7 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
       skip: (state) => isPeriod(state) || !canChooseNoteCurrency(state.invoice),
     },
     {
+      dependsOn: ['tipo-factura', 'factura'],
       name: 'fecha-asociado',
       run: async (state, previous) => {
         const invoiceKind = requireStepValue(state.invoiceKind, 'invoiceKind');
@@ -432,6 +438,7 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
       skip: (state) => !isPeriod(state),
     },
     ...receiverSteps<NoteState>({
+      dependsOn: ['tipo-factura'],
       letter: (state) => state.invoiceKind?.letter ?? 'c',
       message: () => '¿A quién va la nota?',
       skip: (state) => !asksOwnData(state),
@@ -450,16 +457,22 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
       skip: (state) => !asksOwnData(state),
     },
     {
+      // "Anular el total" muestra el total de la factura.
+      dependsOn: ['factura'],
       name: 'alcance',
       run: (state, previous) => askAnnulScope(state, previous?.annulsTotal),
       skip: (state) => !canAnnulTotal(state),
     },
     {
+      // El tope de la NC es el total de la factura, en su moneda.
+      dependsOn: ['tipo-factura', 'factura', 'moneda'],
       name: 'monto',
       run: (state, previous) => askNoteAmount(state, previous?.totalAmount),
       skip: (state) => state.annulsTotal === true,
     },
     {
+      // Las opciones son las de la letra, y la marcada sale del padron con el CUIT (de la factura o escrito).
+      dependsOn: ['tipo-factura', 'factura', 'receptor', 'documento'],
       name: 'iva-receptor',
       run: async (state, previous) => {
         // ARCA no devuelve la condicion IVA de la factura, asi que se pregunta, filtrada por la letra.
@@ -474,6 +487,8 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
       skip: (state) => state.documentType === 'consumidor-final',
     },
     {
+      // La deducida de la factura es la que arranca marcada; el texto cambia si la nota es de periodo.
+      dependsOn: ['tipo-factura', 'asociacion', 'factura'],
       name: 'alicuota',
       run: async (state, previous) => {
         const ivaRate = await chooseStep(
@@ -489,6 +504,8 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
       skip: (state) => state.invoiceKind?.letter === 'c' || (!asksOwnData(state) && Boolean(state.ivaRate)),
     },
     {
+      // Es sobre la factura elegida.
+      dependsOn: ['factura'],
       name: 'anulacion',
       run: async (_state, previous) => {
         const cancellation = await chooseStep(

@@ -2,7 +2,7 @@ import { isIvaConditionAllowed } from '../../modules/billing/billing.iva-recepto
 import type { BillingCommandInput, BillingIvaCondition } from '../../modules/billing/billing.schemas';
 import type { VoucherLetter } from '../../modules/billing/billing.types';
 import { isPadronLookupEnabled } from '../../modules/config/config.schemas';
-import { ivaConditionChoices, receiverChoices } from '../../modules/interactive/choices';
+import { availableChoice, ivaConditionChoices, receiverChoices } from '../../modules/interactive/choices';
 import { BACK, type Back, type WizardStep } from '../../modules/interactive/wizard';
 import { ArcaPadronGateway } from '../../services/arca/arca-padron.gateway';
 import { startSpinner } from '../spinner';
@@ -37,6 +37,8 @@ interface ReceiverStepState {
 }
 
 interface ReceiverStepOptions<S> {
+  /** Los pasos de los que salen la letra y si es FCE: si cambian, el tipo de receptor elegido antes no se ofrece. */
+  readonly dependsOn?: readonly string[];
   /** Si es una FCE: como la A, solo admite CUIT (10015). */
   readonly electronicCredit?: (state: S) => boolean;
   /** La letra del comprobante: la A solo admite CUIT. */
@@ -55,12 +57,14 @@ export function receiverSteps<S extends ReceiverStepState>(
 ): [WizardStep<S>, WizardStep<S>] {
   return [
     {
+      dependsOn: options.dependsOn,
       name: 'receptor',
       run: async (state, previous) => {
+        const choices = receiverChoices(options.letter(state), options.electronicCredit?.(state));
         const documentType = await chooseStep(
           options.message(state),
-          receiverChoices(options.letter(state), options.electronicCredit?.(state)),
-          previous?.documentType,
+          choices,
+          availableChoice(choices, previous?.documentType),
         );
 
         return documentType === BACK
@@ -74,6 +78,8 @@ export function receiverSteps<S extends ReceiverStepState>(
       skip: options.skip,
     },
     {
+      // El texto y la validacion cambian con el tipo: un DNI escrito antes no se ofrece como CUIT.
+      dependsOn: ['receptor'],
       name: 'documento',
       run: async (state, previous) => {
         const answer = await askDocumentNumber(state.documentType, previous?.documentNumber);
@@ -152,7 +158,8 @@ export async function askReceiverIvaCondition(
   const ivaCondition = await chooseStep(
     receiver?.name ? `Condición frente al IVA de ${receiver.name}:` : 'Condición frente al IVA del receptor:',
     choices,
-    previous ?? fromPadron ?? configDefault,
+    // Lo elegido antes puede no servir para la letra: entonces arranca en la del padron o la de la config.
+    availableChoice(choices, previous, fromPadron, configDefault),
   );
 
   return ivaCondition === BACK ? BACK : { ivaCondition, receiver };

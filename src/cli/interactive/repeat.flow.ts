@@ -106,6 +106,7 @@ export function repeatSteps(
   const periods = { actual: currentMonthPeriod(today), anterior: previousMonthPeriod(today) } as const;
   const billingSteps: Array<WizardStep<RepeatState>> = [
     {
+      dependsOn: ['tipo'],
       name: 'factura',
       run: async (state, previous) => {
         const voucherKind = requireStepValue(state.voucherKind, 'voucherKind');
@@ -159,6 +160,7 @@ export function repeatSteps(
     },
     {
       // Una A (o FCE) vieja a un DNI, CUIL o consumidor final: se pide el CUIT ya, no en el rechazo de la vista previa.
+      dependsOn: ['tipo', 'factura'],
       name: 'cuit-receptor',
       run: async (state, previous) => {
         writeTerminalOutput(noticePanel(requireStepValue(copiedNotice(state), 'el aviso del receptor'), 'warning'));
@@ -175,6 +177,7 @@ export function repeatSteps(
       skip: (state) => copiedNotice(state) === undefined,
     },
     {
+      dependsOn: ['tipo', 'factura', 'cuit-receptor'],
       name: 'iva-receptor',
       // ARCA no devuelve la condicion IVA de la factura, asi que se pregunta.
       run: async (state, previous) => {
@@ -189,6 +192,7 @@ export function repeatSteps(
       skip: (state) => state.documentType === 'consumidor-final',
     },
     {
+      dependsOn: ['factura'],
       name: 'mismo-monto',
       run: async (state, previous) => {
         const original = requireStepValue(state.original, 'original');
@@ -211,6 +215,8 @@ export function repeatSteps(
       skip: (state) => !state.original || Boolean(copyInvoiceAmounts(state.original, letterOf(state)).limitation),
     },
     {
+      // Va en la moneda de la factura.
+      dependsOn: ['factura'],
       name: 'monto',
       run: async (state, previous) => {
         const currency = foreignCurrencyOf(state.original);
@@ -224,6 +230,7 @@ export function repeatSteps(
       skip: (state) => state.sameAmount === true,
     },
     {
+      dependsOn: ['factura'],
       name: 'pago',
       // La cotizacion del original ya no sirve: se pide la de hoy, en la moneda del original.
       run: async (state, previous) => {
@@ -245,6 +252,7 @@ export function repeatSteps(
       skip: (state) => !foreignCurrencyOf(state.original),
     },
     {
+      dependsOn: ['factura', 'pago'],
       name: 'cotizacion',
       run: async (state, previous) => {
         const currency = requireStepValue(foreignCurrencyOf(state.original), 'currency');

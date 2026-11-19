@@ -111,12 +111,15 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
   };
   const billingSteps: Array<WizardStep<InvoiceState>> = [
     ...receiverSteps<InvoiceState>({
+      dependsOn: ['comprobante'],
       electronicCredit: (state) => Boolean(state.voucherKind?.isElectronicCredit),
       letter: (state) => state.voucherKind?.letter ?? 'c',
       message: (state) => (isReceipt(state) ? '¿A quién le hacés el recibo?' : '¿A quién le facturás?'),
       skip: (state) => Boolean(state.receiverFromQuery),
     }),
     {
+      // Las opciones son las de la letra, y la marcada sale del padron con el CUIT.
+      dependsOn: ['comprobante', 'receptor', 'documento'],
       name: 'iva-receptor',
       run: async (state, previous) => {
         return askReceiverIvaCondition(

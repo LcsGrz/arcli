@@ -200,9 +200,10 @@ describe('repetir un comprobante', () => {
       '1200',
       '1200',
     ]);
+    // Cómo te pagan no depende del monto: cambiarlo no la olvida.
     expect(
       script.chooseStep.mock.calls.filter(([message]) => /Cómo te pagan/.test(message)).map((call) => call[2]),
-    ).toEqual([undefined, 'pesos', 'pesos', undefined]);
+    ).toEqual([undefined, 'pesos', 'pesos', 'pesos']);
   });
 
   it('"Otro período" pide desde y hasta; volver desde el período vuelve al monto', async () => {

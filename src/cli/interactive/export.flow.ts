@@ -195,6 +195,11 @@ function exportSteps(
       skip: (state) => !state.countryCuitMissing,
     },
     {
+      // Sin CUIT del pais es obligatorio: depende de si falta y de si se escribio, no del pais en si.
+      dependsOn: [
+        { fields: ['countryCuitMissing'], step: 'pais' },
+        { fields: ['options.clientCountryCuit'], step: 'cuit-pais' },
+      ],
       name: 'id-impositivo',
       run: async (state, previous) => {
         // Sin CUIT del pais, ARCA pide el ID impositivo (error 1580).
@@ -375,6 +380,8 @@ function exportSteps(
     },
     {
       // Despues de los opcionales: no puede ser anterior a la fecha del comprobante, que se elige ahi (1674).
+      // Solo la fecha del comprobante: cambiar otro opcional no la olvida.
+      dependsOn: [{ fields: ['options.voucherDate'], step: 'opcionales' }],
       name: 'fecha-pago',
       run: async (state, previous) => {
         const answer = await askTextStep('Fecha de pago (Enter para la fecha del comprobante):', {

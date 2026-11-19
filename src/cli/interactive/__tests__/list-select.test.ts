@@ -152,6 +152,13 @@ describe('listSelect', () => {
     expect(frames[0]).toContain('❯ Opción 15');
   });
 
+  it('una opcion por defecto que no esta (una respuesta vieja) arranca en la primera', async () => {
+    const { answer, frames } = await run([ENTER], { default: 99 });
+
+    expect(answer).toBe(1);
+    expect(frames[0]).toContain('❯ Opción 1');
+  });
+
   it('saltea los separadores, no deja elegir las apagadas y muestra la descripcion de la marcada', async () => {
     const choices = [
       { description: 'La primera', name: 'Uno', value: 1 },

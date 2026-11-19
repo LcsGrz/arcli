@@ -220,6 +220,44 @@ describe('factura: volver con lo respondido', () => {
     ]);
   });
 
+  // REV-65: cambiar una respuesta olvida solo las que dependen de ella.
+  it('si cambia el comprobante, el receptor se pregunta de cero, pero el concepto y el monto arrancan con lo respondido', async () => {
+    script = createScript([
+      [/comprobante/, 'Factura A'],
+      [/A quién/, 'Con CUIT'],
+      [/CUIT del receptor/, '30-70996581-2'],
+      [/Condición frente al IVA/, 'Responsable monotributo'],
+      [/Qué estás facturando/, 'Productos'],
+      [/Monto total/, '1.500,50'],
+      [/Agregamos/, BACK],
+      [/Monto total/, BACK],
+      [/Qué estás facturando/, BACK],
+      [/Condición frente al IVA/, BACK],
+      [/CUIT del receptor/, BACK],
+      [/A quién/, BACK],
+      [/comprobante/, 'Factura B'],
+      [/A quién/, 'Con CUIT'],
+      [/CUIT del receptor/, '30-70996581-2'],
+      [/Condición frente al IVA/, 'Sujeto exento'],
+      [/Qué estás facturando/, 'Productos'],
+      [/Monto total/, '1.500,50'],
+      [/Agregamos/, []],
+    ]);
+
+    expect(await invoice()).toMatchObject({ ivaCondition: 'sujeto-exento', shortcut: 'fb', totalAmount: 1500.5 });
+    expect(defaultsOf(/A quién/)).toEqual([undefined, 'cuit', undefined]);
+    expect(defaultsOf(/Condición frente al IVA/)).toEqual([undefined, 'responsable-monotributo', undefined]);
+    expect(defaultsOf(/Qué estás facturando/)).toEqual([undefined, 'productos', 'productos']);
+    expect(script.askTextStep.mock.calls.map(([message, options]) => [message, options?.previousAnswer])).toEqual([
+      ['CUIT del receptor:', undefined],
+      ['Monto total:', undefined],
+      ['Monto total:', '1500,50'],
+      ['CUIT del receptor:', '30709965812'],
+      ['CUIT del receptor:', undefined],
+      ['Monto total:', '1500,50'],
+    ]);
+  });
+
   it('si cambia el tipo de receptor, el número escrito antes no se ofrece', async () => {
     script = createScript([
       [/comprobante/, 'Factura B'],
