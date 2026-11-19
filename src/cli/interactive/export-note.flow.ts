@@ -15,7 +15,7 @@ import {
   type ExportVoucherKind,
   getExportVoucherKindByArcaType,
 } from '../../modules/export/export.types';
-import { parseAmountInput } from '../../modules/interactive/amount-input';
+import { amountInputText, parseAmountInput } from '../../modules/interactive/amount-input';
 import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { formatVoucherNumber } from '../../modules/vouchers/voucher-history.presenter';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
@@ -103,9 +103,10 @@ export function exportNoteSteps(
   return [
     {
       name: 'punto-venta-factura',
-      run: async (state) => {
+      run: async (state, previous) => {
         const answer = await askTextStep(`Punto de venta de ${associatedName(state.associatedKind)}:`, {
           defaultValue: String(pointOfSale),
+          previousAnswer: previous?.invoicePointOfSale === undefined ? undefined : String(previous.invoicePointOfSale),
           validate: validatePositiveInteger('El punto de venta'),
         });
 
@@ -114,7 +115,7 @@ export function exportNoteSteps(
     },
     {
       name: 'factura',
-      run: async (state) => {
+      run: async (state, previous) => {
         const invoicePointOfSale = requireStepValue(state.invoicePointOfSale, 'invoicePointOfSale');
         const associatedKind = state.associatedKind ?? EXPORT_VOUCHER_KIND;
         const name = associatedName(associatedKind);
@@ -122,6 +123,7 @@ export function exportNoteSteps(
         // Se vuelve a preguntar hasta que ARCA tenga el comprobante y la nota pueda ajustarlo, o hasta "Volver".
         for (;;) {
           const answer = await askTextStep(`Número de ${name}:`, {
+            previousAnswer: previous?.invoice ? String(previous.invoice.number) : undefined,
             validate: validatePositiveInteger('El número'),
           });
 
@@ -158,9 +160,10 @@ export function exportNoteSteps(
     },
     {
       name: 'monto',
-      run: async (state) => {
+      run: async (state, previous) => {
         const invoice = requireStepValue(state.invoice, 'invoice');
         const answer = await askTextStep(`Monto de la ${formatVoucherLabel(voucherKind)} (${invoice.currencyCode}):`, {
+          previousAnswer: amountInputText(previous?.amount),
           validate: (value) => {
             const valid = validateAmount(value);
 
@@ -184,8 +187,9 @@ export function exportNoteSteps(
     },
     {
       name: 'descripcion',
-      run: async () => {
+      run: async (_state, previous) => {
         const answer = await askTextStep('Detalle de la nota (Enter para "Según detalle"):', {
+          previousAnswer: previous?.description,
           validate: validateExportText('description'),
         });
 

@@ -3,7 +3,7 @@ import { type BillingCommandInput, billingCommandSchema } from '../../modules/bi
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import type { ArcliConfig } from '../../modules/config/config.schemas';
 import { EXPORT_VOUCHER_KIND, type ExportVoucherKind } from '../../modules/export/export.types';
-import { parseAmountInput } from '../../modules/interactive/amount-input';
+import { amountInputText, parseAmountInput } from '../../modules/interactive/amount-input';
 import {
   conceptChoices,
   exportInvoiceChoice,
@@ -78,12 +78,17 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
 
   const pickVoucherKind: WizardStep<InvoiceState> = {
     name: 'comprobante',
-    run: async (state) => {
-      // Volver desde el primer paso de la E vuelve a este selector.
+    run: async (state, previous) => {
+      // Volver desde el primer paso de la E vuelve a este selector, con la E marcada.
+      let picked: ExportVoucherKind | VoucherKindDefinition | undefined = previous?.voucherKind;
+
       for (;;) {
-        const voucherKind = await chooseStep<ExportVoucherKind | VoucherKindDefinition>(
+        const voucherKind: Back | ExportVoucherKind | VoucherKindDefinition = await chooseStep<
+          ExportVoucherKind | VoucherKindDefinition
+        >(
           state.receipt ? '¿Qué recibo querés emitir?' : '¿Qué comprobante querés emitir?',
           voucherKindChoices(state),
+          picked,
         );
 
         if (voucherKind === BACK) {
@@ -97,6 +102,8 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
         if ((await runExportFlow(session)) !== BACK) {
           return { exported: true };
         }
+
+        picked = voucherKind;
       }
     },
     // Con el comprobante ya elegido no se pregunta.
@@ -111,18 +118,24 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
     }),
     {
       name: 'iva-receptor',
-      run: async (state) => {
-        return askReceiverIvaCondition(session, state, state.voucherKind?.letter ?? 'c', config.ivaReceptorPorDefecto);
+      run: async (state, previous) => {
+        return askReceiverIvaCondition(
+          session,
+          state,
+          state.voucherKind?.letter ?? 'c',
+          config.ivaReceptorPorDefecto,
+          previous?.ivaCondition,
+        );
       },
       skip: (state) => state.documentType === 'consumidor-final' || ivaConditionFromQueryFits(state),
     },
     {
       name: 'concepto',
-      run: async (state) => {
+      run: async (state, previous) => {
         const concept = await chooseStep(
           isReceipt(state) ? '¿Qué estás cobrando?' : '¿Qué estás facturando?',
           conceptChoices(),
-          config.conceptoPorDefecto,
+          previous?.concept ?? config.conceptoPorDefecto,
         );
 
         return concept === BACK ? BACK : { concept };
@@ -130,13 +143,16 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
     },
     {
       name: 'monto',
-      run: async () => {
-        const answer = await askTextStep('Monto total:', { validate: validateAmount });
+      run: async (_state, previous) => {
+        const answer = await askTextStep('Monto total:', {
+          previousAnswer: amountInputText(previous?.totalAmount),
+          validate: validateAmount,
+        });
 
         return answer === BACK ? BACK : { totalAmount: parseAmountInput(answer) };
       },
     },
-    cbuStep(config),
+    ...cbuSteps(config),
     {
       name: 'avanzadas',
       run: async (state) => {
@@ -183,31 +199,39 @@ export function buildInvoiceInput(state: InvoiceState, session: InteractiveSessi
   });
 }
 
-/** El paso del CBU de "Emitir factura" y "Repetir": solo en facturas FCE, si la config no tiene uno. */
-export function cbuStep<S extends InvoiceState>(config: Pick<ArcliConfig, 'aliasCbu' | 'cbu'>): WizardStep<S> {
-  return {
-    name: 'cbu',
-    run: () => askCbuStep(config) as Promise<Back | Partial<S>>,
-    skip: (state) => !isFceInvoice(state) || Boolean(config.cbu),
-  };
-}
-
 /**
  * El CBU de la FCE cuando la config no tiene uno y, si tampoco tiene alias, el alias (Enter lo omite, como sin
- * `--alias`). Lo comparten "Emitir factura" y "Repetir".
+ * `--alias`), en dos pasos. Los comparten "Emitir factura" y "Repetir".
  */
-export async function askCbuStep(
-  config: Pick<ArcliConfig, 'aliasCbu'>,
-): Promise<Back | Pick<InvoiceState, 'cbu' | 'cbuAlias'>> {
-  const cbu = await askTextStep('CBU del emisor (22 dígitos):', { validate: validateCbu });
+export function cbuSteps<S extends InvoiceState>(config: Pick<ArcliConfig, 'aliasCbu' | 'cbu'>): Array<WizardStep<S>> {
+  const asksCbu = (state: S): boolean => isFceInvoice(state) && !config.cbu;
 
-  if (cbu === BACK || config.aliasCbu) {
-    return cbu === BACK ? BACK : { cbu, cbuAlias: undefined };
-  }
+  return [
+    {
+      name: 'cbu',
+      run: async (_state, previous) => {
+        const cbu = await askTextStep('CBU del emisor (22 dígitos):', {
+          previousAnswer: previous?.cbu,
+          validate: validateCbu,
+        });
 
-  const alias = await askTextStep('Alias del CBU (Enter para omitir):', { validate: validateOptionalCbuAlias });
+        return cbu === BACK ? BACK : ({ cbu, cbuAlias: undefined } as Partial<S>);
+      },
+      skip: (state) => !asksCbu(state),
+    },
+    {
+      name: 'alias-cbu',
+      run: async (_state, previous) => {
+        const alias = await askTextStep('Alias del CBU (Enter para omitir):', {
+          previousAnswer: previous?.cbuAlias,
+          validate: validateOptionalCbuAlias,
+        });
 
-  return alias === BACK ? BACK : { cbu, cbuAlias: alias.trim() || undefined };
+        return alias === BACK ? BACK : ({ cbuAlias: alias.trim() || undefined } as Partial<S>);
+      },
+      skip: (state) => !asksCbu(state) || Boolean(config.aliasCbu),
+    },
+  ];
 }
 
 /**

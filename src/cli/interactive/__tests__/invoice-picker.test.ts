@@ -103,13 +103,14 @@ describe('pickInvoice', () => {
     expect(script.chooseStep.mock.calls[0]?.[1]).toEqual([expect.objectContaining({ value: 'a-mano' })]);
   });
 
-  it('volver desde el punto de venta o el número vuelve a la lista, con "a mano" marcado', async () => {
+  it('volver desde el punto de venta vuelve a la lista con "a mano" marcado; desde el número, al punto de venta', async () => {
     script = createScript([
       [/Cuál/, 'Ingresar el número a mano'],
       [/Punto de venta/, BACK],
       [/Cuál/, 'Ingresar el número a mano'],
       [/Punto de venta/, '3'],
       [/Número/, BACK],
+      [/Punto de venta/, BACK],
       [/Cuál/, '00003-00000005'],
     ]);
 
@@ -118,6 +119,26 @@ describe('pickInvoice', () => {
       pointOfSale: 3,
     });
     expect(script.chooseStep.mock.calls[1]?.[2]).toBe('a-mano');
+    // REV-60: el punto de venta arranca escrito con lo respondido.
+    expect(script.askTextStep.mock.calls[3]?.[1]).toMatchObject({ previousAnswer: '3' });
+  });
+
+  it('con el elegido antes (al volver a la pregunta) arranca marcado; si no esta en la lista, "a mano" y escrito', async () => {
+    script = createScript([[/Cuál/, '00003-00000005']]);
+    await pickInvoice(createSession([invoice(4), invoice(5)]), { ...options, previous: { number: 4, pointOfSale: 3 } });
+    expect(script.chooseStep.mock.calls[0]?.[2]).toMatchObject({ number: 4 });
+
+    script = createScript([
+      [/Cuál/, 'Ingresar el número a mano'],
+      [/Punto de venta/, '7'],
+      [/Número/, '5'],
+    ]);
+    await pickInvoice(createSession([invoice(4), invoice(5)]), {
+      ...options,
+      previous: { number: 12, pointOfSale: 7 },
+    });
+    expect(script.chooseStep.mock.calls[0]?.[2]).toBe('a-mano');
+    expect(script.askTextStep.mock.calls.map((call) => call[1]?.previousAnswer)).toEqual(['7', '12']);
   });
 
   it('uno que no existe avisa y vuelve a la lista', async () => {

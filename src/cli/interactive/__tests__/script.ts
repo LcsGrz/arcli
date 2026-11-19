@@ -2,7 +2,7 @@ import { Separator } from '@inquirer/select';
 import { vi } from 'vitest';
 
 import { BACK } from '../../../modules/interactive/wizard';
-import type { Choice } from '../prompts';
+import type { Choice, TextStepOptions } from '../prompts';
 
 /** Las opciones de una lista, sin los separadores. */
 export function onlyChoices<T>(choices: ReadonlyArray<Choice<T> | Separator>): Array<Choice<T>> {
@@ -126,7 +126,8 @@ export function createScript(steps: ReadonlyArray<readonly [RegExp, ScriptedAnsw
   );
 
   const askTextStep = vi.fn(
-    async (message: string, options: { readonly validate?: (value: string) => string | true } = {}) => {
+    // `previousAnswer` y `defaultValue` no cambian la respuesta: quedan en `mock.calls` para verificar con que arranca.
+    async (message: string, options: TextStepOptions = {}) => {
       const scripted = nextSingle(message);
 
       if (scripted === BACK) {

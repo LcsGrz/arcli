@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { getVoucherKindByShortcut } from '../../../modules/billing/voucher-kind-map';
 import { BACK } from '../../../modules/interactive/wizard';
-import { askAdvancedOptions, askExchangeRate, initialAdvancedOptions } from '../advanced-options';
+import { askAdvancedOptions, askPaymentCurrency, initialAdvancedOptions } from '../advanced-options';
 
 import { createScript, rejecting } from './script';
 
@@ -34,21 +34,45 @@ function descriptions(call: number): Record<string, string | undefined> {
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   expect(script.remaining()).toBe(0);
 });
 
 describe('askAdvancedOptions: volver desde cada opcional', () => {
   it.each([
-    ['la fecha', 'Fecha del comprobante', [[/Fecha del comprobante/, BACK]]],
-    ['la alícuota', 'Alícuota de IVA', [[/Alícuota/, BACK]]],
-    ['la moneda', 'Moneda extranjera', [[/Moneda del comprobante/, BACK]]],
+    ['la fecha', 'Fecha del comprobante', /Fecha del comprobante/],
+    ['la alícuota', 'Alícuota de IVA', /Alícuota/],
+    ['la moneda', 'Moneda extranjera', /Moneda del comprobante/],
+    ['el exento', 'Importe exento', /exenta/],
+    ['el desde', 'Período', /Servicio desde/],
+    ['el vencimiento', 'Vencimiento', /Vencimiento del pago/],
+    ['la modalidad', 'Modalidad', /Modalidad de transferencia/],
+  ] as const)(
+    'volver desde la primera pregunta de %s vuelve a la seleccion con esa opcion marcada y sin cambios',
+    async (_, name, question) => {
+      script = createScript([
+        [OPTIONALS, [name]],
+        [question, BACK],
+        [OPTIONALS, []],
+      ]);
+
+      expect(await askAdvancedOptions(PESOS, context('fcea'))).toEqual(PESOS);
+      expect(script.chooseManyStep.mock.calls[1]?.[2]).toHaveLength(1);
+    },
+  );
+
+  // REV-60: dentro de un opcional, "Volver" va a la pregunta anterior, con lo respondido marcado o escrito.
+  it.each([
     [
       'cómo te pagan',
       'Moneda extranjera',
       [
         [/Moneda del comprobante/, 'Euro'],
         [/Cómo te pagan/, BACK],
+        [/Moneda del comprobante/, 'Euro'],
+        [/Cómo te pagan/, 'En euros'],
       ],
+      { currencyCode: 'EUR', sameCurrency: true },
     ],
     [
       'la cotización',
@@ -57,33 +81,111 @@ describe('askAdvancedOptions: volver desde cada opcional', () => {
         [/Moneda del comprobante/, 'Dólar'],
         [/Cómo te pagan/, 'En pesos'],
         [/Cotización de USD/, BACK],
+        [/Cómo te pagan/, 'En pesos'],
+        [/Cotización de USD/, '1.200'],
       ],
+      { currencyCode: 'USD', exchangeRate: 1200, sameCurrency: false },
     ],
-    ['el exento', 'Importe exento', [[/exenta/, BACK]]],
     [
       'el no gravado',
       'Importe exento',
       [
         [/exenta/, '10'],
         [/no gravada/, BACK],
+        [/exenta/, '10'],
+        [/no gravada/, ''],
       ],
+      { exemptAmount: 10, untaxedAmount: undefined },
     ],
-    ['el desde', 'Período', [[/Servicio desde/, BACK]]],
     [
       'el hasta',
       'Período',
       [
         [/Servicio desde/, '01/10/2026'],
         [/Servicio hasta/, BACK],
+        [/Servicio desde/, '01/10/2026'],
+        [/Servicio hasta/, '31/10/2026'],
       ],
+      { serviceEndDate: '31/10/2026', serviceStartDate: '01/10/2026' },
     ],
-    ['el vencimiento', 'Vencimiento', [[/Vencimiento del pago/, BACK]]],
-    ['la modalidad', 'Modalidad', [[/Modalidad de transferencia/, BACK]]],
-  ] as const)('volver desde %s vuelve a la seleccion con esa opcion marcada y sin cambios', async (_, name, steps) => {
-    script = createScript([[OPTIONALS, [name]], ...steps, [OPTIONALS, []]]);
+  ] as const)('volver desde %s vuelve a la pregunta anterior del mismo opcional', async (_, name, steps, expected) => {
+    script = createScript([[OPTIONALS, [name]], ...steps]);
 
-    expect(await askAdvancedOptions(PESOS, context('fcea'))).toEqual(PESOS);
-    expect(script.chooseManyStep.mock.calls[1]?.[2]).toHaveLength(1);
+    expect(await askAdvancedOptions(PESOS, context('fa'))).toMatchObject(expected);
+    expect(script.chooseManyStep).toHaveBeenCalledTimes(1);
+  });
+
+  it('volver desde la primera pregunta de un opcional va a la ultima del opcional anterior', async () => {
+    script = createScript([
+      [OPTIONALS, ['Importe exento', 'Período']],
+      [/exenta/, '10'],
+      [/no gravada/, '5'],
+      [/Servicio desde/, BACK],
+      [/no gravada/, '6'],
+      [/Servicio desde/, '01/10/2026'],
+      [/Servicio hasta/, '31/10/2026'],
+    ]);
+
+    expect(await askAdvancedOptions(PESOS, context('fa'))).toMatchObject({ exemptAmount: 10, untaxedAmount: 6 });
+    // El no gravado arranca escrito con lo respondido antes.
+    expect(script.askTextStep.mock.calls[3]?.[1]).toMatchObject({ previousAnswer: '5' });
+  });
+
+  it('al volver, la moneda y cómo te pagan arrancan marcadas; si cambia una respuesta anterior, se olvidan', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-01T12:00:00-03:00'));
+    script = createScript([
+      [OPTIONALS, ['Moneda extranjera', 'Fecha']],
+      [/Fecha del comprobante/, '01/10/2026'],
+      [/Moneda del comprobante/, 'Euro'],
+      [/Cómo te pagan/, 'En pesos'],
+      [/Cotización de EUR/, BACK],
+      [/Cómo te pagan/, BACK],
+      [/Moneda del comprobante/, BACK],
+      [/Fecha del comprobante/, '02/10/2026'],
+      [/Moneda del comprobante/, 'Euro'],
+      [/Cómo te pagan/, 'En pesos'],
+      [/Cotización de EUR/, '1.600,5'],
+    ]);
+
+    expect(await askAdvancedOptions(PESOS, context('fa'))).toMatchObject({
+      billingDate: '02/10/2026',
+      currencyCode: 'EUR',
+      exchangeRate: 1600.5,
+    });
+    expect(script.chooseStep.mock.calls.map((call) => call[2])).toEqual([
+      'PES',
+      undefined,
+      'pesos',
+      'EUR',
+      'PES',
+      undefined,
+    ]);
+    expect(script.askTextStep.mock.calls.map((call) => call[1]?.previousAnswer)).toEqual([
+      undefined,
+      undefined,
+      '01/10/2026',
+      undefined,
+    ]);
+  });
+
+  it('volver a la seleccion no aplica lo respondido, pero al marcarlo de nuevo arranca escrito', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-01T12:00:00-03:00'));
+    script = createScript([
+      [OPTIONALS, ['Importe exento', 'Fecha']],
+      [/Fecha del comprobante/, '01/10/2026'],
+      [/exenta/, BACK],
+      [/Fecha del comprobante/, BACK],
+      [OPTIONALS, ['Importe exento', 'Fecha']],
+      [/Fecha del comprobante/, '01/10/2026'],
+      [/exenta/, ''],
+      [/no gravada/, ''],
+    ]);
+
+    expect(await askAdvancedOptions(PESOS, context('fa'))).toMatchObject({ billingDate: '01/10/2026' });
+    expect(descriptions(1)['Fecha del comprobante']).toBe('hoy');
+    expect(script.askTextStep.mock.calls[3]?.[1]).toMatchObject({ previousAnswer: '01/10/2026' });
   });
 
   it('"Volver" en la seleccion vuelve al paso anterior', async () => {
@@ -104,11 +206,15 @@ describe('askAdvancedOptions: lo respondido se ve en la seleccion', () => {
       [/no gravada/, '20,50'],
       [/Servicio desde/, '01/10/2026'],
       [/Servicio hasta/, '31/10/2026'],
-      [/Vencimiento del pago/, BACK],
-      [OPTIONALS, []],
+      [/Vencimiento del pago/, '30/11/2026'],
     ]);
 
-    expect(await askAdvancedOptions(PESOS, context('fa'))).toMatchObject({
+    const first = await askAdvancedOptions(PESOS, context('fa'));
+
+    script = createScript([[OPTIONALS, []]]);
+    await askAdvancedOptions(first as typeof PESOS, context('fa'));
+
+    expect(first).toMatchObject({
       currencyCode: 'EUR',
       exchangeRate: 1600.5,
       exemptAmount: 100,
@@ -117,11 +223,12 @@ describe('askAdvancedOptions: lo respondido se ve en la seleccion', () => {
       serviceStartDate: '01/10/2026',
       untaxedAmount: 20.5,
     });
-    expect(descriptions(1)).toMatchObject({
+    // Una segunda vuelta muestra lo elegido.
+    expect(descriptions(0)).toMatchObject({
       'Importe exento o no gravado': 'exento 100, no gravado 20,50',
       'Moneda extranjera': 'euros, cotización 1.600,50',
       'Período del servicio': '01/10/2026 al 31/10/2026',
-      'Vencimiento del pago': 'por defecto',
+      'Vencimiento del pago': '30/11/2026',
     });
   });
 
@@ -154,7 +261,7 @@ describe('askAdvancedOptions: lo respondido se ve en la seleccion', () => {
   it('una moneda que no esta en la tabla de ARCA se nombra por su código', async () => {
     script = createScript([[/Cómo te pagan/, 'En XYZ']]);
 
-    expect(await askExchangeRate(PESOS, 'XYZ')).toMatchObject({ currencyCode: 'XYZ', sameCurrency: true });
+    expect(await askPaymentCurrency('XYZ')).toBe(true);
   });
 
   it('pasar a productos no deja las fechas de servicio ni el vencimiento ya cargados', async () => {

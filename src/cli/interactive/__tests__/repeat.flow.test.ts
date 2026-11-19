@@ -148,22 +148,27 @@ describe('repetir un comprobante', () => {
     });
   });
 
-  it('volver desde el monto escrito vuelve a la lista, y "Sí" deja el del original', async () => {
+  it('volver desde el monto escrito vuelve a "¿Mismo monto?" con "No" marcado, y "Sí" deja el del original', async () => {
     script = createScript([
       [/comprobante querés repetir/, 'Factura C'],
       [/Cuál repetimos/, '00003-00000014'],
       [/Mismo monto/, 'No'],
+      [/Monto total:/, '150'],
+      [/Período del servicio/, BACK],
       [/Monto total:/, BACK],
-      [/Cuál repetimos/, '00003-00000014'],
       [/Mismo monto/, 'Sí'],
       [/Período del servicio/, 'Solo hoy'],
       [/Agregamos/, []],
     ]);
 
     expect(await repeat(createSession([invoice()]))).toMatchObject({ totalAmount: 121 });
+    expect(script.askTextStep.mock.calls[1]?.[1]).toMatchObject({ previousAnswer: '150' });
+    expect(
+      script.chooseStep.mock.calls.filter(([message]) => /Mismo monto/.test(message)).map((call) => call[2]),
+    ).toEqual([undefined, 'otro']);
   });
 
-  it('volver desde la cotización vuelve al monto, y la cotización escrita no queda', async () => {
+  it('volver desde la cotización vuelve a cómo te pagan, y la cotización escrita no queda', async () => {
     script = createScript([
       [/comprobante querés repetir/, 'Factura C'],
       [/Cuál repetimos/, '00003-00000014'],
@@ -171,9 +176,9 @@ describe('repetir un comprobante', () => {
       [/Cómo te pagan/, 'En pesos'],
       [/Cotización de USD/, '1.200'],
       [/Período del servicio/, BACK],
+      [/Cotización de USD/, BACK],
       [/Cómo te pagan/, 'En pesos'],
       [/Cotización de USD/, BACK],
-      [/Mismo monto/, 'Sí'],
       [/Cómo te pagan/, BACK],
       [/Mismo monto/, 'No'],
       [/Monto total en USD/, '200'],
@@ -189,6 +194,15 @@ describe('repetir un comprobante', () => {
       totalAmount: 200,
     });
     expect(printed()).toContain('El comprobante original era en USD: se repite en USD con una cotización nueva.');
+    // REV-60: la cotización y cómo te pagan arrancan con lo respondido.
+    expect(script.askTextStep.mock.calls.map((call) => call[1]?.previousAnswer).slice(0, 3)).toEqual([
+      undefined,
+      '1200',
+      '1200',
+    ]);
+    expect(
+      script.chooseStep.mock.calls.filter(([message]) => /Cómo te pagan/.test(message)).map((call) => call[2]),
+    ).toEqual([undefined, 'pesos', 'pesos', undefined]);
   });
 
   it('"Otro período" pide desde y hasta; volver desde el período vuelve al monto', async () => {
@@ -210,7 +224,7 @@ describe('repetir un comprobante', () => {
     });
   });
 
-  it('volver desde las fechas de "Otro período" vuelve al monto, y "Solo hoy" no deja las fechas ya elegidas', async () => {
+  it('volver desde las fechas de "Otro período" vuelve a la anterior, y "Solo hoy" no deja las fechas ya elegidas', async () => {
     script = createScript([
       [/comprobante querés repetir/, 'Factura C'],
       [/Cuál repetimos/, '00003-00000014'],
@@ -220,7 +234,7 @@ describe('repetir un comprobante', () => {
       [/Período del servicio/, 'Otro período'],
       [/Servicio desde/, '10/09/2026'],
       [/Servicio hasta/, BACK],
-      [/Mismo monto/, 'Sí'],
+      [/Servicio desde/, BACK],
       [/Período del servicio/, 'Solo hoy'],
       [/Agregamos/, []],
     ]);
@@ -229,6 +243,10 @@ describe('repetir un comprobante', () => {
       serviceEndDate: undefined,
       serviceStartDate: undefined,
     });
+    expect(script.askTextStep.mock.calls[2]?.[1]).toMatchObject({ previousAnswer: '10/09/2026' });
+    expect(
+      script.chooseStep.mock.calls.filter(([message]) => /Período del servicio/.test(message)).map((call) => call[2]),
+    ).toEqual([undefined, 'actual', 'otro']);
   });
 
   it('un producto no pregunta el período', async () => {

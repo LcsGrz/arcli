@@ -319,17 +319,26 @@ export async function chooseStepWhileLoading<T, L>(
   return 'answer' in result ? result : { loaded: await loading };
 }
 
+export interface TextStepOptions {
+  readonly defaultValue?: string;
+  /**
+   * Lo que se habia escrito, al volver a la pregunta: arranca escrito y se puede editar o borrar (con un
+   * `defaultValue`, borrarlo no lo deja vacio). Vacio, la pregunta arranca como la primera vez.
+   */
+  readonly previousAnswer?: string;
+  readonly validate?: (value: string) => string | true;
+}
+
 /** Como askText, pero Esc (o escribir "<") vuelve al paso anterior. */
-export async function askTextStep(
-  message: string,
-  options: { readonly defaultValue?: string; readonly validate?: (value: string) => string | true } = {},
-): Promise<Back | string> {
+export async function askTextStep(message: string, options: TextStepOptions = {}): Promise<Back | string> {
+  const previousAnswer = options.previousAnswer?.trim() || undefined;
   const result = await runStepPrompt(
     (context) =>
       input(
         {
-          default: options.defaultValue,
+          default: previousAnswer ?? options.defaultValue,
           message: `${message} ${colorize('([esc] para volver)', 'muted')}`,
+          prefill: previousAnswer === undefined ? 'tab' : 'editable',
           theme: TEXT_THEME,
           validate: (value) => (value.trim() === BACK_TEXT ? true : (options.validate?.(value) ?? true)),
         },

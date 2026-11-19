@@ -16,7 +16,15 @@ import { ArcaParametersGateway } from '../../services/arca/arca-parameters.gatew
 import { colorize, noticePanel, statusBarWidth, uiSymbol, writeTerminalOutput } from '../../ui';
 import { withSpinner } from '../spinner';
 
-import { askTextStep, type Choice, chooseStep, chooseStepWhileLoading, eraseLastAnswer, fitPageSize } from './prompts';
+import {
+  askTextStep,
+  type Choice,
+  chooseStep,
+  chooseStepWhileLoading,
+  eraseLastAnswer,
+  fitPageSize,
+  type LoadingResult,
+} from './prompts';
 import type { InteractiveSession } from './session';
 import { validatePositiveInteger } from './validators';
 
@@ -69,6 +77,8 @@ interface PickVoucherOptions<T> {
    */
   readonly onPick?: (picked: PickedVoucher<T>) => Promise<void> | void;
   readonly pointOfSale: number;
+  /** El elegido la vez anterior, al volver a la pregunta: arranca marcado (o escrito, si se ingreso a mano). */
+  readonly previous?: { readonly number: number; readonly pointOfSale: number };
   readonly voucherKind: PickerVoucherKind;
 }
 
@@ -92,6 +102,37 @@ function listRule(): Separator {
   return new Separator(colorize(uiSymbol('rule').repeat(statusBarWidth() - 1), 'muted'));
 }
 
+/** Punto de venta y numero, a mano: volver desde el numero vuelve al punto de venta, con lo escrito. */
+async function askPointOfSaleAndNumber(
+  defaultPointOfSale: number,
+  previous?: { readonly number: number; readonly pointOfSale: number },
+): Promise<{ readonly number: number; readonly pointOfSale: number } | undefined> {
+  let typedPointOfSale = previous ? String(previous.pointOfSale) : undefined;
+
+  for (;;) {
+    const pointOfSale = await askTextStep('Punto de venta:', {
+      defaultValue: String(defaultPointOfSale),
+      previousAnswer: typedPointOfSale,
+      validate: validatePositiveInteger('El punto de venta'),
+    });
+
+    if (pointOfSale === BACK) {
+      return undefined;
+    }
+
+    typedPointOfSale = pointOfSale;
+
+    const number = await askTextStep('Número:', {
+      previousAnswer: previous ? String(previous.number) : undefined,
+      validate: validatePositiveInteger('El número'),
+    });
+
+    if (number !== BACK) {
+      return { number: Number(number.trim()), pointOfSale: Number(pointOfSale.trim()) };
+    }
+  }
+}
+
 /**
  * Pide punto de venta y numero, y lo busca en ARCA. Volver o un comprobante inexistente vuelven a la lista, salvo que
  * la fuente lo acepte igual (`describeMissing`).
@@ -100,24 +141,15 @@ async function askVoucherByNumber<T extends { readonly number: number }, M>(
   source: VoucherSource<T, M>,
   voucherKind: PickerVoucherKind,
   defaultPointOfSale: number,
+  previous?: { readonly number: number; readonly pointOfSale: number },
 ): Promise<Back | PickedVoucher<T> | { readonly accepted: M }> {
-  const pointOfSaleAnswer = await askTextStep('Punto de venta:', {
-    defaultValue: String(defaultPointOfSale),
-    validate: validatePositiveInteger('El punto de venta'),
-  });
+  const typed = await askPointOfSaleAndNumber(defaultPointOfSale, previous);
 
-  if (pointOfSaleAnswer === BACK) {
+  if (!typed) {
     return BACK;
   }
 
-  const numberAnswer = await askTextStep('Número:', { validate: validatePositiveInteger('El número') });
-
-  if (numberAnswer === BACK) {
-    return BACK;
-  }
-
-  const pointOfSale = Number(pointOfSaleAnswer.trim());
-  const number = Number(numberAnswer.trim());
+  const { number, pointOfSale } = typed;
   const { invoice, missing } = await withSpinner('Buscando en ARCA...', async () => {
     const found = await source.getVoucher(number, pointOfSale);
 
@@ -230,7 +262,7 @@ export async function pickVoucher<T extends { readonly number: number }, M = nev
   options: PickVoucherOptions<T>,
   source: VoucherSource<T, M>,
 ): Promise<Back | M | PickedVoucher<T>> {
-  const { message, onPick, pointOfSale, voucherKind } = options;
+  const { message, onPick, pointOfSale, previous, voucherKind } = options;
   // Comprobantes por tanda: los primeros y cada "cargar mas".
   const pageSize = resolveRowsPerList(session.runtime.config);
   const listFrom = (fromNumber: number): Promise<T[]> =>
@@ -242,7 +274,10 @@ export async function pickVoucher<T extends { readonly number: number }, M = nev
   });
   // Proximo numero a consultar al cargar mas.
   let nextNumber = lastNumber - pageSize;
-  let defaultChoice: PickerChoice<T> | undefined;
+  // Al volver a la pregunta, el elegido antes; si no esta en la lista, "a mano".
+  const previousInList: T | undefined =
+    previous?.pointOfSale === pointOfSale ? invoices.find((item: T) => item.number === previous.number) : undefined;
+  let defaultChoice: PickerChoice<T> | undefined = previous ? (previousInList ?? BY_NUMBER) : undefined;
 
   if (invoices.length === 0) {
     writeTerminalOutput(
@@ -290,7 +325,13 @@ export async function pickVoucher<T extends { readonly number: number }, M = nev
     let answer: Back | PickerChoice<T>;
 
     if (loading) {
-      const result = await chooseStepWhileLoading(message, choices, defaultChoice, pageSizeOnScreen, loading);
+      const result: LoadingResult<PickerChoice<T>, T[]> = await chooseStepWhileLoading(
+        message,
+        choices,
+        defaultChoice,
+        pageSizeOnScreen,
+        loading,
+      );
 
       loading = undefined;
 
@@ -323,7 +364,7 @@ export async function pickVoucher<T extends { readonly number: number }, M = nev
     let picked: PickedVoucher<T>;
 
     if (answer === BY_NUMBER) {
-      const byNumber = await askVoucherByNumber(source, voucherKind, pointOfSale);
+      const byNumber = await askVoucherByNumber(source, voucherKind, pointOfSale, previous);
 
       if (byNumber === BACK) {
         defaultChoice = BY_NUMBER;

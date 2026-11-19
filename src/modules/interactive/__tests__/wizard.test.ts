@@ -58,6 +58,60 @@ describe('runWizard', () => {
     expect(result).toEqual({ a: 'x', b: undefined, c: '3' });
   });
 
+  it('al volver, el paso recibe su ultima respuesta; si una respuesta cambia, los pasos siguientes la olvidan', async () => {
+    const seen: Array<[string, string | undefined]> = [];
+    const answers: Record<string, Array<string | typeof BACK>> = {
+      a: ['1', '1', '2'],
+      b: ['x', BACK, 'x', BACK, 'y'],
+      c: [BACK, BACK, '3'],
+    };
+    const steps: Array<WizardStep<State>> = (['a', 'b', 'c'] as const).map((name) => ({
+      name,
+      run: async (_state, previous) => {
+        seen.push([name, previous?.[name]]);
+        const answer = answers[name]?.shift();
+
+        return answer === BACK ? BACK : { [name]: answer };
+      },
+    }));
+
+    // a=1, b=x, c volver, b volver, a=1 (igual), b=x (marcada), c volver, b volver, a=2 (cambia), b=y, c=3.
+    expect(await runWizard(steps, {})).toEqual({ a: '2', b: 'y', c: '3' });
+    expect(seen).toEqual([
+      ['a', undefined],
+      ['b', undefined],
+      ['c', undefined],
+      ['b', 'x'],
+      ['a', '1'],
+      ['b', 'x'],
+      ['c', undefined],
+      ['b', 'x'],
+      ['a', '1'],
+      ['b', undefined],
+      ['c', undefined],
+    ]);
+  });
+
+  it('las respuestas compartidas sobreviven a otra corrida del asistente', async () => {
+    const answers = new Map<string, Partial<State>>();
+    const previous: Array<Partial<State> | undefined> = [];
+    const steps: Array<WizardStep<State>> = [
+      {
+        name: 'a',
+        run: async (_state, last) => {
+          previous.push(last);
+
+          return previous.length === 1 ? { a: '1' } : BACK;
+        },
+      },
+      { name: 'b', run: async () => BACK },
+    ];
+
+    expect(await runWizard(steps, {}, answers)).toBeUndefined();
+    expect(await runWizard(steps, {}, answers)).toBeUndefined();
+    expect(previous).toEqual([undefined, { a: '1' }, { a: '1' }]);
+  });
+
   it('devuelve undefined si se vuelve desde el primer paso', async () => {
     expect(await runWizard(scripted({ a: [BACK] }), {})).toBeUndefined();
   });

@@ -10,7 +10,7 @@ import {
   type ExportIssuedVoucher,
   type ExportVoucherInput,
 } from '../../modules/export/export.types';
-import { parseAmountInput } from '../../modules/interactive/amount-input';
+import { amountInputText, parseAmountInput } from '../../modules/interactive/amount-input';
 import { copyExportInvoice, type ExportInvoiceCopy } from '../../modules/interactive/export-copy';
 import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
@@ -39,6 +39,8 @@ export interface ExportRepeatState {
   readonly options?: ExportOptions;
   readonly paymentDate?: string;
   readonly permits?: readonly string[];
+  /** "¿Mismo monto?": si no, se escribe en el paso siguiente. */
+  readonly sameAmount?: boolean;
 }
 
 /** Las tablas de WSFEX para el destino de la factura y su CUIT, como en "Emitir factura". */
@@ -78,10 +80,11 @@ export function exportRepeatSteps(
   return [
     {
       name: 'factura',
-      run: async () => {
+      run: async (_state, previous) => {
         const picked = await pickExportVoucher(session, gateway, {
           message: '¿Cuál repetimos?',
           pointOfSale,
+          previous: previous?.original,
           voucherKind: EXPORT_VOUCHER_KIND,
         });
 
@@ -120,27 +123,37 @@ export function exportRepeatSteps(
       },
     },
     {
-      name: 'monto',
-      run: async (state) => {
+      name: 'mismo-monto',
+      run: async (state, previous) => {
         const original = requireStepValue(state.original, 'original');
         const copy = requireStepValue(state.copy, 'copy');
-        const scope = await chooseStep('¿Mismo monto?', [
-          { name: `Sí, ${formatMoneyLabel(original.total, original.currencyCode)}`, value: 'mismo' as const },
-          { name: 'No, ingresar otro monto', value: 'otro' as const },
-        ]);
+        const scope = await chooseStep(
+          '¿Mismo monto?',
+          [
+            { name: `Sí, ${formatMoneyLabel(original.total, original.currencyCode)}`, value: 'mismo' as const },
+            { name: 'No, ingresar otro monto', value: 'otro' as const },
+          ],
+          previous?.sameAmount === undefined ? undefined : previous.sameAmount ? 'mismo' : 'otro',
+        );
 
         if (scope === BACK) {
           return BACK;
         }
 
-        if (scope === 'mismo') {
-          // Si antes se habia elegido otro monto, vuelven los items de la factura.
-          const { items } = copyExportInvoice(original).input;
-
-          return { copy: { ...copy, amount: original.total, items }, options: { ...state.options, items } };
-        }
-
-        const answer = await askTextStep(`Monto total en ${original.currencyCode}:`, { validate: validateAmount });
+        return scope === 'mismo'
+          ? { copy: { ...copy, amount: original.total }, sameAmount: true }
+          : { sameAmount: false };
+      },
+    },
+    {
+      name: 'monto',
+      run: async (state, previous) => {
+        const original = requireStepValue(state.original, 'original');
+        const copy = requireStepValue(state.copy, 'copy');
+        const answer = await askTextStep(`Monto total en ${original.currencyCode}:`, {
+          previousAnswer: amountInputText(previous?.copy?.amount),
+          validate: validateAmount,
+        });
 
         if (answer === BACK) {
           return BACK;
@@ -162,15 +175,20 @@ export function exportRepeatSteps(
 
         return { copy: { ...copy, amount, items: undefined }, options: { ...state.options, items: undefined } };
       },
+      skip: (state) => state.sameAmount === true,
     },
     {
       name: 'misma-moneda',
       // FEXGetCMP casi siempre trae `CanMisMonExt`; si no, se pregunta como en "Emitir factura".
-      run: async (state) => {
-        const sameCurrency = await chooseStep('¿Te pagan en la moneda de la factura?', [
-          { description: 'ARCA lo registra como cancelación en la misma moneda', name: 'Sí', value: true },
-          { name: 'No, en pesos', value: false },
-        ]);
+      run: async (state, previous) => {
+        const sameCurrency = await chooseStep(
+          '¿Te pagan en la moneda de la factura?',
+          [
+            { description: 'ARCA lo registra como cancelación en la misma moneda', name: 'Sí', value: true },
+            { name: 'No, en pesos', value: false },
+          ],
+          previous?.copy?.sameCurrency,
+        );
 
         return sameCurrency === BACK ? BACK : { copy: { ...requireStepValue(state.copy, 'copy'), sameCurrency } };
       },
@@ -203,8 +221,9 @@ export function exportRepeatSteps(
     },
     {
       name: 'fecha-pago',
-      run: async () => {
+      run: async (_state, previous) => {
         const answer = await askTextStep('Fecha de pago (Enter para la fecha del comprobante):', {
+          previousAnswer: previous?.paymentDate,
           validate: validateExportPaymentDate(),
         });
 
@@ -216,10 +235,11 @@ export function exportRepeatSteps(
     {
       // La factura no trae actividad y tampoco esta en la config. Es opcional: ARCA no exige `Actividades`.
       name: 'actividad',
-      run: async (state) => {
+      run: async (state, previous) => {
         const answer = await askTextStep(
           'Código de actividad de WSFEX, por ejemplo 620100 (Enter para no informarla):',
           {
+            previousAnswer: previous?.copy?.activity === undefined ? undefined : String(previous.copy.activity),
             validate: (value) => (value.trim() ? validatePositiveInteger('La actividad')(value) : true),
           },
         );
