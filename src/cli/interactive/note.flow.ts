@@ -14,7 +14,7 @@ import {
 } from '../../modules/billing/billing.schemas';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { EXPORT_VOUCHER_KINDS, type ExportVoucherKind } from '../../modules/export/export.types';
-import { parseAmountInput } from '../../modules/interactive/amount-input';
+import { amountInputText, parseAmountInput } from '../../modules/interactive/amount-input';
 import {
   type AssociatedFamily,
   type AssociatedKind,
@@ -143,12 +143,15 @@ function requiredCancellation(state: NoteState): boolean | undefined {
 async function askAssociatedKind(
   session: InteractiveSession,
   state: NoteState,
+  previous?: AssociatedKind,
 ): Promise<Back | Pick<NoteState, 'exported' | 'invoiceKind' | 'target'>> {
   const kind = state.kind ?? 'credito';
   const groups = associatedKindGroups(kind);
-  // Arranca en la primera opcion; al volver de un nivel queda marcado lo que se habia elegido.
-  let picked: AssociatedKind | undefined;
-  let family: AssociatedFamily | undefined;
+  // Arranca en la primera opcion, o en la elegida antes; al volver de un nivel queda marcado lo que se habia elegido.
+  let picked: AssociatedKind | undefined = previous;
+  let family: AssociatedFamily | undefined = groups.find((group) =>
+    group.options.some((option) => option.value === previous),
+  )?.family;
 
   for (;;) {
     const chosen = await chooseStep(
@@ -227,33 +230,53 @@ function hiddenNoteOptions(state: NoteState): AdvancedOptionKey[] {
   ];
 }
 
-async function askNoteAmount(
-  state: NoteState,
-): Promise<Back | { readonly annulsTotal: boolean; readonly totalAmount: number | undefined }> {
+/**
+ * Una NC sobre una factura en su moneda puede anularla entera. Con varias alicuotas o tributos no se puede armar una
+ * nota igual a la factura (solo parcial), y en pesos sobre un comprobante en otra moneda los totales no se comparan.
+ */
+function canAnnulTotal(state: NoteState): boolean {
   const invoice = state.invoice;
-  const label = state.kind === 'debito' ? 'Monto de la nota de débito:' : 'Monto de la nota de crédito:';
-  // En pesos sobre un comprobante en otra moneda los totales no se comparan: ni tope ni anular el total.
-  const inInvoiceCurrency = state.currency !== 'pesos';
-  // Con varias alicuotas o tributos no se puede armar una nota igual a la factura: solo parcial.
-  const canAnnulTotal = Boolean(
+
+  return Boolean(
+    state.kind === 'credito' &&
     invoice &&
-    inInvoiceCurrency &&
+    state.currency !== 'pesos' &&
     !isOverCreditNote(state) &&
     !copyInvoiceAmounts(invoice, state.invoiceKind?.letter ?? 'c').limitation,
   );
+}
 
-  if (state.kind === 'credito' && invoice && canAnnulTotal) {
-    const scope = await chooseStep('¿Total o parcial?', [
+async function askAnnulScope(
+  state: NoteState,
+  previous?: boolean,
+): Promise<Back | Pick<NoteState, 'annulsTotal' | 'totalAmount'>> {
+  const invoice = requireStepValue(state.invoice, 'invoice');
+  const scope = await chooseStep(
+    '¿Total o parcial?',
+    [
       { name: `Anular el total (${formatMoneyLabel(invoice.total, invoice.currency)})`, value: 'total' as const },
       { name: 'Parcial (ingresar monto)', value: 'parcial' as const },
-    ]);
+    ],
+    previous === undefined ? undefined : previous ? 'total' : 'parcial',
+  );
 
-    if (scope === BACK || scope === 'total') {
-      return scope === BACK ? BACK : { annulsTotal: true, totalAmount: invoice.total };
-    }
+  if (scope === BACK) {
+    return BACK;
   }
 
+  return scope === 'total' ? { annulsTotal: true, totalAmount: invoice.total } : { annulsTotal: false };
+}
+
+async function askNoteAmount(
+  state: NoteState,
+  previous?: number,
+): Promise<Back | { readonly annulsTotal: boolean; readonly totalAmount: number | undefined }> {
+  const invoice = state.invoice;
+  const label = state.kind === 'debito' ? 'Monto de la nota de débito:' : 'Monto de la nota de crédito:';
+  // En pesos sobre un comprobante en otra moneda los totales no se comparan: ni tope.
+  const inInvoiceCurrency = state.currency !== 'pesos';
   const answer = await askTextStep(label, {
+    previousAnswer: amountInputText(previous),
     validate: (value) => {
       const valid = validateAmount(value);
 
@@ -276,23 +299,27 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
   const steps: Array<WizardStep<NoteState>> = [
     {
       name: 'tipo-factura',
-      run: (state) => askAssociatedKind(session, state),
+      run: (state, previous) => askAssociatedKind(session, state, previous?.invoiceKind),
     },
     {
       name: 'asociacion',
-      run: async (state) => {
-        const target = await chooseStep('¿A qué la asociamos?', [
-          {
-            description: 'Elegís una de las últimas emitidas o la ingresás a mano',
-            name: state.invoiceKind?.family === 'recibo' ? 'A un recibo' : 'A una factura',
-            value: 'factura' as const,
-          },
-          {
-            description: 'Por ejemplo, un descuento sobre todo el mes',
-            name: 'A un período',
-            value: 'periodo' as const,
-          },
-        ]);
+      run: async (state, previous) => {
+        const target = await chooseStep(
+          '¿A qué la asociamos?',
+          [
+            {
+              description: 'Elegís una de las últimas emitidas o la ingresás a mano',
+              name: state.invoiceKind?.family === 'recibo' ? 'A un recibo' : 'A una factura',
+              value: 'factura' as const,
+            },
+            {
+              description: 'Por ejemplo, un descuento sobre todo el mes',
+              name: 'A un período',
+              value: 'periodo' as const,
+            },
+          ],
+          previous?.target,
+        );
 
         return target === BACK ? BACK : { target };
       },
@@ -301,11 +328,16 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
     },
     {
       name: 'factura',
-      run: async (state) => {
+      run: async (state, previous) => {
         const invoiceKind = requireStepValue(state.invoiceKind, 'invoiceKind');
+        const previousNumber = previous?.invoice?.number ?? previous?.otherSystemInvoice?.number;
         const picked = await pickNoteInvoice(session, {
           message: `¿Sobre qué ${formatVoucherLabel(invoiceKind)}?`,
           pointOfSale,
+          previous:
+            previousNumber === undefined || previous?.invoicePointOfSale === undefined
+              ? undefined
+              : { number: previousNumber, pointOfSale: previous.invoicePointOfSale },
           voucherKind: invoiceKind,
         });
 
@@ -347,9 +379,13 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
     },
     {
       name: 'moneda',
-      run: async (state) => {
+      run: async (state, previous) => {
         const invoice = requireStepValue(state.invoice, 'invoice');
-        const currency = await chooseStep('¿En qué moneda va la nota?', noteCurrencyChoices(invoice), state.currency);
+        const currency = await chooseStep(
+          '¿En qué moneda va la nota?',
+          noteCurrencyChoices(invoice),
+          previous?.currency ?? state.currency,
+        );
 
         return currency === BACK ? BACK : { currency };
       },
@@ -358,12 +394,12 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
     },
     {
       name: 'fecha-asociado',
-      run: async (state) => {
+      run: async (state, previous) => {
         const invoiceKind = requireStepValue(state.invoiceKind, 'invoiceKind');
         const other = requireStepValue(state.otherSystemInvoice, 'otherSystemInvoice');
         const associatedDate = await askTextStep(
           `Fecha ${withPreposition(invoiceKind)} ${formatVoucherNumber(other.pointOfSale, other.number)}:`,
-          { validate: validateDate },
+          { previousAnswer: previous?.associatedDate, validate: validateDate },
         );
 
         return associatedDate === BACK ? BACK : { associatedDate };
@@ -372,17 +408,26 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
       skip: (state) => !state.otherSystemInvoice,
     },
     {
-      name: 'periodo',
-      run: async () => {
-        const periodFrom = await askTextStep('Período desde:', { validate: validateDate });
+      name: 'periodo-desde',
+      run: async (_state, previous) => {
+        const periodFrom = await askTextStep('Período desde:', {
+          previousAnswer: previous?.periodFrom,
+          validate: validateDate,
+        });
 
-        if (periodFrom === BACK) {
-          return BACK;
-        }
+        return periodFrom === BACK ? BACK : { invoice: undefined, invoicePointOfSale: undefined, periodFrom };
+      },
+      skip: (state) => !isPeriod(state),
+    },
+    {
+      name: 'periodo-hasta',
+      run: async (_state, previous) => {
+        const periodTo = await askTextStep('Período hasta:', {
+          previousAnswer: previous?.periodTo,
+          validate: validateDate,
+        });
 
-        const periodTo = await askTextStep('Período hasta:', { validate: validateDate });
-
-        return periodTo === BACK ? BACK : { invoice: undefined, invoicePointOfSale: undefined, periodFrom, periodTo };
+        return periodTo === BACK ? BACK : { periodTo };
       },
       skip: (state) => !isPeriod(state),
     },
@@ -393,37 +438,49 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
     }),
     {
       name: 'concepto',
-      run: async () => {
-        const concept = await chooseStep('¿Qué concepto ajusta la nota?', conceptChoices(), config.conceptoPorDefecto);
+      run: async (_state, previous) => {
+        const concept = await chooseStep(
+          '¿Qué concepto ajusta la nota?',
+          conceptChoices(),
+          previous?.concept ?? config.conceptoPorDefecto,
+        );
 
         return concept === BACK ? BACK : { concept };
       },
       skip: (state) => !asksOwnData(state),
     },
     {
+      name: 'alcance',
+      run: (state, previous) => askAnnulScope(state, previous?.annulsTotal),
+      skip: (state) => !canAnnulTotal(state),
+    },
+    {
       name: 'monto',
-      run: async (state) => {
-        const amount = await askNoteAmount(state);
-
-        return amount === BACK ? BACK : amount;
-      },
+      run: (state, previous) => askNoteAmount(state, previous?.totalAmount),
+      skip: (state) => state.annulsTotal === true,
     },
     {
       name: 'iva-receptor',
-      run: async (state) => {
+      run: async (state, previous) => {
         // ARCA no devuelve la condicion IVA de la factura, asi que se pregunta, filtrada por la letra.
-        return askReceiverIvaCondition(session, state, state.invoiceKind?.letter ?? 'c', config.ivaReceptorPorDefecto);
+        return askReceiverIvaCondition(
+          session,
+          state,
+          state.invoiceKind?.letter ?? 'c',
+          config.ivaReceptorPorDefecto,
+          previous?.ivaCondition,
+        );
       },
       skip: (state) => state.documentType === 'consumidor-final',
     },
     {
       name: 'alicuota',
-      run: async (state) => {
+      run: async (state, previous) => {
         const ivaRate = await chooseStep(
           asksOwnData(state) ? 'Alícuota de IVA:' : 'Alícuota de IVA del comprobante:',
           ivaRateChoices(),
-          // La deducida de la factura o, como el CLI sin `--alicuota`, la de la config o 21%.
-          defaultIvaRate(config, state.ivaRate),
+          // La elegida antes, la deducida de la factura o, como el CLI sin `--alicuota`, la de la config o 21%.
+          previous?.ivaRate ?? defaultIvaRate(config, state.ivaRate),
         );
 
         return ivaRate === BACK ? BACK : { ivaRate };
@@ -433,11 +490,15 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
     },
     {
       name: 'anulacion',
-      run: async () => {
-        const cancellation = await chooseStep('¿El comprador rechazó la factura?', [
-          { name: 'Sí, es una nota de anulación', value: true },
-          { name: 'No', value: false },
-        ]);
+      run: async (_state, previous) => {
+        const cancellation = await chooseStep(
+          '¿El comprador rechazó la factura?',
+          [
+            { name: 'Sí, es una nota de anulación', value: true },
+            { name: 'No', value: false },
+          ],
+          previous?.cancellation,
+        );
 
         return cancellation === BACK ? BACK : { cancellation };
       },

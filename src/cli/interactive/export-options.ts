@@ -329,6 +329,8 @@ async function askItems(current: ExportOptions, context: ExportOptionsContext): 
  */
 async function askVoucherDate(current: ExportOptions, context: ExportOptionsContext): Promise<Back | ExportOptions> {
   const answer = await askTextStep('Fecha del comprobante:', {
+    // Al volver a la pregunta, la elegida antes arranca escrita.
+    previousAnswer: current.voucherDate,
     validate: (value) => {
       const valid = validateExportVoucherDate(value, context.exportType);
 
@@ -362,25 +364,34 @@ async function askLanguage(
 }
 
 async function askObservations(current: ExportOptions): Promise<Back | ExportOptions> {
-  const observations = await askTextStep('Observaciones (Enter si no hay):', {
-    validate: validateExportText('observations'),
-  });
+  let typed = current.observations;
 
-  if (observations === BACK) {
-    return BACK;
-  }
+  // Volver desde las comerciales vuelve a las observaciones, con lo escrito.
+  for (;;) {
+    const observations = await askTextStep('Observaciones (Enter si no hay):', {
+      previousAnswer: typed,
+      validate: validateExportText('observations'),
+    });
 
-  const commercial = await askTextStep('Observaciones comerciales (Enter si no hay):', {
-    validate: validateExportText('commercialObservations'),
-  });
+    if (observations === BACK) {
+      return BACK;
+    }
 
-  return commercial === BACK
-    ? BACK
-    : {
+    typed = observations;
+
+    const commercial = await askTextStep('Observaciones comerciales (Enter si no hay):', {
+      previousAnswer: current.commercialObservations,
+      validate: validateExportText('commercialObservations'),
+    });
+
+    if (commercial !== BACK) {
+      return {
         ...current,
         commercialObservations: commercial.trim() || undefined,
         observations: observations.trim() || undefined,
       };
+    }
+  }
 }
 
 async function askIncotermDescription(
@@ -504,7 +515,7 @@ function optionalChoices(options: ExportOptions, context: ExportOptionsContext, 
 /**
  * Lo opcional de la factura y las notas E en una sola pregunta, como en A, B y C: se marca con espacio y Enter
  * sigue (sin marcar nada, todo queda por defecto). Despues se pregunta solo lo marcado, en orden. "Volver" en una
- * de esas preguntas vuelve a la seleccion, con lo marcado y lo ya respondido.
+ * de esas preguntas vuelve a la anterior y, desde la primera, a la seleccion, con lo marcado y lo ya respondido.
  */
 export async function askExportOptions(
   initial: ExportOptions,
@@ -550,20 +561,22 @@ export async function askExportOptions(
 
     selected = picked;
 
-    let completed = true;
+    // "Volver" en una pregunta vuelve a la del opcional anterior y, desde la primera, a la seleccion.
+    let index = 0;
 
-    for (const option of picked) {
-      const updated = await asks[option](options);
+    while (index >= 0 && index < picked.length) {
+      const updated = await asks[picked[index] as ExportOptionKey](options);
 
       if (updated === BACK) {
-        completed = false;
-        break;
+        index -= 1;
+        continue;
       }
 
       options = updated;
+      index += 1;
     }
 
-    if (completed) {
+    if (index === picked.length) {
       return options;
     }
   }

@@ -233,6 +233,8 @@ describe('askExportOptions', () => {
       [/Idioma/, 'Inglés'],
       [/^Observaciones \(/, 'Pago a 30 días'],
       [/comerciales/, BACK],
+      [/^Observaciones \(/, BACK],
+      [/Idioma/, BACK],
       [OPTIONALS, ['Idioma']],
       [/Idioma/, 'Inglés'],
     ]);
@@ -242,6 +244,9 @@ describe('askExportOptions', () => {
     // Al volver, lo ya respondido (el idioma) se ve en la lista y arranca marcado en la pregunta.
     expect(optionalDescriptions(1).Idioma).toBe('Inglés');
     expect(script.chooseStep.mock.calls[1]?.[2]).toBe(2);
+    expect(script.chooseStep.mock.calls[2]?.[2]).toBe(2);
+    // REV-60: volver desde las comerciales vuelve a las observaciones, con lo escrito.
+    expect(script.askTextStep.mock.calls[2]?.[1]).toMatchObject({ previousAnswer: 'Pago a 30 días' });
   });
 
   it('observaciones: vacias quedan sin informar; las dos se describen juntas', async () => {
@@ -336,6 +341,23 @@ describe('askExportOptions', () => {
       script = createScript([[OPTIONALS, []]]);
       await askExportOptions(answered as Exclude<typeof answered, typeof BACK>, context());
       expect(optionalDescriptions(0)['Fecha del comprobante']).toBe('16/11/2026');
+    });
+
+    // REV-60: volver desde la pregunta siguiente vuelve a la fecha, escrita con lo respondido.
+    it('volver desde el idioma vuelve a la fecha, con la fecha escrita', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-11-18T12:00:00-03:00'));
+      script = createScript([
+        [OPTIONALS, ['Fecha del comprobante', 'Idioma']],
+        [/Fecha del comprobante/, '16/11'],
+        [/Idioma/, BACK],
+        [/Fecha del comprobante/, '17/11/2026'],
+        [/Idioma/, 'Inglés'],
+      ]);
+
+      expect(await askExportOptions({}, context())).toEqual({ language: 2, voucherDate: '17/11/2026' });
+      expect(script.askTextStep.mock.calls[1]?.[1]).toMatchObject({ previousAnswer: '16/11/2026' });
+      expect(script.chooseManyStep).toHaveBeenCalledTimes(1);
     });
 
     it('en servicios no pasa del fin de mes; en bienes sí', async () => {

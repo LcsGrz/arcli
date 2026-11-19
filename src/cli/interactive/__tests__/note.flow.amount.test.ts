@@ -54,15 +54,12 @@ afterEach(() => {
   expect(script.remaining()).toBe(0);
 });
 
-// REV-45: en el asistente la NC no pasa del paso del monto si supera el total de la factura.
+// REV-45: en el asistente la NC no pasa del paso del monto si supera el total de la factura ("Parcial" ya elegido).
 describe.each<VoucherShortcut>(['fa', 'fb', 'fc', 'fcea', 'fceb', 'fcec', 'rc'])(
   'monto de una NC sobre %s',
   (shortcut) => {
     it('no deja avanzar con un monto mayor que el total', async () => {
-      script = createScript([
-        [/Total o parcial/, 'Parcial'],
-        [/Monto de la nota de crédito/, '121,01'],
-      ]);
+      script = createScript([[/Monto de la nota de crédito/, '121,01']]);
 
       await expect(amountStep(shortcut)()).rejects.toThrow(
         new RegExp(`No puede superar el total de (la|el) .+ 00003-00000014, de \\$ 121\\.$`),
@@ -70,10 +67,7 @@ describe.each<VoucherShortcut>(['fa', 'fb', 'fc', 'fcea', 'fceb', 'fcec', 'rc'])
     });
 
     it('acepta el total justo', async () => {
-      script = createScript([
-        [/Total o parcial/, 'Parcial'],
-        [/Monto de la nota de crédito/, '121'],
-      ]);
+      script = createScript([[/Monto de la nota de crédito/, '121']]);
 
       await expect(amountStep(shortcut)()).resolves.toEqual({ annulsTotal: false, totalAmount: 121 });
     });

@@ -20,10 +20,14 @@ const DOCUMENT_PROMPTS = {
 /** El numero del documento elegido para el receptor: CUIT, CUIL o DNI, cada uno con su validacion. */
 export async function askDocumentNumber(
   documentType: BillingCommandInput['documentType'] | undefined,
+  previous?: number,
 ): Promise<Back | string> {
   const prompt = DOCUMENT_PROMPTS[documentType === 'cuil' || documentType === 'dni' ? documentType : 'cuit'];
 
-  return askTextStep(prompt.message, { validate: prompt.validate });
+  return askTextStep(prompt.message, {
+    previousAnswer: previous === undefined ? undefined : String(previous),
+    validate: prompt.validate,
+  });
 }
 
 interface ReceiverStepState {
@@ -52,10 +56,11 @@ export function receiverSteps<S extends ReceiverStepState>(
   return [
     {
       name: 'receptor',
-      run: async (state) => {
+      run: async (state, previous) => {
         const documentType = await chooseStep(
           options.message(state),
           receiverChoices(options.letter(state), options.electronicCredit?.(state)),
+          previous?.documentType,
         );
 
         return documentType === BACK
@@ -70,8 +75,8 @@ export function receiverSteps<S extends ReceiverStepState>(
     },
     {
       name: 'documento',
-      run: async (state) => {
-        const answer = await askDocumentNumber(state.documentType);
+      run: async (state, previous) => {
+        const answer = await askDocumentNumber(state.documentType, previous?.documentNumber);
 
         return answer === BACK ? BACK : ({ documentNumber: normalizeDocumentNumber(answer) } as Partial<S>);
       },
@@ -129,13 +134,14 @@ async function lookupReceiver(
 
 /**
  * Pregunta la condicion IVA del receptor. Con un CUIT, propone la del padron (marcada) y muestra el nombre;
- * si no, la de la config.
+ * si no, la de la config. Al volver a la pregunta arranca marcada la elegida antes (`previous`).
  */
 export async function askReceiverIvaCondition(
   session: InteractiveSession,
   state: ReceiverState,
   letter: VoucherLetter,
   configDefault?: BillingIvaCondition,
+  previous?: BillingIvaCondition,
 ): Promise<Back | { ivaCondition: BillingIvaCondition; receiver?: ReceiverFromPadron }> {
   const receiver = await lookupReceiver(session, state);
   const fromPadron =
@@ -146,7 +152,7 @@ export async function askReceiverIvaCondition(
   const ivaCondition = await chooseStep(
     receiver?.name ? `Condición frente al IVA de ${receiver.name}:` : 'Condición frente al IVA del receptor:',
     choices,
-    fromPadron ?? configDefault,
+    previous ?? fromPadron ?? configDefault,
   );
 
   return ivaCondition === BACK ? BACK : { ivaCondition, receiver };

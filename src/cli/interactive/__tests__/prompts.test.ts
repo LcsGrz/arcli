@@ -120,6 +120,19 @@ describe('prompts', () => {
     expect(await askTextStep('Monto:', { validate })).toBe('ok');
   });
 
+  it('askTextStep: lo escrito antes arranca escrito y editable; sin eso, el valor por defecto con tab', async () => {
+    inputMock.mockResolvedValue('1' as never);
+
+    await askTextStep('Monto:', { defaultValue: '4', previousAnswer: '1.500' });
+    await askTextStep('Monto:', { defaultValue: '4', previousAnswer: '  ' });
+    await askTextStep('Monto:');
+
+    expect(inputMock.mock.calls[0]?.[0]).toMatchObject({ default: '1.500', prefill: 'editable' });
+    expect(inputMock.mock.calls[1]?.[0]).toMatchObject({ default: '4', prefill: 'tab' });
+    expect(inputMock.mock.calls[2]?.[0]).toMatchObject({ default: undefined, prefill: 'tab' });
+    inputMock.mockReset();
+  });
+
   it('Esc vuelve al paso anterior en texto y en listas, sin dejar la pregunta en pantalla', async () => {
     const waitForAbort = (_config: unknown, context?: { signal?: AbortSignal }) =>
       new Promise((_resolve, reject) => {

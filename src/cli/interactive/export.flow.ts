@@ -11,7 +11,7 @@ import {
   type ExportType,
   type ExportVoucherInput,
 } from '../../modules/export/export.types';
-import { parseAmountInput } from '../../modules/interactive/amount-input';
+import { amountInputText, parseAmountInput } from '../../modules/interactive/amount-input';
 import { buildExportEquivalentCommand } from '../../modules/interactive/export-equivalent-command';
 import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { formatPdfOutcomeAsText } from '../../modules/pdf/pdf.presenter';
@@ -110,8 +110,13 @@ const optional = (value: string): string | undefined => value.trim() || undefine
  * Permisos de embarque de una E de bienes, separados por coma o espacio. Vacio, ninguno. arcli no da de alta
  * permisos: los que se informan ya existen en ARCA (en la factura van con `--permiso-existente`).
  */
-export async function askPermitsStep(): Promise<typeof BACK | { readonly permits: readonly string[] | undefined }> {
-  const answer = await askTextStep('Permisos de embarque ya existentes, separados por coma (Enter si no hay):');
+export async function askPermitsStep(
+  _state?: unknown,
+  previous?: { readonly permits?: readonly string[] },
+): Promise<typeof BACK | { readonly permits: readonly string[] | undefined }> {
+  const answer = await askTextStep('Permisos de embarque ya existentes, separados por coma (Enter si no hay):', {
+    previousAnswer: previous?.permits?.join(', '),
+  });
 
   if (answer === BACK) {
     return BACK;
@@ -131,8 +136,9 @@ function exportSteps(
   return [
     {
       name: 'cliente',
-      run: async () => {
+      run: async (_state, previous) => {
         const answer = await askTextStep('Nombre o razón social del cliente del exterior:', {
+          previousAnswer: previous?.clientName,
           validate: validateExportText('clientName', 'El cliente'),
         });
 
@@ -141,8 +147,9 @@ function exportSteps(
     },
     {
       name: 'domicilio',
-      run: async () => {
+      run: async (_state, previous) => {
         const answer = await askTextStep('Domicilio del cliente:', {
+          previousAnswer: previous?.clientAddress,
           validate: validateExportText('clientAddress', 'El domicilio'),
         });
 
@@ -151,10 +158,11 @@ function exportSteps(
     },
     {
       name: 'pais',
-      run: async () => {
+      run: async (_state, previous) => {
         const answer = await askTextStep(
           'País de destino (nombre o código de ARCA, por ejemplo ESTADOS UNIDOS o 212):',
           {
+            previousAnswer: previous?.destinationCountry,
             validate: validateCountry(tables.countries),
           },
         );
@@ -189,14 +197,17 @@ function exportSteps(
     },
     {
       name: 'id-impositivo',
-      run: async (state) => {
+      run: async (state, previous) => {
         // Sin CUIT del pais, ARCA pide el ID impositivo (error 1580).
         const required = state.countryCuitMissing && state.options.clientCountryCuit === undefined;
         const answer = await askTextStep(
           required
             ? 'ID impositivo del cliente en su país (sin CUIT del país, ARCA lo pide):'
             : 'ID impositivo del cliente en su país (Enter para omitirlo):',
-          { validate: validateExportText('clientTaxId', required ? 'El ID impositivo' : undefined) },
+          {
+            previousAnswer: previous?.clientTaxId,
+            validate: validateExportText('clientTaxId', required ? 'El ID impositivo' : undefined),
+          },
         );
 
         return answer === BACK ? BACK : { clientTaxId: optional(answer) };
@@ -204,7 +215,7 @@ function exportSteps(
     },
     {
       name: 'tipo',
-      run: async () => {
+      run: async (_state, previous) => {
         const exportType = await chooseStep<ExportType>(
           '¿Qué exportás?',
           [
@@ -212,7 +223,7 @@ function exportSteps(
             { description: 'Lleva incoterm y, si los hay, permisos de embarque', name: 'Bienes', value: 1 },
             { name: 'Otros', value: 4 },
           ],
-          2,
+          previous?.exportType ?? 2,
         );
 
         // La fecha de pago solo va en servicios y otros: si se vuelve y se elige bienes, no queda la anterior.
@@ -221,16 +232,20 @@ function exportSteps(
     },
     {
       name: 'monto',
-      run: async () => {
-        const answer = await askTextStep('Monto total:', { validate: validateAmount });
+      run: async (_state, previous) => {
+        const answer = await askTextStep('Monto total:', {
+          previousAnswer: amountInputText(previous?.amount),
+          validate: validateAmount,
+        });
 
         return answer === BACK ? BACK : { amount: parseAmountInput(answer) };
       },
     },
     {
       name: 'descripcion',
-      run: async () => {
+      run: async (_state, previous) => {
         const answer = await askTextStep('Descripción del servicio o producto (Enter para "Según detalle"):', {
+          previousAnswer: previous?.description,
           validate: validateExportText('description'),
         });
 
@@ -239,14 +254,14 @@ function exportSteps(
     },
     {
       name: 'moneda',
-      run: async () => {
+      run: async (_state, previous) => {
         const currencyCode = await chooseStep<'DOL' | 'PES'>(
           '¿En qué moneda facturás?',
           [
             { description: 'Con la cotización de aduana que publica ARCA', name: 'Dólares (USD)', value: 'DOL' },
             { name: 'Pesos', value: 'PES' },
           ],
-          'DOL',
+          previous?.currencyCode === 'PES' ? 'PES' : 'DOL',
         );
 
         return currencyCode === BACK
@@ -256,11 +271,15 @@ function exportSteps(
     },
     {
       name: 'misma-moneda',
-      run: async () => {
-        const sameCurrency = await chooseStep('¿Te pagan en dólares?', [
-          { description: 'ARCA lo registra como cancelación en la misma moneda', name: 'Sí', value: true },
-          { name: 'No, en pesos', value: false },
-        ]);
+      run: async (_state, previous) => {
+        const sameCurrency = await chooseStep(
+          '¿Te pagan en dólares?',
+          [
+            { description: 'ARCA lo registra como cancelación en la misma moneda', name: 'Sí', value: true },
+            { name: 'No, en pesos', value: false },
+          ],
+          previous?.sameCurrency,
+        );
 
         return sameCurrency === BACK ? BACK : { sameCurrency };
       },
@@ -268,12 +287,13 @@ function exportSteps(
     },
     {
       name: 'incoterm',
-      run: async () => {
+      run: async (_state, previous) => {
         const list = await withSpinner('Consultando incoterms...', loaders.incoterms);
 
         // ARCA devolvio la tabla vacia: se escribe a mano y va sin validar, como la actividad (el servicio avisa).
         if (list.length === 0) {
           const typed = await askTextStep('Incoterm (ARCA no devolvió la lista), por ejemplo FOB:', {
+            previousAnswer: previous?.incoterm,
             validate: (value) => (value.trim() ? true : 'El incoterm es obligatorio en la factura E de bienes.'),
           });
 
@@ -284,6 +304,7 @@ function exportSteps(
         const incoterm = await chooseStep(
           'Incoterm:',
           list.map((entry) => ({ name: entry.code, value: entry.code })),
+          previous?.incoterm,
         );
 
         return incoterm === BACK
@@ -302,9 +323,10 @@ function exportSteps(
     },
     {
       name: 'forma-pago',
-      run: async () => {
+      run: async (_state, previous) => {
         const answer = await askTextStep('Forma de pago:', {
           defaultValue: DEFAULT_EXPORT_PAYMENT_TERMS,
+          previousAnswer: previous?.paymentTerms,
           validate: validateExportText('paymentTerms'),
         });
 
@@ -313,8 +335,9 @@ function exportSteps(
     },
     {
       name: 'fecha-pago',
-      run: async () => {
+      run: async (_state, previous) => {
         const answer = await askTextStep('Fecha de pago (Enter para la fecha del comprobante):', {
+          previousAnswer: previous?.paymentDate,
           validate: validateExportPaymentDate(),
         });
 
@@ -325,11 +348,12 @@ function exportSteps(
     },
     {
       name: 'actividad',
-      run: async () => {
+      run: async (_state, previous) => {
         // Opcional: ARCA no exige `Actividades` (la 2100 solo prohibe el bloque vacio).
         const answer = await askTextStep(
           'Código de actividad de WSFEX, por ejemplo 620100 (Enter para no informarla):',
           {
+            previousAnswer: previous?.activity === undefined ? undefined : String(previous.activity),
             validate: validateActivity(tables.activities),
           },
         );

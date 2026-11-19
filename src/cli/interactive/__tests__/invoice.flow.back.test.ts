@@ -118,7 +118,7 @@ describe('factura: volver y cambiar respuestas', () => {
     expect(await invoice()).toMatchObject({ concept: 'productos', totalAmount: 2000 });
   });
 
-  it('en una FCE, volver desde el CBU o el alias vuelve al monto, y el CBU nuevo reemplaza al anterior', async () => {
+  it('en una FCE, volver desde el alias vuelve al CBU y desde el CBU al monto, con lo escrito; el CBU nuevo reemplaza al anterior', async () => {
     script = createScript([
       [/comprobante/, 'Factura de crédito electrónica A'],
       [/A quién/, 'Con CUIT'],
@@ -130,22 +130,118 @@ describe('factura: volver y cambiar respuestas', () => {
       [/Monto total/, '5.000.000'],
       [/CBU/, '0110599520000012345678'],
       [/Alias del CBU/, BACK],
+      [/CBU/, BACK],
       [/Monto total/, '5.000.000'],
       [/CBU/, rejecting('0170099220000067797370', ['123', /22/])],
       [/Alias del CBU/, ''],
       [/Agregamos/, BACK],
-      [/CBU/, '0170099220000067797370'],
       [/Alias del CBU/, 'otro.alias'],
       [/Agregamos/, []],
     ]);
 
     expect(await invoice()).toMatchObject({ cbu: '0170099220000067797370', cbuAlias: 'otro.alias' });
+
+    const previousAnswers = script.askTextStep.mock.calls.map(([message, options]) => [
+      message.split(' ')[0],
+      options?.previousAnswer,
+    ]);
+
+    expect(previousAnswers).toEqual([
+      ['CUIT', undefined],
+      ['Monto', undefined],
+      ['CBU', undefined],
+      ['Monto', '5000000'],
+      ['CBU', undefined],
+      ['Alias', undefined],
+      ['CBU', '0110599520000012345678'],
+      ['Monto', '5000000'],
+      ['CBU', '0110599520000012345678'],
+      ['Alias', undefined],
+      ['Alias', undefined],
+    ]);
   });
 
   it('volver desde "¿Qué comprobante?" sale del flujo', async () => {
     script = createScript([[/comprobante/, BACK]]);
 
     expect(await invoice()).toBeUndefined();
+  });
+});
+
+// REV-60: "Volver" lleva a la pregunta anterior y lo respondido arranca marcado o escrito.
+describe('factura: volver con lo respondido', () => {
+  function defaultsOf(question: RegExp): unknown[] {
+    return script.chooseStep.mock.calls.filter(([message]) => question.test(message)).map((call) => call[2]);
+  }
+
+  it('volver una a una hasta el comprobante: cada pregunta arranca con lo respondido', async () => {
+    script = createScript([
+      [/comprobante/, 'Factura A'],
+      [/A quién/, 'Con CUIT'],
+      [/CUIT del receptor/, '30-70996581-2'],
+      [/Condición frente al IVA/, 'Responsable monotributo'],
+      [/Qué estás facturando/, 'Productos'],
+      [/Monto total/, '1.500,50'],
+      [/Agregamos/, BACK],
+      [/Monto total/, BACK],
+      [/Qué estás facturando/, BACK],
+      [/Condición frente al IVA/, BACK],
+      [/CUIT del receptor/, BACK],
+      [/A quién/, BACK],
+      [/comprobante/, 'Factura A'],
+      [/A quién/, 'Con CUIT'],
+      [/CUIT del receptor/, '30-70996581-2'],
+      [/Condición frente al IVA/, 'Responsable monotributo'],
+      [/Qué estás facturando/, 'Productos'],
+      [/Monto total/, '1.500,50'],
+      [/Agregamos/, []],
+    ]);
+
+    expect(await invoice()).toMatchObject({
+      concept: 'productos',
+      ivaCondition: 'responsable-monotributo',
+      totalAmount: 1500.5,
+    });
+    expect(defaultsOf(/comprobante/)[1]).toMatchObject({ shortcut: 'fa' });
+    expect(defaultsOf(/A quién/)).toEqual([undefined, 'cuit', 'cuit']);
+    expect(defaultsOf(/Condición frente al IVA/)).toEqual([
+      undefined,
+      'responsable-monotributo',
+      'responsable-monotributo',
+    ]);
+    expect(defaultsOf(/Qué estás facturando/)).toEqual([undefined, 'productos', 'productos']);
+    expect(script.askTextStep.mock.calls.map(([message, options]) => [message, options?.previousAnswer])).toEqual([
+      ['CUIT del receptor:', undefined],
+      ['Monto total:', undefined],
+      ['Monto total:', '1500,50'],
+      ['CUIT del receptor:', '30709965812'],
+      ['CUIT del receptor:', '30709965812'],
+      ['Monto total:', '1500,50'],
+    ]);
+  });
+
+  it('si cambia el tipo de receptor, el número escrito antes no se ofrece', async () => {
+    script = createScript([
+      [/comprobante/, 'Factura B'],
+      [/A quién/, 'Con DNI'],
+      [/DNI del receptor/, '30123456'],
+      [/Condición frente al IVA/, BACK],
+      [/DNI del receptor/, BACK],
+      [/A quién/, 'Con CUIT'],
+      [/CUIT del receptor/, '30-70996581-2'],
+      [/Condición frente al IVA/, 'Sujeto exento'],
+      [/Qué estás facturando/, 'Servicios'],
+      [/Monto total/, '100'],
+      [/Agregamos/, []],
+    ]);
+
+    expect(await invoice()).toMatchObject({ documentNumber: 30709965812, documentType: 'cuit' });
+    expect(script.askTextStep.mock.calls.map((call) => call[1]?.previousAnswer)).toEqual([
+      undefined,
+      '30123456',
+      undefined,
+      undefined,
+    ]);
   });
 });
 

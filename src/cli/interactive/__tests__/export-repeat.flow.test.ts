@@ -410,15 +410,21 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     expect(await repeatOf(INVOICE)).toBeUndefined();
   });
 
-  it('volver desde el monto escrito vuelve a la lista', async () => {
+  it('volver desde el monto escrito vuelve a "¿Mismo monto?" con "No" marcado, y de ahi a la lista con la factura marcada', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       [/Mismo monto/, 'No'],
       [/Monto total en DOL/, BACK],
+      [/Mismo monto/, BACK],
       [/Cuál repetimos/, BACK],
     ]);
 
     expect(await repeatOf(INVOICE)).toBeUndefined();
+
+    const defaults = script.chooseStep.mock.calls.map((call) => call[2]);
+
+    expect(defaults[2]).toBe('otro');
+    expect(defaults[3]).toMatchObject({ number: 1, pointOfSale: 4 });
   });
 
   it('otro monto saca los ítems; volver y elegir "Sí" los trae de nuevo', async () => {
@@ -427,6 +433,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
       [/Mismo monto/, 'No'],
       [/Monto total en DOL/, '2.000'],
       [/Permisos de embarque/, BACK],
+      [/Monto total en DOL/, BACK],
       [/Mismo monto/, 'Sí'],
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
@@ -436,6 +443,8 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
 
     expect(input?.amount).toBe(1500);
     expect(input?.items?.map((item) => item.description)).toEqual(['Bienes varios', 'Flete']);
+    // Al volver, el monto arranca escrito.
+    expect(script.askTextStep.mock.calls[2]?.[1]).toMatchObject({ previousAnswer: '2000' });
     // En la seleccion de opcionales se ven los ítems recuperados.
     expect(script.chooseManyStep.mock.calls[0]?.[1].find((choice) => choice.value === 'items')?.description).toBe(
       '2 ítems',

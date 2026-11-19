@@ -13,8 +13,8 @@ import { runExportNoteFlow } from '../export-note.flow';
 import { runExportRepeatFlow } from '../export-repeat.flow';
 import { runHistoryFlow } from '../history.flow';
 import {
-  askCbuStep,
   buildInvoiceInput,
+  cbuSteps,
   type InvoiceState,
   invoiceStateForReceiver,
   invoiceSteps,
@@ -404,8 +404,13 @@ describe('flujos del modo interactivo', () => {
         runtime: { ...withAlias.runtime, config: { ...withAlias.runtime.config, aliasCbu: 'mi.alias.cbu' } },
       } as InteractiveSession;
 
+      const fcea = {
+        advanced: { currencyCode: 'ARS', sameCurrency: false },
+        voucherKind: getVoucherKindByShortcut('fcea'),
+      } as InvoiceState;
+
       script = createScript([[/CBU del emisor/, '0110599520000012345678']]);
-      await expect(askCbuStep(configured.runtime.config)).resolves.toEqual({
+      await expect(runWizard(cbuSteps(configured.runtime.config), fcea)).resolves.toMatchObject({
         cbu: '0110599520000012345678',
         cbuAlias: undefined,
       });
@@ -414,7 +419,7 @@ describe('flujos del modo interactivo', () => {
         [/CBU del emisor/, '0110599520000012345678'],
         [/Alias del CBU/, ''],
       ]);
-      await expect(askCbuStep(createSession().runtime.config)).resolves.toEqual({
+      await expect(runWizard(cbuSteps(createSession().runtime.config), fcea)).resolves.toMatchObject({
         cbu: '0110599520000012345678',
         cbuAlias: undefined,
       });
@@ -519,7 +524,7 @@ describe('flujos del modo interactivo', () => {
       expect(script.asked.some((question) => /Alicuota/.test(question))).toBe(false);
     });
 
-    it('volver dentro de un opcional vuelve a la seleccion con lo ya respondido', async () => {
+    it('volver dentro de los opcionales vuelve a la pregunta anterior, con lo respondido marcado', async () => {
       script = createScript([
         [/comprobante/, 'Factura B'],
         [/A quién/, 'Consumidor final'],
@@ -528,6 +533,7 @@ describe('flujos del modo interactivo', () => {
         [/Agregamos/, ['Alícuota', 'Período']],
         [/Alícuota/, '10,5%'],
         [/Servicio desde/, BACK],
+        [/Alícuota/, BACK],
         [/Agregamos/, ['Alícuota']],
         [/Alícuota/, '10,5%'],
       ]);
@@ -535,12 +541,17 @@ describe('flujos del modo interactivo', () => {
       const session = createSession();
       const state = await runWizard(invoiceSteps(session), { advanced: { currencyCode: 'ARS', sameCurrency: false } });
       const input = buildInvoiceInput(state as NonNullable<typeof state>, session);
+      const ivaRateDefaults = script.chooseStep.mock.calls
+        .filter(([message]) => /Alícuota/.test(message))
+        .map((call) => call[2]);
 
       expect(input.ivaRate).toBe('10.5');
       expect(input.serviceStartDate).toBeUndefined();
+      // Lo respondido no se aplica al volver a la seleccion, pero la alicuota arranca en la elegida.
       expect(script.chooseManyStep.mock.calls[1][1]).toContainEqual(
-        expect.objectContaining({ description: '10,5%', value: 'alicuota' }),
+        expect.objectContaining({ description: '21%', value: 'alicuota' }),
       );
+      expect(ivaRateDefaults).toEqual(['21', '10.5', '10.5']);
     });
 
     it('volver en la seleccion de opcionales vuelve al monto', async () => {

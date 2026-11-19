@@ -5,9 +5,9 @@ import type { BillingCommandInput } from '../../modules/billing/billing.schemas'
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { findArcaCurrency, toIsoCurrencyCode } from '../../modules/billing/currency-codes';
 import type { ArcliConfig } from '../../modules/config/config.schemas';
-import { parseAmountInput, parseExchangeRateInput } from '../../modules/interactive/amount-input';
+import { amountInputText, parseAmountInput, parseExchangeRateInput } from '../../modules/interactive/amount-input';
 import { currencyChoices, ivaRateChoices } from '../../modules/interactive/choices';
-import { BACK, type Back } from '../../modules/interactive/wizard';
+import { BACK, type Back, runWizard, type WizardAnswers, type WizardStep } from '../../modules/interactive/wizard';
 
 import { askTextStep, chooseManyStep, chooseStep } from './prompts';
 import { validateBillingDate, validateDate, validateExchangeRate, validateOptionalAmount } from './validators';
@@ -99,118 +99,201 @@ function describeAmounts(options: AdvancedOptions): string {
   return parts.length > 0 ? parts.join(', ') : 'sin exento ni no gravado';
 }
 
+/** El codigo de la moneda en la lista de monedas: `PES` para pesos. */
+function currencyChoiceValue(options: { readonly currencyCode?: string }): string {
+  return options.currencyCode && isForeignCurrency({ currencyCode: options.currencyCode })
+    ? toIsoCurrencyCode(options.currencyCode)
+    : 'PES';
+}
+
 /**
- * La cotizacion de un comprobante en moneda extranjera, como la pregunta "Emitir factura": si te pagan en pesos se
- * ingresa la acordada y, si te pagan en esa moneda, se usa la oficial de ARCA (`--misma-moneda`).
+ * Como se cobra un comprobante en moneda extranjera, como pregunta "Emitir factura": en pesos (se ingresa la cotizacion
+ * acordada) o en esa moneda (se usa la oficial de ARCA, `--misma-moneda`). Devuelve si es en esa moneda.
  */
-export async function askExchangeRate(current: AdvancedOptions, currencyCode: string): Promise<AdvancedOptions | Back> {
-  const iso = toIsoCurrencyCode(currencyCode);
-  const payment = await chooseStep('¿Cómo te pagan?', [
-    { description: 'Ingresás la cotización acordada', name: 'En pesos', value: 'pesos' as const },
-    {
-      description: 'Se usa la cotización oficial de ARCA',
-      name: `En ${currencyName(iso)}`,
-      value: 'moneda' as const,
-    },
-  ]);
-
-  if (payment === BACK) {
-    return BACK;
-  }
-
-  if (payment === 'moneda') {
-    return { ...current, currencyCode: iso, exchangeRate: undefined, sameCurrency: true };
-  }
-
-  const rate = await askTextStep(`Cotización de ${iso}:`, { validate: validateExchangeRate });
-
-  return rate === BACK
-    ? BACK
-    : { ...current, currencyCode: iso, exchangeRate: parseExchangeRateInput(rate), sameCurrency: false };
-}
-
-async function askCurrency(current: AdvancedOptions): Promise<AdvancedOptions | Back> {
-  const currency = await chooseStep(
-    'Moneda del comprobante:',
-    currencyChoices(),
-    isForeignCurrency(current) && current.currencyCode ? toIsoCurrencyCode(current.currencyCode) : 'PES',
-  );
-
-  if (currency === BACK) {
-    return BACK;
-  }
-
-  if (currency === 'PES') {
-    return { ...current, currencyCode: DEFAULT_CURRENCY_CODE, exchangeRate: undefined, sameCurrency: false };
-  }
-
-  return askExchangeRate(current, currency);
-}
-
-async function askExemptAmounts(current: AdvancedOptions): Promise<AdvancedOptions | Back> {
-  const exempt = await askTextStep('Parte exenta del monto total (vacío si no hay):', {
-    validate: validateOptionalAmount,
-  });
-
-  if (exempt === BACK) {
-    return BACK;
-  }
-
-  const untaxed = await askTextStep('Parte no gravada del monto total (vacío si no hay):', {
-    validate: validateOptionalAmount,
-  });
-
-  if (untaxed === BACK) {
-    return BACK;
-  }
-
-  return { ...current, exemptAmount: parseAmountInput(exempt), untaxedAmount: parseAmountInput(untaxed) };
-}
-
-async function askBillingDate(current: AdvancedOptions, context: AdvancedContext): Promise<AdvancedOptions | Back> {
-  const date = await askTextStep('Fecha del comprobante:', {
-    validate: (value) => validateBillingDate(value, context.concept, context.voucherKind),
-  });
-
-  return date === BACK ? BACK : { ...current, billingDate: date };
-}
-
-/** Desde y hasta del servicio. Lo comparten los opcionales y el paso del periodo de "Repetir". */
-export async function askServicePeriod(current: AdvancedOptions): Promise<AdvancedOptions | Back> {
-  const start = await askTextStep('Servicio desde:', { validate: validateDate });
-
-  if (start === BACK) {
-    return BACK;
-  }
-
-  const end = await askTextStep('Servicio hasta:', { validate: validateDate });
-
-  return end === BACK ? BACK : { ...current, serviceEndDate: end, serviceStartDate: start };
-}
-
-async function askPaymentDueDate(current: AdvancedOptions): Promise<AdvancedOptions | Back> {
-  const due = await askTextStep('Vencimiento del pago:', { validate: validateDate });
-
-  return due === BACK ? BACK : { ...current, paymentDueDate: due };
-}
-
-async function askIvaRate(current: AdvancedOptions, context: AdvancedContext): Promise<AdvancedOptions | Back> {
-  const ivaRate = await chooseStep('Alícuota de IVA:', ivaRateChoices(), current.ivaRate ?? context.defaultIvaRate);
-
-  return ivaRate === BACK ? BACK : { ...current, ivaRate };
-}
-
-async function askTransferMode(current: AdvancedOptions): Promise<AdvancedOptions | Back> {
-  const transferMode = await chooseStep(
-    'Modalidad de transferencia:',
+export async function askPaymentCurrency(currencyCode: string, previous?: boolean): Promise<Back | boolean> {
+  const payment = await chooseStep(
+    '¿Cómo te pagan?',
     [
-      { description: 'La opción habitual', name: 'Sistema de circulación abierta (SCA)', value: 'sca' as const },
-      { name: 'Agente de depósito colectivo (ADC)', value: 'adc' as const },
+      { description: 'Ingresás la cotización acordada', name: 'En pesos', value: 'pesos' as const },
+      {
+        description: 'Se usa la cotización oficial de ARCA',
+        name: `En ${currencyName(currencyCode)}`,
+        value: 'moneda' as const,
+      },
     ],
-    current.transferMode ?? 'sca',
+    previous === undefined ? undefined : previous ? 'moneda' : 'pesos',
   );
 
-  return transferMode === BACK ? BACK : { ...current, transferMode };
+  return payment === BACK ? BACK : payment === 'moneda';
+}
+
+/** La cotizacion acordada, si te pagan en pesos un comprobante en moneda extranjera. */
+export async function askAgreedExchangeRate(
+  currencyCode: string,
+  previous?: number,
+): Promise<Back | number | undefined> {
+  const rate = await askTextStep(`Cotización de ${toIsoCurrencyCode(currencyCode)}:`, {
+    previousAnswer: amountInputText(previous),
+    validate: validateExchangeRate,
+  });
+
+  return rate === BACK ? BACK : parseExchangeRateInput(rate);
+}
+
+/** Una fecha del periodo del servicio ("Servicio desde:" o "Servicio hasta:"). Lo comparten los opcionales y "Repetir". */
+export async function askServiceDate(end: 'desde' | 'hasta', previous?: string): Promise<Back | string> {
+  return askTextStep(`Servicio ${end}:`, { previousAnswer: previous, validate: validateDate });
+}
+
+type Step = WizardStep<AdvancedOptions>;
+
+/** Las preguntas de cada opcional, una por paso: "Volver" lleva a la anterior, y desde la primera, a la seleccion. */
+function optionSteps(context: AdvancedContext): Record<Option, Step[]> {
+  return {
+    alicuota: [
+      {
+        name: 'alicuota',
+        run: async (current, previous) => {
+          const ivaRate = await chooseStep(
+            'Alícuota de IVA:',
+            ivaRateChoices(),
+            previous?.ivaRate ?? current.ivaRate ?? context.defaultIvaRate,
+          );
+
+          return ivaRate === BACK ? BACK : { ivaRate };
+        },
+      },
+    ],
+    divisas: [
+      {
+        name: 'moneda',
+        run: async (current, previous) => {
+          const currency = await chooseStep(
+            'Moneda del comprobante:',
+            currencyChoices(),
+            currencyChoiceValue(previous ?? current),
+          );
+
+          if (currency === BACK) {
+            return BACK;
+          }
+
+          return {
+            currencyCode: currency === 'PES' ? DEFAULT_CURRENCY_CODE : currency,
+            exchangeRate: undefined,
+            sameCurrency: false,
+          };
+        },
+      },
+      {
+        name: 'pago',
+        run: async (current, previous) => {
+          const sameCurrency = await askPaymentCurrency(current.currencyCode ?? '', previous?.sameCurrency);
+
+          return sameCurrency === BACK ? BACK : { exchangeRate: undefined, sameCurrency };
+        },
+        skip: (current) => !isForeignCurrency(current),
+      },
+      {
+        name: 'cotizacion',
+        run: async (current, previous) => {
+          const exchangeRate = await askAgreedExchangeRate(current.currencyCode ?? '', previous?.exchangeRate);
+
+          return exchangeRate === BACK ? BACK : { exchangeRate };
+        },
+        skip: (current) => !isForeignCurrency(current) || Boolean(current.sameCurrency),
+      },
+    ],
+    exento: [
+      {
+        name: 'exento',
+        run: async (_current, previous) => {
+          const exempt = await askTextStep('Parte exenta del monto total (vacío si no hay):', {
+            previousAnswer: amountInputText(previous?.exemptAmount),
+            validate: validateOptionalAmount,
+          });
+
+          return exempt === BACK ? BACK : { exemptAmount: parseAmountInput(exempt) };
+        },
+      },
+      {
+        name: 'no-gravado',
+        run: async (_current, previous) => {
+          const untaxed = await askTextStep('Parte no gravada del monto total (vacío si no hay):', {
+            previousAnswer: amountInputText(previous?.untaxedAmount),
+            validate: validateOptionalAmount,
+          });
+
+          return untaxed === BACK ? BACK : { untaxedAmount: parseAmountInput(untaxed) };
+        },
+      },
+    ],
+    fecha: [
+      {
+        name: 'fecha',
+        run: async (_current, previous) => {
+          const date = await askTextStep('Fecha del comprobante:', {
+            previousAnswer: previous?.billingDate,
+            validate: (value) => validateBillingDate(value, context.concept, context.voucherKind),
+          });
+
+          return date === BACK ? BACK : { billingDate: date };
+        },
+      },
+    ],
+    servicio: [
+      {
+        name: 'servicio-desde',
+        run: async (_current, previous) => {
+          const start = await askServiceDate('desde', previous?.serviceStartDate);
+
+          return start === BACK ? BACK : { serviceStartDate: start };
+        },
+      },
+      {
+        name: 'servicio-hasta',
+        run: async (_current, previous) => {
+          const end = await askServiceDate('hasta', previous?.serviceEndDate);
+
+          return end === BACK ? BACK : { serviceEndDate: end };
+        },
+      },
+    ],
+    transferencia: [
+      {
+        name: 'transferencia',
+        run: async (current, previous) => {
+          const transferMode = await chooseStep(
+            'Modalidad de transferencia:',
+            [
+              {
+                description: 'La opción habitual',
+                name: 'Sistema de circulación abierta (SCA)',
+                value: 'sca' as const,
+              },
+              { name: 'Agente de depósito colectivo (ADC)', value: 'adc' as const },
+            ],
+            previous?.transferMode ?? current.transferMode ?? 'sca',
+          );
+
+          return transferMode === BACK ? BACK : { transferMode };
+        },
+      },
+    ],
+    vencimiento: [
+      {
+        name: 'vencimiento',
+        run: async (_current, previous) => {
+          const due = await askTextStep('Vencimiento del pago:', {
+            previousAnswer: previous?.paymentDueDate,
+            validate: validateDate,
+          });
+
+          return due === BACK ? BACK : { paymentDueDate: due };
+        },
+      },
+    ],
+  };
 }
 
 function optionalChoices(options: AdvancedOptions, context: AdvancedContext) {
@@ -280,29 +363,22 @@ function dropUnavailable(options: AdvancedOptions, available: ReadonlySet<Option
 
 /**
  * Despues de lo requerido, una sola pregunta con todos los opcionales: se marcan con espacio y Enter sigue
- * (sin marcar nada, todo queda por defecto). Despues se pregunta solo lo marcado, en orden. "Volver" en una
- * de esas preguntas vuelve a la seleccion, con lo marcado y lo ya respondido.
+ * (sin marcar nada, todo queda por defecto). Despues se pregunta solo lo marcado, en orden, una pregunta por paso:
+ * "Volver" lleva a la pregunta anterior y, desde la primera, a la seleccion con lo marcado. Lo ya respondido no se
+ * aplica hasta terminar, pero arranca escrito o marcado al volver a preguntarlo.
  */
 export async function askAdvancedOptions(
   initial: AdvancedOptions,
   context: AdvancedContext,
 ): Promise<AdvancedOptions | Back> {
-  const asks: Record<Option, (current: AdvancedOptions) => Promise<AdvancedOptions | Back>> = {
-    alicuota: (current) => askIvaRate(current, context),
-    divisas: askCurrency,
-    exento: askExemptAmounts,
-    fecha: (current) => askBillingDate(current, context),
-    servicio: askServicePeriod,
-    transferencia: askTransferMode,
-    vencimiento: askPaymentDueDate,
-  };
-  let options = initial;
+  const steps = optionSteps(context);
+  const answers: WizardAnswers<AdvancedOptions> = new Map();
   let selected: Option[] = [...(context.preselected ?? [])];
 
   for (;;) {
     const picked = await chooseManyStep<Option>(
       '¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)',
-      optionalChoices(options, context),
+      optionalChoices(initial, context),
       selected,
     );
 
@@ -312,20 +388,13 @@ export async function askAdvancedOptions(
 
     selected = picked;
 
-    let completed = true;
+    const options = await runWizard(
+      picked.flatMap((option) => steps[option]),
+      initial,
+      answers,
+    );
 
-    for (const option of picked) {
-      const updated = await asks[option](options);
-
-      if (updated === BACK) {
-        completed = false;
-        break;
-      }
-
-      options = updated;
-    }
-
-    if (completed) {
+    if (options) {
       return dropUnavailable(options, new Set(optionalChoices(options, context).map((choice) => choice.value)));
     }
   }

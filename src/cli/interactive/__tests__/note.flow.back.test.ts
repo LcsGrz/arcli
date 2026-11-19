@@ -160,7 +160,7 @@ describe('notas: volver y cambiar respuestas', () => {
     expect(await note(createSession([invoice()]), 'debito')).toMatchObject({ shortcut: 'ndb', totalAmount: 500 });
   });
 
-  it('volver desde las fechas del período vuelve a la asociación, y elegir una factura no deja el período', async () => {
+  it('volver desde el hasta vuelve al desde (escrito) y de ahi a la asociación; elegir una factura no deja el período', async () => {
     script = createScript([
       [/Sobre qué comprobante/, 'Facturas'],
       [/Qué factura\?/, 'Factura C'],
@@ -169,6 +169,7 @@ describe('notas: volver y cambiar respuestas', () => {
       [/A qué la asociamos/, 'A un período'],
       [/Período desde/, '1/9'],
       [/Período hasta/, BACK],
+      [/Período desde/, BACK],
       [/A qué la asociamos/, 'A una factura'],
       [/Sobre qué factura C/, '00003-00000014'],
       [/Total o parcial/, 'Anular el total'],
@@ -179,6 +180,11 @@ describe('notas: volver y cambiar respuestas', () => {
 
     expect(input?.associatedPeriod).toBeUndefined();
     expect(input).toMatchObject({ associatedVoucher: { numero: 14 }, shortcut: 'ncc' });
+    // REV-60: el desde arranca escrito y la asociacion, marcada.
+    expect(script.askTextStep.mock.calls[3]?.[1]).toMatchObject({ previousAnswer: '1/9' });
+    expect(
+      script.chooseStep.mock.calls.filter(([message]) => /A qué la asociamos/.test(message)).map((call) => call[2]),
+    ).toEqual([undefined, 'periodo', 'periodo']);
   });
 
   it('con un tipo de documento que el asistente no maneja avisa y vuelve a la asociación', async () => {
@@ -305,5 +311,89 @@ describe('runNoteFlow', () => {
 
     expect(runExportNoteFlow).toHaveBeenCalledOnce();
     expect(previewAndEmit).not.toHaveBeenCalled();
+  });
+});
+
+// REV-60: "Volver" lleva a la pregunta anterior y lo respondido arranca marcado o escrito.
+describe('notas: volver con lo respondido', () => {
+  beforeEach(() => {
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    expect(script.remaining()).toBe(0);
+  });
+
+  /** El valor con que arranco cada vez la pregunta `question`. */
+  function defaultsOf(question: RegExp): unknown[] {
+    return script.chooseStep.mock.calls.filter(([message]) => question.test(message)).map((call) => call[2]);
+  }
+
+  it('la moneda de la nota arranca en la elegida al volver desde el monto', async () => {
+    script = createScript([
+      [/Sobre qué comprobante/, 'Facturas'],
+      [/Qué factura\?/, 'Factura B'],
+      [/A qué la asociamos/, 'A una factura'],
+      [/Sobre qué factura B/, '00003-00000014'],
+      [/En qué moneda va la nota/, 'En pesos'],
+      [/Monto de la nota de crédito/, '50'],
+      [/Agregamos/, BACK],
+      [/Monto de la nota de crédito/, BACK],
+      [/En qué moneda va la nota/, 'En pesos'],
+      [/Monto de la nota de crédito/, '60'],
+      [/Agregamos/, []],
+    ]);
+
+    const input = await note(createSession([invoice({ currency: 'DOL', exchangeRate: 1450 })]));
+
+    expect(input).toMatchObject({ currencyCode: 'PES', totalAmount: 60 });
+    expect(defaultsOf(/En qué moneda va la nota/)).toEqual([undefined, 'pesos']);
+    expect(script.askTextStep.mock.calls.map((call) => call[1]?.previousAnswer)).toEqual([undefined, '50', '50']);
+  });
+
+  it('"Total o parcial" es una pregunta y el monto otra: volver del monto vuelve a "Parcial" marcado', async () => {
+    script = createScript([
+      [/Sobre qué comprobante/, 'Facturas'],
+      [/Qué factura\?/, 'Factura C'],
+      [/A qué la asociamos/, 'A una factura'],
+      [/Sobre qué factura C/, '00003-00000014'],
+      [/Total o parcial/, 'Parcial'],
+      [/Monto de la nota de crédito/, BACK],
+      [/Total o parcial/, 'Anular el total'],
+      [/Agregamos/, BACK],
+      [/Total o parcial/, 'Anular el total'],
+      [/Agregamos/, []],
+    ]);
+
+    const input = await note(createSession([invoice({ ivaAmount: 0, netAmount: 121 })]));
+
+    expect(input).toMatchObject({ totalAmount: 121 });
+    expect(defaultsOf(/Total o parcial/)).toEqual([undefined, 'parcial', 'total']);
+    // La factura elegida tambien arranca marcada si se vuelve hasta la lista.
+    expect(defaultsOf(/Sobre qué factura C/)).toEqual([undefined]);
+  });
+
+  it('la alícuota de una nota por período arranca en la elegida al volver desde los opcionales', async () => {
+    script = createScript([
+      [/Sobre qué comprobante/, 'Facturas'],
+      [/Qué factura\?/, 'Factura B'],
+      [/A qué la asociamos/, 'A un período'],
+      [/Período desde/, '1/9'],
+      [/Período hasta/, '30/9'],
+      [/A quién va la nota/, 'Consumidor final'],
+      [/Qué concepto ajusta/, 'Servicios'],
+      [/Monto de la nota de crédito/, '100'],
+      [/Alícuota de IVA/, '10,5%'],
+      [/Agregamos/, BACK],
+      [/Alícuota de IVA/, BACK],
+      [/Monto de la nota de crédito/, '100'],
+      [/Alícuota de IVA/, '10,5%'],
+      [/Agregamos/, []],
+    ]);
+
+    expect(await note(createSession([invoice()]))).toMatchObject({ ivaRate: '10.5' });
+    expect(defaultsOf(/Alícuota de IVA/)).toEqual(['21', '10.5', '10.5']);
+    expect(defaultsOf(/A quién va la nota/)).toEqual([undefined]);
   });
 });
