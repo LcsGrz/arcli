@@ -60,7 +60,7 @@ Todas las de esta sección son **propias**: formato de los datos y combinaciones
 - `--at` se valida igual que `--ac`: una NC A no puede asociar una factura B. Si en el JSON vienen `tipo` y `atajo`, tienen que coincidir
 - `--cotizacion-moneda` y `--cm` deben ser números positivos
 - Todo CUIT o CUIL debe tener 11 dígitos y un dígito verificador válido: un número mal tipeado da error antes de llegar a ARCA
-- `--dni` debe tener 7 u 8 dígitos
+- `--dni` debe tener de 6 a 8 dígitos. ARCA acepta un documento de hasta 11 dígitos y ARCA testing aprobó una factura B a un DNI de 6; menos de 6 es casi seguro un error de tipeo
 - `--condicion-venta` / `--cv` (y `condicionVenta` en el JSON o la config) acepta hasta 100 caracteres
 - En el JSON de `--cargar`, una clave desconocida o un tipo incorrecto (`"puntoVenta": "3"`) es error: ver [claves desconocidas y tipos](input-output.md#claves-desconocidas-y-tipos)
 
@@ -114,10 +114,10 @@ ARCLI no tiene una regla aparte para producción: emite si `--emitir` lo pide o,
 | ---------------------------------------------------------- | ---------- | --------------------------------------------------------------- | -------------------------------------- |
 | Servicios / productos y servicios                          | sí         | el fin del servicio, o la fecha del comprobante si es posterior | fecha del comprobante (10036)          |
 | Factura FCE (`fcea`, `fceb`, `fcec`), incluso de productos | sí (10163) | la fecha del comprobante o hoy, la que sea posterior            | la fecha del comprobante o hoy (10164) |
-| NC/ND FCE                                                  | no (10175) | —                                                               | `--vencimiento` da error               |
+| NC/ND FCE                                                  | no (10175) | —                                                               | `--vencimiento` da error (ver abajo)   |
 | Productos (no FCE)                                         | no         | —                                                               | `--vencimiento` da error               |
 
-Los códigos de la tabla son de ARCA (el "no" de productos sin FCE, 10049); los defaults son propios.
+Los códigos de la tabla son de ARCA (el "no" de productos sin FCE, 10049); los defaults son propios. En las NC/ND FCE la 10175 prohíbe el vencimiento salvo en las de anulación, donde es opcional: que ARCLI tampoco lo acepte con `--anulacion` es propio.
 
 `--vencimiento` permite separar el vencimiento del período facturado. Por ejemplo, un servicio de febrero facturado el 18/03 que vence el 10/04. `--dia` (deprecado) sigue las mismas reglas que `--vencimiento`.
 
@@ -135,13 +135,27 @@ ARCA además exige que la fecha no sea anterior a la del último comprobante emi
 
 ### Identidad del receptor
 
+#### Según el comprobante
+
+| Comprobante                            | Receptor                                                  | Fuente     |
+| -------------------------------------- | --------------------------------------------------------- | ---------- |
+| Clase `A` (`fa`, `nca`, `nda`, `ra`)   | solo CUIT: `--dni` y `--cuil` dan error                   | ARCA 10013 |
+| FCE de cualquier letra (`fcea`…`ndec`) | solo CUIT: `--dni`, `--cuil` y consumidor final dan error | ARCA 10015 |
+| Todos                                  | el CUIT del receptor no puede ser el del emisor           | ARCA 10069 |
+
+En la `A`, consumidor final ya da error por el IVA receptor (10243). Con flags, con `--cargar` y en el modo interactivo es la misma regla: el asistente solo ofrece CUIT en la `A` y en FCE. El error sugiere el comprobante que sí va: la `B` de la misma familia, o el común de la misma letra en vez del FCE.
+
+#### No Categorizado
+
+Una factura, nota de crédito o nota de débito `B` (tipos 6, 7 y 8) al CUIT genérico de No Categorizado (`23000000000`) con neto gravado lleva la percepción de IVA No Categorizado (tributo 13, RG 2126/2006). ARCLI no informa tributos, así que frena antes con `INPUT_VALIDATION_ERROR` (ARCA 10067): si la operación es exenta o no gravada, el total va con `--exento` o `--nogravado`; si no, hay que identificar al receptor o emitirla desde Comprobantes en línea.
+
 #### Consumidor final
 
 Si usás consumidor final:
 
 - el documento debe ser `0` (ARCA 10015)
 - el IVA receptor debe ser `consumidor-final`: con `--consumidor-final` (o `tipoDocumento: "consumidor-final"` en el JSON) ARCLI ya lo asume y no hace falta `--ir-cf`, aunque la config tenga otro `ivaReceptor`. Un IVA explícito distinto (`--ir-rm` con `--cfinal`) es error. Propia: ARCA testing aprueba una factura B a consumidor final con IVA receptor exento
-- el total en pesos tiene que ser menor a `$ 10.000.000`. Desde ese monto hay que identificarlo con `--dni`, `--cuit` o `--cuil` ([RG 5700/2025](https://www.consejosalta.org.ar/wp-content/uploads/ARCA-5700.pdf)). En moneda extranjera se compara `monto × cotización`. ARCA 10015, que nombra el monto "según RG 4444": el valor lo fija la RG vigente, no el manual
+- el total en pesos tiene que ser menor a `$ 10.000.000`. Desde ese monto hay que identificarlo con `--dni`, `--cuit` o `--cuil` ([RG 5700/2025](https://www.consejosalta.org.ar/wp-content/uploads/ARCA-5700.pdf)). En moneda extranjera se compara `monto × cotización`. ARCA 10015, que nombra el monto "según RG 4444": el valor lo fija la RG vigente, no el manual. El texto de la 10015 habla solo de la `B`, pero ARCA testing también rechaza la `C` con ese código: vale para las dos
 
 #### CUIT, CUIL y DNI
 
@@ -157,7 +171,7 @@ ARCLI exige una única fuente de IVA receptor:
 - `--consumidor-final`, que implica `consumidor-final`
 - o un default configurado
 
-Eso es propio. Además, la condición tiene que ser válida para la letra del comprobante. ARCLI aplica la misma tabla que devuelve ARCA en `FEParamGetCondicionIvaReceptor` (ARCA 10243); `yarn test:arca` la compara con la que devuelve ARCA testing. Una diferencia conocida: la tabla de ARCA marca consumidor final solo para `C`, pero ARCA aprueba la factura `B` a consumidor final:
+Eso es propio. Además, la condición tiene que ser válida para la letra del comprobante. ARCLI aplica la tabla del manual (p. 203), la misma que devuelve `FEParamGetCondicionIvaReceptor` (ARCA 10243); `yarn test:arca` la compara con la que devuelve ARCA testing. Una diferencia conocida, de testing: su respuesta marca consumidor final solo para `C` y `49`, pero la tabla del manual lo marca en `B`, `C` y `49`, y ARCA aprueba la factura `B` a consumidor final:
 
 | Letra | IVA receptor admitido                                                                                                                               |
 | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -196,19 +210,21 @@ Comprobante asociado (si no se usa el período), que necesita:
 - `--ac` o `--at` (ARCA 10057)
 - `--apv` o `--asociado-punto-venta` (ARCA 10058)
 - `--ar` (ARCA 10059)
-- `--acuit`, salvo en NC/ND FCE, donde se puede omitir y toma el CUIT emisor. Propia en las notas comunes (ARCA lo acepta sin CUIT); en FCE, ARCA 10151 y 10155
+- `--acuit` es opcional: sin él, el asociado es del CUIT emisor. En las notas comunes el CUIT del asociado es opcional para ARCA (p. 31); en NC/ND FCE es obligatorio (ARCA 10151) y tiene que ser el del emisor (ARCA 10155), así que ARCLI siempre lo manda
 
 Con período asociado no hace falta ninguno de estos flags, `--acuit` incluido.
 
 Además:
 
 - en NC/ND A, B y C el asociado es una factura, un recibo u otra nota de la misma letra (NC o ND) (ARCA 10040). Ej.: una NC C sobre una ND C, `--ac ndc`, o una NC A sobre un Recibo A, `--ac ra`
-- en NC/ND FCE el asociado depende de `--anulacion`: sin anulación, solo la factura FCE (ARCA 10156, 10157); con anulación, la NC asocia la factura o una ND FCE y la ND solo una NC FCE (ARCA 10183, y 10186, 10187 y 10193 para A, B y C). Otro asociado es error, con la sugerencia de sumar o sacar `--anulacion` si con eso vale
+- en NC/ND FCE el asociado depende de `--anulacion`: sin anulación, solo la factura FCE (ARCA 10156, 10157); con anulación, la NC asocia la factura o una ND FCE y la ND solo una NC FCE (ARCA 10183; la 10186, la 10187 y la 10193, de A, B y C, dicen lo mismo en su segunda oración, pero la primera habla de asociar "un comprobante de crédito": el texto es ambiguo y la fuente es la 10183). Otro asociado es error, con la sugerencia de sumar o sacar `--anulacion` si con eso vale
 - con `--anulacion`, ARCA exige que el comprador haya rechazado antes el asociado en el Registro de FCE (ARCA 10154). Consulta: ARCLI consulta su estado en `wsfecred` (`consultarHistorialEstadosComprobante`) antes de la vista previa y, si no está rechazado o la consulta falla, lo avisa en `avisos` sin frenar. Solo se consulta un asociado del propio emisor
 - la letra debe coincidir (ARCA 10040)
 - la categoría electrónica debe coincidir (ARCA 10040 y 10157)
-- `--afecha` es opcional y no puede ser posterior a la fecha de la nota (ARCA 10159, que el manual pone solo en FCE: en las notas comunes está sin confirmar). En NC/ND FCE ARCA la exige (ARCA 10158): sin `--afecha`, ARCLI la toma del asociado en ARCA antes de la vista previa; si ARCA no lo tiene o no responde, es error
+- `--afecha` es opcional y no puede ser posterior a la fecha de la nota. En NC/ND FCE es ARCA 10159; en las notas comunes es propia: ARCA acepta un asociado posterior del mismo mes (10210) y ARCA testing aprobó una NC B anterior a su factura, pero una nota anterior a lo que ajusta es casi seguro un error. En NC/ND FCE ARCA la exige (ARCA 10158): sin `--afecha`, ARCLI la toma del asociado en ARCA antes de la vista previa; si ARCA no lo tiene o no responde, es error
 - si el asociado es del propio emisor, tiene que existir en ARCA. Antes de la vista previa, ARCLI consulta el asociado en ARCA (`FECompConsultar`), una vez por nota y se reusa al emitir; si ARCA no lo tiene y su punto de venta es uno de los de web service del emisor (`FEParamGetPtosVenta`; si esa lista viene vacía, como en testing, cuenta si ARCA tiene comprobantes de ese tipo en ese punto de venta), es `INPUT_VALIDATION_ERROR`, como en las notas `E`: es casi seguro un número mal escrito (propia: ARCA testing llega a aprobar una nota asociada a un comprobante que no existe). Si el punto de venta no es de web service (Comprobantes en línea, controlador fiscal, otro sistema), `FECompConsultar` no ve ese comprobante y ARCA lo acepta (10041 solo controla los de un punto de venta electrónico; 10211 y 10212 prevén los de controlador fiscal o FactuWeb): la nota sigue con un aviso, sin controlar el tope de la NC, y recuerda `--afecha` (10211 la exige para controlador fiscal y FactuWeb); en NC/ND FCE sin `--afecha` es error, porque la fecha no se puede tomar de ARCA. Si la consulta de puntos de venta falla, también aviso. El asociado de otro CUIT no se puede consultar y lo decide ARCA al emitir. Si ARCA no responde, la nota sigue con un aviso. Consulta; en un punto de venta de web service, más estricta que ARCA a propósito: en las notas comunes el manual lo pone como observación (10041), no como rechazo; en FCE sí rechaza (ARCA 10160)
+- en NC/ND FCE, con la misma consulta, la nota tiene que ir en la moneda del asociado o en pesos, para ajustar una diferencia de cambio (ARCA 10181), al mismo receptor (ARCA 10183), y `--afecha`, si se pasa, tiene que ser la fecha del asociado en ARCA (ARCA 10160). Si no coincide, `INPUT_VALIDATION_ERROR` con la sugerencia del valor del asociado. En las notas comunes ARCA no controla nada de esto: una nota común en pesos sobre una factura en dólares es válida
+- en el modo interactivo, una nota sobre un comprobante copia su receptor, su concepto y su moneda. Si el comprobante está en moneda extranjera, pregunta si la nota va en esa moneda, con su cotización, o en pesos (para una diferencia de cambio, 10181); en pesos no ofrece anular el total ni controla el tope de la NC, porque los totales no se comparan. Propia: con flags la moneda es libre
 - una nota de crédito no puede superar el total del asociado (factura, recibo o nota de débito) cuando van en la misma moneda; sobre otra nota de crédito no hay tope, como en la `E`. Se controla con la misma consulta y es un `INPUT_VALIDATION_ERROR` con la sugerencia del `--monto` que la anula entera. Propia: el manual pone el tope como observación (10237) y ARCA aprueba la nota
 
 ### Crédito electrónico (FCE)
@@ -241,11 +257,11 @@ El CBU se valida igual en `--cbu`, la clave `cbu` del JSON de `--cargar`, `confi
 
 `--moneda` acepta el código ISO o el de ARCA de cualquier moneda de la tabla de ARCA (`arcli parametros monedas`) que tenga ISO: `ARS` → `PES`, `USD` → `DOL`, `EUR` → `060`, `UYU` → `011`… Un código que no está en la tabla se envía tal cual.
 
-| Caso                                | `MonCotiz`          | `CanMisMonExt` | Regla                                                                                                                                                                                                                                                                                                           |
-| ----------------------------------- | ------------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Pesos                               | `1`                 | no se envía    | Una cotización distinta de `1` da error (ARCA 10039). `--misma-moneda` da error (ARCA 10241).                                                                                                                                                                                                                   |
-| Moneda extranjera, pago en pesos    | `--cm` o la oficial | `N`            | Sin `--cm`, ARCLI usa la oficial de ARCA y lo avisa (consulta). `--cm 1` da error. ARCA la acepta entre el 2% y el 400% de la oficial (ARCA 10119): `--cm 1` es propia, ARCLI no compara contra la oficial.                                                                                                     |
-| Moneda extranjera, `--misma-moneda` | la oficial de ARCA  | `S`            | ARCLI la consulta antes de la vista previa porque ARCA exige el valor exacto (ARCA 10038; ARCA testing tolera hasta 1 de diferencia y rechaza con 10240). La fecha del comprobante tiene que ser la de hoy (propia): la cotización de un día pasado no se puede consultar y la de uno futuro todavía no existe. |
+| Caso                                | `MonCotiz`          | `CanMisMonExt` | Regla                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ----------------------------------- | ------------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pesos                               | `1`                 | no se envía    | Una cotización distinta de `1` da error (ARCA 10039). `--misma-moneda` da error (ARCA 10241).                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Moneda extranjera, pago en pesos    | `--cm` o la oficial | `N`            | Sin `--cm`, ARCLI usa la oficial de ARCA y lo avisa (consulta). Con `--cm`, `"cotizacionMoneda"` del JSON o la clave `cotizacion` de la config, la vista previa la compara con la oficial y frena si está por debajo del 2 % o por encima del 500 % (ARCA 10119: el manual dice "superior en un 400 %", y ARCA testing aprueba 4,99 veces la oficial y rechaza 5,01). Si la consulta falla, lo avisa y sigue. `--cm 1` da error con su propio mensaje.                                        |
+| Moneda extranjera, `--misma-moneda` | la oficial de ARCA  | `S`            | ARCLI la consulta antes de la vista previa porque ARCA exige el valor exacto (ARCA 10038; ARCA testing tolera hasta 1 de diferencia y rechaza con 10240). Con una fecha pasada, la del día hábil anterior a esa fecha (`FEParamGetCotizacion` con `FchCotiz`; un día sin cotización se busca el anterior); con la de hoy o una futura, la vigente, que es la del día hábil anterior a hoy. Así lo pide la 10038. ARCA testing no controla la cotización con fecha pasada: aprueba cualquiera. |
 
 La clave `cotizacion` de la config (deprecada) se usa como default en moneda extranjera sin `--misma-moneda` ni `--cm`, con un aviso; si vale `1` o no está, se usa la oficial de ARCA.
 
@@ -343,4 +359,4 @@ Cada uno puede ser el asociado de una nota de crédito o débito de su letra (`-
 
 ## 3. Restricciones y errores de ARCA
 
-Hay rechazos que ARCLI no puede anticipar: errores transitorios de WSAA (`coe.alreadyAuthenticated`, `Transacción Activa`), receptor igual al emisor, observaciones de padrón y fechas anteriores al último comprobante emitido. Ver [Troubleshooting](troubleshooting.md#arca) y [Limitaciones](limitations.md).
+Hay rechazos que ARCLI no puede anticipar: errores transitorios de WSAA (`coe.alreadyAuthenticated`, `Transacción Activa`), observaciones de padrón, fechas anteriores al último comprobante emitido y los topes del Monotributo (10235 y 10236, que son observaciones: el comprobante sale emitido). Ver [Troubleshooting](troubleshooting.md#arca) y [Limitaciones](limitations.md).

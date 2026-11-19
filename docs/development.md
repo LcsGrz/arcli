@@ -70,6 +70,8 @@ Sirven para lo que los tests unitarios no ven: el empaquetado de ESM, los errore
 yarn build && yarn test:arca
 # con un punto de venta de exportación, también la E: últimos, número siguiente y notas
 yarn build && ARCLI_ARCA_PV_E=4 yarn test:arca
+# los casos de A, B, C y FCE de arca-rules.arca.ts en otro punto de venta que el de la config
+yarn build && ARCLI_ARCA_PV=9 yarn test:arca
 ```
 
 No corre en el CI (necesita credenciales y se niega si encuentra `CI`) ni con `yarn test`. Se corre antes de cada release (la skill `release` frena si falla) y conviene correrlo después de tocar algo que hable con ARCA: atrapa lo que los tests con ARCA simulado no ven, como una respuesta con otra forma o un error nuevo del SDK.
@@ -79,7 +81,7 @@ No corre en el CI (necesita credenciales y se niega si encuentra `CI`) ni con `y
 - si ARCA lo aprueba, el test falla con el número y el CAE: la regla local quedó más estricta que ARCA y hay que decidir si se afloja;
 - si lo rechaza con otro código, el test falla con los códigos: el manual cambió o la regla cita mal el código.
 
-También compara las tablas que ARCLI copia (IVA receptor por letra y alícuotas) con las que devuelve ARCA. Un caso que pasa no emite nada; uno que falla por aprobación deja un comprobante de prueba, que el test lista al final. Para la `E` usa una factura de servicios y una de bienes del punto de venta de `ARCLI_ARCA_PV_E`, y una NC y una ND E: si no hay, emitilas antes.
+También compara las tablas que ARCLI copia (IVA receptor por letra y alícuotas) con las que devuelve ARCA. Un caso que pasa no emite nada; uno que falla por aprobación deja un comprobante de prueba, que el test lista al final. Para la `E` usa una factura de servicios y una de bienes del punto de venta de `ARCLI_ARCA_PV_E`, y una NC y una ND E: si no hay, emitilas antes. Las notas A y FCE asocian la última Factura A y la última FCE A del punto de venta de `ARCLI_ARCA_PV` (o el de la config): en uno nuevo, emití una de cada una antes.
 
 `src/cli/__tests__/docs-sync.test.ts` recorre el programa de commander y falla si un comando no aparece en `docs/` o en `llms.txt`, si un flag no aparece en `docs/cli-reference.md` o en `llms.txt`, o si una clave pública de config no aparece en `docs/configuration.md` o en `llms.txt`. Solo verifica que se mencione, no que la descripción esté bien. Lo que no se documenta a propósito va en `UNDOCUMENTED_FLAGS`, con el motivo.
 

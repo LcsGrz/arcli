@@ -4,7 +4,7 @@
 
 Una nota de crédito resta y una de débito suma sobre un comprobante ya emitido (el **asociado**), o sobre un período. Vale para las letras A, B y C con los atajos `nca`, `ncb`, `ncc`, `nda`, `ndb` y `ndc`, y para FCE (`ncea`…`ndec`). Las notas de la factura de exportación están en [exportación](exportacion.md).
 
-En el [modo interactivo](modo-interactivo.md) elegís la factura de una lista y la nota toma de ahí el receptor, la moneda y la alícuota.
+En el [modo interactivo](modo-interactivo.md) elegís la factura de una lista y la nota toma de ahí el receptor, la moneda y la alícuota. Si la factura está en moneda extranjera, te pregunta si la nota va en esa moneda o en pesos (por ejemplo, una nota de débito por diferencia de cambio).
 
 ## Nota de crédito con comprobante asociado
 
@@ -25,8 +25,7 @@ Cuando necesitás anular o ajustar una factura previa, o una nota ya emitida (po
 arcli nca -m 5000 --cs --cuit 20168598204 --ir-ri \
   --ac fa \
   --apv 3 \
-  --ar 120 \
-  --acuit 20333333334
+  --ar 120
 ```
 
 ### Resultado esperado
@@ -37,7 +36,7 @@ arcli nca -m 5000 --cs --cuit 20168598204 --ir-ri \
 
 ### Errores comunes
 
-- faltan `--apv`, `--ar` o `--acuit`
+- faltan `--apv` o `--ar` (`--acuit` es opcional: sin él, el asociado es tuyo)
 - usar `--ac` y `--at` juntos
 - referenciar un comprobante de otra letra
 - en FCE, asociar una nota FCE sin `--anulacion`, o una ND FCE con `--anulacion` sobre la factura

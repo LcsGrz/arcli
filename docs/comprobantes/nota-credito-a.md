@@ -13,7 +13,7 @@ Resta sobre una Factura A, un Recibo A u otra nota A: un descuento, una devoluci
 ## Ejemplo
 
 ```bash
-arcli nca -m 1210 --cs --cuit 20168598204 --ac fa --apv 3 --ar 6 --acuit 20333333334
+arcli nca -m 1210 --cs --cuit 20168598204 --ac fa --apv 3 --ar 6
 ```
 
 Sin `--emitir` muestra la vista previa y pregunta antes de emitir. También se emite desde el [asistente](../modo-interactivo.md), sin recordar flags.
@@ -65,10 +65,10 @@ Atajo, punto de venta y número del comprobante: una factura u otra nota de la m
 | `--ac <atajo>` |  | Atajo del comprobante: fc, rc, ndc… |
 | `--asociado-punto-venta <número>` | `--apv` | Su punto de venta |
 | `--ar <número>` |  | Su número |
-| `--acuit <cuit>` |  | El CUIT del emisor: el tuyo |
+| `--acuit <cuit>` |  | El CUIT de quien lo emitió; sin él, el tuyo |
 | `--at <número>` |  | Tipo ARCA, en vez de --ac |
 
-Ej.: `--ac fc --apv 3 --ar 142 --acuit 20333333334`
+Ej.: `--ac fc --apv 3 --ar 142`
 
 ## Opcional
 
@@ -234,6 +234,6 @@ Ej.: `--cargar facturas.json`
 
 ## No aplica
 
-Estos flags no van en este comprobante: `--cbu`, `--cfinal`.
+Estos flags no van en este comprobante: `--cbu`, `--cfinal`, `--dni`.
 
 Todas las reglas, en [reglas de validación](../validation-rules.md); todos los flags, en la [referencia del CLI](../cli-reference.md).

@@ -186,7 +186,7 @@ En la práctica, siempre necesitás:
 | ----------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------- |
 | `--cuit <numero>`       | ninguno       | `string`                                                                                                                                                                                                                                                                                                 | ninguno                                                  | CUIT del receptor: 11 dígitos, con o sin guiones, puntos o espacios |
 | `--cuil <numero>`       | ninguno       | `string`                                                                                                                                                                                                                                                                                                 | ninguno                                                  | CUIL del receptor: 11 dígitos, con o sin guiones, puntos o espacios |
-| `--dni <numero>`        | ninguno       | `string`                                                                                                                                                                                                                                                                                                 | ninguno                                                  | DNI del receptor: 7 u 8 dígitos, con o sin puntos o espacios        |
+| `--dni <numero>`        | ninguno       | `string`                                                                                                                                                                                                                                                                                                 | ninguno                                                  | DNI del receptor: de 6 a 8 dígitos, con o sin puntos o espacios     |
 | `--consumidor-final`    | `--cfinal`    | `boolean`                                                                                                                                                                                                                                                                                                | `false`                                                  | Documento `0` e IVA receptor `consumidor-final`                     |
 | `--iva-receptor <tipo>` | `--ir <tipo>` | `'cliente-del-exterior' \| 'consumidor-final' \| 'iva-liberado' \| 'iva-no-alcanzado' \| 'monotributista-social' \| 'monotributo-trabajador-independiente-promovido' \| 'proveedor-del-exterior' \| 'responsable-inscripto' \| 'responsable-monotributo' \| 'sujeto-exento' \| 'sujeto-no-categorizado'` | Con `--cuit`, la del padrón; si no, `config.ivaReceptor` | Condición IVA del receptor                                          |
 | `--ir-ce`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                                                  | Cliente del exterior                                                |
@@ -238,8 +238,8 @@ En casi todos los casos te va a interesar mirar primero:
 
 En moneda extranjera (`--moneda USD`) hay dos formas de informar la cotización:
 
-- **Te pagan en pesos** (default): pasá `--cotizacion-moneda` con la cotización acordada. Sin ella, ARCLI usa la oficial de ARCA y lo avisa en "Avisos". No puede ser `1`.
-- **Te pagan en la moneda extranjera**: pasá `--misma-moneda`. ARCLI consulta la cotización oficial a ARCA y la muestra en la vista previa. No se combina con `--cotizacion-moneda`.
+- **Te pagan en pesos** (default): pasá `--cotizacion-moneda` con la cotización acordada. Sin ella, ARCLI usa la oficial de ARCA y lo avisa en "Avisos". No puede ser `1`, y tiene que estar entre el 2 % y el 500 % de la oficial: la vista previa la compara (error 10119 de ARCA).
+- **Te pagan en la moneda extranjera**: pasá `--misma-moneda`. ARCLI consulta la cotización oficial a ARCA y la muestra en la vista previa: con una `--fecha` pasada, la del día hábil anterior a esa fecha, como pide ARCA. No se combina con `--cotizacion-moneda`.
 
 En pesos la cotización siempre es `1` y `--misma-moneda` no aplica. Detalle en [Moneda y cotización](validation-rules.md#moneda-y-cotización).
 
@@ -291,7 +291,7 @@ Dicho más directo: **no aplican a `factura`, `factura-credito-electronica`, `re
 | `--at <numero>`                   | ninguno          | `integer`    | ninguno           | Tipo ARCA del comprobante asociado |
 | `--asociado-punto-venta <numero>` | `--apv <numero>` | `integer`    | ninguno           | Punto de venta del asociado        |
 | `--ar <numero>`                   | ninguno          | `integer`    | ninguno           | Número del comprobante asociado    |
-| `--acuit <numero>`                | ninguno          | `string(11)` | ninguno           | CUIT del comprobante asociado      |
+| `--acuit <numero>`                | ninguno          | `string(11)` | el CUIT emisor    | CUIT del comprobante asociado      |
 | `--afecha <fecha>`                | ninguno          | `string`     | ninguno           | Fecha del comprobante asociado     |
 | `--periodo-desde <fecha>`         | `--pd <fecha>`   | `string`     | ninguno           | Inicio del período asociado        |
 | `--periodo-hasta <fecha>`         | `--ph <fecha>`   | `string`     | ninguno           | Fin del período asociado           |
@@ -469,7 +469,7 @@ Las notas heredan todo lo de una factura, pero suman una regla importante: **sie
 
 - todo lo base de una factura
 - además:
-  - un comprobante asociado: `--ac` o `--at`, con `--asociado-punto-venta` (o `--apv`), `--ar` y `--acuit`
+  - un comprobante asociado: `--ac` o `--at`, con `--asociado-punto-venta` (o `--apv`) y `--ar`; `--acuit` solo si es de otro CUIT (sin él, el tuyo)
   - o un período asociado: `--periodo-desde` y `--periodo-hasta` (entonces no van `--ac`, `--apv`, `--ar` ni `--acuit`)
 
 **Opcional**
@@ -479,7 +479,7 @@ Las notas heredan todo lo de una factura, pero suman una regla importante: **sie
 #### Ejemplo mínimo funcional
 
 ```bash
-arcli nca -m 1 --cs --cuit 20168598204 --ir-ri --ac fa --apv 3 --ar 6 --acuit 20333333334
+arcli nca -m 1 --cs --cuit 20168598204 --ir-ri --ac fa --apv 3 --ar 6
 ```
 
 #### Nota por período
@@ -494,13 +494,13 @@ El período no puede terminar después de la fecha de la nota. Las notas FCE no 
 
 #### Resumen rápido de parámetros asociados
 
-| Parámetro                         | Alias            | Tipo         | Requerido   | Cuándo usarlo                                                       |
-| --------------------------------- | ---------------- | ------------ | ----------- | ------------------------------------------------------------------- |
-| `--ac <atajo>`                    | ninguno          | `string`     | Condicional | Si querés identificar el asociado por shortcut                      |
-| `--at <numero>`                   | ninguno          | `integer`    | Condicional | Si querés identificar el asociado por tipo ARCA                     |
-| `--asociado-punto-venta <numero>` | `--apv <numero>` | `integer`    | Condicional | Con `--ac`/`--at`                                                   |
-| `--ar <numero>`                   | ninguno          | `integer`    | Condicional | Con `--ac`/`--at`                                                   |
-| `--acuit <numero>`                | ninguno          | `string(11)` | Condicional | Con `--ac`/`--at`; no con período; en NC/ND FCE toma el CUIT emisor |
+| Parámetro                         | Alias            | Tipo         | Requerido   | Cuándo usarlo                                                          |
+| --------------------------------- | ---------------- | ------------ | ----------- | ---------------------------------------------------------------------- |
+| `--ac <atajo>`                    | ninguno          | `string`     | Condicional | Si querés identificar el asociado por shortcut                         |
+| `--at <numero>`                   | ninguno          | `integer`    | Condicional | Si querés identificar el asociado por tipo ARCA                        |
+| `--asociado-punto-venta <numero>` | `--apv <numero>` | `integer`    | Condicional | Con `--ac`/`--at`                                                      |
+| `--ar <numero>`                   | ninguno          | `integer`    | Condicional | Con `--ac`/`--at`                                                      |
+| `--acuit <numero>`                | ninguno          | `string(11)` | No          | Si el asociado es de otro CUIT; sin él, el CUIT emisor; no con período |
 
 ### Factura de crédito electrónica `A`, `B` y `C`
 

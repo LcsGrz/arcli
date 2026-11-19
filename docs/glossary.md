@@ -42,7 +42,7 @@ Formas de identificar al receptor de un comprobante:
 
 - **CUIT**: Clave Única de Identificación Tributaria, 11 dígitos. Identifica personas jurídicas o autónomos.
 - **CUIL**: Clave Única de Identificación Laboral, 11 dígitos. Identifica trabajadores en relación de dependencia.
-- **DNI**: Documento Nacional de Identidad, 7 u 8 dígitos. Se usa cuando el receptor no tiene CUIT/CUIL a mano.
+- **DNI**: Documento Nacional de Identidad, de 6 a 8 dígitos. Se usa cuando el receptor no tiene CUIT/CUIL a mano.
 
 ### Consumidor final
 
