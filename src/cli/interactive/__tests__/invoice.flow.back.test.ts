@@ -94,8 +94,9 @@ describe('factura: volver y cambiar respuestas', () => {
       [/Agregamos/, []],
     ]);
 
+    // El 0 de consumidor final, como `--cf` (REV-61), no el CUIT de antes.
     expect(await invoice()).toMatchObject({
-      documentNumber: undefined,
+      documentNumber: 0,
       documentType: 'consumidor-final',
       ivaCondition: 'consumidor-final',
     });

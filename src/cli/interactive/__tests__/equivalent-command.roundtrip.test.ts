@@ -217,14 +217,6 @@ async function payloadOf(input: BillingCommandInput, withConfig = config) {
 }
 
 /**
- * El asistente a consumidor final no manda `DocNro` y el comando manda 0 (ver el `it.skip` con BUG abajo): para
- * comparar lo demas, falta y 0 cuentan igual.
- */
-function withConsumerDocNro<T extends { DocNro?: number; DocTipo?: number }>(payload: T): T {
-  return payload.DocTipo === 99 && payload.DocNro === undefined ? { ...payload, DocNro: 0 } : payload;
-}
-
-/**
  * El comando equivalente del asistente, en las dos shells, arma la misma solicitud que el asistente con la misma
  * config. Devuelve el comando (POSIX) y la entrada que armo el parser, para revisar lo que no va a ARCA (el PDF).
  */
@@ -232,7 +224,7 @@ async function expectSameBillingRequest(
   input: BillingCommandInput,
   withConfig = config,
 ): Promise<{ readonly line: string; readonly parsed: BillingCommandInput }> {
-  const expected = withConsumerDocNro(await payloadOf(input, withConfig));
+  const expected = await payloadOf(input, withConfig);
   let shown = '';
   let parsed: BillingCommandInput | undefined;
 
@@ -254,9 +246,7 @@ async function expectSameBillingRequest(
 
     expect(plan.invalidItems).toEqual([]);
     expect(plan.inputs).toHaveLength(1);
-    expect(withConsumerDocNro(await payloadOf(plan.inputs[0] as BillingCommandInput, withConfig)), line).toEqual(
-      expected,
-    );
+    expect(await payloadOf(plan.inputs[0] as BillingCommandInput, withConfig), line).toEqual(expected);
 
     if (platform === 'linux') {
       shown = line;
@@ -311,11 +301,9 @@ describe('el comando equivalente del asistente pasa por el parser real y arma la
     expect((await expectSameBillingRequest(input)).line).toMatch(/^arcli fc -m 1500,50/);
   });
 
-  // BUG: a consumidor final, el asistente arma la solicitud sin `DocNro` y el comando equivalente (y el CLI) con
-  // `DocNro` 0. La vista previa del asistente tampoco es la del CLI: sin `DocNro` no muestra "Receptor: Consumidor
-  // final" sino "Tipo de documento" y "Número de documento: N/D" (billing.display.ts). Se reproduce con cualquier
-  // factura, recibo o nota a consumidor final desde `arcli` (sin argumentos), contra `arcli fc -m 100 --cf`.
-  it.skip('BUG: a consumidor final el asistente manda DocNro 0, como el comando equivalente', async () => {
+  // REV-61: el asistente no guarda numero a consumidor final, pero manda `DocNro` 0 como `--cf`, y con eso la vista
+  // previa dice "Receptor: Consumidor final" (billing.display.ts) y no "Número de documento: N/D".
+  it('a consumidor final el asistente manda DocNro 0, como el comando equivalente', async () => {
     const input = await invoiceFrom([
       [/comprobante/, 'Factura C'],
       [/A quién/, 'Consumidor final'],
@@ -324,7 +312,8 @@ describe('el comando equivalente del asistente pasa por el parser real y arma la
       [/Agregamos/, []],
     ]);
 
-    expect((await payloadOf(input)).DocNro).toBe(0);
+    expect(await payloadOf(input)).toMatchObject({ DocNro: 0, DocTipo: 99 });
+    expect((await expectSameBillingRequest(input)).line).toContain('--consumidor-final');
   });
 
   it('Factura A a un CUIT, con alícuota, exento, no gravado y fecha del comprobante', async () => {
@@ -430,6 +419,8 @@ describe('el comando equivalente del asistente pasa por el parser real y arma la
       );
 
       expect((await expectSameBillingRequest(input)).line).toContain('--ar 14');
+      // La factura era a consumidor final: la nota copia el receptor y manda `DocNro` 0 (REV-61).
+      expect(await payloadOf(input)).toMatchObject({ DocNro: 0, DocTipo: 99 });
     });
 
     it('ND B en pesos sobre una factura en dólares', async () => {
@@ -516,9 +507,12 @@ describe('el comando equivalente del asistente pasa por el parser real y arma la
       const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
 
       expect(script.remaining()).toBe(0);
-      expect(
-        (await expectSameBillingRequest(buildNoteInput(state as NonNullable<typeof state>, session, 3))).line,
-      ).toContain('--ac fc --apv 50 --ar 15 --acuit 20111111112 --afecha 10/11/2026');
+      const input = buildNoteInput(state as NonNullable<typeof state>, session, 3);
+
+      expect((await expectSameBillingRequest(input)).line).toContain(
+        '--ac fc --apv 50 --ar 15 --acuit 20111111112 --afecha 10/11/2026',
+      );
+      expect(await payloadOf(input)).toMatchObject({ DocNro: 0, DocTipo: 99 });
     });
   });
 
@@ -557,6 +551,25 @@ describe('el comando equivalente del asistente pasa por el parser real y arma la
     ]);
 
     expect((await expectSameBillingRequest(input, inDollars)).line).toContain('--moneda ARS');
+  });
+
+  it('repetir una Factura C a consumidor final manda DocNro 0, como --cf', async () => {
+    script = createScript([
+      [/comprobante querés repetir/, 'Factura C'],
+      [/Cuál repetimos/, '00003-00000014'],
+      [/Mismo monto/, 'Sí'],
+      [/Período del servicio/, 'El mes pasado'],
+      [/Agregamos/, []],
+    ]);
+
+    const session = createSession([invoice({ ivaAmount: 0, netAmount: 121 })]);
+    const state = await runWizard(repeatSteps(session, 3, NOW), {
+      advanced: { currencyCode: 'ARS', sameCurrency: false },
+    });
+    const input = buildRepeatInput(state as NonNullable<typeof state>, session);
+
+    expect((await expectSameBillingRequest(input)).line).toContain('--consumidor-final');
+    expect(await payloadOf(input)).toMatchObject({ DocNro: 0, DocTipo: 99 });
   });
 
   it('repetir una Factura A del mes pasado', async () => {
