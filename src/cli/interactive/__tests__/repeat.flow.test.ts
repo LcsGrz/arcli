@@ -142,7 +142,7 @@ describe('repetir un comprobante', () => {
     // La 15 era en dolares y a un CUIT: no queda nada de ella.
     expect(await repeat(session)).toMatchObject({
       currencyCode: 'ARS',
-      documentNumber: undefined,
+      documentNumber: 0,
       documentType: 'consumidor-final',
       totalAmount: 121,
     });

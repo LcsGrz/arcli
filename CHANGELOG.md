@@ -60,6 +60,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### Corregido
 
+- **Consumidor final en el modo interactivo:** a consumidor final, el asistente (facturas, recibos, notas y "Repetir") armaba la solicitud a ARCA sin `DocNro`, mientras `--cf` y el comando equivalente que muestra mandan `DocNro: 0`, y la vista previa mostraba "Tipo de documento: Consumidor final" y "Número de documento: N/D" en lugar de "Receptor: Consumidor final". Ahora el asistente manda `DocNro: 0` y muestra la misma vista previa que el comando.
 - **`--misma-moneda` con una fecha que no es hoy:** daba error diciendo que solo se podía consultar la cotización vigente. Ahora, con una `--fecha` pasada, ARCLI pide a ARCA la cotización del día hábil anterior a esa fecha, y con una futura usa la vigente, como dice la regla 10038. ARCA testing aprobó un Recibo B en dólares fechado dos días antes.
 - **DNI de 6 dígitos:** `--dni` (y el DNI del modo interactivo) aceptaba solo 7 u 8 dígitos; ahora de 6 a 8. ARCA acepta los documentos viejos de menos de un millón.
 - **Mensaje de `mismaMoneda` con `cotizacionMoneda` en el JSON de `--cargar`:** el error nombraba los flags `--misma-moneda` y `--cm` aunque los dos datos vinieran del archivo; ahora nombra las claves del JSON.

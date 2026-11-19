@@ -34,6 +34,7 @@ import {
   noteCurrencyChoices,
   resolveNoteCurrency,
 } from '../../modules/interactive/note-currency';
+import { receiverDocumentNumber } from '../../modules/interactive/receiver-document';
 import { BACK, type Back, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import type { IssuedVoucher } from '../../modules/vouchers/voucher-history';
 import { formatVoucherNumber } from '../../modules/vouchers/voucher-history.presenter';
@@ -505,7 +506,7 @@ export function buildNoteInput(
     billingDate: advanced.billingDate,
     cancellation: requiredCancellation(state) ?? state.cancellation ?? false,
     concept: state.concept,
-    documentNumber: state.documentType === 'consumidor-final' ? undefined : state.documentNumber,
+    documentNumber: receiverDocumentNumber(state),
     documentType: state.documentType,
     exemptAmount: state.annulsTotal ? copy?.exemptAmount : advanced.exemptAmount,
     ivaCondition: state.ivaCondition,

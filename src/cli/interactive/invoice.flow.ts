@@ -11,6 +11,7 @@ import {
   reciboChoices,
 } from '../../modules/interactive/choices';
 import { defaultIvaRate, explicitIvaRate } from '../../modules/interactive/iva-rate';
+import { receiverDocumentNumber } from '../../modules/interactive/receiver-document';
 import { BACK, type Back, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 
 import { type AdvancedOptions, askAdvancedOptions, initialAdvancedOptions } from './advanced-options';
@@ -171,7 +172,7 @@ export function buildInvoiceInput(state: InvoiceState, session: InteractiveSessi
     // Como en el CLI: en una FCE el alias de la config se informa junto con el CBU.
     cbuAlias: isFceInvoice(state) ? (state.cbuAlias ?? config.aliasCbu) : undefined,
     concept: state.concept,
-    documentNumber: state.documentNumber,
+    documentNumber: receiverDocumentNumber(state),
     documentType: state.documentType,
     ivaCondition: state.ivaCondition,
     ...receiverInputFields(state),
