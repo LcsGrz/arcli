@@ -139,6 +139,23 @@ function resolveStorePath(options: ConfigServiceOptions): string {
   return new Conf({ ...storeLocation(options), deserialize: () => ({}) }).path;
 }
 
+function defaultTicketPathFor(configPath: string): string {
+  return join(dirname(configPath), 'tickets');
+}
+
+/**
+ * Dónde quedarían el config.json y la carpeta de tickets por defecto, sin leer ni escribir el archivo. Lo usa el
+ * setup de los tests para frenar la suite si apuntan fuera de la carpeta temporal.
+ */
+export function resolveConfigLocation(options: ConfigServiceOptions = {}): {
+  readonly configPath: string;
+  readonly ticketPath: string;
+} {
+  const configPath = resolveStorePath(options);
+
+  return { configPath, ticketPath: defaultTicketPathFor(configPath) };
+}
+
 function invalidConfigFileError(path: string): ConfigurationError {
   return new ConfigurationError(
     'El archivo de configuración tiene JSON inválido y no se puede leer.',
@@ -204,7 +221,7 @@ export class ConfigService {
   }
 
   public getDefaultTicketPath(): string {
-    return join(dirname(this.store.path), 'tickets');
+    return defaultTicketPathFor(this.store.path);
   }
 
   /** Carpeta donde se instala el plugin de PDF, junto a config.json. */
