@@ -16,7 +16,7 @@ import {
   type ExportRepeatState,
 } from '../../modules/interactive/export-repeat-input';
 import { repeatActivityToSave } from '../../modules/interactive/steps/config-offer';
-import { nestedLens } from '../../modules/interactive/steps/lens';
+import { fieldLens, nestedLens } from '../../modules/interactive/steps/lens';
 import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { noticePanel, writeTerminalOutput } from '../../ui';
@@ -25,6 +25,7 @@ import { askPermitsStep, emitExportVoucher } from './export.flow';
 import { askCountryCuit, exportOptionalsStep } from './export-options';
 import { withFinalizeNotice } from './finalize-notice';
 import { pickExportVoucher } from './invoice-picker';
+import { exportExchangeRateLoader } from './official-exchange-rate';
 import { chooseStep } from './prompts';
 import { offerConfig } from './save-to-config';
 import type { InteractiveSession } from './session';
@@ -32,6 +33,7 @@ import { amountStep } from './steps/amount';
 import {
   activitiesLoader,
   activityStep,
+  exportExchangeRateStep,
   exportPaymentDateStep,
   type ExportTables,
   loadExportTables,
@@ -63,12 +65,25 @@ function optionsOf(copy: ExportInvoiceCopy['input']): ExportOptions {
  */
 export function exportRepeatSteps(
   session: InteractiveSession,
-  gateway: Pick<ExportGateway, 'getActivities' | 'getLanguages' | 'getLastVoucherNumber' | 'getUnits' | 'getVoucher'>,
+  gateway: Pick<
+    ExportGateway,
+    'getActivities' | 'getLanguages' | 'getLastVoucherNumber' | 'getQuotations' | 'getUnits' | 'getVoucher'
+  >,
   tables: ExportRepeatTables,
   pointOfSale: number,
 ): Array<WizardStep<ExportRepeatState>> {
   const configuredActivity = session.runtime.config.exportacion?.actividad;
   const activities = activitiesLoader(gateway);
+  const exchangeRate = exportExchangeRateLoader(gateway);
+  const exchangeRateCase = (state: ExportRepeatState) => {
+    const copy = requireStepValue(state.copy, 'copy');
+
+    return {
+      currencyCode: copy.currencyCode ?? 'DOL',
+      exportType: copy.exportType ?? DEFAULT_EXPORT_TYPE,
+      sameCurrency: copy.sameCurrency,
+    };
+  };
   const copyAmount = nestedLens<ExportRepeatState, 'copy', 'amount'>('copy', 'amount', (state) =>
     requireStepValue(state.copy, 'copy'),
   );
@@ -171,6 +186,14 @@ export function exportRepeatSteps(
       },
       skip: (state) => state.copy?.sameCurrency !== undefined,
     },
+    // La de la factura no sirve (es de otro dia): arranca con la de aduana de ARCA, como en "Emitir factura" (NAV-9).
+    exportExchangeRateStep<ExportRepeatState>({
+      dependsOn: ['factura', 'misma-moneda'],
+      exchangeRate: fieldLens('exchangeRate'),
+      rules: (state) => exportRepeatRuleScope(state, { configuredActivity, today: formatDateAsArcaDate(new Date()) }),
+      suggestion: (state) => exchangeRate({ ...exchangeRateCase(state), voucherDate: state.options?.voucherDate }),
+      voucher: exchangeRateCase,
+    }),
     {
       // La factura no trae CUIT del pais y ARCA no publica uno para el destino: sin esto ARCA la rechaza.
       name: 'cuit-pais',
@@ -217,18 +240,12 @@ export function exportRepeatSteps(
           copiedFrom: `${original.pointOfSale}:${original.number}`,
           countryCuit: { country: requireStepValue(state.country, 'country'), countryCuits: tables.countryCuits },
           currencyCode,
-          // En servicios y con el pago en dolares ARCA exige la suya (2053, 1604): no se ofrece otra.
-          defaultExchangeRate:
-            currencyCode === 'PES' || copy.exportType === 2 || copy.sameCurrency
-              ? undefined
-              : 'la de aduana que publica ARCA',
           defaultLanguage: 'Español',
           exportType: copy.exportType ?? DEFAULT_EXPORT_TYPE,
           // Sin descripcion por defecto: la copiada ya esta en las opciones y Enter la mantiene.
           incoterm: copy.incoterm ? { code: copy.incoterm } : undefined,
           languages: () => gateway.getLanguages(),
           rules: exportRepeatRuleScope(state, { configuredActivity, today: formatDateAsArcaDate(new Date()) }),
-          sameCurrency: copy.sameCurrency,
           units: () => gateway.getUnits(),
         };
       },

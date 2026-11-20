@@ -31,6 +31,7 @@ import { withSpinner } from '../spinner';
 
 import { askCountryCuit, exportOptionalsStep, validateExportText } from './export-options';
 import { withFinalizeNotice } from './finalize-notice';
+import { exportExchangeRateLoader } from './official-exchange-rate';
 import { completeIssuer } from './pdf.flow';
 import { askTextStep, chooseStep, isPromptCancellation } from './prompts';
 import { offerConfig } from './save-to-config';
@@ -39,6 +40,7 @@ import { amountStep } from './steps/amount';
 import {
   activitiesLoader,
   activityStep,
+  exportExchangeRateStep,
   exportPaymentDateStep,
   type ExportTables,
   loadExportTables,
@@ -46,6 +48,8 @@ import {
 
 interface ExportFlowLoaders {
   readonly activities: () => Promise<readonly ExportActivity[]>;
+  /** La cotizacion de aduana con la que arranca la pregunta (`exportExchangeRateLoader`). */
+  readonly exchangeRate: ReturnType<typeof exportExchangeRateLoader>;
   readonly incoterms: () => Promise<ReadonlyArray<{ readonly code: string; readonly name: string }>>;
   readonly languages: ExportGateway['getLanguages'];
   readonly units: ExportGateway['getUnits'];
@@ -230,6 +234,24 @@ function exportSteps(
       },
       skip: (state) => state.currencyCode === 'PES',
     },
+    // Despues de la moneda, arrancando con la de aduana de ARCA, como "En pesos" en A, B y C (NAV-9).
+    exportExchangeRateStep<ExportFlowState>({
+      dependsOn: ['tipo', 'moneda', 'misma-moneda'],
+      exchangeRate: fieldLens('exchangeRate'),
+      rules: (state) => exportRuleScope(state, { configuredActivity, today: formatDateAsArcaDate(new Date()) }),
+      suggestion: (state) =>
+        loaders.exchangeRate({
+          currencyCode: state.currencyCode ?? 'DOL',
+          exportType: requireStepValue(state.exportType, 'exportType'),
+          sameCurrency: state.sameCurrency,
+          voucherDate: state.options.voucherDate,
+        }),
+      voucher: (state) => ({
+        currencyCode: state.currencyCode ?? 'DOL',
+        exportType: requireStepValue(state.exportType, 'exportType'),
+        sameCurrency: state.sameCurrency,
+      }),
+    }),
     amountStep<ExportFlowState>({
       amount: fieldLens('amount'),
       dependsOn: ['moneda'],
@@ -308,17 +330,11 @@ function exportSteps(
           amount: requireStepValue(state.amount, 'amount'),
           countryCuit: { country: requireStepValue(state.country, 'country'), countryCuits: tables.countryCuits },
           currencyCode,
-          // En servicios y con el pago en dolares ARCA exige la suya (2053, 1604): no se ofrece otra.
-          defaultExchangeRate:
-            currencyCode === 'PES' || state.exportType === 2 || state.sameCurrency
-              ? undefined
-              : 'la de aduana que publica ARCA',
           defaultLanguage: 'Español',
           exportType: requireStepValue(state.exportType, 'exportType'),
           incoterm: state.incoterm ? { code: state.incoterm, description: state.incotermName } : undefined,
           languages: loaders.languages,
           rules: exportRuleScope(state, { configuredActivity, today: formatDateAsArcaDate(new Date()) }),
-          sameCurrency: state.sameCurrency,
           units: loaders.units,
         };
       },
@@ -410,6 +426,7 @@ export async function runExportFlow(session: InteractiveSession): Promise<typeof
     withFinalizeNotice(
       exportSteps(tables, configuredActivity, {
         activities: activitiesLoader(gateway),
+        exchangeRate: exportExchangeRateLoader(gateway),
         incoterms: () => gateway.getIncoterms(),
         languages: () => gateway.getLanguages(),
         units: () => gateway.getUnits(),

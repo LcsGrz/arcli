@@ -10,7 +10,7 @@ import { attachExportPdf } from '../../commands/export.command.pdf';
 import { runExportFlow } from '../export.flow';
 import type { InteractiveSession } from '../session';
 
-import { createScript, onlyChoices, rejecting } from './script';
+import { createScript, onlyChoices, rejecting, type ScriptedAnswer } from './script';
 
 let script = createScript([]);
 const savedConfig = vi.fn();
@@ -223,7 +223,7 @@ describe('runExportFlow', () => {
     );
   });
 
-  it('con los opcionales informa ítems, idioma, observaciones, descripción del incoterm y cotización', async () => {
+  it('con los opcionales informa ítems, idioma, observaciones y descripción del incoterm; la cotización acordada va antes del monto', async () => {
     script = createScript([
       [/cliente del exterior/, 'ACME LLC'],
       [/Domicilio/, '123 Main St'],
@@ -232,12 +232,13 @@ describe('runExportFlow', () => {
       [/Qué exportás/, 'Bienes'],
       [/moneda/, 'Dólares'],
       [/Te pagan en dólares/, 'No'],
+      [/Cotización de USD \(la oficial de ARCA es 1\.174,60\)/, '1.200,5'],
       [/Monto total/, '1.500'],
       [/Descripción/, ''],
       [/Incoterm/, 'FOB'],
       [/Permisos de embarque/, ''],
       [/Forma de pago/, 'Transferencia Internacional'],
-      [/Agregamos algún opcional/, ['Ítems', 'Idioma', 'Observaciones', 'Descripción del incoterm', 'Cotización']],
+      [/Agregamos algún opcional/, ['Ítems', 'Idioma', 'Observaciones', 'Descripción del incoterm']],
       [/Descripción del ítem 1/, 'Bienes varios'],
       [/Cantidad/, '2'],
       [/Precio unitario/, '500'],
@@ -253,7 +254,6 @@ describe('runExportFlow', () => {
       [/^Observaciones \(/, 'Pedido 42'],
       [/Observaciones comerciales/, ''],
       [/Descripción del incoterm FOB/, 'Free on board, BA'],
-      [/Cotización de USD/, '1.200,5'],
       [/Emitimos/, 'Sí, emitir ahora'],
     ]);
     vi.spyOn(gateway, 'getLanguages').mockResolvedValue([
@@ -479,7 +479,7 @@ describe('runExportFlow', () => {
       expect(printed()).toContain('--incoterm EXW');
     });
 
-    it('en servicios en dólares no ofrece la cotización a mano: ARCA exige la suya (2053)', async () => {
+    it('en servicios en dólares no pregunta la cotización: ARCA exige la suya (2053)', async () => {
       script = createScript([
         [/cliente del exterior/, 'ACME LLC'],
         [/Domicilio/, '123 Main St'],
@@ -501,10 +501,11 @@ describe('runExportFlow', () => {
       const optionals = script.chooseManyStep.mock.calls.find(([message]) => /Agregamos/.test(message))?.[1] ?? [];
 
       expect(optionals.map((choice) => choice.name)).not.toContain('Cotización');
+      expect(script.asked.some((message) => message.startsWith('Cotización'))).toBe(false);
       expect(printed()).not.toContain('--cm');
     });
 
-    it('en bienes con el pago en dólares tampoco ofrece la cotización (1604)', async () => {
+    it('en bienes con el pago en dólares tampoco pregunta la cotización (1604)', async () => {
       script = createScript([
         [/cliente del exterior/, 'ACME LLC'],
         [/Domicilio/, '123 Main St'],
@@ -527,6 +528,7 @@ describe('runExportFlow', () => {
       const optionals = script.chooseManyStep.mock.calls.find(([message]) => /Agregamos/.test(message))?.[1] ?? [];
 
       expect(optionals.map((choice) => choice.name)).not.toContain('Cotización');
+      expect(script.asked.some((message) => message.startsWith('Cotización'))).toBe(false);
       expect(printed()).toContain('--misma-moneda');
     });
 
@@ -613,6 +615,7 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       [/Qué exportás/, 'Bienes'],
       [/moneda/, 'Dólares'],
       [/Te pagan en dólares/, 'No'],
+      [/Cotización de USD/, '1.180'],
       [/Monto total/, '800'],
       [/Descripción/, 'Café'],
       [/Incoterm/, 'FOB'],
@@ -626,6 +629,7 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       [/Incoterm/, BACK],
       [/Descripción/, BACK],
       [/Monto total/, BACK],
+      [/Cotización de USD/, BACK],
       [/Te pagan en dólares/, BACK],
       [/moneda/, BACK],
       [/Qué exportás/, BACK],
@@ -656,6 +660,8 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       'ARCA no tiene un CUIT publicado para ATLANTIDA. Escribí el CUIT del país, buscalo por nombre o dejalo vacío para informar solo el ID impositivo del cliente:':
         '55000002126',
       'Código de actividad de WSFEX, por ejemplo 620100': '620100',
+      // Escrita a mano, arranca con la escrita y no con la de ARCA (NAV-9).
+      'Cotización de USD': '1180',
       'Descripción del servicio o producto': 'Café',
       'Domicilio del cliente:': '123 Main St',
       'Forma de pago:': 'Carta de crédito',
@@ -872,5 +878,97 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
 
     await expect(runExportFlow(createSession())).rejects.toThrow('ARCA no responde');
     expect(script.asked).toEqual([]);
+  });
+});
+
+describe('runExportFlow: la cotización después de la moneda (NAV-9)', () => {
+  beforeEach(() => {
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    vi.mocked(gateway.authorize).mockClear();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    expect(script.remaining()).toBe(0);
+  });
+
+  /** Una E de bienes en dólares cobrada en pesos (o en pesos), hasta emitir, con `rate` en la cotización. */
+  function goodsIn(currency: 'Dólares' | 'Pesos', rate?: ScriptedAnswer) {
+    return createScript([
+      [/cliente del exterior/, 'ACME LLC'],
+      [/Domicilio/, '123 Main St'],
+      [/País de destino/, '212'],
+      [/ID impositivo/, ''],
+      [/Qué exportás/, 'Bienes'],
+      [/moneda/, currency],
+      ...(rate === undefined
+        ? []
+        : ([
+            [/Te pagan en dólares/, 'No'],
+            [/^Cotización de USD/, rate],
+          ] as const)),
+      [/Monto total/, '1.500'],
+      [/Descripción/, ''],
+      [/Incoterm/, 'FOB'],
+      [/Permisos de embarque/, ''],
+      [/Forma de pago/, 'Transferencia Internacional'],
+      [/Agregamos algún opcional/, []],
+      [/Emitimos/, 'Sí, emitir ahora'],
+    ]);
+  }
+
+  function exchangeRateQuestion() {
+    return script.askTextStep.mock.calls.find(([message]) => message.startsWith('Cotización'));
+  }
+
+  it('arranca con la de aduana de ARCA; sin tocarla, el comando va sin --cm y la solicitud lleva la de ARCA', async () => {
+    script = goodsIn('Dólares', '1174,60');
+
+    await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+    expect(exchangeRateQuestion()?.[0]).toBe('Cotización de USD (la oficial de ARCA es 1.174,60):');
+    expect(exchangeRateQuestion()?.[1]).toMatchObject({ previousAnswer: '1174,60' });
+    expect(gateway.authorize).toHaveBeenCalledWith(
+      expect.objectContaining({ CanMisMonExt: 'N', Moneda_ctz: 1174.6, Moneda_Id: 'DOL' }),
+    );
+    expect(printed()).not.toContain('--cm');
+  });
+
+  it('editada, el comando la lleva con --cm y la solicitud también', async () => {
+    script = goodsIn('Dólares', '1.300');
+
+    await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+    expect(gateway.authorize).toHaveBeenCalledWith(expect.objectContaining({ Moneda_ctz: 1300 }));
+    expect(printed()).toContain('--moneda DOL --cm 1300');
+  });
+
+  it('valida como `--cm`: 0 y 1 no son cotizaciones', async () => {
+    script = goodsIn('Dólares', rejecting('1.300', ['0', /mayor a 0|acordada/], ['1', /acordada/]));
+
+    await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+    expect(gateway.authorize).toHaveBeenCalledWith(expect.objectContaining({ Moneda_ctz: 1300 }));
+  });
+
+  it('sin red arranca vacía: la escrita es la acordada y va con --cm', async () => {
+    script = goodsIn('Dólares', '1.180');
+    vi.spyOn(gateway, 'getQuotations').mockRejectedValueOnce(new Error('Sin conexión'));
+
+    await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+    expect(exchangeRateQuestion()?.[0]).toBe('Cotización de USD:');
+    expect(exchangeRateQuestion()?.[1]?.previousAnswer).toBeUndefined();
+    expect(gateway.authorize).toHaveBeenCalledWith(expect.objectContaining({ Moneda_ctz: 1180 }));
+    expect(printed()).toContain('--cm 1180');
+  });
+
+  it('en pesos no se pregunta', async () => {
+    script = goodsIn('Pesos');
+
+    await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+    expect(exchangeRateQuestion()).toBeUndefined();
+    expect(gateway.authorize).toHaveBeenCalledWith(expect.objectContaining({ Moneda_ctz: 1, Moneda_Id: 'PES' }));
   });
 });

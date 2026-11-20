@@ -17,7 +17,6 @@ import {
   type ExportItemInput,
   type ExportVoucherInput,
 } from '../../modules/export/export.types';
-import { amountInputText, parseExchangeRateInput } from '../../modules/interactive/amount-input';
 import type { InteractiveChoice } from '../../modules/interactive/choices';
 import { completeDateInput } from '../../modules/interactive/date-input';
 import {
@@ -35,7 +34,7 @@ import { withSpinner } from '../spinner';
 import { optionalsStep } from './optionals-step';
 import { askTextStep, chooseStep } from './prompts';
 import { dateStep } from './steps/date';
-import { validateExchangeRate, validateExportVoucherDate, validateOptionalDate } from './validators';
+import { validateExportVoucherDate, validateOptionalDate } from './validators';
 
 /**
  * Un texto de la E con el largo maximo de ARCA, como el flag (`assertExportTextLengths`). Con `required`, vacio es
@@ -352,38 +351,12 @@ function itemsStep(context: ExportOptionalsContext): WizardStep<ExportOptions> {
   };
 }
 
-/** Mismas reglas que `--cm` (`EXPORT_RULES`): un numero valido y, en moneda extranjera, mayor a 0. */
-function validateExportExchangeRate(context: ExportOptionalsContext): (value: string) => string | true {
-  return ruleValidator<ExportOptionalsContext, ExportVoucherInput, ExportRuleContext>({
-    context: (current) => current.rules.context,
-    draft: (current, value) => ({ currencyCode: current.currencyCode, exchangeRate: parseExchangeRateInput(value) }),
-    field: 'exchangeRate',
-    rules: EXPORT_RULES,
-    validate: validateExchangeRate,
-  })(context);
-}
-
 /**
  * Las preguntas de cada opcional de la E, una por paso: "Volver" lleva a la anterior y, desde la primera, a la
  * seleccion. El idioma anota en `languageNames` los nombres que trae WSFEX, para describir el elegido en la seleccion.
  */
 function exportQuestions(languageNames: Map<number, string>): ExportOptionalQuestions {
   return {
-    cotizacion: (context) => [
-      {
-        name: 'cotizacion',
-        writes: ['exchangeRate'],
-        run: async (_current, { previous }) => {
-          const code = context.currencyCode === 'DOL' ? 'USD' : context.currencyCode;
-          const answer = await askTextStep(`Cotización de ${code}:`, {
-            previousAnswer: amountInputText(previous?.exchangeRate),
-            validate: validateExportExchangeRate(context),
-          });
-
-          return answer === BACK ? BACK : { exchangeRate: parseExchangeRateInput(answer) };
-        },
-      },
-    ],
     'cuit-pais': (context) => [
       {
         name: 'cuit-pais',

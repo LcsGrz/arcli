@@ -1,4 +1,12 @@
+import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
+import { resolveBillingCurrencyCode } from '../../modules/billing/billing.mappers';
 import type { ArcliConfig } from '../../modules/config/config.schemas';
+import {
+  resolveExportQuotation,
+  resolveExportQuotationDate,
+  resolveExportVoucherDate,
+} from '../../modules/export/export.mappers';
+import type { ExportGateway, ExportType } from '../../modules/export/export.types';
 import { configExchangeRateFor, type ExchangeRateSuggestion } from '../../modules/interactive/billing-optionals';
 import { startSpinner } from '../spinner';
 
@@ -18,21 +26,17 @@ export interface OfficialExchangeRate {
 }
 
 /**
- * La cotizacion oficial de ARCA, como la consulta el CLI sin `--cm` (`resolveExchangeRate`), una vez por moneda (y
- * fecha, con `--misma-moneda`) en el flujo: la pregunta de la cotizacion y el tope del consumidor final ven la misma. Si
- * la consulta falla (sin red, ARCA caido), `undefined` y no se reintenta: la pregunta arranca vacia y la vista previa
- * vuelve a intentar.
+ * Una consulta de cotizacion por clave en el flujo, con su spinner: la segunda vez sale de lo ya consultado. Si falla
+ * (sin red, ARCA caido), `undefined` y no se reintenta.
  */
-export function officialExchangeRateLoader(
-  session: Pick<InteractiveSession, 'billingGateway' | 'service'>,
-): OfficialExchangeRate {
+function cachedRateLoader<Q>(
+  keyOf: (query: Q) => string,
+  quote: (query: Q) => Promise<number | undefined>,
+): ((query: Q) => Promise<number | undefined>) & { readonly known: (query: Q) => number | undefined } {
   const loaded = new Map<string, Promise<number | undefined>>();
   const resolved = new Map<string, number | undefined>();
-  const keyOf = (query: OfficialExchangeRateQuery) =>
-    query.sameCurrency ? `${query.currencyCode}|misma-moneda|${query.billingDate ?? ''}` : query.currencyCode;
 
-  const load = (query: OfficialExchangeRateQuery) => {
-    const sameCurrency = query.sameCurrency ?? false;
+  const load = (query: Q) => {
     const key = keyOf(query);
     const cached = loaded.get(key);
 
@@ -44,14 +48,11 @@ export function officialExchangeRateLoader(
       const spinner = startSpinner('Consultando la cotización oficial...');
 
       try {
-        const quoted = await session.service.resolveExchangeRate(
-          { billingDate: query.billingDate, currencyCode: query.currencyCode, exchangeRate: undefined, sameCurrency },
-          session.billingGateway,
-        );
+        const quoted = await quote(query);
 
-        resolved.set(key, quoted.exchangeRate);
+        resolved.set(key, quoted);
 
-        return quoted.exchangeRate;
+        return quoted;
       } catch {
         return undefined;
       } finally {
@@ -64,7 +65,80 @@ export function officialExchangeRateLoader(
     return rate;
   };
 
-  return Object.assign(load, { known: (query: OfficialExchangeRateQuery) => resolved.get(keyOf(query)) });
+  return Object.assign(load, { known: (query: Q) => resolved.get(keyOf(query)) });
+}
+
+/**
+ * La cotizacion oficial de ARCA, como la consulta el CLI sin `--cm` (`resolveExchangeRate`), una vez por moneda (y
+ * fecha, con `--misma-moneda`) en el flujo: la pregunta de la cotizacion y el tope del consumidor final ven la misma. Si
+ * la consulta falla (sin red, ARCA caido), `undefined` y no se reintenta: la pregunta arranca vacia y la vista previa
+ * vuelve a intentar.
+ */
+export function officialExchangeRateLoader(
+  session: Pick<InteractiveSession, 'billingGateway' | 'service'>,
+): OfficialExchangeRate {
+  return cachedRateLoader<OfficialExchangeRateQuery>(
+    (query) =>
+      query.sameCurrency ? `${query.currencyCode}|misma-moneda|${query.billingDate ?? ''}` : query.currencyCode,
+    async (query) =>
+      (
+        await session.service.resolveExchangeRate(
+          {
+            billingDate: query.billingDate,
+            currencyCode: query.currencyCode,
+            exchangeRate: undefined,
+            sameCurrency: query.sameCurrency ?? false,
+          },
+          session.billingGateway,
+        )
+      ).exchangeRate,
+  );
+}
+
+/** De que E es la cotizacion: la fecha de la consulta sale de estos datos, como en `ExportService`. */
+export interface ExportExchangeRateQuery {
+  readonly currencyCode: string;
+  readonly exportType: ExportType;
+  readonly sameCurrency?: boolean;
+  /** La fecha del comprobante (dd/mm/aaaa), si ya se eligio; si no, hoy. */
+  readonly voucherDate?: string;
+}
+
+/**
+ * La cotizacion de aduana que toma `arcli fe` sin `--cotizacion-moneda`: la de WSFEX (`FEXGetPARAM_MON_CON_COTIZACION`)
+ * del dia que pide ARCA (`resolveExportQuotationDate`), una vez por moneda y dia en el flujo, como sugerencia de la
+ * pregunta. Si falla o ARCA no la informa, `undefined`: la pregunta arranca vacia y la vista previa vuelve a intentar.
+ */
+export function exportExchangeRateLoader(
+  gateway: Pick<ExportGateway, 'getQuotations'>,
+): (query: ExportExchangeRateQuery) => Promise<ExchangeRateSuggestion | undefined> {
+  const dateOf = (query: ExportExchangeRateQuery) => {
+    const now = new Date();
+
+    return resolveExportQuotationDate({
+      exportType: query.exportType,
+      isNote: false,
+      sameCurrency: query.sameCurrency ?? false,
+      today: formatDateAsArcaDate(now),
+      voucherDate: resolveExportVoucherDate(query.voucherDate, now),
+    }).date;
+  };
+  const codeOf = (query: ExportExchangeRateQuery) => resolveBillingCurrencyCode(query.currencyCode);
+
+  const load = cachedRateLoader<ExportExchangeRateQuery>(
+    (query) => `${codeOf(query)}|${dateOf(query)}`,
+    async (query) => {
+      const date = dateOf(query);
+
+      return resolveExportQuotation(codeOf(query), await gateway.getQuotations(date), date).rate;
+    },
+  );
+
+  return async (query) => {
+    const rate = await load(query);
+
+    return rate === undefined ? undefined : { rate, source: 'arca' };
+  };
 }
 
 /**

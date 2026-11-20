@@ -43,6 +43,10 @@
   · No, en pesos
   = No, en pesos
 
+? [texto] Cotización de USD (la oficial de ARCA es 1.174,60):
+  arranca escrito: "1174,60"
+  = "1.180"
+
 ? [texto] Monto total en USD:
   = "2.000"
 
@@ -73,11 +77,7 @@
   [ ] CUIT del país — sin CUIT (va el ID impositivo)
   [ ] Observaciones — sin observaciones
   [ ] Descripción del incoterm — FOB
-  [ ] Cotización — la de aduana que publica ARCA
-  = Cotización
-
-? [texto] Cotización de USD:
-  = "1.180"
+  = (nada marcado)
 
 == pantalla ==
 ┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐

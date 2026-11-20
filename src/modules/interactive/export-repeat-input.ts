@@ -12,6 +12,8 @@ export interface ExportRepeatState {
   /** Lo copiado de la factura, con el monto y los items ya ajustados si se cambio el monto. */
   readonly copy?: ExportInvoiceCopy['input'];
   readonly country?: ExportCountry;
+  /** La cotizacion escrita a mano; sin ella, la de aduana de ARCA del dia, como el CLI sin `--cm`. */
+  readonly exchangeRate?: number;
   readonly original?: ExportIssuedVoucher;
   readonly options?: ExportOptions;
   readonly paymentDate?: string;
@@ -34,6 +36,7 @@ export function buildExportRepeatInput(state: ExportRepeatState, env: ExportInpu
     activity: copy.activity ?? env.configuredActivity,
     destinationCountry: country.name,
     emit: false,
+    exchangeRate: state.exchangeRate,
     paymentDate: state.paymentDate,
     permits: state.permits,
     permitsExisting: state.permits ? true : undefined,

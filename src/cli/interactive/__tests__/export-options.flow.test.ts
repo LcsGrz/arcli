@@ -113,7 +113,7 @@ describe('exportOptionalsStep', () => {
     expect(await askExportOptions({}, context())).toBe(BACK);
   });
 
-  it('solo ofrece CUIT del país, incoterm y cotización cuando el contexto los tiene', async () => {
+  it('solo ofrece CUIT del país e incoterm cuando el contexto los tiene; la cotización ya no es un opcional (NAV-9)', async () => {
     script = createScript([[OPTIONALS, []]]);
     await askExportOptions({}, context());
     expect(Object.keys(optionalDescriptions(0))).toEqual(['Fecha del comprobante', 'Ítems', 'Idioma', 'Observaciones']);
@@ -123,13 +123,11 @@ describe('exportOptionalsStep', () => {
       {},
       context({
         countryCuit: { country: US, countryCuits: COUNTRY_CUITS },
-        defaultExchangeRate: '1.450,25',
         incoterm: { code: 'FOB', description: 'Free on board' },
       }),
     );
     expect(optionalDescriptions(0)).toEqual({
       'CUIT del país': 'el de la tabla de ARCA',
-      Cotización: '1.450,25',
       'Descripción del incoterm': 'Free on board',
       'Fecha del comprobante': 'hoy',
       Idioma: 'Español',
@@ -322,24 +320,6 @@ describe('exportOptionalsStep', () => {
     expect(optionalDescriptions(0)['Descripción del incoterm']).toBe('Otra');
   });
 
-  it('cotización: rechaza 0 y 1, acepta la acordada y la muestra en la lista despues', async () => {
-    script = createScript([
-      [OPTIONALS, ['Cotización']],
-      [/Cotización de USD/, rejecting('1.450,25', ['0', /mayor a 0/], ['1', /cotización acordada/])],
-    ]);
-
-    const answered = await askExportOptions({}, context({ defaultExchangeRate: '1.400,00' }));
-
-    expect(answered).toEqual({ exchangeRate: 1450.25 });
-
-    script = createScript([[OPTIONALS, []]]);
-    await askExportOptions(
-      answered as Exclude<typeof answered, typeof BACK>,
-      context({ defaultExchangeRate: '1.400,00' }),
-    );
-    expect(optionalDescriptions(0)['Cotización']).toBe('1.450,25');
-  });
-
   describe('fecha del comprobante', () => {
     afterEach(() => {
       vi.useRealTimers();
@@ -446,17 +426,6 @@ describe('exportOptionalsStep', () => {
       ]);
 
       expect(await askExportOptions({}, context())).toEqual({});
-    });
-  });
-
-  it('cotización en otra moneda usa su código', async () => {
-    script = createScript([
-      [OPTIONALS, ['Cotización']],
-      [/Cotización de 060:/, '1.600'],
-    ]);
-
-    expect(await askExportOptions({}, context({ currencyCode: '060', defaultExchangeRate: '1.500' }))).toEqual({
-      exchangeRate: 1600,
     });
   });
 

@@ -19,6 +19,8 @@ export interface ExportFlowState {
   readonly currencyCode?: 'DOL' | 'PES';
   readonly description?: string;
   readonly destinationCountry?: string;
+  /** La cotizacion escrita a mano; sin ella, la de aduana de ARCA, como el CLI sin `--cm`. */
+  readonly exchangeRate?: number;
   readonly exportType?: ExportType;
   readonly incoterm?: string;
   /** Nombre del incoterm en la tabla de ARCA: la descripcion que va si no se escribe otra. */
@@ -51,6 +53,7 @@ export function buildExportInput(state: ExportFlowState, env: ExportInputEnv): E
     description: state.description,
     destinationCountry: state.destinationCountry,
     emit: false,
+    exchangeRate: state.exchangeRate,
     exportType: state.exportType,
     incoterm: state.incoterm,
     paymentDate: state.paymentDate,

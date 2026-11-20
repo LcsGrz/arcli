@@ -45,7 +45,7 @@ const ARGENTINA_COUNTRY_CODE = 200;
 export const DEFAULT_EXPORT_PAYMENT_TERMS = 'Transferencia Internacional';
 
 /** Exportacion de servicios: la cotizacion es la del dia habil anterior (error 2053). */
-const SERVICES_EXPORT_TYPE: ExportType = 2;
+export const SERVICES_EXPORT_TYPE: ExportType = 2;
 
 /** ARCA no acepta cotizaciones en pesos distintas de 1. */
 const LOCAL_EXCHANGE_RATE = 1;

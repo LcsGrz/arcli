@@ -18,7 +18,6 @@ const answering = (name: string, answer: ExportOptions = {}): (() => Array<Wizar
 /** El catalogo, armado en cada test (no al cargar el archivo): asi Stryker ve sus mutantes. */
 const catalog = () =>
   exportOptionals({
-    cotizacion: answering('cotizacion'),
     'cuit-pais': answering('cuit-pais'),
     fecha: answering('fecha'),
     idioma: answering('idioma'),
@@ -56,24 +55,22 @@ const describeOf = (key: ExportOptionKey, current: ExportOptions, at = context()
     .describe(current, at);
 
 describe('exportOptionals', () => {
-  it('ofrece el CUIT del país, el incoterm y la cotización solo cuando el contexto los tiene, en orden', () => {
+  it('ofrece el CUIT del país y el incoterm solo cuando el contexto los tiene, en orden; la cotización es un paso propio (NAV-9)', () => {
     expect(offered(context())).toEqual(['fecha', 'items', 'idioma', 'observaciones']);
     expect(
       offered(
         context({
           countryCuit: { country: US, countryCuits: COUNTRY_CUITS },
-          defaultExchangeRate: 'la de aduana que publica ARCA',
           incoterm: { code: 'FOB' },
         }),
       ),
-    ).toEqual(['fecha', 'items', 'idioma', 'cuit-pais', 'observaciones', 'incoterm', 'cotizacion']);
+    ).toEqual(['fecha', 'items', 'idioma', 'cuit-pais', 'observaciones', 'incoterm']);
   });
 
   it('describe lo aplicado y, sin nada, lo que va por defecto', () => {
-    const withIncoterm = context({ defaultExchangeRate: '1.400', incoterm: { code: 'FOB', description: 'Free' } });
+    const withIncoterm = context({ incoterm: { code: 'FOB', description: 'Free' } });
 
     expect(Object.fromEntries(catalog().map((option) => [option.key, option.describe({}, withIncoterm)]))).toEqual({
-      cotizacion: '1.400',
       'cuit-pais': 'el de la tabla de ARCA',
       fecha: 'hoy',
       idioma: 'Español',
@@ -84,7 +81,6 @@ describe('exportOptionals', () => {
     expect(describeOf('incoterm', {}, context({ incoterm: { code: 'FOB' } }))).toBe('FOB');
     expect(describeOf('idioma', { language: 2 })).toBe('Inglés');
     expect(describeOf('idioma', { language: 3 })).toBe('3');
-    expect(describeOf('cotizacion', { exchangeRate: 1450.25 })).toBe('1.450,25');
     expect(describeOf('fecha', { voucherDate: '17/11/2026' })).toBe('17/11/2026');
     expect(describeOf('cuit-pais', { clientCountryCuit: 55000002118 })).toBe('55000002118');
     expect(describeOf('observaciones', { observations: 'a' })).toBe('con observaciones');
@@ -139,17 +135,16 @@ describe('exportOptionals', () => {
       ['fecha', { voucherDate: '17/11/2026' }],
       ['idioma', { language: 2 }],
       ['incoterm', { incotermDescription: 'Otra' }],
-      ['cotizacion', { exchangeRate: 1200 }],
     ]);
-    const current = context({ defaultExchangeRate: '1.400', incoterm: { code: 'FOB' } });
+    const current = context({ incoterm: { code: 'FOB' } });
 
     expect(composeOptionals(initial, ['idioma'], catalog(), current, answers)).toEqual({
       ...initial,
       language: 2,
     });
     expect(composeOptionals(initial, [], catalog(), current, answers)).toEqual(initial);
-    // Sin incoterm ni cotización en el contexto (por ejemplo, se cambió a servicios), quedan como al inicio.
-    expect(composeOptionals(initial, ['incoterm', 'cotizacion', 'fecha'], catalog(), context(), answers)).toEqual({
+    // Sin incoterm en el contexto (por ejemplo, se cambió a servicios), queda como al inicio.
+    expect(composeOptionals(initial, ['incoterm', 'fecha'], catalog(), context(), answers)).toEqual({
       ...initial,
       voucherDate: '17/11/2026',
     });

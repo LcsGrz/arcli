@@ -1,7 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BillingService } from '../../../modules/billing/billing.service';
-import { exchangeRateSuggestionLoader, officialExchangeRateLoader } from '../official-exchange-rate';
+import {
+  exchangeRateSuggestionLoader,
+  exportExchangeRateLoader,
+  officialExchangeRateLoader,
+} from '../official-exchange-rate';
 
 vi.mock('../../spinner', () => ({ startSpinner: () => undefined }));
 
@@ -94,5 +98,40 @@ describe('exchangeRateSuggestionLoader', () => {
     expect(await suggest('EUR')).toEqual({ rate: 1450, source: 'arca' });
     expect(official).toHaveBeenCalledWith({ currencyCode: 'EUR' });
     expect(await exchangeRateSuggestionLoader({}, async () => undefined)('USD')).toBeUndefined();
+  });
+});
+
+describe('exportExchangeRateLoader (NAV-9)', () => {
+  it('consulta la de aduana de WSFEX del día que toma `arcli fe`, una vez por moneda y día', async () => {
+    const getQuotations = vi.fn(async (date: string) => [
+      { code: 'DOL', date, rate: date === '20261118' ? 1450 : 1400 },
+    ]);
+    const load = exportExchangeRateLoader({ getQuotations });
+
+    expect(await load({ currencyCode: 'DOL', exportType: 1 })).toEqual({ rate: 1450, source: 'arca' });
+    expect(await load({ currencyCode: 'USD', exportType: 4, sameCurrency: false })).toEqual({
+      rate: 1450,
+      source: 'arca',
+    });
+    // En bienes, la de la fecha del comprobante.
+    expect(await load({ currencyCode: 'DOL', exportType: 1, voucherDate: '16/11/2026' })).toEqual({
+      rate: 1400,
+      source: 'arca',
+    });
+    // En servicios, la del día hábil anterior (2053).
+    expect(await load({ currencyCode: 'DOL', exportType: 2 })).toEqual({ rate: 1400, source: 'arca' });
+    expect(getQuotations.mock.calls).toEqual([['20261118'], ['20261116'], ['20261117']]);
+  });
+
+  it('sin red, o si ARCA no informa la moneda, ninguna', async () => {
+    expect(
+      await exportExchangeRateLoader({ getQuotations: () => Promise.reject(new Error('Sin conexión')) })({
+        currencyCode: 'DOL',
+        exportType: 1,
+      }),
+    ).toBeUndefined();
+    expect(
+      await exportExchangeRateLoader({ getQuotations: async () => [] })({ currencyCode: 'DOL', exportType: 1 }),
+    ).toBeUndefined();
   });
 });

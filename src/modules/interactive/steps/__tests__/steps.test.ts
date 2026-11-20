@@ -13,7 +13,7 @@ import {
   withOfficialRate,
   withOfficialRequirement,
 } from '../consumer';
-import { foreignCurrencyOf, repeatCurrencyLock } from '../currency';
+import { exportAsksExchangeRate, foreignCurrencyOf, repeatCurrencyLock } from '../currency';
 import { fieldLens, nestedLens } from '../lens';
 
 describe('lentes', () => {
@@ -255,5 +255,17 @@ describe('el consumidor final con la cotizacion oficial', () => {
     expect(noteReceiverKey({ invoice: { number: 14 } as never, invoicePointOfSale: 3 })).toBe('factura:3:14|');
     expect(noteReceiverKey({ documentType: 'dni', target: 'periodo' })).toBe('periodo|dni');
     expect(noteReceiverKey({})).toBe('|');
+  });
+});
+
+describe('la cotización de la E se pregunta solo si ARCA acepta otra (NAV-9)', () => {
+  it('en bienes y otros en dólares cobrados en pesos, sí; en pesos, en servicios y con la misma moneda, no', () => {
+    expect(exportAsksExchangeRate({ currencyCode: 'DOL', exportType: 1, sameCurrency: false })).toBe(true);
+    expect(exportAsksExchangeRate({ currencyCode: 'USD', exportType: 4 })).toBe(true);
+    expect(exportAsksExchangeRate({ currencyCode: 'PES', exportType: 1 })).toBe(false);
+    // 2053: en servicios ARCA exige la de aduana del día hábil anterior (en la nota, la del asociado).
+    expect(exportAsksExchangeRate({ currencyCode: 'DOL', exportType: 2 })).toBe(false);
+    // 1604: con `--misma-moneda`, la oficial del día hábil anterior.
+    expect(exportAsksExchangeRate({ currencyCode: 'DOL', exportType: 1, sameCurrency: true })).toBe(false);
   });
 });

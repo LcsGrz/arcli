@@ -1,5 +1,4 @@
 import { formatArcaDateAsArgentineDate, formatDateAsArcaDate } from '../../lib/dates/arca-date';
-import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import { creditNoteOverTotalHint } from '../../modules/billing/billing.associated-lookup';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
@@ -34,6 +33,7 @@ import { withFinalizeNotice } from './finalize-notice';
 import { askTextStep } from './prompts';
 import { type InteractiveSession, requirePointOfSale } from './session';
 import { amountStep } from './steps/amount';
+import { exportExchangeRateStep } from './steps/export';
 import { validateAmount, validatePositiveInteger } from './validators';
 
 /** Como se nombra el asociado en las preguntas: "la factura E", "la nota de débito E". */
@@ -157,6 +157,24 @@ export function exportNoteSteps(
         }
       },
     },
+    // Despues del asociado, que da la moneda: sin tocarla va la suya, como el CLI sin `--cm` (NAV-9).
+    exportExchangeRateStep<ExportNoteState>({
+      dependsOn: ['factura'],
+      exchangeRate: fieldLens('exchangeRate'),
+      rules: (state) => exportNoteRuleScope(state, { kind, today: formatDateAsArcaDate(new Date()) }),
+      suggestion: async (state) => {
+        const invoice = requireStepValue(state.invoice, 'invoice');
+
+        return invoice.exchangeRate > 0
+          ? { associated: associatedName(state.associatedKind), rate: invoice.exchangeRate, source: 'associated' }
+          : undefined;
+      },
+      voucher: (state) => {
+        const invoice = requireStepValue(state.invoice, 'invoice');
+
+        return { currencyCode: invoice.currencyCode, exportType: invoice.exportType };
+      },
+    }),
     // Va en la moneda de la factura, y en la NC con su total como tope.
     amountStep<ExportNoteState>({
       amount: fieldLens('amount'),
@@ -203,8 +221,6 @@ export function exportNoteSteps(
       context: (state) => {
         const invoice = requireStepValue(state.invoice, 'invoice');
         const name = associatedName(state.associatedKind);
-        // En servicios ARCA exige la cotizacion del asociado (error 2053), y en pesos es 1: no se ofrece.
-        const offersExchangeRate = invoice.currencyCode.trim().toUpperCase() !== 'PES' && invoice.exportType !== 2;
 
         return {
           amount: requireStepValue(state.amount, 'amount'),
@@ -212,9 +228,6 @@ export function exportNoteSteps(
           // elegidos no dependen del asociado.
           associated: `${invoice.arcaType}:${invoice.pointOfSale}:${invoice.number}`,
           currencyCode: invoice.currencyCode,
-          defaultExchangeRate: offersExchangeRate
-            ? `la de ${name} (${formatExchangeRate(invoice.exchangeRate)})`
-            : undefined,
           defaultLanguage: `el de ${name}`,
           exportType: invoice.exportType,
           incoterm: invoice.incoterm ? { code: invoice.incoterm, description: invoice.incotermDescription } : undefined,

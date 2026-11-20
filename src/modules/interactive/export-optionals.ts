@@ -1,4 +1,3 @@
-import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { resolveExportClientCountryCuit } from '../export/export.mappers';
 import type { ExportRuleContext } from '../export/export.rules';
 import type {
@@ -19,7 +18,6 @@ export type ExportOptions = Pick<
   ExportVoucherInput,
   | 'clientCountryCuit'
   | 'commercialObservations'
-  | 'exchangeRate'
   | 'incotermDescription'
   | 'items'
   | 'language'
@@ -27,7 +25,7 @@ export type ExportOptions = Pick<
   | 'voucherDate'
 >;
 
-export type ExportOptionKey = 'cotizacion' | 'cuit-pais' | 'fecha' | 'idioma' | 'incoterm' | 'items' | 'observaciones';
+export type ExportOptionKey = 'cuit-pais' | 'fecha' | 'idioma' | 'incoterm' | 'items' | 'observaciones';
 
 /** El CUIT del pais se elige contra la tabla DST_CUIT, con el destino ya elegido. */
 export interface ExportCountryCuitContext {
@@ -59,8 +57,6 @@ export interface ExportOptionalsContext {
   /** Solo en la factura y "Repetir": en las notas sale del asociado. */
   readonly countryCuit?: ExportCountryCuitContext;
   readonly currencyCode: string;
-  /** Cotizacion que se usa si no se ingresa otra, para mostrar en la lista. Sin esto no se ofrece la cotizacion. */
-  readonly defaultExchangeRate?: string;
   /** Idioma que se usa si no se elige otro, para mostrar en la lista. */
   readonly defaultLanguage: string;
   /** La ventana de la fecha del comprobante depende del tipo: en servicios no pasa del fin de mes (1500). */
@@ -70,7 +66,6 @@ export interface ExportOptionalsContext {
   /** Los nombres de los idiomas que ya se consultaron a WSFEX, para describir el elegido. */
   readonly languageNames: ReadonlyMap<number, string>;
   readonly languages: () => Promise<readonly ExportLanguage[]>;
-  readonly sameCurrency?: boolean;
   readonly units: () => Promise<readonly ExportUnit[]>;
   /**
    * Las reglas entre campos de la E (`EXPORT_RULES`) con la entrada del flujo: la fecha del comprobante, por ejemplo,
@@ -187,17 +182,6 @@ export function exportOptionals(questions: ExportOptionalQuestions): readonly Ex
       owns: ['incotermDescription'],
       resetWhen: (context) => `${copiedFrom(context)}|${context.associated ?? ''}`,
       steps: questions.incoterm,
-    },
-    {
-      available: (context) => context.defaultExchangeRate !== undefined,
-      describe: (current, context) =>
-        current.exchangeRate === undefined
-          ? (context.defaultExchangeRate ?? '')
-          : formatExchangeRate(current.exchangeRate),
-      key: 'cotizacion',
-      label: 'Cotización',
-      owns: ['exchangeRate'],
-      steps: questions.cotizacion,
     },
   ];
 }

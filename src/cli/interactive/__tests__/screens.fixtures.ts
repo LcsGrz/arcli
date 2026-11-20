@@ -19,6 +19,8 @@ const ISSUER_CUIT = 20111111112;
 const POINT_OF_SALE = 3;
 /** La cotizacion oficial de ARCA para cualquier moneda (`FEParamGetCotizacion`). */
 export const OFFICIAL_RATE = 1450;
+/** La cotizacion de aduana de WSFEX del dia, con la que arranca la de la E (NAV-9). */
+export const EXPORT_QUOTATION_RATE = 1174.6;
 
 const voucher = (overrides: Partial<IssuedVoucher> & Pick<IssuedVoucher, 'number'>): IssuedVoucher => ({
   cae: '86400940834693',
@@ -157,7 +159,7 @@ export function createExportGateway(): ExportGateway {
     ],
     getLastRequestId: async () => 40,
     getLastVoucherNumber: vi.fn(async (arcaType: number) => (arcaType === 19 ? 7 : 0)),
-    getQuotations: async () => [{ code: 'DOL', date: '20261117', rate: 1174.6 }],
+    getQuotations: async () => [{ code: 'DOL', date: '20261117', rate: EXPORT_QUOTATION_RATE }],
     getUnits: async () => [
       { id: 1, name: 'kilogramos' },
       { id: 7, name: 'unidades' },

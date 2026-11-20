@@ -897,14 +897,15 @@ describe('golden de pantallas: factura E', () => {
       [/Qué exportás/, 'Bienes'],
       [/moneda/, 'Dólares'],
       [/Te pagan en dólares/, 'No, en pesos'],
+      // Despues de la moneda, arrancando con la de aduana de ARCA (NAV-9).
+      [/Cotización de USD/, '1.180'],
       [/Monto total/, '2.000'],
       [/Descripción/, ''],
       [/Incoterm/, 'FOB'],
       [/Permisos de embarque/, ''],
       [/Forma de pago/, ''],
       [/actividad/, ''],
-      [/Agregamos/, ['Cotización']],
-      [/Cotización de USD/, '1.180'],
+      [/Agregamos/, []],
       NO_EMIT,
     ]));
 });

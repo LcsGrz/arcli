@@ -593,24 +593,52 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     expect(printed()).not.toContain('Con otro monto');
   });
 
-  it('si la factura no trae `CanMisMonExt` lo pregunta; cobrada en pesos ofrece la cotización', async () => {
+  it('si la factura no trae `CanMisMonExt` lo pregunta; cobrada en pesos pregunta la cotización con la de aduana escrita (NAV-9)', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       [/Mismo monto/, 'Sí'],
       [/Te pagan en la moneda de la factura/, 'No, en pesos'],
+      [/Cotización de USD \(la oficial de ARCA es 1\.450,25\)/, '1450,25'],
       [/Permisos de embarque/, BACK],
+      // Sin tocarla, al volver arranca de nuevo con la de ARCA.
+      [/Cotización de USD/, BACK],
       [/Te pagan en la moneda de la factura/, BACK],
       [/Mismo monto/, 'Sí'],
       [/Te pagan en la moneda de la factura/, 'No, en pesos'],
+      [/Cotización de USD/, '1.500'],
+      [/Permisos de embarque/, BACK],
+      // Escrita a mano, al volver arranca con la escrita.
+      [/Cotización de USD/, '1.500'],
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
     ]);
 
-    expect(await repeatOf({ ...INVOICE, sameCurrency: undefined })).toMatchObject({ sameCurrency: false });
-    expect(offeredOptionals()).toContain('Cotización');
+    expect(await repeatOf({ ...INVOICE, sameCurrency: undefined })).toMatchObject({
+      exchangeRate: 1500,
+      sameCurrency: false,
+    });
+    expect(
+      script.askTextStep.mock.calls
+        .filter(([message]) => message.startsWith('Cotización'))
+        .map(([, options]) => options?.previousAnswer),
+    ).toEqual(['1450,25', '1450,25', '1450,25', '1500']);
+    expect(offeredOptionals()).not.toContain('Cotización');
   });
 
-  it('cobrada en la misma moneda o en servicios no ofrece otra cotización', async () => {
+  it('sin tocar la de aduana, la entrada no lleva cotización, como el CLI sin `--cm`', async () => {
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      [/Mismo monto/, 'Sí'],
+      [/Te pagan en la moneda de la factura/, 'No, en pesos'],
+      [/Cotización de USD/, '1450,25'],
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, []],
+    ]);
+
+    expect((await repeatOf({ ...INVOICE, sameCurrency: undefined }))?.exchangeRate).toBeUndefined();
+  });
+
+  it('cobrada en la misma moneda o en servicios no pregunta la cotización: ARCA exige la suya (1604, 2053)', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       [/Mismo monto/, 'Sí'],
@@ -627,12 +655,11 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
       [/Fecha de pago/, ''],
     ]);
     await repeatOf({ ...INVOICE, exportType: 2, incoterm: undefined, sameCurrency: false });
-    expect(offeredOptionals()).not.toContain('Cotización');
     // Sin incoterm tampoco se ofrece su descripcion.
     expect(offeredOptionals()).not.toContain('Descripción del incoterm');
   });
 
-  it('una E en pesos no pregunta la moneda de pago ni ofrece cotización', async () => {
+  it('una E en pesos no pregunta la moneda de pago ni la cotización', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       [/Mismo monto/, 'Sí'],
@@ -644,7 +671,6 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
       currencyCode: 'PES',
       sameCurrency: false,
     });
-    expect(offeredOptionals()).not.toContain('Cotización');
   });
 
   it('sin CUIT de país publicado ni ID impositivo pregunta el CUIT; volver desde ahi vuelve al monto', async () => {

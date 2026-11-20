@@ -1,5 +1,6 @@
 import { parseStrictInteger } from '../../../lib/numbers/strict-integer';
 import { exportActivityProblem } from '../../../modules/export/export.mappers';
+import { EXPORT_RULES } from '../../../modules/export/export.rules';
 import type {
   ExportActivity,
   ExportCountry,
@@ -7,14 +8,19 @@ import type {
   ExportGateway,
   ExportType,
 } from '../../../modules/export/export.types';
-import type { ExportOptions } from '../../../modules/interactive/export-optionals';
+import { parseExchangeRateInput } from '../../../modules/interactive/amount-input';
+import type { ExchangeRateSuggestion } from '../../../modules/interactive/billing-optionals';
+import type { ExportOptions, ExportRuleScope } from '../../../modules/interactive/export-optionals';
+import { scopedRuleValidator } from '../../../modules/interactive/rule-validator';
+import { exportAsksExchangeRate, type ExportExchangeRateCase } from '../../../modules/interactive/steps/currency';
 import type { Lens } from '../../../modules/interactive/steps/lens';
-import { BACK, type WizardStep } from '../../../modules/interactive/wizard';
+import { BACK, type WizardDependency, type WizardStep } from '../../../modules/interactive/wizard';
 import { withSpinner } from '../../spinner';
 import { validateExportPaymentDate } from '../export-options';
 import { askTextStep } from '../prompts';
-import { validatePositiveInteger } from '../validators';
+import { validateExchangeRate, validatePositiveInteger } from '../validators';
 
+import { exchangeRateStep } from './currency';
 import { dateStep } from './date';
 
 /**
@@ -117,5 +123,49 @@ export function exportPaymentDateStep<S extends { readonly options?: ExportOptio
     skip: (state) => exportType(state) === 1,
     validate: (state) => validateExportPaymentDate(state.options?.voucherDate),
     writes: ['paymentDate'],
+  });
+}
+
+export interface ExportExchangeRateStepDef<S> {
+  readonly exchangeRate: Lens<S, number>;
+  /** Moneda, tipo de exportacion y como pagan: deciden si se pregunta (`exportAsksExchangeRate`). */
+  readonly voucher: (state: S) => ExportExchangeRateCase;
+  /**
+   * Con que arranca escrita: la que toma el CLI sin `--cotizacion-moneda`, la de aduana de ARCA en la factura
+   * (`exportExchangeRateLoader`) o la del asociado en la nota.
+   */
+  readonly suggestion: (state: S) => Promise<ExchangeRateSuggestion | undefined>;
+  /** Las reglas de la E con lo respondido: las mismas que `--cm` (`EXPORT_RULES`). */
+  readonly rules: (state: S) => ExportRuleScope;
+  /** Los pasos de donde salen la moneda, el tipo y como pagan: si cambian, la cotizacion se pregunta de cero. */
+  readonly dependsOn: readonly WizardDependency[];
+}
+
+/**
+ * La cotizacion de una E en moneda extranjera, despues de la moneda: la misma pregunta que "En pesos" en A, B y C
+ * (`exchangeRateStep`). Arranca escrita con la que tomaria el CLI; si queda esa, el comando equivalente no lleva
+ * `--cm`, y si se edita, si. No se pregunta donde ARCA exige la suya (servicios y `--misma-moneda`) ni en pesos. La
+ * comparten la factura, la nota y "Repetir" E (NAV-9).
+ */
+export function exportExchangeRateStep<S>(def: ExportExchangeRateStepDef<S>): WizardStep<S> {
+  return exchangeRateStep<S>({
+    currency: (state) => def.voucher(state).currencyCode,
+    dependsOn: def.dependsOn,
+    // En la E no hay cotizacion de la config (REV-35): solo la escrita llega a la entrada.
+    rate: {
+      get: (state) => ({ exchangeRate: def.exchangeRate.get(state), exchangeRateSource: undefined }),
+      set: (value, state) => def.exchangeRate.set(value?.exchangeRate, state),
+    },
+    skip: (state) => !exportAsksExchangeRate(def.voucher(state)),
+    suggestion: def.suggestion,
+    validate: (state) =>
+      scopedRuleValidator(
+        EXPORT_RULES,
+        'exchangeRate',
+        def.rules(state),
+        (value) => ({ exchangeRate: parseExchangeRateInput(value) }),
+        validateExchangeRate,
+      ),
+    writes: ['exchangeRate'],
   });
 }

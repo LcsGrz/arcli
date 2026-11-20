@@ -50,22 +50,29 @@ type AgreedExchangeRate = Pick<CurrencyChoice, 'exchangeRate' | 'exchangeRateSou
 function describeSuggestion(suggested: ExchangeRateSuggestion): string {
   const rate = formatExchangeRate(suggested.rate);
 
-  return suggested.source === 'config'
-    ? `la de tu config, \`cotizacion\`, es ${rate}`
-    : `la oficial de ARCA es ${rate}`;
+  switch (suggested.source) {
+    case 'associated':
+      return `la de ${suggested.associated} es ${rate}`;
+    case 'config':
+      return `la de tu config, \`cotizacion\`, es ${rate}`;
+    default:
+      return `la oficial de ARCA es ${rate}`;
+  }
 }
 
 /**
  * La cotizacion, si te pagan en pesos un comprobante en moneda extranjera. Arranca escrita con la escrita antes o, si no
- * hay, con `suggested`: la de la config (`cotizacion`, deprecada) si el CLI la tomaria sin `--cm`, o la oficial de
- * ARCA. Si dejas lo que arranco escrito, va como el CLI sin `--cm`: la de la config marcada como tal, o ninguna (la
- * vista previa consulta la oficial). Si escribis otra cosa, es la acordada y va con `--cm`. Sin `suggested` (la consulta
- * de la oficial fallo), arranca vacia.
+ * hay, con `suggested`: la de la config (`cotizacion`, deprecada) si el CLI la tomaria sin `--cm`, la oficial de ARCA
+ * o, en una nota E, la del asociado. Si dejas lo que arranco escrito, va como el CLI sin `--cm`: la de la config marcada
+ * como tal, o ninguna (la vista previa consulta la oficial o toma la del asociado). Si escribis otra cosa, es la
+ * acordada y va con `--cm`. Sin `suggested` (la consulta de la oficial fallo), arranca vacia. `validate` reemplaza la
+ * validacion de `--cm` de A, B y C (la E usa sus reglas).
  */
 async function askAgreedExchangeRate(
   currencyCode: string,
   previous?: AgreedExchangeRate,
   suggested?: ExchangeRateSuggestion,
+  validate: (value: string) => string | true = validateExchangeRate,
 ): Promise<AgreedExchangeRate | Back> {
   const iso = toIsoCurrencyCode(currencyCode);
   // Solo una escrita a mano arranca como antes; una sugerida se vuelve a sugerir (la oficial puede haber cambiado).
@@ -73,7 +80,7 @@ async function askAgreedExchangeRate(
   const suggestedText = typed === undefined ? amountInputText(suggested?.rate) : undefined;
   const rate = await askTextStep(`Cotización de ${iso}${suggested ? ` (${describeSuggestion(suggested)})` : ''}:`, {
     previousAnswer: suggestedText ?? amountInputText(typed),
-    validate: validateExchangeRate,
+    validate,
   });
 
   if (rate === BACK) {
@@ -87,6 +94,45 @@ async function askAgreedExchangeRate(
   }
 
   return { exchangeRate: parseExchangeRateInput(rate), exchangeRateSource: undefined };
+}
+
+export interface ExchangeRateStepDef<S> {
+  /** Donde esta la cotizacion (y de donde sale, si es de la config) en el estado del flujo. */
+  readonly rate: Lens<S, AgreedExchangeRate>;
+  /** La moneda del comprobante (codigo de ARCA o ISO): la pregunta la nombra. */
+  readonly currency: (state: S) => string;
+  /** Con que cotizacion arranca escrita: la que tomaria el CLI sin `--cm`. */
+  readonly suggestion?: (state: S) => Promise<ExchangeRateSuggestion | undefined>;
+  /** La validacion de lo escrito; sin esto, la de `--cm` de A, B y C. */
+  readonly validate?: (state: S) => (value: string) => string | true;
+  readonly dependsOn?: readonly WizardDependency[];
+  readonly skip?: (state: S) => boolean;
+  /** Los campos que escribe, para que `finalize` vuelva a esta pregunta (en la E, `exchangeRate`). */
+  readonly writes?: readonly string[];
+}
+
+/**
+ * La pregunta de la cotizacion de un comprobante en moneda extranjera cobrado en pesos (`askAgreedExchangeRate`), como
+ * un paso: la comparten la moneda de A, B y C (`currencySteps`) y la E, factura, nota y "Repetir" (`exportExchangeRateStep`).
+ */
+export function exchangeRateStep<S>(def: ExchangeRateStepDef<S>): WizardStep<S> {
+  return {
+    dependsOn: def.dependsOn,
+    name: 'cotizacion',
+    run: async (state, { previous }) => {
+      const rate = await askAgreedExchangeRate(
+        def.currency(state),
+        previous ? def.rate.get(previous as S) : undefined,
+        await def.suggestion?.(state),
+        def.validate?.(state),
+      );
+
+      // La cotizacion y de donde sale, siempre juntas: una escrita no queda marcada como de la config.
+      return rate === BACK ? BACK : def.rate.set(rate, state);
+    },
+    skip: def.skip,
+    writes: def.writes,
+  };
 }
 
 export interface CurrencyStepsDef<S> {
@@ -174,17 +220,12 @@ export function currencySteps<S>(def: CurrencyStepsDef<S>): Array<WizardStep<S>>
       },
       skip: (state) => skip(state) || !isForeign(state),
     },
-    {
+    exchangeRateStep<S>({
+      currency: codeOf,
       dependsOn: [...dependsOn, 'moneda', 'pago'],
-      name: 'cotizacion',
-      run: async (state, { previous }) => {
-        const code = codeOf(state);
-        const rate = await askAgreedExchangeRate(code, previousOf(previous), await def.suggestion?.(code));
-
-        // La cotizacion y de donde sale, siempre juntas: una escrita no queda marcada como de la config.
-        return rate === BACK ? BACK : currency.set(rate, state);
-      },
+      rate: currency,
       skip: (state) => skip(state) || !isForeign(state) || Boolean(currency.get(state)?.sameCurrency),
-    },
+      suggestion: (state) => def.suggestion?.(codeOf(state)) ?? Promise.resolve(undefined),
+    }),
   ];
 }

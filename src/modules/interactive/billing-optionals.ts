@@ -102,11 +102,14 @@ export function configExchangeRateFor(config: CurrencyConfig, currencyCode: stri
   });
 }
 
-/** Con que cotizacion arranca escrita la pregunta si te pagan en pesos, y de donde sale. */
-export interface ExchangeRateSuggestion {
-  readonly rate: number;
-  readonly source: 'arca' | 'config';
-}
+/**
+ * Con que cotizacion arranca escrita la pregunta si te pagan en pesos, y de donde sale: la oficial de ARCA, la de la
+ * config (`cotizacion`, deprecada) o, en una nota E, la del comprobante asociado (`associated` lo nombra: "la factura
+ * E"). Sin tocarla, solo la de la config llega a la entrada: las otras las toma el CLI sin `--cm`.
+ */
+export type ExchangeRateSuggestion =
+  | { readonly associated: string; readonly rate: number; readonly source: 'associated' }
+  | { readonly rate: number; readonly source: 'arca' | 'config' };
 
 /**
  * Como el CLI sin `--moneda`: arranca en la moneda de la config y, si es extranjera, con su cotizacion guardada

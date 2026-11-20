@@ -18,6 +18,8 @@ import {
 import { initialAdvancedOptions } from '../../../modules/interactive/billing-optionals';
 import { buildEquivalentCommand } from '../../../modules/interactive/equivalent-command';
 import { buildExportEquivalentCommand } from '../../../modules/interactive/export-equivalent-command';
+import { buildExportNoteInput } from '../../../modules/interactive/export-note-input';
+import { buildExportRepeatInput } from '../../../modules/interactive/export-repeat-input';
 import { buildInvoiceInput } from '../../../modules/interactive/invoice-input';
 import { buildNoteInput } from '../../../modules/interactive/note-input';
 import { runWizard } from '../../../modules/interactive/wizard';
@@ -27,6 +29,8 @@ import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.re
 import { parseBillingCommandPlan } from '../../commands/billing.command.parser';
 import { resolveBillingCommandDefaults } from '../../commands/billing.command.shared';
 import { parseExportCommandPlan } from '../../commands/export.command.parser';
+import { exportNoteSteps } from '../export-note.flow';
+import { exportRepeatSteps } from '../export-repeat.flow';
 import { invoiceSteps } from '../invoice.flow';
 import { noteInputEnv, noteSteps } from '../note.flow';
 import { repeatSteps } from '../repeat.flow';
@@ -848,6 +852,102 @@ describe('el comando equivalente de la E con textos raros pasa por el parser rea
       associatedVoucher: { number: 1, pointOfSale: 4 },
       emit: false,
       voucherKind: EXPORT_CREDIT_NOTE_KIND,
+    });
+  });
+
+  // NAV-9: la cotización de la E arranca escrita con la que toma el CLI. Sin tocarla, la entrada no la lleva (el comando
+  // va sin `--cm`) y la solicitud sale igual; editada, la lleva. El asistente al azar solo llega en la factura: la de
+  // las pantallas es de servicios, donde no se pregunta.
+  describe('la cotización de la E en bienes, sin tocar y editada (NAV-9)', () => {
+    const goodsVoucher = async (query: Parameters<ExportGateway['getVoucher']>[0]) => ({
+      ...(await exportGateway.getVoucher(query))!,
+      exportType: 1 as const,
+      incoterm: 'FOB',
+      sameCurrency: false,
+    });
+    const goodsGateway: ExportGateway = { ...exportGateway, getVoucher: goodsVoucher };
+
+    /** El comando equivalente arma la misma solicitud: devuelve el comando y la cotización que va a ARCA. */
+    async function expectSameGoodsRequest(input: ExportVoucherInput): Promise<{ line: string; sent: number }> {
+      const service = new ExportService();
+      const expected = await service.resolve(input, goodsGateway, exportRuntime, NOW);
+      const line = buildExportEquivalentCommand(input, { activity: 620100, environment: 'testing', platform: 'linux' });
+      const call = await parseWithProgram(line, 'linux');
+      const plan = parseExportCommandPlan(call.command, { voucherKind: call.exportKind });
+      const resolved = await service.resolve(plan.input, goodsGateway, exportRuntime, NOW);
+
+      expect(resolved.payload, line).toEqual(expected.payload);
+
+      return { line, sent: expected.payload.Moneda_ctz };
+    }
+
+    it.each([
+      ['sin tocar', '1400', undefined, 1400],
+      ['editada', '1.300', 1300, 1300],
+    ])('nota de crédito E, %s', async (_case, typed, exchangeRate, sent) => {
+      script = createScript([
+        [/Punto de venta de la factura E/, '4'],
+        [/Número de la factura E/, '1'],
+        [/^Cotización de USD \(la de la factura E es 1\.400\):$/, typed],
+        [/Monto de la nota de crédito/, '500'],
+        [/Detalle/, ''],
+        [/Permisos de embarque/, ''],
+        [/Agregamos/, []],
+      ]);
+
+      const state = await runWizard(exportNoteSteps('credito', goodsGateway, 4), {});
+      const input = buildExportNoteInput(state as NonNullable<typeof state>, { kind: 'credito' });
+
+      const request = await expectSameGoodsRequest(input);
+
+      expect(input.exchangeRate).toBe(exchangeRate);
+      expect(request.sent).toBe(sent);
+
+      if (exchangeRate === undefined) {
+        expect(request.line).not.toContain('--cm');
+      } else {
+        expect(request.line).toContain(`--cm ${exchangeRate}`);
+      }
+    });
+
+    it.each([
+      ['sin tocar', '1450', undefined, 1450],
+      ['editada', '1.300', 1300, 1300],
+    ])('Repetir E, %s', async (_case, typed, exchangeRate, sent) => {
+      script = createScript([
+        [/Cuál repetimos/, '00004-00000001'],
+        [/Mismo monto/, 'Sí'],
+        [/^Cotización de USD \(la oficial de ARCA es 1\.450\):$/, typed],
+        [/Permisos de embarque/, ''],
+        [/Agregamos/, []],
+      ]);
+
+      const session = createSession();
+      const repeatGateway = { ...goodsGateway, getLastVoucherNumber: async () => 1 };
+      const state = await runWizard(
+        exportRepeatSteps(
+          session,
+          repeatGateway,
+          {
+            countries: [{ code: 212, name: 'ESTADOS UNIDOS' }],
+            countryCuits: await exportGateway.getDestinationCountryCuits(),
+          },
+          4,
+        ),
+        {},
+      );
+      const input = buildExportRepeatInput(state as NonNullable<typeof state>, {});
+
+      const request = await expectSameGoodsRequest(input);
+
+      expect(input.exchangeRate).toBe(exchangeRate);
+      expect(request.sent).toBe(sent);
+
+      if (exchangeRate === undefined) {
+        expect(request.line).not.toContain('--cm');
+      } else {
+        expect(request.line).toContain(`--cm ${exchangeRate}`);
+      }
     });
   });
 });

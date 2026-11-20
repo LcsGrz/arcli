@@ -2,6 +2,8 @@ import { DEFAULT_CURRENCY_CODE } from '../../billing/billing.constants';
 import { isForeignCurrency } from '../../billing/billing.currency';
 import type { BillingCommandInput } from '../../billing/billing.schemas';
 import { toIsoCurrencyCode } from '../../billing/currency-codes';
+import { SERVICES_EXPORT_TYPE } from '../../export/export.mappers';
+import type { ExportType } from '../../export/export.types';
 
 /** La moneda de un comprobante de A, B o C, como pagan y la cotizacion: lo que escriben las preguntas de la moneda. */
 export type CurrencyChoice = Pick<
@@ -48,4 +50,27 @@ export function repeatCurrencyLock(
   return original && sameAmount === true
     ? { code: DEFAULT_CURRENCY_CODE, reason: 'El monto confirmado es el del comprobante original, en pesos.' }
     : undefined;
+}
+
+/** De una E, lo que decide si la cotizacion se puede escribir. */
+export interface ExportExchangeRateCase {
+  /** Codigo de ARCA (`DOL`, `PES`) o ISO. */
+  readonly currencyCode: string;
+  readonly exportType: ExportType;
+  /** "¿Te pagan en dólares? Sí" (`--misma-moneda`); en las notas no va (1605). */
+  readonly sameCurrency?: boolean;
+}
+
+/**
+ * Si el asistente pregunta la cotizacion de una E: solo en moneda extranjera (en pesos es 1) y cuando ARCA acepta otra
+ * que la suya. En servicios exige la de aduana del dia habil anterior en la factura y la del asociado en la nota (2053,
+ * WSFEX v3.1.0); con `--misma-moneda`, la oficial del dia habil anterior (1604, historial 3.0.0). Son las mismas reglas
+ * con las que `ExportService` rechaza un `--cotizacion-moneda` distinto: ahi no hay nada que elegir.
+ */
+export function exportAsksExchangeRate(voucher: ExportExchangeRateCase): boolean {
+  return (
+    isForeignCurrency({ currencyCode: voucher.currencyCode }) &&
+    voucher.exportType !== SERVICES_EXPORT_TYPE &&
+    !voucher.sameCurrency
+  );
 }

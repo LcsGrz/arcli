@@ -49,7 +49,13 @@ import {
   PromptLimitReached,
   type TextAnswers,
 } from './random-assistant';
-import { createBillingSession, createExportGateway, NOW, OFFICIAL_RATE } from './screens.fixtures';
+import {
+  createBillingSession,
+  createExportGateway,
+  EXPORT_QUOTATION_RATE,
+  NOW,
+  OFFICIAL_RATE,
+} from './screens.fixtures';
 
 /**
  * Tests al azar del asistente (NAV-0, "Tests genéricos" del diseño del navegador): el asistente al azar de
@@ -523,13 +529,15 @@ function fieldAt(input: Record<string, unknown>, path: string): unknown {
 }
 
 /**
- * La cotizacion de A, B y C que arranco escrita con la oficial de ARCA y quedo sin tocar (#15): como el CLI sin `--cm`,
- * la entrada no la lleva y la vista previa la consulta. Las respuestas al azar nunca son `1450`, asi que solo pasa si
- * se dejo lo escrito. La de la config (`cotizacion`) sin tocar si llega a la entrada, marcada como de la config.
+ * La cotizacion que arranco escrita con la oficial de ARCA y quedo sin tocar: en A, B y C (#15) y en la E, con la de
+ * aduana de WSFEX (NAV-9). Como el CLI sin `--cm`, la entrada no la lleva y la vista previa la consulta. Las respuestas
+ * al azar nunca son `1450` ni `1174,6`, asi que solo pasa si se dejo lo escrito. La de la config (`cotizacion`) sin
+ * tocar si llega a la entrada, marcada como de la config.
  */
 function untouchedOfficialRate(event: Extract<PromptEvent, { kind: 'text' }>): boolean {
   return (
-    /^Cotización de .*\(la oficial de ARCA es/.test(event.message) && event.answer === amountInputText(OFFICIAL_RATE)
+    /^Cotización de .*\(la oficial de ARCA es/.test(event.message) &&
+    [OFFICIAL_RATE, EXPORT_QUOTATION_RATE].map((rate) => amountInputText(rate)).includes(event.answer as string)
   );
 }
 
@@ -565,7 +573,6 @@ const OWNED_FIELDS: Record<Flow['family'], ReadonlyArray<readonly [RegExp, reado
   export: [
     [/^Fecha del comprobante/, ['voucherDate']],
     [/^Observaciones/, ['observations', 'commercialObservations']],
-    [/^Cotización/, ['exchangeRate']],
   ],
 };
 

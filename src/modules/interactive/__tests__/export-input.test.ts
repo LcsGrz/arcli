@@ -51,12 +51,13 @@ describe('buildExportInput', () => {
     });
   });
 
-  it('suma los opcionales', () => {
+  it('suma los opcionales y la cotización escrita', () => {
     const input = buildExportInput(
       {
         ...STATE,
+        exchangeRate: 1180,
         incoterm: 'FOB',
-        options: { exchangeRate: 1180, incotermDescription: 'FOB Bs. As.', language: 2, voucherDate: '17/11/2026' },
+        options: { incotermDescription: 'FOB Bs. As.', language: 2, voucherDate: '17/11/2026' },
       },
       {},
     );

@@ -19,6 +19,8 @@ export interface ExportNoteState {
   /** Que ajusta la nota, elegido en el selector de comprobantes: la factura E u otra nota E (`--ac nde` o `--ac nce`). */
   readonly associatedKind?: ExportVoucherKind;
   readonly description?: string;
+  /** La cotizacion escrita a mano; sin ella, la del asociado, como el CLI sin `--cm`. */
+  readonly exchangeRate?: number;
   readonly invoice?: ExportIssuedVoucher;
   readonly invoicePointOfSale?: number;
   readonly options?: ExportOptions;
@@ -48,6 +50,7 @@ export function buildExportNoteInput(state: ExportNoteState, env: ExportNoteInpu
     },
     description: state.description,
     emit: false,
+    exchangeRate: state.exchangeRate,
     permits: state.permits,
     voucherKind: env.kind === 'credito' ? EXPORT_CREDIT_NOTE_KIND : EXPORT_DEBIT_NOTE_KIND,
   };
