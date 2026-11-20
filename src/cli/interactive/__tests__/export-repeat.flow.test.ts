@@ -250,8 +250,8 @@ describe('runExportRepeatFlow', () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
-      [/Agregamos algún opcional/, []],
       [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
       [/Emitimos/, 'Sí, emitir ahora'],
     ]);
 
@@ -277,8 +277,12 @@ describe('runExportRepeatFlow', () => {
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
       [/actividad de WSFEX.*Enter para no informarla/, ''],
+      // Antes de los opcionales, contra la más temprana que ARCA acepta para la fecha del comprobante (TUI-22).
+      [
+        /Fecha de pago/,
+        rejecting('20/11/2026', ['08/11/2026', /anterior al 09\/11\/2026: es la fecha más temprana.*error 1674/]),
+      ],
       [/Agregamos algún opcional/, []],
-      [/Fecha de pago/, rejecting('20/11/2026', ['13/11/2026', /anterior a la del comprobante \(hoy\).*error 1674/])],
       [/Emitimos/, 'Sí, emitir ahora'],
     ]);
 
@@ -306,8 +310,8 @@ describe('runExportRepeatFlow', () => {
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
       [/actividad de WSFEX/, rejecting('620100', ['620900', /no está en la tabla de actividades de WSFEX.*2105/])],
-      [/Agregamos algún opcional/, []],
       [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
       [/Emitimos/, 'Sí, emitir ahora'],
       [/Guardamos la actividad 620100 en la config/, 'Sí, guardar'],
     ]);
@@ -329,8 +333,8 @@ describe('runExportRepeatFlow', () => {
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
       [/actividad de WSFEX/, '620100'],
-      [/Agregamos algún opcional/, []],
       [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
       [/Emitimos/, 'No, dejar sin emitir'],
     ]);
 
@@ -375,7 +379,7 @@ describe('runExportRepeatFlow', () => {
     expect(printed()).toContain('--fecha 10/11/2026');
   });
 
-  it('la fecha de pago se valida contra la fecha del comprobante elegida, no contra hoy, como `--fecha-pago` (EXPO-12)', async () => {
+  it('la fecha de pago se compara con la fecha del comprobante elegida después, no con hoy, como `--fecha-pago` (EXPO-12, TUI-22)', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-11-14T12:00:00-03:00'));
     vi.mocked(gateway.getVoucher).mockImplementationOnce(async () => ({
@@ -386,11 +390,12 @@ describe('runExportRepeatFlow', () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
+      // Anterior a hoy, pero no a la más temprana posible: vale al preguntarla.
+      [/Fecha de pago/, '12/11/2026'],
       [/Agregamos algún opcional/, ['Fecha del comprobante']],
-      [/Fecha del comprobante/, '10/11/2026'],
       [
-        /Fecha de pago/,
-        rejecting('12/11/2026', ['09/11/2026', /anterior a la del comprobante \(10\/11\/2026\).*error 1674/]),
+        /Fecha del comprobante/,
+        rejecting('10/11/2026', ['13/11/2026', /anterior a la del comprobante \(13\/11\/2026\).*error 1674/]),
       ],
       [/Emitimos/, 'Sí, emitir ahora'],
     ]);
@@ -632,8 +637,8 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
-      [/Agregamos algún opcional/, []],
       [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
     ]);
     await repeatOf({ ...INVOICE, exportType: 2, incoterm: undefined, sameCurrency: false });
     expect(printed().replace(/\s+/g, ' ')).toContain(
@@ -708,19 +713,17 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     });
   });
 
-  it('en servicios, volver desde la fecha de pago vuelve a los opcionales, y la actividad escrita se valida', async () => {
+  it('en servicios, volver desde la fecha de pago vuelve a la actividad (TUI-22), y la actividad escrita se valida', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
       [/actividad de WSFEX/, rejecting('620100', ['abc', /La actividad/])],
-      [/Agregamos algún opcional/, []],
       [/Fecha de pago/, BACK],
-      [/Agregamos algún opcional/, BACK],
       [/actividad de WSFEX/, BACK],
       ...KEEP_EXPORT_ITEMS,
       [/actividad de WSFEX/, rejecting('620100', ['620200', /no está en la tabla de actividades de WSFEX.*2105/])],
-      [/Agregamos algún opcional/, []],
       [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
     ]);
 
     // Con la tabla de WSFEX, como "Emitir factura" (REV-74, #11).
@@ -804,7 +807,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     expect(script.chooseManyStep.mock.calls.at(-1)?.[2]).toEqual([]);
   });
 
-  // REV-65: la fecha de pago depende solo de la fecha del comprobante de los opcionales.
+  // REV-65 y TUI-22: la fecha de pago va antes de los opcionales y no depende de ellos.
   describe('la fecha de pago recordada', () => {
     /** Los pasos con uno mas al final, que vuelve una vez: asi se llega de nuevo a la fecha de pago ya respondida. */
     async function repeatWithStepAfter() {
@@ -833,37 +836,37 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
         .map((call) => call[1]?.previousAnswer);
     }
 
-    it('cambiar otro opcional la conserva', async () => {
+    it('cambiar un opcional la conserva', async () => {
       script = createScript([
         [/Cuál repetimos/, '00004-00000001'],
         ...KEEP_EXPORT_ITEMS,
+        [/Fecha de pago/, '20/11/2026'],
         [/Agregamos algún opcional/, ['Observaciones']],
         [/^Observaciones \(/, 'Pedido 42'],
         [/Observaciones comerciales/, ''],
+        [/Agregamos algún opcional/, BACK],
         [/Fecha de pago/, '20/11/2026'],
-        [/Fecha de pago/, BACK],
         [/Agregamos algún opcional/, ['Observaciones']],
         [/^Observaciones \(/, 'Pedido 43'],
         [/Observaciones comerciales/, ''],
-        [/Fecha de pago/, '20/11/2026'],
       ]);
 
       expect(await repeatWithStepAfter()).toMatchObject({ paymentDate: '20/11/2026' });
-      expect(paymentDatePrefills()).toEqual([undefined, '20/11/2026', '20/11/2026']);
+      expect(paymentDatePrefills()).toEqual([undefined, '20/11/2026']);
     });
 
-    it('cambiar una respuesta anterior a los opcionales (los ítems) la conserva', async () => {
+    it('cambiar una respuesta anterior (los ítems) la conserva', async () => {
       script = createScript([
         [/Cuál repetimos/, '00004-00000001'],
         ...KEEP_EXPORT_ITEMS,
-        [/Agregamos algún opcional/, []],
         [/Fecha de pago/, '20/11/2026'],
-        [/Fecha de pago/, BACK],
+        [/Agregamos algún opcional/, []],
         [/Agregamos algún opcional/, BACK],
+        [/Fecha de pago/, BACK],
         [/^Ítems de .*: marcá qué modificar/, editing({ remove: ['Flete'] })],
         [/Importe total/, 'Confirmar'],
-        [/Agregamos algún opcional/, []],
         [/Fecha de pago/, '20/11/2026'],
+        [/Agregamos algún opcional/, []],
       ]);
 
       expect(await repeatWithStepAfter()).toMatchObject({
@@ -873,28 +876,33 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
       expect(paymentDatePrefills()).toEqual([undefined, '20/11/2026', '20/11/2026']);
     });
 
-    it('cambiar la fecha del comprobante la olvida', async () => {
+    // TUI-22: la fecha de pago va antes; la del comprobante, elegida despues, se controla contra ella.
+    it('cambiar la fecha del comprobante la conserva, y "Fecha del comprobante" no deja una posterior a ella', async () => {
       vi.useFakeTimers({ toFake: ['Date'] });
       vi.setSystemTime(new Date('2026-11-14T12:00:00-03:00'));
       script = createScript([
         [/Cuál repetimos/, '00004-00000001'],
         ...KEEP_EXPORT_ITEMS,
+        [/Fecha de pago/, '16/11/2026'],
         [/Agregamos algún opcional/, ['Fecha del comprobante']],
         [/Fecha del comprobante/, '14/11/2026'],
-        [/Fecha de pago/, '20/11/2026'],
-        [/Fecha de pago/, BACK],
         [/Agregamos algún opcional/, ['Fecha del comprobante']],
-        [/Fecha del comprobante/, '16/11/2026'],
-        [/Fecha de pago/, '21/11/2026'],
+        [
+          /Fecha del comprobante/,
+          rejecting('15/11/2026', ['18/11/2026', /anterior a la del comprobante \(18\/11\/2026\).*error 1674/]),
+        ],
       ]);
 
       try {
-        expect(await repeatWithStepAfter()).toMatchObject({ paymentDate: '21/11/2026' });
+        expect(await repeatWithStepAfter()).toMatchObject({
+          options: expect.objectContaining({ voucherDate: '15/11/2026' }),
+          paymentDate: '16/11/2026',
+        });
       } finally {
         vi.useRealTimers();
       }
 
-      expect(paymentDatePrefills()).toEqual([undefined, '20/11/2026', undefined]);
+      expect(paymentDatePrefills()).toEqual([undefined]);
     });
   });
 
@@ -902,8 +910,8 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
-      [/Agregamos algún opcional/, []],
       [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
     ]);
 
     expect(

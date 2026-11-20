@@ -111,9 +111,11 @@ export function activityStep<S>(def: ActivityStepDef<S>): WizardStep<S> {
 }
 
 /**
- * "Fecha de pago", despues de los opcionales: no puede ser anterior a la fecha del comprobante, que se elige ahi
- * (1674). Solo la fecha del comprobante: cambiar otro opcional no la olvida. En bienes ARCA la rechaza (1673). La
- * comparten "Emitir factura E" y "Repetir" E.
+ * "Fecha de pago", antes de los opcionales (TUI-22): ARCA la pide en servicios y otros, asi que no va despues de lo
+ * opcional. No puede ser anterior a la fecha del comprobante (1674), que se elige despues: al preguntar se compara con la mas
+ * temprana que acepta ARCA, y la comparacion exacta la hacen "Fecha del comprobante" de los opcionales y `finalize`, que
+ * vuelve aca. Con Enter va la del comprobante, la que se elija (como el CLI sin `--fecha-pago`). En bienes ARCA la
+ * rechaza (1673). La comparten "Emitir factura E" y "Repetir" E.
  */
 export function exportPaymentDateStep<S extends { readonly options?: ExportOptions; readonly paymentDate?: string }>(
   exportType: (state: S) => ExportType | undefined,
@@ -123,12 +125,13 @@ export function exportPaymentDateStep<S extends { readonly options?: ExportOptio
       get: (state) => state.paymentDate,
       set: (paymentDate) => ({ paymentDate }) as Partial<S>,
     },
-    dependsOn: [{ fields: ['options.voucherDate'], step: 'opcionales' }],
     message: 'Fecha de pago (Enter para la fecha del comprobante):',
     name: 'fecha-pago',
     optional: true,
     skip: (state) => exportType(state) === 1,
-    validate: (state) => validateExportPaymentDate(state.options?.voucherDate),
+    // Si `finalize` volvio aca, no se eligio fecha del comprobante (la pregunta de la fecha ya controla contra esta): va
+    // la de hoy, y se compara con ella para no aceptar de nuevo la misma.
+    validate: (state, retry) => validateExportPaymentDate(state.options?.voucherDate, { undecided: !retry }),
     writes: ['paymentDate'],
   });
 }

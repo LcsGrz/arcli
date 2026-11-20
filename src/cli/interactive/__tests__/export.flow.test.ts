@@ -145,8 +145,8 @@ describe('runExportFlow', () => {
       ...singleExportItem('1.500', 'Consultoría de software'),
       [/Forma de pago/, 'Transferencia Internacional'],
       [/actividad/, '620100'],
-      [/Agregamos algún opcional/, []],
       [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
       [/Emitimos la factura de exportación E en testing/, 'Sí, emitir ahora'],
       [/Guardamos la actividad 620100/, 'Sí, guardar'],
     ]);
@@ -185,8 +185,8 @@ describe('runExportFlow', () => {
       ...singleExportItem('100'),
       [/Forma de pago/, 'Transferencia Internacional'],
       [/actividad.*Enter para no informarla/, ''],
-      [/Agregamos algún opcional/, []],
       [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
       [/Emitimos/, 'Sí, emitir ahora'],
     ]);
 
@@ -303,8 +303,8 @@ describe('runExportFlow', () => {
       [/moneda/, 'Pesos'],
       ...singleExportItem('100'),
       [/Forma de pago/, 'Transferencia Internacional'],
-      [/Agregamos algún opcional/, []],
       [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
       [/Emitimos/, 'No, dejar sin emitir'],
     ]);
 
@@ -328,8 +328,8 @@ describe('runExportFlow', () => {
       [/moneda/, 'Pesos'],
       ...singleExportItem('100'),
       [/Forma de pago/, 'Transferencia Internacional'],
-      [/Agregamos algún opcional/, []],
       [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
       [/Emitimos/, 'No, dejar sin emitir'],
     ]);
 
@@ -371,10 +371,10 @@ describe('runExportFlow', () => {
         ],
         ...singleExportItem('100').slice(1),
         [/Forma de pago/, rejecting('Transferencia', ['a'.repeat(51), /50 caracteres/])],
+        [/Fecha de pago/, ''],
         [/Agregamos algún opcional/, ['Observaciones']],
         [/^Observaciones \(/, rejecting('Pedido 42', ['a'.repeat(1001), /más de 1\.000 caracteres.*error 1665/])],
         [/Observaciones comerciales/, rejecting('', ['a'.repeat(4001), /más de 4\.000 caracteres.*error 1665/])],
-        [/Fecha de pago/, ''],
         [/Emitimos/, 'No, dejar sin emitir'],
       ]);
 
@@ -386,7 +386,10 @@ describe('runExportFlow', () => {
       );
     });
 
-    it('la fecha de pago anterior a hoy da el error 1674 y vuelve a preguntar; hoy o después pasa', async () => {
+    // TUI-22: "Fecha de pago" va antes de los opcionales, donde se elige la fecha del comprobante. Al preguntarla se
+    // compara con la más temprana que ARCA acepta para el comprobante (hoy - 5); la comparación exacta la hacen
+    // "Fecha del comprobante" y `finalize`.
+    it('la fecha de pago anterior a la más temprana del comprobante da el error 1674 y vuelve a preguntar', async () => {
       vi.useFakeTimers({ toFake: ['Date'] });
       vi.setSystemTime(new Date('2026-10-30T12:00:00-03:00'));
       script = createScript([
@@ -398,14 +401,14 @@ describe('runExportFlow', () => {
         [/moneda/, 'Pesos'],
         ...singleExportItem('100'),
         [/Forma de pago/, 'Transferencia Internacional'],
-        [/Agregamos algún opcional/, []],
         [
           /Fecha de pago/,
           rejecting('15/11/2026', [
-            '29/10/2026',
-            /^La fecha de pago no puede ser anterior a la del comprobante \(hoy\): ARCA la rechaza \(error 1674\)\.$/,
+            '24/10/2026',
+            /^La fecha de pago no puede ser anterior al 25\/10\/2026: es la fecha más temprana que ARCA acepta para el comprobante, y un pago anterior a él lo rechaza \(error 1674\)\.$/,
           ]),
         ],
+        [/Agregamos algún opcional/, []],
         [/Emitimos/, 'No, dejar sin emitir'],
       ]);
 
@@ -413,11 +416,16 @@ describe('runExportFlow', () => {
 
       const validate = script.askTextStep.mock.calls.find(([message]) => /Fecha de pago/.test(message))?.[1]?.validate;
 
+      // Antes de hoy vale al preguntarla: con una fecha del comprobante anterior, ARCA la acepta.
+      expect(validate?.('25/10/2026')).toBe(true);
       expect(validate?.('30/10/2026')).toBe(true);
       expect(printed()).toContain('--fecha-pago 15/11/2026');
+      expect(script.asked.findIndex((message) => /Fecha de pago/.test(message))).toBeLessThan(
+        script.asked.findIndex((message) => /Agregamos/.test(message)),
+      );
     });
 
-    it('la fecha del comprobante va en los opcionales con las reglas de `--fecha`, y la de pago se valida contra ella, como `--fecha-pago` (EXPO-11, EXPO-12)', async () => {
+    it('la fecha del comprobante va en los opcionales con las reglas de `--fecha` y no puede quedar después de la de pago, como `--fecha-pago` (EXPO-11, EXPO-12)', async () => {
       vi.useFakeTimers({ toFake: ['Date'] });
       vi.setSystemTime(new Date('2026-11-18T12:00:00-03:00'));
       const quotations = vi.spyOn(gateway, 'getQuotations');
@@ -432,12 +440,16 @@ describe('runExportFlow', () => {
         [/Te pagan en dólares/, 'No'],
         ...singleExportItem('100'),
         [/Forma de pago/, 'Transferencia Internacional'],
+        // Anterior a hoy pero no a la más temprana posible: vale al preguntarla.
+        [/Fecha de pago/, '17/11/2026'],
         [/Agregamos algún opcional/, ['Fecha del comprobante']],
-        [/Fecha del comprobante/, rejecting('16/11', ['12/11/2026', /del 13\/11\/2026 al 23\/11\/2026.*error 1500/])],
-        // Anterior a hoy pero no a la del comprobante: vale, como con flags.
         [
-          /Fecha de pago/,
-          rejecting('17/11/2026', ['15/11/2026', /anterior a la del comprobante \(16\/11\/2026\).*error 1674/]),
+          /Fecha del comprobante/,
+          rejecting(
+            '16/11',
+            ['12/11/2026', /del 13\/11\/2026 al 23\/11\/2026.*error 1500/],
+            ['18/11/2026', /anterior a la del comprobante \(18\/11\/2026\).*error 1674/],
+          ),
         ],
         [/Emitimos/, 'No, dejar sin emitir'],
       ]);
@@ -449,6 +461,66 @@ describe('runExportFlow', () => {
       expect(quotations.mock.calls).toEqual([['20261117'], ['20261115']]);
       expect(printed()).toContain('--fecha 16/11/2026');
       expect(printed()).toContain('--fecha-pago 17/11/2026');
+    });
+
+    it('si la fecha del comprobante que queda deja la de pago antes, `finalize` vuelve a "Fecha de pago" con el error', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-11-18T12:00:00-03:00'));
+      script = createScript([
+        [/cliente del exterior/, 'ACME LLC'],
+        [/Domicilio/, '123 Main St'],
+        [/País de destino/, '212'],
+        [/ID impositivo/, ''],
+        [/Qué exportás/, 'Servicios'],
+        [/moneda/, 'Pesos'],
+        ...singleExportItem('100'),
+        [/Forma de pago/, 'Transferencia Internacional'],
+        // Válida contra la más temprana posible (13/11), pero sin elegir la fecha del comprobante va la de hoy.
+        [/Fecha de pago/, '15/11/2026'],
+        [/Agregamos algún opcional/, []],
+        [/Fecha de pago/, '20/11/2026'],
+        [/Agregamos algún opcional/, []],
+        [/Emitimos/, 'No, dejar sin emitir'],
+      ]);
+
+      await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+      expect(printed().replace(/\s+/g, ' ')).toContain(
+        'La fecha de pago no puede ser anterior a la del comprobante (hoy): ARCA la rechaza (error 1674).',
+      );
+      const payments = script.askTextStep.mock.calls.filter(([message]) => /Fecha de pago/.test(message));
+
+      expect(payments.map(([, options]) => options?.previousAnswer)).toEqual([undefined, '15/11/2026']);
+      // De vuelta, ya se sabe que va la de hoy: la misma no pasa.
+      expect(payments[1]?.[1]?.validate?.('15/11/2026')).toMatch(/del comprobante \(hoy\).*error 1674/);
+      expect(printed()).toContain('--fecha-pago 20/11/2026');
+    });
+
+    it('con Enter la fecha de pago es la del comprobante que se elige después, como sin `--fecha-pago`', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-11-18T12:00:00-03:00'));
+      script = createScript([
+        [/cliente del exterior/, 'ACME LLC'],
+        [/Domicilio/, '123 Main St'],
+        [/País de destino/, '212'],
+        [/ID impositivo/, ''],
+        [/Qué exportás/, 'Servicios'],
+        [/moneda/, 'Pesos'],
+        ...singleExportItem('100'),
+        [/Forma de pago/, 'Transferencia Internacional'],
+        [/Fecha de pago/, ''],
+        [/Agregamos algún opcional/, ['Fecha del comprobante']],
+        [/Fecha del comprobante/, '20/11/2026'],
+        [/Emitimos/, 'Sí, emitir ahora'],
+      ]);
+
+      await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+      expect(gateway.authorize).toHaveBeenCalledWith(
+        expect.objectContaining({ Fecha_cbte: '20261120', Fecha_pago: '20261120' }),
+      );
+      expect(printed()).toContain('--fecha 20/11/2026');
+      expect(printed()).not.toContain('--fecha-pago');
     });
 
     it('en bienes el incoterm es obligatorio (1640): no ofrece "Sin incoterm"', async () => {
@@ -486,8 +558,8 @@ describe('runExportFlow', () => {
         [/Te pagan en dólares/, 'No'],
         ...singleExportItem('100'),
         [/Forma de pago/, 'Transferencia Internacional'],
-        [/Agregamos algún opcional/, []],
         [/Fecha de pago/, ''],
+        [/Agregamos algún opcional/, []],
         [/Emitimos/, 'No, dejar sin emitir'],
       ]);
 
@@ -542,8 +614,8 @@ describe('runExportFlow', () => {
         [/moneda/, 'Pesos'],
         ...singleExportItem('100', 'Consultoría'),
         [/Forma de pago/, 'Transferencia Internacional'],
-        [/Agregamos algún opcional/, []],
         [/Fecha de pago/, ''],
+        [/Agregamos algún opcional/, []],
         [/Emitimos/, 'No, dejar sin emitir'],
       ]);
 
@@ -587,8 +659,8 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       [/Te pagan en dólares/, 'Sí'],
       ...singleExportItem('1.500'),
       [/Forma de pago/, ''],
-      [/Agregamos algún opcional/, []],
       [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
       [/Emitimos/, confirmation],
     ]);
 
@@ -680,8 +752,8 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       [/^Ítems de .*: marcá qué modificar/, editing({})],
       [/Importe total/, 'Confirmar'],
       [/Forma de pago/, ''],
-      [/Agregamos algún opcional/, []],
       [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
       [/Emitimos/, 'Sí, emitir ahora'],
     ]);
 
@@ -707,8 +779,8 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       ...singleExportItem('100'),
       [/Forma de pago/, ''],
       [/actividad/, rejecting('620100', ['999999', /no está en la tabla de actividades.*2105/], ['abc', /actividad/i])],
-      [/Agregamos algún opcional/, []],
       [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
       // Sin emitir no se ofrece guardar la actividad (REV-62).
       [/Emitimos/, 'No, dejar sin emitir'],
     ]);
@@ -727,8 +799,8 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       ...singleExportItem('100'),
       [/Forma de pago/, ''],
       [/actividad/, '999999'],
-      [/Agregamos algún opcional/, []],
       [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
       [/Emitimos/, 'No, dejar sin emitir'],
     ]);
 
@@ -805,8 +877,8 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       ...singleExportItem('1.500'),
       [/Forma de pago/, ''],
       [/actividad/, '620100'],
-      [/Agregamos algún opcional/, []],
       [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
       [/Emitimos/, 'Sí, emitir ahora'],
     ]);
 
@@ -971,8 +1043,8 @@ describe('runExportFlow: la cotización después de la moneda (NAV-9)', () => {
           ] as const)
         : []),
       [/Forma de pago/, 'Transferencia Internacional'],
-      [/Agregamos algún opcional/, []],
       ...(kind === 'Servicios' ? ([[/Fecha de pago/, '']] as const) : []),
+      [/Agregamos algún opcional/, []],
       [/Emitimos/, 'Sí, emitir ahora'],
     ]);
   }

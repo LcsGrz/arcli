@@ -46,6 +46,26 @@ describe('reglas de la E (export.rules.ts)', () => {
     expect(EXPORT_PAYMENT_DATE_RULE.check({ exportType: 2, paymentDate: '17/11/2026' }, { today })).toMatchObject({
       question: 'La fecha de pago no puede ser anterior a la del comprobante (hoy): ARCA la rechaza (error 1674).',
     });
+    // Con la fecha del comprobante sin elegir todavia (el asistente, TUI-22), la mas temprana que acepta ARCA (hoy - 5);
+    // la escrita sigue mandando.
+    expect(
+      EXPORT_PAYMENT_DATE_RULE.check(
+        { exportType: 2, paymentDate: '13/11/2026' },
+        { today, undecidedVoucherDate: true },
+      ),
+    ).toBeUndefined();
+    expect(
+      EXPORT_PAYMENT_DATE_RULE.check(
+        { exportType: 2, paymentDate: '12/11/2026' },
+        { today, undecidedVoucherDate: true },
+      ),
+    ).toMatchObject({ question: expect.stringMatching(/^La fecha de pago no puede ser anterior al 13\/11\/2026: /) });
+    expect(
+      EXPORT_PAYMENT_DATE_RULE.check(
+        { exportType: 2, paymentDate: '14/11/2026', voucherDate: '15/11/2026' },
+        { today, undecidedVoucherDate: true },
+      ),
+    ).toMatchObject({ question: expect.stringContaining('(15/11/2026)') });
     // En bienes y en las notas no va: no corre.
     expect(
       EXPORT_PAYMENT_DATE_RULE.check(

@@ -81,15 +81,15 @@
 ? [texto] Código de actividad de WSFEX, por ejemplo 620100 (Enter para no informarla):
   = "620100"
 
+? [texto] Fecha de pago (Enter para la fecha del comprobante):
+  = ""
+
 ? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
   [ ] Fecha del comprobante — hoy
   [ ] Idioma — Español
   [ ] CUIT del país — el de la tabla de ARCA
   [ ] Observaciones — sin observaciones
   = (nada marcado)
-
-? [texto] Fecha de pago (Enter para la fecha del comprobante):
-  = ""
 
 == pantalla ==
 ┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐

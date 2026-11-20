@@ -3,6 +3,7 @@ import type { Rule } from '../../lib/rules/rules';
 
 import { EXPORT_ITEMS_TOTAL_RULE } from './export.items';
 import {
+  earliestExportVoucherDate,
   EXPORT_EXCHANGE_RATE_RULE,
   EXPORT_VOUCHER_DATE_WINDOW_RULE,
   exportTypeTakesPaymentDate,
@@ -17,6 +18,13 @@ import { DEFAULT_EXPORT_TYPE, EXPORT_VOUCHER_KIND, type ExportVoucherInput, isEx
 export interface ExportRuleContext {
   readonly associated?: { readonly date: string; readonly label: string };
   readonly today?: string;
+  /**
+   * La fecha del comprobante todavia no se eligio (en el asistente, "Fecha de pago" se pregunta antes que los
+   * opcionales, TUI-22): sin `voucherDate`, la fecha de pago se compara con la mas temprana que acepta ARCA
+   * (`earliestExportVoucherDate`), no con hoy, para no rechazar una que valdria con la fecha que se elija despues. La
+   * comparacion exacta la hacen "Fecha del comprobante" y `finalize`.
+   */
+  readonly undecidedVoucherDate?: boolean;
 }
 
 export type ExportRule = Rule<ExportVoucherInput, ExportRuleContext>;
@@ -26,7 +34,7 @@ export type ExportRule = Rule<ExportVoucherInput, ExportRuleContext>;
  * (sin fecha, hoy). En bienes y en las notas no va. Sin `--fecha-pago` va la del comprobante.
  */
 export const EXPORT_PAYMENT_DATE_RULE: ExportRule = {
-  check: (input, { today }) => {
+  check: (input, { today, undecidedVoucherDate }) => {
     const kind = input.voucherKind ?? EXPORT_VOUCHER_KIND;
     const typed = input.voucherDate?.trim();
 
@@ -38,7 +46,12 @@ export const EXPORT_PAYMENT_DATE_RULE: ExportRule = {
       return undefined;
     }
 
-    const voucherDate = typed ? parseArgentineDateInputAsArcaDate(typed) : (today as string);
+    const undecided = !typed && undecidedVoucherDate;
+    const voucherDate = typed
+      ? parseArgentineDateInputAsArcaDate(typed)
+      : undecided
+        ? earliestExportVoucherDate(today as string)
+        : (today as string);
     const paymentDate = parseArgentineDateInputAsArcaDate(input.paymentDate);
 
     if (paymentDate >= voucherDate) {
@@ -49,7 +62,9 @@ export const EXPORT_PAYMENT_DATE_RULE: ExportRule = {
 
     return {
       message: `La fecha de pago (${formatArcaDateAsArgentineDate(paymentDate)}) no puede ser anterior a la del comprobante (${voucherLabel}): ARCA la rechaza (error 1674). Revisá \`--fecha-pago\`.`,
-      question: `La fecha de pago no puede ser anterior a la del comprobante (${typed ? voucherLabel : 'hoy'}): ARCA la rechaza (error 1674).`,
+      question: undecided
+        ? `La fecha de pago no puede ser anterior al ${voucherLabel}: es la fecha más temprana que ARCA acepta para el comprobante, y un pago anterior a él lo rechaza (error 1674).`
+        : `La fecha de pago no puede ser anterior a la del comprobante (${typed ? voucherLabel : 'hoy'}): ARCA la rechaza (error 1674).`,
     };
   },
   fields: ['paymentDate', 'voucherDate'],

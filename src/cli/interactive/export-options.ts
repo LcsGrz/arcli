@@ -45,15 +45,18 @@ export function validateExportText(field: ExportTextField, required?: string): (
 
 /**
  * Fecha de pago opcional: igual o posterior a la del comprobante (1674, WSFEX v3.1.0), la misma regla que
- * `--fecha-pago` (`EXPORT_RULES`). Se pregunta despues de los opcionales, asi ya se sabe la del comprobante
- * (`voucherDate`, dd/mm/aaaa); sin ella, hoy.
+ * `--fecha-pago` (`EXPORT_RULES`). Se pregunta antes de los opcionales (TUI-22), donde se elige la del comprobante:
+ * sin ella (`voucherDate`, dd/mm/aaaa), contra la mas temprana que acepta ARCA (`undecided`) o, si ya se sabe que
+ * va la de hoy, contra hoy. La comparacion exacta la hacen "Fecha del comprobante" y `finalize`, que vuelve aca.
  */
 export function validateExportPaymentDate(
   voucherDate: string | undefined,
-  now = new Date(),
+  options: { readonly now?: Date; readonly undecided?: boolean } = {},
 ): (value: string) => string | true {
+  const now = options.now ?? new Date();
+
   return ruleValidator<string | undefined, ExportVoucherInput, ExportRuleContext>({
-    context: () => ({ today: formatDateAsArcaDate(now) }),
+    context: () => ({ today: formatDateAsArcaDate(now), undecidedVoucherDate: options.undecided ?? true }),
     draft: (typed, value) => ({
       paymentDate: value.trim() ? completeDateInput(value, now) : undefined,
       voucherDate: typed,

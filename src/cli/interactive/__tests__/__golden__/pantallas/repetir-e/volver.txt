@@ -88,6 +88,9 @@
 
 └                                                                                          ┘
 
+? [texto] Fecha de pago (Enter para la fecha del comprobante):
+  = ""
+
 ? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
   [ ] Fecha del comprobante — hoy
   [ ] Idioma — Español
@@ -101,7 +104,55 @@
 ? [texto] Observaciones comerciales (Enter si no hay):
   = ""
 
-? [texto] Fecha de pago (Enter para la fecha del comprobante):
+== pantalla ==
+┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐
+╎                                                                                          ╎
+╎       Estás en TESTING: los comprobantes son de prueba y no tienen validez fiscal.       ╎
+╎                                                                                          ╎
+└╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘
+
+      ╒══════════════════════════ FACTURA DE EXPORTACIÓN E ══════════════════════════╕
+      │                                                                              │
+      │  Cliente                          ACME LLC                                   │
+      │  CUIT del país del cliente        55-00000212-6                              │
+      │  Domicilio del cliente            123 Main St, Miami, FL                     │
+      │  ID impositivo del cliente        12-3456789                                 │
+      │  País de destino                  212 - ESTADOS UNIDOS                       │
+      │  Tipo de exportación              2 - Servicios                              │
+      │  Actividad                        620100                                     │
+      │  Incoterm                         N/D                                        │
+      │  Idioma                           1 - Español                                │
+      │  Moneda                           Dólares estadounidenses (USD), cotización  │
+      │                                   1.174,60 (el pago se cancela en la misma   │
+      │                                   moneda)                                    │
+      │  Forma de pago                    Transferencia Internacional                │
+      │  Observaciones                    Segunda cuota                              │
+      │  Número                           00003-00000008                             │
+      │  Fecha del comprobante            18/11/2026                                 │
+      │  Fecha de pago                    18/11/2026                                 │
+      │                                                                              │
+      │  1 x Según detalle (unidades)  1.800 USD                                     │
+      │                                                                              │
+      │  Importe total                    1.800 USD                                  │
+      │                                                                              │
+      ├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
+      │                                                                              │
+      │                                  SIN EMITIR                                  │
+      │                                                                              │
+      ╘══════════════════════════════════════════════════════════════════════════════╛
+
+== comando equivalente ==
+arcli fe -m 1800 --cliente 'ACME LLC' --domicilio-cliente '123 Main St, Miami, FL' --pais-destino 'ESTADOS UNIDOS' --id-impositivo 12-3456789 --actividad 620100 --moneda DOL --misma-moneda --observaciones 'Segunda cuota' --testing --emitir
+
+== pantalla ==
+▎ Esto equivale a:
+▎ arcli fe -m 1800 --cliente 'ACME LLC' --domicilio-cliente '123 Main St, Miami, FL' --pais-destino 'ESTADOS UNIDOS' --id-impositivo 12-3456789 --actividad 620100 --moneda DOL --misma-moneda --observaciones 'Segunda cuota' --testing --emitir
+
+? [lista] ¿Emitimos la factura de exportación E en testing?
+  arranca en: Sí, emitir ahora
+  > Sí, emitir ahora
+  · Sí, emitir y generar el PDF
+  · No, dejar sin emitir
   = ← Volver
 
 ? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
@@ -109,10 +160,17 @@
   [ ] Idioma — Español
   [ ] CUIT del país — el de la tabla de ARCA
   [x] Observaciones — con observaciones
-  = (nada marcado)
+  = ← Volver
 
 ? [texto] Fecha de pago (Enter para la fecha del comprobante):
   = ""
+
+? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
+  [ ] Fecha del comprobante — hoy
+  [ ] Idioma — Español
+  [ ] CUIT del país — el de la tabla de ARCA
+  [x] Observaciones — con observaciones
+  = (nada marcado)
 
 == pantalla ==
 ┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐

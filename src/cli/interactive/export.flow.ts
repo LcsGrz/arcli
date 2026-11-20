@@ -313,6 +313,9 @@ function exportSteps(
       activity: fieldLens('activity'),
       skip: () => configuredActivity !== undefined,
     }),
+    // Antes de los opcionales (TUI-22): la fecha del comprobante se elige despues, y `finalize` vuelve aca si la deja
+    // anterior.
+    exportPaymentDateStep<ExportFlowState>((state) => state.exportType),
     exportOptionalsStep<ExportFlowState>({
       context: (state) => {
         const currencyCode = state.currencyCode ?? 'DOL';
@@ -331,7 +334,6 @@ function exportSteps(
       read: (state) => state.options,
       write: (options) => ({ options }),
     }),
-    exportPaymentDateStep<ExportFlowState>((state) => state.exportType),
   ];
 }
 

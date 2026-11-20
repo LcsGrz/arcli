@@ -198,6 +198,8 @@ export function exportRepeatSteps(
       activity: nestedLens('copy', 'activity', (state) => requireStepValue(state.copy, 'copy')),
       skip: (state) => state.copy?.activity !== undefined || configuredActivity !== undefined,
     }),
+    // Antes de los opcionales, como en "Emitir factura" E (TUI-22).
+    exportPaymentDateStep<ExportRepeatState>((state) => state.copy?.exportType),
     exportOptionalsStep<ExportRepeatState>({
       context: (state) => {
         const copy = requireStepValue(state.copy, 'copy');
@@ -222,7 +224,6 @@ export function exportRepeatSteps(
       read: (state) => state.options ?? {},
       write: (options) => ({ options }),
     }),
-    exportPaymentDateStep<ExportRepeatState>((state) => state.copy?.exportType),
   ]);
 }
 

@@ -92,6 +92,14 @@ export function resolveExportVoucherDate(value: string | undefined, now = new Da
 const EXPORT_DATE_WINDOW_DAYS = 5;
 
 /**
+ * La fecha mas temprana que ARCA acepta para la factura o la nota E (1500, WSFEX v3.1.0), la misma ventana que
+ * `EXPORT_VOUCHER_DATE_WINDOW_RULE`: hoy - 5 (yyyymmdd).
+ */
+export function earliestExportVoucherDate(today: string): string {
+  return addDaysToArcaDate(today, -EXPORT_DATE_WINDOW_DAYS);
+}
+
+/**
  * ARCA 1500 (WSFEX v3.1.0): la fecha de la factura y de las notas E va de hoy - 5 a hoy + 5 (N = fecha de envio) y,
  * en servicios, no puede pasar del mes en curso. Testing lo confirma: +1 aprobada, +6 y -6 rechazadas con el periodo
  * en el mensaje. Una fecha futura vale (por ejemplo, la del embarque del lunes), pero traba el punto de venta: ver
@@ -105,7 +113,7 @@ export const EXPORT_VOUCHER_DATE_WINDOW_RULE: ExportRule = {
 
     const exportType = input.exportType ?? DEFAULT_EXPORT_TYPE;
     const voucherDate = resolveExportVoucherDate(input.voucherDate, arcaDateToInstant(today));
-    const from = addDaysToArcaDate(today, -EXPORT_DATE_WINDOW_DAYS);
+    const from = earliestExportVoucherDate(today);
     const windowEnd = addDaysToArcaDate(today, EXPORT_DATE_WINDOW_DAYS);
     const monthEnd = lastDayOfArcaMonth(today);
     const capsAtMonthEnd = exportType === SERVICES_EXPORT_TYPE && monthEnd < windowEnd;

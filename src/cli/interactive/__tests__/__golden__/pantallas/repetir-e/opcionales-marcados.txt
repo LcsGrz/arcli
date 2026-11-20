@@ -48,6 +48,9 @@
 
 └                                                                                          ┘
 
+? [texto] Fecha de pago (Enter para la fecha del comprobante):
+  = "30/11/2026"
+
 ? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
   [ ] Fecha del comprobante — hoy
   [ ] Idioma — Español
@@ -63,9 +66,6 @@
   > Español
   · Inglés
   = Inglés
-
-? [texto] Fecha de pago (Enter para la fecha del comprobante):
-  = "30/11/2026"
 
 == pantalla ==
 ┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐

@@ -857,40 +857,43 @@ const facturaE = [
 
 describe('golden de pantallas: factura E', () => {
   it('camino tipico: servicios en dólares cobrados en dólares, sin opcionales', () =>
-    golden('factura-e/tipico', [...facturaE, [/Agregamos/, []], [/Fecha de pago/, ''], NO_EMIT]));
+    golden('factura-e/tipico', [...facturaE, [/Fecha de pago/, ''], [/Agregamos/, []], NO_EMIT]));
 
-  it('con Volver en el medio: de la fecha de pago a los opcionales, que siguen marcados (REV-68)', () =>
+  it('con Volver en el medio: de la vista previa a los opcionales y a la fecha de pago, que siguen respondidos, y desmarca el idioma (REV-68, TUI-15)', () =>
     golden('factura-e/volver', [
       ...facturaE,
+      [/Fecha de pago/, '30/11/2026'],
       [/Agregamos/, ['Idioma']],
       [/Idioma del comprobante/, 'Inglés'],
-      [/Fecha de pago/, BACK],
-      [/Agregamos/, []],
+      [/Emitimos/, BACK],
+      [/Agregamos/, BACK],
       [/Fecha de pago/, '30/11/2026'],
+      // Arranca con el idioma marcado; desmarcado, no va.
+      [/Agregamos/, []],
       NO_EMIT,
     ]));
 
   it('con opcionales marcados: fecha, idioma y observaciones', () =>
     golden('factura-e/opcionales-marcados', [
       ...facturaE,
+      [/Fecha de pago/, ''],
       [/Agregamos/, ['Fecha del comprobante', 'Idioma', 'Observaciones']],
       [/Fecha del comprobante/, '17/11/2026'],
       [/Idioma del comprobante/, 'Inglés'],
       [/Observaciones \(Enter/, 'Pago a 30 días'],
       [/Observaciones comerciales/, ''],
-      [/Fecha de pago/, ''],
       NO_EMIT,
     ]));
 
   it('con opcionales desmarcados: responde la fecha, vuelve y desmarca todo: la fecha no va (REV-67)', () =>
     golden('factura-e/opcionales-desmarcados', [
       ...facturaE,
+      [/Fecha de pago/, ''],
       [/Agregamos/, ['Fecha del comprobante', 'Observaciones']],
       [/Fecha del comprobante/, '17/11/2026'],
       [/Observaciones \(Enter/, BACK],
       [/Fecha del comprobante/, BACK],
       [/Agregamos/, []],
-      [/Fecha de pago/, ''],
       NO_EMIT,
     ]));
 
@@ -1122,9 +1125,9 @@ const sameItems = [
 
 describe('golden de pantallas: Repetir E', () => {
   it('camino tipico: la factura E con los mismos ítems, sin opcionales', () =>
-    golden('repetir-e/tipico', [...repetirE, ...sameItems, [/Agregamos/, []], [/Fecha de pago/, ''], NO_EMIT], repeat));
+    golden('repetir-e/tipico', [...repetirE, ...sameItems, [/Fecha de pago/, ''], [/Agregamos/, []], NO_EMIT], repeat));
 
-  it('con Volver en el medio: del editor a la factura, otro precio, y Esc en la fecha de pago, con los opcionales marcados (REV-68)', () =>
+  it('con Volver en el medio: del editor a la factura, otro precio, y de la vista previa a la fecha de pago, con los opcionales marcados (REV-68)', () =>
     golden(
       'repetir-e/volver',
       [
@@ -1137,12 +1140,15 @@ describe('golden de pantallas: Repetir E', () => {
         [/Unidad/, 'unidades'],
         [/^(?:Importe|Precio unitario) en USD/, '1.800'],
         [/Importe total/, 'Confirmar'],
+        [/Fecha de pago/, ''],
         [/Agregamos/, ['Observaciones']],
         [/Observaciones \(Enter/, 'Segunda cuota'],
         [/Observaciones comerciales/, ''],
-        [/Fecha de pago/, BACK],
-        [/Agregamos/, []],
+        [/Emitimos/, BACK],
+        [/Agregamos/, BACK],
         [/Fecha de pago/, ''],
+        // Arranca con las observaciones marcadas; desmarcadas, no van.
+        [/Agregamos/, []],
         NO_EMIT,
       ],
       repeat,
@@ -1154,10 +1160,10 @@ describe('golden de pantallas: Repetir E', () => {
       [
         ...repetirE,
         ...sameItems,
+        [/Fecha de pago/, '30/11/2026'],
         [/Agregamos/, ['Fecha del comprobante', 'Idioma']],
         [/Fecha del comprobante/, '17/11/2026'],
         [/Idioma del comprobante/, 'Inglés'],
-        [/Fecha de pago/, '30/11/2026'],
         NO_EMIT,
       ],
       repeat,
@@ -1169,12 +1175,12 @@ describe('golden de pantallas: Repetir E', () => {
       [
         ...repetirE,
         ...sameItems,
+        [/Fecha de pago/, ''],
         [/Agregamos/, ['Fecha del comprobante', 'Idioma']],
         [/Fecha del comprobante/, '17/11/2026'],
         [/Idioma del comprobante/, BACK],
         [/Fecha del comprobante/, BACK],
         [/Agregamos/, []],
-        [/Fecha de pago/, ''],
         NO_EMIT,
       ],
       repeat,

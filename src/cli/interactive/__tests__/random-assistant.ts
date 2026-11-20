@@ -271,6 +271,12 @@ export function createRandomAssistant(g: fc.GeneratorValue, options: RandomAssis
 
 /** La pregunta del monto, con o sin la moneda ("Monto total en USD:"). */
 const AMOUNT_QUESTION = /^(Monto total|Monto de la nota)/;
+
+/**
+ * Las preguntas a las que vuelve `finalize` desde mas adelante: el monto, si los opcionales cambian la moneda, y la
+ * fecha de pago de la E, si la fecha del comprobante que queda la deja antes (TUI-22).
+ */
+const FINALIZE_TARGET = /^(Monto total|Monto de la nota|Fecha de pago)/;
 const amountKey = (message: string): string => message.replace(/ en [A-Z]{3}:$/, ':');
 
 /** Las preguntas del paso de los items de la E (NAV-10): un solo paso del asistente con su propia navegacion. */
@@ -322,8 +328,9 @@ export function finalPath(events: readonly PromptEvent[], group: RegExp): Prompt
   const path: PromptEvent[] = [];
 
   for (const event of collapseItemsStep(events)) {
-    // Volvio al monto desde mas adelante: lo de despues no cuenta, y Esc ahi vuelve a la pregunta anterior al monto.
-    if (AMOUNT_QUESTION.test(event.message)) {
+    // Volvio al monto (o a la fecha de pago) desde mas adelante: lo de despues no cuenta, y Esc ahi vuelve a la pregunta
+    // anterior.
+    if (FINALIZE_TARGET.test(event.message)) {
       const earlier = path.findLastIndex((item) => amountKey(item.message) === amountKey(event.message));
 
       if (earlier >= 0) {

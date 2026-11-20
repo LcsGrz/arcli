@@ -173,12 +173,12 @@ describe('auditoría del asistente del 19/11', () => {
         ...singleExportItem('1.500'),
         [/Forma de pago/, ''],
         [/actividad/, '620100'],
+        [/Fecha de pago/, ''],
         [/Agregamos/, ['Fecha del comprobante', 'Observaciones']],
         [/Fecha del comprobante/, '17/11/2026'],
         [/Observaciones \(Enter/, BACK],
         [/Fecha del comprobante/, BACK],
         [/Agregamos/, []],
-        [/Fecha de pago/, ''],
         NO_EMIT,
       ],
       runExportFlow,
@@ -654,8 +654,8 @@ describe('auditoría del asistente del 19/11: una sola salida (NAV-4)', () => {
         ...singleExportItem('1.500'),
         [/Forma de pago/, ''],
         [/actividad/, '620100'],
-        [/Agregamos/, []],
         [/Fecha de pago/, '25'],
+        [/Agregamos/, []],
         NO_EMIT,
       ],
       runExportFlow,
@@ -671,8 +671,8 @@ describe('auditoría del asistente del 19/11: una sola salida (NAV-4)', () => {
         [/Qué comprobante querés repetir/, 'Factura de exportación E'],
         [/Cuál repetimos/, '00003-00000007'],
         ...KEEP_EXPORT_ITEMS,
-        [/Agregamos/, []],
         [/Fecha de pago/, '25'],
+        [/Agregamos/, []],
         NO_EMIT,
       ],
       runRepeatFlow,
@@ -870,8 +870,8 @@ describe('auditoría del asistente del 19/11: pasos compartidos (NAV-6)', () => 
       [/^Importe total/, 'Confirmar'],
       [/Forma de pago/, ''],
       [/actividad/, '620100'],
-      [/Agregamos/, []],
       [/Fecha de pago/, ''],
+      [/Agregamos/, []],
       NO_EMIT,
     ];
 
@@ -1008,8 +1008,8 @@ describe('auditoría del asistente del 19/11: pasos compartidos (NAV-6)', () => 
     const rest: Steps = [
       [/Forma de pago/, ''],
       [/actividad/, '620100'],
-      [/Agregamos/, []],
       [/Fecha de pago/, ''],
+      [/Agregamos/, []],
       NO_EMIT,
     ];
 

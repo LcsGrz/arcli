@@ -219,7 +219,7 @@ describe('TUI-15: Esc en la vista previa vuelve a la última pregunta', () => {
     expectSamePreviewTwice();
   });
 
-  it('factura E: vuelve a la última pregunta con lo escrito', async () => {
+  it('factura E: vuelve a los opcionales, con lo marcado y lo respondido', async () => {
     const { exportPayload } = await run(
       [
         [/comprobante/, 'Factura de exportación E'],
@@ -238,18 +238,22 @@ describe('TUI-15: Esc en la vista previa vuelve a la última pregunta', () => {
         [/Importe total/, 'Confirmar'],
         [/Forma de pago/, ''],
         [/actividad/, '620100'],
+        [/Fecha de pago/, '30/11/2026'],
         [/Agregamos/, ['Observaciones']],
         [/Observaciones \(Enter/, 'Primera cuota'],
         [/Observaciones comerciales/, ''],
-        [/Fecha de pago/, '30/11/2026'],
         ESC_AT_PREVIEW,
-        [/Fecha de pago/, '30/11/2026'],
+        // Los opcionales son la última pregunta desde TUI-22: arrancan con lo marcado y lo escrito.
+        [/Agregamos/, ['Observaciones']],
+        [/Observaciones \(Enter/, 'Primera cuota'],
+        [/Observaciones comerciales/, ''],
         NO_EMIT,
       ],
       runInvoiceFlow,
     );
 
-    expect(typedAt(/Fecha de pago/)[1]).toBe('30/11/2026');
+    expect(optionalsSelections()[1]).toEqual(['observaciones']);
+    expect(typedAt(/Observaciones \(Enter/)[1]).toBe('Primera cuota');
     expect(exportPayload?.Fecha_pago).toBe('20261130');
     expectSamePreviewTwice();
   });
@@ -284,17 +288,20 @@ describe('TUI-15: Esc en la vista previa vuelve a la última pregunta', () => {
     expectSamePreviewTwice();
   });
 
-  it('Repetir E: vuelve a la última pregunta con lo escrito', async () => {
+  it('Repetir E: vuelve a los opcionales y la fecha de pago sigue escrita', async () => {
     await run(
       [
         [/Qué comprobante querés repetir/, 'Factura de exportación E'],
         [/Cuál repetimos/, '00003-00000007'],
         [/^Ítems de .*: marcá qué modificar/, editing({})],
         [/Importe total/, 'Confirmar'],
+        [/Fecha de pago/, '30/11/2026'],
         [/Agregamos/, []],
-        [/Fecha de pago/, '30/11/2026'],
         ESC_AT_PREVIEW,
+        // Volver desde los opcionales lleva a la fecha de pago, que arranca escrita.
+        [/Agregamos/, BACK],
         [/Fecha de pago/, '30/11/2026'],
+        [/Agregamos/, []],
         NO_EMIT,
       ],
       runRepeatFlow,

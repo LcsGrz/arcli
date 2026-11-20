@@ -12,8 +12,11 @@ export interface DateStepDef<S> {
   readonly name: string;
   readonly message: string | ((state: S) => string);
   readonly date: Lens<S, string>;
-  /** El formato y las reglas de la fecha, con lo que el flujo sabe (lo respondido hasta ahi). */
-  readonly validate: (state: S) => (value: string) => string | true;
+  /**
+   * El formato y las reglas de la fecha, con lo que el flujo sabe (lo respondido hasta ahi). `retry`: se volvio a la
+   * pregunta por un error de `finalize`, con todas las respuestas a la vista.
+   */
+  readonly validate: (state: S, retry: boolean) => (value: string) => string | true;
   /** Enter la deja sin fecha (como sin el flag), en lugar de ser un error del validador. */
   readonly optional?: boolean;
   /** Lo que escribe ademas de la fecha. */
@@ -32,10 +35,10 @@ export function dateStep<S>(def: DateStepDef<S>): WizardStep<S> {
   return {
     dependsOn: def.dependsOn,
     name: def.name,
-    run: async (state, { previous }) => {
+    run: async (state, { error, previous }) => {
       const answer = await askTextStep(typeof def.message === 'string' ? def.message : def.message(state), {
         previousAnswer: previous ? def.date.get(previous as S) : undefined,
-        validate: def.validate(state),
+        validate: def.validate(state, error !== undefined),
       });
 
       if (answer === BACK) {
