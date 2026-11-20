@@ -1,7 +1,8 @@
 import { DEFAULT_CURRENCY_CODE } from '../../modules/billing/billing.constants';
 import { requiresConsumerIdentification } from '../../modules/billing/billing.iva-receptor';
+import { BILLING_RULES } from '../../modules/billing/billing.rules';
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
-import type { AdvancedOptions } from '../../modules/interactive/billing-optionals';
+import type { AdvancedOptions, BillingRuleScope } from '../../modules/interactive/billing-optionals';
 import { availableChoice } from '../../modules/interactive/choices';
 import {
   amountInPesos,
@@ -12,6 +13,7 @@ import {
   isConsumerIdentified,
   reachesConsumerThreshold,
 } from '../../modules/interactive/consumer-identification';
+import { scopedRuleValidator } from '../../modules/interactive/rule-validator';
 import {
   BACK,
   type Back,
@@ -37,8 +39,9 @@ export async function askConsumerDocumentType(previous?: ConsumerDocumentType): 
 export async function askConsumerDocumentNumber(
   documentType: ConsumerDocumentType,
   previous?: number,
+  withRules?: (validate: (value: string) => string | true) => (value: string) => string | true,
 ): Promise<Back | number> {
-  const answer = await askDocumentNumber(documentType, previous, 'del consumidor final');
+  const answer = await askDocumentNumber(documentType, previous, 'del consumidor final', withRules);
 
   return answer === BACK ? BACK : normalizeDocumentNumber(answer);
 }
@@ -65,6 +68,8 @@ interface RequiredConsumerOptions<S> {
    * sabe.
    */
   readonly officialExchangeRate?: OfficialExchangeRate;
+  /** Las reglas del flujo, para el numero: no puede ser el CUIT emisor (10069). */
+  readonly rules?: (state: S) => BillingRuleScope;
 }
 
 /**
@@ -141,6 +146,14 @@ export function requiredConsumerSteps<S extends ConsumerStepState>(
         const documentNumber = await askConsumerDocumentNumber(
           documentType,
           previous?.advanced?.consumerDocumentNumber,
+          (validate) =>
+            scopedRuleValidator(
+              BILLING_RULES,
+              'documentNumber',
+              options.rules?.(state),
+              (value) => ({ documentNumber: normalizeDocumentNumber(value), documentType }),
+              validate,
+            ),
         );
 
         return documentNumber === BACK

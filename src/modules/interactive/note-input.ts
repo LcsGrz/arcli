@@ -6,7 +6,7 @@ import type { VoucherKindDefinition } from '../billing/billing.types';
 import type { ArcliConfig } from '../config/config.schemas';
 import type { IssuedVoucher } from '../vouchers/voucher-history';
 
-import { type AdvancedOptions, initialAdvancedOptions } from './billing-optionals';
+import { type AdvancedOptions, type BillingRuleScope, initialAdvancedOptions } from './billing-optionals';
 import { noteKindChoices } from './choices';
 import { resolveReceiverIdentity } from './consumer-identification';
 import { copyInvoiceAmounts } from './invoice-copy';
@@ -124,6 +124,11 @@ export function noteCurrency(
  * la solicitud a ARCA.
  */
 export function buildNoteInput(state: NoteState, env: NoteInputEnv): BillingCommandInput {
+  return billingCommandSchema.parse(noteInputFields(state, env));
+}
+
+/** Los campos de la entrada de la nota, sin validar: lo que leen las reglas mientras se pregunta. */
+export function noteInputFields(state: NoteState, env: NoteInputEnv): Partial<BillingCommandInput> {
   const invoiceKind = requireStepValue(state.invoiceKind, 'invoiceKind');
   const noteKind = noteKindChoices(state.kind ?? 'credito', invoiceKind);
   const invoice = state.invoice;
@@ -134,7 +139,7 @@ export function buildNoteInput(state: NoteState, env: NoteInputEnv): BillingComm
   const receiver = resolveReceiverIdentity(state, advanced);
   const cuit = String(env.issuerCuit);
 
-  return billingCommandSchema.parse({
+  return {
     ...noteCurrency(state, advanced),
     associatedPeriod: period ? { desde: state.periodFrom, hasta: state.periodTo } : undefined,
     associatedVoucher: state.otherSystemInvoice
@@ -169,5 +174,19 @@ export function buildNoteInput(state: NoteState, env: NoteInputEnv): BillingComm
     serviceStartDate: advanced.serviceStartDate,
     totalAmount: state.totalAmount,
     untaxedAmount: state.annulsTotal ? copy?.untaxedAmount : advanced.untaxedAmount,
-  });
+  };
+}
+
+/** Las reglas desde una pregunta de la nota (`ruleValidator`): la nota que se arma con lo respondido hasta ahi. */
+export function noteRuleScope(state: NoteState, env: NoteInputEnv & { readonly today: string }): BillingRuleScope {
+  const invoiceKind = requireStepValue(state.invoiceKind, 'invoiceKind');
+
+  return {
+    context: {
+      emitterCuit: env.issuerCuit,
+      today: env.today,
+      voucherKind: noteKindChoices(state.kind ?? 'credito', invoiceKind),
+    },
+    draft: (patch) => ({ ...noteInputFields(state, env), ...patch }),
+  };
 }

@@ -1,8 +1,4 @@
-import {
-  formatArcaDateAsArgentineDate,
-  formatDateAsArcaDate,
-  parseArgentineDateInputAsArcaDate,
-} from '../../lib/dates/arca-date';
+import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { parseArgentineAmount } from '../../lib/numbers/argentine-amount';
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
@@ -11,14 +7,15 @@ import {
   type ExportTextField,
   exportTextFieldError,
   resolveExportClientCountryCuit,
-  resolveExportCurrency,
 } from '../../modules/export/export.mappers';
+import { EXPORT_RULES, type ExportRuleContext } from '../../modules/export/export.rules';
 import {
   DEFAULT_EXPORT_LANGUAGE,
   DEFAULT_EXPORT_UNIT_CODE,
   EXPORT_TOTAL_ONLY_UNIT_CODES,
   type ExportCountryCuit,
   type ExportItemInput,
+  type ExportVoucherInput,
 } from '../../modules/export/export.types';
 import { amountInputText, parseExchangeRateInput } from '../../modules/interactive/amount-input';
 import type { InteractiveChoice } from '../../modules/interactive/choices';
@@ -30,6 +27,7 @@ import {
   type ExportOptionalsContext,
   type ExportOptions,
 } from '../../modules/interactive/export-optionals';
+import { ruleValidator, scopedRuleValidator } from '../../modules/interactive/rule-validator';
 import { BACK, type Back, requireStepValue, type WizardStep } from '../../modules/interactive/wizard';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 import { withSpinner } from '../spinner';
@@ -53,27 +51,24 @@ export function validateExportText(field: ExportTextField, required?: string): (
 }
 
 /**
- * Fecha de pago opcional: igual o posterior a la del comprobante (1674, WSFEX v3.1.0), como `--fecha-pago`. Se
- * pregunta despues de los opcionales, asi ya se sabe la del comprobante (`voucherDate`, dd/mm/aaaa); sin ella, hoy.
+ * Fecha de pago opcional: igual o posterior a la del comprobante (1674, WSFEX v3.1.0), la misma regla que
+ * `--fecha-pago` (`EXPORT_RULES`). Se pregunta despues de los opcionales, asi ya se sabe la del comprobante
+ * (`voucherDate`, dd/mm/aaaa); sin ella, hoy.
  */
 export function validateExportPaymentDate(
   voucherDate: string | undefined,
   now = new Date(),
 ): (value: string) => string | true {
-  const voucher = voucherDate ? parseArgentineDateInputAsArcaDate(voucherDate, now) : formatDateAsArcaDate(now);
-  const label = voucherDate ? formatArcaDateAsArgentineDate(voucher) : 'hoy';
-
-  return (value) => {
-    const valid = validateOptionalDate(value);
-
-    if (valid !== true || !value.trim()) {
-      return valid;
-    }
-
-    return parseArgentineDateInputAsArcaDate(value, now) < voucher
-      ? `La fecha de pago no puede ser anterior a la del comprobante (${label}): ARCA la rechaza (error 1674).`
-      : true;
-  };
+  return ruleValidator<string | undefined, ExportVoucherInput, ExportRuleContext>({
+    context: () => ({ today: formatDateAsArcaDate(now) }),
+    draft: (typed, value) => ({
+      paymentDate: value.trim() ? completeDateInput(value, now) : undefined,
+      voucherDate: typed,
+    }),
+    field: 'paymentDate',
+    rules: EXPORT_RULES,
+    validate: validateOptionalDate,
+  })(voucherDate);
 }
 
 function errorMessage(error: unknown): string {
@@ -260,6 +255,7 @@ async function askLoadedItems(
 function itemsStep(context: ExportOptionalsContext): WizardStep<ExportOptions> {
   return {
     name: 'items',
+    writes: ['items'],
     run: async (_current, previous, memo) => {
       const units = await withSpinner('Consultando las unidades de WSFEX...', context.units);
       const finished = previous?.items ?? [];
@@ -355,27 +351,15 @@ function itemsStep(context: ExportOptionalsContext): WizardStep<ExportOptions> {
   };
 }
 
-/** Mismas reglas que `--cm`: un numero valido y, en moneda extranjera, mayor a 0. */
+/** Mismas reglas que `--cm` (`EXPORT_RULES`): un numero valido y, en moneda extranjera, mayor a 0. */
 function validateExportExchangeRate(context: ExportOptionalsContext): (value: string) => string | true {
-  return (value) => {
-    const valid = validateExchangeRate(value);
-
-    if (valid !== true) {
-      return valid;
-    }
-
-    try {
-      resolveExportCurrency({
-        currencyCode: context.currencyCode,
-        exchangeRate: parseExchangeRateInput(value),
-        sameCurrency: context.sameCurrency,
-      });
-
-      return true;
-    } catch (error) {
-      return errorMessage(error);
-    }
-  };
+  return ruleValidator<ExportOptionalsContext, ExportVoucherInput, ExportRuleContext>({
+    context: (current) => current.rules?.context ?? {},
+    draft: (current, value) => ({ currencyCode: current.currencyCode, exchangeRate: parseExchangeRateInput(value) }),
+    field: 'exchangeRate',
+    rules: EXPORT_RULES,
+    validate: validateExchangeRate,
+  })(context);
 }
 
 /**
@@ -387,6 +371,7 @@ function exportQuestions(languageNames: Map<number, string>): ExportOptionalQues
     cotizacion: (context) => [
       {
         name: 'cotizacion',
+        writes: ['exchangeRate'],
         run: async (_current, previous) => {
           const code = context.currencyCode === 'DOL' ? 'USD' : context.currencyCode;
           const answer = await askTextStep(`Cotización de ${code}:`, {
@@ -418,16 +403,18 @@ function exportQuestions(languageNames: Map<number, string>): ExportOptionalQues
         // Con las reglas de `--fecha`. Se guarda completa (dd/mm/aaaa): el comando equivalente pegado otro dia sigue
         // emitiendo con la misma fecha. La cotizacion la busca ExportService para esa fecha.
         name: 'fecha',
-        run: async (_current, previous) => {
+        writes: ['voucherDate'],
+        run: async (current, previous) => {
           const answer = await askTextStep('Fecha del comprobante:', {
             previousAnswer: previous?.voucherDate,
-            validate: (value) => {
-              const valid = validateExportVoucherDate(value, context.exportType);
-
-              return valid === true && context.voucherDateRule
-                ? context.voucherDateRule(parseArgentineDateInputAsArcaDate(value))
-                : valid;
-            },
+            // La ventana de ARCA y, en las notas, no antes del asociado (`EXPORT_RULES`).
+            validate: scopedRuleValidator(
+              EXPORT_RULES,
+              'voucherDate',
+              context.rules,
+              (value) => ({ ...current, voucherDate: completeDateInput(value) }),
+              (value) => validateExportVoucherDate(value, context.exportType),
+            ),
           });
 
           return answer === BACK ? BACK : { voucherDate: completeDateInput(answer) };

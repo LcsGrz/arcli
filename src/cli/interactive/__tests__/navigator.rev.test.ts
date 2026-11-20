@@ -1,6 +1,8 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { exchangeRateWarnings } from '../../../modules/billing/billing.currency';
+import { billingCommandSchema } from '../../../modules/billing/billing.schemas';
+import { BillingService } from '../../../modules/billing/billing.service';
 import { BACK } from '../../../modules/interactive/wizard';
 import { runExportFlow } from '../export.flow';
 import { runInvoiceFlow } from '../invoice.flow';
@@ -13,7 +15,7 @@ import { createBillingSession, createExportGateway, NOW } from './screens.fixtur
 import type { ScriptedAnswer } from './script';
 
 /**
- * Reproducciones de la auditoria del asistente del 19/11 (REV-67 a REV-74, docs/backlog/auditoria-asistente-19-11.md):
+ * Reproducciones de la auditoria del asistente del 19/11 (REV-67 a REV-76, docs/backlog/auditoria-asistente-19-11.md):
  * un test por ticket, con el caso concreto de la auditoria. Afirman lo que tendria que pasar; los que todavia fallan van
  * con `it.fails`. Cuando NAV arregla uno, su test pasa y `it.fails` falla: hay que pasarlo a `it`.
  */
@@ -110,9 +112,14 @@ async function run(
   return result;
 }
 
+/** La ultima vez que se pregunto `question`: el texto y las opciones (validador, lo que arranca escrito). */
+function lastQuestion(question: RegExp) {
+  return screens.script.askTextStep.mock.calls.findLast(([message]) => question.test(message));
+}
+
 /** El validador con que se pregunto `question` la ultima vez. */
 function lastValidator(question: RegExp): (value: string) => string | true {
-  const call = screens.script.askTextStep.mock.calls.findLast(([message]) => question.test(message));
+  const call = lastQuestion(question);
   const validate = call?.[1]?.validate;
 
   if (!validate) {
@@ -207,55 +214,50 @@ describe('auditoría del asistente del 19/11', () => {
     expect(choices?.find((choice) => choice.value === 'exento')?.description).toBe('exento 300');
   });
 
-  // Tests primero (REV-69): pasa a it() al implementarlo.
-  it.fails(
-    'REV-69: "Servicio hasta" y "Vencimiento del pago" se cruzan con las otras fechas al preguntarlas',
-    async () => {
-      await run(
-        [
-          [/comprobante/, 'Factura C'],
-          [/A quién/, 'Consumidor final'],
-          [/Qué estás facturando/, 'Servicios'],
-          [/Monto total/, '1.000'],
-          [/Agregamos/, ['Período del servicio']],
-          [/Servicio desde/, '30/11/2026'],
-          [/Servicio hasta/, '30/11/2026'],
-          NO_EMIT,
-        ],
-        runInvoiceFlow,
-      );
+  // NAV-5: las reglas de las fechas (`BILLING_RULES`) corren al preguntar, con `ruleValidator`.
+  it('REV-69: "Servicio hasta" y "Vencimiento del pago" se cruzan con las otras fechas al preguntarlas', async () => {
+    await run(
+      [
+        [/comprobante/, 'Factura C'],
+        [/A quién/, 'Consumidor final'],
+        [/Qué estás facturando/, 'Servicios'],
+        [/Monto total/, '1.000'],
+        [/Agregamos/, ['Período del servicio']],
+        [/Servicio desde/, '30/11/2026'],
+        [/Servicio hasta/, '30/11/2026'],
+        NO_EMIT,
+      ],
+      runInvoiceFlow,
+    );
 
-      // Antes del desde: la vista previa lo rechaza (10032).
-      expect.soft(lastValidator(/Servicio hasta/)('01/11/2026')).toEqual(expect.stringMatching(/posterior|anterior/));
+    // Antes del desde: la vista previa lo rechaza (10032).
+    expect.soft(lastValidator(/Servicio hasta/)('01/11/2026')).toEqual(expect.stringMatching(/posterior|anterior/));
 
-      await run(
-        [
-          [/comprobante/, 'Factura de crédito electrónica B'],
-          [/A quién/, 'Con CUIT'],
-          [/CUIT del receptor/, '30-70996581-2'],
-          [/Condición frente al IVA/, 'Sujeto exento'],
-          [/Qué estás facturando/, 'Servicios'],
-          [/Monto total/, '1.000'],
-          [/CBU del emisor/, '0170099220000067797370'],
-          [/Alias del CBU/, ''],
-          [/Agregamos/, ['Fecha del comprobante', 'Vencimiento del pago']],
-          [/Fecha del comprobante/, '15/11/2026'],
-          [/Vencimiento del pago/, '18/12/2026'],
-          NO_EMIT,
-          [/Guardamos el CBU/, 'No'],
-        ],
-        runInvoiceFlow,
-      );
+    await run(
+      [
+        [/comprobante/, 'Factura de crédito electrónica B'],
+        [/A quién/, 'Con CUIT'],
+        [/CUIT del receptor/, '30-70996581-2'],
+        [/Condición frente al IVA/, 'Sujeto exento'],
+        [/Qué estás facturando/, 'Servicios'],
+        [/Monto total/, '1.000'],
+        [/CBU del emisor/, '0170099220000067797370'],
+        [/Alias del CBU/, ''],
+        [/Agregamos/, ['Fecha del comprobante', 'Vencimiento del pago']],
+        [/Fecha del comprobante/, '15/11/2026'],
+        [/Vencimiento del pago/, '18/12/2026'],
+        NO_EMIT,
+        [/Guardamos el CBU/, 'No'],
+      ],
+      runInvoiceFlow,
+    );
 
-      // En una FCE no puede ser anterior a hoy (18/11): la vista previa lo rechaza (10164).
-      expect(lastValidator(/Vencimiento del pago/)('16/11/2026')).toEqual(
-        expect.stringMatching(/no puede ser anterior/),
-      );
-    },
-  );
+    // En una FCE no puede ser anterior a hoy (18/11): la vista previa lo rechaza (10164).
+    expect(lastValidator(/Vencimiento del pago/)('16/11/2026')).toEqual(expect.stringMatching(/no puede ser anterior/));
+  });
 
-  // Tests primero (REV-70): pasa a it() al implementarlo.
-  it.fails('REV-70: exento más no gravado se controla contra el total al preguntarlo', async () => {
+  // NAV-5: la regla de exento y no gravado corre al preguntar cada uno.
+  it('REV-70: exento más no gravado se controla contra el total al preguntarlo', async () => {
     await run(
       [
         [/comprobante/, 'Factura B'],
@@ -274,30 +276,181 @@ describe('auditoría del asistente del 19/11', () => {
     expect(lastValidator(/Parte no gravada/)('500')).toEqual(expect.stringMatching(/no puede superar el monto total/));
   });
 
-  // Tests primero (REV-71): pasa a it() al implementarlo.
-  it.fails(
-    'REV-71: en una nota por período, "Período hasta" no acepta un día posterior a la fecha de la nota',
-    async () => {
-      await run(
-        [
-          [/Sobre qué comprobante/, 'Facturas'],
-          [/Qué factura\?/, 'Factura C'],
-          [/A qué la asociamos/, 'A un período'],
-          [/Período desde/, '01/11/2026'],
-          [/Período hasta/, '15/11/2026'],
-          [/A quién va la nota/, 'Consumidor final'],
-          [/Qué concepto ajusta la nota/, 'Servicios'],
-          [/Monto de la nota de crédito/, '100'],
-          [/Agregamos/, []],
-          NO_EMIT,
-        ],
-        (session) => runNoteFlow(session, 'credito'),
-      );
+  // NAV-5: las reglas del período corren al preguntar.
+  it('REV-71: en una nota por período, "Período hasta" no acepta un día posterior a la fecha de la nota', async () => {
+    await run(
+      [
+        [/Sobre qué comprobante/, 'Facturas'],
+        [/Qué factura\?/, 'Factura C'],
+        [/A qué la asociamos/, 'A un período'],
+        [/Período desde/, '01/11/2026'],
+        [/Período hasta/, '15/11/2026'],
+        [/A quién va la nota/, 'Consumidor final'],
+        [/Qué concepto ajusta la nota/, 'Servicios'],
+        [/Monto de la nota de crédito/, '100'],
+        [/Agregamos/, []],
+        NO_EMIT,
+      ],
+      (session) => runNoteFlow(session, 'credito'),
+    );
 
-      // "Todo el mes" (hoy es 18/11): la vista previa lo rechaza con "no puede terminar después de la fecha".
-      expect(lastValidator(/Período hasta/)('30/11/2026')).toEqual(expect.stringMatching(/no puede terminar después/));
-    },
-  );
+    // "Todo el mes" (hoy es 18/11): la vista previa lo rechaza con "no puede terminar después de la fecha".
+    expect(lastValidator(/Período hasta/)('30/11/2026')).toEqual(expect.stringMatching(/no puede terminar después/));
+  });
+
+  // Decision del 19/11: con otro monto, exento y no gravado no se copian en absolutos; se preguntan con el opcional
+  // marcado. Con el mismo monto, se copian como antes.
+  it('REV-70: en "Repetir" con otro monto, el exento y el no gravado se vuelven a preguntar con el opcional marcado', async () => {
+    const withExempt = (session: InteractiveSession) => {
+      const history = session.historyGateway;
+
+      Object.assign(session, {
+        historyGateway: {
+          ...history,
+          getVoucher: async (...args: Parameters<typeof history.getVoucher>) => {
+            const found = await history.getVoucher(...args);
+
+            return found?.number === 21 ? { ...found, exemptAmount: 300, total: 421 } : found;
+          },
+        },
+      });
+    };
+    const repeatB = (amount: readonly [RegExp, ScriptedAnswer][]): Steps => [
+      [/Qué comprobante querés repetir/, 'Factura B'],
+      [/Cuál repetimos/, '00003-00000021'],
+      ...amount,
+      [/Período del servicio/, 'Un solo día'],
+    ];
+    const optionalsCall = () => screens.script.chooseManyStep.mock.calls.at(-1);
+
+    const other = await run(
+      [
+        ...repeatB([
+          [/Mismo monto/, 'No, ingresar otro monto'],
+          [/Monto total/, '200'],
+        ]),
+        [/Agregamos/, ['Importe exento o no gravado']],
+        [/Parte exenta/, '50'],
+        [/Parte no gravada/, ''],
+        NO_EMIT,
+      ],
+      runRepeatFlow,
+      {},
+      withExempt,
+    );
+
+    expect(optionalsCall()?.[2]).toEqual(['exento']);
+    expect(optionalsCall()?.[1]?.find((choice) => choice.value === 'exento')?.description).toBe(
+      'sin exento ni no gravado',
+    );
+    expect(lastQuestion(/Parte exenta/)?.[1]?.previousAnswer).toBeUndefined();
+    expect(other.billingPayload).toMatchObject({ ImpOpEx: 50, ImpTotal: 200 });
+
+    const same = await run(
+      [...repeatB([[/Mismo monto/, 'Sí']]), [/Agregamos/, []], NO_EMIT],
+      runRepeatFlow,
+      {},
+      withExempt,
+    );
+
+    expect(optionalsCall()?.[2]).toEqual([]);
+    expect(same.billingPayload).toMatchObject({ ImpOpEx: 300, ImpTotal: 421 });
+  });
+
+  // El asistente al azar no ingresa comprobantes a mano: este camino lo cubre el guion (ver "reglas (NAV-5)" en
+  // `navigator.property.test.ts`).
+  it('REV-71: la fecha de un asociado de otro sistema no puede ser posterior a la de la nota', async () => {
+    await run(
+      [
+        [/Sobre qué comprobante/, 'Facturas'],
+        [/Qué factura\?/, 'Factura C'],
+        [/A qué la asociamos/, 'A una factura'],
+        [/Sobre qué factura C/, 'Ingresar el número a mano'],
+        [/Punto de venta/, '50'],
+        [/^Número/, '99'],
+        [/^Fecha de la factura C 00050-00000099/, '10/11/2026'],
+        [/A quién va la nota/, 'Consumidor final'],
+        [/concepto ajusta/, 'Servicios'],
+        [/Monto de la nota de crédito/, '100'],
+        [/Agregamos/, []],
+        NO_EMIT,
+      ],
+      (session) => runNoteFlow(session, 'credito'),
+      {},
+      // El unico punto de venta de web service es el 3: el 50 es de otro sistema.
+      (session) =>
+        Object.assign(session, {
+          arca: {
+            electronicBillingService: {
+              getSalesPoints: async () => ({
+                resultGet: { ptoVenta: [{ bloqueado: 'N', emisionTipo: 'CAE', nro: 3 }] },
+              }),
+            },
+          },
+        }),
+    );
+
+    expect(lastValidator(/^Fecha de la factura C 00050-00000099/)('19/11/2026')).toBe(
+      'La fecha del comprobante asociado (19/11/2026) no puede ser posterior a la de la nota de crédito C (18/11/2026).',
+    );
+  });
+
+  it('REV-71: "A un período" ya no sugiere el mes entero', async () => {
+    await run(
+      [
+        [/Sobre qué comprobante/, 'Facturas'],
+        [/Qué factura\?/, 'Factura C'],
+        [/A qué la asociamos/, BACK],
+        [/Sobre qué comprobante/, BACK],
+      ],
+      (session) => runNoteFlow(session, 'credito'),
+    );
+
+    const choices = screens.script.chooseStep.mock.calls.find(([message]) =>
+      /A qué la asociamos/.test(message),
+    )?.[1] as ReadonlyArray<{ readonly description?: string; readonly name?: string }> | undefined;
+    const period = choices?.find((choice) => choice.name === 'A un período');
+
+    expect(period?.description).not.toMatch(/todo el mes/);
+    expect(period?.description).toMatch(/hasta la fecha de la nota/);
+  });
+
+  // REV-76: la misma regla nombra la pregunta en el asistente y el flag en el CLI.
+  it('REV-76: en el asistente la regla del período nombra las preguntas; en el CLI, los flags', async () => {
+    await run(
+      [
+        [/Sobre qué comprobante/, 'Facturas'],
+        [/Qué factura\?/, 'Factura C'],
+        [/A qué la asociamos/, 'A un período'],
+        [/Período desde/, '10/11/2026'],
+        [/Período hasta/, '15/11/2026'],
+        [/A quién va la nota/, 'Consumidor final'],
+        [/Qué concepto ajusta la nota/, 'Servicios'],
+        [/Monto de la nota de crédito/, '100'],
+        [/Agregamos/, []],
+        NO_EMIT,
+      ],
+      (session) => runNoteFlow(session, 'credito'),
+    );
+
+    expect(lastValidator(/Período hasta/)('01/11/2026')).toBe(
+      'En el período asociado, "Período desde" no puede ser posterior a "Período hasta".',
+    );
+
+    const service = new BillingService();
+    const input = billingCommandSchema.parse({
+      associatedPeriod: { desde: '10/11/2026', hasta: '01/11/2026' },
+      concept: 'servicios',
+      documentType: 'consumidor-final',
+      ivaCondition: 'consumidor-final',
+      shortcut: 'ncc',
+      totalAmount: 100,
+    });
+
+    expect(() => service.buildVoucherPayload(input, createBillingSession().runtime)).toThrow(
+      'En el período asociado, `--periodo-desde` no puede ser posterior a `--periodo-hasta`.',
+    );
+  });
 
   // NAV-4: el comando equivalente sale de la entrada, antes de la vista previa.
   it('REV-72: con moneda extranjera en la config, el comando equivalente no fija la cotización oficial con --cm', async () => {
@@ -566,11 +719,9 @@ describe('auditoría del asistente del 19/11: una sola salida (NAV-4)', () => {
 });
 
 describe('encontrado por los tests al azar (NAV-0)', () => {
-  // BUG: "CUIT del receptor" acepta el CUIT del emisor y recien la vista previa lo rechaza ("El receptor no puede ser
-  // el mismo CUIT que emite (20111111112): ARCA lo rechaza (error 10069)."), que vuelve al menu y pierde todo. Viola la
-  // invariante 1 de `navigator.property.test.ts`: con '20-11111111-2' en la fila "CUIT del receptor" de su tabla falla
-  // con { seed: 20261119, path: "8" } en factura, "22" en recibo y "13" en notas. Sin ticket todavia.
-  it.skip('"CUIT del receptor" no acepta el CUIT del emisor', async () => {
+  // REV-75 (NAV-5): "CUIT del receptor" aceptaba el CUIT del emisor y recien la vista previa lo rechazaba (10069). Ahora
+  // la pregunta corre la misma regla (`RECEIVER_NOT_EMITTER_RULE`); la tabla de `navigator.property.test.ts` lo incluye.
+  it('REV-75: "CUIT del receptor" no acepta el CUIT del emisor', async () => {
     await run(
       [
         [/comprobante/, 'Factura A'],

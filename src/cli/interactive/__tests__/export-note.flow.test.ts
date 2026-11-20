@@ -285,6 +285,32 @@ describe('runExportNoteFlow', () => {
     expect(printed()).toContain('arcli nce -m 100 --ar 1 --apv 4 --fecha 31/10/2026 --testing --emitir');
   });
 
+  // NAV-5: las reglas ven la nota como `ExportService`, con el tipo del asociado. En bienes la ventana no corta en el
+  // fin de mes; sin el tipo del asociado, la regla tomaba servicios y rechazaba el 01/12.
+  it('en una nota de bienes, la fecha puede pasar al mes siguiente dentro de los 5 días (1500)', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-28T12:00:00-03:00'));
+    vi.mocked(gateway.getVoucher).mockResolvedValue({ ...INVOICE, exportType: 1, incoterm: 'FOB' });
+    script = createScript([
+      [/Punto de venta de la factura E/, '4'],
+      [/Número de la factura E/, '1'],
+      [/Monto de la nota de crédito/, '100'],
+      [/Detalle de la nota/, ''],
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, ['Fecha del comprobante']],
+      [/Fecha del comprobante/, rejecting('01/12/2026', ['04/12/2026', /error 1500/])],
+      [/Emitimos/, 'No, dejar sin emitir'],
+    ]);
+
+    try {
+      await runExportNoteFlow(createSession(), 'credito');
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(printed()).toContain('--fecha 01/12/2026');
+  });
+
   it('volver desde el primer paso vuelve al selector de comprobantes, sin preguntar sobre qué va la nota', async () => {
     script = createScript([[/Punto de venta de la factura E/, BACK]]);
 

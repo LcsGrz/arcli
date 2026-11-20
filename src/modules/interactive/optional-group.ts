@@ -236,7 +236,9 @@ export function composeOptionals<K extends string, O, C>(
  * respondido quedan en el memo del paso, asi sobreviven a volver y avanzar (REV-68); lo que ya no esta disponible se
  * desmarca. Lo obligatorio no se ofrece (lo pide `requiredOptional`) pero sigue marcado. El resultado es
  * `composeOptionals`: lo desmarcado vuelve a `initial` (REV-65, REV-67). Sin nada para ofrecer, no pregunta y aplica
- * `composeOptionals` igual (los `cleared`), sin entrar en la historia.
+ * `composeOptionals` igual (los `cleared`), sin entrar en la historia. Escribe (`writes`) los `owns` de lo marcado: si
+ * `finalize` vuelve por uno, el grupo retoma en la pregunta que lo escribe (la que lo declara en su `writes`), con lo
+ * marcado y sin pasar por la seleccion.
  */
 export function optionalGroup<S, K extends string, O, C>(def: OptionalGroupDef<S, K, O, C>): WizardStep<S> {
   const offeredIn = (context: C) =>
@@ -247,6 +249,15 @@ export function optionalGroup<S, K extends string, O, C>(def: OptionalGroupDef<S
       .map((option) => option.key);
 
   return {
+    // Para `finalize`: los campos de lo marcado (los de lo desmarcado quedan como en `initial`).
+    writes: (state, memo) => {
+      const marked = memo.get<OptionalGroupMemo<K, O>>()?.marked ?? [];
+      const context = def.context(state);
+
+      return def.options
+        .filter((option) => marked.includes(option.key) && option.available(context))
+        .flatMap((option) => option.owns);
+    },
     auto: (state, memo) => {
       const context = def.context(state);
 
@@ -270,7 +281,7 @@ export function optionalGroup<S, K extends string, O, C>(def: OptionalGroupDef<S
     },
     dependsOn: def.dependsOn,
     name: def.name,
-    run: async (state, _previous, memo) => {
+    run: async (state, _previous, memo, error, failedFields) => {
       const initial = def.read(state);
       const context = def.context(state);
 
@@ -295,7 +306,26 @@ export function optionalGroup<S, K extends string, O, C>(def: OptionalGroupDef<S
         context,
       );
 
+      // Volvio por un error de `finalize` en un campo de lo marcado: retoma en la pregunta que lo escribe, con lo marcado.
+      let resume = error && failedFields ? { fields: failedFields, message: error } : undefined;
+
       for (;;) {
+        if (resume) {
+          const chosen = keepAvailable(offered, marked, context);
+          const done = await runWizard(
+            offered.filter((option) => chosen.includes(option.key)).flatMap((option) => option.steps(context)),
+            initial,
+            answers,
+            { memos, resume },
+          );
+
+          resume = undefined;
+
+          if (done) {
+            return def.write(composeOptionals(initial, marked, def.options, context, answers));
+          }
+        }
+
         const shown = composeOptionals(initial, marked, def.options, context, answers);
         const selection = await def.pick(
           def.message,

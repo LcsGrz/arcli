@@ -73,17 +73,21 @@ describe('billingOptionals', () => {
     ]);
   });
 
-  it('solo la alícuota y el exento siguen al comprobante del que se copian', () => {
-    const keys = (copiedFrom?: string) =>
+  it('solo la alícuota y el exento siguen al comprobante del que se copian; el exento, también al monto (REV-70)', () => {
+    const keys = (extra: Partial<BillingOptionalsContext> = {}) =>
       Object.fromEntries(
         OPTIONALS.filter((option) => option.resetWhen).map((option) => [
           option.key,
-          option.resetWhen?.(context('fa', { copiedFrom })),
+          option.resetWhen?.(context('fa', extra)),
         ]),
       );
 
-    expect(keys('fa:3:14')).toEqual({ alicuota: 'fa:3:14', exento: 'fa:3:14' });
-    expect(keys()).toEqual({ alicuota: '', exento: '' });
+    expect(keys({ copiedFrom: 'fa:3:14' })).toEqual({ alicuota: 'fa:3:14', exento: 'fa:3:14|' });
+    expect(keys({ copiedFrom: 'fa:3:14', exemptFrom: 'preguntado' })).toEqual({
+      alicuota: 'fa:3:14',
+      exento: 'fa:3:14|preguntado',
+    });
+    expect(keys()).toEqual({ alicuota: '', exento: '|' });
   });
 
   // #8 de la auditoria del 19/11: sin fechas de servicio, el CLI usa la fecha del comprobante.

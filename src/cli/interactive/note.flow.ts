@@ -1,3 +1,4 @@
+import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import {
   creditNoteOverTotalHint,
   describeAssociated,
@@ -5,6 +6,8 @@ import {
 } from '../../modules/billing/billing.associated-lookup';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
 import { formatVoucherLabel, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
+import { BILLING_RULES, type BillingRuleContext } from '../../modules/billing/billing.rules';
+import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { EXPORT_VOUCHER_KINDS, type ExportVoucherKind } from '../../modules/export/export.types';
 import { amountInputText, parseAmountInput } from '../../modules/interactive/amount-input';
@@ -17,6 +20,7 @@ import {
 import {
   type AdvancedOptionKey,
   type AdvancedOptions,
+  type BillingRuleScope,
   initialAdvancedOptions,
 } from '../../modules/interactive/billing-optionals';
 import { conceptChoices, ivaRateChoices, noteKindChoices } from '../../modules/interactive/choices';
@@ -35,10 +39,13 @@ import {
   isPeriodNote,
   noteCurrency,
   type NoteInputEnv,
+  noteInputFields,
   type NoteKind,
+  noteRuleScope,
   type NoteState,
   requiredNoteCancellation,
 } from '../../modules/interactive/note-input';
+import { rulesFinalize, ruleValidator, scopedRuleValidator } from '../../modules/interactive/rule-validator';
 import { BACK, type Back, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import type { IssuedVoucher } from '../../modules/vouchers/voucher-history';
 import { formatVoucherNumber } from '../../modules/vouchers/voucher-history.presenter';
@@ -47,6 +54,7 @@ import { noticePanel, writeTerminalOutput } from '../../ui';
 import { billingOptionalsStep } from './advanced-options';
 import { requiredConsumerSteps } from './consumer-identification';
 import { runExportNoteFlow } from './export-note.flow';
+import { withFinalizeNotice } from './finalize-notice';
 import { pickNoteInvoice } from './invoice-picker';
 import { markIfNew } from './new-mark';
 import { exchangeRateSuggestionLoader, officialExchangeRateLoader } from './official-exchange-rate';
@@ -208,25 +216,33 @@ async function askAnnulScope(
 
 async function askNoteAmount(
   state: NoteState,
-  previous?: number,
+  previous: number | undefined,
+  rules: BillingRuleScope,
 ): Promise<Back | { readonly annulsTotal: boolean; readonly totalAmount: number | undefined }> {
   const invoice = state.invoice;
   const label = state.kind === 'debito' ? 'Monto de la nota de débito:' : 'Monto de la nota de crédito:';
   // En pesos sobre un comprobante en otra moneda los totales no se comparan: ni tope.
   const inInvoiceCurrency = state.currency !== 'pesos';
+  const validate = (value: string): string | true => {
+    const valid = validateAmount(value);
+
+    if (valid !== true || state.kind !== 'credito' || !invoice || !inInvoiceCurrency || isOverCreditNote(state)) {
+      return valid;
+    }
+
+    return (parseAmountInput(value) ?? 0) <= invoice.total
+      ? true
+      : creditNoteOverTotalHint(describeInvoice(state, invoice), invoice.total, invoice.currency);
+  };
   const answer = await askTextStep(label, {
     previousAnswer: amountInputText(previous),
-    validate: (value) => {
-      const valid = validateAmount(value);
-
-      if (valid !== true || state.kind !== 'credito' || !invoice || !inInvoiceCurrency || isOverCreditNote(state)) {
-        return valid;
-      }
-
-      return (parseAmountInput(value) ?? 0) <= invoice.total
-        ? true
-        : creditNoteOverTotalHint(describeInvoice(state, invoice), invoice.total, invoice.currency);
-    },
+    validate: scopedRuleValidator(
+      BILLING_RULES,
+      'totalAmount',
+      rules,
+      (value) => ({ totalAmount: parseAmountInput(value) }),
+      validate,
+    ),
   });
 
   return answer === BACK ? BACK : { annulsTotal: false, totalAmount: parseAmountInput(answer) };
@@ -238,6 +254,20 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
   const officialExchangeRate = officialExchangeRateLoader(session);
   const exchangeRateSuggestion = exchangeRateSuggestionLoader(config, officialExchangeRate);
   const advancedOf = (state: NoteState): AdvancedOptions => state.advanced ?? initialAdvancedOptions(config);
+  const rules = (state: NoteState) => noteRuleScope(state, noteRuleEnv(session, pointOfSale));
+  /** Una pregunta de la nota con las reglas que leen `field`: la nota con lo respondido y el candidato (`answer`). */
+  const noteRule = (
+    field: string,
+    validate: (value: string) => string | true,
+    answer: (value: string) => Partial<NoteState>,
+  ) =>
+    ruleValidator<NoteState, BillingCommandInput, BillingRuleContext>({
+      context: (state) => rules(state).context,
+      draft: (state, value) => noteInputFields({ ...state, ...answer(value) }, noteRuleEnv(session, pointOfSale)),
+      field,
+      rules: BILLING_RULES,
+      validate,
+    });
   // El receptor sale de la factura o se pregunta: si cambia, el documento escrito antes no se ofrece.
   const consumerOptions = {
     advanced: advancedOf,
@@ -267,7 +297,8 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
               value: 'factura' as const,
             },
             {
-              description: 'Por ejemplo, un descuento sobre todo el mes',
+              // No "todo el mes": el periodo no puede terminar despues de la fecha de la nota (10208, REV-71).
+              description: 'Por ejemplo, un descuento sobre lo facturado en un período, hasta la fecha de la nota',
               name: 'A un período',
               value: 'periodo' as const,
             },
@@ -355,22 +386,32 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
       run: async (state, previous) => {
         const invoiceKind = requireStepValue(state.invoiceKind, 'invoiceKind');
         const other = requireStepValue(state.otherSystemInvoice, 'otherSystemInvoice');
+        // No posterior a la fecha de la nota (sin fecha, hoy), como `--afecha`.
         const associatedDate = await askTextStep(
           `Fecha ${withPreposition(invoiceKind)} ${formatVoucherNumber(other.pointOfSale, other.number)}:`,
-          { previousAnswer: previous?.associatedDate, validate: validateDate },
+          {
+            previousAnswer: previous?.associatedDate,
+            validate: noteRule('associatedVoucher.fecha', validateDate, (value) => ({
+              associatedDate: completeDateInput(value),
+            }))(state),
+          },
         );
 
         return associatedDate === BACK ? BACK : { associatedDate: completeDateInput(associatedDate) };
       },
       // ARCA la pide para controlador fiscal y FactuWeb (10211) y en FCE no se puede tomar de ARCA: siempre.
       skip: (state) => !state.otherSystemInvoice,
+      writes: ['associatedVoucher.fecha'],
     },
     {
       name: 'periodo-desde',
-      run: async (_state, previous) => {
+      run: async (state, previous) => {
         const periodFrom = await askTextStep('Período desde:', {
           previousAnswer: previous?.periodFrom,
-          validate: validateDate,
+          validate: noteRule('associatedPeriod.desde', validateDate, (value) => ({
+            periodFrom: completeDateInput(value),
+            periodTo: undefined,
+          }))(state),
         });
 
         return periodFrom === BACK
@@ -378,23 +419,29 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
           : { invoice: undefined, invoicePointOfSale: undefined, periodFrom: completeDateInput(periodFrom) };
       },
       skip: (state) => !isPeriodNote(state),
+      writes: ['associatedPeriod.desde'],
     },
     {
+      // No antes del desde ni despues de la fecha de la nota (sin fecha, hoy): 10207 y 10208.
       name: 'periodo-hasta',
-      run: async (_state, previous) => {
+      run: async (state, previous) => {
         const periodTo = await askTextStep('Período hasta:', {
           previousAnswer: previous?.periodTo,
-          validate: validateDate,
+          validate: noteRule('associatedPeriod.hasta', validateDate, (value) => ({
+            periodTo: completeDateInput(value),
+          }))(state),
         });
 
         return periodTo === BACK ? BACK : { periodTo: completeDateInput(periodTo) };
       },
       skip: (state) => !isPeriodNote(state),
+      writes: ['associatedPeriod.hasta'],
     },
     ...receiverSteps<NoteState>({
       dependsOn: ['tipo-factura'],
       letter: (state) => state.invoiceKind?.letter ?? 'c',
       message: () => '¿A quién va la nota?',
+      rules,
       skip: (state) => !asksOwnNoteData(state),
     }),
     {
@@ -421,12 +468,13 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
       // El tope de la NC es el total de la factura, en su moneda.
       dependsOn: ['tipo-factura', 'factura', 'moneda'],
       name: 'monto',
-      run: (state, previous) => askNoteAmount(state, previous?.totalAmount),
+      run: (state, previous) => askNoteAmount(state, previous?.totalAmount, rules(state)),
       skip: (state) => state.annulsTotal === true,
+      writes: ['totalAmount'],
     },
     // Desde el tope, el documento del consumidor final, si el total en pesos ya se sabe. Como con flags, tambien en
     // una nota sobre una factura a consumidor final (por ejemplo, una de debito mas grande que la factura).
-    ...requiredConsumerSteps<NoteState>({ ...consumerOptions, name: 'cf' }),
+    ...requiredConsumerSteps<NoteState>({ ...consumerOptions, name: 'cf', rules }),
     {
       // Las opciones son las de la letra, y la marcada sale del padron con el CUIT (de la factura o escrito).
       dependsOn: ['tipo-factura', 'factura', 'receptor', 'documento'],
@@ -486,6 +534,7 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
         defaultIvaRate: defaultIvaRate(config, state.ivaRate),
         hidden: hiddenNoteOptions(state),
         exchangeRateSuggestion,
+        rules: rules(state),
         voucherKind: noteKindChoices(state.kind ?? 'credito', requireStepValue(state.invoiceKind, 'invoiceKind')),
       }),
       name: 'avanzadas',
@@ -493,13 +542,20 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
       write: (advanced) => ({ advanced }),
     }),
     // En una de periodo la moneda se elige en los opcionales: recien ahi se sabe si el total llega al tope.
-    ...requiredConsumerSteps<NoteState>({ ...consumerOptions, name: 'cf-final', officialExchangeRate }),
+    ...requiredConsumerSteps<NoteState>({ ...consumerOptions, name: 'cf-final', officialExchangeRate, rules }),
   ];
 
   // La nota E tiene su propio asistente: despues del selector, ningun paso de A, B y C aplica.
-  return steps.map((step, index) =>
-    index === 0 ? step : { ...step, skip: (state) => Boolean(state.exported) || Boolean(step.skip?.(state)) },
+  return withFinalizeNotice(
+    steps.map((step, index) =>
+      index === 0 ? step : { ...step, skip: (state) => Boolean(state.exported) || Boolean(step.skip?.(state)) },
+    ),
   );
+}
+
+/** Lo que las reglas de la nota toman de la sesion: el emisor, el punto de venta y hoy (cuando se pregunta). */
+function noteRuleEnv(session: InteractiveSession, pointOfSale: number): NoteInputEnv & { readonly today: string } {
+  return { ...noteInputEnv(session, pointOfSale), today: formatDateAsArcaDate(new Date()) };
 }
 
 /** El emisor y el punto de venta de la sesion, para la entrada de la nota. */
@@ -516,10 +572,22 @@ export async function runNoteFlow(baseSession: InteractiveSession, kind: NoteKin
 
   const { pointOfSale, session } = ready;
   // La moneda de los opcionales solo se usa en las de periodo; las de una factura van en la de la factura o en pesos.
-  const state = await runWizard(noteSteps(session, pointOfSale), {
-    advanced: initialAdvancedOptions(session.runtime.config),
-    kind,
-  });
+  const state = await runWizard(
+    noteSteps(session, pointOfSale),
+    { advanced: initialAdvancedOptions(session.runtime.config), kind },
+    undefined,
+    {
+      // Las reglas sobre la nota final: si una falla, vuelve a la pregunta que escribe el campo.
+      finalize: rulesFinalize<NoteState, BillingCommandInput, BillingRuleContext>({
+        context: (current) => noteRuleScope(current, noteRuleEnv(session, pointOfSale)).context,
+        draft: (current) =>
+          current.exported || !current.invoiceKind
+            ? undefined
+            : noteInputFields(current, noteRuleEnv(session, pointOfSale)),
+        rules: BILLING_RULES,
+      }),
+    },
+  );
 
   if (!state || state.exported) {
     return;

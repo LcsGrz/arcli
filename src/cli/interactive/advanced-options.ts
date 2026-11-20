@@ -1,6 +1,8 @@
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { DEFAULT_CURRENCY_CODE } from '../../modules/billing/billing.constants';
 import { isForeignCurrency } from '../../modules/billing/billing.currency';
+import { BILLING_RULES } from '../../modules/billing/billing.rules';
+import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import { toIsoCurrencyCode } from '../../modules/billing/currency-codes';
 import { amountInputText, parseAmountInput, parseExchangeRateInput } from '../../modules/interactive/amount-input';
 import {
@@ -8,18 +10,26 @@ import {
   type BillingOptionalQuestions,
   billingOptionals,
   type BillingOptionalsContext,
+  type BillingRuleScope,
   currencyName,
   type ExchangeRateSuggestion,
 } from '../../modules/interactive/billing-optionals';
 import { currencyChoices, ivaRateChoices } from '../../modules/interactive/choices';
 import { completeDateInput } from '../../modules/interactive/date-input';
+import { scopedRuleValidator } from '../../modules/interactive/rule-validator';
 import { BACK, type Back, type WizardStep } from '../../modules/interactive/wizard';
 
 import { askConsumerDocumentNumber, askConsumerDocumentType } from './consumer-identification';
 import { markIfNew } from './new-mark';
 import { optionalsStep } from './optionals-step';
 import { askTextStep, chooseStep } from './prompts';
-import { validateBillingDate, validateDate, validateExchangeRate, validateOptionalAmount } from './validators';
+import {
+  normalizeDocumentNumber,
+  validateBillingDate,
+  validateDate,
+  validateExchangeRate,
+  validateOptionalAmount,
+} from './validators';
 
 /** El codigo de la moneda en la lista de monedas: `PES` para pesos. */
 function currencyChoiceValue(options: { readonly currencyCode?: string }): string {
@@ -99,11 +109,55 @@ function describeSuggestion(suggested: ExchangeRateSuggestion): string {
     : `la oficial de ARCA es ${rate}`;
 }
 
-/** Una fecha del periodo del servicio ("Servicio desde:" o "Servicio hasta:"). Lo comparten los opcionales y "Repetir". */
-export async function askServiceDate(end: 'desde' | 'hasta', previous?: string): Promise<Back | string> {
-  const date = await askTextStep(`Servicio ${end}:`, { previousAnswer: previous, validate: validateDate });
+/**
+ * Una fecha del periodo del servicio ("Servicio desde:" o "Servicio hasta:"), con la regla del orden (10032) sobre
+ * `answered`, lo respondido hasta ahi. Lo comparten los opcionales y "Repetir".
+ */
+export async function askServiceDate(
+  end: 'desde' | 'hasta',
+  previous: string | undefined,
+  rules: BillingRuleScope | undefined,
+  answered: Partial<BillingCommandInput>,
+): Promise<Back | string> {
+  const field = end === 'desde' ? 'serviceStartDate' : 'serviceEndDate';
+  const date = await askTextStep(`Servicio ${end}:`, {
+    previousAnswer: previous,
+    validate: scopedRuleValidator(
+      BILLING_RULES,
+      field,
+      rules,
+      (value) => ({ ...answered, [field]: completeDateInput(value) }),
+      validateDate,
+    ),
+  });
 
   return date === BACK ? BACK : completeDateInput(date);
+}
+
+/** Los campos de la entrada que cargan los opcionales: todos menos el documento del consumidor (va como el receptor). */
+export function inputFields(current: AdvancedOptions): Partial<BillingCommandInput> {
+  const consumerFields: ReadonlySet<string> = new Set(['consumerDocumentNumber', 'consumerDocumentType']);
+
+  return Object.fromEntries(
+    Object.entries(current).filter(([key]) => !consumerFields.has(key)),
+  ) as Partial<BillingCommandInput>;
+}
+
+/** El validador de una pregunta de un opcional: el formato (`validate`) y las reglas que leen `field`. */
+function billingRule(
+  context: BillingOptionalsContext,
+  field: string,
+  current: AdvancedOptions,
+  patch: (value: string) => Partial<BillingCommandInput>,
+  validate: (value: string) => string | true,
+): (value: string) => string | true {
+  return scopedRuleValidator(
+    BILLING_RULES,
+    field,
+    context.rules,
+    (value) => ({ ...inputFields(current), ...patch(value) }),
+    validate,
+  );
 }
 
 /** Las preguntas de cada opcional, una por paso: "Volver" lleva a la anterior, y desde la primera, a la seleccion. */
@@ -122,7 +176,7 @@ const QUESTIONS: BillingOptionalQuestions = {
       },
     },
   ],
-  consumidor: () => [
+  consumidor: (context) => [
     {
       name: 'consumidor-documento',
       run: async (current, previous) => {
@@ -138,9 +192,15 @@ const QUESTIONS: BillingOptionalQuestions = {
       dependsOn: ['consumidor-documento'],
       name: 'consumidor-numero',
       run: async (current, previous) => {
-        const documentNumber = await askConsumerDocumentNumber(
-          current.consumerDocumentType ?? 'dni',
-          previous?.consumerDocumentNumber,
+        const documentType = current.consumerDocumentType ?? 'dni';
+        const documentNumber = await askConsumerDocumentNumber(documentType, previous?.consumerDocumentNumber, (base) =>
+          scopedRuleValidator(
+            BILLING_RULES,
+            'documentNumber',
+            context.rules,
+            (value) => ({ ...inputFields(current), documentNumber: normalizeDocumentNumber(value), documentType }),
+            base,
+          ),
         );
 
         return documentNumber === BACK ? BACK : { consumerDocumentNumber: documentNumber };
@@ -191,13 +251,20 @@ const QUESTIONS: BillingOptionalQuestions = {
       skip: (current) => !isForeignCurrency(current) || Boolean(current.sameCurrency),
     },
   ],
-  exento: () => [
+  exento: (context) => [
     {
       name: 'exento',
-      run: async (_current, previous) => {
+      writes: ['exemptAmount'],
+      run: async (current, previous) => {
         const exempt = await askTextStep('Parte exenta del monto total (vacío si no hay):', {
           previousAnswer: amountInputText(previous?.exemptAmount),
-          validate: validateOptionalAmount,
+          validate: billingRule(
+            context,
+            'exemptAmount',
+            current,
+            (value) => ({ exemptAmount: parseAmountInput(value) }),
+            validateOptionalAmount,
+          ),
         });
 
         return exempt === BACK ? BACK : { exemptAmount: parseAmountInput(exempt) };
@@ -205,10 +272,17 @@ const QUESTIONS: BillingOptionalQuestions = {
     },
     {
       name: 'no-gravado',
-      run: async (_current, previous) => {
+      writes: ['untaxedAmount'],
+      run: async (current, previous) => {
         const untaxed = await askTextStep('Parte no gravada del monto total (vacío si no hay):', {
           previousAnswer: amountInputText(previous?.untaxedAmount),
-          validate: validateOptionalAmount,
+          validate: billingRule(
+            context,
+            'untaxedAmount',
+            current,
+            (value) => ({ untaxedAmount: parseAmountInput(value) }),
+            validateOptionalAmount,
+          ),
         });
 
         return untaxed === BACK ? BACK : { untaxedAmount: parseAmountInput(untaxed) };
@@ -218,32 +292,42 @@ const QUESTIONS: BillingOptionalQuestions = {
   fecha: (context) => [
     {
       name: 'fecha',
-      run: async (_current, previous) => {
+      writes: ['billingDate'],
+      run: async (current, previous) => {
         const date = await askTextStep('Fecha del comprobante:', {
           previousAnswer: previous?.billingDate,
-          validate: (value) => validateBillingDate(value, context.concept, context.voucherKind),
+          // La ventana de ARCA (tambien sin las reglas del flujo) y que no quede antes del periodo o del asociado.
+          validate: billingRule(
+            context,
+            'billingDate',
+            current,
+            (value) => ({ billingDate: completeDateInput(value) }),
+            (value) => validateBillingDate(value, context.concept, context.voucherKind),
+          ),
         });
 
         return date === BACK ? BACK : { billingDate: completeDateInput(date) };
       },
     },
   ],
-  servicio: () => [
+  servicio: (context) => [
     {
       name: 'servicio-desde',
-      run: async (_current, previous) => {
-        const start = await askServiceDate('desde', previous?.serviceStartDate);
+      run: async (current, previous) => {
+        const start = await askServiceDate('desde', previous?.serviceStartDate, context.rules, inputFields(current));
 
         return start === BACK ? BACK : { serviceStartDate: start };
       },
+      writes: ['serviceStartDate'],
     },
     {
       name: 'servicio-hasta',
-      run: async (_current, previous) => {
-        const end = await askServiceDate('hasta', previous?.serviceEndDate);
+      run: async (current, previous) => {
+        const end = await askServiceDate('hasta', previous?.serviceEndDate, context.rules, inputFields(current));
 
         return end === BACK ? BACK : { serviceEndDate: end };
       },
+      writes: ['serviceEndDate'],
     },
   ],
   transferencia: () => [
@@ -267,13 +351,20 @@ const QUESTIONS: BillingOptionalQuestions = {
       },
     },
   ],
-  vencimiento: () => [
+  vencimiento: (context) => [
     {
       name: 'vencimiento',
-      run: async (_current, previous) => {
+      writes: ['paymentDueDate'],
+      run: async (current, previous) => {
         const due = await askTextStep('Vencimiento del pago:', {
           previousAnswer: previous?.paymentDueDate,
-          validate: validateDate,
+          validate: billingRule(
+            context,
+            'paymentDueDate',
+            current,
+            (value) => ({ paymentDueDate: completeDateInput(value) }),
+            validateDate,
+          ),
         });
 
         return due === BACK ? BACK : { paymentDueDate: completeDateInput(due) };

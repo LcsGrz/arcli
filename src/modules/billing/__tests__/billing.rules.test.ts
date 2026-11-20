@@ -59,18 +59,20 @@ describe('reglas de A, B y C (billing.rules.ts)', () => {
     ).toMatch(/es futura y cae en otro mes/);
   });
 
-  it('service-date-order (10032): desde no es posterior a hasta; sin hasta, la fecha del comprobante', () => {
+  it('service-date-order (10032): desde no es posterior a hasta; con una sola fecha no corre (la frena la 10031)', () => {
     expect(
       check(SERVICE_DATE_ORDER_RULE, { serviceEndDate: '30/11/2026', serviceStartDate: '01/11/2026' }, context('fc')),
     ).toBeUndefined();
     expect(
       check(SERVICE_DATE_ORDER_RULE, { serviceEndDate: '01/11/2026', serviceStartDate: '30/11/2026' }, context('fc')),
     ).toBe('La fecha de inicio de servicio no puede ser posterior a la fecha de fin.');
-    expect(check(SERVICE_DATE_ORDER_RULE, { serviceStartDate: '19/11/2026' }, context('fc'))).toBe(
-      'La fecha de inicio de servicio no puede ser posterior a la fecha de fin.',
-    );
+    expect(check(SERVICE_DATE_ORDER_RULE, { serviceStartDate: '19/11/2026' }, context('fc'))).toBeUndefined();
     expect(
-      check(SERVICE_DATE_ORDER_RULE, { concept: 'productos', serviceStartDate: '30/11/2026' }, context('fc')),
+      check(
+        SERVICE_DATE_ORDER_RULE,
+        { concept: 'productos', serviceEndDate: '01/11/2026', serviceStartDate: '30/11/2026' },
+        context('fc'),
+      ),
     ).toBeUndefined();
   });
 
@@ -190,6 +192,11 @@ describe('reglas de A, B y C (billing.rules.ts)', () => {
     expect(check(RECEIVER_NOT_EMITTER_RULE, { documentNumber: 20111111112, documentType: 'dni' }, emitter)).toBe(
       undefined,
     );
+    // Un CUIL con el numero del CUIT emisor tambien (el CLI lo frena igual).
+    expect(check(RECEIVER_NOT_EMITTER_RULE, { documentNumber: 20111111112, documentType: 'cuil' }, emitter)).toEqual({
+      hint: 'Revisá `--cuil`: es el CUIT de la config, no el de tu cliente.',
+      message: 'El receptor no puede ser el mismo CUIT que emite (20111111112): ARCA lo rechaza (error 10069).',
+    });
   });
 
   it('consumer-identification-threshold (RG 5700/2025): desde el tope, con la cotizacion resuelta', () => {
@@ -257,8 +264,8 @@ describe('assertRules y findRuleFailure', () => {
   });
 
   it('una fecha mal escrita lanza el mismo error que el CLI', () => {
-    expect(() => SERVICE_DATE_ORDER_RULE.check({ serviceEndDate: '32/11/2026' }, context('fc'))).toThrow(
-      /La fecha "32\/11\/2026" no es válida/,
-    );
+    expect(() =>
+      SERVICE_DATE_ORDER_RULE.check({ serviceEndDate: '32/11/2026', serviceStartDate: '01/11/2026' }, context('fc')),
+    ).toThrow(/La fecha "32\/11\/2026" no es válida/);
   });
 });

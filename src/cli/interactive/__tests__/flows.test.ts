@@ -328,6 +328,10 @@ describe('flujos del modo interactivo', () => {
     });
 
     it('arma una FCE A con CUIT y CBU, y alicuota, vencimiento y transferencia como opcionales', async () => {
+      // El vencimiento no puede ser anterior a la fecha del comprobante (hoy): con el reloj fijo, el 30/10 vale (NAV-5).
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-25T12:00:00-03:00'));
+
       script = createScript([
         [/comprobante/, 'Factura de crédito electrónica A'],
         [/A quién/, 'Con CUIT'],
@@ -600,7 +604,8 @@ describe('flujos del modo interactivo', () => {
       script = createScript([
         [/comprobante/, 'Factura B'],
         [/A quién/, 'Con CUIL'],
-        [/CUIL del receptor/, '20-33333333-4'],
+        // No el CUIT emisor (20333333334): el CLI lo rechaza (10069) y, desde NAV-5, tambien la pregunta.
+        [/CUIL del receptor/, '20-30123456-3'],
         [/Condición frente al IVA del receptor/, 'Consumidor final'],
         [/Qué estás facturando/, 'Productos'],
         [/Monto total/, '1210'],
@@ -613,7 +618,7 @@ describe('flujos del modo interactivo', () => {
 
       expect(getTaxpayerDetails).not.toHaveBeenCalled();
       expect(buildInvoiceInput(state as NonNullable<typeof state>, session.runtime)).toMatchObject({
-        documentNumber: 20333333334,
+        documentNumber: 20301234563,
         documentType: 'cuil',
         ivaCondition: 'consumidor-final',
       });
@@ -645,6 +650,10 @@ describe('flujos del modo interactivo', () => {
     });
 
     it('si se cambia a productos no quedan las fechas de servicio ya elegidas', async () => {
+      // El vencimiento no puede ser anterior a la fecha del comprobante (hoy): con el reloj fijo, el 10/11 vale (NAV-5).
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-25T12:00:00-03:00'));
+
       script = createScript([
         [/comprobante/, 'Factura C'],
         [/A quién/, 'Consumidor final'],
@@ -1381,7 +1390,7 @@ describe('flujos del modo interactivo', () => {
         [/Período desde/, '1/9'],
         [/Período hasta/, '30/9'],
         [/A quién va la nota/, 'Con CUIL'],
-        [/CUIL del receptor/, '20333333334'],
+        [/CUIL del receptor/, '20301234563'],
         [/concepto ajusta/, 'Productos'],
         [/Monto de la nota de débito/, '100'],
         [/Condición frente al IVA/, 'Consumidor final'],

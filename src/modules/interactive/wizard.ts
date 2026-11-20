@@ -56,33 +56,53 @@ export interface WizardStep<S> {
    * opcionales guarda lo respondido en el memo del grupo. Ese memo se olvida solo cuando se olvida el del otro paso.
    */
   readonly memoOf?: string;
-  /** Campos de S que escribe el paso: `finalize` vuelve al ultimo paso respondido que escribe el campo que fallo. */
-  readonly writes?: readonly string[];
+  /**
+   * Campos que escribe el paso: `finalize` vuelve al ultimo paso respondido que escribe el campo que fallo. Con una
+   * funcion, segun lo que respondio (el estado de antes del paso y su memo): un grupo de opcionales escribe solo los
+   * campos de lo marcado.
+   */
+  readonly writes?: readonly string[] | ((state: S, memo: StepMemo) => readonly string[]);
   /**
    * Devuelve los campos que completa o BACK para volver al paso anterior. `previous` es lo que devolvio la ultima vez
    * que se respondio, si sigue valiendo: al volver a la pregunta, arranca marcado o escrito. `memo` es lo que el paso
    * recuerda ademas de su respuesta. `error` es el mensaje de `finalize` si se volvio a este paso porque su respuesta
-   * no paso el control final: la pregunta lo muestra antes de preguntar de nuevo.
+   * no paso el control final: la pregunta lo muestra antes de preguntar de nuevo. `failedFields` son los campos de ese
+   * control, para un paso que pregunta varios (un grupo de opcionales vuelve a la pregunta que escribe el campo).
    */
   readonly run: (
     state: S,
     previous: Partial<S> | undefined,
     memo: StepMemo,
     error?: string,
+    failedFields?: readonly string[],
   ) => Promise<Back | Partial<S>>;
 }
 
 /**
  * Control final, con todas las respuestas: si falla, el asistente vuelve al ultimo paso que escribe `field` (`writes`),
- * con `message`, en vez de terminar. Si ningun paso respondido lo escribe, o si el dueño insiste con la misma respuesta,
- * termina igual (el error queda para la vista previa).
+ * con `message`, en vez de terminar. Con varios campos, al dueño del primero que tenga uno respondido. Si ningun paso
+ * respondido los escribe, o si el dueño insiste con la misma respuesta, termina igual (el error queda para la vista
+ * previa).
  */
-export type WizardFinalize<S> = (state: S) => { readonly field: string; readonly message: string } | undefined;
+export type WizardFinalize<S> = (
+  state: S,
+) => { readonly field: string | readonly string[]; readonly message: string } | undefined;
+
+/** Un error de `finalize` de un asistente de afuera, para retomar este en la pregunta que escribe el campo. */
+interface WizardResume {
+  readonly fields: readonly string[];
+  readonly message: string;
+}
 
 export interface WizardOptions<S> {
   /** Lo que recuerda cada paso ademas de su respuesta, por nombre. Como `answers`, se puede compartir entre corridas. */
   readonly memos?: Map<string, unknown>;
   readonly finalize?: WizardFinalize<S>;
+  /**
+   * Arranca en el ultimo paso respondido que escribe uno de `fields` (en orden), con el error: los anteriores se dan por
+   * respondidos con lo que tenian (con "Volver" se pueden cambiar). Si ninguno lo escribe, arranca desde el primero.
+   */
+  readonly resume?: WizardResume;
 }
 
 /** La ultima respuesta de cada paso, por nombre. Un asistente que se vuelve a correr la puede compartir. */
@@ -163,6 +183,58 @@ function assertDependencies<S>(steps: ReadonlyArray<WizardStep<S>>): void {
   });
 }
 
+function writesOf<S>(step: WizardStep<S> | undefined, state: S, memo: StepMemo): readonly string[] {
+  const writes = step?.writes;
+
+  return typeof writes === 'function' ? writes(state, memo) : (writes ?? []);
+}
+
+/**
+ * Donde retoma `resume`: recorre los pasos con lo que tienen respondido (sin preguntar) y devuelve el ultimo que escribe
+ * el primero de `fields` que tenga dueño, o -1. Se corta en el primer paso que aplica y no tiene respuesta.
+ */
+function findResumeIndex<S>(
+  steps: ReadonlyArray<WizardStep<S>>,
+  initial: S,
+  answers: WizardAnswers<S>,
+  memos: Map<string, unknown>,
+  fields: readonly string[],
+): number {
+  const answered: Array<{ readonly index: number; readonly writes: readonly string[] }> = [];
+  let state = initial;
+
+  for (const [index, step] of steps.entries()) {
+    const memo = stepMemo(memos, step.memoOf ?? step.name);
+
+    if (step.skip?.(state, memo)) {
+      continue;
+    }
+
+    const automatic = step.auto?.(state, memo);
+    const answer = automatic ?? answers.get(step.name);
+
+    if (!answer) {
+      break;
+    }
+
+    if (!automatic) {
+      answered.push({ index, writes: writesOf(step, state, memo) });
+    }
+
+    state = { ...state, ...answer };
+  }
+
+  for (const field of fields) {
+    const owner = answered.findLast((entry) => entry.writes.includes(field));
+
+    if (owner) {
+      return owner.index;
+    }
+  }
+
+  return -1;
+}
+
 function stepMemo(memos: Map<string, unknown>, name: string): StepMemo {
   return {
     get: <T>() => memos.get(name) as T | undefined,
@@ -178,8 +250,9 @@ function stepMemo(memos: Map<string, unknown>, name: string): StepMemo {
  * respuesta para ofrecerla de nuevo (todos se vuelven a preguntar; lo recordado solo arranca marcado o escrito). Si una
  * respuesta cambia, se olvidan solo las de los pasos que dependen de ella (`dependsOn`, tambien de forma indirecta),
  * con su memo: el resto sigue ofreciendo la suya, que igual pasa por la validacion del paso. Al final corre `finalize`:
- * si falla, vuelve al paso que escribe el campo (una vez por respuesta: si el paso la repite, termina). Devuelve el estado final, o `undefined` si se vuelve desde el primer
- * paso (salir del flujo).
+ * si falla, vuelve al paso que escribe el campo (una vez por respuesta: si el paso la repite, termina). Con `resume`
+ * arranca en el paso que escribe el campo de un error de afuera. Devuelve el estado final, o `undefined` si se vuelve
+ * desde el primer paso (salir del flujo).
  */
 export async function runWizard<S>(
   steps: ReadonlyArray<WizardStep<S>>,
@@ -194,9 +267,34 @@ export async function runWizard<S>(
   let state = initial;
   let index = 0;
   let failure:
-    { readonly answer: unknown; readonly field: string; readonly index: number; readonly message: string } | undefined;
+    | {
+        readonly answer: unknown;
+        readonly fields: readonly string[];
+        readonly index: number;
+        readonly key: string;
+        readonly message: string;
+      }
+    | undefined;
+  /** El ultimo paso respondido que escribe el primero de `fields` que tenga dueño, o -1. */
+  const ownerIndex = (entries: typeof history, fields: readonly string[]): number => {
+    for (const field of fields) {
+      const found = entries.findLastIndex((entry) => {
+        const step = steps[entry.index];
+
+        return writesOf(step, entry.state, stepMemo(memos, step?.memoOf ?? step?.name ?? '')).includes(field);
+      });
+
+      if (found >= 0) {
+        return found;
+      }
+    }
+
+    return -1;
+  };
   /** Campos cuyo dueño volvio a dar la misma respuesta despues del error: `finalize` ya no vuelve por ellos. */
   const insisted = new Set<string>();
+  /** Con `resume`, el paso donde arranca: los anteriores se dan por respondidos con lo que tenian. */
+  let resumeAt = options.resume ? findResumeIndex(steps, initial, answers, memos, options.resume.fields) : -1;
 
   /** Aplica la respuesta de un paso: los que dependen de ella olvidan la suya si cambio. */
   const answer = (step: WizardStep<S>, previous: Partial<S> | undefined, result: Partial<S>): void => {
@@ -215,12 +313,14 @@ export async function runWizard<S>(
   for (;;) {
     if (index >= steps.length) {
       const failed = options.finalize?.(state);
+      const fields = failed ? (typeof failed.field === 'string' ? [failed.field] : failed.field) : [];
+      const key = fields.join(',');
 
-      if (!failed || insisted.has(failed.field)) {
+      if (!failed || insisted.has(key)) {
         return state;
       }
 
-      const owner = history.findLastIndex((entry) => steps[entry.index]?.writes?.includes(failed.field));
+      const owner = ownerIndex(history, fields);
 
       if (owner < 0) {
         return state;
@@ -228,12 +328,7 @@ export async function runWizard<S>(
 
       ({ index, state } = history[owner] as (typeof history)[number]);
       history.length = owner;
-      failure = {
-        answer: answers.get(steps[index]?.name ?? ''),
-        field: failed.field,
-        index,
-        message: failed.message,
-      };
+      failure = { answer: answers.get(steps[index]?.name ?? ''), fields, index, key, message: failed.message };
       continue;
     }
 
@@ -260,11 +355,27 @@ export async function runWizard<S>(
     }
 
     const previous = answers.get(step.name);
+
+    if (resumeAt > index && previous) {
+      history.push({ index, state });
+      answer(step, previous, previous);
+      index += 1;
+      continue;
+    }
+
+    if (resumeAt === index && options.resume) {
+      const { fields, message } = options.resume;
+
+      failure = { answer: previous, fields, index, key: fields.join(','), message };
+    }
+
+    resumeAt = -1;
+
     const retry = failure?.index === index ? failure : undefined;
 
     failure = undefined;
 
-    const result = await step.run(state, previous, memo, retry?.message);
+    const result = await step.run(state, previous, memo, retry?.message, retry?.fields);
 
     if (result === BACK) {
       const last = history.pop();
@@ -278,7 +389,7 @@ export async function runWizard<S>(
     }
 
     if (retry && isDeepStrictEqual(retry.answer, result)) {
-      insisted.add(retry.field);
+      insisted.add(retry.key);
     }
 
     history.push({ index, state });

@@ -1,4 +1,7 @@
+import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { isIvaConditionAllowed } from '../../modules/billing/billing.iva-receptor';
+import { BILLING_RULES, type BillingRuleContext } from '../../modules/billing/billing.rules';
+import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import type { ArcliConfig } from '../../modules/config/config.schemas';
 import { EXPORT_VOUCHER_KIND, type ExportVoucherKind } from '../../modules/export/export.types';
@@ -11,14 +14,31 @@ import {
   reciboChoices,
 } from '../../modules/interactive/choices';
 import { isConsumerIdentified } from '../../modules/interactive/consumer-identification';
-import { buildInvoiceInput, type InvoiceState, isFceInvoice } from '../../modules/interactive/invoice-input';
+import {
+  buildInvoiceInput,
+  type InvoiceInputEnv,
+  invoiceInputFields,
+  invoiceRuleScope,
+  type InvoiceState,
+  isFceInvoice,
+  type RuleEnv,
+} from '../../modules/interactive/invoice-input';
 import { defaultIvaRate } from '../../modules/interactive/iva-rate';
 import type { ReceiverFromPadron } from '../../modules/interactive/receiver-document';
-import { BACK, type Back, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
+import { rulesFinalize, scopedRuleValidator } from '../../modules/interactive/rule-validator';
+import {
+  BACK,
+  type Back,
+  requireStepValue,
+  runWizard,
+  type WizardFinalize,
+  type WizardStep,
+} from '../../modules/interactive/wizard';
 
 import { billingOptionalsStep } from './advanced-options';
 import { requiredConsumerSteps } from './consumer-identification';
 import { runExportFlow } from './export.flow';
+import { withFinalizeNotice } from './finalize-notice';
 import { markIfNew } from './new-mark';
 import { exchangeRateSuggestionLoader, officialExchangeRateLoader } from './official-exchange-rate';
 import { askTextStep, type Choice, chooseStep } from './prompts';
@@ -60,9 +80,32 @@ export const invoiceConsumerAmount = (state: InvoiceState) => ({
   totalAmount: state.totalAmount,
 });
 
+/** Lo que las reglas toman de la sesion: la config, el CUIT emisor y hoy (cuando se pregunta). */
+export function billingRuleEnv(session: InteractiveSession): InvoiceInputEnv & RuleEnv {
+  return {
+    config: session.runtime.config,
+    emitterCuit: session.runtime.context.cuit,
+    today: formatDateAsArcaDate(new Date()),
+  };
+}
+
+/**
+ * `finalize` de "Emitir factura", "Emitir recibo" y "Repetir": las reglas sobre la entrada final; si una falla, vuelve
+ * a la pregunta que escribe el campo. Con la E elegida no hay entrada de A, B y C.
+ */
+export function invoiceFinalize<S extends InvoiceState>(session: InteractiveSession): WizardFinalize<S> {
+  return rulesFinalize<S, BillingCommandInput, BillingRuleContext>({
+    context: (state) => invoiceRuleScope(state, billingRuleEnv(session)).context,
+    draft: (state) =>
+      state.exported || !state.voucherKind ? undefined : invoiceInputFields(state, billingRuleEnv(session)),
+    rules: BILLING_RULES,
+  });
+}
+
 /** Pasos del flujo de factura; cada uno se puede deshacer con "Volver". */
 export function invoiceSteps(session: InteractiveSession): Array<WizardStep<InvoiceState>> {
   const { config } = session.runtime;
+  const rules = (state: InvoiceState) => invoiceRuleScope(state, billingRuleEnv(session));
   const officialExchangeRate = officialExchangeRateLoader(session);
   const exchangeRateSuggestion = exchangeRateSuggestionLoader(config, officialExchangeRate);
   // El documento depende de quien es el receptor: si cambia, el escrito antes no se ofrece.
@@ -111,6 +154,7 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
       electronicCredit: (state) => Boolean(state.voucherKind?.isElectronicCredit),
       letter: (state) => state.voucherKind?.letter ?? 'c',
       message: (state) => (isReceipt(state) ? '¿A quién le hacés el recibo?' : '¿A quién le facturás?'),
+      rules,
       skip: (state) => Boolean(state.receiverFromQuery),
     }),
     {
@@ -142,17 +186,24 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
     },
     {
       name: 'monto',
-      run: async (_state, previous) => {
+      run: async (state, previous) => {
         const answer = await askTextStep('Monto total:', {
           previousAnswer: amountInputText(previous?.totalAmount),
-          validate: validateAmount,
+          validate: scopedRuleValidator(
+            BILLING_RULES,
+            'totalAmount',
+            rules(state),
+            (value) => ({ totalAmount: parseAmountInput(value) }),
+            validateAmount,
+          ),
         });
 
         return answer === BACK ? BACK : { totalAmount: parseAmountInput(answer) };
       },
+      writes: ['totalAmount'],
     },
     // Desde el tope, el documento del consumidor final, si el total en pesos ya se sabe (pesos o cotizacion cargada).
-    ...requiredConsumerSteps<InvoiceState>({ ...consumerOptions, name: 'cf' }),
+    ...requiredConsumerSteps<InvoiceState>({ ...consumerOptions, name: 'cf', rules }),
     ...cbuSteps(config),
     billingOptionalsStep<InvoiceState>({
       context: (state) => ({
@@ -160,6 +211,7 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
         consumer: offersConsumerData(state),
         defaultIvaRate: defaultIvaRate(config),
         exchangeRateSuggestion,
+        rules: rules(state),
         voucherKind: requireStepValue(state.voucherKind, 'voucherKind'),
       }),
       name: 'avanzadas',
@@ -167,16 +219,16 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
       write: (advanced) => ({ advanced }),
     }),
     // La moneda o la cotizacion se eligieron en los opcionales: recien ahi se sabe si el total llega al tope.
-    ...requiredConsumerSteps<InvoiceState>({ ...consumerOptions, name: 'cf-final', officialExchangeRate }),
+    ...requiredConsumerSteps<InvoiceState>({ ...consumerOptions, name: 'cf-final', officialExchangeRate, rules }),
   ];
 
-  return [
+  return withFinalizeNotice([
     pickVoucherKind,
     ...billingSteps.map((step) => ({
       ...step,
       skip: (state: InvoiceState) => Boolean(state.exported) || Boolean(step.skip?.(state)),
     })),
-  ];
+  ]);
 }
 
 /**
@@ -261,11 +313,16 @@ export async function runInvoiceFlow(
   }
 
   const { session } = ready;
-  const state = await runWizard(invoiceSteps(session), {
-    advanced: initialAdvancedOptions(session.runtime.config),
-    receipt,
-    ...(receiver ? invoiceStateForReceiver(receiver) : {}),
-  });
+  const state = await runWizard(
+    invoiceSteps(session),
+    {
+      advanced: initialAdvancedOptions(session.runtime.config),
+      receipt,
+      ...(receiver ? invoiceStateForReceiver(receiver) : {}),
+    },
+    undefined,
+    { finalize: invoiceFinalize(session) },
+  );
 
   if (!state) {
     return BACK;

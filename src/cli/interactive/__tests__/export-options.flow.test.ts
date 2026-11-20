@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { ExportUnit } from '../../../modules/export/export.types';
+import { EXPORT_CREDIT_NOTE_KIND, type ExportUnit } from '../../../modules/export/export.types';
 import {
   type ExportOptionalsContext,
   type ExportOptions,
@@ -399,18 +399,32 @@ describe('exportOptionalsStep', () => {
       expect(await askExportOptions({}, context({ exportType: 1 }))).toEqual({ voucherDate: '03/12/2026' });
     });
 
-    it('suma la regla del flujo (en las notas, el asociado) a la ventana de ARCA', async () => {
+    it('suma las reglas del flujo (en las notas, el asociado) a la ventana de ARCA', async () => {
       vi.useFakeTimers({ toFake: ['Date'] });
       vi.setSystemTime(new Date('2026-11-18T12:00:00-03:00'));
       script = createScript([
         [OPTIONALS, ['Fecha del comprobante']],
-        [/Fecha del comprobante/, rejecting('18/11/2026', ['20/11/2026', /^Posterior al 19\/11\/2026\.$/])],
+        [
+          /Fecha del comprobante/,
+          rejecting('18/11/2026', [
+            '16/11/2026',
+            /^La fecha de la nota de crédito de exportación E \(16\/11\/2026\) no puede ser anterior a la de la factura de exportación E 00003-00000001 \(17\/11\/2026\)\.$/,
+          ]),
+        ],
       ]);
 
       expect(
         await askExportOptions(
           {},
-          context({ voucherDateRule: (date) => (date > '20261119' ? 'Posterior al 19/11/2026.' : true) }),
+          context({
+            rules: {
+              context: {
+                associated: { date: '20261117', label: 'la factura de exportación E 00003-00000001' },
+                today: '20261118',
+              },
+              draft: (patch) => ({ voucherKind: EXPORT_CREDIT_NOTE_KIND, ...patch }),
+            },
+          }),
         ),
       ).toEqual({
         voucherDate: '18/11/2026',

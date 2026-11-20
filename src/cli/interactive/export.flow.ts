@@ -1,7 +1,9 @@
+import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import { formatEmissionQuestion, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import { DEFAULT_EXPORT_PAYMENT_TERMS, resolveExportDestinationCountry } from '../../modules/export/export.mappers';
 import { formatExportResultAsText } from '../../modules/export/export.presenter';
+import { EXPORT_RULES, type ExportRuleContext } from '../../modules/export/export.rules';
 import { ExportService } from '../../modules/export/export.service';
 import {
   EXPORT_VOUCHER_KIND,
@@ -15,7 +17,8 @@ import { amountInputText, parseAmountInput } from '../../modules/interactive/amo
 import { completeDateInput } from '../../modules/interactive/date-input';
 import { buildExportEquivalentCommand } from '../../modules/interactive/export-equivalent-command';
 import { buildExportInput, type ExportFlowState } from '../../modules/interactive/export-input';
-import { isCountryCuitMissing } from '../../modules/interactive/export-optionals';
+import { type ExportRuleScope, isCountryCuitMissing } from '../../modules/interactive/export-optionals';
+import { rulesFinalize } from '../../modules/interactive/rule-validator';
 import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { formatPdfOutcomeAsText } from '../../modules/pdf/pdf.presenter';
 import { planEmissionConfirmation, resolvePdfAfterConfirmation } from '../../modules/pdf/pdf-decision';
@@ -25,6 +28,7 @@ import { attachExportPdf } from '../commands/export.command.pdf';
 import { withSpinner } from '../spinner';
 
 import { askCountryCuit, exportOptionalsStep, validateExportPaymentDate, validateExportText } from './export-options';
+import { withFinalizeNotice } from './finalize-notice';
 import { completeIssuer } from './pdf.flow';
 import { askTextStep, chooseStep, isPromptCancellation } from './prompts';
 import { offerSavingToConfig } from './save-to-config';
@@ -343,6 +347,7 @@ function exportSteps(
           exportType: requireStepValue(state.exportType, 'exportType'),
           incoterm: state.incoterm ? { code: state.incoterm, description: state.incotermName } : undefined,
           languages: loaders.languages,
+          rules: exportRuleScope(state, configuredActivity),
           sameCurrency: state.sameCurrency,
           units: loaders.units,
         };
@@ -367,8 +372,17 @@ function exportSteps(
       },
       // En bienes ARCA rechaza la fecha de pago (error 1673).
       skip: (state) => state.exportType === 1,
+      writes: ['paymentDate'],
     },
   ];
+}
+
+/** Las reglas de la E desde una pregunta de la factura: la entrada con lo respondido y hoy. */
+function exportRuleScope(state: ExportFlowState, configuredActivity: number | undefined): ExportRuleScope {
+  return {
+    context: { today: formatDateAsArcaDate(new Date()) },
+    draft: (patch) => ({ ...buildExportInput(state, { configuredActivity }), ...patch }),
+  };
 }
 
 /**
@@ -451,12 +465,23 @@ export async function runExportFlow(session: InteractiveSession): Promise<typeof
   }));
   const configuredActivity = config.exportacion?.actividad;
   const state = await runWizard<ExportFlowState>(
-    exportSteps(tables, configuredActivity, {
-      incoterms: () => gateway.getIncoterms(),
-      languages: () => gateway.getLanguages(),
-      units: () => gateway.getUnits(),
-    }),
+    withFinalizeNotice(
+      exportSteps(tables, configuredActivity, {
+        incoterms: () => gateway.getIncoterms(),
+        languages: () => gateway.getLanguages(),
+        units: () => gateway.getUnits(),
+      }),
+    ),
     { options: {} },
+    undefined,
+    {
+      // Las reglas sobre la factura final: si una falla, vuelve a la pregunta que escribe el campo.
+      finalize: rulesFinalize<ExportFlowState, ExportVoucherInput, ExportRuleContext>({
+        context: (current) => exportRuleScope(current, configuredActivity).context,
+        draft: (current) => buildExportInput(current, { configuredActivity }),
+        rules: EXPORT_RULES,
+      }),
+    },
   );
 
   if (!state) {

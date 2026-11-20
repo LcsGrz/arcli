@@ -552,3 +552,62 @@ describe('optionalGroup con un asistente al azar (propiedades)', () => {
     );
   });
 });
+
+describe('optionalGroup y finalize (NAV-5)', () => {
+  /** El catalogo con cada pregunta como dueña de su campo, para que el grupo retome en ella. */
+  function owned(script: Record<string, Script>) {
+    const { options, seen } = catalog(script);
+
+    return {
+      options: options.map((option) => ({
+        ...option,
+        steps: (context: Context) =>
+          option.steps(context).map((step) => ({ ...step, writes: [step.name] as readonly string[] })),
+      })),
+      seen,
+    };
+  }
+
+  it('escribe los campos de lo marcado: si `finalize` falla en uno, retoma en su pregunta sin pasar por la seleccion', async () => {
+    const { options, seen } = owned({ p: ['p1'], r: ['r1'], r2: ['malo', 'bien'] });
+    const { calls, pick } = scriptedPick([['p', 'r']]);
+    const result = await runWizard([group(options, pick)], INITIAL, new Map(), {
+      finalize: (state) => (state.values.r2 === 'malo' ? { field: ['r2'], message: 'r2 está mal' } : undefined),
+    });
+
+    expect(calls).toHaveLength(1);
+    expect(seen).toEqual([
+      ['p', undefined],
+      ['r', undefined],
+      ['r2', undefined],
+      ['r2', 'malo'],
+    ]);
+    expect(result?.values).toMatchObject({ p: 'p1', r: 'r1', r2: 'bien' });
+  });
+
+  it('lo desmarcado no es suyo: `finalize` sobre un campo de lo desmarcado no vuelve al grupo', async () => {
+    const { options, seen } = owned({ p: ['p1'] });
+    const { calls, pick } = scriptedPick([['p']]);
+    const result = await runWizard([group(options, pick)], INITIAL, new Map(), {
+      finalize: (state) => (state.values.q === 'q0' ? { field: 'q', message: 'q' } : undefined),
+    });
+
+    expect(calls).toHaveLength(1);
+    expect(seen).toEqual([['p', undefined]]);
+    expect(result?.values.q).toBe('q0');
+  });
+
+  it('Volver desde la pregunta retomada pregunta la anterior; desde la primera, vuelve a la seleccion', async () => {
+    const { options, seen } = owned({ p: ['p1', BACK], r: ['r1', BACK], r2: ['malo', BACK] });
+    const { calls, pick } = scriptedPick([['p', 'r'], ['p']]);
+    const result = await runWizard([group(options, pick)], INITIAL, new Map(), {
+      finalize: (state) => (state.values.r2 === 'malo' ? { field: 'r2', message: 'r2 está mal' } : undefined),
+    });
+
+    // Retoma en r2 (Volver), r (Volver), p (Volver): la seleccion, se desmarca R y P se responde de nuevo.
+    expect(seen.map(([name]) => name)).toEqual(['p', 'r', 'r2', 'r2', 'r', 'p', 'p']);
+    expect(calls).toHaveLength(2);
+    expect(calls[1]?.selected).toEqual(['p', 'r']);
+    expect(result?.values).toMatchObject({ p: 'v', r: 'r0', r2: 'r20' });
+  });
+});

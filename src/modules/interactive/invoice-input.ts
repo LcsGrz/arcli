@@ -2,7 +2,7 @@ import { type BillingCommandInput, billingCommandSchema } from '../billing/billi
 import type { VoucherKindDefinition } from '../billing/billing.types';
 import type { ArcliConfig } from '../config/config.schemas';
 
-import type { AdvancedOptions } from './billing-optionals';
+import type { AdvancedOptions, BillingRuleScope } from './billing-optionals';
 import { resolveReceiverIdentity } from './consumer-identification';
 import { defaultIvaRate, explicitIvaRate } from './iva-rate';
 import { type ReceiverFromPadron, receiverInputFields } from './receiver-document';
@@ -45,6 +45,14 @@ export const isFceInvoice = (state: Pick<InvoiceState, 'voucherKind'>): boolean 
  * la solicitud a ARCA.
  */
 export function buildInvoiceInput(state: InvoiceState, env: InvoiceInputEnv): BillingCommandInput {
+  return billingCommandSchema.parse(invoiceInputFields(state, env));
+}
+
+/**
+ * Los campos de la entrada, sin validar: lo que leen las reglas (`billing.rules.ts`) mientras se pregunta, con lo que
+ * falta como en el CLI sin el flag.
+ */
+export function invoiceInputFields(state: InvoiceState, env: InvoiceInputEnv): Partial<BillingCommandInput> {
   const { config } = env;
   const voucherKind = requireStepValue(state.voucherKind, 'voucherKind');
   const ivaRate = voucherKind.letter === 'c' ? undefined : defaultIvaRate(config, state.advanced.ivaRate);
@@ -52,7 +60,7 @@ export function buildInvoiceInput(state: InvoiceState, env: InvoiceInputEnv): Bi
   const receiver = resolveReceiverIdentity(state, { consumerDocumentNumber, consumerDocumentType });
   const fce = isFceInvoice(state);
 
-  return billingCommandSchema.parse({
+  return {
     ...advanced,
     cbu: fce ? (state.cbu ?? config.cbu) : undefined,
     // Como en el CLI: en una FCE el alias de la config se informa junto con el CBU.
@@ -66,5 +74,23 @@ export function buildInvoiceInput(state: InvoiceState, env: InvoiceInputEnv): Bi
     shortcut: voucherKind.shortcut,
     totalAmount: state.totalAmount,
     transferMode: fce ? state.advanced.transferMode : undefined,
-  });
+  };
+}
+
+/** Lo que las reglas necesitan del emisor ademas de la entrada: su CUIT y hoy (yyyymmdd). */
+export interface RuleEnv {
+  readonly emitterCuit: number;
+  readonly today: string;
+}
+
+/** Las reglas desde una pregunta de "Emitir factura", "Emitir recibo" o "Repetir" (`ruleValidator`). */
+export function invoiceRuleScope(state: InvoiceState, env: InvoiceInputEnv & RuleEnv): BillingRuleScope {
+  return {
+    context: {
+      emitterCuit: env.emitterCuit,
+      today: env.today,
+      voucherKind: requireStepValue(state.voucherKind, 'voucherKind'),
+    },
+    draft: (patch) => ({ ...invoiceInputFields(state, env), ...patch }),
+  };
 }

@@ -1,9 +1,12 @@
 import { isIvaConditionAllowed } from '../../modules/billing/billing.iva-receptor';
+import { BILLING_RULES } from '../../modules/billing/billing.rules';
 import type { BillingCommandInput, BillingIvaCondition } from '../../modules/billing/billing.schemas';
 import type { VoucherLetter } from '../../modules/billing/billing.types';
 import { isPadronLookupEnabled } from '../../modules/config/config.schemas';
+import type { BillingRuleScope } from '../../modules/interactive/billing-optionals';
 import { availableChoice, ivaConditionChoices, receiverChoices } from '../../modules/interactive/choices';
 import type { ReceiverFromPadron } from '../../modules/interactive/receiver-document';
+import { scopedRuleValidator } from '../../modules/interactive/rule-validator';
 import { BACK, type Back, type WizardStep } from '../../modules/interactive/wizard';
 import { ArcaPadronGateway } from '../../services/arca/arca-padron.gateway';
 import { startSpinner } from '../spinner';
@@ -26,12 +29,13 @@ export async function askDocumentNumber(
   documentType: BillingCommandInput['documentType'] | undefined,
   previous?: number,
   owner = 'del receptor',
+  withRules: (validate: (value: string) => string | true) => (value: string) => string | true = (validate) => validate,
 ): Promise<Back | string> {
   const prompt = DOCUMENT_PROMPTS[documentType === 'cuil' || documentType === 'dni' ? documentType : 'cuit'];
 
   return askTextStep(`${prompt.label} ${owner}:`, {
     previousAnswer: previous === undefined ? undefined : String(previous),
-    validate: prompt.validate,
+    validate: withRules(prompt.validate),
   });
 }
 
@@ -51,6 +55,8 @@ interface ReceiverStepOptions<S> {
   readonly message: (state: S) => string;
   /** Cuando no se pregunta el receptor (ya vino cargado, o la nota va sobre una factura). */
   readonly skip: (state: S) => boolean;
+  /** Las reglas del flujo, para el numero: no puede ser el CUIT emisor (10069). */
+  readonly rules?: (state: S) => BillingRuleScope;
 }
 
 /**
@@ -87,11 +93,20 @@ export function receiverSteps<S extends ReceiverStepState>(
       dependsOn: ['receptor'],
       name: 'documento',
       run: async (state, previous) => {
-        const answer = await askDocumentNumber(state.documentType, previous?.documentNumber);
+        const answer = await askDocumentNumber(state.documentType, previous?.documentNumber, undefined, (validate) =>
+          scopedRuleValidator(
+            BILLING_RULES,
+            'documentNumber',
+            options.rules?.(state),
+            (value) => ({ documentNumber: normalizeDocumentNumber(value), documentType: state.documentType }),
+            validate,
+          ),
+        );
 
         return answer === BACK ? BACK : ({ documentNumber: normalizeDocumentNumber(answer) } as Partial<S>);
       },
       skip: (state) => state.documentType === 'consumidor-final' || options.skip(state),
+      writes: ['documentNumber'],
     },
   ];
 }

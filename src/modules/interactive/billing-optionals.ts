@@ -1,6 +1,7 @@
 import { formatArgentineAmount, formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { DEFAULT_CURRENCY_CODE } from '../billing/billing.constants';
 import { isForeignCurrency, resolveConfigExchangeRate } from '../billing/billing.currency';
+import type { BillingRuleContext } from '../billing/billing.rules';
 import type { BillingCommandInput } from '../billing/billing.schemas';
 import type { VoucherKindDefinition } from '../billing/billing.types';
 import { findArcaCurrency, toIsoCurrencyCode } from '../billing/currency-codes';
@@ -8,6 +9,7 @@ import type { ArcliConfig } from '../config/config.schemas';
 
 import { type ConsumerIdentity, describeConsumerIdentity } from './consumer-identification';
 import type { OptionalDef } from './optional-group';
+import type { RuleScope } from './rule-validator';
 import type { WizardStep } from './wizard';
 
 /** Lo que cargan los opcionales de A, B y C (factura, recibo, FCE, notas y "Repetir"). */
@@ -31,13 +33,26 @@ export type AdvancedOptions = Pick<
 export type AdvancedOptionKey =
   'alicuota' | 'consumidor' | 'divisas' | 'exento' | 'fecha' | 'servicio' | 'transferencia' | 'vencimiento';
 
+/** Las reglas de A, B y C desde una pregunta: la entrada que se arma con lo respondido y su contexto. */
+export type BillingRuleScope = RuleScope<BillingCommandInput, BillingRuleContext>;
+
 export interface BillingOptionalsContext {
   readonly concept: BillingCommandInput['concept'];
+  /**
+   * Las reglas entre campos (`BILLING_RULES`) con la entrada del flujo: cada pregunta de un opcional las corre con lo
+   * que escribe (REV-69, REV-70, REV-71). Sin esto, solo el formato.
+   */
+  readonly rules?: BillingRuleScope;
   /**
    * El comprobante del que se copian la alicuota y el exento ("Repetir"), como una clave: si cambia, esos opcionales
    * olvidan lo marcado y respondido y arrancan con lo copiado del nuevo.
    */
   readonly copiedFrom?: string;
+  /**
+   * De donde sale el exento ("Repetir"), como una clave: con el mismo monto se copia de la factura; con otro se vuelve a
+   * preguntar, con el opcional marcado (REV-70). Si cambia, el exento olvida lo marcado y respondido.
+   */
+  readonly exemptFrom?: string;
   /**
    * El receptor es consumidor final sin identificar: se ofrece cargar su documento ("Datos del consumidor final"), que
    * hace falta desde el tope de la RG 5700/2025 y antes es opcional.
@@ -201,7 +216,7 @@ export function billingOptionals(questions: BillingOptionalQuestions): readonly 
       key: 'exento',
       label: 'Importe exento o no gravado',
       owns: ['exemptAmount', 'untaxedAmount'],
-      resetWhen: copiedFrom,
+      resetWhen: (context) => `${copiedFrom(context)}|${context.exemptFrom ?? ''}`,
       steps: questions.exento,
     },
     {

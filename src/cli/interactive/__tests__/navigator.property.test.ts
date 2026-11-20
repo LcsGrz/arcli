@@ -10,9 +10,11 @@ import {
 } from '../../../lib/dates/arca-date';
 import { InputValidationError } from '../../../lib/errors/app-error';
 import { prepareBillingInput } from '../../../modules/billing/billing.prepare';
+import { BILLING_RULES } from '../../../modules/billing/billing.rules';
 import type { BillingCommandInput } from '../../../modules/billing/billing.schemas';
 import { BillingService } from '../../../modules/billing/billing.service';
 import type { VoucherShortcut } from '../../../modules/billing/billing.types';
+import { EXPORT_RULES } from '../../../modules/export/export.rules';
 import { ExportService } from '../../../modules/export/export.service';
 import {
   EXPORT_VOUCHER_KIND,
@@ -54,7 +56,8 @@ import { createBillingSession, createExportGateway, NOW, OFFICIAL_RATE } from '.
  * `random-assistant.ts` recorre cada flujo de hoy, con Esc en cualquier pregunta, y despues se controlan las
  * invariantes sobre lo que llego a la vista previa:
  *
- * 1. Lo que aceptan las preguntas, la vista previa no lo rechaza (salvo los rechazos conocidos de REV-69, 70 y 71).
+ * 1. Lo que aceptan las preguntas, la vista previa no lo rechaza, sin excepciones: las reglas entre campos corren al
+ *    preguntar (`ruleValidator`, NAV-5).
  * 2. El comando equivalente, pegado en POSIX o en PowerShell, da la misma entrada que armo el asistente y la misma
  *    solicitud a ARCA que la vista previa.
  * 3. Nada de caminos abandonados: lo de un opcional desmarcado no llega a la entrada.
@@ -101,6 +104,27 @@ vi.mock('../../../modules/interactive/equivalent-command', async (importOriginal
       equivalents.push({ billing: { input: args[0], options: args[1] } });
 
       return actual.buildEquivalentCommand(...args);
+    },
+  };
+});
+
+/** Los campos de la entrada que valido alguna pregunta con `ruleValidator` (directo o con `scopedRuleValidator`). */
+const validatedFields = vi.hoisted(() => new Set<string>());
+
+vi.mock('../../../modules/interactive/rule-validator', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../modules/interactive/rule-validator')>();
+
+  return {
+    ...actual,
+    ruleValidator: (...args: Parameters<typeof actual.ruleValidator>) => {
+      validatedFields.add(args[0].field);
+
+      return actual.ruleValidator(...args);
+    },
+    scopedRuleValidator: (...args: Parameters<typeof actual.scopedRuleValidator>) => {
+      validatedFields.add(args[1]);
+
+      return actual.scopedRuleValidator(...args);
     },
   };
 });
@@ -190,8 +214,11 @@ const ANSWERS: TextAnswers = [
     dateNearToday,
   ],
   [/^Fecha de pago/, fc.oneof(fc.constant(''), dateNearToday)],
+  // La fecha de un asociado de otro sistema ("Fecha de la nota de crédito C 00003-00000007:"), como `--afecha`.
+  [/^Fecha (de la|del) .+ \d{5}-\d{8}:/, dateNearToday],
   [/^Cotización de/, fc.constantFrom('1.000', '1.180', '1.420,50')],
-  [/^CUIT del receptor/, fc.constantFrom('30-70996581-2', '20-20179706-4')],
+  // El CUIT emisor de la sesion de prueba: la pregunta lo rechaza (10069) y el asistente reintenta con otro (REV-75).
+  [/^CUIT del receptor/, fc.constantFrom('30-70996581-2', '20-20179706-4', '20-11111111-2')],
   [/^DNI /, fc.constant('30.123.456')],
   [/^CUIL /, fc.constant('20-30123456-3')],
   [/^CUIT del consumidor/, fc.constant('20-20179706-4')],
@@ -341,18 +368,6 @@ function inputOf(run: Walk): Record<string, unknown> | undefined {
 // Invariantes.
 // ---------------------------------------------------------------------------------------------------------------
 
-/**
- * Rechazos de la vista previa que hoy pasan las preguntas y ya tienen ticket: el asistente acepta la fecha o el
- * importe y la vista previa lo rechaza. Los fija `navigator.rev.test.ts`; al arreglarlos, se sacan de aca.
- */
-const KNOWN_PREVIEW_REJECTIONS: ReadonlyArray<readonly [RegExp, string]> = [
-  [/La fecha de inicio de servicio no puede ser posterior a la fecha de fin/, 'REV-69'],
-  [/El vencimiento de pago \(.+\) no puede ser anterior al/, 'REV-69'],
-  [/El importe exento más el no gravado no puede superar el monto total/, 'REV-70'],
-  [/El período asociado no puede terminar después de la fecha/, 'REV-71'],
-  [/En el período asociado, `--periodo-desde` no puede ser posterior a `--periodo-hasta`/, 'REV-71'],
-];
-
 /** 1. Lo que aceptan las preguntas, la vista previa no lo rechaza. */
 function assertPreviewAccepts(run: Walk): void {
   if (run.error === undefined) {
@@ -363,13 +378,7 @@ function assertPreviewAccepts(run: Walk): void {
     throw run.error;
   }
 
-  const known = KNOWN_PREVIEW_REJECTIONS.find(([message]) =>
-    message.test(run.error instanceof Error ? run.error.message : ''),
-  );
-
-  if (!known) {
-    throw new Error(`La vista previa rechazó lo que aceptaron las preguntas: ${run.error.message}${context(run)}`);
-  }
+  throw new Error(`La vista previa rechazó lo que aceptaron las preguntas: ${run.error.message}${context(run)}`);
 }
 
 const padron: PadronGateway = {
@@ -574,6 +583,11 @@ const COPY_SOURCE = /^(¿Qué comprobante querés repetir\?|¿Cuál repetimos\?)
  * la alicuota y el exento; en "Repetir" E, lo que se copia de la factura (items, idioma, CUIT del pais e incoterm).
  */
 const FOLLOWS_COPY_SOURCE: readonly unknown[] = ['alicuota', 'exento', 'cuit-pais', 'idioma', 'incoterm', 'items'];
+/**
+ * En "Repetir", el exento tambien sigue a "¿Mismo monto?" (REV-70): con otro monto no se copia y se vuelve a preguntar,
+ * marcado si el original tenia. Si cambia esa respuesta, arranca como la primera vez (`preselected`).
+ */
+const SAME_AMOUNT = /^¿Mismo monto\?/;
 
 /**
  * 4. La seleccion de opcionales vuelve con lo ultimo marcado que se sigue ofreciendo, y Esc vuelve a la pregunta
@@ -582,14 +596,23 @@ const FOLLOWS_COPY_SOURCE: readonly unknown[] = ['alicuota', 'exento', 'cuit-pai
  * dice el grupo de opcionales (`optionalGroup`). Si en "Repetir" se eligio otro comprobante desde esa seleccion, la
  * alicuota y el exento (en la E, lo copiado de la factura) no siguen marcados: arrancan como la primera vez. Las facturas A, B y FCE de los datos de prueba
  * tienen una sola alicuota, asi que la alicuota no arranca marcada por `preselected`: tienen que quedar desmarcados.
+ * Si cambio "¿Mismo monto?", el exento arranca como la primera vez: marcado o no segun el original, asi que no se mira.
  */
 function assertRemembered(run: Walk): void {
-  const lastMarked = new Map<string, { readonly marked: readonly unknown[]; readonly source: readonly unknown[] }>();
+  const lastMarked = new Map<
+    string,
+    { readonly amount: unknown; readonly marked: readonly unknown[]; readonly source: readonly unknown[] }
+  >();
   const source = new Map<string, unknown>();
+  let amount: unknown;
 
   run.events.forEach((event, index) => {
     if (event.kind === 'list' && COPY_SOURCE.test(event.message) && event.answer !== BACK) {
       source.set(event.message, event.answer);
+    }
+
+    if (event.kind === 'list' && SAME_AMOUNT.test(event.message) && event.answer !== BACK) {
+      amount = event.answer;
     }
 
     if (event.kind === 'many' && OPTIONALS.test(event.message)) {
@@ -599,17 +622,23 @@ function assertRemembered(run: Walk): void {
 
       if (remembered) {
         const sameSource = isDeepStrictEqual(remembered.source, currentSource);
+        const exemptReset = !isDeepStrictEqual(remembered.amount, amount);
+        const compared = (value: unknown) => !(exemptReset && value === 'exento');
         const available = remembered.marked.filter(
           (value) =>
+            compared(value) &&
             (sameSource || !FOLLOWS_COPY_SOURCE.includes(value)) &&
             event.choices.some((choice) => !choice.disabled && isDeepStrictEqual(choice.value, value)),
         );
 
-        expect(event.selected, `"${event.message}" no arrancó con lo marcado antes${context(run)}`).toEqual(available);
+        expect(
+          event.selected.filter(compared),
+          `"${event.message}" no arrancó con lo marcado antes${context(run)}`,
+        ).toEqual(available);
       }
 
       if (Array.isArray(event.answer)) {
-        lastMarked.set(key, { marked: event.answer, source: currentSource });
+        lastMarked.set(key, { amount, marked: event.answer, source: currentSource });
       }
     }
 
@@ -646,8 +675,8 @@ interface PropertyOptions {
 }
 
 /**
- * Para las 3 y 4, que prueban la navegacion: fechas de hoy y sin exento, asi casi ninguna corrida termina en un
- * rechazo conocido de la vista previa (REV-69, 70 y 71) y llegan mas caminos con idas y vueltas.
+ * Para las 3 y 4, que prueban la navegacion: fechas de hoy y sin exento, asi casi ninguna pregunta rechaza la respuesta
+ * por una regla entre campos y llegan mas caminos con idas y vueltas.
  */
 const NAVIGATION_ANSWERS: TextAnswers = [
   [
@@ -741,4 +770,37 @@ describe.each(FLOWS)('asistente al azar: $name', (flow) => {
   // En A, B y C desde REV-65; en la E desde NAV-3 (REV-67).
   it('invariante 3: lo de un opcional desmarcado no llega a la entrada', () =>
     property(flow, { ...BACK_AND_FORTH, seed: 20261120 }, (run) => assertNoAbandonedOptionals(flow, run)));
+});
+
+/**
+ * Los campos de una regla que no escribe una pregunta de texto: los items de la E son un bucle propio, que solo termina
+ * cuando suman el monto (NAV-3), y el asistente al azar no los carga.
+ */
+const OWN_LOOP_FIELDS: readonly string[] = ['items'];
+/**
+ * Los que escribe una pregunta a la que el asistente al azar no llega: la fecha de un asociado de otro sistema sale de
+ * ingresarlo a mano, y el asistente al azar no ingresa comprobantes a mano. La cubre el guion de `navigator.rev.test.ts`
+ * ("REV-71: la fecha de un asociado de otro sistema…").
+ */
+const SCRIPTED_FIELDS: readonly string[] = ['associatedVoucher.fecha'];
+
+describe('reglas (NAV-5)', () => {
+  it('cada campo de una regla de A, B, C o la E lo escribe al menos una pregunta que usa `ruleValidator`', async () => {
+    validatedFields.clear();
+
+    for (const flow of FLOWS) {
+      await fc.assert(
+        fc.asyncProperty(fc.gen(), async (g) => {
+          await walk(flow, g, { answers: ANSWERS, backPercent: 5 });
+        }),
+        { numRuns: 60, seed: 20261122 },
+      );
+    }
+
+    const fields = [...BILLING_RULES, ...EXPORT_RULES]
+      .flatMap((rule) => rule.fields)
+      .filter((field) => !OWN_LOOP_FIELDS.includes(field) && !SCRIPTED_FIELDS.includes(field));
+
+    expect([...new Set(fields)].filter((field) => !validatedFields.has(field))).toEqual([]);
+  });
 });

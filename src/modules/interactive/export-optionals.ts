@@ -1,5 +1,6 @@
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { resolveExportClientCountryCuit } from '../export/export.mappers';
+import type { ExportRuleContext } from '../export/export.rules';
 import type {
   ExportCountry,
   ExportCountryCuit,
@@ -10,6 +11,7 @@ import type {
 } from '../export/export.types';
 
 import type { OptionalDef } from './optional-group';
+import type { RuleScope } from './rule-validator';
 import type { WizardStep } from './wizard';
 
 /** Lo opcional de una E: lo que el CLI tiene con flags y el asistente no pregunta si no se marca. */
@@ -71,11 +73,14 @@ export interface ExportOptionalsContext {
   readonly sameCurrency?: boolean;
   readonly units: () => Promise<readonly ExportUnit[]>;
   /**
-   * Otra regla de la fecha del comprobante (yyyymmdd), ademas de la ventana de ARCA: en las notas, no antes de la del
-   * asociado. Devuelve el error o `true`.
+   * Las reglas entre campos de la E (`EXPORT_RULES`) con la entrada del flujo: la fecha del comprobante, por ejemplo,
+   * no puede quedar antes de la del asociado en una nota. Sin esto, solo la ventana de ARCA.
    */
-  readonly voucherDateRule?: (voucherDate: string) => string | true;
+  readonly rules?: ExportRuleScope;
 }
+
+/** Las reglas de la E desde una pregunta: la entrada que se arma con lo respondido y su contexto. */
+export type ExportRuleScope = RuleScope<ExportVoucherInput, ExportRuleContext>;
 
 /** Las preguntas de cada opcional de la E: las inyecta `cli` (llaman a `prompts`). */
 export type ExportOptionalQuestions = Readonly<

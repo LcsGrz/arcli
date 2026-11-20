@@ -1,16 +1,16 @@
 import Big from 'big.js';
 
-import { diffArcaDatesInDays, formatArcaDateAsArgentineDate, maxArcaDate } from '../../lib/dates/arca-date';
+import { diffArcaDatesInDays, formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { formatArgentineMoney } from '../../lib/numbers/argentine-amount';
 import type { Rule } from '../../lib/rules/rules';
 
 import {
+  minimumPaymentDueDate,
   parseBillingDateInput,
   resolveBillingDate,
   resolvePaymentDateFromDueDay,
   shouldSendPaymentDueDate,
 } from './billing.dates';
-import { isElectronicCreditInvoice } from './billing.fce';
 import { CONSUMER_IDENTIFICATION_THRESHOLD, requiresConsumerIdentification } from './billing.iva-receptor';
 import { formatDocumentFlag, formatVoucherSubject, formatVoucherWithArticle } from './billing.mappers';
 import type { BillingCommandInput } from './billing.schemas';
@@ -75,18 +75,18 @@ export const BILLING_DATE_WINDOW_RULE: BillingRule = {
 };
 
 /**
- * ARCA 10032 (WSFEv1 v4.7): el inicio del servicio no es posterior al fin. Sin `--servicio-hasta` el fin es la fecha
- * del comprobante, y sin `--servicio-desde` el inicio es el fin. En productos no hay fechas de servicio.
+ * ARCA 10032 (WSFEv1 v4.7): el inicio del servicio no es posterior al fin. Corre con las dos fechas: con una sola el CLI
+ * frena antes (10031 y 10033, `validateConceptDateInputs`), y sin ninguna las dos son la fecha del comprobante. En el
+ * asistente "Servicio desde" se pregunta antes que "Servicio hasta": no se compara contra un fin que falta.
  */
 export const SERVICE_DATE_ORDER_RULE: BillingRule = {
   check: (input, { today }) => {
-    if (input.concept === 'productos') {
+    if (input.concept === 'productos' || !input.serviceStartDate || !input.serviceEndDate) {
       return undefined;
     }
 
-    const billingDate = resolveBillingDate(input, today);
-    const end = input.serviceEndDate ? parseBillingDateInput(input.serviceEndDate, today) : billingDate;
-    const start = input.serviceStartDate ? parseBillingDateInput(input.serviceStartDate, today) : end;
+    const end = parseBillingDateInput(input.serviceEndDate, today);
+    const start = parseBillingDateInput(input.serviceStartDate, today);
 
     return start > end ? 'La fecha de inicio de servicio no puede ser posterior a la fecha de fin.' : undefined;
   },
@@ -106,7 +106,7 @@ export const DUE_DATE_MINIMUM_RULE: BillingRule = {
     }
 
     const billingDate = resolveBillingDate(input, today);
-    const minimum = isElectronicCreditInvoice(voucherKind) ? maxArcaDate(billingDate, today) : billingDate;
+    const minimum = minimumPaymentDueDate(billingDate, today, voucherKind);
     const due = input.paymentDueDate
       ? parseBillingDateInput(input.paymentDueDate, today)
       : resolvePaymentDateFromDueDay(input.dueDay as number, today);
@@ -140,20 +140,20 @@ export const EXEMPT_UNTAXED_WITHIN_TOTAL_RULE: BillingRule = {
 const MINIMUM_PERIOD_DATE = '20060101';
 
 /**
- * Las dos fechas del periodo asociado, en el orden en que las lee el CLI: una invalida falla igual en las tres reglas
- * del periodo. `undefined` si falta una (lo controla `resolveAssociatedPeriod`).
+ * Las fechas del periodo asociado que estan, en el orden en que las lee el CLI: una invalida falla igual en las tres
+ * reglas del periodo. En el CLI van las dos (si falta una, frena `resolveAssociatedPeriod`); en el asistente "Período
+ * desde" se pregunta antes que "Período hasta".
  */
 function parsePeriod(
   input: Partial<BillingCommandInput>,
   today: string,
-): { readonly from: string; readonly to: string } | undefined {
+): { readonly from?: string; readonly to?: string } {
   const period = input.associatedPeriod;
 
-  if (!period?.desde || !period.hasta) {
-    return undefined;
-  }
-
-  return { from: parseBillingDateInput(period.desde, today), to: parseBillingDateInput(period.hasta, today) };
+  return {
+    from: period?.desde ? parseBillingDateInput(period.desde, today) : undefined,
+    to: period?.hasta ? parseBillingDateInput(period.hasta, today) : undefined,
+  };
 }
 
 /** ARCA 10206 (WSFEv1 v4.7): el periodo asociado no empieza antes del 01/01/2006. */
@@ -161,7 +161,7 @@ export const ASSOCIATED_PERIOD_MINIMUM_RULE: BillingRule = {
   check: (input, { today }) => {
     const period = parsePeriod(input, today);
 
-    return period && period.from < MINIMUM_PERIOD_DATE
+    return period.from !== undefined && period.from < MINIMUM_PERIOD_DATE
       ? 'El período asociado tiene que ser posterior al 01/01/2006.'
       : undefined;
   },
@@ -174,7 +174,7 @@ export const ASSOCIATED_PERIOD_ORDER_RULE: BillingRule = {
   check: (input, { today }) => {
     const period = parsePeriod(input, today);
 
-    return period && period.from > period.to
+    return period.from !== undefined && period.to !== undefined && period.from > period.to
       ? {
           message: 'En el período asociado, `--periodo-desde` no puede ser posterior a `--periodo-hasta`.',
           question: 'En el período asociado, "Período desde" no puede ser posterior a "Período hasta".',
@@ -191,7 +191,7 @@ export const ASSOCIATED_PERIOD_WITHIN_NOTE_RULE: BillingRule = {
     const period = parsePeriod(input, today);
     const billingDate = resolveBillingDate(input, today);
 
-    return period && period.to > billingDate
+    return period.to !== undefined && period.to > billingDate
       ? `El período asociado no puede terminar después de la fecha de ${formatVoucherWithArticle(voucherKind)} (${formatArcaDateAsArgentineDate(billingDate)}).`
       : undefined;
   },

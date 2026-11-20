@@ -1,6 +1,7 @@
 import {
   type CalendarDate,
   calendarDateToArcaDate,
+  maxArcaDate,
   parseArgentineDateInputAsArcaDate,
 } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
@@ -81,4 +82,12 @@ export function shouldSendPaymentDueDate(
   }
 
   return input.concept !== 'productos';
+}
+
+/**
+ * El vencimiento minimo: la fecha del comprobante y, en la factura FCE, tampoco antes de hoy (10164, WSFEv1 v4.7). Lo
+ * usan la regla (`DUE_DATE_MINIMUM_RULE`) y el vencimiento por defecto del CLI.
+ */
+export function minimumPaymentDueDate(billingDate: string, today: string, voucherKind: VoucherKindDefinition): string {
+  return isElectronicCreditInvoice(voucherKind) ? maxArcaDate(billingDate, today) : billingDate;
 }

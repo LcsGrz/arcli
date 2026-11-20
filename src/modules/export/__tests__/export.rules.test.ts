@@ -59,6 +59,18 @@ describe('reglas de la E (export.rules.ts)', () => {
         { today },
       ),
     ).toBeUndefined();
+    // Fechas en blanco cuentan como sin escribir: sin fecha de pago no corre; sin fecha del comprobante, hoy.
+    expect(
+      EXPORT_PAYMENT_DATE_RULE.check({ exportType: 2, paymentDate: '  ', voucherDate: '15/11/2026' }, { today }),
+    ).toBeUndefined();
+    expect(
+      EXPORT_PAYMENT_DATE_RULE.check({ exportType: 2, paymentDate: '17/11/2026', voucherDate: '  ' }, { today }),
+    ).toMatchObject({ question: expect.stringContaining('(hoy)') });
+    // Sin fecha del comprobante ni hoy no corre; con la fecha escrita, no hace falta hoy.
+    expect(EXPORT_PAYMENT_DATE_RULE.check({ exportType: 2, paymentDate: '01/01/2026' }, {})).toBeUndefined();
+    expect(
+      EXPORT_PAYMENT_DATE_RULE.check({ exportType: 2, paymentDate: '14/11/2026', voucherDate: '15/11/2026' }, {}),
+    ).toMatchObject({ question: expect.stringContaining('(15/11/2026)') });
   });
 
   it('export-note-after-associated: la nota no es anterior al comprobante que ajusta', () => {

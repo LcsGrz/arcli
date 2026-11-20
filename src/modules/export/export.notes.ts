@@ -223,7 +223,9 @@ export function applyExportAssociatedDefaults(
 }
 
 /** El asociado de una nota E, para la regla de su fecha (`ExportRuleContext.associated`). */
-function exportAssociatedRuleContext(voucher: ExportIssuedVoucher): NonNullable<ExportRuleContext['associated']> {
+export function exportAssociatedRuleContext(
+  voucher: ExportIssuedVoucher,
+): NonNullable<ExportRuleContext['associated']> {
   return { date: voucher.date, label: describeVoucher(voucher) };
 }
 

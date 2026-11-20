@@ -224,6 +224,106 @@ describe('runWizard: finalize', () => {
   });
 });
 
+describe('runWizard: finalize con varios campos, `writes` segun el memo y `resume` (NAV-5)', () => {
+  it('con varios campos vuelve al dueño del primero que tenga uno respondido, y se insiste una vez por error', async () => {
+    const finalize: WizardFinalize<State> = (state) =>
+      state.a === state.b ? { field: ['z', 'b', 'a'], message: 'a y b iguales' } : undefined;
+    const { runs, steps } = scriptedSteps({ a: ['1'], b: ['1', '1'] }, { a: {}, b: {} });
+
+    // El dueño de `z` no existe; el de `b` si. Repite la misma respuesta: termina.
+    expect(await runWizard(steps, {}, new Map(), { finalize })).toEqual({ a: '1', b: '1' });
+    expect(runs.map(({ error, name }) => [name, error])).toEqual([
+      ['a', undefined],
+      ['b', undefined],
+      ['b', 'a y b iguales'],
+    ]);
+  });
+
+  it('`writes` como funcion: escribe segun su memo (un grupo, solo lo marcado)', async () => {
+    const finalize: WizardFinalize<State> = (state) => (state.b === 'malo' ? { field: 'b', message: 'no' } : undefined);
+    const { runs, steps } = scriptedSteps(
+      { a: ['malo', 'bueno'], b: ['malo', 'bueno'] },
+      {
+        a: { writes: (_state, memo) => (memo.get() === 'malo' ? ['b'] : []) },
+        b: {},
+      },
+    );
+
+    // `a` respondio "malo": su memo dice que escribe `b`, y es el ultimo dueño respondido... salvo `b`, que va despues.
+    await runWizard(steps, {}, new Map(), { finalize });
+
+    expect(runs.map(({ name }) => name)).toEqual(['a', 'b', 'b']);
+
+    const owner = scriptedSteps(
+      { a: ['malo', 'malo'] },
+      { a: { writes: (_state, memo) => (memo.get() ? ['b'] : []) } },
+    );
+
+    await runWizard(owner.steps, { b: 'malo' }, new Map(), { finalize });
+
+    expect(owner.runs.map(({ error, name }) => [name, error])).toEqual([
+      ['a', undefined],
+      ['a', 'no'],
+    ]);
+  });
+
+  it('`resume` arranca en el paso que escribe el campo, con el error; los anteriores van como estaban', async () => {
+    const answers = new Map([
+      ['a', { a: '1' }],
+      ['b', { b: '2' }],
+      ['c', { c: '3' }],
+    ]);
+    const { runs, steps } = scriptedSteps({ b: ['nuevo'], c: ['3'] }, { a: {}, b: {}, c: {} });
+
+    expect(await runWizard(steps, {}, answers, { resume: { fields: ['x', 'b'], message: 'b esta mal' } })).toEqual({
+      a: '1',
+      b: 'nuevo',
+      c: '3',
+    });
+    expect(runs.map(({ error, name, previous }) => [name, previous, error])).toEqual([
+      ['b', '2', 'b esta mal'],
+      ['c', '3', undefined],
+    ]);
+  });
+
+  it('`resume`: Volver desde el paso retomado pregunta el anterior; sin dueño, arranca desde el primero', async () => {
+    const answers = new Map([
+      ['a', { a: '1' }],
+      ['b', { b: '2' }],
+    ]);
+    const back = scriptedSteps({ a: ['1'], b: [BACK, '2'] }, { a: {}, b: {} });
+
+    await runWizard(back.steps, {}, answers, { resume: { fields: ['b'], message: 'mal' } });
+
+    expect(back.runs.map(({ error, name }) => [name, error])).toEqual([
+      ['b', 'mal'],
+      ['a', undefined],
+      ['b', undefined],
+    ]);
+
+    const none = scriptedSteps({}, { a: {}, b: {} });
+
+    await runWizard(none.steps, {}, new Map(answers), { resume: { fields: ['z'], message: 'mal' } });
+
+    expect(none.runs.map(({ error, name }) => [name, error])).toEqual([
+      ['a', undefined],
+      ['b', undefined],
+    ]);
+  });
+
+  it('`resume` se corta en el primer paso sin respuesta y saltea lo que no aplica', async () => {
+    const answers = new Map([['c', { c: '3' }]]);
+    const { runs, steps } = scriptedSteps({}, { a: { skip: () => true }, b: {}, c: {} });
+
+    await runWizard(steps, {}, answers, { resume: { fields: ['c'], message: 'mal' } });
+
+    expect(runs.map(({ error, name }) => [name, error])).toEqual([
+      ['b', undefined],
+      ['c', undefined],
+    ]);
+  });
+});
+
 describe('runWizard sobre grafos al azar (propiedades)', () => {
   const VALUES = ['x', 'y', 'malo'] as const;
 

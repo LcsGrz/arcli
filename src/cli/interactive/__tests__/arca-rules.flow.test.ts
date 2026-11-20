@@ -240,23 +240,19 @@ describe('reglas de ARCA en el asistente (#220)', () => {
   });
 
   describe('la vista previa frena antes de preguntar si se emite', () => {
-    it('el receptor con el CUIT que emite (10069)', async () => {
+    // REV-75 (NAV-5): ya no llega a la vista previa, la pregunta lo frena con la misma regla que el CLI.
+    it('el receptor con el CUIT que emite (10069) se frena al preguntar el CUIT', async () => {
       script = createScript([
         [/comprobante/, 'Factura A'],
         [/A quién/, 'Con CUIT'],
         [/CUIT del receptor/, '20-33333333-4'],
-        [/Condición frente al IVA/, 'Responsable inscripto'],
-        [/Qué estás facturando/, 'Servicios'],
-        [/Monto total/, '1210'],
-        [/Agregamos/, []],
       ]);
 
       const { billingGateway, session } = createSession();
 
-      await expect(runInvoiceFlow(session)).rejects.toMatchObject({
-        code: 'INPUT_VALIDATION_ERROR',
-        message: 'El receptor no puede ser el mismo CUIT que emite (20333333334): ARCA lo rechaza (error 10069).',
-      });
+      await expect(runInvoiceFlow(session)).rejects.toThrow(
+        '"20-33333333-4" no pasa la validacion de "CUIT del receptor:": El receptor no puede ser el mismo CUIT que emite (20333333334): ARCA lo rechaza (error 10069).',
+      );
       expect(billingGateway.createVoucher).not.toHaveBeenCalled();
     });
 

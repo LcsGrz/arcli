@@ -20,7 +20,7 @@
 ? [lista] ¿A qué la asociamos?
   arranca en: (ninguna)
   · A una factura — Elegís una de las últimas emitidas o la ingresás a mano
-  · A un período — Por ejemplo, un descuento sobre todo el mes
+  · A un período — Por ejemplo, un descuento sobre lo facturado en un período, hasta la fecha de la nota
   = A una factura
 
 ? [lista] ¿Sobre qué factura C?

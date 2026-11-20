@@ -2,12 +2,12 @@ import { formatDateAsArcaDate, maxArcaDate } from '../../lib/dates/arca-date';
 import { assertRules } from '../../lib/rules/rules';
 
 import {
+  minimumPaymentDueDate,
   parseBillingDateInput,
   resolveBillingDate,
   resolvePaymentDateFromDueDay,
   shouldSendPaymentDueDate,
 } from './billing.dates';
-import { isElectronicCreditInvoice } from './billing.fce';
 import {
   BILLING_DATE_WINDOW_RULE,
   type BillingRuleContext,
@@ -72,13 +72,13 @@ export function resolveBillingDateRange(
 
   assertRules([DUE_DATE_MINIMUM_RULE], input, context);
 
-  // FCE: el vencimiento no puede ser anterior a la fecha del comprobante ni a hoy (10164, WSFEv1 v4.7).
-  const minimumPaymentDueDate = isElectronicCreditInvoice(voucherKind) ? maxArcaDate(billingDate, today) : billingDate;
+  // Sin vencimiento escrito, el fin del servicio, pero no antes del minimo (en FCE, tampoco antes de hoy: 10164).
+  const minimum = minimumPaymentDueDate(billingDate, today, voucherKind);
   const paymentDueDate = input.paymentDueDate
     ? parseBillingDateInput(input.paymentDueDate, today)
     : input.dueDay
       ? resolvePaymentDateFromDueDay(input.dueDay, today)
-      : maxArcaDate(serviceDates?.serviceEndDate ?? minimumPaymentDueDate, minimumPaymentDueDate);
+      : maxArcaDate(serviceDates?.serviceEndDate ?? minimum, minimum);
 
   return { billingDate, paymentDueDate, ...serviceDates };
 }
