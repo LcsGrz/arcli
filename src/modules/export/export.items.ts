@@ -124,21 +124,12 @@ export function parseExportItemArgument(raw: string): ExportItemInput {
   };
 }
 
-/** La unidad del item puede ser el codigo de ARCA (`7`) o el nombre de la tabla (`unidad`). */
-function resolveExportItemUnit(unit: string | number): string | number {
-  if (typeof unit === 'number') {
-    return unit;
-  }
-
-  const trimmed = unit.trim();
-
-  if (!trimmed) {
-    throw new InputValidationError(
-      'La unidad del ítem no puede estar vacía. Usá `--item` sin la última parte para usar "unidad".',
-    );
-  }
-
-  return /^\d+$/.test(trimmed) ? Number(trimmed) : trimmed;
+/**
+ * La unidad del item puede ser el codigo de ARCA (`7`) o el nombre de la tabla (`unidad`). Llega ya recortada
+ * y no vacia: `parseExportItemArgument` usa la unidad por defecto cuando la parte falta o esta en blanco.
+ */
+function resolveExportItemUnit(unit: string): string | number {
+  return /^\d+$/.test(unit) ? Number(unit) : unit;
 }
 
 /**
