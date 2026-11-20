@@ -49,7 +49,7 @@
   [ ] Datos del consumidor final (nuevo) — sin identificar
   [x] Fecha del comprobante — 15/11/2026
   [ ] Moneda extranjera — pesos
-  [x] Período del servicio — hoy
+  [x] Período del servicio — 15/11/2026
   [ ] Vencimiento del pago — por defecto
   = (nada marcado)
 

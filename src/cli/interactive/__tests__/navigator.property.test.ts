@@ -63,7 +63,7 @@ import { createBillingSession, createExportGateway, NOW } from './screens.fixtur
  *
  * ARCA esta simulado (`screens.fixtures.ts`), el reloj fijo y las semillas tambien: si una falla, fast-check imprime
  * el contraejemplo y la semilla, y `{ seed, path }` lo repite. Las invariantes que hoy no se cumplen van con `it.fails`
- * (REV-67 y REV-68): al arreglarlas, pasan a `it`.
+ * (REV-67 y REV-68 en la E): al arreglarlas, pasan a `it`.
  */
 
 const originalTimeZone = process.env.TZ;
@@ -536,13 +536,18 @@ function assertNoAbandonedOptionals(flow: Flow, run: Walk): void {
   }
 }
 
-/** 4. La seleccion de opcionales vuelve con lo marcado, y Esc vuelve a la pregunta anterior con lo escrito. */
+/**
+ * 4. La seleccion de opcionales vuelve con lo ultimo marcado que se sigue ofreciendo, y Esc vuelve a la pregunta
+ * anterior con lo escrito. Lo marcado es lo de la ultima seleccion confirmada, aunque se haya confirmado con otras
+ * opciones (por ejemplo, con productos no se ofrece el periodo): lo que ya no se ofrecia ahi quedo desmarcado, como
+ * dice el grupo de opcionales (`optionalGroup`).
+ */
 function assertRemembered(run: Walk): void {
   const lastMarked = new Map<string, readonly unknown[]>();
 
   run.events.forEach((event, index) => {
     if (event.kind === 'many' && OPTIONALS.test(event.message)) {
-      const key = event.choices.map((choice) => choice.name).join('|');
+      const key = event.message;
       const remembered = lastMarked.get(key);
 
       if (remembered) {
@@ -675,10 +680,18 @@ describe.each(FLOWS)('asistente al azar: $name', (flow) => {
       await assertEquivalentRoundtrip(run);
       assertTypedValuesReachInput(flow, run);
     }));
+});
 
-  // Tests primero (REV-68): pasa a it() al implementarlo. Hoy falla en los 8 flujos: la selección de opcionales
-  // vuelve vacía al regresar desde un paso anterior. En la factura E y "Repetir" E también falla "CUIT del país del
-  // cliente", que no arranca escrito al volver (REV-74, #10).
+describe.each(FLOWS.filter((flow) => flow.family === 'billing'))('asistente al azar: $name', (flow) => {
+  // REV-68 en A, B y C (NAV-2): los opcionales son un `optionalGroup` que recuerda lo marcado y lo respondido.
+  it('invariante 4: la selección de opcionales vuelve con lo marcado y Esc vuelve con lo escrito', () =>
+    property(flow, { ...BACK_AND_FORTH, seed: 20261121 }, (run) => assertRemembered(run)));
+});
+
+describe.each(FLOWS.filter((flow) => flow.family === 'export'))('asistente al azar: $name', (flow) => {
+  // Tests primero (REV-68 en la E, T3): pasa a it() al implementarlo. La selección de opcionales vuelve vacía al
+  // regresar desde un paso anterior, y en la factura E y "Repetir" E "CUIT del país del cliente" no arranca escrito al
+  // volver (REV-74, #10).
   it.fails('invariante 4: la selección de opcionales vuelve con lo marcado y Esc vuelve con lo escrito', () =>
     property(flow, { ...BACK_AND_FORTH, seed: 20261121 }, (run) => assertRemembered(run)),
   );

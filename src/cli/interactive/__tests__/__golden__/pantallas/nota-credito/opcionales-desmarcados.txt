@@ -60,7 +60,7 @@
 
 ? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
   [x] Fecha del comprobante — 17/11/2026
-  [ ] Período del servicio — hoy
+  [ ] Período del servicio — 17/11/2026
   [x] Vencimiento del pago — por defecto
   = (nada marcado)
 

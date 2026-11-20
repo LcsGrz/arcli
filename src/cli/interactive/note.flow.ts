@@ -21,6 +21,11 @@ import {
   associatedKindGroups,
   groupNewOptions,
 } from '../../modules/interactive/associated-kinds';
+import {
+  type AdvancedOptionKey,
+  type AdvancedOptions,
+  initialAdvancedOptions,
+} from '../../modules/interactive/billing-optionals';
 import { conceptChoices, ivaRateChoices, noteKindChoices } from '../../modules/interactive/choices';
 import { isConsumerIdentified, resolveReceiverIdentity } from '../../modules/interactive/consumer-identification';
 import {
@@ -40,12 +45,7 @@ import type { IssuedVoucher } from '../../modules/vouchers/voucher-history';
 import { formatVoucherNumber } from '../../modules/vouchers/voucher-history.presenter';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 
-import {
-  type AdvancedOptionKey,
-  type AdvancedOptions,
-  askAdvancedOptions,
-  initialAdvancedOptions,
-} from './advanced-options';
+import { billingOptionalsStep } from './advanced-options';
 import { requiredConsumerSteps } from './consumer-identification';
 import { runExportNoteFlow } from './export-note.flow';
 import { type OtherSystemInvoice, pickNoteInvoice } from './invoice-picker';
@@ -538,21 +538,18 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
       // Solo pregunta si el asociado deja elegir (una NC FCE sobre la factura).
       skip: (state) => !state.invoiceKind?.isElectronicCredit || requiredCancellation(state) !== undefined,
     },
-    {
+    billingOptionalsStep<NoteState>({
+      context: (state) => ({
+        concept: state.concept ?? 'servicios',
+        consumer: state.documentType === 'consumidor-final' && !isConsumerIdentified(state.advanced),
+        defaultIvaRate: defaultIvaRate(config, state.ivaRate),
+        hidden: hiddenNoteOptions(state),
+        voucherKind: noteKindChoices(state.kind ?? 'credito', requireStepValue(state.invoiceKind, 'invoiceKind')),
+      }),
       name: 'avanzadas',
-      run: async (state) => {
-        const invoiceKind = requireStepValue(state.invoiceKind, 'invoiceKind');
-        const advanced = await askAdvancedOptions(advancedOf(state), {
-          concept: state.concept ?? 'servicios',
-          consumer: state.documentType === 'consumidor-final' && !isConsumerIdentified(state.advanced),
-          defaultIvaRate: defaultIvaRate(config, state.ivaRate),
-          hidden: hiddenNoteOptions(state),
-          voucherKind: noteKindChoices(state.kind ?? 'credito', invoiceKind),
-        });
-
-        return advanced === BACK ? BACK : { advanced };
-      },
-    },
+      read: advancedOf,
+      write: (advanced) => ({ advanced }),
+    }),
     // En una de periodo la moneda se elige en los opcionales: recien ahi se sabe si el total llega al tope.
     ...requiredConsumerSteps<NoteState>({ ...consumerOptions, name: 'cf-final', session }),
   ];

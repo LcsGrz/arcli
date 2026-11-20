@@ -18,7 +18,7 @@ import { BACK, type Back, requireStepValue, runWizard, type WizardStep } from '.
 import type { IssuedVoucher } from '../../modules/vouchers/voucher-history';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 
-import { askAdvancedOptions, askAgreedExchangeRate, askPaymentCurrency, askServiceDate } from './advanced-options';
+import { askAgreedExchangeRate, askPaymentCurrency, askServiceDate, billingOptionalsStep } from './advanced-options';
 import { requiredConsumerSteps } from './consumer-identification';
 import { runExportRepeatFlow } from './export-repeat.flow';
 import {
@@ -325,23 +325,21 @@ export function repeatSteps(
       skip: (state) => state.concept === 'productos' || state.servicePeriod !== 'otro',
     },
     ...cbuSteps<RepeatState>(config),
-    {
+    billingOptionalsStep<RepeatState>({
+      context: (state) => ({
+        concept: state.concept ?? 'servicios',
+        consumer: offersConsumerData(state),
+        defaultIvaRate: defaultIvaRate(config, state.advanced.ivaRate),
+        // En moneda extranjera el monto esta en esa moneda: cambiarla a pesos lo emitiria como si fueran pesos.
+        fixedCurrency: Boolean(foreignCurrencyOf(state.original)),
+        // Sin alicuota deducida de la factura, que la elija en lugar de caer en la de la config.
+        preselected: !state.advanced.ivaRate && state.voucherKind?.letter !== 'c' ? ['alicuota'] : [],
+        voucherKind: requireStepValue(state.voucherKind, 'voucherKind'),
+      }),
       name: 'opcionales',
-      run: async (state) => {
-        const advanced = await askAdvancedOptions(state.advanced, {
-          concept: state.concept ?? 'servicios',
-          consumer: offersConsumerData(state),
-          defaultIvaRate: defaultIvaRate(config, state.advanced.ivaRate),
-          // En moneda extranjera el monto esta en esa moneda: cambiarla a pesos lo emitiria como si fueran pesos.
-          fixedCurrency: Boolean(foreignCurrencyOf(state.original)),
-          // Sin alicuota deducida de la factura, que la elija en lugar de caer en la de la config.
-          preselected: !state.advanced.ivaRate && state.voucherKind?.letter !== 'c' ? ['alicuota'] : [],
-          voucherKind: requireStepValue(state.voucherKind, 'voucherKind'),
-        });
-
-        return advanced === BACK ? BACK : { advanced };
-      },
-    },
+      read: (state) => state.advanced,
+      write: (advanced) => ({ advanced }),
+    }),
     // Con la cotizacion oficial de ARCA, recien despues de los opcionales se sabe si el total llega al tope.
     ...requiredConsumerSteps<RepeatState>({ ...consumerOptions, name: 'cf-final', session }),
   ];

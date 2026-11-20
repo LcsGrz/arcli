@@ -154,36 +154,33 @@ describe('auditoría del asistente del 19/11', () => {
     expect(exportPayload?.Fecha_cbte).toBe('20261118');
   });
 
-  // Tests primero (REV-68): pasa a it() al implementarlo.
-  it.fails(
-    'REV-68: al volver a un paso anterior y regresar, los opcionales siguen marcados y respondidos',
-    async () => {
-      await run(
-        [
-          [/comprobante/, 'Factura B'],
-          [/A quién/, 'Consumidor final'],
-          [/Qué estás facturando/, 'Servicios'],
-          [/Monto total/, '1.000'],
-          [/Agregamos/, ['Importe exento o no gravado', 'Período del servicio']],
-          [/Parte exenta/, '300'],
-          [/Parte no gravada/, ''],
-          [/Servicio desde/, BACK],
-          [/Parte no gravada/, BACK],
-          [/Parte exenta/, BACK],
-          [/Agregamos/, BACK],
-          [/Monto total/, '1.000'],
-          [/Agregamos/, []],
-          NO_EMIT,
-        ],
-        runInvoiceFlow,
-      );
+  // REV-68 en A, B y C (NAV-2): los opcionales son un `optionalGroup` que recuerda lo marcado y lo respondido.
+  it('REV-68: al volver a un paso anterior y regresar, los opcionales siguen marcados y respondidos', async () => {
+    await run(
+      [
+        [/comprobante/, 'Factura B'],
+        [/A quién/, 'Consumidor final'],
+        [/Qué estás facturando/, 'Servicios'],
+        [/Monto total/, '1.000'],
+        [/Agregamos/, ['Importe exento o no gravado', 'Período del servicio']],
+        [/Parte exenta/, '300'],
+        [/Parte no gravada/, ''],
+        [/Servicio desde/, BACK],
+        [/Parte no gravada/, BACK],
+        [/Parte exenta/, BACK],
+        [/Agregamos/, BACK],
+        [/Monto total/, '1.000'],
+        [/Agregamos/, []],
+        NO_EMIT,
+      ],
+      runInvoiceFlow,
+    );
 
-      const [, choices, selected] = screens.script.chooseManyStep.mock.calls[2] ?? [];
+    const [, choices, selected] = screens.script.chooseManyStep.mock.calls[2] ?? [];
 
-      expect(selected).toEqual(['exento', 'servicio']);
-      expect(choices?.find((choice) => choice.value === 'exento')?.description).toBe('exento 300');
-    },
-  );
+    expect(selected).toEqual(['exento', 'servicio']);
+    expect(choices?.find((choice) => choice.value === 'exento')?.description).toBe('exento 300');
+  });
 
   // Tests primero (REV-69): pasa a it() al implementarlo.
   it.fails(

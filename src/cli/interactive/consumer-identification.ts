@@ -1,6 +1,7 @@
 import { DEFAULT_CURRENCY_CODE } from '../../modules/billing/billing.constants';
 import { requiresConsumerIdentification } from '../../modules/billing/billing.iva-receptor';
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
+import type { AdvancedOptions } from '../../modules/interactive/billing-optionals';
 import { availableChoice } from '../../modules/interactive/choices';
 import {
   amountInPesos,
@@ -21,7 +22,6 @@ import {
 import { noticePanel, writeTerminalOutput } from '../../ui';
 import { startSpinner } from '../spinner';
 
-import type { AdvancedOptions } from './advanced-options';
 import { chooseStep } from './prompts';
 import { askDocumentNumber } from './receiver-padron';
 import type { InteractiveSession } from './session';

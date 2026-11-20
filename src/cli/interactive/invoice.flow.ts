@@ -4,6 +4,7 @@ import type { VoucherKindDefinition } from '../../modules/billing/billing.types'
 import type { ArcliConfig } from '../../modules/config/config.schemas';
 import { EXPORT_VOUCHER_KIND, type ExportVoucherKind } from '../../modules/export/export.types';
 import { amountInputText, parseAmountInput } from '../../modules/interactive/amount-input';
+import { type AdvancedOptions, initialAdvancedOptions } from '../../modules/interactive/billing-optionals';
 import {
   conceptChoices,
   exportInvoiceChoice,
@@ -14,7 +15,7 @@ import { isConsumerIdentified, resolveReceiverIdentity } from '../../modules/int
 import { defaultIvaRate, explicitIvaRate } from '../../modules/interactive/iva-rate';
 import { BACK, type Back, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 
-import { type AdvancedOptions, askAdvancedOptions, initialAdvancedOptions } from './advanced-options';
+import { billingOptionalsStep } from './advanced-options';
 import { requiredConsumerSteps } from './consumer-identification';
 import { runExportFlow } from './export.flow';
 import { markIfNew } from './new-mark';
@@ -178,19 +179,17 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
     // Desde el tope, el documento del consumidor final, si el total en pesos ya se sabe (pesos o cotizacion cargada).
     ...requiredConsumerSteps<InvoiceState>({ ...consumerOptions, name: 'cf' }),
     ...cbuSteps(config),
-    {
+    billingOptionalsStep<InvoiceState>({
+      context: (state) => ({
+        concept: state.concept ?? 'servicios',
+        consumer: offersConsumerData(state),
+        defaultIvaRate: defaultIvaRate(config),
+        voucherKind: requireStepValue(state.voucherKind, 'voucherKind'),
+      }),
       name: 'avanzadas',
-      run: async (state) => {
-        const advanced = await askAdvancedOptions(state.advanced, {
-          concept: state.concept ?? 'servicios',
-          consumer: offersConsumerData(state),
-          defaultIvaRate: defaultIvaRate(config),
-          voucherKind: requireStepValue(state.voucherKind, 'voucherKind'),
-        });
-
-        return advanced === BACK ? BACK : { advanced };
-      },
-    },
+      read: (state) => state.advanced,
+      write: (advanced) => ({ advanced }),
+    }),
     // La moneda o la cotizacion se eligieron en los opcionales: recien ahi se sabe si el total llega al tope.
     ...requiredConsumerSteps<InvoiceState>({ ...consumerOptions, name: 'cf-final', session }),
   ];

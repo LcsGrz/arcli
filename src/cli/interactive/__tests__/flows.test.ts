@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BillingService } from '../../../modules/billing/billing.service';
 import { getVoucherKindByShortcut, VOUCHER_KIND_MAP } from '../../../modules/billing/voucher-kind-map';
+import { initialAdvancedOptions } from '../../../modules/interactive/billing-optionals';
 import { buildEquivalentCommand } from '../../../modules/interactive/equivalent-command';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../../../modules/vouchers/voucher-history';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import { stripAnsi } from '../../../ui';
-import { initialAdvancedOptions } from '../advanced-options';
 import { runExportFlow } from '../export.flow';
 import { runExportNoteFlow } from '../export-note.flow';
 import { runExportRepeatFlow } from '../export-repeat.flow';
