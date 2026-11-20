@@ -164,16 +164,15 @@ export async function previewAndEmit(
   flowWarnings: readonly string[] = [],
 ): Promise<void> {
   const { runtime, service } = session;
+  const entry: BillingCommandInput = {
+    ...rawInput,
+    pointOfSale: rawInput.pointOfSale ?? session.typedPointOfSale,
+  };
   // Lo mismo que con flags: padron, cotizacion oficial ("me pagan en dolares") y sus avisos, antes de la vista previa.
-  const pointOfSale = rawInput.pointOfSale ?? session.typedPointOfSale;
-  const prepared = await prepareBillingInput(
-    service,
-    { ...rawInput, pointOfSale },
-    {
-      billing: session.billingGateway,
-      padron: new ArcaPadronGateway(session.arca),
-    },
-  );
+  const prepared = await prepareBillingInput(service, entry, {
+    billing: session.billingGateway,
+    padron: new ArcaPadronGateway(session.arca),
+  });
   const input: BillingCommandInput = { ...prepared.input, dryRun: true, emit: false };
   const fceWarnings = runtime.config.verificarFce
     ? await resolveFceWarningsInOrder(service, [input], new ArcaFceObligationGateway(session.arca))
@@ -189,9 +188,12 @@ export async function previewAndEmit(
   const preview = await service.execute({ gateway: PREVIEW_GATEWAY, input, runtime, warnings });
 
   writeTerminalOutput(formatBillingOutputs([preview], { environment: runtime.environment, raw: false }));
+  // El comando equivalente sale de la entrada, como la escribiria quien usa el CLI, y no de la preparada: sin lo que la
+  // vista previa completa (la cotizacion oficial, que pegado otro dia seria vieja). Lo que se emite sale de preparar
+  // esa misma entrada (REV-72).
   writeTerminalOutput(
     formatEquivalentCommand(
-      buildEquivalentCommand(input, {
+      buildEquivalentCommand(entry, {
         defaultCurrency: runtime.config.monedaPorDefecto,
         environment: runtime.environment,
         issuerCuit: runtime.context.cuit,

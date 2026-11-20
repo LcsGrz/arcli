@@ -3,10 +3,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BillingService } from '../../../modules/billing/billing.service';
 import type { VoucherKindDefinition, VoucherShortcut } from '../../../modules/billing/billing.types';
 import { getVoucherKindByShortcut } from '../../../modules/billing/voucher-kind-map';
+import type { NoteState } from '../../../modules/interactive/note-input';
 import type { StepMemo } from '../../../modules/interactive/wizard';
 import type { IssuedVoucher } from '../../../modules/vouchers/voucher-history';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
-import { type NoteState, noteSteps } from '../note.flow';
+import { noteSteps } from '../note.flow';
 import type { InteractiveSession } from '../session';
 
 import { createScript } from './script';

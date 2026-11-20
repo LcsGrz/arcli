@@ -17,6 +17,8 @@ import {
 } from '../../../modules/export/export.types';
 import { buildEquivalentCommand } from '../../../modules/interactive/equivalent-command';
 import { buildExportEquivalentCommand } from '../../../modules/interactive/export-equivalent-command';
+import { buildInvoiceInput } from '../../../modules/interactive/invoice-input';
+import { buildNoteInput } from '../../../modules/interactive/note-input';
 import { runWizard } from '../../../modules/interactive/wizard';
 import type { PadronGateway } from '../../../modules/padron/padron';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../../../modules/vouchers/voucher-history';
@@ -24,13 +26,12 @@ import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.re
 import { parseBillingCommandPlan } from '../../commands/billing.command.parser';
 import { resolveBillingCommandDefaults } from '../../commands/billing.command.shared';
 import { parseExportCommandPlan } from '../../commands/export.command.parser';
-import { buildInvoiceInput, invoiceSteps } from '../invoice.flow';
-import { buildInvoiceInput as buildRepeatInput } from '../invoice.flow';
-import { buildNoteInput, noteSteps } from '../note.flow';
+import { invoiceSteps } from '../invoice.flow';
+import { noteInputEnv, noteSteps } from '../note.flow';
 import { repeatSteps } from '../repeat.flow';
 import type { InteractiveSession } from '../session';
 
-import { captured, parseWithProgram } from './equivalent-command.parse';
+import { captured, comparableInput, parseWithProgram } from './equivalent-command.parse';
 import { createScript, type ScriptedAnswer } from './script';
 
 /**
@@ -169,6 +170,10 @@ async function expectSameBillingRequest(
 
     expect(plan.invalidItems).toEqual([]);
     expect(plan.inputs).toHaveLength(1);
+    // La misma entrada y la misma solicitud: el comando no fija nada que el CLI tome solo (REV-72).
+    expect(comparableInput(plan.inputs[0] as BillingCommandInput, runtime.context.cuit), line).toEqual(
+      comparableInput(input, runtime.context.cuit),
+    );
     expect(await payloadOf(plan.inputs[0] as BillingCommandInput, withConfig), line).toEqual(expected);
 
     if (platform === 'linux') {
@@ -191,7 +196,7 @@ async function invoiceFrom(steps: ReadonlyArray<readonly [RegExp, ScriptedAnswer
 
   expect(script.remaining()).toBe(0);
 
-  return buildInvoiceInput(state as NonNullable<typeof state>, session);
+  return buildInvoiceInput(state as NonNullable<typeof state>, session.runtime);
 }
 
 describe('el comando equivalente del asistente pasa por el parser real y arma la misma solicitud', () => {
@@ -276,6 +281,23 @@ describe('el comando equivalente del asistente pasa por el parser real y arma la
     await expectSameBillingRequest(input);
   });
 
+  it('Factura C en dólares cobrada en pesos con la oficial sin tocar: sin --cm y la misma solicitud (#15)', async () => {
+    const input = await invoiceFrom([
+      [/comprobante/, 'Factura C'],
+      [/A quién/, 'Consumidor final'],
+      [/Qué estás facturando/, 'Servicios'],
+      [/Monto total/, '100'],
+      [/Agregamos/, ['Moneda extranjera']],
+      [/Moneda del comprobante/, 'Dólares'],
+      [/Cómo te pagan/, 'En pesos'],
+      [/Cotización de USD/, '1450'],
+    ]);
+    const { line } = await expectSameBillingRequest(input);
+
+    expect(line).toContain('--moneda USD --testing');
+    expect(await payloadOf(input)).toMatchObject({ CanMisMonExt: 'N', MonCotiz: 1450 });
+  });
+
   it('FCE A con CBU, alias con puntos, transferencia y vencimiento', async () => {
     const input = await invoiceFrom([
       [/comprobante/, 'Factura de crédito electrónica A'],
@@ -324,7 +346,7 @@ describe('el comando equivalente del asistente pasa por el parser real y arma la
 
       expect(script.remaining()).toBe(0);
 
-      return buildNoteInput(state as NonNullable<typeof state>, session, 3);
+      return buildNoteInput(state as NonNullable<typeof state>, noteInputEnv(session, 3));
     }
 
     it('NC B por el total de una factura de la lista', async () => {
@@ -431,7 +453,7 @@ describe('el comando equivalente del asistente pasa por el parser real y arma la
       const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
 
       expect(script.remaining()).toBe(0);
-      const input = buildNoteInput(state as NonNullable<typeof state>, session, 3);
+      const input = buildNoteInput(state as NonNullable<typeof state>, noteInputEnv(session, 3));
 
       // El asociado es del CUIT emisor: sin `--acuit`, que en una nota común es lo que toma el CLI (REV-59).
       expect((await expectSameBillingRequest(input)).line).toContain('--ac fc --apv 50 --ar 15 --afecha 10/11/2026');
@@ -489,7 +511,7 @@ describe('el comando equivalente del asistente pasa por el parser real y arma la
     const state = await runWizard(repeatSteps(session, 3, NOW), {
       advanced: { currencyCode: 'ARS', sameCurrency: false },
     });
-    const input = buildRepeatInput(state as NonNullable<typeof state>, session);
+    const input = buildInvoiceInput(state as NonNullable<typeof state>, session.runtime);
 
     expect((await expectSameBillingRequest(input)).line).toContain('--consumidor-final');
     expect(await payloadOf(input)).toMatchObject({ DocNro: 0, DocTipo: 99 });
@@ -510,7 +532,7 @@ describe('el comando equivalente del asistente pasa por el parser real y arma la
       advanced: { currencyCode: 'ARS', sameCurrency: false },
     });
 
-    await expectSameBillingRequest(buildRepeatInput(state as NonNullable<typeof state>, session));
+    await expectSameBillingRequest(buildInvoiceInput(state as NonNullable<typeof state>, session.runtime));
   });
 });
 
@@ -572,6 +594,11 @@ describe('el comando equivalente de la E con textos raros pasa por el parser rea
       expect(call.exportKind?.shortcut).toBe((input.voucherKind ?? EXPORT_VOUCHER_KIND).shortcut);
 
       const plan = parseExportCommandPlan(call.command, { voucherKind: call.exportKind });
+
+      expect(comparableInput(plan.input, 20111111112), line).toEqual(
+        comparableInput({ activity: 620100, ...input }, 20111111112),
+      );
+
       const resolved = await service.resolve(plan.input, exportGateway, exportRuntime, NOW);
 
       expect(resolved.payload, line).toEqual(expected.payload);

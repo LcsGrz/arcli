@@ -3,6 +3,7 @@ import type { BillingCommandInput, BillingIvaCondition } from '../../modules/bil
 import type { VoucherLetter } from '../../modules/billing/billing.types';
 import { isPadronLookupEnabled } from '../../modules/config/config.schemas';
 import { availableChoice, ivaConditionChoices, receiverChoices } from '../../modules/interactive/choices';
+import type { ReceiverFromPadron } from '../../modules/interactive/receiver-document';
 import { BACK, type Back, type WizardStep } from '../../modules/interactive/wizard';
 import { ArcaPadronGateway } from '../../services/arca/arca-padron.gateway';
 import { startSpinner } from '../spinner';
@@ -95,14 +96,6 @@ export function receiverSteps<S extends ReceiverStepState>(
   ];
 }
 
-/** Lo que el padron dijo del CUIT del receptor, para no volver a consultarlo si el usuario vuelve atras. */
-export interface ReceiverFromPadron {
-  readonly address?: string;
-  readonly cuit: number;
-  readonly ivaCondition?: BillingIvaCondition;
-  readonly name?: string;
-}
-
 interface ReceiverState {
   readonly documentNumber?: number;
   readonly documentType?: BillingCommandInput['documentType'];
@@ -167,18 +160,4 @@ export async function askReceiverIvaCondition(
   );
 
   return ivaCondition === BACK ? BACK : { ivaCondition, receiver };
-}
-
-/** Nombre, domicilio y origen del IVA para la entrada del CLI: el PDF y la vista previa los muestran. */
-export function receiverInputFields(
-  state: ReceiverState & { readonly ivaCondition?: BillingIvaCondition },
-): Pick<BillingCommandInput, 'ivaConditionSource' | 'receiverAddress' | 'receiverName'> {
-  const receiver =
-    state.documentType === 'cuit' && state.receiver?.cuit === state.documentNumber ? state.receiver : undefined;
-
-  return {
-    ivaConditionSource: receiver?.ivaCondition && receiver.ivaCondition === state.ivaCondition ? 'padron' : undefined,
-    receiverAddress: receiver?.address,
-    receiverName: receiver?.name,
-  };
 }

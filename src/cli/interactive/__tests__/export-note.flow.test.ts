@@ -7,11 +7,12 @@ import {
   type ExportGateway,
   type ExportIssuedVoucher,
 } from '../../../modules/export/export.types';
+import { buildExportNoteInput } from '../../../modules/interactive/export-note-input';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
 import { stripAnsi } from '../../../ui';
-import { buildExportNoteInput, exportNoteSteps, runExportNoteFlow } from '../export-note.flow';
+import { exportNoteSteps, runExportNoteFlow } from '../export-note.flow';
 import type { InteractiveSession } from '../session';
 
 import { createScript, rejecting } from './script';
@@ -448,7 +449,7 @@ describe('notas E: sin punto de venta y sin asociado elegido', () => {
 
     const state = await runWizard(exportNoteSteps('credito', gateway, 4), {});
 
-    expect(buildExportNoteInput('credito', state as NonNullable<typeof state>)).toMatchObject({
+    expect(buildExportNoteInput(state as NonNullable<typeof state>, { kind: 'credito' })).toMatchObject({
       amount: 100,
       associatedVoucher: { number: 1, pointOfSale: 4, shortcut: undefined },
       voucherKind: EXPORT_CREDIT_NOTE_KIND,

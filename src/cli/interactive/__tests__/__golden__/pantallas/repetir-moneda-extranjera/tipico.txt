@@ -37,7 +37,7 @@
 
 ? [lista] ¿Cómo te pagan?
   arranca en: (ninguna)
-  · En pesos — Ingresás la cotización acordada
+  · En pesos — El comprobante va en dólares y lo cobrás en pesos: cotización oficial de ARCA o la acordada
   · En dólares — Se usa la cotización oficial de ARCA
   = En dólares
 

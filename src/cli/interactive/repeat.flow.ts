@@ -13,6 +13,7 @@ import {
   copyInvoiceReceiver,
   UNSUPPORTED_DOCUMENT_TYPE_NOTICE,
 } from '../../modules/interactive/invoice-copy';
+import { buildInvoiceInput, type InvoiceState } from '../../modules/interactive/invoice-input';
 import { defaultIvaRate } from '../../modules/interactive/iva-rate';
 import { BACK, type Back, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import type { IssuedVoucher } from '../../modules/vouchers/voucher-history';
@@ -21,16 +22,10 @@ import { noticePanel, writeTerminalOutput } from '../../ui';
 import { askAgreedExchangeRate, askPaymentCurrency, askServiceDate, billingOptionalsStep } from './advanced-options';
 import { requiredConsumerSteps } from './consumer-identification';
 import { runExportRepeatFlow } from './export-repeat.flow';
-import {
-  buildInvoiceInput,
-  cbuSteps,
-  invoiceConsumerAmount,
-  type InvoiceState,
-  offerSavingCbu,
-  offersConsumerData,
-} from './invoice.flow';
+import { cbuSteps, invoiceConsumerAmount, offerSavingCbu, offersConsumerData } from './invoice.flow';
 import { pickInvoice } from './invoice-picker';
 import { markIfNew } from './new-mark';
+import { officialExchangeRateLoader } from './official-exchange-rate';
 import { askTextStep, chooseStep } from './prompts';
 import { askReceiverIvaCondition } from './receiver-padron';
 import { type InteractiveSession, previewAndEmit, requirePointOfSale } from './session';
@@ -79,6 +74,7 @@ export function repeatSteps(
   today: Date = new Date(),
 ): Array<WizardStep<RepeatState>> {
   const { config } = session.runtime;
+  const officialExchangeRate = officialExchangeRateLoader(session);
 
   const pickVoucherKind: WizardStep<RepeatState> = {
     name: 'tipo',
@@ -270,7 +266,11 @@ export function repeatSteps(
       name: 'cotizacion',
       run: async (state, previous) => {
         const currency = requireStepValue(foreignCurrencyOf(state.original), 'currency');
-        const exchangeRate = await askAgreedExchangeRate(currency, previous?.advanced?.exchangeRate);
+        const exchangeRate = await askAgreedExchangeRate(
+          currency,
+          previous?.advanced?.exchangeRate,
+          await officialExchangeRate(currency),
+        );
 
         return exchangeRate === BACK ? BACK : { advanced: { ...state.advanced, exchangeRate } };
       },
@@ -337,6 +337,7 @@ export function repeatSteps(
         // La alicuota y el exento vienen de la factura elegida: con otra, arrancan con lo copiado de esa.
         copiedFrom: `${state.voucherKind?.shortcut}:${state.originalPointOfSale}:${state.original?.number}`,
         defaultIvaRate: defaultIvaRate(config, state.advanced.ivaRate),
+        officialExchangeRate,
         // En moneda extranjera el monto esta en esa moneda: cambiarla a pesos lo emitiria como si fueran pesos.
         fixedCurrency: Boolean(foreignCurrencyOf(state.original)),
         // Sin alicuota deducida de la factura, que la elija en lugar de caer en la de la config.
@@ -377,6 +378,6 @@ export async function runRepeatFlow(baseSession: InteractiveSession): Promise<vo
     return;
   }
 
-  await previewAndEmit(session, buildInvoiceInput(state, session));
+  await previewAndEmit(session, buildInvoiceInput(state, session.runtime));
   await offerSavingCbu(session, state);
 }

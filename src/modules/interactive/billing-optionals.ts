@@ -16,6 +16,7 @@ export type AdvancedOptions = Pick<
   | 'billingDate'
   | 'currencyCode'
   | 'exchangeRate'
+  | 'exchangeRateSource'
   | 'exemptAmount'
   | 'ivaRate'
   | 'paymentDueDate'
@@ -46,6 +47,11 @@ export interface BillingOptionalsContext {
   readonly defaultIvaRate: NonNullable<BillingCommandInput['ivaRate']>;
   /** La moneda no se puede cambiar: al repetir un comprobante en moneda extranjera, el monto ya esta en esa moneda. */
   readonly fixedCurrency?: boolean;
+  /**
+   * La cotizacion oficial de ARCA de una moneda, con la que arranca escrita la cotizacion si te pagan en pesos.
+   * `undefined` si la consulta falla: la pregunta arranca vacia.
+   */
+  readonly officialExchangeRate?: (currencyCode: string) => Promise<number | undefined>;
   /** Opciones que no se ofrecen: en las notas, la alicuota (tiene su paso) o la moneda (la de la factura). */
   readonly hidden?: readonly AdvancedOptionKey[];
   /** Opciones que arrancan marcadas, por ejemplo la alicuota al repetir una factura de la que no se deduce. */
@@ -62,7 +68,8 @@ export type BillingOptionalDef = OptionalDef<AdvancedOptionKey, AdvancedOptions,
 
 /**
  * Como el CLI sin `--moneda`: arranca en la moneda de la config y, si es extranjera, con su cotizacion guardada
- * (deprecada) o, sin ella, la oficial de ARCA.
+ * (deprecada, marcada como de la config para que la vista previa avise lo mismo que con flags) o, sin ella, la oficial
+ * de ARCA.
  */
 export function initialAdvancedOptions(
   config: Pick<ArcliConfig, 'cotizacionPorDefecto' | 'monedaPorDefecto'>,
@@ -74,10 +81,12 @@ export function initialAdvancedOptions(
   }
 
   const rate = config.cotizacionPorDefecto;
+  const configured = rate !== undefined && rate !== DEFAULT_EXCHANGE_RATE;
 
   return {
     currencyCode: toIsoCurrencyCode(currencyCode),
-    exchangeRate: rate !== undefined && rate !== DEFAULT_EXCHANGE_RATE ? rate : undefined,
+    exchangeRate: configured ? rate : undefined,
+    exchangeRateSource: configured ? 'config' : undefined,
     sameCurrency: false,
   };
 }
@@ -164,7 +173,7 @@ export function billingOptionals(questions: BillingOptionalQuestions): readonly 
       describe: describeCurrency,
       key: 'divisas',
       label: 'Moneda extranjera',
-      owns: ['currencyCode', 'exchangeRate', 'sameCurrency'],
+      owns: ['currencyCode', 'exchangeRate', 'exchangeRateSource', 'sameCurrency'],
       steps: questions.divisas,
     },
     {

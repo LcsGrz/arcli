@@ -13,7 +13,8 @@ import {
 } from '../../modules/export/export.types';
 import { amountInputText, parseAmountInput } from '../../modules/interactive/amount-input';
 import { buildExportEquivalentCommand } from '../../modules/interactive/export-equivalent-command';
-import { type ExportOptions, isCountryCuitMissing } from '../../modules/interactive/export-optionals';
+import { buildExportInput, type ExportFlowState } from '../../modules/interactive/export-input';
+import { isCountryCuitMissing } from '../../modules/interactive/export-optionals';
 import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { formatPdfOutcomeAsText } from '../../modules/pdf/pdf.presenter';
 import { planEmissionConfirmation, resolvePdfAfterConfirmation } from '../../modules/pdf/pdf-decision';
@@ -28,30 +29,6 @@ import { askTextStep, chooseStep, isPromptCancellation } from './prompts';
 import { offerSavingToConfig } from './save-to-config';
 import { confirmEmission, formatEquivalentCommand, type InteractiveSession } from './session';
 import { validateAmount, validatePositiveInteger } from './validators';
-
-interface ExportFlowState {
-  readonly activity?: number;
-  readonly amount?: number;
-  readonly clientAddress?: string;
-  readonly clientName?: string;
-  readonly clientTaxId?: string;
-  /** El destino como esta en la tabla de ARCA, para el CUIT del pais. */
-  readonly country?: ExportCountry;
-  /** ARCA no publica un CUIT para el destino: hay que pedirlo (`--cuit-pais`). */
-  readonly countryCuitMissing?: boolean;
-  readonly currencyCode?: 'DOL' | 'PES';
-  readonly description?: string;
-  readonly destinationCountry?: string;
-  readonly exportType?: ExportType;
-  readonly incoterm?: string;
-  /** Nombre del incoterm en la tabla de ARCA: la descripcion que va si no se escribe otra. */
-  readonly incotermName?: string;
-  readonly options: ExportOptions;
-  readonly paymentDate?: string;
-  readonly paymentTerms?: string;
-  readonly permits?: readonly string[];
-  readonly sameCurrency?: boolean;
-}
 
 /**
  * Lo que el asistente necesita de WSFEX antes de preguntar: paises para validar el destino, sus CUIT y la tabla de
@@ -484,28 +461,9 @@ export async function runExportFlow(session: InteractiveSession): Promise<typeof
     return BACK;
   }
 
-  const activity = state.activity ?? configuredActivity;
-  const input: ExportVoucherInput = {
-    ...state.options,
-    activity,
-    amount: state.amount,
-    clientAddress: state.clientAddress,
-    clientName: state.clientName,
-    clientTaxId: state.clientTaxId,
-    currencyCode: state.currencyCode,
-    description: state.description,
-    destinationCountry: state.destinationCountry,
-    emit: false,
-    exportType: state.exportType,
-    incoterm: state.incoterm,
-    paymentDate: state.paymentDate,
-    paymentTerms: state.paymentTerms,
-    permits: state.permits,
-    permitsExisting: state.permits ? true : undefined,
-    sameCurrency: state.sameCurrency,
-  };
+  const input = buildExportInput(state, { configuredActivity });
 
-  const emitted = await emitExportVoucher(session, gateway, input, activity);
+  const emitted = await emitExportVoucher(session, gateway, input, input.activity);
 
   // Guardar una actividad que no llego a ARCA (dejada sin emitir) no tiene sentido: no se sabe si la acepta.
   if (emitted && state.activity !== undefined && configuredActivity === undefined) {

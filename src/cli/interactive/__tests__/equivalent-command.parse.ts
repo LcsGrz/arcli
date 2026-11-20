@@ -1,8 +1,16 @@
 import type { Command } from 'commander';
 import { expect } from 'vitest';
 
+import { resolveBillingCurrencyCode } from '../../../modules/billing/billing.mappers';
 import type { VoucherShortcut } from '../../../modules/billing/billing.types';
-import type { ExportVoucherKind } from '../../../modules/export/export.types';
+import { DEFAULT_EXPORT_PAYMENT_TERMS } from '../../../modules/export/export.mappers';
+import {
+  DEFAULT_EXPORT_TYPE,
+  DEFAULT_EXPORT_UNIT_CODE,
+  EXPORT_VOUCHER_KIND,
+  type ExportItemInput,
+  type ExportVoucherKind,
+} from '../../../modules/export/export.types';
 import { createProgram } from '../../program';
 
 /**
@@ -88,3 +96,43 @@ export async function parseWithProgram(line: string, platform: 'linux' | 'win32'
 
   return call;
 }
+
+/**
+ * La entrada, para comparar la del asistente con la que arma el parser con el comando equivalente (la invariante 2 del
+ * navegador): sin lo que dice si se emite (el comando lleva `--emitir`, el asistente lo pregunta despues) ni los campos
+ * vacios, y con lo que el CLI toma solo cuando el comando no lo dice: el CUIT emisor en el asociado, `PES` por `ARS`,
+ * sin `--misma-moneda`, y en la E la forma de pago, el tipo, la unidad de los items, `fe` y de donde salio el modo.
+ */
+export function comparableInput(input: object, issuerCuit: number): Record<string, unknown> {
+  const plain = JSON.parse(
+    JSON.stringify(input, (key, value: unknown) =>
+      key === 'dryRun' || key === 'emit' || key === 'modeSource' ? undefined : value,
+    ),
+  ) as Record<string, unknown>;
+  const associated = plain.associatedVoucher as Record<string, unknown> | undefined;
+
+  return {
+    ...plain,
+    sameCurrency: plain.sameCurrency === true || undefined,
+    ...(associated && 'puntoVenta' in associated
+      ? { associatedVoucher: { cuit: String(issuerCuit), ...associated } }
+      : {}),
+    ...(typeof plain.currencyCode === 'string' ? { currencyCode: resolveBillingCurrencyCode(plain.currencyCode) } : {}),
+    ...('amount' in plain
+      ? {
+          exportType: plain.exportType ?? (isExportNoteInput(plain) ? undefined : DEFAULT_EXPORT_TYPE),
+          paymentTerms: plain.paymentTerms ?? (isExportNoteInput(plain) ? undefined : DEFAULT_EXPORT_PAYMENT_TERMS),
+          items: (plain.items as ExportItemInput[] | undefined)?.map((item) => ({
+            ...item,
+            unit: item.unit ?? DEFAULT_EXPORT_UNIT_CODE,
+          })),
+          voucherKind:
+            (plain.voucherKind as { shortcut?: string } | undefined)?.shortcut ?? EXPORT_VOUCHER_KIND.shortcut,
+        }
+      : {}),
+  };
+}
+
+const isExportNoteInput = (input: Record<string, unknown>): boolean =>
+  (input.voucherKind as { shortcut?: string } | undefined)?.shortcut !== undefined &&
+  (input.voucherKind as { shortcut: string }).shortcut !== EXPORT_VOUCHER_KIND.shortcut;

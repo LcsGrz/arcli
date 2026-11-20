@@ -11,12 +11,11 @@ import {
   EXPORT_VOUCHER_KIND,
   type ExportGateway,
   type ExportIssuedVoucher,
-  type ExportVoucherInput,
   type ExportVoucherKind,
   getExportVoucherKindByArcaType,
 } from '../../modules/export/export.types';
 import { amountInputText, parseAmountInput } from '../../modules/interactive/amount-input';
-import type { ExportOptions } from '../../modules/interactive/export-optionals';
+import { buildExportNoteInput, type ExportNoteState } from '../../modules/interactive/export-note-input';
 import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { formatVoucherNumber } from '../../modules/vouchers/voucher-history.presenter';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
@@ -28,17 +27,6 @@ import { exportOptionalsStep, validateExportText } from './export-options';
 import { askTextStep } from './prompts';
 import { type InteractiveSession, requirePointOfSale } from './session';
 import { validateAmount, validatePositiveInteger } from './validators';
-
-export interface ExportNoteState {
-  readonly amount?: number;
-  /** Que ajusta la nota, elegido en el selector de comprobantes: la factura E u otra nota E (`--ac nde` o `--ac nce`). */
-  readonly associatedKind?: ExportVoucherKind;
-  readonly description?: string;
-  readonly invoice?: ExportIssuedVoucher;
-  readonly invoicePointOfSale?: number;
-  readonly options?: ExportOptions;
-  readonly permits?: readonly string[];
-}
 
 /** Como se nombra el asociado en las preguntas: "la factura E", "la nota de débito E". */
 const ASSOCIATED_NAMES: Record<ExportVoucherKind['shortcut'], string> = {
@@ -239,26 +227,6 @@ export function exportNoteSteps(
   ];
 }
 
-export function buildExportNoteInput(kind: 'credito' | 'debito', state: ExportNoteState): ExportVoucherInput {
-  const invoice = requireStepValue(state.invoice, 'invoice');
-
-  const associatedKind = state.associatedKind ?? EXPORT_VOUCHER_KIND;
-
-  return {
-    ...state.options,
-    amount: state.amount,
-    associatedVoucher: {
-      number: invoice.number,
-      pointOfSale: invoice.pointOfSale,
-      shortcut: associatedKind === EXPORT_VOUCHER_KIND ? undefined : associatedKind.shortcut,
-    },
-    description: state.description,
-    emit: false,
-    permits: state.permits,
-    voucherKind: kind === 'credito' ? EXPORT_CREDIT_NOTE_KIND : EXPORT_DEBIT_NOTE_KIND,
-  };
-}
-
 /**
  * Nota de credito o debito E paso a paso sobre `associatedKind`. Usa ExportService igual que `arcli nce` y `arcli nde`.
  * Devuelve BACK si se vuelve desde el primer paso, para volver al selector de comprobantes.
@@ -283,5 +251,5 @@ export async function runExportNoteFlow(
     return BACK;
   }
 
-  await emitExportVoucher(session, gateway, buildExportNoteInput(kind, state));
+  await emitExportVoucher(session, gateway, buildExportNoteInput(state, { kind }));
 }

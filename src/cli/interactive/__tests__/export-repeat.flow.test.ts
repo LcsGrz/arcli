@@ -2,12 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { arcliConfigSchema } from '../../../modules/config/config.schemas';
 import type { ExportGateway, ExportIssuedVoucher } from '../../../modules/export/export.types';
+import { buildExportRepeatInput } from '../../../modules/interactive/export-repeat-input';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
 import { stripAnsi } from '../../../ui';
 import { attachExportPdf } from '../../commands/export.command.pdf';
-import { buildExportRepeatInput, exportRepeatSteps, runExportRepeatFlow } from '../export-repeat.flow';
+import { exportRepeatSteps, runExportRepeatFlow } from '../export-repeat.flow';
 import type { Choice } from '../prompts';
 import type { InteractiveSession } from '../session';
 
@@ -409,7 +410,9 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     const stepsGateway = { ...gateway, getLastVoucherNumber: async () => 1, getVoucher: async () => original };
     const state = await runWizard(exportRepeatSteps(session, stepsGateway, TABLES, 4), {});
 
-    return state && buildExportRepeatInput(state, session.runtime.config.exportacion?.actividad);
+    return (
+      state && buildExportRepeatInput(state, { configuredActivity: session.runtime.config.exportacion?.actividad })
+    );
   }
 
   /** Los nombres de los opcionales que ofrece la seleccion la vez `call`. */

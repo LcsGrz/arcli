@@ -10,12 +10,14 @@ import {
   resolveReceiverIdentity,
 } from '../../../modules/interactive/consumer-identification';
 import { buildEquivalentCommand } from '../../../modules/interactive/equivalent-command';
+import { buildInvoiceInput } from '../../../modules/interactive/invoice-input';
+import { buildNoteInput } from '../../../modules/interactive/note-input';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../../../modules/vouchers/voucher-history';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import { stripAnsi } from '../../../ui';
-import { buildInvoiceInput, runInvoiceFlow } from '../invoice.flow';
-import { buildNoteInput, noteSteps } from '../note.flow';
+import { runInvoiceFlow } from '../invoice.flow';
+import { noteInputEnv, noteSteps } from '../note.flow';
 import { type RepeatState, repeatSteps } from '../repeat.flow';
 import type { InteractiveSession } from '../session';
 
@@ -470,7 +472,7 @@ describe('consumidor final con datos en el asistente (REV-66)', () => {
         advanced: { currencyCode: 'ARS', sameCurrency: false },
       } satisfies RepeatState);
 
-      return state && buildInvoiceInput(state, session);
+      return state && buildInvoiceInput(state, session.runtime);
     }
 
     it('a consumidor final con un monto nuevo desde el tope: pide el documento', async () => {
@@ -524,7 +526,7 @@ describe('consumidor final con datos en el asistente (REV-66)', () => {
 
       const { session } = createSession([invoice()]);
       const state = await runWizard(noteSteps(session, 3), { kind: 'debito' });
-      const input = buildNoteInput(state!, session, 3);
+      const input = buildNoteInput(state!, noteInputEnv(session, 3));
 
       expect(input).toMatchObject({ documentNumber: 30123456, documentType: 'dni', ivaCondition: 'consumidor-final' });
     });
@@ -564,7 +566,7 @@ describe('consumidor final con datos en el asistente (REV-66)', () => {
       const { session } = createSession();
       const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
 
-      expect(buildNoteInput(state!, session, 3)).toMatchObject({
+      expect(buildNoteInput(state!, noteInputEnv(session, 3))).toMatchObject({
         documentNumber: 30123456,
         documentType: 'dni',
         ivaCondition: 'consumidor-final',

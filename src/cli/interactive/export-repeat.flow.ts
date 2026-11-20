@@ -7,12 +7,11 @@ import {
   type ExportCountry,
   type ExportCountryCuit,
   type ExportGateway,
-  type ExportIssuedVoucher,
-  type ExportVoucherInput,
 } from '../../modules/export/export.types';
 import { amountInputText, parseAmountInput } from '../../modules/interactive/amount-input';
 import { copyExportInvoice, type ExportInvoiceCopy } from '../../modules/interactive/export-copy';
 import { type ExportOptions, isCountryCuitMissing } from '../../modules/interactive/export-optionals';
+import { buildExportRepeatInput, type ExportRepeatState } from '../../modules/interactive/export-repeat-input';
 import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { noticePanel, writeTerminalOutput } from '../../ui';
@@ -24,18 +23,6 @@ import { pickExportVoucher } from './invoice-picker';
 import { askTextStep, chooseStep } from './prompts';
 import type { InteractiveSession } from './session';
 import { validateAmount, validatePositiveInteger } from './validators';
-
-export interface ExportRepeatState {
-  /** Lo copiado de la factura, con el monto y los items ya ajustados si se cambio el monto. */
-  readonly copy?: ExportInvoiceCopy['input'];
-  readonly country?: ExportCountry;
-  readonly original?: ExportIssuedVoucher;
-  readonly options?: ExportOptions;
-  readonly paymentDate?: string;
-  readonly permits?: readonly string[];
-  /** "¿Mismo monto?": si no, se escribe en el paso siguiente. */
-  readonly sameAmount?: boolean;
-}
 
 /** Las tablas de WSFEX para el destino de la factura y su CUIT, como en "Emitir factura". */
 export interface ExportRepeatTables {
@@ -293,23 +280,6 @@ export function exportRepeatSteps(
   ];
 }
 
-/** La entrada de `arcli fe` con lo copiado y lo respondido. */
-export function buildExportRepeatInput(state: ExportRepeatState, configuredActivity?: number): ExportVoucherInput {
-  const copy = requireStepValue(state.copy, 'copy');
-  const country = requireStepValue(state.country, 'country');
-
-  return {
-    ...copy,
-    ...state.options,
-    activity: copy.activity ?? configuredActivity,
-    destinationCountry: country.name,
-    emit: false,
-    paymentDate: state.paymentDate,
-    permits: state.permits,
-    permitsExisting: state.permits ? true : undefined,
-  };
-}
-
 /**
  * Repetir una factura E. Usa ExportService igual que `arcli fe`, asi que valida y emite exactamente lo mismo.
  * Devuelve BACK si se vuelve desde el primer paso, para volver al selector de comprobantes.
@@ -330,7 +300,7 @@ export async function runExportRepeatFlow(
   }
 
   const configuredActivity = session.runtime.config.exportacion?.actividad;
-  const input = buildExportRepeatInput(state, configuredActivity);
+  const input = buildExportRepeatInput(state, { configuredActivity });
 
   await emitExportVoucher(session, gateway, input, input.activity);
 }

@@ -1,14 +1,12 @@
 import { Separator } from '@inquirer/select';
 
-import {
-  type AssociatedPointOfSaleOrigin,
-  classifyAssociatedPointOfSale,
-} from '../../modules/billing/billing.associated-lookup';
+import { classifyAssociatedPointOfSale } from '../../modules/billing/billing.associated-lookup';
 import { formatNoVouchersEmitted, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { resolveRowsPerList } from '../../modules/config/config.schemas';
 import { formatExportVoucherPickerRows } from '../../modules/export/export.history.presenter';
 import type { ExportGateway, ExportIssuedVoucher, ExportVoucherKind } from '../../modules/export/export.types';
+import type { OtherSystemInvoice } from '../../modules/interactive/note-input';
 import { BACK, type Back } from '../../modules/interactive/wizard';
 import { fetchVouchersBackwards, type IssuedVoucher } from '../../modules/vouchers/voucher-history';
 import { formatVoucherNumber, formatVoucherPickerRows } from '../../modules/vouchers/voucher-history.presenter';
@@ -35,18 +33,6 @@ export interface PickedVoucher<T> {
 }
 
 export type PickedInvoice = PickedVoucher<IssuedVoucher>;
-
-/**
- * Un comprobante ingresado a mano que ARCA no tiene, en un punto de venta que no es de web service (o que no se pudo
- * clasificar): de Comprobantes en linea, de un controlador fiscal o de otro sistema. Igual sirve de asociado de una
- * nota, pero sus datos no se pueden copiar (ver `checkAssociatedInArca`).
- */
-export interface OtherSystemInvoice {
-  readonly number: number;
-  readonly origin: Exclude<AssociatedPointOfSaleOrigin, 'web-service'>;
-  readonly otherSystem: true;
-  readonly pointOfSale: number;
-}
 
 /** Lo que pasa con un comprobante ingresado a mano que no existe: el aviso y, si igual sirve, lo que se devuelve. */
 interface MissingVoucher<M> {

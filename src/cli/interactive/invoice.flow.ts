@@ -1,59 +1,32 @@
 import { isIvaConditionAllowed } from '../../modules/billing/billing.iva-receptor';
-import { type BillingCommandInput, billingCommandSchema } from '../../modules/billing/billing.schemas';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import type { ArcliConfig } from '../../modules/config/config.schemas';
 import { EXPORT_VOUCHER_KIND, type ExportVoucherKind } from '../../modules/export/export.types';
 import { amountInputText, parseAmountInput } from '../../modules/interactive/amount-input';
-import { type AdvancedOptions, initialAdvancedOptions } from '../../modules/interactive/billing-optionals';
+import { initialAdvancedOptions } from '../../modules/interactive/billing-optionals';
 import {
   conceptChoices,
   exportInvoiceChoice,
   invoiceKindChoices,
   reciboChoices,
 } from '../../modules/interactive/choices';
-import { isConsumerIdentified, resolveReceiverIdentity } from '../../modules/interactive/consumer-identification';
-import { defaultIvaRate, explicitIvaRate } from '../../modules/interactive/iva-rate';
+import { isConsumerIdentified } from '../../modules/interactive/consumer-identification';
+import { buildInvoiceInput, type InvoiceState, isFceInvoice } from '../../modules/interactive/invoice-input';
+import { defaultIvaRate } from '../../modules/interactive/iva-rate';
+import type { ReceiverFromPadron } from '../../modules/interactive/receiver-document';
 import { BACK, type Back, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 
 import { billingOptionalsStep } from './advanced-options';
 import { requiredConsumerSteps } from './consumer-identification';
 import { runExportFlow } from './export.flow';
 import { markIfNew } from './new-mark';
+import { officialExchangeRateLoader } from './official-exchange-rate';
 import { askTextStep, type Choice, chooseStep } from './prompts';
-import {
-  askReceiverIvaCondition,
-  type ReceiverFromPadron,
-  receiverInputFields,
-  receiverSteps,
-} from './receiver-padron';
+import { askReceiverIvaCondition, receiverSteps } from './receiver-padron';
 import { offerSavingToConfig } from './save-to-config';
 import { type InteractiveSession, previewAndEmit, requirePointOfSale } from './session';
 import { validateAmount, validateCbu, validateOptionalCbuAlias } from './validators';
 
-export interface InvoiceState {
-  readonly advanced: AdvancedOptions;
-  readonly cbu?: string;
-  /** Alias del CBU escrito a mano junto con el CBU; sin el, va el de la config. */
-  readonly cbuAlias?: string;
-  readonly concept?: BillingCommandInput['concept'];
-  readonly documentNumber?: number;
-  readonly documentType?: BillingCommandInput['documentType'];
-  /** Se eligio la factura E: su asistente ya corrio y el resto de los pasos no aplica. */
-  readonly exported?: boolean;
-  readonly ivaCondition?: BillingCommandInput['ivaCondition'];
-  /** "Emitir recibo": el selector muestra los recibos A, B y C en lugar de las facturas. */
-  readonly receipt?: boolean;
-  readonly receiver?: ReceiverFromPadron;
-  /**
-   * El receptor llego cargado desde "Datos de un CUIT": no se pregunta a quien se factura, y la condicion IVA del
-   * padron solo se pregunta si no sirve para la letra elegida.
-   */
-  readonly receiverFromQuery?: boolean;
-  readonly totalAmount?: number;
-  readonly voucherKind?: VoucherKindDefinition;
-}
-
-const isFceInvoice = (state: InvoiceState): boolean => state.voucherKind?.family === 'factura-credito-electronica';
 const isReceipt = (state: InvoiceState): boolean => state.voucherKind?.family === 'recibo';
 const ivaConditionFromQueryFits = (state: InvoiceState): boolean =>
   Boolean(
@@ -90,6 +63,7 @@ export const invoiceConsumerAmount = (state: InvoiceState) => ({
 /** Pasos del flujo de factura; cada uno se puede deshacer con "Volver". */
 export function invoiceSteps(session: InteractiveSession): Array<WizardStep<InvoiceState>> {
   const { config } = session.runtime;
+  const officialExchangeRate = officialExchangeRateLoader(session);
   // El documento depende de quien es el receptor: si cambia, el escrito antes no se ofrece.
   const consumerOptions = {
     advanced: (state: InvoiceState) => state.advanced,
@@ -184,6 +158,7 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
         concept: state.concept ?? 'servicios',
         consumer: offersConsumerData(state),
         defaultIvaRate: defaultIvaRate(config),
+        officialExchangeRate,
         voucherKind: requireStepValue(state.voucherKind, 'voucherKind'),
       }),
       name: 'avanzadas',
@@ -201,31 +176,6 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
       skip: (state: InvoiceState) => Boolean(state.exported) || Boolean(step.skip?.(state)),
     })),
   ];
-}
-
-/** Arma la entrada del CLI con lo que respondio el usuario. */
-export function buildInvoiceInput(state: InvoiceState, session: InteractiveSession): BillingCommandInput {
-  const { config } = session.runtime;
-  const voucherKind = requireStepValue(state.voucherKind, 'voucherKind');
-  const ivaRate = voucherKind.letter === 'c' ? undefined : defaultIvaRate(config, state.advanced.ivaRate);
-  const { consumerDocumentNumber, consumerDocumentType, ...advanced } = state.advanced;
-  const receiver = resolveReceiverIdentity(state, { consumerDocumentNumber, consumerDocumentType });
-
-  return billingCommandSchema.parse({
-    ...advanced,
-    cbu: isFceInvoice(state) ? (state.cbu ?? config.cbu) : undefined,
-    // Como en el CLI: en una FCE el alias de la config se informa junto con el CBU.
-    cbuAlias: isFceInvoice(state) ? (state.cbuAlias ?? config.aliasCbu) : undefined,
-    concept: state.concept,
-    documentNumber: receiver.documentNumber,
-    documentType: receiver.documentType,
-    ivaCondition: receiver.ivaCondition,
-    ...receiverInputFields(state),
-    ivaRate: explicitIvaRate(ivaRate, config),
-    shortcut: voucherKind.shortcut,
-    totalAmount: state.totalAmount,
-    transferMode: isFceInvoice(state) ? state.advanced.transferMode : undefined,
-  });
 }
 
 /**
@@ -324,7 +274,7 @@ export async function runInvoiceFlow(
     return undefined;
   }
 
-  await previewAndEmit(session, buildInvoiceInput(state, session));
+  await previewAndEmit(session, buildInvoiceInput(state, session.runtime));
   await offerSavingCbu(session, state);
 
   return undefined;

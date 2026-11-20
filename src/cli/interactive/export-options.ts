@@ -22,6 +22,7 @@ import {
 } from '../../modules/export/export.types';
 import { amountInputText, parseExchangeRateInput } from '../../modules/interactive/amount-input';
 import type { InteractiveChoice } from '../../modules/interactive/choices';
+import { completeDateInput } from '../../modules/interactive/date-input';
 import {
   type ExportCountryCuitContext,
   type ExportOptionalQuestions,
@@ -429,9 +430,7 @@ function exportQuestions(languageNames: Map<number, string>): ExportOptionalQues
             },
           });
 
-          return answer === BACK
-            ? BACK
-            : { voucherDate: formatArcaDateAsArgentineDate(parseArgentineDateInputAsArcaDate(answer)) };
+          return answer === BACK ? BACK : { voucherDate: completeDateInput(answer) };
         },
       },
     ],

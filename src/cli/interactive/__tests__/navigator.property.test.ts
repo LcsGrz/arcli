@@ -38,7 +38,7 @@ import { runNoteFlow } from '../note.flow';
 import { runRepeatFlow } from '../repeat.flow';
 import type { InteractiveSession } from '../session';
 
-import { captured, parseWithProgram } from './equivalent-command.parse';
+import { captured, comparableInput, parseWithProgram } from './equivalent-command.parse';
 import {
   createRandomAssistant,
   describeEvents,
@@ -47,7 +47,7 @@ import {
   PromptLimitReached,
   type TextAnswers,
 } from './random-assistant';
-import { createBillingSession, createExportGateway, NOW } from './screens.fixtures';
+import { createBillingSession, createExportGateway, NOW, OFFICIAL_RATE } from './screens.fixtures';
 
 /**
  * Tests al azar del asistente (NAV-0, "Tests genéricos" del diseño del navegador): el asistente al azar de
@@ -55,7 +55,8 @@ import { createBillingSession, createExportGateway, NOW } from './screens.fixtur
  * invariantes sobre lo que llego a la vista previa:
  *
  * 1. Lo que aceptan las preguntas, la vista previa no lo rechaza (salvo los rechazos conocidos de REV-69, 70 y 71).
- * 2. El comando equivalente, pegado en POSIX o en PowerShell, arma la misma solicitud a ARCA que la vista previa.
+ * 2. El comando equivalente, pegado en POSIX o en PowerShell, da la misma entrada que armo el asistente y la misma
+ *    solicitud a ARCA que la vista previa.
  * 3. Nada de caminos abandonados: lo de un opcional desmarcado no llega a la entrada.
  * 4. Lo recordado sobrevive: la seleccion de opcionales vuelve con lo marcado, y Esc vuelve a la pregunta anterior
  *    con lo que se habia escrito.
@@ -209,10 +210,11 @@ const ANSWERS: TextAnswers = [
   [/^Observaciones/, fc.constantFrom('', 'Texto de prueba')],
 ];
 
-/** Config de prueba: la de siempre, con dolares por defecto o con el CBU cargado. */
+/** Config de prueba: la de siempre, con dolares por defecto (con o sin la cotizacion deprecada) o con el CBU cargado. */
 const CONFIGS: ReadonlyArray<Record<string, unknown>> = [
   {},
   { monedaPorDefecto: 'USD' },
+  { cotizacionPorDefecto: 1400, monedaPorDefecto: 'USD' },
   { aliasCbu: 'emisor.prueba.cbu', cbu: '0170099220000067797370' },
 ];
 
@@ -372,7 +374,10 @@ const padron: PadronGateway = {
   },
 };
 
-/** 2. El comando equivalente, pegado en las dos shells, arma la misma solicitud que la vista previa. */
+/**
+ * 2. El comando equivalente, pegado en las dos shells, da la misma entrada que armo el asistente y la misma solicitud
+ * que la vista previa.
+ */
 async function assertEquivalentRoundtrip(run: Walk): Promise<void> {
   const shown = run.equivalent;
 
@@ -387,6 +392,7 @@ async function assertEquivalentRoundtrip(run: Walk): Promise<void> {
     typeof import('../../../modules/interactive/export-equivalent-command')
   >('../../../modules/interactive/export-equivalent-command');
   const runtime = run.session.runtime;
+  const issuerCuit = runtime.context.cuit;
 
   for (const platform of ['linux', 'win32'] as const) {
     if ('billing' in shown) {
@@ -397,8 +403,14 @@ async function assertEquivalentRoundtrip(run: Walk): Promise<void> {
         call.shortcut as VoucherShortcut,
         resolveBillingCommandDefaults(runtime.config),
       );
+      const parsed = plan.inputs[0] as BillingCommandInput;
+
+      expect(comparableInput(parsed, issuerCuit), `${line}${context(run)}`).toEqual(
+        comparableInput(shown.billing.input, issuerCuit),
+      );
+
       const service = new BillingService();
-      const prepared = await prepareBillingInput(service, plan.inputs[0] as BillingCommandInput, {
+      const prepared = await prepareBillingInput(service, parsed, {
         billing: run.session.billingGateway,
         padron,
       });
@@ -410,6 +422,11 @@ async function assertEquivalentRoundtrip(run: Walk): Promise<void> {
       const line = exportCommand(shown.export.input, { ...shown.export.options, platform });
       const call = await parseWithProgram(line, platform);
       const plan = parseExportCommandPlan(call.command, { voucherKind: call.exportKind });
+
+      expect(comparableInput(plan.input, issuerCuit), `${line}${context(run)}`).toEqual(
+        comparableInput(shown.export.input, issuerCuit),
+      );
+
       const resolved = await new ExportService().resolve(
         plan.input,
         exportGateway,
@@ -429,6 +446,11 @@ const asDate: Normalize = (value) =>
 const asAmount: Normalize = (value) =>
   (typeof value === 'string' ? parseAmountInput(value) : (value as number | undefined)) ?? 0;
 const asRate: Normalize = (value) => (typeof value === 'string' ? parseExchangeRateInput(value) : value);
+/**
+ * En A, B y C la cotizacion arranca escrita con la oficial (#15): si queda la oficial, la entrada no la fija (como el
+ * CLI sin `--cm`) y la vista previa la consulta. Las dos formas son la oficial.
+ */
+const asBillingRate: Normalize = (value) => asRate(value) ?? OFFICIAL_RATE;
 const asText: Normalize = (value) => (typeof value === 'string' ? value.trim() || undefined : value);
 
 /** Cada campo de la entrada que sale de una pregunta de texto, con como se compara lo escrito con lo que llego. */
@@ -440,7 +462,7 @@ const TYPED_FIELDS: Record<Flow['family'], ReadonlyArray<readonly [RegExp, strin
     [/^Vencimiento del pago/, 'paymentDueDate', asDate],
     [/^Parte exenta/, 'exemptAmount', asAmount],
     [/^Parte no gravada/, 'untaxedAmount', asAmount],
-    [/^Cotización de/, 'exchangeRate', asRate],
+    [/^Cotización de/, 'exchangeRate', asBillingRate],
     [/^(Monto total|Monto de la nota)/, 'totalAmount', asAmount],
     [/^Período desde/, 'associatedPeriod.desde', asDate],
     [/^Período hasta/, 'associatedPeriod.hasta', asDate],

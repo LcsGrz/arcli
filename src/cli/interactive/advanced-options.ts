@@ -1,3 +1,4 @@
+import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { DEFAULT_CURRENCY_CODE } from '../../modules/billing/billing.constants';
 import { isForeignCurrency } from '../../modules/billing/billing.currency';
 import { toIsoCurrencyCode } from '../../modules/billing/currency-codes';
@@ -10,6 +11,7 @@ import {
   currencyName,
 } from '../../modules/interactive/billing-optionals';
 import { currencyChoices, ivaRateChoices } from '../../modules/interactive/choices';
+import { completeDateInput } from '../../modules/interactive/date-input';
 import { BACK, type Back, type WizardStep } from '../../modules/interactive/wizard';
 
 import { askConsumerDocumentNumber, askConsumerDocumentType } from './consumer-identification';
@@ -26,14 +28,19 @@ function currencyChoiceValue(options: { readonly currencyCode?: string }): strin
 }
 
 /**
- * Como se cobra un comprobante en moneda extranjera, como pregunta "Emitir factura": en pesos (se ingresa la cotizacion
- * acordada) o en esa moneda (se usa la oficial de ARCA, `--misma-moneda`). Devuelve si es en esa moneda.
+ * Como se cobra un comprobante en moneda extranjera, como pregunta "Emitir factura": en pesos (la cotizacion arranca
+ * con la oficial de ARCA y se puede cambiar por la acordada) o en esa moneda (se usa la oficial de ARCA,
+ * `--misma-moneda`). Devuelve si es en esa moneda.
  */
 export async function askPaymentCurrency(currencyCode: string, previous?: boolean): Promise<Back | boolean> {
   const payment = await chooseStep(
     '¿Cómo te pagan?',
     [
-      { description: 'Ingresás la cotización acordada', name: 'En pesos', value: 'pesos' as const },
+      {
+        description: `El comprobante va en ${currencyName(currencyCode)} y lo cobrás en pesos: cotización oficial de ARCA o la acordada`,
+        name: 'En pesos',
+        value: 'pesos' as const,
+      },
       {
         description: 'Se usa la cotización oficial de ARCA',
         name: `En ${currencyName(currencyCode)}`,
@@ -46,22 +53,38 @@ export async function askPaymentCurrency(currencyCode: string, previous?: boolea
   return payment === BACK ? BACK : payment === 'moneda';
 }
 
-/** La cotizacion acordada, si te pagan en pesos un comprobante en moneda extranjera. */
+/**
+ * La cotizacion, si te pagan en pesos un comprobante en moneda extranjera. Arranca escrita con la escrita antes o, si no
+ * hay, con la oficial de ARCA (`official`), y se puede cambiar por la acordada. Si la oficial queda sin tocar, devuelve
+ * `undefined`: como el CLI sin `--cm`, la entrada no la fija y la vista previa la consulta. Escrita a mano, aunque sea
+ * igual a la oficial, es la acordada y va con `--cm`. Sin la oficial (la consulta fallo), arranca vacia.
+ */
 export async function askAgreedExchangeRate(
   currencyCode: string,
   previous?: number,
+  official?: number,
 ): Promise<Back | number | undefined> {
-  const rate = await askTextStep(`Cotización de ${toIsoCurrencyCode(currencyCode)}:`, {
-    previousAnswer: amountInputText(previous),
-    validate: validateExchangeRate,
-  });
+  const iso = toIsoCurrencyCode(currencyCode);
+  const officialText = previous === undefined ? amountInputText(official) : undefined;
+  const rate = await askTextStep(
+    official === undefined
+      ? `Cotización de ${iso}:`
+      : `Cotización de ${iso} (la oficial de ARCA es ${formatExchangeRate(official)}):`,
+    { previousAnswer: officialText ?? amountInputText(previous), validate: validateExchangeRate },
+  );
 
-  return rate === BACK ? BACK : parseExchangeRateInput(rate);
+  if (rate === BACK) {
+    return BACK;
+  }
+
+  return officialText !== undefined && rate.trim() === officialText ? undefined : parseExchangeRateInput(rate);
 }
 
 /** Una fecha del periodo del servicio ("Servicio desde:" o "Servicio hasta:"). Lo comparten los opcionales y "Repetir". */
 export async function askServiceDate(end: 'desde' | 'hasta', previous?: string): Promise<Back | string> {
-  return askTextStep(`Servicio ${end}:`, { previousAnswer: previous, validate: validateDate });
+  const date = await askTextStep(`Servicio ${end}:`, { previousAnswer: previous, validate: validateDate });
+
+  return date === BACK ? BACK : completeDateInput(date);
 }
 
 /** Las preguntas de cada opcional, una por paso: "Volver" lleva a la anterior, y desde la primera, a la seleccion. */
@@ -105,7 +128,7 @@ const QUESTIONS: BillingOptionalQuestions = {
       },
     },
   ],
-  divisas: () => [
+  divisas: (context) => [
     {
       name: 'moneda',
       run: async (current, previous) => {
@@ -122,6 +145,7 @@ const QUESTIONS: BillingOptionalQuestions = {
         return {
           currencyCode: currency === 'PES' ? DEFAULT_CURRENCY_CODE : currency,
           exchangeRate: undefined,
+          exchangeRateSource: undefined,
           sameCurrency: false,
         };
       },
@@ -133,7 +157,7 @@ const QUESTIONS: BillingOptionalQuestions = {
       run: async (current, previous) => {
         const sameCurrency = await askPaymentCurrency(current.currencyCode ?? '', previous?.sameCurrency);
 
-        return sameCurrency === BACK ? BACK : { exchangeRate: undefined, sameCurrency };
+        return sameCurrency === BACK ? BACK : { exchangeRate: undefined, exchangeRateSource: undefined, sameCurrency };
       },
       skip: (current) => !isForeignCurrency(current),
     },
@@ -141,9 +165,14 @@ const QUESTIONS: BillingOptionalQuestions = {
       dependsOn: ['moneda', 'pago'],
       name: 'cotizacion',
       run: async (current, previous) => {
-        const exchangeRate = await askAgreedExchangeRate(current.currencyCode ?? '', previous?.exchangeRate);
+        const currencyCode = current.currencyCode ?? '';
+        const exchangeRate = await askAgreedExchangeRate(
+          currencyCode,
+          previous?.exchangeRate,
+          await context.officialExchangeRate?.(currencyCode),
+        );
 
-        return exchangeRate === BACK ? BACK : { exchangeRate };
+        return exchangeRate === BACK ? BACK : { exchangeRate, exchangeRateSource: undefined };
       },
       skip: (current) => !isForeignCurrency(current) || Boolean(current.sameCurrency),
     },
@@ -181,7 +210,7 @@ const QUESTIONS: BillingOptionalQuestions = {
           validate: (value) => validateBillingDate(value, context.concept, context.voucherKind),
         });
 
-        return date === BACK ? BACK : { billingDate: date };
+        return date === BACK ? BACK : { billingDate: completeDateInput(date) };
       },
     },
   ],
@@ -233,7 +262,7 @@ const QUESTIONS: BillingOptionalQuestions = {
           validate: validateDate,
         });
 
-        return due === BACK ? BACK : { paymentDueDate: due };
+        return due === BACK ? BACK : { paymentDueDate: completeDateInput(due) };
       },
     },
   ],

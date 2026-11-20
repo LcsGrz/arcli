@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BillingService } from '../../../modules/billing/billing.service';
+import { buildInvoiceInput } from '../../../modules/interactive/invoice-input';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import { runExportFlow } from '../export.flow';
-import { buildInvoiceInput, invoiceSteps, runInvoiceFlow } from '../invoice.flow';
+import { invoiceSteps, runInvoiceFlow } from '../invoice.flow';
 import { type InteractiveSession, previewAndEmit } from '../session';
 
 import { createScript, rejecting } from './script';
@@ -63,7 +64,7 @@ const PESOS = { advanced: { currencyCode: 'ARS', sameCurrency: false } } as cons
 async function invoice(session = createSession()) {
   const state = await runWizard(invoiceSteps(session), PESOS);
 
-  return state && buildInvoiceInput(state, session);
+  return state && buildInvoiceInput(state, session.runtime);
 }
 
 beforeEach(() => {

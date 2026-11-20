@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BillingService } from '../../../modules/billing/billing.service';
+import { buildInvoiceInput } from '../../../modules/interactive/invoice-input';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../../../modules/vouchers/voucher-history';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import { stripAnsi } from '../../../ui';
 import { runExportRepeatFlow } from '../export-repeat.flow';
-import { buildInvoiceInput } from '../invoice.flow';
 import { type RepeatState, repeatSteps, runRepeatFlow } from '../repeat.flow';
 import { type InteractiveSession, previewAndEmit } from '../session';
 
@@ -72,7 +72,7 @@ const invoice = (overrides: Partial<IssuedVoucher> = {}): IssuedVoucher => ({
 async function repeat(session: InteractiveSession) {
   const state = await runWizard(repeatSteps(session, 3, TODAY), INITIAL);
 
-  return state && buildInvoiceInput(state, session);
+  return state && buildInvoiceInput(state, session.runtime);
 }
 
 function printed(): string {
@@ -357,7 +357,7 @@ describe('repetir un comprobante con datos que ya no valen', () => {
       invoice({ documentNumber: 30123456, documentTypeCode: 96, ivaAmount: 21, netAmount: 100 }),
     ]);
     const state = await runWizard(repeatSteps(session, 3, TODAY), INITIAL);
-    const input = buildInvoiceInput(state as NonNullable<typeof state>, session);
+    const input = buildInvoiceInput(state as NonNullable<typeof state>, session.runtime);
 
     expect(printed()).toMatch(/La factura A original fue a un DNI.*10013/s);
     expect(input).toMatchObject({ documentNumber: 30709965812, documentType: 'cuit', shortcut: 'fa' });
@@ -376,7 +376,9 @@ describe('repetir un comprobante con datos que ya no valen', () => {
     const session = createSession([invoice({ concept: 9 })]);
     const state = await runWizard(repeatSteps(session, 3, TODAY), INITIAL);
 
-    expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({ concept: 'servicios' });
+    expect(buildInvoiceInput(state as NonNullable<typeof state>, session.runtime)).toMatchObject({
+      concept: 'servicios',
+    });
   });
 
   it('un comprobante con datos raros (sin CAE, total 0) igual se puede elegir y pide otro monto', async () => {
@@ -392,6 +394,6 @@ describe('repetir un comprobante con datos que ya no valen', () => {
     const session = createSession([invoice({ cae: undefined as never, ivaAmount: 0, netAmount: 0, total: 0 })]);
     const state = await runWizard(repeatSteps(session, 3, TODAY), INITIAL);
 
-    expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({ totalAmount: 100 });
+    expect(buildInvoiceInput(state as NonNullable<typeof state>, session.runtime)).toMatchObject({ totalAmount: 100 });
   });
 });

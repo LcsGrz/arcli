@@ -18,7 +18,7 @@ export const NOW = new Date('2026-11-18T15:00:00Z');
 const ISSUER_CUIT = 20111111112;
 const POINT_OF_SALE = 3;
 /** La cotizacion oficial de ARCA para cualquier moneda (`FEParamGetCotizacion`). */
-const OFFICIAL_RATE = 1450;
+export const OFFICIAL_RATE = 1450;
 
 const voucher = (overrides: Partial<IssuedVoucher> & Pick<IssuedVoucher, 'number'>): IssuedVoucher => ({
   cae: '86400940834693',
