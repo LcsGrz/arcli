@@ -52,6 +52,9 @@ describe('parseExportItemArgument', () => {
     expect(parseExportItemArgument('001|Servicio|1|1000|7')).toMatchObject({ unit: 7 });
     expect(parseExportItemArgument('Servicio|1|1000|kg')).toMatchObject({ unit: 'kg' });
     expect(parseExportItemArgument('Servicio|1|1000|')).toMatchObject({ unit: 7 });
+    expect(parseExportItemArgument('001|Servicio|1|1000|   ')).toMatchObject({ unit: 7 });
+    expect(parseExportItemArgument('001|Servicio|1|1000| 3 ')).toMatchObject({ unit: 3 });
+    expect(parseExportItemArgument('Servicio|1|1000| kilogramos ')).toMatchObject({ unit: 'kilogramos' });
   });
 
   it('rechaza importes con formato invalido', () => {
