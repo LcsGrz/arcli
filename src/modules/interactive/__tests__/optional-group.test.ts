@@ -18,6 +18,8 @@ interface Values {
 interface Context {
   readonly q: boolean;
   readonly r: boolean;
+  /** De donde sale el valor inicial de Q, para `resetWhen`. */
+  readonly source?: string;
 }
 
 type Key = 'p' | 'q' | 'r';
@@ -231,6 +233,127 @@ describe('optionalGroup', () => {
     await runWizard([group(options, pick, { preselected: () => ['q', 'r'] }), after(1)], INITIAL);
 
     expect(calls.map(({ selected }) => selected)).toEqual([['q', 'r'], []]);
+  });
+
+  describe('`resetWhen`: un opcional sigue a la parte del contexto de la que sale', () => {
+    /**
+     * Marca P y Q y responde; desde el paso siguiente vuelve hasta el contexto, que pasa de `x` a `second`; Enter en la
+     * seleccion.
+     */
+    async function changeSource(second: string, preselected: readonly Key[] = []) {
+      const { options, seen } = catalog({ p: ['p1', 'p1'], q: ['q1', 'q2'] });
+      const withReset = options.map((option) =>
+        option.key === 'q' ? { ...option, resetWhen: (context: Context) => context.source ?? '' } : option,
+      );
+      const contexts: Context[] = [
+        { ...ALL, source: 'x' },
+        { ...ALL, source: second },
+      ];
+      const { calls, pick } = scriptedPick([['p', 'q'], BACK]);
+      const result = await runWizard(
+        [
+          { name: 'contexto', run: async () => ({ context: contexts.shift() ?? ALL }) },
+          group(withReset, pick, { preselected: () => preselected }),
+          after(1),
+        ],
+        INITIAL,
+      );
+
+      return { calls, result, seen };
+    }
+
+    it('si la clave cambia, solo ese opcional olvida su marca y sus respuestas', async () => {
+      const { calls, result, seen } = await changeSource('y');
+
+      expect(calls.at(-1)?.selected).toEqual(['p']);
+      expect(seen).toEqual([
+        ['p', undefined],
+        ['q', undefined],
+        ['p', 'p1'],
+      ]);
+      expect(result?.values).toMatchObject({ p: 'p1', q: 'q0' });
+    });
+
+    it('si la clave cambia y el opcional esta en `preselected`, vuelve a arrancar marcado y sin respuesta', async () => {
+      const { calls, result, seen } = await changeSource('y', ['q']);
+
+      expect(calls.map(({ selected }) => selected)).toEqual([['q'], ['p', 'q'], ['p', 'q']]);
+      expect(seen.at(-1)).toEqual(['q', undefined]);
+      expect(result?.values).toMatchObject({ p: 'p1', q: 'q2' });
+    });
+
+    it('con la misma clave, todo sigue como estaba', async () => {
+      const { calls, seen } = await changeSource('x', ['q']);
+
+      expect(calls.at(-1)?.selected).toEqual(['p', 'q']);
+      expect(seen.at(-1)).toEqual(['q', 'q1']);
+    });
+
+    it('si la clave cambia, tambien se olvida el memo de sus preguntas', async () => {
+      const memos: unknown[] = [];
+      const { options } = catalog();
+      const withReset = options.map((option) =>
+        option.key === 'q'
+          ? {
+              ...option,
+              resetWhen: (context: Context) => context.source ?? '',
+              steps: (): Array<WizardStep<Values>> => [
+                {
+                  name: 'q',
+                  run: async (_state, _previous, memo) => {
+                    memos.push(memo.get());
+                    memo.set('a medias');
+
+                    return { q: 'q1' };
+                  },
+                },
+              ],
+            }
+          : option,
+      );
+      const contexts: Context[] = [
+        { ...ALL, source: 'x' },
+        { ...ALL, source: 'y' },
+      ];
+      const { pick } = scriptedPick([['q'], BACK]);
+
+      await runWizard(
+        [
+          { name: 'contexto', run: async () => ({ context: contexts.shift() ?? ALL }) },
+          group(withReset, pick, { preselected: () => ['q'] }),
+          after(1),
+        ],
+        INITIAL,
+      );
+
+      expect(memos).toEqual([undefined, undefined]);
+    });
+
+    it('volver sin confirmar no deshace lo olvidado: la clave nueva queda guardada', async () => {
+      const { options } = catalog({ q: ['q1'] });
+      const withReset = options.map((option) =>
+        option.key === 'q' ? { ...option, resetWhen: (context: Context) => context.source ?? '' } : option,
+      );
+      const contexts: Context[] = [
+        { ...ALL, source: 'x' },
+        { ...ALL, source: 'y' },
+        { ...ALL, source: 'x' },
+      ];
+      // Marca Q y responde; vuelve hasta el contexto (`y`); en la seleccion vuelve sin confirmar; de nuevo `x`.
+      const { calls, pick } = scriptedPick([['q'], BACK, BACK]);
+
+      await runWizard(
+        [
+          { name: 'contexto', run: async () => ({ context: contexts.shift() ?? ALL }) },
+          group(withReset, pick),
+          after(1),
+        ],
+        INITIAL,
+      );
+
+      // Con `y`, Q se olvido; al volver a `x` sigue olvidado (no queda marcado sin respuesta).
+      expect(calls.map(({ selected }) => selected)).toEqual([[], ['q'], [], []]);
+    });
   });
 
   it('si cambia algo de lo que depende el grupo, olvida lo marcado y lo respondido', async () => {

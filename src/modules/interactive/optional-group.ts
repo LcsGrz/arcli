@@ -18,6 +18,12 @@ export interface OptionalDef<K extends string, O, C> extends FieldDef<O, C> {
   readonly owns: ReadonlyArray<keyof O & string>;
   /** Valor de `owns` cuando no esta disponible. Por defecto, el de `initial`. */
   readonly cleared?: (initial: O) => Partial<O>;
+  /**
+   * De que parte del contexto sale su valor inicial (por ejemplo, la alicuota copiada de la factura que se repite), como
+   * una clave. Si al volver a correr el grupo la clave cambio, este opcional, y solo este, olvida su marca y sus
+   * respuestas y vuelve a arrancar como la primera vez (con `preselected`).
+   */
+  readonly resetWhen?: (context: C) => string;
 }
 
 export interface OptionalGroupDef<S, K extends string, O, C> {
@@ -52,10 +58,55 @@ export interface OptionalGroupMemo<K, O> {
   readonly memos: Map<string, unknown>;
   /** Lo elegido en la seleccion; `undefined` mientras no se confirmo ninguna (arranca con `preselected`). */
   readonly picked?: readonly K[];
+  /** La clave de `resetWhen` de cada opcional que la declara, la ultima vez que corrio el grupo. */
+  readonly resetKeys?: ReadonlyMap<K, string>;
 }
 
 function emptyMemo<K, O>(): OptionalGroupMemo<K, O> {
   return { answers: new Map(), marked: [], memos: new Map() };
+}
+
+/**
+ * El memo con lo que cambio de contexto olvidado: cada opcional cuya clave de `resetWhen` no es la recordada pierde su
+ * marca, sus respuestas y los memos de sus preguntas, y si esta en `preselected` vuelve a arrancar marcado. Guarda las
+ * claves actuales. Los demas opcionales quedan como estaban.
+ */
+function forgetChanged<K extends string, O, C>(
+  options: ReadonlyArray<OptionalDef<K, O, C>>,
+  remembered: OptionalGroupMemo<K, O>,
+  context: C,
+  preselected: readonly K[],
+): OptionalGroupMemo<K, O> {
+  const resetKeys = new Map<K, string>();
+
+  for (const option of options) {
+    if (option.resetWhen) {
+      resetKeys.set(option.key, option.resetWhen(context));
+    }
+  }
+
+  const changed = options.filter((option) => {
+    const before = remembered.resetKeys?.get(option.key);
+
+    return before !== undefined && before !== resetKeys.get(option.key);
+  });
+  const reset = new Set(changed.map((option) => option.key));
+
+  for (const option of changed) {
+    for (const step of option.steps(context)) {
+      remembered.answers.delete(step.name);
+      remembered.memos.delete(step.name);
+    }
+  }
+
+  const kept = (keys: readonly K[]) => keys.filter((key) => !reset.has(key));
+
+  return {
+    ...remembered,
+    marked: [...kept(remembered.marked), ...preselected.filter((key) => reset.has(key))],
+    picked: remembered.picked && kept(remembered.picked),
+    resetKeys,
+  };
 }
 
 function pickOwned<O>(value: O, owns: ReadonlyArray<keyof O & string>): Partial<O> {
@@ -205,7 +256,12 @@ export function optionalGroup<S, K extends string, O, C>(def: OptionalGroupDef<S
 
       assertCatalog(def.name, def.options, context);
 
-      const remembered = memo.get<OptionalGroupMemo<K, O>>() ?? emptyMemo<K, O>();
+      const remembered = forgetChanged(
+        def.options,
+        memo.get<OptionalGroupMemo<K, O>>() ?? emptyMemo<K, O>(),
+        context,
+        def.preselected?.(context) ?? [],
+      );
       const marked = keepAvailable(def.options, remembered.marked, context);
 
       memo.set<OptionalGroupMemo<K, O>>({ ...remembered, marked });
@@ -221,7 +277,17 @@ export function optionalGroup<S, K extends string, O, C>(def: OptionalGroupDef<S
       assertCatalog(def.name, def.options, context);
 
       const offered = offeredIn(context);
-      const { answers, memos, ...remembered } = memo.get<OptionalGroupMemo<K, O>>() ?? emptyMemo<K, O>();
+      const refreshed = forgetChanged(
+        def.options,
+        memo.get<OptionalGroupMemo<K, O>>() ?? emptyMemo<K, O>(),
+        context,
+        def.preselected?.(context) ?? [],
+      );
+
+      // Las claves quedan guardadas aunque se vuelva sin confirmar: lo olvidado no se vuelve a olvidar.
+      memo.set(refreshed);
+
+      const { answers, memos, resetKeys, ...remembered } = refreshed;
       let picked = remembered.picked;
       let marked = keepAvailable(
         def.options,
@@ -250,7 +316,7 @@ export function optionalGroup<S, K extends string, O, C>(def: OptionalGroupDef<S
         // Lo obligatorio no estaba en la seleccion: sigue como estaba.
         picked = keepAvailable(def.options, [...chosen, ...requiredIn(picked ?? [], context)], context);
         marked = keepAvailable(def.options, [...chosen, ...requiredIn(marked, context)], context);
-        memo.set<OptionalGroupMemo<K, O>>({ answers, marked, memos, picked });
+        memo.set<OptionalGroupMemo<K, O>>({ answers, marked, memos, picked, resetKeys });
 
         const done = await runWizard(
           offered.filter((option) => chosen.includes(option.key)).flatMap((option) => option.steps(context)),
@@ -304,7 +370,12 @@ export function requiredOptional<S, K extends string, O, C>(
 
       assertCatalog(group.name, group.options, context);
 
-      const remembered = memo.get<OptionalGroupMemo<K, O>>() ?? emptyMemo<K, O>();
+      const remembered = forgetChanged(
+        group.options,
+        memo.get<OptionalGroupMemo<K, O>>() ?? emptyMemo<K, O>(),
+        context,
+        group.preselected?.(context) ?? [],
+      );
 
       memo.set(remembered);
       def.notice(reasonFor(context)?.reason ?? '');

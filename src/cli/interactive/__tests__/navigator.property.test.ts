@@ -536,30 +536,46 @@ function assertNoAbandonedOptionals(flow: Flow, run: Walk): void {
   }
 }
 
+/** Las preguntas que eligen el comprobante del que se copian la alicuota y el exento ("Repetir"). */
+const COPY_SOURCE = /^(¿Qué comprobante querés repetir\?|¿Cuál repetimos\?)/;
+/** Los opcionales que siguen al comprobante copiado (`resetWhen`): con otro, arrancan como la primera vez. */
+const FOLLOWS_COPY_SOURCE: readonly unknown[] = ['alicuota', 'exento'];
+
 /**
  * 4. La seleccion de opcionales vuelve con lo ultimo marcado que se sigue ofreciendo, y Esc vuelve a la pregunta
  * anterior con lo escrito. Lo marcado es lo de la ultima seleccion confirmada, aunque se haya confirmado con otras
  * opciones (por ejemplo, con productos no se ofrece el periodo): lo que ya no se ofrecia ahi quedo desmarcado, como
- * dice el grupo de opcionales (`optionalGroup`).
+ * dice el grupo de opcionales (`optionalGroup`). Si en "Repetir" se eligio otro comprobante desde esa seleccion, la
+ * alicuota y el exento no siguen marcados: arrancan como la primera vez. Las facturas A, B y FCE de los datos de prueba
+ * tienen una sola alicuota, asi que la alicuota no arranca marcada por `preselected`: tienen que quedar desmarcados.
  */
 function assertRemembered(run: Walk): void {
-  const lastMarked = new Map<string, readonly unknown[]>();
+  const lastMarked = new Map<string, { readonly marked: readonly unknown[]; readonly source: readonly unknown[] }>();
+  const source = new Map<string, unknown>();
 
   run.events.forEach((event, index) => {
+    if (event.kind === 'list' && COPY_SOURCE.test(event.message) && event.answer !== BACK) {
+      source.set(event.message, event.answer);
+    }
+
     if (event.kind === 'many' && OPTIONALS.test(event.message)) {
       const key = event.message;
       const remembered = lastMarked.get(key);
+      const currentSource = [...source.entries()];
 
       if (remembered) {
-        const available = remembered.filter((value) =>
-          event.choices.some((choice) => !choice.disabled && isDeepStrictEqual(choice.value, value)),
+        const sameSource = isDeepStrictEqual(remembered.source, currentSource);
+        const available = remembered.marked.filter(
+          (value) =>
+            (sameSource || !FOLLOWS_COPY_SOURCE.includes(value)) &&
+            event.choices.some((choice) => !choice.disabled && isDeepStrictEqual(choice.value, value)),
         );
 
         expect(event.selected, `"${event.message}" no arrancó con lo marcado antes${context(run)}`).toEqual(available);
       }
 
       if (Array.isArray(event.answer)) {
-        lastMarked.set(key, event.answer);
+        lastMarked.set(key, { marked: event.answer, source: currentSource });
       }
     }
 

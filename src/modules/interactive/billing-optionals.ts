@@ -33,6 +33,11 @@ export type AdvancedOptionKey =
 export interface BillingOptionalsContext {
   readonly concept: BillingCommandInput['concept'];
   /**
+   * El comprobante del que se copian la alicuota y el exento ("Repetir"), como una clave: si cambia, esos opcionales
+   * olvidan lo marcado y respondido y arrancan con lo copiado del nuevo.
+   */
+  readonly copiedFrom?: string;
+  /**
    * El receptor es consumidor final sin identificar: se ofrece cargar su documento ("Datos del consumidor final"), que
    * hace falta desde el tope de la RG 5700/2025 y antes es opcional.
    */
@@ -117,6 +122,7 @@ function describeServicePeriod(options: AdvancedOptions): string {
     : (options.billingDate ?? 'hoy');
 }
 
+const copiedFrom = (context: BillingOptionalsContext): string => context.copiedFrom ?? '';
 const discriminatesIva = (context: BillingOptionalsContext): boolean => context.voucherKind.letter !== 'c';
 const usesService = (context: BillingOptionalsContext): boolean => context.concept !== 'productos';
 const isFceInvoice = (context: BillingOptionalsContext): boolean =>
@@ -150,6 +156,7 @@ export function billingOptionals(questions: BillingOptionalQuestions): readonly 
       key: 'alicuota',
       label: 'Alícuota de IVA',
       owns: ['ivaRate'],
+      resetWhen: copiedFrom,
       steps: questions.alicuota,
     },
     {
@@ -167,6 +174,7 @@ export function billingOptionals(questions: BillingOptionalQuestions): readonly 
       key: 'exento',
       label: 'Importe exento o no gravado',
       owns: ['exemptAmount', 'untaxedAmount'],
+      resetWhen: copiedFrom,
       steps: questions.exento,
     },
     {

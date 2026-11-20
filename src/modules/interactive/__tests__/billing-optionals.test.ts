@@ -6,6 +6,7 @@ import {
   type AdvancedOptions,
   billingOptionals,
   type BillingOptionalsContext,
+  initialAdvancedOptions,
 } from '../billing-optionals';
 import { composeOptionals } from '../optional-group';
 import type { WizardStep } from '../wizard';
@@ -72,6 +73,19 @@ describe('billingOptionals', () => {
     ]);
   });
 
+  it('solo la alícuota y el exento siguen al comprobante del que se copian', () => {
+    const keys = (copiedFrom?: string) =>
+      Object.fromEntries(
+        OPTIONALS.filter((option) => option.resetWhen).map((option) => [
+          option.key,
+          option.resetWhen?.(context('fa', { copiedFrom })),
+        ]),
+      );
+
+    expect(keys('fa:3:14')).toEqual({ alicuota: 'fa:3:14', exento: 'fa:3:14' });
+    expect(keys()).toEqual({ alicuota: '', exento: '' });
+  });
+
   // #8 de la auditoria del 19/11: sin fechas de servicio, el CLI usa la fecha del comprobante.
   it('"Período del servicio" describe la fecha que va', () => {
     expect(describeOf('servicio', PESOS)).toBe('hoy');
@@ -103,6 +117,13 @@ describe('billingOptionals', () => {
       serviceEndDate: undefined,
       serviceStartDate: undefined,
       untaxedAmount: undefined,
+    });
+  });
+
+  it('en pesos arranca sin cotización, aunque la config tenga una', () => {
+    expect(initialAdvancedOptions({ cotizacionPorDefecto: 1200, monedaPorDefecto: 'PES' })).toStrictEqual({
+      currencyCode: 'ARS',
+      sameCurrency: false,
     });
   });
 });

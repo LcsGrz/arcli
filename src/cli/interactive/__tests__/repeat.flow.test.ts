@@ -103,7 +103,7 @@ describe('repetir un comprobante', () => {
       [/comprobante querés repetir/, 'Factura C'],
       [/Cuál repetimos/, '00003-00000014'],
       [/Mismo monto/, 'Sí'],
-      [/Período del servicio/, 'Solo hoy'],
+      [/Período del servicio/, 'Un solo día'],
       [/Agregamos/, []],
     ]);
 
@@ -130,7 +130,7 @@ describe('repetir un comprobante', () => {
       [/Condición frente al IVA/, BACK],
       [/Cuál repetimos/, '00003-00000014'],
       [/Mismo monto/, 'Sí'],
-      [/Período del servicio/, 'Solo hoy'],
+      [/Período del servicio/, 'Un solo día'],
       [/Agregamos/, []],
     ]);
 
@@ -157,7 +157,7 @@ describe('repetir un comprobante', () => {
       [/Período del servicio/, BACK],
       [/Monto total:/, BACK],
       [/Mismo monto/, 'Sí'],
-      [/Período del servicio/, 'Solo hoy'],
+      [/Período del servicio/, 'Un solo día'],
       [/Agregamos/, []],
     ]);
 
@@ -183,7 +183,7 @@ describe('repetir un comprobante', () => {
       [/Mismo monto/, 'No'],
       [/Monto total en USD/, '200'],
       [/Cómo te pagan/, 'En dólares'],
-      [/Período del servicio/, 'Solo hoy'],
+      [/Período del servicio/, 'Un solo día'],
       [/Agregamos/, []],
     ]);
 
@@ -225,7 +225,7 @@ describe('repetir un comprobante', () => {
     });
   });
 
-  it('volver desde las fechas de "Otro período" vuelve a la anterior, y "Solo hoy" no deja las fechas ya elegidas', async () => {
+  it('volver desde las fechas de "Otro período" vuelve a la anterior, y "Un solo día" no deja las fechas ya elegidas', async () => {
     script = createScript([
       [/comprobante querés repetir/, 'Factura C'],
       [/Cuál repetimos/, '00003-00000014'],
@@ -236,7 +236,7 @@ describe('repetir un comprobante', () => {
       [/Servicio desde/, '10/09/2026'],
       [/Servicio hasta/, BACK],
       [/Servicio desde/, BACK],
-      [/Período del servicio/, 'Solo hoy'],
+      [/Período del servicio/, 'Un solo día'],
       [/Agregamos/, []],
     ]);
 
@@ -288,7 +288,7 @@ describe('runRepeatFlow', () => {
       [/comprobante querés repetir/, 'Factura C'],
       [/Cuál repetimos/, '00003-00000014'],
       [/Mismo monto/, 'Sí'],
-      [/Período del servicio/, 'Solo hoy'],
+      [/Período del servicio/, 'Un solo día'],
       [/Agregamos/, []],
     ]);
 
@@ -349,7 +349,7 @@ describe('repetir un comprobante con datos que ya no valen', () => {
       [/CUIT del receptor/, rejecting('30-70996581-2', ['30123456', /CUIT/])],
       [/Condición frente al IVA/, 'Responsable inscripto'],
       [/Mismo monto/, 'Sí'],
-      [/Período del servicio/, 'Solo hoy'],
+      [/Período del servicio/, 'Un solo día'],
       [/Agregamos/, []],
     ]);
 
@@ -369,7 +369,7 @@ describe('repetir un comprobante con datos que ya no valen', () => {
       [/comprobante querés repetir/, 'Factura C'],
       [/Cuál repetimos/, '00003-00000014'],
       [/Mismo monto/, 'Sí'],
-      [/Período del servicio/, 'Solo hoy'],
+      [/Período del servicio/, 'Un solo día'],
       [/Agregamos/, []],
     ]);
 
@@ -385,7 +385,7 @@ describe('repetir un comprobante con datos que ya no valen', () => {
       [/Cuál repetimos/, '00003-00000014'],
       [/Mismo monto/, 'No'],
       [/Monto total/, '100'],
-      [/Período del servicio/, 'Solo hoy'],
+      [/Período del servicio/, 'Un solo día'],
       [/Agregamos/, []],
     ]);
 

@@ -481,7 +481,7 @@ describe('consumidor final con datos en el asistente (REV-66)', () => {
         [/Monto total/, '10.000.000'],
         [/Documento del consumidor final/, 'DNI'],
         [/DNI del consumidor final/, '30123456'],
-        [/Período del servicio/, 'Solo hoy'],
+        [/Período del servicio/, 'Un solo día'],
         [/Agregamos/, []],
       ]);
 
@@ -498,7 +498,7 @@ describe('consumidor final con datos en el asistente (REV-66)', () => {
         [/comprobante querés repetir/, 'Factura C'],
         [/Cuál repetimos/, '00003-00000014'],
         [/Mismo monto/, 'Sí'],
-        [/Período del servicio/, 'Solo hoy'],
+        [/Período del servicio/, 'Un solo día'],
         [/Agregamos/, []],
       ]);
 

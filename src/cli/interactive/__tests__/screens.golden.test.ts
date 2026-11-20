@@ -711,7 +711,7 @@ describe('golden de pantallas: Repetir en pesos', () => {
       [
         ...repetirC,
         [/Mismo monto/, 'Sí'],
-        [/Período del servicio/, 'Solo hoy'],
+        [/Período del servicio/, 'Un solo día'],
         [/Agregamos/, ['Fecha del comprobante', 'Vencimiento del pago']],
         [/Fecha del comprobante/, '16/11/2026'],
         [/Vencimiento del pago/, '26/11/2026'],

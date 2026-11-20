@@ -48,7 +48,7 @@
   arranca en: (ninguna)
   · Este mes — 01/11/2026 al 30/11/2026
   · El mes pasado — 01/10/2026 al 31/10/2026
-  · Solo hoy — Desde y hasta hoy
+  · Un solo día — La fecha del comprobante: hoy, o la que elijas en los opcionales
   · Otro período
   = El mes pasado
 

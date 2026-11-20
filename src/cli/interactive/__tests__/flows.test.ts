@@ -801,7 +801,7 @@ describe('flujos del modo interactivo', () => {
         [/Cuál repetimos/, '00003-00000014'],
         [/Condición frente al IVA/, 'Responsable inscripto'],
         [/Mismo monto/, 'Sí'],
-        [/Período del servicio/, 'Solo hoy'],
+        [/Período del servicio/, 'Un solo día'],
         [/Agregamos/, []],
       ]);
 
@@ -825,7 +825,7 @@ describe('flujos del modo interactivo', () => {
         [/Cuál repetimos/, '00003-00000014'],
         [/Condición frente al IVA/, 'Responsable inscripto'],
         [/Monto total/, '1.210'],
-        [/Período del servicio/, 'Solo hoy'],
+        [/Período del servicio/, 'Un solo día'],
         [/Agregamos/, []],
       ]);
 
@@ -846,6 +846,142 @@ describe('flujos del modo interactivo', () => {
       expect(script.chooseManyStep.mock.calls[0][2]).toEqual(['alicuota']);
     });
 
+    describe('al volver y elegir otra factura, la alícuota y el exento siguen a la factura', () => {
+      /** Factura A con una sola alícuota (21%) y exento. */
+      const single = invoice({
+        documentNumber: 30709965812,
+        documentTypeCode: 80,
+        exemptAmount: 50,
+        ivaAmount: 210,
+        netAmount: 1000,
+        number: 14,
+        total: 1260,
+      });
+      /** Factura A con varias alícuotas: no se deduce, y la alícuota arranca marcada. */
+      const several = invoice({
+        documentNumber: 30709965812,
+        documentTypeCode: 80,
+        ivaAmount: 262.5,
+        netAmount: 1500,
+        number: 15,
+        total: 1762.5,
+      });
+      /** La selección de opcionales la vez `call`: lo marcado y las descripciones. */
+      const selection = (call: number) => {
+        const [, choices, selected] = script.chooseManyStep.mock.calls[call] ?? [];
+
+        return {
+          descriptions: Object.fromEntries(
+            onlyChoices(choices ?? []).map((choice) => [choice.value, choice.description]),
+          ),
+          selected,
+        };
+      };
+      const backToInvoice = [
+        [/Agregamos/, BACK],
+        [/Período del servicio/, BACK],
+        [/Mismo monto|Monto total/, BACK],
+        [/Condición frente al IVA/, BACK],
+      ] as const;
+
+      it('con una factura de varias alícuotas, la alícuota vuelve a arrancar marcada', async () => {
+        script = createScript([
+          [/comprobante querés repetir/, 'Factura A'],
+          [/Cuál repetimos/, '00003-00000014'],
+          [/Condición frente al IVA/, 'Responsable inscripto'],
+          [/Mismo monto/, 'Sí'],
+          [/Período del servicio/, 'Un solo día'],
+          [/Agregamos/, ['Fecha']],
+          [/Fecha del comprobante/, BACK],
+          ...backToInvoice,
+          [/Cuál repetimos/, '00003-00000015'],
+          [/Condición frente al IVA/, 'Responsable inscripto'],
+          [/Monto total/, '1.000'],
+          [/Período del servicio/, 'Un solo día'],
+          [/Agregamos/, []],
+        ]);
+
+        await runWizard(repeatSteps(createSession([single, several]), 3, today), {
+          advanced: { currencyCode: 'ARS', sameCurrency: false },
+        });
+
+        // Lo marcado que no depende de la factura sigue marcado.
+        expect(selection(2).selected).toEqual(['fecha', 'alicuota']);
+      });
+
+      it('lo respondido con otra factura no pisa lo copiado de la elegida', async () => {
+        script = createScript([
+          [/comprobante querés repetir/, 'Factura A'],
+          [/Cuál repetimos/, '00003-00000015'],
+          [/Condición frente al IVA/, 'Responsable inscripto'],
+          [/Monto total/, '1.000'],
+          [/Período del servicio/, 'Un solo día'],
+          [/Agregamos/, ['Alícuota', 'Importe exento']],
+          [/Alícuota/, '10,5%'],
+          [/exenta/, '300'],
+          [/no gravada/, BACK],
+          [/exenta/, BACK],
+          [/Alícuota/, BACK],
+          ...backToInvoice,
+          [/Cuál repetimos/, '00003-00000014'],
+          [/Condición frente al IVA/, 'Responsable inscripto'],
+          [/Mismo monto/, 'Sí'],
+          [/Período del servicio/, 'Un solo día'],
+          [/Agregamos/, ['Alícuota']],
+          [/Alícuota/, '21%'],
+        ]);
+
+        const state = await runWizard(repeatSteps(createSession([single, several]), 3, today), {
+          advanced: { currencyCode: 'ARS', sameCurrency: false },
+        });
+
+        expect(selection(2)).toMatchObject({
+          descriptions: { alicuota: '21%', exento: 'exento 50' },
+          selected: [],
+        });
+        // La alícuota arranca en la deducida de la factura elegida, no en la respondida con la otra.
+        expect(script.chooseStep.mock.calls.findLast(([message]) => /Alícuota/.test(message))?.[2]).toBe('21');
+        expect(state?.advanced).toMatchObject({ exemptAmount: 50, ivaRate: '21' });
+      });
+
+      it('la fecha del comprobante marcada y respondida sobrevive al cambio de factura', async () => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        vi.setSystemTime(today);
+        script = createScript([
+          [/comprobante querés repetir/, 'Factura A'],
+          [/Cuál repetimos/, '00003-00000014'],
+          [/Condición frente al IVA/, 'Responsable inscripto'],
+          [/Mismo monto/, 'Sí'],
+          [/Período del servicio/, 'Un solo día'],
+          [/Agregamos/, ['Fecha', 'Período']],
+          [/Fecha del comprobante/, '03/10/2026'],
+          [/Servicio desde/, BACK],
+          [/Fecha del comprobante/, BACK],
+          ...backToInvoice,
+          [/Cuál repetimos/, '00003-00000015'],
+          [/Condición frente al IVA/, 'Responsable inscripto'],
+          [/Monto total/, '1.000'],
+          [/Período del servicio/, 'Un solo día'],
+          [/Agregamos/, ['Fecha', 'Alícuota']],
+          [/Fecha del comprobante/, '03/10/2026'],
+          [/Alícuota/, '21%'],
+        ]);
+
+        const state = await runWizard(repeatSteps(createSession([single, several]), 3, today), {
+          advanced: { currencyCode: 'ARS', sameCurrency: false },
+        });
+
+        expect(selection(2)).toMatchObject({
+          descriptions: { fecha: '03/10/2026' },
+          selected: ['fecha', 'alicuota', 'servicio'],
+        });
+        expect(
+          script.askTextStep.mock.calls.findLast(([message]) => /Fecha del comprobante/.test(message))?.[1],
+        ).toMatchObject({ previousAnswer: '03/10/2026' });
+        expect(state?.advanced).toMatchObject({ billingDate: '03/10/2026', ivaRate: '21' });
+      });
+    });
+
     it('si la factura era en dolares sigue en dolares y solo pide la cotizacion', async () => {
       script = createScript([
         [/comprobante querés repetir/, 'Factura C'],
@@ -853,7 +989,7 @@ describe('flujos del modo interactivo', () => {
         [/Mismo monto/, 'Sí'],
         [/Cómo te pagan/, 'En pesos'],
         [/Cotización de USD/, '1.250,5'],
-        [/Período del servicio/, 'Solo hoy'],
+        [/Período del servicio/, 'Un solo día'],
         [/Agregamos/, []],
       ]);
 
@@ -883,7 +1019,7 @@ describe('flujos del modo interactivo', () => {
         [/Mismo monto/, 'No'],
         [/Monto total en EUR/, '300'],
         [/Cómo te pagan/, 'En euros'],
-        [/Período del servicio/, 'Solo hoy'],
+        [/Período del servicio/, 'Un solo día'],
         [/Agregamos/, []],
       ]);
 
@@ -905,7 +1041,7 @@ describe('flujos del modo interactivo', () => {
         [/comprobante querés repetir/, 'Factura C'],
         [/Cuál repetimos/, '00003-00000014'],
         [/Mismo monto/, 'Sí'],
-        [/Período del servicio/, 'Solo hoy'],
+        [/Período del servicio/, 'Un solo día'],
         [/Agregamos/, []],
       ]);
 

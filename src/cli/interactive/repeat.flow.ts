@@ -286,7 +286,12 @@ export function repeatSteps(
           [
             { description: describePeriod(periods.actual), name: 'Este mes', value: 'actual' },
             { description: describePeriod(periods.anterior), name: 'El mes pasado', value: 'anterior' },
-            { description: 'Desde y hasta hoy', name: 'Solo hoy', value: 'hoy' },
+            {
+              // Sin fechas de servicio va la fecha del comprobante, que se puede cambiar en los opcionales (#8).
+              description: 'La fecha del comprobante: hoy, o la que elijas en los opcionales',
+              name: 'Un solo día',
+              value: 'hoy',
+            },
             { name: 'Otro período', value: 'otro' },
           ],
           previous?.servicePeriod,
@@ -329,6 +334,8 @@ export function repeatSteps(
       context: (state) => ({
         concept: state.concept ?? 'servicios',
         consumer: offersConsumerData(state),
+        // La alicuota y el exento vienen de la factura elegida: con otra, arrancan con lo copiado de esa.
+        copiedFrom: `${state.voucherKind?.shortcut}:${state.originalPointOfSale}:${state.original?.number}`,
         defaultIvaRate: defaultIvaRate(config, state.advanced.ivaRate),
         // En moneda extranjera el monto esta en esa moneda: cambiarla a pesos lo emitiria como si fueran pesos.
         fixedCurrency: Boolean(foreignCurrencyOf(state.original)),
