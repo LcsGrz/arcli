@@ -1,5 +1,6 @@
 import { formatDateAsArcaDate, parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
+import { assertRules } from '../../lib/rules/rules';
 import type { ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
 import type { ICbtesAsoc, IIva, INextVoucher } from '../../services/arca/arca-sdk.types';
 import { evaluateFceObligation, type FceObligationGateway, shouldCheckFceObligation } from '../fce/fce-obligation';
@@ -20,7 +21,7 @@ import {
 import { resolveBillingDateRange } from './billing.date-range';
 import { EmissionUncertainError } from './billing.errors';
 import { resolveElectronicCreditOptionals } from './billing.fce';
-import { validateConsumerIdentification, validateIvaConditionForVoucher } from './billing.iva-receptor';
+import { validateIvaConditionForVoucher } from './billing.iva-receptor';
 import {
   formatVoucherSubject,
   resolveBillingConceptCode,
@@ -29,6 +30,7 @@ import {
   resolveBillingIvaConditionCode,
 } from './billing.mappers';
 import { type PadronResolution, resolveIvaConditionFromPadron } from './billing.padron';
+import { CONSUMER_IDENTIFICATION_THRESHOLD_RULE } from './billing.rules';
 import { type BillingCommandInput, describePointOfSaleOutOfRange, MAX_WSFE_POINT_OF_SALE } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
 import type { BillingExecutionResult, BillingGateway } from './billing.types.internal';
@@ -283,7 +285,12 @@ export class BillingService {
     validateDocumentIdentity(input, voucherKind, runtime.context.cuit);
     validateUncategorizedReceiver(input, voucherKind, taxAmounts.netAmount + taxAmounts.ivaAmount);
     validateIvaConditionForVoucher(input.ivaCondition, voucherKind);
-    validateConsumerIdentification(input, currencyFields.MonCotiz, voucherKind);
+    // RG 5700/2025, con la cotizacion ya resuelta: la misma regla que el asistente.
+    assertRules([CONSUMER_IDENTIFICATION_THRESHOLD_RULE], input, {
+      exchangeRate: currencyFields.MonCotiz,
+      today: formatDateAsArcaDate(new Date()),
+      voucherKind,
+    });
 
     const payload: CliVoucherPayload = {
       CantReg: 1,

@@ -2,8 +2,10 @@ import Big from 'big.js';
 
 import { InputValidationError } from '../../lib/errors/app-error';
 import { formatArgentineAmount, parseArgentineAmount } from '../../lib/numbers/argentine-amount';
+import { assertRules } from '../../lib/rules/rules';
 import { roundAmount } from '../billing/billing.amounts';
 
+import type { ExportRule } from './export.rules';
 import {
   DEFAULT_EXPORT_UNIT_CODE,
   EXPORT_TOTAL_ONLY_UNIT_CODES,
@@ -187,14 +189,6 @@ export function resolveUnitCode(unit: string | number | undefined, units: readon
   return DEFAULT_EXPORT_UNIT_CODE;
 }
 
-function assertSameTotal(total: Big, amount: number): void {
-  if (!total.eq(new Big(amount).round(2, Big.roundHalfUp))) {
-    throw new InputValidationError(
-      `La suma de los ítems (${formatArgentineAmount(roundAmount(total))}) no coincide con \`--monto\` (${formatArgentineAmount(amount)}).`,
-    );
-  }
-}
-
 function sumItems(inputs: readonly ExportItemInput[]): Big {
   return inputs.reduce(
     (sum, item) => sum.plus(new Big(item.quantity).times(item.unitPrice).round(2, Big.roundHalfUp)),
@@ -207,13 +201,36 @@ export function sumExportItems(inputs: readonly ExportItemInput[]): number {
   return roundAmount(sumItems(inputs));
 }
 
+/**
+ * Con items, la suma (cada renglon redondeado a dos decimales) da el monto total: 1610, WSFEX v3.1.0. Sin items va un
+ * renglon con el total. En el asistente los items son un bucle propio que solo termina cuando suman el monto (NAV-3).
+ */
+export const EXPORT_ITEMS_TOTAL_RULE: ExportRule = {
+  check: ({ amount, items }) => {
+    if (!items?.length || typeof amount !== 'number') {
+      return undefined;
+    }
+
+    const total = sumItems(items);
+
+    if (total.eq(new Big(amount).round(2, Big.roundHalfUp))) {
+      return undefined;
+    }
+
+    const sum = formatArgentineAmount(roundAmount(total));
+
+    return {
+      message: `La suma de los ítems (${sum}) no coincide con \`--monto\` (${formatArgentineAmount(amount)}).`,
+      question: `La suma de los ítems (${sum}) no coincide con el monto total (${formatArgentineAmount(amount)}).`,
+    };
+  },
+  fields: ['items'],
+  id: 'export-items-total',
+};
+
 /** Se valida antes de consultar ARCA: un total que no cierra no tiene por que autenticar en WSAA. */
 export function assertExportItemsTotal(inputs: readonly ExportItemInput[] | undefined, amount: number): void {
-  if (!inputs || inputs.length === 0) {
-    return;
-  }
-
-  assertSameTotal(sumItems(inputs), amount);
+  assertRules([EXPORT_ITEMS_TOTAL_RULE], { amount, items: inputs }, {});
 }
 
 /**
@@ -273,9 +290,9 @@ export function buildExportItems(
     };
   });
 
-  const total = items.reduce((sum, item) => sum.plus(item.Pro_total_item), new Big(0));
+  assertExportItemsTotal(inputs, amount);
 
-  assertSameTotal(total, amount);
+  const total = items.reduce((sum, item) => sum.plus(item.Pro_total_item), new Big(0));
 
   return { items, total: roundAmount(total) };
 }

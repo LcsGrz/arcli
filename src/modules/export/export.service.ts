@@ -6,6 +6,7 @@ import {
 } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { AMOUNT_DECIMALS, formatExchangeRate, hasAtMostDecimals } from '../../lib/numbers/argentine-amount';
+import { assertRules } from '../../lib/rules/rules';
 import { assertCurrencyInTable } from '../billing/billing.currency';
 import { EmissionUncertainError } from '../billing/billing.errors';
 import { type ArcliConfig, MISSING_CUIT_MESSAGE } from '../config/config.schemas';
@@ -20,7 +21,6 @@ import {
   assertExportClientIdentification,
   assertExportIncoterm,
   assertExportTextLengths,
-  assertExportVoucherDate,
   buildExportPayload,
   exportEmptyTableWarning,
   type ExportQuotationDate,
@@ -49,6 +49,7 @@ import {
 } from './export.notes';
 import { checkExportPermits } from './export.permits';
 import { createDryRunExportResponse, mapExportResponse } from './export.response';
+import { EXPORT_DATE_RULES } from './export.rules';
 import {
   EXPORT_VOUCHER_KIND,
   type ExportAssociatedVoucherPayload,
@@ -93,22 +94,6 @@ function assertLocalFields(input: ExportVoucherInput, kind: ExportVoucherKind): 
   assertExportTextLengths(input);
   assertExportItemTexts(input.items);
   assertExportItemsTotal(input.items, input.amount);
-}
-
-/**
- * 1674 (WSFEX v3.1.0): en la factura de servicios y otros, la fecha de pago es igual o posterior a la del comprobante.
- * En bienes y en las notas no va.
- */
-function assertExportPaymentDate(options: {
-  readonly paymentDate: string;
-  readonly takesPaymentDate: boolean;
-  readonly voucherDate: string;
-}): void {
-  if (options.takesPaymentDate && options.paymentDate < options.voucherDate) {
-    throw new InputValidationError(
-      `La fecha de pago (${formatArcaDateAsArgentineDate(options.paymentDate)}) no puede ser anterior a la del comprobante (${formatArcaDateAsArgentineDate(options.voucherDate)}): ARCA la rechaza (error 1674). Revisá \`--fecha-pago\`.`,
-    );
-  }
 }
 
 /**
@@ -297,12 +282,17 @@ export class ExportService {
     const voucherDate = resolveExportVoucherDate(input.voucherDate, now);
     const paymentDate = input.paymentDate?.trim() ? parseArgentineDateInputAsArcaDate(input.paymentDate) : voucherDate;
 
-    assertExportVoucherDate({ exportType, today: formatDateAsArcaDate(now), voucherDate });
-    assertExportPaymentDate({
-      paymentDate,
-      takesPaymentDate: exportTypeTakesPaymentDate(exportType, isExportNote(voucherKind)),
-      voucherDate,
-    });
+    // 1500 y 1674, con las fechas ya resueltas: las mismas reglas que el asistente al preguntarlas.
+    assertRules(
+      EXPORT_DATE_RULES,
+      {
+        exportType,
+        paymentDate: formatArcaDateAsArgentineDate(paymentDate),
+        voucherDate: formatArcaDateAsArgentineDate(voucherDate),
+        voucherKind,
+      },
+      { today: formatDateAsArcaDate(now) },
+    );
     assertExportIncoterm({
       exportType,
       incoterm: input.incoterm,
