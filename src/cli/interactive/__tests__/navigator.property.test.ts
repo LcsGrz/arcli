@@ -813,6 +813,10 @@ beforeEach(() => {
   restoreWrite = () => write.mockRestore();
 });
 
+// Cientos de corridas del asistente por test: en un runner lento con cobertura pasan los 5 s por defecto de vitest (el
+// CI de Node 22 tardó 5,7 s en la invariante 4 de "Repetir" E). El tope no cambia lo que se prueba, solo cuánto se espera.
+vi.setConfig({ testTimeout: 60_000 });
+
 afterEach(() => {
   restoreWrite();
   assistant = undefined;
