@@ -98,8 +98,10 @@
       │  Forma de pago                    Transferencia Internacional                │
       │  Número                           00003-00000001                             │
       │  Fecha del comprobante            18/11/2026                                 │
-      │  Importe total                    150 USD                                    │
+      │                                                                              │
       │  1 x Intereses (unidades)  150 USD                                           │
+      │                                                                              │
+      │  Importe total                    150 USD                                    │
       │                                                                              │
       ├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
       │                                                                              │

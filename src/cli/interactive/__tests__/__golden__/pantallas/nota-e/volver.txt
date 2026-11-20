@@ -187,8 +187,10 @@
       │  Forma de pago                    Transferencia Internacional                │
       │  Número                           00003-00000001                             │
       │  Fecha del comprobante            18/11/2026                                 │
-      │  Importe total                    400 USD                                    │
+      │                                                                              │
       │  1 x Descuento por volumen (unidades)  400 USD                               │
+      │                                                                              │
+      │  Importe total                    400 USD                                    │
       │                                                                              │
       ├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
       │                                                                              │

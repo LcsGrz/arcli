@@ -98,8 +98,10 @@
       │  Forma de pago                    Transferencia Internacional                │
       │  Número                           00003-00000001                             │
       │  Fecha del comprobante            18/11/2026                                 │
-      │  Importe total                    500 USD                                    │
+      │                                                                              │
       │  1 x Según detalle (unidades)  500 USD                                       │
+      │                                                                              │
+      │  Importe total                    500 USD                                    │
       │                                                                              │
       ├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
       │                                                                              │

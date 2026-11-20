@@ -104,7 +104,7 @@ La `E` se elige en el mismo selector, pero tiene su propio asistente porque no l
 | 15   | Opcionales            | Una sola pregunta, como en A, B y C ([abajo](#opcionales-de-la-e))                                                                                                                                                                                                               |
 | 16   | Fecha de pago         | Opcional; por defecto la del comprobante. No puede ser anterior a la del comprobante (la de los opcionales, o hoy), como `--fecha-pago` (error 1674). En bienes no se pregunta                                                                                                   |
 
-Después muestra la vista previa, el comando `arcli fe` equivalente y pregunta si emitir (dos veces en producción). El PDF sigue la misma regla que el resto. Volver desde el primer paso vuelve al selector de comprobantes.
+Después muestra la vista previa, el comando `arcli fe` equivalente y pregunta si emitir (dos veces en producción). La vista previa, la misma que con `arcli fe`, lleva primero los datos de la factura hasta las fechas, después una línea en blanco y los ítems, con la cantidad, la descripción y la unidad a la izquierda y el importe a la derecha, en su columna (una descripción larga se parte dentro de la suya), y al pie, después de otra línea en blanco, el importe total. En una terminal angosta, cada ítem va con la descripción arriba y el importe debajo, a la derecha. Lo mismo en las notas `E` y en "Repetir" una `E`. El PDF sigue la misma regla que el resto. Volver desde el primer paso vuelve al selector de comprobantes.
 
 #### La cotización de la E
 

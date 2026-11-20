@@ -33,7 +33,7 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
 ### Resultado esperado
 
 - va en dólares (`DOL`) con la cotización de aduana que publica ARCA, salvo `--moneda` o `--cotizacion-moneda`
-- la vista previa muestra cliente, destino, ítems y la solicitud de WSFEX
+- la vista previa muestra cliente, destino, ítems y la solicitud de WSFEX: primero los datos hasta las fechas, después los ítems con su importe a la derecha y al pie el importe total (en una terminal angosta, cada ítem va con la descripción arriba y el importe debajo)
 
 ### El detalle de la E: rápido o por ítems
 

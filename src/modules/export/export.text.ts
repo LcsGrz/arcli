@@ -1,6 +1,15 @@
 import { formatCuit } from '../../lib/identity/format-cuit';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
-import { renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui/primitives';
+import {
+  padEndVisible,
+  panelContentWidth,
+  renderKeyValueRows,
+  resolveKeyValueLabelWidth,
+  stacksAtColumn,
+  visibleWidth,
+  wrapPlainText,
+} from '../../ui/primitives';
+import { UI_THEME } from '../../ui/theme';
 import { formatCurrencyLabel, formatDateLabel, formatMoneyLabel } from '../billing/billing.labels';
 import { formatVoucherText, type VoucherTextOptions } from '../billing/voucher-text';
 import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
@@ -66,21 +75,45 @@ function formatUnit(result: ExportExecutionResult, unitCode: number): string {
   return result.display.unitNames[unitCode] ?? String(unitCode);
 }
 
-/** Un renglon por item, con la cantidad y la unidad como etiqueta: es lo que WSFEX autoriza. */
-function formatItemsTable(result: ExportExecutionResult): string {
-  const items = result.payload.Items.Item;
+/** Lo minimo para la descripcion de un item al lado de su importe: con menos, cada item se parte en lineas. */
+const MIN_ITEM_DESCRIPTION_WIDTH = 16;
 
-  if (items.length === 0) {
-    return '';
+const padStartVisible = (value: string, width: number): string =>
+  `${' '.repeat(Math.max(0, width - visibleWidth(value)))}${value}`;
+
+/**
+ * Un renglon por item, con la cantidad y la unidad en la descripcion (es lo que WSFEX autoriza) y el importe a la
+ * derecha, en su columna. Se mide con el ancho visible y el lugar del comprobante en esta terminal: una descripcion
+ * larga se parte dentro de su columna. Si no entra al lado (o las filas del comprobante, con su valor en
+ * `payloadColumn`, ya se apilan), cada item va con la descripcion arriba y el importe debajo, a la derecha.
+ */
+function formatItemLines(result: ExportExecutionResult, payloadColumn: number): string[] {
+  const rows = result.payload.Items.Item.map((item) => ({
+    amount: formatAmount(result, item.Pro_total_item),
+    description: `${item.Pro_qty} x ${item.Pro_ds} (${formatUnit(result, item.Pro_umed)})`.replace(/\s+/g, ' '),
+  }));
+
+  if (rows.length === 0) {
+    return [];
   }
 
-  const rows: Rows = items.map((item) => [
-    `${item.Pro_qty} x ${item.Pro_ds} (${formatUnit(result, item.Pro_umed)})`,
-    formatAmount(result, item.Pro_total_item),
-  ]);
-  const labelWidth = Math.max(...rows.map(([label]) => label.length), 0);
+  const width = panelContentWidth('ticket');
+  const gap = ' '.repeat(UI_THEME.table.gap);
+  const amountWidth = Math.max(...rows.map((row) => visibleWidth(row.amount)));
+  const naturalWidth = Math.max(...rows.map((row) => visibleWidth(row.description)));
+  const descriptionWidth = Math.min(naturalWidth, width - gap.length - amountWidth);
 
-  return renderKeyValueRows(rows, { labelWidth }).join('\n');
+  if (stacksAtColumn(payloadColumn, width) || descriptionWidth < MIN_ITEM_DESCRIPTION_WIDTH) {
+    const blockWidth = Math.min(width, Math.max(naturalWidth, amountWidth));
+
+    return rows.flatMap((row) => [...wrapPlainText(row.description, width), padStartVisible(row.amount, blockWidth)]);
+  }
+
+  return rows.flatMap((row) => {
+    const [first = '', ...rest] = wrapPlainText(row.description, descriptionWidth);
+
+    return [`${padEndVisible(first, descriptionWidth)}${gap}${padStartVisible(row.amount, amountWidth)}`, ...rest];
+  });
 }
 
 /** "Factura de exportación E 00003-00000012 del 05/11/2026, USD 1.500,00": lo que ajusta la nota. */
@@ -133,10 +166,6 @@ function formatPayloadRows(result: ExportExecutionResult): Rows {
     ['Idioma', formatLanguage(result)],
     ['Moneda', formatCurrency(result)],
     ['Forma de pago', payload.Forma_pago],
-    ['Número', formatVoucherNumber(payload.Punto_vta, payload.Cbte_nro)],
-    ['Fecha del comprobante', formatDateLabel(payload.Fecha_cbte)],
-    ...(payload.Fecha_pago ? [['Fecha de pago', formatDateLabel(payload.Fecha_pago)] as const] : []),
-    ['Importe total', formatAmount(result, payload.Imp_total)],
   ];
 
   if (payload.Id_impositivo) {
@@ -161,19 +190,44 @@ function formatPayloadRows(result: ExportExecutionResult): Rows {
     rows.push(['Observaciones comerciales', payload.Obs_comerciales]);
   }
 
+  // Las fechas al final del bloque: abajo van los items y, al pie, el importe total (TUI-16).
+  rows.push(
+    ['Número', formatVoucherNumber(payload.Punto_vta, payload.Cbte_nro)],
+    ['Fecha del comprobante', formatDateLabel(payload.Fecha_cbte)],
+    ...(payload.Fecha_pago ? [['Fecha de pago', formatDateLabel(payload.Fecha_pago)] as const] : []),
+  );
+
   return rows;
 }
 
+const totalRow = (result: ExportExecutionResult): Rows[number] => [
+  'Importe total',
+  formatAmount(result, result.payload.Imp_total),
+];
+
+/** Los datos del comprobante, con el importe total al final. Sin los items. */
 export function formatExportPayloadTable(result: ExportExecutionResult): string {
-  const rows = formatPayloadRows(result);
+  const rows = [...formatPayloadRows(result), totalRow(result)];
 
   return renderKeyValueRows(rows, { labelWidth: resolveKeyValueLabelWidth('ticket', rows) }).join('\n');
 }
 
+/**
+ * Los datos del comprobante hasta las fechas, una linea en blanco, los items, otra linea en blanco y el importe total,
+ * con la columna de valores de los datos.
+ */
 function formatExportPreviewContent(result: ExportExecutionResult): string[] {
-  const items = formatItemsTable(result);
+  const rows = formatPayloadRows(result);
+  const total = totalRow(result);
+  const labelWidth = resolveKeyValueLabelWidth('ticket', [...rows, total]);
+  const items = formatItemLines(result, labelWidth + UI_THEME.table.gap);
 
-  return [formatExportPayloadTable(result), ...(items ? [items] : [])];
+  return [
+    ...renderKeyValueRows(rows, { labelWidth }),
+    ...(items.length > 0 ? ['', ...items] : []),
+    '',
+    ...renderKeyValueRows([total], { labelWidth }),
+  ];
 }
 
 /** CAE, vencimiento, numero e importe: el resumen del resultado. */

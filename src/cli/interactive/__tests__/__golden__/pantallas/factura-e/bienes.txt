@@ -119,8 +119,10 @@
       │  Forma de pago                    Transferencia Internacional                │
       │  Número                           00003-00000008                             │
       │  Fecha del comprobante            18/11/2026                                 │
-      │  Importe total                    2.000 USD                                  │
+      │                                                                              │
       │  1 x Según detalle (unidades)  2.000 USD                                     │
+      │                                                                              │
+      │  Importe total                    2.000 USD                                  │
       │                                                                              │
       ├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
       │                                                                              │

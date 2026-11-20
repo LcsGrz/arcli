@@ -136,12 +136,14 @@
       │                                   1.174,60 (el pago se cancela en la misma   │
       │                                   moneda)                                    │
       │  Forma de pago                    Transferencia Internacional                │
+      │  Observaciones                    Pago a 30 días                             │
       │  Número                           00003-00000008                             │
       │  Fecha del comprobante            17/11/2026                                 │
       │  Fecha de pago                    17/11/2026                                 │
-      │  Importe total                    1.500 USD                                  │
-      │  Observaciones                    Pago a 30 días                             │
+      │                                                                              │
       │  1 x Consultoría de software (unidades)  1.500 USD                           │
+      │                                                                              │
+      │  Importe total                    1.500 USD                                  │
       │                                                                              │
       ├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
       │                                                                              │

@@ -105,11 +105,13 @@
       │  Moneda                           Dólares estadounidenses (USD), cotización  │
       │                                   1.174,60                                   │
       │  Forma de pago                    Transferencia Internacional                │
+      │  Observaciones                    Ajuste de precio                           │
       │  Número                           00003-00000001                             │
       │  Fecha del comprobante            17/11/2026                                 │
-      │  Importe total                    500 USD                                    │
-      │  Observaciones                    Ajuste de precio                           │
+      │                                                                              │
       │  1 x Según detalle (unidades)  500 USD                                       │
+      │                                                                              │
+      │  Importe total                    500 USD                                    │
       │                                                                              │
       ├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
       │                                                                              │

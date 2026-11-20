@@ -187,9 +187,11 @@
       │  Forma de pago                    Transferencia Internacional                │
       │  Número                           00003-00000008                             │
       │  Fecha del comprobante            18/11/2026                                 │
-      │  Importe total                    1.700 USD                                  │
+      │                                                                              │
       │  800 x Jugo de naranja concentrado (kilogramos)  1.600 USD                   │
-      │  1 x Seguro (unidades)                           100 USD                     │
+      │  1 x Seguro (unidades)                             100 USD                   │
+      │                                                                              │
+      │  Importe total                    1.700 USD                                  │
       │                                                                              │
       ├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
       │                                                                              │
