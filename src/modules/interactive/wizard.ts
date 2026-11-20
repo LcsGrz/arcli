@@ -47,6 +47,11 @@ export interface WizardStep<S> {
    */
   readonly skip?: (state: S, memo?: StepMemo) => boolean;
   /**
+   * Lo que muestra un paso salteado al pasar hacia adelante, en el lugar de la pregunta: por ejemplo, la cotizacion que
+   * exige ARCA y que por eso no se pregunta. No escribe nada ni entra en la historia: "Volver" lo pasa de largo.
+   */
+  readonly skipNotice?: (state: S) => Promise<void>;
+  /**
    * Un paso que no pregunta en el estado actual pero igual escribe: si devuelve campos, se aplican como su respuesta,
    * sin entrar en la historia ("Volver" lo pasa de largo, no queda atrapado en el). Se mira despues de `skip`.
    */
@@ -353,6 +358,11 @@ export async function runWizard<S>(
     const memo = stepMemo(memos, step.memoOf ?? step.name);
 
     if (step.skip?.(state, memo)) {
+      // Al pasar hacia adelante, no al retomar con `resume` (que recorre sin mostrar nada).
+      if (!(resumeAt > index)) {
+        await step.skipNotice?.(state);
+      }
+
       index += 1;
       continue;
     }

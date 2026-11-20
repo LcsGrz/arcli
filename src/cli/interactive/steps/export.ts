@@ -1,4 +1,6 @@
+import { formatExchangeRate } from '../../../lib/numbers/argentine-amount';
 import { parseStrictInteger } from '../../../lib/numbers/strict-integer';
+import { toIsoCurrencyCode } from '../../../modules/billing/currency-codes';
 import { exportActivityProblem } from '../../../modules/export/export.mappers';
 import { EXPORT_RULES } from '../../../modules/export/export.rules';
 import type {
@@ -12,9 +14,14 @@ import { parseExchangeRateInput } from '../../../modules/interactive/amount-inpu
 import type { ExchangeRateSuggestion } from '../../../modules/interactive/billing-optionals';
 import type { ExportOptions, ExportRuleScope } from '../../../modules/interactive/export-optionals';
 import { scopedRuleValidator } from '../../../modules/interactive/rule-validator';
-import { exportAsksExchangeRate, type ExportExchangeRateCase } from '../../../modules/interactive/steps/currency';
+import {
+  exportAsksExchangeRate,
+  type ExportExchangeRateCase,
+  exportFixedExchangeRate,
+} from '../../../modules/interactive/steps/currency';
 import type { Lens } from '../../../modules/interactive/steps/lens';
 import { BACK, type WizardDependency, type WizardStep } from '../../../modules/interactive/wizard';
+import { noticePanel, writeTerminalOutput } from '../../../ui';
 import { withSpinner } from '../../spinner';
 import { validateExportPaymentDate } from '../export-options';
 import { askTextStep } from '../prompts';
@@ -132,7 +139,7 @@ export interface ExportExchangeRateStepDef<S> {
   readonly voucher: (state: S) => ExportExchangeRateCase;
   /**
    * Con que arranca escrita: la que toma el CLI sin `--cotizacion-moneda`, la de aduana de ARCA en la factura
-   * (`exportExchangeRateLoader`) o la del asociado en la nota.
+   * (`exportExchangeRateLoader`) o la del asociado en la nota. Donde ARCA exige la suya, es la que muestra el aviso.
    */
   readonly suggestion: (state: S) => Promise<ExchangeRateSuggestion | undefined>;
   /** Las reglas de la E con lo respondido: las mismas que `--cm` (`EXPORT_RULES`). */
@@ -144,11 +151,12 @@ export interface ExportExchangeRateStepDef<S> {
 /**
  * La cotizacion de una E en moneda extranjera, despues de la moneda: la misma pregunta que "En pesos" en A, B y C
  * (`exchangeRateStep`). Arranca escrita con la que tomaria el CLI; si queda esa, el comando equivalente no lleva
- * `--cm`, y si se edita, si. No se pregunta donde ARCA exige la suya (servicios y `--misma-moneda`) ni en pesos. La
- * comparten la factura, la nota y "Repetir" E (NAV-9).
+ * `--cm`, y si se edita, si. Donde ARCA exige la suya (servicios y `--misma-moneda`) no se pregunta: se muestra, en el
+ * mismo lugar, con el motivo (`fixedExchangeRateNotice`). En pesos, nada. La comparten la factura, la nota y "Repetir" E
+ * (NAV-9).
  */
 export function exportExchangeRateStep<S>(def: ExportExchangeRateStepDef<S>): WizardStep<S> {
-  return exchangeRateStep<S>({
+  const step = exchangeRateStep<S>({
     currency: (state) => def.voucher(state).currencyCode,
     dependsOn: def.dependsOn,
     // En la E no hay cotizacion de la config (REV-35): solo la escrita llega a la entrada.
@@ -168,4 +176,43 @@ export function exportExchangeRateStep<S>(def: ExportExchangeRateStepDef<S>): Wi
       ),
     writes: ['exchangeRate'],
   });
+
+  return {
+    ...step,
+    skipNotice: async (state) => {
+      const voucher = def.voucher(state);
+      const fixed = exportFixedExchangeRate(voucher);
+
+      if (fixed) {
+        writeTerminalOutput(
+          noticePanel(fixedExchangeRateNotice(fixed, voucher.currencyCode, await def.suggestion(state)), 'info'),
+        );
+      }
+    },
+  };
+}
+
+/**
+ * El aviso de la cotizacion que exige ARCA, con el formato de `formatExchangeRate`: "Cotización: 1.174,605 por USD, la
+ * de aduana del día hábil anterior. ARCA no acepta otra en servicios." Sin la cotizacion (sin red), lo que va igual.
+ */
+function fixedExchangeRateNotice(
+  fixed: NonNullable<ReturnType<typeof exportFixedExchangeRate>>,
+  currencyCode: string,
+  suggested: ExchangeRateSuggestion | undefined,
+): string {
+  if (!suggested) {
+    return 'No se pudo consultar la cotización: va la de ARCA del día hábil anterior.';
+  }
+
+  const iso = toIsoCurrencyCode(currencyCode);
+  const which =
+    suggested.source === 'associated'
+      ? `la de ${suggested.associated}`
+      : fixed === 'services'
+        ? 'la de aduana del día hábil anterior'
+        : 'la oficial del día hábil anterior';
+  const reason = fixed === 'services' ? 'en servicios' : `si te pagan en ${iso}`;
+
+  return `Cotización: ${formatExchangeRate(suggested.rate)} por ${iso}, ${which}. ARCA no acepta otra ${reason}.`;
 }

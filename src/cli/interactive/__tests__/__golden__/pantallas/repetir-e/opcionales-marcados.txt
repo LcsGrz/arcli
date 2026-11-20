@@ -35,6 +35,14 @@
   · No, ingresar otro monto
   = Sí, 1.500 USD
 
+== pantalla ==
+┌                                                                                          ┐
+
+   Cotización: 1.174,60 por USD, la de aduana del día hábil anterior. ARCA no acepta otra
+                                       en servicios.
+
+└                                                                                          ┘
+
 ? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
   [ ] Fecha del comprobante — hoy
   [ ] Ítems — un renglón con el monto total

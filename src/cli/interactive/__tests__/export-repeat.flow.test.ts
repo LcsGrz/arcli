@@ -647,6 +647,10 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     ]);
     await repeatOf(INVOICE);
     expect(offeredOptionals()).not.toContain('Cotización');
+    // Se muestra, con el motivo, en el lugar de la pregunta (NAV-9).
+    expect(printed().replace(/\s+/g, ' ')).toContain(
+      'Cotización: 1.450,25 por USD, la oficial del día hábil anterior. ARCA no acepta otra si te pagan en USD.',
+    );
 
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
@@ -655,6 +659,9 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
       [/Fecha de pago/, ''],
     ]);
     await repeatOf({ ...INVOICE, exportType: 2, incoterm: undefined, sameCurrency: false });
+    expect(printed().replace(/\s+/g, ' ')).toContain(
+      'Cotización: 1.450,25 por USD, la de aduana del día hábil anterior. ARCA no acepta otra en servicios.',
+    );
     // Sin incoterm tampoco se ofrece su descripcion.
     expect(offeredOptionals()).not.toContain('Descripción del incoterm');
   });

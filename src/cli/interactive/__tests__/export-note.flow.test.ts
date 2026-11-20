@@ -172,6 +172,25 @@ describe('runExportNoteFlow', () => {
     );
   });
 
+  it('en servicios no pregunta la cotización: muestra la del asociado, que es la que va (2053, NAV-9)', async () => {
+    script = createScript([
+      [/Punto de venta de la factura E/, '4'],
+      [/Número de la factura E/, '1'],
+      [/Monto de la nota de crédito/, '500'],
+      [/Detalle de la nota/, ''],
+      [/Agregamos algún opcional/, []],
+      [/Emitimos/, 'No, dejar sin emitir'],
+    ]);
+
+    await runExportNoteFlow(createSession(), 'credito');
+
+    expect(script.asked.some((message) => message.startsWith('Cotización'))).toBe(false);
+    expect(printed().replace(/\s+/g, ' ')).toContain(
+      'Cotización: 1.174,605 por USD, la de la factura E. ARCA no acepta otra en servicios.',
+    );
+    expect(printed()).not.toContain('--cm');
+  });
+
   it('el detalle de la nota más largo que el de ARCA da el error 1770 y vuelve a preguntar (#219)', async () => {
     script = createScript([
       [/Punto de venta de la factura E/, '4'],

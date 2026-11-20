@@ -447,9 +447,9 @@ describe('runExportFlow', () => {
 
       await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
 
-      // Servicios en dólares: la de aduana del día hábil anterior a la fecha elegida (EXPO-7), no la de hoy.
-      expect(quotations).toHaveBeenCalledWith('20261115');
-      expect(quotations).not.toHaveBeenCalledWith('20261117');
+      // Servicios en dólares: la vista previa usa la de aduana del día hábil anterior a la fecha elegida (EXPO-7). El
+      // aviso de la cotización, antes de elegir la fecha, mostró la del día hábil anterior a hoy (NAV-9).
+      expect(quotations.mock.calls).toEqual([['20261117'], ['20261115']]);
       expect(printed()).toContain('--fecha 16/11/2026');
       expect(printed()).toContain('--fecha-pago 17/11/2026');
     });
@@ -970,5 +970,71 @@ describe('runExportFlow: la cotización después de la moneda (NAV-9)', () => {
 
     expect(exchangeRateQuestion()).toBeUndefined();
     expect(gateway.authorize).toHaveBeenCalledWith(expect.objectContaining({ Moneda_ctz: 1, Moneda_Id: 'PES' }));
+    expect(printed()).not.toContain('Cotización:');
+  });
+
+  /** Lo impreso en una línea: los avisos se cortan al ancho del panel. */
+  const flat = () => printed().replace(/\s+/g, ' ');
+
+  /** Una E en dólares de `kind`, hasta emitir, con "¿Te pagan en dólares?" en `paid`. */
+  function fixedRate(kind: 'Bienes' | 'Servicios', paid: 'No' | 'Sí') {
+    return createScript([
+      [/cliente del exterior/, 'ACME LLC'],
+      [/Domicilio/, '123 Main St'],
+      [/País de destino/, '212'],
+      [/ID impositivo/, ''],
+      [/Qué exportás/, kind],
+      [/moneda/, 'Dólares'],
+      [/Te pagan en dólares/, paid],
+      [/Monto total/, '1.500'],
+      [/Descripción/, ''],
+      ...(kind === 'Bienes'
+        ? ([
+            [/Incoterm/, 'FOB'],
+            [/Permisos de embarque/, ''],
+          ] as const)
+        : []),
+      [/Forma de pago/, 'Transferencia Internacional'],
+      [/Agregamos algún opcional/, []],
+      ...(kind === 'Servicios' ? ([[/Fecha de pago/, '']] as const) : []),
+      [/Emitimos/, 'Sí, emitir ahora'],
+    ]);
+  }
+
+  it('en servicios no la pregunta: la muestra después de la moneda, la misma que va a ARCA (2053)', async () => {
+    script = fixedRate('Servicios', 'No');
+    vi.spyOn(gateway, 'getQuotations').mockResolvedValue([{ code: 'DOL', date: '20261029', rate: 1174.605 }]);
+
+    await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+    expect(exchangeRateQuestion()).toBeUndefined();
+    expect(flat()).toContain(
+      'Cotización: 1.174,605 por USD, la de aduana del día hábil anterior. ARCA no acepta otra en servicios.',
+    );
+    // El orden (despues de la moneda, antes del monto) lo muestran los golden de la E de servicios.
+    expect(gateway.authorize).toHaveBeenCalledWith(expect.objectContaining({ Moneda_ctz: 1174.605 }));
+    expect(printed()).not.toContain('--cm');
+  });
+
+  it('con "¿Te pagan en dólares? Sí" tampoco: la muestra con el motivo (1604)', async () => {
+    script = fixedRate('Bienes', 'Sí');
+
+    await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+    expect(exchangeRateQuestion()).toBeUndefined();
+    expect(flat()).toContain(
+      'Cotización: 1.174,60 por USD, la oficial del día hábil anterior. ARCA no acepta otra si te pagan en USD.',
+    );
+    expect(gateway.authorize).toHaveBeenCalledWith(expect.objectContaining({ CanMisMonExt: 'S', Moneda_ctz: 1174.6 }));
+  });
+
+  it('sin red avisa que va la de ARCA y sigue; la vista previa la vuelve a consultar', async () => {
+    script = fixedRate('Servicios', 'Sí');
+    vi.spyOn(gateway, 'getQuotations').mockRejectedValueOnce(new Error('Sin conexión'));
+
+    await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+    expect(flat()).toContain('No se pudo consultar la cotización: va la de ARCA del día hábil anterior.');
+    expect(gateway.authorize).toHaveBeenCalledWith(expect.objectContaining({ Moneda_ctz: 1174.6 }));
   });
 });

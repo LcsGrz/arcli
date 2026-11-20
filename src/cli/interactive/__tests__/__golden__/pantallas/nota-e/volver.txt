@@ -31,6 +31,13 @@
 
 └                                                                                          ┘
 
+
+┌                                                                                          ┐
+
+    Cotización: 1.174,60 por USD, la de la factura E. ARCA no acepta otra en servicios.
+
+└                                                                                          ┘
+
 ? [texto] Monto de la nota de crédito de exportación E en USD:
   = ← Volver
 
@@ -42,6 +49,13 @@
 ┌                                                                                          ┐
 
      Factura de exportación E 00003-00000007 del 10/11/2026 a ACME LLC, por 1.500 USD.
+
+└                                                                                          ┘
+
+
+┌                                                                                          ┐
+
+    Cotización: 1.174,60 por USD, la de la factura E. ARCA no acepta otra en servicios.
 
 └                                                                                          ┘
 

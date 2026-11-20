@@ -40,6 +40,14 @@
   · No, en pesos
   = Sí
 
+== pantalla ==
+┌                                                                                          ┐
+
+   Cotización: 1.174,60 por USD, la de aduana del día hábil anterior. ARCA no acepta otra
+                                       en servicios.
+
+└                                                                                          ┘
+
 ? [texto] Monto total en USD:
   = "1.500"
 

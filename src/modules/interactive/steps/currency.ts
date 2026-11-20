@@ -68,9 +68,21 @@ export interface ExportExchangeRateCase {
  * con las que `ExportService` rechaza un `--cotizacion-moneda` distinto: ahi no hay nada que elegir.
  */
 export function exportAsksExchangeRate(voucher: ExportExchangeRateCase): boolean {
-  return (
-    isForeignCurrency({ currencyCode: voucher.currencyCode }) &&
-    voucher.exportType !== SERVICES_EXPORT_TYPE &&
-    !voucher.sameCurrency
-  );
+  return isForeignCurrency({ currencyCode: voucher.currencyCode }) && exportFixedExchangeRate(voucher) === undefined;
+}
+
+/**
+ * Por que ARCA no acepta otra cotizacion en una E en moneda extranjera: `services` (2053) o `same-currency` (1604).
+ * `undefined` en pesos (no hay cotizacion que mostrar) o si se puede escribir otra (`exportAsksExchangeRate`).
+ */
+export function exportFixedExchangeRate(voucher: ExportExchangeRateCase): 'same-currency' | 'services' | undefined {
+  if (!isForeignCurrency({ currencyCode: voucher.currencyCode })) {
+    return undefined;
+  }
+
+  if (voucher.exportType === SERVICES_EXPORT_TYPE) {
+    return 'services';
+  }
+
+  return voucher.sameCurrency ? 'same-currency' : undefined;
 }

@@ -116,7 +116,7 @@ En la factura `E`, sus notas y "Repetir" en dólares, la cotización se pregunta
 
 Si dejás lo que arrancó escrito, el comando equivalente no lleva `--cm` y, pegado, toma la misma. Si la cambiás, es la acordada y va con `--cm`. Se valida igual que `--cm`: un número mayor a 0. Si no se puede consultar la de ARCA (sin conexión), arranca vacía y la escribís: va con `--cm`, y la vista previa vuelve a consultar.
 
-No se pregunta en pesos (la cotización es 1), en servicios (ARCA exige la de aduana del día hábil anterior en la factura y la del asociado en la nota, error 2053) ni si te pagan en dólares (`--misma-moneda`, la oficial del día hábil anterior, error 1604): ahí ARCA rechaza otra y el asistente usa la suya, como el CLI.
+En pesos no se pregunta (la cotización es 1). En servicios (ARCA exige la de aduana del día hábil anterior en la factura y la del asociado en la nota, error 2053) y si te pagan en dólares (`--misma-moneda`, la oficial del día hábil anterior, error 1604) tampoco, porque ARCA rechaza otra: en el lugar de la pregunta se muestra la que va, con el motivo ("Cotización: 1.174,60 por USD, la de aduana del día hábil anterior. ARCA no acepta otra en servicios."; en la nota, "la de la factura E"). Es la misma consulta que usa la vista previa; si elegís otra fecha en los opcionales, la vista previa usa la de esa fecha. Sin conexión avisa "No se pudo consultar la cotización: va la de ARCA del día hábil anterior." y sigue.
 
 #### Opcionales de la E
 
