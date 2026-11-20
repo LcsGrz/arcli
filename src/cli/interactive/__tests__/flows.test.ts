@@ -668,7 +668,14 @@ describe('flujos del modo interactivo', () => {
       script = createScript([[/Agregamos/, []]]);
 
       const advancedStep = steps.find((step) => step.name === 'avanzadas');
-      const update = await advancedStep?.run({ ...(state as NonNullable<typeof state>), concept: 'productos' });
+      const update = await advancedStep?.run(
+        { ...(state as NonNullable<typeof state>), concept: 'productos' },
+        undefined,
+        {
+          get: () => undefined,
+          set: () => undefined,
+        },
+      );
 
       expect(update).toMatchObject({
         advanced: { paymentDueDate: undefined, serviceEndDate: undefined, serviceStartDate: undefined },

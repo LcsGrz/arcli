@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BillingService } from '../../../modules/billing/billing.service';
 import type { VoucherKindDefinition, VoucherShortcut } from '../../../modules/billing/billing.types';
 import { getVoucherKindByShortcut } from '../../../modules/billing/voucher-kind-map';
+import type { StepMemo } from '../../../modules/interactive/wizard';
 import type { IssuedVoucher } from '../../../modules/vouchers/voucher-history';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import { type NoteState, noteSteps } from '../note.flow';
@@ -47,7 +48,10 @@ function amountStep(shortcut: VoucherShortcut) {
     target: 'factura',
   };
 
-  return () => step?.run(state);
+  // Fuera de `runWizard`: el paso no recuerda nada.
+  const memo: StepMemo = { get: () => undefined, set: () => undefined };
+
+  return () => step?.run(state, undefined, memo);
 }
 
 afterEach(() => {
