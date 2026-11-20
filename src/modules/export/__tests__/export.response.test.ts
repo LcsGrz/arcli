@@ -132,6 +132,11 @@ describe('mapExportResponse', () => {
     expect(byFexErr.suggestions).toEqual([generic]);
   });
 
+  it('sin Resultado ni FEXErr no sugiere volver a emitir, a proposito por paridad con A/B/C (UI-32)', () => {
+    // Queda `observado`; A/B/C solo dan la sugerencia generica con Resultado R (billing-response.ts).
+    expect(mapExportResponse(authorization({ Resultado: '', Cae: '' })).suggestions).toEqual([]);
+  });
+
   it('el estado sale de Resultado y las observaciones (TEST-16)', () => {
     expect(mapExportResponse(authorization()).status).toBe('aprobado');
     expect(mapExportResponse(authorization({ Motivos_Obs: 'Obs' })).status).toBe('observado');
