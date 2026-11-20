@@ -2,8 +2,8 @@ import { configDefaults, defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    // Los worktrees de revisión viven adentro del repo y traen su propia copia de los tests.
-    exclude: [...configDefaults.exclude, '.claude/worktrees/**'],
+    // Los worktrees de revisión y los sandbox de Stryker viven adentro del repo y traen su propia copia de los tests.
+    exclude: [...configDefaults.exclude, '.claude/worktrees/**', '.stryker-tmp/**'],
     // Procesos, no worker threads: en un thread, el HOME que fija el setup no cambia `os.homedir()` y Conf (via
     // env-paths) apuntaria a la config real. Lo dejamos explicito por si el default de vitest o de quien lo corre
     // (el runner de Stryker usa threads) cambia; el setup igual fija ARCLI_CONFIG_DIR y lo controla (TEST-14).
