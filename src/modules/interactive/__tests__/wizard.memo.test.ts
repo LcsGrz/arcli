@@ -247,7 +247,13 @@ describe('runWizard sobre grafos al azar (propiedades)', () => {
   type Shape = Array<{ dependsOn: number[]; fields: boolean; skipIf?: number | null }>;
 
   function build(shape: Shape, answers: Script) {
-    const runs: Array<{ memo: unknown; name: string; previous?: string; error?: string }> = [];
+    const runs: Array<{
+      answer: string | typeof BACK;
+      error?: string;
+      memo: unknown;
+      name: string;
+      previous?: string;
+    }> = [];
     const steps: Array<WizardStep<State>> = shape.map((node, index) => {
       const name = `s${index}`;
 
@@ -257,10 +263,10 @@ describe('runWizard sobre grafos al azar (propiedades)', () => {
         ),
         name,
         run: async (_state, previous, memo, error) => {
-          runs.push({ error, memo: memo.get(), name, previous: previous?.[name] });
-
           // Sin guion, responde "y": el asistente termina.
           const answer = answers.shift() ?? 'y';
+
+          runs.push({ answer, error, memo: memo.get(), name, previous: previous?.[name] });
 
           if (answer !== BACK) {
             memo.set(answer);
@@ -298,11 +304,11 @@ describe('runWizard sobre grafos al azar (propiedades)', () => {
     );
   });
 
-  it('el estado final es lo respondido en el camino, sin caminos abandonados, y pasa `finalize`', async () => {
+  it('el estado final es lo respondido en el camino, y pasa `finalize` salvo que el dueño insista', async () => {
     await fc.assert(
       fc.asyncProperty(graph, script, async (shape, answers) => {
         const recorded = new Map<string, Partial<State>>();
-        const { steps } = build(shape, [...answers]);
+        const { runs, steps } = build(shape, [...answers]);
         const result = await runWizard(steps, {}, recorded, { finalize });
 
         if (result === undefined) {
@@ -319,7 +325,15 @@ describe('runWizard sobre grafos al azar (propiedades)', () => {
         }
 
         expect(result).toEqual(expected);
-        expect(finalize(result)).toBeUndefined();
+
+        const failed = finalize(result);
+
+        if (failed) {
+          // El dueño recibio el error y volvio a dar la misma respuesta.
+          const last = runs.findLast((run) => run.name === failed.field && run.answer !== BACK);
+
+          expect(last).toMatchObject({ answer: 'malo', error: `${failed.field} es malo`, previous: 'malo' });
+        }
       }),
       { numRuns: 300, seed: 20261121 },
     );
@@ -329,8 +343,23 @@ describe('runWizard sobre grafos al azar (propiedades)', () => {
     await fc.assert(
       fc.asyncProperty(graph, script, async (shape, answers) => {
         const { runs, steps } = build(shape, [...answers]);
+        let failures = 0;
 
-        await runWizard(steps, {}, new Map(), { finalize });
+        await runWizard(steps, {}, new Map(), {
+          finalize: (state) => {
+            const failed = finalize(state);
+
+            failures += failed ? 1 : 0;
+
+            return failed;
+          },
+        });
+
+        // Cada fallo vuelve a un dueño, salvo el ultimo si el dueño insistio: hubo al menos un error mostrado.
+        if (failures > 0) {
+          expect(runs.filter((run) => run.error !== undefined).length).toBeGreaterThanOrEqual(failures - 1);
+          expect(runs.some((run) => run.error !== undefined)).toBe(true);
+        }
 
         for (const run of runs) {
           if (run.error !== undefined) {

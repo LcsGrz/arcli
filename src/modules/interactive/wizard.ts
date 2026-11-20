@@ -40,12 +40,23 @@ export interface WizardStep<S> {
    * `previous`, o del que depende otro que lo usa.
    */
   readonly dependsOn?: readonly WizardDependency[];
-  /** Pasos que no aplican al estado actual (por ejemplo, el DNI si el receptor es consumidor final). */
-  readonly skip?: (state: S) => boolean;
   /**
-   * Campos de S que escribe el paso. Con ellos `finalize` vuelve al paso dueño de un campo que no pasa el control
-   * final; tambien dicen que tiene que quedar como al inicio si el paso se saltea.
+   * Pasos que no aplican al estado actual (por ejemplo, el DNI si el receptor es consumidor final). Recibe el memo del
+   * paso (sin memo, fuera del motor, cuenta como vacio): no tiene que depender de lo que el mismo paso guarda al
+   * responder, o "Volver" desde el siguiente lo saltearia.
    */
+  readonly skip?: (state: S, memo?: StepMemo) => boolean;
+  /**
+   * Un paso que no pregunta en el estado actual pero igual escribe: si devuelve campos, se aplican como su respuesta,
+   * sin entrar en la historia ("Volver" lo pasa de largo, no queda atrapado en el). Se mira despues de `skip`.
+   */
+  readonly auto?: (state: S, memo: StepMemo) => Partial<S> | undefined;
+  /**
+   * Usa el memo de otro paso del asistente en vez del propio: por ejemplo, el dato obligatorio de un grupo de
+   * opcionales guarda lo respondido en el memo del grupo. Ese memo se olvida solo cuando se olvida el del otro paso.
+   */
+  readonly memoOf?: string;
+  /** Campos de S que escribe el paso: `finalize` vuelve al ultimo paso respondido que escribe el campo que fallo. */
   readonly writes?: readonly string[];
   /**
    * Devuelve los campos que completa o BACK para volver al paso anterior. `previous` es lo que devolvio la ultima vez
@@ -63,8 +74,8 @@ export interface WizardStep<S> {
 
 /**
  * Control final, con todas las respuestas: si falla, el asistente vuelve al ultimo paso que escribe `field` (`writes`),
- * con `message`, en vez de terminar. Si ningun paso respondido lo escribe, termina igual (el error queda para la vista
- * previa).
+ * con `message`, en vez de terminar. Si ningun paso respondido lo escribe, o si el dueño insiste con la misma respuesta,
+ * termina igual (el error queda para la vista previa).
  */
 export type WizardFinalize<S> = (state: S) => { readonly field: string; readonly message: string } | undefined;
 
@@ -131,9 +142,18 @@ function dependentsOf<S>(
   return dependents;
 }
 
-/** Un `dependsOn` que no nombra un paso anterior no protege de nada: el flujo esta mal armado. */
+/**
+ * Un `dependsOn` que no nombra un paso anterior no protege de nada, y un `memoOf` que no nombra un paso del asistente
+ * no comparte nada: el flujo esta mal armado.
+ */
 function assertDependencies<S>(steps: ReadonlyArray<WizardStep<S>>): void {
+  const names = new Set(steps.map((step) => step.name));
+
   steps.forEach((step, index) => {
+    if (step.memoOf !== undefined && !names.has(step.memoOf)) {
+      throw new Error(`El paso ${step.name} usa el memo de ${step.memoOf}, que no es un paso del asistente.`);
+    }
+
     const earlier = new Set(steps.slice(0, index).map((other) => other.name));
     const unknown = step.dependsOn?.map(dependencyStep).filter((name) => !earlier.has(name)) ?? [];
 
@@ -158,7 +178,7 @@ function stepMemo(memos: Map<string, unknown>, name: string): StepMemo {
  * respuesta para ofrecerla de nuevo (todos se vuelven a preguntar; lo recordado solo arranca marcado o escrito). Si una
  * respuesta cambia, se olvidan solo las de los pasos que dependen de ella (`dependsOn`, tambien de forma indirecta),
  * con su memo: el resto sigue ofreciendo la suya, que igual pasa por la validacion del paso. Al final corre `finalize`:
- * si falla, vuelve al paso que escribe el campo. Devuelve el estado final, o `undefined` si se vuelve desde el primer
+ * si falla, vuelve al paso que escribe el campo (una vez por respuesta: si el paso la repite, termina). Devuelve el estado final, o `undefined` si se vuelve desde el primer
  * paso (salir del flujo).
  */
 export async function runWizard<S>(
@@ -173,36 +193,78 @@ export async function runWizard<S>(
   const history: Array<{ readonly index: number; readonly state: S }> = [];
   let state = initial;
   let index = 0;
-  let failure: { readonly index: number; readonly message: string } | undefined;
+  let failure:
+    { readonly answer: unknown; readonly field: string; readonly index: number; readonly message: string } | undefined;
+  /** Campos cuyo dueño volvio a dar la misma respuesta despues del error: `finalize` ya no vuelve por ellos. */
+  const insisted = new Set<string>();
+
+  /** Aplica la respuesta de un paso: los que dependen de ella olvidan la suya si cambio. */
+  const answer = (step: WizardStep<S>, previous: Partial<S> | undefined, result: Partial<S>): void => {
+    // Tambien sin respuesta anterior: un paso que antes se salteaba puede tener dependientes con respuestas viejas.
+    if (!isDeepStrictEqual(previous, result)) {
+      for (const name of dependentsOf(steps, step.name, previous, result)) {
+        answers.delete(name);
+        memos.delete(name);
+      }
+    }
+
+    answers.set(step.name, result);
+    state = { ...state, ...result };
+  };
 
   for (;;) {
     if (index >= steps.length) {
       const failed = options.finalize?.(state);
-      const owner = failed ? history.findLastIndex((entry) => steps[entry.index]?.writes?.includes(failed.field)) : -1;
 
-      if (!failed || owner < 0) {
+      if (!failed || insisted.has(failed.field)) {
+        return state;
+      }
+
+      const owner = history.findLastIndex((entry) => steps[entry.index]?.writes?.includes(failed.field));
+
+      if (owner < 0) {
         return state;
       }
 
       ({ index, state } = history[owner] as (typeof history)[number]);
       history.length = owner;
-      failure = { index, message: failed.message };
+      failure = {
+        answer: answers.get(steps[index]?.name ?? ''),
+        field: failed.field,
+        index,
+        message: failed.message,
+      };
       continue;
     }
 
     const step = steps[index];
 
-    if (!step || step.skip?.(state)) {
+    if (!step) {
+      index += 1;
+      continue;
+    }
+
+    const memo = stepMemo(memos, step.memoOf ?? step.name);
+
+    if (step.skip?.(state, memo)) {
+      index += 1;
+      continue;
+    }
+
+    const automatic = step.auto?.(state, memo);
+
+    if (automatic) {
+      answer(step, answers.get(step.name), automatic);
       index += 1;
       continue;
     }
 
     const previous = answers.get(step.name);
-    const error = failure?.index === index ? failure.message : undefined;
+    const retry = failure?.index === index ? failure : undefined;
 
     failure = undefined;
 
-    const result = await step.run(state, previous, stepMemo(memos, step.name), error);
+    const result = await step.run(state, previous, memo, retry?.message);
 
     if (result === BACK) {
       const last = history.pop();
@@ -215,17 +277,12 @@ export async function runWizard<S>(
       continue;
     }
 
-    // Tambien sin respuesta anterior: un paso que antes se salteaba puede tener dependientes con respuestas viejas.
-    if (!isDeepStrictEqual(previous, result)) {
-      for (const name of dependentsOf(steps, step.name, previous, result)) {
-        answers.delete(name);
-        memos.delete(name);
-      }
+    if (retry && isDeepStrictEqual(retry.answer, result)) {
+      insisted.add(retry.field);
     }
 
-    answers.set(step.name, result);
     history.push({ index, state });
-    state = { ...state, ...result };
+    answer(step, previous, result);
     index += 1;
   }
 }

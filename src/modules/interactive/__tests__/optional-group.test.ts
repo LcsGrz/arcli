@@ -2,13 +2,7 @@ import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
 import type { InteractiveChoice } from '../choices';
-import {
-  composeOptionals,
-  type OptionalDef,
-  optionalGroup,
-  type OptionalGroupDef,
-  type OptionalGroupMemo,
-} from '../optional-group';
+import { composeOptionals, type OptionalDef, optionalGroup, type OptionalGroupDef } from '../optional-group';
 import { BACK, type Back, runWizard, type WizardAnswers, type WizardStep } from '../wizard';
 
 /** Opcionales sinteticos: `z` no es de nadie (un paso de P lo escribe igual, y no tiene que llegar). */
@@ -84,6 +78,7 @@ function catalog(script: Record<string, Script> = {}) {
 const ALL: Context = { q: true, r: true };
 
 interface PickCall {
+  readonly answer?: Key[] | typeof BACK;
   readonly choices: ReadonlyArray<InteractiveChoice<Key>>;
   readonly selected: readonly Key[];
 }
@@ -92,11 +87,11 @@ interface PickCall {
 function scriptedPick(picks: Array<Key[] | typeof BACK>) {
   const calls: PickCall[] = [];
   const pick: OptionalGroupDef<Parent, Key, Values, Context>['pick'] = async (_message, choices, selected) => {
-    calls.push({ choices, selected });
+    const answer = picks.shift() ?? [...selected];
 
-    const answer = picks.shift();
+    calls.push({ answer, choices, selected });
 
-    return answer === undefined ? [...selected] : answer;
+    return answer;
   };
 
   return { calls, pick };
@@ -377,7 +372,7 @@ describe('optionalGroup con un asistente al azar (propiedades)', () => {
       fc.asyncProperty(scriptArbitrary, async (script) => {
         const { options, seen } = catalog({ p: [...script.p], q: [...script.q], r: [...script.r], r2: [...script.r2] });
         const picks: Array<Key[] | Back> = [...script.picks];
-        const { pick } = scriptedPick(picks);
+        const { calls, pick } = scriptedPick(picks);
         const contexts = [...script.contexts];
         const ends = [...script.ends];
         const memos = new Map<string, unknown>();
@@ -395,15 +390,10 @@ describe('optionalGroup con un asistente al azar (propiedades)', () => {
           { name: 'fin', run: async () => (ends.shift() ? BACK : {}) },
         ];
         const result = await runWizard(steps, INITIAL, new Map(), { memos });
-        const memo = memos.get('opcionales') as OptionalGroupMemo<Key, Values> | undefined;
 
-        if (!result || !memo) {
+        if (!result) {
           return;
         }
-
-        expect(result.values).toEqual(
-          composeOptionals(INITIAL.values, memo.marked, options, result.context, memo.answers),
-        );
 
         // Cada pregunta recibe lo ultimo que respondio: nada en el catalogo depende de otra cosa.
         const last = new Map<string, string>();
@@ -418,6 +408,22 @@ describe('optionalGroup con un asistente al azar (propiedades)', () => {
             last.set(name, answer);
           }
         }
+
+        // Oraculo armado aca, sin `composeOptionals`: lo elegido en la ultima seleccion confirmada, con las ultimas
+        // respuestas; lo demas como al inicio; Q no disponible, vacio.
+        const chosen = calls.findLast((call) => call.answer !== BACK)?.answer as Key[];
+        const { context } = result;
+        const expected: Values = {
+          ...INITIAL.values,
+          ...(chosen.includes('p') ? { p: last.get('p') } : {}),
+          ...(chosen.includes('q') && context.q ? { q: last.get('q') } : {}),
+          ...(context.q ? {} : { q: undefined }),
+          ...(chosen.includes('r') && context.r
+            ? { r: last.get('r'), r2: last.get('r') === 'corto' ? INITIAL.values.r2 : last.get('r2') }
+            : {}),
+        };
+
+        expect(result.values).toEqual(expected);
       }),
       { numRuns: 300, seed: 20261123 },
     );
