@@ -110,6 +110,33 @@ describe('mapExportResponse', () => {
     expect(summary.observacion).toBe('Observacion informativa');
   });
 
+  it('una E aprobada con observaciones no sugiere volver a emitir (UI-32)', () => {
+    // Resultado A con Motivos_Obs: ARCA dio CAE, volver a emitir duplicaria el comprobante.
+    const summary = mapExportResponse(authorization({ Motivos_Obs: 'Observacion informativa' }));
+
+    expect(summary.status).toBe('observado');
+    expect(summary.suggestions).toEqual([]);
+  });
+
+  it('una E rechazada sin otra sugerencia sigue sugiriendo revisar antes de volver a emitir (UI-32)', () => {
+    const generic = 'Revisá observaciones y errores de ARCA antes de volver a emitir.';
+    const byResultado = mapExportResponse(authorization({ Cae: '', Motivos_Obs: 'Dato invalido', Resultado: 'R' }));
+    const byFexErr = mapExportResponse({
+      FEXAuthorizeResult: {
+        FEXErr: { ErrCode: 1000, ErrMsg: 'Error interno' },
+        FEXEvents: { EventCode: 0, EventMsg: '' },
+      },
+    } as unknown as IFEXAuthorizeOutput);
+
+    expect(byResultado.suggestions).toEqual([generic]);
+    expect(byFexErr.suggestions).toEqual([generic]);
+  });
+
+  it('sin Resultado ni FEXErr no sugiere volver a emitir, a proposito por paridad con A/B/C (UI-32)', () => {
+    // Queda `observado`; A/B/C solo dan la sugerencia generica con Resultado R (billing-response.ts).
+    expect(mapExportResponse(authorization({ Resultado: '', Cae: '' })).suggestions).toEqual([]);
+  });
+
   it('el estado sale de Resultado y las observaciones (TEST-16)', () => {
     expect(mapExportResponse(authorization()).status).toBe('aprobado');
     expect(mapExportResponse(authorization({ Motivos_Obs: 'Obs' })).status).toBe('observado');
