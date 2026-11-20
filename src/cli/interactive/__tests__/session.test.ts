@@ -142,10 +142,23 @@ describe('previewAndEmit', () => {
           { name: 'No, dejar sin emitir', value: false },
         ],
         pdf === 'siempre' ? 'emitir-con-pdf' : 'emitir',
-        { escapeLabel: 'no emitir', escapeValue: false },
+        // Esc vuelve a la ultima pregunta del asistente (TUI-15); "No, dejar sin emitir" sigue siendo no.
+        { escapeLabel: 'volver', escapeValue: BACK },
       );
     },
   );
+
+  it('Esc en "¿Emitimos?" devuelve BACK sin emitir ni avisar que no se emitió nada (TUI-15)', async () => {
+    const session = createSession('testing');
+    const write = vi.mocked(process.stdout.write);
+
+    chooseOneMock.mockResolvedValueOnce(BACK);
+    write.mockClear();
+
+    await expect(previewAndEmit(session, input)).resolves.toBe(BACK);
+    expect(session.createVoucher).not.toHaveBeenCalled();
+    expect(write.mock.calls.join('')).not.toContain('No se emitió nada');
+  });
 
   it('emitir y generar el PDF lo genera aunque la config diga `nunca`', async () => {
     const session = createSession('testing', 3, 'nunca');

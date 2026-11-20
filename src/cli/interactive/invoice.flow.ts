@@ -27,7 +27,7 @@ import { withFinalizeNotice } from './finalize-notice';
 import { markIfNew } from './new-mark';
 import { exchangeRateSuggestionLoader, officialExchangeRateLoader } from './official-exchange-rate';
 import { type Choice, chooseStep } from './prompts';
-import { type InteractiveSession, previewAndEmit, requirePointOfSale } from './session';
+import { emissionStep, type InteractiveSession, previewAndEmit, requirePointOfSale } from './session';
 import { type AmountCurrencyRetry, amountCurrencyRetry, amountStep, billingAmountValidator } from './steps/amount';
 import { cbuSteps, offerSavingCbu } from './steps/cbu';
 import { consumerIdentificationSteps } from './steps/consumer';
@@ -223,6 +223,10 @@ export async function runInvoiceFlow(
 
   const { session } = ready;
   const retry = invoiceAmountRetry();
+  const emission = emissionStep<InvoiceState>((state) =>
+    // La E ya paso por su propia vista previa, adentro del primer paso.
+    state.exported ? undefined : previewAndEmit(session, buildInvoiceInput(state, session.runtime)),
+  );
   const state = await runWizard(
     invoiceSteps(session, retry),
     {
@@ -231,7 +235,7 @@ export async function runInvoiceFlow(
       ...(receiver ? invoiceStateForReceiver(receiver) : {}),
     },
     undefined,
-    { finalize: retry.finalize(invoiceFinalize(() => billingRuleEnv(session.runtime))) },
+    { confirm: emission.confirm, finalize: retry.finalize(invoiceFinalize(() => billingRuleEnv(session.runtime))) },
   );
 
   if (!state) {
@@ -242,9 +246,7 @@ export async function runInvoiceFlow(
     return undefined;
   }
 
-  const authorized = await previewAndEmit(session, buildInvoiceInput(state, session.runtime));
-
-  await offerSavingCbu(session.runtime.config, state, authorized);
+  await offerSavingCbu(session.runtime.config, state, emission.authorized());
 
   return undefined;
 }

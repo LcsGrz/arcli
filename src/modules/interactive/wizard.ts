@@ -117,6 +117,11 @@ export interface WizardOptions<S> {
    * respondidos con lo que tenian (con "Volver" se pueden cambiar). Si ninguno lo escribe, arranca desde el primero.
    */
   readonly resume?: WizardResume;
+  /**
+   * Corre al final, despues de `finalize`, con el estado completo: la vista previa y "¿Emitimos?". Si devuelve BACK
+   * (Esc), el asistente vuelve a la ultima pregunta respondida, con todo lo respondido, en vez de terminar (TUI-15).
+   */
+  readonly confirm?: (state: S) => Promise<Back | void>;
 }
 
 /** La ultima respuesta de cada paso, por nombre. Un asistente que se vuelve a correr la puede compartir. */
@@ -267,7 +272,8 @@ export function stepMemo(memos: Map<string, unknown>, name: string): StepMemo {
  * respuesta cambia, se olvidan solo las de los pasos que dependen de ella (`dependsOn`, tambien de forma indirecta),
  * con su memo: el resto sigue ofreciendo la suya, que igual pasa por la validacion del paso. Al final corre `finalize`:
  * si falla, vuelve al paso que escribe el campo (una vez por respuesta: si el paso la repite, termina). Con `resume`
- * arranca en el paso que escribe el campo de un error de afuera. Devuelve el estado final, o `undefined` si se vuelve
+ * arranca en el paso que escribe el campo de un error de afuera. Despues de `finalize` corre `confirm` (la vista
+ * previa): si vuelve, retoma en la ultima pregunta respondida. Devuelve el estado final, o `undefined` si se vuelve
  * desde el primer paso (salir del flujo).
  */
 export async function runWizard<S>(
@@ -332,19 +338,27 @@ export async function runWizard<S>(
       const fields = failed ? (typeof failed.field === 'string' ? [failed.field] : failed.field) : [];
       const key = fields.join(',');
 
-      if (!failed || insisted.has(key)) {
+      const owner = failed && !insisted.has(key) ? ownerIndex(history, fields) : -1;
+
+      if (failed && owner >= 0) {
+        ({ index, state } = history[owner] as (typeof history)[number]);
+        history.length = owner;
+        failure = { answer: answers.get(steps[index]?.name ?? ''), fields, index, key, message: failed.message };
+        continue;
+      }
+
+      // La vista previa: con Esc en "¿Emitimos?", de vuelta a la ultima pregunta respondida (TUI-15).
+      if ((await options.confirm?.(state)) !== BACK) {
         return state;
       }
 
-      const owner = ownerIndex(history, fields);
+      const last = history.pop();
 
-      if (owner < 0) {
-        return state;
+      if (!last) {
+        return undefined;
       }
 
-      ({ index, state } = history[owner] as (typeof history)[number]);
-      history.length = owner;
-      failure = { answer: answers.get(steps[index]?.name ?? ''), fields, index, key, message: failed.message };
+      ({ index, state } = last);
       continue;
     }
 

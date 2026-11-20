@@ -31,7 +31,7 @@ import { askPermitsStep, emitExportVoucher } from './export.flow';
 import { exportOptionalsStep } from './export-options';
 import { withFinalizeNotice } from './finalize-notice';
 import { askTextStep } from './prompts';
-import { type InteractiveSession, requirePointOfSale } from './session';
+import { emissionStep, type InteractiveSession, requirePointOfSale } from './session';
 import { exportExchangeRateStep } from './steps/export';
 import { exportItemsStep } from './steps/export-items';
 import { validatePositiveInteger } from './validators';
@@ -257,13 +257,13 @@ export async function runExportNoteFlow(
 
   const gateway = new ArcaClientFactory().createExportGateway(session.runtime);
   const state = await runWizard(exportNoteSteps(kind, gateway, pointOfSale), { associatedKind }, undefined, {
+    // Esc en "¿Emitimos?" vuelve a la ultima pregunta (TUI-15).
+    confirm: emissionStep<ExportNoteState>((answered) =>
+      emitExportVoucher(session, gateway, buildExportNoteInput(answered, { kind })),
+    ).confirm,
     // Las reglas sobre la nota final: si una falla, vuelve a la pregunta que escribe el campo.
     finalize: exportNoteFinalize(() => ({ kind, today: formatDateAsArcaDate(new Date()) })),
   });
 
-  if (!state) {
-    return BACK;
-  }
-
-  await emitExportVoucher(session, gateway, buildExportNoteInput(state, { kind }));
+  return state ? undefined : BACK;
 }

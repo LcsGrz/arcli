@@ -59,7 +59,7 @@ import { pickNoteInvoice } from './invoice-picker';
 import { markIfNew } from './new-mark';
 import { exchangeRateSuggestionLoader, officialExchangeRateLoader } from './official-exchange-rate';
 import { chooseStep } from './prompts';
-import { type InteractiveSession, previewAndEmit, requirePointOfSale } from './session';
+import { emissionStep, type InteractiveSession, previewAndEmit, requirePointOfSale } from './session';
 import { type AmountCurrencyRetry, amountCurrencyRetry, amountStep, billingAmountValidator } from './steps/amount';
 import { consumerIdentificationSteps } from './steps/consumer';
 import { dateStep } from './steps/date';
@@ -551,21 +551,22 @@ export async function runNoteFlow(baseSession: InteractiveSession, kind: NoteKin
   const { pointOfSale, session } = ready;
   // La moneda de los opcionales solo se usa en las de periodo; las de una factura van en la de la factura o en pesos.
   const retry = noteAmountRetry(session);
-  const state = await runWizard(
+
+  await runWizard(
     noteSteps(session, pointOfSale, retry),
     { advanced: initialAdvancedOptions(session.runtime.config), kind },
     undefined,
     {
+      // Esc en "¿Emitimos?" vuelve a la ultima pregunta (TUI-15). La nota E ya paso por su propia vista previa.
+      confirm: emissionStep<NoteState>((state) =>
+        state.exported
+          ? undefined
+          : previewAndEmit(session, buildNoteInput(state, noteInputEnv(session, pointOfSale)), noteWarnings(state)),
+      ).confirm,
       // Las reglas sobre la nota final: si una falla, vuelve a la pregunta que escribe el campo.
       finalize: retry.finalize(noteFinalize(() => noteRuleEnv(session, pointOfSale))),
     },
   );
-
-  if (!state || state.exported) {
-    return;
-  }
-
-  await previewAndEmit(session, buildNoteInput(state, noteInputEnv(session, pointOfSale)), noteWarnings(state));
 }
 
 /** `de la factura C`, `del recibo C`: para "Fecha de…". */

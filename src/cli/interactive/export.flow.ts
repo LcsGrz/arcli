@@ -35,7 +35,7 @@ import { exportExchangeRateLoader } from './official-exchange-rate';
 import { completeIssuer } from './pdf.flow';
 import { askTextStep, chooseStep, isPromptCancellation } from './prompts';
 import { offerConfig } from './save-to-config';
-import { confirmEmission, formatEquivalentCommand, type InteractiveSession } from './session';
+import { confirmEmission, emissionStep, formatEquivalentCommand, type InteractiveSession } from './session';
 import {
   activitiesLoader,
   activityStep,
@@ -338,14 +338,15 @@ function exportSteps(
 /**
  * Vista previa, comando equivalente, confirmacion, emision y PDF: lo mismo para la factura y las notas E. Sin
  * `activity` (las notas la toman del asociado), el comando equivalente no la repite. Devuelve si ARCA la autorizo
- * (`isAuthorized`): un rechazo no es una emision.
+ * (`isAuthorized`): un rechazo no es una emision. Con Esc en "¿Emitimos?" devuelve BACK sin emitir: el flujo lo corre
+ * como `confirm` de `runWizard`, que vuelve a la ultima pregunta (TUI-15).
  */
 export async function emitExportVoucher(
   session: InteractiveSession,
   gateway: ExportGateway,
   rawInput: ExportVoucherInput,
   activity?: number,
-): Promise<boolean> {
+): Promise<typeof BACK | boolean> {
   const { runtime } = session;
   // ExportService toma el de la config: uno elegido en el asistente va en la entrada (y en el comando equivalente).
   const input: ExportVoucherInput = { ...rawInput, pointOfSale: rawInput.pointOfSale ?? session.typedPointOfSale };
@@ -366,8 +367,8 @@ export async function emitExportVoucher(
     planEmissionConfirmation({ flags: [input.pdf], mode: runtime.config.pdf }),
   );
 
-  if (!emission) {
-    return false;
+  if (emission === BACK || !emission) {
+    return emission;
   }
 
   const result = await withSpinner(`Emitiendo ${label} en ARCA...`, () =>
@@ -411,6 +412,12 @@ export async function runExportFlow(session: InteractiveSession): Promise<typeof
   const gateway = new ArcaClientFactory().createExportGateway(session.runtime);
   const tables = await loadExportTables(gateway);
   const configuredActivity = config.exportacion?.actividad;
+  // Esc en "¿Emitimos?" vuelve a la ultima pregunta (TUI-15).
+  const emission = emissionStep<ExportFlowState>((state) => {
+    const input = buildExportInput(state, { configuredActivity });
+
+    return emitExportVoucher(session, gateway, input, input.activity);
+  });
   const state = await runWizard<ExportFlowState>(
     withFinalizeNotice(
       exportSteps(tables, configuredActivity, {
@@ -424,6 +431,7 @@ export async function runExportFlow(session: InteractiveSession): Promise<typeof
     { options: {} },
     undefined,
     {
+      confirm: emission.confirm,
       // Las reglas sobre la factura final: si una falla, vuelve a la pregunta que escribe el campo.
       finalize: exportFinalize(() => ({ configuredActivity, today: formatDateAsArcaDate(new Date()) })),
     },
@@ -433,10 +441,6 @@ export async function runExportFlow(session: InteractiveSession): Promise<typeof
     return BACK;
   }
 
-  const input = buildExportInput(state, { configuredActivity });
-
-  const authorized = await emitExportVoucher(session, gateway, input, input.activity);
-
   // Guardar una actividad que no llego a ARCA (dejada sin emitir) no tiene sentido: no se sabe si la acepta.
-  await offerConfig(activityToSave(state.activity, configuredActivity, authorized));
+  await offerConfig(activityToSave(state.activity, configuredActivity, emission.authorized()));
 }

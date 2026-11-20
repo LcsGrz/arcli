@@ -1,3 +1,4 @@
+import { BACK, type Back } from '../../modules/interactive/wizard';
 import type { EmissionChoice, EmissionConfirmationPlan } from '../../modules/pdf/pdf-decision';
 
 import { chooseOne } from './prompts';
@@ -9,14 +10,21 @@ export const DO_NOT_EMIT_LABEL = 'No, dejar sin emitir';
 
 /**
  * "¿Emitimos?" con las opciones que arma `planEmissionConfirmation`: emitir, emitir y generar el PDF (si el PDF no
- * vino decidido por flag) o no emitir. Esc cuenta como no.
+ * vino decidido por flag) o no emitir. En los comandos con flags, Esc cuenta como no. En el asistente (`'volver'`), Esc
+ * devuelve BACK: vuelve a la ultima pregunta (TUI-15).
  */
+export async function askEmission(question: string, plan: EmissionConfirmationPlan): Promise<EmissionChoice | false>;
 export async function askEmission(
   question: string,
   plan: EmissionConfirmationPlan,
-  escapeLabel = 'no emitir',
-): Promise<EmissionChoice | false> {
-  return chooseOne<EmissionChoice | false>(
+  escape: 'volver',
+): Promise<Back | EmissionChoice | false>;
+export async function askEmission(
+  question: string,
+  plan: EmissionConfirmationPlan,
+  escape?: 'volver',
+): Promise<Back | EmissionChoice | false> {
+  return chooseOne<Back | EmissionChoice | false>(
     question,
     [
       { name: EMIT_NOW_LABEL, value: 'emitir' },
@@ -24,6 +32,8 @@ export async function askEmission(
       { name: DO_NOT_EMIT_LABEL, value: false },
     ],
     plan.initial,
-    { escapeLabel, escapeValue: false },
+    escape === 'volver'
+      ? { escapeLabel: 'volver', escapeValue: BACK }
+      : { escapeLabel: 'no emitir', escapeValue: false },
   );
 }

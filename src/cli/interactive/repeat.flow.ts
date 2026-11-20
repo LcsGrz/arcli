@@ -35,7 +35,7 @@ import { pickInvoice } from './invoice-picker';
 import { markIfNew } from './new-mark';
 import { exchangeRateSuggestionLoader, officialExchangeRateLoader } from './official-exchange-rate';
 import { askTextStep, chooseStep } from './prompts';
-import { type InteractiveSession, previewAndEmit, requirePointOfSale } from './session';
+import { emissionStep, type InteractiveSession, previewAndEmit, requirePointOfSale } from './session';
 import { type AmountCurrencyRetry, amountStep, billingAmountValidator } from './steps/amount';
 import { cbuSteps, offerSavingCbu } from './steps/cbu';
 import { consumerIdentificationSteps } from './steps/consumer';
@@ -341,18 +341,23 @@ export async function runRepeatFlow(baseSession: InteractiveSession): Promise<vo
 
   const { pointOfSale, session } = ready;
   const retry = invoiceAmountRetry<RepeatState>();
+  // Esc en "¿Emitimos?" vuelve a la ultima pregunta (TUI-15). Repetir E ya paso por su propia vista previa.
+  const emission = emissionStep<RepeatState>((state) =>
+    state.exported ? undefined : previewAndEmit(session, buildInvoiceInput(state, session.runtime)),
+  );
   const state = await runWizard(
     repeatSteps(session, pointOfSale, new Date(), retry),
     { advanced: { currencyCode: DEFAULT_CURRENCY_CODE, sameCurrency: false } },
     undefined,
-    { finalize: retry.finalize(invoiceFinalize<RepeatState>(() => billingRuleEnv(session.runtime))) },
+    {
+      confirm: emission.confirm,
+      finalize: retry.finalize(invoiceFinalize<RepeatState>(() => billingRuleEnv(session.runtime))),
+    },
   );
 
   if (!state || state.exported) {
     return;
   }
 
-  const authorized = await previewAndEmit(session, buildInvoiceInput(state, session.runtime));
-
-  await offerSavingCbu(session.runtime.config, state, authorized);
+  await offerSavingCbu(session.runtime.config, state, emission.authorized());
 }

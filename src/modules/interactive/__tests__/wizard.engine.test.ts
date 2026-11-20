@@ -278,3 +278,54 @@ describe('runWizard: skip con memo, auto y memoOf', () => {
     );
   });
 });
+
+// TUI-15: la vista previa es el cierre del asistente; Esc en "¿Emitimos?" vuelve a la ultima pregunta.
+describe('runWizard: confirm', () => {
+  it('con BACK vuelve a la ultima pregunta respondida, con su respuesta, y al seguir confirma lo mismo', async () => {
+    const { runs, steps } = scriptedSteps({ c: ['3', '3'] }, { a: {}, b: {}, c: {} });
+    const confirmed: State[] = [];
+    const answers: Array<typeof BACK | undefined> = [BACK, undefined];
+
+    const state = await runWizard(steps, {}, undefined, {
+      confirm: async (current) => {
+        confirmed.push(current);
+
+        return answers.shift();
+      },
+    });
+
+    expect(runs.map((run) => run.name)).toEqual(['a', 'b', 'c', 'c']);
+    expect(runs.at(-1)?.previous).toBe('3');
+    expect(confirmed).toEqual([
+      { a: 'ok', b: 'ok', c: '3' },
+      { a: 'ok', b: 'ok', c: '3' },
+    ]);
+    expect(state).toEqual({ a: 'ok', b: 'ok', c: '3' });
+  });
+
+  it('corre despues de `finalize`: si falla, vuelve al dueño antes de confirmar', async () => {
+    const { runs, steps } = scriptedSteps({ a: ['malo', 'bueno'] }, { a: {} });
+    const confirmed: State[] = [];
+
+    await runWizard(steps, {}, undefined, {
+      confirm: async (current) => {
+        confirmed.push(current);
+      },
+      finalize: (current) => (current.a === 'malo' ? { field: 'a', message: 'a no puede ser malo' } : undefined),
+    });
+
+    expect(runs.map((run) => run.error)).toEqual([undefined, 'a no puede ser malo']);
+    expect(confirmed).toEqual([{ a: 'bueno' }]);
+  });
+
+  it('al volver pasa de largo los pasos salteados y automaticos; sin preguntas respondidas, sale del flujo', async () => {
+    const { runs, steps } = scriptedSteps({}, { a: {}, b: { skip: () => true }, c: { auto: () => ({ c: 'auto' }) } });
+
+    await runWizard(steps, {}, undefined, { confirm: async () => (runs.length === 1 ? BACK : undefined) });
+    expect(runs.map((run) => run.name)).toEqual(['a', 'a']);
+
+    const none = scriptedSteps({}, { b: { skip: () => true } });
+
+    await expect(runWizard(none.steps, {}, undefined, { confirm: async () => BACK })).resolves.toBeUndefined();
+  });
+});

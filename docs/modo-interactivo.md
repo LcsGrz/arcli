@@ -79,7 +79,7 @@ Primero pregunta solo lo **requerido**:
 
 Después, **una sola pregunta con todos los opcionales** (ver abajo). Enter sin marcar nada sigue con los valores por defecto.
 
-Después muestra la vista previa (la misma de `--previsualizar`), el comando equivalente y pregunta si emitir, con los mismos botones que los comandos con flags: **Sí, emitir ahora**, **Sí, emitir y generar el PDF** (ver [PDF](#pdf)) o **No, dejar sin emitir**. En **producción** pide una segunda confirmación (**Sí, emitir en producción** o **No, dejar sin emitir**); el CLI con flags pregunta una sola vez.
+Después muestra la vista previa (la misma de `--previsualizar`), el comando equivalente y pregunta si emitir, con los mismos botones que los comandos con flags: **Sí, emitir ahora**, **Sí, emitir y generar el PDF** (ver [PDF](#pdf)) o **No, dejar sin emitir**. En **producción** pide una segunda confirmación (**Sí, emitir en producción** o **No, dejar sin emitir**); el CLI con flags pregunta una sola vez. Esc en "¿Emitimos…?" no es "no": vuelve a la última pregunta con todo lo respondido ([Volver desde la confirmación](#volver-cancelar-y-salir)).
 
 ### Factura de exportación (E)
 
@@ -337,6 +337,7 @@ Muestra lo mismo que `arcli estado` (servidores, tiempo de respuesta y punto de 
 ## Volver, cancelar y salir
 
 - **Volver al paso anterior:** **Esc**, en las listas y en las preguntas de texto. En las listas también está la opción **"← Volver"**, y en las de texto escribir **`<`** hace lo mismo, por si la terminal no manda Esc. Si volvés desde la primera pregunta, volvés al menú. Cada pregunta es un paso: "Volver" lleva a la inmediatamente anterior, también dentro de un mismo dato (de "Monto total" a "¿Mismo monto?", de "Período hasta" a "Período desde", del alias del CBU al CBU). Al volver a una pregunta, lo que habías respondido arranca marcado en las listas y escrito en las de texto (Enter lo mantiene; se puede editar o borrar). Si cambiás una respuesta, se descarta solo lo que dependía de ella, así un cambio de camino no deja datos viejos: si cambiás el comprobante, el receptor y su condición frente al IVA se preguntan de cero; si cambiás de DNI a CUIT, el número; si cambiás la moneda, cómo te pagan y la cotización. Lo demás (el concepto, el monto, el exento) arranca con lo que habías respondido, también los opcionales marcados (en la `E`, también los ítems cargados, que son un paso propio y no un opcional), salvo lo que dejó de aplicar o, en "Repetir", lo copiado si elegiste otro comprobante (la alícuota y el exento; en la `E`, los ítems, el idioma, el CUIT del país y la descripción del incoterm).
+- **Volver desde la confirmación:** Esc en "¿Emitimos…?", después de la vista previa, vuelve a la última pregunta del flujo con todo lo respondido (si fue la de los opcionales, con lo marcado y lo escrito), en la factura, el recibo, las notas, "Repetir" y la `E` con sus notas. Si seguís sin cambiar nada, llegás a la misma vista previa. **No, dejar sin emitir** sigue terminando sin emitir. En producción, Esc en la segunda confirmación cuenta como no. En los comandos con flags no hay pregunta a la que volver: ahí Esc cuenta como no.
 - `Ctrl+C` durante una pregunta cancela el flujo actual y vuelve al menú. Nada se emite hasta confirmar en el último paso.
 - **Esc** o `Ctrl+C` en el menú principal, o elegir **Salir**, cierra el asistente.
 

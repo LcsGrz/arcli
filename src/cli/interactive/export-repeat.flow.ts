@@ -29,7 +29,7 @@ import { pickExportVoucher } from './invoice-picker';
 import { exportExchangeRateLoader } from './official-exchange-rate';
 import { chooseStep } from './prompts';
 import { offerConfig } from './save-to-config';
-import type { InteractiveSession } from './session';
+import { emissionStep, type InteractiveSession } from './session';
 import {
   activitiesLoader,
   activityStep,
@@ -237,11 +237,18 @@ export async function runExportRepeatFlow(
   const gateway = new ArcaClientFactory().createExportGateway(session.runtime);
   const tables = await loadExportTables(gateway);
   const configured = session.runtime.config.exportacion?.actividad;
+  // Esc en "¿Emitimos?" vuelve a la ultima pregunta (TUI-15).
+  const emission = emissionStep<ExportRepeatState>((answered) => {
+    const input = buildExportRepeatInput(answered, { configuredActivity: configured });
+
+    return emitExportVoucher(session, gateway, input, input.activity);
+  });
   const state = await runWizard<ExportRepeatState>(
     exportRepeatSteps(session, gateway, tables, pointOfSale),
     {},
     undefined,
     {
+      confirm: emission.confirm,
       // Las reglas sobre la factura final: si una falla, vuelve a la pregunta que escribe el campo.
       finalize: exportRepeatFinalize(() => ({
         configuredActivity: configured,
@@ -254,10 +261,6 @@ export async function runExportRepeatFlow(
     return BACK;
   }
 
-  const configuredActivity = session.runtime.config.exportacion?.actividad;
-  const input = buildExportRepeatInput(state, { configuredActivity });
-  const authorized = await emitExportVoucher(session, gateway, input, input.activity);
-
   // Como en "Emitir factura": la actividad escrita a mano se ofrece guardar si ARCA la autorizo (REV-74, #11).
-  await offerConfig(repeatActivityToSave(state, configuredActivity, authorized));
+  await offerConfig(repeatActivityToSave(state, configured, emission.authorized()));
 }

@@ -10,7 +10,7 @@ import { BillingService } from '../../modules/billing/billing.service';
 import type { BillingGateway } from '../../modules/billing/billing.types.internal';
 import { buildEquivalentCommand } from '../../modules/interactive/equivalent-command';
 import { isAuthorized } from '../../modules/interactive/steps/config-offer';
-import { BACK } from '../../modules/interactive/wizard';
+import { BACK, type Back } from '../../modules/interactive/wizard';
 import {
   type EmissionChoice,
   type EmissionConfirmationPlan,
@@ -123,14 +123,20 @@ export type EmissionAnswer = EmissionChoice | false;
 /**
  * "¿Emitimos?" y, en produccion, la segunda confirmacion. Si no, avisa que no se emitio nada. Las opciones salen de
  * `planEmissionConfirmation`: siempre se puede elegir emitir con o sin PDF, y lo elegido decide (despues de emitir no
- * se pregunta nada mas del PDF). Esc cuenta como no.
+ * se pregunta nada mas del PDF). Esc en "¿Emitimos?" devuelve BACK, sin aviso: el asistente vuelve a su ultima pregunta
+ * (TUI-15). En la segunda confirmacion, Esc sigue contando como no.
  */
 export async function confirmEmission(
   question: string,
   environment: ResolvedArcaRuntime['environment'],
   plan: EmissionConfirmationPlan,
-): Promise<EmissionAnswer> {
-  const answer = await askEmission(question, plan);
+): Promise<Back | EmissionAnswer> {
+  const answer = await askEmission(question, plan, 'volver');
+
+  if (answer === BACK) {
+    return BACK;
+  }
+
   const confirmed =
     answer &&
     (environment !== 'produccion' ||
@@ -143,6 +149,35 @@ export async function confirmEmission(
   }
 
   return confirmed;
+}
+
+/** La vista previa y la emision como `confirm` de `runWizard`, y si ARCA lo autorizo. */
+export interface EmissionStep<S> {
+  /** Si ARCA autorizo lo emitido: aprobado u observado con CAE (`isAuthorized`). Antes de emitir o sin emitir, false. */
+  readonly authorized: () => boolean;
+  readonly confirm: (state: S) => Promise<Back | void>;
+}
+
+/**
+ * El cierre de un flujo del asistente: `emit` hace la vista previa, pregunta "¿Emitimos?" y emite (`previewAndEmit` o
+ * `emitExportVoucher`). Si devuelve BACK (Esc en "¿Emitimos?"), `runWizard` vuelve a la ultima pregunta con todo lo
+ * respondido (TUI-15). Sin nada que emitir, `emit` devuelve `undefined`.
+ */
+export function emissionStep<S>(emit: (state: S) => Promise<Back | boolean> | undefined): EmissionStep<S> {
+  let authorized = false;
+
+  return {
+    authorized: () => authorized,
+    confirm: async (state) => {
+      const result = await emit(state);
+
+      if (result === BACK) {
+        return BACK;
+      }
+
+      authorized = result ?? false;
+    },
+  };
 }
 
 export function formatEquivalentCommand(command: string): string {
@@ -158,13 +193,15 @@ export function formatEquivalentCommand(command: string): string {
  * Paso final comun a todos los flujos: vista previa, comando equivalente, confirmacion y emision.
  * Usa BillingService igual que los comandos con flags, asi que valida y emite exactamente lo mismo.
  * `flowWarnings` son avisos que solo sabe el flujo, como el de un asociado de otro sistema en una nota. Devuelve si ARCA
- * lo autorizo (`isAuthorized`): lo que se ofrece guardar en la config (el CBU de la FCE) solo se ofrece entonces.
+ * lo autorizo (`isAuthorized`): lo que se ofrece guardar en la config (el CBU de la FCE) solo se ofrece entonces. Con
+ * Esc en "¿Emitimos?" devuelve BACK sin emitir: el flujo lo corre como `confirm` de `runWizard`, que vuelve a la ultima
+ * pregunta (TUI-15).
  */
 export async function previewAndEmit(
   session: InteractiveSession,
   rawInput: BillingCommandInput,
   flowWarnings: readonly string[] = [],
-): Promise<boolean> {
+): Promise<Back | boolean> {
   const { runtime, service } = session;
   const entry: BillingCommandInput = {
     ...rawInput,
@@ -211,8 +248,8 @@ export async function previewAndEmit(
     planEmissionConfirmation({ flags: [input.pdf], mode: runtime.config.pdf }),
   );
 
-  if (!emission) {
-    return false;
+  if (emission === BACK || !emission) {
+    return emission;
   }
 
   const spinner = startSpinner(`Emitiendo ${label} en ARCA...`);
