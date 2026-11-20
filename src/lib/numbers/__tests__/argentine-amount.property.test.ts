@@ -88,8 +88,11 @@ describe('roundToCents y hasAtMostDecimals (propiedades)', () => {
 
         expect(roundToCents(rounded)).toBe(rounded);
         expect(hasAtMostDecimals(rounded, 2)).toBe(true);
-        expect(Math.abs(rounded - value)).toBeLessThanOrEqual(0.005 + 1e-9);
+        // Medio centavo más el error de representar el número en binario: cerca de 1e12 dos doubles seguidos están a
+        // ~1e-4, y `831790651123.835` se guarda como `...83496`, que se redondea a `.84` desde el texto (correcto).
+        expect(Math.abs(rounded - value)).toBeLessThanOrEqual(0.005 + 4 * Number.EPSILON * Math.abs(value));
       }),
+      { examples: [[831790651123.835]] },
     );
   });
 
