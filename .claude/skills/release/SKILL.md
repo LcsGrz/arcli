@@ -44,7 +44,9 @@ Creá `release/vX.Y.Z` desde `origin/<base>` y tocá exactamente tres archivos:
 
 Después corré `yarn lint && yarn open-source:check` (lo mismo que el CI: typecheck, tests, build, e2e y `pack:check`), y `node dist/cli/index.js --version` tiene que imprimir `X.Y.Z`. Anotá cuántos tests pasaron.
 
-**Listo cuando:** el diff toca solo esos tres archivos, todo pasa y la versión compilada es `X.Y.Z`.
+**Mutation testing (minor y major, no en los parches):** `node scripts/agent/stryker.mjs` muta lo cambiado en `src/` desde el último tag, con la config real aislada. Nunca `npx stryker` directo. Puede tardar decenas de minutos: corrélo en segundo plano. No bloquea la release: mostrale al usuario el puntaje de lo cambiado y los mutantes que sobrevivieron en lógica (no en textos ni en vista previa), y que decida si se arreglan antes o quedan como ticket. Si el script sale con 3, la config real cambió: frená y avisá.
+
+**Listo cuando:** el diff toca solo esos tres archivos, todo pasa, la versión compilada es `X.Y.Z` y, si es minor o major, el usuario vio el resultado de Stryker.
 
 ## 4. Gate 1: commit, push y PR
 

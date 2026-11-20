@@ -178,7 +178,7 @@ Versionado: cambios que rompen el contrato del CLI → mayor; flags, comandos o 
 
 ## Trabajar con agentes
 
-Las instrucciones para agentes están en [AGENTS.md](../AGENTS.md) y la referencia para quien usa el CLI desde un agente, en [llms.txt](../llms.txt). Para Claude Code, el repo trae además `.claude/settings.json`, las skills de `.claude/skills/` y los agentes de `.claude/agents/`. Quien mantiene ARCLI revisa los PRs de terceros con `/revisar-pr <N>`. Tu config personal para este repo va en `.claude/settings.local.json`, que está ignorado.
+Las instrucciones para agentes están en [AGENTS.md](../AGENTS.md) y la referencia para quien usa el CLI desde un agente, en [llms.txt](../llms.txt). Para Claude Code, el repo trae además `.claude/settings.json`, las skills de `.claude/skills/` y los agentes de `.claude/agents/`. Quien mantiene ARCLI revisa los PRs de terceros con `/revisar-pr <N>`. Cómo se decide y cuánto control lleva cada cambio está en [estandares.md](estandares.md). Tu config personal para este repo va en `.claude/settings.local.json`, que está ignorado.
 
 ### Verificación al terminar (hook Stop)
 
@@ -199,7 +199,46 @@ echo '{"session_id":"prueba","cwd":"'"$PWD"'"}' | node scripts/agent/stop-check.
 
 Sale con 2 y muestra el error; sin cambios en `src/`, sale con 0 sin imprimir nada. El sello de la sesión está en `$TMPDIR/arcli-stop-check-<sesión>.json`; borralo para forzar otra verificación.
 
+Los agentes que editan código (`nucleo`, `interfaz`, `tester`) corren el mismo script al terminar (hook `SubagentStop`). Ahí compara contra `origin/dev` y no contra `HEAD`, porque el agente suele commitear antes de terminar en su worktree, y si el worktree no tiene `node_modules` usa las herramientas del checkout principal. Se registra en `settings.json` (`SubagentStop` con esos tres nombres): declarado en el frontmatter del agente no corre. Si un agente termina con su informe, el bloqueo puede no llegarle, así que además muestra un aviso a quien lo lanzó; antes de mergear, la verificación del worktree y el CI siguen siendo obligatorios.
+
 Para desactivarlo: `"disableAllHooks": true` en `.claude/settings.local.json`, o `/hooks` dentro de la sesión.
+
+### Comandos frenados (hook PreToolUse)
+
+`scripts/agent/guard-bash.mjs` mira cada comando de Bash antes de que corra, en la sesión y en los agentes:
+
+| Comando                                                           | Qué hace                                                                                                 |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `stryker run` directo (con `npx`, `yarn` o el binario)            | Lo bloquea: Stryker va solo con `node scripts/agent/stryker.mjs` ([Mutation testing](#mutation-testing)) |
+| `gh pr create` sin `--base dev`                                   | Lo bloquea, salvo `--base main` desde `release/…` o `hotfix/…`, o un PR a otro repo con `-R`             |
+| ARCLI (`arcli`, `yarn dev`, `dist/cli/index.js`) con `produccion` | Pregunta antes de correrlo                                                                               |
+
+Reconoce el programa de cada parte del comando y saltea lo que está entre comillas y los heredocs, así que `grep "stryker run"` pasa. Los casos están en `scripts/agent/__tests__/guard-bash.test.mjs`.
+
+### Agentes y skills del equipo
+
+| Pieza                                        | Para qué                                                                                                                                   |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Agente `nucleo`                              | Lógica: `src/modules`, `src/services`, `src/lib`, reglas de ARCA y el motor del asistente                                                  |
+| Agente `interfaz`                            | Superficie: `src/cli`, `src/ui`, flujos y pantallas del asistente, textos y comando equivalente                                            |
+| Agente `tester`                              | Tests de aceptación antes del código, evaluar tests, `test:arca` y mutation testing                                                        |
+| Agente `revisor`                             | Revisión independiente de solo lectura, de un PR de un tercero o de un cambio propio                                                       |
+| Skill `tarea-de-agente`                      | Lo común de los tres agentes que editan (base del worktree, verificación e informe); se precarga en cada uno                               |
+| Skills `planificar-tarea` y `revisar-cambio` | Armar el plan (nivel, reutilización, paridad, criterios) antes de implementar, y lanzar al revisor sobre un cambio propio antes de mergear |
+
+Los agentes trabajan en un worktree propio desde `origin/dev` y devuelven un informe con formato fijo. No hablan entre sí: todo pasa por la sesión principal.
+
+### Mutation testing
+
+Stryker cambia el código a propósito (mutantes) y mira si algún test falla: un mutante que sobrevive es un comportamiento que ningún test fija. No es dependencia del proyecto ni corre en el CI. Se corre antes de cada versión menor o mayor (lo hace la skill `release`) y al cerrar un refactor grande, siempre con el script:
+
+```bash
+node scripts/agent/stryker.mjs                    # lo cambiado en src/ desde el último tag
+node scripts/agent/stryker.mjs --desde origin/dev # lo cambiado en la rama
+node scripts/agent/stryker.mjs src/modules/billing
+```
+
+El script instala Stryker con versión fija en `node_modules/.cache/arcli-stryker`, corre todo con `HOME` y `ARCLI_CONFIG_DIR` temporales y `pool: 'forks'` (`vitest.stryker.config.ts`, que falla si no lo lanza el script), y vigila la carpeta de config real cada 3 s: si cambia, corta Stryker y sale con 3. El informe queda en `reports/stryker/` (ignorado), junto con el archivo incremental: la próxima corrida reusa los resultados de lo que no cambió. Un archivo chico tarda un par de minutos; un módulo grande, decenas.
 
 ### Permisos
 

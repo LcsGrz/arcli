@@ -46,6 +46,8 @@ Antes de dar por terminado un cambio: `yarn typecheck`, `yarn lint` y `yarn test
 
 ## Convenciones de código
 
+Cómo se decide (reutilizar antes de escribir, cuándo abstraer, cuánto control lleva cada cambio y cuándo está terminado): [docs/estandares.md](docs/estandares.md).
+
 - Validar explícitamente toda entrada del usuario.
 - Mantener el parseo de la CLI separado de las llamadas a ARCA y de las reglas de negocio.
 - Preferir funciones puras en `lib` y `modules`.

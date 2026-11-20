@@ -41,3 +41,7 @@ tickets/
 # Config personal de Claude Code
 .claude/settings.local.json
 .claude/worktrees/
+
+# Mutation testing (scripts/agent/stryker.mjs)
+reports/
+.stryker-tmp/
