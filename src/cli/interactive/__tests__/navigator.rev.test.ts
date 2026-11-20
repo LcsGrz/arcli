@@ -319,3 +319,27 @@ describe('auditoría del asistente del 19/11', () => {
     expect(currency === undefined || Boolean(currency.disabled)).toBe(true);
   });
 });
+
+describe('encontrado por los tests al azar (NAV-0)', () => {
+  // BUG: "CUIT del receptor" acepta el CUIT del emisor y recien la vista previa lo rechaza ("El receptor no puede ser
+  // el mismo CUIT que emite (20111111112): ARCA lo rechaza (error 10069)."), que vuelve al menu y pierde todo. Viola la
+  // invariante 1 de `navigator.property.test.ts`: con '20-11111111-2' en la fila "CUIT del receptor" de su tabla falla
+  // con { seed: 20261119, path: "8" } en factura, "22" en recibo y "13" en notas. Sin ticket todavia.
+  it.skip('"CUIT del receptor" no acepta el CUIT del emisor', async () => {
+    await run(
+      [
+        [/comprobante/, 'Factura A'],
+        [/A quién/, 'Con CUIT'],
+        [/CUIT del receptor/, '30-70996581-2'],
+        [/Condición frente al IVA/, 'Responsable inscripto'],
+        [/Qué estás facturando/, 'Servicios'],
+        [/Monto total/, '1.210'],
+        [/Agregamos/, []],
+        NO_EMIT,
+      ],
+      runInvoiceFlow,
+    );
+
+    expect(lastValidator(/CUIT del receptor/)('20-11111111-2')).toEqual(expect.stringMatching(/mismo CUIT que emite/));
+  });
+});

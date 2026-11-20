@@ -24,13 +24,13 @@ import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.re
 import { parseBillingCommandPlan } from '../../commands/billing.command.parser';
 import { resolveBillingCommandDefaults } from '../../commands/billing.command.shared';
 import { parseExportCommandPlan } from '../../commands/export.command.parser';
-import { createProgram } from '../../program';
 import { buildInvoiceInput, invoiceSteps } from '../invoice.flow';
 import { buildInvoiceInput as buildRepeatInput } from '../invoice.flow';
 import { buildNoteInput, noteSteps } from '../note.flow';
 import { repeatSteps } from '../repeat.flow';
 import type { InteractiveSession } from '../session';
 
+import { captured, parseWithProgram } from './equivalent-command.parse';
 import { createScript, type ScriptedAnswer } from './script';
 
 /**
@@ -50,8 +50,6 @@ vi.mock('../prompts', () => ({
   eraseLastAnswer: () => undefined,
   fitPageSize: () => 12,
 }));
-
-const captured: Array<{ command: Command; exportKind?: ExportVoucherKind; shortcut?: VoucherShortcut }> = [];
 
 vi.mock('../../commands/export.command', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../commands/export.command')>()),
@@ -131,82 +129,6 @@ const invoice = (overrides: Partial<IssuedVoucher> = {}): IssuedVoucher => ({
   total: 121,
   ...overrides,
 });
-
-/** En PowerShell las comillas tipograficas tambien abren y cierran una cadena simple. */
-const POWERSHELL_QUOTE = /['‘’‚‛]/;
-
-/**
- * Separa un comando como la shell: comillas simples de POSIX (`'\''`) o de PowerShell (adentro, dos comillas
- * seguidas son una).
- */
-function splitCommand(line: string, platform: 'linux' | 'win32'): string[] {
-  const words: string[] = [];
-  let current: string | null = null;
-
-  for (let index = 0; index < line.length; index += 1) {
-    const char = line[index] as string;
-
-    if (platform === 'win32' && POWERSHELL_QUOTE.test(char)) {
-      let quoted = '';
-
-      for (index += 1; ; index += 1) {
-        const inner = line[index];
-
-        if (inner === undefined) throw new Error(`comillas sin cerrar en ${line}`);
-
-        if (POWERSHELL_QUOTE.test(inner)) {
-          if (!POWERSHELL_QUOTE.test(line[index + 1] ?? '')) break;
-
-          quoted += inner;
-          index += 1;
-        } else {
-          quoted += inner;
-        }
-      }
-
-      current = (current ?? '') + quoted;
-    } else if (char === "'") {
-      const close = line.indexOf("'", index + 1);
-
-      if (close === -1) throw new Error(`comillas sin cerrar en ${line}`);
-
-      current = (current ?? '') + line.slice(index + 1, close);
-      index = close;
-    } else if (platform === 'linux' && char === '\\') {
-      current = (current ?? '') + (line[index + 1] ?? '');
-      index += 1;
-    } else if (char === ' ') {
-      if (current !== null) words.push(current);
-      current = null;
-    } else {
-      current = (current ?? '') + char;
-    }
-  }
-
-  if (current !== null) words.push(current);
-
-  return words;
-}
-
-async function parseWithProgram(line: string, platform: 'linux' | 'win32') {
-  const [arcli, ...args] = splitCommand(line, platform);
-  const program = createProgram();
-  const silence = (command: Command) => {
-    command.exitOverride().configureOutput({ writeErr: () => {}, writeOut: () => {} });
-    command.commands.forEach(silence);
-  };
-
-  expect(arcli).toBe('arcli');
-  silence(program);
-  captured.length = 0;
-  await program.parseAsync(['node', 'arcli', ...args]);
-
-  const call = captured[0];
-
-  if (!call) throw new Error(`"${line}" no llego a un comando de facturacion`);
-
-  return call;
-}
 
 /** La solicitud a ARCA que arma una entrada, como `previewAndEmit` y `executeBillingCommand`. */
 async function payloadOf(input: BillingCommandInput, withConfig = config) {
