@@ -56,7 +56,7 @@ interface ReceiverStepOptions<S> {
   /** Cuando no se pregunta el receptor (ya vino cargado, o la nota va sobre una factura). */
   readonly skip: (state: S) => boolean;
   /** Las reglas del flujo, para el numero: no puede ser el CUIT emisor (10069). */
-  readonly rules?: (state: S) => BillingRuleScope;
+  readonly rules: (state: S) => BillingRuleScope;
 }
 
 /**
@@ -97,7 +97,7 @@ export function receiverSteps<S extends ReceiverStepState>(
           scopedRuleValidator(
             BILLING_RULES,
             'documentNumber',
-            options.rules?.(state),
+            options.rules(state),
             (value) => ({ documentNumber: normalizeDocumentNumber(value), documentType: state.documentType }),
             validate,
           ),

@@ -1,9 +1,11 @@
+import { EXPORT_RULES, type ExportRuleContext } from '../export/export.rules';
 import type { ExportCountry, ExportIssuedVoucher, ExportVoucherInput } from '../export/export.types';
 
 import type { ExportInvoiceCopy } from './export-copy';
-import type { ExportInputEnv } from './export-input';
-import type { ExportOptions } from './export-optionals';
-import { requireStepValue } from './wizard';
+import type { ExportInputEnv, ExportRuleEnv } from './export-input';
+import type { ExportOptions, ExportRuleScope } from './export-optionals';
+import { rulesFinalize } from './rule-validator';
+import { requireStepValue, type WizardFinalize } from './wizard';
 
 /** Lo que responde quien repite una factura E, con lo copiado de ella. */
 export interface ExportRepeatState {
@@ -36,4 +38,21 @@ export function buildExportRepeatInput(state: ExportRepeatState, env: ExportInpu
     permits: state.permits,
     permitsExisting: state.permits ? true : undefined,
   };
+}
+
+/** Las reglas de la E desde una pregunta de "Repetir": la factura con lo copiado y lo respondido, y hoy. */
+export function exportRepeatRuleScope(state: ExportRepeatState, env: ExportRuleEnv): ExportRuleScope {
+  return {
+    context: { today: env.today },
+    draft: (patch) => ({ ...buildExportRepeatInput(state, env), ...patch }),
+  };
+}
+
+/** `finalize` de "Repetir" una E: las reglas sobre la factura final; sin la copia todavia, no hay entrada. */
+export function exportRepeatFinalize(env: () => ExportRuleEnv): WizardFinalize<ExportRepeatState> {
+  return rulesFinalize<ExportRepeatState, ExportVoucherInput, ExportRuleContext>({
+    context: () => ({ today: env().today }),
+    draft: (state) => (state.copy && state.country ? buildExportRepeatInput(state, env()) : undefined),
+    rules: EXPORT_RULES,
+  });
 }

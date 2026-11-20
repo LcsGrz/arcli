@@ -40,9 +40,9 @@ export interface BillingOptionalsContext {
   readonly concept: BillingCommandInput['concept'];
   /**
    * Las reglas entre campos (`BILLING_RULES`) con la entrada del flujo: cada pregunta de un opcional las corre con lo
-   * que escribe (REV-69, REV-70, REV-71). Sin esto, solo el formato.
+   * que escribe (REV-69, REV-70, REV-71).
    */
-  readonly rules?: BillingRuleScope;
+  readonly rules: BillingRuleScope;
   /**
    * El comprobante del que se copian la alicuota y el exento ("Repetir"), como una clave: si cambia, esos opcionales
    * olvidan lo marcado y respondido y arrancan con lo copiado del nuevo.
@@ -254,4 +254,16 @@ export function billingOptionals(questions: BillingOptionalQuestions): readonly 
     ...option,
     available: (context) => !context.hidden?.includes(option.key) && option.available(context),
   }));
+}
+
+const CONSUMER_FIELDS: ReadonlySet<string> = new Set(['consumerDocumentNumber', 'consumerDocumentType']);
+
+/**
+ * Los campos de la entrada que cargan los opcionales, para las reglas: todos menos el documento del consumidor, que va
+ * como el del receptor.
+ */
+export function advancedInputFields(current: AdvancedOptions): Partial<BillingCommandInput> {
+  return Object.fromEntries(
+    Object.entries(current).filter(([key]) => !CONSUMER_FIELDS.has(key)),
+  ) as Partial<BillingCommandInput>;
 }

@@ -14,6 +14,7 @@ import {
   CONSUMER_IDENTIFICATION_THRESHOLD_RULE,
   DUE_DATE_MINIMUM_RULE,
   EXEMPT_UNTAXED_WITHIN_TOTAL_RULE,
+  latestBillingDate,
   RECEIVER_NOT_EMITTER_RULE,
   SERVICE_DATE_ORDER_RULE,
 } from '../billing.rules';
@@ -173,6 +174,76 @@ describe('reglas de A, B y C (billing.rules.ts)', () => {
         context('ncc'),
       ),
     ).toBeUndefined();
+  });
+
+  it('associated-period-within-note sin fecha de la nota: hoy por defecto, o la mas tardia si todavia no se eligio', () => {
+    const period = { associatedPeriod: { desde: '01/11/2026', hasta: '25/11/2026' } };
+
+    // Por defecto (finalize), hoy: sugiere el opcional en el asistente; el CLI sigue con su texto.
+    expect(check(ASSOCIATED_PERIOD_WITHIN_NOTE_RULE, period, context('ncc'))).toEqual({
+      message: 'El período asociado no puede terminar después de la fecha de la nota de crédito C (18/11/2026).',
+      question:
+        'El período asociado no puede terminar después de la fecha de la nota de crédito C (18/11/2026): elegí un "Período hasta" anterior o una fecha posterior en "Fecha del comprobante" de los opcionales.',
+    });
+    // Al preguntar el periodo (la fecha se elige despues): contra hoy mas 10 dias (servicios).
+    const undecided = context('ncc', { undecidedBillingDate: true });
+
+    expect(check(ASSOCIATED_PERIOD_WITHIN_NOTE_RULE, period, undecided)).toBeUndefined();
+    expect(
+      check(
+        ASSOCIATED_PERIOD_WITHIN_NOTE_RULE,
+        { associatedPeriod: { desde: '01/11/2026', hasta: '29/11/2026' } },
+        undecided,
+      ),
+    ).toMatchObject({
+      question:
+        'El período asociado no puede terminar después del 28/11/2026: es la fecha más tardía que ARCA acepta para la nota de crédito C.',
+    });
+    // En productos, 5 dias.
+    expect(check(ASSOCIATED_PERIOD_WITHIN_NOTE_RULE, { ...period, concept: 'productos' }, undecided)).toMatchObject({
+      question: expect.stringContaining('después del 23/11/2026'),
+    });
+    // Con la fecha elegida, la comparacion es exacta aunque el contexto diga que no se eligio.
+    expect(check(ASSOCIATED_PERIOD_WITHIN_NOTE_RULE, { ...period, billingDate: '25/11/2026' }, undecided)).toBe(
+      undefined,
+    );
+    // Primero la fecha: `finalize` vuelve a "Fecha del comprobante" si se eligio; si no, al periodo.
+    expect(ASSOCIATED_PERIOD_WITHIN_NOTE_RULE.fields).toEqual(['billingDate', 'associatedPeriod.hasta']);
+  });
+
+  it('associated-not-after-note sin fecha de la nota: hoy por defecto, o la mas tardia si todavia no se eligio', () => {
+    const associatedVoucher = { fecha: '25/11/2026', numero: 1, puntoVenta: 50, shortcut: 'fc' as const };
+
+    expect(check(ASSOCIATED_NOT_AFTER_NOTE_RULE, { associatedVoucher }, context('ncc'))).toEqual({
+      message:
+        'La fecha del comprobante asociado (25/11/2026) no puede ser posterior a la de la nota de crédito C (18/11/2026).',
+      question:
+        'La fecha del comprobante asociado (25/11/2026) no puede ser posterior a la de la nota de crédito C (18/11/2026): corregila o elegí una fecha posterior en "Fecha del comprobante" de los opcionales.',
+    });
+    expect(
+      check(ASSOCIATED_NOT_AFTER_NOTE_RULE, { associatedVoucher }, context('ncc', { undecidedBillingDate: true })),
+    ).toBeUndefined();
+    expect(
+      check(
+        ASSOCIATED_NOT_AFTER_NOTE_RULE,
+        { associatedVoucher: { ...associatedVoucher, fecha: '29/11/2026' } },
+        context('ncc', { undecidedBillingDate: true }),
+      ),
+    ).toMatchObject({
+      question:
+        'La fecha del comprobante asociado (29/11/2026) no puede ser posterior al 28/11/2026: es la fecha más tardía que ARCA acepta para la nota de crédito C.',
+    });
+    expect(ASSOCIATED_NOT_AFTER_NOTE_RULE.fields).toEqual(['billingDate', 'associatedVoucher.fecha']);
+  });
+
+  it('latestBillingDate: la fecha mas tardia de la ventana (10016, 10152)', () => {
+    expect(latestBillingDate('servicios', kind('ncc'), TODAY)).toBe('20261128');
+    expect(latestBillingDate(undefined, kind('ncc'), TODAY)).toBe('20261128');
+    expect(latestBillingDate('productos', kind('ncc'), TODAY)).toBe('20261123');
+    // Futura en el mes: productos y FCE no pasan del fin de mes.
+    expect(latestBillingDate('productos', kind('ncc'), '20261128')).toBe('20261130');
+    expect(latestBillingDate('servicios', kind('fceb'), '20261130')).toBe('20261130');
+    expect(latestBillingDate('servicios', kind('fceb'), TODAY)).toBe('20261119');
   });
 
   it('receiver-not-emitter (10069): el receptor no es el CUIT que emite', () => {

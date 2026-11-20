@@ -1,6 +1,12 @@
 import Big from 'big.js';
 
-import { diffArcaDatesInDays, formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
+import {
+  addDaysToArcaDate,
+  diffArcaDatesInDays,
+  formatArcaDateAsArgentineDate,
+  lastDayOfArcaMonth,
+  minArcaDate,
+} from '../../lib/dates/arca-date';
 import { formatArgentineMoney } from '../../lib/numbers/argentine-amount';
 import type { Rule } from '../../lib/rules/rules';
 
@@ -25,6 +31,13 @@ export interface BillingRuleContext {
   readonly emitterCuit?: number;
   readonly exchangeRate?: number;
   readonly today: string;
+  /**
+   * La fecha del comprobante todavia no se eligio (en el asistente, el periodo de una nota o la fecha de un asociado de
+   * otro sistema se preguntan antes que los opcionales): sin `billingDate`, las reglas que la comparan usan la mas
+   * tardia que acepta ARCA (`latestBillingDate`), no hoy. La comparacion exacta la hacen "Fecha del comprobante" y
+   * `finalize`.
+   */
+  readonly undecidedBillingDate?: boolean;
   readonly voucherKind: VoucherKindDefinition;
 }
 
@@ -51,6 +64,34 @@ function resolveBillingDateWindow(
 
   return { maxDaysAfter: 10, maxDaysBefore: 10, sameMonthWhenFuture: false };
 }
+
+/**
+ * La fecha mas tardia que ARCA acepta para el comprobante (10016 y 10152, WSFEv1 v4.7), la misma ventana que
+ * `BILLING_DATE_WINDOW_RULE`. Sin concepto, la mas amplia (servicios).
+ */
+export function latestBillingDate(
+  concept: BillingCommandInput['concept'] | undefined,
+  voucherKind: VoucherKindDefinition,
+  today: string,
+): string {
+  const window = resolveBillingDateWindow(concept, voucherKind);
+  const latest = addDaysToArcaDate(today, window.maxDaysAfter);
+
+  return window.sameMonthWhenFuture ? minArcaDate(latest, lastDayOfArcaMonth(today)) : latest;
+}
+
+/**
+ * La fecha de la nota contra la que se comparan el periodo y el asociado: la escrita; si todavia no se eligio
+ * (`undecidedBillingDate`), la mas tardia posible; si no, hoy (como el CLI sin `--fecha`).
+ */
+function noteDateFor(input: Partial<BillingCommandInput>, context: BillingRuleContext): string {
+  return !input.billingDate && context.undecidedBillingDate
+    ? latestBillingDate(input.concept, context.voucherKind, context.today)
+    : resolveBillingDate(input, context.today);
+}
+
+/** Como sigue el texto en el asistente si la nota va con hoy por defecto: sugiere elegir la fecha en los opcionales. */
+const LATER_NOTE_DATE = 'una fecha posterior en "Fecha del comprobante" de los opcionales.';
 
 /** ARCA 10016 y 10152 (WSFEv1 v4.7): la fecha del comprobante, cerca de hoy y, si es futura, en el mes (FCE y productos). */
 export const BILLING_DATE_WINDOW_RULE: BillingRule = {
@@ -95,8 +136,8 @@ export const SERVICE_DATE_ORDER_RULE: BillingRule = {
 };
 
 /**
- * El vencimiento del pago, no antes del minimo. En la factura FCE, ni antes de la fecha del comprobante ni de hoy
- * (10164, WSFEv1 v4.7). En el resto, no antes de la fecha del comprobante: propia, el manual no lo controla. Sin
+ * El vencimiento del pago, no antes del minimo: la fecha del comprobante (10036, WSFEv1 v4.7) y, en la factura FCE,
+ * tampoco antes de hoy (10164, WSFEv1 v4.7). Sin
  * `--vencimiento` ni `--dia` el CLI elige uno que cumple. Solo donde va el vencimiento (`shouldSendPaymentDueDate`).
  */
 export const DUE_DATE_MINIMUM_RULE: BillingRule = {
@@ -187,15 +228,32 @@ export const ASSOCIATED_PERIOD_ORDER_RULE: BillingRule = {
 
 /** ARCA 10208 (WSFEv1 v4.7): el periodo asociado no termina despues de la fecha de la nota. */
 export const ASSOCIATED_PERIOD_WITHIN_NOTE_RULE: BillingRule = {
-  check: (input, { today, voucherKind }) => {
+  check: (input, context) => {
+    const { today, voucherKind } = context;
     const period = parsePeriod(input, today);
-    const billingDate = resolveBillingDate(input, today);
+    const billingDate = noteDateFor(input, context);
 
-    return period.to !== undefined && period.to > billingDate
-      ? `El período asociado no puede terminar después de la fecha de ${formatVoucherWithArticle(voucherKind)} (${formatArcaDateAsArgentineDate(billingDate)}).`
-      : undefined;
+    if (period.to === undefined || period.to <= billingDate) {
+      return undefined;
+    }
+
+    const note = formatVoucherWithArticle(voucherKind);
+    const date = formatArcaDateAsArgentineDate(billingDate);
+    const message = `El período asociado no puede terminar después de la fecha de ${note} (${date}).`;
+
+    if (input.billingDate) {
+      return message;
+    }
+
+    return {
+      message,
+      question: context.undecidedBillingDate
+        ? `El período asociado no puede terminar después del ${date}: es la fecha más tardía que ARCA acepta para ${note}.`
+        : `El período asociado no puede terminar después de la fecha de ${note} (${date}): elegí un "Período hasta" anterior o ${LATER_NOTE_DATE}`,
+    };
   },
-  fields: ['associatedPeriod.hasta', 'billingDate'],
+  // Primero la fecha: si se eligio en los opcionales, `finalize` vuelve ahi; si no, al periodo.
+  fields: ['billingDate', 'associatedPeriod.hasta'],
   id: 'associated-period-within-note',
 };
 
@@ -206,7 +264,8 @@ export const ASSOCIATED_PERIOD_WITHIN_NOTE_RULE: BillingRule = {
  * (`--afecha`) y la de la nota (`--fecha`).
  */
 export const ASSOCIATED_NOT_AFTER_NOTE_RULE: BillingRule = {
-  check: (input, { today, voucherKind }) => {
+  check: (input, context) => {
+    const { today, voucherKind } = context;
     const rawDate = input.associatedVoucher?.fecha;
 
     if (!rawDate) {
@@ -214,13 +273,30 @@ export const ASSOCIATED_NOT_AFTER_NOTE_RULE: BillingRule = {
     }
 
     const associatedDate = parseBillingDateInput(rawDate, today);
-    const billingDate = resolveBillingDate(input, today);
+    const billingDate = noteDateFor(input, context);
 
-    return associatedDate > billingDate
-      ? `La fecha del comprobante asociado (${formatArcaDateAsArgentineDate(associatedDate)}) no puede ser posterior a la de ${formatVoucherWithArticle(voucherKind)} (${formatArcaDateAsArgentineDate(billingDate)}).`
-      : undefined;
+    if (associatedDate <= billingDate) {
+      return undefined;
+    }
+
+    const note = formatVoucherWithArticle(voucherKind);
+    const associated = formatArcaDateAsArgentineDate(associatedDate);
+    const date = formatArcaDateAsArgentineDate(billingDate);
+    const message = `La fecha del comprobante asociado (${associated}) no puede ser posterior a la de ${note} (${date}).`;
+
+    if (input.billingDate) {
+      return message;
+    }
+
+    return {
+      message,
+      question: context.undecidedBillingDate
+        ? `La fecha del comprobante asociado (${associated}) no puede ser posterior al ${date}: es la fecha más tardía que ARCA acepta para ${note}.`
+        : `La fecha del comprobante asociado (${associated}) no puede ser posterior a la de ${note} (${date}): corregila o elegí ${LATER_NOTE_DATE}`,
+    };
   },
-  fields: ['associatedVoucher.fecha', 'billingDate'],
+  // Primero la fecha: si se eligio en los opcionales, `finalize` vuelve ahi; si no, a la del asociado.
+  fields: ['billingDate', 'associatedVoucher.fecha'],
   id: 'associated-not-after-note',
 };
 

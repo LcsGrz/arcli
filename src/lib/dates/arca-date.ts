@@ -49,6 +49,13 @@ export function addDaysToArcaDate(value: string, days: number): string {
   return new Date(arcaDateToUtcTime(value) + days * 86_400_000).toISOString().slice(0, 10).replace(/-/g, '');
 }
 
+/** Ultimo dia del mes de una fecha ARCA (yyyymmdd). */
+export function lastDayOfArcaMonth(arcaDate: string): string {
+  const day = new Date(Date.UTC(Number(arcaDate.slice(0, 4)), Number(arcaDate.slice(4, 6)), 0)).getUTCDate();
+
+  return `${arcaDate.slice(0, 6)}${String(day).padStart(2, '0')}`;
+}
+
 export function minArcaDate(...values: string[]): string {
   return values.reduce((earliest, value) => (value < earliest ? value : earliest));
 }

@@ -1,6 +1,7 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import type { AssociatedPointOfSaleOrigin } from '../billing/billing.associated-lookup';
 import { resolveRequiredCancellation } from '../billing/billing.associated-vouchers';
+import { BILLING_RULES, type BillingRuleContext } from '../billing/billing.rules';
 import { type BillingCommandInput, billingCommandSchema, type BillingConcept } from '../billing/billing.schemas';
 import type { VoucherKindDefinition } from '../billing/billing.types';
 import type { ArcliConfig } from '../config/config.schemas';
@@ -13,7 +14,8 @@ import { copyInvoiceAmounts } from './invoice-copy';
 import { explicitIvaRate } from './iva-rate';
 import { type NoteCurrency, resolveNoteCurrency } from './note-currency';
 import { type ReceiverFromPadron, receiverInputFields } from './receiver-document';
-import { requireStepValue } from './wizard';
+import { rulesFinalize, ruleValidator } from './rule-validator';
+import { requireStepValue, type WizardFinalize } from './wizard';
 
 export type NoteKind = 'credito' | 'debito';
 
@@ -128,7 +130,7 @@ export function buildNoteInput(state: NoteState, env: NoteInputEnv): BillingComm
 }
 
 /** Los campos de la entrada de la nota, sin validar: lo que leen las reglas mientras se pregunta. */
-export function noteInputFields(state: NoteState, env: NoteInputEnv): Partial<BillingCommandInput> {
+function noteInputFields(state: NoteState, env: NoteInputEnv): Partial<BillingCommandInput> {
   const invoiceKind = requireStepValue(state.invoiceKind, 'invoiceKind');
   const noteKind = noteKindChoices(state.kind ?? 'credito', invoiceKind);
   const invoice = state.invoice;
@@ -178,7 +180,7 @@ export function noteInputFields(state: NoteState, env: NoteInputEnv): Partial<Bi
 }
 
 /** Las reglas desde una pregunta de la nota (`ruleValidator`): la nota que se arma con lo respondido hasta ahi. */
-export function noteRuleScope(state: NoteState, env: NoteInputEnv & { readonly today: string }): BillingRuleScope {
+export function noteRuleScope(state: NoteState, env: NoteRuleEnv): BillingRuleScope {
   const invoiceKind = requireStepValue(state.invoiceKind, 'invoiceKind');
 
   return {
@@ -189,4 +191,39 @@ export function noteRuleScope(state: NoteState, env: NoteInputEnv & { readonly t
     },
     draft: (patch) => ({ ...noteInputFields(state, env), ...patch }),
   };
+}
+
+/** Lo que las reglas de la nota toman del emisor y de la sesion, con hoy (yyyymmdd). */
+export type NoteRuleEnv = NoteInputEnv & { readonly today: string };
+
+/**
+ * El validador de una pregunta de la nota antes de los opcionales (el periodo, la fecha de un asociado de otro
+ * sistema): las reglas que leen `field`, con la nota armada con lo respondido y el candidato (`answer`). La fecha de la
+ * nota todavia no se eligio: se compara contra la mas tardia que acepta ARCA (`undecidedBillingDate`).
+ */
+export function noteRuleValidator(
+  env: () => NoteRuleEnv,
+  field: string,
+  validate: (value: string) => string | true,
+  answer: (value: string) => Partial<NoteState>,
+): (state: NoteState) => (value: string) => string | true {
+  return ruleValidator<NoteState, BillingCommandInput, BillingRuleContext>({
+    context: (state) => ({
+      ...noteRuleScope(state, env()).context,
+      undecidedBillingDate: !state.advanced?.billingDate,
+    }),
+    draft: (state, value) => noteInputFields({ ...state, ...answer(value) }, env()),
+    field,
+    rules: BILLING_RULES,
+    validate,
+  });
+}
+
+/** `finalize` de la nota: las reglas sobre la nota final; si una falla, vuelve a la pregunta que escribe el campo. */
+export function noteFinalize(env: () => NoteRuleEnv): WizardFinalize<NoteState> {
+  return rulesFinalize<NoteState, BillingCommandInput, BillingRuleContext>({
+    context: (state) => noteRuleScope(state, env()).context,
+    draft: (state) => (state.exported || !state.invoiceKind ? undefined : noteInputFields(state, env())),
+    rules: BILLING_RULES,
+  });
 }

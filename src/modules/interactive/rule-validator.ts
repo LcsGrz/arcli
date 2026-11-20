@@ -54,21 +54,14 @@ export function ruleValidator<S, I, C>(options: {
   };
 }
 
-/**
- * `ruleValidator` sobre un `RuleScope`: `patch` arma lo que escribe la pregunta con el texto ya validado. Sin `scope`
- * (fuera de un flujo, por ejemplo en un test de la pregunta sola) queda solo `validate`.
- */
+/** `ruleValidator` sobre un `RuleScope`: `patch` arma lo que escribe la pregunta con el texto ya validado. */
 export function scopedRuleValidator<I, C>(
   rules: ReadonlyArray<Rule<I, C>>,
   field: string,
-  scope: RuleScope<I, C> | undefined,
+  scope: RuleScope<I, C>,
   patch: (value: string) => Partial<I>,
   validate?: (value: string) => string | true,
 ): (value: string) => string | true {
-  if (!scope) {
-    return validate ?? (() => true);
-  }
-
   return ruleValidator<RuleScope<I, C>, I, C>({
     context: (current) => current.context,
     draft: (current, candidate) => current.draft(patch(candidate)),

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { formatDateAsArcaDate } from '../../../lib/dates/arca-date';
 import { getVoucherKindByShortcut } from '../../../modules/billing/voucher-kind-map';
 import {
   type AdvancedOptions,
@@ -40,10 +41,17 @@ async function askAdvancedOptions(initial: AdvancedOptions, context: BillingOpti
 }
 
 function context(shortcut: string, overrides: Record<string, unknown> = {}): BillingOptionalsContext {
+  const voucherKind = getVoucherKindByShortcut(shortcut as never)!;
+
   return {
     concept: 'servicios' as const,
     defaultIvaRate: '21' as const,
-    voucherKind: getVoucherKindByShortcut(shortcut as never)!,
+    // Las reglas con el comprobante solo: lo que escribe cada pregunta y lo demas como el CLI sin flags.
+    rules: {
+      context: { today: formatDateAsArcaDate(new Date()), voucherKind },
+      draft: (patch) => ({ concept: 'servicios', shortcut: voucherKind.shortcut, ...patch }),
+    },
+    voucherKind,
     ...overrides,
   };
 }

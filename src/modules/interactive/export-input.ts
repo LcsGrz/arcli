@@ -1,6 +1,9 @@
+import { EXPORT_RULES, type ExportRuleContext } from '../export/export.rules';
 import type { ExportCountry, ExportType, ExportVoucherInput } from '../export/export.types';
 
-import type { ExportOptions } from './export-optionals';
+import type { ExportOptions, ExportRuleScope } from './export-optionals';
+import { rulesFinalize } from './rule-validator';
+import type { WizardFinalize } from './wizard';
 
 /** Lo que responde quien emite una factura E con "Emitir factura". */
 export interface ExportFlowState {
@@ -56,4 +59,24 @@ export function buildExportInput(state: ExportFlowState, env: ExportInputEnv): E
     permitsExisting: state.permits ? true : undefined,
     sameCurrency: state.sameCurrency,
   };
+}
+
+/** Lo que las reglas de la E toman de la sesion: la actividad de la config y hoy (yyyymmdd). */
+export type ExportRuleEnv = ExportInputEnv & { readonly today: string };
+
+/** Las reglas de la E desde una pregunta de la factura: la entrada con lo respondido y hoy. */
+export function exportRuleScope(state: ExportFlowState, env: ExportRuleEnv): ExportRuleScope {
+  return {
+    context: { today: env.today },
+    draft: (patch) => ({ ...buildExportInput(state, env), ...patch }),
+  };
+}
+
+/** `finalize` de la factura E: las reglas sobre la entrada final; si una falla, vuelve a la pregunta dueña. */
+export function exportFinalize(env: () => ExportRuleEnv): WizardFinalize<ExportFlowState> {
+  return rulesFinalize<ExportFlowState, ExportVoucherInput, ExportRuleContext>({
+    context: () => ({ today: env().today }),
+    draft: (state) => buildExportInput(state, env()),
+    rules: EXPORT_RULES,
+  });
 }

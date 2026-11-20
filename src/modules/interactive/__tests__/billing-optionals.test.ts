@@ -30,10 +30,13 @@ const OPTIONALS = billingOptionals({
 const PESOS: AdvancedOptions = { currencyCode: 'ARS', sameCurrency: false };
 
 function context(shortcut: string, overrides: Partial<BillingOptionalsContext> = {}): BillingOptionalsContext {
+  const voucherKind = getVoucherKindByShortcut(shortcut as never)!;
+
   return {
     concept: 'servicios',
     defaultIvaRate: '21',
-    voucherKind: getVoucherKindByShortcut(shortcut as never)!,
+    rules: { context: { today: '20261118', voucherKind }, draft: (patch) => patch },
+    voucherKind,
     ...overrides,
   };
 }

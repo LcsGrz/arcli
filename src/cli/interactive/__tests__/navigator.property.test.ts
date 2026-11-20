@@ -108,8 +108,12 @@ vi.mock('../../../modules/interactive/equivalent-command', async (importOriginal
   };
 });
 
-/** Los campos de la entrada que valido alguna pregunta con `ruleValidator` (directo o con `scopedRuleValidator`). */
-const validatedFields = vi.hoisted(() => new Set<string>());
+/**
+ * Lo que vio el flujo que se esta corriendo: los campos de la entrada que valido una pregunta con las reglas del flujo
+ * (`ruleValidator`, o `scopedRuleValidator` con su `scope`) y los que declara en `writes` un paso que el asistente corrio
+ * (en un grupo de opcionales, sus preguntas anidadas).
+ */
+const coverage = vi.hoisted(() => ({ validated: new Set<string>(), written: new Set<string>() }));
 
 vi.mock('../../../modules/interactive/rule-validator', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../modules/interactive/rule-validator')>();
@@ -117,14 +121,34 @@ vi.mock('../../../modules/interactive/rule-validator', async (importOriginal) =>
   return {
     ...actual,
     ruleValidator: (...args: Parameters<typeof actual.ruleValidator>) => {
-      validatedFields.add(args[0].field);
+      coverage.validated.add(args[0].field);
 
       return actual.ruleValidator(...args);
     },
     scopedRuleValidator: (...args: Parameters<typeof actual.scopedRuleValidator>) => {
-      validatedFields.add(args[1]);
+      // Solo con las reglas del flujo: sin `scope` no hay entrada contra la que correrlas.
+      if (args[2]) {
+        coverage.validated.add(args[1]);
+      }
 
       return actual.scopedRuleValidator(...args);
+    },
+  };
+});
+
+vi.mock('../../../modules/interactive/wizard', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../modules/interactive/wizard')>();
+
+  return {
+    ...actual,
+    runWizard: (...args: Parameters<typeof actual.runWizard>) => {
+      for (const step of args[0]) {
+        if (Array.isArray(step.writes)) {
+          step.writes.forEach((field) => coverage.written.add(field));
+        }
+      }
+
+      return actual.runWizard(...args);
     },
   };
 });
@@ -773,34 +797,62 @@ describe.each(FLOWS)('asistente al azar: $name', (flow) => {
 });
 
 /**
- * Los campos de una regla que no escribe una pregunta de texto: los items de la E son un bucle propio, que solo termina
- * cuando suman el monto (NAV-3), y el asistente al azar no los carga.
+ * Los campos de las reglas que no aplican a cada flujo, con el motivo. El resto de `BILLING_RULES` (A, B y C) o de
+ * `EXPORT_RULES` (la E) lo tiene que validar una pregunta con las reglas del flujo y escribirlo un paso (`writes`).
  */
-const OWN_LOOP_FIELDS: readonly string[] = ['items'];
-/**
- * Los que escribe una pregunta a la que el asistente al azar no llega: la fecha de un asociado de otro sistema sale de
- * ingresarlo a mano, y el asistente al azar no ingresa comprobantes a mano. La cubre el guion de `navigator.rev.test.ts`
- * ("REV-71: la fecha de un asociado de otro sistema…").
- */
-const SCRIPTED_FIELDS: readonly string[] = ['associatedVoucher.fecha'];
+const NO_ASSOCIATED = {
+  'associatedPeriod.desde': 'sin asociado: no es una nota',
+  'associatedPeriod.hasta': 'sin asociado: no es una nota',
+  'associatedVoucher.fecha': 'sin asociado: no es una nota',
+};
+const SCRIPTED_ASSOCIATED = {
+  // El asistente al azar no ingresa comprobantes a mano: lo cubre `navigator.rev.test.ts` ("REV-71: la fecha de un
+  // asociado de otro sistema…").
+  'associatedVoucher.fecha': 'asociado de otro sistema, cubierto por guion',
+};
+const ITEMS = { items: 'los items de la E son un bucle propio, que solo termina cuando suman el monto (NAV-3)' };
+const NOT_APPLICABLE: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  'factura A, B, C y FCE': NO_ASSOCIATED,
+  'factura E': ITEMS,
+  'nota de crédito': SCRIPTED_ASSOCIATED,
+  'nota de débito': SCRIPTED_ASSOCIATED,
+  'notas E': {
+    ...ITEMS,
+    exchangeRate: 'el asociado de prueba es de servicios: la cotización es la suya (2053) y no se ofrece',
+    paymentDate: 'las notas E no llevan fecha de pago (1673)',
+  },
+  recibo: NO_ASSOCIATED,
+  Repetir: NO_ASSOCIATED,
+  'Repetir E': {
+    ...ITEMS,
+    exchangeRate: 'la factura de prueba que se repite es de servicios: ARCA exige la suya (2053) y no se ofrece',
+  },
+};
 
-describe('reglas (NAV-5)', () => {
-  it('cada campo de una regla de A, B, C o la E lo escribe al menos una pregunta que usa `ruleValidator`', async () => {
-    validatedFields.clear();
+describe.each(FLOWS)('reglas (NAV-5): $name', (flow) => {
+  it('cada campo de una regla que aplica lo valida una pregunta con las reglas del flujo y lo escribe un paso', async () => {
+    coverage.validated.clear();
+    coverage.written.clear();
 
-    for (const flow of FLOWS) {
-      await fc.assert(
-        fc.asyncProperty(fc.gen(), async (g) => {
-          await walk(flow, g, { answers: ANSWERS, backPercent: 5 });
-        }),
-        { numRuns: 60, seed: 20261122 },
-      );
-    }
+    await fc.assert(
+      fc.asyncProperty(fc.gen(), async (g) => {
+        await walk(flow, g, { answers: ANSWERS, backPercent: 5 });
+      }),
+      { numRuns: 60, seed: 20261122 },
+    );
 
-    const fields = [...BILLING_RULES, ...EXPORT_RULES]
-      .flatMap((rule) => rule.fields)
-      .filter((field) => !OWN_LOOP_FIELDS.includes(field) && !SCRIPTED_FIELDS.includes(field));
+    const skipped = NOT_APPLICABLE[flow.name] ?? {};
+    const fields = [
+      ...new Set((flow.family === 'billing' ? BILLING_RULES : EXPORT_RULES).flatMap((rule) => rule.fields)),
+    ].filter((field) => !(field in skipped));
 
-    expect([...new Set(fields)].filter((field) => !validatedFields.has(field))).toEqual([]);
+    expect(
+      fields.filter((field) => !coverage.validated.has(field)),
+      'sin pregunta con reglas',
+    ).toEqual([]);
+    expect(
+      fields.filter((field) => !coverage.written.has(field)),
+      'sin paso que lo escriba',
+    ).toEqual([]);
   });
 });

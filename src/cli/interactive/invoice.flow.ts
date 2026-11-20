@@ -1,7 +1,5 @@
-import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { isIvaConditionAllowed } from '../../modules/billing/billing.iva-receptor';
-import { BILLING_RULES, type BillingRuleContext } from '../../modules/billing/billing.rules';
-import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
+import { BILLING_RULES } from '../../modules/billing/billing.rules';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import type { ArcliConfig } from '../../modules/config/config.schemas';
 import { EXPORT_VOUCHER_KIND, type ExportVoucherKind } from '../../modules/export/export.types';
@@ -15,25 +13,17 @@ import {
 } from '../../modules/interactive/choices';
 import { isConsumerIdentified } from '../../modules/interactive/consumer-identification';
 import {
+  billingRuleEnv,
   buildInvoiceInput,
-  type InvoiceInputEnv,
-  invoiceInputFields,
+  invoiceFinalize,
   invoiceRuleScope,
   type InvoiceState,
   isFceInvoice,
-  type RuleEnv,
 } from '../../modules/interactive/invoice-input';
 import { defaultIvaRate } from '../../modules/interactive/iva-rate';
 import type { ReceiverFromPadron } from '../../modules/interactive/receiver-document';
-import { rulesFinalize, scopedRuleValidator } from '../../modules/interactive/rule-validator';
-import {
-  BACK,
-  type Back,
-  requireStepValue,
-  runWizard,
-  type WizardFinalize,
-  type WizardStep,
-} from '../../modules/interactive/wizard';
+import { scopedRuleValidator } from '../../modules/interactive/rule-validator';
+import { BACK, type Back, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 
 import { billingOptionalsStep } from './advanced-options';
 import { requiredConsumerSteps } from './consumer-identification';
@@ -80,32 +70,10 @@ export const invoiceConsumerAmount = (state: InvoiceState) => ({
   totalAmount: state.totalAmount,
 });
 
-/** Lo que las reglas toman de la sesion: la config, el CUIT emisor y hoy (cuando se pregunta). */
-export function billingRuleEnv(session: InteractiveSession): InvoiceInputEnv & RuleEnv {
-  return {
-    config: session.runtime.config,
-    emitterCuit: session.runtime.context.cuit,
-    today: formatDateAsArcaDate(new Date()),
-  };
-}
-
-/**
- * `finalize` de "Emitir factura", "Emitir recibo" y "Repetir": las reglas sobre la entrada final; si una falla, vuelve
- * a la pregunta que escribe el campo. Con la E elegida no hay entrada de A, B y C.
- */
-export function invoiceFinalize<S extends InvoiceState>(session: InteractiveSession): WizardFinalize<S> {
-  return rulesFinalize<S, BillingCommandInput, BillingRuleContext>({
-    context: (state) => invoiceRuleScope(state, billingRuleEnv(session)).context,
-    draft: (state) =>
-      state.exported || !state.voucherKind ? undefined : invoiceInputFields(state, billingRuleEnv(session)),
-    rules: BILLING_RULES,
-  });
-}
-
 /** Pasos del flujo de factura; cada uno se puede deshacer con "Volver". */
 export function invoiceSteps(session: InteractiveSession): Array<WizardStep<InvoiceState>> {
   const { config } = session.runtime;
-  const rules = (state: InvoiceState) => invoiceRuleScope(state, billingRuleEnv(session));
+  const rules = (state: InvoiceState) => invoiceRuleScope(state, billingRuleEnv(session.runtime));
   const officialExchangeRate = officialExchangeRateLoader(session);
   const exchangeRateSuggestion = exchangeRateSuggestionLoader(config, officialExchangeRate);
   // El documento depende de quien es el receptor: si cambia, el escrito antes no se ofrece.
@@ -321,7 +289,7 @@ export async function runInvoiceFlow(
       ...(receiver ? invoiceStateForReceiver(receiver) : {}),
     },
     undefined,
-    { finalize: invoiceFinalize(session) },
+    { finalize: invoiceFinalize(() => billingRuleEnv(session.runtime)) },
   );
 
   if (!state) {

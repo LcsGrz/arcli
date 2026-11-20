@@ -74,9 +74,9 @@ export interface ExportOptionalsContext {
   readonly units: () => Promise<readonly ExportUnit[]>;
   /**
    * Las reglas entre campos de la E (`EXPORT_RULES`) con la entrada del flujo: la fecha del comprobante, por ejemplo,
-   * no puede quedar antes de la del asociado en una nota. Sin esto, solo la ventana de ARCA.
+   * no puede quedar antes de la del asociado en una nota.
    */
-  readonly rules?: ExportRuleScope;
+  readonly rules: ExportRuleScope;
 }
 
 /** Las reglas de la E desde una pregunta: la entrada que se arma con lo respondido y su contexto. */

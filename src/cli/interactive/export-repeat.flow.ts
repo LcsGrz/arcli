@@ -2,25 +2,23 @@ import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
 import { resolveExportClientCountryCuit } from '../../modules/export/export.mappers';
-import { EXPORT_RULES, type ExportRuleContext } from '../../modules/export/export.rules';
 import {
   DEFAULT_EXPORT_TYPE,
   EXPORT_VOUCHER_KIND,
   type ExportCountry,
   type ExportCountryCuit,
   type ExportGateway,
-  type ExportVoucherInput,
 } from '../../modules/export/export.types';
 import { amountInputText, parseAmountInput } from '../../modules/interactive/amount-input';
 import { completeDateInput } from '../../modules/interactive/date-input';
 import { copyExportInvoice, type ExportInvoiceCopy } from '../../modules/interactive/export-copy';
+import { type ExportOptions, isCountryCuitMissing } from '../../modules/interactive/export-optionals';
 import {
-  type ExportOptions,
-  type ExportRuleScope,
-  isCountryCuitMissing,
-} from '../../modules/interactive/export-optionals';
-import { buildExportRepeatInput, type ExportRepeatState } from '../../modules/interactive/export-repeat-input';
-import { rulesFinalize } from '../../modules/interactive/rule-validator';
+  buildExportRepeatInput,
+  exportRepeatFinalize,
+  exportRepeatRuleScope,
+  type ExportRepeatState,
+} from '../../modules/interactive/export-repeat-input';
 import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { noticePanel, writeTerminalOutput } from '../../ui';
@@ -263,7 +261,7 @@ export function exportRepeatSteps(
           // Sin descripcion por defecto: la copiada ya esta en las opciones y Enter la mantiene.
           incoterm: copy.incoterm ? { code: copy.incoterm } : undefined,
           languages: () => gateway.getLanguages(),
-          rules: exportRepeatRuleScope(state, configuredActivity),
+          rules: exportRepeatRuleScope(state, { configuredActivity, today: formatDateAsArcaDate(new Date()) }),
           sameCurrency: copy.sameCurrency,
           units: () => gateway.getUnits(),
         };
@@ -293,14 +291,6 @@ export function exportRepeatSteps(
   ]);
 }
 
-/** Las reglas de la E desde una pregunta de "Repetir": la factura con lo copiado y lo respondido, y hoy. */
-function exportRepeatRuleScope(state: ExportRepeatState, configuredActivity: number | undefined): ExportRuleScope {
-  return {
-    context: { today: formatDateAsArcaDate(new Date()) },
-    draft: (patch) => ({ ...buildExportRepeatInput(state, { configuredActivity }), ...patch }),
-  };
-}
-
 /**
  * Repetir una factura E. Usa ExportService igual que `arcli fe`, asi que valida y emite exactamente lo mismo.
  * Devuelve BACK si se vuelve desde el primer paso, para volver al selector de comprobantes.
@@ -321,14 +311,10 @@ export async function runExportRepeatFlow(
     undefined,
     {
       // Las reglas sobre la factura final: si una falla, vuelve a la pregunta que escribe el campo.
-      finalize: rulesFinalize<ExportRepeatState, ExportVoucherInput, ExportRuleContext>({
-        context: (current) => exportRepeatRuleScope(current, configured).context,
-        draft: (current) =>
-          current.copy && current.country
-            ? buildExportRepeatInput(current, { configuredActivity: configured })
-            : undefined,
-        rules: EXPORT_RULES,
-      }),
+      finalize: exportRepeatFinalize(() => ({
+        configuredActivity: configured,
+        today: formatDateAsArcaDate(new Date()),
+      })),
     },
   );
 

@@ -69,7 +69,7 @@ interface RequiredConsumerOptions<S> {
    */
   readonly officialExchangeRate?: OfficialExchangeRate;
   /** Las reglas del flujo, para el numero: no puede ser el CUIT emisor (10069). */
-  readonly rules?: (state: S) => BillingRuleScope;
+  readonly rules: (state: S) => BillingRuleScope;
 }
 
 /**
@@ -138,6 +138,8 @@ export function requiredConsumerSteps<S extends ConsumerStepState>(
       // La pregunta y la validacion cambian con el tipo: un DNI escrito antes no se ofrece como CUIT.
       dependsOn: [{ fields: ['advanced.consumerDocumentType'], step: typeStep }],
       name: `${options.name}-numero`,
+      // Va como el documento del receptor (`documentNumber`): no puede ser el CUIT emisor (10069).
+      writes: ['documentNumber'],
       run: async (state, previous) => {
         const documentType = requireStepValue(
           advanced(state).consumerDocumentType,
@@ -150,7 +152,7 @@ export function requiredConsumerSteps<S extends ConsumerStepState>(
             scopedRuleValidator(
               BILLING_RULES,
               'documentNumber',
-              options.rules?.(state),
+              options.rules(state),
               (value) => ({ documentNumber: normalizeDocumentNumber(value), documentType }),
               validate,
             ),

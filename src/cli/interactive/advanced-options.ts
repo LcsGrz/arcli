@@ -6,6 +6,7 @@ import type { BillingCommandInput } from '../../modules/billing/billing.schemas'
 import { toIsoCurrencyCode } from '../../modules/billing/currency-codes';
 import { amountInputText, parseAmountInput, parseExchangeRateInput } from '../../modules/interactive/amount-input';
 import {
+  advancedInputFields,
   type AdvancedOptions,
   type BillingOptionalQuestions,
   billingOptionals,
@@ -116,7 +117,7 @@ function describeSuggestion(suggested: ExchangeRateSuggestion): string {
 export async function askServiceDate(
   end: 'desde' | 'hasta',
   previous: string | undefined,
-  rules: BillingRuleScope | undefined,
+  rules: BillingRuleScope,
   answered: Partial<BillingCommandInput>,
 ): Promise<Back | string> {
   const field = end === 'desde' ? 'serviceStartDate' : 'serviceEndDate';
@@ -134,15 +135,6 @@ export async function askServiceDate(
   return date === BACK ? BACK : completeDateInput(date);
 }
 
-/** Los campos de la entrada que cargan los opcionales: todos menos el documento del consumidor (va como el receptor). */
-export function inputFields(current: AdvancedOptions): Partial<BillingCommandInput> {
-  const consumerFields: ReadonlySet<string> = new Set(['consumerDocumentNumber', 'consumerDocumentType']);
-
-  return Object.fromEntries(
-    Object.entries(current).filter(([key]) => !consumerFields.has(key)),
-  ) as Partial<BillingCommandInput>;
-}
-
 /** El validador de una pregunta de un opcional: el formato (`validate`) y las reglas que leen `field`. */
 function billingRule(
   context: BillingOptionalsContext,
@@ -155,7 +147,7 @@ function billingRule(
     BILLING_RULES,
     field,
     context.rules,
-    (value) => ({ ...inputFields(current), ...patch(value) }),
+    (value) => ({ ...advancedInputFields(current), ...patch(value) }),
     validate,
   );
 }
@@ -191,6 +183,8 @@ const QUESTIONS: BillingOptionalQuestions = {
       // La pregunta y la validacion cambian con el tipo.
       dependsOn: ['consumidor-documento'],
       name: 'consumidor-numero',
+      // El documento del consumidor va como el del receptor (`documentNumber`): no puede ser el CUIT emisor (10069).
+      writes: ['documentNumber'],
       run: async (current, previous) => {
         const documentType = current.consumerDocumentType ?? 'dni';
         const documentNumber = await askConsumerDocumentNumber(documentType, previous?.consumerDocumentNumber, (base) =>
@@ -198,7 +192,11 @@ const QUESTIONS: BillingOptionalQuestions = {
             BILLING_RULES,
             'documentNumber',
             context.rules,
-            (value) => ({ ...inputFields(current), documentNumber: normalizeDocumentNumber(value), documentType }),
+            (value) => ({
+              ...advancedInputFields(current),
+              documentNumber: normalizeDocumentNumber(value),
+              documentType,
+            }),
             base,
           ),
         );
@@ -314,7 +312,12 @@ const QUESTIONS: BillingOptionalQuestions = {
     {
       name: 'servicio-desde',
       run: async (current, previous) => {
-        const start = await askServiceDate('desde', previous?.serviceStartDate, context.rules, inputFields(current));
+        const start = await askServiceDate(
+          'desde',
+          previous?.serviceStartDate,
+          context.rules,
+          advancedInputFields(current),
+        );
 
         return start === BACK ? BACK : { serviceStartDate: start };
       },
@@ -323,7 +326,12 @@ const QUESTIONS: BillingOptionalQuestions = {
     {
       name: 'servicio-hasta',
       run: async (current, previous) => {
-        const end = await askServiceDate('hasta', previous?.serviceEndDate, context.rules, inputFields(current));
+        const end = await askServiceDate(
+          'hasta',
+          previous?.serviceEndDate,
+          context.rules,
+          advancedInputFields(current),
+        );
 
         return end === BACK ? BACK : { serviceEndDate: end };
       },

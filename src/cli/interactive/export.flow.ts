@@ -3,7 +3,6 @@ import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import { formatEmissionQuestion, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import { DEFAULT_EXPORT_PAYMENT_TERMS, resolveExportDestinationCountry } from '../../modules/export/export.mappers';
 import { formatExportResultAsText } from '../../modules/export/export.presenter';
-import { EXPORT_RULES, type ExportRuleContext } from '../../modules/export/export.rules';
 import { ExportService } from '../../modules/export/export.service';
 import {
   EXPORT_VOUCHER_KIND,
@@ -16,9 +15,13 @@ import {
 import { amountInputText, parseAmountInput } from '../../modules/interactive/amount-input';
 import { completeDateInput } from '../../modules/interactive/date-input';
 import { buildExportEquivalentCommand } from '../../modules/interactive/export-equivalent-command';
-import { buildExportInput, type ExportFlowState } from '../../modules/interactive/export-input';
-import { type ExportRuleScope, isCountryCuitMissing } from '../../modules/interactive/export-optionals';
-import { rulesFinalize } from '../../modules/interactive/rule-validator';
+import {
+  buildExportInput,
+  exportFinalize,
+  type ExportFlowState,
+  exportRuleScope,
+} from '../../modules/interactive/export-input';
+import { isCountryCuitMissing } from '../../modules/interactive/export-optionals';
 import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { formatPdfOutcomeAsText } from '../../modules/pdf/pdf.presenter';
 import { planEmissionConfirmation, resolvePdfAfterConfirmation } from '../../modules/pdf/pdf-decision';
@@ -347,7 +350,7 @@ function exportSteps(
           exportType: requireStepValue(state.exportType, 'exportType'),
           incoterm: state.incoterm ? { code: state.incoterm, description: state.incotermName } : undefined,
           languages: loaders.languages,
-          rules: exportRuleScope(state, configuredActivity),
+          rules: exportRuleScope(state, { configuredActivity, today: formatDateAsArcaDate(new Date()) }),
           sameCurrency: state.sameCurrency,
           units: loaders.units,
         };
@@ -375,14 +378,6 @@ function exportSteps(
       writes: ['paymentDate'],
     },
   ];
-}
-
-/** Las reglas de la E desde una pregunta de la factura: la entrada con lo respondido y hoy. */
-function exportRuleScope(state: ExportFlowState, configuredActivity: number | undefined): ExportRuleScope {
-  return {
-    context: { today: formatDateAsArcaDate(new Date()) },
-    draft: (patch) => ({ ...buildExportInput(state, { configuredActivity }), ...patch }),
-  };
 }
 
 /**
@@ -476,11 +471,7 @@ export async function runExportFlow(session: InteractiveSession): Promise<typeof
     undefined,
     {
       // Las reglas sobre la factura final: si una falla, vuelve a la pregunta que escribe el campo.
-      finalize: rulesFinalize<ExportFlowState, ExportVoucherInput, ExportRuleContext>({
-        context: (current) => exportRuleScope(current, configuredActivity).context,
-        draft: (current) => buildExportInput(current, { configuredActivity }),
-        rules: EXPORT_RULES,
-      }),
+      finalize: exportFinalize(() => ({ configuredActivity, today: formatDateAsArcaDate(new Date()) })),
     },
   );
 

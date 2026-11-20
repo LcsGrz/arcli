@@ -1,3 +1,5 @@
+import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
+import { BILLING_RULES, type BillingRuleContext } from '../billing/billing.rules';
 import { type BillingCommandInput, billingCommandSchema } from '../billing/billing.schemas';
 import type { VoucherKindDefinition } from '../billing/billing.types';
 import type { ArcliConfig } from '../config/config.schemas';
@@ -6,7 +8,8 @@ import type { AdvancedOptions, BillingRuleScope } from './billing-optionals';
 import { resolveReceiverIdentity } from './consumer-identification';
 import { defaultIvaRate, explicitIvaRate } from './iva-rate';
 import { type ReceiverFromPadron, receiverInputFields } from './receiver-document';
-import { requireStepValue } from './wizard';
+import { rulesFinalize } from './rule-validator';
+import { requireStepValue, type WizardFinalize } from './wizard';
 
 /** Lo que responde quien usa "Emitir factura", "Emitir recibo" y "Repetir" (A, B, C y FCE). */
 export interface InvoiceState {
@@ -52,7 +55,7 @@ export function buildInvoiceInput(state: InvoiceState, env: InvoiceInputEnv): Bi
  * Los campos de la entrada, sin validar: lo que leen las reglas (`billing.rules.ts`) mientras se pregunta, con lo que
  * falta como en el CLI sin el flag.
  */
-export function invoiceInputFields(state: InvoiceState, env: InvoiceInputEnv): Partial<BillingCommandInput> {
+function invoiceInputFields(state: InvoiceState, env: InvoiceInputEnv): Partial<BillingCommandInput> {
   const { config } = env;
   const voucherKind = requireStepValue(state.voucherKind, 'voucherKind');
   const ivaRate = voucherKind.letter === 'c' ? undefined : defaultIvaRate(config, state.advanced.ivaRate);
@@ -93,4 +96,24 @@ export function invoiceRuleScope(state: InvoiceState, env: InvoiceInputEnv & Rul
     },
     draft: (patch) => ({ ...invoiceInputFields(state, env), ...patch }),
   };
+}
+
+/** Lo que las reglas toman de la sesion: la config, el CUIT emisor y hoy (cuando se pregunta). */
+export function billingRuleEnv(
+  runtime: { readonly config: InvoiceInputEnv['config']; readonly context: { readonly cuit: number } },
+  now = new Date(),
+): InvoiceInputEnv & RuleEnv {
+  return { config: runtime.config, emitterCuit: runtime.context.cuit, today: formatDateAsArcaDate(now) };
+}
+
+/**
+ * `finalize` de "Emitir factura", "Emitir recibo" y "Repetir": las reglas sobre la entrada final; si una falla, vuelve
+ * a la pregunta que escribe el campo. Con la E elegida no hay entrada de A, B y C. `env` se lee al final (hoy).
+ */
+export function invoiceFinalize<S extends InvoiceState>(env: () => InvoiceInputEnv & RuleEnv): WizardFinalize<S> {
+  return rulesFinalize<S, BillingCommandInput, BillingRuleContext>({
+    context: (state) => invoiceRuleScope(state, env()).context,
+    draft: (state) => (state.exported || !state.voucherKind ? undefined : invoiceInputFields(state, env())),
+    rules: BILLING_RULES,
+  });
 }

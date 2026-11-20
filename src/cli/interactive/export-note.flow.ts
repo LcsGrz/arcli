@@ -4,26 +4,23 @@ import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import { creditNoteOverTotalHint } from '../../modules/billing/billing.associated-lookup';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
 import { formatVoucherLabel } from '../../modules/billing/billing.mappers';
-import {
-  applyExportAssociatedDefaults,
-  assertExportNoteMatchesAssociated,
-  exportAssociatedRuleContext,
-} from '../../modules/export/export.notes';
-import { EXPORT_RULES, type ExportRuleContext } from '../../modules/export/export.rules';
+import { assertExportNoteMatchesAssociated } from '../../modules/export/export.notes';
 import {
   EXPORT_CREDIT_NOTE_KIND,
   EXPORT_DEBIT_NOTE_KIND,
   EXPORT_VOUCHER_KIND,
   type ExportGateway,
   type ExportIssuedVoucher,
-  type ExportVoucherInput,
   type ExportVoucherKind,
   getExportVoucherKindByArcaType,
 } from '../../modules/export/export.types';
 import { amountInputText, parseAmountInput } from '../../modules/interactive/amount-input';
-import { buildExportNoteInput, type ExportNoteState } from '../../modules/interactive/export-note-input';
-import type { ExportRuleScope } from '../../modules/interactive/export-optionals';
-import { rulesFinalize } from '../../modules/interactive/rule-validator';
+import {
+  buildExportNoteInput,
+  exportNoteFinalize,
+  exportNoteRuleScope,
+  type ExportNoteState,
+} from '../../modules/interactive/export-note-input';
 import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { formatVoucherNumber } from '../../modules/vouchers/voucher-history.presenter';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
@@ -225,7 +222,7 @@ export function exportNoteSteps(
           incoterm: invoice.incoterm ? { code: invoice.incoterm, description: invoice.incotermDescription } : undefined,
           languages: () => gateway.getLanguages(),
           // Las mismas reglas que con flags: por ejemplo, la fecha no antes de la del asociado.
-          rules: exportNoteRuleScope(state, kind),
+          rules: exportNoteRuleScope(state, { kind, today: formatDateAsArcaDate(new Date()) }),
           units: () => gateway.getUnits(),
         };
       },
@@ -234,28 +231,6 @@ export function exportNoteSteps(
       write: (options) => ({ options }),
     }),
   ]);
-}
-
-/**
- * La nota como la ve `ExportService`: con lo respondido y, lo que no se pregunta (tipo de exportacion, moneda,
- * cotizacion), del asociado. Sin eso la ventana de la fecha seria la de servicios en una nota de bienes.
- */
-function exportNoteRuleInput(state: ExportNoteState, kind: 'credito' | 'debito'): ExportVoucherInput {
-  return applyExportAssociatedDefaults(
-    buildExportNoteInput(state, { kind }),
-    requireStepValue(state.invoice, 'invoice'),
-  );
-}
-
-/** Las reglas de la E desde una pregunta de la nota: la nota con lo respondido, y la fecha de su asociado. */
-function exportNoteRuleScope(state: ExportNoteState, kind: 'credito' | 'debito'): ExportRuleScope {
-  return {
-    context: {
-      associated: exportAssociatedRuleContext(requireStepValue(state.invoice, 'invoice')),
-      today: formatDateAsArcaDate(new Date()),
-    },
-    draft: (patch) => ({ ...exportNoteRuleInput(state, kind), ...patch }),
-  };
 }
 
 /**
@@ -278,11 +253,7 @@ export async function runExportNoteFlow(
   const gateway = new ArcaClientFactory().createExportGateway(session.runtime);
   const state = await runWizard(exportNoteSteps(kind, gateway, pointOfSale), { associatedKind }, undefined, {
     // Las reglas sobre la nota final: si una falla, vuelve a la pregunta que escribe el campo.
-    finalize: rulesFinalize<ExportNoteState, ExportVoucherInput, ExportRuleContext>({
-      context: (current) => exportNoteRuleScope(current, kind).context,
-      draft: (current) => (current.invoice ? exportNoteRuleInput(current, kind) : undefined),
-      rules: EXPORT_RULES,
-    }),
+    finalize: exportNoteFinalize(() => ({ kind, today: formatDateAsArcaDate(new Date()) })),
   });
 
   if (!state) {

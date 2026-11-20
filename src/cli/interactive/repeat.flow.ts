@@ -7,38 +7,33 @@ import type { VoucherKindDefinition } from '../../modules/billing/billing.types'
 import { toIsoCurrencyCode } from '../../modules/billing/currency-codes';
 import { EXPORT_VOUCHER_KIND, type ExportVoucherKind } from '../../modules/export/export.types';
 import { amountInputText, parseAmountInput } from '../../modules/interactive/amount-input';
+import { advancedInputFields } from '../../modules/interactive/billing-optionals';
 import { exportInvoiceChoice, invoiceKindChoices, reciboChoices } from '../../modules/interactive/choices';
 import {
+  asksCopiedExempt,
   copiedReceiverNotice,
   copyInvoiceAmounts,
   copyInvoiceReceiver,
   UNSUPPORTED_DOCUMENT_TYPE_NOTICE,
 } from '../../modules/interactive/invoice-copy';
-import { buildInvoiceInput, invoiceRuleScope, type InvoiceState } from '../../modules/interactive/invoice-input';
+import {
+  billingRuleEnv,
+  buildInvoiceInput,
+  invoiceFinalize,
+  invoiceRuleScope,
+  type InvoiceState,
+} from '../../modules/interactive/invoice-input';
 import { defaultIvaRate } from '../../modules/interactive/iva-rate';
 import { scopedRuleValidator } from '../../modules/interactive/rule-validator';
 import { BACK, type Back, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import type { IssuedVoucher } from '../../modules/vouchers/voucher-history';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 
-import {
-  askAgreedExchangeRate,
-  askPaymentCurrency,
-  askServiceDate,
-  billingOptionalsStep,
-  inputFields,
-} from './advanced-options';
+import { askAgreedExchangeRate, askPaymentCurrency, askServiceDate, billingOptionalsStep } from './advanced-options';
 import { requiredConsumerSteps } from './consumer-identification';
 import { runExportRepeatFlow } from './export-repeat.flow';
 import { withFinalizeNotice } from './finalize-notice';
-import {
-  billingRuleEnv,
-  cbuSteps,
-  invoiceConsumerAmount,
-  invoiceFinalize,
-  offerSavingCbu,
-  offersConsumerData,
-} from './invoice.flow';
+import { cbuSteps, invoiceConsumerAmount, offerSavingCbu, offersConsumerData } from './invoice.flow';
 import { pickInvoice } from './invoice-picker';
 import { markIfNew } from './new-mark';
 import { exchangeRateSuggestionLoader, officialExchangeRateLoader } from './official-exchange-rate';
@@ -75,20 +70,6 @@ function foreignCurrencyOf(original: IssuedVoucher | undefined): string | undefi
   return currency && isForeignCurrency({ currencyCode: currency }) ? toIsoCurrencyCode(currency) : undefined;
 }
 
-/**
- * Con otro monto (escrito, no el del original), el exento y el no gravado del original no se copian en valores
- * absolutos: si tenia, se vuelven a preguntar con el opcional marcado (REV-70).
- */
-function asksCopiedExempt(state: RepeatState): boolean {
-  if (state.sameAmount === true || !state.original || !state.voucherKind) {
-    return false;
-  }
-
-  const copy = copyInvoiceAmounts(state.original, state.voucherKind.letter);
-
-  return Boolean(copy.exemptAmount || copy.untaxedAmount);
-}
-
 function describePeriod(period: ServicePeriod): string {
   return `${period.from} al ${period.to}`;
 }
@@ -104,7 +85,7 @@ export function repeatSteps(
   today: Date = new Date(),
 ): Array<WizardStep<RepeatState>> {
   const { config } = session.runtime;
-  const rules = (state: RepeatState) => invoiceRuleScope(state, billingRuleEnv(session));
+  const rules = (state: RepeatState) => invoiceRuleScope(state, billingRuleEnv(session.runtime));
   const officialExchangeRate = officialExchangeRateLoader(session);
   const exchangeRateSuggestion = exchangeRateSuggestionLoader(config, officialExchangeRate);
 
@@ -372,7 +353,7 @@ export function repeatSteps(
           'desde',
           previous?.advanced?.serviceStartDate,
           rules(state),
-          inputFields(state.advanced),
+          advancedInputFields(state.advanced),
         );
 
         return start === BACK ? BACK : { advanced: { ...state.advanced, serviceStartDate: start } };
@@ -387,7 +368,7 @@ export function repeatSteps(
           'hasta',
           previous?.advanced?.serviceEndDate,
           rules(state),
-          inputFields(state.advanced),
+          advancedInputFields(state.advanced),
         );
 
         return end === BACK ? BACK : { advanced: { ...state.advanced, serviceEndDate: end } };
@@ -446,7 +427,7 @@ export async function runRepeatFlow(baseSession: InteractiveSession): Promise<vo
     repeatSteps(session, pointOfSale),
     { advanced: { currencyCode: DEFAULT_CURRENCY_CODE, sameCurrency: false } },
     undefined,
-    { finalize: invoiceFinalize<RepeatState>(session) },
+    { finalize: invoiceFinalize<RepeatState>(() => billingRuleEnv(session.runtime)) },
   );
 
   if (!state || state.exported) {

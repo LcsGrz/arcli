@@ -1,3 +1,5 @@
+import { applyExportAssociatedDefaults, exportAssociatedRuleContext } from '../export/export.notes';
+import { EXPORT_RULES, type ExportRuleContext } from '../export/export.rules';
 import {
   EXPORT_CREDIT_NOTE_KIND,
   EXPORT_DEBIT_NOTE_KIND,
@@ -7,8 +9,9 @@ import {
   type ExportVoucherKind,
 } from '../export/export.types';
 
-import type { ExportOptions } from './export-optionals';
-import { requireStepValue } from './wizard';
+import type { ExportOptions, ExportRuleScope } from './export-optionals';
+import { rulesFinalize } from './rule-validator';
+import { requireStepValue, type WizardFinalize } from './wizard';
 
 /** Lo que responde quien emite una nota de credito o debito E. */
 export interface ExportNoteState {
@@ -48,4 +51,37 @@ export function buildExportNoteInput(state: ExportNoteState, env: ExportNoteInpu
     permits: state.permits,
     voucherKind: env.kind === 'credito' ? EXPORT_CREDIT_NOTE_KIND : EXPORT_DEBIT_NOTE_KIND,
   };
+}
+
+/**
+ * La nota como la ve `ExportService`: con lo respondido y, lo que no se pregunta (tipo de exportacion, moneda,
+ * cotizacion), del asociado. Sin eso la ventana de la fecha seria la de servicios en una nota de bienes.
+ */
+export function exportNoteRuleInput(state: ExportNoteState, env: ExportNoteInputEnv): ExportVoucherInput {
+  return applyExportAssociatedDefaults(buildExportNoteInput(state, env), requireStepValue(state.invoice, 'invoice'));
+}
+
+/** Las reglas de la E desde una pregunta de la nota: la nota con lo respondido, y la fecha de su asociado. */
+export function exportNoteRuleScope(
+  state: ExportNoteState,
+  env: ExportNoteInputEnv & { readonly today: string },
+): ExportRuleScope {
+  return {
+    context: {
+      associated: exportAssociatedRuleContext(requireStepValue(state.invoice, 'invoice')),
+      today: env.today,
+    },
+    draft: (patch) => ({ ...exportNoteRuleInput(state, env), ...patch }),
+  };
+}
+
+/** `finalize` de la nota E: las reglas sobre la nota final; sin asociado todavia, no hay entrada. */
+export function exportNoteFinalize(
+  env: () => ExportNoteInputEnv & { readonly today: string },
+): WizardFinalize<ExportNoteState> {
+  return rulesFinalize<ExportNoteState, ExportVoucherInput, ExportRuleContext>({
+    context: (state) => exportNoteRuleScope(state, env()).context,
+    draft: (state) => (state.invoice ? exportNoteRuleInput(state, env()) : undefined),
+    rules: EXPORT_RULES,
+  });
 }

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { formatDateAsArcaDate } from '../../../lib/dates/arca-date';
 import { EXPORT_CREDIT_NOTE_KIND, type ExportUnit } from '../../../modules/export/export.types';
 import {
   type ExportOptionalsContext,
@@ -59,12 +60,18 @@ function context(overrides: Partial<Context> = {}): Context {
       { id: 1, name: 'Español' },
       { id: 2, name: 'Inglés' },
     ],
+    // Las reglas de la E con hoy y la entrada armada solo con lo que escribe cada pregunta.
     units: async () => [
       { id: 0, name: 'sin unidad' },
       { id: 1, name: 'kilogramos' },
       { id: 7, name: 'unidades' },
     ],
     ...overrides,
+    // Las reglas de la E con hoy y la entrada armada solo con lo que escribe cada pregunta, con el tipo del contexto.
+    rules: overrides.rules ?? {
+      context: { today: formatDateAsArcaDate(new Date()) },
+      draft: (patch) => ({ exportType: overrides.exportType ?? 2, ...patch }),
+    },
   };
 }
 

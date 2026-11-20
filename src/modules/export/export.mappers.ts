@@ -2,6 +2,7 @@ import {
   addDaysToArcaDate,
   formatArcaDateAsArgentineDate,
   formatDateAsArcaDate,
+  lastDayOfArcaMonth,
   minArcaDate,
   parseArgentineDateInputAsArcaDate,
 } from '../../lib/dates/arca-date';
@@ -90,15 +91,6 @@ export function resolveExportVoucherDate(value: string | undefined, now = new Da
 /** Cuantos dias antes y despues de la fecha de envio acepta ARCA la fecha de la E (1500, WSFEX v3.1.0). */
 const EXPORT_DATE_WINDOW_DAYS = 5;
 
-/** Ultimo dia del mes de una fecha ARCA (yyyymmdd). */
-function lastDayOfMonth(arcaDate: string): string {
-  const year = Number(arcaDate.slice(0, 4));
-  const month = Number(arcaDate.slice(4, 6));
-  const day = new Date(Date.UTC(year, month, 0)).getUTCDate();
-
-  return `${arcaDate.slice(0, 6)}${String(day).padStart(2, '0')}`;
-}
-
 /**
  * ARCA 1500 (WSFEX v3.1.0): la fecha de la factura y de las notas E va de hoy - 5 a hoy + 5 (N = fecha de envio) y,
  * en servicios, no puede pasar del mes en curso. Testing lo confirma: +1 aprobada, +6 y -6 rechazadas con el periodo
@@ -115,7 +107,7 @@ export const EXPORT_VOUCHER_DATE_WINDOW_RULE: ExportRule = {
     const voucherDate = resolveExportVoucherDate(input.voucherDate, arcaDateToInstant(today));
     const from = addDaysToArcaDate(today, -EXPORT_DATE_WINDOW_DAYS);
     const windowEnd = addDaysToArcaDate(today, EXPORT_DATE_WINDOW_DAYS);
-    const monthEnd = lastDayOfMonth(today);
+    const monthEnd = lastDayOfArcaMonth(today);
     const capsAtMonthEnd = exportType === SERVICES_EXPORT_TYPE && monthEnd < windowEnd;
     const to = capsAtMonthEnd ? monthEnd : windowEnd;
 

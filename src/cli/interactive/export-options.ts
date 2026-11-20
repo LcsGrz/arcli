@@ -354,7 +354,7 @@ function itemsStep(context: ExportOptionalsContext): WizardStep<ExportOptions> {
 /** Mismas reglas que `--cm` (`EXPORT_RULES`): un numero valido y, en moneda extranjera, mayor a 0. */
 function validateExportExchangeRate(context: ExportOptionalsContext): (value: string) => string | true {
   return ruleValidator<ExportOptionalsContext, ExportVoucherInput, ExportRuleContext>({
-    context: (current) => current.rules?.context ?? {},
+    context: (current) => current.rules.context,
     draft: (current, value) => ({ currencyCode: current.currencyCode, exchangeRate: parseExchangeRateInput(value) }),
     field: 'exchangeRate',
     rules: EXPORT_RULES,

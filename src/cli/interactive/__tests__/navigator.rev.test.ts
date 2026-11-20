@@ -12,7 +12,7 @@ import type { InteractiveSession } from '../session';
 
 import { createScreens, recordFlow, withoutTerminal } from './screens';
 import { createBillingSession, createExportGateway, NOW } from './screens.fixtures';
-import type { ScriptedAnswer } from './script';
+import { rejecting, type ScriptedAnswer } from './script';
 
 /**
  * Reproducciones de la auditoria del asistente del 19/11 (REV-67 a REV-76, docs/backlog/auditoria-asistente-19-11.md):
@@ -390,9 +390,81 @@ describe('auditoría del asistente del 19/11', () => {
         }),
     );
 
-    expect(lastValidator(/^Fecha de la factura C 00050-00000099/)('19/11/2026')).toBe(
-      'La fecha del comprobante asociado (19/11/2026) no puede ser posterior a la de la nota de crédito C (18/11/2026).',
+    // La fecha de la nota se elige despues (en los opcionales): al preguntar, contra la mas tardia que acepta ARCA (hoy
+    // mas 10 dias en servicios). La comparacion exacta la hacen "Fecha del comprobante" y `finalize`.
+    expect(lastValidator(/^Fecha de la factura C 00050-00000099/)('28/11/2026')).toBe(true);
+    expect(lastValidator(/^Fecha de la factura C 00050-00000099/)('29/11/2026')).toBe(
+      'La fecha del comprobante asociado (29/11/2026) no puede ser posterior al 28/11/2026: es la fecha más tardía que ARCA acepta para la nota de crédito C.',
     );
+  });
+
+  // Revision de NAV-5: el periodo se pregunta antes que la fecha de la nota. Con flags,
+  // `--periodo-hasta 25/11/2026 --fecha 25/11/2026` vale (hoy es 18/11); el asistente tiene que poder llegar.
+  describe('REV-71: el período contra la fecha de la nota, que se elige después', () => {
+    const periodNote = (...rest: Steps): Steps => [
+      [/Sobre qué comprobante/, 'Facturas'],
+      [/Qué factura\?/, 'Factura C'],
+      [/A qué la asociamos/, 'A un período'],
+      [/Período desde/, '01/11/2026'],
+      [/Período hasta/, '25/11/2026'],
+      [/A quién va la nota/, 'Consumidor final'],
+      [/Qué concepto ajusta la nota/, 'Servicios'],
+      [/Monto de la nota de crédito/, '100'],
+      ...rest,
+    ];
+    const creditNote = (session: InteractiveSession) => runNoteFlow(session, 'credito');
+
+    it('"Período hasta" acepta hasta la fecha más tardía de la nota, y con esa fecha en los opcionales se emite', async () => {
+      const { billingPayload } = await run(
+        periodNote([/Agregamos/, ['Fecha del comprobante']], [/Fecha del comprobante/, '25/11/2026'], NO_EMIT),
+        creditNote,
+      );
+
+      expect(billingPayload).toMatchObject({
+        CbteFch: '20261125',
+        PeriodoAsoc: { FchDesde: '20261101', FchHasta: '20261125' },
+      });
+    });
+
+    it('"Fecha del comprobante" no acepta una fecha anterior al fin del período', async () => {
+      const { billingPayload } = await run(
+        periodNote(
+          [/Agregamos/, ['Fecha del comprobante']],
+          [
+            /Fecha del comprobante/,
+            rejecting('26/11/2026', [
+              '20/11/2026',
+              /^El período asociado no puede terminar después de la fecha de la nota de crédito C \(20\/11\/2026\)\.$/,
+            ]),
+          ],
+          NO_EMIT,
+        ),
+        creditNote,
+      );
+
+      expect(billingPayload).toMatchObject({ CbteFch: '20261126' });
+    });
+
+    it('sin elegir la fecha, `finalize` vuelve al período y sugiere el opcional', async () => {
+      const { billingPayload } = await run(
+        periodNote(
+          [/Agregamos/, []],
+          // Vuelve al periodo, con el aviso; lo que sigue arranca con lo respondido.
+          [/Período hasta/, '18/11/2026'],
+          [/A quién va la nota/, 'Consumidor final'],
+          [/Qué concepto ajusta la nota/, 'Servicios'],
+          [/Monto de la nota de crédito/, '100'],
+          [/Agregamos/, []],
+          NO_EMIT,
+        ),
+        creditNote,
+      );
+
+      expect(printedText()).toContain(
+        'El período asociado no puede terminar después de la fecha de la nota de crédito C (18/11/2026): elegí un "Período hasta" anterior o una fecha posterior en "Fecha del comprobante" de los opcionales.',
+      );
+      expect(billingPayload).toMatchObject({ CbteFch: '20261118', PeriodoAsoc: { FchHasta: '20261118' } });
+    });
   });
 
   it('REV-71: "A un período" ya no sugiere el mes entero', async () => {

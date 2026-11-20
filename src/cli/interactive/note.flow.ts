@@ -6,8 +6,7 @@ import {
 } from '../../modules/billing/billing.associated-lookup';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
 import { formatVoucherLabel, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
-import { BILLING_RULES, type BillingRuleContext } from '../../modules/billing/billing.rules';
-import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
+import { BILLING_RULES } from '../../modules/billing/billing.rules';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { EXPORT_VOUCHER_KINDS, type ExportVoucherKind } from '../../modules/export/export.types';
 import { amountInputText, parseAmountInput } from '../../modules/interactive/amount-input';
@@ -38,14 +37,16 @@ import {
   buildNoteInput,
   isPeriodNote,
   noteCurrency,
+  noteFinalize,
   type NoteInputEnv,
-  noteInputFields,
   type NoteKind,
+  type NoteRuleEnv,
   noteRuleScope,
+  noteRuleValidator,
   type NoteState,
   requiredNoteCancellation,
 } from '../../modules/interactive/note-input';
-import { rulesFinalize, ruleValidator, scopedRuleValidator } from '../../modules/interactive/rule-validator';
+import { scopedRuleValidator } from '../../modules/interactive/rule-validator';
 import { BACK, type Back, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import type { IssuedVoucher } from '../../modules/vouchers/voucher-history';
 import { formatVoucherNumber } from '../../modules/vouchers/voucher-history.presenter';
@@ -254,20 +255,13 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
   const officialExchangeRate = officialExchangeRateLoader(session);
   const exchangeRateSuggestion = exchangeRateSuggestionLoader(config, officialExchangeRate);
   const advancedOf = (state: NoteState): AdvancedOptions => state.advanced ?? initialAdvancedOptions(config);
-  const rules = (state: NoteState) => noteRuleScope(state, noteRuleEnv(session, pointOfSale));
-  /** Una pregunta de la nota con las reglas que leen `field`: la nota con lo respondido y el candidato (`answer`). */
+  const ruleEnv = () => noteRuleEnv(session, pointOfSale);
+  const rules = (state: NoteState) => noteRuleScope(state, ruleEnv());
   const noteRule = (
     field: string,
     validate: (value: string) => string | true,
     answer: (value: string) => Partial<NoteState>,
-  ) =>
-    ruleValidator<NoteState, BillingCommandInput, BillingRuleContext>({
-      context: (state) => rules(state).context,
-      draft: (state, value) => noteInputFields({ ...state, ...answer(value) }, noteRuleEnv(session, pointOfSale)),
-      field,
-      rules: BILLING_RULES,
-      validate,
-    });
+  ) => noteRuleValidator(ruleEnv, field, validate, answer);
   // El receptor sale de la factura o se pregunta: si cambia, el documento escrito antes no se ofrece.
   const consumerOptions = {
     advanced: advancedOf,
@@ -554,7 +548,7 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
 }
 
 /** Lo que las reglas de la nota toman de la sesion: el emisor, el punto de venta y hoy (cuando se pregunta). */
-function noteRuleEnv(session: InteractiveSession, pointOfSale: number): NoteInputEnv & { readonly today: string } {
+function noteRuleEnv(session: InteractiveSession, pointOfSale: number): NoteRuleEnv {
   return { ...noteInputEnv(session, pointOfSale), today: formatDateAsArcaDate(new Date()) };
 }
 
@@ -578,14 +572,7 @@ export async function runNoteFlow(baseSession: InteractiveSession, kind: NoteKin
     undefined,
     {
       // Las reglas sobre la nota final: si una falla, vuelve a la pregunta que escribe el campo.
-      finalize: rulesFinalize<NoteState, BillingCommandInput, BillingRuleContext>({
-        context: (current) => noteRuleScope(current, noteRuleEnv(session, pointOfSale)).context,
-        draft: (current) =>
-          current.exported || !current.invoiceKind
-            ? undefined
-            : noteInputFields(current, noteRuleEnv(session, pointOfSale)),
-        rules: BILLING_RULES,
-      }),
+      finalize: noteFinalize(() => noteRuleEnv(session, pointOfSale)),
     },
   );
 

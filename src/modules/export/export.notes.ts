@@ -230,9 +230,9 @@ export function exportAssociatedRuleContext(
 }
 
 /**
- * La nota E no es anterior al comprobante que ajusta. En servicios ARCA lo controla entre la 2049 y la 2053 (WSFEX
- * v3.1.0, ver `assertExportNoteMatchesAssociated`); para bienes y otros es propia: una nota anterior a lo que ajusta no
- * tiene sentido. Sin fecha de la nota, la de hoy; sin `today` tampoco, no corre.
+ * La nota E no es anterior al comprobante que ajusta. En las notas de servicios es la 2052 (WSFEX v3.1.0; la prueba
+ * `arca-rules.arca.ts`, "nota de servicios anterior al asociado"); en bienes y otros es propia: ARCA no la controla y
+ * una nota anterior a lo que ajusta no tiene sentido. Sin fecha de la nota, la de hoy; sin `today` tampoco, no corre.
  */
 export const EXPORT_NOTE_AFTER_ASSOCIATED_RULE: ExportRule = {
   check: (input, { associated, today }) => {

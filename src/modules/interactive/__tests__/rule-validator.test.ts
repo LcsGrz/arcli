@@ -91,16 +91,6 @@ describe('scopedRuleValidator', () => {
     );
     expect(scopedRuleValidator(RULES, 'a', scope, (value) => ({ a: Number(value) }))('4')).toBe(true);
   });
-
-  it('sin reglas del flujo queda solo el formato', () => {
-    const format = (value: string) => (value === 'x' ? 'Formato inválido.' : true);
-
-    expect(scopedRuleValidator(RULES, 'a', undefined, (value) => ({ a: Number(value) }), format)('x')).toBe(
-      'Formato inválido.',
-    );
-    expect(scopedRuleValidator(RULES, 'a', undefined, (value) => ({ a: Number(value) }), format)('99')).toBe(true);
-    expect(scopedRuleValidator(RULES, 'a', undefined, (value) => ({ a: Number(value) }))('99')).toBe(true);
-  });
 });
 
 describe('rulesFinalize', () => {
