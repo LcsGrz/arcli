@@ -844,7 +844,7 @@ describe('golden de pantallas: factura E', () => {
   it('camino tipico: servicios en dólares cobrados en dólares, sin opcionales', () =>
     golden('factura-e/tipico', [...facturaE, [/Agregamos/, []], [/Fecha de pago/, ''], NO_EMIT]));
 
-  it('con Volver en el medio: de la fecha de pago a los opcionales (hoy se pierden: REV-68)', () =>
+  it('con Volver en el medio: de la fecha de pago a los opcionales, que siguen marcados (REV-68)', () =>
     golden('factura-e/volver', [
       ...facturaE,
       [/Agregamos/, ['Idioma']],
@@ -867,7 +867,7 @@ describe('golden de pantallas: factura E', () => {
       NO_EMIT,
     ]));
 
-  it('con opcionales desmarcados: responde la fecha, vuelve y desmarca todo (hoy queda la fecha: REV-67)', () =>
+  it('con opcionales desmarcados: responde la fecha, vuelve y desmarca todo: la fecha no va (REV-67)', () =>
     golden('factura-e/opcionales-desmarcados', [
       ...facturaE,
       [/Agregamos/, ['Fecha del comprobante', 'Observaciones']],
@@ -956,7 +956,7 @@ describe('golden de pantallas: notas E', () => {
       creditNote,
     ));
 
-  it('con opcionales desmarcados: responde el idioma, vuelve y lo desmarca (hoy queda: REV-67)', () =>
+  it('con opcionales desmarcados: responde el idioma, vuelve y lo desmarca: no va (REV-67)', () =>
     golden(
       'nota-e/opcionales-desmarcados',
       [
@@ -1000,7 +1000,7 @@ describe('golden de pantallas: Repetir E', () => {
       repeat,
     ));
 
-  it('con Volver en el medio: del monto a "¿Mismo monto?", y Esc en la fecha de pago (hoy se pierden: REV-68)', () =>
+  it('con Volver en el medio: del monto a "¿Mismo monto?", y Esc en la fecha de pago, con los opcionales marcados (REV-68)', () =>
     golden(
       'repetir-e/volver',
       [
@@ -1035,7 +1035,7 @@ describe('golden de pantallas: Repetir E', () => {
       repeat,
     ));
 
-  it('con opcionales desmarcados: responde la fecha, vuelve y la desmarca (hoy queda: REV-67)', () =>
+  it('con opcionales desmarcados: responde la fecha, vuelve y la desmarca: no va (REV-67)', () =>
     golden(
       'repetir-e/opcionales-desmarcados',
       [

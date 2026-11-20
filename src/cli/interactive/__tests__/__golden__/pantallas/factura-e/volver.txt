@@ -73,7 +73,7 @@
 ? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
   [ ] Fecha del comprobante — hoy
   [ ] Ítems — un renglón con el monto total
-  [ ] Idioma — Español
+  [x] Idioma — Inglés
   [ ] CUIT del país — el de la tabla de ARCA
   [ ] Observaciones — sin observaciones
   = (nada marcado)

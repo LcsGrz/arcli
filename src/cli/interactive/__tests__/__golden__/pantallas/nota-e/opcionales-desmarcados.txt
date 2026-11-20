@@ -85,7 +85,7 @@
       │  Tipo de exportación              2 - Servicios                              │
       │  Actividad                        620100                                     │
       │  Incoterm                         N/D                                        │
-      │  Idioma                           2 - Inglés                                 │
+      │  Idioma                           1 - Español                                │
       │  Moneda                           Dólares estadounidenses (USD), cotización  │
       │                                   1.174,60                                   │
       │  Forma de pago                    Transferencia Internacional                │
@@ -101,11 +101,11 @@
       ╘══════════════════════════════════════════════════════════════════════════════╛
 
 == comando equivalente ==
-arcli nce -m 500 --ar 7 --apv 3 --idioma 2 --testing --emitir
+arcli nce -m 500 --ar 7 --apv 3 --testing --emitir
 
 == pantalla ==
 ▎ Esto equivale a:
-▎ arcli nce -m 500 --ar 7 --apv 3 --idioma 2 --testing --emitir
+▎ arcli nce -m 500 --ar 7 --apv 3 --testing --emitir
 
 ? [lista] ¿Emitimos la nota de crédito de exportación E en testing?
   arranca en: Sí, emitir ahora
@@ -150,7 +150,7 @@ arcli nce -m 500 --ar 7 --apv 3 --idioma 2 --testing --emitir
   "Forma_pago": "Transferencia Internacional",
   "Id": 41,
   "Id_impositivo": "12-3456789",
-  "Idioma_cbte": 2,
+  "Idioma_cbte": 1,
   "Imp_total": 500,
   "Incoterms": "",
   "Incoterms_Ds": "",

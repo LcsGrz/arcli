@@ -12,19 +12,14 @@ import {
 } from '../../modules/export/export.types';
 import { amountInputText, parseAmountInput } from '../../modules/interactive/amount-input';
 import { copyExportInvoice, type ExportInvoiceCopy } from '../../modules/interactive/export-copy';
+import { type ExportOptions, isCountryCuitMissing } from '../../modules/interactive/export-optionals';
 import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 import { withSpinner } from '../spinner';
 
 import { askPermitsStep, emitExportVoucher } from './export.flow';
-import {
-  askCountryCuit,
-  askExportOptions,
-  type ExportOptions,
-  isCountryCuitMissing,
-  validateExportPaymentDate,
-} from './export-options';
+import { askCountryCuit, exportOptionalsStep, validateExportPaymentDate } from './export-options';
 import { pickExportVoucher } from './invoice-picker';
 import { askTextStep, chooseStep } from './prompts';
 import type { InteractiveSession } from './session';
@@ -201,11 +196,13 @@ export function exportRepeatSteps(
     {
       // La factura no trae CUIT del pais y ARCA no publica uno para el destino: sin esto ARCA la rechaza.
       name: 'cuit-pais',
-      run: async (state) => {
+      run: async (state, previous) => {
         const country = requireStepValue(state.country, 'country');
+        // Al volver arranca escrito, si es del destino (REV-74, #10).
         const cuit = await askCountryCuit(
           { country, countryCuits: tables.countryCuits },
           `ARCA no tiene un CUIT publicado para ${country.name}. Escribí el CUIT del país o buscalo por nombre:`,
+          { previous: previous?.options?.clientCountryCuit },
         );
 
         return cuit === BACK ? BACK : { options: { ...state.options, clientCountryCuit: cuit } };
@@ -246,15 +243,18 @@ export function exportRepeatSteps(
       },
       skip: (state) => state.copy?.activity !== undefined || configuredActivity !== undefined,
     },
-    {
-      name: 'opcionales',
-      run: async (state) => {
+    exportOptionalsStep<ExportRepeatState>({
+      context: (state) => {
         const copy = requireStepValue(state.copy, 'copy');
-        const country = requireStepValue(state.country, 'country');
+        const original = requireStepValue(state.original, 'original');
         const currencyCode = copy.currencyCode ?? 'DOL';
-        const options = await askExportOptions(state.options ?? {}, {
+
+        return {
           amount: requireStepValue(copy.amount, 'amount'),
-          countryCuit: { country, countryCuits: tables.countryCuits },
+          // Items, idioma, CUIT del pais y descripcion del incoterm vienen de la factura elegida: con otra, arrancan con
+          // lo copiado de esa.
+          copiedFrom: `${original.pointOfSale}:${original.number}`,
+          countryCuit: { country: requireStepValue(state.country, 'country'), countryCuits: tables.countryCuits },
           currencyCode,
           // En servicios y con el pago en dolares ARCA exige la suya (2053, 1604): no se ofrece otra.
           defaultExchangeRate:
@@ -268,11 +268,12 @@ export function exportRepeatSteps(
           languages: () => gateway.getLanguages(),
           sameCurrency: copy.sameCurrency,
           units: () => gateway.getUnits(),
-        });
-
-        return options === BACK ? BACK : { options };
+        };
       },
-    },
+      name: 'opcionales',
+      read: (state) => state.options ?? {},
+      write: (options) => ({ options }),
+    }),
     {
       // Despues de los opcionales: no puede ser anterior a la fecha del comprobante, que se elige ahi (1674).
       // Solo la fecha del comprobante: cambiar otro opcional no la olvida.

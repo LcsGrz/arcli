@@ -1,9 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { ExportUnit } from '../../../modules/export/export.types';
-import { BACK } from '../../../modules/interactive/wizard';
+import {
+  type ExportOptionalsContext,
+  type ExportOptions,
+  isCountryCuitMissing,
+} from '../../../modules/interactive/export-optionals';
+import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import { stripAnsi } from '../../../ui';
-import { askCountryCuit, askExportOptions, type ExportOptionsContext, isCountryCuitMissing } from '../export-options';
+import { askCountryCuit, exportOptionalsStep } from '../export-options';
 
 import { createScript, rejecting } from './script';
 
@@ -25,7 +30,26 @@ const COUNTRY_CUITS = [
 
 const US = { code: 212, name: 'ESTADOS UNIDOS' };
 
-function context(overrides: Partial<ExportOptionsContext> = {}): ExportOptionsContext {
+type Context = Omit<ExportOptionalsContext, 'languageNames'>;
+
+/** El grupo de opcionales de la E solo, como un asistente de un paso: BACK si se vuelve desde la seleccion. */
+async function askExportOptions(initial: ExportOptions, context: Context) {
+  const state = await runWizard(
+    [
+      exportOptionalsStep<{ readonly options: ExportOptions }>({
+        context: () => context,
+        name: 'opcionales',
+        read: (current) => current.options,
+        write: (options) => ({ options }),
+      }),
+    ],
+    { options: initial },
+  );
+
+  return state ? state.options : BACK;
+}
+
+function context(overrides: Partial<Context> = {}): Context {
   return {
     amount: 1500,
     currencyCode: 'DOL',
@@ -60,7 +84,7 @@ function optionalDescriptions(call: number): Record<string, string | undefined> 
   return Object.fromEntries(choices.map((choice) => [choice.name, choice.description]));
 }
 
-describe('askExportOptions', () => {
+describe('exportOptionalsStep', () => {
   beforeEach(() => {
     vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
   });
@@ -470,6 +494,183 @@ describe('askExportOptions', () => {
 
       expect(await askExportOptions({}, context({ countryCuit }))).toEqual({});
     });
+
+    // REV-74, #10: volver al CUIT desde la pregunta siguiente lo muestra escrito.
+    it('volver desde las observaciones vuelve al CUIT, escrito', async () => {
+      script = createScript([
+        [OPTIONALS, ['CUIT del país', 'Observaciones']],
+        [/CUIT del país del cliente/, '55000002118'],
+        [/^Observaciones \(/, BACK],
+        [/CUIT del país del cliente/, '55000002118'],
+        [/^Observaciones \(/, ''],
+        [/comerciales/, ''],
+      ]);
+
+      expect(await askExportOptions({}, context({ countryCuit }))).toMatchObject({ clientCountryCuit: 55000002118 });
+      expect(script.askTextStep.mock.calls[2]?.[1]).toMatchObject({ previousAnswer: '55000002118' });
+    });
+  });
+});
+
+// REV-68 en la E: lo marcado y lo respondido sobreviven a volver desde el paso siguiente (por ejemplo, la fecha de pago).
+describe('exportOptionalsStep: volver desde el paso siguiente', () => {
+  beforeEach(() => {
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    expect(script.remaining()).toBe(0);
+  });
+
+  /** El grupo y un paso despues que vuelve una vez, como Esc en la fecha de pago. */
+  async function withStepAfter(current: Context = context()) {
+    let returned = false;
+    const state = await runWizard<{ readonly options: ExportOptions }>(
+      [
+        exportOptionalsStep({
+          context: () => current,
+          name: 'opcionales',
+          read: (state) => state.options,
+          write: (options) => ({ options }),
+        }),
+        {
+          name: 'despues',
+          run: async () => {
+            if (returned) {
+              return {};
+            }
+
+            returned = true;
+
+            return BACK;
+          },
+        },
+      ],
+      { options: {} },
+    );
+
+    return state?.options;
+  }
+
+  const ONE_ITEM = [
+    [/ítem 1/, 'Servicio'],
+    [/Cantidad/, '1'],
+    [/Precio/, '1500'],
+    [/Unidad/, 'unidades'],
+    [/ítem 2/, ''],
+  ] as const;
+
+  it('la selección vuelve marcada y los ítems cargados se usan sin cargarlos de nuevo', async () => {
+    script = createScript([
+      [OPTIONALS, ['Ítems', 'Observaciones']],
+      ...ONE_ITEM,
+      [/^Observaciones \(/, 'Pedido 42'],
+      [/comerciales/, ''],
+      [OPTIONALS, ['Ítems', 'Observaciones']],
+      [/ítems ya cargados/, 'Usar el ítem'],
+      [/^Observaciones \(/, 'Pedido 42'],
+      [/comerciales/, ''],
+    ]);
+
+    expect(await withStepAfter()).toEqual({
+      commercialObservations: undefined,
+      items: [{ description: 'Servicio', quantity: 1, unit: 7, unitPrice: 1500 }],
+      observations: 'Pedido 42',
+    });
+    expect(script.chooseManyStep.mock.calls[1]?.[2]).toEqual(['items', 'observaciones']);
+    expect(optionalDescriptions(1)).toMatchObject({ Observaciones: 'con observaciones', Ítems: '1 ítem' });
+    expect(script.askTextStep.mock.calls.at(-2)?.[1]).toMatchObject({ previousAnswer: 'Pedido 42' });
+  });
+
+  it('"Cargar de nuevo" empieza por el ítem 1', async () => {
+    script = createScript([
+      [OPTIONALS, ['Ítems']],
+      ...ONE_ITEM,
+      [OPTIONALS, ['Ítems']],
+      [/ítems ya cargados/, 'Cargar de nuevo'],
+      [/ítem 1:/, 'Otro'],
+      [/Cantidad/, '3'],
+      [/Precio/, '500'],
+      [/Unidad/, 'unidades'],
+      [/ítem 2/, ''],
+    ]);
+
+    expect(await withStepAfter()).toEqual({
+      items: [{ description: 'Otro', quantity: 3, unit: 7, unitPrice: 500 }],
+    });
+  });
+
+  it('lo cargado antes de volver desde un ítem a medias sigue, sin el ítem a medias', async () => {
+    script = createScript([
+      [OPTIONALS, ['Ítems']],
+      [/ítem 1/, 'Bienes'],
+      [/Cantidad/, '1'],
+      [/Precio/, '500'],
+      [/Unidad/, 'unidades'],
+      [/ítem 2/, 'Flete'],
+      [/Cantidad/, BACK],
+      [OPTIONALS, ['Ítems']],
+      [/ítems ya cargados/, 'Seguir cargando'],
+      [/ítem 2 \(Enter para terminar\)/, 'Flete'],
+      [/Cantidad/, '1'],
+      [/Precio/, '1000'],
+      [/Unidad/, 'unidades'],
+      [/ítem 3/, ''],
+      [OPTIONALS, ['Ítems']],
+      [/ítems ya cargados/, 'Usar los 2 ítems'],
+    ]);
+
+    expect(await withStepAfter()).toEqual({
+      items: [
+        { description: 'Bienes', quantity: 1, unit: 7, unitPrice: 500 },
+        { description: 'Flete', quantity: 1, unit: 7, unitPrice: 1000 },
+      ],
+    });
+    // Sin terminar, los ítems no cuentan: la selección los describe como si no hubiera.
+    expect(optionalDescriptions(1)['Ítems']).toBe('un renglón con el monto total');
+    expect(script.chooseStep.mock.calls.find(([message]) => /ya cargados/.test(message))?.[1]).toEqual([
+      { description: 'Suma 500 de 1.500', name: 'Seguir cargando', value: 'seguir' },
+      { description: 'Empieza por el ítem 1', name: 'Cargar de nuevo', value: 'nuevo' },
+    ]);
+  });
+
+  it('con otro monto, los ítems cargados se olvidan', async () => {
+    const amounts = [1500, 1000];
+    let returned = false;
+
+    script = createScript([[OPTIONALS, ['Ítems']], ...ONE_ITEM, [OPTIONALS, BACK], [OPTIONALS, []]]);
+
+    const state = await runWizard<{ readonly amount?: number; readonly options: ExportOptions }>(
+      [
+        // Al volver a este paso, se responde otro monto.
+        { name: 'monto', run: async () => ({ amount: amounts.shift() }) },
+        exportOptionalsStep({
+          context: (current) => context({ amount: current.amount ?? 0 }),
+          name: 'opcionales',
+          read: (current) => current.options,
+          write: (options) => ({ options }),
+        }),
+        {
+          name: 'despues',
+          run: async () => {
+            if (returned) {
+              return {};
+            }
+
+            returned = true;
+
+            return BACK;
+          },
+        },
+      ],
+      { options: {} },
+    );
+
+    expect(state?.options).toEqual({});
+    expect(script.chooseManyStep.mock.calls[1]?.[2]).toEqual(['items']);
+    expect(script.chooseManyStep.mock.calls[2]?.[2]).toEqual([]);
+    expect(optionalDescriptions(2)['Ítems']).toBe('un renglón con el monto total');
   });
 });
 

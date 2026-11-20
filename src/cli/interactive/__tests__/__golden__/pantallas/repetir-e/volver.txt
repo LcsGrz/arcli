@@ -69,7 +69,7 @@
   [ ] Ítems — un renglón con el monto total
   [ ] Idioma — Español
   [ ] CUIT del país — el de la tabla de ARCA
-  [ ] Observaciones — sin observaciones
+  [x] Observaciones — con observaciones
   = (nada marcado)
 
 ? [texto] Fecha de pago (Enter para la fecha del comprobante):

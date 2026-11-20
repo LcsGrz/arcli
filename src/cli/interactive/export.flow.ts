@@ -13,6 +13,7 @@ import {
 } from '../../modules/export/export.types';
 import { amountInputText, parseAmountInput } from '../../modules/interactive/amount-input';
 import { buildExportEquivalentCommand } from '../../modules/interactive/export-equivalent-command';
+import { type ExportOptions, isCountryCuitMissing } from '../../modules/interactive/export-optionals';
 import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { formatPdfOutcomeAsText } from '../../modules/pdf/pdf.presenter';
 import { planEmissionConfirmation, resolvePdfAfterConfirmation } from '../../modules/pdf/pdf-decision';
@@ -21,14 +22,7 @@ import { noticePanel, writeTerminalOutput } from '../../ui';
 import { attachExportPdf } from '../commands/export.command.pdf';
 import { withSpinner } from '../spinner';
 
-import {
-  askCountryCuit,
-  askExportOptions,
-  type ExportOptions,
-  isCountryCuitMissing,
-  validateExportPaymentDate,
-  validateExportText,
-} from './export-options';
+import { askCountryCuit, exportOptionalsStep, validateExportPaymentDate, validateExportText } from './export-options';
 import { completeIssuer } from './pdf.flow';
 import { askTextStep, chooseStep, isPromptCancellation } from './prompts';
 import { offerSavingToConfig } from './save-to-config';
@@ -182,12 +176,13 @@ function exportSteps(
     {
       // ARCA pide el CUIT del pais o el ID impositivo (error 1580): si se deja vacio, el ID impositivo es obligatorio.
       name: 'cuit-pais',
-      run: async (state) => {
+      run: async (state, previous) => {
         const country = requireStepValue(state.country, 'country');
+        // Al volver arranca escrito, si es del destino (REV-74, #10).
         const cuit = await askCountryCuit(
           { country, countryCuits: tables.countryCuits },
           `ARCA no tiene un CUIT publicado para ${country.name}. Escribí el CUIT del país, buscalo por nombre o dejalo vacío para informar solo el ID impositivo del cliente:`,
-          { optional: true },
+          { optional: true, previous: previous?.options?.clientCountryCuit },
         );
 
         return cuit === BACK ? BACK : { options: { ...state.options, clientCountryCuit: cuit } };
@@ -353,14 +348,13 @@ function exportSteps(
       },
       skip: () => configuredActivity !== undefined,
     },
-    {
-      name: 'opcionales',
-      run: async (state) => {
-        const country = requireStepValue(state.country, 'country');
+    exportOptionalsStep<ExportFlowState>({
+      context: (state) => {
         const currencyCode = state.currencyCode ?? 'DOL';
-        const options = await askExportOptions(state.options, {
+
+        return {
           amount: requireStepValue(state.amount, 'amount'),
-          countryCuit: { country, countryCuits: tables.countryCuits },
+          countryCuit: { country: requireStepValue(state.country, 'country'), countryCuits: tables.countryCuits },
           currencyCode,
           // En servicios y con el pago en dolares ARCA exige la suya (2053, 1604): no se ofrece otra.
           defaultExchangeRate:
@@ -373,11 +367,12 @@ function exportSteps(
           languages: loaders.languages,
           sameCurrency: state.sameCurrency,
           units: loaders.units,
-        });
-
-        return options === BACK ? BACK : { options };
+        };
       },
-    },
+      name: 'opcionales',
+      read: (state) => state.options,
+      write: (options) => ({ options }),
+    }),
     {
       // Despues de los opcionales: no puede ser anterior a la fecha del comprobante, que se elige ahi (1674).
       // Solo la fecha del comprobante: cambiar otro opcional no la olvida.

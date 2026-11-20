@@ -62,8 +62,7 @@ import { createBillingSession, createExportGateway, NOW } from './screens.fixtur
  * 5. Todo valor final paso por el validador de su pregunta: la entrada lleva lo respondido en el camino final.
  *
  * ARCA esta simulado (`screens.fixtures.ts`), el reloj fijo y las semillas tambien: si una falla, fast-check imprime
- * el contraejemplo y la semilla, y `{ seed, path }` lo repite. Las invariantes que hoy no se cumplen van con `it.fails`
- * (REV-67 y REV-68 en la E): al arreglarlas, pasan a `it`.
+ * el contraejemplo y la semilla, y `{ seed, path }` lo repite.
  */
 
 const originalTimeZone = process.env.TZ;
@@ -538,15 +537,18 @@ function assertNoAbandonedOptionals(flow: Flow, run: Walk): void {
 
 /** Las preguntas que eligen el comprobante del que se copian la alicuota y el exento ("Repetir"). */
 const COPY_SOURCE = /^(¿Qué comprobante querés repetir\?|¿Cuál repetimos\?)/;
-/** Los opcionales que siguen al comprobante copiado (`resetWhen`): con otro, arrancan como la primera vez. */
-const FOLLOWS_COPY_SOURCE: readonly unknown[] = ['alicuota', 'exento'];
+/**
+ * Los opcionales que siguen al comprobante copiado (`resetWhen`): con otro, arrancan como la primera vez. En A, B y C,
+ * la alicuota y el exento; en "Repetir" E, lo que se copia de la factura (items, idioma, CUIT del pais e incoterm).
+ */
+const FOLLOWS_COPY_SOURCE: readonly unknown[] = ['alicuota', 'exento', 'cuit-pais', 'idioma', 'incoterm', 'items'];
 
 /**
  * 4. La seleccion de opcionales vuelve con lo ultimo marcado que se sigue ofreciendo, y Esc vuelve a la pregunta
  * anterior con lo escrito. Lo marcado es lo de la ultima seleccion confirmada, aunque se haya confirmado con otras
  * opciones (por ejemplo, con productos no se ofrece el periodo): lo que ya no se ofrecia ahi quedo desmarcado, como
  * dice el grupo de opcionales (`optionalGroup`). Si en "Repetir" se eligio otro comprobante desde esa seleccion, la
- * alicuota y el exento no siguen marcados: arrancan como la primera vez. Las facturas A, B y FCE de los datos de prueba
+ * alicuota y el exento (en la E, lo copiado de la factura) no siguen marcados: arrancan como la primera vez. Las facturas A, B y FCE de los datos de prueba
  * tienen una sola alicuota, asi que la alicuota no arranca marcada por `preselected`: tienen que quedar desmarcados.
  */
 function assertRemembered(run: Walk): void {
@@ -698,30 +700,13 @@ describe.each(FLOWS)('asistente al azar: $name', (flow) => {
     }));
 });
 
-describe.each(FLOWS.filter((flow) => flow.family === 'billing'))('asistente al azar: $name', (flow) => {
-  // REV-68 en A, B y C (NAV-2): los opcionales son un `optionalGroup` que recuerda lo marcado y lo respondido.
+describe.each(FLOWS)('asistente al azar: $name', (flow) => {
+  // REV-68 en A, B y C (NAV-2) y en la E (NAV-3): los opcionales son un `optionalGroup` que recuerda lo marcado y lo
+  // respondido. En la factura E y "Repetir" E, el CUIT del país arranca escrito al volver (REV-74, #10).
   it('invariante 4: la selección de opcionales vuelve con lo marcado y Esc vuelve con lo escrito', () =>
     property(flow, { ...BACK_AND_FORTH, seed: 20261121 }, (run) => assertRemembered(run)));
-});
 
-describe.each(FLOWS.filter((flow) => flow.family === 'export'))('asistente al azar: $name', (flow) => {
-  // Tests primero (REV-68 en la E, T3): pasa a it() al implementarlo. La selección de opcionales vuelve vacía al
-  // regresar desde un paso anterior, y en la factura E y "Repetir" E "CUIT del país del cliente" no arranca escrito al
-  // volver (REV-74, #10).
-  it.fails('invariante 4: la selección de opcionales vuelve con lo marcado y Esc vuelve con lo escrito', () =>
-    property(flow, { ...BACK_AND_FORTH, seed: 20261121 }, (run) => assertRemembered(run)),
-  );
-});
-
-describe.each(FLOWS.filter((flow) => flow.family === 'billing'))('asistente al azar: $name', (flow) => {
-  // En A, B y C se cumple desde REV-65.
+  // En A, B y C desde REV-65; en la E desde NAV-3 (REV-67).
   it('invariante 3: lo de un opcional desmarcado no llega a la entrada', () =>
     property(flow, { ...BACK_AND_FORTH, seed: 20261120 }, (run) => assertNoAbandonedOptionals(flow, run)));
-});
-
-describe.each(FLOWS.filter((flow) => flow.family === 'export'))('asistente al azar: $name', (flow) => {
-  // Tests primero (REV-67): pasa a it() al implementarlo.
-  it.fails('invariante 3: lo de un opcional desmarcado no llega a la entrada', () =>
-    property(flow, { ...BACK_AND_FORTH, seed: 20261120 }, (run) => assertNoAbandonedOptionals(flow, run)),
-  );
 });

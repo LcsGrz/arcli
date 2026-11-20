@@ -124,8 +124,8 @@ afterEach(() => {
 });
 
 describe('auditoría del asistente del 19/11', () => {
-  // Tests primero (REV-67): pasa a it() al implementarlo.
-  it.fails('REV-67: en la E, un opcional desmarcado no llega a ARCA', async () => {
+  // REV-67 (NAV-3): los opcionales de la E son un `optionalGroup`; lo desmarcado vuelve a lo inicial.
+  it('REV-67: en la E, un opcional desmarcado no llega a ARCA', async () => {
     const { exportPayload } = await run(
       [
         [/cliente del exterior/, 'ACME LLC'],

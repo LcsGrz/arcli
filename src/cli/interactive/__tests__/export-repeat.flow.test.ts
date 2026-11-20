@@ -567,6 +567,27 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     ).toMatchObject({ clientCountryCuit: 55000002126, destinationCountry: 'ATLANTIDA' });
   });
 
+  // REV-74, #10: volver al CUIT del país desde el paso siguiente lo muestra escrito.
+  it('volver al CUIT del país desde los permisos lo muestra escrito', async () => {
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      [/Mismo monto/, 'Sí'],
+      [/ARCA no tiene un CUIT publicado para ATLANTIDA/, '55000002126'],
+      [/Permisos de embarque/, BACK],
+      [/ARCA no tiene un CUIT publicado para ATLANTIDA/, '55000002126'],
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, []],
+    ]);
+
+    await repeatOf({ ...INVOICE, clientCountryCuit: undefined, clientTaxId: ' ', destinationCountry: 999 });
+
+    const prefills = script.askTextStep.mock.calls
+      .filter(([message]) => /ARCA no tiene un CUIT publicado/.test(message))
+      .map((call) => call[1]?.previousAnswer);
+
+    expect(prefills).toEqual([undefined, '55000002126']);
+  });
+
   it('con ID impositivo no pregunta el CUIT del país aunque ARCA no tenga uno para el destino', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],

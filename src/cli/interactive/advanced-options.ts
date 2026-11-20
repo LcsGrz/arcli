@@ -10,12 +10,12 @@ import {
   currencyName,
 } from '../../modules/interactive/billing-optionals';
 import { currencyChoices, ivaRateChoices } from '../../modules/interactive/choices';
-import { optionalGroup } from '../../modules/interactive/optional-group';
 import { BACK, type Back, type WizardStep } from '../../modules/interactive/wizard';
 
 import { askConsumerDocumentNumber, askConsumerDocumentType } from './consumer-identification';
 import { markIfNew } from './new-mark';
-import { askTextStep, chooseManyStep, chooseStep } from './prompts';
+import { optionalsStep } from './optionals-step';
+import { askTextStep, chooseStep } from './prompts';
 import { validateBillingDate, validateDate, validateExchangeRate, validateOptionalAmount } from './validators';
 
 /** El codigo de la moneda en la lista de monedas: `PES` para pesos. */
@@ -239,9 +239,6 @@ const QUESTIONS: BillingOptionalQuestions = {
   ],
 };
 
-/** La pregunta de la seleccion de opcionales. */
-const OPTIONALS_MESSAGE = '¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)';
-
 const BILLING_OPTIONALS = billingOptionals(QUESTIONS);
 
 export interface BillingOptionalsStepDef<S> {
@@ -253,23 +250,12 @@ export interface BillingOptionalsStepDef<S> {
   readonly context: (state: S) => BillingOptionalsContext;
 }
 
-/**
- * Despues de lo requerido, una sola pregunta con todos los opcionales de A, B y C: se marcan con espacio y Enter sigue
- * (sin marcar nada, todo queda por defecto). Despues se pregunta solo lo marcado, una pregunta por paso. Lo marcado y
- * lo respondido se recuerdan al volver a un paso anterior y regresar (REV-68); lo desmarcado vuelve a como estaba.
- * Lo comparten factura, recibo, notas y "Repetir" (`optionalGroup`).
- */
+/** Los opcionales de A, B y C (`optionalsStep` con su catalogo): factura, recibo, notas y "Repetir". */
 export function billingOptionalsStep<S>(def: BillingOptionalsStepDef<S>): WizardStep<S> {
-  return optionalGroup({
+  return optionalsStep({
     ...def,
-    message: OPTIONALS_MESSAGE,
+    decorate: (choice) => (choice.value === 'consumidor' ? markIfNew(choice, 'datos-consumidor-final') : choice),
     options: BILLING_OPTIONALS,
-    pick: (message, choices, selected) =>
-      chooseManyStep(
-        message,
-        choices.map((choice) => (choice.value === 'consumidor' ? markIfNew(choice, 'datos-consumidor-final') : choice)),
-        selected,
-      ),
     preselected: (context) => context.preselected ?? [],
   });
 }

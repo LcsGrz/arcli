@@ -70,7 +70,7 @@
   [ ] Fecha del comprobante — hoy
   [ ] Ítems — un renglón con el monto total
   [ ] Idioma — Español
-  [ ] CUIT del país — el de la tabla de ARCA
+  [ ] CUIT del país — sin CUIT (va el ID impositivo)
   [ ] Observaciones — sin observaciones
   [ ] Descripción del incoterm — FOB
   [ ] Cotización — la de aduana que publica ARCA

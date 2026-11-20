@@ -74,14 +74,6 @@
 ╎                                                                                          ╎
 └╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘
 
-╭───────────────────────────────────────── AVISOS ─────────────────────────────────────────╮
-╏                                                                                          │
-╏  • En servicios ARCA exige la cotización de DOL del día hábil anterior a la fecha del    │
-╏    comprobante (error 2053): se usa la del 17/11/2026 (1.174,60), la última que publicó  │
-╏    hasta el 16/11/2026.                                                                  │
-╏                                                                                          │
-╰──────────────────────────────────────────────────────────────────────────────────────────╯
-
       ╒══════════════════════════ FACTURA DE EXPORTACIÓN E ══════════════════════════╕
       │                                                                              │
       │  Cliente                          ACME LLC                                   │
@@ -98,8 +90,8 @@
       │                                   moneda)                                    │
       │  Forma de pago                    Transferencia Internacional                │
       │  Número                           00003-00000008                             │
-      │  Fecha del comprobante            17/11/2026                                 │
-      │  Fecha de pago                    17/11/2026                                 │
+      │  Fecha del comprobante            18/11/2026                                 │
+      │  Fecha de pago                    18/11/2026                                 │
       │  Importe total                    1.500 USD                                  │
       │  1 x Según detalle (unidades)  1.500 USD                                     │
       │                                                                              │
@@ -110,11 +102,11 @@
       ╘══════════════════════════════════════════════════════════════════════════════╛
 
 == comando equivalente ==
-arcli fe -m 1500 --cliente 'ACME LLC' --domicilio-cliente '123 Main St, Miami, FL' --pais-destino 'ESTADOS UNIDOS' --id-impositivo 12-3456789 --actividad 620100 --fecha 17/11/2026 --moneda DOL --misma-moneda --testing --emitir
+arcli fe -m 1500 --cliente 'ACME LLC' --domicilio-cliente '123 Main St, Miami, FL' --pais-destino 'ESTADOS UNIDOS' --id-impositivo 12-3456789 --actividad 620100 --moneda DOL --misma-moneda --testing --emitir
 
 == pantalla ==
 ▎ Esto equivale a:
-▎ arcli fe -m 1500 --cliente 'ACME LLC' --domicilio-cliente '123 Main St, Miami, FL' --pais-destino 'ESTADOS UNIDOS' --id-impositivo 12-3456789 --actividad 620100 --fecha 17/11/2026 --moneda DOL --misma-moneda --testing --emitir
+▎ arcli fe -m 1500 --cliente 'ACME LLC' --domicilio-cliente '123 Main St, Miami, FL' --pais-destino 'ESTADOS UNIDOS' --id-impositivo 12-3456789 --actividad 620100 --moneda DOL --misma-moneda --testing --emitir
 
 ? [lista] ¿Emitimos la factura de exportación E en testing?
   arranca en: Sí, emitir ahora
@@ -146,8 +138,8 @@ arcli fe -m 1500 --cliente 'ACME LLC' --domicilio-cliente '123 Main St, Miami, F
   "Cuit_pais_cliente": 55000002126,
   "Domicilio_cliente": "123 Main St, Miami, FL",
   "Dst_cmp": 212,
-  "Fecha_cbte": "20261117",
-  "Fecha_pago": "20261117",
+  "Fecha_cbte": "20261118",
+  "Fecha_pago": "20261118",
   "Forma_pago": "Transferencia Internacional",
   "Id": 41,
   "Id_impositivo": "12-3456789",

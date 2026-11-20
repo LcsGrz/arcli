@@ -643,7 +643,8 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
     await expect(runExportFlow(createSession())).resolves.toBe(BACK);
     expect(gateway.authorize).not.toHaveBeenCalled();
 
-    // REV-60: al volver, cada pregunta arranca con lo respondido: escrito en las de texto, marcado en las listas.
+    // REV-60: al volver, cada pregunta arranca con lo respondido: escrito en las de texto, marcado en las listas. El
+    // CUIT del país también (REV-74, #10).
     const typed = Object.fromEntries(
       script.askTextStep.mock.calls
         .filter(([, options]) => options?.previousAnswer !== undefined)
@@ -652,6 +653,8 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
     const marked = script.chooseStep.mock.calls.slice(-4).map((call) => call[2]);
 
     expect(typed).toEqual({
+      'ARCA no tiene un CUIT publicado para ATLANTIDA. Escribí el CUIT del país, buscalo por nombre o dejalo vacío para informar solo el ID impositivo del cliente:':
+        '55000002126',
       'Código de actividad de WSFEX, por ejemplo 620100': '620100',
       'Descripción del servicio o producto': 'Café',
       'Domicilio del cliente:': '123 Main St',

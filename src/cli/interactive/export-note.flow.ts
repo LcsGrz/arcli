@@ -16,6 +16,7 @@ import {
   getExportVoucherKindByArcaType,
 } from '../../modules/export/export.types';
 import { amountInputText, parseAmountInput } from '../../modules/interactive/amount-input';
+import type { ExportOptions } from '../../modules/interactive/export-optionals';
 import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { formatVoucherNumber } from '../../modules/vouchers/voucher-history.presenter';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
@@ -23,7 +24,7 @@ import { noticePanel, writeTerminalOutput } from '../../ui';
 import { withSpinner } from '../spinner';
 
 import { askPermitsStep, emitExportVoucher } from './export.flow';
-import { askExportOptions, type ExportOptions, validateExportText } from './export-options';
+import { exportOptionalsStep, validateExportText } from './export-options';
 import { askTextStep } from './prompts';
 import { type InteractiveSession, requirePointOfSale } from './session';
 import { validateAmount, validatePositiveInteger } from './validators';
@@ -206,15 +207,17 @@ export function exportNoteSteps(
       run: askPermitsStep,
       skip: (state) => state.invoice?.exportType !== 1,
     },
-    {
-      name: 'opcionales',
-      run: async (state) => {
+    exportOptionalsStep<ExportNoteState>({
+      context: (state) => {
         const invoice = requireStepValue(state.invoice, 'invoice');
         const name = associatedName(state.associatedKind);
         // En servicios ARCA exige la cotizacion del asociado (error 2053), y en pesos es 1: no se ofrece.
         const offersExchangeRate = invoice.currencyCode.trim().toUpperCase() !== 'PES' && invoice.exportType !== 2;
-        const options = await askExportOptions(state.options ?? {}, {
+
+        return {
           amount: requireStepValue(state.amount, 'amount'),
+          // La descripcion del incoterm es la del asociado: con otro, arranca con la de ese.
+          copiedFrom: `${invoice.arcaType}:${invoice.pointOfSale}:${invoice.number}`,
           currencyCode: invoice.currencyCode,
           defaultExchangeRate: offersExchangeRate
             ? `la de ${name} (${formatExchangeRate(invoice.exchangeRate)})`
@@ -226,11 +229,12 @@ export function exportNoteSteps(
           units: () => gateway.getUnits(),
           // No antes de la fecha del asociado: el mismo control que con flags.
           voucherDateRule: (date) => validateAssociated(voucherKind, invoice, date),
-        });
-
-        return options === BACK ? BACK : { options };
+        };
       },
-    },
+      name: 'opcionales',
+      read: (state) => state.options ?? {},
+      write: (options) => ({ options }),
+    }),
   ];
 }
 
