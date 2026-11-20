@@ -1,7 +1,7 @@
 import { MONOTRIBUTO_CATEGORIES_URL } from './monotributo';
 
 /** Corto: la pagina es chica y, si ARCA no contesta, hay tabla guardada o incluida. */
-export const MONOTRIBUTO_FETCH_TIMEOUT_MS = 5000;
+const MONOTRIBUTO_FETCH_TIMEOUT_MS = 5000;
 
 export type MonotributoPageFetch =
   | { readonly html: string; readonly ok: true }

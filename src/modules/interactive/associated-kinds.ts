@@ -16,7 +16,7 @@ export type AssociatedKind = ExportVoucherKind | VoucherKindDefinition;
 /** Las familias del selector "¿Sobre qué comprobante?" de una nota. */
 export type AssociatedFamily = 'factura' | 'nota-credito' | 'nota-debito' | 'recibo';
 
-export interface AssociatedKindOption extends InteractiveChoice<AssociatedKind> {
+interface AssociatedKindOption extends InteractiveChoice<AssociatedKind> {
   /** Para la marca "(nuevo)": la opcion que la trajo. */
   readonly newOption?: NewOption;
 }

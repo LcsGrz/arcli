@@ -15,7 +15,7 @@ export interface StatusBarSegment {
 }
 
 /** Como se separan los datos de un lado: con ` · ` o con un tramo de la misma linea de la barra (` ━ `). */
-export type StatusBarSeparator = 'dot' | 'rule';
+type StatusBarSeparator = 'dot' | 'rule';
 
 export interface StatusBarOptions {
   readonly leftSeparator?: StatusBarSeparator;

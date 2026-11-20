@@ -49,7 +49,7 @@ export interface OtherSystemInvoice {
 }
 
 /** Lo que pasa con un comprobante ingresado a mano que no existe: el aviso y, si igual sirve, lo que se devuelve. */
-export interface MissingVoucher<M> {
+interface MissingVoucher<M> {
   readonly accepted?: M;
   readonly notice: string;
 }
@@ -58,7 +58,7 @@ export interface MissingVoucher<M> {
  * De donde salen los comprobantes de la lista: wsfe para A, B y C, wsfex para la E. Cada uno sabe pedir el ultimo
  * numero, pedir uno y armar las filas. `M` es lo que se devuelve si un comprobante que no existe igual sirve.
  */
-export interface VoucherSource<T extends { readonly number: number }, M = never> {
+interface VoucherSource<T extends { readonly number: number }, M = never> {
   getLastNumber(pointOfSale: number): Promise<number>;
   getVoucher(number: number, pointOfSale: number): Promise<T | null | undefined>;
   formatRows(pointOfSale: number, vouchers: readonly T[], separator: string, width: number): string[];
@@ -257,7 +257,7 @@ export async function pickExportVoucher(
  * Elegir un comprobante emitido: los ultimos del punto de venta configurado, con opciones para cargar mas
  * o ingresar el numero a mano (por ejemplo, uno viejo o de otro punto de venta).
  */
-export async function pickVoucher<T extends { readonly number: number }, M = never>(
+async function pickVoucher<T extends { readonly number: number }, M = never>(
   session: InteractiveSession,
   options: PickVoucherOptions<T>,
   source: VoucherSource<T, M>,

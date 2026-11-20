@@ -50,7 +50,7 @@ function rethrowIfNotFound(error: unknown): undefined {
 }
 
 /** ARCA devuelve sin `ResultGet` (con el error 602) cuando el comprobante no existe. */
-export function mapIssuedVoucher(row: Row | undefined, number: number): IssuedVoucher | undefined {
+function mapIssuedVoucher(row: Row | undefined, number: number): IssuedVoucher | undefined {
   const date = readText(row?.CbteFch);
 
   if (!row || !date) {

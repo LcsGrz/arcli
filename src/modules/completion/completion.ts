@@ -1,7 +1,7 @@
 /** Valores para completar: una lista fija o una que depende de los argumentos anteriores del comando. */
 export type CompletionValues = readonly string[] | ((previousArguments: readonly string[]) => readonly string[]);
 
-export interface CompletionOption {
+interface CompletionOption {
   /** `--monto` y `-m`, si tiene corta. */
   readonly flags: readonly string[];
   /** Oculta en la ayuda (alias o no aplica): no se ofrece, pero si se escribe se completan sus valores. */

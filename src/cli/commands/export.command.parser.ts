@@ -19,7 +19,7 @@ import {
   isExportNote,
 } from '../../modules/export/export.types';
 
-export const ITEMS_DESCRIPTION_WARNING =
+const ITEMS_DESCRIPTION_WARNING =
   '`--descripcion` se usa solo cuando no hay `--item`: el detalle del comprobante sale de los items.';
 
 /** `--descripcion` con ítems no se usa. Si la descripción o los ítems vinieron del JSON, nombra sus claves. */

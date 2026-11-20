@@ -90,13 +90,13 @@ function positiveAmountSchema(decimals = AMOUNT_DECIMALS) {
 }
 
 /** Tope de los importes de WSFEv1: Double (13+2), menos que 10^13. */
-export const WSFE_AMOUNT_LIMIT = 10_000_000_000_000;
+const WSFE_AMOUNT_LIMIT = 10_000_000_000_000;
 
 /** PtoVta es Int (5) y va de 1 a 99.998 (WSFEv1, 10004; el del asociado, 10058). */
 export const MAX_WSFE_POINT_OF_SALE = 99_998;
 
 /** CbteDesde, CbteHasta y el Nro del asociado son Long (8): de 1 a 99.999.999 (WSFEv1, 10008 y 10059). */
-export const MAX_WSFE_VOUCHER_NUMBER = 99_999_999;
+const MAX_WSFE_VOUCHER_NUMBER = 99_999_999;
 
 /**
  * Importe de A, B, C, FCE o recibo: los importes de WSFEv1 (ImpTotal, ImpNeto, ImpIVA, BaseImp...) son Double (13+2),

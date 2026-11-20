@@ -88,7 +88,7 @@ function sinceLabel(report: MonotributoReport): string {
 }
 
 /** "Tabla de ARCA, consultada el 18/11/2026." o "Tabla incluida en ARCLI 2.6.0." */
-export function formatMonotributoSource(report: MonotributoReport): string {
+function formatMonotributoSource(report: MonotributoReport): string {
   return report.consultedOn && report.source !== 'incluida'
     ? `Tabla de ARCA, consultada el ${formatArcaDateAsArgentineDate(report.consultedOn)}.`
     : `Tabla incluida en ARCLI ${report.version}.`;

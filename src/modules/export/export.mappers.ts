@@ -86,7 +86,7 @@ export function resolveExportVoucherDate(value: string | undefined, now = new Da
 }
 
 /** Cuantos dias antes y despues de la fecha de envio acepta ARCA la fecha de la E (1500, WSFEX v3.1.0). */
-export const EXPORT_DATE_WINDOW_DAYS = 5;
+const EXPORT_DATE_WINDOW_DAYS = 5;
 
 /** Ultimo dia del mes de una fecha ARCA (yyyymmdd). */
 function lastDayOfMonth(arcaDate: string): string {

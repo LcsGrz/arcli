@@ -55,7 +55,7 @@ const categoryJsonSchema = z.object({
   superficieHastaM2: amount,
 });
 
-export const monotributoTableJsonSchema = z.object({
+const monotributoTableJsonSchema = z.object({
   categorias: z.array(categoryJsonSchema),
   vigenteDesde: z.string().regex(/^\d{8}$/),
 });

@@ -19,23 +19,6 @@ import {
 import type { BillingExecutionResult } from './billing.types.internal';
 import { getVoucherKindByArcaType } from './voucher-kind-map';
 
-export function formatVoucherSummary(result: BillingExecutionResult): Record<string, unknown> {
-  return {
-    cae: result.response.cae,
-    caeVencimiento: result.response.caeVencimiento,
-    comprobante: result.voucherKind.displayName,
-    errores: result.response.errors,
-    estado: result.response.status,
-    eventos: result.response.events,
-    observaciones: result.response.observaciones,
-    observacion: result.response.observacion,
-    solicitud: result.payload,
-    previsualizacion: result.dryRun,
-    resultado: result.response.resultado,
-    tipoArca: result.voucherKind.arcaType,
-  };
-}
-
 /** Una alicuota: su tasa. Varias: el desglose de neto e IVA de cada una. */
 function formatIvaRows(iva: readonly IIva[], currency: string): Array<readonly [string, string]> {
   if (iva.length === 0) {

@@ -33,7 +33,7 @@ const EXECUTABLE_MODE = 0o755;
 const LAUNCHER_NAME = 'arcli.command';
 const ICONS_FOLDER = fileURLToPath(new URL('../../../assets/acceso-directo/', import.meta.url));
 
-export type RunCommand = (
+type RunCommand = (
   command: string,
   args: readonly string[],
 ) => { readonly status: number | null; readonly stdout: string };

@@ -15,11 +15,11 @@ import {
 export const DEFAULT_EXPORT_ITEM_DESCRIPTION = 'Según detalle';
 
 /** Largos maximos del item: codigo (1760) y descripcion (1770), WSFEX v3.1.0. */
-export const MAX_EXPORT_ITEM_CODE_LENGTH = 50;
+const MAX_EXPORT_ITEM_CODE_LENGTH = 50;
 export const MAX_EXPORT_ITEM_DESCRIPTION_LENGTH = 4000;
 
 /** Cantidad de caracteres como los cuenta ARCA, no unidades UTF-16: un emoji es uno. */
-export function textLength(value: string): number {
+function textLength(value: string): number {
   return [...value].length;
 }
 

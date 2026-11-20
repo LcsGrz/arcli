@@ -83,7 +83,7 @@ export type ExportOptions = Pick<
   | 'voucherDate'
 >;
 
-export type ExportOptionKey = 'cotizacion' | 'cuit-pais' | 'fecha' | 'idioma' | 'incoterm' | 'items' | 'observaciones';
+type ExportOptionKey = 'cotizacion' | 'cuit-pais' | 'fecha' | 'idioma' | 'incoterm' | 'items' | 'observaciones';
 
 /** El CUIT del pais se elige contra la tabla DST_CUIT, con el destino ya elegido. */
 export interface ExportCountryCuitContext {
