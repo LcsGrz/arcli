@@ -9,10 +9,11 @@ import {
 import { buildExportNoteInput, type ExportNoteState } from '../export-note-input';
 
 const INVOICE = { number: 7, pointOfSale: 4 } as ExportIssuedVoucher;
-const STATE: ExportNoteState = { amount: 500, description: 'Ajuste', invoice: INVOICE };
+const ITEMS = [{ description: 'Ajuste', quantity: 1, unit: 7, unitPrice: 500 }];
+const STATE: ExportNoteState = { invoice: INVOICE, items: ITEMS };
 
 describe('buildExportNoteInput', () => {
-  it('una NC E sobre la factura E: el asociado sin `--ac`, y la nota sin emitir', () => {
+  it('una NC E sobre la factura E: el asociado sin `--ac`, un renglón en la forma rápida y la nota sin emitir', () => {
     expect(buildExportNoteInput(STATE, { kind: 'credito' })).toEqual({
       amount: 500,
       associatedVoucher: { number: 7, pointOfSale: 4, shortcut: undefined },
@@ -44,6 +45,6 @@ describe('buildExportNoteInput', () => {
   });
 
   it('sin el asociado elegido, el flujo está mal armado', () => {
-    expect(() => buildExportNoteInput({ amount: 500 }, { kind: 'credito' })).toThrow(/invoice/);
+    expect(() => buildExportNoteInput({ items: ITEMS }, { kind: 'credito' })).toThrow(/invoice/);
   });
 });

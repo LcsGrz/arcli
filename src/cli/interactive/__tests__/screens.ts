@@ -6,9 +6,10 @@ import { expect, vi } from 'vitest';
 import { BillingService } from '../../../modules/billing/billing.service';
 import { ExportService } from '../../../modules/export/export.service';
 import type { ResolvedExportVoucher } from '../../../modules/export/export.types';
+import type { RowEdits } from '../../../modules/interactive/row-marks';
 import { BACK } from '../../../modules/interactive/wizard';
-import { stripAnsi } from '../../../ui';
-import type { Choice, TextStepOptions } from '../prompts';
+import { type RowActionsListRow, stripAnsi } from '../../../ui';
+import type { Choice, EditRowsOptions, FilterListRow, TextStepOptions } from '../prompts';
 
 import { createScript, type ScriptedAnswer } from './script';
 
@@ -191,6 +192,64 @@ export function createScreens(steps: ReadonlyArray<readonly [RegExp, ScriptedAns
     return answer;
   }
 
+  async function chooseFromFilterList<T>(
+    message: string,
+    rows: ReadonlyArray<FilterListRow<T>>,
+    options: { readonly defaultValue?: T } = {},
+  ): Promise<T | typeof BACK> {
+    const answer = (await script.chooseFromFilterList(message, rows, options)) as T | typeof BACK;
+    const label = (value: unknown) =>
+      value === BACK
+        ? '← Volver'
+        : normalizeScreen(
+            rows.find((row) => sameValue(row.value, value))?.label ?? `(fuera de la lista: ${describeValue(value)})`,
+          );
+
+    events.push({
+      kind: 'prompt',
+      lines: [
+        `? [lista con filtro] ${normalizeScreen(message)}`,
+        `  arranca en: ${options.defaultValue === undefined ? '(ninguna)' : label(options.defaultValue)}`,
+        ...rows.map(
+          (row) =>
+            `  ${sameValue(row.value, options.defaultValue) ? '>' : '·'} ${normalizeScreen(row.label)}${row.keywords ? ` (busca tambien: ${row.keywords})` : ''}`,
+        ),
+        `  = ${label(answer)}`,
+      ],
+    });
+
+    return answer;
+  }
+
+  async function editRowsStep(
+    message: string,
+    rows: ReadonlyArray<Omit<RowActionsListRow, 'mark'>>,
+    options: EditRowsOptions,
+  ): Promise<RowEdits | typeof BACK> {
+    const answer = await script.editRowsStep(message, rows, options);
+    const marked = (index: number) => {
+      if (answer === BACK) return '·';
+      if (answer.remove.includes(index)) return '[borrar]';
+
+      return answer.edit.includes(index) ? '[modificar]' : '·';
+    };
+
+    events.push({
+      kind: 'prompt',
+      lines: [
+        `? [editor] ${normalizeScreen(message)}`,
+        ...rows.map(
+          (row, index) =>
+            `  ${marked(index)} ${normalizeScreen(row.title)} — ${normalizeScreen(row.detail)} = ${normalizeScreen(row.total)}`,
+        ),
+        `  ${answer !== BACK && answer.add ? '[agregar]' : '·'} ${normalizeScreen(options.addLabel)}`,
+        `  = ${answer === BACK ? '← Volver' : answer.add || answer.edit.length > 0 || answer.remove.length > 0 ? 'aplicar' : 'sin cambios'}`,
+      ],
+    });
+
+    return answer;
+  }
+
   /** La lista que se ve mientras carga: no consume el guion (ver `createScript`). */
   async function chooseStepWhileLoading<T, L>(
     message: string,
@@ -212,6 +271,7 @@ export function createScreens(steps: ReadonlyArray<readonly [RegExp, ScriptedAns
     asked: script.asked,
     prompts: {
       askTextStep,
+      chooseFromFilterList,
       chooseManyStep,
       chooseOne: <T>(message: string, choices: ReadonlyArray<Choice<T> | Separator>, defaultValue?: T) =>
         chooseStep(message, choices, defaultValue),
@@ -222,6 +282,7 @@ export function createScreens(steps: ReadonlyArray<readonly [RegExp, ScriptedAns
           { name: yesLabel, value: true },
           { name: noLabel, value: false },
         ]),
+      editRowsStep,
     },
     remaining: script.remaining,
     /** El guion de abajo: sus `mock.calls` tienen lo que recibio cada pregunta (opciones, validador, lo marcado). */

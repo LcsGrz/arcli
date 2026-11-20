@@ -38,7 +38,9 @@
 
 └                                                                                          ┘
 
-? [texto] Monto de la nota de crédito de exportación E en USD:
+? [editor] ¿Qué ítems cambiamos? (espacio para modificar, Backspace para borrar)
+  · Según detalle — 1 unidades x 1.500 USD = 1.500 USD
+  · + Agregar ítem
   = ← Volver
 
 ? [texto] Número de la factura E:
@@ -59,22 +61,103 @@
 
 └                                                                                          ┘
 
-? [texto] Monto de la nota de crédito de exportación E en USD:
-  = "500"
+? [editor] ¿Qué ítems cambiamos? (espacio para modificar, Backspace para borrar)
+  [modificar] Según detalle — 1 unidades x 1.500 USD = 1.500 USD
+  · + Agregar ítem
+  = aplicar
 
-? [texto] Detalle de la nota (Enter para "Según detalle"):
+? [texto] Descripción del ítem 1:
+  arranca escrito: "Según detalle"
+  = "Descuento por volumen"
+
+? [texto] Cantidad:
+  arranca escrito: "1"
+  = ""
+
+? [lista con filtro] Unidad:
+  arranca en: unidades
+  · kilogramos (busca tambien: 1)
+  > unidades (busca tambien: 7)
+  = unidades
+
+? [texto] Importe en USD:
+  arranca escrito: "1500"
+  = "1.600"
+
+? [lista] Importe total de la nota de crédito de exportación E: 1.600 USD (1 ítem)
+  arranca en: Modificar los ítems
+  · Confirmar (deshabilitada: No puede superar el total de la factura E 00003-00000007, de 1.500 USD.)
+  > Modificar los ítems — Modificar, borrar o agregar ítems
+  = Modificar los ítems
+
+? [editor] ¿Qué ítems cambiamos? (espacio para modificar, Backspace para borrar)
+  [modificar] Descuento por volumen — 1 unidades x 1.600 USD = 1.600 USD
+  · + Agregar ítem
+  = aplicar
+
+? [texto] Descripción del ítem 1:
+  arranca escrito: "Descuento por volumen"
+  = ""
+
+? [texto] Cantidad:
+  arranca escrito: "1"
+  = ""
+
+? [lista con filtro] Unidad:
+  arranca en: unidades
+  · kilogramos (busca tambien: 1)
+  > unidades (busca tambien: 7)
+  = unidades
+
+? [texto] Importe en USD:
+  arranca escrito: "1600"
   = ← Volver
 
-? [texto] Monto de la nota de crédito de exportación E en USD:
-  arranca escrito: "500"
+? [lista con filtro] Unidad:
+  arranca en: unidades
+  · kilogramos (busca tambien: 1)
+  > unidades (busca tambien: 7)
+  = ← Volver
+
+? [texto] Cantidad:
+  arranca escrito: "1"
+  = ← Volver
+
+? [texto] Descripción del ítem 1:
+  arranca escrito: "Descuento por volumen"
+  = ← Volver
+
+? [editor] ¿Qué ítems cambiamos? (espacio para modificar, Backspace para borrar)
+  [modificar] Descuento por volumen — 1 unidades x 1.600 USD = 1.600 USD
+  · + Agregar ítem
+  = aplicar
+
+? [texto] Descripción del ítem 1:
+  arranca escrito: "Descuento por volumen"
+  = ""
+
+? [texto] Cantidad:
+  arranca escrito: "1"
+  = ""
+
+? [lista con filtro] Unidad:
+  arranca en: unidades
+  · kilogramos (busca tambien: 1)
+  > unidades (busca tambien: 7)
+  = unidades
+
+? [texto] Importe en USD:
+  arranca escrito: "1600"
   = "400"
 
-? [texto] Detalle de la nota (Enter para "Según detalle"):
-  = "Descuento por volumen"
+? [lista] Importe total de la nota de crédito de exportación E: 400 USD (1 ítem)
+  arranca en: Confirmar
+  > Confirmar
+  · Modificar los ítems — Modificar, borrar o agregar ítems
+  = Confirmar
 
 ? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
   [ ] Fecha del comprobante — hoy
-  [ ] Ítems — un renglón con el monto total
   [ ] Idioma — el de la factura E
   [ ] Observaciones — sin observaciones
   = (nada marcado)

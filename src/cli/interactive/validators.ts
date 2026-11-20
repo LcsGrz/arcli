@@ -144,3 +144,16 @@ export function validateExchangeRate(value: string): string | true {
 
   return result.value !== 1 ? true : 'Ingresá la cotización acordada, por ejemplo 1200 o 1.185,50.';
 }
+
+/** Cantidad o precio de un item de la E, como `--item`: hasta seis decimales y mayor a 0. */
+export function validateItemNumber(label: string): (value: string) => string | true {
+  return (value) => {
+    const parsed = parseArgentineAmount(value, { maxDecimals: EXCHANGE_RATE_DECIMALS });
+
+    if (!parsed.ok) {
+      return `${label} no tiene un formato válido: ${parsed.reason}.`;
+    }
+
+    return parsed.value > 0 ? true : `${label} tiene que ser mayor a 0.`;
+  };
+}

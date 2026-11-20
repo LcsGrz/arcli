@@ -29,23 +29,56 @@
 
 └                                                                                          ┘
 
-? [lista] ¿Mismo monto?
-  arranca en: (ninguna)
-  · Sí, 1.500 USD
-  · No, ingresar otro monto
-  = No, ingresar otro monto
-
-? [texto] Monto total en USD:
+? [editor] ¿Qué ítems cambiamos? (espacio para modificar, Backspace para borrar)
+  · Según detalle — 1 unidades x 1.500 USD = 1.500 USD
+  · + Agregar ítem
   = ← Volver
 
-? [lista] ¿Mismo monto?
-  arranca en: No, ingresar otro monto
-  · Sí, 1.500 USD
-  > No, ingresar otro monto
-  = No, ingresar otro monto
+? [lista] ¿Cuál repetimos?
+  arranca en: 00003-00000007   ·    10/11/2026   ·    ACME LLC   ·    1.500 USD   ·   CAE 76443017205075
+    --- ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+  > 00003-00000007   ·    10/11/2026   ·    ACME LLC   ·    1.500 USD   ·   CAE 76443017205075
+    --- ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+    ---
+  · # Ingresar el número a mano… — Uno más viejo o de otro punto de venta
+  = 00003-00000007   ·    10/11/2026   ·    ACME LLC   ·    1.500 USD   ·   CAE 76443017205075
 
-? [texto] Monto total en USD:
+== pantalla ==
+┌                                                                                          ┐
+
+   Se copian el cliente ACME LLC, ESTADOS UNIDOS, la moneda, el incoterm y los ítems. Las
+             fechas son nuevas y la cotización, la de la fecha del comprobante.
+
+└                                                                                          ┘
+
+? [editor] ¿Qué ítems cambiamos? (espacio para modificar, Backspace para borrar)
+  [modificar] Según detalle — 1 unidades x 1.500 USD = 1.500 USD
+  · + Agregar ítem
+  = aplicar
+
+? [texto] Descripción del ítem 1:
+  arranca escrito: "Según detalle"
+  = ""
+
+? [texto] Cantidad:
+  arranca escrito: "1"
+  = ""
+
+? [lista con filtro] Unidad:
+  arranca en: unidades
+  · kilogramos (busca tambien: 1)
+  > unidades (busca tambien: 7)
+  = unidades
+
+? [texto] Importe en USD:
+  arranca escrito: "1500"
   = "1.800"
+
+? [lista] Importe total de la factura de exportación E: 1.800 USD (1 ítem)
+  arranca en: Confirmar
+  > Confirmar
+  · Modificar los ítems — Modificar, borrar o agregar ítems
+  = Confirmar
 
 == pantalla ==
 ┌                                                                                          ┐
@@ -57,7 +90,6 @@
 
 ? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
   [ ] Fecha del comprobante — hoy
-  [ ] Ítems — un renglón con el monto total
   [ ] Idioma — Español
   [ ] CUIT del país — el de la tabla de ARCA
   [ ] Observaciones — sin observaciones
@@ -74,7 +106,6 @@
 
 ? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
   [ ] Fecha del comprobante — hoy
-  [ ] Ítems — un renglón con el monto total
   [ ] Idioma — Español
   [ ] CUIT del país — el de la tabla de ARCA
   [x] Observaciones — con observaciones

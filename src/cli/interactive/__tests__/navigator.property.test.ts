@@ -14,11 +14,13 @@ import { BILLING_RULES } from '../../../modules/billing/billing.rules';
 import type { BillingCommandInput } from '../../../modules/billing/billing.schemas';
 import { BillingService } from '../../../modules/billing/billing.service';
 import type { VoucherShortcut } from '../../../modules/billing/billing.types';
+import { sumExportItems } from '../../../modules/export/export.items';
 import { EXPORT_RULES } from '../../../modules/export/export.rules';
 import { ExportService } from '../../../modules/export/export.service';
 import {
   EXPORT_VOUCHER_KIND,
   type ExportGateway,
+  type ExportItemInput,
   type ExportVoucherInput,
   type ExportVoucherKind,
   type ResolvedExportVoucher,
@@ -190,6 +192,8 @@ vi.mock('../../commands/billing.command.shared', async (importOriginal) => ({
 vi.mock('../prompts', () => ({
   askText: () => current().askText(),
   askTextStep: (...args: Parameters<ReturnType<typeof current>['askTextStep']>) => current().askTextStep(...args),
+  chooseFromFilterList: (...args: Parameters<ReturnType<typeof current>['chooseFromFilterList']>) =>
+    current().chooseFromFilterList(...args),
   chooseManyStep: (...args: Parameters<ReturnType<typeof current>['chooseManyStep']>) =>
     current().chooseManyStep(...args),
   chooseOne: (...args: Parameters<ReturnType<typeof current>['chooseOne']>) => current().chooseOne(...args),
@@ -197,6 +201,7 @@ vi.mock('../prompts', () => ({
   chooseStepWhileLoading: (...args: Parameters<ReturnType<typeof current>['chooseStepWhileLoading']>) =>
     current().chooseStepWhileLoading(...args),
   confirm: (message: string) => current().confirm(message),
+  editRowsStep: (...args: Parameters<ReturnType<typeof current>['editRowsStep']>) => current().editRowsStep(...args),
   eraseLastAnswer: () => undefined,
   fitPageSize: () => 12,
   isPromptCancellation: () => false,
@@ -259,7 +264,13 @@ const ANSWERS: TextAnswers = [
   [/^País de destino/, fc.constantFrom('ESTADOS UNIDOS', 'BRASIL', '212')],
   [/^(ARCA no tiene un CUIT publicado|CUIT del país)/, fc.constantFrom('', '55000002126')],
   [/^ID impositivo/, fc.constantFrom('', '12-3456789')],
-  [/^(Descripción del servicio|Detalle de la nota)/, fc.constantFrom('', 'Consultoría')],
+  // Los ítems de la E (NAV-10): el primero puede quedar con los valores por defecto ("Según detalle", 1); del segundo en
+  // adelante, casi siempre Enter para terminar.
+  [/^Descripción del ítem 1:/, fc.constantFrom('', 'Consultoría', 'Jugo de naranja')],
+  [/^Descripción del ítem \d+ \(Enter para terminar\)/, fc.constantFrom('', '', '', 'Flete')],
+  [/^Descripción del ítem \d+:/, fc.constantFrom('', 'Seguro')],
+  [/^Cantidad:/, fc.constantFrom('', '1', '2', '0,5', '1.000')],
+  [/^(Importe|Precio unitario)( en [A-Z]{3})?:/, fc.constantFrom('1', '100', '1.500,50', '60,50', '2,123456')],
   [/^Descripción del incoterm/, fc.constantFrom('', 'FOB Buenos Aires')],
   [/^Forma de pago/, fc.constant('')],
   [/actividad de WSFEX/, fc.constantFrom('', '620100')],
@@ -342,8 +353,6 @@ async function walk(
     answers,
     backPercent,
     excludeChoices: flow.excludeChoices,
-    // Los items de la E son un bucle propio que tiene que sumar el monto: fuera del alcance del asistente al azar.
-    excludeOptionals: /^Ítems/,
     maxPrompts: 60,
   });
   equivalents.length = 0;
@@ -509,8 +518,6 @@ const TYPED_FIELDS: Record<Flow['family'], ReadonlyArray<readonly [RegExp, strin
     [/cliente del exterior/, 'clientName', asText],
     [/^Domicilio/, 'clientAddress', asText],
     [/^ID impositivo/, 'clientTaxId', asText],
-    [/^Monto/, 'amount', asAmount],
-    [/^(Descripción del servicio|Detalle de la nota)/, 'description', asText],
     [/^Fecha del comprobante/, 'voucherDate', asDate],
     [/^Fecha de pago/, 'paymentDate', asDate],
     [/^Observaciones \(/, 'observations', asText],
@@ -561,6 +568,17 @@ function assertTypedValuesReachInput(flow: Flow, run: Walk): void {
     expect(normalize(fieldAt(input, field)), `${field} ← "${answered.message}"${context(run)}`).toEqual(
       untouchedOfficialRate(answered) ? undefined : normalize(answered.answer),
     );
+  }
+
+  // En la E el monto no se escribe: es la suma de los ítems (NAV-10), o el del renglón de la forma rápida.
+  if (flow.family === 'export') {
+    const items = input.items as ExportItemInput[] | undefined;
+
+    expect(input.amount, `monto de la E${context(run)}`).toBeGreaterThan(0);
+
+    if (items) {
+      expect(input.amount, `monto = suma de los ítems${context(run)}`).toBe(sumExportItems(items));
+    }
   }
 }
 
@@ -614,15 +632,7 @@ const COPY_SOURCE = /^(¿Qué comprobante querés repetir\?|¿Cuál repetimos\?)
  * la alicuota, el exento y los datos del consumidor final (son del receptor, que sale del comprobante); en "Repetir" E,
  * lo que se copia de la factura (items, idioma, CUIT del pais e incoterm).
  */
-const FOLLOWS_COPY_SOURCE: readonly unknown[] = [
-  'alicuota',
-  'consumidor',
-  'exento',
-  'cuit-pais',
-  'idioma',
-  'incoterm',
-  'items',
-];
+const FOLLOWS_COPY_SOURCE: readonly unknown[] = ['alicuota', 'consumidor', 'exento', 'cuit-pais', 'idioma', 'incoterm'];
 /** Las dos preguntas de los datos del consumidor final, como opcional o, desde el tope, como obligatorias. */
 const CONSUMER_DOCUMENT = /^Documento del consumidor final/;
 const CONSUMER_NUMBER = /^(DNI|CUIT|CUIL) del consumidor final/;

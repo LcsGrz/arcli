@@ -48,11 +48,31 @@
 
 └                                                                                          ┘
 
-? [texto] Monto total en USD:
+? [texto] Descripción del ítem 1:
+  por defecto: "Según detalle"
+  = "Consultoría de software"
+
+? [texto] Cantidad:
+  por defecto: "1"
+  = ""
+
+? [lista con filtro] Unidad:
+  arranca en: unidades
+  · kilogramos (busca tambien: 1)
+  > unidades (busca tambien: 7)
+  = unidades
+
+? [texto] Importe en USD:
   = "1.500"
 
-? [texto] Descripción del servicio o producto (Enter para "Según detalle"):
-  = "Consultoría de software"
+? [texto] Descripción del ítem 2 (Enter para terminar):
+  = ""
+
+? [lista] Importe total de la factura de exportación E: 1.500 USD (1 ítem)
+  arranca en: Confirmar
+  > Confirmar
+  · Modificar los ítems — Modificar, borrar o agregar ítems
+  = Confirmar
 
 ? [texto] Forma de pago:
   por defecto: "Transferencia Internacional"
@@ -63,7 +83,6 @@
 
 ? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
   [ ] Fecha del comprobante — hoy
-  [ ] Ítems — un renglón con el monto total
   [ ] Idioma — Español
   [ ] CUIT del país — el de la tabla de ARCA
   [ ] Observaciones — sin observaciones

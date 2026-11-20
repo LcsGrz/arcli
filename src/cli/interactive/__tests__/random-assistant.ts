@@ -1,9 +1,10 @@
 import { Separator } from '@inquirer/select';
 import fc from 'fast-check';
 
+import type { RowEdits } from '../../../modules/interactive/row-marks';
 import { BACK } from '../../../modules/interactive/wizard';
-import { stripAnsi } from '../../../ui';
-import type { Choice, TextStepOptions } from '../prompts';
+import { type RowActionsListRow, stripAnsi } from '../../../ui';
+import type { Choice, EditRowsOptions, FilterListRow, TextStepOptions } from '../prompts';
 
 /**
  * Asistente al azar para los tests de propiedades del navegador (NAV-0): reemplaza a `../prompts` y responde como una
@@ -36,6 +37,12 @@ export type PromptEvent =
       readonly kind: 'text';
       readonly message: string;
       readonly previousAnswer?: string;
+    }
+  | {
+      readonly answer: RowEdits | typeof BACK;
+      readonly kind: 'rows';
+      readonly message: string;
+      readonly rows: ReadonlyArray<Omit<RowActionsListRow, 'mark'>>;
     };
 
 /** Una fila de la tabla de textos: la pregunta y los valores que se pueden escribir. */
@@ -50,8 +57,6 @@ interface RandomAssistantOptions {
   readonly backPercent: number;
   /** Opciones de lista que no elige nunca (por nombre). */
   readonly excludeChoices?: RegExp;
-  /** Opciones de la seleccion multiple que no marca nunca (por nombre). */
-  readonly excludeOptionals?: RegExp;
   readonly maxPrompts: number;
 }
 
@@ -147,11 +152,57 @@ export function createRandomAssistant(g: fc.GeneratorValue, options: RandomAssis
     const answer = goesBack()
       ? BACK
       : choices
-          .filter((choice) => !choice.disabled && !(options.excludeOptionals?.test(plain(choice.name)) ?? false))
+          .filter((choice) => !choice.disabled)
           .filter(() => percent() < 40)
           .map((choice) => choice.value);
 
     events.push({ answer, choices, kind: 'many', message, selected });
+
+    return answer;
+  }
+
+  // Una lista con filtro es una lista: cualquier fila, o Esc.
+  async function chooseFromFilterList<T>(
+    message: string,
+    rows: ReadonlyArray<FilterListRow<T>>,
+  ): Promise<T | typeof BACK> {
+    return chooseStep(
+      message,
+      rows.map((row) => ({ name: row.label, value: row.value })),
+    );
+  }
+
+  /**
+   * El editor de filas (los items de la E): cada fila se marca para modificar o borrar al azar, sin borrar de mas (el
+   * editor real no lo deja), y a veces agrega una. Casi siempre sin marcas, para que el camino llegue a la vista previa.
+   */
+  async function editRowsStep(
+    message: string,
+    rows: ReadonlyArray<Omit<RowActionsListRow, 'mark'>>,
+    rowOptions: EditRowsOptions,
+  ): Promise<RowEdits | typeof BACK> {
+    count(message);
+
+    let answer: RowEdits | typeof BACK = BACK;
+
+    if (!goesBack()) {
+      const edit: number[] = [];
+      const remove: number[] = [];
+
+      rows.forEach((_row, index) => {
+        const roll = percent();
+
+        if (roll < 15) {
+          edit.push(index);
+        } else if (roll < 25 && rows.length - remove.length - 1 >= rowOptions.minRows) {
+          remove.push(index);
+        }
+      });
+
+      answer = { add: percent() < 15, edit, remove };
+    }
+
+    events.push({ answer, kind: 'rows', message, rows });
 
     return answer;
   }
@@ -194,6 +245,7 @@ export function createRandomAssistant(g: fc.GeneratorValue, options: RandomAssis
     prompts: {
       askText: async () => '',
       askTextStep,
+      chooseFromFilterList,
       chooseManyStep,
       chooseOne: <T>(message: string, choices: ReadonlyArray<Choice<T> | Separator>) => chooseStep(message, choices),
       chooseStep,
@@ -209,6 +261,7 @@ export function createRandomAssistant(g: fc.GeneratorValue, options: RandomAssis
 
         return false;
       },
+      editRowsStep,
       eraseLastAnswer: () => undefined,
       fitPageSize: () => 12,
       isPromptCancellation: () => false,
@@ -278,6 +331,10 @@ export function describeEvents(events: readonly PromptEvent[]): string {
       }
 
       if (event.kind === 'text') {
+        return `${event.message} → ${JSON.stringify(event.answer)}`;
+      }
+
+      if (event.kind === 'rows') {
         return `${event.message} → ${JSON.stringify(event.answer)}`;
       }
 

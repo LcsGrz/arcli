@@ -117,7 +117,8 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
   `INPUT_VALIDATION_ERROR` con las que empiezan igual.
 - `--item <partes>` (repetible): `codigo|descripcion|cantidad|precio|unidad`; con 4 partes se omite
   el código y con 3 la unidad (por defecto `unidad`, código `7`). La suma de los ítems tiene que dar
-  `--monto`: se valida antes de ir a ARCA. Sin `--item` va un renglón con `--descripcion`. Las unidades 0, 97 y
+  `--monto`: se valida antes de ir a ARCA. Sin `--item` va un renglón con `--descripcion` (por defecto
+  `Según detalle`), cantidad 1, unidad `7` y `--monto` como precio (la forma rápida). Las unidades 0, 97 y
   99 (seña, anticipo, bonificación) son error: ARCA las pide sin cantidad ni precio (1775).
 - Opcionales: `--id-impositivo <texto>`, `--cuit-pais <n>` (sin flag sale del país de destino; si ARCA no
   publica un CUIT para ese país, la `E` va solo con `--id-impositivo`, que entonces es obligatorio: ARCA pide uno de

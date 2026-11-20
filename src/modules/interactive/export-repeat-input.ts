@@ -1,25 +1,26 @@
 import { EXPORT_RULES, type ExportRuleContext } from '../export/export.rules';
-import type { ExportCountry, ExportIssuedVoucher, ExportVoucherInput } from '../export/export.types';
+import type { ExportCountry, ExportIssuedVoucher, ExportItemInput, ExportVoucherInput } from '../export/export.types';
 
 import type { ExportInvoiceCopy } from './export-copy';
 import type { ExportInputEnv, ExportRuleEnv } from './export-input';
+import { exportItemsEntry } from './export-items';
 import type { ExportOptions, ExportRuleScope } from './export-optionals';
 import { rulesFinalize } from './rule-validator';
 import { requireStepValue, type WizardFinalize } from './wizard';
 
 /** Lo que responde quien repite una factura E, con lo copiado de ella. */
 export interface ExportRepeatState {
-  /** Lo copiado de la factura, con el monto y los items ya ajustados si se cambio el monto. */
+  /** Lo copiado de la factura, salvo los items, que son un paso propio. */
   readonly copy?: ExportInvoiceCopy['input'];
   readonly country?: ExportCountry;
   /** La cotizacion escrita a mano; sin ella, la de aduana de ARCA del dia, como el CLI sin `--cm`. */
   readonly exchangeRate?: number;
+  /** Arrancan con los de la factura; el total es su suma (NAV-10). */
+  readonly items?: readonly ExportItemInput[];
   readonly original?: ExportIssuedVoucher;
   readonly options?: ExportOptions;
   readonly paymentDate?: string;
   readonly permits?: readonly string[];
-  /** "¿Mismo monto?": si no, se escribe en el paso siguiente. */
-  readonly sameAmount?: boolean;
 }
 
 /**
@@ -34,6 +35,8 @@ export function buildExportRepeatInput(state: ExportRepeatState, env: ExportInpu
     ...copy,
     ...state.options,
     activity: copy.activity ?? env.configuredActivity,
+    // El total es la suma de los items (1610 por construccion), en la forma rapida si es un solo renglon (NAV-10).
+    ...exportItemsEntry(state.items),
     destinationCountry: country.name,
     emit: false,
     exchangeRate: state.exchangeRate,

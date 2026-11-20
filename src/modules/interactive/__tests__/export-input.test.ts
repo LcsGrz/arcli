@@ -2,15 +2,19 @@ import { describe, expect, it } from 'vitest';
 
 import { buildExportInput, type ExportFlowState } from '../export-input';
 
+const ITEMS = [
+  { description: 'Consultoría', quantity: 10, unit: 7, unitPrice: 100.005 },
+  { description: 'Soporte', quantity: 1, unit: 7, unitPrice: 499.95 },
+];
+
 const STATE: ExportFlowState = {
-  amount: 1500,
   clientAddress: '123 Main St',
   clientName: 'ACME LLC',
   clientTaxId: '12-3456789',
   currencyCode: 'DOL',
-  description: 'Consultoría',
   destinationCountry: 'ESTADOS UNIDOS',
   exportType: 2,
+  items: ITEMS,
   options: {},
   paymentDate: '20/11/2026',
   paymentTerms: 'Transferencia',
@@ -18,25 +22,31 @@ const STATE: ExportFlowState = {
 };
 
 describe('buildExportInput', () => {
-  it('arma la entrada de `arcli fe` con lo respondido, sin emitir', () => {
+  it('arma la entrada de `arcli fe` con lo respondido, sin emitir; el monto es la suma de los ítems (NAV-10)', () => {
     expect(buildExportInput(STATE, {})).toEqual({
       activity: undefined,
+      // Cada renglón redondeado a dos decimales, como lo suma el CLI: 1.000,05 + 499,95.
       amount: 1500,
       clientAddress: '123 Main St',
       clientName: 'ACME LLC',
       clientTaxId: '12-3456789',
       currencyCode: 'DOL',
-      description: 'Consultoría',
       destinationCountry: 'ESTADOS UNIDOS',
       emit: false,
       exportType: 2,
       incoterm: undefined,
+      items: ITEMS,
       paymentDate: '20/11/2026',
       paymentTerms: 'Transferencia',
       permits: undefined,
       permitsExisting: undefined,
       sameCurrency: true,
     });
+  });
+
+  it('sin ítems todavía no hay monto', () => {
+    expect(buildExportInput({ ...STATE, items: undefined }, {}).amount).toBeUndefined();
+    expect(buildExportInput({ ...STATE, items: [] }, {}).amount).toBeUndefined();
   });
 
   it('la actividad escrita le gana a la de la config; sin escribirla, va la de la config', () => {

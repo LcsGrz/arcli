@@ -1,4 +1,5 @@
 import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
+import { formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import { resolveExportClientCountryCuit } from '../../modules/export/export.mappers';
 import {
   DEFAULT_EXPORT_TYPE,
@@ -7,7 +8,7 @@ import {
   type ExportCountryCuit,
   type ExportGateway,
 } from '../../modules/export/export.types';
-import { copyExportInvoice, type ExportInvoiceCopy } from '../../modules/interactive/export-copy';
+import { copyExportInvoice, copyExportItems, type ExportInvoiceCopy } from '../../modules/interactive/export-copy';
 import { type ExportOptions, isCountryCuitMissing } from '../../modules/interactive/export-optionals';
 import {
   buildExportRepeatInput,
@@ -29,7 +30,6 @@ import { exportExchangeRateLoader } from './official-exchange-rate';
 import { chooseStep } from './prompts';
 import { offerConfig } from './save-to-config';
 import type { InteractiveSession } from './session';
-import { amountStep } from './steps/amount';
 import {
   activitiesLoader,
   activityStep,
@@ -38,7 +38,7 @@ import {
   type ExportTables,
   loadExportTables,
 } from './steps/export';
-import { sameAmountStep } from './steps/same-amount';
+import { exportItemsStep } from './steps/export-items';
 
 /** Las tablas de WSFEX para el destino de la factura, su CUIT y la actividad, como en "Emitir factura". */
 export type ExportRepeatTables = ExportTables;
@@ -53,15 +53,14 @@ function optionsOf(copy: ExportInvoiceCopy['input']): ExportOptions {
   return {
     clientCountryCuit: copy.clientCountryCuit,
     incotermDescription: copy.incotermDescription,
-    items: copy.items,
     language: copy.language,
   };
 }
 
 /**
  * Pasos para repetir una factura E: se elige una de las ultimas y se copian cliente, destino, moneda, incoterm e
- * items. Las fechas son nuevas, la cotizacion es la de hoy, y se preguntan el monto, los permisos de embarque y la
- * fecha de pago, que son de cada operacion.
+ * items (el editor arranca con ellos y el total es su suma). Las fechas son nuevas, la cotizacion es la de hoy, y se
+ * preguntan los permisos de embarque y la fecha de pago, que son de cada operacion.
  */
 export function exportRepeatSteps(
   session: InteractiveSession,
@@ -84,9 +83,6 @@ export function exportRepeatSteps(
       sameCurrency: copy.sameCurrency,
     };
   };
-  const copyAmount = nestedLens<ExportRepeatState, 'copy', 'amount'>('copy', 'amount', (state) =>
-    requireStepValue(state.copy, 'copy'),
-  );
 
   return withFinalizeNotice([
     {
@@ -133,39 +129,14 @@ export function exportRepeatSteps(
         return { copy: input, country, options: optionsOf(input), original };
       },
     },
-    sameAmountStep<ExportRepeatState>({
-      amount: copyAmount,
-      original: (state) => {
-        const original = requireStepValue(state.original, 'original');
-
-        return { currency: original.currencyCode, total: original.total };
-      },
-    }),
-    // Va en la moneda de la factura, y la pregunta la nombra (REV-74, #12).
-    amountStep<ExportRepeatState>({
-      amount: copyAmount,
-      dependsOn: ['factura'],
+    // Arranca en el editor con los items de la factura; el total es su suma (NAV-10). Con otra factura, los de esa.
+    exportItemsStep<ExportRepeatState>({
       currency: (state) => requireStepValue(state.original, 'original').currencyCode,
-      label: 'Monto total',
-      skip: (state) => state.sameAmount === true,
-      write: (amount, state) => {
-        const original = requireStepValue(state.original, 'original');
-        const copy = requireStepValue(state.copy, 'copy');
-
-        if (!copy.items || amount === original.total) {
-          return { copy: { ...copy, amount } };
-        }
-
-        // Los items copiados suman el monto de la factura: con otro monto se cargan de nuevo en los opcionales.
-        writeTerminalOutput(
-          noticePanel(
-            'Con otro monto los ítems de la factura no suman: sale un renglón con el monto total. Si querés, cargá los ítems en los opcionales.',
-            'warning',
-          ),
-        );
-
-        return { copy: { ...copy, amount, items: undefined }, options: { ...state.options, items: undefined } };
-      },
+      dependsOn: ['factura'],
+      initial: (state) => copyExportItems(requireStepValue(state.original, 'original')).items,
+      items: fieldLens('items'),
+      units: () => gateway.getUnits(),
+      voucher: formatVoucherWithArticle(EXPORT_VOUCHER_KIND),
     }),
     {
       // Es sobre la moneda de la factura elegida.
@@ -234,9 +205,8 @@ export function exportRepeatSteps(
         const currencyCode = copy.currencyCode ?? 'DOL';
 
         return {
-          amount: requireStepValue(copy.amount, 'amount'),
-          // Items, idioma, CUIT del pais y descripcion del incoterm vienen de la factura elegida: con otra, arrancan con
-          // lo copiado de esa.
+          // Idioma, CUIT del pais y descripcion del incoterm vienen de la factura elegida: con otra, arrancan con lo
+          // copiado de esa.
           copiedFrom: `${original.pointOfSale}:${original.number}`,
           countryCuit: { country: requireStepValue(state.country, 'country'), countryCuits: tables.countryCuits },
           currencyCode,
@@ -246,7 +216,6 @@ export function exportRepeatSteps(
           incoterm: copy.incoterm ? { code: copy.incoterm } : undefined,
           languages: () => gateway.getLanguages(),
           rules: exportRepeatRuleScope(state, { configuredActivity, today: formatDateAsArcaDate(new Date()) }),
-          units: () => gateway.getUnits(),
         };
       },
       name: 'opcionales',

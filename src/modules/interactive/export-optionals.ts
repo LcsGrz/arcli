@@ -5,7 +5,6 @@ import type {
   ExportCountryCuit,
   ExportLanguage,
   ExportType,
-  ExportUnit,
   ExportVoucherInput,
 } from '../export/export.types';
 
@@ -16,16 +15,10 @@ import type { WizardStep } from './wizard';
 /** Lo opcional de una E: lo que el CLI tiene con flags y el asistente no pregunta si no se marca. */
 export type ExportOptions = Pick<
   ExportVoucherInput,
-  | 'clientCountryCuit'
-  | 'commercialObservations'
-  | 'incotermDescription'
-  | 'items'
-  | 'language'
-  | 'observations'
-  | 'voucherDate'
+  'clientCountryCuit' | 'commercialObservations' | 'incotermDescription' | 'language' | 'observations' | 'voucherDate'
 >;
 
-export type ExportOptionKey = 'cuit-pais' | 'fecha' | 'idioma' | 'incoterm' | 'items' | 'observaciones';
+export type ExportOptionKey = 'cuit-pais' | 'fecha' | 'idioma' | 'incoterm' | 'observaciones';
 
 /** El CUIT del pais se elige contra la tabla DST_CUIT, con el destino ya elegido. */
 export interface ExportCountryCuitContext {
@@ -42,15 +35,13 @@ export function isCountryCuitMissing(context: ExportCountryCuitContext): boolean
 }
 
 export interface ExportOptionalsContext {
-  /** Monto total: la suma de los items tiene que darlo. */
-  readonly amount: number;
   /**
    * El comprobante que ajusta la nota, como una clave: el incoterm es el suyo, asi que con otro la descripcion del
    * incoterm olvida lo marcado y respondido. Lo demas que se eligio no depende del asociado.
    */
   readonly associated?: string;
   /**
-   * La factura de la que se copian items, idioma, CUIT del pais y descripcion del incoterm ("Repetir"), como una clave:
+   * La factura de la que se copian idioma, CUIT del pais y descripcion del incoterm ("Repetir"), como una clave:
    * si cambia, esos opcionales olvidan lo marcado y respondido y arrancan con lo copiado de la nueva.
    */
   readonly copiedFrom?: string;
@@ -66,7 +57,6 @@ export interface ExportOptionalsContext {
   /** Los nombres de los idiomas que ya se consultaron a WSFEX, para describir el elegido. */
   readonly languageNames: ReadonlyMap<number, string>;
   readonly languages: () => Promise<readonly ExportLanguage[]>;
-  readonly units: () => Promise<readonly ExportUnit[]>;
   /**
    * Las reglas entre campos de la E (`EXPORT_RULES`) con la entrada del flujo: la fecha del comprobante, por ejemplo,
    * no puede quedar antes de la del asociado en una nota.
@@ -83,16 +73,6 @@ export type ExportOptionalQuestions = Readonly<
 >;
 
 export type ExportOptionalDef = OptionalDef<ExportOptionKey, ExportOptions, ExportOptionalsContext>;
-
-function describeItems(options: ExportOptions): string {
-  const count = options.items?.length ?? 0;
-
-  if (count === 0) {
-    return 'un renglón con el monto total';
-  }
-
-  return count === 1 ? '1 ítem' : `${count} ítems`;
-}
 
 function describeObservations(options: ExportOptions): string {
   const parts = [
@@ -122,8 +102,8 @@ const copiedFrom = (context: ExportOptionalsContext): string => context.copiedFr
 /**
  * Los opcionales de la E (factura, notas y "Repetir"), en el orden en que se muestran y se preguntan. Lo que se copia
  * de la factura que se repite (`copiedFrom`) la sigue: con otra, arranca con lo copiado de la nueva. En las notas, la
- * descripcion del incoterm sigue al asociado (`associated`). Los items ademas siguen al monto, porque lo tienen que
- * sumar.
+ * descripcion del incoterm sigue al asociado (`associated`). Los items no son un opcional: son un paso fijo
+ * (`exportItemsStep`, NAV-10).
  */
 export function exportOptionals(questions: ExportOptionalQuestions): readonly ExportOptionalDef[] {
   return [
@@ -134,15 +114,6 @@ export function exportOptionals(questions: ExportOptionalQuestions): readonly Ex
       label: 'Fecha del comprobante',
       owns: ['voucherDate'],
       steps: questions.fecha,
-    },
-    {
-      available: () => true,
-      describe: describeItems,
-      key: 'items',
-      label: 'Ítems',
-      owns: ['items'],
-      resetWhen: (context) => `${copiedFrom(context)}|${context.amount}`,
-      steps: questions.items,
     },
     {
       available: () => true,

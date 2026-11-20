@@ -1,6 +1,7 @@
 import { EXPORT_RULES, type ExportRuleContext } from '../export/export.rules';
-import type { ExportCountry, ExportType, ExportVoucherInput } from '../export/export.types';
+import type { ExportCountry, ExportItemInput, ExportType, ExportVoucherInput } from '../export/export.types';
 
+import { exportItemsEntry } from './export-items';
 import type { ExportOptions, ExportRuleScope } from './export-optionals';
 import { rulesFinalize } from './rule-validator';
 import type { WizardFinalize } from './wizard';
@@ -8,7 +9,6 @@ import type { WizardFinalize } from './wizard';
 /** Lo que responde quien emite una factura E con "Emitir factura". */
 export interface ExportFlowState {
   readonly activity?: number;
-  readonly amount?: number;
   readonly clientAddress?: string;
   readonly clientName?: string;
   readonly clientTaxId?: string;
@@ -17,7 +17,6 @@ export interface ExportFlowState {
   /** ARCA no publica un CUIT para el destino: hay que pedirlo (`--cuit-pais`). */
   readonly countryCuitMissing?: boolean;
   readonly currencyCode?: 'DOL' | 'PES';
-  readonly description?: string;
   readonly destinationCountry?: string;
   /** La cotizacion escrita a mano; sin ella, la de aduana de ARCA, como el CLI sin `--cm`. */
   readonly exchangeRate?: number;
@@ -25,6 +24,8 @@ export interface ExportFlowState {
   readonly incoterm?: string;
   /** Nombre del incoterm en la tabla de ARCA: la descripcion que va si no se escribe otra. */
   readonly incotermName?: string;
+  /** Siempre al menos uno (ARCA lo exige): el total de la factura es su suma (NAV-10). */
+  readonly items?: readonly ExportItemInput[];
   readonly options: ExportOptions;
   readonly paymentDate?: string;
   readonly paymentTerms?: string;
@@ -45,12 +46,12 @@ export function buildExportInput(state: ExportFlowState, env: ExportInputEnv): E
   return {
     ...state.options,
     activity: state.activity ?? env.configuredActivity,
-    amount: state.amount,
+    // El total es la suma de los items (1610 por construccion), en la forma rapida si es un solo renglon (NAV-10).
+    ...exportItemsEntry(state.items),
     clientAddress: state.clientAddress,
     clientName: state.clientName,
     clientTaxId: state.clientTaxId,
     currencyCode: state.currencyCode,
-    description: state.description,
     destinationCountry: state.destinationCountry,
     emit: false,
     exchangeRate: state.exchangeRate,

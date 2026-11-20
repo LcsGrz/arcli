@@ -12,7 +12,7 @@ import { exportRepeatSteps, runExportRepeatFlow } from '../export-repeat.flow';
 import type { Choice } from '../prompts';
 import type { InteractiveSession } from '../session';
 
-import { createScript, rejecting } from './script';
+import { createScript, editing, KEEP_EXPORT_ITEMS, rejecting } from './script';
 
 let script = createScript([]);
 
@@ -96,12 +96,15 @@ vi.mock('../../../lib/shell/shell-argument', async (importOriginal) => {
 
 vi.mock('../prompts', () => ({
   askTextStep: (...args: Parameters<typeof script.askTextStep>) => script.askTextStep(...args),
+  chooseFromFilterList: (...args: Parameters<typeof script.chooseFromFilterList>) =>
+    script.chooseFromFilterList(...args),
   chooseManyStep: (...args: Parameters<typeof script.chooseManyStep>) => script.chooseManyStep(...args),
   chooseOne: <T>(message: string, choices: ReadonlyArray<Choice<T>>) => script.chooseStep(message, choices),
   chooseStep: (...args: Parameters<typeof script.chooseStep>) => script.chooseStep(...args),
   chooseStepWhileLoading: (...args: Parameters<typeof script.chooseStepWhileLoading>) =>
     script.chooseStepWhileLoading(...args),
   confirm: (message: string, yesLabel: string, noLabel?: string) => confirmFromScript(message, yesLabel, noLabel),
+  editRowsStep: (...args: Parameters<typeof script.editRowsStep>) => script.editRowsStep(...args),
   eraseLastAnswer: () => undefined,
   fitPageSize: () => 12,
 }));
@@ -167,7 +170,7 @@ describe('runExportRepeatFlow', () => {
   it('copia cliente, destino, moneda, incoterm e ítems, con la cotización de hoy y los permisos nuevos', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/Permisos de embarque/, '26001EC01000123A'],
       [/Agregamos algún opcional/, []],
       [/Emitimos la factura de exportación E en testing/, 'Sí, emitir ahora'],
@@ -217,7 +220,7 @@ describe('runExportRepeatFlow', () => {
 
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'Sí, emitir ahora'],
@@ -246,7 +249,7 @@ describe('runExportRepeatFlow', () => {
     );
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/Agregamos algún opcional/, []],
       [/Fecha de pago/, ''],
       [/Emitimos/, 'Sí, emitir ahora'],
@@ -272,7 +275,7 @@ describe('runExportRepeatFlow', () => {
     vi.mocked(gateway.getVoucher).mockImplementationOnce(async () => services);
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/actividad de WSFEX.*Enter para no informarla/, ''],
       [/Agregamos algún opcional/, []],
       [/Fecha de pago/, rejecting('20/11/2026', ['13/11/2026', /anterior a la del comprobante \(hoy\).*error 1674/])],
@@ -301,7 +304,7 @@ describe('runExportRepeatFlow', () => {
     vi.mocked(gateway.getVoucher).mockImplementationOnce(async () => services);
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/actividad de WSFEX/, rejecting('620100', ['620900', /no está en la tabla de actividades de WSFEX.*2105/])],
       [/Agregamos algún opcional/, []],
       [/Fecha de pago/, ''],
@@ -324,7 +327,7 @@ describe('runExportRepeatFlow', () => {
     vi.mocked(gateway.getVoucher).mockImplementationOnce(async () => services);
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/actividad de WSFEX/, '620100'],
       [/Agregamos algún opcional/, []],
       [/Fecha de pago/, ''],
@@ -335,7 +338,7 @@ describe('runExportRepeatFlow', () => {
 
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'Sí, emitir ahora'],
@@ -353,7 +356,7 @@ describe('runExportRepeatFlow', () => {
 
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, ['Fecha del comprobante']],
       [/Fecha del comprobante/, rejecting('10/11', ['08/11/2026', /del 09\/11\/2026 al 19\/11\/2026.*error 1500/])],
@@ -382,7 +385,7 @@ describe('runExportRepeatFlow', () => {
     }));
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/Agregamos algún opcional/, ['Fecha del comprobante']],
       [/Fecha del comprobante/, '10/11/2026'],
       [
@@ -417,7 +420,7 @@ describe('runExportRepeatFlow', () => {
     vi.mocked(gateway.getVoucher).mockImplementationOnce(async () => withAdvance);
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'No, dejar sin emitir'],
@@ -426,16 +429,23 @@ describe('runExportRepeatFlow', () => {
     await runExportRepeatFlow(createSession(), 4);
 
     expect(printed().replace(/[│┃╏\s]+/g, ' ')).toContain(
-      'La factura tiene ítems de seña, anticipo o bonificación (unidades 97 y 99), que el asistente no informa: sale un renglón con el monto total.',
+      'El comprobante tiene ítems de seña, anticipo o bonificación (unidades 97 y 99), que el asistente no informa: sale un renglón con el monto total.',
     );
+    // El editor arranca con ese renglón (NAV-10).
+    expect(script.editRowsStep.mock.calls[0]?.[1].map((row) => row.title)).toEqual(['Según detalle']);
     expect(printed()).not.toContain('--item');
+    expect(printed()).not.toContain('Anticipo');
   });
 
-  it('con otro monto avisa que los ítems no se copian y sale un renglón con el total', async () => {
+  it('sin "¿Mismo monto?": otro precio se cambia en el editor, y el monto es la suma de los ítems (NAV-10)', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'No'],
-      [/Monto total en USD/, '2.000'],
+      [/Qué ítems cambiamos/, editing({ edit: ['Flete'] })],
+      [/^Descripción del ítem 2:/, ''],
+      [/Cantidad/, ''],
+      [/Unidad/, 'unidades'],
+      [/^(?:Importe|Precio unitario) en USD/, '1.000'],
+      [/Importe total de la factura de exportación E: 2\.000 USD \(2 ítems\)/, 'Confirmar'],
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'No, dejar sin emitir'],
@@ -444,15 +454,15 @@ describe('runExportRepeatFlow', () => {
     await runExportRepeatFlow(createSession(), 4);
 
     expect(gateway.authorize).not.toHaveBeenCalled();
-    expect(printed()).toContain('Con otro monto los ítems de la factura no suman');
-    expect(printed()).not.toContain('--item');
+    expect(script.asked.some((message) => /Mismo monto|Monto total/.test(message))).toBe(false);
     expect(printed()).toContain('arcli fe -m 2000');
+    expect(printed()).toContain("--item 'Bienes varios|2|500|1' --item 'Flete|1|1000'");
   });
 
   it('con `pdf nunca` la confirmación también ofrece emitir y generar el PDF', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'Sí, emitir y generar el PDF'],
@@ -467,7 +477,7 @@ describe('runExportRepeatFlow', () => {
   it('el punto de venta escrito a mano llega a la emisión y al comando equivalente', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'Sí, emitir ahora'],
@@ -529,81 +539,47 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     expect(printed()).toContain('El destino de la factura (1) ya no está en la tabla de países de ARCA');
   });
 
-  it('volver desde "¿Mismo monto?" vuelve a la lista', async () => {
+  it('volver desde el editor vuelve a la lista', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, BACK],
+      [/Qué ítems cambiamos/, BACK],
       [/Cuál repetimos/, BACK],
     ]);
 
     expect(await repeatOf(INVOICE)).toBeUndefined();
   });
 
-  it('volver desde el monto escrito vuelve a "¿Mismo monto?" con "No" marcado, y de ahi a la lista con la factura marcada', async () => {
+  it('volver desde el total vuelve a la lista con la factura marcada; con la misma, el editor arranca con lo modificado', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'No'],
-      [/Monto total en USD/, BACK],
-      [/Mismo monto/, BACK],
-      [/Cuál repetimos/, BACK],
-    ]);
-
-    expect(await repeatOf(INVOICE)).toBeUndefined();
-
-    const defaults = script.chooseStep.mock.calls.map((call) => call[2]);
-
-    expect(defaults[2]).toBe('otro');
-    expect(defaults[3]).toMatchObject({ number: 1, pointOfSale: 4 });
-  });
-
-  it('otro monto saca los ítems; volver y elegir "Sí" los trae de nuevo', async () => {
-    script = createScript([
+      [/Qué ítems cambiamos/, editing({ remove: ['Flete'] })],
+      [/Importe total/, BACK],
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'No'],
-      [/Monto total en USD/, '2.000'],
-      [/Permisos de embarque/, BACK],
-      [/Monto total en USD/, BACK],
-      [/Mismo monto/, 'Sí'],
+      [/Qué ítems cambiamos/, editing({})],
+      [/Importe total/, 'Confirmar'],
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
     ]);
 
     const input = await repeatOf(INVOICE);
 
-    expect(input?.amount).toBe(1500);
-    expect(input?.items?.map((item) => item.description)).toEqual(['Bienes varios', 'Flete']);
-    // Al volver, el monto arranca escrito.
-    expect(script.askTextStep.mock.calls[2]?.[1]).toMatchObject({ previousAnswer: '2000' });
-    // En la seleccion de opcionales se ven los ítems recuperados.
-    expect(script.chooseManyStep.mock.calls[0]?.[1].find((choice) => choice.value === 'items')?.description).toBe(
-      '2 ítems',
-    );
-  });
-
-  it('otro monto igual al de la factura deja los ítems sin avisar', async () => {
-    script = createScript([
-      [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'No'],
-      [/Monto total en USD/, '1.500'],
-      [/Permisos de embarque/, ''],
-      [/Agregamos algún opcional/, []],
-    ]);
-
-    expect((await repeatOf(INVOICE))?.items).toHaveLength(2);
-    expect(printed()).not.toContain('Con otro monto');
+    expect(input?.amount).toBe(1000);
+    expect(input?.items?.map((item) => item.description)).toEqual(['Bienes varios']);
+    expect(script.chooseStep.mock.calls[2]?.[2]).toMatchObject({ number: 1, pointOfSale: 4 });
+    expect(script.editRowsStep.mock.calls[1]?.[1].map((row) => row.title)).toEqual(['Bienes varios']);
   });
 
   it('si la factura no trae `CanMisMonExt` lo pregunta; cobrada en pesos pregunta la cotización con la de aduana escrita (NAV-9)', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/Te pagan en la moneda de la factura/, 'No, en pesos'],
       [/Cotización de USD \(la oficial de ARCA es 1\.450,25\)/, '1450,25'],
       [/Permisos de embarque/, BACK],
       // Sin tocarla, al volver arranca de nuevo con la de ARCA.
       [/Cotización de USD/, BACK],
       [/Te pagan en la moneda de la factura/, BACK],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/Te pagan en la moneda de la factura/, 'No, en pesos'],
       [/Cotización de USD/, '1.500'],
       [/Permisos de embarque/, BACK],
@@ -628,7 +604,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
   it('sin tocar la de aduana, la entrada no lleva cotización, como el CLI sin `--cm`', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/Te pagan en la moneda de la factura/, 'No, en pesos'],
       [/Cotización de USD/, '1450,25'],
       [/Permisos de embarque/, ''],
@@ -641,7 +617,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
   it('cobrada en la misma moneda o en servicios no pregunta la cotización: ARCA exige la suya (1604, 2053)', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
     ]);
@@ -654,7 +630,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
 
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/Agregamos algún opcional/, []],
       [/Fecha de pago/, ''],
     ]);
@@ -669,7 +645,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
   it('una E en pesos no pregunta la moneda de pago ni la cotización', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
     ]);
@@ -683,9 +659,9 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
   it('sin CUIT de país publicado ni ID impositivo pregunta el CUIT; volver desde ahi vuelve al monto', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/ARCA no tiene un CUIT publicado para ATLANTIDA/, BACK],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/ARCA no tiene un CUIT publicado para ATLANTIDA/, rejecting('55000002126', ['', /Escribí el CUIT/])],
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
@@ -700,7 +676,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
   it('volver al CUIT del país desde los permisos lo muestra escrito', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/ARCA no tiene un CUIT publicado para ATLANTIDA/, '55000002126'],
       [/Permisos de embarque/, BACK],
       [/ARCA no tiene un CUIT publicado para ATLANTIDA/, '55000002126'],
@@ -720,7 +696,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
   it('con ID impositivo no pregunta el CUIT del país aunque ARCA no tenga uno para el destino', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
     ]);
@@ -734,13 +710,13 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
   it('en servicios, volver desde la fecha de pago vuelve a los opcionales, y la actividad escrita se valida', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/actividad de WSFEX/, rejecting('620100', ['abc', /La actividad/])],
       [/Agregamos algún opcional/, []],
       [/Fecha de pago/, BACK],
       [/Agregamos algún opcional/, BACK],
       [/actividad de WSFEX/, BACK],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/actividad de WSFEX/, rejecting('620100', ['620200', /no está en la tabla de actividades de WSFEX.*2105/])],
       [/Agregamos algún opcional/, []],
       [/Fecha de pago/, ''],
@@ -790,7 +766,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
 
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, ['Idioma', 'CUIT del país', 'Descripción del incoterm']],
       [/Idioma del comprobante/, 'Español'],
@@ -799,9 +775,9 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
       // "despues" vuelve: se retrocede hasta la factura y se elige otra.
       [/Agregamos algún opcional/, BACK],
       [/Permisos de embarque/, BACK],
-      [/Mismo monto/, BACK],
+      [/Qué ítems cambiamos/, BACK],
       [/Cuál repetimos/, '00004-00000002'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
     ]);
@@ -811,15 +787,18 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     expect(state?.options).toEqual({
       clientCountryCuit: 55000002118,
       incotermDescription: 'Cost insurance freight',
-      items: second.items?.map(({ description, quantity, unit, unitPrice }) => ({
+      language: 3,
+    });
+    // Los ítems siguen a la factura: con otra, el editor arranca con los de esa (NAV-10).
+    expect(state?.items).toEqual(
+      second.items?.map(({ description, quantity, unit, unitPrice }) => ({
         code: undefined,
         description,
         quantity,
         unit,
         unitPrice,
       })),
-      language: 3,
-    });
+    );
     // Lo que se había marcado sigue a la factura anterior: con la nueva arranca sin marcar.
     expect(script.chooseManyStep.mock.calls.at(-1)?.[2]).toEqual([]);
   });
@@ -856,7 +835,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     it('cambiar otro opcional la conserva', async () => {
       script = createScript([
         [/Cuál repetimos/, '00004-00000001'],
-        [/Mismo monto/, 'Sí'],
+        ...KEEP_EXPORT_ITEMS,
         [/Agregamos algún opcional/, ['Observaciones']],
         [/^Observaciones \(/, 'Pedido 42'],
         [/Observaciones comerciales/, ''],
@@ -872,22 +851,22 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
       expect(paymentDatePrefills()).toEqual([undefined, '20/11/2026', '20/11/2026']);
     });
 
-    it('cambiar una respuesta anterior a los opcionales (el monto) la conserva', async () => {
+    it('cambiar una respuesta anterior a los opcionales (los ítems) la conserva', async () => {
       script = createScript([
         [/Cuál repetimos/, '00004-00000001'],
-        [/Mismo monto/, 'Sí'],
+        ...KEEP_EXPORT_ITEMS,
         [/Agregamos algún opcional/, []],
         [/Fecha de pago/, '20/11/2026'],
         [/Fecha de pago/, BACK],
         [/Agregamos algún opcional/, BACK],
-        [/Mismo monto/, 'No'],
-        [/Monto total en USD/, '1.000'],
+        [/Qué ítems cambiamos/, editing({ remove: ['Flete'] })],
+        [/Importe total/, 'Confirmar'],
         [/Agregamos algún opcional/, []],
         [/Fecha de pago/, '20/11/2026'],
       ]);
 
       expect(await repeatWithStepAfter()).toMatchObject({
-        copy: expect.objectContaining({ amount: 1000 }),
+        items: [expect.objectContaining({ description: 'Bienes varios' })],
         paymentDate: '20/11/2026',
       });
       expect(paymentDatePrefills()).toEqual([undefined, '20/11/2026', '20/11/2026']);
@@ -898,7 +877,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
       vi.setSystemTime(new Date('2026-11-14T12:00:00-03:00'));
       script = createScript([
         [/Cuál repetimos/, '00004-00000001'],
-        [/Mismo monto/, 'Sí'],
+        ...KEEP_EXPORT_ITEMS,
         [/Agregamos algún opcional/, ['Fecha del comprobante']],
         [/Fecha del comprobante/, '14/11/2026'],
         [/Fecha de pago/, '20/11/2026'],
@@ -921,7 +900,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
   it('con la actividad en la config no la pregunta y la usa', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/Agregamos algún opcional/, []],
       [/Fecha de pago/, ''],
     ]);
@@ -937,7 +916,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
   it('los permisos escritos van como existentes', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/Permisos de embarque/, '26001EC01000123A, 26001EC01000124B'],
       [/Agregamos algún opcional/, []],
     ]);

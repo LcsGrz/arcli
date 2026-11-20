@@ -37,7 +37,7 @@ import { repeatSteps } from '../repeat.flow';
 import type { InteractiveSession } from '../session';
 
 import { captured, comparableInput, parseWithProgram } from './equivalent-command.parse';
-import { createScript, type ScriptedAnswer } from './script';
+import { createScript, KEEP_EXPORT_ITEMS, noteExportItem, type ScriptedAnswer } from './script';
 
 /**
  * Cada flujo del asistente termina mostrando el comando equivalente. Ese comando, pegado en la terminal, tiene que
@@ -49,10 +49,13 @@ let script = createScript([]);
 
 vi.mock('../prompts', () => ({
   askTextStep: (...args: Parameters<typeof script.askTextStep>) => script.askTextStep(...args),
+  chooseFromFilterList: (...args: Parameters<typeof script.chooseFromFilterList>) =>
+    script.chooseFromFilterList(...args),
   chooseManyStep: (...args: Parameters<typeof script.chooseManyStep>) => script.chooseManyStep(...args),
   chooseStep: (...args: Parameters<typeof script.chooseStep>) => script.chooseStep(...args),
   chooseStepWhileLoading: (...args: Parameters<typeof script.chooseStepWhileLoading>) =>
     script.chooseStepWhileLoading(...args),
+  editRowsStep: (...args: Parameters<typeof script.editRowsStep>) => script.editRowsStep(...args),
   eraseLastAnswer: () => undefined,
   fitPageSize: () => 12,
 }));
@@ -800,6 +803,49 @@ describe('el comando equivalente de la E con textos raros pasa por el parser rea
     });
   });
 
+  it('el ítem por defecto del asistente (NAV-10) va como `--item` y pide a ARCA lo mismo que sin ítems', async () => {
+    const base: ExportVoucherInput = {
+      amount: 1500.5,
+      clientAddress: '123 Main St',
+      clientName: 'ACME LLC',
+      currencyCode: 'DOL',
+      destinationCountry: 'ESTADOS UNIDOS',
+      emit: false,
+      exportType: 2,
+      sameCurrency: true,
+    };
+    const withItem: ExportVoucherInput = {
+      ...base,
+      items: [{ description: 'Según detalle', quantity: 1, unit: 7, unitPrice: 1500.5 }],
+    };
+    const service = new ExportService();
+
+    expect(buildExportEquivalentCommand(withItem, { activity: 620100, environment: 'testing' })).toContain(
+      "-m 1500,50 --cliente 'ACME LLC'",
+    );
+    expect(buildExportEquivalentCommand(withItem, { activity: 620100, environment: 'testing' })).toContain(
+      "--item 'Según detalle|1|1500,50'",
+    );
+    await expectSameExportRequest(withItem);
+    expect((await service.resolve(withItem, exportGateway, exportRuntime, NOW)).payload).toEqual(
+      (await service.resolve(base, exportGateway, exportRuntime, NOW)).payload,
+    );
+  });
+
+  it('ítems con código y seis decimales en la cantidad y el precio', async () => {
+    await expectSameExportRequest({
+      amount: 1000.12,
+      clientAddress: '123 Main St',
+      clientName: 'ACME LLC',
+      currencyCode: 'DOL',
+      destinationCountry: 'ESTADOS UNIDOS',
+      emit: false,
+      exportType: 2,
+      items: [{ code: 'J-1', description: 'Jugo', quantity: 0.125, unit: 7, unitPrice: 8000.987654 }],
+      sameCurrency: true,
+    });
+  });
+
   it('la fecha del comprobante elegida en los opcionales va con `--fecha` (EXPO-11)', async () => {
     const input: ExportVoucherInput = {
       amount: 1500,
@@ -889,8 +935,7 @@ describe('el comando equivalente de la E con textos raros pasa por el parser rea
         [/Punto de venta de la factura E/, '4'],
         [/Número de la factura E/, '1'],
         [/^Cotización de USD \(la de la factura E es 1\.400\):$/, typed],
-        [/Monto de la nota de crédito/, '500'],
-        [/Detalle/, ''],
+        ...noteExportItem('500'),
         [/Permisos de embarque/, ''],
         [/Agregamos/, []],
       ]);
@@ -916,7 +961,7 @@ describe('el comando equivalente de la E con textos raros pasa por el parser rea
     ])('Repetir E, %s', async (_case, typed, exchangeRate, sent) => {
       script = createScript([
         [/Cuál repetimos/, '00004-00000001'],
-        [/Mismo monto/, 'Sí'],
+        ...KEEP_EXPORT_ITEMS,
         [/^Cotización de USD \(la oficial de ARCA es 1\.450\):$/, typed],
         [/Permisos de embarque/, ''],
         [/Agregamos/, []],

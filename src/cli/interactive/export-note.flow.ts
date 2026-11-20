@@ -2,7 +2,7 @@ import { formatArcaDateAsArgentineDate, formatDateAsArcaDate } from '../../lib/d
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import { creditNoteOverTotalHint } from '../../modules/billing/billing.associated-lookup';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
-import { formatVoucherLabel } from '../../modules/billing/billing.mappers';
+import { formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import { assertExportNoteMatchesAssociated } from '../../modules/export/export.notes';
 import {
   EXPORT_CREDIT_NOTE_KIND,
@@ -13,7 +13,7 @@ import {
   type ExportVoucherKind,
   getExportVoucherKindByArcaType,
 } from '../../modules/export/export.types';
-import { parseAmountInput } from '../../modules/interactive/amount-input';
+import { copyExportItems } from '../../modules/interactive/export-copy';
 import {
   buildExportNoteInput,
   exportNoteFinalize,
@@ -28,13 +28,13 @@ import { noticePanel, writeTerminalOutput } from '../../ui';
 import { withSpinner } from '../spinner';
 
 import { askPermitsStep, emitExportVoucher } from './export.flow';
-import { exportOptionalsStep, validateExportText } from './export-options';
+import { exportOptionalsStep } from './export-options';
 import { withFinalizeNotice } from './finalize-notice';
 import { askTextStep } from './prompts';
 import { type InteractiveSession, requirePointOfSale } from './session';
-import { amountStep } from './steps/amount';
 import { exportExchangeRateStep } from './steps/export';
-import { validateAmount, validatePositiveInteger } from './validators';
+import { exportItemsStep } from './steps/export-items';
+import { validatePositiveInteger } from './validators';
 
 /** Como se nombra el asociado en las preguntas: "la factura E", "la nota de débito E". */
 const ASSOCIATED_NAMES: Record<ExportVoucherKind['shortcut'], string> = {
@@ -56,9 +56,9 @@ function describeInvoice(invoice: ExportIssuedVoucher): string {
 
 /**
  * Lo que ARCA controla entre el tipo de la nota y el de su asociado (una ND de servicios solo ajusta una factura,
- * una NC no ajusta otra NC...), con las mismas reglas que el CLI, antes de pedir el monto. Con `date` (la fecha elegida
- * en los opcionales; por defecto hoy) controla tambien que la nota no sea anterior al asociado. El monto se valida
- * despues, en la vista previa.
+ * una NC no ajusta otra NC...), con las mismas reglas que el CLI, antes de pedir los items. Con `date` (la fecha elegida
+ * en los opcionales; por defecto hoy) controla tambien que la nota no sea anterior al asociado. El tope de la NC se
+ * controla en el total de los items.
  */
 function validateAssociated(
   voucherKind: ExportVoucherKind,
@@ -87,8 +87,8 @@ function validateAssociated(
 
 /**
  * Pasos de la nota E sobre `associatedKind` (la factura E u otra nota E, elegido en el selector de comprobantes): el
- * comprobante que ajusta (se busca en ARCA y de ahi salen cliente, destino y moneda), el monto, el detalle, en bienes
- * los permisos de embarque, y los opcionales. Cada uno se puede deshacer con "Volver".
+ * comprobante que ajusta (se busca en ARCA y de ahi salen cliente, destino y moneda), los items (arrancan con los del
+ * asociado), en bienes los permisos de embarque, y los opcionales. Cada uno se puede deshacer con "Volver".
  */
 export function exportNoteSteps(
   kind: 'credito' | 'debito',
@@ -175,42 +175,31 @@ export function exportNoteSteps(
         return { currencyCode: invoice.currencyCode, exportType: invoice.exportType };
       },
     }),
-    // Va en la moneda de la factura, y en la NC con su total como tope.
-    amountStep<ExportNoteState>({
-      amount: fieldLens('amount'),
-      dependsOn: ['factura'],
+    // Arranca en el editor con los items del asociado; el total de la nota es su suma (NAV-10), y en la NC con el
+    // total del asociado como tope. Con otro asociado, arranca con los de ese.
+    exportItemsStep<ExportNoteState>({
       // Como en "Repetir" E, la moneda por su ISO (REV-74, #12).
       currency: (state) => requireStepValue(state.invoice, 'invoice').currencyCode,
-      label: `Monto de la ${formatVoucherLabel(voucherKind)}`,
-      validate: (state) => (value) => {
+      dependsOn: ['factura'],
+      initial: (state) => copyExportItems(requireStepValue(state.invoice, 'invoice')).items,
+      items: fieldLens('items'),
+      units: () => gateway.getUnits(),
+      validateTotal: (state) => (total) => {
         const invoice = requireStepValue(state.invoice, 'invoice');
-        const valid = validateAmount(value);
 
         // Como el CLI: el tope solo vale si la NC no ajusta otra NC.
-        if (valid !== true || kind !== 'credito' || invoice.arcaType === EXPORT_CREDIT_NOTE_KIND.arcaType) {
-          return valid;
+        if (kind !== 'credito' || invoice.arcaType === EXPORT_CREDIT_NOTE_KIND.arcaType || total <= invoice.total) {
+          return true;
         }
 
-        return (parseAmountInput(value) ?? 0) <= invoice.total
-          ? true
-          : creditNoteOverTotalHint(
-              `${associatedName(state.associatedKind)} ${formatVoucherNumber(invoice.pointOfSale, invoice.number)}`,
-              invoice.total,
-              invoice.currencyCode,
-            );
+        return creditNoteOverTotalHint(
+          `${associatedName(state.associatedKind)} ${formatVoucherNumber(invoice.pointOfSale, invoice.number)}`,
+          invoice.total,
+          invoice.currencyCode,
+        );
       },
+      voucher: formatVoucherWithArticle(voucherKind),
     }),
-    {
-      name: 'descripcion',
-      run: async (_state, { previous }) => {
-        const answer = await askTextStep('Detalle de la nota (Enter para "Según detalle"):', {
-          previousAnswer: previous?.description,
-          validate: validateExportText('description'),
-        });
-
-        return answer === BACK ? BACK : { description: answer.trim() || undefined };
-      },
-    },
     {
       // Solo en bienes: los permisos son opcionales en la nota y van sin `--permiso-existente` (tabla de la 1720).
       name: 'permisos',
@@ -223,9 +212,8 @@ export function exportNoteSteps(
         const name = associatedName(state.associatedKind);
 
         return {
-          amount: requireStepValue(state.amount, 'amount'),
-          // El incoterm es el del asociado: con otro, su descripcion arranca como la primera vez. El idioma y los items
-          // elegidos no dependen del asociado.
+          // El incoterm es el del asociado: con otro, su descripcion arranca como la primera vez. El idioma elegido no
+          // depende del asociado.
           associated: `${invoice.arcaType}:${invoice.pointOfSale}:${invoice.number}`,
           currencyCode: invoice.currencyCode,
           defaultLanguage: `el de ${name}`,
@@ -234,7 +222,6 @@ export function exportNoteSteps(
           languages: () => gateway.getLanguages(),
           // Las mismas reglas que con flags: por ejemplo, la fecha no antes de la del asociado.
           rules: exportNoteRuleScope(state, { kind, today: formatDateAsArcaDate(new Date()) }),
-          units: () => gateway.getUnits(),
         };
       },
       name: 'opcionales',

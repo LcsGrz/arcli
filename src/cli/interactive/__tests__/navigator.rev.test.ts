@@ -12,7 +12,7 @@ import type { InteractiveSession } from '../session';
 
 import { createScreens, recordFlow, withoutTerminal } from './screens';
 import { createBillingSession, createExportGateway, NOW } from './screens.fixtures';
-import { rejecting, type ScriptedAnswer } from './script';
+import { editing, KEEP_EXPORT_ITEMS, rejecting, type ScriptedAnswer, singleExportItem } from './script';
 
 /**
  * Reproducciones de la auditoria del asistente del 19/11 (REV-67 a REV-76, docs/backlog/auditoria-asistente-19-11.md):
@@ -60,6 +60,8 @@ vi.mock('../../../modules/interactive/export-equivalent-command', async (importO
 vi.mock('../prompts', () => ({
   askText: async () => '',
   askTextStep: (...args: Parameters<typeof screens.prompts.askTextStep>) => screens.prompts.askTextStep(...args),
+  chooseFromFilterList: (...args: Parameters<typeof screens.prompts.chooseFromFilterList>) =>
+    screens.prompts.chooseFromFilterList(...args),
   chooseManyStep: (...args: Parameters<typeof screens.prompts.chooseManyStep>) =>
     screens.prompts.chooseManyStep(...args),
   chooseOne: (...args: Parameters<typeof screens.prompts.chooseOne>) => screens.prompts.chooseOne(...args),
@@ -67,6 +69,7 @@ vi.mock('../prompts', () => ({
   chooseStepWhileLoading: (...args: Parameters<typeof screens.prompts.chooseStepWhileLoading>) =>
     screens.prompts.chooseStepWhileLoading(...args),
   confirm: (...args: Parameters<typeof screens.prompts.confirm>) => screens.prompts.confirm(...args),
+  editRowsStep: (...args: Parameters<typeof screens.prompts.editRowsStep>) => screens.prompts.editRowsStep(...args),
   eraseLastAnswer: () => undefined,
   fitPageSize: () => 12,
   isPromptCancellation: () => false,
@@ -167,8 +170,7 @@ describe('auditoría del asistente del 19/11', () => {
         [/Qué exportás/, 'Servicios'],
         [/moneda/, 'Dólares'],
         [/Te pagan en dólares/, 'Sí'],
-        [/Monto total/, '1.500'],
-        [/Descripción/, ''],
+        ...singleExportItem('1.500'),
         [/Forma de pago/, ''],
         [/actividad/, '620100'],
         [/Agregamos/, ['Fecha del comprobante', 'Observaciones']],
@@ -649,8 +651,7 @@ describe('auditoría del asistente del 19/11: una sola salida (NAV-4)', () => {
         [/Qué exportás/, 'Servicios'],
         [/moneda/, 'Dólares'],
         [/Te pagan en dólares/, 'Sí'],
-        [/Monto total/, '1.500'],
-        [/Descripción/, ''],
+        ...singleExportItem('1.500'),
         [/Forma de pago/, ''],
         [/actividad/, '620100'],
         [/Agregamos/, []],
@@ -669,7 +670,7 @@ describe('auditoría del asistente del 19/11: una sola salida (NAV-4)', () => {
       [
         [/Qué comprobante querés repetir/, 'Factura de exportación E'],
         [/Cuál repetimos/, '00003-00000007'],
-        [/Mismo monto/, 'Sí'],
+        ...KEEP_EXPORT_ITEMS,
         [/Agregamos/, []],
         [/Fecha de pago/, '25'],
         NO_EMIT,
@@ -860,8 +861,13 @@ describe('auditoría del asistente del 19/11: pasos compartidos (NAV-6)', () => 
       [/Qué exportás/, 'Servicios'],
       [/moneda/, currency],
       ...(currency === 'Dólares' ? ([[/Te pagan en dólares/, 'Sí']] as const) : []),
+      // Sin monto (NAV-10): el precio del ítem nombra la moneda.
+      [/^Descripción del ítem 1:/, ''],
+      [/^Cantidad:/, ''],
+      [/^Unidad:/, 'unidades'],
       [amount, '1.500'],
-      [/Descripción/, ''],
+      [/^Descripción del ítem 2/, ''],
+      [/^Importe total/, 'Confirmar'],
       [/Forma de pago/, ''],
       [/actividad/, '620100'],
       [/Agregamos/, []],
@@ -869,8 +875,8 @@ describe('auditoría del asistente del 19/11: pasos compartidos (NAV-6)', () => 
       NO_EMIT,
     ];
 
-    await run(exportSteps('Dólares', /^Monto total en USD:$/), runInvoiceFlow);
-    await run(exportSteps('Pesos', /^Monto total:$/), runInvoiceFlow);
+    await run(exportSteps('Dólares', /^(?:Importe|Precio unitario) en USD:$/), runInvoiceFlow);
+    await run(exportSteps('Pesos', /^(?:Importe|Precio unitario):$/), runInvoiceFlow);
   });
 
   it('REV-73: con otro monto, una factura en pesos se puede pasar a otra moneda; una en dólares, no', async () => {
@@ -985,8 +991,8 @@ describe('auditoría del asistente del 19/11: pasos compartidos (NAV-6)', () => 
     });
   });
 
-  describe('#12 en la factura E: el monto depende de la moneda', () => {
-    const untilAmount: Steps = [
+  describe('#12 en la factura E: los ítems dependen de la moneda (NAV-10)', () => {
+    const untilItems: Steps = [
       [/comprobante/, 'Factura de exportación E'],
       [/cliente del exterior/, 'ACME LLC'],
       [/Domicilio/, '123 Main St'],
@@ -995,12 +1001,11 @@ describe('auditoría del asistente del 19/11: pasos compartidos (NAV-6)', () => 
       [/Qué exportás/, 'Servicios'],
       [/moneda/, 'Dólares'],
       [/Te pagan en dólares/, 'Sí'],
-      [/^Monto total en USD:$/, '1.500'],
-      [/Descripción/, BACK],
-      [/^Monto total en USD:$/, BACK],
+      ...singleExportItem('1.500'),
+      [/Forma de pago/, BACK],
+      [/Qué ítems cambiamos/, BACK],
     ];
     const rest: Steps = [
-      [/Descripción/, ''],
       [/Forma de pago/, ''],
       [/actividad/, '620100'],
       [/Agregamos/, []],
@@ -1008,22 +1013,38 @@ describe('auditoría del asistente del 19/11: pasos compartidos (NAV-6)', () => 
       NO_EMIT,
     ];
 
-    it('otra moneda: "Monto total:" arranca vacío', async () => {
+    it('otra moneda: los precios eran en la anterior, así que el ítem 1 se pregunta de nuevo, en pesos', async () => {
       await run(
-        [...untilAmount, [/Te pagan en dólares/, BACK], [/moneda/, 'Pesos'], [/^Monto total:$/, '1.500'], ...rest],
+        [
+          ...untilItems,
+          [/Te pagan en dólares/, BACK],
+          [/moneda/, 'Pesos'],
+          [/^Descripción del ítem 1:/, ''],
+          [/^Cantidad:/, ''],
+          [/^Unidad:/, 'unidades'],
+          [/^(?:Importe|Precio unitario):$/, '1.500'],
+          [/^Descripción del ítem 2/, ''],
+          [/^Importe total/, 'Confirmar'],
+          ...rest,
+        ],
         runInvoiceFlow,
       );
 
-      expect(lastQuestion(/^Monto total:$/)?.[1]?.previousAnswer).toBeUndefined();
+      expect(lastQuestion(/^(?:Importe|Precio unitario):$/)?.[1]?.previousAnswer).toBeUndefined();
     });
 
-    it('solo cambiar "¿Te pagan en dólares?": el monto arranca con 1.500', async () => {
+    it('solo cambiar "¿Te pagan en dólares?": los ítems siguen, en el editor', async () => {
       await run(
-        [...untilAmount, [/Te pagan en dólares/, 'No, en pesos'], [/^Monto total en USD:$/, '1.500'], ...rest],
+        [
+          ...untilItems,
+          // En servicios no se pregunta la cotización (2053).
+          [/Te pagan en dólares/, 'No, en pesos'],
+          [/Qué ítems cambiamos/, editing({})],
+          [/^Importe total de la factura de exportación E: 1\.500 USD/, 'Confirmar'],
+          ...rest,
+        ],
         runInvoiceFlow,
       );
-
-      expect(lastQuestion(/^Monto total en USD:$/)?.[1]?.previousAnswer).toBe('1500');
     });
   });
 

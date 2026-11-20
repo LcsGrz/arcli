@@ -163,7 +163,8 @@ describe('notas', () => {
 
 describe('la E', () => {
   const EXPORT_ENV = { today: TODAY };
-  const invoice: ExportFlowState = { amount: 1500, exportType: 2, options: {}, paymentDate: '17/11/2026' };
+  const items = [{ description: 'Según detalle', quantity: 1, unit: 7, unitPrice: 1500 }];
+  const invoice: ExportFlowState = { exportType: 2, items, options: {}, paymentDate: '17/11/2026' };
 
   it('exportRuleScope y exportFinalize: la factura con lo respondido, y hoy', () => {
     expect(exportRuleScope(invoice, EXPORT_ENV)).toMatchObject({ context: { today: TODAY } });
@@ -180,8 +181,9 @@ describe('la E', () => {
 
   it('exportRepeatRuleScope y exportRepeatFinalize: la factura copiada; sin copia todavia no hay entrada', () => {
     const repeat: ExportRepeatState = {
-      copy: { amount: 1500, exportType: 2 },
+      copy: { exportType: 2 },
       country: { code: 212, name: 'ESTADOS UNIDOS' },
+      items,
       paymentDate: '17/11/2026',
     };
 
@@ -205,7 +207,11 @@ describe('la E', () => {
       number: 7,
       pointOfSale: 4,
     } as unknown as ExportIssuedVoucher;
-    const note: ExportNoteState = { amount: 100, invoice: associated, options: { voucherDate: '16/11/2026' } };
+    const note: ExportNoteState = {
+      invoice: associated,
+      items: [{ description: 'Ajuste', quantity: 1, unit: 7, unitPrice: 100 }],
+      options: { voucherDate: '16/11/2026' },
+    };
     const env = { kind: 'credito' as const, today: TODAY };
 
     expect(exportNoteRuleInput(note, env)).toMatchObject({

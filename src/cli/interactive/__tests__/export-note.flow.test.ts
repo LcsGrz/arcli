@@ -15,7 +15,7 @@ import { stripAnsi } from '../../../ui';
 import { exportNoteSteps, runExportNoteFlow } from '../export-note.flow';
 import type { InteractiveSession } from '../session';
 
-import { createScript, rejecting } from './script';
+import { createScript, editing, noteExportItem, rejecting } from './script';
 
 let script = createScript([]);
 
@@ -82,6 +82,9 @@ vi.mock('../../../lib/shell/shell-argument', async (importOriginal) => {
 
 vi.mock('../prompts', () => ({
   askTextStep: (...args: Parameters<typeof script.askTextStep>) => script.askTextStep(...args),
+  chooseFromFilterList: (...args: Parameters<typeof script.chooseFromFilterList>) =>
+    script.chooseFromFilterList(...args),
+  editRowsStep: (...args: Parameters<typeof script.editRowsStep>) => script.editRowsStep(...args),
   chooseManyStep: (...args: Parameters<typeof script.chooseManyStep>) => script.chooseManyStep(...args),
   chooseOne: (...args: Parameters<typeof script.chooseStep>) => script.chooseStep(args[0], args[1]),
   chooseStep: (...args: Parameters<typeof script.chooseStep>) => script.chooseStep(...args),
@@ -146,8 +149,7 @@ describe('runExportNoteFlow', () => {
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '9'],
       [/Número de la factura E/, '1'],
-      [/Monto de la nota de crédito de exportación E en USD:/, '500'],
-      [/Detalle de la nota/, 'Descuento por volumen'],
+      ...noteExportItem('500', 'Descuento por volumen'),
       [/Agregamos algún opcional/, []],
       [/Emitimos la nota de crédito de exportación E en testing/, 'Sí, emitir ahora'],
     ]);
@@ -176,8 +178,7 @@ describe('runExportNoteFlow', () => {
     script = createScript([
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
-      [/Monto de la nota de crédito/, '500'],
-      [/Detalle de la nota/, ''],
+      ...noteExportItem('500'),
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'No, dejar sin emitir'],
     ]);
@@ -191,12 +192,16 @@ describe('runExportNoteFlow', () => {
     expect(printed()).not.toContain('--cm');
   });
 
-  it('el detalle de la nota más largo que el de ARCA da el error 1770 y vuelve a preguntar (#219)', async () => {
+  it('la descripción del ítem más larga que la de ARCA da el error 1770 y vuelve a preguntar (#219)', async () => {
     script = createScript([
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
-      [/Monto de la nota de crédito/, '500'],
-      [/Detalle de la nota/, rejecting('Descuento', ['a'.repeat(4001), /más de 4\.000 caracteres.*error 1770/])],
+      [/Qué ítems cambiamos/, editing({ edit: ['Según detalle'] })],
+      [/Descripción del ítem 1/, rejecting('Descuento', ['a'.repeat(4001), /más de 4\.000 caracteres.*error 1770/])],
+      [/Cantidad/, ''],
+      [/Unidad/, ''],
+      [/^(?:Importe|Precio unitario)/, '500'],
+      [/Importe total/, 'Confirmar'],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'No, dejar sin emitir'],
     ]);
@@ -216,8 +221,7 @@ describe('runExportNoteFlow', () => {
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
       [/Cotización de USD \(la de la factura E es 1\.174,605\)/, '1174,605'],
-      [/Monto de la nota de débito de exportación E/, '100'],
-      [/Detalle de la nota/, ''],
+      ...noteExportItem('100'),
       [/Permisos de embarque/, '26001EC01000123A'],
       [/Agregamos algún opcional/, []],
       [/Emitimos la nota de débito de exportación E en testing/, 'No, dejar sin emitir'],
@@ -228,14 +232,17 @@ describe('runExportNoteFlow', () => {
     expect(printed()).toContain('arcli nde -m 100 --ar 1 --apv 4 --permiso 26001EC01000123A --testing --emitir');
   });
 
-  it('en la nota de crédito no deja pasar del total de la factura', async () => {
+  it('arranca en el editor con los ítems de la factura, y en la NC no deja confirmar un total mayor que el de la factura', async () => {
     script = createScript([
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
-      [/Monto de la nota de crédito/, '2000'],
+      // Sin "Monto de la nota" ni "Detalle": el renglón de la factura, para modificar (NAV-10).
+      ...noteExportItem('2000'),
     ]);
 
-    await expect(runExportNoteFlow(createSession(), 'credito')).rejects.toThrow(/No puede superar el total/);
+    await expect(runExportNoteFlow(createSession(), 'credito')).rejects.toThrow(
+      /"Confirmar" esta deshabilitada.*No puede superar el total de la factura E 00004-00000001/,
+    );
   });
 
   it('ajusta otra nota E con --ac y suma los opcionales, sin ofrecer la cotización en servicios', async () => {
@@ -253,8 +260,7 @@ describe('runExportNoteFlow', () => {
     script = createScript([
       [/Punto de venta de la nota de débito E/, '4'],
       [/Número de la nota de débito E/, '3'],
-      [/Monto de la nota de crédito/, '200'],
-      [/Detalle de la nota/, ''],
+      ...noteExportItem('200'),
       [/Agregamos algún opcional/, ['Observaciones']],
       [/^Observaciones \(/, 'Ajuste de la ND'],
       [/Observaciones comerciales/, 'Sin cargo'],
@@ -266,7 +272,6 @@ describe('runExportNoteFlow', () => {
     expect(printed()).toContain('Nota de débito de exportación E 00004-00000003');
     expect(script.chooseManyStep.mock.calls[0]?.[1].map((choice) => choice.name)).toEqual([
       'Fecha del comprobante',
-      'Ítems',
       'Idioma',
       'Observaciones',
     ]);
@@ -281,8 +286,7 @@ describe('runExportNoteFlow', () => {
     script = createScript([
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
-      [/Monto de la nota de crédito/, '100'],
-      [/Detalle de la nota/, ''],
+      ...noteExportItem('100'),
       [/Agregamos algún opcional/, ['Fecha del comprobante']],
       [
         /Fecha del comprobante/,
@@ -315,8 +319,7 @@ describe('runExportNoteFlow', () => {
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
       [/Cotización de USD/, '1174,605'],
-      [/Monto de la nota de crédito/, '100'],
-      [/Detalle de la nota/, ''],
+      ...noteExportItem('100'),
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, ['Fecha del comprobante']],
       [/Fecha del comprobante/, rejecting('01/12/2026', ['04/12/2026', /error 1500/])],
@@ -372,13 +375,11 @@ describe('runExportNoteFlow: volver en cada paso, PV propio y cotización del as
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
       [/Cotización de USD/, '1174,605'],
-      [/Monto de la nota de crédito/, '100'],
-      [/Detalle de la nota/, ''],
+      ...noteExportItem('100'),
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, BACK],
       [/Permisos de embarque/, BACK],
-      [/Detalle de la nota/, BACK],
-      [/Monto de la nota de crédito/, BACK],
+      [/Qué ítems cambiamos/, BACK],
       [/Cotización de USD/, BACK],
       [/Número de la factura E/, BACK],
       [/Punto de venta de la factura E/, BACK],
@@ -395,8 +396,7 @@ describe('runExportNoteFlow: volver en cada paso, PV propio y cotización del as
     script = createScript([
       [/Punto de venta de la factura E/, rejecting('7', ['0', /punto de venta/i], ['abc', /punto de venta/i])],
       [/Número de la factura E/, '1'],
-      [/Monto de la nota de débito/, '50'],
-      [/Detalle de la nota/, 'Ajuste'],
+      ...noteExportItem('50', 'Ajuste'),
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'No, dejar sin emitir'],
     ]);
@@ -417,8 +417,7 @@ describe('runExportNoteFlow: volver en cada paso, PV propio y cotización del as
       [/Punto de venta de la nota de crédito E/, '4'],
       [/Número de la nota de crédito E/, '1'],
       [/^Cotización de USD \(la de la nota de crédito E es 1\.174,605\):$/, '1174,605'],
-      [/Monto de la nota de crédito/, '5.000'],
-      [/Detalle de la nota/, ''],
+      ...noteExportItem('5.000'),
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'No, dejar sin emitir'],
@@ -441,8 +440,7 @@ describe('runExportNoteFlow: volver en cada paso, PV propio y cotización del as
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
       [/Cotización de USD/, '1.200'],
-      [/Monto de la nota de débito/, '100'],
-      [/Detalle de la nota/, ''],
+      ...noteExportItem('100'),
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'No, dejar sin emitir'],
@@ -458,13 +456,11 @@ describe('runExportNoteFlow: volver en cada paso, PV propio y cotización del as
     script = createScript([
       [/Punto de venta/, '4'],
       [/Número/, '1'],
-      [/^Monto de la nota de débito de exportación E:$/, '100'],
-      [/Detalle de la nota/, ''],
+      ...noteExportItem('100'),
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, BACK],
       [/Permisos de embarque/, BACK],
-      [/Detalle de la nota/, BACK],
-      [/Monto/, BACK],
+      [/Qué ítems cambiamos/, BACK],
       [/Número/, BACK],
       [/Punto de venta/, BACK],
     ]);
@@ -513,8 +509,7 @@ describe('notas E: sin punto de venta y sin asociado elegido', () => {
     script = createScript([
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
-      [/Monto de la nota de crédito/, '100'],
-      [/Detalle/, ''],
+      ...noteExportItem('100'),
       [/Agregamos algún opcional/, []],
     ]);
 
@@ -571,8 +566,7 @@ describe('notas E: opcionales al elegir otro asociado', () => {
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '2'],
       [/Cotización de USD/, '1174,605'],
-      [/Monto de la nota de crédito/, '100'],
-      [/Detalle/, ''],
+      ...noteExportItem('100'),
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, ['Idioma', 'Descripción del incoterm']],
       [/Idioma del comprobante/, 'Inglés'],
@@ -580,13 +574,11 @@ describe('notas E: opcionales al elegir otro asociado', () => {
       // "despues" vuelve: se retrocede hasta el número y se elige otra factura.
       [/Agregamos algún opcional/, BACK],
       [/Permisos de embarque/, BACK],
-      [/Detalle/, BACK],
-      [/Monto de la nota de crédito/, BACK],
+      [/Qué ítems cambiamos/, BACK],
       [/Cotización de USD/, BACK],
       [/Número de la factura E/, '3'],
       [/Cotización de USD/, '1174,605'],
-      [/Monto de la nota de crédito/, '100'],
-      [/Detalle/, ''],
+      ...noteExportItem('100'),
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, ['Idioma']],
       [/Idioma del comprobante/, 'Inglés'],

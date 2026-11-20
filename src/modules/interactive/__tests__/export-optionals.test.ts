@@ -22,7 +22,6 @@ const catalog = () =>
     fecha: answering('fecha'),
     idioma: answering('idioma'),
     incoterm: answering('incoterm'),
-    items: answering('items'),
     observaciones: answering('observaciones'),
   });
 
@@ -32,14 +31,12 @@ const COUNTRY_CUITS = [{ countryName: 'ESTADOS UNIDOS - Persona Jurídica', cuit
 
 function context(overrides: Partial<ExportOptionalsContext> = {}): ExportOptionalsContext {
   return {
-    amount: 1500,
     currencyCode: 'DOL',
     defaultLanguage: 'Español',
     exportType: 2,
     languageNames: new Map([[2, 'Inglés']]),
     languages: async () => [],
     rules: { context: { today: '20261118' }, draft: (patch) => patch },
-    units: async () => [],
     ...overrides,
   };
 }
@@ -55,8 +52,8 @@ const describeOf = (key: ExportOptionKey, current: ExportOptions, at = context()
     .describe(current, at);
 
 describe('exportOptionals', () => {
-  it('ofrece el CUIT del país y el incoterm solo cuando el contexto los tiene, en orden; la cotización es un paso propio (NAV-9)', () => {
-    expect(offered(context())).toEqual(['fecha', 'items', 'idioma', 'observaciones']);
+  it('ofrece el CUIT del país y el incoterm solo cuando el contexto los tiene, en orden; la cotización (NAV-9) y los ítems (NAV-10) son pasos propios', () => {
+    expect(offered(context())).toEqual(['fecha', 'idioma', 'observaciones']);
     expect(
       offered(
         context({
@@ -64,7 +61,7 @@ describe('exportOptionals', () => {
           incoterm: { code: 'FOB' },
         }),
       ),
-    ).toEqual(['fecha', 'items', 'idioma', 'cuit-pais', 'observaciones', 'incoterm']);
+    ).toEqual(['fecha', 'idioma', 'cuit-pais', 'observaciones', 'incoterm']);
   });
 
   it('describe lo aplicado y, sin nada, lo que va por defecto', () => {
@@ -75,7 +72,6 @@ describe('exportOptionals', () => {
       fecha: 'hoy',
       idioma: 'Español',
       incoterm: 'Free',
-      items: 'un renglón con el monto total',
       observaciones: 'sin observaciones',
     });
     expect(describeOf('incoterm', {}, context({ incoterm: { code: 'FOB' } }))).toBe('FOB');
@@ -88,10 +84,6 @@ describe('exportOptionals', () => {
     expect(describeOf('observaciones', { commercialObservations: 'b', observations: 'a' })).toBe(
       'con observaciones y comerciales',
     );
-    const item = { description: 'a', quantity: 1, unit: 7, unitPrice: 1 };
-
-    expect(describeOf('items', { items: [item] })).toBe('1 ítem');
-    expect(describeOf('items', { items: [item, item] })).toBe('2 ítems');
   });
 
   // #9 de la auditoria del 19/11: sin CUIT publicado ni escrito, la E va solo con el ID impositivo.
@@ -106,7 +98,7 @@ describe('exportOptionals', () => {
     );
   });
 
-  it('lo copiado en "Repetir" (ítems, idioma, CUIT del país e incoterm) sigue a la factura; en la nota, solo el incoterm sigue al asociado; los ítems, también al monto', () => {
+  it('lo copiado en "Repetir" (idioma, CUIT del país e incoterm) sigue a la factura; en la nota, solo el incoterm sigue al asociado', () => {
     const keys = (overrides: Partial<ExportOptionalsContext>) =>
       Object.fromEntries(
         catalog()
@@ -118,13 +110,11 @@ describe('exportOptionals', () => {
       'cuit-pais': '3:7',
       idioma: '3:7',
       incoterm: '3:7|',
-      items: '3:7|1500',
     });
-    expect(keys({ amount: 800, associated: '21:3:7' })).toEqual({
+    expect(keys({ associated: '21:3:7' })).toEqual({
       'cuit-pais': '',
       idioma: '',
       incoterm: '|21:3:7',
-      items: '|800',
     });
   });
 

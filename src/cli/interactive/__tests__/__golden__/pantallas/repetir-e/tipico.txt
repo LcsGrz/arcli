@@ -29,11 +29,16 @@
 
 └                                                                                          ┘
 
-? [lista] ¿Mismo monto?
-  arranca en: (ninguna)
-  · Sí, 1.500 USD
-  · No, ingresar otro monto
-  = Sí, 1.500 USD
+? [editor] ¿Qué ítems cambiamos? (espacio para modificar, Backspace para borrar)
+  · Según detalle — 1 unidades x 1.500 USD = 1.500 USD
+  · + Agregar ítem
+  = sin cambios
+
+? [lista] Importe total de la factura de exportación E: 1.500 USD (1 ítem)
+  arranca en: Confirmar
+  > Confirmar
+  · Modificar los ítems — Modificar, borrar o agregar ítems
+  = Confirmar
 
 == pantalla ==
 ┌                                                                                          ┐
@@ -45,7 +50,6 @@
 
 ? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
   [ ] Fecha del comprobante — hoy
-  [ ] Ítems — un renglón con el monto total
   [ ] Idioma — Español
   [ ] CUIT del país — el de la tabla de ARCA
   [ ] Observaciones — sin observaciones

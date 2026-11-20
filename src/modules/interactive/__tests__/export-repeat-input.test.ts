@@ -5,17 +5,17 @@ import { buildExportRepeatInput, type ExportRepeatState } from '../export-repeat
 const STATE: ExportRepeatState = {
   copy: {
     activity: 620100,
-    amount: 1500,
     clientName: 'ACME LLC',
     currencyCode: 'DOL',
     exportType: 2,
     language: 1,
   },
   country: { code: 212, name: 'ESTADOS UNIDOS' },
+  items: [{ description: 'Según detalle', quantity: 1, unit: 7, unitPrice: 1500 }],
 };
 
 describe('buildExportRepeatInput', () => {
-  it('copia la factura, con el destino como está en la tabla de ARCA, sin emitir', () => {
+  it('copia la factura, con el destino como está en la tabla de ARCA y el monto de los ítems, sin emitir', () => {
     expect(buildExportRepeatInput(STATE, {})).toEqual({
       activity: 620100,
       amount: 1500,
@@ -24,6 +24,7 @@ describe('buildExportRepeatInput', () => {
       destinationCountry: 'ESTADOS UNIDOS',
       emit: false,
       exportType: 2,
+      // Un renglón "Según detalle" por el total es lo que el CLI arma sin `--item` ni `--descripcion` (NAV-10).
       language: 1,
       paymentDate: undefined,
       permits: undefined,

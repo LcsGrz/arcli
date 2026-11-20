@@ -35,6 +35,41 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
 - va en dólares (`DOL`) con la cotización de aduana que publica ARCA, salvo `--moneda` o `--cotizacion-moneda`
 - la vista previa muestra cliente, destino, ítems y la solicitud de WSFEX
 
+### El detalle de la E: rápido o por ítems
+
+ARCA pide al menos un renglón (ítem) en cada comprobante `E`. El CLI lo carga de dos formas:
+
+| Forma     | Flags                                                             | Qué le manda a ARCA                                                                                                                            |
+| --------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Rápida    | `-m` y, si querés, `--descripcion`                                | Un solo renglón: la descripción (por defecto "Según detalle"), cantidad 1, unidad "unidades" (código 7) y el monto como precio                 |
+| Detallada | `-m` y uno o más `--item "descripcion\|cantidad\|precio\|unidad"` | Un renglón por `--item`. La suma de los renglones (cada uno redondeado a dos decimales) tiene que dar `-m`: si no, es error antes de ir a ARCA |
+
+Rápida, para un servicio:
+
+```bash
+arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 212 \
+  --descripcion "Consultoría de software" --previsualizar
+```
+
+Detallada, con bienes en litros: 1.000 litros de jugo de naranja a 1,50 USD.
+
+```bash
+arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 212 \
+  --tipo-expo 1 --incoterm FOB --item "Jugo de naranja|1000|1,50|litros" --previsualizar
+```
+
+Detallada, con varios renglones que suman `-m` (1.500 + 500 + 100 = 2.100):
+
+```bash
+arcli fe -m 2100 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 212 \
+  --tipo-expo 1 --incoterm FOB --item "Jugo de naranja|1000|1,50|litros" \
+  --item "Flete|1|500" --item "Seguro|1|100" --previsualizar
+```
+
+Con `--item`, `--descripcion` no se usa (avisa). El formato completo de `--item`, con código, y las unidades que se aceptan están en la [referencia](cli-reference.md#ítems).
+
+En el [modo interactivo](modo-interactivo.md#ítems-de-la-e) no se pregunta el monto: el asistente arranca con un ítem con esos mismos valores por defecto ("Según detalle", cantidad 1, unidades) y el total es la suma de los que cargues. Su comando equivalente usa la forma rápida si queda un solo renglón así (cantidad 1, unidades y sin código), y la detallada en cualquier otro caso.
+
 ### Errores comunes
 
 - la suma de los `--item` no da `--monto`

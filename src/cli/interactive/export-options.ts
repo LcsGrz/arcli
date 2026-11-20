@@ -1,8 +1,5 @@
 import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
-import { parseArgentineAmount } from '../../lib/numbers/argentine-amount';
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
-import { formatMoneyLabel } from '../../modules/billing/billing.labels';
-import { sumExportItems } from '../../modules/export/export.items';
 import {
   type ExportTextField,
   exportTextFieldError,
@@ -11,13 +8,9 @@ import {
 import { EXPORT_RULES, type ExportRuleContext } from '../../modules/export/export.rules';
 import {
   DEFAULT_EXPORT_LANGUAGE,
-  DEFAULT_EXPORT_UNIT_CODE,
-  EXPORT_TOTAL_ONLY_UNIT_CODES,
   type ExportCountryCuit,
-  type ExportItemInput,
   type ExportVoucherInput,
 } from '../../modules/export/export.types';
-import type { InteractiveChoice } from '../../modules/interactive/choices';
 import { completeDateInput } from '../../modules/interactive/date-input';
 import {
   type ExportCountryCuitContext,
@@ -166,191 +159,6 @@ export async function askCountryCuit(
   }
 }
 
-function validateItemDescription(value: string, allowEmpty: boolean): string | true {
-  if (!value.trim()) {
-    return allowEmpty ? true : 'Cada ítem necesita una descripción.';
-  }
-
-  if (value.includes('|')) {
-    return 'La descripción no puede llevar "|".';
-  }
-
-  return exportTextFieldError('description', value) ?? true;
-}
-
-/** Cantidad o precio de un item, como `--item`: hasta seis decimales y mayor a 0. */
-function validateItemNumber(label: string): (value: string) => string | true {
-  return (value) => {
-    const parsed = parseArgentineAmount(value, { maxDecimals: 6 });
-
-    if (!parsed.ok) {
-      return `${label} no tiene un formato válido: ${parsed.reason}.`;
-    }
-
-    return parsed.value > 0 ? true : `${label} tiene que ser mayor a 0.`;
-  };
-}
-
-function parseItemNumber(value: string): number {
-  const parsed = parseArgentineAmount(value, { maxDecimals: 6 });
-
-  return parsed.ok ? parsed.value : 0;
-}
-
-/** "el ítem" o "los 3 ítems": como se nombran los items ya cargados. */
-function loadedItems(count: number): string {
-  return count === 1 ? 'el ítem' : `los ${count} ítems`;
-}
-
-type LoadedItemsChoice = 'nuevo' | 'seguir' | 'usar';
-
-/**
- * Con items ya cargados, se elige usarlos (si suman el monto) o seguir cargando (si todavia no llegan), o empezar de
- * nuevo. Si ya se pasan del monto, solo se puede empezar de nuevo.
- */
-async function askLoadedItems(
-  items: readonly ExportItemInput[],
-  context: ExportOptionalsContext,
-): Promise<Back | LoadedItemsChoice> {
-  const total = sumExportItems(items);
-  const money = (value: number) => formatMoneyLabel(value, context.currencyCode);
-  const verb = items.length === 1 ? 'Suma' : 'Suman';
-  const choices: Array<InteractiveChoice<LoadedItemsChoice>> = [];
-
-  if (total === context.amount) {
-    choices.push({
-      description: `${verb} ${money(total)}, el monto total`,
-      name: `Usar ${loadedItems(items.length)}`,
-      value: 'usar',
-    });
-  } else if (total < context.amount) {
-    choices.push({
-      description: `${verb} ${money(total)} de ${money(context.amount)}`,
-      name: 'Seguir cargando',
-      value: 'seguir',
-    });
-  }
-
-  choices.push({
-    description:
-      total > context.amount
-        ? `${verb} ${money(total)} y el monto es ${money(context.amount)}`
-        : 'Empieza por el ítem 1',
-    name: 'Cargar de nuevo',
-    value: 'nuevo',
-  });
-
-  return chooseStep('¿Qué hacemos con los ítems ya cargados?', choices);
-}
-
-/**
- * Los items, uno por uno: descripcion, cantidad, precio unitario y unidad. Enter en la descripcion termina, y la
- * suma tiene que dar el monto total, igual que `--item`. Si no da, avisa y sigue pidiendo items.
- *
- * Al volver a la pregunta (por ejemplo, con Esc en la fecha de pago), arranca con lo cargado (REV-68), de la misma
- * fuente que la seleccion: los items de la ultima carga terminada (`previous`, lo que se aplica). Una carga a medias
- * sin ninguna terminada antes queda en el memo, para seguirla. "Cargar de nuevo" no borra nada mientras la carga nueva
- * no termina: si se vuelve antes, siguen los de antes.
- */
-function itemsStep(context: ExportOptionalsContext): WizardStep<ExportOptions> {
-  return {
-    name: 'items',
-    writes: ['items'],
-    run: async (_current, { memo, previous }) => {
-      const units = await withSpinner('Consultando las unidades de WSFEX...', context.units);
-      const finished = previous?.items ?? [];
-      const loaded = finished.length > 0 ? finished : (memo.get<readonly ExportItemInput[]>() ?? []);
-      const items: ExportItemInput[] = [];
-
-      if (loaded.length > 0) {
-        const choice = await askLoadedItems(loaded, context);
-
-        if (choice === BACK) {
-          return BACK;
-        }
-
-        if (choice === 'usar') {
-          return { items: [...loaded] };
-        }
-
-        if (choice === 'seguir') {
-          items.push(...loaded);
-        }
-      }
-
-      // Solo una carga sin ninguna terminada se recuerda a medias: la terminada es la que muestra la seleccion.
-      const remember = finished.length === 0;
-
-      for (;;) {
-        const description = await askTextStep(
-          `Descripción del ítem ${items.length + 1}${items.length > 0 ? ' (Enter para terminar)' : ''}:`,
-          { validate: (value) => validateItemDescription(value, items.length > 0) },
-        );
-
-        if (description === BACK) {
-          return BACK;
-        }
-
-        if (!description.trim()) {
-          const total = sumExportItems(items);
-
-          if (total === context.amount) {
-            memo.set<readonly ExportItemInput[]>([]);
-
-            return { items: [...items] };
-          }
-
-          writeTerminalOutput(
-            noticePanel(
-              `La suma de los ítems (${formatMoneyLabel(total, context.currencyCode)}) no coincide con el monto total (${formatMoneyLabel(context.amount, context.currencyCode)}). Agregá otro ítem, o volvé y elegí "Cargar de nuevo".`,
-              'warning',
-            ),
-          );
-          continue;
-        }
-
-        const quantity = await askTextStep('Cantidad:', { validate: validateItemNumber('La cantidad') });
-
-        if (quantity === BACK) {
-          return BACK;
-        }
-
-        const unitPrice = await askTextStep('Precio unitario:', { validate: validateItemNumber('El precio') });
-
-        if (unitPrice === BACK) {
-          return BACK;
-        }
-
-        // Sin 0, 97 (seña o anticipo) ni 99 (bonificación): van sin cantidad ni precio (1775) y ARCLI todavía no las acepta.
-        const selectable = units.filter((entry) => !EXPORT_TOTAL_ONLY_UNIT_CODES.includes(entry.id));
-        const unit =
-          selectable.length > 0
-            ? await chooseStep(
-                'Unidad:',
-                selectable.map((entry) => ({ name: entry.name, value: entry.id })),
-                DEFAULT_EXPORT_UNIT_CODE,
-              )
-            : DEFAULT_EXPORT_UNIT_CODE;
-
-        if (unit === BACK) {
-          return BACK;
-        }
-
-        items.push({
-          description: description.trim(),
-          quantity: parseItemNumber(quantity),
-          unit,
-          unitPrice: parseItemNumber(unitPrice),
-        });
-
-        if (remember) {
-          memo.set<readonly ExportItemInput[]>([...items]);
-        }
-      }
-    },
-  };
-}
-
 /**
  * Las preguntas de cada opcional de la E, una por paso: "Volver" lleva a la anterior y, desde la primera, a la
  * seleccion. El idioma anota en `languageNames` los nombres que trae WSFEX, para describir el elegido en la seleccion.
@@ -434,7 +242,6 @@ function exportQuestions(languageNames: Map<number, string>): ExportOptionalQues
         },
       },
     ],
-    items: (context) => [itemsStep(context)],
     observaciones: () => [
       {
         name: 'observaciones',

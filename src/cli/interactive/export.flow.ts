@@ -36,7 +36,6 @@ import { completeIssuer } from './pdf.flow';
 import { askTextStep, chooseStep, isPromptCancellation } from './prompts';
 import { offerConfig } from './save-to-config';
 import { confirmEmission, formatEquivalentCommand, type InteractiveSession } from './session';
-import { amountStep } from './steps/amount';
 import {
   activitiesLoader,
   activityStep,
@@ -45,6 +44,7 @@ import {
   type ExportTables,
   loadExportTables,
 } from './steps/export';
+import { exportItemsStep } from './steps/export-items';
 
 interface ExportFlowLoaders {
   readonly activities: () => Promise<readonly ExportActivity[]>;
@@ -252,23 +252,14 @@ function exportSteps(
         sameCurrency: state.sameCurrency,
       }),
     }),
-    amountStep<ExportFlowState>({
-      amount: fieldLens('amount'),
-      dependsOn: ['moneda'],
+    // Sin "Monto total": el total es la suma de los items, que ARCA exige (NAV-10). Los precios van en la moneda.
+    exportItemsStep<ExportFlowState>({
       currency: (state) => state.currencyCode ?? 'DOL',
-      label: 'Monto total',
+      dependsOn: ['moneda'],
+      items: fieldLens('items'),
+      units: loaders.units,
+      voucher: formatVoucherWithArticle(EXPORT_VOUCHER_KIND),
     }),
-    {
-      name: 'descripcion',
-      run: async (_state, { previous }) => {
-        const answer = await askTextStep('Descripción del servicio o producto (Enter para "Según detalle"):', {
-          previousAnswer: previous?.description,
-          validate: validateExportText('description'),
-        });
-
-        return answer === BACK ? BACK : { description: optional(answer) };
-      },
-    },
     {
       name: 'incoterm',
       run: async (_state, { previous }) => {
@@ -327,7 +318,6 @@ function exportSteps(
         const currencyCode = state.currencyCode ?? 'DOL';
 
         return {
-          amount: requireStepValue(state.amount, 'amount'),
           countryCuit: { country: requireStepValue(state.country, 'country'), countryCuits: tables.countryCuits },
           currencyCode,
           defaultLanguage: 'Español',
@@ -335,7 +325,6 @@ function exportSteps(
           incoterm: state.incoterm ? { code: state.incoterm, description: state.incotermName } : undefined,
           languages: loaders.languages,
           rules: exportRuleScope(state, { configuredActivity, today: formatDateAsArcaDate(new Date()) }),
-          units: loaders.units,
         };
       },
       name: 'opcionales',

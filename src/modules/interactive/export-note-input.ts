@@ -5,24 +5,26 @@ import {
   EXPORT_DEBIT_NOTE_KIND,
   EXPORT_VOUCHER_KIND,
   type ExportIssuedVoucher,
+  type ExportItemInput,
   type ExportVoucherInput,
   type ExportVoucherKind,
 } from '../export/export.types';
 
+import { exportItemsEntry } from './export-items';
 import type { ExportOptions, ExportRuleScope } from './export-optionals';
 import { rulesFinalize } from './rule-validator';
 import { requireStepValue, type WizardFinalize } from './wizard';
 
 /** Lo que responde quien emite una nota de credito o debito E. */
 export interface ExportNoteState {
-  readonly amount?: number;
   /** Que ajusta la nota, elegido en el selector de comprobantes: la factura E u otra nota E (`--ac nde` o `--ac nce`). */
   readonly associatedKind?: ExportVoucherKind;
-  readonly description?: string;
   /** La cotizacion escrita a mano; sin ella, la del asociado, como el CLI sin `--cm`. */
   readonly exchangeRate?: number;
   readonly invoice?: ExportIssuedVoucher;
   readonly invoicePointOfSale?: number;
+  /** Arrancan con los del asociado; el total de la nota es su suma (NAV-10). */
+  readonly items?: readonly ExportItemInput[];
   readonly options?: ExportOptions;
   readonly permits?: readonly string[];
 }
@@ -42,13 +44,13 @@ export function buildExportNoteInput(state: ExportNoteState, env: ExportNoteInpu
 
   return {
     ...state.options,
-    amount: state.amount,
+    // El total es la suma de los items (1610 por construccion), en la forma rapida si es un solo renglon (NAV-10).
+    ...exportItemsEntry(state.items),
     associatedVoucher: {
       number: invoice.number,
       pointOfSale: invoice.pointOfSale,
       shortcut: associatedKind === EXPORT_VOUCHER_KIND ? undefined : associatedKind.shortcut,
     },
-    description: state.description,
     emit: false,
     exchangeRate: state.exchangeRate,
     permits: state.permits,

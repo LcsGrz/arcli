@@ -91,7 +91,12 @@ const exportGateway: ExportGateway = {
   getLastRequestId: async () => 0,
   getLastVoucherNumber: async () => 0,
   getQuotations: async () => [{ code: 'DOL', rate: 1000 }],
-  getUnits: async () => [{ id: 7, name: 'unidades' }],
+  // Las de la tabla de WSFEX que usan los ejemplos de las docs.
+  getUnits: async () => [
+    { id: 1, name: 'kilogramos' },
+    { id: 5, name: 'litros' },
+    { id: 7, name: 'unidades' },
+  ],
   // Las notas E de los ejemplos ajustan una factura E de servicios en dolares.
   getVoucher: async (query) => ({
     activities: [620100],
