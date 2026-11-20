@@ -42,7 +42,7 @@ export function consumerQuestions(context: BillingOptionalsContext): ReadonlyArr
   return [
     {
       name: 'consumidor-documento',
-      run: async (current, previous) => {
+      run: async (current, { previous }) => {
         const documentType = await askConsumerDocumentType(
           previous?.consumerDocumentType ?? current.consumerDocumentType,
         );
@@ -55,7 +55,7 @@ export function consumerQuestions(context: BillingOptionalsContext): ReadonlyArr
       dependsOn: ['consumidor-documento'],
       name: 'consumidor-numero',
       writes: ['documentNumber'],
-      run: async (current, previous) => {
+      run: async (current, { previous }) => {
         const documentType = current.consumerDocumentType ?? 'dni';
         const answer = await askDocumentNumber(
           documentType,

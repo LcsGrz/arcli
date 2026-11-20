@@ -83,7 +83,7 @@ export interface ActivityStepDef<S> {
 export function activityStep<S>(def: ActivityStepDef<S>): WizardStep<S> {
   return {
     name: 'actividad',
-    run: async (state, previous) => {
+    run: async (state, { previous }) => {
       const typed = previous ? def.activity.get(previous as S) : undefined;
       const activities = await def.activities();
       const answer = await askTextStep('Código de actividad de WSFEX, por ejemplo 620100 (Enter para no informarla):', {

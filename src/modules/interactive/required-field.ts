@@ -51,7 +51,7 @@ export function requiredField<S, O, C>(def: RequiredFieldDef<S, O, C>): WizardSt
   return {
     dependsOn: def.dependsOn,
     name: def.name,
-    run: async (state, _previous, memo) => {
+    run: async (state, { memo }) => {
       const remembered = memo.get<RequiredFieldMemo<O>>() ?? { answers: new Map(), memos: new Map() };
 
       memo.set(remembered);

@@ -19,7 +19,7 @@ export function sameAmountStep<S extends { readonly sameAmount?: boolean }>(def:
   return {
     dependsOn: ['factura'],
     name: 'mismo-monto',
-    run: async (state, previous) => {
+    run: async (state, { previous }) => {
       const { currency, total } = def.original(state);
       const scope = await chooseStep(
         '¿Mismo monto?',

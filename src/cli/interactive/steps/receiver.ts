@@ -42,7 +42,7 @@ export function receiverSteps<S extends ReceiverStepState>(
     {
       dependsOn: options.dependsOn,
       name: 'receptor',
-      run: async (state, previous) => {
+      run: async (state, { previous }) => {
         const choices = receiverChoices(options.letter(state), options.electronicCredit?.(state));
         const documentType = await chooseStep(
           options.message(state),
@@ -64,7 +64,7 @@ export function receiverSteps<S extends ReceiverStepState>(
       // El texto y la validacion cambian con el tipo: un DNI escrito antes no se ofrece como CUIT.
       dependsOn: ['receptor'],
       name: 'documento',
-      run: async (state, previous) => {
+      run: async (state, { previous }) => {
         const answer = await askDocumentNumber(state.documentType, previous?.documentNumber, undefined, (validate) =>
           scopedRuleValidator(
             BILLING_RULES,
@@ -105,7 +105,7 @@ export function receiverIvaStep<S extends ReceiverIvaState>(options: {
   return {
     dependsOn: options.dependsOn,
     name: 'iva-receptor',
-    run: async (state, previous) =>
+    run: async (state, { previous }) =>
       (await askReceiverIvaCondition(
         options.session,
         state,

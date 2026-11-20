@@ -71,7 +71,7 @@ describe('runWizard', () => {
     const steps: Array<WizardStep<FourState>> = (['a', 'b', 'c', 'd'] as const).map((name) => ({
       dependsOn: dependsOn[name],
       name,
-      run: async (_state, previous) => {
+      run: async (_state, { previous }) => {
         seen.push([name, previous?.[name]]);
         const answer = script[name]?.shift();
 
@@ -185,7 +185,7 @@ describe('runWizard', () => {
         {
           dependsOn: [{ fields: ['options.voucherDate'], step: 'opcionales' }],
           name: 'fecha-pago',
-          run: async (_state, previous) => {
+          run: async (_state, { previous }) => {
             seen.push(previous?.paymentDate);
 
             return seen.length === 2 ? BACK : { paymentDate: '20/11/2026' };
@@ -241,7 +241,7 @@ describe('runWizard', () => {
     const steps: Array<WizardStep<State>> = [
       {
         name: 'a',
-        run: async (_state, last) => {
+        run: async (_state, { previous: last }) => {
           previous.push(last);
 
           return previous.length === 1 ? { a: '1' } : BACK;

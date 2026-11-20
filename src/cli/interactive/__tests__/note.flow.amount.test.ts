@@ -52,7 +52,7 @@ function amountStep(shortcut: VoucherShortcut) {
   // Fuera de `runWizard`: el paso no recuerda nada.
   const memo: StepMemo = { get: () => undefined, set: () => undefined };
 
-  return () => step?.run(state, undefined, memo);
+  return () => step?.run(state, { memo });
 }
 
 afterEach(() => {

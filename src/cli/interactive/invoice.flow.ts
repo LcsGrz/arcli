@@ -104,7 +104,7 @@ export function invoiceSteps(
 
   const pickVoucherKind: WizardStep<InvoiceState> = {
     name: 'comprobante',
-    run: async (state, previous) => {
+    run: async (state, { previous }) => {
       // Volver desde el primer paso de la E vuelve a este selector, con la E marcada.
       let picked: ExportVoucherKind | VoucherKindDefinition | undefined = previous?.voucherKind;
 
@@ -153,7 +153,7 @@ export function invoiceSteps(
     }),
     {
       name: 'concepto',
-      run: async (state, previous) => {
+      run: async (state, { previous }) => {
         const concept = await chooseStep(
           isReceipt(state) ? '¿Qué estás cobrando?' : '¿Qué estás facturando?',
           conceptChoices(),

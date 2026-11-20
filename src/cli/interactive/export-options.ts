@@ -257,7 +257,7 @@ function itemsStep(context: ExportOptionalsContext): WizardStep<ExportOptions> {
   return {
     name: 'items',
     writes: ['items'],
-    run: async (_current, previous, memo) => {
+    run: async (_current, { memo, previous }) => {
       const units = await withSpinner('Consultando las unidades de WSFEX...', context.units);
       const finished = previous?.items ?? [];
       const loaded = finished.length > 0 ? finished : (memo.get<readonly ExportItemInput[]>() ?? []);
@@ -373,7 +373,7 @@ function exportQuestions(languageNames: Map<number, string>): ExportOptionalQues
       {
         name: 'cotizacion',
         writes: ['exchangeRate'],
-        run: async (_current, previous) => {
+        run: async (_current, { previous }) => {
           const code = context.currencyCode === 'DOL' ? 'USD' : context.currencyCode;
           const answer = await askTextStep(`Cotización de ${code}:`, {
             previousAnswer: amountInputText(previous?.exchangeRate),
@@ -387,7 +387,7 @@ function exportQuestions(languageNames: Map<number, string>): ExportOptionalQues
     'cuit-pais': (context) => [
       {
         name: 'cuit-pais',
-        run: async (current, previous) => {
+        run: async (current, { previous }) => {
           const countryCuit = requireStepValue(context.countryCuit, 'countryCuit');
           const cuit = await askCountryCuit(
             countryCuit,
@@ -423,7 +423,7 @@ function exportQuestions(languageNames: Map<number, string>): ExportOptionalQues
     idioma: (context) => [
       {
         name: 'idioma',
-        run: async (current, previous) => {
+        run: async (current, { previous }) => {
           const languages = await withSpinner('Consultando los idiomas de WSFEX...', context.languages);
 
           for (const language of languages) languageNames.set(language.id, language.name);
@@ -441,7 +441,7 @@ function exportQuestions(languageNames: Map<number, string>): ExportOptionalQues
     incoterm: (context) => [
       {
         name: 'incoterm',
-        run: async (current, previous) => {
+        run: async (current, { previous }) => {
           const incoterm = requireStepValue(context.incoterm, 'incoterm');
           const answer = await askTextStep(`Descripción del incoterm ${incoterm.code}:`, {
             defaultValue: current.incotermDescription ?? incoterm.description,
@@ -465,7 +465,7 @@ function exportQuestions(languageNames: Map<number, string>): ExportOptionalQues
     observaciones: () => [
       {
         name: 'observaciones',
-        run: async (current, previous) => {
+        run: async (current, { previous }) => {
           const observations = await askTextStep('Observaciones (Enter si no hay):', {
             previousAnswer: previous?.observations ?? current.observations,
             validate: validateExportText('observations'),
@@ -476,7 +476,7 @@ function exportQuestions(languageNames: Map<number, string>): ExportOptionalQues
       },
       {
         name: 'observaciones-comerciales',
-        run: async (current, previous) => {
+        run: async (current, { previous }) => {
           const commercial = await askTextStep('Observaciones comerciales (Enter si no hay):', {
             previousAnswer: previous?.commercialObservations ?? current.commercialObservations,
             validate: validateExportText('commercialObservations'),

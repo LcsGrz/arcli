@@ -677,10 +677,11 @@ describe('flujos del modo interactivo', () => {
       const advancedStep = steps.find((step) => step.name === 'avanzadas');
       const update = await advancedStep?.run(
         { ...(state as NonNullable<typeof state>), concept: 'productos' },
-        undefined,
         {
-          get: () => undefined,
-          set: () => undefined,
+          memo: {
+            get: () => undefined,
+            set: () => undefined,
+          },
         },
       );
 

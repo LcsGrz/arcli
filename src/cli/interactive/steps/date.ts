@@ -32,7 +32,7 @@ export function dateStep<S>(def: DateStepDef<S>): WizardStep<S> {
   return {
     dependsOn: def.dependsOn,
     name: def.name,
-    run: async (state, previous) => {
+    run: async (state, { previous }) => {
       const answer = await askTextStep(typeof def.message === 'string' ? def.message : def.message(state), {
         previousAnswer: previous ? def.date.get(previous as S) : undefined,
         validate: def.validate(state),

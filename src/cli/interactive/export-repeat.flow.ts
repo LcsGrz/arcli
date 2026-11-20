@@ -76,7 +76,7 @@ export function exportRepeatSteps(
   return withFinalizeNotice([
     {
       name: 'factura',
-      run: async (_state, previous) => {
+      run: async (_state, { previous }) => {
         const picked = await pickExportVoucher(session, gateway, {
           message: '¿Cuál repetimos?',
           pointOfSale,
@@ -157,7 +157,7 @@ export function exportRepeatSteps(
       dependsOn: ['factura'],
       name: 'misma-moneda',
       // FEXGetCMP casi siempre trae `CanMisMonExt`; si no, se pregunta como en "Emitir factura".
-      run: async (state, previous) => {
+      run: async (state, { previous }) => {
         const sameCurrency = await chooseStep(
           '¿Te pagan en la moneda de la factura?',
           [
@@ -174,7 +174,7 @@ export function exportRepeatSteps(
     {
       // La factura no trae CUIT del pais y ARCA no publica uno para el destino: sin esto ARCA la rechaza.
       name: 'cuit-pais',
-      run: async (state, previous) => {
+      run: async (state, { previous }) => {
         const country = requireStepValue(state.country, 'country');
         // Al volver arranca escrito, si es del destino (REV-74, #10).
         const cuit = await askCountryCuit(

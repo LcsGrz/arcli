@@ -71,7 +71,7 @@ const QUESTIONS: BillingOptionalQuestions = {
   alicuota: (context) => [
     {
       name: 'alicuota',
-      run: async (current, previous) => {
+      run: async (current, { previous }) => {
         const ivaRate = await chooseStep(
           'Alícuota de IVA:',
           ivaRateChoices(),
@@ -92,7 +92,7 @@ const QUESTIONS: BillingOptionalQuestions = {
     {
       name: 'exento',
       writes: ['exemptAmount'],
-      run: async (current, previous) => {
+      run: async (current, { previous }) => {
         const exempt = await askTextStep('Parte exenta del monto total (vacío si no hay):', {
           previousAnswer: amountInputText(previous?.exemptAmount),
           validate: billingRule(
@@ -110,7 +110,7 @@ const QUESTIONS: BillingOptionalQuestions = {
     {
       name: 'no-gravado',
       writes: ['untaxedAmount'],
-      run: async (current, previous) => {
+      run: async (current, { previous }) => {
         const untaxed = await askTextStep('Parte no gravada del monto total (vacío si no hay):', {
           previousAnswer: amountInputText(previous?.untaxedAmount),
           validate: billingRule(
@@ -143,7 +143,7 @@ const QUESTIONS: BillingOptionalQuestions = {
   transferencia: () => [
     {
       name: 'transferencia',
-      run: async (current, previous) => {
+      run: async (current, { previous }) => {
         const transferMode = await chooseStep(
           'Modalidad de transferencia:',
           [

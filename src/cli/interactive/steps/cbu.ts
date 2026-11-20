@@ -16,7 +16,7 @@ export function cbuSteps<S extends InvoiceState>(config: Pick<ArcliConfig, 'alia
   return [
     {
       name: 'cbu',
-      run: async (_state, previous) => {
+      run: async (_state, { previous }) => {
         const cbu = await askTextStep('CBU del emisor (22 dígitos):', {
           previousAnswer: previous?.cbu,
           validate: validateCbu,
@@ -28,7 +28,7 @@ export function cbuSteps<S extends InvoiceState>(config: Pick<ArcliConfig, 'alia
     },
     {
       name: 'alias-cbu',
-      run: async (_state, previous) => {
+      run: async (_state, { previous }) => {
         const alias = await askTextStep('Alias del CBU (Enter para omitir):', {
           previousAnswer: previous?.cbuAlias,
           validate: validateOptionalCbuAlias,

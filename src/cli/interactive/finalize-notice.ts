@@ -9,12 +9,12 @@ import { noticePanel, writeTerminalOutput } from '../../ui';
 export function withFinalizeNotice<S>(steps: ReadonlyArray<WizardStep<S>>): Array<WizardStep<S>> {
   return steps.map((step) => ({
     ...step,
-    run: (state, previous, memo, error, failedFields) => {
-      if (error) {
-        writeTerminalOutput(noticePanel(error, 'warning'));
+    run: (state, options) => {
+      if (options.error) {
+        writeTerminalOutput(noticePanel(options.error, 'warning'));
       }
 
-      return step.run(state, previous, memo, error, failedFields);
+      return step.run(state, options);
     },
   }));
 }

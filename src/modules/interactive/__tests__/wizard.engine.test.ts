@@ -21,7 +21,7 @@ function scriptedSteps(
     name,
     writes: [name],
     ...extra,
-    run: async (_state, previous, memo, error) => {
+    run: async (_state, { error, memo, previous }) => {
       runs.push({ error, name, previous: previous?.[name] });
 
       const answer = script[name]?.shift() ?? 'ok';
@@ -147,7 +147,7 @@ describe('runWizard: dependsOn', () => {
       {
         dependsOn: [{ fields, step }],
         name: 'pago',
-        run: async (_state, previous) => {
+        run: async (_state, { previous }) => {
           seen.push(previous?.b);
 
           return payment.shift() === BACK ? BACK : { b: 'pagado' };
@@ -257,7 +257,7 @@ describe('runWizard: skip con memo, auto y memoOf', () => {
     const reader: WizardStep<State> = {
       memoOf: 'b',
       name: 'lector',
-      run: async (_state, _previous, memo) => {
+      run: async (_state, { memo }) => {
         seen.push(memo.get());
 
         return seen.length === 2 ? BACK : {};

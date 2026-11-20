@@ -116,7 +116,7 @@ export function repeatSteps(
 
   const pickVoucherKind: WizardStep<RepeatState> = {
     name: 'tipo',
-    run: async (_state, previous) => {
+    run: async (_state, { previous }) => {
       // Volver desde el primer paso de la E vuelve a este selector, con la E marcada.
       let picked: ExportVoucherKind | VoucherKindDefinition | undefined = previous?.voucherKind;
 
@@ -150,7 +150,7 @@ export function repeatSteps(
     {
       dependsOn: ['tipo'],
       name: 'factura',
-      run: async (state, previous) => {
+      run: async (state, { previous }) => {
         const voucherKind = requireStepValue(state.voucherKind, 'voucherKind');
         const picked = await pickInvoice(session, {
           message: '¿Cuál repetimos?',
@@ -204,7 +204,7 @@ export function repeatSteps(
       // Una A (o FCE) vieja a un DNI, CUIL o consumidor final: se pide el CUIT ya, no en el rechazo de la vista previa.
       dependsOn: ['tipo', 'factura'],
       name: 'cuit-receptor',
-      run: async (state, previous) => {
+      run: async (state, { previous }) => {
         writeTerminalOutput(noticePanel(requireStepValue(copiedNotice(state), 'el aviso del receptor'), 'warning'));
 
         const cuit = await askTextStep('CUIT del receptor:', {
@@ -274,7 +274,7 @@ export function repeatSteps(
     ...consumerIdentificationSteps(optionals, { amount: invoiceConsumerAmount, name: 'cf' }),
     {
       name: 'periodo',
-      run: async (state, previous) => {
+      run: async (state, { previous }) => {
         const servicePeriod = await chooseStep<RepeatPeriod>(
           'Período del servicio:',
           [

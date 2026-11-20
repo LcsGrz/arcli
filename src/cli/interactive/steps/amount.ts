@@ -68,7 +68,7 @@ export function amountStep<S>(def: AmountStepDef<S>): WizardStep<S> {
   return {
     dependsOn: def.dependsOn,
     name: def.name ?? 'monto',
-    run: async (state, previous, _memo, error) => {
+    run: async (state, { error, previous }) => {
       const currency = def.retry?.currency(error) ?? def.currency(state);
       const label = typeof def.label === 'string' ? def.label : def.label(state);
       const answer = await askTextStep(amountQuestion(label, currency), {

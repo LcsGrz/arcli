@@ -100,7 +100,7 @@ export function exportNoteSteps(
   return withFinalizeNotice([
     {
       name: 'punto-venta-factura',
-      run: async (state, previous) => {
+      run: async (state, { previous }) => {
         const answer = await askTextStep(`Punto de venta de ${associatedName(state.associatedKind)}:`, {
           defaultValue: String(pointOfSale),
           previousAnswer: previous?.invoicePointOfSale === undefined ? undefined : String(previous.invoicePointOfSale),
@@ -114,7 +114,7 @@ export function exportNoteSteps(
       // Se busca en ARCA en ese punto de venta.
       dependsOn: ['punto-venta-factura'],
       name: 'factura',
-      run: async (state, previous) => {
+      run: async (state, { previous }) => {
         const invoicePointOfSale = requireStepValue(state.invoicePointOfSale, 'invoicePointOfSale');
         const associatedKind = state.associatedKind ?? EXPORT_VOUCHER_KIND;
         const name = associatedName(associatedKind);
@@ -184,7 +184,7 @@ export function exportNoteSteps(
     }),
     {
       name: 'descripcion',
-      run: async (_state, previous) => {
+      run: async (_state, { previous }) => {
         const answer = await askTextStep('Detalle de la nota (Enter para "Según detalle"):', {
           previousAnswer: previous?.description,
           validate: validateExportText('description'),

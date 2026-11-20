@@ -124,7 +124,7 @@ export function currencySteps<S>(def: CurrencyStepsDef<S>): Array<WizardStep<S>>
     {
       dependsOn,
       name: 'moneda',
-      run: async (state, previous) => {
+      run: async (state, { previous }) => {
         const chosen = await chooseStep(
           'Moneda del comprobante:',
           currencyChoices(),
@@ -151,7 +151,7 @@ export function currencySteps<S>(def: CurrencyStepsDef<S>): Array<WizardStep<S>>
       // La pregunta nombra la moneda.
       dependsOn: [...dependsOn, 'moneda'],
       name: 'pago',
-      run: async (state, previous) => {
+      run: async (state, { previous }) => {
         const lock = lockOf(state);
 
         if (lock) {
@@ -177,7 +177,7 @@ export function currencySteps<S>(def: CurrencyStepsDef<S>): Array<WizardStep<S>>
     {
       dependsOn: [...dependsOn, 'moneda', 'pago'],
       name: 'cotizacion',
-      run: async (state, previous) => {
+      run: async (state, { previous }) => {
         const code = codeOf(state);
         const rate = await askAgreedExchangeRate(code, previousOf(previous), await def.suggestion?.(code));
 

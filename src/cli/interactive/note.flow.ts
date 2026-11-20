@@ -286,13 +286,13 @@ export function noteSteps(
   const steps: Array<WizardStep<NoteState>> = [
     {
       name: 'tipo-factura',
-      run: (state, previous) => askAssociatedKind(session, state, previous?.invoiceKind),
+      run: (state, { previous }) => askAssociatedKind(session, state, previous?.invoiceKind),
     },
     {
       // "A una factura" o "A un recibo", segun el asociado.
       dependsOn: ['tipo-factura'],
       name: 'asociacion',
-      run: async (state, previous) => {
+      run: async (state, { previous }) => {
         const target = await chooseStep(
           '¿A qué la asociamos?',
           [
@@ -319,7 +319,7 @@ export function noteSteps(
     {
       dependsOn: ['tipo-factura'],
       name: 'factura',
-      run: async (state, previous) => {
+      run: async (state, { previous }) => {
         const invoiceKind = requireStepValue(state.invoiceKind, 'invoiceKind');
         const previousNumber = previous?.invoice?.number ?? previous?.otherSystemInvoice?.number;
         const picked = await pickNoteInvoice(session, {
@@ -372,7 +372,7 @@ export function noteSteps(
       // Las opciones son la moneda de la factura y pesos.
       dependsOn: ['factura'],
       name: 'moneda',
-      run: async (state, previous) => {
+      run: async (state, { previous }) => {
         const invoice = requireStepValue(state.invoice, 'invoice');
         const currency = await chooseStep(
           '¿En qué moneda va la nota?',
@@ -432,7 +432,7 @@ export function noteSteps(
     }),
     {
       name: 'concepto',
-      run: async (_state, previous) => {
+      run: async (_state, { previous }) => {
         const concept = await chooseStep(
           '¿Qué concepto ajusta la nota?',
           conceptChoices(),
@@ -447,7 +447,7 @@ export function noteSteps(
       // "Anular el total" muestra el total de la factura.
       dependsOn: ['factura'],
       name: 'alcance',
-      run: (state, previous) => askAnnulScope(state, previous?.annulsTotal),
+      run: (state, { previous }) => askAnnulScope(state, previous?.annulsTotal),
       skip: (state) => !canAnnulTotal(state),
     },
     // El tope de la NC es el total de la factura, en su moneda.
@@ -477,7 +477,7 @@ export function noteSteps(
       // La deducida de la factura es la que arranca marcada; el texto cambia si la nota es de periodo.
       dependsOn: ['tipo-factura', 'asociacion', 'factura'],
       name: 'alicuota',
-      run: async (state, previous) => {
+      run: async (state, { previous }) => {
         const ivaRate = await chooseStep(
           asksOwnNoteData(state) ? 'Alícuota de IVA:' : 'Alícuota de IVA del comprobante:',
           ivaRateChoices(),
@@ -494,7 +494,7 @@ export function noteSteps(
       // Es sobre la factura elegida.
       dependsOn: ['factura'],
       name: 'anulacion',
-      run: async (_state, previous) => {
+      run: async (_state, { previous }) => {
         const cancellation = await chooseStep(
           '¿El comprador rechazó la factura?',
           [

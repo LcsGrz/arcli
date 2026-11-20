@@ -62,20 +62,29 @@ export interface WizardStep<S> {
    * campos de lo marcado.
    */
   readonly writes?: readonly string[] | ((state: S, memo: StepMemo) => readonly string[]);
+  /** Devuelve los campos que completa o BACK para volver al paso anterior. */
+  readonly run: (state: S, options: StepRunOptions<S>) => Promise<Back | Partial<S>>;
+}
+
+/** Lo que recibe un paso al preguntar, ademas del estado. */
+interface StepRunOptions<S> {
   /**
-   * Devuelve los campos que completa o BACK para volver al paso anterior. `previous` es lo que devolvio la ultima vez
-   * que se respondio, si sigue valiendo: al volver a la pregunta, arranca marcado o escrito. `memo` es lo que el paso
-   * recuerda ademas de su respuesta. `error` es el mensaje de `finalize` si se volvio a este paso porque su respuesta
-   * no paso el control final: la pregunta lo muestra antes de preguntar de nuevo. `failedFields` son los campos de ese
-   * control, para un paso que pregunta varios (un grupo de opcionales vuelve a la pregunta que escribe el campo).
+   * Lo que devolvio la ultima vez que se respondio, si sigue valiendo: al volver a la pregunta, arranca marcado o
+   * escrito.
    */
-  readonly run: (
-    state: S,
-    previous: Partial<S> | undefined,
-    memo: StepMemo,
-    error?: string,
-    failedFields?: readonly string[],
-  ) => Promise<Back | Partial<S>>;
+  readonly previous?: Partial<S> | undefined;
+  /** Lo que el paso recuerda ademas de su respuesta. */
+  readonly memo: StepMemo;
+  /**
+   * El mensaje de `finalize` si se volvio a este paso porque su respuesta no paso el control final: la pregunta lo
+   * muestra antes de preguntar de nuevo.
+   */
+  readonly error?: string | undefined;
+  /**
+   * Los campos de ese control, para un paso que pregunta varios (un grupo de opcionales vuelve a la pregunta que escribe
+   * el campo).
+   */
+  readonly failedFields?: readonly string[] | undefined;
 }
 
 /**
@@ -377,7 +386,7 @@ export async function runWizard<S>(
 
     failure = undefined;
 
-    const result = await step.run(state, previous, memo, retry?.message, retry?.fields);
+    const result = await step.run(state, { error: retry?.message, failedFields: retry?.fields, memo, previous });
 
     if (result === BACK) {
       const last = history.pop();

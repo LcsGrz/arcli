@@ -26,7 +26,7 @@ function scriptedSteps(
     name,
     writes: [name],
     ...extra,
-    run: async (_state, previous, memo, error) => {
+    run: async (_state, { error, memo, previous }) => {
       runs.push({ error, memo: memo.get(), name, previous: previous?.[name] });
 
       const answer = script[name]?.shift() ?? 'ok';
@@ -90,7 +90,7 @@ describe('runWizard: memo', () => {
       {
         dependsOn: [{ fields: ['options.date'], step: 'opcionales' }],
         name: 'pago',
-        run: async (_state, _previous, memo) => {
+        run: async (_state, { memo }) => {
           memos.push(memo.get());
           memo.set('recordado');
 
@@ -113,7 +113,7 @@ describe('runWizard: memo', () => {
     const steps: Array<WizardStep<State>> = [
       {
         name: 'a',
-        run: async (_state, _previous, memo) => {
+        run: async (_state, { memo }) => {
           round += 1;
           memo.set(`memo ${round}`);
 
@@ -123,7 +123,7 @@ describe('runWizard: memo', () => {
       {
         dependsOn: ['a'],
         name: 'b',
-        run: async (_state, previous) => {
+        run: async (_state, { previous }) => {
           seen.push(previous?.b);
 
           const answer = b.shift();
@@ -175,7 +175,7 @@ describe('runWizard: finalize', () => {
     const steps: Array<WizardStep<State>> = [
       {
         name: 'b',
-        run: async (state, _previous, _memo, error) => {
+        run: async (state, { error }) => {
           states.push(state);
 
           return { b: error ? 'bueno' : 'malo' };
@@ -362,7 +362,7 @@ describe('runWizard sobre grafos al azar (propiedades)', () => {
           node.fields ? { fields: [`s${earlier}`], step: `s${earlier}` } : `s${earlier}`,
         ),
         name,
-        run: async (_state, previous, memo, error) => {
+        run: async (_state, { error, memo, previous }) => {
           // Sin guion, responde "y": el asistente termina.
           const answer = answers.shift() ?? 'y';
 

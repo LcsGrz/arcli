@@ -185,7 +185,7 @@ describe('optionalGroup: el memo de las preguntas internas', () => {
     const items: OptionalDef<Key, Values, Parent> = option('a', [
       {
         name: 'items',
-        run: async (_state, _previous, memo) => {
+        run: async (_state, { memo }) => {
           memos.push(memo.get());
           memo.set('dos items cargados');
 
@@ -261,7 +261,7 @@ describe('requiredOptional', () => {
     const def = groupDef([
       required({}, [
         {
-          run: async (_state, _previous, memo) => {
+          run: async (_state, { memo }) => {
             memos.push(memo.get());
             memo.set('a medio cargar');
 
@@ -335,12 +335,12 @@ describe('requiredOptional', () => {
       required({ owns: ['a', 'b'] }, [
         {
           name: 'tipo',
-          run: async (_current, previous) => (seen.push(['tipo', previous?.a]), { a: types.shift() }),
+          run: async (_current, { previous }) => (seen.push(['tipo', previous?.a]), { a: types.shift() }),
         },
         {
           dependsOn: ['tipo'],
           name: 'numero',
-          run: async (_current, previous) => {
+          run: async (_current, { previous }) => {
             seen.push(['numero', previous?.b]);
 
             const number = numbers.shift();
@@ -419,7 +419,7 @@ describe('requiredField', () => {
         steps: () => [
           {
             name: 'items',
-            run: async (_state, _previous, memo) => {
+            run: async (_state, { memo }) => {
               memos.push(memo.get());
               memo.set('a medio cargar');
 

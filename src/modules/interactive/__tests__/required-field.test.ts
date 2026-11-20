@@ -46,7 +46,7 @@ function consumerField(script: { number: Script; type: Script }) {
     steps: () => [
       {
         name: 'consumidor-documento',
-        run: async (_current, previous) => {
+        run: async (_current, { previous }) => {
           seen.push(['documento', previous?.consumerDocumentType]);
 
           const answer = script.type.shift();
@@ -57,7 +57,7 @@ function consumerField(script: { number: Script; type: Script }) {
       {
         dependsOn: ['consumidor-documento'],
         name: 'consumidor-numero',
-        run: async (_current, previous) => {
+        run: async (_current, { previous }) => {
           seen.push(['numero', previous?.consumerDocumentNumber]);
 
           const answer = script.number.shift();

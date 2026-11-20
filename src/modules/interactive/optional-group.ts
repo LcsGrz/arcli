@@ -297,7 +297,7 @@ export function optionalGroup<S, K extends string, O, C>(def: OptionalGroupDef<S
     },
     dependsOn: def.dependsOn,
     name: def.name,
-    run: async (state, _previous, memo, error, failedFields) => {
+    run: async (state, { error, failedFields, memo }) => {
       const initial = def.read(state);
       const context = def.context(state);
 
@@ -463,7 +463,7 @@ export function requiredOptional<S, K extends string, O, C>(
     return {
       memoOf: group.name,
       name: `${def.name}:${question}`,
-      run: async (state, _previous, memo, error, failedFields) => {
+      run: async (state, { error, failedFields, memo }) => {
         let context = contextOf(state);
 
         // Recien con la consulta se sabe si es obligatorio: si no lo es, sigue sin preguntar.
@@ -489,13 +489,12 @@ export function requiredOptional<S, K extends string, O, C>(
         const current = group.read(state);
         const steps = option.steps(context);
         const before = remembered.answers.get(question);
-        const result = await questionOf(option, context, question).run(
-          current,
-          before,
-          stepMemo(remembered.memos, question),
+        const result = await questionOf(option, context, question).run(current, {
           error,
           failedFields,
-        );
+          memo: stepMemo(remembered.memos, question),
+          previous: before,
+        });
 
         if (result === BACK) {
           return BACK;

@@ -36,7 +36,7 @@ function catalog(script: Record<string, Script> = {}) {
   const seen: Array<[string, string | undefined]> = [];
   const ask =
     (name: keyof Values, extra: Partial<Values> = {}): WizardStep<Values>['run'] =>
-    async (_state, previous) => {
+    async (_state, { previous }) => {
       seen.push([name, previous?.[name]]);
 
       const answer = script[name]?.shift() ?? 'v';
@@ -300,7 +300,7 @@ describe('optionalGroup', () => {
               steps: (): Array<WizardStep<Values>> => [
                 {
                   name: 'q',
-                  run: async (_state, _previous, memo) => {
+                  run: async (_state, { memo }) => {
                     memos.push(memo.get());
                     memo.set('a medias');
 

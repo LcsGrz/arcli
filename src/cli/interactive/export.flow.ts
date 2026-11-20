@@ -70,8 +70,8 @@ const optional = (value: string): string | undefined => value.trim() || undefine
  * permisos: los que se informan ya existen en ARCA (en la factura van con `--permiso-existente`).
  */
 export async function askPermitsStep(
-  _state?: unknown,
-  previous?: { readonly permits?: readonly string[] },
+  _state: unknown,
+  { previous }: { readonly previous?: { readonly permits?: readonly string[] } | undefined },
 ): Promise<typeof BACK | { readonly permits: readonly string[] | undefined }> {
   const answer = await askTextStep('Permisos de embarque ya existentes, separados por coma (Enter si no hay):', {
     previousAnswer: previous?.permits?.join(', '),
@@ -95,7 +95,7 @@ function exportSteps(
   return [
     {
       name: 'cliente',
-      run: async (_state, previous) => {
+      run: async (_state, { previous }) => {
         const answer = await askTextStep('Nombre o razón social del cliente del exterior:', {
           previousAnswer: previous?.clientName,
           validate: validateExportText('clientName', 'El cliente'),
@@ -106,7 +106,7 @@ function exportSteps(
     },
     {
       name: 'domicilio',
-      run: async (_state, previous) => {
+      run: async (_state, { previous }) => {
         const answer = await askTextStep('Domicilio del cliente:', {
           previousAnswer: previous?.clientAddress,
           validate: validateExportText('clientAddress', 'El domicilio'),
@@ -117,7 +117,7 @@ function exportSteps(
     },
     {
       name: 'pais',
-      run: async (_state, previous) => {
+      run: async (_state, { previous }) => {
         const answer = await askTextStep(
           'País de destino (nombre o código de ARCA, por ejemplo ESTADOS UNIDOS o 212):',
           {
@@ -142,7 +142,7 @@ function exportSteps(
     {
       // ARCA pide el CUIT del pais o el ID impositivo (error 1580): si se deja vacio, el ID impositivo es obligatorio.
       name: 'cuit-pais',
-      run: async (state, previous) => {
+      run: async (state, { previous }) => {
         const country = requireStepValue(state.country, 'country');
         // Al volver arranca escrito, si es del destino (REV-74, #10).
         const cuit = await askCountryCuit(
@@ -162,7 +162,7 @@ function exportSteps(
         { fields: ['options.clientCountryCuit'], step: 'cuit-pais' },
       ],
       name: 'id-impositivo',
-      run: async (state, previous) => {
+      run: async (state, { previous }) => {
         // Sin CUIT del pais, ARCA pide el ID impositivo (error 1580).
         const required = state.countryCuitMissing && state.options.clientCountryCuit === undefined;
         const answer = await askTextStep(
@@ -180,7 +180,7 @@ function exportSteps(
     },
     {
       name: 'tipo',
-      run: async (_state, previous) => {
+      run: async (_state, { previous }) => {
         const exportType = await chooseStep<ExportType>(
           '¿Qué exportás?',
           [
@@ -199,7 +199,7 @@ function exportSteps(
     // escribir.
     {
       name: 'moneda',
-      run: async (_state, previous) => {
+      run: async (_state, { previous }) => {
         const currencyCode = await chooseStep<'DOL' | 'PES'>(
           '¿En qué moneda facturás?',
           [
@@ -216,7 +216,7 @@ function exportSteps(
     },
     {
       name: 'misma-moneda',
-      run: async (_state, previous) => {
+      run: async (_state, { previous }) => {
         const sameCurrency = await chooseStep(
           '¿Te pagan en dólares?',
           [
@@ -238,7 +238,7 @@ function exportSteps(
     }),
     {
       name: 'descripcion',
-      run: async (_state, previous) => {
+      run: async (_state, { previous }) => {
         const answer = await askTextStep('Descripción del servicio o producto (Enter para "Según detalle"):', {
           previousAnswer: previous?.description,
           validate: validateExportText('description'),
@@ -249,7 +249,7 @@ function exportSteps(
     },
     {
       name: 'incoterm',
-      run: async (_state, previous) => {
+      run: async (_state, { previous }) => {
         const list = await withSpinner('Consultando incoterms...', loaders.incoterms);
 
         // ARCA devolvio la tabla vacia: se escribe a mano y va sin validar, como la actividad (el servicio avisa).
@@ -285,7 +285,7 @@ function exportSteps(
     },
     {
       name: 'forma-pago',
-      run: async (_state, previous) => {
+      run: async (_state, { previous }) => {
         const answer = await askTextStep('Forma de pago:', {
           defaultValue: DEFAULT_EXPORT_PAYMENT_TERMS,
           previousAnswer: previous?.paymentTerms,
