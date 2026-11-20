@@ -1,0 +1,191 @@
+? [lista] ¿Qué comprobante querés emitir?
+  arranca en: (ninguna)
+  · Factura C — La emiten monotributistas y exentos
+  · Factura B — De responsable inscripto a consumidor final, exento u otros
+  · Factura A — Entre responsables inscriptos, o de RI a monotributista
+  · Factura de crédito electrónica C — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Factura de crédito electrónica B — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Factura de crédito electrónica A — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Factura de exportación E — A un cliente del exterior: servicios o bienes
+  = Factura A
+
+? [lista] ¿A quién le facturás?
+  arranca en: (ninguna)
+  · Con CUIT
+  = Con CUIT
+
+? [texto] CUIT del receptor:
+  = "30-70996581-2"
+
+? [lista] Condición frente al IVA del receptor:
+  arranca en: (ninguna)
+  · Responsable inscripto
+  · Responsable monotributo
+  · Monotributista social
+  · Monotributo trabajador independiente promovido
+  = Responsable inscripto
+
+? [lista] ¿Qué estás facturando?
+  arranca en: (ninguna)
+  · Servicios
+  · Productos
+  · Productos y servicios
+  = Productos y servicios
+
+? [texto] Monto total:
+  = "1.000"
+
+? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
+  [ ] Fecha del comprobante — hoy
+  [ ] Alícuota de IVA — 21%
+  [ ] Moneda extranjera — pesos
+  [ ] Importe exento o no gravado — sin exento ni no gravado
+  [ ] Período del servicio — hoy
+  [ ] Vencimiento del pago — por defecto
+  = Fecha del comprobante, Moneda extranjera
+
+? [texto] Fecha del comprobante:
+  = "17/11/2026"
+
+? [lista] Moneda del comprobante:
+  arranca en: Pesos
+  > Pesos
+  · Dólares estadounidenses (USD)
+  · Euros (EUR)
+  · Reales (BRL)
+  · Pesos uruguayos (UYU)
+  · Pesos chilenos (CLP)
+  · Guaraníes (PYG)
+  · Pesos bolivianos (BOB)
+  · Pesos colombianos (COP)
+  · Soles peruanos (PEN)
+  · Pesos mexicanos (MXN)
+  · Libras esterlinas (GBP)
+  · Francos suizos (CHF)
+  · Yenes (JPY)
+  · Yuanes (CNY)
+  · Dólares canadienses (CAD)
+  · Dólares australianos (AUD)
+  · Dólares neozelandeses (NZD)
+  · Rublos (RUB)
+  · Coronas danesas (DKK)
+  · Coronas noruegas (NOK)
+  · Coronas suecas (SEK)
+  · Coronas checas (CZK)
+  · Dinares serbios (RSD)
+  · Leus rumanos (RON)
+  · Forints (HUF)
+  · Zlotys (PLN)
+  · Bolívares venezolanos (VES)
+  · Florines antillanos (ANG)
+  · Pesos dominicanos (DOP)
+  · Balboas panameños (PAB)
+  · Córdobas nicaragüenses (NIO)
+  · Dólares jamaiquinos (JMD)
+  · Quetzales (GTQ)
+  · Lempiras (HNL)
+  · Shekels (ILS)
+  · Rands (ZAR)
+  · Dirhams marroquíes (MAD)
+  · Libras egipcias (EGP)
+  · Riyales saudíes (SAR)
+  · Dinares kuwaitíes (KWD)
+  · Rupias (INR)
+  · Dólares de Hong Kong (HKD)
+  · Dólares de Singapur (SGD)
+  · Dólares taiwaneses (TWD)
+  · Bahts (THB)
+  · Derechos Especiales de Giro (XDR)
+  = Dólares estadounidenses (USD)
+
+? [lista] ¿Cómo te pagan?
+  arranca en: (ninguna)
+  · En pesos — Ingresás la cotización acordada
+  · En dólares — Se usa la cotización oficial de ARCA
+  = En pesos
+
+? [texto] Cotización de USD:
+  = "1.420,50"
+
+== pantalla ==
+┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐
+╎                                                                                          ╎
+╎       Estás en TESTING: los comprobantes son de prueba y no tienen validez fiscal.       ╎
+╎                                                                                          ╎
+└╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘
+
+            ╒═══════════════════════════ FACTURA A ════════════════════════════╕
+            │                                                                  │
+            │  Concepto                         Productos y servicios          │
+            │  Punto de venta                   3                              │
+            │  Fecha del comprobante            17/11/2026                     │
+            │  Tipo de documento                CUIT                           │
+            │  Número de documento              30-70996581-2                  │
+            │  IVA receptor                     Responsable inscripto          │
+            │  Moneda                           Dólares estadounidenses (USD)  │
+            │  Cotización                       1.420,50                       │
+            │  Importe neto                     826,45 USD                     │
+            │  Importe IVA                      173,55 USD                     │
+            │  Alícuota de IVA                  21%                            │
+            │  Importe total                    1.000 USD                      │
+            │  Servicio desde                   17/11/2026                     │
+            │  Servicio hasta                   17/11/2026                     │
+            │  Vencimiento del pago             17/11/2026                     │
+            │                                                                  │
+            ├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
+            │                                                                  │
+            │                            SIN EMITIR                            │
+            │                                                                  │
+            ╘══════════════════════════════════════════════════════════════════╛
+
+== comando equivalente ==
+arcli fa -m 1000 --csp --cuit 30709965812 --ir responsable-inscripto -f 17/11/2026 --moneda USD --cm 1420,50 --testing --emitir
+
+== pantalla ==
+▎ Esto equivale a:
+▎ arcli fa -m 1000 --csp --cuit 30709965812 --ir responsable-inscripto -f 17/11/2026 --moneda USD --cm 1420,50 --testing --emitir
+
+? [lista] ¿Emitimos la factura A en testing?
+  arranca en: Sí, emitir ahora
+  > Sí, emitir ahora
+  · Sí, emitir y generar el PDF
+  · No, dejar sin emitir
+  = No, dejar sin emitir
+
+== pantalla ==
+┌                                                                                          ┐
+
+                                     No se emitió nada.
+
+└                                                                                          ┘
+
+== solicitud a ARCA (FECAESolicitar, sin el numero) ==
+{
+  "CanMisMonExt": "N",
+  "CantReg": 1,
+  "CbteFch": "20261117",
+  "CbteTipo": 1,
+  "Concepto": 3,
+  "CondicionIVAReceptorId": 1,
+  "DocNro": 30709965812,
+  "DocTipo": 80,
+  "FchServDesde": "20261117",
+  "FchServHasta": "20261117",
+  "FchVtoPago": "20261117",
+  "ImpIVA": 173.55,
+  "ImpNeto": 826.45,
+  "ImpOpEx": 0,
+  "ImpTotal": 1000,
+  "ImpTotConc": 0,
+  "ImpTrib": 0,
+  "Iva": [
+    {
+      "BaseImp": 826.45,
+      "Id": 5,
+      "Importe": 173.55
+    }
+  ],
+  "MonCotiz": 1420.5,
+  "MonId": "DOL",
+  "PtoVta": 3
+}

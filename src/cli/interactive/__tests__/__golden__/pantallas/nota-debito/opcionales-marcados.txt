@@ -1,0 +1,144 @@
+? [lista] ¿Sobre qué comprobante?
+  arranca en: (ninguna)
+  · Facturas (nuevo) — A, B o C, de crédito electrónica (FCE) o de exportación E
+  · Notas de crédito (nuevo) — Para ajustar una nota de crédito ya emitida
+  · Notas de débito (nuevo) — Para ajustar una nota de débito ya emitida
+  · Recibos (nuevo) — Recibo A, B o C por un cobro
+  = Facturas (nuevo)
+
+? [lista] ¿Qué factura?
+  arranca en: (ninguna)
+  · Factura C — La emiten monotributistas y exentos
+  · Factura B — De responsable inscripto a consumidor final, exento u otros
+  · Factura A — Entre responsables inscriptos, o de RI a monotributista
+  · Factura de crédito electrónica C — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Factura de crédito electrónica B — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Factura de crédito electrónica A — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Factura de exportación E (nuevo) — A un cliente del exterior: servicios o bienes
+  = Factura B
+
+? [lista] ¿A qué la asociamos?
+  arranca en: (ninguna)
+  · A una factura — Elegís una de las últimas emitidas o la ingresás a mano
+  · A un período — Por ejemplo, un descuento sobre todo el mes
+  = A una factura
+
+? [lista] ¿Sobre qué factura B?
+  arranca en: (ninguna)
+    --- ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+  · 00003-00000021   ·   10/11/2026   ·   Consumidor final   ·   $ 121  ·   CAE 86400940834693
+    ---
+  · + Cargar más…
+    --- ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+    ---
+  · # Ingresar el número a mano… — Uno más viejo o de otro punto de venta
+  = 00003-00000021   ·   10/11/2026   ·   Consumidor final   ·   $ 121  ·   CAE 86400940834693
+
+? [texto] Monto de la nota de débito:
+  = "60,50"
+
+? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
+  [ ] Fecha del comprobante — hoy
+  [ ] Importe exento o no gravado — sin exento ni no gravado
+  [ ] Período del servicio — hoy
+  [ ] Vencimiento del pago — por defecto
+  = Importe exento o no gravado
+
+? [texto] Parte exenta del monto total (vacío si no hay):
+  = "10"
+
+? [texto] Parte no gravada del monto total (vacío si no hay):
+  = ""
+
+== pantalla ==
+┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐
+╎                                                                                          ╎
+╎       Estás en TESTING: los comprobantes son de prueba y no tienen validez fiscal.       ╎
+╎                                                                                          ╎
+└╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘
+
+            ╒════════════════════════ NOTA DE DÉBITO B ════════════════════════╕
+            │                                                                  │
+            │  Concepto                         Servicios                      │
+            │  Punto de venta                   3                              │
+            │  Fecha del comprobante            18/11/2026                     │
+            │  Receptor                         Consumidor final               │
+            │  Moneda                           Pesos argentinos (ARS)         │
+            │  Importe neto                     $ 41,74                        │
+            │  Importe IVA                      $ 8,76                         │
+            │  Alícuota de IVA                  21%                            │
+            │  Importe exento                   $ 10                           │
+            │  Importe total                    $ 60,50                        │
+            │  Servicio desde                   18/11/2026                     │
+            │  Servicio hasta                   18/11/2026                     │
+            │  Vencimiento del pago             18/11/2026                     │
+            │  Comprobante asociado             Factura B                      │
+            │  Número asociado                  00003-00000021                 │
+            │  CUIT asociado                    20-11111111-2                  │
+            │  Fecha asociado                   10/11/2026                     │
+            │                                                                  │
+            ├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
+            │                                                                  │
+            │                            SIN EMITIR                            │
+            │                                                                  │
+            ╘══════════════════════════════════════════════════════════════════╛
+
+== comando equivalente ==
+arcli ndb -m 60,50 --cs --consumidor-final --exento 10 --ac fb --apv 3 --ar 21 --afecha 10/11/2026 --testing --emitir
+
+== pantalla ==
+▎ Esto equivale a:
+▎ arcli ndb -m 60,50 --cs --consumidor-final --exento 10 --ac fb --apv 3 --ar 21 --afecha 10/11/2026 --testing --emitir
+
+? [lista] ¿Emitimos la nota de débito B en testing?
+  arranca en: Sí, emitir ahora
+  > Sí, emitir ahora
+  · Sí, emitir y generar el PDF
+  · No, dejar sin emitir
+  = No, dejar sin emitir
+
+== pantalla ==
+┌                                                                                          ┐
+
+                                     No se emitió nada.
+
+└                                                                                          ┘
+
+== solicitud a ARCA (FECAESolicitar, sin el numero) ==
+{
+  "CantReg": 1,
+  "CbteFch": "20261118",
+  "CbtesAsoc": [
+    {
+      "CbteFch": "20261110",
+      "Cuit": "20111111112",
+      "Nro": 21,
+      "PtoVta": 3,
+      "Tipo": 6
+    }
+  ],
+  "CbteTipo": 7,
+  "Concepto": 2,
+  "CondicionIVAReceptorId": 5,
+  "DocNro": 0,
+  "DocTipo": 99,
+  "FchServDesde": "20261118",
+  "FchServHasta": "20261118",
+  "FchVtoPago": "20261118",
+  "ImpIVA": 8.76,
+  "ImpNeto": 41.74,
+  "ImpOpEx": 10,
+  "ImpTotal": 60.5,
+  "ImpTotConc": 0,
+  "ImpTrib": 0,
+  "Iva": [
+    {
+      "BaseImp": 41.74,
+      "Id": 5,
+      "Importe": 8.76
+    }
+  ],
+  "MonCotiz": 1,
+  "MonId": "PES",
+  "PtoVta": 3
+}

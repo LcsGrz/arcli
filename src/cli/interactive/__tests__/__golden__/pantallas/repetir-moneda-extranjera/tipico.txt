@@ -1,0 +1,129 @@
+? [lista] ¿Qué comprobante querés repetir?
+  arranca en: (ninguna)
+  · Factura C — La emiten monotributistas y exentos
+  · Factura B — De responsable inscripto a consumidor final, exento u otros
+  · Factura A — Entre responsables inscriptos, o de RI a monotributista
+  · Factura de crédito electrónica C — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Factura de crédito electrónica B — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Factura de crédito electrónica A — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Recibo C — Por un cobro; lo emiten monotributistas y exentos
+  · Recibo B — Por un cobro a un consumidor final, exento u otros
+  · Recibo A — Por un cobro a un responsable inscripto o monotributista
+  · Factura de exportación E (nuevo) — A un cliente del exterior: servicios o bienes
+  = Factura C
+
+? [lista] ¿Cuál repetimos?
+  arranca en: (ninguna)
+    --- ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+  · 00003-00000015  ·   10/11/2026  ·   Consumidor final  ·     500 USD  ·  CAE 86400940834693
+  · 00003-00000014  ·   10/11/2026  ·   Consumidor final  ·   $ 150.000  ·  CAE 86400940834693
+    --- ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+    ---
+  · # Ingresar el número a mano… — Uno más viejo o de otro punto de venta
+  = 00003-00000015  ·   10/11/2026  ·   Consumidor final  ·     500 USD  ·  CAE 86400940834693
+
+? [lista] ¿Mismo monto?
+  arranca en: (ninguna)
+  · Sí, 500 USD
+  · No, ingresar otro monto
+  = Sí, 500 USD
+
+== pantalla ==
+┌                                                                                          ┐
+
+       El comprobante original era en USD: se repite en USD con una cotización nueva.
+
+└                                                                                          ┘
+
+? [lista] ¿Cómo te pagan?
+  arranca en: (ninguna)
+  · En pesos — Ingresás la cotización acordada
+  · En dólares — Se usa la cotización oficial de ARCA
+  = En dólares
+
+? [lista] Período del servicio:
+  arranca en: (ninguna)
+  · Este mes — 01/11/2026 al 30/11/2026
+  · El mes pasado — 01/10/2026 al 31/10/2026
+  · Solo hoy — Desde y hasta hoy
+  · Otro período
+  = Este mes
+
+? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
+  [ ] Datos del consumidor final (nuevo) — sin identificar
+  [ ] Fecha del comprobante — hoy
+  [ ] Período del servicio — 01/11/2026 al 30/11/2026
+  [ ] Vencimiento del pago — por defecto
+  = (nada marcado)
+
+== pantalla ==
+┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐
+╎                                                                                          ╎
+╎       Estás en TESTING: los comprobantes son de prueba y no tienen validez fiscal.       ╎
+╎                                                                                          ╎
+└╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘
+
+            ╒═══════════════════════════ FACTURA C ════════════════════════════╕
+            │                                                                  │
+            │  Concepto                         Servicios                      │
+            │  Punto de venta                   3                              │
+            │  Fecha del comprobante            18/11/2026                     │
+            │  Receptor                         Consumidor final               │
+            │  Moneda                           Dólares estadounidenses (USD)  │
+            │  Cotización                       1.450                          │
+            │  Importe neto                     500 USD                        │
+            │  Importe total                    500 USD                        │
+            │  Servicio desde                   01/11/2026                     │
+            │  Servicio hasta                   30/11/2026                     │
+            │  Vencimiento del pago             30/11/2026                     │
+            │                                                                  │
+            ├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
+            │                                                                  │
+            │                            SIN EMITIR                            │
+            │                                                                  │
+            ╘══════════════════════════════════════════════════════════════════╛
+
+== comando equivalente ==
+arcli fc -m 500 --cs --consumidor-final --moneda USD --misma-moneda --sd 01/11/2026 --sh 30/11/2026 --testing --emitir
+
+== pantalla ==
+▎ Esto equivale a:
+▎ arcli fc -m 500 --cs --consumidor-final --moneda USD --misma-moneda --sd 01/11/2026 --sh 30/11/2026 --testing --emitir
+
+? [lista] ¿Emitimos la factura C en testing?
+  arranca en: Sí, emitir ahora
+  > Sí, emitir ahora
+  · Sí, emitir y generar el PDF
+  · No, dejar sin emitir
+  = No, dejar sin emitir
+
+== pantalla ==
+┌                                                                                          ┐
+
+                                     No se emitió nada.
+
+└                                                                                          ┘
+
+== solicitud a ARCA (FECAESolicitar, sin el numero) ==
+{
+  "CanMisMonExt": "S",
+  "CantReg": 1,
+  "CbteFch": "20261118",
+  "CbteTipo": 11,
+  "Concepto": 2,
+  "CondicionIVAReceptorId": 5,
+  "DocNro": 0,
+  "DocTipo": 99,
+  "FchServDesde": "20261101",
+  "FchServHasta": "20261130",
+  "FchVtoPago": "20261130",
+  "ImpIVA": 0,
+  "ImpNeto": 500,
+  "ImpOpEx": 0,
+  "ImpTotal": 500,
+  "ImpTotConc": 0,
+  "ImpTrib": 0,
+  "MonCotiz": 1450,
+  "MonId": "DOL",
+  "PtoVta": 3
+}

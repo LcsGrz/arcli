@@ -1,0 +1,321 @@
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { BACK } from '../../../modules/interactive/wizard';
+import { runExportFlow } from '../export.flow';
+import { runInvoiceFlow } from '../invoice.flow';
+import { runNoteFlow } from '../note.flow';
+import { runRepeatFlow } from '../repeat.flow';
+import type { InteractiveSession } from '../session';
+
+import { createScreens, recordFlow, withoutTerminal } from './screens';
+import { createBillingSession, createExportGateway, NOW } from './screens.fixtures';
+import type { ScriptedAnswer } from './script';
+
+/**
+ * Reproducciones de la auditoria del asistente del 19/11 (REV-67 a REV-73, docs/backlog/auditoria-asistente-19-11.md):
+ * un test por ticket, con el caso concreto de la auditoria. Afirman lo que tendria que pasar; hoy fallan, por eso van
+ * con `it.fails`. Cuando NAV arregla uno, su test pasa y `it.fails` falla: hay que pasarlo a `it`.
+ */
+
+const originalTimeZone = process.env.TZ;
+
+process.env.TZ = 'America/Argentina/Buenos_Aires';
+
+let screens = createScreens([]);
+const commands: string[] = [];
+
+vi.mock('../../../modules/interactive/equivalent-command', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../modules/interactive/equivalent-command')>();
+
+  return {
+    ...actual,
+    buildEquivalentCommand: (...args: Parameters<typeof actual.buildEquivalentCommand>) => {
+      const command = actual.buildEquivalentCommand(...args);
+
+      commands.push(command);
+
+      return command;
+    },
+  };
+});
+
+vi.mock('../prompts', () => ({
+  askText: async () => '',
+  askTextStep: (...args: Parameters<typeof screens.prompts.askTextStep>) => screens.prompts.askTextStep(...args),
+  chooseManyStep: (...args: Parameters<typeof screens.prompts.chooseManyStep>) =>
+    screens.prompts.chooseManyStep(...args),
+  chooseOne: (...args: Parameters<typeof screens.prompts.chooseOne>) => screens.prompts.chooseOne(...args),
+  chooseStep: (...args: Parameters<typeof screens.prompts.chooseStep>) => screens.prompts.chooseStep(...args),
+  chooseStepWhileLoading: (...args: Parameters<typeof screens.prompts.chooseStepWhileLoading>) =>
+    screens.prompts.chooseStepWhileLoading(...args),
+  confirm: (...args: Parameters<typeof screens.prompts.confirm>) => screens.prompts.confirm(...args),
+  eraseLastAnswer: () => undefined,
+  fitPageSize: () => 12,
+  isPromptCancellation: () => false,
+}));
+
+const exportGateway = createExportGateway();
+
+vi.mock('../../../services/arca/arca-client.factory', () => ({
+  ArcaClientFactory: class {
+    public createExportGateway() {
+      return exportGateway;
+    }
+  },
+}));
+
+vi.mock('../../../modules/config/config.service', () => ({
+  ConfigService: class {
+    public close() {}
+    public setValue() {}
+  },
+}));
+
+type Steps = ReadonlyArray<readonly [RegExp, ScriptedAnswer]>;
+
+const NO_EMIT = [/Emitimos/, 'No, dejar sin emitir'] as const;
+
+async function run(steps: Steps, flow: (session: InteractiveSession) => Promise<unknown>, config = {}) {
+  screens = createScreens(steps);
+
+  const result = await recordFlow(screens, () => flow(createBillingSession(config)));
+
+  expect(screens.remaining(), 'quedaron respuestas del guion sin preguntar').toBe(0);
+
+  return result;
+}
+
+/** El validador con que se pregunto `question` la ultima vez. */
+function lastValidator(question: RegExp): (value: string) => string | true {
+  const call = screens.script.askTextStep.mock.calls.findLast(([message]) => question.test(message));
+  const validate = call?.[1]?.validate;
+
+  if (!validate) {
+    throw new Error(`No se pregunto ${question} con un validador`);
+  }
+
+  return validate;
+}
+
+let restoreTerminal: () => void;
+
+beforeAll(() => {
+  restoreTerminal = withoutTerminal();
+});
+
+afterAll(() => {
+  restoreTerminal();
+
+  if (originalTimeZone === undefined) {
+    delete process.env.TZ;
+  } else {
+    process.env.TZ = originalTimeZone;
+  }
+});
+
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(NOW);
+  commands.length = 0;
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+describe('auditoría del asistente del 19/11', () => {
+  // Tests primero (REV-67): pasa a it() al implementarlo.
+  it.fails('REV-67: en la E, un opcional desmarcado no llega a ARCA', async () => {
+    const { exportPayload } = await run(
+      [
+        [/cliente del exterior/, 'ACME LLC'],
+        [/Domicilio/, '123 Main St'],
+        [/País de destino/, 'ESTADOS UNIDOS'],
+        [/ID impositivo/, '12-3456789'],
+        [/Qué exportás/, 'Servicios'],
+        [/Monto total/, '1.500'],
+        [/Descripción/, ''],
+        [/moneda/, 'Dólares'],
+        [/Te pagan en dólares/, 'Sí'],
+        [/Forma de pago/, ''],
+        [/actividad/, '620100'],
+        [/Agregamos/, ['Fecha del comprobante', 'Observaciones']],
+        [/Fecha del comprobante/, '17/11/2026'],
+        [/Observaciones \(Enter/, BACK],
+        [/Fecha del comprobante/, BACK],
+        [/Agregamos/, []],
+        [/Fecha de pago/, ''],
+        NO_EMIT,
+      ],
+      runExportFlow,
+    );
+
+    // Sin "Fecha del comprobante" marcada, la E va con la de hoy (18/11), como sin `--fecha`.
+    expect(exportPayload?.Fecha_cbte).toBe('20261118');
+  });
+
+  // Tests primero (REV-68): pasa a it() al implementarlo.
+  it.fails(
+    'REV-68: al volver a un paso anterior y regresar, los opcionales siguen marcados y respondidos',
+    async () => {
+      await run(
+        [
+          [/comprobante/, 'Factura B'],
+          [/A quién/, 'Consumidor final'],
+          [/Qué estás facturando/, 'Servicios'],
+          [/Monto total/, '1.000'],
+          [/Agregamos/, ['Importe exento o no gravado', 'Período del servicio']],
+          [/Parte exenta/, '300'],
+          [/Parte no gravada/, ''],
+          [/Servicio desde/, BACK],
+          [/Parte no gravada/, BACK],
+          [/Parte exenta/, BACK],
+          [/Agregamos/, BACK],
+          [/Monto total/, '1.000'],
+          [/Agregamos/, []],
+          NO_EMIT,
+        ],
+        runInvoiceFlow,
+      );
+
+      const [, choices, selected] = screens.script.chooseManyStep.mock.calls[2] ?? [];
+
+      expect(selected).toEqual(['exento', 'servicio']);
+      expect(choices?.find((choice) => choice.value === 'exento')?.description).toBe('exento 300');
+    },
+  );
+
+  // Tests primero (REV-69): pasa a it() al implementarlo.
+  it.fails(
+    'REV-69: "Servicio hasta" y "Vencimiento del pago" se cruzan con las otras fechas al preguntarlas',
+    async () => {
+      await run(
+        [
+          [/comprobante/, 'Factura C'],
+          [/A quién/, 'Consumidor final'],
+          [/Qué estás facturando/, 'Servicios'],
+          [/Monto total/, '1.000'],
+          [/Agregamos/, ['Período del servicio']],
+          [/Servicio desde/, '30/11/2026'],
+          [/Servicio hasta/, '30/11/2026'],
+          NO_EMIT,
+        ],
+        runInvoiceFlow,
+      );
+
+      // Antes del desde: la vista previa lo rechaza (10032).
+      expect.soft(lastValidator(/Servicio hasta/)('01/11/2026')).toEqual(expect.stringMatching(/posterior|anterior/));
+
+      await run(
+        [
+          [/comprobante/, 'Factura de crédito electrónica B'],
+          [/A quién/, 'Con CUIT'],
+          [/CUIT del receptor/, '30-70996581-2'],
+          [/Condición frente al IVA/, 'Sujeto exento'],
+          [/Qué estás facturando/, 'Servicios'],
+          [/Monto total/, '1.000'],
+          [/CBU del emisor/, '0170099220000067797370'],
+          [/Alias del CBU/, ''],
+          [/Agregamos/, ['Fecha del comprobante', 'Vencimiento del pago']],
+          [/Fecha del comprobante/, '15/11/2026'],
+          [/Vencimiento del pago/, '18/12/2026'],
+          NO_EMIT,
+          [/Guardamos el CBU/, 'No'],
+        ],
+        runInvoiceFlow,
+      );
+
+      // En una FCE no puede ser anterior a hoy (18/11): la vista previa lo rechaza (10164).
+      expect(lastValidator(/Vencimiento del pago/)('16/11/2026')).toEqual(
+        expect.stringMatching(/no puede ser anterior/),
+      );
+    },
+  );
+
+  // Tests primero (REV-70): pasa a it() al implementarlo.
+  it.fails('REV-70: exento más no gravado se controla contra el total al preguntarlo', async () => {
+    await run(
+      [
+        [/comprobante/, 'Factura B'],
+        [/A quién/, 'Consumidor final'],
+        [/Qué estás facturando/, 'Servicios'],
+        [/Monto total/, '1.000'],
+        [/Agregamos/, ['Importe exento o no gravado']],
+        [/Parte exenta/, '800'],
+        [/Parte no gravada/, ''],
+        NO_EMIT,
+      ],
+      runInvoiceFlow,
+    );
+
+    // 800 + 500 > 1.000: la vista previa lo rechaza y vuelve al menú.
+    expect(lastValidator(/Parte no gravada/)('500')).toEqual(expect.stringMatching(/no puede superar el monto total/));
+  });
+
+  // Tests primero (REV-71): pasa a it() al implementarlo.
+  it.fails(
+    'REV-71: en una nota por período, "Período hasta" no acepta un día posterior a la fecha de la nota',
+    async () => {
+      await run(
+        [
+          [/Sobre qué comprobante/, 'Facturas'],
+          [/Qué factura\?/, 'Factura C'],
+          [/A qué la asociamos/, 'A un período'],
+          [/Período desde/, '01/11/2026'],
+          [/Período hasta/, '15/11/2026'],
+          [/A quién va la nota/, 'Consumidor final'],
+          [/Qué concepto ajusta la nota/, 'Servicios'],
+          [/Monto de la nota de crédito/, '100'],
+          [/Agregamos/, []],
+          NO_EMIT,
+        ],
+        (session) => runNoteFlow(session, 'credito'),
+      );
+
+      // "Todo el mes" (hoy es 18/11): la vista previa lo rechaza con "no puede terminar después de la fecha".
+      expect(lastValidator(/Período hasta/)('30/11/2026')).toEqual(expect.stringMatching(/no puede terminar después/));
+    },
+  );
+
+  // Tests primero (REV-72): pasa a it() al implementarlo.
+  it.fails(
+    'REV-72: con moneda extranjera en la config, el comando equivalente no fija la cotización oficial con --cm',
+    async () => {
+      await run(
+        [
+          [/comprobante/, 'Factura C'],
+          [/A quién/, 'Consumidor final'],
+          [/Qué estás facturando/, 'Servicios'],
+          [/Monto total/, '100'],
+          [/Agregamos/, []],
+          NO_EMIT,
+        ],
+        runInvoiceFlow,
+        { monedaPorDefecto: 'USD' },
+      );
+
+      expect(commands.at(-1)).toBe('arcli fc -m 100 --cs --consumidor-final --moneda USD --testing --emitir');
+    },
+  );
+
+  // Tests primero (REV-73): pasa a it() al implementarlo.
+  it.fails('REV-73: al repetir una factura en pesos con el mismo monto, no se puede pasar a otra moneda', async () => {
+    await run(
+      [
+        [/Qué comprobante querés repetir/, 'Factura C'],
+        [/Cuál repetimos/, '00003-00000014'],
+        [/Mismo monto/, 'Sí'],
+        [/Período del servicio/, 'Este mes'],
+        [/Agregamos/, []],
+        NO_EMIT,
+      ],
+      runRepeatFlow,
+    );
+
+    const [, choices] = screens.script.chooseManyStep.mock.calls[0] ?? [];
+    const currency = choices?.find((choice) => choice.value === 'divisas');
+
+    // $ 150.000 confirmados en pesos: con la moneda extranjera saldria por US$ 150.000.
+    expect(currency === undefined || Boolean(currency.disabled)).toBe(true);
+  });
+});

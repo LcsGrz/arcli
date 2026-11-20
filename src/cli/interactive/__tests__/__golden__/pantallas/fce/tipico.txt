@@ -1,0 +1,156 @@
+? [lista] ¿Qué comprobante querés emitir?
+  arranca en: (ninguna)
+  · Factura C — La emiten monotributistas y exentos
+  · Factura B — De responsable inscripto a consumidor final, exento u otros
+  · Factura A — Entre responsables inscriptos, o de RI a monotributista
+  · Factura de crédito electrónica C — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Factura de crédito electrónica B — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Factura de crédito electrónica A — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Factura de exportación E — A un cliente del exterior: servicios o bienes
+  = Factura de crédito electrónica A
+
+? [lista] ¿A quién le facturás?
+  arranca en: (ninguna)
+  · Con CUIT
+  = Con CUIT
+
+? [texto] CUIT del receptor:
+  = "30-70996581-2"
+
+? [lista] Condición frente al IVA del receptor:
+  arranca en: (ninguna)
+  · Responsable inscripto
+  · Responsable monotributo
+  · Monotributista social
+  · Monotributo trabajador independiente promovido
+  = Responsable inscripto
+
+? [lista] ¿Qué estás facturando?
+  arranca en: (ninguna)
+  · Servicios
+  · Productos
+  · Productos y servicios
+  = Servicios
+
+? [texto] Monto total:
+  = "6.050.000"
+
+? [texto] CBU del emisor (22 dígitos):
+  = "0170099220000067797370"
+
+? [texto] Alias del CBU (Enter para omitir):
+  = "emisor.prueba.cbu"
+
+? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
+  [ ] Fecha del comprobante — hoy
+  [ ] Alícuota de IVA — 21%
+  [ ] Moneda extranjera — pesos
+  [ ] Importe exento o no gravado — sin exento ni no gravado
+  [ ] Período del servicio — hoy
+  [ ] Vencimiento del pago — por defecto
+  [ ] Modalidad de transferencia — SCA
+  = (nada marcado)
+
+== pantalla ==
+┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐
+╎                                                                                          ╎
+╎       Estás en TESTING: los comprobantes son de prueba y no tienen validez fiscal.       ╎
+╎                                                                                          ╎
+└╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘
+
+            ╒════════════════ FACTURA DE CRÉDITO ELECTRÓNICA A ════════════════╕
+            │                                                                  │
+            │  Concepto                         Servicios                      │
+            │  Punto de venta                   3                              │
+            │  Fecha del comprobante            18/11/2026                     │
+            │  Tipo de documento                CUIT                           │
+            │  Número de documento              30-70996581-2                  │
+            │  IVA receptor                     Responsable inscripto          │
+            │  Moneda                           Pesos argentinos (ARS)         │
+            │  Importe neto                     $ 5.000.000                    │
+            │  Importe IVA                      $ 1.050.000                    │
+            │  Alícuota de IVA                  21%                            │
+            │  Importe total                    $ 6.050.000                    │
+            │  Servicio desde                   18/11/2026                     │
+            │  Servicio hasta                   18/11/2026                     │
+            │  Vencimiento del pago             18/11/2026                     │
+            │  CBU                              0170099220000067797370         │
+            │  Alias CBU                        emisor.prueba.cbu              │
+            │  Transferencia                    SCA                            │
+            │                                                                  │
+            ├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
+            │                                                                  │
+            │                            SIN EMITIR                            │
+            │                                                                  │
+            ╘══════════════════════════════════════════════════════════════════╛
+
+== comando equivalente ==
+arcli fcea -m 6050000 --cs --cuit 30709965812 --ir responsable-inscripto --cbu 0170099220000067797370 --alias emisor.prueba.cbu --testing --emitir
+
+== pantalla ==
+▎ Esto equivale a:
+▎ arcli fcea -m 6050000 --cs --cuit 30709965812 --ir responsable-inscripto --cbu 0170099220000067797370 --alias emisor.prueba.cbu --testing --emitir
+
+? [lista] ¿Emitimos la factura de crédito electrónica A en testing?
+  arranca en: Sí, emitir ahora
+  > Sí, emitir ahora
+  · Sí, emitir y generar el PDF
+  · No, dejar sin emitir
+  = No, dejar sin emitir
+
+== pantalla ==
+┌                                                                                          ┐
+
+                                     No se emitió nada.
+
+└                                                                                          ┘
+
+? [lista] ¿Guardamos el CBU y el alias emisor.prueba.cbu en la config para la próxima?
+  arranca en: (ninguna)
+  · Sí, guardar
+  · No
+  = No
+
+== solicitud a ARCA (FECAESolicitar, sin el numero) ==
+{
+  "CantReg": 1,
+  "CbteFch": "20261118",
+  "CbteTipo": 201,
+  "Concepto": 2,
+  "CondicionIVAReceptorId": 1,
+  "DocNro": 30709965812,
+  "DocTipo": 80,
+  "FchServDesde": "20261118",
+  "FchServHasta": "20261118",
+  "FchVtoPago": "20261118",
+  "ImpIVA": 1050000,
+  "ImpNeto": 5000000,
+  "ImpOpEx": 0,
+  "ImpTotal": 6050000,
+  "ImpTotConc": 0,
+  "ImpTrib": 0,
+  "Iva": [
+    {
+      "BaseImp": 5000000,
+      "Id": 5,
+      "Importe": 1050000
+    }
+  ],
+  "MonCotiz": 1,
+  "MonId": "PES",
+  "Opcionales": [
+    {
+      "Id": "2101",
+      "Valor": "0170099220000067797370"
+    },
+    {
+      "Id": "2102",
+      "Valor": "emisor.prueba.cbu"
+    },
+    {
+      "Id": "27",
+      "Valor": "SCA"
+    }
+  ],
+  "PtoVta": 3
+}
