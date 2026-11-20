@@ -455,3 +455,74 @@ describe('notas E: sin punto de venta y sin asociado elegido', () => {
     });
   });
 });
+
+// Revisión de NAV-3: en la nota, solo la descripción del incoterm sigue al asociado (el incoterm es el suyo).
+describe('notas E: opcionales al elegir otro asociado', () => {
+  beforeEach(() => {
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    expect(script.remaining()).toBe(0);
+  });
+
+  it('el idioma elegido se mantiene y la descripción del incoterm se olvida', async () => {
+    const goods = { ...INVOICE, exportType: 1 as const, incoterm: 'FOB', incotermDescription: 'Free on board' };
+    const invoices: Record<number, ExportIssuedVoucher> = {
+      2: { ...goods, number: 2 },
+      3: { ...goods, incoterm: 'CIF', incotermDescription: 'Cost insurance freight', number: 3 },
+    };
+    const notesGateway: ExportGateway = {
+      ...gateway,
+      getLanguages: async () => [
+        { id: 1, name: 'Español' },
+        { id: 2, name: 'Inglés' },
+      ],
+      getVoucher: async (query) => invoices[query.number] ?? null,
+    };
+    let returned = false;
+    const after = {
+      name: 'despues',
+      run: async () => {
+        if (returned) {
+          return {};
+        }
+
+        returned = true;
+
+        return BACK;
+      },
+    };
+
+    script = createScript([
+      [/Punto de venta de la factura E/, '4'],
+      [/Número de la factura E/, '2'],
+      [/Monto de la nota de crédito/, '100'],
+      [/Detalle/, ''],
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, ['Idioma', 'Descripción del incoterm']],
+      [/Idioma del comprobante/, 'Inglés'],
+      [/Descripción del incoterm FOB/, 'FOB Buenos Aires'],
+      // "despues" vuelve: se retrocede hasta el número y se elige otra factura.
+      [/Agregamos algún opcional/, BACK],
+      [/Permisos de embarque/, BACK],
+      [/Detalle/, BACK],
+      [/Monto de la nota de crédito/, BACK],
+      [/Número de la factura E/, '3'],
+      [/Monto de la nota de crédito/, '100'],
+      [/Detalle/, ''],
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, ['Idioma']],
+      [/Idioma del comprobante/, 'Inglés'],
+    ]);
+
+    const state = await runWizard([...exportNoteSteps('credito', notesGateway, 4), after], {});
+    const lastSelection = script.chooseManyStep.mock.calls.at(-1);
+    const shown = Object.fromEntries((lastSelection?.[1] ?? []).map((choice) => [choice.name, choice.description]));
+
+    expect(state?.options).toEqual({ language: 2 });
+    expect(lastSelection?.[2]).toEqual(['idioma']);
+    expect(shown).toMatchObject({ 'Descripción del incoterm': 'Cost insurance freight', Idioma: 'Inglés' });
+  });
+});

@@ -154,7 +154,10 @@ describe('exportOptionalsStep', () => {
           { description: 'Flete', quantity: 1, unit: 7, unitPrice: 500 },
         ],
       });
-      expect(printed()).toMatch(/La suma de los ítems \(1\.000\) no coincide con el monto total \(1\.500\)/);
+      // El panel parte el texto en renglones: se compara sin los bordes ni los saltos.
+      expect(printed().replace(/[\s│╏┃]+/g, ' ')).toContain(
+        'La suma de los ítems (1.000 USD) no coincide con el monto total (1.500 USD). Agregá otro ítem, o volvé y elegí "Cargar de nuevo".',
+      );
       expect(script.chooseStep.mock.calls[0]?.[1].map((choice) => ('name' in choice ? choice.name : ''))).toEqual([
         'kilogramos',
         'unidades',
@@ -630,8 +633,74 @@ describe('exportOptionalsStep: volver desde el paso siguiente', () => {
     // Sin terminar, los ítems no cuentan: la selección los describe como si no hubiera.
     expect(optionalDescriptions(1)['Ítems']).toBe('un renglón con el monto total');
     expect(script.chooseStep.mock.calls.find(([message]) => /ya cargados/.test(message))?.[1]).toEqual([
-      { description: 'Suma 500 de 1.500', name: 'Seguir cargando', value: 'seguir' },
+      { description: 'Suma 500 USD de 1.500 USD', name: 'Seguir cargando', value: 'seguir' },
       { description: 'Empieza por el ítem 1', name: 'Cargar de nuevo', value: 'nuevo' },
+    ]);
+  });
+
+  // Revisión de NAV-3: la selección y la pregunta muestran los mismos ítems.
+  it('"Cargar de nuevo" y volver antes de cargar uno deja los de antes, en la selección y en la pregunta', async () => {
+    script = createScript([
+      [OPTIONALS, ['Ítems']],
+      ...ONE_ITEM,
+      [OPTIONALS, ['Ítems']],
+      [/ítems ya cargados/, 'Cargar de nuevo'],
+      [/ítem 1:/, BACK],
+      [OPTIONALS, ['Ítems']],
+      [/ítems ya cargados/, 'Usar el ítem'],
+    ]);
+
+    expect(await withStepAfter()).toEqual({
+      items: [{ description: 'Servicio', quantity: 1, unit: 7, unitPrice: 1500 }],
+    });
+    expect(optionalDescriptions(2)['Ítems']).toBe('1 ítem');
+  });
+
+  it('"Cargar de nuevo" y volver después de cargar uno nuevo también deja los de antes', async () => {
+    script = createScript([
+      [OPTIONALS, ['Ítems']],
+      ...ONE_ITEM,
+      [OPTIONALS, ['Ítems']],
+      [/ítems ya cargados/, 'Cargar de nuevo'],
+      [/ítem 1:/, 'Otro'],
+      [/Cantidad/, '1'],
+      [/Precio/, '500'],
+      [/Unidad/, 'unidades'],
+      [/ítem 2/, BACK],
+      [OPTIONALS, ['Ítems']],
+      [/ítems ya cargados/, 'Usar el ítem'],
+    ]);
+
+    expect(await withStepAfter()).toEqual({
+      items: [{ description: 'Servicio', quantity: 1, unit: 7, unitPrice: 1500 }],
+    });
+    expect(optionalDescriptions(2)['Ítems']).toBe('1 ítem');
+  });
+
+  it('si los ítems a medias se pasan del monto, solo se puede cargar de nuevo', async () => {
+    script = createScript([
+      [OPTIONALS, ['Ítems']],
+      [/ítem 1/, 'Bienes'],
+      [/Cantidad/, '1'],
+      [/Precio/, '2000'],
+      [/Unidad/, 'unidades'],
+      [/ítem 2/, BACK],
+      [OPTIONALS, ['Ítems']],
+      [/ítems ya cargados/, 'Cargar de nuevo'],
+      [/ítem 1:/, 'Bienes'],
+      [/Cantidad/, '1'],
+      [/Precio/, '1500'],
+      [/Unidad/, 'unidades'],
+      [/ítem 2/, ''],
+      [OPTIONALS, ['Ítems']],
+      [/ítems ya cargados/, 'Usar el ítem'],
+    ]);
+
+    expect(await withStepAfter()).toEqual({
+      items: [{ description: 'Bienes', quantity: 1, unit: 7, unitPrice: 1500 }],
+    });
+    expect(script.chooseStep.mock.calls.find(([message]) => /ya cargados/.test(message))?.[1]).toEqual([
+      { description: 'Suma 2.000 USD y el monto es 1.500 USD', name: 'Cargar de nuevo', value: 'nuevo' },
     ]);
   });
 

@@ -109,7 +109,7 @@ describe('exportOptionals', () => {
     );
   });
 
-  it('lo copiado (ítems, idioma, CUIT del país e incoterm) sigue al comprobante; los ítems, también al monto', () => {
+  it('lo copiado en "Repetir" (ítems, idioma, CUIT del país e incoterm) sigue a la factura; en la nota, solo el incoterm sigue al asociado; los ítems, también al monto', () => {
     const keys = (overrides: Partial<ExportOptionalsContext>) =>
       Object.fromEntries(
         catalog()
@@ -120,10 +120,15 @@ describe('exportOptionals', () => {
     expect(keys({ copiedFrom: '3:7' })).toEqual({
       'cuit-pais': '3:7',
       idioma: '3:7',
-      incoterm: '3:7',
+      incoterm: '3:7|',
       items: '3:7|1500',
     });
-    expect(keys({ amount: 800 })).toEqual({ 'cuit-pais': '', idioma: '', incoterm: '', items: '|800' });
+    expect(keys({ amount: 800, associated: '21:3:7' })).toEqual({
+      'cuit-pais': '',
+      idioma: '',
+      incoterm: '|21:3:7',
+      items: '|800',
+    });
   });
 
   // REV-67: lo desmarcado vuelve a lo inicial (en "Repetir", lo copiado).

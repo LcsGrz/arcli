@@ -267,7 +267,7 @@ describe('runExportFlow', () => {
 
     await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
 
-    expect(printed()).toContain('La suma de los ítems (1.000) no coincide con el monto total (1.500)');
+    expect(printed()).toContain('La suma de los ítems (1.000 USD) no coincide con el monto total (1.500 USD)');
     expect(gateway.authorize).toHaveBeenCalledWith(
       expect.objectContaining({
         Idioma_cbte: 2,

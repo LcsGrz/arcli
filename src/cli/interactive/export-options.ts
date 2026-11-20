@@ -3,8 +3,9 @@ import {
   formatDateAsArcaDate,
   parseArgentineDateInputAsArcaDate,
 } from '../../lib/dates/arca-date';
-import { formatArgentineAmount, parseArgentineAmount } from '../../lib/numbers/argentine-amount';
+import { parseArgentineAmount } from '../../lib/numbers/argentine-amount';
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
+import { formatMoneyLabel } from '../../modules/billing/billing.labels';
 import { sumExportItems } from '../../modules/export/export.items';
 import {
   type ExportTextField,
@@ -20,6 +21,7 @@ import {
   type ExportItemInput,
 } from '../../modules/export/export.types';
 import { amountInputText, parseExchangeRateInput } from '../../modules/interactive/amount-input';
+import type { InteractiveChoice } from '../../modules/interactive/choices';
 import {
   type ExportCountryCuitContext,
   type ExportOptionalQuestions,
@@ -204,57 +206,83 @@ function loadedItems(count: number): string {
   return count === 1 ? 'el ítem' : `los ${count} ítems`;
 }
 
-/** Con items ya cargados (de antes de volver), se elige usarlos (o seguir cargando, si no suman) o empezar de nuevo. */
+type LoadedItemsChoice = 'nuevo' | 'seguir' | 'usar';
+
+/**
+ * Con items ya cargados, se elige usarlos (si suman el monto) o seguir cargando (si todavia no llegan), o empezar de
+ * nuevo. Si ya se pasan del monto, solo se puede empezar de nuevo.
+ */
 async function askLoadedItems(
   items: readonly ExportItemInput[],
-  amount: number,
-): Promise<Back | 'nuevo' | 'seguir' | 'usar'> {
+  context: ExportOptionalsContext,
+): Promise<Back | LoadedItemsChoice> {
   const total = sumExportItems(items);
+  const money = (value: number) => formatMoneyLabel(value, context.currencyCode);
+  const verb = items.length === 1 ? 'Suma' : 'Suman';
+  const choices: Array<InteractiveChoice<LoadedItemsChoice>> = [];
 
-  return chooseStep('¿Qué hacemos con los ítems ya cargados?', [
-    total === amount
-      ? {
-          description: `Suman ${formatArgentineAmount(total)}, el monto total`,
-          name: `Usar ${loadedItems(items.length)}`,
-          value: 'usar' as const,
-        }
-      : {
-          description: `${items.length === 1 ? 'Suma' : 'Suman'} ${formatArgentineAmount(total)} de ${formatArgentineAmount(amount)}`,
-          name: 'Seguir cargando',
-          value: 'seguir' as const,
-        },
-    { description: 'Empieza por el ítem 1', name: 'Cargar de nuevo', value: 'nuevo' as const },
-  ]);
+  if (total === context.amount) {
+    choices.push({
+      description: `${verb} ${money(total)}, el monto total`,
+      name: `Usar ${loadedItems(items.length)}`,
+      value: 'usar',
+    });
+  } else if (total < context.amount) {
+    choices.push({
+      description: `${verb} ${money(total)} de ${money(context.amount)}`,
+      name: 'Seguir cargando',
+      value: 'seguir',
+    });
+  }
+
+  choices.push({
+    description:
+      total > context.amount
+        ? `${verb} ${money(total)} y el monto es ${money(context.amount)}`
+        : 'Empieza por el ítem 1',
+    name: 'Cargar de nuevo',
+    value: 'nuevo',
+  });
+
+  return chooseStep('¿Qué hacemos con los ítems ya cargados?', choices);
 }
 
 /**
  * Los items, uno por uno: descripcion, cantidad, precio unitario y unidad. Enter en la descripcion termina, y la
- * suma tiene que dar el monto total, igual que `--item`. Si no da, avisa y sigue pidiendo items. Lo cargado queda en
- * el memo de la pregunta: al volver a ella (por ejemplo, con Esc en la fecha de pago) se usa o se sigue (REV-68).
+ * suma tiene que dar el monto total, igual que `--item`. Si no da, avisa y sigue pidiendo items.
+ *
+ * Al volver a la pregunta (por ejemplo, con Esc en la fecha de pago), arranca con lo cargado (REV-68), de la misma
+ * fuente que la seleccion: los items de la ultima carga terminada (`previous`, lo que se aplica). Una carga a medias
+ * sin ninguna terminada antes queda en el memo, para seguirla. "Cargar de nuevo" no borra nada mientras la carga nueva
+ * no termina: si se vuelve antes, siguen los de antes.
  */
 function itemsStep(context: ExportOptionalsContext): WizardStep<ExportOptions> {
   return {
     name: 'items',
-    run: async (_current, _previous, memo) => {
+    run: async (_current, previous, memo) => {
       const units = await withSpinner('Consultando las unidades de WSFEX...', context.units);
-      const items: ExportItemInput[] = [...(memo.get<readonly ExportItemInput[]>() ?? [])];
+      const finished = previous?.items ?? [];
+      const loaded = finished.length > 0 ? finished : (memo.get<readonly ExportItemInput[]>() ?? []);
+      const items: ExportItemInput[] = [];
 
-      if (items.length > 0) {
-        const loaded = await askLoadedItems(items, context.amount);
+      if (loaded.length > 0) {
+        const choice = await askLoadedItems(loaded, context);
 
-        if (loaded === BACK) {
+        if (choice === BACK) {
           return BACK;
         }
 
-        if (loaded === 'usar') {
-          return { items };
+        if (choice === 'usar') {
+          return { items: [...loaded] };
         }
 
-        if (loaded === 'nuevo') {
-          items.length = 0;
-          memo.set<readonly ExportItemInput[]>([]);
+        if (choice === 'seguir') {
+          items.push(...loaded);
         }
       }
+
+      // Solo una carga sin ninguna terminada se recuerda a medias: la terminada es la que muestra la seleccion.
+      const remember = finished.length === 0;
 
       for (;;) {
         const description = await askTextStep(
@@ -270,12 +298,14 @@ function itemsStep(context: ExportOptionalsContext): WizardStep<ExportOptions> {
           const total = sumExportItems(items);
 
           if (total === context.amount) {
+            memo.set<readonly ExportItemInput[]>([]);
+
             return { items: [...items] };
           }
 
           writeTerminalOutput(
             noticePanel(
-              `La suma de los ítems (${formatArgentineAmount(total)}) no coincide con el monto total (${formatArgentineAmount(context.amount)}). Agregá otro ítem o volvé para empezar de nuevo.`,
+              `La suma de los ítems (${formatMoneyLabel(total, context.currencyCode)}) no coincide con el monto total (${formatMoneyLabel(context.amount, context.currencyCode)}). Agregá otro ítem, o volvé y elegí "Cargar de nuevo".`,
               'warning',
             ),
           );
@@ -315,7 +345,10 @@ function itemsStep(context: ExportOptionalsContext): WizardStep<ExportOptions> {
           unit,
           unitPrice: parseItemNumber(unitPrice),
         });
-        memo.set<readonly ExportItemInput[]>([...items]);
+
+        if (remember) {
+          memo.set<readonly ExportItemInput[]>([...items]);
+        }
       }
     },
   };

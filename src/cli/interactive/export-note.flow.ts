@@ -216,8 +216,9 @@ export function exportNoteSteps(
 
         return {
           amount: requireStepValue(state.amount, 'amount'),
-          // La descripcion del incoterm es la del asociado: con otro, arranca con la de ese.
-          copiedFrom: `${invoice.arcaType}:${invoice.pointOfSale}:${invoice.number}`,
+          // El incoterm es el del asociado: con otro, su descripcion arranca como la primera vez. El idioma y los items
+          // elegidos no dependen del asociado.
+          associated: `${invoice.arcaType}:${invoice.pointOfSale}:${invoice.number}`,
           currencyCode: invoice.currencyCode,
           defaultExchangeRate: offersExchangeRate
             ? `la de ${name} (${formatExchangeRate(invoice.exchangeRate)})`

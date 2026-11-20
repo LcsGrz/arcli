@@ -45,8 +45,13 @@ export interface ExportOptionalsContext {
   /** Monto total: la suma de los items tiene que darlo. */
   readonly amount: number;
   /**
-   * El comprobante del que se copian items, idioma, CUIT del pais y descripcion del incoterm ("Repetir" y las notas),
-   * como una clave: si cambia, esos opcionales olvidan lo marcado y respondido y arrancan con lo copiado del nuevo.
+   * El comprobante que ajusta la nota, como una clave: el incoterm es el suyo, asi que con otro la descripcion del
+   * incoterm olvida lo marcado y respondido. Lo demas que se eligio no depende del asociado.
+   */
+  readonly associated?: string;
+  /**
+   * La factura de la que se copian items, idioma, CUIT del pais y descripcion del incoterm ("Repetir"), como una clave:
+   * si cambia, esos opcionales olvidan lo marcado y respondido y arrancan con lo copiado de la nueva.
    */
   readonly copiedFrom?: string;
   /** Solo en la factura y "Repetir": en las notas sale del asociado. */
@@ -116,8 +121,9 @@ const copiedFrom = (context: ExportOptionalsContext): string => context.copiedFr
 
 /**
  * Los opcionales de la E (factura, notas y "Repetir"), en el orden en que se muestran y se preguntan. Lo que se copia
- * del comprobante elegido (`copiedFrom`) lo sigue: con otro, arranca con lo copiado del nuevo. Los items ademas siguen
- * al monto, porque lo tienen que sumar.
+ * de la factura que se repite (`copiedFrom`) la sigue: con otra, arranca con lo copiado de la nueva. En las notas, la
+ * descripcion del incoterm sigue al asociado (`associated`). Los items ademas siguen al monto, porque lo tienen que
+ * sumar.
  */
 export function exportOptionals(questions: ExportOptionalQuestions): readonly ExportOptionalDef[] {
   return [
@@ -174,7 +180,7 @@ export function exportOptionals(questions: ExportOptionalQuestions): readonly Ex
       key: 'incoterm',
       label: 'Descripción del incoterm',
       owns: ['incotermDescription'],
-      resetWhen: copiedFrom,
+      resetWhen: (context) => `${copiedFrom(context)}|${context.associated ?? ''}`,
       steps: questions.incoterm,
     },
     {

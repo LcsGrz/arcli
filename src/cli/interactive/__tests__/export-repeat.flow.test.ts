@@ -623,6 +623,77 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     });
   });
 
+  // Como en A, B y C ("lo respondido con otra factura no pisa lo copiado de la elegida"): lo copiado sigue a la factura.
+  it('al volver y elegir otra factura, lo respondido con la anterior no pisa lo copiado de la nueva', async () => {
+    const first: ExportIssuedVoucher = { ...INVOICE, incotermDescription: 'Free on board', language: 2 };
+    const second: ExportIssuedVoucher = {
+      ...INVOICE,
+      clientCountryCuit: 55000002118,
+      incoterm: 'CIF',
+      incotermDescription: 'Cost insurance freight',
+      language: 3,
+      number: 2,
+    };
+    const stepsGateway = {
+      ...gateway,
+      getLanguages: async () => [
+        { id: 1, name: 'Español' },
+        { id: 2, name: 'Inglés' },
+        { id: 3, name: 'Portugués' },
+      ],
+      getLastVoucherNumber: async () => 2,
+      getVoucher: async (query: { readonly number: number }) => [first, second][query.number - 1] ?? null,
+    };
+    let returned = false;
+    const after = {
+      name: 'despues',
+      run: async () => {
+        if (returned) {
+          return {};
+        }
+
+        returned = true;
+
+        return BACK;
+      },
+    };
+
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      [/Mismo monto/, 'Sí'],
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, ['Idioma', 'CUIT del país', 'Descripción del incoterm']],
+      [/Idioma del comprobante/, 'Español'],
+      [/CUIT del país del cliente/, '55000002126'],
+      [/Descripción del incoterm FOB/, 'Mi descripción'],
+      // "despues" vuelve: se retrocede hasta la factura y se elige otra.
+      [/Agregamos algún opcional/, BACK],
+      [/Permisos de embarque/, BACK],
+      [/Mismo monto/, BACK],
+      [/Cuál repetimos/, '00004-00000002'],
+      [/Mismo monto/, 'Sí'],
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, []],
+    ]);
+
+    const state = await runWizard([...exportRepeatSteps(createSession(), stepsGateway, TABLES, 4), after], {});
+
+    expect(state?.options).toEqual({
+      clientCountryCuit: 55000002118,
+      incotermDescription: 'Cost insurance freight',
+      items: second.items?.map(({ description, quantity, unit, unitPrice }) => ({
+        code: undefined,
+        description,
+        quantity,
+        unit,
+        unitPrice,
+      })),
+      language: 3,
+    });
+    // Lo que se había marcado sigue a la factura anterior: con la nueva arranca sin marcar.
+    expect(script.chooseManyStep.mock.calls.at(-1)?.[2]).toEqual([]);
+  });
+
   // REV-65: la fecha de pago depende solo de la fecha del comprobante de los opcionales.
   describe('la fecha de pago recordada', () => {
     /** Los pasos con uno mas al final, que vuelve una vez: asi se llega de nuevo a la fecha de pago ya respondida. */
