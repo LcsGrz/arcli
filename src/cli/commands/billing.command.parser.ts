@@ -6,13 +6,12 @@ import { InputValidationError } from '../../lib/errors/app-error';
 import { readJsonFile } from '../../lib/files/read-json-file';
 import { parseArgentineAmount } from '../../lib/numbers/argentine-amount';
 import { type BatchItemError, BatchValidationError, describeBatchItemError } from '../../modules/billing/billing.batch';
-import { isForeignCurrency } from '../../modules/billing/billing.currency';
+import { resolveConfigExchangeRate } from '../../modules/billing/billing.currency';
 import {
   type BillingJsonInput,
   parseBillingJsonInput,
   readBillingJsonItems,
 } from '../../modules/billing/billing.json-input';
-import { resolveBillingCurrencyCode } from '../../modules/billing/billing.mappers';
 import { type BillingCommandInput, billingCommandSchema } from '../../modules/billing/billing.schemas';
 import type { VoucherShortcut } from '../../modules/billing/billing.types';
 import { getVoucherKindByShortcut } from '../../modules/billing/voucher-kind-map';
@@ -363,17 +362,15 @@ function parseBillingCommandInputFromSource(
     );
   }
 
-  // La cotizacion por defecto de la config (deprecada) solo aplica a moneda extranjera sin --misma-moneda. Si la config
-  // tiene otra moneda extranjera, es la cotizacion de esa: la de USD no vale para EUR. Sin ella,
-  // BillingService.resolveExchangeRate consulta la oficial.
-  const configCurrency = defaults.defaultCurrencyCode;
-  const isOtherConfigCurrency =
-    configCurrency !== undefined &&
-    isForeignCurrency({ currencyCode: configCurrency }) &&
-    resolveBillingCurrencyCode(currencyCode) !== resolveBillingCurrencyCode(configCurrency);
+  // La cotizacion por defecto de la config (deprecada), si aplica a esta moneda: la misma regla que el asistente.
   const configExchangeRate =
-    explicitExchangeRate === undefined && !sameCurrency && isForeignCurrency({ currencyCode }) && !isOtherConfigCurrency
-      ? defaults.defaultExchangeRate
+    explicitExchangeRate === undefined
+      ? resolveConfigExchangeRate({
+          configCurrencyCode: defaults.defaultCurrencyCode,
+          configExchangeRate: defaults.defaultExchangeRate,
+          currencyCode,
+          sameCurrency,
+        })
       : undefined;
   const exchangeRate = explicitExchangeRate ?? configExchangeRate;
 

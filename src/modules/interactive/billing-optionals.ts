@@ -1,6 +1,6 @@
 import { formatArgentineAmount, formatExchangeRate } from '../../lib/numbers/argentine-amount';
-import { DEFAULT_CURRENCY_CODE, DEFAULT_EXCHANGE_RATE } from '../billing/billing.constants';
-import { isForeignCurrency } from '../billing/billing.currency';
+import { DEFAULT_CURRENCY_CODE } from '../billing/billing.constants';
+import { isForeignCurrency, resolveConfigExchangeRate } from '../billing/billing.currency';
 import type { BillingCommandInput } from '../billing/billing.schemas';
 import type { VoucherKindDefinition } from '../billing/billing.types';
 import { findArcaCurrency, toIsoCurrencyCode } from '../billing/currency-codes';
@@ -48,10 +48,10 @@ export interface BillingOptionalsContext {
   /** La moneda no se puede cambiar: al repetir un comprobante en moneda extranjera, el monto ya esta en esa moneda. */
   readonly fixedCurrency?: boolean;
   /**
-   * La cotizacion oficial de ARCA de una moneda, con la que arranca escrita la cotizacion si te pagan en pesos.
-   * `undefined` si la consulta falla: la pregunta arranca vacia.
+   * Con que cotizacion arranca escrita la pregunta si te pagan en pesos: la de la config si el CLI la tomaria, o la
+   * oficial de ARCA. `undefined` si la consulta de la oficial falla: la pregunta arranca vacia.
    */
-  readonly officialExchangeRate?: (currencyCode: string) => Promise<number | undefined>;
+  readonly exchangeRateSuggestion?: (currencyCode: string) => Promise<ExchangeRateSuggestion | undefined>;
   /** Opciones que no se ofrecen: en las notas, la alicuota (tiene su paso) o la moneda (la de la factura). */
   readonly hidden?: readonly AdvancedOptionKey[];
   /** Opciones que arrancan marcadas, por ejemplo la alicuota al repetir una factura de la que no se deduce. */
@@ -66,27 +66,45 @@ export type BillingOptionalQuestions = Readonly<
 
 export type BillingOptionalDef = OptionalDef<AdvancedOptionKey, AdvancedOptions, BillingOptionalsContext>;
 
+type CurrencyConfig = Pick<ArcliConfig, 'cotizacionPorDefecto' | 'monedaPorDefecto'>;
+
+/**
+ * La cotizacion de la config (`cotizacion`, deprecada) que tomaria el CLI sin `--cm` para `currencyCode`, cobrado en
+ * pesos: la misma regla que el parser (`resolveConfigExchangeRate`).
+ */
+export function configExchangeRateFor(config: CurrencyConfig, currencyCode: string): number | undefined {
+  return resolveConfigExchangeRate({
+    configCurrencyCode: config.monedaPorDefecto,
+    configExchangeRate: config.cotizacionPorDefecto,
+    currencyCode,
+    sameCurrency: false,
+  });
+}
+
+/** Con que cotizacion arranca escrita la pregunta si te pagan en pesos, y de donde sale. */
+export interface ExchangeRateSuggestion {
+  readonly rate: number;
+  readonly source: 'arca' | 'config';
+}
+
 /**
  * Como el CLI sin `--moneda`: arranca en la moneda de la config y, si es extranjera, con su cotizacion guardada
  * (deprecada, marcada como de la config para que la vista previa avise lo mismo que con flags) o, sin ella, la oficial
  * de ARCA.
  */
-export function initialAdvancedOptions(
-  config: Pick<ArcliConfig, 'cotizacionPorDefecto' | 'monedaPorDefecto'>,
-): AdvancedOptions {
+export function initialAdvancedOptions(config: CurrencyConfig): AdvancedOptions {
   const currencyCode = config.monedaPorDefecto;
 
   if (!currencyCode || !isForeignCurrency({ currencyCode })) {
     return { currencyCode: DEFAULT_CURRENCY_CODE, sameCurrency: false };
   }
 
-  const rate = config.cotizacionPorDefecto;
-  const configured = rate !== undefined && rate !== DEFAULT_EXCHANGE_RATE;
+  const rate = configExchangeRateFor(config, currencyCode);
 
   return {
     currencyCode: toIsoCurrencyCode(currencyCode),
-    exchangeRate: configured ? rate : undefined,
-    exchangeRateSource: configured ? 'config' : undefined,
+    exchangeRate: rate,
+    exchangeRateSource: rate === undefined ? undefined : 'config',
     sameCurrency: false,
   };
 }

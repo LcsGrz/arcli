@@ -49,7 +49,7 @@ import { requiredConsumerSteps } from './consumer-identification';
 import { runExportNoteFlow } from './export-note.flow';
 import { pickNoteInvoice } from './invoice-picker';
 import { markIfNew } from './new-mark';
-import { officialExchangeRateLoader } from './official-exchange-rate';
+import { exchangeRateSuggestionLoader, officialExchangeRateLoader } from './official-exchange-rate';
 import { askTextStep, chooseStep } from './prompts';
 import { askReceiverIvaCondition, receiverSteps } from './receiver-padron';
 import { type InteractiveSession, previewAndEmit, requirePointOfSale } from './session';
@@ -236,6 +236,7 @@ async function askNoteAmount(
 export function noteSteps(session: InteractiveSession, pointOfSale: number): Array<WizardStep<NoteState>> {
   const { config } = session.runtime;
   const officialExchangeRate = officialExchangeRateLoader(session);
+  const exchangeRateSuggestion = exchangeRateSuggestionLoader(config, officialExchangeRate);
   const advancedOf = (state: NoteState): AdvancedOptions => state.advanced ?? initialAdvancedOptions(config);
   // El receptor sale de la factura o se pregunta: si cambia, el documento escrito antes no se ofrece.
   const consumerOptions = {
@@ -484,7 +485,7 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
         consumer: state.documentType === 'consumidor-final' && !isConsumerIdentified(state.advanced),
         defaultIvaRate: defaultIvaRate(config, state.ivaRate),
         hidden: hiddenNoteOptions(state),
-        officialExchangeRate,
+        exchangeRateSuggestion,
         voucherKind: noteKindChoices(state.kind ?? 'credito', requireStepValue(state.invoiceKind, 'invoiceKind')),
       }),
       name: 'avanzadas',
@@ -492,7 +493,7 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
       write: (advanced) => ({ advanced }),
     }),
     // En una de periodo la moneda se elige en los opcionales: recien ahi se sabe si el total llega al tope.
-    ...requiredConsumerSteps<NoteState>({ ...consumerOptions, name: 'cf-final', session }),
+    ...requiredConsumerSteps<NoteState>({ ...consumerOptions, name: 'cf-final', officialExchangeRate }),
   ];
 
   // La nota E tiene su propio asistente: despues del selector, ningun paso de A, B y C aplica.

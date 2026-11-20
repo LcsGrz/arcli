@@ -12,6 +12,7 @@ import {
   type ExportVoucherInput,
 } from '../../modules/export/export.types';
 import { amountInputText, parseAmountInput } from '../../modules/interactive/amount-input';
+import { completeDateInput } from '../../modules/interactive/date-input';
 import { buildExportEquivalentCommand } from '../../modules/interactive/export-equivalent-command';
 import { buildExportInput, type ExportFlowState } from '../../modules/interactive/export-input';
 import { isCountryCuitMissing } from '../../modules/interactive/export-optionals';
@@ -361,7 +362,8 @@ function exportSteps(
           validate: validateExportPaymentDate(state.options.voucherDate),
         });
 
-        return answer === BACK ? BACK : { paymentDate: optional(answer) };
+        // Completa, como la fecha del comprobante: pegado otro dia, el comando equivalente da la misma.
+        return answer === BACK ? BACK : { paymentDate: answer.trim() ? completeDateInput(answer) : undefined };
       },
       // En bienes ARCA rechaza la fecha de pago (error 1673).
       skip: (state) => state.exportType === 1,

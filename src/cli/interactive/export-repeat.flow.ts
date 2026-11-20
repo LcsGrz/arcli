@@ -9,6 +9,7 @@ import {
   type ExportGateway,
 } from '../../modules/export/export.types';
 import { amountInputText, parseAmountInput } from '../../modules/interactive/amount-input';
+import { completeDateInput } from '../../modules/interactive/date-input';
 import { copyExportInvoice, type ExportInvoiceCopy } from '../../modules/interactive/export-copy';
 import { type ExportOptions, isCountryCuitMissing } from '../../modules/interactive/export-optionals';
 import { buildExportRepeatInput, type ExportRepeatState } from '../../modules/interactive/export-repeat-input';
@@ -272,7 +273,8 @@ export function exportRepeatSteps(
           validate: validateExportPaymentDate(state.options?.voucherDate),
         });
 
-        return answer === BACK ? BACK : { paymentDate: answer.trim() || undefined };
+        // Completa, como la fecha del comprobante: pegado otro dia, el comando equivalente da la misma.
+        return answer === BACK ? BACK : { paymentDate: answer.trim() ? completeDateInput(answer) : undefined };
       },
       // En bienes ARCA rechaza la fecha de pago (error 1673).
       skip: (state) => state.copy?.exportType === 1,

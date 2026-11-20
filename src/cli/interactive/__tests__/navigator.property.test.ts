@@ -21,7 +21,7 @@ import {
   type ExportVoucherKind,
   type ResolvedExportVoucher,
 } from '../../../modules/export/export.types';
-import { parseAmountInput, parseExchangeRateInput } from '../../../modules/interactive/amount-input';
+import { amountInputText, parseAmountInput, parseExchangeRateInput } from '../../../modules/interactive/amount-input';
 import type { buildEquivalentCommand } from '../../../modules/interactive/equivalent-command';
 import type { buildExportEquivalentCommand } from '../../../modules/interactive/export-equivalent-command';
 import { BACK } from '../../../modules/interactive/wizard';
@@ -210,11 +210,15 @@ const ANSWERS: TextAnswers = [
   [/^Observaciones/, fc.constantFrom('', 'Texto de prueba')],
 ];
 
-/** Config de prueba: la de siempre, con dolares por defecto (con o sin la cotizacion deprecada) o con el CBU cargado. */
+/**
+ * Config de prueba: la de siempre, con dolares por defecto (con o sin la cotizacion deprecada), con la cotizacion
+ * deprecada sin moneda (vale para cualquier extranjera: "En pesos" arranca con la de la config) o con el CBU cargado.
+ */
 const CONFIGS: ReadonlyArray<Record<string, unknown>> = [
   {},
   { monedaPorDefecto: 'USD' },
   { cotizacionPorDefecto: 1400, monedaPorDefecto: 'USD' },
+  { cotizacionPorDefecto: 1400 },
   { aliasCbu: 'emisor.prueba.cbu', cbu: '0170099220000067797370' },
 ];
 
@@ -446,11 +450,6 @@ const asDate: Normalize = (value) =>
 const asAmount: Normalize = (value) =>
   (typeof value === 'string' ? parseAmountInput(value) : (value as number | undefined)) ?? 0;
 const asRate: Normalize = (value) => (typeof value === 'string' ? parseExchangeRateInput(value) : value);
-/**
- * En A, B y C la cotizacion arranca escrita con la oficial (#15): si queda la oficial, la entrada no la fija (como el
- * CLI sin `--cm`) y la vista previa la consulta. Las dos formas son la oficial.
- */
-const asBillingRate: Normalize = (value) => asRate(value) ?? OFFICIAL_RATE;
 const asText: Normalize = (value) => (typeof value === 'string' ? value.trim() || undefined : value);
 
 /** Cada campo de la entrada que sale de una pregunta de texto, con como se compara lo escrito con lo que llego. */
@@ -462,7 +461,7 @@ const TYPED_FIELDS: Record<Flow['family'], ReadonlyArray<readonly [RegExp, strin
     [/^Vencimiento del pago/, 'paymentDueDate', asDate],
     [/^Parte exenta/, 'exemptAmount', asAmount],
     [/^Parte no gravada/, 'untaxedAmount', asAmount],
-    [/^Cotización de/, 'exchangeRate', asBillingRate],
+    [/^Cotización de/, 'exchangeRate', asRate],
     [/^(Monto total|Monto de la nota)/, 'totalAmount', asAmount],
     [/^Período desde/, 'associatedPeriod.desde', asDate],
     [/^Período hasta/, 'associatedPeriod.hasta', asDate],
@@ -490,6 +489,17 @@ function fieldAt(input: Record<string, unknown>, path: string): unknown {
     );
 }
 
+/**
+ * La cotizacion de A, B y C que arranco escrita con la oficial de ARCA y quedo sin tocar (#15): como el CLI sin `--cm`,
+ * la entrada no la lleva y la vista previa la consulta. Las respuestas al azar nunca son `1450`, asi que solo pasa si
+ * se dejo lo escrito. La de la config (`cotizacion`) sin tocar si llega a la entrada, marcada como de la config.
+ */
+function untouchedOfficialRate(event: Extract<PromptEvent, { kind: 'text' }>): boolean {
+  return (
+    /^Cotización de .*\(la oficial de ARCA es/.test(event.message) && event.answer === amountInputText(OFFICIAL_RATE)
+  );
+}
+
 /** 5. Cada campo escrito lleva la respuesta (validada) de su pregunta en el camino final. */
 function assertTypedValuesReachInput(flow: Flow, run: Walk): void {
   const input = inputOf(run);
@@ -508,7 +518,7 @@ function assertTypedValuesReachInput(flow: Flow, run: Walk): void {
     }
 
     expect(normalize(fieldAt(input, field)), `${field} ← "${answered.message}"${context(run)}`).toEqual(
-      normalize(answered.answer),
+      untouchedOfficialRate(answered) ? undefined : normalize(answered.answer),
     );
   }
 }

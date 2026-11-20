@@ -15,6 +15,7 @@ import {
   type ExportVoucherInput,
   type ExportVoucherKind,
 } from '../../../modules/export/export.types';
+import { initialAdvancedOptions } from '../../../modules/interactive/billing-optionals';
 import { buildEquivalentCommand } from '../../../modules/interactive/equivalent-command';
 import { buildExportEquivalentCommand } from '../../../modules/interactive/export-equivalent-command';
 import { buildInvoiceInput } from '../../../modules/interactive/invoice-input';
@@ -103,7 +104,7 @@ const billingGateway: BillingGateway = {
   getQuotation: async () => 1450,
 };
 
-function createSession(vouchers: IssuedVoucher[] = []): InteractiveSession {
+function createSession(vouchers: IssuedVoucher[] = [], withConfig = config): InteractiveSession {
   const historyGateway: VoucherHistoryGateway = {
     getLastNumber: async () => vouchers.reduce((max, voucher) => Math.max(max, voucher.number), 0),
     getVoucher: async (number) => vouchers.find((voucher) => voucher.number === number),
@@ -113,7 +114,7 @@ function createSession(vouchers: IssuedVoucher[] = []): InteractiveSession {
     arca: {} as never,
     billingGateway,
     historyGateway,
-    runtime: { ...runtime, config: { ...config, consultarPadron: false } } as ResolvedArcaRuntime,
+    runtime: { ...runtime, config: { ...withConfig, consultarPadron: false } } as ResolvedArcaRuntime,
     service: new BillingService(),
   };
 }
@@ -533,6 +534,152 @@ describe('el comando equivalente del asistente pasa por el parser real y arma la
     });
 
     await expectSameBillingRequest(buildInvoiceInput(state as NonNullable<typeof state>, session.runtime));
+  });
+});
+
+// Revision de NAV-4: con `cotizacion` en la config, "En pesos" arranca con la de la config si el CLI la tomaria sin
+// `--cm`. Sin tocarla, el comando no lleva `--cm` y pegado emite con la misma; antes salia con la oficial (1450) y el
+// comando pegado emitia con la de la config (1400).
+describe('con la cotización deprecada en la config, "En pesos" sin tocar arma lo mismo que el comando', () => {
+  const withRate = (extra: Record<string, unknown> = { monedaPorDefecto: 'USD' }) =>
+    arcliConfigSchema.parse({ cotizacionPorDefecto: 1400, cuit: '20111111112', puntoVentaPorDefecto: 3, ...extra });
+
+  beforeAll(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(NOW);
+  });
+
+  afterAll(() => {
+    vi.useRealTimers();
+  });
+
+  beforeEach(() => {
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+  });
+
+  afterEach(() => {
+    vi.mocked(process.stdout.write).mockRestore();
+  });
+
+  async function invoiceWith(withConfig: typeof config, currency: string, rate: string) {
+    script = createScript([
+      [/comprobante/, 'Factura C'],
+      [/A quién/, 'Consumidor final'],
+      [/Qué estás facturando/, 'Servicios'],
+      [/Monto total/, '100'],
+      [/Agregamos/, ['Moneda extranjera']],
+      [/Moneda del comprobante/, currency],
+      [/Cómo te pagan/, 'En pesos'],
+      [/Cotización de/, rate],
+    ]);
+
+    const session = createSession([], withConfig);
+    const state = await runWizard(invoiceSteps(session), { advanced: initialAdvancedOptions(withConfig) });
+
+    expect(script.remaining()).toBe(0);
+
+    return buildInvoiceInput(state as NonNullable<typeof state>, session.runtime);
+  }
+
+  const question = () => script.askTextStep.mock.calls.findLast(([message]) => /^Cotización de/.test(message));
+
+  it('factura en dólares con la de la config: arranca con ella, lo dice, y el comando va sin --cm', async () => {
+    const withConfig = withRate();
+    const input = await invoiceWith(withConfig, '(USD)', '1400');
+
+    expect(question()?.[0]).toBe('Cotización de USD (la de tu config, `cotizacion`, es 1.400):');
+    expect(question()?.[1]?.previousAnswer).toBe('1400');
+    expect(input).toMatchObject({ exchangeRate: 1400, exchangeRateSource: 'config' });
+
+    const { line } = await expectSameBillingRequest(input, withConfig);
+
+    expect(line).toContain('--moneda USD --testing');
+    expect(await payloadOf(input, withConfig)).toMatchObject({ MonCotiz: 1400 });
+  });
+
+  it('editada, es la acordada y va con --cm', async () => {
+    const withConfig = withRate();
+    const input = await invoiceWith(withConfig, '(USD)', '1.380');
+    const { line } = await expectSameBillingRequest(input, withConfig);
+
+    expect(line).toContain('--moneda USD --cm 1380');
+  });
+
+  it('sin moneda en la config, la de la config vale para euros', async () => {
+    const withConfig = withRate({});
+    const input = await invoiceWith(withConfig, '(EUR)', '1400');
+    const { line } = await expectSameBillingRequest(input, withConfig);
+
+    expect(line).toContain('--moneda EUR --testing');
+    expect(await payloadOf(input, withConfig)).toMatchObject({ MonCotiz: 1400, MonId: '060' });
+  });
+
+  it('con la config en dólares, en euros no aplica: arranca con la oficial y sin tocarla tampoco lleva --cm', async () => {
+    const withConfig = withRate();
+    const input = await invoiceWith(withConfig, '(EUR)', '1450');
+
+    expect(question()?.[0]).toBe('Cotización de EUR (la oficial de ARCA es 1.450):');
+
+    const { line } = await expectSameBillingRequest(input, withConfig);
+
+    expect(line).toContain('--moneda EUR --testing');
+    expect(await payloadOf(input, withConfig)).toMatchObject({ MonCotiz: 1450 });
+  });
+
+  it('Repetir una factura en dólares cobrada en pesos', async () => {
+    const withConfig = withRate();
+
+    script = createScript([
+      [/comprobante querés repetir/, 'Factura C'],
+      [/Cuál repetimos/, '00003-00000014'],
+      [/Mismo monto/, 'Sí'],
+      [/Cómo te pagan/, 'En pesos'],
+      [/Cotización de USD/, '1400'],
+      [/Período del servicio/, 'El mes pasado'],
+      [/Agregamos/, []],
+    ]);
+
+    const session = createSession(
+      [invoice({ currency: 'DOL', exchangeRate: 1300, ivaAmount: 0, netAmount: 100, total: 100 })],
+      withConfig,
+    );
+    const state = await runWizard(repeatSteps(session, 3, NOW), {
+      advanced: { currencyCode: 'ARS', sameCurrency: false },
+    });
+    const input = buildInvoiceInput(state as NonNullable<typeof state>, session.runtime);
+    const { line } = await expectSameBillingRequest(input, withConfig);
+
+    expect(line).toMatch(/--moneda USD --sd /);
+    expect(line).not.toContain('--cm');
+    expect(await payloadOf(input, withConfig)).toMatchObject({ MonCotiz: 1400 });
+  });
+
+  it('nota por período en dólares cobrada en pesos', async () => {
+    const withConfig = withRate();
+
+    script = createScript([
+      [/Sobre qué comprobante/, 'Facturas'],
+      [/Qué factura\?/, 'Factura C'],
+      [/A qué la asociamos/, 'A un período'],
+      [/Período desde/, '01/10/2026'],
+      [/Período hasta/, '31/10/2026'],
+      [/A quién va la nota/, 'Consumidor final'],
+      [/concepto ajusta/, 'Productos'],
+      [/Monto de la nota de crédito/, '100'],
+      [/Agregamos/, ['Moneda extranjera']],
+      [/Moneda del comprobante/, '(USD)'],
+      [/Cómo te pagan/, 'En pesos'],
+      [/Cotización de USD/, '1400'],
+    ]);
+
+    const session = createSession([], withConfig);
+    const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
+    const input = buildNoteInput(state as NonNullable<typeof state>, noteInputEnv(session, 3));
+    const { line } = await expectSameBillingRequest(input, withConfig);
+
+    expect(line).toContain('--moneda USD --pd 01/10/2026');
+    expect(line).not.toContain('--cm');
+    expect(await payloadOf(input, withConfig)).toMatchObject({ MonCotiz: 1400 });
   });
 });
 

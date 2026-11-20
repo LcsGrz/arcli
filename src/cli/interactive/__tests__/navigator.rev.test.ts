@@ -40,6 +40,21 @@ vi.mock('../../../modules/interactive/equivalent-command', async (importOriginal
   };
 });
 
+vi.mock('../../../modules/interactive/export-equivalent-command', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../modules/interactive/export-equivalent-command')>();
+
+  return {
+    ...actual,
+    buildExportEquivalentCommand: (...args: Parameters<typeof actual.buildExportEquivalentCommand>) => {
+      const command = actual.buildExportEquivalentCommand(...args);
+
+      commands.push(command);
+
+      return command;
+    },
+  };
+});
+
 vi.mock('../prompts', () => ({
   askText: async () => '',
   askTextStep: (...args: Parameters<typeof screens.prompts.askTextStep>) => screens.prompts.askTextStep(...args),
@@ -398,6 +413,48 @@ describe('auditoría del asistente del 19/11: una sola salida (NAV-4)', () => {
     );
 
     expect(commands.at(-1)).toContain('--sd 01/11/2026 --sh 17/11/2026');
+  });
+
+  // Revision de NAV-4: la fecha de pago de la E tambien va completa.
+  it('#13: en la factura E, la fecha de pago escrita a medias va completa', async () => {
+    const { exportPayload } = await run(
+      [
+        [/cliente del exterior/, 'ACME LLC'],
+        [/Domicilio/, '123 Main St'],
+        [/País de destino/, 'ESTADOS UNIDOS'],
+        [/ID impositivo/, '12-3456789'],
+        [/Qué exportás/, 'Servicios'],
+        [/Monto total/, '1.500'],
+        [/Descripción/, ''],
+        [/moneda/, 'Dólares'],
+        [/Te pagan en dólares/, 'Sí'],
+        [/Forma de pago/, ''],
+        [/actividad/, '620100'],
+        [/Agregamos/, []],
+        [/Fecha de pago/, '25'],
+        NO_EMIT,
+      ],
+      runExportFlow,
+    );
+
+    expect(commands.at(-1)).toContain('--fecha-pago 25/11/2026');
+    expect(exportPayload?.Fecha_pago).toBe('20261125');
+  });
+
+  it('#13: en "Repetir" E, la fecha de pago escrita a medias va completa', async () => {
+    await run(
+      [
+        [/Qué comprobante querés repetir/, 'Factura de exportación E'],
+        [/Cuál repetimos/, '00003-00000007'],
+        [/Mismo monto/, 'Sí'],
+        [/Agregamos/, []],
+        [/Fecha de pago/, '25'],
+        NO_EMIT,
+      ],
+      runRepeatFlow,
+    );
+
+    expect(commands.at(-1)).toContain('--fecha-pago 25/11/2026');
   });
 
   // #14: con `cotizacion` en la config, el CLI la marca como de la config y avisa que esta deprecada.

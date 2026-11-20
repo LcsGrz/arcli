@@ -9,6 +9,7 @@ import {
   billingOptionals,
   type BillingOptionalsContext,
   currencyName,
+  type ExchangeRateSuggestion,
 } from '../../modules/interactive/billing-optionals';
 import { currencyChoices, ivaRateChoices } from '../../modules/interactive/choices';
 import { completeDateInput } from '../../modules/interactive/date-input';
@@ -53,31 +54,49 @@ export async function askPaymentCurrency(currencyCode: string, previous?: boolea
   return payment === BACK ? BACK : payment === 'moneda';
 }
 
+/** La cotizacion de un comprobante en moneda extranjera cobrado en pesos, y de donde sale si no se escribio. */
+export type AgreedExchangeRate = Pick<AdvancedOptions, 'exchangeRate' | 'exchangeRateSource'>;
+
 /**
  * La cotizacion, si te pagan en pesos un comprobante en moneda extranjera. Arranca escrita con la escrita antes o, si no
- * hay, con la oficial de ARCA (`official`), y se puede cambiar por la acordada. Si la oficial queda sin tocar, devuelve
- * `undefined`: como el CLI sin `--cm`, la entrada no la fija y la vista previa la consulta. Escrita a mano, aunque sea
- * igual a la oficial, es la acordada y va con `--cm`. Sin la oficial (la consulta fallo), arranca vacia.
+ * hay, con `suggested`: la de la config (`cotizacion`, deprecada) si el CLI la tomaria sin `--cm`, o la oficial de
+ * ARCA. Si dejas lo que arranco escrito, va como el CLI sin `--cm`: la de la config marcada como tal, o ninguna (la
+ * vista previa consulta la oficial). Si escribis otra cosa, es la acordada y va con `--cm`. Sin `suggested` (la consulta
+ * de la oficial fallo), arranca vacia.
  */
 export async function askAgreedExchangeRate(
   currencyCode: string,
-  previous?: number,
-  official?: number,
-): Promise<Back | number | undefined> {
+  previous?: AgreedExchangeRate,
+  suggested?: ExchangeRateSuggestion,
+): Promise<AgreedExchangeRate | Back> {
   const iso = toIsoCurrencyCode(currencyCode);
-  const officialText = previous === undefined ? amountInputText(official) : undefined;
-  const rate = await askTextStep(
-    official === undefined
-      ? `Cotización de ${iso}:`
-      : `Cotización de ${iso} (la oficial de ARCA es ${formatExchangeRate(official)}):`,
-    { previousAnswer: officialText ?? amountInputText(previous), validate: validateExchangeRate },
-  );
+  // Solo una escrita a mano arranca como antes; una sugerida se vuelve a sugerir (la oficial puede haber cambiado).
+  const typed = previous?.exchangeRateSource === undefined ? previous?.exchangeRate : undefined;
+  const suggestedText = typed === undefined ? amountInputText(suggested?.rate) : undefined;
+  const rate = await askTextStep(`Cotización de ${iso}${suggested ? ` (${describeSuggestion(suggested)})` : ''}:`, {
+    previousAnswer: suggestedText ?? amountInputText(typed),
+    validate: validateExchangeRate,
+  });
 
   if (rate === BACK) {
     return BACK;
   }
 
-  return officialText !== undefined && rate.trim() === officialText ? undefined : parseExchangeRateInput(rate);
+  if (suggested && suggestedText !== undefined && rate.trim() === suggestedText) {
+    return suggested.source === 'config'
+      ? { exchangeRate: suggested.rate, exchangeRateSource: 'config' }
+      : { exchangeRate: undefined, exchangeRateSource: undefined };
+  }
+
+  return { exchangeRate: parseExchangeRateInput(rate), exchangeRateSource: undefined };
+}
+
+function describeSuggestion(suggested: ExchangeRateSuggestion): string {
+  const rate = formatExchangeRate(suggested.rate);
+
+  return suggested.source === 'config'
+    ? `la de tu config, \`cotizacion\`, es ${rate}`
+    : `la oficial de ARCA es ${rate}`;
 }
 
 /** Una fecha del periodo del servicio ("Servicio desde:" o "Servicio hasta:"). Lo comparten los opcionales y "Repetir". */
@@ -166,13 +185,8 @@ const QUESTIONS: BillingOptionalQuestions = {
       name: 'cotizacion',
       run: async (current, previous) => {
         const currencyCode = current.currencyCode ?? '';
-        const exchangeRate = await askAgreedExchangeRate(
-          currencyCode,
-          previous?.exchangeRate,
-          await context.officialExchangeRate?.(currencyCode),
-        );
 
-        return exchangeRate === BACK ? BACK : { exchangeRate, exchangeRateSource: undefined };
+        return askAgreedExchangeRate(currencyCode, previous, await context.exchangeRateSuggestion?.(currencyCode));
       },
       skip: (current) => !isForeignCurrency(current) || Boolean(current.sameCurrency),
     },

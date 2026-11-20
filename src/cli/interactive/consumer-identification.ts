@@ -20,11 +20,10 @@ import {
   type WizardStep,
 } from '../../modules/interactive/wizard';
 import { noticePanel, writeTerminalOutput } from '../../ui';
-import { startSpinner } from '../spinner';
 
+import type { OfficialExchangeRate } from './official-exchange-rate';
 import { chooseStep } from './prompts';
 import { askDocumentNumber } from './receiver-padron';
-import type { InteractiveSession } from './session';
 import { normalizeDocumentNumber } from './validators';
 
 /** Con que documento se identifica al consumidor final: DNI, CUIT o CUIL. */
@@ -61,34 +60,29 @@ interface RequiredConsumerOptions<S> {
   /** Prefijo de los dos pasos (`cf` da `cf-documento` y `cf-numero`): unico en el asistente. */
   readonly name: string;
   /**
-   * Despues de los opcionales: si la moneda es extranjera y la cotizacion es la oficial de ARCA, la consulta con esta
-   * sesion para saber el total en pesos. Sin ella (antes de los opcionales), solo pregunta si el total ya se sabe.
+   * Despues de los opcionales: si la moneda es extranjera y la cotizacion es la oficial de ARCA, la consulta con el
+   * cargador del flujo para saber el total en pesos. Sin el (antes de los opcionales), solo pregunta si el total ya se
+   * sabe.
    */
-  readonly session?: InteractiveSession;
+  readonly officialExchangeRate?: OfficialExchangeRate;
 }
 
-/** El total en pesos con la cotizacion oficial de ARCA. Si la consulta falla, `undefined`: decide la vista previa. */
-async function officialAmountInPesos(session: InteractiveSession, amount: ConsumerAmount): Promise<number | undefined> {
-  const spinner = startSpinner('Consultando la cotización oficial...');
+/**
+ * El total en pesos con la cotizacion oficial de ARCA, la misma que vio la pregunta de la cotizacion (el cargador del
+ * flujo). Si la consulta falla, `undefined`: decide la vista previa.
+ */
+async function officialAmountInPesos(
+  official: OfficialExchangeRate,
+  amount: ConsumerAmount,
+): Promise<number | undefined> {
+  const rate = await official({
+    billingDate: amount.billingDate,
+    currencyCode: amount.currencyCode ?? DEFAULT_CURRENCY_CODE,
+    sameCurrency: amount.sameCurrency ?? false,
+  });
 
-  try {
-    const resolved = await session.service.resolveExchangeRate(
-      {
-        billingDate: amount.billingDate,
-        currencyCode: amount.currencyCode ?? DEFAULT_CURRENCY_CODE,
-        exchangeRate: amount.exchangeRate,
-        sameCurrency: amount.sameCurrency ?? false,
-      },
-      session.billingGateway,
-    );
-
-    // Con `--misma-moneda` la cotizacion tambien es la oficial: el total en pesos se calcula igual.
-    return amountInPesos({ ...amount, exchangeRate: resolved.exchangeRate, sameCurrency: false });
-  } catch {
-    return undefined;
-  } finally {
-    spinner?.stop();
-  }
+  // Con `--misma-moneda` la cotizacion tambien es la oficial: el total en pesos se calcula igual.
+  return rate === undefined ? undefined : amountInPesos({ ...amount, exchangeRate: rate, sameCurrency: false });
 }
 
 /**
@@ -99,7 +93,7 @@ async function officialAmountInPesos(session: InteractiveSession, amount: Consum
 export function requiredConsumerSteps<S extends ConsumerStepState>(
   options: RequiredConsumerOptions<S>,
 ): [WizardStep<S>, WizardStep<S>] {
-  const { advanced, amount, session } = options;
+  const { advanced, amount, officialExchangeRate } = options;
   const typeStep = `${options.name}-documento`;
   const pending = (state: S): boolean =>
     state.documentType === 'consumidor-final' && !isConsumerIdentified(advanced(state));
@@ -110,8 +104,8 @@ export function requiredConsumerSteps<S extends ConsumerStepState>(
       name: typeStep,
       run: async (state, previous) => {
         // Despues de los opcionales, con la cotizacion oficial: recien ahora se sabe si llega al tope.
-        if (session && amountInPesos(amount(state)) === undefined) {
-          const total = await officialAmountInPesos(session, amount(state));
+        if (officialExchangeRate && amountInPesos(amount(state)) === undefined) {
+          const total = await officialAmountInPesos(officialExchangeRate, amount(state));
 
           if (total === undefined || !requiresConsumerIdentification(total)) {
             return {};
@@ -130,7 +124,10 @@ export function requiredConsumerSteps<S extends ConsumerStepState>(
       },
       skip: (state) =>
         !pending(state) ||
-        !(reachesConsumerThreshold(amount(state)) || (session && amountInPesos(amount(state)) === undefined)),
+        !(
+          reachesConsumerThreshold(amount(state)) ||
+          (officialExchangeRate && amountInPesos(amount(state)) === undefined)
+        ),
     },
     {
       // La pregunta y la validacion cambian con el tipo: un DNI escrito antes no se ofrece como CUIT.

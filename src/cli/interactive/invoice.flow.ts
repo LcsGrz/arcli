@@ -20,7 +20,7 @@ import { billingOptionalsStep } from './advanced-options';
 import { requiredConsumerSteps } from './consumer-identification';
 import { runExportFlow } from './export.flow';
 import { markIfNew } from './new-mark';
-import { officialExchangeRateLoader } from './official-exchange-rate';
+import { exchangeRateSuggestionLoader, officialExchangeRateLoader } from './official-exchange-rate';
 import { askTextStep, type Choice, chooseStep } from './prompts';
 import { askReceiverIvaCondition, receiverSteps } from './receiver-padron';
 import { offerSavingToConfig } from './save-to-config';
@@ -64,6 +64,7 @@ export const invoiceConsumerAmount = (state: InvoiceState) => ({
 export function invoiceSteps(session: InteractiveSession): Array<WizardStep<InvoiceState>> {
   const { config } = session.runtime;
   const officialExchangeRate = officialExchangeRateLoader(session);
+  const exchangeRateSuggestion = exchangeRateSuggestionLoader(config, officialExchangeRate);
   // El documento depende de quien es el receptor: si cambia, el escrito antes no se ofrece.
   const consumerOptions = {
     advanced: (state: InvoiceState) => state.advanced,
@@ -158,7 +159,7 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
         concept: state.concept ?? 'servicios',
         consumer: offersConsumerData(state),
         defaultIvaRate: defaultIvaRate(config),
-        officialExchangeRate,
+        exchangeRateSuggestion,
         voucherKind: requireStepValue(state.voucherKind, 'voucherKind'),
       }),
       name: 'avanzadas',
@@ -166,7 +167,7 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
       write: (advanced) => ({ advanced }),
     }),
     // La moneda o la cotizacion se eligieron en los opcionales: recien ahi se sabe si el total llega al tope.
-    ...requiredConsumerSteps<InvoiceState>({ ...consumerOptions, name: 'cf-final', session }),
+    ...requiredConsumerSteps<InvoiceState>({ ...consumerOptions, name: 'cf-final', officialExchangeRate }),
   ];
 
   return [

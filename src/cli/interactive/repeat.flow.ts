@@ -25,7 +25,7 @@ import { runExportRepeatFlow } from './export-repeat.flow';
 import { cbuSteps, invoiceConsumerAmount, offerSavingCbu, offersConsumerData } from './invoice.flow';
 import { pickInvoice } from './invoice-picker';
 import { markIfNew } from './new-mark';
-import { officialExchangeRateLoader } from './official-exchange-rate';
+import { exchangeRateSuggestionLoader, officialExchangeRateLoader } from './official-exchange-rate';
 import { askTextStep, chooseStep } from './prompts';
 import { askReceiverIvaCondition } from './receiver-padron';
 import { type InteractiveSession, previewAndEmit, requirePointOfSale } from './session';
@@ -75,6 +75,7 @@ export function repeatSteps(
 ): Array<WizardStep<RepeatState>> {
   const { config } = session.runtime;
   const officialExchangeRate = officialExchangeRateLoader(session);
+  const exchangeRateSuggestion = exchangeRateSuggestionLoader(config, officialExchangeRate);
 
   const pickVoucherKind: WizardStep<RepeatState> = {
     name: 'tipo',
@@ -257,7 +258,15 @@ export function repeatSteps(
 
         return sameCurrency === BACK
           ? BACK
-          : { advanced: { ...state.advanced, currencyCode: currency, exchangeRate: undefined, sameCurrency } };
+          : {
+              advanced: {
+                ...state.advanced,
+                currencyCode: currency,
+                exchangeRate: undefined,
+                exchangeRateSource: undefined,
+                sameCurrency,
+              },
+            };
       },
       skip: (state) => !foreignCurrencyOf(state.original),
     },
@@ -266,13 +275,10 @@ export function repeatSteps(
       name: 'cotizacion',
       run: async (state, previous) => {
         const currency = requireStepValue(foreignCurrencyOf(state.original), 'currency');
-        const exchangeRate = await askAgreedExchangeRate(
-          currency,
-          previous?.advanced?.exchangeRate,
-          await officialExchangeRate(currency),
-        );
+        const rate = await askAgreedExchangeRate(currency, previous?.advanced, await exchangeRateSuggestion(currency));
 
-        return exchangeRate === BACK ? BACK : { advanced: { ...state.advanced, exchangeRate } };
+        // La cotizacion y de donde sale, siempre juntas: una escrita no queda marcada como de la config.
+        return rate === BACK ? BACK : { advanced: { ...state.advanced, ...rate } };
       },
       skip: (state) => !foreignCurrencyOf(state.original) || Boolean(state.advanced.sameCurrency),
     },
@@ -337,7 +343,7 @@ export function repeatSteps(
         // La alicuota y el exento vienen de la factura elegida: con otra, arrancan con lo copiado de esa.
         copiedFrom: `${state.voucherKind?.shortcut}:${state.originalPointOfSale}:${state.original?.number}`,
         defaultIvaRate: defaultIvaRate(config, state.advanced.ivaRate),
-        officialExchangeRate,
+        exchangeRateSuggestion,
         // En moneda extranjera el monto esta en esa moneda: cambiarla a pesos lo emitiria como si fueran pesos.
         fixedCurrency: Boolean(foreignCurrencyOf(state.original)),
         // Sin alicuota deducida de la factura, que la elija en lugar de caer en la de la config.
@@ -349,7 +355,7 @@ export function repeatSteps(
       write: (advanced) => ({ advanced }),
     }),
     // Con la cotizacion oficial de ARCA, recien despues de los opcionales se sabe si el total llega al tope.
-    ...requiredConsumerSteps<RepeatState>({ ...consumerOptions, name: 'cf-final', session }),
+    ...requiredConsumerSteps<RepeatState>({ ...consumerOptions, name: 'cf-final', officialExchangeRate }),
   ];
 
   return [
