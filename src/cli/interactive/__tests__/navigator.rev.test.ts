@@ -733,7 +733,7 @@ describe('auditoría del asistente del 19/11: una sola salida (NAV-4)', () => {
     const pesos = payment?.find((choice) => 'name' in choice && choice.name === 'En pesos');
 
     expect(pesos && 'description' in pesos ? pesos.description : undefined).toBe(
-      'El comprobante va en dólares y lo cobrás en pesos: cotización oficial de ARCA o la acordada',
+      'El comprobante va en dólares y lo cobrás en pesos: confirmás o cambiás la cotización',
     );
   });
 
@@ -1034,7 +1034,7 @@ describe('auditoría del asistente del 19/11: pasos compartidos (NAV-6)', () => 
         [/Qué factura\?/, 'Factura C'],
         [/A qué la asociamos/, 'A una factura'],
         [/Sobre qué factura C/, '00003-00000015'],
-        [/En qué moneda va la nota/, 'En DOL'],
+        [/En qué moneda va la nota/, 'En USD'],
         [/Total o parcial/, 'Parcial'],
         [/^Monto de la nota de crédito en USD:$/, '100'],
         [/Agregamos/, []],

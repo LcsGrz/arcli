@@ -1,4 +1,5 @@
 import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/billing.currency';
+import { toIsoCurrencyCode } from '../billing/currency-codes';
 import type { IssuedVoucher } from '../vouchers/voucher-history';
 
 import type { InteractiveChoice } from './choices';
@@ -18,9 +19,9 @@ export function canChooseNoteCurrency(invoice: Pick<IssuedVoucher, 'currency'> |
   return Boolean(currency && currency !== ARCA_LOCAL_CURRENCY_CODE);
 }
 
-/** Las dos opciones, con la moneda del asociado (`DOL`, `060`…) en el texto. */
+/** Las dos opciones, con la moneda del asociado en el texto, con su codigo ISO (`USD` por `DOL`), como el resto. */
 export function noteCurrencyChoices(invoice: Pick<IssuedVoucher, 'currency'>): Array<InteractiveChoice<NoteCurrency>> {
-  const currency = invoice.currency?.trim().toUpperCase() ?? ARCA_LOCAL_CURRENCY_CODE;
+  const currency = toIsoCurrencyCode(invoice.currency ?? ARCA_LOCAL_CURRENCY_CODE);
 
   return [
     { description: 'Con la misma cotización', name: `En ${currency}, como el comprobante`, value: 'asociado' },

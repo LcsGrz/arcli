@@ -11,11 +11,12 @@ describe('moneda de una nota sobre un comprobante (REGLAS-4)', () => {
     expect(canChooseNoteCurrency(undefined)).toBe(false);
   });
 
-  it('ofrece la moneda del asociado o pesos', () => {
+  it('ofrece la moneda del asociado, con su codigo ISO, o pesos', () => {
     expect(noteCurrencyChoices({ currency: 'DOL' }).map(({ name, value }) => [name, value])).toEqual([
-      ['En DOL, como el comprobante', 'asociado'],
+      ['En USD, como el comprobante', 'asociado'],
       ['En pesos', 'pesos'],
     ]);
+    expect(noteCurrencyChoices({ currency: '060' })[0]?.name).toBe('En EUR, como el comprobante');
   });
 
   it('en pesos va con cotizacion 1; si no, con la moneda y la cotizacion del asociado', () => {

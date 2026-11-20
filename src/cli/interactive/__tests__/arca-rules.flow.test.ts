@@ -380,7 +380,7 @@ describe('reglas de ARCA en el asistente (#220)', () => {
 
       await runNoteFlow(session, 'debito');
 
-      expect(choicesOf(/En qué moneda va la nota/)).toEqual(['En DOL, como el comprobante', 'En pesos']);
+      expect(choicesOf(/En qué moneda va la nota/)).toEqual(['En USD, como el comprobante', 'En pesos']);
       expect(billingGateway.createVoucher).not.toHaveBeenCalled();
       expect(printed()).toMatch(/Moneda +Pesos argentinos \(ARS\)/);
       // Pesos es la moneda por defecto: el comando no la nombra, y con flags la nota va en pesos igual.
@@ -407,7 +407,7 @@ describe('reglas de ARCA en el asistente (#220)', () => {
 
       await runNoteFlow(session, 'debito');
 
-      expect(choicesOf(/En qué moneda va la nota/)).toEqual(['En DOL, como el comprobante', 'En pesos']);
+      expect(choicesOf(/En qué moneda va la nota/)).toEqual(['En USD, como el comprobante', 'En pesos']);
       expect(billingGateway.createVoucher).not.toHaveBeenCalled();
       // La nota hereda el receptor de la factura: no puede ir a otro (10183).
       expect(printed()).toMatch(/Moneda +Pesos argentinos \(ARS\)/);
@@ -421,7 +421,7 @@ describe('reglas de ARCA en el asistente (#220)', () => {
         [/Sobre qué comprobante/, 'Facturas'],
         [/Qué factura\?/, 'Factura de crédito electrónica A'],
         [/Sobre qué factura de crédito electrónica A/, '00003-00000014'],
-        [/En qué moneda va la nota/, 'En DOL'],
+        [/En qué moneda va la nota/, 'En USD'],
         [/Monto de la nota de débito/, '10'],
         [/Condición frente al IVA/, 'Responsable inscripto'],
         [/Agregamos/, []],

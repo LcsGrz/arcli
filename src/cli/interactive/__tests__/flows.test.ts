@@ -1094,7 +1094,7 @@ describe('flujos del modo interactivo', () => {
         [/Qué factura\?/, 'Factura B'],
         [/A qué la asociamos/, 'A una factura'],
         [/Sobre qué factura B/, '00003-00000014'],
-        [/En qué moneda va la nota/, 'En DOL, como el comprobante'],
+        [/En qué moneda va la nota/, 'En USD, como el comprobante'],
         [/Total o parcial/, 'Anular el total'],
         [/Agregamos/, []],
       ]);
@@ -1272,7 +1272,7 @@ describe('flujos del modo interactivo', () => {
         [/Qué factura\?/, 'Factura B'],
         [/A qué la asociamos/, 'A una factura'],
         [/Sobre qué factura B/, '00003-00000014'],
-        [/En qué moneda va la nota/, 'En DOL, como el comprobante'],
+        [/En qué moneda va la nota/, 'En USD, como el comprobante'],
         [/Total o parcial/, 'Parcial'],
         [/Monto de la nota de crédito/, '60,50'],
         [/Agregamos/, ['Fecha', 'Importe exento', 'Período', 'Vencimiento']],
