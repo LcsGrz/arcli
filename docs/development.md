@@ -28,7 +28,8 @@ yarn dev --ayuda
 | `yarn test:coverage`       | Suite con cobertura (falla si baja de los pisos configurados)                              |
 | `yarn test:e2e`            | Tests de punta a punta sobre el `dist/` compilado (antes, `yarn build`)                    |
 | `yarn test:arca`           | Tests contra ARCA testing con tu config; solo local (antes, `yarn build`)                  |
-| `yarn lint`                | ESLint y Prettier (`yarn lint:eslint`, `yarn lint:prettier`)                               |
+| `yarn lint`                | ESLint, Prettier y los guardarraíles (`lint:eslint`, `lint:prettier`, `lint:guardrails`)   |
+| `yarn lint:guardrails`     | Código muerto, duplicación, ciclos y lockfile (ver [Guardarraíles](#guardarraíles))        |
 | `yarn lint:eslint:fix`     | Corrige lo que ESLint puede arreglar solo                                                  |
 | `yarn lint:prettier:fix`   | Formatea con Prettier                                                                      |
 | `yarn docs:comprobantes`   | Escribe `docs/comprobantes/` desde `scripts/docs/comprobantes.ts`                          |
@@ -36,9 +37,23 @@ yarn dev --ayuda
 | `yarn contrato:actualizar` | Regenera la lista del contrato público (`src/cli/__tests__/public-contract.txt`)           |
 | `yarn monotributo:tabla`   | Actualiza la tabla de categorías incluida desde la página de ARCA (ver abajo)              |
 | `yarn pack:check`          | Empaqueta `dist`, lo instala en una carpeta temporal y corre `arcli --version` y `--ayuda` |
-| `yarn open-source:check`   | `typecheck`, `test:coverage`, `build`, `test:e2e` y `pack:check`                           |
+| `yarn open-source:check`   | `typecheck`, `test:coverage`, `build`, publint, `test:e2e` y `pack:check`                  |
 
 Husky corre `lint-staged` en cada commit: chequeo de tipos, ESLint y los tests relacionados con lo modificado.
+
+### Guardarraíles
+
+Controles baratos que corren con `yarn lint` (en el CI, en el job de Linux) y frenan que el código empeore sin que nadie lo note:
+
+| Herramienta        | Qué controla                                                                                | Config                    | Si falla                                                                                                                       |
+| ------------------ | ------------------------------------------------------------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| knip               | Archivos, exports y dependencias sin usar, y dependencias usadas sin declarar               | `knip.json`               | Borrá lo que sobra (`yarn knip --fix` saca los `export` sin uso). Si es a propósito, sumalo a `ignore*` con el motivo en el PR |
+| jscpd              | Copias textuales en `src/` (sin tests): falla si pasan del 0,4 % de las líneas (hoy 0,35 %) | `.jscpd.json`             | Unificá la copia nueva. No detecta la misma lógica escrita distinto: eso se busca a mano ([estandares.md](estandares.md))      |
+| dependency-cruiser | Ciclos de imports en `src/` que existen al ejecutar (no los de `import type`)               | `.dependency-cruiser.cjs` | Mové lo compartido a un módulo que no dependa de ninguno de los dos. Las capas las controla ESLint                             |
+| lockfile-lint      | Que `yarn.lock` solo baje paquetes por HTTPS del registro de npm o de Yarn                  | script `lint:guardrails`  | Un paquete de otro origen en el lockfile: revisalo antes de aceptarlo                                                          |
+| publint            | Que el paquete publicado esté bien formado (`exports`, `bin`, archivos)                     | —                         | Corre en el CI y en `open-source:check`, después del build                                                                     |
+
+En GitHub, el workflow `Seguridad` corre CodeQL (consultas `security-extended`) en cada PR, en `main`, en `dev` y los lunes, y en los PRs revisa las dependencias nuevas: falla con una vulnerabilidad alta o una licencia GPL o AGPL. El repo tiene activados secret scanning y push protection. La publicación en npm usa trusted publishing (OIDC desde el workflow `Release`, sin token guardado).
 
 ## Tests
 

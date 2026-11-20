@@ -103,13 +103,13 @@ export const MAX_EXPORT_REQUEST_ID = 999_999_999_999_999;
  */
 export const EXPORT_TOTAL_ONLY_UNIT_CODES: readonly number[] = [0, 97, 99];
 
-export interface ExportPermitPayload {
+interface ExportPermitPayload {
   readonly Dst_merc: number;
   readonly Id_permiso: string;
 }
 
 /** Cada entrada de `Actividades`: el codigo de la tabla de actividades de ARCA. */
-export interface ExportActivityPayload {
+interface ExportActivityPayload {
   readonly Id: number;
 }
 
@@ -122,7 +122,7 @@ export interface ExportAssociatedVoucherPayload {
 }
 
 /** Fila de `Opcionales` (`ClsFEX_Opcional`). */
-export interface ExportOptionalPayload {
+interface ExportOptionalPayload {
   readonly Id: string;
   readonly Valor: string;
 }
@@ -237,7 +237,7 @@ export interface ExportQuotation {
 }
 
 /** `Moneda_Id`, `Moneda_ctz` y `CanMisMonExt` ya resueltos. En pesos no hay `CanMisMonExt` (error 1605). */
-export interface ExportCurrencyFields {
+interface ExportCurrencyFields {
   readonly CanMisMonExt?: 'N' | 'S';
   readonly Moneda_ctz: number;
   readonly Moneda_Id: string;
@@ -333,7 +333,7 @@ export interface ExportIssuedVoucher {
 }
 
 /** El asociado de una nota, para la vista previa y el JSON. */
-export interface ExportAssociatedVoucherDisplay {
+interface ExportAssociatedVoucherDisplay {
   readonly currencyCode: string;
   /** yyyymmdd */
   readonly date: string;

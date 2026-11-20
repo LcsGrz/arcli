@@ -45,7 +45,7 @@ export async function askConsumerDocumentNumber(
 }
 
 /** Monto, moneda y fecha del comprobante: con la fecha se consulta la cotizacion oficial con `--misma-moneda` (10038). */
-export type ConsumerAmount = AmountInPesosInput & Pick<Partial<BillingCommandInput>, 'billingDate'>;
+type ConsumerAmount = AmountInPesosInput & Pick<Partial<BillingCommandInput>, 'billingDate'>;
 
 interface ConsumerStepState {
   readonly advanced?: AdvancedOptions;

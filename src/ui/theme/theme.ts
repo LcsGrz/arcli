@@ -33,7 +33,7 @@ export type UiBorderType =
   | 'tip'
   | 'warning';
 
-export interface UiBoxBorder {
+interface UiBoxBorder {
   readonly bottom: string;
   readonly bottomLeft: string;
   readonly bottomRight: string;
@@ -84,7 +84,7 @@ export type UiSymbolName =
   | 'squared'
   | 'unselected';
 export type UiWidthPreset = 'compact' | 'standard' | 'ticket' | 'wide';
-export interface UiWidthRange {
+interface UiWidthRange {
   readonly max: number;
   readonly min: number;
 }

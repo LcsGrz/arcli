@@ -9,7 +9,7 @@ export { MONOTRIBUTO_CATEGORY_LETTERS, type MonotributoCategoryLetter };
 export const MONOTRIBUTO_CATEGORIES_URL = 'https://www.afip.gob.ar/monotributo/categorias.asp';
 
 /** Importe con una columna para servicios (locaciones y prestaciones) y otra para venta de cosas muebles. */
-export interface ServicesAndSales {
+interface ServicesAndSales {
   readonly sales: number;
   readonly services: number;
 }

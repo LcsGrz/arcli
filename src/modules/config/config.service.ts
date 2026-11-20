@@ -82,7 +82,7 @@ export function deprecatedConfigKeyWarning(rawKey: string): string | undefined {
 }
 
 /** Donde ver las claves y sus valores, si el rechazo no trae una sugerencia propia. */
-export const CONFIG_SET_HELP_SUGGESTION =
+const CONFIG_SET_HELP_SUGGESTION =
   'Mirá cada clave con sus valores válidos en `arcli config establecer --ayuda`, y la config actual con `arcli config`.';
 
 function withConfigHelp<T>(parse: () => T): T {

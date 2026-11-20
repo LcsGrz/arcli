@@ -232,7 +232,7 @@ function renderFamilyExamples(family: VoucherFamily, dates: ExampleDates): strin
 const EXPORT_CLIENT = '--cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 212';
 
 /** El comando minimo de la factura E por shortcut, sin modo de ejecucion. Lo usa tambien la ayuda de `fe`. */
-export const EXPORT_MINIMAL_EXAMPLE = `arcli ${EXPORT_VOUCHER_KIND.shortcut} -m 1500 ${EXPORT_CLIENT} --actividad 620100`;
+const EXPORT_MINIMAL_EXAMPLE = `arcli ${EXPORT_VOUCHER_KIND.shortcut} -m 1500 ${EXPORT_CLIENT} --actividad 620100`;
 
 /** La nota E toma el cliente, el destino y la moneda de la factura E que ajusta: alcanza con `--ar`. */
 const EXPORT_NOTE_ASSOCIATED = '--ar 1';

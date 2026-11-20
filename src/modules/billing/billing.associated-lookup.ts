@@ -93,7 +93,7 @@ export function assertCreditNoteWithinAssociated(options: {
  * - emisor y receptor (10183; el emisor ya lo controla la 10155 en `resolveAssociatedVouchers`);
  * - la fecha del asociado, si se paso `--afecha` (10160: "con la misma fecha informada en el asociado").
  */
-export function assertFceNoteMatchesAssociated(options: {
+function assertFceNoteMatchesAssociated(options: {
   readonly associated: Pick<IssuedVoucher, 'currency' | 'date' | 'documentNumber'>;
   readonly associatedLabel: string;
   readonly note: { readonly currencyCode: string; readonly date?: string; readonly documentNumber: number };
@@ -167,7 +167,7 @@ function shouldLookUpAssociated(
  * rechazo (10160). El asociado propio no existe en ARCA. Mismo error que en las notas E: ARCA testing llega a aprobar una nota A, B
  * o C asociada a un comprobante que no existe.
  */
-export function missingAssociatedVoucherError(associatedLabel: string, reason?: string): InputValidationError {
+function missingAssociatedVoucherError(associatedLabel: string, reason?: string): InputValidationError {
   return new InputValidationError(
     `ARCA no tiene ${associatedLabel}${reason ? `, así que ${reason}` : ''}.`,
     undefined,

@@ -1,6 +1,6 @@
 import type { ConfigPublicKey } from './config.schemas';
 
-export type ConfigSectionId =
+type ConfigSectionId =
   'certificados' | 'cuenta' | 'emisor' | 'exportacion' | 'facturacion' | 'fce' | 'monotributo' | 'pdf' | 'salida';
 
 export interface ConfigSection {

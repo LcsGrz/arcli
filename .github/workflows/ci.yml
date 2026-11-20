@@ -61,6 +61,11 @@ jobs:
       - name: Build
         run: yarn build
 
+      # Lo que publint ve en el paquete (exports, bin, tipos, archivos) igual que lo verá npm.
+      - name: Paquete bien formado
+        if: runner.os == 'Linux'
+        run: yarn publint --strict --pack npm
+
       # El dist/ compilado como proceso aparte: salida, JSON y exit code, sin red ni certificados.
       - name: Tests de punta a punta
         run: yarn test:e2e

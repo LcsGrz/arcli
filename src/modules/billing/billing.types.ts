@@ -32,7 +32,7 @@ export type VoucherShortcut =
   | 'rb'
   | 'rc';
 
-export type VoucherDisplayName =
+type VoucherDisplayName =
   | 'Factura A'
   | 'Factura B'
   | 'Factura C'

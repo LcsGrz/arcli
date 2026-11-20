@@ -114,7 +114,7 @@ export async function requirePointOfSale(session: InteractiveSession): Promise<S
 
 /** La segunda confirmacion, en produccion. Los botones de "¿Emitimos?" estan en `emission-prompt`. */
 export const EMIT_IN_PRODUCTION_LABEL = 'Sí, emitir en producción';
-export const PRODUCTION_CONFIRMATION = 'Vas a emitir un comprobante real en PRODUCCIÓN. ¿Confirmás?';
+const PRODUCTION_CONFIRMATION = 'Vas a emitir un comprobante real en PRODUCCIÓN. ¿Confirmás?';
 
 /** La respuesta a "¿Emitimos?": no emitir, emitir, o emitir y generar el PDF. */
 export type EmissionAnswer = EmissionChoice | false;

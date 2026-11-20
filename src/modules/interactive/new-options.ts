@@ -2,7 +2,7 @@
  * Version en que aparecio cada opcion del modo interactivo. Mientras arcli este a menos de dos versiones menores de
  * esa, la opcion se marca "(nuevo)" y la marca se apaga sola. Lo que todavia no se publico lleva la proxima version.
  */
-export const NEW_OPTION_SINCE = {
+const NEW_OPTION_SINCE = {
   'acceso-directo': '2.4.0',
   autocompletado: '2.2.0',
   certificados: '2.3.0',
