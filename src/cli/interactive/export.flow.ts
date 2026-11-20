@@ -252,10 +252,10 @@ function exportSteps(
         sameCurrency: state.sameCurrency,
       }),
     }),
-    // Sin "Monto total": el total es la suma de los items, que ARCA exige (NAV-10). Los precios van en la moneda.
+    // Sin "Monto total": el total es la suma de los items, que ARCA exige (NAV-10). Los precios van en la moneda: si
+    // cambia, los items se conservan y el paso avisa que hay que revisar los importes.
     exportItemsStep<ExportFlowState>({
       currency: (state) => state.currencyCode ?? 'DOL',
-      dependsOn: ['moneda'],
       items: fieldLens('items'),
       units: loaders.units,
       voucher: formatVoucherWithArticle(EXPORT_VOUCHER_KIND),

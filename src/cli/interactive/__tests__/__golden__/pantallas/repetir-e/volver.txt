@@ -29,7 +29,7 @@
 
 └                                                                                          ┘
 
-? [editor] ¿Qué ítems cambiamos? (espacio para modificar, Backspace para borrar)
+? [editor] Ítems de la factura de exportación E (1): marcá qué modificar o borrar, o seguí con Enter
   · Según detalle — 1 unidades x 1.500 USD = 1.500 USD
   · + Agregar ítem
   = ← Volver
@@ -51,7 +51,7 @@
 
 └                                                                                          ┘
 
-? [editor] ¿Qué ítems cambiamos? (espacio para modificar, Backspace para borrar)
+? [editor] Ítems de la factura de exportación E (1): marcá qué modificar o borrar, o seguí con Enter
   [modificar] Según detalle — 1 unidades x 1.500 USD = 1.500 USD
   · + Agregar ítem
   = aplicar

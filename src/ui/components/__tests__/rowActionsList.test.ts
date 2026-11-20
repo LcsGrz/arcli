@@ -13,7 +13,6 @@ function render(overrides: Partial<Parameters<typeof renderRowActionsList>[0]> =
   return renderRowActionsList({
     active: 0,
     addLabel: '+ Agregar ítem',
-    addMarked: false,
     backLabel: '← Volver',
     highlight: (text) => `<${text}>`,
     pageSize: 12,
@@ -33,11 +32,12 @@ describe('renderRowActionsList (NAV-10)', () => {
 
     const lines = render();
 
-    expect(lines.slice(0, 6)).toEqual([
+    expect(lines.slice(0, 7)).toEqual([
       '<❯ ◯ Jugo de naranja concentrado  1.000 litros x 1,50 USD = 1.500 USD>',
       '  ● Flete                        1 unidades x 500 USD = 500 USD',
       '  ◉ Seguro                       1 unidades x 100 USD = 100 USD',
-      '  ◯ + Agregar ítem',
+      ' ',
+      '  + Agregar ítem',
       ' ',
       '  ← Volver',
     ]);
@@ -61,15 +61,16 @@ describe('renderRowActionsList (NAV-10)', () => {
     vi.stubEnv('NO_COLOR', '1');
     vi.stubEnv('ARCLI_ASCII', '1');
 
-    const lines = render({ active: 3, addMarked: true, highlight: (text) => text });
+    const lines = render({ active: 3, highlight: (text) => text });
 
-    expect(lines.slice(0, 4)).toEqual([
+    expect(lines.slice(0, 5)).toEqual([
       '  [ ] Jugo de naranja concentrado  1.000 litros x 1,50 USD = 1.500 USD',
       '  [-] Flete                        1 unidades x 500 USD = 500 USD',
       '  [x] Seguro                       1 unidades x 100 USD = 100 USD',
-      '> [x] + Agregar ítem',
+      ' ',
+      '> + Agregar ítem',
     ]);
-    expect(lines).toContain('1 para modificar - 1 para borrar - se agrega uno');
+    expect(lines).toContain('1 para modificar - 1 para borrar');
   });
 
   it('con color, el punto de borrar va en rojo y el de modificar en verde', () => {

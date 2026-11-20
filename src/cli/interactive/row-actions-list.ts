@@ -55,8 +55,8 @@ export interface RowActionsListConfig {
 
 /**
  * Lista con acciones por fila (NAV-10): espacio marca una fila para modificarla, Backspace para borrarla (otro
- * Backspace la desmarca) y Enter aplica todo junto, con la fila "Agregar" marcada o con el cursor en ella. "Volver"
- * queda fijo debajo, como en la seleccion multiple. Las marcas son de `modules/interactive/row-marks`; el dibujo, de
+ * Backspace la desmarca) y Enter aplica lo marcado, o sigue sin marcas. Enter sobre "Agregar", un boton separado de la
+ * lista, aplica lo marcado y agrega una fila. "Volver" queda fijo debajo, como en la seleccion multiple. Las marcas son de `modules/interactive/row-marks`; el dibujo, de
  * `renderRowActionsList`.
  */
 export const rowActionsList = createPrompt(
@@ -64,7 +64,6 @@ export const rowActionsList = createPrompt(
     const theme = makeTheme<RowActionsListStyle>(config.theme);
     const [status, setStatus] = useState<'done' | 'idle'>('idle');
     const [marks, setMarks] = useState<RowMarks>(() => config.rows.map(() => undefined));
-    const [addMarked, setAddMarked] = useState(false);
     const [active, setActive] = useState(0);
     const [notice, setNotice] = useState<string | undefined>(undefined);
     const prefix = usePrefix({ status, theme });
@@ -76,7 +75,7 @@ export const rowActionsList = createPrompt(
 
       if (isEnterKey(key)) {
         setStatus('done');
-        done(active === backIndex ? BACK : rowEditsOf(marks, addMarked || active === addIndex));
+        done(active === backIndex ? BACK : rowEditsOf(marks, active === addIndex));
       } else if (isUpKey(key) || isDownKey(key)) {
         const next = active + (isUpKey(key) ? -1 : 1);
 
@@ -86,8 +85,6 @@ export const rowActionsList = createPrompt(
       } else if (isSpaceKey(key)) {
         if (active < addIndex) {
           setMarks(toggleEditMark(marks, active));
-        } else if (active === addIndex) {
-          setAddMarked(!addMarked);
         }
       } else if (isBackspaceKey(key) && active < addIndex) {
         const next = toggleRemoveMark(marks, active, config.minRows);
@@ -109,7 +106,6 @@ export const rowActionsList = createPrompt(
     const list = renderRowActionsList({
       active,
       addLabel: config.addLabel,
-      addMarked,
       backLabel: config.backLabel,
       highlight: theme.style.highlight,
       notice,
@@ -121,7 +117,8 @@ export const rowActionsList = createPrompt(
       ['↑↓', 'navigate'],
       ['espacio', 'modificar'],
       [uiSymbol('keyBackspace'), 'borrar'],
-      [uiSymbol('keyEnter'), 'aplicar'],
+      // Sin marcas, Enter sigue: que se vea que se puede avanzar sin tocar nada.
+      [uiSymbol('keyEnter'), marks.some(Boolean) ? 'aplicar' : 'seguir'],
     ]);
     const lines = [[prefix, message].filter(Boolean).join(' '), ...list, ' ', help];
 

@@ -196,7 +196,7 @@ describe('runExportNoteFlow', () => {
     script = createScript([
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
-      [/Qué ítems cambiamos/, editing({ edit: ['Según detalle'] })],
+      [/^Ítems de .*: marcá qué modificar/, editing({ edit: ['Según detalle'] })],
       [/Descripción del ítem 1/, rejecting('Descuento', ['a'.repeat(4001), /más de 4\.000 caracteres.*error 1770/])],
       [/Cantidad/, ''],
       [/Unidad/, ''],
@@ -232,17 +232,65 @@ describe('runExportNoteFlow', () => {
     expect(printed()).toContain('arcli nde -m 100 --ar 1 --apv 4 --permiso 26001EC01000123A --testing --emitir');
   });
 
-  it('arranca en el editor con los ítems de la factura, y en la NC no deja confirmar un total mayor que el de la factura', async () => {
+  it('arranca en el editor con los ítems de la factura; en la NC, con un total mayor, "Confirmar" está deshabilitado con su motivo y bajando el precio se sigue', async () => {
+    const ITEMS = /^Ítems de .*: marcá qué modificar/;
+
     script = createScript([
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
       // Sin "Monto de la nota" ni "Detalle": el renglón de la factura, para modificar (NAV-10).
-      ...noteExportItem('2000'),
+      [ITEMS, editing({ edit: ['Según detalle'] })],
+      [/Descripción del ítem 1/, ''],
+      [/Cantidad/, ''],
+      [/Unidad/, ''],
+      [/^Importe en USD/, '2000'],
+      [/Importe total de la nota de crédito de exportación E: 2\.000 USD/, 'Modificar los ítems'],
+      [ITEMS, editing({ edit: ['Según detalle'] })],
+      [/Descripción del ítem 1/, ''],
+      [/Cantidad/, ''],
+      [/Unidad/, ''],
+      [/^Importe en USD/, '1.000'],
+      [/Importe total de la nota de crédito de exportación E: 1\.000 USD/, 'Confirmar'],
+      [/Agregamos algún opcional/, []],
+      [/Emitimos/, 'No, dejar sin emitir'],
     ]);
 
-    await expect(runExportNoteFlow(createSession(), 'credito')).rejects.toThrow(
-      /"Confirmar" esta deshabilitada.*No puede superar el total de la factura E 00004-00000001/,
+    await runExportNoteFlow(createSession(), 'credito');
+
+    const totals = script.chooseStep.mock.calls.filter(([message]) => /^Importe total/.test(message));
+
+    expect(script.editRowsStep.mock.calls[0]?.[1].map((row) => row.total)).toEqual(['1.500 USD']);
+    expect(totals[0]?.[1][0]).toMatchObject({
+      disabled: 'No puede superar el total de la factura E 00004-00000001, de 1.500 USD.',
+      name: 'Confirmar',
+    });
+    expect(totals[0]?.[2]).toBe('modificar');
+    expect(totals[1]?.[1][0]).toMatchObject({ disabled: false, name: 'Confirmar' });
+    expect(printed()).toContain('arcli nce -m 1000 --ar 1 --apv 4 --testing --emitir');
+  });
+
+  it('si el asociado tiene ítems de seña o anticipo, avisa por qué arranca con un renglón por el total, como "Repetir" E', async () => {
+    vi.mocked(gateway.getVoucher).mockResolvedValueOnce({
+      ...INVOICE,
+      items: [
+        { description: 'Bienes', discount: 0, quantity: 1, total: 1600, unit: 7, unitPrice: 1600 },
+        { description: 'Anticipo', discount: 0, quantity: 0, total: -100, unit: 97, unitPrice: 0 },
+      ],
+    });
+    script = createScript([
+      [/Punto de venta de la factura E/, '4'],
+      [/Número de la factura E/, '1'],
+      [/^Ítems de .*: marcá qué modificar/, BACK],
+      [/Número de la factura E/, BACK],
+      [/Punto de venta de la factura E/, BACK],
+    ]);
+
+    await runExportNoteFlow(createSession(), 'debito');
+
+    expect(printed().replace(/[│┃╏\s]+/g, ' ')).toContain(
+      'El comprobante tiene ítems de seña, anticipo o bonificación (unidades 97 y 99), que el asistente no informa: sale un renglón con el monto total.',
     );
+    expect(script.editRowsStep.mock.calls[0]?.[1].map((row) => row.title)).toEqual(['Según detalle']);
   });
 
   it('ajusta otra nota E con --ac y suma los opcionales, sin ofrecer la cotización en servicios', async () => {
@@ -379,7 +427,7 @@ describe('runExportNoteFlow: volver en cada paso, PV propio y cotización del as
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, BACK],
       [/Permisos de embarque/, BACK],
-      [/Qué ítems cambiamos/, BACK],
+      [/^Ítems de .*: marcá qué modificar/, BACK],
       [/Cotización de USD/, BACK],
       [/Número de la factura E/, BACK],
       [/Punto de venta de la factura E/, BACK],
@@ -460,7 +508,7 @@ describe('runExportNoteFlow: volver en cada paso, PV propio y cotización del as
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, BACK],
       [/Permisos de embarque/, BACK],
-      [/Qué ítems cambiamos/, BACK],
+      [/^Ítems de .*: marcá qué modificar/, BACK],
       [/Número/, BACK],
       [/Punto de venta/, BACK],
     ]);
@@ -574,7 +622,7 @@ describe('notas E: opcionales al elegir otro asociado', () => {
       // "despues" vuelve: se retrocede hasta el número y se elige otra factura.
       [/Agregamos algún opcional/, BACK],
       [/Permisos de embarque/, BACK],
-      [/Qué ítems cambiamos/, BACK],
+      [/^Ítems de .*: marcá qué modificar/, BACK],
       [/Cotización de USD/, BACK],
       [/Número de la factura E/, '3'],
       [/Cotización de USD/, '1174,605'],

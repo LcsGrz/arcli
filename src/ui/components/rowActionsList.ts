@@ -19,8 +19,8 @@ export interface RowActionsListView {
   readonly rows: readonly RowActionsListRow[];
   /** El cursor: una fila, la de agregar (`rows.length`) o "Volver" (`rows.length + 1`). */
   readonly active: number;
+  /** El boton para agregar una fila, separado de la lista: Enter sobre el carga una nueva. */
   readonly addLabel: string;
-  readonly addMarked: boolean;
   readonly backLabel: string;
   /** Filas que entran sin desplazar la lista. */
   readonly pageSize: number;
@@ -73,14 +73,13 @@ function renderRow(row: RowActionsListRow, titleWidth: number, withDetail: boole
   return truncateVisible(`${title}${GAP}${right}`, available, uiSymbol('ellipsis'));
 }
 
-/** "1 para modificar · 2 para borrar · se agrega uno": lo que va a aplicar Enter, sin color (NO_COLOR) tambien. */
+/** "1 para modificar · 2 para borrar": lo que va a aplicar Enter, sin color (NO_COLOR) tambien. */
 function summary(view: RowActionsListView): string {
   const edit = view.rows.filter((row) => row.mark === 'edit').length;
   const remove = view.rows.filter((row) => row.mark === 'remove').length;
   const parts = [
     edit > 0 ? `${edit} para modificar` : undefined,
     remove > 0 ? `${remove} para borrar` : undefined,
-    view.addMarked ? 'se agrega uno' : undefined,
   ].filter(Boolean);
 
   return parts.join(` ${uiSymbol('separator')} `);
@@ -88,8 +87,8 @@ function summary(view: RowActionsListView): string {
 
 /**
  * La lista con acciones por fila del asistente (NAV-10): cada fila con su marca (◯ sin marca, ◉ para modificar, ● rojo
- * para borrar), una fila para agregar y "Volver" fijo debajo. Devuelve las lineas, sin la pregunta ni la ayuda de
- * teclas, que pone el prompt. Las filas son de una linea, recortadas al ancho, asi la lista se desplaza entera.
+ * para borrar) y, separados de la lista, el boton para agregar y "Volver". Devuelve las lineas, sin la pregunta ni la
+ * ayuda de teclas, que pone el prompt. Las filas son de una linea, recortadas al ancho, asi la lista se desplaza entera.
  */
 export function renderRowActionsList(view: RowActionsListView): string[] {
   const { rows } = view;
@@ -115,10 +114,8 @@ export function renderRowActionsList(view: RowActionsListView): string[] {
       return line(`${markIcon(row.mark)} ${renderRow(row, title, withDetail, available)}`, index === view.active);
     }),
     ...(window.scrolls ? [scrollHint('below', rows.length - window.end)] : []),
-    line(
-      `${view.addMarked ? colorize(uiSymbol('selected'), 'success') : uiSymbol('unselected')} ${view.addLabel}`,
-      view.active === addIndex,
-    ),
+    ' ',
+    line(view.addLabel, view.active === addIndex),
     ' ',
     line(view.backLabel, view.active === addIndex + 1),
     ' ',

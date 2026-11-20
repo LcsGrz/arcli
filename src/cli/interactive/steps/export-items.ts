@@ -1,3 +1,4 @@
+import { DEFAULT_CURRENCY_CODE } from '../../../modules/billing/billing.constants';
 import { formatMoneyLabel } from '../../../modules/billing/billing.labels';
 import { sumExportItems } from '../../../modules/export/export.items';
 import { exportTextFieldError } from '../../../modules/export/export.mappers';
@@ -14,9 +15,10 @@ import {
   FIRST_EXPORT_ITEM_DEFAULTS,
 } from '../../../modules/interactive/export-items';
 import type { RowEdits } from '../../../modules/interactive/row-marks';
-import { amountQuestion } from '../../../modules/interactive/steps/amount';
+import { amountCurrencyCode, amountQuestion } from '../../../modules/interactive/steps/amount';
 import type { Lens } from '../../../modules/interactive/steps/lens';
 import { BACK, type Back, type WizardDependency, type WizardStep } from '../../../modules/interactive/wizard';
+import { noticePanel, writeTerminalOutput } from '../../../ui';
 import { withSpinner } from '../../spinner';
 import { askTextStep, chooseFromFilterList, chooseStep, editRowsStep } from '../prompts';
 import { validateItemNumber } from '../validators';
@@ -81,12 +83,15 @@ function unitRows(units: readonly ExportUnit[]) {
     .map((entry) => ({ keywords: String(entry.id), label: entry.name, value: entry.id }));
 }
 
+/** La ultima pregunta de un item: el importe o precio. Al volver desde el item siguiente, se arranca ahi. */
+const LAST_PART = 3;
+
 /**
- * Un item, pregunta por pregunta: descripcion, cantidad, unidad y precio unitario. Esc vuelve a la pregunta anterior
- * del item, con lo escrito; desde la descripcion, devuelve BACK. En `more`, Enter vacio en la descripcion termina
- * (`done`).
+ * Un item, pregunta por pregunta: descripcion, cantidad, unidad e importe (o precio unitario), desde `startAt`. Esc
+ * vuelve a la pregunta anterior del item, con lo escrito; desde la descripcion, devuelve BACK. En `more`, Enter vacio en
+ * la descripcion termina (`done`).
  */
-async function askItem(question: ItemQuestion): Promise<Back | ExportItemInput | 'done'> {
+async function askItem(question: ItemQuestion, startAt = 0): Promise<Back | ExportItemInput | 'done'> {
   const { mode, start } = question;
   const typed: TypedItem = {
     description: start?.description,
@@ -95,9 +100,10 @@ async function askItem(question: ItemQuestion): Promise<Back | ExportItemInput |
     unitPrice: start ? amountInputText(start.unitPrice) : undefined,
   };
   const rows = unitRows(question.units);
-  let index = 0;
+  // La unidad sin tabla no se pregunta: arrancar en ella es arrancar en el precio.
+  let index = startAt === 2 && rows.length === 0 ? LAST_PART : startAt;
 
-  while (index < 4) {
+  while (index <= LAST_PART) {
     const answer = await askItemPart(index, question, typed, rows);
 
     if (answer === BACK) {
@@ -106,7 +112,7 @@ async function askItem(question: ItemQuestion): Promise<Back | ExportItemInput |
       }
 
       // La unidad sin tabla no se pregunta: Esc en el precio vuelve a la cantidad.
-      index -= index === 3 && rows.length === 0 ? 2 : 1;
+      index -= index === LAST_PART && rows.length === 0 ? 2 : 1;
       continue;
     }
 
@@ -121,7 +127,7 @@ async function askItem(question: ItemQuestion): Promise<Back | ExportItemInput |
     ...(start?.code ? { code: start.code } : {}),
     description: (typed.description ?? '').trim(),
     quantity: parseExchangeRateInput(typed.quantity ?? '') ?? 0,
-    unit: typed.unit ?? DEFAULT_EXPORT_UNIT_CODE,
+    unit: typed.unit ?? start?.unit ?? DEFAULT_EXPORT_UNIT_CODE,
     unitPrice: parseExchangeRateInput(typed.unitPrice ?? '') ?? 0,
   };
 }
@@ -142,13 +148,18 @@ async function askTextPart(
   message: string,
   key: 'description' | 'quantity' | 'unitPrice',
   typed: TypedItem,
-  options: { readonly defaultValue?: string; readonly validate: (value: string) => string | true },
+  options: {
+    readonly defaultValue?: string;
+    /** Arranca vacia aunque se hubiera escrito algo: en "Enter para terminar", vacia tiene que terminar. */
+    readonly blank?: boolean;
+    readonly validate: (value: string) => string | true;
+  },
 ): Promise<Back | true> {
   const { defaultValue } = options;
-  const fallback = typed[key]?.trim() || defaultValue;
+  const fallback = (options.blank ? undefined : typed[key]?.trim()) || defaultValue;
   const answer = await askTextStep(message, {
     defaultValue,
-    previousAnswer: typed[key],
+    previousAnswer: options.blank ? undefined : typed[key],
     validate: (value) => (!value.trim() && fallback !== undefined ? true : options.validate(value)),
   });
 
@@ -172,6 +183,7 @@ async function askItemPart(
 
   if (index === 0) {
     return askTextPart(descriptionQuestion(question), 'description', typed, {
+      blank: question.mode === 'more',
       defaultValue: first ? FIRST_EXPORT_ITEM_DEFAULTS.description : undefined,
       validate: (value) => validateItemDescription(value, question.mode === 'more'),
     });
@@ -184,7 +196,7 @@ async function askItemPart(
     });
   }
 
-  if (index === 3) {
+  if (index === LAST_PART) {
     // Con cantidad 1 el precio es el importe del renglon: el camino rapido de un servicio (descripcion, Enter, Enter,
     // importe).
     const label = parseExchangeRateInput(typed.quantity ?? '') === 1 ? 'Importe' : 'Precio unitario';
@@ -194,10 +206,9 @@ async function askItemPart(
     });
   }
 
-  // Sin la tabla de ARCA, la unidad por defecto, como el CLI sin la quinta parte de `--item`.
+  // Sin la tabla de ARCA no se pregunta: queda la que tenia el item (uno copiado o que se modifica) o la de por defecto,
+  // como el CLI sin la quinta parte de `--item`.
   if (rows.length === 0) {
-    typed.unit = DEFAULT_EXPORT_UNIT_CODE;
-
     return true;
   }
 
@@ -215,30 +226,57 @@ async function askItemPart(
   return true;
 }
 
+interface LoadOptions {
+  /** Que item se pregunta primero: por defecto, uno nuevo despues de `items`. */
+  readonly from?: number;
+  /** Desde que pregunta de ese item; al volver desde el siguiente, el importe. */
+  readonly startAt?: number;
+  /**
+   * Volver desde la descripcion de un item lleva al importe del anterior, que se vuelve a preguntar con lo que tenia;
+   * desde el primero, BACK. Sin esto, cualquier Volver desde una descripcion devuelve BACK (al agregar desde el editor).
+   */
+  readonly stepBack: boolean;
+  /** Recibe la lista cada vez que cambia: nada de lo cargado se pierde al volver. */
+  readonly onChange?: (items: readonly ExportItemInput[]) => void;
+}
+
 /**
- * Del item `items.length + 1` en adelante, hasta Enter vacio en la descripcion. BACK si se vuelve desde la descripcion
- * de uno nuevo; `onChange` recibe la lista cada vez que se suma uno.
+ * La carga de items: el primero con valores por defecto y los siguientes hasta Enter vacio en "Descripción del ítem N
+ * (Enter para terminar)". Un item ya cargado al que se vuelve se pregunta con lo que tenia.
  */
-async function askMoreItems(
+async function loadItems(
   items: readonly ExportItemInput[],
   question: Omit<ItemQuestion, 'mode' | 'position' | 'start'>,
-  onChange: (items: readonly ExportItemInput[]) => void = () => undefined,
+  options: LoadOptions,
 ): Promise<Back | ExportItemInput[]> {
   const loaded = [...items];
+  let position = options.from ?? loaded.length;
+  let startAt = options.startAt ?? 0;
 
   for (;;) {
-    const item = await askItem({ ...question, mode: 'more', position: loaded.length + 1 });
+    const existing = loaded[position];
+    const mode: ItemMode = existing ? 'edit' : position === 0 ? 'first' : 'more';
+    const item = await askItem({ ...question, mode, position: position + 1, start: existing }, startAt);
+
+    startAt = 0;
 
     if (item === BACK) {
-      return BACK;
+      if (!options.stepBack || position === 0) {
+        return BACK;
+      }
+
+      position -= 1;
+      startAt = LAST_PART;
+      continue;
     }
 
     if (item === 'done') {
       return loaded;
     }
 
-    loaded.push(item);
-    onChange(loaded);
+    loaded[position] = item;
+    options.onChange?.(loaded);
+    position += 1;
   }
 }
 
@@ -264,7 +302,7 @@ async function applyEdits(
     next[index] = item;
   }
 
-  return edits.add ? askMoreItems(next, question) : next;
+  return edits.add ? loadItems(next, question, { stepBack: false }) : next;
 }
 
 type TotalChoice = 'confirmar' | 'modificar';
@@ -292,7 +330,23 @@ async function askTotal(
   );
 }
 
-const EDITOR_QUESTION = '¿Qué ítems cambiamos? (espacio para modificar, Backspace para borrar)';
+/** "Ítems de la factura de exportación E (2): marcá qué modificar o borrar, o seguí con Enter". */
+function editorTitle(voucher: string, count: number): string {
+  return `Ítems de ${voucher} (${count}): marcá qué modificar o borrar, o seguí con Enter`;
+}
+
+/** Lo que guarda el memo: la ultima lista y la moneda de sus precios. */
+interface ItemsMemo {
+  readonly currency: string;
+  readonly items: readonly ExportItemInput[];
+}
+
+/** "pesos" o el codigo ISO ("USD"), como lo nombra el aviso de la moneda. */
+function currencyName(currency: string): string {
+  const code = amountCurrencyCode(currency);
+
+  return code === DEFAULT_CURRENCY_CODE ? 'pesos' : code;
+}
 const EDITOR_OPTIONS = {
   addLabel: '+ Agregar ítem',
   minRows: 1,
@@ -306,7 +360,8 @@ const EDITOR_OPTIONS = {
  * Enter vacio. Despues muestra el total: confirmarlo o modificar los items en el editor (`editRowsStep`), que vuelve al
  * total. Con items cargados (al volver al paso) o copiados (Repetir, notas), arranca en el editor.
  *
- * El memo guarda la ultima lista, terminada o a medias: al volver al paso arranca con ella.
+ * El memo guarda la ultima lista, terminada o a medias, y la moneda de sus precios: al volver al paso arranca con ella y,
+ * si la moneda cambio, avisa que hay que revisar los importes.
  */
 export function exportItemsStep<S>(def: ExportItemsStepDef<S>): WizardStep<S> {
   let units: Promise<readonly ExportUnit[]> | undefined;
@@ -319,33 +374,39 @@ export function exportItemsStep<S>(def: ExportItemsStepDef<S>): WizardStep<S> {
 
       const question = { currency: def.currency(state), units: await units };
       const answered = previous ? def.items.get(previous as S) : undefined;
-      let items: readonly ExportItemInput[] =
-        memo.get<readonly ExportItemInput[]>() ?? answered ?? def.initial?.(state) ?? [];
+      const remembered = memo.get<ItemsMemo>();
+      let items: readonly ExportItemInput[] = remembered?.items ?? answered ?? def.initial?.(state) ?? [];
       const remember = (list: readonly ExportItemInput[]) => {
         items = list;
-        memo.set<readonly ExportItemInput[]>([...list]);
+        memo.set<ItemsMemo>({ currency: question.currency, items: [...list] });
       };
+      // Pantalla en la que se esta y de donde se llego al total: Volver desde ahi lleva a la pregunta anterior.
       let screen: 'editor' | 'total' = 'editor';
+      let totalFrom: 'carga' | 'editor' = 'editor';
       // Esc en el editor vuelve al total si se llego desde ahi; si se arranco en el editor, al paso anterior.
       let fromTotal = false;
 
+      // Otra moneda no borra los items (REV-73): los precios quedan escritos en la anterior, asi que se avisa.
+      if (items.length > 0 && remembered && remembered.currency !== question.currency) {
+        writeTerminalOutput(
+          noticePanel(
+            `Cambiaste la moneda a ${currencyName(question.currency)}: revisá los importes de los ítems.`,
+            'warning',
+          ),
+        );
+        remember(items);
+      }
+
       if (items.length === 0) {
-        const first = await askItem({ ...question, mode: 'first', position: 1 });
+        const loaded = await loadItems([], question, { onChange: remember, stepBack: true });
 
-        if (first === BACK || first === 'done') {
+        if (loaded === BACK) {
           return BACK;
         }
 
-        remember([first]);
-
-        const more = await askMoreItems(items, question, remember);
-
-        if (more === BACK) {
-          return BACK;
-        }
-
-        remember(more);
+        remember(loaded);
         screen = 'total';
+        totalFrom = 'carga';
       }
 
       for (;;) {
@@ -357,8 +418,27 @@ export function exportItemsStep<S>(def: ExportItemsStepDef<S>): WizardStep<S> {
             def.validateTotal?.(state)(sumExportItems(items)) ?? true,
           );
 
+          if (choice === BACK && totalFrom === 'editor') {
+            screen = 'editor';
+            fromTotal = false;
+            continue;
+          }
+
           if (choice === BACK) {
-            return BACK;
+            // En la primera carga, al importe del ultimo item.
+            const loaded = await loadItems(items, question, {
+              from: items.length - 1,
+              onChange: remember,
+              startAt: LAST_PART,
+              stepBack: true,
+            });
+
+            if (loaded === BACK) {
+              return BACK;
+            }
+
+            remember(loaded);
+            continue;
           }
 
           if (choice === 'confirmar') {
@@ -371,7 +451,7 @@ export function exportItemsStep<S>(def: ExportItemsStepDef<S>): WizardStep<S> {
         }
 
         const edits = await editRowsStep(
-          EDITOR_QUESTION,
+          editorTitle(def.voucher, items.length),
           items.map((item) => describeExportItem(item, question.units, question.currency)),
           EDITOR_OPTIONS,
         );
@@ -390,6 +470,7 @@ export function exportItemsStep<S>(def: ExportItemsStepDef<S>): WizardStep<S> {
         if (applied !== BACK) {
           remember(applied);
           screen = 'total';
+          totalFrom = 'editor';
           fromTotal = false;
         }
       }

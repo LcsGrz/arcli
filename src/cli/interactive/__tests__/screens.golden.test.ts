@@ -949,7 +949,7 @@ describe('golden de pantallas: ítems de la factura E (NAV-10)', () => {
       [/^(?:Importe|Precio unitario) en USD/, '500'],
       [/Descripción del ítem 3/, ''],
       [/Importe total/, 'Modificar los ítems'],
-      [/Qué ítems cambiamos/, editing({ add: true, edit: ['Jugo'], remove: ['Flete'] })],
+      [/^Ítems de .*: marcá qué modificar/, editing({ add: true, edit: ['Jugo'], remove: ['Flete'] })],
       // El marcado para modificar arranca con lo que tenía.
       [/Descripción del ítem 1/, 'Jugo de naranja concentrado'],
       [/Cantidad/, '800'],
@@ -969,7 +969,7 @@ describe('golden de pantallas: ítems de la factura E (NAV-10)', () => {
       NO_EMIT,
     ]));
 
-  it('con Volver: Esc en el total vuelve al paso anterior y, al regresar, arranca en el editor con lo cargado', () =>
+  it('con Volver: del total al último ítem y de su primer dato al paso anterior; al regresar, arranca en el editor con lo cargado', () =>
     golden('factura-e/items-volver', [
       ...bienes,
       [/Descripción del ítem 1/, 'Jugo de naranja'],
@@ -981,12 +981,18 @@ describe('golden de pantallas: ítems de la factura E (NAV-10)', () => {
       [/Unidad/, 'kilogramos'],
       [/^(?:Importe|Precio unitario) en USD/, '1,50'],
       [/Descripción del ítem 2/, ''],
+      // En la primera carga, Volver desde el total va al último dato del último ítem, y desde el primero, al paso
+      // anterior. Nada se pierde: al regresar arranca en el editor.
       [/Importe total/, BACK],
+      [/^Precio unitario en USD/, BACK],
+      [/Unidad/, BACK],
+      [/Cantidad/, BACK],
+      [/Descripción del ítem 1/, BACK],
       [/Te pagan en dólares/, 'Sí'],
-      [/Qué ítems cambiamos/, editing({})],
+      [/^Ítems de .*: marcá qué modificar/, editing({})],
       [/Importe total/, 'Modificar los ítems'],
       // Esc en el editor, si se llegó desde el total, vuelve al total.
-      [/Qué ítems cambiamos/, BACK],
+      [/^Ítems de .*: marcá qué modificar/, BACK],
       [/Importe total/, 'Confirmar'],
       [/Incoterm/, 'FOB'],
       [/Permisos de embarque/, ''],
@@ -1006,7 +1012,7 @@ const notaCreditoE = [
 
 /** La NC arranca con el renglón de la factura (1.500 USD): se modifica el precio a 500. */
 const creditNoteFor500 = [
-  [/Qué ítems cambiamos/, editing({ edit: ['Según detalle'] })],
+  [/^Ítems de .*: marcá qué modificar/, editing({ edit: ['Según detalle'] })],
   [/Descripción del ítem 1/, ''],
   [/Cantidad/, ''],
   [/Unidad/, 'unidades'],
@@ -1023,16 +1029,16 @@ describe('golden de pantallas: notas E', () => {
       'nota-e/volver',
       [
         ...notaCreditoE,
-        [/Qué ítems cambiamos/, BACK],
+        [/^Ítems de .*: marcá qué modificar/, BACK],
         [/Número de la factura E/, '7'],
-        [/Qué ítems cambiamos/, editing({ edit: ['Según detalle'] })],
+        [/^Ítems de .*: marcá qué modificar/, editing({ edit: ['Según detalle'] })],
         [/Descripción del ítem 1/, 'Descuento por volumen'],
         [/Cantidad/, ''],
         [/Unidad/, 'unidades'],
         // Más que la factura: la NC no se puede confirmar.
         [/^(?:Importe|Precio unitario) en USD/, '1.600'],
         [/Importe total/, 'Modificar los ítems'],
-        [/Qué ítems cambiamos/, editing({ edit: ['Descuento'] })],
+        [/^Ítems de .*: marcá qué modificar/, editing({ edit: ['Descuento'] })],
         [/Descripción del ítem 1/, ''],
         [/Cantidad/, ''],
         [/Unidad/, 'unidades'],
@@ -1041,7 +1047,7 @@ describe('golden de pantallas: notas E', () => {
         [/Cantidad/, BACK],
         [/Descripción del ítem 1/, BACK],
         // Esc en las preguntas de un ítem que se modifica deja todo como estaba y vuelve al editor.
-        [/Qué ítems cambiamos/, editing({ edit: ['Descuento'] })],
+        [/^Ítems de .*: marcá qué modificar/, editing({ edit: ['Descuento'] })],
         [/Descripción del ítem 1/, ''],
         [/Cantidad/, ''],
         [/Unidad/, 'unidades'],
@@ -1090,7 +1096,7 @@ describe('golden de pantallas: notas E', () => {
       [
         ...notaCreditoE,
         // La ND arranca con el renglón de la factura: se modifica la descripción y el precio.
-        [/Qué ítems cambiamos/, editing({ edit: ['Según detalle'] })],
+        [/^Ítems de .*: marcá qué modificar/, editing({ edit: ['Según detalle'] })],
         [/Descripción del ítem 1/, 'Intereses'],
         [/Cantidad/, ''],
         [/Unidad/, 'unidades'],
@@ -1110,7 +1116,7 @@ const repetirE = [
 
 /** El editor arranca con el renglón de la factura y Enter sin marcas va al total (NAV-10). */
 const sameItems = [
-  [/Qué ítems cambiamos/, editing({})],
+  [/^Ítems de .*: marcá qué modificar/, editing({})],
   [/Importe total/, 'Confirmar'],
 ] as const;
 
@@ -1123,9 +1129,9 @@ describe('golden de pantallas: Repetir E', () => {
       'repetir-e/volver',
       [
         ...repetirE,
-        [/Qué ítems cambiamos/, BACK],
+        [/^Ítems de .*: marcá qué modificar/, BACK],
         [/Cuál repetimos/, '00003-00000007'],
-        [/Qué ítems cambiamos/, editing({ edit: ['Según detalle'] })],
+        [/^Ítems de .*: marcá qué modificar/, editing({ edit: ['Según detalle'] })],
         [/Descripción del ítem 1/, ''],
         [/Cantidad/, ''],
         [/Unidad/, 'unidades'],

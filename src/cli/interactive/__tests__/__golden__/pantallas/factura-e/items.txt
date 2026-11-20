@@ -92,7 +92,7 @@
   · Modificar los ítems — Modificar, borrar o agregar ítems
   = Modificar los ítems
 
-? [editor] ¿Qué ítems cambiamos? (espacio para modificar, Backspace para borrar)
+? [editor] Ítems de la factura de exportación E (2): marcá qué modificar o borrar, o seguí con Enter
   [modificar] Jugo de naranja — 1.000 kilogramos x 1,50 USD = 1.500 USD
   [borrar] Flete — 1 unidades x 500 USD = 500 USD
   [agregar] + Agregar ítem

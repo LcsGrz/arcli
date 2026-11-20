@@ -2,7 +2,8 @@ import { PassThrough } from 'node:stream';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BACK } from '../../../modules/interactive/wizard';
-import { stripAnsi } from '../../../ui';
+import { renderRowActionsList, stripAnsi } from '../../../ui';
+import { fitPageSize, ROW_ACTIONS_EXTRA_LINES } from '../prompts';
 import { rowActionsList } from '../row-actions-list';
 
 const DOWN = '\u001B[B';
@@ -38,7 +39,7 @@ async function run(keys: readonly string[], rows = ROWS, width = 80) {
     {
       addLabel: '+ Agregar ítem',
       backLabel: '← Volver',
-      message: '¿Qué ítems cambiamos?',
+      message: 'Ítems de la factura de exportación E (2): marcá qué modificar o borrar, o seguí con Enter',
       minRows: 1,
       minRowsNotice: 'Queda al menos un ítem.',
       pageSize: 12,
@@ -71,9 +72,21 @@ describe('rowActionsList (NAV-10)', () => {
 
     expect(answer).toEqual({ add: false, edit: [], remove: [] });
     expect(screen).toContain('❯ ◯ Jugo');
-    expect(screen).toContain('  ◯ + Agregar ítem');
-    expect(screen).toContain('  ← Volver');
-    expect(screen).toContain('espacio modificar · ⌫ borrar · ⏎ aplicar');
+    // "Agregar ítem" es un botón separado de la lista, y la ayuda dice que Enter sigue sin marcar nada.
+    expect(screen).toContain('❯ ◯ Jugo');
+    const lines = screen.split('\n').map((line) => line.trimEnd());
+    const add = lines.indexOf('  + Agregar ítem');
+
+    expect(lines[add - 1]).toBe('');
+    expect(lines[add - 2]).toMatch(/◯ Flete/);
+    expect(lines.slice(add + 1, add + 3)).toEqual(['', '  ← Volver']);
+    expect(screen).toContain('espacio modificar · ⌫ borrar · ⏎ seguir');
+  });
+
+  it('con algo marcado, la ayuda dice que Enter aplica', async () => {
+    const { screen } = await run([SPACE, ENTER]);
+
+    expect(screen).toContain('⏎ aplicar');
   });
 
   it('espacio marca para modificar y otro espacio desmarca', async () => {
@@ -115,11 +128,10 @@ describe('rowActionsList (NAV-10)', () => {
     expect(afterNotice).not.toContain('Queda al menos un ítem.');
   });
 
-  it('"Agregar ítem": con espacio se marca junto con lo demás, y Enter sobre la fila también agrega', async () => {
-    expect((await run([SPACE, DOWN, DOWN, SPACE, UP, ENTER])).answer).toEqual({ add: true, edit: [0], remove: [] });
-    expect((await run([DOWN, DOWN, ENTER])).answer).toEqual({ add: true, edit: [], remove: [] });
-    // Backspace sobre "Agregar ítem" no hace nada.
-    expect((await run([DOWN, DOWN, BACKSPACE, UP, ENTER])).answer).toEqual({ add: false, edit: [], remove: [] });
+  it('Enter sobre "Agregar ítem" agrega, junto con lo marcado; espacio y Backspace ahí no hacen nada', async () => {
+    expect((await run([SPACE, DOWN, DOWN, ENTER])).answer).toEqual({ add: true, edit: [0], remove: [] });
+    expect((await run([DOWN, DOWN, SPACE, BACKSPACE, ENTER])).answer).toEqual({ add: true, edit: [], remove: [] });
+    expect((await run([DOWN, DOWN, SPACE, UP, ENTER])).answer).toEqual({ add: false, edit: [], remove: [] });
   });
 
   it('Enter sobre "Volver" vuelve, aunque haya marcas', async () => {
@@ -137,5 +149,40 @@ describe('rowActionsList (NAV-10)', () => {
 
     expect(drawn.length).toBeGreaterThan(0);
     expect(drawn.every((line) => line.replace(/\s+$/, '').length <= 40)).toBe(true);
+  });
+
+  it('en una terminal baja la página deja "Volver" en pantalla, aun con todo lo que puede aparecer', () => {
+    const original = process.stdout.rows;
+
+    try {
+      // Con menos filas, la lista igual muestra tres (`fitPageSize`).
+      for (const rows of [24, 30, 40]) {
+        process.stdout.rows = rows;
+
+        const items = Array.from({ length: 30 }, (_, index) => ({
+          detail: '1.000,123456 kilogramos x 1.000,123456 USD',
+          mark: index === 0 ? ('edit' as const) : undefined,
+          title: `Ítem ${index + 1}`,
+          total: '1.000.123,58 USD',
+        }));
+        const list = renderRowActionsList({
+          active: 0,
+          addLabel: '+ Agregar ítem',
+          backLabel: '← Volver',
+          highlight: (text) => text,
+          notice: 'Queda al menos un ítem.',
+          pageSize: fitPageSize(items.length, { extraLines: ROW_ACTIONS_EXTRA_LINES }),
+          rows: items,
+          width: 40,
+        });
+        // Dos líneas en blanco, el título en dos líneas, la línea en blanco, la lista, la línea en blanco y la ayuda.
+        const screen = 2 + 2 + 1 + list.length + 1 + 1;
+
+        expect(list).toContain('  ← Volver');
+        expect(screen, `${rows} filas`).toBeLessThanOrEqual(rows);
+      }
+    } finally {
+      process.stdout.rows = original;
+    }
   });
 });

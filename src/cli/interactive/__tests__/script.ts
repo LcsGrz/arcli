@@ -299,7 +299,7 @@ export function singleExportItem(price: string, description = ''): ReadonlyArray
 
 /** Los ítems copiados (Repetir y notas E) tal cual: Enter sin marcas en el editor y "Confirmar" en el total. */
 export const KEEP_EXPORT_ITEMS: ReadonlyArray<readonly [RegExp, ScriptedAnswer]> = [
-  [/^¿Qué ítems cambiamos\?/, editing({})],
+  [/^Ítems de .*: marcá qué modificar/, editing({})],
   [/^Importe total/, 'Confirmar'],
 ];
 
@@ -309,7 +309,7 @@ export const KEEP_EXPORT_ITEMS: ReadonlyArray<readonly [RegExp, ScriptedAnswer]>
  */
 export function noteExportItem(price: string, description = ''): ReadonlyArray<readonly [RegExp, ScriptedAnswer]> {
   return [
-    [/^¿Qué ítems cambiamos\?/, editing({ edit: [''] })],
+    [/^Ítems de .*: marcá qué modificar/, editing({ edit: [''] })],
     [/^Descripción del ítem 1:/, description],
     [/^Cantidad:/, ''],
     [/^Unidad:/, ''],

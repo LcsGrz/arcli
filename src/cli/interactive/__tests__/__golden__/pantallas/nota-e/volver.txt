@@ -38,7 +38,7 @@
 
 └                                                                                          ┘
 
-? [editor] ¿Qué ítems cambiamos? (espacio para modificar, Backspace para borrar)
+? [editor] Ítems de la nota de crédito de exportación E (1): marcá qué modificar o borrar, o seguí con Enter
   · Según detalle — 1 unidades x 1.500 USD = 1.500 USD
   · + Agregar ítem
   = ← Volver
@@ -61,7 +61,7 @@
 
 └                                                                                          ┘
 
-? [editor] ¿Qué ítems cambiamos? (espacio para modificar, Backspace para borrar)
+? [editor] Ítems de la nota de crédito de exportación E (1): marcá qué modificar o borrar, o seguí con Enter
   [modificar] Según detalle — 1 unidades x 1.500 USD = 1.500 USD
   · + Agregar ítem
   = aplicar
@@ -90,7 +90,7 @@
   > Modificar los ítems — Modificar, borrar o agregar ítems
   = Modificar los ítems
 
-? [editor] ¿Qué ítems cambiamos? (espacio para modificar, Backspace para borrar)
+? [editor] Ítems de la nota de crédito de exportación E (1): marcá qué modificar o borrar, o seguí con Enter
   [modificar] Descuento por volumen — 1 unidades x 1.600 USD = 1.600 USD
   · + Agregar ítem
   = aplicar
@@ -127,7 +127,7 @@
   arranca escrito: "Descuento por volumen"
   = ← Volver
 
-? [editor] ¿Qué ítems cambiamos? (espacio para modificar, Backspace para borrar)
+? [editor] Ítems de la nota de crédito de exportación E (1): marcá qué modificar o borrar, o seguí con Enter
   [modificar] Descuento por volumen — 1 unidades x 1.600 USD = 1.600 USD
   · + Agregar ítem
   = aplicar

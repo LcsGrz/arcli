@@ -440,7 +440,7 @@ describe('runExportRepeatFlow', () => {
   it('sin "¿Mismo monto?": otro precio se cambia en el editor, y el monto es la suma de los ítems (NAV-10)', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Qué ítems cambiamos/, editing({ edit: ['Flete'] })],
+      [/^Ítems de .*: marcá qué modificar/, editing({ edit: ['Flete'] })],
       [/^Descripción del ítem 2:/, ''],
       [/Cantidad/, ''],
       [/Unidad/, 'unidades'],
@@ -542,20 +542,21 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
   it('volver desde el editor vuelve a la lista', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Qué ítems cambiamos/, BACK],
+      [/^Ítems de .*: marcá qué modificar/, BACK],
       [/Cuál repetimos/, BACK],
     ]);
 
     expect(await repeatOf(INVOICE)).toBeUndefined();
   });
 
-  it('volver desde el total vuelve a la lista con la factura marcada; con la misma, el editor arranca con lo modificado', async () => {
+  it('Volver desde el total va al editor y de ahí a la lista, con la factura marcada; con la misma, el editor arranca con lo modificado', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Qué ítems cambiamos/, editing({ remove: ['Flete'] })],
+      [/^Ítems de .*: marcá qué modificar/, editing({ remove: ['Flete'] })],
       [/Importe total/, BACK],
+      [/^Ítems de .*: marcá qué modificar/, BACK],
       [/Cuál repetimos/, '00004-00000001'],
-      [/Qué ítems cambiamos/, editing({})],
+      [/^Ítems de .*: marcá qué modificar/, editing({})],
       [/Importe total/, 'Confirmar'],
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
@@ -566,7 +567,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     expect(input?.amount).toBe(1000);
     expect(input?.items?.map((item) => item.description)).toEqual(['Bienes varios']);
     expect(script.chooseStep.mock.calls[2]?.[2]).toMatchObject({ number: 1, pointOfSale: 4 });
-    expect(script.editRowsStep.mock.calls[1]?.[1].map((row) => row.title)).toEqual(['Bienes varios']);
+    expect(script.editRowsStep.mock.calls[2]?.[1].map((row) => row.title)).toEqual(['Bienes varios']);
   });
 
   it('si la factura no trae `CanMisMonExt` lo pregunta; cobrada en pesos pregunta la cotización con la de aduana escrita (NAV-9)', async () => {
@@ -656,7 +657,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     });
   });
 
-  it('sin CUIT de país publicado ni ID impositivo pregunta el CUIT; volver desde ahi vuelve al monto', async () => {
+  it('sin CUIT de país publicado ni ID impositivo pregunta el CUIT; volver desde ahí vuelve a los ítems', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
@@ -775,7 +776,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
       // "despues" vuelve: se retrocede hasta la factura y se elige otra.
       [/Agregamos algún opcional/, BACK],
       [/Permisos de embarque/, BACK],
-      [/Qué ítems cambiamos/, BACK],
+      [/^Ítems de .*: marcá qué modificar/, BACK],
       [/Cuál repetimos/, '00004-00000002'],
       ...KEEP_EXPORT_ITEMS,
       [/Permisos de embarque/, ''],
@@ -859,7 +860,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
         [/Fecha de pago/, '20/11/2026'],
         [/Fecha de pago/, BACK],
         [/Agregamos algún opcional/, BACK],
-        [/Qué ítems cambiamos/, editing({ remove: ['Flete'] })],
+        [/^Ítems de .*: marcá qué modificar/, editing({ remove: ['Flete'] })],
         [/Importe total/, 'Confirmar'],
         [/Agregamos algún opcional/, []],
         [/Fecha de pago/, '20/11/2026'],

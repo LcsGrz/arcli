@@ -150,6 +150,13 @@ export function exportNoteSteps(
           const valid = validateAssociated(voucherKind, invoice);
 
           if (valid === true) {
+            // Como en "Repetir" E: por que los items arrancan con un renglon por el total.
+            const { limitation } = copyExportItems(invoice);
+
+            if (limitation) {
+              writeTerminalOutput(noticePanel(limitation, 'warning'));
+            }
+
             return { invoice };
           }
 

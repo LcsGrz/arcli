@@ -91,7 +91,7 @@ const exportGateway: ExportGateway = {
   getLastRequestId: async () => 0,
   getLastVoucherNumber: async () => 0,
   getQuotations: async () => [{ code: 'DOL', rate: 1000 }],
-  // Las de la tabla de WSFEX que usan los ejemplos de las docs.
+  // Las de la tabla de WSFEX que usan los ejemplos de las docs: verificado contra WSFEX testing el 20/11.
   getUnits: async () => [
     { id: 1, name: 'kilogramos' },
     { id: 5, name: 'litros' },

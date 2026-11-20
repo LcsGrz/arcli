@@ -411,8 +411,12 @@ function describeRowEdits(edits: RowEdits): string {
   return parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')} y ${parts.at(-1)}`;
 }
 
-/** Lo que la lista con acciones suma a una lista comun: la fila de agregar, el detalle, lo marcado y el aviso. */
-const ROW_ACTIONS_EXTRA_LINES = 4;
+/**
+ * Lo que la lista con acciones suma a una lista comun, en el peor caso (9): la linea en blanco y el boton de agregar,
+ * la linea en blanco despues de "Volver" y la de antes de la ayuda, el detalle de la fila partido en dos lineas en una
+ * terminal angosta, lo marcado, el aviso y el titulo partido en dos lineas. Asi "Volver" no queda fuera de pantalla.
+ */
+export const ROW_ACTIONS_EXTRA_LINES = 9;
 
 /**
  * Lista con acciones por fila (`rowActionsList`): espacio marca para modificar, Backspace para borrar y Enter aplica,

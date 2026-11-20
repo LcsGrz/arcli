@@ -640,7 +640,6 @@ function buildComponentsScene(): string {
   const rowActions = renderRowActionsList({
     active: 0,
     addLabel: '+ Agregar ítem',
-    addMarked: true,
     backLabel: `${uiSymbol('back')} Volver`,
     highlight: (text) => colorize(text, 'highlight'),
     pageSize: 12,
@@ -650,7 +649,23 @@ function buildComponentsScene(): string {
       { detail: '1 unidades x 100 USD', title: 'Seguro', total: '100 USD' },
     ],
     width: 84,
-  }).join('\n');
+  });
+  // El titulo y la ayuda de teclas los pone el prompt: con marcas, Enter aplica (sin marcas, sigue).
+  const rowActionsHelp = [
+    [uiSymbol('keysMove'), 'mover'],
+    ['espacio', 'modificar'],
+    [uiSymbol('keyBackspace'), 'borrar'],
+    [uiSymbol('keyEnter'), 'aplicar'],
+  ]
+    .map(([key, action]) => `${key} ${colorize(action ?? '', 'muted')}`)
+    .join(colorize(` ${uiSymbol('bullet')} `, 'muted'));
+  const rowActionsDemo = [
+    'Ítems de la factura de exportación E (3): marcá qué modificar o borrar, o seguí con Enter',
+    ' ',
+    ...rowActions,
+    ' ',
+    rowActionsHelp,
+  ].join('\n');
 
   return [
     sceneTitle('Componentes', 'Banners, avisos, un panel de cada rol y la lista con acciones por fila'),
@@ -676,7 +691,7 @@ function buildComponentsScene(): string {
       'Demo datos',
       renderObject({ cae: '86120020280000', payload: { CbteTipo: 11, ImpTotal: 1, PtoVta: 3 }, resultado: 'A' }),
     ),
-    dataPanel('Demo lista con acciones por fila', rowActions),
+    dataPanel('Demo lista con acciones por fila', rowActionsDemo),
   ].join('\n\n');
 }
 

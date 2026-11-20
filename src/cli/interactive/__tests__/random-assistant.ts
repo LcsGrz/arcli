@@ -273,6 +273,42 @@ export function createRandomAssistant(g: fc.GeneratorValue, options: RandomAssis
 const AMOUNT_QUESTION = /^(Monto total|Monto de la nota)/;
 const amountKey = (message: string): string => message.replace(/ en [A-Z]{3}:$/, ':');
 
+/** Las preguntas del paso de los items de la E (NAV-10): un solo paso del asistente con su propia navegacion. */
+const ITEMS_STEP =
+  /^(Descripción del ítem \d+|Cantidad:|Unidad:|Importe( en [A-Z]{3})?:|Precio unitario|Importe total de |Ítems de )/;
+
+/**
+ * Cada pasada seguida por el paso de los items queda como una sola pregunta: Volver adentro del paso es navegacion
+ * propia (de un item al anterior, del total al editor). Si la pasada termina con Esc, se salio del paso hacia atras.
+ */
+function collapseItemsStep(events: readonly PromptEvent[]): PromptEvent[] {
+  const collapsed: PromptEvent[] = [];
+  let run: PromptEvent[] = [];
+  const flush = () => {
+    const last = run.at(-1);
+
+    if (last) {
+      collapsed.push({ answer: last.answer === BACK ? BACK : 'ítems', kind: 'text', message: 'ítems' });
+    }
+
+    run = [];
+  };
+
+  for (const event of events) {
+    if (ITEMS_STEP.test(event.message)) {
+      run.push(event);
+      continue;
+    }
+
+    flush();
+    collapsed.push(event);
+  }
+
+  flush();
+
+  return collapsed;
+}
+
 /**
  * Las preguntas del camino que termino valiendo: Esc en una pregunta deshace la anterior (que se vuelve a preguntar),
  * y una pregunta que se repite seguida sin Esc (un reintento, como "Número" si ARCA no lo tiene) reemplaza a la
@@ -285,7 +321,7 @@ const amountKey = (message: string): string => message.replace(/ en [A-Z]{3}:$/,
 export function finalPath(events: readonly PromptEvent[], group: RegExp): PromptEvent[] {
   const path: PromptEvent[] = [];
 
-  for (const event of events) {
+  for (const event of collapseItemsStep(events)) {
     // Volvio al monto desde mas adelante: lo de despues no cuenta, y Esc ahi vuelve a la pregunta anterior al monto.
     if (AMOUNT_QUESTION.test(event.message)) {
       const earlier = path.findLastIndex((item) => amountKey(item.message) === amountKey(event.message));

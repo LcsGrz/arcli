@@ -14,7 +14,7 @@ import { BILLING_RULES } from '../../../modules/billing/billing.rules';
 import type { BillingCommandInput } from '../../../modules/billing/billing.schemas';
 import { BillingService } from '../../../modules/billing/billing.service';
 import type { VoucherShortcut } from '../../../modules/billing/billing.types';
-import { sumExportItems } from '../../../modules/export/export.items';
+import { DEFAULT_EXPORT_ITEM_DESCRIPTION, sumExportItems } from '../../../modules/export/export.items';
 import { EXPORT_RULES } from '../../../modules/export/export.rules';
 import { ExportService } from '../../../modules/export/export.service';
 import {
@@ -157,6 +157,22 @@ vi.mock('../../../modules/interactive/wizard', async (importOriginal) => {
       }
 
       return actual.runWizard(...args);
+    },
+  };
+});
+
+/** Los ítems con los que el asistente armó cada entrada de la E (`exportItemsEntry`): el último es el de la final. */
+const itemsEntries: Array<readonly ExportItemInput[] | undefined> = [];
+
+vi.mock('../../../modules/interactive/export-items', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../modules/interactive/export-items')>();
+
+  return {
+    ...actual,
+    exportItemsEntry: (items: Parameters<typeof actual.exportItemsEntry>[0]) => {
+      itemsEntries.push(items);
+
+      return actual.exportItemsEntry(items);
     },
   };
 });
@@ -356,6 +372,7 @@ async function walk(
     maxPrompts: 60,
   });
   equivalents.length = 0;
+  itemsEntries.length = 0;
   exportGateway = createExportGateway();
 
   const session = createBillingSession(g(fc.constantFrom, ...CONFIGS) as Record<string, unknown>);
@@ -570,14 +587,24 @@ function assertTypedValuesReachInput(flow: Flow, run: Walk): void {
     );
   }
 
-  // En la E el monto no se escribe: es la suma de los ítems (NAV-10), o el del renglón de la forma rápida.
+  // En la E el monto no se escribe: es la suma de los ítems cargados (NAV-10). Van uno por `--item` o, si es un solo
+  // renglón por el total, en la forma rápida: la descripción escrita en `--descripcion` (sin ella, "Según detalle") y
+  // el importe en `--monto`.
   if (flow.family === 'export') {
-    const items = input.items as ExportItemInput[] | undefined;
+    const loaded = itemsEntries.at(-1) ?? [];
+    const [only] = loaded;
 
-    expect(input.amount, `monto de la E${context(run)}`).toBeGreaterThan(0);
+    expect(loaded.length, `ítems cargados${context(run)}`).toBeGreaterThan(0);
+    expect(input.amount, `monto = suma de los ítems${context(run)}`).toBe(sumExportItems(loaded));
 
-    if (items) {
-      expect(input.amount, `monto = suma de los ítems${context(run)}`).toBe(sumExportItems(items));
+    if (input.items === undefined) {
+      expect(loaded, `forma rápida con un solo ítem${context(run)}`).toHaveLength(1);
+      expect(input.description ?? DEFAULT_EXPORT_ITEM_DESCRIPTION, `descripción ← ítem 1${context(run)}`).toBe(
+        only?.description.trim(),
+      );
+      expect(input.amount, `importe ← ítem 1${context(run)}`).toBe(only?.unitPrice);
+    } else {
+      expect(input.items, `un --item por renglón${context(run)}`).toEqual(loaded);
     }
   }
 }
@@ -725,12 +752,14 @@ function assertRemembered(run: Walk): void {
       }
     }
 
-    // Esc en la pregunta siguiente vuelve a esta: lo escrito arranca escrito.
+    // Esc en la pregunta siguiente vuelve a esta: lo escrito arranca escrito. Salvo "Descripción del ítem N (Enter para
+    // terminar)", que arranca vacía a propósito: vacía tiene que poder terminar la carga (NAV-10).
     const back = run.events[index + 1];
     const again = run.events[index + 2];
 
     if (
       event.kind === 'text' &&
+      !/\(Enter para terminar\)/.test(event.message) &&
       typeof event.answer === 'string' &&
       event.answer.trim() &&
       back?.answer === BACK &&

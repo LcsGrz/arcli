@@ -1003,7 +1003,7 @@ describe('auditoría del asistente del 19/11: pasos compartidos (NAV-6)', () => 
       [/Te pagan en dólares/, 'Sí'],
       ...singleExportItem('1.500'),
       [/Forma de pago/, BACK],
-      [/Qué ítems cambiamos/, BACK],
+      [/^Ítems de .*: marcá qué modificar/, BACK],
     ];
     const rest: Steps = [
       [/Forma de pago/, ''],
@@ -1013,38 +1013,41 @@ describe('auditoría del asistente del 19/11: pasos compartidos (NAV-6)', () => 
       NO_EMIT,
     ];
 
-    it('otra moneda: los precios eran en la anterior, así que el ítem 1 se pregunta de nuevo, en pesos', async () => {
+    it('otra moneda: los ítems se conservan, con un aviso para revisar los importes', async () => {
       await run(
         [
           ...untilItems,
           [/Te pagan en dólares/, BACK],
           [/moneda/, 'Pesos'],
+          [/^Ítems de .*: marcá qué modificar/, editing({ edit: ['Según detalle'] })],
           [/^Descripción del ítem 1:/, ''],
           [/^Cantidad:/, ''],
-          [/^Unidad:/, 'unidades'],
-          [/^(?:Importe|Precio unitario):$/, '1.500'],
-          [/^Descripción del ítem 2/, ''],
-          [/^Importe total/, 'Confirmar'],
+          [/^Unidad:/, ''],
+          [/^Importe:$/, '1.500.000'],
+          [/^Importe total de la factura de exportación E: \$ 1\.500\.000/, 'Confirmar'],
           ...rest,
         ],
         runInvoiceFlow,
       );
 
-      expect(lastQuestion(/^(?:Importe|Precio unitario):$/)?.[1]?.previousAnswer).toBeUndefined();
+      expect(printedText()).toContain('Cambiaste la moneda a pesos: revisá los importes de los ítems.');
+      expect(lastQuestion(/^Importe:$/)?.[1]?.previousAnswer).toBe('1500');
     });
 
-    it('solo cambiar "¿Te pagan en dólares?": los ítems siguen, en el editor', async () => {
+    it('solo cambiar "¿Te pagan en dólares?": los ítems siguen, en el editor, sin aviso', async () => {
       await run(
         [
           ...untilItems,
           // En servicios no se pregunta la cotización (2053).
           [/Te pagan en dólares/, 'No, en pesos'],
-          [/Qué ítems cambiamos/, editing({})],
+          [/^Ítems de .*: marcá qué modificar/, editing({})],
           [/^Importe total de la factura de exportación E: 1\.500 USD/, 'Confirmar'],
           ...rest,
         ],
         runInvoiceFlow,
       );
+
+      expect(printedText()).not.toContain('Cambiaste la moneda');
     });
   });
 
