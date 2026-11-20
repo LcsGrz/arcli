@@ -44,7 +44,8 @@ describe('reglas de la E (export.rules.ts)', () => {
     });
     // Sin fecha del comprobante, hoy.
     expect(EXPORT_PAYMENT_DATE_RULE.check({ exportType: 2, paymentDate: '17/11/2026' }, { today })).toMatchObject({
-      question: 'La fecha de pago no puede ser anterior a la del comprobante (hoy): ARCA la rechaza (error 1674).',
+      question:
+        'La fecha de pago no puede ser anterior a la del comprobante (hoy): ARCA la rechaza (error 1674). Escribí una desde el 18/11/2026, o volvé y elegí una fecha del comprobante anterior en los opcionales.',
     });
     // Con la fecha del comprobante sin elegir todavia (el asistente, TUI-22), la mas temprana que acepta ARCA (hoy - 5);
     // la escrita sigue mandando.

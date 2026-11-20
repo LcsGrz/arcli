@@ -13,7 +13,7 @@ import { editing, type ScriptedAnswer } from './script';
 /**
  * TUI-15: Esc en "¿Emitimos…?" (la confirmacion despues de la vista previa) vuelve a la ultima pregunta del flujo con
  * todo lo respondido, en vez de ir al menu. Al avanzar de nuevo se llega a la misma vista previa: el mismo comando
- * equivalente. Uno por familia: A, B y C, nota, "Repetir", la E, su nota y "Repetir" E.
+ * equivalente. Uno por familia: A, B y C, recibo, nota, "Repetir", la E, su nota y "Repetir" E.
  */
 
 const originalTimeZone = process.env.TZ;
@@ -168,6 +168,28 @@ describe('TUI-15: Esc en la vista previa vuelve a la última pregunta', () => {
     expect(optionalsSelections()[1]).toEqual(['fecha']);
     expect(typedAt(/Fecha del comprobante/)[1]).toBe('17/11/2026');
     expect(billingPayload?.CbteFch).toBe('20261117');
+    expectSamePreviewTwice();
+  });
+
+  it('recibo C: vuelve a los opcionales, con lo marcado y lo respondido', async () => {
+    await run(
+      [
+        [/Qué recibo/, 'Recibo C'],
+        [/A quién le hacés el recibo/, 'Consumidor final'],
+        [/Qué estás cobrando/, 'Servicios'],
+        [/Monto total/, '2.500'],
+        [/Agregamos/, ['Fecha del comprobante']],
+        [/Fecha del comprobante/, '17/11/2026'],
+        ESC_AT_PREVIEW,
+        [/Agregamos/, ['Fecha del comprobante']],
+        [/Fecha del comprobante/, '17/11/2026'],
+        NO_EMIT,
+      ],
+      (session) => runInvoiceFlow(session, true),
+    );
+
+    expect(optionalsSelections()[1]).toEqual(['fecha']);
+    expect(typedAt(/Fecha del comprobante/)[1]).toBe('17/11/2026');
     expectSamePreviewTwice();
   });
 

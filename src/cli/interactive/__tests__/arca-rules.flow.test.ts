@@ -271,6 +271,27 @@ describe('reglas de ARCA en el asistente (#220)', () => {
   });
 
   describe('la vista previa frena antes de preguntar si se emite', () => {
+    /** Lo que se escribe en stderr (el error de la vista previa), sin mostrarlo en la salida de los tests. */
+    function captureStderr(): () => string {
+      const chunks: string[] = [];
+
+      vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+        chunks.push(String(chunk));
+
+        return true;
+      });
+
+      // Sin bordes ni cortes de linea: un error largo se parte en el panel.
+      return () =>
+        stripAnsi(chunks.join(''))
+          .replace(/[\u2500-\u257f]/g, ' ')
+          .replace(/\s+/g, ' ');
+    }
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
     // REV-75 (NAV-5): ya no llega a la vista previa, la pregunta lo frena con la misma regla que el CLI.
     it('el receptor con el CUIT que emite (10069) se frena al preguntar el CUIT', async () => {
       script = createScript([
@@ -296,14 +317,22 @@ describe('reglas de ARCA en el asistente (#220)', () => {
         [/Qué estás facturando/, 'Productos'],
         [/Monto total/, '1210'],
         [/Agregamos/, []],
+        // La vista previa lo rechaza: muestra el error y vuelve a la última pregunta, con todo (TUI-15). De ahí, Esc
+        // hasta el primer paso.
+        [/Agregamos/, BACK],
+        [/Monto total/, BACK],
+        [/Qué estás facturando/, BACK],
+        [/Condición frente al IVA/, BACK],
+        [/CUIT del receptor/, BACK],
+        [/A quién/, BACK],
+        [/comprobante/, BACK],
       ]);
 
       const { billingGateway, session } = createSession();
+      const errors = captureStderr();
 
-      await expect(runInvoiceFlow(session)).rejects.toMatchObject({
-        code: 'INPUT_VALIDATION_ERROR',
-        message: expect.stringContaining('No Categorizado (CUIT 23000000000) con importe gravado'),
-      });
+      await expect(runInvoiceFlow(session)).resolves.toBe(BACK);
+      expect(errors()).toContain('No Categorizado (CUIT 23000000000) con importe gravado');
       expect(billingGateway.createVoucher).not.toHaveBeenCalled();
     });
 
@@ -326,14 +355,19 @@ describe('reglas de ARCA en el asistente (#220)', () => {
         [/Moneda del comprobante/, 'Euros (EUR)'],
         [/Cómo te pagan/, 'En pesos'],
         [/Cotización de EUR/, rate],
+        // La vista previa la rechaza: muestra el error y vuelve a los opcionales, con todo (TUI-15); se corrige ahí.
+        [/Agregamos/, ['Moneda extranjera']],
+        [/Moneda del comprobante/, 'Euros (EUR)'],
+        [/Cómo te pagan/, 'En pesos'],
+        [/Cotización de EUR/, '1.000'],
+        [/Emitimos/, 'No, dejar sin emitir'],
       ]);
 
       const { billingGateway, session } = createSession([], 1000);
+      const errors = captureStderr();
 
-      await expect(runInvoiceFlow(session)).rejects.toMatchObject({
-        code: 'INPUT_VALIDATION_ERROR',
-        message: expect.stringMatching(/fuera de lo que acepta ARCA: entre el 2 % y el 500 % de la oficial \(1\.000/),
-      });
+      await runInvoiceFlow(session);
+      expect(errors()).toMatch(/fuera de lo que acepta ARCA: entre el 2 % y el 500 % de la oficial \(1\.000/);
       expect(billingGateway.getQuotation).toHaveBeenCalledWith('060');
       expect(billingGateway.createVoucher).not.toHaveBeenCalled();
     });

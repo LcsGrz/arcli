@@ -1,7 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { stripAnsi, visibleWidth } from '../../../ui/primitives';
-import { formatExportPayloadTable, formatExportResultAsText } from '../export.text';
+import { formatExportResultAsText } from '../export.text';
 import { EXPORT_VOUCHER_KIND, type ExportExecutionResult, type ExportVoucherPayload } from '../export.types';
 
 function result(
@@ -56,9 +56,36 @@ function result(
   };
 }
 
-const table = (value: ExportExecutionResult) => stripAnsi(formatExportPayloadTable(value));
+/**
+ * Las lineas de adentro de la vista previa real (`formatExportResultAsText`) en `columns` columnas, sin bordes ni el
+ * margen que la centra.
+ */
+function previewLinesOf(value: ExportExecutionResult, columns: number): string[] {
+  const saved = { stderr: process.stderr.columns, stdout: process.stdout.columns };
 
-describe('formatExportPayloadTable', () => {
+  process.stdout.columns = columns;
+  process.stderr.columns = columns;
+
+  try {
+    return stripAnsi(formatExportResultAsText(value, { environment: 'produccion' }))
+      .split('\n')
+      .filter((line) => line.includes('│'))
+      .map((line) =>
+        line
+          .slice(line.indexOf('│') + 1, line.lastIndexOf('│'))
+          .trimEnd()
+          .replace(/^ {2}/, ''),
+      );
+  } finally {
+    process.stdout.columns = saved.stdout;
+    process.stderr.columns = saved.stderr;
+  }
+}
+
+/** La vista previa como texto, en una terminal ancha. */
+const table = (value: ExportExecutionResult) => `${previewLinesOf(value, 140).join('\n')}\n`;
+
+describe('formatExportResultAsText: datos de la vista previa', () => {
   it('en una nota muestra el comprobante asociado y no la fecha de pago', () => {
     const invoice = { ...result().payload, CanMisMonExt: undefined, Fecha_pago: undefined };
     const text = table({
@@ -80,7 +107,9 @@ describe('formatExportPayloadTable', () => {
       },
     });
 
-    expect(text).toMatch(/Comprobante asociado\s+Factura de exportación E 00004-00000001 del 30\/10\/2026, 1\.500 USD/);
+    expect(text).toMatch(
+      /Comprobante asociado\s+Factura de exportación E 00004-00000001\s+del 30\/10\/2026, 1\.500 USD/,
+    );
     expect(text).not.toContain('Fecha de pago');
   });
 
@@ -154,32 +183,7 @@ describe('formatExportResultAsText: items de la vista previa', () => {
     Items: { Item: [item(ACCENTED, 2, 12.5), item(LONG, 1, 1500)] },
     Obs: 'Pago a 30 días',
   });
-  let saved: { readonly stderr: number; readonly stdout: number };
-
-  beforeEach(() => {
-    saved = { stderr: process.stderr.columns, stdout: process.stdout.columns };
-  });
-
-  afterEach(() => {
-    process.stdout.columns = saved.stdout;
-    process.stderr.columns = saved.stderr;
-  });
-
-  /** Las lineas de adentro del comprobante, sin bordes ni el margen que lo centra. */
-  function previewLines(columns: number): string[] {
-    process.stdout.columns = columns;
-    process.stderr.columns = columns;
-
-    return stripAnsi(formatExportResultAsText(withItems, { environment: 'produccion' }))
-      .split('\n')
-      .filter((line) => line.includes('│'))
-      .map((line) =>
-        line
-          .slice(line.indexOf('│') + 1, line.lastIndexOf('│'))
-          .trimEnd()
-          .replace(/^ {2}/, ''),
-      );
-  }
+  const previewLines = (columns: number) => previewLinesOf(withItems, columns);
 
   /** La columna (visible) donde termina `amount` en la linea que lo tiene. */
   function amountEdge(lines: readonly string[], amount: string): number {

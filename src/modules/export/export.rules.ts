@@ -64,7 +64,10 @@ export const EXPORT_PAYMENT_DATE_RULE: ExportRule = {
       message: `La fecha de pago (${formatArcaDateAsArgentineDate(paymentDate)}) no puede ser anterior a la del comprobante (${voucherLabel}): ARCA la rechaza (error 1674). Revisá \`--fecha-pago\`.`,
       question: undecided
         ? `La fecha de pago no puede ser anterior al ${voucherLabel}: es la fecha más temprana que ARCA acepta para el comprobante, y un pago anterior a él lo rechaza (error 1674).`
-        : `La fecha de pago no puede ser anterior a la del comprobante (${typed ? voucherLabel : 'hoy'}): ARCA la rechaza (error 1674).`,
+        : typed
+          ? `La fecha de pago no puede ser anterior a la del comprobante (${voucherLabel}): ARCA la rechaza (error 1674).`
+          : // En el asistente, sin fecha elegida va la de hoy: la otra salida es elegir una anterior en los opcionales.
+            `La fecha de pago no puede ser anterior a la del comprobante (hoy): ARCA la rechaza (error 1674). Escribí una desde el ${voucherLabel}, o volvé y elegí una fecha del comprobante anterior en los opcionales.`,
     };
   },
   fields: ['paymentDate', 'voucherDate'],

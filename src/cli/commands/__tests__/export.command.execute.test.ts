@@ -332,6 +332,17 @@ describe('executeExportCommand: la decision de emitir', () => {
     expect(used.authorize).not.toHaveBeenCalled();
   });
 
+  // En el asistente Esc vuelve a la ultima pregunta (TUI-15); con flags no hay a donde volver: Esc es no y no emite.
+  it('en una terminal, Esc en "¿Emitimos?" cuenta como no emitir', async () => {
+    setTerminal(true);
+    vi.mocked(chooseOne).mockResolvedValueOnce(false);
+
+    const used = await run(BASE, { json: false });
+
+    expect(vi.mocked(chooseOne).mock.calls[0]?.[3]).toEqual({ escapeLabel: 'no emitir', escapeValue: false });
+    expect(used.authorize).not.toHaveBeenCalled();
+  });
+
   it('en una terminal sin flags pregunta, y si la respuesta es si, emite', async () => {
     setTerminal(true);
     vi.mocked(chooseOne).mockResolvedValueOnce('emitir');

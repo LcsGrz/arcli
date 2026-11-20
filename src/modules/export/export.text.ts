@@ -2,6 +2,7 @@ import { formatCuit } from '../../lib/identity/format-cuit';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import {
   padEndVisible,
+  padStartVisible,
   panelContentWidth,
   renderKeyValueRows,
   resolveKeyValueLabelWidth,
@@ -77,9 +78,6 @@ function formatUnit(result: ExportExecutionResult, unitCode: number): string {
 
 /** Lo minimo para la descripcion de un item al lado de su importe: con menos, cada item se parte en lineas. */
 const MIN_ITEM_DESCRIPTION_WIDTH = 16;
-
-const padStartVisible = (value: string, width: number): string =>
-  `${' '.repeat(Math.max(0, width - visibleWidth(value)))}${value}`;
 
 /**
  * Un renglon por item, con la cantidad y la unidad en la descripcion (es lo que WSFEX autoriza) y el importe a la
@@ -204,13 +202,6 @@ const totalRow = (result: ExportExecutionResult): Rows[number] => [
   'Importe total',
   formatAmount(result, result.payload.Imp_total),
 ];
-
-/** Los datos del comprobante, con el importe total al final. Sin los items. */
-export function formatExportPayloadTable(result: ExportExecutionResult): string {
-  const rows = [...formatPayloadRows(result), totalRow(result)];
-
-  return renderKeyValueRows(rows, { labelWidth: resolveKeyValueLabelWidth('ticket', rows) }).join('\n');
-}
 
 /**
  * Los datos del comprobante hasta las fechas, una linea en blanco, los items, otra linea en blanco y el importe total,

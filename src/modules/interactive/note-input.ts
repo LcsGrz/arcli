@@ -202,24 +202,27 @@ export type NoteRuleEnv = NoteInputEnv & { readonly today: string };
 /**
  * El validador de una pregunta de la nota antes de los opcionales (el periodo, la fecha de un asociado de otro
  * sistema): las reglas que leen `field`, con la nota armada con lo respondido y el candidato (`answer`). La fecha de la
- * nota todavia no se eligio: se compara contra la mas tardia que acepta ARCA (`undecidedBillingDate`).
+ * nota todavia no se eligio: se compara contra la mas tardia que acepta ARCA (`undecidedBillingDate`). Si `finalize`
+ * volvio aca (`retry`), no se eligio fecha de la nota (la pregunta de la fecha ya controla contra esta): va la de hoy,
+ * y se compara exacto con ella, asi no se acepta otra vez la misma respuesta (TUI-15).
  */
 export function noteRuleValidator(
   env: () => NoteRuleEnv,
   field: string,
   validate: (value: string) => string | true,
   answer: (value: string) => Partial<NoteState>,
-): (state: NoteState) => (value: string) => string | true {
-  return ruleValidator<NoteState, BillingCommandInput, BillingRuleContext>({
-    context: (state) => ({
-      ...noteRuleScope(state, env()).context,
-      undecidedBillingDate: !state.advanced?.billingDate,
-    }),
-    draft: (state, value) => noteInputFields({ ...state, ...answer(value) }, env()),
-    field,
-    rules: BILLING_RULES,
-    validate,
-  });
+): (state: NoteState, retry?: boolean) => (value: string) => string | true {
+  return (state, retry = false) =>
+    ruleValidator<NoteState, BillingCommandInput, BillingRuleContext>({
+      context: (current) => ({
+        ...noteRuleScope(current, env()).context,
+        undecidedBillingDate: !retry && !current.advanced?.billingDate,
+      }),
+      draft: (current, value) => noteInputFields({ ...current, ...answer(value) }, env()),
+      field,
+      rules: BILLING_RULES,
+      validate,
+    })(state);
 }
 
 /** `finalize` de la nota: las reglas sobre la nota final; si una falla, vuelve a la pregunta que escribe el campo. */

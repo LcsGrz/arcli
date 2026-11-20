@@ -486,7 +486,7 @@ describe('runExportFlow', () => {
       await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
 
       expect(printed().replace(/\s+/g, ' ')).toContain(
-        'La fecha de pago no puede ser anterior a la del comprobante (hoy): ARCA la rechaza (error 1674).',
+        'La fecha de pago no puede ser anterior a la del comprobante (hoy): ARCA la rechaza (error 1674). Escribí una desde el 18/11/2026, o volvé y elegí una fecha del comprobante anterior en los opcionales.',
       );
       const payments = script.askTextStep.mock.calls.filter(([message]) => /Fecha de pago/.test(message));
 

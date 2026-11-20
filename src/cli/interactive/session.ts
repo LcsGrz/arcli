@@ -1,3 +1,4 @@
+import { InputIssuesError, InputValidationError } from '../../lib/errors/app-error';
 import { checkFceCancellationInRegistry } from '../../modules/billing/billing.associated-lookup';
 import {
   formatEmissionQuestion,
@@ -26,8 +27,9 @@ import { ArcaFceRegistryGateway } from '../../services/arca/arca-fce-registry.ga
 import { ArcaPadronGateway } from '../../services/arca/arca-padron.gateway';
 import type { Arca } from '../../services/arca/arca-sdk.types';
 import { ArcaVoucherHistoryGateway } from '../../services/arca/arca-voucher-history.gateway';
-import { colorize, noticePanel, renderPanel, uiSymbol, writeTerminalOutput } from '../../ui';
+import { colorize, noticePanel, renderPanel, uiSymbol, writeTerminalError, writeTerminalOutput } from '../../ui';
 import { formatBillingOutputs } from '../commands/billing.command.output';
+import { formatCliError } from '../error-output';
 import { startSpinner } from '../spinner';
 import type { GlobalCliOptions } from '../types';
 
@@ -190,23 +192,38 @@ export function formatEquivalentCommand(command: string): string {
 }
 
 /**
- * Paso final comun a todos los flujos: vista previa, comando equivalente, confirmacion y emision.
- * Usa BillingService igual que los comandos con flags, asi que valida y emite exactamente lo mismo.
- * `flowWarnings` son avisos que solo sabe el flujo, como el de un asociado de otro sistema en una nota. Devuelve si ARCA
- * lo autorizo (`isAuthorized`): lo que se ofrece guardar en la config (el CBU de la FCE) solo se ofrece entonces. Con
- * Esc en "¿Emitimos?" devuelve BACK sin emitir: el flujo lo corre como `confirm` de `runWizard`, que vuelve a la ultima
- * pregunta (TUI-15).
+ * Un error de validacion de la vista previa (`InputValidationError` o `InputIssuesError`: lo que el CLI rechazaria
+ * con `INPUT_VALIDATION_ERROR`) se muestra y devuelve BACK: como `confirm` de `runWizard`, el asistente vuelve a la
+ * ultima pregunta con todo lo respondido, en vez de volver al menu y perderlo (TUI-15). Los errores de ARCA o de red
+ * siguen de largo, como antes.
  */
-export async function previewAndEmit(
+export async function rejectedAsBack<T>(preview: () => Promise<T>): Promise<Back | T> {
+  try {
+    return await preview();
+  } catch (error) {
+    if (!(error instanceof InputValidationError || error instanceof InputIssuesError)) {
+      throw error;
+    }
+
+    writeTerminalError(() => formatCliError(error, false));
+    writeTerminalOutput(
+      noticePanel(
+        'No se emitió nada. Volvemos a la última pregunta con lo que respondiste: corregí el dato ahí o volvé con Esc hasta la pregunta que lo pide.',
+        'muted',
+      ),
+    );
+
+    return BACK;
+  }
+}
+
+/** Lo mismo que con flags antes de la vista previa: padron, cotizacion oficial y avisos, y la vista previa. */
+async function previewBilling(
   session: InteractiveSession,
-  rawInput: BillingCommandInput,
-  flowWarnings: readonly string[] = [],
-): Promise<Back | boolean> {
+  entry: BillingCommandInput,
+  flowWarnings: readonly string[],
+) {
   const { runtime, service } = session;
-  const entry: BillingCommandInput = {
-    ...rawInput,
-    pointOfSale: rawInput.pointOfSale ?? session.typedPointOfSale,
-  };
   // Lo mismo que con flags: padron, cotizacion oficial ("me pagan en dolares") y sus avisos, antes de la vista previa.
   const prepared = await prepareBillingInput(service, entry, {
     billing: session.billingGateway,
@@ -225,6 +242,35 @@ export async function previewAndEmit(
   });
   const warnings = [...flowWarnings, ...prepared.warnings, ...(fceWarnings[0] ?? []), ...registryWarnings];
   const preview = await service.execute({ gateway: PREVIEW_GATEWAY, input, runtime, warnings });
+
+  return { input, preview, warnings };
+}
+
+/**
+ * Paso final comun a todos los flujos: vista previa, comando equivalente, confirmacion y emision.
+ * Usa BillingService igual que los comandos con flags, asi que valida y emite exactamente lo mismo.
+ * `flowWarnings` son avisos que solo sabe el flujo, como el de un asociado de otro sistema en una nota. Devuelve si ARCA
+ * lo autorizo (`isAuthorized`): lo que se ofrece guardar en la config (el CBU de la FCE) solo se ofrece entonces. Con
+ * Esc en "¿Emitimos?", o si la vista previa rechaza la entrada (`rejectedAsBack`), devuelve BACK sin emitir: el flujo lo corre como `confirm` de `runWizard`, que vuelve a la ultima
+ * pregunta (TUI-15).
+ */
+export async function previewAndEmit(
+  session: InteractiveSession,
+  rawInput: BillingCommandInput,
+  flowWarnings: readonly string[] = [],
+): Promise<Back | boolean> {
+  const { runtime, service } = session;
+  const entry: BillingCommandInput = {
+    ...rawInput,
+    pointOfSale: rawInput.pointOfSale ?? session.typedPointOfSale,
+  };
+  const previewed = await rejectedAsBack(() => previewBilling(session, entry, flowWarnings));
+
+  if (previewed === BACK) {
+    return BACK;
+  }
+
+  const { input, preview, warnings } = previewed;
 
   writeTerminalOutput(formatBillingOutputs([preview], { environment: runtime.environment, raw: false }));
   // El comando equivalente sale de la entrada, como la escribiria quien usa el CLI, y no de la preparada: sin lo que la

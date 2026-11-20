@@ -124,6 +124,11 @@ export function padEndVisible(value: string, width: number): string {
   return `${value}${' '.repeat(Math.max(0, width - visibleWidth(value)))}`;
 }
 
+/** `value` con espacios a la izquierda hasta ocupar `width` columnas visibles: un importe alineado a la derecha. */
+export function padStartVisible(value: string, width: number): string {
+  return `${' '.repeat(Math.max(0, width - visibleWidth(value)))}${value}`;
+}
+
 const graphemeSegmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
 
 export function flattenVisibleLines(lines: readonly string[]): string[] {

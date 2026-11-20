@@ -1,8 +1,10 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { InputValidationError } from '../../../lib/errors/app-error';
 import { exchangeRateWarnings } from '../../../modules/billing/billing.currency';
 import { billingCommandSchema } from '../../../modules/billing/billing.schemas';
 import { BillingService } from '../../../modules/billing/billing.service';
+import { ExportService } from '../../../modules/export/export.service';
 import { BACK } from '../../../modules/interactive/wizard';
 import { runExportFlow } from '../export.flow';
 import { runInvoiceFlow } from '../invoice.flow';
@@ -462,7 +464,7 @@ describe('auditoría del asistente del 19/11', () => {
       );
 
       expect(printedText()).toContain(
-        'El período asociado no puede terminar después de la fecha de la nota de crédito C (18/11/2026): elegí un "Período hasta" anterior o una fecha posterior en "Fecha del comprobante" de los opcionales.',
+        'El período asociado no puede terminar después de la fecha de la nota de crédito C (18/11/2026): escribí un "Período hasta" hasta el 18/11/2026, o volvé y elegí una fecha posterior en "Fecha del comprobante" de los opcionales.',
       );
       expect(billingPayload).toMatchObject({ CbteFch: '20261118', PeriodoAsoc: { FchHasta: '20261118' } });
     });
@@ -1161,5 +1163,194 @@ describe('auditoría del asistente del 19/11: pasos compartidos (NAV-6)', () => 
 
     expect(documents.at(-1)?.[2]).toBeUndefined();
     expect(numbers.at(-1)?.[1]?.previousAnswer).toBeUndefined();
+  });
+});
+
+// TUI-15: el asistente no pierde lo respondido si la vista previa rechaza algo. Antes, una respuesta que `finalize`
+// mandaba a corregir se podia repetir (el validador seguia comparando con la fecha mas tardia de la nota), la vista
+// previa la rechazaba y el error volvia al menu.
+describe('TUI-15: lo respondido no se pierde si la vista previa rechaza', () => {
+  const creditNote = (session: InteractiveSession) => runNoteFlow(session, 'credito');
+  const otherSystem = (session: InteractiveSession) =>
+    Object.assign(session, {
+      arca: {
+        electronicBillingService: {
+          getSalesPoints: async () => ({
+            resultGet: { ptoVenta: [{ bloqueado: 'N', emisionTipo: 'CAE', nro: 3 }] },
+          }),
+        },
+      },
+    });
+  let stderr: string[] = [];
+
+  beforeEach(() => {
+    stderr = [];
+    vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+      stderr.push(String(chunk));
+
+      return true;
+    });
+  });
+
+  afterEach(() => {
+    vi.mocked(process.stderr.write).mockRestore();
+  });
+
+  it('de vuelta en "Período hasta" por `finalize`, la misma fecha ya no pasa: dice las dos salidas', async () => {
+    const { billingPayload } = await run(
+      [
+        [/Sobre qué comprobante/, 'Facturas'],
+        [/Qué factura\?/, 'Factura C'],
+        [/A qué la asociamos/, 'A un período'],
+        [/Período desde/, '01/11/2026'],
+        // Vale contra la fecha más tardía que ARCA acepta para la nota (hoy + 10).
+        [/Período hasta/, '25/11/2026'],
+        [/A quién va la nota/, 'Consumidor final'],
+        [/Qué concepto ajusta la nota/, 'Servicios'],
+        [/Monto de la nota de crédito/, '100'],
+        // Sin fecha de la nota va la de hoy: `finalize` vuelve al período, y ahí se compara con hoy.
+        [/Agregamos/, []],
+        [
+          /Período hasta/,
+          rejecting('18/11/2026', [
+            '25/11/2026',
+            /^El período asociado no puede terminar después de la fecha de la nota de crédito C \(18\/11\/2026\): escribí un "Período hasta" hasta el 18\/11\/2026, o volvé y elegí una fecha posterior en "Fecha del comprobante" de los opcionales\.$/,
+          ]),
+        ],
+        [/A quién va la nota/, 'Consumidor final'],
+        [/Qué concepto ajusta la nota/, 'Servicios'],
+        [/Monto de la nota de crédito/, '100'],
+        [/Agregamos/, []],
+        NO_EMIT,
+      ],
+      creditNote,
+    );
+
+    expect(billingPayload).toMatchObject({ CbteFch: '20261118', PeriodoAsoc: { FchHasta: '20261118' } });
+  });
+
+  it('de vuelta en la fecha de una factura de otro sistema por `finalize`, la misma ya no pasa', async () => {
+    const { billingPayload } = await run(
+      [
+        [/Sobre qué comprobante/, 'Facturas'],
+        [/Qué factura\?/, 'Factura C'],
+        [/A qué la asociamos/, 'A una factura'],
+        [/Sobre qué factura C/, 'Ingresar el número a mano'],
+        [/Punto de venta/, '50'],
+        [/^Número/, '99'],
+        [/^Fecha de la factura C 00050-00000099/, '25/11/2026'],
+        [/A quién va la nota/, 'Consumidor final'],
+        [/concepto ajusta/, 'Servicios'],
+        [/Monto de la nota de crédito/, '100'],
+        [/Agregamos/, []],
+        [
+          /^Fecha de la factura C 00050-00000099/,
+          rejecting('15/11/2026', [
+            '25/11/2026',
+            /no puede ser posterior a la de la nota de crédito C \(18\/11\/2026\): escribí una hasta el 18\/11\/2026, o volvé y elegí una fecha posterior en "Fecha del comprobante" de los opcionales\.$/,
+          ]),
+        ],
+        [/A quién va la nota/, 'Consumidor final'],
+        [/concepto ajusta/, 'Servicios'],
+        [/Monto de la nota de crédito/, '100'],
+        [/Agregamos/, []],
+        NO_EMIT,
+      ],
+      creditNote,
+      {},
+      otherSystem,
+    );
+
+    expect(billingPayload).toMatchObject({ CbtesAsoc: [expect.objectContaining({ CbteFch: '20261115' })] });
+  });
+
+  it('si la vista previa de A, B o C rechaza la entrada, muestra el error y vuelve a la última pregunta', async () => {
+    const execute = vi
+      .spyOn(BillingService.prototype, 'execute')
+      .mockRejectedValueOnce(new InputValidationError('La vista previa no acepta esto.'));
+
+    try {
+      await run(
+        [
+          [/comprobante/, 'Factura C'],
+          [/A quién/, 'Consumidor final'],
+          [/Qué estás facturando/, 'Servicios'],
+          [/Monto total/, '1.000'],
+          [/Agregamos/, ['Fecha del comprobante']],
+          [/Fecha del comprobante/, '17/11/2026'],
+          // La vista previa rechaza: de vuelta en los opcionales, con lo marcado y lo escrito.
+          [/Agregamos/, ['Fecha del comprobante']],
+          [/Fecha del comprobante/, '17/11/2026'],
+          NO_EMIT,
+        ],
+        runInvoiceFlow,
+      );
+    } finally {
+      execute.mockRestore();
+    }
+
+    expect(stderr.join('')).toContain('La vista previa no acepta esto.');
+    expect(printedText()).toContain('No se emitió nada. Volvemos a la última pregunta con lo que respondiste');
+    expect(screens.script.chooseManyStep.mock.calls[1]?.[2]).toEqual(['fecha']);
+    expect(lastQuestion(/Fecha del comprobante/)?.[1]?.previousAnswer).toBe('17/11/2026');
+  });
+
+  it('si la vista previa de la E rechaza la entrada, muestra el error y vuelve a la última pregunta', async () => {
+    const resolve = vi
+      .spyOn(ExportService.prototype, 'resolve')
+      .mockRejectedValueOnce(new InputValidationError('La vista previa de la E no acepta esto.'));
+
+    try {
+      const { exportPayload } = await run(
+        [
+          [/cliente del exterior/, 'ACME LLC'],
+          [/Domicilio/, '123 Main St'],
+          [/País de destino/, 'ESTADOS UNIDOS'],
+          [/ID impositivo/, '12-3456789'],
+          [/Qué exportás/, 'Servicios'],
+          [/moneda/, 'Dólares'],
+          [/Te pagan en dólares/, 'Sí'],
+          ...singleExportItem('1.500'),
+          [/Forma de pago/, ''],
+          [/actividad/, '620100'],
+          [/Fecha de pago/, ''],
+          [/Agregamos/, ['Observaciones']],
+          [/Observaciones \(Enter/, 'Primera cuota'],
+          [/Observaciones comerciales/, ''],
+          [/Agregamos/, ['Observaciones']],
+          [/Observaciones \(Enter/, 'Primera cuota'],
+          [/Observaciones comerciales/, ''],
+          NO_EMIT,
+        ],
+        runExportFlow,
+      );
+
+      expect(exportPayload?.Obs).toBe('Primera cuota');
+    } finally {
+      resolve.mockRestore();
+    }
+
+    expect(stderr.join('')).toContain('La vista previa de la E no acepta esto.');
+    expect(lastQuestion(/Observaciones \(Enter/)?.[1]?.previousAnswer).toBe('Primera cuota');
+  });
+
+  it('un error que no es de validación (ARCA, red) sigue de largo, como antes', async () => {
+    const execute = vi.spyOn(BillingService.prototype, 'execute').mockRejectedValueOnce(new Error('ARCA no responde'));
+
+    screens = createScreens([
+      [/comprobante/, 'Factura C'],
+      [/A quién/, 'Consumidor final'],
+      [/Qué estás facturando/, 'Servicios'],
+      [/Monto total/, '1.000'],
+      [/Agregamos/, []],
+    ]);
+
+    try {
+      await expect(recordFlow(screens, () => runInvoiceFlow(createBillingSession({})))).rejects.toThrow(
+        'ARCA no responde',
+      );
+    } finally {
+      execute.mockRestore();
+    }
   });
 });

@@ -358,6 +358,8 @@ export async function runWizard<S>(
         return undefined;
       }
 
+      // De vuelta desde la vista previa: si la misma respuesta vuelve a fallar, `finalize` vuelve a llevar al dueño.
+      insisted.clear();
       ({ index, state } = last);
       continue;
     }
@@ -419,6 +421,8 @@ export async function runWizard<S>(
         return undefined;
       }
 
+      // De vuelta desde la vista previa: si la misma respuesta vuelve a fallar, `finalize` vuelve a llevar al dueño.
+      insisted.clear();
       ({ index, state } = last);
       continue;
     }

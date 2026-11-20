@@ -90,8 +90,11 @@ function noteDateFor(input: Partial<BillingCommandInput>, context: BillingRuleCo
     : resolveBillingDate(input, context.today);
 }
 
-/** Como sigue el texto en el asistente si la nota va con hoy por defecto: sugiere elegir la fecha en los opcionales. */
-const LATER_NOTE_DATE = 'una fecha posterior en "Fecha del comprobante" de los opcionales.';
+/**
+ * Como sigue el texto en el asistente si la nota va con hoy por defecto: la otra salida, elegir la fecha en los
+ * opcionales (que van despues: hay que volver).
+ */
+const LATER_NOTE_DATE = 'o volvé y elegí una fecha posterior en "Fecha del comprobante" de los opcionales.';
 
 /** ARCA 10016 y 10152 (WSFEv1 v4.7): la fecha del comprobante, cerca de hoy y, si es futura, en el mes (FCE y productos). */
 export const BILLING_DATE_WINDOW_RULE: BillingRule = {
@@ -249,7 +252,7 @@ export const ASSOCIATED_PERIOD_WITHIN_NOTE_RULE: BillingRule = {
       message,
       question: context.undecidedBillingDate
         ? `El período asociado no puede terminar después del ${date}: es la fecha más tardía que ARCA acepta para ${note}.`
-        : `El período asociado no puede terminar después de la fecha de ${note} (${date}): elegí un "Período hasta" anterior o ${LATER_NOTE_DATE}`,
+        : `El período asociado no puede terminar después de la fecha de ${note} (${date}): escribí un "Período hasta" hasta el ${date}, ${LATER_NOTE_DATE}`,
     };
   },
   // Primero la fecha: si se eligio en los opcionales, `finalize` vuelve ahi; si no, al periodo.
@@ -292,7 +295,7 @@ export const ASSOCIATED_NOT_AFTER_NOTE_RULE: BillingRule = {
       message,
       question: context.undecidedBillingDate
         ? `La fecha del comprobante asociado (${associated}) no puede ser posterior al ${date}: es la fecha más tardía que ARCA acepta para ${note}.`
-        : `La fecha del comprobante asociado (${associated}) no puede ser posterior a la de ${note} (${date}): corregila o elegí ${LATER_NOTE_DATE}`,
+        : `La fecha del comprobante asociado (${associated}) no puede ser posterior a la de ${note} (${date}): escribí una hasta el ${date}, ${LATER_NOTE_DATE}`,
     };
   },
   // Primero la fecha: si se eligio en los opcionales, `finalize` vuelve ahi; si no, a la del asociado.

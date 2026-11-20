@@ -174,7 +174,8 @@ describe('la E', () => {
     });
     expect(exportFinalize(() => EXPORT_ENV)(invoice)).toEqual({
       field: ['paymentDate', 'voucherDate'],
-      message: 'La fecha de pago no puede ser anterior a la del comprobante (hoy): ARCA la rechaza (error 1674).',
+      message:
+        'La fecha de pago no puede ser anterior a la del comprobante (hoy): ARCA la rechaza (error 1674). Escribí una desde el 18/11/2026, o volvé y elegí una fecha del comprobante anterior en los opcionales.',
     });
     expect(exportFinalize(() => EXPORT_ENV)({ ...invoice, paymentDate: undefined })).toBeUndefined();
   });

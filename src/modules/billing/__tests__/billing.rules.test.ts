@@ -183,7 +183,7 @@ describe('reglas de A, B y C (billing.rules.ts)', () => {
     expect(check(ASSOCIATED_PERIOD_WITHIN_NOTE_RULE, period, context('ncc'))).toEqual({
       message: 'El período asociado no puede terminar después de la fecha de la nota de crédito C (18/11/2026).',
       question:
-        'El período asociado no puede terminar después de la fecha de la nota de crédito C (18/11/2026): elegí un "Período hasta" anterior o una fecha posterior en "Fecha del comprobante" de los opcionales.',
+        'El período asociado no puede terminar después de la fecha de la nota de crédito C (18/11/2026): escribí un "Período hasta" hasta el 18/11/2026, o volvé y elegí una fecha posterior en "Fecha del comprobante" de los opcionales.',
     });
     // Al preguntar el periodo (la fecha se elige despues): contra hoy mas 10 dias (servicios).
     const undecided = context('ncc', { undecidedBillingDate: true });
@@ -218,7 +218,7 @@ describe('reglas de A, B y C (billing.rules.ts)', () => {
       message:
         'La fecha del comprobante asociado (25/11/2026) no puede ser posterior a la de la nota de crédito C (18/11/2026).',
       question:
-        'La fecha del comprobante asociado (25/11/2026) no puede ser posterior a la de la nota de crédito C (18/11/2026): corregila o elegí una fecha posterior en "Fecha del comprobante" de los opcionales.',
+        'La fecha del comprobante asociado (25/11/2026) no puede ser posterior a la de la nota de crédito C (18/11/2026): escribí una hasta el 18/11/2026, o volvé y elegí una fecha posterior en "Fecha del comprobante" de los opcionales.',
     });
     expect(
       check(ASSOCIATED_NOT_AFTER_NOTE_RULE, { associatedVoucher }, context('ncc', { undecidedBillingDate: true })),

@@ -35,7 +35,13 @@ import { exportExchangeRateLoader } from './official-exchange-rate';
 import { completeIssuer } from './pdf.flow';
 import { askTextStep, chooseStep, isPromptCancellation } from './prompts';
 import { offerConfig } from './save-to-config';
-import { confirmEmission, emissionStep, formatEquivalentCommand, type InteractiveSession } from './session';
+import {
+  confirmEmission,
+  emissionStep,
+  formatEquivalentCommand,
+  type InteractiveSession,
+  rejectedAsBack,
+} from './session';
 import {
   activitiesLoader,
   activityStep,
@@ -340,7 +346,8 @@ function exportSteps(
 /**
  * Vista previa, comando equivalente, confirmacion, emision y PDF: lo mismo para la factura y las notas E. Sin
  * `activity` (las notas la toman del asociado), el comando equivalente no la repite. Devuelve si ARCA la autorizo
- * (`isAuthorized`): un rechazo no es una emision. Con Esc en "¿Emitimos?" devuelve BACK sin emitir: el flujo lo corre
+ * (`isAuthorized`): un rechazo no es una emision. Con Esc en "¿Emitimos?", o si la vista previa rechaza la entrada,
+ * devuelve BACK sin emitir: el flujo lo corre
  * como `confirm` de `runWizard`, que vuelve a la ultima pregunta (TUI-15).
  */
 export async function emitExportVoucher(
@@ -353,7 +360,15 @@ export async function emitExportVoucher(
   // ExportService toma el de la config: uno elegido en el asistente va en la entrada (y en el comando equivalente).
   const input: ExportVoucherInput = { ...rawInput, pointOfSale: rawInput.pointOfSale ?? session.typedPointOfSale };
   const service = new ExportService();
-  const resolved = await withSpinner('Consultando WSFEX...', () => service.resolve(input, gateway, runtime));
+  // Si la vista previa rechaza la entrada, vuelve a la ultima pregunta (TUI-15).
+  const resolved = await rejectedAsBack(() =>
+    withSpinner('Consultando WSFEX...', () => service.resolve(input, gateway, runtime)),
+  );
+
+  if (resolved === BACK) {
+    return BACK;
+  }
+
   const preview = service.preview(resolved, runtime, resolved.warnings);
 
   writeTerminalOutput(formatExportResultAsText(preview, { environment: runtime.environment, raw: false }));
