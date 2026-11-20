@@ -114,12 +114,6 @@ arcli fcea -m 6050000 --cs --cuit 30709965812 --ir responsable-inscripto --vto 1
 
 └                                                                                          ┘
 
-? [lista] ¿Guardamos el CBU y el alias emisor.prueba.cbu en la config para la próxima?
-  arranca en: (ninguna)
-  · Sí, guardar
-  · No
-  = No
-
 == solicitud a ARCA (FECAESolicitar, sin el numero) ==
 {
   "CantReg": 1,

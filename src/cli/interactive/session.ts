@@ -156,13 +156,14 @@ export function formatEquivalentCommand(command: string): string {
 /**
  * Paso final comun a todos los flujos: vista previa, comando equivalente, confirmacion y emision.
  * Usa BillingService igual que los comandos con flags, asi que valida y emite exactamente lo mismo.
- * `flowWarnings` son avisos que solo sabe el flujo, como el de un asociado de otro sistema en una nota.
+ * `flowWarnings` son avisos que solo sabe el flujo, como el de un asociado de otro sistema en una nota. Devuelve si se
+ * emitio: lo que se ofrece guardar en la config (el CBU de la FCE) solo se ofrece si llego a ARCA.
  */
 export async function previewAndEmit(
   session: InteractiveSession,
   rawInput: BillingCommandInput,
   flowWarnings: readonly string[] = [],
-): Promise<void> {
+): Promise<boolean> {
   const { runtime, service } = session;
   const entry: BillingCommandInput = {
     ...rawInput,
@@ -210,7 +211,7 @@ export async function previewAndEmit(
   );
 
   if (!emission) {
-    return;
+    return false;
   }
 
   const spinner = startSpinner(`Emitiendo ${label} en ARCA...`);
@@ -232,4 +233,6 @@ export async function previewAndEmit(
     spinner?.stop();
     throw error;
   }
+
+  return true;
 }

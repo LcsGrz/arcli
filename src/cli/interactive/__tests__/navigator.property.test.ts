@@ -604,9 +604,21 @@ function assertNoAbandonedOptionals(flow: Flow, run: Walk): void {
 const COPY_SOURCE = /^(¿Qué comprobante querés repetir\?|¿Cuál repetimos\?)/;
 /**
  * Los opcionales que siguen al comprobante copiado (`resetWhen`): con otro, arrancan como la primera vez. En A, B y C,
- * la alicuota y el exento; en "Repetir" E, lo que se copia de la factura (items, idioma, CUIT del pais e incoterm).
+ * la alicuota, el exento y los datos del consumidor final (son del receptor, que sale del comprobante); en "Repetir" E,
+ * lo que se copia de la factura (items, idioma, CUIT del pais e incoterm).
  */
-const FOLLOWS_COPY_SOURCE: readonly unknown[] = ['alicuota', 'exento', 'cuit-pais', 'idioma', 'incoterm', 'items'];
+const FOLLOWS_COPY_SOURCE: readonly unknown[] = [
+  'alicuota',
+  'consumidor',
+  'exento',
+  'cuit-pais',
+  'idioma',
+  'incoterm',
+  'items',
+];
+/** Las dos preguntas de los datos del consumidor final, como opcional o, desde el tope, como obligatorias. */
+const CONSUMER_DOCUMENT = /^Documento del consumidor final/;
+const CONSUMER_NUMBER = /^(DNI|CUIT|CUIL) del consumidor final/;
 /**
  * En "Repetir", el exento tambien sigue a "¿Mismo monto?" (REV-70): con otro monto no se copia y se vuelve a preguntar,
  * marcado si el original tenia. Si cambia esa respuesta, arranca como la primera vez (`preselected`).
@@ -629,8 +641,29 @@ function assertRemembered(run: Walk): void {
   >();
   const source = new Map<string, unknown>();
   let amount: unknown;
+  /**
+   * Los datos del consumidor final respondidos como obligatorios (desde el tope, fuera de la seleccion) quedan marcados
+   * (`requiredOptional`): si dejan de ser obligatorios, la seleccion los muestra marcados. Se desmarcan al confirmar una
+   * seleccion que los ofrece sin marcarlos.
+   */
+  let requiredConsumer = false;
+  let consumerMode: 'obligatorio' | 'opcional' | undefined;
 
   run.events.forEach((event, index) => {
+    const before = run.events[index - 1];
+
+    if (CONSUMER_DOCUMENT.test(event.message)) {
+      const fromSelection =
+        before?.kind === 'many' && Array.isArray(before.answer) && before.answer.includes('consumidor');
+      const backFromNumber = before && CONSUMER_NUMBER.test(before.message) && before.answer === BACK;
+
+      consumerMode = fromSelection ? 'opcional' : backFromNumber ? consumerMode : 'obligatorio';
+    }
+
+    if (CONSUMER_NUMBER.test(event.message) && event.answer !== BACK && consumerMode === 'obligatorio') {
+      requiredConsumer = true;
+    }
+
     if (event.kind === 'list' && COPY_SOURCE.test(event.message) && event.answer !== BACK) {
       source.set(event.message, event.answer);
     }
@@ -648,12 +681,16 @@ function assertRemembered(run: Walk): void {
         const sameSource = isDeepStrictEqual(remembered.source, currentSource);
         const exemptReset = !isDeepStrictEqual(remembered.amount, amount);
         const compared = (value: unknown) => !(exemptReset && value === 'exento');
-        const available = remembered.marked.filter(
-          (value) =>
-            compared(value) &&
-            (sameSource || !FOLLOWS_COPY_SOURCE.includes(value)) &&
-            event.choices.some((choice) => !choice.disabled && isDeepStrictEqual(choice.value, value)),
-        );
+        const marked = requiredConsumer ? [...remembered.marked, 'consumidor'] : remembered.marked;
+        const available = event.choices
+          .filter((choice) => !choice.disabled)
+          .map((choice) => choice.value)
+          .filter(
+            (value) =>
+              marked.some((candidate) => isDeepStrictEqual(candidate, value)) &&
+              compared(value) &&
+              (sameSource || !FOLLOWS_COPY_SOURCE.includes(value)),
+          );
 
         expect(
           event.selected.filter(compared),
@@ -663,6 +700,11 @@ function assertRemembered(run: Walk): void {
 
       if (Array.isArray(event.answer)) {
         lastMarked.set(key, { amount, marked: event.answer, source: currentSource });
+
+        // Ofrecido y sin marcar, se desmarca; obligatorio (no se ofrece), sigue marcado.
+        if (event.choices.some((choice) => choice.value === 'consumidor')) {
+          requiredConsumer = false;
+        }
       }
     }
 

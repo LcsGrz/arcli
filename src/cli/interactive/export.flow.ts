@@ -1,5 +1,4 @@
 import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
-import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import { formatEmissionQuestion, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import { DEFAULT_EXPORT_PAYMENT_TERMS, resolveExportDestinationCountry } from '../../modules/export/export.mappers';
 import { formatExportResultAsText } from '../../modules/export/export.presenter';
@@ -7,13 +6,10 @@ import { ExportService } from '../../modules/export/export.service';
 import {
   EXPORT_VOUCHER_KIND,
   type ExportCountry,
-  type ExportCountryCuit,
   type ExportGateway,
   type ExportType,
   type ExportVoucherInput,
 } from '../../modules/export/export.types';
-import { amountInputText, parseAmountInput } from '../../modules/interactive/amount-input';
-import { completeDateInput } from '../../modules/interactive/date-input';
 import { buildExportEquivalentCommand } from '../../modules/interactive/export-equivalent-command';
 import {
   buildExportInput,
@@ -22,6 +18,9 @@ import {
   exportRuleScope,
 } from '../../modules/interactive/export-input';
 import { isCountryCuitMissing } from '../../modules/interactive/export-optionals';
+import { amountQuestion } from '../../modules/interactive/steps/amount';
+import { activityToSave } from '../../modules/interactive/steps/config-offer';
+import { fieldLens } from '../../modules/interactive/steps/lens';
 import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { formatPdfOutcomeAsText } from '../../modules/pdf/pdf.presenter';
 import { planEmissionConfirmation, resolvePdfAfterConfirmation } from '../../modules/pdf/pdf-decision';
@@ -30,23 +29,14 @@ import { noticePanel, writeTerminalOutput } from '../../ui';
 import { attachExportPdf } from '../commands/export.command.pdf';
 import { withSpinner } from '../spinner';
 
-import { askCountryCuit, exportOptionalsStep, validateExportPaymentDate, validateExportText } from './export-options';
+import { askCountryCuit, exportOptionalsStep, validateExportText } from './export-options';
 import { withFinalizeNotice } from './finalize-notice';
 import { completeIssuer } from './pdf.flow';
 import { askTextStep, chooseStep, isPromptCancellation } from './prompts';
-import { offerSavingToConfig } from './save-to-config';
 import { confirmEmission, formatEquivalentCommand, type InteractiveSession } from './session';
-import { validateAmount, validatePositiveInteger } from './validators';
-
-/**
- * Lo que el asistente necesita de WSFEX antes de preguntar: paises para validar el destino, sus CUIT y la tabla de
- * actividades.
- */
-interface ExportTables {
-  readonly activities: ReadonlySet<number>;
-  readonly countries: readonly ExportCountry[];
-  readonly countryCuits: readonly ExportCountryCuit[];
-}
+import { amountStep } from './steps/amount';
+import { offerConfig } from './steps/cbu';
+import { activityStep, exportPaymentDateStep, type ExportTables, loadExportTables } from './steps/export';
 
 interface ExportFlowLoaders {
   readonly incoterms: () => Promise<ReadonlyArray<{ readonly code: string; readonly name: string }>>;
@@ -63,22 +53,6 @@ function validateCountry(countries: readonly ExportCountry[]): (value: string) =
     } catch (error) {
       return error instanceof Error ? error.message : String(error);
     }
-  };
-}
-
-/** Vacio (la E va sin actividad) o un entero positivo que, si ARCA devolvio la tabla, esta en las de WSFEX. */
-function validateActivity(allowed: ReadonlySet<number>): (value: string) => string | true {
-  return (value) => {
-    if (!value.trim()) {
-      return true;
-    }
-
-    const valid = validatePositiveInteger('La actividad')(value);
-    const number = parseStrictInteger(value) as number;
-
-    return valid !== true || allowed.size === 0 || allowed.has(number)
-      ? valid
-      : `${number} no está en la tabla de actividades de WSFEX (ARCA la rechaza con el error 2105).`;
   };
 }
 
@@ -214,28 +188,8 @@ function exportSteps(
         return exportType === BACK ? BACK : { exportType, incoterm: undefined, paymentDate: undefined };
       },
     },
-    {
-      name: 'monto',
-      run: async (_state, previous) => {
-        const answer = await askTextStep('Monto total:', {
-          previousAnswer: amountInputText(previous?.amount),
-          validate: validateAmount,
-        });
-
-        return answer === BACK ? BACK : { amount: parseAmountInput(answer) };
-      },
-    },
-    {
-      name: 'descripcion',
-      run: async (_state, previous) => {
-        const answer = await askTextStep('Descripción del servicio o producto (Enter para "Según detalle"):', {
-          previousAnswer: previous?.description,
-          validate: validateExportText('description'),
-        });
-
-        return answer === BACK ? BACK : { description: optional(answer) };
-      },
-    },
+    // La moneda antes del monto: la pregunta del monto la nombra (REV-74, #12) y, si cambia, el monto se vuelve a
+    // escribir.
     {
       name: 'moneda',
       run: async (_state, previous) => {
@@ -268,6 +222,22 @@ function exportSteps(
         return sameCurrency === BACK ? BACK : { sameCurrency };
       },
       skip: (state) => state.currencyCode === 'PES',
+    },
+    amountStep<ExportFlowState>({
+      amount: fieldLens('amount'),
+      dependsOn: ['moneda'],
+      message: (state) => amountQuestion('Monto total', state.currencyCode ?? 'DOL'),
+    }),
+    {
+      name: 'descripcion',
+      run: async (_state, previous) => {
+        const answer = await askTextStep('Descripción del servicio o producto (Enter para "Según detalle"):', {
+          previousAnswer: previous?.description,
+          validate: validateExportText('description'),
+        });
+
+        return answer === BACK ? BACK : { description: optional(answer) };
+      },
     },
     {
       name: 'incoterm',
@@ -317,22 +287,11 @@ function exportSteps(
         return answer === BACK ? BACK : { paymentTerms: optional(answer) };
       },
     },
-    {
-      name: 'actividad',
-      run: async (_state, previous) => {
-        // Opcional: ARCA no exige `Actividades` (la 2100 solo prohibe el bloque vacio).
-        const answer = await askTextStep(
-          'Código de actividad de WSFEX, por ejemplo 620100 (Enter para no informarla):',
-          {
-            previousAnswer: previous?.activity === undefined ? undefined : String(previous.activity),
-            validate: validateActivity(tables.activities),
-          },
-        );
-
-        return answer === BACK ? BACK : { activity: answer.trim() ? parseStrictInteger(answer) : undefined };
-      },
+    activityStep<ExportFlowState>({
+      activities: tables.activities,
+      activity: fieldLens('activity'),
       skip: () => configuredActivity !== undefined,
-    },
+    }),
     exportOptionalsStep<ExportFlowState>({
       context: (state) => {
         const currencyCode = state.currencyCode ?? 'DOL';
@@ -359,24 +318,7 @@ function exportSteps(
       read: (state) => state.options,
       write: (options) => ({ options }),
     }),
-    {
-      // Despues de los opcionales: no puede ser anterior a la fecha del comprobante, que se elige ahi (1674).
-      // Solo la fecha del comprobante: cambiar otro opcional no la olvida.
-      dependsOn: [{ fields: ['options.voucherDate'], step: 'opcionales' }],
-      name: 'fecha-pago',
-      run: async (state, previous) => {
-        const answer = await askTextStep('Fecha de pago (Enter para la fecha del comprobante):', {
-          previousAnswer: previous?.paymentDate,
-          validate: validateExportPaymentDate(state.options.voucherDate),
-        });
-
-        // Completa, como la fecha del comprobante: pegado otro dia, el comando equivalente da la misma.
-        return answer === BACK ? BACK : { paymentDate: answer.trim() ? completeDateInput(answer) : undefined };
-      },
-      // En bienes ARCA rechaza la fecha de pago (error 1673).
-      skip: (state) => state.exportType === 1,
-      writes: ['paymentDate'],
-    },
+    exportPaymentDateStep<ExportFlowState>((state) => state.exportType),
   ];
 }
 
@@ -453,11 +395,7 @@ export async function emitExportVoucher(
 export async function runExportFlow(session: InteractiveSession): Promise<typeof BACK | void> {
   const { config } = session.runtime;
   const gateway = new ArcaClientFactory().createExportGateway(session.runtime);
-  const tables = await withSpinner('Consultando las tablas de WSFEX...', async () => ({
-    activities: new Set((await gateway.getActivities()).map((activity) => activity.id)),
-    countries: await gateway.getDestinationCountries(),
-    countryCuits: await gateway.getDestinationCountryCuits(),
-  }));
+  const tables = await loadExportTables(gateway);
   const configuredActivity = config.exportacion?.actividad;
   const state = await runWizard<ExportFlowState>(
     withFinalizeNotice(
@@ -484,9 +422,5 @@ export async function runExportFlow(session: InteractiveSession): Promise<typeof
   const emitted = await emitExportVoucher(session, gateway, input, input.activity);
 
   // Guardar una actividad que no llego a ARCA (dejada sin emitir) no tiene sentido: no se sabe si la acepta.
-  if (emitted && state.activity !== undefined && configuredActivity === undefined) {
-    await offerSavingToConfig(`¿Guardamos la actividad ${state.activity} en la config para la próxima?`, [
-      ['exportacion.actividad', String(state.activity)],
-    ]);
-  }
+  await offerConfig(activityToSave(state.activity, configuredActivity, emitted));
 }

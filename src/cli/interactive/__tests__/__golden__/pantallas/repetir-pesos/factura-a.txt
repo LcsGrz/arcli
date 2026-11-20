@@ -46,7 +46,6 @@
 ? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
   [ ] Fecha del comprobante — hoy
   [ ] Alícuota de IVA — 21%
-  [ ] Moneda extranjera — pesos
   [ ] Importe exento o no gravado — sin exento ni no gravado
   [ ] Período del servicio — 01/11/2026 al 30/11/2026
   [ ] Vencimiento del pago — por defecto

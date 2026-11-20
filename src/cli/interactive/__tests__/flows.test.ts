@@ -14,10 +14,11 @@ import { runExportFlow } from '../export.flow';
 import { runExportNoteFlow } from '../export-note.flow';
 import { runExportRepeatFlow } from '../export-repeat.flow';
 import { runHistoryFlow } from '../history.flow';
-import { cbuSteps, invoiceStateForReceiver, invoiceSteps, offerSavingCbu, runInvoiceFlow } from '../invoice.flow';
+import { invoiceStateForReceiver, invoiceSteps, runInvoiceFlow } from '../invoice.flow';
 import { noteInputEnv, noteSteps, noteWarnings } from '../note.flow';
 import { repeatSteps } from '../repeat.flow';
 import type { InteractiveSession } from '../session';
+import { cbuSteps, offerSavingCbu } from '../steps/cbu';
 
 import { createScript, onlyChoices } from './script';
 
@@ -370,12 +371,12 @@ describe('flujos del modo interactivo', () => {
       };
 
       script = createScript([[/Guardamos el CBU en la config/, 'Sí, guardar']]);
-      await offerSavingCbu(createSession(), state);
+      await offerSavingCbu(createSession().runtime.config, state, true);
       expect(savedConfig).toHaveBeenCalledWith('cbu', '0110599520000012345678');
 
       savedConfig.mockClear();
       script = createScript([[/Guardamos el CBU/, 'No']]);
-      await offerSavingCbu(createSession(), state);
+      await offerSavingCbu(createSession().runtime.config, state, true);
       expect(savedConfig).not.toHaveBeenCalled();
 
       // Con el CBU en la config no se pregunto, asi que no hay nada que guardar.
@@ -386,13 +387,13 @@ describe('flujos del modo interactivo', () => {
       } as InteractiveSession;
 
       script = createScript([]);
-      await offerSavingCbu(configured, state);
-      await offerSavingCbu(createSession(), { ...state, cbu: undefined });
+      await offerSavingCbu(configured.runtime.config, state, true);
+      await offerSavingCbu(createSession().runtime.config, { ...state, cbu: undefined }, true);
 
       // Con el alias escrito a mano, se guardan los dos.
       savedConfig.mockClear();
       script = createScript([[/Guardamos el CBU y el alias mi.alias.cbu/, 'Sí, guardar']]);
-      await offerSavingCbu(createSession(), { ...state, cbuAlias: 'mi.alias.cbu' });
+      await offerSavingCbu(createSession().runtime.config, { ...state, cbuAlias: 'mi.alias.cbu' }, true);
       expect(savedConfig).toHaveBeenCalledWith('cbu', '0110599520000012345678');
       expect(savedConfig).toHaveBeenCalledWith('aliasCbu', 'mi.alias.cbu');
     });

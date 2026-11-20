@@ -31,12 +31,6 @@
   · Otros
   = Bienes
 
-? [texto] Monto total:
-  = "2.000"
-
-? [texto] Descripción del servicio o producto (Enter para "Según detalle"):
-  = ""
-
 ? [lista] ¿En qué moneda facturás?
   arranca en: Dólares (USD)
   > Dólares (USD) — Con la cotización de aduana que publica ARCA
@@ -48,6 +42,12 @@
   · Sí — ARCA lo registra como cancelación en la misma moneda
   · No, en pesos
   = No, en pesos
+
+? [texto] Monto total en USD:
+  = "2.000"
+
+? [texto] Descripción del servicio o producto (Enter para "Según detalle"):
+  = ""
 
 ? [lista] Incoterm:
   arranca en: (ninguna)

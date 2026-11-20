@@ -1,6 +1,18 @@
+import { isDeepStrictEqual } from 'node:util';
+
 import type { InteractiveChoice } from './choices';
 import type { FieldDef } from './required-field';
-import { BACK, type Back, runWizard, type WizardAnswers, type WizardDependency, type WizardStep } from './wizard';
+import {
+  BACK,
+  type Back,
+  dependentsOf,
+  runWizard,
+  type StepMemo,
+  stepMemo,
+  type WizardAnswers,
+  type WizardDependency,
+  type WizardStep,
+} from './wizard';
 
 /**
  * Un opcional del grupo: un dato (`FieldDef`) con lo que hace falta para mostrarlo en la seleccion y componerlo. Si
@@ -69,7 +81,8 @@ function emptyMemo<K, O>(): OptionalGroupMemo<K, O> {
 /**
  * El memo con lo que cambio de contexto olvidado: cada opcional cuya clave de `resetWhen` no es la recordada pierde su
  * marca, sus respuestas y los memos de sus preguntas, y si esta en `preselected` vuelve a arrancar marcado. Guarda las
- * claves actuales. Los demas opcionales quedan como estaban.
+ * claves actuales. Los demas opcionales quedan como estaban. No toca `remembered`: devuelve un memo nuevo (con sus
+ * propios mapas), asi `skip` lo puede mirar sin olvidar nada.
  */
 function forgetChanged<K extends string, O, C>(
   options: ReadonlyArray<OptionalDef<K, O, C>>,
@@ -91,19 +104,22 @@ function forgetChanged<K extends string, O, C>(
     return before !== undefined && before !== resetKeys.get(option.key);
   });
   const reset = new Set(changed.map((option) => option.key));
+  const answers = new Map(remembered.answers);
+  const memos = new Map(remembered.memos);
 
   for (const option of changed) {
     for (const step of option.steps(context)) {
-      remembered.answers.delete(step.name);
-      remembered.memos.delete(step.name);
+      answers.delete(step.name);
+      memos.delete(step.name);
     }
   }
 
   const kept = (keys: readonly K[]) => keys.filter((key) => !reset.has(key));
 
   return {
-    ...remembered,
+    answers,
     marked: [...kept(remembered.marked), ...preselected.filter((key) => reset.has(key))],
+    memos,
     picked: remembered.picked && kept(remembered.picked),
     resetKeys,
   };
@@ -363,77 +379,165 @@ export function optionalGroup<S, K extends string, O, C>(def: OptionalGroupDef<S
   };
 }
 
-export interface RequiredOptionalDef<K extends string> {
+export interface RequiredOptionalDef<S, K extends string, O, C> {
   /** El opcional del grupo que se pide. */
   readonly key: K;
-  /** Nombre del paso: unico, porque el mismo dato se puede pedir en dos puntos del flujo. */
+  /**
+   * Prefijo de los pasos (`cf` da `cf:consumidor-documento`): unico, porque el mismo dato se puede pedir en dos puntos
+   * del flujo.
+   */
   readonly name: string;
-  /** Muestra el motivo antes de preguntar: lo inyecta `cli`. */
+  /**
+   * Las preguntas del opcional que se piden, por nombre y en su orden: cada una es un paso del asistente, asi "Volver"
+   * lleva a la anterior y, desde la primera, al paso anterior del flujo.
+   */
+  readonly questions: readonly string[];
+  /** Muestra el motivo antes de la primera pregunta: lo inyecta `cli`. */
   readonly notice: (reason: string) => void;
-  readonly dependsOn?: readonly WizardDependency[];
+  /** Si el dato ya esta en los valores del grupo (por ejemplo, pedido en un punto anterior del flujo): no se pide. */
+  readonly answered?: (value: O) => boolean;
+  /** El contexto, si no es el del grupo: por ejemplo, con algo que se consulto despues de los opcionales. */
+  readonly context?: (state: S) => C;
+  /**
+   * Cuando todavia no se sabe si es obligatorio sin consultar algo (la cotizacion oficial de ARCA): mientras `when`, la
+   * primera pregunta corre `resolve` antes de preguntar y, si con eso no es obligatorio, sigue sin preguntar.
+   */
+  readonly pending?: {
+    readonly resolve: (state: S) => Promise<void>;
+    readonly when: (state: S) => boolean;
+  };
+}
+
+/** La pregunta `name` del opcional con el contexto actual: si no esta, el flujo esta mal armado. */
+function questionOf<K extends string, O, C>(option: OptionalDef<K, O, C>, context: C, name: string): WizardStep<O> {
+  const step = option.steps(context).find((candidate) => candidate.name === name);
+
+  if (!step) {
+    throw new Error(`El opcional ${option.key} no tiene la pregunta ${name}.`);
+  }
+
+  return step;
 }
 
 /**
- * Un opcional del grupo como pregunta obligatoria, con su motivo (`required`): solo mientras es obligatorio y no se
- * respondio como opcional. Lo respondido queda en el memo del grupo (`memoOf`) y se marca: si deja de ser obligatorio,
- * el grupo lo muestra como opcional marcado y con lo escrito. Escribe solo los `owns` del opcional.
+ * Un opcional del grupo como preguntas obligatorias, con su motivo (`required`): solo mientras es obligatorio y no esta
+ * respondido (en los valores del grupo, `answered`, o elegido en la seleccion y completo). Un paso del asistente por
+ * pregunta (`questions`). Lo respondido queda en el memo del grupo (`memoOf`): al volver, cada pregunta arranca con lo
+ * escrito, y lo que cambia de contexto (`resetWhen`) se olvida igual que en el grupo, tambien para decidir si se
+ * saltea. Con todas respondidas se marca: si deja de ser obligatorio, el grupo lo muestra como opcional marcado y con
+ * lo escrito. Cada paso escribe solo los `owns` del opcional.
  */
 export function requiredOptional<S, K extends string, O, C>(
   group: OptionalGroupDef<S, K, O, C>,
-  def: RequiredOptionalDef<K>,
-): WizardStep<S> {
+  def: RequiredOptionalDef<S, K, O, C>,
+): Array<WizardStep<S>> {
   const option = group.options.find((candidate) => candidate.key === def.key);
 
   if (!option) {
     throw new Error(`El grupo ${group.name} no tiene el opcional ${def.key}.`);
   }
 
+  const contextOf = def.context ?? group.context;
   const reasonFor = (context: C) => (option.available(context) ? option.required?.(context) : undefined);
+  const refreshed = (memo: StepMemo | undefined, context: C) =>
+    forgetChanged(
+      group.options,
+      memo?.get<OptionalGroupMemo<K, O>>() ?? emptyMemo<K, O>(),
+      context,
+      group.preselected?.(context) ?? [],
+    );
+  /** Respondido: en los valores del grupo, o elegido en la seleccion y completo (sin mirar lo que marcan estos pasos). */
+  const isAnswered = (state: S, memo: StepMemo | undefined, context: C) => {
+    const remembered = refreshed(memo, context);
 
-  return {
-    dependsOn: def.dependsOn,
-    memoOf: group.name,
-    name: def.name,
-    run: async (state, _previous, memo) => {
-      const context = group.context(state);
-      const initial = group.read(state);
-
-      assertCatalog(group.name, group.options, context);
-
-      const remembered = forgetChanged(
-        group.options,
-        memo.get<OptionalGroupMemo<K, O>>() ?? emptyMemo<K, O>(),
-        context,
-        group.preselected?.(context) ?? [],
-      );
-
-      memo.set(remembered);
-      def.notice(reasonFor(context)?.reason ?? '');
-
-      const done = await runWizard(option.steps(context), initial, remembered.answers, { memos: remembered.memos });
-
-      if (!done) {
-        return BACK;
-      }
-
-      memo.set<OptionalGroupMemo<K, O>>({
-        ...remembered,
-        marked: keepAvailable(group.options, [...remembered.marked, def.key], context),
-      });
-
-      return group.write({ ...initial, ...pickOwned(done, option.owns) });
-    },
-    // Respondido como opcional: elegido en la seleccion y completo. No mira lo que marca este paso, asi "Volver" desde
-    // el siguiente lo vuelve a preguntar.
-    skip: (state, memo) => {
-      const context = group.context(state);
-      const remembered = memo?.get<OptionalGroupMemo<K, O>>();
-
-      return (
-        reasonFor(context) === undefined ||
-        (remembered?.picked?.includes(def.key) === true &&
-          replay(option.steps(context), group.read(state), remembered.answers) !== undefined)
-      );
-    },
+    return (
+      def.answered?.(group.read(state)) === true ||
+      (remembered.picked?.includes(def.key) === true &&
+        replay(option.steps(context), group.read(state), remembered.answers) !== undefined)
+    );
   };
+
+  return def.questions.map((question, index): WizardStep<S> => {
+    const first = index === 0;
+
+    return {
+      memoOf: group.name,
+      name: `${def.name}:${question}`,
+      run: async (state, _previous, memo, error, failedFields) => {
+        let context = contextOf(state);
+
+        // Recien con la consulta se sabe si es obligatorio: si no lo es, sigue sin preguntar.
+        if (first && reasonFor(context) === undefined && def.pending?.when(state)) {
+          await def.pending.resolve(state);
+          context = contextOf(state);
+
+          if (reasonFor(context) === undefined) {
+            return {};
+          }
+        }
+
+        assertCatalog(group.name, group.options, context);
+
+        const remembered = refreshed(memo, context);
+
+        memo.set(remembered);
+
+        if (first) {
+          def.notice(reasonFor(context)?.reason ?? '');
+        }
+
+        const current = group.read(state);
+        const steps = option.steps(context);
+        const before = remembered.answers.get(question);
+        const result = await questionOf(option, context, question).run(
+          current,
+          before,
+          stepMemo(remembered.memos, question),
+          error,
+          failedFields,
+        );
+
+        if (result === BACK) {
+          return BACK;
+        }
+
+        // Como en el asistente: si la respuesta cambio, las preguntas que dependen de ella olvidan la suya.
+        if (!isDeepStrictEqual(before, result)) {
+          for (const name of dependentsOf(steps, question, before, result)) {
+            remembered.answers.delete(name);
+            remembered.memos.delete(name);
+          }
+        }
+
+        remembered.answers.set(question, result);
+
+        const complete = replay(steps, current, remembered.answers) !== undefined;
+
+        memo.set<OptionalGroupMemo<K, O>>({
+          ...remembered,
+          marked: complete ? keepAvailable(group.options, [...remembered.marked, def.key], context) : remembered.marked,
+        });
+
+        return group.write({ ...current, ...pickOwned({ ...current, ...result }, option.owns) });
+      },
+      skip: (state, memo) => {
+        const context = contextOf(state);
+
+        if (reasonFor(context) === undefined && !(first && def.pending?.when(state))) {
+          return true;
+        }
+
+        return (
+          isAnswered(state, memo, context) || Boolean(questionOf(option, context, question).skip?.(group.read(state)))
+        );
+      },
+      writes: (state, memo) => {
+        const writes = questionOf(option, contextOf(state), question).writes;
+
+        return typeof writes === 'function'
+          ? writes(group.read(state), stepMemo(refreshed(memo, contextOf(state)).memos, question))
+          : (writes ?? []);
+      },
+    };
+  });
 }

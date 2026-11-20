@@ -49,17 +49,11 @@ const describeOf = (key: AdvancedOptionKey, current: AdvancedOptions, at = conte
 
 describe('billingOptionals', () => {
   it('ofrece lo de cada comprobante, en el orden de la selección', () => {
-    expect(offered(context('fa', { consumer: true }))).toEqual([
-      'consumidor',
-      'fecha',
-      'alicuota',
-      'divisas',
-      'exento',
-      'servicio',
-      'vencimiento',
-    ]);
+    expect(
+      offered(context('fa', { consumer: { offered: true, receiver: 'consumidor-final', required: false } })),
+    ).toEqual(['consumidor', 'fecha', 'alicuota', 'divisas', 'exento', 'servicio', 'vencimiento']);
     expect(offered(context('fc', { concept: 'productos' }))).toEqual(['fecha', 'divisas']);
-    expect(offered(context('fcea', { fixedCurrency: true }))).toEqual([
+    expect(offered(context('fcea', { currencyLock: { code: 'USD', reason: 'El monto es en USD.' } }))).toEqual([
       'fecha',
       'alicuota',
       'exento',
@@ -76,7 +70,7 @@ describe('billingOptionals', () => {
     ]);
   });
 
-  it('solo la alícuota y el exento siguen al comprobante del que se copian; el exento, también al monto (REV-70)', () => {
+  it('la alícuota y el exento siguen al comprobante del que se copian; el exento, también al monto (REV-70); el consumidor, al receptor', () => {
     const keys = (extra: Partial<BillingOptionalsContext> = {}) =>
       Object.fromEntries(
         OPTIONALS.filter((option) => option.resetWhen).map((option) => [
@@ -85,12 +79,15 @@ describe('billingOptionals', () => {
         ]),
       );
 
-    expect(keys({ copiedFrom: 'fa:3:14' })).toEqual({ alicuota: 'fa:3:14', exento: 'fa:3:14|' });
+    expect(keys({ copiedFrom: 'fa:3:14' })).toEqual({ alicuota: 'fa:3:14', consumidor: '', exento: 'fa:3:14|' });
     expect(keys({ copiedFrom: 'fa:3:14', exemptFrom: 'preguntado' })).toEqual({
       alicuota: 'fa:3:14',
+      consumidor: '',
       exento: 'fa:3:14|preguntado',
     });
-    expect(keys()).toEqual({ alicuota: '', exento: '|' });
+    expect(keys()).toEqual({ alicuota: '', consumidor: '', exento: '|' });
+    // Los datos del consumidor final son del receptor: con otro, lo escrito se olvida.
+    expect(keys({ consumer: { offered: true, receiver: 'fa:3:14', required: false } }).consumidor).toBe('fa:3:14');
   });
 
   // #8 de la auditoria del 19/11: sin fechas de servicio, el CLI usa la fecha del comprobante.

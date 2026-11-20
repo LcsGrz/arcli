@@ -313,11 +313,9 @@ const fceA = [
   [/Alias del CBU/, 'emisor.prueba.cbu'],
 ] as const;
 
-const NO_SAVE_CBU = [/Guardamos el CBU/, 'No'] as const;
-
 describe('golden de pantallas: FCE', () => {
   it('camino tipico: FCE A con CBU y alias escritos, sin opcionales', () =>
-    golden('fce/tipico', [...fceA, [/Agregamos/, []], NO_EMIT, NO_SAVE_CBU]));
+    golden('fce/tipico', [...fceA, [/Agregamos/, []], NO_EMIT]));
 
   it('con Volver en el medio: del alias al CBU, que arranca escrito', () =>
     golden('fce/volver', [
@@ -327,7 +325,6 @@ describe('golden de pantallas: FCE', () => {
       [/Alias del CBU/, ''],
       [/Agregamos/, []],
       NO_EMIT,
-      NO_SAVE_CBU,
     ]));
 
   it('con opcionales marcados: vencimiento y modalidad de transferencia', () =>
@@ -337,7 +334,6 @@ describe('golden de pantallas: FCE', () => {
       [/Vencimiento del pago/, '18/12/2026'],
       [/Modalidad de transferencia/, 'Agente de depósito colectivo'],
       NO_EMIT,
-      NO_SAVE_CBU,
     ]));
 
   it('con opcionales desmarcados: responde el vencimiento, vuelve y lo desmarca', () =>
@@ -350,7 +346,6 @@ describe('golden de pantallas: FCE', () => {
       [/Agregamos/, ['Modalidad de transferencia']],
       [/Modalidad de transferencia/, 'Agente de depósito colectivo'],
       NO_EMIT,
-      NO_SAVE_CBU,
     ]));
 
   it('con el CBU en la config no lo pregunta ni ofrece guardarlo', () =>
@@ -832,10 +827,10 @@ const facturaE = [
   [/País de destino/, 'estados unidos'],
   [/ID impositivo/, '12-3456789'],
   [/Qué exportás/, 'Servicios'],
-  [/Monto total/, '1.500'],
-  [/Descripción/, 'Consultoría de software'],
   [/moneda/, 'Dólares'],
   [/Te pagan en dólares/, 'Sí'],
+  [/Monto total/, '1.500'],
+  [/Descripción/, 'Consultoría de software'],
   [/Forma de pago/, ''],
   [/actividad/, '620100'],
 ] as const;
@@ -888,10 +883,10 @@ describe('golden de pantallas: factura E', () => {
       [/ARCA no tiene un CUIT publicado/, ''],
       [/ID impositivo/, '12.345.678/0001-90'],
       [/Qué exportás/, 'Bienes'],
-      [/Monto total/, '2.000'],
-      [/Descripción/, ''],
       [/moneda/, 'Dólares'],
       [/Te pagan en dólares/, 'No, en pesos'],
+      [/Monto total/, '2.000'],
+      [/Descripción/, ''],
       [/Incoterm/, 'FOB'],
       [/Permisos de embarque/, ''],
       [/Forma de pago/, ''],
@@ -1006,9 +1001,9 @@ describe('golden de pantallas: Repetir E', () => {
       [
         ...repetirE,
         [/Mismo monto/, 'No'],
-        [/Monto total en DOL/, BACK],
+        [/Monto total en USD/, BACK],
         [/Mismo monto/, 'No'],
-        [/Monto total en DOL/, '1.800'],
+        [/Monto total en USD/, '1.800'],
         [/Agregamos/, ['Observaciones']],
         [/Observaciones \(Enter/, 'Segunda cuota'],
         [/Observaciones comerciales/, ''],

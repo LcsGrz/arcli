@@ -114,6 +114,17 @@ vi.mock('../../../services/arca/arca-client.factory', () => ({
   },
 }));
 
+const savedConfig = vi.fn();
+
+vi.mock('../../../modules/config/config.service', () => ({
+  ConfigService: class {
+    public close() {}
+    public setValue(key: string, value: string) {
+      savedConfig(key, value);
+    }
+  },
+}));
+
 vi.mock('../../commands/export.command.pdf', () => ({
   attachExportPdf: vi.fn(async (result: unknown) => result),
 }));
@@ -254,6 +265,59 @@ describe('runExportRepeatFlow', () => {
     expect(printed()).toContain('--fecha-pago 20/11/2026');
   });
 
+  // REV-74, #11: la misma regla y la misma tabla que "Emitir factura" E, y la misma oferta de guardarla si se emite.
+  it('#11: la actividad escrita se valida con la tabla de WSFEX y, emitida, se ofrece guardar', async () => {
+    const services: ExportIssuedVoucher = { ...INVOICE, activities: [], exportType: 2, incoterm: undefined };
+
+    savedConfig.mockClear();
+    vi.mocked(gateway.getVoucher).mockImplementationOnce(async () => services);
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      [/Mismo monto/, 'Sí'],
+      [/actividad de WSFEX/, rejecting('620100', ['620900', /no está en la tabla de actividades de WSFEX.*2105/])],
+      [/Agregamos algún opcional/, []],
+      [/Fecha de pago/, ''],
+      [/Emitimos/, 'Sí, emitir ahora'],
+      [/Guardamos la actividad 620100 en la config/, 'Sí, guardar'],
+    ]);
+
+    await runExportRepeatFlow(createSession(), 4);
+
+    expect(vi.mocked(gateway.authorize).mock.calls[0]?.[0]).toMatchObject({
+      Actividades: { Actividad: [{ Id: 620100 }] },
+    });
+    expect(savedConfig).toHaveBeenCalledWith('exportacion.actividad', '620100');
+  });
+
+  it('#11: la actividad copiada de la factura no se ofrece guardar, y sin emitir tampoco la escrita', async () => {
+    const services: ExportIssuedVoucher = { ...INVOICE, activities: [], exportType: 2, incoterm: undefined };
+
+    savedConfig.mockClear();
+    vi.mocked(gateway.getVoucher).mockImplementationOnce(async () => services);
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      [/Mismo monto/, 'Sí'],
+      [/actividad de WSFEX/, '620100'],
+      [/Agregamos algún opcional/, []],
+      [/Fecha de pago/, ''],
+      [/Emitimos/, 'No, dejar sin emitir'],
+    ]);
+
+    await runExportRepeatFlow(createSession(), 4);
+
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      [/Mismo monto/, 'Sí'],
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, []],
+      [/Emitimos/, 'Sí, emitir ahora'],
+    ]);
+
+    await runExportRepeatFlow(createSession(), 4);
+
+    expect(savedConfig).not.toHaveBeenCalled();
+  });
+
   it('la fecha no se copia: se elige en los opcionales, con las reglas de `--fecha` y la cotización de esa fecha (EXPO-11)', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-11-14T12:00:00-03:00'));
@@ -343,7 +407,7 @@ describe('runExportRepeatFlow', () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       [/Mismo monto/, 'No'],
-      [/Monto total en DOL/, '2.000'],
+      [/Monto total en USD/, '2.000'],
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'No, dejar sin emitir'],
@@ -398,6 +462,7 @@ describe('runExportRepeatFlow', () => {
 
 describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta segun la factura', () => {
   const TABLES = {
+    activities: [{ id: 620100, name: 'SERVICIOS DE CONSULTORES EN INFORMATICA' }],
     countries: [
       { code: 212, name: 'ESTADOS UNIDOS' },
       { code: 999, name: 'ATLANTIDA' },
@@ -450,7 +515,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       [/Mismo monto/, 'No'],
-      [/Monto total en DOL/, BACK],
+      [/Monto total en USD/, BACK],
       [/Mismo monto/, BACK],
       [/Cuál repetimos/, BACK],
     ]);
@@ -467,9 +532,9 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       [/Mismo monto/, 'No'],
-      [/Monto total en DOL/, '2.000'],
+      [/Monto total en USD/, '2.000'],
       [/Permisos de embarque/, BACK],
-      [/Monto total en DOL/, BACK],
+      [/Monto total en USD/, BACK],
       [/Mismo monto/, 'Sí'],
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
@@ -491,7 +556,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       [/Mismo monto/, 'No'],
-      [/Monto total en DOL/, '1.500'],
+      [/Monto total en USD/, '1.500'],
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
     ]);
@@ -615,13 +680,14 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
       [/Agregamos algún opcional/, BACK],
       [/actividad de WSFEX/, BACK],
       [/Mismo monto/, 'Sí'],
-      [/actividad de WSFEX/, '620200'],
+      [/actividad de WSFEX/, rejecting('620100', ['620200', /no está en la tabla de actividades de WSFEX.*2105/])],
       [/Agregamos algún opcional/, []],
       [/Fecha de pago/, ''],
     ]);
 
+    // Con la tabla de WSFEX, como "Emitir factura" (REV-74, #11).
     expect(await repeatOf({ ...INVOICE, activities: [], exportType: 2, incoterm: undefined })).toMatchObject({
-      activity: 620200,
+      activity: 620100,
       paymentDate: undefined,
     });
   });
@@ -754,7 +820,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
         [/Fecha de pago/, BACK],
         [/Agregamos algún opcional/, BACK],
         [/Mismo monto/, 'No'],
-        [/Monto total en DOL/, '1.000'],
+        [/Monto total en USD/, '1.000'],
         [/Agregamos algún opcional/, []],
         [/Fecha de pago/, '20/11/2026'],
       ]);

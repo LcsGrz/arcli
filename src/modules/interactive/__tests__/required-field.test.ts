@@ -135,6 +135,7 @@ function flow(
     key: 'consumidor',
     name: 'consumidor-obligatorio',
     notice: (reason) => notices.push(reason),
+    questions: ['consumidor-documento', 'consumidor-numero'],
   });
   const steps: Array<WizardStep<Flow>> = [
     {
@@ -145,7 +146,7 @@ function flow(
         return amount === BACK ? BACK : { totalAmount: amount };
       },
     },
-    ...(script.before ? [required, optionalGroup(group)] : [optionalGroup(group), required]),
+    ...(script.before ? [...required, optionalGroup(group)] : [optionalGroup(group), ...required]),
     {
       name: 'fin',
       run: async () => {
@@ -201,8 +202,9 @@ describe('opcional obligatorio segun el contexto: datos del consumidor final (RG
   });
 
   it('si baja el monto, lo cargado como obligatorio queda como opcional marcado con el DNI', async () => {
-    const { field, seen } = consumerField({ number: [30123456, 30123456], type: ['dni', BACK, 'dni'] });
-    // Monto alto: se pide el DNI. Desde el final vuelve hasta el monto y lo baja.
+    const { field, seen } = consumerField({ number: [30123456, BACK, 30123456], type: ['dni', BACK, 'dni'] });
+    // Monto alto: se pide el DNI. Desde el final vuelve, pregunta por pregunta (numero y documento), hasta el monto y
+    // lo baja.
     const { picks, steps } = flow(field, {
       amounts: [CONSUMER_IDENTIFICATION_THRESHOLD, BELOW],
       backs: 1,
@@ -215,10 +217,11 @@ describe('opcional obligatorio segun el contexto: datos del consumidor final (RG
         selected: ['consumidor'],
       },
     ]);
-    // Obligatorio, al volver desde el final (escrito) y como opcional marcado (escrito).
+    // Obligatorio, al volver desde el final (escrito, primero el numero) y como opcional marcado (escrito).
     expect(seen).toEqual([
       ['documento', undefined],
       ['numero', undefined],
+      ['numero', 30123456],
       ['documento', 'dni'],
       ['documento', 'dni'],
       ['numero', 30123456],
@@ -226,9 +229,9 @@ describe('opcional obligatorio segun el contexto: datos del consumidor final (RG
   });
 
   it('lo cargado como obligatorio sigue marcado aunque se confirme la seleccion mientras es obligatorio', async () => {
-    const { field, seen } = consumerField({ number: [30123456, 30123456], type: ['dni', BACK, 'dni'] });
+    const { field, seen } = consumerField({ number: [30123456, BACK, 30123456], type: ['dni', BACK, 'dni'] });
     // Obligatorio antes del grupo: DNI; Enter en la seleccion (sin el consumidor); desde el final vuelve hasta el
-    // monto (el obligatorio se pregunta de nuevo y vuelve) y lo baja.
+    // monto (el numero y el documento se preguntan de nuevo y vuelven) y lo baja.
     const { notices, picks, steps } = flow(field, {
       amounts: [CONSUMER_IDENTIFICATION_THRESHOLD, BELOW],
       backs: 1,
@@ -300,7 +303,12 @@ describe('opcional obligatorio segun el contexto: datos del consumidor final (RG
     const group = { ...lens, message: '', name: 'opcionales', options: [], pick: async () => [] };
 
     expect(() =>
-      requiredOptional<Flow, Key, ConsumerIdentity, Context>(group, { key: 'consumidor', name: 'x', notice: () => {} }),
+      requiredOptional<Flow, Key, ConsumerIdentity, Context>(group, {
+        key: 'consumidor',
+        name: 'x',
+        notice: () => {},
+        questions: [],
+      }),
     ).toThrow('El grupo opcionales no tiene el opcional consumidor.');
   });
 });

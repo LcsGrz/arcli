@@ -7,9 +7,15 @@ import type { VoucherKindDefinition } from '../billing/billing.types';
 import { findArcaCurrency, toIsoCurrencyCode } from '../billing/currency-codes';
 import type { ArcliConfig } from '../config/config.schemas';
 
-import { type ConsumerIdentity, describeConsumerIdentity } from './consumer-identification';
+import {
+  consumerIdentificationNotice,
+  type ConsumerIdentity,
+  describeConsumerIdentity,
+} from './consumer-identification';
 import type { OptionalDef } from './optional-group';
 import type { RuleScope } from './rule-validator';
+import type { ConsumerContext } from './steps/consumer';
+import type { CurrencyLock } from './steps/currency';
 import type { WizardStep } from './wizard';
 
 /** Lo que cargan los opcionales de A, B y C (factura, recibo, FCE, notas y "Repetir"). */
@@ -54,14 +60,14 @@ export interface BillingOptionalsContext {
    */
   readonly exemptFrom?: string;
   /**
-   * El receptor es consumidor final sin identificar: se ofrece cargar su documento ("Datos del consumidor final"), que
-   * hace falta desde el tope de la RG 5700/2025 y antes es opcional.
+   * El receptor es consumidor final: su documento ("Datos del consumidor final") es opcional por debajo del tope de la
+   * RG 5700/2025 (si el flujo lo ofrece) y obligatorio desde ahi (lo pide `requiredOptional`). Sin el, no aplica.
    */
-  readonly consumer?: boolean;
+  readonly consumer?: ConsumerContext;
   /** Alicuota que se usa si no se elige otra: la de la config o 21%. */
   readonly defaultIvaRate: NonNullable<BillingCommandInput['ivaRate']>;
-  /** La moneda no se puede cambiar: al repetir un comprobante en moneda extranjera, el monto ya esta en esa moneda. */
-  readonly fixedCurrency?: boolean;
+  /** La moneda no se puede cambiar: en "Repetir", el monto ya esta en la moneda del original (REV-73). */
+  readonly currencyLock?: CurrencyLock;
   /**
    * Con que cotizacion arranca escrita la pregunta si te pagan en pesos: la de la config si el CLI la tomaria, o la
    * oficial de ARCA. `undefined` si la consulta de la oficial falla: la pregunta arranca vacia.
@@ -177,11 +183,14 @@ const isFceInvoice = (context: BillingOptionalsContext): boolean =>
 export function billingOptionals(questions: BillingOptionalQuestions): readonly BillingOptionalDef[] {
   const options: readonly BillingOptionalDef[] = [
     {
-      available: (context) => Boolean(context.consumer),
+      available: (context) => Boolean(context.consumer && (context.consumer.offered || context.consumer.required)),
       describe: (current) => describeConsumerIdentity(current),
       key: 'consumidor',
       label: 'Datos del consumidor final',
       owns: ['consumerDocumentType', 'consumerDocumentNumber'],
+      required: (context) => (context.consumer?.required ? { reason: consumerIdentificationNotice() } : undefined),
+      // El documento es del receptor: con otro, lo escrito antes no se ofrece.
+      resetWhen: (context) => context.consumer?.receiver ?? '',
       steps: questions.consumidor,
     },
     {
@@ -202,7 +211,7 @@ export function billingOptionals(questions: BillingOptionalQuestions): readonly 
       steps: questions.alicuota,
     },
     {
-      available: (context) => !context.fixedCurrency,
+      available: (context) => !context.currencyLock,
       describe: describeCurrency,
       key: 'divisas',
       label: 'Moneda extranjera',

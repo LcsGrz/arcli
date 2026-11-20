@@ -8,7 +8,8 @@ import {
   initialAdvancedOptions,
 } from '../../../modules/interactive/billing-optionals';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
-import { askPaymentCurrency, billingOptionalsStep } from '../advanced-options';
+import { billingOptionalsStep } from '../advanced-options';
+import { askPaymentCurrency } from '../steps/currency';
 
 import { createScript, rejecting } from './script';
 
@@ -460,9 +461,15 @@ describe('askAdvancedOptions: lo respondido se ve en la seleccion', () => {
     ]);
 
     // Una segunda vuelta muestra lo elegido.
-    const first = await askAdvancedOptions(PESOS, context('fcea', { fixedCurrency: true }));
+    const first = await askAdvancedOptions(
+      PESOS,
+      context('fcea', { currencyLock: { code: 'USD', reason: 'El monto es en USD.' } }),
+    );
 
-    await askAdvancedOptions(first as typeof PESOS, context('fcea', { fixedCurrency: true }));
+    await askAdvancedOptions(
+      first as typeof PESOS,
+      context('fcea', { currencyLock: { code: 'USD', reason: 'El monto es en USD.' } }),
+    );
 
     expect(Object.keys(descriptions(0))).not.toContain('Moneda extranjera');
     expect(descriptions(1)).toMatchObject({ 'Alícuota de IVA': '10,5%', 'Modalidad de transferencia': 'ADC' });

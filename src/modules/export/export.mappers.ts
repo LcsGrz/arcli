@@ -291,23 +291,40 @@ export function exportEmptyTableWarning(table: 'actividades' | 'incoterms', valu
   return `ARCA devolvió vacía la tabla de ${table} de WSFEX: ${value} va sin validar y, si no es válido, ARCA lo rechaza al emitir.`;
 }
 
-export function resolveExportActivity(value: number, activities: readonly ExportActivity[] = []): number {
-  if (!Number.isInteger(value) || value < 1) {
-    throw new InputValidationError('La actividad tiene que ser un número entero positivo. Usá `--actividad`.');
-  }
-
+/**
+ * Lo que tiene de malo una actividad contra la tabla de WSFEX (error 2105), con el texto del CLI y el del asistente
+ * (`question`, sin el flag), o `undefined` si esta o si ARCA devolvio la tabla vacia. Es la misma regla para `arcli fe`
+ * (`resolveExportActivity`) y para las preguntas de la actividad de "Emitir factura E" y "Repetir" E (REV-74, #11).
+ */
+export function exportActivityProblem(
+  value: number,
+  activities: readonly ExportActivity[] = [],
+): { readonly message: string; readonly question: string } | undefined {
   if (activities.length === 0 || activities.some((activity) => activity.id === value)) {
-    return value;
+    return undefined;
   }
 
   const prefix = String(value).slice(0, 3);
   const family = activities.filter((activity) => String(activity.id).startsWith(prefix)).slice(0, 5);
   const candidates =
     family.length > 0 ? ` Las que empiezan con ${prefix} son ${family.map((activity) => activity.id).join(', ')}.` : '';
+  const problem = `La actividad ${value} no está en la tabla de actividades de WSFEX y ARCA la rechaza (error 2105).${candidates}`;
 
-  throw new InputValidationError(
-    `La actividad ${value} no está en la tabla de actividades de WSFEX y ARCA la rechaza (error 2105).${candidates} Indicá la que corresponda con \`--actividad\`.`,
-  );
+  return { message: `${problem} Indicá la que corresponda con \`--actividad\`.`, question: problem };
+}
+
+export function resolveExportActivity(value: number, activities: readonly ExportActivity[] = []): number {
+  if (!Number.isInteger(value) || value < 1) {
+    throw new InputValidationError('La actividad tiene que ser un número entero positivo. Usá `--actividad`.');
+  }
+
+  const problem = exportActivityProblem(value, activities);
+
+  if (problem) {
+    throw new InputValidationError(problem.message);
+  }
+
+  return value;
 }
 
 export function resolveExportType(value: ExportType | undefined): ExportType {

@@ -331,7 +331,9 @@ describe('runInvoiceFlow', () => {
     );
   });
 
-  it('una FCE con CBU escrito a mano ofrece guardarlo despues de la vista previa', async () => {
+  // REV-74, #16: el CBU se ofrece guardar solo si la FCE se emitio, como la actividad de la E.
+  it('una FCE emitida con CBU escrito a mano ofrece guardarlo', async () => {
+    vi.mocked(previewAndEmit).mockResolvedValueOnce(true);
     script = createScript([
       [/comprobante/, 'Factura de crédito electrónica A'],
       [/A quién/, 'Con CUIT'],
@@ -349,6 +351,27 @@ describe('runInvoiceFlow', () => {
 
     expect(previewAndEmit).toHaveBeenCalledOnce();
     expect(savedConfig).toHaveBeenCalledWith('cbu', '0110599520000012345678');
+  });
+
+  it('#16: una FCE dejada sin emitir no ofrece guardar el CBU escrito a mano', async () => {
+    vi.mocked(previewAndEmit).mockResolvedValueOnce(false);
+    script = createScript([
+      [/comprobante/, 'Factura de crédito electrónica A'],
+      [/A quién/, 'Con CUIT'],
+      [/CUIT del receptor/, '30-70996581-2'],
+      [/Condición frente al IVA/, 'Responsable inscripto'],
+      [/Qué estás facturando/, 'Servicios'],
+      [/Monto total/, '5.000.000'],
+      [/CBU/, '0110599520000012345678'],
+      [/Alias del CBU/, ''],
+      [/Agregamos/, []],
+    ]);
+
+    await runInvoiceFlow(createSession());
+
+    expect(previewAndEmit).toHaveBeenCalledOnce();
+    expect(script.asked.some((message) => /Guardamos el CBU/.test(message))).toBe(false);
+    expect(savedConfig).not.toHaveBeenCalled();
   });
 
   it('si la vista previa falla (ARCA no responde), no ofrece guardar el CBU', async () => {

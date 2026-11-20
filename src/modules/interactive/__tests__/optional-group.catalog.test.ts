@@ -241,10 +241,16 @@ describe('requiredOptional', () => {
     ]);
 
     await expect(
-      runWizard([requiredOptional(def, { key: 'a', name: 'obligatorio', notice: () => {} }), optionalGroup(def)], {
-        ...INITIAL,
-        need: true,
-      }),
+      runWizard(
+        [
+          ...requiredOptional(def, { key: 'a', name: 'obligatorio', notice: () => {}, questions: ['fecha'] }),
+          optionalGroup(def),
+        ],
+        {
+          ...INITIAL,
+          need: true,
+        },
+      ),
     ).rejects.toThrow('la pregunta fecha esta en los opcionales a y b.');
     expect(asked).toEqual([]);
   });
@@ -268,13 +274,46 @@ describe('requiredOptional', () => {
     await runWizard(
       [
         scripted('antes', []),
-        requiredOptional(def, { key: 'a', name: 'obligatorio', notice: () => {} }),
+        ...requiredOptional(def, { key: 'a', name: 'obligatorio', notice: () => {}, questions: ['a0'] }),
         optionalGroup(def),
       ],
       { ...INITIAL, need: true },
     );
 
     expect(memos).toEqual([undefined, 'a medio cargar']);
+  });
+
+  // Pendiente de NAV-2: el paso obligatorio miraba lo elegido en la seleccion sin olvidar lo que cambio de contexto.
+  it('para saltearse olvida, como el grupo, lo que cambio de contexto (`resetWhen`)', async () => {
+    const asked: string[] = [];
+    const picks: Array<Key[] | typeof BACK> = [['a'], BACK, ['a']];
+    const def = groupDef(
+      [
+        required({ resetWhen: (context) => String(context.offer) }, [
+          { run: async () => (asked.push('a0'), { a: 'v' }) },
+        ]),
+      ],
+      async () => picks.shift() ?? [],
+    );
+    let backs = 1;
+    const contexts: Array<Partial<Parent>> = [{ need: false }, { need: true, offer: false }];
+
+    await runWizard(
+      [
+        { name: 'antes', run: async () => contexts.shift() ?? {} },
+        ...requiredOptional(def, { key: 'a', name: 'obligatorio', notice: () => {}, questions: ['a0'] }),
+        optionalGroup(def),
+        {
+          // Vuelve una vez: Esc en la seleccion lleva a "antes", que cambia el contexto sin pasar por el grupo.
+          name: 'fin',
+          run: async () => (backs-- > 0 ? BACK : {}),
+        },
+      ],
+      INITIAL,
+    );
+
+    // Elegido en la seleccion con un contexto; con otro, lo respondido se olvido y se pide como obligatorio.
+    expect(asked).toEqual(['a0', 'a0']);
   });
 });
 

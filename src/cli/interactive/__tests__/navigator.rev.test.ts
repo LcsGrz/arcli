@@ -16,8 +16,8 @@ import { rejecting, type ScriptedAnswer } from './script';
 
 /**
  * Reproducciones de la auditoria del asistente del 19/11 (REV-67 a REV-76, docs/backlog/auditoria-asistente-19-11.md):
- * un test por ticket, con el caso concreto de la auditoria. Afirman lo que tendria que pasar; los que todavia fallan van
- * con `it.fails`. Cuando NAV arregla uno, su test pasa y `it.fails` falla: hay que pasarlo a `it`.
+ * un test por ticket, con el caso concreto de la auditoria. Afirman lo que tendria que pasar: empezaron como tests que
+ * fallaban (tests primero) y NAV-1 a NAV-6 los arreglaron todos.
  */
 
 const originalTimeZone = process.env.TZ;
@@ -165,10 +165,10 @@ describe('auditoría del asistente del 19/11', () => {
         [/País de destino/, 'ESTADOS UNIDOS'],
         [/ID impositivo/, '12-3456789'],
         [/Qué exportás/, 'Servicios'],
-        [/Monto total/, '1.500'],
-        [/Descripción/, ''],
         [/moneda/, 'Dólares'],
         [/Te pagan en dólares/, 'Sí'],
+        [/Monto total/, '1.500'],
+        [/Descripción/, ''],
         [/Forma de pago/, ''],
         [/actividad/, '620100'],
         [/Agregamos/, ['Fecha del comprobante', 'Observaciones']],
@@ -247,7 +247,6 @@ describe('auditoría del asistente del 19/11', () => {
         [/Fecha del comprobante/, '15/11/2026'],
         [/Vencimiento del pago/, '18/12/2026'],
         NO_EMIT,
-        [/Guardamos el CBU/, 'No'],
       ],
       runInvoiceFlow,
     );
@@ -542,8 +541,7 @@ describe('auditoría del asistente del 19/11', () => {
     expect(commands.at(-1)).toBe('arcli fc -m 100 --cs --consumidor-final --moneda USD --testing --emitir');
   });
 
-  // Tests primero (REV-73): pasa a it() al implementarlo.
-  it.fails('REV-73: al repetir una factura en pesos con el mismo monto, no se puede pasar a otra moneda', async () => {
+  it('REV-73: al repetir una factura en pesos con el mismo monto, no se puede pasar a otra moneda', async () => {
     await run(
       [
         [/Qué comprobante querés repetir/, 'Factura C'],
@@ -649,10 +647,10 @@ describe('auditoría del asistente del 19/11: una sola salida (NAV-4)', () => {
         [/País de destino/, 'ESTADOS UNIDOS'],
         [/ID impositivo/, '12-3456789'],
         [/Qué exportás/, 'Servicios'],
-        [/Monto total/, '1.500'],
-        [/Descripción/, ''],
         [/moneda/, 'Dólares'],
         [/Te pagan en dólares/, 'Sí'],
+        [/Monto total/, '1.500'],
+        [/Descripción/, ''],
         [/Forma de pago/, ''],
         [/actividad/, '620100'],
         [/Agregamos/, []],
@@ -809,5 +807,95 @@ describe('encontrado por los tests al azar (NAV-0)', () => {
     );
 
     expect(lastValidator(/CUIT del receptor/)('20-11111111-2')).toEqual(expect.stringMatching(/mismo CUIT que emite/));
+  });
+});
+
+// Detalles de la auditoria (REV-74) que arregla NAV-6 con los pasos compartidos.
+describe('auditoría del asistente del 19/11: pasos compartidos (NAV-6)', () => {
+  const amountQuestions = () =>
+    screens.script.askTextStep.mock.calls.map(([message]) => message).filter((message) => /^Monto/.test(message));
+  const invoiceSteps = (kind: RegExp, choice: string, amount: RegExp): Steps => [
+    [kind, choice],
+    [/A quién/, 'Consumidor final'],
+    [/Qué estás (facturando|cobrando)/, 'Servicios'],
+    [amount, '100'],
+    [/Agregamos/, []],
+    NO_EMIT,
+  ];
+
+  // #12: con una moneda extranjera en la config, el monto es en esa moneda y la pregunta no lo decia.
+  it('#12: en la factura y el recibo, "Monto total" nombra la moneda de la config si no es pesos', async () => {
+    await run(invoiceSteps(/comprobante/, 'Factura C', /^Monto total en USD:$/), runInvoiceFlow, {
+      monedaPorDefecto: 'USD',
+    });
+    expect(amountQuestions()).toEqual(['Monto total en USD:']);
+
+    await run(
+      invoiceSteps(/Qué recibo/, 'Recibo C', /^Monto total en USD:$/),
+      (session) => runInvoiceFlow(session, true),
+      { monedaPorDefecto: 'USD' },
+    );
+    expect(amountQuestions()).toEqual(['Monto total en USD:']);
+
+    // En pesos, como siempre.
+    await run(invoiceSteps(/comprobante/, 'Factura C', /^Monto total:$/), runInvoiceFlow);
+    expect(amountQuestions()).toEqual(['Monto total:']);
+  });
+
+  it('#12: en la factura E la moneda va antes del monto, y el monto la nombra', async () => {
+    const exportSteps = (currency: string, amount: RegExp): Steps => [
+      [/comprobante/, 'Factura de exportación E'],
+      [/cliente del exterior/, 'ACME LLC'],
+      [/Domicilio/, '123 Main St'],
+      [/País de destino/, 'estados unidos'],
+      [/ID impositivo/, '12-3456789'],
+      [/Qué exportás/, 'Servicios'],
+      [/moneda/, currency],
+      ...(currency === 'Dólares' ? ([[/Te pagan en dólares/, 'Sí']] as const) : []),
+      [amount, '1.500'],
+      [/Descripción/, ''],
+      [/Forma de pago/, ''],
+      [/actividad/, '620100'],
+      [/Agregamos/, []],
+      [/Fecha de pago/, ''],
+      NO_EMIT,
+    ];
+
+    await run(exportSteps('Dólares', /^Monto total en USD:$/), runInvoiceFlow);
+    await run(exportSteps('Pesos', /^Monto total:$/), runInvoiceFlow);
+  });
+
+  it('REV-73: con otro monto, una factura en pesos se puede pasar a otra moneda; una en dólares, no', async () => {
+    const offersCurrency = () =>
+      (screens.script.chooseManyStep.mock.calls[0]?.[1] ?? []).some((choice) => choice.value === 'divisas');
+
+    await run(
+      [
+        [/Qué comprobante querés repetir/, 'Factura C'],
+        [/Cuál repetimos/, '00003-00000014'],
+        [/Mismo monto/, 'No'],
+        [/^Monto total:$/, '100'],
+        [/Período del servicio/, 'Este mes'],
+        [/Agregamos/, []],
+        NO_EMIT,
+      ],
+      runRepeatFlow,
+    );
+    expect(offersCurrency()).toBe(true);
+
+    await run(
+      [
+        [/Qué comprobante querés repetir/, 'Factura C'],
+        [/Cuál repetimos/, '00003-00000015'],
+        [/Mismo monto/, 'No'],
+        [/^Monto total en USD:$/, '100'],
+        [/Cómo te pagan/, 'En dólares'],
+        [/Período del servicio/, 'Este mes'],
+        [/Agregamos/, []],
+        NO_EMIT,
+      ],
+      runRepeatFlow,
+    );
+    expect(offersCurrency()).toBe(false);
   });
 });

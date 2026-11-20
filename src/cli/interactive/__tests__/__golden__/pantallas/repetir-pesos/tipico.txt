@@ -39,7 +39,6 @@
 ? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
   [ ] Datos del consumidor final (nuevo) — sin identificar
   [ ] Fecha del comprobante — hoy
-  [ ] Moneda extranjera — pesos
   [ ] Período del servicio — 01/11/2026 al 30/11/2026
   [ ] Vencimiento del pago — por defecto
   = (nada marcado)

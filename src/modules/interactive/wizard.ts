@@ -134,9 +134,10 @@ function isAffected(dependency: WizardDependency, changed: string, before: unkno
 
 /**
  * Los pasos que dependen del cambio de respuesta de `name`, directa o indirectamente: olvidan la suya. Un paso que
- * olvida su respuesta cuenta como cambiada entera para los que dependen de el.
+ * olvida su respuesta cuenta como cambiada entera para los que dependen de el. La usa tambien quien corre preguntas
+ * de a una fuera de `runWizard` (`requiredOptional`).
  */
-function dependentsOf<S>(
+export function dependentsOf<S>(
   steps: ReadonlyArray<WizardStep<S>>,
   name: string,
   before: unknown,
@@ -235,7 +236,8 @@ function findResumeIndex<S>(
   return -1;
 }
 
-function stepMemo(memos: Map<string, unknown>, name: string): StepMemo {
+/** El memo de `name` guardado en `memos`. */
+export function stepMemo(memos: Map<string, unknown>, name: string): StepMemo {
   return {
     get: <T>() => memos.get(name) as T | undefined,
     set: <T>(value: T) => {

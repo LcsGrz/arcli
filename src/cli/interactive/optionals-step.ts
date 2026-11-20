@@ -22,11 +22,18 @@ export interface OptionalsStepDef<S, K extends string, O, C> extends Omit<
  * estaba (REV-65, REV-67). Lo comparten A, B, C y la E, cada una con su catalogo (`optionalGroup`).
  */
 export function optionalsStep<S, K extends string, O, C>(def: OptionalsStepDef<S, K, O, C>): WizardStep<S> {
+  return optionalGroup(optionalsGroupDef(def));
+}
+
+/** El grupo de `optionalsStep`, con la pregunta y la seleccion: para pedir uno de sus opcionales como obligatorio. */
+export function optionalsGroupDef<S, K extends string, O, C>(
+  def: OptionalsStepDef<S, K, O, C>,
+): OptionalGroupDef<S, K, O, C> {
   const { decorate, ...group } = def;
 
-  return optionalGroup({
+  return {
     ...group,
     message: OPTIONALS_MESSAGE,
     pick: (message, choices, selected) => chooseManyStep(message, decorate ? choices.map(decorate) : choices, selected),
-  });
+  };
 }

@@ -1,6 +1,4 @@
 import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
-import { parseStrictInteger } from '../../lib/numbers/strict-integer';
-import { formatMoneyLabel } from '../../modules/billing/billing.labels';
 import { resolveExportClientCountryCuit } from '../../modules/export/export.mappers';
 import {
   DEFAULT_EXPORT_TYPE,
@@ -9,8 +7,6 @@ import {
   type ExportCountryCuit,
   type ExportGateway,
 } from '../../modules/export/export.types';
-import { amountInputText, parseAmountInput } from '../../modules/interactive/amount-input';
-import { completeDateInput } from '../../modules/interactive/date-input';
 import { copyExportInvoice, type ExportInvoiceCopy } from '../../modules/interactive/export-copy';
 import { type ExportOptions, isCountryCuitMissing } from '../../modules/interactive/export-optionals';
 import {
@@ -19,24 +15,26 @@ import {
   exportRepeatRuleScope,
   type ExportRepeatState,
 } from '../../modules/interactive/export-repeat-input';
+import { amountQuestion } from '../../modules/interactive/steps/amount';
+import { activityToSave } from '../../modules/interactive/steps/config-offer';
+import { nestedLens } from '../../modules/interactive/steps/lens';
 import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { noticePanel, writeTerminalOutput } from '../../ui';
-import { withSpinner } from '../spinner';
 
 import { askPermitsStep, emitExportVoucher } from './export.flow';
-import { askCountryCuit, exportOptionalsStep, validateExportPaymentDate } from './export-options';
+import { askCountryCuit, exportOptionalsStep } from './export-options';
 import { withFinalizeNotice } from './finalize-notice';
 import { pickExportVoucher } from './invoice-picker';
-import { askTextStep, chooseStep } from './prompts';
+import { chooseStep } from './prompts';
 import type { InteractiveSession } from './session';
-import { validateAmount, validatePositiveInteger } from './validators';
+import { amountStep } from './steps/amount';
+import { offerConfig } from './steps/cbu';
+import { activityStep, exportPaymentDateStep, type ExportTables, loadExportTables } from './steps/export';
+import { sameAmountStep } from './steps/same-amount';
 
-/** Las tablas de WSFEX para el destino de la factura y su CUIT, como en "Emitir factura". */
-export interface ExportRepeatTables {
-  readonly countries: readonly ExportCountry[];
-  readonly countryCuits: readonly ExportCountryCuit[];
-}
+/** Las tablas de WSFEX para el destino de la factura, su CUIT y la actividad, como en "Emitir factura". */
+export type ExportRepeatTables = ExportTables;
 
 /** El CUIT que ARCA publica para el destino, o `undefined` si no tiene. */
 function defaultCountryCuit(country: ExportCountry, countryCuits: readonly ExportCountryCuit[]): number | undefined {
@@ -65,6 +63,9 @@ export function exportRepeatSteps(
   pointOfSale: number,
 ): Array<WizardStep<ExportRepeatState>> {
   const configuredActivity = session.runtime.config.exportacion?.actividad;
+  const copyAmount = nestedLens<ExportRepeatState, 'copy', 'amount'>('copy', 'amount', (state) =>
+    requireStepValue(state.copy, 'copy'),
+  );
 
   return withFinalizeNotice([
     {
@@ -111,47 +112,23 @@ export function exportRepeatSteps(
         return { copy: input, country, options: optionsOf(input), original };
       },
     },
-    {
-      dependsOn: ['factura'],
-      name: 'mismo-monto',
-      run: async (state, previous) => {
+    sameAmountStep<ExportRepeatState>({
+      amount: copyAmount,
+      original: (state) => {
         const original = requireStepValue(state.original, 'original');
-        const copy = requireStepValue(state.copy, 'copy');
-        const scope = await chooseStep(
-          '¿Mismo monto?',
-          [
-            { name: `Sí, ${formatMoneyLabel(original.total, original.currencyCode)}`, value: 'mismo' as const },
-            { name: 'No, ingresar otro monto', value: 'otro' as const },
-          ],
-          previous?.sameAmount === undefined ? undefined : previous.sameAmount ? 'mismo' : 'otro',
-        );
 
-        if (scope === BACK) {
-          return BACK;
-        }
-
-        return scope === 'mismo'
-          ? { copy: { ...copy, amount: original.total }, sameAmount: true }
-          : { sameAmount: false };
+        return { currency: original.currencyCode, total: original.total };
       },
-    },
-    {
-      // Va en la moneda de la factura.
+    }),
+    // Va en la moneda de la factura, y la pregunta la nombra (REV-74, #12).
+    amountStep<ExportRepeatState>({
+      amount: copyAmount,
       dependsOn: ['factura'],
-      name: 'monto',
-      run: async (state, previous) => {
+      message: (state) => amountQuestion('Monto total', requireStepValue(state.original, 'original').currencyCode),
+      skip: (state) => state.sameAmount === true,
+      write: (amount, state) => {
         const original = requireStepValue(state.original, 'original');
         const copy = requireStepValue(state.copy, 'copy');
-        const answer = await askTextStep(`Monto total en ${original.currencyCode}:`, {
-          previousAnswer: amountInputText(previous?.copy?.amount),
-          validate: validateAmount,
-        });
-
-        if (answer === BACK) {
-          return BACK;
-        }
-
-        const amount = parseAmountInput(answer);
 
         if (!copy.items || amount === original.total) {
           return { copy: { ...copy, amount } };
@@ -167,8 +144,7 @@ export function exportRepeatSteps(
 
         return { copy: { ...copy, amount, items: undefined }, options: { ...state.options, items: undefined } };
       },
-      skip: (state) => state.sameAmount === true,
-    },
+    }),
     {
       // Es sobre la moneda de la factura elegida.
       dependsOn: ['factura'],
@@ -215,29 +191,12 @@ export function exportRepeatSteps(
       run: askPermitsStep,
       skip: (state) => state.copy?.exportType !== 1,
     },
-    {
-      // La factura no trae actividad y tampoco esta en la config. Es opcional: ARCA no exige `Actividades`.
-      name: 'actividad',
-      run: async (state, previous) => {
-        const answer = await askTextStep(
-          'Código de actividad de WSFEX, por ejemplo 620100 (Enter para no informarla):',
-          {
-            previousAnswer: previous?.copy?.activity === undefined ? undefined : String(previous.copy.activity),
-            validate: (value) => (value.trim() ? validatePositiveInteger('La actividad')(value) : true),
-          },
-        );
-
-        return answer === BACK
-          ? BACK
-          : {
-              copy: {
-                ...requireStepValue(state.copy, 'copy'),
-                activity: answer.trim() ? parseStrictInteger(answer) : undefined,
-              },
-            };
-      },
+    // La factura no trae actividad y tampoco esta en la config. Con la misma tabla que "Emitir factura" (REV-74, #11).
+    activityStep<ExportRepeatState>({
+      activities: tables.activities,
+      activity: nestedLens('copy', 'activity', (state) => requireStepValue(state.copy, 'copy')),
       skip: (state) => state.copy?.activity !== undefined || configuredActivity !== undefined,
-    },
+    }),
     exportOptionalsStep<ExportRepeatState>({
       context: (state) => {
         const copy = requireStepValue(state.copy, 'copy');
@@ -270,24 +229,7 @@ export function exportRepeatSteps(
       read: (state) => state.options ?? {},
       write: (options) => ({ options }),
     }),
-    {
-      // Despues de los opcionales: no puede ser anterior a la fecha del comprobante, que se elige ahi (1674).
-      // Solo la fecha del comprobante: cambiar otro opcional no la olvida.
-      dependsOn: [{ fields: ['options.voucherDate'], step: 'opcionales' }],
-      name: 'fecha-pago',
-      run: async (state, previous) => {
-        const answer = await askTextStep('Fecha de pago (Enter para la fecha del comprobante):', {
-          previousAnswer: previous?.paymentDate,
-          validate: validateExportPaymentDate(state.options?.voucherDate),
-        });
-
-        // Completa, como la fecha del comprobante: pegado otro dia, el comando equivalente da la misma.
-        return answer === BACK ? BACK : { paymentDate: answer.trim() ? completeDateInput(answer) : undefined };
-      },
-      // En bienes ARCA rechaza la fecha de pago (error 1673).
-      skip: (state) => state.copy?.exportType === 1,
-      writes: ['paymentDate'],
-    },
+    exportPaymentDateStep<ExportRepeatState>((state) => state.copy?.exportType),
   ]);
 }
 
@@ -300,10 +242,7 @@ export async function runExportRepeatFlow(
   pointOfSale: number,
 ): Promise<typeof BACK | void> {
   const gateway = new ArcaClientFactory().createExportGateway(session.runtime);
-  const tables = await withSpinner('Consultando las tablas de WSFEX...', async () => ({
-    countries: await gateway.getDestinationCountries(),
-    countryCuits: await gateway.getDestinationCountryCuits(),
-  }));
+  const tables = await loadExportTables(gateway);
   const configured = session.runtime.config.exportacion?.actividad;
   const state = await runWizard<ExportRepeatState>(
     exportRepeatSteps(session, gateway, tables, pointOfSale),
@@ -324,6 +263,10 @@ export async function runExportRepeatFlow(
 
   const configuredActivity = session.runtime.config.exportacion?.actividad;
   const input = buildExportRepeatInput(state, { configuredActivity });
+  const emitted = await emitExportVoucher(session, gateway, input, input.activity);
 
-  await emitExportVoucher(session, gateway, input, input.activity);
+  // Como en "Emitir factura": la actividad escrita a mano se ofrece guardar si se emitio (REV-74, #11).
+  if (state.original?.activities[0] === undefined) {
+    await offerConfig(activityToSave(state.copy?.activity, configuredActivity, emitted));
+  }
 }

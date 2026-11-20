@@ -14,13 +14,14 @@ import {
   type ExportVoucherKind,
   getExportVoucherKindByArcaType,
 } from '../../modules/export/export.types';
-import { amountInputText, parseAmountInput } from '../../modules/interactive/amount-input';
+import { parseAmountInput } from '../../modules/interactive/amount-input';
 import {
   buildExportNoteInput,
   exportNoteFinalize,
   exportNoteRuleScope,
   type ExportNoteState,
 } from '../../modules/interactive/export-note-input';
+import { fieldLens } from '../../modules/interactive/steps/lens';
 import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { formatVoucherNumber } from '../../modules/vouchers/voucher-history.presenter';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
@@ -32,6 +33,7 @@ import { exportOptionalsStep, validateExportText } from './export-options';
 import { withFinalizeNotice } from './finalize-notice';
 import { askTextStep } from './prompts';
 import { type InteractiveSession, requirePointOfSale } from './session';
+import { amountStep } from './steps/amount';
 import { validateAmount, validatePositiveInteger } from './validators';
 
 /** Como se nombra el asociado en las preguntas: "la factura E", "la nota de débito E". */
@@ -155,35 +157,30 @@ export function exportNoteSteps(
         }
       },
     },
-    {
-      // Va en la moneda de la factura, y en la NC con su total como tope.
+    // Va en la moneda de la factura, y en la NC con su total como tope.
+    amountStep<ExportNoteState>({
+      amount: fieldLens('amount'),
       dependsOn: ['factura'],
-      name: 'monto',
-      run: async (state, previous) => {
+      message: (state) =>
+        `Monto de la ${formatVoucherLabel(voucherKind)} (${requireStepValue(state.invoice, 'invoice').currencyCode}):`,
+      validate: (state) => (value) => {
         const invoice = requireStepValue(state.invoice, 'invoice');
-        const answer = await askTextStep(`Monto de la ${formatVoucherLabel(voucherKind)} (${invoice.currencyCode}):`, {
-          previousAnswer: amountInputText(previous?.amount),
-          validate: (value) => {
-            const valid = validateAmount(value);
+        const valid = validateAmount(value);
 
-            // Como el CLI: el tope solo vale si la NC no ajusta otra NC.
-            if (valid !== true || kind !== 'credito' || invoice.arcaType === EXPORT_CREDIT_NOTE_KIND.arcaType) {
-              return valid;
-            }
+        // Como el CLI: el tope solo vale si la NC no ajusta otra NC.
+        if (valid !== true || kind !== 'credito' || invoice.arcaType === EXPORT_CREDIT_NOTE_KIND.arcaType) {
+          return valid;
+        }
 
-            return (parseAmountInput(value) ?? 0) <= invoice.total
-              ? true
-              : creditNoteOverTotalHint(
-                  `${associatedName(state.associatedKind)} ${formatVoucherNumber(invoice.pointOfSale, invoice.number)}`,
-                  invoice.total,
-                  invoice.currencyCode,
-                );
-          },
-        });
-
-        return answer === BACK ? BACK : { amount: parseAmountInput(answer) };
+        return (parseAmountInput(value) ?? 0) <= invoice.total
+          ? true
+          : creditNoteOverTotalHint(
+              `${associatedName(state.associatedKind)} ${formatVoucherNumber(invoice.pointOfSale, invoice.number)}`,
+              invoice.total,
+              invoice.currencyCode,
+            );
       },
-    },
+    }),
     {
       name: 'descripcion',
       run: async (_state, previous) => {

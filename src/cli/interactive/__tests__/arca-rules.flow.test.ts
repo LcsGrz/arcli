@@ -181,7 +181,6 @@ describe('reglas de ARCA en el asistente (#220)', () => {
         [/Alias del CBU/, ''],
         [/Agregamos/, []],
         [/Emitimos/, 'No, dejar sin emitir'],
-        [/Guardamos el CBU/, 'No'],
       ]);
 
       const { billingGateway, session } = createSession();

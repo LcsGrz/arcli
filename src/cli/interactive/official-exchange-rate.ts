@@ -11,7 +11,11 @@ interface OfficialExchangeRateQuery {
   readonly sameCurrency?: boolean;
 }
 
-export type OfficialExchangeRate = (query: OfficialExchangeRateQuery) => Promise<number | undefined>;
+export interface OfficialExchangeRate {
+  (query: OfficialExchangeRateQuery): Promise<number | undefined>;
+  /** La ya consultada, sin consultar: `undefined` si todavia no se consulto, si la consulta sigue o si fallo. */
+  readonly known: (query: OfficialExchangeRateQuery) => number | undefined;
+}
 
 /**
  * La cotizacion oficial de ARCA, como la consulta el CLI sin `--cm` (`resolveExchangeRate`), una vez por moneda (y
@@ -23,10 +27,13 @@ export function officialExchangeRateLoader(
   session: Pick<InteractiveSession, 'billingGateway' | 'service'>,
 ): OfficialExchangeRate {
   const loaded = new Map<string, Promise<number | undefined>>();
+  const resolved = new Map<string, number | undefined>();
+  const keyOf = (query: OfficialExchangeRateQuery) =>
+    query.sameCurrency ? `${query.currencyCode}|misma-moneda|${query.billingDate ?? ''}` : query.currencyCode;
 
-  return (query) => {
+  const load = (query: OfficialExchangeRateQuery) => {
     const sameCurrency = query.sameCurrency ?? false;
-    const key = sameCurrency ? `${query.currencyCode}|misma-moneda|${query.billingDate ?? ''}` : query.currencyCode;
+    const key = keyOf(query);
     const cached = loaded.get(key);
 
     if (cached) {
@@ -37,12 +44,14 @@ export function officialExchangeRateLoader(
       const spinner = startSpinner('Consultando la cotización oficial...');
 
       try {
-        const resolved = await session.service.resolveExchangeRate(
+        const quoted = await session.service.resolveExchangeRate(
           { billingDate: query.billingDate, currencyCode: query.currencyCode, exchangeRate: undefined, sameCurrency },
           session.billingGateway,
         );
 
-        return resolved.exchangeRate;
+        resolved.set(key, quoted.exchangeRate);
+
+        return quoted.exchangeRate;
       } catch {
         return undefined;
       } finally {
@@ -54,6 +63,8 @@ export function officialExchangeRateLoader(
 
     return rate;
   };
+
+  return Object.assign(load, { known: (query: OfficialExchangeRateQuery) => resolved.get(keyOf(query)) });
 }
 
 /**
@@ -63,7 +74,7 @@ export function officialExchangeRateLoader(
  */
 export function exchangeRateSuggestionLoader(
   config: Pick<ArcliConfig, 'cotizacionPorDefecto' | 'monedaPorDefecto'>,
-  official: OfficialExchangeRate,
+  official: (query: OfficialExchangeRateQuery) => Promise<number | undefined>,
 ): (currencyCode: string) => Promise<ExchangeRateSuggestion | undefined> {
   return async (currencyCode) => {
     const configured = configExchangeRateFor(config, currencyCode);

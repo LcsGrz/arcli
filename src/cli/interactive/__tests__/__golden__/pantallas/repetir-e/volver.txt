@@ -35,7 +35,7 @@
   · No, ingresar otro monto
   = No, ingresar otro monto
 
-? [texto] Monto total en DOL:
+? [texto] Monto total en USD:
   = ← Volver
 
 ? [lista] ¿Mismo monto?
@@ -44,7 +44,7 @@
   > No, ingresar otro monto
   = No, ingresar otro monto
 
-? [texto] Monto total en DOL:
+? [texto] Monto total en USD:
   = "1.800"
 
 ? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)

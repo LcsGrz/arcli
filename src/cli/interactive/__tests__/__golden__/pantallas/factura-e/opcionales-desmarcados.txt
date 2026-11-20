@@ -28,12 +28,6 @@
   · Otros
   = Servicios
 
-? [texto] Monto total:
-  = "1.500"
-
-? [texto] Descripción del servicio o producto (Enter para "Según detalle"):
-  = "Consultoría de software"
-
 ? [lista] ¿En qué moneda facturás?
   arranca en: Dólares (USD)
   > Dólares (USD) — Con la cotización de aduana que publica ARCA
@@ -45,6 +39,12 @@
   · Sí — ARCA lo registra como cancelación en la misma moneda
   · No, en pesos
   = Sí
+
+? [texto] Monto total en USD:
+  = "1.500"
+
+? [texto] Descripción del servicio o producto (Enter para "Según detalle"):
+  = "Consultoría de software"
 
 ? [texto] Forma de pago:
   por defecto: "Transferencia Internacional"
