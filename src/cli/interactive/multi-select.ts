@@ -11,9 +11,7 @@ import {
 } from '@inquirer/core';
 
 import { BACK, type Back } from '../../modules/interactive/wizard';
-import { colorize, uiSymbol } from '../../ui';
-
-import { scrollHint, scrollWindow } from './scroll-window';
+import { colorize, scrollHint, scrollWindow, uiSymbol } from '../../ui';
 
 /** Oculta el cursor de la terminal mientras se muestra la lista; @inquirer lo vuelve a mostrar al cerrarla. */
 const CURSOR_HIDE = '\u001B[?25l';

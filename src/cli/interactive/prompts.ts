@@ -2,13 +2,15 @@ import input from '@inquirer/input';
 import { Separator } from '@inquirer/select';
 import { emitKeypressEvents } from 'node:readline';
 
+import type { RowEdits } from '../../modules/interactive/row-marks';
 import { BACK, type Back } from '../../modules/interactive/wizard';
-import { bold, colorize, uiSymbol, usesAsciiBorders, writeTerminalRaw } from '../../ui';
+import { bold, colorize, type RowActionsListRow, uiSymbol, usesAsciiBorders, writeTerminalRaw } from '../../ui';
 
 import { blockPager } from './block-pager';
 import { filterList, type FilterListRow } from './filter-list';
 import { listSelect } from './list-select';
 import { multiSelect } from './multi-select';
+import { rowActionsList } from './row-actions-list';
 
 export interface Choice<T> {
   readonly description?: string;
@@ -386,13 +388,68 @@ export async function chooseManyStep<T>(
   return 'answer' in result ? result.answer : BACK;
 }
 
+export interface EditRowsOptions {
+  /** La fila para agregar una mas, por ejemplo "+ Agregar ítem". */
+  readonly addLabel: string;
+  /** Las filas que quedan como minimo, y por que, si se intenta borrar de mas. */
+  readonly minRows: number;
+  readonly minRowsNotice: string;
+}
+
+/** "1 para modificar, 1 para borrar y uno nuevo", o "sin cambios": lo que queda en la linea de la respuesta. */
+function describeRowEdits(edits: RowEdits): string {
+  const parts = [
+    edits.edit.length > 0 ? `${edits.edit.length} para modificar` : undefined,
+    edits.remove.length > 0 ? `${edits.remove.length} para borrar` : undefined,
+    edits.add ? 'uno nuevo' : undefined,
+  ].filter((part): part is string => part !== undefined);
+
+  if (parts.length === 0) {
+    return 'sin cambios';
+  }
+
+  return parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')} y ${parts.at(-1)}`;
+}
+
+/** Lo que la lista con acciones suma a una lista comun: la fila de agregar, el detalle, lo marcado y el aviso. */
+const ROW_ACTIONS_EXTRA_LINES = 4;
+
+/**
+ * Lista con acciones por fila (`rowActionsList`): espacio marca para modificar, Backspace para borrar y Enter aplica,
+ * con la fila de agregar. Esc o "← Volver" vuelven al paso anterior.
+ */
+export async function editRowsStep(
+  message: string,
+  rows: ReadonlyArray<Omit<RowActionsListRow, 'mark'>>,
+  options: EditRowsOptions,
+): Promise<Back | RowEdits> {
+  const result = await runStepPrompt(
+    (context) =>
+      rowActionsList(
+        {
+          ...options,
+          backLabel: BACK_CHOICE.name,
+          message,
+          pageSize: fitPageSize(rows.length, { extraLines: ROW_ACTIONS_EXTRA_LINES }),
+          rows,
+          theme: STEP_THEME,
+        },
+        context,
+      ),
+    (answer) => ({ answer: answer === BACK ? BACK_CHOICE.name : describeRowEdits(answer), message }),
+  );
+
+  return 'answer' in result ? result.answer : BACK;
+}
+
 export type { FilterListRow } from './filter-list';
 
 interface FilterListOptions<T> {
   readonly defaultValue?: T;
   readonly header?: string;
   readonly help?: string;
-  readonly pageSize: number;
+  /** Por defecto, las filas que entran en la terminal (`fitPageSize`). */
+  readonly pageSize?: number;
 }
 
 /** Lineas que una lista que se filtra suma a las de cualquier lista: "Filtrar:", su linea en blanco, encabezado y cuenta. */
@@ -417,7 +474,7 @@ export async function chooseFromFilterList<T>(
           help: options.help,
           message,
           mode: 'elegir',
-          pageSize: options.pageSize,
+          pageSize: options.pageSize ?? fitPageSize(rows.length, { extraLines: FILTER_LIST_EXTRA_LINES }),
           rows,
           theme: STEP_THEME,
         },
@@ -445,7 +502,7 @@ export async function chooseFromFilterList<T>(
 export async function browseFilterList(
   message: string,
   rows: readonly string[],
-  options: Omit<FilterListOptions<string>, 'defaultValue'>,
+  options: Omit<FilterListOptions<string>, 'defaultValue' | 'pageSize'> & { readonly pageSize: number },
 ): Promise<void> {
   await runStepPrompt(
     (context) =>

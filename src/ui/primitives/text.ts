@@ -177,6 +177,20 @@ function splitAtVisibleColumn(line: string, column: number): [string, string] {
   return [line.slice(0, index), line.slice(index)];
 }
 
+/**
+ * `value` recortado para que ocupe hasta `width` columnas visibles, terminado en `ellipsis` si no entraba. Sin partir
+ * grafemas ni codigos ANSI, como el corte de los paneles.
+ */
+export function truncateVisible(value: string, width: number, ellipsis: string): string {
+  if (visibleWidth(value) <= width) {
+    return value;
+  }
+
+  const room = Math.max(0, width - visibleWidth(ellipsis));
+
+  return `${room > 0 ? splitAtVisibleColumn(value, room)[0].trimEnd() : ''}${ellipsis}`;
+}
+
 export function wrapPlainText(value: string, width: number): string[] {
   if (width <= 0) {
     return [value];

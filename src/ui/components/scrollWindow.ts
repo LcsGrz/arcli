@@ -1,4 +1,5 @@
-import { colorize, uiSymbol } from '../../ui';
+import { uiSymbol } from '../primitives/symbols';
+import { colorize } from '../primitives/text';
 
 export interface ScrollWindow {
   /** Primera fila visible. */

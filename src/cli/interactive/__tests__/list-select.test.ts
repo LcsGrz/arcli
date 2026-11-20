@@ -3,9 +3,8 @@ import { PassThrough } from 'node:stream';
 import { describe, expect, it } from 'vitest';
 
 import { BACK } from '../../../modules/interactive/wizard';
-import { stripAnsi } from '../../../ui';
+import { scrollWindow, stripAnsi } from '../../../ui';
 import { listSelect, type ListSelectChoice } from '../list-select';
-import { scrollWindow } from '../scroll-window';
 
 const DOWN = '\u001B[B';
 const UP = '\u001B[A';

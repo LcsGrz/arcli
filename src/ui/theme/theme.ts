@@ -71,6 +71,7 @@ export type UiSymbolName =
   | 'check'
   | 'done'
   | 'ellipsis'
+  | 'keyBackspace'
   | 'keyEnter'
   | 'keysMove'
   | 'moreAbove'
@@ -78,6 +79,7 @@ export type UiSymbolName =
   | 'moreLeft'
   | 'moreRight'
   | 'pointer'
+  | 'removeMark'
   | 'rule'
   | 'selected'
   | 'separator'
@@ -329,6 +331,7 @@ export const UI_THEME: UiTheme = {
     check: { ascii: 'v', unicode: '✓' },
     done: { ascii: 'v', unicode: '✔' },
     ellipsis: { ascii: '...', unicode: '…' },
+    keyBackspace: { ascii: 'backspace', unicode: '⌫' },
     keyEnter: { ascii: 'enter', unicode: '⏎' },
     keysMove: { ascii: 'arriba/abajo', unicode: '↑↓' },
     moreAbove: { ascii: '^', unicode: '↑' },
@@ -336,6 +339,7 @@ export const UI_THEME: UiTheme = {
     moreLeft: { ascii: '<', unicode: '←' },
     moreRight: { ascii: '>', unicode: '→' },
     pointer: { ascii: '>', unicode: '❯' },
+    removeMark: { ascii: '[-]', unicode: '●' },
     rule: { ascii: '-', unicode: '┈' },
     selected: { ascii: '[x]', unicode: '◉' },
     separator: { ascii: '-', unicode: '·' },
