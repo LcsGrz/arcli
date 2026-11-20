@@ -161,8 +161,9 @@ export function exportNoteSteps(
     amountStep<ExportNoteState>({
       amount: fieldLens('amount'),
       dependsOn: ['factura'],
-      message: (state) =>
-        `Monto de la ${formatVoucherLabel(voucherKind)} (${requireStepValue(state.invoice, 'invoice').currencyCode}):`,
+      // Como en "Repetir" E, la moneda por su ISO (REV-74, #12).
+      currency: (state) => requireStepValue(state.invoice, 'invoice').currencyCode,
+      label: `Monto de la ${formatVoucherLabel(voucherKind)}`,
       validate: (state) => (value) => {
         const invoice = requireStepValue(state.invoice, 'invoice');
         const valid = validateAmount(value);

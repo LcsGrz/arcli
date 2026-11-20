@@ -1,9 +1,9 @@
 import type { ArcliConfig } from '../../../modules/config/config.schemas';
 import { type InvoiceState, isFceInvoice } from '../../../modules/interactive/invoice-input';
-import { cbuToSave, type ConfigOffer } from '../../../modules/interactive/steps/config-offer';
+import { cbuToSave } from '../../../modules/interactive/steps/config-offer';
 import { BACK, type WizardStep } from '../../../modules/interactive/wizard';
 import { askTextStep } from '../prompts';
-import { offerSavingToConfig } from '../save-to-config';
+import { offerConfig } from '../save-to-config';
 import { validateCbu, validateOptionalCbuAlias } from '../validators';
 
 /**
@@ -41,21 +41,14 @@ export function cbuSteps<S extends InvoiceState>(config: Pick<ArcliConfig, 'alia
   ];
 }
 
-/** Ofrece guardar en la config un dato escrito a mano, si hay algo para ofrecer. */
-export async function offerConfig(offer: ConfigOffer | undefined): Promise<void> {
-  if (offer) {
-    await offerSavingToConfig(offer.message, offer.values);
-  }
-}
-
 /**
- * Si la FCE se emitio con un CBU escrito a mano (no habia en la config), ofrece guardarlo, con el alias si se escribio
- * (REV-74, #16): dejado sin emitir, no.
+ * Si ARCA autorizo la FCE con un CBU escrito a mano (no habia en la config), ofrece guardarlo, con el alias si se
+ * escribio (REV-74, #16): dejada sin emitir o rechazada, no.
  */
 export async function offerSavingCbu(
   config: Pick<ArcliConfig, 'cbu'>,
   state: InvoiceState,
-  emitted: boolean,
+  authorized: boolean,
 ): Promise<void> {
-  await offerConfig(cbuToSave(state, config, emitted));
+  await offerConfig(cbuToSave(state, config, authorized));
 }

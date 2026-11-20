@@ -9,11 +9,17 @@ import { resolveReceiverIdentity } from './consumer-identification';
 import { defaultIvaRate, explicitIvaRate } from './iva-rate';
 import { type ReceiverFromPadron, receiverInputFields } from './receiver-document';
 import { rulesFinalize } from './rule-validator';
+import { amountCurrencyFinalize } from './steps/amount';
 import { requireStepValue, type WizardFinalize } from './wizard';
 
 /** Lo que responde quien usa "Emitir factura", "Emitir recibo" y "Repetir" (A, B, C y FCE). */
 export interface InvoiceState {
   readonly advanced: AdvancedOptions;
+  /**
+   * La moneda en que se escribio el monto (la que nombro la pregunta, `amountCurrencyCode`): si los opcionales la
+   * cambian, `finalize` vuelve al monto (REV-74, #12). Sin preguntar el monto, no hay.
+   */
+  readonly amountCurrency?: string;
   readonly cbu?: string;
   /** Alias del CBU escrito a mano junto con el CBU; sin el, va el de la config. */
   readonly cbuAlias?: string;
@@ -111,9 +117,11 @@ export function billingRuleEnv(
  * a la pregunta que escribe el campo. Con la E elegida no hay entrada de A, B y C. `env` se lee al final (hoy).
  */
 export function invoiceFinalize<S extends InvoiceState>(env: () => InvoiceInputEnv & RuleEnv): WizardFinalize<S> {
-  return rulesFinalize<S, BillingCommandInput, BillingRuleContext>({
+  const rules = rulesFinalize<S, BillingCommandInput, BillingRuleContext>({
     context: (state) => invoiceRuleScope(state, env()).context,
     draft: (state) => (state.exported || !state.voucherKind ? undefined : invoiceInputFields(state, env())),
     rules: BILLING_RULES,
   });
+
+  return (state) => amountCurrencyFinalize(state.amountCurrency, state.advanced.currencyCode) ?? rules(state);
 }

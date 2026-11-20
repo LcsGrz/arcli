@@ -17,7 +17,6 @@ import {
 } from '../../modules/interactive/invoice-input';
 import { defaultIvaRate } from '../../modules/interactive/iva-rate';
 import type { ReceiverFromPadron } from '../../modules/interactive/receiver-document';
-import { amountQuestion } from '../../modules/interactive/steps/amount';
 import { type ConsumerAmount, type ConsumerContext, consumerContext } from '../../modules/interactive/steps/consumer';
 import { fieldLens } from '../../modules/interactive/steps/lens';
 import { BACK, type Back, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
@@ -29,7 +28,7 @@ import { markIfNew } from './new-mark';
 import { exchangeRateSuggestionLoader, officialExchangeRateLoader } from './official-exchange-rate';
 import { type Choice, chooseStep } from './prompts';
 import { type InteractiveSession, previewAndEmit, requirePointOfSale } from './session';
-import { amountStep, billingAmountValidator } from './steps/amount';
+import { type AmountCurrencyRetry, amountCurrencyRetry, amountStep, billingAmountValidator } from './steps/amount';
 import { cbuSteps, offerSavingCbu } from './steps/cbu';
 import { consumerIdentificationSteps } from './steps/consumer';
 import { receiverIvaStep, receiverSteps } from './steps/receiver';
@@ -76,8 +75,15 @@ export function invoiceConsumer(state: InvoiceState, receiver: string): Consumer
   });
 }
 
+/** La moneda nueva del monto si los opcionales la cambiaron: la del comprobante con todas las respuestas. */
+export const invoiceAmountRetry = <S extends InvoiceState>(): AmountCurrencyRetry<S> =>
+  amountCurrencyRetry<S>((state) => state.advanced.currencyCode);
+
 /** Pasos del flujo de factura; cada uno se puede deshacer con "Volver". */
-export function invoiceSteps(session: InteractiveSession): Array<WizardStep<InvoiceState>> {
+export function invoiceSteps(
+  session: InteractiveSession,
+  retry: AmountCurrencyRetry<InvoiceState> = invoiceAmountRetry(),
+): Array<WizardStep<InvoiceState>> {
   const { config } = session.runtime;
   const rules = (state: InvoiceState) => invoiceRuleScope(state, billingRuleEnv(session.runtime));
   const officialExchangeRate = officialExchangeRateLoader(session);
@@ -160,7 +166,10 @@ export function invoiceSteps(session: InteractiveSession): Array<WizardStep<Invo
     // En la moneda de la config, si es extranjera, la pregunta la nombra (REV-74, #12).
     amountStep<InvoiceState>({
       amount: fieldLens('totalAmount'),
-      message: (state) => amountQuestion('Monto total', state.advanced.currencyCode),
+      currency: (state) => state.advanced.currencyCode,
+      label: 'Monto total',
+      // Los opcionales pueden cambiar la moneda despues: `finalize` vuelve aca si cambio.
+      retry,
       validate: (state) => billingAmountValidator(rules(state)),
       writes: ['totalAmount'],
     }),
@@ -213,15 +222,16 @@ export async function runInvoiceFlow(
   }
 
   const { session } = ready;
+  const retry = invoiceAmountRetry();
   const state = await runWizard(
-    invoiceSteps(session),
+    invoiceSteps(session, retry),
     {
       advanced: initialAdvancedOptions(session.runtime.config),
       receipt,
       ...(receiver ? invoiceStateForReceiver(receiver) : {}),
     },
     undefined,
-    { finalize: invoiceFinalize(() => billingRuleEnv(session.runtime)) },
+    { finalize: retry.finalize(invoiceFinalize(() => billingRuleEnv(session.runtime))) },
   );
 
   if (!state) {
@@ -232,9 +242,9 @@ export async function runInvoiceFlow(
     return undefined;
   }
 
-  const emitted = await previewAndEmit(session, buildInvoiceInput(state, session.runtime));
+  const authorized = await previewAndEmit(session, buildInvoiceInput(state, session.runtime));
 
-  await offerSavingCbu(session.runtime.config, state, emitted);
+  await offerSavingCbu(session.runtime.config, state, authorized);
 
   return undefined;
 }

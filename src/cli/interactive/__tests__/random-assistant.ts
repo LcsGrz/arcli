@@ -216,20 +216,43 @@ export function createRandomAssistant(g: fc.GeneratorValue, options: RandomAssis
   };
 }
 
+/** La pregunta del monto, con o sin la moneda ("Monto total en USD:"). */
+const AMOUNT_QUESTION = /^(Monto total|Monto de la nota)/;
+const amountKey = (message: string): string => message.replace(/ en [A-Z]{3}:$/, ':');
+
 /**
  * Las preguntas del camino que termino valiendo: Esc en una pregunta deshace la anterior (que se vuelve a preguntar),
  * y una pregunta que se repite seguida sin Esc (un reintento, como "Número" si ARCA no lo tiene) reemplaza a la
  * anterior. Un grupo de preguntas que es un solo paso del asistente (los opcionales) se rehace entero: si su primera
  * pregunta (`group`) vuelve a aparecer, lo respondido desde la vez anterior no cuenta. Lo que queda es lo que la
- * persona respondio en el camino final.
+ * persona respondio en el camino final. El monto es una pregunta a la que el asistente vuelve desde mas adelante (si los
+ * opcionales cambiaron la moneda, `finalize` vuelve a el, REV-74 #12), y su texto cambia con la moneda: si vuelve a
+ * aparecer, lo respondido desde la vez anterior no cuenta.
  */
 export function finalPath(events: readonly PromptEvent[], group: RegExp): PromptEvent[] {
   const path: PromptEvent[] = [];
 
   for (const event of events) {
+    // Volvio al monto desde mas adelante: lo de despues no cuenta, y Esc ahi vuelve a la pregunta anterior al monto.
+    if (AMOUNT_QUESTION.test(event.message)) {
+      const earlier = path.findLastIndex((item) => amountKey(item.message) === amountKey(event.message));
+
+      if (earlier >= 0) {
+        path.length = earlier + 1;
+      }
+    }
+
     if (event.answer === BACK) {
       path.pop();
       continue;
+    }
+
+    if (
+      AMOUNT_QUESTION.test(event.message) &&
+      path.length > 0 &&
+      amountKey(path.at(-1)?.message ?? '') === amountKey(event.message)
+    ) {
+      path.pop();
     }
 
     const groupStart = group.test(event.message) ? path.findLastIndex((item) => item.message === event.message) : -1;

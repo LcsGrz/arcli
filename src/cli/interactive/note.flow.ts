@@ -34,9 +34,11 @@ import {
   buildNoteInput,
   isPeriodNote,
   noteCurrency,
+  noteFinalCurrency,
   noteFinalize,
   type NoteInputEnv,
   type NoteKind,
+  noteReceiverKey,
   type NoteRuleEnv,
   noteRuleScope,
   noteRuleValidator,
@@ -58,7 +60,7 @@ import { markIfNew } from './new-mark';
 import { exchangeRateSuggestionLoader, officialExchangeRateLoader } from './official-exchange-rate';
 import { chooseStep } from './prompts';
 import { type InteractiveSession, previewAndEmit, requirePointOfSale } from './session';
-import { amountStep, billingAmountValidator } from './steps/amount';
+import { type AmountCurrencyRetry, amountCurrencyRetry, amountStep, billingAmountValidator } from './steps/amount';
 import { consumerIdentificationSteps } from './steps/consumer';
 import { dateStep } from './steps/date';
 import { receiverIvaStep, receiverSteps } from './steps/receiver';
@@ -215,9 +217,9 @@ async function askAnnulScope(
   return scope === 'total' ? { annulsTotal: true, totalAmount: invoice.total } : { annulsTotal: false };
 }
 
-/** "Monto de la nota de crédito:" o "de débito:". */
-const noteAmountQuestion = (state: NoteState): string =>
-  state.kind === 'debito' ? 'Monto de la nota de débito:' : 'Monto de la nota de crédito:';
+/** "Monto de la nota de crédito" o "de débito"; la pregunta sigue con la moneda si no es pesos. */
+const noteAmountLabel = (state: NoteState): string =>
+  state.kind === 'debito' ? 'Monto de la nota de débito' : 'Monto de la nota de crédito';
 
 /** El monto de la nota: en una NC sobre una factura en su moneda, no mas que su total (salvo que ajuste otra NC). */
 function validateNoteAmount(state: NoteState): (value: string) => string | true {
@@ -239,7 +241,11 @@ function validateNoteAmount(state: NoteState): (value: string) => string | true 
 }
 
 /** Pasos del flujo de notas; cada uno se puede deshacer con "Volver". */
-export function noteSteps(session: InteractiveSession, pointOfSale: number): Array<WizardStep<NoteState>> {
+export function noteSteps(
+  session: InteractiveSession,
+  pointOfSale: number,
+  retry: AmountCurrencyRetry<NoteState> = noteAmountRetry(session),
+): Array<WizardStep<NoteState>> {
   const { config } = session.runtime;
   const officialExchangeRate = officialExchangeRateLoader(session);
   const exchangeRateSuggestion = exchangeRateSuggestionLoader(config, officialExchangeRate);
@@ -265,7 +271,7 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
         amount: consumerAmount(state),
         documentType: state.documentType,
         offered: asksOwnNoteData(state),
-        receiver: `${state.invoicePointOfSale}:${state.invoice?.number}:${state.documentType}`,
+        receiver: noteReceiverKey(state),
       }),
       defaultIvaRate: defaultIvaRate(config, state.ivaRate),
       hidden: hiddenNoteOptions(state),
@@ -448,7 +454,10 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
     amountStep<NoteState>({
       amount: fieldLens('totalAmount'),
       dependsOn: ['tipo-factura', 'factura', 'moneda'],
-      message: noteAmountQuestion,
+      // La de la factura (o pesos) o, en una de periodo, la de los opcionales, que la pueden cambiar despues.
+      currency: (state) => noteCurrency(state, advancedOf(state)).currencyCode,
+      label: noteAmountLabel,
+      retry,
       skip: (state) => state.annulsTotal === true,
       validate: (state) => billingAmountValidator(rules(state), validateNoteAmount(state)),
       write: (totalAmount) => ({ annulsTotal: false, totalAmount }),
@@ -517,6 +526,11 @@ export function noteSteps(session: InteractiveSession, pointOfSale: number): Arr
   );
 }
 
+/** La moneda nueva del monto si los opcionales la cambiaron (en una nota por periodo). */
+function noteAmountRetry(session: InteractiveSession): AmountCurrencyRetry<NoteState> {
+  return amountCurrencyRetry<NoteState>((state) => noteFinalCurrency(state, session.runtime));
+}
+
 /** Lo que las reglas de la nota toman de la sesion: el emisor, el punto de venta y hoy (cuando se pregunta). */
 function noteRuleEnv(session: InteractiveSession, pointOfSale: number): NoteRuleEnv {
   return { ...noteInputEnv(session, pointOfSale), today: formatDateAsArcaDate(new Date()) };
@@ -536,13 +550,14 @@ export async function runNoteFlow(baseSession: InteractiveSession, kind: NoteKin
 
   const { pointOfSale, session } = ready;
   // La moneda de los opcionales solo se usa en las de periodo; las de una factura van en la de la factura o en pesos.
+  const retry = noteAmountRetry(session);
   const state = await runWizard(
-    noteSteps(session, pointOfSale),
+    noteSteps(session, pointOfSale, retry),
     { advanced: initialAdvancedOptions(session.runtime.config), kind },
     undefined,
     {
       // Las reglas sobre la nota final: si una falla, vuelve a la pregunta que escribe el campo.
-      finalize: noteFinalize(() => noteRuleEnv(session, pointOfSale)),
+      finalize: retry.finalize(noteFinalize(() => noteRuleEnv(session, pointOfSale))),
     },
   );
 

@@ -31,7 +31,7 @@
 
 └                                                                                          ┘
 
-? [texto] Monto de la nota de crédito de exportación E (DOL):
+? [texto] Monto de la nota de crédito de exportación E en USD:
   = ← Volver
 
 ? [texto] Número de la factura E:
@@ -45,13 +45,13 @@
 
 └                                                                                          ┘
 
-? [texto] Monto de la nota de crédito de exportación E (DOL):
+? [texto] Monto de la nota de crédito de exportación E en USD:
   = "500"
 
 ? [texto] Detalle de la nota (Enter para "Según detalle"):
   = ← Volver
 
-? [texto] Monto de la nota de crédito de exportación E (DOL):
+? [texto] Monto de la nota de crédito de exportación E en USD:
   arranca escrito: "500"
   = "400"
 

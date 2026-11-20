@@ -5,6 +5,7 @@ import { formatExportResultAsText } from '../../modules/export/export.presenter'
 import { ExportService } from '../../modules/export/export.service';
 import {
   EXPORT_VOUCHER_KIND,
+  type ExportActivity,
   type ExportCountry,
   type ExportGateway,
   type ExportType,
@@ -18,8 +19,7 @@ import {
   exportRuleScope,
 } from '../../modules/interactive/export-input';
 import { isCountryCuitMissing } from '../../modules/interactive/export-optionals';
-import { amountQuestion } from '../../modules/interactive/steps/amount';
-import { activityToSave } from '../../modules/interactive/steps/config-offer';
+import { activityToSave, isAuthorized } from '../../modules/interactive/steps/config-offer';
 import { fieldLens } from '../../modules/interactive/steps/lens';
 import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { formatPdfOutcomeAsText } from '../../modules/pdf/pdf.presenter';
@@ -33,12 +33,19 @@ import { askCountryCuit, exportOptionalsStep, validateExportText } from './expor
 import { withFinalizeNotice } from './finalize-notice';
 import { completeIssuer } from './pdf.flow';
 import { askTextStep, chooseStep, isPromptCancellation } from './prompts';
+import { offerConfig } from './save-to-config';
 import { confirmEmission, formatEquivalentCommand, type InteractiveSession } from './session';
 import { amountStep } from './steps/amount';
-import { offerConfig } from './steps/cbu';
-import { activityStep, exportPaymentDateStep, type ExportTables, loadExportTables } from './steps/export';
+import {
+  activitiesLoader,
+  activityStep,
+  exportPaymentDateStep,
+  type ExportTables,
+  loadExportTables,
+} from './steps/export';
 
 interface ExportFlowLoaders {
+  readonly activities: () => Promise<readonly ExportActivity[]>;
   readonly incoterms: () => Promise<ReadonlyArray<{ readonly code: string; readonly name: string }>>;
   readonly languages: ExportGateway['getLanguages'];
   readonly units: ExportGateway['getUnits'];
@@ -226,7 +233,8 @@ function exportSteps(
     amountStep<ExportFlowState>({
       amount: fieldLens('amount'),
       dependsOn: ['moneda'],
-      message: (state) => amountQuestion('Monto total', state.currencyCode ?? 'DOL'),
+      currency: (state) => state.currencyCode ?? 'DOL',
+      label: 'Monto total',
     }),
     {
       name: 'descripcion',
@@ -288,7 +296,7 @@ function exportSteps(
       },
     },
     activityStep<ExportFlowState>({
-      activities: tables.activities,
+      activities: loaders.activities,
       activity: fieldLens('activity'),
       skip: () => configuredActivity !== undefined,
     }),
@@ -324,7 +332,8 @@ function exportSteps(
 
 /**
  * Vista previa, comando equivalente, confirmacion, emision y PDF: lo mismo para la factura y las notas E. Sin
- * `activity` (las notas la toman del asociado), el comando equivalente no la repite. Devuelve si se emitio.
+ * `activity` (las notas la toman del asociado), el comando equivalente no la repite. Devuelve si ARCA la autorizo
+ * (`isAuthorized`): un rechazo no es una emision.
  */
 export async function emitExportVoucher(
   session: InteractiveSession,
@@ -385,7 +394,7 @@ export async function emitExportVoucher(
     writeTerminalOutput(noticePanel('El comprobante ya quedó emitido; no se generó el PDF.', 'muted'));
   }
 
-  return true;
+  return isAuthorized(result.response);
 }
 
 /**
@@ -400,6 +409,7 @@ export async function runExportFlow(session: InteractiveSession): Promise<typeof
   const state = await runWizard<ExportFlowState>(
     withFinalizeNotice(
       exportSteps(tables, configuredActivity, {
+        activities: activitiesLoader(gateway),
         incoterms: () => gateway.getIncoterms(),
         languages: () => gateway.getLanguages(),
         units: () => gateway.getUnits(),
@@ -419,8 +429,8 @@ export async function runExportFlow(session: InteractiveSession): Promise<typeof
 
   const input = buildExportInput(state, { configuredActivity });
 
-  const emitted = await emitExportVoucher(session, gateway, input, input.activity);
+  const authorized = await emitExportVoucher(session, gateway, input, input.activity);
 
   // Guardar una actividad que no llego a ARCA (dejada sin emitir) no tiene sentido: no se sabe si la acepta.
-  await offerConfig(activityToSave(state.activity, configuredActivity, emitted));
+  await offerConfig(activityToSave(state.activity, configuredActivity, authorized));
 }

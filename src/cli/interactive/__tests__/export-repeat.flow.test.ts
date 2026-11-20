@@ -209,6 +209,34 @@ describe('runExportRepeatFlow', () => {
     expect(vi.mocked(attachExportPdf).mock.calls[0]?.[1].input.pdf).toBe(false);
   });
 
+  // La tabla de actividades la consulta el asistente solo si pregunta la actividad. Con la de la factura, la consulta la
+  // vista previa (`ExportService.resolve`, como `arcli fe --actividad`), una sola vez: si ARCA falla, falla ahi.
+  it('con la actividad en la factura, el asistente no consulta la tabla de actividades', async () => {
+    const activities = vi.spyOn(gateway, 'getActivities');
+    let asked = 0;
+
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      [/Mismo monto/, 'Sí'],
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, []],
+      [/Emitimos/, 'Sí, emitir ahora'],
+    ]);
+    script.askTextStep.mockImplementationOnce(async (...args) => {
+      asked = activities.mock.calls.length;
+
+      return script.askTextStep.getMockImplementation()?.(...args) as never;
+    });
+
+    await runExportRepeatFlow(createSession(), 4);
+
+    expect(asked).toBe(0);
+    expect(activities).toHaveBeenCalledOnce();
+    expect(gateway.authorize).toHaveBeenCalledWith(
+      expect.objectContaining({ Actividades: { Actividad: [{ Id: 620100 }] } }),
+    );
+  });
+
   it('en servicios pregunta la fecha de pago, que en bienes no va (ARCA la rechaza, 1673)', async () => {
     const services: ExportIssuedVoucher = { ...INVOICE, exportType: 2, incoterm: undefined };
     const original = vi.mocked(gateway.getVoucher).getMockImplementation();

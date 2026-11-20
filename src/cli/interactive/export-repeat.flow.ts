@@ -15,8 +15,7 @@ import {
   exportRepeatRuleScope,
   type ExportRepeatState,
 } from '../../modules/interactive/export-repeat-input';
-import { amountQuestion } from '../../modules/interactive/steps/amount';
-import { activityToSave } from '../../modules/interactive/steps/config-offer';
+import { repeatActivityToSave } from '../../modules/interactive/steps/config-offer';
 import { nestedLens } from '../../modules/interactive/steps/lens';
 import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
@@ -27,10 +26,16 @@ import { askCountryCuit, exportOptionalsStep } from './export-options';
 import { withFinalizeNotice } from './finalize-notice';
 import { pickExportVoucher } from './invoice-picker';
 import { chooseStep } from './prompts';
+import { offerConfig } from './save-to-config';
 import type { InteractiveSession } from './session';
 import { amountStep } from './steps/amount';
-import { offerConfig } from './steps/cbu';
-import { activityStep, exportPaymentDateStep, type ExportTables, loadExportTables } from './steps/export';
+import {
+  activitiesLoader,
+  activityStep,
+  exportPaymentDateStep,
+  type ExportTables,
+  loadExportTables,
+} from './steps/export';
 import { sameAmountStep } from './steps/same-amount';
 
 /** Las tablas de WSFEX para el destino de la factura, su CUIT y la actividad, como en "Emitir factura". */
@@ -58,11 +63,12 @@ function optionsOf(copy: ExportInvoiceCopy['input']): ExportOptions {
  */
 export function exportRepeatSteps(
   session: InteractiveSession,
-  gateway: Pick<ExportGateway, 'getLanguages' | 'getLastVoucherNumber' | 'getUnits' | 'getVoucher'>,
+  gateway: Pick<ExportGateway, 'getActivities' | 'getLanguages' | 'getLastVoucherNumber' | 'getUnits' | 'getVoucher'>,
   tables: ExportRepeatTables,
   pointOfSale: number,
 ): Array<WizardStep<ExportRepeatState>> {
   const configuredActivity = session.runtime.config.exportacion?.actividad;
+  const activities = activitiesLoader(gateway);
   const copyAmount = nestedLens<ExportRepeatState, 'copy', 'amount'>('copy', 'amount', (state) =>
     requireStepValue(state.copy, 'copy'),
   );
@@ -124,7 +130,8 @@ export function exportRepeatSteps(
     amountStep<ExportRepeatState>({
       amount: copyAmount,
       dependsOn: ['factura'],
-      message: (state) => amountQuestion('Monto total', requireStepValue(state.original, 'original').currencyCode),
+      currency: (state) => requireStepValue(state.original, 'original').currencyCode,
+      label: 'Monto total',
       skip: (state) => state.sameAmount === true,
       write: (amount, state) => {
         const original = requireStepValue(state.original, 'original');
@@ -193,7 +200,7 @@ export function exportRepeatSteps(
     },
     // La factura no trae actividad y tampoco esta en la config. Con la misma tabla que "Emitir factura" (REV-74, #11).
     activityStep<ExportRepeatState>({
-      activities: tables.activities,
+      activities,
       activity: nestedLens('copy', 'activity', (state) => requireStepValue(state.copy, 'copy')),
       skip: (state) => state.copy?.activity !== undefined || configuredActivity !== undefined,
     }),
@@ -263,10 +270,8 @@ export async function runExportRepeatFlow(
 
   const configuredActivity = session.runtime.config.exportacion?.actividad;
   const input = buildExportRepeatInput(state, { configuredActivity });
-  const emitted = await emitExportVoucher(session, gateway, input, input.activity);
+  const authorized = await emitExportVoucher(session, gateway, input, input.activity);
 
-  // Como en "Emitir factura": la actividad escrita a mano se ofrece guardar si se emitio (REV-74, #11).
-  if (state.original?.activities[0] === undefined) {
-    await offerConfig(activityToSave(state.copy?.activity, configuredActivity, emitted));
-  }
+  // Como en "Emitir factura": la actividad escrita a mano se ofrece guardar si ARCA la autorizo (REV-74, #11).
+  await offerConfig(repeatActivityToSave(state, configuredActivity, authorized));
 }

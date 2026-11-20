@@ -9,6 +9,7 @@ import type { BillingCommandInput } from '../../modules/billing/billing.schemas'
 import { BillingService } from '../../modules/billing/billing.service';
 import type { BillingGateway } from '../../modules/billing/billing.types.internal';
 import { buildEquivalentCommand } from '../../modules/interactive/equivalent-command';
+import { isAuthorized } from '../../modules/interactive/steps/config-offer';
 import { BACK } from '../../modules/interactive/wizard';
 import {
   type EmissionChoice,
@@ -156,8 +157,8 @@ export function formatEquivalentCommand(command: string): string {
 /**
  * Paso final comun a todos los flujos: vista previa, comando equivalente, confirmacion y emision.
  * Usa BillingService igual que los comandos con flags, asi que valida y emite exactamente lo mismo.
- * `flowWarnings` son avisos que solo sabe el flujo, como el de un asociado de otro sistema en una nota. Devuelve si se
- * emitio: lo que se ofrece guardar en la config (el CBU de la FCE) solo se ofrece si llego a ARCA.
+ * `flowWarnings` son avisos que solo sabe el flujo, como el de un asociado de otro sistema en una nota. Devuelve si ARCA
+ * lo autorizo (`isAuthorized`): lo que se ofrece guardar en la config (el CBU de la FCE) solo se ofrece entonces.
  */
 export async function previewAndEmit(
   session: InteractiveSession,
@@ -229,10 +230,10 @@ export async function previewAndEmit(
       formatBillingOutputs([result], { environment: runtime.environment, previewShown: true, raw: false }),
     );
     await offerPdf(runtime.config, { ...input, pdf: resolvePdfAfterConfirmation(input.pdf, emission) }, result);
+
+    return isAuthorized(result.response);
   } catch (error) {
     spinner?.stop();
     throw error;
   }
-
-  return true;
 }

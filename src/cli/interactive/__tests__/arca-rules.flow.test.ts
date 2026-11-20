@@ -169,6 +169,38 @@ describe('reglas de ARCA en el asistente (#220)', () => {
       );
     });
 
+    // Un rechazo no es una emision (#16): el CBU escrito a mano no se ofrece guardar.
+    it('una FCE rechazada por ARCA no ofrece guardar el CBU escrito a mano', async () => {
+      script = createScript([
+        [/comprobante/, 'Factura de crédito electrónica B'],
+        [/A quién/, 'Con CUIT'],
+        [/CUIT del receptor/, '30-70996581-2'],
+        [/Condición frente al IVA/, 'Sujeto exento'],
+        [/Qué estás facturando/, 'Productos'],
+        [/Monto total/, '12100'],
+        [/CBU/, '0110599520000012345678'],
+        [/Alias del CBU/, ''],
+        [/Agregamos/, []],
+        [/Emitimos/, 'Sí, emitir ahora'],
+      ]);
+
+      const { billingGateway, session } = createSession();
+
+      billingGateway.createVoucher.mockResolvedValueOnce({
+        cae: '',
+        caeFchVto: '',
+        response: {
+          Errors: { Err: [{ Code: 10015, Msg: 'Rechazado' }] },
+          FeDetResp: { FECAEDetResponse: [{ Resultado: 'R' }] },
+        },
+      });
+
+      await runInvoiceFlow(session);
+
+      expect(billingGateway.createVoucher).toHaveBeenCalledOnce();
+      expect(script.asked.some((message) => /Guardamos el CBU/.test(message))).toBe(false);
+    });
+
     it('una FCE B a un CUIT llega a la vista previa con `--cuit` en el comando equivalente', async () => {
       script = createScript([
         [/comprobante/, 'Factura de crédito electrónica B'],
@@ -288,6 +320,12 @@ describe('reglas de ARCA en el asistente (#220)', () => {
         [/Moneda del comprobante/, 'Euros (EUR)'],
         [/Cómo te pagan/, 'En pesos'],
         [/Cotización de EUR/, rate],
+        // Se escribio en pesos y se cambio a euros: vuelve al monto (REV-74, #12).
+        [/Monto total en EUR/, '100'],
+        [/Agregamos/, ['Moneda extranjera']],
+        [/Moneda del comprobante/, 'Euros (EUR)'],
+        [/Cómo te pagan/, 'En pesos'],
+        [/Cotización de EUR/, rate],
       ]);
 
       const { billingGateway, session } = createSession([], 1000);
@@ -306,6 +344,12 @@ describe('reglas de ARCA en el asistente (#220)', () => {
         [/A quién/, 'Consumidor final'],
         [/Qué estás facturando/, 'Servicios'],
         [/Monto total/, '100'],
+        [/Agregamos/, ['Moneda extranjera']],
+        [/Moneda del comprobante/, 'Euros (EUR)'],
+        [/Cómo te pagan/, 'En pesos'],
+        [/Cotización de EUR/, '1.450,50'],
+        // Se escribio en pesos y se cambio a euros: vuelve al monto (REV-74, #12).
+        [/Monto total en EUR/, '100'],
         [/Agregamos/, ['Moneda extranjera']],
         [/Moneda del comprobante/, 'Euros (EUR)'],
         [/Cómo te pagan/, 'En pesos'],

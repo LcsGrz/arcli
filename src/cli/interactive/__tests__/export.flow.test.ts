@@ -800,6 +800,39 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
     expect(printed()).toMatch(/1580|CUIT del país/);
   });
 
+  // Un rechazo no es una emision (#11, #16): la actividad escrita a mano no se ofrece guardar.
+  it('si ARCA rechaza la E, no ofrece guardar la actividad escrita', async () => {
+    savedConfig.mockClear();
+    vi.mocked(gateway.authorize).mockResolvedValueOnce({
+      FEXAuthorizeResult: {
+        FEXErr: { ErrCode: 1580, ErrMsg: 'Debe informar el CUIT del país o el ID impositivo' },
+        FEXEvents: { EventCode: 0, EventMsg: '' },
+      },
+    } as IFEXAuthorizeOutput);
+    script = createScript([
+      [/cliente del exterior/, 'ACME LLC'],
+      [/Domicilio/, '123 Main St'],
+      [/País de destino/, '212'],
+      [/ID impositivo/, ''],
+      [/Qué exportás/, 'Servicios'],
+      [/moneda/, 'Dólares'],
+      [/Te pagan en dólares/, 'Sí'],
+      [/Monto total/, '1.500'],
+      [/Descripción/, ''],
+      [/Forma de pago/, ''],
+      [/actividad/, '620100'],
+      [/Agregamos algún opcional/, []],
+      [/Fecha de pago/, ''],
+      [/Emitimos/, 'Sí, emitir ahora'],
+    ]);
+
+    await runExportFlow(createSession()).catch(() => undefined);
+
+    expect(gateway.authorize).toHaveBeenCalled();
+    expect(script.asked.some((message) => /Guardamos la actividad/.test(message))).toBe(false);
+    expect(savedConfig).not.toHaveBeenCalled();
+  });
+
   it('con el PDF generado, muestra dónde quedó', async () => {
     vi.mocked(attachExportPdf).mockImplementationOnce(
       async (result) =>

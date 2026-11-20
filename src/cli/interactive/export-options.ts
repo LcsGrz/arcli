@@ -34,6 +34,7 @@ import { withSpinner } from '../spinner';
 
 import { optionalsStep } from './optionals-step';
 import { askTextStep, chooseStep } from './prompts';
+import { dateStep } from './steps/date';
 import { validateExchangeRate, validateExportVoucherDate, validateOptionalDate } from './validators';
 
 /**
@@ -399,27 +400,25 @@ function exportQuestions(languageNames: Map<number, string>): ExportOptionalQues
       },
     ],
     fecha: (context) => [
-      {
-        // Con las reglas de `--fecha`. Se guarda completa (dd/mm/aaaa): el comando equivalente pegado otro dia sigue
-        // emitiendo con la misma fecha. La cotizacion la busca ExportService para esa fecha.
-        name: 'fecha',
-        writes: ['voucherDate'],
-        run: async (current, previous) => {
-          const answer = await askTextStep('Fecha del comprobante:', {
-            previousAnswer: previous?.voucherDate,
-            // La ventana de ARCA y, en las notas, no antes del asociado (`EXPORT_RULES`).
-            validate: scopedRuleValidator(
-              EXPORT_RULES,
-              'voucherDate',
-              context.rules,
-              (value) => ({ ...current, voucherDate: completeDateInput(value) }),
-              (value) => validateExportVoucherDate(value, context.exportType),
-            ),
-          });
-
-          return answer === BACK ? BACK : { voucherDate: completeDateInput(answer) };
+      // Con las reglas de `--fecha`, guardada completa (`dateStep`). La cotizacion la busca ExportService para esa fecha.
+      dateStep<ExportOptions>({
+        date: {
+          get: (current) => current.voucherDate,
+          set: (voucherDate) => ({ voucherDate }),
         },
-      },
+        message: 'Fecha del comprobante:',
+        name: 'fecha',
+        // La ventana de ARCA y, en las notas, no antes del asociado (`EXPORT_RULES`).
+        validate: (current) =>
+          scopedRuleValidator(
+            EXPORT_RULES,
+            'voucherDate',
+            context.rules,
+            (value) => ({ ...current, voucherDate: completeDateInput(value) }),
+            (value) => validateExportVoucherDate(value, context.exportType),
+          ),
+        writes: ['voucherDate'],
+      }),
     ],
     idioma: (context) => [
       {

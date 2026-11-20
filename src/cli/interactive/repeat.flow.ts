@@ -21,7 +21,6 @@ import {
 } from '../../modules/interactive/invoice-input';
 import { defaultIvaRate } from '../../modules/interactive/iva-rate';
 import { scopedRuleValidator } from '../../modules/interactive/rule-validator';
-import { amountQuestion } from '../../modules/interactive/steps/amount';
 import { foreignCurrencyOf, repeatCurrencyLock } from '../../modules/interactive/steps/currency';
 import { fieldLens, nestedLens } from '../../modules/interactive/steps/lens';
 import { BACK, type Back, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
@@ -31,13 +30,13 @@ import { noticePanel, writeTerminalOutput } from '../../ui';
 import { billingOptionalsGroup, billingOptionalsStep } from './advanced-options';
 import { runExportRepeatFlow } from './export-repeat.flow';
 import { withFinalizeNotice } from './finalize-notice';
-import { invoiceConsumer, invoiceConsumerAmount } from './invoice.flow';
+import { invoiceAmountRetry, invoiceConsumer, invoiceConsumerAmount } from './invoice.flow';
 import { pickInvoice } from './invoice-picker';
 import { markIfNew } from './new-mark';
 import { exchangeRateSuggestionLoader, officialExchangeRateLoader } from './official-exchange-rate';
 import { askTextStep, chooseStep } from './prompts';
 import { type InteractiveSession, previewAndEmit, requirePointOfSale } from './session';
-import { amountStep, billingAmountValidator } from './steps/amount';
+import { type AmountCurrencyRetry, amountStep, billingAmountValidator } from './steps/amount';
 import { cbuSteps, offerSavingCbu } from './steps/cbu';
 import { consumerIdentificationSteps } from './steps/consumer';
 import { currencySteps } from './steps/currency';
@@ -80,6 +79,7 @@ export function repeatSteps(
   session: InteractiveSession,
   pointOfSale: number,
   today: Date = new Date(),
+  retry: AmountCurrencyRetry<RepeatState> = invoiceAmountRetry(),
 ): Array<WizardStep<RepeatState>> {
   const { config } = session.runtime;
   const rules = (state: RepeatState) => invoiceRuleScope(state, billingRuleEnv(session.runtime));
@@ -243,7 +243,10 @@ export function repeatSteps(
     amountStep<RepeatState>({
       amount: fieldLens('totalAmount'),
       dependsOn: ['factura'],
-      message: (state) => amountQuestion('Monto total', foreignCurrencyOf(state.original)),
+      currency: (state) => foreignCurrencyOf(state.original),
+      label: 'Monto total',
+      // En pesos, los opcionales pueden cambiar la moneda despues: `finalize` vuelve aca si cambio.
+      retry,
       skip: (state) => state.sameAmount === true,
       validate: (state) =>
         billingAmountValidator(
@@ -337,19 +340,19 @@ export async function runRepeatFlow(baseSession: InteractiveSession): Promise<vo
   }
 
   const { pointOfSale, session } = ready;
-
+  const retry = invoiceAmountRetry<RepeatState>();
   const state = await runWizard(
-    repeatSteps(session, pointOfSale),
+    repeatSteps(session, pointOfSale, new Date(), retry),
     { advanced: { currencyCode: DEFAULT_CURRENCY_CODE, sameCurrency: false } },
     undefined,
-    { finalize: invoiceFinalize<RepeatState>(() => billingRuleEnv(session.runtime)) },
+    { finalize: retry.finalize(invoiceFinalize<RepeatState>(() => billingRuleEnv(session.runtime))) },
   );
 
   if (!state || state.exported) {
     return;
   }
 
-  const emitted = await previewAndEmit(session, buildInvoiceInput(state, session.runtime));
+  const authorized = await previewAndEmit(session, buildInvoiceInput(state, session.runtime));
 
-  await offerSavingCbu(session.runtime.config, state, emitted);
+  await offerSavingCbu(session.runtime.config, state, authorized);
 }

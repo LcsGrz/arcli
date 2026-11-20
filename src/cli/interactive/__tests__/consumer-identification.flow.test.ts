@@ -358,6 +358,14 @@ describe('consumidor final con datos en el asistente (REV-66)', () => {
         [/Cotización de USD/, '1.000'],
         [/Documento del consumidor final/, 'DNI'],
         [/DNI del consumidor final/, '30123456'],
+        // Se escribio en pesos y se cambio a dólares: vuelve al monto (REV-74, #12).
+        [/Monto total en USD/, '10.000'],
+        [/Agregamos/, ['Moneda extranjera']],
+        [/Moneda del comprobante/, '(USD)'],
+        [/Cómo te pagan/, 'En pesos'],
+        [/Cotización de USD/, '1.000'],
+        [/Documento del consumidor final/, 'DNI'],
+        [/DNI del consumidor final/, '30123456'],
         [/Emitimos/, 'No, dejar sin emitir'],
       ]);
 
@@ -382,6 +390,12 @@ describe('consumidor final con datos en el asistente (REV-66)', () => {
         [/Moneda del comprobante/, '(USD)'],
         [/Cómo te pagan/, 'En pesos'],
         [/Cotización de USD/, '999'],
+        // Se escribio en pesos y se cambio a dólares: vuelve al monto (REV-74, #12).
+        [/Monto total en USD/, '10.000'],
+        [/Agregamos/, ['Moneda extranjera']],
+        [/Moneda del comprobante/, '(USD)'],
+        [/Cómo te pagan/, 'En pesos'],
+        [/Cotización de USD/, '999'],
         [/Emitimos/, 'No, dejar sin emitir'],
       ]);
 
@@ -393,6 +407,13 @@ describe('consumidor final con datos en el asistente (REV-66)', () => {
     it('cobrada en dólares: consulta la cotización oficial y, si llega al tope, lo pide', async () => {
       script = createScript([
         ...facturaC('10.000'),
+        [/Agregamos/, ['Moneda extranjera']],
+        [/Moneda del comprobante/, '(USD)'],
+        [/Cómo te pagan/, 'En dólares'],
+        [/Documento del consumidor final/, 'CUIL'],
+        [/CUIL del consumidor final/, '20-12345678-6'],
+        // Se escribio en pesos y se cambio a dólares: vuelve al monto (REV-74, #12).
+        [/Monto total en USD/, '10.000'],
         [/Agregamos/, ['Moneda extranjera']],
         [/Moneda del comprobante/, '(USD)'],
         [/Cómo te pagan/, 'En dólares'],
@@ -415,6 +436,11 @@ describe('consumidor final con datos en el asistente (REV-66)', () => {
         [/Agregamos/, ['Moneda extranjera']],
         [/Moneda del comprobante/, '(USD)'],
         [/Cómo te pagan/, 'En dólares'],
+        // Se escribio en pesos y se cambio a dólares: vuelve al monto (REV-74, #12).
+        [/Monto total en USD/, '10.000'],
+        [/Agregamos/, ['Moneda extranjera']],
+        [/Moneda del comprobante/, '(USD)'],
+        [/Cómo te pagan/, 'En dólares'],
         [/Emitimos/, 'No, dejar sin emitir'],
       ]);
 
@@ -427,6 +453,14 @@ describe('consumidor final con datos en el asistente (REV-66)', () => {
     it('ya identificado en los opcionales: no lo vuelve a pedir', async () => {
       script = createScript([
         ...facturaC('10.000'),
+        [/Agregamos/, ['Datos del consumidor final', 'Moneda extranjera']],
+        [/Documento del consumidor final/, 'DNI'],
+        [/DNI del consumidor final/, '30123456'],
+        [/Moneda del comprobante/, '(USD)'],
+        [/Cómo te pagan/, 'En pesos'],
+        [/Cotización de USD/, '1.500'],
+        // Se escribio en pesos y se cambio a dólares: vuelve al monto (REV-74, #12).
+        [/Monto total en USD/, '10.000'],
         [/Agregamos/, ['Datos del consumidor final', 'Moneda extranjera']],
         [/Documento del consumidor final/, 'DNI'],
         [/DNI del consumidor final/, '30123456'],

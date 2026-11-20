@@ -74,7 +74,11 @@ describe.each<VoucherShortcut>(['fa', 'fb', 'fc', 'fcea', 'fceb', 'fcec', 'rc'])
     it('acepta el total justo', async () => {
       script = createScript([[/Monto de la nota de crédito/, '121']]);
 
-      await expect(amountStep(shortcut)()).resolves.toEqual({ annulsTotal: false, totalAmount: 121 });
+      await expect(amountStep(shortcut)()).resolves.toEqual({
+        amountCurrency: 'ARS',
+        annulsTotal: false,
+        totalAmount: 121,
+      });
     });
   },
 );

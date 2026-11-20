@@ -18,23 +18,37 @@ import { validatePositiveInteger } from '../validators';
 import { dateStep } from './date';
 
 /**
- * Lo que la E necesita de WSFEX antes de preguntar: los paises para validar el destino, sus CUIT y la tabla de
- * actividades. La cargan "Emitir factura E" y "Repetir" E.
+ * Lo que la E necesita de WSFEX antes de preguntar: los paises para validar el destino y sus CUIT. La cargan "Emitir
+ * factura E" y "Repetir" E. La tabla de actividades se consulta recien si se pregunta la actividad (`activitiesLoader`).
  */
 export interface ExportTables {
-  readonly activities: readonly ExportActivity[];
   readonly countries: readonly ExportCountry[];
   readonly countryCuits: readonly ExportCountryCuit[];
 }
 
 export function loadExportTables(
-  gateway: Pick<ExportGateway, 'getActivities' | 'getDestinationCountries' | 'getDestinationCountryCuits'>,
+  gateway: Pick<ExportGateway, 'getDestinationCountries' | 'getDestinationCountryCuits'>,
 ): Promise<ExportTables> {
   return withSpinner('Consultando las tablas de WSFEX...', async () => ({
-    activities: await gateway.getActivities(),
     countries: await gateway.getDestinationCountries(),
     countryCuits: await gateway.getDestinationCountryCuits(),
   }));
+}
+
+/**
+ * La tabla de actividades de WSFEX, una vez por flujo y solo cuando se pregunta la actividad: si la factura que se
+ * repite la trae o esta en la config, no se consulta (y una falla de ARCA en esa tabla no corta el flujo).
+ */
+export function activitiesLoader(
+  gateway: Pick<ExportGateway, 'getActivities'>,
+): () => Promise<readonly ExportActivity[]> {
+  let loaded: Promise<readonly ExportActivity[]> | undefined;
+
+  return () => {
+    loaded ??= withSpinner('Consultando las actividades de WSFEX...', () => gateway.getActivities());
+
+    return loaded;
+  };
 }
 
 /**
@@ -57,7 +71,8 @@ function validateActivity(activities: readonly ExportActivity[]): (value: string
 
 export interface ActivityStepDef<S> {
   readonly activity: Lens<S, number>;
-  readonly activities: readonly ExportActivity[];
+  /** La tabla de WSFEX (`activitiesLoader`): se consulta al preguntar. */
+  readonly activities: () => Promise<readonly ExportActivity[]>;
   readonly skip: (state: S) => boolean;
 }
 
@@ -70,9 +85,10 @@ export function activityStep<S>(def: ActivityStepDef<S>): WizardStep<S> {
     name: 'actividad',
     run: async (state, previous) => {
       const typed = previous ? def.activity.get(previous as S) : undefined;
+      const activities = await def.activities();
       const answer = await askTextStep('Código de actividad de WSFEX, por ejemplo 620100 (Enter para no informarla):', {
         previousAnswer: typed === undefined ? undefined : String(typed),
-        validate: validateActivity(def.activities),
+        validate: validateActivity(activities),
       });
 
       return answer === BACK ? BACK : def.activity.set(answer.trim() ? parseStrictInteger(answer) : undefined, state);

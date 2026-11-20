@@ -6,7 +6,6 @@ import {
   type BillingOptionalsContext,
 } from '../../../modules/interactive/billing-optionals';
 import { availableChoice } from '../../../modules/interactive/choices';
-import { reachesConsumerThreshold } from '../../../modules/interactive/consumer-identification';
 import {
   consumerDocumentChoices,
   type ConsumerDocumentType,
@@ -18,7 +17,7 @@ import {
   type ConsumerAmount,
   needsOfficialRate,
   officialRateQuery,
-  withOfficialRate,
+  withOfficialRequirement,
 } from '../../../modules/interactive/steps/consumer';
 import { BACK, type Back, type WizardStep } from '../../../modules/interactive/wizard';
 import { noticePanel, writeTerminalOutput } from '../../../ui';
@@ -115,13 +114,7 @@ export function consumerIdentificationSteps<S>(
     const base = group.context(state);
 
     return official && base.consumer
-      ? {
-          ...base,
-          consumer: {
-            ...base.consumer,
-            required: reachesConsumerThreshold(withOfficialRate(def.amount(state), known(state))),
-          },
-        }
+      ? { ...base, consumer: withOfficialRequirement(base.consumer, def.amount(state), known(state)) }
       : base;
   };
 

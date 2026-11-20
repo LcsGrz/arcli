@@ -286,6 +286,13 @@ describe('golden de pantallas: factura A', () => {
       [/Moneda del comprobante/, 'Dólar'],
       [/Cómo te pagan/, 'En pesos'],
       [/Cotización de USD/, '1.420,50'],
+      // El monto se escribio en pesos: vuelve a pedirlo en dólares (REV-74, #12).
+      [/Monto total en USD/, '1.000'],
+      [/Agregamos/, ['Moneda extranjera', 'Fecha del comprobante']],
+      [/Fecha del comprobante/, '17/11/2026'],
+      [/Moneda del comprobante/, 'Dólar'],
+      [/Cómo te pagan/, 'En pesos'],
+      [/Cotización de USD/, '1.420,50'],
       NO_EMIT,
     ]));
 
@@ -644,6 +651,11 @@ describe('golden de pantallas: nota por período', () => {
       'nota-periodo/opcionales-marcados',
       [
         ...ncPorPeriodo,
+        [/Agregamos/, ['Moneda extranjera']],
+        [/Moneda del comprobante/, 'Dólar'],
+        [/Cómo te pagan/, 'En dólares'],
+        // El monto se escribio en pesos: vuelve a pedirlo en dólares (REV-74, #12).
+        [/Monto de la nota de crédito en USD/, '1.000'],
         [/Agregamos/, ['Moneda extranjera']],
         [/Moneda del comprobante/, 'Dólar'],
         [/Cómo te pagan/, 'En dólares'],

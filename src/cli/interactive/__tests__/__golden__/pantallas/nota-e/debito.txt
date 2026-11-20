@@ -31,7 +31,7 @@
 
 └                                                                                          ┘
 
-? [texto] Monto de la nota de débito de exportación E (DOL):
+? [texto] Monto de la nota de débito de exportación E en USD:
   = "150"
 
 ? [texto] Detalle de la nota (Enter para "Según detalle"):

@@ -711,6 +711,12 @@ describe('auditoría del asistente del 19/11: una sola salida (NAV-4)', () => {
     [/Moneda del comprobante/, '(USD)'],
     [/Cómo te pagan/, 'En pesos'],
     [/Cotización de USD/, rate],
+    // El monto se escribio en pesos: vuelve a pedirlo en dólares (REV-74, #12).
+    [/Monto total en USD/, '100'],
+    [/Agregamos/, ['Moneda extranjera']],
+    [/Moneda del comprobante/, '(USD)'],
+    [/Cómo te pagan/, 'En pesos'],
+    [/Cotización de USD/, rate],
     NO_EMIT,
   ];
 
@@ -777,7 +783,9 @@ describe('auditoría del asistente del 19/11: una sola salida (NAV-4)', () => {
       vi.mocked(session.billingGateway.getQuotation).mockRejectedValue(new Error('Sin conexión'));
     });
 
-    const [message, options] = officialRateQuestion() ?? [];
+    // La primera vez: al volver al monto (cambio la moneda) la cotizacion arranca con la escrita.
+    const [message, options] =
+      screens.script.askTextStep.mock.calls.find(([question]) => /^Cotización de USD/.test(question)) ?? [];
 
     expect(message).toBe('Cotización de USD:');
     expect(options?.previousAnswer).toBeUndefined();
@@ -897,5 +905,237 @@ describe('auditoría del asistente del 19/11: pasos compartidos (NAV-6)', () => 
       runRepeatFlow,
     );
     expect(offersCurrency()).toBe(false);
+  });
+
+  // #12 (revision de NAV-6): el monto se escribio en la moneda que nombraba la pregunta; si los opcionales la cambian, el
+  // asistente vuelve al monto con el aviso y la pregunta nombra la moneda nueva.
+  describe('#12: si los opcionales cambian la moneda, el monto se vuelve a escribir', () => {
+    const inPesosNotice = 'Cambiaste la moneda a pesos: escribí el monto en pesos.';
+    const inEurosNotice = 'Cambiaste la moneda a EUR: escribí el monto en EUR.';
+    const toEuros = (rate: string): Steps => [
+      [/Moneda del comprobante/, 'Euros (EUR)'],
+      [/Cómo te pagan/, 'En pesos'],
+      [/Cotización de EUR/, rate],
+    ];
+
+    it('A: escrito en USD (la de la config) y pasado a pesos: va en pesos, con el monto escrito en pesos', async () => {
+      const { billingPayload } = await run(
+        [
+          [/comprobante/, 'Factura C'],
+          [/A quién/, 'Consumidor final'],
+          [/Qué estás facturando/, 'Servicios'],
+          [/^Monto total en USD:$/, '1.000'],
+          [/Agregamos/, ['Moneda extranjera']],
+          [/Moneda del comprobante/, 'Pesos'],
+          [/^Monto total:$/, '150.000'],
+          [/Agregamos/, ['Moneda extranjera']],
+          [/Moneda del comprobante/, 'Pesos'],
+          NO_EMIT,
+        ],
+        runInvoiceFlow,
+        { monedaPorDefecto: 'USD' },
+      );
+
+      expect(printedText()).toContain(inPesosNotice);
+      expect(billingPayload).toMatchObject({ ImpTotal: 150000, MonCotiz: 1, MonId: 'PES' });
+    });
+
+    it('B: escrito en pesos y pasado a euros: va en euros, con el monto escrito en euros', async () => {
+      const { billingPayload } = await run(
+        [
+          [/comprobante/, 'Factura C'],
+          [/A quién/, 'Consumidor final'],
+          [/Qué estás facturando/, 'Servicios'],
+          [/^Monto total:$/, '10'],
+          [/Agregamos/, ['Moneda extranjera']],
+          ...toEuros('1.500'),
+          [/^Monto total en EUR:$/, '100'],
+          [/Agregamos/, ['Moneda extranjera']],
+          ...toEuros('1.500'),
+          NO_EMIT,
+        ],
+        runInvoiceFlow,
+      );
+
+      expect(printedText()).toContain(inEurosNotice);
+      expect(billingPayload).toMatchObject({ ImpTotal: 100, MonCotiz: 1500, MonId: '060' });
+    });
+
+    it('en "Repetir" en pesos con otro monto, igual', async () => {
+      const { billingPayload } = await run(
+        [
+          [/Qué comprobante querés repetir/, 'Factura C'],
+          [/Cuál repetimos/, '00003-00000014'],
+          [/Mismo monto/, 'No'],
+          [/^Monto total:$/, '10'],
+          [/Período del servicio/, 'Este mes'],
+          [/Agregamos/, ['Moneda extranjera']],
+          ...toEuros('1.500'),
+          [/^Monto total en EUR:$/, '100'],
+          [/Período del servicio/, 'Este mes'],
+          [/Agregamos/, ['Moneda extranjera']],
+          ...toEuros('1.500'),
+          NO_EMIT,
+        ],
+        runRepeatFlow,
+      );
+
+      expect(printedText()).toContain(inEurosNotice);
+      expect(billingPayload).toMatchObject({ ImpTotal: 100, MonCotiz: 1500, MonId: '060' });
+    });
+  });
+
+  describe('#12 en la factura E: el monto depende de la moneda', () => {
+    const untilAmount: Steps = [
+      [/comprobante/, 'Factura de exportación E'],
+      [/cliente del exterior/, 'ACME LLC'],
+      [/Domicilio/, '123 Main St'],
+      [/País de destino/, 'estados unidos'],
+      [/ID impositivo/, '12-3456789'],
+      [/Qué exportás/, 'Servicios'],
+      [/moneda/, 'Dólares'],
+      [/Te pagan en dólares/, 'Sí'],
+      [/^Monto total en USD:$/, '1.500'],
+      [/Descripción/, BACK],
+      [/^Monto total en USD:$/, BACK],
+    ];
+    const rest: Steps = [
+      [/Descripción/, ''],
+      [/Forma de pago/, ''],
+      [/actividad/, '620100'],
+      [/Agregamos/, []],
+      [/Fecha de pago/, ''],
+      NO_EMIT,
+    ];
+
+    it('otra moneda: "Monto total:" arranca vacío', async () => {
+      await run(
+        [...untilAmount, [/Te pagan en dólares/, BACK], [/moneda/, 'Pesos'], [/^Monto total:$/, '1.500'], ...rest],
+        runInvoiceFlow,
+      );
+
+      expect(lastQuestion(/^Monto total:$/)?.[1]?.previousAnswer).toBeUndefined();
+    });
+
+    it('solo cambiar "¿Te pagan en dólares?": el monto arranca con 1.500', async () => {
+      await run(
+        [...untilAmount, [/Te pagan en dólares/, 'No, en pesos'], [/^Monto total en USD:$/, '1.500'], ...rest],
+        runInvoiceFlow,
+      );
+
+      expect(lastQuestion(/^Monto total en USD:$/)?.[1]?.previousAnswer).toBe('1500');
+    });
+  });
+
+  it('#12 en las notas: la nota sobre una factura en dólares nombra la moneda', async () => {
+    await run(
+      [
+        [/Sobre qué comprobante/, 'Facturas'],
+        [/Qué factura\?/, 'Factura C'],
+        [/A qué la asociamos/, 'A una factura'],
+        [/Sobre qué factura C/, '00003-00000015'],
+        [/En qué moneda va la nota/, 'En DOL'],
+        [/Total o parcial/, 'Parcial'],
+        [/^Monto de la nota de crédito en USD:$/, '100'],
+        [/Agregamos/, []],
+        NO_EMIT,
+      ],
+      (session) => runNoteFlow(session, 'credito'),
+    );
+  });
+
+  // Los datos del consumidor final son del receptor: con otro receptor, lo escrito se descarta (docs/modo-interactivo.md).
+  it('cambiar a otro receptor y seguir descarta el documento del consumidor final', async () => {
+    await run(
+      [
+        [/comprobante/, 'Factura C'],
+        [/A quién/, 'Consumidor final'],
+        [/Qué estás facturando/, 'Servicios'],
+        [/Monto total/, '12.000.000'],
+        [/Documento del consumidor final/, 'DNI'],
+        [/DNI del consumidor final/, '30123456'],
+        [/Agregamos/, BACK],
+        [/DNI del consumidor final/, BACK],
+        [/Documento del consumidor final/, BACK],
+        [/Monto total/, BACK],
+        [/Qué estás facturando/, BACK],
+        [/A quién/, 'Con CUIL'],
+        [/CUIL del receptor/, '20-12345678-6'],
+        [/Condición frente al IVA/, 'Sujeto exento'],
+        [/Qué estás facturando/, 'Servicios'],
+        [/Monto total/, '1.000'],
+        [/Agregamos/, BACK],
+        [/Monto total/, BACK],
+        [/Qué estás facturando/, BACK],
+        [/Condición frente al IVA/, BACK],
+        [/CUIL del receptor/, BACK],
+        [/A quién/, 'Consumidor final'],
+        [/Qué estás facturando/, 'Servicios'],
+        [/Monto total/, '12.000.000'],
+        [/Documento del consumidor final/, 'CUIT'],
+        [/CUIT del consumidor final/, '20-30123456-3'],
+        [/Agregamos/, []],
+        NO_EMIT,
+      ],
+      runInvoiceFlow,
+    );
+
+    const documents = screens.script.chooseStep.mock.calls.filter(([message]) => /^Documento del/.test(message));
+
+    expect(documents.at(-1)?.[2]).toBeUndefined();
+  });
+
+  // Una nota sobre una factura de otro sistema: el receptor sale del punto de venta y el numero escritos.
+  it('en una nota sobre una factura de otro sistema, cambiar solo el número descarta el documento', async () => {
+    const otherSystem = (number: string): Steps => [
+      [/Sobre qué factura C/, 'Ingresar el número a mano'],
+      [/Punto de venta/, '50'],
+      [/^Número/, number],
+      [/^Fecha de la factura C 00050/, '10/11/2026'],
+      [/A quién va la nota/, 'Consumidor final'],
+      [/concepto ajusta/, 'Servicios'],
+      [/Monto de la nota de crédito/, '12.000.000'],
+    ];
+
+    await run(
+      [
+        [/Sobre qué comprobante/, 'Facturas'],
+        [/Qué factura\?/, 'Factura C'],
+        [/A qué la asociamos/, 'A una factura'],
+        ...otherSystem('99'),
+        [/Documento del consumidor final/, 'DNI'],
+        [/DNI del consumidor final/, '30123456'],
+        [/Agregamos/, BACK],
+        [/DNI del consumidor final/, BACK],
+        [/Documento del consumidor final/, BACK],
+        [/Monto de la nota de crédito/, BACK],
+        [/concepto ajusta/, BACK],
+        [/A quién va la nota/, BACK],
+        [/^Fecha de la factura C 00050/, BACK],
+        ...otherSystem('98'),
+        [/Documento del consumidor final/, 'DNI'],
+        [/DNI del consumidor final/, '30123456'],
+        [/Agregamos/, []],
+        NO_EMIT,
+      ],
+      (session) => runNoteFlow(session, 'credito'),
+      {},
+      (session) =>
+        Object.assign(session, {
+          arca: {
+            electronicBillingService: {
+              getSalesPoints: async () => ({
+                resultGet: { ptoVenta: [{ bloqueado: 'N', emisionTipo: 'CAE', nro: 3 }] },
+              }),
+            },
+          },
+        }),
+    );
+
+    const documents = screens.script.chooseStep.mock.calls.filter(([message]) => /^Documento del/.test(message));
+    const numbers = screens.script.askTextStep.mock.calls.filter(([message]) => /^DNI del consumidor/.test(message));
+
+    expect(documents.at(-1)?.[2]).toBeUndefined();
+    expect(numbers.at(-1)?.[1]?.previousAnswer).toBeUndefined();
   });
 });

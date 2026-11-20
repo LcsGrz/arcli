@@ -2,9 +2,17 @@ import { describe, expect, it } from 'vitest';
 
 import { CONSUMER_IDENTIFICATION_THRESHOLD } from '../../../billing/billing.iva-receptor';
 import { VOUCHER_KIND_MAP } from '../../../billing/voucher-kind-map';
-import { amountQuestion } from '../amount';
-import { activityToSave, cbuToSave } from '../config-offer';
-import { consumerContext, needsOfficialRate, officialRateQuery, withOfficialRate } from '../consumer';
+import type { ExportIssuedVoucher } from '../../../export/export.types';
+import { noteReceiverKey } from '../../note-input';
+import { AMOUNT_CURRENCY_FIELD, amountCurrencyCode, amountCurrencyFinalize, amountQuestion } from '../amount';
+import { activityToSave, cbuToSave, isAuthorized, repeatActivityToSave } from '../config-offer';
+import {
+  consumerContext,
+  needsOfficialRate,
+  officialRateQuery,
+  withOfficialRate,
+  withOfficialRequirement,
+} from '../consumer';
 import { foreignCurrencyOf, repeatCurrencyLock } from '../currency';
 import { fieldLens, nestedLens } from '../lens';
 
@@ -174,5 +182,78 @@ describe('lo que se ofrece guardar en la config (REV-74, #16)', () => {
     expect(activityToSave(620100, undefined, false)).toBeUndefined();
     expect(activityToSave(620100, 620100, true)).toBeUndefined();
     expect(activityToSave(undefined, undefined, true)).toBeUndefined();
+  });
+});
+
+describe('la moneda del monto (REV-74, #12)', () => {
+  it('se compara por su ISO, con pesos como ARS', () => {
+    expect(amountCurrencyCode('DOL')).toBe('USD');
+    expect(amountCurrencyCode('USD')).toBe('USD');
+    expect(amountCurrencyCode('PES')).toBe('ARS');
+    expect(amountCurrencyCode(undefined)).toBe('ARS');
+  });
+
+  it('si los opcionales la cambiaron, vuelve al monto con la moneda nueva', () => {
+    expect(amountCurrencyFinalize('USD', 'ARS')).toEqual({
+      field: AMOUNT_CURRENCY_FIELD,
+      message: 'Cambiaste la moneda a pesos: escribí el monto en pesos.',
+    });
+    expect(amountCurrencyFinalize('ARS', '060')).toEqual({
+      field: 'amountCurrency',
+      message: 'Cambiaste la moneda a EUR: escribí el monto en EUR.',
+    });
+  });
+
+  it('con la misma moneda, o sin el monto preguntado, no hay nada que volver a pedir', () => {
+    expect(amountCurrencyFinalize('USD', 'DOL')).toBeUndefined();
+    expect(amountCurrencyFinalize('ARS', undefined)).toBeUndefined();
+    expect(amountCurrencyFinalize('ARS', 'PES')).toBeUndefined();
+    expect(amountCurrencyFinalize(undefined, 'USD')).toBeUndefined();
+  });
+});
+
+describe('ARCA autorizo el comprobante', () => {
+  it('aprobado u observado, con CAE; rechazado o sin CAE, no', () => {
+    expect(isAuthorized({ cae: '86400940834693', status: 'aprobado' })).toBe(true);
+    expect(isAuthorized({ cae: '86400940834693', status: 'observado' })).toBe(true);
+    expect(isAuthorized({ cae: null, status: 'aprobado' })).toBe(false);
+    expect(isAuthorized({ cae: '86400940834693', status: 'rechazado' })).toBe(false);
+    expect(isAuthorized({ cae: null, status: 'previsualizacion' })).toBe(false);
+  });
+
+  it('en "Repetir" E, solo la actividad escrita: la copiada de la factura no se ofrece', () => {
+    const original = { activities: [] as number[] } as unknown as ExportIssuedVoucher;
+    const copy = { activity: 620100 } as never;
+
+    expect(repeatActivityToSave({ copy, original }, undefined, true)?.values).toEqual([
+      ['exportacion.actividad', '620100'],
+    ]);
+    expect(repeatActivityToSave({ copy, original: { ...original, activities: [620100] } }, undefined, true)).toBe(
+      undefined,
+    );
+    expect(repeatActivityToSave({ copy, original }, undefined, false)).toBeUndefined();
+    expect(repeatActivityToSave({}, undefined, true)).toBeUndefined();
+  });
+});
+
+describe('el consumidor final con la cotizacion oficial', () => {
+  it('la obligatoriedad se mira con la oficial ya consultada; lo demas queda igual', () => {
+    const usd = { currencyCode: 'USD', sameCurrency: true, totalAmount: CONSUMER_IDENTIFICATION_THRESHOLD / 1000 };
+    const consumer = { offered: true, receiver: 'r', required: false };
+
+    expect(withOfficialRequirement(consumer, usd, 1000)).toEqual({ ...consumer, required: true });
+    expect(withOfficialRequirement(consumer, usd, 999)).toEqual(consumer);
+    expect(withOfficialRequirement({ ...consumer, required: true }, usd, undefined).required).toBe(false);
+  });
+
+  it('el receptor de una nota: el de la factura, el de otro sistema o el de un periodo', () => {
+    const otherSystem = { number: 99, otherSystem: true, pointOfSale: 50 } as never;
+
+    expect(noteReceiverKey({ documentType: 'consumidor-final', otherSystemInvoice: otherSystem })).toBe(
+      'otro:50:99|consumidor-final',
+    );
+    expect(noteReceiverKey({ invoice: { number: 14 } as never, invoicePointOfSale: 3 })).toBe('factura:3:14|');
+    expect(noteReceiverKey({ documentType: 'dni', target: 'periodo' })).toBe('periodo|dni');
+    expect(noteReceiverKey({})).toBe('|');
   });
 });

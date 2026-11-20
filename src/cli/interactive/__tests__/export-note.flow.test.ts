@@ -146,7 +146,7 @@ describe('runExportNoteFlow', () => {
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '9'],
       [/Número de la factura E/, '1'],
-      [/Monto de la nota de crédito de exportación E \(DOL\)/, '500'],
+      [/Monto de la nota de crédito de exportación E en USD:/, '500'],
       [/Detalle de la nota/, 'Descuento por volumen'],
       [/Agregamos algún opcional/, []],
       [/Emitimos la nota de crédito de exportación E en testing/, 'Sí, emitir ahora'],
@@ -413,7 +413,7 @@ describe('runExportNoteFlow: volver en cada paso, PV propio y cotización del as
     script = createScript([
       [/Punto de venta/, '4'],
       [/Número/, '1'],
-      [/Monto de la nota de débito.*\(PES\)/, '100'],
+      [/^Monto de la nota de débito de exportación E:$/, '100'],
       [/Detalle de la nota/, ''],
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, BACK],

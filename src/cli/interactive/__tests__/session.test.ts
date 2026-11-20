@@ -92,6 +92,29 @@ describe('previewAndEmit', () => {
     expect(session.createVoucher).not.toHaveBeenCalled();
   });
 
+  // #11 y #16: lo escrito a mano se ofrece guardar solo si ARCA autorizo el comprobante.
+  it('devuelve si ARCA lo autorizo: aprobado con CAE si, rechazado no, sin emitir no', async () => {
+    const session = createSession('testing');
+
+    chooseOneMock.mockResolvedValue('emitir');
+    session.createVoucher.mockResolvedValueOnce({
+      cae: '86400940834693',
+      caeFchVto: '20261130',
+      response: { FeDetResp: { FECAEDetResponse: [{ Resultado: 'A' }] } },
+    });
+    await expect(previewAndEmit(session, input)).resolves.toBe(true);
+
+    session.createVoucher.mockResolvedValueOnce({
+      cae: '',
+      caeFchVto: '',
+      response: { FeDetResp: { FECAEDetResponse: [{ Resultado: 'R' }] } },
+    });
+    await expect(previewAndEmit(session, input)).resolves.toBe(false);
+
+    chooseOneMock.mockResolvedValue(false);
+    await expect(previewAndEmit(session, input)).resolves.toBe(false);
+  });
+
   it('emite en testing con una sola confirmacion', async () => {
     const session = createSession('testing');
 

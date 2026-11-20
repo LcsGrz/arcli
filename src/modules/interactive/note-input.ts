@@ -15,6 +15,7 @@ import { explicitIvaRate } from './iva-rate';
 import { type NoteCurrency, resolveNoteCurrency } from './note-currency';
 import { type ReceiverFromPadron, receiverInputFields } from './receiver-document';
 import { rulesFinalize, ruleValidator } from './rule-validator';
+import { amountCurrencyFinalize } from './steps/amount';
 import { requireStepValue, type WizardFinalize } from './wizard';
 
 export type NoteKind = 'credito' | 'debito';
@@ -35,6 +36,8 @@ export interface OtherSystemInvoice {
 export interface NoteState {
   /** Fecha, fechas de servicio y vencimiento; en las de periodo, la moneda, y en las parciales, exento y no gravado. */
   readonly advanced?: AdvancedOptions;
+  /** La moneda en que se escribio el monto: si los opcionales la cambian, `finalize` vuelve al monto (REV-74, #12). */
+  readonly amountCurrency?: string;
   /** La fecha del asociado de otro sistema, que ARCA no tiene (`--afecha`). */
   readonly associatedDate?: string;
   readonly cancellation?: boolean;
@@ -221,9 +224,36 @@ export function noteRuleValidator(
 
 /** `finalize` de la nota: las reglas sobre la nota final; si una falla, vuelve a la pregunta que escribe el campo. */
 export function noteFinalize(env: () => NoteRuleEnv): WizardFinalize<NoteState> {
-  return rulesFinalize<NoteState, BillingCommandInput, BillingRuleContext>({
+  const rules = rulesFinalize<NoteState, BillingCommandInput, BillingRuleContext>({
     context: (state) => noteRuleScope(state, env()).context,
     draft: (state) => (state.exported || !state.invoiceKind ? undefined : noteInputFields(state, env())),
     rules: BILLING_RULES,
   });
+
+  return (state) =>
+    (state.exported ? undefined : amountCurrencyFinalize(state.amountCurrency, noteFinalCurrency(state, env()))) ??
+    rules(state);
+}
+
+/** La moneda con que sale la nota: la de la factura (o pesos) o, en una de periodo, la de los opcionales. */
+export function noteFinalCurrency(state: NoteState, env: Pick<NoteInputEnv, 'config'>): string | undefined {
+  return noteCurrency(state, state.advanced ?? initialAdvancedOptions(env.config)).currencyCode;
+}
+
+/**
+ * Quien es el receptor de la nota, como una clave: el de la factura de ARCA, o el que se pregunta en una de periodo o
+ * sobre una factura de otro sistema (con el punto de venta y el numero escritos). Si cambia, los datos del consumidor
+ * final escritos antes se olvidan.
+ */
+export function noteReceiverKey(
+  state: Pick<NoteState, 'documentType' | 'invoice' | 'invoicePointOfSale' | 'otherSystemInvoice' | 'target'>,
+): string {
+  const other = state.otherSystemInvoice;
+  const associated = other
+    ? `otro:${other.pointOfSale}:${other.number}`
+    : state.invoice
+      ? `factura:${state.invoicePointOfSale}:${state.invoice.number}`
+      : (state.target ?? '');
+
+  return `${associated}|${state.documentType ?? ''}`;
 }

@@ -64,3 +64,15 @@ export function consumerContext(options: {
     required: reachesConsumerThreshold(withOfficialRate(options.amount, options.officialRate)),
   };
 }
+
+/**
+ * El mismo contexto, con la obligatoriedad mirada con la cotizacion oficial ya consultada (despues de los opcionales,
+ * cuando el total en pesos recien se sabe con ella). Lo demas queda igual.
+ */
+export function withOfficialRequirement(
+  consumer: ConsumerContext,
+  amount: ConsumerAmount,
+  officialRate: number | undefined,
+): ConsumerContext {
+  return { ...consumer, required: reachesConsumerThreshold(withOfficialRate(amount, officialRate)) };
+}

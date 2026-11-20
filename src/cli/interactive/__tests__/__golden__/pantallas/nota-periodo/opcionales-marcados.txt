@@ -113,6 +113,82 @@
   = En dólares
 
 == pantalla ==
+┌                                                                                          ┐
+
+                    Cambiaste la moneda a USD: escribí el monto en USD.
+
+└                                                                                          ┘
+
+? [texto] Monto de la nota de crédito en USD:
+  arranca escrito: "1000"
+  = "1.000"
+
+? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
+  [ ] Datos del consumidor final (nuevo) — sin identificar
+  [ ] Fecha del comprobante — hoy
+  [x] Moneda extranjera — dólares, cotización oficial de ARCA
+  [ ] Período del servicio — hoy
+  [ ] Vencimiento del pago — por defecto
+  = Moneda extranjera
+
+? [lista] Moneda del comprobante:
+  arranca en: Dólares estadounidenses (USD)
+  · Pesos
+  > Dólares estadounidenses (USD)
+  · Euros (EUR)
+  · Reales (BRL)
+  · Pesos uruguayos (UYU)
+  · Pesos chilenos (CLP)
+  · Guaraníes (PYG)
+  · Pesos bolivianos (BOB)
+  · Pesos colombianos (COP)
+  · Soles peruanos (PEN)
+  · Pesos mexicanos (MXN)
+  · Libras esterlinas (GBP)
+  · Francos suizos (CHF)
+  · Yenes (JPY)
+  · Yuanes (CNY)
+  · Dólares canadienses (CAD)
+  · Dólares australianos (AUD)
+  · Dólares neozelandeses (NZD)
+  · Rublos (RUB)
+  · Coronas danesas (DKK)
+  · Coronas noruegas (NOK)
+  · Coronas suecas (SEK)
+  · Coronas checas (CZK)
+  · Dinares serbios (RSD)
+  · Leus rumanos (RON)
+  · Forints (HUF)
+  · Zlotys (PLN)
+  · Bolívares venezolanos (VES)
+  · Florines antillanos (ANG)
+  · Pesos dominicanos (DOP)
+  · Balboas panameños (PAB)
+  · Córdobas nicaragüenses (NIO)
+  · Dólares jamaiquinos (JMD)
+  · Quetzales (GTQ)
+  · Lempiras (HNL)
+  · Shekels (ILS)
+  · Rands (ZAR)
+  · Dirhams marroquíes (MAD)
+  · Libras egipcias (EGP)
+  · Riyales saudíes (SAR)
+  · Dinares kuwaitíes (KWD)
+  · Rupias (INR)
+  · Dólares de Hong Kong (HKD)
+  · Dólares de Singapur (SGD)
+  · Dólares taiwaneses (TWD)
+  · Bahts (THB)
+  · Derechos Especiales de Giro (XDR)
+  = Dólares estadounidenses (USD)
+
+? [lista] ¿Cómo te pagan?
+  arranca en: En dólares
+  · En pesos — El comprobante va en dólares y lo cobrás en pesos: cotización oficial de ARCA o la acordada
+  > En dólares — Se usa la cotización oficial de ARCA
+  = En dólares
+
+== pantalla ==
 ┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐
 ╎                                                                                          ╎
 ╎       Estás en TESTING: los comprobantes son de prueba y no tienen validez fiscal.       ╎
