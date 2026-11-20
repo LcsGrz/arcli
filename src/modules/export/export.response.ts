@@ -60,7 +60,8 @@ function buildSuggestions(options: {
     );
   }
 
-  if (options.status !== 'aprobado' && suggestions.size === 0) {
+  // Solo el rechazo, como en A/B/C (`billing-response.ts`): una E observada tiene CAE y volver a emitir la duplicaria.
+  if (options.status === 'rechazado' && suggestions.size === 0) {
     suggestions.add('Revisá observaciones y errores de ARCA antes de volver a emitir.');
   }
 
