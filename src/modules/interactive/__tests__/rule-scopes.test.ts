@@ -120,6 +120,9 @@ describe('notas', () => {
       today: TODAY,
       voucherKind: VOUCHER_KIND_MAP.ncc,
     });
+    expect(noteRuleScope({ ...periodNote, kind: 'debito' }, NOTE_ENV).context.voucherKind).toBe(VOUCHER_KIND_MAP.ndc);
+    // Sin tipo, credito (como el menu por defecto).
+    expect(noteRuleScope({ ...periodNote, kind: undefined }, NOTE_ENV).context.voucherKind).toBe(VOUCHER_KIND_MAP.ncc);
   });
 
   it('noteRuleValidator: antes de elegir la fecha de la nota, contra la mas tardia que acepta ARCA', () => {
@@ -183,6 +186,7 @@ describe('la E', () => {
     };
 
     expect(exportRepeatRuleScope(repeat, EXPORT_ENV).draft({})).toMatchObject({ amount: 1500, exportType: 2 });
+    expect(exportRepeatRuleScope(repeat, EXPORT_ENV).context).toEqual({ today: TODAY });
     expect(exportRepeatFinalize(() => EXPORT_ENV)(repeat)).toMatchObject({ field: ['paymentDate', 'voucherDate'] });
     expect(exportRepeatFinalize(() => EXPORT_ENV)({ ...repeat, copy: undefined })).toBeUndefined();
     expect(exportRepeatFinalize(() => EXPORT_ENV)({ ...repeat, country: undefined })).toBeUndefined();
