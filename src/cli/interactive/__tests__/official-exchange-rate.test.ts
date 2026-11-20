@@ -28,6 +28,27 @@ describe('officialExchangeRateLoader', () => {
     expect(getQuotation.mock.calls).toEqual([['DOL'], ['060']]);
   });
 
+  // El tope del consumidor final lo mira sin consultar (`known`), despues de que la pregunta del tope la consulto.
+  it('`known` da la ya consultada, por moneda y fecha; sin consultar o si fallo, ninguna', async () => {
+    const getQuotation = vi.fn(async (currencyCode: string, arcaDate?: string) => {
+      if (currencyCode === '060') {
+        throw new Error('Sin conexión');
+      }
+
+      return arcaDate ? 1400 : 1450;
+    });
+    const load = loader(getQuotation);
+
+    expect(load.known({ currencyCode: 'USD' })).toBeUndefined();
+    await load({ currencyCode: 'USD' });
+    expect(load.known({ currencyCode: 'USD' })).toBe(1450);
+    expect(load.known({ billingDate: '16/11/2026', currencyCode: 'USD', sameCurrency: true })).toBeUndefined();
+    await load({ billingDate: '16/11/2026', currencyCode: 'USD', sameCurrency: true });
+    expect(load.known({ billingDate: '16/11/2026', currencyCode: 'USD', sameCurrency: true })).toBe(1400);
+    await load({ currencyCode: 'EUR' });
+    expect(load.known({ currencyCode: 'EUR' })).toBeUndefined();
+  });
+
   it('con --misma-moneda y una fecha pasada, la del día hábil anterior a esa fecha (10038), aparte de la de hoy', async () => {
     const getQuotation = vi.fn(async (_currencyCode: string, arcaDate?: string) => (arcaDate ? 1400 : 1450));
     const load = loader(getQuotation);

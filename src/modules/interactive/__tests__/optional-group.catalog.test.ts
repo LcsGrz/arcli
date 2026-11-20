@@ -283,6 +283,94 @@ describe('requiredOptional', () => {
     expect(memos).toEqual([undefined, 'a medio cargar']);
   });
 
+  it('un paso por pregunta, con su nombre y lo que escribe la pregunta (para `finalize`)', () => {
+    const memo = { get: () => undefined, set: () => {} };
+    const steps = requiredOptional(
+      groupDef([
+        required({}, [
+          { name: 'tipo', writes: ['a'] },
+          { name: 'numero', writes: (current) => [`numero-${current.a}`] },
+          { name: 'sin-writes' },
+        ]),
+      ]),
+      { key: 'a', name: 'obligatorio', notice: () => {}, questions: ['tipo', 'numero', 'sin-writes'] },
+    );
+    const state = { ...INITIAL, need: true };
+
+    expect(steps.map((step) => step.name)).toEqual([
+      'obligatorio:tipo',
+      'obligatorio:numero',
+      'obligatorio:sin-writes',
+    ]);
+    expect(steps.map((step) => (typeof step.writes === 'function' ? step.writes(state, memo) : step.writes))).toEqual([
+      ['a'],
+      ['numero-a0'],
+      [],
+    ]);
+  });
+
+  it('falla si una pregunta pedida no es del opcional', async () => {
+    const def = groupDef([required()]);
+
+    await expect(
+      runWizard(
+        [
+          ...requiredOptional(def, { key: 'a', name: 'obligatorio', notice: () => {}, questions: ['otra'] }),
+          optionalGroup(def),
+        ],
+        {
+          ...INITIAL,
+          need: true,
+        },
+      ),
+    ).rejects.toThrow('El opcional a no tiene la pregunta otra.');
+  });
+
+  it('si cambia una respuesta, la pregunta que depende de ella arranca de cero', async () => {
+    const seen: Array<[string, unknown]> = [];
+    const types = ['dni', 'cuit'];
+    const numbers: Array<string | typeof BACK> = ['1', BACK, '2'];
+    let backs = 1;
+    const def = groupDef([
+      required({ owns: ['a', 'b'] }, [
+        {
+          name: 'tipo',
+          run: async (_current, previous) => (seen.push(['tipo', previous?.a]), { a: types.shift() }),
+        },
+        {
+          dependsOn: ['tipo'],
+          name: 'numero',
+          run: async (_current, previous) => {
+            seen.push(['numero', previous?.b]);
+
+            const number = numbers.shift();
+
+            return number === BACK ? BACK : { b: number };
+          },
+        },
+      ]),
+    ]);
+
+    const done = await runWizard(
+      [
+        ...requiredOptional(def, { key: 'a', name: 'obligatorio', notice: () => {}, questions: ['tipo', 'numero'] }),
+        optionalGroup(def),
+        // Vuelve una vez: Esc en el numero lleva al tipo, que cambia.
+        { name: 'fin', run: async () => (backs-- > 0 ? BACK : {}) },
+      ],
+      { ...INITIAL, need: true },
+    );
+
+    expect(seen).toEqual([
+      ['tipo', undefined],
+      ['numero', undefined],
+      ['numero', '1'],
+      ['tipo', 'dni'],
+      ['numero', undefined],
+    ]);
+    expect(done?.values).toEqual({ a: 'cuit', b: '2' });
+  });
+
   // Pendiente de NAV-2: el paso obligatorio miraba lo elegido en la seleccion sin olvidar lo que cambio de contexto.
   it('para saltearse olvida, como el grupo, lo que cambio de contexto (`resetWhen`)', async () => {
     const asked: string[] = [];
