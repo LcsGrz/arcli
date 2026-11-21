@@ -5,6 +5,7 @@ import {
   isUpKey,
   makeTheme,
   Separator,
+  useEffect,
   useKeypress,
   useMemo,
   usePrefix,
@@ -13,7 +14,7 @@ import {
 
 import { colorize, scrollHint, scrollWindow, uiSymbol } from '../../ui';
 
-import { filterCountLine, filterPromptLine, matchesSearch, noMatchesLine } from './filter-list';
+import { filterCountLine, filterPromptLine, matchesSearch, noMatchesLine, searchWords } from './filter-list';
 
 /** Oculta el cursor de la terminal mientras se muestra la lista; @inquirer lo vuelve a mostrar al cerrarla. */
 const CURSOR_HIDE = '\u001B[?25l';
@@ -31,6 +32,18 @@ export interface ListSelectChoice<T> {
   readonly value: T;
 }
 
+/** Lo escrito y la opcion marcada (`undefined` si lo escrito no deja ninguna). */
+export interface ListSelectState<V> {
+  readonly term: string;
+  readonly value: V | undefined;
+}
+
+/**
+ * Un separador que se sigue viendo mientras se filtra, como "Cargando…": los demas (lineas en blanco, reglas) se
+ * ocultan junto con las opciones que no coinciden.
+ */
+export class PinnedSeparator extends Separator {}
+
 interface ListSelectStyle {
   readonly style: {
     readonly description: (text: string) => string;
@@ -43,7 +56,13 @@ export interface ListSelectConfig<T, B> {
   readonly back?: { readonly label: string; readonly value: B };
   readonly choices: ReadonlyArray<ListSelectChoice<T> | Separator>;
   readonly default?: B | T;
+  /** `false`: escribir no filtra ni hace nada, como al confirmar (`confirm`). Por defecto filtra. */
+  readonly filter?: boolean;
+  /** Lo escrito con que arranca, al redibujar la misma lista (por ejemplo, cuando termina una carga). */
+  readonly initialTerm?: string;
   readonly message: string;
+  /** Lo escrito y la marcada despues de cada tecla, para redibujar la lista igual (con `initialTerm` y `default`). */
+  readonly onChange?: (state: ListSelectState<B | T>) => void;
   /** Filas de opciones visibles; si no entran todas, la lista se desplaza y avisa cuantas quedan arriba y abajo. */
   readonly pageSize: number;
   readonly theme: {
@@ -57,11 +76,42 @@ export interface ListSelectConfig<T, B> {
 const BACK_ROW = -1;
 /** Ninguna marcada: lo escrito no coincide con ninguna opcion. Enter no hace nada y ↓ marca la primera que haya. */
 const NO_ROW = -2;
-/** Las lineas que suman "Filtrar:" y su linea en blanco: la pagina se achica para que "Volver" no se vaya de la pantalla. */
-const FILTER_LINES = 2;
+/**
+ * Las lineas que suma el filtro: "Filtrar:", su linea en blanco y "3 de 37" (como `FILTER_LIST_EXTRA_LINES`, sin el
+ * encabezado, que esta lista no tiene).
+ */
+const FILTER_LINES = 3;
+/** Los avisos "↑ 3 más" y "↓ 12 más". */
+const SCROLL_HINT_LINES = 2;
 
 function isOption<T>(item: ListSelectChoice<T> | Separator): item is ListSelectChoice<T> {
   return !Separator.isSeparator(item);
+}
+
+/** Si la opcion coincide con lo escrito, por su nombre o sus `keywords`. */
+function choiceMatches<T>(item: ListSelectChoice<T> | Separator, term: string): item is ListSelectChoice<T> {
+  return isOption(item) && matchesSearch(`${item.name} ${item.keywords ?? ''}`, term);
+}
+
+/** Si dos textos buscan lo mismo: un espacio o un Tab de mas no cambian la busqueda. */
+function sameSearch(left: string, right: string): boolean {
+  return searchWords(left).join(' ') === searchWords(right).join(' ');
+}
+
+/**
+ * Las filas de la parte que se desplaza. Sin filtro, `pageSize`. Con filtro, en una lista que entra entera, igual
+ * (lo filtrado entra). En una que se desplaza, el lugar es `pageSize` mas los dos avisos: lo filtrado va sin
+ * desplazarse si entra junto con las lineas del filtro y, si no, la pagina les deja lugar para que "Volver" no se vaya
+ * de la pantalla.
+ */
+function filteredPageSize(pageSize: number, total: number, shown: number, filtering: boolean): number {
+  if (!filtering || total <= pageSize) {
+    return pageSize;
+  }
+
+  const room = pageSize + SCROLL_HINT_LINES;
+
+  return shown + FILTER_LINES <= room ? shown : Math.max(1, room - FILTER_LINES - SCROLL_HINT_LINES);
 }
 
 /**
@@ -71,22 +121,24 @@ function isOption<T>(item: ListSelectChoice<T> | Separator): item is ListSelectC
  *
  * Escribir filtra las opciones con la misma busqueda que `filterList` (`matchesSearch`: sin tildes, por palabras y por
  * `keywords`). Lo escrito se ve en "Filtrar:" y queda hasta que se borra con Backspace; sin nada escrito, la lista se
- * ve como siempre.
+ * ve como siempre. Con `filter: false`, escribir no hace nada.
  */
 export const listSelect = createPrompt(
   <T, B = never>(config: ListSelectConfig<T, B>, done: (value: B | T) => void): string => {
     const theme = makeTheme<ListSelectStyle>(config.theme);
+    const filterable = config.filter !== false;
     const [status, setStatus] = useState<'done' | 'idle'>('idle');
-    const [term, setTerm] = useState('');
+    const [term, setTerm] = useState(filterable ? (config.initialTerm ?? '') : '');
     const prefix = usePrefix({ status, theme });
     const items = config.choices;
-    // Con algo escrito, solo las opciones que coinciden y sin separadores; las posiciones son las de `items`.
+    const filtering = searchWords(term).length > 0;
+    // Con algo escrito, las opciones que coinciden y los separadores fijos; las posiciones son las de `items`.
     const shown = useMemo(
       () =>
         items.flatMap((item, index) =>
-          term.trim() && !(isOption(item) && matchesSearch(`${item.name} ${item.keywords ?? ''}`, term)) ? [] : [index],
+          !filtering || choiceMatches(item, term) || item instanceof PinnedSeparator ? [index] : [],
         ),
-      [items, term],
+      [items, term, filtering],
     );
     const navigable = useMemo(
       () => shown.filter((index) => isOption(items[index] as ListSelectChoice<T> | Separator)),
@@ -97,11 +149,32 @@ export const listSelect = createPrompt(
         return BACK_ROW;
       }
 
-      const index = items.findIndex((item) => isOption(item) && !item.disabled && item.value === config.default);
+      const index = items.findIndex(
+        (item, position) =>
+          isOption(item) && !item.disabled && item.value === config.default && navigable.includes(position),
+      );
 
-      return index === -1 ? (navigable[0] ?? BACK_ROW) : index;
+      return index === -1 ? (navigable[0] ?? (filtering ? NO_ROW : BACK_ROW)) : index;
     });
     const activeItem = active < 0 ? undefined : (items[active] as ListSelectChoice<T> | undefined);
+
+    // Lo escrito con que arranca va a la linea de readline, para seguir editandolo.
+    useEffect((rl) => {
+      if (term) {
+        rl.write(term);
+      }
+    }, []);
+
+    const report = (nextTerm: string, row: number) => {
+      const value =
+        row === BACK_ROW
+          ? config.back?.value
+          : row === NO_ROW
+            ? undefined
+            : (items[row] as ListSelectChoice<T> | undefined)?.value;
+
+      config.onChange?.({ term: nextTerm, value });
+    };
 
     useKeypress((key, rl) => {
       if (isEnterKey(key)) {
@@ -111,6 +184,9 @@ export const listSelect = createPrompt(
         } else if (activeItem && !activeItem.disabled) {
           setStatus('done');
           done(activeItem.value);
+        } else {
+          // Enter sin nada que elegir: readline ya vacio la linea, y lo escrito tiene que seguir para editarlo.
+          rl.write(term);
         }
       } else if (isUpKey(key) || isDownKey(key)) {
         // Las flechas no escriben: readline las tomaria como historial y borraria lo escrito.
@@ -123,18 +199,28 @@ export const listSelect = createPrompt(
 
         if (next !== undefined) {
           setActive(next);
+          report(term, next);
         }
+      } else if (!filterable) {
+        // Sin filtro, lo que se escribe no se junta en la linea.
+        rl.clearLine(0);
       } else if (rl.line !== term) {
-        // Escribir (o borrar) filtra, y marca la primera que coincide y se puede elegir.
         const nextTerm = rl.line;
-        const matches = items.flatMap((item, index) =>
-          isOption(item) && matchesSearch(`${item.name} ${item.keywords ?? ''}`, nextTerm) ? [index] : [],
-        );
-        const first = matches.find((index) => !(items[index] as ListSelectChoice<T>).disabled) ?? matches[0];
+        let next = active;
+
+        if (searchWords(nextTerm).length === 0) {
+          // Al borrar lo escrito, la marcada (tambien "Volver") queda donde estaba; si no habia ninguna, la primera.
+          next = active === NO_ROW ? (items.findIndex(isOption) === -1 ? BACK_ROW : items.findIndex(isOption)) : active;
+        } else if (!sameSearch(nextTerm, term)) {
+          // Otra busqueda marca la primera que coincide y se puede elegir. Un espacio o un Tab no la mueven.
+          const matches = items.flatMap((item, index) => (choiceMatches(item, nextTerm) ? [index] : []));
+
+          next = matches.find((index) => !(items[index] as ListSelectChoice<T>).disabled) ?? matches[0] ?? NO_ROW;
+        }
 
         setTerm(nextTerm);
-        // Si sigue a la vista, la marcada no cambia al borrar lo escrito.
-        setActive(nextTerm.trim() === '' && active >= 0 ? active : (first ?? NO_ROW));
+        setActive(next);
+        report(nextTerm, next);
       }
     });
 
@@ -146,8 +232,7 @@ export const listSelect = createPrompt(
       return [prefix, message, theme.style.answer(answer)].filter(Boolean).join(' ');
     }
 
-    const filtering = term.trim() !== '';
-    const pageSize = filtering ? Math.max(1, config.pageSize - FILTER_LINES) : config.pageSize;
+    const pageSize = filteredPageSize(config.pageSize, items.length, shown.length, filtering);
     // Con "Volver" marcado, la pagina queda donde estaba: al final, porque se llega desde la ultima opcion.
     const anchor = active < 0 ? shown.length - 1 : Math.max(0, shown.indexOf(active));
     const page = scrollWindow(shown.length, anchor, pageSize);
@@ -185,9 +270,10 @@ export const listSelect = createPrompt(
     const lines = [
       top,
       ...(page.scrolls ? [scrollHint('above', countOptions(0, page.start))] : []),
-      ...(shown.length > 0 ? rows : [noMatchesLine(term)]),
+      ...(filtering && navigable.length === 0 ? [noMatchesLine(term)] : []),
+      ...rows,
       ...(page.scrolls ? [scrollHint('below', countOptions(page.end, shown.length))] : []),
-      filterCountLine(term.trim(), countOptions(0, shown.length), items.filter(isOption).length),
+      filterCountLine(term.trim(), navigable.length, items.filter(isOption).length),
       ...(config.back ? [' ', renderRow(config.back.label, active === BACK_ROW)] : []),
       ' ',
       activeItem?.description ? theme.style.description(activeItem.description) : '',

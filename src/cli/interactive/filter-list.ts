@@ -10,7 +10,7 @@ import {
   useState,
 } from '@inquirer/core';
 
-import { bold, colorize, scrollHint, scrollWindow, uiSymbol } from '../../ui';
+import { bold, colorize, scrollHint, scrollWindow, stripAnsi, uiSymbol } from '../../ui';
 
 type HelpKey = [string, string];
 
@@ -60,18 +60,21 @@ function normalize(text: string): string {
     .toLowerCase();
 }
 
+/** Las palabras de lo escrito, sin mayusculas ni tildes: dos textos con las mismas filtran igual. */
+export function searchWords(term: string): string[] {
+  return normalize(term).split(/\s+/).filter(Boolean);
+}
+
 /**
  * Si `text` tiene cada palabra de lo escrito, en cualquier orden, sin mayusculas ni tildes: "dolar canad" encuentra
- * "Dólares canadienses (CAD)". Sin nada escrito, todo coincide. Es la unica manera de buscar del asistente: la usan
- * las listas que se filtran (`filterList`) y las de opciones (`listSelect`).
+ * "Dólares canadienses (CAD)". Sin nada escrito, todo coincide. Los colores de `text` (un "(nuevo)" resaltado) no
+ * cuentan. Es la unica manera de buscar del asistente: la usan las listas que se filtran (`filterList`) y las de
+ * opciones (`listSelect`).
  */
 export function matchesSearch(text: string, term: string): boolean {
-  const haystack = normalize(text);
+  const haystack = normalize(stripAnsi(text));
 
-  return normalize(term)
-    .split(/\s+/)
-    .filter(Boolean)
-    .every((word) => haystack.includes(word));
+  return searchWords(term).every((word) => haystack.includes(word));
 }
 
 /** Las filas que contienen lo escrito, en la fila o en sus palabras clave. */
@@ -131,6 +134,9 @@ export const filterList = createPrompt(<T>(config: FilterListConfig<T>, done: (v
       } else if (row) {
         setStatus('done');
         done(row.value);
+      } else {
+        // Enter sin nada que elegir: readline ya vacio la linea, y lo escrito tiene que seguir para editarlo.
+        rl.write(term);
       }
     } else if (isUpKey(key) || isDownKey(key)) {
       // Las flechas no escriben: readline las tomaria como historial y borraria el filtro.

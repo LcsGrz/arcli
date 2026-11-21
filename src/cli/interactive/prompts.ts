@@ -8,7 +8,7 @@ import { bold, colorize, type RowActionsListRow, uiSymbol, usesAsciiBorders, wri
 
 import { blockPager } from './block-pager';
 import { filterList, type FilterListRow } from './filter-list';
-import { listSelect } from './list-select';
+import { listSelect, type ListSelectState } from './list-select';
 import { multiSelect } from './multi-select';
 import { rowActionsList } from './row-actions-list';
 
@@ -84,7 +84,7 @@ const TEXT_THEME = {
  * Una lista simple. Con `escapeValue`, Esc la cierra devolviendo ese valor (por ejemplo, "volver", "no" o
  * "salir") y la ayuda de teclas lo muestra con `escapeLabel`; sin el, Esc no hace nada. Con `back`, un boton
  * ("← Volver") fijo debajo de las opciones, que no se desplaza con ellas. Con `compactTop`, una sola linea en blanco
- * arriba en lugar de dos.
+ * arriba en lugar de dos. Con `filter: false`, escribir no filtra (como al confirmar).
  */
 export async function chooseOne<T>(
   message: string,
@@ -95,14 +95,16 @@ export async function chooseOne<T>(
     readonly compactTop?: boolean;
     readonly escapeLabel?: string;
     readonly escapeValue?: T;
+    readonly filter?: boolean;
   } = {},
 ): Promise<T> {
-  const { back, compactTop = false, escapeLabel = 'volver', escapeValue } = options;
+  const { back, compactTop = false, escapeLabel = 'volver', escapeValue, filter } = options;
   const prefix = compactTop ? COMPACT_PROMPT_PREFIX : PROMPT_PREFIX;
   const config = {
     back,
     choices,
     default: defaultValue,
+    filter,
     message,
     pageSize: MIN_PAGE_SIZE,
     theme:
@@ -162,7 +164,7 @@ export async function askText(
   return answer.trim();
 }
 
-/** Si o no; Esc cuenta como no. */
+/** Si o no; Esc cuenta como no. Escribir no filtra: con dos opciones no hace falta, y Enter elige la marcada. */
 export async function confirm(message: string, yesLabel: string, noLabel = 'Cancelar'): Promise<boolean> {
   return chooseOne(
     message,
@@ -171,7 +173,7 @@ export async function confirm(message: string, yesLabel: string, noLabel = 'Canc
       { name: noLabel, value: false },
     ],
     undefined,
-    { escapeValue: false },
+    { escapeValue: false, filter: false },
   );
 }
 
@@ -276,17 +278,31 @@ function choiceName<T>(choices: ReadonlyArray<Choice<T> | Separator>, answer: Ba
   return chosen?.short ?? chosen?.name ?? '';
 }
 
+/**
+ * Para redibujar la misma lista igual que la dejo quien la usaba (por ejemplo, cuando termina una carga): lo escrito
+ * con que arranca y donde avisar lo escrito y la marcada despues de cada tecla.
+ */
+export interface ListStepOptions<T> {
+  readonly initialTerm?: string;
+  readonly onChange?: (state: ListSelectState<Back | T>) => void;
+}
+
+export type { ListSelectState } from './list-select';
+
 async function selectStep<T>(
   message: string,
   choices: ReadonlyArray<Choice<T> | Separator>,
-  defaultValue: T | undefined,
+  defaultValue: Back | T | undefined,
   pageSize: number,
-  signal?: AbortSignal,
+  options: ListStepOptions<T> & { readonly signal?: AbortSignal } = {},
 ) {
+  const { signal, ...state } = options;
+
   return runStepPrompt(
     (context) =>
       listSelect<T, Back>(
         {
+          ...state,
           back: { label: BACK_CHOICE.name, value: BACK },
           choices,
           default: defaultValue,
@@ -308,10 +324,12 @@ async function selectStep<T>(
 export async function chooseStep<T>(
   message: string,
   choices: ReadonlyArray<Choice<T> | Separator>,
-  defaultValue?: T,
+  /** La marcada al empezar; `BACK`, "← Volver". */
+  defaultValue?: Back | T,
   pageSize = 12,
+  options: ListStepOptions<T> = {},
 ): Promise<Back | T> {
-  const result = await selectStep(message, choices, defaultValue, pageSize);
+  const result = await selectStep(message, choices, defaultValue, pageSize, options);
 
   // Sin signal externo, solo Esc aborta, y eso ya vuelve como BACK.
   return 'answer' in result ? result.answer : BACK;
@@ -334,16 +352,17 @@ export type LoadingResult<T, L> = { readonly answer: Back | T } | { readonly loa
 export async function chooseStepWhileLoading<T, L>(
   message: string,
   choices: ReadonlyArray<Choice<T> | Separator>,
-  defaultValue: T | undefined,
+  defaultValue: Back | T | undefined,
   pageSize: number,
   loading: Promise<L>,
+  options: ListStepOptions<T> = {},
 ): Promise<LoadingResult<T, L>> {
   const loaded = new AbortController();
   const stop = () => loaded.abort();
 
   loading.then(stop, stop);
 
-  const result = await selectStep(message, choices, defaultValue, pageSize, loaded.signal);
+  const result = await selectStep(message, choices, defaultValue, pageSize, { ...options, signal: loaded.signal });
 
   return 'answer' in result ? result : { loaded: await loading };
 }

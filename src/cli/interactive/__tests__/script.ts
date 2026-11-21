@@ -4,7 +4,7 @@ import { vi } from 'vitest';
 import type { RowEdits } from '../../../modules/interactive/row-marks';
 import { BACK } from '../../../modules/interactive/wizard';
 import type { RowActionsListRow } from '../../../ui';
-import type { Choice, EditRowsOptions, FilterListRow, TextStepOptions } from '../prompts';
+import type { Choice, EditRowsOptions, FilterListRow, ListStepOptions, TextStepOptions } from '../prompts';
 
 /** Las opciones de una lista, sin los separadores. */
 export function onlyChoices<T>(choices: ReadonlyArray<Choice<T> | Separator>): Array<Choice<T>> {
@@ -110,7 +110,13 @@ export function createScript(steps: ReadonlyArray<readonly [RegExp, ScriptedAnsw
 
   // El valor por defecto no cambia la respuesta: queda en `mock.calls` para verificar que opcion arranca marcada.
   const chooseStep = vi.fn(
-    async <T>(message: string, allChoices: ReadonlyArray<Choice<T> | Separator>, _defaultValue?: T) => {
+    async <T>(
+      message: string,
+      allChoices: ReadonlyArray<Choice<T> | Separator>,
+      _defaultValue?: typeof BACK | T,
+      _pageSize?: number,
+      _options?: ListStepOptions<T>,
+    ) => {
       const answer = nextSingle(message);
 
       if (answer === BACK) {

@@ -223,6 +223,16 @@ describe('prompts', () => {
     expect(await confirm('¿Seguro?', 'Si')).toBe(true);
   });
 
+  it('confirm no filtra al escribir; las demas listas si', async () => {
+    selectMock.mockResolvedValueOnce(true as never);
+    await confirm('¿Seguro?', 'Si');
+    expect(selectMock.mock.calls.at(-1)?.[0]).toMatchObject({ filter: false });
+
+    selectMock.mockResolvedValueOnce('a' as never);
+    await chooseOne('¿Cual?', [{ name: 'A', value: 'a' }]);
+    expect(selectMock.mock.calls.at(-1)?.[0]).not.toHaveProperty('filter', false);
+  });
+
   it('reconoce la cancelacion con Ctrl+C', () => {
     const cancellation = Object.assign(new Error('cancelado'), { name: 'ExitPromptError' });
 

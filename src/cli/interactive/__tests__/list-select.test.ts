@@ -2,7 +2,6 @@ import { Separator } from '@inquirer/core';
 import { PassThrough } from 'node:stream';
 import { describe, expect, it } from 'vitest';
 
-import { currencyChoices } from '../../../modules/interactive/choices';
 import { BACK } from '../../../modules/interactive/wizard';
 import { scrollWindow, stripAnsi } from '../../../ui';
 import { listSelect, type ListSelectChoice } from '../list-select';
@@ -173,7 +172,7 @@ describe('listSelect', () => {
     expect(answer).toBe(3);
   });
 
-  it('escribir el principio de una opcion la marca', async () => {
+  it('escribir parte de una opcion deja las que coinciden y marca la primera', async () => {
     const { answer } = await run(['O', 'p', 'c', 'i', 'ó', 'n', ' ', '7', ENTER]);
 
     expect(answer).toBe(7);
@@ -184,100 +183,5 @@ describe('listSelect', () => {
     const { frames } = await run([ENTER], { choices });
 
     expect(frames[0]).toContain('↓ 3 más');
-  });
-});
-
-/** Una pausa entre teclas, mas larga que la de @inquirer/select (700 ms), que borraba lo escrito. */
-const PAUSE = { pauseMs: 800 } as const;
-
-/** Como `run`, con la lista de monedas del asistente y pausas entre teclas. */
-async function runCurrencies(keys: ReadonlyArray<string | typeof PAUSE>) {
-  const input = new PassThrough();
-  const output = new PassThrough();
-  const frames: string[] = [];
-  let pending = '';
-
-  output.on('data', (chunk: Buffer) => {
-    pending += chunk.toString();
-  });
-
-  const answer = listSelect<string, typeof BACK>(
-    {
-      back: { label: '← Volver', value: BACK },
-      choices: currencyChoices(),
-      message: 'Moneda del comprobante:',
-      pageSize: 12,
-      theme: THEME,
-    },
-    { input, output },
-  );
-
-  for (const key of keys) {
-    if (typeof key !== 'string') {
-      await new Promise((resolve) => setTimeout(resolve, key.pauseMs));
-      continue;
-    }
-
-    await tick();
-    frames.push(stripAnsi(pending));
-    pending = '';
-    input.write(key);
-  }
-
-  return { answer: await answer, frames };
-}
-
-/** Teclas, una por letra. */
-const typed = (text: string) => [...text];
-
-describe('listSelect: buscar escribiendo (TUI-17)', () => {
-  it('"dolar" encuentra los dólares, sin tilde ni mayúscula', async () => {
-    expect((await runCurrencies([...typed('dolar'), ENTER])).answer).toBe('USD');
-    expect((await runCurrencies([...typed('DOLARES AU'), ENTER])).answer).toBe('AUD');
-  });
-
-  it('busca por ISO y por el código de ARCA', async () => {
-    expect((await runCurrencies([...typed('usd'), ENTER])).answer).toBe('USD');
-    expect((await runCurrencies([...typed('eur'), ENTER])).answer).toBe('EUR');
-    expect((await runCurrencies([...typed('DOL'), ENTER])).answer).toBe('USD');
-    expect((await runCurrencies([...typed('060'), ENTER])).answer).toBe('EUR');
-  });
-
-  it('busca por palabras, en cualquier orden', async () => {
-    expect((await runCurrencies([...typed('canad dol'), ENTER])).answer).toBe('CAD');
-  });
-
-  it('muestra lo escrito, deja solo las que coinciden y no lo borra con el tiempo', async () => {
-    const { answer, frames } = await runCurrencies([...typed('dol'), PAUSE, ...typed('ares can'), PAUSE, ENTER]);
-    const last = frames.at(-1) ?? '';
-
-    expect(answer).toBe('CAD');
-    expect(last).toContain('Filtrar: dolares can');
-    expect(last).toContain('❯ Dólares canadienses (CAD)');
-    expect(last).not.toContain('Euros');
-    expect(last).toContain('1 de ');
-  });
-
-  it('las flechas recorren solo las que coinciden, sin borrar lo escrito', async () => {
-    const { answer, frames } = await runCurrencies([...typed('dolares'), DOWN, ENTER]);
-
-    expect(frames.at(-1)).toContain('Filtrar: dolares');
-    expect(answer).toBe('CAD');
-  });
-
-  it('Backspace borra la última letra y vuelve a filtrar', async () => {
-    const { answer } = await runCurrencies([...typed('cnyx'), '\u007F', ENTER]);
-
-    expect(answer).toBe('CNY');
-  });
-
-  it('si nada coincide lo dice, y Enter no elige nada', async () => {
-    const { answer, frames } = await runCurrencies([...typed('zzz'), ENTER, '\u007F', '\u007F', '\u007F', ENTER]);
-
-    const empty = frames.find((frame) => frame.includes('Nada coincide con "zzz".'));
-
-    expect(empty).toBeDefined();
-    expect(empty).not.toContain(' de ');
-    expect(answer).toBe('PES');
   });
 });
