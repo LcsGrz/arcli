@@ -66,9 +66,15 @@ function formatLanguage(result: ExportExecutionResult): string {
   return result.display.languageName ? `${id} - ${result.display.languageName}` : String(id);
 }
 
-function formatCurrency(result: ExportExecutionResult): string {
+/** Sin moneda, la fila no va. */
+function formatCurrency(result: ExportExecutionResult): string | undefined {
   const { CanMisMonExt: sameCurrency, Moneda_Id: currency, Moneda_ctz: rate } = result.payload;
   const name = formatCurrencyLabel(currency);
+
+  if (!name) {
+    return undefined;
+  }
+
   const label = currency === 'PES' ? name : `${name}, cotización ${formatExchangeRate(rate)}`;
 
   return sameCurrency === 'S' ? `${label} (el pago se cancela en la misma moneda)` : label;
@@ -125,9 +131,15 @@ function formatAssociatedVoucher(result: ExportExecutionResult): string | undefi
 
   const number = formatVoucherNumber(associated.Cbte_punto_vta, associated.Cbte_nro);
 
-  return display
-    ? `${display.displayName} ${number} del ${formatDateLabel(display.date)}, ${formatMoneyLabel(display.total, display.currencyCode)}`
-    : `Tipo ${associated.Cbte_tipo} ${number}`;
+  if (!display) {
+    return `Tipo ${associated.Cbte_tipo} ${number}`;
+  }
+
+  // FEXGetCMP puede no traer la fecha del asociado: sin fecha, sin " del ...".
+  const date = formatDateLabel(display.date);
+  const total = formatMoneyLabel(display.total, display.currencyCode);
+
+  return `${display.displayName} ${number}${date ? ` del ${date}` : ''}, ${total}`;
 }
 
 /** El permiso con lo que contesto ARCA en la vista previa, si se consulto. */

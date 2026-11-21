@@ -88,6 +88,17 @@ export function formatExportVoucherListAsText(report: ExportVoucherListReport): 
   );
 }
 
+/** La moneda, con la cotizacion si no es en pesos. Sin moneda, la fila no va. */
+function formatCurrencyRow(voucher: ExportIssuedVoucher): string | undefined {
+  const name = formatCurrencyLabel(voucher.currencyCode);
+
+  if (!name || voucher.currencyCode === 'PES') {
+    return name;
+  }
+
+  return `${name}, cotización ${formatExchangeRate(voucher.exchangeRate)}`;
+}
+
 export function formatExportVoucherDetailAsText(report: ExportVoucherDetailReport): string {
   const { voucher, voucherKind } = report;
   const associated = formatAssociated(voucher);
@@ -103,12 +114,7 @@ export function formatExportVoucherDetailAsText(report: ExportVoucherDetailRepor
       : []),
     ['País de destino', String(voucher.destinationCountry)],
     ['Tipo de exportación', `${voucher.exportType} - ${EXPORT_TYPES[voucher.exportType]}`],
-    [
-      'Moneda',
-      voucher.currencyCode === 'PES'
-        ? formatCurrencyLabel(voucher.currencyCode)
-        : `${formatCurrencyLabel(voucher.currencyCode)}, cotización ${formatExchangeRate(voucher.exchangeRate)}`,
-    ],
+    ['Moneda', formatCurrencyRow(voucher)],
     ['Importe total', formatMoneyLabel(voucher.total, voucher.currencyCode)],
     ['CAE', voucher.cae || MISSING_CAE_TEXT],
     ...(voucher.caeExpiration

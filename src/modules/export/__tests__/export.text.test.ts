@@ -113,6 +113,25 @@ describe('formatExportResultAsText: datos de la vista previa', () => {
     expect(text).not.toContain('Fecha de pago');
   });
 
+  it('el asociado sin fecha (FEXGetCMP no la trajo) va sin " del …", nunca "undefined" (TUI-20)', () => {
+    const text = table({
+      ...result(),
+      display: {
+        ...result().display,
+        associatedVoucher: { currencyCode: 'DOL', date: '', displayName: 'Factura de exportación E', total: 1500 },
+      },
+      payload: {
+        ...result().payload,
+        Cbte_Tipo: 21,
+        Cmps_asoc: { Cmp_asoc: [{ Cbte_cuit: 20409509763, Cbte_nro: 1, Cbte_punto_vta: 4, Cbte_tipo: 19 }] },
+      },
+    });
+
+    expect(text).toMatch(/Comprobante asociado\s+Factura de exportación E 00004-00000001,\s+1\.500 USD/);
+    expect(text).not.toContain('undefined');
+    expect(text).not.toContain('00000001 del');
+  });
+
   it('sin CUIT del pais no muestra esa fila y el ID impositivo va despues del domicilio', () => {
     const text = table(result({ Cuit_pais_cliente: undefined, Id_impositivo: 'IE1234567T' }));
 

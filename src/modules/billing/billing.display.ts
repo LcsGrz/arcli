@@ -78,6 +78,25 @@ function formatOptionalMoneyRow(label: string, value: number | undefined, curren
   return value ? [[label, formatMoneyLabel(value, currency)] as const] : [];
 }
 
+/** "01/10/2026 al 31/10/2026"; con una sola punta, "desde ..." o "hasta ..."; sin ninguna, la fila no va. */
+function formatAssociatedPeriod(period: {
+  readonly FchDesde?: string;
+  readonly FchHasta?: string;
+}): string | undefined {
+  const from = formatDateLabel(period.FchDesde);
+  const to = formatDateLabel(period.FchHasta);
+
+  if (from && to) {
+    return `${from} al ${to}`;
+  }
+
+  if (from) {
+    return `desde ${from}`;
+  }
+
+  return to ? `hasta ${to}` : undefined;
+}
+
 function formatFriendlyPayloadRows(result: BillingExecutionResult): Row[] {
   const payload = result.payload;
   const rows: Row[] = [
@@ -123,10 +142,7 @@ function formatFriendlyPayloadRows(result: BillingExecutionResult): Row[] {
   }
 
   if (payload.PeriodoAsoc) {
-    rows.push([
-      'Período asociado',
-      `${formatDateLabel(payload.PeriodoAsoc.FchDesde)} al ${formatDateLabel(payload.PeriodoAsoc.FchHasta)}`,
-    ]);
+    rows.push(['Período asociado', formatAssociatedPeriod(payload.PeriodoAsoc)]);
   }
 
   for (const optional of payload.Opcionales ?? []) {

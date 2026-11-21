@@ -7,14 +7,12 @@ import { findArcaCurrency } from './currency-codes';
 
 /*
  * Sin valor, los formatos devuelven `undefined` y `renderKeyValueRows` no muestra la fila. Una fila que tiene que estar
- * igual pone su propio texto ("sin CAE"); nunca "N/D" (docs/design-system.md, Textos).
+ * igual pone su propio texto ("sin CAE"); nunca "N/D" (docs/design-system.md, Formatos, "Dato ausente").
  */
 
 /** Lo que dice la fila del CAE cuando ARCA no lo otorgo (rechazado): la fila va igual, es lo que se busca. */
 export const MISSING_CAE_TEXT = 'sin CAE';
 
-export function formatDateLabel(value: string): string;
-export function formatDateLabel(value: string | undefined): string | undefined;
 export function formatDateLabel(value: string | undefined): string | undefined {
   if (!value) {
     return undefined;
@@ -95,8 +93,6 @@ export function formatIvaConditionLabel(value: number | undefined): string | und
 }
 
 /** "Pesos uruguayos (UYU)"; una moneda que no esta en la tabla sale con su codigo. */
-export function formatCurrencyLabel(value: string): string;
-export function formatCurrencyLabel(value: string | undefined): string | undefined;
 export function formatCurrencyLabel(value: string | undefined): string | undefined {
   if (!value) {
     return undefined;
@@ -121,8 +117,6 @@ export function formatNumericLabel(value: number | undefined): string | undefine
   return new Intl.NumberFormat('es-AR').format(value);
 }
 
-export function formatTaxIdLabel(value: string | number): string;
-export function formatTaxIdLabel(value: string | number | undefined): string | undefined;
 export function formatTaxIdLabel(value: string | number | undefined): string | undefined {
   if (value === undefined || value === null || value === '') {
     return undefined;

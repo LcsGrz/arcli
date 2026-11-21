@@ -225,7 +225,8 @@ describe('consultar comprobantes A, B y C con datos raros', () => {
 
     expect(output).toContain('00004-00000002');
     expect(output).toMatch(/RECHAZAD/);
-    expect(output).toMatch(/N\/D|sin CAE/i);
+    expect(output).toMatch(/CAE\s+sin CAE/);
+    expect(output).not.toContain('N/D');
   });
 
   it('un punto de venta sin comprobantes lo dice, y volver sale de la consulta', async () => {

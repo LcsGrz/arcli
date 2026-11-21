@@ -103,6 +103,18 @@ describe('padron presenter', () => {
     expect(text).toContain('Responsable inscripto');
   });
 
+  it('una actividad sin descripcion sale con su codigo (TUI-20)', () => {
+    const text = stripAnsi(
+      formatPadronAsText({
+        environment: 'testing',
+        taxpayer: { ...taxpayer, activities: [{ description: '', id: 439100 }] },
+      }),
+    );
+
+    expect(text).toMatch(/Actividad principal\s+Actividad 439100/);
+    expect(text).not.toContain('undefined');
+  });
+
   it('sin condicion IVA pide indicarla con --ir', () => {
     expect(formatPadronAsText({ environment: 'testing', taxpayer: { ...taxpayer, ivaCondition: null } })).toContain(
       'indicala con `--ir`',

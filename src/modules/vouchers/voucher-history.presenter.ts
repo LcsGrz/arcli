@@ -266,7 +266,8 @@ type Row = readonly [string, string | undefined];
 function formatReceiverIvaRows(voucher: IssuedVoucher): Row[] {
   const code = voucher.receiverIvaConditionCode;
 
-  if (code === undefined) {
+  // Un comprobante viejo puede traer 0: no es una condicion, es que no se informo.
+  if (code === undefined || code === 0) {
     return [];
   }
 
@@ -345,7 +346,8 @@ export function formatVoucherDetailAsText(report: VoucherDetailReport): string {
     ['Fecha del comprobante', formatArcaDateAsArgentineDate(voucher.date)],
     ['Receptor', formatReceiver(voucher)],
     ...formatReceiverIvaRows(voucher),
-    ['Concepto', formatConceptLabel(voucher.concept)],
+    // 0 no es un concepto de ARCA: sin dato, la fila no va.
+    ['Concepto', voucher.concept ? formatConceptLabel(voucher.concept) : undefined],
     ['Moneda', formatCurrencyLabel(voucher.currency)],
   ];
 

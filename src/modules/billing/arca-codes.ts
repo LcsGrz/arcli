@@ -62,8 +62,8 @@ function findByCode<K extends string>(table: Readonly<Record<K, ArcaCode>>, code
 }
 
 /**
- * La etiqueta del codigo; uno que no esta en la tabla sale tal cual. Sin codigo, nada: la fila no se muestra (ver
- * "Valores que faltan" en docs/design-system.md).
+ * La etiqueta del codigo; uno que no esta en la tabla sale tal cual (tambien el 0: si ahi es "sin dato", lo decide quien
+ * arma la fila). Sin codigo, nada: la fila no se muestra (docs/design-system.md, Formatos, "Dato ausente").
  */
 function labelOf<K extends string>(table: Readonly<Record<K, ArcaCode>>, code: number | undefined): string | undefined {
   const key = findByCode(table, code);
