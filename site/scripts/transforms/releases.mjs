@@ -100,10 +100,11 @@ export function releases(text) {
 
     return `${title}\n\n<p class="arcli-date">${date}</p>\n\n${body.replace(/^### (.+)$/gm, (_, kind) => `### ${changeKindChip(kind)}`)}\n`;
   });
+  // Plegadas: `2.4.0 · Acceso directo` a la izquierda y la fecha a la derecha (novedades.css).
   const older = versions.slice(3).map((part) => {
     const { body, date, name, version } = versionParts(part);
     const title = name
-      ? `<b>${version}</b><span class="arcli-ver-name">${escapeHtml(name)}</span>`
+      ? `<b>${version}</b><span class="arcli-ver-name">· ${escapeHtml(name)}</span>`
       : `<b>${version}</b>`;
 
     return `<details class="arcli-ver" id="${headingSlug(version)}">\n<summary>${title}<small>${date}</small></summary>\n\n${body.replace(/^### (.+)$/gm, (_, kind) => `<p>${changeKindChip(kind)}</p>`)}\n\n</details>\n`;

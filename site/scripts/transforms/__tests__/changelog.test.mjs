@@ -66,7 +66,7 @@ describe('releases', () => {
       '<div class="arcli-ver-head">\n\n## 2.5.0\n\n<p class="arcli-ver-name">· Nombre 5</p>\n\n</div>\n\n<p class="arcli-date">05/11/2026</p>',
     );
     expect(output).toContain(
-      '<details class="arcli-ver" id="220">\n<summary><b>2.2.0</b><span class="arcli-ver-name">Nombre 2</span><small>02/11/2026</small></summary>',
+      '<details class="arcli-ver" id="220">\n<summary><b>2.2.0</b><span class="arcli-ver-name">· Nombre 2</span><small>02/11/2026</small></summary>',
     );
     // El titulo de cada version abierta es solo el numero: Astro arma el ancla con su texto.
     expect(output.match(/^## .+$/gm)).toEqual(['## 2.5.0', '## 2.4.0', '## 2.3.0', '## Versiones anteriores']);
