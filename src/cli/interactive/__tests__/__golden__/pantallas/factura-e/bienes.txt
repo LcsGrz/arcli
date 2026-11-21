@@ -87,7 +87,8 @@
   por defecto: "Transferencia Internacional"
   = ""
 
-? [texto] Código de actividad de WSFEX, por ejemplo 620100 (Enter para no informarla):
+? [texto] Código de actividad de WSFEX, por ejemplo 620100:
+  aclara al preguntar: (Enter para no informarla)
   = ""
 
 ? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)

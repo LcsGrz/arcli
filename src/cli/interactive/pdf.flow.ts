@@ -15,6 +15,7 @@ import { writePdfOutcomes } from '../commands/billing.command.output';
 import { attachPdfs } from '../commands/billing.command.pdf';
 
 import { askText, chooseOne, confirm, isPromptCancellation } from './prompts';
+import { SKIP_HINT } from './text-hints';
 
 type IssuerKey = 'cuit' | 'emisor.domicilio' | 'emisor.inicioActividades' | 'emisor.razonSocial';
 
@@ -141,16 +142,14 @@ export async function offerPdf(
 
     const description = await askText('Descripción del comprobante (Enter para "Según detalle")');
     // Lo que trajo el padron se propone: Enter lo deja, en lugar de borrarlo.
-    const receiverName = await askText(
-      input.receiverName
-        ? 'Nombre o razón social del receptor:'
-        : 'Nombre o razón social del receptor (Enter para omitir)',
-      { defaultValue: input.receiverName },
-    );
-    const receiverAddress = await askText(
-      input.receiverAddress ? 'Domicilio del receptor:' : 'Domicilio del receptor (Enter para omitir)',
-      { defaultValue: input.receiverAddress },
-    );
+    const receiverName = await askText('Nombre o razón social del receptor:', {
+      defaultValue: input.receiverName,
+      hint: input.receiverName ? undefined : SKIP_HINT,
+    });
+    const receiverAddress = await askText('Domicilio del receptor:', {
+      defaultValue: input.receiverAddress,
+      hint: input.receiverAddress ? undefined : SKIP_HINT,
+    });
     const currentSaleCondition =
       input.saleCondition === null ? undefined : (input.saleCondition ?? config.condicionVenta);
     const saleCondition = await askSaleCondition(currentSaleCondition);

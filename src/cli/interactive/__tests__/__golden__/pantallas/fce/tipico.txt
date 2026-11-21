@@ -38,7 +38,8 @@
 ? [texto] CBU del emisor (22 dígitos):
   = "0170099220000067797370"
 
-? [texto] Alias del CBU (Enter para omitir):
+? [texto] Alias del CBU:
+  aclara al preguntar: (Enter para omitirlo)
   = "emisor.prueba.cbu"
 
 ? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)

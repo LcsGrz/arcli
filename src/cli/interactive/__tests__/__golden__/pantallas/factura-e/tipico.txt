@@ -18,7 +18,8 @@
 ? [texto] País de destino (nombre o código de ARCA, por ejemplo ESTADOS UNIDOS o 212):
   = "estados unidos"
 
-? [texto] ID impositivo del cliente en su país (Enter para omitirlo):
+? [texto] ID impositivo del cliente en su país:
+  aclara al preguntar: (Enter para omitirlo)
   = "12-3456789"
 
 ? [lista] ¿Qué exportás?
@@ -78,7 +79,8 @@
   por defecto: "Transferencia Internacional"
   = ""
 
-? [texto] Código de actividad de WSFEX, por ejemplo 620100 (Enter para no informarla):
+? [texto] Código de actividad de WSFEX, por ejemplo 620100:
+  aclara al preguntar: (Enter para no informarla)
   = "620100"
 
 ? [texto] Fecha de pago (Enter para la fecha del comprobante):

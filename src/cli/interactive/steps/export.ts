@@ -99,7 +99,8 @@ export function activityStep<S>(def: ActivityStepDef<S>): WizardStep<S> {
     run: async (state, { previous }) => {
       const typed = previous ? def.activity.get(previous as S) : undefined;
       const activities = await def.activities();
-      const answer = await askTextStep('Código de actividad de WSFEX, por ejemplo 620100 (Enter para no informarla):', {
+      const answer = await askTextStep('Código de actividad de WSFEX, por ejemplo 620100:', {
+        hint: '(Enter para no informarla)',
         previousAnswer: typed === undefined ? undefined : String(typed),
         validate: validateActivity(activities),
       });
