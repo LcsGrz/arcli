@@ -84,7 +84,7 @@ Pedí el ok para mergear. El merge es squash: `gh pr merge <N> --squash --delete
 Pedí el ok una sola vez, con las notas a la vista: crear la release dispara la publicación en npm, y una versión publicada no se puede reusar.
 
 1. Notas: el cuerpo de la sección `[X.Y.Z]` del CHANGELOG, sin la línea `## [X.Y.Z] - fecha`. Guardalo en un archivo del scratchpad.
-2. `gh release create vX.Y.Z --target main --title vX.Y.Z --notes-file <archivo>`. Esto crea también el tag y dispara el workflow `Release`, que publica en npm.
+2. `gh release create vX.Y.Z --target main --title "vX.Y.Z · Nombre" --notes-file <archivo>`, con el nombre de la versión del título del CHANGELOG; sin nombre (un patch), `--title vX.Y.Z`. El commit y el título del PR siguen siendo `vX.Y.Z`. Esto crea también el tag y dispara el workflow `Release`, que publica en npm.
 3. Buscá el run con `gh run list --workflow release.yml --limit 1` y seguilo con `gh run watch <id> --exit-status`. Cuando `build` termina, `publish` espera la aprobación del environment `npm`: avisale al usuario que la apruebe en Actions ("Review deployments"). No la apruebes vos.
 4. Confirmá con `npm view arcli version`, que tiene que devolver `X.Y.Z`. Puede tardar unos minutos en propagarse.
 

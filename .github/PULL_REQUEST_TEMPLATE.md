@@ -19,6 +19,6 @@
 
 - [ ] Tests nuevos o ajustados si cambia el comportamiento
 - [ ] Documentación al día según la [tabla de CONTRIBUTING](https://github.com/LcsGrz/arcli/blob/main/CONTRIBUTING.md#documentación)
-- [ ] Entrada en "Sin publicar" de `CHANGELOG.md` si le afecta a quien usa el CLI (una línea `- **Área:** qué cambia (#N).` y el detalle, ver [CONTRIBUTING](https://github.com/LcsGrz/arcli/blob/main/CONTRIBUTING.md#documentación))
+- [ ] Entrada en "Sin publicar" de `CHANGELOG.md` si le afecta a quien usa el CLI (una línea `- **Área:** qué cambia (#N).` y el detalle si hace falta, ver [CONTRIBUTING](https://github.com/LcsGrz/arcli/blob/main/CONTRIBUTING.md#documentación))
 - [ ] `yarn typecheck`, `yarn lint` y `yarn test` pasan
 - [ ] Sin certificados, claves, tickets, CUITs reales ni respuestas de `--bruto` en el código, los tests o las capturas
