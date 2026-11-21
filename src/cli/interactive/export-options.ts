@@ -143,6 +143,8 @@ export async function askCountryCuit(
       'CUIT del país:',
       findCountryCuits(context, answer).map((entry) => ({
         description: String(entry.cuit),
+        // La CUIT tambien la encuentra al escribir.
+        keywords: String(entry.cuit),
         name: entry.countryName,
         value: entry.cuit,
       })),

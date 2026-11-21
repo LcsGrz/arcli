@@ -16,6 +16,8 @@ export interface Choice<T> {
   readonly description?: string;
   /** Se ve apagada y no se puede elegir; con texto, ese texto va al lado. */
   readonly disabled?: boolean | string;
+  /** Lo que se compara con lo escrito para filtrar, ademas del nombre: por ejemplo, el codigo de ARCA de una moneda. */
+  readonly keywords?: string;
   readonly name: string;
   /** Lo que queda en la linea "✔ pregunta respuesta" al elegirla; por defecto, `name`. */
   readonly short?: string;

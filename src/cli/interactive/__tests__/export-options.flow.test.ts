@@ -334,8 +334,18 @@ describe('exportOptionalsStep', () => {
 
       expect(await askExportOptions({}, context({ countryCuit }))).toEqual({ clientCountryCuit: 55000002118 });
       expect(script.chooseStep.mock.calls[0]?.[1]).toEqual([
-        { description: '55000002126', name: 'ESTADOS UNIDOS - Persona Jurídica', value: 55000002126 },
-        { description: '55000002118', name: 'ESTADOS UNIDOS - Persona Física', value: 55000002118 },
+        {
+          description: '55000002126',
+          keywords: '55000002126',
+          name: 'ESTADOS UNIDOS - Persona Jurídica',
+          value: 55000002126,
+        },
+        {
+          description: '55000002118',
+          keywords: '55000002118',
+          name: 'ESTADOS UNIDOS - Persona Física',
+          value: 55000002118,
+        },
       ]);
     });
 

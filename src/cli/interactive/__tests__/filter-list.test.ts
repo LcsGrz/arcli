@@ -71,6 +71,11 @@ describe('filterRows', () => {
     expect(filterRows(CURRENCIES, '060').map((row) => row.value)).toEqual(['060']);
     expect(filterRows(CURRENCIES, '  ')).toHaveLength(3);
   });
+
+  it('por palabras, en cualquier orden y aunque la fila las separe con varios espacios', () => {
+    expect(filterRows(CURRENCIES, 'estadounidense dol').map((row) => row.value)).toEqual(['DOL']);
+    expect(filterRows(CURRENCIES, 'dol euro')).toEqual([]);
+  });
 });
 
 describe('filterList', () => {

@@ -65,6 +65,10 @@ describe('interactive choices', () => {
     expect(values).not.toContain('ARS');
     expect(values).not.toContain('002');
     expect(currencyChoices()[2]?.name).toBe('Euros (EUR)');
+    // El codigo de ARCA y el ISO tambien la encuentran al escribir en la lista (TUI-17).
+    expect(currencyChoices()[1]?.keywords).toBe('DOL USD');
+    expect(currencyChoices()[2]?.keywords).toBe('060 EUR');
+    expect(currencyChoices()[0]?.keywords).toBe('PES ARS');
   });
 
   it('filtra el IVA receptor segun la letra', () => {

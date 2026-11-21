@@ -286,7 +286,8 @@ function exportSteps(
         // Sin "Sin incoterm": la factura de bienes lo exige (error 1640).
         const incoterm = await chooseStep(
           'Incoterm:',
-          list.map((entry) => ({ name: entry.code, value: entry.code })),
+          // El nombre tambien lo encuentra al escribir: "free on board" marca FOB.
+          list.map((entry) => ({ keywords: entry.name, name: entry.code, value: entry.code })),
           previous?.incoterm,
         );
 

@@ -20,6 +20,8 @@ import {
 
 export interface InteractiveChoice<T> {
   readonly description?: string;
+  /** Lo que tambien encuentra la opcion al escribir en la lista, ademas del nombre (por ejemplo, `DOL` o `060`). */
+  readonly keywords?: string;
   readonly name: string;
   readonly value: T;
 }
@@ -194,6 +196,11 @@ export function currencyChoices(): Array<InteractiveChoice<string>> {
       return [];
     }
 
-    return code === 'ARS' ? [{ name: 'Pesos', value: 'PES' }] : [{ name: `${currency.name} (${code})`, value: code }];
+    // El codigo de ARCA tambien la encuentra al escribir: "dol" o "060", como en "Monedas y cotizaciones".
+    const keywords = [currency.arca, code].join(' ');
+
+    return code === 'ARS'
+      ? [{ keywords, name: 'Pesos', value: 'PES' }]
+      : [{ keywords, name: `${currency.name} (${code})`, value: code }];
   });
 }
