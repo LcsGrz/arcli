@@ -273,10 +273,11 @@ export function createRandomAssistant(g: fc.GeneratorValue, options: RandomAssis
 const AMOUNT_QUESTION = /^(Monto total|Monto de la nota)/;
 
 /**
- * Las preguntas a las que vuelve `finalize` desde mas adelante: el monto, si los opcionales cambian la moneda, y la
- * fecha de pago de la E, si la fecha del comprobante que queda la deja antes (TUI-22).
+ * Las preguntas a las que vuelve `finalize` desde mas adelante: el monto, si los opcionales cambian la moneda, la
+ * fecha de pago de la E, si la fecha del comprobante que queda la deja antes (TUI-22), y el periodo de una nota, si
+ * termina despues de la fecha de la nota (con `hoy`, `ayer` y `-N` en las fechas, TUI-18, el azar llega mas seguido).
  */
-const FINALIZE_TARGET = /^(Monto total|Monto de la nota|Fecha de pago)/;
+const FINALIZE_TARGET = /^(Monto total|Monto de la nota|Fecha de pago|Período desde|Período hasta)/;
 const amountKey = (message: string): string => message.replace(/ en [A-Z]{3}:$/, ':');
 
 /** Las preguntas del paso de los items de la E (NAV-10): un solo paso del asistente con su propia navegacion. */

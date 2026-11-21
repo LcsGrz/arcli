@@ -1,13 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import { InputValidationError } from '../../errors/app-error';
+import { dateInputHint, MAX_RELATIVE_DAYS } from '../date-input-text';
 import { currentMonthPeriod, monthArcaPeriod, previousMonthPeriod } from '../periods';
-import {
-  MAX_RELATIVE_DAYS,
-  parseDateInputAsArcaDate,
-  parseRelativeDateAsArcaDate,
-  resolveRelativeDateInput,
-} from '../relative-date';
+import { parseDateInputAsArcaDate, parseRelativeDateAsArcaDate, resolveRelativeDateInput } from '../relative-date';
 
 // Mediodia en Argentina (UTC-3): el dia es el mismo en cualquier zona razonable.
 const at = (date: string) => new Date(`${date}T15:00:00Z`);
@@ -93,9 +89,16 @@ describe('parseDateInputAsArcaDate', () => {
     expect(parseDateInputAsArcaDate(value, role, at(today))).toBe(expected);
   });
 
-  it('una fecha mal escrita dice que tambien valen las relativas', () => {
+  it('una fecha mal escrita da el texto comun de formatos, con todos los que valen y las relativas', () => {
     expect(() => parseDateInputAsArcaDate('32/10', 'day', at('2026-11-18'))).toThrow(InputValidationError);
-    expect(() => parseDateInputAsArcaDate('32/10', 'day', at('2026-11-18'))).toThrow(/`hoy`, `ayer`, `\+N` o `-N`/);
+    expect(() => parseDateInputAsArcaDate('32/10', 'day', at('2026-11-18'))).toThrow(
+      `La fecha "32/10" no es válida. ${dateInputHint()}`,
+    );
+    expect(() => parseDateInputAsArcaDate('32/10', 'from', at('2026-11-18'))).toThrow(dateInputHint('from'));
+    expect(dateInputHint()).toBe(
+      'Usá D, DD, D-MM, D/MM, D-MM-YY, D/MM/YY, D-MM-YYYY o D/MM/YYYY. También: hoy, ayer, +N o -N (días desde hoy, hasta 999).',
+    );
+    expect(dateInputHint('to')).toMatch(/mes-actual o mes-pasado\.$/);
   });
 
   it('una relativa invalida da el error de la relativa', () => {

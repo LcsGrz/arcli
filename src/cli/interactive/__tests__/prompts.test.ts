@@ -1,6 +1,7 @@
 import input from '@inquirer/input';
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest';
 
+import { completeDateInput } from '../../../modules/interactive/date-input';
 import { BACK } from '../../../modules/interactive/wizard';
 import { stripAnsi } from '../../../ui';
 import { listSelect } from '../list-select';
@@ -199,6 +200,13 @@ describe('prompts', () => {
     expect(stripAnsi((inputMock.mock.calls[1]?.[0] as { message: string }).message)).toBe(
       'Fecha de pago (Enter para omitirlo): (hoy, ayer, +N o -N • [esc] para volver)',
     );
+  });
+
+  // `completeDateInput` tira con "<": la linea de respuesta no lo pasa por `answered`.
+  it('askTextStep: "<" con `answered` de fecha vuelve atras sin tirar', async () => {
+    inputMock.mockResolvedValueOnce('<' as never);
+
+    expect(await askTextStep('Fecha:', { answered: (value) => completeDateInput(value) })).toBe(BACK);
   });
 
   it('Esc en una confirmacion cuenta como no', async () => {

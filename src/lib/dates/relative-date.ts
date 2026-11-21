@@ -6,21 +6,10 @@ import {
   formatDateAsArcaDate,
   parseArgentineDateInputAsArcaDate,
 } from './arca-date';
+import { dateInputHint, type DateInputRole, MAX_RELATIVE_DAYS, RELATIVE_DAY_WORDS_TEXT } from './date-input-text';
 import { monthArcaPeriod } from './periods';
 
-/**
- * Que fecha es un flag o una clave: un dia suelto (`--fecha`, `--vto`...) o una punta de un rango (`--sd`/`--sh`,
- * `--pd`/`--ph`). Las palabras de mes solo valen en las puntas: en "desde" dan el dia 1 y en "hasta", el ultimo.
- */
-export type DateInputRole = 'day' | 'from' | 'to';
-
-/** Tope de `+N` y `-N`: mas que cualquier vencimiento real, y frena un typo antes de que la fecha salga de rango. */
-export const MAX_RELATIVE_DAYS = 999;
-
 const MONTH_WORDS = { 'mes-actual': 0, 'mes-pasado': 1 } as const;
-
-const DAY_WORDS_HINT = '`hoy`, `ayer`, `+N` o `-N` (días desde hoy)';
-const MONTH_WORDS_HINT = '`mes-actual` o `mes-pasado`';
 
 function isMonthWord(value: string): value is keyof typeof MONTH_WORDS {
   return value in MONTH_WORDS;
@@ -29,12 +18,6 @@ function isMonthWord(value: string): value is keyof typeof MONTH_WORDS {
 /** Una palabra (letras y guiones) o algo que empieza con `+`/`-`: nunca es una fecha escrita a mano. */
 function looksRelative(value: string): boolean {
   return /^[+-]/.test(value) || /^[a-zñáéíóú-]+$/.test(value);
-}
-
-function formatHint(role: DateInputRole): string {
-  return role === 'day'
-    ? `Usá una fecha (D, D/MM o D/MM/YYYY) o ${DAY_WORDS_HINT}.`
-    : `Usá una fecha (D, D/MM o D/MM/YYYY), ${DAY_WORDS_HINT} o ${MONTH_WORDS_HINT}.`;
 }
 
 /**
@@ -62,7 +45,7 @@ export function parseRelativeDateAsArcaDate(value: string, role: DateInputRole, 
   if (isMonthWord(normalized)) {
     if (role === 'day') {
       throw new InputValidationError(
-        `\`${value.trim()}\` es un mes y esta fecha es de un día: las palabras de mes valen solo en desde y hasta (\`--sd\`/\`--sh\`, \`--pd\`/\`--ph\`). Acá usá una fecha o ${DAY_WORDS_HINT}.`,
+        `\`${value.trim()}\` es un mes y esta fecha es de un día: las palabras de mes valen solo en desde y hasta (\`--sd\`/\`--sh\`, \`--pd\`/\`--ph\`). Acá usá una fecha o ${RELATIVE_DAY_WORDS_TEXT}.`,
       );
     }
 
@@ -74,7 +57,7 @@ export function parseRelativeDateAsArcaDate(value: string, role: DateInputRole, 
   const offset = /^([+-])(\d+)$/.exec(normalized);
 
   if (!offset) {
-    throw new InputValidationError(`La fecha "${value.trim()}" no es válida. ${formatHint(role)}`);
+    throw new InputValidationError(`La fecha "${value.trim()}" no es válida. ${dateInputHint(role)}`);
   }
 
   const days = Number(offset[2]);
@@ -91,7 +74,9 @@ export function parseRelativeDateAsArcaDate(value: string, role: DateInputRole, 
 /**
  * La fecha ARCA (yyyymmdd) de lo que escribe el usuario, en un flag, en `--cargar` o en el asistente: una relativa
  * (`hoy`, `-3`, `mes-pasado` en desde y hasta) o una escrita a mano (`5`, `15/11`, `15/11/2026`), que sin año toma
- * la mas cercana a `now`. Es el unico camino de texto a fecha: el error de una mal escrita nombra tambien las relativas.
+ * la mas cercana a `now`. La usan el asistente y `fce-obligado`; los flags de facturacion y de la E resuelven aca las
+ * relativas (`resolveRelativeDateInput`) y la fecha escrita a mano la lee cada modulo con `parseArgentineDateInputAsArcaDate`.
+ * Los errores de los tres caminos dicen lo mismo: `dateInputHint`.
  */
 export function parseDateInputAsArcaDate(value: string, role: DateInputRole, now: Date): string {
   const relative = parseRelativeDateAsArcaDate(value, role, now);
@@ -104,7 +89,7 @@ export function parseDateInputAsArcaDate(value: string, role: DateInputRole, now
     return parseArgentineDateInputAsArcaDate(value, now);
   } catch (error) {
     if (error instanceof InputValidationError) {
-      throw new InputValidationError(`La fecha "${value.trim()}" no es válida. ${formatHint(role)}`);
+      throw new InputValidationError(`La fecha "${value.trim()}" no es válida. ${dateInputHint(role)}`);
     }
 
     throw error;

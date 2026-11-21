@@ -1,5 +1,6 @@
 import { formatArcaDateAsArgentineDate, formatDateAsArcaDate } from '../../lib/dates/arca-date';
-import { MAX_RELATIVE_DAYS, parseDateInputAsArcaDate } from '../../lib/dates/relative-date';
+import { dateInputHint } from '../../lib/dates/date-input-text';
+import { parseDateInputAsArcaDate } from '../../lib/dates/relative-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { describeInvalidCbu, parseCbu } from '../../lib/identity/cbu';
 import { parseCuit } from '../../lib/identity/cuit';
@@ -53,7 +54,7 @@ export function normalizeDocumentNumber(value: string): number {
 
 /**
  * Una fecha como en los flags: escrita a mano (`5`, `15/11`, `15/11/2026`) o relativa (`hoy`, `ayer`, `+N`, `-N`).
- * El error es uno solo, sin flags: los del CLI nombran `--sd` o `--sh` (TUI-18).
+ * El error es uno solo, con los formatos de `dateInputHint` y sin flags: el de una palabra de mes nombra `--sd` (TUI-18).
  */
 export function validateDate(value: string, now = new Date()): string | true {
   try {
@@ -62,7 +63,7 @@ export function validateDate(value: string, now = new Date()): string | true {
     return true;
   } catch (error) {
     if (error instanceof InputValidationError) {
-      return `Fecha inválida. Usá D, D/MM o D/MM/YYYY. También valen hoy, ayer, +N y -N (días desde hoy, hasta ${MAX_RELATIVE_DAYS}).`;
+      return `Fecha inválida. ${dateInputHint()}`;
     }
 
     throw error;
