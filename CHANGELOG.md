@@ -28,10 +28,10 @@ arcli ra -m 121000 --cs --cuit 20168598204
 
 #### Fechas relativas
 
-`hoy`, `ayer`, `+N` y `-N` en todo flag de fecha, en `--cargar` y en las preguntas del asistente, y `mes-actual` o `mes-pasado` en los períodos. Sirve para un abono mensual por cron.
+`hoy`, `ayer`, `+N` y `-N` en todo flag de fecha, en `--cargar` y en las preguntas del asistente, y `mes-actual` o `mes-pasado` en los períodos de los flags y de `--cargar`. Sirve para un abono mensual por cron.
 
 ```sh
-arcli fc -m 50.000 --cs --cfinal --sd mes-pasado --sh mes-pasado --vto +10 --emitir
+arcli fc -m 50.000 --cs --cfinal --sd mes-pasado --sh mes-pasado --vto +10
 ```
 
 #### Un asistente que no pierde lo que respondiste
@@ -46,7 +46,10 @@ La vista previa frena con el código de ARCA lo que ARCA iba a rechazar al emiti
 > **Puede afectar scripts**
 >
 > - Una moneda que no existe sale con `INPUT_VALIDATION_ERROR`, antes `ARCA_QUOTATION_ERROR`.
-> - Frenan antes de ir a ARCA, con `INPUT_VALIDATION_ERROR`, casos que ARCA rechazaba al emitir: un CBU con un dígito verificador mal, una A o una FCE a un DNI, textos e importes más largos que los campos de ARCA y las reglas de la `E`.
+> - Frenan antes de ir a ARCA, con `INPUT_VALIDATION_ERROR`, casos que ARCA rechazaba al emitir. Por ejemplo, en A, B, C, FCE y recibos: un CBU con un dígito verificador mal, una A o una FCE a un DNI, CUIL o consumidor final, el receptor igual al emisor (10069), una B al No Categorizado con neto gravado (10067), un punto de venta mayor a 99.998, un `--ar` mayor a 99.999.999 o un importe de más de 13 enteros.
+> - En las notas FCE: otra moneda, otro receptor u otra `--afecha` que su asociado (10181, 10183 y 10160), y una nota de débito con `--anulacion` sobre la factura.
+> - Una cotización por debajo del 2 % o por encima del 500 % de la oficial, también la de la clave `cotizacion` de la config (10119).
+> - En la `E`: los permisos de embarque que ARCA da por inválidos y las reglas de incoterm, fecha de pago, cotización, unidades, topes y largo de los textos.
 > - A consumidor final por defecto, la `solicitud` del `--json` suma `DocNro: 0`.
 >
 > No se saca ni se renombra ningún comando, flag ni clave de config o de `--json`: lo nuevo del `--json` son campos que se suman.
@@ -59,7 +62,7 @@ La vista previa frena con el código de ARCA lo que ARCA iba a rechazar al emiti
 - **Monotributo:** la clave `monotributo.tope` guarda tu tope de ingresos anuales si es otro que el de la categoría (#210).
 - **Recibos:** Recibo A y Recibo B con `arcli ra` y `arcli rb`, en las notas, el PDF, el `--json` y el asistente (#202).
 - **Fechas:** `hoy`, `ayer`, `+N`, `-N`, `mes-actual` y `mes-pasado` en los flags de fecha y en `--cargar` (#217).
-- **Fechas:** las mismas fechas relativas en todas las preguntas de fecha del asistente (#249).
+- **Fechas:** `hoy`, `ayer`, `+N` y `-N` en las preguntas de fecha del asistente (#249).
 - **Asistente:** consumidor final con datos: desde $ 10.000.000 pregunta su documento, y por debajo es un opcional (#238).
 - **Consultas:** `arcli consultar` muestra el asociado, los períodos, las alícuotas, los tributos, los datos de FCE y las observaciones (#230).
 - **Notas:** una nota A, B o C puede ajustar otra nota de la misma letra, como permite ARCA (#192).
@@ -101,7 +104,7 @@ La vista previa frena con el código de ARCA lo que ARCA iba a rechazar al emiti
 
 **Notas en el selector del modo interactivo.** En las notas de crédito y débito, "¿Sobre qué comprobante?" se elige en dos pasos: primero el tipo de documento (facturas, notas de crédito, notas de débito o recibos) y después el comprobante, de C a A, los FCE y el de exportación `E` (en recibos, el C, B o A), así la lista no se alarga. Suma las notas de cada letra que se pueden ajustar y las notas de exportación `E`. La pregunta "¿La nota va sobre la factura E o sobre otra nota E?" ya no está: se elige en ese selector. En FCE, la anulación se completa sola cuando el asociado la define, y solo se pregunta en una nota de crédito sobre la factura.
 
-**Fecha del comprobante en el asistente de la `E`.** La factura `E`, sus notas y "Repetir" una `E` suman el opcional **Fecha del comprobante** (por defecto hoy), como en A, B y C. Valida lo mismo que `--fecha`: hasta 5 días antes o después de hoy y, en servicios, no después del fin de mes (error `1500`); en una nota, no puede ser anterior al comprobante que ajusta. La fecha de pago de la factura (servicios u otros) se pregunta ahora después de los opcionales y, como `--fecha-pago`, no puede ser anterior a la del comprobante elegida (antes no podía ser anterior a hoy). La cotización de aduana es la de esa fecha (en servicios o cobrada en dólares, la del día hábil anterior) y el comando equivalente lleva `--fecha`. Antes el asistente usaba siempre la de hoy.
+**Fecha del comprobante en el asistente de la `E`.** La factura `E`, sus notas y "Repetir" una `E` suman el opcional **Fecha del comprobante** (por defecto hoy), como en A, B y C. Valida lo mismo que `--fecha`: hasta 5 días antes o después de hoy y, en servicios, no después del fin de mes (error `1500`). En una nota, no puede ser anterior al comprobante que ajusta. La fecha de pago de la factura (servicios u otros), como `--fecha-pago`, no puede ser anterior a la del comprobante elegida (antes no podía ser anterior a hoy). Dónde se pregunta está en "Fecha de pago" de la `E`, en Cambiado. La cotización de aduana es la de esa fecha (en servicios o cobrada en dólares, la del día hábil anterior) y el comando equivalente lleva `--fecha`. Antes el asistente usaba siempre la de hoy.
 
 **Notas en pesos sobre una factura en otra moneda, en el modo interactivo.** Al elegir una factura en dólares (u otra moneda extranjera), el asistente pregunta si la nota va en esa moneda o en pesos, por ejemplo una nota de débito por diferencia de cambio. En pesos no ofrece anular el total ni controla el tope de la nota de crédito. Con flags ya se podía.
 
@@ -140,11 +143,23 @@ La vista previa frena con el código de ARCA lo que ARCA iba a rechazar al emiti
 
 **Una moneda que no está en la tabla de ARCA es `INPUT_VALIDATION_ERROR`, no `ARCA_QUOTATION_ERROR`.** `fe --moneda XYZ` (y `nce`/`nde`, o `codigoMoneda` de `--cargar`) salía con `ARCA_QUOTATION_ERROR` porque ARCLI no encontraba su cotización, cuando el problema es la entrada: el código no existe en la tabla de monedas de WSFEX (ARCA lo rechaza con 1590). Ahora la `E` busca la moneda en esa tabla antes de la cotización y frena con `INPUT_VALIDATION_ERROR`, el error de ARCA y una `sugerencia` de revisar `--moneda`, también con `--cotizacion-moneda` (antes llegaba a ARCA). En A, B, C, FCE y recibos pasaba lo mismo: sin `--cm` salía `ARCA_QUOTATION_ERROR`, y con `--cm` llegaba a ARCA, que la rechazaba al emitir (10037). Ahora una moneda que ARCLI no conoce se busca en la tabla de WSFEv1 (`arcli parametros monedas`) y, si no está, es el mismo `INPUT_VALIDATION_ERROR`; si la tabla no se puede consultar, sigue como antes. **Cambia el `codigo` del `--json` para este caso:** un script que esperaba `ARCA_QUOTATION_ERROR` por una moneda inexistente ahora recibe `INPUT_VALIDATION_ERROR`, que es el que corresponde a un dato mal escrito. `ARCA_QUOTATION_ERROR` sigue para una moneda que existe y ARCA no cotiza.
 
-**Controles de ARCA antes de la vista previa.** ARCLI frena con `INPUT_VALIDATION_ERROR` y una `sugerencia` lo que ARCA igual rechazaba al emitir, con flags, con `--cargar` y en el modo interactivo. No cambia ninguna clave del `--json`: un comprobante A (`fa`, `nca`, `nda`, `ra`) con `--dni` o `--cuil`: la A va a un CUIT (10013); una FCE de cualquier letra con `--dni`, `--cuil` o consumidor final: va a un CUIT (10015). El asistente ya no ofrece otros receptores en FCE; el receptor con el mismo CUIT que emite (10069); una factura o nota B al No Categorizado (`23000000000`) con neto gravado, que lleva la percepción de IVA No Categorizado (10067) y ARCLI no informa tributos; una nota FCE en otra moneda que su asociado (salvo pesos, para una diferencia de cambio, 10181), a otro receptor (10183) o con `--afecha` distinta de la del asociado en ARCA (10160); una cotización (`--cm`, `cotizacionMoneda` del JSON o la clave `cotizacion` de la config) por debajo del 2 % o por encima del 500 % de la oficial (10119). Para compararla, la vista previa consulta la oficial; si la consulta falla, solo avisa. en A, B, C, FCE y recibos, lo que no entra en el campo de ARCA: un importe (`--monto`, `--exento`, `--nogravado`, los de `--alicuotas` o los del JSON) de más de 13 enteros, el punto de venta (`--pv` o el de la config) o el del asociado (`--apv`) mayor a 99.998 (10004 y 10058), y `--ar` mayor a 99.999.999 (10059). El error dice el máximo, como ya hacía la `E`.
+**Controles de ARCA antes de la vista previa.** ARCLI frena con `INPUT_VALIDATION_ERROR` y una `sugerencia` lo que ARCA igual rechazaba al emitir, con flags, con `--cargar` y en el modo interactivo. No cambia ninguna clave del `--json`.
 
-**La `E` frena antes lo que ARCA rechaza.** Estos casos llegaban a ARCA y salían rechazados; ahora frenan en la vista previa con `INPUT_VALIDATION_ERROR` y el código de ARCA, con flags, con `--cargar` y en el modo interactivo. Si un script los mandaba, ya fallaba al emitir: factura de bienes (`--tipo-expo 1`) sin `--incoterm` (1640). En el modo interactivo el incoterm de bienes ya no ofrece "Sin incoterm"; `--incoterms-desc` sin `--incoterm` (1641) o de más de 20 caracteres (1642); `--fecha-pago` anterior a la fecha del comprobante (1674); `--cotizacion-moneda` en la factura de servicios o con `--misma-moneda` distinta de la que exige ARCA, la de aduana del día hábil anterior (2053 y 1604): ARCLI la compara con la de ARCA y el error dice cuál corresponde. Si coincide, sigue. En el modo interactivo la cotización a mano ya no se ofrece en esos casos; ítems con las unidades 0, 97 (seña o anticipo) o 99 (bonificación), que ARCA pide sin cantidad ni precio (1775). En el modo interactivo no aparecen en la lista de unidades, y Repetir no copia los ítems de una factura que las tenga; punto de venta (`--pv`, `--apv`) mayor a 99.998 (1510), y `--numero` mayor a 99.999.999 (1520) también cuando lo pasás a mano. `--id-solicitud`, en cambio, ahora acepta hasta 15 dígitos, como el campo de ARCA (antes, 99.999.999); textos más largos que los de ARCA: `--cliente` 200 caracteres (1651), `--domicilio-cliente` 300 (1661), `--observaciones` 1000 y `--obs-comerciales` 4000 (1665), `--descripcion` y la descripción de un ítem 4000 (1770), el código de un ítem 50 (1760; ARCA testing no lo aplica, producción puede), y `--forma-pago` e `--id-impositivo` 50.
+Frenan: un comprobante A (`fa`, `nca`, `nda`, `ra`) con `--dni` o `--cuil`, porque la A va a un CUIT (10013). Una FCE de cualquier letra con `--dni`, `--cuil` o consumidor final, porque también va a un CUIT (10015). El asistente ya no ofrece otros receptores en FCE. El receptor con el mismo CUIT que emite (10069). Una factura o nota B al No Categorizado (`23000000000`) con neto gravado, que lleva la percepción de IVA No Categorizado (10067), porque ARCLI no informa tributos. Una nota FCE en otra moneda que su asociado (salvo pesos, para una diferencia de cambio, 10181), a otro receptor (10183) o con `--afecha` distinta de la del asociado en ARCA (10160). Una cotización (`--cm`, `cotizacionMoneda` del JSON o la clave `cotizacion` de la config) por debajo del 2 % o por encima del 500 % de la oficial (10119): para compararla, la vista previa consulta la oficial, y si la consulta falla, solo avisa.
 
-No cambia ninguna clave del `--json`.
+En A, B, C, FCE y recibos frena también lo que no entra en el campo de ARCA: un importe (`--monto`, `--exento`, `--nogravado`, los de `--alicuotas` o los del JSON) de más de 13 enteros, el punto de venta (`--pv` o el de la config) o el del asociado (`--apv`) mayor a 99.998 (10004 y 10058), y `--ar` mayor a 99.999.999 (10059). El error dice el máximo, como ya hacía la `E`.
+
+**La `E` frena antes lo que ARCA rechaza.** Estos casos llegaban a ARCA y salían rechazados. Ahora frenan en la vista previa con `INPUT_VALIDATION_ERROR` y el código de ARCA, con flags, con `--cargar` y en el modo interactivo. Si un script los mandaba, ya fallaba al emitir. No cambia ninguna clave del `--json`.
+
+Incoterm y fecha de pago: una factura de bienes (`--tipo-expo 1`) sin `--incoterm` (1640), y en el modo interactivo el incoterm de bienes ya no ofrece "Sin incoterm". `--incoterms-desc` sin `--incoterm` (1641) o de más de 20 caracteres (1642). `--fecha-pago` anterior a la fecha del comprobante (1674).
+
+Cotización: `--cotizacion-moneda` en la factura de servicios o con `--misma-moneda` distinta de la que exige ARCA, la de aduana del día hábil anterior (2053 y 1604). ARCLI la compara con la de ARCA y el error dice cuál corresponde. Si coincide, sigue. En el modo interactivo la cotización a mano ya no se ofrece en esos casos.
+
+Unidades: ítems con las unidades 0, 97 (seña o anticipo) o 99 (bonificación), que ARCA pide sin cantidad ni precio (1775). En el modo interactivo no aparecen en la lista de unidades, y "Repetir" no copia los ítems de una factura que las tenga.
+
+Números: el punto de venta (`--pv`, `--apv`) mayor a 99.998 (1510), y `--numero` mayor a 99.999.999 (1520), también cuando lo pasás a mano. `--id-solicitud`, en cambio, ahora acepta hasta 15 dígitos, como el campo de ARCA (antes, 99.999.999).
+
+Textos más largos que los de ARCA: `--cliente` 200 caracteres (1651), `--domicilio-cliente` 300 (1661), `--observaciones` 1000 y `--obs-comerciales` 4000 (1665), `--descripcion` y la descripción de un ítem 4000 (1770), el código de un ítem 50 (1760, que ARCA testing no aplica pero producción puede), y `--forma-pago` e `--id-impositivo` 50.
 
 **CBU con dígitos verificadores.** El CBU de una FCE ya no se acepta solo por tener 22 dígitos: ARCLI controla sus dos dígitos verificadores (el del bloque de banco y sucursal y el de la cuenta) en `--cbu`, la clave `cbu` del JSON de `--cargar`, `arcli config establecer cbu` y el modo interactivo. Si alguno no coincide, frena antes de ir a ARCA con `INPUT_VALIDATION_ERROR` y dice qué bloque está mal. Un CBU real siempre los cumple: si uno que usabas ahora da error, tiene un dígito mal escrito. Si el CBU mal está guardado en la config, los comandos frenan con `El CBU guardado en la config no es válido`, el bloque que falla y la sugerencia de cambiarlo con `arcli config establecer cbu <CBU>`, que funciona aunque la config tenga el CBU mal. No cambia ninguna clave del `--json`.
 
@@ -246,7 +261,15 @@ No cambia ninguna clave del `--json`.
 
 **Fechas completas en el comando equivalente.** Una fecha escrita a medias (`25` en el vencimiento, `1/11` en el período del servicio, el período de la nota o la fecha del asociado) iba igual en el comando equivalente (`--vto 25`), y pegado otro mes daba otra fecha. Lo mismo con la fecha de pago de la factura `E` y de "Repetir" una `E` (`--fecha-pago 25`). Ahora van completas (`--vto 25/11/2026`, `--fecha-pago 25/11/2026`), como ya iba la fecha del comprobante de la `E`. Al volver a la pregunta, arranca escrita completa.
 
-**El modo interactivo controla las fechas y los importes al preguntarlos.** Algunas respuestas pasaban la pregunta y recién fallaban en la vista previa, que volvía al menú y se perdía todo. Ahora cada pregunta aplica la misma regla que los flags y no deja seguir hasta corregirla: en el período del servicio, "Servicio hasta" no puede ser anterior a "Servicio desde" (10032), y el vencimiento del pago no puede ser anterior a la fecha del comprobante (en una factura FCE, tampoco a hoy, 10164); la parte exenta más la no gravada no puede superar el monto total. En "Repetir" con otro monto, el exento y el no gravado del original ya no se copian tal cual: el opcional **Importe exento o no gravado** arranca marcado y se vuelven a preguntar. Con el mismo monto se copian como antes; en una nota por período, el período no puede empezar antes del 01/01/2006, "Período hasta" no puede ser anterior a "Período desde" ni posterior a la fecha de la nota. Como la fecha de la nota se elige después, en los opcionales, al preguntar el período se acepta hasta la más tardía que ARCA admite para la nota; si termina después de hoy, elegí esa fecha en "Fecha del comprobante" (si no, el asistente vuelve al período con el aviso). "A un período" ya no sugiere un descuento sobre todo el mes. En las notas, la fecha del comprobante tampoco puede ser anterior al asociado, y la fecha de una factura de otro sistema, posterior a la nota; "CUIT del receptor" (y el CUIT o CUIL del consumidor final) no puede ser el CUIT que emite (10069).
+**El modo interactivo controla las fechas y los importes al preguntarlos.** Algunas respuestas pasaban la pregunta y recién fallaban en la vista previa, que volvía al menú y se perdía todo. Ahora cada pregunta aplica la misma regla que los flags y no deja seguir hasta corregirla.
+
+En el período del servicio, "Servicio hasta" no puede ser anterior a "Servicio desde" (10032), y el vencimiento del pago no puede ser anterior a la fecha del comprobante (en una factura FCE, tampoco a hoy, 10164).
+
+La parte exenta más la no gravada no puede superar el monto total. En "Repetir" con otro monto, el exento y el no gravado del original ya no se copian tal cual: el opcional **Importe exento o no gravado** arranca marcado y se vuelven a preguntar. Con el mismo monto se copian como antes.
+
+En una nota por período, el período no puede empezar antes del 01/01/2006, y "Período hasta" no puede ser anterior a "Período desde" ni posterior a la fecha de la nota. Como la fecha de la nota se elige después, en los opcionales, al preguntar el período se acepta hasta la más tardía que ARCA admite para la nota. Si termina después de hoy, elegí esa fecha en "Fecha del comprobante" (si no, el asistente vuelve al período con el aviso). "A un período" ya no sugiere un descuento sobre todo el mes. En las notas, la fecha del comprobante tampoco puede ser anterior al asociado, y la fecha de una factura de otro sistema no puede ser posterior a la nota.
+
+"CUIT del receptor" (y el CUIT o CUIL del consumidor final) no puede ser el CUIT que emite (10069).
 
 Si después cambiás una respuesta anterior y una regla deja de cumplirse, antes de la vista previa el asistente vuelve a la pregunta que la resuelve, con el aviso. Los mensajes nombran la pregunta: "En el período asociado, "Período desde" no puede ser posterior a "Período hasta"." en lugar de los flags. Con flags y con `--cargar` no cambia nada: los mismos controles, con los mismos textos y el mismo `--json`.
 
@@ -422,7 +445,7 @@ Una página por comprobante, guías cortas, buscador y problemas frecuentes que 
 - **Factura E:** notas de crédito y débito de exportación con `arcli nce` y `arcli nde`, que toman los datos de la factura (#140).
 - **Factura E:** `arcli ultimos fe` y `arcli consultar fe` listan y muestran los comprobantes de exportación (#144).
 - **Asistente:** Consultas reúne tus comprobantes, datos de un CUIT, régimen FCE, cotizaciones y tablas de ARCA (#166).
-- **Asistente:** la `E` y sus notas suman opcionales: ítems, idioma, observaciones, incoterm, cotización y CUIT del país (#162).
+- **Asistente:** la `E` y sus notas suman opcionales, como ítems, idioma y descripción del incoterm; la factura, también el CUIT del país (#162).
 - **Asistente:** más opcionales: fecha del comprobante, receptor por CUIL, todas las monedas de ARCA y opcionales en las notas (#160).
 - **Asistente:** "Repetir un comprobante anterior" ofrece la factura `E` (#163).
 - **Asistente:** la `E` y sus notas en "Consultar comprobantes", con el mismo detalle que `arcli consultar fe` (#159).
@@ -574,6 +597,8 @@ Importes, CUIT, fechas y comprobantes con el mismo formato en todos los comandos
 > - `--moneda USD` sin `--cm` ya no da error: usa la cotización oficial de ARCA.
 > - Cambian textos de `error`, `sugerencia` y `avisos` (opciones entre backticks, tildes), no sus claves ni los códigos.
 > - El certificado sin autorizar a facturar sale como `WSFE_SERVICE_NOT_AUTHORIZED` en lugar de `UNEXPECTED_ERROR`.
+> - En la `E`, un fallo en la llamada que emite sale como `EMISSION_UNCERTAIN`, no como error inesperado.
+> - En `fe --cargar`, `--exportar-pdf` con `--sin-pdf` es un error, y un monto con más de 2 decimales también, en lugar de redondearse.
 >
 > No se saca ningún comando, flag ni clave de config. Hay deprecaciones para la 3.0.0: ver "Deprecado".
 
@@ -681,7 +706,7 @@ Importes, CUIT, fechas y comprobantes con el mismo formato en todos los comandos
 ### 🐛 Corregido
 
 - **Errores:** `EMISSION_UNCERTAIN` sugiere verificar en el entorno en que se emitió (#134).
-- **Facturas:** `--cargar` respeta `"pdf"` en la `E`, avisa decimales de más y combina el asociado de las notas (#134).
+- **Facturas:** en `--cargar`, la `E` respeta `"pdf"` y rechaza montos con más de 2 decimales, y las notas combinan el asociado (#134).
 - **Facturas:** la cotización deprecada de la config ya no se aplica a otra moneda extranjera (#134).
 - **Asistente:** arreglos de la configuración guiada, "Cerrar para actualizar", rutas arrastradas y el comando equivalente (#134).
 - **Errores:** mensajes más claros para `--cm 1` y para una nota con período y asociado a la vez (#134).
@@ -702,7 +727,7 @@ Importes, CUIT, fechas y comprobantes con el mismo formato en todos los comandos
 
 **`EMISSION_UNCERTAIN` sugiere verificar en el entorno en que se emitió.** Antes `arcli ultimos` consultaba el de la config, y emitido con `--produccion` con la config en testing, el comprobante "no figuraba" y reintentar lo duplicaba. También el aviso del lote, que ahora trae el comando completo.
 
-**`--cargar`.** En la `E`, `"pdf"` del archivo se ignoraba, `--exportar-pdf` con `--sin-pdf` no era error y un monto con más de 2 decimales se redondeaba sin avisar. En las notas, un flag del asociado (por ejemplo, solo `--acuit`) descartaba todo `comprobanteAsociado` del archivo; ahora se combinan. `importeExento` e `importeNoGravado` en `0` cuentan como ausentes.
+**`--cargar`.** En la `E`, `"pdf"` del archivo se ignoraba, `--exportar-pdf` con `--sin-pdf` no era error y un monto con más de 2 decimales se redondeaba sin avisar: ahora `"pdf"` se respeta y los otros dos son error. En las notas, un flag del asociado (por ejemplo, solo `--acuit`) descartaba todo `comprobanteAsociado` del archivo. Ahora se combinan. `importeExento` e `importeNoGravado` en `0` cuentan como ausentes.
 
 **La cotización deprecada de la config** ya no se aplica a otra moneda extranjera (la de USD no vale para EUR).
 
@@ -876,10 +901,10 @@ La factura de exportación `E` (`arcli fe`) sobre WSFEX, con ítems, país de de
 
 #### Factura de exportación E
 
-Ítems, país de destino, incoterm, permisos de embarque y credenciales propias para `wsfex`, con la actividad por flag o en `exportacion.actividad`.
+Ítems, país de destino, incoterm, permisos de embarque y credenciales propias para `wsfex`. La actividad es obligatoria: por flag o en `exportacion.actividad`.
 
 ```sh
-arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 212 --numero 1
+arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 212 --numero 1 --actividad 620100
 ```
 
 #### Autocompletado con Tab
@@ -907,6 +932,9 @@ Todo CUIT se acepta con o sin guiones y uno mal tipeado se rechaza antes de lleg
 >
 > - Los mensajes usan voseo y tildes: si un script compara el texto de un error en lugar de `codigo`, puede necesitar un ajuste.
 > - Un `montoTotal` con más de 2 decimales en el JSON da error en lugar de redondearse.
+> - Un CUIT con el dígito verificador mal se rechaza antes de llegar a ARCA.
+> - Los números con letras o notación científica dan error: `config establecer puntoVenta 3a` ya no guarda `3` y `arcli consultar fc 1e3` ya no busca el 1000.
+> - Un punto de venta inválido corta con `ARCA_LAST_VOUCHER_ERROR` en lugar de seguir con el número 1.
 >
 > La `E` es todo agregado: los comandos, flags y claves de config de A, B, C y FCE siguen igual.
 
@@ -1060,8 +1088,12 @@ Un comprobante que ARCA rechaza sale con exit code `2`, así un script se entera
 > - **`--bruto`** agrega `respuesta` en lugar de reemplazar el resumen.
 > - **`config revisar`** ya no recibe `--testing` ni `--produccion`.
 > - **Los PDFs** se guardan en una subcarpeta por CUIT.
+> - **`sugerencia` siempre** en el JSON de error, en `null` si no hay nada que sugerir.
+> - **Un certificado vencido, un fallo de login en WSAA o un error al pedir el último número** ya no salen como `EMISSION_UNCERTAIN`, sino como `UNEXPECTED_ERROR` o `TRANSIENT_ERROR`.
+> - **Un `config.json` inválido** sale como `CONFIGURATION_ERROR`, y **`config establecer` con un valor inválido**, como `INPUT_VALIDATION_ERROR`, no como error inesperado.
+> - **`--dia 31`** en un mes sin día 31 da error.
 >
-> Los comandos, los flags de facturación y las claves de config siguen siendo los mismos. El detalle de cada cambio está en "Cambiado".
+> Los comandos, los flags de facturación y las claves de config siguen siendo los mismos. El detalle está en "Cambiado" y "Corregido".
 
 ---
 
@@ -1205,8 +1237,13 @@ Tickets, config y PDFs se crean con permisos privados, y el PDF escapa los texto
 > - **`--dia` no se combina con `--fecha` ni `--servicio-hasta`.**
 > - **Varias alícuotas:** la suma tiene que coincidir exacta con `--monto`.
 > - **Un error de red al emitir** sale como `EMISSION_UNCERTAIN`, no como `TRANSIENT_ERROR`/`UNEXPECTED_ERROR`.
+> - **Montos del JSON de `--cargar` con 2 decimales como máximo** (la cotización, 6): antes se aceptaban más.
+> - **`cae` y `caeVencimiento` son `null`** en un comprobante rechazado, antes `""`.
+> - **Errores en JSON también con `json=true`** en la config, no solo con `--json`.
+> - **`--at` se valida como `--ac`:** una nota A ya no asocia una factura B por código.
+> - **`config establecer` rechaza** valores inválidos y una clave privada cifrada, que antes guardaba.
 >
-> Para pasar a la 2: revisá los montos de los scripts (antes `-m 15.000` se leía como 15 y `-m 1500,50` como 1500, sin aviso) y, ante `EMISSION_UNCERTAIN`, verificá con `arcli ultimos` antes de reintentar. El JSON de `--cargar` no cambia (ahí los montos son números), y no se saca ningún comando, flag ni clave de config.
+> Para pasar a la 2: revisá los montos de los scripts (antes `-m 15.000` se leía como 15 y `-m 1500,50` como 1500, sin aviso) y, ante `EMISSION_UNCERTAIN`, verificá con `arcli ultimos` antes de reintentar. No se saca ningún comando, flag ni clave de config.
 
 ---
 
