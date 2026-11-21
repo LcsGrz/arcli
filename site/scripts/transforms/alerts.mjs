@@ -25,12 +25,18 @@ export function githubAlertsToAsides(text) {
       body.push(lines[++index].replace(/^> ?/, ''));
     }
 
-    // "**La forma más fácil:** texto" pasa a ser el titulo del aviso, como en la maqueta.
-    const titled = body[0]?.match(/^\*\*([^*]+?)[:.]?\*\*[:.]?\s+(.*)$/);
+    // "**La forma más fácil:** texto" pasa a ser el titulo del aviso, como en la maqueta. Una primera linea que es solo
+    // la negrita (la caja "**Puede afectar scripts**" de Novedades) tambien, y la linea se va.
+    const titled = body[0]?.match(/^\*\*([^*]+?)[:.]?\*\*[:.]?(?:\s+(.*))?$/);
 
     if (titled) {
       out.push(`:::${ALERT_KINDS[alert[1]]}[${titled[1]}]`);
-      body[0] = titled[2].charAt(0).toUpperCase() + titled[2].slice(1);
+
+      if (titled[2]) {
+        body[0] = titled[2].charAt(0).toUpperCase() + titled[2].slice(1);
+      } else {
+        body.shift();
+      }
     } else {
       out.push(`:::${ALERT_KINDS[alert[1]]}`);
     }

@@ -9,17 +9,39 @@
   margin-top: 0.4rem;
 }
 
+/* Aire entre el título "Versiones anteriores" y la primera versión */
+.sl-markdown-content .sl-heading-wrapper + details.arcli-ver {
+  margin-top: 1.25rem;
+}
+
+/* Centrado y no por la línea base: la flechita de Starlight no tiene texto y, alineada por la base, quedaba más arriba
+   y estiraba los renglones sin nombre. Los números con ancho fijo, para que los nombres arranquen en la misma columna. */
 .sl-markdown-content details.arcli-ver > summary {
   display: flex;
-  align-items: baseline;
-  gap: 0.75rem;
+  align-items: center;
+  gap: 0.5rem;
   color: var(--sl-color-white);
   font-size: var(--sl-text-base);
 }
 
-.arcli-ver small {
+/* Sin el margen de arriba que Starlight pone entre hermanos: en una versión sin nombre, la fecha (después del `b`)
+   bajaba 1rem */
+.sl-markdown-content details.arcli-ver > summary > * {
+  margin: 0;
+}
+
+/* En angosto, el nombre puede bajar a otra línea pero el número no se achica */
+.sl-markdown-content details.arcli-ver > summary > b {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* La fecha, a la derecha */
+.sl-markdown-content details.arcli-ver > summary > small {
+  margin-inline-start: auto;
   color: var(--sl-color-gray-3);
   font: 0.8rem var(--sl-font-system-mono);
+  white-space: nowrap;
 }
 
 .sl-markdown-content .arcli-kind {
@@ -30,6 +52,12 @@
 
 .sl-markdown-content h3:has(> .arcli-kind) {
   margin-top: 1.75rem;
+}
+
+/* Aire entre el tipo de cambio y sus entradas: abierta, el chip es un `h3` (Starlight lo envuelve); plegada, un `p` */
+.sl-markdown-content .sl-heading-wrapper:has(.arcli-kind) + ul,
+.sl-markdown-content p:has(> .arcli-kind) + ul {
+  margin-top: 1.1rem;
 }
 
 .arcli-kind-agregado {
@@ -60,4 +88,89 @@
 
 .arcli-kind-otro {
   --chip: var(--sl-color-gray-3);
+}
+
+/* El ícono del tipo de cambio (`✨ Agregado`) va en `data-icon`: fuera del texto del título, así el ancla queda
+   `#agregado`. Es decorativo, el texto del chip dice lo mismo: el segundo `content` lo esconde a los lectores de
+   pantalla, y un navegador que no lo entiende se queda con el primero. */
+.arcli-kind[data-icon]::before {
+  content: attr(data-icon) ' ';
+  content: attr(data-icon) ' ' / '';
+}
+
+/* El nombre de la versión, al lado del número: secundario, para que la versión siga mandando */
+.arcli-ver-name {
+  color: var(--sl-color-gray-3);
+  font-weight: 400;
+}
+
+.sl-markdown-content details.arcli-ver > summary .arcli-ver-name {
+  font-size: var(--sl-text-sm);
+}
+
+/* Una versión abierta con nombre: el título y el nombre en una línea (el nombre baja si no entra), con la línea de
+   arriba que marco.css le pone a cada `h2` */
+.sl-markdown-content > .arcli-ver-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.6rem;
+  margin-top: 2.75rem;
+  padding-top: 2.25rem;
+  border-top: 1px solid var(--sl-color-gray-5);
+}
+
+.sl-markdown-content .arcli-ver-head > * {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.sl-markdown-content p.arcli-ver-name {
+  font-size: var(--sl-text-h4);
+}
+
+/* Destacados de una versión: tarjetas en dos columnas (una en angosto) con título, texto y el comando */
+.sl-markdown-content .arcli-highlights {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.sl-markdown-content .arcli-highlight {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0.85rem 1.1rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: var(--arcli-radius-lg);
+  background: var(--sl-color-gray-6);
+}
+
+.sl-markdown-content .arcli-highlight > * {
+  margin: 0;
+}
+
+.sl-markdown-content .arcli-highlight h4 {
+  font-size: var(--sl-text-base);
+}
+
+.sl-markdown-content .arcli-highlight p {
+  color: var(--sl-color-gray-2);
+  font-size: var(--sl-text-sm);
+}
+
+/* El comando va abajo de todo, aunque el texto de la tarjeta de al lado sea más largo */
+.sl-markdown-content .arcli-highlight > :last-child:not(p, .sl-heading-wrapper) {
+  margin-top: auto;
+  padding-top: 0.35rem;
+}
+
+@media (max-width: 44rem) {
+  .sl-markdown-content .arcli-highlights {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
