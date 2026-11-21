@@ -92,9 +92,13 @@ export function releases(text) {
   const versions = parts.filter((part) => !/^## Sin publicar/.test(part));
   const recent = versions.slice(0, 3).map((part) => {
     const { body, date, name, version } = versionParts(part);
-    const title = name ? `${version} <span class="arcli-ver-name">· ${escapeHtml(name)}</span>` : version;
+    // El nombre va fuera del titulo, asi el ancla (`#250`) y el indice quedan con el numero solo, con o sin nombre. Un
+    // `<h2 id>` a mano no sirve: Starlight no le pone el link del ancla ni lo suma al indice.
+    const title = name
+      ? `<div class="arcli-ver-head">\n\n## ${version}\n\n<p class="arcli-ver-name">· ${escapeHtml(name)}</p>\n\n</div>`
+      : `## ${version}`;
 
-    return `## ${title}\n\n<p class="arcli-date">${date}</p>\n\n${body.replace(/^### (.+)$/gm, (_, kind) => `### ${changeKindChip(kind)}`)}\n`;
+    return `${title}\n\n<p class="arcli-date">${date}</p>\n\n${body.replace(/^### (.+)$/gm, (_, kind) => `### ${changeKindChip(kind)}`)}\n`;
   });
   const older = versions.slice(3).map((part) => {
     const { body, date, name, version } = versionParts(part);

@@ -80,6 +80,28 @@
   font-size: var(--sl-text-sm);
 }
 
+/* Una versión abierta con nombre: el título y el nombre en una línea (el nombre baja si no entra), con la línea de
+   arriba que marco.css le pone a cada `h2` */
+.sl-markdown-content > .arcli-ver-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.6rem;
+  margin-top: 2.75rem;
+  padding-top: 2.25rem;
+  border-top: 1px solid var(--sl-color-gray-5);
+}
+
+.sl-markdown-content .arcli-ver-head > * {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.sl-markdown-content p.arcli-ver-name {
+  font-size: var(--sl-text-h4);
+}
+
 /* Destacados de una versión: tarjetas en dos columnas (una en angosto) con título, texto y el comando */
 .sl-markdown-content .arcli-highlights {
   display: grid;

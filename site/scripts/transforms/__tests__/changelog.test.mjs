@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { headingSlug } from '../../lib/markdown.mjs';
 import { argentineVersionDates } from '../dates.mjs';
 import { releases } from '../releases.mjs';
 
@@ -57,16 +58,19 @@ describe('releases', () => {
     );
   });
 
-  it('el nombre de la version va al lado del numero, abierta y plegada', () => {
+  it('el nombre de la version va al lado del numero, fuera del titulo: el ancla es #250 con o sin nombre', () => {
     const named = (n) => `## 2.${n}.0 · 0${n}/11/2026 · Nombre ${n}\n\n### Agregado\n\n- Algo ${n}.\n`;
     const output = releases(`# C\n\n${[5, 4, 3, 2].map(named).join('\n')}`);
 
     expect(output).toContain(
-      '## 2.5.0 <span class="arcli-ver-name">· Nombre 5</span>\n\n<p class="arcli-date">05/11/2026</p>',
+      '<div class="arcli-ver-head">\n\n## 2.5.0\n\n<p class="arcli-ver-name">· Nombre 5</p>\n\n</div>\n\n<p class="arcli-date">05/11/2026</p>',
     );
     expect(output).toContain(
-      '<summary><b>2.2.0</b><span class="arcli-ver-name">Nombre 2</span><small>02/11/2026</small></summary>',
+      '<details class="arcli-ver" id="220">\n<summary><b>2.2.0</b><span class="arcli-ver-name">Nombre 2</span><small>02/11/2026</small></summary>',
     );
+    // El titulo de cada version abierta es solo el numero: Astro arma el ancla con su texto.
+    expect(output.match(/^## .+$/gm)).toEqual(['## 2.5.0', '## 2.4.0', '## 2.3.0', '## Versiones anteriores']);
+    expect(headingSlug('2.5.0')).toBe('250');
   });
 
   it('los destacados (#### con texto y codigo) van en tarjetas, hasta el aviso; el resumen y las secciones no', () => {
@@ -106,7 +110,13 @@ describe('releases', () => {
       [
         '# C',
         [
-          '## 2.6.0 <span class="arcli-ver-name">· Monotributo y recibos</span>',
+          '<div class="arcli-ver-head">',
+          '',
+          '## 2.6.0',
+          '',
+          '<p class="arcli-ver-name">· Monotributo y recibos</p>',
+          '',
+          '</div>',
           '',
           '<p class="arcli-date">21/11/2026</p>',
           '',
