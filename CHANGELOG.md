@@ -288,99 +288,255 @@ Si después cambiás una respuesta anterior y una regla deja de cumplirse, antes
 
 ## [2.5.2] - 2026-11-18
 
-Arreglos de una revisión de la factura `E` y de las notas contra los manuales de ARCA. Lo más importante: se pueden volver a hacer notas sobre facturas de Comprobantes en línea o de un controlador fiscal, y la `E` de servicios en moneda extranjera y la `E` en pesos ya no salen rechazadas en producción. Puede afectar scripts:
+Arreglos de la factura `E` y de las notas, revisados contra los manuales de ARCA: se pueden volver a hacer notas sobre facturas de Comprobantes en línea o de un controlador fiscal. La `E` de servicios en moneda extranjera y la `E` en pesos ya no salen rechazadas en producción.
 
-- En la `E` en pesos, `solicitud` del `--json` ya no trae `CanMisMonExt`.
-- En la `E` a un destino sin CUIT en la tabla de ARCA, con `--id-impositivo` y sin `--cuit-pais`, ya no hay error: `solicitud` no trae `Cuit_pais_cliente` y `exportacion.cuitPaisCliente` es `null`.
-- Una nota A, B, C o FCE cuyo asociado no está en ARCA y es de un punto de venta que no es de web service ya no frena: sigue con un aviso en `avisos`.
+> [!WARNING]
+> **Puede afectar scripts**
+>
+> - En la `E` en pesos, `solicitud` del `--json` ya no trae `CanMisMonExt`.
+> - En la `E` a un destino sin CUIT en la tabla de ARCA, con `--id-impositivo` y sin `--cuit-pais`, ya no hay error: `solicitud` no trae `Cuit_pais_cliente` y `exportacion.cuitPaisCliente` es `null`.
+> - Una nota A, B, C o FCE cuyo asociado no está en ARCA y es de un punto de venta que no es de web service ya no frena: sigue con un aviso en `avisos`.
+>
+> Fuera de eso, no cambia ningún comando, flag, clave de config ni clave de `--json`.
 
-Fuera de eso, no cambia ningún comando, flag, clave de config ni clave de `--json`.
+---
 
-### Corregido
+### 🐛 Corregido
 
-- **Una nota sobre una factura de Comprobantes en línea o de un controlador fiscal se puede volver a hacer:** desde la 2.5.1, una nota A, B, C o FCE cuyo asociado no estaba en ARCA frenaba con `INPUT_VALIDATION_ERROR`, y la consulta de ARCA (`FECompConsultar`) solo ve lo emitido por web service: quien pasaba de Comprobantes en línea a ARCLI no podía hacer una NC sobre una factura vieja. Ahora frena solo si el punto de venta del asociado es uno de tus puntos de venta de web service (ahí es casi seguro un número mal escrito). Si no lo es, la nota sigue con un aviso en `avisos`, sin controlar el tope de la NC, que recuerda pasar `--afecha` (ARCA la exige para controlador fiscal y FactuWeb, error 10211); en NC/ND FCE sin `--afecha` sigue siendo error, porque la fecha no se puede tomar de ARCA. Si no se pueden consultar los puntos de venta, también es un aviso. En el modo interactivo, al ingresar a mano una factura así, el aviso explica que la nota se hace por período o con flags.
-- **La factura `E` en pesos ya no manda `CanMisMonExt`:** ARCLI lo mandaba en `N` en toda factura `E`, y con `--moneda ARS` (o `PES`) ARCA pide que ese campo no se informe (error 1605). Testing lo acepta, pero en producción la `E` en pesos saldría rechazada. Ahora no se manda, así que `solicitud` del `--json` de una `E` en pesos deja de traer `CanMisMonExt`; `exportacion.mismaMoneda` sigue en `false`. En moneda extranjera no cambia nada.
-- **La `E` de servicios en moneda extranjera ya no sale rechazada por la cotización (error 2053):** sin `--cotizacion-moneda`, ARCLI pedía la cotización de aduana del día del comprobante, y en servicios ARCA exige la del día hábil anterior. Una `E` de servicios con fecha pasada salía rechazada siempre, y una de hoy, en cuanto ARCA publicaba la del día. Ahora en servicios (`--tipo-expo 2`, el default) se usa la del día hábil anterior a la fecha del comprobante: un lunes o después de un feriado, la del último día hábil, con un aviso. Con `--misma-moneda` también, en cualquier tipo, como pide el manual de ARCA. Bienes, otros y las notas `E` (que heredan la cotización del asociado) no cambian.
-- **`--cuit-pais` ya no es obligatorio en la `E` cuando ARCA no publica el CUIT del destino:** 155 de los 303 destinos no tienen CUIT en la tabla de ARCA (Irlanda, Alemania, Emiratos, Panamá, Hong Kong, Rusia, las zonas francas y el AAE de Tierra del Fuego, entre otros), y la única salida era pasar el CUIT de otro país. ARCA pide el CUIT del país **o** el ID impositivo del cliente (error 1580), así que ahora alcanza con `--id-impositivo` (o `idImpositivo` de `--cargar`): `Cuit_pais_cliente` no se manda, `solicitud` del `--json` no lo trae y `exportacion.cuitPaisCliente` sale `null`. Sin ninguno de los dos, `INPUT_VALIDATION_ERROR` pide uno. En el modo interactivo el CUIT del país se puede dejar vacío y entonces se pide el ID impositivo. Cuando la tabla trae el CUIT, todo sigue igual.
-- **La `E` acepta cotizaciones menores a 1:** `--cotizacion-moneda` (o `cotizacionMoneda` de `--cargar`, o la cotización del modo interactivo) tenía que ser mayor a 1, y hay monedas que valen menos de un peso, como el guaraní (`029`) o el peso colombiano (`032`). Además, toda nota `E` sobre una factura en esas monedas fallaba, porque hereda su cotización. Ahora alcanza con que sea mayor a 0, como pide ARCA (error 1600). En A, B y C no había esa regla: solo se rechaza la cotización 1 en moneda extranjera.
+- **Notas:** una nota sobre una factura de Comprobantes en línea o de un controlador fiscal se puede volver a hacer (#212).
+- **Factura E:** la `E` en pesos ya no manda `CanMisMonExt`, que ARCA rechaza en producción (#212).
+- **Factura E:** la `E` de servicios en moneda extranjera usa la cotización del día hábil anterior y no sale rechazada (#212).
+- **Factura E:** `--cuit-pais` no es obligatorio si ARCA no publica el CUIT del destino: alcanza con `--id-impositivo` (#212).
+- **Factura E:** acepta cotizaciones menores a 1, como las del guaraní o el peso colombiano (#212).
+
+<details><summary>Detalle</summary>
+
+**Una nota sobre una factura de Comprobantes en línea o de un controlador fiscal se puede volver a hacer.** Desde la 2.5.1, una nota A, B, C o FCE cuyo asociado no estaba en ARCA frenaba con `INPUT_VALIDATION_ERROR`, y la consulta de ARCA (`FECompConsultar`) solo ve lo emitido por web service: quien pasaba de Comprobantes en línea a ARCLI no podía hacer una NC sobre una factura vieja. Ahora frena solo si el punto de venta del asociado es uno de tus puntos de venta de web service (ahí es casi seguro un número mal escrito). Si no lo es, la nota sigue con un aviso en `avisos`, sin controlar el tope de la NC, que recuerda pasar `--afecha` (ARCA la exige para controlador fiscal y FactuWeb, error 10211); en NC/ND FCE sin `--afecha` sigue siendo error, porque la fecha no se puede tomar de ARCA. Si no se pueden consultar los puntos de venta, también es un aviso. En el modo interactivo, al ingresar a mano una factura así, el aviso explica que la nota se hace por período o con flags.
+
+**La factura `E` en pesos ya no manda `CanMisMonExt`.** ARCLI lo mandaba en `N` en toda factura `E`, y con `--moneda ARS` (o `PES`) ARCA pide que ese campo no se informe (error 1605). Testing lo acepta, pero en producción la `E` en pesos saldría rechazada. Ahora no se manda, así que `solicitud` del `--json` de una `E` en pesos deja de traer `CanMisMonExt`; `exportacion.mismaMoneda` sigue en `false`. En moneda extranjera no cambia nada.
+
+**La `E` de servicios en moneda extranjera ya no sale rechazada por la cotización (error 2053).** Sin `--cotizacion-moneda`, ARCLI pedía la cotización de aduana del día del comprobante, y en servicios ARCA exige la del día hábil anterior. Una `E` de servicios con fecha pasada salía rechazada siempre, y una de hoy, en cuanto ARCA publicaba la del día. Ahora en servicios (`--tipo-expo 2`, el default) se usa la del día hábil anterior a la fecha del comprobante: un lunes o después de un feriado, la del último día hábil, con un aviso. Con `--misma-moneda` también, en cualquier tipo, como pide el manual de ARCA. Bienes, otros y las notas `E` (que heredan la cotización del asociado) no cambian.
+
+**`--cuit-pais` ya no es obligatorio en la `E` cuando ARCA no publica el CUIT del destino.** 155 de los 303 destinos no tienen CUIT en la tabla de ARCA (Irlanda, Alemania, Emiratos, Panamá, Hong Kong, Rusia, las zonas francas y el AAE de Tierra del Fuego, entre otros), y la única salida era pasar el CUIT de otro país. ARCA pide el CUIT del país **o** el ID impositivo del cliente (error 1580), así que ahora alcanza con `--id-impositivo` (o `idImpositivo` de `--cargar`): `Cuit_pais_cliente` no se manda, `solicitud` del `--json` no lo trae y `exportacion.cuitPaisCliente` sale `null`. Sin ninguno de los dos, `INPUT_VALIDATION_ERROR` pide uno. En el modo interactivo el CUIT del país se puede dejar vacío y entonces se pide el ID impositivo. Cuando la tabla trae el CUIT, todo sigue igual.
+
+**La `E` acepta cotizaciones menores a 1.** `--cotizacion-moneda` (o `cotizacionMoneda` de `--cargar`, o la cotización del modo interactivo) tenía que ser mayor a 1, y hay monedas que valen menos de un peso, como el guaraní (`029`) o el peso colombiano (`032`). Además, toda nota `E` sobre una factura en esas monedas fallaba, porque hereda su cotización. Ahora alcanza con que sea mayor a 0, como pide ARCA (error 1600). En A, B y C no había esa regla: solo se rechaza la cotización 1 en moneda extranjera.
+
+</details>
 
 ## [2.5.1] - 2026-11-18
 
-Arreglos de un chequeo de la 2.5.0 contra ARCA testing. Lo más importante: la factura `E` de bienes se puede volver a emitir (ARCA la rechazaba con el error 1673). Puede afectar scripts:
+Arreglos de un chequeo de la 2.5.0 contra ARCA testing: la factura `E` de bienes se puede volver a emitir (ARCA la rechazaba con el error 1673). Además, una nota cuyo asociado propio no existe ya no se emite.
 
-- Una nota A, B, C o FCE cuyo asociado propio no existe en ARCA ahora frena antes de ir a ARCA con `INPUT_VALIDATION_ERROR`. Las notas de débito también consultan el asociado antes de la vista previa.
-- `arcli padron --json` trae cada actividad una sola vez.
-- En la `E` de bienes, `solicitud` del `--json` ya no trae `Fecha_pago`, porque no se manda a ARCA; `--fecha-pago` se acepta y se ignora con un aviso.
+> [!WARNING]
+> **Puede afectar scripts**
+>
+> - Una nota A, B, C o FCE cuyo asociado propio no existe en ARCA ahora frena antes de ir a ARCA con `INPUT_VALIDATION_ERROR`. Las notas de débito también consultan el asociado antes de la vista previa.
+> - `arcli padron --json` trae cada actividad una sola vez.
+> - En la `E` de bienes, `solicitud` del `--json` ya no trae `Fecha_pago`, porque no se manda a ARCA; `--fecha-pago` se acepta y se ignora con un aviso.
+>
+> Fuera de `Fecha_pago` en la `solicitud` de la `E` de bienes, no cambia ningún comando, flag, clave de config ni clave de `--json`.
 
-Fuera de `Fecha_pago` en la `solicitud` de la `E` de bienes, no cambia ningún comando, flag, clave de config ni clave de `--json`.
+---
 
-### Corregido
+### 🐛 Corregido
 
-- **La factura `E` de bienes se puede emitir:** ARCLI mandaba siempre la fecha de pago y ARCA rechazaba la `E` de bienes (`--tipo-expo 1`) con el error 1673. Ahora la fecha de pago va solo en servicios y otros (`--tipo-expo 2` y `4`), como pide ARCA. En bienes, `--fecha-pago` (o `fechaPago` de `--cargar`) se sigue aceptando pero no se usa y sale un aviso en `avisos`; `solicitud` del `--json` deja de traer `Fecha_pago`, porque ya no se manda. El modo interactivo no pregunta la fecha de pago en bienes. Las notas `E` no cambian.
-- **Una nota A, B, C o FCE con un asociado propio que no existe ya no se emite:** antes de la vista previa ARCLI consultaba el asociado, veía que no estaba y seguía, y ARCA testing llegó a aprobar una NC asociada a una factura inexistente. Ahora frena con `INPUT_VALIDATION_ERROR` ("ARCA no tiene la factura B 00003-00099999.", con la sugerencia de revisar `--ar`, `--apv` y `--ac`), como en las notas `E`. También en las notas de débito, que antes no se consultaban. El asociado de otro CUIT no se puede consultar y sigue decidiéndolo ARCA; si ARCA no responde, la nota sigue con un aviso.
-- **`arcli padron --json` repetía actividades:** ARCA informa las mismas en el régimen general y en el monotributo, y `actividades` las traía dos veces (también el "y N más" de la salida humana). Ahora van sin repetir, en el mismo orden. Las claves no cambian.
-- **La sugerencia de la observación `10217` decía otra cosa:** hablaba de "la condición del receptor (padrón)", igual que la `10017`. Ahora cada una explica la suya: la `10217` es la del crédito fiscal de una factura A a un monotributista ("Procedimiento permanente de transición al Régimen General") y la `10017`, la de un receptor que no figura activo en el padrón.
-- **Receptor que no está en los padrones de ARCA:** el rechazo "DocNro … no se encuentra registrado en los padrones" llega en `observaciones` con `errores` vacío y solo traía la sugerencia genérica. Ahora `sugerencias` dice que se revise el documento del receptor y que en testing muchos CUITs no están en el padrón de facturación.
-- **Errores de `arcli config establecer` que no decían qué clave fallaba:** `config establecer emisor.condicionIva Inscripto` respondía "Entrada tiene un valor no soportado" y sugería `arcli ayuda`. Ahora el mensaje nombra la clave, el valor recibido y los valores válidos (`` `emisor.condicionIva` no acepta "Inscripto". Valores válidos: … ``), y la sugerencia lleva a `arcli config establecer --ayuda` y `arcli config`. Igual en `entorno`, `concepto`, `ivaReceptor`, `pdf`, `moneda`, las claves de sí/no, los números y los textos vacíos, y una clave que no existe lo dice. En `--json` cambian solo `error` y `sugerencia`: `codigo` sigue siendo `INPUT_VALIDATION_ERROR` y `detalles` trae lo mismo que antes.
-- **Los avisos de `--cargar` nombraban flags:** con `descripcion`, `condicionVenta`, `receptorNombre` o `receptorDomicilio` en el JSON y sin PDF, el aviso hablaba de `--descripcion`, `--receptor-nombre`… aunque los datos vinieron del archivo. Ahora nombra las claves del JSON (`Las claves "descripcion" y "receptorNombre" del JSON de \`--cargar\` solo se usan en el PDF…`), y solo las que vinieron. Igual con `"dia"`(deprecada), con`"descripcion"`junto a`"items"`en la`E`y con`"comprobanteAsociado.fecha"`en las notas`E`. Solo cambia el texto de `avisos`.
-- **Ejemplos de la `E` con número fijo:** `ejemplos/factura-exportacion-e.json` traía `"numero": 3` y los ejemplos de `fe`, `nce` y `nde` de la documentación, `--numero` o `"numero"`: copiados tal cual, ARCA los rechazaba por correlatividad. Desde la 2.5.0 el número es opcional, así que los ejemplos ya no lo traen y ARCLI toma el siguiente.
+- **Factura E:** la `E` de bienes se puede emitir: la fecha de pago va solo en servicios y otros (#204).
+- **Notas:** una nota A, B, C o FCE con un asociado propio que no existe frena antes de emitirse (#205).
+- **Consultas:** `arcli padron --json` ya no repite actividades (#205).
+- **Errores:** las sugerencias de las observaciones `10217` y `10017` explican cada una la suya (#205).
+- **Errores:** un receptor que no está en los padrones de ARCA tiene una sugerencia propia (#205).
+- **Config:** los errores de `arcli config establecer` nombran la clave, el valor recibido y los valores válidos (#205).
+- **Errores:** los avisos de `--cargar` nombran las claves del JSON en lugar de los flags (#205).
+- **Docs:** los ejemplos de la `E` ya no traen un número fijo, que ARCA rechazaba por correlatividad (#205).
 
-## [2.5.0] - 2026-11-17
+<details><summary>Detalle</summary>
 
-Completa lo que trajo la 2: las notas de crédito y débito de la factura de exportación `E`, el modo interactivo al nivel del CLI (consultas, opcionales, repetir la `E`, el PDF al confirmar) y el sitio de documentación en [arcli.com.ar](https://arcli.com.ar). Puede afectar scripts:
+**La factura `E` de bienes se puede emitir.** ARCLI mandaba siempre la fecha de pago y ARCA rechazaba la `E` de bienes (`--tipo-expo 1`) con el error 1673. Ahora la fecha de pago va solo en servicios y otros (`--tipo-expo 2` y `4`), como pide ARCA. En bienes, `--fecha-pago` (o `fechaPago` de `--cargar`) se sigue aceptando pero no se usa y sale un aviso en `avisos`; `solicitud` del `--json` deja de traer `Fecha_pago`, porque ya no se manda. El modo interactivo no pregunta la fecha de pago en bienes. Las notas `E` no cambian.
 
-- Una nota de crédito A, B, C o FCE mayor que su factura ahora frena antes de ir a ARCA con `INPUT_VALIDATION_ERROR`.
-- `--afecha` en las notas FCE y `--numero` en `fe`, `nde` y `nce` dejan de ser obligatorios: sin ellos, ARCLI los toma de ARCA.
-- `arcli config --json` trae `filasPorLista` y, mientras dure la deprecación, también `comprobantesPorLista` y `deprecado`.
-- En `arcli certificado generar --json`, `guia` apunta a arcli.com.ar.
+**Una nota A, B, C o FCE con un asociado propio que no existe ya no se emite.** Antes de la vista previa ARCLI consultaba el asociado, veía que no estaba y seguía, y ARCA testing llegó a aprobar una NC asociada a una factura inexistente. Ahora frena con `INPUT_VALIDATION_ERROR` ("ARCA no tiene la factura B 00003-00099999.", con la sugerencia de revisar `--ar`, `--apv` y `--ac`), como en las notas `E`. También en las notas de débito, que antes no se consultaban. El asociado de otro CUIT no se puede consultar y sigue decidiéndolo ARCA; si ARCA no responde, la nota sigue con un aviso.
 
-No cambian los nombres de comandos, flags ni claves existentes, ni las claves del `--json` y de `--cargar`, ni los `codigo` de error. Hay deprecaciones para la 3.0.0: ver "Deprecado".
+**`arcli padron --json` repetía actividades.** ARCA informa las mismas en el régimen general y en el monotributo, y `actividades` las traía dos veces (también el "y N más" de la salida humana). Ahora van sin repetir, en el mismo orden. Las claves no cambian.
 
-### Agregado
+**La sugerencia de la observación `10217` decía otra cosa.** Hablaba de "la condición del receptor (padrón)", igual que la `10017`. Ahora cada una explica la suya: la `10217` es la del crédito fiscal de una factura A a un monotributista ("Procedimiento permanente de transición al Régimen General") y la `10017`, la de un receptor que no figura activo en el padrón.
 
-- **Clave de config `filasPorLista`** (1 a 50, por defecto 15): reemplaza a `comprobantesPorLista`, que ya no cuenta solo comprobantes sino también las filas de las tablas de ARCA y la lista de monedas del modo interactivo. Hace lo mismo: cuántas filas muestran `arcli ultimos` (sin `--cantidad`) y las listas del modo interactivo. `arcli config establecer filasPorLista 25`.
-- **Consultas en el modo interactivo:** "Consultar comprobantes" pasa a ser **Consultas**, con todo lo que el CLI consulta: **Mis comprobantes** (lo de antes), **Datos de un CUIT** (`arcli padron`), **Si un cliente recibe FCE** (`arcli fce-obligado`, con la fecha de hoy), **Cotización de una moneda** y **Tablas de ARCA** (las nueve de `arcli parametros`). Después del padrón, **Emitir una factura a este CUIT** arranca la factura con el CUIT, el nombre, el domicilio y la condición IVA ya cargados. Las tablas largas y la lista de monedas se filtran escribiendo (`eur`, `060` o `usd`) y se desplazan con las flechas; las filas por página son las de `filasPorLista`. Un error de ARCA vuelve a Consultas en lugar de al menú. Configuración suma **Dónde está la config** (`arcli config ruta`).
-- **Encabezado y ayuda en `arcli parametros <tabla>`:** el listado tiene una fila de encabezado (`CÓDIGO`, la descripción y, en `iva-receptor` y `puntos-venta`, una tercera columna) y al pie para qué sirve el código en ARCLI. Es salida humana: el `--json` no cambia.
-- **Repetir una factura E en el modo interactivo:** "Repetir un comprobante anterior" ahora ofrece la factura de exportación `E`. Copia de la factura que devuelve ARCA el cliente, el destino, la moneda, el incoterm, los ítems, la forma de pago, el idioma y la actividad; sale con fecha de hoy y la cotización del día, y pregunta el monto, los permisos de embarque y la fecha de pago. Si algún ítem tiene bonificación o no suman el total, avisa y sale un renglón con el monto total.
-- **Alias del CBU y guardar el CBU escrito a mano:** si en una FCE del modo interactivo el CBU se escribe porque no está en la config, también pide el alias cuando falta `aliasCbu` (Enter lo omite, como sin `--alias`), y al final ofrece guardar los dos (`cbu` y `aliasCbu`), como ya pasaba con la actividad de la `E`.
-- **La E completa en el modo interactivo:** la factura `E` y sus notas terminan con "¿Agregamos algún opcional?", como A, B y C: ítems (descripción, cantidad, precio y unidad, uno por uno), idioma, observaciones y observaciones comerciales, descripción del incoterm y cotización a mano. La factura también deja elegir el CUIT del país y, si ARCA no publica uno para el destino, lo pide (se escribe o se busca el país por nombre): antes el asistente no tenía salida. Las notas `E` ahora pueden ajustar otra nota `E`, no solo la factura. El comando equivalente incluye los flags nuevos (`--item`, `--idioma`, `--cuit-pais`, `--observaciones`, `--obs-comerciales`, `--incoterms-desc`, `--cm` y `--ac`). Sin marcar nada, todo sigue igual.
-- **Más opciones en el modo interactivo:** el paso de opcionales suma la **fecha del comprobante** (`--fecha`), en facturas, recibos, notas y al repetir, con la misma ventana de días que el CLI según el concepto: sirve, por ejemplo, para facturar con fecha de fin de mes. El receptor se puede identificar por **CUIL** (en B y C), y la moneda extranjera ofrece **euros y el resto de las monedas de ARCA**, con la cotización acordada o la oficial. Las notas de crédito y débito tienen ahora sus opcionales: fechas de servicio y vencimiento (`--sd`, `--sh`, `--vto`), exento y no gravado en las parciales, y moneda en las de período. El comando equivalente incluye todos esos flags.
-- **La E en "Consultar comprobantes" del modo interactivo:** la lista de tipos ahora incluye la factura de exportación `E` y sus notas de crédito y débito (`fe`, `nce`, `nde`), con los últimos emitidos, **Cargar más…**, **Ingresar el número a mano…** y el mismo detalle que `arcli consultar fe`. Antes solo estaban los 19 tipos de A, B y C.
-- **Permisos de embarque en el modo interactivo:** la factura `E` de bienes pregunta los permisos de embarque ya existentes (opcional, separados por coma), igual que `--permiso` con `--permiso-existente`. Las notas `E` sobre una factura de bienes también los preguntan.
-- **`ultimos` y `consultar` con la E:** `arcli ultimos fe` (también `nde` y `nce`) lista los últimos comprobantes de exportación y `arcli consultar fe <numero>` muestra uno, con cliente, destino, moneda, total y comprobante asociado. El JSON de la E tiene sus propias claves (`cliente`, `destino`, `moneda`, `total`, `comprobanteAsociado`), porque no tiene receptor con documento ni IVA.
-- **`ARCLI_CONFIG_DIR`:** una variable de entorno para usar otra carpeta de config, con su `config.json`, tickets, plugins y certificados. Sirve para tener una config aparte sin tocar la de siempre. Sin la variable, todo sigue igual.
-- **Notas de crédito y débito de exportación E:** `arcli nce` y `arcli nde` (también `arcli nota-credito e` y `arcli nota-debito e`) ajustan una Factura de exportación `E` ya emitida. Alcanza con el monto, el asociado (`--ar`, y `--apv` si es de otro punto de venta) y `--numero`: el cliente, el destino, la moneda, la cotización y la actividad salen de la factura, que ARCLI consulta en ARCA. En las de bienes, los permisos de embarque son opcionales y van con `--permiso`, sin `--permiso-existente`. Antes de emitir valida lo que ARCA va a controlar contra el asociado: que exista, que la nota no sea anterior, que una nota de crédito no lo supere y, en servicios, el mismo destino, moneda y cotización. En `--cargar`, `comprobanteAsociado`; en el `--json`, `exportacion.comprobanteAsociado` (`null` en la factura). También en el modo interactivo, al elegir la factura de exportación como comprobante original de una nota. No cambia nada de la factura `E` ni de A, B y C.
+**Receptor que no está en los padrones de ARCA.** El rechazo "DocNro … no se encuentra registrado en los padrones" llega en `observaciones` con `errores` vacío y solo traía la sugerencia genérica. Ahora `sugerencias` dice que se revise el documento del receptor y que en testing muchos CUITs no están en el padrón de facturación.
 
-### Cambiado
+**Errores de `arcli config establecer` que no decían qué clave fallaba.** `config establecer emisor.condicionIva Inscripto` respondía "Entrada tiene un valor no soportado" y sugería `arcli ayuda`. Ahora el mensaje nombra la clave, el valor recibido y los valores válidos (`` `emisor.condicionIva` no acepta "Inscripto". Valores válidos: … ``), y la sugerencia lleva a `arcli config establecer --ayuda` y `arcli config`. Igual en `entorno`, `concepto`, `ivaReceptor`, `pdf`, `moneda`, las claves de sí/no, los números y los textos vacíos, y una clave que no existe lo dice. En `--json` cambian solo `error` y `sugerencia`: `codigo` sigue siendo `INPUT_VALIDATION_ERROR` y `detalles` trae lo mismo que antes.
 
-- **El PDF se elige al confirmar la emisión:** cuando ARCLI pregunta "¿Emitimos…?" antes de emitir (sin `--emitir`, en una terminal), en el CLI y en el modo interactivo, las opciones son siempre **Sí, emitir ahora**, **Sí, emitir y generar el PDF** y **No, dejar sin emitir**, diga lo que diga la config `pdf`, y lo elegido decide. Con `pdf preguntar` (el valor por defecto) ya no hay una segunda pregunta, "¿Generamos el PDF del comprobante?", después de emitir. Con `pdf siempre` se puede emitir sin PDF (el cursor arranca en la opción con PDF), y con `pdf nunca` aparece la opción para generarlo esa vez. Con `--exportar-pdf` o `--sin-pdf` el PDF ya está decidido y la pregunta solo ofrece emitir o no. Al emitir sin confirmar (`--emitir`, `emitir true`, `--json` o sin terminal) todo sigue igual: decide la config. Vale para todos los comprobantes, también la `E`, sus notas y el Recibo C.
-- **Una nota de crédito mayor que su factura ya no se emite:** en una NC A, B, C o FCE, ARCLI consulta en ARCA el comprobante asociado antes de la vista previa y, si la nota supera su total (en la misma moneda), frena con un error de validación (`INPUT_VALIDATION_ERROR`) que sugiere el `--monto` para anularla entera. Antes la mandaba igual y decidía ARCA. Es el mismo control que ya tenían las notas `E` y el modo interactivo, y ahora los tres dicen lo mismo: `La nota de crédito por $ 150.000 no puede superar el total de la factura C 00003-00000045, de $ 120.000.` La consulta es una por nota y se reusa al emitir. En un lote, el error sale con su índice antes de preguntar si se emite. Solo se consulta un asociado tuyo; con `--acuit` de otro CUIT no se controla, y si ARCA no responde la nota sigue con un aviso.
-- **`--afecha` deja de ser obligatoria en las notas FCE:** en `ncea`…`ndec`, sin `--afecha`, ARCLI toma la fecha del asociado de ARCA, como en las notas `E`, y la vista previa ya la muestra. Si la pasás, se sigue usando la tuya. Si ARCA no tiene el asociado o no responde, frena y sugiere pasar `--afecha`.
-- **`--numero` deja de ser obligatorio en `fe`, `nde` y `nce`:** sin el flag, ARCLI consulta en ARCA el último número de ese tipo en el punto de venta y usa el siguiente, también en la vista previa. `--numero` (o `numero` en `--cargar`) sigue andando para fijarlo a mano. El modo interactivo ya no lo pregunta. Si una emisión de la E queda sin confirmar (`EMISSION_UNCERTAIN`), la sugerencia ahora también manda a verificarla con `arcli consultar`.
-- **Mismos botones al emitir en el modo interactivo y en el CLI:** el asistente pregunta "¿Emitimos…?" con **Sí, emitir ahora** y **No, dejar sin emitir**, como los comandos con flags (antes, "Emitir ahora" y "Cancelar"). En producción sigue pidiendo una segunda confirmación, ahora con **Sí, emitir en producción** y **No, dejar sin emitir**. El CLI con flags sigue preguntando una sola vez.
-- **El modo interactivo pide el punto de venta al empezar si la config no tiene uno:** factura, recibo, factura `E`, notas, repetir y consultar lo preguntan antes del primer paso, en lugar de completar todo y frenar al final con un error que hablaba de flags del CLI. El comando equivalente lo lleva con `--pv`. Con un punto de venta en la config, no cambia nada.
-- **Listas del modo interactivo sin el atajo del comando:** al elegir el comprobante (al emitir, en las notas y en Consultas) dice "Factura C" en lugar de "Factura C (fc)". El comando se sigue mostrando al final, en el comando equivalente.
-- **Los links del CLI llevan al sitio de documentación:** las guías que nombran los mensajes (certificado, punto de venta para web service, problemas frecuentes y novedades) abren su página en [arcli.com.ar](https://arcli.com.ar) en lugar del archivo en GitHub. El aviso de un certificado de producción por vencer lleva a cómo renovarlo. `arcli --ayuda` suma `Documentación: https://arcli.com.ar`, y el modo interactivo lo muestra al empezar la configuración guiada y al salir. En `arcli certificado generar --json`, el campo `guia` trae la URL nueva; los campos no cambian.
+**Los avisos de `--cargar` nombraban flags.** Con `descripcion`, `condicionVenta`, `receptorNombre` o `receptorDomicilio` en el JSON y sin PDF, el aviso hablaba de `--descripcion`, `--receptor-nombre`… aunque los datos vinieron del archivo. Ahora nombra las claves del JSON (`Las claves "descripcion" y "receptorNombre" del JSON de \`--cargar\` solo se usan en el PDF…`), y solo las que vinieron. Igual con `"dia"`(deprecada), con`"descripcion"`junto a`"items"`en la`E`y con`"comprobanteAsociado.fecha"`en las notas`E`. Solo cambia el texto de `avisos`.
 
-### Deprecado
+**Ejemplos de la `E` con número fijo.** `ejemplos/factura-exportacion-e.json` traía `"numero": 3` y los ejemplos de `fe`, `nce` y `nde` de la documentación, `--numero` o `"numero"`: copiados tal cual, ARCA los rechazaba por correlatividad. Desde la 2.5.0 el número es opcional, así que los ejemplos ya no lo traen y ARCLI toma el siguiente.
 
-- **`comprobantesPorLista`**, ahora `filasPorLista`; se saca en la 3.0.0. Hasta entonces se sigue leyendo del archivo de config (si están las dos, gana `filasPorLista`), `arcli config establecer comprobantesPorLista N` avisa y guarda `filasPorLista` (y saca la vieja), y `arcli config --json` trae las dos con el mismo valor, más `deprecado`.
+</details>
 
-### Arreglado
+## [2.5.0] - 2026-11-17 · Notas E y consultas
 
-- **Datos vacíos del receptor en el PDF:** a un consumidor final sin identificar, el PDF muestra `Documento: -` en lugar de `Documento: - -`, y sin domicilio, `Domicilio: -`. Lo mismo con el nombre de un receptor identificado que no lo tiene cargado. Vale para A, B, C y el Recibo C.
-- **El comando equivalente del modo interactivo saca el mismo PDF:** con un CUIT, ahora lleva el nombre y el domicilio que trajo el padrón (`--receptor-nombre` y `--receptor-domicilio`). Como siempre lleva `--ir`, el CLI no consultaba el padrón y el comando pegado generaba el PDF sin esos datos.
-- **El modo interactivo usa los defaults de la config, como el CLI:** la factura y el recibo arrancan en la moneda de la config (`moneda`) en lugar de siempre en pesos; con una extranjera, sin tocar nada, va con la cotización oficial de ARCA (o la guardada en `cotizacion`), igual que sin `--moneda`. Las notas de crédito y débito proponen el IVA receptor de la config (`ivaReceptor`), la alícuota (`alicuota`) cuando no sale de la factura y, en las de período, el concepto (`concepto`) y la moneda. Al repetir un comprobante se sigue usando la moneda del original.
-- **Configuración guiada en el entorno activo:** pide el certificado y la clave del entorno en que se va a emitir (`entorno`, o `arcli interactivo --produccion`/`--testing`), no siempre los de testing. Con `entorno produccion`, el asistente proponía la guiada al abrir pero nunca completaba lo que faltaba. El chequeo al abrir también respeta `--produccion`/`--testing`.
-- **Repetir un comprobante en moneda extranjera:** en el modo interactivo, repetir una factura o un recibo en dólares, euros u otra moneda ahora sale en la moneda del original y solo pregunta la cotización (la acordada o la oficial de ARCA). Antes arrancaba en pesos: si se desmarcaba "Moneda extranjera", el monto en dólares se emitía como si fueran pesos, y uno en euros no se podía repetir. Si ARCA no tiene la cotización oficial, no se emite.
-- **El modo interactivo avisa lo mismo que los comandos con flags:** en moneda extranjera, que usa la cotización oficial de ARCA. Antes ese aviso solo salía con flags. La preparación de la emisión ahora es una sola para los dos.
+Las notas de crédito y débito de la factura de exportación `E`, Consultas en el asistente y el sitio de documentación en [arcli.com.ar](https://arcli.com.ar). Completa lo que trajo la 2: el modo interactivo queda al nivel del CLI, con opcionales, repetir la `E` y el PDF al confirmar.
 
-### Documentación
+#### Notas de crédito y débito de la `E`
 
-- **Docs por tema:** una página por comprobante ([¿qué comprobante me toca?](docs/comprobantes/README.md)), con un ejemplo y sus opciones en Obligatorio, Opcional y Al ejecutar, cada flag con su largo, su corto y sus valores; las notas de crédito y débito por separado. Formas de uso ([asistente](docs/formas-de-uso/asistente.md), [comandos](docs/formas-de-uso/comandos.md) y [con IA](docs/formas-de-uso/con-ia.md)), el certificado de [testing](docs/certificado-testing.md) y de [producción](docs/certificado-produccion.md) en pasos cortos con las capturas plegadas, [cómo funciona](docs/mental-model.md), un índice de [comandos](docs/comandos.md) y el [PDF](docs/pdf-en-corto.md) en corto, cada uno con link a su guía completa. Suman [cambiar de entorno](docs/entornos.md), [consultas](docs/consultas.md), [notas](docs/notas-credito-debito.md), [FCE](docs/fce.md), [exportación](docs/exportacion.md) y [lotes y JSON](docs/lotes-y-json.md). Los links viejos siguen andando: `obtencion-certificados.md` y `usage-patterns.md` quedan como índice. El sitio publica además `llms-full.txt`, con toda la documentación en un archivo para asistentes de IA.
-- **Certificados:** la guía para obtenerlos, el README y la resolución de problemas muestran las dos formas de cargar el certificado: `arcli certificado generar` e `importar` (la recomendada, con la que ya no hay que configurar nada) o, si la clave se hizo con openssl, las rutas a mano con `arcli config establecer`.
-- **Sitio de documentación:** [arcli.com.ar](https://arcli.com.ar), con menú por tarea (Empezar, Formas de uso, Comprobantes, Más, Referencia, Ayuda), buscador, problemas frecuentes que se filtran mientras escribís, tema claro u oscuro según el sistema y buena lectura en el celular. Tiene las mismas guías que `docs/` y se actualiza con cada versión. Cada página tiene su descripción para los buscadores y para la vista previa al compartir el link, y el ícono de ARCLI se ve también en la pantalla de inicio del celular. Cuenta las visitas con Cloudflare Web Analytics, que no usa cookies ni sigue a nadie entre sitios.
-- **Instalar o actualizar con IA:** el README trae un prompt corto, listo para copiar en un asistente de IA (Claude, ChatGPT, Gemini, Copilot…), que revisa Node, instala o actualiza ARCLI, lo verifica y crea el acceso directo la primera vez. Si el asistente no puede ejecutar comandos, te guía paso a paso.
+`arcli nce` y `arcli nde` ajustan una factura `E` ya emitida: el cliente, el destino, la moneda y la cotización salen de la factura, y el número lo toma ARCLI de ARCA.
+
+```sh
+arcli nce -m 500 --ar 1 --apv 4
+```
+
+#### Consultas en el asistente
+
+Tus comprobantes, los datos de un CUIT, si un cliente recibe FCE, la cotización de una moneda y las tablas de ARCA, sin salir del modo interactivo. Después del padrón, la factura a ese CUIT arranca con sus datos.
+
+```sh
+arcli
+```
+
+#### La `E` sin número a mano
+
+`--numero` deja de ser obligatorio en `fe`, `nde` y `nce`, y la `E` entra en `ultimos` y `consultar`.
+
+```sh
+arcli ultimos fe
+```
+
+#### El PDF se elige al emitir
+
+"¿Emitimos…?" ofrece emitir, emitir y generar el PDF o dejar sin emitir, diga lo que diga la clave `pdf`.
+
+#### Documentación en arcli.com.ar
+
+Una página por comprobante, guías cortas, buscador y problemas frecuentes que se filtran mientras escribís.
+
+> [!WARNING]
+> **Puede afectar scripts**
+>
+> - Una nota de crédito A, B, C o FCE mayor que su factura ahora frena antes de ir a ARCA con `INPUT_VALIDATION_ERROR`.
+> - `--afecha` en las notas FCE y `--numero` en `fe`, `nde` y `nce` dejan de ser obligatorios: sin ellos, ARCLI los toma de ARCA.
+> - `arcli config --json` trae `filasPorLista` y, mientras dure la deprecación, también `comprobantesPorLista` y `deprecado`.
+> - En `arcli certificado generar --json`, `guia` apunta a arcli.com.ar.
+>
+> No cambian los nombres de comandos, flags ni claves existentes, ni las claves del `--json` y de `--cargar`, ni los `codigo` de error. Hay deprecaciones para la 3.0.0: ver "Deprecado".
+
+---
+
+### ✨ Agregado
+
+- **Factura E:** notas de crédito y débito de exportación con `arcli nce` y `arcli nde`, que toman los datos de la factura (#140).
+- **Factura E:** `arcli ultimos fe` y `arcli consultar fe` listan y muestran los comprobantes de exportación (#144).
+- **Asistente:** Consultas reúne tus comprobantes, datos de un CUIT, régimen FCE, cotizaciones y tablas de ARCA (#166).
+- **Asistente:** la `E` y sus notas suman opcionales: ítems, idioma, observaciones, incoterm, cotización y CUIT del país (#162).
+- **Asistente:** más opcionales: fecha del comprobante, receptor por CUIL, todas las monedas de ARCA y opcionales en las notas (#160).
+- **Asistente:** "Repetir un comprobante anterior" ofrece la factura `E` (#163).
+- **Asistente:** la `E` y sus notas en "Consultar comprobantes", con el mismo detalle que `arcli consultar fe` (#159).
+- **Asistente:** la `E` de bienes y sus notas preguntan los permisos de embarque (#148).
+- **Asistente:** en una FCE pide el alias del CBU y ofrece guardar el CBU escrito a mano (#163).
+- **Config:** la clave `filasPorLista` reemplaza a `comprobantesPorLista` y cuenta también las filas de las tablas (#167).
+- **Config:** la variable `ARCLI_CONFIG_DIR` usa otra carpeta de config sin tocar la de siempre (#142).
+- **Consultas:** `arcli parametros <tabla>` tiene encabezado y dice para qué sirve el código en ARCLI (#166).
+- **Docs:** el sitio de documentación [arcli.com.ar](https://arcli.com.ar), con buscador y problemas frecuentes que se filtran (#150).
+- **Docs:** una página por comprobante y guías cortas por tema, con link a la guía completa (#158).
+- **Instalación:** un prompt para instalar o actualizar ARCLI con un asistente de IA (#146).
+
+<details><summary>Detalle</summary>
+
+**Notas de crédito y débito de exportación E.** `arcli nce` y `arcli nde` (también `arcli nota-credito e` y `arcli nota-debito e`) ajustan una Factura de exportación `E` ya emitida. Alcanza con el monto, el asociado (`--ar`, y `--apv` si es de otro punto de venta) y `--numero`: el cliente, el destino, la moneda, la cotización y la actividad salen de la factura, que ARCLI consulta en ARCA. En las de bienes, los permisos de embarque son opcionales y van con `--permiso`, sin `--permiso-existente`. Antes de emitir valida lo que ARCA va a controlar contra el asociado: que exista, que la nota no sea anterior, que una nota de crédito no lo supere y, en servicios, el mismo destino, moneda y cotización. En `--cargar`, `comprobanteAsociado`; en el `--json`, `exportacion.comprobanteAsociado` (`null` en la factura). También en el modo interactivo, al elegir la factura de exportación como comprobante original de una nota. No cambia nada de la factura `E` ni de A, B y C.
+
+**`ultimos` y `consultar` con la E.** `arcli ultimos fe` (también `nde` y `nce`) lista los últimos comprobantes de exportación y `arcli consultar fe <numero>` muestra uno, con cliente, destino, moneda, total y comprobante asociado. El JSON de la E tiene sus propias claves (`cliente`, `destino`, `moneda`, `total`, `comprobanteAsociado`), porque no tiene receptor con documento ni IVA.
+
+**Consultas en el modo interactivo.** "Consultar comprobantes" pasa a ser **Consultas**, con todo lo que el CLI consulta: **Mis comprobantes** (lo de antes), **Datos de un CUIT** (`arcli padron`), **Si un cliente recibe FCE** (`arcli fce-obligado`, con la fecha de hoy), **Cotización de una moneda** y **Tablas de ARCA** (las nueve de `arcli parametros`). Después del padrón, **Emitir una factura a este CUIT** arranca la factura con el CUIT, el nombre, el domicilio y la condición IVA ya cargados. Las tablas largas y la lista de monedas se filtran escribiendo (`eur`, `060` o `usd`) y se desplazan con las flechas; las filas por página son las de `filasPorLista`. Un error de ARCA vuelve a Consultas en lugar de al menú. Configuración suma **Dónde está la config** (`arcli config ruta`).
+
+**La E completa en el modo interactivo.** La factura `E` y sus notas terminan con "¿Agregamos algún opcional?", como A, B y C: ítems (descripción, cantidad, precio y unidad, uno por uno), idioma, observaciones y observaciones comerciales, descripción del incoterm y cotización a mano. La factura también deja elegir el CUIT del país y, si ARCA no publica uno para el destino, lo pide (se escribe o se busca el país por nombre): antes el asistente no tenía salida. Las notas `E` ahora pueden ajustar otra nota `E`, no solo la factura. El comando equivalente incluye los flags nuevos (`--item`, `--idioma`, `--cuit-pais`, `--observaciones`, `--obs-comerciales`, `--incoterms-desc`, `--cm` y `--ac`). Sin marcar nada, todo sigue igual.
+
+**Más opciones en el modo interactivo.** El paso de opcionales suma la **fecha del comprobante** (`--fecha`), en facturas, recibos, notas y al repetir, con la misma ventana de días que el CLI según el concepto: sirve, por ejemplo, para facturar con fecha de fin de mes. El receptor se puede identificar por **CUIL** (en B y C), y la moneda extranjera ofrece **euros y el resto de las monedas de ARCA**, con la cotización acordada o la oficial. Las notas de crédito y débito tienen ahora sus opcionales: fechas de servicio y vencimiento (`--sd`, `--sh`, `--vto`), exento y no gravado en las parciales, y moneda en las de período. El comando equivalente incluye todos esos flags.
+
+**Repetir una factura E en el modo interactivo.** "Repetir un comprobante anterior" ahora ofrece la factura de exportación `E`. Copia de la factura que devuelve ARCA el cliente, el destino, la moneda, el incoterm, los ítems, la forma de pago, el idioma y la actividad; sale con fecha de hoy y la cotización del día, y pregunta el monto, los permisos de embarque y la fecha de pago. Si algún ítem tiene bonificación o no suman el total, avisa y sale un renglón con el monto total.
+
+**La E en "Consultar comprobantes" del modo interactivo.** La lista de tipos ahora incluye la factura de exportación `E` y sus notas de crédito y débito (`fe`, `nce`, `nde`), con los últimos emitidos, **Cargar más…**, **Ingresar el número a mano…** y el mismo detalle que `arcli consultar fe`. Antes solo estaban los 19 tipos de A, B y C.
+
+**Permisos de embarque en el modo interactivo.** La factura `E` de bienes pregunta los permisos de embarque ya existentes (opcional, separados por coma), igual que `--permiso` con `--permiso-existente`. Las notas `E` sobre una factura de bienes también los preguntan.
+
+**Alias del CBU y guardar el CBU escrito a mano.** Si en una FCE del modo interactivo el CBU se escribe porque no está en la config, también pide el alias cuando falta `aliasCbu` (Enter lo omite, como sin `--alias`), y al final ofrece guardar los dos (`cbu` y `aliasCbu`), como ya pasaba con la actividad de la `E`.
+
+**Clave de config `filasPorLista`** (1 a 50, por defecto 15): reemplaza a `comprobantesPorLista`, que ya no cuenta solo comprobantes sino también las filas de las tablas de ARCA y la lista de monedas del modo interactivo. Hace lo mismo: cuántas filas muestran `arcli ultimos` (sin `--cantidad`) y las listas del modo interactivo. `arcli config establecer filasPorLista 25`.
+
+**`ARCLI_CONFIG_DIR`.** Una variable de entorno para usar otra carpeta de config, con su `config.json`, tickets, plugins y certificados. Sirve para tener una config aparte sin tocar la de siempre. Sin la variable, todo sigue igual.
+
+**Encabezado y ayuda en `arcli parametros <tabla>`.** El listado tiene una fila de encabezado (`CÓDIGO`, la descripción y, en `iva-receptor` y `puntos-venta`, una tercera columna) y al pie para qué sirve el código en ARCLI. Es salida humana: el `--json` no cambia.
+
+**Sitio de documentación.** [arcli.com.ar](https://arcli.com.ar), con menú por tarea (Empezar, Formas de uso, Comprobantes, Más, Referencia, Ayuda), buscador, problemas frecuentes que se filtran mientras escribís, tema claro u oscuro según el sistema y buena lectura en el celular. Tiene las mismas guías que `docs/` y se actualiza con cada versión. Cada página tiene su descripción para los buscadores y para la vista previa al compartir el link, y el ícono de ARCLI se ve también en la pantalla de inicio del celular. Cuenta las visitas con Cloudflare Web Analytics, que no usa cookies ni sigue a nadie entre sitios.
+
+**Docs por tema.** Una página por comprobante ([¿qué comprobante me toca?](docs/comprobantes/README.md)), con un ejemplo y sus opciones en Obligatorio, Opcional y Al ejecutar, cada flag con su largo, su corto y sus valores; las notas de crédito y débito por separado. Formas de uso ([asistente](docs/formas-de-uso/asistente.md), [comandos](docs/formas-de-uso/comandos.md) y [con IA](docs/formas-de-uso/con-ia.md)), el certificado de [testing](docs/certificado-testing.md) y de [producción](docs/certificado-produccion.md) en pasos cortos con las capturas plegadas, [cómo funciona](docs/mental-model.md), un índice de [comandos](docs/comandos.md) y el [PDF](docs/pdf-en-corto.md) en corto, cada uno con link a su guía completa. Suman [cambiar de entorno](docs/entornos.md), [consultas](docs/consultas.md), [notas](docs/notas-credito-debito.md), [FCE](docs/fce.md), [exportación](docs/exportacion.md) y [lotes y JSON](docs/lotes-y-json.md). Los links viejos siguen andando: `obtencion-certificados.md` y `usage-patterns.md` quedan como índice. El sitio publica además `llms-full.txt`, con toda la documentación en un archivo para asistentes de IA.
+
+**Instalar o actualizar con IA.** El README trae un prompt corto, listo para copiar en un asistente de IA (Claude, ChatGPT, Gemini, Copilot…), que revisa Node, instala o actualiza ARCLI, lo verifica y crea el acceso directo la primera vez. Si el asistente no puede ejecutar comandos, te guía paso a paso.
+
+</details>
+
+### 🔧 Cambiado
+
+- **PDF:** el PDF se elige al confirmar la emisión: emitir, emitir y generar el PDF o dejar sin emitir (#165).
+- **Notas:** una nota de crédito mayor que su factura frena antes de ir a ARCA (#161).
+- **FCE:** `--afecha` deja de ser obligatoria en las notas FCE: ARCLI toma la fecha del asociado (#161).
+- **Factura E:** `--numero` deja de ser obligatorio en `fe`, `nde` y `nce`: ARCLI usa el siguiente de ARCA (#144).
+- **Asistente:** "¿Emitimos…?" tiene los mismos botones que el CLI con flags (#164).
+- **Asistente:** pide el punto de venta al empezar si la config no tiene uno (#164).
+- **Asistente:** las listas dicen "Factura C" sin el atajo del comando (#172).
+- **Docs:** los links del CLI llevan a [arcli.com.ar](https://arcli.com.ar) en lugar de GitHub (#176).
+- **Docs:** las guías muestran las dos formas de cargar el certificado, con la recomendada primero (#149).
+
+<details><summary>Detalle</summary>
+
+**El PDF se elige al confirmar la emisión.** Cuando ARCLI pregunta "¿Emitimos…?" antes de emitir (sin `--emitir`, en una terminal), en el CLI y en el modo interactivo, las opciones son siempre **Sí, emitir ahora**, **Sí, emitir y generar el PDF** y **No, dejar sin emitir**, diga lo que diga la config `pdf`, y lo elegido decide. Con `pdf preguntar` (el valor por defecto) ya no hay una segunda pregunta, "¿Generamos el PDF del comprobante?", después de emitir. Con `pdf siempre` se puede emitir sin PDF (el cursor arranca en la opción con PDF), y con `pdf nunca` aparece la opción para generarlo esa vez. Con `--exportar-pdf` o `--sin-pdf` el PDF ya está decidido y la pregunta solo ofrece emitir o no. Al emitir sin confirmar (`--emitir`, `emitir true`, `--json` o sin terminal) todo sigue igual: decide la config. Vale para todos los comprobantes, también la `E`, sus notas y el Recibo C.
+
+**Una nota de crédito mayor que su factura ya no se emite.** En una NC A, B, C o FCE, ARCLI consulta en ARCA el comprobante asociado antes de la vista previa y, si la nota supera su total (en la misma moneda), frena con un error de validación (`INPUT_VALIDATION_ERROR`) que sugiere el `--monto` para anularla entera. Antes la mandaba igual y decidía ARCA. Es el mismo control que ya tenían las notas `E` y el modo interactivo, y ahora los tres dicen lo mismo: `La nota de crédito por $ 150.000 no puede superar el total de la factura C 00003-00000045, de $ 120.000.` La consulta es una por nota y se reusa al emitir. En un lote, el error sale con su índice antes de preguntar si se emite. Solo se consulta un asociado tuyo; con `--acuit` de otro CUIT no se controla, y si ARCA no responde la nota sigue con un aviso.
+
+**`--afecha` deja de ser obligatoria en las notas FCE.** En `ncea`…`ndec`, sin `--afecha`, ARCLI toma la fecha del asociado de ARCA, como en las notas `E`, y la vista previa ya la muestra. Si la pasás, se sigue usando la tuya. Si ARCA no tiene el asociado o no responde, frena y sugiere pasar `--afecha`.
+
+**`--numero` deja de ser obligatorio en `fe`, `nde` y `nce`.** Sin el flag, ARCLI consulta en ARCA el último número de ese tipo en el punto de venta y usa el siguiente, también en la vista previa. `--numero` (o `numero` en `--cargar`) sigue andando para fijarlo a mano. El modo interactivo ya no lo pregunta. Si una emisión de la E queda sin confirmar (`EMISSION_UNCERTAIN`), la sugerencia ahora también manda a verificarla con `arcli consultar`.
+
+**Mismos botones al emitir en el modo interactivo y en el CLI.** El asistente pregunta "¿Emitimos…?" con **Sí, emitir ahora** y **No, dejar sin emitir**, como los comandos con flags (antes, "Emitir ahora" y "Cancelar"). En producción sigue pidiendo una segunda confirmación, ahora con **Sí, emitir en producción** y **No, dejar sin emitir**. El CLI con flags sigue preguntando una sola vez.
+
+**El modo interactivo pide el punto de venta al empezar si la config no tiene uno.** Factura, recibo, factura `E`, notas, repetir y consultar lo preguntan antes del primer paso, en lugar de completar todo y frenar al final con un error que hablaba de flags del CLI. El comando equivalente lo lleva con `--pv`. Con un punto de venta en la config, no cambia nada.
+
+**Listas del modo interactivo sin el atajo del comando.** Al elegir el comprobante (al emitir, en las notas y en Consultas) dice "Factura C" en lugar de "Factura C (fc)". El comando se sigue mostrando al final, en el comando equivalente.
+
+**Los links del CLI llevan al sitio de documentación.** Las guías que nombran los mensajes (certificado, punto de venta para web service, problemas frecuentes y novedades) abren su página en [arcli.com.ar](https://arcli.com.ar) en lugar del archivo en GitHub. El aviso de un certificado de producción por vencer lleva a cómo renovarlo. `arcli --ayuda` suma `Documentación: https://arcli.com.ar`, y el modo interactivo lo muestra al empezar la configuración guiada y al salir. En `arcli certificado generar --json`, el campo `guia` trae la URL nueva; los campos no cambian.
+
+**Certificados.** La guía para obtenerlos, el README y la resolución de problemas muestran las dos formas de cargar el certificado: `arcli certificado generar` e `importar` (la recomendada, con la que ya no hay que configurar nada) o, si la clave se hizo con openssl, las rutas a mano con `arcli config establecer`.
+
+</details>
+
+### ⏳ Deprecado
+
+- **Config:** `comprobantesPorLista` pasa a `filasPorLista` y se saca en la 3.0.0 (#167).
+
+<details><summary>Detalle</summary>
+
+**`comprobantesPorLista`**, ahora `filasPorLista`; se saca en la 3.0.0. Hasta entonces se sigue leyendo del archivo de config (si están las dos, gana `filasPorLista`), `arcli config establecer comprobantesPorLista N` avisa y guarda `filasPorLista` (y saca la vieja), y `arcli config --json` trae las dos con el mismo valor, más `deprecado`.
+
+</details>
+
+### 🐛 Corregido
+
+- **PDF:** sin documento ni domicilio, el PDF muestra `-` y no `- -` (#178).
+- **Asistente:** el comando equivalente lleva el nombre y el domicilio del padrón, así saca el mismo PDF (#164).
+- **Asistente:** usa los defaults de la config (moneda, IVA receptor, alícuota y concepto), como el CLI (#164).
+- **Asistente:** la configuración guiada pide el certificado del entorno activo, no siempre el de testing (#164).
+- **Asistente:** repetir un comprobante en moneda extranjera sale en la moneda del original (#155).
+- **Asistente:** avisa lo mismo que los comandos con flags, como el uso de la cotización oficial (#143).
+
+<details><summary>Detalle</summary>
+
+**Datos vacíos del receptor en el PDF.** A un consumidor final sin identificar, el PDF muestra `Documento: -` en lugar de `Documento: - -`, y sin domicilio, `Domicilio: -`. Lo mismo con el nombre de un receptor identificado que no lo tiene cargado. Vale para A, B, C y el Recibo C.
+
+**El comando equivalente del modo interactivo saca el mismo PDF.** Con un CUIT, ahora lleva el nombre y el domicilio que trajo el padrón (`--receptor-nombre` y `--receptor-domicilio`). Como siempre lleva `--ir`, el CLI no consultaba el padrón y el comando pegado generaba el PDF sin esos datos.
+
+**El modo interactivo usa los defaults de la config, como el CLI.** La factura y el recibo arrancan en la moneda de la config (`moneda`) en lugar de siempre en pesos; con una extranjera, sin tocar nada, va con la cotización oficial de ARCA (o la guardada en `cotizacion`), igual que sin `--moneda`. Las notas de crédito y débito proponen el IVA receptor de la config (`ivaReceptor`), la alícuota (`alicuota`) cuando no sale de la factura y, en las de período, el concepto (`concepto`) y la moneda. Al repetir un comprobante se sigue usando la moneda del original.
+
+**Configuración guiada en el entorno activo.** Pide el certificado y la clave del entorno en que se va a emitir (`entorno`, o `arcli interactivo --produccion`/`--testing`), no siempre los de testing. Con `entorno produccion`, el asistente proponía la guiada al abrir pero nunca completaba lo que faltaba. El chequeo al abrir también respeta `--produccion`/`--testing`.
+
+**Repetir un comprobante en moneda extranjera.** En el modo interactivo, repetir una factura o un recibo en dólares, euros u otra moneda ahora sale en la moneda del original y solo pregunta la cotización (la acordada o la oficial de ARCA). Antes arrancaba en pesos: si se desmarcaba "Moneda extranjera", el monto en dólares se emitía como si fueran pesos, y uno en euros no se podía repetir. Si ARCA no tiene la cotización oficial, no se emite.
+
+**El modo interactivo avisa lo mismo que los comandos con flags.** En moneda extranjera, que usa la cotización oficial de ARCA. Antes ese aviso solo salía con flags. La preparación de la emisión ahora es una sola para los dos.
+
+</details>
 
 ## [2.4.0] - 2026-11-08
 
