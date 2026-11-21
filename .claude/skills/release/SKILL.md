@@ -36,8 +36,8 @@ Elegí patch, minor o major con la regla de versionado de `docs/development.md`,
 Creá `release/vX.Y.Z` desde `origin/<base>` y tocá exactamente tres archivos:
 
 - `CHANGELOG.md`:
-  - Renombrá las entradas a `## [X.Y.Z] - AAAA-MM-DD` (fecha de hoy) y dejá arriba un `## [Sin publicar]` vacío.
-  - Debajo del título, un párrafo que resuma qué cambia para quien usa el CLI y cierre diciendo qué del contrato **no** cambia, como en 2.4.0.
+  - Renombrá las entradas a `## [X.Y.Z] - AAAA-MM-DD` (fecha de hoy, con ` · Nombre` si es una X.Y.0 o X.0.0 con funciones nuevas) y dejá arriba un `## [Sin publicar]` vacío.
+  - Con la skill `changelog` (sección "En /release"): ordená las entradas por importancia y armá el resumen, el nombre, los destacados y el aviso "Puede afectar scripts". Mostráselos al usuario y esperá su ok antes del Gate 1.
   - Al final: `[Sin publicar]` compara `vX.Y.Z...HEAD` y se suma `[X.Y.Z]: .../compare/vANTERIOR...vX.Y.Z`.
 - `package.json`: `"version"`.
 - `src/cli/version.ts`: `CLI_VERSION`. Un test verifica que coincida con `package.json`.
