@@ -7,14 +7,15 @@ import {
   type ExportGateway,
   type ExportIssuedVoucher,
 } from '../../../modules/export/export.types';
+import { buildExportNoteInput } from '../../../modules/interactive/export-note-input';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
 import { stripAnsi } from '../../../ui';
-import { buildExportNoteInput, exportNoteSteps, runExportNoteFlow } from '../export-note.flow';
+import { exportNoteSteps, runExportNoteFlow } from '../export-note.flow';
 import type { InteractiveSession } from '../session';
 
-import { createScript, rejecting } from './script';
+import { createScript, editing, noteExportItem, rejecting } from './script';
 
 let script = createScript([]);
 
@@ -81,6 +82,9 @@ vi.mock('../../../lib/shell/shell-argument', async (importOriginal) => {
 
 vi.mock('../prompts', () => ({
   askTextStep: (...args: Parameters<typeof script.askTextStep>) => script.askTextStep(...args),
+  chooseFromFilterList: (...args: Parameters<typeof script.chooseFromFilterList>) =>
+    script.chooseFromFilterList(...args),
+  editRowsStep: (...args: Parameters<typeof script.editRowsStep>) => script.editRowsStep(...args),
   chooseManyStep: (...args: Parameters<typeof script.chooseManyStep>) => script.chooseManyStep(...args),
   chooseOne: (...args: Parameters<typeof script.chooseStep>) => script.chooseStep(args[0], args[1]),
   chooseStep: (...args: Parameters<typeof script.chooseStep>) => script.chooseStep(...args),
@@ -145,8 +149,7 @@ describe('runExportNoteFlow', () => {
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '9'],
       [/Número de la factura E/, '1'],
-      [/Monto de la nota de crédito de exportación E \(DOL\)/, '500'],
-      [/Detalle de la nota/, 'Descuento por volumen'],
+      ...noteExportItem('500', 'Descuento por volumen'),
       [/Agregamos algún opcional/, []],
       [/Emitimos la nota de crédito de exportación E en testing/, 'Sí, emitir ahora'],
     ]);
@@ -171,12 +174,34 @@ describe('runExportNoteFlow', () => {
     );
   });
 
-  it('el detalle de la nota más largo que el de ARCA da el error 1770 y vuelve a preguntar (#219)', async () => {
+  it('en servicios no pregunta la cotización: muestra la del asociado, que es la que va (2053, NAV-9)', async () => {
     script = createScript([
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
-      [/Monto de la nota de crédito/, '500'],
-      [/Detalle de la nota/, rejecting('Descuento', ['a'.repeat(4001), /más de 4\.000 caracteres.*error 1770/])],
+      ...noteExportItem('500'),
+      [/Agregamos algún opcional/, []],
+      [/Emitimos/, 'No, dejar sin emitir'],
+    ]);
+
+    await runExportNoteFlow(createSession(), 'credito');
+
+    expect(script.asked.some((message) => message.startsWith('Cotización'))).toBe(false);
+    expect(printed().replace(/\s+/g, ' ')).toContain(
+      'Cotización: 1.174,605 por USD, la de la factura E. ARCA no acepta otra en servicios.',
+    );
+    expect(printed()).not.toContain('--cm');
+  });
+
+  it('la descripción del ítem más larga que la de ARCA da el error 1770 y vuelve a preguntar (#219)', async () => {
+    script = createScript([
+      [/Punto de venta de la factura E/, '4'],
+      [/Número de la factura E/, '1'],
+      [/^Ítems de .*: modificá o eliminá ítems/, editing({ edit: ['Según detalle'] })],
+      [/Descripción del ítem 1/, rejecting('Descuento', ['a'.repeat(4001), /más de 4\.000 caracteres.*error 1770/])],
+      [/Cantidad/, ''],
+      [/Unidad/, ''],
+      [/^(?:Importe|Precio unitario)/, '500'],
+      [/Importe total/, 'Confirmar'],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'No, dejar sin emitir'],
     ]);
@@ -195,8 +220,8 @@ describe('runExportNoteFlow', () => {
     script = createScript([
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
-      [/Monto de la nota de débito de exportación E/, '100'],
-      [/Detalle de la nota/, ''],
+      [/Cotización de USD \(la de la factura E es 1\.174,605\)/, '1174,605'],
+      ...noteExportItem('100'),
       [/Permisos de embarque/, '26001EC01000123A'],
       [/Agregamos algún opcional/, []],
       [/Emitimos la nota de débito de exportación E en testing/, 'No, dejar sin emitir'],
@@ -207,14 +232,65 @@ describe('runExportNoteFlow', () => {
     expect(printed()).toContain('arcli nde -m 100 --ar 1 --apv 4 --permiso 26001EC01000123A --testing --emitir');
   });
 
-  it('en la nota de crédito no deja pasar del total de la factura', async () => {
+  it('arranca en el editor con los ítems de la factura; en la NC, con un total mayor, "Confirmar" está deshabilitado con su motivo y bajando el precio se sigue', async () => {
+    const ITEMS = /^Ítems de .*: modificá o eliminá ítems/;
+
     script = createScript([
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
-      [/Monto de la nota de crédito/, '2000'],
+      // Sin "Monto de la nota" ni "Detalle": el renglón de la factura, para modificar (NAV-10).
+      [ITEMS, editing({ edit: ['Según detalle'] })],
+      [/Descripción del ítem 1/, ''],
+      [/Cantidad/, ''],
+      [/Unidad/, ''],
+      [/^Importe en USD/, '2000'],
+      [/Importe total de la nota de crédito de exportación E: 2\.000 USD/, 'Modificar los ítems'],
+      [ITEMS, editing({ edit: ['Según detalle'] })],
+      [/Descripción del ítem 1/, ''],
+      [/Cantidad/, ''],
+      [/Unidad/, ''],
+      [/^Importe en USD/, '1.000'],
+      [/Importe total de la nota de crédito de exportación E: 1\.000 USD/, 'Confirmar'],
+      [/Agregamos algún opcional/, []],
+      [/Emitimos/, 'No, dejar sin emitir'],
     ]);
 
-    await expect(runExportNoteFlow(createSession(), 'credito')).rejects.toThrow(/No puede superar el total/);
+    await runExportNoteFlow(createSession(), 'credito');
+
+    const totals = script.chooseStep.mock.calls.filter(([message]) => /^Importe total/.test(message));
+
+    expect(script.editRowsStep.mock.calls[0]?.[1].map((row) => row.total)).toEqual(['1.500 USD']);
+    expect(totals[0]?.[1][0]).toMatchObject({
+      disabled: 'No puede superar el total de la factura E 00004-00000001, de 1.500 USD.',
+      name: 'Confirmar',
+    });
+    expect(totals[0]?.[2]).toBe('modificar');
+    expect(totals[1]?.[1][0]).toMatchObject({ disabled: false, name: 'Confirmar' });
+    expect(printed()).toContain('arcli nce -m 1000 --ar 1 --apv 4 --testing --emitir');
+  });
+
+  it('si el asociado tiene ítems de seña o anticipo, avisa por qué arranca con un renglón por el total, como "Repetir" E', async () => {
+    vi.mocked(gateway.getVoucher).mockResolvedValueOnce({
+      ...INVOICE,
+      items: [
+        { description: 'Bienes', discount: 0, quantity: 1, total: 1600, unit: 7, unitPrice: 1600 },
+        { description: 'Anticipo', discount: 0, quantity: 0, total: -100, unit: 97, unitPrice: 0 },
+      ],
+    });
+    script = createScript([
+      [/Punto de venta de la factura E/, '4'],
+      [/Número de la factura E/, '1'],
+      [/^Ítems de .*: modificá o eliminá ítems/, BACK],
+      [/Número de la factura E/, BACK],
+      [/Punto de venta de la factura E/, BACK],
+    ]);
+
+    await runExportNoteFlow(createSession(), 'debito');
+
+    expect(printed().replace(/[│┃╏\s]+/g, ' ')).toContain(
+      'El comprobante tiene ítems de seña, anticipo o bonificación (unidades 97 y 99), que el asistente no informa: sale un renglón con el monto total.',
+    );
+    expect(script.editRowsStep.mock.calls[0]?.[1].map((row) => row.title)).toEqual(['Según detalle']);
   });
 
   it('ajusta otra nota E con --ac y suma los opcionales, sin ofrecer la cotización en servicios', async () => {
@@ -232,8 +308,7 @@ describe('runExportNoteFlow', () => {
     script = createScript([
       [/Punto de venta de la nota de débito E/, '4'],
       [/Número de la nota de débito E/, '3'],
-      [/Monto de la nota de crédito/, '200'],
-      [/Detalle de la nota/, ''],
+      ...noteExportItem('200'),
       [/Agregamos algún opcional/, ['Observaciones']],
       [/^Observaciones \(/, 'Ajuste de la ND'],
       [/Observaciones comerciales/, 'Sin cargo'],
@@ -245,7 +320,6 @@ describe('runExportNoteFlow', () => {
     expect(printed()).toContain('Nota de débito de exportación E 00004-00000003');
     expect(script.chooseManyStep.mock.calls[0]?.[1].map((choice) => choice.name)).toEqual([
       'Fecha del comprobante',
-      'Ítems',
       'Idioma',
       'Observaciones',
     ]);
@@ -260,8 +334,7 @@ describe('runExportNoteFlow', () => {
     script = createScript([
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
-      [/Monto de la nota de crédito/, '100'],
-      [/Detalle de la nota/, ''],
+      ...noteExportItem('100'),
       [/Agregamos algún opcional/, ['Fecha del comprobante']],
       [
         /Fecha del comprobante/,
@@ -282,6 +355,32 @@ describe('runExportNoteFlow', () => {
 
     expect(gateway.authorize).toHaveBeenCalledWith(expect.objectContaining({ Fecha_cbte: '20261031' }));
     expect(printed()).toContain('arcli nce -m 100 --ar 1 --apv 4 --fecha 31/10/2026 --testing --emitir');
+  });
+
+  // NAV-5: las reglas ven la nota como `ExportService`, con el tipo del asociado. En bienes la ventana no corta en el
+  // fin de mes; sin el tipo del asociado, la regla tomaba servicios y rechazaba el 01/12.
+  it('en una nota de bienes, la fecha puede pasar al mes siguiente dentro de los 5 días (1500)', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-28T12:00:00-03:00'));
+    vi.mocked(gateway.getVoucher).mockResolvedValue({ ...INVOICE, exportType: 1, incoterm: 'FOB' });
+    script = createScript([
+      [/Punto de venta de la factura E/, '4'],
+      [/Número de la factura E/, '1'],
+      [/Cotización de USD/, '1174,605'],
+      ...noteExportItem('100'),
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, ['Fecha del comprobante']],
+      [/Fecha del comprobante/, rejecting('01/12/2026', ['04/12/2026', /error 1500/])],
+      [/Emitimos/, 'No, dejar sin emitir'],
+    ]);
+
+    try {
+      await runExportNoteFlow(createSession(), 'credito');
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(printed()).toContain('--fecha 01/12/2026');
   });
 
   it('volver desde el primer paso vuelve al selector de comprobantes, sin preguntar sobre qué va la nota', async () => {
@@ -323,13 +422,13 @@ describe('runExportNoteFlow: volver en cada paso, PV propio y cotización del as
     script = createScript([
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
-      [/Monto de la nota de crédito/, '100'],
-      [/Detalle de la nota/, ''],
+      [/Cotización de USD/, '1174,605'],
+      ...noteExportItem('100'),
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, BACK],
       [/Permisos de embarque/, BACK],
-      [/Detalle de la nota/, BACK],
-      [/Monto de la nota de crédito/, BACK],
+      [/^Ítems de .*: modificá o eliminá ítems/, BACK],
+      [/Cotización de USD/, BACK],
       [/Número de la factura E/, BACK],
       [/Punto de venta de la factura E/, BACK],
     ]);
@@ -345,8 +444,7 @@ describe('runExportNoteFlow: volver en cada paso, PV propio y cotización del as
     script = createScript([
       [/Punto de venta de la factura E/, rejecting('7', ['0', /punto de venta/i], ['abc', /punto de venta/i])],
       [/Número de la factura E/, '1'],
-      [/Monto de la nota de débito/, '50'],
-      [/Detalle de la nota/, 'Ajuste'],
+      ...noteExportItem('50', 'Ajuste'),
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'No, dejar sin emitir'],
     ]);
@@ -358,7 +456,7 @@ describe('runExportNoteFlow: volver en cada paso, PV propio y cotización del as
     expect(printed()).toContain('--apv 7');
   });
 
-  it('en bienes en dólares ofrece la cotización del asociado; sobre otra NC no hay tope', async () => {
+  it('en bienes en dólares pregunta la cotización con la del asociado escrita; sobre otra NC no hay tope', async () => {
     const creditNote = { ...INVOICE, arcaType: 21, exportType: 1 as const, incoterm: 'FOB', total: 100 };
 
     vi.mocked(gateway.getVoucher).mockResolvedValue(creditNote);
@@ -366,8 +464,8 @@ describe('runExportNoteFlow: volver en cada paso, PV propio y cotización del as
     script = createScript([
       [/Punto de venta de la nota de crédito E/, '4'],
       [/Número de la nota de crédito E/, '1'],
-      [/Monto de la nota de crédito/, '5.000'],
-      [/Detalle de la nota/, ''],
+      [/^Cotización de USD \(la de la nota de crédito E es 1\.174,605\):$/, '1174,605'],
+      ...noteExportItem('5.000'),
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'No, dejar sin emitir'],
@@ -377,29 +475,47 @@ describe('runExportNoteFlow: volver en cada paso, PV propio y cotización del as
 
     const names = (script.chooseManyStep.mock.calls[0]?.[1] ?? []).map((choice) => [choice.name, choice.description]);
 
-    expect(names).toContainEqual(['Cotización', 'la de la nota de crédito E (1.174,605)']);
+    expect(script.askTextStep.mock.calls[2]?.[1]).toMatchObject({ previousAnswer: '1174,605' });
+    expect(names.map(([name]) => name)).not.toContain('Cotización');
     expect(names).toContainEqual(['Descripción del incoterm', 'FOB']);
+    // Sin tocarla, la toma el CLI del asociado: el comando no la lleva.
+    expect(printed()).not.toContain('--cm');
   });
 
-  it('una E en pesos no ofrece la cotización', async () => {
+  it('editada, la nota la lleva con --cm (NAV-9)', async () => {
+    vi.mocked(gateway.getVoucher).mockResolvedValue({ ...INVOICE, exportType: 1, incoterm: 'FOB' });
+    script = createScript([
+      [/Punto de venta de la factura E/, '4'],
+      [/Número de la factura E/, '1'],
+      [/Cotización de USD/, '1.200'],
+      ...noteExportItem('100'),
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, []],
+      [/Emitimos/, 'No, dejar sin emitir'],
+    ]);
+
+    await runExportNoteFlow(createSession(), 'debito');
+
+    expect(printed()).toContain('arcli nde -m 100 --ar 1 --apv 4 --cm 1200 --testing --emitir');
+  });
+
+  it('una E en pesos no pregunta la cotización', async () => {
     vi.mocked(gateway.getVoucher).mockResolvedValue({ ...INVOICE, currencyCode: 'PES', exportType: 1 });
     script = createScript([
       [/Punto de venta/, '4'],
       [/Número/, '1'],
-      [/Monto de la nota de débito.*\(PES\)/, '100'],
-      [/Detalle de la nota/, ''],
+      ...noteExportItem('100'),
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, BACK],
       [/Permisos de embarque/, BACK],
-      [/Detalle de la nota/, BACK],
-      [/Monto/, BACK],
+      [/^Ítems de .*: modificá o eliminá ítems/, BACK],
       [/Número/, BACK],
       [/Punto de venta/, BACK],
     ]);
 
     await runExportNoteFlow(createSession(), 'debito');
 
-    expect((script.chooseManyStep.mock.calls[0]?.[1] ?? []).map((choice) => choice.name)).not.toContain('Cotización');
+    expect(script.asked.some((message) => message.startsWith('Cotización'))).toBe(false);
   });
 
   it('si ARCA falla al buscar la factura, el error llega al menu', async () => {
@@ -441,17 +557,87 @@ describe('notas E: sin punto de venta y sin asociado elegido', () => {
     script = createScript([
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
-      [/Monto de la nota de crédito/, '100'],
-      [/Detalle/, ''],
+      ...noteExportItem('100'),
       [/Agregamos algún opcional/, []],
     ]);
 
     const state = await runWizard(exportNoteSteps('credito', gateway, 4), {});
 
-    expect(buildExportNoteInput('credito', state as NonNullable<typeof state>)).toMatchObject({
+    expect(buildExportNoteInput(state as NonNullable<typeof state>, { kind: 'credito' })).toMatchObject({
       amount: 100,
       associatedVoucher: { number: 1, pointOfSale: 4, shortcut: undefined },
       voucherKind: EXPORT_CREDIT_NOTE_KIND,
     });
+  });
+});
+
+// Revisión de NAV-3: en la nota, solo la descripción del incoterm sigue al asociado (el incoterm es el suyo).
+describe('notas E: opcionales al elegir otro asociado', () => {
+  beforeEach(() => {
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    expect(script.remaining()).toBe(0);
+  });
+
+  it('el idioma elegido se mantiene y la descripción del incoterm se olvida', async () => {
+    const goods = { ...INVOICE, exportType: 1 as const, incoterm: 'FOB', incotermDescription: 'Free on board' };
+    const invoices: Record<number, ExportIssuedVoucher> = {
+      2: { ...goods, number: 2 },
+      3: { ...goods, incoterm: 'CIF', incotermDescription: 'Cost insurance freight', number: 3 },
+    };
+    const notesGateway: ExportGateway = {
+      ...gateway,
+      getLanguages: async () => [
+        { id: 1, name: 'Español' },
+        { id: 2, name: 'Inglés' },
+      ],
+      getVoucher: async (query) => invoices[query.number] ?? null,
+    };
+    let returned = false;
+    const after = {
+      name: 'despues',
+      run: async () => {
+        if (returned) {
+          return {};
+        }
+
+        returned = true;
+
+        return BACK;
+      },
+    };
+
+    script = createScript([
+      [/Punto de venta de la factura E/, '4'],
+      [/Número de la factura E/, '2'],
+      [/Cotización de USD/, '1174,605'],
+      ...noteExportItem('100'),
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, ['Idioma', 'Descripción del incoterm']],
+      [/Idioma del comprobante/, 'Inglés'],
+      [/Descripción del incoterm FOB/, 'FOB Buenos Aires'],
+      // "despues" vuelve: se retrocede hasta el número y se elige otra factura.
+      [/Agregamos algún opcional/, BACK],
+      [/Permisos de embarque/, BACK],
+      [/^Ítems de .*: modificá o eliminá ítems/, BACK],
+      [/Cotización de USD/, BACK],
+      [/Número de la factura E/, '3'],
+      [/Cotización de USD/, '1174,605'],
+      ...noteExportItem('100'),
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, ['Idioma']],
+      [/Idioma del comprobante/, 'Inglés'],
+    ]);
+
+    const state = await runWizard([...exportNoteSteps('credito', notesGateway, 4), after], {});
+    const lastSelection = script.chooseManyStep.mock.calls.at(-1);
+    const shown = Object.fromEntries((lastSelection?.[1] ?? []).map((choice) => [choice.name, choice.description]));
+
+    expect(state?.options).toEqual({ language: 2 });
+    expect(lastSelection?.[2]).toEqual(['idioma']);
+    expect(shown).toMatchObject({ 'Descripción del incoterm': 'Cost insurance freight', Idioma: 'Inglés' });
   });
 });

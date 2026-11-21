@@ -124,6 +124,11 @@ export function padEndVisible(value: string, width: number): string {
   return `${value}${' '.repeat(Math.max(0, width - visibleWidth(value)))}`;
 }
 
+/** `value` con espacios a la izquierda hasta ocupar `width` columnas visibles: un importe alineado a la derecha. */
+export function padStartVisible(value: string, width: number): string {
+  return `${' '.repeat(Math.max(0, width - visibleWidth(value)))}${value}`;
+}
+
 const graphemeSegmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
 
 export function flattenVisibleLines(lines: readonly string[]): string[] {
@@ -175,6 +180,20 @@ function splitAtVisibleColumn(line: string, column: number): [string, string] {
   }
 
   return [line.slice(0, index), line.slice(index)];
+}
+
+/**
+ * `value` recortado para que ocupe hasta `width` columnas visibles, terminado en `ellipsis` si no entraba. Sin partir
+ * grafemas ni codigos ANSI, como el corte de los paneles.
+ */
+export function truncateVisible(value: string, width: number, ellipsis: string): string {
+  if (visibleWidth(value) <= width) {
+    return value;
+  }
+
+  const room = Math.max(0, width - visibleWidth(ellipsis));
+
+  return `${room > 0 ? splitAtVisibleColumn(value, room)[0].trimEnd() : ''}${ellipsis}`;
 }
 
 export function wrapPlainText(value: string, width: number): string[] {
@@ -293,6 +312,14 @@ const MIN_VALUE_COLUMN_WIDTH = 12;
 const LIST_ITEM_MARKER = /^(?:[•*-]|\d+\.)\s+/;
 const NO_COLUMNS: ReadonlySet<number> = new Set();
 
+/**
+ * Si las filas etiqueta/valor con el valor en `column` se apilan en `width` (la etiqueta arriba y el valor debajo,
+ * `wrapPanelLines`) cuando no entran: no queda lugar para el valor. Para que otra tabla del mismo panel se parta igual.
+ */
+export function stacksAtColumn(column: number, width: number): boolean {
+  return width - column < MIN_VALUE_COLUMN_WIDTH;
+}
+
 function labelColumnWidth(line: string): number | null {
   const prefix = LABEL_VALUE_LINE.exec(stripAnsi(line))?.[1];
 
@@ -347,7 +374,7 @@ export function wrapIndentedPlainText(
       const [prefix, rest] = splitAtVisibleColumn(line, prefixWidth);
       const values = rest.split(/\s+/);
 
-      if (width - prefixWidth >= MIN_VALUE_COLUMN_WIDTH && !stacked) {
+      if (!stacksAtColumn(prefixWidth, width) && !stacked) {
         return wrapWords(values, prefix, ' '.repeat(prefixWidth), width);
       }
 
@@ -391,7 +418,7 @@ export function wrapPanelLines(lines: readonly string[], width: number): string[
   for (const line of flattened) {
     const column = labelColumnWidth(line);
 
-    if (column !== null && visibleWidth(line) > width && width - column < MIN_VALUE_COLUMN_WIDTH) {
+    if (column !== null && visibleWidth(line) > width && stacksAtColumn(column, width)) {
       stackedColumns.add(column);
     }
   }

@@ -15,8 +15,13 @@ import {
   type ExportVoucherInput,
   type ExportVoucherKind,
 } from '../../../modules/export/export.types';
+import { initialAdvancedOptions } from '../../../modules/interactive/billing-optionals';
 import { buildEquivalentCommand } from '../../../modules/interactive/equivalent-command';
 import { buildExportEquivalentCommand } from '../../../modules/interactive/export-equivalent-command';
+import { buildExportNoteInput } from '../../../modules/interactive/export-note-input';
+import { buildExportRepeatInput } from '../../../modules/interactive/export-repeat-input';
+import { buildInvoiceInput } from '../../../modules/interactive/invoice-input';
+import { buildNoteInput } from '../../../modules/interactive/note-input';
 import { runWizard } from '../../../modules/interactive/wizard';
 import type { PadronGateway } from '../../../modules/padron/padron';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../../../modules/vouchers/voucher-history';
@@ -24,14 +29,15 @@ import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.re
 import { parseBillingCommandPlan } from '../../commands/billing.command.parser';
 import { resolveBillingCommandDefaults } from '../../commands/billing.command.shared';
 import { parseExportCommandPlan } from '../../commands/export.command.parser';
-import { createProgram } from '../../program';
-import { buildInvoiceInput, invoiceSteps } from '../invoice.flow';
-import { buildInvoiceInput as buildRepeatInput } from '../invoice.flow';
-import { buildNoteInput, noteSteps } from '../note.flow';
+import { exportNoteSteps } from '../export-note.flow';
+import { exportRepeatSteps } from '../export-repeat.flow';
+import { invoiceSteps } from '../invoice.flow';
+import { noteInputEnv, noteSteps } from '../note.flow';
 import { repeatSteps } from '../repeat.flow';
 import type { InteractiveSession } from '../session';
 
-import { createScript, type ScriptedAnswer } from './script';
+import { captured, comparableInput, parseWithProgram } from './equivalent-command.parse';
+import { createScript, KEEP_EXPORT_ITEMS, noteExportItem, type ScriptedAnswer } from './script';
 
 /**
  * Cada flujo del asistente termina mostrando el comando equivalente. Ese comando, pegado en la terminal, tiene que
@@ -43,15 +49,16 @@ let script = createScript([]);
 
 vi.mock('../prompts', () => ({
   askTextStep: (...args: Parameters<typeof script.askTextStep>) => script.askTextStep(...args),
+  chooseFromFilterList: (...args: Parameters<typeof script.chooseFromFilterList>) =>
+    script.chooseFromFilterList(...args),
   chooseManyStep: (...args: Parameters<typeof script.chooseManyStep>) => script.chooseManyStep(...args),
   chooseStep: (...args: Parameters<typeof script.chooseStep>) => script.chooseStep(...args),
   chooseStepWhileLoading: (...args: Parameters<typeof script.chooseStepWhileLoading>) =>
     script.chooseStepWhileLoading(...args),
+  editRowsStep: (...args: Parameters<typeof script.editRowsStep>) => script.editRowsStep(...args),
   eraseLastAnswer: () => undefined,
   fitPageSize: () => 12,
 }));
-
-const captured: Array<{ command: Command; exportKind?: ExportVoucherKind; shortcut?: VoucherShortcut }> = [];
 
 vi.mock('../../commands/export.command', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../commands/export.command')>()),
@@ -104,7 +111,7 @@ const billingGateway: BillingGateway = {
   getQuotation: async () => 1450,
 };
 
-function createSession(vouchers: IssuedVoucher[] = []): InteractiveSession {
+function createSession(vouchers: IssuedVoucher[] = [], withConfig = config): InteractiveSession {
   const historyGateway: VoucherHistoryGateway = {
     getLastNumber: async () => vouchers.reduce((max, voucher) => Math.max(max, voucher.number), 0),
     getVoucher: async (number) => vouchers.find((voucher) => voucher.number === number),
@@ -114,7 +121,7 @@ function createSession(vouchers: IssuedVoucher[] = []): InteractiveSession {
     arca: {} as never,
     billingGateway,
     historyGateway,
-    runtime: { ...runtime, config: { ...config, consultarPadron: false } } as ResolvedArcaRuntime,
+    runtime: { ...runtime, config: { ...withConfig, consultarPadron: false } } as ResolvedArcaRuntime,
     service: new BillingService(),
   };
 }
@@ -131,82 +138,6 @@ const invoice = (overrides: Partial<IssuedVoucher> = {}): IssuedVoucher => ({
   total: 121,
   ...overrides,
 });
-
-/** En PowerShell las comillas tipograficas tambien abren y cierran una cadena simple. */
-const POWERSHELL_QUOTE = /['‘’‚‛]/;
-
-/**
- * Separa un comando como la shell: comillas simples de POSIX (`'\''`) o de PowerShell (adentro, dos comillas
- * seguidas son una).
- */
-function splitCommand(line: string, platform: 'linux' | 'win32'): string[] {
-  const words: string[] = [];
-  let current: string | null = null;
-
-  for (let index = 0; index < line.length; index += 1) {
-    const char = line[index] as string;
-
-    if (platform === 'win32' && POWERSHELL_QUOTE.test(char)) {
-      let quoted = '';
-
-      for (index += 1; ; index += 1) {
-        const inner = line[index];
-
-        if (inner === undefined) throw new Error(`comillas sin cerrar en ${line}`);
-
-        if (POWERSHELL_QUOTE.test(inner)) {
-          if (!POWERSHELL_QUOTE.test(line[index + 1] ?? '')) break;
-
-          quoted += inner;
-          index += 1;
-        } else {
-          quoted += inner;
-        }
-      }
-
-      current = (current ?? '') + quoted;
-    } else if (char === "'") {
-      const close = line.indexOf("'", index + 1);
-
-      if (close === -1) throw new Error(`comillas sin cerrar en ${line}`);
-
-      current = (current ?? '') + line.slice(index + 1, close);
-      index = close;
-    } else if (platform === 'linux' && char === '\\') {
-      current = (current ?? '') + (line[index + 1] ?? '');
-      index += 1;
-    } else if (char === ' ') {
-      if (current !== null) words.push(current);
-      current = null;
-    } else {
-      current = (current ?? '') + char;
-    }
-  }
-
-  if (current !== null) words.push(current);
-
-  return words;
-}
-
-async function parseWithProgram(line: string, platform: 'linux' | 'win32') {
-  const [arcli, ...args] = splitCommand(line, platform);
-  const program = createProgram();
-  const silence = (command: Command) => {
-    command.exitOverride().configureOutput({ writeErr: () => {}, writeOut: () => {} });
-    command.commands.forEach(silence);
-  };
-
-  expect(arcli).toBe('arcli');
-  silence(program);
-  captured.length = 0;
-  await program.parseAsync(['node', 'arcli', ...args]);
-
-  const call = captured[0];
-
-  if (!call) throw new Error(`"${line}" no llego a un comando de facturacion`);
-
-  return call;
-}
 
 /** La solicitud a ARCA que arma una entrada, como `previewAndEmit` y `executeBillingCommand`. */
 async function payloadOf(input: BillingCommandInput, withConfig = config) {
@@ -247,6 +178,10 @@ async function expectSameBillingRequest(
 
     expect(plan.invalidItems).toEqual([]);
     expect(plan.inputs).toHaveLength(1);
+    // La misma entrada y la misma solicitud: el comando no fija nada que el CLI tome solo (REV-72).
+    expect(comparableInput(plan.inputs[0] as BillingCommandInput, runtime.context.cuit), line).toEqual(
+      comparableInput(input, runtime.context.cuit),
+    );
     expect(await payloadOf(plan.inputs[0] as BillingCommandInput, withConfig), line).toEqual(expected);
 
     if (platform === 'linux') {
@@ -269,7 +204,7 @@ async function invoiceFrom(steps: ReadonlyArray<readonly [RegExp, ScriptedAnswer
 
   expect(script.remaining()).toBe(0);
 
-  return buildInvoiceInput(state as NonNullable<typeof state>, session);
+  return buildInvoiceInput(state as NonNullable<typeof state>, session.runtime);
 }
 
 describe('el comando equivalente del asistente pasa por el parser real y arma la misma solicitud', () => {
@@ -354,6 +289,23 @@ describe('el comando equivalente del asistente pasa por el parser real y arma la
     await expectSameBillingRequest(input);
   });
 
+  it('Factura C en dólares cobrada en pesos con la oficial sin tocar: sin --cm y la misma solicitud (#15)', async () => {
+    const input = await invoiceFrom([
+      [/comprobante/, 'Factura C'],
+      [/A quién/, 'Consumidor final'],
+      [/Qué estás facturando/, 'Servicios'],
+      [/Monto total/, '100'],
+      [/Agregamos/, ['Moneda extranjera']],
+      [/Moneda del comprobante/, 'Dólares'],
+      [/Cómo te pagan/, 'En pesos'],
+      [/Cotización de USD/, '1450'],
+    ]);
+    const { line } = await expectSameBillingRequest(input);
+
+    expect(line).toContain('--moneda USD --testing');
+    expect(await payloadOf(input)).toMatchObject({ CanMisMonExt: 'N', MonCotiz: 1450 });
+  });
+
   it('FCE A con CBU, alias con puntos, transferencia y vencimiento', async () => {
     const input = await invoiceFrom([
       [/comprobante/, 'Factura de crédito electrónica A'],
@@ -402,7 +354,7 @@ describe('el comando equivalente del asistente pasa por el parser real y arma la
 
       expect(script.remaining()).toBe(0);
 
-      return buildNoteInput(state as NonNullable<typeof state>, session, 3);
+      return buildNoteInput(state as NonNullable<typeof state>, noteInputEnv(session, 3));
     }
 
     it('NC B por el total de una factura de la lista', async () => {
@@ -509,7 +461,7 @@ describe('el comando equivalente del asistente pasa por el parser real y arma la
       const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
 
       expect(script.remaining()).toBe(0);
-      const input = buildNoteInput(state as NonNullable<typeof state>, session, 3);
+      const input = buildNoteInput(state as NonNullable<typeof state>, noteInputEnv(session, 3));
 
       // El asociado es del CUIT emisor: sin `--acuit`, que en una nota común es lo que toma el CLI (REV-59).
       expect((await expectSameBillingRequest(input)).line).toContain('--ac fc --apv 50 --ar 15 --afecha 10/11/2026');
@@ -567,7 +519,7 @@ describe('el comando equivalente del asistente pasa por el parser real y arma la
     const state = await runWizard(repeatSteps(session, 3, NOW), {
       advanced: { currencyCode: 'ARS', sameCurrency: false },
     });
-    const input = buildRepeatInput(state as NonNullable<typeof state>, session);
+    const input = buildInvoiceInput(state as NonNullable<typeof state>, session.runtime);
 
     expect((await expectSameBillingRequest(input)).line).toContain('--consumidor-final');
     expect(await payloadOf(input)).toMatchObject({ DocNro: 0, DocTipo: 99 });
@@ -588,7 +540,153 @@ describe('el comando equivalente del asistente pasa por el parser real y arma la
       advanced: { currencyCode: 'ARS', sameCurrency: false },
     });
 
-    await expectSameBillingRequest(buildRepeatInput(state as NonNullable<typeof state>, session));
+    await expectSameBillingRequest(buildInvoiceInput(state as NonNullable<typeof state>, session.runtime));
+  });
+});
+
+// Revision de NAV-4: con `cotizacion` en la config, "En pesos" arranca con la de la config si el CLI la tomaria sin
+// `--cm`. Sin tocarla, el comando no lleva `--cm` y pegado emite con la misma; antes salia con la oficial (1450) y el
+// comando pegado emitia con la de la config (1400).
+describe('con la cotización deprecada en la config, "En pesos" sin tocar arma lo mismo que el comando', () => {
+  const withRate = (extra: Record<string, unknown> = { monedaPorDefecto: 'USD' }) =>
+    arcliConfigSchema.parse({ cotizacionPorDefecto: 1400, cuit: '20111111112', puntoVentaPorDefecto: 3, ...extra });
+
+  beforeAll(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(NOW);
+  });
+
+  afterAll(() => {
+    vi.useRealTimers();
+  });
+
+  beforeEach(() => {
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+  });
+
+  afterEach(() => {
+    vi.mocked(process.stdout.write).mockRestore();
+  });
+
+  async function invoiceWith(withConfig: typeof config, currency: string, rate: string) {
+    script = createScript([
+      [/comprobante/, 'Factura C'],
+      [/A quién/, 'Consumidor final'],
+      [/Qué estás facturando/, 'Servicios'],
+      [/Monto total/, '100'],
+      [/Agregamos/, ['Moneda extranjera']],
+      [/Moneda del comprobante/, currency],
+      [/Cómo te pagan/, 'En pesos'],
+      [/Cotización de/, rate],
+    ]);
+
+    const session = createSession([], withConfig);
+    const state = await runWizard(invoiceSteps(session), { advanced: initialAdvancedOptions(withConfig) });
+
+    expect(script.remaining()).toBe(0);
+
+    return buildInvoiceInput(state as NonNullable<typeof state>, session.runtime);
+  }
+
+  const question = () => script.askTextStep.mock.calls.findLast(([message]) => /^Cotización de/.test(message));
+
+  it('factura en dólares con la de la config: arranca con ella, lo dice, y el comando va sin --cm', async () => {
+    const withConfig = withRate();
+    const input = await invoiceWith(withConfig, '(USD)', '1400');
+
+    expect(question()?.[0]).toBe('Cotización de USD (la de tu config, `cotizacion`, es 1.400):');
+    expect(question()?.[1]?.previousAnswer).toBe('1400');
+    expect(input).toMatchObject({ exchangeRate: 1400, exchangeRateSource: 'config' });
+
+    const { line } = await expectSameBillingRequest(input, withConfig);
+
+    expect(line).toContain('--moneda USD --testing');
+    expect(await payloadOf(input, withConfig)).toMatchObject({ MonCotiz: 1400 });
+  });
+
+  it('editada, es la acordada y va con --cm', async () => {
+    const withConfig = withRate();
+    const input = await invoiceWith(withConfig, '(USD)', '1.380');
+    const { line } = await expectSameBillingRequest(input, withConfig);
+
+    expect(line).toContain('--moneda USD --cm 1380');
+  });
+
+  it('sin moneda en la config, la de la config vale para euros', async () => {
+    const withConfig = withRate({});
+    const input = await invoiceWith(withConfig, '(EUR)', '1400');
+    const { line } = await expectSameBillingRequest(input, withConfig);
+
+    expect(line).toContain('--moneda EUR --testing');
+    expect(await payloadOf(input, withConfig)).toMatchObject({ MonCotiz: 1400, MonId: '060' });
+  });
+
+  it('con la config en dólares, en euros no aplica: arranca con la oficial y sin tocarla tampoco lleva --cm', async () => {
+    const withConfig = withRate();
+    const input = await invoiceWith(withConfig, '(EUR)', '1450');
+
+    expect(question()?.[0]).toBe('Cotización de EUR (la oficial de ARCA es 1.450):');
+
+    const { line } = await expectSameBillingRequest(input, withConfig);
+
+    expect(line).toContain('--moneda EUR --testing');
+    expect(await payloadOf(input, withConfig)).toMatchObject({ MonCotiz: 1450 });
+  });
+
+  it('Repetir una factura en dólares cobrada en pesos', async () => {
+    const withConfig = withRate();
+
+    script = createScript([
+      [/comprobante querés repetir/, 'Factura C'],
+      [/Cuál repetimos/, '00003-00000014'],
+      [/Mismo monto/, 'Sí'],
+      [/Cómo te pagan/, 'En pesos'],
+      [/Cotización de USD/, '1400'],
+      [/Período del servicio/, 'El mes pasado'],
+      [/Agregamos/, []],
+    ]);
+
+    const session = createSession(
+      [invoice({ currency: 'DOL', exchangeRate: 1300, ivaAmount: 0, netAmount: 100, total: 100 })],
+      withConfig,
+    );
+    const state = await runWizard(repeatSteps(session, 3, NOW), {
+      advanced: { currencyCode: 'ARS', sameCurrency: false },
+    });
+    const input = buildInvoiceInput(state as NonNullable<typeof state>, session.runtime);
+    const { line } = await expectSameBillingRequest(input, withConfig);
+
+    expect(line).toMatch(/--moneda USD --sd /);
+    expect(line).not.toContain('--cm');
+    expect(await payloadOf(input, withConfig)).toMatchObject({ MonCotiz: 1400 });
+  });
+
+  it('nota por período en dólares cobrada en pesos', async () => {
+    const withConfig = withRate();
+
+    script = createScript([
+      [/Sobre qué comprobante/, 'Facturas'],
+      [/Qué factura\?/, 'Factura C'],
+      [/A qué la asociamos/, 'A un período'],
+      [/Período desde/, '01/10/2026'],
+      [/Período hasta/, '31/10/2026'],
+      [/A quién va la nota/, 'Consumidor final'],
+      [/concepto ajusta/, 'Productos'],
+      [/Monto de la nota de crédito/, '100'],
+      [/Agregamos/, ['Moneda extranjera']],
+      [/Moneda del comprobante/, '(USD)'],
+      [/Cómo te pagan/, 'En pesos'],
+      [/Cotización de USD/, '1400'],
+    ]);
+
+    const session = createSession([], withConfig);
+    const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
+    const input = buildNoteInput(state as NonNullable<typeof state>, noteInputEnv(session, 3));
+    const { line } = await expectSameBillingRequest(input, withConfig);
+
+    expect(line).toContain('--moneda USD --pd 01/10/2026');
+    expect(line).not.toContain('--cm');
+    expect(await payloadOf(input, withConfig)).toMatchObject({ MonCotiz: 1400 });
   });
 });
 
@@ -650,6 +748,11 @@ describe('el comando equivalente de la E con textos raros pasa por el parser rea
       expect(call.exportKind?.shortcut).toBe((input.voucherKind ?? EXPORT_VOUCHER_KIND).shortcut);
 
       const plan = parseExportCommandPlan(call.command, { voucherKind: call.exportKind });
+
+      expect(comparableInput(plan.input, 20111111112), line).toEqual(
+        comparableInput({ activity: 620100, ...input }, 20111111112),
+      );
+
       const resolved = await service.resolve(plan.input, exportGateway, exportRuntime, NOW);
 
       expect(resolved.payload, line).toEqual(expected.payload);
@@ -697,6 +800,49 @@ describe('el comando equivalente de la E con textos raros pasa por el parser rea
       observations: 'Línea con acentos: ñ, ü, ç',
       permits: ['26001EC01000123A'],
       permitsExisting: true,
+    });
+  });
+
+  it('el ítem por defecto del asistente (NAV-10) va como `--item` y pide a ARCA lo mismo que sin ítems', async () => {
+    const base: ExportVoucherInput = {
+      amount: 1500.5,
+      clientAddress: '123 Main St',
+      clientName: 'ACME LLC',
+      currencyCode: 'DOL',
+      destinationCountry: 'ESTADOS UNIDOS',
+      emit: false,
+      exportType: 2,
+      sameCurrency: true,
+    };
+    const withItem: ExportVoucherInput = {
+      ...base,
+      items: [{ description: 'Según detalle', quantity: 1, unit: 7, unitPrice: 1500.5 }],
+    };
+    const service = new ExportService();
+
+    expect(buildExportEquivalentCommand(withItem, { activity: 620100, environment: 'testing' })).toContain(
+      "-m 1500,50 --cliente 'ACME LLC'",
+    );
+    expect(buildExportEquivalentCommand(withItem, { activity: 620100, environment: 'testing' })).toContain(
+      "--item 'Según detalle|1|1500,50'",
+    );
+    await expectSameExportRequest(withItem);
+    expect((await service.resolve(withItem, exportGateway, exportRuntime, NOW)).payload).toEqual(
+      (await service.resolve(base, exportGateway, exportRuntime, NOW)).payload,
+    );
+  });
+
+  it('ítems con código y seis decimales en la cantidad y el precio', async () => {
+    await expectSameExportRequest({
+      amount: 1000.12,
+      clientAddress: '123 Main St',
+      clientName: 'ACME LLC',
+      currencyCode: 'DOL',
+      destinationCountry: 'ESTADOS UNIDOS',
+      emit: false,
+      exportType: 2,
+      items: [{ code: 'J-1', description: 'Jugo', quantity: 0.125, unit: 7, unitPrice: 8000.987654 }],
+      sameCurrency: true,
     });
   });
 
@@ -752,6 +898,101 @@ describe('el comando equivalente de la E con textos raros pasa por el parser rea
       associatedVoucher: { number: 1, pointOfSale: 4 },
       emit: false,
       voucherKind: EXPORT_CREDIT_NOTE_KIND,
+    });
+  });
+
+  // NAV-9: la cotización de la E arranca escrita con la que toma el CLI. Sin tocarla, la entrada no la lleva (el comando
+  // va sin `--cm`) y la solicitud sale igual; editada, la lleva. El asistente al azar solo llega en la factura: la de
+  // las pantallas es de servicios, donde no se pregunta.
+  describe('la cotización de la E en bienes, sin tocar y editada (NAV-9)', () => {
+    const goodsVoucher = async (query: Parameters<ExportGateway['getVoucher']>[0]) => ({
+      ...(await exportGateway.getVoucher(query))!,
+      exportType: 1 as const,
+      incoterm: 'FOB',
+      sameCurrency: false,
+    });
+    const goodsGateway: ExportGateway = { ...exportGateway, getVoucher: goodsVoucher };
+
+    /** El comando equivalente arma la misma solicitud: devuelve el comando y la cotización que va a ARCA. */
+    async function expectSameGoodsRequest(input: ExportVoucherInput): Promise<{ line: string; sent: number }> {
+      const service = new ExportService();
+      const expected = await service.resolve(input, goodsGateway, exportRuntime, NOW);
+      const line = buildExportEquivalentCommand(input, { activity: 620100, environment: 'testing', platform: 'linux' });
+      const call = await parseWithProgram(line, 'linux');
+      const plan = parseExportCommandPlan(call.command, { voucherKind: call.exportKind });
+      const resolved = await service.resolve(plan.input, goodsGateway, exportRuntime, NOW);
+
+      expect(resolved.payload, line).toEqual(expected.payload);
+
+      return { line, sent: expected.payload.Moneda_ctz };
+    }
+
+    it.each([
+      ['sin tocar', '1400', undefined, 1400],
+      ['editada', '1.300', 1300, 1300],
+    ])('nota de crédito E, %s', async (_case, typed, exchangeRate, sent) => {
+      script = createScript([
+        [/Punto de venta de la factura E/, '4'],
+        [/Número de la factura E/, '1'],
+        [/^Cotización de USD \(la de la factura E es 1\.400\):$/, typed],
+        ...noteExportItem('500'),
+        [/Permisos de embarque/, ''],
+        [/Agregamos/, []],
+      ]);
+
+      const state = await runWizard(exportNoteSteps('credito', goodsGateway, 4), {});
+      const input = buildExportNoteInput(state as NonNullable<typeof state>, { kind: 'credito' });
+
+      const request = await expectSameGoodsRequest(input);
+
+      expect(input.exchangeRate).toBe(exchangeRate);
+      expect(request.sent).toBe(sent);
+
+      if (exchangeRate === undefined) {
+        expect(request.line).not.toContain('--cm');
+      } else {
+        expect(request.line).toContain(`--cm ${exchangeRate}`);
+      }
+    });
+
+    it.each([
+      ['sin tocar', '1450', undefined, 1450],
+      ['editada', '1.300', 1300, 1300],
+    ])('Repetir E, %s', async (_case, typed, exchangeRate, sent) => {
+      script = createScript([
+        [/Cuál repetimos/, '00004-00000001'],
+        ...KEEP_EXPORT_ITEMS,
+        [/^Cotización de USD \(la oficial de ARCA es 1\.450\):$/, typed],
+        [/Permisos de embarque/, ''],
+        [/Agregamos/, []],
+      ]);
+
+      const session = createSession();
+      const repeatGateway = { ...goodsGateway, getLastVoucherNumber: async () => 1 };
+      const state = await runWizard(
+        exportRepeatSteps(
+          session,
+          repeatGateway,
+          {
+            countries: [{ code: 212, name: 'ESTADOS UNIDOS' }],
+            countryCuits: await exportGateway.getDestinationCountryCuits(),
+          },
+          4,
+        ),
+        {},
+      );
+      const input = buildExportRepeatInput(state as NonNullable<typeof state>, {});
+
+      const request = await expectSameGoodsRequest(input);
+
+      expect(input.exchangeRate).toBe(exchangeRate);
+      expect(request.sent).toBe(sent);
+
+      if (exchangeRate === undefined) {
+        expect(request.line).not.toContain('--cm');
+      } else {
+        expect(request.line).toContain(`--cm ${exchangeRate}`);
+      }
     });
   });
 });

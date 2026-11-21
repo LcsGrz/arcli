@@ -1,0 +1,197 @@
+? [lista] ¿Qué comprobante querés emitir?
+  arranca en: (ninguna)
+  · Factura C — La emiten monotributistas y exentos
+  · Factura B — De responsable inscripto a consumidor final, exento u otros
+  · Factura A — Entre responsables inscriptos, o de RI a monotributista
+  · Factura de crédito electrónica C — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Factura de crédito electrónica B — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Factura de crédito electrónica A — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Factura de exportación E — A un cliente del exterior: servicios o bienes
+  = Factura de exportación E
+
+? [texto] Nombre o razón social del cliente del exterior:
+  = "ACME LLC"
+
+? [texto] Domicilio del cliente:
+  = "123 Main St"
+
+? [texto] País de destino (nombre o código de ARCA, por ejemplo ESTADOS UNIDOS o 212):
+  = "estados unidos"
+
+? [texto] ID impositivo del cliente en su país (Enter para omitirlo):
+  = "12-3456789"
+
+? [lista] ¿Qué exportás?
+  arranca en: Servicios
+  > Servicios
+  · Bienes — Lleva incoterm y, si los hay, permisos de embarque
+  · Otros
+  = Servicios
+
+? [lista] ¿En qué moneda facturás?
+  arranca en: Dólares (USD)
+  > Dólares (USD) — Con la cotización de aduana que publica ARCA
+  · Pesos
+  = Dólares (USD)
+
+? [lista] ¿Te pagan en dólares?
+  arranca en: (ninguna)
+  · Sí — ARCA lo registra como cancelación en la misma moneda
+  · No, en pesos
+  = Sí
+
+== pantalla ==
+┌                                                                                          ┐
+
+   Cotización: 1.174,60 por USD, la de aduana del día hábil anterior. ARCA no acepta otra
+                                       en servicios.
+
+└                                                                                          ┘
+
+? [texto] Descripción del ítem 1:
+  por defecto: "Según detalle"
+  = "Consultoría de software"
+
+? [texto] Cantidad:
+  por defecto: "1"
+  = ""
+
+? [lista con filtro] Unidad:
+  arranca en: unidades
+  · kilogramos (busca tambien: 1)
+  > unidades (busca tambien: 7)
+  = unidades
+
+? [texto] Importe en USD:
+  = "1.500"
+
+? [texto] Descripción del ítem 2 (Enter para terminar):
+  = ""
+
+? [lista] Importe total de la factura de exportación E: 1.500 USD (1 ítem)
+  arranca en: Confirmar
+  > Confirmar
+  · Modificar los ítems — Modificar, borrar o agregar ítems
+  = Confirmar
+
+? [texto] Forma de pago:
+  por defecto: "Transferencia Internacional"
+  = ""
+
+? [texto] Código de actividad de WSFEX, por ejemplo 620100 (Enter para no informarla):
+  = "620100"
+
+? [texto] Fecha de pago (Enter para la fecha del comprobante):
+  = ""
+
+? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
+  [ ] Fecha del comprobante — hoy
+  [ ] Idioma — Español
+  [ ] CUIT del país — el de la tabla de ARCA
+  [ ] Observaciones — sin observaciones
+  = (nada marcado)
+
+== pantalla ==
+┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐
+╎                                                                                          ╎
+╎       Estás en TESTING: los comprobantes son de prueba y no tienen validez fiscal.       ╎
+╎                                                                                          ╎
+└╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘
+
+      ╒══════════════════════════ FACTURA DE EXPORTACIÓN E ══════════════════════════╕
+      │                                                                              │
+      │  Cliente                          ACME LLC                                   │
+      │  CUIT del país del cliente        55-00000212-6                              │
+      │  Domicilio del cliente            123 Main St                                │
+      │  ID impositivo del cliente        12-3456789                                 │
+      │  País de destino                  212 - ESTADOS UNIDOS                       │
+      │  Tipo de exportación              2 - Servicios                              │
+      │  Actividad                        620100                                     │
+      │  Incoterm                         N/D                                        │
+      │  Idioma                           1 - Español                                │
+      │  Moneda                           Dólares estadounidenses (USD), cotización  │
+      │                                   1.174,60 (el pago se cancela en la misma   │
+      │                                   moneda)                                    │
+      │  Forma de pago                    Transferencia Internacional                │
+      │  Número                           00003-00000008                             │
+      │  Fecha del comprobante            18/11/2026                                 │
+      │  Fecha de pago                    18/11/2026                                 │
+      │                                                                              │
+      │  1 x Consultoría de software      1.500 USD                                  │
+      │  (unidades)                                                                  │
+      │                                                                              │
+      │  Importe total                    1.500 USD                                  │
+      │                                                                              │
+      ├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
+      │                                                                              │
+      │                                  SIN EMITIR                                  │
+      │                                                                              │
+      ╘══════════════════════════════════════════════════════════════════════════════╛
+
+== comando equivalente ==
+arcli fe -m 1500 --cliente 'ACME LLC' --domicilio-cliente '123 Main St' --pais-destino 'ESTADOS UNIDOS' --id-impositivo 12-3456789 --actividad 620100 --descripcion 'Consultoría de software' --moneda DOL --misma-moneda --testing --emitir
+
+== pantalla ==
+▎ Esto equivale a:
+▎ arcli fe -m 1500 --cliente 'ACME LLC' --domicilio-cliente '123 Main St' --pais-destino 'ESTADOS UNIDOS' --id-impositivo 12-3456789 --actividad 620100 --descripcion 'Consultoría de software' --moneda DOL --misma-moneda --testing --emitir
+
+? [lista] ¿Emitimos la factura de exportación E en testing?
+  arranca en: Sí, emitir ahora
+  > Sí, emitir ahora
+  · Sí, emitir y generar el PDF
+  · No, dejar sin emitir
+  = No, dejar sin emitir
+
+== pantalla ==
+┌                                                                                          ┐
+
+                                     No se emitió nada.
+
+└                                                                                          ┘
+
+== solicitud a ARCA (FEXAuthorize) ==
+{
+  "Actividades": {
+    "Actividad": [
+      {
+        "Id": 620100
+      }
+    ]
+  },
+  "CanMisMonExt": "S",
+  "Cbte_nro": 8,
+  "Cbte_Tipo": 19,
+  "Cliente": "ACME LLC",
+  "Cuit_pais_cliente": 55000002126,
+  "Domicilio_cliente": "123 Main St",
+  "Dst_cmp": 212,
+  "Fecha_cbte": "20261118",
+  "Fecha_pago": "20261118",
+  "Forma_pago": "Transferencia Internacional",
+  "Id": 41,
+  "Id_impositivo": "12-3456789",
+  "Idioma_cbte": 1,
+  "Imp_total": 1500,
+  "Incoterms": "",
+  "Incoterms_Ds": "",
+  "Items": {
+    "Item": [
+      {
+        "Pro_bonificacion": 0,
+        "Pro_codigo": "",
+        "Pro_ds": "Consultoría de software",
+        "Pro_precio_uni": 1500,
+        "Pro_qty": 1,
+        "Pro_total_item": 1500,
+        "Pro_umed": 7
+      }
+    ]
+  },
+  "Moneda_ctz": 1174.6,
+  "Moneda_Id": "DOL",
+  "Obs": "",
+  "Obs_comerciales": "",
+  "Permiso_existente": "",
+  "Punto_vta": 3,
+  "Tipo_expo": 2
+}

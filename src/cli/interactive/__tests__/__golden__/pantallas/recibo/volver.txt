@@ -1,0 +1,153 @@
+? [lista] ¿Qué recibo querés emitir?
+  arranca en: (ninguna)
+  · Recibo C — Por un cobro; lo emiten monotributistas y exentos
+  · Recibo B (nuevo) — Por un cobro a un consumidor final, exento u otros
+  · Recibo A (nuevo) — Por un cobro a un responsable inscripto o monotributista
+  = Recibo C
+
+? [lista] ¿A quién le hacés el recibo?
+  arranca en: (ninguna)
+  · Consumidor final
+  · Con CUIT
+  · Con DNI
+  · Con CUIL
+  = Consumidor final
+
+? [lista] ¿Qué estás cobrando?
+  arranca en: (ninguna)
+  · Servicios
+  · Productos
+  · Productos y servicios
+  = Servicios
+
+? [texto] Monto total:
+  = ← Volver
+
+? [lista] ¿Qué estás cobrando?
+  arranca en: Servicios
+  > Servicios
+  · Productos
+  · Productos y servicios
+  = ← Volver
+
+? [lista] ¿A quién le hacés el recibo?
+  arranca en: Consumidor final
+  > Consumidor final
+  · Con CUIT
+  · Con DNI
+  · Con CUIL
+  = ← Volver
+
+? [lista] ¿Qué recibo querés emitir?
+  arranca en: Recibo C
+  > Recibo C — Por un cobro; lo emiten monotributistas y exentos
+  · Recibo B (nuevo) — Por un cobro a un consumidor final, exento u otros
+  · Recibo A (nuevo) — Por un cobro a un responsable inscripto o monotributista
+  = Recibo B (nuevo)
+
+? [lista] ¿A quién le hacés el recibo?
+  arranca en: (ninguna)
+  · Consumidor final
+  · Con CUIT
+  · Con DNI
+  · Con CUIL
+  = Consumidor final
+
+? [lista] ¿Qué estás cobrando?
+  arranca en: Servicios
+  > Servicios
+  · Productos
+  · Productos y servicios
+  = Servicios
+
+? [texto] Monto total:
+  = "2.500"
+
+? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
+  [ ] Datos del consumidor final (nuevo) — sin identificar
+  [ ] Fecha del comprobante — hoy
+  [ ] Alícuota de IVA — 21%
+  [ ] Moneda extranjera — pesos
+  [ ] Importe exento o no gravado — sin exento ni no gravado
+  [ ] Período del servicio — hoy
+  [ ] Vencimiento del pago — por defecto
+  = (nada marcado)
+
+== pantalla ==
+┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐
+╎                                                                                          ╎
+╎       Estás en TESTING: los comprobantes son de prueba y no tienen validez fiscal.       ╎
+╎                                                                                          ╎
+└╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘
+
+            ╒════════════════════════════ RECIBO B ════════════════════════════╕
+            │                                                                  │
+            │  Concepto                         Servicios                      │
+            │  Punto de venta                   3                              │
+            │  Fecha del comprobante            18/11/2026                     │
+            │  Receptor                         Consumidor final               │
+            │  Moneda                           Pesos argentinos (ARS)         │
+            │  Importe neto                     $ 2.066,12                     │
+            │  Importe IVA                      $ 433,88                       │
+            │  Alícuota de IVA                  21%                            │
+            │  Importe total                    $ 2.500                        │
+            │  Servicio desde                   18/11/2026                     │
+            │  Servicio hasta                   18/11/2026                     │
+            │  Vencimiento del pago             18/11/2026                     │
+            │                                                                  │
+            ├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
+            │                                                                  │
+            │                            SIN EMITIR                            │
+            │                                                                  │
+            ╘══════════════════════════════════════════════════════════════════╛
+
+== comando equivalente ==
+arcli rb -m 2500 --cs --consumidor-final --testing --emitir
+
+== pantalla ==
+▎ Esto equivale a:
+▎ arcli rb -m 2500 --cs --consumidor-final --testing --emitir
+
+? [lista] ¿Emitimos el recibo B en testing?
+  arranca en: Sí, emitir ahora
+  > Sí, emitir ahora
+  · Sí, emitir y generar el PDF
+  · No, dejar sin emitir
+  = No, dejar sin emitir
+
+== pantalla ==
+┌                                                                                          ┐
+
+                                     No se emitió nada.
+
+└                                                                                          ┘
+
+== solicitud a ARCA (FECAESolicitar, sin el numero) ==
+{
+  "CantReg": 1,
+  "CbteFch": "20261118",
+  "CbteTipo": 9,
+  "Concepto": 2,
+  "CondicionIVAReceptorId": 5,
+  "DocNro": 0,
+  "DocTipo": 99,
+  "FchServDesde": "20261118",
+  "FchServHasta": "20261118",
+  "FchVtoPago": "20261118",
+  "ImpIVA": 433.88,
+  "ImpNeto": 2066.12,
+  "ImpOpEx": 0,
+  "ImpTotal": 2500,
+  "ImpTotConc": 0,
+  "ImpTrib": 0,
+  "Iva": [
+    {
+      "BaseImp": 2066.12,
+      "Id": 5,
+      "Importe": 433.88
+    }
+  ],
+  "MonCotiz": 1,
+  "MonId": "PES",
+  "PtoVta": 3
+}

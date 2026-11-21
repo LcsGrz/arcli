@@ -1,0 +1,120 @@
+? [lista] ¿Qué comprobante querés repetir?
+  arranca en: (ninguna)
+  · Factura C — La emiten monotributistas y exentos
+  · Factura B — De responsable inscripto a consumidor final, exento u otros
+  · Factura A — Entre responsables inscriptos, o de RI a monotributista
+  · Factura de crédito electrónica C — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Factura de crédito electrónica B — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Factura de crédito electrónica A — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Recibo C — Por un cobro; lo emiten monotributistas y exentos
+  · Recibo B — Por un cobro a un consumidor final, exento u otros
+  · Recibo A — Por un cobro a un responsable inscripto o monotributista
+  · Factura de exportación E (nuevo) — A un cliente del exterior: servicios o bienes
+  = Factura C
+
+? [lista] ¿Cuál repetimos?
+  arranca en: (ninguna)
+    --- ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+  · 00003-00000015  ·   10/11/2026  ·   Consumidor final  ·     500 USD  ·  CAE 86400940834693
+  · 00003-00000014  ·   10/11/2026  ·   Consumidor final  ·   $ 150.000  ·  CAE 86400940834693
+    --- ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+    ---
+  · # Ingresar el número a mano… — Uno más viejo o de otro punto de venta
+  = 00003-00000014  ·   10/11/2026  ·   Consumidor final  ·   $ 150.000  ·  CAE 86400940834693
+
+? [lista] ¿Mismo monto?
+  arranca en: (ninguna)
+  · Sí, $ 150.000
+  · No, ingresar otro monto
+  = Sí, $ 150.000
+
+? [lista] Período del servicio:
+  arranca en: (ninguna)
+  · Este mes — 01/11/2026 al 30/11/2026
+  · El mes pasado — 01/10/2026 al 31/10/2026
+  · Un solo día — La fecha del comprobante: hoy, o la que elijas en los opcionales
+  · Otro período
+  = Un solo día
+
+? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
+  [ ] Datos del consumidor final (nuevo) — sin identificar
+  [ ] Fecha del comprobante — hoy
+  [ ] Período del servicio — hoy
+  [ ] Vencimiento del pago — por defecto
+  = Fecha del comprobante, Vencimiento del pago
+
+? [texto] Fecha del comprobante:
+  = "16/11/2026"
+
+? [texto] Vencimiento del pago:
+  = "26/11/2026"
+
+== pantalla ==
+┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐
+╎                                                                                          ╎
+╎       Estás en TESTING: los comprobantes son de prueba y no tienen validez fiscal.       ╎
+╎                                                                                          ╎
+└╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘
+
+            ╒═══════════════════════════ FACTURA C ════════════════════════════╕
+            │                                                                  │
+            │  Concepto                         Servicios                      │
+            │  Punto de venta                   3                              │
+            │  Fecha del comprobante            16/11/2026                     │
+            │  Receptor                         Consumidor final               │
+            │  Moneda                           Pesos argentinos (ARS)         │
+            │  Importe neto                     $ 150.000                      │
+            │  Importe total                    $ 150.000                      │
+            │  Servicio desde                   16/11/2026                     │
+            │  Servicio hasta                   16/11/2026                     │
+            │  Vencimiento del pago             26/11/2026                     │
+            │                                                                  │
+            ├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
+            │                                                                  │
+            │                            SIN EMITIR                            │
+            │                                                                  │
+            ╘══════════════════════════════════════════════════════════════════╛
+
+== comando equivalente ==
+arcli fc -m 150000 --cs --consumidor-final -f 16/11/2026 --vto 26/11/2026 --testing --emitir
+
+== pantalla ==
+▎ Esto equivale a:
+▎ arcli fc -m 150000 --cs --consumidor-final -f 16/11/2026 --vto 26/11/2026 --testing --emitir
+
+? [lista] ¿Emitimos la factura C en testing?
+  arranca en: Sí, emitir ahora
+  > Sí, emitir ahora
+  · Sí, emitir y generar el PDF
+  · No, dejar sin emitir
+  = No, dejar sin emitir
+
+== pantalla ==
+┌                                                                                          ┐
+
+                                     No se emitió nada.
+
+└                                                                                          ┘
+
+== solicitud a ARCA (FECAESolicitar, sin el numero) ==
+{
+  "CantReg": 1,
+  "CbteFch": "20261116",
+  "CbteTipo": 11,
+  "Concepto": 2,
+  "CondicionIVAReceptorId": 5,
+  "DocNro": 0,
+  "DocTipo": 99,
+  "FchServDesde": "20261116",
+  "FchServHasta": "20261116",
+  "FchVtoPago": "20261126",
+  "ImpIVA": 0,
+  "ImpNeto": 150000,
+  "ImpOpEx": 0,
+  "ImpTotal": 150000,
+  "ImpTotConc": 0,
+  "ImpTrib": 0,
+  "MonCotiz": 1,
+  "MonId": "PES",
+  "PtoVta": 3
+}

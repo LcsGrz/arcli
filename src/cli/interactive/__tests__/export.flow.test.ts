@@ -10,7 +10,7 @@ import { attachExportPdf } from '../../commands/export.command.pdf';
 import { runExportFlow } from '../export.flow';
 import type { InteractiveSession } from '../session';
 
-import { createScript, onlyChoices, rejecting } from './script';
+import { createScript, editing, onlyChoices, rejecting, type ScriptedAnswer, singleExportItem } from './script';
 
 let script = createScript([]);
 const savedConfig = vi.fn();
@@ -64,6 +64,8 @@ vi.mock('../../../lib/shell/shell-argument', async (importOriginal) => {
 
 vi.mock('../prompts', () => ({
   askTextStep: (...args: Parameters<typeof script.askTextStep>) => script.askTextStep(...args),
+  chooseFromFilterList: (...args: Parameters<typeof script.chooseFromFilterList>) =>
+    script.chooseFromFilterList(...args),
   chooseManyStep: (...args: Parameters<typeof script.chooseManyStep>) => script.chooseManyStep(...args),
   chooseOne: (...args: Parameters<typeof script.chooseStep>) => script.chooseStep(args[0], args[1]),
   chooseStep: (...args: Parameters<typeof script.chooseStep>) => script.chooseStep(...args),
@@ -72,6 +74,7 @@ vi.mock('../prompts', () => ({
       { name: yesLabel, value: true },
       { name: noLabel, value: false },
     ]),
+  editRowsStep: (...args: Parameters<typeof script.editRowsStep>) => script.editRowsStep(...args),
   isPromptCancellation: (error: unknown) => error instanceof Error && error.name === 'ExitPromptError',
 }));
 
@@ -137,14 +140,13 @@ describe('runExportFlow', () => {
       [/País de destino/, 'estados unidos'],
       [/ID impositivo/, '12-3456789'],
       [/Qué exportás/, 'Servicios'],
-      [/Monto total/, '1.500'],
-      [/Descripción/, 'Consultoría de software'],
       [/moneda/, 'Dólares'],
       [/Te pagan en dólares/, 'Sí'],
+      ...singleExportItem('1.500', 'Consultoría de software'),
       [/Forma de pago/, 'Transferencia Internacional'],
       [/actividad/, '620100'],
-      [/Agregamos algún opcional/, []],
       [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
       [/Emitimos la factura de exportación E en testing/, 'Sí, emitir ahora'],
       [/Guardamos la actividad 620100/, 'Sí, guardar'],
     ]);
@@ -179,13 +181,12 @@ describe('runExportFlow', () => {
       [/País de destino/, '212'],
       [/ID impositivo/, ''],
       [/Qué exportás/, 'Servicios'],
-      [/Monto total/, '100'],
-      [/Descripción/, ''],
       [/moneda/, 'Pesos'],
+      ...singleExportItem('100'),
       [/Forma de pago/, 'Transferencia Internacional'],
       [/actividad.*Enter para no informarla/, ''],
-      [/Agregamos algún opcional/, []],
       [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
       [/Emitimos/, 'Sí, emitir ahora'],
     ]);
 
@@ -203,9 +204,8 @@ describe('runExportFlow', () => {
       [/País de destino/, '212'],
       [/ID impositivo/, ''],
       [/Qué exportás/, 'Bienes'],
-      [/Monto total/, '800'],
-      [/Descripción/, ''],
       [/moneda/, 'Pesos'],
+      ...singleExportItem('800'),
       [/Incoterm/, 'FOB'],
       [/Permisos de embarque/, '26001EC01000123A, 26001EC01000124B'],
       [/Forma de pago/, 'Carta de crédito'],
@@ -223,37 +223,35 @@ describe('runExportFlow', () => {
     );
   });
 
-  it('con los opcionales informa ítems, idioma, observaciones, descripción del incoterm y cotización', async () => {
+  it('informa los ítems (el total es su suma), y con los opcionales idioma, observaciones y descripción del incoterm; la cotización acordada va antes de los ítems', async () => {
     script = createScript([
       [/cliente del exterior/, 'ACME LLC'],
       [/Domicilio/, '123 Main St'],
       [/País de destino/, '212'],
       [/ID impositivo/, ''],
       [/Qué exportás/, 'Bienes'],
-      [/Monto total/, '1.500'],
-      [/Descripción/, ''],
       [/moneda/, 'Dólares'],
       [/Te pagan en dólares/, 'No'],
+      [/Cotización de USD \(la oficial de ARCA es 1\.174,60\)/, '1.200,5'],
+      // Sin "Monto total": el total es la suma de los ítems (NAV-10).
+      [/Descripción del ítem 1/, 'Bienes varios'],
+      [/Cantidad/, '2'],
+      [/Unidad/, 'kilogramos'],
+      [/^(?:Importe|Precio unitario)/, '500'],
+      [/Descripción del ítem 2 \(Enter para terminar\)/, 'Flete'],
+      [/Cantidad/, '1'],
+      [/Unidad/, 'unidades'],
+      [/^(?:Importe|Precio unitario)/, '500'],
+      [/Descripción del ítem 3/, ''],
+      [/Importe total de la factura de exportación E: 1\.500 USD \(2 ítems\)/, 'Confirmar'],
       [/Incoterm/, 'FOB'],
       [/Permisos de embarque/, ''],
       [/Forma de pago/, 'Transferencia Internacional'],
-      [/Agregamos algún opcional/, ['Ítems', 'Idioma', 'Observaciones', 'Descripción del incoterm', 'Cotización']],
-      [/Descripción del ítem 1/, 'Bienes varios'],
-      [/Cantidad/, '2'],
-      [/Precio unitario/, '500'],
-      [/Unidad/, 'kilogramos'],
-      // La suma (1.000) no da el monto: avisa y sigue pidiendo ítems.
-      [/Descripción del ítem 2 \(Enter para terminar\)/, ''],
-      [/Descripción del ítem 2/, 'Flete'],
-      [/Cantidad/, '1'],
-      [/Precio unitario/, '500'],
-      [/Unidad/, 'unidades'],
-      [/Descripción del ítem 3/, ''],
+      [/Agregamos algún opcional/, ['Idioma', 'Observaciones', 'Descripción del incoterm']],
       [/Idioma del comprobante/, 'Inglés'],
       [/^Observaciones \(/, 'Pedido 42'],
       [/Observaciones comerciales/, ''],
       [/Descripción del incoterm FOB/, 'Free on board, BA'],
-      [/Cotización de USD/, '1.200,5'],
       [/Emitimos/, 'Sí, emitir ahora'],
     ]);
     vi.spyOn(gateway, 'getLanguages').mockResolvedValue([
@@ -267,7 +265,6 @@ describe('runExportFlow', () => {
 
     await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
 
-    expect(printed()).toContain('La suma de los ítems (1.000) no coincide con el monto total (1.500)');
     expect(gateway.authorize).toHaveBeenCalledWith(
       expect.objectContaining({
         Idioma_cbte: 2,
@@ -283,6 +280,7 @@ describe('runExportFlow', () => {
         Obs: 'Pedido 42',
       }),
     );
+    expect(printed()).toContain("-m 1500 --cliente 'ACME LLC'");
     expect(printed()).toContain(
       "--item 'Bienes varios|2|500|1' --item 'Flete|1|500' --moneda DOL --cm 1200,50 --incoterm FOB --incoterms-desc 'Free on board, BA' --idioma 2 --observaciones 'Pedido 42' --testing --emitir",
     );
@@ -302,12 +300,11 @@ describe('runExportFlow', () => {
       [/CUIT del país/, 'OTROS PAISES'],
       [/ID impositivo/, ''],
       [/Qué exportás/, 'Servicios'],
-      [/Monto total/, '100'],
-      [/Descripción/, ''],
       [/moneda/, 'Pesos'],
+      ...singleExportItem('100'),
       [/Forma de pago/, 'Transferencia Internacional'],
-      [/Agregamos algún opcional/, []],
       [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
       [/Emitimos/, 'No, dejar sin emitir'],
     ]);
 
@@ -328,12 +325,11 @@ describe('runExportFlow', () => {
       [/dejalo vacío para informar solo el ID impositivo/, ''],
       [/ID impositivo del cliente en su país \(sin CUIT del país, ARCA lo pide\)/, 'IE1234567T'],
       [/Qué exportás/, 'Servicios'],
-      [/Monto total/, '100'],
-      [/Descripción/, ''],
       [/moneda/, 'Pesos'],
+      ...singleExportItem('100'),
       [/Forma de pago/, 'Transferencia Internacional'],
-      [/Agregamos algún opcional/, []],
       [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
       [/Emitimos/, 'No, dejar sin emitir'],
     ]);
 
@@ -368,14 +364,17 @@ describe('runExportFlow', () => {
         [/País de destino/, '212'],
         [/ID impositivo/, rejecting('', ['a'.repeat(51), /50 caracteres/])],
         [/Qué exportás/, 'Servicios'],
-        [/Monto total/, '100'],
-        [/Descripción/, rejecting('Consultoría', ['a'.repeat(4001), /más de 4\.000 caracteres.*error 1770/])],
         [/moneda/, 'Pesos'],
+        [
+          /Descripción del ítem 1/,
+          rejecting('Consultoría', ['a'.repeat(4001), /más de 4\.000 caracteres.*error 1770/]),
+        ],
+        ...singleExportItem('100').slice(1),
         [/Forma de pago/, rejecting('Transferencia', ['a'.repeat(51), /50 caracteres/])],
+        [/Fecha de pago/, ''],
         [/Agregamos algún opcional/, ['Observaciones']],
         [/^Observaciones \(/, rejecting('Pedido 42', ['a'.repeat(1001), /más de 1\.000 caracteres.*error 1665/])],
         [/Observaciones comerciales/, rejecting('', ['a'.repeat(4001), /más de 4\.000 caracteres.*error 1665/])],
-        [/Fecha de pago/, ''],
         [/Emitimos/, 'No, dejar sin emitir'],
       ]);
 
@@ -387,7 +386,10 @@ describe('runExportFlow', () => {
       );
     });
 
-    it('la fecha de pago anterior a hoy da el error 1674 y vuelve a preguntar; hoy o después pasa', async () => {
+    // TUI-22: "Fecha de pago" va antes de los opcionales, donde se elige la fecha del comprobante. Al preguntarla se
+    // compara con la más temprana que ARCA acepta para el comprobante (hoy - 5); la comparación exacta la hacen
+    // "Fecha del comprobante" y `finalize`.
+    it('la fecha de pago anterior a la más temprana del comprobante da el error 1674 y vuelve a preguntar', async () => {
       vi.useFakeTimers({ toFake: ['Date'] });
       vi.setSystemTime(new Date('2026-10-30T12:00:00-03:00'));
       script = createScript([
@@ -396,18 +398,17 @@ describe('runExportFlow', () => {
         [/País de destino/, '212'],
         [/ID impositivo/, ''],
         [/Qué exportás/, 'Servicios'],
-        [/Monto total/, '100'],
-        [/Descripción/, ''],
         [/moneda/, 'Pesos'],
+        ...singleExportItem('100'),
         [/Forma de pago/, 'Transferencia Internacional'],
-        [/Agregamos algún opcional/, []],
         [
           /Fecha de pago/,
           rejecting('15/11/2026', [
-            '29/10/2026',
-            /^La fecha de pago no puede ser anterior a la del comprobante \(hoy\): ARCA la rechaza \(error 1674\)\.$/,
+            '24/10/2026',
+            /^La fecha de pago no puede ser anterior al 25\/10\/2026: es la fecha más temprana que ARCA acepta para el comprobante, y un pago anterior a él lo rechaza \(error 1674\)\.$/,
           ]),
         ],
+        [/Agregamos algún opcional/, []],
         [/Emitimos/, 'No, dejar sin emitir'],
       ]);
 
@@ -415,11 +416,16 @@ describe('runExportFlow', () => {
 
       const validate = script.askTextStep.mock.calls.find(([message]) => /Fecha de pago/.test(message))?.[1]?.validate;
 
+      // Antes de hoy vale al preguntarla: con una fecha del comprobante anterior, ARCA la acepta.
+      expect(validate?.('25/10/2026')).toBe(true);
       expect(validate?.('30/10/2026')).toBe(true);
       expect(printed()).toContain('--fecha-pago 15/11/2026');
+      expect(script.asked.findIndex((message) => /Fecha de pago/.test(message))).toBeLessThan(
+        script.asked.findIndex((message) => /Agregamos/.test(message)),
+      );
     });
 
-    it('la fecha del comprobante va en los opcionales con las reglas de `--fecha`, y la de pago se valida contra ella, como `--fecha-pago` (EXPO-11, EXPO-12)', async () => {
+    it('la fecha del comprobante va en los opcionales con las reglas de `--fecha` y no puede quedar después de la de pago, como `--fecha-pago` (EXPO-11, EXPO-12)', async () => {
       vi.useFakeTimers({ toFake: ['Date'] });
       vi.setSystemTime(new Date('2026-11-18T12:00:00-03:00'));
       const quotations = vi.spyOn(gateway, 'getQuotations');
@@ -430,28 +436,91 @@ describe('runExportFlow', () => {
         [/País de destino/, '212'],
         [/ID impositivo/, ''],
         [/Qué exportás/, 'Servicios'],
-        [/Monto total/, '100'],
-        [/Descripción/, ''],
         [/moneda/, 'Dólares'],
         [/Te pagan en dólares/, 'No'],
+        ...singleExportItem('100'),
         [/Forma de pago/, 'Transferencia Internacional'],
+        // Anterior a hoy pero no a la más temprana posible: vale al preguntarla.
+        [/Fecha de pago/, '17/11/2026'],
         [/Agregamos algún opcional/, ['Fecha del comprobante']],
-        [/Fecha del comprobante/, rejecting('16/11', ['12/11/2026', /del 13\/11\/2026 al 23\/11\/2026.*error 1500/])],
-        // Anterior a hoy pero no a la del comprobante: vale, como con flags.
         [
-          /Fecha de pago/,
-          rejecting('17/11/2026', ['15/11/2026', /anterior a la del comprobante \(16\/11\/2026\).*error 1674/]),
+          /Fecha del comprobante/,
+          rejecting(
+            '16/11',
+            ['12/11/2026', /del 13\/11\/2026 al 23\/11\/2026.*error 1500/],
+            ['18/11/2026', /anterior a la del comprobante \(18\/11\/2026\).*error 1674/],
+          ),
         ],
         [/Emitimos/, 'No, dejar sin emitir'],
       ]);
 
       await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
 
-      // Servicios en dólares: la de aduana del día hábil anterior a la fecha elegida (EXPO-7), no la de hoy.
-      expect(quotations).toHaveBeenCalledWith('20261115');
-      expect(quotations).not.toHaveBeenCalledWith('20261117');
+      // Servicios en dólares: la vista previa usa la de aduana del día hábil anterior a la fecha elegida (EXPO-7). El
+      // aviso de la cotización, antes de elegir la fecha, mostró la del día hábil anterior a hoy (NAV-9).
+      expect(quotations.mock.calls).toEqual([['20261117'], ['20261115']]);
       expect(printed()).toContain('--fecha 16/11/2026');
       expect(printed()).toContain('--fecha-pago 17/11/2026');
+    });
+
+    it('si la fecha del comprobante que queda deja la de pago antes, `finalize` vuelve a "Fecha de pago" con el error', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-11-18T12:00:00-03:00'));
+      script = createScript([
+        [/cliente del exterior/, 'ACME LLC'],
+        [/Domicilio/, '123 Main St'],
+        [/País de destino/, '212'],
+        [/ID impositivo/, ''],
+        [/Qué exportás/, 'Servicios'],
+        [/moneda/, 'Pesos'],
+        ...singleExportItem('100'),
+        [/Forma de pago/, 'Transferencia Internacional'],
+        // Válida contra la más temprana posible (13/11), pero sin elegir la fecha del comprobante va la de hoy.
+        [/Fecha de pago/, '15/11/2026'],
+        [/Agregamos algún opcional/, []],
+        [/Fecha de pago/, '20/11/2026'],
+        [/Agregamos algún opcional/, []],
+        [/Emitimos/, 'No, dejar sin emitir'],
+      ]);
+
+      await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+      expect(printed().replace(/\s+/g, ' ')).toContain(
+        'La fecha de pago no puede ser anterior a la del comprobante (hoy): ARCA la rechaza (error 1674). Escribí una desde el 18/11/2026, o volvé y elegí una fecha del comprobante anterior en los opcionales.',
+      );
+      const payments = script.askTextStep.mock.calls.filter(([message]) => /Fecha de pago/.test(message));
+
+      expect(payments.map(([, options]) => options?.previousAnswer)).toEqual([undefined, '15/11/2026']);
+      // De vuelta, ya se sabe que va la de hoy: la misma no pasa.
+      expect(payments[1]?.[1]?.validate?.('15/11/2026')).toMatch(/del comprobante \(hoy\).*error 1674/);
+      expect(printed()).toContain('--fecha-pago 20/11/2026');
+    });
+
+    it('con Enter la fecha de pago es la del comprobante que se elige después, como sin `--fecha-pago`', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-11-18T12:00:00-03:00'));
+      script = createScript([
+        [/cliente del exterior/, 'ACME LLC'],
+        [/Domicilio/, '123 Main St'],
+        [/País de destino/, '212'],
+        [/ID impositivo/, ''],
+        [/Qué exportás/, 'Servicios'],
+        [/moneda/, 'Pesos'],
+        ...singleExportItem('100'),
+        [/Forma de pago/, 'Transferencia Internacional'],
+        [/Fecha de pago/, ''],
+        [/Agregamos algún opcional/, ['Fecha del comprobante']],
+        [/Fecha del comprobante/, '20/11/2026'],
+        [/Emitimos/, 'Sí, emitir ahora'],
+      ]);
+
+      await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+      expect(gateway.authorize).toHaveBeenCalledWith(
+        expect.objectContaining({ Fecha_cbte: '20261120', Fecha_pago: '20261120' }),
+      );
+      expect(printed()).toContain('--fecha 20/11/2026');
+      expect(printed()).not.toContain('--fecha-pago');
     });
 
     it('en bienes el incoterm es obligatorio (1640): no ofrece "Sin incoterm"', async () => {
@@ -461,9 +530,8 @@ describe('runExportFlow', () => {
         [/País de destino/, '212'],
         [/ID impositivo/, ''],
         [/Qué exportás/, 'Bienes'],
-        [/Monto total/, '800'],
-        [/Descripción/, ''],
         [/moneda/, 'Pesos'],
+        ...singleExportItem('800'),
         [/Incoterm/, 'EXW'],
         [/Permisos de embarque/, ''],
         [/Forma de pago/, 'Transferencia Internacional'],
@@ -479,20 +547,19 @@ describe('runExportFlow', () => {
       expect(printed()).toContain('--incoterm EXW');
     });
 
-    it('en servicios en dólares no ofrece la cotización a mano: ARCA exige la suya (2053)', async () => {
+    it('en servicios en dólares no pregunta la cotización: ARCA exige la suya (2053)', async () => {
       script = createScript([
         [/cliente del exterior/, 'ACME LLC'],
         [/Domicilio/, '123 Main St'],
         [/País de destino/, '212'],
         [/ID impositivo/, ''],
         [/Qué exportás/, 'Servicios'],
-        [/Monto total/, '100'],
-        [/Descripción/, ''],
         [/moneda/, 'Dólares'],
         [/Te pagan en dólares/, 'No'],
+        ...singleExportItem('100'),
         [/Forma de pago/, 'Transferencia Internacional'],
-        [/Agregamos algún opcional/, []],
         [/Fecha de pago/, ''],
+        [/Agregamos algún opcional/, []],
         [/Emitimos/, 'No, dejar sin emitir'],
       ]);
 
@@ -501,20 +568,20 @@ describe('runExportFlow', () => {
       const optionals = script.chooseManyStep.mock.calls.find(([message]) => /Agregamos/.test(message))?.[1] ?? [];
 
       expect(optionals.map((choice) => choice.name)).not.toContain('Cotización');
+      expect(script.asked.some((message) => message.startsWith('Cotización'))).toBe(false);
       expect(printed()).not.toContain('--cm');
     });
 
-    it('en bienes con el pago en dólares tampoco ofrece la cotización (1604)', async () => {
+    it('en bienes con el pago en dólares tampoco pregunta la cotización (1604)', async () => {
       script = createScript([
         [/cliente del exterior/, 'ACME LLC'],
         [/Domicilio/, '123 Main St'],
         [/País de destino/, '212'],
         [/ID impositivo/, ''],
         [/Qué exportás/, 'Bienes'],
-        [/Monto total/, '100'],
-        [/Descripción/, ''],
         [/moneda/, 'Dólares'],
         [/Te pagan en dólares/, 'Sí'],
+        ...singleExportItem('100'),
         [/Incoterm/, 'FOB'],
         [/Permisos de embarque/, ''],
         [/Forma de pago/, 'Transferencia Internacional'],
@@ -527,6 +594,7 @@ describe('runExportFlow', () => {
       const optionals = script.chooseManyStep.mock.calls.find(([message]) => /Agregamos/.test(message))?.[1] ?? [];
 
       expect(optionals.map((choice) => choice.name)).not.toContain('Cotización');
+      expect(script.asked.some((message) => message.startsWith('Cotización'))).toBe(false);
       expect(printed()).toContain('--misma-moneda');
     });
 
@@ -543,25 +611,19 @@ describe('runExportFlow', () => {
         [/País de destino/, '212'],
         [/ID impositivo/, ''],
         [/Qué exportás/, 'Servicios'],
-        [/Monto total/, '100'],
-        [/Descripción/, ''],
         [/moneda/, 'Pesos'],
+        ...singleExportItem('100', 'Consultoría'),
         [/Forma de pago/, 'Transferencia Internacional'],
-        [/Agregamos algún opcional/, ['Ítems']],
-        [/Descripción del ítem 1/, 'Consultoría'],
-        [/Cantidad/, '1'],
-        [/Precio unitario/, '100'],
-        [/Unidad/, 'unidades'],
-        [/Descripción del ítem 2/, ''],
         [/Fecha de pago/, ''],
+        [/Agregamos algún opcional/, []],
         [/Emitimos/, 'No, dejar sin emitir'],
       ]);
 
       await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
 
-      const units = script.chooseStep.mock.calls.find(([message]) => /Unidad/.test(message))?.[1] ?? [];
+      const units = script.chooseFromFilterList.mock.calls.find(([message]) => /Unidad/.test(message))?.[1] ?? [];
 
-      expect(onlyChoices(units).map((choice) => choice.name)).toEqual(['unidades']);
+      expect(units.map((row) => row.label)).toEqual(['unidades']);
     });
   });
 
@@ -593,13 +655,12 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       [/País de destino/, '212'],
       [/ID impositivo/, ''],
       [/Qué exportás/, 'Servicios'],
-      [/Monto total/, '1.500'],
-      [/Descripción/, ''],
       [/moneda/, 'Dólares'],
       [/Te pagan en dólares/, 'Sí'],
+      ...singleExportItem('1.500'),
       [/Forma de pago/, ''],
-      [/Agregamos algún opcional/, []],
       [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
       [/Emitimos/, confirmation],
     ]);
 
@@ -611,10 +672,10 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       [/ARCA no tiene un CUIT publicado/, '55000002126'],
       [/ID impositivo/, '12-3456789'],
       [/Qué exportás/, 'Bienes'],
-      [/Monto total/, '800'],
-      [/Descripción/, 'Café'],
       [/moneda/, 'Dólares'],
       [/Te pagan en dólares/, 'No'],
+      [/Cotización de USD/, '1.180'],
+      ...singleExportItem('800', 'Café'),
       [/Incoterm/, 'FOB'],
       [/Permisos de embarque/, '26001EC01000123A'],
       [/Forma de pago/, 'Carta de crédito'],
@@ -624,10 +685,11 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       [/Forma de pago/, BACK],
       [/Permisos de embarque/, BACK],
       [/Incoterm/, BACK],
+      // Con ítems cargados arranca en el editor; Esc ahí vuelve al paso anterior (NAV-10).
+      [/^Ítems de .*: modificá o eliminá ítems/, BACK],
+      [/Cotización de USD/, BACK],
       [/Te pagan en dólares/, BACK],
       [/moneda/, BACK],
-      [/Descripción/, BACK],
-      [/Monto total/, BACK],
       [/Qué exportás/, BACK],
       [/ID impositivo/, BACK],
       [/ARCA no tiene un CUIT publicado/, BACK],
@@ -643,7 +705,8 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
     await expect(runExportFlow(createSession())).resolves.toBe(BACK);
     expect(gateway.authorize).not.toHaveBeenCalled();
 
-    // REV-60: al volver, cada pregunta arranca con lo respondido: escrito en las de texto, marcado en las listas.
+    // REV-60: al volver, cada pregunta arranca con lo respondido: escrito en las de texto, marcado en las listas. El
+    // CUIT del país también (REV-74, #10).
     const typed = Object.fromEntries(
       script.askTextStep.mock.calls
         .filter(([, options]) => options?.previousAnswer !== undefined)
@@ -652,12 +715,14 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
     const marked = script.chooseStep.mock.calls.slice(-4).map((call) => call[2]);
 
     expect(typed).toEqual({
+      'ARCA no tiene un CUIT publicado para ATLANTIDA. Escribí el CUIT del país, buscalo por nombre o dejalo vacío para informar solo el ID impositivo del cliente:':
+        '55000002126',
       'Código de actividad de WSFEX, por ejemplo 620100': '620100',
-      'Descripción del servicio o producto': 'Café',
+      // Escrita a mano, arranca con la escrita y no con la de ARCA (NAV-9).
+      'Cotización de USD': '1180',
       'Domicilio del cliente:': '123 Main St',
       'Forma de pago:': 'Carta de crédito',
       'ID impositivo del cliente en su país': '12-3456789',
-      'Monto total:': '800',
       'Nombre o razón social del cliente del exterior:': 'ACME LLC',
       'País de destino': 'ATLANTIDA',
       'Permisos de embarque ya existentes, separados por coma': '26001EC01000123A',
@@ -672,24 +737,23 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       [/País de destino/, '212'],
       [/ID impositivo/, ''],
       [/Qué exportás/, 'Bienes'],
-      [/Monto total/, '1.500'],
-      [/Descripción/, ''],
       [/moneda/, 'Pesos'],
+      ...singleExportItem('1.500'),
       [/Incoterm/, 'FOB'],
       [/Permisos de embarque/, '26001EC01000123A'],
       [/Forma de pago/, BACK],
       [/Permisos de embarque/, BACK],
       [/Incoterm/, BACK],
+      [/^Ítems de .*: modificá o eliminá ítems/, BACK],
       [/moneda/, BACK],
-      [/Descripción/, BACK],
-      [/Monto total/, BACK],
       [/Qué exportás/, 'Servicios'],
-      [/Monto total/, '1.500'],
-      [/Descripción/, ''],
       [/moneda/, 'Pesos'],
+      // Con la misma moneda, los ítems siguen: arranca en el editor.
+      [/^Ítems de .*: modificá o eliminá ítems/, editing({})],
+      [/Importe total/, 'Confirmar'],
       [/Forma de pago/, ''],
-      [/Agregamos algún opcional/, []],
       [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
       [/Emitimos/, 'Sí, emitir ahora'],
     ]);
 
@@ -711,13 +775,12 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       [/País de destino/, '212'],
       [/ID impositivo/, ''],
       [/Qué exportás/, 'Servicios'],
-      [/Monto total/, '100'],
-      [/Descripción/, ''],
       [/moneda/, 'Pesos'],
+      ...singleExportItem('100'),
       [/Forma de pago/, ''],
       [/actividad/, rejecting('620100', ['999999', /no está en la tabla de actividades.*2105/], ['abc', /actividad/i])],
-      [/Agregamos algún opcional/, []],
       [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
       // Sin emitir no se ofrece guardar la actividad (REV-62).
       [/Emitimos/, 'No, dejar sin emitir'],
     ]);
@@ -732,13 +795,12 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       [/País de destino/, '212'],
       [/ID impositivo/, ''],
       [/Qué exportás/, 'Servicios'],
-      [/Monto total/, '100'],
-      [/Descripción/, ''],
       [/moneda/, 'Pesos'],
+      ...singleExportItem('100'),
       [/Forma de pago/, ''],
       [/actividad/, '999999'],
-      [/Agregamos algún opcional/, []],
       [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
       [/Emitimos/, 'No, dejar sin emitir'],
     ]);
 
@@ -757,9 +819,8 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       [/País de destino/, '212'],
       [/ID impositivo/, ''],
       [/Qué exportás/, 'Bienes'],
-      [/Monto total/, '100'],
-      [/Descripción/, ''],
       [/moneda/, 'Pesos'],
+      ...singleExportItem('100'),
       [/Incoterm \(ARCA no devolvió la lista\)/, rejecting('fob', ['', /obligatorio/])],
       [/Permisos de embarque/, ''],
       [/Forma de pago/, ''],
@@ -794,6 +855,38 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
     await runExportFlow(createSession({ exportacion: { actividad: 620100 } })).catch(() => undefined);
 
     expect(printed()).toMatch(/1580|CUIT del país/);
+  });
+
+  // Un rechazo no es una emision (#11, #16): la actividad escrita a mano no se ofrece guardar.
+  it('si ARCA rechaza la E, no ofrece guardar la actividad escrita', async () => {
+    savedConfig.mockClear();
+    vi.mocked(gateway.authorize).mockResolvedValueOnce({
+      FEXAuthorizeResult: {
+        FEXErr: { ErrCode: 1580, ErrMsg: 'Debe informar el CUIT del país o el ID impositivo' },
+        FEXEvents: { EventCode: 0, EventMsg: '' },
+      },
+    } as IFEXAuthorizeOutput);
+    script = createScript([
+      [/cliente del exterior/, 'ACME LLC'],
+      [/Domicilio/, '123 Main St'],
+      [/País de destino/, '212'],
+      [/ID impositivo/, ''],
+      [/Qué exportás/, 'Servicios'],
+      [/moneda/, 'Dólares'],
+      [/Te pagan en dólares/, 'Sí'],
+      ...singleExportItem('1.500'),
+      [/Forma de pago/, ''],
+      [/actividad/, '620100'],
+      [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
+      [/Emitimos/, 'Sí, emitir ahora'],
+    ]);
+
+    await runExportFlow(createSession()).catch(() => undefined);
+
+    expect(gateway.authorize).toHaveBeenCalled();
+    expect(script.asked.some((message) => /Guardamos la actividad/.test(message))).toBe(false);
+    expect(savedConfig).not.toHaveBeenCalled();
   });
 
   it('con el PDF generado, muestra dónde quedó', async () => {
@@ -835,5 +928,161 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
 
     await expect(runExportFlow(createSession())).rejects.toThrow('ARCA no responde');
     expect(script.asked).toEqual([]);
+  });
+});
+
+describe('runExportFlow: la cotización después de la moneda (NAV-9)', () => {
+  beforeEach(() => {
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    vi.mocked(gateway.authorize).mockClear();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    expect(script.remaining()).toBe(0);
+  });
+
+  /** Una E de bienes en dólares cobrada en pesos (o en pesos), hasta emitir, con `rate` en la cotización. */
+  function goodsIn(currency: 'Dólares' | 'Pesos', rate?: ScriptedAnswer) {
+    return createScript([
+      [/cliente del exterior/, 'ACME LLC'],
+      [/Domicilio/, '123 Main St'],
+      [/País de destino/, '212'],
+      [/ID impositivo/, ''],
+      [/Qué exportás/, 'Bienes'],
+      [/moneda/, currency],
+      ...(rate === undefined
+        ? []
+        : ([
+            [/Te pagan en dólares/, 'No'],
+            [/^Cotización de USD/, rate],
+          ] as const)),
+      ...singleExportItem('1.500'),
+      [/Incoterm/, 'FOB'],
+      [/Permisos de embarque/, ''],
+      [/Forma de pago/, 'Transferencia Internacional'],
+      [/Agregamos algún opcional/, []],
+      [/Emitimos/, 'Sí, emitir ahora'],
+    ]);
+  }
+
+  function exchangeRateQuestion() {
+    return script.askTextStep.mock.calls.find(([message]) => message.startsWith('Cotización'));
+  }
+
+  it('arranca con la de aduana de ARCA; sin tocarla, el comando va sin --cm y la solicitud lleva la de ARCA', async () => {
+    script = goodsIn('Dólares', '1174,60');
+
+    await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+    expect(exchangeRateQuestion()?.[0]).toBe('Cotización de USD (la oficial de ARCA es 1.174,60):');
+    expect(exchangeRateQuestion()?.[1]).toMatchObject({ previousAnswer: '1174,60' });
+    expect(gateway.authorize).toHaveBeenCalledWith(
+      expect.objectContaining({ CanMisMonExt: 'N', Moneda_ctz: 1174.6, Moneda_Id: 'DOL' }),
+    );
+    expect(printed()).not.toContain('--cm');
+  });
+
+  it('editada, el comando la lleva con --cm y la solicitud también', async () => {
+    script = goodsIn('Dólares', '1.300');
+
+    await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+    expect(gateway.authorize).toHaveBeenCalledWith(expect.objectContaining({ Moneda_ctz: 1300 }));
+    expect(printed()).toContain('--moneda DOL --cm 1300');
+  });
+
+  it('valida como `--cm`: 0 y 1 no son cotizaciones', async () => {
+    script = goodsIn('Dólares', rejecting('1.300', ['0', /mayor a 0|acordada/], ['1', /acordada/]));
+
+    await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+    expect(gateway.authorize).toHaveBeenCalledWith(expect.objectContaining({ Moneda_ctz: 1300 }));
+  });
+
+  it('sin red arranca vacía: la escrita es la acordada y va con --cm', async () => {
+    script = goodsIn('Dólares', '1.180');
+    vi.spyOn(gateway, 'getQuotations').mockRejectedValueOnce(new Error('Sin conexión'));
+
+    await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+    expect(exchangeRateQuestion()?.[0]).toBe('Cotización de USD:');
+    expect(exchangeRateQuestion()?.[1]?.previousAnswer).toBeUndefined();
+    expect(gateway.authorize).toHaveBeenCalledWith(expect.objectContaining({ Moneda_ctz: 1180 }));
+    expect(printed()).toContain('--cm 1180');
+  });
+
+  it('en pesos no se pregunta', async () => {
+    script = goodsIn('Pesos');
+
+    await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+    expect(exchangeRateQuestion()).toBeUndefined();
+    expect(gateway.authorize).toHaveBeenCalledWith(expect.objectContaining({ Moneda_ctz: 1, Moneda_Id: 'PES' }));
+    expect(printed()).not.toContain('Cotización:');
+  });
+
+  /** Lo impreso en una línea: los avisos se cortan al ancho del panel. */
+  const flat = () => printed().replace(/\s+/g, ' ');
+
+  /** Una E en dólares de `kind`, hasta emitir, con "¿Te pagan en dólares?" en `paid`. */
+  function fixedRate(kind: 'Bienes' | 'Servicios', paid: 'No' | 'Sí') {
+    return createScript([
+      [/cliente del exterior/, 'ACME LLC'],
+      [/Domicilio/, '123 Main St'],
+      [/País de destino/, '212'],
+      [/ID impositivo/, ''],
+      [/Qué exportás/, kind],
+      [/moneda/, 'Dólares'],
+      [/Te pagan en dólares/, paid],
+      ...singleExportItem('1.500'),
+      ...(kind === 'Bienes'
+        ? ([
+            [/Incoterm/, 'FOB'],
+            [/Permisos de embarque/, ''],
+          ] as const)
+        : []),
+      [/Forma de pago/, 'Transferencia Internacional'],
+      ...(kind === 'Servicios' ? ([[/Fecha de pago/, '']] as const) : []),
+      [/Agregamos algún opcional/, []],
+      [/Emitimos/, 'Sí, emitir ahora'],
+    ]);
+  }
+
+  it('en servicios no la pregunta: la muestra después de la moneda, la misma que va a ARCA (2053)', async () => {
+    script = fixedRate('Servicios', 'No');
+    vi.spyOn(gateway, 'getQuotations').mockResolvedValue([{ code: 'DOL', date: '20261029', rate: 1174.605 }]);
+
+    await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+    expect(exchangeRateQuestion()).toBeUndefined();
+    expect(flat()).toContain(
+      'Cotización: 1.174,605 por USD, la de aduana del día hábil anterior. ARCA no acepta otra en servicios.',
+    );
+    // El orden (despues de la moneda, antes del monto) lo muestran los golden de la E de servicios.
+    expect(gateway.authorize).toHaveBeenCalledWith(expect.objectContaining({ Moneda_ctz: 1174.605 }));
+    expect(printed()).not.toContain('--cm');
+  });
+
+  it('con "¿Te pagan en dólares? Sí" tampoco: la muestra con el motivo (1604)', async () => {
+    script = fixedRate('Bienes', 'Sí');
+
+    await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+    expect(exchangeRateQuestion()).toBeUndefined();
+    expect(flat()).toContain(
+      'Cotización: 1.174,60 por USD, la oficial del día hábil anterior. ARCA no acepta otra si te pagan en USD.',
+    );
+    expect(gateway.authorize).toHaveBeenCalledWith(expect.objectContaining({ CanMisMonExt: 'S', Moneda_ctz: 1174.6 }));
+  });
+
+  it('sin red avisa que va la de ARCA y sigue; la vista previa la vuelve a consultar', async () => {
+    script = fixedRate('Servicios', 'Sí');
+    vi.spyOn(gateway, 'getQuotations').mockRejectedValueOnce(new Error('Sin conexión'));
+
+    await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+    expect(flat()).toContain('No se pudo consultar la cotización: va la de ARCA del día hábil anterior.');
+    expect(gateway.authorize).toHaveBeenCalledWith(expect.objectContaining({ Moneda_ctz: 1174.6 }));
   });
 });

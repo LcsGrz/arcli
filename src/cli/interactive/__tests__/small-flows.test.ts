@@ -180,7 +180,7 @@ describe('moneda de una nota', () => {
     expect(canChooseNoteCurrency(undefined)).toBe(false);
     expect(canChooseNoteCurrency({ currency: ' pes ' })).toBe(false);
     expect(canChooseNoteCurrency({ currency: 'DOL' })).toBe(true);
-    expect(noteCurrencyChoices({}).map((choice) => choice.name)).toEqual(['En PES, como el comprobante', 'En pesos']);
+    expect(noteCurrencyChoices({}).map((choice) => choice.name)).toEqual(['En ARS, como el comprobante', 'En pesos']);
   });
 });
 

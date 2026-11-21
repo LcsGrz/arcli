@@ -1,0 +1,118 @@
+? [lista] ¿Qué comprobante querés emitir?
+  arranca en: (ninguna)
+  · Factura C — La emiten monotributistas y exentos
+  · Factura B — De responsable inscripto a consumidor final, exento u otros
+  · Factura A — Entre responsables inscriptos, o de RI a monotributista
+  · Factura de crédito electrónica C — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Factura de crédito electrónica B — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Factura de crédito electrónica A — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Factura de exportación E — A un cliente del exterior: servicios o bienes
+  = Factura C
+
+? [lista] ¿A quién le facturás?
+  arranca en: (ninguna)
+  · Consumidor final
+  · Con CUIT
+  · Con DNI
+  · Con CUIL
+  = Consumidor final
+
+? [lista] ¿Qué estás facturando?
+  arranca en: (ninguna)
+  · Servicios
+  · Productos
+  · Productos y servicios
+  = Servicios
+
+? [texto] Monto total:
+  = ← Volver
+
+? [lista] ¿Qué estás facturando?
+  arranca en: Servicios
+  > Servicios
+  · Productos
+  · Productos y servicios
+  = Productos
+
+? [texto] Monto total:
+  = "2.000,50"
+
+? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
+  [ ] Datos del consumidor final (nuevo) — sin identificar
+  [ ] Fecha del comprobante — hoy
+  [ ] Moneda extranjera — pesos
+  = ← Volver
+
+? [texto] Monto total:
+  arranca escrito: "2000,50"
+  = "2.000,50"
+
+? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
+  [ ] Datos del consumidor final (nuevo) — sin identificar
+  [ ] Fecha del comprobante — hoy
+  [ ] Moneda extranjera — pesos
+  = (nada marcado)
+
+== pantalla ==
+┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐
+╎                                                                                          ╎
+╎       Estás en TESTING: los comprobantes son de prueba y no tienen validez fiscal.       ╎
+╎                                                                                          ╎
+└╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘
+
+            ╒═══════════════════════════ FACTURA C ════════════════════════════╕
+            │                                                                  │
+            │  Concepto                         Productos                      │
+            │  Punto de venta                   3                              │
+            │  Fecha del comprobante            18/11/2026                     │
+            │  Receptor                         Consumidor final               │
+            │  Moneda                           Pesos argentinos (ARS)         │
+            │  Importe neto                     $ 2.000,50                     │
+            │  Importe total                    $ 2.000,50                     │
+            │                                                                  │
+            ├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
+            │                                                                  │
+            │                            SIN EMITIR                            │
+            │                                                                  │
+            ╘══════════════════════════════════════════════════════════════════╛
+
+== comando equivalente ==
+arcli fc -m 2000,50 --cp --consumidor-final --testing --emitir
+
+== pantalla ==
+▎ Esto equivale a:
+▎ arcli fc -m 2000,50 --cp --consumidor-final --testing --emitir
+
+? [lista] ¿Emitimos la factura C en testing?
+  arranca en: Sí, emitir ahora
+  > Sí, emitir ahora
+  · Sí, emitir y generar el PDF
+  · No, dejar sin emitir
+  = No, dejar sin emitir
+
+== pantalla ==
+┌                                                                                          ┐
+
+                                     No se emitió nada.
+
+└                                                                                          ┘
+
+== solicitud a ARCA (FECAESolicitar, sin el numero) ==
+{
+  "CantReg": 1,
+  "CbteFch": "20261118",
+  "CbteTipo": 11,
+  "Concepto": 1,
+  "CondicionIVAReceptorId": 5,
+  "DocNro": 0,
+  "DocTipo": 99,
+  "ImpIVA": 0,
+  "ImpNeto": 2000.5,
+  "ImpOpEx": 0,
+  "ImpTotal": 2000.5,
+  "ImpTotConc": 0,
+  "ImpTrib": 0,
+  "MonCotiz": 1,
+  "MonId": "PES",
+  "PtoVta": 3
+}

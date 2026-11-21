@@ -2,28 +2,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BillingService } from '../../../modules/billing/billing.service';
 import { getVoucherKindByShortcut, VOUCHER_KIND_MAP } from '../../../modules/billing/voucher-kind-map';
+import { initialAdvancedOptions } from '../../../modules/interactive/billing-optionals';
 import { buildEquivalentCommand } from '../../../modules/interactive/equivalent-command';
+import { buildInvoiceInput, type InvoiceState } from '../../../modules/interactive/invoice-input';
+import { buildNoteInput } from '../../../modules/interactive/note-input';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../../../modules/vouchers/voucher-history';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import { stripAnsi } from '../../../ui';
-import { initialAdvancedOptions } from '../advanced-options';
 import { runExportFlow } from '../export.flow';
 import { runExportNoteFlow } from '../export-note.flow';
 import { runExportRepeatFlow } from '../export-repeat.flow';
 import { runHistoryFlow } from '../history.flow';
-import {
-  buildInvoiceInput,
-  cbuSteps,
-  type InvoiceState,
-  invoiceStateForReceiver,
-  invoiceSteps,
-  offerSavingCbu,
-  runInvoiceFlow,
-} from '../invoice.flow';
-import { buildNoteInput, noteSteps, noteWarnings } from '../note.flow';
+import { invoiceStateForReceiver, invoiceSteps, runInvoiceFlow } from '../invoice.flow';
+import { noteInputEnv, noteSteps, noteWarnings } from '../note.flow';
 import { repeatSteps } from '../repeat.flow';
 import type { InteractiveSession } from '../session';
+import { cbuSteps, offerSavingCbu } from '../steps/cbu';
 
 import { createScript, onlyChoices } from './script';
 
@@ -152,7 +147,7 @@ describe('flujos del modo interactivo', () => {
       expect(offered.find((choice) => choice.value === 'divisas')?.description).toBe(
         'dólares, cotización oficial de ARCA',
       );
-      expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
+      expect(buildInvoiceInput(state as NonNullable<typeof state>, session.runtime)).toMatchObject({
         currencyCode: 'USD',
         exchangeRate: undefined,
         sameCurrency: false,
@@ -170,9 +165,11 @@ describe('flujos del modo interactivo', () => {
         exchangeRate: undefined,
         sameCurrency: false,
       });
+      // La cotizacion guardada (deprecada) va marcada como de la config: la vista previa avisa como con flags (#14).
       expect(initialAdvancedOptions({ cotizacionPorDefecto: 1200, monedaPorDefecto: 'EUR' })).toEqual({
         currencyCode: 'EUR',
         exchangeRate: 1200,
+        exchangeRateSource: 'config',
         sameCurrency: false,
       });
     });
@@ -201,7 +198,7 @@ describe('flujos del modo interactivo', () => {
         const kinds = onlyChoices(script.chooseStep.mock.calls[0][1]).map((choice) => choice.name);
 
         expect(kinds.some((name) => name.includes('exportación'))).toBe(false);
-        expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
+        expect(buildInvoiceInput(state as NonNullable<typeof state>, session.runtime)).toMatchObject({
           documentNumber: 20201797064,
           documentType: 'cuit',
           ivaCondition: 'responsable-inscripto',
@@ -266,7 +263,7 @@ describe('flujos del modo interactivo', () => {
 
       const session = createSession();
       const state = await runWizard(invoiceSteps(session), { advanced: { currencyCode: 'ARS', sameCurrency: false } });
-      const input = buildInvoiceInput(state as NonNullable<typeof state>, session);
+      const input = buildInvoiceInput(state as NonNullable<typeof state>, session.runtime);
 
       expect(input).toMatchObject({
         concept: 'productos',
@@ -297,7 +294,7 @@ describe('flujos del modo interactivo', () => {
       );
 
       expect(kinds).toEqual(['Recibo C', 'Recibo B', 'Recibo A']);
-      expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
+      expect(buildInvoiceInput(state as NonNullable<typeof state>, session.runtime)).toMatchObject({
         concept: 'productos',
         documentType: 'consumidor-final',
         shortcut: 'rc',
@@ -322,7 +319,7 @@ describe('flujos del modo interactivo', () => {
         receipt: true,
       });
 
-      expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
+      expect(buildInvoiceInput(state as NonNullable<typeof state>, session.runtime)).toMatchObject({
         documentNumber: 30709965812,
         documentType: 'cuit',
         ivaCondition: 'responsable-inscripto',
@@ -332,6 +329,10 @@ describe('flujos del modo interactivo', () => {
     });
 
     it('arma una FCE A con CUIT y CBU, y alicuota, vencimiento y transferencia como opcionales', async () => {
+      // El vencimiento no puede ser anterior a la fecha del comprobante (hoy): con el reloj fijo, el 30/10 vale (NAV-5).
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-25T12:00:00-03:00'));
+
       script = createScript([
         [/comprobante/, 'Factura de crédito electrónica A'],
         [/A quién/, 'Con CUIT'],
@@ -350,13 +351,13 @@ describe('flujos del modo interactivo', () => {
       const session = createSession();
       const state = await runWizard(invoiceSteps(session), { advanced: { currencyCode: 'ARS', sameCurrency: false } });
 
-      expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
+      expect(buildInvoiceInput(state as NonNullable<typeof state>, session.runtime)).toMatchObject({
         cbu: '0110599520000012345678',
         cbuAlias: 'mi.alias.cbu',
         documentNumber: 30709965812,
         documentType: 'cuit',
         ivaRate: '10.5',
-        paymentDueDate: '30/10',
+        paymentDueDate: '30/10/2026',
         shortcut: 'fcea',
         transferMode: 'adc',
       });
@@ -370,12 +371,12 @@ describe('flujos del modo interactivo', () => {
       };
 
       script = createScript([[/Guardamos el CBU en la config/, 'Sí, guardar']]);
-      await offerSavingCbu(createSession(), state);
+      await offerSavingCbu(createSession().runtime.config, state, true);
       expect(savedConfig).toHaveBeenCalledWith('cbu', '0110599520000012345678');
 
       savedConfig.mockClear();
       script = createScript([[/Guardamos el CBU/, 'No']]);
-      await offerSavingCbu(createSession(), state);
+      await offerSavingCbu(createSession().runtime.config, state, true);
       expect(savedConfig).not.toHaveBeenCalled();
 
       // Con el CBU en la config no se pregunto, asi que no hay nada que guardar.
@@ -386,13 +387,13 @@ describe('flujos del modo interactivo', () => {
       } as InteractiveSession;
 
       script = createScript([]);
-      await offerSavingCbu(configured, state);
-      await offerSavingCbu(createSession(), { ...state, cbu: undefined });
+      await offerSavingCbu(configured.runtime.config, state, true);
+      await offerSavingCbu(createSession().runtime.config, { ...state, cbu: undefined }, true);
 
       // Con el alias escrito a mano, se guardan los dos.
       savedConfig.mockClear();
       script = createScript([[/Guardamos el CBU y el alias mi.alias.cbu/, 'Sí, guardar']]);
-      await offerSavingCbu(createSession(), { ...state, cbuAlias: 'mi.alias.cbu' });
+      await offerSavingCbu(createSession().runtime.config, { ...state, cbuAlias: 'mi.alias.cbu' }, true);
       expect(savedConfig).toHaveBeenCalledWith('cbu', '0110599520000012345678');
       expect(savedConfig).toHaveBeenCalledWith('aliasCbu', 'mi.alias.cbu');
     });
@@ -442,9 +443,10 @@ describe('flujos del modo interactivo', () => {
         voucherKind: getVoucherKindByShortcut('fcea'),
       } as const;
 
-      expect(buildInvoiceInput(state as never, withAlias)).toMatchObject({ cbuAlias: 'mi.alias.cbu' });
+      expect(buildInvoiceInput(state as never, withAlias.runtime)).toMatchObject({ cbuAlias: 'mi.alias.cbu' });
       expect(
-        buildInvoiceInput({ ...state, voucherKind: getVoucherKindByShortcut('fa') } as never, withAlias).cbuAlias,
+        buildInvoiceInput({ ...state, voucherKind: getVoucherKindByShortcut('fa') } as never, withAlias.runtime)
+          .cbuAlias,
       ).toBeUndefined();
     });
 
@@ -472,7 +474,7 @@ describe('flujos del modo interactivo', () => {
       const state = await runWizard(invoiceSteps(session), { advanced: { currencyCode: 'ARS', sameCurrency: false } });
 
       expect(getTaxpayerDetails).toHaveBeenCalledWith(20201797064);
-      expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
+      expect(buildInvoiceInput(state as NonNullable<typeof state>, session.runtime)).toMatchObject({
         ivaCondition: 'responsable-inscripto',
         ivaConditionSource: 'padron',
         receiverAddress: 'LARREA 1, CP 1030, CABA',
@@ -496,7 +498,7 @@ describe('flujos del modo interactivo', () => {
       const session = createSession();
       const state = await runWizard(invoiceSteps(session), { advanced: { currencyCode: 'ARS', sameCurrency: false } });
 
-      expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
+      expect(buildInvoiceInput(state as NonNullable<typeof state>, session.runtime)).toMatchObject({
         currencyCode: 'USD',
         exemptAmount: 50,
         ivaRate: undefined,
@@ -520,7 +522,7 @@ describe('flujos del modo interactivo', () => {
 
       const state = await runWizard(invoiceSteps(session), { advanced: { currencyCode: 'ARS', sameCurrency: false } });
 
-      expect(buildInvoiceInput(state as NonNullable<typeof state>, session).ivaRate).toBe('10.5');
+      expect(buildInvoiceInput(state as NonNullable<typeof state>, session.runtime).ivaRate).toBe('10.5');
       expect(script.asked.some((question) => /Alicuota/.test(question))).toBe(false);
     });
 
@@ -540,7 +542,7 @@ describe('flujos del modo interactivo', () => {
 
       const session = createSession();
       const state = await runWizard(invoiceSteps(session), { advanced: { currencyCode: 'ARS', sameCurrency: false } });
-      const input = buildInvoiceInput(state as NonNullable<typeof state>, session);
+      const input = buildInvoiceInput(state as NonNullable<typeof state>, session.runtime);
       const ivaRateDefaults = script.chooseStep.mock.calls
         .filter(([message]) => /Alícuota/.test(message))
         .map((call) => call[2]);
@@ -571,7 +573,7 @@ describe('flujos del modo interactivo', () => {
       const session = createSession();
       const state = await runWizard(invoiceSteps(session), { advanced: { currencyCode: 'ARS', sameCurrency: false } });
 
-      expect(buildInvoiceInput(state as NonNullable<typeof state>, session).totalAmount).toBe(200);
+      expect(buildInvoiceInput(state as NonNullable<typeof state>, session.runtime).totalAmount).toBe(200);
     });
 
     it('suma la fecha del comprobante, con la ventana de dias del CLI segun el concepto', async () => {
@@ -592,7 +594,7 @@ describe('flujos del modo interactivo', () => {
       const validate = script.askTextStep.mock.calls.find(([message]) => /Fecha del comprobante/.test(message))?.[1]
         ?.validate;
 
-      expect(buildInvoiceInput(state as NonNullable<typeof state>, session).billingDate).toBe('31/10');
+      expect(buildInvoiceInput(state as NonNullable<typeof state>, session.runtime).billingDate).toBe('31/10/2026');
       // Servicios: hasta 10 dias antes o despues de hoy.
       expect(validate?.('4/11')).toBe(true);
       expect(validate?.('10/11')).toMatch(/fuera de rango/);
@@ -603,7 +605,8 @@ describe('flujos del modo interactivo', () => {
       script = createScript([
         [/comprobante/, 'Factura B'],
         [/A quién/, 'Con CUIL'],
-        [/CUIL del receptor/, '20-33333333-4'],
+        // No el CUIT emisor (20333333334): el CLI lo rechaza (10069) y, desde NAV-5, tambien la pregunta.
+        [/CUIL del receptor/, '20-30123456-3'],
         [/Condición frente al IVA del receptor/, 'Consumidor final'],
         [/Qué estás facturando/, 'Productos'],
         [/Monto total/, '1210'],
@@ -615,8 +618,8 @@ describe('flujos del modo interactivo', () => {
       const state = await runWizard(invoiceSteps(session), { advanced: { currencyCode: 'ARS', sameCurrency: false } });
 
       expect(getTaxpayerDetails).not.toHaveBeenCalled();
-      expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
-        documentNumber: 20333333334,
+      expect(buildInvoiceInput(state as NonNullable<typeof state>, session.runtime)).toMatchObject({
+        documentNumber: 20301234563,
         documentType: 'cuil',
         ivaCondition: 'consumidor-final',
       });
@@ -637,7 +640,7 @@ describe('flujos del modo interactivo', () => {
       const session = createSession();
       const state = await runWizard(invoiceSteps(session), { advanced: { currencyCode: 'ARS', sameCurrency: false } });
 
-      expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
+      expect(buildInvoiceInput(state as NonNullable<typeof state>, session.runtime)).toMatchObject({
         currencyCode: 'EUR',
         exchangeRate: 1450.5,
         sameCurrency: false,
@@ -648,6 +651,10 @@ describe('flujos del modo interactivo', () => {
     });
 
     it('si se cambia a productos no quedan las fechas de servicio ya elegidas', async () => {
+      // El vencimiento no puede ser anterior a la fecha del comprobante (hoy): con el reloj fijo, el 10/11 vale (NAV-5).
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-25T12:00:00-03:00'));
+
       script = createScript([
         [/comprobante/, 'Factura C'],
         [/A quién/, 'Consumidor final'],
@@ -663,12 +670,20 @@ describe('flujos del modo interactivo', () => {
       const steps = invoiceSteps(session);
       const state = await runWizard(steps, { advanced: { currencyCode: 'ARS', sameCurrency: false } });
 
-      expect(state?.advanced).toMatchObject({ paymentDueDate: '10/11', serviceStartDate: '1/10' });
+      expect(state?.advanced).toMatchObject({ paymentDueDate: '10/11/2026', serviceStartDate: '01/10/2026' });
 
       script = createScript([[/Agregamos/, []]]);
 
       const advancedStep = steps.find((step) => step.name === 'avanzadas');
-      const update = await advancedStep?.run({ ...(state as NonNullable<typeof state>), concept: 'productos' });
+      const update = await advancedStep?.run(
+        { ...(state as NonNullable<typeof state>), concept: 'productos' },
+        {
+          memo: {
+            get: () => undefined,
+            set: () => undefined,
+          },
+        },
+      );
 
       expect(update).toMatchObject({
         advanced: { paymentDueDate: undefined, serviceEndDate: undefined, serviceStartDate: undefined },
@@ -727,7 +742,7 @@ describe('flujos del modo interactivo', () => {
         advanced: { currencyCode: 'ARS', sameCurrency: false },
       });
 
-      expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
+      expect(buildInvoiceInput(state as NonNullable<typeof state>, session.runtime)).toMatchObject({
         concept: 'servicios',
         documentNumber: 30709965812,
         documentType: 'cuit',
@@ -758,7 +773,7 @@ describe('flujos del modo interactivo', () => {
         advanced: { currencyCode: 'ARS', sameCurrency: false },
       });
 
-      expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
+      expect(buildInvoiceInput(state as NonNullable<typeof state>, session.runtime)).toMatchObject({
         documentType: 'consumidor-final',
         serviceEndDate: '31/10/2026',
         serviceStartDate: '01/10/2026',
@@ -781,7 +796,7 @@ describe('flujos del modo interactivo', () => {
         advanced: { currencyCode: 'ARS', sameCurrency: false },
       });
 
-      expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
+      expect(buildInvoiceInput(state as NonNullable<typeof state>, session.runtime)).toMatchObject({
         documentType: 'consumidor-final',
         shortcut: 'rc',
         totalAmount: 121,
@@ -794,7 +809,7 @@ describe('flujos del modo interactivo', () => {
         [/Cuál repetimos/, '00003-00000014'],
         [/Condición frente al IVA/, 'Responsable inscripto'],
         [/Mismo monto/, 'Sí'],
-        [/Período del servicio/, 'Solo hoy'],
+        [/Período del servicio/, 'Un solo día'],
         [/Agregamos/, []],
       ]);
 
@@ -805,7 +820,7 @@ describe('flujos del modo interactivo', () => {
         advanced: { currencyCode: 'ARS', sameCurrency: false },
       });
 
-      expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
+      expect(buildInvoiceInput(state as NonNullable<typeof state>, session.runtime)).toMatchObject({
         exemptAmount: 50,
         totalAmount: 196,
         untaxedAmount: 25,
@@ -818,7 +833,7 @@ describe('flujos del modo interactivo', () => {
         [/Cuál repetimos/, '00003-00000014'],
         [/Condición frente al IVA/, 'Responsable inscripto'],
         [/Monto total/, '1.210'],
-        [/Período del servicio/, 'Solo hoy'],
+        [/Período del servicio/, 'Un solo día'],
         [/Agregamos/, []],
       ]);
 
@@ -839,6 +854,142 @@ describe('flujos del modo interactivo', () => {
       expect(script.chooseManyStep.mock.calls[0][2]).toEqual(['alicuota']);
     });
 
+    describe('al volver y elegir otra factura, la alícuota y el exento siguen a la factura', () => {
+      /** Factura A con una sola alícuota (21%) y exento. */
+      const single = invoice({
+        documentNumber: 30709965812,
+        documentTypeCode: 80,
+        exemptAmount: 50,
+        ivaAmount: 210,
+        netAmount: 1000,
+        number: 14,
+        total: 1260,
+      });
+      /** Factura A con varias alícuotas: no se deduce, y la alícuota arranca marcada. */
+      const several = invoice({
+        documentNumber: 30709965812,
+        documentTypeCode: 80,
+        ivaAmount: 262.5,
+        netAmount: 1500,
+        number: 15,
+        total: 1762.5,
+      });
+      /** La selección de opcionales la vez `call`: lo marcado y las descripciones. */
+      const selection = (call: number) => {
+        const [, choices, selected] = script.chooseManyStep.mock.calls[call] ?? [];
+
+        return {
+          descriptions: Object.fromEntries(
+            onlyChoices(choices ?? []).map((choice) => [choice.value, choice.description]),
+          ),
+          selected,
+        };
+      };
+      const backToInvoice = [
+        [/Agregamos/, BACK],
+        [/Período del servicio/, BACK],
+        [/Mismo monto|Monto total/, BACK],
+        [/Condición frente al IVA/, BACK],
+      ] as const;
+
+      it('con una factura de varias alícuotas, la alícuota vuelve a arrancar marcada', async () => {
+        script = createScript([
+          [/comprobante querés repetir/, 'Factura A'],
+          [/Cuál repetimos/, '00003-00000014'],
+          [/Condición frente al IVA/, 'Responsable inscripto'],
+          [/Mismo monto/, 'Sí'],
+          [/Período del servicio/, 'Un solo día'],
+          [/Agregamos/, ['Fecha']],
+          [/Fecha del comprobante/, BACK],
+          ...backToInvoice,
+          [/Cuál repetimos/, '00003-00000015'],
+          [/Condición frente al IVA/, 'Responsable inscripto'],
+          [/Monto total/, '1.000'],
+          [/Período del servicio/, 'Un solo día'],
+          [/Agregamos/, []],
+        ]);
+
+        await runWizard(repeatSteps(createSession([single, several]), 3, today), {
+          advanced: { currencyCode: 'ARS', sameCurrency: false },
+        });
+
+        // Lo marcado que no depende de la factura sigue marcado.
+        expect(selection(2).selected).toEqual(['fecha', 'alicuota']);
+      });
+
+      it('lo respondido con otra factura no pisa lo copiado de la elegida', async () => {
+        script = createScript([
+          [/comprobante querés repetir/, 'Factura A'],
+          [/Cuál repetimos/, '00003-00000015'],
+          [/Condición frente al IVA/, 'Responsable inscripto'],
+          [/Monto total/, '1.000'],
+          [/Período del servicio/, 'Un solo día'],
+          [/Agregamos/, ['Alícuota', 'Importe exento']],
+          [/Alícuota/, '10,5%'],
+          [/exenta/, '300'],
+          [/no gravada/, BACK],
+          [/exenta/, BACK],
+          [/Alícuota/, BACK],
+          ...backToInvoice,
+          [/Cuál repetimos/, '00003-00000014'],
+          [/Condición frente al IVA/, 'Responsable inscripto'],
+          [/Mismo monto/, 'Sí'],
+          [/Período del servicio/, 'Un solo día'],
+          [/Agregamos/, ['Alícuota']],
+          [/Alícuota/, '21%'],
+        ]);
+
+        const state = await runWizard(repeatSteps(createSession([single, several]), 3, today), {
+          advanced: { currencyCode: 'ARS', sameCurrency: false },
+        });
+
+        expect(selection(2)).toMatchObject({
+          descriptions: { alicuota: '21%', exento: 'exento 50' },
+          selected: [],
+        });
+        // La alícuota arranca en la deducida de la factura elegida, no en la respondida con la otra.
+        expect(script.chooseStep.mock.calls.findLast(([message]) => /Alícuota/.test(message))?.[2]).toBe('21');
+        expect(state?.advanced).toMatchObject({ exemptAmount: 50, ivaRate: '21' });
+      });
+
+      it('la fecha del comprobante marcada y respondida sobrevive al cambio de factura', async () => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        vi.setSystemTime(today);
+        script = createScript([
+          [/comprobante querés repetir/, 'Factura A'],
+          [/Cuál repetimos/, '00003-00000014'],
+          [/Condición frente al IVA/, 'Responsable inscripto'],
+          [/Mismo monto/, 'Sí'],
+          [/Período del servicio/, 'Un solo día'],
+          [/Agregamos/, ['Fecha', 'Período']],
+          [/Fecha del comprobante/, '03/10/2026'],
+          [/Servicio desde/, BACK],
+          [/Fecha del comprobante/, BACK],
+          ...backToInvoice,
+          [/Cuál repetimos/, '00003-00000015'],
+          [/Condición frente al IVA/, 'Responsable inscripto'],
+          [/Monto total/, '1.000'],
+          [/Período del servicio/, 'Un solo día'],
+          [/Agregamos/, ['Fecha', 'Alícuota']],
+          [/Fecha del comprobante/, '03/10/2026'],
+          [/Alícuota/, '21%'],
+        ]);
+
+        const state = await runWizard(repeatSteps(createSession([single, several]), 3, today), {
+          advanced: { currencyCode: 'ARS', sameCurrency: false },
+        });
+
+        expect(selection(2)).toMatchObject({
+          descriptions: { fecha: '03/10/2026' },
+          selected: ['fecha', 'alicuota', 'servicio'],
+        });
+        expect(
+          script.askTextStep.mock.calls.findLast(([message]) => /Fecha del comprobante/.test(message))?.[1],
+        ).toMatchObject({ previousAnswer: '03/10/2026' });
+        expect(state?.advanced).toMatchObject({ billingDate: '03/10/2026', ivaRate: '21' });
+      });
+    });
+
     it('si la factura era en dolares sigue en dolares y solo pide la cotizacion', async () => {
       script = createScript([
         [/comprobante querés repetir/, 'Factura C'],
@@ -846,7 +997,7 @@ describe('flujos del modo interactivo', () => {
         [/Mismo monto/, 'Sí'],
         [/Cómo te pagan/, 'En pesos'],
         [/Cotización de USD/, '1.250,5'],
-        [/Período del servicio/, 'Solo hoy'],
+        [/Período del servicio/, 'Un solo día'],
         [/Agregamos/, []],
       ]);
 
@@ -856,7 +1007,7 @@ describe('flujos del modo interactivo', () => {
       });
 
       // Sin marcar "Moneda extranjera", el monto sigue en dolares: antes salia como 121 pesos.
-      expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
+      expect(buildInvoiceInput(state as NonNullable<typeof state>, session.runtime)).toMatchObject({
         currencyCode: 'USD',
         exchangeRate: 1250.5,
         sameCurrency: false,
@@ -876,7 +1027,7 @@ describe('flujos del modo interactivo', () => {
         [/Mismo monto/, 'No'],
         [/Monto total en EUR/, '300'],
         [/Cómo te pagan/, 'En euros'],
-        [/Período del servicio/, 'Solo hoy'],
+        [/Período del servicio/, 'Un solo día'],
         [/Agregamos/, []],
       ]);
 
@@ -885,7 +1036,7 @@ describe('flujos del modo interactivo', () => {
         advanced: { currencyCode: 'ARS', sameCurrency: false },
       });
 
-      expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
+      expect(buildInvoiceInput(state as NonNullable<typeof state>, session.runtime)).toMatchObject({
         currencyCode: 'EUR',
         exchangeRate: undefined,
         sameCurrency: true,
@@ -898,7 +1049,7 @@ describe('flujos del modo interactivo', () => {
         [/comprobante querés repetir/, 'Factura C'],
         [/Cuál repetimos/, '00003-00000014'],
         [/Mismo monto/, 'Sí'],
-        [/Período del servicio/, 'Solo hoy'],
+        [/Período del servicio/, 'Un solo día'],
         [/Agregamos/, []],
       ]);
 
@@ -907,7 +1058,7 @@ describe('flujos del modo interactivo', () => {
         advanced: { currencyCode: 'ARS', sameCurrency: false },
       });
 
-      expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({
+      expect(buildInvoiceInput(state as NonNullable<typeof state>, session.runtime)).toMatchObject({
         currencyCode: 'ARS',
         sameCurrency: false,
       });
@@ -928,7 +1079,7 @@ describe('flujos del modo interactivo', () => {
       const session = createSession([invoice()]);
       const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
 
-      expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
+      expect(buildNoteInput(state as NonNullable<typeof state>, noteInputEnv(session, 3))).toMatchObject({
         associatedVoucher: { cuit: '20333333334', fecha: '01/10/2026', numero: 14, puntoVenta: 3, shortcut: 'fb' },
         documentType: 'consumidor-final',
         ivaRate: undefined,
@@ -943,7 +1094,7 @@ describe('flujos del modo interactivo', () => {
         [/Qué factura\?/, 'Factura B'],
         [/A qué la asociamos/, 'A una factura'],
         [/Sobre qué factura B/, '00003-00000014'],
-        [/En qué moneda va la nota/, 'En DOL, como el comprobante'],
+        [/En qué moneda va la nota/, 'En USD, como el comprobante'],
         [/Total o parcial/, 'Anular el total'],
         [/Agregamos/, []],
       ]);
@@ -951,7 +1102,7 @@ describe('flujos del modo interactivo', () => {
       const session = createSession([invoice({ currency: 'DOL', exchangeRate: 1450, exemptAmount: 10, total: 131 })]);
       const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
 
-      expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
+      expect(buildNoteInput(state as NonNullable<typeof state>, noteInputEnv(session, 3))).toMatchObject({
         currencyCode: 'DOL',
         exchangeRate: 1450,
         exemptAmount: 10,
@@ -973,7 +1124,7 @@ describe('flujos del modo interactivo', () => {
       const session = createSession([invoice({ currency: 'DOL', exchangeRate: 1450, total: 121 })]);
       const state = await runWizard(noteSteps(session, 3), { kind: 'debito' });
 
-      expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
+      expect(buildNoteInput(state as NonNullable<typeof state>, noteInputEnv(session, 3))).toMatchObject({
         currencyCode: 'PES',
         exchangeRate: undefined,
         shortcut: 'ndb',
@@ -995,7 +1146,7 @@ describe('flujos del modo interactivo', () => {
       const session = createSession([invoice({ currency: 'DOL', exchangeRate: 1450, total: 121 })]);
       const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
 
-      expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
+      expect(buildNoteInput(state as NonNullable<typeof state>, noteInputEnv(session, 3))).toMatchObject({
         currencyCode: 'PES',
         totalAmount: 25_000,
       });
@@ -1015,7 +1166,7 @@ describe('flujos del modo interactivo', () => {
       const session = createSession([invoice()]);
       const state = await runWizard(noteSteps(session, 3), { kind: 'debito' });
 
-      expect(buildNoteInput(state as NonNullable<typeof state>, session, 3).currencyCode).toBe('PES');
+      expect(buildNoteInput(state as NonNullable<typeof state>, noteInputEnv(session, 3)).currencyCode).toBe('PES');
       expect(script.asked.some((question) => /moneda va la nota/.test(question))).toBe(false);
     });
 
@@ -1032,7 +1183,7 @@ describe('flujos del modo interactivo', () => {
 
       const session = createSession([invoice({ ivaAmount: 262.5, netAmount: 1500, total: 1762.5 })]);
       const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
-      const input = buildNoteInput(state as NonNullable<typeof state>, session, 3);
+      const input = buildNoteInput(state as NonNullable<typeof state>, noteInputEnv(session, 3));
 
       expect(input.totalAmount).toBe(100);
       expect(input.exemptAmount).toBeUndefined();
@@ -1056,7 +1207,7 @@ describe('flujos del modo interactivo', () => {
       const session = createSession([invoice({ documentNumber: 30709965812, documentTypeCode: 80 })]);
       const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
 
-      expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
+      expect(buildNoteInput(state as NonNullable<typeof state>, noteInputEnv(session, 3))).toMatchObject({
         cancellation: true,
         documentNumber: 30709965812,
         ivaCondition: 'responsable-inscripto',
@@ -1079,7 +1230,7 @@ describe('flujos del modo interactivo', () => {
       const session = createSession([invoice({ ivaAmount: 0, netAmount: 121 })]);
       const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
 
-      expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
+      expect(buildNoteInput(state as NonNullable<typeof state>, noteInputEnv(session, 3))).toMatchObject({
         associatedVoucher: { numero: 14, puntoVenta: 3, shortcut: 'rc' },
         shortcut: 'ncc',
         totalAmount: 121,
@@ -1102,10 +1253,10 @@ describe('flujos del modo interactivo', () => {
 
       const session = createSession();
       const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
-      const input = buildNoteInput(state as NonNullable<typeof state>, session, 3);
+      const input = buildNoteInput(state as NonNullable<typeof state>, noteInputEnv(session, 3));
 
       expect(input).toMatchObject({
-        associatedPeriod: { desde: '1/9', hasta: '30/9' },
+        associatedPeriod: { desde: '01/09/2026', hasta: '30/09/2026' },
         shortcut: 'ncb',
         totalAmount: 121,
       });
@@ -1121,7 +1272,7 @@ describe('flujos del modo interactivo', () => {
         [/Qué factura\?/, 'Factura B'],
         [/A qué la asociamos/, 'A una factura'],
         [/Sobre qué factura B/, '00003-00000014'],
-        [/En qué moneda va la nota/, 'En DOL, como el comprobante'],
+        [/En qué moneda va la nota/, 'En USD, como el comprobante'],
         [/Total o parcial/, 'Parcial'],
         [/Monto de la nota de crédito/, '60,50'],
         [/Agregamos/, ['Fecha', 'Importe exento', 'Período', 'Vencimiento']],
@@ -1140,14 +1291,14 @@ describe('flujos del modo interactivo', () => {
       );
 
       expect(offered).toEqual(['fecha', 'exento', 'servicio', 'vencimiento']);
-      expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
-        billingDate: '31/10',
+      expect(buildNoteInput(state as NonNullable<typeof state>, noteInputEnv(session, 3))).toMatchObject({
+        billingDate: '31/10/2026',
         currencyCode: 'DOL',
         exchangeRate: 1450,
         exemptAmount: 10,
-        paymentDueDate: '10/11',
-        serviceEndDate: '15/10',
-        serviceStartDate: '1/10',
+        paymentDueDate: '10/11/2026',
+        serviceEndDate: '15/10/2026',
+        serviceStartDate: '01/10/2026',
         totalAmount: 60.5,
       });
     });
@@ -1205,7 +1356,7 @@ describe('flujos del modo interactivo', () => {
       expect(defaultOf(/concepto ajusta/)).toBe('productos');
       expect(defaultOf(/Condición frente al IVA/)).toBe('sujeto-exento');
       expect(defaultOf(/Alícuota/)).toBe('10.5');
-      expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
+      expect(buildNoteInput(state as NonNullable<typeof state>, noteInputEnv(session, 3))).toMatchObject({
         currencyCode: 'USD',
         ivaCondition: 'sujeto-exento',
         ivaRate: '10.5',
@@ -1241,7 +1392,7 @@ describe('flujos del modo interactivo', () => {
         [/Período desde/, '1/9'],
         [/Período hasta/, '30/9'],
         [/A quién va la nota/, 'Con CUIL'],
-        [/CUIL del receptor/, '20333333334'],
+        [/CUIL del receptor/, '20301234563'],
         [/concepto ajusta/, 'Productos'],
         [/Monto de la nota de débito/, '100'],
         [/Condición frente al IVA/, 'Consumidor final'],
@@ -1253,8 +1404,8 @@ describe('flujos del modo interactivo', () => {
       const session = createSession();
       const state = await runWizard(noteSteps(session, 3), { kind: 'debito' });
 
-      expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
-        associatedPeriod: { desde: '1/9', hasta: '30/9' },
+      expect(buildNoteInput(state as NonNullable<typeof state>, noteInputEnv(session, 3))).toMatchObject({
+        associatedPeriod: { desde: '01/09/2026', hasta: '30/09/2026' },
         currencyCode: 'USD',
         documentType: 'cuil',
         sameCurrency: true,
@@ -1311,7 +1462,9 @@ describe('flujos del modo interactivo', () => {
       // Ya estan las 12: no ofrece cargar mas.
       expect(secondList).toHaveLength(13);
       expect(secondList).not.toContain('+ Cargar más…');
-      expect(buildNoteInput(state as NonNullable<typeof state>, session, 3).associatedVoucher).toMatchObject({
+      expect(
+        buildNoteInput(state as NonNullable<typeof state>, noteInputEnv(session, 3)).associatedVoucher,
+      ).toMatchObject({
         numero: 3,
         puntoVenta: 3,
       });
@@ -1334,7 +1487,7 @@ describe('flujos del modo interactivo', () => {
       const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
 
       expect(getVoucher).toHaveBeenLastCalledWith(14, 5, 11);
-      expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
+      expect(buildNoteInput(state as NonNullable<typeof state>, noteInputEnv(session, 3))).toMatchObject({
         associatedVoucher: { numero: 14, puntoVenta: 5, shortcut: 'fc' },
         shortcut: 'ncc',
         totalAmount: 121,
@@ -1408,7 +1561,7 @@ describe('flujos del modo interactivo', () => {
 
         const session = sessionWithOtherSystem();
         const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
-        const input = buildNoteInput(state as NonNullable<typeof state>, session, 3);
+        const input = buildNoteInput(state as NonNullable<typeof state>, noteInputEnv(session, 3));
 
         expect(printed()).toContain(
           'ARCA no tiene la factura C N° 00050-00000015 y el punto de venta 50 no es de web service. Si es de Comprobantes en línea o de un controlador fiscal, seguí: como no se pueden copiar sus datos, te los pregunto. Si no, volvé y revisá el número.',
@@ -1453,7 +1606,7 @@ describe('flujos del modo interactivo', () => {
         const session = sessionWithOtherSystem();
         const state = await runWizard(noteSteps(session, 3), { kind: 'debito' });
 
-        expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
+        expect(buildNoteInput(state as NonNullable<typeof state>, noteInputEnv(session, 3))).toMatchObject({
           associatedVoucher: { fecha: '10/11/2026', numero: 15, puntoVenta: 50, shortcut: 'fb' },
           currencyCode: 'USD',
           documentType: 'consumidor-final',
@@ -1485,7 +1638,9 @@ describe('flujos del modo interactivo', () => {
 
         expect(state?.otherSystemInvoice).toBeUndefined();
         expect(noteWarnings(state as NonNullable<typeof state>)).toEqual([]);
-        expect(buildNoteInput(state as NonNullable<typeof state>, session, 3).associatedVoucher).toMatchObject({
+        expect(
+          buildNoteInput(state as NonNullable<typeof state>, noteInputEnv(session, 3)).associatedVoucher,
+        ).toMatchObject({
           numero: 14,
           puntoVenta: 3,
         });
@@ -1618,7 +1773,7 @@ describe('flujos del modo interactivo', () => {
         const session = createSession([invoice({ documentNumber: 30709965812, documentTypeCode: 80 })]);
         const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
 
-        expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
+        expect(buildNoteInput(state as NonNullable<typeof state>, noteInputEnv(session, 3))).toMatchObject({
           associatedVoucher: { numero: 14, puntoVenta: 3, shortcut: 'ra' },
           ivaCondition: 'responsable-inscripto',
           shortcut: 'nca',
@@ -1642,7 +1797,7 @@ describe('flujos del modo interactivo', () => {
 
         expect(getVoucher).toHaveBeenCalledWith(14, 3, 12);
         expect(script.asked.some((question) => /asociamos/.test(question))).toBe(false);
-        expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
+        expect(buildNoteInput(state as NonNullable<typeof state>, noteInputEnv(session, 3))).toMatchObject({
           associatedVoucher: { numero: 14, puntoVenta: 3, shortcut: 'ndc' },
           shortcut: 'ncc',
           totalAmount: 50,
@@ -1677,7 +1832,7 @@ describe('flujos del modo interactivo', () => {
         const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
 
         expect(script.asked.some((question) => /Total o parcial/.test(question))).toBe(false);
-        expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
+        expect(buildNoteInput(state as NonNullable<typeof state>, noteInputEnv(session, 3))).toMatchObject({
           associatedVoucher: { shortcut: 'nca' },
           shortcut: 'nca',
           totalAmount: 500,
@@ -1698,7 +1853,7 @@ describe('flujos del modo interactivo', () => {
         const state = await runWizard(noteSteps(session, 3), { kind: 'debito' });
 
         expect(script.asked.some((question) => /rechazó/.test(question))).toBe(false);
-        expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
+        expect(buildNoteInput(state as NonNullable<typeof state>, noteInputEnv(session, 3))).toMatchObject({
           associatedVoucher: { shortcut: 'ncea' },
           cancellation: true,
           shortcut: 'ndea',
@@ -1719,7 +1874,7 @@ describe('flujos del modo interactivo', () => {
         const state = await runWizard(noteSteps(session, 3), { kind: 'debito' });
 
         expect(script.asked.some((question) => /rechazó/.test(question))).toBe(false);
-        expect(buildNoteInput(state as NonNullable<typeof state>, session, 3)).toMatchObject({
+        expect(buildNoteInput(state as NonNullable<typeof state>, noteInputEnv(session, 3))).toMatchObject({
           cancellation: false,
           shortcut: 'ndea',
         });

@@ -1,0 +1,155 @@
+? [lista] ¿Sobre qué comprobante?
+  arranca en: (ninguna)
+  · Facturas (nuevo) — A, B o C, de crédito electrónica (FCE) o de exportación E
+  · Notas de crédito (nuevo) — Para ajustar una nota de crédito ya emitida
+  · Notas de débito (nuevo) — Para ajustar una nota de débito ya emitida
+  · Recibos (nuevo) — Recibo A, B o C por un cobro
+  = Facturas (nuevo)
+
+? [lista] ¿Qué factura?
+  arranca en: (ninguna)
+  · Factura C — La emiten monotributistas y exentos
+  · Factura B — De responsable inscripto a consumidor final, exento u otros
+  · Factura A — Entre responsables inscriptos, o de RI a monotributista
+  · Factura de crédito electrónica C — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Factura de crédito electrónica B — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Factura de crédito electrónica A — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Factura de exportación E (nuevo) — A un cliente del exterior: servicios o bienes
+  = Factura de crédito electrónica A
+
+? [lista] ¿Sobre qué factura de crédito electrónica A?
+  arranca en: (ninguna)
+    --- ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+  · 00003-00000002  ·  12/11/2026  ·  CUIT 30-70996581-2  ·  $ 6.050.000 ·  CAE 86400940834693
+    --- ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+    ---
+  · # Ingresar el número a mano… — Uno más viejo o de otro punto de venta
+  = 00003-00000002  ·  12/11/2026  ·  CUIT 30-70996581-2  ·  $ 6.050.000 ·  CAE 86400940834693
+
+? [lista] ¿Total o parcial?
+  arranca en: (ninguna)
+  · Anular el total ($ 6.050.000)
+  · Parcial (ingresar monto)
+  = Parcial (ingresar monto)
+
+? [texto] Monto de la nota de crédito:
+  = "1.210.000"
+
+? [lista] Condición frente al IVA del receptor:
+  arranca en: (ninguna)
+  · Responsable inscripto
+  · Responsable monotributo
+  · Monotributista social
+  · Monotributo trabajador independiente promovido
+  = Responsable inscripto
+
+? [lista] ¿El comprador rechazó la factura?
+  arranca en: (ninguna)
+  · Sí, es una nota de anulación
+  · No
+  = No
+
+? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
+  [ ] Fecha del comprobante — hoy
+  [ ] Importe exento o no gravado — sin exento ni no gravado
+  [ ] Período del servicio — hoy
+  = (nada marcado)
+
+== pantalla ==
+┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐
+╎                                                                                          ╎
+╎       Estás en TESTING: los comprobantes son de prueba y no tienen validez fiscal.       ╎
+╎                                                                                          ╎
+└╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘
+
+          ╒═══════════════════ NOTA DE CRÉDITO ELECTRÓNICA A ═══════════════════╕
+          │                                                                     │
+          │  Concepto                         Servicios                         │
+          │  Punto de venta                   3                                 │
+          │  Fecha del comprobante            18/11/2026                        │
+          │  Tipo de documento                CUIT                              │
+          │  Número de documento              30-70996581-2                     │
+          │  IVA receptor                     Responsable inscripto             │
+          │  Moneda                           Pesos argentinos (ARS)            │
+          │  Importe neto                     $ 1.000.000                       │
+          │  Importe IVA                      $ 210.000                         │
+          │  Alícuota de IVA                  21%                               │
+          │  Importe total                    $ 1.210.000                       │
+          │  Servicio desde                   18/11/2026                        │
+          │  Servicio hasta                   18/11/2026                        │
+          │  Comprobante asociado             Factura de crédito electrónica A  │
+          │  Número asociado                  00003-00000002                    │
+          │  CUIT asociado                    20-11111111-2                     │
+          │  Fecha asociado                   12/11/2026                        │
+          │  Anulación                        No                                │
+          │                                                                     │
+          ├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
+          │                                                                     │
+          │                             SIN EMITIR                              │
+          │                                                                     │
+          ╘═════════════════════════════════════════════════════════════════════╛
+
+== comando equivalente ==
+arcli ncea -m 1210000 --cs --cuit 30709965812 --ir responsable-inscripto --ac fcea --apv 3 --ar 2 --acuit 20111111112 --afecha 12/11/2026 --testing --emitir
+
+== pantalla ==
+▎ Esto equivale a:
+▎ arcli ncea -m 1210000 --cs --cuit 30709965812 --ir responsable-inscripto --ac fcea --apv 3 --ar 2 --acuit 20111111112 --afecha 12/11/2026 --testing --emitir
+
+? [lista] ¿Emitimos la nota de crédito electrónica A en testing?
+  arranca en: Sí, emitir ahora
+  > Sí, emitir ahora
+  · Sí, emitir y generar el PDF
+  · No, dejar sin emitir
+  = No, dejar sin emitir
+
+== pantalla ==
+┌                                                                                          ┐
+
+                                     No se emitió nada.
+
+└                                                                                          ┘
+
+== solicitud a ARCA (FECAESolicitar, sin el numero) ==
+{
+  "CantReg": 1,
+  "CbteFch": "20261118",
+  "CbtesAsoc": [
+    {
+      "CbteFch": "20261112",
+      "Cuit": "20111111112",
+      "Nro": 2,
+      "PtoVta": 3,
+      "Tipo": 201
+    }
+  ],
+  "CbteTipo": 203,
+  "Concepto": 2,
+  "CondicionIVAReceptorId": 1,
+  "DocNro": 30709965812,
+  "DocTipo": 80,
+  "FchServDesde": "20261118",
+  "FchServHasta": "20261118",
+  "ImpIVA": 210000,
+  "ImpNeto": 1000000,
+  "ImpOpEx": 0,
+  "ImpTotal": 1210000,
+  "ImpTotConc": 0,
+  "ImpTrib": 0,
+  "Iva": [
+    {
+      "BaseImp": 1000000,
+      "Id": 5,
+      "Importe": 210000
+    }
+  ],
+  "MonCotiz": 1,
+  "MonId": "PES",
+  "Opcionales": [
+    {
+      "Id": "22",
+      "Valor": "N"
+    }
+  ],
+  "PtoVta": 3
+}

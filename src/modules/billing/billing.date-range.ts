@@ -1,21 +1,22 @@
-import {
-  type CalendarDate,
-  calendarDateToArcaDate,
-  formatDateAsArcaDate,
-  maxArcaDate,
-  parseArgentineDateInputAsArcaDate,
-} from '../../lib/dates/arca-date';
-import { InputValidationError } from '../../lib/errors/app-error';
+import { formatDateAsArcaDate, maxArcaDate } from '../../lib/dates/arca-date';
+import { assertRules } from '../../lib/rules/rules';
 
-import { isElectronicCreditInvoice } from './billing.fce';
+import {
+  minimumPaymentDueDate,
+  parseBillingDateInput,
+  resolveBillingDate,
+  resolvePaymentDateFromDueDay,
+  shouldSendPaymentDueDate,
+} from './billing.dates';
+import {
+  BILLING_DATE_WINDOW_RULE,
+  type BillingRuleContext,
+  DUE_DATE_MINIMUM_RULE,
+  SERVICE_DATE_ORDER_RULE,
+} from './billing.rules';
 import type { BillingCommandInput } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
-import {
-  ensureDateOrder,
-  validateBillingDateWindow,
-  validateConceptDateInputs,
-  validatePaymentDueDate,
-} from './billing.validation';
+import { validateConceptDateInputs } from './billing.validation';
 
 export interface BillingDateRange {
   readonly billingDate: string;
@@ -32,80 +33,19 @@ export const DUE_DAY_DEPRECATION_WARNING =
 export const DUE_DAY_FILE_DEPRECATION_WARNING =
   'La clave "dia" del JSON de `--cargar` está deprecada y se va a sacar en una próxima versión: usá "vencimientoPago" (por ejemplo, `"vencimientoPago": "10"`).';
 
-const MONTH_NAMES = [
-  'enero',
-  'febrero',
-  'marzo',
-  'abril',
-  'mayo',
-  'junio',
-  'julio',
-  'agosto',
-  'septiembre',
-  'octubre',
-  'noviembre',
-  'diciembre',
-] as const;
-
-function arcaDateToCalendarDate(value: string): CalendarDate {
-  return { day: Number(value.slice(6, 8)), month: Number(value.slice(4, 6)), year: Number(value.slice(0, 4)) };
-}
-
-/** Mediodia argentino (15 UTC) de una fecha ARCA, para completar fechas sin año desde ese dia. */
-function arcaDateToReferenceInstant(value: string): Date {
-  const { day, month, year } = arcaDateToCalendarDate(value);
-
-  return new Date(Date.UTC(year, month - 1, day, 15));
-}
-
-/**
- * Fecha ARCA del proximo `dueDay`, contando desde `todayArcaDate`. La cuenta va en UTC para no cruzar zonas y
- * arranca del dia 1: sumar un mes al 31/03 daria el 1/05. Si el dia no existe en ese mes (31 en abril), es un error.
- */
-function resolvePaymentDateFromDueDay(dueDay: number, todayArcaDate: string): string {
-  const today = arcaDateToCalendarDate(todayArcaDate);
-  const monthOffset = dueDay < today.day ? 1 : 0;
-  const firstOfMonth = new Date(Date.UTC(today.year, today.month - 1 + monthOffset, 1));
-  const year = firstOfMonth.getUTCFullYear();
-  const monthIndex = firstOfMonth.getUTCMonth();
-  const daysInMonth = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
-
-  if (dueDay > daysInMonth) {
-    throw new InputValidationError(
-      `\`--dia ${dueDay}\` no existe en ${MONTH_NAMES[monthIndex]} de ${year}. Indicá la fecha exacta con \`--vto\`.`,
-    );
-  }
-
-  return calendarDateToArcaDate({ day: dueDay, month: monthIndex + 1, year });
-}
-
-/**
- * Que fechas lleva el comprobante (codigos de WSFEv1 v4.7):
- * - servicios: FchServDesde, FchServHasta y FchVtoPago (10049)
- * - factura FCE: FchVtoPago siempre, aunque sea de productos (10163)
- * - NC/ND FCE: sin FchVtoPago. La 10175 lo permite (opcional) en las de anulacion; no mandarlo nunca es propio
- */
-function shouldSendPaymentDueDate(input: BillingCommandInput, voucherKind: VoucherKindDefinition): boolean {
-  if (voucherKind.isElectronicCredit) {
-    return isElectronicCreditInvoice(voucherKind);
-  }
-
-  return input.concept !== 'productos';
-}
-
 function resolveServiceDates(
   input: BillingCommandInput,
   billingDate: string,
-  referenceDate: Date,
+  context: BillingRuleContext,
 ): Required<Pick<BillingDateRange, 'serviceEndDate' | 'serviceStartDate'>> {
+  assertRules([SERVICE_DATE_ORDER_RULE], input, context);
+
   const serviceEndDate = input.serviceEndDate
-    ? parseArgentineDateInputAsArcaDate(input.serviceEndDate, referenceDate)
+    ? parseBillingDateInput(input.serviceEndDate, context.today)
     : billingDate;
   const serviceStartDate = input.serviceStartDate
-    ? parseArgentineDateInputAsArcaDate(input.serviceStartDate, referenceDate)
+    ? parseBillingDateInput(input.serviceStartDate, context.today)
     : serviceEndDate;
-
-  ensureDateOrder(serviceStartDate, serviceEndDate);
 
   return { serviceEndDate, serviceStartDate };
 }
@@ -117,28 +57,28 @@ export function resolveBillingDateRange(
 ): BillingDateRange {
   validateConceptDateInputs(input, voucherKind);
 
-  // Todo sale de `today`: las fechas sin año se completan con el año mas cercano a ese dia, no al reloj.
-  const referenceDate = arcaDateToReferenceInstant(today);
-  const billingDate = input.billingDate ? parseArgentineDateInputAsArcaDate(input.billingDate, referenceDate) : today;
+  // Todo sale de `today`: las fechas sin año se completan con el año mas cercano a ese dia, no al reloj. Las reglas
+  // (`billing.rules.ts`) son las mismas que usa el asistente al preguntar.
+  const context: BillingRuleContext = { today, voucherKind };
 
-  validateBillingDateWindow(billingDate, today, input.concept, voucherKind);
+  assertRules([BILLING_DATE_WINDOW_RULE], input, context);
 
-  const serviceDates =
-    input.concept === 'productos' ? undefined : resolveServiceDates(input, billingDate, referenceDate);
+  const billingDate = resolveBillingDate(input, today);
+  const serviceDates = input.concept === 'productos' ? undefined : resolveServiceDates(input, billingDate, context);
 
   if (!shouldSendPaymentDueDate(input, voucherKind)) {
     return { billingDate, ...serviceDates };
   }
 
-  // FCE: el vencimiento no puede ser anterior a la fecha del comprobante ni a hoy (10164, WSFEv1 v4.7).
-  const minimumPaymentDueDate = isElectronicCreditInvoice(voucherKind) ? maxArcaDate(billingDate, today) : billingDate;
+  assertRules([DUE_DATE_MINIMUM_RULE], input, context);
+
+  // Sin vencimiento escrito, el fin del servicio, pero no antes del minimo (en FCE, tampoco antes de hoy: 10164).
+  const minimum = minimumPaymentDueDate(billingDate, today, voucherKind);
   const paymentDueDate = input.paymentDueDate
-    ? parseArgentineDateInputAsArcaDate(input.paymentDueDate, referenceDate)
+    ? parseBillingDateInput(input.paymentDueDate, today)
     : input.dueDay
       ? resolvePaymentDateFromDueDay(input.dueDay, today)
-      : maxArcaDate(serviceDates?.serviceEndDate ?? minimumPaymentDueDate, minimumPaymentDueDate);
-
-  validatePaymentDueDate(paymentDueDate, minimumPaymentDueDate);
+      : maxArcaDate(serviceDates?.serviceEndDate ?? minimum, minimum);
 
   return { billingDate, paymentDueDate, ...serviceDates };
 }

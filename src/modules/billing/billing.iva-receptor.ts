@@ -1,8 +1,7 @@
 import { InputValidationError } from '../../lib/errors/app-error';
-import { formatArgentineMoney } from '../../lib/numbers/argentine-amount';
 
 import { formatVoucherSubject } from './billing.mappers';
-import type { BillingCommandInput, BillingIvaCondition } from './billing.schemas';
+import type { BillingIvaCondition } from './billing.schemas';
 import type { VoucherKindDefinition, VoucherLetter } from './billing.types';
 
 /**
@@ -74,20 +73,4 @@ export function validateIvaConditionForVoucher(
   throw new InputValidationError(
     `${formatVoucherSubject(voucherKind)} no admite IVA receptor "${ivaCondition}".${suggestion}`,
   );
-}
-
-export function validateConsumerIdentification(
-  input: Pick<BillingCommandInput, 'documentType' | 'totalAmount'>,
-  exchangeRate: number,
-  voucherKind: VoucherKindDefinition,
-): void {
-  if (input.documentType !== 'consumidor-final') {
-    return;
-  }
-
-  if (requiresConsumerIdentification(input.totalAmount * exchangeRate)) {
-    throw new InputValidationError(
-      `${formatVoucherSubject(voucherKind)} de ${formatArgentineMoney(CONSUMER_IDENTIFICATION_THRESHOLD)} o más requiere identificar al consumidor final. Usá \`--dni\`, \`--cuit\` o \`--cuil\`.`,
-    );
-  }
 }

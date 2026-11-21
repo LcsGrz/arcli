@@ -1,11 +1,13 @@
-import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
+import { formatArcaDateAsArgentineDate, parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
+import { assertRules } from '../../lib/rules/rules';
 import { creditNoteOverTotalError } from '../billing/billing.associated-lookup';
 import { formatVoucherSubject, formatVoucherWithArticle } from '../billing/billing.mappers';
 import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
 
 import { assertExportPointOfSaleRange } from './export.mappers';
+import type { ExportRule, ExportRuleContext } from './export.rules';
 import {
   DEFAULT_EXPORT_TYPE,
   EXPORT_CREDIT_NOTE_KIND,
@@ -220,6 +222,34 @@ export function applyExportAssociatedDefaults(
   };
 }
 
+/** El asociado de una nota E, para la regla de su fecha (`ExportRuleContext.associated`). */
+export function exportAssociatedRuleContext(
+  voucher: ExportIssuedVoucher,
+): NonNullable<ExportRuleContext['associated']> {
+  return { date: voucher.date, label: describeVoucher(voucher) };
+}
+
+/**
+ * La nota E no es anterior al comprobante que ajusta. En las notas de servicios es la 2052 (WSFEX v3.1.0; la prueba
+ * `arca-rules.arca.ts`, "nota de servicios anterior al asociado"); en bienes y otros es propia: ARCA no la controla y
+ * una nota anterior a lo que ajusta no tiene sentido. Sin fecha de la nota, la de hoy; sin `today` tampoco, no corre.
+ */
+export const EXPORT_NOTE_AFTER_ASSOCIATED_RULE: ExportRule = {
+  check: (input, { associated, today }) => {
+    const date = input.voucherDate?.trim() ? parseArgentineDateInputAsArcaDate(input.voucherDate) : today;
+
+    if (!associated || !date || date >= associated.date) {
+      return undefined;
+    }
+
+    const kind = input.voucherKind ?? EXPORT_VOUCHER_KIND;
+
+    return `La fecha de ${formatVoucherWithArticle(kind)} (${formatArcaDateAsArgentineDate(date)}) no puede ser anterior a la de ${associated.label} (${formatArcaDateAsArgentineDate(associated.date)}).`;
+  },
+  fields: ['voucherDate'],
+  id: 'export-note-after-associated',
+};
+
 /**
  * Lo que ARCA va a controlar contra el asociado, validado antes de emitir. En la nota de servicios (tipo 2) ARCA pide
  * el mismo tipo, destino y moneda (o pesos), la misma cotizacion y una fecha igual o posterior (2049 a 2053); una ND
@@ -248,11 +278,11 @@ export function assertExportNoteMatchesAssociated(options: {
     );
   }
 
-  if (note.date < associated.date) {
-    throw new InputValidationError(
-      `La fecha de ${formatVoucherWithArticle(kind)} (${formatArcaDateAsArgentineDate(note.date)}) no puede ser anterior a la de ${label} (${formatArcaDateAsArgentineDate(associated.date)}).`,
-    );
-  }
+  assertRules(
+    [EXPORT_NOTE_AFTER_ASSOCIATED_RULE],
+    { voucherDate: formatArcaDateAsArgentineDate(note.date), voucherKind: kind },
+    { associated: exportAssociatedRuleContext(associated) },
+  );
 
   const sameCurrency = note.currencyCode.trim().toUpperCase() === associated.currencyCode.trim().toUpperCase();
 

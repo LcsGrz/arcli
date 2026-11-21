@@ -95,7 +95,9 @@ export function buildEquivalentCommand(
 
     if (input.sameCurrency) {
       parts.push('--misma-moneda');
-    } else if (input.exchangeRate) {
+    } else if (input.exchangeRate && !input.exchangeRateSource) {
+      // Solo la escrita: la de la config (deprecada) y la oficial las toma el CLI sin `--cm`, y fijarlas haria que el
+      // comando pegado otro dia emita con una cotizacion vieja (REV-72).
       parts.push('--cm', formatArgentineAmountInput(input.exchangeRate));
     }
   } else if (options.defaultCurrency && resolveBillingCurrencyCode(options.defaultCurrency) !== 'PES') {

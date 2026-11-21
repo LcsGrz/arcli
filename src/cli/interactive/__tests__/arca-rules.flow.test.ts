@@ -169,6 +169,38 @@ describe('reglas de ARCA en el asistente (#220)', () => {
       );
     });
 
+    // Un rechazo no es una emision (#16): el CBU escrito a mano no se ofrece guardar.
+    it('una FCE rechazada por ARCA no ofrece guardar el CBU escrito a mano', async () => {
+      script = createScript([
+        [/comprobante/, 'Factura de crédito electrónica B'],
+        [/A quién/, 'Con CUIT'],
+        [/CUIT del receptor/, '30-70996581-2'],
+        [/Condición frente al IVA/, 'Sujeto exento'],
+        [/Qué estás facturando/, 'Productos'],
+        [/Monto total/, '12100'],
+        [/CBU/, '0110599520000012345678'],
+        [/Alias del CBU/, ''],
+        [/Agregamos/, []],
+        [/Emitimos/, 'Sí, emitir ahora'],
+      ]);
+
+      const { billingGateway, session } = createSession();
+
+      billingGateway.createVoucher.mockResolvedValueOnce({
+        cae: '',
+        caeFchVto: '',
+        response: {
+          Errors: { Err: [{ Code: 10015, Msg: 'Rechazado' }] },
+          FeDetResp: { FECAEDetResponse: [{ Resultado: 'R' }] },
+        },
+      });
+
+      await runInvoiceFlow(session);
+
+      expect(billingGateway.createVoucher).toHaveBeenCalledOnce();
+      expect(script.asked.some((message) => /Guardamos el CBU/.test(message))).toBe(false);
+    });
+
     it('una FCE B a un CUIT llega a la vista previa con `--cuit` en el comando equivalente', async () => {
       script = createScript([
         [/comprobante/, 'Factura de crédito electrónica B'],
@@ -181,7 +213,6 @@ describe('reglas de ARCA en el asistente (#220)', () => {
         [/Alias del CBU/, ''],
         [/Agregamos/, []],
         [/Emitimos/, 'No, dejar sin emitir'],
-        [/Guardamos el CBU/, 'No'],
       ]);
 
       const { billingGateway, session } = createSession();
@@ -240,23 +271,40 @@ describe('reglas de ARCA en el asistente (#220)', () => {
   });
 
   describe('la vista previa frena antes de preguntar si se emite', () => {
-    it('el receptor con el CUIT que emite (10069)', async () => {
+    /** Lo que se escribe en stderr (el error de la vista previa), sin mostrarlo en la salida de los tests. */
+    function captureStderr(): () => string {
+      const chunks: string[] = [];
+
+      vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+        chunks.push(String(chunk));
+
+        return true;
+      });
+
+      // Sin bordes ni cortes de linea: un error largo se parte en el panel.
+      return () =>
+        stripAnsi(chunks.join(''))
+          .replace(/[\u2500-\u257f]/g, ' ')
+          .replace(/\s+/g, ' ');
+    }
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    // REV-75 (NAV-5): ya no llega a la vista previa, la pregunta lo frena con la misma regla que el CLI.
+    it('el receptor con el CUIT que emite (10069) se frena al preguntar el CUIT', async () => {
       script = createScript([
         [/comprobante/, 'Factura A'],
         [/A quién/, 'Con CUIT'],
         [/CUIT del receptor/, '20-33333333-4'],
-        [/Condición frente al IVA/, 'Responsable inscripto'],
-        [/Qué estás facturando/, 'Servicios'],
-        [/Monto total/, '1210'],
-        [/Agregamos/, []],
       ]);
 
       const { billingGateway, session } = createSession();
 
-      await expect(runInvoiceFlow(session)).rejects.toMatchObject({
-        code: 'INPUT_VALIDATION_ERROR',
-        message: 'El receptor no puede ser el mismo CUIT que emite (20333333334): ARCA lo rechaza (error 10069).',
-      });
+      await expect(runInvoiceFlow(session)).rejects.toThrow(
+        '"20-33333333-4" no pasa la validacion de "CUIT del receptor:": El receptor no puede ser el mismo CUIT que emite (20333333334): ARCA lo rechaza (error 10069).',
+      );
       expect(billingGateway.createVoucher).not.toHaveBeenCalled();
     });
 
@@ -269,14 +317,22 @@ describe('reglas de ARCA en el asistente (#220)', () => {
         [/Qué estás facturando/, 'Productos'],
         [/Monto total/, '1210'],
         [/Agregamos/, []],
+        // La vista previa lo rechaza: muestra el error y vuelve a la última pregunta, con todo (TUI-15). De ahí, Esc
+        // hasta el primer paso.
+        [/Agregamos/, BACK],
+        [/Monto total/, BACK],
+        [/Qué estás facturando/, BACK],
+        [/Condición frente al IVA/, BACK],
+        [/CUIT del receptor/, BACK],
+        [/A quién/, BACK],
+        [/comprobante/, BACK],
       ]);
 
       const { billingGateway, session } = createSession();
+      const errors = captureStderr();
 
-      await expect(runInvoiceFlow(session)).rejects.toMatchObject({
-        code: 'INPUT_VALIDATION_ERROR',
-        message: expect.stringContaining('No Categorizado (CUIT 23000000000) con importe gravado'),
-      });
+      await expect(runInvoiceFlow(session)).resolves.toBe(BACK);
+      expect(errors()).toContain('No Categorizado (CUIT 23000000000) con importe gravado');
       expect(billingGateway.createVoucher).not.toHaveBeenCalled();
     });
 
@@ -293,14 +349,25 @@ describe('reglas de ARCA en el asistente (#220)', () => {
         [/Moneda del comprobante/, 'Euros (EUR)'],
         [/Cómo te pagan/, 'En pesos'],
         [/Cotización de EUR/, rate],
+        // Se escribio en pesos y se cambio a euros: vuelve al monto (REV-74, #12).
+        [/Monto total en EUR/, '100'],
+        [/Agregamos/, ['Moneda extranjera']],
+        [/Moneda del comprobante/, 'Euros (EUR)'],
+        [/Cómo te pagan/, 'En pesos'],
+        [/Cotización de EUR/, rate],
+        // La vista previa la rechaza: muestra el error y vuelve a los opcionales, con todo (TUI-15); se corrige ahí.
+        [/Agregamos/, ['Moneda extranjera']],
+        [/Moneda del comprobante/, 'Euros (EUR)'],
+        [/Cómo te pagan/, 'En pesos'],
+        [/Cotización de EUR/, '1.000'],
+        [/Emitimos/, 'No, dejar sin emitir'],
       ]);
 
       const { billingGateway, session } = createSession([], 1000);
+      const errors = captureStderr();
 
-      await expect(runInvoiceFlow(session)).rejects.toMatchObject({
-        code: 'INPUT_VALIDATION_ERROR',
-        message: expect.stringMatching(/fuera de lo que acepta ARCA: entre el 2 % y el 500 % de la oficial \(1\.000/),
-      });
+      await runInvoiceFlow(session);
+      expect(errors()).toMatch(/fuera de lo que acepta ARCA: entre el 2 % y el 500 % de la oficial \(1\.000/);
       expect(billingGateway.getQuotation).toHaveBeenCalledWith('060');
       expect(billingGateway.createVoucher).not.toHaveBeenCalled();
     });
@@ -311,6 +378,12 @@ describe('reglas de ARCA en el asistente (#220)', () => {
         [/A quién/, 'Consumidor final'],
         [/Qué estás facturando/, 'Servicios'],
         [/Monto total/, '100'],
+        [/Agregamos/, ['Moneda extranjera']],
+        [/Moneda del comprobante/, 'Euros (EUR)'],
+        [/Cómo te pagan/, 'En pesos'],
+        [/Cotización de EUR/, '1.450,50'],
+        // Se escribio en pesos y se cambio a euros: vuelve al monto (REV-74, #12).
+        [/Monto total en EUR/, '100'],
         [/Agregamos/, ['Moneda extranjera']],
         [/Moneda del comprobante/, 'Euros (EUR)'],
         [/Cómo te pagan/, 'En pesos'],
@@ -341,7 +414,7 @@ describe('reglas de ARCA en el asistente (#220)', () => {
 
       await runNoteFlow(session, 'debito');
 
-      expect(choicesOf(/En qué moneda va la nota/)).toEqual(['En DOL, como el comprobante', 'En pesos']);
+      expect(choicesOf(/En qué moneda va la nota/)).toEqual(['En USD, como el comprobante', 'En pesos']);
       expect(billingGateway.createVoucher).not.toHaveBeenCalled();
       expect(printed()).toMatch(/Moneda +Pesos argentinos \(ARS\)/);
       // Pesos es la moneda por defecto: el comando no la nombra, y con flags la nota va en pesos igual.
@@ -368,7 +441,7 @@ describe('reglas de ARCA en el asistente (#220)', () => {
 
       await runNoteFlow(session, 'debito');
 
-      expect(choicesOf(/En qué moneda va la nota/)).toEqual(['En DOL, como el comprobante', 'En pesos']);
+      expect(choicesOf(/En qué moneda va la nota/)).toEqual(['En USD, como el comprobante', 'En pesos']);
       expect(billingGateway.createVoucher).not.toHaveBeenCalled();
       // La nota hereda el receptor de la factura: no puede ir a otro (10183).
       expect(printed()).toMatch(/Moneda +Pesos argentinos \(ARS\)/);
@@ -382,7 +455,7 @@ describe('reglas de ARCA en el asistente (#220)', () => {
         [/Sobre qué comprobante/, 'Facturas'],
         [/Qué factura\?/, 'Factura de crédito electrónica A'],
         [/Sobre qué factura de crédito electrónica A/, '00003-00000014'],
-        [/En qué moneda va la nota/, 'En DOL'],
+        [/En qué moneda va la nota/, 'En USD'],
         [/Monto de la nota de débito/, '10'],
         [/Condición frente al IVA/, 'Responsable inscripto'],
         [/Agregamos/, []],

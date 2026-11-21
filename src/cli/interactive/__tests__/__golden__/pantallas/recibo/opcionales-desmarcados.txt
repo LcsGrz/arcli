@@ -1,0 +1,120 @@
+? [lista] ¿Qué recibo querés emitir?
+  arranca en: (ninguna)
+  · Recibo C — Por un cobro; lo emiten monotributistas y exentos
+  · Recibo B (nuevo) — Por un cobro a un consumidor final, exento u otros
+  · Recibo A (nuevo) — Por un cobro a un responsable inscripto o monotributista
+  = Recibo C
+
+? [lista] ¿A quién le hacés el recibo?
+  arranca en: (ninguna)
+  · Consumidor final
+  · Con CUIT
+  · Con DNI
+  · Con CUIL
+  = Consumidor final
+
+? [lista] ¿Qué estás cobrando?
+  arranca en: (ninguna)
+  · Servicios
+  · Productos
+  · Productos y servicios
+  = Servicios
+
+? [texto] Monto total:
+  = "2.500"
+
+? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
+  [ ] Datos del consumidor final (nuevo) — sin identificar
+  [ ] Fecha del comprobante — hoy
+  [ ] Moneda extranjera — pesos
+  [ ] Período del servicio — hoy
+  [ ] Vencimiento del pago — por defecto
+  = Período del servicio
+
+? [texto] Servicio desde:
+  = "01/10/2026"
+
+? [texto] Servicio hasta:
+  = ← Volver
+
+? [texto] Servicio desde:
+  arranca escrito: "01/10/2026"
+  = ← Volver
+
+? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
+  [ ] Datos del consumidor final (nuevo) — sin identificar
+  [ ] Fecha del comprobante — hoy
+  [ ] Moneda extranjera — pesos
+  [x] Período del servicio — hoy
+  [ ] Vencimiento del pago — por defecto
+  = (nada marcado)
+
+== pantalla ==
+┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐
+╎                                                                                          ╎
+╎       Estás en TESTING: los comprobantes son de prueba y no tienen validez fiscal.       ╎
+╎                                                                                          ╎
+└╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘
+
+            ╒════════════════════════════ RECIBO C ════════════════════════════╕
+            │                                                                  │
+            │  Concepto                         Servicios                      │
+            │  Punto de venta                   3                              │
+            │  Fecha del comprobante            18/11/2026                     │
+            │  Receptor                         Consumidor final               │
+            │  Moneda                           Pesos argentinos (ARS)         │
+            │  Importe neto                     $ 2.500                        │
+            │  Importe total                    $ 2.500                        │
+            │  Servicio desde                   18/11/2026                     │
+            │  Servicio hasta                   18/11/2026                     │
+            │  Vencimiento del pago             18/11/2026                     │
+            │                                                                  │
+            ├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
+            │                                                                  │
+            │                            SIN EMITIR                            │
+            │                                                                  │
+            ╘══════════════════════════════════════════════════════════════════╛
+
+== comando equivalente ==
+arcli rc -m 2500 --cs --consumidor-final --testing --emitir
+
+== pantalla ==
+▎ Esto equivale a:
+▎ arcli rc -m 2500 --cs --consumidor-final --testing --emitir
+
+? [lista] ¿Emitimos el recibo C en testing?
+  arranca en: Sí, emitir ahora
+  > Sí, emitir ahora
+  · Sí, emitir y generar el PDF
+  · No, dejar sin emitir
+  = No, dejar sin emitir
+
+== pantalla ==
+┌                                                                                          ┐
+
+                                     No se emitió nada.
+
+└                                                                                          ┘
+
+== solicitud a ARCA (FECAESolicitar, sin el numero) ==
+{
+  "CantReg": 1,
+  "CbteFch": "20261118",
+  "CbteTipo": 15,
+  "Concepto": 2,
+  "CondicionIVAReceptorId": 5,
+  "DocNro": 0,
+  "DocTipo": 99,
+  "FchServDesde": "20261118",
+  "FchServHasta": "20261118",
+  "FchVtoPago": "20261118",
+  "ImpIVA": 0,
+  "ImpNeto": 2500,
+  "ImpOpEx": 0,
+  "ImpTotal": 2500,
+  "ImpTotConc": 0,
+  "ImpTrib": 0,
+  "MonCotiz": 1,
+  "MonId": "PES",
+  "PtoVta": 3
+}

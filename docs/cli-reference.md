@@ -608,7 +608,7 @@ WSFEX pide un certificado autorizado al servicio `wsfex`. ARCLI usa `exportacion
   publica un CUIT para ese país —Irlanda, Alemania, las zonas francas…—, la `E` va solo con `--id-impositivo`:
   ARCA pide uno de los dos, error 1580)
 - `--tipo-expo` (`1` bienes, `2` servicios, `4` otros; por defecto `2`)
-- `--item` para el detalle real; sin ítems va un renglón con `--descripcion`
+- el detalle, en una de dos formas ([lado a lado](exportacion.md#el-detalle-de-la-e-rápido-o-por-ítems)): rápida, sin `--item`, va un renglón con `--descripcion` (por defecto "Según detalle"), cantidad 1, unidad `unidades` y `--monto` como precio; detallada, un `--item` por renglón, que tienen que sumar `--monto`
 - `--incoterm` y `--incoterms-desc`, `--idioma`, `--forma-pago` (por defecto `Transferencia Internacional`)
 - `--permiso` y `--permiso-existente` para permisos de embarque (solo con `--tipo-expo 1`; en `2` y `4` ARCA exige `Permiso_existente` vacío)
 - `--numero` y `--id-solicitud` si los querés fijar a mano (por defecto, los siguientes de WSFEX)
@@ -677,7 +677,7 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
 | `--misma-moneda`                  | ninguno         | `boolean`                            | No          | El pago se cancela en la misma moneda extranjera: manda `CanMisMonExt` en `S`                                                                                                                                           |
 | `--observaciones <texto>`         | ninguno         | `string`                             | No          | Observaciones del comprobante                                                                                                                                                                                           |
 | `--obs-comerciales <texto>`       | ninguno         | `string`                             | No          | Observaciones comerciales                                                                                                                                                                                               |
-| `--descripcion <texto>`           | ninguno         | `string`                             | No          | Solo sin `--item`; también va al PDF                                                                                                                                                                                    |
+| `--descripcion <texto>`           | ninguno         | `string`                             | No          | Solo sin `--item`: el renglón único (por defecto `Según detalle`); también va al PDF                                                                                                                                    |
 | `--cargar <ruta>`                 | ninguno         | `string`                             | No          | Un objeto con un comprobante, no un lote                                                                                                                                                                                |
 
 Los flags globales (`--testing`, `--produccion`, `--json`, `--bruto`) y los de modo (`--previsualizar`, `--emitir`) funcionan igual que en el resto de los comprobantes.

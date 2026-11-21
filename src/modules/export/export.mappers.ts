@@ -2,15 +2,18 @@ import {
   addDaysToArcaDate,
   formatArcaDateAsArgentineDate,
   formatDateAsArcaDate,
+  lastDayOfArcaMonth,
   minArcaDate,
   parseArgentineDateInputAsArcaDate,
 } from '../../lib/dates/arca-date';
 import { AppError, InputValidationError } from '../../lib/errors/app-error';
 import { roundToCents } from '../../lib/numbers/argentine-amount';
+import { assertRules } from '../../lib/rules/rules';
 import { resolveBillingCurrencyCode } from '../billing/billing.mappers';
 import type { ArcliConfig } from '../config/config.schemas';
 
 import { exportTextLengthError, MAX_EXPORT_ITEM_DESCRIPTION_LENGTH } from './export.items';
+import type { ExportRule } from './export.rules';
 import {
   DEFAULT_EXPORT_CURRENCY_CODE,
   DEFAULT_EXPORT_LANGUAGE,
@@ -42,7 +45,7 @@ const ARGENTINA_COUNTRY_CODE = 200;
 export const DEFAULT_EXPORT_PAYMENT_TERMS = 'Transferencia Internacional';
 
 /** Exportacion de servicios: la cotizacion es la del dia habil anterior (error 2053). */
-const SERVICES_EXPORT_TYPE: ExportType = 2;
+export const SERVICES_EXPORT_TYPE: ExportType = 2;
 
 /** ARCA no acepta cotizaciones en pesos distintas de 1. */
 const LOCAL_EXCHANGE_RATE = 1;
@@ -88,43 +91,95 @@ export function resolveExportVoucherDate(value: string | undefined, now = new Da
 /** Cuantos dias antes y despues de la fecha de envio acepta ARCA la fecha de la E (1500, WSFEX v3.1.0). */
 const EXPORT_DATE_WINDOW_DAYS = 5;
 
-/** Ultimo dia del mes de una fecha ARCA (yyyymmdd). */
-function lastDayOfMonth(arcaDate: string): string {
-  const year = Number(arcaDate.slice(0, 4));
-  const month = Number(arcaDate.slice(4, 6));
-  const day = new Date(Date.UTC(year, month, 0)).getUTCDate();
-
-  return `${arcaDate.slice(0, 6)}${String(day).padStart(2, '0')}`;
+/**
+ * La fecha mas temprana que ARCA acepta para la factura o la nota E (1500, WSFEX v3.1.0), la misma ventana que
+ * `EXPORT_VOUCHER_DATE_WINDOW_RULE`: hoy - 5 (yyyymmdd).
+ */
+export function earliestExportVoucherDate(today: string): string {
+  return addDaysToArcaDate(today, -EXPORT_DATE_WINDOW_DAYS);
 }
 
 /**
  * ARCA 1500 (WSFEX v3.1.0): la fecha de la factura y de las notas E va de hoy - 5 a hoy + 5 (N = fecha de envio) y,
  * en servicios, no puede pasar del mes en curso. Testing lo confirma: +1 aprobada, +6 y -6 rechazadas con el periodo
  * en el mensaje. Una fecha futura vale (por ejemplo, la del embarque del lunes), pero traba el punto de venta: ver
- * `exportFutureDateWarning`.
+ * `exportFutureDateWarning`. Sin `today` no corre.
  */
+export const EXPORT_VOUCHER_DATE_WINDOW_RULE: ExportRule = {
+  check: (input, { today }) => {
+    if (!today) {
+      return undefined;
+    }
+
+    const exportType = input.exportType ?? DEFAULT_EXPORT_TYPE;
+    const voucherDate = resolveExportVoucherDate(input.voucherDate, arcaDateToInstant(today));
+    const from = earliestExportVoucherDate(today);
+    const windowEnd = addDaysToArcaDate(today, EXPORT_DATE_WINDOW_DAYS);
+    const monthEnd = lastDayOfArcaMonth(today);
+    const capsAtMonthEnd = exportType === SERVICES_EXPORT_TYPE && monthEnd < windowEnd;
+    const to = capsAtMonthEnd ? monthEnd : windowEnd;
+
+    if (voucherDate >= from && voucherDate <= to) {
+      return undefined;
+    }
+
+    const range = `del ${formatArcaDateAsArgentineDate(from)} al ${formatArcaDateAsArgentineDate(to)}`;
+
+    return `La fecha del comprobante (${formatArcaDateAsArgentineDate(voucherDate)}) está fuera de lo que acepta ARCA: ${range}, hasta ${EXPORT_DATE_WINDOW_DAYS} días antes o después de hoy${capsAtMonthEnd ? ' y, en servicios, no después del fin de mes' : ''} (error 1500).`;
+  },
+  fields: ['voucherDate'],
+  id: 'export-voucher-date-window',
+};
+
+/** El mismo control que `EXPORT_VOUCHER_DATE_WINDOW_RULE`, con las fechas ya resueltas (yyyymmdd). */
 export function assertExportVoucherDate(options: {
   readonly exportType: ExportType;
   readonly today: string;
   readonly voucherDate: string;
 }): void {
-  const { exportType, today, voucherDate } = options;
-  const from = addDaysToArcaDate(today, -EXPORT_DATE_WINDOW_DAYS);
-  const windowEnd = addDaysToArcaDate(today, EXPORT_DATE_WINDOW_DAYS);
-  const monthEnd = lastDayOfMonth(today);
-  const capsAtMonthEnd = exportType === SERVICES_EXPORT_TYPE && monthEnd < windowEnd;
-  const to = capsAtMonthEnd ? monthEnd : windowEnd;
-
-  if (voucherDate >= from && voucherDate <= to) {
-    return;
-  }
-
-  const range = `del ${formatArcaDateAsArgentineDate(from)} al ${formatArcaDateAsArgentineDate(to)}`;
-
-  throw new InputValidationError(
-    `La fecha del comprobante (${formatArcaDateAsArgentineDate(voucherDate)}) está fuera de lo que acepta ARCA: ${range}, hasta ${EXPORT_DATE_WINDOW_DAYS} días antes o después de hoy${capsAtMonthEnd ? ' y, en servicios, no después del fin de mes' : ''} (error 1500).`,
+  assertRules(
+    [EXPORT_VOUCHER_DATE_WINDOW_RULE],
+    { exportType: options.exportType, voucherDate: formatArcaDateAsArgentineDate(options.voucherDate) },
+    { today: options.today },
   );
 }
+
+/** Mediodia argentino (15 UTC) de una fecha ARCA: completa una fecha sin año desde ese dia. */
+function arcaDateToInstant(arcaDate: string): Date {
+  return new Date(
+    Date.UTC(Number(arcaDate.slice(0, 4)), Number(arcaDate.slice(4, 6)) - 1, Number(arcaDate.slice(6, 8)), 15),
+  );
+}
+
+/**
+ * La cotizacion escrita (`--cotizacion-moneda`): en pesos, 1; en moneda extranjera, mayor a 0 (errores 1600 y 1602,
+ * WSFEX v3.1.0). Hay monedas que valen menos de un peso, como el guarani o el peso colombiano, y una nota sobre una
+ * factura en esas monedas hereda su cotizacion. Que en pesos tenga que ser 1 es de ARCA: no acepta otra.
+ */
+export const EXPORT_EXCHANGE_RATE_RULE: ExportRule = {
+  check: (input) => {
+    const rate = input.exchangeRate;
+
+    if (typeof rate !== 'number') {
+      return undefined;
+    }
+
+    const requested = input.currencyCode?.trim() || DEFAULT_EXPORT_CURRENCY_CODE;
+
+    if (resolveBillingCurrencyCode(requested) === 'PES') {
+      return rate === LOCAL_EXCHANGE_RATE
+        ? undefined
+        : {
+            message: 'En pesos la cotización tiene que ser 1. Sacá `--cotizacion-moneda` o usá `--cm 1`.',
+            question: 'En pesos la cotización tiene que ser 1.',
+          };
+    }
+
+    return rate > 0 ? undefined : `La cotización de ${requested.toUpperCase()} tiene que ser mayor a 0.`;
+  },
+  fields: ['exchangeRate'],
+  id: 'export-exchange-rate',
+};
 
 /**
  * Acepta `ARS`, `USD` o los codigos de ARCA (`PES`, `DOL`). Sin `--moneda` la exportacion va en dolares; la moneda
@@ -137,18 +192,13 @@ export function resolveExportCurrency(
 ): ExportCurrencyResolution {
   const requested = input.currencyCode?.trim() || DEFAULT_EXPORT_CURRENCY_CODE;
   const currencyCode = resolveBillingCurrencyCode(requested);
-  const displayCode = requested.toUpperCase();
 
   if (currencyCode === 'PES') {
     if (input.sameCurrency) {
       throw new InputValidationError('`--misma-moneda` solo aplica a comprobantes en moneda extranjera.');
     }
 
-    if (typeof input.exchangeRate === 'number' && input.exchangeRate !== LOCAL_EXCHANGE_RATE) {
-      throw new InputValidationError(
-        'En pesos la cotización tiene que ser 1. Sacá `--cotizacion-moneda` o usá `--cm 1`.',
-      );
-    }
+    assertRules([EXPORT_EXCHANGE_RATE_RULE], input, {});
 
     // Con la E en pesos ARCA pide que `CanMisMonExt` no se informe (error 1605): testing lo acepta, produccion no.
     return {
@@ -159,11 +209,7 @@ export function resolveExportCurrency(
 
   const rate = input.exchangeRate;
 
-  // ARCA pide una cotizacion mayor a 0 (errores 1600 y 1602): hay monedas que valen menos de un peso, como el
-  // guarani o el peso colombiano, y una nota sobre una factura en esas monedas hereda su cotizacion.
-  if (rate !== undefined && !(rate > 0)) {
-    throw new InputValidationError(`La cotización de ${displayCode} tiene que ser mayor a 0.`);
-  }
+  assertRules([EXPORT_EXCHANGE_RATE_RULE], input, {});
 
   return {
     fields: {
@@ -253,23 +299,40 @@ export function exportEmptyTableWarning(table: 'actividades' | 'incoterms', valu
   return `ARCA devolvió vacía la tabla de ${table} de WSFEX: ${value} va sin validar y, si no es válido, ARCA lo rechaza al emitir.`;
 }
 
-export function resolveExportActivity(value: number, activities: readonly ExportActivity[] = []): number {
-  if (!Number.isInteger(value) || value < 1) {
-    throw new InputValidationError('La actividad tiene que ser un número entero positivo. Usá `--actividad`.');
-  }
-
+/**
+ * Lo que tiene de malo una actividad contra la tabla de WSFEX (error 2105), con el texto del CLI y el del asistente
+ * (`question`, sin el flag), o `undefined` si esta o si ARCA devolvio la tabla vacia. Es la misma regla para `arcli fe`
+ * (`resolveExportActivity`) y para las preguntas de la actividad de "Emitir factura E" y "Repetir" E (REV-74, #11).
+ */
+export function exportActivityProblem(
+  value: number,
+  activities: readonly ExportActivity[] = [],
+): { readonly message: string; readonly question: string } | undefined {
   if (activities.length === 0 || activities.some((activity) => activity.id === value)) {
-    return value;
+    return undefined;
   }
 
   const prefix = String(value).slice(0, 3);
   const family = activities.filter((activity) => String(activity.id).startsWith(prefix)).slice(0, 5);
   const candidates =
     family.length > 0 ? ` Las que empiezan con ${prefix} son ${family.map((activity) => activity.id).join(', ')}.` : '';
+  const problem = `La actividad ${value} no está en la tabla de actividades de WSFEX y ARCA la rechaza (error 2105).${candidates}`;
 
-  throw new InputValidationError(
-    `La actividad ${value} no está en la tabla de actividades de WSFEX y ARCA la rechaza (error 2105).${candidates} Indicá la que corresponda con \`--actividad\`.`,
-  );
+  return { message: `${problem} Indicá la que corresponda con \`--actividad\`.`, question: problem };
+}
+
+export function resolveExportActivity(value: number, activities: readonly ExportActivity[] = []): number {
+  if (!Number.isInteger(value) || value < 1) {
+    throw new InputValidationError('La actividad tiene que ser un número entero positivo. Usá `--actividad`.');
+  }
+
+  const problem = exportActivityProblem(value, activities);
+
+  if (problem) {
+    throw new InputValidationError(problem.message);
+  }
+
+  return value;
 }
 
 export function resolveExportType(value: ExportType | undefined): ExportType {

@@ -21,6 +21,32 @@ export function isForeignCurrency(input: { readonly currencyCode?: string }): bo
 }
 
 /**
+ * La cotizacion de la config (`cotizacion`, deprecada) que toma un comprobante en `currencyCode` sin `--cm`: solo en
+ * moneda extranjera y sin `--misma-moneda`. Si la config tiene otra moneda extranjera, la cotizacion es de esa: la de
+ * USD no vale para EUR. Sin `config.moneda` (o en pesos) vale para cualquier extranjera. 1 es lo mismo que no tenerla.
+ * Si devuelve `undefined`, BillingService.resolveExchangeRate consulta la oficial. La usan el CLI y el asistente.
+ */
+export function resolveConfigExchangeRate(options: {
+  readonly configCurrencyCode?: string;
+  readonly configExchangeRate?: number;
+  readonly currencyCode?: string;
+  readonly sameCurrency: boolean;
+}): number | undefined {
+  const { configCurrencyCode, configExchangeRate, currencyCode } = options;
+  // Sin `config.moneda`, `isForeignCurrency` la toma como pesos.
+  const isOtherConfigCurrency =
+    isForeignCurrency({ currencyCode: configCurrencyCode }) &&
+    resolveBillingCurrencyCode(currencyCode) !== resolveBillingCurrencyCode(configCurrencyCode);
+
+  return options.sameCurrency ||
+    !isForeignCurrency({ currencyCode }) ||
+    isOtherConfigCurrency ||
+    configExchangeRate === DEFAULT_EXCHANGE_RATE
+    ? undefined
+    : configExchangeRate;
+}
+
+/**
  * Con CanMisMonExt = S, ARCA exige la cotizacion oficial exacta (error 10038, WSFEv1 v4.7), asi que el CLI la consulta en lugar de
  * pedirsela al usuario. Sin --misma-moneda y sin --cm tambien se usa la oficial: es el default (REV-35).
  */

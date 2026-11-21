@@ -1,4 +1,5 @@
 import { ConfigService } from '../../modules/config/config.service';
+import type { ConfigOffer } from '../../modules/interactive/steps/config-offer';
 
 import { confirm, isPromptCancellation } from './prompts';
 
@@ -30,5 +31,12 @@ export async function offerSavingToConfig(
     }
   } finally {
     service.close();
+  }
+}
+
+/** Ofrece guardar lo que decidio `modules` (`cbuToSave`, `activityToSave`), si hay algo para ofrecer. */
+export async function offerConfig(offer: ConfigOffer | undefined): Promise<void> {
+  if (offer) {
+    await offerSavingToConfig(offer.message, offer.values);
   }
 }

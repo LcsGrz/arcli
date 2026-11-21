@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BillingService } from '../../../modules/billing/billing.service';
+import { buildInvoiceInput } from '../../../modules/interactive/invoice-input';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../../../modules/vouchers/voucher-history';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import { stripAnsi } from '../../../ui';
 import { runExportRepeatFlow } from '../export-repeat.flow';
-import { buildInvoiceInput } from '../invoice.flow';
 import { type RepeatState, repeatSteps, runRepeatFlow } from '../repeat.flow';
 import { type InteractiveSession, previewAndEmit } from '../session';
 
@@ -72,7 +72,7 @@ const invoice = (overrides: Partial<IssuedVoucher> = {}): IssuedVoucher => ({
 async function repeat(session: InteractiveSession) {
   const state = await runWizard(repeatSteps(session, 3, TODAY), INITIAL);
 
-  return state && buildInvoiceInput(state, session);
+  return state && buildInvoiceInput(state, session.runtime);
 }
 
 function printed(): string {
@@ -103,7 +103,7 @@ describe('repetir un comprobante', () => {
       [/comprobante querés repetir/, 'Factura C'],
       [/Cuál repetimos/, '00003-00000014'],
       [/Mismo monto/, 'Sí'],
-      [/Período del servicio/, 'Solo hoy'],
+      [/Período del servicio/, 'Un solo día'],
       [/Agregamos/, []],
     ]);
 
@@ -130,7 +130,7 @@ describe('repetir un comprobante', () => {
       [/Condición frente al IVA/, BACK],
       [/Cuál repetimos/, '00003-00000014'],
       [/Mismo monto/, 'Sí'],
-      [/Período del servicio/, 'Solo hoy'],
+      [/Período del servicio/, 'Un solo día'],
       [/Agregamos/, []],
     ]);
 
@@ -157,7 +157,7 @@ describe('repetir un comprobante', () => {
       [/Período del servicio/, BACK],
       [/Monto total:/, BACK],
       [/Mismo monto/, 'Sí'],
-      [/Período del servicio/, 'Solo hoy'],
+      [/Período del servicio/, 'Un solo día'],
       [/Agregamos/, []],
     ]);
 
@@ -183,7 +183,7 @@ describe('repetir un comprobante', () => {
       [/Mismo monto/, 'No'],
       [/Monto total en USD/, '200'],
       [/Cómo te pagan/, 'En dólares'],
-      [/Período del servicio/, 'Solo hoy'],
+      [/Período del servicio/, 'Un solo día'],
       [/Agregamos/, []],
     ]);
 
@@ -225,7 +225,7 @@ describe('repetir un comprobante', () => {
     });
   });
 
-  it('volver desde las fechas de "Otro período" vuelve a la anterior, y "Solo hoy" no deja las fechas ya elegidas', async () => {
+  it('volver desde las fechas de "Otro período" vuelve a la anterior, y "Un solo día" no deja las fechas ya elegidas', async () => {
     script = createScript([
       [/comprobante querés repetir/, 'Factura C'],
       [/Cuál repetimos/, '00003-00000014'],
@@ -236,7 +236,7 @@ describe('repetir un comprobante', () => {
       [/Servicio desde/, '10/09/2026'],
       [/Servicio hasta/, BACK],
       [/Servicio desde/, BACK],
-      [/Período del servicio/, 'Solo hoy'],
+      [/Período del servicio/, 'Un solo día'],
       [/Agregamos/, []],
     ]);
 
@@ -288,7 +288,7 @@ describe('runRepeatFlow', () => {
       [/comprobante querés repetir/, 'Factura C'],
       [/Cuál repetimos/, '00003-00000014'],
       [/Mismo monto/, 'Sí'],
-      [/Período del servicio/, 'Solo hoy'],
+      [/Período del servicio/, 'Un solo día'],
       [/Agregamos/, []],
     ]);
 
@@ -349,7 +349,7 @@ describe('repetir un comprobante con datos que ya no valen', () => {
       [/CUIT del receptor/, rejecting('30-70996581-2', ['30123456', /CUIT/])],
       [/Condición frente al IVA/, 'Responsable inscripto'],
       [/Mismo monto/, 'Sí'],
-      [/Período del servicio/, 'Solo hoy'],
+      [/Período del servicio/, 'Un solo día'],
       [/Agregamos/, []],
     ]);
 
@@ -357,7 +357,7 @@ describe('repetir un comprobante con datos que ya no valen', () => {
       invoice({ documentNumber: 30123456, documentTypeCode: 96, ivaAmount: 21, netAmount: 100 }),
     ]);
     const state = await runWizard(repeatSteps(session, 3, TODAY), INITIAL);
-    const input = buildInvoiceInput(state as NonNullable<typeof state>, session);
+    const input = buildInvoiceInput(state as NonNullable<typeof state>, session.runtime);
 
     expect(printed()).toMatch(/La factura A original fue a un DNI.*10013/s);
     expect(input).toMatchObject({ documentNumber: 30709965812, documentType: 'cuit', shortcut: 'fa' });
@@ -369,14 +369,16 @@ describe('repetir un comprobante con datos que ya no valen', () => {
       [/comprobante querés repetir/, 'Factura C'],
       [/Cuál repetimos/, '00003-00000014'],
       [/Mismo monto/, 'Sí'],
-      [/Período del servicio/, 'Solo hoy'],
+      [/Período del servicio/, 'Un solo día'],
       [/Agregamos/, []],
     ]);
 
     const session = createSession([invoice({ concept: 9 })]);
     const state = await runWizard(repeatSteps(session, 3, TODAY), INITIAL);
 
-    expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({ concept: 'servicios' });
+    expect(buildInvoiceInput(state as NonNullable<typeof state>, session.runtime)).toMatchObject({
+      concept: 'servicios',
+    });
   });
 
   it('un comprobante con datos raros (sin CAE, total 0) igual se puede elegir y pide otro monto', async () => {
@@ -385,13 +387,13 @@ describe('repetir un comprobante con datos que ya no valen', () => {
       [/Cuál repetimos/, '00003-00000014'],
       [/Mismo monto/, 'No'],
       [/Monto total/, '100'],
-      [/Período del servicio/, 'Solo hoy'],
+      [/Período del servicio/, 'Un solo día'],
       [/Agregamos/, []],
     ]);
 
     const session = createSession([invoice({ cae: undefined as never, ivaAmount: 0, netAmount: 0, total: 0 })]);
     const state = await runWizard(repeatSteps(session, 3, TODAY), INITIAL);
 
-    expect(buildInvoiceInput(state as NonNullable<typeof state>, session)).toMatchObject({ totalAmount: 100 });
+    expect(buildInvoiceInput(state as NonNullable<typeof state>, session.runtime)).toMatchObject({ totalAmount: 100 });
   });
 });

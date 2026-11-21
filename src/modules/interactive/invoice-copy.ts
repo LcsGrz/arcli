@@ -108,3 +108,21 @@ export function copiedReceiverNotice(
     ? undefined
     : `${formatVoucherSubject(voucherKind)} original fue ${COPIED_DOCUMENT_LABELS[receiver.documentType]}, pero ARCA solo admite un CUIT como receptor (error ${voucherKind.isElectronicCredit ? 10015 : 10013}). Ingresá el CUIT del receptor.`;
 }
+
+/**
+ * "Repetir" con otro monto (escrito, no el del original): el exento y el no gravado del original no se copian en valores
+ * absolutos; si tenia, se vuelven a preguntar con el opcional marcado (REV-70).
+ */
+export function asksCopiedExempt(state: {
+  readonly original?: IssuedVoucher;
+  readonly sameAmount?: boolean;
+  readonly voucherKind?: VoucherKindDefinition;
+}): boolean {
+  if (state.sameAmount === true || !state.original || !state.voucherKind) {
+    return false;
+  }
+
+  const copy = copyInvoiceAmounts(state.original, state.voucherKind.letter);
+
+  return Boolean(copy.exemptAmount || copy.untaxedAmount);
+}

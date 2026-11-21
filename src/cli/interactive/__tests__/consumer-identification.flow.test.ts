@@ -10,12 +10,14 @@ import {
   resolveReceiverIdentity,
 } from '../../../modules/interactive/consumer-identification';
 import { buildEquivalentCommand } from '../../../modules/interactive/equivalent-command';
+import { buildInvoiceInput } from '../../../modules/interactive/invoice-input';
+import { buildNoteInput } from '../../../modules/interactive/note-input';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../../../modules/vouchers/voucher-history';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import { stripAnsi } from '../../../ui';
-import { buildInvoiceInput, runInvoiceFlow } from '../invoice.flow';
-import { buildNoteInput, noteSteps } from '../note.flow';
+import { runInvoiceFlow } from '../invoice.flow';
+import { noteInputEnv, noteSteps } from '../note.flow';
 import { type RepeatState, repeatSteps } from '../repeat.flow';
 import type { InteractiveSession } from '../session';
 
@@ -356,6 +358,14 @@ describe('consumidor final con datos en el asistente (REV-66)', () => {
         [/Cotización de USD/, '1.000'],
         [/Documento del consumidor final/, 'DNI'],
         [/DNI del consumidor final/, '30123456'],
+        // Se escribio en pesos y se cambio a dólares: vuelve al monto (REV-74, #12).
+        [/Monto total en USD/, '10.000'],
+        [/Agregamos/, ['Moneda extranjera']],
+        [/Moneda del comprobante/, '(USD)'],
+        [/Cómo te pagan/, 'En pesos'],
+        [/Cotización de USD/, '1.000'],
+        [/Documento del consumidor final/, 'DNI'],
+        [/DNI del consumidor final/, '30123456'],
         [/Emitimos/, 'No, dejar sin emitir'],
       ]);
 
@@ -380,6 +390,12 @@ describe('consumidor final con datos en el asistente (REV-66)', () => {
         [/Moneda del comprobante/, '(USD)'],
         [/Cómo te pagan/, 'En pesos'],
         [/Cotización de USD/, '999'],
+        // Se escribio en pesos y se cambio a dólares: vuelve al monto (REV-74, #12).
+        [/Monto total en USD/, '10.000'],
+        [/Agregamos/, ['Moneda extranjera']],
+        [/Moneda del comprobante/, '(USD)'],
+        [/Cómo te pagan/, 'En pesos'],
+        [/Cotización de USD/, '999'],
         [/Emitimos/, 'No, dejar sin emitir'],
       ]);
 
@@ -391,6 +407,13 @@ describe('consumidor final con datos en el asistente (REV-66)', () => {
     it('cobrada en dólares: consulta la cotización oficial y, si llega al tope, lo pide', async () => {
       script = createScript([
         ...facturaC('10.000'),
+        [/Agregamos/, ['Moneda extranjera']],
+        [/Moneda del comprobante/, '(USD)'],
+        [/Cómo te pagan/, 'En dólares'],
+        [/Documento del consumidor final/, 'CUIL'],
+        [/CUIL del consumidor final/, '20-12345678-6'],
+        // Se escribio en pesos y se cambio a dólares: vuelve al monto (REV-74, #12).
+        [/Monto total en USD/, '10.000'],
         [/Agregamos/, ['Moneda extranjera']],
         [/Moneda del comprobante/, '(USD)'],
         [/Cómo te pagan/, 'En dólares'],
@@ -413,6 +436,11 @@ describe('consumidor final con datos en el asistente (REV-66)', () => {
         [/Agregamos/, ['Moneda extranjera']],
         [/Moneda del comprobante/, '(USD)'],
         [/Cómo te pagan/, 'En dólares'],
+        // Se escribio en pesos y se cambio a dólares: vuelve al monto (REV-74, #12).
+        [/Monto total en USD/, '10.000'],
+        [/Agregamos/, ['Moneda extranjera']],
+        [/Moneda del comprobante/, '(USD)'],
+        [/Cómo te pagan/, 'En dólares'],
         [/Emitimos/, 'No, dejar sin emitir'],
       ]);
 
@@ -425,6 +453,14 @@ describe('consumidor final con datos en el asistente (REV-66)', () => {
     it('ya identificado en los opcionales: no lo vuelve a pedir', async () => {
       script = createScript([
         ...facturaC('10.000'),
+        [/Agregamos/, ['Datos del consumidor final', 'Moneda extranjera']],
+        [/Documento del consumidor final/, 'DNI'],
+        [/DNI del consumidor final/, '30123456'],
+        [/Moneda del comprobante/, '(USD)'],
+        [/Cómo te pagan/, 'En pesos'],
+        [/Cotización de USD/, '1.500'],
+        // Se escribio en pesos y se cambio a dólares: vuelve al monto (REV-74, #12).
+        [/Monto total en USD/, '10.000'],
         [/Agregamos/, ['Datos del consumidor final', 'Moneda extranjera']],
         [/Documento del consumidor final/, 'DNI'],
         [/DNI del consumidor final/, '30123456'],
@@ -470,7 +506,7 @@ describe('consumidor final con datos en el asistente (REV-66)', () => {
         advanced: { currencyCode: 'ARS', sameCurrency: false },
       } satisfies RepeatState);
 
-      return state && buildInvoiceInput(state, session);
+      return state && buildInvoiceInput(state, session.runtime);
     }
 
     it('a consumidor final con un monto nuevo desde el tope: pide el documento', async () => {
@@ -481,7 +517,7 @@ describe('consumidor final con datos en el asistente (REV-66)', () => {
         [/Monto total/, '10.000.000'],
         [/Documento del consumidor final/, 'DNI'],
         [/DNI del consumidor final/, '30123456'],
-        [/Período del servicio/, 'Solo hoy'],
+        [/Período del servicio/, 'Un solo día'],
         [/Agregamos/, []],
       ]);
 
@@ -498,7 +534,7 @@ describe('consumidor final con datos en el asistente (REV-66)', () => {
         [/comprobante querés repetir/, 'Factura C'],
         [/Cuál repetimos/, '00003-00000014'],
         [/Mismo monto/, 'Sí'],
-        [/Período del servicio/, 'Solo hoy'],
+        [/Período del servicio/, 'Un solo día'],
         [/Agregamos/, []],
       ]);
 
@@ -524,7 +560,7 @@ describe('consumidor final con datos en el asistente (REV-66)', () => {
 
       const { session } = createSession([invoice()]);
       const state = await runWizard(noteSteps(session, 3), { kind: 'debito' });
-      const input = buildNoteInput(state!, session, 3);
+      const input = buildNoteInput(state!, noteInputEnv(session, 3));
 
       expect(input).toMatchObject({ documentNumber: 30123456, documentType: 'dni', ivaCondition: 'consumidor-final' });
     });
@@ -564,7 +600,7 @@ describe('consumidor final con datos en el asistente (REV-66)', () => {
       const { session } = createSession();
       const state = await runWizard(noteSteps(session, 3), { kind: 'credito' });
 
-      expect(buildNoteInput(state!, session, 3)).toMatchObject({
+      expect(buildNoteInput(state!, noteInputEnv(session, 3))).toMatchObject({
         documentNumber: 30123456,
         documentType: 'dni',
         ivaCondition: 'consumidor-final',

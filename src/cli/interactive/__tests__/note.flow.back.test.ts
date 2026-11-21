@@ -1,12 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BillingService } from '../../../modules/billing/billing.service';
+import { buildNoteInput } from '../../../modules/interactive/note-input';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../../../modules/vouchers/voucher-history';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import { stripAnsi } from '../../../ui';
 import { runExportNoteFlow } from '../export-note.flow';
-import { buildNoteInput, noteSteps, runNoteFlow } from '../note.flow';
+import { noteInputEnv, noteSteps, runNoteFlow } from '../note.flow';
 import { type InteractiveSession, previewAndEmit } from '../session';
 
 import { createScript, rejecting } from './script';
@@ -68,7 +69,7 @@ const invoice = (overrides: Partial<IssuedVoucher> = {}): IssuedVoucher => ({
 async function note(session: InteractiveSession, kind: 'credito' | 'debito' = 'credito') {
   const state = await runWizard(noteSteps(session, 3), { kind });
 
-  return state && buildNoteInput(state, session, 3);
+  return state && buildNoteInput(state, noteInputEnv(session, 3));
 }
 
 function printed(): string {
@@ -181,7 +182,7 @@ describe('notas: volver y cambiar respuestas', () => {
     expect(input?.associatedPeriod).toBeUndefined();
     expect(input).toMatchObject({ associatedVoucher: { numero: 14 }, shortcut: 'ncc' });
     // REV-60: el desde arranca escrito y la asociacion, marcada.
-    expect(script.askTextStep.mock.calls[3]?.[1]).toMatchObject({ previousAnswer: '1/9' });
+    expect(script.askTextStep.mock.calls[3]?.[1]).toMatchObject({ previousAnswer: '01/09/2026' });
     expect(
       script.chooseStep.mock.calls.filter(([message]) => /A qué la asociamos/.test(message)).map((call) => call[2]),
     ).toEqual([undefined, 'periodo', 'periodo']);
@@ -224,7 +225,7 @@ describe('notas: volver y cambiar respuestas', () => {
     ]);
 
     expect(await note(createSession())).toMatchObject({
-      associatedPeriod: { desde: '1/9', hasta: '30/9' },
+      associatedPeriod: { desde: '01/09/2026', hasta: '30/09/2026' },
       concept: 'productos',
       documentNumber: 30709965812,
       ivaRate: '10.5',

@@ -1,8 +1,14 @@
-import { formatArcaDateAsArgentineDate, parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
+import {
+  formatArcaDateAsArgentineDate,
+  formatDateAsArcaDate,
+  parseArgentineDateInputAsArcaDate,
+} from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
+import { assertRules } from '../../lib/rules/rules';
 import type { ICbtesAsoc } from '../../services/arca/arca-sdk.types';
 
 import { formatVoucherLabel, formatVoucherSubject, formatVoucherWithArticle } from './billing.mappers';
+import { ASSOCIATED_NOT_AFTER_NOTE_RULE } from './billing.rules';
 import type { BillingCommandInput } from './billing.schemas';
 import type { VoucherFamily, VoucherKindDefinition } from './billing.types';
 import { getVoucherKindByArcaType, getVoucherKindByFamilyAndLetter } from './voucher-kind-map';
@@ -64,7 +70,7 @@ export function resolveAssociatedVouchers(options: ResolveAssociatedVoucherOptio
   }
 
   // En una nota FCE sin `--afecha` la fecha sale de ARCA (checkAssociatedInArca, antes de la vista previa).
-  const associatedDate = resolveAssociatedVoucherDate(associatedVoucher.fecha, billingDate, voucherKind);
+  const associatedDate = resolveAssociatedVoucherDate(input, billingDate, voucherKind);
 
   return [
     {
@@ -98,25 +104,27 @@ function resolveAssociatedVoucherKind(
 }
 
 function resolveAssociatedVoucherDate(
-  rawDate: string | undefined,
+  input: BillingCommandInput,
   billingDate: string,
   voucherKind: VoucherKindDefinition,
 ): string | undefined {
+  const rawDate = input.associatedVoucher?.fecha;
+
   if (!rawDate) {
     return undefined;
   }
 
-  const associatedDate = parseArgentineDateInputAsArcaDate(rawDate);
+  // La misma regla que el asistente al preguntar la fecha del asociado o la de la nota.
+  assertRules(
+    [ASSOCIATED_NOT_AFTER_NOTE_RULE],
+    { ...input, billingDate: formatArcaDateAsArgentineDate(billingDate) },
+    {
+      today: formatDateAsArcaDate(new Date()),
+      voucherKind,
+    },
+  );
 
-  // Propia: en FCE es la 10159, pero en las notas comunes ARCA acepta un asociado posterior del mismo mes (10210, WSFEv1
-  // v4.7) y testing aprobo una NC B anterior a su factura. Una nota anterior a lo que ajusta es casi seguro un error.
-  if (associatedDate > billingDate) {
-    throw new InputValidationError(
-      `La fecha del comprobante asociado (${formatArcaDateAsArgentineDate(associatedDate)}) no puede ser posterior a la de ${formatVoucherWithArticle(voucherKind)} (${formatArcaDateAsArgentineDate(billingDate)}).`,
-    );
-  }
-
-  return associatedDate;
+  return parseArgentineDateInputAsArcaDate(rawDate);
 }
 
 function resolveAssociatedVoucherType(

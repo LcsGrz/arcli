@@ -1,8 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { formatDateAsArcaDate } from '../../../lib/dates/arca-date';
 import { getVoucherKindByShortcut } from '../../../modules/billing/voucher-kind-map';
-import { BACK } from '../../../modules/interactive/wizard';
-import { askAdvancedOptions, askPaymentCurrency, initialAdvancedOptions } from '../advanced-options';
+import {
+  type AdvancedOptions,
+  type BillingOptionalsContext,
+  initialAdvancedOptions,
+} from '../../../modules/interactive/billing-optionals';
+import { BACK, runWizard } from '../../../modules/interactive/wizard';
+import { billingOptionalsStep } from '../advanced-options';
+import { askPaymentCurrency } from '../steps/currency';
 
 import { createScript, rejecting } from './script';
 
@@ -17,11 +24,35 @@ vi.mock('../prompts', () => ({
 const OPTIONALS = /Agregamos/;
 const PESOS = { currencyCode: 'ARS', sameCurrency: false } as const;
 
-function context(shortcut: string, overrides: Record<string, unknown> = {}) {
+/** El grupo de opcionales solo, como un asistente de un paso: BACK si se vuelve desde la seleccion. */
+async function askAdvancedOptions(initial: AdvancedOptions, context: BillingOptionalsContext) {
+  const state = await runWizard(
+    [
+      billingOptionalsStep<{ readonly advanced: AdvancedOptions }>({
+        context: () => context,
+        name: 'opcionales',
+        read: (current) => current.advanced,
+        write: (advanced) => ({ advanced }),
+      }),
+    ],
+    { advanced: initial },
+  );
+
+  return state ? state.advanced : BACK;
+}
+
+function context(shortcut: string, overrides: Record<string, unknown> = {}): BillingOptionalsContext {
+  const voucherKind = getVoucherKindByShortcut(shortcut as never)!;
+
   return {
     concept: 'servicios' as const,
     defaultIvaRate: '21' as const,
-    voucherKind: getVoucherKindByShortcut(shortcut as never)!,
+    // Las reglas con el comprobante solo: lo que escribe cada pregunta y lo demas como el CLI sin flags.
+    rules: {
+      context: { today: formatDateAsArcaDate(new Date()), voucherKind },
+      draft: (patch) => ({ concept: 'servicios', shortcut: voucherKind.shortcut, ...patch }),
+    },
+    voucherKind,
     ...overrides,
   };
 }
@@ -296,6 +327,28 @@ describe('askAdvancedOptions: volver desde cada opcional', () => {
     ]);
   });
 
+  // #8 de la auditoria del 19/11: sin fechas de servicio, el CLI usa la fecha del comprobante, no hoy.
+  it('"Período del servicio" sin fechas describe la fecha del comprobante elegida', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-18T12:00:00-03:00'));
+    script = createScript([
+      [OPTIONALS, ['Fecha']],
+      [/Fecha del comprobante/, '14/11/2026'],
+      [OPTIONALS, ['Fecha']],
+      [/Fecha del comprobante/, BACK],
+      [OPTIONALS, []],
+    ]);
+
+    // Una segunda vuelta muestra lo elegido; la primera, sin fecha, "hoy".
+    const first = await askAdvancedOptions(PESOS, context('fc'));
+
+    await askAdvancedOptions(first as typeof PESOS, context('fc'));
+
+    expect(descriptions(0)['Período del servicio']).toBe('hoy');
+    expect(descriptions(1)['Período del servicio']).toBe('14/11/2026');
+    expect(descriptions(2)['Período del servicio']).toBe('14/11/2026');
+  });
+
   it('"Volver" en la seleccion vuelve al paso anterior', async () => {
     script = createScript([[OPTIONALS, BACK]]);
 
@@ -408,9 +461,15 @@ describe('askAdvancedOptions: lo respondido se ve en la seleccion', () => {
     ]);
 
     // Una segunda vuelta muestra lo elegido.
-    const first = await askAdvancedOptions(PESOS, context('fcea', { fixedCurrency: true }));
+    const first = await askAdvancedOptions(
+      PESOS,
+      context('fcea', { currencyLock: { code: 'USD', reason: 'El monto es en USD.' } }),
+    );
 
-    await askAdvancedOptions(first as typeof PESOS, context('fcea', { fixedCurrency: true }));
+    await askAdvancedOptions(
+      first as typeof PESOS,
+      context('fcea', { currencyLock: { code: 'USD', reason: 'El monto es en USD.' } }),
+    );
 
     expect(Object.keys(descriptions(0))).not.toContain('Moneda extranjera');
     expect(descriptions(1)).toMatchObject({ 'Alícuota de IVA': '10,5%', 'Modalidad de transferencia': 'ADC' });

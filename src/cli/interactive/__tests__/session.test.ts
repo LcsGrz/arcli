@@ -92,6 +92,29 @@ describe('previewAndEmit', () => {
     expect(session.createVoucher).not.toHaveBeenCalled();
   });
 
+  // #11 y #16: lo escrito a mano se ofrece guardar solo si ARCA autorizo el comprobante.
+  it('devuelve si ARCA lo autorizo: aprobado con CAE si, rechazado no, sin emitir no', async () => {
+    const session = createSession('testing');
+
+    chooseOneMock.mockResolvedValue('emitir');
+    session.createVoucher.mockResolvedValueOnce({
+      cae: '86400940834693',
+      caeFchVto: '20261130',
+      response: { FeDetResp: { FECAEDetResponse: [{ Resultado: 'A' }] } },
+    });
+    await expect(previewAndEmit(session, input)).resolves.toBe(true);
+
+    session.createVoucher.mockResolvedValueOnce({
+      cae: '',
+      caeFchVto: '',
+      response: { FeDetResp: { FECAEDetResponse: [{ Resultado: 'R' }] } },
+    });
+    await expect(previewAndEmit(session, input)).resolves.toBe(false);
+
+    chooseOneMock.mockResolvedValue(false);
+    await expect(previewAndEmit(session, input)).resolves.toBe(false);
+  });
+
   it('emite en testing con una sola confirmacion', async () => {
     const session = createSession('testing');
 
@@ -119,10 +142,23 @@ describe('previewAndEmit', () => {
           { name: 'No, dejar sin emitir', value: false },
         ],
         pdf === 'siempre' ? 'emitir-con-pdf' : 'emitir',
-        { escapeLabel: 'no emitir', escapeValue: false },
+        // Esc vuelve a la ultima pregunta del asistente (TUI-15); "No, dejar sin emitir" sigue siendo no.
+        { escapeLabel: 'volver', escapeValue: BACK },
       );
     },
   );
+
+  it('Esc en "¿Emitimos?" devuelve BACK sin emitir ni avisar que no se emitió nada (TUI-15)', async () => {
+    const session = createSession('testing');
+    const write = vi.mocked(process.stdout.write);
+
+    chooseOneMock.mockResolvedValueOnce(BACK);
+    write.mockClear();
+
+    await expect(previewAndEmit(session, input)).resolves.toBe(BACK);
+    expect(session.createVoucher).not.toHaveBeenCalled();
+    expect(write.mock.calls.join('')).not.toContain('No se emitió nada');
+  });
 
   it('emitir y generar el PDF lo genera aunque la config diga `nunca`', async () => {
     const session = createSession('testing', 3, 'nunca');

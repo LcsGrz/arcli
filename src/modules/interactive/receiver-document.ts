@@ -1,5 +1,5 @@
 import { CONSUMER_DOCUMENT_NUMBER } from '../billing/arca-codes';
-import type { BillingCommandInput } from '../billing/billing.schemas';
+import type { BillingCommandInput, BillingIvaCondition } from '../billing/billing.schemas';
 
 export { CONSUMER_DOCUMENT_NUMBER };
 
@@ -13,4 +13,29 @@ export function receiverDocumentNumber(receiver: {
   readonly documentType?: BillingCommandInput['documentType'];
 }): number | undefined {
   return receiver.documentType === 'consumidor-final' ? CONSUMER_DOCUMENT_NUMBER : receiver.documentNumber;
+}
+
+/** Lo que el padron dijo del CUIT del receptor, para no volver a consultarlo si el usuario vuelve atras. */
+export interface ReceiverFromPadron {
+  readonly address?: string;
+  readonly cuit: number;
+  readonly ivaCondition?: BillingIvaCondition;
+  readonly name?: string;
+}
+
+/** Nombre, domicilio y origen del IVA para la entrada del CLI: el PDF y la vista previa los muestran. */
+export function receiverInputFields(state: {
+  readonly documentNumber?: number;
+  readonly documentType?: BillingCommandInput['documentType'];
+  readonly ivaCondition?: BillingIvaCondition;
+  readonly receiver?: ReceiverFromPadron;
+}): Pick<BillingCommandInput, 'ivaConditionSource' | 'receiverAddress' | 'receiverName'> {
+  const receiver =
+    state.documentType === 'cuit' && state.receiver?.cuit === state.documentNumber ? state.receiver : undefined;
+
+  return {
+    ivaConditionSource: receiver?.ivaCondition && receiver.ivaCondition === state.ivaCondition ? 'padron' : undefined,
+    receiverAddress: receiver?.address,
+    receiverName: receiver?.name,
+  };
 }

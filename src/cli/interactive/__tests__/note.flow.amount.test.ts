@@ -3,9 +3,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BillingService } from '../../../modules/billing/billing.service';
 import type { VoucherKindDefinition, VoucherShortcut } from '../../../modules/billing/billing.types';
 import { getVoucherKindByShortcut } from '../../../modules/billing/voucher-kind-map';
+import type { NoteState } from '../../../modules/interactive/note-input';
+import type { StepMemo } from '../../../modules/interactive/wizard';
 import type { IssuedVoucher } from '../../../modules/vouchers/voucher-history';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
-import { type NoteState, noteSteps } from '../note.flow';
+import { noteSteps } from '../note.flow';
 import type { InteractiveSession } from '../session';
 
 import { createScript } from './script';
@@ -47,7 +49,10 @@ function amountStep(shortcut: VoucherShortcut) {
     target: 'factura',
   };
 
-  return () => step?.run(state);
+  // Fuera de `runWizard`: el paso no recuerda nada.
+  const memo: StepMemo = { get: () => undefined, set: () => undefined };
+
+  return () => step?.run(state, { memo });
 }
 
 afterEach(() => {
@@ -69,7 +74,11 @@ describe.each<VoucherShortcut>(['fa', 'fb', 'fc', 'fcea', 'fceb', 'fcec', 'rc'])
     it('acepta el total justo', async () => {
       script = createScript([[/Monto de la nota de crédito/, '121']]);
 
-      await expect(amountStep(shortcut)()).resolves.toEqual({ annulsTotal: false, totalAmount: 121 });
+      await expect(amountStep(shortcut)()).resolves.toEqual({
+        amountCurrency: 'ARS',
+        annulsTotal: false,
+        totalAmount: 121,
+      });
     });
   },
 );

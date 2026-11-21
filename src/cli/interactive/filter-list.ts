@@ -10,9 +10,7 @@ import {
   useState,
 } from '@inquirer/core';
 
-import { bold, colorize, uiSymbol } from '../../ui';
-
-import { scrollHint, scrollWindow } from './scroll-window';
+import { bold, colorize, scrollHint, scrollWindow, uiSymbol } from '../../ui';
 
 type HelpKey = [string, string];
 

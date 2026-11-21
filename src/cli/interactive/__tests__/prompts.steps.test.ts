@@ -15,11 +15,14 @@ import {
   chooseOne,
   chooseStep,
   chooseStepWhileLoading,
+  editRowsStep,
   eraseLastAnswer,
   fitPageSize,
 } from '../prompts';
+import { rowActionsList } from '../row-actions-list';
 
 vi.mock('../list-select', () => ({ listSelect: vi.fn() }));
+vi.mock('../row-actions-list', () => ({ rowActionsList: vi.fn() }));
 vi.mock('../multi-select', () => ({ multiSelect: vi.fn() }));
 vi.mock('../filter-list', () => ({ filterList: vi.fn() }));
 vi.mock('../block-pager', () => ({ blockPager: vi.fn() }));
@@ -28,6 +31,7 @@ const selectMock = vi.mocked(listSelect);
 const multiMock = vi.mocked(multiSelect);
 const filterMock = vi.mocked(filterList);
 const pagerMock = vi.mocked(blockPager);
+const rowActionsMock = vi.mocked(rowActionsList);
 
 /** Un prompt que espera hasta que lo aborten (Esc o fin de la carga), como el real. */
 function waitForAbort(_config: unknown, context?: { signal?: AbortSignal }) {
@@ -288,6 +292,43 @@ describe('prompts de paso', () => {
 
       filterMock.mockImplementationOnce(waitForAbort);
       const answer = chooseFromFilterList('Moneda', rows, { pageSize: 10 });
+
+      pressEscape();
+      expect(await answer).toBe(BACK);
+    });
+  });
+
+  describe('editRowsStep (NAV-10)', () => {
+    const rows = [{ detail: '1 unidades x 500 USD', title: 'Flete', total: '500 USD' }];
+    const options = { addLabel: '+ Agregar ítem', minRows: 1, minRowsNotice: 'Queda al menos uno.' };
+
+    it('devuelve las marcas y deja en la línea lo que se aplicó', async () => {
+      rowActionsMock.mockResolvedValueOnce({ add: true, edit: [0], remove: [1, 2] } as never);
+      expect(await editRowsStep('Ítems', rows, options)).toEqual({ add: true, edit: [0], remove: [1, 2] });
+      expect(rowActionsMock.mock.calls[0]?.[0]).toMatchObject({ ...options, backLabel: '← Volver', rows });
+
+      rowActionsMock.mockResolvedValueOnce({ add: false, edit: [], remove: [] } as never);
+      await editRowsStep('Ítems', rows, options);
+      rowActionsMock.mockResolvedValueOnce({ add: false, edit: [0, 1], remove: [] } as never);
+      await editRowsStep('Ítems', rows, options);
+      rowActionsMock.mockResolvedValueOnce({ add: true, edit: [], remove: [] } as never);
+      await editRowsStep('Ítems', rows, options);
+
+      expect(writtenLines(write)).toEqual([
+        '✔ Ítems 1 para modificar, 2 para borrar y uno nuevo\n',
+        '✔ Ítems sin cambios\n',
+        '✔ Ítems 2 para modificar\n',
+        '✔ Ítems uno nuevo\n',
+      ]);
+    });
+
+    it('"Volver" y Esc vuelven al paso anterior', async () => {
+      rowActionsMock.mockResolvedValueOnce(BACK as never);
+      expect(await editRowsStep('Ítems', rows, options)).toBe(BACK);
+      expect(writtenLines(write)).toEqual(['✔ Ítems ← Volver\n']);
+
+      rowActionsMock.mockImplementationOnce(waitForAbort);
+      const answer = editRowsStep('Ítems', rows, options);
 
       pressEscape();
       expect(await answer).toBe(BACK);

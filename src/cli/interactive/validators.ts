@@ -8,9 +8,10 @@ import { describeInvalidCbu, parseCbu } from '../../lib/identity/cbu';
 import { parseCuit } from '../../lib/identity/cuit';
 import { EXCHANGE_RATE_DECIMALS, parseArgentineAmount } from '../../lib/numbers/argentine-amount';
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
+import { findRuleFailure } from '../../lib/rules/rules';
+import { BILLING_DATE_WINDOW_RULE } from '../../modules/billing/billing.rules';
 import type { BillingConcept } from '../../modules/billing/billing.schemas';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
-import { validateBillingDateWindow } from '../../modules/billing/billing.validation';
 import { assertExportVoucherDate } from '../../modules/export/export.mappers';
 import type { ExportType } from '../../modules/export/export.types';
 
@@ -76,22 +77,13 @@ export function validateBillingDate(
     return valid;
   }
 
-  try {
-    validateBillingDateWindow(
-      parseArgentineDateInputAsArcaDate(value, now),
-      formatDateAsArcaDate(now),
-      concept,
-      voucherKind,
-    );
+  const found = findRuleFailure(
+    [BILLING_DATE_WINDOW_RULE],
+    { billingDate: value, concept },
+    { today: formatDateAsArcaDate(now), voucherKind },
+  );
 
-    return true;
-  } catch (error) {
-    if (error instanceof InputValidationError) {
-      return error.message;
-    }
-
-    throw error;
-  }
+  return found ? (found.failure.question ?? found.failure.message) : true;
 }
 
 /**
@@ -151,4 +143,17 @@ export function validateExchangeRate(value: string): string | true {
   }
 
   return result.value !== 1 ? true : 'Ingresá la cotización acordada, por ejemplo 1200 o 1.185,50.';
+}
+
+/** Cantidad o precio de un item de la E, como `--item`: hasta seis decimales y mayor a 0. */
+export function validateItemNumber(label: string): (value: string) => string | true {
+  return (value) => {
+    const parsed = parseArgentineAmount(value, { maxDecimals: EXCHANGE_RATE_DECIMALS });
+
+    if (!parsed.ok) {
+      return `${label} no tiene un formato válido: ${parsed.reason}.`;
+    }
+
+    return parsed.value > 0 ? true : `${label} tiene que ser mayor a 0.`;
+  };
 }

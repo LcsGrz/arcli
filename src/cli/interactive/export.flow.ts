@@ -1,18 +1,26 @@
-import { parseStrictInteger } from '../../lib/numbers/strict-integer';
+import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { formatEmissionQuestion, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import { DEFAULT_EXPORT_PAYMENT_TERMS, resolveExportDestinationCountry } from '../../modules/export/export.mappers';
 import { formatExportResultAsText } from '../../modules/export/export.presenter';
 import { ExportService } from '../../modules/export/export.service';
 import {
   EXPORT_VOUCHER_KIND,
+  type ExportActivity,
   type ExportCountry,
-  type ExportCountryCuit,
   type ExportGateway,
   type ExportType,
   type ExportVoucherInput,
 } from '../../modules/export/export.types';
-import { amountInputText, parseAmountInput } from '../../modules/interactive/amount-input';
 import { buildExportEquivalentCommand } from '../../modules/interactive/export-equivalent-command';
+import {
+  buildExportInput,
+  exportFinalize,
+  type ExportFlowState,
+  exportRuleScope,
+} from '../../modules/interactive/export-input';
+import { isCountryCuitMissing } from '../../modules/interactive/export-optionals';
+import { activityToSave, isAuthorized } from '../../modules/interactive/steps/config-offer';
+import { fieldLens } from '../../modules/interactive/steps/lens';
 import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { formatPdfOutcomeAsText } from '../../modules/pdf/pdf.presenter';
 import { planEmissionConfirmation, resolvePdfAfterConfirmation } from '../../modules/pdf/pdf-decision';
@@ -21,55 +29,33 @@ import { noticePanel, writeTerminalOutput } from '../../ui';
 import { attachExportPdf } from '../commands/export.command.pdf';
 import { withSpinner } from '../spinner';
 
-import {
-  askCountryCuit,
-  askExportOptions,
-  type ExportOptions,
-  isCountryCuitMissing,
-  validateExportPaymentDate,
-  validateExportText,
-} from './export-options';
+import { askCountryCuit, exportOptionalsStep, validateExportText } from './export-options';
+import { withFinalizeNotice } from './finalize-notice';
+import { exportExchangeRateLoader } from './official-exchange-rate';
 import { completeIssuer } from './pdf.flow';
 import { askTextStep, chooseStep, isPromptCancellation } from './prompts';
-import { offerSavingToConfig } from './save-to-config';
-import { confirmEmission, formatEquivalentCommand, type InteractiveSession } from './session';
-import { validateAmount, validatePositiveInteger } from './validators';
-
-interface ExportFlowState {
-  readonly activity?: number;
-  readonly amount?: number;
-  readonly clientAddress?: string;
-  readonly clientName?: string;
-  readonly clientTaxId?: string;
-  /** El destino como esta en la tabla de ARCA, para el CUIT del pais. */
-  readonly country?: ExportCountry;
-  /** ARCA no publica un CUIT para el destino: hay que pedirlo (`--cuit-pais`). */
-  readonly countryCuitMissing?: boolean;
-  readonly currencyCode?: 'DOL' | 'PES';
-  readonly description?: string;
-  readonly destinationCountry?: string;
-  readonly exportType?: ExportType;
-  readonly incoterm?: string;
-  /** Nombre del incoterm en la tabla de ARCA: la descripcion que va si no se escribe otra. */
-  readonly incotermName?: string;
-  readonly options: ExportOptions;
-  readonly paymentDate?: string;
-  readonly paymentTerms?: string;
-  readonly permits?: readonly string[];
-  readonly sameCurrency?: boolean;
-}
-
-/**
- * Lo que el asistente necesita de WSFEX antes de preguntar: paises para validar el destino, sus CUIT y la tabla de
- * actividades.
- */
-interface ExportTables {
-  readonly activities: ReadonlySet<number>;
-  readonly countries: readonly ExportCountry[];
-  readonly countryCuits: readonly ExportCountryCuit[];
-}
+import { offerConfig } from './save-to-config';
+import {
+  confirmEmission,
+  emissionStep,
+  formatEquivalentCommand,
+  type InteractiveSession,
+  rejectedAsBack,
+} from './session';
+import {
+  activitiesLoader,
+  activityStep,
+  exportExchangeRateStep,
+  exportPaymentDateStep,
+  type ExportTables,
+  loadExportTables,
+} from './steps/export';
+import { exportItemsStep } from './steps/export-items';
 
 interface ExportFlowLoaders {
+  readonly activities: () => Promise<readonly ExportActivity[]>;
+  /** La cotizacion de aduana con la que arranca la pregunta (`exportExchangeRateLoader`). */
+  readonly exchangeRate: ReturnType<typeof exportExchangeRateLoader>;
   readonly incoterms: () => Promise<ReadonlyArray<{ readonly code: string; readonly name: string }>>;
   readonly languages: ExportGateway['getLanguages'];
   readonly units: ExportGateway['getUnits'];
@@ -87,22 +73,6 @@ function validateCountry(countries: readonly ExportCountry[]): (value: string) =
   };
 }
 
-/** Vacio (la E va sin actividad) o un entero positivo que, si ARCA devolvio la tabla, esta en las de WSFEX. */
-function validateActivity(allowed: ReadonlySet<number>): (value: string) => string | true {
-  return (value) => {
-    if (!value.trim()) {
-      return true;
-    }
-
-    const valid = validatePositiveInteger('La actividad')(value);
-    const number = parseStrictInteger(value) as number;
-
-    return valid !== true || allowed.size === 0 || allowed.has(number)
-      ? valid
-      : `${number} no está en la tabla de actividades de WSFEX (ARCA la rechaza con el error 2105).`;
-  };
-}
-
 const optional = (value: string): string | undefined => value.trim() || undefined;
 
 /**
@@ -110,8 +80,8 @@ const optional = (value: string): string | undefined => value.trim() || undefine
  * permisos: los que se informan ya existen en ARCA (en la factura van con `--permiso-existente`).
  */
 export async function askPermitsStep(
-  _state?: unknown,
-  previous?: { readonly permits?: readonly string[] },
+  _state: unknown,
+  { previous }: { readonly previous?: { readonly permits?: readonly string[] } | undefined },
 ): Promise<typeof BACK | { readonly permits: readonly string[] | undefined }> {
   const answer = await askTextStep('Permisos de embarque ya existentes, separados por coma (Enter si no hay):', {
     previousAnswer: previous?.permits?.join(', '),
@@ -135,7 +105,7 @@ function exportSteps(
   return [
     {
       name: 'cliente',
-      run: async (_state, previous) => {
+      run: async (_state, { previous }) => {
         const answer = await askTextStep('Nombre o razón social del cliente del exterior:', {
           previousAnswer: previous?.clientName,
           validate: validateExportText('clientName', 'El cliente'),
@@ -146,7 +116,7 @@ function exportSteps(
     },
     {
       name: 'domicilio',
-      run: async (_state, previous) => {
+      run: async (_state, { previous }) => {
         const answer = await askTextStep('Domicilio del cliente:', {
           previousAnswer: previous?.clientAddress,
           validate: validateExportText('clientAddress', 'El domicilio'),
@@ -157,7 +127,7 @@ function exportSteps(
     },
     {
       name: 'pais',
-      run: async (_state, previous) => {
+      run: async (_state, { previous }) => {
         const answer = await askTextStep(
           'País de destino (nombre o código de ARCA, por ejemplo ESTADOS UNIDOS o 212):',
           {
@@ -182,12 +152,13 @@ function exportSteps(
     {
       // ARCA pide el CUIT del pais o el ID impositivo (error 1580): si se deja vacio, el ID impositivo es obligatorio.
       name: 'cuit-pais',
-      run: async (state) => {
+      run: async (state, { previous }) => {
         const country = requireStepValue(state.country, 'country');
+        // Al volver arranca escrito, si es del destino (REV-74, #10).
         const cuit = await askCountryCuit(
           { country, countryCuits: tables.countryCuits },
           `ARCA no tiene un CUIT publicado para ${country.name}. Escribí el CUIT del país, buscalo por nombre o dejalo vacío para informar solo el ID impositivo del cliente:`,
-          { optional: true },
+          { optional: true, previous: previous?.options?.clientCountryCuit },
         );
 
         return cuit === BACK ? BACK : { options: { ...state.options, clientCountryCuit: cuit } };
@@ -201,7 +172,7 @@ function exportSteps(
         { fields: ['options.clientCountryCuit'], step: 'cuit-pais' },
       ],
       name: 'id-impositivo',
-      run: async (state, previous) => {
+      run: async (state, { previous }) => {
         // Sin CUIT del pais, ARCA pide el ID impositivo (error 1580).
         const required = state.countryCuitMissing && state.options.clientCountryCuit === undefined;
         const answer = await askTextStep(
@@ -219,7 +190,7 @@ function exportSteps(
     },
     {
       name: 'tipo',
-      run: async (_state, previous) => {
+      run: async (_state, { previous }) => {
         const exportType = await chooseStep<ExportType>(
           '¿Qué exportás?',
           [
@@ -234,31 +205,11 @@ function exportSteps(
         return exportType === BACK ? BACK : { exportType, incoterm: undefined, paymentDate: undefined };
       },
     },
-    {
-      name: 'monto',
-      run: async (_state, previous) => {
-        const answer = await askTextStep('Monto total:', {
-          previousAnswer: amountInputText(previous?.amount),
-          validate: validateAmount,
-        });
-
-        return answer === BACK ? BACK : { amount: parseAmountInput(answer) };
-      },
-    },
-    {
-      name: 'descripcion',
-      run: async (_state, previous) => {
-        const answer = await askTextStep('Descripción del servicio o producto (Enter para "Según detalle"):', {
-          previousAnswer: previous?.description,
-          validate: validateExportText('description'),
-        });
-
-        return answer === BACK ? BACK : { description: optional(answer) };
-      },
-    },
+    // La moneda antes del monto: la pregunta del monto la nombra (REV-74, #12) y, si cambia, el monto se vuelve a
+    // escribir.
     {
       name: 'moneda',
-      run: async (_state, previous) => {
+      run: async (_state, { previous }) => {
         const currencyCode = await chooseStep<'DOL' | 'PES'>(
           '¿En qué moneda facturás?',
           [
@@ -275,7 +226,7 @@ function exportSteps(
     },
     {
       name: 'misma-moneda',
-      run: async (_state, previous) => {
+      run: async (_state, { previous }) => {
         const sameCurrency = await chooseStep(
           '¿Te pagan en dólares?',
           [
@@ -289,9 +240,35 @@ function exportSteps(
       },
       skip: (state) => state.currencyCode === 'PES',
     },
+    // Despues de la moneda, arrancando con la de aduana de ARCA, como "En pesos" en A, B y C (NAV-9).
+    exportExchangeRateStep<ExportFlowState>({
+      dependsOn: ['tipo', 'moneda', 'misma-moneda'],
+      exchangeRate: fieldLens('exchangeRate'),
+      rules: (state) => exportRuleScope(state, { configuredActivity, today: formatDateAsArcaDate(new Date()) }),
+      suggestion: (state) =>
+        loaders.exchangeRate({
+          currencyCode: state.currencyCode ?? 'DOL',
+          exportType: requireStepValue(state.exportType, 'exportType'),
+          sameCurrency: state.sameCurrency,
+          voucherDate: state.options.voucherDate,
+        }),
+      voucher: (state) => ({
+        currencyCode: state.currencyCode ?? 'DOL',
+        exportType: requireStepValue(state.exportType, 'exportType'),
+        sameCurrency: state.sameCurrency,
+      }),
+    }),
+    // Sin "Monto total": el total es la suma de los items, que ARCA exige (NAV-10). Los precios van en la moneda: si
+    // cambia, los items se conservan y el paso avisa que hay que revisar los importes.
+    exportItemsStep<ExportFlowState>({
+      currency: (state) => state.currencyCode ?? 'DOL',
+      items: fieldLens('items'),
+      units: loaders.units,
+      voucher: formatVoucherWithArticle(EXPORT_VOUCHER_KIND),
+    }),
     {
       name: 'incoterm',
-      run: async (_state, previous) => {
+      run: async (_state, { previous }) => {
         const list = await withSpinner('Consultando incoterms...', loaders.incoterms);
 
         // ARCA devolvio la tabla vacia: se escribe a mano y va sin validar, como la actividad (el servicio avisa).
@@ -327,7 +304,7 @@ function exportSteps(
     },
     {
       name: 'forma-pago',
-      run: async (_state, previous) => {
+      run: async (_state, { previous }) => {
         const answer = await askTextStep('Forma de pago:', {
           defaultValue: DEFAULT_EXPORT_PAYMENT_TERMS,
           previousAnswer: previous?.paymentTerms,
@@ -337,81 +314,61 @@ function exportSteps(
         return answer === BACK ? BACK : { paymentTerms: optional(answer) };
       },
     },
-    {
-      name: 'actividad',
-      run: async (_state, previous) => {
-        // Opcional: ARCA no exige `Actividades` (la 2100 solo prohibe el bloque vacio).
-        const answer = await askTextStep(
-          'Código de actividad de WSFEX, por ejemplo 620100 (Enter para no informarla):',
-          {
-            previousAnswer: previous?.activity === undefined ? undefined : String(previous.activity),
-            validate: validateActivity(tables.activities),
-          },
-        );
-
-        return answer === BACK ? BACK : { activity: answer.trim() ? parseStrictInteger(answer) : undefined };
-      },
+    activityStep<ExportFlowState>({
+      activities: loaders.activities,
+      activity: fieldLens('activity'),
       skip: () => configuredActivity !== undefined,
-    },
-    {
-      name: 'opcionales',
-      run: async (state) => {
-        const country = requireStepValue(state.country, 'country');
+    }),
+    // Antes de los opcionales (TUI-22): la fecha del comprobante se elige despues, y `finalize` vuelve aca si la deja
+    // anterior.
+    exportPaymentDateStep<ExportFlowState>((state) => state.exportType),
+    exportOptionalsStep<ExportFlowState>({
+      context: (state) => {
         const currencyCode = state.currencyCode ?? 'DOL';
-        const options = await askExportOptions(state.options, {
-          amount: requireStepValue(state.amount, 'amount'),
-          countryCuit: { country, countryCuits: tables.countryCuits },
+
+        return {
+          countryCuit: { country: requireStepValue(state.country, 'country'), countryCuits: tables.countryCuits },
           currencyCode,
-          // En servicios y con el pago en dolares ARCA exige la suya (2053, 1604): no se ofrece otra.
-          defaultExchangeRate:
-            currencyCode === 'PES' || state.exportType === 2 || state.sameCurrency
-              ? undefined
-              : 'la de aduana que publica ARCA',
           defaultLanguage: 'Español',
           exportType: requireStepValue(state.exportType, 'exportType'),
           incoterm: state.incoterm ? { code: state.incoterm, description: state.incotermName } : undefined,
           languages: loaders.languages,
-          sameCurrency: state.sameCurrency,
-          units: loaders.units,
-        });
-
-        return options === BACK ? BACK : { options };
+          rules: exportRuleScope(state, { configuredActivity, today: formatDateAsArcaDate(new Date()) }),
+        };
       },
-    },
-    {
-      // Despues de los opcionales: no puede ser anterior a la fecha del comprobante, que se elige ahi (1674).
-      // Solo la fecha del comprobante: cambiar otro opcional no la olvida.
-      dependsOn: [{ fields: ['options.voucherDate'], step: 'opcionales' }],
-      name: 'fecha-pago',
-      run: async (state, previous) => {
-        const answer = await askTextStep('Fecha de pago (Enter para la fecha del comprobante):', {
-          previousAnswer: previous?.paymentDate,
-          validate: validateExportPaymentDate(state.options.voucherDate),
-        });
-
-        return answer === BACK ? BACK : { paymentDate: optional(answer) };
-      },
-      // En bienes ARCA rechaza la fecha de pago (error 1673).
-      skip: (state) => state.exportType === 1,
-    },
+      name: 'opcionales',
+      read: (state) => state.options,
+      write: (options) => ({ options }),
+    }),
   ];
 }
 
 /**
  * Vista previa, comando equivalente, confirmacion, emision y PDF: lo mismo para la factura y las notas E. Sin
- * `activity` (las notas la toman del asociado), el comando equivalente no la repite. Devuelve si se emitio.
+ * `activity` (las notas la toman del asociado), el comando equivalente no la repite. Devuelve si ARCA la autorizo
+ * (`isAuthorized`): un rechazo no es una emision. Con Esc en "¿Emitimos?", o si la vista previa rechaza la entrada,
+ * devuelve BACK sin emitir: el flujo lo corre
+ * como `confirm` de `runWizard`, que vuelve a la ultima pregunta (TUI-15).
  */
 export async function emitExportVoucher(
   session: InteractiveSession,
   gateway: ExportGateway,
   rawInput: ExportVoucherInput,
   activity?: number,
-): Promise<boolean> {
+): Promise<typeof BACK | boolean> {
   const { runtime } = session;
   // ExportService toma el de la config: uno elegido en el asistente va en la entrada (y en el comando equivalente).
   const input: ExportVoucherInput = { ...rawInput, pointOfSale: rawInput.pointOfSale ?? session.typedPointOfSale };
   const service = new ExportService();
-  const resolved = await withSpinner('Consultando WSFEX...', () => service.resolve(input, gateway, runtime));
+  // Si la vista previa rechaza la entrada, vuelve a la ultima pregunta (TUI-15).
+  const resolved = await rejectedAsBack(() =>
+    withSpinner('Consultando WSFEX...', () => service.resolve(input, gateway, runtime)),
+  );
+
+  if (resolved === BACK) {
+    return BACK;
+  }
+
   const preview = service.preview(resolved, runtime, resolved.warnings);
 
   writeTerminalOutput(formatExportResultAsText(preview, { environment: runtime.environment, raw: false }));
@@ -427,8 +384,8 @@ export async function emitExportVoucher(
     planEmissionConfirmation({ flags: [input.pdf], mode: runtime.config.pdf }),
   );
 
-  if (!emission) {
-    return false;
+  if (emission === BACK || !emission) {
+    return emission;
   }
 
   const result = await withSpinner(`Emitiendo ${label} en ARCA...`, () =>
@@ -460,7 +417,7 @@ export async function emitExportVoucher(
     writeTerminalOutput(noticePanel('El comprobante ya quedó emitido; no se generó el PDF.', 'muted'));
   }
 
-  return true;
+  return isAuthorized(result.response);
 }
 
 /**
@@ -470,52 +427,37 @@ export async function emitExportVoucher(
 export async function runExportFlow(session: InteractiveSession): Promise<typeof BACK | void> {
   const { config } = session.runtime;
   const gateway = new ArcaClientFactory().createExportGateway(session.runtime);
-  const tables = await withSpinner('Consultando las tablas de WSFEX...', async () => ({
-    activities: new Set((await gateway.getActivities()).map((activity) => activity.id)),
-    countries: await gateway.getDestinationCountries(),
-    countryCuits: await gateway.getDestinationCountryCuits(),
-  }));
+  const tables = await loadExportTables(gateway);
   const configuredActivity = config.exportacion?.actividad;
+  // Esc en "¿Emitimos?" vuelve a la ultima pregunta (TUI-15).
+  const emission = emissionStep<ExportFlowState>((state) => {
+    const input = buildExportInput(state, { configuredActivity });
+
+    return emitExportVoucher(session, gateway, input, input.activity);
+  });
   const state = await runWizard<ExportFlowState>(
-    exportSteps(tables, configuredActivity, {
-      incoterms: () => gateway.getIncoterms(),
-      languages: () => gateway.getLanguages(),
-      units: () => gateway.getUnits(),
-    }),
+    withFinalizeNotice(
+      exportSteps(tables, configuredActivity, {
+        activities: activitiesLoader(gateway),
+        exchangeRate: exportExchangeRateLoader(gateway),
+        incoterms: () => gateway.getIncoterms(),
+        languages: () => gateway.getLanguages(),
+        units: () => gateway.getUnits(),
+      }),
+    ),
     { options: {} },
+    undefined,
+    {
+      confirm: emission.confirm,
+      // Las reglas sobre la factura final: si una falla, vuelve a la pregunta que escribe el campo.
+      finalize: exportFinalize(() => ({ configuredActivity, today: formatDateAsArcaDate(new Date()) })),
+    },
   );
 
   if (!state) {
     return BACK;
   }
 
-  const activity = state.activity ?? configuredActivity;
-  const input: ExportVoucherInput = {
-    ...state.options,
-    activity,
-    amount: state.amount,
-    clientAddress: state.clientAddress,
-    clientName: state.clientName,
-    clientTaxId: state.clientTaxId,
-    currencyCode: state.currencyCode,
-    description: state.description,
-    destinationCountry: state.destinationCountry,
-    emit: false,
-    exportType: state.exportType,
-    incoterm: state.incoterm,
-    paymentDate: state.paymentDate,
-    paymentTerms: state.paymentTerms,
-    permits: state.permits,
-    permitsExisting: state.permits ? true : undefined,
-    sameCurrency: state.sameCurrency,
-  };
-
-  const emitted = await emitExportVoucher(session, gateway, input, activity);
-
   // Guardar una actividad que no llego a ARCA (dejada sin emitir) no tiene sentido: no se sabe si la acepta.
-  if (emitted && state.activity !== undefined && configuredActivity === undefined) {
-    await offerSavingToConfig(`¿Guardamos la actividad ${state.activity} en la config para la próxima?`, [
-      ['exportacion.actividad', String(state.activity)],
-    ]);
-  }
+  await offerConfig(activityToSave(state.activity, configuredActivity, emission.authorized()));
 }

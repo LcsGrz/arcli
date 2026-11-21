@@ -2,16 +2,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { arcliConfigSchema } from '../../../modules/config/config.schemas';
 import type { ExportGateway, ExportIssuedVoucher } from '../../../modules/export/export.types';
+import { buildExportRepeatInput } from '../../../modules/interactive/export-repeat-input';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
 import { stripAnsi } from '../../../ui';
 import { attachExportPdf } from '../../commands/export.command.pdf';
-import { buildExportRepeatInput, exportRepeatSteps, runExportRepeatFlow } from '../export-repeat.flow';
+import { exportRepeatSteps, runExportRepeatFlow } from '../export-repeat.flow';
 import type { Choice } from '../prompts';
 import type { InteractiveSession } from '../session';
 
-import { createScript, rejecting } from './script';
+import { createScript, editing, KEEP_EXPORT_ITEMS, rejecting } from './script';
 
 let script = createScript([]);
 
@@ -95,12 +96,15 @@ vi.mock('../../../lib/shell/shell-argument', async (importOriginal) => {
 
 vi.mock('../prompts', () => ({
   askTextStep: (...args: Parameters<typeof script.askTextStep>) => script.askTextStep(...args),
+  chooseFromFilterList: (...args: Parameters<typeof script.chooseFromFilterList>) =>
+    script.chooseFromFilterList(...args),
   chooseManyStep: (...args: Parameters<typeof script.chooseManyStep>) => script.chooseManyStep(...args),
   chooseOne: <T>(message: string, choices: ReadonlyArray<Choice<T>>) => script.chooseStep(message, choices),
   chooseStep: (...args: Parameters<typeof script.chooseStep>) => script.chooseStep(...args),
   chooseStepWhileLoading: (...args: Parameters<typeof script.chooseStepWhileLoading>) =>
     script.chooseStepWhileLoading(...args),
   confirm: (message: string, yesLabel: string, noLabel?: string) => confirmFromScript(message, yesLabel, noLabel),
+  editRowsStep: (...args: Parameters<typeof script.editRowsStep>) => script.editRowsStep(...args),
   eraseLastAnswer: () => undefined,
   fitPageSize: () => 12,
 }));
@@ -109,6 +113,17 @@ vi.mock('../../../services/arca/arca-client.factory', () => ({
   ArcaClientFactory: class {
     public createExportGateway() {
       return gateway;
+    }
+  },
+}));
+
+const savedConfig = vi.fn();
+
+vi.mock('../../../modules/config/config.service', () => ({
+  ConfigService: class {
+    public close() {}
+    public setValue(key: string, value: string) {
+      savedConfig(key, value);
     }
   },
 }));
@@ -155,7 +170,7 @@ describe('runExportRepeatFlow', () => {
   it('copia cliente, destino, moneda, incoterm e ítems, con la cotización de hoy y los permisos nuevos', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/Permisos de embarque/, '26001EC01000123A'],
       [/Agregamos algún opcional/, []],
       [/Emitimos la factura de exportación E en testing/, 'Sí, emitir ahora'],
@@ -197,6 +212,34 @@ describe('runExportRepeatFlow', () => {
     expect(vi.mocked(attachExportPdf).mock.calls[0]?.[1].input.pdf).toBe(false);
   });
 
+  // La tabla de actividades la consulta el asistente solo si pregunta la actividad. Con la de la factura, la consulta la
+  // vista previa (`ExportService.resolve`, como `arcli fe --actividad`), una sola vez: si ARCA falla, falla ahi.
+  it('con la actividad en la factura, el asistente no consulta la tabla de actividades', async () => {
+    const activities = vi.spyOn(gateway, 'getActivities');
+    let asked = 0;
+
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      ...KEEP_EXPORT_ITEMS,
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, []],
+      [/Emitimos/, 'Sí, emitir ahora'],
+    ]);
+    script.askTextStep.mockImplementationOnce(async (...args) => {
+      asked = activities.mock.calls.length;
+
+      return script.askTextStep.getMockImplementation()?.(...args) as never;
+    });
+
+    await runExportRepeatFlow(createSession(), 4);
+
+    expect(asked).toBe(0);
+    expect(activities).toHaveBeenCalledOnce();
+    expect(gateway.authorize).toHaveBeenCalledWith(
+      expect.objectContaining({ Actividades: { Actividad: [{ Id: 620100 }] } }),
+    );
+  });
+
   it('en servicios pregunta la fecha de pago, que en bienes no va (ARCA la rechaza, 1673)', async () => {
     const services: ExportIssuedVoucher = { ...INVOICE, exportType: 2, incoterm: undefined };
     const original = vi.mocked(gateway.getVoucher).getMockImplementation();
@@ -206,9 +249,9 @@ describe('runExportRepeatFlow', () => {
     );
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
-      [/Agregamos algún opcional/, []],
+      ...KEEP_EXPORT_ITEMS,
       [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
       [/Emitimos/, 'Sí, emitir ahora'],
     ]);
 
@@ -232,10 +275,14 @@ describe('runExportRepeatFlow', () => {
     vi.mocked(gateway.getVoucher).mockImplementationOnce(async () => services);
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/actividad de WSFEX.*Enter para no informarla/, ''],
+      // Antes de los opcionales, contra la más temprana que ARCA acepta para la fecha del comprobante (TUI-22).
+      [
+        /Fecha de pago/,
+        rejecting('20/11/2026', ['08/11/2026', /anterior al 09\/11\/2026: es la fecha más temprana.*error 1674/]),
+      ],
       [/Agregamos algún opcional/, []],
-      [/Fecha de pago/, rejecting('20/11/2026', ['13/11/2026', /anterior a la del comprobante \(hoy\).*error 1674/])],
       [/Emitimos/, 'Sí, emitir ahora'],
     ]);
 
@@ -253,6 +300,59 @@ describe('runExportRepeatFlow', () => {
     expect(printed()).toContain('--fecha-pago 20/11/2026');
   });
 
+  // REV-74, #11: la misma regla y la misma tabla que "Emitir factura" E, y la misma oferta de guardarla si se emite.
+  it('#11: la actividad escrita se valida con la tabla de WSFEX y, emitida, se ofrece guardar', async () => {
+    const services: ExportIssuedVoucher = { ...INVOICE, activities: [], exportType: 2, incoterm: undefined };
+
+    savedConfig.mockClear();
+    vi.mocked(gateway.getVoucher).mockImplementationOnce(async () => services);
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      ...KEEP_EXPORT_ITEMS,
+      [/actividad de WSFEX/, rejecting('620100', ['620900', /no está en la tabla de actividades de WSFEX.*2105/])],
+      [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
+      [/Emitimos/, 'Sí, emitir ahora'],
+      [/Guardamos la actividad 620100 en la config/, 'Sí, guardar'],
+    ]);
+
+    await runExportRepeatFlow(createSession(), 4);
+
+    expect(vi.mocked(gateway.authorize).mock.calls[0]?.[0]).toMatchObject({
+      Actividades: { Actividad: [{ Id: 620100 }] },
+    });
+    expect(savedConfig).toHaveBeenCalledWith('exportacion.actividad', '620100');
+  });
+
+  it('#11: la actividad copiada de la factura no se ofrece guardar, y sin emitir tampoco la escrita', async () => {
+    const services: ExportIssuedVoucher = { ...INVOICE, activities: [], exportType: 2, incoterm: undefined };
+
+    savedConfig.mockClear();
+    vi.mocked(gateway.getVoucher).mockImplementationOnce(async () => services);
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      ...KEEP_EXPORT_ITEMS,
+      [/actividad de WSFEX/, '620100'],
+      [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
+      [/Emitimos/, 'No, dejar sin emitir'],
+    ]);
+
+    await runExportRepeatFlow(createSession(), 4);
+
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      ...KEEP_EXPORT_ITEMS,
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, []],
+      [/Emitimos/, 'Sí, emitir ahora'],
+    ]);
+
+    await runExportRepeatFlow(createSession(), 4);
+
+    expect(savedConfig).not.toHaveBeenCalled();
+  });
+
   it('la fecha no se copia: se elige en los opcionales, con las reglas de `--fecha` y la cotización de esa fecha (EXPO-11)', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-11-14T12:00:00-03:00'));
@@ -260,7 +360,7 @@ describe('runExportRepeatFlow', () => {
 
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, ['Fecha del comprobante']],
       [/Fecha del comprobante/, rejecting('10/11', ['08/11/2026', /del 09\/11\/2026 al 19\/11\/2026.*error 1500/])],
@@ -279,7 +379,7 @@ describe('runExportRepeatFlow', () => {
     expect(printed()).toContain('--fecha 10/11/2026');
   });
 
-  it('la fecha de pago se valida contra la fecha del comprobante elegida, no contra hoy, como `--fecha-pago` (EXPO-12)', async () => {
+  it('la fecha de pago se compara con la fecha del comprobante elegida después, no con hoy, como `--fecha-pago` (EXPO-12, TUI-22)', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-11-14T12:00:00-03:00'));
     vi.mocked(gateway.getVoucher).mockImplementationOnce(async () => ({
@@ -289,12 +389,13 @@ describe('runExportRepeatFlow', () => {
     }));
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
+      // Anterior a hoy, pero no a la más temprana posible: vale al preguntarla.
+      [/Fecha de pago/, '12/11/2026'],
       [/Agregamos algún opcional/, ['Fecha del comprobante']],
-      [/Fecha del comprobante/, '10/11/2026'],
       [
-        /Fecha de pago/,
-        rejecting('12/11/2026', ['09/11/2026', /anterior a la del comprobante \(10\/11\/2026\).*error 1674/]),
+        /Fecha del comprobante/,
+        rejecting('10/11/2026', ['13/11/2026', /anterior a la del comprobante \(13\/11\/2026\).*error 1674/]),
       ],
       [/Emitimos/, 'Sí, emitir ahora'],
     ]);
@@ -324,7 +425,7 @@ describe('runExportRepeatFlow', () => {
     vi.mocked(gateway.getVoucher).mockImplementationOnce(async () => withAdvance);
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'No, dejar sin emitir'],
@@ -333,16 +434,23 @@ describe('runExportRepeatFlow', () => {
     await runExportRepeatFlow(createSession(), 4);
 
     expect(printed().replace(/[│┃╏\s]+/g, ' ')).toContain(
-      'La factura tiene ítems de seña, anticipo o bonificación (unidades 97 y 99), que el asistente no informa: sale un renglón con el monto total.',
+      'El comprobante tiene ítems de seña, anticipo o bonificación (unidades 97 y 99), que el asistente no informa: sale un renglón con el monto total.',
     );
+    // El editor arranca con ese renglón (NAV-10).
+    expect(script.editRowsStep.mock.calls[0]?.[1].map((row) => row.title)).toEqual(['Según detalle']);
     expect(printed()).not.toContain('--item');
+    expect(printed()).not.toContain('Anticipo');
   });
 
-  it('con otro monto avisa que los ítems no se copian y sale un renglón con el total', async () => {
+  it('sin "¿Mismo monto?": otro precio se cambia en el editor, y el monto es la suma de los ítems (NAV-10)', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'No'],
-      [/Monto total en DOL/, '2.000'],
+      [/^Ítems de .*: modificá o eliminá ítems/, editing({ edit: ['Flete'] })],
+      [/^Descripción del ítem 2:/, ''],
+      [/Cantidad/, ''],
+      [/Unidad/, 'unidades'],
+      [/^(?:Importe|Precio unitario) en USD/, '1.000'],
+      [/Importe total de la factura de exportación E: 2\.000 USD \(2 ítems\)/, 'Confirmar'],
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'No, dejar sin emitir'],
@@ -351,15 +459,15 @@ describe('runExportRepeatFlow', () => {
     await runExportRepeatFlow(createSession(), 4);
 
     expect(gateway.authorize).not.toHaveBeenCalled();
-    expect(printed()).toContain('Con otro monto los ítems de la factura no suman');
-    expect(printed()).not.toContain('--item');
+    expect(script.asked.some((message) => /Mismo monto|Monto total/.test(message))).toBe(false);
     expect(printed()).toContain('arcli fe -m 2000');
+    expect(printed()).toContain("--item 'Bienes varios|2|500|1' --item 'Flete|1|1000'");
   });
 
   it('con `pdf nunca` la confirmación también ofrece emitir y generar el PDF', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'Sí, emitir y generar el PDF'],
@@ -374,7 +482,7 @@ describe('runExportRepeatFlow', () => {
   it('el punto de venta escrito a mano llega a la emisión y al comando equivalente', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'Sí, emitir ahora'],
@@ -397,6 +505,7 @@ describe('runExportRepeatFlow', () => {
 
 describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta segun la factura', () => {
   const TABLES = {
+    activities: [{ id: 620100, name: 'SERVICIOS DE CONSULTORES EN INFORMATICA' }],
     countries: [
       { code: 212, name: 'ESTADOS UNIDOS' },
       { code: 999, name: 'ATLANTIDA' },
@@ -409,7 +518,9 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     const stepsGateway = { ...gateway, getLastVoucherNumber: async () => 1, getVoucher: async () => original };
     const state = await runWizard(exportRepeatSteps(session, stepsGateway, TABLES, 4), {});
 
-    return state && buildExportRepeatInput(state, session.runtime.config.exportacion?.actividad);
+    return (
+      state && buildExportRepeatInput(state, { configuredActivity: session.runtime.config.exportacion?.actividad })
+    );
   }
 
   /** Los nombres de los opcionales que ofrece la seleccion la vez `call`. */
@@ -433,113 +544,114 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     expect(printed()).toContain('El destino de la factura (1) ya no está en la tabla de países de ARCA');
   });
 
-  it('volver desde "¿Mismo monto?" vuelve a la lista', async () => {
+  it('volver desde el editor vuelve a la lista', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, BACK],
+      [/^Ítems de .*: modificá o eliminá ítems/, BACK],
       [/Cuál repetimos/, BACK],
     ]);
 
     expect(await repeatOf(INVOICE)).toBeUndefined();
   });
 
-  it('volver desde el monto escrito vuelve a "¿Mismo monto?" con "No" marcado, y de ahi a la lista con la factura marcada', async () => {
+  it('Volver desde el total va al editor y de ahí a la lista, con la factura marcada; con la misma, el editor arranca con lo modificado', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'No'],
-      [/Monto total en DOL/, BACK],
-      [/Mismo monto/, BACK],
-      [/Cuál repetimos/, BACK],
-    ]);
-
-    expect(await repeatOf(INVOICE)).toBeUndefined();
-
-    const defaults = script.chooseStep.mock.calls.map((call) => call[2]);
-
-    expect(defaults[2]).toBe('otro');
-    expect(defaults[3]).toMatchObject({ number: 1, pointOfSale: 4 });
-  });
-
-  it('otro monto saca los ítems; volver y elegir "Sí" los trae de nuevo', async () => {
-    script = createScript([
+      [/^Ítems de .*: modificá o eliminá ítems/, editing({ remove: ['Flete'] })],
+      [/Importe total/, BACK],
+      [/^Ítems de .*: modificá o eliminá ítems/, BACK],
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'No'],
-      [/Monto total en DOL/, '2.000'],
-      [/Permisos de embarque/, BACK],
-      [/Monto total en DOL/, BACK],
-      [/Mismo monto/, 'Sí'],
+      [/^Ítems de .*: modificá o eliminá ítems/, editing({})],
+      [/Importe total/, 'Confirmar'],
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
     ]);
 
     const input = await repeatOf(INVOICE);
 
-    expect(input?.amount).toBe(1500);
-    expect(input?.items?.map((item) => item.description)).toEqual(['Bienes varios', 'Flete']);
-    // Al volver, el monto arranca escrito.
-    expect(script.askTextStep.mock.calls[2]?.[1]).toMatchObject({ previousAnswer: '2000' });
-    // En la seleccion de opcionales se ven los ítems recuperados.
-    expect(script.chooseManyStep.mock.calls[0]?.[1].find((choice) => choice.value === 'items')?.description).toBe(
-      '2 ítems',
-    );
+    expect(input?.amount).toBe(1000);
+    expect(input?.items?.map((item) => item.description)).toEqual(['Bienes varios']);
+    expect(script.chooseStep.mock.calls[2]?.[2]).toMatchObject({ number: 1, pointOfSale: 4 });
+    expect(script.editRowsStep.mock.calls[2]?.[1].map((row) => row.title)).toEqual(['Bienes varios']);
   });
 
-  it('otro monto igual al de la factura deja los ítems sin avisar', async () => {
+  it('si la factura no trae `CanMisMonExt` lo pregunta; cobrada en pesos pregunta la cotización con la de aduana escrita (NAV-9)', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'No'],
-      [/Monto total en DOL/, '1.500'],
-      [/Permisos de embarque/, ''],
-      [/Agregamos algún opcional/, []],
-    ]);
-
-    expect((await repeatOf(INVOICE))?.items).toHaveLength(2);
-    expect(printed()).not.toContain('Con otro monto');
-  });
-
-  it('si la factura no trae `CanMisMonExt` lo pregunta; cobrada en pesos ofrece la cotización', async () => {
-    script = createScript([
-      [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/Te pagan en la moneda de la factura/, 'No, en pesos'],
+      [/Cotización de USD \(la oficial de ARCA es 1\.450,25\)/, '1450,25'],
       [/Permisos de embarque/, BACK],
+      // Sin tocarla, al volver arranca de nuevo con la de ARCA.
+      [/Cotización de USD/, BACK],
       [/Te pagan en la moneda de la factura/, BACK],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/Te pagan en la moneda de la factura/, 'No, en pesos'],
+      [/Cotización de USD/, '1.500'],
+      [/Permisos de embarque/, BACK],
+      // Escrita a mano, al volver arranca con la escrita.
+      [/Cotización de USD/, '1.500'],
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
     ]);
 
-    expect(await repeatOf({ ...INVOICE, sameCurrency: undefined })).toMatchObject({ sameCurrency: false });
-    expect(offeredOptionals()).toContain('Cotización');
+    expect(await repeatOf({ ...INVOICE, sameCurrency: undefined })).toMatchObject({
+      exchangeRate: 1500,
+      sameCurrency: false,
+    });
+    expect(
+      script.askTextStep.mock.calls
+        .filter(([message]) => message.startsWith('Cotización'))
+        .map(([, options]) => options?.previousAnswer),
+    ).toEqual(['1450,25', '1450,25', '1450,25', '1500']);
+    expect(offeredOptionals()).not.toContain('Cotización');
   });
 
-  it('cobrada en la misma moneda o en servicios no ofrece otra cotización', async () => {
+  it('sin tocar la de aduana, la entrada no lleva cotización, como el CLI sin `--cm`', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
+      [/Te pagan en la moneda de la factura/, 'No, en pesos'],
+      [/Cotización de USD/, '1450,25'],
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, []],
+    ]);
+
+    expect((await repeatOf({ ...INVOICE, sameCurrency: undefined }))?.exchangeRate).toBeUndefined();
+  });
+
+  it('cobrada en la misma moneda o en servicios no pregunta la cotización: ARCA exige la suya (1604, 2053)', async () => {
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      ...KEEP_EXPORT_ITEMS,
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
     ]);
     await repeatOf(INVOICE);
     expect(offeredOptionals()).not.toContain('Cotización');
+    // Se muestra, con el motivo, en el lugar de la pregunta (NAV-9).
+    expect(printed().replace(/\s+/g, ' ')).toContain(
+      'Cotización: 1.450,25 por USD, la oficial del día hábil anterior. ARCA no acepta otra si te pagan en USD.',
+    );
 
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
-      [/Agregamos algún opcional/, []],
+      ...KEEP_EXPORT_ITEMS,
       [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
     ]);
     await repeatOf({ ...INVOICE, exportType: 2, incoterm: undefined, sameCurrency: false });
-    expect(offeredOptionals()).not.toContain('Cotización');
+    expect(printed().replace(/\s+/g, ' ')).toContain(
+      'Cotización: 1.450,25 por USD, la de aduana del día hábil anterior. ARCA no acepta otra en servicios.',
+    );
     // Sin incoterm tampoco se ofrece su descripcion.
     expect(offeredOptionals()).not.toContain('Descripción del incoterm');
   });
 
-  it('una E en pesos no pregunta la moneda de pago ni ofrece cotización', async () => {
+  it('una E en pesos no pregunta la moneda de pago ni la cotización', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
     ]);
@@ -548,15 +660,14 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
       currencyCode: 'PES',
       sameCurrency: false,
     });
-    expect(offeredOptionals()).not.toContain('Cotización');
   });
 
-  it('sin CUIT de país publicado ni ID impositivo pregunta el CUIT; volver desde ahi vuelve al monto', async () => {
+  it('sin CUIT de país publicado ni ID impositivo pregunta el CUIT; volver desde ahí vuelve a los ítems', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/ARCA no tiene un CUIT publicado para ATLANTIDA/, BACK],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/ARCA no tiene un CUIT publicado para ATLANTIDA/, rejecting('55000002126', ['', /Escribí el CUIT/])],
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
@@ -567,10 +678,31 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     ).toMatchObject({ clientCountryCuit: 55000002126, destinationCountry: 'ATLANTIDA' });
   });
 
+  // REV-74, #10: volver al CUIT del país desde el paso siguiente lo muestra escrito.
+  it('volver al CUIT del país desde los permisos lo muestra escrito', async () => {
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      ...KEEP_EXPORT_ITEMS,
+      [/ARCA no tiene un CUIT publicado para ATLANTIDA/, '55000002126'],
+      [/Permisos de embarque/, BACK],
+      [/ARCA no tiene un CUIT publicado para ATLANTIDA/, '55000002126'],
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, []],
+    ]);
+
+    await repeatOf({ ...INVOICE, clientCountryCuit: undefined, clientTaxId: ' ', destinationCountry: 999 });
+
+    const prefills = script.askTextStep.mock.calls
+      .filter(([message]) => /ARCA no tiene un CUIT publicado/.test(message))
+      .map((call) => call[1]?.previousAnswer);
+
+    expect(prefills).toEqual([undefined, '55000002126']);
+  });
+
   it('con ID impositivo no pregunta el CUIT del país aunque ARCA no tenga uno para el destino', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
     ]);
@@ -581,28 +713,101 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     });
   });
 
-  it('en servicios, volver desde la fecha de pago vuelve a los opcionales, y la actividad escrita se valida', async () => {
+  it('en servicios, volver desde la fecha de pago vuelve a la actividad (TUI-22), y la actividad escrita se valida', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/actividad de WSFEX/, rejecting('620100', ['abc', /La actividad/])],
-      [/Agregamos algún opcional/, []],
       [/Fecha de pago/, BACK],
-      [/Agregamos algún opcional/, BACK],
       [/actividad de WSFEX/, BACK],
-      [/Mismo monto/, 'Sí'],
-      [/actividad de WSFEX/, '620200'],
-      [/Agregamos algún opcional/, []],
+      ...KEEP_EXPORT_ITEMS,
+      [/actividad de WSFEX/, rejecting('620100', ['620200', /no está en la tabla de actividades de WSFEX.*2105/])],
       [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
     ]);
 
+    // Con la tabla de WSFEX, como "Emitir factura" (REV-74, #11).
     expect(await repeatOf({ ...INVOICE, activities: [], exportType: 2, incoterm: undefined })).toMatchObject({
-      activity: 620200,
+      activity: 620100,
       paymentDate: undefined,
     });
   });
 
-  // REV-65: la fecha de pago depende solo de la fecha del comprobante de los opcionales.
+  // Como en A, B y C ("lo respondido con otra factura no pisa lo copiado de la elegida"): lo copiado sigue a la factura.
+  it('al volver y elegir otra factura, lo respondido con la anterior no pisa lo copiado de la nueva', async () => {
+    const first: ExportIssuedVoucher = { ...INVOICE, incotermDescription: 'Free on board', language: 2 };
+    const second: ExportIssuedVoucher = {
+      ...INVOICE,
+      clientCountryCuit: 55000002118,
+      incoterm: 'CIF',
+      incotermDescription: 'Cost insurance freight',
+      language: 3,
+      number: 2,
+    };
+    const stepsGateway = {
+      ...gateway,
+      getLanguages: async () => [
+        { id: 1, name: 'Español' },
+        { id: 2, name: 'Inglés' },
+        { id: 3, name: 'Portugués' },
+      ],
+      getLastVoucherNumber: async () => 2,
+      getVoucher: async (query: { readonly number: number }) => [first, second][query.number - 1] ?? null,
+    };
+    let returned = false;
+    const after = {
+      name: 'despues',
+      run: async () => {
+        if (returned) {
+          return {};
+        }
+
+        returned = true;
+
+        return BACK;
+      },
+    };
+
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      ...KEEP_EXPORT_ITEMS,
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, ['Idioma', 'CUIT del país', 'Descripción del incoterm']],
+      [/Idioma del comprobante/, 'Español'],
+      [/CUIT del país del cliente/, '55000002126'],
+      [/Descripción del incoterm FOB/, 'Mi descripción'],
+      // "despues" vuelve: se retrocede hasta la factura y se elige otra.
+      [/Agregamos algún opcional/, BACK],
+      [/Permisos de embarque/, BACK],
+      [/^Ítems de .*: modificá o eliminá ítems/, BACK],
+      [/Cuál repetimos/, '00004-00000002'],
+      ...KEEP_EXPORT_ITEMS,
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, []],
+    ]);
+
+    const state = await runWizard([...exportRepeatSteps(createSession(), stepsGateway, TABLES, 4), after], {});
+
+    expect(state?.options).toEqual({
+      clientCountryCuit: 55000002118,
+      incotermDescription: 'Cost insurance freight',
+      language: 3,
+    });
+    // Los ítems siguen a la factura: con otra, el editor arranca con los de esa (NAV-10).
+    expect(state?.items).toEqual(
+      second.items?.map(({ description, quantity, unit, unitPrice }) => ({
+        code: undefined,
+        description,
+        quantity,
+        unit,
+        unitPrice,
+      })),
+    );
+    // Lo que se había marcado sigue a la factura anterior: con la nueva arranca sin marcar.
+    expect(script.chooseManyStep.mock.calls.at(-1)?.[2]).toEqual([]);
+  });
+
+  // REV-65 y TUI-22: la fecha de pago va antes de los opcionales y no depende de ellos.
   describe('la fecha de pago recordada', () => {
     /** Los pasos con uno mas al final, que vuelve una vez: asi se llega de nuevo a la fecha de pago ya respondida. */
     async function repeatWithStepAfter() {
@@ -631,77 +836,82 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
         .map((call) => call[1]?.previousAnswer);
     }
 
-    it('cambiar otro opcional la conserva', async () => {
+    it('cambiar un opcional la conserva', async () => {
       script = createScript([
         [/Cuál repetimos/, '00004-00000001'],
-        [/Mismo monto/, 'Sí'],
+        ...KEEP_EXPORT_ITEMS,
+        [/Fecha de pago/, '20/11/2026'],
         [/Agregamos algún opcional/, ['Observaciones']],
         [/^Observaciones \(/, 'Pedido 42'],
         [/Observaciones comerciales/, ''],
+        [/Agregamos algún opcional/, BACK],
         [/Fecha de pago/, '20/11/2026'],
-        [/Fecha de pago/, BACK],
         [/Agregamos algún opcional/, ['Observaciones']],
         [/^Observaciones \(/, 'Pedido 43'],
         [/Observaciones comerciales/, ''],
-        [/Fecha de pago/, '20/11/2026'],
       ]);
 
       expect(await repeatWithStepAfter()).toMatchObject({ paymentDate: '20/11/2026' });
-      expect(paymentDatePrefills()).toEqual([undefined, '20/11/2026', '20/11/2026']);
+      expect(paymentDatePrefills()).toEqual([undefined, '20/11/2026']);
     });
 
-    it('cambiar una respuesta anterior a los opcionales (el monto) la conserva', async () => {
+    it('cambiar una respuesta anterior (los ítems) la conserva', async () => {
       script = createScript([
         [/Cuál repetimos/, '00004-00000001'],
-        [/Mismo monto/, 'Sí'],
-        [/Agregamos algún opcional/, []],
+        ...KEEP_EXPORT_ITEMS,
         [/Fecha de pago/, '20/11/2026'],
-        [/Fecha de pago/, BACK],
+        [/Agregamos algún opcional/, []],
         [/Agregamos algún opcional/, BACK],
-        [/Mismo monto/, 'No'],
-        [/Monto total en DOL/, '1.000'],
-        [/Agregamos algún opcional/, []],
+        [/Fecha de pago/, BACK],
+        [/^Ítems de .*: modificá o eliminá ítems/, editing({ remove: ['Flete'] })],
+        [/Importe total/, 'Confirmar'],
         [/Fecha de pago/, '20/11/2026'],
+        [/Agregamos algún opcional/, []],
       ]);
 
       expect(await repeatWithStepAfter()).toMatchObject({
-        copy: expect.objectContaining({ amount: 1000 }),
+        items: [expect.objectContaining({ description: 'Bienes varios' })],
         paymentDate: '20/11/2026',
       });
       expect(paymentDatePrefills()).toEqual([undefined, '20/11/2026', '20/11/2026']);
     });
 
-    it('cambiar la fecha del comprobante la olvida', async () => {
+    // TUI-22: la fecha de pago va antes; la del comprobante, elegida despues, se controla contra ella.
+    it('cambiar la fecha del comprobante la conserva, y "Fecha del comprobante" no deja una posterior a ella', async () => {
       vi.useFakeTimers({ toFake: ['Date'] });
       vi.setSystemTime(new Date('2026-11-14T12:00:00-03:00'));
       script = createScript([
         [/Cuál repetimos/, '00004-00000001'],
-        [/Mismo monto/, 'Sí'],
+        ...KEEP_EXPORT_ITEMS,
+        [/Fecha de pago/, '16/11/2026'],
         [/Agregamos algún opcional/, ['Fecha del comprobante']],
         [/Fecha del comprobante/, '14/11/2026'],
-        [/Fecha de pago/, '20/11/2026'],
-        [/Fecha de pago/, BACK],
         [/Agregamos algún opcional/, ['Fecha del comprobante']],
-        [/Fecha del comprobante/, '16/11/2026'],
-        [/Fecha de pago/, '21/11/2026'],
+        [
+          /Fecha del comprobante/,
+          rejecting('15/11/2026', ['18/11/2026', /anterior a la del comprobante \(18\/11\/2026\).*error 1674/]),
+        ],
       ]);
 
       try {
-        expect(await repeatWithStepAfter()).toMatchObject({ paymentDate: '21/11/2026' });
+        expect(await repeatWithStepAfter()).toMatchObject({
+          options: expect.objectContaining({ voucherDate: '15/11/2026' }),
+          paymentDate: '16/11/2026',
+        });
       } finally {
         vi.useRealTimers();
       }
 
-      expect(paymentDatePrefills()).toEqual([undefined, '20/11/2026', undefined]);
+      expect(paymentDatePrefills()).toEqual([undefined]);
     });
   });
 
   it('con la actividad en la config no la pregunta y la usa', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
-      [/Agregamos algún opcional/, []],
+      ...KEEP_EXPORT_ITEMS,
       [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
     ]);
 
     expect(
@@ -715,7 +925,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
   it('los permisos escritos van como existentes', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/Mismo monto/, 'Sí'],
+      ...KEEP_EXPORT_ITEMS,
       [/Permisos de embarque/, '26001EC01000123A, 26001EC01000124B'],
       [/Agregamos algún opcional/, []],
     ]);

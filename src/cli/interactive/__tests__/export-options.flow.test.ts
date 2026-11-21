@@ -1,9 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { ExportUnit } from '../../../modules/export/export.types';
-import { BACK } from '../../../modules/interactive/wizard';
+import { formatDateAsArcaDate } from '../../../lib/dates/arca-date';
+import { EXPORT_CREDIT_NOTE_KIND } from '../../../modules/export/export.types';
+import {
+  type ExportOptionalsContext,
+  type ExportOptions,
+  isCountryCuitMissing,
+} from '../../../modules/interactive/export-optionals';
+import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import { stripAnsi } from '../../../ui';
-import { askCountryCuit, askExportOptions, type ExportOptionsContext, isCountryCuitMissing } from '../export-options';
+import { askCountryCuit, exportOptionalsStep } from '../export-options';
 
 import { createScript, rejecting } from './script';
 
@@ -25,9 +31,27 @@ const COUNTRY_CUITS = [
 
 const US = { code: 212, name: 'ESTADOS UNIDOS' };
 
-function context(overrides: Partial<ExportOptionsContext> = {}): ExportOptionsContext {
+type Context = Omit<ExportOptionalsContext, 'languageNames'>;
+
+/** El grupo de opcionales de la E solo, como un asistente de un paso: BACK si se vuelve desde la seleccion. */
+async function askExportOptions(initial: ExportOptions, context: Context) {
+  const state = await runWizard(
+    [
+      exportOptionalsStep<{ readonly options: ExportOptions }>({
+        context: () => context,
+        name: 'opcionales',
+        read: (current) => current.options,
+        write: (options) => ({ options }),
+      }),
+    ],
+    { options: initial },
+  );
+
+  return state ? state.options : BACK;
+}
+
+function context(overrides: Partial<Context> = {}): Context {
   return {
-    amount: 1500,
     currencyCode: 'DOL',
     defaultLanguage: 'Español',
     exportType: 2,
@@ -35,12 +59,12 @@ function context(overrides: Partial<ExportOptionsContext> = {}): ExportOptionsCo
       { id: 1, name: 'Español' },
       { id: 2, name: 'Inglés' },
     ],
-    units: async () => [
-      { id: 0, name: 'sin unidad' },
-      { id: 1, name: 'kilogramos' },
-      { id: 7, name: 'unidades' },
-    ],
     ...overrides,
+    // Las reglas de la E con hoy y la entrada armada solo con lo que escribe cada pregunta, con el tipo del contexto.
+    rules: overrides.rules ?? {
+      context: { today: formatDateAsArcaDate(new Date()) },
+      draft: (patch) => ({ exportType: overrides.exportType ?? 2, ...patch }),
+    },
   };
 }
 
@@ -60,7 +84,7 @@ function optionalDescriptions(call: number): Record<string, string | undefined> 
   return Object.fromEntries(choices.map((choice) => [choice.name, choice.description]));
 }
 
-describe('askExportOptions', () => {
+describe('exportOptionalsStep', () => {
   beforeEach(() => {
     vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
   });
@@ -82,142 +106,25 @@ describe('askExportOptions', () => {
     expect(await askExportOptions({}, context())).toBe(BACK);
   });
 
-  it('solo ofrece CUIT del país, incoterm y cotización cuando el contexto los tiene', async () => {
+  it('solo ofrece CUIT del país e incoterm cuando el contexto los tiene; la cotización (NAV-9) y los ítems (NAV-10) ya no son opcionales', async () => {
     script = createScript([[OPTIONALS, []]]);
     await askExportOptions({}, context());
-    expect(Object.keys(optionalDescriptions(0))).toEqual(['Fecha del comprobante', 'Ítems', 'Idioma', 'Observaciones']);
+    expect(Object.keys(optionalDescriptions(0))).toEqual(['Fecha del comprobante', 'Idioma', 'Observaciones']);
 
     script = createScript([[OPTIONALS, []]]);
     await askExportOptions(
       {},
       context({
         countryCuit: { country: US, countryCuits: COUNTRY_CUITS },
-        defaultExchangeRate: '1.450,25',
         incoterm: { code: 'FOB', description: 'Free on board' },
       }),
     );
     expect(optionalDescriptions(0)).toEqual({
       'CUIT del país': 'el de la tabla de ARCA',
-      Cotización: '1.450,25',
       'Descripción del incoterm': 'Free on board',
       'Fecha del comprobante': 'hoy',
       Idioma: 'Español',
       Observaciones: 'sin observaciones',
-      Ítems: 'un renglón con el monto total',
-    });
-  });
-
-  describe('ítems', () => {
-    it('si la suma no da el total avisa y sigue pidiendo; al dar, termina', async () => {
-      script = createScript([
-        [OPTIONALS, ['Ítems']],
-        [/ítem 1:/, rejecting('Bienes', ['', /necesita una descripción/], ['a|b', /no puede llevar "\|"/])],
-        [/Cantidad/, rejecting('2', ['0', /mayor a 0/], ['dos', /formato válido/])],
-        [/Precio unitario/, '500'],
-        // Las unidades que van sin cantidad ni precio (0, 97 y 99) no se ofrecen.
-        [/Unidad/, 'kilogramos'],
-        [/ítem 2 \(Enter para terminar\)/, ''],
-        [/ítem 2/, 'Flete'],
-        [/Cantidad/, '1'],
-        [/Precio unitario/, '500'],
-        [/Unidad/, 'unidades'],
-        [/ítem 3/, ''],
-      ]);
-
-      expect(await askExportOptions({}, context())).toEqual({
-        items: [
-          { description: 'Bienes', quantity: 2, unit: 1, unitPrice: 500 },
-          { description: 'Flete', quantity: 1, unit: 7, unitPrice: 500 },
-        ],
-      });
-      expect(printed()).toMatch(/La suma de los ítems \(1\.000\) no coincide con el monto total \(1\.500\)/);
-      expect(script.chooseStep.mock.calls[0]?.[1].map((choice) => ('name' in choice ? choice.name : ''))).toEqual([
-        'kilogramos',
-        'unidades',
-      ]);
-      // Arranca marcada la unidad por defecto (7).
-      expect(script.chooseStep.mock.calls[0]?.[2]).toBe(7);
-    });
-
-    it('si ARCA no trae unidades elegibles, usa la de por defecto sin preguntar', async () => {
-      script = createScript([
-        [OPTIONALS, ['Ítems']],
-        [/ítem 1/, 'Servicio'],
-        [/Cantidad/, '1'],
-        [/Precio unitario/, '1500'],
-        [/ítem 2/, ''],
-      ]);
-
-      const units = async (): Promise<readonly ExportUnit[]> => [{ id: 99, name: 'bonificación' }];
-
-      expect(await askExportOptions({}, context({ units }))).toEqual({
-        items: [{ description: 'Servicio', quantity: 1, unit: 7, unitPrice: 1500 }],
-      });
-    });
-
-    it.each([
-      ['la descripción', [[/ítem 1/, BACK]]],
-      [
-        'la cantidad',
-        [
-          [/ítem 1/, 'Bienes'],
-          [/Cantidad/, BACK],
-        ],
-      ],
-      [
-        'el precio',
-        [
-          [/ítem 1/, 'Bienes'],
-          [/Cantidad/, '1'],
-          [/Precio/, BACK],
-        ],
-      ],
-      [
-        'la unidad',
-        [
-          [/ítem 1/, 'Bienes'],
-          [/Cantidad/, '1'],
-          [/Precio/, '1500'],
-          [/Unidad/, BACK],
-        ],
-      ],
-    ] as const)(
-      'volver desde %s vuelve a la seleccion con Ítems marcado y sin ítems a medias',
-      async (_step, steps) => {
-        script = createScript([[OPTIONALS, ['Ítems']], ...steps, [OPTIONALS, []]]);
-
-        expect(await askExportOptions({}, context())).toEqual({});
-        expect(script.chooseManyStep.mock.calls[1]?.[2]).toEqual(['items']);
-        expect(optionalDescriptions(1)['Ítems']).toBe('un renglón con el monto total');
-      },
-    );
-
-    it('volver a cargarlos reemplaza los anteriores', async () => {
-      script = createScript([
-        [OPTIONALS, ['Ítems']],
-        [/ítem 1/, 'Servicio'],
-        [/Cantidad/, '1'],
-        [/Precio/, '1500'],
-        [/Unidad/, 'unidades'],
-        [/ítem 2/, ''],
-      ]);
-
-      const first = await askExportOptions({}, context());
-
-      script = createScript([
-        [OPTIONALS, ['Ítems']],
-        [/ítem 1/, 'Otro'],
-        [/Cantidad/, '3'],
-        [/Precio/, '500'],
-        [/Unidad/, 'unidades'],
-        [/ítem 2/, ''],
-      ]);
-
-      expect(first).not.toBe(BACK);
-      expect(await askExportOptions(first as Exclude<typeof first, typeof BACK>, context())).toEqual({
-        items: [{ description: 'Otro', quantity: 3, unit: 7, unitPrice: 500 }],
-      });
-      expect(optionalDescriptions(0)['Ítems']).toBe('1 ítem');
     });
   });
 
@@ -288,24 +195,6 @@ describe('askExportOptions', () => {
     expect(optionalDescriptions(0)['Descripción del incoterm']).toBe('Otra');
   });
 
-  it('cotización: rechaza 0 y 1, acepta la acordada y la muestra en la lista despues', async () => {
-    script = createScript([
-      [OPTIONALS, ['Cotización']],
-      [/Cotización de USD/, rejecting('1.450,25', ['0', /mayor a 0/], ['1', /cotización acordada/])],
-    ]);
-
-    const answered = await askExportOptions({}, context({ defaultExchangeRate: '1.400,00' }));
-
-    expect(answered).toEqual({ exchangeRate: 1450.25 });
-
-    script = createScript([[OPTIONALS, []]]);
-    await askExportOptions(
-      answered as Exclude<typeof answered, typeof BACK>,
-      context({ defaultExchangeRate: '1.400,00' }),
-    );
-    expect(optionalDescriptions(0)['Cotización']).toBe('1.450,25');
-  });
-
   describe('fecha del comprobante', () => {
     afterEach(() => {
       vi.useRealTimers();
@@ -372,18 +261,32 @@ describe('askExportOptions', () => {
       expect(await askExportOptions({}, context({ exportType: 1 }))).toEqual({ voucherDate: '03/12/2026' });
     });
 
-    it('suma la regla del flujo (en las notas, el asociado) a la ventana de ARCA', async () => {
+    it('suma las reglas del flujo (en las notas, el asociado) a la ventana de ARCA', async () => {
       vi.useFakeTimers({ toFake: ['Date'] });
       vi.setSystemTime(new Date('2026-11-18T12:00:00-03:00'));
       script = createScript([
         [OPTIONALS, ['Fecha del comprobante']],
-        [/Fecha del comprobante/, rejecting('18/11/2026', ['20/11/2026', /^Posterior al 19\/11\/2026\.$/])],
+        [
+          /Fecha del comprobante/,
+          rejecting('18/11/2026', [
+            '16/11/2026',
+            /^La fecha de la nota de crédito de exportación E \(16\/11\/2026\) no puede ser anterior a la de la factura de exportación E 00003-00000001 \(17\/11\/2026\)\.$/,
+          ]),
+        ],
       ]);
 
       expect(
         await askExportOptions(
           {},
-          context({ voucherDateRule: (date) => (date > '20261119' ? 'Posterior al 19/11/2026.' : true) }),
+          context({
+            rules: {
+              context: {
+                associated: { date: '20261117', label: 'la factura de exportación E 00003-00000001' },
+                today: '20261118',
+              },
+              draft: (patch) => ({ voucherKind: EXPORT_CREDIT_NOTE_KIND, ...patch }),
+            },
+          }),
         ),
       ).toEqual({
         voucherDate: '18/11/2026',
@@ -398,17 +301,6 @@ describe('askExportOptions', () => {
       ]);
 
       expect(await askExportOptions({}, context())).toEqual({});
-    });
-  });
-
-  it('cotización en otra moneda usa su código', async () => {
-    script = createScript([
-      [OPTIONALS, ['Cotización']],
-      [/Cotización de 060:/, '1.600'],
-    ]);
-
-    expect(await askExportOptions({}, context({ currencyCode: '060', defaultExchangeRate: '1.500' }))).toEqual({
-      exchangeRate: 1600,
     });
   });
 
@@ -469,6 +361,21 @@ describe('askExportOptions', () => {
       ]);
 
       expect(await askExportOptions({}, context({ countryCuit }))).toEqual({});
+    });
+
+    // REV-74, #10: volver al CUIT desde la pregunta siguiente lo muestra escrito.
+    it('volver desde las observaciones vuelve al CUIT, escrito', async () => {
+      script = createScript([
+        [OPTIONALS, ['CUIT del país', 'Observaciones']],
+        [/CUIT del país del cliente/, '55000002118'],
+        [/^Observaciones \(/, BACK],
+        [/CUIT del país del cliente/, '55000002118'],
+        [/^Observaciones \(/, ''],
+        [/comerciales/, ''],
+      ]);
+
+      expect(await askExportOptions({}, context({ countryCuit }))).toMatchObject({ clientCountryCuit: 55000002118 });
+      expect(script.askTextStep.mock.calls[2]?.[1]).toMatchObject({ previousAnswer: '55000002118' });
     });
   });
 });

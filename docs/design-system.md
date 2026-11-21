@@ -69,26 +69,28 @@ Se elige por lo que se muestra, no por cómo se ve. Cada rol tiene su función, 
 
 Se piden con `uiSymbol('check')`, nunca escritos a mano en un presenter. Cada uno tiene su respaldo para `ARCLI_ASCII=1`, que cambia bordes y símbolos pero no las tildes ni la `ñ`. Un símbolo nuevo se agrega en `UI_THEME.symbols`.
 
-| Nombre       | Unicode | ASCII          | Para                    |
-| ------------ | ------- | -------------- | ----------------------- |
-| `check`      | `✓`     | `v`            | Chequeo correcto        |
-| `done`       | `✔`     | `v`            | Pregunta respondida     |
-| `bullet`     | `•`     | `-`            | Listas                  |
-| `separator`  | `·`     | `-`            | Datos en una línea      |
-| `ellipsis`   | `…`     | `...`          | Texto recortado         |
-| `arrow`      | `→`     | `->`           | Ruta en un menú         |
-| `back`       | `←`     | `<`            | Volver                  |
-| `pointer`    | `❯`     | `>`            | Cursor en una lista     |
-| `rule`       | `┈`     | `-`            | Regla de un listado     |
-| `selected`   | `◉`     | `[x]`          | Opción seleccionada     |
-| `unselected` | `◯`     | `[ ]`          | Opción sin seleccionar  |
-| `keysMove`   | `↑↓`    | `arriba/abajo` | Ayuda de teclas         |
-| `keyEnter`   | `⏎`     | `enter`        | Ayuda de teclas         |
-| `moreAbove`  | `↑`     | `^`            | Opciones ocultas arriba |
-| `moreBelow`  | `↓`     | `v`            | Opciones ocultas abajo  |
-| `moreLeft`   | `←`     | `<`            | Bloque a la izquierda   |
-| `moreRight`  | `→`     | `>`            | Bloque a la derecha     |
-| `squared`    | `²`     | `2`            | Metros cuadrados (`m²`) |
+| Nombre         | Unicode | ASCII          | Para                     |
+| -------------- | ------- | -------------- | ------------------------ |
+| `check`        | `✓`     | `v`            | Chequeo correcto         |
+| `done`         | `✔`     | `v`            | Pregunta respondida      |
+| `bullet`       | `•`     | `-`            | Listas                   |
+| `separator`    | `·`     | `-`            | Datos en una línea       |
+| `ellipsis`     | `…`     | `...`          | Texto recortado          |
+| `arrow`        | `→`     | `->`           | Ruta en un menú          |
+| `back`         | `←`     | `<`            | Volver                   |
+| `pointer`      | `❯`     | `>`            | Cursor en una lista      |
+| `rule`         | `┈`     | `-`            | Regla de un listado      |
+| `selected`     | `◉`     | `[x]`          | Opción seleccionada      |
+| `unselected`   | `◯`     | `[ ]`          | Opción sin seleccionar   |
+| `removeMark`   | `●`     | `[-]`          | Fila marcada para borrar |
+| `keysMove`     | `↑↓`    | `arriba/abajo` | Ayuda de teclas          |
+| `keyEnter`     | `⏎`     | `enter`        | Ayuda de teclas          |
+| `keyBackspace` | `⌫`     | `backspace`    | Ayuda de teclas          |
+| `moreAbove`    | `↑`     | `^`            | Opciones ocultas arriba  |
+| `moreBelow`    | `↓`     | `v`            | Opciones ocultas abajo   |
+| `moreLeft`     | `←`     | `<`            | Bloque a la izquierda    |
+| `moreRight`    | `→`     | `>`            | Bloque a la derecha      |
+| `squared`      | `²`     | `2`            | Metros cuadrados (`m²`)  |
 
 ## Formatos
 

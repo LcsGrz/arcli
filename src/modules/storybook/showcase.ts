@@ -6,6 +6,7 @@ import {
   certificateBanner,
   dataPanel,
   errorListPanel,
+  renderRowActionsList,
   sectionHeading,
   sheetPanel,
   statusBar,
@@ -635,8 +636,39 @@ function buildComponentsScene(): string {
     ['Importe total', '$ 1'],
   ];
 
+  // El editor de ítems de la E (NAV-10): uno para modificar, uno para borrar y el cursor en el primero.
+  const rowActions = renderRowActionsList({
+    active: 0,
+    addLabel: '+ Agregar ítem',
+    backLabel: `${uiSymbol('back')} Volver`,
+    highlight: (text) => colorize(text, 'highlight'),
+    pageSize: 12,
+    rows: [
+      { detail: '1.000 litros x 1,50 USD', mark: 'edit', title: 'Jugo de naranja concentrado', total: '1.500 USD' },
+      { detail: '1 unidades x 500 USD', mark: 'remove', title: 'Flete', total: '500 USD' },
+      { detail: '1 unidades x 100 USD', title: 'Seguro', total: '100 USD' },
+    ],
+    width: 84,
+  });
+  // El titulo y la ayuda de teclas los pone el prompt: con marcas, Enter aplica (sin marcas, sigue).
+  const rowActionsHelp = [
+    [uiSymbol('keysMove'), 'mover'],
+    ['espacio', 'modificar'],
+    [uiSymbol('keyBackspace'), 'borrar'],
+    [uiSymbol('keyEnter'), 'aplicar'],
+  ]
+    .map(([key, action]) => `${key} ${colorize(action ?? '', 'muted')}`)
+    .join(colorize(` ${uiSymbol('bullet')} `, 'muted'));
+  const rowActionsDemo = [
+    'Ítems de la factura de exportación E (3): modificá o eliminá ítems, o presioná Enter para continuar',
+    ' ',
+    ...rowActions,
+    ' ',
+    rowActionsHelp,
+  ].join('\n');
+
   return [
-    sceneTitle('Componentes', 'Banners, avisos y un panel de cada rol'),
+    sceneTitle('Componentes', 'Banners, avisos, un panel de cada rol y la lista con acciones por fila'),
     notice,
     certificateNotice,
     expiredCertificateNotice,
@@ -659,6 +691,7 @@ function buildComponentsScene(): string {
       'Demo datos',
       renderObject({ cae: '86120020280000', payload: { CbteTipo: 11, ImpTotal: 1, PtoVta: 3 }, resultado: 'A' }),
     ),
+    dataPanel('Demo lista con acciones por fila', rowActionsDemo),
   ].join('\n\n');
 }
 

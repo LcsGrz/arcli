@@ -1,18 +1,13 @@
-import { diffArcaDatesInDays, formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
+import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { parseCuit } from '../../lib/identity/cuit';
+import { assertRules } from '../../lib/rules/rules';
 
 import { formatDocumentFlag, formatVoucherSubject, formatVoucherWithArticle } from './billing.mappers';
-import type { BillingCommandInput, BillingConcept } from './billing.schemas';
+import { RECEIVER_NOT_EMITTER_RULE } from './billing.rules';
+import type { BillingCommandInput } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
 import { getVoucherKindByFamilyAndLetter } from './voucher-kind-map';
-
-/** ARCA 10032 (WSFEv1 v4.7). */
-export function ensureDateOrder(serviceStartDate: string, serviceEndDate: string): void {
-  if (serviceStartDate > serviceEndDate) {
-    throw new InputValidationError('La fecha de inicio de servicio no puede ser posterior a la fecha de fin.');
-  }
-}
 
 export function validateConceptDateInputs(input: BillingCommandInput, voucherKind: VoucherKindDefinition): void {
   const hasAnyServiceDate = Boolean(input.serviceStartDate || input.serviceEndDate);
@@ -182,14 +177,12 @@ export function validateDocumentIdentity(
       );
     }
 
-    // ARCA 10069 (WSFEv1 v4.7): el documento del receptor no puede ser el del emisor.
-    if (emitterCuit !== undefined && input.documentNumber === emitterCuit) {
-      throw new InputValidationError(
-        `El receptor no puede ser el mismo CUIT que emite (${emitterCuit}): ARCA lo rechaza (error 10069).`,
-        undefined,
-        `Revisá \`${formatDocumentFlag(input.documentType)}\`: es el CUIT de la config, no el de tu cliente.`,
-      );
-    }
+    // ARCA 10069: la regla es la misma que usa el asistente al preguntar el CUIT.
+    assertRules([RECEIVER_NOT_EMITTER_RULE], input, {
+      emitterCuit,
+      today: formatDateAsArcaDate(new Date()),
+      voucherKind,
+    });
   }
 
   // Propia: ARCA acepta cualquier DocNro de hasta 11 digitos (p. 28) y testing aprobo una B a DNI 543210. Desde 6
@@ -197,56 +190,6 @@ export function validateDocumentIdentity(
   if (input.documentType === 'dni' && !/^\d{6,8}$/.test(String(input.documentNumber))) {
     throw new InputValidationError(
       `\`--dni\` debe tener de 6 a 8 dígitos en ${formatVoucherWithArticle(voucherKind)}.`,
-    );
-  }
-}
-
-interface BillingDateWindow {
-  readonly maxDaysAfter: number;
-  readonly maxDaysBefore: number;
-  readonly sameMonthWhenFuture: boolean;
-}
-
-/** Ventana de CbteFch respecto de hoy segun ARCA: 10016 el rango y 10152 el mes (WSFEv1 v4.7). */
-function resolveBillingDateWindow(concept: BillingConcept, voucherKind: VoucherKindDefinition): BillingDateWindow {
-  if (voucherKind.isElectronicCredit) {
-    return { maxDaysAfter: 1, maxDaysBefore: 5, sameMonthWhenFuture: true };
-  }
-
-  if (concept === 'productos') {
-    return { maxDaysAfter: 5, maxDaysBefore: 5, sameMonthWhenFuture: true };
-  }
-
-  return { maxDaysAfter: 10, maxDaysBefore: 10, sameMonthWhenFuture: false };
-}
-
-export function validateBillingDateWindow(
-  billingDate: string,
-  today: string,
-  concept: BillingConcept,
-  voucherKind: VoucherKindDefinition,
-): void {
-  const window = resolveBillingDateWindow(concept, voucherKind);
-  const offset = diffArcaDatesInDays(today, billingDate);
-  const label = formatArcaDateAsArgentineDate(billingDate);
-
-  if (offset < -window.maxDaysBefore || offset > window.maxDaysAfter) {
-    throw new InputValidationError(
-      `La fecha ${label} está fuera de rango para ${formatVoucherWithArticle(voucherKind)}: ARCA acepta hasta ${window.maxDaysBefore} días antes y ${window.maxDaysAfter} después de hoy.`,
-    );
-  }
-
-  if (window.sameMonthWhenFuture && offset > 0 && billingDate.slice(0, 6) !== today.slice(0, 6)) {
-    throw new InputValidationError(
-      `La fecha ${label} es futura y cae en otro mes. Para ${formatVoucherWithArticle(voucherKind)} ARCA solo acepta fechas futuras dentro del mes actual.`,
-    );
-  }
-}
-
-export function validatePaymentDueDate(paymentDueDate: string, minimumPaymentDueDate: string): void {
-  if (paymentDueDate < minimumPaymentDueDate) {
-    throw new InputValidationError(
-      `El vencimiento de pago (${formatArcaDateAsArgentineDate(paymentDueDate)}) no puede ser anterior al ${formatArcaDateAsArgentineDate(minimumPaymentDueDate)}.`,
     );
   }
 }
