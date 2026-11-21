@@ -255,7 +255,11 @@ export async function runInteractiveMode(options: GlobalCliOptions = {}): Promis
         '¿Qué querés hacer?',
         [
           ...(update ? [updateChoice(update), new Separator(' ')] : []),
-          { name: 'Emitir factura', value: 'factura' },
+          {
+            description: 'Factura A, B o C, de crédito (FCE) o de exportación (E)',
+            name: 'Emitir factura',
+            value: 'factura',
+          },
           markIfNew({ description: 'Recibo A, B o C por un cobro', name: 'Emitir recibo', value: 'recibo' }, [
             'recibo',
             'recibos-a-b',

@@ -204,6 +204,22 @@ describe('runInteractiveMode', () => {
     expect(chooseOneMock.mock.calls[0][1]).not.toContainEqual(expect.objectContaining({ value: 'actualizar' }));
   });
 
+  it('cada opcion del menu tiene su descripcion, salvo "Salir" (TUI-14)', async () => {
+    chooseOneMock.mockResolvedValueOnce('salir');
+
+    await runInteractiveMode();
+
+    const choices = (chooseOneMock.mock.calls[0][1] as ReadonlyArray<{ description?: string; value?: string }>).filter(
+      (choice) => choice.value !== undefined && choice.value !== 'salir',
+    );
+
+    expect(choices.map((choice) => choice.value)).toContain('factura');
+
+    for (const choice of choices) {
+      expect(choice.description, choice.value).toBeTruthy();
+    }
+  });
+
   it('con version nueva, actualizar es la primera opcion y "Cerrar para actualizar" sale', async () => {
     vi.mocked(checkForUpdate).mockResolvedValueOnce({ currentVersion: '1.8.0', latestVersion: '1.9.0' });
     vi.mocked(runUpdateFlow).mockResolvedValueOnce(true);
