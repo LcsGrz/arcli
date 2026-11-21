@@ -202,8 +202,8 @@ const totalRow = (result: ExportExecutionResult): Rows[number] => [
 ];
 
 /**
- * Los datos del comprobante hasta las fechas, una linea en blanco, los items, otra linea en blanco y el importe total. Los importes de los items y el total van en la columna de valores de los
- * datos, alineados a la derecha entre si.
+ * Los datos del comprobante hasta las fechas, una linea en blanco, los items, otra linea en blanco y el importe total.
+ * Los importes de los items y el total van en la columna de valores de los datos, alineados a la derecha entre si.
  */
 function formatExportPreviewContent(result: ExportExecutionResult): string[] {
   const rows = formatPayloadRows(result);
