@@ -132,6 +132,7 @@
       │  Fecha de pago                    18/11/2026                                 │
       │                                                                              │
       │  1 x Según detalle (unidades)     1.800 USD                                  │
+      │                                                                              │
       │  Importe total                    1.800 USD                                  │
       │                                                                              │
       ├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
@@ -198,6 +199,7 @@ arcli fe -m 1800 --cliente 'ACME LLC' --domicilio-cliente '123 Main St, Miami, F
       │  Fecha de pago                    18/11/2026                                 │
       │                                                                              │
       │  1 x Según detalle (unidades)     1.800 USD                                  │
+      │                                                                              │
       │  Importe total                    1.800 USD                                  │
       │                                                                              │
       ├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤

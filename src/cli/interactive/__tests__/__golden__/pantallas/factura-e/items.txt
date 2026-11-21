@@ -191,6 +191,7 @@
       │  800 x Jugo de naranja            1.600 USD                                  │
       │  concentrado (kilogramos)                                                    │
       │  1 x Seguro (unidades)              100 USD                                  │
+      │                                                                              │
       │  Importe total                    1.700 USD                                  │
       │                                                                              │
       ├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤

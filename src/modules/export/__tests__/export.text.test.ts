@@ -196,7 +196,7 @@ describe('formatExportResultAsText: items de la vista previa', () => {
     return visibleWidth(line);
   }
 
-  it('va de las fechas a los items y, pegado al ultimo, el importe total', () => {
+  it('va de las fechas a los items y al final el importe total, separados por lineas en blanco', () => {
     const lines = previewLines(140);
     const paymentDate = lines.findIndex((line) => line.startsWith('Fecha de pago'));
     const firstItem = lines.findIndex((line) => line.startsWith('2 x Té'));
@@ -205,7 +205,8 @@ describe('formatExportResultAsText: items de la vista previa', () => {
     expect(lines.findIndex((line) => line.startsWith('Observaciones'))).toBeLessThan(paymentDate);
     expect(lines[paymentDate + 1]).toBe('');
     expect(firstItem).toBe(paymentDate + 2);
-    expect(lines.slice(firstItem, total + 1).every((line) => line !== '')).toBe(true);
+    expect(lines[total - 1]).toBe('');
+    expect(lines.slice(firstItem, total - 1).every((line) => line !== '')).toBe(true);
     expect(lines[total]).toMatch(/^Importe total\s+1\.512,50 USD$/);
   });
 
@@ -240,7 +241,7 @@ describe('formatExportResultAsText: items de la vista previa', () => {
     // La descripcion se parte dentro de la columna de las etiquetas: no invade la de los importes.
     const continuation = lines.slice(
       lines.indexOf(first) + 1,
-      lines.findIndex((line) => line.startsWith('Importe total')),
+      lines.findIndex((line) => line.startsWith('Importe total')) - 1,
     );
 
     expect(continuation.length).toBeGreaterThan(0);

@@ -125,6 +125,7 @@
       │                                                                              │
       │  1 x Consultoría de software      1.500 USD                                  │
       │  (unidades)                                                                  │
+      │                                                                              │
       │  Importe total                    1.500 USD                                  │
       │                                                                              │
       ├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
@@ -193,6 +194,7 @@ arcli fe -m 1500 --cliente 'ACME LLC' --domicilio-cliente '123 Main St' --pais-d
       │                                                                              │
       │  1 x Consultoría de software      1.500 USD                                  │
       │  (unidades)                                                                  │
+      │                                                                              │
       │  Importe total                    1.500 USD                                  │
       │                                                                              │
       ├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤

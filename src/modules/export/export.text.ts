@@ -202,8 +202,7 @@ const totalRow = (result: ExportExecutionResult): Rows[number] => [
 ];
 
 /**
- * Los datos del comprobante hasta las fechas, una linea en blanco, los items y, pegado abajo, el importe total: su
- * etiqueta en negrita lo separa de los items. Los importes de los items y el total van en la columna de valores de los
+ * Los datos del comprobante hasta las fechas, una linea en blanco, los items, otra linea en blanco y el importe total. Los importes de los items y el total van en la columna de valores de los
  * datos, alineados a la derecha entre si.
  */
 function formatExportPreviewContent(result: ExportExecutionResult): string[] {
@@ -220,6 +219,7 @@ function formatExportPreviewContent(result: ExportExecutionResult): string[] {
     ...renderKeyValueRows(rows, { labelWidth }),
     '',
     ...items,
+    '',
     ...renderKeyValueRows([[totalLabel, padStartVisible(totalAmount, amountWidth)]], { labelWidth }),
   ];
 }

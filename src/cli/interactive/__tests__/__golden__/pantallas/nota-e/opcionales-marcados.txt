@@ -110,6 +110,7 @@
       │  Fecha del comprobante            17/11/2026                                 │
       │                                                                              │
       │  1 x Según detalle (unidades)     500 USD                                    │
+      │                                                                              │
       │  Importe total                    500 USD                                    │
       │                                                                              │
       ├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
