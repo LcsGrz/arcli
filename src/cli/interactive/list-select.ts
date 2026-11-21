@@ -14,7 +14,14 @@ import {
 
 import { colorize, scrollHint, scrollWindow, uiSymbol } from '../../ui';
 
-import { filterCountLine, filterPromptLine, matchesSearch, noMatchesLine, searchWords } from './filter-list';
+import {
+  FILTER_HELP_KEY,
+  filterCountLine,
+  filterPromptLine,
+  matchesSearch,
+  noMatchesLine,
+  searchWords,
+} from './filter-list';
 
 /** Oculta el cursor de la terminal mientras se muestra la lista; @inquirer lo vuelve a mostrar al cerrarla. */
 const CURSOR_HIDE = '\u001B[?25l';
@@ -263,6 +270,7 @@ export const listSelect = createPrompt(
     const help = theme.style.keysHelpTip([
       ['↑↓', 'navigate'],
       ['⏎', 'select'],
+      ...(filterable ? [FILTER_HELP_KEY] : []),
     ]);
     const head = [prefix, message].filter(Boolean).join(' ');
     // Lo escrito, como en `filterList`: en su propia linea debajo de la pregunta, con una linea en blanco antes de la lista.

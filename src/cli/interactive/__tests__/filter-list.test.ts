@@ -90,6 +90,7 @@ describe('filterList', () => {
     const { screen } = await run([ENTER]);
 
     expect(screen).toContain('Filtrar:');
+    expect(screen).toContain('escribí');
     expect(screen).toContain('CÓDIGO  MONEDA');
     expect(screen).toContain('❯ DOL  Dólar Estadounidense');
     expect(screen).toContain('Escribí el nombre o el código.');

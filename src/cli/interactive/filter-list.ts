@@ -82,6 +82,9 @@ export function filterRows<T>(rows: ReadonlyArray<FilterListRow<T>>, term: strin
   return rows.filter((row) => matchesSearch(`${row.label} ${row.keywords ?? ''}`, term));
 }
 
+/** La pista de que se puede escribir para filtrar, en la ayuda de teclas de las listas que filtran. */
+export const FILTER_HELP_KEY: [string, string] = ['escribí', 'para filtrar'];
+
 /** "Filtrar: dol", la linea con lo escrito. */
 export function filterPromptLine(term: string): string {
   return `${colorize('Filtrar:', 'muted')} ${term}`;
@@ -176,7 +179,11 @@ export const filterList = createPrompt(<T>(config: FilterListConfig<T>, done: (v
 
   const count = filterCountLine(term, visible.length, config.rows.length);
   const body = visible.length > 0 ? page : noMatchesLine(term);
-  const keys: HelpKey[] = [['↑↓', 'navigate'], ...(config.mode === 'elegir' ? [['⏎', 'select'] as HelpKey] : [])];
+  const keys: HelpKey[] = [
+    ['↑↓', 'navigate'],
+    ...(config.mode === 'elegir' ? [['⏎', 'select'] as HelpKey] : []),
+    FILTER_HELP_KEY,
+  ];
   const lines = [
     // Una linea en blanco entre "Filtrar:" y la lista, y otra arriba (en `top`), para que el filtro no quede pegado.
     ' ',

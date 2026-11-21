@@ -265,5 +265,12 @@ describe('listSelect: buscar escribiendo', () => {
 
     expect(answer).toBe('PES');
     expect(frames.join('')).not.toContain('Filtrar:');
+    expect(frames.join('')).not.toContain('escribí');
+  });
+
+  it('la ayuda de teclas avisa que se puede escribir para filtrar', async () => {
+    const { frames } = await choose([ENTER], { choices: CURRENCIES });
+
+    expect(frames[0]?.trimEnd().split('\n').at(-1)).toContain('escribí');
   });
 });
