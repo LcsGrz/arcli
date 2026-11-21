@@ -9,6 +9,11 @@
   margin-top: 0.4rem;
 }
 
+/* Aire entre el título "Versiones anteriores" y la primera versión */
+.sl-markdown-content .sl-heading-wrapper + details.arcli-ver {
+  margin-top: 1.25rem;
+}
+
 /* Centrado y no por la línea base: la flechita de Starlight no tiene texto y, alineada por la base, quedaba más arriba
    y estiraba los renglones sin nombre. Los números con ancho fijo, para que los nombres arranquen en la misma columna. */
 .sl-markdown-content details.arcli-ver > summary {
