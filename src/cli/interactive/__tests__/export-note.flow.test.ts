@@ -196,7 +196,7 @@ describe('runExportNoteFlow', () => {
     script = createScript([
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
-      [/^Ítems de .*: marcá qué modificar/, editing({ edit: ['Según detalle'] })],
+      [/^Ítems de .*: modificá o eliminá ítems/, editing({ edit: ['Según detalle'] })],
       [/Descripción del ítem 1/, rejecting('Descuento', ['a'.repeat(4001), /más de 4\.000 caracteres.*error 1770/])],
       [/Cantidad/, ''],
       [/Unidad/, ''],
@@ -233,7 +233,7 @@ describe('runExportNoteFlow', () => {
   });
 
   it('arranca en el editor con los ítems de la factura; en la NC, con un total mayor, "Confirmar" está deshabilitado con su motivo y bajando el precio se sigue', async () => {
-    const ITEMS = /^Ítems de .*: marcá qué modificar/;
+    const ITEMS = /^Ítems de .*: modificá o eliminá ítems/;
 
     script = createScript([
       [/Punto de venta de la factura E/, '4'],
@@ -280,7 +280,7 @@ describe('runExportNoteFlow', () => {
     script = createScript([
       [/Punto de venta de la factura E/, '4'],
       [/Número de la factura E/, '1'],
-      [/^Ítems de .*: marcá qué modificar/, BACK],
+      [/^Ítems de .*: modificá o eliminá ítems/, BACK],
       [/Número de la factura E/, BACK],
       [/Punto de venta de la factura E/, BACK],
     ]);
@@ -427,7 +427,7 @@ describe('runExportNoteFlow: volver en cada paso, PV propio y cotización del as
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, BACK],
       [/Permisos de embarque/, BACK],
-      [/^Ítems de .*: marcá qué modificar/, BACK],
+      [/^Ítems de .*: modificá o eliminá ítems/, BACK],
       [/Cotización de USD/, BACK],
       [/Número de la factura E/, BACK],
       [/Punto de venta de la factura E/, BACK],
@@ -508,7 +508,7 @@ describe('runExportNoteFlow: volver en cada paso, PV propio y cotización del as
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, BACK],
       [/Permisos de embarque/, BACK],
-      [/^Ítems de .*: marcá qué modificar/, BACK],
+      [/^Ítems de .*: modificá o eliminá ítems/, BACK],
       [/Número/, BACK],
       [/Punto de venta/, BACK],
     ]);
@@ -622,7 +622,7 @@ describe('notas E: opcionales al elegir otro asociado', () => {
       // "despues" vuelve: se retrocede hasta el número y se elige otra factura.
       [/Agregamos algún opcional/, BACK],
       [/Permisos de embarque/, BACK],
-      [/^Ítems de .*: marcá qué modificar/, BACK],
+      [/^Ítems de .*: modificá o eliminá ítems/, BACK],
       [/Cotización de USD/, BACK],
       [/Número de la factura E/, '3'],
       [/Cotización de USD/, '1174,605'],

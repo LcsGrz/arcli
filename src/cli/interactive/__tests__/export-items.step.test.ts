@@ -33,7 +33,7 @@ const UNITS: ExportUnit[] = [
 const JUICE = { description: 'Jugo', quantity: 100, unit: 5, unitPrice: 2.5 };
 const FREIGHT = { description: 'Flete', quantity: 1, unit: 7, unitPrice: 300 };
 
-const ITEMS = /^Ítems de .*: marcá qué modificar/;
+const ITEMS = /^Ítems de .*: modificá o eliminá ítems/;
 const TOTAL = /^Importe total/;
 
 interface Options {

@@ -686,7 +686,7 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       [/Permisos de embarque/, BACK],
       [/Incoterm/, BACK],
       // Con ítems cargados arranca en el editor; Esc ahí vuelve al paso anterior (NAV-10).
-      [/^Ítems de .*: marcá qué modificar/, BACK],
+      [/^Ítems de .*: modificá o eliminá ítems/, BACK],
       [/Cotización de USD/, BACK],
       [/Te pagan en dólares/, BACK],
       [/moneda/, BACK],
@@ -744,12 +744,12 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       [/Forma de pago/, BACK],
       [/Permisos de embarque/, BACK],
       [/Incoterm/, BACK],
-      [/^Ítems de .*: marcá qué modificar/, BACK],
+      [/^Ítems de .*: modificá o eliminá ítems/, BACK],
       [/moneda/, BACK],
       [/Qué exportás/, 'Servicios'],
       [/moneda/, 'Pesos'],
       // Con la misma moneda, los ítems siguen: arranca en el editor.
-      [/^Ítems de .*: marcá qué modificar/, editing({})],
+      [/^Ítems de .*: modificá o eliminá ítems/, editing({})],
       [/Importe total/, 'Confirmar'],
       [/Forma de pago/, ''],
       [/Fecha de pago/, ''],

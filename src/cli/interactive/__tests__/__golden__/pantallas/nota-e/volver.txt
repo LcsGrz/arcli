@@ -38,7 +38,7 @@
 
 └                                                                                          ┘
 
-? [editor] Ítems de la nota de crédito de exportación E (1): marcá qué modificar o borrar, o seguí con Enter
+? [editor] Ítems de la nota de crédito de exportación E (1): modificá o eliminá ítems, o presioná Enter para continuar
   · Según detalle — 1 unidades x 1.500 USD = 1.500 USD
   · + Agregar ítem
   = ← Volver
@@ -61,7 +61,7 @@
 
 └                                                                                          ┘
 
-? [editor] Ítems de la nota de crédito de exportación E (1): marcá qué modificar o borrar, o seguí con Enter
+? [editor] Ítems de la nota de crédito de exportación E (1): modificá o eliminá ítems, o presioná Enter para continuar
   [modificar] Según detalle — 1 unidades x 1.500 USD = 1.500 USD
   · + Agregar ítem
   = aplicar
@@ -90,7 +90,7 @@
   > Modificar los ítems — Modificar, borrar o agregar ítems
   = Modificar los ítems
 
-? [editor] Ítems de la nota de crédito de exportación E (1): marcá qué modificar o borrar, o seguí con Enter
+? [editor] Ítems de la nota de crédito de exportación E (1): modificá o eliminá ítems, o presioná Enter para continuar
   [modificar] Descuento por volumen — 1 unidades x 1.600 USD = 1.600 USD
   · + Agregar ítem
   = aplicar
@@ -127,7 +127,7 @@
   arranca escrito: "Descuento por volumen"
   = ← Volver
 
-? [editor] Ítems de la nota de crédito de exportación E (1): marcá qué modificar o borrar, o seguí con Enter
+? [editor] Ítems de la nota de crédito de exportación E (1): modificá o eliminá ítems, o presioná Enter para continuar
   [modificar] Descuento por volumen — 1 unidades x 1.600 USD = 1.600 USD
   · + Agregar ítem
   = aplicar
@@ -188,8 +188,8 @@
       │  Número                           00003-00000001                             │
       │  Fecha del comprobante            18/11/2026                                 │
       │                                                                              │
-      │  1 x Descuento por volumen (unidades)  400 USD                               │
-      │                                                                              │
+      │  1 x Descuento por volumen        400 USD                                    │
+      │  (unidades)                                                                  │
       │  Importe total                    400 USD                                    │
       │                                                                              │
       ├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤

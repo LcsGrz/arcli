@@ -196,7 +196,7 @@ describe('formatExportResultAsText: items de la vista previa', () => {
     return visibleWidth(line);
   }
 
-  it('va de las fechas a los items y recien al final el importe total, separados por lineas en blanco', () => {
+  it('va de las fechas a los items y, pegado al ultimo, el importe total', () => {
     const lines = previewLines(140);
     const paymentDate = lines.findIndex((line) => line.startsWith('Fecha de pago'));
     const firstItem = lines.findIndex((line) => line.startsWith('2 x Té'));
@@ -205,28 +205,49 @@ describe('formatExportResultAsText: items de la vista previa', () => {
     expect(lines.findIndex((line) => line.startsWith('Observaciones'))).toBeLessThan(paymentDate);
     expect(lines[paymentDate + 1]).toBe('');
     expect(firstItem).toBe(paymentDate + 2);
-    expect(lines[total - 1]).toBe('');
-    expect(lines.slice(firstItem, total - 1).every((line) => line !== '')).toBe(true);
+    expect(lines.slice(firstItem, total + 1).every((line) => line !== '')).toBe(true);
     expect(lines[total]).toMatch(/^Importe total\s+1\.512,50 USD$/);
   });
 
-  it.each([40, 140])('en %i columnas los importes de los items terminan en la misma columna', (columns) => {
-    const lines = previewLines(columns);
-
-    expect(amountEdge(lines, '12,50 USD')).toBe(amountEdge(lines, '1.500 USD'));
-    expect(Math.max(...lines.map(visibleWidth))).toBeLessThanOrEqual(columns);
-  });
-
-  it('en 140 columnas cada importe va al lado del comienzo de su descripcion, y la larga sigue debajo', () => {
+  it('en 140 columnas los importes de los items terminan en la misma columna que el total', () => {
     const lines = previewLines(140);
+    const totalEdge = amountEdge(lines, '1.512,50 USD');
 
-    expect(lines).toContainEqual(expect.stringMatching(/^2 x Té de Bogotá con 東京 \(unidades\)\s+12,50 USD$/));
-    expect(lines).toContainEqual(expect.stringMatching(/^1 x Servicio de consultoría .*\s{2,}1\.500 USD$/));
-    // La descripcion larga se parte dentro de su columna: no invade la de los importes.
-    expect(lines).toContainEqual('para la plataforma de comercio electrónico internacional');
+    expect(amountEdge(lines, '12,50 USD')).toBe(totalEdge);
+    expect(amountEdge(lines, '1.500 USD')).toBe(totalEdge);
+    expect(Math.max(...lines.map(visibleWidth))).toBeLessThanOrEqual(140);
   });
 
-  it('en 40 columnas cada item va con la descripcion arriba y el importe debajo, a la derecha', () => {
+  it('en 40 columnas los importes de los items van con la sangria del total, apilados', () => {
+    const lines = previewLines(40);
+
+    for (const amount of ['12,50 USD', '1.500 USD', '1.512,50 USD']) {
+      expect(lines).toContain(`  ${amount}`);
+    }
+
+    expect(Math.max(...lines.map(visibleWidth))).toBeLessThanOrEqual(40);
+  });
+
+  it('en 140 columnas el importe de cada item va en la columna de valores y la descripcion larga sigue debajo', () => {
+    const lines = previewLines(140);
+    const valueColumn = visibleWidth(
+      /^Fecha de pago\s+/.exec(lines.find((line) => line.startsWith('Fecha de pago')) ?? '')?.[0] ?? '',
+    );
+    const first = lines.find((line) => line.startsWith('1 x Servicio')) ?? '';
+
+    expect(first).toMatch(/\s{2,}1\.500 USD$/);
+    expect(lines.find((line) => line.startsWith('2 x Té'))).toMatch(/\s{2,}12,50 USD$/);
+    // La descripcion se parte dentro de la columna de las etiquetas: no invade la de los importes.
+    const continuation = lines.slice(
+      lines.indexOf(first) + 1,
+      lines.findIndex((line) => line.startsWith('Importe total')),
+    );
+
+    expect(continuation.length).toBeGreaterThan(0);
+    expect(continuation.every((line) => visibleWidth(line) < valueColumn)).toBe(true);
+  });
+
+  it('en 40 columnas cada item va con la descripcion arriba y el importe debajo', () => {
     const lines = previewLines(40);
 
     for (const amount of ['12,50 USD', '1.500 USD']) {

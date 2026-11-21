@@ -330,9 +330,9 @@ async function askTotal(
   );
 }
 
-/** "Ítems de la factura de exportación E (2): marcá qué modificar o borrar, o seguí con Enter". */
+/** "Ítems de la factura de exportación E (2): modificá o eliminá ítems, o presioná Enter para continuar". */
 function editorTitle(voucher: string, count: number): string {
-  return `Ítems de ${voucher} (${count}): marcá qué modificar o borrar, o seguí con Enter`;
+  return `Ítems de ${voucher} (${count}): modificá o eliminá ítems, o presioná Enter para continuar`;
 }
 
 /** Lo que guarda el memo: la ultima lista y la moneda de sus precios. */

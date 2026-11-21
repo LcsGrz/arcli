@@ -445,7 +445,7 @@ describe('runExportRepeatFlow', () => {
   it('sin "¿Mismo monto?": otro precio se cambia en el editor, y el monto es la suma de los ítems (NAV-10)', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/^Ítems de .*: marcá qué modificar/, editing({ edit: ['Flete'] })],
+      [/^Ítems de .*: modificá o eliminá ítems/, editing({ edit: ['Flete'] })],
       [/^Descripción del ítem 2:/, ''],
       [/Cantidad/, ''],
       [/Unidad/, 'unidades'],
@@ -547,7 +547,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
   it('volver desde el editor vuelve a la lista', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/^Ítems de .*: marcá qué modificar/, BACK],
+      [/^Ítems de .*: modificá o eliminá ítems/, BACK],
       [/Cuál repetimos/, BACK],
     ]);
 
@@ -557,11 +557,11 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
   it('Volver desde el total va al editor y de ahí a la lista, con la factura marcada; con la misma, el editor arranca con lo modificado', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
-      [/^Ítems de .*: marcá qué modificar/, editing({ remove: ['Flete'] })],
+      [/^Ítems de .*: modificá o eliminá ítems/, editing({ remove: ['Flete'] })],
       [/Importe total/, BACK],
-      [/^Ítems de .*: marcá qué modificar/, BACK],
+      [/^Ítems de .*: modificá o eliminá ítems/, BACK],
       [/Cuál repetimos/, '00004-00000001'],
-      [/^Ítems de .*: marcá qué modificar/, editing({})],
+      [/^Ítems de .*: modificá o eliminá ítems/, editing({})],
       [/Importe total/, 'Confirmar'],
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
@@ -779,7 +779,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
       // "despues" vuelve: se retrocede hasta la factura y se elige otra.
       [/Agregamos algún opcional/, BACK],
       [/Permisos de embarque/, BACK],
-      [/^Ítems de .*: marcá qué modificar/, BACK],
+      [/^Ítems de .*: modificá o eliminá ítems/, BACK],
       [/Cuál repetimos/, '00004-00000002'],
       ...KEEP_EXPORT_ITEMS,
       [/Permisos de embarque/, ''],
@@ -863,7 +863,7 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
         [/Agregamos algún opcional/, []],
         [/Agregamos algún opcional/, BACK],
         [/Fecha de pago/, BACK],
-        [/^Ítems de .*: marcá qué modificar/, editing({ remove: ['Flete'] })],
+        [/^Ítems de .*: modificá o eliminá ítems/, editing({ remove: ['Flete'] })],
         [/Importe total/, 'Confirmar'],
         [/Fecha de pago/, '20/11/2026'],
         [/Agregamos algún opcional/, []],

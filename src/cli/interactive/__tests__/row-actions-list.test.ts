@@ -39,7 +39,7 @@ async function run(keys: readonly string[], rows = ROWS, width = 80) {
     {
       addLabel: '+ Agregar ítem',
       backLabel: '← Volver',
-      message: 'Ítems de la factura de exportación E (2): marcá qué modificar o borrar, o seguí con Enter',
+      message: 'Ítems de la factura de exportación E (2): modificá o eliminá ítems, o presioná Enter para continuar',
       minRows: 1,
       minRowsNotice: 'Queda al menos un ítem.',
       pageSize: 12,

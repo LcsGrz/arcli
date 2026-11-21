@@ -1005,7 +1005,7 @@ describe('auditoría del asistente del 19/11: pasos compartidos (NAV-6)', () => 
       [/Te pagan en dólares/, 'Sí'],
       ...singleExportItem('1.500'),
       [/Forma de pago/, BACK],
-      [/^Ítems de .*: marcá qué modificar/, BACK],
+      [/^Ítems de .*: modificá o eliminá ítems/, BACK],
     ];
     const rest: Steps = [
       [/Forma de pago/, ''],
@@ -1021,7 +1021,7 @@ describe('auditoría del asistente del 19/11: pasos compartidos (NAV-6)', () => 
           ...untilItems,
           [/Te pagan en dólares/, BACK],
           [/moneda/, 'Pesos'],
-          [/^Ítems de .*: marcá qué modificar/, editing({ edit: ['Según detalle'] })],
+          [/^Ítems de .*: modificá o eliminá ítems/, editing({ edit: ['Según detalle'] })],
           [/^Descripción del ítem 1:/, ''],
           [/^Cantidad:/, ''],
           [/^Unidad:/, ''],
@@ -1042,7 +1042,7 @@ describe('auditoría del asistente del 19/11: pasos compartidos (NAV-6)', () => 
           ...untilItems,
           // En servicios no se pregunta la cotización (2053).
           [/Te pagan en dólares/, 'No, en pesos'],
-          [/^Ítems de .*: marcá qué modificar/, editing({})],
+          [/^Ítems de .*: modificá o eliminá ítems/, editing({})],
           [/^Importe total de la factura de exportación E: 1\.500 USD/, 'Confirmar'],
           ...rest,
         ],

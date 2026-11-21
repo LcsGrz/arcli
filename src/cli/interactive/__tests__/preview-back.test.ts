@@ -287,7 +287,7 @@ describe('TUI-15: Esc en la vista previa vuelve a la última pregunta', () => {
         [/Qué factura\?/, 'Factura de exportación E'],
         [/Punto de venta de la factura E/, '3'],
         [/Número de la factura E/, '7'],
-        [/^Ítems de .*: marcá qué modificar/, editing({ edit: ['Según detalle'] })],
+        [/^Ítems de .*: modificá o eliminá ítems/, editing({ edit: ['Según detalle'] })],
         [/Descripción del ítem 1/, ''],
         [/Cantidad/, ''],
         [/Unidad/, 'unidades'],
@@ -315,7 +315,7 @@ describe('TUI-15: Esc en la vista previa vuelve a la última pregunta', () => {
       [
         [/Qué comprobante querés repetir/, 'Factura de exportación E'],
         [/Cuál repetimos/, '00003-00000007'],
-        [/^Ítems de .*: marcá qué modificar/, editing({})],
+        [/^Ítems de .*: modificá o eliminá ítems/, editing({})],
         [/Importe total/, 'Confirmar'],
         [/Fecha de pago/, '30/11/2026'],
         [/Agregamos/, []],

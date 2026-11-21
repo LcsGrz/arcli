@@ -29,7 +29,7 @@
 
 └                                                                                          ┘
 
-? [editor] Ítems de la factura de exportación E (1): marcá qué modificar o borrar, o seguí con Enter
+? [editor] Ítems de la factura de exportación E (1): modificá o eliminá ítems, o presioná Enter para continuar
   · Según detalle — 1 unidades x 1.500 USD = 1.500 USD
   · + Agregar ítem
   = sin cambios
@@ -84,8 +84,7 @@
       │  Fecha del comprobante            18/11/2026                                 │
       │  Fecha de pago                    18/11/2026                                 │
       │                                                                              │
-      │  1 x Según detalle (unidades)  1.500 USD                                     │
-      │                                                                              │
+      │  1 x Según detalle (unidades)     1.500 USD                                  │
       │  Importe total                    1.500 USD                                  │
       │                                                                              │
       ├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤

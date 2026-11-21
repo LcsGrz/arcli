@@ -117,8 +117,8 @@
       │  Fecha del comprobante            18/11/2026                                 │
       │  Fecha de pago                    18/11/2026                                 │
       │                                                                              │
-      │  1 x Consultoría de software (unidades)  1.500 USD                           │
-      │                                                                              │
+      │  1 x Consultoría de software      1.500 USD                                  │
+      │  (unidades)                                                                  │
       │  Importe total                    1.500 USD                                  │
       │                                                                              │
       ├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤

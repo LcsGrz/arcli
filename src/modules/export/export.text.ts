@@ -76,42 +76,40 @@ function formatUnit(result: ExportExecutionResult, unitCode: number): string {
   return result.display.unitNames[unitCode] ?? String(unitCode);
 }
 
-/** Lo minimo para la descripcion de un item al lado de su importe: con menos, cada item se parte en lineas. */
-const MIN_ITEM_DESCRIPTION_WIDTH = 16;
+/** La sangria de un valor apilado debajo de su etiqueta (`wrapPanelLines`). */
+const STACKED_VALUE_INDENT = '  ';
 
 /**
- * Un renglon por item, con la cantidad y la unidad en la descripcion (es lo que WSFEX autoriza) y el importe a la
- * derecha, en su columna. Se mide con el ancho visible y el lugar del comprobante en esta terminal: una descripcion
- * larga se parte dentro de su columna. Si no entra al lado (o las filas del comprobante, con su valor en
- * `payloadColumn`, ya se apilan), cada item va con la descripcion arriba y el importe debajo, a la derecha.
+ * Un renglon por item, con la cantidad y la unidad en la descripcion (es lo que WSFEX autoriza) y el importe en la
+ * columna de valores del comprobante, alineado a la derecha con el importe total (`amountWidth`). La descripcion va en
+ * la columna de las etiquetas (`labelWidth`) y, si es larga, se parte dentro de ella. Si las filas del comprobante ya
+ * se apilan en esta terminal, cada item va como ellas: la descripcion arriba y el importe debajo, con sangria.
  */
-function formatItemLines(result: ExportExecutionResult, payloadColumn: number): string[] {
-  const rows = result.payload.Items.Item.map((item) => ({
-    amount: formatAmount(result, item.Pro_total_item),
-    description: `${item.Pro_qty} x ${item.Pro_ds} (${formatUnit(result, item.Pro_umed)})`.replace(/\s+/g, ' '),
-  }));
-
-  if (rows.length === 0) {
-    return [];
-  }
-
+function formatItemLines(
+  result: ExportExecutionResult,
+  { amountWidth, labelWidth }: { amountWidth: number; labelWidth: number },
+): string[] {
+  const rows = formatItemRows(result);
   const width = panelContentWidth('ticket');
   const gap = ' '.repeat(UI_THEME.table.gap);
-  const amountWidth = Math.max(...rows.map((row) => visibleWidth(row.amount)));
-  const naturalWidth = Math.max(...rows.map((row) => visibleWidth(row.description)));
-  const descriptionWidth = Math.min(naturalWidth, width - gap.length - amountWidth);
 
-  if (stacksAtColumn(payloadColumn, width) || descriptionWidth < MIN_ITEM_DESCRIPTION_WIDTH) {
-    const blockWidth = Math.min(width, Math.max(naturalWidth, amountWidth));
-
-    return rows.flatMap((row) => [...wrapPlainText(row.description, width), padStartVisible(row.amount, blockWidth)]);
+  if (stacksAtColumn(labelWidth + gap.length, width)) {
+    // Como las filas apiladas del panel: la descripcion arriba y el importe debajo, con la sangria de los valores.
+    return rows.flatMap((row) => [...wrapPlainText(row.description, width), `${STACKED_VALUE_INDENT}${row.amount}`]);
   }
 
   return rows.flatMap((row) => {
-    const [first = '', ...rest] = wrapPlainText(row.description, descriptionWidth);
+    const [first = '', ...rest] = wrapPlainText(row.description, labelWidth);
 
-    return [`${padEndVisible(first, descriptionWidth)}${gap}${padStartVisible(row.amount, amountWidth)}`, ...rest];
+    return [`${padEndVisible(first, labelWidth)}${gap}${padStartVisible(row.amount, amountWidth)}`, ...rest];
   });
+}
+
+function formatItemRows(result: ExportExecutionResult): Array<{ amount: string; description: string }> {
+  return result.payload.Items.Item.map((item) => ({
+    amount: formatAmount(result, item.Pro_total_item),
+    description: `${item.Pro_qty} x ${item.Pro_ds} (${formatUnit(result, item.Pro_umed)})`.replace(/\s+/g, ' '),
+  }));
 }
 
 /** "Factura de exportación E 00003-00000012 del 05/11/2026, USD 1.500,00": lo que ajusta la nota. */
@@ -204,20 +202,25 @@ const totalRow = (result: ExportExecutionResult): Rows[number] => [
 ];
 
 /**
- * Los datos del comprobante hasta las fechas, una linea en blanco, los items, otra linea en blanco y el importe total,
- * con la columna de valores de los datos.
+ * Los datos del comprobante hasta las fechas, una linea en blanco, los items y, pegado abajo, el importe total: su
+ * etiqueta en negrita lo separa de los items. Los importes de los items y el total van en la columna de valores de los
+ * datos, alineados a la derecha entre si.
  */
 function formatExportPreviewContent(result: ExportExecutionResult): string[] {
   const rows = formatPayloadRows(result);
-  const total = totalRow(result);
-  const labelWidth = resolveKeyValueLabelWidth('ticket', [...rows, total]);
-  const items = formatItemLines(result, labelWidth + UI_THEME.table.gap);
+  const [totalLabel, totalAmount] = totalRow(result);
+  const labelWidth = resolveKeyValueLabelWidth('ticket', [...rows, [totalLabel]]);
+  const amountWidth = Math.max(
+    visibleWidth(totalAmount),
+    ...formatItemRows(result).map((row) => visibleWidth(row.amount)),
+  );
+  const items = formatItemLines(result, { amountWidth, labelWidth });
 
   return [
     ...renderKeyValueRows(rows, { labelWidth }),
-    ...(items.length > 0 ? ['', ...items] : []),
     '',
-    ...renderKeyValueRows([total], { labelWidth }),
+    ...items,
+    ...renderKeyValueRows([[totalLabel, padStartVisible(totalAmount, amountWidth)]], { labelWidth }),
   ];
 }
 

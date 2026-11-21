@@ -660,7 +660,7 @@ function buildComponentsScene(): string {
     .map(([key, action]) => `${key} ${colorize(action ?? '', 'muted')}`)
     .join(colorize(` ${uiSymbol('bullet')} `, 'muted'));
   const rowActionsDemo = [
-    'Ítems de la factura de exportación E (3): marcá qué modificar o borrar, o seguí con Enter',
+    'Ítems de la factura de exportación E (3): modificá o eliminá ítems, o presioná Enter para continuar',
     ' ',
     ...rowActions,
     ' ',

@@ -952,7 +952,7 @@ describe('golden de pantallas: ítems de la factura E (NAV-10)', () => {
       [/^(?:Importe|Precio unitario) en USD/, '500'],
       [/Descripción del ítem 3/, ''],
       [/Importe total/, 'Modificar los ítems'],
-      [/^Ítems de .*: marcá qué modificar/, editing({ add: true, edit: ['Jugo'], remove: ['Flete'] })],
+      [/^Ítems de .*: modificá o eliminá ítems/, editing({ add: true, edit: ['Jugo'], remove: ['Flete'] })],
       // El marcado para modificar arranca con lo que tenía.
       [/Descripción del ítem 1/, 'Jugo de naranja concentrado'],
       [/Cantidad/, '800'],
@@ -992,10 +992,10 @@ describe('golden de pantallas: ítems de la factura E (NAV-10)', () => {
       [/Cantidad/, BACK],
       [/Descripción del ítem 1/, BACK],
       [/Te pagan en dólares/, 'Sí'],
-      [/^Ítems de .*: marcá qué modificar/, editing({})],
+      [/^Ítems de .*: modificá o eliminá ítems/, editing({})],
       [/Importe total/, 'Modificar los ítems'],
       // Esc en el editor, si se llegó desde el total, vuelve al total.
-      [/^Ítems de .*: marcá qué modificar/, BACK],
+      [/^Ítems de .*: modificá o eliminá ítems/, BACK],
       [/Importe total/, 'Confirmar'],
       [/Incoterm/, 'FOB'],
       [/Permisos de embarque/, ''],
@@ -1015,7 +1015,7 @@ const notaCreditoE = [
 
 /** La NC arranca con el renglón de la factura (1.500 USD): se modifica el precio a 500. */
 const creditNoteFor500 = [
-  [/^Ítems de .*: marcá qué modificar/, editing({ edit: ['Según detalle'] })],
+  [/^Ítems de .*: modificá o eliminá ítems/, editing({ edit: ['Según detalle'] })],
   [/Descripción del ítem 1/, ''],
   [/Cantidad/, ''],
   [/Unidad/, 'unidades'],
@@ -1032,16 +1032,16 @@ describe('golden de pantallas: notas E', () => {
       'nota-e/volver',
       [
         ...notaCreditoE,
-        [/^Ítems de .*: marcá qué modificar/, BACK],
+        [/^Ítems de .*: modificá o eliminá ítems/, BACK],
         [/Número de la factura E/, '7'],
-        [/^Ítems de .*: marcá qué modificar/, editing({ edit: ['Según detalle'] })],
+        [/^Ítems de .*: modificá o eliminá ítems/, editing({ edit: ['Según detalle'] })],
         [/Descripción del ítem 1/, 'Descuento por volumen'],
         [/Cantidad/, ''],
         [/Unidad/, 'unidades'],
         // Más que la factura: la NC no se puede confirmar.
         [/^(?:Importe|Precio unitario) en USD/, '1.600'],
         [/Importe total/, 'Modificar los ítems'],
-        [/^Ítems de .*: marcá qué modificar/, editing({ edit: ['Descuento'] })],
+        [/^Ítems de .*: modificá o eliminá ítems/, editing({ edit: ['Descuento'] })],
         [/Descripción del ítem 1/, ''],
         [/Cantidad/, ''],
         [/Unidad/, 'unidades'],
@@ -1050,7 +1050,7 @@ describe('golden de pantallas: notas E', () => {
         [/Cantidad/, BACK],
         [/Descripción del ítem 1/, BACK],
         // Esc en las preguntas de un ítem que se modifica deja todo como estaba y vuelve al editor.
-        [/^Ítems de .*: marcá qué modificar/, editing({ edit: ['Descuento'] })],
+        [/^Ítems de .*: modificá o eliminá ítems/, editing({ edit: ['Descuento'] })],
         [/Descripción del ítem 1/, ''],
         [/Cantidad/, ''],
         [/Unidad/, 'unidades'],
@@ -1099,7 +1099,7 @@ describe('golden de pantallas: notas E', () => {
       [
         ...notaCreditoE,
         // La ND arranca con el renglón de la factura: se modifica la descripción y el precio.
-        [/^Ítems de .*: marcá qué modificar/, editing({ edit: ['Según detalle'] })],
+        [/^Ítems de .*: modificá o eliminá ítems/, editing({ edit: ['Según detalle'] })],
         [/Descripción del ítem 1/, 'Intereses'],
         [/Cantidad/, ''],
         [/Unidad/, 'unidades'],
@@ -1119,7 +1119,7 @@ const repetirE = [
 
 /** El editor arranca con el renglón de la factura y Enter sin marcas va al total (NAV-10). */
 const sameItems = [
-  [/^Ítems de .*: marcá qué modificar/, editing({})],
+  [/^Ítems de .*: modificá o eliminá ítems/, editing({})],
   [/Importe total/, 'Confirmar'],
 ] as const;
 
@@ -1132,9 +1132,9 @@ describe('golden de pantallas: Repetir E', () => {
       'repetir-e/volver',
       [
         ...repetirE,
-        [/^Ítems de .*: marcá qué modificar/, BACK],
+        [/^Ítems de .*: modificá o eliminá ítems/, BACK],
         [/Cuál repetimos/, '00003-00000007'],
-        [/^Ítems de .*: marcá qué modificar/, editing({ edit: ['Según detalle'] })],
+        [/^Ítems de .*: modificá o eliminá ítems/, editing({ edit: ['Según detalle'] })],
         [/Descripción del ítem 1/, ''],
         [/Cantidad/, ''],
         [/Unidad/, 'unidades'],

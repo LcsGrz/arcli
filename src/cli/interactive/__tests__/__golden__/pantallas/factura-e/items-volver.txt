@@ -129,7 +129,7 @@
 
 └                                                                                          ┘
 
-? [editor] Ítems de la factura de exportación E (1): marcá qué modificar o borrar, o seguí con Enter
+? [editor] Ítems de la factura de exportación E (1): modificá o eliminá ítems, o presioná Enter para continuar
   · Jugo de naranja — 1.200 kilogramos x 1,50 USD = 1.800 USD
   · + Agregar ítem
   = sin cambios
@@ -140,7 +140,7 @@
   · Modificar los ítems — Modificar, borrar o agregar ítems
   = Modificar los ítems
 
-? [editor] Ítems de la factura de exportación E (1): marcá qué modificar o borrar, o seguí con Enter
+? [editor] Ítems de la factura de exportación E (1): modificá o eliminá ítems, o presioná Enter para continuar
   · Jugo de naranja — 1.200 kilogramos x 1,50 USD = 1.800 USD
   · + Agregar ítem
   = ← Volver
@@ -199,8 +199,8 @@
       │  Número                           00003-00000008                             │
       │  Fecha del comprobante            18/11/2026                                 │
       │                                                                              │
-      │  1200 x Jugo de naranja (kilogramos)  1.800 USD                              │
-      │                                                                              │
+      │  1200 x Jugo de naranja           1.800 USD                                  │
+      │  (kilogramos)                                                                │
       │  Importe total                    1.800 USD                                  │
       │                                                                              │
       ├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
