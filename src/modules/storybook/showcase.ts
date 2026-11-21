@@ -621,7 +621,7 @@ function buildComponentsScene(): string {
         { kind: 'agregado', nested: false, text: 'Acceso directo en el escritorio.', topic: 'Modo interactivo' },
         { kind: 'cambiado', nested: false, text: 'Opciones entre backticks en los mensajes.' },
         { kind: 'corregido', nested: false, text: '"Volver" es un botón común en la selección múltiple.' },
-        { kind: 'deprecado', nested: false, text: 'la clave cotizacion.', topic: 'Config' },
+        { kind: 'deprecado', nested: false, text: 'la clave de la cotización queda deprecada.', topic: 'Config' },
       ],
       date: '2026-11-07',
       name: 'Monotributo y recibos',
