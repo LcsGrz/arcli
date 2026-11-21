@@ -62,7 +62,7 @@ Un cambio suele caer en varias filas: un comando nuevo con `--json` es también 
 
 Los cambios van siempre en `docs/`, nunca en `site/`: el sitio de documentación se genera desde ahí.
 
-Si el cambio le afecta a quien usa el CLI, sumá una entrada en "Sin publicar" de [CHANGELOG.md](CHANGELOG.md).
+Si el cambio le afecta a quien usa el CLI, sumá una entrada en "Sin publicar" de [CHANGELOG.md](CHANGELOG.md): una línea `- **Área:** qué cambia (#N).` en su sección (Agregado, Cambiado, Corregido…) y, si hace falta, el detalle en el `<details>` de esa sección, como las demás. Si cambia un código de error, un campo de `--json`, un flag, una clave o un default, sumalo también al aviso "Puede afectar scripts". El formato completo está en [la skill `changelog`](.claude/skills/changelog/SKILL.md).
 
 `docs-sync.test.ts` falla si un comando, flag o clave de config falta en sus docs o en `llms.txt`, y `examples-valid.test.ts` pasa por el parser real los ejemplos de facturación y los JSON de `--cargar` (el resto de los ejemplos, probalos con `yarn dev`). Con Claude Code, la skill `sincronizar-docs` recorre esta tabla por vos.
 

@@ -181,7 +181,7 @@ Las actions están fijadas por SHA (con la versión en un comentario), para que 
 ### Sacar una versión
 
 1. Crear la rama `release/vX.Y.Z` desde `dev` (desde `main` si es un hotfix).
-2. En `CHANGELOG.md`, pasar las entradas de "Sin publicar" a una sección `[X.Y.Z] - AAAA-MM-DD` y actualizar los links de comparación del final.
+2. En `CHANGELOG.md`, pasar las entradas de "Sin publicar" a una sección `[X.Y.Z] - AAAA-MM-DD` (con ` · Nombre` en una versión menor o mayor con funciones nuevas), ordenarlas por importancia, sumar el resumen, los destacados y, si algo puede afectar scripts, el aviso, y actualizar los links de comparación del final. El formato está en [`.claude/skills/changelog/SKILL.md`](../.claude/skills/changelog/SKILL.md) y lo controla `src/cli/__tests__/changelog-format.test.ts`.
 3. Subir la versión en `package.json` y en `src/cli/version.ts` (`yarn test:e2e` y `pack:check` verifican que coincidan).
    - **En febrero y agosto, además, la tabla del monotributo.** ARCLI trae una copia de la tabla de categorías (`src/modules/monotributo/monotributo.bundled.ts`) para cuando no puede leer la página de ARCA. ARCA la actualiza en febrero y agosto: en la primera release después de que publique los valores nuevos, corré `yarn monotributo:tabla` (lee la página con el mismo parser y control que `arcli monotributo --actualizar`, y no escribe nada si no pasa), después `yarn lint:prettier:fix`, y revisá el diff: la vigencia nueva y los importes. Si la página no se puede leer, `yarn monotributo:tabla pagina.html` toma una copia guardada desde el navegador. Si el formato cambió, actualizá también el HTML de prueba (`src/modules/monotributo/__tests__/fixtures/categorias.html`).
 4. Abrir el PR contra `main`, esperar el CI y mergear con squash.
