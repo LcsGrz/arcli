@@ -61,15 +61,18 @@ function findByCode<K extends string>(table: Readonly<Record<K, ArcaCode>>, code
   return (Object.keys(table) as K[]).find((key) => table[key].code === code);
 }
 
-/** La etiqueta del codigo; uno que no esta en la tabla sale tal cual y sin valor, "N/D". */
-function labelOf<K extends string>(table: Readonly<Record<K, ArcaCode>>, code: number | undefined): string {
+/**
+ * La etiqueta del codigo; uno que no esta en la tabla sale tal cual (tambien el 0: si ahi es "sin dato", lo decide quien
+ * arma la fila). Sin codigo, nada: la fila no se muestra (docs/design-system.md, Formatos, "Dato ausente").
+ */
+function labelOf<K extends string>(table: Readonly<Record<K, ArcaCode>>, code: number | undefined): string | undefined {
   const key = findByCode(table, code);
 
   if (key) {
     return table[key].label;
   }
 
-  return code ? String(code) : 'N/D';
+  return code === undefined ? undefined : String(code);
 }
 
 export function conceptCode(concept: BillingConcept): number {
@@ -80,7 +83,9 @@ export function conceptFromCode(code: number | undefined): BillingConcept | unde
   return findByCode(CONCEPTS, code);
 }
 
-export function conceptLabel(code: number | undefined): string {
+export function conceptLabel(code: number): string;
+export function conceptLabel(code: number | undefined): string | undefined;
+export function conceptLabel(code: number | undefined): string | undefined {
   return labelOf(CONCEPTS, code);
 }
 
@@ -92,7 +97,9 @@ export function documentTypeFromCode(code: number): BillingDocumentType | undefi
   return findByCode(DOCUMENT_TYPES, code);
 }
 
-export function documentTypeLabel(code: number | undefined): string {
+export function documentTypeLabel(code: number): string;
+export function documentTypeLabel(code: number | undefined): string | undefined;
+export function documentTypeLabel(code: number | undefined): string | undefined {
   return labelOf(DOCUMENT_TYPES, code);
 }
 
@@ -105,7 +112,9 @@ export function ivaConditionCode(ivaCondition: BillingIvaCondition): number {
   return IVA_CONDITIONS[ivaCondition].code;
 }
 
-export function ivaConditionLabel(code: number | undefined): string {
+export function ivaConditionLabel(code: number): string;
+export function ivaConditionLabel(code: number | undefined): string | undefined;
+export function ivaConditionLabel(code: number | undefined): string | undefined {
   return labelOf(IVA_CONDITIONS, code);
 }
 

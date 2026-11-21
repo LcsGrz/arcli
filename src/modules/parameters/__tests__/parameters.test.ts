@@ -123,6 +123,25 @@ describe('formatQuotationAsText', () => {
     );
     expect(stripAnsi(formatQuotationAsText(quotation, 'testing'))).toMatch(/Moneda\s+060\s/);
   });
+
+  it('sin fecha de ARCA no muestra la fila, ni N/D (TUI-20)', () => {
+    const text = stripAnsi(formatQuotationAsText({ currency: 'DOL', rate: 1 }, 'testing'));
+
+    expect(text).not.toContain('Fecha');
+    expect(text).not.toContain('N/D');
+  });
+});
+
+describe('formatStatusAsText sin estado de un servidor (TUI-20)', () => {
+  it('la fila va igual y dice que ARCA no lo informa', async () => {
+    const report = await buildStatusReport({
+      environment: 'testing',
+      gateway: createGateway({ getServerStatus: async () => ({ app: 'OK', auth: 'OK', db: '' }) }),
+      pointOfSale: undefined,
+    });
+
+    expect(stripAnsi(formatStatusAsText(report))).toMatch(/Base de datos\s+ARCA no lo informa/);
+  });
 });
 
 describe('buildStatusReport', () => {

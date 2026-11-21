@@ -15,12 +15,16 @@ import {
   formatMoneyLabel,
   formatNumericLabel,
   formatTaxIdLabel,
+  MISSING_CAE_TEXT,
 } from './billing.labels';
 import type { BillingExecutionResult } from './billing.types.internal';
 import { getVoucherKindByArcaType } from './voucher-kind-map';
 
+/** Una fila sin valor no se muestra (renderKeyValueRows). */
+type Row = readonly [string, string | undefined];
+
 /** Una alicuota: su tasa. Varias: el desglose de neto e IVA de cada una. */
-function formatIvaRows(iva: readonly IIva[], currency: string): Array<readonly [string, string]> {
+function formatIvaRows(iva: readonly IIva[], currency: string): Row[] {
   if (iva.length === 0) {
     return [];
   }
@@ -41,7 +45,7 @@ function formatIvaRows(iva: readonly IIva[], currency: string): Array<readonly [
 }
 
 /** El receptor: consumidor final sin identificar es una sola fila; su IVA solo si es otro. */
-function formatReceiverRows(result: BillingExecutionResult): Array<readonly [string, string]> {
+function formatReceiverRows(result: BillingExecutionResult): Row[] {
   const payload = result.payload;
   const ivaRow = [
     'IVA receptor',
@@ -59,11 +63,7 @@ function formatReceiverRows(result: BillingExecutionResult): Array<readonly [str
     ['Tipo de documento', formatDocumentTypeLabel(payload.DocTipo)],
     [
       'Número de documento',
-      typeof payload.DocNro === 'number'
-        ? isTaxIdDocumentType(payload.DocTipo)
-          ? formatTaxIdLabel(payload.DocNro)
-          : formatNumericLabel(payload.DocNro)
-        : 'N/D',
+      isTaxIdDocumentType(payload.DocTipo) ? formatTaxIdLabel(payload.DocNro) : formatNumericLabel(payload.DocNro),
     ],
     ...(result.receiver?.name ? [['Receptor', result.receiver.name] as const] : []),
     ivaRow,
@@ -78,9 +78,28 @@ function formatOptionalMoneyRow(label: string, value: number | undefined, curren
   return value ? [[label, formatMoneyLabel(value, currency)] as const] : [];
 }
 
-function formatFriendlyPayloadRows(result: BillingExecutionResult): Array<readonly [string, string]> {
+/** "01/10/2026 al 31/10/2026"; con una sola punta, "desde ..." o "hasta ..."; sin ninguna, la fila no va. */
+function formatAssociatedPeriod(period: {
+  readonly FchDesde?: string;
+  readonly FchHasta?: string;
+}): string | undefined {
+  const from = formatDateLabel(period.FchDesde);
+  const to = formatDateLabel(period.FchHasta);
+
+  if (from && to) {
+    return `${from} al ${to}`;
+  }
+
+  if (from) {
+    return `desde ${from}`;
+  }
+
+  return to ? `hasta ${to}` : undefined;
+}
+
+function formatFriendlyPayloadRows(result: BillingExecutionResult): Row[] {
   const payload = result.payload;
-  const rows: Array<readonly [string, string]> = [
+  const rows: Row[] = [
     ['Concepto', formatConceptLabel(payload.Concepto)],
     ['Punto de venta', String(payload.PtoVta)],
     ['Fecha del comprobante', formatDateLabel(payload.CbteFch)],
@@ -123,10 +142,7 @@ function formatFriendlyPayloadRows(result: BillingExecutionResult): Array<readon
   }
 
   if (payload.PeriodoAsoc) {
-    rows.push([
-      'Período asociado',
-      `${formatDateLabel(payload.PeriodoAsoc.FchDesde)} al ${formatDateLabel(payload.PeriodoAsoc.FchHasta)}`,
-    ]);
+    rows.push(['Período asociado', formatAssociatedPeriod(payload.PeriodoAsoc)]);
   }
 
   for (const optional of payload.Opcionales ?? []) {
@@ -146,10 +162,12 @@ export function formatPayloadTable(result: BillingExecutionResult): string {
   return renderKeyValueRows(rows, { labelWidth: resolveKeyValueLabelWidth('ticket', rows) }).join('\n');
 }
 
-/** CAE, vencimiento, numero e importe: el resumen del resultado. */
-export function formatResultSummary(result: BillingExecutionResult): Array<readonly [string, string | number]> {
+/** CAE, vencimiento, numero e importe: el resumen del resultado. Sin CAE, la fila lo dice y el vencimiento no va. */
+export function formatResultSummary(
+  result: BillingExecutionResult,
+): Array<readonly [string, string | number | undefined]> {
   return [
-    ['CAE', result.response.cae ?? 'N/D'],
+    ['CAE', result.response.cae || MISSING_CAE_TEXT],
     ['Vencimiento CAE', formatDateLabel(result.response.caeVencimiento ?? undefined)],
     result.voucherNumber === undefined
       ? ['Punto de venta', result.payload.PtoVta]

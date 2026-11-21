@@ -121,7 +121,8 @@ describe('salida de la E con datos que faltan, en pesos o rechazada', () => {
     expect(text).not.toContain('CUIT del país');
     expect(text).not.toContain('Vencimiento CAE');
     expect(text).not.toContain('cotización');
-    expect(text).toMatch(/CAE\s+N\/D/);
+    expect(text).toMatch(/CAE\s+sin CAE/);
+    expect(text).not.toContain('N/D');
     expect(text).not.toContain('APROBADO');
     expect(text).not.toContain('RECHAZADO');
   });

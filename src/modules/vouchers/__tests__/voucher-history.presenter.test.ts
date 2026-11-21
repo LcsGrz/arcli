@@ -122,6 +122,38 @@ describe('voucher-history.presenter', () => {
     ).toMatch(/Cotización\s+1\.200,50[\s\S]*Importe total\s+[\d.,]+ USD/);
   });
 
+  it('IVA receptor y concepto en 0 (comprobante viejo) no van como "0" (TUI-20)', () => {
+    const text = stripAnsi(
+      formatVoucherDetailAsText({
+        ...base,
+        voucher: {
+          ...voucher,
+          concept: 0,
+          documentNumber: 20123456786,
+          documentTypeCode: 80,
+          receiverIvaConditionCode: 0,
+        },
+      }),
+    );
+
+    expect(text).not.toContain('IVA receptor');
+    expect(text).not.toContain('Concepto');
+    expect(text).toMatch(/Receptor\s+CUIT 20-12345678-6/);
+  });
+
+  it('el detalle sin CAE lo dice, sin vencimiento ni N/D (TUI-20)', () => {
+    const text = stripAnsi(
+      formatVoucherDetailAsText({
+        ...base,
+        voucher: { ...voucher, cae: undefined, caeExpiration: undefined, result: 'R' },
+      }),
+    );
+
+    expect(text).toMatch(/CAE\s+sin CAE/);
+    expect(text).not.toContain('Vencimiento CAE');
+    expect(text).not.toContain('N/D');
+  });
+
   it('serializa el detalle en JSON', () => {
     expect(JSON.parse(formatVoucherDetailAsJson({ ...base, voucher }))).toMatchObject({
       atajo: 'fb',

@@ -16,8 +16,8 @@ describe('formatMoneyLabel', () => {
     expect(formatMoneyLabel(value, currency)).toBe(expected);
   });
 
-  it('muestra N/D si no hay importe', () => {
-    expect(formatMoneyLabel(undefined, 'DOL')).toBe('N/D');
+  it('sin importe no devuelve nada: la fila no se muestra', () => {
+    expect(formatMoneyLabel(undefined, 'DOL')).toBeUndefined();
   });
 });
 
@@ -27,8 +27,8 @@ describe('otros datos', () => {
     expect(formatDecimalLabel(1)).toBe('1');
   });
 
-  it('un CUIT ausente sale como N/D', () => {
-    expect(formatTaxIdLabel(undefined)).toBe('N/D');
+  it('un CUIT ausente no devuelve nada: la fila no se muestra', () => {
+    expect(formatTaxIdLabel(undefined)).toBeUndefined();
     expect(formatTaxIdLabel(20333333334)).toBe('20-33333333-4');
   });
 });

@@ -11,7 +11,7 @@ import {
   wrapPlainText,
 } from '../../ui/primitives';
 import { UI_THEME } from '../../ui/theme';
-import { formatCurrencyLabel, formatDateLabel, formatMoneyLabel } from '../billing/billing.labels';
+import { formatCurrencyLabel, formatDateLabel, formatMoneyLabel, MISSING_CAE_TEXT } from '../billing/billing.labels';
 import { formatVoucherText, type VoucherTextOptions } from '../billing/voucher-text';
 import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
 
@@ -20,7 +20,8 @@ import { EXPORT_TYPES, type ExportExecutionResult, type ExportPermitCheckStatus 
 
 export type ExportTextOptions = VoucherTextOptions;
 
-type Rows = Array<readonly [string, string]>;
+/** Una fila sin valor no se muestra (renderKeyValueRows). */
+type Rows = Array<readonly [string, string | undefined]>;
 
 /** `invalido` no llega a la vista previa: corta antes con un error. */
 const PERMIT_STATUS_LABELS: Record<ExportPermitCheckStatus, string> = {
@@ -40,11 +41,12 @@ function formatExportType(result: ExportExecutionResult): string {
   return `${result.payload.Tipo_expo} - ${EXPORT_TYPES[result.payload.Tipo_expo]}`;
 }
 
-function formatIncoterm(result: ExportExecutionResult): string {
+/** Sin incoterm (servicios, o bienes sin cargarlo), la fila no va. */
+function formatIncoterm(result: ExportExecutionResult): string | undefined {
   const { Incoterms: code, Incoterms_Ds: description } = result.payload;
 
   if (!code) {
-    return 'N/D';
+    return undefined;
   }
 
   // La tabla de WSFEX trae como descripcion el mismo codigo ("FOB"): no se repite.
@@ -64,9 +66,15 @@ function formatLanguage(result: ExportExecutionResult): string {
   return result.display.languageName ? `${id} - ${result.display.languageName}` : String(id);
 }
 
-function formatCurrency(result: ExportExecutionResult): string {
+/** Sin moneda, la fila no va. */
+function formatCurrency(result: ExportExecutionResult): string | undefined {
   const { CanMisMonExt: sameCurrency, Moneda_Id: currency, Moneda_ctz: rate } = result.payload;
   const name = formatCurrencyLabel(currency);
+
+  if (!name) {
+    return undefined;
+  }
+
   const label = currency === 'PES' ? name : `${name}, cotización ${formatExchangeRate(rate)}`;
 
   return sameCurrency === 'S' ? `${label} (el pago se cancela en la misma moneda)` : label;
@@ -123,9 +131,15 @@ function formatAssociatedVoucher(result: ExportExecutionResult): string | undefi
 
   const number = formatVoucherNumber(associated.Cbte_punto_vta, associated.Cbte_nro);
 
-  return display
-    ? `${display.displayName} ${number} del ${formatDateLabel(display.date)}, ${formatMoneyLabel(display.total, display.currencyCode)}`
-    : `Tipo ${associated.Cbte_tipo} ${number}`;
+  if (!display) {
+    return `Tipo ${associated.Cbte_tipo} ${number}`;
+  }
+
+  // FEXGetCMP puede no traer la fecha del asociado: sin fecha, sin " del ...".
+  const date = formatDateLabel(display.date);
+  const total = formatMoneyLabel(display.total, display.currencyCode);
+
+  return `${display.displayName} ${number}${date ? ` del ${date}` : ''}, ${total}`;
 }
 
 /** El permiso con lo que contesto ARCA en la vista previa, si se consulto. */
@@ -196,7 +210,7 @@ function formatPayloadRows(result: ExportExecutionResult): Rows {
   return rows;
 }
 
-const totalRow = (result: ExportExecutionResult): Rows[number] => [
+const totalRow = (result: ExportExecutionResult): readonly [string, string] => [
   'Importe total',
   formatAmount(result, result.payload.Imp_total),
 ];
@@ -225,9 +239,11 @@ function formatExportPreviewContent(result: ExportExecutionResult): string[] {
 }
 
 /** CAE, vencimiento, numero e importe: el resumen del resultado. */
-function formatExportResultSummary(result: ExportExecutionResult): Array<readonly [string, string | number]> {
+function formatExportResultSummary(
+  result: ExportExecutionResult,
+): Array<readonly [string, string | number | undefined]> {
   return [
-    ['CAE', result.response.cae ?? 'N/D'],
+    ['CAE', result.response.cae || MISSING_CAE_TEXT],
     ['Vencimiento CAE', formatDateLabel(result.response.caeVencimiento ?? undefined)],
     ['Número', formatVoucherNumber(result.payload.Punto_vta, result.payload.Cbte_nro)],
     ['Importe total', formatAmount(result, result.payload.Imp_total)],

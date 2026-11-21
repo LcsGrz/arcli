@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { INextVoucher } from '../../../services/arca/arca-sdk.types';
 import { formatPayloadTable, formatResultSummary } from '../billing.display';
+import { formatBillingResultAsText } from '../billing.text';
 import type { BillingExecutionResult } from '../billing.types.internal';
 import { getVoucherKindByShortcut } from '../voucher-kind-map';
 
@@ -191,6 +192,39 @@ describe('billing.display: filas de la vista previa (TEST-18)', () => {
     expect(valueOf(result, 'Fecha asociado')).toBe('01/10/2026');
   });
 
+  it('asociado sin CUIT (opcional en A, B y C): sin fila de CUIT, nunca N/D (TUI-20)', () => {
+    const result = createResult('ncc', {
+      CbtesAsoc: [{ Nro: 120, PtoVta: 3, Tipo: 11 } as never],
+    });
+
+    expect(valueOf(result, 'Número asociado')).toBe('00003-00000120');
+    expect(labels(result)).not.toContain('CUIT asociado');
+    expect(formatPayloadTable(result)).not.toContain('N/D');
+  });
+
+  it('sin dato, la fila no va: receptor sin número ni concepto conocido (TUI-20)', () => {
+    const result = createResult('fa', { Concepto: undefined, DocNro: undefined, DocTipo: 80 } as never);
+
+    expect(labels(result)).not.toContain('Concepto');
+    expect(labels(result)).not.toContain('Número de documento');
+    expect(formatPayloadTable(result)).not.toContain('N/D');
+  });
+
+  it('período asociado con una sola punta: "desde …" o "hasta …", nunca "undefined" (TUI-20)', () => {
+    const onlyFrom = createResult('ncc', { PeriodoAsoc: { FchDesde: '20261001', FchHasta: '' } } as never);
+    const onlyTo = createResult('ncc', { PeriodoAsoc: { FchDesde: '', FchHasta: '20261031' } } as never);
+
+    expect(valueOf(onlyFrom, 'Período asociado')).toBe('desde 01/10/2026');
+    expect(valueOf(onlyTo, 'Período asociado')).toBe('hasta 31/10/2026');
+    expect(formatPayloadTable(onlyFrom)).not.toContain('undefined');
+    expect(
+      valueOf(
+        createResult('ncc', { PeriodoAsoc: { FchDesde: '20261001', FchHasta: '20261031' } } as never),
+        'Período asociado',
+      ),
+    ).toBe('01/10/2026 al 31/10/2026');
+  });
+
   it('asociado sin fecha ni tipo conocido: el tipo numérico y sin fila de fecha', () => {
     const result = createResult('ncc', {
       CbtesAsoc: [{ Cuit: '20123456786', Nro: 120, PtoVta: 3, Tipo: 999 }],
@@ -248,5 +282,19 @@ describe('formatResultSummary (TEST-18)', () => {
 
     expect(formatResultSummary(previa)[2]).toEqual(['Punto de venta', 3]);
     expect(formatResultSummary({ ...previa, voucherNumber: 125 })[2]).toEqual(['Número', '00003-00000125']);
+  });
+
+  it('rechazado: el CAE dice "sin CAE" y no hay vencimiento (TUI-20)', () => {
+    const rejected = createResult('fc', {}, { dryRun: false });
+    const text = stripVTControlCharacters(
+      formatBillingResultAsText({
+        ...rejected,
+        response: { ...rejected.response, cae: '', caeVencimiento: '', status: 'rechazado' },
+      }),
+    );
+
+    expect(text).toMatch(/CAE\s+sin CAE/);
+    expect(text).not.toContain('Vencimiento CAE');
+    expect(text).not.toContain('N/D');
   });
 });

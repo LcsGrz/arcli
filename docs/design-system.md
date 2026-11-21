@@ -114,12 +114,15 @@ Cada dato tiene su helper. Antes de escribir un formato, buscá si ya existe.
 
 **Dato ausente:**
 
-| Situación                                 | Qué hacer          |
-| ----------------------------------------- | ------------------ |
-| Nadie lo cargó y queda en cero o vacío    | No mostrar la fila |
-| Viene de una flag, la config o un default | Mostrarlo          |
-| Falta en la config                        | `sin configurar`   |
-| ARCA no lo informa                        | `N/D`              |
+| Situación                                                     | Qué hacer                                       |
+| ------------------------------------------------------------- | ----------------------------------------------- |
+| Nadie lo cargó y queda en cero o vacío                        | No mostrar la fila                              |
+| No hay dato y la fila no aporta (no aplica, ARCA no lo manda) | No mostrar la fila                              |
+| La fila tiene que estar: es lo que se busca                   | Decir qué pasa: `sin CAE`, `ARCA no lo informa` |
+| Viene de una flag, la config o un default                     | Mostrarlo                                       |
+| Falta en la config                                            | `sin configurar`                                |
+
+Nunca `N/D`: no dice si falta, no aplica o falló. `renderKeyValueRows` no muestra una fila sin valor, así que una que tiene que estar lleva su texto. El `--json` no cambia: ahí el dato ausente es `null` o no está.
 
 ## Textos
 

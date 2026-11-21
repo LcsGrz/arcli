@@ -113,6 +113,25 @@ describe('formatExportResultAsText: datos de la vista previa', () => {
     expect(text).not.toContain('Fecha de pago');
   });
 
+  it('el asociado sin fecha (FEXGetCMP no la trajo) va sin " del …", nunca "undefined" (TUI-20)', () => {
+    const text = table({
+      ...result(),
+      display: {
+        ...result().display,
+        associatedVoucher: { currencyCode: 'DOL', date: '', displayName: 'Factura de exportación E', total: 1500 },
+      },
+      payload: {
+        ...result().payload,
+        Cbte_Tipo: 21,
+        Cmps_asoc: { Cmp_asoc: [{ Cbte_cuit: 20409509763, Cbte_nro: 1, Cbte_punto_vta: 4, Cbte_tipo: 19 }] },
+      },
+    });
+
+    expect(text).toMatch(/Comprobante asociado\s+Factura de exportación E 00004-00000001,\s+1\.500 USD/);
+    expect(text).not.toContain('undefined');
+    expect(text).not.toContain('00000001 del');
+  });
+
   it('sin CUIT del pais no muestra esa fila y el ID impositivo va despues del domicilio', () => {
     const text = table(result({ Cuit_pais_cliente: undefined, Id_impositivo: 'IE1234567T' }));
 
@@ -125,6 +144,27 @@ describe('formatExportResultAsText: datos de la vista previa', () => {
     expect(table(result({ Moneda_ctz: 1, Moneda_Id: 'PES' }))).toMatch(/Importe total\s+\$ 1\.500,50/);
     expect(table(result())).toMatch(/Moneda\s+Dólares estadounidenses \(USD\), cotización/);
     expect(table(result())).toMatch(/Número\s+\d{5}-\d{8}/);
+  });
+
+  it('sin incoterm (servicios) no muestra la fila, ni N/D (TUI-20)', () => {
+    const text = table(result({ Incoterms: undefined, Incoterms_Ds: undefined, Tipo_expo: 2 }));
+
+    expect(text).not.toContain('Incoterm');
+    expect(text).not.toContain('N/D');
+  });
+
+  it('rechazada: el CAE dice "sin CAE" y no hay vencimiento (TUI-20)', () => {
+    const rejected = result();
+    const text = stripAnsi(
+      formatExportResultAsText(
+        { ...rejected, dryRun: false, response: { ...rejected.response, status: 'rechazado' } },
+        { environment: 'produccion' },
+      ),
+    );
+
+    expect(text).toMatch(/CAE\s+sin CAE/);
+    expect(text).not.toContain('Vencimiento CAE');
+    expect(text).not.toContain('N/D');
   });
 
   it('no repite el incoterm cuando la tabla de ARCA trae el codigo como descripcion', () => {

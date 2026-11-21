@@ -5,9 +5,17 @@ import { formatArgentineAmount, formatArgentineMoney, formatExchangeRate } from 
 import { conceptLabel, documentTypeLabel, ivaConditionLabel } from './arca-codes';
 import { findArcaCurrency } from './currency-codes';
 
-export function formatDateLabel(value: string | undefined): string {
+/*
+ * Sin valor, los formatos devuelven `undefined` y `renderKeyValueRows` no muestra la fila. Una fila que tiene que estar
+ * igual pone su propio texto ("sin CAE"); nunca "N/D" (docs/design-system.md, Formatos, "Dato ausente").
+ */
+
+/** Lo que dice la fila del CAE cuando ARCA no lo otorgo (rechazado): la fila va igual, es lo que se busca. */
+export const MISSING_CAE_TEXT = 'sin CAE';
+
+export function formatDateLabel(value: string | undefined): string | undefined {
   if (!value) {
-    return 'N/D';
+    return undefined;
   }
 
   if (/^\d{8}$/.test(value)) {
@@ -18,9 +26,11 @@ export function formatDateLabel(value: string | undefined): string {
 }
 
 /** Pesos con `$`; otra moneda, con su codigo: `1.500,50 USD`. Acepta el codigo ISO o el de ARCA. */
-export function formatMoneyLabel(value: number | undefined, currency?: string): string {
+export function formatMoneyLabel(value: number, currency?: string): string;
+export function formatMoneyLabel(value: number | undefined, currency?: string): string | undefined;
+export function formatMoneyLabel(value: number | undefined, currency?: string): string | undefined {
   if (typeof value !== 'number') {
-    return 'N/D';
+    return undefined;
   }
 
   if (!currency) {
@@ -68,22 +78,24 @@ export function formatResponseCountRows(response: {
   return rows.filter(([, count]) => count > 0);
 }
 
-export function formatConceptLabel(value: number | undefined): string {
+export function formatConceptLabel(value: number | undefined): string | undefined {
   return conceptLabel(value);
 }
 
-export function formatDocumentTypeLabel(value: number | undefined): string {
+export function formatDocumentTypeLabel(value: number | undefined): string | undefined {
   return documentTypeLabel(value);
 }
 
-export function formatIvaConditionLabel(value: number | undefined): string {
+export function formatIvaConditionLabel(value: number): string;
+export function formatIvaConditionLabel(value: number | undefined): string | undefined;
+export function formatIvaConditionLabel(value: number | undefined): string | undefined {
   return ivaConditionLabel(value);
 }
 
 /** "Pesos uruguayos (UYU)"; una moneda que no esta en la tabla sale con su codigo. */
-export function formatCurrencyLabel(value: string | undefined): string {
+export function formatCurrencyLabel(value: string | undefined): string | undefined {
   if (!value) {
-    return 'N/D';
+    return undefined;
   }
 
   const currency = findArcaCurrency(value);
@@ -95,17 +107,19 @@ export function formatCurrencyLabel(value: string | undefined): string {
   return `${currency.name} (${currency.iso ?? currency.arca})`;
 }
 
-export function formatNumericLabel(value: number | undefined): string {
+export function formatNumericLabel(value: number): string;
+export function formatNumericLabel(value: number | undefined): string | undefined;
+export function formatNumericLabel(value: number | undefined): string | undefined {
   if (typeof value !== 'number') {
-    return 'N/D';
+    return undefined;
   }
 
   return new Intl.NumberFormat('es-AR').format(value);
 }
 
-export function formatTaxIdLabel(value: string | number | undefined): string {
+export function formatTaxIdLabel(value: string | number | undefined): string | undefined {
   if (value === undefined || value === null || value === '') {
-    return 'N/D';
+    return undefined;
   }
 
   const normalizedValue = String(value).replace(/\D/g, '');
@@ -117,9 +131,9 @@ export function formatTaxIdLabel(value: string | number | undefined): string {
   return formatCuit(normalizedValue);
 }
 
-export function formatDecimalLabel(value: number | undefined): string {
+export function formatDecimalLabel(value: number | undefined): string | undefined {
   if (typeof value !== 'number') {
-    return 'N/D';
+    return undefined;
   }
 
   return formatExchangeRate(value);
