@@ -538,273 +538,792 @@ Una página por comprobante, guías cortas, buscador y problemas frecuentes que 
 
 </details>
 
-## [2.4.0] - 2026-11-08
+## [2.4.0] - 2026-11-08 · Acceso directo
 
-Trae el acceso directo con doble clic, una salida en terminal más prolija y pareja, y arreglos para quien empieza sin saber de terminal. Puede afectar scripts:
+El acceso directo con doble clic, una salida en terminal más prolija y pareja, y arreglos para quien empieza sin saber de terminal. Los rechazos de ARCA más comunes dicen qué hacer, y la moneda extranjera usa la cotización oficial si no pasás otra.
 
-- En la vista previa, `estado` del `--json` pasa de `"observado"` a `"previsualizacion"`.
-- `fe --cargar` con `"previsualizar": false` ya no emite por sí solo (como A, B y C).
-- `--moneda USD` sin `--cm` ya no da error: usa la cotización oficial de ARCA.
-- Cambian textos de `error`, `sugerencia` y `avisos` (opciones entre backticks, tildes), no sus claves ni los códigos.
-- El certificado sin autorizar a facturar sale como `WSFE_SERVICE_NOT_AUTHORIZED` en lugar de `UNEXPECTED_ERROR`.
+#### Acceso directo con doble clic
 
-Hay deprecaciones para la 3.0.0: ver "Deprecado".
+`arcli acceso-directo` crea un ícono para abrir ARCLI en macOS, Windows y Linux, en el escritorio o en la carpeta que indiques. También está en Configuración del asistente.
 
-### Cambiado
+```sh
+arcli acceso-directo
+```
 
-- **`estado` de la vista previa en el `--json`:** pasa de `"observado"` a `"previsualizacion"`, en A, B, C y la `E`. Antes parecía que ARCA había observado algo, pero no se emitió nada. `previsualizacion: true` sigue igual. Un script que compara `estado === "aprobado"` no cambia; uno que trate cualquier otro valor como observado tiene que sumar el nuevo.
-- **Cotización oficial por defecto en moneda extranjera:** `arcli fc --moneda USD` sin `--cm` ni `--misma-moneda` usa la cotización oficial de ARCA y lo avisa en "Avisos" (y en `avisos` del JSON). Antes daba error "Falta la cotización". `--cm` sigue pisándola y `--cm 1` sigue siendo error.
-- **Un solo formato para los importes:** la salida en terminal muestra los pesos como `$ 1.500` o `$ 1.500,50`, con el espacio que usa el PDF y sin `,00` si no hay centavos. Antes convivían `1.500$`, `$1.500` y `$ 1.500,00`. En moneda extranjera todos los comprobantes muestran el código ISO en lugar del `$` (`1.500,50 USD`), y el error de `fe` cuando los ítems no suman `--monto` deja de usar punto decimal (`1.500,50` en lugar de `1500.50`). Los textos de errores y avisos toman el mismo formato, también en el `--json`. El PDF no cambia y los importes del `--json` siguen siendo números.
-- **Los datos se muestran igual en todos lados:** CUIT con guiones (`20-33333333-4`) y DNI con puntos (`12.345.678`) en los paneles; comprobantes como `00001-00001234`, también el asociado y la factura `E`; cotización con dos decimales o más (`1.250,50`, `1.250,123456`) y porcentajes con coma (`10,5%`); fechas `dd/mm/aaaa`; `N/D` para lo que ARCA no informa y `sin configurar` para la config. El vencimiento del certificado se calcula siempre en hora de Argentina. El `--json` no cambia, salvo el texto de los avisos que nombran la cotización.
-- **Textos más parejos:** tildes y voseo en toda la salida (`¿A quién le facturás?`, `22 dígitos`, `Usá`), comandos siempre entre backticks y el mismo texto en los errores que se repiten. El dato faltante sale como `Falta el dato: monto.`. Fechas inválidas dicen qué formatos sirven. "Monto" al pedir y en errores, "importe" al mostrar; "comprobante" donde también puede ser un recibo. Mientras se emite, el progreso dice `Emitiendo la factura B en ARCA...`. En la ayuda, `--previsualizar` ya no dice que muestra algo "antes de emitir" (no emite), los alias nombran su flag y los ejemplos dicen `COMPLETA` en lugar de `FULL`. El modo interactivo de config muestra etiquetas (`Responsable inscripto`, `21%`) en lugar de valores crudos; lo que se guarda no cambia. Son textos: pueden cambiar `error`, `sugerencia` y `avisos` en el `--json`, no sus claves ni los códigos de error.
-- **La pregunta antes de emitir dice el entorno:** con flags ahora es `¿Emitimos la factura B en PRODUCCIÓN?`, igual que en el modo interactivo, y si respondés que no avisa `No se emitió nada.`. La doble confirmación en producción sigue siendo solo del modo interactivo.
-- **La letra del comprobante siempre va en mayúscula y las frases concuerdan:** `La factura B no admite…`, `El recibo C no lleva…`, `Últimas facturas B`, `No hay recibos C emitidos`. Antes salían `La factura b`, `La recibo c` y `Últimas Factura B`. Son textos: también cambian dentro de `error` en el `--json`, pero la clave `comprobante` y los códigos de error no. Los atajos siguen en minúscula (`fb`, `rc`).
-- **Vista previa más corta:** los importes en cero que nadie cargó (IVA, tributos, exento, no gravado) no se muestran, y la cotización solo en moneda extranjera. A consumidor final sin identificar, una sola fila `Receptor` en lugar de tres. Lo que tiene valor se sigue mostrando, venga de una flag, de la config o de un default. `consultar` tampoco muestra `Importe IVA` en cero. El `--json` y `--bruto` siguen trayendo todo.
-- **Rechazos de ARCA legibles:** los paneles de errores y eventos muestran una lista (`1. 502: mensaje`) en lugar de JSON crudo. El panel de resultado ya no lista `Observaciones`, `Eventos` ni `Errores` en cero.
-- **Errores de uso en panel:** un comando u opción desconocida se muestra en el mismo panel que el resto de los errores, con la sugerencia de ayuda. Comandos, opciones y argumentos van entre backticks (`` opción desconocida `--montoo` ``), también en `error` con `--json`. El panel ya no repite la palabra `Error`. El mensaje de CUIT, certificado o clave faltante no repite `arcli config revisar`, que queda en la sugerencia del panel (cambia el texto de `error` y `detalle` en el `--json`, no las claves ni los códigos).
-- **Terminales angostas:** si una fila de una tabla no entra, todas las de esa columna ponen la etiqueta arriba y el valor debajo, las etiquetas ya no se cortan a mitad de palabra y la barra de estado pasa a dos líneas en lugar de romperse. En listas, una línea partida sigue alineada al texto.
-- **Opciones entre backticks en todos los mensajes:** errores, avisos, sugerencias y paneles citan las opciones como `` `--monto` `` o `` `--pv <numero>` ``, igual que los comandos (`` `arcli padron` `` en la lista de servicios del certificado, el paso para importarlo y el pie de `parametros`). Son textos: cambian `error`, `sugerencias` y `avisos` en el `--json`, no sus claves ni los códigos de error. La ayuda (`--ayuda`) y los ejemplos para copiar no cambian.
-- **Fichas con los valores en la misma columna:** padrón, plugin de PDF, régimen FCE y certificados ponen la columna de etiquetas en el mismo lugar (antes cada una usaba un ancho distinto), y en el pedido y la importación de un certificado todas las secciones quedan alineadas con la lista de servicios. Los comprobantes y la config no cambian. El `--json` tampoco.
-- **`config revisar` no repite el CUIT:** si falta, la terminal muestra una sola fila en rojo, en Cuenta, en lugar de un aviso y un error. El `--json` sigue trayendo los dos chequeos.
-- **`arcli ejemplos`:** el logo sale alineado y con la versión.
-- **Selección múltiple:** el cursor deja un espacio antes del círculo (`❯ ◯`), como en las demás listas del modo interactivo. "Volver" es un botón común: no lleva círculo, ni espacio ni `a` lo marcan, y Enter sobre él vuelve al paso anterior.
+#### Cotización oficial por defecto
 
-### Deprecado
+En moneda extranjera sin `--cm`, ARCLI usa la cotización oficial de ARCA y lo avisa. Antes era un error.
 
-- **Claves del JSON que se sacan en la 3.0.0:** siguen funcionando, y la respuesta suma `deprecado` con qué usar. `Code`/`Msg` (A, B y C) y `code`/`message` (E) en `errores` y `eventos` pasan a `codigo`/`mensaje`, que ya están. `detalles.errors` pasa a `detalles.errores`. En `estado`, `puntoVenta` será un número: el detalle ya está en `puntoVentaDetalle`. En `padron` y `fce-obligado`, `cuit` será texto. En `--cargar` de `fe`, `monto` pasa a `montoTotal`, que ya se acepta; mandar las dos es un error. La tabla está en [Entrada y salida](docs/input-output.md#estabilidad-del-contrato).
-- **La clave `cotizacion` de la config se saca en la 3.0.0:** una cotización guardada queda vieja en días y factura con un tipo de cambio viejo sin que te enteres. Mientras tanto sigue andando: si está guardada (distinta de `1`), cada factura en moneda extranjera sin `--cm` la usa y avisa que está deprecada, y `config establecer cotizacion` avisa lo mismo. Para dejar de usarla, `arcli config eliminar cotizacion`. `config --json` sigue trayendo `cotizacion`.
+```sh
+arcli fc -m 1.500 --cs --cfinal --moneda USD
+```
 
-### Agregado
+#### Rechazos de ARCA que dicen qué hacer
 
-- **`WSFE_SERVICE_NOT_AUTHORIZED`:** el certificado sin autorizar a facturar, el error más común la primera vez, ahora dice qué hacer en ARCA en lugar de salir como error inesperado con el texto de WSAA.
-- **Opciones nuevas marcadas en el modo interactivo:** lo que se sumó en las últimas versiones lleva `(nuevo)` al final (Emitir recibo, Recibo C en las notas, y Certificados de ARCA y Acceso directo en Configuración, que también lo lleva). La marca se va sola dos versiones menores después. Ver [modo interactivo](docs/modo-interactivo.md#menú-principal).
-- **`arcli acceso-directo [ruta]`:** crea un ícono para abrir ARCLI con doble clic en macOS, Windows y Linux, en el escritorio o en la carpeta que indiques. También está en el modo interactivo, en Configuración. Creado desde el código fuente (`yarn dev`), abre el `arcli` instalado y lo informa en `usaArcliInstalado`. Si no encuentra un `arcli` instalado, el ícono lo dice y muestra cómo instalarlo, en lugar de "command not found".
-- **Más datos en el JSON de las emisiones:** `entorno` y `puntoVenta` en todos los comprobantes, y `numero` en la factura E, también en la vista previa.
-- **Sugerencias para los rechazos de ARCA más comunes:** cuando ARCA rechaza o deja una observación con un código conocido (`10016`, `10152`, `10243`, `10174`, `10119`, `10038`, `10017`/`10217`, además del punto de venta `10005`/`11002`), `sugerencias` dice qué pasó, qué hacer y el link a la guía. Antes solo se reconocían unos pocos mensajes, y los códigos que venían en las observaciones no se miraban. La tabla completa está en [Troubleshooting](docs/troubleshooting.md#rechazos-de-arca-por-código). La forma del JSON no cambia.
-- **Comando para actualizar según el gestor:** el aviso de versión nueva, la ayuda y "Cerrar para actualizar" del modo interactivo muestran el comando del gestor con que instalaste ARCLI (`npm install -g`, `pnpm add -g`, `yarn global add` o `bun add -g`), deducido de la carpeta donde está instalado. Si no lo reconoce, sigue siendo el de npm. El plugin de PDF se sigue instalando con npm.
-- **`config revisar` revisa el plugin de PDF:** un chequeo "Plugin de PDF" en la sección PDF dice si está instalado, si es la versión que usa ARCLI y si encontró un navegador, como `arcli pdf estado`. Con `pdf=siempre` avisa si falta; con `preguntar` (por defecto) solo lo revisa si está instalado, así `ok` no pasa a `false` para quien no genera PDFs; con `nunca` no lo revisa.
-- **Todas las monedas de ARCA con su código ISO:** `--moneda`, `codigoMoneda` del JSON y la clave `moneda` de la config aceptan el código ISO o el de ARCA, indistinto: `ARS` o `PES`, `USD` o `DOL`, `UYU` o `011`, `CLP` o `033`, `GBP` o `021`, y así con todas las de la tabla de ARCA que tienen ISO. Antes solo se traducían `ARS`, `USD`, `EUR` y `BRL`, y otro ISO se mandaba tal cual y ARCA lo rechazaba. La vista previa y `consultar` muestran el nombre con el ISO (`Pesos uruguayos (UYU)`), el PDF de la `E` muestra el ISO de cualquier moneda y el autocompletado de `--moneda` ofrece todos los ISO. Un código que no está en la tabla se sigue mandando tal cual.
+Los códigos de rechazo más comunes traen en `sugerencias` qué pasó, qué hacer y el link a la guía, y el certificado sin autorizar a facturar sale como `WSFE_SERVICE_NOT_AUTHORIZED`.
 
-### Corregido
+#### Una salida más pareja
 
-- **`EMISSION_UNCERTAIN` sugiere verificar en el entorno en que se emitió:** antes `arcli ultimos` consultaba el de la config, y emitido con `--produccion` con la config en testing, el comprobante "no figuraba" y reintentar lo duplicaba. También el aviso del lote, que ahora trae el comando completo.
-- **`--cargar`:** en la `E`, `"pdf"` del archivo se ignoraba, `--exportar-pdf` con `--sin-pdf` no era error y un monto con más de 2 decimales se redondeaba sin avisar. En las notas, un flag del asociado (por ejemplo, solo `--acuit`) descartaba todo `comprobanteAsociado` del archivo; ahora se combinan. `importeExento` e `importeNoGravado` en `0` cuentan como ausentes.
-- **La cotización deprecada de la config** ya no se aplica a otra moneda extranjera (la de USD no vale para EUR).
-- **Modo interactivo:** la configuración guiada ya no dice "Ya podés emitir" con el certificado pendiente; "Cerrar para actualizar" dice dónde pegar el comando y espera, para leerlo al abrir ARCLI con el acceso directo; las rutas aceptan un archivo arrastrado; la barra se actualiza al volver de Configuración; pide el certificado del entorno activo y no siempre el de testing; sin punto de venta, dice dónde cargarlo. El comando equivalente ya no repite `--ir consumidor-final` después de `--consumidor-final`, que lo implica.
-- **Mensajes que confundían:** `--moneda USD --cm 1` decía "Falta la cotización" y ahora explica que 1 es la cotización del peso. Una nota con período (`--periodo-desde`/`--periodo-hasta`) y parte de un comprobante asociado (`--apv`, `--acuit`) pedía el comprobante completo y ahora dice que se usa uno o el otro.
-- **`arcli fe --cargar` con `"previsualizar": false` emitía sin preguntar:** en A, B y C eso no emite y decide la config (en una terminal pregunta); ahora la `E` hace lo mismo. Para emitir desde el archivo, `"emitir": true`. `"emitir"` y `"previsualizar"` en `true` a la vez son un error, como en el resto.
-- **Modo interactivo:** la barra con la razón social y las respuestas ya respondidas pasan por el mismo filtro que el resto de la salida, así un dato externo no puede meter secuencias de terminal.
-- **Colores de los errores:** dependían de stdout aunque los errores se escriben en stderr. `arcli ... 2> errores.log` guardaba códigos de color en el archivo, y con `arcli ... | jq` el error salía sin color en la terminal. Ahora dependen de stderr. También vale para los avisos de nueva versión y de certificado.
-- **`ARCLI_ASCII=1` cubre toda la salida:** también cambia los símbolos (`✓`, `•`, `·`, `…`, `→`) y lo que dibuja el modo interactivo (`✔`, `❯`, `↑↓`, `⏎`, `←`, `┈`, el spinner). Antes solo cambiaba los bordes. Las tildes y la `ñ` se mantienen.
-- **Entorno con tilde:** los títulos de `parametros` y `ultimos` dicen `PRODUCCIÓN` en lugar de `PRODUCCION`, y `estado`, `config`, `config revisar` y los errores de comprobante o CUIT no encontrado dicen `producción`. El `--json` conserva `entorno: "produccion"`; solo cambia el texto de `error` y `detalle`.
-- **`arcli config` muestra el CUIT con guiones:** `20-33333333-4`, igual que el resto de los comandos. `config --json` no cambia.
-- **Textos:** tildes que faltaban en `sí`, `automático`, `Cuándo generar el PDF`, `puntos críticos` y `Estás utilizando el entorno de TESTING`. La ayuda de `--moneda` dice `etc.` en lugar de `…`. Tildes y voseo en mensajes que habían quedado sin corregir (fecha fuera de rango, instalación del plugin de PDF, emisión sin confirmar, `coe.alreadyAuthenticated`). Los códigos de error y la forma del JSON no cambian.
-- **`dh key too small` en producción:** en sistemas con OpenSSL en `SECLEVEL=2`, como Debian 13, las llamadas a WSFE y WSFEX de producción fallaban con ese error aunque el certificado, la clave y el punto de venta fueran correctos. Ahora ARCLI no ofrece DHE en producción, sin aflojar el resto de la seguridad de la conexión. Testing no cambia. Ya no hace falta el wrapper con `--tls-cipher-list`.
-- **PDF de la factura E en el modo interactivo:** si faltan datos del emisor, los pide y ofrece guardarlos, como en el resto de los comprobantes. Antes el PDF no se generaba.
-- **Emisión incierta en la factura E:** si falla la llamada que emite una `fe` (red, timeout), sale como `EMISSION_UNCERTAIN`, igual que A, B y C, en lugar de un error inesperado que invitaba a reintentar. `detalles` trae `numero` e `idSolicitud`, y la sugerencia es reintentar con esos mismos valores: ARCA no autoriza dos comprobantes con el mismo número, así que no se duplica.
-- **Ayuda de `arcli fe`:** `--numero` decía "por defecto el siguiente de ARCA", pero es obligatorio. Ahora la ayuda lo dice.
-- **Certificado vencido:** la sugerencia de `CERTIFICATE_EXPIRED` manda a renovarlo con `arcli certificado generar` e `importar`, en lugar de cargar las rutas a mano con `arcli config establecer`.
+Importes, CUIT, fechas y comprobantes con el mismo formato en todos los comandos, una vista previa más corta y paneles que se acomodan a una terminal angosta.
 
-## [2.3.0] - 2026-11-04
+> [!WARNING]
+> **Puede afectar scripts**
+>
+> - En la vista previa, `estado` del `--json` pasa de `"observado"` a `"previsualizacion"`.
+> - `fe --cargar` con `"previsualizar": false` ya no emite por sí solo (como A, B y C).
+> - `--moneda USD` sin `--cm` ya no da error: usa la cotización oficial de ARCA.
+> - Cambian textos de `error`, `sugerencia` y `avisos` (opciones entre backticks, tildes), no sus claves ni los códigos.
+> - El certificado sin autorizar a facturar sale como `WSFE_SERVICE_NOT_AUTHORIZED` en lugar de `UNEXPECTED_ERROR`.
+>
+> No se saca ningún comando, flag ni clave de config. Hay deprecaciones para la 3.0.0: ver "Deprecado".
 
-Trae el Recibo C (`rc`), `arcli certificado generar` e `importar` para sacar el certificado de ARCA sin `openssl`, y la condición de venta en el PDF. Gracias a [Guillermo Britos](https://github.com/guillermobr) y a [Kevin Tea](https://github.com/kevintea), que trajeron el recibo y la condición de venta.
+---
 
-Un cambio puede afectar scripts: `--dia` está deprecado y ya no fija el período del servicio, solo el vencimiento. Sigue andando con un aviso. Ver "Cambiado".
+### ✨ Agregado
 
-### Agregado
+- **Instalación:** `arcli acceso-directo` crea un ícono para abrir ARCLI con doble clic, también desde el asistente (#128).
+- **Errores:** los rechazos de ARCA más comunes traen en `sugerencias` qué pasó, qué hacer y la guía (#101).
+- **Errores:** `WSFE_SERVICE_NOT_AUTHORIZED` dice qué hacer si el certificado no está autorizado a facturar (#134).
+- **Facturas:** todas las monedas de ARCA con su código ISO en `--moneda`, `--cargar` y la config (#96).
+- **Instalación:** el aviso de versión nueva muestra el comando del gestor con que instalaste ARCLI (#100).
+- **PDF:** `config revisar` revisa el plugin de PDF, como `arcli pdf estado` (#99).
+- **Salida:** el `--json` de las emisiones suma `entorno`, `puntoVenta` y, en la factura `E`, `numero` (#112).
+- **Asistente:** las opciones nuevas del menú llevan `(nuevo)` durante dos versiones menores (#131).
 
-- **`arcli certificado generar` e `importar`:** arman la clave y el CSR para ARCA sin `openssl` (también en Windows) y cargan el certificado que devuelve ARCA. `importar` deduce el entorno del certificado, valida CUIT, vencimiento y clave, lo guarda en `certificados/<CUIT>/` junto a la config y configura `cert.*`/`key.*`. Para renovar, la clave nueva queda pendiente hasta importar, así que se sigue facturando con el certificado actual. Las rutas configuradas a mano siguen andando. En el modo interactivo: Configuración → Certificados de ARCA, y la configuración guiada ofrece sacarlo si no tenés uno.
-- **Recibo C (`rc`, `arcli recibo c`):** emite o previsualiza un Recibo C (tipo ARCA 15) con los mismos flags y validaciones que la Factura C. La familia `recibo` solo tiene la letra C: `arcli recibo a` da error y el autocompletado ofrece solo `c`. Las notas de crédito y débito C pueden asociarse a un Recibo C (`arcli ncc --ac rc ...`). En el modo interactivo tiene su propia opción, **Emitir recibo**, y se puede elegir como comprobante original de una nota. "Repetir una factura anterior" pasa a llamarse **Repetir un comprobante anterior** y deja elegir entre una factura y un recibo. El PDF lleva el título `RECIBO C`, `COD.15` y el QR de ARCA con el tipo 15, y se guarda como `recibo-c_<pv>-<numero>.pdf`. Gracias a [Guillermo Britos](https://github.com/guillermobr), que lo trajo en [#78](https://github.com/LcsGrz/arcli/pull/78).
-- **Condición de venta en el PDF de A, B y C:** `--condicion-venta` (alias `--cv`), `condicionVenta` en el JSON de `--cargar` y la clave `condicionVenta` de la config como default. `--sin-condicion-venta` y `"condicionVenta": null` permiten omitir ese default para un comprobante. Acepta `contado`, `tarjeta-debito`, `tarjeta-credito`, `cuenta-corriente`, `cheque`, `transferencia`, `otros-medios-electronicos` y `otra`, que se imprimen con su nombre, o un texto libre que se imprime tal cual. El modo interactivo la pregunta con una lista y la de la config marcada; "Omitir" la suprime y "Otra" pide el texto. Es un dato exclusivo del PDF: WSFE no lo recibe. Gracias a [Kevin Tea](https://github.com/kevintea), que la trajo en [#74](https://github.com/LcsGrz/arcli/pull/74).
+<details><summary>Detalle</summary>
 
-### Cambiado
+**`arcli acceso-directo [ruta]`.** Crea un ícono para abrir ARCLI con doble clic en macOS, Windows y Linux, en el escritorio o en la carpeta que indiques. También está en el modo interactivo, en Configuración. Creado desde el código fuente (`yarn dev`), abre el `arcli` instalado y lo informa en `usaArcliInstalado`. Si no encuentra un `arcli` instalado, el ícono lo dice y muestra cómo instalarlo, en lugar de "command not found".
 
-- **Rutas clickeables:** en terminales que soportan links (VS Code, iTerm2, Windows Terminal, Kitty, WezTerm, Ghostty), las rutas de `arcli config`, `arcli pdf`, el PDF guardado y `arcli certificado` se abren con un clic. `FORCE_HYPERLINK=0` los apaga. `arcli config` muestra además la carpeta de certificados.
-- **`arcli config revisar` más fácil de leer:** los chequeos van agrupados por sección (Cuenta, Al facturar, Certificados, Salida, PDF y Validaciones), con lo que falta en color, y los avisos de certificados sugieren `arcli certificado generar`. El JSON no cambia de forma.
-- **`--consumidor-final` (`--cfinal`) implica IVA receptor consumidor final:** ya no hace falta sumar `--ir-cf`, y anda aunque la config tenga otro `ivaReceptor`, que antes daba error. Lo mismo `tipoDocumento: "consumidor-final"` en el JSON de `--cargar`. Un IVA explícito distinto (`--cfinal --ir-rm`) sigue siendo error.
-- **`--dia` está deprecado y fija solo el vencimiento:** antes también ponía el período del servicio en ese día (`--dia 10` facturaba un servicio "del 10/11 al 10/11"). Ahora el período es el de `--servicio-desde`/`--servicio-hasta` o, sin ellos, la fecha del comprobante, como sin `--dia`. Se puede combinar con `--fecha` y `--servicio-hasta`, y da error junto con `--vencimiento`/`--vto`. Sigue andando con un aviso; usá `--vencimiento` o `--vto`. Lo mismo la clave `dia` del JSON de `--cargar`.
+**Sugerencias para los rechazos de ARCA más comunes.** Cuando ARCA rechaza o deja una observación con un código conocido (`10016`, `10152`, `10243`, `10174`, `10119`, `10038`, `10017`/`10217`, además del punto de venta `10005`/`11002`), `sugerencias` dice qué pasó, qué hacer y el link a la guía. Antes solo se reconocían unos pocos mensajes, y los códigos que venían en las observaciones no se miraban. La tabla completa está en [Troubleshooting](docs/troubleshooting.md#rechazos-de-arca-por-código). La forma del JSON no cambia.
 
-### Corregido
+**`WSFE_SERVICE_NOT_AUTHORIZED`.** El certificado sin autorizar a facturar, el error más común la primera vez, ahora dice qué hacer en ARCA en lugar de salir como error inesperado con el texto de WSAA.
 
-- **Fechas sin año en el cambio de año:** se tomaba siempre el año actual, así que el 5/1/2027 `--sd 1/12` era diciembre de 2027. Ahora se toma la fecha más cercana a hoy: diciembre de 2026, y el 28/12 `--vto 10/1` es enero que viene.
-- **`--moneda EUR` y `BRL`** se mandaban tal cual y ARCA las rechazaba: ahora se traducen a sus códigos (`060` y `012`) en `fc`/`fb`/`fa`, `fe` y `parametros cotizacion`.
-- **`--misma-moneda` con `--fecha` futura** llegaba a ARCA y fallaba con el error 10038: ahora pide que la fecha sea la de hoy, porque ARCA solo publica la cotización vigente.
-- **Repetir una factura con montos chicos** podía deducir mal la alícuota de IVA (por ejemplo, 2,5% en vez de 21%).
+**Todas las monedas de ARCA con su código ISO.** `--moneda`, `codigoMoneda` del JSON y la clave `moneda` de la config aceptan el código ISO o el de ARCA, indistinto: `ARS` o `PES`, `USD` o `DOL`, `UYU` o `011`, `CLP` o `033`, `GBP` o `021`, y así con todas las de la tabla de ARCA que tienen ISO. Antes solo se traducían `ARS`, `USD`, `EUR` y `BRL`, y otro ISO se mandaba tal cual y ARCA lo rechazaba. La vista previa y `consultar` muestran el nombre con el ISO (`Pesos uruguayos (UYU)`), el PDF de la `E` muestra el ISO de cualquier moneda y el autocompletado de `--moneda` ofrece todos los ISO. Un código que no está en la tabla se sigue mandando tal cual.
 
-### Seguridad
+**Comando para actualizar según el gestor.** El aviso de versión nueva, la ayuda y "Cerrar para actualizar" del modo interactivo muestran el comando del gestor con que instalaste ARCLI (`npm install -g`, `pnpm add -g`, `yarn global add` o `bun add -g`), deducido de la carpeta donde está instalado. Si no lo reconoce, sigue siendo el de npm. El plugin de PDF se sigue instalando con npm.
 
-- **Publicación en npm más estricta:** el paquete se publica desde el tag de la release de GitHub (antes, desde lo último de `main`) y el release falla si el tag no coincide con la versión. Se arma en un job sin permiso para publicar, sin cache y sin scripts de dependencias, y antes de publicarlo se instala y se prueba que arranque.
+**`config revisar` revisa el plugin de PDF.** Un chequeo "Plugin de PDF" en la sección PDF dice si está instalado, si es la versión que usa ARCLI y si encontró un navegador, como `arcli pdf estado`. Con `pdf=siempre` avisa si falta; con `preguntar` (por defecto) solo lo revisa si está instalado, así `ok` no pasa a `false` para quien no genera PDFs; con `nunca` no lo revisa.
+
+**Más datos en el JSON de las emisiones.** `entorno` y `puntoVenta` en todos los comprobantes, y `numero` en la factura E, también en la vista previa.
+
+**Opciones nuevas marcadas en el modo interactivo.** Lo que se sumó en las últimas versiones lleva `(nuevo)` al final (Emitir recibo, Recibo C en las notas, y Certificados de ARCA y Acceso directo en Configuración, que también lo lleva). La marca se va sola dos versiones menores después. Ver [modo interactivo](docs/modo-interactivo.md#menú-principal).
+
+</details>
+
+### 🔧 Cambiado
+
+- **Salida:** en la vista previa, `estado` del `--json` pasa de `"observado"` a `"previsualizacion"` (#134).
+- **Facturas:** en moneda extranjera sin `--cm`, ARCLI usa la cotización oficial de ARCA y lo avisa (#97).
+- **Salida:** un solo formato para los importes: `$ 1.500,50` en pesos y el código ISO en otras monedas (#108).
+- **Salida:** CUIT, DNI, comprobantes, cotizaciones, porcentajes y fechas se muestran igual en todos lados (#110).
+- **Salida:** tildes, voseo y los mismos textos en toda la salida; cambian textos de `error`, no los códigos (#111).
+- **Salida:** la pregunta antes de emitir dice el entorno, como en el asistente (#109).
+- **Salida:** la letra del comprobante va siempre en mayúscula y las frases concuerdan (#109).
+- **Salida:** la vista previa ya no muestra importes en cero que nadie cargó (#116).
+- **Errores:** los rechazos de ARCA se muestran como una lista y no como JSON crudo (#116).
+- **Errores:** un comando u opción desconocida sale en el panel de errores, entre backticks (#116).
+- **Salida:** en una terminal angosta, las tablas apilan etiqueta y valor sin cortar palabras (#116).
+- **Salida:** errores, avisos y sugerencias citan las opciones entre backticks (#127).
+- **Salida:** padrón, plugin de PDF, régimen FCE y certificados alinean sus valores en la misma columna (#130).
+- **Config:** `config revisar` no repite el CUIT faltante (#119).
+- **Salida:** el logo de `arcli ejemplos` sale alineado y con la versión (#116).
+- **Asistente:** en la selección múltiple, "Volver" es un botón común (#118).
+
+<details><summary>Detalle</summary>
+
+**`estado` de la vista previa en el `--json`.** Pasa de `"observado"` a `"previsualizacion"`, en A, B, C y la `E`. Antes parecía que ARCA había observado algo, pero no se emitió nada. `previsualizacion: true` sigue igual. Un script que compara `estado === "aprobado"` no cambia; uno que trate cualquier otro valor como observado tiene que sumar el nuevo.
+
+**Cotización oficial por defecto en moneda extranjera.** `arcli fc --moneda USD` sin `--cm` ni `--misma-moneda` usa la cotización oficial de ARCA y lo avisa en "Avisos" (y en `avisos` del JSON). Antes daba error "Falta la cotización". `--cm` sigue pisándola y `--cm 1` sigue siendo error.
+
+**Un solo formato para los importes.** La salida en terminal muestra los pesos como `$ 1.500` o `$ 1.500,50`, con el espacio que usa el PDF y sin `,00` si no hay centavos. Antes convivían `1.500$`, `$1.500` y `$ 1.500,00`. En moneda extranjera todos los comprobantes muestran el código ISO en lugar del `$` (`1.500,50 USD`), y el error de `fe` cuando los ítems no suman `--monto` deja de usar punto decimal (`1.500,50` en lugar de `1500.50`). Los textos de errores y avisos toman el mismo formato, también en el `--json`. El PDF no cambia y los importes del `--json` siguen siendo números.
+
+**Los datos se muestran igual en todos lados.** CUIT con guiones (`20-33333333-4`) y DNI con puntos (`12.345.678`) en los paneles; comprobantes como `00001-00001234`, también el asociado y la factura `E`; cotización con dos decimales o más (`1.250,50`, `1.250,123456`) y porcentajes con coma (`10,5%`); fechas `dd/mm/aaaa`; `N/D` para lo que ARCA no informa y `sin configurar` para la config. El vencimiento del certificado se calcula siempre en hora de Argentina. El `--json` no cambia, salvo el texto de los avisos que nombran la cotización.
+
+**Textos más parejos.** Tildes y voseo en toda la salida (`¿A quién le facturás?`, `22 dígitos`, `Usá`), comandos siempre entre backticks y el mismo texto en los errores que se repiten. El dato faltante sale como `Falta el dato: monto.`. Fechas inválidas dicen qué formatos sirven. "Monto" al pedir y en errores, "importe" al mostrar; "comprobante" donde también puede ser un recibo. Mientras se emite, el progreso dice `Emitiendo la factura B en ARCA...`. En la ayuda, `--previsualizar` ya no dice que muestra algo "antes de emitir" (no emite), los alias nombran su flag y los ejemplos dicen `COMPLETA` en lugar de `FULL`. El modo interactivo de config muestra etiquetas (`Responsable inscripto`, `21%`) en lugar de valores crudos; lo que se guarda no cambia. Son textos: pueden cambiar `error`, `sugerencia` y `avisos` en el `--json`, no sus claves ni los códigos de error.
+
+**La pregunta antes de emitir dice el entorno.** Con flags ahora es `¿Emitimos la factura B en PRODUCCIÓN?`, igual que en el modo interactivo, y si respondés que no avisa `No se emitió nada.`. La doble confirmación en producción sigue siendo solo del modo interactivo.
+
+**La letra del comprobante siempre va en mayúscula y las frases concuerdan.** `La factura B no admite…`, `El recibo C no lleva…`, `Últimas facturas B`, `No hay recibos C emitidos`. Antes salían `La factura b`, `La recibo c` y `Últimas Factura B`. Son textos: también cambian dentro de `error` en el `--json`, pero la clave `comprobante` y los códigos de error no. Los atajos siguen en minúscula (`fb`, `rc`).
+
+**Vista previa más corta.** Los importes en cero que nadie cargó (IVA, tributos, exento, no gravado) no se muestran, y la cotización solo en moneda extranjera. A consumidor final sin identificar, una sola fila `Receptor` en lugar de tres. Lo que tiene valor se sigue mostrando, venga de una flag, de la config o de un default. `consultar` tampoco muestra `Importe IVA` en cero. El `--json` y `--bruto` siguen trayendo todo.
+
+**Rechazos de ARCA legibles.** Los paneles de errores y eventos muestran una lista (`1. 502: mensaje`) en lugar de JSON crudo. El panel de resultado ya no lista `Observaciones`, `Eventos` ni `Errores` en cero.
+
+**Errores de uso en panel.** Un comando u opción desconocida se muestra en el mismo panel que el resto de los errores, con la sugerencia de ayuda. Comandos, opciones y argumentos van entre backticks (`` opción desconocida `--montoo` ``), también en `error` con `--json`. El panel ya no repite la palabra `Error`. El mensaje de CUIT, certificado o clave faltante no repite `arcli config revisar`, que queda en la sugerencia del panel (cambia el texto de `error` y `detalle` en el `--json`, no las claves ni los códigos).
+
+**Terminales angostas.** Si una fila de una tabla no entra, todas las de esa columna ponen la etiqueta arriba y el valor debajo, las etiquetas ya no se cortan a mitad de palabra y la barra de estado pasa a dos líneas en lugar de romperse. En listas, una línea partida sigue alineada al texto.
+
+**Opciones entre backticks en todos los mensajes.** Errores, avisos, sugerencias y paneles citan las opciones como `` `--monto` `` o `` `--pv <numero>` ``, igual que los comandos (`` `arcli padron` `` en la lista de servicios del certificado, el paso para importarlo y el pie de `parametros`). Son textos: cambian `error`, `sugerencias` y `avisos` en el `--json`, no sus claves ni los códigos de error. La ayuda (`--ayuda`) y los ejemplos para copiar no cambian.
+
+**Fichas con los valores en la misma columna.** Padrón, plugin de PDF, régimen FCE y certificados ponen la columna de etiquetas en el mismo lugar (antes cada una usaba un ancho distinto), y en el pedido y la importación de un certificado todas las secciones quedan alineadas con la lista de servicios. Los comprobantes y la config no cambian. El `--json` tampoco.
+
+**`config revisar` no repite el CUIT.** Si falta, la terminal muestra una sola fila en rojo, en Cuenta, en lugar de un aviso y un error. El `--json` sigue trayendo los dos chequeos.
+
+**`arcli ejemplos`.** El logo sale alineado y con la versión.
+
+**Selección múltiple.** El cursor deja un espacio antes del círculo (`❯ ◯`), como en las demás listas del modo interactivo. "Volver" es un botón común: no lleva círculo, ni espacio ni `a` lo marcan, y Enter sobre él vuelve al paso anterior.
+
+</details>
+
+### ⏳ Deprecado
+
+- **Salida:** claves del `--json` que se sacan en la 3.0.0, con `deprecado` que dice qué usar (#112).
+- **Config:** la clave `cotizacion` se saca en la 3.0.0: una cotización guardada queda vieja (#97).
+
+<details><summary>Detalle</summary>
+
+**Claves del JSON que se sacan en la 3.0.0.** Siguen funcionando, y la respuesta suma `deprecado` con qué usar. `Code`/`Msg` (A, B y C) y `code`/`message` (E) en `errores` y `eventos` pasan a `codigo`/`mensaje`, que ya están. `detalles.errors` pasa a `detalles.errores`. En `estado`, `puntoVenta` será un número: el detalle ya está en `puntoVentaDetalle`. En `padron` y `fce-obligado`, `cuit` será texto. En `--cargar` de `fe`, `monto` pasa a `montoTotal`, que ya se acepta; mandar las dos es un error. La tabla está en [Entrada y salida](docs/input-output.md#estabilidad-del-contrato).
+
+**La clave `cotizacion` de la config se saca en la 3.0.0.** Una cotización guardada queda vieja en días y factura con un tipo de cambio viejo sin que te enteres. Mientras tanto sigue andando: si está guardada (distinta de `1`), cada factura en moneda extranjera sin `--cm` la usa y avisa que está deprecada, y `config establecer cotizacion` avisa lo mismo. Para dejar de usarla, `arcli config eliminar cotizacion`. `config --json` sigue trayendo `cotizacion`.
+
+</details>
+
+### 🐛 Corregido
+
+- **Errores:** `EMISSION_UNCERTAIN` sugiere verificar en el entorno en que se emitió (#134).
+- **Facturas:** `--cargar` respeta `"pdf"` en la `E`, avisa decimales de más y combina el asociado de las notas (#134).
+- **Facturas:** la cotización deprecada de la config ya no se aplica a otra moneda extranjera (#134).
+- **Asistente:** arreglos de la configuración guiada, "Cerrar para actualizar", rutas arrastradas y el comando equivalente (#134).
+- **Errores:** mensajes más claros para `--cm 1` y para una nota con período y asociado a la vez (#134).
+- **Factura E:** `arcli fe --cargar` con `"previsualizar": false` ya no emite sin preguntar (#133).
+- **Asistente:** la barra y las respuestas pasan por el filtro de secuencias de terminal (#120).
+- **Salida:** el color de los errores depende de stderr, no de stdout (#115).
+- **Salida:** `ARCLI_ASCII=1` cambia también los símbolos y lo que dibuja el asistente (#115).
+- **Salida:** "producción" lleva tilde en títulos y mensajes; el `--json` no cambia (#115).
+- **Config:** `arcli config` muestra el CUIT con guiones (#115).
+- **Salida:** tildes y voseo que faltaban en varios textos (#115).
+- **Facturas:** las llamadas de producción ya no fallan con `dh key too small` en sistemas como Debian 13 (#103).
+- **PDF:** el PDF de la `E` desde el asistente pide los datos del emisor que faltan (#109).
+- **Factura E:** si falla la llamada que emite, la `E` sale como `EMISSION_UNCERTAIN`, como A, B y C (#96).
+- **Docs:** la ayuda de `arcli fe` dice que `--numero` es obligatorio (#96).
+- **Certificados:** `CERTIFICATE_EXPIRED` sugiere renovarlo con `arcli certificado generar` e `importar` (#96).
+
+<details><summary>Detalle</summary>
+
+**`EMISSION_UNCERTAIN` sugiere verificar en el entorno en que se emitió.** Antes `arcli ultimos` consultaba el de la config, y emitido con `--produccion` con la config en testing, el comprobante "no figuraba" y reintentar lo duplicaba. También el aviso del lote, que ahora trae el comando completo.
+
+**`--cargar`.** En la `E`, `"pdf"` del archivo se ignoraba, `--exportar-pdf` con `--sin-pdf` no era error y un monto con más de 2 decimales se redondeaba sin avisar. En las notas, un flag del asociado (por ejemplo, solo `--acuit`) descartaba todo `comprobanteAsociado` del archivo; ahora se combinan. `importeExento` e `importeNoGravado` en `0` cuentan como ausentes.
+
+**La cotización deprecada de la config** ya no se aplica a otra moneda extranjera (la de USD no vale para EUR).
+
+**Modo interactivo.** La configuración guiada ya no dice "Ya podés emitir" con el certificado pendiente; "Cerrar para actualizar" dice dónde pegar el comando y espera, para leerlo al abrir ARCLI con el acceso directo; las rutas aceptan un archivo arrastrado; la barra se actualiza al volver de Configuración; pide el certificado del entorno activo y no siempre el de testing; sin punto de venta, dice dónde cargarlo. El comando equivalente ya no repite `--ir consumidor-final` después de `--consumidor-final`, que lo implica.
+
+**Mensajes que confundían.** `--moneda USD --cm 1` decía "Falta la cotización" y ahora explica que 1 es la cotización del peso. Una nota con período (`--periodo-desde`/`--periodo-hasta`) y parte de un comprobante asociado (`--apv`, `--acuit`) pedía el comprobante completo y ahora dice que se usa uno o el otro.
+
+**`arcli fe --cargar` con `"previsualizar": false` emitía sin preguntar.** En A, B y C eso no emite y decide la config (en una terminal pregunta); ahora la `E` hace lo mismo. Para emitir desde el archivo, `"emitir": true`. `"emitir"` y `"previsualizar"` en `true` a la vez son un error, como en el resto.
+
+**Modo interactivo.** La barra con la razón social y las respuestas ya respondidas pasan por el mismo filtro que el resto de la salida, así un dato externo no puede meter secuencias de terminal.
+
+**Colores de los errores.** Dependían de stdout aunque los errores se escriben en stderr. `arcli ... 2> errores.log` guardaba códigos de color en el archivo, y con `arcli ... | jq` el error salía sin color en la terminal. Ahora dependen de stderr. También vale para los avisos de nueva versión y de certificado.
+
+**`ARCLI_ASCII=1` cubre toda la salida.** También cambia los símbolos (`✓`, `•`, `·`, `…`, `→`) y lo que dibuja el modo interactivo (`✔`, `❯`, `↑↓`, `⏎`, `←`, `┈`, el spinner). Antes solo cambiaba los bordes. Las tildes y la `ñ` se mantienen.
+
+**Entorno con tilde.** Los títulos de `parametros` y `ultimos` dicen `PRODUCCIÓN` en lugar de `PRODUCCION`, y `estado`, `config`, `config revisar` y los errores de comprobante o CUIT no encontrado dicen `producción`. El `--json` conserva `entorno: "produccion"`; solo cambia el texto de `error` y `detalle`.
+
+**`arcli config` muestra el CUIT con guiones.** `20-33333333-4`, igual que el resto de los comandos. `config --json` no cambia.
+
+**Textos.** Tildes que faltaban en `sí`, `automático`, `Cuándo generar el PDF`, `puntos críticos` y `Estás utilizando el entorno de TESTING`. La ayuda de `--moneda` dice `etc.` en lugar de `…`. Tildes y voseo en mensajes que habían quedado sin corregir (fecha fuera de rango, instalación del plugin de PDF, emisión sin confirmar, `coe.alreadyAuthenticated`). Los códigos de error y la forma del JSON no cambian.
+
+**`dh key too small` en producción.** En sistemas con OpenSSL en `SECLEVEL=2`, como Debian 13, las llamadas a WSFE y WSFEX de producción fallaban con ese error aunque el certificado, la clave y el punto de venta fueran correctos. Ahora ARCLI no ofrece DHE en producción, sin aflojar el resto de la seguridad de la conexión. Testing no cambia. Ya no hace falta el wrapper con `--tls-cipher-list`.
+
+**PDF de la factura E en el modo interactivo.** Si faltan datos del emisor, los pide y ofrece guardarlos, como en el resto de los comprobantes. Antes el PDF no se generaba.
+
+**Emisión incierta en la factura E.** Si falla la llamada que emite una `fe` (red, timeout), sale como `EMISSION_UNCERTAIN`, igual que A, B y C, en lugar de un error inesperado que invitaba a reintentar. `detalles` trae `numero` e `idSolicitud`, y la sugerencia es reintentar con esos mismos valores: ARCA no autoriza dos comprobantes con el mismo número, así que no se duplica.
+
+**Ayuda de `arcli fe`.** `--numero` decía "por defecto el siguiente de ARCA", pero es obligatorio. Ahora la ayuda lo dice.
+
+**Certificado vencido.** La sugerencia de `CERTIFICATE_EXPIRED` manda a renovarlo con `arcli certificado generar` e `importar`, en lugar de cargar las rutas a mano con `arcli config establecer`.
+
+</details>
+
+## [2.3.0] - 2026-11-04 · Recibo C y certificados
+
+El Recibo C (`rc`), `arcli certificado generar` e `importar` para sacar el certificado de ARCA sin `openssl`, y la condición de venta en el PDF. Gracias a [Guillermo Britos](https://github.com/guillermobr) y a [Kevin Tea](https://github.com/kevintea), que trajeron el recibo y la condición de venta.
+
+#### Recibo C
+
+Con los mismos flags y validaciones que la Factura C, su propia opción en el asistente y su PDF.
+
+```sh
+arcli rc -m 15000 --cs --cfinal
+```
+
+#### El certificado sin `openssl`
+
+`arcli certificado generar` arma la clave y el pedido para ARCA, también en Windows, e `importar` carga el certificado que devuelve ARCA y configura las rutas.
+
+```sh
+arcli certificado generar --testing
+```
+
+#### Condición de venta en el PDF
+
+`--condicion-venta` (o la clave `condicionVenta`) imprime en el PDF de A, B y C cómo se cobra.
+
+```sh
+arcli fc -m 15000 --cs --cfinal --condicion-venta transferencia --exportar-pdf
+```
+
+> [!WARNING]
+> **Puede afectar scripts**
+>
+> - `--dia` está deprecado y ya no fija el período del servicio, solo el vencimiento. Sigue andando con un aviso.
+>
+> No se saca ningún comando, flag ni clave de config, y el `--json` no cambia.
+
+---
+
+### ✨ Agregado
+
+- **Recibos:** Recibo C con `arcli rc`, con los flags de la Factura C, notas asociadas, PDF y asistente (#78).
+- **Certificados:** `arcli certificado generar` e `importar` sacan y cargan el certificado sin `openssl`, también en el asistente (#87).
+- **PDF:** la condición de venta en el PDF de A, B y C, con `--condicion-venta` o la clave `condicionVenta` (#74).
+
+<details><summary>Detalle</summary>
+
+**Recibo C (`rc`, `arcli recibo c`).** Emite o previsualiza un Recibo C (tipo ARCA 15) con los mismos flags y validaciones que la Factura C. La familia `recibo` solo tiene la letra C: `arcli recibo a` da error y el autocompletado ofrece solo `c`. Las notas de crédito y débito C pueden asociarse a un Recibo C (`arcli ncc --ac rc ...`). En el modo interactivo tiene su propia opción, **Emitir recibo**, y se puede elegir como comprobante original de una nota. "Repetir una factura anterior" pasa a llamarse **Repetir un comprobante anterior** y deja elegir entre una factura y un recibo. El PDF lleva el título `RECIBO C`, `COD.15` y el QR de ARCA con el tipo 15, y se guarda como `recibo-c_<pv>-<numero>.pdf`. Gracias a [Guillermo Britos](https://github.com/guillermobr), que lo trajo en [#78](https://github.com/LcsGrz/arcli/pull/78).
+
+**`arcli certificado generar` e `importar`.** Arman la clave y el CSR para ARCA sin `openssl` (también en Windows) y cargan el certificado que devuelve ARCA. `importar` deduce el entorno del certificado, valida CUIT, vencimiento y clave, lo guarda en `certificados/<CUIT>/` junto a la config y configura `cert.*`/`key.*`. Para renovar, la clave nueva queda pendiente hasta importar, así que se sigue facturando con el certificado actual. Las rutas configuradas a mano siguen andando. En el modo interactivo: Configuración → Certificados de ARCA, y la configuración guiada ofrece sacarlo si no tenés uno.
+
+**Condición de venta en el PDF de A, B y C.** `--condicion-venta` (alias `--cv`), `condicionVenta` en el JSON de `--cargar` y la clave `condicionVenta` de la config como default. `--sin-condicion-venta` y `"condicionVenta": null` permiten omitir ese default para un comprobante. Acepta `contado`, `tarjeta-debito`, `tarjeta-credito`, `cuenta-corriente`, `cheque`, `transferencia`, `otros-medios-electronicos` y `otra`, que se imprimen con su nombre, o un texto libre que se imprime tal cual. El modo interactivo la pregunta con una lista y la de la config marcada; "Omitir" la suprime y "Otra" pide el texto. Es un dato exclusivo del PDF: WSFE no lo recibe. Gracias a [Kevin Tea](https://github.com/kevintea), que la trajo en [#74](https://github.com/LcsGrz/arcli/pull/74).
+
+</details>
+
+### 🔧 Cambiado
+
+- **Fechas:** `--dia` fija solo el vencimiento, no el período del servicio (#79).
+- **Facturas:** `--consumidor-final` implica IVA receptor consumidor final, sin sumar `--ir-cf` (#84).
+- **Salida:** las rutas se abren con un clic en las terminales que soportan links (#87).
+- **Config:** `arcli config revisar` agrupa los chequeos por sección y sugiere `arcli certificado generar` (#87).
+
+<details><summary>Detalle</summary>
+
+**`--dia` está deprecado y fija solo el vencimiento.** Antes también ponía el período del servicio en ese día (`--dia 10` facturaba un servicio "del 10/11 al 10/11"). Ahora el período es el de `--servicio-desde`/`--servicio-hasta` o, sin ellos, la fecha del comprobante, como sin `--dia`. Se puede combinar con `--fecha` y `--servicio-hasta`, y da error junto con `--vencimiento`/`--vto`. Sigue andando con un aviso; usá `--vencimiento` o `--vto`. Lo mismo la clave `dia` del JSON de `--cargar`.
+
+**`--consumidor-final` (`--cfinal`) implica IVA receptor consumidor final.** Ya no hace falta sumar `--ir-cf`, y anda aunque la config tenga otro `ivaReceptor`, que antes daba error. Lo mismo `tipoDocumento: "consumidor-final"` en el JSON de `--cargar`. Un IVA explícito distinto (`--cfinal --ir-rm`) sigue siendo error.
+
+**Rutas clickeables.** En terminales que soportan links (VS Code, iTerm2, Windows Terminal, Kitty, WezTerm, Ghostty), las rutas de `arcli config`, `arcli pdf`, el PDF guardado y `arcli certificado` se abren con un clic. `FORCE_HYPERLINK=0` los apaga. `arcli config` muestra además la carpeta de certificados.
+
+**`arcli config revisar` más fácil de leer.** Los chequeos van agrupados por sección (Cuenta, Al facturar, Certificados, Salida, PDF y Validaciones), con lo que falta en color, y los avisos de certificados sugieren `arcli certificado generar`. El JSON no cambia de forma.
+
+</details>
+
+### ⏳ Deprecado
+
+- **Fechas:** `--dia` y la clave `dia` de `--cargar`: usá `--vencimiento` o `--vto` (#79).
+
+### 🐛 Corregido
+
+- **Fechas:** una fecha sin año toma la más cercana a hoy, también en el cambio de año (#79).
+- **Facturas:** `--moneda EUR` y `BRL` se traducen a sus códigos de ARCA (#79).
+- **Fechas:** `--misma-moneda` con `--fecha` futura pide la fecha de hoy en lugar de llegar a ARCA (#79).
+- **Asistente:** repetir una factura con montos chicos deduce bien la alícuota de IVA (#79).
+
+<details><summary>Detalle</summary>
+
+**Fechas sin año en el cambio de año.** Se tomaba siempre el año actual, así que el 5/1/2027 `--sd 1/12` era diciembre de 2027. Ahora se toma la fecha más cercana a hoy: diciembre de 2026, y el 28/12 `--vto 10/1` es enero que viene.
+
+**`--moneda EUR` y `BRL`** se mandaban tal cual y ARCA las rechazaba: ahora se traducen a sus códigos (`060` y `012`) en `fc`/`fb`/`fa`, `fe` y `parametros cotizacion`.
+
+**`--misma-moneda` con `--fecha` futura** llegaba a ARCA y fallaba con el error 10038: ahora pide que la fecha sea la de hoy, porque ARCA solo publica la cotización vigente.
+
+**Repetir una factura con montos chicos** podía deducir mal la alícuota de IVA (por ejemplo, 2,5% en vez de 21%).
+
+</details>
+
+### 🔒 Seguridad
+
+- **Instalación:** el paquete de npm se publica desde el tag de la release y se prueba antes de publicarlo (#80).
+
+<details><summary>Detalle</summary>
+
+**Publicación en npm más estricta.** El paquete se publica desde el tag de la release de GitHub (antes, desde lo último de `main`) y el release falla si el tag no coincide con la versión. Se arma en un job sin permiso para publicar, sin cache y sin scripts de dependencias, y antes de publicarlo se instala y se prueba que arranque.
+
+</details>
 
 ## [2.2.1] - 2026-11-03
 
-Corrige `arcli pdf instalar` en Windows y suma lo necesario para recibir contribuciones: plantillas de issue y de PR, código de conducta, Discussions para preguntas, y un CI que también corre en Windows, macOS y Node 26. No cambian comandos, flags, claves de config ni el `--json`.
+Corrige `arcli pdf instalar` en Windows y suma lo necesario para recibir contribuciones: plantillas de issue y de PR, código de conducta y Discussions para preguntas. No cambian comandos, flags, claves de config ni el `--json`.
 
-### Corregido
+---
 
-- **`arcli pdf instalar` en Windows:** la descarga del navegador pasaba por `cmd.exe`, que corta las rutas con espacios (como `C:\Users\Nombre Apellido`), y fallaba. Ahora la shell se usa solo para correr `npm.cmd`.
+### ✨ Agregado
 
-### Documentación
+- **Docs:** el README explica cómo instalar con pnpm y Yarn, probar con `npx`, actualizar y pedir ayuda (#77).
+- **Docs:** plantillas de issue y de PR, código de conducta y Discussions para preguntas (#77).
 
-- El README explica cómo instalar con pnpm y Yarn además de npm, cómo probarlo con `npx` y cómo actualizar, y suma las secciones "Ayuda y soporte" (preguntas en [Discussions](https://github.com/LcsGrz/arcli/discussions), bugs en issues) y "Estabilidad" (qué es contrato público y qué puede cambiar entre versiones).
-- Plantillas de issue y de PR, y [código de conducta](CODE_OF_CONDUCT.md).
-- El CI corre también en Windows, macOS y Node 26.
+<details><summary>Detalle</summary>
 
-## [2.2.0] - 2026-11-02
+El README explica cómo instalar con pnpm y Yarn además de npm, cómo probarlo con `npx` y cómo actualizar, y suma las secciones "Ayuda y soporte" (preguntas en [Discussions](https://github.com/LcsGrz/arcli/discussions), bugs en issues) y "Estabilidad" (qué es contrato público y qué puede cambiar entre versiones).
 
-Trae la factura de exportación `E` (`arcli fe`) sobre WSFEX: items, país de destino, incoterm y permisos de embarque, con credenciales propias para `wsfex`, PDF con el diseño de exportación y modo interactivo. Es todo agregado: los comandos y flags de A, B, C y FCE siguen igual. Gracias a [Manuel Aller](https://github.com/itManuel), que la trajo en [#67](https://github.com/LcsGrz/arcli/pull/67).
+Plantillas de issue y de PR, y [código de conducta](CODE_OF_CONDUCT.md).
 
-Además suma el autocompletado con Tab, el número del comprobante en el JSON, la validación del dígito verificador de todo CUIT y una ayuda más corta y en español, y corrige varios errores de la revisión del repo.
+</details>
 
-Dos cambios pueden afectar scripts: los mensajes ahora usan voseo y tildes (si comparás el texto de un error en lugar de `codigo`), y un `montoTotal` con más de 2 decimales en el JSON da error en lugar de redondearse. Ver "Cambiado" y "Corregido".
+### 🐛 Corregido
 
-### Agregado
+- **PDF:** `arcli pdf instalar` funciona en Windows con espacios en la ruta del usuario (#77).
 
-- **`arcli fe` y `arcli factura e`:** emiten o previsualizan la Factura de exportación `E` (tipo 19) con WSFEX. Obligatorios: `--monto`, `--cliente`, `--domicilio-cliente`, `--pais-destino` (código o nombre), `--numero` y la actividad. Opcionales: `--id-impositivo`, `--cuit-pais`, `--tipo-expo` (`1` bienes, `2` servicios, `4` otros), `--incoterm`, `--incoterms-desc`, `--idioma`, `--forma-pago`, `--permiso` con `--permiso-existente`, `--id-solicitud`, `--fecha-pago`, `--observaciones` y `--obs-comerciales`. No lleva concepto, IVA ni receptor con CUIT/CUIL/DNI. `fe` va en la tabla de atajos de `arcli --ayuda` y en `arcli ejemplos`, y Tab completa la letra `e` en `arcli factura`.
-- **`--numero` obligatorio en la `E`:** WSFEX numera por punto de venta y tipo, pero `@arcasdk/core` todavía no permite consultar el último comprobante E. Pasá el siguiente al último que emitiste (`1` si es el primero).
-- **Actividad de la `E`:** `--actividad` o la clave nueva `exportacion.actividad` (sección "Factura de exportación (E)" de `arcli config`), con un código de la tabla de actividades de WSFEX, que no es la del padrón. No hay default; un código que no está en la tabla es error de validación con los que empiezan igual.
-- **Flags de otra letra en `arcli factura <letra>`:** como `factura` comparte el comando para A, B, C y E, los flags que no aplican a la letra elegida se saltean con un aviso en "Avisos" y en `avisos` del JSON (`factura a --incoterm`, `factura e --alicuota`). Los atajos (`fa`, `fe`…) siguen rechazándolos como opción desconocida.
-- **`--item` con detalle real:** `codigo|descripcion|cantidad|precio|unidad`, repetible; el código y la unidad son opcionales y la unidad puede ser el código de ARCA o su nombre. La suma de los items tiene que dar `--monto` y se valida antes de autenticar en WSAA, porque WSFEX no lo controla.
-- **`--cargar` para `E`:** un objeto, con claves propias (`cliente`, `domicilioCliente`, `paisDestino`, `monto`, `numero`, `actividad`, `items`, `tipoExpo`…). El lote no está soportado: un array es error de entrada.
-- **`exportacion.cert.testing`, `exportacion.cert.produccion`, `exportacion.key.testing`, `exportacion.key.produccion`:** credenciales del servicio `wsfex`, para cuando el certificado general no está autorizado a exportación. Si no están las dos de un entorno, se usan `cert.*`/`key.*`; con la mitad del par configurada el comando corta antes de ir a ARCA. Se muestran en la sección **Certificados** de `arcli config` (también en el modo interactivo), se validan como PEM al guardarlas y `arcli config revisar` las revisa con el resto. Sin autorización a `wsfex`, el error es `WSFEX_SERVICE_NOT_AUTHORIZED`.
-- **Defaults de la `E`:** sin flags, la exportación sale de servicios (`Tipo_expo` `2`), en dólares (`Moneda_Id` `DOL`), con la cotización de aduana que publica ARCA (si la del día todavía no salió, la última, con un aviso) y con forma de pago `Transferencia Internacional`. Las claves `moneda` y `cotizacion` de la config no aplican a exportación.
-- **Salida JSON de exportación:** el mismo resumen que A, B y C (`atajo: "fe"`, `tipoArca: 19`, `comprobante: "Factura de exportación E"`) más un bloque `exportacion` con cliente, destino, domicilio, actividad, incoterm, items y permisos; `solicitud` es el `Cmp` de WSFEX, con los nombres de ARCA. Forma exacta en [entrada y salida](docs/input-output.md#factura-de-exportación-e).
-- **PDF de exportación:** se guarda como `factura-e_<pv>-<numero>.pdf` con el diseño de exportación de `@arcasdk/pdf` y los mismos datos que la E de Comprobantes en línea: título `FACTURA DE EXPORTACIÓN`, items de WSFEX, país de destino, CUIT del país con su tipo de entidad, ID impositivo, divisa con su código ISO (`USD - Dólar Estadounidense`), forma y fecha de pago, incoterm y la leyenda `IVA EXENTO OPERACIÓN DE EXPORTACIÓN`, sin discriminar IVA.
-- **Factura E en el modo interactivo:** se elige en el mismo selector que A, B y C y tiene su propio asistente (cliente, país, tipo, monto, moneda, incoterm en bienes, pago, actividad y número), con vista previa, comando equivalente y PDF. Ver [modo interactivo](docs/modo-interactivo.md#factura-de-exportación-e).
-- **CUIT con dígito verificador y con o sin guiones en todos lados:** `arcli padron`, `arcli fce-obligado`, `--cuit`, `--cuil`, `--acuit`, `comprobanteAsociado.cuit` en el JSON, `config establecer cuit` y el modo interactivo aceptan `20-33333333-4` o `20333333334`, y rechazan un CUIT mal tipeado antes de llegar a ARCA. Antes `arcli padron 20-20179706-4` fallaba y nadie chequeaba el dígito verificador.
-- **Error `ARCA_LAST_VOUCHER_ERROR`:** si ARCA rechaza el pedido del último número (por ejemplo, con un punto de venta no habilitado para web service), la facturación y `arcli ultimos` cortan ahí con el mensaje de ARCA y una sugerencia. No se emite nada.
-- **Esc en las preguntas del CLI:** "¿Querés emitir … ahora?", que aparece sin `--emitir` en una terminal, ahora se cierra con Esc como un "no", igual que en el modo interactivo y en las preguntas del PDF.
-- **`numero` en el JSON de facturación:** el número que le tocó al comprobante emitido (`null` en una previsualización), y `solicitud` lo trae en `CbteDesde`/`CbteHasta`. El panel de texto muestra `Número: 00003-00000125`. Antes el número solo se veía con `--bruto`.
-- **Autocompletado con Tab** para bash, zsh y fish. Se instala con `arcli completado instalar`, que agrega una línea al archivo de inicio del shell (`~/.zshrc`, `~/.bashrc`…), y se saca con `arcli completado desinstalar`; también desde el modo interactivo, en Configuración → Autocompletado. Completa comandos y atajos, flags, valores (`--iva-receptor`, `--concepto`, `--alicuota`, `--moneda`, `--transferencia`, `--ac`), claves de config y sus valores, tablas de `parametros` y letras de las familias; donde va una ruta, archivos. No hay que reinstalarlo al actualizar ARCLI. Ver [Autocompletado](docs/cli-reference.md#autocompletado).
+<details><summary>Detalle</summary>
 
-### Cambiado
+**`arcli pdf instalar` en Windows.** La descarga del navegador pasaba por `cmd.exe`, que corta las rutas con espacios (como `C:\Users\Nombre Apellido`), y fallaba. Ahora la shell se usa solo para correr `npm.cmd`.
 
-- **Ayuda más corta y toda en español.** `arcli --ayuda` pasa de unas 145 líneas a 57: los 18 atajos van en una tabla familia × letra y `storybook` (herramienta de desarrollo) ya no aparece, aunque sigue funcionando. La ayuda de cada comprobante (`arcli fc --ayuda`) pasa de 177 a 79 líneas: muestra solo los flags que aplican a ese comprobante, menciona los alias en la opción principal (`punto de venta (alias: --pv)`) y ya no repite la tabla de parámetros. Los flags ocultos se siguen aceptando igual. "Usage", "Options", `[options]`, `<number>` y la descripción de `--version` ahora están en español.
-- **Errores de uso en español:** opción o comando desconocido, valor faltante y argumentos de más (`opción desconocida '--montoo' (¿quisiste decir --monto?)`). También en el `error` del JSON con `--json`; el `codigo` sigue siendo `INPUT_VALIDATION_ERROR`.
-- **Voseo y tildes en toda la salida:** mensajes, ayuda, modo interactivo y PDF ("Usá", "Revisá", "número", "configuración"). Los flags, claves de config, valores (`produccion`, `cotizacion`) y claves JSON no cambian. Si un script compara el texto de un mensaje de error en lugar de `codigo`, puede necesitar un ajuste.
+</details>
 
-### Corregido
+## [2.2.0] - 2026-11-02 · Factura de exportación
 
-- **Punto de venta inválido:** la facturación seguía con el número 1 y recién fallaba al emitir con un error confuso, y `arcli ultimos` mostraba que no había comprobantes. Ahora cortan con `ARCA_LAST_VOUCHER_ERROR`.
-- **Lote cortado antes de emitir:** si el lote se cortaba en el login o en el pedido del último número, el comprobante que falló no figuraba en `detalles.sinProcesar` de `BATCH_EMISSION_ERROR`, y reintentar solo esa lista lo perdía. Ahora figura. Si la emisión quedó sin confirmar, sigue en `sinConfirmar` y no en `sinProcesar`, como antes.
-- **IIBB en el PDF:** sin `emisor.iibb`, el PDF decía "Exento"; ahora muestra "-". Si sos exento, configuralo con `arcli config establecer emisor.iibb Exento`. La configuración guiada del modo interactivo ahora lo pregunta junto a los otros datos del emisor.
-- **Números con letras o notación científica:** `config establecer puntoVenta 3a` guardaba `3`, y `arcli consultar fc 1e3` buscaba el 1000. Ahora dan error, igual que en el modo interactivo.
-- **`arcli pdf instalar` colgado:** con un proxy que no responde, npm o la descarga del navegador no terminaban nunca. Ahora se cortan a los 5 y 15 minutos con `PDF_PLUGIN_INSTALL_ERROR`.
-- **`montoTotal` del JSON nunca se redondea:** con más de 2 decimales se redondeaba en silencio antes de validar (`1.005` se emitía por `$1`). Ahora da `INPUT_VALIDATION_ERROR` ("Use hasta 2 decimales"), igual que `--monto` y el resto de los importes.
-- **`consultarPadron false` se respeta siempre:** con un `ivaReceptor` en la config, facturar con `--cuit` igual consultaba el padrón y su condición IVA pisaba la de la config.
-- **Aviso falso en `avisos`:** "--descripcion, --receptor-nombre y --receptor-domicilio solo se usan en el PDF" salía sin haber pasado esos flags, cuando el nombre o el domicilio los había completado el padrón.
-- **Modo interactivo:** al generar el PDF, apretar Enter en el nombre o el domicilio del receptor borraba lo que había traído el padrón; ahora lo propone y Enter lo deja. En una FCE se informa el `aliasCbu` de la config, como con flags. Y si la config tiene una moneda extranjera, el comando equivalente de un comprobante en pesos lleva `--moneda ARS`, así al pegarlo hace lo mismo.
-- **Leyendas obligatorias en el PDF:** los comprobantes B ahora traen el bloque del Régimen de Transparencia Fiscal al Consumidor (Ley 27.743, RG 5614), con el IVA contenido, y los comprobantes A a un monotributista la leyenda de la RG 5003 sobre el crédito fiscal. Salen debajo del CAE. Ver [PDF](docs/pdf.md#leyendas-obligatorias).
+La factura de exportación `E` (`arcli fe`) sobre WSFEX, con ítems, país de destino, incoterm, permisos de embarque, PDF de exportación y modo interactivo. Además, autocompletado con Tab, el número del comprobante en el JSON, el dígito verificador de todo CUIT y una ayuda más corta y en español. Gracias a [Manuel Aller](https://github.com/itManuel), que trajo la `E` en [#67](https://github.com/LcsGrz/arcli/pull/67).
 
-### Documentación
+#### Factura de exportación E
 
-- Nueva sección de la `E` en [referencia del CLI](docs/cli-reference.md#factura-de-exportación-e-wsfex) y en [reglas de validación](docs/validation-rules.md#factura-de-exportación-e); credenciales de WSFEX en [configuración](docs/configuration.md#certificados-de-exportación-wsfex); items, JSON y limitaciones (`--numero` obligatorio, sin notas E, sin lote) en [entrada y salida](docs/input-output.md), [PDF](docs/pdf.md) y [limitaciones](docs/limitations.md); el asistente de la `E` en [modo interactivo](docs/modo-interactivo.md) y sus problemas comunes en [troubleshooting](docs/troubleshooting.md).
+Ítems, país de destino, incoterm, permisos de embarque y credenciales propias para `wsfex`, con la actividad por flag o en `exportacion.actividad`.
 
-## [2.1.0] - 2026-10-23
+```sh
+arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 212 --numero 1
+```
 
-Trae `arcli padron` y el IVA receptor desde el padrón al facturar con `--cuit`, el aviso de vencimiento del certificado y una guía para el punto de venta de web service. Además corrige un montón de cosas que salen de una revisión del repo: el JSON de `--cargar` se valida clave por clave, los errores con `--json` tienen siempre la misma forma, y los ejemplos de la ayuda y de los docs se pueden copiar y andan.
+#### Autocompletado con Tab
 
-Algunos cambios rompen scripts que dependían del comportamiento anterior. Revisá la sección "Cambiado":
+Comandos, flags, valores y claves de config en bash, zsh y fish. No hay que reinstalarlo al actualizar.
 
-- **Exit code `2`** cuando ARCA rechaza un comprobante (antes, `0`).
-- **Validación estricta del JSON de `--cargar`:** una clave desconocida o con otro tipo ahora es error.
-- **Un array de un elemento en `--cargar`** sale como array.
-- **`--bruto`** agrega `respuesta` en lugar de reemplazar el resumen.
-- **`config revisar`** ya no recibe `--testing` ni `--produccion`.
-- **Los PDFs** se guardan en una subcarpeta por CUIT.
+```sh
+arcli completado instalar
+```
 
-Los comandos, los flags de facturación y las claves de config siguen siendo los mismos.
+#### Ayuda más corta y en español
 
-### Agregado
+`arcli --ayuda` pasa de unas 145 líneas a 57, y la de cada comprobante muestra solo los flags que le aplican.
 
-- **`arcli padron <cuit>`:** nombre o razón social, domicilio fiscal, condición IVA, impuestos, categoría de monotributo y actividad de un CUIT, desde el padrón de ARCA (`ws_sr_constancia_inscripcion`). Con `--json` para scripts.
-- **IVA receptor desde el padrón:** al facturar con `--cuit` y sin `--ir`, ARCLI usa la condición IVA del padrón, antes que el `ivaReceptor` de la config. También completa el nombre y el domicilio del receptor para el PDF. Si el padrón no responde o no la informa, sigue con la config y avisa. El modo interactivo propone la misma condición al cargar un CUIT. Se desactiva con `arcli config establecer consultarPadron false`.
-- **Aviso de vencimiento del certificado:** a menos de 30 días de vencer cualquiera de los certificados configurados (testing o producción, sin importar con cuál estés trabajando), los comandos que van a ARCA (facturación, `ultimos`, `consultar`, `padron`, `fce-obligado`, `parametros`, `estado`) avisan al principio, en stderr: `El certificado de produccion vence el 20/11/2026 (en 10 días)`, con el link a la [guía para renovarlo](docs/obtencion-certificados.md). Con `--json`, stdout queda solo con el JSON y en facturación el aviso va también en `avisos`. En el modo interactivo es un recuadro debajo de la barra de estado. Si vencen los dos, van en el mismo recuadro. Si ya venció el del entorno que se usa, cortan antes de autenticar en ARCA con el error `CERTIFICATE_EXPIRED` (antes fallaba el login en WSAA con un error inesperado).
-- **Punto de venta para web service:** si ARCA rechaza el comprobante porque el punto de venta no es de web service (error `10005`), la `sugerencia` lo dice y apunta a la [guía para crear uno](docs/obtencion-certificados.md#punto-de-venta-para-web-service). `arcli estado` avisa lo mismo cuando el punto de venta configurado no está entre los habilitados. Desde el 1/11/2026 ARCA da de alta de oficio puntos de venta "Factura en línea" a monotributistas (RG 5893/2026), y esos no sirven para ARCLI.
+```sh
+arcli fc --ayuda
+```
 
-### Cambiado
+#### CUIT con dígito verificador
 
-- **`--bruto` agrega la respuesta cruda sin quitar el resumen:** con `--json --bruto` ahora salen `cae`, `caeVencimiento`, `estado`, `resultado`, `errores`, `observaciones` y el resto del JSON de siempre, más `respuesta` con la respuesta cruda de ARCA. Antes `--bruto` reemplazaba el resumen y esos campos desaparecían, aunque la documentación decía que agregaba. En texto pasa lo mismo: el resultado se muestra como siempre y el panel `Respuesta bruta` va al final. Vale igual para `bruto=true` en la config.
-- **Un array de un elemento en `--cargar` es un lote:** si el JSON es un array sale un array (con `indice`) y los errores son `BATCH_VALIDATION_ERROR` / `BATCH_EMISSION_ERROR`, tenga uno o muchos elementos. Antes un array de un elemento salía como objeto y con los errores de un comprobante suelto. Un objeto sigue devolviendo un objeto. Si un script leía `[0]` solo cuando había más de uno, ya puede leer siempre el array.
-- **El JSON de `--cargar` se valida clave por clave:** una clave desconocida (`"montototal"`, `"vencimiento"`, `"moneda"`) o un valor con otro tipo (`"puntoVenta": "3"`, `"emitir": "true"`, `null`) ahora es error de entrada (`INPUT_VALIDATION_ERROR`, o `BATCH_VALIDATION_ERROR` con el índice en un lote) que nombra la clave y sugiere la correcta. Antes se ignoraban sin aviso: con `"puntoVenta": "3"` se emitía en el punto de venta de la config. Si un archivo que te funcionaba ahora falla, corregí la clave o sacale las comillas al número; las claves documentadas siguen igual. Un lote vacío (`[]`) también es error: antes se ignoraba el archivo y se usaban solo los flags. La tabla de claves y su flag equivalente está en [entrada y salida](docs/input-output.md#flags-y-claves-del-json).
-- **`config revisar` revisa los dos entornos:** valida el entorno por defecto y cualquier otro que tenga `cert` o `key` configurados, cada uno en su línea (`Validacion testing`, `Validacion produccion`). La línea `Revision activa` del JSON ya no existe. Ya no recibe `--testing` ni `--produccion`: antes los aceptaba pero los ignoraba y revisaba siempre testing.
-- **Exit code `2` cuando ARCA rechaza un comprobante:** antes salía con `0` y había que leer `estado` para enterarse. En un lote, `2` si ARCA rechazó al menos uno. `observado` sigue saliendo con `0`. Si un script trataba cualquier exit distinto de `0` como error de ARCLI, ahora también corta en un rechazo.
-- **PDFs en una subcarpeta por CUIT emisor:** `~/arcli/comprobantes/20123456789/factura-c_0003-00000125.pdf` (en testing, `testing/20123456789/`). Si el archivo ya existe no se pisa: se guarda con `-2`, `-3` y así.
-- **`sugerencia` siempre en el JSON de error:** todos los errores con `--json` traen las mismas cuatro claves (`codigo`, `detalles`, `error`, `sugerencia`), con `sugerencia: null` cuando no hay nada que sugerir. Antes faltaba en los errores sin sugerencia (`CONFIGURATION_ERROR`, `INPUT_VALIDATION_ERROR`…) y era `null` solo en los inesperados. Si un script chequeaba si la clave existe, ahora tiene que chequear si es `null`.
-- **`--bruto` solo en los comandos de facturación:** `padron`, `fce-obligado`, `ultimos`, `consultar`, `parametros`, `estado` e `interactivo` ya no lo declaran (no lo usaban): pasado ahí, el comando corre igual y avisa en stderr que se ignora. Ya no aparece en su ayuda.
-- **`arcli interactivo --json` ya no falla:** el asistente acepta solo `--testing` y `--produccion`; `--json` y `--bruto` se ignoran con un aviso. Sin terminal interactiva sigue fallando, con o sin `--json`.
-- **Comando equivalente del modo interactivo:** siempre lleva `--testing` o `--produccion`. Antes, en testing no llevaba nada, y si la config pasaba a producción el comando pegado emitía ahí.
+Todo CUIT se acepta con o sin guiones y uno mal tipeado se rechaza antes de llegar a ARCA.
 
-### Corregido
+> [!WARNING]
+> **Puede afectar scripts**
+>
+> - Los mensajes usan voseo y tildes: si un script compara el texto de un error en lugar de `codigo`, puede necesitar un ajuste.
+> - Un `montoTotal` con más de 2 decimales en el JSON da error en lugar de redondearse.
+>
+> La `E` es todo agregado: los comandos, flags y claves de config de A, B, C y FCE siguen igual.
 
-- **Ejemplos de la ayuda y de los docs que fallaban:** los ejemplos de `--ayuda` de las notas B y C, las B, las FCE y las familias, las NC/ND FCE de `arcli ejemplos` y varios de los docs (`pdf.md`, `usage-patterns.md`, `cli-reference.md`, el JSON de `llms.txt` y de `input-output.md`) daban error al copiarlos: asociado de otra letra, IVA receptor que la letra no admite, FCE sin `--cbu` o con `--acuit` ajeno, fechas fijas viejas o sin IVA receptor. Ahora cada nota asocia una factura de su letra y categoría, y un test pasa todos los ejemplos por el parser y arma la solicitud a ARCA.
-- **"Puede haberse emitido" cuando seguro no se emitió:** un certificado vencido, un fallo de login en WSAA o un error al pedir el último número salían como `EMISSION_UNCERTAIN`, con la sugerencia de verificar con `arcli ultimos` antes de reintentar. En esos casos no llegó nada a ARCA: ahora salen con su error (`UNEXPECTED_ERROR` o `TRANSIENT_ERROR` en el JSON) y se puede reintentar directo. `EMISSION_UNCERTAIN` queda solo para un fallo en la llamada que emite (red, timeout, transacción activa). En un lote, ese caso ya no suma `detalles.sinConfirmar`.
-- **Lote interrumpido, PDFs de los ya emitidos:** si un lote se cortaba a mitad, los comprobantes que ya tenían CAE quedaban sin PDF. Ahora se generan antes de mostrar el error, según `pdf` o `--exportar-pdf` como en un lote completo, y en `--json` cada uno lleva su campo `pdf`. Si falla el PDF, el error que se muestra sigue siendo el de la emisión.
-- **Lote, fallos del padrón o de la cotización con su índice:** si la consulta al padrón (IVA receptor desde `--cuit`) o a la cotización oficial fallaba para un ítem, el lote cortaba con un error que no decía cuál era. Ahora sale en `BATCH_VALIDATION_ERROR`, junto con los demás ítems con problemas y su `#n`, antes de emitir ninguno.
-- **`config.json` con JSON inválido** salía como "Error inesperado", sin decir qué archivo ni qué hacer. Ahora es un error de configuración (`CONFIGURATION_ERROR`) con la ruta del archivo y la sugerencia de corregirlo a mano o renombrarlo y volver a configurar. ARCLI no lo borra ni lo pisa.
-- **`json=true` de la config en todos los comandos:** `pdf` (y sus subcomandos) y `parametros` sin tabla solo salían en JSON con `--json`. Ahora todos los comandos resuelven la salida igual: `--json` o, si no está, la clave `json` de la config. `config ruta` acepta `--json` y devuelve `{"ruta": "..."}`.
-- **Errores de uso en JSON:** una opción desconocida (`arcli fc --montoo 1 --json`), un valor faltante o un comando que no existe salían en texto aunque se pidiera JSON. Ahora, con `--json` o `json=true`, salen como `INPUT_VALIDATION_ERROR` en el mismo formato que el resto de los errores, con exit code `1`. Sin JSON se ven igual que antes.
-- **Opciones globales que no aplican:** `--testing`, `--produccion`, `--json` o `--bruto` en un comando que no las usa (`arcli config ruta --produccion`) se aceptaban sin decir nada. Ahora el comando corre igual y avisa en stderr que la opción se ignora.
-- **`json=true` en `config`:** `config`, `config revisar`, `config establecer` y `config eliminar` respetan `json=true` de la config, como el resto de los comandos.
-- **`--dia` corría un mes de más** a fin de mes: `--dia 15` el 31/03 daba el 15/05 en vez del 15/04, y ARCA lo aceptaba con las fechas de servicio y vencimiento equivocadas. Si el día no existe en ese mes (`--dia 31` con abril), ahora da error.
-- **`--json` con `FORCE_COLOR`:** con `FORCE_COLOR=1` en el entorno, el JSON redirigido a un archivo o a otro programa salía con colores y no se podía parsear. Ahora solo se colorea en una terminal.
-- **`--json` en `config`:** `config`, `config revisar`, `config establecer` y `config eliminar` ignoraban `--json` y salían en texto.
-- **`config --ayuda` listaba la mitad de las claves:** mostraba 15 de 30. Ahora `config --ayuda` y `config establecer --ayuda` listan todas, por sección, con sus valores posibles.
-- **Links de `llms.txt` y del README en el paquete de npm:** apuntaban a `docs/`, que no se publica en npm. Ahora son links a GitHub.
-- **`config establecer` con un valor inválido** (`puntoVenta abc`, `comprobantesPorLista 99`) sale como error de entrada (`INPUT_VALIDATION_ERROR`) y no como error inesperado.
+---
 
-## [2.0.0] - 2026-10-12
+### ✨ Agregado
 
-Versión mayor: sale de una auditoría del proyecto. Lo que rompe es cómo se escriben algunos valores en los flags:
+- **Factura E:** `arcli fe` y `arcli factura e` emiten o previsualizan la factura de exportación sobre WSFEX (#67).
+- **Asistente:** la factura `E` tiene su propio asistente, con vista previa, comando equivalente y PDF (#67).
+- **PDF:** el PDF de la `E` tiene el diseño de exportación, como el de Comprobantes en línea (#67).
+- **Certificados:** claves `exportacion.cert.*` y `exportacion.key.*` para un certificado propio de `wsfex` (#67).
+- **Factura E:** la actividad va con `--actividad` o la clave `exportacion.actividad`, validada contra la tabla de WSFEX (#67).
+- **Factura E:** `--item` carga el detalle real, y los ítems tienen que sumar `--monto` (#67).
+- **Factura E:** `--cargar` acepta un objeto con claves propias; el lote no está soportado (#67).
+- **Factura E:** sin flags, la `E` sale de servicios, en dólares, con la cotización de aduana (#67).
+- **Salida:** el `--json` de la `E` suma el bloque `exportacion`, y `solicitud` es el `Cmp` de WSFEX (#67).
+- **Factura E:** `--numero` es obligatorio, porque todavía no se puede consultar el último número de la `E` (#67).
+- **Facturas:** en `arcli factura <letra>`, los flags de otra letra se saltean con un aviso (#67).
+- **Instalación:** autocompletado con Tab para bash, zsh y fish, con `arcli completado instalar` (#65).
+- **Facturas:** todo CUIT se acepta con o sin guiones y se controla su dígito verificador (#62).
+- **Salida:** el JSON de facturación trae el `numero` del comprobante emitido (#68).
+- **Errores:** `ARCA_LAST_VOUCHER_ERROR` corta si ARCA rechaza el pedido del último número (#62).
+- **Salida:** Esc cierra la pregunta "¿Querés emitir…?" como un "no" (#63).
+- **Docs:** la `E` en la referencia, las reglas de validación, la config, el PDF y el asistente (#67).
 
-- **Montos en formato argentino:** punto para miles y coma para decimales (`15.000`, `1.500,50`). `-m 1500.50` ahora da error; escribí `1500,50`.
-- **Enteros solo con dígitos:** `--pv 3a` da error en vez de leerse como 3.
-- **`--dia` no se combina con `--fecha` ni `--servicio-hasta`.**
-- **Varias alícuotas:** la suma tiene que coincidir exacta con `--monto`.
-- **Un error de red al emitir** sale como `EMISSION_UNCERTAIN`, no como `TRANSIENT_ERROR`/`UNEXPECTED_ERROR`.
+<details><summary>Detalle</summary>
 
-El resto son correcciones: evitar comprobantes duplicados, fecha argentina en cualquier zona horaria, `ImpTotal` exacto, PDF escapado, archivos privados y validaciones más estrictas.
+**`arcli fe` y `arcli factura e`.** Emiten o previsualizan la Factura de exportación `E` (tipo 19) con WSFEX. Obligatorios: `--monto`, `--cliente`, `--domicilio-cliente`, `--pais-destino` (código o nombre), `--numero` y la actividad. Opcionales: `--id-impositivo`, `--cuit-pais`, `--tipo-expo` (`1` bienes, `2` servicios, `4` otros), `--incoterm`, `--incoterms-desc`, `--idioma`, `--forma-pago`, `--permiso` con `--permiso-existente`, `--id-solicitud`, `--fecha-pago`, `--observaciones` y `--obs-comerciales`. No lleva concepto, IVA ni receptor con CUIT/CUIL/DNI. `fe` va en la tabla de atajos de `arcli --ayuda` y en `arcli ejemplos`, y Tab completa la letra `e` en `arcli factura`.
 
-### Agregado
+**Factura E en el modo interactivo.** Se elige en el mismo selector que A, B y C y tiene su propio asistente (cliente, país, tipo, monto, moneda, incoterm en bienes, pago, actividad y número), con vista previa, comando equivalente y PDF. Ver [modo interactivo](docs/modo-interactivo.md#factura-de-exportación-e).
 
-- **Modo interactivo, estado de ARCA en la barra:** la barra de arriba del menú ya no dice "Modo interactivo": muestra **ARCA funcionando**, **con demoras** (más de 3 segundos), **con problemas** (algún servidor no responde OK) o **sin respuesta**, en color, seguido del entorno (`TESTING` en naranja, `PRODUCCION` en celeste). A la izquierda, la razón social del emisor (o el CUIT, si no está configurada) y el punto de venta.
-- **Versión debajo del logo** (`v1.8.0 | LcsGrz`), en el modo interactivo y en la ayuda.
-- **Mismo ancho para todo:** las cajas de la salida en texto, la barra de estado y el logo (ahora centrado) ocupan 92 columnas, o menos si la terminal es más angosta. Antes cada caja medía distinto según su contenido. Los comprobantes (vista previa, resultado de la emisión y `consultar`) mantienen su ancho de ticket, de 68 a 80 columnas, y van centrados. El JSON no cambia.
-- **Modo interactivo, listas de comprobantes:** las filas ocupan todo el ancho de la línea punteada que las enmarca.
-- **Modo interactivo, actualizar:** si hay una versión nueva, la primera opción del menú es **Actualizar a la versión X.Y.Z**. Muestra tu versión, la nueva y sus novedades, y con **Cerrar para actualizar** copia `npm install -g arcli@latest` al portapapeles y cierra el asistente para que lo ejecutes. En el modo interactivo el aviso de nueva versión ya no aparece al salir.
+**PDF de exportación.** Se guarda como `factura-e_<pv>-<numero>.pdf` con el diseño de exportación de `@arcasdk/pdf` y los mismos datos que la E de Comprobantes en línea: título `FACTURA DE EXPORTACIÓN`, items de WSFEX, país de destino, CUIT del país con su tipo de entidad, ID impositivo, divisa con su código ISO (`USD - Dólar Estadounidense`), forma y fecha de pago, incoterm y la leyenda `IVA EXENTO OPERACIÓN DE EXPORTACIÓN`, sin discriminar IVA.
 
-### Cambiado
+**`exportacion.cert.testing`, `exportacion.cert.produccion`, `exportacion.key.testing`, `exportacion.key.produccion`.** Credenciales del servicio `wsfex`, para cuando el certificado general no está autorizado a exportación. Si no están las dos de un entorno, se usan `cert.*`/`key.*`; con la mitad del par configurada el comando corta antes de ir a ARCA. Se muestran en la sección **Certificados** de `arcli config` (también en el modo interactivo), se validan como PEM al guardarlas y `arcli config revisar` las revisa con el resto. Sin autorización a `wsfex`, el error es `WSFEX_SERVICE_NOT_AUTHORIZED`.
 
-- **Enteros estrictos, y es un cambio que rompe:** `--pv`, `--punto-venta`, `--ar`, `--apv`, `--at`, `--dia` y `--cantidad` aceptan solo dígitos; antes `--pv 3a` se leía como 3. `--cuit`, `--cuil` y `--dni` aceptan además guiones y puntos (`20-11111111-2`), como el modo interactivo; antes `--cuit 20111111112xyz` pasaba.
-- **`--dia` con `--fecha` o `--servicio-hasta` da error:** antes `--dia` se ignoraba sin aviso.
-- **Montos del JSON con 2 decimales como máximo** (la cotización, 6), igual que los flags.
-- **Varias alícuotas: la suma tiene que coincidir exacta** con `--monto`; antes se aceptaba un centavo de diferencia, y el `ImpTotal` enviado podía no coincidir con la suma de sus partes.
-- **Montos en formato argentino, y es un cambio que rompe:** `--monto`, `--exento`, `--nogravado`, `--cotizacion-moneda`/`--cm`, el monto de `--alicuota TASA:MONTO` y `config establecer cotizacion` usan punto para miles y coma para decimales. `15.000` es quince mil y `1.500,50` es mil quinientos con cincuenta. Antes `-m 15.000` se leía como 15 y `-m 1500,50` como 1500, sin aviso. Ahora `1500.50` da error ("use coma para los decimales"), igual que el texto sobrante (`12abc`) y más de 2 decimales (la cotización acepta hasta 6). El JSON de `--cargar` no cambia: ahí los montos son números.
-- **Modo interactivo:** los montos siguen la misma regla. `1500.50` ya no se acepta y más de 2 decimales da error en lugar de redondearse en silencio. El comando equivalente que muestra al final escribe los montos con coma.
+**Actividad de la `E`.** `--actividad` o la clave nueva `exportacion.actividad` (sección "Factura de exportación (E)" de `arcli config`), con un código de la tabla de actividades de WSFEX, que no es la del padrón. No hay default; un código que no está en la tabla es error de validación con los que empiezan igual.
 
-### Corregido
+**`--item` con detalle real.** `codigo|descripcion|cantidad|precio|unidad`, repetible; el código y la unidad son opcionales y la unidad puede ser el código de ARCA o su nombre. La suma de los items tiene que dar `--monto` y se valida antes de autenticar en WSAA, porque WSFEX no lo controla.
 
-- **Modo interactivo, notas y repetir factura copian más de la original:**
-  - Una NC o ND sobre una factura en dólares va en dólares, con la cotización de la factura; antes salía en pesos.
-  - "Anular el total" copia también exento y no gravado.
-  - "Repetir factura" copia exento y no gravado.
-  - Si la factura tiene varias alícuotas o tributos, ARCA no devuelve el detalle para reproducirla. En ese caso se avisa, no se ofrece "anular el total" ni "mismo monto", y se pide elegir la alícuota.
-- **Salida de terminal sin secuencias de control:** observaciones de ARCA, datos del JSON o errores de npm ya no pueden mover el cursor, borrar la pantalla, pisar una línea ni meter hipervínculos. Solo pasan colores, saltos de línea y tabs. `--json` no cambia.
-- **Rutas absolutas en la config:** `cert.*`, `key.*` y `ticketPath` se guardan resueltas, como `pdfCarpeta`. Antes una ruta relativa dependía de la carpeta desde donde se corría ARCLI.
-- **Clave privada cifrada:** `config establecer key.*` la rechaza con un mensaje claro y cómo descifrarla. Antes se aceptaba y fallaba recién al hablar con ARCA.
-- **PDF: textos escapados.** La plantilla de `@arcasdk/pdf` no escapa HTML y Chromium la renderiza con JavaScript: una razón social o descripción con `<script>` (por ejemplo, de un JSON de terceros) se ejecutaba, y un `&` legítimo se veía mal. Ahora todos los textos se escapan antes de generar el PDF.
-- **Tickets de ARCA y config solo para tu usuario:** ARCLI crea sus archivos con permisos `0600`/`0700` (umask `077`), incluidos los tickets que escribe el SDK, y deja en `0700` la carpeta de config y la de tickets que ya existían. Antes quedaban `0644`/`0755`, y en Linux otro usuario del equipo podía leer un ticket y usarlo para emitir durante su validez. Los PDFs nuevos también quedan solo para tu usuario.
-- **`config establecer` ya no guarda valores inválidos:** antes `config establecer cuit abc` lo guardaba igual y dejaba el CLI inutilizable, incluso `config eliminar`. Ahora se valida antes de guardar, y una config que ya estaba rota se arregla con `config establecer` o `config eliminar` de la clave que falla.
-- **Fecha argentina siempre:** en un equipo con otra zona horaria (por ejemplo un servidor en UTC), entre las 21 y las 24 h la fecha del comprobante salía con el día siguiente. Ahora "hoy" es siempre el día en Argentina.
-- **`ImpTotal` exacto:** se calcula como la suma de no gravado, exento, neto e IVA con aritmética decimal. Con varias alícuotas, el total ya no sale como `300.29999999999995`.
-- **`--at` se valida como `--ac`:** una NC A ya no puede asociar una factura B por código; si `tipo` y `atajo` vienen juntos tienen que coincidir.
-- **`ayuda` como valor de un flag** (`--descripcion ayuda`) ya no abre la ayuda.
-- **Emisión sin confirmar:** si falla la llamada que emite en ARCA (red, timeout, transacción activa), el error ahora es `EMISSION_UNCERTAIN` y avisa que el comprobante puede haberse emitido igual, con el `arcli ultimos <tipo> --pv <n>` para verificarlo antes de reintentar. Antes salía como `TRANSIENT_ERROR` o `UNEXPECTED_ERROR` y sugería reintentar, lo que podía duplicarlo. En un lote, `BATCH_EMISSION_ERROR` suma `detalles.sinConfirmar`.
-- **Ctrl+C en las preguntas del PDF**, que llegan después de emitir: el modo interactivo decía "Cancelado. No se emitio nada." aunque el comprobante ya estaba emitido, y el comando terminaba en "Error inesperado" con exit 1. Ahora se toma como "no generar el PDF" y se avisa que el comprobante quedó emitido.
-- **Un flag escrito siempre gana:** `--previsualizar` ya no choca con `emitir=true` en la config o `"emitir": true` en el JSON, y `--emitir` gana a `"previsualizar": true`. Lo mismo con `--alicuota TASA` sobre las `alicuotas` del JSON, `--cm` sobre `"mismaMoneda"` y `--misma-moneda` sobre `"cotizacionMoneda"`. El error de "ambos a la vez" queda solo si los dos vienen del mismo lugar.
-- **Errores en JSON con `json=true` en la config:** antes solo salían en JSON con el flag `--json`.
-- **`cae` y `caeVencimiento` son `null` en un comprobante rechazado**, como dice la documentación; antes venían como `""`.
-- Los errores con sugerencia la incluyen en `sugerencia` también en JSON (antes solo los del PDF).
-- **Documentación de la emisión en producción:** decía que emitir en producción exige `--produccion --emitir`. En realidad el entorno sale de `config.entorno` y la emisión de `config.emitir` cuando no pasás flags: con `entorno produccion` y `emitir true` se emite en producción sin flags. El comportamiento no cambió; se corrigieron SECURITY.md, README, `llms.txt`, la ayuda y los docs.
+**`--cargar` para `E`.** Un objeto, con claves propias (`cliente`, `domicilioCliente`, `paisDestino`, `monto`, `numero`, `actividad`, `items`, `tipoExpo`…). El lote no está soportado: un array es error de entrada.
+
+**Defaults de la `E`.** Sin flags, la exportación sale de servicios (`Tipo_expo` `2`), en dólares (`Moneda_Id` `DOL`), con la cotización de aduana que publica ARCA (si la del día todavía no salió, la última, con un aviso) y con forma de pago `Transferencia Internacional`. Las claves `moneda` y `cotizacion` de la config no aplican a exportación.
+
+**Salida JSON de exportación.** El mismo resumen que A, B y C (`atajo: "fe"`, `tipoArca: 19`, `comprobante: "Factura de exportación E"`) más un bloque `exportacion` con cliente, destino, domicilio, actividad, incoterm, items y permisos; `solicitud` es el `Cmp` de WSFEX, con los nombres de ARCA. Forma exacta en [entrada y salida](docs/input-output.md#factura-de-exportación-e).
+
+**`--numero` obligatorio en la `E`.** WSFEX numera por punto de venta y tipo, pero `@arcasdk/core` todavía no permite consultar el último comprobante E. Pasá el siguiente al último que emitiste (`1` si es el primero).
+
+**Flags de otra letra en `arcli factura <letra>`.** Como `factura` comparte el comando para A, B, C y E, los flags que no aplican a la letra elegida se saltean con un aviso en "Avisos" y en `avisos` del JSON (`factura a --incoterm`, `factura e --alicuota`). Los atajos (`fa`, `fe`…) siguen rechazándolos como opción desconocida.
+
+**Autocompletado con Tab** para bash, zsh y fish. Se instala con `arcli completado instalar`, que agrega una línea al archivo de inicio del shell (`~/.zshrc`, `~/.bashrc`…), y se saca con `arcli completado desinstalar`; también desde el modo interactivo, en Configuración → Autocompletado. Completa comandos y atajos, flags, valores (`--iva-receptor`, `--concepto`, `--alicuota`, `--moneda`, `--transferencia`, `--ac`), claves de config y sus valores, tablas de `parametros` y letras de las familias; donde va una ruta, archivos. No hay que reinstalarlo al actualizar ARCLI. Ver [Autocompletado](docs/cli-reference.md#autocompletado).
+
+**CUIT con dígito verificador y con o sin guiones en todos lados.** `arcli padron`, `arcli fce-obligado`, `--cuit`, `--cuil`, `--acuit`, `comprobanteAsociado.cuit` en el JSON, `config establecer cuit` y el modo interactivo aceptan `20-33333333-4` o `20333333334`, y rechazan un CUIT mal tipeado antes de llegar a ARCA. Antes `arcli padron 20-20179706-4` fallaba y nadie chequeaba el dígito verificador.
+
+**`numero` en el JSON de facturación.** El número que le tocó al comprobante emitido (`null` en una previsualización), y `solicitud` lo trae en `CbteDesde`/`CbteHasta`. El panel de texto muestra `Número: 00003-00000125`. Antes el número solo se veía con `--bruto`.
+
+**Error `ARCA_LAST_VOUCHER_ERROR`.** Si ARCA rechaza el pedido del último número (por ejemplo, con un punto de venta no habilitado para web service), la facturación y `arcli ultimos` cortan ahí con el mensaje de ARCA y una sugerencia. No se emite nada.
+
+**Esc en las preguntas del CLI.** "¿Querés emitir … ahora?", que aparece sin `--emitir` en una terminal, ahora se cierra con Esc como un "no", igual que en el modo interactivo y en las preguntas del PDF.
+
+Nueva sección de la `E` en [referencia del CLI](docs/cli-reference.md#factura-de-exportación-e-wsfex) y en [reglas de validación](docs/validation-rules.md#factura-de-exportación-e); credenciales de WSFEX en [configuración](docs/configuration.md#certificados-de-exportación-wsfex); items, JSON y limitaciones (`--numero` obligatorio, sin notas E, sin lote) en [entrada y salida](docs/input-output.md), [PDF](docs/pdf.md) y [limitaciones](docs/limitations.md); el asistente de la `E` en [modo interactivo](docs/modo-interactivo.md) y sus problemas comunes en [troubleshooting](docs/troubleshooting.md).
+
+</details>
+
+### 🔧 Cambiado
+
+- **Salida:** la ayuda es más corta, está toda en español y cada comprobante muestra solo sus flags (#70).
+- **Errores:** los errores de uso están en español, también en el `error` del `--json` (#70).
+- **Salida:** voseo y tildes en mensajes, ayuda, asistente y PDF; flags y claves no cambian (#70).
+
+<details><summary>Detalle</summary>
+
+**Ayuda más corta y toda en español.** `arcli --ayuda` pasa de unas 145 líneas a 57: los 18 atajos van en una tabla familia × letra y `storybook` (herramienta de desarrollo) ya no aparece, aunque sigue funcionando. La ayuda de cada comprobante (`arcli fc --ayuda`) pasa de 177 a 79 líneas: muestra solo los flags que aplican a ese comprobante, menciona los alias en la opción principal (`punto de venta (alias: --pv)`) y ya no repite la tabla de parámetros. Los flags ocultos se siguen aceptando igual. "Usage", "Options", `[options]`, `<number>` y la descripción de `--version` ahora están en español.
+
+**Errores de uso en español.** Opción o comando desconocido, valor faltante y argumentos de más (`opción desconocida '--montoo' (¿quisiste decir --monto?)`). También en el `error` del JSON con `--json`; el `codigo` sigue siendo `INPUT_VALIDATION_ERROR`.
+
+**Voseo y tildes en toda la salida.** Mensajes, ayuda, modo interactivo y PDF ("Usá", "Revisá", "número", "configuración"). Los flags, claves de config, valores (`produccion`, `cotizacion`) y claves JSON no cambian. Si un script compara el texto de un mensaje de error en lugar de `codigo`, puede necesitar un ajuste.
+
+</details>
+
+### 🐛 Corregido
+
+- **PDF:** los comprobantes B y los A a un monotributista traen las leyendas obligatorias (#64).
+- **Facturas:** un `montoTotal` del JSON con más de 2 decimales da error en lugar de redondearse (#63).
+- **Errores:** un punto de venta inválido corta con `ARCA_LAST_VOUCHER_ERROR` en lugar de seguir con el número 1 (#62).
+- **Facturas:** un lote cortado antes de emitir lista el comprobante que falló en `sinProcesar` (#62).
+- **PDF:** sin `emisor.iibb`, el PDF muestra "-" en lugar de "Exento" (#62).
+- **Config:** los números con letras o notación científica dan error en lugar de leerse a medias (#62).
+- **PDF:** `arcli pdf instalar` ya no queda colgado con un proxy que no responde (#62).
+- **Config:** `consultarPadron false` se respeta siempre (#68).
+- **Salida:** ya no sale el aviso de flags solo del PDF si no los pasaste (#68).
+- **Asistente:** el PDF propone el nombre y el domicilio del padrón, y el comando equivalente lleva `--moneda ARS` si hace falta (#68).
+
+<details><summary>Detalle</summary>
+
+**Leyendas obligatorias en el PDF.** Los comprobantes B ahora traen el bloque del Régimen de Transparencia Fiscal al Consumidor (Ley 27.743, RG 5614), con el IVA contenido, y los comprobantes A a un monotributista la leyenda de la RG 5003 sobre el crédito fiscal. Salen debajo del CAE. Ver [PDF](docs/pdf.md#leyendas-obligatorias).
+
+**`montoTotal` del JSON nunca se redondea.** Con más de 2 decimales se redondeaba en silencio antes de validar (`1.005` se emitía por `$1`). Ahora da `INPUT_VALIDATION_ERROR` ("Use hasta 2 decimales"), igual que `--monto` y el resto de los importes.
+
+**Punto de venta inválido.** La facturación seguía con el número 1 y recién fallaba al emitir con un error confuso, y `arcli ultimos` mostraba que no había comprobantes. Ahora cortan con `ARCA_LAST_VOUCHER_ERROR`.
+
+**Lote cortado antes de emitir.** Si el lote se cortaba en el login o en el pedido del último número, el comprobante que falló no figuraba en `detalles.sinProcesar` de `BATCH_EMISSION_ERROR`, y reintentar solo esa lista lo perdía. Ahora figura. Si la emisión quedó sin confirmar, sigue en `sinConfirmar` y no en `sinProcesar`, como antes.
+
+**IIBB en el PDF.** Sin `emisor.iibb`, el PDF decía "Exento"; ahora muestra "-". Si sos exento, configuralo con `arcli config establecer emisor.iibb Exento`. La configuración guiada del modo interactivo ahora lo pregunta junto a los otros datos del emisor.
+
+**Números con letras o notación científica.** `config establecer puntoVenta 3a` guardaba `3`, y `arcli consultar fc 1e3` buscaba el 1000. Ahora dan error, igual que en el modo interactivo.
+
+**`arcli pdf instalar` colgado.** Con un proxy que no responde, npm o la descarga del navegador no terminaban nunca. Ahora se cortan a los 5 y 15 minutos con `PDF_PLUGIN_INSTALL_ERROR`.
+
+**`consultarPadron false` se respeta siempre.** Con un `ivaReceptor` en la config, facturar con `--cuit` igual consultaba el padrón y su condición IVA pisaba la de la config.
+
+**Aviso falso en `avisos`.** "--descripcion, --receptor-nombre y --receptor-domicilio solo se usan en el PDF" salía sin haber pasado esos flags, cuando el nombre o el domicilio los había completado el padrón.
+
+**Modo interactivo.** Al generar el PDF, apretar Enter en el nombre o el domicilio del receptor borraba lo que había traído el padrón; ahora lo propone y Enter lo deja. En una FCE se informa el `aliasCbu` de la config, como con flags. Y si la config tiene una moneda extranjera, el comando equivalente de un comprobante en pesos lleva `--moneda ARS`, así al pegarlo hace lo mismo.
+
+</details>
+
+## [2.1.0] - 2026-10-23 · Padrón de ARCA
+
+`arcli padron` y el IVA receptor desde el padrón al facturar con `--cuit`, el aviso de vencimiento del certificado y una guía para el punto de venta de web service. Además, el JSON de `--cargar` se valida clave por clave, los errores con `--json` tienen siempre la misma forma y los ejemplos de la ayuda y de los docs se pueden copiar y andan.
+
+#### Datos de un CUIT desde el padrón
+
+Nombre o razón social, domicilio fiscal, condición IVA, impuestos, categoría de monotributo y actividad, desde el padrón de ARCA.
+
+```sh
+arcli padron 20201797064
+```
+
+#### IVA receptor desde el padrón
+
+Al facturar con `--cuit` y sin `--ir`, ARCLI usa la condición IVA del padrón y completa el nombre y el domicilio para el PDF.
+
+```sh
+arcli fa -m 121000 --cs --cuit 20168598204
+```
+
+#### Aviso de vencimiento del certificado
+
+A menos de 30 días de vencer, los comandos que van a ARCA lo avisan, y con el certificado vencido cortan con `CERTIFICATE_EXPIRED` antes de autenticar.
+
+#### Exit code `2` en un rechazo
+
+Un comprobante que ARCA rechaza sale con exit code `2`, así un script se entera sin leer `estado`.
+
+> [!WARNING]
+> **Puede afectar scripts**
+>
+> - **Exit code `2`** cuando ARCA rechaza un comprobante (antes, `0`).
+> - **Validación estricta del JSON de `--cargar`:** una clave desconocida o con otro tipo ahora es error.
+> - **Un array de un elemento en `--cargar`** sale como array.
+> - **`--bruto`** agrega `respuesta` en lugar de reemplazar el resumen.
+> - **`config revisar`** ya no recibe `--testing` ni `--produccion`.
+> - **Los PDFs** se guardan en una subcarpeta por CUIT.
+>
+> Los comandos, los flags de facturación y las claves de config siguen siendo los mismos. El detalle de cada cambio está en "Cambiado".
+
+---
+
+### ✨ Agregado
+
+- **Consultas:** `arcli padron <cuit>` muestra los datos de un CUIT desde el padrón de ARCA (#44).
+- **Facturas:** con `--cuit` y sin `--ir`, el IVA receptor, el nombre y el domicilio salen del padrón (#44).
+- **Certificados:** aviso a menos de 30 días de vencer, y `CERTIFICATE_EXPIRED` con el certificado vencido (#57).
+- **Errores:** el rechazo `10005` y `arcli estado` explican cómo crear un punto de venta para web service (#53).
+
+<details><summary>Detalle</summary>
+
+**`arcli padron <cuit>`.** Nombre o razón social, domicilio fiscal, condición IVA, impuestos, categoría de monotributo y actividad de un CUIT, desde el padrón de ARCA (`ws_sr_constancia_inscripcion`). Con `--json` para scripts.
+
+**IVA receptor desde el padrón.** Al facturar con `--cuit` y sin `--ir`, ARCLI usa la condición IVA del padrón, antes que el `ivaReceptor` de la config. También completa el nombre y el domicilio del receptor para el PDF. Si el padrón no responde o no la informa, sigue con la config y avisa. El modo interactivo propone la misma condición al cargar un CUIT. Se desactiva con `arcli config establecer consultarPadron false`.
+
+**Aviso de vencimiento del certificado.** A menos de 30 días de vencer cualquiera de los certificados configurados (testing o producción, sin importar con cuál estés trabajando), los comandos que van a ARCA (facturación, `ultimos`, `consultar`, `padron`, `fce-obligado`, `parametros`, `estado`) avisan al principio, en stderr: `El certificado de produccion vence el 20/11/2026 (en 10 días)`, con el link a la [guía para renovarlo](docs/obtencion-certificados.md). Con `--json`, stdout queda solo con el JSON y en facturación el aviso va también en `avisos`. En el modo interactivo es un recuadro debajo de la barra de estado. Si vencen los dos, van en el mismo recuadro. Si ya venció el del entorno que se usa, cortan antes de autenticar en ARCA con el error `CERTIFICATE_EXPIRED` (antes fallaba el login en WSAA con un error inesperado).
+
+**Punto de venta para web service.** Si ARCA rechaza el comprobante porque el punto de venta no es de web service (error `10005`), la `sugerencia` lo dice y apunta a la [guía para crear uno](docs/obtencion-certificados.md#punto-de-venta-para-web-service). `arcli estado` avisa lo mismo cuando el punto de venta configurado no está entre los habilitados. Desde el 1/11/2026 ARCA da de alta de oficio puntos de venta "Factura en línea" a monotributistas (RG 5893/2026), y esos no sirven para ARCLI.
+
+</details>
+
+### 🔧 Cambiado
+
+- **Errores:** un comprobante rechazado por ARCA sale con exit code `2` (antes, `0`) (#42).
+- **Facturas:** el JSON de `--cargar` se valida clave por clave: una clave desconocida o con otro tipo es error (#51).
+- **Facturas:** un array de un elemento en `--cargar` es un lote y sale como array (#52).
+- **Salida:** `--bruto` agrega `respuesta` sin quitar el resumen (#52).
+- **Errores:** todo error con `--json` trae `sugerencia`, en `null` si no hay nada que sugerir (#56).
+- **Config:** `config revisar` revisa los dos entornos y ya no recibe `--testing` ni `--produccion` (#41).
+- **PDF:** los PDFs se guardan en una subcarpeta por CUIT emisor y no se pisan (#42).
+- **Salida:** `--bruto` es solo de los comandos de facturación; en los demás se ignora con un aviso (#54).
+- **Asistente:** `arcli interactivo --json` ya no falla: ignora `--json` y `--bruto` con un aviso (#54).
+- **Asistente:** el comando equivalente lleva siempre `--testing` o `--produccion` (#42).
+
+<details><summary>Detalle</summary>
+
+**Exit code `2` cuando ARCA rechaza un comprobante.** Antes salía con `0` y había que leer `estado` para enterarse. En un lote, `2` si ARCA rechazó al menos uno. `observado` sigue saliendo con `0`. Si un script trataba cualquier exit distinto de `0` como error de ARCLI, ahora también corta en un rechazo.
+
+**El JSON de `--cargar` se valida clave por clave.** Una clave desconocida (`"montototal"`, `"vencimiento"`, `"moneda"`) o un valor con otro tipo (`"puntoVenta": "3"`, `"emitir": "true"`, `null`) ahora es error de entrada (`INPUT_VALIDATION_ERROR`, o `BATCH_VALIDATION_ERROR` con el índice en un lote) que nombra la clave y sugiere la correcta. Antes se ignoraban sin aviso: con `"puntoVenta": "3"` se emitía en el punto de venta de la config. Si un archivo que te funcionaba ahora falla, corregí la clave o sacale las comillas al número; las claves documentadas siguen igual. Un lote vacío (`[]`) también es error: antes se ignoraba el archivo y se usaban solo los flags. La tabla de claves y su flag equivalente está en [entrada y salida](docs/input-output.md#flags-y-claves-del-json).
+
+**Un array de un elemento en `--cargar` es un lote.** Si el JSON es un array sale un array (con `indice`) y los errores son `BATCH_VALIDATION_ERROR` / `BATCH_EMISSION_ERROR`, tenga uno o muchos elementos. Antes un array de un elemento salía como objeto y con los errores de un comprobante suelto. Un objeto sigue devolviendo un objeto. Si un script leía `[0]` solo cuando había más de uno, ya puede leer siempre el array.
+
+**`--bruto` agrega la respuesta cruda sin quitar el resumen.** Con `--json --bruto` ahora salen `cae`, `caeVencimiento`, `estado`, `resultado`, `errores`, `observaciones` y el resto del JSON de siempre, más `respuesta` con la respuesta cruda de ARCA. Antes `--bruto` reemplazaba el resumen y esos campos desaparecían, aunque la documentación decía que agregaba. En texto pasa lo mismo: el resultado se muestra como siempre y el panel `Respuesta bruta` va al final. Vale igual para `bruto=true` en la config.
+
+**`sugerencia` siempre en el JSON de error.** Todos los errores con `--json` traen las mismas cuatro claves (`codigo`, `detalles`, `error`, `sugerencia`), con `sugerencia: null` cuando no hay nada que sugerir. Antes faltaba en los errores sin sugerencia (`CONFIGURATION_ERROR`, `INPUT_VALIDATION_ERROR`…) y era `null` solo en los inesperados. Si un script chequeaba si la clave existe, ahora tiene que chequear si es `null`.
+
+**`config revisar` revisa los dos entornos.** Valida el entorno por defecto y cualquier otro que tenga `cert` o `key` configurados, cada uno en su línea (`Validacion testing`, `Validacion produccion`). La línea `Revision activa` del JSON ya no existe. Ya no recibe `--testing` ni `--produccion`: antes los aceptaba pero los ignoraba y revisaba siempre testing.
+
+**PDFs en una subcarpeta por CUIT emisor.** `~/arcli/comprobantes/20123456789/factura-c_0003-00000125.pdf` (en testing, `testing/20123456789/`). Si el archivo ya existe no se pisa: se guarda con `-2`, `-3` y así.
+
+**`--bruto` solo en los comandos de facturación.** `padron`, `fce-obligado`, `ultimos`, `consultar`, `parametros`, `estado` e `interactivo` ya no lo declaran (no lo usaban): pasado ahí, el comando corre igual y avisa en stderr que se ignora. Ya no aparece en su ayuda.
+
+**`arcli interactivo --json` ya no falla.** El asistente acepta solo `--testing` y `--produccion`; `--json` y `--bruto` se ignoran con un aviso. Sin terminal interactiva sigue fallando, con o sin `--json`.
+
+**Comando equivalente del modo interactivo.** Siempre lleva `--testing` o `--produccion`. Antes, en testing no llevaba nada, y si la config pasaba a producción el comando pegado emitía ahí.
+
+</details>
+
+### 🐛 Corregido
+
+- **Errores:** `EMISSION_UNCERTAIN` queda solo para un fallo en la llamada que emite (#50).
+- **PDF:** si un lote se corta, los comprobantes ya emitidos tienen su PDF (#49).
+- **Facturas:** en un lote, un fallo del padrón o de la cotización sale con su índice antes de emitir (#49).
+- **Config:** un `config.json` inválido es `CONFIGURATION_ERROR`, con la ruta del archivo y qué hacer (#48).
+- **Salida:** la clave `json` de la config vale en todos los comandos (#54).
+- **Errores:** los errores de uso salen en JSON con `--json` o `json=true` (#54).
+- **Salida:** una opción global que no aplica al comando avisa que se ignora (#43).
+- **Config:** `config` y sus subcomandos respetan `json=true` de la config (#43).
+- **Fechas:** `--dia` ya no corre un mes de más a fin de mes (#42).
+- **Salida:** con `FORCE_COLOR`, el `--json` redirigido sale sin colores (#47).
+- **Config:** `config` y sus subcomandos respetan `--json` (#41).
+- **Config:** `config --ayuda` y `config establecer --ayuda` listan todas las claves, por sección (#56).
+- **Docs:** los links de `llms.txt` y del README en el paquete de npm apuntan a GitHub (#56).
+- **Config:** `config establecer` con un valor inválido es `INPUT_VALIDATION_ERROR` (#41).
+- **Docs:** los ejemplos de la ayuda y de los docs se pueden copiar y andan (#55).
+
+<details><summary>Detalle</summary>
+
+**"Puede haberse emitido" cuando seguro no se emitió.** Un certificado vencido, un fallo de login en WSAA o un error al pedir el último número salían como `EMISSION_UNCERTAIN`, con la sugerencia de verificar con `arcli ultimos` antes de reintentar. En esos casos no llegó nada a ARCA: ahora salen con su error (`UNEXPECTED_ERROR` o `TRANSIENT_ERROR` en el JSON) y se puede reintentar directo. `EMISSION_UNCERTAIN` queda solo para un fallo en la llamada que emite (red, timeout, transacción activa). En un lote, ese caso ya no suma `detalles.sinConfirmar`.
+
+**Lote interrumpido, PDFs de los ya emitidos.** Si un lote se cortaba a mitad, los comprobantes que ya tenían CAE quedaban sin PDF. Ahora se generan antes de mostrar el error, según `pdf` o `--exportar-pdf` como en un lote completo, y en `--json` cada uno lleva su campo `pdf`. Si falla el PDF, el error que se muestra sigue siendo el de la emisión.
+
+**Lote, fallos del padrón o de la cotización con su índice.** Si la consulta al padrón (IVA receptor desde `--cuit`) o a la cotización oficial fallaba para un ítem, el lote cortaba con un error que no decía cuál era. Ahora sale en `BATCH_VALIDATION_ERROR`, junto con los demás ítems con problemas y su `#n`, antes de emitir ninguno.
+
+**`config.json` con JSON inválido** salía como "Error inesperado", sin decir qué archivo ni qué hacer. Ahora es un error de configuración (`CONFIGURATION_ERROR`) con la ruta del archivo y la sugerencia de corregirlo a mano o renombrarlo y volver a configurar. ARCLI no lo borra ni lo pisa.
+
+**`json=true` de la config en todos los comandos.** `pdf` (y sus subcomandos) y `parametros` sin tabla solo salían en JSON con `--json`. Ahora todos los comandos resuelven la salida igual: `--json` o, si no está, la clave `json` de la config. `config ruta` acepta `--json` y devuelve `{"ruta": "..."}`.
+
+**Errores de uso en JSON.** Una opción desconocida (`arcli fc --montoo 1 --json`), un valor faltante o un comando que no existe salían en texto aunque se pidiera JSON. Ahora, con `--json` o `json=true`, salen como `INPUT_VALIDATION_ERROR` en el mismo formato que el resto de los errores, con exit code `1`. Sin JSON se ven igual que antes.
+
+**Opciones globales que no aplican.** `--testing`, `--produccion`, `--json` o `--bruto` en un comando que no las usa (`arcli config ruta --produccion`) se aceptaban sin decir nada. Ahora el comando corre igual y avisa en stderr que la opción se ignora.
+
+**`json=true` en `config`.** `config`, `config revisar`, `config establecer` y `config eliminar` respetan `json=true` de la config, como el resto de los comandos.
+
+**`--dia` corría un mes de más** a fin de mes: `--dia 15` el 31/03 daba el 15/05 en vez del 15/04, y ARCA lo aceptaba con las fechas de servicio y vencimiento equivocadas. Si el día no existe en ese mes (`--dia 31` con abril), ahora da error.
+
+**`--json` con `FORCE_COLOR`.** Con `FORCE_COLOR=1` en el entorno, el JSON redirigido a un archivo o a otro programa salía con colores y no se podía parsear. Ahora solo se colorea en una terminal.
+
+**`--json` en `config`.** `config`, `config revisar`, `config establecer` y `config eliminar` ignoraban `--json` y salían en texto.
+
+**`config --ayuda` listaba la mitad de las claves.** Mostraba 15 de 30. Ahora `config --ayuda` y `config establecer --ayuda` listan todas, por sección, con sus valores posibles.
+
+**Links de `llms.txt` y del README en el paquete de npm.** Apuntaban a `docs/`, que no se publica en npm. Ahora son links a GitHub.
+
+**`config establecer` con un valor inválido** (`puntoVenta abc`, `comprobantesPorLista 99`) sale como error de entrada (`INPUT_VALIDATION_ERROR`) y no como error inesperado.
+
+**Ejemplos de la ayuda y de los docs que fallaban.** Los ejemplos de `--ayuda` de las notas B y C, las B, las FCE y las familias, las NC/ND FCE de `arcli ejemplos` y varios de los docs (`pdf.md`, `usage-patterns.md`, `cli-reference.md`, el JSON de `llms.txt` y de `input-output.md`) daban error al copiarlos: asociado de otra letra, IVA receptor que la letra no admite, FCE sin `--cbu` o con `--acuit` ajeno, fechas fijas viejas o sin IVA receptor. Ahora cada nota asocia una factura de su letra y categoría, y un test pasa todos los ejemplos por el parser y arma la solicitud a ARCA.
+
+</details>
+
+## [2.0.0] - 2026-10-12 · Montos en formato argentino
+
+Montos en formato argentino (`1.500,50`), enteros estrictos y una emisión que avisa antes de duplicar un comprobante: es una versión mayor que sale de una auditoría del proyecto. El resto son correcciones: fecha argentina en cualquier zona horaria, `ImpTotal` exacto, PDF escapado, archivos privados y validaciones más estrictas.
+
+#### Montos en formato argentino
+
+Punto para miles y coma para decimales en todos los flags de montos: `15.000` es quince mil y `1.500,50`, mil quinientos con cincuenta.
+
+```sh
+arcli fc -m 1.500,50 --cs --cfinal --ir-cf
+```
+
+#### Sin comprobantes duplicados
+
+Si falla la llamada que emite, `EMISSION_UNCERTAIN` avisa que el comprobante puede haberse emitido y da el comando para verificarlo antes de reintentar.
+
+#### Estado de ARCA en el asistente
+
+La barra muestra si ARCA funciona, anda con demoras o no responde, y el menú ofrece actualizar a la versión nueva.
+
+#### Tus archivos, solo para vos
+
+Tickets, config y PDFs se crean con permisos privados, y el PDF escapa los textos que vienen de afuera.
+
+> [!WARNING]
+> **Puede afectar scripts**
+>
+> - **Montos en formato argentino:** punto para miles y coma para decimales (`15.000`, `1.500,50`). `-m 1500.50` ahora da error; escribí `1500,50`.
+> - **Enteros solo con dígitos:** `--pv 3a` da error en vez de leerse como 3.
+> - **`--dia` no se combina con `--fecha` ni `--servicio-hasta`.**
+> - **Varias alícuotas:** la suma tiene que coincidir exacta con `--monto`.
+> - **Un error de red al emitir** sale como `EMISSION_UNCERTAIN`, no como `TRANSIENT_ERROR`/`UNEXPECTED_ERROR`.
+>
+> Para pasar a la 2: revisá los montos de los scripts (antes `-m 15.000` se leía como 15 y `-m 1500,50` como 1500, sin aviso) y, ante `EMISSION_UNCERTAIN`, verificá con `arcli ultimos` antes de reintentar. El JSON de `--cargar` no cambia (ahí los montos son números), y no se saca ningún comando, flag ni clave de config.
+
+---
+
+### ✨ Agregado
+
+- **Asistente:** la barra muestra si ARCA funciona, anda con demoras o no responde, con el entorno y el punto de venta (#38).
+- **Asistente:** si hay una versión nueva, el menú ofrece actualizar y muestra sus novedades (#38).
+- **Salida:** las cajas, la barra de estado y el logo ocupan el mismo ancho (#38).
+- **Salida:** la versión aparece debajo del logo, en el asistente y en la ayuda (#38).
+- **Asistente:** las filas de las listas de comprobantes ocupan todo el ancho (#38).
+
+<details><summary>Detalle</summary>
+
+**Modo interactivo, estado de ARCA en la barra.** La barra de arriba del menú ya no dice "Modo interactivo": muestra **ARCA funcionando**, **con demoras** (más de 3 segundos), **con problemas** (algún servidor no responde OK) o **sin respuesta**, en color, seguido del entorno (`TESTING` en naranja, `PRODUCCION` en celeste). A la izquierda, la razón social del emisor (o el CUIT, si no está configurada) y el punto de venta.
+
+**Modo interactivo, actualizar.** Si hay una versión nueva, la primera opción del menú es **Actualizar a la versión X.Y.Z**. Muestra tu versión, la nueva y sus novedades, y con **Cerrar para actualizar** copia `npm install -g arcli@latest` al portapapeles y cierra el asistente para que lo ejecutes. En el modo interactivo el aviso de nueva versión ya no aparece al salir.
+
+**Mismo ancho para todo.** Las cajas de la salida en texto, la barra de estado y el logo (ahora centrado) ocupan 92 columnas, o menos si la terminal es más angosta. Antes cada caja medía distinto según su contenido. Los comprobantes (vista previa, resultado de la emisión y `consultar`) mantienen su ancho de ticket, de 68 a 80 columnas, y van centrados. El JSON no cambia.
+
+**Versión debajo del logo** (`v1.8.0 | LcsGrz`), en el modo interactivo y en la ayuda.
+
+**Modo interactivo, listas de comprobantes.** Las filas ocupan todo el ancho de la línea punteada que las enmarca.
+
+</details>
+
+### 🔧 Cambiado
+
+- **Facturas:** los montos van en formato argentino, con punto para miles y coma para decimales (#34).
+- **Asistente:** los montos siguen la misma regla, y el comando equivalente los escribe con coma (#34).
+- **Facturas:** los enteros aceptan solo dígitos; CUIT, CUIL y DNI aceptan además guiones y puntos (#36).
+- **Fechas:** `--dia` con `--fecha` o `--servicio-hasta` da error en lugar de ignorarse (#36).
+- **Facturas:** los montos del JSON aceptan 2 decimales como máximo, y la cotización 6 (#36).
+- **Facturas:** con varias alícuotas, la suma tiene que coincidir exacta con `--monto` (#36).
+
+<details><summary>Detalle</summary>
+
+**Montos en formato argentino, y es un cambio que rompe.** `--monto`, `--exento`, `--nogravado`, `--cotizacion-moneda`/`--cm`, el monto de `--alicuota TASA:MONTO` y `config establecer cotizacion` usan punto para miles y coma para decimales. `15.000` es quince mil y `1.500,50` es mil quinientos con cincuenta. Antes `-m 15.000` se leía como 15 y `-m 1500,50` como 1500, sin aviso. Ahora `1500.50` da error ("use coma para los decimales"), igual que el texto sobrante (`12abc`) y más de 2 decimales (la cotización acepta hasta 6). El JSON de `--cargar` no cambia: ahí los montos son números.
+
+**Modo interactivo.** Los montos siguen la misma regla. `1500.50` ya no se acepta y más de 2 decimales da error en lugar de redondearse en silencio. El comando equivalente que muestra al final escribe los montos con coma.
+
+**Enteros estrictos, y es un cambio que rompe.** `--pv`, `--punto-venta`, `--ar`, `--apv`, `--at`, `--dia` y `--cantidad` aceptan solo dígitos; antes `--pv 3a` se leía como 3. `--cuit`, `--cuil` y `--dni` aceptan además guiones y puntos (`20-11111111-2`), como el modo interactivo; antes `--cuit 20111111112xyz` pasaba.
+
+**`--dia` con `--fecha` o `--servicio-hasta` da error.** Antes `--dia` se ignoraba sin aviso.
+
+**Montos del JSON con 2 decimales como máximo** (la cotización, 6), igual que los flags.
+
+**Varias alícuotas: la suma tiene que coincidir exacta** con `--monto`; antes se aceptaba un centavo de diferencia, y el `ImpTotal` enviado podía no coincidir con la suma de sus partes.
+
+</details>
+
+### 🐛 Corregido
+
+- **Errores:** si falla la llamada que emite, el error es `EMISSION_UNCERTAIN` y dice cómo verificarlo antes de reintentar (#35).
+- **Asistente:** las notas y "Repetir factura" copian más de la original, como la moneda, el exento y el no gravado (#39).
+- **Config:** las rutas de certificados y tickets se guardan absolutas (#39).
+- **Certificados:** una clave privada cifrada se rechaza al guardarla, con cómo descifrarla (#39).
+- **Config:** `config establecer` ya no guarda valores inválidos que dejaban el CLI inutilizable (#37).
+- **Fechas:** "hoy" es siempre el día en Argentina, en cualquier zona horaria (#36).
+- **Facturas:** `ImpTotal` se calcula exacto con aritmética decimal (#36).
+- **Notas:** `--at` se valida como `--ac` (#36).
+- **Salida:** `ayuda` como valor de un flag ya no abre la ayuda (#36).
+- **PDF:** Ctrl+C en las preguntas del PDF no genera el PDF y avisa que el comprobante quedó emitido (#35).
+- **Facturas:** un flag escrito siempre gana a la config o al JSON (#35).
+- **Errores:** los errores salen en JSON también con `json=true` en la config (#35).
+- **Salida:** `cae` y `caeVencimiento` son `null` en un comprobante rechazado (#35).
+- **Errores:** los errores con sugerencia la incluyen en `sugerencia` también en JSON (#35).
+- **Docs:** la documentación explica bien cuándo se emite en producción sin flags (#34).
+
+<details><summary>Detalle</summary>
+
+**Emisión sin confirmar.** Si falla la llamada que emite en ARCA (red, timeout, transacción activa), el error ahora es `EMISSION_UNCERTAIN` y avisa que el comprobante puede haberse emitido igual, con el `arcli ultimos <tipo> --pv <n>` para verificarlo antes de reintentar. Antes salía como `TRANSIENT_ERROR` o `UNEXPECTED_ERROR` y sugería reintentar, lo que podía duplicarlo. En un lote, `BATCH_EMISSION_ERROR` suma `detalles.sinConfirmar`.
+
+**Modo interactivo, notas y repetir factura copian más de la original.** Una NC o ND sobre una factura en dólares va en dólares, con la cotización de la factura; antes salía en pesos. "Anular el total" copia también exento y no gravado. "Repetir factura" copia exento y no gravado. Si la factura tiene varias alícuotas o tributos, ARCA no devuelve el detalle para reproducirla. En ese caso se avisa, no se ofrece "anular el total" ni "mismo monto", y se pide elegir la alícuota.
+
+**Rutas absolutas en la config.** `cert.*`, `key.*` y `ticketPath` se guardan resueltas, como `pdfCarpeta`. Antes una ruta relativa dependía de la carpeta desde donde se corría ARCLI.
+
+**Clave privada cifrada.** `config establecer key.*` la rechaza con un mensaje claro y cómo descifrarla. Antes se aceptaba y fallaba recién al hablar con ARCA.
+
+**`config establecer` ya no guarda valores inválidos.** Antes `config establecer cuit abc` lo guardaba igual y dejaba el CLI inutilizable, incluso `config eliminar`. Ahora se valida antes de guardar, y una config que ya estaba rota se arregla con `config establecer` o `config eliminar` de la clave que falla.
+
+**Fecha argentina siempre.** En un equipo con otra zona horaria (por ejemplo un servidor en UTC), entre las 21 y las 24 h la fecha del comprobante salía con el día siguiente. Ahora "hoy" es siempre el día en Argentina.
+
+**`ImpTotal` exacto.** Se calcula como la suma de no gravado, exento, neto e IVA con aritmética decimal. Con varias alícuotas, el total ya no sale como `300.29999999999995`.
+
+**`--at` se valida como `--ac`.** Una NC A ya no puede asociar una factura B por código; si `tipo` y `atajo` vienen juntos tienen que coincidir.
+
+**`ayuda` como valor de un flag** (`--descripcion ayuda`) ya no abre la ayuda.
+
+**Ctrl+C en las preguntas del PDF**, que llegan después de emitir: el modo interactivo decía "Cancelado. No se emitio nada." aunque el comprobante ya estaba emitido, y el comando terminaba en "Error inesperado" con exit 1. Ahora se toma como "no generar el PDF" y se avisa que el comprobante quedó emitido.
+
+**Un flag escrito siempre gana.** `--previsualizar` ya no choca con `emitir=true` en la config o `"emitir": true` en el JSON, y `--emitir` gana a `"previsualizar": true`. Lo mismo con `--alicuota TASA` sobre las `alicuotas` del JSON, `--cm` sobre `"mismaMoneda"` y `--misma-moneda` sobre `"cotizacionMoneda"`. El error de "ambos a la vez" queda solo si los dos vienen del mismo lugar.
+
+**Errores en JSON con `json=true` en la config.** Antes solo salían en JSON con el flag `--json`.
+
+**`cae` y `caeVencimiento` son `null` en un comprobante rechazado**, como dice la documentación; antes venían como `""`.
+
+Los errores con sugerencia la incluyen en `sugerencia` también en JSON (antes solo los del PDF).
+
+**Documentación de la emisión en producción.** Decía que emitir en producción exige `--produccion --emitir`. En realidad el entorno sale de `config.entorno` y la emisión de `config.emitir` cuando no pasás flags: con `entorno produccion` y `emitir true` se emite en producción sin flags. El comportamiento no cambió; se corrigieron SECURITY.md, README, `llms.txt`, la ayuda y los docs.
+
+</details>
+
+### 🔒 Seguridad
+
+- **PDF:** los textos se escapan antes de generar el PDF, así un `<script>` no se ejecuta (#37).
+- **Config:** tickets, config y PDFs se crean solo para tu usuario (`0600`/`0700`) (#37).
+- **Salida:** los datos de afuera ya no pueden meter secuencias de control en la terminal (#39).
+
+<details><summary>Detalle</summary>
+
+**PDF: textos escapados.** La plantilla de `@arcasdk/pdf` no escapa HTML y Chromium la renderiza con JavaScript: una razón social o descripción con `<script>` (por ejemplo, de un JSON de terceros) se ejecutaba, y un `&` legítimo se veía mal. Ahora todos los textos se escapan antes de generar el PDF.
+
+**Tickets de ARCA y config solo para tu usuario.** ARCLI crea sus archivos con permisos `0600`/`0700` (umask `077`), incluidos los tickets que escribe el SDK, y deja en `0700` la carpeta de config y la de tickets que ya existían. Antes quedaban `0644`/`0755`, y en Linux otro usuario del equipo podía leer un ticket y usarlo para emitir durante su validez. Los PDFs nuevos también quedan solo para tu usuario.
+
+**Salida de terminal sin secuencias de control.** Observaciones de ARCA, datos del JSON o errores de npm ya no pueden mover el cursor, borrar la pantalla, pisar una línea ni meter hipervínculos. Solo pasan colores, saltos de línea y tabs. `--json` no cambia.
+
+</details>
 
 ## [1.8.0] - 2026-10-09
 
