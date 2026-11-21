@@ -8,7 +8,8 @@ const FETCH_TIMEOUT_MS = 3000;
 const MAX_LEAD_LENGTH = 70;
 
 /** Secciones de Keep a Changelog que usa el CHANGELOG; `otro` para cualquier otra. */
-export type ChangelogChangeKind = 'agregado' | 'cambiado' | 'corregido' | 'eliminado' | 'otro' | 'seguridad';
+export type ChangelogChangeKind =
+  'agregado' | 'cambiado' | 'corregido' | 'deprecado' | 'eliminado' | 'otro' | 'seguridad';
 
 export interface ChangelogChange {
   readonly kind: ChangelogChangeKind;
@@ -23,6 +24,8 @@ export interface ChangelogChange {
 export interface ChangelogEntry {
   readonly changes: readonly ChangelogChange[];
   readonly date?: string;
+  /** El nombre de la version (`## [2.6.0] - 2026-11-21 · Monotributo y recibos`), solo en las X.Y.0 que lo tienen. */
+  readonly name?: string;
   /** Primera oracion de la introduccion de la version, si tiene. */
   readonly summary?: string;
   readonly version: string;
@@ -30,13 +33,27 @@ export interface ChangelogEntry {
 
 const CHANGE_KINDS: Record<string, ChangelogChangeKind> = {
   agregado: 'agregado',
+  arreglado: 'corregido',
   cambiado: 'cambiado',
   corregido: 'corregido',
+  deprecado: 'deprecado',
   eliminado: 'eliminado',
   seguridad: 'seguridad',
 };
 
-const VERSION_HEADING = /^## \[(\d+\.\d+\.\d+)\](?:\s*-\s*(\S+))?/;
+// `## [2.6.0] - 2026-11-21 · Monotributo y recibos`: la fecha y el nombre son opcionales.
+const VERSION_HEADING = /^## \[(\d+\.\d+\.\d+)\](?:\s*-\s*([^\s·]+))?(?:\s*·\s*(.+?))?\s*$/;
+const FENCE = /^\s*(?:```|~~~)/;
+
+/** `### ✨ Agregado` → `agregado`: sin el icono (ni sus selectores de variante) ni mayusculas. */
+function sectionKind(heading: string): ChangelogChangeKind {
+  const name = heading
+    .replace(/^[^\p{L}]+/u, '')
+    .trim()
+    .toLowerCase();
+
+  return CHANGE_KINDS[name] ?? 'otro';
+}
 
 /** Saca el markdown de una linea: negritas, codigo y links (queda el texto del link). */
 function plainText(value: string): string {
@@ -78,21 +95,47 @@ function changeLead(bullet: string): Pick<ChangelogChange, 'text' | 'topic'> {
   return { text: shorten(plainText(title.replace(/:$/, ''))) };
 }
 
-/** Las versiones posteriores a `currentVersion`, hasta `latestVersion` inclusive, de la mas nueva a la mas vieja. */
+/**
+ * Las versiones posteriores a `currentVersion`, hasta `latestVersion` inclusive, de la mas nueva a la mas vieja.
+ *
+ * Lee el formato de `CHANGELOG.md` (`## [X.Y.Z] - fecha · Nombre`, resumen, destacados `####`, caja `> [!WARNING]`,
+ * `---`, secciones `### ✨ Agregado` con `<details>`) y el de antes (sin nombre, iconos ni destacados), que siguen
+ * teniendo los tags viejos. Lo que esta en un bloque de codigo, una cita o un `<details>` no es un cambio ni el resumen.
+ */
 export function extractChangelog(markdown: string, currentVersion: string, latestVersion: string): ChangelogEntry[] {
   const entries: ChangelogEntry[] = [];
-  let current: { changes: ChangelogChange[]; date?: string; summary?: string; version: string } | undefined;
+  let current:
+    { changes: ChangelogChange[]; date?: string; name?: string; summary?: string; version: string } | undefined;
   let kind: ChangelogChangeKind | undefined;
+  // Despues de un destacado (`####`) ya no hay resumen ni cambios hasta la primera seccion.
+  let inHighlights = false;
+  let inFence = false;
+  let inDetails = false;
 
   for (const line of markdown.split('\n')) {
+    if (FENCE.test(line)) {
+      inFence = !inFence;
+      continue;
+    }
+
+    if (inFence) {
+      continue;
+    }
+
+    if (/<details[\s>]/.test(line) || inDetails) {
+      inDetails = !line.includes('</details>');
+      continue;
+    }
+
     const heading = VERSION_HEADING.exec(line);
 
     if (heading) {
-      const version = heading[1];
+      const [, version, date, name] = heading;
       const inRange = isNewerVersion(version, currentVersion) && !isNewerVersion(version, latestVersion);
 
-      current = inRange ? { changes: [], date: heading[2], version } : undefined;
+      current = inRange ? { changes: [], date, name, version } : undefined;
       kind = undefined;
+      inHighlights = false;
 
       if (current) {
         entries.push(current);
@@ -111,7 +154,18 @@ export function extractChangelog(markdown: string, currentVersion: string, lates
     }
 
     if (line.startsWith('### ')) {
-      kind = CHANGE_KINDS[line.slice(4).trim().toLowerCase()] ?? 'otro';
+      kind = sectionKind(line.slice(4));
+      inHighlights = false;
+      continue;
+    }
+
+    if (line.startsWith('#### ')) {
+      inHighlights = !kind;
+      continue;
+    }
+
+    // Una cita (la caja `> [!WARNING]`), la linea `---` y el HTML suelto no son cambios ni resumen.
+    if (/^\s*(?:>|<|---\s*$)/.test(line) || inHighlights) {
       continue;
     }
 
