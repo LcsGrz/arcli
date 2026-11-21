@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import { InputValidationError } from '../../errors/app-error';
 import { currentMonthPeriod, monthArcaPeriod, previousMonthPeriod } from '../periods';
-import { MAX_RELATIVE_DAYS, parseRelativeDateAsArcaDate, resolveRelativeDateInput } from '../relative-date';
+import {
+  MAX_RELATIVE_DAYS,
+  parseDateInputAsArcaDate,
+  parseRelativeDateAsArcaDate,
+  resolveRelativeDateInput,
+} from '../relative-date';
 
 // Mediodia en Argentina (UTC-3): el dia es el mismo en cualquier zona razonable.
 const at = (date: string) => new Date(`${date}T15:00:00Z`);
@@ -66,6 +71,36 @@ describe('parseRelativeDateAsArcaDate', () => {
 
   it('rechaza una palabra de mes en una fecha de un dia', () => {
     expect(() => parseRelativeDateAsArcaDate('mes-pasado', 'day', at('2026-08-20'))).toThrow(
+      /valen solo en desde y hasta/,
+    );
+  });
+});
+
+// TUI-18, tests primero: el punto de entrada comun de "texto del usuario -> fecha ARCA", para flags y asistente.
+describe('parseDateInputAsArcaDate', () => {
+  it.each([
+    ['hoy', 'day', '2026-11-18', '20261118'],
+    ['ayer', 'day', '2026-11-18', '20261117'],
+    ['-3', 'day', '2026-11-18', '20261115'],
+    ['+15', 'day', '2026-11-18', '20261203'],
+    ['mes-pasado', 'from', '2026-11-18', '20261001'],
+    ['mes-pasado', 'to', '2026-11-18', '20261031'],
+    ['16/11/2026', 'day', '2026-11-18', '20261116'],
+    // Sin año, la fecha mas cercana al `now` inyectado, no a la fecha real.
+    ['10/1', 'day', '2026-12-28', '20270110'],
+    ['5', 'day', '2026-11-18', '20261105'],
+  ] as const)('%s (%s) el %s es %s', (value, role, today, expected) => {
+    expect(parseDateInputAsArcaDate(value, role, at(today))).toBe(expected);
+  });
+
+  it('una fecha mal escrita dice que tambien valen las relativas', () => {
+    expect(() => parseDateInputAsArcaDate('32/10', 'day', at('2026-11-18'))).toThrow(InputValidationError);
+    expect(() => parseDateInputAsArcaDate('32/10', 'day', at('2026-11-18'))).toThrow(/`hoy`, `ayer`, `\+N` o `-N`/);
+  });
+
+  it('una relativa invalida da el error de la relativa', () => {
+    expect(() => parseDateInputAsArcaDate('+1000', 'day', at('2026-11-18'))).toThrow(/hasta 999 días/);
+    expect(() => parseDateInputAsArcaDate('mes-pasado', 'day', at('2026-11-18'))).toThrow(
       /valen solo en desde y hasta/,
     );
   });

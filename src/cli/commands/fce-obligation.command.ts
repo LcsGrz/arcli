@@ -1,7 +1,7 @@
 import type { Command } from 'commander';
 
-import { formatDateAsArcaDate, parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
-import { parseRelativeDateAsArcaDate } from '../../lib/dates/relative-date';
+import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
+import { parseDateInputAsArcaDate } from '../../lib/dates/relative-date';
 import { formatFceObligationAsJson, formatFceObligationAsText } from '../../modules/fce/fce-obligation.presenter';
 import { ArcaFceObligationGateway } from '../../services/arca/arca-fce-obligation.gateway';
 import { createArcaQuery, withQuerySpinner, writeQueryOutput } from '../arca-query';
@@ -27,10 +27,7 @@ export function registerFceObligationCommand(program: Command): void {
   command.action(async (rawCuit: string, options: { fecha?: string }, self: Command) => {
     const cuit = parseCuitArgument(rawCuit);
     const now = new Date();
-    const issueDate = options.fecha
-      ? (parseRelativeDateAsArcaDate(options.fecha, 'day', now) ??
-        parseArgentineDateInputAsArcaDate(options.fecha, now))
-      : formatDateAsArcaDate(now);
+    const issueDate = options.fecha ? parseDateInputAsArcaDate(options.fecha, 'day', now) : formatDateAsArcaDate(now);
     const { gateway, runtime } = createArcaQuery(self, (arca) => new ArcaFceObligationGateway(arca));
     const obligation = await withQuerySpinner(runtime, () => gateway.getObligation(cuit, issueDate));
     const report = { cuit, environment: runtime.environment, issueDate, obligation };

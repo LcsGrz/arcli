@@ -44,9 +44,11 @@
   = Fecha del comprobante, Vencimiento del pago
 
 ? [texto] Fecha del comprobante:
+  ayuda: hoy, ayer, +N o -N
   = "16/11/2026"
 
 ? [texto] Vencimiento del pago:
+  ayuda: hoy, ayer, +N o -N
   = "26/11/2026"
 
 == pantalla ==

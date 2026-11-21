@@ -1,8 +1,5 @@
-import {
-  ARGENTINE_DATE_FORMAT_HINT,
-  formatDateAsArcaDate,
-  parseArgentineDateInputAsArcaDate,
-} from '../../lib/dates/arca-date';
+import { formatArcaDateAsArgentineDate, formatDateAsArcaDate } from '../../lib/dates/arca-date';
+import { MAX_RELATIVE_DAYS, parseDateInputAsArcaDate } from '../../lib/dates/relative-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { describeInvalidCbu, parseCbu } from '../../lib/identity/cbu';
 import { parseCuit } from '../../lib/identity/cuit';
@@ -54,13 +51,21 @@ export function normalizeDocumentNumber(value: string): number {
   return Number(value.replace(/[-.]/g, ''));
 }
 
-export function validateDate(value: string): string | true {
+/**
+ * Una fecha como en los flags: escrita a mano (`5`, `15/11`, `15/11/2026`) o relativa (`hoy`, `ayer`, `+N`, `-N`).
+ * El error es uno solo, sin flags: los del CLI nombran `--sd` o `--sh` (TUI-18).
+ */
+export function validateDate(value: string, now = new Date()): string | true {
   try {
-    parseArgentineDateInputAsArcaDate(value);
+    parseDateInputAsArcaDate(value, 'day', now);
 
     return true;
-  } catch {
-    return `Fecha inválida. ${ARGENTINE_DATE_FORMAT_HINT}`;
+  } catch (error) {
+    if (error instanceof InputValidationError) {
+      return `Fecha inválida. Usá D, D/MM o D/MM/YYYY. También valen hoy, ayer, +N y -N (días desde hoy, hasta ${MAX_RELATIVE_DAYS}).`;
+    }
+
+    throw error;
   }
 }
 
@@ -71,7 +76,7 @@ export function validateBillingDate(
   voucherKind: VoucherKindDefinition,
   now = new Date(),
 ): string | true {
-  const valid = validateDate(value);
+  const valid = validateDate(value, now);
 
   if (valid !== true) {
     return valid;
@@ -79,7 +84,7 @@ export function validateBillingDate(
 
   const found = findRuleFailure(
     [BILLING_DATE_WINDOW_RULE],
-    { billingDate: value, concept },
+    { billingDate: formatArcaDateAsArgentineDate(parseDateInputAsArcaDate(value, 'day', now)), concept },
     { today: formatDateAsArcaDate(now), voucherKind },
   );
 
@@ -91,7 +96,7 @@ export function validateBillingDate(
  * que en servicios no pasa del fin de mes.
  */
 export function validateExportVoucherDate(value: string, exportType: ExportType, now = new Date()): string | true {
-  const valid = validateDate(value);
+  const valid = validateDate(value, now);
 
   if (valid !== true) {
     return valid;
@@ -101,7 +106,7 @@ export function validateExportVoucherDate(value: string, exportType: ExportType,
     assertExportVoucherDate({
       exportType,
       today: formatDateAsArcaDate(now),
-      voucherDate: parseArgentineDateInputAsArcaDate(value, now),
+      voucherDate: parseDateInputAsArcaDate(value, 'day', now),
     });
 
     return true;

@@ -183,6 +183,24 @@ describe('prompts', () => {
     ]);
   });
 
+  // TUI-18, tests primero: la ayuda va junto a la de Esc y la linea de respuesta puede mostrar lo resuelto.
+  it('askTextStep: la ayuda va con la de Esc y la linea muestra la respuesta resuelta', async () => {
+    inputMock.mockResolvedValueOnce('-1' as never);
+    await askTextStep('Fecha:', { answered: () => '17/11/2026', inputHelp: 'hoy, ayer, +N o -N' });
+
+    const options = inputMock.mock.calls[0]?.[0] as { message: string };
+
+    expect(stripAnsi(options.message)).toBe('Fecha: (hoy, ayer, +N o -N • [esc] para volver)');
+    expect(stripAnsi(String(write.mock.calls[0]?.[0]))).toBe('✔ Fecha: 17/11/2026\n');
+
+    // Con las dos: la aclaracion antes de los dos puntos y lo que se puede escribir junto a la ayuda de Esc.
+    inputMock.mockResolvedValueOnce('' as never);
+    await askTextStep('Fecha de pago:', { hint: SKIP_HINT, inputHelp: 'hoy, ayer, +N o -N' });
+    expect(stripAnsi((inputMock.mock.calls[1]?.[0] as { message: string }).message)).toBe(
+      'Fecha de pago (Enter para omitirlo): (hoy, ayer, +N o -N • [esc] para volver)',
+    );
+  });
+
   it('Esc en una confirmacion cuenta como no', async () => {
     selectMock.mockImplementationOnce(
       (_config, context) =>

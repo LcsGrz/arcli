@@ -36,15 +36,19 @@
   = Fecha del comprobante, Período del servicio, Vencimiento del pago
 
 ? [texto] Fecha del comprobante:
+  ayuda: hoy, ayer, +N o -N
   = "15/11/2026"
 
 ? [texto] Servicio desde:
+  ayuda: hoy, ayer, +N o -N
   = "01/11/2026"
 
 ? [texto] Servicio hasta:
+  ayuda: hoy, ayer, +N o -N
   = "15/11/2026"
 
 ? [texto] Vencimiento del pago:
+  ayuda: hoy, ayer, +N o -N
   = "30/11/2026"
 
 == pantalla ==

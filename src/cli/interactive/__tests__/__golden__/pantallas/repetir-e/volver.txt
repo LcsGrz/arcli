@@ -89,6 +89,7 @@
 └                                                                                          ┘
 
 ? [texto] Fecha de pago (Enter para la fecha del comprobante):
+  ayuda: hoy, ayer, +N o -N
   = ""
 
 ? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
@@ -162,6 +163,7 @@ arcli fe -m 1800 --cliente 'ACME LLC' --domicilio-cliente '123 Main St, Miami, F
   = ← Volver
 
 ? [texto] Fecha de pago (Enter para la fecha del comprobante):
+  ayuda: hoy, ayer, +N o -N
   = ""
 
 ? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)

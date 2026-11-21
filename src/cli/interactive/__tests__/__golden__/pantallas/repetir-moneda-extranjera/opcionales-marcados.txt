@@ -61,6 +61,7 @@
   = Fecha del comprobante
 
 ? [texto] Fecha del comprobante:
+  ayuda: hoy, ayer, +N o -N
   = "17/11/2026"
 
 == pantalla ==

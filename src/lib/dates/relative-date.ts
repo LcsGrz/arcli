@@ -1,6 +1,11 @@
 import { InputValidationError } from '../errors/app-error';
 
-import { addDaysToArcaDate, formatArcaDateAsArgentineDate, formatDateAsArcaDate } from './arca-date';
+import {
+  addDaysToArcaDate,
+  formatArcaDateAsArgentineDate,
+  formatDateAsArcaDate,
+  parseArgentineDateInputAsArcaDate,
+} from './arca-date';
 import { monthArcaPeriod } from './periods';
 
 /**
@@ -81,6 +86,29 @@ export function parseRelativeDateAsArcaDate(value: string, role: DateInputRole, 
   }
 
   return addDaysToArcaDate(today, offset[1] === '-' ? -days : days);
+}
+
+/**
+ * La fecha ARCA (yyyymmdd) de lo que escribe el usuario, en un flag, en `--cargar` o en el asistente: una relativa
+ * (`hoy`, `-3`, `mes-pasado` en desde y hasta) o una escrita a mano (`5`, `15/11`, `15/11/2026`), que sin año toma
+ * la mas cercana a `now`. Es el unico camino de texto a fecha: el error de una mal escrita nombra tambien las relativas.
+ */
+export function parseDateInputAsArcaDate(value: string, role: DateInputRole, now: Date): string {
+  const relative = parseRelativeDateAsArcaDate(value, role, now);
+
+  if (relative !== undefined) {
+    return relative;
+  }
+
+  try {
+    return parseArgentineDateInputAsArcaDate(value, now);
+  } catch (error) {
+    if (error instanceof InputValidationError) {
+      throw new InputValidationError(`La fecha "${value.trim()}" no es válida. ${formatHint(role)}`);
+    }
+
+    throw error;
+  }
 }
 
 /**

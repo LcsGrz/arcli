@@ -74,6 +74,7 @@
   = Fecha del comprobante, Observaciones
 
 ? [texto] Fecha del comprobante:
+  ayuda: hoy, ayer, +N o -N
   = "17/11/2026"
 
 ? [texto] Observaciones (Enter si no hay):

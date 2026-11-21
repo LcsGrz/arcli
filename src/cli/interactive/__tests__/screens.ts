@@ -183,11 +183,15 @@ export function createScreens(steps: ReadonlyArray<readonly [RegExp, ScriptedAns
         `? [texto] ${normalizeScreen(message)}`,
         // Se ve solo mientras se responde: la linea de la respuesta queda con la pregunta sola.
         ...(options.hint ? [`  aclara al preguntar: ${options.hint}`] : []),
+        ...(options.inputHelp ? [`  ayuda: ${options.inputHelp}`] : []),
         ...(options.previousAnswer?.trim() ? [`  arranca escrito: ${JSON.stringify(options.previousAnswer)}`] : []),
         ...(options.defaultValue === undefined ? [] : [`  por defecto: ${JSON.stringify(options.defaultValue)}`]),
         ...(validate ? [] : ['  sin validacion']),
         ...rejected,
         `  = ${answer === BACK ? '← Volver' : JSON.stringify(answer)}`,
+        ...(answer !== BACK && options.answered && options.answered(answer) !== answer
+          ? [`  queda: ${JSON.stringify(options.answered(answer))}`]
+          : []),
       ],
     });
 

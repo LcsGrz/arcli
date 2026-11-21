@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { needsPadronLookup } from '../../../modules/billing/billing.padron';
+import type { BillingCommandInput } from '../../../modules/billing/billing.schemas';
 import {
   parseBillingCommandInput,
   parseBillingCommandInputs,
@@ -1142,6 +1143,32 @@ describe('billing.command.parser: fechas relativas', () => {
 
     expect(withPeriod.associatedPeriod).toEqual({ desde: '01/01/2027', hasta: '31/01/2027' });
     expect(withAssociated.associatedVoucher?.fecha).toBe('31/12/2026');
+  });
+
+  // TUI-18: el inventario de los flags de fecha, cada uno con su alias. Si se suma uno, va aca.
+  it.each([
+    ['-f', 'fc', [], (input: BillingCommandInput) => input.billingDate],
+    ['--fecha', 'fc', [], (input: BillingCommandInput) => input.billingDate],
+    ['--sd', 'fc', [], (input: BillingCommandInput) => input.serviceStartDate],
+    ['--servicio-desde', 'fc', [], (input: BillingCommandInput) => input.serviceStartDate],
+    ['--sh', 'fc', [], (input: BillingCommandInput) => input.serviceEndDate],
+    ['--servicio-hasta', 'fc', [], (input: BillingCommandInput) => input.serviceEndDate],
+    ['--vto', 'fc', [], (input: BillingCommandInput) => input.paymentDueDate],
+    ['--vencimiento', 'fc', [], (input: BillingCommandInput) => input.paymentDueDate],
+    ['--pd', 'ncc', [], (input: BillingCommandInput) => input.associatedPeriod?.desde],
+    ['--periodo-desde', 'ncc', [], (input: BillingCommandInput) => input.associatedPeriod?.desde],
+    ['--ph', 'ncc', [], (input: BillingCommandInput) => input.associatedPeriod?.hasta],
+    ['--periodo-hasta', 'ncc', [], (input: BillingCommandInput) => input.associatedPeriod?.hasta],
+    [
+      '--afecha',
+      'ncc',
+      ['--ac', 'fc', '--apv', '1', '--ar', '5'],
+      (input: BillingCommandInput) => input.associatedVoucher?.fecha,
+    ],
+  ] as const)('%s acepta hoy', (flag, shortcut, extra, read) => {
+    const input = parseBillingCommandInput(createCommand([...BASE_FLAGS, ...extra, flag, 'hoy']), shortcut);
+
+    expect(read(input)).toBe('01/01/2027');
   });
 
   it('acepta las mismas palabras en las claves de fecha de --cargar', () => {

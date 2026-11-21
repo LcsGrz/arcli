@@ -27,9 +27,13 @@ export interface DateStepDef<S> {
   readonly writes?: readonly string[];
 }
 
+/** La ayuda de toda pregunta de fecha: lo que se puede escribir ademas de la fecha (TUI-18). */
+const DATE_INPUT_HINT = 'hoy, ayer, +N o -N';
+
 /**
- * Una fecha, escrita como en los flags (`10`, `15/11`, `15/11/2026`) y guardada completa en dd/mm/aaaa (REV-74, #13):
- * el comando equivalente pegado otro dia u otro mes sigue dando la misma fecha. Al volver arranca escrita.
+ * Una fecha, escrita como en los flags (`10`, `15/11`, `15/11/2026`, `hoy`, `-3`) y guardada completa en dd/mm/aaaa
+ * (REV-74, #13): el comando equivalente pegado otro dia u otro mes sigue dando la misma fecha, y la linea de
+ * respuesta muestra esa fecha, no la palabra. Al volver arranca escrita.
  */
 export function dateStep<S>(def: DateStepDef<S>): WizardStep<S> {
   return {
@@ -37,6 +41,8 @@ export function dateStep<S>(def: DateStepDef<S>): WizardStep<S> {
     name: def.name,
     run: async (state, { error, previous }) => {
       const answer = await askTextStep(typeof def.message === 'string' ? def.message : def.message(state), {
+        answered: (value) => (value ? completeDateInput(value) : value),
+        inputHelp: DATE_INPUT_HINT,
         previousAnswer: previous ? def.date.get(previous as S) : undefined,
         validate: def.validate(state, error !== undefined),
       });

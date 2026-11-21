@@ -601,6 +601,34 @@ describe('flujos del modo interactivo', () => {
       expect(validate?.('32/10')).toMatch(/Fecha inválida/);
     });
 
+    // TUI-18, tests primero: una fecha relativa queda resuelta en la entrada y en el comando equivalente.
+    it('acepta `-1` en la fecha del comprobante y la guarda resuelta', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-25T12:00:00-03:00'));
+
+      script = createScript([
+        [/comprobante/, 'Factura C'],
+        [/A quién/, 'Consumidor final'],
+        [/Qué estás facturando/, 'Servicios'],
+        [/Monto total/, '1000'],
+        [/Agregamos/, ['Fecha del comprobante']],
+        [/Fecha del comprobante/, '-1'],
+      ]);
+
+      const session = createSession();
+      const state = await runWizard(invoiceSteps(session), { advanced: { currencyCode: 'ARS', sameCurrency: false } });
+      const options = script.askTextStep.mock.calls.find(([message]) => /Fecha del comprobante/.test(message))?.[1];
+      const input = buildInvoiceInput(state as NonNullable<typeof state>, session.runtime);
+
+      expect(input.billingDate).toBe('24/10/2026');
+      expect(buildEquivalentCommand(input, { environment: 'testing', platform: 'linux' })).toContain('-f 24/10/2026');
+      // La ayuda nombra las relativas, la linea de respuesta muestra la fecha y la ventana de ARCA sigue igual.
+      expect(options?.inputHelp).toMatch(/hoy.*\+N.*-N/);
+      expect(options?.answered?.('-1')).toBe('24/10/2026');
+      expect(options?.validate?.('hoy')).toBe(true);
+      expect(options?.validate?.('+11')).toMatch(/fuera de rango/);
+    });
+
     it('identifica al receptor por CUIL, sin consultar el padron', async () => {
       script = createScript([
         [/comprobante/, 'Factura B'],

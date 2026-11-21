@@ -7,8 +7,10 @@ import {
   validateCbu,
   validateCuil,
   validateCuit,
+  validateDate,
   validateDni,
   validateExchangeRate,
+  validateExportVoucherDate,
   validateOptionalAmount,
   validateOptionalCbuAlias,
   validateOptionalDate,
@@ -91,5 +93,18 @@ describe('lo que una persona tipea mal', () => {
     expect(validateBillingDate('18/11/2026', 'productos', fc, now)).toBe(true);
     expect(validateBillingDate('31/02/2026', 'productos', fc, now)).toMatch(/Fecha inválida/);
     expect(validateBillingDate('01/01/2026', 'productos', fc, now)).toEqual(expect.any(String));
+  });
+
+  // TUI-18: las relativas, con la misma ventana que una fecha escrita a mano.
+  it('acepta hoy, ayer, +N y -N, con la ventana de ARCA sobre la fecha resuelta', () => {
+    const now = new Date('2026-11-18T15:00:00-03:00');
+    const fc = getVoucherKindByShortcut('fc')!;
+
+    expect(validateBillingDate('hoy', 'productos', fc, now)).toBe(true);
+    expect(validateBillingDate('-5', 'productos', fc, now)).toBe(true);
+    expect(validateBillingDate('-6', 'productos', fc, now)).toEqual(expect.any(String));
+    expect(validateExportVoucherDate('ayer', 2, now)).toBe(true);
+    expect(validateDate('+1000', now)).toMatch(/hasta 999/);
+    expect(validateDate('mes-pasado', now)).toMatch(/Fecha inválida/);
   });
 });
