@@ -184,7 +184,7 @@ describe('runExportFlow', () => {
       [/moneda/, 'Pesos'],
       ...singleExportItem('100'),
       [/Forma de pago/, 'Transferencia Internacional'],
-      [/actividad.*Enter para no informarla/, ''],
+      [/actividad de WSFEX/, ''],
       [/Fecha de pago/, ''],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'Sí, emitir ahora'],
@@ -717,12 +717,12 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
     expect(typed).toEqual({
       'ARCA no tiene un CUIT publicado para ATLANTIDA. Escribí el CUIT del país, buscalo por nombre o dejalo vacío para informar solo el ID impositivo del cliente:':
         '55000002126',
-      'Código de actividad de WSFEX, por ejemplo 620100': '620100',
+      'Código de actividad de WSFEX, por ejemplo 620100:': '620100',
       // Escrita a mano, arranca con la escrita y no con la de ARCA (NAV-9).
       'Cotización de USD': '1180',
       'Domicilio del cliente:': '123 Main St',
       'Forma de pago:': 'Carta de crédito',
-      'ID impositivo del cliente en su país': '12-3456789',
+      'ID impositivo del cliente en su país:': '12-3456789',
       'Nombre o razón social del cliente del exterior:': 'ACME LLC',
       'País de destino': 'ATLANTIDA',
       'Permisos de embarque ya existentes, separados por coma': '26001EC01000123A',

@@ -121,16 +121,41 @@ export async function chooseOne<T>(
   return 'answer' in result && result.answer !== BACK ? result.answer : escapeValue;
 }
 
+/**
+ * La aclaracion de una pregunta de texto ("(Enter para omitirlo)") va antes de los dos puntos, y solo mientras se
+ * responde: en la linea "✔ pregunta respuesta" queda la pregunta sola, asi un Enter vacio se ve vacio (TUI-19).
+ */
+function withHint(message: string, hint: string | undefined): string {
+  if (!hint) {
+    return message;
+  }
+
+  return message.endsWith(':') ? `${message.slice(0, -1)} ${hint}:` : `${message} ${hint}`;
+}
+
 export async function askText(
   message: string,
-  options: { readonly defaultValue?: string; readonly validate?: (value: string) => string | true } = {},
+  options: {
+    readonly defaultValue?: string;
+    /** Ver `TextStepOptions.hint`. */
+    readonly hint?: string;
+    readonly validate?: (value: string) => string | true;
+  } = {},
 ): Promise<string> {
-  const answer = await input({
-    default: options.defaultValue,
-    message,
-    theme: TEXT_THEME,
-    validate: options.validate,
-  });
+  const answer = await input(
+    {
+      default: options.defaultValue,
+      message: withHint(message, options.hint),
+      theme: TEXT_THEME,
+      validate: options.validate,
+    },
+    // Con aclaracion, la linea de la respuesta se escribe aparte, sin ella.
+    options.hint ? { clearPromptOnDone: true } : {},
+  );
+
+  if (options.hint) {
+    writeAnsweredLine(message, answer.trim());
+  }
 
   return answer.trim();
 }
@@ -323,6 +348,8 @@ export async function chooseStepWhileLoading<T, L>(
 
 export interface TextStepOptions {
   readonly defaultValue?: string;
+  /** Aclaracion que se ve solo mientras se responde, como `SKIP_HINT`; la respuesta queda con `message` solo. */
+  readonly hint?: string;
   /**
    * Lo que se habia escrito, al volver a la pregunta: arranca escrito y se puede editar o borrar (con un
    * `defaultValue`, borrarlo no lo deja vacio). Vacio, la pregunta arranca como la primera vez.
@@ -339,7 +366,7 @@ export async function askTextStep(message: string, options: TextStepOptions = {}
       input(
         {
           default: previousAnswer ?? options.defaultValue,
-          message: `${message} ${colorize('([esc] para volver)', 'muted')}`,
+          message: `${withHint(message, options.hint)} ${colorize('([esc] para volver)', 'muted')}`,
           prefill: previousAnswer === undefined ? 'tab' : 'editable',
           theme: TEXT_THEME,
           validate: (value) => (value.trim() === BACK_TEXT ? true : (options.validate?.(value) ?? true)),

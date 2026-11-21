@@ -13,6 +13,7 @@ import {
   confirm,
   isPromptCancellation,
 } from '../prompts';
+import { SKIP_HINT } from '../text-hints';
 
 vi.mock('../list-select', () => ({ listSelect: vi.fn() }));
 vi.mock('@inquirer/input', () => ({ default: vi.fn() }));
@@ -164,6 +165,22 @@ describe('prompts', () => {
     const line = stripAnsi(String(write.mock.calls[0]?.[0]));
 
     expect(line).toBe('✔ Monto: 150\n');
+  });
+
+  it('la aclaracion "(Enter para omitirlo)" se ve al preguntar, y un Enter vacio deja la respuesta vacia (TUI-19)', async () => {
+    inputMock.mockResolvedValueOnce('' as never).mockResolvedValueOnce('' as never);
+    await askTextStep('Alias del CBU:', { hint: SKIP_HINT });
+    await askText('Domicilio del receptor:', { hint: SKIP_HINT });
+
+    const options = inputMock.mock.calls.map((call) => stripAnsi((call[0] as { message: string }).message));
+
+    expect(options[0]).toBe('Alias del CBU (Enter para omitirlo): ([esc] para volver)');
+    expect(options[1]).toBe('Domicilio del receptor (Enter para omitirlo):');
+    expect(inputMock.mock.calls[1]?.[1]).toMatchObject({ clearPromptOnDone: true });
+    expect(write.mock.calls.map((call) => stripAnsi(String(call[0])))).toEqual([
+      '✔ Alias del CBU: \n',
+      '✔ Domicilio del receptor: \n',
+    ]);
   });
 
   it('Esc en una confirmacion cuenta como no', async () => {

@@ -51,6 +51,7 @@ import {
   loadExportTables,
 } from './steps/export';
 import { exportItemsStep } from './steps/export-items';
+import { SKIP_HINT } from './text-hints';
 
 interface ExportFlowLoaders {
   readonly activities: () => Promise<readonly ExportActivity[]>;
@@ -178,8 +179,9 @@ function exportSteps(
         const answer = await askTextStep(
           required
             ? 'ID impositivo del cliente en su país (sin CUIT del país, ARCA lo pide):'
-            : 'ID impositivo del cliente en su país (Enter para omitirlo):',
+            : 'ID impositivo del cliente en su país:',
           {
+            hint: required ? undefined : SKIP_HINT,
             previousAnswer: previous?.clientTaxId,
             validate: validateExportText('clientTaxId', required ? 'El ID impositivo' : undefined),
           },

@@ -276,7 +276,7 @@ describe('runExportRepeatFlow', () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
-      [/actividad de WSFEX.*Enter para no informarla/, ''],
+      [/actividad de WSFEX/, ''],
       // Antes de los opcionales, contra la más temprana que ARCA acepta para la fecha del comprobante (TUI-22).
       [
         /Fecha de pago/,

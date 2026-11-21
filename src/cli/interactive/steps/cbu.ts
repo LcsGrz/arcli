@@ -4,6 +4,7 @@ import { cbuToSave } from '../../../modules/interactive/steps/config-offer';
 import { BACK, type WizardStep } from '../../../modules/interactive/wizard';
 import { askTextStep } from '../prompts';
 import { offerConfig } from '../save-to-config';
+import { SKIP_HINT } from '../text-hints';
 import { validateCbu, validateOptionalCbuAlias } from '../validators';
 
 /**
@@ -29,7 +30,8 @@ export function cbuSteps<S extends InvoiceState>(config: Pick<ArcliConfig, 'alia
     {
       name: 'alias-cbu',
       run: async (_state, { previous }) => {
-        const alias = await askTextStep('Alias del CBU (Enter para omitir):', {
+        const alias = await askTextStep('Alias del CBU:', {
+          hint: SKIP_HINT,
           previousAnswer: previous?.cbuAlias,
           validate: validateOptionalCbuAlias,
         });
