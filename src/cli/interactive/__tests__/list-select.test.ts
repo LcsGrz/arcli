@@ -172,7 +172,7 @@ describe('listSelect', () => {
     expect(answer).toBe(3);
   });
 
-  it('escribir el principio de una opcion la marca', async () => {
+  it('escribir parte de una opcion deja las que coinciden y marca la primera', async () => {
     const { answer } = await run(['O', 'p', 'c', 'i', 'ó', 'n', ' ', '7', ENTER]);
 
     expect(answer).toBe(7);

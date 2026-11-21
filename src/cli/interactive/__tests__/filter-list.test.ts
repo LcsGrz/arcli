@@ -71,6 +71,18 @@ describe('filterRows', () => {
     expect(filterRows(CURRENCIES, '060').map((row) => row.value)).toEqual(['060']);
     expect(filterRows(CURRENCIES, '  ')).toHaveLength(3);
   });
+
+  it('no compara los códigos de color de la fila', () => {
+    const rows = [{ label: 'DOL  Dólar \u001B[31m(nuevo)\u001B[39m', value: 'DOL' }];
+
+    expect(filterRows(rows, '31m')).toEqual([]);
+    expect(filterRows(rows, 'nuevo')).toHaveLength(1);
+  });
+
+  it('por palabras, en cualquier orden y aunque la fila las separe con varios espacios', () => {
+    expect(filterRows(CURRENCIES, 'estadounidense dol').map((row) => row.value)).toEqual(['DOL']);
+    expect(filterRows(CURRENCIES, 'dol euro')).toEqual([]);
+  });
 });
 
 describe('filterList', () => {
@@ -78,6 +90,7 @@ describe('filterList', () => {
     const { screen } = await run([ENTER]);
 
     expect(screen).toContain('Filtrar:');
+    expect(screen).toContain('escribí');
     expect(screen).toContain('CÓDIGO  MONEDA');
     expect(screen).toContain('❯ DOL  Dólar Estadounidense');
     expect(screen).toContain('Escribí el nombre o el código.');
@@ -105,6 +118,13 @@ describe('filterList', () => {
 
     expect(screen).toContain('Nada coincide con "xy".');
     expect(answer).toBe('DOL');
+  });
+
+  it('Enter sin nada que elegir no borra lo escrito: Backspace sigue borrando de a una letra', async () => {
+    // Despues de Enter sigue "eurx", y Backspace deja "eur": el euro. Antes Backspace borraba todo y quedaba el dolar.
+    const { answer } = await run([...'eurx', ENTER, BACKSPACE, ENTER]);
+
+    expect(answer).toBe('060');
   });
 
   it('si no entran todas, avisa cuantas quedan arriba y abajo; si entran, nada', async () => {

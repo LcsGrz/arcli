@@ -10,7 +10,7 @@ import {
   useState,
 } from '@inquirer/core';
 
-import { bold, colorize, scrollHint, scrollWindow, uiSymbol } from '../../ui';
+import { bold, colorize, scrollHint, scrollWindow, stripAnsi, uiSymbol } from '../../ui';
 
 type HelpKey = [string, string];
 
@@ -60,15 +60,44 @@ function normalize(text: string): string {
     .toLowerCase();
 }
 
+/** Las palabras de lo escrito, sin mayusculas ni tildes: dos textos con las mismas filtran igual. */
+export function searchWords(term: string): string[] {
+  return normalize(term).split(/\s+/).filter(Boolean);
+}
+
+/**
+ * Si `text` tiene cada palabra de lo escrito, en cualquier orden, sin mayusculas ni tildes: "dolar canad" encuentra
+ * "Dólares canadienses (CAD)". Sin nada escrito, todo coincide. Los colores de `text` (un "(nuevo)" resaltado) no
+ * cuentan. Es la unica manera de buscar del asistente: la usan las listas que se filtran (`filterList`) y las de
+ * opciones (`listSelect`).
+ */
+export function matchesSearch(text: string, term: string): boolean {
+  const haystack = normalize(stripAnsi(text));
+
+  return searchWords(term).every((word) => haystack.includes(word));
+}
+
 /** Las filas que contienen lo escrito, en la fila o en sus palabras clave. */
 export function filterRows<T>(rows: ReadonlyArray<FilterListRow<T>>, term: string): Array<FilterListRow<T>> {
-  const needle = normalize(term.trim());
+  return rows.filter((row) => matchesSearch(`${row.label} ${row.keywords ?? ''}`, term));
+}
 
-  if (!needle) {
-    return [...rows];
-  }
+/** La pista de que se puede escribir para filtrar, en la ayuda de teclas de las listas que filtran. */
+export const FILTER_HELP_KEY: [string, string] = ['escribí', 'para filtrar'];
 
-  return rows.filter((row) => normalize(`${row.label} ${row.keywords ?? ''}`).includes(needle));
+/** "Filtrar: dol", la linea con lo escrito. */
+export function filterPromptLine(term: string): string {
+  return `${colorize('Filtrar:', 'muted')} ${term}`;
+}
+
+/** "  3 de 37", cuando lo escrito deja menos filas que todas; si no, vacio (sin ninguna, ya lo dice `noMatchesLine`). */
+export function filterCountLine(term: string, shown: number, total: number): string {
+  return term && shown > 0 && shown < total ? colorize(`  ${shown} de ${total}`, 'muted') : '';
+}
+
+/** "  Nada coincide con "zzz".", en lugar de la lista vacia. */
+export function noMatchesLine(term: string): string {
+  return colorize(`  Nada coincide con "${term.trim()}".`, 'muted');
 }
 
 /** La posicion de "Volver": despues de la ultima fila. */
@@ -108,6 +137,9 @@ export const filterList = createPrompt(<T>(config: FilterListConfig<T>, done: (v
       } else if (row) {
         setStatus('done');
         done(row.value);
+      } else {
+        // Enter sin nada que elegir: readline ya vacio la linea, y lo escrito tiene que seguir para editarlo.
+        rl.write(term);
       }
     } else if (isUpKey(key) || isDownKey(key)) {
       // Las flechas no escriben: readline las tomaria como historial y borraria el filtro.
@@ -145,12 +177,13 @@ export const filterList = createPrompt(<T>(config: FilterListConfig<T>, done: (v
     return [prefix, message].filter(Boolean).join(' ');
   }
 
-  const count =
-    term && visible.length < config.rows.length
-      ? colorize(`  ${visible.length} de ${config.rows.length}`, 'muted')
-      : '';
-  const body = visible.length > 0 ? page : colorize(`  Nada coincide con "${term.trim()}".`, 'muted');
-  const keys: HelpKey[] = [['↑↓', 'navigate'], ...(config.mode === 'elegir' ? [['⏎', 'select'] as HelpKey] : [])];
+  const count = filterCountLine(term, visible.length, config.rows.length);
+  const body = visible.length > 0 ? page : noMatchesLine(term);
+  const keys: HelpKey[] = [
+    ['↑↓', 'navigate'],
+    ...(config.mode === 'elegir' ? [['⏎', 'select'] as HelpKey] : []),
+    FILTER_HELP_KEY,
+  ];
   const lines = [
     // Una linea en blanco entre "Filtrar:" y la lista, y otra arriba (en `top`), para que el filtro no quede pegado.
     ' ',
@@ -165,7 +198,7 @@ export const filterList = createPrompt(<T>(config: FilterListConfig<T>, done: (v
   // Con dos partes, el cursor queda despues de lo escrito y la lista va debajo. El mensaje activo termina en un salto
   // de linea (el estilo de las listas), asi que el filtro queda en su propia linea.
   const head = [prefix, message].filter(Boolean).join(' ');
-  const top = `${head}${head.endsWith('\n') ? '\n' : ' '}${colorize('Filtrar:', 'muted')} ${term}`;
+  const top = `${head}${head.endsWith('\n') ? '\n' : ' '}${filterPromptLine(term)}`;
 
   return [top, lines.filter(Boolean).join('\n').trimEnd()];
 });

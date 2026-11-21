@@ -14,6 +14,7 @@ import { ArcaParametersGateway } from '../../services/arca/arca-parameters.gatew
 import { colorize, noticePanel, statusBarWidth, uiSymbol, writeTerminalOutput } from '../../ui';
 import { withSpinner } from '../spinner';
 
+import { PinnedSeparator } from './list-select';
 import {
   askTextStep,
   type Choice,
@@ -21,6 +22,7 @@ import {
   chooseStepWhileLoading,
   eraseLastAnswer,
   fitPageSize,
+  type ListSelectState,
   type LoadingResult,
 } from './prompts';
 import type { InteractiveSession } from './session';
@@ -263,7 +265,18 @@ async function pickVoucher<T extends { readonly number: number }, M = never>(
   // Al volver a la pregunta, el elegido antes; si no esta en la lista, "a mano".
   const previousInList: T | undefined =
     previous?.pointOfSale === pointOfSale ? invoices.find((item: T) => item.number === previous.number) : undefined;
-  let defaultChoice: PickerChoice<T> | undefined = previous ? (previousInList ?? BY_NUMBER) : undefined;
+  let defaultChoice: Back | PickerChoice<T> | undefined = previous ? (previousInList ?? BY_NUMBER) : undefined;
+  // Lo escrito para filtrar y la marcada mientras la lista esta en pantalla: al terminar una carga se redibuja igual.
+  // Un objeto y no dos variables: `onChange` las cambia desde el prompt, y TypeScript no lo ve.
+  const onScreen: { marked?: ListSelectState<Back | PickerChoice<T>>; typed: string } = { typed: '' };
+  const markedValue = () => onScreen.marked?.value;
+  const listOptions = () => ({
+    initialTerm: onScreen.typed,
+    onChange: (state: ListSelectState<Back | PickerChoice<T>>) => {
+      onScreen.typed = state.term;
+      onScreen.marked = state;
+    },
+  });
 
   if (invoices.length === 0) {
     writeTerminalOutput(
@@ -293,7 +306,8 @@ async function pickVoucher<T extends { readonly number: number }, M = never>(
       );
 
       if (loading) {
-        choices.push(new Separator(' '), new Separator(colorize(` Cargando${uiSymbol('ellipsis')}`, 'muted')));
+        // "Cargando…" se sigue viendo mientras se filtra.
+        choices.push(new Separator(' '), new PinnedSeparator(colorize(` Cargando${uiSymbol('ellipsis')}`, 'muted')));
       } else if (nextNumber > 0) {
         choices.push(new Separator(' '), { name: `+ Cargar más${uiSymbol('ellipsis')}`, value: LOAD_MORE });
       }
@@ -310,6 +324,8 @@ async function pickVoucher<T extends { readonly number: number }, M = never>(
     const pageSizeOnScreen = fitPageSize(choices.length);
     let answer: Back | PickerChoice<T>;
 
+    onScreen.marked = undefined;
+
     if (loading) {
       const result: LoadingResult<PickerChoice<T>, T[]> = await chooseStepWhileLoading(
         message,
@@ -317,14 +333,16 @@ async function pickVoucher<T extends { readonly number: number }, M = never>(
         defaultChoice,
         pageSizeOnScreen,
         loading,
+        listOptions(),
       );
 
       loading = undefined;
 
       if ('loaded' in result) {
         nextNumber -= pageSize;
-        // El cursor queda en el primero nuevo; si no vino ninguno, en "cargar mas" o "a mano".
-        defaultChoice = result.loaded[0] ?? (nextNumber > 0 ? LOAD_MORE : BY_NUMBER);
+        // El cursor queda donde lo dejaste; si no lo moviste, en el primero nuevo y, si no vino ninguno, en "cargar
+        // mas" o "a mano".
+        defaultChoice = markedValue() ?? result.loaded[0] ?? (nextNumber > 0 ? LOAD_MORE : BY_NUMBER);
         invoices.push(...result.loaded);
         continue;
       }
@@ -332,7 +350,12 @@ async function pickVoucher<T extends { readonly number: number }, M = never>(
       // Se eligio otra opcion antes de que terminara la carga: lo que llegue se descarta.
       answer = result.answer;
     } else {
-      answer = await chooseStep(message, choices, defaultChoice, pageSizeOnScreen);
+      answer = await chooseStep(message, choices, defaultChoice, pageSizeOnScreen, listOptions());
+    }
+
+    // Lo escrito sigue solo mientras la lista se redibuja por una carga.
+    if (answer !== LOAD_MORE) {
+      onScreen.typed = '';
     }
 
     if (answer === BACK) {

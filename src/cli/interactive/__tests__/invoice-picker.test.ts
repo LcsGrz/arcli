@@ -12,7 +12,12 @@ import { createScript } from './script';
 
 let script = createScript([]);
 /** Lo que devuelve la proxima lista que se muestra mientras carga: la carga, o una opcion elegida antes. */
-const whileLoading = vi.hoisted(() => ({ answer: undefined as string | undefined }));
+const whileLoading = vi.hoisted(() => ({
+  answer: undefined as string | undefined,
+  /** Lo que se escribe y se marca mientras carga, antes de que termine (lo avisa `onChange`). */
+  typing: undefined as
+    ((choices: ReadonlyArray<{ readonly value?: unknown }>) => { term: string; value: unknown }) | undefined,
+}));
 
 vi.mock('../prompts', () => ({
   askTextStep: (...args: Parameters<typeof script.askTextStep>) => script.askTextStep(...args),
@@ -23,7 +28,13 @@ vi.mock('../prompts', () => ({
     defaultValue: unknown,
     pageSize: number,
     loading: Promise<unknown>,
+    listOptions?: { readonly onChange?: (state: { term: string; value: unknown }) => void },
   ) => {
+    if (whileLoading.typing) {
+      listOptions?.onChange?.(whileLoading.typing(choices as ReadonlyArray<{ readonly value?: unknown }>));
+      whileLoading.typing = undefined;
+    }
+
     if (whileLoading.answer === undefined) {
       return script.chooseStepWhileLoading(message, choices, defaultValue, pageSize, loading);
     }
@@ -91,6 +102,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
   whileLoading.answer = undefined;
+  whileLoading.typing = undefined;
   expect(script.remaining()).toBe(0);
 });
 
@@ -163,6 +175,27 @@ describe('pickInvoice', () => {
     whileLoading.answer = 'elegir';
 
     expect(await pickInvoice(createSession(vouchers), options)).toMatchObject({ invoice: { number: 5 } });
+  });
+
+  it('lo escrito y la marcada mientras carga siguen cuando la lista se redibuja con lo cargado', async () => {
+    const vouchers = [1, 2, 3, 4, 5].map(invoice);
+
+    script = createScript([
+      [/Cuál/, 'Cargar más'],
+      [/Cuál/, BACK],
+    ]);
+    // Mientras carga, se escribe "0004" y queda marcado el 4.
+    whileLoading.typing = (choices) => ({
+      term: '0004',
+      value: choices.find((choice) => (choice.value as { number?: number } | undefined)?.number === 4)?.value,
+    });
+
+    expect(await pickInvoice(createSession(vouchers), options)).toBe(BACK);
+
+    const redrawn = script.chooseStep.mock.calls.at(-1);
+
+    expect(redrawn?.[2]).toMatchObject({ number: 4 });
+    expect(redrawn?.[4]).toMatchObject({ initialTerm: '0004' });
   });
 
   it('si la tanda que se carga viene vacía, el cursor queda en "Cargar más" o en "a mano"', async () => {
