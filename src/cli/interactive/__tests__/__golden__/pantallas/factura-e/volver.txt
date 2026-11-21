@@ -84,6 +84,7 @@
   = "620100"
 
 ? [texto] Fecha de pago (Enter para la fecha del comprobante):
+  ayuda: hoy, ayer, +N o -N
   = "30/11/2026"
 
 ? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
@@ -157,6 +158,7 @@ arcli fe -m 1500 --cliente 'ACME LLC' --domicilio-cliente '123 Main St' --pais-d
   = ← Volver
 
 ? [texto] Fecha de pago (Enter para la fecha del comprobante):
+  ayuda: hoy, ayer, +N o -N
   arranca escrito: "30/11/2026"
   = "30/11/2026"
 

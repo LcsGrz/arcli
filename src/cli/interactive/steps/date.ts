@@ -1,3 +1,4 @@
+import { RELATIVE_DAY_WORDS_TEXT } from '../../../lib/dates/date-input-text';
 import { BILLING_RULES } from '../../../modules/billing/billing.rules';
 import type { BillingCommandInput } from '../../../modules/billing/billing.schemas';
 import type { BillingRuleScope } from '../../../modules/interactive/billing-optionals';
@@ -28,8 +29,9 @@ export interface DateStepDef<S> {
 }
 
 /**
- * Una fecha, escrita como en los flags (`10`, `15/11`, `15/11/2026`) y guardada completa en dd/mm/aaaa (REV-74, #13):
- * el comando equivalente pegado otro dia u otro mes sigue dando la misma fecha. Al volver arranca escrita.
+ * Una fecha, escrita como en los flags (`10`, `15/11`, `15/11/2026`, `hoy`, `-3`) y guardada completa en dd/mm/aaaa
+ * (REV-74, #13): el comando equivalente pegado otro dia u otro mes sigue dando la misma fecha, y la linea de
+ * respuesta muestra esa fecha, no la palabra. Al volver arranca escrita.
  */
 export function dateStep<S>(def: DateStepDef<S>): WizardStep<S> {
   return {
@@ -37,6 +39,9 @@ export function dateStep<S>(def: DateStepDef<S>): WizardStep<S> {
     name: def.name,
     run: async (state, { error, previous }) => {
       const answer = await askTextStep(typeof def.message === 'string' ? def.message : def.message(state), {
+        answered: (value) => (value ? completeDateInput(value) : value),
+        // Lo que se puede escribir ademas de la fecha (TUI-18): el mismo texto que los errores de fecha.
+        inputHelp: RELATIVE_DAY_WORDS_TEXT,
         previousAnswer: previous ? def.date.get(previous as S) : undefined,
         validate: def.validate(state, error !== undefined),
       });

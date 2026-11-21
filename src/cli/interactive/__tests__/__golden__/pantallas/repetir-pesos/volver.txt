@@ -46,12 +46,15 @@
   = Otro período
 
 ? [texto] Servicio desde:
+  ayuda: hoy, ayer, +N o -N
   = "01/11/2026"
 
 ? [texto] Servicio hasta:
+  ayuda: hoy, ayer, +N o -N
   = ← Volver
 
 ? [texto] Servicio desde:
+  ayuda: hoy, ayer, +N o -N
   arranca escrito: "01/11/2026"
   = ← Volver
 

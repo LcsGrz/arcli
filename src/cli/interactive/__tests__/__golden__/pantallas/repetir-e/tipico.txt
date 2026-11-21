@@ -49,6 +49,7 @@
 └                                                                                          ┘
 
 ? [texto] Fecha de pago (Enter para la fecha del comprobante):
+  ayuda: hoy, ayer, +N o -N
   = ""
 
 ? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)

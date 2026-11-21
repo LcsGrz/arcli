@@ -90,7 +90,7 @@ Si el formato no coincide, ARCLI corta antes de armar el payload.
 
 #### Fechas relativas
 
-En los flags de fecha de la facturación y de `fce-obligado`, y en las claves de fecha del JSON de `--cargar`, también valen estas palabras, sin distinguir mayúsculas:
+En los flags de fecha de la facturación y de `fce-obligado`, y en las claves de fecha del JSON de `--cargar`, también valen estas palabras, sin distinguir mayúsculas. En las preguntas de fecha del [modo interactivo](modo-interactivo.md#opcionales) valen `hoy`, `ayer`, `+N` y `-N`, y el comando equivalente lleva la fecha resuelta:
 
 | Palabra      | Dónde vale                                               | Da                                                                  |
 | ------------ | -------------------------------------------------------- | ------------------------------------------------------------------- |

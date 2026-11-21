@@ -377,6 +377,10 @@ export interface TextStepOptions {
    */
   readonly previousAnswer?: string;
   readonly validate?: (value: string) => string | true;
+  /** Lo que se puede escribir, corto y apagado al lado de la ayuda de Esc. No queda en la linea de respuesta. */
+  readonly inputHelp?: string;
+  /** Lo que muestra la linea "✔ pregunta respuesta" para una respuesta valida: por ejemplo, la fecha resuelta. */
+  readonly answered?: (answer: string) => string;
 }
 
 /** Como askText, pero Esc (o escribir "<") vuelve al paso anterior. */
@@ -387,14 +391,17 @@ export async function askTextStep(message: string, options: TextStepOptions = {}
       input(
         {
           default: previousAnswer ?? options.defaultValue,
-          message: `${withHint(message, options.hint)} ${colorize('([esc] para volver)', 'muted')}`,
+          message: `${withHint(message, options.hint)} ${colorize(`(${options.inputHelp ? `${options.inputHelp} ${uiSymbol('bullet')} ` : ''}[esc] para volver)`, 'muted')}`,
           prefill: previousAnswer === undefined ? 'tab' : 'editable',
           theme: TEXT_THEME,
           validate: (value) => (value.trim() === BACK_TEXT ? true : (options.validate?.(value) ?? true)),
         },
         context,
       ),
-    (answer) => ({ answer: answer.trim(), message }),
+    (answer) => ({
+      answer: options.answered && answer.trim() !== BACK_TEXT ? options.answered(answer.trim()) : answer.trim(),
+      message,
+    }),
   );
 
   if (!('answer' in result) || result.answer === BACK) {

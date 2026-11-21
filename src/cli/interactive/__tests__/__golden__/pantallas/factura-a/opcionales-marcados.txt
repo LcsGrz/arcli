@@ -45,6 +45,7 @@
   = Fecha del comprobante, Moneda extranjera
 
 ? [texto] Fecha del comprobante:
+  ayuda: hoy, ayer, +N o -N
   = "17/11/2026"
 
 ? [lista] Moneda del comprobante:
@@ -129,6 +130,7 @@
   = Fecha del comprobante, Moneda extranjera
 
 ? [texto] Fecha del comprobante:
+  ayuda: hoy, ayer, +N o -N
   arranca escrito: "17/11/2026"
   = "17/11/2026"
 

@@ -1,7 +1,8 @@
 import Big from 'big.js';
 import type { Command } from 'commander';
 
-import { type DateInputRole, resolveRelativeDateInput } from '../../lib/dates/relative-date';
+import type { DateInputRole } from '../../lib/dates/date-input-text';
+import { resolveRelativeDateInput } from '../../lib/dates/relative-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { readJsonFile } from '../../lib/files/read-json-file';
 import { parseArgentineAmount } from '../../lib/numbers/argentine-amount';

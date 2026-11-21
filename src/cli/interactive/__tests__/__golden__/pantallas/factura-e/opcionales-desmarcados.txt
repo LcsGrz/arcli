@@ -84,6 +84,7 @@
   = "620100"
 
 ? [texto] Fecha de pago (Enter para la fecha del comprobante):
+  ayuda: hoy, ayer, +N o -N
   = ""
 
 ? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
@@ -94,12 +95,14 @@
   = Fecha del comprobante, Observaciones
 
 ? [texto] Fecha del comprobante:
+  ayuda: hoy, ayer, +N o -N
   = "17/11/2026"
 
 ? [texto] Observaciones (Enter si no hay):
   = ← Volver
 
 ? [texto] Fecha del comprobante:
+  ayuda: hoy, ayer, +N o -N
   arranca escrito: "17/11/2026"
   = ← Volver
 

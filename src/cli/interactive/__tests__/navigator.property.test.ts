@@ -3,11 +3,8 @@ import fc from 'fast-check';
 import { isDeepStrictEqual } from 'node:util';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  formatArcaDateAsArgentineDate,
-  formatDateAsArcaDate,
-  parseArgentineDateInputAsArcaDate,
-} from '../../../lib/dates/arca-date';
+import { formatArcaDateAsArgentineDate, formatDateAsArcaDate } from '../../../lib/dates/arca-date';
+import { parseDateInputAsArcaDate } from '../../../lib/dates/relative-date';
 import { InputValidationError } from '../../../lib/errors/app-error';
 import { prepareBillingInput } from '../../../modules/billing/billing.prepare';
 import { BILLING_RULES } from '../../../modules/billing/billing.rules';
@@ -253,6 +250,9 @@ const dateNearToday = fc.oneof(
   { arbitrary: fc.constant(daysFromToday(0)), weight: 4 },
   { arbitrary: fc.integer({ max: 0, min: -10 }).map(daysFromToday), weight: 3 },
   { arbitrary: fc.integer({ max: 40, min: -40 }).map(daysFromToday), weight: 1 },
+  // Relativas (TUI-18): la entrada y el comando equivalente las llevan resueltas.
+  { arbitrary: fc.constantFrom('hoy', 'ayer', 'HOY'), weight: 1 },
+  { arbitrary: fc.integer({ max: 10, min: 0 }).map((days) => `-${days}`), weight: 1 },
 );
 
 const ANSWERS: TextAnswers = [
@@ -511,7 +511,7 @@ async function assertEquivalentRoundtrip(run: Walk): Promise<void> {
 type Normalize = (value: unknown) => unknown;
 
 const asDate: Normalize = (value) =>
-  typeof value === 'string' && value.trim() ? parseArgentineDateInputAsArcaDate(value, NOW) : undefined;
+  typeof value === 'string' && value.trim() ? parseDateInputAsArcaDate(value, 'day', NOW) : undefined;
 const asAmount: Normalize = (value) =>
   (typeof value === 'string' ? parseAmountInput(value) : (value as number | undefined)) ?? 0;
 const asRate: Normalize = (value) => (typeof value === 'string' ? parseExchangeRateInput(value) : value);

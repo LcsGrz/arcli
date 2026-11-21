@@ -53,6 +53,7 @@
   = Vencimiento del pago, Modalidad de transferencia
 
 ? [texto] Vencimiento del pago:
+  ayuda: hoy, ayer, +N o -N
   = "18/12/2026"
 
 ? [lista] Modalidad de transferencia:
@@ -62,6 +63,7 @@
   = ← Volver
 
 ? [texto] Vencimiento del pago:
+  ayuda: hoy, ayer, +N o -N
   arranca escrito: "18/12/2026"
   = ← Volver
 

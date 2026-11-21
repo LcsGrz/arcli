@@ -349,6 +349,25 @@ describe('askAdvancedOptions: volver desde cada opcional', () => {
     expect(descriptions(2)['Período del servicio']).toBe('14/11/2026');
   });
 
+  // TUI-18: lo que arranca escrito es la fecha resuelta, no la palabra; pegada otro dia sigue siendo esa fecha.
+  it('volver despues de escribir `hoy` arranca con la fecha resuelta', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-18T12:00:00-03:00'));
+    script = createScript([
+      [OPTIONALS, ['Fecha', 'Vencimiento']],
+      [/Fecha del comprobante/, 'hoy'],
+      [/Vencimiento del pago/, BACK],
+      [/Fecha del comprobante/, '-1'],
+      [/Vencimiento del pago/, '+10'],
+    ]);
+
+    const answered = await askAdvancedOptions(PESOS, context('fc'));
+    const dateCalls = script.askTextStep.mock.calls.filter(([message]) => /Fecha del comprobante/.test(message));
+
+    expect(dateCalls[1]?.[1]?.previousAnswer).toBe('18/11/2026');
+    expect(answered).toMatchObject({ billingDate: '17/11/2026', paymentDueDate: '28/11/2026' });
+  });
+
   it('"Volver" en la seleccion vuelve al paso anterior', async () => {
     script = createScript([[OPTIONALS, BACK]]);
 

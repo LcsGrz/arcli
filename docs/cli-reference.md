@@ -279,7 +279,7 @@ Para facturar con otra fecha, sumá `-f`: por ejemplo, `-f 31/10` el 3/11 (en se
 
 Las cuatro se escriben igual: formato argentino (día primero), con mes y año opcionales; sin año se toma la fecha más cercana a hoy. Detalle completo en [Fechas aceptadas](validation-rules.md#fechas-aceptadas).
 
-También aceptan fechas relativas: `hoy`, `ayer`, `+N` y `-N` (N días desde hoy) en todas, y `mes-actual` y `mes-pasado` solo en desde y hasta (`--sd`/`--sh`, `--pd`/`--ph`): en desde dan el día 1 del mes y en hasta, el último día. La vista previa y el `--json` muestran la fecha resuelta. Detalle en [Fechas relativas](validation-rules.md#fechas-relativas).
+También aceptan fechas relativas: `hoy`, `ayer`, `+N` y `-N` (N días desde hoy) en todas, y `mes-actual` y `mes-pasado` solo en desde y hasta (`--sd`/`--sh`, `--pd`/`--ph`): en desde dan el día 1 del mes y en hasta, el último día. La vista previa y el `--json` muestran la fecha resuelta. Las preguntas de fecha del modo interactivo aceptan las de un día. La excepción es la fecha de inicio de actividades (`emisor.inicioActividades`), que se escribe completa (D/MM/YYYY) y no acepta relativas: es una fecha vieja y fija. Detalle en [Fechas relativas](validation-rules.md#fechas-relativas).
 
 ```bash
 # Vence en 10 días; se emitió ayer

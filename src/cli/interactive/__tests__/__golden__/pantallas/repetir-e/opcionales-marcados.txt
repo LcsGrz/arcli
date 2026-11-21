@@ -49,6 +49,7 @@
 └                                                                                          ┘
 
 ? [texto] Fecha de pago (Enter para la fecha del comprobante):
+  ayuda: hoy, ayer, +N o -N
   = "30/11/2026"
 
 ? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
@@ -59,6 +60,7 @@
   = Fecha del comprobante, Idioma
 
 ? [texto] Fecha del comprobante:
+  ayuda: hoy, ayer, +N o -N
   = "17/11/2026"
 
 ? [lista] Idioma del comprobante:

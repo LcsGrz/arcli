@@ -212,7 +212,7 @@ describe('exportOptionalsStep', () => {
             ['12/11/2026', /del 13\/11\/2026 al 23\/11\/2026.*error 1500/],
             ['24/11/2026', /error 1500/],
             ['31/11/2026', /Fecha inválida/],
-            ['hoy', /Fecha inválida/],
+            ['hola', /Fecha inválida/],
           ),
         ],
       ]);

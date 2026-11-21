@@ -9,12 +9,8 @@ import {
   formatDateAsArcaDate,
   parseArgentineDateInputAsArcaDate,
 } from '../arca-date';
-import {
-  type DateInputRole,
-  MAX_RELATIVE_DAYS,
-  parseRelativeDateAsArcaDate,
-  resolveRelativeDateInput,
-} from '../relative-date';
+import { type DateInputRole, MAX_RELATIVE_DAYS } from '../date-input-text';
+import { parseRelativeDateAsArcaDate, resolveRelativeDateInput } from '../relative-date';
 
 /** Cualquier instante de 2000 a 2099: cruza fines de mes, de año y los 29 de febrero. */
 const instant = fc.date({

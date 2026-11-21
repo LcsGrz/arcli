@@ -57,12 +57,15 @@
   = Fecha del comprobante, Período del servicio
 
 ? [texto] Fecha del comprobante:
+  ayuda: hoy, ayer, +N o -N
   = "17/11/2026"
 
 ? [texto] Servicio desde:
+  ayuda: hoy, ayer, +N o -N
   = ← Volver
 
 ? [texto] Fecha del comprobante:
+  ayuda: hoy, ayer, +N o -N
   arranca escrito: "17/11/2026"
   = ← Volver
 
