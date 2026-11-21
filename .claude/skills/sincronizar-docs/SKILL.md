@@ -17,7 +17,7 @@ Qué doc cubre qué está en la tabla de [CONTRIBUTING.md](../../../CONTRIBUTING
 
 Por cada cambio visible, buscá en la tabla todas las filas que le tocan y editá sus docs. Seguí el estilo que ya tiene cada doc (tablas de flags en `cli-reference.md`, una línea por flag en `llms.txt`, ejemplos que se pueden copiar; un JSON de salida que solo da ARCA se arma desde el presenter, con valores de ejemplo). Un dato vive en un solo lugar: si un doc ya enlaza a otro para ese tema, actualizá el destino del enlace.
 
-Si el cambio le afecta a quien usa el CLI, sumá una entrada en `## [Sin publicar]` de `CHANGELOG.md` con el mismo formato que las anteriores. Si el cambio cae en la regla de "Contrato público" de [AGENTS.md](../../../AGENTS.md#contrato-público), avisale a la persona antes de seguir.
+Si el cambio le afecta a quien usa el CLI, sumá en `## [Sin publicar]` de `CHANGELOG.md` la entrada de una línea y su detalle, con el formato de la skill `changelog` (sección "En cada PR"). Si el cambio cae en la regla de "Contrato público" de [AGENTS.md](../../../AGENTS.md#contrato-público), avisale a la persona antes de seguir.
 
 **Listo cuando:** cada cambio visible tiene sus docs actualizados o una razón para no tocarlos.
 

@@ -36,8 +36,8 @@ Elegí patch, minor o major con la regla de versionado de `docs/development.md`,
 Creá `release/vX.Y.Z` desde `origin/<base>` y tocá exactamente tres archivos:
 
 - `CHANGELOG.md`:
-  - Renombrá las entradas a `## [X.Y.Z] - AAAA-MM-DD` (fecha de hoy) y dejá arriba un `## [Sin publicar]` vacío.
-  - Debajo del título, un párrafo que resuma qué cambia para quien usa el CLI y cierre diciendo qué del contrato **no** cambia, como en 2.4.0.
+  - Renombrá las entradas a `## [X.Y.Z] - AAAA-MM-DD` (fecha de hoy, con ` · Nombre` si es una X.Y.0 o X.0.0 con funciones nuevas) y dejá arriba un `## [Sin publicar]` vacío.
+  - Con la skill `changelog` (sección "En /release"): ordená las entradas por importancia y armá el resumen, el nombre, los destacados y el aviso "Puede afectar scripts". Mostráselos al usuario y esperá su ok antes del Gate 1.
   - Al final: `[Sin publicar]` compara `vX.Y.Z...HEAD` y se suma `[X.Y.Z]: .../compare/vANTERIOR...vX.Y.Z`.
 - `package.json`: `"version"`.
 - `src/cli/version.ts`: `CLI_VERSION`. Un test verifica que coincida con `package.json`.
@@ -84,7 +84,7 @@ Pedí el ok para mergear. El merge es squash: `gh pr merge <N> --squash --delete
 Pedí el ok una sola vez, con las notas a la vista: crear la release dispara la publicación en npm, y una versión publicada no se puede reusar.
 
 1. Notas: el cuerpo de la sección `[X.Y.Z]` del CHANGELOG, sin la línea `## [X.Y.Z] - fecha`. Guardalo en un archivo del scratchpad.
-2. `gh release create vX.Y.Z --target main --title vX.Y.Z --notes-file <archivo>`. Esto crea también el tag y dispara el workflow `Release`, que publica en npm.
+2. `gh release create vX.Y.Z --target main --title "vX.Y.Z · Nombre" --notes-file <archivo>`, con el nombre de la versión del título del CHANGELOG; sin nombre (un patch), `--title vX.Y.Z`. El commit y el título del PR siguen siendo `vX.Y.Z`. Esto crea también el tag y dispara el workflow `Release`, que publica en npm.
 3. Buscá el run con `gh run list --workflow release.yml --limit 1` y seguilo con `gh run watch <id> --exit-status`. Cuando `build` termina, `publish` espera la aprobación del environment `npm`: avisale al usuario que la apruebe en Actions ("Review deployments"). No la apruebes vos.
 4. Confirmá con `npm view arcli version`, que tiene que devolver `X.Y.Z`. Puede tardar unos minutos en propagarse.
 

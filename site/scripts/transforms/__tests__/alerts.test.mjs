@@ -18,6 +18,14 @@ describe('githubAlertsToAsides (> [!TIPO])', () => {
     expect(githubAlertsToAsides(`> [!${kind}]\n> Texto.`)).toBe(`:::${aside}\nTexto.\n:::`);
   });
 
+  it('una primera linea que es solo la negrita pasa a ser el titulo (la caja de Novedades)', () => {
+    const input = '> [!WARNING]\n> **Puede afectar scripts**\n> - Algo.\n>\n> No cambia el `--json`.';
+
+    expect(githubAlertsToAsides(input)).toBe(
+      ':::caution[Puede afectar scripts]\n- Algo.\n\nNo cambia el `--json`.\n:::',
+    );
+  });
+
   it('la negrita del principio pasa a ser el titulo', () => {
     expect(githubAlertsToAsides('> [!TIP]\n> **La forma más fácil:** usá el asistente.')).toBe(
       ':::tip[La forma más fácil]\nUsá el asistente.\n:::',

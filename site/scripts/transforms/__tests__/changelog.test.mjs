@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { headingSlug } from '../../lib/markdown.mjs';
 import { argentineVersionDates } from '../dates.mjs';
 import { releases } from '../releases.mjs';
 
@@ -7,6 +8,12 @@ describe('argentineVersionDates', () => {
   it('pasa las fechas de Keep a Changelog a dd/mm/aaaa', () => {
     expect(argentineVersionDates('## [Sin publicar]\n\n## [2.4.0] - 2026-11-08\n\n### [x] - 2026-01-01')).toBe(
       '## Sin publicar\n\n## 2.4.0 · 08/11/2026\n\n### [x] - 2026-01-01',
+    );
+  });
+
+  it('deja el nombre de la version al final', () => {
+    expect(argentineVersionDates('## [2.6.0] - 2026-11-21 · Monotributo y recibos')).toBe(
+      '## 2.6.0 · 21/11/2026 · Monotributo y recibos',
     );
   });
 });
@@ -31,11 +38,128 @@ describe('releases', () => {
   it.each([
     ['Corregido', 'arreglado'],
     ['Documentación', 'documentacion'],
-    ['⚠️ Puede afectar a quien ya lo usa', 'aviso'],
+    ['Deprecado', 'deprecado'],
     ['Otra cosa', 'otro'],
   ])('el tipo "%s" va con el chip %s', (name, kind) => {
     expect(releases(`# C\n\n## 1.0.0 · 01/01/2026\n\n### ${name}\n`)).toContain(
       `<span class="arcli-chip arcli-kind arcli-kind-${kind}">${name}</span>`,
+    );
+  });
+
+  it.each([
+    ['✨ Agregado', '✨', 'Agregado', 'agregado'],
+    ['🐛 Corregido', '🐛', 'Corregido', 'arreglado'],
+    ['⏳ Deprecado', '⏳', 'Deprecado', 'deprecado'],
+    ['🔒 Seguridad', '🔒', 'Seguridad', 'seguridad'],
+    ['⚠️ Puede afectar a quien ya lo usa', '⚠️', 'Puede afectar a quien ya lo usa', 'aviso'],
+  ])('el icono de "%s" va en data-icon, fuera del texto (y del ancla)', (name, icon, label, kind) => {
+    expect(releases(`# C\n\n## 1.0.0 · 01/01/2026\n\n### ${name}\n`)).toContain(
+      `### <span class="arcli-chip arcli-kind arcli-kind-${kind}" data-icon="${icon}">${label}</span>`,
+    );
+  });
+
+  it('el nombre de la version va al lado del numero, fuera del titulo: el ancla es #250 con o sin nombre', () => {
+    const named = (n) => `## 2.${n}.0 · 0${n}/11/2026 · Nombre ${n}\n\n### Agregado\n\n- Algo ${n}.\n`;
+    const output = releases(`# C\n\n${[5, 4, 3, 2].map(named).join('\n')}`);
+
+    expect(output).toContain(
+      '<div class="arcli-ver-head">\n\n## 2.5.0\n\n<p class="arcli-ver-name">· Nombre 5</p>\n\n</div>\n\n<p class="arcli-date">05/11/2026</p>',
+    );
+    expect(output).toContain(
+      '<details class="arcli-ver" id="220">\n<summary><b>2.2.0</b><span class="arcli-ver-name">Nombre 2</span><small>02/11/2026</small></summary>',
+    );
+    // El titulo de cada version abierta es solo el numero: Astro arma el ancla con su texto.
+    expect(output.match(/^## .+$/gm)).toEqual(['## 2.5.0', '## 2.4.0', '## 2.3.0', '## Versiones anteriores']);
+    expect(headingSlug('2.5.0')).toBe('250');
+  });
+
+  it('los destacados (#### con texto y codigo) van en tarjetas, hasta el aviso; el resumen y las secciones no', () => {
+    const input = [
+      '# C',
+      '',
+      '## 2.6.0 · 21/11/2026 · Monotributo y recibos',
+      '',
+      'Resumen.',
+      '',
+      '#### El monotributo',
+      '',
+      'Las categorías.',
+      '',
+      '```sh',
+      'arcli monotributo',
+      '---',
+      '```',
+      '',
+      '#### Recibos',
+      '',
+      'Recibo A y B.',
+      '',
+      ':::caution[Puede afectar scripts]',
+      '- Algo.',
+      ':::',
+      '',
+      '---',
+      '',
+      '### ✨ Agregado',
+      '',
+      '- **Recibos:** algo.',
+      '',
+    ].join('\n');
+
+    expect(releases(input)).toBe(
+      [
+        '# C',
+        [
+          '<div class="arcli-ver-head">',
+          '',
+          '## 2.6.0',
+          '',
+          '<p class="arcli-ver-name">· Monotributo y recibos</p>',
+          '',
+          '</div>',
+          '',
+          '<p class="arcli-date">21/11/2026</p>',
+          '',
+          'Resumen.',
+          '',
+          '<div class="arcli-highlights">',
+          '',
+          '<div class="arcli-highlight">',
+          '',
+          '#### El monotributo',
+          '',
+          'Las categorías.',
+          '',
+          '```sh',
+          'arcli monotributo',
+          '---',
+          '```',
+          '',
+          '</div>',
+          '',
+          '<div class="arcli-highlight">',
+          '',
+          '#### Recibos',
+          '',
+          'Recibo A y B.',
+          '',
+          '</div>',
+          '',
+          '</div>',
+          '',
+          ':::caution[Puede afectar scripts]',
+          '- Algo.',
+          ':::',
+          '',
+          '---',
+          '',
+          '### <span class="arcli-chip arcli-kind arcli-kind-agregado" data-icon="✨">Agregado</span>',
+          '',
+          '- **Recibos:** algo.',
+          '',
+        ].join('\n'),
+        '',
+      ].join('\n\n'),
     );
   });
 

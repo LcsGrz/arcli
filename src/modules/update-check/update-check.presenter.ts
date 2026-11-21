@@ -23,6 +23,8 @@ const KIND_LABELS: Record<ChangelogChangeKind, readonly [label: string, color: U
   agregado: ['nuevo', 'success'],
   cambiado: ['cambio', 'info'],
   corregido: ['arreglo', 'warning'],
+  // Requiere atencion: lo deprecado deja de andar en la proxima version mayor.
+  deprecado: ['deprecado', 'warning'],
   eliminado: ['quitado', 'danger'],
   otro: ['otro', 'muted'],
   seguridad: ['seguridad', 'danger'],
@@ -35,6 +37,15 @@ function formatChangelogDate(date: string): string {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
 
   return match ? `${match[3]}/${match[2]}/${match[1]}` : date;
+}
+
+/** `2.6.0 · Monotributo y recibos · 21/11/2026`: el nombre y la fecha, si los tiene. */
+function formatEntryHeading(entry: ChangelogEntry): string {
+  const separator = ` ${uiSymbol('separator')} `;
+  const name = entry.name ? `${separator}${bold(entry.name)}` : '';
+  const date = entry.date ? `${separator}${colorize(formatChangelogDate(entry.date), 'muted')}` : '';
+
+  return `${bold(entry.version)}${name}${date}`;
 }
 
 function formatChange(change: ChangelogChange): string {
@@ -67,7 +78,7 @@ function formatChangelog(entries: readonly ChangelogEntry[] | undefined): string
     .slice(0, MAX_CHANGELOG_ENTRIES)
     .flatMap((entry) => [
       '',
-      `${bold(entry.version)}${entry.date ? ` ${uiSymbol('separator')} ${colorize(formatChangelogDate(entry.date), 'muted')}` : ''}`,
+      formatEntryHeading(entry),
       ...(entry.summary ? [entry.summary] : []),
       ...(entry.changes.length > 0 ? [''] : []),
       ...formatChanges(entry.changes),

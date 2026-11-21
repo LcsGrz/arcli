@@ -30,7 +30,7 @@ La marca cambia con el tema: en claro, cada color es una versión más oscura qu
 | `--arcli-celeste` | `#74acdf` | `#2c6aa3` | El acento: links, foco, pestaña elegida, aviso `note`, "Cambiado", la letra A, "AR" del logo |
 | `--arcli-lavanda` | `#c6c9f0` | `#3d3f66` | Lo opcional (tarjetas `opt`), la letra B, "CLI" del logo                                     |
 | `--arcli-verde`   | `#a6e3a1` | `#327a37` | Salió bien: aviso `tip`, "Agregado", la letra C                                              |
-| `--arcli-sol`     | `#f9d77e` | `#8a5f00` | Atención: aviso `caution`, "Arreglado", severidad "frecuente", la letra E                    |
+| `--arcli-sol`     | `#f9d77e` | `#8a5f00` | Atención: aviso `caution`, "Corregido", severidad "frecuente", la letra E                    |
 | `--arcli-naranja` | `#fab387` | `#a8521a` | "Deprecado" y "Aviso" en Novedades                                                           |
 | `--arcli-rojo`    | `#f38ba8` | `#b4344f` | Error o peligro: aviso `danger`, "Eliminado", "Seguridad", severidad "crítico"               |
 | `--arcli-panel`   | `#11111b` | `#f4f5f9` | Un panel de las docs que sigue el tema (hoy sin uso)                                         |
@@ -217,6 +217,8 @@ El texto para copiar está en el [README](../README.md#empezar).
 ```
 
 Además, sin marca: los avisos de GitHub (`> [!TIP]`, `> [!CAUTION]`…) pasan a los avisos de colores, Problemas frecuentes a desplegables con buscador y Novedades pliega las versiones viejas.
+
+Novedades, también sin marca, sigue el formato de `CHANGELOG.md` (ver la skill `changelog`). El nombre de una versión (lo que va después de `·` en el título) se muestra al lado del número, en `.arcli-ver-name`. Los destacados (`####`) pasan a tarjetas `.arcli-highlight` dentro de una grilla `.arcli-highlights`, que termina en el primer `:::` o `---`. La caja `> [!WARNING]` con `> **Título**` en su primera línea pasa a `:::caution[Título]`. Cada sección es un chip con el ícono del tipo de cambio en `data-icon`, y su ancla queda sin el ícono (`#agregado`, `#corregido`).
 
 Para una marca nueva: un archivo en `transforms/` con su test, su lugar en el orden de `transforms/index.mjs`, su CSS en `styles/docs/` y una fila acá y en la tabla de `development.md`.
 

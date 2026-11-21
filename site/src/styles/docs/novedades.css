@@ -61,3 +61,88 @@
 .arcli-kind-otro {
   --chip: var(--sl-color-gray-3);
 }
+
+/* El ícono del tipo de cambio (`✨ Agregado`) va en `data-icon`: fuera del texto del título, así el ancla queda
+   `#agregado`. Es decorativo, el texto del chip dice lo mismo: el segundo `content` lo esconde a los lectores de
+   pantalla, y un navegador que no lo entiende se queda con el primero. */
+.arcli-kind[data-icon]::before {
+  content: attr(data-icon) ' ';
+  content: attr(data-icon) ' ' / '';
+}
+
+/* El nombre de la versión, al lado del número: secundario, para que la versión siga mandando */
+.arcli-ver-name {
+  color: var(--sl-color-gray-3);
+  font-weight: 400;
+}
+
+.sl-markdown-content details.arcli-ver > summary .arcli-ver-name {
+  font-size: var(--sl-text-sm);
+}
+
+/* Una versión abierta con nombre: el título y el nombre en una línea (el nombre baja si no entra), con la línea de
+   arriba que marco.css le pone a cada `h2` */
+.sl-markdown-content > .arcli-ver-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.6rem;
+  margin-top: 2.75rem;
+  padding-top: 2.25rem;
+  border-top: 1px solid var(--sl-color-gray-5);
+}
+
+.sl-markdown-content .arcli-ver-head > * {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.sl-markdown-content p.arcli-ver-name {
+  font-size: var(--sl-text-h4);
+}
+
+/* Destacados de una versión: tarjetas en dos columnas (una en angosto) con título, texto y el comando */
+.sl-markdown-content .arcli-highlights {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.sl-markdown-content .arcli-highlight {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0.85rem 1.1rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: var(--arcli-radius-lg);
+  background: var(--sl-color-gray-6);
+}
+
+.sl-markdown-content .arcli-highlight > * {
+  margin: 0;
+}
+
+.sl-markdown-content .arcli-highlight h4 {
+  font-size: var(--sl-text-base);
+}
+
+.sl-markdown-content .arcli-highlight p {
+  color: var(--sl-color-gray-2);
+  font-size: var(--sl-text-sm);
+}
+
+/* El comando va abajo de todo, aunque el texto de la tarjeta de al lado sea más largo */
+.sl-markdown-content .arcli-highlight > :last-child:not(p, .sl-heading-wrapper) {
+  margin-top: auto;
+  padding-top: 0.35rem;
+}
+
+@media (max-width: 44rem) {
+  .sl-markdown-content .arcli-highlights {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
