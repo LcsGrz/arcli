@@ -191,6 +191,24 @@ describe('billing.display: filas de la vista previa (TEST-18)', () => {
     expect(valueOf(result, 'Fecha asociado')).toBe('01/10/2026');
   });
 
+  it('asociado sin CUIT (opcional en A, B y C): sin fila de CUIT, nunca N/D (TUI-20)', () => {
+    const result = createResult('ncc', {
+      CbtesAsoc: [{ Nro: 120, PtoVta: 3, Tipo: 11 } as never],
+    });
+
+    expect(valueOf(result, 'Número asociado')).toBe('00003-00000120');
+    expect(labels(result)).not.toContain('CUIT asociado');
+    expect(formatPayloadTable(result)).not.toContain('N/D');
+  });
+
+  it('sin dato, la fila no va: receptor sin número ni concepto conocido (TUI-20)', () => {
+    const result = createResult('fa', { Concepto: undefined, DocNro: undefined, DocTipo: 80 } as never);
+
+    expect(labels(result)).not.toContain('Concepto');
+    expect(labels(result)).not.toContain('Número de documento');
+    expect(formatPayloadTable(result)).not.toContain('N/D');
+  });
+
   it('asociado sin fecha ni tipo conocido: el tipo numérico y sin fila de fecha', () => {
     const result = createResult('ncc', {
       CbtesAsoc: [{ Cuit: '20123456786', Nro: 120, PtoVta: 3, Tipo: 999 }],
@@ -248,5 +266,16 @@ describe('formatResultSummary (TEST-18)', () => {
 
     expect(formatResultSummary(previa)[2]).toEqual(['Punto de venta', 3]);
     expect(formatResultSummary({ ...previa, voucherNumber: 125 })[2]).toEqual(['Número', '00003-00000125']);
+  });
+
+  it('rechazado: el CAE dice "sin CAE" y no hay vencimiento (TUI-20)', () => {
+    const rejected = createResult('fc', {}, { dryRun: false });
+    const summary = formatResultSummary({
+      ...rejected,
+      response: { ...rejected.response, cae: '', caeVencimiento: '', status: 'rechazado' },
+    });
+
+    expect(summary[0]).toEqual(['CAE', 'sin CAE']);
+    expect(summary[1]).toEqual(['Vencimiento CAE', undefined]);
   });
 });

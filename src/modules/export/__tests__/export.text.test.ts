@@ -127,6 +127,27 @@ describe('formatExportResultAsText: datos de la vista previa', () => {
     expect(table(result())).toMatch(/Número\s+\d{5}-\d{8}/);
   });
 
+  it('sin incoterm (servicios) no muestra la fila, ni N/D (TUI-20)', () => {
+    const text = table(result({ Incoterms: undefined, Incoterms_Ds: undefined, Tipo_expo: 2 }));
+
+    expect(text).not.toContain('Incoterm');
+    expect(text).not.toContain('N/D');
+  });
+
+  it('rechazada: el CAE dice "sin CAE" y no hay vencimiento (TUI-20)', () => {
+    const rejected = result();
+    const text = stripAnsi(
+      formatExportResultAsText(
+        { ...rejected, dryRun: false, response: { ...rejected.response, status: 'rechazado' } },
+        { environment: 'produccion' },
+      ),
+    );
+
+    expect(text).toMatch(/CAE\s+sin CAE/);
+    expect(text).not.toContain('Vencimiento CAE');
+    expect(text).not.toContain('N/D');
+  });
+
   it('no repite el incoterm cuando la tabla de ARCA trae el codigo como descripcion', () => {
     expect(table(result())).toMatch(/Incoterm\s+FOB\n/);
     expect(table(result({ Incoterms_Ds: 'Free on Board' }))).toMatch(/Incoterm\s+FOB - Free on Board/);

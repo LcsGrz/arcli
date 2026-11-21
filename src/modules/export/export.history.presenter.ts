@@ -3,7 +3,7 @@ import { formatCuit } from '../../lib/identity/format-cuit';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { listingPanel, noticePanel, ticketPanel } from '../../ui/components';
 import { renderKeyValueRows, resolveKeyValueLabelWidth, uiSymbol } from '../../ui/primitives';
-import { formatCurrencyLabel, formatMoneyLabel } from '../billing/billing.labels';
+import { formatCurrencyLabel, formatMoneyLabel, MISSING_CAE_TEXT } from '../billing/billing.labels';
 import { formatLatestVouchersTitle, formatNoVouchersEmitted } from '../billing/billing.mappers';
 import { formatEnvironmentLabel } from '../config/config.schemas';
 import { alignVoucherPickerRows, formatVoucherNumber } from '../vouchers/voucher-history.presenter';
@@ -91,7 +91,7 @@ export function formatExportVoucherListAsText(report: ExportVoucherListReport): 
 export function formatExportVoucherDetailAsText(report: ExportVoucherDetailReport): string {
   const { voucher, voucherKind } = report;
   const associated = formatAssociated(voucher);
-  const rows: Array<readonly [string, string]> = [
+  const rows: Array<readonly [string, string | undefined]> = [
     ['Número', formatVoucherNumber(voucher.pointOfSale, voucher.number)],
     ['Fecha del comprobante', formatArcaDateAsArgentineDate(voucher.date)],
     ...(associated ? [['Comprobante asociado', associated] as const] : []),
@@ -110,7 +110,7 @@ export function formatExportVoucherDetailAsText(report: ExportVoucherDetailRepor
         : `${formatCurrencyLabel(voucher.currencyCode)}, cotización ${formatExchangeRate(voucher.exchangeRate)}`,
     ],
     ['Importe total', formatMoneyLabel(voucher.total, voucher.currencyCode)],
-    ['CAE', voucher.cae ?? 'N/D'],
+    ['CAE', voucher.cae || MISSING_CAE_TEXT],
     ...(voucher.caeExpiration
       ? [['Vencimiento CAE', formatArcaDateAsArgentineDate(voucher.caeExpiration)] as const]
       : []),

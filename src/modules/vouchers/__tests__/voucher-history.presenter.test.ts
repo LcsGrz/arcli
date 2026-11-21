@@ -122,6 +122,19 @@ describe('voucher-history.presenter', () => {
     ).toMatch(/Cotización\s+1\.200,50[\s\S]*Importe total\s+[\d.,]+ USD/);
   });
 
+  it('el detalle sin CAE lo dice, sin vencimiento ni N/D (TUI-20)', () => {
+    const text = stripAnsi(
+      formatVoucherDetailAsText({
+        ...base,
+        voucher: { ...voucher, cae: undefined, caeExpiration: undefined, result: 'R' },
+      }),
+    );
+
+    expect(text).toMatch(/CAE\s+sin CAE/);
+    expect(text).not.toContain('Vencimiento CAE');
+    expect(text).not.toContain('N/D');
+  });
+
   it('serializa el detalle en JSON', () => {
     expect(JSON.parse(formatVoucherDetailAsJson({ ...base, voucher }))).toMatchObject({
       atajo: 'fb',

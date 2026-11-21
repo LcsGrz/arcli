@@ -25,7 +25,7 @@ export interface VoucherTextParts {
     readonly suggestions: readonly string[];
   };
   /** CAE, vencimiento, número e importe: el resumen del resultado. */
-  readonly summary: ReadonlyArray<readonly [string, string | number]>;
+  readonly summary: ReadonlyArray<readonly [string, string | number | undefined]>;
   readonly title: string;
   readonly warnings: readonly string[];
 }

@@ -13,6 +13,7 @@ import {
   formatMoneyLabel,
   formatNumericLabel,
   formatTaxIdLabel,
+  MISSING_CAE_TEXT,
 } from '../billing/billing.labels';
 import { formatLatestVouchersTitle, formatNoVouchersEmitted } from '../billing/billing.mappers';
 import type { VoucherKindDefinition } from '../billing/billing.types';
@@ -258,7 +259,8 @@ export function formatVoucherDetailAsJson(report: VoucherDetailReport): string {
   );
 }
 
-type Row = readonly [string, string];
+/** Una fila sin valor no se muestra (renderKeyValueRows). */
+type Row = readonly [string, string | undefined];
 
 /** El IVA del receptor, salvo el de consumidor final sin identificar, que ya dice la fila del receptor. */
 function formatReceiverIvaRows(voucher: IssuedVoucher): Row[] {
@@ -368,7 +370,7 @@ export function formatVoucherDetailAsText(report: VoucherDetailReport): string {
     ...formatTaxRows(voucher),
     ['Importe total', formatMoneyLabel(voucher.total, voucher.currency)],
     ...formatVoucherExtraRows(voucher),
-    ['CAE', voucher.cae ?? 'N/D'],
+    ['CAE', voucher.cae || MISSING_CAE_TEXT],
   );
 
   if (voucher.caeExpiration) {

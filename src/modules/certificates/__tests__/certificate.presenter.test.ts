@@ -43,4 +43,25 @@ describe('formatCertificateStatusAsText', () => {
 
     expect(text).toContain('No se puede leer');
   });
+
+  it('un certificado sin alias no muestra la fila, ni N/D (TUI-20)', () => {
+    const text = stripAnsi(
+      formatCertificateStatusAsText(
+        [
+          {
+            certificatePath: '/c/arcli/certificados/1/testing.crt',
+            environment: 'testing',
+            expiresAt: new Date('2027-11-20T12:00:00Z'),
+            keyPath: '/c/arcli/certificados/1/testing.key',
+            unreadable: false,
+          },
+        ],
+        NOW,
+      ),
+    );
+
+    expect(text).toMatch(/Vence\s+20\/11\/2027/);
+    expect(text).not.toContain('Alias');
+    expect(text).not.toContain('N/D');
+  });
 });

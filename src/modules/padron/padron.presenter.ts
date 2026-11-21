@@ -12,6 +12,12 @@ export interface PadronReport {
   readonly taxpayer: Taxpayer;
 }
 
+/** Una fila sin valor no se muestra (renderKeyValueRows). */
+type Row = readonly [string, string | undefined];
+
+/** Lo que se busca en el padron (nombre, domicilio, IVA) va aunque ARCA no lo informe, y lo dice. */
+const NOT_IN_PADRON = 'ARCA no lo informa';
+
 const PERSON_TYPE_LABELS: Record<NonNullable<Taxpayer['personType']>, string> = {
   fisica: 'Persona física',
   juridica: 'Persona jurídica',
@@ -22,12 +28,11 @@ function formatMainActivity(taxpayer: Taxpayer): string {
   const [main, ...others] = taxpayer.activities;
   const more = others.length === 0 ? '' : ` (y ${others.length} más)`;
 
-  return `${main?.description ?? 'N/D'}${more}`;
+  return `${main?.description || `Actividad ${main?.id}`}${more}`;
 }
 
 /** `E · VENTAS DE COSAS MUEBLES`: la letra separada del tipo de actividad, si se pudo leer. */
-function formatMonotributoCategory(taxpayer: Taxpayer): string {
-  const description = taxpayer.monotributoCategory ?? 'N/D';
+function formatMonotributoCategory(taxpayer: Taxpayer, description: string): string {
   const letter = taxpayer.monotributoCategoryLetter;
 
   if (!letter) return description;
@@ -38,14 +43,14 @@ function formatMonotributoCategory(taxpayer: Taxpayer): string {
 }
 
 /** Filas de la categoria; solo para monotributistas. */
-function monotributoRows(taxpayer: Taxpayer): Array<readonly [string, string]> {
+function monotributoRows(taxpayer: Taxpayer): Row[] {
   if (!taxpayer.monotributoCategory) return [];
 
   const since = taxpayer.monotributoCategorySince;
 
   return [
-    ['Categoría monotributo', formatMonotributoCategory(taxpayer)],
-    ['Categoría vigente desde', since ? formatArcaPeriodAsArgentinePeriod(since) : 'N/D'],
+    ['Categoría monotributo', formatMonotributoCategory(taxpayer, taxpayer.monotributoCategory)],
+    ['Categoría vigente desde', since ? formatArcaPeriodAsArgentinePeriod(since) : undefined],
   ];
 }
 
@@ -77,15 +82,15 @@ export function formatPadronAsJson(report: PadronReport): string {
 export function formatPadronAsText(report: PadronReport): string {
   const { taxpayer } = report;
   const activeTaxes = taxpayer.taxes.filter((tax) => tax.active).map((tax) => tax.description);
-  const rows: Array<readonly [string, string]> = [
+  const rows: Row[] = [
     ['CUIT', formatCuit(taxpayer.cuit)],
-    ['Nombre', taxpayer.name ?? 'N/D'],
-    ['Tipo', taxpayer.personType ? PERSON_TYPE_LABELS[taxpayer.personType] : 'N/D'],
-    ['Estado', taxpayer.keyStatus ?? 'N/D'],
-    ['Domicilio fiscal', taxpayer.address ?? 'N/D'],
+    ['Nombre', taxpayer.name || NOT_IN_PADRON],
+    ['Tipo', taxpayer.personType ? PERSON_TYPE_LABELS[taxpayer.personType] : undefined],
+    ['Estado', taxpayer.keyStatus || NOT_IN_PADRON],
+    ['Domicilio fiscal', taxpayer.address || NOT_IN_PADRON],
     [
       'Condición frente al IVA',
-      taxpayer.ivaCondition ? ivaConditionLabel(ivaConditionCode(taxpayer.ivaCondition)) : 'N/D',
+      taxpayer.ivaCondition ? ivaConditionLabel(ivaConditionCode(taxpayer.ivaCondition)) : NOT_IN_PADRON,
     ],
     ...monotributoRows(taxpayer),
     ...(activeTaxes.length > 0 ? [['Impuestos', activeTaxes.join(', ')] as const] : []),

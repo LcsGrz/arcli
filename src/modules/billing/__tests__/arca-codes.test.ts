@@ -74,8 +74,8 @@ describe('catálogo de códigos ARCA', () => {
     expect(ivaRateId('10.5')).toBe(4);
   });
 
-  it('un código que no está sale tal cual, y sin código, N/D', () => {
+  it('un código que no está sale tal cual, y sin código, nada (la fila no se muestra)', () => {
     expect(conceptLabel(42)).toBe('42');
-    expect(ivaConditionLabel(undefined)).toBe('N/D');
+    expect(ivaConditionLabel(undefined)).toBeUndefined();
   });
 });

@@ -112,7 +112,6 @@
       │  País de destino                  212 - ESTADOS UNIDOS                       │
       │  Tipo de exportación              2 - Servicios                              │
       │  Actividad                        620100                                     │
-      │  Incoterm                         N/D                                        │
       │  Idioma                           1 - Español                                │
       │  Moneda                           Dólares estadounidenses (USD), cotización  │
       │                                   1.174,60                                   │

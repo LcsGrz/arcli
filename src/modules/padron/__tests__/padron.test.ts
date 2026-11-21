@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { stripAnsi } from '../../../ui/primitives';
 import { deriveIvaCondition, PADRON_TAX_IDS, parseArcaPeriod, parseMonotributoCategoryLetter } from '../padron';
 import { formatPadronAsJson, formatPadronAsText } from '../padron.presenter';
 
@@ -108,6 +109,22 @@ describe('padron presenter', () => {
     );
   });
 
+  it('lo que ARCA no informa: nombre, estado, domicilio e IVA lo dicen; el tipo no va; nunca N/D (TUI-20)', () => {
+    const text = stripAnsi(
+      formatPadronAsText({
+        environment: 'testing',
+        taxpayer: { ...taxpayer, address: null, ivaCondition: null, keyStatus: null, name: null, personType: null },
+      }),
+    );
+
+    expect(text).toMatch(/Nombre\s+ARCA no lo informa/);
+    expect(text).toMatch(/Estado\s+ARCA no lo informa/);
+    expect(text).toMatch(/Domicilio fiscal\s+ARCA no lo informa/);
+    expect(text).toMatch(/Condición frente al IVA\s+ARCA no lo informa/);
+    expect(text).not.toMatch(/Tipo\s/);
+    expect(text).not.toContain('N/D');
+  });
+
   describe('categoria del monotributo', () => {
     const monotributista = {
       ...taxpayer,
@@ -141,7 +158,7 @@ describe('padron presenter', () => {
       expect(formatPadronAsText({ environment: 'testing', taxpayer })).not.toContain('Categoría');
     });
 
-    it('sin letra ni periodo, muestra la descripcion como viene y N/D', () => {
+    it('sin letra ni periodo, muestra la descripcion como viene y no la fila del periodo', () => {
       const text = formatPadronAsText({
         environment: 'testing',
         taxpayer: {
@@ -153,7 +170,8 @@ describe('padron presenter', () => {
       });
 
       expect(text).toMatch(/Categoría monotributo\s+SOCIAL/);
-      expect(text).toMatch(/Categoría vigente desde\s+N\/D/);
+      expect(text).not.toContain('Categoría vigente desde');
+      expect(text).not.toContain('N/D');
     });
   });
 });

@@ -120,7 +120,6 @@
       │  País de destino                  212 - ESTADOS UNIDOS                       │
       │  Tipo de exportación              2 - Servicios                              │
       │  Actividad                        620100                                     │
-      │  Incoterm                         N/D                                        │
       │  Idioma                           1 - Español                                │
       │  Moneda                           Dólares estadounidenses (USD), cotización  │
       │                                   1.174,60 (el pago se cancela en la misma   │
@@ -188,7 +187,6 @@ arcli fe -m 1800 --cliente 'ACME LLC' --domicilio-cliente '123 Main St, Miami, F
       │  País de destino                  212 - ESTADOS UNIDOS                       │
       │  Tipo de exportación              2 - Servicios                              │
       │  Actividad                        620100                                     │
-      │  Incoterm                         N/D                                        │
       │  Idioma                           1 - Español                                │
       │  Moneda                           Dólares estadounidenses (USD), cotización  │
       │                                   1.174,60 (el pago se cancela en la misma   │
