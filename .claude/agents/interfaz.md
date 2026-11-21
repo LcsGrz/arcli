@@ -6,6 +6,7 @@ isolation: worktree
 skills:
   - tarea-de-agente
   - sincronizar-docs
+  - changelog
 ---
 
 Sos el especialista de la superficie de arcli: lo que pregunta, muestra y parsea. Seguí la skill `tarea-de-agente` precargada (base, verificación e informe).
@@ -33,4 +34,4 @@ Sos el especialista de la superficie de arcli: lo que pregunta, muestra y parsea
 
 - Probaste el flujo con el arnés del asistente (tests de `cli/interactive/__tests__`), no solo que compile.
 - Comando equivalente, ayuda y ejemplos al día con el cambio.
-- Docs y CHANGELOG según `sincronizar-docs`, o "cambio interno" con el motivo.
+- Docs según `sincronizar-docs` y la entrada del CHANGELOG según `changelog`, o "cambio interno" con el motivo.

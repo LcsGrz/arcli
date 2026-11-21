@@ -5,7 +5,9 @@ description: Formato de CHANGELOG.md de arcli. Usala al escribir la entrada de u
 
 # Changelog
 
-`CHANGELOG.md` lo leen tres cosas además de una persona: el aviso de actualización del CLI (`src/modules/update-check/`), "Novedades" del sitio (`site/scripts/`) y el test de formato del CHANGELOG (`src/cli/__tests__/changelog-format.test.ts`), que falla si algo de lo que sigue no se cumple. Por eso el formato es estricto.
+`CHANGELOG.md` lo leen tres cosas además de una persona: el aviso de actualización del CLI (`src/modules/update-check/`), "Novedades" del sitio (`site/scripts/`) y el test de formato (`src/cli/__tests__/changelog-format.test.ts`). Por eso el formato es estricto.
+
+El test controla el título y el nombre, que el resumen sea la primera línea después del título, las secciones y su orden, las áreas, que cada entrada sea una sola línea de hasta 25 palabras, que no haya viñetas fuera de las secciones y que los `<details>` y los bloques de código estén cerrados. El resto (cuántos destacados, la forma del aviso, el `---`, los párrafos `**Título.**` del detalle y que el contenido sea cierto) lo cuida quien escribe y la revisión.
 
 ## Formato de una versión
 
