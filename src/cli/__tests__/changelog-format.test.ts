@@ -25,49 +25,43 @@ const AREAS = new Set([
   'Instalación',
   'Docs',
 ]);
-const MAX_WORDS = 30;
+const MAX_WORDS = 25;
 
 const VERSION_HEADING = /^## \[(\d+)\.(\d+)\.(\d+)\] - \d{4}-\d{2}-\d{2}(?: · (\S.*))?$/;
 const ENTRY = /^- \*\*([^*]+):\*\* \S/;
 // `(#210)` o `(#210, #212)`: no cuentan como palabras.
 const PR_REFERENCES = /\(#\d+(?:,\s*#\d+)*\)/g;
 
+/**
+ * Lo que no es prosa: un titulo, una cita o caja, HTML, `---`, una viñeta, un bloque de codigo, una tabla o un aviso.
+ * Si la primera linea de una version es una de estas, ARCLI 2.5 (que no conoce el formato nuevo) la toma como resumen.
+ */
+const NOT_PROSE = /^\s*(?:#|>|<|---|[-*] |```|~~~|\||:::)/;
+// ARCLI 2.5 cuenta como cambio cualquier linea `- ` (con o sin sangria), tambien en un bloque de codigo o un <details>.
+const BULLET = /^\s*[-*] /;
+
 /** Los problemas de formato de un CHANGELOG, uno por renglon con su numero de linea; vacio si esta bien. */
 function changelogFormatProblems(markdown: string): string[] {
   const problems: string[] = [];
   const lines = markdown.split('\n');
-  let version: { hasSummary: boolean; line: number; published: boolean; summaryClosed?: boolean } | undefined;
+  let version: { awaitingSummary: boolean; line: number } | undefined;
   let sectionIndex = -1;
   let inSection = false;
-  let inFence = false;
-  let inDetails = false;
+  let fenceLine: number | undefined;
+  let detailsLine: number | undefined;
   let afterEntry = false;
 
+  // Al terminar una version (otra `## ` o el final): lo que quedo abierto y una version sin ninguna linea.
   const closeVersion = () => {
-    if (version?.published && !version.hasSummary) {
-      problems.push(`${version.line}: la versión no tiene resumen (una línea de prosa antes de las secciones)`);
-    }
+    if (fenceLine !== undefined) problems.push(`${fenceLine}: el bloque de código no se cierra en su versión`);
+    if (detailsLine !== undefined) problems.push(`${detailsLine}: el <details> no se cierra en su versión`);
+    if (version?.awaitingSummary) problems.push(`${version.line}: la versión no tiene resumen`);
+    fenceLine = undefined;
+    detailsLine = undefined;
   };
 
   lines.forEach((line, index) => {
     const at = index + 1;
-
-    if (/^\s*```/.test(line)) {
-      inFence = !inFence;
-      afterEntry = false;
-      return;
-    }
-
-    if (inFence) return;
-
-    if (/<details[\s>]/.test(line) || inDetails) {
-      inDetails = !line.includes('</details>');
-      afterEntry = false;
-
-      if (/^\s*[-*] /.test(line)) problems.push(`${at}: una viñeta dentro de <details> (el detalle va en párrafos)`);
-
-      return;
-    }
 
     if (line.startsWith('## ')) {
       closeVersion();
@@ -76,7 +70,7 @@ function changelogFormatProblems(markdown: string): string[] {
       afterEntry = false;
 
       if (line === '## [Sin publicar]') {
-        version = { hasSummary: true, line: at, published: false };
+        version = { awaitingSummary: false, line: at };
         return;
       }
 
@@ -88,7 +82,39 @@ function changelogFormatProblems(markdown: string): string[] {
         problems.push(`${at}: una versión de arreglos (${heading[1]}.${heading[2]}.${heading[3]}) no lleva nombre`);
       }
 
-      version = { hasSummary: false, line: at, published: true };
+      version = { awaitingSummary: true, line: at };
+      return;
+    }
+
+    // El resumen es la primera linea despues del titulo, antes de destacados, cajas o bloques de codigo.
+    if (version?.awaitingSummary && line.trim()) {
+      version.awaitingSummary = false;
+
+      if (NOT_PROSE.test(line)) {
+        problems.push(`${version.line}: la versión no tiene resumen (la primera línea tiene que ser una de prosa)`);
+      }
+    }
+
+    if (/^\s*(?:```|~~~)/.test(line)) {
+      fenceLine = fenceLine === undefined ? at : undefined;
+      afterEntry = false;
+      return;
+    }
+
+    if (fenceLine !== undefined) {
+      if (version && BULLET.test(line)) {
+        problems.push(`${at}: una línea de un bloque de código empieza con \`- \` (ARCLI 2.5 la lee como un cambio)`);
+      }
+
+      return;
+    }
+
+    if (/<details[\s>]/.test(line) || detailsLine !== undefined) {
+      detailsLine = line.includes('</details>') ? undefined : (detailsLine ?? at);
+      afterEntry = false;
+
+      if (BULLET.test(line)) problems.push(`${at}: una viñeta dentro de <details> (el detalle va en párrafos)`);
+
       return;
     }
 
@@ -112,12 +138,9 @@ function changelogFormatProblems(markdown: string): string[] {
     }
 
     if (!inSection) {
-      // El resumen: una linea de prosa antes de los destacados (`####`), como lo lee el aviso de actualizacion. La
-      // caja (`>`), la linea `---`, el HTML y las viñetas no cuentan.
-      if (line.startsWith('#### ')) {
-        version.summaryClosed = true;
-      } else if (!version.summaryClosed && line.trim() && !/^\s*(?:#|>|<|---|- )/.test(line)) {
-        version.hasSummary = true;
+      // En el resumen y los destacados no hay viñetas: ARCLI 2.5 las mostraria como cambios.
+      if (BULLET.test(line)) {
+        problems.push(`${at}: una viñeta antes de la primera sección (ARCLI 2.5 la lee como un cambio)`);
       }
 
       return;
@@ -125,6 +148,11 @@ function changelogFormatProblems(markdown: string): string[] {
 
     if (!line.trim()) {
       afterEntry = false;
+      return;
+    }
+
+    if (/^\s+[-*] /.test(line)) {
+      problems.push(`${at}: una viñeta con sangría (las entradas no se anidan; el detalle, en <details>)`);
       return;
     }
 
@@ -182,7 +210,6 @@ Las 11 categorías con topes y cuotas, con la tuya marcada.
 
 \`\`\`sh
 arcli monotributo
-- no es una entrada
 \`\`\`
 
 > [!WARNING]
@@ -235,11 +262,30 @@ describe('changelogFormatProblems', () => {
     ['## [2.6.0] - 2026-11-21\n\nR.\n\n### ✨ Agregado\n\n- **Monotributo** sin dos puntos.\n', '- **Área:**'],
     ['## [2.6.0] - 2026-11-21\n\nR.\n\n### ✨ Agregado\n\n- **Modo interactivo:** x.\n', '- **Área:**'],
     ['## [2.6.0] - 2026-11-21\n\nR.\n\n### ✨ Agregado\n\n- **Docs:** x\n  sigue acá.\n', 'una sola'],
-    ['## [2.6.0] - 2026-11-21\n\nR.\n\n### ✨ Agregado\n\n- **Docs:** x\n  - **Anidada:** y.\n', 'una sola'],
-    [`## [2.6.0] - 2026-11-21\n\nR.\n\n### ✨ Agregado\n\n- **Docs:** ${'palabra '.repeat(30)}(#1).\n`, '31 palabras'],
+    ['## [2.6.0] - 2026-11-21\n\nR.\n\n### ✨ Agregado\n\n- **Docs:** x\n  - **Anidada:** y.\n', 'sangría'],
+    ['## [2.6.0] - 2026-11-21\n\nR.\n\n### ✨ Agregado\n\n- **Docs:** x\n\n  - y\n', 'sangría'],
+    [`## [2.6.0] - 2026-11-21\n\nR.\n\n### ✨ Agregado\n\n- **Docs:** ${'palabra '.repeat(25)}(#1).\n`, '26 palabras'],
     [
       '## [2.6.0] - 2026-11-21\n\nR.\n\n### ✨ Agregado\n\n<details><summary>D</summary>\n\n- x\n\n</details>\n',
       '<details>',
+    ],
+    // ARCLI 2.5 toma la primera linea como resumen, sea lo que sea.
+    ['## [2.6.0] - 2026-11-21\n\n> [!WARNING]\n> Caja.\n\nR.\n', 'no tiene resumen'],
+    ['## [2.6.0] - 2026-11-21\n\n```sh\narcli fc\n```\n\nR.\n', 'no tiene resumen'],
+    ['## [2.6.0] - 2026-11-21\n', 'no tiene resumen'],
+    // ARCLI 2.5 cuenta como cambio toda linea `- `, tambien antes de las secciones o en un bloque de codigo.
+    ['## [2.6.0] - 2026-11-21\n\nR.\n\n- Suelta.\n', 'antes de la primera sección'],
+    ['## [2.6.0] - 2026-11-21\n\nR.\n\n#### D\n\nTexto.\n\n- Suelta.\n', 'antes de la primera sección'],
+    ['## [2.6.0] - 2026-11-21\n\nR.\n\n#### D\n\n```sh\n- algo\n```\n', 'bloque de código empieza'],
+    [
+      '## [2.6.0] - 2026-11-21\n\nR.\n\n### ✨ Agregado\n\n<details><summary>D</summary>\n\n```sh\n  - x\n```\n\n</details>\n',
+      'bloque de código empieza',
+    ],
+    // Sin cerrar, al llegar a otra version o al final.
+    ['## [2.6.0] - 2026-11-21\n\nR.\n\n```sh\narcli fc\n\n## [2.5.2] - 2026-11-18\n\nR.\n', '5: el bloque de código'],
+    [
+      '## [2.6.0] - 2026-11-21\n\nR.\n\n### ✨ Agregado\n\n<details><summary>D</summary>\n\nTexto.\n',
+      '7: el <details>',
     ],
   ])('marca %j', (markdown, problem) => {
     const problems = changelogFormatProblems(markdown);
@@ -248,8 +294,8 @@ describe('changelogFormatProblems', () => {
     expect(problems[0]).toContain(problem);
   });
 
-  it('30 palabras sin contar los (#N) estan bien', () => {
-    const entry = `- **Docs:** ${'palabra '.repeat(29).trim()} (#1, #2).`;
+  it('25 palabras sin contar los (#N) estan bien', () => {
+    const entry = `- **Docs:** ${'palabra '.repeat(24).trim()} (#1, #2).`;
 
     expect(changelogFormatProblems(`## [2.6.0] - 2026-11-21\n\nR.\n\n### ✨ Agregado\n\n${entry}\n`)).toEqual([]);
   });

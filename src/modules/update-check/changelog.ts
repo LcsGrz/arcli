@@ -113,6 +113,13 @@ export function extractChangelog(markdown: string, currentVersion: string, lates
   let inDetails = false;
 
   for (const line of markdown.split('\n')) {
+    // Una version nueva cierra lo que haya quedado abierto: un bloque o un `<details>` sin cerrar no se come las que
+    // siguen.
+    if (line.startsWith('## ')) {
+      inFence = false;
+      inDetails = false;
+    }
+
     if (FENCE.test(line)) {
       inFence = !inFence;
       continue;

@@ -136,10 +136,6 @@ arcli monotributo --categoria E
 
 ## [2.5.2] - 2026-11-18
 
-\`\`\`sh
-arcli fe --ayuda
-\`\`\`
-
 Cotización y pesos en la E.
 
 ### 🐛 Corregido
@@ -185,6 +181,45 @@ describe('extractChangelog con el formato de 2.6.0', () => {
         version: '2.5.2',
       },
     ]);
+  });
+
+  it('tolera un bloque de codigo antes del resumen (fuera de formato, lo marca changelog-format.test.ts)', () => {
+    const markdown =
+      '## [2.5.2] - 2026-11-18\n\n```sh\narcli fe --ayuda\n```\n\nCotización.\n\n### 🐛 Corregido\n\n- **Factura E:** x.\n';
+
+    expect(extractChangelog(markdown, '2.5.1', '2.5.2')[0].summary).toBe('Cotización.');
+  });
+
+  it.each([
+    ['un <details>', '<details><summary>Detalle</summary>\n\nTexto.\n'],
+    ['un bloque de codigo', '```sh\narcli fc\n'],
+  ])('%s sin cerrar no se come la version siguiente', (_, unclosed) => {
+    const markdown = [
+      '## [2.6.0] - 2026-11-21 · Nombre',
+      '',
+      'Resumen.',
+      '',
+      '### ✨ Agregado',
+      '',
+      '- **Docs:** uno.',
+      '',
+      unclosed,
+      '## [2.5.2] - 2026-11-18',
+      '',
+      'Otro resumen.',
+      '',
+      '### 🐛 Corregido',
+      '',
+      '- **Docs:** dos.',
+      '',
+    ].join('\n');
+
+    expect(extractChangelog(markdown, '2.5.1', '2.6.0')[1]).toEqual({
+      changes: [{ kind: 'corregido', nested: false, text: 'dos.', topic: 'Docs' }],
+      date: '2026-11-18',
+      summary: 'Otro resumen.',
+      version: '2.5.2',
+    });
   });
 
   it('sin resumen, el texto de un destacado no pasa a ser el resumen', () => {
