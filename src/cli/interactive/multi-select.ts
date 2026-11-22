@@ -1,17 +1,9 @@
-import {
-  createPrompt,
-  isDownKey,
-  isEnterKey,
-  isSpaceKey,
-  isUpKey,
-  makeTheme,
-  useKeypress,
-  usePrefix,
-  useState,
-} from '@inquirer/core';
+import { createPrompt, isEnterKey, isSpaceKey, makeTheme, useKeypress, usePrefix, useState } from '@inquirer/core';
 
 import { BACK, type Back } from '../../modules/interactive/wizard';
-import { colorize, scrollHint, scrollWindow, uiSymbol } from '../../ui';
+import { colorize, pointerRow, scrollHint, scrollWindow, uiSymbol } from '../../ui';
+
+import { cursorRows, isCursorKey, useListCursor } from './list-cursor';
 
 /** Oculta el cursor de la terminal mientras se muestra la lista; @inquirer lo vuelve a mostrar al cerrarla. */
 const CURSOR_HIDE = '\u001B[?25l';
@@ -52,7 +44,7 @@ export const multiSelect = createPrompt(
     const theme = makeTheme<MultiSelectStyle>(config.theme);
     const [status, setStatus] = useState<'done' | 'idle'>('idle');
     const [marked, setMarked] = useState<readonly T[]>(config.selected);
-    const [active, setActive] = useState(0);
+    const { active, move } = useListCursor(0);
     const prefix = usePrefix({ status, theme });
     const values = config.choices.map((choice) => choice.value);
     // "Volver" va despues de la ultima opcion.
@@ -64,12 +56,8 @@ export const multiSelect = createPrompt(
         setStatus('done');
         // En el orden de las opciones, no en el que se marcaron.
         done(active === backIndex ? BACK : values.filter((value) => marked.includes(value)));
-      } else if (isUpKey(key) || isDownKey(key)) {
-        const next = active + (isUpKey(key) ? -1 : 1);
-
-        if (next >= 0 && next <= backIndex) {
-          setActive(next);
-        }
+      } else if (isCursorKey(key)) {
+        move(key, cursorRows(backIndex + 1));
       } else if (isSpaceKey(key)) {
         if (row) {
           setMarked(
@@ -83,17 +71,12 @@ export const multiSelect = createPrompt(
       }
     });
 
-    const renderRow = (label: string, isActive: boolean) => {
-      const line = `${isActive ? uiSymbol('pointer') : ' '} ${label}`;
-
-      return isActive ? theme.style.highlight(line) : line;
-    };
     // Con "Volver" marcado, la pagina queda al final, porque se llega desde la ultima opcion.
     const window = scrollWindow(config.choices.length, Math.min(active, backIndex - 1), config.pageSize);
     const options = config.choices.slice(window.start, window.end).map((choice, offset) => {
       const icon = marked.includes(choice.value) ? colorize(uiSymbol('selected'), 'success') : uiSymbol('unselected');
 
-      return renderRow(`${icon} ${choice.name}`, window.start + offset === active);
+      return pointerRow(`${icon} ${choice.name}`, window.start + offset === active, theme.style.highlight);
     });
     const message = theme.style.message(config.message, status);
 
@@ -115,7 +98,7 @@ export const multiSelect = createPrompt(
       ...options,
       ...(window.scrolls ? [scrollHint('below', config.choices.length - window.end)] : []),
       ' ',
-      renderRow(config.backLabel, active === backIndex),
+      pointerRow(config.backLabel, active === backIndex, theme.style.highlight),
       ' ',
       description ? theme.style.description(description) : '',
       help,

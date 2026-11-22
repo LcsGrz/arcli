@@ -1,16 +1,8 @@
-import {
-  createPrompt,
-  isDownKey,
-  isEnterKey,
-  isUpKey,
-  makeTheme,
-  useKeypress,
-  useMemo,
-  usePrefix,
-  useState,
-} from '@inquirer/core';
+import { createPrompt, isEnterKey, makeTheme, useKeypress, useMemo, usePrefix, useState } from '@inquirer/core';
 
-import { bold, colorize, scrollHint, scrollWindow, stripAnsi, uiSymbol } from '../../ui';
+import { bold, colorize, pointerRow, scrollHint, scrollWindow, stripAnsi } from '../../ui';
+
+import { isCursorKey, useListCursor } from './list-cursor';
 
 type HelpKey = [string, string];
 
@@ -103,12 +95,6 @@ export function noMatchesLine(term: string): string {
 /** La posicion de "Volver": despues de la ultima fila. */
 const BACK_ROW = -1;
 
-function renderBack(label: string, isActive: boolean, highlight: (text: string) => string): string {
-  const line = `${isActive ? uiSymbol('pointer') : ' '} ${label}`;
-
-  return isActive ? highlight(line) : line;
-}
-
 /**
  * Lista que se filtra escribiendo y se desplaza con las flechas, con un encabezado fijo arriba. Para las tablas de
  * ARCA que no entran en una pagina y para elegir una moneda. @inquirer/search no viene con ARCLI y no deja poner
@@ -118,7 +104,7 @@ export const filterList = createPrompt(<T>(config: FilterListConfig<T>, done: (v
   const theme = makeTheme<FilterListStyle>(config.theme);
   const [status, setStatus] = useState<'done' | 'idle'>('idle');
   const [term, setTerm] = useState('');
-  const [active, setActive] = useState(() =>
+  const { active, move, setActive } = useListCursor(() =>
     Math.max(
       0,
       config.rows.findIndex((row) => row.value === config.default),
@@ -141,18 +127,12 @@ export const filterList = createPrompt(<T>(config: FilterListConfig<T>, done: (v
         // Enter sin nada que elegir: readline ya vacio la linea, y lo escrito tiene que seguir para editarlo.
         rl.write(term);
       }
-    } else if (isUpKey(key) || isDownKey(key)) {
+    } else if (isCursorKey(key)) {
       // Las flechas no escriben: readline las tomaria como historial y borraria el filtro.
       rl.clearLine(0);
       rl.write(term);
-
       // Las filas que se recorren con las flechas, con "Volver" al final.
-      const order = [...visible.keys(), ...(config.back ? [BACK_ROW] : [])];
-      const next = order[order.indexOf(active) + (isUpKey(key) ? -1 : 1)];
-
-      if (next !== undefined) {
-        setActive(next);
-      }
+      move(key, [...visible.keys(), ...(config.back ? [BACK_ROW] : [])]);
     } else if (rl.line !== term) {
       setTerm(rl.line);
       setActive(0);
@@ -163,12 +143,9 @@ export const filterList = createPrompt(<T>(config: FilterListConfig<T>, done: (v
   const window = scrollWindow(visible.length, active === BACK_ROW ? visible.length - 1 : active, config.pageSize);
   const page = [
     ...(window.scrolls ? [scrollHint('above', window.start)] : []),
-    ...visible.slice(window.start, window.end).map((item, offset) => {
-      const isActive = window.start + offset === active;
-      const line = `${isActive ? uiSymbol('pointer') : ' '} ${item.label}`;
-
-      return isActive ? theme.style.highlight(line) : line;
-    }),
+    ...visible
+      .slice(window.start, window.end)
+      .map((item, offset) => pointerRow(item.label, window.start + offset === active, theme.style.highlight)),
     ...(window.scrolls ? [scrollHint('below', visible.length - window.end)] : []),
   ].join('\n');
   const message = theme.style.message(config.message, status);
@@ -190,7 +167,7 @@ export const filterList = createPrompt(<T>(config: FilterListConfig<T>, done: (v
     config.header ? `  ${bold(config.header)}` : '',
     body,
     count,
-    ...(config.back ? [' ', renderBack(config.back, active === BACK_ROW, theme.style.highlight)] : []),
+    ...(config.back ? [' ', pointerRow(config.back, active === BACK_ROW, theme.style.highlight)] : []),
     ' ',
     config.help ? theme.style.description(config.help) : '',
     theme.style.keysHelpTip(keys),
