@@ -4,7 +4,7 @@ import { vi } from 'vitest';
 import type { RowEdits } from '../../../modules/interactive/row-marks';
 import { BACK, type Back } from '../../../modules/interactive/wizard';
 import type { RowActionsListRow } from '../../../ui';
-import { filterRows, matchesSearch } from '../filter-list';
+import { filterRows, matchesSearch, sameSearch } from '../filter-list';
 import type {
   Choice,
   ChooseOrTypeStepOptions,
@@ -90,6 +90,11 @@ export function chooseOrTypeInitialTerm<T>(
   return previous !== undefined && !rows.some((row) => row.value === previous) ? String(previous) : '';
 }
 
+/** Si lo escrito es exactamente la fila (su texto, lo que deja o sus palabras clave), como `filterList`. */
+function isExactChoice<T>(row: FilterListRow<T>, term: string): boolean {
+  return [row.label, row.short, row.keywords].some((text) => text !== undefined && sameSearch(text, term));
+}
+
 /**
  * Enter en `chooseOrTypeStep` con `term` en el filtro, como el componente: la primera fila que coincide (con la misma
  * busqueda que `filterList`, y en una opcional primero la de `emptyLabel`, que es "sin valor") o, si ninguna, lo
@@ -120,7 +125,9 @@ export function enterOnChooseOrType<T>(
     return { value: undefined };
   }
 
-  const [row] = term.trim() ? filterRows(rows, term) : [];
+  const matches = term.trim() ? filterRows(rows, term) : [];
+  // Como el componente: la fila que es exactamente lo escrito gana a la primera que coincide.
+  const row = matches.find((item) => isExactChoice(item, term)) ?? matches[0];
 
   if (row) {
     return { value: row.value };

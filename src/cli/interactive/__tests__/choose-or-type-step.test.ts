@@ -178,3 +178,48 @@ describe('chooseOrTypeStep (TUI-35)', () => {
     expect(answer).toBe(BACK);
   });
 });
+
+/** El ultimo dibujo de la pregunta en una pantalla acumulada. */
+function lastDraw(frame: string | undefined): string {
+  return (frame ?? '').split('? ¿Cuál?').at(-1) ?? '';
+}
+
+const UP = '\u001B[A';
+
+describe('chooseOrTypeStep: lo escrito y las filas', () => {
+  it('lo escrito igual a una fila no muestra "Usar lo escrito"', async () => {
+    const { answer, frames } = await run({ parse }, ['b', 'e', 't', 'a', ENTER]);
+
+    expect(lastDraw(frames.at(-1))).toMatch(/❯ Beta/);
+    expect(lastDraw(frames.at(-1))).not.toContain('Usar lo escrito');
+    expect(answer).toBe('b');
+  });
+
+  // Como `--pais-destino niger`: la fila exacta gana a la primera que coincide.
+  it('con "niger", Enter elige NIGER aunque NIGERIA vaya antes', async () => {
+    const countries = [
+      { label: 'NIGERIA', value: 'NIGERIA' },
+      { label: 'NIGER', value: 'NIGER' },
+    ];
+    const { answer, frames } = await run({ parse }, ['n', 'i', 'g', 'e', 'r', ENTER], countries);
+
+    expect(lastDraw(frames.at(-1))).toMatch(/ {2}NIGERIA\n❯ NIGER/);
+    expect(answer).toBe('NIGER');
+  });
+
+  it('sin coincidencias muestra "Usar lo escrito" en lugar de "Nada coincide"', async () => {
+    const { frames } = await run({ parse }, ['z', 'z', BACK]);
+
+    expect(lastDraw(frames.at(-1))).toContain('❯ Usar lo escrito: zz');
+    expect(lastDraw(frames.at(-1))).not.toContain('Nada coincide');
+  });
+
+  it('con las flechas se llega a "Volver" pasando por la fila de lo escrito, y se vuelve', async () => {
+    const { answer, frames } = await run({ parse }, ['a', DOWN, DOWN, DOWN, UP, DOWN, ENTER]);
+
+    expect(lastDraw(frames[3])).toContain('❯ Usar lo escrito: a');
+    expect(lastDraw(frames[4])).toContain('❯ ← Volver');
+    expect(lastDraw(frames[5])).toContain('❯ Usar lo escrito: a');
+    expect(answer).toBe(BACK);
+  });
+});

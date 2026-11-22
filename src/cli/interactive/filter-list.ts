@@ -103,6 +103,17 @@ function isExactRow<T>(row: FilterListRow<T>, term: string): boolean {
   return [row.label, row.short, row.keywords].some((text) => text !== undefined && sameSearch(stripAnsi(text), term));
 }
 
+/**
+ * La fila que se marca al escribir: la que es exactamente lo escrito (con "niger", NIGER aunque NIGERIA vaya antes,
+ * como `--pais-destino niger`) o, si ninguna, la primera que coincide.
+ */
+function firstMatch<T>(visible: ReadonlyArray<FilterListRow<T>>, term: string): number {
+  return Math.max(
+    0,
+    visible.findIndex((row) => isExactRow(row, term)),
+  );
+}
+
 /** Las filas que contienen lo escrito, en la fila o en sus palabras clave. */
 export function filterRows<T>(rows: ReadonlyArray<FilterListRow<T>>, term: string): Array<FilterListRow<T>> {
   return rows.filter((row) => matchesSearch(`${row.label} ${row.keywords ?? ''}`, term));
@@ -147,15 +158,17 @@ export const filterList = createPrompt(<T>(config: FilterListConfig<T>, done: (v
     config.typed && searchWords(term).length > 0 && !visible.some((row) => isExactRow(row, term))
       ? visible.length
       : undefined;
-  const { active, move, setActive } = useListCursor(() =>
-    // Lo escrito con que arranca no es una fila: arranca marcada la de lo escrito.
-    typedIndex !== undefined && config.initialTerm
-      ? typedIndex
-      : Math.max(
-          0,
-          visible.findIndex((row) => row.value === config.default),
-        ),
-  );
+  const { active, move, setActive } = useListCursor(() => {
+    if (config.initialTerm) {
+      // Lo escrito con que arranca no es una fila: arranca marcada la de lo escrito.
+      return typedIndex ?? firstMatch(visible, config.initialTerm);
+    }
+
+    return Math.max(
+      0,
+      visible.findIndex((row) => row.value === config.default),
+    );
+  });
 
   // Lo escrito con que arranca va a la linea de readline, para seguir editandolo.
   useEffect((rl) => {
@@ -202,7 +215,7 @@ export const filterList = createPrompt(<T>(config: FilterListConfig<T>, done: (v
       ]);
     } else if (rl.line !== term) {
       setTerm(rl.line);
-      setActive(0);
+      setActive(firstMatch(filterRows(config.rows, rl.line), rl.line));
     }
   });
 
