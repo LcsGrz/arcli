@@ -7,6 +7,7 @@ function listSystemBrowserCandidates(
   platform: NodeJS.Platform = process.platform,
   env: NodeJS.ProcessEnv = process.env,
 ): string[] {
+  // eslint-disable-next-line @typescript-eslint/switch-exhaustiveness-check -- sistema operativo: el default es Linux y el resto de los Unix
   switch (platform) {
     case 'darwin':
       return ['/Applications', join(homedir(), 'Applications')].flatMap((folder) => [

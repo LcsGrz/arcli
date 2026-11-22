@@ -159,7 +159,9 @@ export function listAssociableFamilies(noteFamily: VoucherFamily, cancellation: 
         : ['factura-credito-electronica'];
     case 'nota-debito-electronica':
       return cancellation ? ['nota-credito-electronica'] : ['factura-credito-electronica'];
-    default:
+    case 'factura':
+    case 'factura-credito-electronica':
+    case 'recibo':
       return [];
   }
 }

@@ -191,10 +191,10 @@ export default defineConfig([
       // Una promesa sin await ni catch se pierde: su error no llega a reportCliError ni al exit code.
       '@typescript-eslint/no-floating-promises': 'error',
       // Un caso nuevo de una unión (un tipo de comprobante, un estado) tiene que fallar donde no se maneja, también
-      // si el switch tiene `default` (considerDefaultExhaustiveForUnions: false). En warn porque hay 5 switches con
-      // `default` a propósito: listá los casos que faltan antes del `default`. Pasa a error cuando quien mantiene
-      // decida qué hacer con esos 5 (ARQ-1).
-      '@typescript-eslint/switch-exhaustiveness-check': 'warn',
+      // si el switch tiene `default` (considerDefaultExhaustiveForUnions: false): nombrá cada caso en vez de taparlo
+      // con `default`. Si el `default` es la respuesta correcta para todo lo demás (un `typeof`, el sistema
+      // operativo), desactivala en esa línea con el motivo.
+      '@typescript-eslint/switch-exhaustiveness-check': 'error',
     },
   },
 

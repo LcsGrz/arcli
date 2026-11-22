@@ -55,7 +55,7 @@ function describeSuggestion(suggested: ExchangeRateSuggestion): string {
       return `la de ${suggested.associated} es ${rate}`;
     case 'config':
       return `la de tu config, \`cotizacion\`, es ${rate}`;
-    default:
+    case 'arca':
       return `la oficial de ARCA es ${rate}`;
   }
 }
