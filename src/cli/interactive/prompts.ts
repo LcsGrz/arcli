@@ -654,6 +654,11 @@ export interface ChooseOrTypeStepOptions<T> {
 /** Lo que devuelve la lista de `chooseOrTypeStep`: una fila, lo escrito o la fila de "sin valor". */
 type ChooseOrTypeAnswer<T> = { readonly row: T } | { readonly text: string } | { readonly empty: true };
 
+/** Lo que `chooseOrTypeStep` suma a una lista que se filtra: la fila "Usar lo escrito" y la linea del error. */
+const TYPED_EXTRA_LINES = 2;
+/** La ayuda debajo de la lista y su linea en blanco. */
+const HELP_LINES = 2;
+
 /** "Usar lo escrito: Mercado Pago", la fila que usa lo escrito en lugar de una de la lista. */
 function typedRowLabel(term: string): string {
   return `Usar lo escrito: ${term}`;
@@ -723,8 +728,11 @@ export async function chooseOrTypeStep<T>(
           message,
           mode: 'elegir',
           requireChoice: options.requireChoice,
-          // Mas la fila de lo escrito y la linea del error.
-          pageSize: options.pageSize ?? fitPageSize(listed.length + 1, { extraLines: FILTER_LIST_EXTRA_LINES + 1 }),
+          pageSize:
+            options.pageSize ??
+            fitPageSize(listed.length, {
+              extraLines: FILTER_LIST_EXTRA_LINES + TYPED_EXTRA_LINES + (options.help ? HELP_LINES : 0),
+            }),
           rows: listed,
           theme: STEP_THEME,
           typed: {

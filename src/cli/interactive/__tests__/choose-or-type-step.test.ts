@@ -1,5 +1,5 @@
 import { PassThrough } from 'node:stream';
-import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, type MockInstance, onTestFinished, vi } from 'vitest';
 
 import { BACK } from '../../../modules/interactive/wizard';
 import { stripAnsi } from '../../../ui';
@@ -273,5 +273,41 @@ describe('chooseOrTypeStep: sin la fila "Volver" (`backRow: false`)', () => {
     expect(lastDraw(frames[0])).not.toContain('Volver');
     expect(lastDraw(frames.at(-1))).toContain('❯ Beta');
     expect(answer).toBe(BACK);
+  });
+});
+
+describe('chooseOrTypeStep: el alto en una terminal chica', () => {
+  it('con 20 filas de terminal, la lista con "Usar lo escrito" y el error entra entera', async () => {
+    const saved = Object.getOwnPropertyDescriptor(process.stdout, 'rows');
+
+    Object.defineProperty(process.stdout, 'rows', { configurable: true, value: 20, writable: true });
+    onTestFinished(() => {
+      if (saved) {
+        Object.defineProperty(process.stdout, 'rows', saved);
+      } else {
+        delete (process.stdout as { rows?: number }).rows;
+      }
+    });
+
+    const rows = Array.from({ length: 40 }, (_, index) => ({ label: `Fila ${index + 1}`, value: index }));
+    const keys: Array<string | typeof BACK> = [
+      'f',
+      'i',
+      'l',
+      'a',
+      ...Array.from({ length: 40 }, () => DOWN),
+      ENTER,
+      BACK,
+    ];
+    const { frames } = await run(
+      { header: 'FILA', help: 'Escribí el número de la fila.', parse: () => -1, validate: () => 'No vale.' },
+      keys,
+      rows,
+    );
+    const lines = `\n\n? ¿Cuál?${lastDraw(frames.at(-1))}`.split('\n');
+
+    expect(lastDraw(frames.at(-1))).toContain('> No vale.');
+    expect(lastDraw(frames.at(-1))).toContain('← Volver');
+    expect(lines.length, lines.join('\n')).toBeLessThanOrEqual(20);
   });
 });
