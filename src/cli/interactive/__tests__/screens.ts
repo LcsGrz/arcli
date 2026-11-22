@@ -256,8 +256,10 @@ export function createScreens(steps: ReadonlyArray<readonly [RegExp, ScriptedAns
     const emptyLabel = options.optional && rows.length > 0 ? (options.emptyLabel ?? SKIP_ROW) : undefined;
     const typed = chooseOrTypeInitialTerm(rows, options);
     const previousRow = rows.find((row) => sameValue(row.value, options.previous));
-    // Sin `previous` de la lista, la primera fila: en una opcional, la de "sin valor".
-    const marked = previousRow ? previousRow.label : (emptyLabel ?? rows[0]?.label);
+    // Sin `previous` de la lista, la primera fila (en una opcional, la de "sin valor"), salvo con `requireChoice`.
+    const marked = previousRow
+      ? previousRow.label
+      : (emptyLabel ?? (options.requireChoice ? undefined : rows[0]?.label));
     const label = (value: unknown) => {
       if (value === BACK) return '← Volver';
       if (value === undefined) return emptyLabel ?? '(sin valor)';
@@ -273,6 +275,8 @@ export function createScreens(steps: ReadonlyArray<readonly [RegExp, ScriptedAns
         `? [${rows.length > 0 ? 'lista o texto' : 'texto, sin filas'}] ${normalizeScreen(message)}`,
         ...(options.header ? [`  encabezado: ${normalizeScreen(options.header)}`] : []),
         ...(options.help ? [`  ayuda: ${normalizeScreen(options.help)}`] : []),
+        ...(options.backRow === false ? ['  sin "← Volver"'] : []),
+        ...(options.requireChoice ? [`  sin elegir: ${normalizeScreen(options.requireChoice)}`] : []),
         ...(typed
           ? [`  arranca escrito: ${JSON.stringify(typed)}`]
           : rows.length > 0
