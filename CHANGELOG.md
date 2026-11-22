@@ -8,6 +8,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+## [2.6.0] - 2026-11-22 · Monotributo y recibos
+
 El monotributo en la terminal, Recibo A y Recibo B y fechas relativas como `hoy` o `mes-pasado`. También un asistente que ya no pierde lo que respondiste y que frena antes lo que ARCA iba a rechazar.
 
 #### El monotributo en la terminal
@@ -1934,7 +1936,8 @@ arcli fc --monto 15000 --cs --ir-cf --cfinal
 
 - **Instalación:** se publica en npm con Trusted Publishers (OIDC).
 
-[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v2.5.2...HEAD
+[Sin publicar]: https://github.com/LcsGrz/arcli/compare/v2.6.0...HEAD
+[2.6.0]: https://github.com/LcsGrz/arcli/compare/v2.5.2...v2.6.0
 [2.5.2]: https://github.com/LcsGrz/arcli/compare/v2.5.1...v2.5.2
 [2.5.1]: https://github.com/LcsGrz/arcli/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/LcsGrz/arcli/compare/v2.4.0...v2.5.0
