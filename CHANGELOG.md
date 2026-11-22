@@ -10,8 +10,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### 🔧 Cambiado
 
-- **Factura E:** en el asistente, el país de destino y el CUIT del país se eligen de una lista con filtro donde también podés escribir.
-- **PDF:** en el asistente, la condición de venta se elige o se escribe en la misma lista, sin la pregunta aparte de "Otra".
+- **Factura E:** en el asistente, el país de destino y el CUIT del país se eligen de una lista con filtro donde también podés escribir (#257).
+- **PDF:** en el asistente, la condición de venta se elige o se escribe en la misma lista, sin la pregunta aparte de "Otra" (#257).
 
 <details><summary>Detalle</summary>
 
