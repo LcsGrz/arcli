@@ -449,9 +449,17 @@ function countryCuitsOfDestination(
   return countries.filter((entry) => normalizeCountryName(countryNameWithoutEntity(entry.countryName)) === destination);
 }
 
+/** El orden de `COUNTRY_CUIT_ENTITY_PREFERENCE`: persona juridica, otro tipo de entidad y persona fisica. */
+function entityRank(entry: ExportCountryCuit): number {
+  const rank = COUNTRY_CUIT_ENTITY_PREFERENCE.findIndex((preference) => preference.test(entry.countryName));
+
+  return rank === -1 ? COUNTRY_CUIT_ENTITY_PREFERENCE.length : rank;
+}
+
 /**
  * Los CUIT de pais que acepta `--cuit-pais` para el destino (`resolveExportClientCountryCuit`): los del destino si la
- * tabla de ARCA los trae y, si no, cualquiera de la tabla. En el orden de la tabla.
+ * tabla de ARCA los trae, con el que eligiria el flag primero (`pickCountryCuit`), y si no, cualquiera de la tabla, en
+ * su orden.
  */
 export function exportClientCountryCuitChoices(options: {
   readonly country: ExportCountry;
@@ -459,7 +467,9 @@ export function exportClientCountryCuitChoices(options: {
 }): ExportCountryCuit[] {
   const forDestination = countryCuitsOfDestination(options.country, options.countries);
 
-  return forDestination.length > 0 ? forDestination : [...options.countries];
+  return forDestination.length > 0
+    ? forDestination.toSorted((left, right) => entityRank(left) - entityRank(right))
+    : [...options.countries];
 }
 
 /**

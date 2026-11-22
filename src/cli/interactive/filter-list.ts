@@ -53,6 +53,11 @@ export interface FilterListConfig<T> {
   /** `elegir`: Enter devuelve la fila marcada. `ver`: la lista es para mirar, y Enter la cierra igual que Esc. */
   readonly mode: 'elegir' | 'ver';
   readonly pageSize: number;
+  /**
+   * Sin una fila por defecto razonable (un dato fiscal): sin `default`, arranca sin fila marcada y Enter con el filtro
+   * vacio muestra este error en lugar de elegir la primera.
+   */
+  readonly requireChoice?: string;
   readonly rows: ReadonlyArray<FilterListRow<T>>;
   readonly theme: {
     readonly prefix?: { readonly done: string; readonly idle: string };
@@ -145,6 +150,8 @@ export function noMatchesLine(term: string): string {
 
 /** La posicion de "Volver": despues de la ultima fila. */
 const BACK_ROW = -1;
+/** Ninguna marcada (`requireChoice` con el filtro vacio): Enter muestra el error y ↓ marca la primera. */
+const NO_ROW = -2;
 
 /**
  * Lista que se filtra escribiendo y se desplaza con las flechas, con un encabezado fijo arriba. Para las tablas de
@@ -170,10 +177,9 @@ export const filterList = createPrompt(<T>(config: FilterListConfig<T>, done: (v
       return typedIndex ?? firstMatch(visible, config.initialTerm);
     }
 
-    return Math.max(
-      0,
-      visible.findIndex((row) => row.value === config.default),
-    );
+    const marked = visible.findIndex((row) => row.value === config.default);
+
+    return marked === -1 && config.requireChoice ? NO_ROW : Math.max(0, marked);
   });
 
   // Lo escrito con que arranca va a la linea de readline, para seguir editandolo.
@@ -195,6 +201,9 @@ export const filterList = createPrompt(<T>(config: FilterListConfig<T>, done: (v
       } else if (row) {
         setStatus('done');
         done(row.value);
+      } else if (active === NO_ROW && config.requireChoice) {
+        setError(config.requireChoice);
+        rl.write(term);
       } else if (config.typed && active === typedIndex) {
         const valid = config.typed.validate?.(term) ?? true;
 
@@ -221,12 +230,16 @@ export const filterList = createPrompt(<T>(config: FilterListConfig<T>, done: (v
       ]);
     } else if (rl.line !== term) {
       setTerm(rl.line);
-      setActive(firstMatch(filterRows(config.rows, rl.line), rl.line));
+      setActive(
+        config.requireChoice && searchWords(rl.line).length === 0
+          ? NO_ROW
+          : firstMatch(filterRows(config.rows, rl.line), rl.line),
+      );
     }
   });
 
   // Con lo escrito o "Volver" marcado, la pagina queda al final, porque se llega desde la ultima fila.
-  const anchor = active === BACK_ROW || active === typedIndex ? visible.length - 1 : active;
+  const anchor = active === NO_ROW ? 0 : active === BACK_ROW || active === typedIndex ? visible.length - 1 : active;
   const window = scrollWindow(visible.length, anchor, config.pageSize);
   const page = [
     ...(window.scrolls ? [scrollHint('above', window.start)] : []),

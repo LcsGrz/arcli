@@ -118,6 +118,10 @@ export function enterOnChooseOrType<T>(
       return { value: undefined };
     }
 
+    if (listed && options.requireChoice) {
+      return { error: options.requireChoice };
+    }
+
     if (listed) {
       return { value: (rows[0] as FilterListRow<T>).value };
     }

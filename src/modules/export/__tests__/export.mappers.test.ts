@@ -269,12 +269,13 @@ describe('exportDestinationCountryChoices', () => {
 });
 
 describe('exportClientCountryCuitChoices', () => {
-  it('con CUIT publicado para el destino, trae los del destino, en el orden de la tabla', () => {
-    expect(
-      exportClientCountryCuitChoices({ countries: COUNTRY_CUITS, country: { code: 203, name: 'BRASIL' } }).map(
-        (entry) => entry.cuit,
-      ),
-    ).toEqual([50000000059, 51600000059, 55000000050]);
+  it('con CUIT publicado para el destino, trae los del destino con el que elige el flag primero', () => {
+    const country = { code: 203, name: 'BRASIL' };
+    const choices = exportClientCountryCuitChoices({ countries: COUNTRY_CUITS, country }).map((entry) => entry.cuit);
+
+    // Persona juridica, otro tipo de entidad y persona fisica, como `pickCountryCuit`.
+    expect(choices).toEqual([55000000050, 51600000059, 50000000059]);
+    expect(choices[0]).toBe(resolveExportClientCountryCuit({ countries: COUNTRY_CUITS, country }));
   });
 
   it('sin CUIT publicado para el destino, trae toda la tabla: `--cuit-pais` acepta cualquiera', () => {

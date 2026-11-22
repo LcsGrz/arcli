@@ -239,3 +239,29 @@ describe('chooseOrTypeStep: la fila de "sin valor"', () => {
     expect(answer).toBeUndefined();
   });
 });
+
+describe('chooseOrTypeStep: un dato fiscal sin valor por defecto (`requireChoice`)', () => {
+  const requireChoice = 'Elegí un CUIT de la lista o escribí el número.';
+
+  it('arranca sin fila marcada y Enter con el filtro vacío muestra el error; ↓ marca la primera', async () => {
+    const { answer, frames } = await run({ parse, requireChoice }, [ENTER, DOWN, ENTER]);
+
+    expect(lastDraw(frames[0])).not.toContain('❯');
+    expect(lastDraw(frames[1])).toContain(`> ${requireChoice}`);
+    expect(answer).toBe('a');
+  });
+
+  it('con `previous` de la lista arranca marcado y Enter lo elige', async () => {
+    const { answer } = await run({ parse, previous: 'b', requireChoice }, [ENTER]);
+
+    expect(answer).toBe('b');
+  });
+
+  it('escribir parte de una fila la marca, y al borrar lo escrito no queda ninguna', async () => {
+    const { answer, frames } = await run({ parse, requireChoice }, ['b', '\u007F', ENTER, 'b', ENTER]);
+
+    expect(lastDraw(frames[2])).not.toContain('❯');
+    expect(lastDraw(frames[3])).toContain(`> ${requireChoice}`);
+    expect(answer).toBe('b');
+  });
+});

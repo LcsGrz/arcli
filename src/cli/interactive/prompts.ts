@@ -637,6 +637,11 @@ export interface ChooseOrTypeStepOptions<T> {
   readonly parse: (text: string) => T;
   /** Lo respondido antes: si es una fila, arranca marcada; si no, arranca escrito (`String(previous)`). */
   readonly previous?: T;
+  /**
+   * Obligatoria sin un valor por defecto razonable, como un dato fiscal: sin `previous`, arranca sin fila marcada y
+   * Enter con el filtro vacio muestra este error en lugar de elegir la primera.
+   */
+  readonly requireChoice?: string;
   /** Valida lo escrito, como `askTextStep`. Una fila elegida no pasa por aca. */
   readonly validate?: (text: string) => string | true;
 }
@@ -712,6 +717,7 @@ export async function chooseOrTypeStep<T>(
           initialTerm,
           message,
           mode: 'elegir',
+          requireChoice: options.requireChoice,
           // Mas la fila de lo escrito y la linea del error.
           pageSize: options.pageSize ?? fitPageSize(listed.length + 1, { extraLines: FILTER_LIST_EXTRA_LINES + 1 }),
           rows: listed,

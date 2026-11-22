@@ -139,7 +139,12 @@ function validateCountryCuit(context: ExportCountryCuitContext, cuit: number): s
 export async function askCountryCuit(
   context: ExportCountryCuitContext,
   message: string,
-  options: { readonly emptyLabel?: string; readonly optional?: boolean; readonly previous?: number } = {},
+  options: {
+    readonly emptyLabel?: string;
+    readonly optional?: boolean;
+    readonly previous?: number;
+    readonly requireChoice?: string;
+  } = {},
 ): Promise<Back | number | undefined> {
   const { previous } = options;
   const choices = exportClientCountryCuitChoices({ country: context.country, countries: context.countryCuits });
@@ -160,6 +165,7 @@ export async function askCountryCuit(
       emptyLabel: options.emptyLabel,
       header,
       optional: options.optional,
+      requireChoice: options.requireChoice,
       parse: (text) => Number(parseStrictInteger(text)),
       previous: previous !== undefined && validateCountryCuit(context, previous) === true ? previous : undefined,
       validate: (text) => {

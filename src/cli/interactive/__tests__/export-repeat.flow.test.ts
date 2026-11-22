@@ -663,14 +663,17 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     });
   });
 
-  // Obligatorio: sin la fila de "sin CUIT", Enter elige el primero de la lista (decision del 22/11).
+  // Un dato fiscal sin default razonable: sin la fila de "sin CUIT", Enter vacío no elige el primero de la tabla.
   it('sin CUIT de país publicado ni ID impositivo pregunta el CUIT; volver desde ahí vuelve a los ítems', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
       [/ARCA no tiene un CUIT publicado para ATLANTIDA/, BACK],
       ...KEEP_EXPORT_ITEMS,
-      [/ARCA no tiene un CUIT publicado para ATLANTIDA/, ''],
+      [
+        /ARCA no tiene un CUIT publicado para ATLANTIDA/,
+        rejecting('55000002126', ['', /^Elegí un CUIT de la lista o escribí el número\.$/]),
+      ],
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
     ]);
