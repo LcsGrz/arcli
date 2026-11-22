@@ -1,8 +1,7 @@
 import eslintJS from '@eslint/js';
 import eslintJSON from '@eslint/json';
-import tsParser from '@typescript-eslint/parser';
 import { defineConfig, globalIgnores } from 'eslint/config';
-import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
+import eslintConfigPrettier from 'eslint-config-prettier/flat';
 import simpleImportSort from 'eslint-plugin-simple-import-sort';
 import eslintTS from 'typescript-eslint';
 
@@ -124,16 +123,18 @@ export default defineConfig([
   // =========================
   // Global ignores
   // =========================
-  globalIgnores(['**/node_modules', '**/dist', '**/.next']),
+  globalIgnores(['**/node_modules', '**/dist', 'coverage', 'reports', '.stryker-tmp', '.claude/worktrees']),
 
   // =========================
   // JavaScript/TypeScript files
   // =========================
   {
     files: ['**/*.js', '**/*.jsx', '**/*.mjs', '**/*.ts', '**/*.tsx'],
-    extends: [eslintJS.configs.recommended, eslintTS.configs.recommended, eslintPluginPrettierRecommended],
+    // El formato lo controla Prettier por su lado (`yarn lint:prettier` y lint-staged): eslint-config-prettier solo
+    // apaga las reglas de ESLint que chocan con él.
+    extends: [eslintJS.configs.recommended, eslintTS.configs.recommended, eslintConfigPrettier],
     languageOptions: {
-      parser: tsParser,
+      parser: eslintTS.parser,
     },
     plugins: {
       'simple-import-sort': simpleImportSort,
@@ -158,7 +159,7 @@ export default defineConfig([
             // Side effect imports
             ['^\u0000'],
             // Vendors
-            ['^react$', '^@react-', '^react-', '^[^.]'],
+            ['^[^.]'],
             // Absolute and relative imports
             ['^.'],
             // Project: back imports
@@ -179,6 +180,7 @@ export default defineConfig([
     files: ['src/**/*.ts'],
     languageOptions: {
       parserOptions: {
+        // `project` y no `projectService`: el servicio usa el tsconfig.json más cercano, que deja afuera los tests.
         project: './tsconfig.typecheck.json',
         tsconfigRootDir: import.meta.dirname,
       },

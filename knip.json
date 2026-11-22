@@ -1,7 +1,0 @@
-{
-  "$schema": "https://unpkg.com/knip@6/schema.json",
-  "entry": ["src/index.ts", "scripts/**/*.{mjs,mts,ts}"],
-  "project": ["src/**/*.ts", "scripts/**/*.{mjs,mts,ts}"],
-  "ignoreBinaries": ["openssl", "qlmanage"],
-  "ignoreDependencies": ["puppeteer", "env-paths"]
-}

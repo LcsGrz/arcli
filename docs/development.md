@@ -39,7 +39,7 @@ yarn dev --ayuda
 | `yarn pack:check`          | Empaqueta `dist`, lo instala en una carpeta temporal y corre `arcli --version` y `--ayuda` |
 | `yarn open-source:check`   | `typecheck`, `test:coverage`, `build`, publint, `test:e2e` y `pack:check`                  |
 
-Husky corre `lint-staged` en cada commit: chequeo de tipos, ESLint y los tests relacionados con lo modificado.
+Husky corre `lint-staged` en cada commit: chequeo de tipos, ESLint, Prettier y los tests relacionados con lo modificado.
 
 ### Guardarraíles
 
