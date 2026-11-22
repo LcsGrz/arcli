@@ -265,7 +265,7 @@ export const filterList = createPrompt(<T>(config: FilterListConfig<T>, done: (v
     ['↑↓', 'navigate'],
     ...(config.mode === 'elegir' ? [['⏎', 'select'] as HelpKey] : []),
     // Donde tambien se usa lo escrito, la ayuda lo dice.
-    config.typed ? ['escribí', 'para filtrar o usar otro'] : FILTER_HELP_KEY,
+    config.typed ? ['escribí', 'para filtrar o usar lo escrito'] : FILTER_HELP_KEY,
   ];
   const lines = [
     // Una linea en blanco entre "Filtrar:" y la lista, y otra arriba (en `top`), para que el filtro no quede pegado.
