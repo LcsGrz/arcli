@@ -35,7 +35,7 @@ function capitalizeWords(value: string): string {
 function resolveIvaRateNumber(aliquotId: number): number | undefined {
   const label = resolveIvaRateLabel(aliquotId);
 
-  return label ? Number(label.replace('%', '').replace(',', '.')) : undefined;
+  return label ? Number(label.replaceAll('%', '').replaceAll(',', '.')) : undefined;
 }
 
 // La plantilla busca cada alicuota por este texto exacto ("10.5%", con punto).
