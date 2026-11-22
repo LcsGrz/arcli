@@ -10,8 +10,13 @@ import { attachPdfs } from '../../commands/billing.command.pdf';
 import { offerPdf } from '../pdf.flow';
 import { askText, chooseOne, confirm } from '../prompts';
 
+import { createScript } from './script';
+
+let script = createScript([]);
+
 vi.mock('../prompts', () => ({
   askText: vi.fn(),
+  chooseOrTypeStep: (...args: Parameters<typeof script.chooseOrTypeStep>) => script.chooseOrTypeStep(...args),
   // Sin respuesta preparada, Enter: el valor marcado, o la primera opcion (Omitir).
   chooseOne: vi.fn(async (_message, choices, defaultValue) => defaultValue ?? choices[0].value),
   confirm: vi.fn(),
@@ -335,5 +340,57 @@ describe('offerPdf: datos que faltan y errores despues de emitir', () => {
         ],
       }),
     );
+  });
+});
+
+/**
+ * Criterio 9 (TUI-35): la condición de venta es una lista donde también se escribe. Una de la lista va con su clave, un
+ * texto libre va tal cual (sin la segunda pregunta de "Otra"), "Omitir" sigue y un texto libre guardado arranca escrito.
+ */
+describe('offerPdf: la condición de venta de una lista donde también se escribe (TUI-35)', () => {
+  /** Genera el PDF con la condición de venta respondida y devuelve la que le llega. */
+  async function saleConditionAfter(answer: string, config: ArcliConfig = CONFIG): Promise<unknown> {
+    script = createScript([[/^Condición de venta/, answer]]);
+    confirmMock.mockResolvedValueOnce(true);
+    askTextMock.mockResolvedValue('');
+
+    await offerPdf(config, input, result);
+
+    expect(script.asked).toEqual(['Condición de venta:']);
+    // "Otra" ya no abre una segunda pregunta de texto.
+    expect(askTextMock.mock.calls.map(([message]) => message)).not.toContain('Condición de venta:');
+
+    return attachPdfsMock.mock.calls.at(-1)?.[0].inputs[0]?.saleCondition;
+  }
+
+  afterEach(() => {
+    askTextMock.mockReset();
+    confirmMock.mockReset();
+  });
+
+  // Tests primero (TUI-35): pasa a it() al implementarlo.
+  it.fails('elegir una de la lista devuelve su clave', async () => {
+    expect(await saleConditionAfter('Tarjeta de Débito')).toBe('tarjeta-debito');
+  });
+
+  // Tests primero (TUI-35): pasa a it() al implementarlo.
+  it.fails('un texto libre escrito va tal cual', async () => {
+    expect(await saleConditionAfter('Billetera virtual')).toBe('Billetera virtual');
+  });
+
+  // Tests primero (TUI-35): pasa a it() al implementarlo.
+  it.fails('"Omitir" sigue estando y deja el PDF sin condición de venta', async () => {
+    expect(await saleConditionAfter('Omitir', { ...CONFIG, condicionVenta: 'contado' })).toBeNull();
+  });
+
+  // Tests primero (TUI-35): pasa a it() al implementarlo.
+  it.fails('con un texto libre guardado arranca con ese texto: Enter lo deja', async () => {
+    expect(await saleConditionAfter('', { ...CONFIG, condicionVenta: 'Billetera virtual' })).toBe('Billetera virtual');
+    expect(script.chooseOrTypeStep.mock.calls[0]?.[2].previous).toBe('Billetera virtual');
+  });
+
+  // Tests primero (TUI-35): pasa a it() al implementarlo.
+  it.fails('con una de la lista guardada arranca marcada: Enter la deja', async () => {
+    expect(await saleConditionAfter('', { ...CONFIG, condicionVenta: 'cuenta-corriente' })).toBe('cuenta-corriente');
   });
 });

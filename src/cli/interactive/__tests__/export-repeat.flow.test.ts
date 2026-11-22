@@ -99,6 +99,7 @@ vi.mock('../prompts', () => ({
   chooseFromFilterList: (...args: Parameters<typeof script.chooseFromFilterList>) =>
     script.chooseFromFilterList(...args),
   chooseManyStep: (...args: Parameters<typeof script.chooseManyStep>) => script.chooseManyStep(...args),
+  chooseOrTypeStep: (...args: Parameters<typeof script.chooseOrTypeStep>) => script.chooseOrTypeStep(...args),
   chooseOne: <T>(message: string, choices: ReadonlyArray<Choice<T>>) => script.chooseStep(message, choices),
   chooseStep: (...args: Parameters<typeof script.chooseStep>) => script.chooseStep(...args),
   chooseStepWhileLoading: (...args: Parameters<typeof script.chooseStepWhileLoading>) =>
@@ -711,6 +712,50 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
       clientCountryCuit: undefined,
       clientTaxId: '12-3456789',
     });
+  });
+
+  // Criterio 8: sin CUIT publicado para el destino, cualquiera de la tabla vale (`resolveExportClientCountryCuit`).
+  // Tests primero (TUI-36): pasa a it() al implementarlo.
+  it.fails(
+    'sin CUIT para el destino, la lista trae los CUIT de la tabla y escribir parte del país lo elige, sin otra lista',
+    async () => {
+      script = createScript([
+        [/Cuál repetimos/, '00004-00000001'],
+        ...KEEP_EXPORT_ITEMS,
+        [/ARCA no tiene un CUIT publicado para ATLANTIDA/, 'unidos'],
+        [/Permisos de embarque/, ''],
+        [/Agregamos algún opcional/, []],
+      ]);
+
+      expect(
+        await repeatOf({ ...INVOICE, clientCountryCuit: undefined, clientTaxId: ' ', destinationCountry: 999 }),
+      ).toMatchObject({ clientCountryCuit: 55000002126, destinationCountry: 'ATLANTIDA' });
+
+      const [, rows, options] =
+        script.chooseOrTypeStep.mock.calls.find(([message]) => /ARCA no tiene un CUIT publicado/.test(message)) ?? [];
+
+      expect(rows?.map((row) => row.value)).toEqual([55000002126]);
+      // Sin ID impositivo, ARCA pide el CUIT: no se puede dejar vacío.
+      expect(options?.optional).toBeFalsy();
+    },
+  );
+
+  // Criterio 8: lo de hoy, el mismo error que `--cuit-pais` para un número que no está en la tabla.
+  it('sin CUIT para el destino, un número que no está en la tabla da el error de `--cuit-pais`', async () => {
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      ...KEEP_EXPORT_ITEMS,
+      [
+        /ARCA no tiene un CUIT publicado para ATLANTIDA/,
+        rejecting('55000002126', ['55000000000', /^El CUIT de país 55000000000 no existe en la tabla de ARCA\.$/]),
+      ],
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, []],
+    ]);
+
+    expect(
+      await repeatOf({ ...INVOICE, clientCountryCuit: undefined, clientTaxId: ' ', destinationCountry: 999 }),
+    ).toMatchObject({ clientCountryCuit: 55000002126 });
   });
 
   it('en servicios, volver desde la fecha de pago vuelve a la actividad (TUI-22), y la actividad escrita se valida', async () => {

@@ -6,6 +6,8 @@ import { BACK } from '../../../modules/interactive/wizard';
 import { type RowActionsListRow, stripAnsi } from '../../../ui';
 import type { Choice, EditRowsOptions, FilterListRow, TextStepOptions } from '../prompts';
 
+import { chooseOrTypeInitialTerm, type ChooseOrTypeStepOptions, enterOnChooseOrType } from './script';
+
 /**
  * Asistente al azar para los tests de propiedades del navegador (NAV-0): reemplaza a `../prompts` y responde como una
  * persona que no sabe lo que quiere. Con probabilidad `backRate` aprieta Esc; en una lista elige cualquier opcion
@@ -173,6 +175,65 @@ export function createRandomAssistant(g: fc.GeneratorValue, options: RandomAssis
   }
 
   /**
+   * Tests primero (TUI-35): la lista donde tambien se escribe. La mitad de las veces elige una fila, como una lista; si
+   * no, Enter con lo que arranca (vacio, o el `previous` escrito) o un valor de la tabla de textos, y el
+   * componente lo resuelve como Enter (`enterOnChooseOrType`): la primera fila que coincide o lo escrito validado. Si
+   * nada de lo que sabe escribir cierra la pregunta, vuelve. Queda como una pregunta de texto, con `previous` como lo
+   * que arranco escrito o marcado, asi la invariante 4 mira que al volver arranque con lo respondido.
+   */
+  async function chooseOrTypeStep<T>(
+    message: string,
+    rows: ReadonlyArray<FilterListRow<T>>,
+    typeOptions: ChooseOrTypeStepOptions<T>,
+  ): Promise<T | typeof BACK | undefined> {
+    count(message);
+
+    const previousAnswer = typeOptions.previous === undefined ? undefined : String(typeOptions.previous);
+    const record = (answer: string | typeof BACK) => events.push({ answer, kind: 'text', message, previousAnswer });
+
+    if (goesBack()) {
+      record(BACK);
+
+      return BACK;
+    }
+
+    if (rows.length > 0 && percent() < 50) {
+      const row = rows[g(unbiasedIndex, rows.length)] as FilterListRow<T>;
+
+      record(plain(row.label));
+
+      return row.value;
+    }
+
+    const answers = options.answers.find(([question]) => question.test(message));
+    const initial = chooseOrTypeInitialTerm(rows, typeOptions);
+    // A veces Enter con lo que arranco; si no, escribe y, si nada cierra, prueba con lo que arranco.
+    const candidates = [
+      ...(g(fc.boolean) ? [initial] : []),
+      ...(answers ? Array.from({ length: 4 }, () => g(() => answers[1])) : []),
+      initial,
+    ];
+
+    for (const term of candidates) {
+      const result = enterOnChooseOrType(rows, typeOptions, term);
+
+      if ('value' in result) {
+        record(term);
+
+        return result.value;
+      }
+    }
+
+    if (!answers && rows.length === 0) {
+      throw new Error(`Pregunta sin fila en la tabla del asistente al azar: "${message}"`);
+    }
+
+    record(BACK);
+
+    return BACK;
+  }
+
+  /**
    * El editor de filas (los items de la E): cada fila se marca para modificar o borrar al azar, sin borrar de mas (el
    * editor real no lo deja), y a veces agrega una. Casi siempre sin marcas, para que el camino llegue a la vista previa.
    */
@@ -247,6 +308,7 @@ export function createRandomAssistant(g: fc.GeneratorValue, options: RandomAssis
       askTextStep,
       chooseFromFilterList,
       chooseManyStep,
+      chooseOrTypeStep,
       chooseOne: <T>(message: string, choices: ReadonlyArray<Choice<T> | Separator>) => chooseStep(message, choices),
       chooseStep,
       chooseStepWhileLoading: async <T, L>(

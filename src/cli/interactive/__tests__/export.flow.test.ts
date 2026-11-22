@@ -67,6 +67,7 @@ vi.mock('../prompts', () => ({
   chooseFromFilterList: (...args: Parameters<typeof script.chooseFromFilterList>) =>
     script.chooseFromFilterList(...args),
   chooseManyStep: (...args: Parameters<typeof script.chooseManyStep>) => script.chooseManyStep(...args),
+  chooseOrTypeStep: (...args: Parameters<typeof script.chooseOrTypeStep>) => script.chooseOrTypeStep(...args),
   chooseOne: (...args: Parameters<typeof script.chooseStep>) => script.chooseStep(args[0], args[1]),
   chooseStep: (...args: Parameters<typeof script.chooseStep>) => script.chooseStep(...args),
   confirm: (message: string, yesLabel: string, noLabel = 'Cancelar') =>
@@ -1085,4 +1086,182 @@ describe('runExportFlow: la cotización después de la moneda (NAV-9)', () => {
     expect(flat()).toContain('No se pudo consultar la cotización: va la de ARCA del día hábil anterior.');
     expect(gateway.authorize).toHaveBeenCalledWith(expect.objectContaining({ Moneda_ctz: 1174.6 }));
   });
+});
+
+describe('runExportFlow: el país y el CUIT del país de una lista donde también se escribe (TUI-24, TUI-36, TUI-35)', () => {
+  beforeEach(() => {
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    vi.mocked(gateway.authorize).mockClear();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    expect(script.remaining()).toBe(0);
+  });
+
+  /**
+   * Emite una E de servicios en pesos con las respuestas del destino (el país y lo que siga hasta "¿Qué exportás?") y
+   * devuelve lo que fue a ARCA y el comando equivalente.
+   */
+  async function emitted(destination: ReadonlyArray<readonly [RegExp, ScriptedAnswer]>) {
+    vi.mocked(gateway.authorize).mockClear();
+    vi.mocked(process.stdout.write).mockClear();
+    script = createScript([
+      [/cliente del exterior/, 'ACME LLC'],
+      [/Domicilio/, '123 Main St'],
+      ...destination,
+      [/Qué exportás/, 'Servicios'],
+      [/moneda/, 'Pesos'],
+      ...singleExportItem('100'),
+      [/Forma de pago/, ''],
+      [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
+      [/Emitimos/, 'Sí, emitir ahora'],
+    ]);
+
+    await runExportFlow(createSession({ exportacion: { actividad: 620100 } }));
+
+    // La linea del comando, dentro del panel "Esto equivale a:".
+    const command = /arcli fe [^\n│]*/.exec(printed())?.[0].trim();
+    const sent = vi.mocked(gateway.authorize).mock.calls[0]?.[0];
+
+    expect(script.remaining()).toBe(0);
+
+    return { command, sent };
+  }
+
+  // Criterio 7: lo de hoy, que tiene que seguir igual con la lista.
+  it('el país por nombre, en mayúsculas o minúsculas, o por código de ARCA, manda lo mismo a ARCA y arma el mismo comando', async () => {
+    const byName = await emitted([
+      [/País de destino/, 'ESTADOS UNIDOS'],
+      [/ID impositivo/, ''],
+    ]);
+
+    expect(byName.sent).toMatchObject({ Dst_cmp: 212 });
+    expect(byName.command).toBe(
+      "arcli fe -m 100 --cliente 'ACME LLC' --domicilio-cliente '123 Main St' --pais-destino 'ESTADOS UNIDOS' --actividad 620100 --moneda PES --testing --emitir",
+    );
+
+    for (const typed of ['estados unidos', '212']) {
+      expect(
+        await emitted([
+          [/País de destino/, typed],
+          [/ID impositivo/, ''],
+        ]),
+        typed,
+      ).toEqual(byName);
+    }
+  });
+
+  // Criterio 7.
+  // Tests primero (TUI-24): pasa a it() al implementarlo.
+  it.fails(
+    'escribir "estados" deja ESTADOS UNIDOS en la lista y Enter la elige: lo mismo que escribirlo entero',
+    async () => {
+      const byName = await emitted([
+        [/País de destino/, 'ESTADOS UNIDOS'],
+        [/ID impositivo/, ''],
+      ]);
+      const partial = await emitted([
+        [/País de destino/, 'estados'],
+        [/ID impositivo/, ''],
+      ]);
+
+      expect(partial).toEqual(byName);
+    },
+  );
+
+  // Criterio 7: código y nombre, con el código como palabra clave y el encabezado de las tablas de ARCA.
+  // Tests primero (TUI-24): pasa a it() al implementarlo.
+  it.fails(
+    'la lista del país muestra el código y el nombre de la tabla de ARCA, con encabezado CÓDIGO y PAÍS',
+    async () => {
+      await emitted([
+        [/País de destino/, '212'],
+        [/ID impositivo/, ''],
+      ]);
+
+      const [, rows, options] =
+        script.chooseOrTypeStep.mock.calls.find(([message]) => /País de destino/.test(message)) ?? [];
+
+      expect(rows?.map((row) => row.label.replace(/\s+/g, ' ').trim())).toEqual(
+        expect.arrayContaining(['212 ESTADOS UNIDOS']),
+      );
+      expect(options?.header).toMatch(/CÓDIGO\s+PAÍS/);
+    },
+  );
+
+  // Criterio 8: sin CUIT publicado para el destino, cualquiera de la tabla vale (`resolveExportClientCountryCuit`).
+  // Tests primero (TUI-36): pasa a it() al implementarlo.
+  it.fails(
+    'sin CUIT para el destino, la lista trae los CUIT de la tabla y escribir parte del país lo elige, sin otra lista',
+    async () => {
+      vi.spyOn(gateway, 'getDestinationCountries').mockResolvedValue([{ code: 999, name: 'ATLANTIDA' }]);
+      vi.spyOn(gateway, 'getDestinationCountryCuits').mockResolvedValue([
+        { countryName: 'ESTADOS UNIDOS - Persona Jurídica', cuit: 55000002126 },
+        { countryName: 'OTROS PAISES - Persona Jurídica', cuit: 55000009999 },
+      ]);
+
+      const { command } = await emitted([
+        [/País de destino/, 'atlantida'],
+        [/ARCA no tiene un CUIT publicado para ATLANTIDA/, 'otros'],
+        [/ID impositivo/, ''],
+      ]);
+      const [, rows] =
+        script.chooseOrTypeStep.mock.calls.find(([message]) => /ARCA no tiene un CUIT publicado/.test(message)) ?? [];
+
+      expect(new Set(rows?.map((row) => row.value))).toEqual(new Set([55000002126, 55000009999]));
+      expect(command).toContain('--pais-destino ATLANTIDA --cuit-pais 55000009999');
+    },
+  );
+
+  // Criterio 8: lo de hoy. Un número que no está en la tabla da el error de `--cuit-pais`, y Enter vacío deja la E
+  // con el ID impositivo.
+  it('sin CUIT para el destino, un número que no está en la tabla da el error de `--cuit-pais` y vacío pide el ID impositivo', async () => {
+    vi.spyOn(gateway, 'getDestinationCountries').mockResolvedValue([{ code: 999, name: 'ATLANTIDA' }]);
+
+    const { command } = await emitted([
+      [/País de destino/, 'atlantida'],
+      [
+        /ARCA no tiene un CUIT publicado para ATLANTIDA/,
+        rejecting('', ['55000000000', /^El CUIT de país 55000000000 no existe en la tabla de ARCA\.$/]),
+      ],
+      [/ID impositivo del cliente en su país \(sin CUIT del país, ARCA lo pide\)/, 'IE1234567T'],
+    ]);
+
+    expect(command).toContain('--pais-destino ATLANTIDA --id-impositivo IE1234567T');
+    expect(command).not.toContain('--cuit-pais');
+  });
+
+  // Criterio 11: lo de hoy (obligatorio y en mayúsculas) lo fija "sin tabla de incoterms…"; esto, que sea el mismo
+  // componente con la lista vacía.
+  // Tests primero (TUI-35): pasa a it() al implementarlo.
+  it.fails(
+    'sin tabla de incoterms, el incoterm se pregunta con la lista vacía: obligatorio y en mayúsculas',
+    async () => {
+      vi.spyOn(gateway, 'getIncoterms').mockResolvedValue([]);
+      script = createScript([
+        [/cliente del exterior/, 'ACME LLC'],
+        [/Domicilio/, '123 Main St'],
+        [/País de destino/, '212'],
+        [/ID impositivo/, ''],
+        [/Qué exportás/, 'Bienes'],
+        [/moneda/, 'Pesos'],
+        ...singleExportItem('100'),
+        [/Incoterm \(ARCA no devolvió la lista\)/, rejecting('fob', ['', /obligatorio/])],
+        [/Permisos de embarque/, ''],
+        [/Forma de pago/, ''],
+        [/actividad/, ''],
+        [/Agregamos algún opcional/, []],
+        [/Emitimos/, 'No, dejar sin emitir'],
+      ]);
+
+      await runExportFlow(createSession());
+
+      const incoterm = script.chooseOrTypeStep.mock.calls.find(([message]) => /Incoterm/.test(message));
+
+      expect(incoterm?.[1]).toEqual([]);
+      expect(printed()).toContain('--incoterm FOB');
+    },
+  );
 });

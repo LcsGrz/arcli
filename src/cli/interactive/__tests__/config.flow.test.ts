@@ -10,11 +10,14 @@ import { runCertificateMenu, runGenerateCertificate } from '../certificate.flow'
 import { runConfigMenu, runGuidedSetup } from '../config.flow';
 import { askTextStep, chooseOne, chooseStep, confirm } from '../prompts';
 
-import { onlyChoices } from './script';
+import { createScript, onlyChoices } from './script';
+
+let script = createScript([]);
 
 vi.mock('../prompts', () => ({
   askTextStep: vi.fn(),
   chooseOne: vi.fn(),
+  chooseOrTypeStep: (...args: Parameters<typeof script.chooseOrTypeStep>) => script.chooseOrTypeStep(...args),
   chooseStep: vi.fn(),
   confirm: vi.fn(),
   fitPageSize: () => 12,
@@ -647,5 +650,109 @@ describe('configuración: volver, cancelar y dejar como estaba', () => {
     vi.mocked(chooseOne).mockResolvedValueOnce('acceso-directo');
 
     await expect(runConfigMenu()).rejects.toThrow('roto');
+  });
+});
+
+/**
+ * Criterio 10 (TUI-35): un dato con valores conocidos (la condición de venta) es una lista donde también se escribe. Un
+ * valor guardado que no es de la lista arranca escrito o como fila, sin la fila "Mantener: …" aparte, y "Quitar el
+ * valor por defecto" y "Dejar sin configurar" siguen.
+ */
+describe('configuración: un dato con valores conocidos, de una lista donde también se escribe (TUI-35)', () => {
+  const FIELD_LIST = '¿Qué querés modificar?';
+
+  function printed(): string {
+    return stripAnsi(
+      vi
+        .mocked(process.stdout.write)
+        .mock.calls.map(([chunk]) => String(chunk))
+        .join(''),
+    ).replace(/[│┃╏\s]+/g, ' ');
+  }
+
+  /**
+   * Abre "Condición de venta" en "Modificar configuración", responde `answer` y vuelve. Cualquier otra lista (la de hoy,
+   * con "Mantener: …") se cierra con Esc, así el test falla en lo que mira y no por quedarse sin respuestas.
+   */
+  async function changeSaleCondition(answer: string): Promise<void> {
+    let opened = false;
+
+    script = createScript([[/^Condición de venta/, answer]]);
+    vi.mocked(chooseOne).mockResolvedValueOnce('cambiar').mockResolvedValueOnce('volver');
+    chooseStepMock.mockImplementation(async (message, choices) => {
+      if (message !== FIELD_LIST || opened) {
+        return BACK;
+      }
+
+      opened = true;
+
+      return onlyChoices(choices).find((choice) => (choice.value as { key?: string }).key === 'condicionVenta')
+        ?.value as never;
+    });
+
+    await runConfigMenu();
+
+    expect(script.asked).toEqual([expect.stringMatching(/^Condición de venta/)]);
+  }
+
+  /** Las filas que mostró la lista de la condición de venta. */
+  function offeredRows(): string[] {
+    return (script.chooseOrTypeStep.mock.calls[0]?.[1] ?? []).map((row) => stripAnsi(row.label).trim());
+  }
+
+  afterEach(() => {
+    chooseStepMock.mockReset();
+    vi.mocked(chooseOne).mockReset();
+  });
+
+  // Tests primero (TUI-35): pasa a it() al implementarlo.
+  it.fails(
+    'un valor guardado que no es de la lista arranca escrito o como fila, sin "Mantener: …": Enter lo deja',
+    async () => {
+      store.condicionVenta = 'Billetera virtual';
+
+      await changeSaleCondition('');
+
+      expect(offeredRows().filter((row) => /Mantener/.test(row))).toEqual([]);
+      expect(offeredRows()).toContain('Quitar el valor por defecto');
+      expect(store.condicionVenta).toBe('Billetera virtual');
+      expect(printed()).toContain('Sin cambios.');
+    },
+  );
+
+  // Tests primero (TUI-35): pasa a it() al implementarlo.
+  it.fails('un texto escrito que no es de la lista se guarda tal cual', async () => {
+    store.condicionVenta = 'contado';
+
+    await changeSaleCondition('Mercado Pago');
+
+    expect(store.condicionVenta).toBe('Mercado Pago');
+    expect(printed()).toContain('Guardado.');
+  });
+
+  // Tests primero (TUI-35): pasa a it() al implementarlo.
+  it.fails('elegir una de la lista guarda su clave', async () => {
+    await changeSaleCondition('Cuenta Corriente');
+
+    expect(store.condicionVenta).toBe('cuenta-corriente');
+  });
+
+  // Tests primero (TUI-35): pasa a it() al implementarlo.
+  it.fails('"Quitar el valor por defecto" lo borra', async () => {
+    store.condicionVenta = 'Billetera virtual';
+
+    await changeSaleCondition('Quitar el valor por defecto');
+
+    expect(store.condicionVenta).toBeUndefined();
+    expect(printed()).toContain('Dato borrado.');
+  });
+
+  // Tests primero (TUI-35): pasa a it() al implementarlo.
+  it.fails('sin valor guardado, "Dejar sin configurar" no guarda nada', async () => {
+    await changeSaleCondition('Dejar sin configurar');
+
+    expect(offeredRows()).not.toContain('Quitar el valor por defecto');
+    expect(store.condicionVenta).toBeUndefined();
+    expect(printed()).toContain('Sin cambios.');
   });
 });
