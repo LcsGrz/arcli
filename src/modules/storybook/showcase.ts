@@ -28,7 +28,7 @@ import {
   uiSymbol,
   type UiTextColor,
 } from '../../ui/primitives';
-import { type UiBorderType } from '../../ui/theme';
+import type { UiBorderType } from '../../ui/theme';
 import { formatBillingResultAsJson, formatBillingResultAsText } from '../billing/billing.presenter';
 import type { VoucherKindDefinition } from '../billing/billing.types';
 import type { BillingExecutionResult } from '../billing/billing.types.internal';

@@ -23,6 +23,24 @@ La factura de exportación `E` y sus notas recorren el mismo camino con otro mó
 
 El comportamiento visible de cada paso está en el [modelo mental](mental-model.md).
 
+## Núcleo y adaptadores
+
+El núcleo (`modules` y `lib`) tiene casos de uso puros que no saben quién los llama: el CLI con flags, el asistente y, en la 3.0, `arcli mcp` y `arcli servir`. Devuelven datos, no texto de pantalla; cada adaptador decide cómo mostrarlos. El motivo es la paridad entre superficies, lo que más veces faltó: REV-50 a REV-53 existen porque cada superficie tenía su propio camino.
+
+- **Puertos solo donde hay dos implementaciones reales**, contando el fake de los tests: ARCA (los gateways), `Clock` y `TicketStore`. `IdempotencyStore` recién con `arcli servir`. El PDF, la config y el logger quedan como están hasta que aparezca una segunda implementación.
+- **Errores con `AppError`** y excepciones, como hasta ahora. No hay un `Result` propio.
+- **Sin capa de entidades de dominio ni mappers por capa.** La única traducción a los tipos del SDK vive en `services/arca` (ARQ-4).
+- **Consultas separadas de emisiones:** una operación que lee no emite, y la que emite no se reintenta a ciegas.
+- **Sin Effect-TS** ni otro runtime de efectos.
+
+Las fronteras las hace cumplir ESLint (ver [Reglas de dependencia](#capas)). Lo que hoy no se cumple está en `warn` con el ticket que lo cierra: es deuda, no un patrón para copiar.
+
+Descartado:
+
+- Un `Result` propio en vez de excepciones: mucho cambio en todo el código sin un problema que resuelva hoy.
+- Puertos para todo (PDF, config, logger, sistema de archivos): interfaces con una sola implementación que no aportan y hay que mantener.
+- La arquitectura hexagonal de libro (entidades, mappers y DTO por capa, una carpeta por anillo): más ceremonia que la que pide un CLI de este tamaño; se toma solo la idea de que el núcleo no conoce a sus adaptadores.
+
 ## Capas
 
 | Carpeta                     | Responsabilidad                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
@@ -47,7 +65,8 @@ Reglas de dependencia:
 - Solo `services/` conoce `@arcasdk/core`. El resto importa los tipos del SDK de `src/services/arca/arca-sdk.types.ts`, el único archivo que puede usar una ruta interna (`@arcasdk/core/lib/...`): la raíz del SDK no exporta los tipos del comprobante de wsfe, y si una versión los mueve se arregla ahí.
 - `src/ui` no importa `modules`, `services` ni `cli`. Lo que depende del dominio, como las etiquetas de los campos en un error de zod, lo describe el módulo y `cli` lo une (`formatCliError` en `cli/error-output.ts`).
 - `lib`, `modules` y `services` importan la UI desde sus barrels (`ui/primitives`, `ui/components`, `ui/presenters`, `ui/stream`, `ui/theme`), nunca desde `src/ui`: ese barrel reexporta todo y arma ciclos. `cli` puede usar `src/ui`. Dentro de `src/ui`, imports directos entre archivos.
-- ESLint (`no-restricted-imports`) hace cumplir las tres reglas anteriores.
+- El núcleo (`modules` y `lib`, sin tests) no importa `cli`, `@inquirer/*`, `commander` ni `ora` (error), ni `services`, `ui/*`, `conf`, `node:fs` ni `node:process` (warn hasta ARQ-4, ARQ-7, ARQ-12 y REV-48), y no lee `process` ni el reloj (`new Date()` sin argumentos, `Date.now()`; warn hasta REV-48 y el puerto `Clock`). `services` no importa `cli` (warn hasta REV-48). Los módulos que son de la app (`completion`, `desktop-shortcut`, `examples`, `storybook`, `update-check`) tienen la misma deuda con el mensaje de ARQ-7, que los muda.
+- ESLint hace cumplir todas las reglas anteriores (`no-restricted-imports` lo que ya es error; `@typescript-eslint/no-restricted-imports`, `no-restricted-globals` y `no-restricted-syntax` la deuda en warn), y dependency-cruiser, que no haya ciclos. El lint con tipos de `src/` suma `no-floating-promises` y `no-explicit-any` en error, `switch-exhaustiveness-check` (también con `default`) y `max-lines` (400 líneas de código y 800 de tests, sin blancos ni comentarios) en warn.
 
 ## El plugin de PDF
 

@@ -2,7 +2,7 @@ import { CHANGELOG_PAGE_URL } from '../../lib/links';
 import { noticePanel } from '../../ui/components';
 import { bold, colorize, renderPanel, uiSymbol, type UiTextColor } from '../../ui/primitives';
 
-import { type ChangelogChange, type ChangelogChangeKind, type ChangelogEntry } from './changelog';
+import type { ChangelogChange, ChangelogChangeKind, ChangelogEntry } from './changelog';
 import { resolveUpdateCommand } from './package-manager';
 import type { UpdateCheckResult } from './update-check.service';
 

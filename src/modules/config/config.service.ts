@@ -7,10 +7,10 @@ import { parseCbu } from '../../lib/identity/cbu';
 import { describeZodIssues } from '../billing/billing.zod-errors';
 
 import {
-  ArcliConfig,
+  type ArcliConfig,
   arcliConfigSchema,
   CONFIG_DEFAULTS,
-  ConfigPublicKey,
+  type ConfigPublicKey,
   configPublicKeySchema,
   ROWS_PER_LIST_DEPRECATION_WARNING,
 } from './config.schemas';
