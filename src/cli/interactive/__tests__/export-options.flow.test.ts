@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { formatDateAsArcaDate } from '../../../lib/dates/arca-date';
+import { resolveExportClientCountryCuit } from '../../../modules/export/export.mappers';
 import { EXPORT_CREDIT_NOTE_KIND } from '../../../modules/export/export.types';
 import {
   type ExportOptionalsContext,
@@ -8,7 +9,6 @@ import {
   isCountryCuitMissing,
 } from '../../../modules/interactive/export-optionals';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
-import { stripAnsi } from '../../../ui';
 import { askCountryCuit, exportOptionalsStep } from '../export-options';
 
 import { createScript, rejecting } from './script';
@@ -18,6 +18,7 @@ let script = createScript([]);
 vi.mock('../prompts', () => ({
   askTextStep: (...args: Parameters<typeof script.askTextStep>) => script.askTextStep(...args),
   chooseManyStep: (...args: Parameters<typeof script.chooseManyStep>) => script.chooseManyStep(...args),
+  chooseOrTypeStep: (...args: Parameters<typeof script.chooseOrTypeStep>) => script.chooseOrTypeStep(...args),
   chooseStep: (...args: Parameters<typeof script.chooseStep>) => script.chooseStep(...args),
 }));
 
@@ -66,15 +67,6 @@ function context(overrides: Partial<Context> = {}): Context {
       draft: (patch) => ({ exportType: overrides.exportType ?? 2, ...patch }),
     },
   };
-}
-
-function printed(): string {
-  return stripAnsi(
-    vi
-      .mocked(process.stdout.write)
-      .mock.calls.map(([chunk]) => String(chunk))
-      .join(''),
-  );
 }
 
 /** Las descripciones de la seleccion de opcionales la vez `call` que se pregunto. */
@@ -314,10 +306,9 @@ describe('exportOptionalsStep', () => {
           /CUIT del país del cliente.*ESTADOS UNIDOS/,
           rejecting(
             '55000002118',
-            ['', /Escribí el CUIT/],
             ['55000000042', /corresponde a "BRASIL"/],
             ['123', /no existe en la tabla/],
-            ['japon', /no tiene "japon"/],
+            ['japon', /Nada de la lista coincide con "japon"/],
           ),
         ],
       ]);
@@ -325,42 +316,34 @@ describe('exportOptionalsStep', () => {
       expect(await askExportOptions({}, context({ countryCuit }))).toEqual({ clientCountryCuit: 55000002118 });
     });
 
-    it('se busca por nombre (sin tildes ni mayúsculas) y se elige de la lista', async () => {
+    it('se busca por nombre (sin tildes ni mayúsculas) en la misma lista, que trae el CUIT y el país', async () => {
       script = createScript([
         [OPTIONALS, ['CUIT del país']],
-        [/CUIT del país del cliente/, 'estados unidos'],
-        [/CUIT del país:/, 'Física'],
+        [/CUIT del país del cliente/, 'fisica'],
       ]);
 
       expect(await askExportOptions({}, context({ countryCuit }))).toEqual({ clientCountryCuit: 55000002118 });
-      expect(script.chooseStep.mock.calls[0]?.[1]).toEqual([
-        {
-          description: '55000002126',
+      expect(script.chooseOrTypeStep.mock.calls[0]?.[1]).toEqual([
+        expect.objectContaining({
           keywords: '55000002126',
-          name: 'ESTADOS UNIDOS - Persona Jurídica',
+          label: expect.stringMatching(/^55000002126\s+ESTADOS UNIDOS - Persona Jurídica$/),
           value: 55000002126,
-        },
-        {
-          description: '55000002118',
+        }),
+        expect.objectContaining({
           keywords: '55000002118',
-          name: 'ESTADOS UNIDOS - Persona Física',
+          label: expect.stringMatching(/^55000002118\s+ESTADOS UNIDOS - Persona Física$/),
           value: 55000002118,
-        },
+        }),
       ]);
     });
 
-    it('elegir de la lista uno de otro país avisa y vuelve a preguntar; volver desde la lista tambien', async () => {
+    it('la lista no trae los de otro país: buscar uno no encuentra filas, y lo escrito no vale', async () => {
       script = createScript([
         [OPTIONALS, ['CUIT del país']],
-        [/CUIT del país del cliente/, 'bras'],
-        [/CUIT del país:/, 'BRASIL'],
-        [/CUIT del país del cliente/, 'unidos'],
-        [/CUIT del país:/, BACK],
-        [/CUIT del país del cliente/, '55000002126'],
+        [/CUIT del país del cliente/, rejecting('55000002126', ['bras', /Nada de la lista coincide con "bras"/])],
       ]);
 
       expect(await askExportOptions({}, context({ countryCuit }))).toEqual({ clientCountryCuit: 55000002126 });
-      expect(printed()).toContain('corresponde a "BRASIL"');
     });
 
     it('volver desde el texto vuelve a la seleccion', async () => {
@@ -373,8 +356,8 @@ describe('exportOptionalsStep', () => {
       expect(await askExportOptions({}, context({ countryCuit }))).toEqual({});
     });
 
-    // REV-74, #10: volver al CUIT desde la pregunta siguiente lo muestra escrito.
-    it('volver desde las observaciones vuelve al CUIT, escrito', async () => {
+    // REV-74, #10: volver al CUIT desde la pregunta siguiente lo muestra marcado.
+    it('volver desde las observaciones vuelve al CUIT, marcado', async () => {
       script = createScript([
         [OPTIONALS, ['CUIT del país', 'Observaciones']],
         [/CUIT del país del cliente/, '55000002118'],
@@ -385,7 +368,7 @@ describe('exportOptionalsStep', () => {
       ]);
 
       expect(await askExportOptions({}, context({ countryCuit }))).toMatchObject({ clientCountryCuit: 55000002118 });
-      expect(script.askTextStep.mock.calls[2]?.[1]).toMatchObject({ previousAnswer: '55000002118' });
+      expect(script.chooseOrTypeStep.mock.calls[1]?.[2]).toMatchObject({ previous: 55000002118 });
     });
   });
 });
@@ -399,5 +382,71 @@ describe('askCountryCuit opcional', () => {
     expect(await askCountryCuit(countryCuit, 'CUIT:', { optional: true })).toBeUndefined();
     expect(isCountryCuitMissing(countryCuit)).toBe(true);
     expect(isCountryCuitMissing({ ...countryCuit, country: US })).toBe(false);
+  });
+
+  // Criterio 8: sin CUIT publicado para el destino, cualquiera de la tabla vale (`resolveExportClientCountryCuit`).
+  it('sin CUIT para el destino, la lista trae todos los CUIT de la tabla y Enter vacío lo deja sin CUIT', async () => {
+    script = createScript([[/CUIT/, '']]);
+
+    expect(await askCountryCuit(countryCuit, 'CUIT:', { optional: true })).toBeUndefined();
+
+    const [, rows, options] = script.chooseOrTypeStep.mock.calls[0] ?? [];
+
+    expect(new Set(rows?.map((row) => row.value))).toEqual(new Set([55000002126, 55000002118, 55000000042]));
+    expect(options?.optional).toBe(true);
+  });
+});
+
+describe('askCountryCuit: de una lista donde también se escribe (TUI-36)', () => {
+  const countryCuit = { country: US, countryCuits: COUNTRY_CUITS };
+
+  /** El error de `--cuit-pais` para ese número y ese destino. */
+  function cuitPaisError(cuit: number): RegExp {
+    try {
+      resolveExportClientCountryCuit({ country: US, countries: COUNTRY_CUITS, cuit });
+    } catch (error) {
+      return new RegExp(`^${String((error as Error).message).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`);
+    }
+
+    throw new Error(`${cuit} es valido para ${US.name}`);
+  }
+
+  afterEach(() => {
+    expect(script.remaining()).toBe(0);
+  });
+
+  // Criterio 8: lo de hoy. Escribir el número sigue valiendo, y uno que no es del destino da el mismo error que el flag.
+  it('un número de otro país o que no está en la tabla da el mismo error que `--cuit-pais`', async () => {
+    script = createScript([
+      [
+        /CUIT/,
+        rejecting(
+          '55000002118',
+          ['55000000042', cuitPaisError(55000000042)],
+          ['55000000000', cuitPaisError(55000000000)],
+        ),
+      ],
+    ]);
+
+    expect(await askCountryCuit(countryCuit, 'CUIT:')).toBe(55000002118);
+  });
+
+  // Criterio 8: con CUIT publicado para el destino, `--cuit-pais` solo acepta los del destino: la lista trae esos.
+  it('la lista trae solo los CUIT del destino, y escribir parte del nombre lo elige sin otra lista', async () => {
+    script = createScript([[/CUIT/, 'física']]);
+
+    expect(await askCountryCuit(countryCuit, 'CUIT:')).toBe(55000002118);
+
+    const [, rows] = script.chooseOrTypeStep.mock.calls[0] ?? [];
+
+    expect(rows?.map((row) => row.value)).toEqual([55000002126, 55000002118]);
+  });
+
+  // Criterio 8: el CUIT tambien es palabra clave de su fila.
+  it('escribir parte del número encuentra su fila', async () => {
+    script = createScript([[/CUIT/, '2118']]);
+
+    expect(await askCountryCuit(countryCuit, 'CUIT:')).toBe(55000002118);
+    expect(script.chooseOrTypeStep).toHaveBeenCalledTimes(1);
   });
 });

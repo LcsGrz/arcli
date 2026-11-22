@@ -173,8 +173,12 @@ export function exportRepeatSteps(
         // Al volver arranca escrito, si es del destino (REV-74, #10).
         const cuit = await askCountryCuit(
           { country, countryCuits: tables.countryCuits },
-          `ARCA no tiene un CUIT publicado para ${country.name}. Escribí el CUIT del país o buscalo por nombre:`,
-          { previous: previous?.options?.clientCountryCuit },
+          `ARCA no tiene un CUIT publicado para ${country.name}. Elegí el CUIT del país o escribilo:`,
+          {
+            previous: previous?.options?.clientCountryCuit,
+            // Un dato fiscal sin default razonable: Enter vacio no elige el primero de la tabla.
+            requireChoice: 'Elegí un CUIT de la lista o escribí el número.',
+          },
         );
 
         return cuit === BACK ? BACK : { options: { ...state.options, clientCountryCuit: cuit } };

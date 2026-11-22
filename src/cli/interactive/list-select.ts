@@ -1,8 +1,6 @@
 import {
   createPrompt,
-  isDownKey,
   isEnterKey,
-  isUpKey,
   makeTheme,
   Separator,
   useEffect,
@@ -12,7 +10,7 @@ import {
   useState,
 } from '@inquirer/core';
 
-import { colorize, scrollHint, scrollWindow, uiSymbol } from '../../ui';
+import { colorize, pointerRow, scrollHint, scrollWindow } from '../../ui';
 
 import {
   FILTER_HELP_KEY,
@@ -20,8 +18,10 @@ import {
   filterPromptLine,
   matchesSearch,
   noMatchesLine,
+  sameSearch,
   searchWords,
 } from './filter-list';
+import { isCursorKey, useListCursor } from './list-cursor';
 
 /** Oculta el cursor de la terminal mientras se muestra la lista; @inquirer lo vuelve a mostrar al cerrarla. */
 const CURSOR_HIDE = '\u001B[?25l';
@@ -100,11 +100,6 @@ function choiceMatches<T>(item: ListSelectChoice<T> | Separator, term: string): 
   return isOption(item) && matchesSearch(`${item.name} ${item.keywords ?? ''}`, term);
 }
 
-/** Si dos textos buscan lo mismo: un espacio o un Tab de mas no cambian la busqueda. */
-function sameSearch(left: string, right: string): boolean {
-  return searchWords(left).join(' ') === searchWords(right).join(' ');
-}
-
 /**
  * Las filas de la parte que se desplaza. Sin filtro, `pageSize`. Con filtro, en una lista que entra entera, igual
  * (lo filtrado entra). En una que se desplaza, el lugar es `pageSize` mas los dos avisos: lo filtrado va sin
@@ -151,7 +146,7 @@ export const listSelect = createPrompt(
       () => shown.filter((index) => isOption(items[index] as ListSelectChoice<T> | Separator)),
       [items, shown],
     );
-    const [active, setActive] = useState(() => {
+    const { active, move, setActive } = useListCursor(() => {
       if (config.back && config.default === config.back.value) {
         return BACK_ROW;
       }
@@ -195,17 +190,15 @@ export const listSelect = createPrompt(
           // Enter sin nada que elegir: readline ya vacio la linea, y lo escrito tiene que seguir para editarlo.
           rl.write(term);
         }
-      } else if (isUpKey(key) || isDownKey(key)) {
+      } else if (isCursorKey(key)) {
         // Las flechas no escriben: readline las tomaria como historial y borraria lo escrito.
         rl.clearLine(0);
         rl.write(term);
 
         // Las filas que se recorren con las flechas, con "Volver" al final.
-        const order = config.back ? [...navigable, BACK_ROW] : navigable;
-        const next = order[order.indexOf(active) + (isUpKey(key) ? -1 : 1)];
+        const next = move(key, config.back ? [...navigable, BACK_ROW] : navigable);
 
         if (next !== undefined) {
-          setActive(next);
           report(term, next);
         }
       } else if (!filterable) {
@@ -245,11 +238,6 @@ export const listSelect = createPrompt(
     const page = scrollWindow(shown.length, anchor, pageSize);
     const countOptions = (from: number, to: number) =>
       shown.slice(from, to).filter((index) => isOption(items[index] as ListSelectChoice<T> | Separator)).length;
-    const renderRow = (label: string, isActive: boolean) => {
-      const line = `${isActive ? uiSymbol('pointer') : ' '} ${label}`;
-
-      return isActive ? theme.style.highlight(line) : line;
-    };
     const rows = shown.slice(page.start, page.end).map((index) => {
       const item = items[index] as ListSelectChoice<T> | Separator;
 
@@ -262,10 +250,10 @@ export const listSelect = createPrompt(
       if (item.disabled) {
         const label = typeof item.disabled === 'string' ? `${item.name} ${item.disabled}` : item.name;
 
-        return colorize(`${isActive ? uiSymbol('pointer') : ' '} ${label}`, 'muted');
+        return colorize(pointerRow(label, isActive), 'muted');
       }
 
-      return renderRow(item.name, isActive);
+      return pointerRow(item.name, isActive, theme.style.highlight);
     });
     const help = theme.style.keysHelpTip([
       ['↑↓', 'navigate'],
@@ -282,7 +270,7 @@ export const listSelect = createPrompt(
       ...rows,
       ...(page.scrolls ? [scrollHint('below', countOptions(page.end, shown.length))] : []),
       filterCountLine(term.trim(), navigable.length, items.filter(isOption).length),
-      ...(config.back ? [' ', renderRow(config.back.label, active === BACK_ROW)] : []),
+      ...(config.back ? [' ', pointerRow(config.back.label, active === BACK_ROW, theme.style.highlight)] : []),
       ' ',
       activeItem?.description ? theme.style.description(activeItem.description) : '',
       help,

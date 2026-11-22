@@ -66,6 +66,8 @@ vi.mock('../prompts', () => ({
     screens.prompts.chooseFromFilterList(...args),
   chooseManyStep: (...args: Parameters<typeof screens.prompts.chooseManyStep>) =>
     screens.prompts.chooseManyStep(...args),
+  chooseOrTypeStep: (...args: Parameters<typeof screens.prompts.chooseOrTypeStep>) =>
+    screens.prompts.chooseOrTypeStep(...args),
   chooseOne: (...args: Parameters<typeof screens.prompts.chooseOne>) => screens.prompts.chooseOne(...args),
   chooseStep: (...args: Parameters<typeof screens.prompts.chooseStep>) => screens.prompts.chooseStep(...args),
   chooseStepWhileLoading: (...args: Parameters<typeof screens.prompts.chooseStepWhileLoading>) =>

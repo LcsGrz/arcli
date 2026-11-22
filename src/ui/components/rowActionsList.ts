@@ -1,6 +1,7 @@
 import { uiSymbol } from '../primitives/symbols';
 import { colorize, padEndVisible, truncateVisible, visibleWidth, wrapPlainText } from '../primitives/text';
 
+import { pointerRow } from './pointerRow';
 import { scrollHint, scrollWindow } from './scrollWindow';
 
 /** Una fila de la lista: lo que la nombra, el detalle y el total, como se muestran. */
@@ -42,10 +43,6 @@ function markIcon(mark: RowActionsListRow['mark']): string {
   }
 
   return mark === 'remove' ? colorize(uiSymbol('removeMark'), 'danger') : uiSymbol('unselected');
-}
-
-function cursor(isActive: boolean): string {
-  return isActive ? uiSymbol('pointer') : ' ';
 }
 
 /**
@@ -93,15 +90,11 @@ function summary(view: RowActionsListView): string {
 export function renderRowActionsList(view: RowActionsListView): string[] {
   const { rows } = view;
   // El cursor y la marca: "❯ ◯ " (o "> [ ] " con ARCLI_ASCII=1).
-  const prefixWidth = visibleWidth(`${cursor(true)} ${uiSymbol('unselected')} `);
+  const prefixWidth = visibleWidth(`${uiSymbol('pointer')} ${uiSymbol('unselected')} `);
   const available = Math.max(1, view.width - prefixWidth);
   const { title, withDetail } = layout(rows, available);
   const addIndex = rows.length;
-  const line = (text: string, isActive: boolean) => {
-    const drawn = `${cursor(isActive)} ${text}`;
-
-    return isActive ? view.highlight(drawn) : drawn;
-  };
+  const line = (text: string, isActive: boolean) => pointerRow(text, isActive, view.highlight);
   const window = scrollWindow(rows.length, Math.min(view.active, rows.length - 1), view.pageSize);
   const activeRow = rows[view.active];
   const status = summary(view);

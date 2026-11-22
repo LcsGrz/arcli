@@ -209,6 +209,8 @@ vi.mock('../prompts', () => ({
     current().chooseFromFilterList(...args),
   chooseManyStep: (...args: Parameters<ReturnType<typeof current>['chooseManyStep']>) =>
     current().chooseManyStep(...args),
+  chooseOrTypeStep: (...args: Parameters<ReturnType<typeof current>['chooseOrTypeStep']>) =>
+    current().chooseOrTypeStep(...args),
   chooseOne: (...args: Parameters<ReturnType<typeof current>['chooseOne']>) => current().chooseOne(...args),
   chooseStep: (...args: Parameters<ReturnType<typeof current>['chooseStep']>) => current().chooseStep(...args),
   chooseStepWhileLoading: (...args: Parameters<ReturnType<typeof current>['chooseStepWhileLoading']>) =>

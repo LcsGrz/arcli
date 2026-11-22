@@ -2,7 +2,7 @@ import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { DEPRECATED_POINT_OF_SALE_OBJECT } from '../../lib/json/deprecations';
 import { POINT_OF_SALE_GUIDE_URL } from '../../lib/links';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
-import { listingPanel, noticePanel, sheetPanel } from '../../ui/components';
+import { formatTableRows, listingPanel, noticePanel, sheetPanel } from '../../ui/components';
 import { bold, renderKeyValueRows, resolveKeyValueLabelWidth, uiSymbol } from '../../ui/primitives';
 import { formatEnvironmentLabel } from '../config/config.schemas';
 
@@ -104,17 +104,16 @@ export function formatParameterRows(
 ): { readonly header: string; readonly rows: string[] } {
   const [idTitle, descriptionTitle, detailTitle] = PARAMETER_TABLE_COLUMNS[table];
   const hasDetail = detailTitle !== undefined && entries.some((entry) => entry.detail);
-  const idWidth = Math.max(idTitle.length, ...entries.map((entry) => entry.id.length));
-  const descriptionWidth = Math.max(descriptionTitle.length, ...entries.map((entry) => entry.description.length));
-  const line = (id: string, description: string, detail: string) =>
-    (hasDetail ? [id.padEnd(idWidth), description.padEnd(descriptionWidth), detail] : [id.padEnd(idWidth), description])
-      .join('  ')
-      .trimEnd();
 
-  return {
-    header: line(idTitle, descriptionTitle, detailTitle ?? ''),
-    rows: entries.map((entry) => line(entry.id, entry.description, entry.detail ?? '')),
-  };
+  return hasDetail
+    ? formatTableRows(
+        [idTitle, descriptionTitle, detailTitle],
+        entries.map((entry) => [entry.id, entry.description, entry.detail ?? '']),
+      )
+    : formatTableRows(
+        [idTitle, descriptionTitle],
+        entries.map((entry) => [entry.id, entry.description]),
+      );
 }
 
 export function formatParameterEntriesAsJson(

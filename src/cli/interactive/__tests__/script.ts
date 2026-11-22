@@ -2,9 +2,20 @@ import { Separator } from '@inquirer/select';
 import { vi } from 'vitest';
 
 import type { RowEdits } from '../../../modules/interactive/row-marks';
-import { BACK } from '../../../modules/interactive/wizard';
+import { BACK, type Back } from '../../../modules/interactive/wizard';
 import type { RowActionsListRow } from '../../../ui';
-import type { Choice, EditRowsOptions, FilterListRow, ListStepOptions, TextStepOptions } from '../prompts';
+import { filterRows, sameSearch } from '../filter-list';
+import type {
+  Choice,
+  ChooseOrTypeStepOptions,
+  EditRowsOptions,
+  FilterListRow,
+  ListStepOptions,
+  TextStepOptions,
+} from '../prompts';
+import { SKIP_ROW } from '../text-hints';
+
+export type { ChooseOrTypeStepOptions } from '../prompts';
 
 /** Las opciones de una lista, sin los separadores. */
 export function onlyChoices<T>(choices: ReadonlyArray<Choice<T> | Separator>): Array<Choice<T>> {
@@ -67,6 +78,70 @@ function rowPositions(message: string, rows: ReadonlyArray<{ readonly title: str
 
     return index;
   });
+}
+
+/** Lo que arranca escrito en el filtro: un `previous` que no es una fila. */
+export function chooseOrTypeInitialTerm<T>(
+  rows: ReadonlyArray<FilterListRow<T>>,
+  options: ChooseOrTypeStepOptions<T>,
+): string {
+  const { previous } = options;
+
+  return previous !== undefined && !rows.some((row) => row.value === previous) ? String(previous) : '';
+}
+
+/** Si lo escrito es exactamente la fila (su texto, lo que deja o sus palabras clave), como `filterList`. */
+function isExactChoice<T>(row: FilterListRow<T>, term: string): boolean {
+  return [row.label, row.short, row.keywords].some((text) => text !== undefined && sameSearch(text, term));
+}
+
+/**
+ * Enter en `chooseOrTypeStep` con `term` en el filtro, como el componente: la primera fila que coincide (con la misma
+ * busqueda que `filterList`, y en una opcional primero la de `emptyLabel`, que es "sin valor") o, si ninguna, lo
+ * escrito validado y convertido ("Usar lo escrito"). Vacio, la marcada: la de `previous` o, si no, la primera (en una
+ * opcional, la de "sin valor"). Sin filas es una pregunta de texto: vacio es "sin valor" si es opcional o lo que diga
+ * `validate('')`.
+ */
+export function enterOnChooseOrType<T>(
+  rows: ReadonlyArray<FilterListRow<T>>,
+  options: ChooseOrTypeStepOptions<T>,
+  term: string,
+): { readonly error: string } | { readonly value: T | undefined } {
+  const listed = rows.length > 0;
+
+  if (!term.trim()) {
+    if (options.previous !== undefined && rows.some((row) => row.value === options.previous)) {
+      return { value: options.previous };
+    }
+
+    if (options.optional) {
+      return { value: undefined };
+    }
+
+    if (listed && options.requireChoice) {
+      return { error: options.requireChoice };
+    }
+
+    if (listed) {
+      return { value: (rows[0] as FilterListRow<T>).value };
+    }
+  } else if (listed && options.optional && sameSearch(options.emptyLabel ?? SKIP_ROW, term)) {
+    // La fila de "sin valor" no se busca (solo se ve con el filtro vacio): el guion la nombra entera para elegirla con
+    // las flechas.
+    return { value: undefined };
+  }
+
+  const matches = term.trim() ? filterRows(rows, term) : [];
+  // Como el componente: la fila que es exactamente lo escrito gana a la primera que coincide.
+  const row = matches.find((item) => isExactChoice(item, term)) ?? matches[0];
+
+  if (row) {
+    return { value: row.value };
+  }
+
+  const valid = options.validate?.(term) ?? true;
+
+  return valid === true ? { value: options.parse(term.trim()) } : { error: valid };
 }
 
 interface ScriptStep {
@@ -234,6 +309,45 @@ export function createScript(steps: ReadonlyArray<readonly [RegExp, ScriptedAnsw
     },
   );
 
+  /**
+   * Tests primero (TUI-35): como si se escribiera en el filtro y se apretara Enter (`enterOnChooseOrType`). Vacio es
+   * Enter sin tocar nada: con un `previous` que no es una fila, lo que arranca escrito. Los intentos rechazados
+   * (`rejecting`) se escriben y tienen que dar el error, sin coincidir con una fila.
+   */
+  const chooseOrTypeStep = vi.fn(
+    async <T>(
+      message: string,
+      rows: ReadonlyArray<FilterListRow<T>>,
+      options: ChooseOrTypeStepOptions<T>,
+    ): Promise<Back | T | undefined> => {
+      const scripted = nextSingle(message);
+
+      if (scripted === BACK) {
+        return BACK;
+      }
+
+      for (const [value, error] of typeof scripted === 'string' ? [] : scripted.rejected) {
+        const result = enterOnChooseOrType(rows, options, value);
+
+        if (!('error' in result) || !error.test(result.error)) {
+          throw new Error(
+            `"${value}" tenia que dar un error como ${error} en "${message}" y dio ${'error' in result ? `"${result.error}"` : 'valido'}`,
+          );
+        }
+      }
+
+      const answer = typeof scripted === 'string' ? scripted : scripted.answer;
+      const term = answer === '' ? chooseOrTypeInitialTerm(rows, options) : answer;
+      const result = enterOnChooseOrType(rows, options, term);
+
+      if ('error' in result) {
+        throw new Error(`"${term}" no cierra "${message}": ${result.error}`);
+      }
+
+      return result.value;
+    },
+  );
+
   // Como el editor real: no deja marcar para borrar mas alla del minimo de filas.
   const editRowsStep = vi.fn(
     async (
@@ -280,6 +394,7 @@ export function createScript(steps: ReadonlyArray<readonly [RegExp, ScriptedAnsw
     askTextStep,
     chooseFromFilterList,
     chooseManyStep,
+    chooseOrTypeStep,
     chooseStep,
     chooseStepWhileLoading,
     editRowsStep,

@@ -1,14 +1,17 @@
 import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import {
+  exportClientCountryCuitChoices,
+  exportDestinationCountryChoices,
   type ExportTextField,
   exportTextFieldError,
   resolveExportClientCountryCuit,
+  resolveExportDestinationCountry,
 } from '../../modules/export/export.mappers';
 import { EXPORT_RULES, type ExportRuleContext } from '../../modules/export/export.rules';
 import {
   DEFAULT_EXPORT_LANGUAGE,
-  type ExportCountryCuit,
+  type ExportCountry,
   type ExportVoucherInput,
 } from '../../modules/export/export.types';
 import { completeDateInput } from '../../modules/interactive/date-input';
@@ -21,11 +24,11 @@ import {
 } from '../../modules/interactive/export-optionals';
 import { ruleValidator, scopedRuleValidator } from '../../modules/interactive/rule-validator';
 import { BACK, type Back, requireStepValue, type WizardStep } from '../../modules/interactive/wizard';
-import { noticePanel, writeTerminalOutput } from '../../ui';
+import { formatTableRows } from '../../ui';
 import { withSpinner } from '../spinner';
 
 import { optionalsStep } from './optionals-step';
-import { askTextStep, chooseStep } from './prompts';
+import { askTextStep, chooseOrTypeStep, chooseStep } from './prompts';
 import { dateStep } from './steps/date';
 import { validateExportVoucherDate, validateOptionalDate } from './validators';
 
@@ -71,8 +74,49 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function normalizeName(value: string): string {
-  return value.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+function validateCountry(countries: readonly ExportCountry[]): (value: string) => string | true {
+  return (value) => {
+    try {
+      resolveExportDestinationCountry(value, countries);
+
+      return true;
+    } catch (error) {
+      return errorMessage(error);
+    }
+  };
+}
+
+/**
+ * El pais de destino de una lista donde tambien se escribe (TUI-24): los destinos de la tabla de ARCA con su codigo,
+ * que tambien lo encuentra al escribir. Escrito, el nombre o el codigo se resuelven como `--pais-destino`.
+ */
+export async function askDestinationCountry(
+  countries: readonly ExportCountry[],
+  previous: string | undefined,
+): Promise<typeof BACK | ExportCountry> {
+  const choices = exportDestinationCountryChoices(countries);
+  const { header, rows } = formatTableRows(
+    ['CÓDIGO', 'PAÍS'],
+    choices.map((country) => [String(country.code), country.name]),
+  );
+  const answer = await chooseOrTypeStep<string>(
+    'País de destino:',
+    choices.map((country, index) => ({
+      keywords: String(country.code),
+      label: rows[index] ?? country.name,
+      short: country.name,
+      value: country.name,
+    })),
+    {
+      header,
+      help: 'Escribí el nombre o el código de ARCA, por ejemplo "estados" o "212".',
+      parse: (value) => resolveExportDestinationCountry(value, countries).name,
+      previous,
+      validate: validateCountry(countries),
+    },
+  );
+
+  return answer === BACK ? BACK : resolveExportDestinationCountry(answer, countries);
 }
 
 /** Mismo control que `--cuit-pais`: que exista en la tabla de ARCA y sea del destino. */
@@ -86,82 +130,53 @@ function validateCountryCuit(context: ExportCountryCuitContext, cuit: number): s
   }
 }
 
-function findCountryCuits(context: ExportCountryCuitContext, search: string): ExportCountryCuit[] {
-  const wanted = normalizeName(search);
-
-  return context.countryCuits.filter((entry) => normalizeName(entry.countryName).includes(wanted));
-}
-
 /**
- * El CUIT del pais del cliente (`--cuit-pais`): se escribe el numero o se busca el pais por nombre en la tabla de
- * ARCA y se elige de la lista. Con `optional`, Enter lo deja sin CUIT (`undefined`): la E va con el ID impositivo.
- * Con `previous` (lo respondido antes), arranca escrito si sigue siendo del destino (REV-74, #10).
+ * El CUIT del pais del cliente (`--cuit-pais`), de una lista donde tambien se escribe (TUI-35): la lista trae los CUIT
+ * que acepta el flag para el destino (`exportClientCountryCuitChoices`), y se filtra por el pais o el numero. Un numero
+ * escrito se valida como `--cuit-pais`. Con `optional`, la primera fila lo deja sin CUIT (`undefined`): la E va con el
+ * ID impositivo. Con `previous` (lo respondido antes), arranca marcado si sigue siendo del destino (REV-74, #10).
  */
 export async function askCountryCuit(
   context: ExportCountryCuitContext,
   message: string,
-  options: { readonly optional?: boolean; readonly previous?: number } = {},
+  options: {
+    readonly emptyLabel?: string;
+    readonly optional?: boolean;
+    readonly previous?: number;
+    readonly requireChoice?: string;
+  } = {},
 ): Promise<Back | number | undefined> {
   const { previous } = options;
+  const choices = exportClientCountryCuitChoices({ country: context.country, countries: context.countryCuits });
+  const { header, rows } = formatTableRows(
+    ['CUIT', 'PAÍS'],
+    choices.map((entry) => [String(entry.cuit), entry.countryName]),
+  );
 
-  for (;;) {
-    const answer = await askTextStep(message, {
-      previousAnswer:
-        previous !== undefined && validateCountryCuit(context, previous) === true ? String(previous) : undefined,
-      validate: (value) => {
-        if (!value.trim()) {
-          return options.optional ? true : 'Escribí el CUIT o parte del nombre del país.';
-        }
+  return chooseOrTypeStep<number>(
+    message,
+    choices.map((entry, index) => ({
+      // El numero solo tambien es la fila: escribirlo entero la elige, sin "Usar lo escrito".
+      keywords: String(entry.cuit),
+      label: rows[index] ?? String(entry.cuit),
+      value: entry.cuit,
+    })),
+    {
+      emptyLabel: options.emptyLabel,
+      header,
+      optional: options.optional,
+      requireChoice: options.requireChoice,
+      parse: (text) => Number(parseStrictInteger(text)),
+      previous: previous !== undefined && validateCountryCuit(context, previous) === true ? previous : undefined,
+      validate: (text) => {
+        const cuit = parseStrictInteger(text);
 
-        const cuit = parseStrictInteger(value);
-
-        if (cuit !== undefined) {
-          return validateCountryCuit(context, cuit);
-        }
-
-        return findCountryCuits(context, value).length > 0
-          ? true
-          : `La tabla de CUIT de países de ARCA no tiene "${value.trim()}". Probá con otra parte del nombre.`;
+        return cuit === undefined
+          ? `Nada de la lista coincide con "${text.trim()}": elegí un CUIT o escribí el número.`
+          : validateCountryCuit(context, cuit);
       },
-    });
-
-    if (answer === BACK) {
-      return BACK;
-    }
-
-    if (!answer.trim()) {
-      return undefined;
-    }
-
-    const typed = parseStrictInteger(answer);
-
-    if (typed !== undefined) {
-      return typed;
-    }
-
-    const picked = await chooseStep(
-      'CUIT del país:',
-      findCountryCuits(context, answer).map((entry) => ({
-        description: String(entry.cuit),
-        // La CUIT tambien la encuentra al escribir.
-        keywords: String(entry.cuit),
-        name: entry.countryName,
-        value: entry.cuit,
-      })),
-    );
-
-    if (picked === BACK) {
-      continue;
-    }
-
-    const valid = validateCountryCuit(context, picked);
-
-    if (valid === true) {
-      return picked;
-    }
-
-    writeTerminalOutput(noticePanel(valid, 'warning'));
-  }
+    },
+  );
 }
 
 /**
@@ -175,11 +190,9 @@ function exportQuestions(languageNames: Map<number, string>): ExportOptionalQues
         name: 'cuit-pais',
         run: async (current, { previous }) => {
           const countryCuit = requireStepValue(context.countryCuit, 'countryCuit');
-          const cuit = await askCountryCuit(
-            countryCuit,
-            `CUIT del país del cliente (el número, o buscá ${countryCuit.country.name} por nombre):`,
-            { previous: previous?.clientCountryCuit ?? current.clientCountryCuit },
-          );
+          const cuit = await askCountryCuit(countryCuit, `CUIT del país del cliente (${countryCuit.country.name}):`, {
+            previous: previous?.clientCountryCuit ?? current.clientCountryCuit,
+          });
 
           return cuit === BACK ? BACK : { clientCountryCuit: cuit };
         },

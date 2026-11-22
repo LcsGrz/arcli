@@ -9,9 +9,10 @@ import type { ResolvedExportVoucher } from '../../../modules/export/export.types
 import type { RowEdits } from '../../../modules/interactive/row-marks';
 import { BACK } from '../../../modules/interactive/wizard';
 import { type RowActionsListRow, stripAnsi } from '../../../ui';
-import type { Choice, EditRowsOptions, FilterListRow, TextStepOptions } from '../prompts';
+import type { Choice, ChooseOrTypeStepOptions, EditRowsOptions, FilterListRow, TextStepOptions } from '../prompts';
+import { SKIP_ROW } from '../text-hints';
 
-import { createScript, type ScriptedAnswer } from './script';
+import { chooseOrTypeInitialTerm, createScript, type ScriptedAnswer } from './script';
 
 /**
  * Golden de pantallas del asistente (NAV-0): un camino guionado con `createScript` graba, en orden, cada pregunta (tipo,
@@ -227,6 +228,74 @@ export function createScreens(steps: ReadonlyArray<readonly [RegExp, ScriptedAns
     return answer;
   }
 
+  /**
+   * La lista donde tambien se escribe (TUI-35): las filas (en una opcional, primero la de "sin valor"), lo que arranca
+   * marcado o escrito, lo escrito que se rechaza y la respuesta, que puede ser una fila, lo escrito o "sin valor".
+   */
+  async function chooseOrTypeStep<T>(
+    message: string,
+    rows: ReadonlyArray<FilterListRow<T>>,
+    options: ChooseOrTypeStepOptions<T>,
+  ): Promise<T | typeof BACK | undefined> {
+    const rejected: string[] = [];
+    const { validate } = options;
+    const answer = (await script.chooseOrTypeStep(message, rows, {
+      ...options,
+      validate: validate
+        ? (value) => {
+            const result = validate(value);
+
+            if (result !== true) {
+              rejected.push(`  rechaza ${JSON.stringify(value)}: ${normalizeScreen(result)}`);
+            }
+
+            return result;
+          }
+        : undefined,
+    })) as T | typeof BACK | undefined;
+    const emptyLabel = options.optional && rows.length > 0 ? (options.emptyLabel ?? SKIP_ROW) : undefined;
+    const typed = chooseOrTypeInitialTerm(rows, options);
+    const previousRow = rows.find((row) => sameValue(row.value, options.previous));
+    // Sin `previous` de la lista, la primera fila (en una opcional, la de "sin valor"), salvo con `requireChoice`.
+    const marked = previousRow
+      ? previousRow.label
+      : (emptyLabel ?? (options.requireChoice ? undefined : rows[0]?.label));
+    const label = (value: unknown) => {
+      if (value === BACK) return '← Volver';
+      if (value === undefined) return emptyLabel ?? '(sin valor)';
+
+      const row = rows.find((item) => sameValue(item.value, value));
+
+      return row ? normalizeScreen(row.label) : `(escrito: ${describeValue(value)})`;
+    };
+
+    events.push({
+      kind: 'prompt',
+      lines: [
+        `? [${rows.length > 0 ? 'lista o texto' : 'texto, sin filas'}] ${normalizeScreen(message)}`,
+        ...(options.header ? [`  encabezado: ${normalizeScreen(options.header)}`] : []),
+        ...(options.help ? [`  ayuda: ${normalizeScreen(options.help)}`] : []),
+        ...(options.backRow === false ? ['  sin "← Volver"'] : []),
+        ...(options.requireChoice ? [`  sin elegir: ${normalizeScreen(options.requireChoice)}`] : []),
+        ...(typed
+          ? [`  arranca escrito: ${JSON.stringify(typed)}`]
+          : rows.length > 0
+            ? [`  arranca en: ${marked === undefined ? '(ninguna)' : normalizeScreen(marked)}`]
+            : []),
+        ...(emptyLabel ? [`  ${!typed && marked === emptyLabel ? '>' : '·'} ${emptyLabel}`] : []),
+        ...rows.map(
+          (row) =>
+            `  ${!typed && row.label === marked ? '>' : '·'} ${normalizeScreen(row.label)}${row.keywords ? ` (busca tambien: ${row.keywords})` : ''}`,
+        ),
+        ...(validate ? [] : ['  sin validacion']),
+        ...rejected,
+        `  = ${label(answer)}`,
+      ],
+    });
+
+    return answer;
+  }
+
   async function editRowsStep(
     message: string,
     rows: ReadonlyArray<Omit<RowActionsListRow, 'mark'>>,
@@ -279,6 +348,7 @@ export function createScreens(steps: ReadonlyArray<readonly [RegExp, ScriptedAns
       askTextStep,
       chooseFromFilterList,
       chooseManyStep,
+      chooseOrTypeStep,
       chooseOne: <T>(message: string, choices: ReadonlyArray<Choice<T> | Separator>, defaultValue?: T) =>
         chooseStep(message, choices, defaultValue),
       chooseStep,

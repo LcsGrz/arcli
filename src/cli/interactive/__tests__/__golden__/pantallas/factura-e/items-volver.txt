@@ -15,11 +15,20 @@
 ? [texto] Domicilio del cliente:
   = "Rua Exemplo 100, Sao Paulo"
 
-? [texto] País de destino (nombre o código de ARCA, por ejemplo ESTADOS UNIDOS o 212):
-  = "BRASIL"
+? [lista o texto] País de destino:
+  encabezado: CÓDIGO  PAÍS
+  ayuda: Escribí el nombre o el código de ARCA, por ejemplo "estados" o "212".
+  arranca en: 203     BRASIL
+  > 203     BRASIL (busca tambien: 203)
+  · 212     ESTADOS UNIDOS (busca tambien: 212)
+  = 203     BRASIL
 
-? [texto] ARCA no tiene un CUIT publicado para BRASIL. Escribí el CUIT del país, buscalo por nombre o dejalo vacío para informar solo el ID impositivo del cliente:
-  = ""
+? [lista o texto] ARCA no tiene un CUIT publicado para BRASIL. Elegí el CUIT del país o escribilo:
+  encabezado: CUIT         PAÍS
+  arranca en: Sin CUIT del país (solo ID impositivo)
+  > Sin CUIT del país (solo ID impositivo)
+  · 55000002126  ESTADOS UNIDOS - Persona Jurídica (busca tambien: 55000002126)
+  = Sin CUIT del país (solo ID impositivo)
 
 ? [texto] ID impositivo del cliente en su país (sin CUIT del país, ARCA lo pide):
   = "12.345.678/0001-90"

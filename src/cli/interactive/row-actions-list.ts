@@ -1,10 +1,8 @@
 import {
   createPrompt,
   isBackspaceKey,
-  isDownKey,
   isEnterKey,
   isSpaceKey,
-  isUpKey,
   makeTheme,
   useKeypress,
   usePrefix,
@@ -20,6 +18,8 @@ import {
 } from '../../modules/interactive/row-marks';
 import { BACK, type Back } from '../../modules/interactive/wizard';
 import { renderRowActionsList, type RowActionsListRow, uiSymbol } from '../../ui';
+
+import { cursorRows, isCursorKey, useListCursor } from './list-cursor';
 
 /** Oculta el cursor de la terminal mientras se muestra la lista; @inquirer lo vuelve a mostrar al cerrarla. */
 const CURSOR_HIDE = '\u001B[?25l';
@@ -64,7 +64,7 @@ export const rowActionsList = createPrompt(
     const theme = makeTheme<RowActionsListStyle>(config.theme);
     const [status, setStatus] = useState<'done' | 'idle'>('idle');
     const [marks, setMarks] = useState<RowMarks>(() => config.rows.map(() => undefined));
-    const [active, setActive] = useState(0);
+    const { active, move } = useListCursor(0);
     const [notice, setNotice] = useState<string | undefined>(undefined);
     const prefix = usePrefix({ status, theme });
     const addIndex = config.rows.length;
@@ -76,12 +76,8 @@ export const rowActionsList = createPrompt(
       if (isEnterKey(key)) {
         setStatus('done');
         done(active === backIndex ? BACK : rowEditsOf(marks, active === addIndex));
-      } else if (isUpKey(key) || isDownKey(key)) {
-        const next = active + (isUpKey(key) ? -1 : 1);
-
-        if (next >= 0 && next <= backIndex) {
-          setActive(next);
-        }
+      } else if (isCursorKey(key)) {
+        move(key, cursorRows(backIndex + 1));
       } else if (isSpaceKey(key)) {
         if (active < addIndex) {
           setMarks(toggleEditMark(marks, active));

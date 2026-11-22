@@ -44,14 +44,16 @@ import { startSpinner } from '../spinner';
 import type { GlobalCliOptions } from '../types';
 
 import { runCertificateMenu, runGenerateCertificate } from './certificate.flow';
+import { sameSearch } from './filter-list';
 import { markIfNew } from './new-mark';
-import { askTextStep, type Choice, chooseOne, chooseStep, confirm, fitPageSize } from './prompts';
+import { askTextStep, type Choice, chooseOne, chooseOrTypeStep, chooseStep, confirm, fitPageSize } from './prompts';
 
 /** `--produccion` o `--testing` de `arcli interactivo`: la configuracion guiada pide el certificado de ese entorno. */
 type EnvironmentFlags = Pick<GlobalCliOptions, 'produccion' | 'testing'>;
 
-const CLEAR = '__borrar__';
-const KEEP = '__mantener__';
+// Symbols, no textos: un valor escrito no puede confundirse con "Quitar" o "Dejar sin configurar".
+const CLEAR = Symbol('borrar');
+const KEEP = Symbol('mantener');
 
 /**
  * Lo que pide la configuracion guiada, en orden. Los primeros cuatro son obligatorios para emitir; el certificado y la
@@ -107,12 +109,42 @@ async function askField(
   options: { readonly required?: boolean } = {},
 ): Promise<'borrado' | 'guardado' | 'sin-cambios' | typeof BACK> {
   const current = field.read(config);
-  let value: string;
+  let value: string | typeof CLEAR;
 
-  if (field.choices) {
+  if (field.choices && field.freeText) {
+    // De la lista o escrito (TUI-35): un valor propio guardado arranca escrito, y Enter lo deja.
+    const answer = await chooseOrTypeStep<string | typeof CLEAR | typeof KEEP>(
+      `${field.label}:`,
+      [
+        ...field.choices.map((choice) => ({
+          keywords: choice,
+          label: field.choiceLabels?.[choice] ?? choice,
+          value: choice,
+        })),
+        ...(current && !options.required ? [{ label: 'Quitar el valor por defecto', value: CLEAR } as const] : []),
+        ...(!current && !options.required ? [{ label: 'Dejar sin configurar', value: KEEP } as const] : []),
+      ],
+      { parse: (text) => text, previous: current, validate: (text) => validate(field.key, text) },
+    );
+
+    if (answer === BACK) {
+      return BACK;
+    }
+
+    // Una de la lista que se lee igual que el texto guardado ("Contado" y `contado`) no lo cambia: queda el guardado.
+    if (
+      answer === undefined ||
+      answer === KEEP ||
+      (typeof answer === 'string' && current && sameSearch(field.choiceLabels?.[answer] ?? answer, current))
+    ) {
+      return 'sin-cambios';
+    }
+
+    value = answer;
+  } else if (field.choices) {
     const customCurrentChoice =
       current && !field.choices.includes(current) ? [{ name: `Mantener: ${current}`, value: current }] : [];
-    const answer = await chooseStep<string>(
+    const answer = await chooseStep<string | typeof CLEAR | typeof KEEP>(
       `${field.label}:`,
       [
         ...customCurrentChoice,
@@ -120,8 +152,8 @@ async function askField(
           name: field.choiceLabels?.[choice] ?? choice,
           value: choice,
         })),
-        ...(current && !options.required ? [{ name: 'Quitar el valor por defecto', value: CLEAR }] : []),
-        ...(!current && !options.required ? [{ name: 'Dejar sin configurar', value: KEEP }] : []),
+        ...(current && !options.required ? [{ name: 'Quitar el valor por defecto', value: CLEAR } as const] : []),
+        ...(!current && !options.required ? [{ name: 'Dejar sin configurar', value: KEEP } as const] : []),
       ],
       current,
     );

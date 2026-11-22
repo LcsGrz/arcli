@@ -1,12 +1,11 @@
 import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { formatEmissionQuestion, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
-import { DEFAULT_EXPORT_PAYMENT_TERMS, resolveExportDestinationCountry } from '../../modules/export/export.mappers';
+import { DEFAULT_EXPORT_PAYMENT_TERMS } from '../../modules/export/export.mappers';
 import { formatExportResultAsText } from '../../modules/export/export.presenter';
 import { ExportService } from '../../modules/export/export.service';
 import {
   EXPORT_VOUCHER_KIND,
   type ExportActivity,
-  type ExportCountry,
   type ExportGateway,
   type ExportType,
   type ExportVoucherInput,
@@ -29,11 +28,11 @@ import { noticePanel, writeTerminalOutput } from '../../ui';
 import { attachExportPdf } from '../commands/export.command.pdf';
 import { withSpinner } from '../spinner';
 
-import { askCountryCuit, exportOptionalsStep, validateExportText } from './export-options';
+import { askCountryCuit, askDestinationCountry, exportOptionalsStep, validateExportText } from './export-options';
 import { withFinalizeNotice } from './finalize-notice';
 import { exportExchangeRateLoader } from './official-exchange-rate';
 import { completeIssuer } from './pdf.flow';
-import { askTextStep, chooseStep, isPromptCancellation } from './prompts';
+import { askTextStep, chooseOrTypeStep, chooseStep, isPromptCancellation } from './prompts';
 import { offerConfig } from './save-to-config';
 import {
   confirmEmission,
@@ -60,18 +59,6 @@ interface ExportFlowLoaders {
   readonly incoterms: () => Promise<ReadonlyArray<{ readonly code: string; readonly name: string }>>;
   readonly languages: ExportGateway['getLanguages'];
   readonly units: ExportGateway['getUnits'];
-}
-
-function validateCountry(countries: readonly ExportCountry[]): (value: string) => string | true {
-  return (value) => {
-    try {
-      resolveExportDestinationCountry(value, countries);
-
-      return true;
-    } catch (error) {
-      return error instanceof Error ? error.message : String(error);
-    }
-  };
 }
 
 const optional = (value: string): string | undefined => value.trim() || undefined;
@@ -129,19 +116,11 @@ function exportSteps(
     {
       name: 'pais',
       run: async (_state, { previous }) => {
-        const answer = await askTextStep(
-          'País de destino (nombre o código de ARCA, por ejemplo ESTADOS UNIDOS o 212):',
-          {
-            previousAnswer: previous?.destinationCountry,
-            validate: validateCountry(tables.countries),
-          },
-        );
+        const country = await askDestinationCountry(tables.countries, previous?.destinationCountry);
 
-        if (answer === BACK) {
+        if (country === BACK) {
           return BACK;
         }
-
-        const country = resolveExportDestinationCountry(answer, tables.countries);
 
         return {
           country,
@@ -158,8 +137,12 @@ function exportSteps(
         // Al volver arranca escrito, si es del destino (REV-74, #10).
         const cuit = await askCountryCuit(
           { country, countryCuits: tables.countryCuits },
-          `ARCA no tiene un CUIT publicado para ${country.name}. Escribí el CUIT del país, buscalo por nombre o dejalo vacío para informar solo el ID impositivo del cliente:`,
-          { optional: true, previous: previous?.options?.clientCountryCuit },
+          `ARCA no tiene un CUIT publicado para ${country.name}. Elegí el CUIT del país o escribilo:`,
+          {
+            emptyLabel: 'Sin CUIT del país (solo ID impositivo)',
+            optional: true,
+            previous: previous?.options?.clientCountryCuit,
+          },
         );
 
         return cuit === BACK ? BACK : { options: { ...state.options, clientCountryCuit: cuit } };
@@ -273,14 +256,16 @@ function exportSteps(
       run: async (_state, { previous }) => {
         const list = await withSpinner('Consultando incoterms...', loaders.incoterms);
 
-        // ARCA devolvio la tabla vacia: se escribe a mano y va sin validar, como la actividad (el servicio avisa).
+        // ARCA devolvio la tabla vacia: la lista sin filas es una pregunta de texto, y va sin validar contra la tabla,
+        // como la actividad (el servicio avisa).
         if (list.length === 0) {
-          const typed = await askTextStep('Incoterm (ARCA no devolvió la lista), por ejemplo FOB:', {
-            previousAnswer: previous?.incoterm,
+          const typed = await chooseOrTypeStep<string>('Incoterm (ARCA no devolvió la lista), por ejemplo FOB:', [], {
+            parse: (value) => value.trim().toUpperCase(),
+            previous: previous?.incoterm,
             validate: (value) => (value.trim() ? true : 'El incoterm es obligatorio en la factura E de bienes.'),
           });
 
-          return typed === BACK ? BACK : { incoterm: typed.trim().toUpperCase(), incotermName: undefined };
+          return typed === BACK ? BACK : { incoterm: typed, incotermName: undefined };
         }
 
         // Sin "Sin incoterm": la factura de bienes lo exige (error 1640).

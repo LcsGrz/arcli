@@ -6,6 +6,8 @@ import {
   assertExportTextLengths,
   assertExportVoucherDate,
   buildExportPayload,
+  exportClientCountryCuitChoices,
+  exportDestinationCountryChoices,
   resolveExportActivity,
   resolveExportClientCountryCuit,
   resolveExportCurrency,
@@ -250,6 +252,49 @@ describe('assertExportClientIdentification', () => {
     expect(() => assertExportClientIdentification({ clientTaxId: '  ', country })).toThrow(
       'La tabla de ARCA no tiene CUIT para "IRLANDA" y ARCA pide el CUIT del país o el ID impositivo del cliente (error 1580). Indicá el ID impositivo con `--id-impositivo` o el CUIT del país con `--cuit-pais`.',
     );
+  });
+});
+
+describe('exportDestinationCountryChoices', () => {
+  it('trae los destinos que acepta `--pais-destino`: la tabla sin Argentina', () => {
+    const countries = [
+      { code: 200, name: 'ARGENTINA' },
+      { code: 203, name: 'BRASIL' },
+      { code: 212, name: 'ESTADOS UNIDOS' },
+    ];
+
+    expect(exportDestinationCountryChoices(countries)).toEqual(countries.slice(1));
+    expect(() => resolveExportDestinationCountry('200', countries)).toThrow(/Argentina no es un destino/);
+  });
+});
+
+describe('exportClientCountryCuitChoices', () => {
+  it('con CUIT publicado para el destino, trae los del destino con el que elige el flag primero', () => {
+    const country = { code: 203, name: 'BRASIL' };
+    const choices = exportClientCountryCuitChoices({ countries: COUNTRY_CUITS, country }).map((entry) => entry.cuit);
+
+    // Persona juridica, otro tipo de entidad y persona fisica, como `pickCountryCuit`.
+    expect(choices).toEqual([55000000050, 51600000059, 50000000059]);
+    expect(choices[0]).toBe(resolveExportClientCountryCuit({ countries: COUNTRY_CUITS, country }));
+  });
+
+  it('sin CUIT publicado para el destino, trae toda la tabla: `--cuit-pais` acepta cualquiera', () => {
+    const country = { code: 999, name: 'ATLANTIDA' };
+    const choices = exportClientCountryCuitChoices({ countries: COUNTRY_CUITS, country });
+
+    expect(choices).toEqual(COUNTRY_CUITS);
+
+    for (const { cuit } of choices) {
+      expect(resolveExportClientCountryCuit({ countries: COUNTRY_CUITS, country, cuit })).toBe(cuit);
+    }
+  });
+
+  it('cada uno que trae lo acepta `--cuit-pais` para ese destino', () => {
+    const country = { code: 212, name: 'ESTADOS UNIDOS' };
+
+    for (const { cuit } of exportClientCountryCuitChoices({ countries: COUNTRY_CUITS, country })) {
+      expect(resolveExportClientCountryCuit({ countries: COUNTRY_CUITS, country, cuit })).toBe(cuit);
+    }
   });
 });
 

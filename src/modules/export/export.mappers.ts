@@ -394,6 +394,11 @@ export function resolveExportDestinationCountry(
   return country;
 }
 
+/** Los destinos que acepta `--pais-destino` (`resolveExportDestinationCountry`): la tabla de ARCA sin Argentina. */
+export function exportDestinationCountryChoices(countries: readonly ExportCountry[]): ExportCountry[] {
+  return countries.filter((country) => country.code !== ARGENTINA_COUNTRY_CODE);
+}
+
 /**
  * DST_CUIT repite cada pais tres veces, con el tipo de entidad pegado al nombre: "BRASIL - Persona Jurídica".
  * DST_pais trae solo "BRASIL", asi que el sufijo no sirve para comparar ni para mostrar el pais.
@@ -434,6 +439,39 @@ function pickCountryCuit(entries: readonly ExportCountryCuit[]): ExportCountryCu
   return entries[0];
 }
 
+/** Las filas de la tabla DST_CUIT del destino (una por tipo de entidad), comparando sin el tipo de entidad. */
+function countryCuitsOfDestination(
+  country: ExportCountry,
+  countries: readonly ExportCountryCuit[],
+): ExportCountryCuit[] {
+  const destination = normalizeCountryName(country.name);
+
+  return countries.filter((entry) => normalizeCountryName(countryNameWithoutEntity(entry.countryName)) === destination);
+}
+
+/** El orden de `COUNTRY_CUIT_ENTITY_PREFERENCE`: persona juridica, otro tipo de entidad y persona fisica. */
+function entityRank(entry: ExportCountryCuit): number {
+  const rank = COUNTRY_CUIT_ENTITY_PREFERENCE.findIndex((preference) => preference.test(entry.countryName));
+
+  return rank === -1 ? COUNTRY_CUIT_ENTITY_PREFERENCE.length : rank;
+}
+
+/**
+ * Los CUIT de pais que acepta `--cuit-pais` para el destino (`resolveExportClientCountryCuit`): los del destino si la
+ * tabla de ARCA los trae, con el que eligiria el flag primero (`pickCountryCuit`), y si no, cualquiera de la tabla, en
+ * su orden.
+ */
+export function exportClientCountryCuitChoices(options: {
+  readonly country: ExportCountry;
+  readonly countries: readonly ExportCountryCuit[];
+}): ExportCountryCuit[] {
+  const forDestination = countryCuitsOfDestination(options.country, options.countries);
+
+  return forDestination.length > 0
+    ? forDestination.toSorted((left, right) => entityRank(left) - entityRank(right))
+    : [...options.countries];
+}
+
 /**
  * WSFEX pide el CUIT del pais del cliente o su ID impositivo: con uno alcanza (error 1580). Se resuelve con la tabla DST_CUIT, que nombra cada pais con el tipo de
  * entidad ("ESTADOS UNIDOS - Persona Jurídica"), mientras que la tabla de destinos dice solo "ESTADOS UNIDOS": por
@@ -448,9 +486,7 @@ export function resolveExportClientCountryCuit(options: {
   readonly cuit?: number;
 }): number | undefined {
   const destination = normalizeCountryName(options.country.name);
-  const forDestination = options.countries.filter(
-    (entry) => normalizeCountryName(countryNameWithoutEntity(entry.countryName)) === destination,
-  );
+  const forDestination = countryCuitsOfDestination(options.country, options.countries);
 
   if (options.cuit === undefined) {
     return pickCountryCuit(forDestination)?.cuit;
