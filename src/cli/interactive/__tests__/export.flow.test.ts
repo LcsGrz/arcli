@@ -298,7 +298,6 @@ describe('runExportFlow', () => {
       [/Domicilio/, '123 Main St'],
       [/País de destino/, 'atlantida'],
       [/ARCA no tiene un CUIT publicado para ATLANTIDA/, 'otros'],
-      [/CUIT del país/, 'OTROS PAISES'],
       [/ID impositivo/, ''],
       [/Qué exportás/, 'Servicios'],
       [/moneda/, 'Pesos'],
@@ -714,10 +713,15 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
         .map(([message, options]) => [message.split(' (')[0], options?.previousAnswer]),
     );
     const marked = script.chooseStep.mock.calls.slice(-4).map((call) => call[2]);
+    // En las listas donde tambien se escribe, lo respondido arranca marcado (o escrito, si no es de la lista).
+    const chosen = Object.fromEntries(
+      script.chooseOrTypeStep.mock.calls
+        .filter(([, , options]) => options.previous !== undefined)
+        .map(([message, , options]) => [message.split('.')[0], options.previous]),
+    );
 
+    expect(chosen).toEqual({ 'ARCA no tiene un CUIT publicado para ATLANTIDA': 55000002126 });
     expect(typed).toEqual({
-      'ARCA no tiene un CUIT publicado para ATLANTIDA. Escribí el CUIT del país, buscalo por nombre o dejalo vacío para informar solo el ID impositivo del cliente:':
-        '55000002126',
       'Código de actividad de WSFEX, por ejemplo 620100:': '620100',
       // Escrita a mano, arranca con la escrita y no con la de ARCA (NAV-9).
       'Cotización de USD': '1180',
@@ -1192,28 +1196,24 @@ describe('runExportFlow: el país y el CUIT del país de una lista donde tambié
   );
 
   // Criterio 8: sin CUIT publicado para el destino, cualquiera de la tabla vale (`resolveExportClientCountryCuit`).
-  // Tests primero (TUI-36): pasa a it() al implementarlo.
-  it.fails(
-    'sin CUIT para el destino, la lista trae los CUIT de la tabla y escribir parte del país lo elige, sin otra lista',
-    async () => {
-      vi.spyOn(gateway, 'getDestinationCountries').mockResolvedValue([{ code: 999, name: 'ATLANTIDA' }]);
-      vi.spyOn(gateway, 'getDestinationCountryCuits').mockResolvedValue([
-        { countryName: 'ESTADOS UNIDOS - Persona Jurídica', cuit: 55000002126 },
-        { countryName: 'OTROS PAISES - Persona Jurídica', cuit: 55000009999 },
-      ]);
+  it('sin CUIT para el destino, la lista trae los CUIT de la tabla y escribir parte del país lo elige, sin otra lista', async () => {
+    vi.spyOn(gateway, 'getDestinationCountries').mockResolvedValue([{ code: 999, name: 'ATLANTIDA' }]);
+    vi.spyOn(gateway, 'getDestinationCountryCuits').mockResolvedValue([
+      { countryName: 'ESTADOS UNIDOS - Persona Jurídica', cuit: 55000002126 },
+      { countryName: 'OTROS PAISES - Persona Jurídica', cuit: 55000009999 },
+    ]);
 
-      const { command } = await emitted([
-        [/País de destino/, 'atlantida'],
-        [/ARCA no tiene un CUIT publicado para ATLANTIDA/, 'otros'],
-        [/ID impositivo/, ''],
-      ]);
-      const [, rows] =
-        script.chooseOrTypeStep.mock.calls.find(([message]) => /ARCA no tiene un CUIT publicado/.test(message)) ?? [];
+    const { command } = await emitted([
+      [/País de destino/, 'atlantida'],
+      [/ARCA no tiene un CUIT publicado para ATLANTIDA/, 'otros'],
+      [/ID impositivo/, ''],
+    ]);
+    const [, rows] =
+      script.chooseOrTypeStep.mock.calls.find(([message]) => /ARCA no tiene un CUIT publicado/.test(message)) ?? [];
 
-      expect(new Set(rows?.map((row) => row.value))).toEqual(new Set([55000002126, 55000009999]));
-      expect(command).toContain('--pais-destino ATLANTIDA --cuit-pais 55000009999');
-    },
-  );
+    expect(new Set(rows?.map((row) => row.value))).toEqual(new Set([55000002126, 55000009999]));
+    expect(command).toContain('--pais-destino ATLANTIDA --cuit-pais 55000009999');
+  });
 
   // Criterio 8: lo de hoy. Un número que no está en la tabla da el error de `--cuit-pais`, y Enter vacío deja la E
   // con el ID impositivo.
@@ -1235,33 +1235,29 @@ describe('runExportFlow: el país y el CUIT del país de una lista donde tambié
 
   // Criterio 11: lo de hoy (obligatorio y en mayúsculas) lo fija "sin tabla de incoterms…"; esto, que sea el mismo
   // componente con la lista vacía.
-  // Tests primero (TUI-35): pasa a it() al implementarlo.
-  it.fails(
-    'sin tabla de incoterms, el incoterm se pregunta con la lista vacía: obligatorio y en mayúsculas',
-    async () => {
-      vi.spyOn(gateway, 'getIncoterms').mockResolvedValue([]);
-      script = createScript([
-        [/cliente del exterior/, 'ACME LLC'],
-        [/Domicilio/, '123 Main St'],
-        [/País de destino/, '212'],
-        [/ID impositivo/, ''],
-        [/Qué exportás/, 'Bienes'],
-        [/moneda/, 'Pesos'],
-        ...singleExportItem('100'),
-        [/Incoterm \(ARCA no devolvió la lista\)/, rejecting('fob', ['', /obligatorio/])],
-        [/Permisos de embarque/, ''],
-        [/Forma de pago/, ''],
-        [/actividad/, ''],
-        [/Agregamos algún opcional/, []],
-        [/Emitimos/, 'No, dejar sin emitir'],
-      ]);
+  it('sin tabla de incoterms, el incoterm se pregunta con la lista vacía: obligatorio y en mayúsculas', async () => {
+    vi.spyOn(gateway, 'getIncoterms').mockResolvedValue([]);
+    script = createScript([
+      [/cliente del exterior/, 'ACME LLC'],
+      [/Domicilio/, '123 Main St'],
+      [/País de destino/, '212'],
+      [/ID impositivo/, ''],
+      [/Qué exportás/, 'Bienes'],
+      [/moneda/, 'Pesos'],
+      ...singleExportItem('100'),
+      [/Incoterm \(ARCA no devolvió la lista\)/, rejecting('fob', ['', /obligatorio/])],
+      [/Permisos de embarque/, ''],
+      [/Forma de pago/, ''],
+      [/actividad/, ''],
+      [/Agregamos algún opcional/, []],
+      [/Emitimos/, 'No, dejar sin emitir'],
+    ]);
 
-      await runExportFlow(createSession());
+    await runExportFlow(createSession());
 
-      const incoterm = script.chooseOrTypeStep.mock.calls.find(([message]) => /Incoterm/.test(message));
+    const incoterm = script.chooseOrTypeStep.mock.calls.find(([message]) => /Incoterm/.test(message));
 
-      expect(incoterm?.[1]).toEqual([]);
-      expect(printed()).toContain('--incoterm FOB');
-    },
-  );
+    expect(incoterm?.[1]).toEqual([]);
+    expect(printed()).toContain('--incoterm FOB');
+  });
 });

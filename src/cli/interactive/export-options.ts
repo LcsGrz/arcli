@@ -1,16 +1,13 @@
 import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import {
+  exportClientCountryCuitChoices,
   type ExportTextField,
   exportTextFieldError,
   resolveExportClientCountryCuit,
 } from '../../modules/export/export.mappers';
 import { EXPORT_RULES, type ExportRuleContext } from '../../modules/export/export.rules';
-import {
-  DEFAULT_EXPORT_LANGUAGE,
-  type ExportCountryCuit,
-  type ExportVoucherInput,
-} from '../../modules/export/export.types';
+import { DEFAULT_EXPORT_LANGUAGE, type ExportVoucherInput } from '../../modules/export/export.types';
 import { completeDateInput } from '../../modules/interactive/date-input';
 import {
   type ExportCountryCuitContext,
@@ -21,11 +18,10 @@ import {
 } from '../../modules/interactive/export-optionals';
 import { ruleValidator, scopedRuleValidator } from '../../modules/interactive/rule-validator';
 import { BACK, type Back, requireStepValue, type WizardStep } from '../../modules/interactive/wizard';
-import { noticePanel, writeTerminalOutput } from '../../ui';
 import { withSpinner } from '../spinner';
 
 import { optionalsStep } from './optionals-step';
-import { askTextStep, chooseStep } from './prompts';
+import { askTextStep, chooseOrTypeStep, chooseStep } from './prompts';
 import { dateStep } from './steps/date';
 import { validateExportVoucherDate, validateOptionalDate } from './validators';
 
@@ -71,10 +67,6 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function normalizeName(value: string): string {
-  return value.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
-}
-
 /** Mismo control que `--cuit-pais`: que exista en la tabla de ARCA y sea del destino. */
 function validateCountryCuit(context: ExportCountryCuitContext, cuit: number): string | true {
   try {
@@ -86,16 +78,11 @@ function validateCountryCuit(context: ExportCountryCuitContext, cuit: number): s
   }
 }
 
-function findCountryCuits(context: ExportCountryCuitContext, search: string): ExportCountryCuit[] {
-  const wanted = normalizeName(search);
-
-  return context.countryCuits.filter((entry) => normalizeName(entry.countryName).includes(wanted));
-}
-
 /**
- * El CUIT del pais del cliente (`--cuit-pais`): se escribe el numero o se busca el pais por nombre en la tabla de
- * ARCA y se elige de la lista. Con `optional`, Enter lo deja sin CUIT (`undefined`): la E va con el ID impositivo.
- * Con `previous` (lo respondido antes), arranca escrito si sigue siendo del destino (REV-74, #10).
+ * El CUIT del pais del cliente (`--cuit-pais`), de una lista donde tambien se escribe (TUI-35): la lista trae los CUIT
+ * que acepta el flag para el destino (`exportClientCountryCuitChoices`), y se filtra por el pais o el numero. Un numero
+ * escrito se valida como `--cuit-pais`. Con `optional`, la primera fila lo deja sin CUIT (`undefined`): la E va con el
+ * ID impositivo. Con `previous` (lo respondido antes), arranca marcado si sigue siendo del destino (REV-74, #10).
  */
 export async function askCountryCuit(
   context: ExportCountryCuitContext,
@@ -103,65 +90,27 @@ export async function askCountryCuit(
   options: { readonly optional?: boolean; readonly previous?: number } = {},
 ): Promise<Back | number | undefined> {
   const { previous } = options;
+  const rows = exportClientCountryCuitChoices({ country: context.country, countries: context.countryCuits }).map(
+    (entry) => ({
+      // El numero solo tambien es la fila: escribirlo entero la elige, sin "Usar lo escrito".
+      keywords: String(entry.cuit),
+      label: `${entry.cuit}  ${entry.countryName}`,
+      value: entry.cuit,
+    }),
+  );
 
-  for (;;) {
-    const answer = await askTextStep(message, {
-      previousAnswer:
-        previous !== undefined && validateCountryCuit(context, previous) === true ? String(previous) : undefined,
-      validate: (value) => {
-        if (!value.trim()) {
-          return options.optional ? true : 'Escribí el CUIT o parte del nombre del país.';
-        }
+  return chooseOrTypeStep<number>(message, rows, {
+    optional: options.optional,
+    parse: (text) => Number(parseStrictInteger(text)),
+    previous: previous !== undefined && validateCountryCuit(context, previous) === true ? previous : undefined,
+    validate: (text) => {
+      const cuit = parseStrictInteger(text);
 
-        const cuit = parseStrictInteger(value);
-
-        if (cuit !== undefined) {
-          return validateCountryCuit(context, cuit);
-        }
-
-        return findCountryCuits(context, value).length > 0
-          ? true
-          : `La tabla de CUIT de países de ARCA no tiene "${value.trim()}". Probá con otra parte del nombre.`;
-      },
-    });
-
-    if (answer === BACK) {
-      return BACK;
-    }
-
-    if (!answer.trim()) {
-      return undefined;
-    }
-
-    const typed = parseStrictInteger(answer);
-
-    if (typed !== undefined) {
-      return typed;
-    }
-
-    const picked = await chooseStep(
-      'CUIT del país:',
-      findCountryCuits(context, answer).map((entry) => ({
-        description: String(entry.cuit),
-        // La CUIT tambien la encuentra al escribir.
-        keywords: String(entry.cuit),
-        name: entry.countryName,
-        value: entry.cuit,
-      })),
-    );
-
-    if (picked === BACK) {
-      continue;
-    }
-
-    const valid = validateCountryCuit(context, picked);
-
-    if (valid === true) {
-      return picked;
-    }
-
-    writeTerminalOutput(noticePanel(valid, 'warning'));
-  }
+      return cuit === undefined
+        ? `Nada de la lista coincide con "${text.trim()}": elegí un CUIT o escribí el número.`
+        : validateCountryCuit(context, cuit);
+    },
+  });
 }
 
 /**

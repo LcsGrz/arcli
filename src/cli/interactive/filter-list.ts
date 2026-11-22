@@ -1,4 +1,13 @@
-import { createPrompt, isEnterKey, makeTheme, useKeypress, useMemo, usePrefix, useState } from '@inquirer/core';
+import {
+  createPrompt,
+  isEnterKey,
+  makeTheme,
+  useEffect,
+  useKeypress,
+  useMemo,
+  usePrefix,
+  useState,
+} from '@inquirer/core';
 
 import { bold, colorize, pointerRow, scrollHint, scrollWindow, stripAnsi } from '../../ui';
 
@@ -16,6 +25,18 @@ export interface FilterListRow<T> {
   readonly value: T;
 }
 
+/**
+ * Usar lo escrito en lugar de una fila (`chooseOrTypeStep`): con algo escrito que no es exactamente una fila, la lista
+ * suma debajo de las que coinciden una fila "Usar lo escrito: …". Enter sobre ella valida lo escrito y, si vale, cierra
+ * con `value(lo escrito)`; si no, muestra el error y sigue.
+ */
+interface FilterListTyped<T> {
+  /** La fila de lo escrito, por ejemplo "Usar lo escrito: Mercado Pago". */
+  readonly label: (term: string) => string;
+  readonly validate?: (term: string) => string | true;
+  readonly value: (term: string) => T;
+}
+
 export interface FilterListConfig<T> {
   /** "← Volver" fijo debajo de la lista, separado por una linea en blanco; elegirlo cierra la lista sin respuesta. */
   readonly back?: string;
@@ -24,6 +45,8 @@ export interface FilterListConfig<T> {
   readonly header?: string;
   /** Linea de ayuda debajo de la lista. */
   readonly help?: string;
+  /** Lo escrito con que arranca, por ejemplo una respuesta anterior que no es una fila (con `typed`, la marca). */
+  readonly initialTerm?: string;
   readonly message: string;
   /** `elegir`: Enter devuelve la fila marcada. `ver`: la lista es para mirar, y Enter la cierra igual que Esc. */
   readonly mode: 'elegir' | 'ver';
@@ -38,6 +61,7 @@ export interface FilterListConfig<T> {
       readonly message?: (text: string, status: string) => string;
     };
   };
+  readonly typed?: FilterListTyped<T>;
 }
 
 interface FilterListStyle {
@@ -67,6 +91,16 @@ export function matchesSearch(text: string, term: string): boolean {
   const haystack = normalize(stripAnsi(text));
 
   return searchWords(term).every((word) => haystack.includes(word));
+}
+
+/** Si dos textos buscan lo mismo: sin mayusculas ni tildes, y un espacio o un Tab de mas no cambian la busqueda. */
+export function sameSearch(left: string, right: string): boolean {
+  return searchWords(left).join(' ') === searchWords(right).join(' ');
+}
+
+/** Si lo escrito es exactamente una fila: su texto, lo que deja al elegirla o sus palabras clave. */
+function isExactRow<T>(row: FilterListRow<T>, term: string): boolean {
+  return [row.label, row.short, row.keywords].some((text) => text !== undefined && sameSearch(stripAnsi(text), term));
 }
 
 /** Las filas que contienen lo escrito, en la fila o en sus palabras clave. */
@@ -103,17 +137,36 @@ const BACK_ROW = -1;
 export const filterList = createPrompt(<T>(config: FilterListConfig<T>, done: (value: T | undefined) => void) => {
   const theme = makeTheme<FilterListStyle>(config.theme);
   const [status, setStatus] = useState<'done' | 'idle'>('idle');
-  const [term, setTerm] = useState('');
-  const { active, move, setActive } = useListCursor(() =>
-    Math.max(
-      0,
-      config.rows.findIndex((row) => row.value === config.default),
-    ),
-  );
+  const [term, setTerm] = useState(config.initialTerm ?? '');
+  // El error de lo escrito ("Usar lo escrito" que no valida), hasta la proxima tecla.
+  const [error, setError] = useState<string | undefined>(undefined);
   const prefix = usePrefix({ status, theme });
   const visible = useMemo(() => filterRows(config.rows, term), [config.rows, term]);
+  // La fila de lo escrito va despues de las que coinciden: Enter sigue eligiendo la primera que coincide.
+  const typedIndex =
+    config.typed && searchWords(term).length > 0 && !visible.some((row) => isExactRow(row, term))
+      ? visible.length
+      : undefined;
+  const { active, move, setActive } = useListCursor(() =>
+    // Lo escrito con que arranca no es una fila: arranca marcada la de lo escrito.
+    typedIndex !== undefined && config.initialTerm
+      ? typedIndex
+      : Math.max(
+          0,
+          visible.findIndex((row) => row.value === config.default),
+        ),
+  );
+
+  // Lo escrito con que arranca va a la linea de readline, para seguir editandolo.
+  useEffect((rl) => {
+    if (term) {
+      rl.write(term);
+    }
+  }, []);
 
   useKeypress((key, rl) => {
+    setError(undefined);
+
     if (isEnterKey(key)) {
       const row = active === BACK_ROW ? undefined : visible[active];
 
@@ -123,6 +176,16 @@ export const filterList = createPrompt(<T>(config: FilterListConfig<T>, done: (v
       } else if (row) {
         setStatus('done');
         done(row.value);
+      } else if (config.typed && active === typedIndex) {
+        const valid = config.typed.validate?.(term) ?? true;
+
+        if (valid === true) {
+          setStatus('done');
+          done(config.typed.value(term));
+        } else {
+          setError(valid);
+          rl.write(term);
+        }
       } else {
         // Enter sin nada que elegir: readline ya vacio la linea, y lo escrito tiene que seguir para editarlo.
         rl.write(term);
@@ -131,16 +194,21 @@ export const filterList = createPrompt(<T>(config: FilterListConfig<T>, done: (v
       // Las flechas no escriben: readline las tomaria como historial y borraria el filtro.
       rl.clearLine(0);
       rl.write(term);
-      // Las filas que se recorren con las flechas, con "Volver" al final.
-      move(key, [...visible.keys(), ...(config.back ? [BACK_ROW] : [])]);
+      // Las filas que se recorren con las flechas, con lo escrito y "Volver" al final.
+      move(key, [
+        ...visible.keys(),
+        ...(typedIndex === undefined ? [] : [typedIndex]),
+        ...(config.back ? [BACK_ROW] : []),
+      ]);
     } else if (rl.line !== term) {
       setTerm(rl.line);
       setActive(0);
     }
   });
 
-  // Con "Volver" marcado, la pagina queda al final, porque se llega desde la ultima fila.
-  const window = scrollWindow(visible.length, active === BACK_ROW ? visible.length - 1 : active, config.pageSize);
+  // Con lo escrito o "Volver" marcado, la pagina queda al final, porque se llega desde la ultima fila.
+  const anchor = active === BACK_ROW || active === typedIndex ? visible.length - 1 : active;
+  const window = scrollWindow(visible.length, anchor, config.pageSize);
   const page = [
     ...(window.scrolls ? [scrollHint('above', window.start)] : []),
     ...visible
@@ -155,11 +223,17 @@ export const filterList = createPrompt(<T>(config: FilterListConfig<T>, done: (v
   }
 
   const count = filterCountLine(term, visible.length, config.rows.length);
-  const body = visible.length > 0 ? page : noMatchesLine(term);
+  const typedRow =
+    config.typed && typedIndex !== undefined
+      ? pointerRow(config.typed.label(term.trim()), active === typedIndex, theme.style.highlight)
+      : '';
+  // Sin filas que coincidan, la de lo escrito ocupa el lugar de "Nada coincide".
+  const body = visible.length > 0 ? [page, typedRow].filter(Boolean).join('\n') : typedRow || noMatchesLine(term);
   const keys: HelpKey[] = [
     ['↑↓', 'navigate'],
     ...(config.mode === 'elegir' ? [['⏎', 'select'] as HelpKey] : []),
-    FILTER_HELP_KEY,
+    // Donde tambien se usa lo escrito, la ayuda lo dice.
+    config.typed ? ['escribí', 'para filtrar o usar otro'] : FILTER_HELP_KEY,
   ];
   const lines = [
     // Una linea en blanco entre "Filtrar:" y la lista, y otra arriba (en `top`), para que el filtro no quede pegado.
@@ -167,6 +241,7 @@ export const filterList = createPrompt(<T>(config: FilterListConfig<T>, done: (v
     config.header ? `  ${bold(config.header)}` : '',
     body,
     count,
+    error ? colorize(`> ${error}`, 'danger') : '',
     ...(config.back ? [' ', pointerRow(config.back, active === BACK_ROW, theme.style.highlight)] : []),
     ' ',
     config.help ? theme.style.description(config.help) : '',

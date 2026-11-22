@@ -3,9 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } fr
 
 import { BACK } from '../../../modules/interactive/wizard';
 import { stripAnsi } from '../../../ui';
-import type { FilterListRow } from '../prompts';
-
-import type { ChooseOrTypeStep, ChooseOrTypeStepOptions } from './script';
+import { chooseOrTypeStep, type ChooseOrTypeStepOptions, type FilterListRow } from '../prompts';
 
 /**
  * `chooseOrTypeStep` (TUI-35) de verdad: una lista que se filtra escribiendo, donde tambien se puede usar lo escrito.
@@ -14,6 +12,7 @@ import type { ChooseOrTypeStep, ChooseOrTypeStepOptions } from './script';
  */
 
 const ENTER = '\r';
+const DOWN = '\u001B[B';
 
 const ROWS: ReadonlyArray<FilterListRow<string>> = [
   { label: 'Alfa', value: 'a' },
@@ -21,15 +20,6 @@ const ROWS: ReadonlyArray<FilterListRow<string>> = [
 ];
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
-
-/** El componente, si ya existe en `prompts.ts`: hoy no, y el test falla aca por eso. */
-async function loadChooseOrTypeStep(): Promise<ChooseOrTypeStep> {
-  const prompts = (await import('../prompts')) as unknown as Record<string, unknown>;
-
-  expect(prompts.chooseOrTypeStep, 'chooseOrTypeStep no está en prompts.ts').toBeTypeOf('function');
-
-  return prompts.chooseOrTypeStep as ChooseOrTypeStep;
-}
 
 let input: PassThrough;
 let write: MockInstance<typeof process.stdout.write>;
@@ -58,7 +48,6 @@ async function run<T>(
   keys: ReadonlyArray<string | typeof BACK>,
   rows: ReadonlyArray<FilterListRow<T>> = ROWS as unknown as ReadonlyArray<FilterListRow<T>>,
 ) {
-  const chooseOrTypeStep = await loadChooseOrTypeStep();
   const answer = chooseOrTypeStep('¿Cuál?', rows, options);
   const frames: string[] = [];
 
@@ -80,31 +69,26 @@ const parse = (text: string) => `escrito:${text.trim()}`;
 
 describe('chooseOrTypeStep (TUI-35)', () => {
   // Criterio 3.
-  // Tests primero (TUI-35): pasa a it() al implementarlo.
-  it.fails(
-    'con lo escrito que no es una fila muestra "Usar lo escrito"; si no valida, muestra el error y no cierra',
-    async () => {
-      const {
-        answer,
-        frames,
-        screen: drawn,
-      } = await run({ parse, validate: (text) => (text.trim() === 'zz' ? 'No vale "zz".' : true) }, [
-        'z',
-        'z',
-        ENTER,
-        BACK,
-      ]);
+  it('con lo escrito que no es una fila muestra "Usar lo escrito"; si no valida, muestra el error y no cierra', async () => {
+    const {
+      answer,
+      frames,
+      screen: drawn,
+    } = await run({ parse, validate: (text) => (text.trim() === 'zz' ? 'No vale "zz".' : true) }, [
+      'z',
+      'z',
+      ENTER,
+      BACK,
+    ]);
 
-      expect(frames.at(-2)).toContain('Usar lo escrito: zz');
-      expect(drawn).toContain('No vale "zz".');
-      // Enter no cerro con un valor: lo que cerro fue Esc.
-      expect(answer).toBe(BACK);
-    },
-  );
+    expect(frames.at(-2)).toContain('Usar lo escrito: zz');
+    expect(drawn).toContain('No vale "zz".');
+    // Enter no cerro con un valor: lo que cerro fue Esc.
+    expect(answer).toBe(BACK);
+  });
 
   // Criterio 3.
-  // Tests primero (TUI-35): pasa a it() al implementarlo.
-  it.fails('con lo escrito valido, Enter devuelve lo que da `parse`', async () => {
+  it('con lo escrito valido, Enter devuelve lo que da `parse`', async () => {
     const { answer, screen: drawn } = await run({ parse, validate: () => true }, ['z', 'z', ENTER]);
 
     expect(answer).toBe('escrito:zz');
@@ -112,32 +96,53 @@ describe('chooseOrTypeStep (TUI-35)', () => {
   });
 
   // Criterio 3: lo escrito que coincide con una fila la deja primera, y Enter elige la fila, no lo escrito.
-  // Tests primero (TUI-35): pasa a it() al implementarlo.
-  it.fails('escribir parte de una fila la encuentra y Enter la elige', async () => {
+  it('escribir parte de una fila la encuentra y Enter la elige', async () => {
     const { answer } = await run({ parse }, ['b', 'e', 't', ENTER]);
 
     expect(answer).toBe('b');
   });
 
+  // Lo escrito que coincide con filas: "Usar lo escrito" queda debajo de ellas y se llega con las flechas.
+  it('con lo escrito que coincide con filas, "Usar lo escrito" queda debajo; ↓ lo marca y Enter lo usa', async () => {
+    const { answer, frames } = await run({ parse, validate: () => true }, ['a', DOWN, DOWN, ENTER]);
+
+    expect(frames[1]).toMatch(/❯ Alfa\n\s+Beta\n\s+Usar lo escrito: a/);
+    expect(answer).toBe('escrito:a');
+  });
+
   // Criterio 4.
-  // Tests primero (TUI-35): pasa a it() al implementarlo.
-  it.fails('opcional: Enter con el filtro vacío devuelve "sin valor"', async () => {
+  it('opcional: Enter con el filtro vacío devuelve "sin valor"', async () => {
     const { answer } = await run({ optional: true, parse }, [ENTER]);
 
     expect(answer).toBeUndefined();
   });
 
-  // Criterio 4: el primer Enter no cierra (si cerrara, con la primera fila, la respuesta seria "a").
-  // Tests primero (TUI-35): pasa a it() al implementarlo.
-  it.fails('obligatorio: Enter con el filtro vacío no cierra, y después se sigue eligiendo', async () => {
-    const { answer } = await run({ parse }, [ENTER, 'b', 'e', 't', ENTER]);
+  // Criterio 4, con la decision del 22/11: obligatoria, arranca con la primera fila marcada y Enter la elige, como
+  // cualquier lista del asistente.
+  it('obligatorio: Enter con el filtro vacío elige la primera fila', async () => {
+    const { answer, frames } = await run({ parse }, [ENTER]);
+
+    expect(frames[0]).toMatch(/❯ Alfa/);
+    expect(frames[0]).not.toContain('Omitir');
+    expect(answer).toBe('a');
+  });
+
+  // Criterio 4, con la decision del 22/11: opcional, la primera fila dice que pasa si se deja vacia y arranca marcada.
+  it('opcional: la primera fila es la de `emptyLabel`, marcada, y elegirla devuelve "sin valor"', async () => {
+    const { answer, frames } = await run({ emptyLabel: 'Sin CUIT del país', optional: true, parse }, [ENTER]);
+
+    expect(frames[0]).toMatch(/❯ Sin CUIT del país\n\s+Alfa/);
+    expect(answer).toBeUndefined();
+  });
+
+  it('opcional con `previous` de la lista: arranca marcada esa fila, no la de "sin valor"', async () => {
+    const { answer } = await run({ optional: true, parse, previous: 'b' }, [ENTER]);
 
     expect(answer).toBe('b');
   });
 
   // Criterio 5.
-  // Tests primero (TUI-35): pasa a it() al implementarlo.
-  it.fails('con la lista vacía es un texto validado: vacío muestra el error y lo escrito se convierte', async () => {
+  it('con la lista vacía es un texto validado: vacío muestra el error y lo escrito se convierte', async () => {
     const { answer, screen: drawn } = await run(
       {
         parse: (text: string) => text.trim().toUpperCase(),
@@ -152,16 +157,14 @@ describe('chooseOrTypeStep (TUI-35)', () => {
   });
 
   // Criterio 6.
-  // Tests primero (TUI-35): pasa a it() al implementarlo.
-  it.fails('con `previous` igual a una fila arranca con esa fila marcada: Enter la elige', async () => {
+  it('con `previous` igual a una fila arranca con esa fila marcada: Enter la elige', async () => {
     const { answer } = await run({ parse, previous: 'b' }, [ENTER]);
 
     expect(answer).toBe('b');
   });
 
   // Criterio 6.
-  // Tests primero (TUI-35): pasa a it() al implementarlo.
-  it.fails('con `previous` que no es una fila arranca escrito, con "Usar lo escrito"; Enter lo usa', async () => {
+  it('con `previous` que no es una fila arranca escrito, con "Usar lo escrito"; Enter lo usa', async () => {
     const { answer, frames } = await run({ parse, previous: 'zz' }, [ENTER]);
 
     expect(frames[0]).toContain('Usar lo escrito: zz');
@@ -169,8 +172,7 @@ describe('chooseOrTypeStep (TUI-35)', () => {
   });
 
   // Criterio 6.
-  // Tests primero (TUI-35): pasa a it() al implementarlo.
-  it.fails('Esc vuelve al paso anterior', async () => {
+  it('Esc vuelve al paso anterior', async () => {
     const { answer } = await run({ optional: true, parse }, ['b', BACK]);
 
     expect(answer).toBe(BACK);

@@ -663,13 +663,14 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     });
   });
 
+  // Obligatorio: sin la fila de "sin CUIT", Enter elige el primero de la lista (decision del 22/11).
   it('sin CUIT de país publicado ni ID impositivo pregunta el CUIT; volver desde ahí vuelve a los ítems', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
       [/ARCA no tiene un CUIT publicado para ATLANTIDA/, BACK],
       ...KEEP_EXPORT_ITEMS,
-      [/ARCA no tiene un CUIT publicado para ATLANTIDA/, rejecting('55000002126', ['', /Escribí el CUIT/])],
+      [/ARCA no tiene un CUIT publicado para ATLANTIDA/, ''],
       [/Permisos de embarque/, ''],
       [/Agregamos algún opcional/, []],
     ]);
@@ -679,8 +680,8 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     ).toMatchObject({ clientCountryCuit: 55000002126, destinationCountry: 'ATLANTIDA' });
   });
 
-  // REV-74, #10: volver al CUIT del país desde el paso siguiente lo muestra escrito.
-  it('volver al CUIT del país desde los permisos lo muestra escrito', async () => {
+  // REV-74, #10: volver al CUIT del país desde el paso siguiente lo muestra marcado.
+  it('volver al CUIT del país desde los permisos lo muestra marcado', async () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
@@ -693,11 +694,11 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
 
     await repeatOf({ ...INVOICE, clientCountryCuit: undefined, clientTaxId: ' ', destinationCountry: 999 });
 
-    const prefills = script.askTextStep.mock.calls
+    const prefills = script.chooseOrTypeStep.mock.calls
       .filter(([message]) => /ARCA no tiene un CUIT publicado/.test(message))
-      .map((call) => call[1]?.previousAnswer);
+      .map((call) => call[2].previous);
 
-    expect(prefills).toEqual([undefined, '55000002126']);
+    expect(prefills).toEqual([undefined, 55000002126]);
   });
 
   it('con ID impositivo no pregunta el CUIT del país aunque ARCA no tenga uno para el destino', async () => {
@@ -715,30 +716,26 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
   });
 
   // Criterio 8: sin CUIT publicado para el destino, cualquiera de la tabla vale (`resolveExportClientCountryCuit`).
-  // Tests primero (TUI-36): pasa a it() al implementarlo.
-  it.fails(
-    'sin CUIT para el destino, la lista trae los CUIT de la tabla y escribir parte del país lo elige, sin otra lista',
-    async () => {
-      script = createScript([
-        [/Cuál repetimos/, '00004-00000001'],
-        ...KEEP_EXPORT_ITEMS,
-        [/ARCA no tiene un CUIT publicado para ATLANTIDA/, 'unidos'],
-        [/Permisos de embarque/, ''],
-        [/Agregamos algún opcional/, []],
-      ]);
+  it('sin CUIT para el destino, la lista trae los CUIT de la tabla y escribir parte del país lo elige, sin otra lista', async () => {
+    script = createScript([
+      [/Cuál repetimos/, '00004-00000001'],
+      ...KEEP_EXPORT_ITEMS,
+      [/ARCA no tiene un CUIT publicado para ATLANTIDA/, 'unidos'],
+      [/Permisos de embarque/, ''],
+      [/Agregamos algún opcional/, []],
+    ]);
 
-      expect(
-        await repeatOf({ ...INVOICE, clientCountryCuit: undefined, clientTaxId: ' ', destinationCountry: 999 }),
-      ).toMatchObject({ clientCountryCuit: 55000002126, destinationCountry: 'ATLANTIDA' });
+    expect(
+      await repeatOf({ ...INVOICE, clientCountryCuit: undefined, clientTaxId: ' ', destinationCountry: 999 }),
+    ).toMatchObject({ clientCountryCuit: 55000002126, destinationCountry: 'ATLANTIDA' });
 
-      const [, rows, options] =
-        script.chooseOrTypeStep.mock.calls.find(([message]) => /ARCA no tiene un CUIT publicado/.test(message)) ?? [];
+    const [, rows, options] =
+      script.chooseOrTypeStep.mock.calls.find(([message]) => /ARCA no tiene un CUIT publicado/.test(message)) ?? [];
 
-      expect(rows?.map((row) => row.value)).toEqual([55000002126]);
-      // Sin ID impositivo, ARCA pide el CUIT: no se puede dejar vacío.
-      expect(options?.optional).toBeFalsy();
-    },
-  );
+    expect(rows?.map((row) => row.value)).toEqual([55000002126]);
+    // Sin ID impositivo, ARCA pide el CUIT: no se puede dejar vacío.
+    expect(options?.optional).toBeFalsy();
+  });
 
   // Criterio 8: lo de hoy, el mismo error que `--cuit-pais` para un número que no está en la tabla.
   it('sin CUIT para el destino, un número que no está en la tabla da el error de `--cuit-pais`', async () => {

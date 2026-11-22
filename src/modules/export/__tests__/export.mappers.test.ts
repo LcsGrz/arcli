@@ -6,6 +6,7 @@ import {
   assertExportTextLengths,
   assertExportVoucherDate,
   buildExportPayload,
+  exportClientCountryCuitChoices,
   resolveExportActivity,
   resolveExportClientCountryCuit,
   resolveExportCurrency,
@@ -250,6 +251,35 @@ describe('assertExportClientIdentification', () => {
     expect(() => assertExportClientIdentification({ clientTaxId: '  ', country })).toThrow(
       'La tabla de ARCA no tiene CUIT para "IRLANDA" y ARCA pide el CUIT del país o el ID impositivo del cliente (error 1580). Indicá el ID impositivo con `--id-impositivo` o el CUIT del país con `--cuit-pais`.',
     );
+  });
+});
+
+describe('exportClientCountryCuitChoices', () => {
+  it('con CUIT publicado para el destino, trae los del destino, en el orden de la tabla', () => {
+    expect(
+      exportClientCountryCuitChoices({ countries: COUNTRY_CUITS, country: { code: 203, name: 'BRASIL' } }).map(
+        (entry) => entry.cuit,
+      ),
+    ).toEqual([50000000059, 51600000059, 55000000050]);
+  });
+
+  it('sin CUIT publicado para el destino, trae toda la tabla: `--cuit-pais` acepta cualquiera', () => {
+    const country = { code: 999, name: 'ATLANTIDA' };
+    const choices = exportClientCountryCuitChoices({ countries: COUNTRY_CUITS, country });
+
+    expect(choices).toEqual(COUNTRY_CUITS);
+
+    for (const { cuit } of choices) {
+      expect(resolveExportClientCountryCuit({ countries: COUNTRY_CUITS, country, cuit })).toBe(cuit);
+    }
+  });
+
+  it('cada uno que trae lo acepta `--cuit-pais` para ese destino', () => {
+    const country = { code: 212, name: 'ESTADOS UNIDOS' };
+
+    for (const { cuit } of exportClientCountryCuitChoices({ countries: COUNTRY_CUITS, country })) {
+      expect(resolveExportClientCountryCuit({ countries: COUNTRY_CUITS, country, cuit })).toBe(cuit);
+    }
   });
 });
 

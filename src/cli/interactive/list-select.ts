@@ -18,6 +18,7 @@ import {
   filterPromptLine,
   matchesSearch,
   noMatchesLine,
+  sameSearch,
   searchWords,
 } from './filter-list';
 import { isCursorKey, useListCursor } from './list-cursor';
@@ -97,11 +98,6 @@ function isOption<T>(item: ListSelectChoice<T> | Separator): item is ListSelectC
 /** Si la opcion coincide con lo escrito, por su nombre o sus `keywords`. */
 function choiceMatches<T>(item: ListSelectChoice<T> | Separator, term: string): item is ListSelectChoice<T> {
   return isOption(item) && matchesSearch(`${item.name} ${item.keywords ?? ''}`, term);
-}
-
-/** Si dos textos buscan lo mismo: un espacio o un Tab de mas no cambian la busqueda. */
-function sameSearch(left: string, right: string): boolean {
-  return searchWords(left).join(' ') === searchWords(right).join(' ');
 }
 
 /**

@@ -4,21 +4,30 @@ import { billingCommandSchema } from '../../../modules/billing/billing.schemas';
 import type { BillingExecutionResult } from '../../../modules/billing/billing.types.internal';
 import { getVoucherKindByShortcut } from '../../../modules/billing/voucher-kind-map';
 import type { ArcliConfig } from '../../../modules/config/config.schemas';
+import { BACK } from '../../../modules/interactive/wizard';
 import { writeTerminalOutput } from '../../../ui';
 import { writePdfOutcomes } from '../../commands/billing.command.output';
 import { attachPdfs } from '../../commands/billing.command.pdf';
 import { offerPdf } from '../pdf.flow';
-import { askText, chooseOne, confirm } from '../prompts';
+import { askText, confirm } from '../prompts';
 
-import { createScript } from './script';
+import { chooseOrTypeInitialTerm, createScript, enterOnChooseOrType } from './script';
 
 let script = createScript([]);
 
 vi.mock('../prompts', () => ({
   askText: vi.fn(),
-  chooseOrTypeStep: (...args: Parameters<typeof script.chooseOrTypeStep>) => script.chooseOrTypeStep(...args),
-  // Sin respuesta preparada, Enter: el valor marcado, o la primera opcion (Omitir).
-  chooseOne: vi.fn(async (_message, choices, defaultValue) => defaultValue ?? choices[0].value),
+  // Sin respuesta preparada, Enter: lo marcado o escrito, o la primera fila (Omitir).
+  chooseOrTypeStep: (...args: Parameters<typeof script.chooseOrTypeStep>) => {
+    if (script.remaining() > 0) {
+      return script.chooseOrTypeStep(...args);
+    }
+
+    const [, rows, options] = args;
+    const enter = enterOnChooseOrType(rows, options, chooseOrTypeInitialTerm(rows, options));
+
+    return 'value' in enter ? enter.value : Promise.reject(new Error(enter.error));
+  },
   confirm: vi.fn(),
   isPromptCancellation: (error: unknown) => error instanceof Error && error.name === 'ExitPromptError',
 }));
@@ -39,7 +48,6 @@ vi.mock('../../../modules/config/config.service', () => ({
 }));
 
 const askTextMock = vi.mocked(askText);
-const chooseOneMock = vi.mocked(chooseOne);
 const confirmMock = vi.mocked(confirm);
 const attachPdfsMock = vi.mocked(attachPdfs);
 
@@ -128,7 +136,7 @@ describe('offerPdf', () => {
 
   it('asks the PDF-only data and generates it', async () => {
     confirmMock.mockResolvedValueOnce(true);
-    chooseOneMock.mockResolvedValueOnce('otros-medios-electronicos');
+    script = createScript([[/^Condición de venta/, 'Otros medios de pago electrónico']]);
     askTextMock
       .mockResolvedValueOnce('Servicios de octubre')
       .mockResolvedValueOnce('Cliente SA')
@@ -151,14 +159,13 @@ describe('offerPdf', () => {
       results: [result],
     });
     expect(writePdfOutcomes).toHaveBeenCalled();
-    expect(chooseOneMock).toHaveBeenCalledWith(
+    expect(script.chooseOrTypeStep).toHaveBeenCalledWith(
       'Condición de venta:',
       expect.arrayContaining([
-        expect.objectContaining({ name: 'Omitir' }),
-        expect.objectContaining({ name: 'Tarjeta de Débito', value: 'tarjeta-debito' }),
-        expect.objectContaining({ name: 'Otra', value: 'otra' }),
+        expect.objectContaining({ label: 'Tarjeta de Débito', value: 'tarjeta-debito' }),
+        expect.objectContaining({ label: 'Otra', value: 'otra' }),
       ]),
-      undefined,
+      expect.objectContaining({ emptyLabel: 'Omitir', optional: true, previous: undefined }),
     );
   });
 
@@ -168,7 +175,6 @@ describe('offerPdf', () => {
 
     await offerPdf({ ...CONFIG, condicionVenta: 'cuenta-corriente' }, input, result);
 
-    expect(chooseOneMock).toHaveBeenCalledWith('Condición de venta:', expect.any(Array), 'cuenta-corriente');
     expect(attachPdfsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         config: expect.objectContaining({ condicionVenta: 'cuenta-corriente' }),
@@ -178,62 +184,35 @@ describe('offerPdf', () => {
     askTextMock.mockReset();
   });
 
-  it('omits the sale condition even if the config has one', async () => {
+  it('"Otra" de la lista queda como "otra", sin pedir un texto aparte', async () => {
     confirmMock.mockResolvedValueOnce(true);
     askTextMock.mockResolvedValue('');
-    chooseOneMock.mockResolvedValueOnce('omitir');
-
-    await offerPdf({ ...CONFIG, condicionVenta: 'contado' }, input, result);
-
-    expect(attachPdfsMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        config: expect.objectContaining({ condicionVenta: 'contado' }),
-        inputs: [expect.objectContaining({ saleCondition: null })],
-      }),
-    );
-    askTextMock.mockReset();
-  });
-
-  it('only asks for free text with Otra: Enter keeps "Otra" and a typed text is used as is', async () => {
-    confirmMock.mockResolvedValue(true);
-    askTextMock.mockImplementation(async (message, options) =>
-      message === 'Condición de venta:' ? (options?.defaultValue ?? '') : '',
-    );
-    chooseOneMock.mockResolvedValueOnce('otra');
+    script = createScript([[/^Condición de venta/, 'Otra']]);
 
     await offerPdf(CONFIG, input, result);
 
     expect(attachPdfsMock).toHaveBeenLastCalledWith(
-      expect.objectContaining({ inputs: [expect.objectContaining({ saleCondition: 'Otra' })] }),
+      expect.objectContaining({ inputs: [expect.objectContaining({ saleCondition: 'otra' })] }),
     );
-
-    askTextMock.mockImplementation(async (message) => (message === 'Condición de venta:' ? 'Billetera virtual' : ''));
-    chooseOneMock.mockResolvedValueOnce('otra');
-
-    await offerPdf(CONFIG, input, result);
-
-    expect(attachPdfsMock).toHaveBeenLastCalledWith(
-      expect.objectContaining({ inputs: [expect.objectContaining({ saleCondition: 'Billetera virtual' })] }),
-    );
+    expect(askTextMock.mock.calls.map(([message]) => message)).not.toContain('Condición de venta:');
     askTextMock.mockReset();
-    confirmMock.mockReset();
   });
 
-  it('marks Otra with the free text of the config, so Enter keeps it', async () => {
+  it('Esc en la condición de venta no genera el PDF y avisa que el comprobante ya quedó emitido', async () => {
     confirmMock.mockResolvedValueOnce(true);
-    askTextMock.mockImplementation(async (_message, options) => options?.defaultValue ?? '');
+    askTextMock.mockResolvedValue('');
+    script = createScript([[/^Condición de venta/, BACK]]);
 
-    await offerPdf({ ...CONFIG, condicionVenta: 'Billetera virtual' }, input, result);
+    await offerPdf(CONFIG, input, result);
 
-    expect(chooseOneMock).toHaveBeenCalledWith('Condición de venta:', expect.any(Array), 'otra');
-    expect(attachPdfsMock).toHaveBeenCalledWith(
-      expect.objectContaining({ inputs: [expect.objectContaining({ saleCondition: 'Billetera virtual' })] }),
-    );
+    expect(attachPdfsMock).not.toHaveBeenCalled();
+    expect(vi.mocked(writeTerminalOutput)).toHaveBeenCalledWith(expect.stringContaining('no se generó el PDF'));
     askTextMock.mockReset();
   });
 
   it('asks the missing issuer data once and saves it when the user agrees', async () => {
-    confirmMock.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
+    // Con `pdf siempre` no se pregunta si generarlo: la unica confirmacion es la de guardar.
+    confirmMock.mockResolvedValueOnce(true);
     askTextMock
       .mockResolvedValueOnce('')
       .mockResolvedValueOnce('')
@@ -268,18 +247,6 @@ describe('offerPdf: datos que faltan y errores despues de emitir', () => {
     attachPdfsMock.mockImplementation(async ({ results }) => [...results]);
   });
 
-  it('"Otra" con el texto borrado queda como "otra"', async () => {
-    confirmMock.mockResolvedValueOnce(true);
-    askTextMock.mockResolvedValue('');
-    chooseOneMock.mockResolvedValueOnce('otra');
-
-    await offerPdf(CONFIG, input, result);
-
-    expect(attachPdfsMock).toHaveBeenLastCalledWith(
-      expect.objectContaining({ inputs: [expect.objectContaining({ saleCondition: 'otra' })] }),
-    );
-  });
-
   it('sin CUIT en la config lo pide para el PDF, y "solo esta vez" no lo guarda', async () => {
     // Con `pdf siempre` no se pregunta si generarlo: la unica confirmacion es la de guardar.
     confirmMock.mockResolvedValueOnce(false);
@@ -305,9 +272,14 @@ describe('offerPdf: datos que faltan y errores despues de emitir', () => {
     confirmMock.mockResolvedValueOnce(true);
     askTextMock.mockResolvedValue('');
 
+    script = createScript([[/^Condición de venta/, '']]);
+
     await offerPdf({ ...CONFIG, condicionVenta: 'contado' }, { ...input, saleCondition: null }, result);
 
-    expect(chooseOneMock).toHaveBeenLastCalledWith('Condición de venta:', expect.any(Array), undefined);
+    expect(script.chooseOrTypeStep.mock.calls[0]?.[2].previous).toBeUndefined();
+    expect(attachPdfsMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ inputs: [expect.objectContaining({ saleCondition: null })] }),
+    );
   });
 
   it('un error al generar el PDF que no es Ctrl+C llega a quien lo pidió', async () => {
@@ -368,29 +340,24 @@ describe('offerPdf: la condición de venta de una lista donde también se escrib
     confirmMock.mockReset();
   });
 
-  // Tests primero (TUI-35): pasa a it() al implementarlo.
-  it.fails('elegir una de la lista devuelve su clave', async () => {
+  it('elegir una de la lista devuelve su clave', async () => {
     expect(await saleConditionAfter('Tarjeta de Débito')).toBe('tarjeta-debito');
   });
 
-  // Tests primero (TUI-35): pasa a it() al implementarlo.
-  it.fails('un texto libre escrito va tal cual', async () => {
+  it('un texto libre escrito va tal cual', async () => {
     expect(await saleConditionAfter('Billetera virtual')).toBe('Billetera virtual');
   });
 
-  // Tests primero (TUI-35): pasa a it() al implementarlo.
-  it.fails('"Omitir" sigue estando y deja el PDF sin condición de venta', async () => {
+  it('"Omitir" sigue estando y deja el PDF sin condición de venta', async () => {
     expect(await saleConditionAfter('Omitir', { ...CONFIG, condicionVenta: 'contado' })).toBeNull();
   });
 
-  // Tests primero (TUI-35): pasa a it() al implementarlo.
-  it.fails('con un texto libre guardado arranca con ese texto: Enter lo deja', async () => {
+  it('con un texto libre guardado arranca con ese texto: Enter lo deja', async () => {
     expect(await saleConditionAfter('', { ...CONFIG, condicionVenta: 'Billetera virtual' })).toBe('Billetera virtual');
     expect(script.chooseOrTypeStep.mock.calls[0]?.[2].previous).toBe('Billetera virtual');
   });
 
-  // Tests primero (TUI-35): pasa a it() al implementarlo.
-  it.fails('con una de la lista guardada arranca marcada: Enter la deja', async () => {
+  it('con una de la lista guardada arranca marcada: Enter la deja', async () => {
     expect(await saleConditionAfter('', { ...CONFIG, condicionVenta: 'cuenta-corriente' })).toBe('cuenta-corriente');
   });
 });

@@ -45,7 +45,7 @@ import type { GlobalCliOptions } from '../types';
 
 import { runCertificateMenu, runGenerateCertificate } from './certificate.flow';
 import { markIfNew } from './new-mark';
-import { askTextStep, type Choice, chooseOne, chooseStep, confirm, fitPageSize } from './prompts';
+import { askTextStep, type Choice, chooseOne, chooseOrTypeStep, chooseStep, confirm, fitPageSize } from './prompts';
 
 /** `--produccion` o `--testing` de `arcli interactivo`: la configuracion guiada pide el certificado de ese entorno. */
 type EnvironmentFlags = Pick<GlobalCliOptions, 'produccion' | 'testing'>;
@@ -109,7 +109,32 @@ async function askField(
   const current = field.read(config);
   let value: string;
 
-  if (field.choices) {
+  if (field.choices && field.freeText) {
+    // De la lista o escrito (TUI-35): un valor propio guardado arranca escrito, y Enter lo deja.
+    const answer = await chooseOrTypeStep<string>(
+      `${field.label}:`,
+      [
+        ...field.choices.map((choice) => ({
+          keywords: choice,
+          label: field.choiceLabels?.[choice] ?? choice,
+          value: choice,
+        })),
+        ...(current && !options.required ? [{ label: 'Quitar el valor por defecto', value: CLEAR }] : []),
+        ...(!current && !options.required ? [{ label: 'Dejar sin configurar', value: KEEP }] : []),
+      ],
+      { parse: (text) => text, previous: current, validate: (text) => validate(field.key, text) },
+    );
+
+    if (answer === BACK) {
+      return BACK;
+    }
+
+    if (answer === undefined || answer === KEEP) {
+      return 'sin-cambios';
+    }
+
+    value = answer;
+  } else if (field.choices) {
     const customCurrentChoice =
       current && !field.choices.includes(current) ? [{ name: `Mantener: ${current}`, value: current }] : [];
     const answer = await chooseStep<string>(

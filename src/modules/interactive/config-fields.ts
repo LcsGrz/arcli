@@ -34,6 +34,8 @@ export interface ConfigField {
   readonly choices?: readonly string[];
   /** Etiquetas amigables para los valores de `choices`. */
   readonly choiceLabels?: Readonly<Record<string, string>>;
+  /** Ademas de `choices`, acepta un texto propio, como la condicion de venta: se elige de la lista o se escribe. */
+  readonly freeText?: boolean;
   readonly hint?: string;
   readonly key: ConfigPublicKey;
   /** El mismo nombre que en `arcli config` (ver CONFIG_LABELS). */
@@ -138,6 +140,7 @@ const FIELD_DEFINITIONS: ReadonlyArray<Omit<ConfigField, 'label'>> = [
   {
     choices: SALE_CONDITION_KEYS,
     choiceLabels: SALE_CONDITION_LABELS,
+    freeText: true,
     key: 'condicionVenta',
     read: (c) => c.condicionVenta,
   },

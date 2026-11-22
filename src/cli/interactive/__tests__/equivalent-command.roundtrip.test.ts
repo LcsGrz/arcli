@@ -52,6 +52,7 @@ vi.mock('../prompts', () => ({
   chooseFromFilterList: (...args: Parameters<typeof script.chooseFromFilterList>) =>
     script.chooseFromFilterList(...args),
   chooseManyStep: (...args: Parameters<typeof script.chooseManyStep>) => script.chooseManyStep(...args),
+  chooseOrTypeStep: (...args: Parameters<typeof script.chooseOrTypeStep>) => script.chooseOrTypeStep(...args),
   chooseStep: (...args: Parameters<typeof script.chooseStep>) => script.chooseStep(...args),
   chooseStepWhileLoading: (...args: Parameters<typeof script.chooseStepWhileLoading>) =>
     script.chooseStepWhileLoading(...args),

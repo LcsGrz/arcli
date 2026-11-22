@@ -434,6 +434,29 @@ function pickCountryCuit(entries: readonly ExportCountryCuit[]): ExportCountryCu
   return entries[0];
 }
 
+/** Las filas de la tabla DST_CUIT del destino (una por tipo de entidad), comparando sin el tipo de entidad. */
+function countryCuitsOfDestination(
+  country: ExportCountry,
+  countries: readonly ExportCountryCuit[],
+): ExportCountryCuit[] {
+  const destination = normalizeCountryName(country.name);
+
+  return countries.filter((entry) => normalizeCountryName(countryNameWithoutEntity(entry.countryName)) === destination);
+}
+
+/**
+ * Los CUIT de pais que acepta `--cuit-pais` para el destino (`resolveExportClientCountryCuit`): los del destino si la
+ * tabla de ARCA los trae y, si no, cualquiera de la tabla. En el orden de la tabla.
+ */
+export function exportClientCountryCuitChoices(options: {
+  readonly country: ExportCountry;
+  readonly countries: readonly ExportCountryCuit[];
+}): ExportCountryCuit[] {
+  const forDestination = countryCuitsOfDestination(options.country, options.countries);
+
+  return forDestination.length > 0 ? forDestination : [...options.countries];
+}
+
 /**
  * WSFEX pide el CUIT del pais del cliente o su ID impositivo: con uno alcanza (error 1580). Se resuelve con la tabla DST_CUIT, que nombra cada pais con el tipo de
  * entidad ("ESTADOS UNIDOS - Persona Jurídica"), mientras que la tabla de destinos dice solo "ESTADOS UNIDOS": por
@@ -448,9 +471,7 @@ export function resolveExportClientCountryCuit(options: {
   readonly cuit?: number;
 }): number | undefined {
   const destination = normalizeCountryName(options.country.name);
-  const forDestination = options.countries.filter(
-    (entry) => normalizeCountryName(countryNameWithoutEntity(entry.countryName)) === destination,
-  );
+  const forDestination = countryCuitsOfDestination(options.country, options.countries);
 
   if (options.cuit === undefined) {
     return pickCountryCuit(forDestination)?.cuit;

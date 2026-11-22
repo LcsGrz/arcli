@@ -4,8 +4,18 @@ import { vi } from 'vitest';
 import type { RowEdits } from '../../../modules/interactive/row-marks';
 import { BACK, type Back } from '../../../modules/interactive/wizard';
 import type { RowActionsListRow } from '../../../ui';
-import { filterRows } from '../filter-list';
-import type { Choice, EditRowsOptions, FilterListRow, ListStepOptions, TextStepOptions } from '../prompts';
+import { filterRows, matchesSearch } from '../filter-list';
+import type {
+  Choice,
+  ChooseOrTypeStepOptions,
+  EditRowsOptions,
+  FilterListRow,
+  ListStepOptions,
+  TextStepOptions,
+} from '../prompts';
+import { SKIP_ROW } from '../text-hints';
+
+export type { ChooseOrTypeStepOptions } from '../prompts';
 
 /** Las opciones de una lista, sin los separadores. */
 export function onlyChoices<T>(choices: ReadonlyArray<Choice<T> | Separator>): Array<Choice<T>> {
@@ -70,32 +80,6 @@ function rowPositions(message: string, rows: ReadonlyArray<{ readonly title: str
   });
 }
 
-/**
- * Tests primero (TUI-35): lo que recibe `chooseOrTypeStep`, la lista que se filtra escribiendo y donde tambien se
- * puede usar lo escrito. El componente todavia no existe: el contrato vive aca hasta que `prompts.ts` exporte el suyo, y
- * entonces este pasa a ser un re-export de aquel.
- */
-export interface ChooseOrTypeStepOptions<T> {
-  /** Fila de encabezado fija arriba de la lista (CÓDIGO, PAÍS…), como `chooseFromFilterList`. */
-  readonly header?: string;
-  readonly help?: string;
-  /** Enter con el filtro vacio devuelve `undefined` ("sin valor"); si no, no cierra. */
-  readonly optional?: boolean;
-  readonly pageSize?: number;
-  /** Convierte lo escrito (ya validado) en el valor del paso, cuando no se elige una fila. */
-  readonly parse: (text: string) => T;
-  /** Lo respondido antes: si es una fila, arranca marcada; si no, arranca escrito (`String(previous)`). */
-  readonly previous?: T;
-  /** Valida lo escrito, como `askTextStep`. Una fila elegida no pasa por aca. */
-  readonly validate?: (text: string) => string | true;
-}
-
-export type ChooseOrTypeStep = <T>(
-  message: string,
-  rows: ReadonlyArray<FilterListRow<T>>,
-  options: ChooseOrTypeStepOptions<T>,
-) => Promise<Back | T | undefined>;
-
 /** Lo que arranca escrito en el filtro: un `previous` que no es una fila. */
 export function chooseOrTypeInitialTerm<T>(
   rows: ReadonlyArray<FilterListRow<T>>,
@@ -108,14 +92,18 @@ export function chooseOrTypeInitialTerm<T>(
 
 /**
  * Enter en `chooseOrTypeStep` con `term` en el filtro, como el componente: la primera fila que coincide (con la misma
- * busqueda que `filterList`) o, si ninguna, lo escrito validado y convertido ("Usar lo escrito"). Vacio, la fila de
- * `previous`, "sin valor" si es opcional o, si es obligatoria, no cierra (con el error de `validate('')`, si lo da).
+ * busqueda que `filterList`, y en una opcional primero la de `emptyLabel`, que es "sin valor") o, si ninguna, lo
+ * escrito validado y convertido ("Usar lo escrito"). Vacio, la marcada: la de `previous` o, si no, la primera (en una
+ * opcional, la de "sin valor"). Sin filas es una pregunta de texto: vacio es "sin valor" si es opcional o lo que diga
+ * `validate('')`.
  */
 export function enterOnChooseOrType<T>(
   rows: ReadonlyArray<FilterListRow<T>>,
   options: ChooseOrTypeStepOptions<T>,
   term: string,
 ): { readonly error: string } | { readonly value: T | undefined } {
+  const listed = rows.length > 0;
+
   if (!term.trim()) {
     if (options.previous !== undefined && rows.some((row) => row.value === options.previous)) {
       return { value: options.previous };
@@ -125,12 +113,14 @@ export function enterOnChooseOrType<T>(
       return { value: undefined };
     }
 
-    const error = options.validate?.('');
-
-    return { error: typeof error === 'string' ? error : 'Enter vacío no cierra una pregunta obligatoria' };
+    if (listed) {
+      return { value: (rows[0] as FilterListRow<T>).value };
+    }
+  } else if (listed && options.optional && matchesSearch(options.emptyLabel ?? SKIP_ROW, term)) {
+    return { value: undefined };
   }
 
-  const [row] = filterRows(rows, term);
+  const [row] = term.trim() ? filterRows(rows, term) : [];
 
   if (row) {
     return { value: row.value };
@@ -138,7 +128,7 @@ export function enterOnChooseOrType<T>(
 
   const valid = options.validate?.(term) ?? true;
 
-  return valid === true ? { value: options.parse(term) } : { error: valid };
+  return valid === true ? { value: options.parse(term.trim()) } : { error: valid };
 }
 
 interface ScriptStep {

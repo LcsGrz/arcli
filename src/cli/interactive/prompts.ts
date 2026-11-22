@@ -11,6 +11,7 @@ import { filterList, type FilterListRow } from './filter-list';
 import { listSelect, type ListSelectState } from './list-select';
 import { multiSelect } from './multi-select';
 import { rowActionsList } from './row-actions-list';
+import { SKIP_HINT, SKIP_ROW } from './text-hints';
 
 export interface Choice<T> {
   readonly description?: string;
@@ -511,6 +512,26 @@ interface FilterListOptions<T> {
   readonly pageSize?: number;
 }
 
+/** La linea "✔ pregunta respuesta" de una lista que se filtra: lo que deja la fila elegida, o "Volver". */
+function filterListAnsweredLine<T>(
+  message: string,
+  rows: ReadonlyArray<FilterListRow<T>>,
+  answer: T | undefined,
+): { readonly answer: string; readonly message: string } {
+  if (answer === undefined) {
+    return { answer: BACK_CHOICE.name, message };
+  }
+
+  const row = rows.find((item) => item.value === answer);
+
+  return { answer: row?.short ?? row?.label.replace(/\s+/g, ' ').trim() ?? '', message };
+}
+
+/** La fila elegida en una lista que se filtra; Esc o "Volver" (que la cierra sin fila), BACK. */
+function filterListChoice<T>(result: { readonly aborted: true } | { readonly answer: Back | T | undefined }): Back | T {
+  return 'answer' in result && result.answer !== undefined ? result.answer : BACK;
+}
+
 /** Lineas que una lista que se filtra suma a las de cualquier lista: "Filtrar:", su linea en blanco, encabezado y cuenta. */
 export const FILTER_LIST_EXTRA_LINES = 4;
 
@@ -539,22 +560,10 @@ export async function chooseFromFilterList<T>(
         },
         context,
       ),
-    (answer) => {
-      if (answer === undefined) {
-        return { answer: BACK_CHOICE.name, message };
-      }
-
-      const row = rows.find((item) => item.value === answer);
-
-      return { answer: row?.short ?? row?.label.replace(/\s+/g, ' ').trim() ?? '', message };
-    },
+    (answer) => filterListAnsweredLine(message, rows, answer),
   );
 
-  if (!('answer' in result) || result.answer === BACK || result.answer === undefined) {
-    return BACK;
-  }
-
-  return result.answer;
+  return filterListChoice(result);
 }
 
 /** Una tabla larga para mirar: se filtra escribiendo y se desplaza con las flechas. Enter o Esc la cierran. */
@@ -608,4 +617,126 @@ export async function browseBlocks<B extends string>(
       ),
     () => undefined,
   );
+}
+
+export interface ChooseOrTypeStepOptions<T> {
+  /**
+   * La primera fila de una pregunta opcional (`optional`): dice que pasa si se deja vacia, por ejemplo "Sin CUIT del
+   * país (solo ID impositivo)". Arranca marcada si no hay `previous`, y elegirla devuelve `undefined`. Por defecto,
+   * "Omitir".
+   */
+  readonly emptyLabel?: string;
+  /** Fila de encabezado fija arriba de la lista (CÓDIGO, PAÍS…), como `chooseFromFilterList`. */
+  readonly header?: string;
+  readonly help?: string;
+  /** Se puede dejar sin valor: suma la fila de `emptyLabel`. Si no, Enter con el filtro vacio elige la primera fila. */
+  readonly optional?: boolean;
+  /** Por defecto, las filas que entran en la terminal (`fitPageSize`). */
+  readonly pageSize?: number;
+  /** Convierte lo escrito (ya validado) en el valor del paso, cuando no se elige una fila. */
+  readonly parse: (text: string) => T;
+  /** Lo respondido antes: si es una fila, arranca marcada; si no, arranca escrito (`String(previous)`). */
+  readonly previous?: T;
+  /** Valida lo escrito, como `askTextStep`. Una fila elegida no pasa por aca. */
+  readonly validate?: (text: string) => string | true;
+}
+
+/** Lo que devuelve la lista de `chooseOrTypeStep`: una fila, lo escrito o la fila de "sin valor". */
+type ChooseOrTypeAnswer<T> = { readonly row: T } | { readonly text: string } | { readonly empty: true };
+
+/** "Usar lo escrito: Mercado Pago", la fila que usa lo escrito en lugar de una de la lista. */
+function typedRowLabel(term: string): string {
+  return `Usar lo escrito: ${term}`;
+}
+
+/**
+ * Sin filas (por ejemplo, ARCA no devolvio la tabla), una pregunta de texto validada, como `askTextStep`. Si es
+ * opcional, vacio devuelve `undefined`.
+ */
+async function typeWithoutRows<T>(message: string, options: ChooseOrTypeStepOptions<T>): Promise<Back | T | undefined> {
+  const answer = await askTextStep(message, {
+    hint: options.optional ? SKIP_HINT : undefined,
+    previousAnswer: options.previous === undefined ? undefined : String(options.previous),
+    validate: (text) => (options.optional && !text.trim() ? true : (options.validate?.(text) ?? true)),
+  });
+
+  if (answer === BACK) {
+    return BACK;
+  }
+
+  return options.optional && !answer.trim() ? undefined : options.parse(answer.trim());
+}
+
+/**
+ * Elegir de una lista que se filtra escribiendo o usar lo escrito (TUI-35): con algo escrito que no es exactamente una
+ * fila, debajo de las que coinciden aparece "Usar lo escrito: …", que valida con `validate` y convierte con `parse`.
+ * Enter elige la marcada: la primera que coincide con lo escrito o, con el filtro vacio, la de `previous` o la primera
+ * (en una opcional, la de `emptyLabel`, que devuelve `undefined`). Con un `previous` que no es una fila, arranca escrito.
+ * Sin filas, es una pregunta de texto. Esc y "Volver" vuelven al paso anterior.
+ */
+export function chooseOrTypeStep<T>(
+  message: string,
+  rows: ReadonlyArray<FilterListRow<T>>,
+  options: ChooseOrTypeStepOptions<T> & { readonly optional?: false },
+): Promise<Back | T>;
+export function chooseOrTypeStep<T>(
+  message: string,
+  rows: ReadonlyArray<FilterListRow<T>>,
+  options: ChooseOrTypeStepOptions<T>,
+): Promise<Back | T | undefined>;
+export async function chooseOrTypeStep<T>(
+  message: string,
+  rows: ReadonlyArray<FilterListRow<T>>,
+  options: ChooseOrTypeStepOptions<T>,
+): Promise<Back | T | undefined> {
+  if (rows.length === 0) {
+    return typeWithoutRows(message, options);
+  }
+
+  const emptyLabel = options.emptyLabel ?? SKIP_ROW;
+  const listed: Array<FilterListRow<ChooseOrTypeAnswer<T>>> = [
+    ...(options.optional ? [{ label: emptyLabel, value: { empty: true } as const }] : []),
+    ...rows.map((row) => ({ ...row, value: { row: row.value } })),
+  ];
+  const previousRow = listed.find((row) => 'row' in row.value && row.value.row === options.previous);
+  const initialTerm = options.previous !== undefined && !previousRow ? String(options.previous) : undefined;
+  const result = await runStepPrompt(
+    (context) =>
+      filterList<ChooseOrTypeAnswer<T>>(
+        {
+          back: BACK_CHOICE.name,
+          default: previousRow?.value,
+          header: options.header,
+          help: options.help,
+          initialTerm,
+          message,
+          mode: 'elegir',
+          // Mas la fila de lo escrito y la linea del error.
+          pageSize: options.pageSize ?? fitPageSize(listed.length + 1, { extraLines: FILTER_LIST_EXTRA_LINES + 1 }),
+          rows: listed,
+          theme: STEP_THEME,
+          typed: {
+            label: typedRowLabel,
+            validate: options.validate,
+            value: (term) => ({ text: term.trim() }),
+          },
+        },
+        context,
+      ),
+    (answer) =>
+      answer !== undefined && 'text' in answer
+        ? { answer: answer.text, message }
+        : filterListAnsweredLine(message, listed, answer),
+  );
+  const answer = filterListChoice(result);
+
+  if (answer === BACK) {
+    return BACK;
+  }
+
+  if ('empty' in answer) {
+    return undefined;
+  }
+
+  return 'row' in answer ? answer.row : options.parse(answer.text);
 }

@@ -18,8 +18,11 @@
 ? [texto] País de destino (nombre o código de ARCA, por ejemplo ESTADOS UNIDOS o 212):
   = "BRASIL"
 
-? [texto] ARCA no tiene un CUIT publicado para BRASIL. Escribí el CUIT del país, buscalo por nombre o dejalo vacío para informar solo el ID impositivo del cliente:
-  = ""
+? [lista o texto] ARCA no tiene un CUIT publicado para BRASIL. Escribí el CUIT del país, buscalo por nombre o dejalo vacío para informar solo el ID impositivo del cliente:
+  arranca en: Omitir
+  > Omitir
+  · 55000002126  ESTADOS UNIDOS - Persona Jurídica (busca tambien: 55000002126)
+  = Omitir
 
 ? [texto] ID impositivo del cliente en su país (sin CUIT del país, ARCA lo pide):
   = "12.345.678/0001-90"

@@ -33,7 +33,7 @@ import { askCountryCuit, exportOptionalsStep, validateExportText } from './expor
 import { withFinalizeNotice } from './finalize-notice';
 import { exportExchangeRateLoader } from './official-exchange-rate';
 import { completeIssuer } from './pdf.flow';
-import { askTextStep, chooseStep, isPromptCancellation } from './prompts';
+import { askTextStep, chooseOrTypeStep, chooseStep, isPromptCancellation } from './prompts';
 import { offerConfig } from './save-to-config';
 import {
   confirmEmission,
@@ -273,14 +273,16 @@ function exportSteps(
       run: async (_state, { previous }) => {
         const list = await withSpinner('Consultando incoterms...', loaders.incoterms);
 
-        // ARCA devolvio la tabla vacia: se escribe a mano y va sin validar, como la actividad (el servicio avisa).
+        // ARCA devolvio la tabla vacia: la lista sin filas es una pregunta de texto, y va sin validar contra la tabla,
+        // como la actividad (el servicio avisa).
         if (list.length === 0) {
-          const typed = await askTextStep('Incoterm (ARCA no devolvió la lista), por ejemplo FOB:', {
-            previousAnswer: previous?.incoterm,
+          const typed = await chooseOrTypeStep<string>('Incoterm (ARCA no devolvió la lista), por ejemplo FOB:', [], {
+            parse: (value) => value.trim().toUpperCase(),
+            previous: previous?.incoterm,
             validate: (value) => (value.trim() ? true : 'El incoterm es obligatorio en la factura E de bienes.'),
           });
 
-          return typed === BACK ? BACK : { incoterm: typed.trim().toUpperCase(), incotermName: undefined };
+          return typed === BACK ? BACK : { incoterm: typed, incotermName: undefined };
         }
 
         // Sin "Sin incoterm": la factura de bienes lo exige (error 1640).
