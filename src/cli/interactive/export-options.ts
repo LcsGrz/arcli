@@ -24,7 +24,7 @@ import {
 } from '../../modules/interactive/export-optionals';
 import { ruleValidator, scopedRuleValidator } from '../../modules/interactive/rule-validator';
 import { BACK, type Back, requireStepValue, type WizardStep } from '../../modules/interactive/wizard';
-import { formatTableRows } from '../../modules/parameters/parameters.presenter';
+import { formatTableRows } from '../../ui';
 import { withSpinner } from '../spinner';
 
 import { optionalsStep } from './optionals-step';

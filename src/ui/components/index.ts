@@ -7,4 +7,5 @@ export * from './rowActionsList';
 export * from './scrollWindow';
 export * from './sectionHeading';
 export * from './statusBar';
+export * from './tableRows';
 export * from './testingBanner';

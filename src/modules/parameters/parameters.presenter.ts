@@ -2,7 +2,7 @@ import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { DEPRECATED_POINT_OF_SALE_OBJECT } from '../../lib/json/deprecations';
 import { POINT_OF_SALE_GUIDE_URL } from '../../lib/links';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
-import { listingPanel, noticePanel, sheetPanel } from '../../ui/components';
+import { formatTableRows, listingPanel, noticePanel, sheetPanel } from '../../ui/components';
 import { bold, renderKeyValueRows, resolveKeyValueLabelWidth, uiSymbol } from '../../ui/primitives';
 import { formatEnvironmentLabel } from '../config/config.schemas';
 
@@ -93,24 +93,6 @@ export const PARAMETER_TABLE_HELP: Record<ParameterTable, string> = {
   'puntos-venta': 'El número va en `--pv` o en la config (`puntoVenta`). Solo sirven los de web service.',
   tributos: 'ARCLI todavía no informa tributos, como las percepciones de IIBB.',
 };
-
-/**
- * Filas alineadas en columnas con su encabezado, separadas por dos espacios: cada columna tan ancha como su texto mas
- * largo, salvo la ultima, que va sin rellenar.
- */
-export function formatTableRows(
-  titles: readonly string[],
-  cells: ReadonlyArray<readonly string[]>,
-): { readonly header: string; readonly rows: string[] } {
-  const widths = titles.map((title, column) => Math.max(title.length, ...cells.map((row) => row[column]?.length ?? 0)));
-  const line = (row: readonly string[]) =>
-    row
-      .map((cell, column) => (column === row.length - 1 ? cell : cell.padEnd(widths[column] ?? 0)))
-      .join('  ')
-      .trimEnd();
-
-  return { header: line(titles), rows: cells.map(line) };
-}
 
 /**
  * Filas alineadas de una tabla de ARCA con su encabezado: codigo, descripcion y, si la tabla lo tiene, el detalle.
