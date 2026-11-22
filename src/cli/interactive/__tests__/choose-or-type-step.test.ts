@@ -223,3 +223,19 @@ describe('chooseOrTypeStep: lo escrito y las filas', () => {
     expect(answer).toBe(BACK);
   });
 });
+
+describe('chooseOrTypeStep: la fila de "sin valor"', () => {
+  it('se ve solo con el filtro vacío: con "pais" escrito no coincide, y vuelve al borrarlo', async () => {
+    const rows = [{ label: 'ESTADOS UNIDOS', value: 'US' }];
+    const { answer, frames } = await run(
+      { emptyLabel: 'Sin CUIT del país', optional: true, parse },
+      ['p', 'a', 'i', 's', '\u007F', '\u007F', '\u007F', '\u007F', ENTER],
+      rows,
+    );
+
+    expect(lastDraw(frames[4])).not.toContain('Sin CUIT del país');
+    expect(lastDraw(frames[4])).toContain('❯ Usar lo escrito: pais');
+    expect(lastDraw(frames.at(-1))).toContain('❯ Sin CUIT del país');
+    expect(answer).toBeUndefined();
+  });
+});

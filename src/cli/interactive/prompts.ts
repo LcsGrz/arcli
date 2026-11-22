@@ -695,7 +695,8 @@ export async function chooseOrTypeStep<T>(
 
   const emptyLabel = options.emptyLabel ?? SKIP_ROW;
   const listed: Array<FilterListRow<ChooseOrTypeAnswer<T>>> = [
-    ...(options.optional ? [{ label: emptyLabel, value: { empty: true } as const }] : []),
+    // Solo con el filtro vacio: lo escrito busca un valor, no "sin valor".
+    ...(options.optional ? [{ label: emptyLabel, unfilteredOnly: true, value: { empty: true } as const }] : []),
     ...rows.map((row) => ({ ...row, value: { row: row.value } })),
   ];
   const previousRow = listed.find((row) => 'row' in row.value && row.value.row === options.previous);

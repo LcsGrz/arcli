@@ -322,7 +322,7 @@ describe('runExportFlow', () => {
       [/cliente del exterior/, 'ACME LLC'],
       [/Domicilio/, '123 Main St'],
       [/País de destino/, 'atlantida'],
-      [/ARCA no tiene un CUIT publicado para ATLANTIDA/, 'Sin CUIT del país'],
+      [/ARCA no tiene un CUIT publicado para ATLANTIDA/, ''],
       [/ID impositivo del cliente en su país \(sin CUIT del país, ARCA lo pide\)/, 'IE1234567T'],
       [/Qué exportás/, 'Servicios'],
       [/moneda/, 'Pesos'],

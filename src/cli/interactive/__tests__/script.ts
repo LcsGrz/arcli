@@ -4,7 +4,7 @@ import { vi } from 'vitest';
 import type { RowEdits } from '../../../modules/interactive/row-marks';
 import { BACK, type Back } from '../../../modules/interactive/wizard';
 import type { RowActionsListRow } from '../../../ui';
-import { filterRows, matchesSearch, sameSearch } from '../filter-list';
+import { filterRows, sameSearch } from '../filter-list';
 import type {
   Choice,
   ChooseOrTypeStepOptions,
@@ -121,7 +121,9 @@ export function enterOnChooseOrType<T>(
     if (listed) {
       return { value: (rows[0] as FilterListRow<T>).value };
     }
-  } else if (listed && options.optional && matchesSearch(options.emptyLabel ?? SKIP_ROW, term)) {
+  } else if (listed && options.optional && sameSearch(options.emptyLabel ?? SKIP_ROW, term)) {
+    // La fila de "sin valor" no se busca (solo se ve con el filtro vacio): el guion la nombra entera para elegirla con
+    // las flechas.
     return { value: undefined };
   }
 

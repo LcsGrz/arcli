@@ -22,6 +22,8 @@ export interface FilterListRow<T> {
   readonly keywords?: string;
   /** Lo que queda en la linea "✔ pregunta respuesta" al elegirla; por defecto, la fila. */
   readonly short?: string;
+  /** Se ve solo con el filtro vacio y no se busca, como la fila de "sin valor" de `chooseOrTypeStep`. */
+  readonly unfilteredOnly?: boolean;
   readonly value: T;
 }
 
@@ -116,7 +118,11 @@ function firstMatch<T>(visible: ReadonlyArray<FilterListRow<T>>, term: string): 
 
 /** Las filas que contienen lo escrito, en la fila o en sus palabras clave. */
 export function filterRows<T>(rows: ReadonlyArray<FilterListRow<T>>, term: string): Array<FilterListRow<T>> {
-  return rows.filter((row) => matchesSearch(`${row.label} ${row.keywords ?? ''}`, term));
+  const filtering = searchWords(term).length > 0;
+
+  return rows.filter(
+    (row) => !(filtering && row.unfilteredOnly) && matchesSearch(`${row.label} ${row.keywords ?? ''}`, term),
+  );
 }
 
 /** La pista de que se puede escribir para filtrar, en la ayuda de teclas de las listas que filtran. */
@@ -235,7 +241,7 @@ export const filterList = createPrompt(<T>(config: FilterListConfig<T>, done: (v
     return [prefix, message].filter(Boolean).join(' ');
   }
 
-  const count = filterCountLine(term, visible.length, config.rows.length);
+  const count = filterCountLine(term, visible.length, config.rows.filter((row) => !row.unfilteredOnly).length);
   const typedRow =
     config.typed && typedIndex !== undefined
       ? pointerRow(config.typed.label(term.trim()), active === typedIndex, theme.style.highlight)
