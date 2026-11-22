@@ -738,6 +738,25 @@ describe('configuración: un dato con valores conocidos, de una lista donde tamb
     expect(printed()).toContain('Dato borrado.');
   });
 
+  it('elegir la de la lista que se lee igual que el texto guardado no lo cambia', async () => {
+    store.condicionVenta = 'Contado';
+
+    await changeSaleCondition('');
+
+    expect(store.condicionVenta).toBe('Contado');
+    expect(printed()).toContain('Sin cambios.');
+    expect(printed()).not.toContain('Guardado.');
+  });
+
+  it('un texto escrito igual a los valores internos de "Quitar" o "Dejar" se guarda como texto', async () => {
+    store.condicionVenta = 'contado';
+
+    await changeSaleCondition('__borrar__');
+
+    expect(store.condicionVenta).toBe('__borrar__');
+    expect(printed()).toContain('Guardado.');
+  });
+
   it('sin valor guardado, "Dejar sin configurar" no guarda nada', async () => {
     await changeSaleCondition('Dejar sin configurar');
 
