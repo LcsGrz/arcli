@@ -243,6 +243,7 @@ function describeReceived(input: unknown): string {
     return 'un array';
   }
 
+  // eslint-disable-next-line @typescript-eslint/switch-exhaustiveness-check -- typeof: el default nombra el tipo que llegó, cualquiera sea
   switch (typeof input) {
     case 'string':
       return `el texto ${JSON.stringify(input)}`;

@@ -75,7 +75,7 @@ export function formatDocumentFlag(documentType: BillingDocumentType): string {
       return '--cuil';
     case 'dni':
       return '--dni';
-    default:
+    case 'consumidor-final':
       return '--consumidor-final';
   }
 }
