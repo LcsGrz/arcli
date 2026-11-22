@@ -7,6 +7,7 @@ import {
   assertExportVoucherDate,
   buildExportPayload,
   exportClientCountryCuitChoices,
+  exportDestinationCountryChoices,
   resolveExportActivity,
   resolveExportClientCountryCuit,
   resolveExportCurrency,
@@ -251,6 +252,19 @@ describe('assertExportClientIdentification', () => {
     expect(() => assertExportClientIdentification({ clientTaxId: '  ', country })).toThrow(
       'La tabla de ARCA no tiene CUIT para "IRLANDA" y ARCA pide el CUIT del país o el ID impositivo del cliente (error 1580). Indicá el ID impositivo con `--id-impositivo` o el CUIT del país con `--cuit-pais`.',
     );
+  });
+});
+
+describe('exportDestinationCountryChoices', () => {
+  it('trae los destinos que acepta `--pais-destino`: la tabla sin Argentina', () => {
+    const countries = [
+      { code: 200, name: 'ARGENTINA' },
+      { code: 203, name: 'BRASIL' },
+      { code: 212, name: 'ESTADOS UNIDOS' },
+    ];
+
+    expect(exportDestinationCountryChoices(countries)).toEqual(countries.slice(1));
+    expect(() => resolveExportDestinationCountry('200', countries)).toThrow(/Argentina no es un destino/);
   });
 });
 

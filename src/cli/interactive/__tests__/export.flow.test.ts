@@ -322,7 +322,7 @@ describe('runExportFlow', () => {
       [/cliente del exterior/, 'ACME LLC'],
       [/Domicilio/, '123 Main St'],
       [/País de destino/, 'atlantida'],
-      [/dejalo vacío para informar solo el ID impositivo/, ''],
+      [/ARCA no tiene un CUIT publicado para ATLANTIDA/, 'Sin CUIT del país'],
       [/ID impositivo del cliente en su país \(sin CUIT del país, ARCA lo pide\)/, 'IE1234567T'],
       [/Qué exportás/, 'Servicios'],
       [/moneda/, 'Pesos'],
@@ -720,7 +720,10 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
         .map(([message, , options]) => [message.split('.')[0], options.previous]),
     );
 
-    expect(chosen).toEqual({ 'ARCA no tiene un CUIT publicado para ATLANTIDA': 55000002126 });
+    expect(chosen).toEqual({
+      'ARCA no tiene un CUIT publicado para ATLANTIDA': 55000002126,
+      'País de destino:': 'ATLANTIDA',
+    });
     expect(typed).toEqual({
       'Código de actividad de WSFEX, por ejemplo 620100:': '620100',
       // Escrita a mano, arranca con la escrita y no con la de ARCA (NAV-9).
@@ -729,7 +732,6 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       'Forma de pago:': 'Carta de crédito',
       'ID impositivo del cliente en su país:': '12-3456789',
       'Nombre o razón social del cliente del exterior:': 'ACME LLC',
-      'País de destino': 'ATLANTIDA',
       'Permisos de embarque ya existentes, separados por coma': '26001EC01000123A',
     });
     expect(marked).toEqual(['FOB', false, 'DOL', 1]);
@@ -1158,42 +1160,34 @@ describe('runExportFlow: el país y el CUIT del país de una lista donde tambié
   });
 
   // Criterio 7.
-  // Tests primero (TUI-24): pasa a it() al implementarlo.
-  it.fails(
-    'escribir "estados" deja ESTADOS UNIDOS en la lista y Enter la elige: lo mismo que escribirlo entero',
-    async () => {
-      const byName = await emitted([
-        [/País de destino/, 'ESTADOS UNIDOS'],
-        [/ID impositivo/, ''],
-      ]);
-      const partial = await emitted([
-        [/País de destino/, 'estados'],
-        [/ID impositivo/, ''],
-      ]);
+  it('escribir "estados" deja ESTADOS UNIDOS en la lista y Enter la elige: lo mismo que escribirlo entero', async () => {
+    const byName = await emitted([
+      [/País de destino/, 'ESTADOS UNIDOS'],
+      [/ID impositivo/, ''],
+    ]);
+    const partial = await emitted([
+      [/País de destino/, 'estados'],
+      [/ID impositivo/, ''],
+    ]);
 
-      expect(partial).toEqual(byName);
-    },
-  );
+    expect(partial).toEqual(byName);
+  });
 
   // Criterio 7: código y nombre, con el código como palabra clave y el encabezado de las tablas de ARCA.
-  // Tests primero (TUI-24): pasa a it() al implementarlo.
-  it.fails(
-    'la lista del país muestra el código y el nombre de la tabla de ARCA, con encabezado CÓDIGO y PAÍS',
-    async () => {
-      await emitted([
-        [/País de destino/, '212'],
-        [/ID impositivo/, ''],
-      ]);
+  it('la lista del país muestra el código y el nombre de la tabla de ARCA, con encabezado CÓDIGO y PAÍS', async () => {
+    await emitted([
+      [/País de destino/, '212'],
+      [/ID impositivo/, ''],
+    ]);
 
-      const [, rows, options] =
-        script.chooseOrTypeStep.mock.calls.find(([message]) => /País de destino/.test(message)) ?? [];
+    const [, rows, options] =
+      script.chooseOrTypeStep.mock.calls.find(([message]) => /País de destino/.test(message)) ?? [];
 
-      expect(rows?.map((row) => row.label.replace(/\s+/g, ' ').trim())).toEqual(
-        expect.arrayContaining(['212 ESTADOS UNIDOS']),
-      );
-      expect(options?.header).toMatch(/CÓDIGO\s+PAÍS/);
-    },
-  );
+    expect(rows?.map((row) => row.label.replace(/\s+/g, ' ').trim())).toEqual(
+      expect.arrayContaining(['212 ESTADOS UNIDOS']),
+    );
+    expect(options?.header).toMatch(/CÓDIGO\s+PAÍS/);
+  });
 
   // Criterio 8: sin CUIT publicado para el destino, cualquiera de la tabla vale (`resolveExportClientCountryCuit`).
   it('sin CUIT para el destino, la lista trae los CUIT de la tabla y escribir parte del país lo elige, sin otra lista', async () => {

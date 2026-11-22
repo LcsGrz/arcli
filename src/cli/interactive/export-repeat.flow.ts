@@ -173,7 +173,7 @@ export function exportRepeatSteps(
         // Al volver arranca escrito, si es del destino (REV-74, #10).
         const cuit = await askCountryCuit(
           { country, countryCuits: tables.countryCuits },
-          `ARCA no tiene un CUIT publicado para ${country.name}. Escribí el CUIT del país o buscalo por nombre:`,
+          `ARCA no tiene un CUIT publicado para ${country.name}. Elegí el CUIT del país o escribilo:`,
           { previous: previous?.options?.clientCountryCuit },
         );
 

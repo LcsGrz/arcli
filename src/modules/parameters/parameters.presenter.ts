@@ -95,6 +95,24 @@ export const PARAMETER_TABLE_HELP: Record<ParameterTable, string> = {
 };
 
 /**
+ * Filas alineadas en columnas con su encabezado, separadas por dos espacios: cada columna tan ancha como su texto mas
+ * largo, salvo la ultima, que va sin rellenar.
+ */
+export function formatTableRows(
+  titles: readonly string[],
+  cells: ReadonlyArray<readonly string[]>,
+): { readonly header: string; readonly rows: string[] } {
+  const widths = titles.map((title, column) => Math.max(title.length, ...cells.map((row) => row[column]?.length ?? 0)));
+  const line = (row: readonly string[]) =>
+    row
+      .map((cell, column) => (column === row.length - 1 ? cell : cell.padEnd(widths[column] ?? 0)))
+      .join('  ')
+      .trimEnd();
+
+  return { header: line(titles), rows: cells.map(line) };
+}
+
+/**
  * Filas alineadas de una tabla de ARCA con su encabezado: codigo, descripcion y, si la tabla lo tiene, el detalle.
  * Las usan el listado de `arcli parametros` y la lista filtrable del asistente.
  */
@@ -104,17 +122,16 @@ export function formatParameterRows(
 ): { readonly header: string; readonly rows: string[] } {
   const [idTitle, descriptionTitle, detailTitle] = PARAMETER_TABLE_COLUMNS[table];
   const hasDetail = detailTitle !== undefined && entries.some((entry) => entry.detail);
-  const idWidth = Math.max(idTitle.length, ...entries.map((entry) => entry.id.length));
-  const descriptionWidth = Math.max(descriptionTitle.length, ...entries.map((entry) => entry.description.length));
-  const line = (id: string, description: string, detail: string) =>
-    (hasDetail ? [id.padEnd(idWidth), description.padEnd(descriptionWidth), detail] : [id.padEnd(idWidth), description])
-      .join('  ')
-      .trimEnd();
 
-  return {
-    header: line(idTitle, descriptionTitle, detailTitle ?? ''),
-    rows: entries.map((entry) => line(entry.id, entry.description, entry.detail ?? '')),
-  };
+  return hasDetail
+    ? formatTableRows(
+        [idTitle, descriptionTitle, detailTitle],
+        entries.map((entry) => [entry.id, entry.description, entry.detail ?? '']),
+      )
+    : formatTableRows(
+        [idTitle, descriptionTitle],
+        entries.map((entry) => [entry.id, entry.description]),
+      );
 }
 
 export function formatParameterEntriesAsJson(

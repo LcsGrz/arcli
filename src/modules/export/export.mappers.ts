@@ -394,6 +394,11 @@ export function resolveExportDestinationCountry(
   return country;
 }
 
+/** Los destinos que acepta `--pais-destino` (`resolveExportDestinationCountry`): la tabla de ARCA sin Argentina. */
+export function exportDestinationCountryChoices(countries: readonly ExportCountry[]): ExportCountry[] {
+  return countries.filter((country) => country.code !== ARGENTINA_COUNTRY_CODE);
+}
+
 /**
  * DST_CUIT repite cada pais tres veces, con el tipo de entidad pegado al nombre: "BRASIL - Persona Jurídica".
  * DST_pais trae solo "BRASIL", asi que el sufijo no sirve para comparar ni para mostrar el pais.

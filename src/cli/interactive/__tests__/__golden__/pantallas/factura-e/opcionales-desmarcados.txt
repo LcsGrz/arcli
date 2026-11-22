@@ -15,8 +15,13 @@
 ? [texto] Domicilio del cliente:
   = "123 Main St"
 
-? [texto] País de destino (nombre o código de ARCA, por ejemplo ESTADOS UNIDOS o 212):
-  = "estados unidos"
+? [lista o texto] País de destino:
+  encabezado: CÓDIGO  PAÍS
+  ayuda: Escribí el nombre o el código de ARCA, por ejemplo "estados" o "212".
+  arranca en: 203     BRASIL
+  > 203     BRASIL (busca tambien: 203)
+  · 212     ESTADOS UNIDOS (busca tambien: 212)
+  = 212     ESTADOS UNIDOS
 
 ? [texto] ID impositivo del cliente en su país:
   aclara al preguntar: (Enter para omitirlo)
