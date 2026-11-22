@@ -5,6 +5,9 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     include: ['src/**/*.e2e.ts'],
+    // Procesos, como `yarn test`: cada test pasa ARCLI_CONFIG_DIR al `arcli` que lanza, pero sin threads nada del
+    // runner depende de que `os.homedir()` vea el entorno del worker (TEST-14).
+    pool: 'forks',
     testTimeout: 120_000,
   },
 });

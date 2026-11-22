@@ -2,26 +2,31 @@ import { configDefaults, defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    // Los worktrees de revisión viven adentro del repo y traen su propia copia de los tests.
-    exclude: [...configDefaults.exclude, '.claude/worktrees/**'],
+    // Los worktrees de revisión y los sandbox de Stryker viven adentro del repo y traen su propia copia de los tests.
+    exclude: [...configDefaults.exclude, '.claude/worktrees/**', '.stryker-tmp/**'],
+    // Procesos, no worker threads: en un thread, el HOME que fija el setup no cambia `os.homedir()` y Conf (via
+    // env-paths) apuntaria a la config real. Lo dejamos explicito por si el default de vitest o de quien lo corre
+    // (el runner de Stryker usa threads) cambia; el setup igual fija ARCLI_CONFIG_DIR y lo controla (TEST-14).
+    pool: 'forks',
     setupFiles: ['src/__tests__/setup.ts'],
     coverage: {
       exclude: ['src/**/__tests__/**', 'src/modules/storybook/**'],
       include: ['src/**/*.ts'],
       provider: 'v8',
       reporter: ['text', 'lcov'],
-      // Unos 2 puntos debajo de lo medido (16/11/2026: 83 ramas, 93 funciones, 91 líneas; billing 88, 99 y 94), para
-      // que una baja se note. Si la cobertura sube, subilos.
+      // Un punto debajo de lo medido, redondeado hacia abajo, para que una baja se note sin que la diferencia entre
+      // sistemas operativos rompa el CI (19/11/2026, TEST-9: 91,5 ramas, 96,7 funciones, 96,2 líneas y 96,2
+      // sentencias; billing 90,6, 99,2, 96,5 y 96,6). Si la cobertura sube, subilos.
       thresholds: {
-        branches: 81,
-        functions: 91,
-        lines: 88,
-        statements: 88,
+        branches: 90,
+        functions: 95,
+        lines: 95,
+        statements: 95,
         'src/modules/billing/**': {
-          branches: 86,
-          functions: 97,
-          lines: 92,
-          statements: 92,
+          branches: 89,
+          functions: 98,
+          lines: 95,
+          statements: 95,
         },
       },
     },

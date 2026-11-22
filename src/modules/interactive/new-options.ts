@@ -2,27 +2,25 @@
  * Version en que aparecio cada opcion del modo interactivo. Mientras arcli este a menos de dos versiones menores de
  * esa, la opcion se marca "(nuevo)" y la marca se apaga sola. Lo que todavia no se publico lleva la proxima version.
  */
-export const NEW_OPTION_SINCE = {
+const NEW_OPTION_SINCE = {
   'acceso-directo': '2.4.0',
   autocompletado: '2.2.0',
   certificados: '2.3.0',
   consultas: '2.5.0',
-  'donde-config': '2.5.0',
+  'datos-consumidor-final': '2.6.0',
   'factura-e': '2.2.0',
+  monotributo: '2.6.0',
   'notas-e': '2.5.0',
+  'notas-sobre-notas': '2.6.0',
   recibo: '2.3.0',
+  'recibos-a-b': '2.6.0',
   'repetir-e': '2.5.0',
 } as const satisfies Record<string, `${number}.${number}.${number}`>;
 
 export type NewOption = keyof typeof NEW_OPTION_SINCE;
 
 /** Las opciones de Configuracion que tienen marca: el menu principal la marca mientras haya alguna nueva. */
-export const CONFIG_MENU_NEW_OPTIONS: readonly NewOption[] = [
-  'certificados',
-  'autocompletado',
-  'acceso-directo',
-  'donde-config',
-];
+export const CONFIG_MENU_NEW_OPTIONS: readonly NewOption[] = ['certificados', 'autocompletado', 'acceso-directo'];
 
 const NEW_FOR_MINOR_VERSIONS = 2;
 

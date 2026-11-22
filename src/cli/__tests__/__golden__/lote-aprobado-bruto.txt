@@ -1,0 +1,155 @@
+$ arcli fc --cargar <config>/lote.json --json --bruto
+exit: 0
+--- stdout ---
+
+[
+  {
+    "atajo": "fc",
+    "indice": 1,
+    "comprobante": "Factura C",
+    "avisos": [],
+    "cae": "76463926585341",
+    "caeVencimiento": "20261127",
+    "entorno": "testing",
+    "errores": [],
+    "estado": "aprobado",
+    "eventos": [],
+    "observaciones": [],
+    "observacion": null,
+    "numero": 42,
+    "puntoVenta": 3,
+    "solicitud": {
+      "CantReg": 1,
+      "CbteFch": "20261117",
+      "CbteTipo": 11,
+      "Concepto": 2,
+      "CondicionIVAReceptorId": 5,
+      "DocTipo": 99,
+      "FchServDesde": "20261117",
+      "FchServHasta": "20261117",
+      "FchVtoPago": "20261117",
+      "ImpIVA": 0,
+      "ImpNeto": 1000,
+      "ImpOpEx": 0,
+      "ImpTotConc": 0,
+      "ImpTotal": 1000,
+      "ImpTrib": 0,
+      "MonCotiz": 1,
+      "MonId": "PES",
+      "PtoVta": 3,
+      "DocNro": 0,
+      "CbteDesde": 42,
+      "CbteHasta": 42
+    },
+    "previsualizacion": false,
+    "resultado": "A",
+    "sugerencias": [],
+    "tipoArca": 11,
+    "respuesta": {
+      "cae": "76463926585341",
+      "caeFchVto": "20261127",
+      "response": {
+        "FeCabResp": {
+          "CantReg": 1,
+          "CbteTipo": 11,
+          "Cuit": 20111111112,
+          "FchProceso": "20261117120000",
+          "PtoVta": 3,
+          "Reproceso": "N",
+          "Resultado": "A"
+        },
+        "FeDetResp": {
+          "FECAEDetResponse": [
+            {
+              "CAE": "76463926585341",
+              "CAEFchVto": "20261127",
+              "CbteDesde": 42,
+              "CbteFch": "20261117",
+              "CbteHasta": 42,
+              "Concepto": 2,
+              "DocNro": 0,
+              "DocTipo": 99,
+              "Resultado": "A"
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "atajo": "fc",
+    "indice": 2,
+    "comprobante": "Factura C",
+    "avisos": [],
+    "cae": "76463926585341",
+    "caeVencimiento": "20261127",
+    "entorno": "testing",
+    "errores": [],
+    "estado": "aprobado",
+    "eventos": [],
+    "observaciones": [],
+    "observacion": null,
+    "numero": 42,
+    "puntoVenta": 3,
+    "solicitud": {
+      "CantReg": 1,
+      "CbteFch": "20261117",
+      "CbteTipo": 11,
+      "Concepto": 2,
+      "CondicionIVAReceptorId": 5,
+      "DocTipo": 99,
+      "FchServDesde": "20261117",
+      "FchServHasta": "20261117",
+      "FchVtoPago": "20261117",
+      "ImpIVA": 0,
+      "ImpNeto": 2000,
+      "ImpOpEx": 0,
+      "ImpTotConc": 0,
+      "ImpTotal": 2000,
+      "ImpTrib": 0,
+      "MonCotiz": 1,
+      "MonId": "PES",
+      "PtoVta": 3,
+      "DocNro": 0,
+      "CbteDesde": 42,
+      "CbteHasta": 42
+    },
+    "previsualizacion": false,
+    "resultado": "A",
+    "sugerencias": [],
+    "tipoArca": 11,
+    "respuesta": {
+      "cae": "76463926585341",
+      "caeFchVto": "20261127",
+      "response": {
+        "FeCabResp": {
+          "CantReg": 1,
+          "CbteTipo": 11,
+          "Cuit": 20111111112,
+          "FchProceso": "20261117120000",
+          "PtoVta": 3,
+          "Reproceso": "N",
+          "Resultado": "A"
+        },
+        "FeDetResp": {
+          "FECAEDetResponse": [
+            {
+              "CAE": "76463926585341",
+              "CAEFchVto": "20261127",
+              "CbteDesde": 42,
+              "CbteFch": "20261117",
+              "CbteHasta": 42,
+              "Concepto": 2,
+              "DocNro": 0,
+              "DocTipo": 99,
+              "Resultado": "A"
+            }
+          ]
+        }
+      }
+    }
+  }
+]
+
+
+--- stderr ---

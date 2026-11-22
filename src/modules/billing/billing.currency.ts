@@ -1,3 +1,4 @@
+import { addDaysToArcaDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 
@@ -20,7 +21,33 @@ export function isForeignCurrency(input: { readonly currencyCode?: string }): bo
 }
 
 /**
- * Con CanMisMonExt = S, ARCA exige la cotizacion oficial exacta (error 10038), asi que el CLI la consulta en lugar de
+ * La cotizacion de la config (`cotizacion`, deprecada) que toma un comprobante en `currencyCode` sin `--cm`: solo en
+ * moneda extranjera y sin `--misma-moneda`. Si la config tiene otra moneda extranjera, la cotizacion es de esa: la de
+ * USD no vale para EUR. Sin `config.moneda` (o en pesos) vale para cualquier extranjera. 1 es lo mismo que no tenerla.
+ * Si devuelve `undefined`, BillingService.resolveExchangeRate consulta la oficial. La usan el CLI y el asistente.
+ */
+export function resolveConfigExchangeRate(options: {
+  readonly configCurrencyCode?: string;
+  readonly configExchangeRate?: number;
+  readonly currencyCode?: string;
+  readonly sameCurrency: boolean;
+}): number | undefined {
+  const { configCurrencyCode, configExchangeRate, currencyCode } = options;
+  // Sin `config.moneda`, `isForeignCurrency` la toma como pesos.
+  const isOtherConfigCurrency =
+    isForeignCurrency({ currencyCode: configCurrencyCode }) &&
+    resolveBillingCurrencyCode(currencyCode) !== resolveBillingCurrencyCode(configCurrencyCode);
+
+  return options.sameCurrency ||
+    !isForeignCurrency({ currencyCode }) ||
+    isOtherConfigCurrency ||
+    configExchangeRate === DEFAULT_EXCHANGE_RATE
+    ? undefined
+    : configExchangeRate;
+}
+
+/**
+ * Con CanMisMonExt = S, ARCA exige la cotizacion oficial exacta (error 10038, WSFEv1 v4.7), asi que el CLI la consulta en lugar de
  * pedirsela al usuario. Sin --misma-moneda y sin --cm tambien se usa la oficial: es el default (REV-35).
  */
 export function needsOfficialExchangeRate(input: CurrencyInput): boolean {
@@ -49,11 +76,65 @@ export function exchangeRateWarnings(
   return [];
 }
 
-export function resolveBillingCurrencyFields(
-  input: CurrencyInput,
-  billingDate: string,
-  today: string,
-): BillingCurrencyFields {
+/**
+ * De que dia es la cotizacion oficial que va con `--misma-moneda`, segun la 10038 (WSFEv1 v4.7, p. 46): la del dia
+ * habil anterior a la fecha del comprobante si esa fecha ya paso, y si no (hoy o futura) la del dia habil anterior a
+ * hoy, que es la vigente. Devuelve el dia desde el que se busca hacia atras (`yyyymmdd`), o `undefined` para la
+ * vigente.
+ */
+export function resolveSameCurrencyQuotationDate(billingDate: string, today: string): string | undefined {
+  return billingDate < today ? addDaysToArcaDate(billingDate, -1) : undefined;
+}
+
+/**
+ * ARCA 10119 (WSFEv1 v4.7, p. 57): en moneda extranjera la cotizacion no puede ser "inferior al 2% ni superior en un
+ * 400%" de la oficial. ARCA testing lo confirma con 500 %: aprueba 4,99 veces la oficial y rechaza 5,01, y aprueba
+ * el 2,1 % y rechaza el 1,9 % (18/11/2026).
+ */
+const EXCHANGE_RATE_MIN_RATIO = 0.02;
+const EXCHANGE_RATE_MAX_RATIO = 5;
+
+/** Que dato poner en la sugerencia cuando la cotizacion esta fuera de rango. */
+function describeExchangeRateSource(input: Pick<BillingCommandInput, 'exchangeRateSource' | 'fromFile'>): string {
+  if (input.exchangeRateSource === 'config') {
+    return 'la clave `cotizacion` de la config (`arcli config eliminar cotizacion`)';
+  }
+
+  return input.fromFile?.includes('exchangeRate') ? '`"cotizacionMoneda"` del JSON de `--cargar`' : '`--cm`';
+}
+
+/**
+ * Frena antes de ARCA una cotizacion fuera del rango de la 10119. `official` es la que devuelve
+ * `FEParamGetCotizacion`. La cotizacion 1 en moneda extranjera tiene su propio error, mas claro
+ * (`resolveBillingCurrencyFields`).
+ */
+export function validateExchangeRateRange(
+  input: Pick<BillingCommandInput, 'currencyCode' | 'exchangeRate' | 'exchangeRateSource' | 'fromFile'>,
+  official: number,
+): void {
+  const rate = input.exchangeRate;
+
+  if (typeof rate !== 'number' || rate === DEFAULT_EXCHANGE_RATE || official <= 0) {
+    return;
+  }
+
+  const min = official * EXCHANGE_RATE_MIN_RATIO;
+  const max = official * EXCHANGE_RATE_MAX_RATIO;
+
+  if (rate >= min && rate <= max) {
+    return;
+  }
+
+  const code = input.currencyCode.trim().toUpperCase();
+
+  throw new InputValidationError(
+    `La cotización de ${code} (${formatExchangeRate(rate)}) está fuera de lo que acepta ARCA: entre el 2 % y el 500 % de la oficial (${formatExchangeRate(official)}), o sea de ${formatExchangeRate(min)} a ${formatExchangeRate(max)}.`,
+    undefined,
+    `Revisá ${describeExchangeRateSource(input)}, o sacala para usar la oficial de ARCA.`,
+  );
+}
+
+export function resolveBillingCurrencyFields(input: CurrencyInput): BillingCurrencyFields {
   const currencyCode = resolveBillingCurrencyCode(input.currencyCode);
   const inputCurrencyCode = input.currencyCode.trim().toUpperCase();
 
@@ -68,7 +149,7 @@ export function resolveBillingCurrencyFields(
       );
     }
 
-    // ARCA rechaza CanMisMonExt cuando MonId = PES (error 10241).
+    // ARCA rechaza CanMisMonExt cuando MonId = PES (error 10241, WSFEv1 v4.7); MonCotiz 1 en pesos es la 10039.
     return {
       MonCotiz: DEFAULT_EXCHANGE_RATE,
       MonId: currencyCode,
@@ -76,14 +157,7 @@ export function resolveBillingCurrencyFields(
   }
 
   if (input.sameCurrency) {
-    // ARCA exige la cotizacion oficial del dia del comprobante (10038): la de un dia pasado no se puede consultar y
-    // la de uno futuro todavia no existe.
-    if (billingDate !== today) {
-      throw new InputValidationError(
-        'Con `--misma-moneda` la fecha del comprobante tiene que ser la de hoy: ARCA exige la cotización oficial de ese día y solo se puede consultar la vigente. Sacá `--fecha` para emitir con la de hoy.',
-      );
-    }
-
+    // La de la fecha que pide la 10038 la completa BillingService.resolveExchangeRate antes de la vista previa.
     if (typeof input.exchangeRate !== 'number') {
       throw new InputValidationError(`No se pudo obtener la cotización oficial de ${inputCurrencyCode} desde ARCA.`);
     }
@@ -113,4 +187,31 @@ export function resolveBillingCurrencyFields(
     MonCotiz: input.exchangeRate,
     MonId: currencyCode,
   };
+}
+
+/** Con que codigo rechaza ARCA una moneda que no esta en su tabla: `MonId` en WSFEv1 y `Moneda_Id` en WSFEX. */
+export const UNKNOWN_CURRENCY_ERROR = { wsfe: 10_037, wsfex: 1590 } as const;
+
+/**
+ * Una moneda que no esta en la tabla de ARCA es un error de entrada, igual en A, B, C y en la E: WSFEv1 la rechaza
+ * al emitir con la 10037 y WSFEX con la 1590 (ARCA testing, 19/11/2026). `table` son los codigos de esa tabla; si
+ * ARCA no la informo (vacia), no se controla y decide ARCA.
+ */
+export function assertCurrencyInTable(options: {
+  readonly arcaCode: string;
+  readonly requested: string;
+  readonly service: keyof typeof UNKNOWN_CURRENCY_ERROR;
+  readonly table: readonly string[];
+}): void {
+  const code = options.arcaCode.trim().toUpperCase();
+
+  if (options.table.length === 0 || options.table.some((entry) => entry.trim().toUpperCase() === code)) {
+    return;
+  }
+
+  throw new InputValidationError(
+    `La moneda ${options.requested.trim().toUpperCase()} no está en la tabla de monedas de ARCA: la rechaza al emitir (error ${UNKNOWN_CURRENCY_ERROR[options.service]}).`,
+    undefined,
+    'Revisá `--moneda` (o `codigoMoneda` del JSON de `--cargar`): va el código de ARCA, como `DOL` o `060`, o su ISO, como `USD` o `EUR`. Las monedas de ARCA están en `arcli parametros monedas`.',
+  );
 }

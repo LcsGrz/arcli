@@ -4,6 +4,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { InputValidationError } from '../../../lib/errors/app-error';
+import { arcliConfigSchema } from '../config.schemas';
 import { parseConfigValue } from '../config-value-parser';
 
 const temporaryDirectories: string[] = [];
@@ -109,6 +110,11 @@ describe('config-value-parser', () => {
     expect(parseConfigValue('cbu', ' 0110599520000012345678 ')).toBe('0110599520000012345678');
     expect(parseConfigValue('aliasCbu', 'mi.alias.cbu')).toBe('mi.alias.cbu');
     expect(() => parseConfigValue('cbu', '123')).toThrow(/debe tener 22 dígitos/);
+    expect(() => parseConfigValue('cbu', '0110599420000012345678')).toThrow(/bloque de banco y sucursal/);
+    expect(() => parseConfigValue('cbu', '0110599520000012345677')).toThrow(/bloque de la cuenta/);
+    // La config que ya está en el archivo pasa por la misma regla.
+    expect(arcliConfigSchema.safeParse({ cbu: '0110599520000012345678' }).success).toBe(true);
+    expect(arcliConfigSchema.safeParse({ cbu: '0110599520000012345677' }).success).toBe(false);
     expect(() => parseConfigValue('aliasCbu', 'abc')).toThrow(/entre 6 y 20/);
   });
 
@@ -137,6 +143,7 @@ describe('config-value-parser', () => {
   it('accepts the CUIT with or without dashes and checks its check digit', () => {
     expect(parseConfigValue('cuit', '  20123456786  ')).toBe('20123456786');
     expect(parseConfigValue('cuit', '20-12345678-6')).toBe('20123456786');
+    expect(parseConfigValue('cuit', '20 12345678 6')).toBe('20123456786');
     expect(() => parseConfigValue('cuit', '20-12345678-9')).toThrow(/dígito verificador/);
     expect(() => parseConfigValue('cuit', '123')).toThrow(/debe tener 11 dígitos/);
   });

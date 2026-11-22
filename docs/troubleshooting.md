@@ -227,7 +227,7 @@ arcli fc ayuda
 - **Severidad:** ocasional
 - **Síntoma:** `... de $ 10.000.000 o más requiere identificar al consumidor final.`
 - **Causa:** la RG 5700/2025 obliga a identificar al consumidor final desde ese monto.
-- **Solución:** reemplazar `--consumidor-final` por `--dni`, `--cuit` o `--cuil`, manteniendo `--ir-cf`.
+- **Solución:** reemplazar `--consumidor-final` por `--dni`, `--cuit` o `--cuil`, manteniendo `--ir-cf`. En el modo interactivo no hace falta: desde ese monto el asistente pide el documento.
 - **Documentación relacionada:** [Consumidor final](validation-rules.md#consumidor-final)
 
 ### Fecha del comprobante fuera de rango
@@ -252,6 +252,15 @@ arcli fc ayuda
 - **Síntoma:** `La factura de crédito electrónica ... requiere el CBU del emisor.`
 - **Causa:** ARCA exige el CBU del emisor en toda factura FCE (10168).
 - **Solución:** pasar `--cbu <22 dígitos>` o configurarlo una vez con `arcli config establecer cbu <22 dígitos>`.
+- **Documentación relacionada:** [Crédito electrónico (FCE)](validation-rules.md#crédito-electrónico-fce)
+
+### CBU con el dígito verificador mal
+
+- **Severidad:** ocasional
+- **Síntoma:** `El CBU no es válido: no coincide el dígito verificador del bloque de banco y sucursal (los primeros 8 dígitos).` (o `del bloque de la cuenta (los últimos 14 dígitos)`).
+- **Causa:** algún dígito del CBU está mal escrito o cambiado de lugar. ARCLI controla los dos dígitos verificadores antes de ir a ARCA.
+- **Solución:** copiá el CBU de nuevo desde el home banking o la constancia del banco. El mensaje dice en qué bloque está el error.
+- **Si está en la config:** cualquier comando frena con `El CBU guardado en la config no es válido: …` y el bloque que falla. Cambialo con `arcli config establecer cbu <CBU>`, que corre aunque la config tenga el CBU mal.
 - **Documentación relacionada:** [Crédito electrónico (FCE)](validation-rules.md#crédito-electrónico-fce)
 
 ### NC/ND: ARCA no tiene el asociado
@@ -297,9 +306,9 @@ arcli fc ayuda
 
 ### `wsfecred` no autorizado
 
-- **Severidad:** frecuente, si usás `fce-obligado` o `verificarFce`
-- **Síntoma:** `El certificado no está autorizado para el servicio wsfecred ...` (ARCA responde `coe.notAuthorized`).
-- **Causa:** el certificado solo tiene autorizado `wsfe`. La consulta del régimen FCE usa otro servicio.
+- **Severidad:** frecuente, si usás `fce-obligado`, `verificarFce` o notas FCE con `--anulacion`
+- **Síntoma:** `El certificado no está autorizado para el servicio wsfecred ...` (ARCA responde `coe.notAuthorized`). En una nota FCE con `--anulacion` sale como aviso en la vista previa y la nota se puede emitir igual.
+- **Causa:** el certificado solo tiene autorizado `wsfe`. La consulta del régimen FCE y la del Registro de FCE usan otro servicio.
 - **Solución:** crear la autorización para `wsfecred` igual que la de `wsfe`, en WSASS (testing) o en el Administrador de Relaciones (producción). Si no la necesitás, desactivá el chequeo con `arcli config eliminar verificarFce`.
 - **Documentación relacionada:** [Autorizar el servicio web](certificado-testing-completa.md#3-autorizar-el-servicio-web)
 
@@ -347,11 +356,19 @@ arcli fc ayuda
 
 ### El receptor coincide con el emisor
 
-- **Severidad:** crítico
-- **Síntoma:** error ARCA `Campo DocNro no puede ser igual al del emisor.`
-- **Causa:** se está usando el mismo CUIT como emisor y receptor.
-- **Solución:** usar otro CUIT válido de testing como receptor.
-- **Documentación relacionada:** [Reglas de validación](validation-rules.md)
+- **Severidad:** ocasional
+- **Síntoma:** `El receptor no puede ser el mismo CUIT que emite (...): ARCA lo rechaza (error 10069).` Si llega a ARCA, el error es `Campo DocNro no puede ser igual al del emisor.`
+- **Causa:** se está usando el mismo CUIT como emisor y receptor, casi siempre por copiar el CUIT de la config en `--cuit`.
+- **Solución:** poné el CUIT de tu cliente. En testing, uno de los CUITs de prueba.
+- **Documentación relacionada:** [Identidad del receptor](validation-rules.md#identidad-del-receptor)
+
+### El comprobante excede el tope de tu categoría de Monotributo
+
+- **Severidad:** ocasional, solo monotributistas y no es un rechazo
+- **Síntoma:** el comprobante sale aprobado u observado con la observación `10236` ("El monto del comprobante emitido, excede el límite establecido para su categoría de Monotributo") o `10235` ("excede el límite establecido para la categoría máxima de Monotributo"). Con CAEA son la `817` y la `816`.
+- **Causa:** ARCA compara el importe del comprobante con el tope de tu categoría (o de la máxima). No es un rechazo: el comprobante está emitido.
+- **Solución:** con la `10236`, tenelo en cuenta para la próxima recategorización. Con la `10235`, ARCA avisa que quedarías excluido del Monotributo y que tendrías que darte de alta en el régimen general: consultalo con tu contador. Los topes de cada categoría están en `arcli monotributo`.
+- **Documentación relacionada:** [Rechazos de ARCA por código](#rechazos-de-arca-por-código)
 
 ### Observaciones de padrón
 
@@ -379,23 +396,35 @@ arcli fc ayuda
 - **Solución:** `arcli parametros puntos-venta --produccion` lista los habilitados para web service. Si el tuyo no está, creá uno nuevo con sistema de web services en "Administración de puntos de venta y domicilios" y guardalo con `arcli config establecer puntoVenta <numero>`.
 - **Documentación relacionada:** [Punto de venta para web service](certificado-produccion-completa.md#punto-de-venta-para-web-service)
 
+### ARCA rechaza la nota FCE de anulación
+
+- **Severidad:** frecuente, en notas FCE con `--anulacion`
+- **Síntoma:** la NC o ND FCE con `--anulacion` sale `rechazada` con el error `10154` ("Comprobante electronico autorizado, NO rechazado por el Comprador"). Antes, la vista previa ya avisa que el comprador no rechazó el asociado en el Registro de FCE.
+- **Causa:** una nota de anulación solo vale si el comprador rechazó antes el comprobante asociado en el Registro de Facturas de Crédito Electrónica. Si lo recibió y no lo rechazó, o ya lo aceptó, ARCA rechaza la nota. Una nota sobre otra nota FCE siempre es de anulación, así que la nota asociada también tiene que estar rechazada.
+- **Solución:** pedile al comprador que rechace el comprobante en el Registro de FCE (en el servicio "Sistema de Cuentas Corrientes de Facturas de Crédito Electrónica MiPyMEs" de ARCA) y volvé a emitir. Si la nota no es una anulación (por ejemplo, un ajuste de precio sobre una factura aceptada), emitila sin `--anulacion`. Un rechazo no emite nada.
+- **Documentación relacionada:** [Factura de Crédito Electrónica](fce.md)
+
 ### Rechazos de ARCA por código
 
 Cuando ARCA rechaza o deja una observación con alguno de estos códigos, `sugerencias` del JSON (y el panel de la salida humana) dice qué pasó y qué hacer. Los que ARCLI valida antes de enviar (por ejemplo, la ventana de fechas o el IVA receptor por letra) casi nunca llegan a ARCA, pero si llegan, el texto es el mismo.
 
-| Código          | Qué pasó                                                                                                                                                          | Qué hacer                                                                                                       |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `10005`/`11002` | El punto de venta no está habilitado para web service                                                                                                             | Ver [ARCA rechaza por punto de venta](#arca-rechaza-por-punto-de-venta)                                         |
-| `10016`         | El número o la fecha no es el próximo a autorizar: otro comprobante del mismo tipo y punto de venta se emitió en el medio, o la fecha es anterior a la del último | Mirá el último con `arcli ultimos` y reintentá; si emitís varios, de a uno (ver [Limitaciones](limitations.md)) |
-| `10152`         | La fecha del comprobante está fuera del rango que acepta ARCA                                                                                                     | Ver [Fecha del comprobante fuera de rango](#fecha-del-comprobante-fuera-de-rango)                               |
-| `10243`         | El IVA receptor no es válido para la letra                                                                                                                        | Ver [El comprobante no admite el IVA receptor](#el-comprobante-no-admite-el-iva-receptor)                       |
-| `10174`         | El CBU de la factura FCE no está registrado a nombre del emisor                                                                                                   | Usá un CBU propio registrado en ARCA (`--cbu` o la clave `cbu`)                                                 |
-| `10119`         | La cotización está fuera del rango que acepta ARCA: entre el 2% y el 400% de la oficial                                                                           | Revisá `--cotizacion-moneda` contra `arcli parametros cotizacion <moneda>`                                      |
-| `10038`         | Con `--misma-moneda`, la cotización enviada ya no es la oficial exacta                                                                                            | Volvé a emitir: ARCLI consulta la oficial en ese momento                                                        |
-| `10017`         | El CUIT del receptor de una A no figura activo en el padrón; el comprobante puede estar aprobado                                                                  | Ver [Observaciones de padrón](#observaciones-de-padrón)                                                         |
-| `10217`         | El receptor de una A es monotributista: el crédito fiscal solo se computa por el Procedimiento permanente de transición. El comprobante está aprobado             | Ver [Observaciones de padrón](#observaciones-de-padrón)                                                         |
+| Código          | Qué pasó                                                                                                                                                                       | Qué hacer                                                                                                                                                                                                |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `10005`/`11002` | El punto de venta no está habilitado para web service                                                                                                                          | Ver [ARCA rechaza por punto de venta](#arca-rechaza-por-punto-de-venta)                                                                                                                                  |
+| `10016`         | El número no es el próximo a autorizar (otro comprobante del mismo tipo y punto de venta se emitió en el medio), o la fecha está fuera del rango o es anterior a la del último | Mirá el último con `arcli ultimos` y reintentá; si emitís varios, de a uno (ver [Limitaciones](limitations.md)). La fecha: [Fecha del comprobante fuera de rango](#fecha-del-comprobante-fuera-de-rango) |
+| `10152`         | En productos o FCE, la fecha es futura y cae en otro mes                                                                                                                       | Ver [Fecha del comprobante fuera de rango](#fecha-del-comprobante-fuera-de-rango)                                                                                                                        |
+| `10243`         | El IVA receptor no es válido para la letra                                                                                                                                     | Ver [El comprobante no admite el IVA receptor](#el-comprobante-no-admite-el-iva-receptor)                                                                                                                |
+| `10154`         | La nota FCE de anulación necesita que el comprador haya rechazado antes el asociado, y no lo rechazó                                                                           | Ver [ARCA rechaza la nota FCE de anulación](#arca-rechaza-la-nota-fce-de-anulación)                                                                                                                      |
+| `10174`         | El CBU de la factura FCE no está registrado a nombre del emisor                                                                                                                | Usá un CBU propio registrado en ARCA (`--cbu` o la clave `cbu`)                                                                                                                                          |
+| `10119`         | La cotización está fuera del rango que acepta ARCA: entre el 2 % y el 500 % de la oficial                                                                                      | Revisá `--cotizacion-moneda` contra `arcli parametros cotizacion <moneda>`                                                                                                                               |
+| `10038`         | Con `--misma-moneda`, la cotización enviada ya no es la oficial exacta                                                                                                         | Volvé a emitir: ARCLI consulta la oficial en ese momento                                                                                                                                                 |
+| `10017`         | El CUIT del receptor de una A no figura activo en el padrón; el comprobante puede estar aprobado                                                                               | Ver [Observaciones de padrón](#observaciones-de-padrón)                                                                                                                                                  |
+| `10217`         | El receptor de una A es monotributista: el crédito fiscal solo se computa por el Procedimiento permanente de transición. El comprobante está aprobado                          | Ver [Observaciones de padrón](#observaciones-de-padrón)                                                                                                                                                  |
+| `10069`         | El receptor es el mismo CUIT que emite                                                                                                                                         | Ver [El receptor coincide con el emisor](#el-receptor-coincide-con-el-emisor)                                                                                                                            |
+| `10236`/`817`   | El importe del comprobante excede el límite de tu categoría de Monotributo. El comprobante está emitido                                                                        | Ver [El comprobante excede el tope de tu categoría de Monotributo](#el-comprobante-excede-el-tope-de-tu-categoría-de-monotributo)                                                                        |
+| `10235`/`816`   | El importe del comprobante excede el límite de la categoría máxima del Monotributo. El comprobante está emitido                                                                | Ver [El comprobante excede el tope de tu categoría de Monotributo](#el-comprobante-excede-el-tope-de-tu-categoría-de-monotributo)                                                                        |
 
-También se reconocen por el mensaje, sin código: receptor igual al emisor, `Transacción Activa`, receptor que no está en los padrones (ver [El receptor no está en los padrones de ARCA](#el-receptor-no-está-en-los-padrones-de-arca)), CUIT receptor inexistente y detalle de IVA obligatorio. Si ARCA rechaza con otro código, `sugerencias` pide revisar `errores` y `observaciones`.
+También se reconocen por el mensaje, sin código: receptor igual al emisor (si llega sin el `10069`), `Transacción Activa`, receptor que no está en los padrones (ver [El receptor no está en los padrones de ARCA](#el-receptor-no-está-en-los-padrones-de-arca)), CUIT receptor inexistente y detalle de IVA obligatorio. Si ARCA rechaza con otro código, `sugerencias` pide revisar `errores` y `observaciones`.
 
 - **Documentación relacionada:** [Reglas de validación](validation-rules.md), [Entrada y salida](input-output.md)
 
@@ -407,11 +436,19 @@ También se reconocen por el mensaje, sin código: receptor igual al emisor, `Tr
 - **Solución:** sacá `--numero`: ARCLI consulta el último en ARCA (`FEXGetLast_CMP`) y usa el siguiente. Para ver los últimos, `arcli ultimos fe` (o `nde`, `nce`). Un rechazo no emite nada.
 - **Documentación relacionada:** [Referencia del CLI](cli-reference.md#factura-de-exportación-e-wsfex)
 
-### Factura E: falta la actividad o no está en la tabla de WSFEX
+### Factura E: la fecha está fuera de rango o es anterior a la de la última
 
-- **Severidad:** frecuente, la primera vez que se emite una `E`
-- **Síntoma:** `Falta la actividad de exportación.` o `La actividad 620900 no está en la tabla de actividades de WSFEX y ARCA la rechaza (error 2105).`
-- **Causa:** la `E` informa siempre una actividad (ARCA rechaza `Actividades` vacío con el error 2100) y solo acepta los códigos de su propia tabla (`FEXGetPARAM_Actividades`), que **no es la del padrón y es más chica**: por ejemplo, `620900` (servicios de informática N.C.P.) no está; para informática están `620100` (consultores en informática y suministros de programas) y `620300` (consultores en tecnología de la información).
+- **Severidad:** ocasional, con `--fecha`
+- **Síntoma:** `La fecha del comprobante (...) está fuera de lo que acepta ARCA: del ... al ... (error 1500).`, o ARCA rechaza con el error 1535 una `E` con fecha anterior a la de la última del mismo punto de venta y tipo.
+- **Causa:** la `E` y sus notas aceptan de 5 días antes a 5 días después de hoy y, en servicios, no después del fin de mes (error 1500). Además, ARCA controla la secuencia con la fecha: después de una `E` con fecha futura, las siguientes de ese punto de venta y tipo tienen que llevar esa fecha o una posterior (error 1535). La vista previa lo avisa.
+- **Solución:** usá una fecha dentro de la ventana; si ya emitiste una con fecha futura, emití las siguientes con esa fecha o una posterior, o esperá a ese día.
+- **Documentación relacionada:** [Reglas de validación](validation-rules.md#factura-de-exportación-e)
+
+### Factura E: la actividad no está en la tabla de WSFEX
+
+- **Severidad:** frecuente, la primera vez que se emite una `E` con actividad
+- **Síntoma:** `La actividad 620900 no está en la tabla de actividades de WSFEX y ARCA la rechaza (error 2105).`
+- **Causa:** la actividad es opcional (sin `--actividad` ni `exportacion.actividad`, la `E` va sin ella), pero si la informás, ARCA solo acepta los códigos de su propia tabla (`FEXGetPARAM_Actividades`), que **no es la del padrón y es más chica**: por ejemplo, `620900` (servicios de informática N.C.P.) no está; para informática están `620100` (consultores en informática y suministros de programas) y `620300` (consultores en tecnología de la información).
 - **Solución:** elegí la que corresponda a tu actividad declarada (el error lista las que empiezan igual) y guardala con `arcli config establecer exportacion.actividad <codigo>`, o pasala con `--actividad`.
 - **Documentación relacionada:** [Reglas de validación](validation-rules.md#factura-de-exportación-e), [Configuración](configuration.md)
 
@@ -431,12 +468,21 @@ También se reconocen por el mensaje, sin código: receptor igual al emisor, `Tr
 - **Solución:** no hace falta hacer nada. Para fijar otra cotización, pasá `--cotizacion-moneda <valor>` (o `--cm`).
 - **Documentación relacionada:** [Reglas de validación](validation-rules.md#factura-de-exportación-e)
 
+### Factura E: ARCA no reconoce el permiso de embarque
+
+- **Severidad:** ocasional, en exportaciones de bienes
+- **Síntoma:** `ARCA dice que el permiso de embarque <permiso> no es válido para el destino <país>: rechazaría el comprobante.` (`INPUT_VALIDATION_ERROR`, con los permisos en `detalles.permisos`), incluso con `--previsualizar`.
+- **Causa:** antes de la vista previa, ARCLI consulta cada `--permiso` en ARCA (`FEXCheck_Permiso`) con el país de destino, y ARCA contestó que esa destinación no existe en la Aduana o es de otro destino. No se emitió nada.
+- **Solución:** revisá el número del permiso (16 caracteres, como figura en la destinación de la Aduana) y que `--pais-destino` sea el de la mercadería.
+- **Si en cambio sale el aviso** `No se pudo verificar el permiso de embarque…`, ARCA no respondió la consulta: el comprobante se puede emitir igual, pero revisá el permiso, porque si es incorrecto ARCA lo rechaza al emitir. En testing ARCA contesta `OK` a cualquier permiso, así que la verificación solo sirve en producción.
+- **Documentación relacionada:** [Reglas de validación](validation-rules.md#factura-de-exportación-e), [Entrada y salida](input-output.md)
+
 ### Factura E de servicios: la cotización es la del día anterior
 
 - **Severidad:** frecuente, en servicios (`--tipo-expo 2`, el default) y con `--misma-moneda`
 - **Síntoma:** la vista previa trae la cotización del día anterior a la fecha del comprobante, o un aviso `En servicios ARCA exige la cotización de DOL del día hábil anterior…` con la del último día hábil. Con una versión anterior a la 2.5.2, ARCA rechazaba la `E` de servicios con el error 2053 ("Cotizacion informada no valida. (FechaCot utilizada: …)").
 - **Causa:** en servicios ARCA exige la cotización del día hábil anterior a la fecha de emisión (error 2053), y con `--misma-moneda` también.
-- **Solución:** no hace falta hacer nada: ARCLI ya pide esa. Con `--cotizacion-moneda` en servicios, tiene que ser exactamente esa cotización, o ARCA rechaza con 2053.
+- **Solución:** no hace falta hacer nada: ARCLI ya pide esa. Con `--cotizacion-moneda` en servicios (o con `--misma-moneda`), tiene que ser exactamente esa cotización: si no coincide, ARCLI frena antes con `INPUT_VALIDATION_ERROR` y la que corresponde. Sacá `--cotizacion-moneda`.
 - **Documentación relacionada:** [Reglas de validación](validation-rules.md#factura-de-exportación-e)
 
 ## Batch

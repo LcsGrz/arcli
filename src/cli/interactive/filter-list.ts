@@ -6,12 +6,11 @@ import {
   makeTheme,
   useKeypress,
   useMemo,
-  usePagination,
   usePrefix,
   useState,
 } from '@inquirer/core';
 
-import { bold, colorize, uiSymbol } from '../../ui';
+import { bold, colorize, scrollHint, scrollWindow, stripAnsi, uiSymbol } from '../../ui';
 
 type HelpKey = [string, string];
 
@@ -26,6 +25,8 @@ export interface FilterListRow<T> {
 }
 
 export interface FilterListConfig<T> {
+  /** "← Volver" fijo debajo de la lista, separado por una linea en blanco; elegirlo cierra la lista sin respuesta. */
+  readonly back?: string;
   readonly default?: T;
   /** Fila de encabezado (CÓDIGO, DESCRIPCIÓN…), fija arriba de la lista. */
   readonly header?: string;
@@ -59,15 +60,53 @@ function normalize(text: string): string {
     .toLowerCase();
 }
 
+/** Las palabras de lo escrito, sin mayusculas ni tildes: dos textos con las mismas filtran igual. */
+export function searchWords(term: string): string[] {
+  return normalize(term).split(/\s+/).filter(Boolean);
+}
+
+/**
+ * Si `text` tiene cada palabra de lo escrito, en cualquier orden, sin mayusculas ni tildes: "dolar canad" encuentra
+ * "Dólares canadienses (CAD)". Sin nada escrito, todo coincide. Los colores de `text` (un "(nuevo)" resaltado) no
+ * cuentan. Es la unica manera de buscar del asistente: la usan las listas que se filtran (`filterList`) y las de
+ * opciones (`listSelect`).
+ */
+export function matchesSearch(text: string, term: string): boolean {
+  const haystack = normalize(stripAnsi(text));
+
+  return searchWords(term).every((word) => haystack.includes(word));
+}
+
 /** Las filas que contienen lo escrito, en la fila o en sus palabras clave. */
 export function filterRows<T>(rows: ReadonlyArray<FilterListRow<T>>, term: string): Array<FilterListRow<T>> {
-  const needle = normalize(term.trim());
+  return rows.filter((row) => matchesSearch(`${row.label} ${row.keywords ?? ''}`, term));
+}
 
-  if (!needle) {
-    return [...rows];
-  }
+/** La pista de que se puede escribir para filtrar, en la ayuda de teclas de las listas que filtran. */
+export const FILTER_HELP_KEY: [string, string] = ['escribí', 'para filtrar'];
 
-  return rows.filter((row) => normalize(`${row.label} ${row.keywords ?? ''}`).includes(needle));
+/** "Filtrar: dol", la linea con lo escrito. */
+export function filterPromptLine(term: string): string {
+  return `${colorize('Filtrar:', 'muted')} ${term}`;
+}
+
+/** "  3 de 37", cuando lo escrito deja menos filas que todas; si no, vacio (sin ninguna, ya lo dice `noMatchesLine`). */
+export function filterCountLine(term: string, shown: number, total: number): string {
+  return term && shown > 0 && shown < total ? colorize(`  ${shown} de ${total}`, 'muted') : '';
+}
+
+/** "  Nada coincide con "zzz".", en lugar de la lista vacia. */
+export function noMatchesLine(term: string): string {
+  return colorize(`  Nada coincide con "${term.trim()}".`, 'muted');
+}
+
+/** La posicion de "Volver": despues de la ultima fila. */
+const BACK_ROW = -1;
+
+function renderBack(label: string, isActive: boolean, highlight: (text: string) => string): string {
+  const line = `${isActive ? uiSymbol('pointer') : ' '} ${label}`;
+
+  return isActive ? highlight(line) : line;
 }
 
 /**
@@ -90,23 +129,28 @@ export const filterList = createPrompt(<T>(config: FilterListConfig<T>, done: (v
 
   useKeypress((key, rl) => {
     if (isEnterKey(key)) {
-      const row = visible[active];
+      const row = active === BACK_ROW ? undefined : visible[active];
 
-      if (config.mode === 'ver') {
+      if (config.mode === 'ver' || active === BACK_ROW) {
         setStatus('done');
         done(undefined);
       } else if (row) {
         setStatus('done');
         done(row.value);
+      } else {
+        // Enter sin nada que elegir: readline ya vacio la linea, y lo escrito tiene que seguir para editarlo.
+        rl.write(term);
       }
     } else if (isUpKey(key) || isDownKey(key)) {
       // Las flechas no escriben: readline las tomaria como historial y borraria el filtro.
       rl.clearLine(0);
       rl.write(term);
 
-      const next = active + (isUpKey(key) ? -1 : 1);
+      // Las filas que se recorren con las flechas, con "Volver" al final.
+      const order = [...visible.keys(), ...(config.back ? [BACK_ROW] : [])];
+      const next = order[order.indexOf(active) + (isUpKey(key) ? -1 : 1)];
 
-      if (next >= 0 && next < visible.length) {
+      if (next !== undefined) {
         setActive(next);
       }
     } else if (rl.line !== term) {
@@ -115,34 +159,38 @@ export const filterList = createPrompt(<T>(config: FilterListConfig<T>, done: (v
     }
   });
 
-  const page = usePagination({
-    active,
-    items: visible,
-    loop: false,
-    pageSize: config.pageSize,
-    renderItem({ isActive, item }) {
-      const cursor = isActive ? uiSymbol('pointer') : ' ';
-      const line = `${cursor} ${item.label}`;
+  // Con "Volver" marcado, la pagina queda al final, porque se llega desde la ultima fila.
+  const window = scrollWindow(visible.length, active === BACK_ROW ? visible.length - 1 : active, config.pageSize);
+  const page = [
+    ...(window.scrolls ? [scrollHint('above', window.start)] : []),
+    ...visible.slice(window.start, window.end).map((item, offset) => {
+      const isActive = window.start + offset === active;
+      const line = `${isActive ? uiSymbol('pointer') : ' '} ${item.label}`;
 
       return isActive ? theme.style.highlight(line) : line;
-    },
-  });
+    }),
+    ...(window.scrolls ? [scrollHint('below', visible.length - window.end)] : []),
+  ].join('\n');
   const message = theme.style.message(config.message, status);
 
   if (status === 'done') {
     return [prefix, message].filter(Boolean).join(' ');
   }
 
-  const count =
-    term && visible.length < config.rows.length
-      ? colorize(`  ${visible.length} de ${config.rows.length}`, 'muted')
-      : '';
-  const body = visible.length > 0 ? page : colorize(`  Nada coincide con "${term.trim()}".`, 'muted');
-  const keys: HelpKey[] = [['↑↓', 'navigate'], ...(config.mode === 'elegir' ? [['⏎', 'select'] as HelpKey] : [])];
+  const count = filterCountLine(term, visible.length, config.rows.length);
+  const body = visible.length > 0 ? page : noMatchesLine(term);
+  const keys: HelpKey[] = [
+    ['↑↓', 'navigate'],
+    ...(config.mode === 'elegir' ? [['⏎', 'select'] as HelpKey] : []),
+    FILTER_HELP_KEY,
+  ];
   const lines = [
+    // Una linea en blanco entre "Filtrar:" y la lista, y otra arriba (en `top`), para que el filtro no quede pegado.
+    ' ',
     config.header ? `  ${bold(config.header)}` : '',
     body,
     count,
+    ...(config.back ? [' ', renderBack(config.back, active === BACK_ROW, theme.style.highlight)] : []),
     ' ',
     config.help ? theme.style.description(config.help) : '',
     theme.style.keysHelpTip(keys),
@@ -150,7 +198,7 @@ export const filterList = createPrompt(<T>(config: FilterListConfig<T>, done: (v
   // Con dos partes, el cursor queda despues de lo escrito y la lista va debajo. El mensaje activo termina en un salto
   // de linea (el estilo de las listas), asi que el filtro queda en su propia linea.
   const head = [prefix, message].filter(Boolean).join(' ');
-  const top = `${head}${head.endsWith('\n') ? '' : ' '}${colorize('Filtrar:', 'muted')} ${term}`;
+  const top = `${head}${head.endsWith('\n') ? '\n' : ' '}${filterPromptLine(term)}`;
 
   return [top, lines.filter(Boolean).join('\n').trimEnd()];
 });

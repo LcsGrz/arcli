@@ -1,0 +1,13 @@
+$ arcli fc -m 1000 --cs --cfinal --emitir --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "UNEXPECTED_ERROR",
+  "detalles": null,
+  "error": "getaddrinfo ENOTFOUND wswhomo.afip.gov.ar",
+  "sugerencia": null
+}
+

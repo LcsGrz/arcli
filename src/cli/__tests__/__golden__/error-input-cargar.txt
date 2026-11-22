@@ -1,0 +1,22 @@
+$ arcli fc --cargar <config>/fc.json --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "INPUT_VALIDATION_ERROR",
+  "detalles": {
+    "campos": [
+      {
+        "mensaje": "La clave \"montototal\" no existe: ¿quisiste decir \"montoTotal\"?",
+        "ruta": [
+          "montototal"
+        ]
+      }
+    ]
+  },
+  "error": "En el JSON de `--cargar`: La clave \"montototal\" no existe: ¿quisiste decir \"montoTotal\"?",
+  "sugerencia": null
+}
+

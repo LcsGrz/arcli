@@ -88,16 +88,28 @@ export const DEFAULT_EXPORT_UNIT_CODE = 7;
 /** Idioma por defecto del comprobante. 1 = Espanol. */
 export const DEFAULT_EXPORT_LANGUAGE = 1;
 
-/** Tope de numeracion de ARCA. */
+/** Tope del numero de comprobante: de 1 a 99.999.999 (1520, WSFEX v3.1.0). */
 export const MAX_EXPORT_VOUCHER_NUMBER = 99_999_999;
 
-export interface ExportPermitPayload {
+/** Tope del punto de venta de la E: de 1 a 99.998 (1510, WSFEX v3.1.0). */
+export const MAX_EXPORT_POINT_OF_SALE = 99_998;
+
+/** Tope del ID de la solicitud: `Id` es `Long (N15)` en la tabla de campos de WSFEX v3.1.0. */
+export const MAX_EXPORT_REQUEST_ID = 999_999_999_999_999;
+
+/**
+ * Unidades "solo total": 0, 97 (sena o anticipo) y 99 (bonificacion) van sin cantidad ni precio (1775, WSFEX v3.1.0).
+ * ARCLI pide cantidad y precio mayores a 0 en cada item, asi que no las acepta (EXPO-10 las va a habilitar).
+ */
+export const EXPORT_TOTAL_ONLY_UNIT_CODES: readonly number[] = [0, 97, 99];
+
+interface ExportPermitPayload {
   readonly Dst_merc: number;
   readonly Id_permiso: string;
 }
 
 /** Cada entrada de `Actividades`: el codigo de la tabla de actividades de ARCA. */
-export interface ExportActivityPayload {
+interface ExportActivityPayload {
   readonly Id: number;
 }
 
@@ -110,7 +122,7 @@ export interface ExportAssociatedVoucherPayload {
 }
 
 /** Fila de `Opcionales` (`ClsFEX_Opcional`). */
-export interface ExportOptionalPayload {
+interface ExportOptionalPayload {
   readonly Id: string;
   readonly Valor: string;
 }
@@ -130,7 +142,8 @@ export interface ExportItemPayload {
  * asi que no se traduce.
  */
 export interface ExportVoucherPayload {
-  readonly Actividades: { Actividad: ExportActivityPayload[] };
+  /** Opcional: sin actividad no va (ARCA rechaza el bloque vacio, error 2100). */
+  readonly Actividades?: { Actividad: ExportActivityPayload[] };
   /** Solo en la factura: en las notas ARCA lo rechaza (error 1605). */
   readonly CanMisMonExt?: 'N' | 'S';
   readonly Cbte_nro: number;
@@ -224,7 +237,7 @@ export interface ExportQuotation {
 }
 
 /** `Moneda_Id`, `Moneda_ctz` y `CanMisMonExt` ya resueltos. En pesos no hay `CanMisMonExt` (error 1605). */
-export interface ExportCurrencyFields {
+interface ExportCurrencyFields {
   readonly CanMisMonExt?: 'N' | 'S';
   readonly Moneda_ctz: number;
   readonly Moneda_Id: string;
@@ -234,6 +247,17 @@ export interface ExportCurrencyResolution {
   readonly fields: ExportCurrencyFields;
   /** `true` si hay que pedir la cotizacion del dia a ARCA: no vino por flag ni por config. */
   readonly needsQuotation: boolean;
+}
+
+/**
+ * Lo que dijo `FEXCheck_Permiso` de un permiso de embarque: `valido` si ARCA contesto `OK`, `invalido` si contesto
+ * `NO` y `sin-verificar` si fallo la consulta o la respuesta no fue ninguna de las dos.
+ */
+export type ExportPermitCheckStatus = 'invalido' | 'sin-verificar' | 'valido';
+
+export interface ExportPermitCheck {
+  readonly permit: string;
+  readonly status: ExportPermitCheckStatus;
 }
 
 /** Nombres de las tablas de ARCA que se muestran en texto, PDF y JSON. */
@@ -247,6 +271,8 @@ export interface ExportDisplayInfo {
   readonly currencyName?: string;
   readonly incotermName?: string;
   readonly languageName?: string;
+  /** Solo si el comprobante lleva permisos de embarque: lo que contesto ARCA de cada uno en la vista previa. */
+  readonly permitChecks?: readonly ExportPermitCheck[];
   readonly unitNames: Readonly<Record<number, string>>;
 }
 
@@ -307,7 +333,7 @@ export interface ExportIssuedVoucher {
 }
 
 /** El asociado de una nota, para la vista previa y el JSON. */
-export interface ExportAssociatedVoucherDisplay {
+interface ExportAssociatedVoucherDisplay {
   readonly currencyCode: string;
   /** yyyymmdd */
   readonly date: string;
@@ -320,6 +346,11 @@ export interface ExportGateway {
   authorize(payload: ExportVoucherPayload): Promise<IFEXAuthorizeOutput>;
   /** Tabla de actividades de WSFEX: el `Cmp` solo acepta estos codigos, no los del padron. */
   getActivities(): Promise<readonly ExportActivity[]>;
+  /**
+   * `FEXCheck_Permiso`: el `Status` que ARCA devuelve para un permiso de embarque y su pais de destino (`OK` o
+   * `NO`), tal cual. Es una lectura: no emite nada.
+   */
+  checkPermit(permit: string, destinationCountry: number): Promise<string>;
   /** Un comprobante E ya emitido (`FEXGetCMP`), o `null` si ARCA no lo tiene. */
   getVoucher(query: ExportVoucherQuery): Promise<ExportIssuedVoucher | null>;
   getCurrencies(): Promise<readonly ExportCurrency[]>;

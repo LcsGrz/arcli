@@ -1,0 +1,128 @@
+/*
+ * Tokens del sitio: colores, fuentes, tamaños, radios y sombras. Va primero en `customCss` (astro.config.mjs), así
+ * lo ven las docs, los componentes y la portada (`landing.css` usa alias cortos de estos mismos tokens).
+ *
+ * Starlight define sus variables en `@layer starlight.*`: estas, sin capa, ganan siempre.
+ */
+
+/* Marca: los colores del logo, celeste sobre el fondo oscuro del ícono. Cambian con el tema. */
+:root {
+  --arcli-celeste: #74acdf;
+  --arcli-lavanda: #c6c9f0;
+  --arcli-verde: #a6e3a1;
+  --arcli-sol: #f9d77e;
+  --arcli-naranja: #fab387;
+  --arcli-rojo: #f38ba8;
+  --arcli-panel: #11111b;
+  /* El degradé del encabezado */
+  --arcli-hdr-hi: #2c2c42;
+  --arcli-hdr-lo: #181825;
+
+  --sl-color-accent-low: #1f2f45;
+  --sl-color-accent: #74acdf;
+  --sl-color-accent-high: #d4e7f7;
+  --sl-color-black: #181825;
+  --sl-color-gray-6: #262637;
+  /* El gris del texto secundario, más claro que el de Starlight (#888b96): así llega a 4,5:1 también sobre un
+     desplegable abierto o una pestaña (`gray-6` y un poco más). */
+  --sl-color-gray-3: #979ba5;
+  /* El menú del mismo fondo que la página */
+  --sl-color-bg-sidebar: var(--sl-color-black);
+}
+
+:root[data-theme='light'] {
+  --arcli-celeste: #2c6aa3;
+  --arcli-lavanda: #3d3f66;
+  --arcli-verde: #327a37;
+  --arcli-sol: #8a5f00;
+  --arcli-naranja: #a8521a;
+  --arcli-rojo: #b4344f;
+  --arcli-panel: #f4f5f9;
+  --arcli-hdr-hi: #ffffff;
+  --arcli-hdr-lo: #eef1f7;
+
+  --sl-color-accent-low: #d4e7f7;
+  --sl-color-accent: #2c6aa3;
+  --sl-color-accent-high: #173a5c;
+  --sl-color-black: #ffffff;
+  --sl-color-gray-6: #eeeef2;
+  /* El de Starlight: en claro ya tiene contraste. Hace falta repetirlo para que no quede el del tema oscuro. */
+  --sl-color-gray-3: #555962;
+}
+
+/* Terminal (Catppuccin Mocha): iguales en los dos temas, porque los paneles de terminal son siempre oscuros. */
+:root {
+  --arcli-term-bg: #11111b;
+  --arcli-term-raised: #1e1e2e;
+  --arcli-term-line: #313244;
+  --arcli-term-line-dim: #45475a;
+  --arcli-term-fg: #cdd6f4;
+  --arcli-term-fg-soft: #a6adc8;
+  /* Un poco más claro que el overlay1 de Catppuccin (#7f849c), para llegar a 4,5:1 sobre `--arcli-term-raised` */
+  --arcli-term-fg-mute: #878ca4;
+  --arcli-term-blue: #89b4fa;
+  --arcli-term-green: #a6e3a1;
+  --arcli-term-teal: #94e2d5;
+  --arcli-term-red: #f38ba8;
+  /* La burbuja de quien escribe en el chat */
+  --arcli-term-user: #2a3550;
+  --arcli-term-strong: #fff;
+
+  /* La estrella de GitHub, igual en los dos temas */
+  --arcli-estrella: #f9d77e;
+  /* El fondo del PDF de ejemplo */
+  --arcli-papel: #fff;
+}
+
+/* Portada: es siempre oscura, así que estos no cambian con el tema. */
+:root {
+  --arcli-portada-fg: #e6e7f2;
+  --arcli-portada-fg-soft: #a6a9c4;
+  --arcli-portada-line-soft: #26263a;
+  --arcli-celeste-strong: #9cc6ee;
+  --arcli-celeste-glow: rgb(116 172 223 / 0.16);
+  --arcli-on-accent: #10121c;
+}
+
+/* Fuentes: Geist y JetBrains Mono, se cargan en astro.config.mjs. */
+:root {
+  --sl-font: 'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --sl-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* Texto mono chico: chips del menú, etiquetas en mayúsculas y fechas */
+  --arcli-text-2xs: 0.64rem;
+  --arcli-text-overline: 0.72rem;
+  --arcli-text-mono-sm: 0.8rem;
+
+  /* Títulos de las docs */
+  --sl-text-h1: 2.5rem;
+  --sl-text-h2: 1.5rem;
+  --sl-text-h3: 1.2rem;
+  --sl-text-h4: 1.05rem;
+  --sl-line-height: 1.65;
+}
+
+/* Radios y sombras */
+:root {
+  --arcli-radius-sm: 0.4rem;
+  --arcli-radius-md: 0.5rem;
+  --arcli-radius-lg: 0.6rem;
+  --arcli-radius-xl: 0.75rem;
+  --arcli-radius-pill: 99px;
+
+  /* El brillo celeste debajo de los paneles de terminal y los GIF */
+  --arcli-shadow-glow: 0 30px 70px -40px rgb(116 172 223 / 0.4);
+  /* El PDF de ejemplo */
+  --arcli-shadow-pdf: 0 0 0 1px rgb(116 172 223 / 0.05), 0 40px 90px -40px rgb(116 172 223 / 0.45);
+  /* Portada: el PDF y el panel de la terminal, que se superponen */
+  --arcli-shadow-pdf-portada: 0 30px 60px -25px rgb(0 0 0 / 0.55);
+  --arcli-shadow-panel: 0 25px 50px -20px rgb(0 0 0 / 0.6);
+}
+
+/* Anchos: el menú entra "Responsable inscripto" en una línea, el texto a 56rem y todo el sitio hasta 96rem. */
+:root {
+  --sl-sidebar-width: 19rem;
+  --sl-content-width: 56rem;
+  --arcli-toc-width: 15rem;
+  --arcli-gutter: max(0px, calc((100vw - 96rem) / 2));
+}

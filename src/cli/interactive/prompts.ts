@@ -1,15 +1,23 @@
 import input from '@inquirer/input';
-import select, { Separator } from '@inquirer/select';
+import { Separator } from '@inquirer/select';
 import { emitKeypressEvents } from 'node:readline';
 
+import type { RowEdits } from '../../modules/interactive/row-marks';
 import { BACK, type Back } from '../../modules/interactive/wizard';
-import { bold, colorize, uiSymbol, usesAsciiBorders, writeTerminalRaw } from '../../ui';
+import { bold, colorize, type RowActionsListRow, uiSymbol, usesAsciiBorders, writeTerminalRaw } from '../../ui';
 
+import { blockPager } from './block-pager';
 import { filterList, type FilterListRow } from './filter-list';
+import { listSelect, type ListSelectState } from './list-select';
 import { multiSelect } from './multi-select';
+import { rowActionsList } from './row-actions-list';
 
 export interface Choice<T> {
   readonly description?: string;
+  /** Se ve apagada y no se puede elegir; con texto, ese texto va al lado. */
+  readonly disabled?: boolean | string;
+  /** Lo que se compara con lo escrito para filtrar, ademas del nombre: por ejemplo, el codigo de ARCA de una moneda. */
+  readonly keywords?: string;
   readonly name: string;
   /** Lo que queda en la linea "✔ pregunta respuesta" al elegirla; por defecto, `name`. */
   readonly short?: string;
@@ -74,23 +82,31 @@ const TEXT_THEME = {
 
 /**
  * Una lista simple. Con `escapeValue`, Esc la cierra devolviendo ese valor (por ejemplo, "volver", "no" o
- * "salir") y la ayuda de teclas lo muestra con `escapeLabel`; sin el, Esc no hace nada. Con `compactTop`, una
- * sola linea en blanco arriba en lugar de dos.
+ * "salir") y la ayuda de teclas lo muestra con `escapeLabel`; sin el, Esc no hace nada. Con `back`, un boton
+ * ("← Volver") fijo debajo de las opciones, que no se desplaza con ellas. Con `compactTop`, una sola linea en blanco
+ * arriba en lugar de dos. Con `filter: false`, escribir no filtra (como al confirmar).
  */
 export async function chooseOne<T>(
   message: string,
   choices: ReadonlyArray<Choice<T> | Separator>,
   defaultValue?: T,
-  options: { readonly compactTop?: boolean; readonly escapeLabel?: string; readonly escapeValue?: T } = {},
+  options: {
+    readonly back?: { readonly label: string; readonly value: T };
+    readonly compactTop?: boolean;
+    readonly escapeLabel?: string;
+    readonly escapeValue?: T;
+    readonly filter?: boolean;
+  } = {},
 ): Promise<T> {
-  const { compactTop = false, escapeLabel = 'volver', escapeValue } = options;
+  const { back, compactTop = false, escapeLabel = 'volver', escapeValue, filter } = options;
   const prefix = compactTop ? COMPACT_PROMPT_PREFIX : PROMPT_PREFIX;
   const config = {
-    choices: [...choices],
+    back,
+    choices,
     default: defaultValue,
-    loop: false,
+    filter,
     message,
-    pageSize: 12,
+    pageSize: MIN_PAGE_SIZE,
     theme:
       escapeValue === undefined
         ? { ...MENU_THEME, prefix }
@@ -98,32 +114,57 @@ export async function chooseOne<T>(
   };
 
   if (escapeValue === undefined) {
-    return select<T>(config);
+    return listSelect<T, T>(config);
   }
 
   const result = await runStepPrompt(
-    (context) => select<T>(config, context),
-    (answer) => ({ answer: choiceName(choices, answer), message }),
+    (context) => listSelect<T, T>(config, context),
+    (answer) => ({ answer: back && answer === back.value ? back.label : choiceName(choices, answer), message }),
   );
 
   return 'answer' in result && result.answer !== BACK ? result.answer : escapeValue;
 }
 
+/**
+ * La aclaracion de una pregunta de texto ("(Enter para omitirlo)") va antes de los dos puntos, y solo mientras se
+ * responde: en la linea "✔ pregunta respuesta" queda la pregunta sola, asi un Enter vacio se ve vacio (TUI-19).
+ */
+function withHint(message: string, hint: string | undefined): string {
+  if (!hint) {
+    return message;
+  }
+
+  return message.endsWith(':') ? `${message.slice(0, -1)} ${hint}:` : `${message} ${hint}`;
+}
+
 export async function askText(
   message: string,
-  options: { readonly defaultValue?: string; readonly validate?: (value: string) => string | true } = {},
+  options: {
+    readonly defaultValue?: string;
+    /** Ver `TextStepOptions.hint`. */
+    readonly hint?: string;
+    readonly validate?: (value: string) => string | true;
+  } = {},
 ): Promise<string> {
-  const answer = await input({
-    default: options.defaultValue,
-    message,
-    theme: TEXT_THEME,
-    validate: options.validate,
-  });
+  const answer = await input(
+    {
+      default: options.defaultValue,
+      message: withHint(message, options.hint),
+      theme: TEXT_THEME,
+      validate: options.validate,
+    },
+    // Con aclaracion, la linea de la respuesta se escribe aparte, sin ella.
+    options.hint ? { clearPromptOnDone: true } : {},
+  );
+
+  if (options.hint) {
+    writeAnsweredLine(message, answer.trim());
+  }
 
   return answer.trim();
 }
 
-/** Si o no; Esc cuenta como no. */
+/** Si o no; Esc cuenta como no. Escribir no filtra: con dos opciones no hace falta, y Enter elige la marcada. */
 export async function confirm(message: string, yesLabel: string, noLabel = 'Cancelar'): Promise<boolean> {
   return chooseOne(
     message,
@@ -132,7 +173,7 @@ export async function confirm(message: string, yesLabel: string, noLabel = 'Canc
       { name: noLabel, value: false },
     ],
     undefined,
-    { escapeValue: false },
+    { escapeValue: false, filter: false },
   );
 }
 
@@ -143,18 +184,36 @@ export function isPromptCancellation(error: unknown): boolean {
 
 // Lineas que ocupa el prompt fuera de la lista: linea en blanco, pregunta, descripcion y ayuda de teclas.
 const PROMPT_CHROME_LINES = 6;
+// "← Volver" y la linea en blanco que lo separa de las opciones, fijos debajo de la lista.
+const BACK_LINES = 2;
+// Los avisos "↑ 3 más" y "↓ 12 más" de una lista que se desplaza.
+const SCROLL_HINT_LINES = 2;
+const MIN_PAGE_SIZE = 12;
+const MIN_SCROLL_PAGE_SIZE = 3;
 
-/** Alto de lista para `count` opciones: todas si entran en la terminal, si no las que entren (minimo 12). */
-export function fitPageSize(count: number): number {
-  const available = (process.stdout.rows || 24) - PROMPT_CHROME_LINES;
+/**
+ * Alto de la parte que se desplaza para `count` filas: todas si entran en la terminal (junto con "Volver", salvo con
+ * `back: false`), si no las que entren con los avisos de arriba y abajo. `extraLines`: lo que el prompt suma fuera de
+ * la lista, como el filtro y el encabezado de una lista que se filtra.
+ */
+export function fitPageSize(
+  count: number,
+  options: { readonly back?: boolean; readonly extraLines?: number } = {},
+): number {
+  const available =
+    (process.stdout.rows || 24) -
+    PROMPT_CHROME_LINES -
+    (options.extraLines ?? 0) -
+    (options.back === false ? 0 : BACK_LINES);
 
-  return Math.max(12, Math.min(count, available));
+  // Si no entra, la pagina se achica a lo que entra (con un minimo chico), asi "Volver" no queda fuera de la pantalla.
+  return count <= available
+    ? Math.max(MIN_PAGE_SIZE, count)
+    : Math.max(MIN_SCROLL_PAGE_SIZE, available - SCROLL_HINT_LINES);
 }
 
-/** "← Volver" al final de una lista, separado de las opciones por `BACK_SPACER`. */
+/** "← Volver" al final de una lista, fijo debajo de las opciones aunque la lista se desplace. */
 export const BACK_CHOICE = { name: `${uiSymbol('back')} Volver`, value: BACK } as const;
-// Linea en blanco entre las opciones y "Volver".
-export const BACK_SPACER = new Separator(' ');
 // Alternativa a Esc, por si la terminal no la manda.
 const BACK_TEXT = '<';
 const ESCAPE_REASON = 'esc';
@@ -209,22 +268,6 @@ async function runStepPrompt<T>(
   }
 }
 
-function stepConfig<T>(
-  message: string,
-  choices: ReadonlyArray<Choice<T> | Separator>,
-  defaultValue: T | undefined,
-  pageSize: number,
-) {
-  return {
-    choices: [...choices, BACK_SPACER, BACK_CHOICE],
-    default: defaultValue,
-    loop: false,
-    message,
-    pageSize,
-    theme: STEP_THEME,
-  };
-}
-
 function choiceName<T>(choices: ReadonlyArray<Choice<T> | Separator>, answer: Back | T): string {
   if (answer === BACK) {
     return BACK_CHOICE.name;
@@ -235,15 +278,40 @@ function choiceName<T>(choices: ReadonlyArray<Choice<T> | Separator>, answer: Ba
   return chosen?.short ?? chosen?.name ?? '';
 }
 
+/**
+ * Para redibujar la misma lista igual que la dejo quien la usaba (por ejemplo, cuando termina una carga): lo escrito
+ * con que arranca y donde avisar lo escrito y la marcada despues de cada tecla.
+ */
+export interface ListStepOptions<T> {
+  readonly initialTerm?: string;
+  readonly onChange?: (state: ListSelectState<Back | T>) => void;
+}
+
+export type { ListSelectState } from './list-select';
+
 async function selectStep<T>(
   message: string,
   choices: ReadonlyArray<Choice<T> | Separator>,
-  defaultValue: T | undefined,
+  defaultValue: Back | T | undefined,
   pageSize: number,
-  signal?: AbortSignal,
+  options: ListStepOptions<T> & { readonly signal?: AbortSignal } = {},
 ) {
+  const { signal, ...state } = options;
+
   return runStepPrompt(
-    (context) => select<Back | T>(stepConfig(message, choices, defaultValue, pageSize), context),
+    (context) =>
+      listSelect<T, Back>(
+        {
+          ...state,
+          back: { label: BACK_CHOICE.name, value: BACK },
+          choices,
+          default: defaultValue,
+          message,
+          pageSize,
+          theme: STEP_THEME,
+        },
+        context,
+      ),
     (answer) => ({ answer: choiceName(choices, answer), message }),
     signal,
   );
@@ -256,10 +324,12 @@ async function selectStep<T>(
 export async function chooseStep<T>(
   message: string,
   choices: ReadonlyArray<Choice<T> | Separator>,
-  defaultValue?: T,
+  /** La marcada al empezar; `BACK`, "← Volver". */
+  defaultValue?: Back | T,
   pageSize = 12,
+  options: ListStepOptions<T> = {},
 ): Promise<Back | T> {
-  const result = await selectStep(message, choices, defaultValue, pageSize);
+  const result = await selectStep(message, choices, defaultValue, pageSize, options);
 
   // Sin signal externo, solo Esc aborta, y eso ya vuelve como BACK.
   return 'answer' in result ? result.answer : BACK;
@@ -282,37 +352,56 @@ export type LoadingResult<T, L> = { readonly answer: Back | T } | { readonly loa
 export async function chooseStepWhileLoading<T, L>(
   message: string,
   choices: ReadonlyArray<Choice<T> | Separator>,
-  defaultValue: T | undefined,
+  defaultValue: Back | T | undefined,
   pageSize: number,
   loading: Promise<L>,
+  options: ListStepOptions<T> = {},
 ): Promise<LoadingResult<T, L>> {
   const loaded = new AbortController();
   const stop = () => loaded.abort();
 
   loading.then(stop, stop);
 
-  const result = await selectStep(message, choices, defaultValue, pageSize, loaded.signal);
+  const result = await selectStep(message, choices, defaultValue, pageSize, { ...options, signal: loaded.signal });
 
   return 'answer' in result ? result : { loaded: await loading };
 }
 
+export interface TextStepOptions {
+  readonly defaultValue?: string;
+  /** Aclaracion que se ve solo mientras se responde, como `SKIP_HINT`; la respuesta queda con `message` solo. */
+  readonly hint?: string;
+  /**
+   * Lo que se habia escrito, al volver a la pregunta: arranca escrito y se puede editar o borrar (con un
+   * `defaultValue`, borrarlo no lo deja vacio). Vacio, la pregunta arranca como la primera vez.
+   */
+  readonly previousAnswer?: string;
+  readonly validate?: (value: string) => string | true;
+  /** Lo que se puede escribir, corto y apagado al lado de la ayuda de Esc. No queda en la linea de respuesta. */
+  readonly inputHelp?: string;
+  /** Lo que muestra la linea "✔ pregunta respuesta" para una respuesta valida: por ejemplo, la fecha resuelta. */
+  readonly answered?: (answer: string) => string;
+}
+
 /** Como askText, pero Esc (o escribir "<") vuelve al paso anterior. */
-export async function askTextStep(
-  message: string,
-  options: { readonly defaultValue?: string; readonly validate?: (value: string) => string | true } = {},
-): Promise<Back | string> {
+export async function askTextStep(message: string, options: TextStepOptions = {}): Promise<Back | string> {
+  const previousAnswer = options.previousAnswer?.trim() || undefined;
   const result = await runStepPrompt(
     (context) =>
       input(
         {
-          default: options.defaultValue,
-          message: `${message} ${colorize('([esc] para volver)', 'muted')}`,
+          default: previousAnswer ?? options.defaultValue,
+          message: `${withHint(message, options.hint)} ${colorize(`(${options.inputHelp ? `${options.inputHelp} ${uiSymbol('bullet')} ` : ''}[esc] para volver)`, 'muted')}`,
+          prefill: previousAnswer === undefined ? 'tab' : 'editable',
           theme: TEXT_THEME,
           validate: (value) => (value.trim() === BACK_TEXT ? true : (options.validate?.(value) ?? true)),
         },
         context,
       ),
-    (answer) => ({ answer: answer.trim(), message }),
+    (answer) => ({
+      answer: options.answered && answer.trim() !== BACK_TEXT ? options.answered(answer.trim()) : answer.trim(),
+      message,
+    }),
   );
 
   if (!('answer' in result) || result.answer === BACK) {
@@ -345,10 +434,68 @@ export async function chooseManyStep<T>(
           ? BACK_CHOICE.name
           : choices
               .filter((choice) => answer.includes(choice.value))
-              .map((choice) => choice.name)
+              .map((choice) => choice.short ?? choice.name)
               .join(', '),
       message,
     }),
+  );
+
+  return 'answer' in result ? result.answer : BACK;
+}
+
+export interface EditRowsOptions {
+  /** La fila para agregar una mas, por ejemplo "+ Agregar ítem". */
+  readonly addLabel: string;
+  /** Las filas que quedan como minimo, y por que, si se intenta borrar de mas. */
+  readonly minRows: number;
+  readonly minRowsNotice: string;
+}
+
+/** "1 para modificar, 1 para borrar y uno nuevo", o "sin cambios": lo que queda en la linea de la respuesta. */
+function describeRowEdits(edits: RowEdits): string {
+  const parts = [
+    edits.edit.length > 0 ? `${edits.edit.length} para modificar` : undefined,
+    edits.remove.length > 0 ? `${edits.remove.length} para borrar` : undefined,
+    edits.add ? 'uno nuevo' : undefined,
+  ].filter((part): part is string => part !== undefined);
+
+  if (parts.length === 0) {
+    return 'sin cambios';
+  }
+
+  return parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')} y ${parts.at(-1)}`;
+}
+
+/**
+ * Lo que la lista con acciones suma a una lista comun, en el peor caso (9): la linea en blanco y el boton de agregar,
+ * la linea en blanco despues de "Volver" y la de antes de la ayuda, el detalle de la fila partido en dos lineas en una
+ * terminal angosta, lo marcado, el aviso y el titulo partido en dos lineas. Asi "Volver" no queda fuera de pantalla.
+ */
+export const ROW_ACTIONS_EXTRA_LINES = 9;
+
+/**
+ * Lista con acciones por fila (`rowActionsList`): espacio marca para modificar, Backspace para borrar y Enter aplica,
+ * con la fila de agregar. Esc o "← Volver" vuelven al paso anterior.
+ */
+export async function editRowsStep(
+  message: string,
+  rows: ReadonlyArray<Omit<RowActionsListRow, 'mark'>>,
+  options: EditRowsOptions,
+): Promise<Back | RowEdits> {
+  const result = await runStepPrompt(
+    (context) =>
+      rowActionsList(
+        {
+          ...options,
+          backLabel: BACK_CHOICE.name,
+          message,
+          pageSize: fitPageSize(rows.length, { extraLines: ROW_ACTIONS_EXTRA_LINES }),
+          rows,
+          theme: STEP_THEME,
+        },
+        context,
+      ),
+    (answer) => ({ answer: answer === BACK ? BACK_CHOICE.name : describeRowEdits(answer), message }),
   );
 
   return 'answer' in result ? result.answer : BACK;
@@ -360,8 +507,12 @@ interface FilterListOptions<T> {
   readonly defaultValue?: T;
   readonly header?: string;
   readonly help?: string;
-  readonly pageSize: number;
+  /** Por defecto, las filas que entran en la terminal (`fitPageSize`). */
+  readonly pageSize?: number;
 }
+
+/** Lineas que una lista que se filtra suma a las de cualquier lista: "Filtrar:", su linea en blanco, encabezado y cuenta. */
+export const FILTER_LIST_EXTRA_LINES = 4;
 
 /**
  * Elegir de una lista que se filtra escribiendo (por ejemplo "eur" o "060" para el euro) y se desplaza con las
@@ -376,18 +527,23 @@ export async function chooseFromFilterList<T>(
     (context) =>
       filterList<T>(
         {
+          back: BACK_CHOICE.name,
           default: options.defaultValue,
           header: options.header,
           help: options.help,
           message,
           mode: 'elegir',
-          pageSize: options.pageSize,
+          pageSize: options.pageSize ?? fitPageSize(rows.length, { extraLines: FILTER_LIST_EXTRA_LINES }),
           rows,
           theme: STEP_THEME,
         },
         context,
       ),
     (answer) => {
+      if (answer === undefined) {
+        return { answer: BACK_CHOICE.name, message };
+      }
+
       const row = rows.find((item) => item.value === answer);
 
       return { answer: row?.short ?? row?.label.replace(/\s+/g, ' ').trim() ?? '', message };
@@ -405,18 +561,47 @@ export async function chooseFromFilterList<T>(
 export async function browseFilterList(
   message: string,
   rows: readonly string[],
-  options: Omit<FilterListOptions<string>, 'defaultValue'>,
+  options: Omit<FilterListOptions<string>, 'defaultValue' | 'pageSize'> & { readonly pageSize: number },
 ): Promise<void> {
   await runStepPrompt(
     (context) =>
       filterList<string>(
         {
+          back: BACK_CHOICE.name,
           header: options.header,
           help: options.help,
           message,
           mode: 'ver',
           pageSize: options.pageSize,
           rows: rows.map((label) => ({ label, value: label })),
+          theme: STEP_THEME,
+        },
+        context,
+      ),
+    () => undefined,
+  );
+}
+
+/**
+ * Un contenido en bloques para mirar, que se recorren con ← y → (`render` dibuja cada uno). Enter o Esc lo cierran y
+ * no deja rastro en pantalla.
+ */
+export async function browseBlocks<B extends string>(
+  message: string,
+  blocks: readonly B[],
+  render: (block: B) => string,
+  keys: ReadonlyArray<readonly [key: string, action: string]>,
+): Promise<void> {
+  await runStepPrompt(
+    (context) =>
+      blockPager<B>(
+        {
+          blocks,
+          help: keys
+            .map(([key, action]) => `${bold(key)} ${colorize(action, 'muted')}`)
+            .join(colorize(` ${uiSymbol('separator')} `, 'muted')),
+          message,
+          render,
           theme: STEP_THEME,
         },
         context,

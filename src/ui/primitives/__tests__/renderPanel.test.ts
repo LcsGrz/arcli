@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { renderPanel } from '../renderPanel';
-import { stripAnsi } from '../text';
+import { stripAnsi, visibleWidth } from '../text';
 
 function withColors(run: () => void): void {
   const isTty = process.stdout.isTTY;
@@ -40,6 +40,24 @@ describe('renderPanel', () => {
     expect(output).not.toContain(
       '│                                              │\n│                                              │\n│                                              │',
     );
+  });
+
+  it.each([
+    ['emoji', '🧾 Café del Barrio 👩‍💻'],
+    ['CJK', '東京都港区株式会社 東京'],
+    ['é NFD', 'José Pérez Café Sucursal Centro'],
+  ])('no desarma el borde con un valor con %s', (_, value) => {
+    withColors(() => {
+      const output = renderPanel({
+        content: [`\u001B[1mCliente\u001B[22m  ${value}`, '\u001B[1mCUIT\u001B[22m     20-33333333-4'],
+        title: 'Factura',
+        width: 30,
+        maxWidth: 30,
+      });
+      const widths = output.split('\n').map((line) => visibleWidth(line));
+
+      expect(new Set(widths)).toEqual(new Set([30]));
+    });
   });
 
   it('renders footer divider and footer when provided', () => {

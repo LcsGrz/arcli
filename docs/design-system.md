@@ -9,7 +9,7 @@ El código vive en `src/ui`: tokens en [`theme/theme.ts`](../src/ui/theme/theme.
 ## Principios
 
 1. **Primero el dato.** Lo que no aporta no se muestra: una fila en cero que nadie cargó, un contador vacío, una etiqueta que repite el título.
-2. **Se lee sin color.** El color refuerza, nunca es el único aviso. Con `NO_COLOR`, redirigida o en ASCII, la salida tiene que decir lo mismo.
+2. **Se lee sin color.** El color refuerza, nunca es el único aviso. Con `NO_COLOR`, `TERM=dumb`, redirigida o en ASCII, la salida tiene que decir lo mismo.
 3. **Un dato, un formato.** El mismo CUIT o importe se ve igual en todos los comandos.
 4. **Funciona en cualquier terminal.** De 40 a 140 columnas, fondo claro u oscuro, Unicode o ASCII.
 
@@ -60,56 +60,69 @@ Se elige por lo que se muestra, no por cómo se ve. Cada rol tiene su función, 
 
 - **Ancho:** los paneles miden 92 columnas y se achican con la terminal, con un mínimo de 24. El comprobante mide entre 68 y 80, según su contenido, y va centrado.
 - **Filas etiqueta/valor:** con `renderKeyValueRows`, el valor en una columna alineada. La columna de etiquetas ocupa el 50% del panel en el comprobante y el 30% en el resto (`resolveKeyValueLabelWidth`), o lo que mida la etiqueta más larga. Si una fila no entra y su columna no deja lugar, todas las de esa columna ponen la etiqueta arriba y el valor debajo (`wrapPanelLines`).
+- **Ancho visible:** se mide con `visibleWidth` (columnas de la terminal, como boxen), nunca con `length`: un emoji o un carácter chino ocupan dos columnas y una `é` pegada desde macOS (NFD) ocupa una. Los cortes de una palabra larga caen entre grafemas, sin partir un emoji ni una letra de su acento.
 - **Listas:** `• texto` o `1. texto`. Al partirse, la línea sigue alineada al texto.
 - **Barra de estado:** una línea; en una terminal angosta, una por lado. Nunca esconde el entorno.
+- **Tablas que no entran a lo ancho:** se mide el lugar con `panelContentWidth` y, si las columnas no entran, cada fila se parte en líneas (como `arcli monotributo` en 40 columnas: el tope arriba y las cuotas abajo) en vez de dejar que la terminal la corte. Una tabla con muchas columnas se parte en bloques, con la columna que identifica la fila en cada uno: uno debajo del otro, con `1/2  sigue abajo: … ↓`, o de a uno con `←`/`→` en el modo interactivo.
 
 ## Símbolos
 
 Se piden con `uiSymbol('check')`, nunca escritos a mano en un presenter. Cada uno tiene su respaldo para `ARCLI_ASCII=1`, que cambia bordes y símbolos pero no las tildes ni la `ñ`. Un símbolo nuevo se agrega en `UI_THEME.symbols`.
 
-| Nombre       | Unicode | ASCII          | Para                   |
-| ------------ | ------- | -------------- | ---------------------- |
-| `check`      | `✓`     | `v`            | Chequeo correcto       |
-| `done`       | `✔`     | `v`            | Pregunta respondida    |
-| `bullet`     | `•`     | `-`            | Listas                 |
-| `separator`  | `·`     | `-`            | Datos en una línea     |
-| `ellipsis`   | `…`     | `...`          | Texto recortado        |
-| `arrow`      | `→`     | `->`           | Ruta en un menú        |
-| `back`       | `←`     | `<`            | Volver                 |
-| `pointer`    | `❯`     | `>`            | Cursor en una lista    |
-| `rule`       | `┈`     | `-`            | Regla de un listado    |
-| `selected`   | `◉`     | `[x]`          | Opción seleccionada    |
-| `unselected` | `◯`     | `[ ]`          | Opción sin seleccionar |
-| `keysMove`   | `↑↓`    | `arriba/abajo` | Ayuda de teclas        |
-| `keyEnter`   | `⏎`     | `enter`        | Ayuda de teclas        |
+| Nombre         | Unicode | ASCII          | Para                     |
+| -------------- | ------- | -------------- | ------------------------ |
+| `check`        | `✓`     | `v`            | Chequeo correcto         |
+| `done`         | `✔`     | `v`            | Pregunta respondida      |
+| `bullet`       | `•`     | `-`            | Listas                   |
+| `separator`    | `·`     | `-`            | Datos en una línea       |
+| `ellipsis`     | `…`     | `...`          | Texto recortado          |
+| `arrow`        | `→`     | `->`           | Ruta en un menú          |
+| `back`         | `←`     | `<`            | Volver                   |
+| `pointer`      | `❯`     | `>`            | Cursor en una lista      |
+| `rule`         | `┈`     | `-`            | Regla de un listado      |
+| `selected`     | `◉`     | `[x]`          | Opción seleccionada      |
+| `unselected`   | `◯`     | `[ ]`          | Opción sin seleccionar   |
+| `removeMark`   | `●`     | `[-]`          | Fila marcada para borrar |
+| `keysMove`     | `↑↓`    | `arriba/abajo` | Ayuda de teclas          |
+| `keyEnter`     | `⏎`     | `enter`        | Ayuda de teclas          |
+| `keyBackspace` | `⌫`     | `backspace`    | Ayuda de teclas          |
+| `moreAbove`    | `↑`     | `^`            | Opciones ocultas arriba  |
+| `moreBelow`    | `↓`     | `v`            | Opciones ocultas abajo   |
+| `moreLeft`     | `←`     | `<`            | Bloque a la izquierda    |
+| `moreRight`    | `→`     | `>`            | Bloque a la derecha      |
+| `squared`      | `²`     | `2`            | Metros cuadrados (`m²`)  |
 
 ## Formatos
 
 Cada dato tiene su helper. Antes de escribir un formato, buscá si ya existe.
 
-| Dato              | Se ve                         | Helper                   |
-| ----------------- | ----------------------------- | ------------------------ |
-| Pesos             | `$ 1.500`, `$ 1.500,50`       | `formatMoneyLabel`       |
-| Moneda extranjera | `1.500,50 USD`                | `formatMoneyLabel`       |
-| Cotización        | `1.250,50`, hasta 6 decimales | `formatExchangeRate`     |
-| Porcentaje        | `21%`, `10,5%`                | `resolveIvaRateLabel`    |
-| CUIT o CUIL       | `20-33333333-4`               | `formatCuit`             |
-| DNI               | `12.345.678`                  | `formatNumericLabel`     |
-| Comprobante       | `00001-00001234`              | `formatVoucherNumber`    |
-| Fecha             | `20/03/2026`                  | `formatDateLabel`        |
-| Entorno           | `producción`, `testing`       | `formatEnvironmentLabel` |
+| Dato              | Se ve                         | Helper                              |
+| ----------------- | ----------------------------- | ----------------------------------- |
+| Pesos             | `$ 1.500`, `$ 1.500,50`       | `formatMoneyLabel`                  |
+| Moneda extranjera | `1.500,50 USD`                | `formatMoneyLabel`                  |
+| Cotización        | `1.250,50`, hasta 6 decimales | `formatExchangeRate`                |
+| Porcentaje        | `21%`, `10,5%`                | `resolveIvaRateLabel`               |
+| CUIT o CUIL       | `20-33333333-4`               | `formatCuit`                        |
+| DNI               | `12.345.678`                  | `formatNumericLabel`                |
+| Comprobante       | `00001-00001234`              | `formatVoucherNumber`               |
+| Fecha             | `20/03/2026`                  | `formatDateLabel`                   |
+| Período (mes)     | `09/2013`                     | `formatArcaPeriodAsArgentinePeriod` |
+| Entorno           | `producción`, `testing`       | `formatEnvironmentLabel`            |
 
 - **Centavos:** si hay, siempre dos (`12,50`, nunca `12,5`); si no hay, ninguno. El PDF queda aparte: su plantilla imprime siempre `$ 1.500,00`.
 - **Punto de venta y número de comprobante:** sin separador de miles.
 
 **Dato ausente:**
 
-| Situación                                 | Qué hacer          |
-| ----------------------------------------- | ------------------ |
-| Nadie lo cargó y queda en cero o vacío    | No mostrar la fila |
-| Viene de una flag, la config o un default | Mostrarlo          |
-| Falta en la config                        | `sin configurar`   |
-| ARCA no lo informa                        | `N/D`              |
+| Situación                                                     | Qué hacer                                       |
+| ------------------------------------------------------------- | ----------------------------------------------- |
+| Nadie lo cargó y queda en cero o vacío                        | No mostrar la fila                              |
+| No hay dato y la fila no aporta (no aplica, ARCA no lo manda) | No mostrar la fila                              |
+| La fila tiene que estar: es lo que se busca                   | Decir qué pasa: `sin CAE`, `ARCA no lo informa` |
+| Viene de una flag, la config o un default                     | Mostrarlo                                       |
+| Falta en la config                                            | `sin configurar`                                |
+
+Nunca `N/D`: no dice si falta, no aplica o falló. `renderKeyValueRows` no muestra una fila sin valor, así que una que tiene que estar lleva su texto. El `--json` no cambia: ahí el dato ausente es `null` o no está.
 
 ## Textos
 

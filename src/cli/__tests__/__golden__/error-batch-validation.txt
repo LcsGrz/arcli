@@ -1,0 +1,24 @@
+$ arcli fc --cargar <config>/lote.json --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "BATCH_VALIDATION_ERROR",
+  "detalles": {
+    "comprobantes": [
+      {
+        "error": "El monto debe ser mayor a 0.",
+        "indice": 2
+      },
+      {
+        "error": "Falta el concepto. Usá `--concepto <tipo>`, o bien `--cs`/`--cp`/`--csp`, o configurá uno por defecto con `arcli config establecer concepto servicios`.",
+        "indice": 3
+      }
+    ]
+  },
+  "error": "2 de 3 comprobantes del lote tienen errores. No se emitió ninguno.\n\n#2: El monto debe ser mayor a 0.\n#3: Falta el concepto. Usá `--concepto <tipo>`, o bien `--cs`/`--cp`/`--csp`, o configurá uno por defecto con `arcli config establecer concepto servicios`.",
+  "sugerencia": null
+}
+

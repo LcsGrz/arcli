@@ -1,0 +1,16 @@
+$ arcli fc -m 1000 --cs --cfinal --emitir --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "CERTIFICATE_EXPIRED",
+  "detalles": {
+    "entorno": "testing",
+    "vencimiento": "01/11/2026"
+  },
+  "error": "El certificado de testing venció el 01/11/2026: ARCA no lo acepta.",
+  "sugerencia": "Renovalo con `arcli certificado generar --testing` y cargá el .crt de ARCA con `arcli certificado importar <archivo>`. Guía: https://arcli.com.ar/empezar/certificado-testing/"
+}
+

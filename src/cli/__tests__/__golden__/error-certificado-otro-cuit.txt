@@ -1,0 +1,13 @@
+$ arcli certificado importar <config>/otro.crt --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "CERTIFICATE_CUIT_MISMATCH",
+  "detalles": null,
+  "error": "El certificado es del CUIT 30709965812 y la config usa el 20111111112.",
+  "sugerencia": "Revisá que lo hayas bajado con la clave fiscal del CUIT configurado, o cambiá el CUIT con `arcli config establecer cuit`."
+}
+

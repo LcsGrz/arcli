@@ -13,8 +13,29 @@ describe('renderKeyValueRows', () => {
     expect(lines).toEqual(['CUIT            20-33333333-4', 'Punto de venta  3']);
   });
 
-  it('sangra las filas y muestra N/D si falta el valor', () => {
-    expect(renderKeyValueRows([['Alias', '']], { indent: 2 }).map(stripAnsi)).toEqual(['  Alias  N/D']);
+  it('alinea la columna con etiquetas con emoji, CJK o é NFD', () => {
+    const lines = renderKeyValueRows([
+      ['🧾 Total', '1'],
+      ['東京', '2'],
+      ['Razén', '3'],
+    ]).map(stripAnsi);
+
+    expect(lines).toEqual(['🧾 Total  1', '東京      2', 'Razén     3']);
+  });
+
+  it('sangra las filas y no muestra las que no tienen valor', () => {
+    const lines = renderKeyValueRows(
+      [
+        ['Alias', ''],
+        ['CUIT', '20-11111111-2'],
+        ['Fecha', undefined],
+        ['Nota', null],
+        ['Cero', 0],
+      ],
+      { indent: 2 },
+    ).map(stripAnsi);
+
+    expect(lines).toEqual(['  CUIT  20-11111111-2', '  Cero  0']);
   });
 });
 

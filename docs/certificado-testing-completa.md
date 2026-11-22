@@ -27,12 +27,12 @@ usar, y algunos comandos usan uno distinto de `wsfe`. Si falta la autorización,
 rechaza el pedido aunque el certificado sea válido. Autorizá desde el principio lo que
 vayas a necesitar:
 
-| Para usar                                               | Servicio que autorizás                                     | Punto de venta en producción                                                                        |
-| ------------------------------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| Facturas y notas `A`, `B`, `C` y FCE                    | `wsfe` (Facturación Electrónica)                           | uno de web service ([ver cómo](certificado-produccion-completa.md#punto-de-venta-para-web-service)) |
-| `arcli padron` y el IVA del receptor desde el padrón    | `ws_sr_constancia_inscripcion` (Constancia de inscripción) | no usa                                                                                              |
-| `arcli fce-obligado` y el aviso de FCE (`verificarFce`) | `wsfecred` (Factura de Crédito Electrónica MiPyMEs)        | no usa                                                                                              |
-| `arcli fe`, la factura de exportación `E`               | `wsfex` (Factura Electrónica de Exportación)               | uno del sistema WSFEX, distinto del de `wsfe`                                                       |
+| Para usar                                                                                      | Servicio que autorizás                                     | Punto de venta en producción                                                                        |
+| ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Facturas y notas `A`, `B`, `C` y FCE                                                           | `wsfe` (Facturación Electrónica)                           | uno de web service ([ver cómo](certificado-produccion-completa.md#punto-de-venta-para-web-service)) |
+| `arcli padron` y el IVA del receptor desde el padrón                                           | `ws_sr_constancia_inscripcion` (Constancia de inscripción) | no usa                                                                                              |
+| `arcli fce-obligado`, el aviso de FCE (`verificarFce`) y el de las notas FCE con `--anulacion` | `wsfecred` (Factura de Crédito Electrónica MiPyMEs)        | no usa                                                                                              |
+| `arcli fe`, la factura de exportación `E`                                                      | `wsfex` (Factura Electrónica de Exportación)               | uno del sistema WSFEX, distinto del de `wsfe`                                                       |
 
 Se puede sumar un servicio después, repitiendo solo el paso 3 con el mismo certificado.
 
@@ -52,12 +52,12 @@ Se puede sumar un servicio después, repitiendo solo el paso 3 con el mismo cert
 
 3. Elegí **"Adherir Servicio"**.
 
-   ![Adherir servicio](assets/certificados/arca-adherir-servicio.png)
+   ![Adherir servicio](assets/certificados/arca-adherir-servicio.webp)
 
 4. Buscá **ARCA → Servicios Interactivos → Administración de Certificados Digitales** en
    la lista y seleccionalo.
 
-   ![Elegir Administración de Certificados Digitales en la lista de servicios](assets/certificados/arca-elegir-administracion-certificados.png)
+   ![Elegir Administración de Certificados Digitales en la lista de servicios](assets/certificados/arca-elegir-administracion-certificados.webp)
 
 5. Confirmá la relación.
 

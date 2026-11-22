@@ -1,3 +1,5 @@
+import { InputIssuesError, InputValidationError } from '../../lib/errors/app-error';
+import { checkFceCancellationInRegistry } from '../../modules/billing/billing.associated-lookup';
 import {
   formatEmissionQuestion,
   formatVoucherWithArticle,
@@ -8,7 +10,8 @@ import type { BillingCommandInput } from '../../modules/billing/billing.schemas'
 import { BillingService } from '../../modules/billing/billing.service';
 import type { BillingGateway } from '../../modules/billing/billing.types.internal';
 import { buildEquivalentCommand } from '../../modules/interactive/equivalent-command';
-import { BACK } from '../../modules/interactive/wizard';
+import { isAuthorized } from '../../modules/interactive/steps/config-offer';
+import { BACK, type Back } from '../../modules/interactive/wizard';
 import {
   type EmissionChoice,
   type EmissionConfirmationPlan,
@@ -20,11 +23,13 @@ import { ArcaBillingGateway } from '../../services/arca/arca-billing.gateway';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { ArcaContextResolver, type ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
 import { ArcaFceObligationGateway } from '../../services/arca/arca-fce-obligation.gateway';
+import { ArcaFceRegistryGateway } from '../../services/arca/arca-fce-registry.gateway';
 import { ArcaPadronGateway } from '../../services/arca/arca-padron.gateway';
 import type { Arca } from '../../services/arca/arca-sdk.types';
 import { ArcaVoucherHistoryGateway } from '../../services/arca/arca-voucher-history.gateway';
-import { colorize, noticePanel, renderPanel, uiSymbol, writeTerminalOutput } from '../../ui';
+import { colorize, noticePanel, renderPanel, uiSymbol, writeTerminalError, writeTerminalOutput } from '../../ui';
 import { formatBillingOutputs } from '../commands/billing.command.output';
+import { formatCliError } from '../error-output';
 import { startSpinner } from '../spinner';
 import type { GlobalCliOptions } from '../types';
 
@@ -112,7 +117,7 @@ export async function requirePointOfSale(session: InteractiveSession): Promise<S
 
 /** La segunda confirmacion, en produccion. Los botones de "¿Emitimos?" estan en `emission-prompt`. */
 export const EMIT_IN_PRODUCTION_LABEL = 'Sí, emitir en producción';
-export const PRODUCTION_CONFIRMATION = 'Vas a emitir un comprobante real en PRODUCCIÓN. ¿Confirmás?';
+const PRODUCTION_CONFIRMATION = 'Vas a emitir un comprobante real en PRODUCCIÓN. ¿Confirmás?';
 
 /** La respuesta a "¿Emitimos?": no emitir, emitir, o emitir y generar el PDF. */
 export type EmissionAnswer = EmissionChoice | false;
@@ -120,14 +125,20 @@ export type EmissionAnswer = EmissionChoice | false;
 /**
  * "¿Emitimos?" y, en produccion, la segunda confirmacion. Si no, avisa que no se emitio nada. Las opciones salen de
  * `planEmissionConfirmation`: siempre se puede elegir emitir con o sin PDF, y lo elegido decide (despues de emitir no
- * se pregunta nada mas del PDF). Esc cuenta como no.
+ * se pregunta nada mas del PDF). Esc en "¿Emitimos?" devuelve BACK, sin aviso: el asistente vuelve a su ultima pregunta
+ * (TUI-15). En la segunda confirmacion, Esc sigue contando como no.
  */
 export async function confirmEmission(
   question: string,
   environment: ResolvedArcaRuntime['environment'],
   plan: EmissionConfirmationPlan,
-): Promise<EmissionAnswer> {
-  const answer = await askEmission(question, plan);
+): Promise<Back | EmissionAnswer> {
+  const answer = await askEmission(question, plan, 'volver');
+
+  if (answer === BACK) {
+    return BACK;
+  }
+
   const confirmed =
     answer &&
     (environment !== 'produccion' ||
@@ -142,6 +153,35 @@ export async function confirmEmission(
   return confirmed;
 }
 
+/** La vista previa y la emision como `confirm` de `runWizard`, y si ARCA lo autorizo. */
+export interface EmissionStep<S> {
+  /** Si ARCA autorizo lo emitido: aprobado u observado con CAE (`isAuthorized`). Antes de emitir o sin emitir, false. */
+  readonly authorized: () => boolean;
+  readonly confirm: (state: S) => Promise<Back | void>;
+}
+
+/**
+ * El cierre de un flujo del asistente: `emit` hace la vista previa, pregunta "¿Emitimos?" y emite (`previewAndEmit` o
+ * `emitExportVoucher`). Si devuelve BACK (Esc en "¿Emitimos?"), `runWizard` vuelve a la ultima pregunta con todo lo
+ * respondido (TUI-15). Sin nada que emitir, `emit` devuelve `undefined`.
+ */
+export function emissionStep<S>(emit: (state: S) => Promise<Back | boolean> | undefined): EmissionStep<S> {
+  let authorized = false;
+
+  return {
+    authorized: () => authorized,
+    confirm: async (state) => {
+      const result = await emit(state);
+
+      if (result === BACK) {
+        return BACK;
+      }
+
+      authorized = result ?? false;
+    },
+  };
+}
+
 export function formatEquivalentCommand(command: string): string {
   return renderPanel({
     borderType: 'command',
@@ -152,34 +192,96 @@ export function formatEquivalentCommand(command: string): string {
 }
 
 /**
- * Paso final comun a todos los flujos: vista previa, comando equivalente, confirmacion y emision.
- * Usa BillingService igual que los comandos con flags, asi que valida y emite exactamente lo mismo.
+ * Un error de validacion de la vista previa (`InputValidationError` o `InputIssuesError`: lo que el CLI rechazaria
+ * con `INPUT_VALIDATION_ERROR`) se muestra y devuelve BACK: como `confirm` de `runWizard`, el asistente vuelve a la
+ * ultima pregunta con todo lo respondido, en vez de volver al menu y perderlo (TUI-15). Los errores de ARCA o de red
+ * siguen de largo, como antes.
  */
-export async function previewAndEmit(session: InteractiveSession, rawInput: BillingCommandInput): Promise<void> {
+export async function rejectedAsBack<T>(preview: () => Promise<T>): Promise<Back | T> {
+  try {
+    return await preview();
+  } catch (error) {
+    if (!(error instanceof InputValidationError || error instanceof InputIssuesError)) {
+      throw error;
+    }
+
+    writeTerminalError(() => formatCliError(error, false));
+    writeTerminalOutput(
+      noticePanel(
+        'No se emitió nada. Volvemos a la última pregunta con lo que respondiste: corregí el dato ahí o volvé con Esc hasta la pregunta que lo pide.',
+        'muted',
+      ),
+    );
+
+    return BACK;
+  }
+}
+
+/** Lo mismo que con flags antes de la vista previa: padron, cotizacion oficial y avisos, y la vista previa. */
+async function previewBilling(
+  session: InteractiveSession,
+  entry: BillingCommandInput,
+  flowWarnings: readonly string[],
+) {
   const { runtime, service } = session;
   // Lo mismo que con flags: padron, cotizacion oficial ("me pagan en dolares") y sus avisos, antes de la vista previa.
-  const pointOfSale = rawInput.pointOfSale ?? session.typedPointOfSale;
-  const prepared = await prepareBillingInput(
-    service,
-    { ...rawInput, pointOfSale },
-    {
-      billing: session.billingGateway,
-      padron: new ArcaPadronGateway(session.arca),
-    },
-  );
+  const prepared = await prepareBillingInput(service, entry, {
+    billing: session.billingGateway,
+    padron: new ArcaPadronGateway(session.arca),
+  });
   const input: BillingCommandInput = { ...prepared.input, dryRun: true, emit: false };
   const fceWarnings = runtime.config.verificarFce
     ? await resolveFceWarningsInOrder(service, [input], new ArcaFceObligationGateway(session.arca))
     : [];
-  const warnings = [...prepared.warnings, ...(fceWarnings[0] ?? [])];
+  // Como con flags: una nota FCE de anulacion avisa si el comprador no rechazo el asociado en el Registro.
+  const registryWarnings = await checkFceCancellationInRegistry({
+    gateway: new ArcaFceRegistryGateway(session.arca),
+    input,
+    runtime,
+    service,
+  });
+  const warnings = [...flowWarnings, ...prepared.warnings, ...(fceWarnings[0] ?? []), ...registryWarnings];
   const preview = await service.execute({ gateway: PREVIEW_GATEWAY, input, runtime, warnings });
 
+  return { input, preview, warnings };
+}
+
+/**
+ * Paso final comun a todos los flujos: vista previa, comando equivalente, confirmacion y emision.
+ * Usa BillingService igual que los comandos con flags, asi que valida y emite exactamente lo mismo.
+ * `flowWarnings` son avisos que solo sabe el flujo, como el de un asociado de otro sistema en una nota. Devuelve si ARCA
+ * lo autorizo (`isAuthorized`): lo que se ofrece guardar en la config (el CBU de la FCE) solo se ofrece entonces. Con
+ * Esc en "¿Emitimos?", o si la vista previa rechaza la entrada (`rejectedAsBack`), devuelve BACK sin emitir: el flujo lo corre como `confirm` de `runWizard`, que vuelve a la ultima
+ * pregunta (TUI-15).
+ */
+export async function previewAndEmit(
+  session: InteractiveSession,
+  rawInput: BillingCommandInput,
+  flowWarnings: readonly string[] = [],
+): Promise<Back | boolean> {
+  const { runtime, service } = session;
+  const entry: BillingCommandInput = {
+    ...rawInput,
+    pointOfSale: rawInput.pointOfSale ?? session.typedPointOfSale,
+  };
+  const previewed = await rejectedAsBack(() => previewBilling(session, entry, flowWarnings));
+
+  if (previewed === BACK) {
+    return BACK;
+  }
+
+  const { input, preview, warnings } = previewed;
+
   writeTerminalOutput(formatBillingOutputs([preview], { environment: runtime.environment, raw: false }));
+  // El comando equivalente sale de la entrada, como la escribiria quien usa el CLI, y no de la preparada: sin lo que la
+  // vista previa completa (la cotizacion oficial, que pegado otro dia seria vieja). Lo que se emite sale de preparar
+  // esa misma entrada (REV-72).
   writeTerminalOutput(
     formatEquivalentCommand(
-      buildEquivalentCommand(input, {
+      buildEquivalentCommand(entry, {
         defaultCurrency: runtime.config.monedaPorDefecto,
         environment: runtime.environment,
+        issuerCuit: runtime.context.cuit,
       }),
     ),
   );
@@ -192,8 +294,8 @@ export async function previewAndEmit(session: InteractiveSession, rawInput: Bill
     planEmissionConfirmation({ flags: [input.pdf], mode: runtime.config.pdf }),
   );
 
-  if (!emission) {
-    return;
+  if (emission === BACK || !emission) {
+    return emission;
   }
 
   const spinner = startSpinner(`Emitiendo ${label} en ARCA...`);
@@ -211,6 +313,8 @@ export async function previewAndEmit(session: InteractiveSession, rawInput: Bill
       formatBillingOutputs([result], { environment: runtime.environment, previewShown: true, raw: false }),
     );
     await offerPdf(runtime.config, { ...input, pdf: resolvePdfAfterConfirmation(input.pdf, emission) }, result);
+
+    return isAuthorized(result.response);
   } catch (error) {
     spinner?.stop();
     throw error;

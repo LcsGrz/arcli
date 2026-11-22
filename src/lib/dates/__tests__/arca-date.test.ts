@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { InputValidationError } from '../../errors/app-error';
 import {
   addDaysToArcaDate,
   diffArcaDatesInDays,
   formatArcaDateAsArgentineDate,
+  formatArcaPeriodAsArgentinePeriod,
   formatDateAsArcaDate,
   maxArcaDate,
   minArcaDate,
@@ -79,6 +80,10 @@ describe('arca-date', () => {
     expect(formatArcaDateAsArgentineDate('20260318')).toBe('18/03/2026');
   });
 
+  it('formats an ARCA period as month and year', () => {
+    expect(formatArcaPeriodAsArgentinePeriod('201309')).toBe('09/2013');
+  });
+
   it('rejects ISO dates', () => {
     expect(() => parseArgentineDateInputAsArcaDate('2026-08-09', referenceDate)).toThrow(InputValidationError);
     expect(() => parseArgentineDateInputAsArcaDate('2026-08-09', referenceDate)).toThrow(
@@ -90,5 +95,59 @@ describe('arca-date', () => {
     expect(() => parseArgentineDateInputAsArcaDate('31/02/2026', referenceDate)).toThrow(
       /La fecha "31\/02\/2026" no es válida/,
     );
+  });
+
+  describe('bisiestos y separadores, con el reloj fijo', () => {
+    // Sin `referenceDate`: la fecha sale del reloj, que queda fijo para no depender del día en que corre el test.
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2027-11-17T15:00:00Z'));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('acepta el 29/02 de un año bisiesto y rechaza el de uno que no lo es', () => {
+      expect(parseArgentineDateInputAsArcaDate('29/02/2028')).toBe('20280229');
+      expect(parseArgentineDateInputAsArcaDate('29-02-28')).toBe('20280229');
+      expect(() => parseArgentineDateInputAsArcaDate('29/02/2027')).toThrow(/La fecha "29\/02\/2027" no es válida/);
+      expect(() => parseArgentineDateInputAsArcaDate('29/02/2100')).toThrow(InputValidationError);
+      expect(parseArgentineDateInputAsArcaDate('29/02/2000')).toBe('20000229');
+    });
+
+    it.each([
+      // 17/11/2027: el 29/02 más cercano es el de 2028 (el de 2027 no existe).
+      ['2027-11-17T15:00:00Z', '20280229'],
+      ['2028-02-20T15:00:00Z', '20280229'],
+      ['2028-03-05T15:00:00Z', '20280229'],
+      // 1/9/2028: el 29/02/2028 quedó atrás, pero 2029 no tiene 29/02.
+      ['2028-09-01T15:00:00Z', '20280229'],
+      ['2028-12-31T15:00:00Z', '20280229'],
+    ])('29/2 sin año el %s es %s', (now, expected) => {
+      vi.setSystemTime(new Date(now));
+
+      expect(parseArgentineDateInputAsArcaDate('29/2')).toBe(expected);
+    });
+
+    it('29/2 sin año es error si no hay un 29/02 en el año actual, el anterior ni el siguiente', () => {
+      vi.setSystemTime(new Date('2026-06-15T15:00:00Z'));
+
+      expect(() => parseArgentineDateInputAsArcaDate('29/2')).toThrow(/La fecha "29\/2" no es válida/);
+    });
+
+    it.each(['5-3/26', '5/3-26', '5/3-2026', '5-03/2026', '5.3.26', '5 3 26', '5//3', '5-'])(
+      'rechaza %s (separadores mezclados o que no son - ni /)',
+      (input) => {
+        expect(() => parseArgentineDateInputAsArcaDate(input)).toThrow(InputValidationError);
+      },
+    );
+
+    it('rechaza día o mes en cero y años de 3 dígitos', () => {
+      expect(() => parseArgentineDateInputAsArcaDate('0/3/26')).toThrow(InputValidationError);
+      expect(() => parseArgentineDateInputAsArcaDate('5/0/26')).toThrow(InputValidationError);
+      expect(() => parseArgentineDateInputAsArcaDate('5/13/26')).toThrow(InputValidationError);
+      expect(() => parseArgentineDateInputAsArcaDate('5/3/202')).toThrow(InputValidationError);
+    });
   });
 });

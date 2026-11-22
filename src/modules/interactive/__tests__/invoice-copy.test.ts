@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
+import { VOUCHER_KIND_MAP } from '../../billing/voucher-kind-map';
 import type { IssuedVoucher } from '../../vouchers/voucher-history';
-import { copyInvoiceAmounts, copyInvoiceReceiver } from '../invoice-copy';
+import { copiedReceiverNotice, copyInvoiceAmounts, copyInvoiceReceiver } from '../invoice-copy';
 
 function invoice(overrides: Partial<IssuedVoucher> = {}): IssuedVoucher {
   return {
@@ -81,5 +82,15 @@ describe('copyInvoiceReceiver', () => {
 
   it('returns undefined for a document type ARCLI does not handle', () => {
     expect(copyInvoiceReceiver(invoice({ documentTypeCode: 1 }))).toBeUndefined();
+  });
+});
+
+describe('copiedReceiverNotice', () => {
+  it('la A y la FCE a algo que no es CUIT avisan con su error; la B a un DNI no', () => {
+    expect(copiedReceiverNotice({ documentType: 'dni' }, VOUCHER_KIND_MAP.fa)).toMatch(/fue a un DNI.*10013/);
+    expect(copiedReceiverNotice({ documentType: 'cuil' }, VOUCHER_KIND_MAP.ra)).toMatch(/^El recibo A.*10013/);
+    expect(copiedReceiverNotice({ documentType: 'dni' }, VOUCHER_KIND_MAP.fceb)).toMatch(/10015/);
+    expect(copiedReceiverNotice({ documentType: 'cuit' }, VOUCHER_KIND_MAP.fa)).toBeUndefined();
+    expect(copiedReceiverNotice({ documentType: 'dni' }, VOUCHER_KIND_MAP.fb)).toBeUndefined();
   });
 });

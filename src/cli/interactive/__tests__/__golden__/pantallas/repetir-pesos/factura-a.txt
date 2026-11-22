@@ -1,0 +1,133 @@
+? [lista] ¿Qué comprobante querés repetir?
+  arranca en: (ninguna)
+  · Factura C — La emiten monotributistas y exentos
+  · Factura B — De responsable inscripto a consumidor final, exento u otros
+  · Factura A — Entre responsables inscriptos, o de RI a monotributista
+  · Factura de crédito electrónica C — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Factura de crédito electrónica B — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Factura de crédito electrónica A — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Recibo C — Por un cobro; lo emiten monotributistas y exentos
+  · Recibo B — Por un cobro a un consumidor final, exento u otros
+  · Recibo A — Por un cobro a un responsable inscripto o monotributista
+  · Factura de exportación E (nuevo) — A un cliente del exterior: servicios o bienes
+  = Factura A
+
+? [lista] ¿Cuál repetimos?
+  arranca en: (ninguna)
+    --- ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+  · 00003-00000008  ·   10/11/2026  ·   CUIT 30-70996581-2  ·   $ 1.210  ·  CAE 86400940834693
+    --- ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+    ---
+  · # Ingresar el número a mano… — Uno más viejo o de otro punto de venta
+  = 00003-00000008  ·   10/11/2026  ·   CUIT 30-70996581-2  ·   $ 1.210  ·  CAE 86400940834693
+
+? [lista] Condición frente al IVA del receptor:
+  arranca en: (ninguna)
+  · Responsable inscripto
+  · Responsable monotributo
+  · Monotributista social
+  · Monotributo trabajador independiente promovido
+  = Responsable inscripto
+
+? [lista] ¿Mismo monto?
+  arranca en: (ninguna)
+  · Sí, $ 1.210
+  · No, ingresar otro monto
+  = Sí, $ 1.210
+
+? [lista] Período del servicio:
+  arranca en: (ninguna)
+  · Este mes — 01/11/2026 al 30/11/2026
+  · El mes pasado — 01/10/2026 al 31/10/2026
+  · Un solo día — La fecha del comprobante: hoy, o la que elijas en los opcionales
+  · Otro período
+  = Este mes
+
+? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
+  [ ] Fecha del comprobante — hoy
+  [ ] Alícuota de IVA — 21%
+  [ ] Importe exento o no gravado — sin exento ni no gravado
+  [ ] Período del servicio — 01/11/2026 al 30/11/2026
+  [ ] Vencimiento del pago — por defecto
+  = (nada marcado)
+
+== pantalla ==
+┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐
+╎                                                                                          ╎
+╎       Estás en TESTING: los comprobantes son de prueba y no tienen validez fiscal.       ╎
+╎                                                                                          ╎
+└╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘
+
+            ╒═══════════════════════════ FACTURA A ════════════════════════════╕
+            │                                                                  │
+            │  Concepto                         Servicios                      │
+            │  Punto de venta                   3                              │
+            │  Fecha del comprobante            18/11/2026                     │
+            │  Tipo de documento                CUIT                           │
+            │  Número de documento              30-70996581-2                  │
+            │  IVA receptor                     Responsable inscripto          │
+            │  Moneda                           Pesos argentinos (ARS)         │
+            │  Importe neto                     $ 1.000                        │
+            │  Importe IVA                      $ 210                          │
+            │  Alícuota de IVA                  21%                            │
+            │  Importe total                    $ 1.210                        │
+            │  Servicio desde                   01/11/2026                     │
+            │  Servicio hasta                   30/11/2026                     │
+            │  Vencimiento del pago             30/11/2026                     │
+            │                                                                  │
+            ├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
+            │                                                                  │
+            │                            SIN EMITIR                            │
+            │                                                                  │
+            ╘══════════════════════════════════════════════════════════════════╛
+
+== comando equivalente ==
+arcli fa -m 1210 --cs --cuit 30709965812 --ir responsable-inscripto --sd 01/11/2026 --sh 30/11/2026 --testing --emitir
+
+== pantalla ==
+▎ Esto equivale a:
+▎ arcli fa -m 1210 --cs --cuit 30709965812 --ir responsable-inscripto --sd 01/11/2026 --sh 30/11/2026 --testing --emitir
+
+? [lista] ¿Emitimos la factura A en testing?
+  arranca en: Sí, emitir ahora
+  > Sí, emitir ahora
+  · Sí, emitir y generar el PDF
+  · No, dejar sin emitir
+  = No, dejar sin emitir
+
+== pantalla ==
+┌                                                                                          ┐
+
+                                     No se emitió nada.
+
+└                                                                                          ┘
+
+== solicitud a ARCA (FECAESolicitar, sin el numero) ==
+{
+  "CantReg": 1,
+  "CbteFch": "20261118",
+  "CbteTipo": 1,
+  "Concepto": 2,
+  "CondicionIVAReceptorId": 1,
+  "DocNro": 30709965812,
+  "DocTipo": 80,
+  "FchServDesde": "20261101",
+  "FchServHasta": "20261130",
+  "FchVtoPago": "20261130",
+  "ImpIVA": 210,
+  "ImpNeto": 1000,
+  "ImpOpEx": 0,
+  "ImpTotal": 1210,
+  "ImpTotConc": 0,
+  "ImpTrib": 0,
+  "Iva": [
+    {
+      "BaseImp": 1000,
+      "Id": 5,
+      "Importe": 210
+    }
+  ],
+  "MonCotiz": 1,
+  "MonId": "PES",
+  "PtoVta": 3
+}

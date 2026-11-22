@@ -1,0 +1,67 @@
+$ arcli fc --cargar <config>/lote.json --emitir --json
+exit: 1
+--- stdout ---
+
+[
+  {
+    "atajo": "fc",
+    "indice": 1,
+    "comprobante": "Factura C",
+    "avisos": [],
+    "cae": "76463926585341",
+    "caeVencimiento": "20261127",
+    "entorno": "testing",
+    "errores": [],
+    "estado": "aprobado",
+    "eventos": [],
+    "observaciones": [],
+    "observacion": null,
+    "numero": 42,
+    "puntoVenta": 3,
+    "solicitud": {
+      "CantReg": 1,
+      "CbteFch": "20261117",
+      "CbteTipo": 11,
+      "Concepto": 2,
+      "CondicionIVAReceptorId": 5,
+      "DocTipo": 99,
+      "FchServDesde": "20261117",
+      "FchServHasta": "20261117",
+      "FchVtoPago": "20261117",
+      "ImpIVA": 0,
+      "ImpNeto": 1000,
+      "ImpOpEx": 0,
+      "ImpTotConc": 0,
+      "ImpTotal": 1000,
+      "ImpTrib": 0,
+      "MonCotiz": 1,
+      "MonId": "PES",
+      "PtoVta": 3,
+      "DocNro": 0,
+      "CbteDesde": 42,
+      "CbteHasta": 42
+    },
+    "previsualizacion": false,
+    "resultado": "A",
+    "sugerencias": [],
+    "tipoArca": 11
+  }
+]
+
+
+--- stderr ---
+
+{
+  "codigo": "BATCH_EMISSION_ERROR",
+  "detalles": {
+    "procesados": 1,
+    "fallo": 2,
+    "sinProcesar": [
+      2
+    ],
+    "total": 2
+  },
+  "error": "El lote se interrumpió en el comprobante #2: ECONNRESET\nProcesados: 1 de 2. Sin procesar: #2.",
+  "sugerencia": null
+}
+

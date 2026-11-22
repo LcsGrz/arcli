@@ -1,0 +1,13 @@
+$ arcli monotributo --categoria Z --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "INPUT_VALIDATION_ERROR",
+  "detalles": null,
+  "error": "`--categoria` \"Z\" no es válido: usá una letra de la A a la K.",
+  "sugerencia": null
+}
+

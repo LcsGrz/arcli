@@ -1,0 +1,13 @@
+$ arcli padron 30709965812 --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "TAXPAYER_NOT_FOUND",
+  "detalles": null,
+  "error": "El CUIT 30709965812 no figura en el padrón de ARCA (testing).",
+  "sugerencia": "El padrón de testing tiene datos ficticios: probá con 20201797064."
+}
+

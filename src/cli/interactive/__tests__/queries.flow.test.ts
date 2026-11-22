@@ -7,6 +7,7 @@ import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.re
 import { stripAnsi } from '../../../ui';
 import { runHistoryFlow } from '../history.flow';
 import { runInvoiceFlow } from '../invoice.flow';
+import { runMonotributoQuery } from '../monotributo.flow';
 import type { FilterListRow } from '../prompts';
 import { runQueriesMenu } from '../queries.flow';
 import type { InteractiveSession } from '../session';
@@ -39,6 +40,7 @@ vi.mock('../../../services/arca/arca-parameters.gateway', () => ({
 }));
 vi.mock('../history.flow', () => ({ runHistoryFlow: vi.fn() }));
 vi.mock('../invoice.flow', () => ({ runInvoiceFlow: vi.fn() }));
+vi.mock('../monotributo.flow', () => ({ runMonotributoQuery: vi.fn() }));
 
 /** Filas que mostro la ultima lista filtrable, para revisar el orden y el encabezado. */
 const filterLists: Array<{ header?: string; message: string; rows: readonly string[] }> = [];
@@ -63,7 +65,6 @@ vi.mock('../prompts', async (importOriginal) => {
 
   return {
     BACK_CHOICE: original.BACK_CHOICE,
-    BACK_SPACER: original.BACK_SPACER,
     askTextStep: (...args: Parameters<typeof script.askTextStep>) => script.askTextStep(...args),
     browseFilterList: async (message: string, rows: readonly string[], options: { header?: string }) => {
       filterLists.push({ header: options.header, message, rows });
@@ -85,6 +86,7 @@ vi.mock('../prompts', async (importOriginal) => {
         { name: yesLabel, value: true },
         { name: noLabel, value: false },
       ]),
+    FILTER_LIST_EXTRA_LINES: original.FILTER_LIST_EXTRA_LINES,
     fitPageSize: (count: number) => Math.max(12, count),
     isPromptCancellation: original.isPromptCancellation,
   };
@@ -97,6 +99,8 @@ const TAXPAYER: Taxpayer = {
   ivaCondition: 'responsable-inscripto',
   keyStatus: 'ACTIVO',
   monotributoCategory: null,
+  monotributoCategoryLetter: null,
+  monotributoCategorySince: null,
   name: 'Empresa de Ejemplo SRL',
   notices: [],
   personType: 'juridica',
@@ -155,6 +159,27 @@ describe('Consultas del modo interactivo', () => {
     await runQueriesMenu(createSession());
 
     expect(runHistoryFlow).toHaveBeenCalledTimes(1);
+  });
+
+  it('"Categorías del monotributo" va entre monedas y tablas, y vuelve al submenú', async () => {
+    script = createScript([
+      [/consultar/, 'Categorías del monotributo'],
+      [/consultar/, BACK],
+    ]);
+
+    await runQueriesMenu(createSession());
+
+    const names = (script.chooseStep.mock.calls[0]?.[1] ?? []).map((choice) =>
+      stripAnsi((choice as { name: string }).name),
+    );
+
+    expect(runMonotributoQuery).toHaveBeenCalledTimes(1);
+    expect(names.findIndex((name) => name.startsWith('Categorías del monotributo'))).toBe(
+      names.findIndex((name) => name.startsWith('Monedas y cotizaciones')) + 1,
+    );
+    expect(names.findIndex((name) => name.startsWith('Tablas de ARCA'))).toBe(
+      names.findIndex((name) => name.startsWith('Categorías del monotributo')) + 1,
+    );
   });
 
   describe('datos de un CUIT', () => {
@@ -247,14 +272,15 @@ describe('Consultas del modo interactivo', () => {
     expect(stripAnsi(output)).toContain('RÉGIMEN FCE MIPYMES');
   });
 
-  it('cotización: dólar primero y sin pesos; muestra la cotización y vuelve a la lista', async () => {
+  it('monedas y cotizaciones: dólar primero y sin pesos; muestra la cotización y vuelve a la lista', async () => {
     listTable.mockResolvedValueOnce([
       { description: 'Pesos Argentinos', id: 'PES' },
       { description: 'Euro', id: '060' },
       { description: 'Dólar Estadounidense', id: 'DOL' },
     ]);
     script = createScript([
-      [/consultar/, 'Cotización de una moneda'],
+      [/consultar/, 'Monedas y cotizaciones'],
+      [/moneda/, 'Euro'],
       [/moneda/, 'Euro'],
       [/moneda/, BACK],
       [/consultar/, BACK],
@@ -265,12 +291,16 @@ describe('Consultas del modo interactivo', () => {
     expect(listTable).toHaveBeenCalledWith('monedas');
     expect(filterLists[0]?.header).toMatch(/CÓDIGO\s+MONEDA/);
     expect(filterLists[0]?.rows.map((row) => row.split(/\s+/)[0])).toEqual(['DOL', '060']);
+    // ARCA da la cotización de a una moneda; la segunda vez sale de lo ya consultado.
+    expect(getQuotation).toHaveBeenCalledTimes(1);
     expect(getQuotation).toHaveBeenCalledWith('060');
     expect(stripAnsi(output)).toContain('COTIZACIÓN OFICIAL');
+    // El nombre sale de la tabla de monedas, sin otra consulta a ARCA.
+    expect(stripAnsi(output)).toMatch(/Moneda\s+Euro \(060\)/);
   });
 
   describe('tablas de ARCA', () => {
-    it('ofrece las nueve tablas de `arcli parametros`, con la ayuda abajo', async () => {
+    it('ofrece las tablas de `arcli parametros` menos monedas, con la ayuda abajo', async () => {
       script = createScript([
         [/consultar/, 'Tablas de ARCA'],
         [/tabla/, BACK],
@@ -281,7 +311,8 @@ describe('Consultas del modo interactivo', () => {
 
       const [, choices] = script.chooseStep.mock.calls[1] ?? [];
 
-      expect(choices).toHaveLength(9);
+      expect(choices).toHaveLength(8);
+      expect(choices).not.toContainEqual(expect.objectContaining({ value: 'monedas' }));
       expect(choices?.[0]).toMatchObject({
         description: expect.stringContaining('--alicuota'),
         name: 'Alícuotas de IVA',
@@ -327,5 +358,123 @@ describe('Consultas del modo interactivo', () => {
       ]);
       expect(filterLists[0]?.rows).toHaveLength(6);
     });
+  });
+});
+
+describe('Consultas: volver, datos que faltan y tablas vacias', () => {
+  beforeEach(() => {
+    output = '';
+    errors = '';
+    filterLists.length = 0;
+    vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
+      output += String(chunk);
+
+      return true;
+    });
+    vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+      errors += String(chunk);
+
+      return true;
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    getTaxpayer.mockReset();
+    listTable.mockReset();
+    getObligation.mockClear();
+    vi.mocked(runInvoiceFlow).mockReset();
+    expect(script.remaining()).toBe(0);
+  });
+
+  it('volver al pedir el CUIT del padrón o el del cliente FCE no consulta ARCA', async () => {
+    script = createScript([
+      [/consultar/, 'Datos de un CUIT'],
+      [/CUIT a consultar/, BACK],
+      [/consultar/, 'Si un cliente recibe FCE'],
+      [/CUIT del cliente/, BACK],
+      [/consultar/, BACK],
+    ]);
+
+    await runQueriesMenu(createSession());
+
+    expect(getTaxpayer).not.toHaveBeenCalled();
+    expect(getObligation).not.toHaveBeenCalled();
+  });
+
+  it('un CUIT sin nombre, domicilio ni condición en el padrón se nombra por su número y la factura los pregunta', async () => {
+    getTaxpayer.mockResolvedValueOnce({ ...TAXPAYER, address: null, ivaCondition: null, name: null });
+    vi.mocked(runInvoiceFlow).mockResolvedValueOnce(undefined);
+    script = createScript([
+      [/consultar/, 'Datos de un CUIT'],
+      [/CUIT a consultar/, '20-20179706-4'],
+      [/Le emitimos una factura a 20-20179706-4/, 'Emitir una factura a este CUIT'],
+    ]);
+
+    await runQueriesMenu(createSession());
+
+    expect(runInvoiceFlow).toHaveBeenCalledWith(expect.anything(), undefined, {
+      address: undefined,
+      cuit: 20201797064,
+      ivaCondition: undefined,
+      name: undefined,
+    });
+  });
+
+  it('sin puntos de venta en ARCA, la tabla lo muestra vacía sin romperse', async () => {
+    script = createScript([
+      [/consultar/, 'Tablas de ARCA'],
+      [/tabla/, 'Puntos de venta'],
+      [/tabla/, BACK],
+      [/consultar/, BACK],
+    ]);
+
+    await runQueriesMenu(createSession());
+
+    expect(errors).toBe('');
+    expect(stripAnsi(output).toUpperCase()).toContain('PUNTOS DE VENTA');
+    expect(filterLists).toHaveLength(0);
+  });
+
+  it('una tabla de ARCA vacía tampoco rompe, y al volver queda marcada la elegida', async () => {
+    listTable.mockResolvedValueOnce([]);
+    script = createScript([
+      [/consultar/, 'Tablas de ARCA'],
+      [/tabla/, 'Conceptos'],
+      [/tabla/, BACK],
+      [/consultar/, BACK],
+    ]);
+
+    await runQueriesMenu(createSession());
+
+    expect(errors).toBe('');
+    expect(script.chooseStep.mock.calls[2]?.[2]).toBe('conceptos');
+  });
+
+  it('si ARCA no devuelve monedas, la lista queda vacía y se puede volver', async () => {
+    listTable.mockResolvedValueOnce([]);
+    script = createScript([
+      [/consultar/, 'Monedas y cotizaciones'],
+      [/moneda/, BACK],
+      [/consultar/, BACK],
+    ]);
+
+    await runQueriesMenu(createSession());
+
+    expect(filterLists[0]?.rows).toEqual([]);
+    expect(getQuotation).not.toHaveBeenCalledWith(expect.anything());
+  });
+
+  it('si ARCA falla al leer una tabla, avisa y sigue en el submenú', async () => {
+    listTable.mockRejectedValueOnce(new Error('ETIMEDOUT: ARCA tardó demasiado'));
+    script = createScript([
+      [/consultar/, 'Tablas de ARCA'],
+      [/tabla/, 'Conceptos'],
+      [/consultar/, BACK],
+    ]);
+
+    await runQueriesMenu(createSession());
+
+    expect(stripAnsi(errors)).toContain('ETIMEDOUT');
   });
 });

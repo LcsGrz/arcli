@@ -1,9 +1,10 @@
 import input from '@inquirer/input';
-import select, { Separator } from '@inquirer/select';
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest';
 
+import { completeDateInput } from '../../../modules/interactive/date-input';
 import { BACK } from '../../../modules/interactive/wizard';
 import { stripAnsi } from '../../../ui';
+import { listSelect } from '../list-select';
 import {
   askText,
   askTextStep,
@@ -13,14 +14,12 @@ import {
   confirm,
   isPromptCancellation,
 } from '../prompts';
+import { SKIP_HINT } from '../text-hints';
 
-vi.mock('@inquirer/select', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@inquirer/select')>()),
-  default: vi.fn(),
-}));
+vi.mock('../list-select', () => ({ listSelect: vi.fn() }));
 vi.mock('@inquirer/input', () => ({ default: vi.fn() }));
 
-const selectMock = vi.mocked(select);
+const selectMock = vi.mocked(listSelect);
 const inputMock = vi.mocked(input);
 
 describe('prompts', () => {
@@ -49,20 +48,31 @@ describe('prompts', () => {
         'a',
       ),
     ).toBe('b');
-    expect(selectMock.mock.calls[0]?.[0]).toMatchObject({ default: 'a', loop: false, message: '¿Cual?' });
+    expect(selectMock.mock.calls[0]?.[0]).toMatchObject({ default: 'a', message: '¿Cual?' });
   });
 
-  it('chooseStep agrega "Volver" al final de las opciones', async () => {
+  it('chooseStep agrega "Volver" fijo debajo de las opciones', async () => {
     selectMock.mockResolvedValueOnce(BACK as never);
 
     expect(await chooseStep('¿Cual?', [{ name: 'A', value: 'a' }])).toBe(BACK);
+    expect(selectMock.mock.calls[0]?.[0]).toMatchObject({
+      back: { label: '← Volver', value: BACK },
+      choices: [{ name: 'A', value: 'a' }],
+    });
+    // La respuesta queda como "✔ ¿Cual? ← Volver".
+    expect(stripAnsi(String(write.mock.calls[0]?.[0]))).toBe('✔ ¿Cual? ← Volver\n');
+  });
 
-    const choices = (selectMock.mock.calls[0]?.[0] as unknown as { choices: Array<{ name: string; value: unknown }> })
-      .choices;
+  it('chooseOne con `back` deja la respuesta con el texto del boton', async () => {
+    selectMock.mockResolvedValueOnce('volver' as never);
 
-    expect(choices.at(-1)).toEqual({ name: '← Volver', value: BACK });
-    // Una linea en blanco separa "Volver" de las opciones.
-    expect(Separator.isSeparator(choices.at(-2))).toBe(true);
+    expect(
+      await chooseOne('¿Cual?', [{ name: 'A', value: 'a' }], undefined, {
+        back: { label: '← Volver al menú', value: 'volver' },
+        escapeValue: 'volver',
+      }),
+    ).toBe('volver');
+    expect(stripAnsi(String(write.mock.calls[0]?.[0]))).toBe('✔ ¿Cual? ← Volver al menú\n');
   });
 
   it('chooseStepWhileLoading devuelve lo cargado y cierra la lista sin dejar rastro', async () => {
@@ -112,6 +122,19 @@ describe('prompts', () => {
     expect(await askTextStep('Monto:', { validate })).toBe('ok');
   });
 
+  it('askTextStep: lo escrito antes arranca escrito y editable; sin eso, el valor por defecto con tab', async () => {
+    inputMock.mockResolvedValue('1' as never);
+
+    await askTextStep('Monto:', { defaultValue: '4', previousAnswer: '1.500' });
+    await askTextStep('Monto:', { defaultValue: '4', previousAnswer: '  ' });
+    await askTextStep('Monto:');
+
+    expect(inputMock.mock.calls[0]?.[0]).toMatchObject({ default: '1.500', prefill: 'editable' });
+    expect(inputMock.mock.calls[1]?.[0]).toMatchObject({ default: '4', prefill: 'tab' });
+    expect(inputMock.mock.calls[2]?.[0]).toMatchObject({ default: undefined, prefill: 'tab' });
+    inputMock.mockReset();
+  });
+
   it('Esc vuelve al paso anterior en texto y en listas, sin dejar la pregunta en pantalla', async () => {
     const waitForAbort = (_config: unknown, context?: { signal?: AbortSignal }) =>
       new Promise((_resolve, reject) => {
@@ -143,6 +166,47 @@ describe('prompts', () => {
     const line = stripAnsi(String(write.mock.calls[0]?.[0]));
 
     expect(line).toBe('✔ Monto: 150\n');
+  });
+
+  it('la aclaracion "(Enter para omitirlo)" se ve al preguntar, y un Enter vacio deja la respuesta vacia (TUI-19)', async () => {
+    inputMock.mockResolvedValueOnce('' as never).mockResolvedValueOnce('' as never);
+    await askTextStep('Alias del CBU:', { hint: SKIP_HINT });
+    await askText('Domicilio del receptor:', { hint: SKIP_HINT });
+
+    const options = inputMock.mock.calls.map((call) => stripAnsi((call[0] as { message: string }).message));
+
+    expect(options[0]).toBe('Alias del CBU (Enter para omitirlo): ([esc] para volver)');
+    expect(options[1]).toBe('Domicilio del receptor (Enter para omitirlo):');
+    expect(inputMock.mock.calls[1]?.[1]).toMatchObject({ clearPromptOnDone: true });
+    expect(write.mock.calls.map((call) => stripAnsi(String(call[0])))).toEqual([
+      '✔ Alias del CBU: \n',
+      '✔ Domicilio del receptor: \n',
+    ]);
+  });
+
+  // TUI-18, tests primero: la ayuda va junto a la de Esc y la linea de respuesta puede mostrar lo resuelto.
+  it('askTextStep: la ayuda va con la de Esc y la linea muestra la respuesta resuelta', async () => {
+    inputMock.mockResolvedValueOnce('-1' as never);
+    await askTextStep('Fecha:', { answered: () => '17/11/2026', inputHelp: 'hoy, ayer, +N o -N' });
+
+    const options = inputMock.mock.calls[0]?.[0] as { message: string };
+
+    expect(stripAnsi(options.message)).toBe('Fecha: (hoy, ayer, +N o -N • [esc] para volver)');
+    expect(stripAnsi(String(write.mock.calls[0]?.[0]))).toBe('✔ Fecha: 17/11/2026\n');
+
+    // Con las dos: la aclaracion antes de los dos puntos y lo que se puede escribir junto a la ayuda de Esc.
+    inputMock.mockResolvedValueOnce('' as never);
+    await askTextStep('Fecha de pago:', { hint: SKIP_HINT, inputHelp: 'hoy, ayer, +N o -N' });
+    expect(stripAnsi((inputMock.mock.calls[1]?.[0] as { message: string }).message)).toBe(
+      'Fecha de pago (Enter para omitirlo): (hoy, ayer, +N o -N • [esc] para volver)',
+    );
+  });
+
+  // `completeDateInput` tira con "<": la linea de respuesta no lo pasa por `answered`.
+  it('askTextStep: "<" con `answered` de fecha vuelve atras sin tirar', async () => {
+    inputMock.mockResolvedValueOnce('<' as never);
+
+    expect(await askTextStep('Fecha:', { answered: (value) => completeDateInput(value) })).toBe(BACK);
   });
 
   it('Esc en una confirmacion cuenta como no', async () => {
@@ -183,6 +247,16 @@ describe('prompts', () => {
     selectMock.mockResolvedValueOnce(true as never);
 
     expect(await confirm('¿Seguro?', 'Si')).toBe(true);
+  });
+
+  it('confirm no filtra al escribir; las demas listas si', async () => {
+    selectMock.mockResolvedValueOnce(true as never);
+    await confirm('¿Seguro?', 'Si');
+    expect(selectMock.mock.calls.at(-1)?.[0]).toMatchObject({ filter: false });
+
+    selectMock.mockResolvedValueOnce('a' as never);
+    await chooseOne('¿Cual?', [{ name: 'A', value: 'a' }]);
+    expect(selectMock.mock.calls.at(-1)?.[0]).not.toHaveProperty('filter', false);
   });
 
   it('reconoce la cancelacion con Ctrl+C', () => {

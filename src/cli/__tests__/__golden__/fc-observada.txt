@@ -1,0 +1,63 @@
+$ arcli fc -m 1000 --cs --cfinal --emitir --json
+exit: 0
+--- stdout ---
+
+{
+  "atajo": "fc",
+  "avisos": [],
+  "cae": "76463926585341",
+  "caeVencimiento": "20261127",
+  "comprobante": "Factura C",
+  "deprecado": [
+    "`Code` y `Msg` de `errores` y `eventos` se sacan en la 3.0.0: usá `codigo` y `mensaje`."
+  ],
+  "entorno": "testing",
+  "errores": [],
+  "estado": "observado",
+  "eventos": [
+    {
+      "Code": 35,
+      "Msg": "Se actualizaron los parametros de facturacion.",
+      "codigo": 35,
+      "mensaje": "Se actualizaron los parametros de facturacion."
+    }
+  ],
+  "observaciones": [
+    "El credito fiscal discriminado sera de uso exclusivo del receptor."
+  ],
+  "observacion": "El credito fiscal discriminado sera de uso exclusivo del receptor.",
+  "numero": 42,
+  "puntoVenta": 3,
+  "solicitud": {
+    "CantReg": 1,
+    "CbteFch": "20261117",
+    "CbteTipo": 11,
+    "Concepto": 2,
+    "CondicionIVAReceptorId": 5,
+    "DocTipo": 99,
+    "FchServDesde": "20261117",
+    "FchServHasta": "20261117",
+    "FchVtoPago": "20261117",
+    "ImpIVA": 0,
+    "ImpNeto": 1000,
+    "ImpOpEx": 0,
+    "ImpTotConc": 0,
+    "ImpTotal": 1000,
+    "ImpTrib": 0,
+    "MonCotiz": 1,
+    "MonId": "PES",
+    "PtoVta": 3,
+    "DocNro": 0,
+    "CbteDesde": 42,
+    "CbteHasta": 42
+  },
+  "previsualizacion": false,
+  "resultado": "A",
+  "sugerencias": [
+    "ARCA ve al receptor como monotributista: el crédito fiscal de la factura A solo lo puede computar por el \"Procedimiento permanente de transición al Régimen General\". No es un rechazo: el comprobante está emitido. Si el receptor no es monotributista, revisalo con `arcli padron <cuit>`; en testing la observación sale también con otros CUITs. Más info: https://arcli.com.ar/ayuda/problemas-frecuentes/#observaciones-de-padrón"
+  ],
+  "tipoArca": 11
+}
+
+
+--- stderr ---

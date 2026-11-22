@@ -116,6 +116,19 @@ describe('config.presenter', () => {
       expect(json).not.toHaveProperty('deprecado');
     });
 
+    it('monotributo sale solo con monotributo.tope, y el texto lo muestra en su sección', () => {
+      expect(parse(formatConfig(base, paths))).not.toHaveProperty('monotributo');
+      expect(parse(formatConfig({ ...base, monotributo: { tope: 30_000_000 } }, paths))).toMatchObject({
+        monotributo: { tope: 30_000_000 },
+      });
+      expect(stripAnsi(formatConfigAsText(base, paths))).toMatch(
+        /Monotributo[\s│]+Tope de ingresos anuales propio\s+el de tu categoría/,
+      );
+      expect(stripAnsi(formatConfigAsText({ ...base, monotributo: { tope: 30_000_000 } }, paths))).toMatch(
+        /Tope de ingresos anuales propio\s+\$ 30\.000\.000/,
+      );
+    });
+
     it('el texto la muestra como Filas por lista, con el valor de la vieja si es la unica', () => {
       const text = stripAnsi(formatConfigAsText({ ...base, comprobantesPorLista: 8 }, paths));
 

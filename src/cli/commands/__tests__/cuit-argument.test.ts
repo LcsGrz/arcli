@@ -3,9 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { parseCuitArgument } from '../cuit-argument';
 
 describe('parseCuitArgument', () => {
-  it('accepts the CUIT with or without dashes', () => {
+  it('accepts the CUIT with or without dashes, dots or spaces', () => {
     expect(parseCuitArgument('20201797064')).toBe(20201797064);
     expect(parseCuitArgument('20-20179706-4')).toBe(20201797064);
+    expect(parseCuitArgument('20.20179706.4')).toBe(20201797064);
+    expect(parseCuitArgument('20 20179706 4')).toBe(20201797064);
   });
 
   it('rejects a wrong length or check digit', () => {

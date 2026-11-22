@@ -1,0 +1,29 @@
+---
+/** Un texto de `data/landing.ts` con su formato (`lib/rich.ts`): la marca, negritas, links y el nombre de la IA. */
+import { parseRich } from '../../lib/rich';
+import { url } from '../../lib/site';
+import Roll from './Roll.astro';
+
+interface Props {
+  readonly text: string;
+}
+
+const parts = parseRich(Astro.props.text);
+---
+
+{
+  parts.map((part) => {
+    switch (part.kind) {
+      case 'ai':
+        return <Roll />;
+      case 'brand':
+        return <strong class="brand-word">ARCLI</strong>;
+      case 'link':
+        return <a href={url(part.href)}>{part.text}</a>;
+      case 'strong':
+        return <strong>{part.text}</strong>;
+      default:
+        return part.text;
+    }
+  })
+}

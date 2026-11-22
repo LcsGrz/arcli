@@ -1,0 +1,10 @@
+{
+  "path": ["src"],
+  "ignore": ["**/__tests__/**", "**/*.d.ts"],
+  "format": ["typescript"],
+  "minTokens": 50,
+  "threshold": 0.4,
+  "reporters": ["console"],
+  "gitignore": true,
+  "absolute": false
+}

@@ -68,7 +68,11 @@ function serviceRows(): Array<readonly [label: string, value: string]> {
  * lista de servicios (`besideServices`), todas las secciones toman el ancho de esa lista, asi los valores quedan en
  * la misma columna.
  */
-function rows(entries: ReadonlyArray<readonly [label: string, value: string]>, besideServices = false): string[] {
+/** Una fila sin valor (un certificado sin alias) no se muestra. */
+function rows(
+  entries: ReadonlyArray<readonly [label: string, value: string | undefined]>,
+  besideServices = false,
+): string[] {
   const labelWidth = resolveKeyValueLabelWidth('standard', [...(besideServices ? serviceRows() : []), ...entries]);
 
   return renderKeyValueRows(entries, { indent: 2, labelWidth });
@@ -150,7 +154,7 @@ export function formatImportedCertificateAsText(imported: ImportedCertificate): 
       ...rows(
         [
           ['CUIT', formatCuit(imported.cuit)],
-          ['Alias', imported.alias ?? 'N/D'],
+          ['Alias', imported.alias],
           ['Vence', bold(formatCertificateExpiryDate(imported.expiresAt))],
         ],
         true,
@@ -230,7 +234,7 @@ function statusRows(status: CertificateStatus, now: Date): string[] {
 
   return [
     ...rows([
-      ['Alias', status.alias ?? 'N/D'],
+      ['Alias', status.alias],
       ['Vence', describeExpiry(status.expiresAt, now)],
       ['Certificado', pathLink(status.certificatePath)],
       ['Clave privada', status.keyPath ? pathLink(status.keyPath) : colorize('sin configurar', 'muted')],

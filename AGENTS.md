@@ -6,7 +6,7 @@ Instrucciones para agentes que modifican el código de este repo. Para usar el C
 
 `arcli` es un CLI de TypeScript (ESM, Node.js) para previsualizar y emitir comprobantes ARCA, publicado en npm. Usa `@arcasdk/core` para hablar con ARCA. Tiene dos formas de uso: comandos con flags y un modo interactivo (`arcli` sin argumentos).
 
-Alcance de comprobantes (no ampliar sin pedido explícito): Factura, Nota de Crédito y Nota de Débito A, B y C, sus versiones de Factura de Crédito Electrónica (FCE), la Factura de exportación E (WSFEX) con sus notas de crédito y débito, y Recibo C.
+Alcance de comprobantes (no ampliar sin pedido explícito): Factura, Nota de Crédito y Nota de Débito A, B y C, sus versiones de Factura de Crédito Electrónica (FCE), la Factura de exportación E (WSFEX) con sus notas de crédito y débito, y Recibo A, B y C.
 
 ## Mapa del código
 
@@ -20,7 +20,7 @@ Alcance de comprobantes (no ampliar sin pedido explícito): Factura, Nota de Cr�
 
 Detalle de capas y cómo extender: [docs/architecture.md](docs/architecture.md).
 
-Reglas de la salida en terminal (paneles, colores, símbolos, formatos y textos): [docs/design-system.md](docs/design-system.md).
+Reglas de la salida en terminal (paneles, colores, símbolos, formatos y textos): [docs/design-system.md](docs/design-system.md). Las del sitio (tokens, componentes, marcas `<!-- arcli: … -->` y CSS): [docs/design-system-sitio.md](docs/design-system-sitio.md).
 
 Imports de UI: `src/ui` no importa `modules`, `services` ni `cli`. En `lib`, `modules` y `services`, usá los sub-barrels (`src/ui/primitives`, `components`, `presenters`, `stream`, `theme`), no `src/ui`; `cli` puede usar `src/ui`. Dentro de `src/ui`, imports directos entre archivos. ESLint lo hace cumplir.
 
@@ -45,6 +45,8 @@ Antes de dar por terminado un cambio: `yarn typecheck`, `yarn lint` y `yarn test
 - Después de cada release o hotfix, `main` vuelve a `dev` con merge commit (ver la skill `release`).
 
 ## Convenciones de código
+
+Cómo se decide (reutilizar antes de escribir, cuándo abstraer, cuánto control lleva cada cambio y cuándo está terminado): [docs/estandares.md](docs/estandares.md).
 
 - Validar explícitamente toda entrada del usuario.
 - Mantener el parseo de la CLI separado de las llamadas a ARCA y de las reglas de negocio.

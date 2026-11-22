@@ -2,13 +2,18 @@ import { describe, expect, it } from 'vitest';
 
 import {
   assertExportClientIdentification,
+  assertExportIncoterm,
+  assertExportTextLengths,
+  assertExportVoucherDate,
   buildExportPayload,
   resolveExportActivity,
   resolveExportClientCountryCuit,
   resolveExportCurrency,
   resolveExportDestinationCountry,
   resolveExportIncoterm,
+  resolveExportLanguage,
   resolveExportNumber,
+  resolveExportPointOfSale,
   resolveExportQuotation,
   resolveExportQuotationDate,
   resolveExportType,
@@ -135,6 +140,43 @@ describe('resolveExportQuotationDate', () => {
     expect(resolveExportQuotationDate({ ...base, exportType: 4, voucherDate: '20261118' }).date).toBe('20261118');
     expect(resolveExportQuotationDate({ ...base, isNote: true, voucherDate: '20261118' }).date).toBe('20261118');
   });
+
+  it('con fecha futura en bienes es la de hoy: no hay cotizacion de un dia que no llego', () => {
+    expect(resolveExportQuotationDate({ ...base, exportType: 1, voucherDate: '20261121' }).date).toBe('20261118');
+  });
+});
+
+describe('assertExportVoucherDate (ARCA 1500)', () => {
+  const today = '20261118';
+
+  it('acepta de hoy - 5 a hoy + 5', () => {
+    for (const voucherDate of ['20261113', '20261118', '20261123']) {
+      expect(() => assertExportVoucherDate({ exportType: 1, today, voucherDate })).not.toThrow();
+    }
+  });
+
+  it('rechaza mas de 5 dias antes o despues, con el rango', () => {
+    expect(() => assertExportVoucherDate({ exportType: 1, today, voucherDate: '20261112' })).toThrow(
+      /del 13\/11\/2026 al 23\/11\/2026.*error 1500/,
+    );
+    expect(() => assertExportVoucherDate({ exportType: 4, today, voucherDate: '20261124' })).toThrow(/error 1500/);
+  });
+
+  it('en servicios no deja pasar el fin de mes', () => {
+    expect(() => assertExportVoucherDate({ exportType: 2, today: '20261128', voucherDate: '20261130' })).not.toThrow();
+    expect(() => assertExportVoucherDate({ exportType: 2, today: '20261128', voucherDate: '20261201' })).toThrow(
+      /al 30\/11\/2026.*fin de mes/,
+    );
+    expect(() => assertExportVoucherDate({ exportType: 1, today: '20261128', voucherDate: '20261201' })).not.toThrow();
+  });
+
+  it('en servicios, si el fin de mes es el último día de la ventana, el tope es el de los 5 días (TEST-17)', () => {
+    // El 25/11 la ventana termina el 30/11, que también es el fin de mes: el error no culpa al fin de mes.
+    expect(() => assertExportVoucherDate({ exportType: 2, today: '20261125', voucherDate: '20261130' })).not.toThrow();
+    expect(() => assertExportVoucherDate({ exportType: 2, today: '20261125', voucherDate: '20261201' })).toThrow(
+      /al 30\/11\/2026, hasta 5 días antes o después de hoy \(error 1500\)/,
+    );
+  });
 });
 
 describe('resolveExportType', () => {
@@ -165,6 +207,12 @@ describe('resolveExportQuotation', () => {
   it('falla con las monedas que si tienen cotizacion', () => {
     expect(() => resolveExportQuotation('019', QUOTATIONS, '20261028')).toThrow(
       /no informó la cotización de 019 para el 28\/10\/2026\. Las monedas con cotización son DOL, 060\./,
+    );
+  });
+
+  it('sin cotizacion para la moneda es ARCA_QUOTATION_ERROR, sin detalles de ARCA', () => {
+    expect(() => resolveExportQuotation('019', QUOTATIONS, '20261028')).toThrow(
+      expect.objectContaining({ code: 'ARCA_QUOTATION_ERROR', details: undefined }),
     );
   });
 
@@ -296,6 +344,10 @@ describe('resolveExportIncoterm', () => {
   it('rechaza uno que no esta en la tabla', () => {
     expect(() => resolveExportIncoterm('XYZ', incoterms)).toThrow(/no existe en la tabla/);
   });
+
+  it('si ARCA devuelve la tabla vacia no valida, como la actividad (REV-62)', () => {
+    expect(resolveExportIncoterm('fob', [])).toEqual({ code: 'FOB', name: 'FOB' });
+  });
 });
 
 describe('resolveExportActivity', () => {
@@ -326,17 +378,89 @@ describe('resolveExportActivity', () => {
 });
 
 describe('resolveExportNumber', () => {
+  const base = { label: 'El numero', max: 99_999_999 };
+
   it('toma el indicado por el usuario', () => {
-    expect(resolveExportNumber({ label: 'El numero', last: 10, provided: 3 })).toBe(3);
+    expect(resolveExportNumber({ ...base, last: 10, provided: 3 })).toBe(3);
   });
 
   it('sigue al ultimo de ARCA', () => {
-    expect(resolveExportNumber({ label: 'El numero', last: 10 })).toBe(11);
-    expect(resolveExportNumber({ label: 'El numero', last: 0 })).toBe(1);
+    expect(resolveExportNumber({ ...base, last: 10 })).toBe(11);
+    expect(resolveExportNumber({ ...base, last: 0 })).toBe(1);
   });
 
-  it('no permite pasar el maximo de ARCA', () => {
-    expect(() => resolveExportNumber({ label: 'El numero', last: 99_999_999 })).toThrow(/máximo/);
+  it('el indicado por el usuario empieza en 1 (TEST-16)', () => {
+    expect(resolveExportNumber({ ...base, last: 10, provided: 1 })).toBe(1);
+    expect(() => resolveExportNumber({ ...base, last: 10, provided: 0 })).toThrow(/entero positivo/);
+    expect(() => resolveExportNumber({ ...base, last: 10, provided: -3 })).toThrow(/entero positivo/);
+  });
+
+  it('no permite pasar el maximo de ARCA, tampoco con el indicado por el usuario (1520)', () => {
+    expect(() => resolveExportNumber({ ...base, last: 99_999_999 })).toThrow(/máximo/);
+    expect(() => resolveExportNumber({ ...base, code: 1520, last: 0, provided: 100_000_000 })).toThrow(
+      /99999999.*error 1520/,
+    );
+    expect(resolveExportNumber({ ...base, last: 0, provided: 99_999_999 })).toBe(99_999_999);
+  });
+});
+
+describe('resolveExportLanguage (TEST-16)', () => {
+  const languages = [{ id: 1 }, { id: 2 }];
+
+  it('valida el idioma contra la tabla de ARCA', () => {
+    expect(resolveExportLanguage(2, languages)).toBe(2);
+    expect(() => resolveExportLanguage(9, languages)).toThrow(/idioma 9 no existe/);
+  });
+
+  it('sin tabla no valida, y sin idioma va el de siempre', () => {
+    expect(resolveExportLanguage(9, [])).toBe(9);
+    expect(resolveExportLanguage(undefined, languages)).toBe(1);
+  });
+});
+
+describe('resolveExportPointOfSale (1510)', () => {
+  it('va de 1 a 99.998', () => {
+    expect(resolveExportPointOfSale(99_998, {})).toBe(99_998);
+    expect(resolveExportPointOfSale(1, {})).toBe(1);
+    expect(() => resolveExportPointOfSale(0, {})).toThrow(/entero positivo/);
+    expect(() => resolveExportPointOfSale(undefined, { puntoVentaPorDefecto: 0 })).toThrow(/entero positivo/);
+    expect(() => resolveExportPointOfSale(99_999, {})).toThrow(/1 a 99998.*error 1510/);
+  });
+});
+
+describe('assertExportIncoterm', () => {
+  it('la factura de bienes lleva incoterm (1640); servicios, otros y las notas no', () => {
+    expect(() => assertExportIncoterm({ exportType: 1, isNote: false })).toThrow(/error 1640/);
+    expect(() => assertExportIncoterm({ exportType: 1, incoterm: 'FOB', isNote: false })).not.toThrow();
+    expect(() => assertExportIncoterm({ exportType: 2, isNote: false })).not.toThrow();
+    expect(() => assertExportIncoterm({ exportType: 1, isNote: true })).not.toThrow();
+  });
+
+  it('la descripcion del incoterm va con incoterm (1641)', () => {
+    expect(() => assertExportIncoterm({ exportType: 2, incotermDescription: 'Puerto', isNote: false })).toThrow(
+      /error 1641/,
+    );
+  });
+});
+
+describe('assertExportTextLengths', () => {
+  it('frena los textos mas largos que los de ARCA, con el codigo y el flag', () => {
+    expect(() => assertExportTextLengths({ clientName: 'a'.repeat(200), emit: false })).not.toThrow();
+    expect(() => assertExportTextLengths({ clientName: 'a'.repeat(201), emit: false })).toThrow(
+      /200 caracteres y tiene 201.*error 1651.*--cliente/,
+    );
+    expect(() => assertExportTextLengths({ clientAddress: 'a'.repeat(301), emit: false })).toThrow(/error 1661/);
+    expect(() => assertExportTextLengths({ emit: false, observations: 'a'.repeat(1001) })).toThrow(/error 1665/);
+    expect(() => assertExportTextLengths({ commercialObservations: 'a'.repeat(4001), emit: false })).toThrow(
+      /--obs-comerciales/,
+    );
+    expect(() => assertExportTextLengths({ emit: false, incotermDescription: 'a'.repeat(21) })).toThrow(/error 1642/);
+    expect(() => assertExportTextLengths({ emit: false, paymentTerms: 'a'.repeat(51) })).toThrow(/--forma-pago/);
+    expect(() => assertExportTextLengths({ clientTaxId: 'a'.repeat(51), emit: false })).toThrow(/--id-impositivo/);
+  });
+
+  it('cuenta caracteres, no unidades UTF-16', () => {
+    expect(() => assertExportTextLengths({ emit: false, incotermDescription: '🚢'.repeat(20) })).not.toThrow();
   });
 });
 
@@ -490,5 +614,24 @@ describe('buildExportPayload', () => {
     expect(() => buildExportPayload({ ...input, clientName: ' ' }, resolution)).toThrow(/--cliente/);
     expect(() => buildExportPayload({ ...input, clientAddress: undefined }, resolution)).toThrow(/--domicilio-cliente/);
     expect(() => buildExportPayload({ ...input, amount: undefined }, resolution)).toThrow(/--monto/);
+  });
+
+  it('rechaza un monto 0 o negativo (TEST-16)', () => {
+    expect(() => buildExportPayload({ ...input, amount: 0 }, resolution)).toThrow(/--monto/);
+    expect(() => buildExportPayload({ ...input, amount: -10 }, resolution)).toThrow(/--monto/);
+  });
+
+  it('--permiso-existente sin permisos es un error (TEST-16)', () => {
+    expect(() => buildExportPayload({ ...input, permitsExisting: true }, resolution)).toThrow(/al menos un permiso/);
+    expect(() => buildExportPayload({ ...input, permits: [' '], permitsExisting: true }, resolution)).toThrow(
+      /al menos un permiso/,
+    );
+  });
+
+  it('la nota de servicios pide el asociado (error 2047); la de bienes no (TEST-16)', () => {
+    const note = { ...resolution, voucherKind: EXPORT_CREDIT_NOTE_KIND };
+
+    expect(() => buildExportPayload(input, { ...note, exportType: 2 })).toThrow(/error 2047/);
+    expect(() => buildExportPayload(input, note)).not.toThrow();
   });
 });

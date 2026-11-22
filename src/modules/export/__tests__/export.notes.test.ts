@@ -69,6 +69,17 @@ describe('resolveExportAssociatedQuery', () => {
     expect(resolveExportAssociatedQuery({ ...base, input: { arcaType: 21, number: 3 } }).arcaType).toBe(21);
   });
 
+  it('el número y el punto de venta del asociado empiezan en 1 (TEST-16)', () => {
+    expect(() => resolveExportAssociatedQuery({ ...base, input: { number: 0 } })).toThrow(/número entero positivo/);
+    expect(() => resolveExportAssociatedQuery({ ...base, input: { number: -1 } })).toThrow(/número entero positivo/);
+    expect(() => resolveExportAssociatedQuery({ ...base, input: { number: 1, pointOfSale: 0 } })).toThrow(
+      /punto de venta del comprobante asociado/,
+    );
+    expect(() => resolveExportAssociatedQuery({ ...base, pointOfSale: 0, input: { number: 1 } })).toThrow(
+      /punto de venta del comprobante asociado/,
+    );
+  });
+
   it('pide --ar', () => {
     expect(() => resolveExportAssociatedQuery({ ...base, input: {} })).toThrow(
       /Falta el número del comprobante asociado/,
@@ -137,6 +148,10 @@ describe('applyExportAssociatedDefaults', () => {
     });
   });
 
+  it('no hereda una cotizacion 0 del asociado (TEST-16)', () => {
+    expect(applyExportAssociatedDefaults(INPUT, { ...INVOICE, exchangeRate: 0 }).exchangeRate).toBeUndefined();
+  });
+
   it('los flags ganan, y con otra moneda no copia la cotizacion', () => {
     const input = applyExportAssociatedDefaults({ ...INPUT, clientName: 'Otro', currencyCode: 'PES' }, INVOICE);
 
@@ -178,7 +193,7 @@ describe('assertExportNoteMatchesAssociated', () => {
   });
 
   it('en servicios pide el mismo tipo, destino, moneda y cotizacion (2049 a 2053)', () => {
-    expect(check({ exportType: 4 })).toThrow(/error 2049/);
+    expect(check({}, { exportType: 1 })).toThrow(/error 2049/);
     expect(check({ destinationCountry: 203 })).toThrow(/error 2050/);
     expect(check({ currencyCode: '060' })).toThrow(/error 2051/);
     expect(check({ currencyCode: 'PES', exchangeRate: 1 })).not.toThrow();
@@ -194,8 +209,34 @@ describe('assertExportNoteMatchesAssociated', () => {
     );
   });
 
+  it('la nota puede tener la misma fecha que el asociado (TEST-17)', () => {
+    expect(check({ date: INVOICE.date })).not.toThrow();
+  });
+
+  it('una NC E sobre otra NC no tiene el tope del total (TEST-16)', () => {
+    expect(check({ amount: 2000, exportType: 1 }, { arcaType: 21, exportType: 1 })).not.toThrow();
+  });
+
+  it('notas E de servicios que pasan todas las reglas, hasta 2055 (TEST-16)', () => {
+    // NC sobre factura E, ND sobre factura E y NC sobre una ND que ajusta una factura E.
+    expect(check({})).not.toThrow();
+    expect(check({}, {}, EXPORT_DEBIT_NOTE_KIND)).not.toThrow();
+    expect(check({}, { arcaType: 20, associatedVoucher: { arcaType: 19, number: 1, pointOfSale: 4 } })).not.toThrow();
+    // Sin el asociado de la ND (no vino en FEXGetCMP) no hay como saber si ajusta una factura: no se frena.
+    expect(check({}, { arcaType: 20 })).not.toThrow();
+    // 2055 mira el asociado de una ND: el de una factura no cuenta.
+    expect(check({}, { associatedVoucher: { arcaType: 21, number: 1, pointOfSale: 4 } })).not.toThrow();
+  });
+
   it('en bienes no aplica las reglas de servicios', () => {
     expect(check({ destinationCountry: 203, exchangeRate: 1200, exportType: 1 }, { exportType: 1 })).not.toThrow();
+  });
+
+  it('una nota de bienes u otros sobre un comprobante de servicios no pasa por 2040 a 2055: miran el tipo de la nota', () => {
+    expect(check({ destinationCountry: 212, exchangeRate: 1200, exportType: 4 })).not.toThrow();
+    expect(check({ currencyCode: '060', exportType: 1 })).not.toThrow();
+    expect(check({ exportType: 4 }, { arcaType: 21 })).not.toThrow();
+    expect(check({ exportType: 1 }, { arcaType: 21 }, EXPORT_DEBIT_NOTE_KIND)).not.toThrow();
   });
 });
 

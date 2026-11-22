@@ -21,7 +21,9 @@ La base es `dev`. Solo para un hotfix (un arreglo que ya se mergeó a `main`, ve
 - `main` es ancestro de `origin/dev` (`git merge-base --is-ancestor origin/main origin/dev`). Si no lo es, falta volver a llevar a `dev` la release o el hotfix anterior: hacé el paso 7 antes de seguir.
 - `## [Sin publicar]` en [CHANGELOG.md](../../../CHANGELOG.md) de `<base>` tiene entradas. Si está vacío, revisá `git log --no-merges vANTERIOR..origin/<base>`: si hay cambios que afectan a quien usa el CLI y les falta entrada, avisá y frená. Si no hay nada que publicar, frená.
 
-**Listo cuando:** sabés qué PRs entran (los `#N` de `git log --oneline --no-merges vANTERIOR..origin/<base>`) y tenés las entradas de "Sin publicar".
+- `yarn build && ARCLI_ARCA_PV_E=<pv de la E> yarn test:arca` pasa contra ARCA testing, desde `<base>` actualizada (ver [Contra ARCA testing](../../../docs/development.md#contra-arca-testing)). Usa el certificado de testing de la config y nunca producción; puede emitir comprobantes de prueba. Si falla, frená y mostrale al usuario qué caso falló: un "ARCA aprobó" es una regla local más estricta que ARCA y un código distinto es un manual que cambió, y en los dos casos decide el usuario antes de la release.
+
+**Listo cuando:** sabés qué PRs entran (los `#N` de `git log --oneline --no-merges vANTERIOR..origin/<base>`), tenés las entradas de "Sin publicar" y `yarn test:arca` está en verde.
 
 ## 2. Versión
 
@@ -34,15 +36,17 @@ Elegí patch, minor o major con la regla de versionado de `docs/development.md`,
 Creá `release/vX.Y.Z` desde `origin/<base>` y tocá exactamente tres archivos:
 
 - `CHANGELOG.md`:
-  - Renombrá las entradas a `## [X.Y.Z] - AAAA-MM-DD` (fecha de hoy) y dejá arriba un `## [Sin publicar]` vacío.
-  - Debajo del título, un párrafo que resuma qué cambia para quien usa el CLI y cierre diciendo qué del contrato **no** cambia, como en 2.4.0.
+  - Renombrá las entradas a `## [X.Y.Z] - AAAA-MM-DD` (fecha de hoy, con ` · Nombre` si es una X.Y.0 o X.0.0 con funciones nuevas) y dejá arriba un `## [Sin publicar]` vacío.
+  - Con la skill `changelog` (sección "En /release"): ordená las entradas por importancia y armá el resumen, el nombre, los destacados y el aviso "Puede afectar scripts". Mostráselos al usuario y esperá su ok antes del Gate 1.
   - Al final: `[Sin publicar]` compara `vX.Y.Z...HEAD` y se suma `[X.Y.Z]: .../compare/vANTERIOR...vX.Y.Z`.
 - `package.json`: `"version"`.
 - `src/cli/version.ts`: `CLI_VERSION`. Un test verifica que coincida con `package.json`.
 
 Después corré `yarn lint && yarn open-source:check` (lo mismo que el CI: typecheck, tests, build, e2e y `pack:check`), y `node dist/cli/index.js --version` tiene que imprimir `X.Y.Z`. Anotá cuántos tests pasaron.
 
-**Listo cuando:** el diff toca solo esos tres archivos, todo pasa y la versión compilada es `X.Y.Z`.
+**Mutation testing (minor y major, no en los parches):** `node scripts/agent/stryker.mjs` muta lo cambiado en `src/` desde el último tag, con la config real aislada. Nunca `npx stryker` directo. Puede tardar decenas de minutos: corrélo en segundo plano. No bloquea la release: mostrale al usuario el puntaje de lo cambiado y los mutantes que sobrevivieron en lógica (no en textos ni en vista previa), y que decida si se arreglan antes o quedan como ticket. Si el script sale con 3, la config real cambió: frená y avisá.
+
+**Listo cuando:** el diff toca solo esos tres archivos, todo pasa, la versión compilada es `X.Y.Z` y, si es minor o major, el usuario vio el resultado de Stryker.
 
 ## 4. Gate 1: commit, push y PR
 
@@ -80,7 +84,7 @@ Pedí el ok para mergear. El merge es squash: `gh pr merge <N> --squash --delete
 Pedí el ok una sola vez, con las notas a la vista: crear la release dispara la publicación en npm, y una versión publicada no se puede reusar.
 
 1. Notas: el cuerpo de la sección `[X.Y.Z]` del CHANGELOG, sin la línea `## [X.Y.Z] - fecha`. Guardalo en un archivo del scratchpad.
-2. `gh release create vX.Y.Z --target main --title vX.Y.Z --notes-file <archivo>`. Esto crea también el tag y dispara el workflow `Release`, que publica en npm.
+2. `gh release create vX.Y.Z --target main --title "vX.Y.Z · Nombre" --notes-file <archivo>`, con el nombre de la versión del título del CHANGELOG; sin nombre (un patch), `--title vX.Y.Z`. El commit y el título del PR siguen siendo `vX.Y.Z`. Esto crea también el tag y dispara el workflow `Release`, que publica en npm.
 3. Buscá el run con `gh run list --workflow release.yml --limit 1` y seguilo con `gh run watch <id> --exit-status`. Cuando `build` termina, `publish` espera la aprobación del environment `npm`: avisale al usuario que la apruebe en Actions ("Review deployments"). No la apruebes vos.
 4. Confirmá con `npm view arcli version`, que tiene que devolver `X.Y.Z`. Puede tardar unos minutos en propagarse.
 

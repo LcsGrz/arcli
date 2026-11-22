@@ -1,0 +1,13 @@
+$ arcli certificado importar <config>/vencido.crt --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "CERTIFICATE_EXPIRED",
+  "detalles": null,
+  "error": "El certificado venció el 01/11/2026.",
+  "sugerencia": "Generá uno nuevo con `arcli certificado generar --testing`."
+}
+

@@ -1,0 +1,16 @@
+---
+/** El cierre: probarlo en testing, con los botones para sacar el certificado e instalar. */
+import { CTA } from '../../data/landing';
+import Button from './Button.astro';
+---
+
+<section class="cta">
+  <div class="wrap">
+    <h2>{CTA.title}</h2>
+    <p>{CTA.text}</p>
+    <div class="actions">
+      <Button link={CTA.actions.ghost} variant="ghost" />
+      <Button link={CTA.actions.primary} variant="primary" />
+    </div>
+  </div>
+</section>

@@ -1,0 +1,81 @@
+---
+/**
+ * Instalación: con IA (el prompt del README, de `brand.json`) o con npm, pnpm o yarn, y un botón para copiarlo. La
+ * pestaña de IA es la que viene dibujada; el script arma las otras y vuelve a la de IA con lo que había.
+ */
+import brand from '../../generated/brand.json';
+import { INSTALL, INSTALL_COPY, INSTALL_HEADING } from '../../data/landing';
+import LandingIcon from './LandingIcon.astro';
+import Rich from './Rich.astro';
+import Tabs from './Tabs.astro';
+
+const [ai] = INSTALL;
+---
+
+<p class="install-heading">{INSTALL_HEADING}</p>
+<div class="install" id="instalacion">
+  <Tabs class="tabs" label="Cómo instalar" items={INSTALL} idPrefix="tab-" controls="install-panel" tabClass="tab" />
+  <div id="install-panel" role="tabpanel" aria-labelledby={`tab-${ai.key}`}>
+    <div class="install-body">
+      <pre id="install-code" class="prompt-ai">{brand.installPrompt}</pre>
+    </div>
+    <div class="install-foot">
+      <p class="install-note" id="install-note"><Rich text={ai.note} /></p>
+      <button class="copy" type="button" id="install-copy">
+        <LandingIcon name="copiar" size="14" stroke-width="2" />
+        <span>{INSTALL_COPY.idle}</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  import { INSTALL, INSTALL_COPY } from '../../data/landing';
+  import { syncRolls } from './roll';
+
+  const tabs = document.querySelector('.install .tabs');
+  const code = document.getElementById('install-code');
+  const note = document.getElementById('install-note');
+  const copyButton = document.getElementById('install-copy');
+
+  // Lo que viene dibujado es la pestaña de IA: se guarda para volver a ella.
+  const prompt = code?.textContent ?? '';
+  const aiNote = [...(note?.childNodes ?? [])].map((node) => node.cloneNode(true));
+  let copyText = prompt;
+
+  function showInstall(key: string) {
+    if (!code || !note) return;
+    const option = INSTALL.find((item) => item.key === key);
+    if (!option?.cmd) {
+      copyText = prompt;
+      code.className = 'prompt-ai';
+      code.textContent = prompt;
+      note.replaceChildren(...aiNote.map((node) => node.cloneNode(true)));
+    } else {
+      copyText = option.cmd;
+      const dollar = document.createElement('span');
+      dollar.className = 'dollar';
+      dollar.textContent = '$ ';
+      code.className = '';
+      code.replaceChildren(dollar, option.cmd);
+      note.textContent = option.note;
+    }
+    syncRolls(note, false);
+  }
+
+  tabs?.addEventListener('tabchange', (event) => showInstall((event as CustomEvent<string>).detail));
+
+  copyButton?.addEventListener('click', async () => {
+    const label = copyButton.querySelector('span');
+    try {
+      await navigator.clipboard.writeText(copyText);
+      if (label) label.textContent = INSTALL_COPY.done;
+    } catch {
+      if (code) getSelection()?.selectAllChildren(code);
+      if (label) label.textContent = INSTALL_COPY.selected;
+    }
+    setTimeout(() => label && (label.textContent = INSTALL_COPY.idle), 1800);
+  });
+
+  if (note) syncRolls(note, false);
+</script>

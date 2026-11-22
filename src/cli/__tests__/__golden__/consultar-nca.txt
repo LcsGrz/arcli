@@ -1,0 +1,73 @@
+$ arcli consultar nca 13 --json
+exit: 0
+--- stdout ---
+
+{
+  "atajo": "nca",
+  "comprobante": "Nota de crédito A",
+  "tipoArca": 3,
+  "cae": "76000000000012",
+  "caeVencimiento": "20261120",
+  "concepto": 2,
+  "cotizacion": 1452.5,
+  "fecha": "20261115",
+  "importes": {
+    "exento": 0,
+    "iva": 21,
+    "neto": 100,
+    "noGravado": 0,
+    "total": 156,
+    "tributos": 35
+  },
+  "moneda": "DOL",
+  "numero": 13,
+  "numeroDocumento": 30709965812,
+  "resultado": "A",
+  "tipoDocumento": 80,
+  "alicuotasIva": [
+    {
+      "baseImponible": 100,
+      "id": 5,
+      "importe": 21
+    }
+  ],
+  "comprobantesAsociados": [
+    {
+      "atajo": "fa",
+      "cuit": "20111111112",
+      "fecha": "20261110",
+      "numero": 12,
+      "puntoVenta": 3,
+      "tipoArca": 1
+    }
+  ],
+  "condicionIvaReceptor": 1,
+  "mismaMoneda": true,
+  "observaciones": [
+    "El credito fiscal discriminado sera de uso exclusivo del receptor."
+  ],
+  "opcionales": [
+    {
+      "id": "22",
+      "valor": "N"
+    }
+  ],
+  "periodoAsociado": null,
+  "servicioDesde": "20261001",
+  "servicioHasta": "20261031",
+  "tributos": [
+    {
+      "alicuota": 35,
+      "baseImponible": 100,
+      "descripcion": "Percepción IIBB",
+      "id": 2,
+      "importe": 35
+    }
+  ],
+  "vencimientoPago": "20261125",
+  "entorno": "testing",
+  "puntoVenta": 3
+}
+
+
+--- stderr ---

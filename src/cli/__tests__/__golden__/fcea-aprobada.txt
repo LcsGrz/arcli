@@ -1,0 +1,66 @@
+$ arcli fcea -m 5000000 --cs --cuit 30709965812 --ir-ri --cbu 0110599520000012345678 --emitir --json
+exit: 0
+--- stdout ---
+
+{
+  "atajo": "fcea",
+  "avisos": [],
+  "cae": "76463926585341",
+  "caeVencimiento": "20261127",
+  "comprobante": "Factura de crédito electrónica A",
+  "entorno": "testing",
+  "errores": [],
+  "estado": "aprobado",
+  "eventos": [],
+  "observaciones": [],
+  "observacion": null,
+  "numero": 42,
+  "puntoVenta": 3,
+  "solicitud": {
+    "CantReg": 1,
+    "CbteFch": "20261117",
+    "CbteTipo": 201,
+    "Concepto": 2,
+    "CondicionIVAReceptorId": 1,
+    "DocTipo": 80,
+    "FchServDesde": "20261117",
+    "FchServHasta": "20261117",
+    "FchVtoPago": "20261117",
+    "ImpIVA": 867768.6,
+    "ImpNeto": 4132231.4,
+    "ImpOpEx": 0,
+    "ImpTotConc": 0,
+    "ImpTotal": 5000000,
+    "ImpTrib": 0,
+    "MonCotiz": 1,
+    "MonId": "PES",
+    "PtoVta": 3,
+    "Iva": [
+      {
+        "BaseImp": 4132231.4,
+        "Id": 5,
+        "Importe": 867768.6
+      }
+    ],
+    "DocNro": 30709965812,
+    "Opcionales": [
+      {
+        "Id": "2101",
+        "Valor": "0110599520000012345678"
+      },
+      {
+        "Id": "27",
+        "Valor": "SCA"
+      }
+    ],
+    "CbteDesde": 42,
+    "CbteHasta": 42
+  },
+  "previsualizacion": false,
+  "resultado": "A",
+  "sugerencias": [],
+  "tipoArca": 201
+}
+
+
+--- stderr ---

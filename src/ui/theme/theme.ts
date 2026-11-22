@@ -33,7 +33,7 @@ export type UiBorderType =
   | 'tip'
   | 'warning';
 
-export interface UiBoxBorder {
+interface UiBoxBorder {
   readonly bottom: string;
   readonly bottomLeft: string;
   readonly bottomRight: string;
@@ -71,15 +71,22 @@ export type UiSymbolName =
   | 'check'
   | 'done'
   | 'ellipsis'
+  | 'keyBackspace'
   | 'keyEnter'
   | 'keysMove'
+  | 'moreAbove'
+  | 'moreBelow'
+  | 'moreLeft'
+  | 'moreRight'
   | 'pointer'
+  | 'removeMark'
   | 'rule'
   | 'selected'
   | 'separator'
+  | 'squared'
   | 'unselected';
 export type UiWidthPreset = 'compact' | 'standard' | 'ticket' | 'wide';
-export interface UiWidthRange {
+interface UiWidthRange {
   readonly max: number;
   readonly min: number;
 }
@@ -324,12 +331,19 @@ export const UI_THEME: UiTheme = {
     check: { ascii: 'v', unicode: '✓' },
     done: { ascii: 'v', unicode: '✔' },
     ellipsis: { ascii: '...', unicode: '…' },
+    keyBackspace: { ascii: 'backspace', unicode: '⌫' },
     keyEnter: { ascii: 'enter', unicode: '⏎' },
     keysMove: { ascii: 'arriba/abajo', unicode: '↑↓' },
+    moreAbove: { ascii: '^', unicode: '↑' },
+    moreBelow: { ascii: 'v', unicode: '↓' },
+    moreLeft: { ascii: '<', unicode: '←' },
+    moreRight: { ascii: '>', unicode: '→' },
     pointer: { ascii: '>', unicode: '❯' },
+    removeMark: { ascii: '[-]', unicode: '●' },
     rule: { ascii: '-', unicode: '┈' },
     selected: { ascii: '[x]', unicode: '◉' },
     separator: { ascii: '-', unicode: '·' },
+    squared: { ascii: '2', unicode: '²' },
     unselected: { ascii: '[ ]', unicode: '◯' },
   },
   table: {

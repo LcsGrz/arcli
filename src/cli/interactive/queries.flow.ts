@@ -13,6 +13,7 @@ import {
   type ParameterEntry,
   type ParameterTable,
   quotableCurrencies,
+  type Quotation,
   salesPointToEntry,
 } from '../../modules/parameters/parameters';
 import {
@@ -30,23 +31,24 @@ import { withSpinner } from '../spinner';
 
 import { runHistoryFlow } from './history.flow';
 import { runInvoiceFlow } from './invoice.flow';
+import { runMonotributoQuery } from './monotributo.flow';
 import { markIfNew } from './new-mark';
 import {
   askTextStep,
   BACK_CHOICE,
-  BACK_SPACER,
   browseFilterList,
   chooseFromFilterList,
   chooseOne,
   chooseStep,
   confirm,
+  FILTER_LIST_EXTRA_LINES,
   fitPageSize,
   isPromptCancellation,
 } from './prompts';
 import type { InteractiveSession } from './session';
 import { normalizeDocumentNumber, validateCuit } from './validators';
 
-type QueryOption = 'comprobantes' | 'cotizacion' | 'cuit' | 'fce' | 'tablas';
+type QueryOption = 'comprobantes' | 'cotizacion' | 'cuit' | 'fce' | 'monotributo' | 'tablas';
 
 /** Lo que pasa despues de una consulta: seguir en el submenu, o volver al menu principal (se emitio una factura). */
 type QueryOutcome = 'menu' | 'seguir';
@@ -134,8 +136,9 @@ async function loadTable(session: InteractiveSession, table: ParameterTable): Pr
 }
 
 /**
- * "Cotización de una moneda": se elige de la tabla de monedas de ARCA, filtrando por nombre o codigo ("eur" o
- * "060"), y se muestra la cotizacion oficial, como `arcli parametros cotizacion`. Despues vuelve a la lista.
+ * "Monedas y cotizaciones": la tabla de monedas de ARCA (sin el peso), que se filtra por nombre o codigo ("eur" o
+ * "060"); Enter muestra la cotizacion oficial, como `arcli parametros cotizacion`, y vuelve a la lista. ARCA da la
+ * cotizacion de a una moneda: cada una se pide la primera vez que se elige y despues sale de lo ya consultado.
  */
 async function runQuotationQuery(session: InteractiveSession): Promise<void> {
   const currencies = quotableCurrencies(await loadTable(session, 'monedas'));
@@ -147,14 +150,15 @@ async function runQuotationQuery(session: InteractiveSession): Promise<void> {
     short: entry.description,
     value: entry.id,
   }));
+  const quotations = new Map<string, Quotation>();
   let last: string | undefined;
 
   for (;;) {
     const currency = await chooseFromFilterList('¿De qué moneda?', choices, {
       defaultValue: last,
       header,
-      help: 'Escribí el nombre o el código, por ejemplo "eur" o "060".',
-      pageSize: Math.min(rowsPerPage(session), fitPageSize(choices.length)),
+      help: 'Escribí el nombre o el código, por ejemplo "eur" o "060", y Enter muestra la cotización oficial.',
+      pageSize: Math.min(rowsPerPage(session), fitPageSize(choices.length, { extraLines: FILTER_LIST_EXTRA_LINES })),
     });
 
     if (currency === BACK) {
@@ -163,16 +167,27 @@ async function runQuotationQuery(session: InteractiveSession): Promise<void> {
 
     last = currency;
 
-    const quotation = await withSpinner('Consultando la cotización...', () =>
-      new ArcaParametersGateway(session.arca).getQuotation(currency),
-    );
+    const quotation =
+      quotations.get(currency) ??
+      (await withSpinner('Consultando la cotización...', () =>
+        new ArcaParametersGateway(session.arca).getQuotation(currency),
+      ));
 
-    writeTerminalOutput(formatQuotationAsText(quotation, session.runtime.environment));
+    quotations.set(currency, quotation);
+
+    writeTerminalOutput(
+      formatQuotationAsText(quotation, session.runtime.environment, {
+        currencyName: currencies.find((entry) => entry.id === currency)?.description,
+      }),
+    );
   }
 }
 
+/** Las tablas de "Tablas de ARCA": las de `arcli parametros` menos monedas, que esta en "Monedas y cotizaciones". */
+const BROWSABLE_TABLES = PARAMETER_TABLE_NAMES.filter((name) => name !== 'monedas');
+
 /**
- * "Tablas de ARCA": las mismas de `arcli parametros`. Una tabla que entra en una pagina se muestra en su panel; una
+ * "Tablas de ARCA": las mismas de `arcli parametros`, menos monedas. Una tabla que entra en una pagina se muestra en su panel; una
  * mas larga, en una lista que se filtra escribiendo y se desplaza con las flechas.
  */
 async function runTablesQuery(session: InteractiveSession): Promise<void> {
@@ -181,7 +196,7 @@ async function runTablesQuery(session: InteractiveSession): Promise<void> {
   for (;;) {
     const table = await chooseStep<ParameterTable>(
       '¿Qué tabla querés ver?',
-      PARAMETER_TABLE_NAMES.map((name) => ({
+      BROWSABLE_TABLES.map((name) => ({
         description: PARAMETER_TABLE_HELP[name],
         name: PARAMETER_TABLES[name],
         value: name,
@@ -208,7 +223,7 @@ async function runTablesQuery(session: InteractiveSession): Promise<void> {
     await browseFilterList(PARAMETER_TABLES[table], rows, {
       header,
       help: PARAMETER_TABLE_HELP[table],
-      pageSize: Math.min(pageSize, fitPageSize(rows.length)),
+      pageSize: Math.min(pageSize, fitPageSize(rows.length, { extraLines: FILTER_LIST_EXTRA_LINES })),
     });
   }
 }
@@ -226,6 +241,9 @@ async function runQuery(session: InteractiveSession, option: QueryOption): Promi
     case 'cotizacion':
       await runQuotationQuery(session);
       return 'seguir';
+    case 'monotributo':
+      await runMonotributoQuery(session);
+      return 'seguir';
     case 'tablas':
       await runTablesQuery(session);
       return 'seguir';
@@ -233,8 +251,8 @@ async function runQuery(session: InteractiveSession, option: QueryOption): Promi
 }
 
 /**
- * Submenu "Consultas": los comprobantes emitidos y lo que el CLI consulta con `padron`, `fce-obligado` y
- * `parametros`. Un error de ARCA se muestra y vuelve a este submenu; Ctrl+C vuelve al menu principal.
+ * Submenu "Consultas": los comprobantes emitidos y lo que el CLI consulta con `padron`, `fce-obligado`,
+ * `monotributo` y `parametros`. Un error de ARCA se muestra y vuelve a este submenu; Ctrl+C vuelve al menu principal.
  */
 export async function runQueriesMenu(session: InteractiveSession): Promise<void> {
   let last: QueryOption | undefined;
@@ -261,22 +279,32 @@ export async function runQueriesMenu(session: InteractiveSession): Promise<void>
           'consultas',
         ),
         markIfNew(
-          { description: 'La cotización oficial de ARCA', name: 'Cotización de una moneda', value: 'cotizacion' },
+          {
+            description: 'Las monedas de ARCA y la cotización oficial de cada una',
+            name: 'Monedas y cotizaciones',
+            value: 'cotizacion',
+          },
           'consultas',
         ),
         markIfNew(
           {
-            description: 'Puntos de venta, comprobantes, documentos, alícuotas, monedas y más',
+            description: 'Topes de ingresos y cuota mensual de cada categoría',
+            name: 'Categorías del monotributo',
+            value: 'monotributo',
+          },
+          'monotributo',
+        ),
+        markIfNew(
+          {
+            description: 'Puntos de venta, comprobantes, documentos, alícuotas y más',
             name: 'Tablas de ARCA',
             value: 'tablas',
           },
           'consultas',
         ),
-        BACK_SPACER,
-        BACK_CHOICE,
       ],
       last,
-      { escapeValue: BACK },
+      { back: { label: BACK_CHOICE.name, value: BACK }, escapeValue: BACK },
     );
 
     if (option === BACK) {

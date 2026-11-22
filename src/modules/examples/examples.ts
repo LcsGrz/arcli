@@ -25,17 +25,29 @@ function resolveAmount(definition: VoucherKindDefinition): number {
   return 300000;
 }
 
+/**
+ * La A va a un CUIT (10013) y la FCE tambien, en cualquier letra (10015): la B, a un exento, porque no admite
+ * responsable inscripto. El resto, a consumidor final.
+ */
 function resolveIdentityLong(definition: VoucherKindDefinition): string[] {
-  if (definition.letter === 'a') {
+  if (definition.letter === 'a' || (definition.isElectronicCredit && definition.letter === 'c')) {
     return ['--cuit 20168598204', '--iva-receptor responsable-inscripto'];
+  }
+
+  if (definition.isElectronicCredit) {
+    return ['--cuit 20168598204', '--iva-receptor sujeto-exento'];
   }
 
   return ['--consumidor-final', '--iva-receptor consumidor-final'];
 }
 
 function resolveIdentityShort(definition: VoucherKindDefinition): string[] {
-  if (definition.letter === 'a') {
+  if (definition.letter === 'a' || (definition.isElectronicCredit && definition.letter === 'c')) {
     return ['--cuit 20168598204', '--ir-ri'];
+  }
+
+  if (definition.isElectronicCredit) {
+    return ['--cuit 20168598204', '--ir-se'];
   }
 
   return ['--cfinal', '--ir-cf'];
@@ -220,7 +232,7 @@ function renderFamilyExamples(family: VoucherFamily, dates: ExampleDates): strin
 const EXPORT_CLIENT = '--cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 212';
 
 /** El comando minimo de la factura E por shortcut, sin modo de ejecucion. Lo usa tambien la ayuda de `fe`. */
-export const EXPORT_MINIMAL_EXAMPLE = `arcli ${EXPORT_VOUCHER_KIND.shortcut} -m 1500 ${EXPORT_CLIENT} --actividad 620100`;
+const EXPORT_MINIMAL_EXAMPLE = `arcli ${EXPORT_VOUCHER_KIND.shortcut} -m 1500 ${EXPORT_CLIENT} --actividad 620100`;
 
 /** La nota E toma el cliente, el destino y la moneda de la factura E que ajusta: alcanza con `--ar`. */
 const EXPORT_NOTE_ASSOCIATED = '--ar 1';

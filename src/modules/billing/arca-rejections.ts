@@ -25,16 +25,19 @@ export const ARCA_REJECTIONS: readonly ArcaRejection[] = [
     what: 'El punto de venta no está habilitado para web service (los de "Factura en línea" no sirven).',
   },
   {
+    // WSFEv1 v4.7, p. 42: el numero tiene que ser el siguiente y la fecha estar en el rango (N±5 en productos, N±10
+    // en servicios, de N-5 a N+1 en FCE) y no ser anterior a la del ultimo emitido de ese tipo y punto de venta.
     codes: [10016],
     guide: `${TROUBLESHOOTING_URL}#rechazos-de-arca-por-código`,
-    todo: 'Mirá el último emitido con `arcli ultimos` y reintentá; si emitís varios del mismo tipo y punto de venta, hacelo de a uno.',
-    what: 'ARCA no aceptó el número o la fecha: no es el próximo a autorizar (otro comprobante se emitió en el medio) o la fecha es anterior a la del último emitido.',
+    todo: 'Revisá `--fecha`: tiene que estar cerca de hoy (hasta 5 días en productos y FCE, 10 en servicios) y no ser anterior a la del último emitido; miralo con `arcli ultimos`. Si emitís varios del mismo tipo y punto de venta, hacelo de a uno.',
+    what: 'ARCA no aceptó el número o la fecha: no es el próximo a autorizar (otro comprobante se emitió en el medio), la fecha está fuera del rango que acepta o es anterior a la del último emitido.',
   },
   {
+    // WSFEv1 v4.7, p. 61: en productos y FCE, una fecha futura tiene que ser del mes en curso.
     codes: [10152],
     guide: `${TROUBLESHOOTING_URL}#fecha-del-comprobante-fuera-de-rango`,
-    todo: 'Revisá `--fecha`: tiene que estar cerca de hoy (hasta 5 días en productos y FCE, 10 en servicios).',
-    what: 'La fecha del comprobante está fuera del rango que acepta ARCA.',
+    todo: 'Revisá `--fecha`: en productos y FCE una fecha futura tiene que ser de este mes.',
+    what: 'La fecha del comprobante es futura y cae en otro mes.',
   },
   {
     codes: [10243],
@@ -49,10 +52,17 @@ export const ARCA_REJECTIONS: readonly ArcaRejection[] = [
     what: 'El CBU no está registrado a nombre del emisor.',
   },
   {
+    codes: [10154],
+    guide: `${TROUBLESHOOTING_URL}#arca-rechaza-la-nota-fce-de-anulación`,
+    pattern: /NO rechazado por el Comprador/i,
+    todo: 'Pedile al comprador que lo rechace en el Registro de Facturas de Crédito Electrónica y volvé a emitir; si es sobre una factura y no es una anulación, emitila sin `--anulacion`.',
+    what: 'Una nota FCE de anulación necesita que el comprador haya rechazado antes el comprobante asociado, y no lo rechazó.',
+  },
+  {
     codes: [10119],
     guide: `${TROUBLESHOOTING_URL}#rechazos-de-arca-por-código`,
     todo: 'Revisá `--cotizacion-moneda` contra la oficial (`arcli parametros cotizacion <moneda>`).',
-    what: 'La cotización está fuera del rango que acepta ARCA: entre el 2% y el 400% de la oficial.',
+    what: 'La cotización está fuera del rango que acepta ARCA: entre el 2 % y el 500 % de la oficial.',
   },
   {
     codes: [10038],
@@ -73,7 +83,22 @@ export const ARCA_REJECTIONS: readonly ArcaRejection[] = [
     what: 'ARCA ve al receptor como monotributista: el crédito fiscal de la factura A solo lo puede computar por el "Procedimiento permanente de transición al Régimen General".',
   },
   {
-    codes: [],
+    // MONO-6: observaciones de WSFEv1 v4.7 (10236 con CAE, 817 con CAEA). Por la redaccion, compara el importe del
+    // comprobante con el tope de la categoria, no lo facturado en el año.
+    codes: [10236, 817],
+    guide: `${TROUBLESHOOTING_URL}#el-comprobante-excede-el-tope-de-tu-categoría-de-monotributo`,
+    todo: 'No es un rechazo: el comprobante está emitido. Tenelo en cuenta para la próxima recategorización; los topes de cada categoría están en `arcli monotributo`.',
+    what: 'ARCA avisa que el importe del comprobante excede el límite de tu categoría de Monotributo.',
+  },
+  {
+    // MONO-6: 10235 con CAE, 816 con CAEA.
+    codes: [10235, 816],
+    guide: `${TROUBLESHOOTING_URL}#el-comprobante-excede-el-tope-de-tu-categoría-de-monotributo`,
+    todo: 'No es un rechazo: el comprobante está emitido. ARCA avisa que quedarías excluido del Monotributo y que tendrías que darte de alta en el régimen general: consultalo con tu contador. Los topes están en `arcli monotributo`.',
+    what: 'ARCA avisa que el importe del comprobante excede el límite de la categoría máxima del Monotributo.',
+  },
+  {
+    codes: [10069],
     guide: `${TROUBLESHOOTING_URL}#el-receptor-coincide-con-el-emisor`,
     pattern: /DocNro no puede ser igual al del emisor/i,
     todo: 'Usá otro CUIT como receptor.',

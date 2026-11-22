@@ -5,7 +5,7 @@ import type { FceObligation, FceObligationGateway } from '../../modules/fce/fce-
 
 import { withDeprecatedErrors } from './arca-error-details';
 
-const NOT_AUTHORIZED_MESSAGE =
+export const FCE_NOT_AUTHORIZED_MESSAGE =
   'El certificado no está autorizado para el servicio wsfecred (Factura de Crédito Electrónica). Autorizalo igual que wsfe: en testing desde WSASS ("Crear autorizacion a servicio") y en producción desde el Administrador de Relaciones.';
 
 function toIsoDate(arcaDate: string): string {
@@ -25,7 +25,7 @@ export class ArcaFceObligationGateway implements FceObligationGateway {
       });
     } catch (error) {
       if (error instanceof Error && error.message.includes('notAuthorized')) {
-        throw new AppError(NOT_AUTHORIZED_MESSAGE, { code: 'FCE_SERVICE_NOT_AUTHORIZED' });
+        throw new AppError(FCE_NOT_AUTHORIZED_MESSAGE, { code: 'FCE_SERVICE_NOT_AUTHORIZED' });
       }
 
       throw error;

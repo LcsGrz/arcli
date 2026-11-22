@@ -1,6 +1,7 @@
 import type { Command } from 'commander';
 
-import { formatDateAsArcaDate, parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
+import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
+import { parseDateInputAsArcaDate } from '../../lib/dates/relative-date';
 import { formatFceObligationAsJson, formatFceObligationAsText } from '../../modules/fce/fce-obligation.presenter';
 import { ArcaFceObligationGateway } from '../../services/arca/arca-fce-obligation.gateway';
 import { createArcaQuery, withQuerySpinner, writeQueryOutput } from '../arca-query';
@@ -14,7 +15,10 @@ export function registerFceObligationCommand(program: Command): void {
     .command('fce-obligado')
     .argument('<cuit>', 'CUIT del receptor a consultar')
     .description('consultar si un receptor está obligado a recibir Factura de Crédito Electrónica (FCE)')
-    .option('-f, --fecha <fecha>', 'fecha de emisión a consultar; por defecto hoy')
+    .option(
+      '-f, --fecha <fecha>',
+      'fecha de emisión a consultar; por defecto hoy. Acepta hoy, ayer, +N y -N (días desde hoy)',
+    )
     .addHelpText('after', createFceObligationHelp());
 
   registerQueryOptions(command);
@@ -22,9 +26,8 @@ export function registerFceObligationCommand(program: Command): void {
 
   command.action(async (rawCuit: string, options: { fecha?: string }, self: Command) => {
     const cuit = parseCuitArgument(rawCuit);
-    const issueDate = options.fecha
-      ? parseArgentineDateInputAsArcaDate(options.fecha)
-      : formatDateAsArcaDate(new Date());
+    const now = new Date();
+    const issueDate = options.fecha ? parseDateInputAsArcaDate(options.fecha, 'day', now) : formatDateAsArcaDate(now);
     const { gateway, runtime } = createArcaQuery(self, (arca) => new ArcaFceObligationGateway(arca));
     const obligation = await withQuerySpinner(runtime, () => gateway.getObligation(cuit, issueDate));
     const report = { cuit, environment: runtime.environment, issueDate, obligation };

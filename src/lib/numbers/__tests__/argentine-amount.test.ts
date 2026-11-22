@@ -8,6 +8,7 @@ import {
   formatExchangeRate,
   hasAtMostDecimals,
   parseArgentineAmount,
+  roundToCents,
 } from '../argentine-amount';
 
 describe('parseArgentineAmount', () => {
@@ -111,5 +112,59 @@ describe('hasAtMostDecimals', () => {
     [Number.NaN, 2, false],
   ])('%s con hasta %s decimales: %s', (value, decimals, expected) => {
     expect(hasAtMostDecimals(value, decimals)).toBe(expected);
+  });
+});
+
+describe('roundToCents', () => {
+  it.each([
+    [1500, 1500],
+    [1500.5, 1500.5],
+    // Sumas y restas de importes de 2 decimales, que es lo que redondea hoy (PDF y total de la E).
+    [0.1 + 0.2, 0.3],
+    [1452.1 + 304.94, 1757.04],
+    [1000.3 - 210.1, 790.2],
+  ])('%s queda en %s', (value, expected) => {
+    expect(roundToCents(value)).toBe(expected);
+  });
+
+  it.each([
+    [0.005, 0.01],
+    [0.015, 0.02],
+    [0.125, 0.13],
+    [1.235, 1.24],
+    [10.005, 10.01],
+    [1234.565, 1234.57],
+  ])('la mitad exacta %s sube a %s', (value, expected) => {
+    expect(roundToCents(value)).toBe(expected);
+  });
+
+  // Antes, con `Math.round(value * 100)` sobre float, estas bajaban: 1.005 * 100 da 100.49999999999999.
+  it.each([
+    [1.005, 1.01],
+    [0.285, 0.29],
+    [1.045, 1.05],
+  ])('la mitad exacta %s sube a %s, también donde el float la dejaba abajo', (value, expected) => {
+    expect(roundToCents(value)).toBe(expected);
+  });
+
+  it.each([
+    [-1.005, -1.01],
+    [-0.125, -0.13],
+    [-1500.5, -1500.5],
+  ])('con signo, la mitad se aleja del cero como Big.roundHalfUp en billing: %s da %s', (value, expected) => {
+    expect(roundToCents(value)).toBe(expected);
+  });
+
+  it('un importe que ya tiene 2 decimales no cambia', () => {
+    for (let cents = 0; cents <= 200_000; cents += 7) {
+      const amount = cents / 100;
+
+      expect(roundToCents(amount)).toBe(amount);
+    }
+  });
+
+  it('un valor no finito sale igual', () => {
+    expect(roundToCents(Number.NaN)).toBeNaN();
+    expect(roundToCents(Number.POSITIVE_INFINITY)).toBe(Number.POSITIVE_INFINITY);
   });
 });

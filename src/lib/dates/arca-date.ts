@@ -1,6 +1,6 @@
 import { InputValidationError } from '../errors/app-error';
 
-export const ARGENTINE_DATE_FORMAT_HINT = 'Usá D, DD, D-MM, D/MM, D-MM-YY, D/MM/YY, D-MM-YYYY o D/MM/YYYY.';
+import { dateInputHint } from './date-input-text';
 
 export interface CalendarDate {
   readonly day: number;
@@ -49,6 +49,13 @@ export function addDaysToArcaDate(value: string, days: number): string {
   return new Date(arcaDateToUtcTime(value) + days * 86_400_000).toISOString().slice(0, 10).replace(/-/g, '');
 }
 
+/** Ultimo dia del mes de una fecha ARCA (yyyymmdd). */
+export function lastDayOfArcaMonth(arcaDate: string): string {
+  const day = new Date(Date.UTC(Number(arcaDate.slice(0, 4)), Number(arcaDate.slice(4, 6)), 0)).getUTCDate();
+
+  return `${arcaDate.slice(0, 6)}${String(day).padStart(2, '0')}`;
+}
+
 export function minArcaDate(...values: string[]): string {
   return values.reduce((earliest, value) => (value < earliest ? value : earliest));
 }
@@ -61,12 +68,17 @@ export function formatArcaDateAsArgentineDate(value: string): string {
   return `${value.slice(6, 8)}/${value.slice(4, 6)}/${value.slice(0, 4)}`;
 }
 
+/** Periodo ARCA (yyyymm) como mes y año: `201309` → `09/2013`. */
+export function formatArcaPeriodAsArgentinePeriod(value: string): string {
+  return `${value.slice(4, 6)}/${value.slice(0, 4)}`;
+}
+
 export function parseArgentineDateInputAsArcaDate(value: string, referenceDate = new Date()): string {
   const normalizedValue = value.trim();
   const dateMatch = /^(\d{1,2})(?:([-/])(\d{1,2})(?:\2(\d{2}|\d{4}))?)?$/.exec(normalizedValue);
 
   if (!dateMatch) {
-    throw new InputValidationError(`La fecha "${value}" no es válida. ${ARGENTINE_DATE_FORMAT_HINT}`);
+    throw new InputValidationError(`La fecha "${value}" no es válida. ${dateInputHint()}`);
   }
 
   const [, rawDay, , rawMonth, explicitYear] = dateMatch;
@@ -81,7 +93,7 @@ export function parseArgentineDateInputAsArcaDate(value: string, referenceDate =
     date.getUTCMonth() !== Number(month) - 1 ||
     date.getUTCDate() !== Number(day)
   ) {
-    throw new InputValidationError(`La fecha "${value}" no es válida. ${ARGENTINE_DATE_FORMAT_HINT}`);
+    throw new InputValidationError(`La fecha "${value}" no es válida. ${dateInputHint()}`);
   }
 
   return `${year}${month}${day}`;
@@ -89,7 +101,9 @@ export function parseArgentineDateInputAsArcaDate(value: string, referenceDate =
 
 /**
  * Sin año, el de la fecha mas cercana a hoy: el 5/1 `1/12` es diciembre pasado y el 28/12 `10/1` es enero que
- * viene. A igual distancia gana el año actual.
+ * viene. A igual distancia gana el año actual. Solo cuentan los años donde la fecha existe: el 1/9/2028 `29/2` es el
+ * 29/02/2028, aunque el 1/3/2029 (lo que daria `Date.UTC` para un 29/02/2029) este mas cerca. Si no existe en
+ * ninguno, devuelve el actual y la fecha da error.
  */
 function resolveYear(explicitYear: string | undefined, month: number, day: number, today: CalendarDate): string {
   if (explicitYear) {
@@ -98,9 +112,12 @@ function resolveYear(explicitYear: string | undefined, month: number, day: numbe
 
   const todayTime = Date.UTC(today.year, today.month - 1, today.day);
   const distance = (year: number) => Math.abs(Date.UTC(year, month - 1, day) - todayTime);
-  const closest = [today.year, today.year - 1, today.year + 1].reduce((best, year) =>
-    distance(year) < distance(best) ? year : best,
+  const exists = (year: number) => new Date(Date.UTC(year, month - 1, day)).getUTCDate() === day;
+  const candidates = [today.year, today.year - 1, today.year + 1].filter(exists);
+  const closest = candidates.reduce<number | undefined>(
+    (best, year) => (best === undefined || distance(year) < distance(best) ? year : best),
+    undefined,
   );
 
-  return String(closest);
+  return String(closest ?? today.year);
 }

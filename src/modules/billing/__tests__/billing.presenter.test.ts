@@ -124,7 +124,7 @@ describe('billing.presenter', () => {
   it('renders payload and result in pretty text mode', () => {
     const output = formatBillingResultAsText(createResult());
 
-    expect(output).toContain('Concepto');
+    expect(output).toContain('Punto de venta');
     expect(output).toContain('APROBADO');
     expect(output).toContain('FACTURA A');
     expect(output).toContain('$ 15.000');

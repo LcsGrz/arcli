@@ -28,7 +28,7 @@ Base de datos de ARCA con la situación fiscal de cada CUIT. Un comprobante pued
 
 ### wsfe / wsfex / wsfecred / ws_sr_constancia_inscripcion
 
-Servicios web de ARCA que usa ARCLI: `wsfe` emite las facturas, notas y recibos A, B y C; `wsfex`, la factura de exportación E; `wsfecred` consulta el régimen FCE del receptor; `ws_sr_constancia_inscripcion` es el padrón (`arcli padron` y el IVA receptor desde el padrón). Cada uno se autoriza aparte en ARCA. Ver [Qué servicios autorizar](certificado-testing.md#qué-servicios-autorizar).
+Servicios web de ARCA que usa ARCLI: `wsfe` emite las facturas, notas y recibos A, B y C; `wsfex`, la factura de exportación E; `wsfecred` consulta el régimen FCE del receptor y el estado de una FCE en el Registro; `ws_sr_constancia_inscripcion` es el padrón (`arcli padron` y el IVA receptor desde el padrón). Cada uno se autoriza aparte en ARCA. Ver [Qué servicios autorizar](certificado-testing.md#qué-servicios-autorizar).
 
 ### CSR y alias
 
@@ -42,7 +42,7 @@ Formas de identificar al receptor de un comprobante:
 
 - **CUIT**: Clave Única de Identificación Tributaria, 11 dígitos. Identifica personas jurídicas o autónomos.
 - **CUIL**: Clave Única de Identificación Laboral, 11 dígitos. Identifica trabajadores en relación de dependencia.
-- **DNI**: Documento Nacional de Identidad, 7 u 8 dígitos. Se usa cuando el receptor no tiene CUIT/CUIL a mano.
+- **DNI**: Documento Nacional de Identidad, de 6 a 8 dígitos. Se usa cuando el receptor no tiene CUIT/CUIL a mano.
 
 ### Consumidor final
 
@@ -84,9 +84,9 @@ Código numérico con el que ARCA identifica cada tipo de comprobante (Factura A
 
 Variante electrónica de factura pensada para el régimen de facturación de crédito PyME. Usa la misma estructura que una factura común, con un tipo ARCA distinto y datos de cobro adicionales: CBU del emisor, modalidad de transferencia (`SCA` o `ADC`) y vencimiento de pago. Sus notas de crédito y débito llevan el código de anulación y la fecha de la factura asociada. Ver [Crédito electrónico (FCE)](validation-rules.md#crédito-electrónico-fce).
 
-### Recibo C
+### Recibo A, B y C
 
-Comprobante tipo ARCA `15` (`arcli rc`) para documentar un cobro. Se arma como una Factura C: sin IVA discriminado y sin comprobante asociado. Ver [Recibo C](validation-rules.md#recibo-c).
+Comprobante para documentar un cobro: Recibo A (tipo ARCA `4`, `arcli ra`), B (`9`, `arcli rb`) y C (`15`, `arcli rc`). Cada uno se arma como la factura de su letra (el A discrimina IVA, el B lo lleva incluido y el C no lleva) y ninguno lleva comprobante asociado. Ver [Recibo A, B y C](validation-rules.md#recibo-a-b-y-c).
 
 ### Factura de exportación E
 

@@ -57,7 +57,7 @@ describe('formatCurrencyLabel', () => {
     ['011', 'Pesos uruguayos (UYU)'],
     ['RUB', 'Rublos (RUB)'],
     ['XYZ', 'XYZ'],
-    [undefined, 'N/D'],
+    [undefined, undefined],
   ])('%s → %s', (input, expected) => {
     expect(formatCurrencyLabel(input)).toBe(expected);
   });

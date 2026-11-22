@@ -1,39 +1,15 @@
 ---
 /** El logo del encabezado: el mismo ASCII de la terminal, en chico (sale del CLI, `brand.json`). */
-import brand from '../generated/brand.json';
-
-const home = import.meta.env.BASE_URL;
-const escape = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-const logo = brand.banner
-  .map((line) => `<span class="ar">${escape(line.slice(0, brand.splitColumn))}</span><span class="cli">${escape(line.slice(brand.splitColumn))}</span>`)
-  .join('\n');
+import { url } from '../lib/site';
+import AsciiLogo from './AsciiLogo.astro';
 ---
 
-<a href={home} class="site-title" aria-label="ARCLI, inicio"><pre class="logo-mini" aria-hidden="true" set:html={logo} /></a>
+<a href={url()} class="site-title"><span class="sr-only">ARCLI, inicio</span><AsciiLogo variant="header" /></a>
 
 <style>
   .site-title {
     display: flex;
     align-items: center;
     text-decoration: none;
-  }
-
-  .logo-mini {
-    margin: 0;
-    padding: 0;
-    border: 0;
-    background: none;
-    font-family: var(--sl-font-mono);
-    font-size: 0.22rem;
-    line-height: 1.12;
-    font-weight: 700;
-  }
-
-  .logo-mini :global(.ar) {
-    color: var(--arcli-celeste);
-  }
-
-  .logo-mini :global(.cli) {
-    color: var(--arcli-lavanda);
   }
 </style>

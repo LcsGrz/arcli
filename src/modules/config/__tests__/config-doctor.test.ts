@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 
 import { buildConfigDoctorReport } from '../config-doctor';
 
@@ -205,5 +205,83 @@ describe('config revisar: plugin de PDF', () => {
     expect(pluginCheck('preguntar', { installedVersion: '0.1.0', version: '0.2.1' })).toMatchObject({
       category: 'warning',
     });
+  });
+});
+
+describe('config revisar: huecos de Stryker (TEST-21)', () => {
+  const base = {
+    cert: {},
+    emisor: {},
+    entornoPorDefecto: 'testing' as const,
+    key: {},
+    output: { brutoPorDefecto: false, emitirPorDefecto: false, jsonPorDefecto: false },
+  };
+  const find = (report: ReturnType<typeof buildConfigDoctorReport>, label: string) =>
+    report.checks.filter((check) => check.label === label);
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('un certificado vencido es un error, con la fecha', () => {
+    const testingCert = createCertificateFile(10);
+
+    // El certificado dura 10 días: 30 días después ya venció.
+    vi.useFakeTimers({ now: Date.now() + 30 * 24 * 60 * 60 * 1000, toFake: ['Date'] });
+
+    const report = buildConfigDoctorReport({ ...base, cert: { testing: testingCert } });
+    const [check] = find(report, 'Vencimiento cert. testing');
+
+    expect(report.ok).toBe(false);
+    expect(check).toMatchObject({ category: 'error', detail: expect.stringContaining('venció el') });
+    expect(check?.detail).toContain(check?.value ?? '-');
+  }, 10_000);
+
+  it.each([
+    ['solo el certificado', { produccion: '/c.crt' }, {}],
+    ['solo la clave', {}, { produccion: '/c.key' }],
+  ])('credenciales de producción con %s: aviso', (_case, cert, key) => {
+    const report = buildConfigDoctorReport({ ...base, cert, key });
+
+    expect(find(report, 'Credenciales producción')).toEqual([expect.objectContaining({ category: 'warning' })]);
+  });
+
+  it.each([
+    ['solo el certificado', { testing: '/c.crt' }, {}],
+    ['solo la clave', {}, { testing: '/c.key' }],
+  ])('credenciales de testing con %s: aviso', (_case, cert, key) => {
+    const report = buildConfigDoctorReport({ ...base, cert, key });
+
+    expect(find(report, 'Credenciales testing')).toEqual([expect.objectContaining({ category: 'warning' })]);
+  });
+
+  it('WSFEX: completo en testing es ok y a medias en producción es aviso; sin nada, no aparece', () => {
+    const exportCert = createCertificateFile(365);
+    const report = buildConfigDoctorReport({
+      ...base,
+      exportacion: { cert: { testing: exportCert }, key: { produccion: '/e.key', testing: '/e.key' } },
+    });
+
+    expect(find(report, 'Credenciales WSFEX')).toEqual([
+      expect.objectContaining({ category: 'ok', value: 'testing' }),
+      expect.objectContaining({
+        category: 'warning',
+        detail: expect.stringContaining('"exportacion.cert.produccion" y "exportacion.key.produccion"'),
+      }),
+    ]);
+    expect(find(report, 'Vencimiento cert. exportación testing')).toEqual([
+      expect.objectContaining({ category: 'ok' }),
+    ]);
+    expect(find(buildConfigDoctorReport(base), 'Credenciales WSFEX')).toEqual([]);
+  }, 10_000);
+
+  it('con los datos del emisor completos el PDF está ok, aunque pdf no sea siempre', () => {
+    const report = buildConfigDoctorReport({
+      ...base,
+      cuit: '20333333334',
+      emisor: { domicilio: 'Calle 123', inicioActividades: '2020-03-01', razonSocial: 'Ana' },
+    });
+
+    expect(find(report, 'PDF')).toEqual([expect.objectContaining({ category: 'ok' })]);
   });
 });

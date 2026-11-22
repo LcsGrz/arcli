@@ -1,0 +1,13 @@
+$ arcli fc -m 1000 --cs --cfinal --emitir --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "TRANSIENT_ERROR",
+  "detalles": null,
+  "error": "ns1:coe.alreadyAuthenticated",
+  "sugerencia": "ARCA todavía tiene abierta una sesión anterior. Esperá un par de minutos y probá de nuevo, con los mismos datos."
+}
+

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { INextVoucher } from '../../../services/arca/arca-sdk.types';
 import type { BillingExecutionResult } from '../../billing/billing.types.internal';
-import { getVoucherKindByShortcut } from '../../billing/voucher-kind-map';
+import { getVoucherKindByShortcut, VOUCHER_KIND_MAP } from '../../billing/voucher-kind-map';
 import { PdfError } from '../pdf.errors';
 import { mapBillingResultToPdfData } from '../pdf-data.mapper';
 import { canHavePdf, planEmissionConfirmation, resolvePdfAfterConfirmation, resolvePdfDecision } from '../pdf-decision';
@@ -267,6 +267,24 @@ describe('mapBillingResultToPdfData', () => {
 
     expect(data).toMatchObject({ cbteDescripcion: 'RECIBO', cbteLetra: 'C', cbteTipo: 15, importeIva: 0 });
     expect(data.iva).toBeUndefined();
+  });
+
+  it('titles a recibo A with its IVA (type 4) and a recibo B (type 9)', () => {
+    const ra = mapBillingResultToPdfData(
+      createResult('ra', {
+        ImpIVA: 210,
+        ImpNeto: 1000,
+        ImpTotal: 1210,
+        Iva: [{ BaseImp: 1000, Id: 5, Importe: 210 }],
+      }),
+      issuer,
+    );
+    const rb = mapBillingResultToPdfData(createResult('rb', { ImpIVA: 210, ImpNeto: 1000, ImpTotal: 1210 }), issuer);
+
+    expect(ra).toMatchObject({ cbteDescripcion: 'RECIBO', cbteLetra: 'A', cbteTipo: 4, importeIva: 210 });
+    expect(ra.iva).toHaveLength(1);
+    expect(rb).toMatchObject({ cbteDescripcion: 'RECIBO', cbteLetra: 'B', cbteTipo: 9 });
+    expect(buildPdfFileName(VOUCHER_KIND_MAP.ra, 3, 4)).toBe('recibo-a_0003-00000004.pdf');
   });
 
   it('prints a known sale condition by its name, and a free text as is', () => {

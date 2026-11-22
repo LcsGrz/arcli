@@ -1,0 +1,23 @@
+---
+/**
+ * El contenido de cada página, como el de Starlight, con el comportamiento de lo que arma `scripts/sync-docs.mjs`:
+ * pestañas, "Ver las N", el buscador de problemas, abrir lo plegado por link y las tablas que se desplazan
+ * (`lib/docs/`).
+ */
+import Default from '@astrojs/starlight/components/MarkdownContent.astro';
+---
+
+<Default><slot /></Default>
+
+<script>
+  import { initOpenTarget, initShowMore } from '../lib/docs/details';
+  import { initProblemSearch } from '../lib/docs/problems';
+  import { initScrollableTables } from '../lib/docs/scroll';
+  import { initTabs } from '../lib/docs/tabs';
+
+  initShowMore();
+  initProblemSearch();
+  initTabs();
+  initOpenTarget();
+  initScrollableTables();
+</script>

@@ -1,0 +1,13 @@
+$ arcli padron 30709965812 --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "PADRON_SERVICE_NOT_AUTHORIZED",
+  "detalles": null,
+  "error": "El certificado no está autorizado para el servicio ws_sr_constancia_inscripcion (padrón). Autorizalo igual que wsfe: en testing desde WSASS (\"Crear autorizacion a servicio\") y en producción desde el Administrador de Relaciones.",
+  "sugerencia": null
+}
+

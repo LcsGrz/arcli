@@ -1,10 +1,13 @@
 import Big from 'big.js';
 
+import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
+import { assertRules } from '../../lib/rules/rules';
 import type { IIva } from '../../services/arca/arca-sdk.types';
 
 import { ivaRateFactor, ivaRateFromId, ivaRateId } from './arca-codes';
 import { formatVoucherSubject } from './billing.mappers';
+import { EXEMPT_UNTAXED_WITHIN_TOTAL_RULE } from './billing.rules';
 import type { BillingCommandInput, BillingIvaRate } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
 
@@ -45,7 +48,8 @@ function validateLetterCAmounts(input: TaxAmountsInput, voucherKind: VoucherKind
 
 /**
  * Reparte el total entre no gravado, exento, neto gravado e IVA.
- * ImpTotal = ImpTotConc + ImpOpEx + ImpNeto + ImpIVA (10048); la C no informa IVA (10071).
+ * ImpTotal = ImpTotConc + ImpOpEx + ImpNeto + ImpIVA (10048); la C no informa IVA (10071) ni exento o no gravado
+ * (10043, 10044). Codigos de WSFEv1 v4.7.
  */
 export function resolveTaxAmounts(input: TaxAmountsInput, voucherKind: VoucherKindDefinition): TaxAmounts {
   if (voucherKind.letter === 'c') {
@@ -59,13 +63,12 @@ export function resolveTaxAmounts(input: TaxAmountsInput, voucherKind: VoucherKi
     };
   }
 
+  // La misma regla que el asistente al preguntar el exento y el no gravado.
+  assertRules([EXEMPT_UNTAXED_WITHIN_TOTAL_RULE], input, { today: formatDateAsArcaDate(new Date()), voucherKind });
+
   const exemptAmount = input.exemptAmount ?? 0;
   const untaxedAmount = input.untaxedAmount ?? 0;
   const taxedTotal = new Big(input.totalAmount).minus(exemptAmount).minus(untaxedAmount);
-
-  if (taxedTotal.lt(0)) {
-    throw new InputValidationError('El importe exento más el no gravado no puede superar el monto total.');
-  }
 
   if (taxedTotal.eq(0)) {
     return { exemptAmount, ivaAmount: 0, netAmount: 0, untaxedAmount };

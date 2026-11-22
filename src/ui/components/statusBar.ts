@@ -1,6 +1,6 @@
 import { uiSymbol, usesAsciiBorders } from '../primitives/symbols';
 import { fitToTerminal } from '../primitives/terminalWidth';
-import { colorize, stripAnsi, type UiTextColor } from '../primitives/text';
+import { colorize, type UiTextColor, visibleWidth } from '../primitives/text';
 import { UI_THEME } from '../theme/theme';
 
 /** Ancho de la barra de estado: el preset `wide`, o menos si la terminal es mas angosta. */
@@ -15,7 +15,7 @@ export interface StatusBarSegment {
 }
 
 /** Como se separan los datos de un lado: con ` · ` o con un tramo de la misma linea de la barra (` ━ `). */
-export type StatusBarSeparator = 'dot' | 'rule';
+type StatusBarSeparator = 'dot' | 'rule';
 
 export interface StatusBarOptions {
   readonly leftSeparator?: StatusBarSeparator;
@@ -45,11 +45,11 @@ export function statusBar(
     [
       colorize(fill.repeat(2), 'muted'),
       start,
-      colorize(fill.repeat(Math.max(2, width - (4 + stripAnsi(start).length + stripAnsi(end).length))), 'muted'),
+      colorize(fill.repeat(Math.max(2, width - (4 + visibleWidth(start) + visibleWidth(end)))), 'muted'),
       end,
       colorize(fill.repeat(2), 'muted'),
     ].join('');
-  const fits = 4 + stripAnsi(leftText).length + stripAnsi(rightText).length + 2 <= width;
+  const fits = 4 + visibleWidth(leftText) + visibleWidth(rightText) + 2 <= width;
 
   // Sin lugar para los dos lados, una linea por lado: recortar podria esconder el entorno.
   return fits ? line(leftText, rightText) : `${line(leftText, '')}\n${line(rightText, '')}`;

@@ -1,0 +1,142 @@
+? [lista] ¿Qué comprobante querés emitir?
+  arranca en: (ninguna)
+  · Factura C — La emiten monotributistas y exentos
+  · Factura B — De responsable inscripto a consumidor final, exento u otros
+  · Factura A — Entre responsables inscriptos, o de RI a monotributista
+  · Factura de crédito electrónica C — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Factura de crédito electrónica B — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Factura de crédito electrónica A — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Factura de exportación E — A un cliente del exterior: servicios o bienes
+  = Factura C
+
+? [lista] ¿A quién le facturás?
+  arranca en: (ninguna)
+  · Consumidor final
+  · Con CUIT
+  · Con DNI
+  · Con CUIL
+  = Consumidor final
+
+? [lista] ¿Qué estás facturando?
+  arranca en: (ninguna)
+  · Servicios
+  · Productos
+  · Productos y servicios
+  = Servicios
+
+? [texto] Monto total:
+  = "10.000.000"
+
+== pantalla ==
+┌                                                                                          ┐
+
+               Desde $ 10.000.000, ARCA pide los datos del consumidor final.
+
+└                                                                                          ┘
+
+? [lista] Documento del consumidor final:
+  arranca en: (ninguna)
+  · DNI
+  · CUIT
+  · CUIL
+  = ← Volver
+
+? [texto] Monto total:
+  arranca escrito: "10000000"
+  = "12.000.000"
+
+== pantalla ==
+┌                                                                                          ┐
+
+               Desde $ 10.000.000, ARCA pide los datos del consumidor final.
+
+└                                                                                          ┘
+
+? [lista] Documento del consumidor final:
+  arranca en: (ninguna)
+  · DNI
+  · CUIT
+  · CUIL
+  = CUIL
+
+? [texto] CUIL del consumidor final:
+  = "20-30123456-3"
+
+? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
+  [ ] Fecha del comprobante — hoy
+  [ ] Moneda extranjera — pesos
+  [ ] Período del servicio — hoy
+  [ ] Vencimiento del pago — por defecto
+  = (nada marcado)
+
+== pantalla ==
+┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐
+╎                                                                                          ╎
+╎       Estás en TESTING: los comprobantes son de prueba y no tienen validez fiscal.       ╎
+╎                                                                                          ╎
+└╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘
+
+            ╒═══════════════════════════ FACTURA C ════════════════════════════╕
+            │                                                                  │
+            │  Concepto                         Servicios                      │
+            │  Punto de venta                   3                              │
+            │  Fecha del comprobante            18/11/2026                     │
+            │  Tipo de documento                CUIL                           │
+            │  Número de documento              20-30123456-3                  │
+            │  IVA receptor                     Consumidor final               │
+            │  Moneda                           Pesos argentinos (ARS)         │
+            │  Importe neto                     $ 12.000.000                   │
+            │  Importe total                    $ 12.000.000                   │
+            │  Servicio desde                   18/11/2026                     │
+            │  Servicio hasta                   18/11/2026                     │
+            │  Vencimiento del pago             18/11/2026                     │
+            │                                                                  │
+            ├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
+            │                                                                  │
+            │                            SIN EMITIR                            │
+            │                                                                  │
+            ╘══════════════════════════════════════════════════════════════════╛
+
+== comando equivalente ==
+arcli fc -m 12000000 --cs --cuil 20301234563 --ir-cf --testing --emitir
+
+== pantalla ==
+▎ Esto equivale a:
+▎ arcli fc -m 12000000 --cs --cuil 20301234563 --ir-cf --testing --emitir
+
+? [lista] ¿Emitimos la factura C en testing?
+  arranca en: Sí, emitir ahora
+  > Sí, emitir ahora
+  · Sí, emitir y generar el PDF
+  · No, dejar sin emitir
+  = No, dejar sin emitir
+
+== pantalla ==
+┌                                                                                          ┐
+
+                                     No se emitió nada.
+
+└                                                                                          ┘
+
+== solicitud a ARCA (FECAESolicitar, sin el numero) ==
+{
+  "CantReg": 1,
+  "CbteFch": "20261118",
+  "CbteTipo": 11,
+  "Concepto": 2,
+  "CondicionIVAReceptorId": 5,
+  "DocNro": 20301234563,
+  "DocTipo": 86,
+  "FchServDesde": "20261118",
+  "FchServHasta": "20261118",
+  "FchVtoPago": "20261118",
+  "ImpIVA": 0,
+  "ImpNeto": 12000000,
+  "ImpOpEx": 0,
+  "ImpTotal": 12000000,
+  "ImpTotConc": 0,
+  "ImpTrib": 0,
+  "MonCotiz": 1,
+  "MonId": "PES",
+  "PtoVta": 3
+}

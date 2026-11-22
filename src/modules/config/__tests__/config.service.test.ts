@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ZodError } from 'zod';
 
 import { ConfigurationError } from '../../../lib/errors/app-error';
+import { formatConfig } from '../config.presenter';
 import { resolveRowsPerList, ROWS_PER_LIST_DEPRECATION_WARNING } from '../config.schemas';
 import { ConfigService, deprecatedConfigKeyWarning, resolveConfigDirectory } from '../config.service';
 
@@ -98,6 +99,43 @@ describe('config.service', () => {
     }
   });
 
+  it('says a saved CBU with a wrong check digit comes from the config, why, and how to change it', () => {
+    const service = createService();
+
+    try {
+      writeFileSync(service.getPath(), JSON.stringify({ cbu: '0110599520000012345677', puntoVentaPorDefecto: 3 }));
+
+      expect(() => service.getConfig()).toThrow(
+        expect.objectContaining({
+          code: 'INPUT_VALIDATION_ERROR',
+          issues: [
+            {
+              label: 'CBU',
+              mensaje: 'No coincide el dígito verificador del bloque de la cuenta (los últimos 14 dígitos).',
+              ruta: ['cbu'],
+            },
+          ],
+          message:
+            'El CBU guardado en la config no es válido: no coincide el dígito verificador del bloque de la cuenta (los últimos 14 dígitos).',
+          suggestion: expect.stringContaining('`arcli config establecer cbu <CBU>`'),
+        }),
+      );
+      expect(service.setValue('cbu', '0110599520000012345678').cbu).toBe('0110599520000012345678');
+      expect(service.getConfig().puntoVentaPorDefecto).toBe(3);
+
+      writeFileSync(service.getPath(), JSON.stringify({ cbu: '0110599420000012345678' }));
+
+      expect(() => service.getConfig()).toThrow(
+        expect.objectContaining({
+          issues: [expect.objectContaining({ mensaje: expect.stringMatching(/banco y sucursal/) })],
+        }),
+      );
+      expect(service.unsetValue('cbu').cbu).toBeUndefined();
+    } finally {
+      service.close();
+    }
+  });
+
   it('fixes a config that was already broken by setting or deleting the bad key', () => {
     const service = createService();
 
@@ -123,6 +161,22 @@ describe('config.service', () => {
 
       expect(service.getConfig().output.emitirPorDefecto).toBe(true);
       expect(service.unsetValue('emitir').output.emitirPorDefecto).toBe(false);
+    } finally {
+      service.close();
+    }
+  });
+
+  it('guarda monotributo.tope como importe en pesos y lo valida', () => {
+    const service = createService();
+
+    try {
+      expect(service.setValue('monotributo.tope', '30.000.000').monotributo?.tope).toBe(30_000_000);
+      expect(service.setValue('monotributo.tope', '1.234,50').monotributo?.tope).toBe(1234.5);
+      expect(() => service.setValue('monotributo.tope', '0')).toThrow(
+        '`monotributo.tope` no acepta "0": tiene que ser un importe en pesos mayor a cero, por ejemplo 30.000.000.',
+      );
+      expect(() => service.setValue('monotributo.tope', 'mucho')).toThrow('no acepta "mucho"');
+      expect(service.unsetValue('monotributo.tope').monotributo?.tope).toBeUndefined();
     } finally {
       service.close();
     }
@@ -371,6 +425,120 @@ describe('filasPorLista y la clave deprecada comprobantesPorLista', () => {
   });
 });
 
+describe('config escrita por una versión anterior', () => {
+  /**
+   * Un config.json como lo dejaba la 2.0: los nombres guardados (`puntoVentaPorDefecto`, `output.emitirPorDefecto`…)
+   * no son las claves públicas, todavía no existían `output.brutoPorDefecto` ni `filasPorLista`, y tiene la
+   * `cotizacion` deprecada con un valor propio y `comprobantesPorLista`.
+   */
+  const OLD_CONFIG = {
+    alicuotaPorDefecto: '21',
+    cbu: '0110599520000012345678',
+    comprobantesPorLista: 8,
+    conceptoPorDefecto: 'servicios',
+    cotizacionPorDefecto: 1350.5,
+    cuit: '20123456786',
+    entornoPorDefecto: 'produccion',
+    ivaReceptorPorDefecto: 'consumidor-final',
+    monedaPorDefecto: 'dol',
+    output: { emitirPorDefecto: true, jsonPorDefecto: false },
+    puntoVentaPorDefecto: 3,
+  };
+
+  function serviceWithOldConfig(): ConfigService {
+    const service = createService();
+
+    writeFileSync(service.getPath(), JSON.stringify(OLD_CONFIG));
+
+    return service;
+  }
+
+  it('se lee con los defaults de las claves nuevas', () => {
+    const service = serviceWithOldConfig();
+
+    try {
+      const config = service.getConfig();
+
+      expect(config).toMatchObject({
+        alicuotaPorDefecto: '21',
+        cotizacionPorDefecto: 1350.5,
+        entornoPorDefecto: 'produccion',
+        monedaPorDefecto: 'DOL',
+        output: { brutoPorDefecto: false, emitirPorDefecto: true, jsonPorDefecto: false },
+        puntoVentaPorDefecto: 3,
+      });
+      expect(resolveRowsPerList(config)).toBe(8);
+    } finally {
+      service.close();
+    }
+  });
+
+  it('config --json la muestra con las claves públicas actuales', () => {
+    const service = serviceWithOldConfig();
+
+    try {
+      const config = service.getConfig();
+      const snapshot = JSON.parse(formatConfig(config, service.resolvePaths(config))) as Record<string, unknown>;
+
+      expect(snapshot).toMatchObject({
+        alicuota: '21',
+        bruto: false,
+        comprobantesPorLista: 8,
+        concepto: 'servicios',
+        cotizacion: 1350.5,
+        emitir: true,
+        entorno: 'produccion',
+        filasPorLista: 8,
+        ivaReceptor: 'consumidor-final',
+        moneda: 'DOL',
+        puntoVenta: 3,
+      });
+    } finally {
+      service.close();
+    }
+  });
+
+  it('establecer y eliminar por la clave pública tocan el nombre guardado y dejan el resto', () => {
+    const service = serviceWithOldConfig();
+
+    try {
+      expect(service.setValue('cotizacion', '1400').cotizacionPorDefecto).toBe(1400);
+      expect(service.setValue('puntoVenta', '5').puntoVentaPorDefecto).toBe(5);
+
+      service.unsetValue('cotizacion');
+
+      // Eliminar vuelve al default (1), que es "sin cotización propia": la factura usa la oficial de ARCA.
+      const config = service.getConfig();
+
+      expect(config.cotizacionPorDefecto).toBe(1);
+      expect(config).toMatchObject({ comprobantesPorLista: 8, cuit: '20123456786', puntoVentaPorDefecto: 5 });
+
+      const stored = JSON.parse(readFileSync(service.getPath(), 'utf8')) as Record<string, unknown>;
+
+      expect(stored).not.toHaveProperty('cotizacion');
+      expect(stored).not.toHaveProperty('puntoVenta');
+    } finally {
+      service.close();
+    }
+  });
+
+  it('initialize no pisa los valores viejos con los defaults', () => {
+    const service = serviceWithOldConfig();
+
+    try {
+      service.initialize();
+
+      expect(JSON.parse(readFileSync(service.getPath(), 'utf8'))).toMatchObject({
+        comprobantesPorLista: 8,
+        cotizacionPorDefecto: 1350.5,
+        output: { brutoPorDefecto: false, emitirPorDefecto: true },
+      });
+    } finally {
+      service.close();
+    }
+  });
+});
+
 describe('ARCLI_CONFIG_DIR', () => {
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -392,6 +560,7 @@ describe('ARCLI_CONFIG_DIR', () => {
     }
   });
 
+  // Solo resuelve: sin cwd, un ConfigService con la variable vacia apuntaria a la config real.
   it('vacia o sin definir, usa la carpeta de siempre', () => {
     vi.stubEnv('ARCLI_CONFIG_DIR', '  ');
 

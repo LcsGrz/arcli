@@ -1,18 +1,27 @@
 import { formatDateAsArcaDate, parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
+import { assertRules } from '../../lib/rules/rules';
 import type { ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
 import type { ICbtesAsoc, IIva, INextVoucher } from '../../services/arca/arca-sdk.types';
 import { evaluateFceObligation, type FceObligationGateway, shouldCheckFceObligation } from '../fce/fce-obligation';
 import type { PadronGateway } from '../padron/padron';
 
+import { CONSUMER_DOCUMENT_NUMBER } from './arca-codes';
 import { resolveTaxAmounts, sumTaxAmounts } from './billing.amounts';
 import { resolveAssociatedPeriod } from './billing.associated-period';
 import { resolveAssociatedVouchers } from './billing.associated-vouchers';
-import { isForeignCurrency, needsOfficialExchangeRate, resolveBillingCurrencyFields } from './billing.currency';
+import {
+  assertCurrencyInTable,
+  isForeignCurrency,
+  needsOfficialExchangeRate,
+  resolveBillingCurrencyFields,
+  resolveSameCurrencyQuotationDate,
+  validateExchangeRateRange,
+} from './billing.currency';
 import { resolveBillingDateRange } from './billing.date-range';
 import { EmissionUncertainError } from './billing.errors';
 import { resolveElectronicCreditOptionals } from './billing.fce';
-import { validateConsumerIdentification, validateIvaConditionForVoucher } from './billing.iva-receptor';
+import { validateIvaConditionForVoucher } from './billing.iva-receptor';
 import {
   formatVoucherSubject,
   resolveBillingConceptCode,
@@ -21,11 +30,13 @@ import {
   resolveBillingIvaConditionCode,
 } from './billing.mappers';
 import { type PadronResolution, resolveIvaConditionFromPadron } from './billing.padron';
-import type { BillingCommandInput } from './billing.schemas';
+import { CONSUMER_IDENTIFICATION_THRESHOLD_RULE } from './billing.rules';
+import { type BillingCommandInput, describePointOfSaleOutOfRange, MAX_WSFE_POINT_OF_SALE } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
 import type { BillingExecutionResult, BillingGateway } from './billing.types.internal';
-import { validateDocumentIdentity } from './billing.validation';
+import { validateDocumentIdentity, validateUncategorizedReceiver } from './billing.validation';
 import { createDryRunResponse, mapBillingResponse } from './billing-response';
+import { findArcaCurrency } from './currency-codes';
 import { getVoucherKindByShortcut } from './voucher-kind-map';
 
 export interface BillingExecutionOptions {
@@ -41,25 +52,101 @@ interface CliVoucherPayload extends Omit<INextVoucher, 'CbtesAsoc' | 'DocNro'> {
   Iva?: IIva[];
 }
 
+type ExchangeRateInput = Pick<
+  BillingCommandInput,
+  'billingDate' | 'currencyCode' | 'exchangeRate' | 'exchangeRateSource' | 'sameCurrency'
+>;
+
 export class BillingService {
   /**
    * Completa la cotizacion oficial en moneda extranjera sin --cm: con --misma-moneda es obligatoria y sin ella es el
    * default. Se resuelve antes de la vista previa para que el preview muestre el valor que se va a enviar.
    */
-  public async resolveExchangeRate(
+  /**
+   * Una moneda que ARCLI no conoce se busca en la tabla de WSFEv1 antes de pedir su cotizacion: si no esta, es error
+   * de entrada (10037). Las de `ARCA_CURRENCIES` no se consultan. Si la tabla no se puede leer, sigue: decide ARCA.
+   */
+  public async assertKnownCurrency(
     input: BillingCommandInput,
+    gateway: Pick<BillingGateway, 'getCurrencyCodes'>,
+  ): Promise<void> {
+    const arcaCode = resolveBillingCurrencyCode(input.currencyCode);
+
+    if (!gateway.getCurrencyCodes || !isForeignCurrency(input) || findArcaCurrency(arcaCode)) {
+      return;
+    }
+
+    let table: readonly string[];
+
+    try {
+      table = await gateway.getCurrencyCodes();
+    } catch {
+      return;
+    }
+
+    assertCurrencyInTable({ arcaCode, requested: input.currencyCode, service: 'wsfe', table });
+  }
+
+  /** Completa la cotizacion oficial de ARCA si hace falta. Tambien la usa el asistente, con solo los datos de moneda. */
+  public async resolveExchangeRate<I extends ExchangeRateInput>(
+    input: I,
     gateway: Pick<BillingGateway, 'getQuotation'>,
-  ): Promise<BillingCommandInput> {
+  ): Promise<I> {
     if (!needsOfficialExchangeRate(input)) {
       return input;
     }
 
+    // Con --misma-moneda y una fecha pasada, ARCA exige la del dia habil anterior a esa fecha (10038).
+    const quotationDate = input.sameCurrency
+      ? resolveSameCurrencyQuotationDate(
+          input.billingDate ? parseArgentineDateInputAsArcaDate(input.billingDate) : formatDateAsArcaDate(new Date()),
+          formatDateAsArcaDate(new Date()),
+        )
+      : undefined;
+    const currencyCode = resolveBillingCurrencyCode(input.currencyCode);
+
     return {
       ...input,
-      exchangeRate: await gateway.getQuotation(resolveBillingCurrencyCode(input.currencyCode)),
+      exchangeRate: quotationDate
+        ? await gateway.getQuotation(currencyCode, quotationDate)
+        : await gateway.getQuotation(currencyCode),
       // Con --misma-moneda la oficial es obligatoria, no un default: no hace falta avisar.
       exchangeRateSource: input.sameCurrency ? undefined : 'arca',
     };
+  }
+
+  /**
+   * Compara la cotizacion que paso el usuario (`--cm`, el JSON o la config) con la oficial de ARCA y frena si esta
+   * fuera del rango de la 10119. Si la consulta falla devuelve el aviso y sigue: ARCA decide al emitir.
+   */
+  public async checkExchangeRateRange(
+    input: BillingCommandInput,
+    gateway: Pick<BillingGateway, 'getQuotation'>,
+  ): Promise<string[]> {
+    if (
+      !isForeignCurrency(input) ||
+      input.sameCurrency ||
+      input.exchangeRateSource === 'arca' ||
+      typeof input.exchangeRate !== 'number'
+    ) {
+      return [];
+    }
+
+    let official: number;
+
+    try {
+      official = await gateway.getQuotation(resolveBillingCurrencyCode(input.currencyCode));
+    } catch (error) {
+      const reason = error instanceof Error ? error.message.replace(/\.$/, '') : 'error desconocido';
+
+      return [
+        `No se pudo comparar la cotización con la oficial de ARCA: ${reason}. ARCA la rechaza si no está entre el 2 % y el 500 % de la oficial (error 10119).`,
+      ];
+    }
+
+    validateExchangeRateRange(input, official);
+
+    return [];
   }
 
   public async resolveIvaConditionFromPadron(
@@ -176,6 +263,11 @@ export class BillingService {
       );
     }
 
+    // El de `--pv` lo frena la entrada; el de la config, aca.
+    if (pointOfSale > MAX_WSFE_POINT_OF_SALE) {
+      throw new InputValidationError(describePointOfSaleOutOfRange('El punto de venta', pointOfSale, 10004));
+    }
+
     const dateRange = resolveBillingDateRange(input, voucherKind);
     const concept = resolveBillingConceptCode(input.concept);
     const documentType = resolveBillingDocumentTypeCode(input.documentType);
@@ -187,12 +279,18 @@ export class BillingService {
       requireVoucherKind: (shortcut) => this.requireVoucherKind(shortcut),
       voucherKind,
     });
-    const currencyFields = resolveBillingCurrencyFields(input, dateRange.billingDate, formatDateAsArcaDate(new Date()));
+    const currencyFields = resolveBillingCurrencyFields(input);
     const taxAmounts = resolveTaxAmounts(input, voucherKind);
 
-    validateDocumentIdentity(input, voucherKind);
+    validateDocumentIdentity(input, voucherKind, runtime.context.cuit);
+    validateUncategorizedReceiver(input, voucherKind, taxAmounts.netAmount + taxAmounts.ivaAmount);
     validateIvaConditionForVoucher(input.ivaCondition, voucherKind);
-    validateConsumerIdentification(input, currencyFields.MonCotiz, voucherKind);
+    // RG 5700/2025, con la cotizacion ya resuelta: la misma regla que el asistente.
+    assertRules([CONSUMER_IDENTIFICATION_THRESHOLD_RULE], input, {
+      exchangeRate: currencyFields.MonCotiz,
+      today: formatDateAsArcaDate(new Date()),
+      voucherKind,
+    });
 
     const payload: CliVoucherPayload = {
       CantReg: 1,
@@ -223,7 +321,11 @@ export class BillingService {
       payload.Iva = taxAmounts.iva;
     }
 
-    if (typeof input.documentNumber === 'number') {
+    // Consumidor final va siempre con 0, se haya pasado `--cf` o no (REV-63): sin `DocNro`, la solicitud y la vista
+    // previa quedaban distintas a las de `--cf`. La validacion ya frena otro numero.
+    if (input.documentType === 'consumidor-final') {
+      payload.DocNro = CONSUMER_DOCUMENT_NUMBER;
+    } else if (typeof input.documentNumber === 'number') {
       payload.DocNro = input.documentNumber;
     }
 

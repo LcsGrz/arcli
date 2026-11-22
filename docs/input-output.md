@@ -56,6 +56,7 @@ Cada objeto se valida contra esta lista antes de mezclarlo con los flags y la co
 
 - **Una clave que no está en las tablas es un error** (`INPUT_VALIDATION_ERROR`) que la nombra y, si se parece a una válida o a un flag, sugiere la correcta: `"montototal"` → `montoTotal`, `"vencimiento"` → `vencimientoPago`, `"moneda"` → `codigoMoneda`. Vale también dentro de `comprobanteAsociado`, `periodoAsociado` y cada ítem de `alicuotas`.
 - **Un tipo incorrecto es un error**, no se descarta: `"puntoVenta": "3"` falla con "tiene que ser un número". Los números van sin comillas y los booleanos son `true` o `false`, no `"true"`. `null` tampoco vale (salvo en `condicionVenta`, donde omite el valor de la config): para no informar un campo, omití la clave. La única clave que acepta texto o número es la tasa de IVA (`alicuotaIva` y `tasa` en `alicuotas`).
+- **Las claves de fecha aceptan fechas relativas**, con las mismas reglas que sus flags: `hoy`, `ayer`, `+N` y `-N` (N días desde hoy) en `fechaComprobante`, `vencimientoPago`, `servicioDesde`, `servicioHasta`, `comprobanteAsociado.fecha` y `periodoAsociado`; `mes-actual` y `mes-pasado` solo en `servicioDesde`/`servicioHasta` y `periodoAsociado.desde`/`hasta`, donde dan el día 1 del mes en desde y el último día en hasta (`{"servicioDesde": "mes-pasado", "servicioHasta": "mes-pasado", "vencimientoPago": "+10"}`). La salida muestra la fecha resuelta. Detalle en [Fechas relativas](validation-rules.md#fechas-relativas).
 - En un lote, cada ítem se valida por separado y el error sale en `BATCH_VALIDATION_ERROR` con su índice (ver [abajo](#validación-y-errores-del-lote)). Un array vacío también es error.
 - Los avisos de `avisos` nombran la clave del JSON cuando el dato vino de `--cargar`, y el flag cuando vino de un flag: por ejemplo, `"descripcion"` o `"receptorNombre"` sin PDF, `"dia"` (deprecada) o `"descripcion"` con `"items"` en la `E`.
 
@@ -182,7 +183,7 @@ La factura `E` (`arcli fe` o `arcli factura e`) y sus notas de crédito y débit
 | `paisDestino`                               | string \| number  | sí        | Código de ARCA o nombre del país (`203`, `"Brasil"`)                                                                                                               |
 | `montoTotal`                                | number            | sí        | Total del comprobante, igual que en A, B y C. `monto` sigue andando, con un aviso, hasta la 3.0.0; las dos juntas son un error. Tiene que dar la suma de los ítems |
 | `numero`                                    | number            | no        | Por defecto, el siguiente al último de ese tipo en el punto de venta, que ARCLI consulta en WSFEX                                                                  |
-| `actividad`                                 | number            | sí\*      | Código de la tabla de actividades de WSFEX. \*Si falta, sale de `exportacion.actividad`                                                                            |
+| `actividad`                                 | number            | no        | Código de la tabla de actividades de WSFEX. Si falta, sale de `exportacion.actividad`; sin ninguna, la `E` va sin actividad                                        |
 | `items`                                     | array             | no        | Renglones (ver abajo). Sin ítems va uno solo con `descripcion` por el total                                                                                        |
 | `idImpositivo`                              | string            | no        | ID impositivo del cliente en su país                                                                                                                               |
 | `cuitPais`                                  | number            | no        | CUIT del país del cliente; si falta sale de la tabla de ARCA, y si la tabla no trae el destino va solo `idImpositivo` (1580)                                       |
@@ -193,7 +194,7 @@ La factura `E` (`arcli fe` o `arcli factura e`) y sus notas de crédito y débit
 | `permisos`, `permisoExistente`              | string[], boolean | no        | IDs de permiso de embarque y si ya están informados en ARCA; solo con `tipoExpo: 1`                                                                                |
 | `idSolicitud`                               | number            | no        | ID de la solicitud; si falta se pide a WSFEX                                                                                                                       |
 | `puntoVenta`                                | number            | no        | Por defecto, el de la config                                                                                                                                       |
-| `fechaComprobante`, `fechaPago`             | string            | no        | Formato argentino: `27/10/2026`, `27-10-26` o solo día y mes. `fechaPago` no va en bienes (`tipoExpo: 1`): se ignora con un aviso                                  |
+| `fechaComprobante`, `fechaPago`             | string            | no        | Formato argentino: `27/10/2026`, `27-10-26` o solo día y mes, o `hoy`, `ayer`, `+N`, `-N`. `fechaPago` no va en bienes (`tipoExpo: 1`): se ignora con un aviso     |
 | `codigoMoneda`, `cotizacionMoneda`          | string, number    | no        | `USD` viaja como `DOL` (por defecto); sin cotización se usa la de aduana que publica ARCA                                                                          |
 | `mismaMoneda`                               | boolean           | no        | Pago en la misma moneda extranjera (`CanMisMonExt` en `S`). No cambia la cotización: sale de `cotizacionMoneda` o, sin ella, de la de aduana                       |
 | `observaciones`, `observacionesComerciales` | string            | no        | Van a `Obs` y `Obs_comerciales`                                                                                                                                    |
@@ -293,7 +294,8 @@ Es el mismo resumen que A, B y C (`atajo`, `cae`, `estado`, `errores`, `observac
     ],
     "mismaMoneda": false,
     "permisos": [],
-    "tipoExpo": 2
+    "tipoExpo": 2,
+    "verificacionPermisos": []
   },
   "solicitud": { "Cbte_Tipo": 19, "Imp_total": 1500 },
   "tipoArca": 19
@@ -317,11 +319,13 @@ Es el mismo resumen que A, B y C (`atajo`, `cae`, `estado`, `errores`, `observac
 
 En las notas, `solicitud` lleva `Cmps_asoc` con el asociado y `Permiso_existente` vacío (con `Permisos` solo si la nota de bienes los informa), y no lleva `Fecha_pago` ni `CanMisMonExt`. La factura de bienes (`tipoExpo: 1`) tampoco lleva `Fecha_pago`: ARCA la rechaza (error 1673). La factura en pesos (`PES`) no lleva `CanMisMonExt`: ARCA pide que no se informe (error 1605). Si la tabla de ARCA no trae CUIT para el destino y no se pasa `--cuit-pais`, `solicitud` no lleva `Cuit_pais_cliente` y `exportacion.cuitPaisCliente` es `null`: la `E` va solo con el ID impositivo (error 1580).
 
-`exportacion.destino.nombre`, `exportacion.incotermDescripcion` y `exportacion.items[].unidad` salen de las tablas de WSFEX; si la tabla no trae el nombre, quedan en `null` y el código numérico sigue disponible. `exportacion.actividad` lista los códigos de actividad informados en `solicitud.Actividades` (de `--actividad` o de `exportacion.actividad`) y `exportacion.mismaMoneda` indica si el pago se cancela en la misma moneda extranjera (`solicitud.CanMisMonExt` en `S`).
+`exportacion.destino.nombre`, `exportacion.incotermDescripcion` y `exportacion.items[].unidad` salen de las tablas de WSFEX; si la tabla no trae el nombre, quedan en `null` y el código numérico sigue disponible. `exportacion.actividad` lista los códigos de actividad informados en `solicitud.Actividades` (de `--actividad` o de `exportacion.actividad`); sin actividad, `solicitud` no trae `Actividades` y la lista va vacía y `exportacion.mismaMoneda` indica si el pago se cancela en la misma moneda extranjera (`solicitud.CanMisMonExt` en `S`).
 
 Una actividad que no está en la tabla de actividades de WSFEX es `INPUT_VALIDATION_ERROR` antes de ir a ARCA, porque ARCA la rechaza (error 2105). En `arcli factura e`, los flags de A, B y C que se saltean salen en `avisos`. En la factura, `solicitud` no trae `Cmps_asoc` ni `Opcionales`: ARCA rechaza esos bloques vacíos (error 1820 el primero).
 
 `solicitud` no incluye `Permisos` cuando el comprobante no informa permisos de embarque: ARCA rechaza ese campo (error 1720) si `Permiso_existente` es `N`. En las exportaciones de servicios (`tipoExpo: 2`) y otros (`tipoExpo: 4`) ARCA exige ese campo **vacío** (error 1550), así que `solicitud.Permiso_existente` sale `""` y los permisos de embarque no se admiten.
+
+`exportacion.verificacionPermisos` trae lo que contestó ARCA (`FEXCheck_Permiso`) de cada permiso de embarque, consultado antes de la vista previa: `[{ "permiso": "26001EC01000123A", "estado": "valido" }]`. `estado` es `valido` (ARCA contestó `OK`) o `sin-verificar` (la consulta falló o ARCA no contestó ni `OK` ni `NO`; el motivo va en `avisos`). Sin permisos es `[]`. Si ARCA contesta `NO`, el comando termina en `INPUT_VALIDATION_ERROR` con `detalles.permisos` (los permisos que ARCA no reconoce) y no se emite. En testing ARCA contesta `OK` a cualquier permiso: no lo compara con la Aduana.
 
 ## Formato de input: batch
 
@@ -563,7 +567,18 @@ Si no hubo emisión real, `respuesta` no se serializa como `null`. En su lugar:
       "numero": 12,
       "numeroDocumento": 0,
       "resultado": "A",
-      "tipoDocumento": 99
+      "tipoDocumento": 99,
+      "alicuotasIva": [{ "baseImponible": 1000.45, "id": 4, "importe": 105.05 }],
+      "comprobantesAsociados": [],
+      "condicionIvaReceptor": 5,
+      "mismaMoneda": null,
+      "observaciones": [],
+      "opcionales": [],
+      "periodoAsociado": null,
+      "servicioDesde": "20261001",
+      "servicioHasta": "20261031",
+      "tributos": [],
+      "vencimientoPago": "20261011"
     }
   ],
   "entorno": "testing",
@@ -571,16 +586,36 @@ Si no hubo emisión real, `respuesta` no se serializa como `null`. En su lugar:
 }
 ```
 
-`arcli consultar <tipo> <numero> --json` devuelve un solo comprobante, con los mismos campos al primer nivel (sin el array `comprobantes`).
+`arcli consultar <tipo> <numero> --json` devuelve un solo comprobante, con los mismos campos al primer nivel (sin el array `comprobantes`). En una nota, el asociado sale así:
 
-| Campo                     | Tipo             | Descripción                                                           |
-| ------------------------- | ---------------- | --------------------------------------------------------------------- |
-| `fecha`, `caeVencimiento` | `string`         | Formato ARCA `yyyymmdd`                                               |
-| `concepto`                | `number`         | `1` productos, `2` servicios, `3` productos y servicios               |
-| `tipoDocumento`           | `number`         | Código de ARCA: `80` CUIT, `86` CUIL, `96` DNI, `99` consumidor final |
-| `moneda`                  | `string`         | Código de ARCA (`PES`, `DOL`…)                                        |
-| `importes`                | `object`         | `total`, `neto`, `iva`, `exento`, `noGravado` y `tributos`            |
-| `resultado`               | `string \| null` | `A` aprobado, `R` rechazado                                           |
+```json
+{
+  "comprobantesAsociados": [
+    { "atajo": "fb", "cuit": "20111111112", "fecha": "20261001", "numero": 12, "puntoVenta": 3, "tipoArca": 6 }
+  ]
+}
+```
+
+| Campo                            | Tipo              | Descripción                                                                                                                                                         |
+| -------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `fecha`, `caeVencimiento`        | `string`          | Formato ARCA `yyyymmdd`                                                                                                                                             |
+| `concepto`                       | `number`          | `1` productos, `2` servicios, `3` productos y servicios                                                                                                             |
+| `tipoDocumento`                  | `number`          | Código de ARCA: `80` CUIT, `86` CUIL, `96` DNI, `99` consumidor final                                                                                               |
+| `moneda`                         | `string`          | Código de ARCA (`PES`, `DOL`…)                                                                                                                                      |
+| `importes`                       | `object`          | `total`, `neto`, `iva`, `exento`, `noGravado` y `tributos`                                                                                                          |
+| `resultado`                      | `string \| null`  | `A` aprobado, `R` rechazado                                                                                                                                         |
+| `comprobantesAsociados`          | `object[]`        | Los que ajusta una nota: `tipoArca`, `atajo` (`null` si no es de ARCLI), `puntoVenta`, `numero`, `cuit` y `fecha` (`null` si ARCA no los informa); `[]` si no tiene |
+| `periodoAsociado`                | `object \| null`  | `desde` y `hasta` (`yyyymmdd`) de una nota por período, en lugar de un comprobante                                                                                  |
+| `servicioDesde`, `servicioHasta` | `string \| null`  | Período de servicio (`yyyymmdd`), en servicios o productos y servicios                                                                                              |
+| `vencimientoPago`                | `string \| null`  | Vencimiento del pago (`yyyymmdd`)                                                                                                                                   |
+| `mismaMoneda`                    | `boolean \| null` | `true` si se cobra en la misma moneda extranjera (`CanMisMonExt`); `null` si ARCA no lo informa                                                                     |
+| `condicionIvaReceptor`           | `number \| null`  | Código de ARCA de la condición IVA del receptor (`1` responsable inscripto, `5` consumidor final…)                                                                  |
+| `alicuotasIva`                   | `object[]`        | Cada alícuota: `id` (código de ARCA, `5` es 21%), `baseImponible` e `importe`                                                                                       |
+| `tributos`                       | `object[]`        | Cada tributo: `id`, `descripcion`, `baseImponible`, `alicuota` e `importe`                                                                                          |
+| `opcionales`                     | `object[]`        | Datos opcionales con `id` y `valor`: en FCE, `2101` CBU, `2102` alias, `27` transferencia y `22` anulación (`S`/`N`)                                                |
+| `observaciones`                  | `string[]`        | Observaciones de ARCA al autorizarlo                                                                                                                                |
+
+De `comprobantesAsociados` en adelante, las listas salen `[]` y el resto `null` cuando ARCA no los informa. La `E` (`fe`, `nce`, `nde`) tiene su propio formato.
 
 ## Padrón (`padron`)
 
@@ -591,6 +626,8 @@ Si no hubo emisión real, `respuesta` no se serializa como `null`. En su lugar:
   "actividades": [{ "descripcion": "SERVICIOS DE CONSULTORES EN INFORMATICA", "id": 620100 }],
   "avisos": [],
   "categoriaMonotributo": null,
+  "categoriaMonotributoLetra": null,
+  "categoriaMonotributoDesde": null,
   "condicionIva": "responsable-inscripto",
   "cuit": 20201797064,
   "deprecado": ["`cuit` pasa a ser texto en la 3.0.0: leelo como texto para que no te afecte."],
@@ -603,19 +640,32 @@ Si no hubo emisión real, `respuesta` no se serializa como `null`. En su lugar:
 }
 ```
 
-| Campo                  | Tipo                             | Descripción                                                                                                          |
-| ---------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `actividades`          | `{ descripcion, id }[]`          | Actividades, sin repetir; la primera es la principal                                                                 |
-| `avisos`               | `string[]`                       | Observaciones de ARCA sobre la constancia                                                                            |
-| `categoriaMonotributo` | `string \| null`                 | Categoría, si es monotributista                                                                                      |
-| `condicionIva`         | `string \| null`                 | `responsable-inscripto`, `responsable-monotributo` o `sujeto-exento`; `null` si no se puede deducir de los impuestos |
-| `cuit`                 | `number`                         | CUIT consultado                                                                                                      |
-| `domicilio`            | `string \| null`                 | Domicilio fiscal en una línea                                                                                        |
-| `entorno`              | `"testing" \| "produccion"`      | Entorno consultado                                                                                                   |
-| `estadoClave`          | `string \| null`                 | Estado de la clave fiscal según ARCA, por ejemplo `ACTIVO`                                                           |
-| `impuestos`            | `{ activo, descripcion, id }[]`  | Impuestos inscriptos                                                                                                 |
-| `nombre`               | `string \| null`                 | Razón social, o apellido y nombre                                                                                    |
-| `tipoPersona`          | `"fisica" \| "juridica" \| null` | Tipo de persona                                                                                                      |
+| Campo                       | Tipo                             | Descripción                                                                                                            |
+| --------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `actividades`               | `{ descripcion, id }[]`          | Actividades, sin repetir; la primera es la principal                                                                   |
+| `avisos`                    | `string[]`                       | Observaciones de ARCA sobre la constancia                                                                              |
+| `categoriaMonotributo`      | `string \| null`                 | Categoría, si es monotributista                                                                                        |
+| `categoriaMonotributoLetra` | `string \| null`                 | Letra de la categoría (`A` a `K`), sacada de `categoriaMonotributo`; `null` si no es monotributista o no se puede leer |
+| `categoriaMonotributoDesde` | `string \| null`                 | Período desde el que rige la categoría, formato ARCA `yyyymm` (`201309`); `null` si ARCA no lo informa                 |
+| `condicionIva`              | `string \| null`                 | `responsable-inscripto`, `responsable-monotributo` o `sujeto-exento`; `null` si no se puede deducir de los impuestos   |
+| `cuit`                      | `number`                         | CUIT consultado                                                                                                        |
+| `domicilio`                 | `string \| null`                 | Domicilio fiscal en una línea                                                                                          |
+| `entorno`                   | `"testing" \| "produccion"`      | Entorno consultado                                                                                                     |
+| `estadoClave`               | `string \| null`                 | Estado de la clave fiscal según ARCA, por ejemplo `ACTIVO`                                                             |
+| `impuestos`                 | `{ activo, descripcion, id }[]`  | Impuestos inscriptos                                                                                                   |
+| `nombre`                    | `string \| null`                 | Razón social, o apellido y nombre                                                                                      |
+| `tipoPersona`               | `"fisica" \| "juridica" \| null` | Tipo de persona                                                                                                        |
+
+Para un monotributista, la categoría sale así:
+
+```json
+{
+  "categoriaMonotributo": "E VENTAS DE COSAS MUEBLES",
+  "categoriaMonotributoLetra": "E",
+  "categoriaMonotributoDesde": "201309",
+  "condicionIva": "responsable-monotributo"
+}
+```
 
 Si el CUIT no figura, es el error `TAXPAYER_NOT_FOUND` (ver [códigos](#códigos-de-error)).
 
@@ -711,6 +761,56 @@ En testing, `puntos-venta` sale con `valores: []`: ARCA no informa puntos de ven
 
 `moneda` es el código de ARCA (`USD` sale como `DOL`) y `fecha` (`yyyymmdd`) puede ser `null`.
 
+## Categorías del monotributo (`monotributo`)
+
+`arcli monotributo --json` devuelve la tabla de categorías que se usó (no necesita config ni certificado):
+
+```json
+{
+  "vigenteDesde": "20260801",
+  "fuente": "arca",
+  "consultadaEl": "20261118",
+  "url": "https://www.afip.gob.ar/monotributo/categorias.asp",
+  "tuCategoria": "E",
+  "categorias": [
+    {
+      "categoria": "A",
+      "ingresosBrutosHasta": 12009410.45,
+      "superficieHastaM2": 30,
+      "energiaHastaKwh": 3330,
+      "alquileresHasta": 2792886.15,
+      "precioUnitarioMaximo": 716840.77,
+      "impuestoIntegrado": { "servicios": 5585.77, "ventas": 5585.77 },
+      "aporteSipa": 18246.86,
+      "obraSocial": 25694.55,
+      "cuotaMensual": { "servicios": 49527.18, "ventas": 49527.18 }
+    }
+  ],
+  "avisos": []
+}
+```
+
+| Campo                               | Tipo                                 | Descripción                                                                                                     |
+| ----------------------------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| `vigenteDesde`                      | `string`                             | Desde cuándo rigen los valores, formato ARCA `yyyymmdd`                                                         |
+| `fuente`                            | `"arca" \| "guardada" \| "incluida"` | `arca`: leída ahora de la página; `guardada`: la de una consulta anterior; `incluida`: la que viene con ARCLI   |
+| `consultadaEl`                      | `string \| null`                     | Cuándo se leyó de ARCA, `yyyymmdd`; `null` para la incluida                                                     |
+| `url`                               | `string`                             | Página de ARCA de donde sale la tabla                                                                           |
+| `tuCategoria`                       | `string \| null`                     | Letra de la categoría del CUIT de la config según el padrón; `null` si no se pudo consultar o no es monotributo |
+| `categorias[].categoria`            | `string`                             | Letra, de `A` a `K`                                                                                             |
+| `categorias[].ingresosBrutosHasta`  | `number`                             | Tope de ingresos brutos anuales, en pesos                                                                       |
+| `categorias[].superficieHastaM2`    | `number`                             | Superficie afectada máxima, en m²                                                                               |
+| `categorias[].energiaHastaKwh`      | `number`                             | Energía eléctrica consumida por año, en kWh                                                                     |
+| `categorias[].alquileresHasta`      | `number`                             | Alquileres devengados por año, en pesos                                                                         |
+| `categorias[].precioUnitarioMaximo` | `number`                             | Precio unitario máximo, solo para venta de cosas muebles                                                        |
+| `categorias[].impuestoIntegrado`    | `{ servicios, ventas }`              | Impuesto integrado mensual: locaciones y prestaciones de servicios, y venta de cosas muebles                    |
+| `categorias[].aporteSipa`           | `number`                             | Aporte jubilatorio (SIPA) mensual                                                                               |
+| `categorias[].obraSocial`           | `number`                             | Aporte de obra social mensual, por titular (cada adherente suma lo mismo)                                       |
+| `categorias[].cuotaMensual`         | `{ servicios, ventas }`              | Total mensual: impuesto integrado + SIPA + obra social                                                          |
+| `avisos`                            | `string[]`                           | Tabla vieja, sin conexión o página que cambió; los mismos textos que en la salida humana                        |
+
+Los importes son números en pesos. Con `--categoria E`, `categorias` trae solo esa. Sin conexión o si la página no se pudo leer, no es un error: sale la tabla guardada o la incluida, con `fuente` y `avisos` que lo dicen. Una letra fuera de `A` a `K` en `--categoria` es `INPUT_VALIDATION_ERROR`.
+
 ## Configuración (`config` y `config revisar`)
 
 `arcli config --json` (y `config establecer` o `config eliminar` con `--json`, que devuelven la config resultante) muestra la config con las rutas enmascaradas. Las claves sin valor no aparecen:
@@ -738,7 +838,7 @@ En testing, `puntos-venta` sale con `valores: []`: ARCA no informa puntos de ven
 }
 ```
 
-Las claves son las de [configuración](configuration.md), salvo que `cert.*`, `key.*`, `emisor.*` y `exportacion.*` van anidadas en los objetos `cert`, `key`, `emisor` y `exportacion` (vacíos si no hay nada; `exportacion` trae a su vez `cert`, `key` y, si está, `actividad`). `emitir`, `entorno`, `exportacion`, `json`, `bruto`, `pdf`, `pdfCarpeta`, `moneda`, `cotizacion`, `consultarPadron` y `ticketPath` siempre aparecen, con su valor por defecto si no se configuraron; el resto, solo si tiene valor. Si `filasPorLista` tiene valor (o el archivo tiene la clave vieja `comprobantesPorLista`), sale también `comprobantesPorLista` con el mismo valor, deprecada hasta la 3.0.0, y `deprecado` lo avisa (ver [Estabilidad del contrato](#estabilidad-del-contrato)).
+Las claves son las de [configuración](configuration.md), salvo que `cert.*`, `key.*`, `emisor.*` y `exportacion.*` van anidadas en los objetos `cert`, `key`, `emisor` y `exportacion` (vacíos si no hay nada; `exportacion` trae a su vez `cert`, `key` y, si está, `actividad`). `emitir`, `entorno`, `exportacion`, `json`, `bruto`, `pdf`, `pdfCarpeta`, `moneda`, `cotizacion`, `consultarPadron` y `ticketPath` siempre aparecen, con su valor por defecto si no se configuraron; el resto, solo si tiene valor. `monotributo` sale solo con `monotributo.tope` configurado: `{ "tope": 30000000 }`. Si `filasPorLista` tiene valor (o el archivo tiene la clave vieja `comprobantesPorLista`), sale también `comprobantesPorLista` con el mismo valor, deprecada hasta la 3.0.0, y `deprecado` lo avisa (ver [Estabilidad del contrato](#estabilidad-del-contrato)).
 
 `arcli config revisar --json`:
 
@@ -908,7 +1008,7 @@ Dos comandos de diagnóstico informan un problema sin que sea un error: `arcli c
 | `VOUCHER_NOT_FOUND`                | `consultar`                                                                | El comprobante no existe en ese punto de venta y entorno                                                                                                            | Revisá tipo, número, `--pv` y entorno; `arcli ultimos` lista los emitidos                                                                                   |
 | `TAXPAYER_NOT_FOUND`               | `padron`                                                                   | El CUIT no figura en el padrón de ese entorno                                                                                                                       | Revisá el número; en testing el padrón tiene datos ficticios (`sugerencia` trae un CUIT de prueba)                                                          |
 | `PADRON_SERVICE_NOT_AUTHORIZED`    | `padron`                                                                   | El certificado no está autorizado para `ws_sr_constancia_inscripcion`                                                                                               | Autorizalo como `wsfe` ([certificados](obtencion-certificados.md)). Al facturar no corta: se usa `ivaReceptor` de la config con un aviso                    |
-| `FCE_SERVICE_NOT_AUTHORIZED`       | `fce-obligado`                                                             | El certificado no está autorizado para `wsfecred`                                                                                                                   | Autorizalo como `wsfe` ([certificados](obtencion-certificados.md)). Con `verificarFce` al facturar no corta: sale como aviso                                |
+| `FCE_SERVICE_NOT_AUTHORIZED`       | `fce-obligado`                                                             | El certificado no está autorizado para `wsfecred`                                                                                                                   | Autorizalo como `wsfe` ([certificados](obtencion-certificados.md)). Con `verificarFce` o en una nota FCE con `--anulacion` no corta: sale como aviso        |
 | `WSFE_SERVICE_NOT_AUTHORIZED`      | facturación (A, B, C, FCE, recibo), `ultimos` y `consultar`                | El certificado no está autorizado a facturar (`wsfe`); no se emitió nada                                                                                            | Autorizalo en WSASS (testing) o en el Administrador de Relaciones (producción): [certificados](certificado-testing-completa.md#3-autorizar-el-servicio-web) |
 | `WSFEX_SERVICE_NOT_AUTHORIZED`     | `fe`, `factura e`                                                          | El certificado no está autorizado para `wsfex`                                                                                                                      | Autorizalo como `wsfe` ([certificados](obtencion-certificados.md)) o configurá `exportacion.cert.*`/`exportacion.key.*`                                     |
 | `ARCA_EXPORT_ERROR`                | `fe`, `factura e`                                                          | WSFEX devolvió un error al consultar una tabla, el ID de solicitud o la cotización (`detalles.errores`)                                                             | Revisá el mensaje de ARCA; no se emitió nada                                                                                                                |

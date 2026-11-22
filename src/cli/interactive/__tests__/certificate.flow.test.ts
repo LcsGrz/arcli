@@ -177,3 +177,98 @@ describe('runCertificateMenu', () => {
     expect(output.toUpperCase()).toContain('CERTIFICADO DE PRODUCCIÓN');
   });
 });
+
+describe('certificados: volver y casos raros', () => {
+  it('volver al elegir el entorno, con un pedido pendiente o en el alias no arma nada', async () => {
+    chooseStepMock.mockResolvedValueOnce(BACK);
+    await expect(runGenerateCertificate()).resolves.toBe(BACK);
+
+    askTextMock.mockResolvedValueOnce(BACK);
+    await expect(runGenerateCertificate('testing')).resolves.toBe(BACK);
+    expect(output).not.toContain('BEGIN CERTIFICATE REQUEST');
+
+    // Con un pedido pendiente, volver en "¿Qué hacemos?" no lo toca.
+    askTextMock.mockResolvedValueOnce('arcli');
+    chooseStepMock.mockResolvedValueOnce('despues');
+    await runGenerateCertificate('testing');
+
+    const csr = readFileSync(join(state.root, 'certificados', '20123456786', 'testing.nueva.csr'), 'utf8');
+
+    chooseStepMock.mockResolvedValueOnce(BACK);
+    await expect(runGenerateCertificate('testing')).resolves.toBe(BACK);
+    expect(readFileSync(join(state.root, 'certificados', '20123456786', 'testing.nueva.csr'), 'utf8')).toBe(csr);
+  });
+
+  it('"Descartarlo y armar otro" reemplaza el pedido pendiente', async () => {
+    askTextMock.mockResolvedValueOnce('arcli');
+    chooseStepMock.mockResolvedValueOnce('despues');
+    await runGenerateCertificate('testing');
+
+    const before = readFileSync(join(state.root, 'certificados', '20123456786', 'testing.nueva.csr'), 'utf8');
+
+    askTextMock.mockResolvedValueOnce('otro-alias');
+    chooseStepMock.mockResolvedValueOnce('reemplazar').mockResolvedValueOnce('despues');
+    await expect(runGenerateCertificate('testing')).resolves.toBe('pendiente');
+
+    expect(readFileSync(join(state.root, 'certificados', '20123456786', 'testing.nueva.csr'), 'utf8')).not.toBe(before);
+  });
+
+  it('si al cargar el .crt se vuelve, el pedido queda pendiente', async () => {
+    askTextMock.mockResolvedValueOnce('arcli').mockResolvedValueOnce(BACK);
+    chooseStepMock.mockResolvedValueOnce('importar');
+
+    await expect(runGenerateCertificate('testing')).resolves.toBe('pendiente');
+    expect(state.config.cert).toEqual({});
+  });
+
+  it('una carpeta no es un .crt', async () => {
+    askTextMock.mockImplementationOnce(async (_message, options) => {
+      expect(options?.validate?.(state.root)).toMatch(/No existe/);
+
+      return BACK;
+    });
+
+    await expect(runImportCertificate()).resolves.toBe(BACK);
+  });
+
+  it('reemplaza el certificado configurado si se confirma', async () => {
+    askTextMock.mockResolvedValueOnce('arcli');
+    chooseStepMock.mockResolvedValueOnce('despues');
+    await runGenerateCertificate('testing');
+    state.config = { ...state.config, cert: { testing: '/otra/carpeta/cert.crt' } };
+    askTextMock.mockResolvedValueOnce(downloadCertificate());
+    vi.mocked(confirm).mockResolvedValueOnce(true);
+
+    await expect(runImportCertificate()).resolves.toBe('importado');
+
+    expect(state.config.cert).toEqual({ testing: join(state.root, 'certificados', '20123456786', 'testing.crt') });
+    expect(output).toContain('reemplaza al anterior');
+  });
+
+  it('sin CUIT en la config (configuración incompleta), avisa y vuelve sin cargar nada', async () => {
+    const path = join(state.root, 'x.crt');
+
+    writeFileSync(path, '-----BEGIN CERTIFICATE-----\nAAAA\n-----END CERTIFICATE-----\n');
+    askTextMock.mockResolvedValueOnce(path);
+    state.config = { ...state.config, cuit: undefined };
+
+    await expect(runImportCertificate()).resolves.toBe(BACK);
+    expect(state.config.cert).toEqual({});
+    expect(output).toMatch(/CUIT/);
+  });
+
+  it('desde el menu se saca o carga un certificado y se vuelve al menu', async () => {
+    askTextMock.mockResolvedValueOnce('arcli').mockResolvedValueOnce(BACK);
+    chooseStepMock
+      .mockResolvedValueOnce('generar')
+      .mockResolvedValueOnce('testing')
+      .mockResolvedValueOnce('despues')
+      .mockResolvedValueOnce('importar')
+      .mockResolvedValueOnce(BACK);
+
+    await runCertificateMenu();
+
+    expect(output).toContain('BEGIN CERTIFICATE REQUEST');
+    expect(chooseStepMock).toHaveBeenCalledTimes(5);
+  });
+});

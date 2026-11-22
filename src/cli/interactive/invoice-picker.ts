@@ -6,6 +6,7 @@ import type { VoucherKindDefinition } from '../../modules/billing/billing.types'
 import { resolveRowsPerList } from '../../modules/config/config.schemas';
 import { formatExportVoucherPickerRows } from '../../modules/export/export.history.presenter';
 import type { ExportGateway, ExportIssuedVoucher, ExportVoucherKind } from '../../modules/export/export.types';
+import type { OtherSystemInvoice } from '../../modules/interactive/note-input';
 import { BACK, type Back } from '../../modules/interactive/wizard';
 import { fetchVouchersBackwards, type IssuedVoucher } from '../../modules/vouchers/voucher-history';
 import { formatVoucherNumber, formatVoucherPickerRows } from '../../modules/vouchers/voucher-history.presenter';
@@ -13,7 +14,17 @@ import { ArcaParametersGateway } from '../../services/arca/arca-parameters.gatew
 import { colorize, noticePanel, statusBarWidth, uiSymbol, writeTerminalOutput } from '../../ui';
 import { withSpinner } from '../spinner';
 
-import { askTextStep, type Choice, chooseStep, chooseStepWhileLoading, eraseLastAnswer, fitPageSize } from './prompts';
+import { PinnedSeparator } from './list-select';
+import {
+  askTextStep,
+  type Choice,
+  chooseStep,
+  chooseStepWhileLoading,
+  eraseLastAnswer,
+  fitPageSize,
+  type ListSelectState,
+  type LoadingResult,
+} from './prompts';
 import type { InteractiveSession } from './session';
 import { validatePositiveInteger } from './validators';
 
@@ -25,16 +36,22 @@ export interface PickedVoucher<T> {
 
 export type PickedInvoice = PickedVoucher<IssuedVoucher>;
 
+/** Lo que pasa con un comprobante ingresado a mano que no existe: el aviso y, si igual sirve, lo que se devuelve. */
+interface MissingVoucher<M> {
+  readonly accepted?: M;
+  readonly notice: string;
+}
+
 /**
  * De donde salen los comprobantes de la lista: wsfe para A, B y C, wsfex para la E. Cada uno sabe pedir el ultimo
- * numero, pedir uno y armar las filas.
+ * numero, pedir uno y armar las filas. `M` es lo que se devuelve si un comprobante que no existe igual sirve.
  */
-export interface VoucherSource<T extends { readonly number: number }> {
+interface VoucherSource<T extends { readonly number: number }, M = never> {
   getLastNumber(pointOfSale: number): Promise<number>;
   getVoucher(number: number, pointOfSale: number): Promise<T | null | undefined>;
   formatRows(pointOfSale: number, vouchers: readonly T[], separator: string, width: number): string[];
-  /** El aviso cuando el comprobante ingresado a mano no existe, si hay algo mas que decir que "No existe". */
-  describeMissing?(pointOfSale: number, number: number): Promise<string | undefined>;
+  /** Si el comprobante ingresado a mano no existe y hay algo mas que decir que "No existe", o igual sirve. */
+  describeMissing?(pointOfSale: number, number: number): Promise<MissingVoucher<M> | undefined>;
 }
 
 /** Solo el nombre y la familia: tambien la E, que no es un VoucherKindDefinition. */
@@ -48,15 +65,12 @@ interface PickVoucherOptions<T> {
    */
   readonly onPick?: (picked: PickedVoucher<T>) => Promise<void> | void;
   readonly pointOfSale: number;
+  /** El elegido la vez anterior, al volver a la pregunta: arranca marcado (o escrito, si se ingreso a mano). */
+  readonly previous?: { readonly number: number; readonly pointOfSale: number };
   readonly voucherKind: PickerVoucherKind;
 }
 
 interface PickInvoiceOptions extends PickVoucherOptions<IssuedVoucher> {
-  /**
-   * Para una nota: si el comprobante a mano no existe y su punto de venta no es de web service (Comprobantes en
-   * linea, controlador fiscal), el aviso explica que la nota se puede hacer igual, por periodo o con flags.
-   */
-  readonly forNote?: boolean;
   readonly voucherKind: VoucherKindDefinition;
 }
 
@@ -76,29 +90,54 @@ function listRule(): Separator {
   return new Separator(colorize(uiSymbol('rule').repeat(statusBarWidth() - 1), 'muted'));
 }
 
-/** Pide punto de venta y numero, y lo busca en ARCA. Volver o un comprobante inexistente vuelven a la lista. */
-async function askVoucherByNumber<T extends { readonly number: number }>(
-  source: VoucherSource<T>,
+/** Punto de venta y numero, a mano: volver desde el numero vuelve al punto de venta, con lo escrito. */
+async function askPointOfSaleAndNumber(
+  defaultPointOfSale: number,
+  previous?: { readonly number: number; readonly pointOfSale: number },
+): Promise<{ readonly number: number; readonly pointOfSale: number } | undefined> {
+  let typedPointOfSale = previous ? String(previous.pointOfSale) : undefined;
+
+  for (;;) {
+    const pointOfSale = await askTextStep('Punto de venta:', {
+      defaultValue: String(defaultPointOfSale),
+      previousAnswer: typedPointOfSale,
+      validate: validatePositiveInteger('El punto de venta'),
+    });
+
+    if (pointOfSale === BACK) {
+      return undefined;
+    }
+
+    typedPointOfSale = pointOfSale;
+
+    const number = await askTextStep('Número:', {
+      previousAnswer: previous ? String(previous.number) : undefined,
+      validate: validatePositiveInteger('El número'),
+    });
+
+    if (number !== BACK) {
+      return { number: Number(number.trim()), pointOfSale: Number(pointOfSale.trim()) };
+    }
+  }
+}
+
+/**
+ * Pide punto de venta y numero, y lo busca en ARCA. Volver o un comprobante inexistente vuelven a la lista, salvo que
+ * la fuente lo acepte igual (`describeMissing`).
+ */
+async function askVoucherByNumber<T extends { readonly number: number }, M>(
+  source: VoucherSource<T, M>,
   voucherKind: PickerVoucherKind,
   defaultPointOfSale: number,
-): Promise<Back | PickedVoucher<T>> {
-  const pointOfSaleAnswer = await askTextStep('Punto de venta:', {
-    defaultValue: String(defaultPointOfSale),
-    validate: validatePositiveInteger('El punto de venta'),
-  });
+  previous?: { readonly number: number; readonly pointOfSale: number },
+): Promise<Back | PickedVoucher<T> | { readonly accepted: M }> {
+  const typed = await askPointOfSaleAndNumber(defaultPointOfSale, previous);
 
-  if (pointOfSaleAnswer === BACK) {
+  if (!typed) {
     return BACK;
   }
 
-  const numberAnswer = await askTextStep('Número:', { validate: validatePositiveInteger('El número') });
-
-  if (numberAnswer === BACK) {
-    return BACK;
-  }
-
-  const pointOfSale = Number(pointOfSaleAnswer.trim());
-  const number = Number(numberAnswer.trim());
+  const { number, pointOfSale } = typed;
   const { invoice, missing } = await withSpinner('Buscando en ARCA...', async () => {
     const found = await source.getVoucher(number, pointOfSale);
 
@@ -108,12 +147,13 @@ async function askVoucherByNumber<T extends { readonly number: number }>(
   if (!invoice) {
     writeTerminalOutput(
       noticePanel(
-        missing ?? `No existe ${formatVoucherWithArticle(voucherKind)} N° ${formatVoucherNumber(pointOfSale, number)}.`,
+        missing?.notice ??
+          `No existe ${formatVoucherWithArticle(voucherKind)} N° ${formatVoucherNumber(pointOfSale, number)}.`,
         'warning',
       ),
     );
 
-    return BACK;
+    return missing?.accepted === undefined ? BACK : { accepted: missing.accepted };
   }
 
   return { invoice, pointOfSale };
@@ -121,18 +161,20 @@ async function askVoucherByNumber<T extends { readonly number: number }>(
 
 /**
  * Una factura que ARCA no tiene, en un punto de venta que no es de web service: el asistente no puede copiar sus
- * datos, pero la nota se puede hacer por periodo o con flags (ver `checkAssociatedInArca`).
+ * datos, asi que los pregunta (ver `noteSteps`).
  */
 export function missingNonWebServiceInvoiceNotice(
   voucherKind: VoucherKindDefinition,
   pointOfSale: number,
   number: number,
+  origin: OtherSystemInvoice['origin'],
 ): string {
-  const flags = `hacela con \`arcli\` pasando \`--apv ${pointOfSale} --ar ${number} --afecha <fecha>\``;
-  // Las notas FCE no aceptan periodo asociado (10196).
-  const way = voucherKind.isElectronicCredit ? flags : `asociá la nota a un período, o ${flags}`;
+  const where =
+    origin === 'other'
+      ? `el punto de venta ${pointOfSale} no es de web service`
+      : `no se pudo consultar si el punto de venta ${pointOfSale} es de web service`;
 
-  return `ARCA no tiene ${formatVoucherWithArticle(voucherKind)} N° ${formatVoucherNumber(pointOfSale, number)} y el punto de venta ${pointOfSale} no es de web service. Si es de Comprobantes en línea o de un controlador fiscal, el asistente no puede copiar sus datos: ${way}.`;
+  return `ARCA no tiene ${formatVoucherWithArticle(voucherKind)} N° ${formatVoucherNumber(pointOfSale, number)} y ${where}. Si es de Comprobantes en línea o de un controlador fiscal, seguí: como no se pueden copiar sus datos, te los pregunto. Si no, volvé y revisá el número.`;
 }
 
 /** Un comprobante A, B o C emitido, por wsfe. Ver `pickVoucher`. */
@@ -140,30 +182,48 @@ export async function pickInvoice(
   session: InteractiveSession,
   options: PickInvoiceOptions,
 ): Promise<Back | PickedInvoice> {
-  const { historyGateway } = session;
-  const { arcaType } = options.voucherKind;
+  return pickVoucher(session, options, invoiceSource(session, options.voucherKind));
+}
+
+/**
+ * El asociado de una nota A, B, C o FCE: como `pickInvoice`, pero si el ingresado a mano no existe y su punto de venta
+ * no es de web service (mismo criterio que `checkAssociatedInArca`), lo devuelve igual para preguntar sus datos.
+ */
+export async function pickNoteInvoice(
+  session: InteractiveSession,
+  options: PickInvoiceOptions,
+): Promise<Back | OtherSystemInvoice | PickedInvoice> {
+  const { voucherKind } = options;
 
   return pickVoucher(session, options, {
-    ...(options.forNote
-      ? {
-          describeMissing: async (pointOfSale: number, number: number) => {
-            const origin = await classifyAssociatedPointOfSale({
-              history: historyGateway,
-              pointOfSale,
-              salesPoints: new ArcaParametersGateway(session.arca),
-              voucherType: arcaType,
-            });
+    ...invoiceSource(session, voucherKind),
+    describeMissing: async (pointOfSale: number, number: number) => {
+      const origin = await classifyAssociatedPointOfSale({
+        history: session.historyGateway,
+        pointOfSale,
+        salesPoints: new ArcaParametersGateway(session.arca),
+        voucherType: voucherKind.arcaType,
+      });
 
-            return origin === 'web-service'
-              ? undefined
-              : missingNonWebServiceInvoiceNotice(options.voucherKind, pointOfSale, number);
-          },
-        }
-      : {}),
+      return origin === 'web-service'
+        ? undefined
+        : {
+            accepted: { number, origin, otherSystem: true, pointOfSale },
+            notice: missingNonWebServiceInvoiceNotice(voucherKind, pointOfSale, number, origin),
+          };
+    },
+  });
+}
+
+function invoiceSource(session: InteractiveSession, voucherKind: VoucherKindDefinition): VoucherSource<IssuedVoucher> {
+  const { historyGateway } = session;
+  const { arcaType } = voucherKind;
+
+  return {
     formatRows: formatVoucherPickerRows,
     getLastNumber: (pointOfSale) => historyGateway.getLastNumber(pointOfSale, arcaType),
     getVoucher: (number, pointOfSale) => historyGateway.getVoucher(number, pointOfSale, arcaType),
-  });
+  };
 }
 
 /** Un comprobante E (factura o nota) emitido, por wsfex, igual que `arcli ultimos fe`. Ver `pickVoucher`. */
@@ -185,12 +245,12 @@ export async function pickExportVoucher(
  * Elegir un comprobante emitido: los ultimos del punto de venta configurado, con opciones para cargar mas
  * o ingresar el numero a mano (por ejemplo, uno viejo o de otro punto de venta).
  */
-export async function pickVoucher<T extends { readonly number: number }>(
+async function pickVoucher<T extends { readonly number: number }, M = never>(
   session: InteractiveSession,
   options: PickVoucherOptions<T>,
-  source: VoucherSource<T>,
-): Promise<Back | PickedVoucher<T>> {
-  const { message, onPick, pointOfSale, voucherKind } = options;
+  source: VoucherSource<T, M>,
+): Promise<Back | M | PickedVoucher<T>> {
+  const { message, onPick, pointOfSale, previous, voucherKind } = options;
   // Comprobantes por tanda: los primeros y cada "cargar mas".
   const pageSize = resolveRowsPerList(session.runtime.config);
   const listFrom = (fromNumber: number): Promise<T[]> =>
@@ -202,7 +262,21 @@ export async function pickVoucher<T extends { readonly number: number }>(
   });
   // Proximo numero a consultar al cargar mas.
   let nextNumber = lastNumber - pageSize;
-  let defaultChoice: PickerChoice<T> | undefined;
+  // Al volver a la pregunta, el elegido antes; si no esta en la lista, "a mano".
+  const previousInList: T | undefined =
+    previous?.pointOfSale === pointOfSale ? invoices.find((item: T) => item.number === previous.number) : undefined;
+  let defaultChoice: Back | PickerChoice<T> | undefined = previous ? (previousInList ?? BY_NUMBER) : undefined;
+  // Lo escrito para filtrar y la marcada mientras la lista esta en pantalla: al terminar una carga se redibuja igual.
+  // Un objeto y no dos variables: `onChange` las cambia desde el prompt, y TypeScript no lo ve.
+  const onScreen: { marked?: ListSelectState<Back | PickerChoice<T>>; typed: string } = { typed: '' };
+  const markedValue = () => onScreen.marked?.value;
+  const listOptions = () => ({
+    initialTerm: onScreen.typed,
+    onChange: (state: ListSelectState<Back | PickerChoice<T>>) => {
+      onScreen.typed = state.term;
+      onScreen.marked = state;
+    },
+  });
 
   if (invoices.length === 0) {
     writeTerminalOutput(
@@ -232,7 +306,8 @@ export async function pickVoucher<T extends { readonly number: number }>(
       );
 
       if (loading) {
-        choices.push(new Separator(' '), new Separator(colorize(` Cargando${uiSymbol('ellipsis')}`, 'muted')));
+        // "Cargando…" se sigue viendo mientras se filtra.
+        choices.push(new Separator(' '), new PinnedSeparator(colorize(` Cargando${uiSymbol('ellipsis')}`, 'muted')));
       } else if (nextNumber > 0) {
         choices.push(new Separator(' '), { name: `+ Cargar más${uiSymbol('ellipsis')}`, value: LOAD_MORE });
       }
@@ -246,19 +321,28 @@ export async function pickVoucher<T extends { readonly number: number }>(
       value: BY_NUMBER,
     });
 
-    // +2: el separador y "Volver" que agrega chooseStep.
-    const pageSizeOnScreen = fitPageSize(choices.length + 2);
+    const pageSizeOnScreen = fitPageSize(choices.length);
     let answer: Back | PickerChoice<T>;
 
+    onScreen.marked = undefined;
+
     if (loading) {
-      const result = await chooseStepWhileLoading(message, choices, defaultChoice, pageSizeOnScreen, loading);
+      const result: LoadingResult<PickerChoice<T>, T[]> = await chooseStepWhileLoading(
+        message,
+        choices,
+        defaultChoice,
+        pageSizeOnScreen,
+        loading,
+        listOptions(),
+      );
 
       loading = undefined;
 
       if ('loaded' in result) {
         nextNumber -= pageSize;
-        // El cursor queda en el primero nuevo; si no vino ninguno, en "cargar mas" o "a mano".
-        defaultChoice = result.loaded[0] ?? (nextNumber > 0 ? LOAD_MORE : BY_NUMBER);
+        // El cursor queda donde lo dejaste; si no lo moviste, en el primero nuevo y, si no vino ninguno, en "cargar
+        // mas" o "a mano".
+        defaultChoice = markedValue() ?? result.loaded[0] ?? (nextNumber > 0 ? LOAD_MORE : BY_NUMBER);
         invoices.push(...result.loaded);
         continue;
       }
@@ -266,7 +350,12 @@ export async function pickVoucher<T extends { readonly number: number }>(
       // Se eligio otra opcion antes de que terminara la carga: lo que llegue se descarta.
       answer = result.answer;
     } else {
-      answer = await chooseStep(message, choices, defaultChoice, pageSizeOnScreen);
+      answer = await chooseStep(message, choices, defaultChoice, pageSizeOnScreen, listOptions());
+    }
+
+    // Lo escrito sigue solo mientras la lista se redibuja por una carga.
+    if (answer !== LOAD_MORE) {
+      onScreen.typed = '';
     }
 
     if (answer === BACK) {
@@ -284,11 +373,16 @@ export async function pickVoucher<T extends { readonly number: number }>(
     let picked: PickedVoucher<T>;
 
     if (answer === BY_NUMBER) {
-      const byNumber = await askVoucherByNumber(source, voucherKind, pointOfSale);
+      const byNumber = await askVoucherByNumber(source, voucherKind, pointOfSale, previous);
 
       if (byNumber === BACK) {
         defaultChoice = BY_NUMBER;
         continue;
+      }
+
+      // Un comprobante que no existe pero igual sirve sale del selector, tambien en modo explorar.
+      if ('accepted' in byNumber) {
+        return byNumber.accepted;
       }
 
       picked = byNumber;

@@ -8,6 +8,13 @@ import { offerPdf } from '../pdf.flow';
 import { askTextStep, chooseOne, confirm } from '../prompts';
 import { type InteractiveSession, previewAndEmit, requirePointOfSale } from '../session';
 
+// El comando equivalente sale con las comillas de la shell del SO: POSIX fijo para que el CI en Windows espere lo mismo.
+vi.mock('../../../lib/shell/shell-argument', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../lib/shell/shell-argument')>();
+
+  return { ...actual, formatShellCommand: (args: readonly string[]) => actual.formatShellCommand(args, 'linux') };
+});
+
 vi.mock('../prompts', () => ({ askTextStep: vi.fn(), chooseOne: vi.fn(), confirm: vi.fn() }));
 vi.mock('../pdf.flow', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../pdf.flow')>()),
@@ -75,6 +82,39 @@ describe('previewAndEmit', () => {
     expect(offerPdf).not.toHaveBeenCalled();
   });
 
+  it('la vista previa no emite aunque los datos traigan emit true, y si cancela no emite (TEST-15)', async () => {
+    const session = createSession('testing');
+
+    chooseOneMock.mockResolvedValueOnce(false);
+    await previewAndEmit(session, { ...input, dryRun: false, emit: true });
+
+    expect(chooseOneMock).toHaveBeenCalledTimes(1);
+    expect(session.createVoucher).not.toHaveBeenCalled();
+  });
+
+  // #11 y #16: lo escrito a mano se ofrece guardar solo si ARCA autorizo el comprobante.
+  it('devuelve si ARCA lo autorizo: aprobado con CAE si, rechazado no, sin emitir no', async () => {
+    const session = createSession('testing');
+
+    chooseOneMock.mockResolvedValue('emitir');
+    session.createVoucher.mockResolvedValueOnce({
+      cae: '86400940834693',
+      caeFchVto: '20261130',
+      response: { FeDetResp: { FECAEDetResponse: [{ Resultado: 'A' }] } },
+    });
+    await expect(previewAndEmit(session, input)).resolves.toBe(true);
+
+    session.createVoucher.mockResolvedValueOnce({
+      cae: '',
+      caeFchVto: '',
+      response: { FeDetResp: { FECAEDetResponse: [{ Resultado: 'R' }] } },
+    });
+    await expect(previewAndEmit(session, input)).resolves.toBe(false);
+
+    chooseOneMock.mockResolvedValue(false);
+    await expect(previewAndEmit(session, input)).resolves.toBe(false);
+  });
+
   it('emite en testing con una sola confirmacion', async () => {
     const session = createSession('testing');
 
@@ -102,10 +142,23 @@ describe('previewAndEmit', () => {
           { name: 'No, dejar sin emitir', value: false },
         ],
         pdf === 'siempre' ? 'emitir-con-pdf' : 'emitir',
-        { escapeLabel: 'no emitir', escapeValue: false },
+        // Esc vuelve a la ultima pregunta del asistente (TUI-15); "No, dejar sin emitir" sigue siendo no.
+        { escapeLabel: 'volver', escapeValue: BACK },
       );
     },
   );
+
+  it('Esc en "¿Emitimos?" devuelve BACK sin emitir ni avisar que no se emitió nada (TUI-15)', async () => {
+    const session = createSession('testing');
+    const write = vi.mocked(process.stdout.write);
+
+    chooseOneMock.mockResolvedValueOnce(BACK);
+    write.mockClear();
+
+    await expect(previewAndEmit(session, input)).resolves.toBe(BACK);
+    expect(session.createVoucher).not.toHaveBeenCalled();
+    expect(write.mock.calls.join('')).not.toContain('No se emitió nada');
+  });
 
   it('emitir y generar el PDF lo genera aunque la config diga `nunca`', async () => {
     const session = createSession('testing', 3, 'nunca');
@@ -194,7 +247,7 @@ describe('previewAndEmit', () => {
     });
 
     expect(write.mock.calls.map(([chunk]) => String(chunk)).join('')).toContain(
-      '--ir responsable-inscripto --receptor-nombre "ACME SA" --receptor-domicilio "Av. Siempre Viva 742"',
+      "--ir responsable-inscripto --receptor-nombre 'ACME SA' --receptor-domicilio 'Av. Siempre Viva 742'",
     );
   });
 
@@ -258,5 +311,61 @@ describe('requirePointOfSale', () => {
 
     await expect(requirePointOfSale(createSession('testing', null))).resolves.toBeUndefined();
     expect(askTextStepMock).toHaveBeenCalledWith('Punto de venta:', expect.anything());
+  });
+});
+
+describe('previewAndEmit: cancelar y ARCA que falla en cada momento', () => {
+  const cancellation = () => Object.assign(new Error('Ctrl+C'), { name: 'ExitPromptError' });
+
+  beforeEach(() => {
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    confirmMock.mockReset();
+    chooseOneMock.mockReset();
+    vi.mocked(offerPdf).mockClear();
+  });
+
+  it('Ctrl+C en "¿Emitimos?" no emite: el error llega al menú, que dice "No se emitió nada"', async () => {
+    const session = createSession('testing');
+
+    chooseOneMock.mockRejectedValueOnce(cancellation());
+
+    await expect(previewAndEmit(session, input)).rejects.toMatchObject({ name: 'ExitPromptError' });
+    expect(session.createVoucher).not.toHaveBeenCalled();
+  });
+
+  it('Ctrl+C en la segunda confirmación de producción tampoco emite', async () => {
+    const session = createSession('produccion');
+
+    chooseOneMock.mockResolvedValueOnce('emitir');
+    confirmMock.mockRejectedValueOnce(cancellation());
+
+    await expect(previewAndEmit(session, input)).rejects.toMatchObject({ name: 'ExitPromptError' });
+    expect(session.createVoucher).not.toHaveBeenCalled();
+  });
+
+  it('si ARCA falla al emitir, el error llega al menú y no se ofrece el PDF', async () => {
+    const session = createSession('testing', 3, 'siempre');
+
+    session.createVoucher.mockRejectedValueOnce(new Error('ECONNRESET'));
+    chooseOneMock.mockResolvedValueOnce('emitir-con-pdf');
+
+    await expect(previewAndEmit(session, input)).rejects.toThrow('ECONNRESET');
+    expect(offerPdf).not.toHaveBeenCalled();
+  });
+
+  it('si ARCA falla al pedir la cotización oficial para la vista previa, no pregunta nada', async () => {
+    const session = createSession('testing');
+
+    vi.mocked(session.billingGateway.getQuotation).mockRejectedValueOnce(new Error('ARCA no responde'));
+
+    await expect(previewAndEmit(session, { ...input, currencyCode: 'USD', sameCurrency: true })).rejects.toThrow(
+      'ARCA no responde',
+    );
+    expect(chooseOneMock).not.toHaveBeenCalled();
+    expect(session.createVoucher).not.toHaveBeenCalled();
   });
 });

@@ -6,14 +6,14 @@
 
 <!-- arcli: familia="Responsable inscripto · A" icono="menos" orden="9" -->
 
-Resta sobre una Factura A: un descuento, una devolución o una anulación.
+Resta sobre una Factura A, un Recibo A u otra nota A: un descuento, una devolución o una anulación.
 
 `arcli nca` | `arcli nota-credito a`
 
 ## Ejemplo
 
 ```bash
-arcli nca -m 1210 --cs --cuit 20168598204 --ac fa --apv 3 --ar 6 --acuit 20333333334
+arcli nca -m 1210 --cs --cuit 20168598204 --ac fa --apv 3 --ar 6
 ```
 
 Sin `--emitir` muestra la vista previa y pregunta antes de emitir. También se emite desde el [asistente](../modo-interactivo.md), sin recordar flags.
@@ -58,17 +58,17 @@ Ej.: `--cuit 20168598204`
 
 ### Comprobante que ajusta
 
-Atajo, punto de venta y número del comprobante. O un período entero, con `--pd` y `--ph`.
+Atajo, punto de venta y número del comprobante: una factura u otra nota de la misma letra. O un período entero, con `--pd` y `--ph`.
 
 | Largo | Corto | Qué es |
 | --- | --- | --- |
-| `--ac <atajo>` |  | Atajo del comprobante: fc, rc, fa… |
+| `--ac <atajo>` |  | Atajo del comprobante: fc, rc, ndc… |
 | `--asociado-punto-venta <número>` | `--apv` | Su punto de venta |
 | `--ar <número>` |  | Su número |
-| `--acuit <cuit>` |  | El CUIT del emisor: el tuyo |
+| `--acuit <cuit>` |  | El CUIT de quien lo emitió; sin él, el tuyo |
 | `--at <número>` |  | Tipo ARCA, en vez de --ac |
 
-Ej.: `--ac fc --apv 3 --ar 142 --acuit 20333333334`
+Ej.: `--ac fc --apv 3 --ar 142`
 
 ## Opcional
 
@@ -82,8 +82,8 @@ Para ajustar un período entero, por ejemplo un descuento sobre el mes. No va co
 
 | Largo | Corto | Qué es |
 | --- | --- | --- |
-| `--periodo-desde <fecha>` | `--pd` | Inicio del período |
-| `--periodo-hasta <fecha>` | `--ph` | Fin del período |
+| `--periodo-desde <fecha>` | `--pd` | Inicio del período; mes-actual o mes-pasado dan el día 1 |
+| `--periodo-hasta <fecha>` | `--ph` | Fin del período; mes-actual o mes-pasado dan el último día |
 
 Ej.: `--pd 1/9 --ph 30/9`
 
@@ -128,7 +128,7 @@ Si no es hoy.
 
 | Largo | Corto | Qué es |
 | --- | --- | --- |
-| `--fecha <fecha>` | `-f` | D, D/M, D/M/AA o D/M/AAAA |
+| `--fecha <fecha>` | `-f` | D, D/M, D/M/AA o D/M/AAAA, o hoy, ayer, +N o -N (días desde hoy) |
 
 Ej.: `-f 31/10`
 
@@ -138,8 +138,8 @@ Solo con servicios. Sin estos flags, el mes en curso.
 
 | Largo | Corto | Qué es |
 | --- | --- | --- |
-| `--servicio-desde <fecha>` | `--sd` | Inicio del servicio |
-| `--servicio-hasta <fecha>` | `--sh` | Fin del servicio |
+| `--servicio-desde <fecha>` | `--sd` | Inicio del servicio; mes-actual o mes-pasado dan el día 1 |
+| `--servicio-hasta <fecha>` | `--sh` | Fin del servicio; mes-actual o mes-pasado dan el último día |
 | `--vencimiento <fecha>` | `--vto` | Vencimiento del pago; por defecto, el fin del servicio |
 
 Ej.: `--sd 1/10 --sh 31/10`
@@ -229,10 +229,11 @@ Ej.: `--cargar facturas.json`
 ## Para tener en cuenta
 
 - La nota de crédito no puede superar el total del comprobante que ajusta, si van en la misma moneda: ARCLI lo revisa antes de emitir.
+- El comprobante que ajusta también puede ser un Recibo A: `--ac ra`.
 - Con un período (`--pd` y `--ph`) en vez de un comprobante, el período no puede terminar después de la fecha de la nota.
 
 ## No aplica
 
-Estos flags no van en este comprobante: `--cbu`, `--cfinal`.
+Estos flags no van en este comprobante: `--cbu`, `--cfinal`, `--dni`.
 
 Todas las reglas, en [reglas de validación](../validation-rules.md); todos los flags, en la [referencia del CLI](../cli-reference.md).

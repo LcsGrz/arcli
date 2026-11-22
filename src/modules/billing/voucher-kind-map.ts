@@ -163,6 +163,24 @@ export const VOUCHER_KIND_MAP: Record<VoucherShortcut, VoucherKindDefinition> = 
     requiresAssociatedVoucher: true,
     shortcut: 'ndec',
   },
+  ra: {
+    arcaType: 4,
+    displayName: 'Recibo A',
+    family: 'recibo',
+    isElectronicCredit: false,
+    letter: 'a',
+    requiresAssociatedVoucher: false,
+    shortcut: 'ra',
+  },
+  rb: {
+    arcaType: 9,
+    displayName: 'Recibo B',
+    family: 'recibo',
+    isElectronicCredit: false,
+    letter: 'b',
+    requiresAssociatedVoucher: false,
+    shortcut: 'rb',
+  },
   rc: {
     arcaType: 15,
     displayName: 'Recibo C',
@@ -195,7 +213,7 @@ export function getVoucherKindByFamilyAndLetter(
   );
 }
 
-/** Las letras que tiene una familia: A, B y C, salvo `recibo`, que solo tiene C. */
+/** Las letras que tiene una familia: A, B y C (la E de exportacion va aparte, por WSFEX). */
 export function getVoucherFamilyLetters(family: VoucherFamily): readonly VoucherLetter[] {
   return VOUCHER_LETTERS.filter((letter) => getVoucherKindByFamilyAndLetter(family, letter));
 }

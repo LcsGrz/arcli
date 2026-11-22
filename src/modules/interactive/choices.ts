@@ -1,3 +1,4 @@
+import { listAssociableFamilies } from '../billing/billing.associated-vouchers';
 import { listAllowedIvaConditions } from '../billing/billing.iva-receptor';
 import { formatIvaConditionLabel } from '../billing/billing.labels';
 import { resolveBillingIvaConditionCode } from '../billing/billing.mappers';
@@ -7,15 +8,36 @@ import type {
   BillingIvaCondition,
   BillingIvaRate,
 } from '../billing/billing.schemas';
-import type { VoucherKindDefinition, VoucherLetter, VoucherShortcut } from '../billing/billing.types';
+import type { VoucherFamily, VoucherKindDefinition, VoucherLetter, VoucherShortcut } from '../billing/billing.types';
 import { ARCA_CURRENCIES } from '../billing/currency-codes';
-import { VOUCHER_KIND_MAP } from '../billing/voucher-kind-map';
-import { EXPORT_VOUCHER_KIND, type ExportVoucherKind } from '../export/export.types';
+import { getVoucherKindByFamilyAndLetter, VOUCHER_KIND_MAP } from '../billing/voucher-kind-map';
+import {
+  EXPORT_CREDIT_NOTE_KIND,
+  EXPORT_DEBIT_NOTE_KIND,
+  EXPORT_VOUCHER_KIND,
+  type ExportVoucherKind,
+} from '../export/export.types';
 
 export interface InteractiveChoice<T> {
   readonly description?: string;
+  /** Lo que tambien encuentra la opcion al escribir en la lista, ademas del nombre (por ejemplo, `DOL` o `060`). */
+  readonly keywords?: string;
   readonly name: string;
   readonly value: T;
+}
+
+/**
+ * La primera de `candidates` que esta entre las opciones, para la que arranca marcada: una respuesta recordada puede ya
+ * no estar (otra letra, otra lista) y entonces vale la siguiente, por ejemplo la de la config. Sin ninguna, `undefined`
+ * (la lista arranca en la primera opcion).
+ */
+export function availableChoice<T>(
+  choices: ReadonlyArray<{ readonly value: T }>,
+  ...candidates: ReadonlyArray<T | undefined>
+): T | undefined {
+  return candidates.find(
+    (candidate) => candidate !== undefined && choices.some((choice) => choice.value === candidate),
+  );
 }
 
 const INVOICE_DESCRIPTIONS: Record<VoucherLetter, string> = {
@@ -37,15 +59,21 @@ export function invoiceKindChoices(): Array<InteractiveChoice<VoucherKindDefinit
   });
 }
 
-/** El recibo C se emite como una factura C, pero no lleva notas: no está en el selector de facturas de las notas. */
-export function reciboChoice(): InteractiveChoice<VoucherKindDefinition> {
-  const definition = VOUCHER_KIND_MAP.rc;
+const RECEIPT_DESCRIPTIONS: Record<VoucherLetter, string> = {
+  a: 'Por un cobro a un responsable inscripto o monotributista',
+  b: 'Por un cobro a un consumidor final, exento u otros',
+  c: 'Por un cobro; lo emiten monotributistas y exentos',
+};
 
-  return {
-    description: 'Comprobante de un cobro; lo emiten monotributistas y exentos',
-    name: definition.displayName,
-    value: definition,
-  };
+const RECEIPT_SHORTCUTS: readonly VoucherShortcut[] = ['rc', 'rb', 'ra'];
+
+/** Los recibos, de C a A como las facturas: se emiten como una factura de la misma letra. */
+export function reciboChoices(): Array<InteractiveChoice<VoucherKindDefinition>> {
+  return RECEIPT_SHORTCUTS.map((shortcut) => {
+    const definition = VOUCHER_KIND_MAP[shortcut];
+
+    return { description: RECEIPT_DESCRIPTIONS[definition.letter], name: definition.displayName, value: definition };
+  });
 }
 
 /** La factura E va por WSFEX y tiene su propio asistente, pero se elige en el mismo selector que A, B y C. */
@@ -57,6 +85,48 @@ export function exportInvoiceChoice(): InteractiveChoice<ExportVoucherKind> {
   };
 }
 
+/** Las notas E que ajusta otra nota E: el CLI las pide con `--ac nce` y `--ac nde`. */
+export function exportNoteChoices(): Array<InteractiveChoice<ExportVoucherKind>> {
+  return [EXPORT_CREDIT_NOTE_KIND, EXPORT_DEBIT_NOTE_KIND].map((kind) => ({
+    description: 'Para ajustar una nota E ya emitida',
+    name: kind.displayName,
+    value: kind,
+  }));
+}
+
+const NOTE_FAMILIES: readonly VoucherFamily[] = [
+  'nota-credito',
+  'nota-debito',
+  'nota-credito-electronica',
+  'nota-debito-electronica',
+];
+
+/**
+ * Las notas que puede ajustar una nota de `kind` de la misma letra y categoria que `invoice`: en A, B y C las dos;
+ * en FCE solo la que permite la anulacion (una NC FCE ajusta una ND FCE, y una ND FCE una NC FCE).
+ */
+export function associableNoteChoices(
+  kind: 'credito' | 'debito',
+  invoice: VoucherKindDefinition,
+): Array<InteractiveChoice<VoucherKindDefinition>> {
+  const noteFamily = noteKindChoices(kind, invoice).family;
+  const families = new Set([...listAssociableFamilies(noteFamily, false), ...listAssociableFamilies(noteFamily, true)]);
+
+  return NOTE_FAMILIES.filter((family) => families.has(family)).flatMap((family) => {
+    const definition = getVoucherKindByFamilyAndLetter(family, invoice.letter);
+
+    if (!definition) {
+      return [];
+    }
+
+    const description = definition.isElectronicCredit
+      ? 'Solo en una nota de anulación'
+      : 'Para ajustar una nota ya emitida';
+
+    return [{ description, name: definition.displayName, value: definition }];
+  });
+}
+
 export function noteKindChoices(kind: 'credito' | 'debito', invoice: VoucherKindDefinition): VoucherKindDefinition {
   const prefix = kind === 'credito' ? 'nc' : 'nd';
   const shortcut = `${prefix}${invoice.isElectronicCredit ? 'e' : ''}${invoice.letter}` as VoucherShortcut;
@@ -64,12 +134,23 @@ export function noteKindChoices(kind: 'credito' | 'debito', invoice: VoucherKind
   return VOUCHER_KIND_MAP[shortcut];
 }
 
-export function receiverChoices(letter: VoucherLetter): Array<InteractiveChoice<BillingDocumentType>> {
+/**
+ * A quien puede ir el comprobante: la A solo a un CUIT (10013; consumidor final tampoco, 10243) y la FCE, en
+ * cualquier letra, tambien solo a un CUIT (10015, WSFEv1 v4.7).
+ */
+export function receiverChoices(
+  letter: VoucherLetter,
+  electronicCredit = false,
+): Array<InteractiveChoice<BillingDocumentType>> {
+  if (electronicCredit) {
+    return [{ name: 'Con CUIT', value: 'cuit' }];
+  }
+
   const choices: Array<InteractiveChoice<BillingDocumentType>> = [];
 
-  // La A no admite consumidor final (10243), asi que solo se identifica por CUIT.
   if (listAllowedIvaConditions(letter).includes('consumidor-final')) {
-    choices.push({ name: 'Consumidor final (sin identificar)', value: 'consumidor-final' });
+    // Sin identificar o, desde el tope de la RG 5700/2025 (o en los opcionales), con su documento.
+    choices.push({ name: 'Consumidor final', value: 'consumidor-final' });
   }
 
   choices.push({ name: 'Con CUIT', value: 'cuit' });
@@ -115,6 +196,11 @@ export function currencyChoices(): Array<InteractiveChoice<string>> {
       return [];
     }
 
-    return code === 'ARS' ? [{ name: 'Pesos', value: 'PES' }] : [{ name: `${currency.name} (${code})`, value: code }];
+    // El codigo de ARCA tambien la encuentra al escribir: "dol" o "060", como en "Monedas y cotizaciones".
+    const keywords = [currency.arca, code].join(' ');
+
+    return code === 'ARS'
+      ? [{ keywords, name: 'Pesos', value: 'PES' }]
+      : [{ keywords, name: `${currency.name} (${code})`, value: code }];
   });
 }

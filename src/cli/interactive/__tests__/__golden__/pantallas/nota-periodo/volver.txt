@@ -1,0 +1,146 @@
+? [lista] ¿Sobre qué comprobante?
+  arranca en: (ninguna)
+  · Facturas (nuevo) — A, B o C, de crédito electrónica (FCE) o de exportación E
+  · Notas de crédito (nuevo) — Para ajustar una nota de crédito ya emitida
+  · Notas de débito (nuevo) — Para ajustar una nota de débito ya emitida
+  · Recibos (nuevo) — Recibo A, B o C por un cobro
+  = Facturas (nuevo)
+
+? [lista] ¿Qué factura?
+  arranca en: (ninguna)
+  · Factura C — La emiten monotributistas y exentos
+  · Factura B — De responsable inscripto a consumidor final, exento u otros
+  · Factura A — Entre responsables inscriptos, o de RI a monotributista
+  · Factura de crédito electrónica C — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Factura de crédito electrónica B — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Factura de crédito electrónica A — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Factura de exportación E (nuevo) — A un cliente del exterior: servicios o bienes
+  = Factura C
+
+? [lista] ¿A qué la asociamos?
+  arranca en: (ninguna)
+  · A una factura — Elegís una de las últimas emitidas o la ingresás a mano
+  · A un período — Por ejemplo, un descuento sobre lo facturado en un período, hasta la fecha de la nota
+  = A un período
+
+? [texto] Período desde:
+  ayuda: hoy, ayer, +N o -N
+  = "01/10/2026"
+
+? [texto] Período hasta:
+  ayuda: hoy, ayer, +N o -N
+  = "31/10/2026"
+
+? [lista] ¿A quién va la nota?
+  arranca en: (ninguna)
+  · Consumidor final
+  · Con CUIT
+  · Con DNI
+  · Con CUIL
+  = ← Volver
+
+? [texto] Período hasta:
+  ayuda: hoy, ayer, +N o -N
+  arranca escrito: "31/10/2026"
+  = "15/10/2026"
+
+? [lista] ¿A quién va la nota?
+  arranca en: (ninguna)
+  · Consumidor final
+  · Con CUIT
+  · Con DNI
+  · Con CUIL
+  = Consumidor final
+
+? [lista] ¿Qué concepto ajusta la nota?
+  arranca en: (ninguna)
+  · Servicios
+  · Productos
+  · Productos y servicios
+  = Servicios
+
+? [texto] Monto de la nota de crédito:
+  = "1.000"
+
+? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
+  [ ] Datos del consumidor final (nuevo) — sin identificar
+  [ ] Fecha del comprobante — hoy
+  [ ] Moneda extranjera — pesos
+  [ ] Período del servicio — hoy
+  [ ] Vencimiento del pago — por defecto
+  = (nada marcado)
+
+== pantalla ==
+┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐
+╎                                                                                          ╎
+╎       Estás en TESTING: los comprobantes son de prueba y no tienen validez fiscal.       ╎
+╎                                                                                          ╎
+└╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘
+
+            ╒═══════════════════════ NOTA DE CRÉDITO C ════════════════════════╕
+            │                                                                  │
+            │  Concepto                         Servicios                      │
+            │  Punto de venta                   3                              │
+            │  Fecha del comprobante            18/11/2026                     │
+            │  Receptor                         Consumidor final               │
+            │  Moneda                           Pesos argentinos (ARS)         │
+            │  Importe neto                     $ 1.000                        │
+            │  Importe total                    $ 1.000                        │
+            │  Servicio desde                   18/11/2026                     │
+            │  Servicio hasta                   18/11/2026                     │
+            │  Vencimiento del pago             18/11/2026                     │
+            │  Período asociado                 01/10/2026 al 15/10/2026       │
+            │                                                                  │
+            ├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
+            │                                                                  │
+            │                            SIN EMITIR                            │
+            │                                                                  │
+            ╘══════════════════════════════════════════════════════════════════╛
+
+== comando equivalente ==
+arcli ncc -m 1000 --cs --consumidor-final --pd 01/10/2026 --ph 15/10/2026 --testing --emitir
+
+== pantalla ==
+▎ Esto equivale a:
+▎ arcli ncc -m 1000 --cs --consumidor-final --pd 01/10/2026 --ph 15/10/2026 --testing --emitir
+
+? [lista] ¿Emitimos la nota de crédito C en testing?
+  arranca en: Sí, emitir ahora
+  > Sí, emitir ahora
+  · Sí, emitir y generar el PDF
+  · No, dejar sin emitir
+  = No, dejar sin emitir
+
+== pantalla ==
+┌                                                                                          ┐
+
+                                     No se emitió nada.
+
+└                                                                                          ┘
+
+== solicitud a ARCA (FECAESolicitar, sin el numero) ==
+{
+  "CantReg": 1,
+  "CbteFch": "20261118",
+  "CbteTipo": 13,
+  "Concepto": 2,
+  "CondicionIVAReceptorId": 5,
+  "DocNro": 0,
+  "DocTipo": 99,
+  "FchServDesde": "20261118",
+  "FchServHasta": "20261118",
+  "FchVtoPago": "20261118",
+  "ImpIVA": 0,
+  "ImpNeto": 1000,
+  "ImpOpEx": 0,
+  "ImpTotal": 1000,
+  "ImpTotConc": 0,
+  "ImpTrib": 0,
+  "MonCotiz": 1,
+  "MonId": "PES",
+  "PeriodoAsoc": {
+    "FchDesde": "20261001",
+    "FchHasta": "20261015"
+  },
+  "PtoVta": 3
+}

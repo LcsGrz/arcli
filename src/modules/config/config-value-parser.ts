@@ -4,6 +4,7 @@ import type { z } from 'zod';
 
 import { parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
 import { InputIssuesError, InputValidationError } from '../../lib/errors/app-error';
+import { describeInvalidCbu, parseCbu } from '../../lib/identity/cbu';
 import { parseCuit } from '../../lib/identity/cuit';
 import { EXCHANGE_RATE_DECIMALS, parseArgentineAmount } from '../../lib/numbers/argentine-amount';
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
@@ -49,6 +50,7 @@ export type CanonicalConfigKey =
   | 'key.produccion'
   | 'key.testing'
   | 'monedaPorDefecto'
+  | 'monotributo.tope'
   | 'output.emitirPorDefecto'
   | 'output.jsonPorDefecto'
   | 'output.brutoPorDefecto'
@@ -165,14 +167,14 @@ function parseCurrencyCode(value: string, displayKey?: string): string {
   return normalizedValue;
 }
 
-function parseCbu(value: string): string {
-  const normalizedValue = value.trim();
+function parseCbuValue(value: string): string {
+  const result = parseCbu(value);
 
-  if (!/^\d{22}$/.test(normalizedValue)) {
-    throw new InputValidationError(`El CBU "${value}" no es válido: debe tener 22 dígitos.`);
+  if (!result.ok) {
+    throw new InputValidationError(describeInvalidCbu(result.reason, value));
   }
 
-  return normalizedValue;
+  return result.value;
 }
 
 function parseCbuAlias(value: string): string {
@@ -209,6 +211,19 @@ function parseRecentCount(value: string): number {
   }
 
   return parsedValue;
+}
+
+/** Un importe en pesos mayor a cero, escrito como en los flags: `30.000.000` o `30000000,50`. */
+function parsePositiveAmount(value: string, displayKey?: string): number {
+  const result = parseArgentineAmount(value);
+
+  if (!result.ok || result.value <= 0) {
+    throw new InputValidationError(
+      `${subjectOf(displayKey)} no acepta "${value}": tiene que ser un importe en pesos mayor a cero, por ejemplo 30.000.000.`,
+    );
+  }
+
+  return result.value;
 }
 
 function parseExchangeRate(value: string): number {
@@ -274,7 +289,7 @@ export function parseConfigValue(
     case 'aliasCbu':
       return parseCbuAlias(value);
     case 'cbu':
-      return parseCbu(value);
+      return parseCbuValue(value);
     case 'conceptoPorDefecto':
       return parseChoice(arcliDefaultConceptSchema, value, displayKey);
     case 'condicionVenta':
@@ -301,6 +316,8 @@ export function parseConfigValue(
       return parseChoice(arcliDefaultIvaConditionSchema, value, displayKey);
     case 'monedaPorDefecto':
       return parseCurrencyCode(value, displayKey);
+    case 'monotributo.tope':
+      return parsePositiveAmount(value, displayKey);
     case 'verificarFce':
     case 'consultarPadron':
     case 'output.emitirPorDefecto':

@@ -46,6 +46,7 @@ const CORE_RULES = [
   'Un solo concepto: --concepto o uno entre --cs, --cp y --csp.',
   'Con servicios: --servicio-desde y --servicio-hasta para el período, y --vto para el vencimiento.',
   'Sin --fecha usa hoy. Lo que no pasás por flag sale del JSON de --cargar o de la config.',
+  'Fechas: además de D/M/YYYY, hoy, ayer, +N y -N (días desde hoy). En desde y hasta (--sd/--sh, --pd/--ph) también mes-actual y mes-pasado: el día 1 en desde y el último día en hasta.',
 ];
 
 interface HelpScope {
@@ -67,8 +68,8 @@ function createRules(scope: HelpScope): string {
   if (scope.isNote) {
     rules.push(
       scope.isElectronicCredit
-        ? 'Asociado: la factura FCE con --ac o --at, --apv y --ar (la fecha sale de ARCA si falta --afecha); --acuit toma tu CUIT. Con --anulacion, anula una factura que rechazó el comprador.'
-        : 'Asociado: el comprobante con --ac o --at, --apv, --ar y --acuit, o un período con --periodo-desde y --periodo-hasta.',
+        ? 'Asociado: la factura FCE con --ac o --at, --apv y --ar (la fecha sale de ARCA si falta --afecha); --acuit toma tu CUIT. Con --anulacion, anula un comprobante que rechazó el comprador: la NC asocia la factura o una ND FCE, y la ND una NC FCE.'
+        : 'Asociado: la factura, el recibo u otra nota de la misma letra con --ac o --at, --apv, --ar y --acuit, o un período con --periodo-desde y --periodo-hasta.',
     );
   } else if (scope.isElectronicCredit) {
     rules.push('FCE: necesita CBU (--cbu o la clave cbu de la config); --transferencia es sca por defecto.');
@@ -426,6 +427,40 @@ export function createPadronHelp(): string {
         '  - El certificado tiene que estar autorizado para el servicio ws_sr_constancia_inscripcion en ARCA.',
         '  - Para no consultarlo al facturar: arcli config establecer consultarPadron false',
       ].join('\n'),
+    ),
+    '',
+  ].join('\n');
+}
+
+export function createMonotributoHelp(): string {
+  return [
+    '',
+    section(
+      'Para qué sirve',
+      compactList([
+        'Ver las 11 categorías del monotributo (A a K): hasta cuánto podés facturar por año y cuánto pagás por mes.',
+        'Si tu CUIT es monotributista, tu categoría sale marcada (la lee una vez del padrón con tu certificado).',
+      ]),
+    ),
+    '',
+    section(
+      'Ejemplos',
+      compactList([
+        'arcli monotributo',
+        'arcli monotributo --categoria E',
+        'arcli monotributo --completa',
+        'arcli monotributo --actualizar',
+        'arcli monotributo --json',
+      ]),
+    ),
+    '',
+    section(
+      'De dónde sale',
+      compactList([
+        'De la página de categorías de ARCA, sin certificado. ARCLI la guarda y la vuelve a leer con --actualizar.',
+        'Sin conexión, o si la página cambió, usa la guardada o la tabla incluida en ARCLI.',
+        'ARCA actualiza las categorías en febrero y agosto.',
+      ]),
     ),
     '',
   ].join('\n');

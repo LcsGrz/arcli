@@ -8,7 +8,7 @@ import type { InvoicePdfData, InvoicePdfOptions } from '../../modules/pdf/pdf.ty
 
 import { findDownloadedBrowser, findSystemBrowser } from './pdf-browser';
 
-export const PDF_PLUGIN_PACKAGE = '@arcasdk/pdf';
+const PDF_PLUGIN_PACKAGE = '@arcasdk/pdf';
 /** Version probada con arcli. Se sube a mano despues de revisar los PDFs que genera. */
 export const PDF_PLUGIN_VERSION = '0.2.1';
 
@@ -24,7 +24,7 @@ export interface PdfPluginStatus {
   readonly version: string;
 }
 
-export interface ProcessResult {
+interface ProcessResult {
   readonly code: number | null;
   readonly output: string;
   /** Se corto por `timeoutMs`. */

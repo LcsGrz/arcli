@@ -1,11 +1,17 @@
-import { formatArcaDateAsArgentineDate, parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
+import {
+  formatArcaDateAsArgentineDate,
+  formatDateAsArcaDate,
+  parseArgentineDateInputAsArcaDate,
+} from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
+import { assertRules } from '../../lib/rules/rules';
 import type { ICbtesAsoc } from '../../services/arca/arca-sdk.types';
 
-import { formatVoucherSubject, formatVoucherWithArticle } from './billing.mappers';
+import { formatVoucherLabel, formatVoucherSubject, formatVoucherWithArticle } from './billing.mappers';
+import { ASSOCIATED_NOT_AFTER_NOTE_RULE } from './billing.rules';
 import type { BillingCommandInput } from './billing.schemas';
 import type { VoucherFamily, VoucherKindDefinition } from './billing.types';
-import { getVoucherKindByArcaType } from './voucher-kind-map';
+import { getVoucherKindByArcaType, getVoucherKindByFamilyAndLetter } from './voucher-kind-map';
 
 interface ResolveAssociatedVoucherOptions {
   readonly billingDate: string;
@@ -40,20 +46,21 @@ export function resolveAssociatedVouchers(options: ResolveAssociatedVoucherOptio
   }
 
   const associatedVoucher = input.associatedVoucher;
-  // En NC/ND FCE el asociado siempre es del propio emisor (10155), asi que el CUIT puede omitirse.
-  const associatedCuit = associatedVoucher?.cuit ?? (voucherKind.isElectronicCredit ? String(emitterCuit) : undefined);
+  // Sin `--acuit` el asociado es del propio emisor. ARCA solo exige el CUIT en las notas FCE (10151, WSFEv1 v4.7), donde
+  // ademas tiene que ser el del emisor (10155); en A, B y C es opcional (p. 31).
+  const associatedCuit = associatedVoucher?.cuit ?? String(emitterCuit);
   const associatedVoucherType =
     associatedVoucher?.tipo ?? resolveAssociatedVoucherType(associatedVoucher?.shortcut, requireVoucherKind);
   const associatedVoucherKind = resolveAssociatedVoucherKind(associatedVoucher, requireVoucherKind);
 
-  if (!associatedVoucher?.numero || !associatedVoucher.puntoVenta || !associatedVoucherType || !associatedCuit) {
+  if (!associatedVoucher?.numero || !associatedVoucher.puntoVenta || !associatedVoucherType) {
     throw new InputValidationError(
-      `${formatVoucherSubject(voucherKind)} requiere comprobante asociado. Usá \`--ac\` o \`--at\`, junto con \`--apv\` o \`--asociado-punto-venta\`, \`--ar\` y \`--acuit\`${voucherKind.isElectronicCredit ? '' : ', o un período con `--periodo-desde` y `--periodo-hasta`'}.`,
+      `${formatVoucherSubject(voucherKind)} requiere comprobante asociado. Usá \`--ac\` o \`--at\`, junto con \`--apv\` o \`--asociado-punto-venta\` y \`--ar\`${voucherKind.isElectronicCredit ? '' : ' (y `--acuit` si es de otro CUIT), o un período con `--periodo-desde` y `--periodo-hasta`'}.`,
     );
   }
 
   if (associatedVoucherKind) {
-    validateAssociatedVoucherKind(associatedVoucherKind, voucherKind);
+    validateAssociatedVoucherKind(associatedVoucherKind, voucherKind, input.cancellation);
   }
 
   if (voucherKind.isElectronicCredit && associatedCuit !== String(emitterCuit)) {
@@ -63,7 +70,7 @@ export function resolveAssociatedVouchers(options: ResolveAssociatedVoucherOptio
   }
 
   // En una nota FCE sin `--afecha` la fecha sale de ARCA (checkAssociatedInArca, antes de la vista previa).
-  const associatedDate = resolveAssociatedVoucherDate(associatedVoucher.fecha, billingDate, voucherKind);
+  const associatedDate = resolveAssociatedVoucherDate(input, billingDate, voucherKind);
 
   return [
     {
@@ -97,23 +104,27 @@ function resolveAssociatedVoucherKind(
 }
 
 function resolveAssociatedVoucherDate(
-  rawDate: string | undefined,
+  input: BillingCommandInput,
   billingDate: string,
   voucherKind: VoucherKindDefinition,
 ): string | undefined {
+  const rawDate = input.associatedVoucher?.fecha;
+
   if (!rawDate) {
     return undefined;
   }
 
-  const associatedDate = parseArgentineDateInputAsArcaDate(rawDate);
+  // La misma regla que el asistente al preguntar la fecha del asociado o la de la nota.
+  assertRules(
+    [ASSOCIATED_NOT_AFTER_NOTE_RULE],
+    { ...input, billingDate: formatArcaDateAsArgentineDate(billingDate) },
+    {
+      today: formatDateAsArcaDate(new Date()),
+      voucherKind,
+    },
+  );
 
-  if (associatedDate > billingDate) {
-    throw new InputValidationError(
-      `La fecha del comprobante asociado (${formatArcaDateAsArgentineDate(associatedDate)}) no puede ser posterior a la de ${formatVoucherWithArticle(voucherKind)} (${formatArcaDateAsArgentineDate(billingDate)}).`,
-    );
-  }
-
-  return associatedDate;
+  return parseArgentineDateInputAsArcaDate(rawDate);
 }
 
 function resolveAssociatedVoucherType(
@@ -127,16 +138,69 @@ function resolveAssociatedVoucherType(
   return requireVoucherKind(shortcut).arcaType;
 }
 
-const ASSOCIABLE_FAMILIES: readonly VoucherFamily[] = ['factura', 'factura-credito-electronica', 'recibo'];
+/** NC y ND A, B y C asocian facturas, recibos y otras notas de la misma letra (regla 10040, WSFEv1 v4.7). */
+const COMMON_NOTE_ASSOCIABLE_FAMILIES: readonly VoucherFamily[] = ['factura', 'nota-credito', 'nota-debito', 'recibo'];
+
+/**
+ * Lo que puede asociar una nota segun su familia y si es de anulacion. Una nota FCE sin anulacion solo asocia la
+ * factura FCE (10156, 10157); con anulacion, la NC asocia la factura o una ND FCE y la ND solo una NC FCE (10183,
+ * WSFEv1 v4.7). La 10186, la 10187 y la 10193 (A, B y C) dicen lo mismo en su segunda oracion, pero la primera habla
+ * de asociar "un comprobante de credito": el texto es ambiguo y la fuente es la 10183. En A, B y C la anulacion no
+ * cambia nada.
+ */
+export function listAssociableFamilies(noteFamily: VoucherFamily, cancellation: boolean): readonly VoucherFamily[] {
+  switch (noteFamily) {
+    case 'nota-credito':
+    case 'nota-debito':
+      return COMMON_NOTE_ASSOCIABLE_FAMILIES;
+    case 'nota-credito-electronica':
+      return cancellation
+        ? ['factura-credito-electronica', 'nota-debito-electronica']
+        : ['factura-credito-electronica'];
+    case 'nota-debito-electronica':
+      return cancellation ? ['nota-credito-electronica'] : ['factura-credito-electronica'];
+    default:
+      return [];
+  }
+}
+
+/**
+ * En una nota FCE, la anulacion que exige su asociado: `true` o `false` si solo una de las dos lo permite, o
+ * `undefined` si valen las dos (una NC FCE sobre la factura) o si la nota no es FCE.
+ */
+export function resolveRequiredCancellation(
+  noteFamily: VoucherFamily,
+  associatedFamily: VoucherFamily,
+): boolean | undefined {
+  const allowed = [false, true].filter((cancellation) =>
+    listAssociableFamilies(noteFamily, cancellation).includes(associatedFamily),
+  );
+
+  return allowed.length === 1 ? allowed[0] : undefined;
+}
+
+/** `una factura de crédito electrónica A o una nota de débito electrónica A`. */
+function describeAssociableFamilies(
+  families: readonly VoucherFamily[],
+  letter: VoucherKindDefinition['letter'],
+): string {
+  return families
+    .flatMap((family) => {
+      const kind = getVoucherKindByFamilyAndLetter(family, letter);
+
+      return kind ? [`${family === 'recibo' ? 'un' : 'una'} ${formatVoucherLabel(kind)}`] : [];
+    })
+    .join(' o ');
+}
 
 function validateAssociatedVoucherKind(
   associatedVoucherKind: VoucherKindDefinition,
   voucherKind: VoucherKindDefinition,
+  cancellation: boolean,
 ): void {
-  // ARCA acepta notas C sobre un Recibo C (probado en testing).
-  if (!ASSOCIABLE_FAMILIES.includes(associatedVoucherKind.family)) {
+  if (associatedVoucherKind.isElectronicCredit !== voucherKind.isElectronicCredit) {
     throw new InputValidationError(
-      `El comprobante asociado de ${formatVoucherWithArticle(voucherKind)} debe ser una factura o un recibo, no otra nota.`,
+      `El comprobante asociado debe pertenecer a la misma categoría electrónica que ${formatVoucherWithArticle(voucherKind)}.`,
     );
   }
 
@@ -146,9 +210,20 @@ function validateAssociatedVoucherKind(
     );
   }
 
-  if (associatedVoucherKind.isElectronicCredit !== voucherKind.isElectronicCredit) {
-    throw new InputValidationError(
-      `El comprobante asociado debe pertenecer a la misma categoría electrónica que ${formatVoucherWithArticle(voucherKind)}.`,
-    );
+  const families = listAssociableFamilies(voucherKind.family, cancellation);
+
+  if (families.includes(associatedVoucherKind.family)) {
+    return;
   }
+
+  const withOther = listAssociableFamilies(voucherKind.family, !cancellation).includes(associatedVoucherKind.family);
+  const flag = voucherKind.isElectronicCredit ? ` ${cancellation ? 'con' : 'sin'} \`--anulacion\`` : '';
+
+  throw new InputValidationError(
+    `${formatVoucherSubject(voucherKind)}${flag} solo puede asociar ${describeAssociableFamilies(families, voucherKind.letter)}, no ${formatVoucherWithArticle(associatedVoucherKind)}.`,
+    undefined,
+    withOther
+      ? `${cancellation ? 'Sacá' : 'Sumá'} \`--anulacion\` para asociar ${formatVoucherWithArticle(associatedVoucherKind)}.`
+      : undefined,
+  );
 }

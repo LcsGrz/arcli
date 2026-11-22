@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { deriveIvaCondition, PADRON_TAX_IDS } from '../padron';
+import { stripAnsi } from '../../../ui/primitives';
+import { deriveIvaCondition, PADRON_TAX_IDS, parseArcaPeriod, parseMonotributoCategoryLetter } from '../padron';
 import { formatPadronAsJson, formatPadronAsText } from '../padron.presenter';
 
 const tax = (id: number, active = true) => ({ active, description: String(id), id });
@@ -26,6 +27,42 @@ describe('deriveIvaCondition', () => {
   });
 });
 
+describe('parseMonotributoCategoryLetter', () => {
+  it('saca la letra del principio de la descripcion de ARCA', () => {
+    expect(parseMonotributoCategoryLetter('E VENTAS DE COSAS MUEBLES')).toBe('E');
+    expect(parseMonotributoCategoryLetter(' k  locaciones de servicio')).toBe('K');
+    expect(parseMonotributoCategoryLetter('A')).toBe('A');
+  });
+
+  it('sin una letra de A a K sola al principio, no la inventa', () => {
+    expect(parseMonotributoCategoryLetter(null)).toBeNull();
+    expect(parseMonotributoCategoryLetter('')).toBeNull();
+    expect(parseMonotributoCategoryLetter('L VENTAS')).toBeNull();
+    expect(parseMonotributoCategoryLetter('EVENTUAL')).toBeNull();
+    expect(parseMonotributoCategoryLetter('CATEGORIA E')).toBeNull();
+  });
+});
+
+describe('parseArcaPeriod', () => {
+  it('acepta yyyymm como numero o texto', () => {
+    expect(parseArcaPeriod(201309)).toBe('201309');
+    expect(parseArcaPeriod(' 202612 ')).toBe('202612');
+  });
+
+  it('acepta enero, el borde inferior del mes (TEST-19)', () => {
+    expect(parseArcaPeriod(202601)).toBe('202601');
+    expect(parseArcaPeriod('201901')).toBe('201901');
+  });
+
+  it('descarta lo que no es un periodo', () => {
+    expect(parseArcaPeriod(undefined)).toBeNull();
+    expect(parseArcaPeriod(202613)).toBeNull();
+    expect(parseArcaPeriod(202600)).toBeNull();
+    expect(parseArcaPeriod('20130901')).toBeNull();
+    expect(parseArcaPeriod('abc')).toBeNull();
+  });
+});
+
 describe('padron presenter', () => {
   const taxpayer = {
     activities: [
@@ -37,6 +74,8 @@ describe('padron presenter', () => {
     ivaCondition: 'responsable-inscripto' as const,
     keyStatus: 'ACTIVO',
     monotributoCategory: null,
+    monotributoCategoryLetter: null,
+    monotributoCategorySince: null,
     name: 'VICTORIA CAROLINA DARIO',
     notices: [],
     personType: 'fisica' as const,
@@ -64,9 +103,87 @@ describe('padron presenter', () => {
     expect(text).toContain('Responsable inscripto');
   });
 
+  it('una actividad sin descripcion sale con su codigo (TUI-20)', () => {
+    const text = stripAnsi(
+      formatPadronAsText({
+        environment: 'testing',
+        taxpayer: { ...taxpayer, activities: [{ description: '', id: 439100 }] },
+      }),
+    );
+
+    expect(text).toMatch(/Actividad principal\s+Actividad 439100/);
+    expect(text).not.toContain('undefined');
+  });
+
   it('sin condicion IVA pide indicarla con --ir', () => {
     expect(formatPadronAsText({ environment: 'testing', taxpayer: { ...taxpayer, ivaCondition: null } })).toContain(
       'indicala con `--ir`',
     );
+  });
+
+  it('lo que ARCA no informa: nombre, estado, domicilio e IVA lo dicen; el tipo no va; nunca N/D (TUI-20)', () => {
+    const text = stripAnsi(
+      formatPadronAsText({
+        environment: 'testing',
+        taxpayer: { ...taxpayer, address: null, ivaCondition: null, keyStatus: null, name: null, personType: null },
+      }),
+    );
+
+    expect(text).toMatch(/Nombre\s+ARCA no lo informa/);
+    expect(text).toMatch(/Estado\s+ARCA no lo informa/);
+    expect(text).toMatch(/Domicilio fiscal\s+ARCA no lo informa/);
+    expect(text).toMatch(/Condición frente al IVA\s+ARCA no lo informa/);
+    expect(text).not.toMatch(/Tipo\s/);
+    expect(text).not.toContain('N/D');
+  });
+
+  describe('categoria del monotributo', () => {
+    const monotributista = {
+      ...taxpayer,
+      ivaCondition: 'responsable-monotributo' as const,
+      monotributoCategory: 'E VENTAS DE COSAS MUEBLES',
+      monotributoCategoryLetter: 'E' as const,
+      monotributoCategorySince: '201309',
+    };
+
+    it('en el JSON suma la letra y el periodo sin tocar categoriaMonotributo', () => {
+      expect(JSON.parse(formatPadronAsJson({ environment: 'testing', taxpayer: monotributista }))).toMatchObject({
+        categoriaMonotributo: 'E VENTAS DE COSAS MUEBLES',
+        categoriaMonotributoDesde: '201309',
+        categoriaMonotributoLetra: 'E',
+      });
+    });
+
+    it('en texto muestra la letra aparte y el mes desde el que rige', () => {
+      const text = formatPadronAsText({ environment: 'testing', taxpayer: monotributista });
+
+      expect(text).toMatch(/Categoría monotributo\s+E · VENTAS DE COSAS MUEBLES/);
+      expect(text).toMatch(/Categoría vigente desde\s+09\/2013/);
+    });
+
+    it('si no es monotributista, los campos van en null y no hay filas de categoria', () => {
+      expect(JSON.parse(formatPadronAsJson({ environment: 'testing', taxpayer }))).toMatchObject({
+        categoriaMonotributo: null,
+        categoriaMonotributoDesde: null,
+        categoriaMonotributoLetra: null,
+      });
+      expect(formatPadronAsText({ environment: 'testing', taxpayer })).not.toContain('Categoría');
+    });
+
+    it('sin letra ni periodo, muestra la descripcion como viene y no la fila del periodo', () => {
+      const text = formatPadronAsText({
+        environment: 'testing',
+        taxpayer: {
+          ...monotributista,
+          monotributoCategory: 'SOCIAL',
+          monotributoCategoryLetter: null,
+          monotributoCategorySince: null,
+        },
+      });
+
+      expect(text).toMatch(/Categoría monotributo\s+SOCIAL/);
+      expect(text).not.toContain('Categoría vigente desde');
+      expect(text).not.toContain('N/D');
+    });
   });
 });

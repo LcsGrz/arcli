@@ -1,0 +1,22 @@
+$ arcli parametros comprobantes --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "ARCA_PARAMETERS_ERROR",
+  "detalles": {
+    "errores": [
+      {
+        "code": 600,
+        "msg": "ValidacionDeToken: No aparecio CUIT.",
+        "codigo": 600,
+        "mensaje": "ValidacionDeToken: No aparecio CUIT."
+      }
+    ]
+  },
+  "error": "ARCA devolvió un error al consultar comprobantes: ValidacionDeToken: No aparecio CUIT.",
+  "sugerencia": null
+}
+

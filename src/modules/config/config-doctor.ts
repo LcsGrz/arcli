@@ -21,7 +21,7 @@ export const CONFIG_DOCTOR_SECTIONS = [
   ['validaciones', 'Validaciones'],
 ] as const;
 
-export type ConfigDoctorSection = (typeof CONFIG_DOCTOR_SECTIONS)[number][0];
+type ConfigDoctorSection = (typeof CONFIG_DOCTOR_SECTIONS)[number][0];
 
 export interface ConfigDoctorReport {
   readonly checks: ReadonlyArray<{

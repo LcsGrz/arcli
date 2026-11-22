@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { BillingExecutionResult } from '../../../modules/billing/billing.types.internal';
-import { formatBillingOutputs, writeBillingCommandResults } from '../billing.command.output';
+import { formatBillingOutputs, writeBillingCommandResults, writePdfOutcomes } from '../billing.command.output';
 
 vi.mock('../../../ui', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../ui')>();
@@ -13,7 +13,7 @@ vi.mock('../../../ui', async (importOriginal) => {
   };
 });
 
-import { writeTerminalJson, writeTerminalOutput } from '../../../ui';
+import { stripAnsi, writeTerminalJson, writeTerminalOutput } from '../../../ui';
 
 function createResult(overrides: Partial<BillingExecutionResult> = {}): BillingExecutionResult {
   return {
@@ -117,5 +117,81 @@ describe('writeBillingCommandResults', () => {
 
     expect(writeTerminalOutput).toHaveBeenCalledTimes(1);
     expect(writeTerminalJson).not.toHaveBeenCalled();
+  });
+});
+
+describe('formatBillingOutputs con un lote de uno', () => {
+  it('rotula el resultado como lote aunque sea uno solo, si entro un array en `--cargar`', () => {
+    expect(formatBillingOutputs([createResult()], { batch: true, environment: 'produccion', raw: false })).toMatch(
+      /^Lote 1\/1\n/,
+    );
+  });
+});
+
+describe('writeBillingCommandResults en texto', () => {
+  it('un lote en texto lleva el rotulo de cada resultado', () => {
+    writeBillingCommandResults([createResult()], {
+      batch: true,
+      environment: 'testing',
+      outputJson: false,
+      raw: false,
+    });
+
+    expect(String(vi.mocked(writeTerminalOutput).mock.calls[0]?.[0])).toContain('Lote 1/1');
+  });
+});
+
+describe('writePdfOutcomes', () => {
+  const printed = () =>
+    stripAnsi(
+      vi
+        .mocked(writeTerminalOutput)
+        .mock.calls.map(([chunk]) => String(chunk))
+        .join('\n'),
+    ).replace(/[│┃╏\s]+/g, ' ');
+
+  it('sin PDF ni avisos nuevos no escribe nada', () => {
+    const before = [createResult({ warnings: ['Aviso viejo'] })];
+
+    writePdfOutcomes(before, before);
+
+    expect(writeTerminalOutput).not.toHaveBeenCalled();
+  });
+
+  it('con un solo comprobante muestra el PDF y solo los avisos que no estaban', () => {
+    writePdfOutcomes(
+      [createResult({ warnings: ['Aviso viejo'] })],
+      [createResult({ pdf: { path: '/tmp/fa-3-1.pdf' }, warnings: ['Aviso viejo', 'Faltan datos del emisor'] })],
+    );
+
+    expect(writeTerminalOutput).toHaveBeenCalledTimes(1);
+    expect(printed()).toContain('PDF guardado en /tmp/fa-3-1.pdf');
+    expect(printed()).toContain('Faltan datos del emisor');
+    expect(printed()).not.toContain('Aviso viejo');
+    expect(printed()).not.toContain('Lote');
+  });
+
+  it('en un lote rotula cada PDF y cada aviso con su posicion, tambien si el PDF fallo', () => {
+    writePdfOutcomes(
+      [createResult(), createResult()],
+      [
+        createResult({ pdf: { path: '/tmp/fa-3-1.pdf' } }),
+        createResult({
+          pdf: { error: { code: 'PDF_PLUGIN', message: 'Falta el plugin.', suggestion: 'Instalalo.' } },
+          warnings: ['Sin logo'],
+        }),
+      ],
+    );
+
+    expect(printed()).toContain('Lote 1/2: PDF guardado en /tmp/fa-3-1.pdf');
+    expect(printed()).toMatch(/Lote 2\/2: PDF no generado/i);
+    expect(printed()).toContain('Falta el plugin.');
+    expect(printed()).toContain('Lote 2/2: Sin logo');
+  });
+
+  it('si antes no habia resultado para esa posicion, todos sus avisos son nuevos', () => {
+    writePdfOutcomes([], [createResult({ warnings: ['Nuevo'] })]);
+
+    expect(printed()).toContain('Nuevo');
   });
 });

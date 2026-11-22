@@ -6,6 +6,7 @@ import {
   certificateBanner,
   dataPanel,
   errorListPanel,
+  renderRowActionsList,
   sectionHeading,
   sheetPanel,
   statusBar,
@@ -41,11 +42,18 @@ import {
   formatConfigAsText,
   formatConfigDoctor,
   formatConfigDoctorAsText,
-  formatConfigLocationAsText,
 } from '../config/config.presenter';
 import type { ArcliConfig } from '../config/config.schemas';
 import { buildConfigDoctorReport } from '../config/config-doctor';
 import { formatFceObligationAsText } from '../fce/fce-obligation.presenter';
+import { BUNDLED_MONOTRIBUTO_TABLE } from '../monotributo/monotributo.bundled';
+import {
+  formatMonotributoCategoryAsText,
+  formatMonotributoFullAsText,
+  formatMonotributoNotices,
+  formatMonotributoSummaryAsText,
+  type MonotributoReport,
+} from '../monotributo/monotributo.presenter';
 import { formatPadronAsText } from '../padron/padron.presenter';
 import {
   formatParameterEntriesAsText,
@@ -379,11 +387,28 @@ function createSampleVoucher(partial: Partial<IssuedVoucher> = {}): IssuedVouche
   };
 }
 
+/** `arcli monotributo` con la tabla incluida, consultada en ARCA, con la E marcada y un aviso. */
+function createSampleMonotributoReport(partial: Partial<MonotributoReport> = {}): MonotributoReport {
+  return {
+    consultedOn: '20261118',
+    notices: [],
+    ownCategory: 'E',
+    source: 'arca',
+    table: BUNDLED_MONOTRIBUTO_TABLE,
+    version: '2.6.0',
+    ...partial,
+  };
+}
+
 function buildQueriesScene(): string {
   const voucherKind = createVoucherKind({});
+  const monotributo = createSampleMonotributoReport();
 
   return [
-    sceneTitle('Consultas', 'Padrón, FCE, estado, listados, parámetros, cotización, config y plugin de PDF'),
+    sceneTitle(
+      'Consultas',
+      'Padrón, FCE, estado, listados, parámetros, cotización, monotributo, config y plugin de PDF',
+    ),
     formatPadronAsText({
       environment: 'testing',
       taxpayer: {
@@ -395,7 +420,9 @@ function buildQueriesScene(): string {
         cuit: 20333333334,
         ivaCondition: 'responsable-monotributo',
         keyStatus: 'ACTIVO',
-        monotributoCategory: 'D',
+        monotributoCategory: 'D LOCACIONES DE SERVICIO',
+        monotributoCategoryLetter: 'D',
+        monotributoCategorySince: '202602',
         name: 'Empresa de Ejemplo SRL',
         notices: ['El domicilio fiscal no está confirmado.'],
         personType: 'juridica',
@@ -429,6 +456,37 @@ function buildQueriesScene(): string {
     }),
     formatVoucherListAsText({ environment: 'testing', pointOfSale: 3, voucherKind, vouchers: [] }),
     formatVoucherDetailAsText({ environment: 'testing', pointOfSale: 3, voucher: createSampleVoucher(), voucherKind }),
+    // `consultar` de una NC FCE en dólares: asociado, período de servicio, vencimiento, misma moneda y anulación.
+    formatVoucherDetailAsText({
+      environment: 'testing',
+      pointOfSale: 3,
+      voucher: createSampleVoucher({
+        associatedVouchers: [{ arcaType: 201, cuit: '20333333334', date: '20260310', number: 12, pointOfSale: 3 }],
+        concept: 2,
+        currency: 'DOL',
+        exchangeRate: 1452.5,
+        ivaAliquots: [{ amount: 210, base: 1000, id: 5 }],
+        ivaAmount: 210,
+        netAmount: 1000,
+        observations: ['El crédito fiscal discriminado será de uso exclusivo del receptor.'],
+        optionals: [{ id: '22', value: 'N' }],
+        paymentDueDate: '20260405',
+        receiverIvaConditionCode: 1,
+        sameCurrency: true,
+        serviceFrom: '20260301',
+        serviceTo: '20260331',
+        total: 1210,
+      }),
+      voucherKind: createVoucherKind({
+        arcaType: 203,
+        displayName: 'Nota de crédito electrónica A',
+        family: 'nota-credito',
+        isElectronicCredit: true,
+        letter: 'a',
+        requiresAssociatedVoucher: true,
+        shortcut: 'ncea',
+      }),
+    }),
     formatFceObligationAsText({
       cuit: 20333333334,
       environment: 'testing',
@@ -446,8 +504,18 @@ function buildQueriesScene(): string {
       ],
       'testing',
     ),
-    formatQuotationAsText({ currency: '060', date: '20261116', rate: 1520.75 }, 'testing'),
-    formatConfigLocationAsText('/ruta/a/arcli/config.json'),
+    formatQuotationAsText({ currency: '060', date: '20261116', rate: 1520.75 }, 'testing', { currencyName: 'Euro' }),
+    formatMonotributoSummaryAsText(monotributo, { hints: true }),
+    formatMonotributoNotices([
+      'No se pudo consultar la tabla en ARCA (sin conexión). Se muestra la incluida en ARCLI 2.6.0, vigente desde el 01/08/2026.',
+    ]) ?? '',
+    // Una terminal de 40 columnas: cada categoria en dos lineas.
+    formatMonotributoSummaryAsText(
+      createSampleMonotributoReport({ consultedOn: null, ownCategory: 'K', source: 'incluida' }),
+      { hints: true, width: 34 },
+    ),
+    formatMonotributoCategoryAsText(monotributo, 'E'),
+    formatMonotributoFullAsText(monotributo),
     formatPdfPluginStatusAsText({
       browser: '/ruta/al/navegador',
       browserSource: 'sistema',
@@ -553,8 +621,11 @@ function buildComponentsScene(): string {
         { kind: 'agregado', nested: false, text: 'Acceso directo en el escritorio.', topic: 'Modo interactivo' },
         { kind: 'cambiado', nested: false, text: 'Opciones entre backticks en los mensajes.' },
         { kind: 'corregido', nested: false, text: '"Volver" es un botón común en la selección múltiple.' },
+        { kind: 'deprecado', nested: false, text: 'la clave de la cotización queda deprecada.', topic: 'Config' },
       ],
       date: '2026-11-07',
+      name: 'Monotributo y recibos',
+      summary: 'El monotributo en la terminal, Recibo A y B y fechas relativas.',
       version: '0.2.0',
     },
   ]);
@@ -568,8 +639,39 @@ function buildComponentsScene(): string {
     ['Importe total', '$ 1'],
   ];
 
+  // El editor de ítems de la E (NAV-10): uno para modificar, uno para borrar y el cursor en el primero.
+  const rowActions = renderRowActionsList({
+    active: 0,
+    addLabel: '+ Agregar ítem',
+    backLabel: `${uiSymbol('back')} Volver`,
+    highlight: (text) => colorize(text, 'highlight'),
+    pageSize: 12,
+    rows: [
+      { detail: '1.000 litros x 1,50 USD', mark: 'edit', title: 'Jugo de naranja concentrado', total: '1.500 USD' },
+      { detail: '1 unidades x 500 USD', mark: 'remove', title: 'Flete', total: '500 USD' },
+      { detail: '1 unidades x 100 USD', title: 'Seguro', total: '100 USD' },
+    ],
+    width: 84,
+  });
+  // El titulo y la ayuda de teclas los pone el prompt: con marcas, Enter aplica (sin marcas, sigue).
+  const rowActionsHelp = [
+    [uiSymbol('keysMove'), 'mover'],
+    ['espacio', 'modificar'],
+    [uiSymbol('keyBackspace'), 'borrar'],
+    [uiSymbol('keyEnter'), 'aplicar'],
+  ]
+    .map(([key, action]) => `${key} ${colorize(action ?? '', 'muted')}`)
+    .join(colorize(` ${uiSymbol('bullet')} `, 'muted'));
+  const rowActionsDemo = [
+    'Ítems de la factura de exportación E (3): modificá o eliminá ítems, o presioná Enter para continuar',
+    ' ',
+    ...rowActions,
+    ' ',
+    rowActionsHelp,
+  ].join('\n');
+
   return [
-    sceneTitle('Componentes', 'Banners, avisos y un panel de cada rol'),
+    sceneTitle('Componentes', 'Banners, avisos, un panel de cada rol y la lista con acciones por fila'),
     notice,
     certificateNotice,
     expiredCertificateNotice,
@@ -592,6 +694,7 @@ function buildComponentsScene(): string {
       'Demo datos',
       renderObject({ cae: '86120020280000', payload: { CbteTipo: 11, ImpTotal: 1, PtoVta: 3 }, resultado: 'A' }),
     ),
+    dataPanel('Demo lista con acciones por fila', rowActionsDemo),
   ].join('\n\n');
 }
 

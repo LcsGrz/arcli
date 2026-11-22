@@ -2,9 +2,10 @@ import { Command } from 'commander';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { needsPadronLookup } from '../../../modules/billing/billing.padron';
+import type { BillingCommandInput } from '../../../modules/billing/billing.schemas';
 import {
   parseBillingCommandInput,
   parseBillingCommandInputs,
@@ -59,6 +60,41 @@ describe('billing.command.parser', () => {
     expect(parse(1234.5).totalAmount).toBe(1234.5);
     expect(() => parse(1.005)).toThrow(/hasta 2 decimales/);
     expect(() => parse(100.555)).toThrow(/hasta 2 decimales/);
+  });
+
+  it('stops values that do not fit in the WSFEv1 fields, from flags or from --cargar (REGLAS-18)', () => {
+    const parse = (args: string[]) => parseBillingCommandInput(createCommand(['--cs', '--ir-cf', ...args]), 'ncb');
+    const associated = ['--ac', 'fb', '--apv', '1', '--ar', '1'];
+
+    expect(parse(['--monto', '9999999999999,99', ...associated]).totalAmount).toBe(9_999_999_999_999.99);
+    expect(() => parse(['--monto', '10000000000000', ...associated])).toThrow(
+      'El monto supera el máximo de ARCA: hasta 13 enteros (9.999.999.999.999,99).',
+    );
+    expect(() => parse(['--cargar', writeJsonInput({ montoTotal: 10_000_000_000_000 }), ...associated])).toThrow(
+      /El monto supera el máximo de ARCA/,
+    );
+    expect(() => parse(['--monto', '100', '--exento', '10000000000000', ...associated])).toThrow(
+      /El importe exento supera el máximo de ARCA/,
+    );
+
+    expect(parse(['--monto', '100', '--pv', '99998', ...associated]).pointOfSale).toBe(99_998);
+    expect(() => parse(['--monto', '100', '--pv', '99999', ...associated])).toThrow(
+      'El punto de venta va de 1 a 99998: ARCA rechaza 99999 (error 10004).',
+    );
+    expect(() => parse(['--cargar', writeJsonInput({ puntoVenta: 100_000 }), ...associated])).toThrow(/error 10004/);
+
+    expect(() => parse(['--monto', '100', '--ac', 'fb', '--apv', '99999', '--ar', '1'])).toThrow(
+      'El punto de venta del comprobante asociado va de 1 a 99998: ARCA rechaza 99999 (error 10058).',
+    );
+    expect(parse(['--monto', '100', '--ac', 'fb', '--apv', '1', '--ar', '99999999']).associatedVoucher?.numero).toBe(
+      99_999_999,
+    );
+    expect(() => parse(['--monto', '100', '--ac', 'fb', '--apv', '1', '--ar', '100000000'])).toThrow(
+      'El número del comprobante asociado va de 1 a 99999999: ARCA rechaza 100000000 (error 10059).',
+    );
+    expect(() =>
+      parse(['--cargar', writeJsonInput({ comprobanteAsociado: { atajo: 'fb', numero: 100_000_000, puntoVenta: 1 } })]),
+    ).toThrow(/error 10059/);
   });
 
   it('defaults to safe dry-run when emit is absent', () => {
@@ -215,6 +251,20 @@ describe('billing.command.parser', () => {
       expect(input.exchangeRate).toBe(1200);
     });
 
+    it('marks a cotizacionMoneda from the file, so the range error names the JSON key', () => {
+      const fromFile = parseBillingCommandInput(
+        createCommand(['--cargar', writeJsonInput({ codigoMoneda: 'USD', cotizacionMoneda: 1200 })]),
+        'fc',
+      );
+      const fromFlag = parseBillingCommandInput(
+        createCommand(['--cargar', writeJsonInput({ codigoMoneda: 'USD', cotizacionMoneda: 1200 }), '--cm', '1.300']),
+        'fc',
+      );
+
+      expect(fromFile.fromFile).toContain('exchangeRate');
+      expect(fromFlag.fromFile ?? []).not.toContain('exchangeRate');
+    });
+
     it('uses --misma-moneda instead of the file cotizacionMoneda', () => {
       const input = parseBillingCommandInput(
         createCommand(['--cargar', writeJsonInput({ codigoMoneda: 'USD', cotizacionMoneda: 1200 }), '--misma-moneda']),
@@ -247,7 +297,24 @@ describe('billing.command.parser', () => {
       '1200',
     ]);
 
-    expect(() => parseBillingCommandInput(command, 'fc')).toThrow(/la cotización se toma de ARCA/);
+    expect(() => parseBillingCommandInput(command, 'fc')).toThrow(
+      'Con `--misma-moneda` la cotización se toma de ARCA. Sacá `--cotizacion-moneda` o `--cm`.',
+    );
+  });
+
+  it('names the JSON keys, not the flags, when mismaMoneda and cotizacionMoneda both come from --cargar', () => {
+    const command = createCommand([
+      '--monto',
+      '1000',
+      '--cs',
+      '--ir-cf',
+      '--cargar',
+      writeJsonInput({ codigoMoneda: 'USD', cotizacionMoneda: 1200, mismaMoneda: true }),
+    ]);
+
+    expect(() => parseBillingCommandInput(command, 'fc')).toThrow(
+      'Con `"mismaMoneda": true` la cotización se toma de ARCA. Sacá `"cotizacionMoneda"` del JSON de `--cargar`.',
+    );
   });
 
   it('applies the default exchange rate only to foreign currency', () => {
@@ -339,6 +406,42 @@ describe('billing.command.parser', () => {
     expect(fce.cbuAlias).toBe('mi.alias.cbu');
     expect(regular.cbu).toBeUndefined();
     expect(regular.cbuAlias).toBeUndefined();
+  });
+
+  it.each(['20-11111111-2', '20.11111111.2', '20 11111111 2', ' 20111111112 '])(
+    'accepts --cuit %j with dashes, dots or spaces',
+    (cuit) => {
+      const input = parseBillingCommandInput(
+        createCommand(['--monto', '1000', '--cs', '--ir-rm', '--cuit', cuit]),
+        'fc',
+      );
+
+      expect(input).toMatchObject({ documentNumber: 20111111112, documentType: 'cuit' });
+    },
+  );
+
+  it('accepts a 22-digit --cbu and rejects any other length or characters', () => {
+    const parse = (cbu: string) =>
+      parseBillingCommandInput(createCommand(['--monto', '1000', '--cs', '--ir-ri', '--cbu', cbu]), 'fcea');
+
+    expect(parse('0110599520000012345678').cbu).toBe('0110599520000012345678');
+    expect(parse(' 0110599520000012345678 ').cbu).toBe('0110599520000012345678');
+    expect(() => parse('011059952000001234567')).toThrow(/22 dígitos/);
+    expect(() => parse('01105995200000123456789')).toThrow(/22 dígitos/);
+    expect(() => parse('0110-5995-2000-0012-3456-78')).toThrow(/22 dígitos/);
+    expect(() => parse('011059952000001234567a')).toThrow(/22 dígitos/);
+  });
+
+  it.each([
+    ['0110599420000012345678', /bloque de banco y sucursal/],
+    ['0110599520000012345677', /bloque de la cuenta/],
+  ])('rejects a CBU %j with a wrong check digit, from --cbu or from --cargar', (cbu, reason) => {
+    const parse = (args: string[]) =>
+      parseBillingCommandInput(createCommand(['--monto', '1000', '--cs', '--ir-ri', ...args]), 'fcea');
+
+    expect(() => parse(['--cbu', cbu])).toThrow(reason);
+    expect(() => parse(['--cargar', writeJsonInput({ cbu })])).toThrow(reason);
+    expect(parse(['--cargar', writeJsonInput({ cbu: '0110599520000012345678' })]).cbu).toBe('0110599520000012345678');
   });
 
   it('parses FCE flags', () => {
@@ -998,5 +1101,110 @@ describe('--cargar JSON validation', () => {
         'fc',
       ),
     ).toThrow(/vacío/);
+  });
+});
+
+describe('billing.command.parser: fechas relativas', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    // 1/1/2027 a las 10 hs en Argentina.
+    vi.setSystemTime(new Date('2027-01-01T13:00:00Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const BASE_FLAGS = ['--monto', '1000', '--cs', '--cfinal'];
+
+  it('resuelve las palabras de los flags: un día o las puntas del mes', () => {
+    const input = parseBillingCommandInput(
+      createCommand([...BASE_FLAGS, '--fecha', 'HOY', '--sd', 'mes-pasado', '--sh', 'Mes-Pasado', '--vto', '+10']),
+      'fc',
+    );
+
+    expect(input).toMatchObject({
+      billingDate: '01/01/2027',
+      paymentDueDate: '11/01/2027',
+      serviceEndDate: '31/12/2026',
+      serviceStartDate: '01/12/2026',
+    });
+  });
+
+  it('resuelve el período y la fecha del asociado de una nota', () => {
+    const withPeriod = parseBillingCommandInput(
+      createCommand([...BASE_FLAGS, '--pd', 'mes-actual', '--ph', 'mes-actual']),
+      'ncc',
+    );
+    const withAssociated = parseBillingCommandInput(
+      createCommand([...BASE_FLAGS, '--ac', 'fc', '--apv', '1', '--ar', '5', '--afecha', 'ayer']),
+      'ncc',
+    );
+
+    expect(withPeriod.associatedPeriod).toEqual({ desde: '01/01/2027', hasta: '31/01/2027' });
+    expect(withAssociated.associatedVoucher?.fecha).toBe('31/12/2026');
+  });
+
+  // TUI-18: el inventario de los flags de fecha, cada uno con su alias. Si se suma uno, va aca.
+  it.each([
+    ['-f', 'fc', [], (input: BillingCommandInput) => input.billingDate],
+    ['--fecha', 'fc', [], (input: BillingCommandInput) => input.billingDate],
+    ['--sd', 'fc', [], (input: BillingCommandInput) => input.serviceStartDate],
+    ['--servicio-desde', 'fc', [], (input: BillingCommandInput) => input.serviceStartDate],
+    ['--sh', 'fc', [], (input: BillingCommandInput) => input.serviceEndDate],
+    ['--servicio-hasta', 'fc', [], (input: BillingCommandInput) => input.serviceEndDate],
+    ['--vto', 'fc', [], (input: BillingCommandInput) => input.paymentDueDate],
+    ['--vencimiento', 'fc', [], (input: BillingCommandInput) => input.paymentDueDate],
+    ['--pd', 'ncc', [], (input: BillingCommandInput) => input.associatedPeriod?.desde],
+    ['--periodo-desde', 'ncc', [], (input: BillingCommandInput) => input.associatedPeriod?.desde],
+    ['--ph', 'ncc', [], (input: BillingCommandInput) => input.associatedPeriod?.hasta],
+    ['--periodo-hasta', 'ncc', [], (input: BillingCommandInput) => input.associatedPeriod?.hasta],
+    [
+      '--afecha',
+      'ncc',
+      ['--ac', 'fc', '--apv', '1', '--ar', '5'],
+      (input: BillingCommandInput) => input.associatedVoucher?.fecha,
+    ],
+  ] as const)('%s acepta hoy', (flag, shortcut, extra, read) => {
+    const input = parseBillingCommandInput(createCommand([...BASE_FLAGS, ...extra, flag, 'hoy']), shortcut);
+
+    expect(read(input)).toBe('01/01/2027');
+  });
+
+  it('acepta las mismas palabras en las claves de fecha de --cargar', () => {
+    const input = parseBillingCommandInput(
+      createCommand([
+        '--cargar',
+        writeJsonInput({
+          fechaComprobante: '-1',
+          servicioDesde: 'mes-actual',
+          servicioHasta: 'mes-actual',
+          vencimientoPago: '+5',
+        }),
+      ]),
+      'fc',
+    );
+
+    expect(input).toMatchObject({
+      billingDate: '31/12/2026',
+      paymentDueDate: '06/01/2027',
+      serviceEndDate: '31/01/2027',
+      serviceStartDate: '01/01/2027',
+    });
+  });
+
+  it('deja igual las fechas escritas a mano', () => {
+    const input = parseBillingCommandInput(createCommand([...BASE_FLAGS, '--sd', '1/12', '--sh', '31/12/2026']), 'fc');
+
+    expect(input).toMatchObject({ serviceEndDate: '31/12/2026', serviceStartDate: '1/12' });
+  });
+
+  it('una palabra de mes en una fecha de un día es un error, también desde --cargar', () => {
+    expect(() => parseBillingCommandInput(createCommand([...BASE_FLAGS, '--vto', 'mes-pasado']), 'fc')).toThrow(
+      /valen solo en desde y hasta/,
+    );
+    expect(() =>
+      parseBillingCommandInput(createCommand(['--cargar', writeJsonInput({ fechaComprobante: 'mes-actual' })]), 'fc'),
+    ).toThrow(/valen solo en desde y hasta/);
   });
 });

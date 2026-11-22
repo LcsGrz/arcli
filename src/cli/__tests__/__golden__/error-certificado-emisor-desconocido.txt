@@ -1,0 +1,13 @@
+$ arcli certificado importar <config>/otro.crt --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "CERTIFICATE_ENVIRONMENT_UNKNOWN",
+  "detalles": null,
+  "error": "No se reconoce quién firmó el certificado (\"Otra CA\"): ARCA usa \"Computadores Test\" en testing y \"Computadores\" en producción.",
+  "sugerencia": "Si estás seguro de que es de ARCA, indicá el entorno con `--testing` o `--produccion`."
+}
+

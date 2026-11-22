@@ -1,60 +1,70 @@
-import { formatArgentineAmount, formatExchangeRate, parseArgentineAmount } from '../../lib/numbers/argentine-amount';
+import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
-import { sumExportItems } from '../../modules/export/export.items';
-import { resolveExportClientCountryCuit, resolveExportCurrency } from '../../modules/export/export.mappers';
+import {
+  type ExportTextField,
+  exportTextFieldError,
+  resolveExportClientCountryCuit,
+} from '../../modules/export/export.mappers';
+import { EXPORT_RULES, type ExportRuleContext } from '../../modules/export/export.rules';
 import {
   DEFAULT_EXPORT_LANGUAGE,
-  DEFAULT_EXPORT_UNIT_CODE,
-  type ExportCountry,
   type ExportCountryCuit,
-  type ExportItemInput,
-  type ExportLanguage,
-  type ExportUnit,
   type ExportVoucherInput,
 } from '../../modules/export/export.types';
-import { parseExchangeRateInput } from '../../modules/interactive/amount-input';
-import { BACK, type Back } from '../../modules/interactive/wizard';
+import { completeDateInput } from '../../modules/interactive/date-input';
+import {
+  type ExportCountryCuitContext,
+  type ExportOptionalQuestions,
+  exportOptionals,
+  type ExportOptionalsContext,
+  type ExportOptions,
+} from '../../modules/interactive/export-optionals';
+import { ruleValidator, scopedRuleValidator } from '../../modules/interactive/rule-validator';
+import { BACK, type Back, requireStepValue, type WizardStep } from '../../modules/interactive/wizard';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 import { withSpinner } from '../spinner';
 
-import { askTextStep, chooseManyStep, chooseStep } from './prompts';
-import { validateExchangeRate } from './validators';
+import { optionalsStep } from './optionals-step';
+import { askTextStep, chooseStep } from './prompts';
+import { dateStep } from './steps/date';
+import { validateExportVoucherDate, validateOptionalDate } from './validators';
 
-/** Lo opcional de una E: lo que el CLI tiene con flags y el asistente no pregunta si no se marca. */
-export type ExportOptions = Pick<
-  ExportVoucherInput,
-  | 'clientCountryCuit'
-  | 'commercialObservations'
-  | 'exchangeRate'
-  | 'incotermDescription'
-  | 'items'
-  | 'language'
-  | 'observations'
->;
+/**
+ * Un texto de la E con el largo maximo de ARCA, como el flag (`assertExportTextLengths`). Con `required`, vacio es
+ * error con ese nombre (`El cliente es obligatorio.`).
+ */
+export function validateExportText(field: ExportTextField, required?: string): (value: string) => string | true {
+  return (value) => {
+    if (required && !value.trim()) {
+      return `${required} es obligatorio.`;
+    }
 
-export type ExportOptionKey = 'cotizacion' | 'cuit-pais' | 'idioma' | 'incoterm' | 'items' | 'observaciones';
-
-/** El CUIT del pais se elige contra la tabla DST_CUIT, con el destino ya elegido. */
-export interface ExportCountryCuitContext {
-  readonly country: ExportCountry;
-  readonly countryCuits: readonly ExportCountryCuit[];
+    return exportTextFieldError(field, value) ?? true;
+  };
 }
 
-export interface ExportOptionsContext {
-  /** Monto total: la suma de los items tiene que darlo. */
-  readonly amount: number;
-  /** Solo en la factura: en las notas sale del asociado. */
-  readonly countryCuit?: ExportCountryCuitContext;
-  readonly currencyCode: string;
-  /** Cotizacion que se usa si no se ingresa otra, para mostrar en la lista. Sin esto no se ofrece la cotizacion. */
-  readonly defaultExchangeRate?: string;
-  /** Idioma que se usa si no se elige otro, para mostrar en la lista. */
-  readonly defaultLanguage: string;
-  /** Incoterm elegido (o el del asociado), con la descripcion por defecto. Sin esto no se ofrece la descripcion. */
-  readonly incoterm?: { readonly code: string; readonly description?: string };
-  readonly languages: () => Promise<readonly ExportLanguage[]>;
-  readonly sameCurrency?: boolean;
-  readonly units: () => Promise<readonly ExportUnit[]>;
+/**
+ * Fecha de pago opcional: igual o posterior a la del comprobante (1674, WSFEX v3.1.0), la misma regla que
+ * `--fecha-pago` (`EXPORT_RULES`). Se pregunta antes de los opcionales (TUI-22), donde se elige la del comprobante:
+ * sin ella (`voucherDate`, dd/mm/aaaa), contra la mas temprana que acepta ARCA (`undecided`) o, si ya se sabe que
+ * va la de hoy, contra hoy. La comparacion exacta la hacen "Fecha del comprobante" y `finalize`, que vuelve aca.
+ */
+export function validateExportPaymentDate(
+  voucherDate: string | undefined,
+  options: { readonly now?: Date; readonly undecided?: boolean } = {},
+): (value: string) => string | true {
+  const now = options.now ?? new Date();
+
+  return ruleValidator<string | undefined, ExportVoucherInput, ExportRuleContext>({
+    context: () => ({ today: formatDateAsArcaDate(now), undecidedVoucherDate: options.undecided ?? true }),
+    draft: (typed, value) => ({
+      paymentDate: value.trim() ? completeDateInput(value, now) : undefined,
+      voucherDate: typed,
+    }),
+    field: 'paymentDate',
+    rules: EXPORT_RULES,
+    validate: validateOptionalDate,
+  })(voucherDate);
 }
 
 function errorMessage(error: unknown): string {
@@ -76,14 +86,6 @@ function validateCountryCuit(context: ExportCountryCuitContext, cuit: number): s
   }
 }
 
-/**
- * `true` si la tabla DST_CUIT de ARCA no tiene CUIT para el destino: entonces se pregunta, y si se deja vacio el ID
- * impositivo pasa a ser obligatorio (ARCA pide uno de los dos, error 1580).
- */
-export function isCountryCuitMissing(context: ExportCountryCuitContext): boolean {
-  return resolveExportClientCountryCuit({ country: context.country, countries: context.countryCuits }) === undefined;
-}
-
 function findCountryCuits(context: ExportCountryCuitContext, search: string): ExportCountryCuit[] {
   const wanted = normalizeName(search);
 
@@ -93,14 +95,19 @@ function findCountryCuits(context: ExportCountryCuitContext, search: string): Ex
 /**
  * El CUIT del pais del cliente (`--cuit-pais`): se escribe el numero o se busca el pais por nombre en la tabla de
  * ARCA y se elige de la lista. Con `optional`, Enter lo deja sin CUIT (`undefined`): la E va con el ID impositivo.
+ * Con `previous` (lo respondido antes), arranca escrito si sigue siendo del destino (REV-74, #10).
  */
 export async function askCountryCuit(
   context: ExportCountryCuitContext,
   message: string,
-  options: { readonly optional?: boolean } = {},
+  options: { readonly optional?: boolean; readonly previous?: number } = {},
 ): Promise<Back | number | undefined> {
+  const { previous } = options;
+
   for (;;) {
     const answer = await askTextStep(message, {
+      previousAnswer:
+        previous !== undefined && validateCountryCuit(context, previous) === true ? String(previous) : undefined,
       validate: (value) => {
         if (!value.trim()) {
           return options.optional ? true : 'Escribí el CUIT o parte del nombre del país.';
@@ -136,6 +143,8 @@ export async function askCountryCuit(
       'CUIT del país:',
       findCountryCuits(context, answer).map((entry) => ({
         description: String(entry.cuit),
+        // La CUIT tambien la encuentra al escribir.
+        keywords: String(entry.cuit),
         name: entry.countryName,
         value: entry.cuit,
       })),
@@ -155,316 +164,132 @@ export async function askCountryCuit(
   }
 }
 
-function validateItemDescription(value: string, allowEmpty: boolean): string | true {
-  if (!value.trim()) {
-    return allowEmpty ? true : 'Cada ítem necesita una descripción.';
-  }
-
-  return value.includes('|') ? 'La descripción no puede llevar "|".' : true;
-}
-
-/** Cantidad o precio de un item, como `--item`: hasta seis decimales y mayor a 0. */
-function validateItemNumber(label: string): (value: string) => string | true {
-  return (value) => {
-    const parsed = parseArgentineAmount(value, { maxDecimals: 6 });
-
-    if (!parsed.ok) {
-      return `${label} no tiene un formato válido: ${parsed.reason}.`;
-    }
-
-    return parsed.value > 0 ? true : `${label} tiene que ser mayor a 0.`;
-  };
-}
-
-function parseItemNumber(value: string): number {
-  const parsed = parseArgentineAmount(value, { maxDecimals: 6 });
-
-  return parsed.ok ? parsed.value : 0;
-}
-
 /**
- * Los items, uno por uno: descripcion, cantidad, precio unitario y unidad. Enter en la descripcion termina, y la
- * suma tiene que dar el monto total, igual que `--item`. Si no da, avisa y sigue pidiendo items.
+ * Las preguntas de cada opcional de la E, una por paso: "Volver" lleva a la anterior y, desde la primera, a la
+ * seleccion. El idioma anota en `languageNames` los nombres que trae WSFEX, para describir el elegido en la seleccion.
  */
-async function askItems(current: ExportOptions, context: ExportOptionsContext): Promise<Back | ExportOptions> {
-  const units = await withSpinner('Consultando las unidades de WSFEX...', context.units);
-  const items: ExportItemInput[] = [];
-
-  for (;;) {
-    const description = await askTextStep(
-      `Descripción del ítem ${items.length + 1}${items.length > 0 ? ' (Enter para terminar)' : ''}:`,
-      { validate: (value) => validateItemDescription(value, items.length > 0) },
-    );
-
-    if (description === BACK) {
-      return BACK;
-    }
-
-    if (!description.trim()) {
-      const total = sumExportItems(items);
-
-      if (total === context.amount) {
-        return { ...current, items };
-      }
-
-      writeTerminalOutput(
-        noticePanel(
-          `La suma de los ítems (${formatArgentineAmount(total)}) no coincide con el monto total (${formatArgentineAmount(context.amount)}). Agregá otro ítem o volvé para empezar de nuevo.`,
-          'warning',
-        ),
-      );
-      continue;
-    }
-
-    const quantity = await askTextStep('Cantidad:', { validate: validateItemNumber('La cantidad') });
-
-    if (quantity === BACK) {
-      return BACK;
-    }
-
-    const unitPrice = await askTextStep('Precio unitario:', { validate: validateItemNumber('El precio') });
-
-    if (unitPrice === BACK) {
-      return BACK;
-    }
-
-    const unit =
-      units.length > 0
-        ? await chooseStep(
-            'Unidad:',
-            units.map((entry) => ({ name: entry.name, value: entry.id })),
-            DEFAULT_EXPORT_UNIT_CODE,
-          )
-        : DEFAULT_EXPORT_UNIT_CODE;
-
-    if (unit === BACK) {
-      return BACK;
-    }
-
-    items.push({
-      description: description.trim(),
-      quantity: parseItemNumber(quantity),
-      unit,
-      unitPrice: parseItemNumber(unitPrice),
-    });
-  }
-}
-
-async function askLanguage(
-  current: ExportOptions,
-  context: ExportOptionsContext,
-  names: Map<number, string>,
-): Promise<Back | ExportOptions> {
-  const languages = await withSpinner('Consultando los idiomas de WSFEX...', context.languages);
-
-  for (const language of languages) names.set(language.id, language.name);
-
-  const language = await chooseStep(
-    'Idioma del comprobante:',
-    languages.map((entry) => ({ name: entry.name, value: entry.id })),
-    current.language ?? DEFAULT_EXPORT_LANGUAGE,
-  );
-
-  return language === BACK ? BACK : { ...current, language };
-}
-
-async function askObservations(current: ExportOptions): Promise<Back | ExportOptions> {
-  const observations = await askTextStep('Observaciones (Enter si no hay):');
-
-  if (observations === BACK) {
-    return BACK;
-  }
-
-  const commercial = await askTextStep('Observaciones comerciales (Enter si no hay):');
-
-  return commercial === BACK
-    ? BACK
-    : {
-        ...current,
-        commercialObservations: commercial.trim() || undefined,
-        observations: observations.trim() || undefined,
-      };
-}
-
-async function askIncotermDescription(
-  current: ExportOptions,
-  incoterm: NonNullable<ExportOptionsContext['incoterm']>,
-): Promise<Back | ExportOptions> {
-  const answer = await askTextStep(`Descripción del incoterm ${incoterm.code}:`, {
-    defaultValue: current.incotermDescription ?? incoterm.description,
-  });
-
-  if (answer === BACK) {
-    return BACK;
-  }
-
-  const description = answer.trim();
-
+function exportQuestions(languageNames: Map<number, string>): ExportOptionalQuestions {
   return {
-    ...current,
-    incotermDescription: description && description !== incoterm.description ? description : undefined,
+    'cuit-pais': (context) => [
+      {
+        name: 'cuit-pais',
+        run: async (current, { previous }) => {
+          const countryCuit = requireStepValue(context.countryCuit, 'countryCuit');
+          const cuit = await askCountryCuit(
+            countryCuit,
+            `CUIT del país del cliente (el número, o buscá ${countryCuit.country.name} por nombre):`,
+            { previous: previous?.clientCountryCuit ?? current.clientCountryCuit },
+          );
+
+          return cuit === BACK ? BACK : { clientCountryCuit: cuit };
+        },
+      },
+    ],
+    fecha: (context) => [
+      // Con las reglas de `--fecha`, guardada completa (`dateStep`). La cotizacion la busca ExportService para esa fecha.
+      dateStep<ExportOptions>({
+        date: {
+          get: (current) => current.voucherDate,
+          set: (voucherDate) => ({ voucherDate }),
+        },
+        message: 'Fecha del comprobante:',
+        name: 'fecha',
+        // La ventana de ARCA y, en las notas, no antes del asociado (`EXPORT_RULES`).
+        validate: (current) =>
+          scopedRuleValidator(
+            EXPORT_RULES,
+            'voucherDate',
+            context.rules,
+            (value) => ({ ...current, voucherDate: completeDateInput(value) }),
+            (value) => validateExportVoucherDate(value, context.exportType),
+          ),
+        writes: ['voucherDate'],
+      }),
+    ],
+    idioma: (context) => [
+      {
+        name: 'idioma',
+        run: async (current, { previous }) => {
+          const languages = await withSpinner('Consultando los idiomas de WSFEX...', context.languages);
+
+          for (const language of languages) languageNames.set(language.id, language.name);
+
+          const language = await chooseStep(
+            'Idioma del comprobante:',
+            languages.map((entry) => ({ name: entry.name, value: entry.id })),
+            previous?.language ?? current.language ?? DEFAULT_EXPORT_LANGUAGE,
+          );
+
+          return language === BACK ? BACK : { language };
+        },
+      },
+    ],
+    incoterm: (context) => [
+      {
+        name: 'incoterm',
+        run: async (current, { previous }) => {
+          const incoterm = requireStepValue(context.incoterm, 'incoterm');
+          const answer = await askTextStep(`Descripción del incoterm ${incoterm.code}:`, {
+            defaultValue: current.incotermDescription ?? incoterm.description,
+            previousAnswer: previous?.incotermDescription,
+            validate: validateExportText('incotermDescription'),
+          });
+
+          if (answer === BACK) {
+            return BACK;
+          }
+
+          const description = answer.trim();
+
+          return {
+            incotermDescription: description && description !== incoterm.description ? description : undefined,
+          };
+        },
+      },
+    ],
+    observaciones: () => [
+      {
+        name: 'observaciones',
+        run: async (current, { previous }) => {
+          const observations = await askTextStep('Observaciones (Enter si no hay):', {
+            previousAnswer: previous?.observations ?? current.observations,
+            validate: validateExportText('observations'),
+          });
+
+          return observations === BACK ? BACK : { observations: observations.trim() || undefined };
+        },
+      },
+      {
+        name: 'observaciones-comerciales',
+        run: async (current, { previous }) => {
+          const commercial = await askTextStep('Observaciones comerciales (Enter si no hay):', {
+            previousAnswer: previous?.commercialObservations ?? current.commercialObservations,
+            validate: validateExportText('commercialObservations'),
+          });
+
+          return commercial === BACK ? BACK : { commercialObservations: commercial.trim() || undefined };
+        },
+      },
+    ],
   };
 }
 
-/** Mismas reglas que `--cm`: un numero valido y, en moneda extranjera, mayor a 0. */
-function validateExportExchangeRate(context: ExportOptionsContext): (value: string) => string | true {
-  return (value) => {
-    const valid = validateExchangeRate(value);
-
-    if (valid !== true) {
-      return valid;
-    }
-
-    try {
-      resolveExportCurrency({
-        currencyCode: context.currencyCode,
-        exchangeRate: parseExchangeRateInput(value),
-        sameCurrency: context.sameCurrency,
-      });
-
-      return true;
-    } catch (error) {
-      return errorMessage(error);
-    }
-  };
+export interface ExportOptionalsStepDef<S> {
+  /** Nombre del paso en el asistente del flujo. */
+  readonly name: string;
+  /** Los opcionales antes del paso: de ahi arranca cada respuesta y a eso vuelve lo desmarcado. */
+  readonly read: (state: S) => ExportOptions;
+  readonly write: (options: ExportOptions) => Partial<S>;
+  readonly context: (state: S) => Omit<ExportOptionalsContext, 'languageNames'>;
 }
 
-async function askExchangeRate(current: ExportOptions, context: ExportOptionsContext): Promise<Back | ExportOptions> {
-  const answer = await askTextStep(`Cotización de ${context.currencyCode === 'DOL' ? 'USD' : context.currencyCode}:`, {
-    validate: validateExportExchangeRate(context),
-  });
-
-  return answer === BACK ? BACK : { ...current, exchangeRate: parseExchangeRateInput(answer) };
-}
-
-function describeItems(options: ExportOptions): string {
-  const count = options.items?.length ?? 0;
-
-  if (count === 0) {
-    return 'un renglón con el monto total';
-  }
-
-  return count === 1 ? '1 ítem' : `${count} ítems`;
-}
-
-function describeObservations(options: ExportOptions): string {
-  const parts = [
-    options.observations ? 'observaciones' : undefined,
-    options.commercialObservations ? 'comerciales' : undefined,
-  ].filter(Boolean);
-
-  return parts.length > 0 ? `con ${parts.join(' y ')}` : 'sin observaciones';
-}
-
-function optionalChoices(options: ExportOptions, context: ExportOptionsContext, languageNames: Map<number, string>) {
-  return [
-    { description: describeItems(options), name: 'Ítems', value: 'items' as const },
-    {
-      description:
-        options.language === undefined
-          ? context.defaultLanguage
-          : (languageNames.get(options.language) ?? String(options.language)),
-      name: 'Idioma',
-      value: 'idioma' as const,
-    },
-    ...(context.countryCuit
-      ? [
-          {
-            description:
-              options.clientCountryCuit === undefined ? 'el de la tabla de ARCA' : String(options.clientCountryCuit),
-            name: 'CUIT del país',
-            value: 'cuit-pais' as const,
-          },
-        ]
-      : []),
-    { description: describeObservations(options), name: 'Observaciones', value: 'observaciones' as const },
-    ...(context.incoterm
-      ? [
-          {
-            description: options.incotermDescription ?? context.incoterm.description ?? context.incoterm.code,
-            name: 'Descripción del incoterm',
-            value: 'incoterm' as const,
-          },
-        ]
-      : []),
-    ...(context.defaultExchangeRate
-      ? [
-          {
-            description:
-              options.exchangeRate === undefined
-                ? context.defaultExchangeRate
-                : formatExchangeRate(options.exchangeRate),
-            name: 'Cotización',
-            value: 'cotizacion' as const,
-          },
-        ]
-      : []),
-  ];
-}
-
-/**
- * Lo opcional de la factura y las notas E en una sola pregunta, como en A, B y C: se marca con espacio y Enter
- * sigue (sin marcar nada, todo queda por defecto). Despues se pregunta solo lo marcado, en orden. "Volver" en una
- * de esas preguntas vuelve a la seleccion, con lo marcado y lo ya respondido.
- */
-export async function askExportOptions(
-  initial: ExportOptions,
-  context: ExportOptionsContext,
-): Promise<Back | ExportOptions> {
+/** Los opcionales de la E (`optionalsStep` con su catalogo): factura, notas y "Repetir". */
+export function exportOptionalsStep<S>(def: ExportOptionalsStepDef<S>): WizardStep<S> {
   const languageNames = new Map<number, string>();
-  const asks: Record<ExportOptionKey, (current: ExportOptions) => Promise<Back | ExportOptions>> = {
-    cotizacion: (current) => askExchangeRate(current, context),
-    'cuit-pais': async (current) => {
-      const countryCuit = context.countryCuit;
 
-      if (!countryCuit) {
-        return current;
-      }
-
-      const cuit = await askCountryCuit(
-        countryCuit,
-        `CUIT del país del cliente (el número, o buscá ${countryCuit.country.name} por nombre):`,
-      );
-
-      return cuit === BACK ? BACK : { ...current, clientCountryCuit: cuit };
-    },
-    idioma: (current) => askLanguage(current, context, languageNames),
-    incoterm: (current) =>
-      context.incoterm ? askIncotermDescription(current, context.incoterm) : Promise.resolve(current),
-    items: (current) => askItems(current, context),
-    observaciones: askObservations,
-  };
-  let options = initial;
-  let selected: ExportOptionKey[] = [];
-
-  for (;;) {
-    const picked = await chooseManyStep<ExportOptionKey>(
-      '¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)',
-      optionalChoices(options, context, languageNames),
-      selected,
-    );
-
-    if (picked === BACK) {
-      return BACK;
-    }
-
-    selected = picked;
-
-    let completed = true;
-
-    for (const option of picked) {
-      const updated = await asks[option](options);
-
-      if (updated === BACK) {
-        completed = false;
-        break;
-      }
-
-      options = updated;
-    }
-
-    if (completed) {
-      return options;
-    }
-  }
+  return optionalsStep({
+    ...def,
+    context: (state) => ({ ...def.context(state), languageNames }),
+    options: exportOptionals(exportQuestions(languageNames)),
+  });
 }

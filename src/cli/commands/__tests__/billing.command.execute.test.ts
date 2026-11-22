@@ -51,6 +51,7 @@ function gateways(overrides: Partial<BillingCommandGateways['billing']> = {}): B
       ...overrides,
     },
     fce: { getObligation: vi.fn() } as never,
+    fceRegistry: { getVoucherState: vi.fn(async () => undefined) },
     history: { getLastNumber: vi.fn(async () => 0), getVoucher: vi.fn(async () => undefined) },
     padron: { getTaxpayer: vi.fn(async () => null) },
   };
@@ -473,7 +474,7 @@ describe('notas con el asociado consultado en ARCA una vez, antes de la vista pr
 
   it('la vista previa de una nota FCE sin --afecha ya trae la fecha del asociado', async () => {
     const used = await run(CREDIT_NOTE_FCE, {
-      gateways: withAssociated(issued({ date: '20260305', number: 7, total: 5000 })),
+      gateways: withAssociated(issued({ date: '20260305', documentNumber: 30709965812, number: 7, total: 5000 })),
       shortcut: 'ncea',
     });
 
@@ -484,9 +485,50 @@ describe('notas con el asociado consultado en ARCA una vez, antes de la vista pr
     expect(used.history.getVoucher).toHaveBeenCalledWith(7, 3, 201);
   });
 
+  it('una NC FCE de anulación avisa en `avisos` si el comprador no rechazó el asociado (10154)', async () => {
+    const used = {
+      ...withAssociated(issued({ date: '20260305', documentNumber: 30709965812, number: 7, total: 5000 })),
+      fceRegistry: { getVoucherState: vi.fn(async () => 'Recepcionado' as const) },
+    };
+
+    await run([...CREDIT_NOTE_FCE, '--anulacion'], { gateways: used, shortcut: 'ncea' });
+
+    expect(JSON.parse(stdout)).toMatchObject({
+      avisos: [expect.stringContaining('ARCA la rechaza con el error 10154')],
+      estado: 'previsualizacion',
+    });
+    expect(used.fceRegistry.getVoucherState).toHaveBeenCalledWith({
+      arcaType: 201,
+      cuit: 20111111112,
+      number: 7,
+      pointOfSale: 3,
+    });
+  });
+
+  it('si ARCA rechaza la anulación con 10154, `sugerencias` explica que el comprador tiene que rechazar', async () => {
+    const used = withAssociated(issued({ date: '20260305', documentNumber: 30709965812, number: 7, total: 5000 }));
+
+    used.billing.createVoucher = vi.fn(async () => ({
+      cae: '',
+      caeFchVto: '',
+      response: {
+        Errors: { Err: [{ Code: 10154, Msg: 'Comprobante electronico autorizado, NO rechazado por el Comprador' }] },
+        FeDetResp: { FECAEDetResponse: [{ CbteDesde: 42, CbteHasta: 42, Resultado: 'R' }] },
+      },
+    })) as never;
+
+    await run([...CREDIT_NOTE_FCE, '--anulacion', '--emitir'], { gateways: used, shortcut: 'ncea' });
+
+    expect(JSON.parse(stdout)).toMatchObject({
+      estado: 'rechazado',
+      sugerencias: [expect.stringContaining('el comprador haya rechazado antes el comprobante asociado')],
+    });
+    expect(process.exitCode).toBe(2);
+  });
+
   it('una nota FCE sin --afecha se emite con la fecha del asociado, sin volver a consultarlo', async () => {
     const used = await run([...CREDIT_NOTE_FCE, '--emitir'], {
-      gateways: withAssociated(issued({ date: '20260305', number: 7, total: 5000 })),
+      gateways: withAssociated(issued({ date: '20260305', documentNumber: 30709965812, number: 7, total: 5000 })),
       shortcut: 'ncea',
     });
 
@@ -494,5 +536,92 @@ describe('notas con el asociado consultado en ARCA una vez, antes de la vista pr
     expect(used.billing.createVoucher).toHaveBeenCalledWith(
       expect.objectContaining({ CbtesAsoc: [expect.objectContaining({ CbteFch: '20260305', Nro: 7, Tipo: 201 })] }),
     );
+  });
+});
+
+/** Lo que entró en #217 y #220, recorriendo el comando entero como lo escribe una persona, con ARCA mockeado. */
+describe('reglas de ARCA con flags (#217, #220)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    // Miércoles 18/11/2026.
+    vi.setSystemTime(new Date('2026-11-18T12:00:00-03:00'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('`fb --misma-moneda --fecha -2` pide la cotización del día hábil anterior a esa fecha (10038)', async () => {
+    const used = await run(
+      ['--cs', '-m', '10', '--cfinal', '--moneda', 'USD', '--misma-moneda', '--fecha', '-2', '--previsualizar'],
+      { shortcut: 'fb' },
+    );
+
+    // La fecha es el lunes 16/11: ARCA busca hacia atrás desde el domingo 15.
+    expect(used.billing.getQuotation).toHaveBeenCalledWith('DOL', '20261115');
+    expect(JSON.parse(stdout)).toMatchObject({
+      estado: 'previsualizacion',
+      solicitud: { CanMisMonExt: 'S', CbteFch: '20261116', MonCotiz: 1000, MonId: 'DOL' },
+    });
+  });
+
+  it('`--misma-moneda` con una fecha futura usa la cotización vigente', async () => {
+    const used = await run(
+      ['--cs', '-m', '10', '--cfinal', '--moneda', 'USD', '--misma-moneda', '--fecha', '+2', '--previsualizar'],
+      { shortcut: 'fb' },
+    );
+
+    expect(used.billing.getQuotation).toHaveBeenCalledWith('DOL');
+    expect(JSON.parse(stdout)).toMatchObject({ solicitud: { CbteFch: '20261120' } });
+  });
+
+  it('`fa --dni` frena con el 10013 y sugiere la Factura B', async () => {
+    const used = gateways();
+
+    await expect(
+      run(['-m', '1210', '--cs', '--dni', '12345678', '--ir-ri'], { gateways: used, shortcut: 'fa' }),
+    ).rejects.toMatchObject({
+      code: 'INPUT_VALIDATION_ERROR',
+      message: expect.stringContaining('ARCA rechaza un comprobante A con DNI (error 10013)'),
+      suggestion: expect.stringContaining('emití el comprobante B (`fb`)'),
+    });
+    expect(used.billing.createVoucher).not.toHaveBeenCalled();
+  });
+
+  it('`--dni` de 6 dígitos pasa y de 5 es error', async () => {
+    await run(['-m', '1210', '--cs', '--dni', '123456', '--ir-cf'], { shortcut: 'fb' });
+
+    expect(JSON.parse(stdout)).toMatchObject({ solicitud: { DocNro: 123456, DocTipo: 96 } });
+    await expect(run(['-m', '1210', '--cs', '--dni', '12345', '--ir-cf'], { shortcut: 'fb' })).rejects.toThrow(
+      /de 6 a 8 dígitos/,
+    );
+  });
+
+  it('una NC común sin `--acuit` va con el CUIT emisor en el asociado', async () => {
+    const used = await run(['-m', '100', '--cs', '--cfinal', '--ac', 'fc', '--apv', '3', '--ar', '12'], {
+      gateways: withAssociated(issued({ date: '20261110' })),
+      shortcut: 'ncc',
+    });
+
+    expect(used.history.getVoucher).toHaveBeenCalledWith(12, 3, 11);
+    expect(JSON.parse(stdout)).toMatchObject({
+      estado: 'previsualizacion',
+      solicitud: { CbtesAsoc: [expect.objectContaining({ Cuit: '20111111112', Nro: 12, PtoVta: 3, Tipo: 11 })] },
+    });
+  });
+
+  it('el receptor con el CUIT de la config frena con el 10069', async () => {
+    await expect(
+      run(['-m', '1000', '--cs', '--cuit', '20111111112', '--ir-rm'], { shortcut: 'fc' }),
+    ).rejects.toMatchObject({ code: 'INPUT_VALIDATION_ERROR', message: expect.stringContaining('error 10069') });
+  });
+
+  it('`fc --sd mes-pasado --sh mes-pasado --vto +10` manda las fechas resueltas, nunca la palabra (REV-28)', async () => {
+    await run(['-m', '50.000', '--cs', '--cfinal', '--sd', 'mes-pasado', '--sh', 'mes-pasado', '--vto', '+10']);
+
+    expect(JSON.parse(stdout)).toMatchObject({
+      solicitud: { FchServDesde: '20261001', FchServHasta: '20261031', FchVtoPago: '20261128' },
+    });
+    expect(stdout).not.toMatch(/mes-pasado|\+10/);
   });
 });

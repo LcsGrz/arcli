@@ -1,15 +1,17 @@
-import {
-  ARGENTINE_DATE_FORMAT_HINT,
-  formatDateAsArcaDate,
-  parseArgentineDateInputAsArcaDate,
-} from '../../lib/dates/arca-date';
+import { formatArcaDateAsArgentineDate, formatDateAsArcaDate } from '../../lib/dates/arca-date';
+import { dateInputHint } from '../../lib/dates/date-input-text';
+import { parseDateInputAsArcaDate } from '../../lib/dates/relative-date';
 import { InputValidationError } from '../../lib/errors/app-error';
+import { describeInvalidCbu, parseCbu } from '../../lib/identity/cbu';
 import { parseCuit } from '../../lib/identity/cuit';
 import { EXCHANGE_RATE_DECIMALS, parseArgentineAmount } from '../../lib/numbers/argentine-amount';
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
+import { findRuleFailure } from '../../lib/rules/rules';
+import { BILLING_DATE_WINDOW_RULE } from '../../modules/billing/billing.rules';
 import type { BillingConcept } from '../../modules/billing/billing.schemas';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
-import { validateBillingDateWindow } from '../../modules/billing/billing.validation';
+import { assertExportVoucherDate } from '../../modules/export/export.mappers';
+import type { ExportType } from '../../modules/export/export.types';
 
 export function validateAmount(value: string): string | true {
   const result = parseArgentineAmount(value);
@@ -30,11 +32,13 @@ export function validateCuil(value: string): string | true {
 }
 
 export function validateDni(value: string): string | true {
-  return /^\d{7,8}$/.test(value.replace(/\./g, '')) ? true : 'El DNI tiene 7 u 8 dígitos.';
+  return /^\d{6,8}$/.test(value.replace(/\./g, '')) ? true : 'El DNI tiene de 6 a 8 dígitos.';
 }
 
 export function validateCbu(value: string): string | true {
-  return /^\d{22}$/.test(value) ? true : 'El CBU tiene 22 dígitos.';
+  const result = parseCbu(value);
+
+  return result.ok ? true : describeInvalidCbu(result.reason);
 }
 
 /** Como `--alias`: vacio vale (no se informa); si no, de 6 a 20 letras, números, puntos o guiones. */
@@ -48,13 +52,21 @@ export function normalizeDocumentNumber(value: string): number {
   return Number(value.replace(/[-.]/g, ''));
 }
 
-export function validateDate(value: string): string | true {
+/**
+ * Una fecha como en los flags: escrita a mano (`5`, `15/11`, `15/11/2026`) o relativa (`hoy`, `ayer`, `+N`, `-N`).
+ * El error es uno solo, con los formatos de `dateInputHint` y sin flags: el de una palabra de mes nombra `--sd` (TUI-18).
+ */
+export function validateDate(value: string, now = new Date()): string | true {
   try {
-    parseArgentineDateInputAsArcaDate(value);
+    parseDateInputAsArcaDate(value, 'day', now);
 
     return true;
-  } catch {
-    return `Fecha inválida. ${ARGENTINE_DATE_FORMAT_HINT}`;
+  } catch (error) {
+    if (error instanceof InputValidationError) {
+      return `Fecha inválida. ${dateInputHint()}`;
+    }
+
+    throw error;
   }
 }
 
@@ -65,19 +77,38 @@ export function validateBillingDate(
   voucherKind: VoucherKindDefinition,
   now = new Date(),
 ): string | true {
-  const valid = validateDate(value);
+  const valid = validateDate(value, now);
+
+  if (valid !== true) {
+    return valid;
+  }
+
+  const found = findRuleFailure(
+    [BILLING_DATE_WINDOW_RULE],
+    { billingDate: formatArcaDateAsArgentineDate(parseDateInputAsArcaDate(value, 'day', now)), concept },
+    { today: formatDateAsArcaDate(now), voucherKind },
+  );
+
+  return found ? (found.failure.question ?? found.failure.message) : true;
+}
+
+/**
+ * Fecha de la factura o nota E: la misma ventana que `--fecha` en `arcli fe` (`assertExportVoucherDate`, error 1500),
+ * que en servicios no pasa del fin de mes.
+ */
+export function validateExportVoucherDate(value: string, exportType: ExportType, now = new Date()): string | true {
+  const valid = validateDate(value, now);
 
   if (valid !== true) {
     return valid;
   }
 
   try {
-    validateBillingDateWindow(
-      parseArgentineDateInputAsArcaDate(value, now),
-      formatDateAsArcaDate(now),
-      concept,
-      voucherKind,
-    );
+    assertExportVoucherDate({
+      exportType,
+      today: formatDateAsArcaDate(now),
+      voucherDate: parseDateInputAsArcaDate(value, 'day', now),
+    });
 
     return true;
   } catch (error) {
@@ -118,4 +149,17 @@ export function validateExchangeRate(value: string): string | true {
   }
 
   return result.value !== 1 ? true : 'Ingresá la cotización acordada, por ejemplo 1200 o 1.185,50.';
+}
+
+/** Cantidad o precio de un item de la E, como `--item`: hasta seis decimales y mayor a 0. */
+export function validateItemNumber(label: string): (value: string) => string | true {
+  return (value) => {
+    const parsed = parseArgentineAmount(value, { maxDecimals: EXCHANGE_RATE_DECIMALS });
+
+    if (!parsed.ok) {
+      return `${label} no tiene un formato válido: ${parsed.reason}.`;
+    }
+
+    return parsed.value > 0 ? true : `${label} tiene que ser mayor a 0.`;
+  };
 }

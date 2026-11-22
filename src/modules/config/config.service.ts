@@ -3,6 +3,7 @@ import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
 import { ConfigurationError, InputIssuesError, InputValidationError } from '../../lib/errors/app-error';
+import { parseCbu } from '../../lib/identity/cbu';
 import { describeZodIssues } from '../billing/billing.zod-errors';
 
 import {
@@ -44,6 +45,7 @@ const CONFIG_KEY_ALIASES: Record<ConfigPublicKey, CanonicalConfigKey> = {
   'key.produccion': 'key.produccion',
   'key.testing': 'key.testing',
   moneda: 'monedaPorDefecto',
+  'monotributo.tope': 'monotributo.tope',
   bruto: 'output.brutoPorDefecto',
   pdf: 'pdf',
   pdfCarpeta: 'pdfCarpeta',
@@ -58,7 +60,7 @@ const CONFIG_KEY_ALIASES: Record<ConfigPublicKey, CanonicalConfigKey> = {
  * Claves deprecadas que `config establecer` y `config eliminar` todavia aceptan, con la clave que las reemplaza. No
  * son claves publicas: no salen en la ayuda, el autocompletado ni `arcli config`. Se sacan en la 3.0.0.
  */
-const DEPRECATED_CONFIG_KEYS: Readonly<
+export const DEPRECATED_CONFIG_KEYS: Readonly<
   Record<string, { readonly replacement: ConfigPublicKey; readonly warning: string }>
 > = {
   comprobantesPorLista: { replacement: 'filasPorLista', warning: ROWS_PER_LIST_DEPRECATION_WARNING },
@@ -80,7 +82,7 @@ export function deprecatedConfigKeyWarning(rawKey: string): string | undefined {
 }
 
 /** Donde ver las claves y sus valores, si el rechazo no trae una sugerencia propia. */
-export const CONFIG_SET_HELP_SUGGESTION =
+const CONFIG_SET_HELP_SUGGESTION =
   'Mirá cada clave con sus valores válidos en `arcli config establecer --ayuda`, y la config actual con `arcli config`.';
 
 function withConfigHelp<T>(parse: () => T): T {
@@ -137,11 +139,40 @@ function resolveStorePath(options: ConfigServiceOptions): string {
   return new Conf({ ...storeLocation(options), deserialize: () => ({}) }).path;
 }
 
+function defaultTicketPathFor(configPath: string): string {
+  return join(dirname(configPath), 'tickets');
+}
+
+/**
+ * Dónde quedarían el config.json y la carpeta de tickets por defecto, sin leer ni escribir el archivo. Lo usa el
+ * setup de los tests para frenar la suite si apuntan fuera de la carpeta temporal.
+ */
+export function resolveConfigLocation(options: ConfigServiceOptions = {}): {
+  readonly configPath: string;
+  readonly ticketPath: string;
+} {
+  const configPath = resolveStorePath(options);
+
+  return { configPath, ticketPath: defaultTicketPathFor(configPath) };
+}
+
 function invalidConfigFileError(path: string): ConfigurationError {
   return new ConfigurationError(
     'El archivo de configuración tiene JSON inválido y no se puede leer.',
     { path },
     'Corregilo a mano, o renombralo (por ejemplo, a config.json.bak) y volvé a cargar los datos con `arcli config establecer` o desde "Configuración" en `arcli`. ARCLI no lo borra ni lo pisa.',
+  );
+}
+
+/**
+ * Un CBU guardado que ya no pasa la validación (por ejemplo, desde que se controlan los verificadores): el error
+ * dice que viene de la config, el motivo y cómo cambiarlo.
+ */
+function invalidSavedCbuError(reason: string): InputIssuesError {
+  return new InputIssuesError(
+    `El CBU guardado en la config no es válido: ${reason}.`,
+    [{ label: 'CBU', mensaje: `${reason[0]?.toUpperCase() ?? ''}${reason.slice(1)}.`, ruta: ['cbu'] }],
+    'Cambialo por el correcto con `arcli config establecer cbu <CBU>`; copialo desde el home banking o la constancia del banco.',
   );
 }
 
@@ -169,7 +200,20 @@ export class ConfigService {
   }
 
   public getConfig(): ArcliConfig {
-    return arcliConfigSchema.parse(this.store.store);
+    const result = arcliConfigSchema.safeParse(this.store.store);
+
+    if (result.success) {
+      return result.data;
+    }
+
+    const savedCbu: unknown = (this.store.store as Record<string, unknown>).cbu;
+    const cbuResult = typeof savedCbu === 'string' ? parseCbu(savedCbu) : undefined;
+
+    if (cbuResult && !cbuResult.ok) {
+      throw invalidSavedCbuError(cbuResult.reason);
+    }
+
+    throw result.error;
   }
 
   public getPath(): string {
@@ -177,7 +221,7 @@ export class ConfigService {
   }
 
   public getDefaultTicketPath(): string {
-    return join(dirname(this.store.path), 'tickets');
+    return defaultTicketPathFor(this.store.path);
   }
 
   /** Carpeta donde se instala el plugin de PDF, junto a config.json. */

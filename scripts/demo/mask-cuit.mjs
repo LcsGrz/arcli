@@ -15,6 +15,9 @@ if (real?.length === 11) {
   for (const stream of [process.stdout, process.stderr]) {
     const write = stream.write.bind(stream);
     stream.write = (chunk, ...rest) =>
-      write(typeof chunk === 'string' ? mask(chunk) : Buffer.isBuffer(chunk) ? mask(chunk.toString('utf8')) : chunk, ...rest);
+      write(
+        typeof chunk === 'string' ? mask(chunk) : Buffer.isBuffer(chunk) ? mask(chunk.toString('utf8')) : chunk,
+        ...rest,
+      );
   }
 }

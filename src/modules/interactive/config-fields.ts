@@ -168,6 +168,11 @@ const FIELD_DEFINITIONS: ReadonlyArray<Omit<ConfigField, 'label'>> = [
       c.cotizacionPorDefecto === undefined ? undefined : formatArgentineAmountInput(c.cotizacionPorDefecto),
   },
   { key: 'ticketPath', path: true, read: (c) => c.ticketPath },
+  {
+    hint: 'ingresos anuales en pesos, por ejemplo 30.000.000; sin configurar, el de tu categoría',
+    key: 'monotributo.tope',
+    read: (c) => (c.monotributo?.tope === undefined ? undefined : formatArgentineAmountInput(c.monotributo.tope)),
+  },
 ];
 
 export const CONFIG_FIELDS: readonly ConfigField[] = FIELD_DEFINITIONS.map((field) => ({

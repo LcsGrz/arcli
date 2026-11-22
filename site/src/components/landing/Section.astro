@@ -1,0 +1,23 @@
+---
+/** Una sección de la portada (`section.block`): etiqueta, título y bajada opcionales, y el contenido. */
+import Rich from './Rich.astro';
+
+interface Props {
+  /** La etiqueta de arriba, con formato (`lib/rich.ts`). */
+  readonly eyebrow?: string;
+  readonly id?: string;
+  readonly lead?: string;
+  readonly title?: string;
+}
+
+const { eyebrow, id, lead, title } = Astro.props;
+---
+
+<section class="block" id={id}>
+  <div class="wrap">
+    {eyebrow && <p class="eyebrow"><Rich text={eyebrow} /></p>}
+    {title && <h2>{title}</h2>}
+    {lead && <p class="section-lead">{lead}</p>}
+    <slot />
+  </div>
+</section>

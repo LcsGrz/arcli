@@ -17,6 +17,9 @@ import type { PointOfSaleCheck, StatusReport } from './status';
 
 type Environment = 'produccion' | 'testing';
 
+/** Un servidor del que ARCA no devolvio el estado: la fila va igual, es lo que se consulta. */
+const NO_SERVER_STATUS = 'ARCA no lo informa';
+
 export function formatParameterTablesAsText(): string {
   const rows = PARAMETER_TABLE_NAMES.map((name) => [name, PARAMETER_TABLES[name]] as const);
   const allRows = [...rows, ['cotización <moneda>', 'Cotización oficial de ARCA, por ejemplo USD'] as const];
@@ -135,11 +138,20 @@ export function formatParameterEntriesAsJson(
   );
 }
 
-export function formatQuotationAsText(quotation: Quotation, environment: Environment): string {
+/**
+ * Con `currencyName` (la descripcion de la tabla de monedas, si ya se tiene), la moneda sale con su nombre:
+ * "Euro (060)". ARCA no lo manda con la cotizacion, y pedirlo aparte cuesta otra consulta.
+ */
+export function formatQuotationAsText(
+  quotation: Quotation,
+  environment: Environment,
+  options: { readonly currencyName?: string } = {},
+): string {
+  const name = options.currencyName?.trim();
   const rows = [
-    ['Moneda', quotation.currency],
+    ['Moneda', name ? `${name} (${quotation.currency})` : quotation.currency],
     ['Cotización', formatExchangeRate(quotation.rate)],
-    ['Fecha', quotation.date ? formatArcaDateAsArgentineDate(quotation.date) : 'N/D'],
+    ['Fecha', quotation.date ? formatArcaDateAsArgentineDate(quotation.date) : undefined],
   ] as const;
 
   return sheetPanel(
@@ -176,9 +188,9 @@ function describePointOfSale(check: PointOfSaleCheck, number: number | undefined
 export function formatStatusAsText(report: StatusReport): string {
   const rows = [
     ['Entorno', formatEnvironmentLabel(report.environment)],
-    ['Servidor de aplicación', report.servers.app],
-    ['Base de datos', report.servers.db],
-    ['Autenticación', report.servers.auth],
+    ['Servidor de aplicación', report.servers.app || NO_SERVER_STATUS],
+    ['Base de datos', report.servers.db || NO_SERVER_STATUS],
+    ['Autenticación', report.servers.auth || NO_SERVER_STATUS],
     ['Tiempo de respuesta', `${report.latencyMs} ms`],
     ['Punto de venta', describePointOfSale(report.pointOfSale, report.pointOfSaleNumber)],
   ] as const;

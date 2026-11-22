@@ -69,7 +69,7 @@ const ARGUMENT_VALUES: Readonly<Record<string, CompletionValues>> = {
   valor: configValues,
 };
 
-/** Las letras de cada familia: `factura` y las notas tambien aceptan la E (exportacion) y `recibo` solo la C. */
+/** Las letras de cada familia: `factura` y las notas tambien aceptan la E (exportacion). */
 function argumentValues(command: Command, name: string): CompletionValues | undefined {
   const family = VOUCHER_FAMILIES.find((candidate) => candidate === command.name());
 

@@ -71,6 +71,7 @@ const ASSOCIATED_INVOICE: ExportIssuedVoucher = {
 function gateway(overrides: Partial<ExportGateway> = {}): ExportGateway {
   return {
     authorize: vi.fn(async () => authorization('A')),
+    checkPermit: vi.fn(async () => 'OK'),
     getActivities: vi.fn(async () => [{ id: 620100, name: 'SERVICIOS DE CONSULTORES EN INFORMATICA' }]),
     getCurrencies: vi.fn(async () => [{ code: 'DOL', name: 'Dólar Estadounidense' }]),
     getDestinationCountries: vi.fn(async () => [{ code: 212, name: 'ESTADOS UNIDOS' }]),
@@ -187,6 +188,7 @@ const EXPORT_BLOCK_KEYS = [
   'mismaMoneda',
   'permisos',
   'tipoExpo',
+  'verificacionPermisos',
 ];
 
 const keysOf = (value: unknown): string[] => Object.keys(value as Record<string, unknown>).sort();
@@ -330,6 +332,17 @@ describe('executeExportCommand: la decision de emitir', () => {
     expect(used.authorize).not.toHaveBeenCalled();
   });
 
+  // En el asistente Esc vuelve a la ultima pregunta (TUI-15); con flags no hay a donde volver: Esc es no y no emite.
+  it('en una terminal, Esc en "¿Emitimos?" cuenta como no emitir', async () => {
+    setTerminal(true);
+    vi.mocked(chooseOne).mockResolvedValueOnce(false);
+
+    const used = await run(BASE, { json: false });
+
+    expect(vi.mocked(chooseOne).mock.calls[0]?.[3]).toEqual({ escapeLabel: 'no emitir', escapeValue: false });
+    expect(used.authorize).not.toHaveBeenCalled();
+  });
+
   it('en una terminal sin flags pregunta, y si la respuesta es si, emite', async () => {
     setTerminal(true);
     vi.mocked(chooseOne).mockResolvedValueOnce('emitir');
@@ -398,5 +411,56 @@ describe('executeExportCommand: codigo de salida', () => {
 
     await expect(run([...BASE, '--emitir'], { gateway: failing, json: false })).rejects.toThrow('socket hang up');
     expect(spinner.stop).toHaveBeenCalled();
+  });
+});
+
+/** La fecha de la E (#219) con las fechas relativas de #217, como la escribe una persona. */
+describe('executeExportCommand: fecha del comprobante (ARCA 1500)', () => {
+  /** En pesos, para que la fecha no dependa de la cotizacion de aduana. */
+  const IN_PESOS = [...BASE.slice(0, -2), '--moneda', 'PES'];
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    // Miércoles 18/11/2026.
+    vi.setSystemTime(new Date('2026-11-18T12:00:00-03:00'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it.each(['-6', '+6'])('`fe --fecha %s` frena antes de ARCA, con el rango que acepta', async (date) => {
+    const used = gateway();
+
+    await expect(run([...IN_PESOS, '--fecha', date, '--emitir'], { gateway: used })).rejects.toMatchObject({
+      code: 'INPUT_VALIDATION_ERROR',
+      message: expect.stringMatching(/del 13\/11\/2026 al 23\/11\/2026.*\(error 1500\)/),
+    });
+    expect(used.authorize).not.toHaveBeenCalled();
+  });
+
+  it('`fe --fecha -5` y `--fecha +5` pasan a la vista previa; la futura avisa del 1535', async () => {
+    await run([...IN_PESOS, '--fecha', '-5']);
+
+    expect(JSON.parse(stdout)).toMatchObject({ estado: 'previsualizacion', solicitud: { Fecha_cbte: '20261113' } });
+
+    stdout = '';
+    await run([...IN_PESOS, '--fecha', '+5']);
+
+    expect(JSON.parse(stdout)).toMatchObject({
+      avisos: expect.arrayContaining([expect.stringContaining('1535')]),
+      solicitud: { Fecha_cbte: '20261123' },
+    });
+  });
+
+  it('en servicios no pasa del fin de mes, aunque esté dentro de los 5 días', async () => {
+    vi.setSystemTime(new Date('2026-11-28T12:00:00-03:00'));
+
+    await expect(run([...IN_PESOS, '--fecha', '+3'])).rejects.toMatchObject({
+      code: 'INPUT_VALIDATION_ERROR',
+      message: expect.stringContaining(
+        'al 30/11/2026, hasta 5 días antes o después de hoy y, en servicios, no después del fin de mes (error 1500)',
+      ),
+    });
   });
 });

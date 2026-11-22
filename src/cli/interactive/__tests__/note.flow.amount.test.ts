@@ -3,9 +3,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BillingService } from '../../../modules/billing/billing.service';
 import type { VoucherKindDefinition, VoucherShortcut } from '../../../modules/billing/billing.types';
 import { getVoucherKindByShortcut } from '../../../modules/billing/voucher-kind-map';
+import type { NoteState } from '../../../modules/interactive/note-input';
+import type { StepMemo } from '../../../modules/interactive/wizard';
 import type { IssuedVoucher } from '../../../modules/vouchers/voucher-history';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
-import { type NoteState, noteSteps } from '../note.flow';
+import { noteSteps } from '../note.flow';
 import type { InteractiveSession } from '../session';
 
 import { createScript } from './script';
@@ -47,22 +49,22 @@ function amountStep(shortcut: VoucherShortcut) {
     target: 'factura',
   };
 
-  return () => step?.run(state);
+  // Fuera de `runWizard`: el paso no recuerda nada.
+  const memo: StepMemo = { get: () => undefined, set: () => undefined };
+
+  return () => step?.run(state, { memo });
 }
 
 afterEach(() => {
   expect(script.remaining()).toBe(0);
 });
 
-// REV-45: en el asistente la NC no pasa del paso del monto si supera el total de la factura.
+// REV-45: en el asistente la NC no pasa del paso del monto si supera el total de la factura ("Parcial" ya elegido).
 describe.each<VoucherShortcut>(['fa', 'fb', 'fc', 'fcea', 'fceb', 'fcec', 'rc'])(
   'monto de una NC sobre %s',
   (shortcut) => {
     it('no deja avanzar con un monto mayor que el total', async () => {
-      script = createScript([
-        [/Total o parcial/, 'Parcial'],
-        [/Monto de la nota de crédito/, '121,01'],
-      ]);
+      script = createScript([[/Monto de la nota de crédito/, '121,01']]);
 
       await expect(amountStep(shortcut)()).rejects.toThrow(
         new RegExp(`No puede superar el total de (la|el) .+ 00003-00000014, de \\$ 121\\.$`),
@@ -70,12 +72,13 @@ describe.each<VoucherShortcut>(['fa', 'fb', 'fc', 'fcea', 'fceb', 'fcec', 'rc'])
     });
 
     it('acepta el total justo', async () => {
-      script = createScript([
-        [/Total o parcial/, 'Parcial'],
-        [/Monto de la nota de crédito/, '121'],
-      ]);
+      script = createScript([[/Monto de la nota de crédito/, '121']]);
 
-      await expect(amountStep(shortcut)()).resolves.toEqual({ annulsTotal: false, totalAmount: 121 });
+      await expect(amountStep(shortcut)()).resolves.toEqual({
+        amountCurrency: 'ARS',
+        annulsTotal: false,
+        totalAmount: 121,
+      });
     });
   },
 );

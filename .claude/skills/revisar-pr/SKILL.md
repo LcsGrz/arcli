@@ -57,7 +57,7 @@ Anotá los conflictos contra `dev`. Todo lo que corras del PR en los pasos sigui
 
 Hacelo en este orden, para que las dos lecturas sean independientes:
 
-1. Lanzá el agente `revisor-pr` con la ruta del worktree, la ruta del diff y la raíz del checkout principal. No le pases tu opinión ni la descripción del PR resumida. Si es un PR grande, lanzá uno por área (por ejemplo `src/` y docs).
+1. Lanzá el agente `revisor` en modo tercero, con la ruta del worktree, la ruta del diff y la raíz del checkout principal. No le pases tu opinión ni la descripción del PR resumida. Si es un PR grande, lanzá uno por área (por ejemplo `src/` y docs).
 2. Mientras tanto, aplicá vos mismo [criterios.md](criterios.md).
 3. Juntá los dos resultados y verificá cada hallazgo contra el código: el agente puede equivocarse con la misma seguridad con la que acierta. Descartá lo que no puedas sostener.
 

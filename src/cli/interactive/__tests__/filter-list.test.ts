@@ -27,7 +27,12 @@ const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
 /** Corre el prompt de verdad: las teclas entran por `input` y lo dibujado sale por `output`. */
 async function run(
   keys: readonly string[],
-  options: { readonly mode?: 'elegir' | 'ver'; readonly pageSize?: number } = {},
+  options: {
+    readonly back?: string;
+    readonly mode?: 'elegir' | 'ver';
+    readonly pageSize?: number;
+    readonly rows?: ReadonlyArray<FilterListRow<string>>;
+  } = {},
 ) {
   const input = new PassThrough();
   const output = new PassThrough();
@@ -39,12 +44,13 @@ async function run(
 
   const answer = filterList(
     {
+      back: options.back,
       header: 'CÓDIGO  MONEDA',
       help: 'Escribí el nombre o el código.',
       message: '¿De qué moneda?',
       mode: options.mode ?? 'elegir',
       pageSize: options.pageSize ?? 10,
-      rows: CURRENCIES,
+      rows: options.rows ?? CURRENCIES,
       theme: THEME,
     },
     { input, output },
@@ -65,6 +71,18 @@ describe('filterRows', () => {
     expect(filterRows(CURRENCIES, '060').map((row) => row.value)).toEqual(['060']);
     expect(filterRows(CURRENCIES, '  ')).toHaveLength(3);
   });
+
+  it('no compara los códigos de color de la fila', () => {
+    const rows = [{ label: 'DOL  Dólar \u001B[31m(nuevo)\u001B[39m', value: 'DOL' }];
+
+    expect(filterRows(rows, '31m')).toEqual([]);
+    expect(filterRows(rows, 'nuevo')).toHaveLength(1);
+  });
+
+  it('por palabras, en cualquier orden y aunque la fila las separe con varios espacios', () => {
+    expect(filterRows(CURRENCIES, 'estadounidense dol').map((row) => row.value)).toEqual(['DOL']);
+    expect(filterRows(CURRENCIES, 'dol euro')).toEqual([]);
+  });
 });
 
 describe('filterList', () => {
@@ -72,6 +90,7 @@ describe('filterList', () => {
     const { screen } = await run([ENTER]);
 
     expect(screen).toContain('Filtrar:');
+    expect(screen).toContain('escribí');
     expect(screen).toContain('CÓDIGO  MONEDA');
     expect(screen).toContain('❯ DOL  Dólar Estadounidense');
     expect(screen).toContain('Escribí el nombre o el código.');
@@ -99,6 +118,43 @@ describe('filterList', () => {
 
     expect(screen).toContain('Nada coincide con "xy".');
     expect(answer).toBe('DOL');
+  });
+
+  it('Enter sin nada que elegir no borra lo escrito: Backspace sigue borrando de a una letra', async () => {
+    // Despues de Enter sigue "eurx", y Backspace deja "eur": el euro. Antes Backspace borraba todo y quedaba el dolar.
+    const { answer } = await run([...'eurx', ENTER, BACKSPACE, ENTER]);
+
+    expect(answer).toBe('060');
+  });
+
+  it('si no entran todas, avisa cuantas quedan arriba y abajo; si entran, nada', async () => {
+    const rows = Array.from({ length: 10 }, (_, index) => ({ label: `Fila ${index + 1}`, value: String(index) }));
+    const { screen } = await run([DOWN, DOWN, DOWN, DOWN, ENTER], { pageSize: 3, rows });
+    const { screen: fits } = await run([ENTER]);
+
+    expect(screen).toContain('↓ 7 más');
+    expect(screen).toMatch(/↑ 3 más\n {2}Fila 4\n❯ Fila 5\n {2}Fila 6\n {2}↓ 4 más/);
+    expect(fits).not.toContain('más');
+  });
+
+  it('"Volver" queda fijo debajo de una lista que se desplaza; se llega con la flecha y Enter cierra sin elegir', async () => {
+    const rows = Array.from({ length: 10 }, (_, index) => ({ label: `Fila ${index + 1}`, value: String(index) }));
+    const { answer, screen } = await run([DOWN, DOWN, DOWN, DOWN, DOWN, DOWN, DOWN, DOWN, DOWN, DOWN, ENTER], {
+      back: '← Volver',
+      pageSize: 3,
+      rows,
+    });
+
+    // En la primera pantalla, con la lista arriba de todo, "Volver" ya se ve abajo.
+    expect(screen).toMatch(/❯ Fila 1\n {2}Fila 2\n {2}Fila 3\n {2}↓ 7 más\n\s*\n {2}← Volver/);
+    expect(screen).toMatch(/↑ 7 más\n {2}Fila 8\n {2}Fila 9\n {2}Fila 10\n\s*\n\s*\n❯ ← Volver/);
+    expect(answer).toBeUndefined();
+  });
+
+  it('desde "Volver", la flecha arriba vuelve a la última fila', async () => {
+    const { answer } = await run([DOWN, DOWN, DOWN, UP, ENTER], { back: '← Volver' });
+
+    expect(answer).toBe(CURRENCIES.at(-1)?.value);
   });
 
   it('para mirar, Enter la cierra sin elegir', async () => {

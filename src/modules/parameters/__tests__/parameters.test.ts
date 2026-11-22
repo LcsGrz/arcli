@@ -43,6 +43,15 @@ describe('parameters', () => {
     expect(filterCurrentEntries(entries, '20261005').map((entry) => entry.id)).toEqual(['1', '2']);
   });
 
+  it('keeps an entry that expires today and drops one that expired yesterday (TEST-19)', () => {
+    const entries = [
+      { description: 'vence hoy', id: '1', validTo: '20261005' },
+      { description: 'venció ayer', id: '2', validTo: '20261004' },
+    ];
+
+    expect(filterCurrentEntries(entries, '20261005').map((entry) => entry.id)).toEqual(['1']);
+  });
+
   it('describes sales points', () => {
     expect(salesPointToEntry({ blocked: true, emissionType: 'CAE', number: 3 })).toMatchObject({
       detail: 'bloqueado',
@@ -102,6 +111,36 @@ describe('entorno en el texto', () => {
     );
     expect(stripAnsi(formatStatusAsText(report))).toMatch(/Entorno\s+producción/);
     expect(JSON.parse(formatStatusAsJson(report)).entorno).toBe('produccion');
+  });
+});
+
+describe('formatQuotationAsText', () => {
+  it('muestra el nombre de la moneda junto al código si se lo pasan', () => {
+    const quotation = { currency: '060', date: '20261116', rate: 1520.75 };
+
+    expect(stripAnsi(formatQuotationAsText(quotation, 'testing', { currencyName: 'Euro' }))).toMatch(
+      /Moneda\s+Euro \(060\)/,
+    );
+    expect(stripAnsi(formatQuotationAsText(quotation, 'testing'))).toMatch(/Moneda\s+060\s/);
+  });
+
+  it('sin fecha de ARCA no muestra la fila, ni N/D (TUI-20)', () => {
+    const text = stripAnsi(formatQuotationAsText({ currency: 'DOL', rate: 1 }, 'testing'));
+
+    expect(text).not.toContain('Fecha');
+    expect(text).not.toContain('N/D');
+  });
+});
+
+describe('formatStatusAsText sin estado de un servidor (TUI-20)', () => {
+  it('la fila va igual y dice que ARCA no lo informa', async () => {
+    const report = await buildStatusReport({
+      environment: 'testing',
+      gateway: createGateway({ getServerStatus: async () => ({ app: 'OK', auth: 'OK', db: '' }) }),
+      pointOfSale: undefined,
+    });
+
+    expect(stripAnsi(formatStatusAsText(report))).toMatch(/Base de datos\s+ARCA no lo informa/);
   });
 });
 

@@ -1,13 +1,13 @@
 import { InputValidationError } from '../../lib/errors/app-error';
-import { formatArgentineMoney } from '../../lib/numbers/argentine-amount';
 
 import { formatVoucherSubject } from './billing.mappers';
-import type { BillingCommandInput, BillingIvaCondition } from './billing.schemas';
+import type { BillingIvaCondition } from './billing.schemas';
 import type { VoucherKindDefinition, VoucherLetter } from './billing.types';
 
 /**
- * Condiciones IVA del receptor admitidas por letra, segun FEParamGetCondicionIvaReceptor.
- * ARCA rechaza las demas combinaciones con el error 10243.
+ * Condiciones IVA del receptor admitidas por letra, segun la tabla del manual (WSFEv1 v4.7, p. 203), que marca
+ * consumidor final en B, C y 49. ARCA rechaza las demas combinaciones con el error 10243. `yarn test:arca` la compara
+ * con la de FEParamGetCondicionIvaReceptor de testing, que trae consumidor final solo como "C/49" aunque aprueba la B.
  */
 const IVA_CONDITIONS_BY_LETTER: Record<VoucherLetter, readonly BillingIvaCondition[]> = {
   a: [
@@ -40,8 +40,16 @@ const IVA_CONDITIONS_BY_LETTER: Record<VoucherLetter, readonly BillingIvaConditi
   ],
 };
 
-/** RG 5700/2025: desde $ 10.000.000 hay que identificar al consumidor final. */
-const CONSUMER_IDENTIFICATION_THRESHOLD = 10_000_000;
+/**
+ * RG 5700/2025: desde $ 10.000.000 hay que identificar al consumidor final (ARCA 10015, WSFEv1 v4.7). El texto de la
+ * 10015 nombra solo la B, pero ARCA testing tambien rechaza la C con ese codigo (18/11/2026): no aflojarla en la C.
+ */
+export const CONSUMER_IDENTIFICATION_THRESHOLD = 10_000_000;
+
+/** Si un total en pesos (total × cotizacion) obliga a identificar al consumidor final (RG 5700/2025). */
+export function requiresConsumerIdentification(totalInPesos: number): boolean {
+  return totalInPesos >= CONSUMER_IDENTIFICATION_THRESHOLD;
+}
 
 export function listAllowedIvaConditions(letter: VoucherLetter): readonly BillingIvaCondition[] {
   return IVA_CONDITIONS_BY_LETTER[letter];
@@ -65,20 +73,4 @@ export function validateIvaConditionForVoucher(
   throw new InputValidationError(
     `${formatVoucherSubject(voucherKind)} no admite IVA receptor "${ivaCondition}".${suggestion}`,
   );
-}
-
-export function validateConsumerIdentification(
-  input: Pick<BillingCommandInput, 'documentType' | 'totalAmount'>,
-  exchangeRate: number,
-  voucherKind: VoucherKindDefinition,
-): void {
-  if (input.documentType !== 'consumidor-final') {
-    return;
-  }
-
-  if (input.totalAmount * exchangeRate >= CONSUMER_IDENTIFICATION_THRESHOLD) {
-    throw new InputValidationError(
-      `${formatVoucherSubject(voucherKind)} de ${formatArgentineMoney(CONSUMER_IDENTIFICATION_THRESHOLD)} o más requiere identificar al consumidor final. Usá \`--dni\`, \`--cuit\` o \`--cuil\`.`,
-    );
-  }
 }

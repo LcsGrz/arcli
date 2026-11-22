@@ -10,10 +10,12 @@ import { CLI_VERSION } from '../../version';
 import { runConfigMenu, runGuidedSetup } from '../config.flow';
 import { runInteractiveMode } from '../interactive-mode';
 import { runInvoiceFlow } from '../invoice.flow';
+import { runNoteFlow } from '../note.flow';
 import { chooseOne, confirm } from '../prompts';
 import { runQueriesMenu } from '../queries.flow';
 import { runRepeatFlow } from '../repeat.flow';
 import { createInteractiveSession } from '../session';
+import { runStatusFlow } from '../status.flow';
 import { runUpdateFlow } from '../update.flow';
 
 vi.mock('../prompts', async (importOriginal) => ({
@@ -25,12 +27,20 @@ vi.mock('../../../modules/interactive/config-fields', async (importOriginal) => 
   ...(await importOriginal<typeof import('../../../modules/interactive/config-fields')>()),
   listMissingSetupKeys: vi.fn(() => []),
 }));
+/** Con `value`, la proxima lectura de la config falla, como con un config.json roto. */
+const configThrows = vi.hoisted(() => ({ value: false }));
+
 vi.mock('../../../modules/config/config.service', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../modules/config/config.service')>()),
   ConfigService: class {
     public close(): void {}
     public ensureInitialized(): void {}
     public getConfig(): object {
+      if (configThrows.value) {
+        configThrows.value = false;
+        throw new Error('config.json ilegible');
+      }
+
       return {};
     }
   },
@@ -194,6 +204,22 @@ describe('runInteractiveMode', () => {
     expect(chooseOneMock.mock.calls[0][1]).not.toContainEqual(expect.objectContaining({ value: 'actualizar' }));
   });
 
+  it('cada opcion del menu tiene su descripcion, salvo "Salir" (TUI-14)', async () => {
+    chooseOneMock.mockResolvedValueOnce('salir');
+
+    await runInteractiveMode();
+
+    const choices = (chooseOneMock.mock.calls[0][1] as ReadonlyArray<{ description?: string; value?: string }>).filter(
+      (choice) => choice.value !== undefined && choice.value !== 'salir',
+    );
+
+    expect(choices.map((choice) => choice.value)).toContain('factura');
+
+    for (const choice of choices) {
+      expect(choice.description, choice.value).toBeTruthy();
+    }
+  });
+
   it('con version nueva, actualizar es la primera opcion y "Cerrar para actualizar" sale', async () => {
     vi.mocked(checkForUpdate).mockResolvedValueOnce({ currentVersion: '1.8.0', latestVersion: '1.9.0' });
     vi.mocked(runUpdateFlow).mockResolvedValueOnce(true);
@@ -295,5 +321,135 @@ describe('runInteractiveMode', () => {
     expect(runRepeatFlow).toHaveBeenCalledTimes(1);
     // Al volver de Configuracion la barra se rearma: pudo cambiar el entorno o el punto de venta.
     expect(stripAnsi(output).match(/ARCA FUNCIONANDO/g)).toHaveLength(2);
+  });
+});
+
+describe('runInteractiveMode: cada opcion, configuracion a medias y errores', () => {
+  let output = '';
+
+  beforeEach(() => {
+    output = '';
+    vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
+      output += String(chunk);
+      return true;
+    });
+    vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+      output += String(chunk);
+      return true;
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
+  });
+
+  it('recibo, notas y estado corren su flujo con la sesion, y el menu sigue', async () => {
+    chooseOneMock
+      .mockResolvedValueOnce('recibo')
+      .mockResolvedValueOnce('nota-credito')
+      .mockResolvedValueOnce('nota-debito')
+      .mockResolvedValueOnce('estado')
+      .mockResolvedValueOnce('salir');
+
+    await runInteractiveMode();
+
+    expect(runInvoiceFlow).toHaveBeenCalledWith(expect.objectContaining({ runtime }), true);
+    expect(runNoteFlow).toHaveBeenNthCalledWith(1, expect.anything(), 'credito');
+    expect(runNoteFlow).toHaveBeenNthCalledWith(2, expect.anything(), 'debito');
+    expect(runStatusFlow).toHaveBeenCalledTimes(1);
+    expect(chooseOneMock).toHaveBeenCalledTimes(5);
+  });
+
+  it('si la configuracion no sirve para armar la sesion, la barra lo dice y elegir una opcion avisa sin correrla', async () => {
+    vi.mocked(createInteractiveSession).mockImplementation(() => {
+      throw new Error('Falta el CUIT en la configuración.');
+    });
+    chooseOneMock.mockResolvedValueOnce('factura').mockResolvedValueOnce('salir');
+
+    try {
+      await runInteractiveMode();
+    } finally {
+      vi.mocked(createInteractiveSession).mockImplementation(() => ({ runtime }) as never);
+    }
+
+    const plain = stripAnsi(output).replace(/[│┃╏\s]+/g, ' ');
+
+    expect(plain).toMatch(/falta completar la configuración ━+ ARCA SIN VERIFICAR/);
+    expect(checkArcaHealth).not.toHaveBeenCalled();
+    expect(plain).toContain('Falta el CUIT en la configuración.');
+    expect(plain).toContain('Revisala desde "Configuración" en el menú.');
+    expect(runInvoiceFlow).not.toHaveBeenCalled();
+    expect(chooseOneMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('sin punto de venta la barra dice "sin configurar"; una razon social larga se corta', async () => {
+    vi.mocked(createInteractiveSession).mockReturnValueOnce({
+      runtime: {
+        ...runtime,
+        config: { emisor: { razonSocial: 'COOPERATIVA DE TRABAJO DE SERVICIOS INFORMATICOS LTDA' } },
+        pointOfSale: undefined,
+      },
+    } as never);
+    chooseOneMock.mockResolvedValueOnce('salir');
+
+    await runInteractiveMode();
+
+    expect(stripAnsi(output)).toContain('━━ COOPERATIVA DE TRABAJO DE SERVI… · PV sin configurar ━');
+  });
+
+  it('con el certificado vencido y la config ilegible, muestra solo el vencido', async () => {
+    vi.mocked(createInteractiveSession).mockImplementationOnce(() => {
+      throw new CertificateExpiredError(certificateNotice(true));
+    });
+    configThrows.value = true;
+    chooseOneMock.mockResolvedValueOnce('salir');
+
+    try {
+      await runInteractiveMode();
+    } finally {
+      configThrows.value = false;
+    }
+
+    expect(stripAnsi(output)).toContain('El certificado de producción venció el 20/11/2026.');
+  });
+
+  it('"Después" en la guia deja el menu sin configurar nada', async () => {
+    vi.mocked(listMissingSetupKeys).mockReturnValueOnce(['cuit']);
+    vi.mocked(confirm).mockResolvedValueOnce(false);
+    chooseOneMock.mockResolvedValueOnce('salir');
+
+    await runInteractiveMode();
+
+    expect(runGuidedSetup).not.toHaveBeenCalled();
+    // El menu ya no va pegado a la barra: entre los dos quedo la pregunta.
+    expect(chooseOneMock.mock.calls[0]?.[3]).toMatchObject({ compactTop: false });
+  });
+
+  it('Ctrl+C en la guia la corta y sigue al menu', async () => {
+    vi.mocked(listMissingSetupKeys).mockReturnValueOnce(['cuit']);
+    vi.mocked(confirm).mockResolvedValueOnce(true);
+    vi.mocked(runGuidedSetup).mockRejectedValueOnce(cancellation());
+    chooseOneMock.mockResolvedValueOnce('salir');
+
+    await runInteractiveMode();
+
+    expect(chooseOneMock).toHaveBeenCalledTimes(1);
+    expect(output).toContain('¡Hasta la próxima!');
+  });
+
+  it('un error que no es Ctrl+C en la guia no se tapa', async () => {
+    vi.mocked(listMissingSetupKeys).mockReturnValueOnce(['cuit']);
+    vi.mocked(confirm).mockResolvedValueOnce(true);
+    vi.mocked(runGuidedSetup).mockRejectedValueOnce(new Error('disco lleno'));
+
+    await expect(runInteractiveMode()).rejects.toThrow('disco lleno');
+    expect(chooseOneMock).not.toHaveBeenCalled();
+  });
+
+  it('un error que no es Ctrl+C en el menu no se tapa', async () => {
+    chooseOneMock.mockRejectedValueOnce(new Error('terminal cerrada'));
+
+    await expect(runInteractiveMode()).rejects.toThrow('terminal cerrada');
   });
 });

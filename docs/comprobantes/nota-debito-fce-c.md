@@ -62,7 +62,7 @@ Ej.: `--cuit 20168598204`
 
 | Largo | Corto | Qué es |
 | --- | --- | --- |
-| `--ac <atajo>` |  | fcec, fcea o fceb |
+| `--ac <atajo>` |  | fcec, fcea o fceb; con --anulacion, también una nota FCE |
 | `--asociado-punto-venta <número>` | `--apv` | Su punto de venta |
 | `--ar <número>` |  | Su número |
 | `--at <número>` |  | Tipo ARCA, en vez de --ac |
@@ -80,7 +80,7 @@ Más datos del comprobante, o cambiar lo que viene de la config.
 | Largo | Corto | Qué es |
 | --- | --- | --- |
 | `--afecha <fecha>` |  | Fecha de la factura; sin el flag, ARCLI la consulta en ARCA |
-| `--anulacion` |  | Anula una factura que el comprador rechazó |
+| `--anulacion` |  | Anula un comprobante que el comprador rechazó: la NC ajusta la factura o una ND FCE, y la ND solo una NC FCE |
 
 Ej.: `--anulacion`
 
@@ -100,7 +100,7 @@ Si no es hoy.
 
 | Largo | Corto | Qué es |
 | --- | --- | --- |
-| `--fecha <fecha>` | `-f` | D, D/M, D/M/AA o D/M/AAAA |
+| `--fecha <fecha>` | `-f` | D, D/M, D/M/AA o D/M/AAAA, o hoy, ayer, +N o -N (días desde hoy) |
 
 Ej.: `-f 31/10`
 
@@ -110,8 +110,8 @@ Solo con servicios. Sin estos flags, el mes en curso.
 
 | Largo | Corto | Qué es |
 | --- | --- | --- |
-| `--servicio-desde <fecha>` | `--sd` | Inicio del servicio |
-| `--servicio-hasta <fecha>` | `--sh` | Fin del servicio |
+| `--servicio-desde <fecha>` | `--sd` | Inicio del servicio; mes-actual o mes-pasado dan el día 1 |
+| `--servicio-hasta <fecha>` | `--sh` | Fin del servicio; mes-actual o mes-pasado dan el último día |
 | `--vencimiento <fecha>` | `--vto` | Vencimiento del pago; por defecto, el fin del servicio |
 
 Ej.: `--sd 1/10 --sh 31/10`

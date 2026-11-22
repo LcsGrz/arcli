@@ -3,7 +3,7 @@ import { UI_THEME } from '../theme/theme';
 import { fitToTerminal } from './terminalWidth';
 import { colorize } from './text';
 
-export const ARCLI_ASCII_BANNER = [
+const ARCLI_ASCII_BANNER = [
   '       d8888 8888888b.   .d8888b.  888      8888888 ',
   '      d88888 888   Y88b d88P  Y88b 888        888   ',
   '     d88P888 888    888 888    888 888        888   ',

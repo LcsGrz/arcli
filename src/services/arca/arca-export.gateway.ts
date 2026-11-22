@@ -214,6 +214,20 @@ export class ArcaExportGateway implements ExportGateway {
   }
 
   /**
+   * `FEXCheck_Permiso` devuelve `Status` (`OK` o `NO`) para el permiso y el destino de la mercaderia. En testing
+   * contesta `OK` a cualquier permiso no vacio: no lo compara con la Aduana (probado en testing).
+   */
+  public async checkPermit(permit: string, destinationCountry: number): Promise<string> {
+    const data = (
+      await this.call((service) => service.checkPermiso({ Dst_merc: destinationCountry, ID_Permiso: permit }))
+    ).FEXCheck_PermisoResult;
+
+    assertNoError(data, `el permiso de embarque ${permit}`);
+
+    return readText(data?.FEXResultGet?.Status).toUpperCase();
+  }
+
+  /**
    * La tabla de actividades de WSFEX es propia: tiene menos codigos que la del padron y el `Cmp` solo acepta los
    * suyos. El WSDL no la tipa (devuelve `ClsFEXResponse_ActividadTipo`), asi que se lee como array tolerante.
    */

@@ -1,0 +1,270 @@
+? [lista] ¿Qué comprobante querés emitir?
+  arranca en: (ninguna)
+  · Factura C — La emiten monotributistas y exentos
+  · Factura B — De responsable inscripto a consumidor final, exento u otros
+  · Factura A — Entre responsables inscriptos, o de RI a monotributista
+  · Factura de crédito electrónica C — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Factura de crédito electrónica B — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Factura de crédito electrónica A — Factura de Crédito Electrónica MiPyMEs, para grandes empresas
+  · Factura de exportación E — A un cliente del exterior: servicios o bienes
+  = Factura de exportación E
+
+? [texto] Nombre o razón social del cliente del exterior:
+  = "Importadora Exemplo Ltda"
+
+? [texto] Domicilio del cliente:
+  = "Rua Exemplo 100, Sao Paulo"
+
+? [texto] País de destino (nombre o código de ARCA, por ejemplo ESTADOS UNIDOS o 212):
+  = "BRASIL"
+
+? [texto] ARCA no tiene un CUIT publicado para BRASIL. Escribí el CUIT del país, buscalo por nombre o dejalo vacío para informar solo el ID impositivo del cliente:
+  = ""
+
+? [texto] ID impositivo del cliente en su país (sin CUIT del país, ARCA lo pide):
+  = "12.345.678/0001-90"
+
+? [lista] ¿Qué exportás?
+  arranca en: Servicios
+  > Servicios
+  · Bienes — Lleva incoterm y, si los hay, permisos de embarque
+  · Otros
+  = Bienes
+
+? [lista] ¿En qué moneda facturás?
+  arranca en: Dólares (USD)
+  > Dólares (USD) — Con la cotización de aduana que publica ARCA
+  · Pesos
+  = Dólares (USD)
+
+? [lista] ¿Te pagan en dólares?
+  arranca en: (ninguna)
+  · Sí — ARCA lo registra como cancelación en la misma moneda
+  · No, en pesos
+  = Sí
+
+== pantalla ==
+┌                                                                                          ┐
+
+    Cotización: 1.174,60 por USD, la oficial del día hábil anterior. ARCA no acepta otra
+                                    si te pagan en USD.
+
+└                                                                                          ┘
+
+? [texto] Descripción del ítem 1:
+  por defecto: "Según detalle"
+  = "Jugo de naranja"
+
+? [texto] Cantidad:
+  por defecto: "1"
+  = "1.000"
+
+? [lista con filtro] Unidad:
+  arranca en: unidades
+  · kilogramos (busca tambien: 1)
+  > unidades (busca tambien: 7)
+  = kilogramos
+
+? [texto] Precio unitario en USD:
+  = "1,50"
+
+? [texto] Descripción del ítem 2 (Enter para terminar):
+  = "Flete"
+
+? [texto] Cantidad:
+  = "1"
+
+? [lista con filtro] Unidad:
+  arranca en: unidades
+  · kilogramos (busca tambien: 1)
+  > unidades (busca tambien: 7)
+  = unidades
+
+? [texto] Importe en USD:
+  = "500"
+
+? [texto] Descripción del ítem 3 (Enter para terminar):
+  = ""
+
+? [lista] Importe total de la factura de exportación E: 2.000 USD (2 ítems)
+  arranca en: Confirmar
+  > Confirmar
+  · Modificar los ítems — Modificar, borrar o agregar ítems
+  = Modificar los ítems
+
+? [editor] Ítems de la factura de exportación E (2): modificá o eliminá ítems, o presioná Enter para continuar
+  [modificar] Jugo de naranja — 1.000 kilogramos x 1,50 USD = 1.500 USD
+  [borrar] Flete — 1 unidades x 500 USD = 500 USD
+  [agregar] + Agregar ítem
+  = aplicar
+
+? [texto] Descripción del ítem 1:
+  arranca escrito: "Jugo de naranja"
+  = "Jugo de naranja concentrado"
+
+? [texto] Cantidad:
+  arranca escrito: "1000"
+  = "800"
+
+? [lista con filtro] Unidad:
+  arranca en: kilogramos
+  > kilogramos (busca tambien: 1)
+  · unidades (busca tambien: 7)
+  = kilogramos
+
+? [texto] Precio unitario en USD:
+  arranca escrito: "1,50"
+  = "2"
+
+? [texto] Descripción del ítem 2 (Enter para terminar):
+  = "Seguro"
+
+? [texto] Cantidad:
+  = "1"
+
+? [lista con filtro] Unidad:
+  arranca en: unidades
+  · kilogramos (busca tambien: 1)
+  > unidades (busca tambien: 7)
+  = unidades
+
+? [texto] Importe en USD:
+  = "100"
+
+? [texto] Descripción del ítem 3 (Enter para terminar):
+  = ""
+
+? [lista] Importe total de la factura de exportación E: 1.700 USD (2 ítems)
+  arranca en: Confirmar
+  > Confirmar
+  · Modificar los ítems — Modificar, borrar o agregar ítems
+  = Confirmar
+
+? [lista] Incoterm:
+  arranca en: (ninguna)
+  · EXW
+  · FOB
+  = FOB
+
+? [texto] Permisos de embarque ya existentes, separados por coma (Enter si no hay):
+  sin validacion
+  = ""
+
+? [texto] Forma de pago:
+  por defecto: "Transferencia Internacional"
+  = ""
+
+? [texto] Código de actividad de WSFEX, por ejemplo 620100:
+  aclara al preguntar: (Enter para no informarla)
+  = ""
+
+? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
+  [ ] Fecha del comprobante — hoy
+  [ ] Idioma — Español
+  [ ] CUIT del país — sin CUIT (va el ID impositivo)
+  [ ] Observaciones — sin observaciones
+  [ ] Descripción del incoterm — FOB
+  = (nada marcado)
+
+== pantalla ==
+┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐
+╎                                                                                          ╎
+╎       Estás en TESTING: los comprobantes son de prueba y no tienen validez fiscal.       ╎
+╎                                                                                          ╎
+└╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘
+
+      ╒══════════════════════════ FACTURA DE EXPORTACIÓN E ══════════════════════════╕
+      │                                                                              │
+      │  Cliente                          Importadora Exemplo Ltda                   │
+      │  Domicilio del cliente            Rua Exemplo 100, Sao Paulo                 │
+      │  ID impositivo del cliente        12.345.678/0001-90                         │
+      │  País de destino                  203 - BRASIL                               │
+      │  Tipo de exportación              1 - Exportación definitiva de bienes       │
+      │  Incoterm                         FOB                                        │
+      │  Idioma                           1 - Español                                │
+      │  Moneda                           Dólares estadounidenses (USD), cotización  │
+      │                                   1.174,60 (el pago se cancela en la misma   │
+      │                                   moneda)                                    │
+      │  Forma de pago                    Transferencia Internacional                │
+      │  Número                           00003-00000008                             │
+      │  Fecha del comprobante            18/11/2026                                 │
+      │                                                                              │
+      │  800 x Jugo de naranja            1.600 USD                                  │
+      │  concentrado (kilogramos)                                                    │
+      │  1 x Seguro (unidades)              100 USD                                  │
+      │                                                                              │
+      │  Importe total                    1.700 USD                                  │
+      │                                                                              │
+      ├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
+      │                                                                              │
+      │                                  SIN EMITIR                                  │
+      │                                                                              │
+      ╘══════════════════════════════════════════════════════════════════════════════╛
+
+== comando equivalente ==
+arcli fe -m 1700 --cliente 'Importadora Exemplo Ltda' --domicilio-cliente 'Rua Exemplo 100, Sao Paulo' --pais-destino BRASIL --id-impositivo 12.345.678/0001-90 --tipo-expo 1 --item 'Jugo de naranja concentrado|800|2|1' --item 'Seguro|1|100' --moneda DOL --misma-moneda --incoterm FOB --testing --emitir
+
+== pantalla ==
+▎ Esto equivale a:
+▎ arcli fe -m 1700 --cliente 'Importadora Exemplo Ltda' --domicilio-cliente 'Rua Exemplo 100, Sao Paulo' --pais-destino BRASIL --id-impositivo 12.345.678/0001-90 --tipo-expo 1 --item 'Jugo de naranja concentrado|800|2|1' --item 'Seguro|1|100' --moneda DOL --misma-moneda --incoterm FOB --testing --emitir
+
+? [lista] ¿Emitimos la factura de exportación E en testing?
+  arranca en: Sí, emitir ahora
+  > Sí, emitir ahora
+  · Sí, emitir y generar el PDF
+  · No, dejar sin emitir
+  = No, dejar sin emitir
+
+== pantalla ==
+┌                                                                                          ┐
+
+                                     No se emitió nada.
+
+└                                                                                          ┘
+
+== solicitud a ARCA (FEXAuthorize) ==
+{
+  "CanMisMonExt": "S",
+  "Cbte_nro": 8,
+  "Cbte_Tipo": 19,
+  "Cliente": "Importadora Exemplo Ltda",
+  "Domicilio_cliente": "Rua Exemplo 100, Sao Paulo",
+  "Dst_cmp": 203,
+  "Fecha_cbte": "20261118",
+  "Forma_pago": "Transferencia Internacional",
+  "Id": 41,
+  "Id_impositivo": "12.345.678/0001-90",
+  "Idioma_cbte": 1,
+  "Imp_total": 1700,
+  "Incoterms": "FOB",
+  "Incoterms_Ds": "FOB",
+  "Items": {
+    "Item": [
+      {
+        "Pro_bonificacion": 0,
+        "Pro_codigo": "",
+        "Pro_ds": "Jugo de naranja concentrado",
+        "Pro_precio_uni": 2,
+        "Pro_qty": 800,
+        "Pro_total_item": 1600,
+        "Pro_umed": 1
+      },
+      {
+        "Pro_bonificacion": 0,
+        "Pro_codigo": "",
+        "Pro_ds": "Seguro",
+        "Pro_precio_uni": 100,
+        "Pro_qty": 1,
+        "Pro_total_item": 100,
+        "Pro_umed": 7
+      }
+    ]
+  },
+  "Moneda_ctz": 1174.6,
+  "Moneda_Id": "DOL",
+  "Obs": "",
+  "Obs_comerciales": "",
+  "Permiso_existente": "N",
+  "Punto_vta": 3,
+  "Tipo_expo": 1
+}

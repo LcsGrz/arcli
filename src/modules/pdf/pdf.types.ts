@@ -12,7 +12,7 @@ export interface InvoicePdfIssuer {
   readonly razonSocial: string;
 }
 
-export interface InvoicePdfReceiver {
+interface InvoicePdfReceiver {
   readonly condicionIva: string;
   /** CUIT del pais de destino con su descripcion, como lo informa WSFEX. Solo en la letra E. */
   readonly cuitPais?: string;
@@ -43,7 +43,7 @@ export interface InvoicePdfIva {
   readonly importe: number;
 }
 
-export interface InvoicePdfAssociatedVoucher {
+interface InvoicePdfAssociatedVoucher {
   readonly cuit?: string;
   readonly fecha?: string;
   readonly numero: number;

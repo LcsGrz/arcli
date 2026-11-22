@@ -6,13 +6,12 @@ import {
   isUpKey,
   makeTheme,
   useKeypress,
-  usePagination,
   usePrefix,
   useState,
 } from '@inquirer/core';
 
 import { BACK, type Back } from '../../modules/interactive/wizard';
-import { colorize, uiSymbol } from '../../ui';
+import { colorize, scrollHint, scrollWindow, uiSymbol } from '../../ui';
 
 /** Oculta el cursor de la terminal mientras se muestra la lista; @inquirer lo vuelve a mostrar al cerrarla. */
 const CURSOR_HIDE = '\u001B[?25l';
@@ -43,14 +42,10 @@ export interface MultiSelectConfig<T> {
   };
 }
 
-type Row<T> =
-  | { readonly kind: 'back' }
-  | { readonly kind: 'spacer' }
-  | { readonly description?: string; readonly kind: 'option'; readonly name: string; readonly value: T };
-
 /**
  * Seleccion multiple con un boton "Volver". @inquirer/checkbox le pone el circulo a todas las filas y `a` e `i` las
- * marcan a todas, asi que "Volver" terminaba seleccionable junto con las opciones.
+ * marcan a todas, asi que "Volver" terminaba seleccionable junto con las opciones. "Volver" queda fijo debajo de la
+ * lista aunque las opciones se desplacen.
  */
 export const multiSelect = createPrompt(
   <T>(config: MultiSelectConfig<T>, done: (value: Back | T[]) => void): string => {
@@ -60,31 +55,23 @@ export const multiSelect = createPrompt(
     const [active, setActive] = useState(0);
     const prefix = usePrefix({ status, theme });
     const values = config.choices.map((choice) => choice.value);
-    const rows: ReadonlyArray<Row<T>> = [
-      ...config.choices.map((choice) => ({ ...choice, kind: 'option' as const })),
-      { kind: 'spacer' },
-      { kind: 'back' },
-    ];
-    const backIndex = rows.length - 1;
+    // "Volver" va despues de la ultima opcion.
+    const backIndex = config.choices.length;
+    const row = config.choices[active];
 
     useKeypress((key) => {
-      const row = rows[active];
-
       if (isEnterKey(key)) {
         setStatus('done');
         // En el orden de las opciones, no en el que se marcaron.
-        done(row?.kind === 'back' ? BACK : values.filter((value) => marked.includes(value)));
+        done(active === backIndex ? BACK : values.filter((value) => marked.includes(value)));
       } else if (isUpKey(key) || isDownKey(key)) {
-        const offset = isUpKey(key) ? -1 : 1;
-        const next = active + offset;
-        // El separador no se puede elegir: se salta.
-        const target = rows[next]?.kind === 'spacer' ? next + offset : next;
+        const next = active + (isUpKey(key) ? -1 : 1);
 
-        if (target >= 0 && target <= backIndex) {
-          setActive(target);
+        if (next >= 0 && next <= backIndex) {
+          setActive(next);
         }
       } else if (isSpaceKey(key)) {
-        if (row?.kind === 'option') {
+        if (row) {
           setMarked(
             marked.includes(row.value) ? marked.filter((value) => value !== row.value) : [...marked, row.value],
           );
@@ -96,27 +83,17 @@ export const multiSelect = createPrompt(
       }
     });
 
-    const page = usePagination({
-      active,
-      items: rows,
-      loop: false,
-      pageSize: config.pageSize,
-      renderItem({ isActive, item }) {
-        if (item.kind === 'spacer') {
-          return ' ';
-        }
+    const renderRow = (label: string, isActive: boolean) => {
+      const line = `${isActive ? uiSymbol('pointer') : ' '} ${label}`;
 
-        const cursor = isActive ? uiSymbol('pointer') : ' ';
-        const color = isActive ? theme.style.highlight : (text: string) => text;
+      return isActive ? theme.style.highlight(line) : line;
+    };
+    // Con "Volver" marcado, la pagina queda al final, porque se llega desde la ultima opcion.
+    const window = scrollWindow(config.choices.length, Math.min(active, backIndex - 1), config.pageSize);
+    const options = config.choices.slice(window.start, window.end).map((choice, offset) => {
+      const icon = marked.includes(choice.value) ? colorize(uiSymbol('selected'), 'success') : uiSymbol('unselected');
 
-        if (item.kind === 'back') {
-          return color(`${cursor} ${config.backLabel}`);
-        }
-
-        const icon = marked.includes(item.value) ? colorize(uiSymbol('selected'), 'success') : uiSymbol('unselected');
-
-        return color(`${cursor} ${icon} ${item.name}`);
-      },
+      return renderRow(`${icon} ${choice.name}`, window.start + offset === active);
     });
     const message = theme.style.message(config.message, status);
 
@@ -124,8 +101,7 @@ export const multiSelect = createPrompt(
       return [prefix, message].filter(Boolean).join(' ');
     }
 
-    const activeRow = rows[active];
-    const description = activeRow?.kind === 'option' ? activeRow.description : undefined;
+    const description = row?.description;
     const help = theme.style.keysHelpTip([
       ['↑↓', 'navigate'],
       ['space', 'select'],
@@ -135,7 +111,11 @@ export const multiSelect = createPrompt(
     ]);
     const lines = [
       [prefix, message].filter(Boolean).join(' '),
-      page,
+      ...(window.scrolls ? [scrollHint('above', window.start)] : []),
+      ...options,
+      ...(window.scrolls ? [scrollHint('below', config.choices.length - window.end)] : []),
+      ' ',
+      renderRow(config.backLabel, active === backIndex),
       ' ',
       description ? theme.style.description(description) : '',
       help,

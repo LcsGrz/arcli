@@ -255,3 +255,85 @@ describe('offerPdf', () => {
     expect(confirmMock).not.toHaveBeenCalled();
   });
 });
+
+describe('offerPdf: datos que faltan y errores despues de emitir', () => {
+  afterEach(() => {
+    askTextMock.mockReset();
+    confirmMock.mockReset();
+    attachPdfsMock.mockImplementation(async ({ results }) => [...results]);
+  });
+
+  it('"Otra" con el texto borrado queda como "otra"', async () => {
+    confirmMock.mockResolvedValueOnce(true);
+    askTextMock.mockResolvedValue('');
+    chooseOneMock.mockResolvedValueOnce('otra');
+
+    await offerPdf(CONFIG, input, result);
+
+    expect(attachPdfsMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ inputs: [expect.objectContaining({ saleCondition: 'otra' })] }),
+    );
+  });
+
+  it('sin CUIT en la config lo pide para el PDF, y "solo esta vez" no lo guarda', async () => {
+    // Con `pdf siempre` no se pregunta si generarlo: la unica confirmacion es la de guardar.
+    confirmMock.mockResolvedValueOnce(false);
+    askTextMock.mockImplementation(async (message, options) => {
+      if (/CUIT/.test(message)) {
+        expect(options?.validate?.('123')).not.toBe(true);
+
+        return '20123456786';
+      }
+
+      return '';
+    });
+
+    await offerPdf({ ...CONFIG, cuit: undefined, pdf: 'siempre' } as never, input, result);
+
+    expect(setValue).not.toHaveBeenCalled();
+    expect(attachPdfsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ config: expect.objectContaining({ cuit: '20123456786' }) }),
+    );
+  });
+
+  it('con "Omitir" ya elegido en la entrada, no propone la condición de la config', async () => {
+    confirmMock.mockResolvedValueOnce(true);
+    askTextMock.mockResolvedValue('');
+
+    await offerPdf({ ...CONFIG, condicionVenta: 'contado' }, { ...input, saleCondition: null }, result);
+
+    expect(chooseOneMock).toHaveBeenLastCalledWith('Condición de venta:', expect.any(Array), undefined);
+  });
+
+  it('un error al generar el PDF que no es Ctrl+C llega a quien lo pidió', async () => {
+    confirmMock.mockResolvedValueOnce(true);
+    askTextMock.mockResolvedValue('');
+    attachPdfsMock.mockRejectedValueOnce(new Error('disco lleno'));
+
+    await expect(offerPdf(CONFIG, input, result)).rejects.toThrow('disco lleno');
+  });
+
+  it('descripción, receptor y domicilio con acentos, emoji y textos largos llegan tal cual', async () => {
+    const long = `Servicios de diseño ✏️ y programación — ${'ñ'.repeat(300)}`;
+
+    confirmMock.mockResolvedValueOnce(true);
+    askTextMock
+      .mockResolvedValueOnce(long)
+      .mockResolvedValueOnce("O'Brien & Peña S.R.L. 🏢")
+      .mockResolvedValueOnce('Av. Córdoba 1234, 5º "B"');
+
+    await offerPdf(CONFIG, input, result);
+
+    expect(attachPdfsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        inputs: [
+          expect.objectContaining({
+            pdfDescription: long,
+            receiverAddress: 'Av. Córdoba 1234, 5º "B"',
+            receiverName: "O'Brien & Peña S.R.L. 🏢",
+          }),
+        ],
+      }),
+    );
+  });
+});

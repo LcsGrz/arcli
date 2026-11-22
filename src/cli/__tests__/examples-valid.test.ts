@@ -57,6 +57,8 @@ const padron: PadronGateway = {
     ivaCondition: 'responsable-inscripto',
     keyStatus: 'ACTIVO',
     monotributoCategory: null,
+    monotributoCategoryLetter: null,
+    monotributoCategorySince: null,
     name: 'Cliente SA',
     notices: [],
     personType: 'juridica',
@@ -73,6 +75,7 @@ const gateway: BillingGateway = {
 /** Las tablas de WSFEX que usan los ejemplos de la factura E, sin red. */
 const exportGateway: ExportGateway = {
   authorize: () => Promise.reject(new Error('los ejemplos no emiten')),
+  checkPermit: async () => 'OK',
   getActivities: async () => [{ id: 620100, name: 'SERVICIOS DE CONSULTORES EN INFORMATICA' }],
   getCurrencies: async () => [{ code: 'DOL', name: 'Dólar Estadounidense' }],
   getDestinationCountries: async () => [
@@ -88,7 +91,12 @@ const exportGateway: ExportGateway = {
   getLastRequestId: async () => 0,
   getLastVoucherNumber: async () => 0,
   getQuotations: async () => [{ code: 'DOL', rate: 1000 }],
-  getUnits: async () => [{ id: 7, name: 'unidades' }],
+  // Las de la tabla de WSFEX que usan los ejemplos de las docs: verificado contra WSFEX testing el 20/11.
+  getUnits: async () => [
+    { id: 1, name: 'kilogramos' },
+    { id: 5, name: 'litros' },
+    { id: 7, name: 'unidades' },
+  ],
   // Las notas E de los ejemplos ajustan una factura E de servicios en dolares.
   getVoucher: async (query) => ({
     activities: [620100],

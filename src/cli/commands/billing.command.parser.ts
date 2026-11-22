@@ -1,17 +1,18 @@
 import Big from 'big.js';
 import type { Command } from 'commander';
 
+import type { DateInputRole } from '../../lib/dates/date-input-text';
+import { resolveRelativeDateInput } from '../../lib/dates/relative-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { readJsonFile } from '../../lib/files/read-json-file';
 import { parseArgentineAmount } from '../../lib/numbers/argentine-amount';
 import { type BatchItemError, BatchValidationError, describeBatchItemError } from '../../modules/billing/billing.batch';
-import { isForeignCurrency } from '../../modules/billing/billing.currency';
+import { resolveConfigExchangeRate } from '../../modules/billing/billing.currency';
 import {
   type BillingJsonInput,
   parseBillingJsonInput,
   readBillingJsonItems,
 } from '../../modules/billing/billing.json-input';
-import { resolveBillingCurrencyCode } from '../../modules/billing/billing.mappers';
 import { type BillingCommandInput, billingCommandSchema } from '../../modules/billing/billing.schemas';
 import type { VoucherShortcut } from '../../modules/billing/billing.types';
 import { getVoucherKindByShortcut } from '../../modules/billing/voucher-kind-map';
@@ -204,6 +205,7 @@ type FileField = NonNullable<BillingCommandInput['fromFile']>[number];
 
 const FILE_FIELD_KEYS: Readonly<Record<FileField, keyof BillingJsonInput>> = {
   dueDay: 'dia',
+  exchangeRate: 'cotizacionMoneda',
   pdfDescription: 'descripcion',
   receiverAddress: 'receptorDomicilio',
   receiverName: 'receptorNombre',
@@ -353,22 +355,23 @@ function parseBillingCommandInputFromSource(
   const explicitExchangeRate = flagExchangeRate ?? (flagSameCurrency ? undefined : fileInput?.cotizacionMoneda);
 
   if (sameCurrency && typeof explicitExchangeRate === 'number') {
+    // Un flag descarta lo del archivo, asi que sin `--misma-moneda` las dos claves vienen del JSON.
     throw new InputValidationError(
-      'Con `--misma-moneda` la cotización se toma de ARCA. Sacá `--cotizacion-moneda` o `--cm`.',
+      flagSameCurrency
+        ? 'Con `--misma-moneda` la cotización se toma de ARCA. Sacá `--cotizacion-moneda` o `--cm`.'
+        : 'Con `"mismaMoneda": true` la cotización se toma de ARCA. Sacá `"cotizacionMoneda"` del JSON de `--cargar`.',
     );
   }
 
-  // La cotizacion por defecto de la config (deprecada) solo aplica a moneda extranjera sin --misma-moneda. Si la config
-  // tiene otra moneda extranjera, es la cotizacion de esa: la de USD no vale para EUR. Sin ella,
-  // BillingService.resolveExchangeRate consulta la oficial.
-  const configCurrency = defaults.defaultCurrencyCode;
-  const isOtherConfigCurrency =
-    configCurrency !== undefined &&
-    isForeignCurrency({ currencyCode: configCurrency }) &&
-    resolveBillingCurrencyCode(currencyCode) !== resolveBillingCurrencyCode(configCurrency);
+  // La cotizacion por defecto de la config (deprecada), si aplica a esta moneda: la misma regla que el asistente.
   const configExchangeRate =
-    explicitExchangeRate === undefined && !sameCurrency && isForeignCurrency({ currencyCode }) && !isOtherConfigCurrency
-      ? defaults.defaultExchangeRate
+    explicitExchangeRate === undefined
+      ? resolveConfigExchangeRate({
+          configCurrencyCode: defaults.defaultCurrencyCode,
+          configExchangeRate: defaults.defaultExchangeRate,
+          currencyCode,
+          sameCurrency,
+        })
       : undefined;
   const exchangeRate = explicitExchangeRate ?? configExchangeRate;
 
@@ -378,9 +381,19 @@ function parseBillingCommandInputFromSource(
   // La C no discrimina IVA: la alicuota de la config solo aplica a A y B.
   const usesIvaRateDefault = voucherKind?.letter !== 'c';
 
+  // Las fechas relativas (`hoy`, `+10`, `mes-pasado`...) se resuelven aca, una vez para flags y `--cargar`: cada campo
+  // dice si es un dia o una punta de un rango. Lo que sigue (validaciones, vista previa, `--json`) ve la fecha resuelta.
+  const now = new Date();
+  const date = (value: string | undefined, role: DateInputRole) => resolveRelativeDateInput(value, role, now);
   const periodFrom = pickString(commandOptions.periodoDesde, commandOptions.pd);
   const periodTo = pickString(commandOptions.periodoHasta, commandOptions.ph);
-  const associatedPeriod = periodFrom || periodTo ? { desde: periodFrom, hasta: periodTo } : fileInput?.periodoAsociado;
+  const rawAssociatedPeriod =
+    periodFrom || periodTo ? { desde: periodFrom, hasta: periodTo } : fileInput?.periodoAsociado;
+  const associatedPeriod = rawAssociatedPeriod && {
+    desde: date(rawAssociatedPeriod.desde, 'from'),
+    hasta: date(rawAssociatedPeriod.hasta, 'to'),
+  };
+  const associatedVoucher = mergeAssociatedVoucher(associatedVoucherFromFlags, associatedVoucherFromFile);
 
   const flagRates = parseIvaRateFlags(commandOptions.alicuota as string[] | undefined);
   const fileRateAmounts = fileInput?.alicuotas?.map((item) => ({ amount: item.monto, rate: item.tasa }));
@@ -403,6 +416,8 @@ function parseBillingCommandInputFromSource(
     commandOptions.sinCondicionVenta === true ? null : (flagSaleCondition ?? fileInput?.condicionVenta);
   const fromFile = resolveFileFields(fileInput, {
     dueDay: commandOptions.dia,
+    // --misma-moneda tambien descarta la cotizacion del archivo.
+    exchangeRate: flagExchangeRate ?? (flagSameCurrency ? true : undefined),
     pdfDescription: commandOptions.descripcion,
     receiverAddress: commandOptions.receptorDomicilio,
     receiverName: commandOptions.receptorNombre,
@@ -412,8 +427,8 @@ function parseBillingCommandInputFromSource(
   return {
     ...billingCommandSchema.parse({
       associatedPeriod,
-      associatedVoucher: mergeAssociatedVoucher(associatedVoucherFromFlags, associatedVoucherFromFile),
-      billingDate: pickString(commandOptions.fecha, fileInput?.fechaComprobante),
+      associatedVoucher: associatedVoucher && { ...associatedVoucher, fecha: date(associatedVoucher.fecha, 'day') },
+      billingDate: date(pickString(commandOptions.fecha, fileInput?.fechaComprobante), 'day'),
       cancellation: commandOptions.anulacion === true || fileInput?.anulacion === true,
       cbu: pickString(commandOptions.cbu, fileInput?.cbu, usesFceDefaults ? defaults.defaultCbu : undefined),
       cbuAlias: pickString(
@@ -439,7 +454,10 @@ function parseBillingCommandInputFromSource(
       // Sin valor todavia: lo completa el padron antes de emitir (ver `ivaConditionSource`).
       ivaCondition: resolvedIvaCondition ?? 'consumidor-final',
       ivaConditionSource,
-      paymentDueDate: pickString(commandOptions.vencimiento, commandOptions.vto, fileInput?.vencimientoPago),
+      paymentDueDate: date(
+        pickString(commandOptions.vencimiento, commandOptions.vto, fileInput?.vencimientoPago),
+        'day',
+      ),
       pdf: resolvePdfFlag(commandOptions, fileInput),
       pdfDescription: pickString(commandOptions.descripcion, fileInput?.descripcion),
       pointOfSale: pickNumber(commandOptions.puntoVenta, commandOptions.pv, fileInput?.puntoVenta),
@@ -447,8 +465,11 @@ function parseBillingCommandInputFromSource(
       receiverName: pickString(commandOptions.receptorNombre, fileInput?.receptorNombre),
       saleCondition,
       sameCurrency,
-      serviceEndDate: pickString(commandOptions.servicioHasta, commandOptions.sh, fileInput?.servicioHasta),
-      serviceStartDate: pickString(commandOptions.servicioDesde, commandOptions.sd, fileInput?.servicioDesde),
+      serviceEndDate: date(pickString(commandOptions.servicioHasta, commandOptions.sh, fileInput?.servicioHasta), 'to'),
+      serviceStartDate: date(
+        pickString(commandOptions.servicioDesde, commandOptions.sd, fileInput?.servicioDesde),
+        'from',
+      ),
       shortcut,
       // Sin redondear: un monto con mas de 2 decimales es un error del schema, no se ajusta en silencio.
       totalAmount,

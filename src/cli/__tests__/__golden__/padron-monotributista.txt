@@ -1,0 +1,36 @@
+$ arcli padron 20333333334 --json
+exit: 0
+--- stdout ---
+
+{
+  "actividades": [
+    {
+      "descripcion": "CULTIVO DE FRUTAS DE CAROZO",
+      "id": 12320
+    }
+  ],
+  "avisos": [],
+  "deprecado": [
+    "`cuit` pasa a ser texto en la 3.0.0: leelo como texto para que no te afecte."
+  ],
+  "categoriaMonotributo": "E VENTAS DE COSAS MUEBLES",
+  "categoriaMonotributoLetra": "E",
+  "categoriaMonotributoDesde": "201309",
+  "condicionIva": "responsable-monotributo",
+  "cuit": 20333333334,
+  "domicilio": "MARTINEZ VICTOR 423, CP 1406",
+  "entorno": "testing",
+  "estadoClave": "ACTIVO",
+  "impuestos": [
+    {
+      "activo": true,
+      "descripcion": "MONOTRIBUTO",
+      "id": 20
+    }
+  ],
+  "nombre": "PEREZ TEST JUAN",
+  "tipoPersona": "fisica"
+}
+
+
+--- stderr ---

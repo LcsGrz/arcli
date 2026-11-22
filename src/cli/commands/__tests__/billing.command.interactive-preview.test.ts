@@ -5,10 +5,14 @@ import { BillingService } from '../../../modules/billing/billing.service';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import { runInteractiveBillingPreview } from '../billing.command.interactive-preview';
 
-vi.mock('@inquirer/select', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@inquirer/select')>()),
-  default: vi.fn(),
-}));
+vi.mock('../../interactive/list-select', () => ({ listSelect: vi.fn() }));
+
+// La pregunta real, espiada: para ver con que Esc la arma el comando.
+vi.mock('../../interactive/prompts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../interactive/prompts')>();
+
+  return { ...actual, chooseOne: vi.fn(actual.chooseOne) };
+});
 
 vi.mock('../../../ui', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../ui')>();
@@ -21,9 +25,9 @@ vi.mock('../../../ui', async (importOriginal) => {
   };
 });
 
-import select from '@inquirer/select';
-
 import { writeTerminalOutput } from '../../../ui';
+import { listSelect as select } from '../../interactive/list-select';
+import { chooseOne } from '../../interactive/prompts';
 
 function createRuntime(overrides: Partial<ResolvedArcaRuntime> = {}): ResolvedArcaRuntime {
   return {
@@ -298,7 +302,24 @@ describe('runInteractiveBillingPreview', () => {
     );
   });
 
-  it('treats Esc as declining, like the interactive mode', async () => {
+  // En el asistente Esc vuelve a la ultima pregunta (TUI-15); con flags no hay a donde volver: Esc es no.
+  it('arma "¿Emitimos?" con Esc como "no emitir", no como volver', async () => {
+    setTty(true);
+    vi.mocked(select).mockResolvedValue(false);
+
+    await runInteractiveBillingPreview({
+      inputs: [createInput()],
+      modeSource: 'default',
+      runtime: createRuntime(),
+      service: new BillingService(),
+      useRaw: false,
+      voucherLabel: 'Factura A',
+    });
+
+    expect(vi.mocked(chooseOne).mock.lastCall?.[3]).toEqual({ escapeLabel: 'no emitir', escapeValue: false });
+  });
+
+  it('treats Esc as declining: there is no question to go back to', async () => {
     setTty(true);
     vi.mocked(select).mockImplementationOnce(
       (_config, context) =>

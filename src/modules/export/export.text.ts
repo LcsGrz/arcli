@@ -1,16 +1,34 @@
 import { formatCuit } from '../../lib/identity/format-cuit';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
-import { renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui/primitives';
-import { formatCurrencyLabel, formatDateLabel, formatMoneyLabel } from '../billing/billing.labels';
+import {
+  padEndVisible,
+  padStartVisible,
+  panelContentWidth,
+  renderKeyValueRows,
+  resolveKeyValueLabelWidth,
+  stacksAtColumn,
+  visibleWidth,
+  wrapPlainText,
+} from '../../ui/primitives';
+import { UI_THEME } from '../../ui/theme';
+import { formatCurrencyLabel, formatDateLabel, formatMoneyLabel, MISSING_CAE_TEXT } from '../billing/billing.labels';
 import { formatVoucherText, type VoucherTextOptions } from '../billing/voucher-text';
 import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
 
 import { formatRawExportResponse } from './export.serialize';
-import { EXPORT_TYPES, type ExportExecutionResult } from './export.types';
+import { EXPORT_TYPES, type ExportExecutionResult, type ExportPermitCheckStatus } from './export.types';
 
 export type ExportTextOptions = VoucherTextOptions;
 
-type Rows = Array<readonly [string, string]>;
+/** Una fila sin valor no se muestra (renderKeyValueRows). */
+type Rows = Array<readonly [string, string | undefined]>;
+
+/** `invalido` no llega a la vista previa: corta antes con un error. */
+const PERMIT_STATUS_LABELS: Record<ExportPermitCheckStatus, string> = {
+  invalido: 'ARCA no lo reconoce',
+  'sin-verificar': 'sin verificar',
+  valido: 'válido en ARCA',
+};
 
 function formatCountry(result: ExportExecutionResult): string {
   const { Dst_cmp: code } = result.payload;
@@ -23,11 +41,12 @@ function formatExportType(result: ExportExecutionResult): string {
   return `${result.payload.Tipo_expo} - ${EXPORT_TYPES[result.payload.Tipo_expo]}`;
 }
 
-function formatIncoterm(result: ExportExecutionResult): string {
+/** Sin incoterm (servicios, o bienes sin cargarlo), la fila no va. */
+function formatIncoterm(result: ExportExecutionResult): string | undefined {
   const { Incoterms: code, Incoterms_Ds: description } = result.payload;
 
   if (!code) {
-    return 'N/D';
+    return undefined;
   }
 
   // La tabla de WSFEX trae como descripcion el mismo codigo ("FOB"): no se repite.
@@ -47,9 +66,15 @@ function formatLanguage(result: ExportExecutionResult): string {
   return result.display.languageName ? `${id} - ${result.display.languageName}` : String(id);
 }
 
-function formatCurrency(result: ExportExecutionResult): string {
+/** Sin moneda, la fila no va. */
+function formatCurrency(result: ExportExecutionResult): string | undefined {
   const { CanMisMonExt: sameCurrency, Moneda_Id: currency, Moneda_ctz: rate } = result.payload;
   const name = formatCurrencyLabel(currency);
+
+  if (!name) {
+    return undefined;
+  }
+
   const label = currency === 'PES' ? name : `${name}, cotización ${formatExchangeRate(rate)}`;
 
   return sameCurrency === 'S' ? `${label} (el pago se cancela en la misma moneda)` : label;
@@ -59,21 +84,40 @@ function formatUnit(result: ExportExecutionResult, unitCode: number): string {
   return result.display.unitNames[unitCode] ?? String(unitCode);
 }
 
-/** Un renglon por item, con la cantidad y la unidad como etiqueta: es lo que WSFEX autoriza. */
-function formatItemsTable(result: ExportExecutionResult): string {
-  const items = result.payload.Items.Item;
+/** La sangria de un valor apilado debajo de su etiqueta (`wrapPanelLines`). */
+const STACKED_VALUE_INDENT = '  ';
 
-  if (items.length === 0) {
-    return '';
+/**
+ * Un renglon por item, con la cantidad y la unidad en la descripcion (es lo que WSFEX autoriza) y el importe en la
+ * columna de valores del comprobante, alineado a la derecha con el importe total (`amountWidth`). La descripcion va en
+ * la columna de las etiquetas (`labelWidth`) y, si es larga, se parte dentro de ella. Si las filas del comprobante ya
+ * se apilan en esta terminal, cada item va como ellas: la descripcion arriba y el importe debajo, con sangria.
+ */
+function formatItemLines(
+  result: ExportExecutionResult,
+  { amountWidth, labelWidth }: { amountWidth: number; labelWidth: number },
+): string[] {
+  const rows = formatItemRows(result);
+  const width = panelContentWidth('ticket');
+  const gap = ' '.repeat(UI_THEME.table.gap);
+
+  if (stacksAtColumn(labelWidth + gap.length, width)) {
+    // Como las filas apiladas del panel: la descripcion arriba y el importe debajo, con la sangria de los valores.
+    return rows.flatMap((row) => [...wrapPlainText(row.description, width), `${STACKED_VALUE_INDENT}${row.amount}`]);
   }
 
-  const rows: Rows = items.map((item) => [
-    `${item.Pro_qty} x ${item.Pro_ds} (${formatUnit(result, item.Pro_umed)})`,
-    formatAmount(result, item.Pro_total_item),
-  ]);
-  const labelWidth = Math.max(...rows.map(([label]) => label.length), 0);
+  return rows.flatMap((row) => {
+    const [first = '', ...rest] = wrapPlainText(row.description, labelWidth);
 
-  return renderKeyValueRows(rows, { labelWidth }).join('\n');
+    return [`${padEndVisible(first, labelWidth)}${gap}${padStartVisible(row.amount, amountWidth)}`, ...rest];
+  });
+}
+
+function formatItemRows(result: ExportExecutionResult): Array<{ amount: string; description: string }> {
+  return result.payload.Items.Item.map((item) => ({
+    amount: formatAmount(result, item.Pro_total_item),
+    description: `${item.Pro_qty} x ${item.Pro_ds} (${formatUnit(result, item.Pro_umed)})`.replace(/\s+/g, ' '),
+  }));
 }
 
 /** "Factura de exportación E 00003-00000012 del 05/11/2026, USD 1.500,00": lo que ajusta la nota. */
@@ -87,9 +131,30 @@ function formatAssociatedVoucher(result: ExportExecutionResult): string | undefi
 
   const number = formatVoucherNumber(associated.Cbte_punto_vta, associated.Cbte_nro);
 
-  return display
-    ? `${display.displayName} ${number} del ${formatDateLabel(display.date)}, ${formatMoneyLabel(display.total, display.currencyCode)}`
-    : `Tipo ${associated.Cbte_tipo} ${number}`;
+  if (!display) {
+    return `Tipo ${associated.Cbte_tipo} ${number}`;
+  }
+
+  // FEXGetCMP puede no traer la fecha del asociado: sin fecha, sin " del ...".
+  const date = formatDateLabel(display.date);
+  const total = formatMoneyLabel(display.total, display.currencyCode);
+
+  return `${display.displayName} ${number}${date ? ` del ${date}` : ''}, ${total}`;
+}
+
+/** El permiso con lo que contesto ARCA en la vista previa, si se consulto. */
+function formatPermit(result: ExportExecutionResult, permit: string): string {
+  const status = result.display.permitChecks?.find((check) => check.permit === permit)?.status;
+
+  if (!status) {
+    return permit;
+  }
+
+  // Testing contesta OK a cualquier permiso: decir "valido" ahi seria prometer algo que ARCA no miro.
+  const label =
+    status === 'valido' && result.environment === 'testing' ? 'OK en testing' : PERMIT_STATUS_LABELS[status];
+
+  return `${permit} (${label})`;
 }
 
 function formatPayloadRows(result: ExportExecutionResult): Rows {
@@ -104,15 +169,13 @@ function formatPayloadRows(result: ExportExecutionResult): Rows {
     ['Domicilio del cliente', payload.Domicilio_cliente],
     ['País de destino', formatCountry(result)],
     ['Tipo de exportación', formatExportType(result)],
-    ['Actividad', payload.Actividades.Actividad.map((activity) => activity.Id).join(', ')],
+    ...(payload.Actividades
+      ? [['Actividad', payload.Actividades.Actividad.map((activity) => activity.Id).join(', ')] as const]
+      : []),
     ['Incoterm', formatIncoterm(result)],
     ['Idioma', formatLanguage(result)],
     ['Moneda', formatCurrency(result)],
     ['Forma de pago', payload.Forma_pago],
-    ['Número', formatVoucherNumber(payload.Punto_vta, payload.Cbte_nro)],
-    ['Fecha del comprobante', formatDateLabel(payload.Fecha_cbte)],
-    ...(payload.Fecha_pago ? [['Fecha de pago', formatDateLabel(payload.Fecha_pago)] as const] : []),
-    ['Importe total', formatAmount(result, payload.Imp_total)],
   ];
 
   if (payload.Id_impositivo) {
@@ -126,7 +189,7 @@ function formatPayloadRows(result: ExportExecutionResult): Rows {
   const permits = payload.Permisos?.Permiso ?? [];
 
   if (permits.length > 0) {
-    rows.push(['Permisos de embarque', permits.map((permit) => permit.Id_permiso).join(', ')]);
+    rows.push(['Permisos de embarque', permits.map((permit) => formatPermit(result, permit.Id_permiso)).join(', ')]);
   }
 
   if (payload.Obs) {
@@ -137,25 +200,50 @@ function formatPayloadRows(result: ExportExecutionResult): Rows {
     rows.push(['Observaciones comerciales', payload.Obs_comerciales]);
   }
 
+  // Las fechas al final del bloque: abajo van los items y, al pie, el importe total (TUI-16).
+  rows.push(
+    ['Número', formatVoucherNumber(payload.Punto_vta, payload.Cbte_nro)],
+    ['Fecha del comprobante', formatDateLabel(payload.Fecha_cbte)],
+    ...(payload.Fecha_pago ? [['Fecha de pago', formatDateLabel(payload.Fecha_pago)] as const] : []),
+  );
+
   return rows;
 }
 
-export function formatExportPayloadTable(result: ExportExecutionResult): string {
-  const rows = formatPayloadRows(result);
+const totalRow = (result: ExportExecutionResult): readonly [string, string] => [
+  'Importe total',
+  formatAmount(result, result.payload.Imp_total),
+];
 
-  return renderKeyValueRows(rows, { labelWidth: resolveKeyValueLabelWidth('ticket', rows) }).join('\n');
-}
-
+/**
+ * Los datos del comprobante hasta las fechas, una linea en blanco, los items, otra linea en blanco y el importe total.
+ * Los importes de los items y el total van en la columna de valores de los datos, alineados a la derecha entre si.
+ */
 function formatExportPreviewContent(result: ExportExecutionResult): string[] {
-  const items = formatItemsTable(result);
+  const rows = formatPayloadRows(result);
+  const [totalLabel, totalAmount] = totalRow(result);
+  const labelWidth = resolveKeyValueLabelWidth('ticket', [...rows, [totalLabel]]);
+  const amountWidth = Math.max(
+    visibleWidth(totalAmount),
+    ...formatItemRows(result).map((row) => visibleWidth(row.amount)),
+  );
+  const items = formatItemLines(result, { amountWidth, labelWidth });
 
-  return [formatExportPayloadTable(result), ...(items ? [items] : [])];
+  return [
+    ...renderKeyValueRows(rows, { labelWidth }),
+    '',
+    ...items,
+    '',
+    ...renderKeyValueRows([[totalLabel, padStartVisible(totalAmount, amountWidth)]], { labelWidth }),
+  ];
 }
 
 /** CAE, vencimiento, numero e importe: el resumen del resultado. */
-function formatExportResultSummary(result: ExportExecutionResult): Array<readonly [string, string | number]> {
+function formatExportResultSummary(
+  result: ExportExecutionResult,
+): Array<readonly [string, string | number | undefined]> {
   return [
-    ['CAE', result.response.cae ?? 'N/D'],
+    ['CAE', result.response.cae || MISSING_CAE_TEXT],
     ['Vencimiento CAE', formatDateLabel(result.response.caeVencimiento ?? undefined)],
     ['Número', formatVoucherNumber(result.payload.Punto_vta, result.payload.Cbte_nro)],
     ['Importe total', formatAmount(result, result.payload.Imp_total)],

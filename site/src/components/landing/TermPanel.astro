@@ -1,0 +1,20 @@
+---
+/** Un panel de terminal con título, filas (`dl`) y un pie (el slot): la vista previa y el resultado de la portada. */
+import type { TermRows } from '../../data/landing';
+
+interface Props {
+  readonly class: string;
+  readonly label: string;
+  readonly rows: TermRows;
+  readonly title: string;
+  readonly titleClass: string;
+}
+
+const { class: className, label, rows, title, titleClass } = Astro.props;
+---
+
+<div class={className} aria-label={label}>
+  <div class={titleClass}>{title}</div>
+  <dl>{rows.map(([term, value]) => <><dt>{term}</dt><dd>{value}</dd></>)}</dl>
+  <slot />
+</div>

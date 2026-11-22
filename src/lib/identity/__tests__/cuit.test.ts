@@ -17,6 +17,13 @@ describe('parseCuit', () => {
     expect(parseCuit('20010000001')).toMatchObject({ ok: false });
   });
 
+  // TEST-19: con verificador 10 no hay ningún último dígito válido (ARCA no asigna esos CUIT).
+  it('rejects all ten final digits when the check digit gives 10', () => {
+    for (let digit = 0; digit <= 9; digit += 1) {
+      expect(parseCuit(`2001000000${digit}`), `último dígito ${digit}`).toMatchObject({ ok: false });
+    }
+  });
+
   it('rejects the wrong number of digits or other characters', () => {
     expect(parseCuit('2033333333')).toEqual({ ok: false, reason: expect.stringMatching(/11 dígitos/) });
     expect(parseCuit('203333333344')).toMatchObject({ ok: false });

@@ -9,13 +9,13 @@ import type { BillingGateway } from './billing.types.internal';
 
 /** Lo que consulta la preparacion: ninguna de estas llamadas emite. */
 export interface BillingPreparationGateways {
-  readonly billing: Pick<BillingGateway, 'getQuotation'>;
+  readonly billing: Pick<BillingGateway, 'getCurrencyCodes' | 'getQuotation'>;
   readonly padron: PadronGateway;
 }
 
 export interface PreparedBillingInput {
   readonly input: BillingCommandInput;
-  /** Avisos de la entrada: `--dia` deprecado, cotizacion oficial y lo que encontro el padron. */
+  /** Avisos de la entrada: `--dia` deprecado, cotizacion oficial (o que no se pudo comparar) y lo que encontro el padron. */
   readonly warnings: readonly string[];
 }
 
@@ -31,7 +31,11 @@ export async function prepareBillingInput(
   gateways: BillingPreparationGateways,
 ): Promise<PreparedBillingInput> {
   const padron = await service.resolveIvaConditionFromPadron(input, gateways.padron);
+
+  await service.assertKnownCurrency(padron.input, gateways.billing);
+
   const resolved = await service.resolveExchangeRate(padron.input, gateways.billing);
+  const exchangeRateRange = await service.checkExchangeRateRange(resolved, gateways.billing);
 
   return {
     input: resolved,
@@ -40,6 +44,7 @@ export async function prepareBillingInput(
         ? [resolved.fromFile?.includes('dueDay') ? DUE_DAY_FILE_DEPRECATION_WARNING : DUE_DAY_DEPRECATION_WARNING]
         : []),
       ...exchangeRateWarnings(resolved),
+      ...exchangeRateRange,
       ...padron.warnings,
     ],
   };

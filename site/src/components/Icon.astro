@@ -1,26 +1,23 @@
 ---
-/** Un icono de `icons.ts`, del color del texto. Decorativo: lo nombra el texto de al lado. */
+/**
+ * Un icono de `icons.ts`, del color del texto. Decorativo: lo nombra el texto de al lado. Con `filled`, relleno en vez
+ * de trazo (`github`, la estrella). Los atributos del `<svg>` (`stroke-width`...) se pueden cambiar, y uno en
+ * `undefined` no se pone.
+ */
+import type { SVGAttributes } from 'astro/types';
+
 import { ICONS, type IconName } from '../icons';
 
-interface Props {
+type Props = SVGAttributes & {
   class?: string;
+  filled?: boolean;
   name: IconName;
   size?: string;
-}
+};
 
-const { class: className, name, size = '1rem' } = Astro.props;
+const { class: className, filled = false, name, size = '1rem', ...attrs } = Astro.props;
+const stroke = { fill: 'none', stroke: 'currentColor', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '1.8' };
+const svgAttrs = { ...(filled ? { fill: 'currentColor' } : stroke), ...attrs };
 ---
 
-<svg
-  class:list={['arcli-icon', className]}
-  viewBox="0 0 24 24"
-  width={size}
-  height={size}
-  fill="none"
-  stroke="currentColor"
-  stroke-width="1.8"
-  stroke-linecap="round"
-  stroke-linejoin="round"
-  aria-hidden="true"
-  set:html={ICONS[name]}
-/>
+<svg class:list={['arcli-icon', className]} viewBox="0 0 24 24" width={size} height={size} aria-hidden="true" {...svgAttrs} set:html={ICONS[name]} />

@@ -122,12 +122,161 @@ describe('voucher-history.presenter', () => {
     ).toMatch(/Cotización\s+1\.200,50[\s\S]*Importe total\s+[\d.,]+ USD/);
   });
 
+  it('IVA receptor y concepto en 0 (comprobante viejo) no van como "0" (TUI-20)', () => {
+    const text = stripAnsi(
+      formatVoucherDetailAsText({
+        ...base,
+        voucher: {
+          ...voucher,
+          concept: 0,
+          documentNumber: 20123456786,
+          documentTypeCode: 80,
+          receiverIvaConditionCode: 0,
+        },
+      }),
+    );
+
+    expect(text).not.toContain('IVA receptor');
+    expect(text).not.toContain('Concepto');
+    expect(text).toMatch(/Receptor\s+CUIT 20-12345678-6/);
+  });
+
+  it('el detalle sin CAE lo dice, sin vencimiento ni N/D (TUI-20)', () => {
+    const text = stripAnsi(
+      formatVoucherDetailAsText({
+        ...base,
+        voucher: { ...voucher, cae: undefined, caeExpiration: undefined, result: 'R' },
+      }),
+    );
+
+    expect(text).toMatch(/CAE\s+sin CAE/);
+    expect(text).not.toContain('Vencimiento CAE');
+    expect(text).not.toContain('N/D');
+  });
+
   it('serializa el detalle en JSON', () => {
     expect(JSON.parse(formatVoucherDetailAsJson({ ...base, voucher }))).toMatchObject({
       atajo: 'fb',
       caeVencimiento: '20261011',
       numero: 12,
       puntoVenta: 3,
+    });
+  });
+
+  describe('lo que el SDK descartaba (SDK-13)', () => {
+    const note: IssuedVoucher = {
+      ...voucher,
+      associatedPeriod: { from: '20260901', to: '20260930' },
+      associatedVouchers: [{ arcaType: 201, cuit: '20111111112', date: '20260920', number: 7, pointOfSale: 3 }],
+      currency: 'DOL',
+      exchangeRate: 1452.5,
+      ivaAliquots: [
+        { amount: 21, base: 100, id: 5 },
+        { amount: 10.5, base: 100, id: 4 },
+      ],
+      observations: ['El credito fiscal discriminado sera de uso exclusivo del receptor.'],
+      optionals: [
+        { id: '22', value: 'S' },
+        { id: '99', value: 'X' },
+      ],
+      paymentDueDate: '20261015',
+      receiverIvaConditionCode: 1,
+      sameCurrency: true,
+      serviceFrom: '20260901',
+      serviceTo: '20260930',
+      taxes: [{ amount: 35, base: 1000, description: 'Percepción IIBB', id: 2, rate: 3.5 }],
+      taxesAmount: 35,
+    };
+    const ncea = { ...base, voucherKind: VOUCHER_KIND_MAP.ncea };
+
+    it('los suma al JSON como campos nuevos, sin tocar los que ya estaban', () => {
+      const json = JSON.parse(formatVoucherDetailAsJson({ ...ncea, voucher: note }));
+
+      expect(json).toMatchObject({
+        alicuotasIva: [
+          { baseImponible: 100, id: 5, importe: 21 },
+          { baseImponible: 100, id: 4, importe: 10.5 },
+        ],
+        comprobantesAsociados: [
+          { atajo: 'fcea', cuit: '20111111112', fecha: '20260920', numero: 7, puntoVenta: 3, tipoArca: 201 },
+        ],
+        condicionIvaReceptor: 1,
+        importes: { tributos: 35 },
+        mismaMoneda: true,
+        observaciones: ['El credito fiscal discriminado sera de uso exclusivo del receptor.'],
+        opcionales: [
+          { id: '22', valor: 'S' },
+          { id: '99', valor: 'X' },
+        ],
+        periodoAsociado: { desde: '20260901', hasta: '20260930' },
+        servicioDesde: '20260901',
+        servicioHasta: '20260930',
+        tributos: [{ alicuota: 3.5, baseImponible: 1000, descripcion: 'Percepción IIBB', id: 2, importe: 35 }],
+        vencimientoPago: '20261015',
+      });
+    });
+
+    it('sin datos, las listas salen vacias y el resto en null', () => {
+      expect(JSON.parse(formatVoucherDetailAsJson({ ...base, voucher }))).toMatchObject({
+        alicuotasIva: [],
+        comprobantesAsociados: [],
+        condicionIvaReceptor: null,
+        mismaMoneda: null,
+        observaciones: [],
+        opcionales: [],
+        periodoAsociado: null,
+        servicioDesde: null,
+        servicioHasta: null,
+        tributos: [],
+        vencimientoPago: null,
+      });
+      expect(JSON.parse(formatVoucherListAsJson({ ...base, vouchers: [note] })).comprobantes[0]).toMatchObject({
+        comprobantesAsociados: [{ numero: 7 }],
+        vencimientoPago: '20261015',
+      });
+    });
+
+    it('los muestra en el ticket y las observaciones aparte', () => {
+      const text = stripAnsi(formatVoucherDetailAsText({ ...ncea, voucher: note }));
+
+      expect(text).toMatch(/IVA receptor\s+Responsable inscripto/);
+      expect(text).toMatch(/Pago en la misma moneda\s+Sí/);
+      expect(text).toMatch(/IVA 21%\s+21 USD sobre 100 USD/);
+      expect(text).toMatch(/IVA 10,5%\s+10,50 USD sobre 100 USD/);
+      expect(text).toMatch(/Percepción IIBB\s+35 USD/);
+      expect(text).toMatch(/Servicio desde\s+01\/09\/2026/);
+      expect(text).toMatch(/Servicio hasta\s+30\/09\/2026/);
+      expect(text).toMatch(/Vencimiento del pago\s+15\/10\/2026/);
+      expect(text).toMatch(/Comprobante asociado\s+Factura de crédito electrónica A/);
+      expect(text).toMatch(/Número asociado\s+00003-00000007/);
+      expect(text).toMatch(/CUIT asociado\s+20-11111111-2/);
+      expect(text).toMatch(/Fecha asociado\s+20\/09\/2026/);
+      expect(text).toMatch(/Período asociado\s+01\/09\/2026 al 30\/09\/2026/);
+      expect(text).toMatch(/Anulación\s+Sí/);
+      expect(text).toContain('OBSERVACIONES');
+      expect(text).toContain('1. El credito fiscal discriminado sera de uso exclusivo del receptor.');
+    });
+
+    it('oculta lo que no aporta', () => {
+      const text = stripAnsi(
+        formatVoucherDetailAsText({
+          ...base,
+          voucher: {
+            ...voucher,
+            ivaAliquots: [{ amount: 105.05, base: 1000.45, id: 5 }],
+            receiverIvaConditionCode: 5,
+            sameCurrency: false,
+          },
+        }),
+      );
+
+      expect(text).toMatch(/Alícuota de IVA\s+21%/);
+      expect(text).not.toContain('IVA receptor');
+      expect(text).not.toContain('misma moneda');
+      expect(text).not.toContain('asociado');
+      expect(text).not.toContain('Servicio desde');
+      expect(text).not.toContain('Vencimiento del pago');
+      expect(text).not.toContain('OBSERVACIONES');
     });
   });
 });

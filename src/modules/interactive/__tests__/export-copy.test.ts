@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { ExportIssuedVoucher } from '../../export/export.types';
-import { copyExportInvoice } from '../export-copy';
+import { copyExportInvoice, copyExportItems } from '../export-copy';
 
 const INVOICE: ExportIssuedVoucher = {
   activities: [620100],
@@ -30,7 +30,6 @@ describe('copyExportInvoice', () => {
     expect(limitation).toBeUndefined();
     expect(input).toEqual({
       activity: 620100,
-      amount: 1500,
       clientAddress: '123 Main St, Miami, FL',
       clientCountryCuit: 55000002126,
       clientName: 'ACME LLC',
@@ -72,45 +71,70 @@ describe('copyExportInvoice', () => {
     ).toBeUndefined();
   });
 
-  it('un solo renglón por el total se repite como descripción, no como ítem', () => {
-    const { input } = copyExportInvoice({
-      ...INVOICE,
-      items: [{ description: 'Consultoría', discount: 0, quantity: 1, total: 1500, unit: 7, unitPrice: 1500 }],
-    });
+  it('avisa por qué los ítems no se copian, para mostrarlo al elegir la factura', () => {
+    expect(
+      copyExportInvoice({
+        ...INVOICE,
+        items: [{ description: 'Horas', discount: 100, quantity: 16, total: 1500, unit: 7, unitPrice: 100 }],
+      }).limitation,
+    ).toMatch(/bonificación/);
+  });
+});
 
-    expect(input.description).toBe('Consultoría');
-    expect(input.items).toBeUndefined();
+describe('copyExportItems (NAV-10)', () => {
+  it('sin ítems, arranca con un renglón por el total, con los valores por defecto del primero', () => {
+    expect(copyExportItems(INVOICE)).toEqual({
+      items: [{ description: 'Según detalle', quantity: 1, unit: 7, unitPrice: 1500 }],
+    });
+    expect(copyExportItems({ ...INVOICE, items: [] }).limitation).toBeUndefined();
   });
 
-  it('copia los ítems si suman el total', () => {
-    const { input } = copyExportInvoice({
+  it('un solo renglón por el total se copia como ítem, con su descripción', () => {
+    expect(
+      copyExportItems({
+        ...INVOICE,
+        items: [{ description: 'Consultoría', discount: 0, quantity: 1, total: 1500, unit: 7, unitPrice: 1500 }],
+      }),
+    ).toEqual({ items: [{ code: undefined, description: 'Consultoría', quantity: 1, unit: 7, unitPrice: 1500 }] });
+  });
+
+  it('copia los ítems si suman el total, con su código y su unidad', () => {
+    const { items, limitation } = copyExportItems({
       ...INVOICE,
       items: [
         { code: '001', description: 'Horas', discount: 0, quantity: 10, total: 1000, unit: 7, unitPrice: 100 },
-        { description: 'Soporte', discount: 0, quantity: 1, total: 500, unit: 7, unitPrice: 500 },
+        { description: 'Jugo', discount: 0, quantity: 200, total: 500, unit: 5, unitPrice: 2.5 },
       ],
     });
 
-    expect(input.items).toEqual([
+    expect(limitation).toBeUndefined();
+    expect(items).toEqual([
       { code: '001', description: 'Horas', quantity: 10, unit: 7, unitPrice: 100 },
-      { code: undefined, description: 'Soporte', quantity: 1, unit: 7, unitPrice: 500 },
+      { code: undefined, description: 'Jugo', quantity: 200, unit: 5, unitPrice: 2.5 },
     ]);
-    expect(input.description).toBeUndefined();
   });
 
-  it('con bonificación o ítems que no suman el total, avisa y sale un renglón con el total', () => {
-    const discounted = copyExportInvoice({
+  it('con bonificación, seña o anticipo, o ítems que no suman el total, avisa y arranca con un renglón por el total', () => {
+    const summary = [{ description: 'Según detalle', quantity: 1, unit: 7, unitPrice: 1500 }];
+    // Con un solo ítem bonificado alcanza.
+    const discounted = copyExportItems({
       ...INVOICE,
-      items: [{ description: 'Horas', discount: 100, quantity: 16, total: 1500, unit: 7, unitPrice: 100 }],
+      items: [
+        { description: 'Horas', discount: 0, quantity: 10, total: 1000, unit: 7, unitPrice: 100 },
+        { description: 'Extra', discount: 100, quantity: 6, total: 500, unit: 7, unitPrice: 100 },
+      ],
     });
-    const mismatched = copyExportInvoice({
+    const advance = copyExportItems({
+      ...INVOICE,
+      items: [{ description: 'Anticipo', discount: 0, quantity: 0, total: 1500, unit: 97, unitPrice: 0 }],
+    });
+    const mismatched = copyExportItems({
       ...INVOICE,
       items: [{ description: 'Horas', discount: 0, quantity: 10, total: 1000, unit: 7, unitPrice: 100 }],
     });
 
-    expect(discounted.input.items).toBeUndefined();
-    expect(discounted.limitation).toMatch(/bonificación/);
-    expect(mismatched.input.items).toBeUndefined();
-    expect(mismatched.limitation).toMatch(/no suman su total/);
+    expect(discounted).toEqual({ items: summary, limitation: expect.stringMatching(/bonificación/) });
+    expect(advance).toEqual({ items: summary, limitation: expect.stringMatching(/seña, anticipo/) });
+    expect(mismatched).toEqual({ items: summary, limitation: expect.stringMatching(/no suman su total/) });
   });
 });

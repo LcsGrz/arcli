@@ -1,0 +1,99 @@
+$ arcli fc --cargar <config>/lote.json --emitir --json
+exit: 2
+--- stdout ---
+
+[
+  {
+    "atajo": "fc",
+    "indice": 1,
+    "comprobante": "Factura C",
+    "avisos": [],
+    "cae": "76463926585341",
+    "caeVencimiento": "20261127",
+    "entorno": "testing",
+    "errores": [],
+    "estado": "aprobado",
+    "eventos": [],
+    "observaciones": [],
+    "observacion": null,
+    "numero": 42,
+    "puntoVenta": 3,
+    "solicitud": {
+      "CantReg": 1,
+      "CbteFch": "20261117",
+      "CbteTipo": 11,
+      "Concepto": 2,
+      "CondicionIVAReceptorId": 5,
+      "DocTipo": 99,
+      "FchServDesde": "20261117",
+      "FchServHasta": "20261117",
+      "FchVtoPago": "20261117",
+      "ImpIVA": 0,
+      "ImpNeto": 1000,
+      "ImpOpEx": 0,
+      "ImpTotConc": 0,
+      "ImpTotal": 1000,
+      "ImpTrib": 0,
+      "MonCotiz": 1,
+      "MonId": "PES",
+      "PtoVta": 3,
+      "DocNro": 0,
+      "CbteDesde": 42,
+      "CbteHasta": 42
+    },
+    "previsualizacion": false,
+    "resultado": "A",
+    "sugerencias": [],
+    "tipoArca": 11
+  },
+  {
+    "atajo": "fc",
+    "indice": 2,
+    "comprobante": "Factura C",
+    "avisos": [],
+    "cae": null,
+    "caeVencimiento": null,
+    "entorno": "testing",
+    "errores": [],
+    "estado": "rechazado",
+    "eventos": [],
+    "observaciones": [
+      "Condicion IVA receptor no valida."
+    ],
+    "observacion": "Condicion IVA receptor no valida.",
+    "numero": 42,
+    "puntoVenta": 3,
+    "solicitud": {
+      "CantReg": 1,
+      "CbteFch": "20261117",
+      "CbteTipo": 11,
+      "Concepto": 2,
+      "CondicionIVAReceptorId": 5,
+      "DocTipo": 99,
+      "FchServDesde": "20261117",
+      "FchServHasta": "20261117",
+      "FchVtoPago": "20261117",
+      "ImpIVA": 0,
+      "ImpNeto": 2000,
+      "ImpOpEx": 0,
+      "ImpTotConc": 0,
+      "ImpTotal": 2000,
+      "ImpTrib": 0,
+      "MonCotiz": 1,
+      "MonId": "PES",
+      "PtoVta": 3,
+      "DocNro": 0,
+      "CbteDesde": 42,
+      "CbteHasta": 42
+    },
+    "previsualizacion": false,
+    "resultado": "R",
+    "sugerencias": [
+      "El IVA receptor no es válido para la letra del comprobante. Usá un IVA receptor válido para la letra (con `--ir`) o consultá el del receptor con `arcli padron <cuit>`. Más info: https://arcli.com.ar/ayuda/problemas-frecuentes/#el-comprobante-no-admite-el-iva-receptor"
+    ],
+    "tipoArca": 11
+  }
+]
+
+
+--- stderr ---

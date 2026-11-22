@@ -1,6 +1,6 @@
 import type { Command } from 'commander';
 
-import { checkAssociatedInArca } from '../../modules/billing/billing.associated-lookup';
+import { checkAssociatedInArca, checkFceCancellationInRegistry } from '../../modules/billing/billing.associated-lookup';
 import { DEFAULT_EXCHANGE_RATE } from '../../modules/billing/billing.constants';
 import { formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import { prepareBillingInput, resolveFceWarningsInOrder } from '../../modules/billing/billing.prepare';
@@ -12,6 +12,7 @@ import { getVoucherKindByShortcut } from '../../modules/billing/voucher-kind-map
 import type { ArcliConfig } from '../../modules/config/config.schemas';
 import { isPadronLookupEnabled } from '../../modules/config/config.schemas';
 import type { FceObligationGateway } from '../../modules/fce/fce-obligation';
+import type { FceRegistryGateway } from '../../modules/fce/fce-registry';
 import type { PadronGateway } from '../../modules/padron/padron';
 import type { ParametersGateway } from '../../modules/parameters/parameters';
 import type { VoucherHistoryGateway } from '../../modules/vouchers/voucher-history';
@@ -19,6 +20,7 @@ import { ArcaBillingGateway } from '../../services/arca/arca-billing.gateway';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import type { ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
 import { ArcaFceObligationGateway } from '../../services/arca/arca-fce-obligation.gateway';
+import { ArcaFceRegistryGateway } from '../../services/arca/arca-fce-registry.gateway';
 import { ArcaPadronGateway } from '../../services/arca/arca-padron.gateway';
 import { ArcaParametersGateway } from '../../services/arca/arca-parameters.gateway';
 import { ArcaVoucherHistoryGateway } from '../../services/arca/arca-voucher-history.gateway';
@@ -105,6 +107,8 @@ export interface BillingCommandOptions {
 export interface BillingCommandGateways {
   readonly billing: BillingGateway;
   readonly fce: FceObligationGateway;
+  /** Para avisar si el comprador no rechazó el asociado de una nota FCE de anulación. */
+  readonly fceRegistry: Pick<FceRegistryGateway, 'getVoucherState'>;
   /**
    * Para consultar el comprobante asociado de una nota antes de la vista previa; si ARCA no lo tiene, el ultimo
    * numero de su punto de venta dice si es de web service (ver `classifyAssociatedPointOfSale`).
@@ -128,6 +132,7 @@ const DEFAULT_DEPENDENCIES: BillingCommandDependencies = {
     return {
       billing: new ArcaBillingGateway(arca),
       fce: new ArcaFceObligationGateway(arca),
+      fceRegistry: new ArcaFceRegistryGateway(arca),
       history: new ArcaVoucherHistoryGateway(arca),
       padron: new ArcaPadronGateway(arca),
       salesPoints: new ArcaParametersGateway(arca),
@@ -169,7 +174,14 @@ export async function executeBillingCommand(
           service,
         });
 
-        return { input: checked.input, warnings: [...entry.warnings, ...checked.warnings] };
+        const registryWarnings = await checkFceCancellationInRegistry({
+          gateway: gateways.fceRegistry,
+          input: checked.input,
+          runtime,
+          service,
+        });
+
+        return { input: checked.input, warnings: [...entry.warnings, ...checked.warnings, ...registryWarnings] };
       },
       validate: ({ input }) => {
         service.buildVoucherPayload(input, runtime);

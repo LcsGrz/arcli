@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  getVoucherFamilyLetters,
   getVoucherKindByFamilyAndLetter,
   getVoucherKindByShortcut,
   isVoucherShortcut,
@@ -10,8 +11,16 @@ import {
 } from '../voucher-kind-map';
 
 describe('voucher-kind-map', () => {
-  it('defines the 19 supported voucher shortcuts', () => {
-    expect(VOUCHER_SHORTCUTS).toHaveLength(19);
+  it('defines the 21 supported voucher shortcuts', () => {
+    expect(VOUCHER_SHORTCUTS).toHaveLength(21);
+  });
+
+  it('defines recibos A (4) and B (9), like the C: not notes and with no associated voucher', () => {
+    expect(VOUCHER_KIND_MAP.ra).toMatchObject({ arcaType: 4, displayName: 'Recibo A', family: 'recibo', letter: 'a' });
+    expect(VOUCHER_KIND_MAP.rb).toMatchObject({ arcaType: 9, displayName: 'Recibo B', family: 'recibo', letter: 'b' });
+    expect(VOUCHER_KIND_MAP.ra.requiresAssociatedVoucher).toBe(false);
+    expect(VOUCHER_KIND_MAP.rb.isElectronicCredit).toBe(false);
+    expect(getVoucherFamilyLetters('recibo')).toEqual(['a', 'b', 'c']);
   });
 
   it('defines a recibo C that is not a note and needs no associated voucher', () => {
@@ -24,7 +33,7 @@ describe('voucher-kind-map', () => {
       requiresAssociatedVoucher: false,
     });
     expect(getVoucherKindByFamilyAndLetter('recibo', 'c')?.shortcut).toBe('rc');
-    expect(getVoucherKindByFamilyAndLetter('recibo', 'a')).toBeNull();
+    expect(getVoucherKindByFamilyAndLetter('recibo', 'a')?.shortcut).toBe('ra');
   });
 
   it('resolves a voucher by shortcut', () => {

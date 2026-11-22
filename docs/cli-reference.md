@@ -74,7 +74,7 @@ Después cambian algunas cosas según la familia:
 | `factura-credito-electronica` | `<a\|b\|c>`    | Emite o previsualiza Factura de crédito electrónica A, B o C       |
 | `nota-credito-electronica`    | `<a\|b\|c>`    | Emite o previsualiza Nota de crédito electrónica A, B o C          |
 | `nota-debito-electronica`     | `<a\|b\|c>`    | Emite o previsualiza Nota de débito electrónica A, B o C           |
-| `recibo`                      | `<c>`          | Emite o previsualiza Recibo C (solo letra C)                       |
+| `recibo`                      | `<a\|b\|c>`    | Emite o previsualiza Recibo A, B o C                               |
 
 ### Shortcuts
 
@@ -101,6 +101,8 @@ Después cambian algunas cosas según la familia:
 | `ndea`   | `nota-debito-electronica a`     |
 | `ndeb`   | `nota-debito-electronica b`     |
 | `ndec`   | `nota-debito-electronica c`     |
+| `ra`     | `recibo a`                      |
+| `rb`     | `recibo b`                      |
 | `rc`     | `recibo c`                      |
 
 `arcli factura e` y `arcli fe` son la misma Factura de exportación `E`: la letra `E` de la familia `factura` se resuelve por WSFEX, con sus propios flags (ver [Factura de exportación](#factura-de-exportación-e-wsfex)). Lo mismo pasa con `nota-credito e` (`nce`) y `nota-debito e` (`nde`): ver [Notas de crédito y débito de exportación](#notas-de-crédito-y-débito-de-exportación-e).
@@ -133,7 +135,7 @@ Usalos cuando necesitás controlar el entorno, la salida o el modo de inspecció
 | Comando                                                                                 | Flags globales que acepta                        |
 | --------------------------------------------------------------------------------------- | ------------------------------------------------ |
 | comprobantes (`fa`, `fc`, `nca`, `factura`, ...)                                        | `--testing`, `--produccion`, `--json`, `--bruto` |
-| `padron`, `fce-obligado`, `ultimos`, `consultar`, `parametros`, `estado`                | `--testing`, `--produccion`, `--json`            |
+| `padron`, `fce-obligado`, `ultimos`, `consultar`, `parametros`, `estado`, `monotributo` | `--testing`, `--produccion`, `--json`            |
 | `certificado generar`, `certificado importar`                                           | `--testing`, `--produccion`, `--json`            |
 | `interactivo`                                                                           | `--testing`, `--produccion`                      |
 | `config` (y sus subcomandos), `pdf` (y sus subcomandos), `completado`, `acceso-directo` | `--json`                                         |
@@ -180,24 +182,24 @@ En la práctica, siempre necesitás:
 - una identidad
 - una condición de IVA receptor
 
-| Flag                    | Alias         | Tipo                                                                                                                                                                                                                                                                                                     | Valor por defecto                                        | Descripción                                       |
-| ----------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------- |
-| `--cuit <numero>`       | ninguno       | `string`                                                                                                                                                                                                                                                                                                 | ninguno                                                  | CUIT del receptor: 11 dígitos, con o sin guiones  |
-| `--cuil <numero>`       | ninguno       | `string`                                                                                                                                                                                                                                                                                                 | ninguno                                                  | CUIL del receptor: 11 dígitos, con o sin guiones  |
-| `--dni <numero>`        | ninguno       | `string`                                                                                                                                                                                                                                                                                                 | ninguno                                                  | DNI del receptor: 7 u 8 dígitos, con o sin puntos |
-| `--consumidor-final`    | `--cfinal`    | `boolean`                                                                                                                                                                                                                                                                                                | `false`                                                  | Documento `0` e IVA receptor `consumidor-final`   |
-| `--iva-receptor <tipo>` | `--ir <tipo>` | `'cliente-del-exterior' \| 'consumidor-final' \| 'iva-liberado' \| 'iva-no-alcanzado' \| 'monotributista-social' \| 'monotributo-trabajador-independiente-promovido' \| 'proveedor-del-exterior' \| 'responsable-inscripto' \| 'responsable-monotributo' \| 'sujeto-exento' \| 'sujeto-no-categorizado'` | Con `--cuit`, la del padrón; si no, `config.ivaReceptor` | Condición IVA del receptor                        |
-| `--ir-ce`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                                                  | Cliente del exterior                              |
-| `--ir-cf`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                                                  | Consumidor final                                  |
-| `--ir-il`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                                                  | IVA liberado                                      |
-| `--ir-ina`              | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                                                  | IVA no alcanzado                                  |
-| `--ir-ms`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                                                  | Monotributista social                             |
-| `--ir-mtip`             | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                                                  | Monotributo trabajador independiente promovido    |
-| `--ir-pe`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                                                  | Proveedor del exterior                            |
-| `--ir-ri`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                                                  | Responsable inscripto                             |
-| `--ir-rm`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                                                  | Responsable monotributo                           |
-| `--ir-se`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                                                  | Sujeto exento                                     |
-| `--ir-snc`              | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                                                  | Sujeto no categorizado                            |
+| Flag                    | Alias         | Tipo                                                                                                                                                                                                                                                                                                     | Valor por defecto                                        | Descripción                                                         |
+| ----------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------- |
+| `--cuit <numero>`       | ninguno       | `string`                                                                                                                                                                                                                                                                                                 | ninguno                                                  | CUIT del receptor: 11 dígitos, con o sin guiones, puntos o espacios |
+| `--cuil <numero>`       | ninguno       | `string`                                                                                                                                                                                                                                                                                                 | ninguno                                                  | CUIL del receptor: 11 dígitos, con o sin guiones, puntos o espacios |
+| `--dni <numero>`        | ninguno       | `string`                                                                                                                                                                                                                                                                                                 | ninguno                                                  | DNI del receptor: de 6 a 8 dígitos, con o sin puntos o espacios     |
+| `--consumidor-final`    | `--cfinal`    | `boolean`                                                                                                                                                                                                                                                                                                | `false`                                                  | Documento `0` e IVA receptor `consumidor-final`                     |
+| `--iva-receptor <tipo>` | `--ir <tipo>` | `'cliente-del-exterior' \| 'consumidor-final' \| 'iva-liberado' \| 'iva-no-alcanzado' \| 'monotributista-social' \| 'monotributo-trabajador-independiente-promovido' \| 'proveedor-del-exterior' \| 'responsable-inscripto' \| 'responsable-monotributo' \| 'sujeto-exento' \| 'sujeto-no-categorizado'` | Con `--cuit`, la del padrón; si no, `config.ivaReceptor` | Condición IVA del receptor                                          |
+| `--ir-ce`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                                                  | Cliente del exterior                                                |
+| `--ir-cf`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                                                  | Consumidor final                                                    |
+| `--ir-il`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                                                  | IVA liberado                                                        |
+| `--ir-ina`              | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                                                  | IVA no alcanzado                                                    |
+| `--ir-ms`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                                                  | Monotributista social                                               |
+| `--ir-mtip`             | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                                                  | Monotributo trabajador independiente promovido                      |
+| `--ir-pe`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                                                  | Proveedor del exterior                                              |
+| `--ir-ri`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                                                  | Responsable inscripto                                               |
+| `--ir-rm`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                                                  | Responsable monotributo                                             |
+| `--ir-se`               | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                                                  | Sujeto exento                                                       |
+| `--ir-snc`              | ninguno       | `boolean`                                                                                                                                                                                                                                                                                                | `false`                                                  | Sujeto no categorizado                                              |
 
 El IVA receptor tiene que ser válido para la letra del comprobante. Por ejemplo, `fa` no admite `--ir-cf` y `fb` no admite `--ir-ri`. Ver [IVA receptor](validation-rules.md#iva-receptor).
 
@@ -215,14 +217,14 @@ En casi todos los casos te va a interesar mirar primero:
 | Flag                           | Alias           | Tipo                                                  | Valor por defecto                        | Descripción                                      |
 | ------------------------------ | --------------- | ----------------------------------------------------- | ---------------------------------------- | ------------------------------------------------ |
 | `--cargar <ruta>`              | ninguno         | `string`                                              | ninguno                                  | Carga datos base desde un archivo JSON           |
-| `--monto <numero>`             | `-m`            | `number`                                              | requerido                                | Importe total del comprobante                    |
+| `--monto <numero>`             | `-m`            | `number`                                              | requerido                                | Importe total del comprobante, hasta 13 enteros  |
 | `--alicuota <tasa>`            | ninguno         | `'0' \| '2.5' \| '5' \| '10.5' \| '21' \| '27'`       | `config.alicuota` o `21`                 | Alícuota de IVA (solo `A` y `B`)                 |
 | `--alicuota <tasa>:<monto>`    | ninguno         | repetible                                             | ninguno                                  | Varias alícuotas: monto con IVA de cada una      |
 | `--exento <numero>`            | ninguno         | `number`                                              | `0`                                      | Parte exenta del monto (solo `A` y `B`)          |
 | `--nogravado <numero>`         | ninguno         | `number`                                              | `0`                                      | Parte no gravada del monto (solo `A` y `B`)      |
 | `--fecha <fecha>`              | `-f`            | `string`                                              | hoy                                      | Fecha del comprobante                            |
 | `--dia <numero>`               | `-d`            | `integer`                                             | ninguno                                  | Deprecado: usá `--vencimiento` o `--vto`         |
-| `--punto-venta <numero>`       | `--pv`          | `integer`                                             | `config.puntoVenta`                      | Punto de venta                                   |
+| `--punto-venta <numero>`       | `--pv`          | `integer`                                             | `config.puntoVenta`                      | Punto de venta, de 1 a 99.998 (error 10004)      |
 | `--concepto <tipo>`            | `-c`            | `'productos' \| 'servicios' \| 'productos-servicios'` | `config.concepto`                        | `productos`, `servicios` o `productos-servicios` |
 | `--cs`                         | ninguno         | `boolean`                                             | `false`                                  | Equivale a `--concepto servicios`                |
 | `--cp`                         | ninguno         | `boolean`                                             | `false`                                  | Equivale a `--concepto productos`                |
@@ -236,12 +238,12 @@ En casi todos los casos te va a interesar mirar primero:
 
 En moneda extranjera (`--moneda USD`) hay dos formas de informar la cotización:
 
-- **Te pagan en pesos** (default): pasá `--cotizacion-moneda` con la cotización acordada. Sin ella, ARCLI usa la oficial de ARCA y lo avisa en "Avisos". No puede ser `1`.
-- **Te pagan en la moneda extranjera**: pasá `--misma-moneda`. ARCLI consulta la cotización oficial a ARCA y la muestra en la vista previa. No se combina con `--cotizacion-moneda`.
+- **Te pagan en pesos** (default): pasá `--cotizacion-moneda` con la cotización acordada. Sin ella, ARCLI usa la oficial de ARCA y lo avisa en "Avisos". No puede ser `1`, y tiene que estar entre el 2 % y el 500 % de la oficial: la vista previa la compara (error 10119 de ARCA).
+- **Te pagan en la moneda extranjera**: pasá `--misma-moneda`. ARCLI consulta la cotización oficial a ARCA y la muestra en la vista previa: con una `--fecha` pasada, la del día hábil anterior a esa fecha, como pide ARCA. No se combina con `--cotizacion-moneda`.
 
 En pesos la cotización siempre es `1` y `--misma-moneda` no aplica. Detalle en [Moneda y cotización](validation-rules.md#moneda-y-cotización).
 
-`--moneda` acepta el código ISO o el de ARCA, en mayúsculas o minúsculas: `ARS` y `PES` son lo mismo, como `USD` y `DOL`, `EUR` y `060` o `UYU` y `011`. ARCLI traduce el ISO al código de ARCA antes de enviar y la vista previa muestra el nombre con el ISO (`Pesos uruguayos (UYU)`). Están todas las monedas de la tabla de ARCA (`arcli parametros monedas`) que tienen código ISO; un código que no está en esa tabla se manda tal cual y lo rechaza ARCA si no existe. Lo mismo vale para `codigoMoneda` en el JSON y la clave `moneda` de la config.
+`--moneda` acepta el código ISO o el de ARCA, en mayúsculas o minúsculas: `ARS` y `PES` son lo mismo, como `USD` y `DOL`, `EUR` y `060` o `UYU` y `011`. ARCLI traduce el ISO al código de ARCA antes de enviar y la vista previa muestra el nombre con el ISO (`Pesos uruguayos (UYU)`). Están todas las monedas de la tabla de ARCA (`arcli parametros monedas`) que tienen código ISO; un código que no está en esa tabla se busca en la de ARCA antes de la vista previa (en la `E`, en la de WSFEX): si ARCA no la tiene, es `INPUT_VALIDATION_ERROR` (ARCA la rechazaría con 10037, en la `E` con 1590), con o sin `--cm`. Si la tabla no se puede consultar, sigue y decide ARCA. Lo mismo vale para `codigoMoneda` en el JSON y la clave `moneda` de la config.
 
 `--alicuota` acepta alias: `general` (21), `reducida` (10.5), `incrementada` (27) y `cero` (0). Para una factura con ítems a distintas alícuotas, repetí `--alicuota TASA:MONTO` (por ejemplo `--alicuota general:1210 --alicuota reducida:552,50`); el total se calcula solo. Ver [Varias alícuotas](validation-rules.md#varias-alícuotas-en-un-comprobante).
 
@@ -277,22 +279,45 @@ Para facturar con otra fecha, sumá `-f`: por ejemplo, `-f 31/10` el 3/11 (en se
 
 Las cuatro se escriben igual: formato argentino (día primero), con mes y año opcionales; sin año se toma la fecha más cercana a hoy. Detalle completo en [Fechas aceptadas](validation-rules.md#fechas-aceptadas).
 
+También aceptan fechas relativas: `hoy`, `ayer`, `+N` y `-N` (N días desde hoy) en todas, y `mes-actual` y `mes-pasado` solo en desde y hasta (`--sd`/`--sh`, `--pd`/`--ph`): en desde dan el día 1 del mes y en hasta, el último día. La vista previa y el `--json` muestran la fecha resuelta. Las preguntas de fecha del modo interactivo aceptan las de un día. La excepción es la fecha de inicio de actividades (`emisor.inicioActividades`), que se escribe completa (D/MM/YYYY) y no acepta relativas: es una fecha vieja y fija. Detalle en [Fechas relativas](validation-rules.md#fechas-relativas).
+
+```bash
+# Vence en 10 días; se emitió ayer
+arcli fc -m 1000 --cs --cfinal -f ayer --vto +10
+```
+
+#### Abono mensual por cron
+
+Con las palabras de mes, el mismo comando sirve todos los meses. Por ejemplo, para facturar el 1 de cada mes el servicio del mes anterior, con vencimiento a 10 días:
+
+```bash
+arcli fc -m 50.000 --cs --cfinal --sd mes-pasado --sh mes-pasado --vto +10 --emitir
+```
+
+En `crontab -e`, a las 9 del día 1 (sin terminal no pregunta: `--emitir` es lo que hace que emita; sumá `--json` para guardar la respuesta):
+
+```bash
+0 9 1 * * arcli fc -m 50.000 --cs --cfinal --sd mes-pasado --sh mes-pasado --vto +10 --emitir --json >> ~/abono.log 2>&1
+```
+
+"Hoy" es la fecha argentina aunque el servidor esté en otra zona horaria, pero cron dispara en la hora del equipo: en un servidor en UTC, `0 12 1 * *` son las 9 en Argentina.
+
 ### Asociados
 
 Estos flags importan solo para notas. Si estás emitiendo una factura, podés ignorarlos.
 
-Dicho más directo: **no aplican a `factura`, `factura-credito-electronica`, `recibo`, `fa`, `fb`, `fc`, `fcea`, `fceb`, `fcec` ni `rc`**.
+Dicho más directo: **no aplican a `factura`, `factura-credito-electronica`, `recibo`, `fa`, `fb`, `fc`, `fcea`, `fceb`, `fcec`, `ra`, `rb` ni `rc`**.
 
-| Flag                              | Alias            | Tipo         | Valor por defecto | Descripción                        |
-| --------------------------------- | ---------------- | ------------ | ----------------- | ---------------------------------- |
-| `--ac <atajo>`                    | ninguno          | `string`     | ninguno           | Atajo del comprobante asociado     |
-| `--at <numero>`                   | ninguno          | `integer`    | ninguno           | Tipo ARCA del comprobante asociado |
-| `--asociado-punto-venta <numero>` | `--apv <numero>` | `integer`    | ninguno           | Punto de venta del asociado        |
-| `--ar <numero>`                   | ninguno          | `integer`    | ninguno           | Número del comprobante asociado    |
-| `--acuit <numero>`                | ninguno          | `string(11)` | ninguno           | CUIT del comprobante asociado      |
-| `--afecha <fecha>`                | ninguno          | `string`     | ninguno           | Fecha del comprobante asociado     |
-| `--periodo-desde <fecha>`         | `--pd <fecha>`   | `string`     | ninguno           | Inicio del período asociado        |
-| `--periodo-hasta <fecha>`         | `--ph <fecha>`   | `string`     | ninguno           | Fin del período asociado           |
+| Flag                              | Alias            | Tipo         | Valor por defecto | Descripción                                                     |
+| --------------------------------- | ---------------- | ------------ | ----------------- | --------------------------------------------------------------- |
+| `--ac <atajo>`                    | ninguno          | `string`     | ninguno           | Atajo del comprobante asociado                                  |
+| `--at <numero>`                   | ninguno          | `integer`    | ninguno           | Tipo ARCA del comprobante asociado                              |
+| `--asociado-punto-venta <numero>` | `--apv <numero>` | `integer`    | ninguno           | Punto de venta del asociado, hasta 99.998 (error 10058)         |
+| `--ar <numero>`                   | ninguno          | `integer`    | ninguno           | Número del comprobante asociado, hasta 99.999.999 (error 10059) |
+| `--acuit <numero>`                | ninguno          | `string(11)` | el CUIT emisor    | CUIT del comprobante asociado                                   |
+| `--afecha <fecha>`                | ninguno          | `string`     | ninguno           | Fecha del comprobante asociado                                  |
+| `--periodo-desde <fecha>`         | `--pd <fecha>`   | `string`     | ninguno           | Inicio del período asociado                                     |
+| `--periodo-hasta <fecha>`         | `--ph <fecha>`   | `string`     | ninguno           | Fin del período asociado                                        |
 
 ### Crédito electrónico (FCE)
 
@@ -440,11 +465,13 @@ Las facturas no usan comprobante asociado, así que no aplican:
 - `--ar`
 - `--acuit`
 
-### Recibo C
+### Recibo A, B y C
 
-`arcli rc` (o `arcli recibo c`) emite el Recibo C, tipo ARCA 15. Usa los mismos flags y validaciones que la Factura C: sin IVA discriminado, sin comprobante asociado y sin FCE. Una nota de crédito o débito C lo puede asociar con `--ac rc`. Detalle en [Reglas de validación](validation-rules.md#recibo-c).
+`arcli ra`, `arcli rb` y `arcli rc` (o `arcli recibo a`, `b` o `c`) emiten el recibo de un cobro: tipos ARCA 4, 9 y 15. Cada uno usa los mismos flags y validaciones que la factura de su letra: el A discrimina IVA y va a un CUIT, el B lleva el IVA incluido y el C no lleva IVA. Ninguno lleva comprobante asociado ni es FCE. Una nota de crédito o débito de la misma letra lo puede asociar con `--ac ra`, `--ac rb` o `--ac rc`. Detalle en [Reglas de validación](validation-rules.md#recibo-a-b-y-c).
 
 ```bash
+arcli ra -m 121000 --cs --cuit 20168598204
+arcli rb -m 12100 --cs --cfinal
 arcli rc -m 15000 --cs --cfinal
 ```
 
@@ -455,7 +482,7 @@ Las notas heredan todo lo de una factura, pero suman una regla importante: **sie
 #### Diferencias clave con facturas
 
 - siempre requieren asociado: una factura puntual (`--ac`…) o un período (`--periodo-desde` y `--periodo-hasta`)
-- el asociado debe ser una factura compatible o, en notas C, un Recibo C (`--ac rc`)
+- el asociado debe ser una factura compatible, otra nota de la misma letra (`--ac ndc`, `--ac nca`…) o un recibo de la misma letra (`--ac ra`, `--ac rb`, `--ac rc`)
 - la letra del asociado debe coincidir con la de la nota
 - `--ac` y `--at` son excluyentes
 
@@ -465,7 +492,7 @@ Las notas heredan todo lo de una factura, pero suman una regla importante: **sie
 
 - todo lo base de una factura
 - además:
-  - un comprobante asociado: `--ac` o `--at`, con `--asociado-punto-venta` (o `--apv`), `--ar` y `--acuit`
+  - un comprobante asociado: `--ac` o `--at`, con `--asociado-punto-venta` (o `--apv`) y `--ar`; `--acuit` solo si es de otro CUIT (sin él, el tuyo)
   - o un período asociado: `--periodo-desde` y `--periodo-hasta` (entonces no van `--ac`, `--apv`, `--ar` ni `--acuit`)
 
 **Opcional**
@@ -475,7 +502,7 @@ Las notas heredan todo lo de una factura, pero suman una regla importante: **sie
 #### Ejemplo mínimo funcional
 
 ```bash
-arcli nca -m 1 --cs --cuit 20168598204 --ir-ri --ac fa --apv 3 --ar 6 --acuit 20333333334
+arcli nca -m 1 --cs --cuit 20168598204 --ir-ri --ac fa --apv 3 --ar 6
 ```
 
 #### Nota por período
@@ -490,13 +517,13 @@ El período no puede terminar después de la fecha de la nota. Las notas FCE no 
 
 #### Resumen rápido de parámetros asociados
 
-| Parámetro                         | Alias            | Tipo         | Requerido   | Cuándo usarlo                                                       |
-| --------------------------------- | ---------------- | ------------ | ----------- | ------------------------------------------------------------------- |
-| `--ac <atajo>`                    | ninguno          | `string`     | Condicional | Si querés identificar el asociado por shortcut                      |
-| `--at <numero>`                   | ninguno          | `integer`    | Condicional | Si querés identificar el asociado por tipo ARCA                     |
-| `--asociado-punto-venta <numero>` | `--apv <numero>` | `integer`    | Condicional | Con `--ac`/`--at`                                                   |
-| `--ar <numero>`                   | ninguno          | `integer`    | Condicional | Con `--ac`/`--at`                                                   |
-| `--acuit <numero>`                | ninguno          | `string(11)` | Condicional | Con `--ac`/`--at`; no con período; en NC/ND FCE toma el CUIT emisor |
+| Parámetro                         | Alias            | Tipo         | Requerido   | Cuándo usarlo                                                          |
+| --------------------------------- | ---------------- | ------------ | ----------- | ---------------------------------------------------------------------- |
+| `--ac <atajo>`                    | ninguno          | `string`     | Condicional | Si querés identificar el asociado por shortcut                         |
+| `--at <numero>`                   | ninguno          | `integer`    | Condicional | Si querés identificar el asociado por tipo ARCA                        |
+| `--asociado-punto-venta <numero>` | `--apv <numero>` | `integer`    | Condicional | Con `--ac`/`--at`                                                      |
+| `--ar <numero>`                   | ninguno          | `integer`    | Condicional | Con `--ac`/`--at`                                                      |
+| `--acuit <numero>`                | ninguno          | `string(11)` | No          | Si el asociado es de otro CUIT; sin él, el CUIT emisor; no con período |
 
 ### Factura de crédito electrónica `A`, `B` y `C`
 
@@ -573,15 +600,15 @@ WSFEX pide un certificado autorizado al servicio `wsfex`. ARCLI usa `exportacion
 - importe total: `--monto`
 - cliente y domicilio en el exterior: `--cliente`, `--domicilio-cliente`
 - país de destino: `--pais-destino`, por código (`203`) o por nombre (`Brasil`)
-- actividad: `--actividad` o la clave `exportacion.actividad` de la config, con un código de la tabla de actividades de WSFEX
 
 **Opcional**
 
+- actividad: `--actividad` o la clave `exportacion.actividad` de la config, con un código de la tabla de actividades de WSFEX. Sin ninguna, la `E` va sin el bloque `Actividades`
 - `--id-impositivo` y `--cuit-pais` (sin `--cuit-pais` se resuelve desde el país de destino; si ARCA no
   publica un CUIT para ese país —Irlanda, Alemania, las zonas francas…—, la `E` va solo con `--id-impositivo`:
   ARCA pide uno de los dos, error 1580)
 - `--tipo-expo` (`1` bienes, `2` servicios, `4` otros; por defecto `2`)
-- `--item` para el detalle real; sin ítems va un renglón con `--descripcion`
+- el detalle, en una de dos formas ([lado a lado](exportacion.md#el-detalle-de-la-e-rápido-o-por-ítems)): rápida, sin `--item`, va un renglón con `--descripcion` (por defecto "Según detalle"), cantidad 1, unidad `unidades` y `--monto` como precio; detallada, un `--item` por renglón, que tienen que sumar `--monto`
 - `--incoterm` y `--incoterms-desc`, `--idioma`, `--forma-pago` (por defecto `Transferencia Internacional`)
 - `--permiso` y `--permiso-existente` para permisos de embarque (solo con `--tipo-expo 1`; en `2` y `4` ARCA exige `Permiso_existente` vacío)
 - `--numero` y `--id-solicitud` si los querés fijar a mano (por defecto, los siguientes de WSFEX)
@@ -592,7 +619,7 @@ WSFEX pide un certificado autorizado al servicio `wsfex`. ARCLI usa `exportacion
 
 Sin `--tipo-expo`, `--moneda` ni `--forma-pago`, la `E` sale de servicios (`Tipo_expo` `2`), en dólares (`DOL`) y con forma de pago `Transferencia Internacional`. Las claves `moneda` y `cotizacion` de la config son de los comprobantes locales y no aplican a exportación.
 
-La actividad no tiene default: cada emisor tiene la suya. La tabla de actividades de WSFEX (`FEXGetPARAM_Actividades`) no es la del padrón y es más chica (por ejemplo, `620900` no está y `620100` sí), así que un código que no está es error de validación antes de ir a ARCA, con las actividades que empiezan igual.
+La actividad es opcional y no tiene default: cada emisor tiene la suya. Si no la informás, la `E` va sin actividad, que ARCA no exige. La tabla de actividades de WSFEX (`FEXGetPARAM_Actividades`) no es la del padrón y es más chica (por ejemplo, `620900` no está y `620100` sí), así que un código que no está es error de validación antes de ir a ARCA, con las actividades que empiezan igual.
 
 El pago de una exportación se hace en la moneda extranjera del comprobante (`Moneda_Id`/`Moneda_ctz`). Si además se cobra en esa misma moneda, `--misma-moneda` manda `CanMisMonExt` en `S`, que es el campo de WSFEX que lo declara; sin el flag va en `N`, salvo en pesos, donde ARCA pide que el campo no vaya (error 1605).
 
@@ -623,41 +650,41 @@ arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-d
 
 #### Resumen rápido de parámetros
 
-| Parámetro                         | Alias           | Tipo                                 | Requerido   | Cuándo usarlo                                                                                                                                           |
-| --------------------------------- | --------------- | ------------------------------------ | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--monto <numero>`                | `-m`            | `number`                             | Sí          | Siempre                                                                                                                                                 |
-| `--cliente <texto>`               | ninguno         | `string`                             | Sí          | Siempre: nombre o razón social del cliente del exterior                                                                                                 |
-| `--domicilio-cliente <texto>`     | ninguno         | `string`                             | Sí          | Siempre                                                                                                                                                 |
-| `--pais-destino <codigo\|nombre>` | ninguno         | `string`                             | Sí          | Siempre: código de ARCA o nombre tal como lo informa ARCA                                                                                               |
-| `--id-impositivo <texto>`         | ninguno         | `string`                             | No          | ID fiscal del cliente en su país                                                                                                                        |
-| `--cuit-pais <numero>`            | ninguno         | `integer`                            | No          | CUIT del país del cliente; sin el flag sale de la tabla de ARCA, y si la tabla no trae el destino va solo `--id-impositivo` (1580)                      |
-| `--tipo-expo <1\|2\|4>`           | ninguno         | `1` bienes, `2` servicios, `4` otros | No          | Por defecto `2` (servicios)                                                                                                                             |
-| `--actividad <codigo>`            | ninguno         | `integer`                            | Condicional | Si no está `exportacion.actividad` en la config; código de la tabla de WSFEX                                                                            |
-| `--item <partes>`                 | ninguno         | `string` repetible                   | No          | `codigo\|descripcion\|cantidad\|precio\|unidad`; la suma debe dar `--monto`                                                                             |
-| `--incoterm <codigo>`             | ninguno         | `string`                             | No          | Por ejemplo `FOB`; se valida contra la tabla de ARCA                                                                                                    |
-| `--incoterms-desc <texto>`        | ninguno         | `string`                             | No          | Por defecto, la descripción de la tabla de ARCA                                                                                                         |
-| `--idioma <codigo>`               | ninguno         | `integer`                            | No          | `1` español (por defecto), `2` inglés, `3` portugués                                                                                                    |
-| `--forma-pago <texto>`            | ninguno         | `string`                             | No          | Por defecto `Transferencia Internacional`                                                                                                               |
-| `--permiso <id>`                  | ninguno         | `string` repetible                   | No          | Permiso de embarque ya existente; solo con `--tipo-expo 1`. En la factura requiere `--permiso-existente`                                                |
-| `--permiso-existente`             | ninguno         | `boolean`                            | No          | Marca que los permisos informados ya están en ARCA                                                                                                      |
-| `--numero <numero>`               | ninguno         | `integer`                            | No          | Por defecto, el siguiente al último de ese tipo en el punto de venta                                                                                    |
-| `--id-solicitud <numero>`         | ninguno         | `integer`                            | No          | Por defecto, el siguiente de WSFEX                                                                                                                      |
-| `--punto-venta <numero>`          | `--pv <numero>` | `integer`                            | Condicional | Si no está en config                                                                                                                                    |
-| `--fecha <fecha>`                 | `-f`            | `string`                             | No          | No admite fechas futuras                                                                                                                                |
-| `--fecha-pago <fecha>`            | ninguno         | `string`                             | No          | Solo en servicios y otros; por defecto, la fecha del comprobante. En bienes no se usa (error 1673)                                                      |
-| `--moneda <codigo>`               | `--mda`         | `string`                             | No          | Código ISO o de ARCA, por ejemplo `USD` o `DOL`; por defecto `DOL`                                                                                      |
-| `--cotizacion-moneda <numero>`    | `--cm`          | `number`                             | No          | Sin flag se usa la cotización de aduana de ARCA: en servicios y con `--misma-moneda`, la del día hábil anterior a la fecha del comprobante (error 2053) |
-| `--misma-moneda`                  | ninguno         | `boolean`                            | No          | El pago se cancela en la misma moneda extranjera: manda `CanMisMonExt` en `S`                                                                           |
-| `--observaciones <texto>`         | ninguno         | `string`                             | No          | Observaciones del comprobante                                                                                                                           |
-| `--obs-comerciales <texto>`       | ninguno         | `string`                             | No          | Observaciones comerciales                                                                                                                               |
-| `--descripcion <texto>`           | ninguno         | `string`                             | No          | Solo sin `--item`; también va al PDF                                                                                                                    |
-| `--cargar <ruta>`                 | ninguno         | `string`                             | No          | Un objeto con un comprobante, no un lote                                                                                                                |
+| Parámetro                         | Alias           | Tipo                                 | Requerido   | Cuándo usarlo                                                                                                                                                                                                           |
+| --------------------------------- | --------------- | ------------------------------------ | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--monto <numero>`                | `-m`            | `number`                             | Sí          | Siempre                                                                                                                                                                                                                 |
+| `--cliente <texto>`               | ninguno         | `string`                             | Sí          | Siempre: nombre o razón social del cliente del exterior                                                                                                                                                                 |
+| `--domicilio-cliente <texto>`     | ninguno         | `string`                             | Sí          | Siempre                                                                                                                                                                                                                 |
+| `--pais-destino <codigo\|nombre>` | ninguno         | `string`                             | Sí          | Siempre: código de ARCA o nombre tal como lo informa ARCA                                                                                                                                                               |
+| `--id-impositivo <texto>`         | ninguno         | `string`                             | No          | ID fiscal del cliente en su país                                                                                                                                                                                        |
+| `--cuit-pais <numero>`            | ninguno         | `integer`                            | No          | CUIT del país del cliente; sin el flag sale de la tabla de ARCA, y si la tabla no trae el destino va solo `--id-impositivo` (1580)                                                                                      |
+| `--tipo-expo <1\|2\|4>`           | ninguno         | `1` bienes, `2` servicios, `4` otros | No          | Por defecto `2` (servicios)                                                                                                                                                                                             |
+| `--actividad <codigo>`            | ninguno         | `integer`                            | No          | Código de la tabla de WSFEX; por defecto `exportacion.actividad`. Sin ninguno, la `E` va sin actividad                                                                                                                  |
+| `--item <partes>`                 | ninguno         | `string` repetible                   | No          | `codigo\|descripcion\|cantidad\|precio\|unidad`; la suma debe dar `--monto`                                                                                                                                             |
+| `--incoterm <codigo>`             | ninguno         | `string`                             | Condicional | Obligatorio en bienes (`--tipo-expo 1`, error 1640). Por ejemplo `FOB`; se valida contra la tabla de ARCA                                                                                                               |
+| `--incoterms-desc <texto>`        | ninguno         | `string`                             | No          | Por defecto, la descripción de la tabla de ARCA. Solo con `--incoterm` (error 1641) y hasta 20 caracteres (1642)                                                                                                        |
+| `--idioma <codigo>`               | ninguno         | `integer`                            | No          | `1` español (por defecto), `2` inglés, `3` portugués                                                                                                                                                                    |
+| `--forma-pago <texto>`            | ninguno         | `string`                             | No          | Por defecto `Transferencia Internacional`                                                                                                                                                                               |
+| `--permiso <id>`                  | ninguno         | `string` repetible                   | No          | Permiso de embarque ya existente; solo con `--tipo-expo 1`. En la factura requiere `--permiso-existente`                                                                                                                |
+| `--permiso-existente`             | ninguno         | `boolean`                            | No          | Marca que los permisos informados ya están en ARCA                                                                                                                                                                      |
+| `--numero <numero>`               | ninguno         | `integer`                            | No          | Por defecto, el siguiente al último de ese tipo en el punto de venta. Hasta 99.999.999 (error 1520)                                                                                                                     |
+| `--id-solicitud <numero>`         | ninguno         | `integer`                            | No          | Por defecto, el siguiente de WSFEX. Hasta 15 dígitos                                                                                                                                                                    |
+| `--punto-venta <numero>`          | `--pv <numero>` | `integer`                            | Condicional | Si no está en config. Hasta 99.998 (error 1510)                                                                                                                                                                         |
+| `--fecha <fecha>`                 | `-f`            | `string`                             | No          | De 5 días antes a 5 días después de hoy; en servicios, no después del fin de mes (error 1500). También `hoy`, `ayer`, `+N` o `-N` ([fechas relativas](validation-rules.md#fechas-relativas))                            |
+| `--fecha-pago <fecha>`            | ninguno         | `string`                             | No          | Solo en servicios y otros; por defecto, la fecha del comprobante, y no anterior a ella (error 1674). En bienes no se usa (error 1673). También `hoy`, `ayer`, `+N` o `-N`                                               |
+| `--moneda <codigo>`               | `--mda`         | `string`                             | No          | Código ISO o de ARCA, por ejemplo `USD` o `DOL`; por defecto `DOL`                                                                                                                                                      |
+| `--cotizacion-moneda <numero>`    | `--cm`          | `number`                             | No          | Sin flag se usa la cotización de aduana de ARCA. En servicios y con `--misma-moneda`, ARCA exige la del día hábil anterior a la fecha del comprobante (errores 2053 y 1604): si la pasás, tiene que ser esa, o es error |
+| `--misma-moneda`                  | ninguno         | `boolean`                            | No          | El pago se cancela en la misma moneda extranjera: manda `CanMisMonExt` en `S`                                                                                                                                           |
+| `--observaciones <texto>`         | ninguno         | `string`                             | No          | Observaciones del comprobante                                                                                                                                                                                           |
+| `--obs-comerciales <texto>`       | ninguno         | `string`                             | No          | Observaciones comerciales                                                                                                                                                                                               |
+| `--descripcion <texto>`           | ninguno         | `string`                             | No          | Solo sin `--item`: el renglón único (por defecto `Según detalle`); también va al PDF                                                                                                                                    |
+| `--cargar <ruta>`                 | ninguno         | `string`                             | No          | Un objeto con un comprobante, no un lote                                                                                                                                                                                |
 
 Los flags globales (`--testing`, `--produccion`, `--json`, `--bruto`) y los de modo (`--previsualizar`, `--emitir`) funcionan igual que en el resto de los comprobantes.
 
 #### Ítems
 
-Cada `--item` se separa con `|` para no pelear con las comas de los importes. La forma completa es `codigo|descripcion|cantidad|precio|unidad`; con cuatro partes se omite el código y con tres la unidad, que queda en `unidad` (código `7` de ARCA). La unidad puede ser el código numérico o el nombre de la tabla de unidades, que se compara sin mayúsculas y acepta singular o plural (`unidad` o `unidades`).
+Cada `--item` se separa con `|` para no pelear con las comas de los importes. La forma completa es `codigo|descripcion|cantidad|precio|unidad`; con cuatro partes se omite el código y con tres la unidad, que queda en `unidad` (código `7` de ARCA). La unidad puede ser el código numérico o el nombre de la tabla de unidades, que se compara sin mayúsculas y acepta singular o plural (`unidad` o `unidades`). Las unidades 0, 97 (seña o anticipo) y 99 (bonificación) no se aceptan: ARCA las pide sin cantidad ni precio (error 1775). El código va hasta 50 caracteres y la descripción hasta 4000.
 
 ```bash
 arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 203 \
@@ -698,24 +725,32 @@ Antes de armar la nota, ARCLI consulta el asociado en ARCA (`FEXGetCMP`) y toma 
 arcli nce -m 500 --ar 1
 ```
 
+En bienes y otros (`--tipo-expo 1` o `4`) el asociado es opcional, por ejemplo para un descuento por volumen sobre varias facturas: sin `--ar` la nota no hereda nada y cliente, domicilio, país de destino y lo demás van por flag, como en `fe`. En servicios, ARCA lo exige (error 2047).
+
+```bash
+arcli nce -m 300 --tipo-expo 1 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 212 \
+  --incoterm FOB --actividad 620100 --descripcion "Descuento por volumen" --previsualizar
+```
+
 #### Comprobante asociado
 
-| Parámetro          | Alias                             | Tipo      | Requerido | Cuándo usarlo                                                                 |
-| ------------------ | --------------------------------- | --------- | --------- | ----------------------------------------------------------------------------- |
-| `--ar <numero>`    | ninguno                           | `integer` | Sí        | Número del comprobante que ajusta la nota                                     |
-| `--apv <numero>`   | `--asociado-punto-venta <numero>` | `integer` | No        | Punto de venta del asociado; por defecto, el de la nota                       |
-| `--ac <atajo>`     | ninguno                           | `string`  | No        | `fe` (por defecto), `nde` o `nce`, para ajustar otra nota `E`                 |
-| `--at <numero>`    | ninguno                           | `integer` | No        | Lo mismo por tipo ARCA: `19`, `20` o `21`                                     |
-| `--acuit <numero>` | ninguno                           | `string`  | No        | No hace falta: el asociado de una `E` siempre es del CUIT emisor (error 2031) |
+| Parámetro          | Alias                             | Tipo      | Requerido   | Cuándo usarlo                                                                                                                         |
+| ------------------ | --------------------------------- | --------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `--ar <numero>`    | ninguno                           | `integer` | Condicional | Número del comprobante que ajusta la nota. Obligatorio en servicios (error 2047); en bienes y otros (`--tipo-expo 1` o `4`), opcional |
+| `--apv <numero>`   | `--asociado-punto-venta <numero>` | `integer` | No          | Punto de venta del asociado; por defecto, el de la nota                                                                               |
+| `--ac <atajo>`     | ninguno                           | `string`  | No          | `fe` (por defecto), `nde` o `nce`, para ajustar otra nota `E`                                                                         |
+| `--at <numero>`    | ninguno                           | `integer` | No          | Lo mismo por tipo ARCA: `19`, `20` o `21`                                                                                             |
+| `--acuit <numero>` | ninguno                           | `string`  | No          | No hace falta: el asociado de una `E` siempre es del CUIT emisor (error 2031)                                                         |
 
 `--afecha` no se usa: la fecha del asociado sale de ARCA.
 
 #### Qué valida antes de emitir
 
+- en servicios, que haya asociado (`--ar`, error 2047);
 - que el asociado exista en ARCA y esté aprobado;
 - que la nota no sea anterior al asociado;
 - que una nota de crédito no supere el total del asociado, si van en la misma moneda;
-- en servicios (`--tipo-expo 2`), lo que ARCA compara contra el asociado: mismo tipo de exportación (2049), mismo país de destino (2050), misma moneda o pesos (2051) y la misma cotización (2053). Además, una nota de débito solo ajusta una factura (2041, 2042) y una nota de crédito, una factura o una nota de débito (2045).
+- si la nota es de servicios (`--tipo-expo 2`), lo que ARCA compara contra el asociado: mismo tipo de exportación (2049), mismo país de destino (2050), misma moneda o pesos (2051) y la misma cotización (2053). Además, una nota de débito solo ajusta una factura (2041, 2042) y una nota de crédito, una factura o una nota de débito (2045).
 
 #### Qué no aplica
 
@@ -786,6 +821,8 @@ arcli consultar fb 14 --json      # lo mismo, en JSON
 | `arcli ultimos <tipo>`            | `tipo`: atajo del comprobante (`fa`, `fb`, `nca`, `fcea`…) | `--cantidad <n>` (1 a 50; por defecto `config.filasPorLista` o 15), `--pv` / `--punto-venta`, `--json`, `--testing`, `--produccion` |
 | `arcli consultar <tipo> <numero>` | `tipo` y número del comprobante                            | `--pv` / `--punto-venta`, `--json`, `--testing`, `--produccion`                                                                     |
 
+`consultar` muestra el CAE, el receptor, los importes con sus alícuotas y tributos, y, si los tiene, el período de servicio, el vencimiento del pago, el comprobante asociado de una nota (o su período asociado), si se cobra en la misma moneda extranjera, los datos de FCE (CBU, alias, transferencia, anulación) y las observaciones de ARCA.
+
 Sin `--pv` usan el punto de venta de la config. Aceptan también la `E` (`fe`, `nde`, `nce`), que se consulta en WSFEX con su certificado. Si el comprobante no existe, `consultar` termina con el error `VOUCHER_NOT_FOUND`. El formato del JSON está en [Entrada y salida](input-output.md#comprobantes-emitidos-ultimos-y-consultar).
 
 ## Consultar el régimen FCE
@@ -797,10 +834,10 @@ arcli fce-obligado 30546689979
 arcli fce-obligado 30546689979 --fecha 15/10 --json
 ```
 
-| Flag                                  | Alias   | Descripción                                   |
-| ------------------------------------- | ------- | --------------------------------------------- |
-| `--fecha <fecha>`                     | `-f`    | Fecha de emisión a consultar; por defecto hoy |
-| `--json`, `--testing`, `--produccion` | ninguno | Flags globales                                |
+| Flag                                  | Alias   | Descripción                                                                       |
+| ------------------------------------- | ------- | --------------------------------------------------------------------------------- |
+| `--fecha <fecha>`                     | `-f`    | Fecha de emisión a consultar; por defecto hoy. También `hoy`, `ayer`, `+N` o `-N` |
+| `--json`, `--testing`, `--produccion` | ninguno | Flags globales                                                                    |
 
 Usa el servicio `wsfecred`, que hay que autorizar aparte de `wsfe`. Ver [Autorizar el servicio web](certificado-testing-completa.md#3-autorizar-el-servicio-web).
 
@@ -810,7 +847,7 @@ El JSON está en [Entrada y salida](input-output.md#régimen-fce-fce-obligado).
 
 ## Consultar el padrón
 
-`arcli padron <cuit>` muestra lo que ARCA tiene de un CUIT: nombre o razón social, domicilio fiscal, condición frente al IVA, impuestos, categoría de monotributo y actividad principal.
+`arcli padron <cuit>` muestra lo que ARCA tiene de un CUIT: nombre o razón social, domicilio fiscal, condición frente al IVA, impuestos, categoría de monotributo (la letra, el tipo de actividad y desde qué mes rige) y actividad principal.
 
 ```bash
 arcli padron 20201797064
@@ -821,7 +858,7 @@ arcli padron 20201797064 --json
 | ------------------------------------- | ------- | -------------- |
 | `--json`, `--testing`, `--produccion` | ninguno | Flags globales |
 
-La condición IVA sale de los impuestos activos: monotributo es `responsable-monotributo`, IVA es `responsable-inscripto` e IVA exento es `sujeto-exento`. Con otros datos queda sin informar (`condicionIva: null`). Si el CUIT no está en el padrón, termina con el error `TAXPAYER_NOT_FOUND`. En testing el padrón tiene datos ficticios: `20201797064` devuelve datos completos. El JSON está en [Entrada y salida](input-output.md#padrón-padron).
+La condición IVA sale de los impuestos activos: monotributo es `responsable-monotributo`, IVA es `responsable-inscripto` e IVA exento es `sujeto-exento`. Con otros datos queda sin informar (`condicionIva: null`). Si el CUIT no está en el padrón, termina con el error `TAXPAYER_NOT_FOUND`. En testing el padrón tiene datos ficticios: `20201797064` devuelve datos completos y `20333333334` es un monotributista. El JSON está en [Entrada y salida](input-output.md#padrón-padron).
 
 Usa el servicio `ws_sr_constancia_inscripcion`, que hay que autorizar aparte de `wsfe`. Ver [Autorizar el servicio web](certificado-testing-completa.md#3-autorizar-el-servicio-web).
 
@@ -837,6 +874,43 @@ Al facturar con `--cuit` sin `--ir` (ni `ivaReceptor` en el JSON), ARCLI consult
 | Lo mismo, sin `ivaReceptor` en la config        | Error `INPUT_VALIDATION_ERROR`: indicala con `--ir`         |
 
 Para no consultarlo: `arcli config establecer consultarPadron false`. El modo interactivo hace la misma consulta al cargar un CUIT y propone esa condición, marcada "(según el padrón)".
+
+## Categorías del monotributo
+
+`arcli monotributo` muestra las 11 categorías (A a K) con el tope de ingresos anuales y la cuota mensual de servicios y de ventas. Si el CUIT de la config es monotributista, su fila sale marcada con `❯` y "tu categoría".
+
+```bash
+arcli monotributo
+arcli monotributo --categoria E
+arcli monotributo --completa
+arcli monotributo --actualizar
+arcli monotributo --json
+```
+
+| Flag                                  | Alias   | Descripción                                                                                     |
+| ------------------------------------- | ------- | ----------------------------------------------------------------------------------------------- |
+| `--categoria <letra>`                 | ninguno | Una categoría completa: límites anuales, cuota mensual con su desglose y la categoría siguiente |
+| `--completa`                          | ninguno | Todas las columnas, en dos bloques: límites anuales y cuota mensual en pesos                    |
+| `--actualizar`                        | ninguno | Vuelve a leer la tabla en la página de ARCA y tu categoría en el padrón                         |
+| `--json`, `--testing`, `--produccion` | ninguno | Flags globales                                                                                  |
+
+`--categoria` acepta una letra de la A a la K, en mayúscula o minúscula; otra cosa es `INPUT_VALIDATION_ERROR`. No se usa junto con `--completa`.
+
+**De dónde sale la tabla.** ARCA no tiene un web service con las categorías: ARCLI lee la [página de categorías](https://www.afip.gob.ar/monotributo/categorias.asp), que es pública y no usa el certificado, y la guarda en la carpeta de config (`monotributo.json`) con la fecha de consulta y la de vigencia. La lee la primera vez que corrés el comando y después solo con `--actualizar` (o "Actualizar desde ARCA" en el modo interactivo). ARCLI trae además una tabla incluida, con los valores vigentes al publicarse la versión: se usa si no hay conexión, si la página cambió y no se puede leer, o si es más nueva que la guardada.
+
+Antes de usar lo leído, ARCLI lo controla: 11 filas de la A a la K, topes que crecen y cuotas que son la suma de impuesto integrado, aporte jubilatorio (SIPA) y obra social. Si algo no da, descarta la lectura, avisa y sigue con la guardada o la incluida. Los avisos salen arriba de la tabla, en stderr:
+
+| Situación                                               | Aviso                                                                                                                 |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Sin conexión, ARCA no respondió a tiempo o dio un error | "No se pudo consultar la tabla en ARCA (sin conexión). Se muestra la incluida en ARCLI x.y.z, vigente desde el …"     |
+| La página cambió y no pasa el control                   | "La página de ARCA cambió y ARCLI no pudo leer la tabla. Se usa la guardada el …. Si sigue, avisanos en GitHub: …"    |
+| Ya pasó el 1/2 o el 1/8 y la tabla rige desde antes     | "ARCA actualiza las categorías en febrero y agosto. La tabla guardada es del … y puede haber una nueva. Actualizala…" |
+
+**Tu categoría.** Sale del padrón (`ws_sr_constancia_inscripcion`) con el CUIT y el certificado de la config, en el entorno activo. Se consulta una vez y se guarda junto con la tabla; `--actualizar` la vuelve a leer. Sin certificado, sin el servicio autorizado o si el CUIT no es monotributista, no se marca ninguna fila y el comando sigue igual. En testing el padrón tiene datos ficticios, así que tu CUIT real no aparece.
+
+**Tu tope.** Con `monotributo.tope` en la config (ver [Configuración](configuration.md)), la tabla lo muestra debajo, junto a la fuente.
+
+En una terminal angosta, cada categoría ocupa dos líneas: el tope arriba y las dos cuotas abajo. El JSON está en [Entrada y salida](input-output.md#categorías-del-monotributo-monotributo).
 
 ## Autocompletado
 

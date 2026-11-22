@@ -51,6 +51,17 @@ describe('tabla de rechazos de ARCA', () => {
     expect(findArcaRejections([99999], 'otra cosa')).toEqual([]);
   });
 
+  it('10154: la nota FCE de anulación pide que el comprador rechace el asociado, por código o por mensaje', () => {
+    const [rejection] = findArcaRejections([10154], '');
+
+    expect(formatArcaRejection(rejection)).toMatch(
+      /^Una nota FCE de anulación necesita que el comprador haya rechazado.*Pedile al comprador que lo rechace.*sin `--anulacion`.*Más info: https:.*#arca-rechaza-la-nota-fce-de-anulación$/,
+    );
+    expect(findArcaRejections([], 'Comprobante electronico autorizado, NO rechazado por el Comprador')).toEqual([
+      rejection,
+    ]);
+  });
+
   it('el texto dice qué pasó, qué hacer y el link', () => {
     const [rejection] = findArcaRejections([10174], '');
 
@@ -86,6 +97,28 @@ describe('mapBillingResponse: sugerencias', () => {
 
     expect(summary.status).toBe('observado');
     expect(summary.suggestions).toEqual([expect.stringContaining('No es un rechazo')]);
+  });
+
+  it.each([
+    [10236, /límite de tu categoría de Monotributo.*No es un rechazo.*próxima recategorización.*`arcli monotributo`/],
+    [817, /límite de tu categoría de Monotributo/],
+    [10235, /categoría máxima del Monotributo.*No es un rechazo.*régimen general.*`arcli monotributo`/],
+    [816, /categoría máxima del Monotributo/],
+  ])('la observación %i del tope del Monotributo explica que el comprobante está emitido (MONO-6)', (code, text) => {
+    const summary = mapBillingResponse({
+      cae: '12345678901234',
+      caeFchVto: '20261130',
+      response: {
+        FeDetResp: { FECAEDetResponse: [{ Observaciones: { Obs: [{ Code: code, Msg: 'Obs' }] }, Resultado: 'A' }] },
+      },
+    } as never);
+
+    expect(summary.status).toBe('observado');
+    expect(summary.suggestions).toEqual([expect.stringMatching(text)]);
+  });
+
+  it('el receptor igual al emisor se reconoce por el código 10069 o por el mensaje', () => {
+    expect(findArcaRejections([10069], '')).toEqual(findArcaRejections([], 'DocNro no puede ser igual al del emisor'));
   });
 
   it('separa el 10017 (receptor no activo) del 10217 (crédito fiscal de un monotributista)', () => {

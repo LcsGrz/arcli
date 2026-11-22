@@ -1,19 +1,25 @@
-import { formatArcaDateAsArgentineDate, parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
+import {
+  formatArcaDateAsArgentineDate,
+  formatDateAsArcaDate,
+  parseArgentineDateInputAsArcaDate,
+} from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
+import { assertRules } from '../../lib/rules/rules';
 import type { IPeriodoAsoc } from '../../services/arca/arca-sdk.types';
 
-import { formatVoucherSubject, formatVoucherWithArticle } from './billing.mappers';
+import { formatVoucherSubject } from './billing.mappers';
+import { ASSOCIATED_PERIOD_RULES } from './billing.rules';
 import type { BillingCommandInput } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
 
-const MINIMUM_PERIOD_DATE = '20060101';
-
 /**
  * PeriodoAsoc es la alternativa a CbtesAsoc para NC/ND que ajustan un periodo y no una factura puntual (10197).
- * No aplica a facturas (10198) ni a comprobantes FCE (10196).
+ * No aplica a facturas (10198) ni a comprobantes FCE (10196). Codigos de WSFEv1 v4.7: 10199 y 10203 las dos fechas,
+ * 10206 el minimo, 10207 el orden y 10208 el tope. Que no vaya junto con CbtesAsoc tambien es la 10197: el texto dice
+ * "o" y ARCA testing rechaza los dos juntos.
  */
 export function resolveAssociatedPeriod(
-  input: Pick<BillingCommandInput, 'associatedPeriod' | 'associatedVoucher'>,
+  input: Pick<BillingCommandInput, 'associatedPeriod' | 'associatedVoucher' | 'billingDate'>,
   voucherKind: VoucherKindDefinition,
   billingDate: string,
 ): IPeriodoAsoc | undefined {
@@ -45,24 +51,18 @@ export function resolveAssociatedPeriod(
     throw new InputValidationError('El período asociado requiere ambas fechas: `--periodo-desde` y `--periodo-hasta`.');
   }
 
-  const FchDesde = parseArgentineDateInputAsArcaDate(period.desde);
-  const FchHasta = parseArgentineDateInputAsArcaDate(period.hasta);
+  // Las reglas del periodo (10206 a 10208) son las mismas que usa el asistente al preguntarlo.
+  assertRules(
+    ASSOCIATED_PERIOD_RULES,
+    { ...input, billingDate: formatArcaDateAsArgentineDate(billingDate) },
+    {
+      today: formatDateAsArcaDate(new Date()),
+      voucherKind,
+    },
+  );
 
-  if (FchDesde < MINIMUM_PERIOD_DATE) {
-    throw new InputValidationError('El período asociado tiene que ser posterior al 01/01/2006.');
-  }
-
-  if (FchDesde > FchHasta) {
-    throw new InputValidationError(
-      'En el período asociado, `--periodo-desde` no puede ser posterior a `--periodo-hasta`.',
-    );
-  }
-
-  if (FchHasta > billingDate) {
-    throw new InputValidationError(
-      `El período asociado no puede terminar después de la fecha de ${formatVoucherWithArticle(voucherKind)} (${formatArcaDateAsArgentineDate(billingDate)}).`,
-    );
-  }
-
-  return { FchDesde, FchHasta };
+  return {
+    FchDesde: parseArgentineDateInputAsArcaDate(period.desde),
+    FchHasta: parseArgentineDateInputAsArcaDate(period.hasta),
+  };
 }

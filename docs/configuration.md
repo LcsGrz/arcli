@@ -29,9 +29,9 @@ arcli config ruta
 
 Si el archivo no existe, `arcli config` lo crea automáticamente.
 
-En esa carpeta también quedan `certificados/<CUIT>/` (con la clave privada), `tickets/` y `plugins/`. **Respaldala:** si perdés la clave privada, el certificado deja de servir y hay que sacar otro.
+En esa carpeta también quedan `certificados/<CUIT>/` (con la clave privada), `tickets/`, `plugins/` y `monotributo.json` (la tabla de categorías que guarda [`arcli monotributo`](cli-reference.md#categorías-del-monotributo); si la borrás, se vuelve a leer). **Respaldala:** si perdés la clave privada, el certificado deja de servir y hay que sacar otro.
 
-`arcli config` muestra los datos agrupados en secciones: cuenta, certificados, al facturar, FCE, factura de exportación (E), datos del emisor (PDF), PDF, y salida y listados. Son las mismas secciones, en el mismo orden, que "Modificar configuración" del [modo interactivo](modo-interactivo.md).
+`arcli config` muestra los datos agrupados en secciones: cuenta, certificados, al facturar, FCE, factura de exportación (E), monotributo, datos del emisor (PDF), PDF, y salida y listados. Son las mismas secciones, en el mismo orden, que "Modificar configuración" del [modo interactivo](modo-interactivo.md).
 
 ## Claves soportadas
 
@@ -75,11 +75,11 @@ Valores por defecto, para no repetir flags.
 
 Solo si emitís Factura de Crédito Electrónica.
 
-| Clave          | Tipo    | Valor por defecto | Descripción                                       |
-| -------------- | ------- | ----------------- | ------------------------------------------------- |
-| `cbu`          | string  | ninguno           | CBU del emisor (solo facturas FCE)                |
-| `aliasCbu`     | string  | ninguno           | Alias del CBU (solo facturas FCE)                 |
-| `verificarFce` | boolean | `false`           | Consultar el régimen FCE del receptor al facturar |
+| Clave          | Tipo    | Valor por defecto | Descripción                                                                                                                          |
+| -------------- | ------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `cbu`          | string  | ninguno           | CBU del emisor (solo facturas FCE). Se validan los 22 dígitos y sus [dos verificadores](validation-rules.md#crédito-electrónico-fce) |
+| `aliasCbu`     | string  | ninguno           | Alias del CBU (solo facturas FCE)                                                                                                    |
+| `verificarFce` | boolean | `false`           | Consultar el régimen FCE del receptor al facturar                                                                                    |
 
 ### Exportación
 
@@ -92,6 +92,12 @@ Solo si emitís la Factura E.
 | `exportacion.key.testing`     | string | ninguno           | Ruta a la clave privada del servicio `wsfex` para testing; si falta, se usa `key.testing`                                         |
 | `exportacion.key.produccion`  | string | ninguno           | Ruta a la clave privada del servicio `wsfex` para producción; si falta, se usa `key.produccion`                                   |
 | `exportacion.actividad`       | number | ninguno           | Código de la tabla de actividades de WSFEX que informa la factura de exportación `E`, por ejemplo `620100`; `--actividad` lo pisa |
+
+### Monotributo
+
+| Clave              | Tipo   | Valor por defecto  | Descripción                                                                                                                                       |
+| ------------------ | ------ | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `monotributo.tope` | number | el de tu categoría | Tope de ingresos anuales propio, en pesos (`30.000.000` o `30000000`); pisa el de tu categoría. `arcli monotributo` lo muestra debajo de la tabla |
 
 ### PDF y datos del emisor
 
@@ -255,6 +261,7 @@ No son claves de config. Las de color, `FORCE_HYPERLINK` y `ARCLI_ASCII` cambian
 | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `NO_COLOR`                  | Desactiva los colores                                                                                                                                                                                                 |
 | `FORCE_COLOR`               | `1` fuerza los colores aunque la salida no sea una terminal (por defecto, con la salida redirigida no hay colores); `0` o `false` los apaga                                                                           |
+| `TERM=dumb`                 | Desactiva los colores, como en terminales que no entienden códigos de escape (Emacs `M-x shell`, algunas consolas de CI). `FORCE_COLOR` gana sobre `TERM=dumb` y `NO_COLOR` gana sobre los dos                        |
 | `ARCLI_ASCII=1`             | Dibuja los paneles y los símbolos con ASCII puro (`+`, `-`, `\|`), para terminales o fuentes que no muestran los caracteres de caja Unicode. Las tildes y la `ñ` se mantienen                                         |
 | `FORCE_HYPERLINK=0`         | Apaga los links clickeables en las rutas (con `1` los fuerza). Por defecto se usan en terminales que los soportan, como VS Code, iTerm2 o Windows Terminal                                                            |
 | `ARCLI_CONFIG_DIR`          | Usa otra carpeta de config, con su `config.json`, tickets, plugins y certificados. Sirve para tener una config aparte (otro CUIT, pruebas) sin tocar la de siempre. `arcli config ruta` muestra la que se está usando |

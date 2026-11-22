@@ -1,0 +1,20 @@
+$ arcli fe --cliente ACME LLC --domicilio-cliente 123 Main St --pais-destino 212 -m 1500 --item 001|Servicios de consultoría|1|1500|unidad --previsualizar --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "ARCA_EXPORT_ERROR",
+  "detalles": {
+    "errores": [
+      {
+        "codigo": 1000,
+        "mensaje": "Error interno de la aplicacion."
+      }
+    ]
+  },
+  "error": "ARCA devolvió un error al consultar el último ID de solicitud: Error interno de la aplicacion.",
+  "sugerencia": null
+}
+

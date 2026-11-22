@@ -35,9 +35,9 @@ ARCLI emite la factura `E` y sus notas de crédito y débito (`nce`, `nde`). No 
 - La cotización es la de aduana que publica WSFEX (`FEXGetPARAM_MON_CON_COTIZACION`), no la de `wsfe`, y no se toma de la clave `cotizacion` de la config.
 - En homologación, ARCA rechazó una nota de crédito de servicios asociada a una nota de débito (error 2055) aunque la nota de débito tenía su factura asociada. ARCLI no la bloquea: si ARCA la rechaza, no se emite nada.
 
-### Recibo C con la plantilla de factura
+### Recibos con la plantilla de factura
 
-El PDF del Recibo C (`rc`) usa la plantilla de factura con el título `RECIBO C`, no el formato de recibo del portal de ARCA (sin "Recibí(mos) la suma de").
+El PDF de los recibos (`ra`, `rb`, `rc`) usa la plantilla de factura con el título `RECIBO A`, `RECIBO B` o `RECIBO C`, no el formato de recibo del portal de ARCA (sin "Recibí(mos) la suma de").
 
 ### PDF solo al emitir
 

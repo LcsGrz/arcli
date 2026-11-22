@@ -67,6 +67,30 @@ describe('ArcaParametersGateway', () => {
     expect(getQuotation).toHaveBeenCalledWith('DOL');
   });
 
+  it.each([
+    ['cero', { resultGet: { fchCotiz: '20261004', monCotiz: 0, monId: 'DOL' } }],
+    ['faltante', { resultGet: { fchCotiz: '20261004', monId: 'DOL' } }],
+    ['sin resultGet', {}],
+  ])('fails with ARCA_QUOTATION_ERROR when the quotation is %s', async (_label, response) => {
+    const gateway = createGateway({ getQuotation: vi.fn(async () => response) });
+
+    await expect(gateway.getQuotation('usd')).rejects.toMatchObject({
+      code: 'ARCA_QUOTATION_ERROR',
+      details: { errores: [] },
+      message: 'ARCA no devolvió una cotización para usd.',
+    });
+  });
+
+  it('keeps the ARCA errors of a missing quotation in detalles.errores', async () => {
+    const errors = { err: [{ code: 600, msg: 'Moneda inexistente' }] };
+    const gateway = createGateway({ getQuotation: vi.fn(async () => ({ errors })) });
+
+    await expect(gateway.getQuotation('XXX')).rejects.toMatchObject({
+      code: 'ARCA_QUOTATION_ERROR',
+      details: { errores: [{ codigo: 600, mensaje: 'Moneda inexistente' }], errors },
+    });
+  });
+
   it('maps the server status', async () => {
     const gateway = createGateway({
       getServerStatus: vi.fn(async () => ({ appServer: 'OK', authServer: 'OK', dbServer: 'ERROR' })),
