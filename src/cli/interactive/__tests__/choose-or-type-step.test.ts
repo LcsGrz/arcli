@@ -265,3 +265,13 @@ describe('chooseOrTypeStep: un dato fiscal sin valor por defecto (`requireChoice
     expect(answer).toBe('b');
   });
 });
+
+describe('chooseOrTypeStep: sin la fila "Volver" (`backRow: false`)', () => {
+  it('no la muestra, las flechas no pasan de la última fila y Esc sigue volviendo', async () => {
+    const { answer, frames } = await run({ backRow: false, parse }, [DOWN, DOWN, DOWN, BACK]);
+
+    expect(lastDraw(frames[0])).not.toContain('Volver');
+    expect(lastDraw(frames.at(-1))).toContain('❯ Beta');
+    expect(answer).toBe(BACK);
+  });
+});

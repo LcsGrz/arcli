@@ -621,6 +621,11 @@ export async function browseBlocks<B extends string>(
 
 export interface ChooseOrTypeStepOptions<T> {
   /**
+   * `false`: sin la fila "← Volver", para una pregunta sin paso anterior (la condicion de venta del PDF). Esc sigue
+   * devolviendo `BACK`.
+   */
+  readonly backRow?: boolean;
+  /**
    * La primera fila de una pregunta opcional (`optional`): dice que pasa si se deja vacia, por ejemplo "Sin CUIT del
    * país (solo ID impositivo)". Arranca marcada si no hay `previous`, y elegirla devuelve `undefined`. Por defecto,
    * "Omitir".
@@ -710,7 +715,7 @@ export async function chooseOrTypeStep<T>(
     (context) =>
       filterList<ChooseOrTypeAnswer<T>>(
         {
-          back: BACK_CHOICE.name,
+          back: options.backRow === false ? undefined : BACK_CHOICE.name,
           default: previousRow?.value,
           header: options.header,
           help: options.help,

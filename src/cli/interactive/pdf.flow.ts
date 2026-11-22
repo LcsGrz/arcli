@@ -41,6 +41,8 @@ async function askSaleCondition(current: string | undefined): Promise<Back | str
     // La clave tambien la encuentra al escribir: "contado" o "cheque".
     SALE_CONDITION_KEYS.map((key) => ({ keywords: key, label: SALE_CONDITION_LABELS[key], value: key })),
     {
+      // Las preguntas anteriores del PDF no vuelven: "Volver" no tendria adonde ir. Esc cancela el PDF.
+      backRow: false,
       emptyLabel: 'Omitir',
       optional: true,
       parse: (text) => text,

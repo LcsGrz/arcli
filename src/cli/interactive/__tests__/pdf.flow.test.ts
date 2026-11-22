@@ -207,6 +207,8 @@ describe('offerPdf', () => {
 
     expect(attachPdfsMock).not.toHaveBeenCalled();
     expect(vi.mocked(writeTerminalOutput)).toHaveBeenCalledWith(expect.stringContaining('no se generó el PDF'));
+    // Sin la fila "← Volver": las preguntas anteriores del PDF no vuelven.
+    expect(script.chooseOrTypeStep.mock.calls[0]?.[2].backRow).toBe(false);
     askTextMock.mockReset();
   });
 
