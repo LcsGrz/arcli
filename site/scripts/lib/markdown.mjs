@@ -1,6 +1,8 @@
 /** Utilidades de Markdown y HTML que comparten las transformaciones. Funciones puras. */
 
-export const escapeHtml = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+/** Sirve también dentro de un atributo entre comillas (`data-icon="…"`): escapa las comillas dobles. */
+export const escapeHtml = (text) =>
+  text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 /** Markdown en linea (codigo y negrita) a HTML, para lo que va adentro de una tarjeta. */
 export const inlineHtml = (text) =>
