@@ -19,12 +19,12 @@ import {
   officialRateQuery,
   withOfficialRequirement,
 } from '../../../modules/interactive/steps/consumer';
+import { normalizeDocumentNumber } from '../../../modules/interactive/validators';
 import { BACK, type Back, type WizardStep } from '../../../modules/interactive/wizard';
 import { noticePanel, writeTerminalOutput } from '../../../ui';
 import type { OfficialExchangeRate } from '../official-exchange-rate';
 import { chooseStep } from '../prompts';
 import { askDocumentNumber } from '../receiver-padron';
-import { normalizeDocumentNumber } from '../validators';
 
 /** Con que documento se identifica al consumidor final: DNI, CUIT o CUIL. */
 async function askConsumerDocumentType(previous?: ConsumerDocumentType): Promise<Back | ConsumerDocumentType> {

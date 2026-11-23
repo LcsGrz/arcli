@@ -17,11 +17,11 @@ import {
 import type { RowEdits } from '../../../modules/interactive/row-marks';
 import { amountCurrencyCode, amountQuestion } from '../../../modules/interactive/steps/amount';
 import type { Lens } from '../../../modules/interactive/steps/lens';
+import { validateItemNumber } from '../../../modules/interactive/validators';
 import { BACK, type Back, type WizardDependency, type WizardStep } from '../../../modules/interactive/wizard';
 import { noticePanel, writeTerminalOutput } from '../../../ui';
 import { withSpinner } from '../../spinner';
 import { askTextStep, chooseFromFilterList, chooseStep, editRowsStep } from '../prompts';
-import { validateItemNumber } from '../validators';
 
 export interface ExportItemsStepDef<S> {
   readonly items: Lens<S, readonly ExportItemInput[]>;

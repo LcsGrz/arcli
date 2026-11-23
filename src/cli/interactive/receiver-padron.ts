@@ -4,13 +4,13 @@ import type { VoucherLetter } from '../../modules/billing/billing.types';
 import { isPadronLookupEnabled } from '../../modules/config/config.schemas';
 import { availableChoice, ivaConditionChoices } from '../../modules/interactive/choices';
 import type { ReceiverFromPadron } from '../../modules/interactive/receiver-document';
+import { validateCuil, validateCuit, validateDni } from '../../modules/interactive/validators';
 import { BACK, type Back } from '../../modules/interactive/wizard';
 import { ArcaPadronGateway } from '../../services/arca/arca-padron.gateway';
 import { startSpinner } from '../spinner';
 
 import { askTextStep, chooseStep } from './prompts';
 import type { InteractiveSession } from './session';
-import { validateCuil, validateCuit, validateDni } from './validators';
 
 const DOCUMENT_PROMPTS = {
   cuil: { label: 'CUIL', validate: validateCuil },

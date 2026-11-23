@@ -20,13 +20,13 @@ import {
   exportFixedExchangeRate,
 } from '../../../modules/interactive/steps/currency';
 import type { Lens } from '../../../modules/interactive/steps/lens';
+import { validateExchangeRate, validatePositiveInteger } from '../../../modules/interactive/validators';
 import { BACK, type WizardDependency, type WizardStep } from '../../../modules/interactive/wizard';
 import { formatTableRows, noticePanel, writeTerminalOutput } from '../../../ui';
 import { withSpinner } from '../../spinner';
 import { validateExportPaymentDate } from '../export-options';
 import type { FilterListRow } from '../filter-list';
 import { chooseOrTypeStep } from '../prompts';
-import { validateExchangeRate, validatePositiveInteger } from '../validators';
 
 import { exchangeRateStep } from './currency';
 import { dateStep } from './date';

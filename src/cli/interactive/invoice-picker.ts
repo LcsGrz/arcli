@@ -7,6 +7,7 @@ import { resolveRowsPerList } from '../../modules/config/config.schemas';
 import { formatExportVoucherPickerRows } from '../../modules/export/export.history.presenter';
 import type { ExportGateway, ExportIssuedVoucher, ExportVoucherKind } from '../../modules/export/export.types';
 import type { OtherSystemInvoice } from '../../modules/interactive/note-input';
+import { validatePositiveInteger } from '../../modules/interactive/validators';
 import { BACK, type Back } from '../../modules/interactive/wizard';
 import { fetchVouchersBackwards, type IssuedVoucher } from '../../modules/vouchers/voucher-history';
 import { formatVoucherNumber, formatVoucherPickerRows } from '../../modules/vouchers/voucher-history.presenter';
@@ -26,7 +27,6 @@ import {
   type LoadingResult,
 } from './prompts';
 import type { InteractiveSession } from './session';
-import { validatePositiveInteger } from './validators';
 
 /** Comprobante elegido y el punto de venta donde se emitio (a mano puede ser otro que el configurado). */
 export interface PickedVoucher<T> {

@@ -1,6 +1,7 @@
 import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { parseCuit } from '../../lib/identity/cuit';
+import { parseDni } from '../../lib/identity/dni';
 import { assertRules } from '../../lib/rules/rules';
 
 import { formatDocumentFlag, formatVoucherSubject, formatVoucherWithArticle } from './billing.mappers';
@@ -185,9 +186,8 @@ export function validateDocumentIdentity(
     });
   }
 
-  // Propia: ARCA acepta cualquier DocNro de hasta 11 digitos (p. 28) y testing aprobo una B a DNI 543210. Desde 6
-  // digitos entran las LE y LC viejas; menos es casi seguro un error de tipeo.
-  if (input.documentType === 'dni' && !/^\d{6,8}$/.test(String(input.documentNumber))) {
+  // Propia (ver `parseDni`): de 6 a 8 dígitos.
+  if (input.documentType === 'dni' && !parseDni(input.documentNumber ?? '').ok) {
     throw new InputValidationError(
       `\`--dni\` debe tener de 6 a 8 dígitos en ${formatVoucherWithArticle(voucherKind)}.`,
     );

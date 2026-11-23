@@ -4,9 +4,9 @@ import type { BillingRuleScope } from '../../../modules/interactive/billing-opti
 import { scopedRuleValidator } from '../../../modules/interactive/rule-validator';
 import { AMOUNT_CURRENCY_FIELD, amountCurrencyCode, amountQuestion } from '../../../modules/interactive/steps/amount';
 import type { Lens } from '../../../modules/interactive/steps/lens';
+import { validateAmount } from '../../../modules/interactive/validators';
 import { BACK, type WizardDependency, type WizardFinalize, type WizardStep } from '../../../modules/interactive/wizard';
 import { askTextStep } from '../prompts';
-import { validateAmount } from '../validators';
 
 /**
  * La moneda nueva cuando `finalize` vuelve al monto porque los opcionales cambiaron la moneda en que se escribio

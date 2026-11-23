@@ -5,9 +5,9 @@ import type { BillingRuleScope } from '../../../modules/interactive/billing-opti
 import { completeDateInput } from '../../../modules/interactive/date-input';
 import { scopedRuleValidator } from '../../../modules/interactive/rule-validator';
 import type { Lens } from '../../../modules/interactive/steps/lens';
+import { validateDate } from '../../../modules/interactive/validators';
 import { BACK, type WizardDependency, type WizardStep } from '../../../modules/interactive/wizard';
 import { askTextStep } from '../prompts';
-import { validateDate } from '../validators';
 
 export interface DateStepDef<S> {
   readonly name: string;
@@ -88,7 +88,7 @@ export function servicePeriodSteps<S>(def: ServicePeriodStepsDef<S>): Array<Wiza
           field,
           def.rules(state),
           (value) => ({ ...def.answered(state), [field]: completeDateInput(value) }),
-          validateDate,
+          (value: string) => validateDate(value, new Date()),
         ),
       writes: [field],
     });

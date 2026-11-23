@@ -24,6 +24,7 @@ import { defaultIvaRate } from '../../modules/interactive/iva-rate';
 import { scopedRuleValidator } from '../../modules/interactive/rule-validator';
 import { foreignCurrencyOf, repeatCurrencyLock } from '../../modules/interactive/steps/currency';
 import { fieldLens, nestedLens } from '../../modules/interactive/steps/lens';
+import { normalizeDocumentNumber, validateCuit } from '../../modules/interactive/validators';
 import { BACK, type Back, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import type { IssuedVoucher } from '../../modules/vouchers/voucher-history';
 import { noticePanel, writeTerminalOutput } from '../../ui';
@@ -44,7 +45,6 @@ import { currencySteps } from './steps/currency';
 import { servicePeriodSteps } from './steps/date';
 import { receiverIvaStep } from './steps/receiver';
 import { sameAmountStep } from './steps/same-amount';
-import { normalizeDocumentNumber, validateCuit } from './validators';
 
 type RepeatPeriod = 'actual' | 'anterior' | 'hoy' | 'otro';
 

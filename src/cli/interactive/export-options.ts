@@ -23,6 +23,7 @@ import {
   type ExportOptions,
 } from '../../modules/interactive/export-optionals';
 import { ruleValidator, scopedRuleValidator } from '../../modules/interactive/rule-validator';
+import { validateExportVoucherDate, validateOptionalDate } from '../../modules/interactive/validators';
 import { BACK, type Back, requireStepValue, type WizardStep } from '../../modules/interactive/wizard';
 import { formatTableRows } from '../../ui';
 import { withSpinner } from '../spinner';
@@ -30,7 +31,6 @@ import { withSpinner } from '../spinner';
 import { optionalsStep } from './optionals-step';
 import { askTextStep, chooseOrTypeStep, chooseStep } from './prompts';
 import { dateStep } from './steps/date';
-import { validateExportVoucherDate, validateOptionalDate } from './validators';
 
 /**
  * Un texto de la E con el largo maximo de ARCA, como el flag (`assertExportTextLengths`). Con `required`, vacio es
@@ -66,7 +66,7 @@ export function validateExportPaymentDate(
     }),
     field: 'paymentDate',
     rules: EXPORT_RULES,
-    validate: validateOptionalDate,
+    validate: (value: string) => validateOptionalDate(value, new Date()),
   })(voucherDate);
 }
 
@@ -214,7 +214,7 @@ function exportQuestions(languageNames: Map<number, string>): ExportOptionalQues
             'voucherDate',
             context.rules,
             (value) => ({ ...current, voucherDate: completeDateInput(value) }),
-            (value) => validateExportVoucherDate(value, context.exportType),
+            (value) => validateExportVoucherDate(value, context.exportType, new Date()),
           ),
         writes: ['voucherDate'],
       }),

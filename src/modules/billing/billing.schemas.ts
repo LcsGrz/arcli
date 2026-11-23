@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { describeInvalidCbu, parseCbu } from '../../lib/identity/cbu';
+import { describeInvalidCbuAlias, parseCbuAlias } from '../../lib/identity/cbu-alias';
 import { parseCuit } from '../../lib/identity/cuit';
 import {
   AMOUNT_DECIMALS,
@@ -180,17 +181,26 @@ export const cbuSchema = z.string().transform((value, context) => {
   return result.value;
 });
 
+/** Alias del CBU de la FCE, el mismo en flags, `--cargar` y la config. */
+export const cbuAliasSchema = z.string().transform((value, context) => {
+  const result = parseCbuAlias(value);
+
+  if (!result.ok) {
+    context.addIssue({ code: 'custom', message: describeInvalidCbuAlias(result.reason) });
+
+    return z.NEVER;
+  }
+
+  return result.value;
+});
+
 export const billingCommandSchema = z.object({
   associatedPeriod: billingAssociatedPeriodSchema,
   associatedVoucher: billingAssociatedVoucherSchema,
   billingDate: z.string().trim().optional(),
   cancellation: z.boolean().default(false),
   cbu: cbuSchema.optional(),
-  cbuAlias: z
-    .string()
-    .trim()
-    .regex(/^[A-Za-z0-9.-]{6,20}$/, 'El alias debe tener entre 6 y 20 caracteres (letras, números, punto o guion)')
-    .optional(),
+  cbuAlias: cbuAliasSchema.optional(),
   concept: billingConceptSchema,
   currencyCode: z.string().trim().length(3).default(DEFAULT_CURRENCY_CODE),
   documentNumber: z.number().int().nonnegative().optional(),

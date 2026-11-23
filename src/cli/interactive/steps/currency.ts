@@ -7,10 +7,10 @@ import { currencyName, type ExchangeRateSuggestion } from '../../../modules/inte
 import { currencyChoices } from '../../../modules/interactive/choices';
 import type { CurrencyChoice, CurrencyLock } from '../../../modules/interactive/steps/currency';
 import type { Lens } from '../../../modules/interactive/steps/lens';
+import { validateExchangeRate } from '../../../modules/interactive/validators';
 import { BACK, type Back, type WizardDependency, type WizardStep } from '../../../modules/interactive/wizard';
 import { noticePanel, writeTerminalOutput } from '../../../ui';
 import { askTextStep, chooseStep } from '../prompts';
-import { validateExchangeRate } from '../validators';
 
 /** El codigo de la moneda en la lista de monedas: `PES` para pesos. */
 function currencyChoiceValue(options: { readonly currencyCode?: string } | undefined): string {

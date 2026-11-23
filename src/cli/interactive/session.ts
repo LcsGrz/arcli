@@ -11,6 +11,7 @@ import { BillingService } from '../../modules/billing/billing.service';
 import type { BillingGateway } from '../../modules/billing/billing.types.internal';
 import { buildEquivalentCommand } from '../../modules/interactive/equivalent-command';
 import { isAuthorized } from '../../modules/interactive/steps/config-offer';
+import { validatePointOfSale } from '../../modules/interactive/validators';
 import { BACK, type Back } from '../../modules/interactive/wizard';
 import {
   type EmissionChoice,
@@ -36,7 +37,6 @@ import type { GlobalCliOptions } from '../types';
 import { askEmission, DO_NOT_EMIT_LABEL } from './emission-prompt';
 import { offerPdf } from './pdf.flow';
 import { askTextStep, confirm } from './prompts';
-import { validatePointOfSale } from './validators';
 
 export interface InteractiveSession {
   readonly arca: Arca;

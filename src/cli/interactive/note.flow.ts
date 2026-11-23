@@ -48,6 +48,7 @@ import {
 } from '../../modules/interactive/note-input';
 import { consumerContext } from '../../modules/interactive/steps/consumer';
 import { fieldLens } from '../../modules/interactive/steps/lens';
+import { validateAmount, validateDate } from '../../modules/interactive/validators';
 import { BACK, type Back, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import type { IssuedVoucher } from '../../modules/vouchers/voucher-history';
 import { formatVoucherNumber } from '../../modules/vouchers/voucher-history.presenter';
@@ -65,7 +66,6 @@ import { type AmountCurrencyRetry, amountCurrencyRetry, amountStep, billingAmoun
 import { consumerIdentificationSteps } from './steps/consumer';
 import { dateStep } from './steps/date';
 import { receiverIvaStep, receiverSteps } from './steps/receiver';
-import { validateAmount, validateDate } from './validators';
 
 const isOverNote = (state: NoteState): boolean => isNote(state.invoiceKind);
 
@@ -384,9 +384,13 @@ export function noteSteps(
       },
       name: 'fecha-asociado',
       skip: (state) => !state.otherSystemInvoice,
-      validate: noteRule('associatedVoucher.fecha', validateDate, (value) => ({
-        associatedDate: completeDateInput(value),
-      })),
+      validate: noteRule(
+        'associatedVoucher.fecha',
+        (date) => validateDate(date, new Date()),
+        (value) => ({
+          associatedDate: completeDateInput(value),
+        }),
+      ),
       writes: ['associatedVoucher.fecha'],
     }),
     dateStep<NoteState>({
@@ -394,10 +398,14 @@ export function noteSteps(
       message: 'Período desde:',
       name: 'periodo-desde',
       skip: (state) => !isPeriodNote(state),
-      validate: noteRule('associatedPeriod.desde', validateDate, (value) => ({
-        periodFrom: completeDateInput(value),
-        periodTo: undefined,
-      })),
+      validate: noteRule(
+        'associatedPeriod.desde',
+        (date) => validateDate(date, new Date()),
+        (value) => ({
+          periodFrom: completeDateInput(value),
+          periodTo: undefined,
+        }),
+      ),
       write: (periodFrom) => ({ invoice: undefined, invoicePointOfSale: undefined, periodFrom }),
       writes: ['associatedPeriod.desde'],
     }),
@@ -407,7 +415,11 @@ export function noteSteps(
       message: 'Período hasta:',
       name: 'periodo-hasta',
       skip: (state) => !isPeriodNote(state),
-      validate: noteRule('associatedPeriod.hasta', validateDate, (value) => ({ periodTo: completeDateInput(value) })),
+      validate: noteRule(
+        'associatedPeriod.hasta',
+        (date) => validateDate(date, new Date()),
+        (value) => ({ periodTo: completeDateInput(value) }),
+      ),
       writes: ['associatedPeriod.hasta'],
     }),
     ...receiverSteps<NoteState>({

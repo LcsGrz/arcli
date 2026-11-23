@@ -21,6 +21,7 @@ import {
   type ExportNoteState,
 } from '../../modules/interactive/export-note-input';
 import { fieldLens } from '../../modules/interactive/steps/lens';
+import { validatePositiveInteger } from '../../modules/interactive/validators';
 import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { formatVoucherNumber } from '../../modules/vouchers/voucher-history.presenter';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
@@ -34,7 +35,6 @@ import { askTextStep } from './prompts';
 import { emissionStep, type InteractiveSession, requirePointOfSale } from './session';
 import { exportExchangeRateStep } from './steps/export';
 import { exportItemsStep } from './steps/export-items';
-import { validatePositiveInteger } from './validators';
 
 /** Como se nombra el asociado en las preguntas: "la factura E", "la nota de débito E". */
 const ASSOCIATED_NAMES: Record<ExportVoucherKind['shortcut'], string> = {

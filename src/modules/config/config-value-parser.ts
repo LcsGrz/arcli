@@ -5,6 +5,7 @@ import type { z } from 'zod';
 import { parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
 import { InputIssuesError, InputValidationError } from '../../lib/errors/app-error';
 import { describeInvalidCbu, parseCbu } from '../../lib/identity/cbu';
+import { describeInvalidCbuAlias, parseCbuAlias } from '../../lib/identity/cbu-alias';
 import { parseCuit } from '../../lib/identity/cuit';
 import { EXCHANGE_RATE_DECIMALS, parseArgentineAmount } from '../../lib/numbers/argentine-amount';
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
@@ -177,16 +178,14 @@ function parseCbuValue(value: string): string {
   return result.value;
 }
 
-function parseCbuAlias(value: string): string {
-  const normalizedValue = value.trim();
+function parseCbuAliasValue(value: string): string {
+  const result = parseCbuAlias(value);
 
-  if (!/^[A-Za-z0-9.-]{6,20}$/.test(normalizedValue)) {
-    throw new InputValidationError(
-      `El alias "${value}" no es válido: debe tener entre 6 y 20 letras, números, puntos o guiones.`,
-    );
+  if (!result.ok) {
+    throw new InputValidationError(describeInvalidCbuAlias(result.reason, value));
   }
 
-  return normalizedValue;
+  return result.value;
 }
 
 function parsePositiveInteger(value: string, displayKey?: string): number {
@@ -287,7 +286,7 @@ export function parseConfigValue(
     case 'alicuotaPorDefecto':
       return parseIvaRate(value);
     case 'aliasCbu':
-      return parseCbuAlias(value);
+      return parseCbuAliasValue(value);
     case 'cbu':
       return parseCbuValue(value);
     case 'conceptoPorDefecto':
