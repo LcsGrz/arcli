@@ -1,4 +1,4 @@
-import { Separator } from '@inquirer/select';
+import { Separator } from '@inquirer/core';
 
 import { formatCuit } from '../../lib/identity/format-cuit';
 import { DOCS_SITE_URL } from '../../lib/links';

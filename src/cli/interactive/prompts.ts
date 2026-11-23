@@ -1,5 +1,5 @@
+import { Separator } from '@inquirer/core';
 import input from '@inquirer/input';
-import { Separator } from '@inquirer/select';
 import { emitKeypressEvents } from 'node:readline';
 
 import type { RowEdits } from '../../modules/interactive/row-marks';

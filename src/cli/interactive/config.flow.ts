@@ -1,4 +1,4 @@
-import { Separator } from '@inquirer/select';
+import { Separator } from '@inquirer/core';
 import { join } from 'node:path';
 
 import { AppError } from '../../lib/errors/app-error';

@@ -1,4 +1,4 @@
-import { Separator } from '@inquirer/select';
+import { Separator } from '@inquirer/core';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';

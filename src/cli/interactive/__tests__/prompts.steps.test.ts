@@ -1,4 +1,4 @@
-import { Separator } from '@inquirer/select';
+import { Separator } from '@inquirer/core';
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest';
 
 import { BACK } from '../../../modules/interactive/wizard';

@@ -1,4 +1,4 @@
-import { Separator } from '@inquirer/select';
+import { Separator } from '@inquirer/core';
 
 import { classifyAssociatedPointOfSale } from '../../modules/billing/billing.associated-lookup';
 import { formatNoVouchersEmitted, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';

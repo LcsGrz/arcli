@@ -1,4 +1,4 @@
-import { Separator } from '@inquirer/select';
+import { Separator } from '@inquirer/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { billingCommandSchema } from '../../../modules/billing/billing.schemas';

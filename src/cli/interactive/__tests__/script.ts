@@ -1,4 +1,4 @@
-import { Separator } from '@inquirer/select';
+import { Separator } from '@inquirer/core';
 import { vi } from 'vitest';
 
 import type { RowEdits } from '../../../modules/interactive/row-marks';
