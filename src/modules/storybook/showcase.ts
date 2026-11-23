@@ -86,7 +86,6 @@ function createVoucherKind(partial: Partial<VoucherKindDefinition>): VoucherKind
     family: partial.family ?? 'factura',
     isElectronicCredit: partial.isElectronicCredit ?? false,
     letter: partial.letter ?? 'c',
-    requiresAssociatedVoucher: partial.requiresAssociatedVoucher ?? false,
     shortcut: partial.shortcut ?? 'fc',
   };
 }
@@ -472,7 +471,6 @@ function buildQueriesScene(): string {
         family: 'nota-credito',
         isElectronicCredit: true,
         letter: 'a',
-        requiresAssociatedVoucher: true,
         shortcut: 'ncea',
       }),
     }),

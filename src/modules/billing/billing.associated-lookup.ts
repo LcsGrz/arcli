@@ -13,7 +13,7 @@ import type { BillingService } from './billing.service';
 import type { VoucherKindDefinition } from './billing.types';
 import type { BillingRuntime } from './billing.types.internal';
 import { ARCA_LOCAL_CURRENCY_CODE } from './currency-codes';
-import { getVoucherKindByArcaType, getVoucherKindByShortcut, isFceInvoice, noteSide } from './voucher-kind-map';
+import { getVoucherKindByArcaType, getVoucherKindByShortcut, isFceInvoice, isNote, noteSide } from './voucher-kind-map';
 
 /** `la factura A 00003-00000012`, para usar dentro de una frase. */
 export function describeAssociated(arcaType: number, pointOfSale: number, number: number): string {
@@ -144,7 +144,7 @@ function shouldLookUpAssociated(
 ): boolean {
   const associated = input.associatedVoucher;
 
-  if (!voucherKind.requiresAssociatedVoucher || !associated?.numero || !associated.puntoVenta) {
+  if (!isNote(voucherKind) || !associated?.numero || !associated.puntoVenta) {
     return false;
   }
 
@@ -387,7 +387,7 @@ export async function checkFceCancellationInRegistry(options: {
 
   if (
     !voucherKind?.isElectronicCredit ||
-    !voucherKind.requiresAssociatedVoucher ||
+    !isNote(voucherKind) ||
     !input.cancellation ||
     !associated?.numero ||
     !associated.puntoVenta ||

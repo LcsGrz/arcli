@@ -2,7 +2,7 @@ import { toArgentineCalendarDate } from '../../lib/dates/arca-date';
 import { sectionHeading } from '../../ui/components';
 import { badge, renderLogo, toneText } from '../../ui/primitives';
 import type { VoucherFamily, VoucherKindDefinition } from '../billing/billing.types';
-import { VOUCHER_FAMILIES, VOUCHER_KIND_MAP, VOUCHER_SHORTCUTS } from '../billing/voucher-kind-map';
+import { isNote, VOUCHER_FAMILIES, VOUCHER_KIND_MAP, VOUCHER_SHORTCUTS } from '../billing/voucher-kind-map';
 import {
   EXPORT_VOUCHER_KIND,
   type ExportVoucherKind,
@@ -62,7 +62,7 @@ const EXAMPLE_CBU = '0110599520000012345678';
 
 /** En NC/ND FCE el asociado tiene que ser del CUIT emisor: `--acuit` se omite y se toma de la config. */
 function resolveAssociatedFlags(definition: VoucherKindDefinition, form: 'long' | 'short'): string[] {
-  if (!definition.requiresAssociatedVoucher) {
+  if (!isNote(definition)) {
     return [];
   }
 
@@ -107,7 +107,7 @@ function resolveExampleDates(now: Date): ExampleDates {
 }
 
 function isElectronicCreditNote(definition: VoucherKindDefinition): boolean {
-  return definition.isElectronicCredit && definition.requiresAssociatedVoucher;
+  return definition.isElectronicCredit && isNote(definition);
 }
 
 function resolveElectronicCreditFlags(

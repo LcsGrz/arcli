@@ -42,7 +42,6 @@ function createResult(overrides: Partial<BillingExecutionResult> = {}): BillingE
       family: 'factura',
       isElectronicCredit: false,
       letter: 'a',
-      requiresAssociatedVoucher: false,
       shortcut: 'fa',
     },
     ...overrides,

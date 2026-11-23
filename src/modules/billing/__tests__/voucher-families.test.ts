@@ -4,7 +4,9 @@ import { InputValidationError } from '../../../lib/errors/app-error';
 import { associatedKindGroups } from '../../interactive/associated-kinds';
 import { reciboChoices } from '../../interactive/choices';
 import { resolveTaxAmounts } from '../billing.amounts';
+import { resolveAssociatedVouchers } from '../billing.associated-vouchers';
 import { FCE_OPTIONAL_IDS, resolveElectronicCreditOptionals } from '../billing.fce';
+import type { BillingCommandInput } from '../billing.schemas';
 import type { VoucherFamily, VoucherLetter } from '../billing.types';
 import {
   discriminatesIva,
@@ -87,9 +89,24 @@ describe('familias de comprobante (caracterización de ARQ8-1)', () => {
       const kinds = kindsOf(family);
 
       expect(kinds.length).toBeGreaterThan(0);
-      expect(kinds.map((kind) => kind.requiresAssociatedVoucher)).toEqual(
-        kinds.map(() => expected.noteSide !== undefined),
-      );
+
+      for (const voucherKind of kinds) {
+        const resolve = () =>
+          resolveAssociatedVouchers({
+            billingDate: TODAY,
+            emitterCuit: 20111111112,
+            input: { shortcut: voucherKind.shortcut } as BillingCommandInput,
+            requireVoucherKind: () => voucherKind,
+            today: TODAY,
+            voucherKind,
+          });
+
+        if (expected.noteSide) {
+          expect(resolve).toThrow('requiere comprobante asociado');
+        } else {
+          expect(resolve()).toBeUndefined();
+        }
+      }
     });
 
     it(`lado de la nota: ${expected.noteSide ?? 'ninguno'}`, () => {

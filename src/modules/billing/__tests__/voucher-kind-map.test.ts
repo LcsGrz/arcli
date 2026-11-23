@@ -4,6 +4,7 @@ import {
   getVoucherFamilyLetters,
   getVoucherKindByFamilyAndLetter,
   getVoucherKindByShortcut,
+  isNote,
   VOUCHER_FAMILIES,
   VOUCHER_KIND_MAP,
   VOUCHER_SHORTCUTS,
@@ -17,7 +18,7 @@ describe('voucher-kind-map', () => {
   it('defines recibos A (4) and B (9), like the C: not notes and with no associated voucher', () => {
     expect(VOUCHER_KIND_MAP.ra).toMatchObject({ arcaType: 4, displayName: 'Recibo A', family: 'recibo', letter: 'a' });
     expect(VOUCHER_KIND_MAP.rb).toMatchObject({ arcaType: 9, displayName: 'Recibo B', family: 'recibo', letter: 'b' });
-    expect(VOUCHER_KIND_MAP.ra.requiresAssociatedVoucher).toBe(false);
+    expect(isNote(VOUCHER_KIND_MAP.ra)).toBe(false);
     expect(VOUCHER_KIND_MAP.rb.isElectronicCredit).toBe(false);
     expect(getVoucherFamilyLetters('recibo')).toEqual(['a', 'b', 'c']);
   });
@@ -29,8 +30,8 @@ describe('voucher-kind-map', () => {
       family: 'recibo',
       isElectronicCredit: false,
       letter: 'c',
-      requiresAssociatedVoucher: false,
     });
+    expect(isNote(VOUCHER_KIND_MAP.rc)).toBe(false);
     expect(getVoucherKindByFamilyAndLetter('recibo', 'c')?.shortcut).toBe('rc');
     expect(getVoucherKindByFamilyAndLetter('recibo', 'a')?.shortcut).toBe('ra');
   });
@@ -51,10 +52,10 @@ describe('voucher-kind-map', () => {
     });
   });
 
-  it('marks credit and debit notes as requiring associated vouchers', () => {
-    expect(VOUCHER_KIND_MAP.nca.requiresAssociatedVoucher).toBe(true);
-    expect(VOUCHER_KIND_MAP.ndea.requiresAssociatedVoucher).toBe(true);
-    expect(VOUCHER_KIND_MAP.fa.requiresAssociatedVoucher).toBe(false);
+  it('marks credit and debit notes as notes', () => {
+    expect(isNote(VOUCHER_KIND_MAP.nca)).toBe(true);
+    expect(isNote(VOUCHER_KIND_MAP.ndea)).toBe(true);
+    expect(isNote(VOUCHER_KIND_MAP.fa)).toBe(false);
   });
 
   it('exposes the seven configured voucher families', () => {
