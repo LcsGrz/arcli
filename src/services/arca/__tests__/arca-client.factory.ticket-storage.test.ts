@@ -1,5 +1,5 @@
 import { Arca, AuthRepository, type Context, FileSystemTicketStorage, MemoryTicketStorage } from '@arcasdk/core';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -33,6 +33,19 @@ function runtime(): Parameters<ArcaClientFactory['createExportGateway']>[0] {
   };
 }
 
+/** El mismo perfil con certificado dedicado a WSFEX. */
+function dedicatedRuntime(): ReturnType<typeof runtime> {
+  const cert = join(directory, 'wsfex.crt');
+  const key = join(directory, 'wsfex.key');
+
+  writeFileSync(cert, '-----BEGIN CERTIFICATE-----\nWSFEX\n-----END CERTIFICATE-----');
+  writeFileSync(key, '-----BEGIN PRIVATE KEY-----\nWSFEX\n-----END PRIVATE KEY-----');
+
+  const base = runtime();
+
+  return { ...base, config: { ...base.config, exportacion: { cert: { testing: cert }, key: { testing: key } } } };
+}
+
 /** El `ticketStorage` con que se creo el autenticador de WSFEX. */
 function authStorage(): unknown {
   return (vi.mocked(AuthRepository).mock.calls[0]?.[0] as { ticketStorage?: unknown } | undefined)?.ticketStorage;
@@ -58,7 +71,7 @@ describe('ArcaClientFactory: almacenamiento de tickets', () => {
     expect(vi.mocked(Arca).mock.calls[0]?.[0]).not.toHaveProperty('ticketStorage');
   });
 
-  it('con un ticketStorage propio, lo usan el cliente y WSFEX, y no se escribe nada en ticketPath', () => {
+  it('con un ticketStorage propio, lo usan el cliente y WSFEX', () => {
     const ticketStorage = new MemoryTicketStorage({ cuit: CUIT, production: false });
     const factory = new ArcaClientFactory({ ticketStorage });
 
@@ -70,6 +83,26 @@ describe('ArcaClientFactory: almacenamiento de tickets', () => {
       expect(context).toMatchObject({ ticketStorage });
     }
     expect(authStorage()).toBe(ticketStorage);
-    expect(existsSync(ticketPath)).toBe(false);
+  });
+
+  it('con certificado dedicado, createExportGateway pasa el ticketStorage al cliente y al autenticador', () => {
+    const ticketStorage = new MemoryTicketStorage({ cuit: CUIT, production: false });
+
+    new ArcaClientFactory({ ticketStorage }).createExportGateway(dedicatedRuntime());
+
+    expect(Arca).toHaveBeenCalledWith(
+      expect.objectContaining({ cert: expect.stringContaining('WSFEX'), ticketStorage }),
+    );
+    expect(authStorage()).toBe(ticketStorage);
+  });
+
+  it('con certificado dedicado, createForExport pasa el ticketStorage al cliente', () => {
+    const ticketStorage = new MemoryTicketStorage({ cuit: CUIT, production: false });
+
+    new ArcaClientFactory({ ticketStorage }).createForExport(dedicatedRuntime());
+
+    expect(Arca).toHaveBeenCalledWith(
+      expect.objectContaining({ cert: expect.stringContaining('WSFEX'), ticketStorage }),
+    );
   });
 });

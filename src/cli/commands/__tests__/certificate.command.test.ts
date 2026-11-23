@@ -258,6 +258,16 @@ describe('arcli certificado', () => {
       });
     });
 
+    it('--testing y --produccion juntos: INPUT_VALIDATION_ERROR, sin importar nada', async () => {
+      const { error } = await run(['certificado', 'importar', crtFile, '--testing', '--produccion']);
+
+      expect(error).toMatchObject({
+        code: 'INPUT_VALIDATION_ERROR',
+        message: 'Usá `--testing` o `--produccion`, pero no ambos a la vez.',
+      });
+      expect(importCertificate).not.toHaveBeenCalled();
+    });
+
     it('un archivo que no se puede leer avisa con la ruta', async () => {
       const { error } = await run(['certificado', 'importar', join(tmpdir(), 'no-existe', 'x.crt')]);
 

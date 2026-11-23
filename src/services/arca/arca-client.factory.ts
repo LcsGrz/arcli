@@ -53,7 +53,10 @@ function createWsfexAuthenticator(context: Context): WsfexAuthenticator {
 }
 
 export interface ArcaClientFactoryOptions {
-  /** Donde guardar los tickets de WSAA. Sin definir, en disco, en el `ticketPath` del perfil. */
+  /**
+   * Donde guardar los tickets de WSAA. Sin definir, en disco, en el `ticketPath` del perfil. Los del SDK fijan el CUIT
+   * y el entorno al construirse: una fabrica con storage propio es de un solo CUIT y entorno.
+   */
   readonly ticketStorage?: ITicketStoragePort;
 }
 

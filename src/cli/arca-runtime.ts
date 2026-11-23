@@ -68,14 +68,17 @@ function withConfigService<T>(run: (service: ConfigService) => T): T {
   }
 }
 
-/**
- * Los tickets dan acceso a ARCA como este CUIT por unas horas: las carpetas de versiones viejas pasan a 0700, antes de
- * leer los certificados. Con la config incompleta corta antes, sin tocar las carpetas.
- */
-function restrictProfileFolders(service: ConfigService, config: ArcliConfig, environment: ArcliEnvironment): void {
+/** Con la config incompleta corta con su error, antes de tocar las carpetas. */
+function assertProfileConfigured(config: ArcliConfig, environment: ArcliEnvironment): void {
   resolveCuit(config);
   credentialPaths(config, environment);
+}
 
+/**
+ * Los tickets dan acceso a ARCA como este CUIT por unas horas: las carpetas de versiones viejas pasan a 0700, antes de
+ * leer los certificados.
+ */
+function restrictProfileFolders(service: ConfigService, config: ArcliConfig): void {
   restrictFolderToOwner(dirname(service.getPath()));
   restrictFolderToOwner(service.resolveTicketPath(config));
 }
@@ -83,7 +86,8 @@ function restrictProfileFolders(service: ConfigService, config: ArcliConfig, env
 /** Que el entorno se pueda usar, sin leer los certificados: la validacion de cada entorno de `config revisar` (el vencimiento lo muestra aparte). */
 export function checkProfileFromConfig(config: ArcliConfig, environment: ArcliEnvironment): void {
   withConfigService((service) => {
-    restrictProfileFolders(service, config, environment);
+    assertProfileConfigured(config, environment);
+    restrictProfileFolders(service, config);
     checkArcaProfile(config, { environment });
   });
 }
@@ -97,7 +101,8 @@ export function loadArcaRuntime(options: GlobalCliOptions): CliArcaRuntime {
     const config = service.getConfig();
     const environment = resolveEnvironment(options, config);
 
-    restrictProfileFolders(service, config, environment);
+    assertProfileConfigured(config, environment);
+    restrictProfileFolders(service, config);
 
     return {
       ...loadArcaProfile(config, { environment, ticketPath: service.resolveTicketPath(config) }),

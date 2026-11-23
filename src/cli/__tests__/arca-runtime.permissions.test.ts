@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { arcliConfigSchema } from '../../modules/config/config.schemas';
-import { loadArcaRuntime } from '../arca-runtime';
+import { resolveArcaRuntime } from '../arca-runtime';
 import { buildRuntimeChecks } from '../commands/config.command';
 
 import { PROFILE_CUIT, useArcaProfileFixture } from './arca-profile.fixture';
@@ -42,7 +42,7 @@ describe.skipIf(process.platform === 'win32')('permisos de las carpetas del perf
     profile.writeConfig(config());
     const folders = openFolders();
 
-    expect(() => loadArcaRuntime({})).toThrow();
+    expect(() => resolveArcaRuntime({})).toThrow();
     expect(folders.map(mode)).toEqual([0o755, 0o755]);
   });
 });
