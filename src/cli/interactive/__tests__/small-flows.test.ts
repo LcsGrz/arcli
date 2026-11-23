@@ -9,8 +9,8 @@ import {
 import { canChooseNoteCurrency, noteCurrencyChoices } from '../../../modules/interactive/note-currency';
 import { BACK } from '../../../modules/interactive/wizard';
 import { BUNDLED_MONOTRIBUTO_TABLE } from '../../../modules/monotributo/monotributo.bundled';
-import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import { stripAnsi } from '../../../ui';
+import type { CliArcaRuntime } from '../../arca-runtime';
 import { loadMonotributoReport } from '../../monotributo-report';
 import { runHistoryFlow } from '../history.flow';
 import { runMonotributoQuery } from '../monotributo.flow';
@@ -64,7 +64,7 @@ function createSession(pointOfSale = 3): InteractiveSession {
       config: { cert: {}, entornoPorDefecto: 'testing', key: {}, output: {} },
       environment: 'testing',
       pointOfSale,
-    } as unknown as ResolvedArcaRuntime,
+    } as unknown as CliArcaRuntime,
     service: {} as never,
   };
 }

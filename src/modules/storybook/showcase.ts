@@ -1,6 +1,5 @@
 import { ConfigurationError, InputValidationError } from '../../lib/errors/app-error';
 import { CERTIFICATE_GUIDE_URL } from '../../lib/links';
-import type { ArcaRuntimeValidation } from '../../services/arca/arca-context.resolver';
 import {
   attentionPanel,
   certificateBanner,
@@ -173,19 +172,6 @@ function createSampleUpdateCheckResult(): UpdateCheckResult {
   return {
     currentVersion: '0.1.0',
     latestVersion: '0.2.0',
-  };
-}
-
-function createSampleValidation(): ArcaRuntimeValidation {
-  return {
-    certPath: '/Users/demo/.arcli/testing/certificado.crt',
-    cuit: 20333333334,
-    environment: 'testing',
-    keyPath: '/Users/demo/.arcli/testing/clave.key',
-    outputJson: false,
-    outputRaw: false,
-    pointOfSale: 3,
-    ticketPath: '/Users/demo/.arcli/tickets',
   };
 }
 
@@ -366,7 +352,7 @@ function buildConfigScene(): string {
 
   return [
     sceneTitle('Configuración', 'Vista actual y revisión'),
-    formatConfigAsText(config, { pdfFolder: '~/arcli/comprobantes', ticketPath: createSampleValidation().ticketPath }),
+    formatConfigAsText(config, { pdfFolder: '~/arcli/comprobantes', ticketPath: '/Users/demo/.arcli/tickets' }),
     formatConfigDoctorAsText(doctor),
   ].join('\n\n');
 }
@@ -587,7 +573,7 @@ function buildJsonScene(): string {
   const configJson = highlightJsonValues(
     formatConfig(createSampleConfig(), {
       pdfFolder: '~/arcli/comprobantes',
-      ticketPath: createSampleValidation().ticketPath,
+      ticketPath: '/Users/demo/.arcli/tickets',
     }),
   );
   const doctorJson = highlightJsonValues(

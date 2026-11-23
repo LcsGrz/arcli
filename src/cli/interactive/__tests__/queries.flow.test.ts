@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BACK } from '../../../modules/interactive/wizard';
 import type { Taxpayer } from '../../../modules/padron/padron';
 import type { ParameterEntry } from '../../../modules/parameters/parameters';
-import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import { stripAnsi } from '../../../ui';
+import type { CliArcaRuntime } from '../../arca-runtime';
 import { runHistoryFlow } from '../history.flow';
 import { runInvoiceFlow } from '../invoice.flow';
 import { runMonotributoQuery } from '../monotributo.flow';
@@ -115,9 +115,10 @@ function createSession(config: Record<string, unknown> = {}): InteractiveSession
     runtime: {
       config: { cert: {}, entornoPorDefecto: 'testing', key: {}, output: {}, ...config },
       context: { cuit: 20333333334 },
+      cuit: 20333333334,
       environment: 'testing',
       pointOfSale: 3,
-    } as unknown as ResolvedArcaRuntime,
+    } as unknown as CliArcaRuntime,
     service: {} as never,
   };
 }

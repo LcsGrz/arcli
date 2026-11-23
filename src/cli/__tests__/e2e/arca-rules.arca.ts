@@ -11,9 +11,9 @@ import { mapExportResponse } from '../../../modules/export/export.response';
 import type { ExportVoucherPayload } from '../../../modules/export/export.types';
 import { ArcaBillingGateway } from '../../../services/arca/arca-billing.gateway';
 import { ArcaClientFactory } from '../../../services/arca/arca-client.factory';
-import { ArcaContextResolver } from '../../../services/arca/arca-context.resolver';
 import type { ArcaExportGateway } from '../../../services/arca/arca-export.gateway';
 import type { IVoucher } from '../../../services/arca/arca-sdk.types';
+import { loadArcaRuntime } from '../../arca-runtime';
 
 import { assertArcaTestingReady } from './arca-guard';
 
@@ -203,7 +203,7 @@ describe.skipIf(Boolean(process.env.CI))('Reglas copiadas de ARCA contra testing
     // Fuera del CI, `dist/` compilado, la config en testing y el certificado de testing: si no, no manda nada.
     assertArcaTestingReady();
 
-    const runtime = new ArcaContextResolver({ options: { testing: true } }).resolve();
+    const runtime = loadArcaRuntime({ testing: true });
 
     if (runtime.environment !== 'testing' || runtime.context.production !== false) {
       throw new Error('Las reglas contra ARCA corren solo en testing.');

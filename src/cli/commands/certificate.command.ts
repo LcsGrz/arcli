@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import { readFileSync } from 'node:fs';
 
-import { AppError, InputValidationError } from '../../lib/errors/app-error';
+import { AppError, ConfigurationError, InputValidationError } from '../../lib/errors/app-error';
 import { maskPath } from '../../lib/paths/mask-path';
 import {
   formatGeneratedRequestAsJson,
@@ -10,6 +10,7 @@ import {
   formatImportedCertificateAsText,
 } from '../../modules/certificates/certificate.presenter';
 import { CertificateService, type ImportedCertificate } from '../../modules/certificates/certificate.service';
+import { explicitEnvironment } from '../../modules/config/arca-profile';
 import type { ArcliEnvironment } from '../../modules/config/config.schemas';
 import { ConfigService } from '../../modules/config/config.service';
 import { writeTerminalJson, writeTerminalOutput } from '../../ui';
@@ -32,15 +33,16 @@ function withService<T>(run: (service: CertificateService, config: ConfigService
   }
 }
 
-/** `--testing` / `--produccion`; sin ninguno, `undefined` (cada subcomando decide su default). */
-function explicitEnvironment(command: Command): ArcliEnvironment | undefined {
-  const { produccion, testing } = getGlobalOptions(command);
-
-  if (produccion && testing) {
-    throw new InputValidationError('Usá `--testing` o `--produccion`, pero no ambos a la vez.');
+/**
+ * `--testing` / `--produccion`; sin ninguno, `undefined` (cada subcomando decide su default). Los dos juntos salen aca
+ * con `INPUT_VALIDATION_ERROR`: el codigo es contrato y lo unifica REV-58.
+ */
+function requestedEnvironment(command: Command): ArcliEnvironment | undefined {
+  try {
+    return explicitEnvironment(getGlobalOptions(command));
+  } catch (error) {
+    throw error instanceof ConfigurationError ? new InputValidationError(error.message) : error;
   }
-
-  return produccion ? 'produccion' : testing ? 'testing' : undefined;
 }
 
 function readCertificateFile(path: string): string {
@@ -99,7 +101,7 @@ export function registerCertificateCommand(program: Command): void {
         const json = resolveOutputJson(command, config.getConfig());
         const request = service.generate({
           alias: options.alias,
-          environment: explicitEnvironment(command) ?? config.getConfig().entornoPorDefecto,
+          environment: requestedEnvironment(command) ?? config.getConfig().entornoPorDefecto,
           replace: options.reemplazar === true,
         });
 
@@ -133,7 +135,7 @@ export function registerCertificateCommand(program: Command): void {
         const service = new CertificateService({ certificatesRoot: config.getCertificatesPath(), config });
         const imported = await importWithConfirmation(
           service,
-          { content, environment: explicitEnvironment(command), replace: options.reemplazar === true },
+          { content, environment: requestedEnvironment(command), replace: options.reemplazar === true },
           !json && Boolean(process.stdin.isTTY && process.stdout.isTTY),
         );
 

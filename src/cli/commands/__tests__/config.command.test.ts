@@ -1,21 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { ArcliConfig } from '../../../modules/config/config.schemas';
+import type { ArcliConfig, ArcliEnvironment } from '../../../modules/config/config.schemas';
 import { createProgram } from '../../program';
 import { buildRuntimeChecks } from '../config.command';
 
 const validate = vi.fn();
-const resolverOptions: unknown[] = [];
+const checked: ArcliEnvironment[] = [];
 
-vi.mock('../../../services/arca/arca-context.resolver', () => ({
-  ArcaContextResolver: class {
-    public constructor(options: { options: unknown }) {
-      resolverOptions.push(options.options);
-    }
+vi.mock('../../arca-runtime', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../arca-runtime')>()),
+  checkProfileFromConfig: (_config: ArcliConfig, environment: ArcliEnvironment): unknown => {
+    checked.push(environment);
 
-    public validate(): unknown {
-      return validate();
-    }
+    return validate();
   },
 }));
 
@@ -59,13 +56,13 @@ vi.mock('../../../modules/config/config.service', async (importOriginal) => ({
 beforeEach(() => {
   storedConfig = CONFIG;
   validate.mockReset();
-  resolverOptions.length = 0;
+  checked.length = 0;
 });
 
 describe('buildRuntimeChecks', () => {
   it('valida solo el entorno por defecto si el otro no tiene credenciales', () => {
     expect(buildRuntimeChecks(CONFIG)).toEqual([{ environment: 'testing' }]);
-    expect(resolverOptions).toEqual([{ testing: true }]);
+    expect(checked).toEqual(['testing']);
   });
 
   it('valida los dos entornos cuando produccion tiene credenciales', () => {
@@ -81,7 +78,7 @@ describe('buildRuntimeChecks', () => {
       { environment: 'testing' },
       { environment: 'produccion', error: 'No se encontró el certificado.' },
     ]);
-    expect(resolverOptions).toEqual([{ testing: true }, { produccion: true }]);
+    expect(checked).toEqual(['testing', 'produccion']);
   });
 });
 

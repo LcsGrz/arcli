@@ -1,7 +1,6 @@
 import { formatDateAsArcaDate, parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { assertRules } from '../../lib/rules/rules';
-import type { ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
 import type { ICbtesAsoc, IIva, INextVoucher } from '../../services/arca/arca-sdk.types';
 import { evaluateFceObligation, type FceObligationGateway, shouldCheckFceObligation } from '../fce/fce-obligation';
 import type { PadronGateway } from '../padron/padron';
@@ -33,7 +32,7 @@ import { type PadronResolution, resolveIvaConditionFromPadron } from './billing.
 import { CONSUMER_IDENTIFICATION_THRESHOLD_RULE } from './billing.rules';
 import { type BillingCommandInput, describePointOfSaleOutOfRange, MAX_WSFE_POINT_OF_SALE } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
-import type { BillingExecutionResult, BillingGateway } from './billing.types.internal';
+import type { BillingExecutionResult, BillingGateway, BillingRuntime } from './billing.types.internal';
 import { validateDocumentIdentity, validateUncategorizedReceiver } from './billing.validation';
 import { createDryRunResponse, mapBillingResponse } from './billing-response';
 import { findArcaCurrency } from './currency-codes';
@@ -42,7 +41,7 @@ import { getVoucherKindByShortcut } from './voucher-kind-map';
 export interface BillingExecutionOptions {
   readonly gateway: BillingGateway;
   readonly input: BillingCommandInput;
-  readonly runtime: ResolvedArcaRuntime;
+  readonly runtime: BillingRuntime;
   readonly warnings?: readonly string[];
 }
 
@@ -245,7 +244,7 @@ export class BillingService {
 
   public buildVoucherPayload(
     input: BillingCommandInput,
-    runtime: ResolvedArcaRuntime,
+    runtime: BillingRuntime,
     voucherKind = this.requireVoucherKind(input.shortcut),
   ): INextVoucher {
     const pointOfSale = input.pointOfSale ?? runtime.pointOfSale;
@@ -274,7 +273,7 @@ export class BillingService {
     const ivaCondition = resolveBillingIvaConditionCode(input.ivaCondition);
     const associatedVouchers = resolveAssociatedVouchers({
       billingDate: dateRange.billingDate,
-      emitterCuit: runtime.context.cuit,
+      emitterCuit: runtime.cuit,
       input,
       requireVoucherKind: (shortcut) => this.requireVoucherKind(shortcut),
       voucherKind,
@@ -282,7 +281,7 @@ export class BillingService {
     const currencyFields = resolveBillingCurrencyFields(input);
     const taxAmounts = resolveTaxAmounts(input, voucherKind);
 
-    validateDocumentIdentity(input, voucherKind, runtime.context.cuit);
+    validateDocumentIdentity(input, voucherKind, runtime.cuit);
     validateUncategorizedReceiver(input, voucherKind, taxAmounts.netAmount + taxAmounts.ivaAmount);
     validateIvaConditionForVoucher(input.ivaCondition, voucherKind);
     // RG 5700/2025, con la cotizacion ya resuelta: la misma regla que el asistente.

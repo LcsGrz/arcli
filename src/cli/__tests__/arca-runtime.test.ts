@@ -3,16 +3,34 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CERTIFICATE_GUIDE_URL, certificateRenewalGuideUrl, PRODUCTION_RENEWAL_GUIDE_URL } from '../../lib/links';
 import type { CertificateExpiryNotice } from '../../modules/config/certificate-expiry';
 import { formatEnvironmentLabel } from '../../modules/config/config.schemas';
-import type { ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
 import { stripAnsi } from '../../ui';
+import type { CliArcaRuntime } from '../arca-runtime';
 import { certificateWarnings, resolveArcaRuntime, writeCertificateNotice } from '../arca-runtime';
 
-const resolvedRuntime = vi.hoisted(() => ({ current: {} as Partial<ResolvedArcaRuntime> }));
+const resolvedRuntime = vi.hoisted(() => ({ current: {} as Partial<CliArcaRuntime> }));
 
-vi.mock('../../services/arca/arca-context.resolver', () => ({
-  ArcaContextResolver: class {
-    public resolve() {
-      return resolvedRuntime.current;
+vi.mock('../../services/arca/arca-profile.loader', () => ({
+  checkArcaProfile: vi.fn(),
+  loadArcaProfile: () => resolvedRuntime.current,
+}));
+
+vi.mock('../../modules/config/config.service', () => ({
+  ConfigService: class {
+    public close(): void {}
+    public getConfig() {
+      return {
+        cert: { testing: 'cert.pem' },
+        cuit: '20123456786',
+        entornoPorDefecto: 'testing',
+        key: { testing: 'key.pem' },
+        output: { brutoPorDefecto: false, jsonPorDefecto: false },
+      };
+    }
+    public getPath(): string {
+      return '/carpeta-que-no-existe/config.json';
+    }
+    public resolveTicketPath(): string {
+      return '/carpeta-que-no-existe/tickets';
     }
   },
 }));
@@ -38,7 +56,7 @@ function withNotices(
   outputJson: boolean,
   notices: CertificateExpiryNotice[],
   active?: CertificateExpiryNotice,
-): Pick<ResolvedArcaRuntime, 'certificateExpiry' | 'certificateNotices' | 'outputJson'> {
+): Pick<CliArcaRuntime, 'certificateExpiry' | 'certificateNotices' | 'outputJson'> {
   return { certificateExpiry: active, certificateNotices: notices, outputJson };
 }
 
@@ -66,7 +84,7 @@ describe('certificate notice in commands', () => {
   it('prints the banner to stderr when resolving the ARCA runtime', () => {
     resolvedRuntime.current = withNotices(false, [notice(false)], notice(false));
 
-    expect(resolveArcaRuntime({})).toBe(resolvedRuntime.current);
+    expect(resolveArcaRuntime({})).toEqual({ ...resolvedRuntime.current, outputJson: false, outputRaw: false });
     expect(stdout).toBe('');
     expect(stripAnsi(stderr)).toContain('El certificado de producción vence el 20/11/2026 (en 10 días).');
     expect(stripAnsi(stderr)).toContain(`Renovalo: ${PRODUCTION_RENEWAL_GUIDE_URL}`);

@@ -7,7 +7,7 @@ import { type ArcliConfig, type ArcliEnvironment, MISSING_CUIT_MESSAGE } from '.
  * Con que se habla con ARCA: el CUIT, el entorno, los PEM ya leidos y donde van los tickets de WSAA. Es lo que el
  * cliente del SDK recibe como contexto; se define aca para que el nucleo no conozca los tipos del SDK.
  */
-export interface ArcaContext {
+interface ArcaContext {
   readonly cert: string;
   readonly cuit: number;
   readonly key: string;
@@ -41,7 +41,7 @@ export interface EnvironmentFlags {
   readonly testing?: boolean;
 }
 
-export const BOTH_ENVIRONMENT_FLAGS_MESSAGE = 'Usá `--testing` o `--produccion`, pero no ambos a la vez.';
+const BOTH_ENVIRONMENT_FLAGS_MESSAGE = 'Usá `--testing` o `--produccion`, pero no ambos a la vez.';
 
 /** El entorno pedido con un flag, o `undefined` sin ninguno. Los dos juntos son un error de configuracion. */
 export function explicitEnvironment(flags: EnvironmentFlags): ArcliEnvironment | undefined {

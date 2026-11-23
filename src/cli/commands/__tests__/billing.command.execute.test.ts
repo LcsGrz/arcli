@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { VoucherShortcut } from '../../../modules/billing/billing.types';
 import { arcliConfigSchema } from '../../../modules/config/config.schemas';
 import type { IssuedVoucher } from '../../../modules/vouchers/voucher-history';
-import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
+import type { CliArcaRuntime } from '../../arca-runtime';
 import {
   type BillingCommandDependencies,
   type BillingCommandGateways,
@@ -57,16 +57,17 @@ function gateways(overrides: Partial<BillingCommandGateways['billing']> = {}): B
   };
 }
 
-function runtime(outputJson: boolean, config: Record<string, unknown> = {}): ResolvedArcaRuntime {
+function runtime(outputJson: boolean, config: Record<string, unknown> = {}): CliArcaRuntime {
   return {
     certificateNotices: [],
     config: arcliConfigSchema.parse({ cuit: '20111111112', puntoVentaPorDefecto: 3, ...config }),
     context: { cuit: 20111111112 },
+    cuit: 20111111112,
     environment: 'testing',
     outputJson,
     outputRaw: false,
     pointOfSale: 3,
-  } as unknown as ResolvedArcaRuntime;
+  } as unknown as CliArcaRuntime;
 }
 
 let stdout = '';

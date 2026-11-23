@@ -1,7 +1,15 @@
 import type { CreateVoucherResultDto, INextVoucher, IVoucher } from '../../services/arca/arca-sdk.types';
+import type { ArcliEnvironment } from '../config/config.schemas';
 import type { PdfOutcome } from '../pdf/pdf.types';
 
 import type { VoucherKindDefinition } from './billing.types';
+
+/** Quien emite y donde: lo que facturar necesita del perfil de ARCA. */
+export interface BillingRuntime {
+  readonly cuit: number;
+  readonly environment: ArcliEnvironment;
+  readonly pointOfSale?: number;
+}
 
 export interface BillingGateway {
   /** Emite en ARCA. Un error aca puede haber dejado el comprobante autorizado. */

@@ -58,10 +58,8 @@ describe('ArcaClientFactory: almacenamiento de tickets', () => {
     expect(vi.mocked(Arca).mock.calls[0]?.[0]).not.toHaveProperty('ticketStorage');
   });
 
-  // Tests primero (REV-48): pasa a it() al implementarlo.
-  it.fails('con un ticketStorage propio, lo usan el cliente y WSFEX, y no se escribe nada en ticketPath', () => {
+  it('con un ticketStorage propio, lo usan el cliente y WSFEX, y no se escribe nada en ticketPath', () => {
     const ticketStorage = new MemoryTicketStorage({ cuit: CUIT, production: false });
-    // @ts-expect-error Tests primero (REV-48): el constructor todavia no recibe opciones.
     const factory = new ArcaClientFactory({ ticketStorage });
 
     factory.create(runtime());

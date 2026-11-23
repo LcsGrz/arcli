@@ -46,7 +46,7 @@ export interface ConfigDoctorPdfPlugin {
   readonly version: string;
 }
 
-/** Lo que valida `ArcaContextResolver` para un entorno: CUIT, certificado y clave legibles. */
+/** Lo que valida `checkArcaProfile` para un entorno: CUIT, y que existan el certificado y la clave. */
 export interface ConfigDoctorRuntimeCheck {
   readonly environment: ArcliEnvironment;
   /** Sin error, el entorno esta listo. */

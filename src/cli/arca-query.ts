@@ -1,12 +1,11 @@
 import type { Command } from 'commander';
 
 import { ArcaClientFactory } from '../services/arca/arca-client.factory';
-import type { ResolvedArcaRuntime } from '../services/arca/arca-context.resolver';
 import type { ArcaExportGateway } from '../services/arca/arca-export.gateway';
 import type { Arca } from '../services/arca/arca-sdk.types';
 import { writeTerminalJson, writeTerminalOutput } from '../ui';
 
-import { resolveArcaRuntime } from './arca-runtime';
+import { type CliArcaRuntime, resolveArcaRuntime } from './arca-runtime';
 import { getGlobalOptions } from './global-options';
 import { withSpinner } from './spinner';
 
@@ -17,7 +16,7 @@ import { withSpinner } from './spinner';
  */
 export interface ArcaQuery<Gateway> {
   readonly gateway: Gateway;
-  readonly runtime: ResolvedArcaRuntime;
+  readonly runtime: CliArcaRuntime;
 }
 
 /** Resuelve el runtime (con el aviso de certificados) y arma el gateway sobre un cliente de ARCA. */
@@ -36,7 +35,7 @@ export function createExportQuery(command: Command): ArcaQuery<ArcaExportGateway
 
 /** Spinner en stderr mientras corre la consulta; con `--json` no hay. Se detiene tambien si la consulta falla. */
 export function withQuerySpinner<T>(
-  runtime: Pick<ResolvedArcaRuntime, 'outputJson'>,
+  runtime: Pick<CliArcaRuntime, 'outputJson'>,
   run: () => Promise<T>,
   text = 'Consultando ARCA...',
 ): Promise<T> {
@@ -45,7 +44,7 @@ export function withQuerySpinner<T>(
 
 /** Imprime el resultado en JSON o en texto; solo se arma el formato que se imprime. */
 export function writeQueryOutput(
-  runtime: Pick<ResolvedArcaRuntime, 'outputJson'>,
+  runtime: Pick<CliArcaRuntime, 'outputJson'>,
   output: { readonly json: () => string; readonly text: () => string },
 ): void {
   if (runtime.outputJson) {

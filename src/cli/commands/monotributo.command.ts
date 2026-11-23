@@ -1,7 +1,8 @@
 import type { Command } from 'commander';
 
-import { ConfigurationError, InputValidationError } from '../../lib/errors/app-error';
-import type { ArcliConfig, ArcliEnvironment } from '../../modules/config/config.schemas';
+import { InputValidationError } from '../../lib/errors/app-error';
+import { resolveEnvironment } from '../../modules/config/arca-profile';
+import { type ArcliConfig, CONFIG_DEFAULTS } from '../../modules/config/config.schemas';
 import { ConfigService } from '../../modules/config/config.service';
 import { type MonotributoCategoryLetter, parseMonotributoLetter } from '../../modules/monotributo/monotributo';
 import {
@@ -12,12 +13,11 @@ import {
   formatMonotributoSummaryAsText,
 } from '../../modules/monotributo/monotributo.presenter';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
-import { ArcaContextResolver } from '../../services/arca/arca-context.resolver';
 import { writeTerminalJson, writeTerminalNotice, writeTerminalOutput } from '../../ui';
+import { loadArcaRuntime } from '../arca-runtime';
 import { getGlobalOptions, registerQueryOptions, resolveOutputJson } from '../global-options';
 import { configureSpanishHelp, createMonotributoHelp } from '../help';
 import { loadMonotributoReport } from '../monotributo-report';
-import type { GlobalCliOptions } from '../types';
 
 interface MonotributoCommandOptions {
   readonly actualizar?: boolean;
@@ -38,14 +38,6 @@ function readConfigIfAny(): ArcliConfig | undefined {
   } catch {
     return undefined;
   }
-}
-
-function resolveEnvironment(options: GlobalCliOptions, config: ArcliConfig | undefined): ArcliEnvironment {
-  if (options.testing && options.produccion) {
-    throw new ConfigurationError('Usá `--testing` o `--produccion`, pero no ambos a la vez.');
-  }
-
-  return options.testing ? 'testing' : options.produccion ? 'produccion' : (config?.entornoPorDefecto ?? 'testing');
 }
 
 function parseCategoryOption(value: string | undefined): MonotributoCategoryLetter | undefined {
@@ -81,11 +73,11 @@ export function registerMonotributoCommand(program: Command): void {
 
     const globalOptions = getGlobalOptions(self);
     const config = readConfigIfAny();
-    const environment = resolveEnvironment(globalOptions, config);
+    const environment = resolveEnvironment(globalOptions, config ?? CONFIG_DEFAULTS);
     const outputJson = resolveOutputJson(self, config);
     const report = await loadMonotributoReport({
       config,
-      createArca: () => new ArcaClientFactory().create(new ArcaContextResolver({ options: globalOptions }).resolve()),
+      createArca: () => new ArcaClientFactory().create(loadArcaRuntime(globalOptions)),
       environment,
       quiet: outputJson,
       refresh: options.actualizar === true,

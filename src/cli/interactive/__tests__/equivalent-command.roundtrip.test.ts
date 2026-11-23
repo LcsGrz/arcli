@@ -25,7 +25,7 @@ import { buildNoteInput } from '../../../modules/interactive/note-input';
 import { runWizard } from '../../../modules/interactive/wizard';
 import type { PadronGateway } from '../../../modules/padron/padron';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../../../modules/vouchers/voucher-history';
-import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
+import type { CliArcaRuntime } from '../../arca-runtime';
 import { parseBillingCommandPlan } from '../../commands/billing.command.parser';
 import { resolveBillingCommandDefaults } from '../../commands/billing.command.shared';
 import { parseExportCommandPlan } from '../../commands/export.command.parser';
@@ -83,11 +83,12 @@ const runtime = {
   certificateNotices: [],
   config,
   context: { cert: 'CERT', cuit: 20111111112, key: 'KEY', production: false },
+  cuit: 20111111112,
   environment: 'testing',
   outputJson: false,
   outputRaw: false,
   pointOfSale: 3,
-} as unknown as ResolvedArcaRuntime;
+} as unknown as CliArcaRuntime;
 
 const padron: PadronGateway = {
   getTaxpayer: async (cuit) => ({
@@ -122,7 +123,7 @@ function createSession(vouchers: IssuedVoucher[] = [], withConfig = config): Int
     arca: {} as never,
     billingGateway,
     historyGateway,
-    runtime: { ...runtime, config: { ...withConfig, consultarPadron: false } } as ResolvedArcaRuntime,
+    runtime: { ...runtime, config: { ...withConfig, consultarPadron: false } } as CliArcaRuntime,
     service: new BillingService(),
   };
 }
@@ -145,7 +146,7 @@ async function payloadOf(input: BillingCommandInput, withConfig = config) {
   const service = new BillingService();
   const prepared = await prepareBillingInput(service, input, { billing: billingGateway, padron });
 
-  return service.buildVoucherPayload(prepared.input, { ...runtime, config: withConfig } as ResolvedArcaRuntime);
+  return service.buildVoucherPayload(prepared.input, { ...runtime, config: withConfig } as CliArcaRuntime);
 }
 
 /**

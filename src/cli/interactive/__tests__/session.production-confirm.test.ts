@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { billingCommandSchema } from '../../../modules/billing/billing.schemas';
 import { BillingService } from '../../../modules/billing/billing.service';
-import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
+import type { CliArcaRuntime } from '../../arca-runtime';
 import { DO_NOT_EMIT_LABEL, EMIT_NOW_LABEL } from '../emission-prompt';
 import { listSelect } from '../list-select';
 import { confirm } from '../prompts';
@@ -48,11 +48,12 @@ function createSession(environment: 'produccion' | 'testing') {
   const runtime = {
     config: { cert: {}, entornoPorDefecto: environment, key: {}, output: {}, pdf: 'nunca' },
     context: { cuit: 20333333334 },
+    cuit: 20333333334,
     environment,
     outputJson: false,
     outputRaw: false,
     pointOfSale: 3,
-  } as unknown as ResolvedArcaRuntime;
+  } as unknown as CliArcaRuntime;
   const session: InteractiveSession = {
     arca: {} as never,
     billingGateway: { createVoucher, getNextVoucherNumber: vi.fn(async () => 1), getQuotation: vi.fn() },

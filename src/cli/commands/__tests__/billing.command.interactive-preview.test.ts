@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { BillingCommandInput } from '../../../modules/billing/billing.schemas';
 import { BillingService } from '../../../modules/billing/billing.service';
-import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
+import type { CliArcaRuntime } from '../../arca-runtime';
 import { runInteractiveBillingPreview } from '../billing.command.interactive-preview';
 
 vi.mock('../../interactive/list-select', () => ({ listSelect: vi.fn() }));
@@ -29,7 +29,7 @@ import { writeTerminalOutput } from '../../../ui';
 import { listSelect as select } from '../../interactive/list-select';
 import { chooseOne } from '../../interactive/prompts';
 
-function createRuntime(overrides: Partial<ResolvedArcaRuntime> = {}): ResolvedArcaRuntime {
+function createRuntime(overrides: Partial<CliArcaRuntime> = {}): CliArcaRuntime {
   return {
     certificateNotices: [],
     config: {
@@ -50,6 +50,7 @@ function createRuntime(overrides: Partial<ResolvedArcaRuntime> = {}): ResolvedAr
       key: 'KEY',
       production: false,
     },
+    cuit: 20123456786,
     environment: 'testing',
     outputJson: false,
     outputRaw: false,

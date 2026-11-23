@@ -8,8 +8,8 @@ import {
   planEmissionConfirmation,
   resolvePdfAfterConfirmation,
 } from '../../modules/pdf/pdf-decision';
-import type { ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
 import { noticePanel, writeTerminalOutput } from '../../ui';
+import type { CliArcaRuntime } from '../arca-runtime';
 import { askEmission } from '../interactive/emission-prompt';
 
 import { formatBillingOutputs } from './billing.command.output';
@@ -37,7 +37,7 @@ function applyEmitDecision(inputs: BillingCommandInput[], choice: EmissionChoice
 export async function runInteractiveBillingPreview(options: {
   readonly inputs: BillingCommandInput[];
   readonly modeSource: EmitDecisionSource;
-  readonly runtime: ResolvedArcaRuntime;
+  readonly runtime: CliArcaRuntime;
   readonly service: BillingService;
   readonly useRaw: boolean;
   readonly voucherLabel: string;

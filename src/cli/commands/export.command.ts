@@ -16,9 +16,8 @@ import {
 import { formatPdfOutcomeAsText } from '../../modules/pdf/pdf.presenter';
 import { planEmissionConfirmation, resolvePdfAfterConfirmation } from '../../modules/pdf/pdf-decision';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
-import type { ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
 import { noticePanel, writeTerminalJson, writeTerminalOutput } from '../../ui';
-import { certificateWarnings, resolveArcaRuntime } from '../arca-runtime';
+import { certificateWarnings, type CliArcaRuntime, resolveArcaRuntime } from '../arca-runtime';
 import { getGlobalOptions } from '../global-options';
 import { askEmission } from '../interactive/emission-prompt';
 import { startSpinner } from '../spinner';
@@ -60,7 +59,7 @@ export interface ExportCommandOptions {
 
 /** Lo que el comando toma de afuera: en los tests, una config y un WSFEX falsos. */
 export interface ExportCommandDependencies {
-  readonly createGateway: (runtime: ResolvedArcaRuntime) => ExportGateway;
+  readonly createGateway: (runtime: CliArcaRuntime) => ExportGateway;
   readonly resolveRuntime: typeof resolveArcaRuntime;
 }
 

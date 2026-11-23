@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import type { FceRegistryState } from '../../fce/fce-registry';
 import type { IssuedVoucher } from '../../vouchers/voucher-history';
 import {
@@ -10,18 +9,11 @@ import {
 } from '../billing.associated-lookup';
 import type { BillingCommandInput } from '../billing.schemas';
 import { BillingService } from '../billing.service';
+import type { BillingRuntime } from '../billing.types.internal';
 
 const EMITTER = 20123456786;
 
-const runtime = {
-  certificateNotices: [],
-  config: { puntoVentaPorDefecto: 3 },
-  context: { cuit: EMITTER },
-  environment: 'testing',
-  outputJson: false,
-  outputRaw: false,
-  pointOfSale: 3,
-} as unknown as ResolvedArcaRuntime;
+const runtime: BillingRuntime = { cuit: EMITTER, environment: 'testing', pointOfSale: 3 };
 
 function note(overrides: Partial<BillingCommandInput> = {}): BillingCommandInput {
   return {

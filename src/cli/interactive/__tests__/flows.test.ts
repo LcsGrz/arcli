@@ -8,8 +8,8 @@ import { buildInvoiceInput, type InvoiceState } from '../../../modules/interacti
 import { buildNoteInput } from '../../../modules/interactive/note-input';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../../../modules/vouchers/voucher-history';
-import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import { stripAnsi } from '../../../ui';
+import type { CliArcaRuntime } from '../../arca-runtime';
 import { runExportFlow } from '../export.flow';
 import { runExportNoteFlow } from '../export-note.flow';
 import { runExportRepeatFlow } from '../export-repeat.flow';
@@ -67,18 +67,19 @@ function createSession(vouchers: IssuedVoucher[] = [], arca: unknown = {}): Inte
     runtime: {
       config: { cert: {}, entornoPorDefecto: 'testing', key: {}, output: {} },
       context: { cuit: 20333333334 },
+      cuit: 20333333334,
       environment: 'testing',
       outputJson: false,
       outputRaw: false,
       pointOfSale: 3,
-    } as unknown as ResolvedArcaRuntime,
+    } as unknown as CliArcaRuntime,
     service: new BillingService(),
   };
 }
 
-/** La misma sesion con otra config (y su punto de venta, como lo resuelve ArcaContextResolver). */
+/** La misma sesion con otra config (y su punto de venta, como lo resuelve `loadArcaProfile`). */
 function withConfig(session: InteractiveSession, config: Record<string, unknown>): InteractiveSession {
-  const merged = { ...session.runtime.config, ...config } as ResolvedArcaRuntime['config'];
+  const merged = { ...session.runtime.config, ...config } as CliArcaRuntime['config'];
 
   return { ...session, runtime: { ...session.runtime, config: merged, pointOfSale: merged.puntoVentaPorDefecto } };
 }

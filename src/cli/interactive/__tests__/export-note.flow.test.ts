@@ -9,9 +9,9 @@ import {
 } from '../../../modules/export/export.types';
 import { buildExportNoteInput } from '../../../modules/interactive/export-note-input';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
-import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
 import { stripAnsi } from '../../../ui';
+import type { CliArcaRuntime } from '../../arca-runtime';
 import { exportNoteSteps, runExportNoteFlow } from '../export-note.flow';
 import type { InteractiveSession } from '../session';
 
@@ -116,7 +116,7 @@ function createSession(): InteractiveSession {
       config: arcliConfigSchema.parse({ cuit: '20111111112', puntoVentaPorDefecto: 4 }),
       environment: 'testing',
       pointOfSale: 4,
-    } as unknown as ResolvedArcaRuntime,
+    } as unknown as CliArcaRuntime,
     service: {} as never,
   };
 }
@@ -545,7 +545,7 @@ describe('notas E: sin punto de venta y sin asociado elegido', () => {
     const session = createSession();
 
     await runExportNoteFlow(
-      { ...session, runtime: { ...session.runtime, pointOfSale: undefined } as ResolvedArcaRuntime },
+      { ...session, runtime: { ...session.runtime, pointOfSale: undefined } as CliArcaRuntime },
       'credito',
     );
 

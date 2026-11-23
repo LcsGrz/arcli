@@ -409,6 +409,7 @@ async function validate(args: readonly string[], settings: Example['config'] = [
     certificateNotices: [],
     config,
     context: { cert: 'CERT', cuit: Number(config.cuit), key: 'KEY', production: false },
+    cuit: Number(config.cuit),
     environment: 'testing' as const,
     outputJson: false,
     outputRaw: false,

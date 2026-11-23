@@ -104,8 +104,8 @@ vi.mock('../../spinner', () => ({
 
 /**
  * TUI-39: la tabla de actividades de WSFEX para "Actividad de exportación". Se supone que la configuración la consulta
- * como los comandos: el entorno y el certificado de `ArcaContextResolver` y el gateway de WSFEX de `ArcaClientFactory`
- * (que usa el certificado de exportación si está configurado). Sin certificado, `resolve` falla como el real.
+ * como los comandos: el entorno y el certificado de `loadArcaRuntime` y el gateway de WSFEX de `ArcaClientFactory`
+ * (que usa el certificado de exportación si está configurado). Sin certificado, `loadArcaRuntime` falla como el real.
  */
 const exportRuntime = vi.hoisted(() => vi.fn((): unknown => ({ config: {}, environment: 'testing' })));
 const exportActivities = vi.hoisted(() =>
@@ -115,18 +115,10 @@ const exportActivities = vi.hoisted(() =>
   ]),
 );
 
-vi.mock('../../../services/arca/arca-context.resolver', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../services/arca/arca-context.resolver')>();
-
-  return {
-    ...actual,
-    ArcaContextResolver: class extends actual.ArcaContextResolver {
-      public override resolve() {
-        return exportRuntime() as ReturnType<InstanceType<typeof actual.ArcaContextResolver>['resolve']>;
-      }
-    },
-  };
-});
+vi.mock('../../arca-runtime', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../arca-runtime')>()),
+  loadArcaRuntime: () => exportRuntime(),
+}));
 
 vi.mock('../../../services/arca/arca-client.factory', () => ({
   ArcaClientFactory: class {

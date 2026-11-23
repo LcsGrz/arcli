@@ -6,7 +6,7 @@ import { getVoucherKindByShortcut } from '../../../modules/billing/voucher-kind-
 import type { NoteState } from '../../../modules/interactive/note-input';
 import type { StepMemo } from '../../../modules/interactive/wizard';
 import type { IssuedVoucher } from '../../../modules/vouchers/voucher-history';
-import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
+import type { CliArcaRuntime } from '../../arca-runtime';
 import { noteSteps } from '../note.flow';
 import type { InteractiveSession } from '../session';
 
@@ -22,7 +22,12 @@ vi.mock('../prompts', () => ({
 const session = {
   billingGateway: { createVoucher: vi.fn(), getNextVoucherNumber: vi.fn(), getQuotation: vi.fn() },
   historyGateway: { getLastNumber: vi.fn(), getVoucher: vi.fn() },
-  runtime: { config: {}, context: { cuit: 20333333334 }, environment: 'testing' } as unknown as ResolvedArcaRuntime,
+  runtime: {
+    config: {},
+    context: { cuit: 20333333334 },
+    cuit: 20333333334,
+    environment: 'testing',
+  } as unknown as CliArcaRuntime,
   service: new BillingService(),
 } as unknown as InteractiveSession;
 

@@ -10,7 +10,7 @@ import { hasAtMostDecimals } from '../../../lib/numbers/argentine-amount';
 import { BillingService } from '../../../modules/billing/billing.service';
 import type { VoucherShortcut } from '../../../modules/billing/billing.types';
 import { getVoucherKindByShortcut, VOUCHER_KIND_MAP } from '../../../modules/billing/voucher-kind-map';
-import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
+import type { CliArcaRuntime } from '../../arca-runtime';
 import { prepareBatch } from '../billing.command.batch';
 import {
   type BillingCommandDefaults,
@@ -26,11 +26,12 @@ const RUNTIME = {
   certificateNotices: [],
   config: { puntoVentaPorDefecto: 3 },
   context: { cert: 'CERT', cuit: EMITTER_CUIT, key: 'KEY', production: false },
+  cuit: EMITTER_CUIT,
   environment: 'testing',
   outputJson: false,
   outputRaw: false,
   pointOfSale: 3,
-} as unknown as ResolvedArcaRuntime;
+} as unknown as CliArcaRuntime;
 
 const DEFAULTS: BillingCommandDefaults = {
   defaultConcept: 'servicios',

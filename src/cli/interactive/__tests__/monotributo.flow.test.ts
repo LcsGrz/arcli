@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BACK } from '../../../modules/interactive/wizard';
 import { BUNDLED_MONOTRIBUTO_TABLE } from '../../../modules/monotributo/monotributo.bundled';
 import type { MonotributoReport } from '../../../modules/monotributo/monotributo.presenter';
-import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import { stripAnsi } from '../../../ui';
+import type { CliArcaRuntime } from '../../arca-runtime';
 import { loadMonotributoReport } from '../../monotributo-report';
 import { runMonotributoQuery } from '../monotributo.flow';
 import type { InteractiveSession } from '../session';
@@ -50,7 +50,7 @@ function createSession(): InteractiveSession {
     runtime: {
       config: { cert: {}, cuit: '20333333334', entornoPorDefecto: 'testing', key: {}, output: {} },
       environment: 'testing',
-    } as unknown as ResolvedArcaRuntime,
+    } as unknown as CliArcaRuntime,
     service: {} as never,
   };
 }

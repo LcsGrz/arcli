@@ -22,7 +22,7 @@ export interface LoadArcaProfileOptions extends CheckArcaProfileOptions {
 
 /**
  * Que el entorno se pueda usar: CUIT y las rutas del certificado y la clave, y que los archivos existan. No los lee
- * ni mira el vencimiento: es lo que valida `config revisar`.
+ * ni mira el vencimiento: es la validacion de cada entorno de `config revisar`, que el vencimiento lo muestra aparte.
  */
 export function checkArcaProfile(config: ArcliConfig, options: CheckArcaProfileOptions): ArcaProfileCheck {
   const cuit = resolveCuit(config);

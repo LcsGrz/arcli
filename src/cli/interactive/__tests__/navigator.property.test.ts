@@ -27,7 +27,7 @@ import type { buildEquivalentCommand } from '../../../modules/interactive/equiva
 import type { buildExportEquivalentCommand } from '../../../modules/interactive/export-equivalent-command';
 import { BACK } from '../../../modules/interactive/wizard';
 import type { PadronGateway } from '../../../modules/padron/padron';
-import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
+import type { CliArcaRuntime } from '../../arca-runtime';
 import { parseBillingCommandPlan } from '../../commands/billing.command.parser';
 import { resolveBillingCommandDefaults } from '../../commands/billing.command.shared';
 import { parseExportCommandPlan } from '../../commands/export.command.parser';
@@ -498,12 +498,7 @@ async function assertEquivalentRoundtrip(run: Walk): Promise<void> {
         comparableInput(shown.export.input, issuerCuit),
       );
 
-      const resolved = await new ExportService().resolve(
-        plan.input,
-        exportGateway,
-        runtime as ResolvedArcaRuntime,
-        NOW,
-      );
+      const resolved = await new ExportService().resolve(plan.input, exportGateway, runtime as CliArcaRuntime, NOW);
 
       expect(resolved.payload, `${line}${context(run)}`).toEqual(run.exportPayload);
     }

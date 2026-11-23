@@ -1,38 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { POINT_OF_SALE_GUIDE_URL } from '../../../lib/links';
-import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import { EmissionUncertainError } from '../billing.errors';
 import { type BillingCommandInput, billingCommandSchema } from '../billing.schemas';
 import { BillingService } from '../billing.service';
+import type { BillingRuntime } from '../billing.types.internal';
 import { mapBillingResponse } from '../billing-response';
 
-function createRuntime(): ResolvedArcaRuntime {
-  return {
-    certificateNotices: [],
-    config: {
-      cert: {},
-      emisor: {},
-      entornoPorDefecto: 'testing',
-      key: {},
-      output: {
-        emitirPorDefecto: false,
-        brutoPorDefecto: false,
-        jsonPorDefecto: false,
-      },
-      puntoVentaPorDefecto: 3,
-    },
-    context: {
-      cert: 'CERT',
-      cuit: 20409509763,
-      key: 'KEY',
-      production: false,
-    },
-    environment: 'testing',
-    outputJson: false,
-    outputRaw: false,
-    pointOfSale: 3,
-  };
+function createRuntime(): BillingRuntime {
+  return { cuit: 20409509763, environment: 'testing', pointOfSale: 3 };
 }
 
 function createBillingInput(overrides: Partial<BillingCommandInput> = {}): BillingCommandInput {

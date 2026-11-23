@@ -4,8 +4,8 @@ import { BillingService } from '../../../modules/billing/billing.service';
 import { buildInvoiceInput } from '../../../modules/interactive/invoice-input';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../../../modules/vouchers/voucher-history';
-import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import { stripAnsi } from '../../../ui';
+import type { CliArcaRuntime } from '../../arca-runtime';
 import { runExportRepeatFlow } from '../export-repeat.flow';
 import { type RepeatState, repeatSteps, runRepeatFlow } from '../repeat.flow';
 import { type InteractiveSession, previewAndEmit } from '../session';
@@ -47,11 +47,12 @@ function createSession(vouchers: IssuedVoucher[] = [], pointOfSale = 3): Interac
     runtime: {
       config: { cert: {}, entornoPorDefecto: 'testing', key: {}, output: {} },
       context: { cuit: 20333333334 },
+      cuit: 20333333334,
       environment: 'testing',
       outputJson: false,
       outputRaw: false,
       pointOfSale,
-    } as unknown as ResolvedArcaRuntime,
+    } as unknown as CliArcaRuntime,
     service: new BillingService(),
   };
 }
