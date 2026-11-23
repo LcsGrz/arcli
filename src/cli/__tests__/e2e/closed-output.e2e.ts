@@ -16,7 +16,8 @@ import { PDF_PLUGIN_VERSION } from '../../../services/pdf/pdf-plugin';
 /**
  * ARQ-16: quien lee la salida la corta (`arcli ayuda | head`). El `arcli` compilado, con el extremo de lectura ya
  * cerrado cuando empieza a escribir: un preload lo hace esperar un archivo que se crea recien despues de cerrar, asi
- * que no depende de la velocidad de nadie. Sin red: donde se emite, otro preload reemplaza la llamada a ARCA.
+ * que no depende de la velocidad de nadie. Sin red: donde se emite, un preload reemplaza la llamada a ARCA y, en
+ * todos, otro hace fallar cualquier conexion o consulta de DNS (y el test, aunque el CLI se trague el error).
  *
  * No se afirma el codigo con el que cada sistema avisa el cierre: si alguno usa otro que EPIPE, stderr lo muestra y
  * el test falla con ese texto. El CI los corre en Linux, macOS y Windows.
@@ -25,6 +26,8 @@ const CLI = resolve('dist/cli/index.js');
 const CUIT = '20409509763';
 const HEALTHY_DAYS = 365;
 const EXPIRING_DAYS = 10;
+/** Por si el test se corta antes de abrir la compuerta: que el proceso no quede esperando. */
+const GATE_TIMEOUT_MS = 30_000;
 const OUTPUTS = ['stdout', 'stderr'] as const;
 
 type OutputName = (typeof OUTPUTS)[number];
@@ -46,6 +49,30 @@ function writePreload(name: string, source: string): string {
   return pathToFileURL(file(name)).href;
 }
 
+/** Nada sale a la red: cada intento falla y queda anotado en `red.txt`, que `runClosing` revisa. */
+function blockNetwork(): string {
+  return writePreload(
+    'red.mjs',
+    `import { appendFileSync } from 'node:fs';
+     import dns from 'node:dns';
+     import { syncBuiltinESMExports } from 'node:module';
+     import net from 'node:net';
+     const block = (target, name) => {
+       target[name] = () => {
+         appendFileSync(${JSON.stringify(file('red.txt'))}, name + '\\n');
+         throw new Error('Este test no puede usar la red: ' + name);
+       };
+     };
+     block(net.Socket.prototype, 'connect');
+     for (const target of [dns, dns.promises, dns.Resolver.prototype, dns.promises.Resolver.prototype]) {
+       for (const name of Object.getOwnPropertyNames(target)) {
+         if (/^(lookup|resolve|reverse)/.test(name)) block(target, name);
+       }
+     }
+     syncBuiltinESMExports();`,
+  );
+}
+
 async function runClosing(
   closed: readonly OutputName[],
   args: readonly string[],
@@ -55,11 +82,15 @@ async function runClosing(
     'gate.mjs',
     `import { existsSync } from 'node:fs';
      const cell = new Int32Array(new SharedArrayBuffer(4));
-     while (!existsSync(${JSON.stringify(file('cerrado'))})) Atomics.wait(cell, 0, 0, 10);`,
+     const deadline = Date.now() + ${GATE_TIMEOUT_MS};
+     while (!existsSync(${JSON.stringify(file('cerrado'))})) {
+       if (Date.now() > deadline) process.exit(70);
+       Atomics.wait(cell, 0, 0, 10);
+     }`,
   );
   const child = spawn(
     process.execPath,
-    [...[gate, ...preloads].flatMap((preload) => ['--import', preload]), CLI, ...args],
+    [...[gate, blockNetwork(), ...preloads].flatMap((preload) => ['--import', preload]), CLI, ...args],
     {
       env: {
         ...process.env,
@@ -93,11 +124,15 @@ async function runClosing(
 
   const [code] = (await finished) as [number | null];
 
+  if (existsSync(file('red.txt'))) {
+    throw new Error(`Intentó usar la red: ${readFileSync(file('red.txt'), 'utf8').trim().replaceAll('\n', ', ')}`);
+  }
+
   return { code, ...read };
 }
 
-/** Reemplaza las dos llamadas a WSFE de la emision y anota cada comprobante en `emitidos.txt`. */
-function fakeArca(result: 'A' | 'R' = 'A'): string {
+/** Reemplaza las dos llamadas a WSFE de la emision y anota cada comprobante en `emitidos.txt`. `failsAt`: ese lanza. */
+function fakeArca({ failsAt = 0, result = 'A' }: { failsAt?: number; result?: 'A' | 'R' } = {}): string {
   const gateway = pathToFileURL(resolve('dist/services/arca/arca-billing.gateway.js')).href;
 
   return writePreload(
@@ -110,6 +145,7 @@ function fakeArca(result: 'A' | 'R' = 'A'): string {
      ArcaBillingGateway.prototype.createVoucher = async () => {
        await setTimeout(50);
        number += 1;
+       if (number === ${failsAt}) throw new Error('ARCA no respondió');
        appendFileSync(${JSON.stringify(file('emitidos.txt'))}, number + '\\n');
        return {
          cae: ${JSON.stringify(result === 'A' ? '75123456789012' : '')},
@@ -154,6 +190,17 @@ function configure(options: { readonly days?: number; readonly pdf?: 'nunca' | '
   );
 }
 
+function writeBatch(): void {
+  const item = {
+    concepto: 'servicios',
+    ivaReceptor: 'consumidor-final',
+    montoTotal: 1000,
+    tipoDocumento: 'consumidor-final',
+  };
+
+  writeFileSync(file('lote.json'), JSON.stringify([item, item, item]));
+}
+
 function emitted(): string[] {
   return existsSync(file('emitidos.txt')) ? readFileSync(file('emitidos.txt'), 'utf8').trim().split('\n') : [];
 }
@@ -195,17 +242,33 @@ describe('con stdout cerrado', () => {
     expect(await runClosing(['stdout'], args)).toEqual({ code: 0, stderr: '', stdout: '' });
   });
 
-  it('un comando que falla muestra su error y sale con 1', async () => {
-    const result = await runClosing(['stdout'], ['noexiste', '--json']);
+  it('un lote que falla a la mitad: PDF de los emitidos, su error en stderr y exit 1', async () => {
+    configure({ pdf: 'siempre' });
+    fakePdfPlugin();
+    writeBatch();
 
+    const result = await runClosing(
+      ['stdout'],
+      ['fc', '--cargar', file('lote.json'), '--emitir'],
+      [fakeArca({ failsAt: 43 })],
+    );
+
+    expect(emitted()).toEqual(['42']);
+    expect(pdfs()).toHaveLength(1);
     expect(result.code).toBe(1);
-    expect(JSON.parse(result.stderr)).toMatchObject({ codigo: 'INPUT_VALIDATION_ERROR' });
+    expect(result.stderr).toContain('El lote se interrumpió en el comprobante #2');
+    expect(result.stderr).toContain('Procesados: 1 de 3');
+    expect(result.stderr).not.toMatch(/write E|node:/);
   });
 
   it('un comprobante rechazado por ARCA sale con 2', async () => {
     configure();
 
-    expect(await runClosing(['stdout'], INVOICE, [fakeArca('R')])).toEqual({ code: 2, stderr: '', stdout: '' });
+    expect(await runClosing(['stdout'], INVOICE, [fakeArca({ result: 'R' })])).toEqual({
+      code: 2,
+      stderr: '',
+      stdout: '',
+    });
   });
 
   it('lo que sigue a la escritura se completa: el comprobante emitido tiene su PDF', async () => {
@@ -228,20 +291,18 @@ describe('con stderr cerrado', () => {
     expect(JSON.parse(result.stdout)).toMatchObject({ ok: false });
   });
 
-  it('un comando que falla sale con 1', async () => {
-    expect(await runClosing(['stderr'], ['noexiste'])).toEqual({ code: 1, stderr: '', stdout: '' });
+  it('un rechazado sale con 2 aunque no se pueda escribir el aviso del certificado, que va antes', async () => {
+    configure({ days: EXPIRING_DAYS });
+
+    const result = await runClosing(['stderr'], [...INVOICE, '--json'], [fakeArca({ result: 'R' })]);
+
+    expect(result.code).toBe(2);
+    expect(JSON.parse(result.stdout)).toMatchObject({ estado: 'rechazado' });
   });
 
   it('un lote se emite entero aunque no se pueda escribir el aviso del certificado, que va antes', async () => {
-    const item = {
-      concepto: 'servicios',
-      ivaReceptor: 'consumidor-final',
-      montoTotal: 1000,
-      tipoDocumento: 'consumidor-final',
-    };
-
     configure({ days: EXPIRING_DAYS });
-    writeFileSync(file('lote.json'), JSON.stringify([item, item, item]));
+    writeBatch();
 
     const result = await runClosing(
       ['stderr'],
@@ -265,5 +326,28 @@ describe('con las dos salidas cerradas', () => {
     expect(emitted()).toEqual(['42']);
     expect(pdfs()).toHaveLength(1);
     expect(result.code).toBe(0);
+  });
+});
+
+// Cada preload se traga el error, como podria hacer el CLI: el intento igual tiene que hacer fallar el test.
+describe('el bloqueo de red de estos tests', () => {
+  it.each([
+    ['fetch', 'connect', `await fetch('http://127.0.0.1:59999').catch(() => {});`],
+    [
+      'https',
+      'connect',
+      `import https from 'node:https'; try { https.get('https://127.0.0.1:9').on('error', () => {}); } catch {}`,
+    ],
+    ['net', 'connect', `import { connect } from 'node:net'; try { connect(9, '127.0.0.1'); } catch {}`],
+    ['dns', 'lookup', `import { lookup } from 'node:dns'; try { lookup('arca.invalid', () => {}); } catch {}`],
+    [
+      'dns/promises',
+      'resolve4',
+      `import { resolve4 } from 'node:dns/promises'; try { await resolve4('arca.invalid'); } catch {}`,
+    ],
+  ])('%s: el intento hace fallar el test', async (name, blocked, source) => {
+    const attempt = writePreload('intento.mjs', source);
+
+    await expect(runClosing([], ['--version'], [attempt]), name).rejects.toThrow(`Intentó usar la red: ${blocked}`);
   });
 });

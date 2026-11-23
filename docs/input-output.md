@@ -990,6 +990,8 @@ Un comprobante **rechazado por ARCA no es un error del comando**: sale como resu
 
 Dos comandos de diagnóstico informan un problema sin que sea un error: `arcli config revisar` con `ok: false` y `arcli estado` con `listo: false` salen por stdout con exit code `0`. Para saber si está todo listo, leé `ok` o `listo` en el JSON, no el exit code.
 
+El exit code dice cómo terminó el comando, no si alguien leyó la salida: si quien la lee la corta (`| head`, `less` y `q`), ARCLI termina igual, con su exit code. Si la salida se cortó al emitir, buscá el comprobante con `arcli ultimos` o `arcli consultar` antes de reintentar, aunque el exit code sea `0`.
+
 ### Códigos de error
 
 | Código                             | Comando                                                                    | Qué pasó                                                                                                                                                            | Qué hacer                                                                                                                                                   |
