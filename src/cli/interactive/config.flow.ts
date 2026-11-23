@@ -35,6 +35,7 @@ import {
   getConfigField,
   resolveActiveEnvironment,
 } from '../../modules/interactive/config-fields';
+import { changesArcaAccess } from '../../modules/interactive/config-lists';
 import { BACK, type Back, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { formatPdfPluginStatusAsText } from '../../modules/pdf/pdf.presenter';
 import { PdfPlugin } from '../../services/pdf/pdf-plugin';
@@ -44,7 +45,7 @@ import { startSpinner } from '../spinner';
 import type { GlobalCliOptions } from '../types';
 
 import { runCertificateMenu, runGenerateCertificate } from './certificate.flow';
-import { type ConfigFieldList, configFieldLists } from './config-lists';
+import { type ConfigFieldLists, configFieldLists } from './config-lists';
 import { markIfNew } from './new-mark';
 import { askTextStep, type Choice, chooseOne, chooseOrTypeStep, chooseStep, confirm, fitPageSize } from './prompts';
 
@@ -107,12 +108,12 @@ async function askField(
   field: ConfigField,
   config: ArcliConfig,
   options: {
-    readonly lists?: (field: ConfigField) => Promise<ConfigFieldList | undefined>;
+    readonly lists?: ConfigFieldLists;
     readonly required?: boolean;
   } = {},
 ): Promise<'borrado' | 'guardado' | 'sin-cambios' | typeof BACK> {
   const current = field.read(config);
-  const list = await (options.lists ?? configFieldLists())(field);
+  const list = await (options.lists ?? configFieldLists()).of(field);
   let value: string | typeof CLEAR;
 
   if (list) {
@@ -129,7 +130,8 @@ async function askField(
         header: list.header,
         help: list.help,
         parse: (text) => text,
-        previous: current ? (list.previous?.(current) ?? current) : options.required ? undefined : KEEP,
+        preferTyped: list.preferTyped,
+        previous: current ? list.previous(current) : options.required ? undefined : KEEP,
         validate: (text) => validate(field.key, text),
       },
     );
@@ -353,7 +355,7 @@ function fieldChoicesBySection(config: ArcliConfig): Array<Choice<ConfigField> |
 
 /**
  * Lista de datos por seccion; despues de cambiar uno (o volver) se muestra de nuevo, hasta "Volver". La tabla de
- * actividades de WSFEX se consulta en el entorno activo, una vez.
+ * actividades de WSFEX se consulta en el entorno activo una vez, y de nuevo si se cambia el entorno o un certificado.
  */
 async function runChangeField(flags: EnvironmentFlags): Promise<void> {
   const lists = configFieldLists(flags);
@@ -377,6 +379,10 @@ async function runChangeField(flags: EnvironmentFlags): Promise<void> {
     lastField = field;
 
     const result = await askField(field, config, { lists });
+
+    if ((result === 'guardado' || result === 'borrado') && changesArcaAccess(field.key)) {
+      lists.reset();
+    }
 
     if (result !== BACK) {
       writeTerminalOutput(noticePanel(messages[result], result === 'sin-cambios' ? 'muted' : 'success'));

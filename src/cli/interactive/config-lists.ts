@@ -1,67 +1,79 @@
-import { ARCA_CURRENCIES, toArcaCurrencyCode } from '../../modules/billing/currency-codes';
 import type { ExportActivity } from '../../modules/export/export.types';
 import type { ConfigField } from '../../modules/interactive/config-fields';
+import {
+  configCurrencyOptions,
+  type ConfigListKind,
+  configListKind,
+  configListPrefersTyped,
+  configListPrevious,
+  isSameConfigChoice,
+} from '../../modules/interactive/config-lists';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { ArcaContextResolver } from '../../services/arca/arca-context.resolver';
 import { formatTableRows, noticePanel, writeTerminalOutput } from '../../ui';
 import { withSpinner } from '../spinner';
 import type { GlobalCliOptions } from '../types';
 
-import { type FilterListRow, sameSearch } from './filter-list';
+import type { FilterListRow } from './filter-list';
 import { ACTIVITY_HELP, activityRows } from './steps/export';
 
 /**
  * Un dato de la config que se elige de una lista donde tambien se escribe (TUI-35, TUI-39). Lo escrito se valida y se
- * guarda como `arcli config establecer`; una fila guarda su `value`.
+ * guarda como `arcli config establecer`; una fila guarda su `value`. Las reglas (que lista, que fila es lo guardado,
+ * cuando no hay cambios) son de `modules/interactive/config-lists`.
  */
-export interface ConfigFieldList {
+interface ConfigFieldList {
   readonly header?: string;
   readonly help?: string;
+  readonly preferTyped: boolean;
   /** La fila de lo guardado, si es una (USD guardado es la fila DOL); si no, lo guardado arranca escrito. */
-  readonly previous?: (current: string) => string;
+  readonly previous: (current: string) => string;
   readonly rows: ReadonlyArray<FilterListRow<string>>;
-  /** Si la fila elegida es lo mismo que lo guardado ("Contado" y `contado`, DOL y USD): queda "Sin cambios.". */
+  /** Si lo elegido es lo guardado ("Contado" y `contado`, DOL y USD): queda "Sin cambios.". */
   readonly same: (chosen: string, current: string) => boolean;
 }
 
-/** La condicion de venta y los demas datos con `choices` y `freeText`: sus valores, con su etiqueta. */
-function choicesList(field: ConfigField & { readonly choices: readonly string[] }): ConfigFieldList {
-  const label = (choice: string) => field.choiceLabels?.[choice] ?? choice;
+function fieldList(
+  kind: ConfigListKind,
+  rows: ReadonlyArray<FilterListRow<string>>,
+  view: Pick<ConfigFieldList, 'header' | 'help'> = {},
+): ConfigFieldList {
+  const labelOf = (value: string) => rows.find((row) => row.value === value)?.label ?? value;
 
   return {
-    rows: field.choices.map((choice) => ({ keywords: choice, label: label(choice), value: choice })),
-    same: (chosen, current) => sameSearch(label(chosen), current),
+    ...view,
+    preferTyped: configListPrefersTyped(kind),
+    previous: (current) => configListPrevious(kind, current),
+    rows,
+    same: (chosen, current) => isSameConfigChoice(kind, { label: labelOf(chosen), value: chosen }, current),
   };
 }
 
-/**
- * Las monedas de la tabla de ARCA (`ARCA_CURRENCIES`), sin consultar ARCA: el codigo de ARCA y el nombre, con el ISO
- * para buscar ("usd" encuentra DOL). Una fila guarda el codigo de ARCA, como el default `PES`.
- */
-function currencyList(): ConfigFieldList {
+/** Las monedas de ARCA con CODIGO y MONEDA, sin consultarla. */
+function currencyRows(): Pick<ConfigFieldList, 'header' | 'rows'> {
+  const options = configCurrencyOptions();
   const { header, rows } = formatTableRows(
     ['CÓDIGO', 'MONEDA'],
-    ARCA_CURRENCIES.map((currency) => [currency.arca, currency.name]),
+    options.map((option) => [option.code, option.name]),
   );
 
   return {
     header,
-    help: 'Escribí el nombre o el código, por ejemplo "euro", "060" o "EUR".',
-    previous: toArcaCurrencyCode,
-    rows: ARCA_CURRENCIES.map((currency, index) => ({
-      keywords: currency.iso,
-      label: rows[index] ?? currency.arca,
-      short: currency.name,
-      value: currency.arca,
+    rows: options.map((option, index) => ({
+      keywords: option.keywords,
+      label: rows[index] ?? option.code,
+      short: option.name,
+      value: option.code,
     })),
-    same: (chosen, current) => chosen === toArcaCurrencyCode(current),
   };
 }
 
+type ConfigListFlags = Pick<GlobalCliOptions, 'produccion' | 'testing'>;
+
 /**
- * La tabla de actividades de WSFEX con el certificado con el que la consultan los comandos: el de exportacion o, si no
- * hay, el de facturacion (`ArcaClientFactory.createExportGateway`). Sin certificado o si ARCA falla, `undefined`: la
- * actividad se escribe, como antes, sin cortar el menu.
+ * La tabla de actividades de WSFEX con el mismo resolver que `arcli fe`: hacen falta el CUIT y el certificado y la
+ * clave de facturacion del entorno, y el de exportacion se usa si esta configurado (`createExportGateway`). Si falta
+ * algo o ARCA falla, `undefined`: la actividad se escribe, como antes, sin cortar el menu.
  */
 async function loadActivities(flags: ConfigListFlags): Promise<readonly ExportActivity[] | undefined> {
   try {
@@ -79,43 +91,64 @@ async function loadActivities(flags: ConfigListFlags): Promise<readonly ExportAc
   }
 }
 
-type ConfigListFlags = Pick<GlobalCliOptions, 'produccion' | 'testing'>;
+export interface ConfigFieldLists {
+  /** La lista de un dato, o `undefined` si se escribe (tambien la actividad sin tabla). */
+  readonly of: (field: ConfigField) => Promise<ConfigFieldList | undefined>;
+  /** Descarta la tabla ya consultada: cambio el entorno o un certificado (`changesArcaAccess`). */
+  readonly reset: () => void;
+}
 
 /**
- * Las listas de "Modificar configuracion", con la tabla de actividades consultada una vez por menu (si se consiguio).
- * Un dato sin lista, o la actividad sin tabla, se pregunta como texto.
+ * Las listas de "Modificar configuracion", con la tabla de actividades consultada una vez (si se consiguio) hasta que
+ * cambie con que se consulta ARCA.
  */
-export function configFieldLists(
-  flags: ConfigListFlags = {},
-): (field: ConfigField) => Promise<ConfigFieldList | undefined> {
+export function configFieldLists(flags: ConfigListFlags = {}): ConfigFieldLists {
   let activities: readonly ExportActivity[] | undefined;
 
-  return async (field) => {
-    if (field.choices && field.freeText) {
-      return choicesList({ ...field, choices: field.choices });
-    }
+  return {
+    of: async (field) => {
+      const kind = configListKind(field);
 
-    if (field.key === 'moneda') {
-      return currencyList();
-    }
-
-    if (field.key === 'exportacion.actividad') {
-      activities ??= await loadActivities(flags);
-
-      if (!activities?.length) {
-        return undefined;
+      if (kind === 'choices') {
+        return fieldList(
+          kind,
+          (field.choices ?? []).map((choice) => ({
+            keywords: choice,
+            label: field.choiceLabels?.[choice] ?? choice,
+            value: choice,
+          })),
+        );
       }
 
-      const { header, rows } = activityRows(activities);
+      if (kind === 'currency') {
+        const { header, rows } = currencyRows();
 
-      return {
-        header,
-        help: ACTIVITY_HELP,
-        rows: rows.map((row) => ({ ...row, value: String(row.value) })),
-        same: (chosen, current) => chosen === current.trim(),
-      };
-    }
+        return fieldList(kind, rows, {
+          header,
+          help: 'Escribí el nombre o el código, por ejemplo "euro", "060" o "EUR".',
+        });
+      }
 
-    return undefined;
+      if (kind === 'activity') {
+        activities ??= await loadActivities(flags);
+
+        if (!activities?.length) {
+          return undefined;
+        }
+
+        const { header, rows } = activityRows(activities);
+
+        return fieldList(
+          kind,
+          rows.map((row) => ({ ...row, value: String(row.value) })),
+          { header, help: ACTIVITY_HELP },
+        );
+      }
+
+      return undefined;
+    },
+    reset: () => {
+      activities = undefined;
+    },
   };
 }

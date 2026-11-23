@@ -834,23 +834,25 @@ describe('configuración: la moneda y la actividad de exportación de una lista 
   }
 
   /**
-   * Abre el dato `key` en "Modificar configuración", responde con el guion y vuelve. Cualquier otra lista se cierra con
-   * Esc, así el test falla en lo que mira y no por quedarse sin respuestas.
+   * Abre el dato `key` (o cada uno, en orden) en "Modificar configuración", responde con el guion y vuelve. Cualquier
+   * otra lista se cierra con Esc, así el test falla en lo que mira y no por quedarse sin respuestas.
    */
-  async function changeField(key: string, steps: ReadonlyArray<readonly [RegExp, ScriptedAnswer]>): Promise<void> {
-    let opened = false;
+  async function changeField(key: string | readonly string[], steps: Steps): Promise<void> {
+    let opened = 0;
 
     script = createScript(steps);
     askTextMock.mockImplementation((...args) => script.askTextStep(...args));
     vi.mocked(chooseOne).mockResolvedValueOnce('cambiar').mockResolvedValueOnce('volver');
     chooseStepMock.mockImplementation(async (message, choices) => {
-      if (message !== FIELD_LIST || opened) {
+      const next = [key].flat()[opened];
+
+      if (message !== FIELD_LIST || next === undefined) {
         return BACK;
       }
 
-      opened = true;
+      opened += 1;
 
-      return onlyChoices(choices).find((choice) => (choice.value as { key?: string }).key === key)?.value as never;
+      return onlyChoices(choices).find((choice) => (choice.value as { key?: string }).key === next)?.value as never;
     });
 
     await runConfigMenu();
@@ -867,10 +869,15 @@ describe('configuración: la moneda y la actividad de exportación de una lista 
     return (listCall(question)?.[1] ?? []).map((row) => stripAnsi(row.label).replace(/\s+/g, ' ').trim());
   }
 
+  type Steps = ReadonlyArray<readonly [RegExp, ScriptedAnswer]>;
+
   const INVALID_CURRENCY =
     /^El código de moneda "ZZZZ" no es válido: tiene que ser un código de moneda de 3 caracteres/;
 
+  // Con el certificado de facturación de testing (rutas ficticias: ARCA está simulado), como pide `arcli fe`.
   beforeEach(() => {
+    store['cert.testing'] = '/certs/testing.crt';
+    store['key.testing'] = '/certs/testing.key';
     exportRuntime.mockImplementation(() => ({ config: {}, environment: 'testing' }));
     exportActivities.mockImplementation(async () => [
       { id: 620100, name: 'SERVICIOS DE CONSULTORES EN INFORMATICA' },
@@ -884,7 +891,29 @@ describe('configuración: la moneda y la actividad de exportación de una lista 
     vi.mocked(chooseOne).mockReset();
   });
 
+  // Sin valor guardado, la lista arranca en "Dejar sin configurar": Enter con el filtro vacío no guarda la primera fila.
+  it.each([
+    ['condicionVenta', /^Condición de venta/],
+    ['moneda', /^Moneda/],
+    ['exportacion.actividad', /^Actividad de exportación/],
+  ])('sin valor guardado, Enter en la lista de %s no guarda nada: "Sin cambios."', async (key, question) => {
+    await changeField(key, [[question, '']]);
+
+    expect(listedLabels(question)).toContain('Dejar sin configurar');
+    expect(store[key]).toBeUndefined();
+    expect(printed()).toContain('Sin cambios.');
+  });
+
   describe('moneda', () => {
+    it('`usd` elige la fila DOL, y con USD guardado elegir DOL es "Sin cambios."', async () => {
+      store.moneda = 'USD';
+
+      await changeField('moneda', [[/^Moneda/, '']]);
+
+      expect(listCall(/^Moneda/)?.[2].previous).toBe('DOL');
+      expect(printed()).toContain('Sin cambios.');
+    });
+
     // Criterio 4: lo de hoy.
     it('un código que no es de moneda da el error de `arcli config establecer` y uno válido escrito se guarda', async () => {
       await changeField('moneda', [[/^Moneda/, rejecting('XAU', ['ZZZZ', INVALID_CURRENCY])]]);
@@ -940,11 +969,8 @@ describe('configuración: la moneda y la actividad de exportación de una lista 
   describe('actividad de exportación', () => {
     const ACTIVITY = /^Actividad de exportación/;
 
-    // Con la tabla, hay certificado de facturación y de exportación de testing (rutas ficticias: ARCA está simulado), así
-    // vale cualquiera de los dos que use la consulta.
+    // Con la tabla, también el certificado de exportación de testing, que la consulta usa si está.
     beforeEach(() => {
-      store['cert.testing'] = '/certs/testing.crt';
-      store['key.testing'] = '/certs/testing.key';
       store['exportacion.cert.testing'] = '/certs/wsfex-testing.crt';
       store['exportacion.key.testing'] = '/certs/wsfex-testing.key';
     });
@@ -976,6 +1002,28 @@ describe('configuración: la moneda y la actividad de exportación de una lista 
       expect(listedLabels(ACTIVITY)).toContain('Dejar sin configurar');
       expect(store['exportacion.actividad']).toBeUndefined();
       expect(printed()).toContain('Sin cambios.');
+    });
+
+    // Un código guardado que no es una fila (6201, contenido en 620100) arranca escrito: Enter lo deja, como el componente.
+    it('con 6201 guardado y 620100 en la tabla, Enter da "Sin cambios."', async () => {
+      store['exportacion.actividad'] = '6201';
+
+      await changeField('exportacion.actividad', [[ACTIVITY, '']]);
+
+      expect(listCall(ACTIVITY)?.[2].previous).toBe('6201');
+      expect(printed()).toContain('Sin cambios.');
+    });
+
+    it('la tabla se consulta una vez por menú, y de nuevo si se guarda un certificado', async () => {
+      const keep = [ACTIVITY, 'Dejar sin configurar'] as const;
+      const activity = 'exportacion.actividad';
+
+      await changeField(
+        [activity, activity, 'exportacion.cert.testing', activity],
+        [keep, keep, [/^Certificado de exportación/, '/certs/otro.crt'], keep],
+      );
+
+      expect(exportActivities).toHaveBeenCalledTimes(2);
     });
 
     // Criterio 5: lo de hoy, que tiene que seguir sin certificado. El error es el de `arcli config establecer`.
