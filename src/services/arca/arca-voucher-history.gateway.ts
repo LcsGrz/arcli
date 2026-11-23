@@ -1,12 +1,15 @@
-import type {
-  IssuedAssociatedVoucher,
-  IssuedIvaAliquot,
-  IssuedOptional,
-  IssuedTax,
-  IssuedVoucher,
-  VoucherHistoryGateway,
+import {
+  type IssuedAssociatedVoucher,
+  type IssuedIvaAliquot,
+  type IssuedOptional,
+  type IssuedTax,
+  type IssuedVoucher,
+  type VoucherHistoryGateway,
+  VoucherQueryError,
 } from '../../modules/vouchers/voucher-history';
+import { formatVoucherNumber } from '../../modules/vouchers/voucher-number';
 
+import { toDetailErrors } from './arca-error-details';
 import type { Arca } from './arca-sdk.types';
 import { getLastAuthorizedNumber, rethrowIfWsfeNotAuthorized } from './last-voucher';
 
@@ -32,25 +35,71 @@ export class ArcaVoucherHistoryGateway implements VoucherHistoryGateway {
       .call('wsfe', 'FECompConsultar', {
         FeCompConsReq: { CbteNro: number, CbteTipo: voucherType, PtoVta: pointOfSale },
       })
-      .catch(rethrowIfNotFound)) as { FECompConsultarResult?: { ResultGet?: Row } } | null | undefined;
+      .catch(asNotFoundResponse)) as QueryResponse;
+    const result = response?.FECompConsultarResult;
+    const errors = readRows(result?.Errors, 'Err').map((error) => ({
+      code: readNumber(error.Code) ?? 0,
+      msg: readText(error.Msg),
+    }));
+    const voucher = mapIssuedVoucher(result?.ResultGet, number);
 
-    return mapIssuedVoucher(response?.FECompConsultarResult?.ResultGet, number);
+    if (errors.some(({ code }) => code !== NOT_FOUND_ERROR)) {
+      const reasons = errors.map(({ code, msg }) => `${code} ${msg}`).join('; ');
+
+      throw voucherQueryError('un error', { errors, number, pointOfSale }, reasons);
+    }
+
+    // Sin el 602, que falte el comprobante no dice que no exista (ERR-1).
+    if (!voucher && errors.length === 0) {
+      throw voucherQueryError('una respuesta inesperada', { errors, number, pointOfSale });
+    }
+
+    return voucher;
   }
 }
 
-/** Como el SDK: un error "no existe" (602) es que el comprobante no existe. El resto sigue. */
-function rethrowIfNotFound(error: unknown): undefined {
-  const { code, message } = (error ?? {}) as { code?: unknown; message?: unknown };
+/** "No existen datos en nuestros registros para los parametros ingresados": el unico que es "no existe". */
+const NOT_FOUND_ERROR = 602;
 
-  if (code === 602 || (typeof message === 'string' && message.toLowerCase().includes('no existe'))) {
-    return undefined;
+type QueryResponse =
+  | { readonly FECompConsultarResult?: { readonly Errors?: unknown; readonly ResultGet?: Row } | null }
+  | null
+  | undefined;
+
+/**
+ * ARCA contesto, pero no se sabe si el comprobante existe. No puede parecer "no existe": con esta consulta se
+ * verifica una emision incierta, y reintentarla la duplicaria.
+ */
+function voucherQueryError(
+  what: string,
+  query: {
+    readonly errors: ReadonlyArray<{ readonly code: number; readonly msg: string }>;
+    readonly number: number;
+    readonly pointOfSale: number;
+  },
+  reasons?: string,
+): VoucherQueryError {
+  return new VoucherQueryError(
+    `ARCA devolvió ${what} al consultar el comprobante ${formatVoucherNumber(query.pointOfSale, query.number)} y no se sabe si existe${reasons ? `: ${reasons}` : '.'}`,
+    { errores: toDetailErrors(query.errors) },
+    'Volvé a consultar en unos minutos. Si estabas verificando una emisión, no la reintentes hasta saber si el comprobante existe.',
+  );
+}
+
+/**
+ * Un 602 lanzado vale como el 602 de la respuesta; el resto sigue. El SDK ademas mira "no existe" en el texto
+ * (`isAfipNotFoundError`), pero eso tambien toma un error de red (`El dominio no existe`).
+ */
+function asNotFoundResponse(error: unknown): QueryResponse {
+  if (readNumber((error as Row | null | undefined)?.code) === NOT_FOUND_ERROR) {
+    return { FECompConsultarResult: { Errors: { Err: { Code: NOT_FOUND_ERROR } } } };
   }
 
   return rethrowIfWsfeNotAuthorized(error);
 }
 
-/** ARCA devuelve sin `ResultGet` (con el error 602) cuando el comprobante no existe. */
-function mapIssuedVoucher(row: Row | undefined, number: number): IssuedVoucher | undefined {
+/** Sin la fecha no es un comprobante: si existe o no lo dicen los errores de la respuesta. */
+function mapIssuedVoucher(row: Row | null | undefined, number: number): IssuedVoucher | undefined {
   const date = readText(row?.CbteFch);
 
   if (!row || !date) {

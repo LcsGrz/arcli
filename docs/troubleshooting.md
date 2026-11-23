@@ -354,6 +354,14 @@ arcli fc ayuda
 - **Solución:** **no reintentes todavía**. Corré el `arcli ultimos <tipo> --pv <n>` que muestra la sugerencia: si el comprobante figura, ya está emitido y no hay que repetirlo; si no figura, reintentá. En la factura E (`fe`), reintentá con el mismo `--numero` e `--id-solicitud` que muestra la sugerencia: ARCA no autoriza dos veces el mismo número.
 - **Documentación relacionada:** [Entrada y salida](input-output.md#emisión-sin-confirmar)
 
+### No se pudo consultar un comprobante (`ARCA_VOUCHER_QUERY_ERROR`)
+
+- **Severidad:** ocasional
+- **Síntoma:** `ARCA devolvió un error al consultar el comprobante 00003-00000099 y no se sabe si existe: …` (o `una respuesta inesperada`) con `ultimos` o `consultar` de A, B, C, FCE o recibos, o en el asistente. En una nota sale como aviso: `No se pudo verificar en ARCA …`.
+- **Causa:** ARCA contestó la consulta con un error que no es el 602 (el que dice que no existe). Hasta la 2.6.0, `consultar` daba `VOUCHER_NOT_FOUND` y `ultimos` mostraba una lista vacía o incompleta.
+- **Solución:** volver a consultar. Si estabas verificando una emisión sin confirmar, **no la reintentes** hasta ver si el comprobante existe: se puede duplicar.
+- **Documentación relacionada:** [Entrada y salida](input-output.md#códigos-de-error)
+
 ### El receptor coincide con el emisor
 
 - **Severidad:** ocasional

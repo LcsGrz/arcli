@@ -9,11 +9,12 @@ import type { ExportGateway, ExportIssuedVoucher, ExportVoucherKind } from '../.
 import type { OtherSystemInvoice } from '../../modules/interactive/note-input';
 import { validatePositiveInteger } from '../../modules/interactive/validators';
 import { BACK, type Back } from '../../modules/interactive/wizard';
-import { fetchVouchersBackwards, type IssuedVoucher } from '../../modules/vouchers/voucher-history';
+import { fetchVouchersBackwards, type IssuedVoucher, VoucherQueryError } from '../../modules/vouchers/voucher-history';
 import { formatVoucherPickerRows } from '../../modules/vouchers/voucher-history.presenter';
 import { formatVoucherNumber } from '../../modules/vouchers/voucher-number';
 import { ArcaParametersGateway } from '../../services/arca/arca-parameters.gateway';
-import { colorize, noticePanel, statusBarWidth, uiSymbol, writeTerminalOutput } from '../../ui';
+import { colorize, noticePanel, statusBarWidth, uiSymbol, writeTerminalError, writeTerminalOutput } from '../../ui';
+import { formatCliError } from '../error-output';
 import { withSpinner } from '../spinner';
 
 import { PinnedSeparator } from './list-select';
@@ -123,8 +124,26 @@ async function askPointOfSaleAndNumber(
 }
 
 /**
- * Pide punto de venta y numero, y lo busca en ARCA. Volver o un comprobante inexistente vuelven a la lista, salvo que
- * la fuente lo acepte igual (`describeMissing`).
+ * Con la lista en pantalla, si ARCA contesta con un error (`VoucherQueryError`) se muestra y se sigue en la
+ * lista, sin perder lo cargado. Los demas errores salen al menu, como siempre.
+ */
+async function orShowQueryError<T>(search: () => Promise<T>): Promise<T | undefined> {
+  try {
+    return await search();
+  } catch (error) {
+    if (!(error instanceof VoucherQueryError)) {
+      throw error;
+    }
+
+    writeTerminalError(() => formatCliError(error, false));
+
+    return undefined;
+  }
+}
+
+/**
+ * Pide punto de venta y numero, y lo busca en ARCA. Volver, un comprobante inexistente o un error de ARCA vuelven a la
+ * lista, salvo que la fuente acepte el inexistente igual (`describeMissing`).
  */
 async function askVoucherByNumber<T extends { readonly number: number }, M>(
   source: VoucherSource<T, M>,
@@ -139,11 +158,19 @@ async function askVoucherByNumber<T extends { readonly number: number }, M>(
   }
 
   const { number, pointOfSale } = typed;
-  const { invoice, missing } = await withSpinner('Buscando en ARCA...', async () => {
-    const found = await source.getVoucher(number, pointOfSale);
+  const search = await orShowQueryError(() =>
+    withSpinner('Buscando en ARCA...', async () => {
+      const found = await source.getVoucher(number, pointOfSale);
 
-    return { invoice: found, missing: found ? undefined : await source.describeMissing?.(pointOfSale, number) };
-  });
+      return { invoice: found, missing: found ? undefined : await source.describeMissing?.(pointOfSale, number) };
+    }),
+  );
+
+  if (!search) {
+    return BACK;
+  }
+
+  const { invoice, missing } = search;
 
   if (!invoice) {
     writeTerminalOutput(
@@ -330,16 +357,18 @@ async function pickVoucher<T extends { readonly number: number }, M = never>(
     onScreen.marked = undefined;
 
     if (loading) {
-      const result: LoadingResult<PickerChoice<T>, T[]> = await chooseStepWhileLoading(
-        message,
-        choices,
-        defaultChoice,
-        pageSizeOnScreen,
-        loading,
-        listOptions(),
+      const batch: Promise<T[]> = loading;
+      const result: LoadingResult<PickerChoice<T>, T[]> | undefined = await orShowQueryError(() =>
+        chooseStepWhileLoading(message, choices, defaultChoice, pageSizeOnScreen, batch, listOptions()),
       );
 
       loading = undefined;
+
+      if (!result) {
+        // Para reintentar la misma tanda.
+        defaultChoice = LOAD_MORE;
+        continue;
+      }
 
       if ('loaded' in result) {
         nextNumber -= pageSize;

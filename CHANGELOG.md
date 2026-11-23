@@ -8,6 +8,16 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+> [!WARNING]
+> **Puede afectar scripts**
+>
+> - Si ARCA falla al consultar un comprobante A, B, C, FCE o recibo, `consultar` sale con `ARCA_VOUCHER_QUERY_ERROR`, antes `VOUCHER_NOT_FOUND`.
+> - En el mismo caso, `ultimos` sale con `ARCA_VOUCHER_QUERY_ERROR` y exit code `1`, antes `0` con la lista vacía o incompleta.
+>
+> No se saca ni se renombra ningún comando, flag ni clave de config o de `--json`. Un comprobante que no existe sigue siendo `VOUCHER_NOT_FOUND`.
+
+---
+
 ### 🔧 Cambiado
 
 - **Factura E:** en el asistente, el país de destino y el CUIT del país se eligen de una lista con filtro donde también podés escribir (#257).
@@ -25,6 +35,22 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 **Actividad y forma de pago de la `E`.** Antes se escribían. Ahora la actividad es una lista con la tabla de WSFEX, código y descripción, que se filtra escribiendo el código (`6201`) o parte de la descripción (`consultores`); arranca en "Sin actividad (no se informa)", así que Enter la deja sin informar como antes, y un código escrito se valida contra la tabla como `--actividad`. Si ARCA devuelve la tabla vacía, se escribe. "Repetir" E usa la misma lista cuando la factura no trae actividad. La forma de pago arranca en "Transferencia Internacional" y sugiere Pago anticipado, Carta de crédito, Cobranza documentaria y Cuenta corriente; cualquier otro texto de hasta 50 caracteres vale, como `--forma-pago`, y lo escrito gana: "Transferencia" va tal cual, aunque una sugerencia lo contenga. Lo mismo en la condición de venta del PDF y de la config. Las notas E no las preguntan, y los flags, `--cargar`, el `--json` y el comando equivalente no cambian.
 
 **Moneda y actividad de exportación en la config.** La moneda lista las monedas de ARCA, que se buscan por nombre, código de ARCA o ISO (`usd`), y elegir una guarda el código de ARCA (`DOL`), como el default `PES`. La actividad lista la tabla de WSFEX, consultada como en `arcli fe`: hacen falta el CUIT y el certificado y la clave de facturación del entorno, y el de exportación se usa si está configurado; sin eso o si ARCA no responde, se escribe el código como antes. Sin valor guardado, la lista arranca en "Dejar sin configurar": Enter ya no guarda la primera opción sin elegirla, también en la condición de venta. Lo escrito se valida como `arcli config establecer`, y las claves no cambian.
+
+</details>
+
+### 🐛 Corregido
+
+- **Consultas:** `consultar` y `ultimos` dan `ARCA_VOUCHER_QUERY_ERROR` si ARCA falla, en vez de decir que el comprobante no existe (#268).
+- **Notas:** si ARCA falla al consultar el asociado, la nota A, B, C o FCE sigue con un aviso en vez de frenar (#268).
+- **Asistente:** si ARCA falla al cargar más comprobantes o buscar uno, muestra el error y seguís en la lista (#268).
+
+<details><summary>Detalle</summary>
+
+**Un error de ARCA no es "no existe".** Al consultar un comprobante A, B, C, FCE o recibo, solo el error 602 de ARCA significa que no existe. Antes, cualquier otro error (por ejemplo 600) y una respuesta sin datos se leían igual: `consultar` daba `VOUCHER_NOT_FOUND` y `ultimos` terminaba bien con la lista vacía o incompleta, que al verificar una emisión sin confirmar podía llevar a emitir dos veces. También se tomaba por inexistente una falla con "no existe" en el texto, como `El dominio no existe`. Ahora los dos dan `ARCA_VOUCHER_QUERY_ERROR`, con los errores de ARCA en `detalles.errores` y una `sugerencia`; `ultimos` falla si no se puede leer uno de los comprobantes, y saltea como antes el que no existe. `VOUCHER_NOT_FOUND`, `WSFE_SERVICE_NOT_AUTHORIZED`, `TRANSIENT_ERROR` y la factura `E` no cambian.
+
+**Notas.** El asociado se consulta de la misma forma: con un error de ARCA, la nota sigue y en `avisos` sale "No se pudo verificar en ARCA…". Una nota FCE sin `--afecha` sigue frenando con `INPUT_VALIDATION_ERROR`, porque no hay de dónde tomar la fecha, y el mensaje dice que no se pudo consultar.
+
+**Asistente.** En las listas de comprobantes (Mis comprobantes, Repetir y notas), el error se muestra y se vuelve a la lista con lo que ya estaba cargado. Si falla la primera carga, se muestra y vuelve al menú.
 
 </details>
 
