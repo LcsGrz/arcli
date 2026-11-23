@@ -62,16 +62,16 @@ const CORE_ON_APP_LIBS = [
   },
 ];
 
-// --- Deuda: warn, con su ticket ---
 const SERVICES_ON_CLI = {
   regex: '(^|/)cli(/|$)',
-  message:
-    'services no conoce a src/cli: recibí lo ya resuelto (entorno, opciones de salida) como parámetro. Lo cierra REV-48.',
+  message: 'services no conoce a src/cli: recibí lo ya resuelto (entorno, opciones de salida) como parámetro.',
 };
+
+// --- Deuda: warn, con su ticket ---
 const CORE_ON_SERVICES = {
   regex: '(^|/)services(/|$)',
   message:
-    'El núcleo no conoce los adaptadores: usá tipos propios y recibí el gateway o el contexto como dependencia; la traducción a los tipos del SDK vive en src/services/arca. Lo cierran ARQ-4 (tipos del SDK) y REV-48 (contexto).',
+    'El núcleo no conoce los adaptadores: usá tipos propios y recibí el gateway como dependencia; la traducción a los tipos del SDK vive en src/services/arca. Lo cierra ARQ-4.',
 };
 const CORE_ON_UI = {
   regex: '(^|/)ui/',
@@ -86,7 +86,7 @@ const CORE_ON_CONF = {
 const CORE_ON_FS = ['node:fs', 'node:fs/promises', 'fs', 'fs/promises'].map((name) => ({
   name,
   message:
-    'El núcleo no lee ni escribe archivos: recibí el contenido, o un puerto (TicketStore, un repositorio) como dependencia. Lo cierran REV-48 (contexto y tickets) y ARQ-12 (datos locales).',
+    'El núcleo no lee ni escribe archivos: recibí el contenido, o un puerto (TicketStore, un repositorio) como dependencia. Lo cierra ARQ-12.',
 }));
 const CORE_ON_PROCESS_MODULE = ['node:process', 'process'].map((name) => ({
   name,
@@ -252,25 +252,19 @@ export default defineConfig([
     rules: coreDebtRules(APP_MODULE_MESSAGE),
   },
   {
-    // Deuda en warn: la versión de typescript-eslint de la regla, porque `no-restricted-imports` ya está en error
-    // en este archivo y una regla tiene una sola severidad.
-    files: ['src/services/**/*.ts'],
-    ignores: TEST_FILES,
-    rules: {
-      '@typescript-eslint/no-restricted-imports': ['warn', { patterns: [SERVICES_ON_CLI] }],
-    },
-  },
-  {
     files: ['src/services/**/*.ts'],
     ignores: [SDK_TYPES_FILE],
     rules: {
-      'no-restricted-imports': ['error', { paths: UI_STYLE_IMPORTS, patterns: [UI_BARREL, SDK_INTERNAL_PATHS] }],
+      'no-restricted-imports': [
+        'error',
+        { paths: UI_STYLE_IMPORTS, patterns: [UI_BARREL, SDK_INTERNAL_PATHS, SERVICES_ON_CLI] },
+      ],
     },
   },
   {
     files: [SDK_TYPES_FILE],
     rules: {
-      'no-restricted-imports': ['error', { paths: UI_STYLE_IMPORTS, patterns: [UI_BARREL] }],
+      'no-restricted-imports': ['error', { paths: UI_STYLE_IMPORTS, patterns: [UI_BARREL, SERVICES_ON_CLI] }],
     },
   },
   {
