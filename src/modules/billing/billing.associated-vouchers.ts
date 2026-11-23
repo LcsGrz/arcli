@@ -1,12 +1,9 @@
-import {
-  formatArcaDateAsArgentineDate,
-  formatDateAsArcaDate,
-  parseArgentineDateInputAsArcaDate,
-} from '../../lib/dates/arca-date';
+import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { assertRules } from '../../lib/rules/rules';
 import type { ICbtesAsoc } from '../../services/arca/arca-sdk.types';
 
+import { parseBillingDateInput } from './billing.dates';
 import { formatVoucherLabel, formatVoucherSubject, formatVoucherWithArticle } from './billing.mappers';
 import { ASSOCIATED_NOT_AFTER_NOTE_RULE } from './billing.rules';
 import type { BillingCommandInput } from './billing.schemas';
@@ -18,11 +15,13 @@ interface ResolveAssociatedVoucherOptions {
   readonly emitterCuit: number;
   readonly input: BillingCommandInput;
   readonly requireVoucherKind: (shortcut: string) => VoucherKindDefinition;
+  /** Hoy en Argentina (yyyymmdd). */
+  readonly today: string;
   readonly voucherKind: VoucherKindDefinition;
 }
 
 export function resolveAssociatedVouchers(options: ResolveAssociatedVoucherOptions): ICbtesAsoc[] | undefined {
-  const { billingDate, emitterCuit, input, requireVoucherKind, voucherKind } = options;
+  const { billingDate, emitterCuit, input, requireVoucherKind, today, voucherKind } = options;
 
   if (!voucherKind.requiresAssociatedVoucher) {
     if (input.associatedVoucher) {
@@ -70,7 +69,7 @@ export function resolveAssociatedVouchers(options: ResolveAssociatedVoucherOptio
   }
 
   // En una nota FCE sin `--afecha` la fecha sale de ARCA (checkAssociatedInArca, antes de la vista previa).
-  const associatedDate = resolveAssociatedVoucherDate(input, billingDate, voucherKind);
+  const associatedDate = resolveAssociatedVoucherDate(input, billingDate, voucherKind, today);
 
   return [
     {
@@ -107,6 +106,7 @@ function resolveAssociatedVoucherDate(
   input: BillingCommandInput,
   billingDate: string,
   voucherKind: VoucherKindDefinition,
+  today: string,
 ): string | undefined {
   const rawDate = input.associatedVoucher?.fecha;
 
@@ -118,13 +118,10 @@ function resolveAssociatedVoucherDate(
   assertRules(
     [ASSOCIATED_NOT_AFTER_NOTE_RULE],
     { ...input, billingDate: formatArcaDateAsArgentineDate(billingDate) },
-    {
-      today: formatDateAsArcaDate(new Date()),
-      voucherKind,
-    },
+    { today, voucherKind },
   );
 
-  return parseArgentineDateInputAsArcaDate(rawDate);
+  return parseBillingDateInput(rawDate, today);
 }
 
 function resolveAssociatedVoucherType(

@@ -10,6 +10,7 @@ import { hasAtMostDecimals } from '../../../lib/numbers/argentine-amount';
 import { BillingService } from '../../../modules/billing/billing.service';
 import type { VoucherShortcut } from '../../../modules/billing/billing.types';
 import { getVoucherKindByShortcut, VOUCHER_KIND_MAP } from '../../../modules/billing/voucher-kind-map';
+import { systemClock } from '../../../services/time/system-clock';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { prepareBatch } from '../billing.command.batch';
 import {
@@ -242,7 +243,7 @@ function runToPayload(args: readonly string[], shortcut: VoucherShortcut, now: D
     }
 
     const [input] = plan.inputs;
-    const payload = new BillingService().buildVoucherPayload(input, RUNTIME);
+    const payload = new BillingService({ clock: systemClock }).buildVoucherPayload(input, RUNTIME);
 
     return { payload, totalAmount: input.totalAmount };
   } catch (error) {

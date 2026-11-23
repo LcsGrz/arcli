@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { billingCommandSchema } from '../../../modules/billing/billing.schemas';
 import { BillingService } from '../../../modules/billing/billing.service';
 import { BACK } from '../../../modules/interactive/wizard';
+import { systemClock } from '../../../services/time/system-clock';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { offerPdf } from '../pdf.flow';
 import { askTextStep, chooseOne, confirm } from '../prompts';
@@ -49,7 +50,7 @@ function createSession(
     createVoucher,
     historyGateway: { getLastNumber: vi.fn(), getVoucher: vi.fn() },
     runtime,
-    service: new BillingService(),
+    service: new BillingService({ clock: systemClock }),
   };
 }
 

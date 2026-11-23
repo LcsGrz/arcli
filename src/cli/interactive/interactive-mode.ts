@@ -143,6 +143,7 @@ function noticesWithExpired(expired: CertificateExpiryNotice): CertificateExpiry
   try {
     const others = inspectConfiguredCertificates(service.getConfig().cert ?? {}, {
       activeEnvironment: expired.environment,
+      now: new Date(),
     }).filter((notice) => notice.environment !== expired.environment);
 
     return [expired, ...others];

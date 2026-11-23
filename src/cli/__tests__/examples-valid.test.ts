@@ -18,6 +18,7 @@ import {
   type ExportVoucherKind,
 } from '../../modules/export/export.types';
 import type { PadronGateway } from '../../modules/padron/padron';
+import { systemClock } from '../../services/time/system-clock';
 import { stripAnsi } from '../../ui';
 import { parseBillingCommandPlan } from '../commands/billing.command.parser';
 import { resolveBillingCommandDefaults } from '../commands/billing.command.shared';
@@ -415,7 +416,7 @@ async function validate(args: readonly string[], settings: Example['config'] = [
     outputRaw: false,
     pointOfSale: config.puntoVentaPorDefecto,
   };
-  const service = new BillingService();
+  const service = new BillingService({ clock: systemClock });
 
   captured.length = 0;
   await createTestProgram().parseAsync(['node', 'arcli', ...args]);
@@ -427,7 +428,10 @@ async function validate(args: readonly string[], settings: Example['config'] = [
   if (call.exportKind) {
     const exportPlan = parseExportCommandPlan(call.command, { voucherKind: call.exportKind });
 
-    await new ExportService().resolve(exportPlan.input, exportGateway, { config, environment: 'testing' }, NOW);
+    await new ExportService({ clock: { now: () => NOW } }).resolve(exportPlan.input, exportGateway, {
+      config,
+      environment: 'testing',
+    });
 
     return;
   }

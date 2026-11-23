@@ -27,7 +27,7 @@ function createExpiry(partial: Partial<CertificateExpiry>): CertificateExpiry {
 describe('readCertificateExpiry', () => {
   it('calcula los dias restantes de un certificado vigente y lejano', () => {
     const { pem } = createSelfSignedCertificate(365);
-    const expiry = readCertificateExpiry(pem);
+    const expiry = readCertificateExpiry(pem, new Date());
 
     expect(expiry.isExpired).toBe(false);
     expect(expiry.daysRemaining).toBeGreaterThan(300);
@@ -35,7 +35,7 @@ describe('readCertificateExpiry', () => {
 
   it('calcula los dias restantes de un certificado a punto de vencer', () => {
     const { pem } = createSelfSignedCertificate(10);
-    const expiry = readCertificateExpiry(pem);
+    const expiry = readCertificateExpiry(pem, new Date());
 
     expect(expiry.isExpired).toBe(false);
     expect(expiry.daysRemaining).toBeLessThanOrEqual(10);

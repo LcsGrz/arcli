@@ -107,7 +107,7 @@ export function invoiceRuleScope(state: InvoiceState, env: InvoiceInputEnv & Rul
 /** Lo que las reglas toman de la sesion: la config, el CUIT emisor y hoy (cuando se pregunta). */
 export function billingRuleEnv(
   runtime: { readonly config: InvoiceInputEnv['config']; readonly context: { readonly cuit: number } },
-  now = new Date(),
+  now: Date,
 ): InvoiceInputEnv & RuleEnv {
   return { config: runtime.config, emitterCuit: runtime.context.cuit, today: formatDateAsArcaDate(now) };
 }

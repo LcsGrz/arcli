@@ -73,7 +73,13 @@ export function formatArcaPeriodAsArgentinePeriod(value: string): string {
   return `${value.slice(4, 6)}/${value.slice(0, 4)}`;
 }
 
-export function parseArgentineDateInputAsArcaDate(value: string, referenceDate = new Date()): string {
+/** Mediodia argentino (15 UTC) de una fecha ARCA (yyyymmdd): completa una fecha sin año desde ese dia. */
+export function arcaDateToInstant(value: string): Date {
+  return new Date(arcaDateToUtcTime(value) + 15 * 3_600_000);
+}
+
+/** Una fecha escrita a mano, completando desde el dia de `now` en Argentina el mes o el año que falten. */
+export function parseArgentineDateInputAsArcaDate(value: string, now: Date): string {
   const normalizedValue = value.trim();
   const dateMatch = /^(\d{1,2})(?:([-/])(\d{1,2})(?:\2(\d{2}|\d{4}))?)?$/.exec(normalizedValue);
 
@@ -82,10 +88,32 @@ export function parseArgentineDateInputAsArcaDate(value: string, referenceDate =
   }
 
   const [, rawDay, , rawMonth, explicitYear] = dateMatch;
-  const today = toArgentineCalendarDate(referenceDate);
+  const today = toArgentineCalendarDate(now);
   const day = rawDay.padStart(2, '0');
   const month = (rawMonth ?? String(today.month)).padStart(2, '0');
-  const year = resolveYear(explicitYear, Number(month), Number(day), today);
+
+  return toValidArcaDate(value, day, month, resolveYear(explicitYear, Number(month), Number(day), today));
+}
+
+/** Una fecha escrita con dia, mes y año (`1/03/2020`): no depende de hoy. `undefined` si le falta algo. */
+export function parseFullArgentineDateAsArcaDate(value: string): string | undefined {
+  const match = /^(\d{1,2})([-/])(\d{1,2})\2(\d{2}|\d{4})$/.exec(value.trim());
+
+  if (!match) {
+    return undefined;
+  }
+
+  const [, day, , month, year] = match;
+
+  return toValidArcaDate(value, day.padStart(2, '0'), month.padStart(2, '0'), toFullYear(year));
+}
+
+function toFullYear(year: string): string {
+  return year.length === 2 ? `20${year}` : year;
+}
+
+/** La fecha ARCA de un dia, mes y año ya completos, si existe en el calendario. `value` es lo escrito, para el error. */
+function toValidArcaDate(value: string, day: string, month: string, year: string): string {
   const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
 
   if (
@@ -107,7 +135,7 @@ export function parseArgentineDateInputAsArcaDate(value: string, referenceDate =
  */
 function resolveYear(explicitYear: string | undefined, month: number, day: number, today: CalendarDate): string {
   if (explicitYear) {
-    return explicitYear.length === 2 ? `20${explicitYear}` : explicitYear;
+    return toFullYear(explicitYear);
   }
 
   const todayTime = Date.UTC(today.year, today.month - 1, today.day);

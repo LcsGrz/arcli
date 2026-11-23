@@ -27,6 +27,7 @@ import { ArcaFceRegistryGateway } from '../../services/arca/arca-fce-registry.ga
 import { ArcaPadronGateway } from '../../services/arca/arca-padron.gateway';
 import type { Arca } from '../../services/arca/arca-sdk.types';
 import { ArcaVoucherHistoryGateway } from '../../services/arca/arca-voucher-history.gateway';
+import { systemClock } from '../../services/time/system-clock';
 import { colorize, noticePanel, renderPanel, uiSymbol, writeTerminalError, writeTerminalOutput } from '../../ui';
 import { type CliArcaRuntime, loadArcaRuntime } from '../arca-runtime';
 import { formatBillingOutputs } from '../commands/billing.command.output';
@@ -73,7 +74,7 @@ export function createInteractiveSession(options: GlobalCliOptions): Interactive
     billingGateway: new ArcaBillingGateway(arca),
     historyGateway: new ArcaVoucherHistoryGateway(arca),
     runtime,
-    service: new BillingService(),
+    service: new BillingService({ clock: systemClock }),
   };
 }
 

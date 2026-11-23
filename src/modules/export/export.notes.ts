@@ -1,4 +1,4 @@
-import { formatArcaDateAsArgentineDate, parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
+import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { assertRules } from '../../lib/rules/rules';
@@ -7,7 +7,7 @@ import { formatVoucherSubject, formatVoucherWithArticle } from '../billing/billi
 import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
 import { formatVoucherNumber } from '../vouchers/voucher-number';
 
-import { assertExportPointOfSaleRange } from './export.mappers';
+import { assertExportPointOfSaleRange, resolveExportRuleDate } from './export.mappers';
 import type { ExportRule, ExportRuleContext } from './export.rules';
 import {
   DEFAULT_EXPORT_TYPE,
@@ -237,7 +237,7 @@ export function exportAssociatedRuleContext(
  */
 export const EXPORT_NOTE_AFTER_ASSOCIATED_RULE: ExportRule = {
   check: (input, { associated, today }) => {
-    const date = input.voucherDate?.trim() ? parseArgentineDateInputAsArcaDate(input.voucherDate) : today;
+    const date = input.voucherDate?.trim() ? resolveExportRuleDate(input.voucherDate, today) : today;
 
     if (!associated || !date || date >= associated.date) {
       return undefined;

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { billingCommandSchema } from '../../../modules/billing/billing.schemas';
 import { BillingService } from '../../../modules/billing/billing.service';
+import { systemClock } from '../../../services/time/system-clock';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { DO_NOT_EMIT_LABEL, EMIT_NOW_LABEL } from '../emission-prompt';
 import { listSelect } from '../list-select';
@@ -59,7 +60,7 @@ function createSession(environment: 'produccion' | 'testing') {
     billingGateway: { createVoucher, getNextVoucherNumber: vi.fn(async () => 1), getQuotation: vi.fn() },
     historyGateway: { getLastNumber: vi.fn(), getVoucher: vi.fn() },
     runtime,
-    service: new BillingService(),
+    service: new BillingService({ clock: systemClock }),
   };
 
   return { createVoucher, session };

@@ -1,4 +1,4 @@
-import { formatArcaDateAsArgentineDate, parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
+import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import type { Rule } from '../../lib/rules/rules';
 
 import { EXPORT_ITEMS_TOTAL_RULE } from './export.items';
@@ -7,6 +7,7 @@ import {
   EXPORT_EXCHANGE_RATE_RULE,
   EXPORT_VOUCHER_DATE_WINDOW_RULE,
   exportTypeTakesPaymentDate,
+  resolveExportRuleDate,
 } from './export.mappers';
 import { EXPORT_NOTE_AFTER_ASSOCIATED_RULE } from './export.notes';
 import { DEFAULT_EXPORT_TYPE, EXPORT_VOUCHER_KIND, type ExportVoucherInput, isExportNote } from './export.types';
@@ -50,13 +51,14 @@ export const EXPORT_PAYMENT_DATE_RULE: ExportRule = {
 
     const undecided = !typed && undecidedVoucherDate;
     const voucherDate = typed
-      ? parseArgentineDateInputAsArcaDate(typed)
+      ? resolveExportRuleDate(typed, today)
       : undecided
         ? earliestExportVoucherDate(today as string)
         : (today as string);
-    const paymentDate = parseArgentineDateInputAsArcaDate(input.paymentDate);
+    const paymentDate = resolveExportRuleDate(input.paymentDate, today);
 
-    if (paymentDate >= voucherDate) {
+    // Una fecha sin año, sin `today`: no se puede comparar.
+    if (!paymentDate || !voucherDate || paymentDate >= voucherDate) {
       return undefined;
     }
 

@@ -30,6 +30,7 @@ import { BACK, requireStepValue, runWizard, type WizardStep } from '../../module
 import { formatPdfOutcomeAsText } from '../../modules/pdf/pdf.presenter';
 import { planEmissionConfirmation, resolvePdfAfterConfirmation } from '../../modules/pdf/pdf-decision';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
+import { systemClock } from '../../services/time/system-clock';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 import { attachExportPdf } from '../commands/export.command.pdf';
 import { withSpinner } from '../spinner';
@@ -370,7 +371,7 @@ export async function emitExportVoucher(
   const { runtime } = session;
   // ExportService toma el de la config: uno elegido en el asistente va en la entrada (y en el comando equivalente).
   const input: ExportVoucherInput = { ...rawInput, pointOfSale: rawInput.pointOfSale ?? session.typedPointOfSale };
-  const service = new ExportService();
+  const service = new ExportService({ clock: systemClock });
   // Si la vista previa rechaza la entrada, vuelve a la ultima pregunta (TUI-15).
   const resolved = await rejectedAsBack(() =>
     withSpinner('Consultando WSFEX...', () => service.resolve(input, gateway, runtime)),

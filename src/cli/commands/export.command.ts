@@ -16,6 +16,7 @@ import {
 import { formatPdfOutcomeAsText } from '../../modules/pdf/pdf.presenter';
 import { planEmissionConfirmation, resolvePdfAfterConfirmation } from '../../modules/pdf/pdf-decision';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
+import { systemClock } from '../../services/time/system-clock';
 import { noticePanel, writeTerminalJson, writeTerminalOutput } from '../../ui';
 import { certificateWarnings, type CliArcaRuntime, resolveArcaRuntime } from '../arca-runtime';
 import { getGlobalOptions } from '../global-options';
@@ -86,7 +87,7 @@ export async function executeExportCommand(
     const plan = parseExportCommandPlan(command, { defaultEmit: runtime.config.output.emitirPorDefecto, voucherKind });
     const useRaw = typeof globalOptions.bruto === 'boolean' ? globalOptions.bruto : runtime.outputRaw;
     const interactive = !runtime.outputJson && Boolean(process.stdin.isTTY && process.stdout.isTTY);
-    const service = new ExportService();
+    const service = new ExportService({ clock: systemClock });
     const gateway = dependencies.createGateway(runtime);
 
     spinner = runtime.outputJson ? null : startSpinner('Consultando WSFEX...');

@@ -6,6 +6,7 @@ import { billingCommandSchema } from '../../../modules/billing/billing.schemas';
 import { BillingService } from '../../../modules/billing/billing.service';
 import { ExportService } from '../../../modules/export/export.service';
 import { BACK } from '../../../modules/interactive/wizard';
+import { systemClock } from '../../../services/time/system-clock';
 import { runExportFlow } from '../export.flow';
 import { runInvoiceFlow } from '../invoice.flow';
 import { runNoteFlow } from '../note.flow';
@@ -514,7 +515,7 @@ describe('auditoría del asistente del 19/11', () => {
       'En el período asociado, "Período desde" no puede ser posterior a "Período hasta".',
     );
 
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
     const input = billingCommandSchema.parse({
       associatedPeriod: { desde: '10/11/2026', hasta: '01/11/2026' },
       concept: 'servicios',

@@ -155,6 +155,7 @@ describe('config.presenter', () => {
           brutoPorDefecto: false,
         },
       },
+      new Date(),
       [{ environment: 'testing', error: 'Falta el punto de venta.' }],
     );
 
@@ -176,6 +177,7 @@ describe('config.presenter', () => {
           brutoPorDefecto: false,
         },
       },
+      new Date(),
       [
         { environment: 'testing', error: MISSING_CUIT_MESSAGE },
         { environment: 'produccion', error: MISSING_CUIT_MESSAGE },

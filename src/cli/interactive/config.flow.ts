@@ -561,7 +561,9 @@ export async function runConfigMenu(flags: EnvironmentFlags = {}): Promise<void>
     if (option === 'revisar') {
       const config = readConfig();
 
-      writeTerminalOutput(formatConfigDoctorAsText(buildConfigDoctorReport(config, buildRuntimeChecks(config))));
+      writeTerminalOutput(
+        formatConfigDoctorAsText(buildConfigDoctorReport(config, new Date(), buildRuntimeChecks(config))),
+      );
     }
 
     if (option === 'guiada') await runGuidedSetup(flags);

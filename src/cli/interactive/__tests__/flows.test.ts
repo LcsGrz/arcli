@@ -8,6 +8,7 @@ import { buildInvoiceInput, type InvoiceState } from '../../../modules/interacti
 import { buildNoteInput } from '../../../modules/interactive/note-input';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../../../modules/vouchers/voucher-history';
+import { systemClock } from '../../../services/time/system-clock';
 import { stripAnsi } from '../../../ui';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { runExportFlow } from '../export.flow';
@@ -73,7 +74,7 @@ function createSession(vouchers: IssuedVoucher[] = [], arca: unknown = {}): Inte
       outputRaw: false,
       pointOfSale: 3,
     } as unknown as CliArcaRuntime,
-    service: new BillingService(),
+    service: new BillingService({ clock: systemClock }),
   };
 }
 

@@ -109,11 +109,13 @@ describe('arca-date', () => {
     });
 
     it('acepta el 29/02 de un año bisiesto y rechaza el de uno que no lo es', () => {
-      expect(parseArgentineDateInputAsArcaDate('29/02/2028')).toBe('20280229');
-      expect(parseArgentineDateInputAsArcaDate('29-02-28')).toBe('20280229');
-      expect(() => parseArgentineDateInputAsArcaDate('29/02/2027')).toThrow(/La fecha "29\/02\/2027" no es válida/);
-      expect(() => parseArgentineDateInputAsArcaDate('29/02/2100')).toThrow(InputValidationError);
-      expect(parseArgentineDateInputAsArcaDate('29/02/2000')).toBe('20000229');
+      expect(parseArgentineDateInputAsArcaDate('29/02/2028', new Date())).toBe('20280229');
+      expect(parseArgentineDateInputAsArcaDate('29-02-28', new Date())).toBe('20280229');
+      expect(() => parseArgentineDateInputAsArcaDate('29/02/2027', new Date())).toThrow(
+        /La fecha "29\/02\/2027" no es válida/,
+      );
+      expect(() => parseArgentineDateInputAsArcaDate('29/02/2100', new Date())).toThrow(InputValidationError);
+      expect(parseArgentineDateInputAsArcaDate('29/02/2000', new Date())).toBe('20000229');
     });
 
     it.each([
@@ -127,27 +129,27 @@ describe('arca-date', () => {
     ])('29/2 sin año el %s es %s', (now, expected) => {
       vi.setSystemTime(new Date(now));
 
-      expect(parseArgentineDateInputAsArcaDate('29/2')).toBe(expected);
+      expect(parseArgentineDateInputAsArcaDate('29/2', new Date())).toBe(expected);
     });
 
     it('29/2 sin año es error si no hay un 29/02 en el año actual, el anterior ni el siguiente', () => {
       vi.setSystemTime(new Date('2026-06-15T15:00:00Z'));
 
-      expect(() => parseArgentineDateInputAsArcaDate('29/2')).toThrow(/La fecha "29\/2" no es válida/);
+      expect(() => parseArgentineDateInputAsArcaDate('29/2', new Date())).toThrow(/La fecha "29\/2" no es válida/);
     });
 
     it.each(['5-3/26', '5/3-26', '5/3-2026', '5-03/2026', '5.3.26', '5 3 26', '5//3', '5-'])(
       'rechaza %s (separadores mezclados o que no son - ni /)',
       (input) => {
-        expect(() => parseArgentineDateInputAsArcaDate(input)).toThrow(InputValidationError);
+        expect(() => parseArgentineDateInputAsArcaDate(input, new Date())).toThrow(InputValidationError);
       },
     );
 
     it('rechaza día o mes en cero y años de 3 dígitos', () => {
-      expect(() => parseArgentineDateInputAsArcaDate('0/3/26')).toThrow(InputValidationError);
-      expect(() => parseArgentineDateInputAsArcaDate('5/0/26')).toThrow(InputValidationError);
-      expect(() => parseArgentineDateInputAsArcaDate('5/13/26')).toThrow(InputValidationError);
-      expect(() => parseArgentineDateInputAsArcaDate('5/3/202')).toThrow(InputValidationError);
+      expect(() => parseArgentineDateInputAsArcaDate('0/3/26', new Date())).toThrow(InputValidationError);
+      expect(() => parseArgentineDateInputAsArcaDate('5/0/26', new Date())).toThrow(InputValidationError);
+      expect(() => parseArgentineDateInputAsArcaDate('5/13/26', new Date())).toThrow(InputValidationError);
+      expect(() => parseArgentineDateInputAsArcaDate('5/3/202', new Date())).toThrow(InputValidationError);
     });
   });
 });

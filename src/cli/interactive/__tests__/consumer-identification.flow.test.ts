@@ -14,6 +14,7 @@ import { buildInvoiceInput } from '../../../modules/interactive/invoice-input';
 import { buildNoteInput } from '../../../modules/interactive/note-input';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../../../modules/vouchers/voucher-history';
+import { systemClock } from '../../../services/time/system-clock';
 import { stripAnsi } from '../../../ui';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { runInvoiceFlow } from '../invoice.flow';
@@ -76,7 +77,7 @@ function createSession(vouchers: IssuedVoucher[] = [], officialRate = 1000) {
     getNextVoucherNumber: vi.fn(async () => 15),
     getQuotation: vi.fn(async () => officialRate),
   };
-  const service = new BillingService();
+  const service = new BillingService({ clock: systemClock });
   const session: InteractiveSession = {
     arca: {} as never,
     billingGateway,

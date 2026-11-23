@@ -23,6 +23,7 @@ import { ArcaFceRegistryGateway } from '../../services/arca/arca-fce-registry.ga
 import { ArcaPadronGateway } from '../../services/arca/arca-padron.gateway';
 import { ArcaParametersGateway } from '../../services/arca/arca-parameters.gateway';
 import { ArcaVoucherHistoryGateway } from '../../services/arca/arca-voucher-history.gateway';
+import { systemClock } from '../../services/time/system-clock';
 import { certificateWarnings, type CliArcaRuntime, resolveArcaRuntime } from '../arca-runtime';
 import { getGlobalOptions, registerGlobalOptions } from '../global-options';
 import { startSpinner } from '../spinner';
@@ -167,7 +168,7 @@ export async function executeBillingCommand(
   try {
     const runtime = dependencies.resolveRuntime(globalOptions);
     const plan = parseBillingCommandPlan(command, shortcut, resolveBillingCommandDefaults(runtime.config));
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
     const gateways = dependencies.createGateways(runtime);
     const gateway = gateways.billing;
     const useRaw = typeof globalOptions.bruto === 'boolean' ? globalOptions.bruto : runtime.outputRaw;

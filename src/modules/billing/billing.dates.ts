@@ -1,4 +1,5 @@
 import {
+  arcaDateToInstant,
   type CalendarDate,
   calendarDateToArcaDate,
   maxArcaDate,
@@ -29,16 +30,9 @@ function arcaDateToCalendarDate(value: string): CalendarDate {
   return { day: Number(value.slice(6, 8)), month: Number(value.slice(4, 6)), year: Number(value.slice(0, 4)) };
 }
 
-/** Mediodia argentino (15 UTC) de una fecha ARCA, para completar fechas sin año desde ese dia. */
-function arcaDateToReferenceInstant(value: string): Date {
-  const { day, month, year } = arcaDateToCalendarDate(value);
-
-  return new Date(Date.UTC(year, month - 1, day, 15));
-}
-
 /** Una fecha escrita (`--fecha 10`, `15/11`) en fecha ARCA, completando lo que falta desde `today` (yyyymmdd). */
 export function parseBillingDateInput(value: string, today: string): string {
-  return parseArgentineDateInputAsArcaDate(value, arcaDateToReferenceInstant(today));
+  return parseArgentineDateInputAsArcaDate(value, arcaDateToInstant(today));
 }
 
 /** La fecha del comprobante: la escrita o, como el CLI sin `--fecha`, hoy. */

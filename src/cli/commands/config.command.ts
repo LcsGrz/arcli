@@ -108,7 +108,7 @@ export function registerConfigCommand(program: Command): void {
           configuredBrowser: config.pdfNavegador,
           path: join(service.getPluginsPath(), 'pdf'),
         }).getStatus();
-        const report = buildConfigDoctorReport(config, buildRuntimeChecks(config), pdfPlugin);
+        const report = buildConfigDoctorReport(config, new Date(), buildRuntimeChecks(config), pdfPlugin);
         spinner?.stop();
         printConfigResult(formatConfigDoctorAsText(report), formatConfigDoctor(report), useJson);
       } catch (error) {

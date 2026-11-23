@@ -32,9 +32,9 @@ const UI_BARREL = {
 
 // =========================
 // Fronteras del núcleo (docs/architecture.md, "Núcleo y adaptadores"): `modules` y `lib` no saben quién los llama.
-// Lo que ya se cumple es error (`no-restricted-imports`). Lo que hoy falla es deuda en warn, con el ticket que la
-// cierra (`@typescript-eslint/no-restricted-imports`, `no-restricted-globals`, `no-restricted-syntax`): no es un
-// patrón para copiar. Cuando el ticket se cierra, la frontera pasa al bloque de error.
+// Lo que ya se cumple es error (`no-restricted-imports`, `no-restricted-syntax`). Lo que hoy falla es deuda en warn,
+// con el ticket que la cierra (`@typescript-eslint/no-restricted-imports`, `no-restricted-globals`): no es un patrón
+// para copiar. Cuando el ticket se cierra, la frontera pasa al bloque de error.
 // =========================
 const CORE_FILES = ['src/lib/**/*.ts', 'src/modules/**/*.ts'];
 const TEST_FILES = ['src/**/__tests__/**/*.ts', 'src/**/*.test.ts'];
@@ -61,6 +61,15 @@ const CORE_ON_APP_LIBS = [
     message: 'Los spinners son de la app CLI: el núcleo devuelve una promesa y la app decide cómo mostrar la espera.',
   },
 ];
+
+const NOW_MESSAGE =
+  'El núcleo no lee el reloj: recibí la fecha como parámetro o el puerto Clock (docs/architecture.md, "Núcleo y adaptadores").';
+const NOW_SELECTORS = [
+  "NewExpression[callee.name='Date'][arguments.length=0]",
+  "CallExpression[callee.object.name='Date'][callee.property.name='now']",
+];
+/** Las lecturas del reloj: error en el núcleo, warn de ARQ-7 en los módulos de la app. */
+const noClockReads = (severity, message) => [severity, ...NOW_SELECTORS.map((selector) => ({ selector, message }))];
 
 const SERVICES_ON_CLI = {
   regex: '(^|/)cli(/|$)',
@@ -95,12 +104,6 @@ const CORE_ON_PROCESS_MODULE = ['node:process', 'process'].map((name) => ({
 }));
 const PROCESS_MESSAGE =
   'El núcleo no lee el proceso (process.env, argv, cwd, stdout, exit): recibilo como parámetro desde la app. Lo cierra REV-48.';
-const NOW_MESSAGE =
-  'El núcleo no lee el reloj: recibí la fecha como parámetro o el puerto Clock (docs/architecture.md, "Núcleo y adaptadores"). Lo cierra REV-48.';
-const NOW_SELECTORS = [
-  "NewExpression[callee.name='Date'][arguments.length=0]",
-  "CallExpression[callee.object.name='Date'][callee.property.name='now']",
-];
 
 /** Arma las reglas de deuda del núcleo; en los módulos de la app, todas con el mensaje de ARQ-7. */
 const coreDebtRules = (override) => {
@@ -115,7 +118,6 @@ const coreDebtRules = (override) => {
       },
     ],
     'no-restricted-globals': ['warn', { name: 'process', message: msg(PROCESS_MESSAGE) }],
-    'no-restricted-syntax': ['warn', ...NOW_SELECTORS.map((selector) => ({ selector, message: msg(NOW_MESSAGE) }))],
   };
 };
 
@@ -243,13 +245,17 @@ export default defineConfig([
           patterns: [UI_BARREL, SDK_OUTSIDE_SERVICES, CORE_ON_CLI, CORE_ON_PROMPTS],
         },
       ],
+      'no-restricted-syntax': noClockReads('error', NOW_MESSAGE),
       ...coreDebtRules(),
     },
   },
   {
     files: APP_MODULES,
     ignores: TEST_FILES,
-    rules: coreDebtRules(APP_MODULE_MESSAGE),
+    rules: {
+      'no-restricted-syntax': noClockReads('warn', APP_MODULE_MESSAGE),
+      ...coreDebtRules(APP_MODULE_MESSAGE),
+    },
   },
   {
     files: ['src/services/**/*.ts'],

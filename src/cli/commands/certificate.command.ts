@@ -13,6 +13,7 @@ import { CertificateService, type ImportedCertificate } from '../../modules/cert
 import { explicitEnvironment } from '../../modules/config/arca-profile';
 import type { ArcliEnvironment } from '../../modules/config/config.schemas';
 import { ConfigService } from '../../modules/config/config.service';
+import { systemClock } from '../../services/time/system-clock';
 import { writeTerminalJson, writeTerminalOutput } from '../../ui';
 import { getGlobalOptions, registerEnvironmentOptions, registerJsonOption, resolveOutputJson } from '../global-options';
 import { configureSpanishHelp } from '../help';
@@ -27,7 +28,10 @@ function withService<T>(run: (service: CertificateService, config: ConfigService
   const config = new ConfigService();
 
   try {
-    return run(new CertificateService({ certificatesRoot: config.getCertificatesPath(), config }), config);
+    return run(
+      new CertificateService({ certificatesRoot: config.getCertificatesPath(), clock: systemClock, config }),
+      config,
+    );
   } finally {
     config.close();
   }
@@ -132,7 +136,11 @@ export function registerCertificateCommand(program: Command): void {
 
       try {
         const json = resolveOutputJson(command, config.getConfig());
-        const service = new CertificateService({ certificatesRoot: config.getCertificatesPath(), config });
+        const service = new CertificateService({
+          certificatesRoot: config.getCertificatesPath(),
+          clock: systemClock,
+          config,
+        });
         const imported = await importWithConfirmation(
           service,
           { content, environment: requestedEnvironment(command), replace: options.reemplazar === true },

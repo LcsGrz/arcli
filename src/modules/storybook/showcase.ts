@@ -346,9 +346,12 @@ function buildBillingScene(): string {
   ].join('\n\n');
 }
 
+/** Una fecha fija, para que las escenas no cambien con los dias. */
+const SAMPLE_NOW = new Date('2026-03-26T12:00:00-03:00');
+
 function buildConfigScene(): string {
   const config = createSampleConfig();
-  const doctor = buildConfigDoctorReport(config, [{ environment: 'testing' }]);
+  const doctor = buildConfigDoctorReport(config, SAMPLE_NOW, [{ environment: 'testing' }]);
 
   return [
     sceneTitle('Configuración', 'Vista actual y revisión'),
@@ -515,9 +518,6 @@ function buildQueriesScene(): string {
 }
 
 function buildCertificatesScene(): string {
-  // Una fecha fija, para que la escena no cambie con los dias.
-  const now = new Date('2026-03-26T12:00:00-03:00');
-
   return [
     sceneTitle('Certificados', 'Estado por entorno, pedido nuevo y certificado importado'),
     formatCertificateStatusAsText(
@@ -532,7 +532,7 @@ function buildCertificatesScene(): string {
         },
         { environment: 'produccion', pendingRequestPath: '/ruta/a/produccion.csr', unreadable: false },
       ],
-      now,
+      SAMPLE_NOW,
     ),
     formatGeneratedRequestAsText({
       alias: 'arcli',
@@ -577,7 +577,7 @@ function buildJsonScene(): string {
     }),
   );
   const doctorJson = highlightJsonValues(
-    formatConfigDoctor(buildConfigDoctorReport(createSampleConfig(), [{ environment: 'testing' }])),
+    formatConfigDoctor(buildConfigDoctorReport(createSampleConfig(), SAMPLE_NOW, [{ environment: 'testing' }])),
   );
 
   return [

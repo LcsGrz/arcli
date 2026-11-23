@@ -4,6 +4,7 @@ import { BillingService } from '../../../modules/billing/billing.service';
 import { arcliConfigSchema } from '../../../modules/config/config.schemas';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../../../modules/vouchers/voucher-history';
+import { systemClock } from '../../../services/time/system-clock';
 import { stripAnsi } from '../../../ui';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { invoiceSteps, runInvoiceFlow } from '../invoice.flow';
@@ -86,7 +87,7 @@ function createSession(vouchers: IssuedVoucher[] = [], officialRate = 1000) {
       outputRaw: false,
       pointOfSale: 3,
     } as unknown as CliArcaRuntime,
-    service: new BillingService(),
+    service: new BillingService({ clock: systemClock }),
   };
 
   return { billingGateway, session };

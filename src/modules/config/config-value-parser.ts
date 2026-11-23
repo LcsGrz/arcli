@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { z } from 'zod';
 
-import { parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
+import { parseFullArgentineDateAsArcaDate } from '../../lib/dates/arca-date';
 import { InputIssuesError, InputValidationError } from '../../lib/errors/app-error';
 import { describeInvalidCbu, parseCbu } from '../../lib/identity/cbu';
 import { describeInvalidCbuAlias, parseCbuAlias } from '../../lib/identity/cbu-alias';
@@ -246,11 +246,13 @@ function parsePemPath(value: string, label: 'certificado' | 'clave privada'): st
 
 // La fecha de inicio de actividades es vieja: se pide con anio para no completarla con el actual.
 function parseFullDate(value: string): string {
-  if (!/^\d{1,2}([-/])\d{1,2}\1(\d{2}|\d{4})$/.test(value.trim())) {
+  const date = parseFullArgentineDateAsArcaDate(value);
+
+  if (!date) {
     throw new InputValidationError(`La fecha "${value}" no es válida. Usá D/MM/YYYY, por ejemplo 1/03/2020.`);
   }
 
-  return parseArgentineDateInputAsArcaDate(value);
+  return date;
 }
 
 function parseExistingFile(value: string, label: string): string {

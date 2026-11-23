@@ -1,6 +1,7 @@
-import { formatDateAsArcaDate, parseArgentineDateInputAsArcaDate } from '../../lib/dates/arca-date';
+import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { assertRules } from '../../lib/rules/rules';
+import type { Clock } from '../../lib/time/clock';
 import type { ICbtesAsoc, IIva, INextVoucher } from '../../services/arca/arca-sdk.types';
 import { evaluateFceObligation, type FceObligationGateway, shouldCheckFceObligation } from '../fce/fce-obligation';
 import type { PadronGateway } from '../padron/padron';
@@ -18,6 +19,7 @@ import {
   validateExchangeRateRange,
 } from './billing.currency';
 import { resolveBillingDateRange } from './billing.date-range';
+import { resolveBillingDate } from './billing.dates';
 import { EmissionUncertainError } from './billing.errors';
 import { resolveElectronicCreditOptionals } from './billing.fce';
 import { validateIvaConditionForVoucher } from './billing.iva-receptor';
@@ -56,7 +58,17 @@ type ExchangeRateInput = Pick<
   'billingDate' | 'currencyCode' | 'exchangeRate' | 'exchangeRateSource' | 'sameCurrency'
 >;
 
+export interface BillingServiceOptions {
+  readonly clock: Clock;
+}
+
 export class BillingService {
+  private readonly clock: Clock;
+
+  public constructor(options: BillingServiceOptions) {
+    this.clock = options.clock;
+  }
+
   /**
    * Completa la cotizacion oficial en moneda extranjera sin --cm: con --misma-moneda es obligatoria y sin ella es el
    * default. Se resuelve antes de la vista previa para que el preview muestre el valor que se va a enviar.
@@ -95,12 +107,10 @@ export class BillingService {
       return input;
     }
 
+    const today = this.today();
     // Con --misma-moneda y una fecha pasada, ARCA exige la del dia habil anterior a esa fecha (10038).
     const quotationDate = input.sameCurrency
-      ? resolveSameCurrencyQuotationDate(
-          input.billingDate ? parseArgentineDateInputAsArcaDate(input.billingDate) : formatDateAsArcaDate(new Date()),
-          formatDateAsArcaDate(new Date()),
-        )
+      ? resolveSameCurrencyQuotationDate(resolveBillingDate(input, today), today)
       : undefined;
     const currencyCode = resolveBillingCurrencyCode(input.currencyCode);
 
@@ -226,9 +236,7 @@ export class BillingService {
       return [];
     }
 
-    const issueDate = input.billingDate
-      ? parseArgentineDateInputAsArcaDate(input.billingDate)
-      : formatDateAsArcaDate(new Date());
+    const issueDate = resolveBillingDate(input, this.today());
     const amountInPesos = input.totalAmount * (isForeignCurrency(input) ? (input.exchangeRate ?? 1) : 1);
 
     try {
@@ -267,7 +275,8 @@ export class BillingService {
       throw new InputValidationError(describePointOfSaleOutOfRange('El punto de venta', pointOfSale, 10004));
     }
 
-    const dateRange = resolveBillingDateRange(input, voucherKind);
+    const today = this.today();
+    const dateRange = resolveBillingDateRange(input, voucherKind, today);
     const concept = resolveBillingConceptCode(input.concept);
     const documentType = resolveBillingDocumentTypeCode(input.documentType);
     const ivaCondition = resolveBillingIvaConditionCode(input.ivaCondition);
@@ -276,18 +285,19 @@ export class BillingService {
       emitterCuit: runtime.cuit,
       input,
       requireVoucherKind: (shortcut) => this.requireVoucherKind(shortcut),
+      today,
       voucherKind,
     });
     const currencyFields = resolveBillingCurrencyFields(input);
-    const taxAmounts = resolveTaxAmounts(input, voucherKind);
+    const taxAmounts = resolveTaxAmounts(input, voucherKind, today);
 
-    validateDocumentIdentity(input, voucherKind, runtime.cuit);
+    validateDocumentIdentity(input, voucherKind, { emitterCuit: runtime.cuit, today });
     validateUncategorizedReceiver(input, voucherKind, taxAmounts.netAmount + taxAmounts.ivaAmount);
     validateIvaConditionForVoucher(input.ivaCondition, voucherKind);
     // RG 5700/2025, con la cotizacion ya resuelta: la misma regla que el asistente.
     assertRules([CONSUMER_IDENTIFICATION_THRESHOLD_RULE], input, {
       exchangeRate: currencyFields.MonCotiz,
-      today: formatDateAsArcaDate(new Date()),
+      today,
       voucherKind,
     });
 
@@ -332,7 +342,7 @@ export class BillingService {
       payload.CbtesAsoc = associatedVouchers;
     }
 
-    const associatedPeriod = resolveAssociatedPeriod(input, voucherKind, dateRange.billingDate);
+    const associatedPeriod = resolveAssociatedPeriod(input, voucherKind, dateRange.billingDate, today);
 
     if (associatedPeriod) {
       payload.PeriodoAsoc = associatedPeriod;
@@ -346,6 +356,11 @@ export class BillingService {
 
     // El SDK tipa DocNro como obligatorio, pero el CLI permite omitirlo cuando el usuario no lo informa.
     return payload as INextVoucher;
+  }
+
+  /** Hoy en Argentina (yyyymmdd), leido en cada operacion. */
+  private today(): string {
+    return formatDateAsArcaDate(this.clock.now());
   }
 
   private requireVoucherKind(shortcut: string): VoucherKindDefinition {

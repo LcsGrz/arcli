@@ -206,7 +206,7 @@ describe('prompts', () => {
   it('askTextStep: "<" con `answered` de fecha vuelve atras sin tirar', async () => {
     inputMock.mockResolvedValueOnce('<' as never);
 
-    expect(await askTextStep('Fecha:', { answered: (value) => completeDateInput(value) })).toBe(BACK);
+    expect(await askTextStep('Fecha:', { answered: (value) => completeDateInput(value, new Date()) })).toBe(BACK);
   });
 
   it('Esc en una confirmacion cuenta como no', async () => {

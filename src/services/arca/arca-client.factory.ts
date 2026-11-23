@@ -13,6 +13,7 @@ import { readPemFile } from '../../lib/security/pem';
 import type { ArcaProfile } from '../../modules/config/arca-profile';
 import { CertificateExpiredError, inspectCertificateExpiry } from '../../modules/config/certificate-expiry';
 import { resolveExportCredentials } from '../../modules/config/config.export-credentials';
+import { systemClock } from '../time/system-clock';
 
 import { ArcaExportGateway, type WsfexAuthenticator } from './arca-export.gateway';
 
@@ -109,7 +110,7 @@ export class ArcaClientFactory {
     }
 
     const cert = readPemFile(credentials.cert, 'certificado');
-    const notice = inspectCertificateExpiry(cert, runtime.environment);
+    const notice = inspectCertificateExpiry(cert, runtime.environment, systemClock.now());
 
     if (notice?.expired) {
       throw new CertificateExpiredError(notice);

@@ -93,7 +93,7 @@ function dniThroughBilling(value: string): Outcome {
   });
 
   try {
-    validateDocumentIdentity(input, getVoucherKindByShortcut('fb')!);
+    validateDocumentIdentity(input, getVoucherKindByShortcut('fb')!, { today: '20261118' });
 
     return true;
   } catch (error) {

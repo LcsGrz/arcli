@@ -4,6 +4,7 @@ import { BillingService } from '../../../modules/billing/billing.service';
 import { buildInvoiceInput } from '../../../modules/interactive/invoice-input';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../../../modules/vouchers/voucher-history';
+import { systemClock } from '../../../services/time/system-clock';
 import { stripAnsi } from '../../../ui';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { runExportRepeatFlow } from '../export-repeat.flow';
@@ -53,7 +54,7 @@ function createSession(vouchers: IssuedVoucher[] = [], pointOfSale = 3): Interac
       outputRaw: false,
       pointOfSale,
     } as unknown as CliArcaRuntime,
-    service: new BillingService(),
+    service: new BillingService({ clock: systemClock }),
   };
 }
 
@@ -321,7 +322,7 @@ describe('runRepeatFlow', () => {
 
 describe('repetir un comprobante con datos que ya no valen', () => {
   const preview = (input: ReturnType<typeof buildInvoiceInput>) =>
-    new BillingService().execute({
+    new BillingService({ clock: systemClock }).execute({
       gateway: {
         createVoucher: async () => {
           throw new Error('no emite');

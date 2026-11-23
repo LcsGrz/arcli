@@ -9,6 +9,7 @@ import {
   readArcaCertificate,
 } from '../../lib/security/arca-certificate';
 import { createCertificateRequest } from '../../lib/security/certificate-request';
+import type { Clock } from '../../lib/time/clock';
 import { formatCertificateExpiryDate } from '../config/certificate-expiry';
 import { type ArcliConfig, type ArcliEnvironment, formatEnvironmentLabel } from '../config/config.schemas';
 
@@ -29,9 +30,9 @@ export interface CertificateConfigPort {
 
 export interface CertificateServiceOptions {
   readonly certificatesRoot: string;
+  /** Para el vencimiento, al importar. */
+  readonly clock: Clock;
   readonly config: CertificateConfigPort;
-  /** Reloj para el vencimiento; solo lo cambian los tests. */
-  readonly now?: () => Date;
 }
 
 export interface GenerateCertificateOptions {
@@ -90,13 +91,13 @@ function certificateError(code: string, message: string, suggestion?: string): A
 
 export class CertificateService {
   private readonly certificatesRoot: string;
+  private readonly clock: Clock;
   private readonly config: CertificateConfigPort;
-  private readonly now: () => Date;
 
   public constructor(options: CertificateServiceOptions) {
     this.certificatesRoot = options.certificatesRoot;
+    this.clock = options.clock;
     this.config = options.config;
-    this.now = options.now ?? (() => new Date());
   }
 
   /** Arma la clave y el CSR del entorno. Quedan pendientes: la clave activa sigue andando hasta importar. */
@@ -190,7 +191,7 @@ export class CertificateService {
       );
     }
 
-    if (info.expiresAt.getTime() <= this.now().getTime()) {
+    if (info.expiresAt.getTime() <= this.clock.now().getTime()) {
       throw certificateError(
         'CERTIFICATE_EXPIRED',
         `El certificado venció el ${formatCertificateExpiryDate(info.expiresAt)}.`,

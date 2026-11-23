@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { BillingCommandInput } from '../../../modules/billing/billing.schemas';
 import { BillingService } from '../../../modules/billing/billing.service';
+import { systemClock } from '../../../services/time/system-clock';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { runInteractiveBillingPreview } from '../billing.command.interactive-preview';
 
@@ -101,7 +102,7 @@ describe('runInteractiveBillingPreview', () => {
       inputs: [createInput()],
       modeSource: 'file',
       runtime: createRuntime(),
-      service: new BillingService(),
+      service: new BillingService({ clock: systemClock }),
       useRaw: false,
       voucherLabel: 'Factura A',
     });
@@ -122,7 +123,7 @@ describe('runInteractiveBillingPreview', () => {
       inputs: [createInput()],
       modeSource: 'default',
       runtime: createRuntime({ outputJson: true }),
-      service: new BillingService(),
+      service: new BillingService({ clock: systemClock }),
       useRaw: false,
       voucherLabel: 'Factura A',
     });
@@ -139,7 +140,7 @@ describe('runInteractiveBillingPreview', () => {
       inputs: [createInput({ dryRun: false, emit: true })],
       modeSource: 'default',
       runtime: createRuntime(),
-      service: new BillingService(),
+      service: new BillingService({ clock: systemClock }),
       useRaw: false,
       voucherLabel: 'Factura A',
     });
@@ -156,7 +157,7 @@ describe('runInteractiveBillingPreview', () => {
       inputs: [createInput()],
       modeSource: 'default',
       runtime: createRuntime(),
-      service: new BillingService(),
+      service: new BillingService({ clock: systemClock }),
       useRaw: false,
       voucherLabel: 'Factura A',
     });
@@ -174,7 +175,7 @@ describe('runInteractiveBillingPreview', () => {
       inputs: [createInput()],
       modeSource: 'default',
       runtime: createRuntime(),
-      service: new BillingService(),
+      service: new BillingService({ clock: systemClock }),
       useRaw: false,
       voucherLabel: 'Factura A',
     });
@@ -197,7 +198,7 @@ describe('runInteractiveBillingPreview', () => {
       inputs: [createInput()],
       modeSource: 'default',
       runtime: createRuntime({ config: { ...createRuntime().config, pdf: 'nunca' } }),
-      service: new BillingService(),
+      service: new BillingService({ clock: systemClock }),
       useRaw: false,
       voucherLabel: 'Factura A',
     });
@@ -221,7 +222,7 @@ describe('runInteractiveBillingPreview', () => {
       inputs: [createInput()],
       modeSource: 'default',
       runtime: createRuntime({ config: { ...createRuntime().config, pdf: 'siempre' } }),
-      service: new BillingService(),
+      service: new BillingService({ clock: systemClock }),
       useRaw: false,
       voucherLabel: 'Factura A',
     });
@@ -238,7 +239,7 @@ describe('runInteractiveBillingPreview', () => {
       inputs: [createInput({ pdf: true })],
       modeSource: 'default',
       runtime: createRuntime({ config: { ...createRuntime().config, pdf: 'nunca' } }),
-      service: new BillingService(),
+      service: new BillingService({ clock: systemClock }),
       useRaw: false,
       voucherLabel: 'Factura A',
     });
@@ -260,7 +261,7 @@ describe('runInteractiveBillingPreview', () => {
       inputs: [createInput()],
       modeSource: 'default',
       runtime: createRuntime(),
-      service: new BillingService(),
+      service: new BillingService({ clock: systemClock }),
       useRaw: false,
       voucherLabel: 'Factura A',
     });
@@ -282,7 +283,7 @@ describe('runInteractiveBillingPreview', () => {
       inputs: [createInput()],
       modeSource: 'default',
       runtime: createRuntime({ environment: 'produccion' }),
-      service: new BillingService(),
+      service: new BillingService({ clock: systemClock }),
       useRaw: false,
       voucherLabel: 'la factura A',
     });
@@ -290,7 +291,7 @@ describe('runInteractiveBillingPreview', () => {
       inputs: [createInput(), createInput()],
       modeSource: 'default',
       runtime: createRuntime(),
-      service: new BillingService(),
+      service: new BillingService({ clock: systemClock }),
       useRaw: false,
       voucherLabel: 'este comprobante',
     });
@@ -312,7 +313,7 @@ describe('runInteractiveBillingPreview', () => {
       inputs: [createInput()],
       modeSource: 'default',
       runtime: createRuntime(),
-      service: new BillingService(),
+      service: new BillingService({ clock: systemClock }),
       useRaw: false,
       voucherLabel: 'Factura A',
     });
@@ -335,7 +336,7 @@ describe('runInteractiveBillingPreview', () => {
       inputs: [createInput()],
       modeSource: 'default',
       runtime: createRuntime(),
-      service: new BillingService(),
+      service: new BillingService({ clock: systemClock }),
       useRaw: false,
       voucherLabel: 'Factura A',
     });

@@ -25,6 +25,7 @@ import { buildNoteInput } from '../../../modules/interactive/note-input';
 import { runWizard } from '../../../modules/interactive/wizard';
 import type { PadronGateway } from '../../../modules/padron/padron';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../../../modules/vouchers/voucher-history';
+import { systemClock } from '../../../services/time/system-clock';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { parseBillingCommandPlan } from '../../commands/billing.command.parser';
 import { resolveBillingCommandDefaults } from '../../commands/billing.command.shared';
@@ -124,7 +125,7 @@ function createSession(vouchers: IssuedVoucher[] = [], withConfig = config): Int
     billingGateway,
     historyGateway,
     runtime: { ...runtime, config: { ...withConfig, consultarPadron: false } } as CliArcaRuntime,
-    service: new BillingService(),
+    service: new BillingService({ clock: systemClock }),
   };
 }
 
@@ -143,7 +144,7 @@ const invoice = (overrides: Partial<IssuedVoucher> = {}): IssuedVoucher => ({
 
 /** La solicitud a ARCA que arma una entrada, como `previewAndEmit` y `executeBillingCommand`. */
 async function payloadOf(input: BillingCommandInput, withConfig = config) {
-  const service = new BillingService();
+  const service = new BillingService({ clock: systemClock });
   const prepared = await prepareBillingInput(service, input, { billing: billingGateway, padron });
 
   return service.buildVoucherPayload(prepared.input, { ...runtime, config: withConfig } as CliArcaRuntime);
@@ -740,8 +741,8 @@ describe('el comando equivalente de la E con textos raros pasa por el parser rea
   };
 
   async function expectSameExportRequest(input: ExportVoucherInput): Promise<void> {
-    const service = new ExportService();
-    const expected = await service.resolve(input, exportGateway, exportRuntime, NOW);
+    const service = new ExportService({ clock: { now: () => NOW } });
+    const expected = await service.resolve(input, exportGateway, exportRuntime);
 
     for (const platform of ['linux', 'win32'] as const) {
       const line = buildExportEquivalentCommand(input, { activity: 620100, environment: 'testing', platform });
@@ -755,7 +756,7 @@ describe('el comando equivalente de la E con textos raros pasa por el parser rea
         comparableInput({ activity: 620100, ...input }, 20111111112),
       );
 
-      const resolved = await service.resolve(plan.input, exportGateway, exportRuntime, NOW);
+      const resolved = await service.resolve(plan.input, exportGateway, exportRuntime);
 
       expect(resolved.payload, line).toEqual(expected.payload);
     }
@@ -820,7 +821,7 @@ describe('el comando equivalente de la E con textos raros pasa por el parser rea
       ...base,
       items: [{ description: 'Según detalle', quantity: 1, unit: 7, unitPrice: 1500.5 }],
     };
-    const service = new ExportService();
+    const service = new ExportService({ clock: { now: () => NOW } });
 
     expect(buildExportEquivalentCommand(withItem, { activity: 620100, environment: 'testing' })).toContain(
       "-m 1500,50 --cliente 'ACME LLC'",
@@ -829,8 +830,8 @@ describe('el comando equivalente de la E con textos raros pasa por el parser rea
       "--item 'Según detalle|1|1500,50'",
     );
     await expectSameExportRequest(withItem);
-    expect((await service.resolve(withItem, exportGateway, exportRuntime, NOW)).payload).toEqual(
-      (await service.resolve(base, exportGateway, exportRuntime, NOW)).payload,
+    expect((await service.resolve(withItem, exportGateway, exportRuntime)).payload).toEqual(
+      (await service.resolve(base, exportGateway, exportRuntime)).payload,
     );
   });
 
@@ -917,12 +918,12 @@ describe('el comando equivalente de la E con textos raros pasa por el parser rea
 
     /** El comando equivalente arma la misma solicitud: devuelve el comando y la cotización que va a ARCA. */
     async function expectSameGoodsRequest(input: ExportVoucherInput): Promise<{ line: string; sent: number }> {
-      const service = new ExportService();
-      const expected = await service.resolve(input, goodsGateway, exportRuntime, NOW);
+      const service = new ExportService({ clock: { now: () => NOW } });
+      const expected = await service.resolve(input, goodsGateway, exportRuntime);
       const line = buildExportEquivalentCommand(input, { activity: 620100, environment: 'testing', platform: 'linux' });
       const call = await parseWithProgram(line, 'linux');
       const plan = parseExportCommandPlan(call.command, { voucherKind: call.exportKind });
-      const resolved = await service.resolve(plan.input, goodsGateway, exportRuntime, NOW);
+      const resolved = await service.resolve(plan.input, goodsGateway, exportRuntime);
 
       expect(resolved.payload, line).toEqual(expected.payload);
 

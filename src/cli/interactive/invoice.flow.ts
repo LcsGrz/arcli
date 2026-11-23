@@ -89,7 +89,7 @@ export function invoiceSteps(
   retry: AmountCurrencyRetry<InvoiceState> = invoiceAmountRetry(),
 ): Array<WizardStep<InvoiceState>> {
   const { config } = session.runtime;
-  const rules = (state: InvoiceState) => invoiceRuleScope(state, billingRuleEnv(session.runtime));
+  const rules = (state: InvoiceState) => invoiceRuleScope(state, billingRuleEnv(session.runtime, new Date()));
   const officialExchangeRate = officialExchangeRateLoader(session);
   const exchangeRateSuggestion = exchangeRateSuggestionLoader(config, officialExchangeRate);
   const optionals = billingOptionalsGroup<InvoiceState>({
@@ -243,7 +243,10 @@ export async function runInvoiceFlow(
       ...(receiver ? invoiceStateForReceiver(receiver) : {}),
     },
     undefined,
-    { confirm: emission.confirm, finalize: retry.finalize(invoiceFinalize(() => billingRuleEnv(session.runtime))) },
+    {
+      confirm: emission.confirm,
+      finalize: retry.finalize(invoiceFinalize(() => billingRuleEnv(session.runtime, new Date()))),
+    },
   );
 
   if (!state) {

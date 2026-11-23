@@ -92,6 +92,13 @@ describe('reglas de la E (export.rules.ts)', () => {
     expect(
       EXPORT_PAYMENT_DATE_RULE.check({ exportType: 2, paymentDate: '14/11/2026', voucherDate: '15/11/2026' }, {}),
     ).toMatchObject({ question: expect.stringContaining('(15/11/2026)') });
+    // Sin año, se completa desde hoy; sin hoy no se puede comparar.
+    expect(
+      EXPORT_PAYMENT_DATE_RULE.check({ exportType: 2, paymentDate: '1/12', voucherDate: '5/1' }, { today: '20270104' }),
+    ).toMatchObject({ message: expect.stringContaining('(01/12/2026)') });
+    expect(
+      EXPORT_PAYMENT_DATE_RULE.check({ exportType: 2, paymentDate: '1/12', voucherDate: '5/1' }, {}),
+    ).toBeUndefined();
   });
 
   it('export-note-after-associated: la nota no es anterior al comprobante que ajusta', () => {

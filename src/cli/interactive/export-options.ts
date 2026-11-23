@@ -213,7 +213,7 @@ function exportQuestions(languageNames: Map<number, string>): ExportOptionalQues
             EXPORT_RULES,
             'voucherDate',
             context.rules,
-            (value) => ({ ...current, voucherDate: completeDateInput(value) }),
+            (value) => ({ ...current, voucherDate: completeDateInput(value, new Date()) }),
             (value) => validateExportVoucherDate(value, context.exportType, new Date()),
           ),
         writes: ['voucherDate'],

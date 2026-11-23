@@ -392,7 +392,7 @@ export function noteSteps(
         'associatedVoucher.fecha',
         (date) => validateDate(date, new Date()),
         (value) => ({
-          associatedDate: completeDateInput(value),
+          associatedDate: completeDateInput(value, new Date()),
         }),
       ),
       writes: ['associatedVoucher.fecha'],
@@ -406,7 +406,7 @@ export function noteSteps(
         'associatedPeriod.desde',
         (date) => validateDate(date, new Date()),
         (value) => ({
-          periodFrom: completeDateInput(value),
+          periodFrom: completeDateInput(value, new Date()),
           periodTo: undefined,
         }),
       ),
@@ -422,7 +422,7 @@ export function noteSteps(
       validate: noteRule(
         'associatedPeriod.hasta',
         (date) => validateDate(date, new Date()),
-        (value) => ({ periodTo: completeDateInput(value) }),
+        (value) => ({ periodTo: completeDateInput(value, new Date()) }),
       ),
       writes: ['associatedPeriod.hasta'],
     }),

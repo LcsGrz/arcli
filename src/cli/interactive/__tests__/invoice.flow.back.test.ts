@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BillingService } from '../../../modules/billing/billing.service';
 import { buildInvoiceInput } from '../../../modules/interactive/invoice-input';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
+import { systemClock } from '../../../services/time/system-clock';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { runExportFlow } from '../export.flow';
 import { invoiceSteps, runInvoiceFlow } from '../invoice.flow';
@@ -56,7 +57,7 @@ function createSession(config: Record<string, unknown> = {}, pointOfSale = 3): I
       outputRaw: false,
       pointOfSale,
     } as unknown as CliArcaRuntime,
-    service: new BillingService(),
+    service: new BillingService({ clock: systemClock }),
   };
 }
 

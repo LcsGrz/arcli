@@ -14,7 +14,7 @@ export interface CertificateExpiry {
  *
  * @internal Exportado para los tests.
  */
-export function computeCertificateExpiry(expiresAt: Date, now: Date = new Date()): CertificateExpiry {
+export function computeCertificateExpiry(expiresAt: Date, now: Date): CertificateExpiry {
   return {
     daysRemaining: diffArcaDatesInDays(formatDateAsArcaDate(now), formatDateAsArcaDate(expiresAt)),
     expiresAt,
@@ -23,7 +23,7 @@ export function computeCertificateExpiry(expiresAt: Date, now: Date = new Date()
 }
 
 /** Lee la fecha de vencimiento del PEM. Es local, sin red; tira si el contenido no es un certificado X.509. */
-export function readCertificateExpiry(pemContent: string, now: Date = new Date()): CertificateExpiry {
+export function readCertificateExpiry(pemContent: string, now: Date): CertificateExpiry {
   const certificate = new X509Certificate(pemContent);
 
   return computeCertificateExpiry(new Date(certificate.validTo), now);

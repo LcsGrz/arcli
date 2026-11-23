@@ -1,6 +1,5 @@
 import Big from 'big.js';
 
-import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { assertRules } from '../../lib/rules/rules';
 import type { IIva } from '../../services/arca/arca-sdk.types';
@@ -52,7 +51,11 @@ function validateLetterCAmounts(input: TaxAmountsInput, voucherKind: VoucherKind
  * ImpTotal = ImpTotConc + ImpOpEx + ImpNeto + ImpIVA (10048); la C no informa IVA (10071) ni exento o no gravado
  * (10043, 10044). Codigos de WSFEv1 v4.7.
  */
-export function resolveTaxAmounts(input: TaxAmountsInput, voucherKind: VoucherKindDefinition): TaxAmounts {
+export function resolveTaxAmounts(
+  input: TaxAmountsInput,
+  voucherKind: VoucherKindDefinition,
+  today: string,
+): TaxAmounts {
   if (!discriminatesIva(voucherKind.letter)) {
     validateLetterCAmounts(input, voucherKind);
 
@@ -65,7 +68,7 @@ export function resolveTaxAmounts(input: TaxAmountsInput, voucherKind: VoucherKi
   }
 
   // La misma regla que el asistente al preguntar el exento y el no gravado.
-  assertRules([EXEMPT_UNTAXED_WITHIN_TOTAL_RULE], input, { today: formatDateAsArcaDate(new Date()), voucherKind });
+  assertRules([EXEMPT_UNTAXED_WITHIN_TOTAL_RULE], input, { today, voucherKind });
 
   const exemptAmount = input.exemptAmount ?? 0;
   const untaxedAmount = input.untaxedAmount ?? 0;
