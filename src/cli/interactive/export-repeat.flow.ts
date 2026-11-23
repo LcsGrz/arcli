@@ -1,7 +1,8 @@
 import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
-import { BILLS_EXPORT_TYPE, resolveExportClientCountryCuit } from '../../modules/export/export.mappers';
+import { resolveExportClientCountryCuit } from '../../modules/export/export.mappers';
 import {
+  BILLS_EXPORT_TYPE,
   DEFAULT_EXPORT_CURRENCY_CODE,
   DEFAULT_EXPORT_TYPE,
   EXPORT_VOUCHER_KIND,

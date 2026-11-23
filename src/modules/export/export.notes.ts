@@ -22,10 +22,10 @@ import {
   type ExportVoucherQuery,
   getExportVoucherKindByArcaType,
   getExportVoucherKindByShortcut,
+  SERVICES_EXPORT_TYPE,
 } from './export.types';
 
 /** Servicios: el tipo de la nota en el que ARCA la compara con el asociado (2040 a 2055, WSFEX v3.1.0). */
-const SERVICES_EXPORT_TYPE = 2;
 
 const ASSOCIATED_SHORTCUTS = EXPORT_VOUCHER_KINDS.map((kind) => `\`${kind.shortcut}\``)
   .join(', ')

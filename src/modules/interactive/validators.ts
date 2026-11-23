@@ -34,7 +34,9 @@ export function validateCuil(value: string): string | true {
 }
 
 export function validateDni(value: string): string | true {
-  return parseDni(value).ok ? true : 'El DNI tiene de 6 a 8 dígitos.';
+  const result = parseDni(value);
+
+  return result.ok ? true : `El DNI tiene ${result.reason}.`;
 }
 
 export function validateCbu(value: string): string | true {

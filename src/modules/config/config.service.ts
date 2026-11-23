@@ -149,7 +149,7 @@ function defaultTicketPathFor(configPath: string): string {
  * Dónde quedarían el config.json y la carpeta de tickets por defecto, sin leer ni escribir el archivo. Lo usa el
  * setup de los tests para frenar la suite si apuntan fuera de la carpeta temporal.
  *
- * @internal Exportado para los tests.
+ * @internal Solo para el setup de los tests: guardarraíl de aislamiento de la config.
  */
 export function resolveConfigLocation(options: ConfigServiceOptions = {}): {
   readonly configPath: string;

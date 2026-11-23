@@ -187,9 +187,9 @@ export function validateDocumentIdentity(
   }
 
   // Propia (ver `parseDni`): de 6 a 8 dígitos.
-  if (input.documentType === 'dni' && !parseDni(input.documentNumber ?? '').ok) {
-    throw new InputValidationError(
-      `\`--dni\` debe tener de 6 a 8 dígitos en ${formatVoucherWithArticle(voucherKind)}.`,
-    );
+  const dni = input.documentType === 'dni' ? parseDni(input.documentNumber ?? '') : undefined;
+
+  if (dni && !dni.ok) {
+    throw new InputValidationError(`\`--dni\` debe tener ${dni.reason} en ${formatVoucherWithArticle(voucherKind)}.`);
   }
 }

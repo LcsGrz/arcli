@@ -7,8 +7,8 @@ import type { BillingExecutionResult } from '../billing/billing.types.internal';
 import { toIsoCurrencyCode } from '../billing/currency-codes';
 import { formatSaleCondition } from '../billing/sale-condition';
 import { discriminatesIva, isReceipt } from '../billing/voucher-kind-map';
-import { SERVICES_EXPORT_TYPE } from '../export/export.mappers';
 import type { ExportExecutionResult } from '../export/export.types';
+import { SERVICES_EXPORT_TYPE } from '../export/export.types';
 
 import { PdfError } from './pdf.errors';
 import type { InvoicePdfData, InvoicePdfIssuer, InvoicePdfItem, InvoicePdfIva, PdfVoucherExtras } from './pdf.types';

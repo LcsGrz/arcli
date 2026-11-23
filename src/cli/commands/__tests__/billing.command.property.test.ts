@@ -11,6 +11,7 @@ import { BillingService } from '../../../modules/billing/billing.service';
 import type { VoucherShortcut } from '../../../modules/billing/billing.types';
 import { getVoucherKindByShortcut, VOUCHER_KIND_MAP } from '../../../modules/billing/voucher-kind-map';
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
+import { prepareBatch } from '../billing.command.batch';
 import {
   type BillingCommandDefaults,
   parseBillingCommandPlan,
@@ -485,20 +486,31 @@ describe('billing por --cargar (propiedades)', () => {
     expect(reached).toBeGreaterThan(0);
   });
 
-  it('un lote de JSON cualquiera da un plan o un error de entrada, nunca una excepción', () => {
-    fc.assert(
-      fc.property(
+  it('un lote de JSON cualquiera da un plan o un error de entrada, nunca una excepción', async () => {
+    await fc.assert(
+      fc.asyncProperty(
         fc.array(fc.oneof(billingJson, fc.anything({ maxDepth: 1 })), { maxLength: 4 }),
         instant,
-        (items, now) => {
+        async (items, now) => {
           vi.mocked(readJsonFile).mockReturnValue(items);
           vi.setSystemTime(now);
 
-          try {
-            const plan = parseBillingCommandPlan(createCommand(['--cargar=lote.json']), 'fb', DEFAULTS);
+          let plan: ReturnType<typeof parseBillingCommandPlan>;
 
-            // Cada item queda como comprobante o como error con su indice: ninguno se pierde.
-            expect(plan.inputs.length + plan.invalidItems.length).toBe(plan.total);
+          try {
+            plan = parseBillingCommandPlan(createCommand(['--cargar=lote.json']), 'fb', DEFAULTS);
+          } catch (error) {
+            expect(isControlledInputError(error)).toBe(true);
+
+            return;
+          }
+
+          // Cada item queda como comprobante o como error con su indice: ninguno se pierde.
+          expect(plan.inputs.length + plan.invalidItems.length).toBe(plan.total);
+
+          // Como el comando antes de emitir: un lote con errores sale como `BatchValidationError`, que es de entrada.
+          try {
+            await prepareBatch({ inputs: plan.inputs, plan, resolve: async (input) => input, validate: () => {} });
           } catch (error) {
             expect(isControlledInputError(error)).toBe(true);
           }

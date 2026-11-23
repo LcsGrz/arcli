@@ -1,16 +1,20 @@
 import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { formatEmissionQuestion, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import { ARCA_DOLLAR_CODE, ARCA_LOCAL_CURRENCY_CODE } from '../../modules/billing/currency-codes';
-import { BILLS_EXPORT_TYPE, EXPORT_PAYMENT_TERMS_SUGGESTIONS } from '../../modules/export/export.mappers';
+import { EXPORT_PAYMENT_TERMS_SUGGESTIONS } from '../../modules/export/export.mappers';
 import { formatExportResultAsText } from '../../modules/export/export.presenter';
 import { ExportService } from '../../modules/export/export.service';
 import {
+  BILLS_EXPORT_TYPE,
   DEFAULT_EXPORT_CURRENCY_CODE,
+  DEFAULT_EXPORT_TYPE,
   EXPORT_VOUCHER_KIND,
   type ExportActivity,
   type ExportGateway,
   type ExportType,
   type ExportVoucherInput,
+  OTHER_EXPORT_TYPE,
+  SERVICES_EXPORT_TYPE,
 } from '../../modules/export/export.types';
 import { buildExportEquivalentCommand } from '../../modules/interactive/export-equivalent-command';
 import {
@@ -181,11 +185,15 @@ function exportSteps(
         const exportType = await chooseStep<ExportType>(
           '¿Qué exportás?',
           [
-            { name: 'Servicios', value: 2 },
-            { description: 'Lleva incoterm y, si los hay, permisos de embarque', name: 'Bienes', value: 1 },
-            { name: 'Otros', value: 4 },
+            { name: 'Servicios', value: SERVICES_EXPORT_TYPE },
+            {
+              description: 'Lleva incoterm y, si los hay, permisos de embarque',
+              name: 'Bienes',
+              value: BILLS_EXPORT_TYPE,
+            },
+            { name: 'Otros', value: OTHER_EXPORT_TYPE },
           ],
-          previous?.exportType ?? 2,
+          previous?.exportType ?? DEFAULT_EXPORT_TYPE,
         );
 
         // La fecha de pago solo va en servicios y otros: si se vuelve y se elige bienes, no queda la anterior.

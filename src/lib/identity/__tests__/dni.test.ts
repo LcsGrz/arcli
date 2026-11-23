@@ -13,6 +13,6 @@ describe('parseDni', () => {
   });
 
   it.each(['12345', '123456789', '', '30-123-456', 'abcdefg', 1234])('rechaza %j', (raw) => {
-    expect(parseDni(raw)).toEqual({ ok: false, reason: 'debe tener de 6 a 8 dígitos' });
+    expect(parseDni(raw)).toEqual({ ok: false, reason: 'de 6 a 8 dígitos' });
   });
 });

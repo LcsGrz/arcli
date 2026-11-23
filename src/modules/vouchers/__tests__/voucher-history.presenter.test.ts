@@ -73,6 +73,17 @@ describe('voucher-history.presenter', () => {
     expect(formatReceiver({ ...voucher, documentNumber: 12345678, documentTypeCode: 96 })).toBe('DNI 12.345.678');
   });
 
+  it('nombra cada tipo de documento como antes de usar arca-codes, y el desconocido con su código', () => {
+    const receiver = (documentTypeCode: number, documentNumber: number) =>
+      formatReceiver({ ...voucher, documentNumber, documentTypeCode });
+
+    expect(receiver(80, 30709965812)).toBe('CUIT 30-70996581-2');
+    expect(receiver(86, 20333333334)).toBe('CUIL 20-33333333-4');
+    expect(receiver(96, 12345678)).toBe('DNI 12.345.678');
+    expect(receiver(99, 0)).toBe('Consumidor final');
+    expect(receiver(94, 12345678)).toBe('Doc 94 12.345.678');
+  });
+
   it('lista los comprobantes en texto y avisa si no hay', () => {
     const text = stripAnsi(formatVoucherListAsText({ ...base, vouchers: [voucher] }));
 

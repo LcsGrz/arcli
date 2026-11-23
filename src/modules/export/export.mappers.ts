@@ -16,6 +16,7 @@ import type { ArcliConfig } from '../config/config.schemas';
 import { exportTextLengthError, MAX_EXPORT_ITEM_DESCRIPTION_LENGTH } from './export.items';
 import type { ExportRule } from './export.rules';
 import {
+  BILLS_EXPORT_TYPE,
   DEFAULT_EXPORT_CURRENCY_CODE,
   DEFAULT_EXPORT_LANGUAGE,
   DEFAULT_EXPORT_TYPE,
@@ -37,6 +38,7 @@ import {
   type ExportVoucherPayload,
   isExportNote,
   MAX_EXPORT_POINT_OF_SALE,
+  SERVICES_EXPORT_TYPE,
 } from './export.types';
 
 /** Codigo de pais de Argentina en la tabla DST_pais: no es un destino de exportacion. */
@@ -57,12 +59,6 @@ export const EXPORT_PAYMENT_TERMS_SUGGESTIONS: readonly string[] = [
   'Cobranza documentaria',
   'Cuenta corriente',
 ];
-
-/** Exportacion de servicios: la cotizacion es la del dia habil anterior (error 2053). */
-export const SERVICES_EXPORT_TYPE: ExportType = 2;
-
-/** Exportacion definitiva de bienes: lleva incoterm (error 1640) y permisos de embarque. */
-export const BILLS_EXPORT_TYPE: ExportType = 1;
 
 /** ARCA no acepta cotizaciones en pesos distintas de 1. */
 const LOCAL_EXCHANGE_RATE = 1;

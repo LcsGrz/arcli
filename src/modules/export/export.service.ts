@@ -38,7 +38,6 @@ import {
   resolveExportQuotationDate,
   resolveExportType,
   resolveExportVoucherDate,
-  SERVICES_EXPORT_TYPE,
 } from './export.mappers';
 import {
   applyExportAssociatedDefaults,
@@ -68,6 +67,7 @@ import {
   MAX_EXPORT_REQUEST_ID,
   MAX_EXPORT_VOUCHER_NUMBER,
   type ResolvedExportVoucher,
+  SERVICES_EXPORT_TYPE,
 } from './export.types';
 
 export interface ExportRuntime {

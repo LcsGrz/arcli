@@ -65,25 +65,36 @@ export const EXPORT_TYPES = {
 
 export type ExportType = keyof typeof EXPORT_TYPES;
 
-export const EXPORT_TYPE_VALUES: readonly ExportType[] = [1, 2, 4];
+/** Exportacion definitiva de bienes: lleva incoterm (error 1640) y permisos de embarque. */
+export const BILLS_EXPORT_TYPE: ExportType = 1;
+
+/** Exportacion de servicios: la cotizacion es la del dia habil anterior (error 2053). */
+export const SERVICES_EXPORT_TYPE: ExportType = 2;
+
+/** Otros (tabla FEXGetPARAM_Tipo_Expo). */
+export const OTHER_EXPORT_TYPE: ExportType = 4;
+
+export const EXPORT_TYPE_VALUES: readonly ExportType[] = [BILLS_EXPORT_TYPE, SERVICES_EXPORT_TYPE, OTHER_EXPORT_TYPE];
 
 /**
  * Los tipos 2 (servicios) y 4 (otros) no llevan permisos de embarque: ARCA exige `Permiso_existente`
  * vacio en esos comprobantes (error 1550).
  */
-export const EXPORT_TYPES_WITHOUT_PERMITS: readonly ExportType[] = [2, 4];
+export const EXPORT_TYPES_WITHOUT_PERMITS: readonly ExportType[] = [SERVICES_EXPORT_TYPE, OTHER_EXPORT_TYPE];
 
 /**
  * Solo las facturas de servicios (2) y otros (4) llevan fecha de pago: en las de bienes (1) ARCA la rechaza
  * (error 1673), igual que en las notas.
  */
-export const EXPORT_TYPES_WITH_PAYMENT_DATE: readonly ExportType[] = [2, 4];
+export const EXPORT_TYPES_WITH_PAYMENT_DATE: readonly ExportType[] = [SERVICES_EXPORT_TYPE, OTHER_EXPORT_TYPE];
 
 /**
  * Tipo de exportacion por defecto: la exportacion de servicios no lleva permisos de embarque ni bienes
  * fisicos, asi que es la que menos datos pide. Los bienes van con `--tipo-expo 1`.
+ *
+ * @alias Es otro nombre de `SERVICES_EXPORT_TYPE` a proposito: el default puede cambiar, el tipo no.
  */
-export const DEFAULT_EXPORT_TYPE: ExportType = 2;
+export const DEFAULT_EXPORT_TYPE: ExportType = SERVICES_EXPORT_TYPE;
 
 /** Moneda por defecto de la factura de exportacion: en WSFEX el dolar es `DOL`. */
 export const DEFAULT_EXPORT_CURRENCY_CODE = ARCA_DOLLAR_CODE;
