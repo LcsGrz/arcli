@@ -5,7 +5,7 @@ import type { ResolvedArcaRuntime } from '../../services/arca/arca-context.resol
 import { FCE_REGISTRY_STATE_LABELS, type FceRegistryGateway, type FceRegistryState } from '../fce/fce-registry';
 import type { ParametersGateway } from '../parameters/parameters';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../vouchers/voucher-history';
-import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
+import { formatVoucherNumber } from '../vouchers/voucher-number';
 
 import { formatMoneyLabel } from './billing.labels';
 import { formatVoucherSubject, formatVoucherWithArticle } from './billing.mappers';

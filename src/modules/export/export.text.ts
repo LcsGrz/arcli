@@ -14,7 +14,7 @@ import { UI_THEME } from '../../ui/theme';
 import { formatCurrencyLabel, formatDateLabel, formatMoneyLabel, MISSING_CAE_TEXT } from '../billing/billing.labels';
 import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
 import { formatVoucherText, type VoucherTextOptions } from '../billing/voucher-text';
-import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
+import { formatVoucherNumber } from '../vouchers/voucher-number';
 
 import { formatRawExportResponse } from './export.serialize';
 import { EXPORT_TYPES, type ExportExecutionResult, type ExportPermitCheckStatus } from './export.types';

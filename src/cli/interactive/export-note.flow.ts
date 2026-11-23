@@ -24,7 +24,7 @@ import {
 import { fieldLens } from '../../modules/interactive/steps/lens';
 import { validatePositiveInteger } from '../../modules/interactive/validators';
 import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
-import { formatVoucherNumber } from '../../modules/vouchers/voucher-history.presenter';
+import { formatVoucherNumber } from '../../modules/vouchers/voucher-number';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 import { withSpinner } from '../spinner';

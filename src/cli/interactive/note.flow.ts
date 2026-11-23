@@ -51,7 +51,7 @@ import { fieldLens } from '../../modules/interactive/steps/lens';
 import { validateAmount, validateDate } from '../../modules/interactive/validators';
 import { BACK, type Back, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import type { IssuedVoucher } from '../../modules/vouchers/voucher-history';
-import { formatVoucherNumber } from '../../modules/vouchers/voucher-history.presenter';
+import { formatVoucherNumber } from '../../modules/vouchers/voucher-number';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 
 import { billingOptionalsGroup, billingOptionalsStep } from './advanced-options';

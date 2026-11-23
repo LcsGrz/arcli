@@ -24,8 +24,8 @@ import {
   formatVoucherDetailAsText,
   formatVoucherListAsJson,
   formatVoucherListAsText,
-  formatVoucherNumber,
 } from '../../modules/vouchers/voucher-history.presenter';
+import { formatVoucherNumber } from '../../modules/vouchers/voucher-number';
 import type { ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
 import { ArcaVoucherHistoryGateway } from '../../services/arca/arca-voucher-history.gateway';
 import { type ArcaQuery, createArcaQuery, createExportQuery, withQuerySpinner, writeQueryOutput } from '../arca-query';

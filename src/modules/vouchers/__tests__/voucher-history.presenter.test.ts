@@ -9,7 +9,6 @@ import {
   formatVoucherDetailAsText,
   formatVoucherListAsJson,
   formatVoucherListAsText,
-  formatVoucherNumber,
   formatVoucherPickerRows,
 } from '../voucher-history.presenter';
 
@@ -66,8 +65,7 @@ describe('voucher-history.presenter', () => {
     expect(formatVoucherPickerRows(3, [voucher], ' · ', 20)).toEqual([natural]);
   });
 
-  it('formatea numero y receptor', () => {
-    expect(formatVoucherNumber(3, 12)).toBe('00003-00000012');
+  it('formatea el receptor', () => {
     expect(formatReceiver(voucher)).toBe('Consumidor final');
     expect(formatReceiver({ ...voucher, documentNumber: 30709965812, documentTypeCode: 80 })).toBe(
       'CUIT 30-70996581-2',

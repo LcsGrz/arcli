@@ -7,7 +7,8 @@ import { formatCurrencyLabel, formatMoneyLabel, MISSING_CAE_TEXT } from '../bill
 import { formatLatestVouchersTitle, formatNoVouchersEmitted } from '../billing/billing.mappers';
 import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
 import { formatEnvironmentLabel } from '../config/config.schemas';
-import { alignVoucherPickerRows, formatVoucherNumber } from '../vouchers/voucher-history.presenter';
+import { alignVoucherPickerRows } from '../vouchers/voucher-history.presenter';
+import { formatVoucherNumber } from '../vouchers/voucher-number';
 
 import {
   EXPORT_TYPES,

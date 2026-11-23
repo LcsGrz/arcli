@@ -22,6 +22,7 @@ import { getVoucherKindByArcaType } from '../billing/voucher-kind-map';
 import { formatEnvironmentLabel } from '../config/config.schemas';
 
 import type { IssuedVoucher } from './voucher-history';
+import { formatVoucherNumber } from './voucher-number';
 
 export interface VoucherListReport {
   readonly environment: 'produccion' | 'testing';
@@ -42,10 +43,6 @@ const DOCUMENT_LABELS: Record<number, string> = {
   86: 'CUIL',
   96: 'DNI',
 };
-
-export function formatVoucherNumber(pointOfSale: number, number: number): string {
-  return `${String(pointOfSale).padStart(5, '0')}-${String(number).padStart(8, '0')}`;
-}
 
 export function formatReceiver(voucher: IssuedVoucher): string {
   if (voucher.documentTypeCode === CONSUMER_DOCUMENT_TYPE_CODE) {

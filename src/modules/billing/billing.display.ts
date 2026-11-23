@@ -1,6 +1,6 @@
 import type { IIva } from '../../services/arca/arca-sdk.types';
 import { renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui/primitives';
-import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
+import { formatVoucherNumber } from '../vouchers/voucher-number';
 
 import { CONSUMER_DOCUMENT_TYPE_CODE, CONSUMER_IVA_CONDITION_CODE, isTaxIdDocumentType } from './arca-codes';
 import { resolveIvaRateLabel } from './billing.amounts';

@@ -5,7 +5,7 @@ import { assertRules } from '../../lib/rules/rules';
 import { creditNoteOverTotalError } from '../billing/billing.associated-lookup';
 import { formatVoucherSubject, formatVoucherWithArticle } from '../billing/billing.mappers';
 import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
-import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
+import { formatVoucherNumber } from '../vouchers/voucher-number';
 
 import { assertExportPointOfSaleRange } from './export.mappers';
 import type { ExportRule, ExportRuleContext } from './export.rules';
