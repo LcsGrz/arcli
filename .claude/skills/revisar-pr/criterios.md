@@ -38,6 +38,7 @@ Todo lo que el CLI hace por flags existe también en lo demás. Es lo que más v
 
 - Cubren el comportamiento nuevo y el caso límite, y fallan sin el arreglo.
 - Afirman lo que ve quien usa el CLI o lo que recibe ARCA, antes que detalles de implementación. Un mock de ARCA solo prueba lo que el mock supone: el cambio que depende de ARCA también se prueba contra ARCA.
+- **Búsquedas y filtros:** los datos de prueba incluyen un nombre contenido en otro (NIGER y NIGERIA, DOMINICA y REPUBLICA DOMINICANA), y el caso se prueba contra el componente real, no solo contra el simulador de los tests de flujo: el simulador repite lo que supone el código (#257).
 - Datos ficticios: sin CUITs, certificados ni respuestas reales.
 - Andan en Linux, Windows y macOS: rutas, permisos y saltos de línea.
 
