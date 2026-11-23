@@ -1,5 +1,6 @@
 import { isIvaConditionAllowed } from '../../modules/billing/billing.iva-receptor';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
+import { isReceipt } from '../../modules/billing/voucher-kind-map';
 import { EXPORT_VOUCHER_KIND, type ExportVoucherKind } from '../../modules/export/export.types';
 import { initialAdvancedOptions } from '../../modules/interactive/billing-optionals';
 import {
@@ -33,7 +34,6 @@ import { cbuSteps, offerSavingCbu } from './steps/cbu';
 import { consumerIdentificationSteps } from './steps/consumer';
 import { receiverIvaStep, receiverSteps } from './steps/receiver';
 
-const isReceipt = (state: InvoiceState): boolean => state.voucherKind?.family === 'recibo';
 const ivaConditionFromQueryFits = (state: InvoiceState): boolean =>
   Boolean(
     state.receiverFromQuery &&
@@ -140,7 +140,7 @@ export function invoiceSteps(
       dependsOn: ['comprobante'],
       electronicCredit: (state) => Boolean(state.voucherKind?.isElectronicCredit),
       letter: (state) => state.voucherKind?.letter ?? 'c',
-      message: (state) => (isReceipt(state) ? '¿A quién le hacés el recibo?' : '¿A quién le facturás?'),
+      message: (state) => (isReceipt(state.voucherKind) ? '¿A quién le hacés el recibo?' : '¿A quién le facturás?'),
       rules,
       skip: (state) => Boolean(state.receiverFromQuery),
     }),
@@ -155,7 +155,7 @@ export function invoiceSteps(
       name: 'concepto',
       run: async (state, { previous }) => {
         const concept = await chooseStep(
-          isReceipt(state) ? '¿Qué estás cobrando?' : '¿Qué estás facturando?',
+          isReceipt(state.voucherKind) ? '¿Qué estás cobrando?' : '¿Qué estás facturando?',
           conceptChoices(),
           previous?.concept ?? config.conceptoPorDefecto,
         );

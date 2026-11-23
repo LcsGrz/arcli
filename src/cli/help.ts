@@ -3,9 +3,11 @@ import { type Command, Help } from 'commander';
 import { CERTIFICATE_GUIDE_URL, DOCS_SITE_URL } from '../lib/links';
 import type { VoucherFamily, VoucherLetter, VoucherShortcut } from '../modules/billing/billing.types';
 import {
+  discriminatesIva,
   getVoucherFamilyLetters,
   getVoucherKindByFamilyAndLetter,
   getVoucherKindByShortcut,
+  isNote,
   VOUCHER_FAMILIES,
   VOUCHER_LETTERS,
 } from '../modules/billing/voucher-kind-map';
@@ -59,7 +61,7 @@ interface HelpScope {
 function createRules(scope: HelpScope): string {
   const rules = [...CORE_RULES];
 
-  if (scope.letters.some((letter) => letter !== 'c')) {
+  if (scope.letters.some(discriminatesIva)) {
     rules.push(
       'IVA (A y B): --alicuota usa 21 por defecto, o la clave alícuota de la config. Para varias, repetí --alicuota TASA:MONTO con el IVA incluido; --monto pasa a ser opcional.',
     );
@@ -587,14 +589,16 @@ export function createExportShortcutHelp(kind: ExportVoucherKind = EXPORT_VOUCHE
 }
 
 export function createFamilyHelp(family: VoucherFamily): string {
+  const letters = getVoucherFamilyLetters(family);
+
   return [
     '',
     createFamilySummary(family),
     '',
     createRules({
-      isElectronicCredit: family.includes('electronica'),
-      isNote: family.includes('nota'),
-      letters: getVoucherFamilyLetters(family),
+      isElectronicCredit: letters.some((letter) => getVoucherKindByFamilyAndLetter(family, letter)?.isElectronicCredit),
+      isNote: isNote({ family }),
+      letters,
     }),
     '',
   ].join('\n');

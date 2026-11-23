@@ -2,6 +2,7 @@ import { type Command, Option } from 'commander';
 
 import { EXCHANGE_RATE_DECIMALS } from '../../lib/numbers/argentine-amount';
 import type { VoucherLetter } from '../../modules/billing/billing.types';
+import { discriminatesIva } from '../../modules/billing/voucher-kind-map';
 import { amountOption, cuitOption, documentNumberOption, integerOption } from '../option-parsers';
 
 export function registerBillingOptions(command: Command): void {
@@ -160,9 +161,9 @@ export interface BillingOptionScope {
 }
 
 const OPTION_APPLIES: Readonly<Record<string, (scope: BillingOptionScope) => boolean>> = {
-  '--alicuota': (scope) => scope.letters.some((letter) => letter !== 'c'),
-  '--exento': (scope) => scope.letters.some((letter) => letter !== 'c'),
-  '--nogravado': (scope) => scope.letters.some((letter) => letter !== 'c'),
+  '--alicuota': (scope) => scope.letters.some(discriminatesIva),
+  '--exento': (scope) => scope.letters.some(discriminatesIva),
+  '--nogravado': (scope) => scope.letters.some(discriminatesIva),
   '--at': (scope) => scope.isNote,
   '--apv': (scope) => scope.isNote,
   '--ar': (scope) => scope.isNote,

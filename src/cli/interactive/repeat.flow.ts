@@ -2,6 +2,7 @@ import { currentMonthPeriod, previousMonthPeriod, type ServicePeriod } from '../
 import { DEFAULT_CURRENCY_CODE } from '../../modules/billing/billing.constants';
 import { BILLING_RULES } from '../../modules/billing/billing.rules';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
+import { discriminatesIva } from '../../modules/billing/voucher-kind-map';
 import { EXPORT_VOUCHER_KIND, type ExportVoucherKind } from '../../modules/export/export.types';
 import { advancedInputFields } from '../../modules/interactive/billing-optionals';
 import { exportInvoiceChoice, invoiceKindChoices, reciboChoices } from '../../modules/interactive/choices';
@@ -103,7 +104,9 @@ export function repeatSteps(
       exemptFrom: state.sameAmount === true ? 'copiado' : 'preguntado',
       // Sin alicuota deducida de la factura, que la elija en lugar de caer en la de la config.
       preselected: [
-        ...(!state.advanced.ivaRate && state.voucherKind?.letter !== 'c' ? ['alicuota' as const] : []),
+        ...(!state.advanced.ivaRate && (!state.voucherKind || discriminatesIva(state.voucherKind.letter))
+          ? ['alicuota' as const]
+          : []),
         ...(asksCopiedExempt(state) ? ['exento' as const] : []),
       ],
       rules: rules(state),

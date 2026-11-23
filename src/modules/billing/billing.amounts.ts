@@ -10,6 +10,7 @@ import { formatVoucherSubject } from './billing.mappers';
 import { EXEMPT_UNTAXED_WITHIN_TOTAL_RULE } from './billing.rules';
 import type { BillingCommandInput, BillingIvaRate } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
+import { discriminatesIva } from './voucher-kind-map';
 
 export const DEFAULT_IVA_RATE: BillingIvaRate = '21';
 
@@ -52,7 +53,7 @@ function validateLetterCAmounts(input: TaxAmountsInput, voucherKind: VoucherKind
  * (10043, 10044). Codigos de WSFEv1 v4.7.
  */
 export function resolveTaxAmounts(input: TaxAmountsInput, voucherKind: VoucherKindDefinition): TaxAmounts {
-  if (voucherKind.letter === 'c') {
+  if (!discriminatesIva(voucherKind.letter)) {
     validateLetterCAmounts(input, voucherKind);
 
     return {

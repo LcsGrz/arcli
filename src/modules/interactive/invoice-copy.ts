@@ -8,6 +8,7 @@ import type {
   BillingIvaRate,
 } from '../billing/billing.schemas';
 import type { VoucherKindDefinition } from '../billing/billing.types';
+import { discriminatesIva } from '../billing/voucher-kind-map';
 import { inferIvaRate, type IssuedVoucher, resolveDocumentType } from '../vouchers/voucher-history';
 
 import { receiverChoices } from './choices';
@@ -31,22 +32,22 @@ export interface InvoiceCopy {
 export function copyInvoiceAmounts(invoice: IssuedVoucher, letter: VoucherKindDefinition['letter']): InvoiceCopy {
   const currencyCode = invoice.currency ?? ARCA_LOCAL_CURRENCY_CODE;
   const foreign = currencyCode !== ARCA_LOCAL_CURRENCY_CODE;
-  const discriminatesIva = letter !== 'c';
-  const ivaRate = discriminatesIva ? inferIvaRate(invoice.netAmount, invoice.ivaAmount) : undefined;
+  const withIva = discriminatesIva(letter);
+  const ivaRate = withIva ? inferIvaRate(invoice.netAmount, invoice.ivaAmount) : undefined;
   const limitation =
     (invoice.taxesAmount ?? 0) > 0
       ? 'El comprobante tiene tributos o percepciones, que ARCLI no maneja.'
-      : discriminatesIva && invoice.netAmount > 0 && !ivaRate
+      : withIva && invoice.netAmount > 0 && !ivaRate
         ? 'No se pudo deducir la alícuota de la factura: tiene varias o una que no es estandar.'
         : undefined;
 
   return {
     currencyCode,
     exchangeRate: foreign ? invoice.exchangeRate : undefined,
-    exemptAmount: discriminatesIva ? invoice.exemptAmount || undefined : undefined,
+    exemptAmount: withIva ? invoice.exemptAmount || undefined : undefined,
     ivaRate,
     limitation,
-    untaxedAmount: discriminatesIva ? invoice.untaxedAmount || undefined : undefined,
+    untaxedAmount: withIva ? invoice.untaxedAmount || undefined : undefined,
   };
 }
 

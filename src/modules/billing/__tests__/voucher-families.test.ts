@@ -3,9 +3,15 @@ import { describe, expect, it } from 'vitest';
 import { associatedKindGroups } from '../../interactive/associated-kinds';
 import { reciboChoices } from '../../interactive/choices';
 import { resolveTaxAmounts } from '../billing.amounts';
-import { isElectronicCreditInvoice } from '../billing.fce';
 import type { VoucherFamily, VoucherKindDefinition, VoucherLetter } from '../billing.types';
-import { VOUCHER_FAMILIES, VOUCHER_KIND_MAP, VOUCHER_LETTERS, VOUCHER_SHORTCUTS } from '../voucher-kind-map';
+import * as voucherKindMap from '../voucher-kind-map';
+import {
+  isFceInvoice,
+  VOUCHER_FAMILIES,
+  VOUCHER_KIND_MAP,
+  VOUCHER_LETTERS,
+  VOUCHER_SHORTCUTS,
+} from '../voucher-kind-map';
 
 /**
  * Caracterización de ARQ8-1: qué es cada familia de comprobante. Hoy la respuesta está repartida en copias
@@ -92,7 +98,7 @@ describe('familias de comprobante (caracterización de ARQ8-1)', () => {
     });
 
     it(`${expected.fceInvoice ? 'es factura FCE' : 'no es factura FCE'}`, () => {
-      expect(kindsOf(family).map(isElectronicCreditInvoice)).toEqual(kindsOf(family).map(() => expected.fceInvoice));
+      expect(kindsOf(family).map(isFceInvoice)).toEqual(kindsOf(family).map(() => expected.fceInvoice));
     });
   });
 
@@ -124,12 +130,9 @@ interface FamilyPredicates {
   readonly noteSide: (kind: VoucherKindDefinition) => NoteSide | undefined;
 }
 
-/**
- * Los predicados de ARQ8-1, si ya están junto a `VOUCHER_KIND_MAP`: hoy no, y el test falla acá por eso. Si el
- * refactor los pone en otro archivo o como campos de `VoucherKindDefinition`, se ajusta este loader, no la tabla.
- */
-async function loadFamilyPredicates(names: ReadonlyArray<keyof FamilyPredicates>): Promise<FamilyPredicates> {
-  const module = (await import('../voucher-kind-map')) as unknown as Record<string, unknown>;
+/** Los predicados de ARQ8-1, junto a `VOUCHER_KIND_MAP`. */
+function loadFamilyPredicates(names: ReadonlyArray<keyof FamilyPredicates>): FamilyPredicates {
+  const module = voucherKindMap as unknown as Record<string, unknown>;
 
   for (const name of names) {
     expect(module[name], `${name} no está en voucher-kind-map.ts`).toBeTypeOf('function');
@@ -139,9 +142,8 @@ async function loadFamilyPredicates(names: ReadonlyArray<keyof FamilyPredicates>
 }
 
 describe('predicados de familia (ARQ8-1)', () => {
-  // Tests primero (ARQ8-1): pasa a it() al implementarlo.
-  it.fails('clasifican cada comprobante igual que la tabla', async () => {
-    const predicates = await loadFamilyPredicates(['isFceInvoice', 'isNote', 'isReceipt', 'noteSide']);
+  it('clasifican cada comprobante igual que la tabla', () => {
+    const predicates = loadFamilyPredicates(['isFceInvoice', 'isNote', 'isReceipt', 'noteSide']);
 
     expect(
       KINDS.map((kind) => ({
@@ -162,9 +164,8 @@ describe('predicados de familia (ARQ8-1)', () => {
     );
   });
 
-  // Tests primero (ARQ8-1): pasa a it() al implementarlo.
-  it.fails('discriminatesIva da lo mismo que la tabla de letras', async () => {
-    const predicates = await loadFamilyPredicates(['discriminatesIva']);
+  it('discriminatesIva da lo mismo que la tabla de letras', () => {
+    const predicates = loadFamilyPredicates(['discriminatesIva']);
 
     expect(VOUCHER_LETTERS.map(predicates.discriminatesIva)).toEqual(
       VOUCHER_LETTERS.map((letter) => DISCRIMINATES_IVA[letter]),

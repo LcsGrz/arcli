@@ -8,9 +8,14 @@ import type {
   BillingIvaCondition,
   BillingIvaRate,
 } from '../billing/billing.schemas';
-import type { VoucherFamily, VoucherKindDefinition, VoucherLetter, VoucherShortcut } from '../billing/billing.types';
+import type { VoucherKindDefinition, VoucherLetter, VoucherShortcut } from '../billing/billing.types';
 import { ARCA_CURRENCIES } from '../billing/currency-codes';
-import { getVoucherKindByFamilyAndLetter, VOUCHER_KIND_MAP } from '../billing/voucher-kind-map';
+import {
+  getVoucherKindByFamilyAndLetter,
+  isNote,
+  VOUCHER_FAMILIES,
+  VOUCHER_KIND_MAP,
+} from '../billing/voucher-kind-map';
 import {
   EXPORT_CREDIT_NOTE_KIND,
   EXPORT_DEBIT_NOTE_KIND,
@@ -94,13 +99,6 @@ export function exportNoteChoices(): Array<InteractiveChoice<ExportVoucherKind>>
   }));
 }
 
-const NOTE_FAMILIES: readonly VoucherFamily[] = [
-  'nota-credito',
-  'nota-debito',
-  'nota-credito-electronica',
-  'nota-debito-electronica',
-];
-
 /**
  * Las notas que puede ajustar una nota de `kind` de la misma letra y categoria que `invoice`: en A, B y C las dos;
  * en FCE solo la que permite la anulacion (una NC FCE ajusta una ND FCE, y una ND FCE una NC FCE).
@@ -112,7 +110,8 @@ export function associableNoteChoices(
   const noteFamily = noteKindChoices(kind, invoice).family;
   const families = new Set([...listAssociableFamilies(noteFamily, false), ...listAssociableFamilies(noteFamily, true)]);
 
-  return NOTE_FAMILIES.filter((family) => families.has(family)).flatMap((family) => {
+  // En el orden del mapa: NC, ND, NC FCE y ND FCE.
+  return VOUCHER_FAMILIES.filter((family) => isNote({ family }) && families.has(family)).flatMap((family) => {
     const definition = getVoucherKindByFamilyAndLetter(family, invoice.letter);
 
     if (!definition) {

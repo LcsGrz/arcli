@@ -7,7 +7,7 @@ import { formatDocumentFlag, formatVoucherSubject, formatVoucherWithArticle } fr
 import { RECEIVER_NOT_EMITTER_RULE } from './billing.rules';
 import type { BillingCommandInput } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
-import { getVoucherKindByFamilyAndLetter } from './voucher-kind-map';
+import { getVoucherKindByFamilyAndLetter, isFceInvoice } from './voucher-kind-map';
 
 export function validateConceptDateInputs(input: BillingCommandInput, voucherKind: VoucherKindDefinition): void {
   const hasAnyServiceDate = Boolean(input.serviceStartDate || input.serviceEndDate);
@@ -22,7 +22,7 @@ export function validateConceptDateInputs(input: BillingCommandInput, voucherKin
   if (input.paymentDueDate || input.dueDay) {
     const flag = input.dueDay ? '`--dia`' : '`--vencimiento`';
 
-    if (voucherKind.isElectronicCredit && voucherKind.family !== 'factura-credito-electronica') {
+    if (voucherKind.isElectronicCredit && !isFceInvoice(voucherKind)) {
       throw new InputValidationError(
         `${formatVoucherSubject(voucherKind)} no lleva vencimiento de pago. Sacá ${flag}.`,
       );

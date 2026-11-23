@@ -1,4 +1,5 @@
 import type { VoucherKindDefinition } from '../billing/billing.types';
+import { noteSide } from '../billing/voucher-kind-map';
 import { EXPORT_CREDIT_NOTE_KIND, EXPORT_DEBIT_NOTE_KIND, type ExportVoucherKind } from '../export/export.types';
 
 import {
@@ -30,11 +31,6 @@ export interface AssociatedKindGroup {
   readonly options: readonly AssociatedKindOption[];
 }
 
-const CREDIT_NOTE_FAMILIES: ReadonlySet<VoucherKindDefinition['family']> = new Set([
-  'nota-credito',
-  'nota-credito-electronica',
-]);
-
 /**
  * Las notas de `side` (credito o debito) que puede ajustar una nota de `kind`: de C a A, despues las FCE de C a A y
  * al final la de exportacion E.
@@ -46,7 +42,7 @@ function noteOptions(
 ): AssociatedKindOption[] {
   const notes = invoices
     .flatMap((invoice) => associableNoteChoices(kind, invoice.value))
-    .filter((note) => CREDIT_NOTE_FAMILIES.has(note.value.family) === (side === 'credito'));
+    .filter((note) => noteSide(note.value) === side);
   const exportNote = side === 'credito' ? EXPORT_CREDIT_NOTE_KIND : EXPORT_DEBIT_NOTE_KIND;
 
   return [...notes, ...exportNoteChoices().filter((note) => note.value === exportNote)].map((note) => ({

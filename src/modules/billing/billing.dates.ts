@@ -6,9 +6,9 @@ import {
 } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 
-import { isElectronicCreditInvoice } from './billing.fce';
 import type { BillingCommandInput } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
+import { isFceInvoice } from './voucher-kind-map';
 
 const MONTH_NAMES = [
   'enero',
@@ -78,7 +78,7 @@ export function shouldSendPaymentDueDate(
   voucherKind: VoucherKindDefinition,
 ): boolean {
   if (voucherKind.isElectronicCredit) {
-    return isElectronicCreditInvoice(voucherKind);
+    return isFceInvoice(voucherKind);
   }
 
   return input.concept !== 'productos';
@@ -89,5 +89,5 @@ export function shouldSendPaymentDueDate(
  * usan la regla (`DUE_DATE_MINIMUM_RULE`) y el vencimiento por defecto del CLI.
  */
 export function minimumPaymentDueDate(billingDate: string, today: string, voucherKind: VoucherKindDefinition): string {
-  return isElectronicCreditInvoice(voucherKind) ? maxArcaDate(billingDate, today) : billingDate;
+  return isFceInvoice(voucherKind) ? maxArcaDate(billingDate, today) : billingDate;
 }

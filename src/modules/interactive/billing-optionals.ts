@@ -5,6 +5,7 @@ import type { BillingRuleContext } from '../billing/billing.rules';
 import type { BillingCommandInput } from '../billing/billing.schemas';
 import type { VoucherKindDefinition } from '../billing/billing.types';
 import { findArcaCurrency, toIsoCurrencyCode } from '../billing/currency-codes';
+import { discriminatesIva, isFceInvoice } from '../billing/voucher-kind-map';
 import type { ArcliConfig } from '../config/config.schemas';
 
 import {
@@ -174,10 +175,9 @@ function describeServicePeriod(options: AdvancedOptions): string {
 }
 
 const copiedFrom = (context: BillingOptionalsContext): string => context.copiedFrom ?? '';
-const discriminatesIva = (context: BillingOptionalsContext): boolean => context.voucherKind.letter !== 'c';
+const withIva = (context: BillingOptionalsContext): boolean => discriminatesIva(context.voucherKind.letter);
 const usesService = (context: BillingOptionalsContext): boolean => context.concept !== 'productos';
-const isFceInvoice = (context: BillingOptionalsContext): boolean =>
-  context.voucherKind.family === 'factura-credito-electronica';
+const forFceInvoice = (context: BillingOptionalsContext): boolean => isFceInvoice(context.voucherKind);
 
 /**
  * Los opcionales de A, B y C, en el orden en que se muestran y se preguntan. Lo que deja de aplicar (por ejemplo,
@@ -205,7 +205,7 @@ export function billingOptionals(questions: BillingOptionalQuestions): readonly 
       steps: questions.fecha,
     },
     {
-      available: discriminatesIva,
+      available: withIva,
       describe: (current, context) => `${(current.ivaRate ?? context.defaultIvaRate).replace('.', ',')}%`,
       key: 'alicuota',
       label: 'Alícuota de IVA',
@@ -222,7 +222,7 @@ export function billingOptionals(questions: BillingOptionalQuestions): readonly 
       steps: questions.divisas,
     },
     {
-      available: discriminatesIva,
+      available: withIva,
       cleared: () => ({ exemptAmount: undefined, untaxedAmount: undefined }),
       describe: describeAmounts,
       key: 'exento',
@@ -243,7 +243,7 @@ export function billingOptionals(questions: BillingOptionalQuestions): readonly 
     {
       // Como el CLI: vencimiento en servicios y en la factura FCE; las notas FCE no lo llevan.
       available: (context) =>
-        isFceInvoice(context) || (usesService(context) && !context.voucherKind.isElectronicCredit),
+        forFceInvoice(context) || (usesService(context) && !context.voucherKind.isElectronicCredit),
       cleared: () => ({ paymentDueDate: undefined }),
       describe: (current) => current.paymentDueDate ?? 'por defecto',
       key: 'vencimiento',
@@ -252,7 +252,7 @@ export function billingOptionals(questions: BillingOptionalQuestions): readonly 
       steps: questions.vencimiento,
     },
     {
-      available: isFceInvoice,
+      available: forFceInvoice,
       describe: (current) => (current.transferMode ?? 'sca').toUpperCase(),
       key: 'transferencia',
       label: 'Modalidad de transferencia',

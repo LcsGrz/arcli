@@ -3,6 +3,7 @@ import { DEFAULT_CURRENCY_CODE } from './billing.constants';
 import type { BillingConcept, BillingDocumentType, BillingIvaCondition } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
 import { toArcaCurrencyCode } from './currency-codes';
+import { isReceipt } from './voucher-kind-map';
 
 export function resolveBillingConceptCode(concept: BillingConcept): number {
   return conceptCode(concept);
@@ -24,8 +25,9 @@ export function resolveBillingCurrencyCode(currencyCode = DEFAULT_CURRENCY_CODE)
 /** Tambien la factura E, que no es un VoucherKindDefinition. */
 type NamedVoucher = Pick<VoucherKindDefinition, 'family'> & { readonly displayName: string };
 
+/** El recibo es el único masculino: `el recibo C`, `la factura B`. */
 function isMasculineVoucher(voucherKind: NamedVoucher): boolean {
-  return voucherKind.family === 'recibo';
+  return isReceipt(voucherKind);
 }
 
 /** Para usar dentro de una frase: `factura B`, `recibo C`. La letra del comprobante siempre va en mayuscula. */

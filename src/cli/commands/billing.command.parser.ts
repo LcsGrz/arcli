@@ -16,7 +16,7 @@ import {
 } from '../../modules/billing/billing.json-input';
 import { type BillingCommandInput, billingCommandSchema } from '../../modules/billing/billing.schemas';
 import type { VoucherShortcut } from '../../modules/billing/billing.types';
-import { getVoucherKindByShortcut } from '../../modules/billing/voucher-kind-map';
+import { discriminatesIva, getVoucherKindByShortcut, isFceInvoice } from '../../modules/billing/voucher-kind-map';
 import { resolvePdfFlag } from '../../modules/pdf/pdf-decision';
 
 import { resolveConceptShortcut, resolveDocumentIdentity, resolveIvaShortcut } from './billing.command.shortcuts';
@@ -322,9 +322,9 @@ function parseBillingCommandInputFromSource(
 
   // El CBU de la config solo aplica a facturas FCE: ARCA rechaza esos opcionales en otros comprobantes (10169).
   const voucherKind = getVoucherKindByShortcut(shortcut);
-  const usesFceDefaults = voucherKind?.family === 'factura-credito-electronica';
+  const usesFceDefaults = isFceInvoice(voucherKind);
   // La C no discrimina IVA: la alicuota de la config solo aplica a A y B.
-  const usesIvaRateDefault = voucherKind?.letter !== 'c';
+  const usesIvaRateDefault = !voucherKind || discriminatesIva(voucherKind.letter);
 
   // Las fechas relativas (`hoy`, `+10`, `mes-pasado`...) se resuelven aca, una vez para flags y `--cargar`: cada campo
   // dice si es un dia o una punta de un rango. Lo que sigue (validaciones, vista previa, `--json`) ve la fecha resuelta.
