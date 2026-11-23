@@ -113,6 +113,18 @@ const INPUT: ExportVoucherInput = {
 describe('ExportService.resolve', () => {
   const service = new ExportService({ clock: { now: () => NOW } });
 
+  it('lee el reloj en cada resolucion, no al crear el servicio', async () => {
+    let now = new Date('2026-06-02T02:59:59Z');
+    const longLived = new ExportService({ clock: { now: () => now } });
+    const before = await longLived.resolve(INPUT, createGateway(), RUNTIME);
+
+    now = new Date('2026-06-02T03:00:00Z');
+
+    const after = await longLived.resolve(INPUT, createGateway(), RUNTIME);
+
+    expect([before.payload.Fecha_cbte, after.payload.Fecha_cbte]).toEqual(['20260601', '20260602']);
+  });
+
   it('arma el payload con la numeracion, la cotizacion y las tablas de ARCA', async () => {
     const gateway = createGateway();
     const resolved = await service.resolve({ ...INPUT, exportType: 1 }, gateway, RUNTIME);
