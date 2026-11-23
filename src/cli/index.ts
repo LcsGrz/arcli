@@ -6,11 +6,14 @@ import { renderUpdateNoticePanel } from '../modules/update-check/update-check.pr
 import { checkForUpdate } from '../modules/update-check/update-check.service';
 import { writeTerminalError } from '../ui';
 
+import { ignoreClosedOutput } from './closed-output';
 import { isInteractiveTerminal } from './commands/interactive.command';
 import { reportCliError, shouldPrintErrorAsJson } from './error-output';
 import { normalizeHelpArgv } from './help-argv';
 import { createProgram } from './program';
 import { CLI_VERSION } from './version';
+
+ignoreClosedOutput();
 
 // Tickets de ARCA, config y PDFs se crean solo para el usuario (el SDK escribe los tickets con permisos por defecto).
 process.umask(OWNER_ONLY_UMASK);

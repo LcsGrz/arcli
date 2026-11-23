@@ -24,6 +24,8 @@ ARCLI está pensado para que un asistente con acceso a la terminal (Claude, Chat
 | `1`    | Error del comando: mirar `codigo` en el JSON ([tabla](input-output.md#códigos-de-error)) |
 | `2`    | ARCA rechazó el comprobante                                                              |
 
+Un `0` no garantiza que alguien haya leído la salida: si se cortó al emitir, buscá el comprobante antes de reintentar ([más](input-output.md#formato-de-errores)).
+
 ## Un pedido de ejemplo
 
 ```text

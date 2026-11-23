@@ -37,6 +37,8 @@
 | `2` | ARCA rechazó el comprobante (A, B, C o E); en un lote, al menos uno. Sale por stdout como respuesta válida: revisar `estado`, `resultado` y `errores` de cada uno. |
 | `1` | Cualquier error: JSON en stderr, mirar `codigo` (ver "Salida de error"). |
 
+El exit code no dice si alguien leyó la salida: cortarla (`| head`) no corta el comando. Si se cortó al emitir, buscar el comprobante con `arcli ultimos` o `arcli consultar` antes de reintentar, aunque sea `0`.
+
 ## Ejemplos (A, B, C y notas)
 
 ```bash
