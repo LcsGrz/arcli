@@ -77,9 +77,9 @@ Los `*.property.test.ts` usan [fast-check](https://fast-check.dev) para probar i
 
 ### De punta a punta
 
-`src/cli/__tests__/e2e/*.e2e.ts` corre el `arcli` compilado (`dist/cli/index.js`) como un proceso aparte y compara lo que ve quien lo usa: la salida, que `--json` sea un solo documento JSON, el código de salida y lo que queda en la config. Cada test usa una carpeta de config vacía con `ARCLI_CONFIG_DIR`, sin red ni certificados, así que corre en el CI en los tres sistemas operativos. Van con `yarn test:e2e` después de `yarn build`; `yarn test` no los toma (no terminan en `.test.ts`).
+`src/cli/__tests__/e2e/*.e2e.ts` corre el `arcli` compilado (`dist/cli/index.js`) como un proceso aparte y compara lo que ve quien lo usa: la salida, que `--json` sea un solo documento JSON, el código de salida y lo que queda en la config. Cada test usa una carpeta de config temporal con `ARCLI_CONFIG_DIR`, sin red y sin certificados reales, así que corre en el CI en los tres sistemas operativos. Van con `yarn test:e2e` después de `yarn build`; `yarn test` no los toma (no terminan en `.test.ts`).
 
-Sirven para lo que los tests unitarios no ven: el empaquetado de ESM, los errores de uso de commander, que nada escriba texto alrededor del JSON. Lo que necesita a ARCA (emitir, consultar) sigue en los unitarios, con ARCA simulado.
+Sirven para lo que los tests unitarios no ven: el empaquetado de ESM, los errores de uso de commander, que nada escriba texto alrededor del JSON. Lo que necesita a ARCA (emitir, consultar) sigue en los unitarios, con ARCA simulado, salvo `closed-output.e2e.ts`: prueba que cortar la salida (`| head`) no corta una emisión, con un certificado autofirmado, las llamadas a ARCA reemplazadas en el proceso y la red bloqueada.
 
 ### Contra ARCA testing
 
@@ -125,6 +125,8 @@ El mismo test compara los códigos de error: cada código de la tabla de [códig
 Los comandos internos (`__completar`, `storybook`) quedan fuera de la lista, en `INTERNAL_COMMANDS`; los atajos y familias, aunque estén ocultos en la ayuda, son públicos y están.
 
 `src/cli/__tests__/json-golden.test.ts` congela la salida completa del `--json` (stdout, stderr y exit code, byte a byte) de facturación A, B, C, FCE y E, lotes y cada código de error, con el SDK de ARCA simulado y reloj fijo; cada caso es un archivo de `src/cli/__tests__/__golden__/`. Un cambio en esos archivos es un cambio de contrato: si es a propósito, se regeneran con `yarn test src/cli/__tests__/json-golden.test.ts -u` y el diff va en el PR (y en `CHANGELOG.md`).
+
+`src/cli/__tests__/voucher-help.scope.txt` fija las opciones y reglas de la ayuda de cada comprobante; no es contrato y se regenera con `yarn test src/cli/__tests__/voucher-help.scope.test.ts -u`.
 
 `src/cli/__tests__/examples-valid.test.ts` toma cada ejemplo de facturación de la ayuda (`--ayuda` de cada atajo y familia), de `arcli ejemplos` y de los bloques `bash` de `docs/`, `README.md` y `llms.txt`, más los JSON de entrada para `--cargar`, y los pasa por el parser real hasta armar la solicitud a ARCA, con una config mínima (CUIT y punto de venta), un padrón falso y un reloj fijo, sin red. En un bloque de los docs, los `arcli config establecer` anteriores al ejemplo cuentan como config. Si falla, lista el archivo y la línea de cada ejemplo con su error. Un ejemplo inválido a propósito va en `EXCLUDED_EXAMPLES`, con el motivo.
 

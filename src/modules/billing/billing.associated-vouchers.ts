@@ -8,7 +8,7 @@ import { formatVoucherLabel, formatVoucherSubject, formatVoucherWithArticle } fr
 import { ASSOCIATED_NOT_AFTER_NOTE_RULE } from './billing.rules';
 import type { BillingCommandInput } from './billing.schemas';
 import type { VoucherFamily, VoucherKindDefinition } from './billing.types';
-import { getVoucherKindByArcaType, getVoucherKindByFamilyAndLetter, isReceipt } from './voucher-kind-map';
+import { getVoucherKindByArcaType, getVoucherKindByFamilyAndLetter, isNote, isReceipt } from './voucher-kind-map';
 
 interface ResolveAssociatedVoucherOptions {
   readonly billingDate: string;
@@ -23,7 +23,7 @@ interface ResolveAssociatedVoucherOptions {
 export function resolveAssociatedVouchers(options: ResolveAssociatedVoucherOptions): ICbtesAsoc[] | undefined {
   const { billingDate, emitterCuit, input, requireVoucherKind, today, voucherKind } = options;
 
-  if (!voucherKind.requiresAssociatedVoucher) {
+  if (!isNote(voucherKind)) {
     if (input.associatedVoucher) {
       throw new InputValidationError(`${formatVoucherSubject(voucherKind)} no usa comprobante asociado.`);
     }

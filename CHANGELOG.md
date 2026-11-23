@@ -43,6 +43,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Consultas:** `consultar` y `ultimos` dan `ARCA_VOUCHER_QUERY_ERROR` si ARCA falla, en vez de decir que el comprobante no existe (#268).
 - **Notas:** si ARCA falla al consultar el asociado, la nota A, B, C o FCE sigue con un aviso en vez de frenar (#268).
 - **Asistente:** si ARCA falla al cargar más comprobantes o buscar uno, muestra el error y seguís en la lista (#268).
+- **Salida:** cortar la salida (`arcli ayuda | head`) ya no muestra un error de Node ni corta el comando a mitad de camino (#266).
 
 <details><summary>Detalle</summary>
 
@@ -51,6 +52,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 **Notas.** El asociado se consulta de la misma forma: con un error de ARCA, la nota sigue y en `avisos` sale "No se pudo verificar en ARCA…". Una nota FCE sin `--afecha` sigue frenando con `INPUT_VALIDATION_ERROR`, porque no hay de dónde tomar la fecha, y el mensaje dice que no se pudo consultar.
 
 **Asistente.** En las listas de comprobantes (Mis comprobantes, Repetir y notas), el error se muestra y se vuelve a la lista con lo que ya estaba cargado. Si falla la primera carga, se muestra y vuelve al menú.
+
+**Salida cortada.** Si quien lee la salida la cerraba antes de tiempo (`| head`, o `less` y `q`), ARCLI mostraba `Error: write EPIPE` con el detalle interno de Node y salía con 1. Ahora el comando termina sin ese error y, con la salida cortada, el código de salida pasa de 1 al del comando (0, 1 o 2), también si lo que se cerró es stderr: un 0 no garantiza que alguien haya leído la salida, así que si se cortó al emitir conviene buscar el comprobante antes de reintentar. Una emisión, su PDF o un lote se completan igual que con la salida abierta: antes podían cortarse ahí, por ejemplo con el comprobante ya autorizado y sin PDF. Cualquier otro error al escribir, como el disco lleno, sigue cortando el comando. La salida y el `--json` no cambian.
 
 </details>
 

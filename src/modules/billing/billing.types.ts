@@ -61,6 +61,5 @@ export interface VoucherKindDefinition {
   readonly family: VoucherFamily;
   readonly isElectronicCredit: boolean;
   readonly letter: VoucherLetter;
-  readonly requiresAssociatedVoucher: boolean;
   readonly shortcut: VoucherShortcut;
 }

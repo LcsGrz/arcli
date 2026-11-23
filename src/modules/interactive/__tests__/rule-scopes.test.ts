@@ -48,7 +48,7 @@ describe('A, B y C', () => {
   it('billingRuleEnv toma la config, el CUIT emisor y hoy', () => {
     const config = { alicuotaPorDefecto: '21' as const };
 
-    expect(billingRuleEnv({ config, context: { cuit: 20111111112 } }, new Date('2026-11-18T15:00:00Z'))).toEqual({
+    expect(billingRuleEnv({ config, cuit: 20111111112 }, new Date('2026-11-18T15:00:00Z'))).toEqual({
       config,
       emitterCuit: 20111111112,
       today: TODAY,

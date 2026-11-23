@@ -11,7 +11,7 @@ import type { Clock } from '../../lib/time/clock';
 import { assertCurrencyInTable } from '../billing/billing.currency';
 import { EmissionUncertainError } from '../billing/billing.errors';
 import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
-import { type ArcliConfig, MISSING_CUIT_MESSAGE } from '../config/config.schemas';
+import type { ArcliConfig } from '../config/config.schemas';
 
 import {
   assertExportItemsTotal,
@@ -73,6 +73,8 @@ import {
 
 export interface ExportRuntime {
   readonly config: ArcliConfig;
+  /** El CUIT emisor del perfil. */
+  readonly cuit: number;
   readonly environment: 'produccion' | 'testing';
 }
 
@@ -184,13 +186,8 @@ async function fetchAssociated(
   runtime: ExportRuntime,
   kind: ExportVoucherKind,
 ): Promise<ResolvedAssociatedVoucher> {
-  const emitterCuit = runtime.config.cuit;
-
-  if (!emitterCuit) {
-    throw new InputValidationError(MISSING_CUIT_MESSAGE);
-  }
   const query = resolveExportAssociatedQuery({
-    emitterCuit,
+    emitterCuit: runtime.cuit,
     input: input.associatedVoucher,
     kind,
     pointOfSale: resolveExportPointOfSale(input.pointOfSale, runtime.config),
@@ -203,7 +200,7 @@ async function fetchAssociated(
 
   return {
     payload: {
-      Cbte_cuit: Number(emitterCuit),
+      Cbte_cuit: runtime.cuit,
       Cbte_nro: query.number,
       Cbte_punto_vta: query.pointOfSale,
       Cbte_tipo: query.arcaType,

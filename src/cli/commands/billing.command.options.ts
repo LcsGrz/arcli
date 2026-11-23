@@ -1,9 +1,9 @@
 import { type Command, Option } from 'commander';
 
 import { EXCHANGE_RATE_DECIMALS } from '../../lib/numbers/argentine-amount';
-import type { VoucherLetter } from '../../modules/billing/billing.types';
 import { discriminatesIva } from '../../modules/billing/voucher-kind-map';
 import { amountOption, cuitOption, documentNumberOption, integerOption } from '../option-parsers';
+import type { VoucherScope } from '../voucher-scope';
 
 export function registerBillingOptions(command: Command): void {
   command
@@ -153,14 +153,7 @@ const ALIAS_FLAGS = new Set([
   '--vto',
 ]);
 
-/** Que comprobantes cubre un comando: un atajo es una letra; una familia, las tres. */
-export interface BillingOptionScope {
-  readonly isElectronicCredit: boolean;
-  readonly isNote: boolean;
-  readonly letters: readonly VoucherLetter[];
-}
-
-const OPTION_APPLIES: Readonly<Record<string, (scope: BillingOptionScope) => boolean>> = {
+const OPTION_APPLIES: Readonly<Record<string, (scope: VoucherScope) => boolean>> = {
   '--alicuota': (scope) => scope.letters.some(discriminatesIva),
   '--exento': (scope) => scope.letters.some(discriminatesIva),
   '--nogravado': (scope) => scope.letters.some(discriminatesIva),
@@ -182,7 +175,7 @@ const OPTION_APPLIES: Readonly<Record<string, (scope: BillingOptionScope) => boo
  * Saca de la ayuda los alias y lo que no aplica a estos comprobantes. Solo se ocultan: siguen aceptandose y,
  * si no aplican, la validacion de siempre explica por que.
  */
-export function hideInapplicableBillingOptions(command: Command, scope: BillingOptionScope): void {
+export function hideInapplicableBillingOptions(command: Command, scope: VoucherScope): void {
   for (const option of command.options) {
     const flag = option.long ?? '';
     const applies = OPTION_APPLIES[flag];

@@ -7,7 +7,6 @@ export const VOUCHER_KIND_MAP: Record<VoucherShortcut, VoucherKindDefinition> = 
     family: 'factura',
     isElectronicCredit: false,
     letter: 'a',
-    requiresAssociatedVoucher: false,
     shortcut: 'fa',
   },
   fb: {
@@ -16,7 +15,6 @@ export const VOUCHER_KIND_MAP: Record<VoucherShortcut, VoucherKindDefinition> = 
     family: 'factura',
     isElectronicCredit: false,
     letter: 'b',
-    requiresAssociatedVoucher: false,
     shortcut: 'fb',
   },
   fc: {
@@ -25,7 +23,6 @@ export const VOUCHER_KIND_MAP: Record<VoucherShortcut, VoucherKindDefinition> = 
     family: 'factura',
     isElectronicCredit: false,
     letter: 'c',
-    requiresAssociatedVoucher: false,
     shortcut: 'fc',
   },
   nca: {
@@ -34,7 +31,6 @@ export const VOUCHER_KIND_MAP: Record<VoucherShortcut, VoucherKindDefinition> = 
     family: 'nota-credito',
     isElectronicCredit: false,
     letter: 'a',
-    requiresAssociatedVoucher: true,
     shortcut: 'nca',
   },
   ncb: {
@@ -43,7 +39,6 @@ export const VOUCHER_KIND_MAP: Record<VoucherShortcut, VoucherKindDefinition> = 
     family: 'nota-credito',
     isElectronicCredit: false,
     letter: 'b',
-    requiresAssociatedVoucher: true,
     shortcut: 'ncb',
   },
   ncc: {
@@ -52,7 +47,6 @@ export const VOUCHER_KIND_MAP: Record<VoucherShortcut, VoucherKindDefinition> = 
     family: 'nota-credito',
     isElectronicCredit: false,
     letter: 'c',
-    requiresAssociatedVoucher: true,
     shortcut: 'ncc',
   },
   nda: {
@@ -61,7 +55,6 @@ export const VOUCHER_KIND_MAP: Record<VoucherShortcut, VoucherKindDefinition> = 
     family: 'nota-debito',
     isElectronicCredit: false,
     letter: 'a',
-    requiresAssociatedVoucher: true,
     shortcut: 'nda',
   },
   ndb: {
@@ -70,7 +63,6 @@ export const VOUCHER_KIND_MAP: Record<VoucherShortcut, VoucherKindDefinition> = 
     family: 'nota-debito',
     isElectronicCredit: false,
     letter: 'b',
-    requiresAssociatedVoucher: true,
     shortcut: 'ndb',
   },
   ndc: {
@@ -79,7 +71,6 @@ export const VOUCHER_KIND_MAP: Record<VoucherShortcut, VoucherKindDefinition> = 
     family: 'nota-debito',
     isElectronicCredit: false,
     letter: 'c',
-    requiresAssociatedVoucher: true,
     shortcut: 'ndc',
   },
   fcea: {
@@ -88,7 +79,6 @@ export const VOUCHER_KIND_MAP: Record<VoucherShortcut, VoucherKindDefinition> = 
     family: 'factura-credito-electronica',
     isElectronicCredit: true,
     letter: 'a',
-    requiresAssociatedVoucher: false,
     shortcut: 'fcea',
   },
   fceb: {
@@ -97,7 +87,6 @@ export const VOUCHER_KIND_MAP: Record<VoucherShortcut, VoucherKindDefinition> = 
     family: 'factura-credito-electronica',
     isElectronicCredit: true,
     letter: 'b',
-    requiresAssociatedVoucher: false,
     shortcut: 'fceb',
   },
   fcec: {
@@ -106,7 +95,6 @@ export const VOUCHER_KIND_MAP: Record<VoucherShortcut, VoucherKindDefinition> = 
     family: 'factura-credito-electronica',
     isElectronicCredit: true,
     letter: 'c',
-    requiresAssociatedVoucher: false,
     shortcut: 'fcec',
   },
   ncea: {
@@ -115,7 +103,6 @@ export const VOUCHER_KIND_MAP: Record<VoucherShortcut, VoucherKindDefinition> = 
     family: 'nota-credito-electronica',
     isElectronicCredit: true,
     letter: 'a',
-    requiresAssociatedVoucher: true,
     shortcut: 'ncea',
   },
   nceb: {
@@ -124,7 +111,6 @@ export const VOUCHER_KIND_MAP: Record<VoucherShortcut, VoucherKindDefinition> = 
     family: 'nota-credito-electronica',
     isElectronicCredit: true,
     letter: 'b',
-    requiresAssociatedVoucher: true,
     shortcut: 'nceb',
   },
   ncec: {
@@ -133,7 +119,6 @@ export const VOUCHER_KIND_MAP: Record<VoucherShortcut, VoucherKindDefinition> = 
     family: 'nota-credito-electronica',
     isElectronicCredit: true,
     letter: 'c',
-    requiresAssociatedVoucher: true,
     shortcut: 'ncec',
   },
   ndea: {
@@ -142,7 +127,6 @@ export const VOUCHER_KIND_MAP: Record<VoucherShortcut, VoucherKindDefinition> = 
     family: 'nota-debito-electronica',
     isElectronicCredit: true,
     letter: 'a',
-    requiresAssociatedVoucher: true,
     shortcut: 'ndea',
   },
   ndeb: {
@@ -151,7 +135,6 @@ export const VOUCHER_KIND_MAP: Record<VoucherShortcut, VoucherKindDefinition> = 
     family: 'nota-debito-electronica',
     isElectronicCredit: true,
     letter: 'b',
-    requiresAssociatedVoucher: true,
     shortcut: 'ndeb',
   },
   ndec: {
@@ -160,7 +143,6 @@ export const VOUCHER_KIND_MAP: Record<VoucherShortcut, VoucherKindDefinition> = 
     family: 'nota-debito-electronica',
     isElectronicCredit: true,
     letter: 'c',
-    requiresAssociatedVoucher: true,
     shortcut: 'ndec',
   },
   ra: {
@@ -169,7 +151,6 @@ export const VOUCHER_KIND_MAP: Record<VoucherShortcut, VoucherKindDefinition> = 
     family: 'recibo',
     isElectronicCredit: false,
     letter: 'a',
-    requiresAssociatedVoucher: false,
     shortcut: 'ra',
   },
   rb: {
@@ -178,7 +159,6 @@ export const VOUCHER_KIND_MAP: Record<VoucherShortcut, VoucherKindDefinition> = 
     family: 'recibo',
     isElectronicCredit: false,
     letter: 'b',
-    requiresAssociatedVoucher: false,
     shortcut: 'rb',
   },
   rc: {
@@ -187,7 +167,6 @@ export const VOUCHER_KIND_MAP: Record<VoucherShortcut, VoucherKindDefinition> = 
     family: 'recibo',
     isElectronicCredit: false,
     letter: 'c',
-    requiresAssociatedVoucher: false,
     shortcut: 'rc',
   },
 };

@@ -47,7 +47,6 @@ function createResult(): BillingExecutionResult {
       family: 'factura',
       isElectronicCredit: false,
       letter: 'a',
-      requiresAssociatedVoucher: false,
       shortcut: 'fa',
     },
   };
