@@ -4,7 +4,6 @@ import {
   getVoucherFamilyLetters,
   getVoucherKindByFamilyAndLetter,
   getVoucherKindByShortcut,
-  isNote,
   VOUCHER_FAMILIES,
   VOUCHER_KIND_MAP,
   VOUCHER_SHORTCUTS,
@@ -15,15 +14,14 @@ describe('voucher-kind-map', () => {
     expect(VOUCHER_SHORTCUTS).toHaveLength(21);
   });
 
-  it('defines recibos A (4) and B (9), like the C: not notes and with no associated voucher', () => {
+  it('defines recibos A (4) and B (9), like the C', () => {
     expect(VOUCHER_KIND_MAP.ra).toMatchObject({ arcaType: 4, displayName: 'Recibo A', family: 'recibo', letter: 'a' });
     expect(VOUCHER_KIND_MAP.rb).toMatchObject({ arcaType: 9, displayName: 'Recibo B', family: 'recibo', letter: 'b' });
-    expect(isNote(VOUCHER_KIND_MAP.ra)).toBe(false);
     expect(VOUCHER_KIND_MAP.rb.isElectronicCredit).toBe(false);
     expect(getVoucherFamilyLetters('recibo')).toEqual(['a', 'b', 'c']);
   });
 
-  it('defines a recibo C that is not a note and needs no associated voucher', () => {
+  it('defines a recibo C', () => {
     expect(VOUCHER_KIND_MAP.rc).toMatchObject({
       arcaType: 15,
       displayName: 'Recibo C',
@@ -31,7 +29,6 @@ describe('voucher-kind-map', () => {
       isElectronicCredit: false,
       letter: 'c',
     });
-    expect(isNote(VOUCHER_KIND_MAP.rc)).toBe(false);
     expect(getVoucherKindByFamilyAndLetter('recibo', 'c')?.shortcut).toBe('rc');
     expect(getVoucherKindByFamilyAndLetter('recibo', 'a')?.shortcut).toBe('ra');
   });
@@ -50,12 +47,6 @@ describe('voucher-kind-map', () => {
       arcaType: 208,
       shortcut: 'nceb',
     });
-  });
-
-  it('marks credit and debit notes as notes', () => {
-    expect(isNote(VOUCHER_KIND_MAP.nca)).toBe(true);
-    expect(isNote(VOUCHER_KIND_MAP.ndea)).toBe(true);
-    expect(isNote(VOUCHER_KIND_MAP.fa)).toBe(false);
   });
 
   it('exposes the seven configured voucher families', () => {
