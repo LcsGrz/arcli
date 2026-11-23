@@ -180,7 +180,7 @@ async function askField(
     // Con un valor actual, Enter lo deja igual (es el default del prompt); "-" lo borra.
     const canClear = !options.required && Boolean(current);
     // Un archivo arrastrado a la terminal llega entre comillas o con espacios escapados, como en Certificados.
-    const normalize = (text: string) => (field.path ? normalizeDroppedPath(text) : text);
+    const normalize = (text: string) => (field.path ? normalizeDroppedPath(text, process.platform) : text);
     const hint = [
       field.hint,
       field.path ? 'podés arrastrar el archivo' : undefined,

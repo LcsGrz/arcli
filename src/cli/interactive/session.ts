@@ -287,6 +287,7 @@ export async function previewAndEmit(
         defaultCurrency: runtime.config.monedaPorDefecto,
         environment: runtime.environment,
         issuerCuit: runtime.context.cuit,
+        platform: process.platform,
       }),
     ),
   );

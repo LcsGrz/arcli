@@ -5,7 +5,7 @@ import { join } from 'node:path';
  * Una ruta escrita o arrastrada a la terminal: macOS la pega con espacios escapados (`Mis\ archivos/a.crt `), VS Code
  * y Windows entre comillas (`'Mis archivos/a.crt'`), y a mano se escribe con `~`.
  */
-export function normalizeDroppedPath(value: string, platform: NodeJS.Platform = process.platform): string {
+export function normalizeDroppedPath(value: string, platform: NodeJS.Platform): string {
   let path = value.trim();
 
   if (/^(['"]).*\1$/.test(path)) {

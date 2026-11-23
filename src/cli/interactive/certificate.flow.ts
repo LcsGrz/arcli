@@ -46,7 +46,7 @@ function withService<T>(run: (service: CertificateService, config: ConfigService
 }
 
 function validateCertificateFile(value: string): string | true {
-  const path = normalizeDroppedPath(value);
+  const path = normalizeDroppedPath(value, process.platform);
 
   if (!path) {
     return 'Indicá la ruta del .crt, o arrastralo a la terminal.';
@@ -80,7 +80,7 @@ export async function runImportCertificate(): Promise<'importado' | Back> {
     return BACK;
   }
 
-  const content = readFileSync(normalizeDroppedPath(answer), 'utf8');
+  const content = readFileSync(normalizeDroppedPath(answer, process.platform), 'utf8');
 
   try {
     let imported;

@@ -823,12 +823,12 @@ describe('el comando equivalente de la E con textos raros pasa por el parser rea
     };
     const service = new ExportService({ clock: { now: () => NOW } });
 
-    expect(buildExportEquivalentCommand(withItem, { activity: 620100, environment: 'testing' })).toContain(
-      "-m 1500,50 --cliente 'ACME LLC'",
-    );
-    expect(buildExportEquivalentCommand(withItem, { activity: 620100, environment: 'testing' })).toContain(
-      "--item 'Según detalle|1|1500,50'",
-    );
+    expect(
+      buildExportEquivalentCommand(withItem, { activity: 620100, environment: 'testing', platform: 'linux' }),
+    ).toContain("-m 1500,50 --cliente 'ACME LLC'");
+    expect(
+      buildExportEquivalentCommand(withItem, { activity: 620100, environment: 'testing', platform: 'linux' }),
+    ).toContain("--item 'Según detalle|1|1500,50'");
     await expectSameExportRequest(withItem);
     expect((await service.resolve(withItem, exportGateway, exportRuntime)).payload).toEqual(
       (await service.resolve(base, exportGateway, exportRuntime)).payload,
@@ -862,9 +862,9 @@ describe('el comando equivalente de la E con textos raros pasa por el parser rea
       voucherDate: '16/11/2026',
     };
 
-    expect(buildExportEquivalentCommand(input, { activity: 620100, environment: 'testing' })).toContain(
-      '--fecha 16/11/2026',
-    );
+    expect(
+      buildExportEquivalentCommand(input, { activity: 620100, environment: 'testing', platform: 'linux' }),
+    ).toContain('--fecha 16/11/2026');
     await expectSameExportRequest(input);
     await expectSameExportRequest({
       amount: 500,
@@ -889,9 +889,9 @@ describe('el comando equivalente de la E con textos raros pasa por el parser rea
       voucherDate: '16/11/2026',
     };
 
-    expect(buildExportEquivalentCommand(input, { activity: 620100, environment: 'testing' })).toContain(
-      '--fecha-pago 17/11/2026',
-    );
+    expect(
+      buildExportEquivalentCommand(input, { activity: 620100, environment: 'testing', platform: 'linux' }),
+    ).toContain('--fecha-pago 17/11/2026');
     await expectSameExportRequest(input);
   });
 

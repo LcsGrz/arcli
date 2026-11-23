@@ -385,7 +385,9 @@ export async function emitExportVoucher(
 
   writeTerminalOutput(formatExportResultAsText(preview, { environment: runtime.environment, raw: false }));
   writeTerminalOutput(
-    formatEquivalentCommand(buildExportEquivalentCommand(input, { activity, environment: runtime.environment })),
+    formatEquivalentCommand(
+      buildExportEquivalentCommand(input, { activity, environment: runtime.environment, platform: process.platform }),
+    ),
   );
 
   const label = formatVoucherWithArticle(input.voucherKind ?? EXPORT_VOUCHER_KIND);

@@ -528,7 +528,9 @@ describe('consumidor final con datos en el asistente (REV-66)', () => {
 
       expect(printed()).toContain(NOTICE);
       expect(input).toMatchObject({ documentNumber: 30123456, documentType: 'dni', ivaCondition: 'consumidor-final' });
-      expect(buildEquivalentCommand(input!, { environment: 'testing' })).toMatch(/--dni 30123456 --ir-cf/);
+      expect(buildEquivalentCommand(input!, { environment: 'testing', platform: 'linux' })).toMatch(
+        /--dni 30123456 --ir-cf/,
+      );
     });
 
     it('con el mismo monto, por debajo del tope, no lo pide y lo ofrece en los opcionales', async () => {
