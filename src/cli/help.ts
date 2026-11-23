@@ -1,13 +1,12 @@
 import { type Command, Help } from 'commander';
 
 import { CERTIFICATE_GUIDE_URL, DOCS_SITE_URL } from '../lib/links';
-import type { VoucherFamily, VoucherLetter, VoucherShortcut } from '../modules/billing/billing.types';
+import type { VoucherFamily, VoucherShortcut } from '../modules/billing/billing.types';
 import {
   discriminatesIva,
   getVoucherFamilyLetters,
   getVoucherKindByFamilyAndLetter,
   getVoucherKindByShortcut,
-  isNote,
   VOUCHER_FAMILIES,
   VOUCHER_LETTERS,
 } from '../modules/billing/voucher-kind-map';
@@ -29,6 +28,7 @@ import { resolveUpdateCommand } from '../modules/update-check/package-manager';
 import { renderLogo, uiSymbol } from '../ui';
 
 import { CLI_VERSION } from './version';
+import { familyScope, shortcutScope, type VoucherScope } from './voucher-scope';
 
 const FAMILY_LABELS: Record<VoucherFamily, string> = {
   factura: 'Factura',
@@ -51,14 +51,8 @@ const CORE_RULES = [
   'Fechas: además de D/M/YYYY, hoy, ayer, +N y -N (días desde hoy). En desde y hasta (--sd/--sh, --pd/--ph) también mes-actual y mes-pasado: el día 1 en desde y el último día en hasta.',
 ];
 
-interface HelpScope {
-  readonly isElectronicCredit: boolean;
-  readonly isNote: boolean;
-  readonly letters: readonly VoucherLetter[];
-}
-
 /** Las reglas que dependen del comprobante; la lista de opciones ya muestra solo las que aplican. */
-function createRules(scope: HelpScope): string {
+function createRules(scope: VoucherScope): string {
   const rules = [...CORE_RULES];
 
   if (scope.letters.some(discriminatesIva)) {
@@ -526,17 +520,7 @@ export function createShortcutHelp(shortcut: VoucherShortcut): string {
     return '';
   }
 
-  return [
-    '',
-    createShortcutSummary(shortcut),
-    '',
-    createRules({
-      isElectronicCredit: definition.isElectronicCredit,
-      isNote: definition.requiresAssociatedVoucher,
-      letters: [definition.letter],
-    }),
-    '',
-  ].join('\n');
+  return ['', createShortcutSummary(shortcut), '', createRules(shortcutScope(definition)), ''].join('\n');
 }
 
 /** Lo que cambia entre la factura y las notas E. */
@@ -589,19 +573,7 @@ export function createExportShortcutHelp(kind: ExportVoucherKind = EXPORT_VOUCHE
 }
 
 export function createFamilyHelp(family: VoucherFamily): string {
-  const letters = getVoucherFamilyLetters(family);
-
-  return [
-    '',
-    createFamilySummary(family),
-    '',
-    createRules({
-      isElectronicCredit: letters.some((letter) => getVoucherKindByFamilyAndLetter(family, letter)?.isElectronicCredit),
-      isNote: isNote({ family }),
-      letters,
-    }),
-    '',
-  ].join('\n');
+  return ['', createFamilySummary(family), '', createRules(familyScope(family)), ''].join('\n');
 }
 
 export function createProgramHelp(): string {

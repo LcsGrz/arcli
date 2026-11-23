@@ -117,7 +117,7 @@ function resolveAssociatedKind(input: ExportAssociatedVoucherInput | undefined):
  * asociado de una E es siempre del propio emisor (error 2031), asi que `--acuit` solo puede repetir ese CUIT.
  */
 export function resolveExportAssociatedQuery(options: {
-  readonly emitterCuit?: string;
+  readonly emitterCuit: number;
   readonly input?: ExportAssociatedVoucherInput;
   readonly kind: ExportVoucherKind;
   readonly pointOfSale: number;
@@ -143,7 +143,7 @@ export function resolveExportAssociatedQuery(options: {
 
   assertExportPointOfSaleRange(pointOfSale, 'El punto de venta del comprobante asociado');
 
-  if (input.cuit !== undefined && emitterCuit !== undefined && input.cuit.replace(/\D/g, '') !== emitterCuit) {
+  if (input.cuit !== undefined && input.cuit.replace(/\D/g, '') !== String(emitterCuit)) {
     throw new InputValidationError(
       `En las notas E el comprobante asociado tiene que ser tuyo (CUIT ${emitterCuit}): ARCA rechaza otro CUIT (error 2031). Sacá \`--acuit\`.`,
     );

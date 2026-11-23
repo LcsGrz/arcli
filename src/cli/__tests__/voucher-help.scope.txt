@@ -1,0 +1,72 @@
+Reglas
+1. Usá --emitir o --previsualizar, no los dos.
+2. Una sola identidad del receptor: --cuit, --cuil, --dni o --consumidor-final.
+3. Un solo IVA receptor: --iva-receptor o un flag --ir-*.
+4. Un solo concepto: --concepto o uno entre --cs, --cp y --csp.
+5. Con servicios: --servicio-desde y --servicio-hasta para el período, y --vto para el vencimiento.
+6. Sin --fecha usa hoy. Lo que no pasás por flag sale del JSON de --cargar o de la config.
+7. Fechas: además de D/M/YYYY, hoy, ayer, +N y -N (días desde hoy). En desde y hasta (--sd/--sh, --pd/--ph) también mes-actual y mes-pasado: el día 1 en desde y el último día en hasta.
+8. IVA (A y B): --alicuota usa 21 por defecto, o la clave alícuota de la config. Para varias, repetí --alicuota TASA:MONTO con el IVA incluido; --monto pasa a ser opcional.
+9. Asociado: la factura, el recibo u otra nota de la misma letra con --ac o --at, --apv, --ar y --acuit, o un período con --periodo-desde y --periodo-hasta.
+10. FCE: necesita CBU (--cbu o la clave cbu de la config); --transferencia es sca por defecto.
+11. Asociado: la factura FCE con --ac o --at, --apv y --ar (la fecha sale de ARCA si falta --afecha); --acuit toma tu CUIT. Con --anulacion, anula un comprobante que rechazó el comprador: la NC asocia la factura o una ND FCE, y la ND una NC FCE.
+
+fa, fb, ra, rb, recibo
+  visibles: --testing --produccion --json --bruto --monto --alicuota --exento --nogravado --dia --punto-venta --cargar --fecha --concepto --cs --cp --csp --moneda --cotizacion-moneda --misma-moneda --cuit --cuil --dni --consumidor-final --iva-receptor --ir-ce --ir-cf --ir-il --ir-ina --ir-ms --ir-mtip --ir-pe --ir-ri --ir-rm --ir-se --ir-snc --servicio-desde --servicio-hasta --vencimiento --exportar-pdf --sin-pdf --descripcion --condicion-venta --sin-condicion-venta --receptor-nombre --receptor-domicilio --previsualizar --emitir
+  ocultas: --pv --mda --cm --cfinal --ir --sd --sh --vto --at --apv --asociado-punto-venta --ar --ac --acuit --periodo-desde --pd --periodo-hasta --ph --afecha --cbu --alias --transferencia --anulacion --pdf --cv
+  reglas: 1 2 3 4 5 6 7 8
+
+fc, rc
+  visibles: --testing --produccion --json --bruto --monto --dia --punto-venta --cargar --fecha --concepto --cs --cp --csp --moneda --cotizacion-moneda --misma-moneda --cuit --cuil --dni --consumidor-final --iva-receptor --ir-ce --ir-cf --ir-il --ir-ina --ir-ms --ir-mtip --ir-pe --ir-ri --ir-rm --ir-se --ir-snc --servicio-desde --servicio-hasta --vencimiento --exportar-pdf --sin-pdf --descripcion --condicion-venta --sin-condicion-venta --receptor-nombre --receptor-domicilio --previsualizar --emitir
+  ocultas: --alicuota --exento --nogravado --pv --mda --cm --cfinal --ir --sd --sh --vto --at --apv --asociado-punto-venta --ar --ac --acuit --periodo-desde --pd --periodo-hasta --ph --afecha --cbu --alias --transferencia --anulacion --pdf --cv
+  reglas: 1 2 3 4 5 6 7
+
+nca, ncb, nda, ndb
+  visibles: --testing --produccion --json --bruto --monto --alicuota --exento --nogravado --dia --punto-venta --cargar --fecha --concepto --cs --cp --csp --moneda --cotizacion-moneda --misma-moneda --cuit --cuil --dni --consumidor-final --iva-receptor --ir-ce --ir-cf --ir-il --ir-ina --ir-ms --ir-mtip --ir-pe --ir-ri --ir-rm --ir-se --ir-snc --servicio-desde --servicio-hasta --vencimiento --at --apv --ar --ac --acuit --periodo-desde --periodo-hasta --afecha --exportar-pdf --sin-pdf --descripcion --condicion-venta --sin-condicion-venta --receptor-nombre --receptor-domicilio --previsualizar --emitir
+  ocultas: --pv --mda --cm --cfinal --ir --sd --sh --vto --asociado-punto-venta --pd --ph --cbu --alias --transferencia --anulacion --pdf --cv
+  reglas: 1 2 3 4 5 6 7 8 9
+
+ncc, ndc
+  visibles: --testing --produccion --json --bruto --monto --dia --punto-venta --cargar --fecha --concepto --cs --cp --csp --moneda --cotizacion-moneda --misma-moneda --cuit --cuil --dni --consumidor-final --iva-receptor --ir-ce --ir-cf --ir-il --ir-ina --ir-ms --ir-mtip --ir-pe --ir-ri --ir-rm --ir-se --ir-snc --servicio-desde --servicio-hasta --vencimiento --at --apv --ar --ac --acuit --periodo-desde --periodo-hasta --afecha --exportar-pdf --sin-pdf --descripcion --condicion-venta --sin-condicion-venta --receptor-nombre --receptor-domicilio --previsualizar --emitir
+  ocultas: --alicuota --exento --nogravado --pv --mda --cm --cfinal --ir --sd --sh --vto --asociado-punto-venta --pd --ph --cbu --alias --transferencia --anulacion --pdf --cv
+  reglas: 1 2 3 4 5 6 7 9
+
+fcea, fceb, factura-credito-electronica
+  visibles: --testing --produccion --json --bruto --monto --alicuota --exento --nogravado --dia --punto-venta --cargar --fecha --concepto --cs --cp --csp --moneda --cotizacion-moneda --misma-moneda --cuit --cuil --dni --consumidor-final --iva-receptor --ir-ce --ir-cf --ir-il --ir-ina --ir-ms --ir-mtip --ir-pe --ir-ri --ir-rm --ir-se --ir-snc --servicio-desde --servicio-hasta --vencimiento --cbu --alias --transferencia --exportar-pdf --sin-pdf --descripcion --condicion-venta --sin-condicion-venta --receptor-nombre --receptor-domicilio --previsualizar --emitir
+  ocultas: --pv --mda --cm --cfinal --ir --sd --sh --vto --at --apv --asociado-punto-venta --ar --ac --acuit --periodo-desde --pd --periodo-hasta --ph --afecha --anulacion --pdf --cv
+  reglas: 1 2 3 4 5 6 7 8 10
+
+fcec
+  visibles: --testing --produccion --json --bruto --monto --dia --punto-venta --cargar --fecha --concepto --cs --cp --csp --moneda --cotizacion-moneda --misma-moneda --cuit --cuil --dni --consumidor-final --iva-receptor --ir-ce --ir-cf --ir-il --ir-ina --ir-ms --ir-mtip --ir-pe --ir-ri --ir-rm --ir-se --ir-snc --servicio-desde --servicio-hasta --vencimiento --cbu --alias --transferencia --exportar-pdf --sin-pdf --descripcion --condicion-venta --sin-condicion-venta --receptor-nombre --receptor-domicilio --previsualizar --emitir
+  ocultas: --alicuota --exento --nogravado --pv --mda --cm --cfinal --ir --sd --sh --vto --at --apv --asociado-punto-venta --ar --ac --acuit --periodo-desde --pd --periodo-hasta --ph --afecha --anulacion --pdf --cv
+  reglas: 1 2 3 4 5 6 7 10
+
+ncea, nceb, ndea, ndeb, nota-credito-electronica, nota-debito-electronica
+  visibles: --testing --produccion --json --bruto --monto --alicuota --exento --nogravado --dia --punto-venta --cargar --fecha --concepto --cs --cp --csp --moneda --cotizacion-moneda --misma-moneda --cuit --cuil --dni --consumidor-final --iva-receptor --ir-ce --ir-cf --ir-il --ir-ina --ir-ms --ir-mtip --ir-pe --ir-ri --ir-rm --ir-se --ir-snc --servicio-desde --servicio-hasta --vencimiento --at --apv --ar --ac --acuit --afecha --anulacion --exportar-pdf --sin-pdf --descripcion --condicion-venta --sin-condicion-venta --receptor-nombre --receptor-domicilio --previsualizar --emitir
+  ocultas: --pv --mda --cm --cfinal --ir --sd --sh --vto --asociado-punto-venta --periodo-desde --pd --periodo-hasta --ph --cbu --alias --transferencia --pdf --cv
+  reglas: 1 2 3 4 5 6 7 8 11
+
+ncec, ndec
+  visibles: --testing --produccion --json --bruto --monto --dia --punto-venta --cargar --fecha --concepto --cs --cp --csp --moneda --cotizacion-moneda --misma-moneda --cuit --cuil --dni --consumidor-final --iva-receptor --ir-ce --ir-cf --ir-il --ir-ina --ir-ms --ir-mtip --ir-pe --ir-ri --ir-rm --ir-se --ir-snc --servicio-desde --servicio-hasta --vencimiento --at --apv --ar --ac --acuit --afecha --anulacion --exportar-pdf --sin-pdf --descripcion --condicion-venta --sin-condicion-venta --receptor-nombre --receptor-domicilio --previsualizar --emitir
+  ocultas: --alicuota --exento --nogravado --pv --mda --cm --cfinal --ir --sd --sh --vto --asociado-punto-venta --periodo-desde --pd --periodo-hasta --ph --cbu --alias --transferencia --pdf --cv
+  reglas: 1 2 3 4 5 6 7 11
+
+factura
+  visibles: --testing --produccion --json --bruto --monto --alicuota --exento --nogravado --dia --punto-venta --cargar --fecha --concepto --cs --cp --csp --moneda --cotizacion-moneda --misma-moneda --cuit --cuil --dni --consumidor-final --iva-receptor --ir-ce --ir-cf --ir-il --ir-ina --ir-ms --ir-mtip --ir-pe --ir-ri --ir-rm --ir-se --ir-snc --servicio-desde --servicio-hasta --vencimiento --exportar-pdf --sin-pdf --descripcion --condicion-venta --sin-condicion-venta --receptor-nombre --receptor-domicilio --previsualizar --emitir
+  ocultas: --pv --mda --cm --cfinal --ir --sd --sh --vto --at --apv --asociado-punto-venta --ar --ac --acuit --periodo-desde --pd --periodo-hasta --ph --afecha --cbu --alias --transferencia --anulacion --pdf --cv --cliente --domicilio-cliente --pais-destino --id-impositivo --cuit-pais --tipo-expo --actividad --incoterm --incoterms-desc --idioma --forma-pago --permiso --permiso-existente --item --numero --id-solicitud --fecha-pago --observaciones --obs-comerciales
+  reglas: 1 2 3 4 5 6 7 8
+
+nota-credito, nota-debito
+  visibles: --testing --produccion --json --bruto --monto --alicuota --exento --nogravado --dia --punto-venta --cargar --fecha --concepto --cs --cp --csp --moneda --cotizacion-moneda --misma-moneda --cuit --cuil --dni --consumidor-final --iva-receptor --ir-ce --ir-cf --ir-il --ir-ina --ir-ms --ir-mtip --ir-pe --ir-ri --ir-rm --ir-se --ir-snc --servicio-desde --servicio-hasta --vencimiento --at --apv --ar --ac --acuit --periodo-desde --periodo-hasta --afecha --exportar-pdf --sin-pdf --descripcion --condicion-venta --sin-condicion-venta --receptor-nombre --receptor-domicilio --previsualizar --emitir
+  ocultas: --pv --mda --cm --cfinal --ir --sd --sh --vto --asociado-punto-venta --pd --ph --cbu --alias --transferencia --anulacion --pdf --cv --cliente --domicilio-cliente --pais-destino --id-impositivo --cuit-pais --tipo-expo --actividad --incoterm --incoterms-desc --idioma --forma-pago --permiso --item --numero --id-solicitud --observaciones --obs-comerciales
+  reglas: 1 2 3 4 5 6 7 8 9
+
+fe
+  visibles: --testing --produccion --json --bruto --monto --cliente --domicilio-cliente --pais-destino --id-impositivo --cuit-pais --tipo-expo --actividad --incoterm --incoterms-desc --idioma --forma-pago --permiso --permiso-existente --item --numero --id-solicitud --punto-venta --fecha --fecha-pago --moneda --cotizacion-moneda --misma-moneda --observaciones --obs-comerciales --descripcion --cargar --exportar-pdf --sin-pdf --previsualizar --emitir
+  ocultas: --pv --mda --cm --pdf
+  reglas: ninguna
+
+nde, nce
+  visibles: --testing --produccion --json --bruto --monto --cliente --domicilio-cliente --pais-destino --id-impositivo --cuit-pais --tipo-expo --actividad --incoterm --incoterms-desc --idioma --forma-pago --permiso --ar --apv --ac --at --item --numero --id-solicitud --punto-venta --fecha --moneda --cotizacion-moneda --observaciones --obs-comerciales --descripcion --cargar --exportar-pdf --sin-pdf --previsualizar --emitir
+  ocultas: --asociado-punto-venta --acuit --pv --mda --cm --pdf
+  reglas: ninguna

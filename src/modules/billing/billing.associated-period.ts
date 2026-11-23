@@ -8,6 +8,7 @@ import { formatVoucherSubject } from './billing.mappers';
 import { ASSOCIATED_PERIOD_RULES } from './billing.rules';
 import type { BillingCommandInput } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
+import { isNote } from './voucher-kind-map';
 
 /**
  * PeriodoAsoc es la alternativa a CbtesAsoc para NC/ND que ajustan un periodo y no una factura puntual (10197).
@@ -29,7 +30,7 @@ export function resolveAssociatedPeriod(
 
   const subject = formatVoucherSubject(voucherKind);
 
-  if (!voucherKind.requiresAssociatedVoucher) {
+  if (!isNote(voucherKind)) {
     throw new InputValidationError(`${subject} no usa período asociado: solo aplica a notas de crédito o débito.`);
   }
 

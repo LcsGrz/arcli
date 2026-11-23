@@ -126,6 +126,8 @@ Los comandos internos (`__completar`, `storybook`) quedan fuera de la lista, en 
 
 `src/cli/__tests__/json-golden.test.ts` congela la salida completa del `--json` (stdout, stderr y exit code, byte a byte) de facturación A, B, C, FCE y E, lotes y cada código de error, con el SDK de ARCA simulado y reloj fijo; cada caso es un archivo de `src/cli/__tests__/__golden__/`. Un cambio en esos archivos es un cambio de contrato: si es a propósito, se regeneran con `yarn test src/cli/__tests__/json-golden.test.ts -u` y el diff va en el PR (y en `CHANGELOG.md`).
 
+`src/cli/__tests__/voucher-help.scope.txt` fija las opciones y reglas de la ayuda de cada comprobante; no es contrato y se regenera con `yarn test src/cli/__tests__/voucher-help.scope.test.ts -u`.
+
 `src/cli/__tests__/examples-valid.test.ts` toma cada ejemplo de facturación de la ayuda (`--ayuda` de cada atajo y familia), de `arcli ejemplos` y de los bloques `bash` de `docs/`, `README.md` y `llms.txt`, más los JSON de entrada para `--cargar`, y los pasa por el parser real hasta armar la solicitud a ARCA, con una config mínima (CUIT y punto de venta), un padrón falso y un reloj fijo, sin red. En un bloque de los docs, los `arcli config establecer` anteriores al ejemplo cuentan como config. Si falla, lista el archivo y la línea de cada ejemplo con su error. Un ejemplo inválido a propósito va en `EXCLUDED_EXAMPLES`, con el motivo.
 
 ## Verificación manual
