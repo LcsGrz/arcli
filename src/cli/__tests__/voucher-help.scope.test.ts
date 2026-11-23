@@ -1,7 +1,9 @@
 import type { Command, Option } from 'commander';
 import { expect, it } from 'vitest';
 
+import { VOUCHER_FAMILIES } from '../../modules/billing/voucher-kind-map';
 import { createProgram } from '../program';
+import { familyScope } from '../voucher-scope';
 
 /**
  * Lo que la ayuda de cada comprobante decide por su alcance (letras, nota, FCE): las opciones que muestra, las que
@@ -59,4 +61,9 @@ it('cada comprobante muestra, oculta y explica lo de su alcance', async () => {
   ].join('\n');
 
   await expect(text).toMatchFileSnapshot('voucher-help.scope.txt');
+});
+
+// La ayuda de la familia solo mira si alguna letra discrimina IVA: que estén las tres se afirma acá.
+it.each(VOUCHER_FAMILIES)('el alcance de %s tiene todas sus letras', (family) => {
+  expect(familyScope(family).letters).toEqual(['a', 'b', 'c']);
 });
