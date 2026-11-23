@@ -1,9 +1,11 @@
 import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { formatEmissionQuestion, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
-import { EXPORT_PAYMENT_TERMS_SUGGESTIONS } from '../../modules/export/export.mappers';
+import { ARCA_DOLLAR_CODE, ARCA_LOCAL_CURRENCY_CODE } from '../../modules/billing/currency-codes';
+import { BILLS_EXPORT_TYPE, EXPORT_PAYMENT_TERMS_SUGGESTIONS } from '../../modules/export/export.mappers';
 import { formatExportResultAsText } from '../../modules/export/export.presenter';
 import { ExportService } from '../../modules/export/export.service';
 import {
+  DEFAULT_EXPORT_CURRENCY_CODE,
   EXPORT_VOUCHER_KIND,
   type ExportActivity,
   type ExportGateway,
@@ -195,18 +197,22 @@ function exportSteps(
     {
       name: 'moneda',
       run: async (_state, { previous }) => {
-        const currencyCode = await chooseStep<'DOL' | 'PES'>(
+        const currencyCode = await chooseStep<typeof ARCA_DOLLAR_CODE | typeof ARCA_LOCAL_CURRENCY_CODE>(
           '¿En qué moneda facturás?',
           [
-            { description: 'Con la cotización de aduana que publica ARCA', name: 'Dólares (USD)', value: 'DOL' },
-            { name: 'Pesos', value: 'PES' },
+            {
+              description: 'Con la cotización de aduana que publica ARCA',
+              name: 'Dólares (USD)',
+              value: ARCA_DOLLAR_CODE,
+            },
+            { name: 'Pesos', value: ARCA_LOCAL_CURRENCY_CODE },
           ],
-          previous?.currencyCode === 'PES' ? 'PES' : 'DOL',
+          previous?.currencyCode === ARCA_LOCAL_CURRENCY_CODE ? ARCA_LOCAL_CURRENCY_CODE : DEFAULT_EXPORT_CURRENCY_CODE,
         );
 
         return currencyCode === BACK
           ? BACK
-          : { currencyCode, sameCurrency: currencyCode === 'PES' ? false : undefined };
+          : { currencyCode, sameCurrency: currencyCode === ARCA_LOCAL_CURRENCY_CODE ? false : undefined };
       },
     },
     {
@@ -223,7 +229,7 @@ function exportSteps(
 
         return sameCurrency === BACK ? BACK : { sameCurrency };
       },
-      skip: (state) => state.currencyCode === 'PES',
+      skip: (state) => state.currencyCode === ARCA_LOCAL_CURRENCY_CODE,
     },
     // Despues de la moneda, arrancando con la de aduana de ARCA, como "En pesos" en A, B y C (NAV-9).
     exportExchangeRateStep<ExportFlowState>({
@@ -232,13 +238,13 @@ function exportSteps(
       rules: (state) => exportRuleScope(state, { configuredActivity, today: formatDateAsArcaDate(new Date()) }),
       suggestion: (state) =>
         loaders.exchangeRate({
-          currencyCode: state.currencyCode ?? 'DOL',
+          currencyCode: state.currencyCode ?? DEFAULT_EXPORT_CURRENCY_CODE,
           exportType: requireStepValue(state.exportType, 'exportType'),
           sameCurrency: state.sameCurrency,
           voucherDate: state.options.voucherDate,
         }),
       voucher: (state) => ({
-        currencyCode: state.currencyCode ?? 'DOL',
+        currencyCode: state.currencyCode ?? DEFAULT_EXPORT_CURRENCY_CODE,
         exportType: requireStepValue(state.exportType, 'exportType'),
         sameCurrency: state.sameCurrency,
       }),
@@ -246,7 +252,7 @@ function exportSteps(
     // Sin "Monto total": el total es la suma de los items, que ARCA exige (NAV-10). Los precios van en la moneda: si
     // cambia, los items se conservan y el paso avisa que hay que revisar los importes.
     exportItemsStep<ExportFlowState>({
-      currency: (state) => state.currencyCode ?? 'DOL',
+      currency: (state) => state.currencyCode ?? DEFAULT_EXPORT_CURRENCY_CODE,
       items: fieldLens('items'),
       units: loaders.units,
       voucher: formatVoucherWithArticle(EXPORT_VOUCHER_KIND),
@@ -283,12 +289,12 @@ function exportSteps(
               incotermName: list.find((entry) => entry.code === incoterm)?.name,
             };
       },
-      skip: (state) => state.exportType !== 1,
+      skip: (state) => state.exportType !== BILLS_EXPORT_TYPE,
     },
     {
       name: 'permisos',
       run: askPermitsStep,
-      skip: (state) => state.exportType !== 1,
+      skip: (state) => state.exportType !== BILLS_EXPORT_TYPE,
     },
     {
       name: 'forma-pago',
@@ -321,7 +327,7 @@ function exportSteps(
     exportPaymentDateStep<ExportFlowState>((state) => state.exportType),
     exportOptionalsStep<ExportFlowState>({
       context: (state) => {
-        const currencyCode = state.currencyCode ?? 'DOL';
+        const currencyCode = state.currencyCode ?? DEFAULT_EXPORT_CURRENCY_CODE;
 
         return {
           countryCuit: { country: requireStepValue(state.country, 'country'), countryCuits: tables.countryCuits },

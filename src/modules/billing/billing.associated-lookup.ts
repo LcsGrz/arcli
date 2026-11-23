@@ -7,12 +7,12 @@ import type { ParametersGateway } from '../parameters/parameters';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../vouchers/voucher-history';
 import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
 
-import { ARCA_LOCAL_CURRENCY_CODE } from './billing.currency';
 import { formatMoneyLabel } from './billing.labels';
 import { formatVoucherSubject, formatVoucherWithArticle } from './billing.mappers';
 import type { BillingCommandInput } from './billing.schemas';
 import type { BillingService } from './billing.service';
 import type { VoucherKindDefinition } from './billing.types';
+import { ARCA_LOCAL_CURRENCY_CODE } from './currency-codes';
 import { getVoucherKindByArcaType, getVoucherKindByShortcut, isFceInvoice, noteSide } from './voucher-kind-map';
 
 /** `la factura A 00003-00000012`, para usar dentro de una frase. */

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { EXPORT_VOUCHER_KIND, type ExportExecutionResult } from '../../export/export.types';
+import {
+  EXPORT_CREDIT_NOTE_KIND,
+  EXPORT_DEBIT_NOTE_KIND,
+  EXPORT_VOUCHER_KIND,
+  type ExportExecutionResult,
+} from '../../export/export.types';
 import { mapExportResultToPdfData } from '../pdf-data.mapper';
 import { resolvePdfIssuer } from '../pdf-issuer';
 import { EXPORT_IVA_LEGEND } from '../pdf-legends';
@@ -153,6 +158,28 @@ describe('mapExportResultToPdfData', () => {
       documentoNro: 'IE1234567T',
       documentoTipo: 'Otro',
       idImpositivo: 'IE1234567T',
+    });
+  });
+  it.each([
+    [EXPORT_VOUCHER_KIND.displayName, EXPORT_VOUCHER_KIND, 'FACTURA DE EXPORTACIÓN'],
+    [EXPORT_DEBIT_NOTE_KIND.displayName, EXPORT_DEBIT_NOTE_KIND, 'NOTA DE DÉBITO DE EXPORTACIÓN'],
+    [EXPORT_CREDIT_NOTE_KIND.displayName, EXPORT_CREDIT_NOTE_KIND, 'NOTA DE CRÉDITO DE EXPORTACIÓN'],
+  ])('titula la %s como la E de Comprobantes en linea', (_name, voucherKind, title) => {
+    const result = { ...createResult({ Cbte_Tipo: voucherKind.arcaType }), voucherKind };
+
+    expect(mapExportResultToPdfData(result, ISSUER)).toMatchObject({
+      cbteDescripcion: title,
+      cbteTipo: voucherKind.arcaType,
+    });
+  });
+
+  it.each([
+    [1, 1],
+    [2, 2],
+    [4, 1],
+  ] as const)('el tipo de exportacion %i sale con el concepto %i de la plantilla', (exportType, concept) => {
+    expect(mapExportResultToPdfData(createResult({ Tipo_expo: exportType }), ISSUER)).toMatchObject({
+      concepto: concept,
     });
   });
 });

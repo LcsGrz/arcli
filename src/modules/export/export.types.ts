@@ -1,11 +1,14 @@
 import type { IFEXAuthorizeOutput } from '../../services/arca/arca-sdk.types';
 import type { EmitDecisionSource } from '../billing/billing.emit-decision';
+import { ARCA_DOLLAR_CODE } from '../billing/currency-codes';
 import type { PdfOutcome } from '../pdf/pdf.types';
 
 /** WSFEX solo emite comprobantes de exportacion, asi que la letra es siempre E. 19 es la Factura E. */
 export const EXPORT_VOUCHER_KIND = {
   arcaType: 19,
   displayName: 'Factura de exportación E',
+  /** El titulo de la E de Comprobantes en linea, en lugar del "FACTURA" de la plantilla del PDF. */
+  pdfTitle: 'FACTURA DE EXPORTACIÓN',
   family: 'factura',
   letter: 'e',
   shortcut: 'fe',
@@ -15,6 +18,7 @@ export const EXPORT_VOUCHER_KIND = {
 export const EXPORT_DEBIT_NOTE_KIND = {
   arcaType: 20,
   displayName: 'Nota de débito de exportación E',
+  pdfTitle: 'NOTA DE DÉBITO DE EXPORTACIÓN',
   family: 'nota-debito',
   letter: 'e',
   shortcut: 'nde',
@@ -24,6 +28,7 @@ export const EXPORT_DEBIT_NOTE_KIND = {
 export const EXPORT_CREDIT_NOTE_KIND = {
   arcaType: 21,
   displayName: 'Nota de crédito de exportación E',
+  pdfTitle: 'NOTA DE CRÉDITO DE EXPORTACIÓN',
   family: 'nota-credito',
   letter: 'e',
   shortcut: 'nce',
@@ -81,7 +86,7 @@ export const EXPORT_TYPES_WITH_PAYMENT_DATE: readonly ExportType[] = [2, 4];
 export const DEFAULT_EXPORT_TYPE: ExportType = 2;
 
 /** Moneda por defecto de la factura de exportacion: en WSFEX el dolar es `DOL`. */
-export const DEFAULT_EXPORT_CURRENCY_CODE = 'DOL';
+export const DEFAULT_EXPORT_CURRENCY_CODE = ARCA_DOLLAR_CODE;
 
 /** Codigo de unidad de medida de ARCA que se usa cuando el item no indica otra. 7 = Unidad. */
 export const DEFAULT_EXPORT_UNIT_CODE = 7;

@@ -4,6 +4,7 @@ import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { assertRules } from '../../lib/rules/rules';
 import { creditNoteOverTotalError } from '../billing/billing.associated-lookup';
 import { formatVoucherSubject, formatVoucherWithArticle } from '../billing/billing.mappers';
+import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
 import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
 
 import { assertExportPointOfSaleRange } from './export.mappers';
@@ -341,7 +342,7 @@ export function assertExportNoteMatchesAssociated(options: {
     );
   }
 
-  if (!sameCurrency && note.currencyCode.trim().toUpperCase() !== 'PES') {
+  if (!sameCurrency && note.currencyCode.trim().toUpperCase() !== ARCA_LOCAL_CURRENCY_CODE) {
     throw new InputValidationError(
       `En servicios la nota va en la moneda de ${label} (${associated.currencyCode}) o en pesos: ARCA rechaza otra (error 2051).`,
     );

@@ -3,6 +3,7 @@ import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import { creditNoteOverTotalHint } from '../../modules/billing/billing.associated-lookup';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
 import { formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
+import { BILLS_EXPORT_TYPE } from '../../modules/export/export.mappers';
 import { assertExportNoteMatchesAssociated } from '../../modules/export/export.notes';
 import {
   EXPORT_CREDIT_NOTE_KIND,
@@ -211,7 +212,7 @@ export function exportNoteSteps(
       // Solo en bienes: los permisos son opcionales en la nota y van sin `--permiso-existente` (tabla de la 1720).
       name: 'permisos',
       run: askPermitsStep,
-      skip: (state) => state.invoice?.exportType !== 1,
+      skip: (state) => state.invoice?.exportType !== BILLS_EXPORT_TYPE,
     },
     exportOptionalsStep<ExportNoteState>({
       context: (state) => {

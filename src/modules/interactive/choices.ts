@@ -9,7 +9,7 @@ import type {
   BillingIvaRate,
 } from '../billing/billing.schemas';
 import type { VoucherKindDefinition, VoucherLetter, VoucherShortcut } from '../billing/billing.types';
-import { ARCA_CURRENCIES } from '../billing/currency-codes';
+import { ARCA_CURRENCIES, ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
 import {
   getVoucherKindByFamilyAndLetter,
   isNote,
@@ -199,7 +199,7 @@ export function currencyChoices(): Array<InteractiveChoice<string>> {
     const keywords = [currency.arca, code].join(' ');
 
     return code === 'ARS'
-      ? [{ keywords, name: 'Pesos', value: 'PES' }]
+      ? [{ keywords, name: 'Pesos', value: ARCA_LOCAL_CURRENCY_CODE }]
       : [{ keywords, name: `${currency.name} (${code})`, value: code }];
   });
 }

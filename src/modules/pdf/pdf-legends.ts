@@ -1,5 +1,6 @@
 import { resolveBillingIvaConditionCode } from '../billing/billing.mappers';
 import type { BillingExecutionResult } from '../billing/billing.types.internal';
+import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
 
 /** RG 5614 (Ley 27.743): titulo y datos del regimen de transparencia fiscal, en comprobantes a consumidor final. */
 const TRANSPARENCY_TITLE = 'Régimen de Transparencia Fiscal al Consumidor (Ley 27.743)';
@@ -20,7 +21,7 @@ const MONOTRIBUTO_CONDITION_CODES: ReadonlySet<number> = new Set([
 function formatAmount(value: number, currency: string): string {
   const amount = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(value);
 
-  return `${currency === 'PES' ? '$' : currency} ${amount}`;
+  return `${currency === ARCA_LOCAL_CURRENCY_CODE ? '$' : currency} ${amount}`;
 }
 
 /**

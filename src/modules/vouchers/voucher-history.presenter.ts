@@ -17,6 +17,7 @@ import {
 } from '../billing/billing.labels';
 import { formatLatestVouchersTitle, formatNoVouchersEmitted } from '../billing/billing.mappers';
 import type { VoucherKindDefinition } from '../billing/billing.types';
+import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
 import { getVoucherKindByArcaType } from '../billing/voucher-kind-map';
 import { formatEnvironmentLabel } from '../config/config.schemas';
 
@@ -340,7 +341,7 @@ function formatVoucherExtraRows(voucher: IssuedVoucher): Row[] {
 
 export function formatVoucherDetailAsText(report: VoucherDetailReport): string {
   const { pointOfSale, voucher, voucherKind } = report;
-  const foreignCurrency = Boolean(voucher.currency && voucher.currency !== 'PES');
+  const foreignCurrency = Boolean(voucher.currency && voucher.currency !== ARCA_LOCAL_CURRENCY_CODE);
   const rows: Row[] = [
     ['Número', formatVoucherNumber(pointOfSale, voucher.number)],
     ['Fecha del comprobante', formatArcaDateAsArgentineDate(voucher.date)],

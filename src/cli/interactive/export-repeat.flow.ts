@@ -1,7 +1,8 @@
 import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
-import { resolveExportClientCountryCuit } from '../../modules/export/export.mappers';
+import { BILLS_EXPORT_TYPE, resolveExportClientCountryCuit } from '../../modules/export/export.mappers';
 import {
+  DEFAULT_EXPORT_CURRENCY_CODE,
   DEFAULT_EXPORT_TYPE,
   EXPORT_VOUCHER_KIND,
   type ExportCountry,
@@ -78,7 +79,7 @@ export function exportRepeatSteps(
     const copy = requireStepValue(state.copy, 'copy');
 
     return {
-      currencyCode: copy.currencyCode ?? 'DOL',
+      currencyCode: copy.currencyCode ?? DEFAULT_EXPORT_CURRENCY_CODE,
       exportType: copy.exportType ?? DEFAULT_EXPORT_TYPE,
       sameCurrency: copy.sameCurrency,
     };
@@ -194,7 +195,7 @@ export function exportRepeatSteps(
       // Los permisos son de cada embarque: no se copian.
       name: 'permisos',
       run: askPermitsStep,
-      skip: (state) => state.copy?.exportType !== 1,
+      skip: (state) => state.copy?.exportType !== BILLS_EXPORT_TYPE,
     },
     // La factura no trae actividad y tampoco esta en la config. Con la misma tabla que "Emitir factura" (REV-74, #11).
     activityStep<ExportRepeatState>({
@@ -208,7 +209,7 @@ export function exportRepeatSteps(
       context: (state) => {
         const copy = requireStepValue(state.copy, 'copy');
         const original = requireStepValue(state.original, 'original');
-        const currencyCode = copy.currencyCode ?? 'DOL';
+        const currencyCode = copy.currencyCode ?? DEFAULT_EXPORT_CURRENCY_CODE;
 
         return {
           // Idioma, CUIT del pais y descripcion del incoterm vienen de la factura elegida: con otra, arrancan con lo

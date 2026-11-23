@@ -5,6 +5,7 @@ import { listingPanel, noticePanel, ticketPanel } from '../../ui/components';
 import { renderKeyValueRows, resolveKeyValueLabelWidth, uiSymbol } from '../../ui/primitives';
 import { formatCurrencyLabel, formatMoneyLabel, MISSING_CAE_TEXT } from '../billing/billing.labels';
 import { formatLatestVouchersTitle, formatNoVouchersEmitted } from '../billing/billing.mappers';
+import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
 import { formatEnvironmentLabel } from '../config/config.schemas';
 import { alignVoucherPickerRows, formatVoucherNumber } from '../vouchers/voucher-history.presenter';
 
@@ -92,7 +93,7 @@ export function formatExportVoucherListAsText(report: ExportVoucherListReport): 
 function formatCurrencyRow(voucher: ExportIssuedVoucher): string | undefined {
   const name = formatCurrencyLabel(voucher.currencyCode);
 
-  if (!name || voucher.currencyCode === 'PES') {
+  if (!name || voucher.currencyCode === ARCA_LOCAL_CURRENCY_CODE) {
     return name;
   }
 

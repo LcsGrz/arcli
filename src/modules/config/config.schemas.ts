@@ -7,6 +7,7 @@ import {
   cbuAliasSchema,
   cbuSchema,
 } from '../billing/billing.schemas';
+import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
 import { saleConditionSchema } from '../billing/sale-condition';
 import { MAX_RECENT_VOUCHERS, RECENT_VOUCHERS_LIMIT } from '../vouchers/voucher-history';
 
@@ -143,7 +144,7 @@ export const CONFIG_DEFAULTS: ArcliConfig = {
   emisor: {},
   entornoPorDefecto: 'testing',
   key: {},
-  monedaPorDefecto: 'PES',
+  monedaPorDefecto: ARCA_LOCAL_CURRENCY_CODE,
   cotizacionPorDefecto: 1,
   output: {
     emitirPorDefecto: false,

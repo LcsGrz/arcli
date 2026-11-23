@@ -1,7 +1,7 @@
 import { formatExchangeRate } from '../../../lib/numbers/argentine-amount';
 import { DEFAULT_CURRENCY_CODE } from '../../../modules/billing/billing.constants';
 import { isForeignCurrency } from '../../../modules/billing/billing.currency';
-import { toIsoCurrencyCode } from '../../../modules/billing/currency-codes';
+import { ARCA_LOCAL_CURRENCY_CODE, toIsoCurrencyCode } from '../../../modules/billing/currency-codes';
 import { amountInputText, parseExchangeRateInput } from '../../../modules/interactive/amount-input';
 import { currencyName, type ExchangeRateSuggestion } from '../../../modules/interactive/billing-optionals';
 import { currencyChoices } from '../../../modules/interactive/choices';
@@ -16,7 +16,7 @@ import { askTextStep, chooseStep } from '../prompts';
 function currencyChoiceValue(options: { readonly currencyCode?: string } | undefined): string {
   return options?.currencyCode && isForeignCurrency({ currencyCode: options.currencyCode })
     ? toIsoCurrencyCode(options.currencyCode)
-    : 'PES';
+    : ARCA_LOCAL_CURRENCY_CODE;
 }
 
 /**
@@ -183,7 +183,7 @@ export function currencySteps<S>(def: CurrencyStepsDef<S>): Array<WizardStep<S>>
 
         return currency.set(
           {
-            currencyCode: chosen === 'PES' ? DEFAULT_CURRENCY_CODE : chosen,
+            currencyCode: chosen === ARCA_LOCAL_CURRENCY_CODE ? DEFAULT_CURRENCY_CODE : chosen,
             exchangeRate: undefined,
             exchangeRateSource: undefined,
             sameCurrency: false,
