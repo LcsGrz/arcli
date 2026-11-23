@@ -105,7 +105,7 @@ export function loadArcaRuntime(options: GlobalCliOptions): CliArcaRuntime {
     restrictProfileFolders(service, config);
 
     return {
-      ...loadArcaProfile(config, { environment, ticketPath: service.resolveTicketPath(config) }),
+      ...loadArcaProfile(config, { environment, now: new Date(), ticketPath: service.resolveTicketPath(config) }),
       outputJson: options.json ?? config.output.jsonPorDefecto,
       outputRaw: options.bruto ?? config.output.brutoPorDefecto,
     };

@@ -104,14 +104,25 @@ export function resolveExportVoucherDate(value: string | undefined, now: Date): 
 }
 
 /**
+ * Enero de un año bisiesto: desde ahi se lee cualquier fecha incompleta que exista (`31`, `29/2`). Solo distingue una
+ * incompleta de una ilegible; la fecha que sale no se usa.
+ */
+const READABLE_DATE_REFERENCE = '20240115';
+
+/**
  * Una fecha escrita, para una regla: completa (dd/mm/aaaa) no necesita `today` (yyyymmdd); a la que le falta el mes o el
- * año la completa desde ahi, y sin `today` no se puede resolver (`undefined`).
+ * año la completa desde ahi, y sin `today` no se puede resolver (`undefined`). Una ilegible da error siempre.
  */
 export function resolveExportRuleDate(value: string, today: string | undefined): string | undefined {
-  return (
-    parseFullArgentineDateAsArcaDate(value) ??
-    (today ? parseArgentineDateInputAsArcaDate(value, arcaDateToInstant(today)) : undefined)
-  );
+  const full = parseFullArgentineDateAsArcaDate(value);
+
+  if (full) {
+    return full;
+  }
+
+  const date = parseArgentineDateInputAsArcaDate(value, arcaDateToInstant(today ?? READABLE_DATE_REFERENCE));
+
+  return today ? date : undefined;
 }
 
 /** Cuantos dias antes y despues de la fecha de envio acepta ARCA la fecha de la E (1500, WSFEX v3.1.0). */

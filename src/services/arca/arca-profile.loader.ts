@@ -2,7 +2,6 @@ import { ensurePathExists, readPemFile } from '../../lib/security/pem';
 import { type ArcaProfile, credentialPaths, resolveCuit } from '../../modules/config/arca-profile';
 import { inspectConfiguredCertificates } from '../../modules/config/certificate-expiry';
 import type { ArcliConfig, ArcliEnvironment } from '../../modules/config/config.schemas';
-import { systemClock } from '../time/system-clock';
 
 export interface CheckArcaProfileOptions {
   readonly environment: ArcliEnvironment;
@@ -15,8 +14,8 @@ export interface ArcaProfileCheck {
 }
 
 export interface LoadArcaProfileOptions extends CheckArcaProfileOptions {
-  /** Reloj para el vencimiento del certificado; solo lo cambian los tests. */
-  readonly now?: Date;
+  /** Para el vencimiento de los certificados. */
+  readonly now: Date;
   /** Carpeta de los tickets de WSAA (la de la config, o `ticketPath`). */
   readonly ticketPath: string;
 }
@@ -46,7 +45,7 @@ export function loadArcaProfile(config: ArcliConfig, options: LoadArcaProfileOpt
   const certificateNotices = inspectConfiguredCertificates(config.cert, {
     activeEnvironment: environment,
     activePem: cert,
-    now: options.now ?? systemClock.now(),
+    now: options.now,
   });
 
   return {

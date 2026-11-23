@@ -125,6 +125,22 @@ describe('ExportService.resolve', () => {
     expect([before.payload.Fecha_cbte, after.payload.Fecha_cbte]).toEqual(['20260601', '20260602']);
   });
 
+  it('lee el reloj una vez por resolucion: la medianoche no cae en el medio', async () => {
+    // La primera lectura es del 01/06; las que sigan, de otro año, para que tambien cambie la fecha sin año.
+    const now = vi.fn(() => new Date('2030-06-02T03:00:00Z')).mockReturnValueOnce(new Date('2026-06-02T02:59:59Z'));
+    const gateway = createGateway();
+    const resolved = await new ExportService({ clock: { now } }).resolve(
+      { ...INPUT, paymentDate: '10/6', voucherDate: '2/6/2026' },
+      gateway,
+      RUNTIME,
+    );
+
+    expect(now).toHaveBeenCalledTimes(1);
+    expect(resolved.payload).toMatchObject({ Fecha_cbte: '20260602', Fecha_pago: '20260610' });
+    expect(gateway.getQuotations).toHaveBeenCalledWith('20260531');
+    expect(resolved.warnings).toContainEqual(expect.stringContaining('(02/06/2026) es futura'));
+  });
+
   it('arma el payload con la numeracion, la cotizacion y las tablas de ARCA', async () => {
     const gateway = createGateway();
     const resolved = await service.resolve({ ...INPUT, exportType: 1 }, gateway, RUNTIME);

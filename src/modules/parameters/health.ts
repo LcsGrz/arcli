@@ -16,11 +16,11 @@ const SERVER_OK = 'OK';
 
 export async function checkArcaHealth(options: {
   readonly gateway: Pick<ParametersGateway, 'getServerStatus'>;
-  readonly now?: () => number;
+  readonly now: () => number;
   readonly slowMs?: number;
   readonly timeoutMs?: number;
 }): Promise<ArcaHealth> {
-  const { gateway, now = Date.now, slowMs = ARCA_SLOW_MS, timeoutMs = ARCA_TIMEOUT_MS } = options;
+  const { gateway, now, slowMs = ARCA_SLOW_MS, timeoutMs = ARCA_TIMEOUT_MS } = options;
   const start = now();
   let timer: NodeJS.Timeout | undefined;
   const timeout = new Promise<undefined>((resolve) => {

@@ -28,7 +28,7 @@ describe('checkArcaHealth', () => {
   it('con problemas: algun servidor no esta en OK', async () => {
     const gateway = { getServerStatus: async () => ({ ...OK, db: 'ERROR' }) };
 
-    await expect(checkArcaHealth({ gateway })).resolves.toBe('con-problemas');
+    await expect(checkArcaHealth({ gateway, now: Date.now })).resolves.toBe('con-problemas');
   });
 
   it('sin respuesta: error de red', async () => {
@@ -38,12 +38,12 @@ describe('checkArcaHealth', () => {
       },
     };
 
-    await expect(checkArcaHealth({ gateway })).resolves.toBe('sin-respuesta');
+    await expect(checkArcaHealth({ gateway, now: Date.now })).resolves.toBe('sin-respuesta');
   });
 
   it('sin respuesta: no contesto a tiempo', async () => {
     const gateway = { getServerStatus: () => new Promise<typeof OK>(() => undefined) };
 
-    await expect(checkArcaHealth({ gateway, timeoutMs: 10 })).resolves.toBe('sin-respuesta');
+    await expect(checkArcaHealth({ gateway, now: Date.now, timeoutMs: 10 })).resolves.toBe('sin-respuesta');
   });
 });

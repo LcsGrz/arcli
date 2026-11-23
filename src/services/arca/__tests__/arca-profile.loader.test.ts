@@ -52,7 +52,7 @@ describe('loadArcaProfile', () => {
     const config = configWith(writeFile('a.crt', CERT), writeFile('a.key', KEY), { puntoVentaPorDefecto: 7 });
 
     // CERT es PEM pero no un certificado que se pueda leer: no se inventa un aviso.
-    expect(loadArcaProfile(config, { environment: 'testing', ticketPath: '/tickets' })).toEqual({
+    expect(loadArcaProfile(config, { environment: 'testing', now: new Date(), ticketPath: '/tickets' })).toEqual({
       certificateExpiry: undefined,
       certificateNotices: [],
       config,
@@ -66,7 +66,7 @@ describe('loadArcaProfile', () => {
   it('si falta el archivo de la clave lo dice antes de leer el certificado', () => {
     const config = configWith(writeFile('a.crt', 'no es PEM'), join(directory, 'no-existe.key'));
 
-    expect(() => loadArcaProfile(config, { environment: 'testing', ticketPath: '/tickets' })).toThrow(
+    expect(() => loadArcaProfile(config, { environment: 'testing', now: new Date(), ticketPath: '/tickets' })).toThrow(
       /^La ruta de la clave privada no existe/,
     );
   });
@@ -76,6 +76,7 @@ describe('loadArcaProfile', () => {
 
     loadArcaProfile(configWith(writeFile('a.crt', CERT), writeFile('a.key', KEY)), {
       environment: 'testing',
+      now: new Date(),
       ticketPath: directory,
     });
 

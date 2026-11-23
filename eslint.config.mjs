@@ -32,7 +32,8 @@ const UI_BARREL = {
 
 // =========================
 // Fronteras del núcleo (docs/architecture.md, "Núcleo y adaptadores"): `modules` y `lib` no saben quién los llama.
-// Lo que ya se cumple es error (`no-restricted-imports`, `no-restricted-syntax`). Lo que hoy falla es deuda en warn,
+// Lo que ya se cumple es error (`no-restricted-imports`, y `no-restricted-syntax` para el reloj, que en los módulos de
+// la app sigue en warn con ARQ-7). Lo que hoy falla es deuda en warn,
 // con el ticket que la cierra (`@typescript-eslint/no-restricted-imports`, `no-restricted-globals`): no es un patrón
 // para copiar. Cuando el ticket se cierra, la frontera pasa al bloque de error.
 // =========================
@@ -66,7 +67,8 @@ const NOW_MESSAGE =
   'El núcleo no lee el reloj: recibí la fecha como parámetro o el puerto Clock (docs/architecture.md, "Núcleo y adaptadores").';
 const NOW_SELECTORS = [
   "NewExpression[callee.name='Date'][arguments.length=0]",
-  "CallExpression[callee.object.name='Date'][callee.property.name='now']",
+  // Tambien sin llamarla, como `now = Date.now`.
+  "MemberExpression[object.name='Date'][property.name='now']",
 ];
 /** Las lecturas del reloj: error en el núcleo, warn de ARQ-7 en los módulos de la app. */
 const noClockReads = (severity, message) => [severity, ...NOW_SELECTORS.map((selector) => ({ selector, message }))];

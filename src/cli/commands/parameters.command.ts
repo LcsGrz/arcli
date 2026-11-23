@@ -90,7 +90,12 @@ export function registerParametersCommands(program: Command): void {
     const { gateway, runtime } = createContext(self);
     const report = await withQuerySpinner(runtime, async () => {
       try {
-        return await buildStatusReport({ environment: runtime.environment, gateway, pointOfSale: runtime.pointOfSale });
+        return await buildStatusReport({
+          environment: runtime.environment,
+          gateway,
+          now: Date.now,
+          pointOfSale: runtime.pointOfSale,
+        });
       } catch (error) {
         throw new AppError(`ARCA no respondió: ${error instanceof Error ? error.message : String(error)}`, {
           code: 'ARCA_UNAVAILABLE',

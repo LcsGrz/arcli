@@ -180,7 +180,7 @@ async function buildHeader(options: GlobalCliOptions): Promise<string> {
   }
 
   const spinner = startSpinner('Consultando el estado de ARCA...');
-  const health = await checkArcaHealth({ gateway: new ArcaParametersGateway(session.arca) });
+  const health = await checkArcaHealth({ gateway: new ArcaParametersGateway(session.arca), now: Date.now });
 
   spinner?.stop();
 
