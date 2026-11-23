@@ -33,9 +33,10 @@ const UI_BARREL = {
 // =========================
 // Fronteras del núcleo (docs/architecture.md, "Núcleo y adaptadores"): `modules` y `lib` no saben quién los llama.
 // Lo que ya se cumple es error: `no-restricted-imports`, `no-restricted-syntax` (el reloj) y `no-restricted-globals`
-// (`process`). El reloj y `process` siguen en warn en los módulos de la app (ARQ-7), y `process`, también en
+// (`process`). El reloj y `process` siguen en warn en los módulos de la app (ARQ-7), y el global `process`, también en
 // `PROCESS_DEBT_FILES` (ARQ-12). Lo que hoy falla es deuda en warn, con el ticket que la cierra
-// (`@typescript-eslint/no-restricted-imports`): no es un patrón para copiar. Cuando el ticket se cierra, la frontera pasa al bloque de error.
+// (`@typescript-eslint/no-restricted-imports`): no es un patrón para copiar. Cuando el ticket se cierra, la frontera
+// pasa al bloque de error.
 // =========================
 const CORE_FILES = ['src/lib/**/*.ts', 'src/modules/**/*.ts'];
 const TEST_FILES = ['src/**/__tests__/**/*.ts', 'src/**/*.test.ts'];
@@ -266,11 +267,8 @@ export default defineConfig([
   },
   {
     files: PROCESS_DEBT_FILES,
-    rules: {
-      ...coreImportRules(),
-      ...noProcessGlobal('warn', PROCESS_DEBT_MESSAGE),
-      ...coreDebtRules({ extraPaths: processModule(PROCESS_DEBT_MESSAGE) }),
-    },
+    // Solo el global: importar `node:process` sigue en error, como en el resto del núcleo.
+    rules: noProcessGlobal('warn', PROCESS_DEBT_MESSAGE),
   },
   {
     files: APP_MODULES,
