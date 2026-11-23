@@ -8,6 +8,7 @@ import { readJsonFile } from '../../lib/files/read-json-file';
 import { parseArgentineAmount } from '../../lib/numbers/argentine-amount';
 import { type BatchItemError, BatchValidationError, describeBatchItemError } from '../../modules/billing/billing.batch';
 import { resolveConfigExchangeRate } from '../../modules/billing/billing.currency';
+import { type EmitDecisionSource, resolveEmitDecision } from '../../modules/billing/billing.emit-decision';
 import {
   type BillingJsonInput,
   parseBillingJsonInput,
@@ -16,6 +17,7 @@ import {
 import { type BillingCommandInput, billingCommandSchema } from '../../modules/billing/billing.schemas';
 import type { VoucherShortcut } from '../../modules/billing/billing.types';
 import { getVoucherKindByShortcut } from '../../modules/billing/voucher-kind-map';
+import { resolvePdfFlag } from '../../modules/pdf/pdf-decision';
 
 import { resolveConceptShortcut, resolveDocumentIdentity, resolveIvaShortcut } from './billing.command.shortcuts';
 
@@ -94,41 +96,6 @@ function sumRateAmounts(
     .toNumber();
 }
 
-/**
- * Emitir o no, por nivel: lo escrito en el comando, despues el archivo y por ultimo la config.
- * El primer nivel que diga algo decide; solo es error que un mismo nivel pida las dos cosas.
- */
-function resolveShouldEmit(options: {
-  readonly cliEmit?: boolean;
-  readonly cliPreview?: boolean;
-  readonly defaultEmit?: boolean;
-  readonly fileEmit?: boolean;
-  readonly filePreview?: boolean;
-}): boolean {
-  if (options.cliEmit && options.cliPreview) {
-    throw new InputValidationError('Usá `--emitir` o `--previsualizar`, pero no ambos a la vez.');
-  }
-
-  if (options.cliEmit !== undefined || options.cliPreview !== undefined) {
-    return options.cliEmit === true;
-  }
-
-  if (options.fileEmit === true && options.filePreview === true) {
-    throw new InputValidationError('En el archivo usá "emitir" o "previsualizar", pero no ambos en true.');
-  }
-
-  if (typeof options.fileEmit === 'boolean') {
-    return options.fileEmit;
-  }
-
-  // "previsualizar": false no es lo mismo que "emitir": true; sin "emitir" decide la config.
-  if (options.filePreview === true) {
-    return false;
-  }
-
-  return Boolean(options.defaultEmit);
-}
-
 type AssociatedVoucherInput = NonNullable<BillingCommandInput['associatedVoucher']>;
 
 /**
@@ -155,23 +122,6 @@ function mergeAssociatedVoucher(
   };
 }
 
-function resolvePdfFlag(
-  commandOptions: Record<string, unknown>,
-  fileInput: BillingJsonInput | undefined,
-): boolean | undefined {
-  const exportPdf = commandOptions.exportarPdf === true || commandOptions.pdf === true;
-
-  if (exportPdf && commandOptions.sinPdf === true) {
-    throw new InputValidationError('Usá `--exportar-pdf` o `--sin-pdf`, pero no ambos a la vez.');
-  }
-
-  if (exportPdf) {
-    return true;
-  }
-
-  return commandOptions.sinPdf === true ? false : fileInput?.pdf;
-}
-
 export interface BillingCommandDefaults {
   readonly defaultIvaRate?: BillingCommandInput['ivaRate'];
   readonly defaultCbu?: string;
@@ -196,7 +146,7 @@ export interface BillingCommandPlan {
    * `BATCH_*`). Un objeto o los flags son un comprobante suelto.
    */
   readonly isBatch: boolean;
-  readonly modeSource: 'default' | 'file' | 'flags';
+  readonly modeSource: EmitDecisionSource;
   /** Cantidad de items del lote (1 si no hay lote). */
   readonly total: number;
 }
@@ -267,19 +217,14 @@ function parseBillingCommandInputFromSource(
         }
       : undefined;
 
-  const modeSource: BillingCommandPlan['modeSource'] =
-    emitirSource === 'cli' || previsualizarSource === 'cli'
-      ? 'flags'
-      : // "previsualizar": false no decide nada (decide la config), asi que tampoco cuenta como decision del archivo.
-        typeof fileInput?.emitir === 'boolean' || fileInput?.previsualizar === true
-        ? 'file'
-        : 'default';
-  const shouldEmit = resolveShouldEmit({
-    cliEmit: emitirSource === 'cli' ? commandOptions.emitir === true : undefined,
-    cliPreview: previsualizarSource === 'cli' ? commandOptions.previsualizar === true : undefined,
+  const { emit: shouldEmit, source: modeSource } = resolveEmitDecision({
+    bothFlagsMessage: 'Usá `--emitir` o `--previsualizar`, pero no ambos a la vez.',
     defaultEmit: defaults.defaultEmit,
-    fileEmit: fileInput?.emitir,
-    filePreview: fileInput?.previsualizar,
+    file: fileInput,
+    flags: {
+      emitir: emitirSource === 'cli' ? commandOptions.emitir === true : undefined,
+      previsualizar: previsualizarSource === 'cli' ? commandOptions.previsualizar === true : undefined,
+    },
   });
   const conceptShortcut = resolveConceptShortcut(commandOptions);
   const documentIdentity = resolveDocumentIdentity(commandOptions);
@@ -458,7 +403,11 @@ function parseBillingCommandInputFromSource(
         pickString(commandOptions.vencimiento, commandOptions.vto, fileInput?.vencimientoPago),
         'day',
       ),
-      pdf: resolvePdfFlag(commandOptions, fileInput),
+      pdf: resolvePdfFlag({
+        exportPdf: commandOptions.exportarPdf === true || commandOptions.pdf === true,
+        filePdf: fileInput?.pdf,
+        skipPdf: commandOptions.sinPdf === true,
+      }),
       pdfDescription: pickString(commandOptions.descripcion, fileInput?.descripcion),
       pointOfSale: pickNumber(commandOptions.puntoVenta, commandOptions.pv, fileInput?.puntoVenta),
       receiverAddress: pickString(commandOptions.receptorDomicilio, fileInput?.receptorDomicilio),

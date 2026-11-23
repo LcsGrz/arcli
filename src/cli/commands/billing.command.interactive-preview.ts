@@ -1,3 +1,4 @@
+import type { EmitDecisionSource } from '../../modules/billing/billing.emit-decision';
 import { formatEmissionQuestion, NOTHING_EMITTED_NOTICE } from '../../modules/billing/billing.mappers';
 import type { BillingCommandInput } from '../../modules/billing/billing.schemas';
 import type { BillingService } from '../../modules/billing/billing.service';
@@ -35,7 +36,7 @@ function applyEmitDecision(inputs: BillingCommandInput[], choice: EmissionChoice
 
 export async function runInteractiveBillingPreview(options: {
   readonly inputs: BillingCommandInput[];
-  readonly modeSource: 'default' | 'file' | 'flags';
+  readonly modeSource: EmitDecisionSource;
   readonly runtime: ResolvedArcaRuntime;
   readonly service: BillingService;
   readonly useRaw: boolean;
