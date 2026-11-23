@@ -1,12 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
+import { InputValidationError } from '../../../lib/errors/app-error';
 import { associatedKindGroups } from '../../interactive/associated-kinds';
 import { reciboChoices } from '../../interactive/choices';
 import { resolveTaxAmounts } from '../billing.amounts';
-import type { VoucherFamily, VoucherKindDefinition, VoucherLetter } from '../billing.types';
-import * as voucherKindMap from '../voucher-kind-map';
+import { FCE_OPTIONAL_IDS, resolveElectronicCreditOptionals } from '../billing.fce';
+import type { VoucherFamily, VoucherLetter } from '../billing.types';
 import {
+  discriminatesIva,
   isFceInvoice,
+  isNote,
+  isReceipt,
+  noteSide,
   VOUCHER_FAMILIES,
   VOUCHER_KIND_MAP,
   VOUCHER_LETTERS,
@@ -40,7 +45,9 @@ const FAMILIES: Readonly<Record<VoucherFamily, FamilyClass>> = {
 
 const DISCRIMINATES_IVA: Readonly<Record<VoucherLetter, boolean>> = { a: true, b: true, c: false };
 
-const KINDS: readonly VoucherKindDefinition[] = VOUCHER_SHORTCUTS.map((shortcut) => VOUCHER_KIND_MAP[shortcut]);
+const CBU = '0110599520000001234567';
+
+const KINDS = VOUCHER_SHORTCUTS.map((shortcut) => VOUCHER_KIND_MAP[shortcut]);
 
 const kindsOf = (family: VoucherFamily) => KINDS.filter((kind) => kind.family === family);
 
@@ -97,8 +104,22 @@ describe('familias de comprobante (caracterización de ARQ8-1)', () => {
       expect(receiptFamilies.has(family)).toBe(expected.receipt);
     });
 
-    it(`${expected.fceInvoice ? 'es factura FCE' : 'no es factura FCE'}`, () => {
-      expect(kindsOf(family).map(isFceInvoice)).toEqual(kindsOf(family).map(() => expected.fceInvoice));
+    // Lo que recibe ARCA en Opcionales con un CBU: solo la factura FCE lo lleva (10168); en el resto es error (10169,
+    // 10172, WSFEv1 v4.7).
+    it(`${expected.fceInvoice ? 'es factura FCE: lleva el CBU' : 'no es factura FCE: no lleva el CBU'}`, () => {
+      for (const kind of kindsOf(family)) {
+        const resolve = () =>
+          resolveElectronicCreditOptionals(
+            { cancellation: false, cbu: CBU, cbuAlias: undefined, transferMode: undefined },
+            kind,
+          );
+
+        if (expected.fceInvoice) {
+          expect(resolve()).toContainEqual({ Id: FCE_OPTIONAL_IDS.cbu, Valor: CBU });
+        } else {
+          expect(resolve).toThrow(InputValidationError);
+        }
+      }
     });
   });
 
@@ -122,35 +143,14 @@ describe('familias de comprobante (caracterización de ARQ8-1)', () => {
   });
 });
 
-interface FamilyPredicates {
-  readonly discriminatesIva: (letter: VoucherLetter) => boolean;
-  readonly isFceInvoice: (kind: VoucherKindDefinition) => boolean;
-  readonly isNote: (kind: VoucherKindDefinition) => boolean;
-  readonly isReceipt: (kind: VoucherKindDefinition) => boolean;
-  readonly noteSide: (kind: VoucherKindDefinition) => NoteSide | undefined;
-}
-
-/** Los predicados de ARQ8-1, junto a `VOUCHER_KIND_MAP`. */
-function loadFamilyPredicates(names: ReadonlyArray<keyof FamilyPredicates>): FamilyPredicates {
-  const module = voucherKindMap as unknown as Record<string, unknown>;
-
-  for (const name of names) {
-    expect(module[name], `${name} no está en voucher-kind-map.ts`).toBeTypeOf('function');
-  }
-
-  return module as unknown as FamilyPredicates;
-}
-
 describe('predicados de familia (ARQ8-1)', () => {
   it('clasifican cada comprobante igual que la tabla', () => {
-    const predicates = loadFamilyPredicates(['isFceInvoice', 'isNote', 'isReceipt', 'noteSide']);
-
     expect(
       KINDS.map((kind) => ({
-        fceInvoice: predicates.isFceInvoice(kind),
-        note: predicates.isNote(kind),
-        noteSide: predicates.noteSide(kind),
-        receipt: predicates.isReceipt(kind),
+        fceInvoice: isFceInvoice(kind),
+        note: isNote(kind),
+        noteSide: noteSide(kind),
+        receipt: isReceipt(kind),
         shortcut: kind.shortcut,
       })),
     ).toEqual(
@@ -165,10 +165,6 @@ describe('predicados de familia (ARQ8-1)', () => {
   });
 
   it('discriminatesIva da lo mismo que la tabla de letras', () => {
-    const predicates = loadFamilyPredicates(['discriminatesIva']);
-
-    expect(VOUCHER_LETTERS.map(predicates.discriminatesIva)).toEqual(
-      VOUCHER_LETTERS.map((letter) => DISCRIMINATES_IVA[letter]),
-    );
+    expect(VOUCHER_LETTERS.map(discriminatesIva)).toEqual(VOUCHER_LETTERS.map((letter) => DISCRIMINATES_IVA[letter]));
   });
 });

@@ -1,5 +1,5 @@
 import type { ArcliConfig } from '../../../modules/config/config.schemas';
-import { type InvoiceState, isFceInvoice } from '../../../modules/interactive/invoice-input';
+import { type InvoiceState, isFceInvoiceState } from '../../../modules/interactive/invoice-input';
 import { cbuToSave } from '../../../modules/interactive/steps/config-offer';
 import { BACK, type WizardStep } from '../../../modules/interactive/wizard';
 import { askTextStep } from '../prompts';
@@ -12,7 +12,7 @@ import { validateCbu, validateOptionalCbuAlias } from '../validators';
  * `--alias`), en dos pasos. Los comparten "Emitir factura" y "Repetir".
  */
 export function cbuSteps<S extends InvoiceState>(config: Pick<ArcliConfig, 'aliasCbu' | 'cbu'>): Array<WizardStep<S>> {
-  const asksCbu = (state: S): boolean => isFceInvoice(state) && !config.cbu;
+  const asksCbu = (state: S): boolean => isFceInvoiceState(state) && !config.cbu;
 
   return [
     {

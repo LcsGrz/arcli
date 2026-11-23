@@ -42,7 +42,8 @@ const BASE: Readonly<Record<Family, Record<string, unknown>>> = {
   E: { cliente: 'ACME LLC', domicilioCliente: '123 Main St', montoTotal: 1500, numero: 1, paisDestino: 212 },
 };
 
-function writeFile(content: Record<string, unknown>): string {
+/** Un comprobante suelto o un lote (array). */
+function writeFile(content: Record<string, unknown> | ReadonlyArray<Record<string, unknown>>): string {
   const path = join(directory, `comprobante-${(fileCount += 1)}.json`);
 
   writeFileSync(path, JSON.stringify(content), 'utf8');
@@ -303,5 +304,90 @@ describe('PDF: flags × archivo × config (caracterización de ARQ8-2)', () => {
       expect(parse(family, { pdf: true }, ['--previsualizar'], true).pdf).toBe(true);
       expect(parse(family, { emitir: true }, ['--sin-pdf'], false).pdf).toBe(false);
     }
+  });
+});
+
+describe('emitir en un lote de `--cargar` (caracterización de ARQ8-2)', () => {
+  it('cada ítem decide por su cuenta y el plan toma el nivel más alto que decidió alguno', () => {
+    const path = writeFile([{ ...BASE['A/B/C'], emitir: true }, { ...BASE['A/B/C'] }]);
+    const command = new Command();
+
+    registerBillingOptions(command);
+    command.parse(['node', 'test', '--cargar', path], { from: 'node' });
+
+    const plan = parseBillingCommandPlan(command, 'fc', { defaultEmit: false });
+
+    expect(plan).toMatchObject({ inputIndexes: [1, 2], invalidItems: [], isBatch: true, total: 2 });
+    // El primero emite por el archivo (fuente `file`); el segundo, sin "emitir", queda en la config (fuente `default`).
+    expect(plan.inputs.map((input) => ({ dryRun: input.dryRun, emit: input.emit }))).toEqual([
+      { dryRun: false, emit: true },
+      { dryRun: true, emit: false },
+    ]);
+    // El lote junta las fuentes: `flags` gana sobre `file` y `file` sobre `default`.
+    expect(plan.modeSource).toBe('file');
+  });
+});
+
+describe('emitir sin `--cargar`: flags × config (caracterización de ARQ8-2)', () => {
+  /** Los mismos datos de `BASE`, por flags. */
+  const DATA_FLAGS: Readonly<Record<Family, readonly string[]>> = {
+    'A/B/C': ['--concepto', 'servicios', '--ir', 'consumidor-final', '--monto', '1000', '--cfinal'],
+    E: [
+      '--cliente',
+      'ACME LLC',
+      '--domicilio-cliente',
+      '123 Main St',
+      '--monto',
+      '1500',
+      '--numero',
+      '1',
+      '--pais-destino',
+      '212',
+    ],
+  };
+
+  function parseFlags(family: Family, flags: readonly string[], defaultEmit: boolean | undefined) {
+    const command = new Command();
+    const argv = ['node', 'test', ...DATA_FLAGS[family], ...flags];
+
+    if (family === 'E') {
+      registerExportOptions(command, EXPORT_VOUCHER_KIND);
+      command.parse(argv, { from: 'node' });
+
+      const plan = parseExportCommandPlan(command, { defaultEmit });
+
+      return { emit: plan.input.emit, modeSource: plan.modeSource };
+    }
+
+    registerBillingOptions(command);
+    command.parse(argv, { from: 'node' });
+
+    const plan = parseBillingCommandPlan(command, 'fc', { defaultEmit });
+
+    expect(plan.inputs[0]?.dryRun).toBe(!plan.inputs[0]?.emit);
+
+    return { emit: Boolean(plan.inputs[0]?.emit), modeSource: plan.modeSource };
+  }
+
+  const CASES = [
+    { config: true, flags: ['--emitir'], want: { emit: true, modeSource: 'flags' } },
+    { config: false, flags: ['--emitir'], want: { emit: true, modeSource: 'flags' } },
+    { config: undefined, flags: ['--emitir'], want: { emit: true, modeSource: 'flags' } },
+    { config: true, flags: ['--previsualizar'], want: { emit: false, modeSource: 'flags' } },
+    { config: false, flags: ['--previsualizar'], want: { emit: false, modeSource: 'flags' } },
+    { config: undefined, flags: ['--previsualizar'], want: { emit: false, modeSource: 'flags' } },
+    { config: true, flags: [], want: { emit: true, modeSource: 'default' } },
+    { config: false, flags: [], want: { emit: false, modeSource: 'default' } },
+    { config: undefined, flags: [], want: { emit: false, modeSource: 'default' } },
+  ] as const;
+
+  describe.each(FAMILIES)('%s', (family) => {
+    it.each(CASES)('flags $flags, config emitir $config', ({ config, flags, want }) => {
+      expect(parseFlags(family, flags, config)).toEqual(want);
+    });
+
+    it('con los dos flags, el error de la familia', () => {
+      expect(() => parseFlags(family, ['--emitir', '--previsualizar'], undefined)).toThrow(BOTH_FLAGS_ERROR[family]);
+    });
   });
 });

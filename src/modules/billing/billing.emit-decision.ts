@@ -8,7 +8,10 @@ export interface EmitDecision {
   readonly source: EmitDecisionSource;
 }
 
-/** Lo que pide un nivel: `true` en `emitir` o `previsualizar`, o nada (`undefined`). */
+/**
+ * Lo que dice un nivel. `emitir` decide con `true` y con `false` (no emitir); `previsualizar` decide solo con `true`,
+ * salvo en los flags, donde cualquier valor decide. `undefined` no dice nada y pasa al nivel siguiente.
+ */
 interface EmitLevel {
   readonly emitir?: boolean;
   readonly previsualizar?: boolean;

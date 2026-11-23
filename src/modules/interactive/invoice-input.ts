@@ -2,7 +2,7 @@ import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { BILLING_RULES, type BillingRuleContext } from '../billing/billing.rules';
 import { type BillingCommandInput, billingCommandSchema } from '../billing/billing.schemas';
 import type { VoucherKindDefinition } from '../billing/billing.types';
-import { discriminatesIva, isFceInvoice as isFceInvoiceKind } from '../billing/voucher-kind-map';
+import { discriminatesIva, isFceInvoice } from '../billing/voucher-kind-map';
 import type { ArcliConfig } from '../config/config.schemas';
 
 import type { AdvancedOptions, BillingRuleScope } from './billing-optionals';
@@ -47,7 +47,7 @@ export interface InvoiceInputEnv {
   readonly config: Pick<ArcliConfig, 'aliasCbu' | 'alicuotaPorDefecto' | 'cbu'>;
 }
 
-export const isFceInvoice = (state: Pick<InvoiceState, 'voucherKind'>): boolean => isFceInvoiceKind(state.voucherKind);
+export const isFceInvoiceState = (state: Pick<InvoiceState, 'voucherKind'>): boolean => isFceInvoice(state.voucherKind);
 
 /**
  * La entrada del CLI con lo que respondio el usuario: de ella salen el comando equivalente y, con `prepareBillingInput`,
@@ -67,7 +67,7 @@ function invoiceInputFields(state: InvoiceState, env: InvoiceInputEnv): Partial<
   const ivaRate = discriminatesIva(voucherKind.letter) ? defaultIvaRate(config, state.advanced.ivaRate) : undefined;
   const { consumerDocumentNumber, consumerDocumentType, ...advanced } = state.advanced;
   const receiver = resolveReceiverIdentity(state, { consumerDocumentNumber, consumerDocumentType });
-  const fce = isFceInvoice(state);
+  const fce = isFceInvoiceState(state);
 
   return {
     ...advanced,
