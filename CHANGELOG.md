@@ -12,8 +12,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 - **Factura E:** en el asistente, el país de destino y el CUIT del país se eligen de una lista con filtro donde también podés escribir (#257).
 - **PDF:** en el asistente, la condición de venta se elige o se escribe en la misma lista, sin la pregunta aparte de "Otra" (#257).
-- **Factura E:** en el asistente, la actividad de WSFEX y la forma de pago se eligen de una lista donde también podés escribir (#PR).
-- **Config:** en "Modificar configuración", la moneda y la actividad de exportación se eligen de una lista donde también podés escribir (#PR).
+- **Factura E:** en el asistente, la actividad de WSFEX y la forma de pago se eligen de una lista donde también podés escribir (#261).
+- **Config:** en "Modificar configuración", la moneda y la actividad de exportación se eligen de una lista donde también podés escribir (#261).
 
 <details><summary>Detalle</summary>
 
