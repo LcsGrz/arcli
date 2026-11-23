@@ -99,6 +99,13 @@ describe('reglas de la E (export.rules.ts)', () => {
     expect(
       EXPORT_PAYMENT_DATE_RULE.check({ exportType: 2, paymentDate: '1/12', voucherDate: '5/1' }, {}),
     ).toBeUndefined();
+    // Alcanza con que a una de las dos le falte el año.
+    expect(
+      EXPORT_PAYMENT_DATE_RULE.check({ exportType: 2, paymentDate: '1/12', voucherDate: '15/11/2026' }, {}),
+    ).toBeUndefined();
+    expect(
+      EXPORT_PAYMENT_DATE_RULE.check({ exportType: 2, paymentDate: '01/12/2026', voucherDate: '5/1' }, {}),
+    ).toBeUndefined();
     // Ilegible da error aunque falte hoy.
     expect(() =>
       EXPORT_PAYMENT_DATE_RULE.check({ exportType: 2, paymentDate: 'x', voucherDate: '15/11/2026' }, {}),

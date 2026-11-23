@@ -45,4 +45,17 @@ describe.skipIf(process.platform === 'win32')('permisos de las carpetas del perf
     expect(() => resolveArcaRuntime({})).toThrow();
     expect(folders.map(mode)).toEqual([0o755, 0o755]);
   });
+
+  it('config revisar con la config incompleta tampoco las toca', () => {
+    const config = { cert: { testing: profile.healthy.certPath }, cuit: PROFILE_CUIT };
+
+    profile.writeConfig(config);
+    const folders = openFolders();
+
+    expect(buildRuntimeChecks(arcliConfigSchema.parse(config))[0]).toMatchObject({
+      environment: 'testing',
+      error: 'Falta la ruta de la clave privada para testing. Configurá "key.testing".',
+    });
+    expect(folders.map(mode)).toEqual([0o755, 0o755]);
+  });
 });

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { InputValidationError } from '../../errors/app-error';
 import {
   addDaysToArcaDate,
+  arcaDateToInstant,
   diffArcaDatesInDays,
   formatArcaDateAsArgentineDate,
   formatArcaPeriodAsArgentinePeriod,
@@ -10,6 +11,7 @@ import {
   maxArcaDate,
   minArcaDate,
   parseArgentineDateInputAsArcaDate,
+  parseFullArgentineDateAsArcaDate,
 } from '../arca-date';
 
 const referenceDate = new Date('2026-08-20T12:00:00Z');
@@ -95,6 +97,23 @@ describe('arca-date', () => {
     expect(() => parseArgentineDateInputAsArcaDate('31/02/2026', referenceDate)).toThrow(
       /La fecha "31\/02\/2026" no es válida/,
     );
+  });
+
+  it('el instante de una fecha ARCA es el mediodia argentino de ese dia', () => {
+    expect(arcaDateToInstant('20260301').toISOString()).toBe('2026-03-01T15:00:00.000Z');
+    expect(arcaDateToInstant('20260101').toISOString()).toBe('2026-01-01T15:00:00.000Z');
+  });
+
+  it('una fecha completa no depende de hoy; a una que le falta algo o le sobra texto no la toma', () => {
+    expect(parseFullArgentineDateAsArcaDate('1/03/2020')).toBe('20200301');
+    expect(parseFullArgentineDateAsArcaDate('1-3-20')).toBe('20200301');
+    expect(parseFullArgentineDateAsArcaDate(' 01/03/2020 ')).toBe('20200301');
+
+    for (const value of ['1', '1/3', '1/3/2', '1/3/202', '1/3-2020', '123/11/2026', 'x1/3/2020', '1/3/2020x', '']) {
+      expect(parseFullArgentineDateAsArcaDate(value), value).toBeUndefined();
+    }
+
+    expect(() => parseFullArgentineDateAsArcaDate('31/2/2020')).toThrow(InputValidationError);
   });
 
   describe('bisiestos y separadores, con el reloj fijo', () => {
