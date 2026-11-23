@@ -92,13 +92,23 @@
   sin validacion
   = ""
 
-? [texto] Forma de pago:
-  por defecto: "Transferencia Internacional"
-  = ""
+? [lista o texto] Forma de pago:
+  ayuda: Elegí una o escribí otra, de hasta 50 caracteres.
+  arranca en: Transferencia Internacional
+  > Transferencia Internacional
+  · Pago anticipado
+  · Carta de crédito
+  · Cobranza documentaria
+  · Cuenta corriente
+  = Transferencia Internacional
 
-? [texto] Código de actividad de WSFEX, por ejemplo 620100:
-  aclara al preguntar: (Enter para no informarla)
-  = ""
+? [lista o texto] Actividad de WSFEX:
+  encabezado: CÓDIGO  DESCRIPCIÓN
+  ayuda: Escribí el código o parte de la descripción, por ejemplo "6201" o "consultores".
+  arranca en: Sin actividad (no se informa)
+  > Sin actividad (no se informa)
+  · 620100  SERVICIOS DE CONSULTORES EN INFORMATICA (busca tambien: 620100)
+  = Sin actividad (no se informa)
 
 ? [seleccion multiple] ¿Agregamos algún opcional? (espacio para marcar, Enter para seguir)
   [ ] Fecha del comprobante — hoy

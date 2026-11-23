@@ -854,7 +854,7 @@ const facturaE = [
   [/Descripción del ítem 2/, ''],
   [/Importe total/, 'Confirmar'],
   [/Forma de pago/, ''],
-  [/actividad/, '620100'],
+  [/Actividad de WSFEX/, '620100'],
 ] as const;
 
 describe('golden de pantallas: factura E', () => {
@@ -922,7 +922,7 @@ describe('golden de pantallas: factura E', () => {
       [/Incoterm/, 'FOB'],
       [/Permisos de embarque/, ''],
       [/Forma de pago/, ''],
-      [/actividad/, ''],
+      [/Actividad de WSFEX/, ''],
       [/Agregamos/, []],
       NO_EMIT,
     ]));
@@ -969,7 +969,7 @@ describe('golden de pantallas: ítems de la factura E (NAV-10)', () => {
       [/Incoterm/, 'FOB'],
       [/Permisos de embarque/, ''],
       [/Forma de pago/, ''],
-      [/actividad/, ''],
+      [/Actividad de WSFEX/, ''],
       [/Agregamos/, []],
       NO_EMIT,
     ]));
@@ -1002,7 +1002,7 @@ describe('golden de pantallas: ítems de la factura E (NAV-10)', () => {
       [/Incoterm/, 'FOB'],
       [/Permisos de embarque/, ''],
       [/Forma de pago/, ''],
-      [/actividad/, ''],
+      [/Actividad de WSFEX/, ''],
       [/Agregamos/, []],
       NO_EMIT,
     ]));

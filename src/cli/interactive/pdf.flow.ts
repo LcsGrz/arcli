@@ -46,6 +46,8 @@ async function askSaleCondition(current: string | undefined): Promise<Back | str
       emptyLabel: 'Omitir',
       optional: true,
       parse: (text) => text,
+      // Texto libre: lo escrito va tal cual, aunque una sugerencia lo contenga.
+      preferTyped: true,
       previous: isKey(currentKey) ? currentKey : current?.trim() || undefined,
       validate: (text) => validateConfigValue('condicionVenta', text),
     },

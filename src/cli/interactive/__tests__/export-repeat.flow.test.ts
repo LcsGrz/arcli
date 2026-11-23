@@ -277,7 +277,7 @@ describe('runExportRepeatFlow', () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
-      [/actividad de WSFEX/, ''],
+      [/Actividad de WSFEX/, ''],
       // Antes de los opcionales, contra la más temprana que ARCA acepta para la fecha del comprobante (TUI-22).
       [
         /Fecha de pago/,
@@ -310,7 +310,7 @@ describe('runExportRepeatFlow', () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
-      [/actividad de WSFEX/, rejecting('620100', ['620900', /no está en la tabla de actividades de WSFEX.*2105/])],
+      [/Actividad de WSFEX/, rejecting('620100', ['620900', /no está en la tabla de actividades de WSFEX.*2105/])],
       [/Fecha de pago/, ''],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'Sí, emitir ahora'],
@@ -333,7 +333,7 @@ describe('runExportRepeatFlow', () => {
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
-      [/actividad de WSFEX/, '620100'],
+      [/Actividad de WSFEX/, '620100'],
       [/Fecha de pago/, ''],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'No, dejar sin emitir'],
@@ -762,11 +762,11 @@ describe('exportRepeatSteps: volver, cambiar respuestas y lo que se pregunta seg
     script = createScript([
       [/Cuál repetimos/, '00004-00000001'],
       ...KEEP_EXPORT_ITEMS,
-      [/actividad de WSFEX/, rejecting('620100', ['abc', /La actividad/])],
+      [/Actividad de WSFEX/, rejecting('620100', ['abc', /La actividad/])],
       [/Fecha de pago/, BACK],
-      [/actividad de WSFEX/, BACK],
+      [/Actividad de WSFEX/, BACK],
       ...KEEP_EXPORT_ITEMS,
-      [/actividad de WSFEX/, rejecting('620100', ['620200', /no está en la tabla de actividades de WSFEX.*2105/])],
+      [/Actividad de WSFEX/, rejecting('620100', ['620200', /no está en la tabla de actividades de WSFEX.*2105/])],
       [/Fecha de pago/, ''],
       [/Agregamos algún opcional/, []],
     ]);

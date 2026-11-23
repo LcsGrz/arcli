@@ -12,12 +12,18 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 - **Factura E:** en el asistente, el país de destino y el CUIT del país se eligen de una lista con filtro donde también podés escribir (#257).
 - **PDF:** en el asistente, la condición de venta se elige o se escribe en la misma lista, sin la pregunta aparte de "Otra" (#257).
+- **Factura E:** en el asistente, la actividad de WSFEX y la forma de pago se eligen de una lista donde también podés escribir (#261).
+- **Config:** en "Modificar configuración", la moneda y la actividad de exportación se eligen de una lista donde también podés escribir (#261).
 
 <details><summary>Detalle</summary>
 
 **País y CUIT del país de la `E`.** Antes se escribían: el país por nombre o código, y el CUIT por número o buscando el país, que abría una segunda lista. Ahora cada uno es una lista que se filtra escribiendo, con el código o el CUIT a la izquierda; si lo escrito no es una opción, "Usar lo escrito" lo valida como `--pais-destino` o `--cuit-pais`. El CUIT del país trae solo los que acepta `--cuit-pais` para el destino, y en la factura la primera opción, "Sin CUIT del país (solo ID impositivo)", lo deja vacío. "Repetir" E usa la misma lista para el CUIT, sin ninguno marcado la primera vez: es un dato fiscal y Enter vacío pide elegirlo. Los flags, `--cargar`, el `--json` y el comando equivalente no cambian.
 
 **Condición de venta.** En el PDF del asistente y en "Modificar configuración", la condición de venta es una lista donde también se escribe un texto propio, que se guarda o se imprime tal cual. Un texto propio guardado arranca escrito, sin la opción "Mantener: …". En el PDF, "Omitir" sigue primera y Esc no genera el PDF. Si ARCA no devuelve los incoterms, el incoterm de la `E` se escribe en la misma pregunta, como antes.
+
+**Actividad y forma de pago de la `E`.** Antes se escribían. Ahora la actividad es una lista con la tabla de WSFEX, código y descripción, que se filtra escribiendo el código (`6201`) o parte de la descripción (`consultores`); arranca en "Sin actividad (no se informa)", así que Enter la deja sin informar como antes, y un código escrito se valida contra la tabla como `--actividad`. Si ARCA devuelve la tabla vacía, se escribe. "Repetir" E usa la misma lista cuando la factura no trae actividad. La forma de pago arranca en "Transferencia Internacional" y sugiere Pago anticipado, Carta de crédito, Cobranza documentaria y Cuenta corriente; cualquier otro texto de hasta 50 caracteres vale, como `--forma-pago`, y lo escrito gana: "Transferencia" va tal cual, aunque una sugerencia lo contenga. Lo mismo en la condición de venta del PDF y de la config. Las notas E no las preguntan, y los flags, `--cargar`, el `--json` y el comando equivalente no cambian.
+
+**Moneda y actividad de exportación en la config.** La moneda lista las monedas de ARCA, que se buscan por nombre, código de ARCA o ISO (`usd`), y elegir una guarda el código de ARCA (`DOL`), como el default `PES`. La actividad lista la tabla de WSFEX, consultada como en `arcli fe`: hacen falta el CUIT y el certificado y la clave de facturación del entorno, y el de exportación se usa si está configurado; sin eso o si ARCA no responde, se escribe el código como antes. Sin valor guardado, la lista arranca en "Dejar sin configurar": Enter ya no guarda la primera opción sin elegirla, también en la condición de venta. Lo escrito se valida como `arcli config establecer`, y las claves no cambian.
 
 </details>
 

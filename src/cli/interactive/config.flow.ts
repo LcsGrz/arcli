@@ -35,6 +35,7 @@ import {
   getConfigField,
   resolveActiveEnvironment,
 } from '../../modules/interactive/config-fields';
+import { changesArcaAccess } from '../../modules/interactive/config-lists';
 import { BACK, type Back, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import { formatPdfPluginStatusAsText } from '../../modules/pdf/pdf.presenter';
 import { PdfPlugin } from '../../services/pdf/pdf-plugin';
@@ -44,7 +45,7 @@ import { startSpinner } from '../spinner';
 import type { GlobalCliOptions } from '../types';
 
 import { runCertificateMenu, runGenerateCertificate } from './certificate.flow';
-import { sameSearch } from './filter-list';
+import { type ConfigFieldLists, configFieldLists } from './config-lists';
 import { markIfNew } from './new-mark';
 import { askTextStep, type Choice, chooseOne, chooseOrTypeStep, chooseStep, confirm, fitPageSize } from './prompts';
 
@@ -106,36 +107,44 @@ function validate(key: ConfigPublicKey, value: string): string | true {
 async function askField(
   field: ConfigField,
   config: ArcliConfig,
-  options: { readonly required?: boolean } = {},
+  options: {
+    readonly lists?: ConfigFieldLists;
+    readonly required?: boolean;
+  } = {},
 ): Promise<'borrado' | 'guardado' | 'sin-cambios' | typeof BACK> {
   const current = field.read(config);
+  const list = await (options.lists ?? configFieldLists()).of(field);
   let value: string | typeof CLEAR;
 
-  if (field.choices && field.freeText) {
-    // De la lista o escrito (TUI-35): un valor propio guardado arranca escrito, y Enter lo deja.
+  if (list) {
+    // De la lista o escrito (TUI-35, TUI-39): un valor propio guardado arranca escrito, y Enter lo deja. Sin valor
+    // guardado arranca en "Dejar sin configurar": Enter no guarda la primera fila.
     const answer = await chooseOrTypeStep<string | typeof CLEAR | typeof KEEP>(
       `${field.label}:`,
       [
-        ...field.choices.map((choice) => ({
-          keywords: choice,
-          label: field.choiceLabels?.[choice] ?? choice,
-          value: choice,
-        })),
+        ...list.rows,
         ...(current && !options.required ? [{ label: 'Quitar el valor por defecto', value: CLEAR } as const] : []),
         ...(!current && !options.required ? [{ label: 'Dejar sin configurar', value: KEEP } as const] : []),
       ],
-      { parse: (text) => text, previous: current, validate: (text) => validate(field.key, text) },
+      {
+        header: list.header,
+        help: list.help,
+        parse: (text) => text,
+        preferTyped: list.preferTyped,
+        previous: current ? list.previous(current) : options.required ? undefined : KEEP,
+        validate: (text) => validate(field.key, text),
+      },
     );
 
     if (answer === BACK) {
       return BACK;
     }
 
-    // Una de la lista que se lee igual que el texto guardado ("Contado" y `contado`) no lo cambia: queda el guardado.
+    // Una de la lista que es lo mismo que lo guardado ("Contado" y `contado`, DOL y USD) no lo cambia.
     if (
       answer === undefined ||
       answer === KEEP ||
-      (typeof answer === 'string' && current && sameSearch(field.choiceLabels?.[answer] ?? answer, current))
+      (typeof answer === 'string' && current && list.same(answer, current))
     ) {
       return 'sin-cambios';
     }
@@ -344,8 +353,12 @@ function fieldChoicesBySection(config: ArcliConfig): Array<Choice<ConfigField> |
   ]);
 }
 
-/** Lista de datos por seccion; despues de cambiar uno (o volver) se muestra de nuevo, hasta "Volver". */
-async function runChangeField(): Promise<void> {
+/**
+ * Lista de datos por seccion; despues de cambiar uno (o volver) se muestra de nuevo, hasta "Volver". La tabla de
+ * actividades de WSFEX se consulta en el entorno activo una vez, y de nuevo si se cambia el entorno o un certificado.
+ */
+async function runChangeField(flags: EnvironmentFlags): Promise<void> {
+  const lists = configFieldLists(flags);
   const messages = { borrado: 'Dato borrado.', guardado: 'Guardado.', 'sin-cambios': 'Sin cambios.' } as const;
   let lastField: ConfigField | undefined;
 
@@ -365,7 +378,11 @@ async function runChangeField(): Promise<void> {
 
     lastField = field;
 
-    const result = await askField(field, config);
+    const result = await askField(field, config, { lists });
+
+    if ((result === 'guardado' || result === 'borrado') && changesArcaAccess(field.key)) {
+      lists.reset();
+    }
 
     if (result !== BACK) {
       writeTerminalOutput(noticePanel(messages[result], result === 'sin-cambios' ? 'muted' : 'success'));
@@ -548,7 +565,7 @@ export async function runConfigMenu(flags: EnvironmentFlags = {}): Promise<void>
     }
 
     if (option === 'guiada') await runGuidedSetup(flags);
-    if (option === 'cambiar') await runChangeField();
+    if (option === 'cambiar') await runChangeField(flags);
     if (option === 'certificados') await runCertificateMenu();
     if (option === 'pdf') await runPdfPluginMenu();
     if (option === 'completado') await runCompletionMenu();

@@ -1,6 +1,6 @@
 import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { formatEmissionQuestion, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
-import { DEFAULT_EXPORT_PAYMENT_TERMS } from '../../modules/export/export.mappers';
+import { EXPORT_PAYMENT_TERMS_SUGGESTIONS } from '../../modules/export/export.mappers';
 import { formatExportResultAsText } from '../../modules/export/export.presenter';
 import { ExportService } from '../../modules/export/export.service';
 import {
@@ -293,11 +293,20 @@ function exportSteps(
     {
       name: 'forma-pago',
       run: async (_state, { previous }) => {
-        const answer = await askTextStep('Forma de pago:', {
-          defaultValue: DEFAULT_EXPORT_PAYMENT_TERMS,
-          previousAnswer: previous?.paymentTerms,
-          validate: validateExportText('paymentTerms'),
-        });
+        // Sugerencias de una lista donde tambien se escribe (TUI-26): ARCA la toma como texto libre. Arranca en la de
+        // por defecto, que el comando equivalente no lleva (`--forma-pago` solo si es otra).
+        const answer = await chooseOrTypeStep<string>(
+          'Forma de pago:',
+          EXPORT_PAYMENT_TERMS_SUGGESTIONS.map((terms) => ({ label: terms, value: terms })),
+          {
+            help: 'Elegí una o escribí otra, de hasta 50 caracteres.',
+            parse: (text) => text,
+            // Texto libre: "Transferencia" va tal cual, no como "Transferencia Internacional".
+            preferTyped: true,
+            previous: previous?.paymentTerms,
+            validate: validateExportText('paymentTerms', 'La forma de pago'),
+          },
+        );
 
         return answer === BACK ? BACK : { paymentTerms: optional(answer) };
       },

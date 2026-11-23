@@ -9,16 +9,22 @@ import {
   useState,
 } from '@inquirer/core';
 
+import { normalizeSearchText, sameSearch, searchWords } from '../../lib/text/search';
 import { bold, colorize, pointerRow, scrollHint, scrollWindow, stripAnsi } from '../../ui';
 
 import { isCursorKey, useListCursor } from './list-cursor';
+
+export { sameSearch, searchWords } from '../../lib/text/search';
 
 type HelpKey = [string, string];
 
 export interface FilterListRow<T> {
   /** La fila como se ve, ya alineada con el encabezado. */
   readonly label: string;
-  /** Lo que se compara con lo escrito, ademas de la fila: por ejemplo, el codigo ISO de una moneda. */
+  /**
+   * Lo que se compara con lo escrito, ademas de la fila: por ejemplo, los codigos de ARCA e ISO de una moneda
+   * (`DOL USD`). Cada palabra escrita entera es la fila exacta, como el texto entero.
+   */
   readonly keywords?: string;
   /** Lo que queda en la linea "✔ pregunta respuesta" al elegirla; por defecto, la fila. */
   readonly short?: string;
@@ -35,6 +41,11 @@ export interface FilterListRow<T> {
 interface FilterListTyped<T> {
   /** La fila de lo escrito, por ejemplo "Usar lo escrito: Mercado Pago". */
   readonly label: (term: string) => string;
+  /**
+   * Texto libre con sugerencias (la forma de pago, la condicion de venta): si lo escrito no es exactamente una fila,
+   * se marca "Usar lo escrito" en lugar de la primera que coincide, que sigue a mano con las flechas.
+   */
+  readonly preferred?: boolean;
   readonly validate?: (term: string) => string | true;
   readonly value: (term: string) => T;
 }
@@ -75,19 +86,6 @@ interface FilterListStyle {
   readonly style: FilterListConfig<unknown>['theme']['style'];
 }
 
-/** Sin mayusculas ni tildes: "dolar" encuentra "Dólar" y "eur", "EURO". */
-function normalize(text: string): string {
-  return text
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .toLowerCase();
-}
-
-/** Las palabras de lo escrito, sin mayusculas ni tildes: dos textos con las mismas filtran igual. */
-export function searchWords(term: string): string[] {
-  return normalize(term).split(/\s+/).filter(Boolean);
-}
-
 /**
  * Si `text` tiene cada palabra de lo escrito, en cualquier orden, sin mayusculas ni tildes: "dolar canad" encuentra
  * "Dólares canadienses (CAD)". Sin nada escrito, todo coincide. Los colores de `text` (un "(nuevo)" resaltado) no
@@ -95,19 +93,16 @@ export function searchWords(term: string): string[] {
  * opciones (`listSelect`).
  */
 export function matchesSearch(text: string, term: string): boolean {
-  const haystack = normalize(stripAnsi(text));
+  const haystack = normalizeSearchText(stripAnsi(text));
 
   return searchWords(term).every((word) => haystack.includes(word));
 }
 
-/** Si dos textos buscan lo mismo: sin mayusculas ni tildes, y un espacio o un Tab de mas no cambian la busqueda. */
-export function sameSearch(left: string, right: string): boolean {
-  return searchWords(left).join(' ') === searchWords(right).join(' ');
-}
-
 /** Si lo escrito es exactamente una fila: su texto, lo que deja al elegirla o sus palabras clave. */
-function isExactRow<T>(row: FilterListRow<T>, term: string): boolean {
-  return [row.label, row.short, row.keywords].some((text) => text !== undefined && sameSearch(stripAnsi(text), term));
+export function isExactRow<T>(row: FilterListRow<T>, term: string): boolean {
+  return [row.label, row.short, row.keywords, ...(row.keywords?.split(/\s+/) ?? [])].some(
+    (text) => text !== undefined && sameSearch(stripAnsi(text), term),
+  );
 }
 
 /**
@@ -148,6 +143,20 @@ export function noMatchesLine(term: string): string {
   return colorize(`  Nada coincide con "${term.trim()}".`, 'muted');
 }
 
+/**
+ * La posicion de "Usar lo escrito", despues de las filas que coinciden, si lo escrito no es exactamente una de ellas:
+ * con la primera que coincide marcada, Enter la sigue eligiendo.
+ */
+function typedRowIndex<T>(
+  config: Pick<FilterListConfig<T>, 'typed'>,
+  visible: ReadonlyArray<FilterListRow<T>>,
+  term: string,
+): number | undefined {
+  return config.typed && searchWords(term).length > 0 && !visible.some((row) => isExactRow(row, term))
+    ? visible.length
+    : undefined;
+}
+
 /** La posicion de "Volver": despues de la ultima fila. */
 const BACK_ROW = -1;
 /** Ninguna marcada (`requireChoice` con el filtro vacio): Enter muestra el error y ↓ marca la primera. */
@@ -166,11 +175,8 @@ export const filterList = createPrompt(<T>(config: FilterListConfig<T>, done: (v
   const [error, setError] = useState<string | undefined>(undefined);
   const prefix = usePrefix({ status, theme });
   const visible = useMemo(() => filterRows(config.rows, term), [config.rows, term]);
-  // La fila de lo escrito va despues de las que coinciden: Enter sigue eligiendo la primera que coincide.
-  const typedIndex =
-    config.typed && searchWords(term).length > 0 && !visible.some((row) => isExactRow(row, term))
-      ? visible.length
-      : undefined;
+  // La fila de lo escrito va despues de las que coinciden (`typedRowIndex`).
+  const typedIndex = typedRowIndex(config, visible, term);
   const { active, move, setActive } = useListCursor(() => {
     if (config.initialTerm) {
       // Lo escrito con que arranca no es una fila: arranca marcada la de lo escrito.
@@ -230,10 +236,14 @@ export const filterList = createPrompt(<T>(config: FilterListConfig<T>, done: (v
       ]);
     } else if (rl.line !== term) {
       setTerm(rl.line);
+      const nextVisible = filterRows(config.rows, rl.line);
+
       setActive(
         config.requireChoice && searchWords(rl.line).length === 0
           ? NO_ROW
-          : firstMatch(filterRows(config.rows, rl.line), rl.line),
+          : config.typed?.preferred
+            ? (typedRowIndex(config, nextVisible, rl.line) ?? firstMatch(nextVisible, rl.line))
+            : firstMatch(nextVisible, rl.line),
       );
     }
   });

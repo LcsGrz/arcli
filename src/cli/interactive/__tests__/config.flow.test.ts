@@ -3,14 +3,15 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { InputValidationError } from '../../../lib/errors/app-error';
+import { ConfigurationError, InputValidationError } from '../../../lib/errors/app-error';
+import { parseConfigValue } from '../../../modules/config/config-value-parser';
 import { BACK } from '../../../modules/interactive/wizard';
 import { stripAnsi } from '../../../ui';
 import { runCertificateMenu, runGenerateCertificate } from '../certificate.flow';
 import { runConfigMenu, runGuidedSetup } from '../config.flow';
 import { askTextStep, chooseOne, chooseStep, confirm } from '../prompts';
 
-import { createScript, onlyChoices } from './script';
+import { createScript, onlyChoices, rejecting, type ScriptedAnswer } from './script';
 
 let script = createScript([]);
 
@@ -45,8 +46,14 @@ vi.mock('../../../modules/config/config.service', () => ({
         cuit: store.cuit,
         emisor: { razonSocial: store['emisor.razonSocial'] },
         entornoPorDefecto: store.entorno ?? 'testing',
+        exportacion: {
+          actividad: store['exportacion.actividad'] ? Number(store['exportacion.actividad']) : undefined,
+          cert: { testing: store['exportacion.cert.testing'] },
+          key: { testing: store['exportacion.key.testing'] },
+        },
         ivaReceptorPorDefecto: store.ivaReceptor,
         key: { produccion: store['key.produccion'], testing: store['key.testing'] },
+        monedaPorDefecto: store.moneda,
         output: {},
         puntoVentaPorDefecto: store.puntoVenta ? Number(store.puntoVenta) : undefined,
       };
@@ -67,10 +74,15 @@ vi.mock('../../../modules/config/config.service', () => ({
       delete store[key];
     }
   },
-  // La validacion real lee los PEM; aca solo se rechaza un CUIT mal formado.
+  // La validacion real lee los PEM; aca solo se rechaza un CUIT mal formado. La moneda y la actividad de exportacion
+  // pasan por el parser real, el de `arcli config establecer` (TUI-39).
   validateConfigValue: (key: string, value: string) => {
     if (key === 'cuit' && !/^\d{11}$/.test(value)) {
       throw new Error('El CUIT debe tener 11 dígitos');
+    }
+
+    if (key === 'moneda' || key === 'exportacion.actividad') {
+      parseConfigValue(key === 'moneda' ? 'monedaPorDefecto' : key, value);
     }
   },
 }));
@@ -85,7 +97,44 @@ vi.mock('../../../services/pdf/pdf-plugin', () => ({
     public uninstall = uninstall;
   },
 }));
-vi.mock('../../spinner', () => ({ startSpinner: () => null }));
+vi.mock('../../spinner', () => ({
+  startSpinner: () => null,
+  withSpinner: <T>(_message: string, run: () => Promise<T>) => run(),
+}));
+
+/**
+ * TUI-39: la tabla de actividades de WSFEX para "Actividad de exportación". Se supone que la configuración la consulta
+ * como los comandos: el entorno y el certificado de `ArcaContextResolver` y el gateway de WSFEX de `ArcaClientFactory`
+ * (que usa el certificado de exportación si está configurado). Sin certificado, `resolve` falla como el real.
+ */
+const exportRuntime = vi.hoisted(() => vi.fn((): unknown => ({ config: {}, environment: 'testing' })));
+const exportActivities = vi.hoisted(() =>
+  vi.fn(async () => [
+    { id: 620100, name: 'SERVICIOS DE CONSULTORES EN INFORMATICA' },
+    { id: 471100, name: 'VENTA AL POR MENOR EN HIPERMERCADOS' },
+  ]),
+);
+
+vi.mock('../../../services/arca/arca-context.resolver', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../services/arca/arca-context.resolver')>();
+
+  return {
+    ...actual,
+    ArcaContextResolver: class extends actual.ArcaContextResolver {
+      public override resolve() {
+        return exportRuntime() as ReturnType<InstanceType<typeof actual.ArcaContextResolver>['resolve']>;
+      }
+    },
+  };
+});
+
+vi.mock('../../../services/arca/arca-client.factory', () => ({
+  ArcaClientFactory: class {
+    public createExportGateway() {
+      return { getActivities: exportActivities };
+    }
+  },
+}));
 vi.mock('../certificate.flow', () => ({ runCertificateMenu: vi.fn(), runGenerateCertificate: vi.fn() }));
 
 const askTextMock = vi.mocked(askTextStep);
@@ -763,5 +812,251 @@ describe('configuración: un dato con valores conocidos, de una lista donde tamb
     expect(offeredRows()).not.toContain('Quitar el valor por defecto');
     expect(store.condicionVenta).toBeUndefined();
     expect(printed()).toContain('Sin cambios.');
+  });
+});
+
+/**
+ * TUI-39: la moneda y la actividad de exportación de "Modificar configuración", de una lista donde también se escribe.
+ * Las dos se validan como `arcli config establecer` (`parseConfigValue`). Lo que hoy funciona (escribir un código válido,
+ * el error de uno inválido, Enter con un valor propio, y la actividad sin certificado o sin red) va en tests normales:
+ * el guion responde igual a la pregunta de texto o a la lista.
+ */
+describe('configuración: la moneda y la actividad de exportación de una lista donde también se escribe (TUI-39)', () => {
+  const FIELD_LIST = '¿Qué querés modificar?';
+
+  function printed(): string {
+    return stripAnsi(
+      vi
+        .mocked(process.stdout.write)
+        .mock.calls.map(([chunk]) => String(chunk))
+        .join(''),
+    ).replace(/[│┃╏\s]+/g, ' ');
+  }
+
+  /**
+   * Abre el dato `key` (o cada uno, en orden) en "Modificar configuración", responde con el guion y vuelve. Cualquier
+   * otra lista se cierra con Esc, así el test falla en lo que mira y no por quedarse sin respuestas.
+   */
+  async function changeField(key: string | readonly string[], steps: Steps): Promise<void> {
+    let opened = 0;
+
+    script = createScript(steps);
+    askTextMock.mockImplementation((...args) => script.askTextStep(...args));
+    vi.mocked(chooseOne).mockResolvedValueOnce('cambiar').mockResolvedValueOnce('volver');
+    chooseStepMock.mockImplementation(async (message, choices) => {
+      const next = [key].flat()[opened];
+
+      if (message !== FIELD_LIST || next === undefined) {
+        return BACK;
+      }
+
+      opened += 1;
+
+      return onlyChoices(choices).find((choice) => (choice.value as { key?: string }).key === next)?.value as never;
+    });
+
+    await runConfigMenu();
+
+    expect(script.remaining()).toBe(0);
+  }
+
+  /** La lista de una pregunta, si la pregunta fue una lista. */
+  function listCall(question: RegExp) {
+    return script.chooseOrTypeStep.mock.calls.find(([message]) => question.test(message));
+  }
+
+  function listedLabels(question: RegExp): string[] {
+    return (listCall(question)?.[1] ?? []).map((row) => stripAnsi(row.label).replace(/\s+/g, ' ').trim());
+  }
+
+  type Steps = ReadonlyArray<readonly [RegExp, ScriptedAnswer]>;
+
+  const INVALID_CURRENCY =
+    /^El código de moneda "ZZZZ" no es válido: tiene que ser un código de moneda de 3 caracteres/;
+
+  // Con el certificado de facturación de testing (rutas ficticias: ARCA está simulado), como pide `arcli fe`.
+  beforeEach(() => {
+    store['cert.testing'] = '/certs/testing.crt';
+    store['key.testing'] = '/certs/testing.key';
+    exportRuntime.mockImplementation(() => ({ config: {}, environment: 'testing' }));
+    exportActivities.mockImplementation(async () => [
+      { id: 620100, name: 'SERVICIOS DE CONSULTORES EN INFORMATICA' },
+      { id: 471100, name: 'VENTA AL POR MENOR EN HIPERMERCADOS' },
+    ]);
+  });
+
+  afterEach(() => {
+    chooseStepMock.mockReset();
+    askTextMock.mockReset();
+    vi.mocked(chooseOne).mockReset();
+  });
+
+  // Sin valor guardado, la lista arranca en "Dejar sin configurar": Enter con el filtro vacío no guarda la primera fila.
+  it.each([
+    ['condicionVenta', /^Condición de venta/],
+    ['moneda', /^Moneda/],
+    ['exportacion.actividad', /^Actividad de exportación/],
+  ])('sin valor guardado, Enter en la lista de %s no guarda nada: "Sin cambios."', async (key, question) => {
+    await changeField(key, [[question, '']]);
+
+    expect(listedLabels(question)).toContain('Dejar sin configurar');
+    expect(store[key]).toBeUndefined();
+    expect(printed()).toContain('Sin cambios.');
+  });
+
+  describe('moneda', () => {
+    it('`usd` elige la fila DOL, y con USD guardado elegir DOL es "Sin cambios."', async () => {
+      store.moneda = 'USD';
+
+      await changeField('moneda', [[/^Moneda/, '']]);
+
+      expect(listCall(/^Moneda/)?.[2].previous).toBe('DOL');
+      expect(printed()).toContain('Sin cambios.');
+    });
+
+    // Criterio 4: lo de hoy.
+    it('un código que no es de moneda da el error de `arcli config establecer` y uno válido escrito se guarda', async () => {
+      await changeField('moneda', [[/^Moneda/, rejecting('XAU', ['ZZZZ', INVALID_CURRENCY])]]);
+
+      expect(store.moneda).toBe('XAU');
+      expect(printed()).toContain('Guardado.');
+    });
+
+    // Criterio 4: lo de hoy.
+    it('con un valor guardado que no es de la lista, Enter lo deja: "Sin cambios."', async () => {
+      store.moneda = 'XAU';
+
+      await changeField('moneda', [[/^Moneda/, '']]);
+
+      expect(store.moneda).toBe('XAU');
+      expect(printed()).toContain('Sin cambios.');
+    });
+
+    // Criterio 4.
+    // La fila guarda el código de ARCA, como el default PES (decisión del 23/11): buscar "estadounidense" o "usd" la encuentra.
+    it('elegir el dólar de la lista de monedas guarda DOL', async () => {
+      await changeField('moneda', [[/^Moneda/, 'estadounidense']]);
+
+      expect(listedLabels(/^Moneda/).some((label) => /d[oó]lar/i.test(label))).toBe(true);
+      expect(store.moneda).toBe('DOL');
+      expect(printed()).toContain('Guardado.');
+    });
+
+    // Criterio 4.
+    it('en la lista también se escribe: un código inválido da el error de `parseConfigValue`', async () => {
+      await changeField('moneda', [[/^Moneda/, rejecting('XAU', ['ZZZZ', INVALID_CURRENCY])]]);
+
+      expect(listCall(/^Moneda/)).toBeDefined();
+      expect(store.moneda).toBe('XAU');
+    });
+
+    // Criterio 4.
+    it('un valor guardado que no es de la lista arranca escrito en la lista', async () => {
+      store.moneda = 'XAU';
+
+      await changeField('moneda', [[/^Moneda/, '']]);
+
+      const [, rows, options] = listCall(/^Moneda/) ?? [];
+
+      expect(rows?.length ?? 0).toBeGreaterThan(0);
+      expect(rows?.some((row) => row.value === 'XAU')).toBe(false);
+      expect(options?.previous).toBe('XAU');
+      expect(store.moneda).toBe('XAU');
+      expect(printed()).toContain('Sin cambios.');
+    });
+  });
+
+  describe('actividad de exportación', () => {
+    const ACTIVITY = /^Actividad de exportación/;
+
+    // Con la tabla, también el certificado de exportación de testing, que la consulta usa si está.
+    beforeEach(() => {
+      store['exportacion.cert.testing'] = '/certs/wsfex-testing.crt';
+      store['exportacion.key.testing'] = '/certs/wsfex-testing.key';
+    });
+
+    // Criterio 5.
+    it('con la tabla de WSFEX disponible, se elige de la lista por la descripción y guarda el código', async () => {
+      await changeField('exportacion.actividad', [[ACTIVITY, 'consultores']]);
+
+      expect(listedLabels(ACTIVITY)).toContain('620100 SERVICIOS DE CONSULTORES EN INFORMATICA');
+      expect(String(store['exportacion.actividad'])).toBe('620100');
+      expect(printed()).toContain('Guardado.');
+    });
+
+    // Criterio 5.
+    it('con la tabla, "Quitar el valor por defecto" borra la actividad guardada', async () => {
+      store['exportacion.actividad'] = '620100';
+
+      await changeField('exportacion.actividad', [[ACTIVITY, 'Quitar el valor por defecto']]);
+
+      expect(listedLabels(ACTIVITY)).toContain('Quitar el valor por defecto');
+      expect(store['exportacion.actividad']).toBeUndefined();
+      expect(printed()).toContain('Dato borrado.');
+    });
+
+    // Criterio 5.
+    it('con la tabla y sin actividad guardada, "Dejar sin configurar" no guarda nada', async () => {
+      await changeField('exportacion.actividad', [[ACTIVITY, 'Dejar sin configurar']]);
+
+      expect(listedLabels(ACTIVITY)).toContain('Dejar sin configurar');
+      expect(store['exportacion.actividad']).toBeUndefined();
+      expect(printed()).toContain('Sin cambios.');
+    });
+
+    // Un código guardado que no es una fila (6201, contenido en 620100) arranca escrito: Enter lo deja, como el componente.
+    it('con 6201 guardado y 620100 en la tabla, Enter da "Sin cambios."', async () => {
+      store['exportacion.actividad'] = '6201';
+
+      await changeField('exportacion.actividad', [[ACTIVITY, '']]);
+
+      expect(listCall(ACTIVITY)?.[2].previous).toBe('6201');
+      expect(printed()).toContain('Sin cambios.');
+    });
+
+    it('la tabla se consulta una vez por menú, y de nuevo si se guarda un certificado', async () => {
+      const keep = [ACTIVITY, 'Dejar sin configurar'] as const;
+      const activity = 'exportacion.actividad';
+
+      await changeField(
+        [activity, activity, 'exportacion.cert.testing', activity],
+        [keep, keep, [/^Certificado de exportación/, '/certs/otro.crt'], keep],
+      );
+
+      expect(exportActivities).toHaveBeenCalledTimes(2);
+    });
+
+    // Criterio 5: lo de hoy, que tiene que seguir sin certificado. El error es el de `arcli config establecer`.
+    it('sin certificado se pregunta como texto: un valor que no es entero da el error y el código escrito se guarda', async () => {
+      for (const key of ['cert.testing', 'key.testing', 'exportacion.cert.testing', 'exportacion.key.testing']) {
+        delete store[key];
+      }
+
+      exportRuntime.mockImplementation(() => {
+        throw new ConfigurationError('Falta el certificado de testing.');
+      });
+
+      await changeField('exportacion.actividad', [
+        [ACTIVITY, rejecting('620100', ['abc', /^El valor "abc" no es un entero positivo válido\.$/])],
+      ]);
+
+      expect(exportActivities).not.toHaveBeenCalled();
+      expect(String(store['exportacion.actividad'])).toBe('620100');
+      expect(printed()).toContain('Guardado.');
+    });
+
+    // Criterio 5: lo de hoy, que tiene que seguir si ARCA falla. Como hoy, "-" borra la guardada y el menú sigue.
+    it('si la consulta de la tabla falla, se pregunta como texto y "-" borra la actividad guardada, sin cortar el menú', async () => {
+      store['exportacion.actividad'] = '620100';
+      exportActivities.mockImplementation(async () => {
+        throw new Error('ECONNRESET');
+      });
+
+      await changeField('exportacion.actividad', [[ACTIVITY, '-']]);
+
+      expect(store['exportacion.actividad']).toBeUndefined();
+      expect(printed()).toContain('Dato borrado.');
+      expect(vi.mocked(chooseOne)).toHaveBeenCalledTimes(2);
+    });
   });
 });
