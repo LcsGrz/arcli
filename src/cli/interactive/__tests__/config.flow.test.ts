@@ -904,18 +904,17 @@ describe('configuración: la moneda y la actividad de exportación de una lista 
     });
 
     // Criterio 4.
-    // Tests primero (TUI-39): pasa a it() al implementarlo.
-    it.fails('elegir el dólar de la lista de monedas guarda USD', async () => {
+    // La fila guarda el código de ARCA, como el default PES (decisión del 23/11): buscar "estadounidense" o "usd" la encuentra.
+    it('elegir el dólar de la lista de monedas guarda DOL', async () => {
       await changeField('moneda', [[/^Moneda/, 'estadounidense']]);
 
       expect(listedLabels(/^Moneda/).some((label) => /d[oó]lar/i.test(label))).toBe(true);
-      expect(store.moneda).toBe('USD');
+      expect(store.moneda).toBe('DOL');
       expect(printed()).toContain('Guardado.');
     });
 
     // Criterio 4.
-    // Tests primero (TUI-39): pasa a it() al implementarlo.
-    it.fails('en la lista también se escribe: un código inválido da el error de `parseConfigValue`', async () => {
+    it('en la lista también se escribe: un código inválido da el error de `parseConfigValue`', async () => {
       await changeField('moneda', [[/^Moneda/, rejecting('XAU', ['ZZZZ', INVALID_CURRENCY])]]);
 
       expect(listCall(/^Moneda/)).toBeDefined();
@@ -923,8 +922,7 @@ describe('configuración: la moneda y la actividad de exportación de una lista 
     });
 
     // Criterio 4.
-    // Tests primero (TUI-39): pasa a it() al implementarlo.
-    it.fails('un valor guardado que no es de la lista arranca escrito en la lista', async () => {
+    it('un valor guardado que no es de la lista arranca escrito en la lista', async () => {
       store.moneda = 'XAU';
 
       await changeField('moneda', [[/^Moneda/, '']]);
@@ -952,21 +950,16 @@ describe('configuración: la moneda y la actividad de exportación de una lista 
     });
 
     // Criterio 5.
-    // Tests primero (TUI-39): pasa a it() al implementarlo.
-    it.fails(
-      'con la tabla de WSFEX disponible, se elige de la lista por la descripción y guarda el código',
-      async () => {
-        await changeField('exportacion.actividad', [[ACTIVITY, 'consultores']]);
+    it('con la tabla de WSFEX disponible, se elige de la lista por la descripción y guarda el código', async () => {
+      await changeField('exportacion.actividad', [[ACTIVITY, 'consultores']]);
 
-        expect(listedLabels(ACTIVITY)).toContain('620100 SERVICIOS DE CONSULTORES EN INFORMATICA');
-        expect(String(store['exportacion.actividad'])).toBe('620100');
-        expect(printed()).toContain('Guardado.');
-      },
-    );
+      expect(listedLabels(ACTIVITY)).toContain('620100 SERVICIOS DE CONSULTORES EN INFORMATICA');
+      expect(String(store['exportacion.actividad'])).toBe('620100');
+      expect(printed()).toContain('Guardado.');
+    });
 
     // Criterio 5.
-    // Tests primero (TUI-39): pasa a it() al implementarlo.
-    it.fails('con la tabla, "Quitar el valor por defecto" borra la actividad guardada', async () => {
+    it('con la tabla, "Quitar el valor por defecto" borra la actividad guardada', async () => {
       store['exportacion.actividad'] = '620100';
 
       await changeField('exportacion.actividad', [[ACTIVITY, 'Quitar el valor por defecto']]);
@@ -977,8 +970,7 @@ describe('configuración: la moneda y la actividad de exportación de una lista 
     });
 
     // Criterio 5.
-    // Tests primero (TUI-39): pasa a it() al implementarlo.
-    it.fails('con la tabla y sin actividad guardada, "Dejar sin configurar" no guarda nada', async () => {
+    it('con la tabla y sin actividad guardada, "Dejar sin configurar" no guarda nada', async () => {
       await changeField('exportacion.actividad', [[ACTIVITY, 'Dejar sin configurar']]);
 
       expect(listedLabels(ACTIVITY)).toContain('Dejar sin configurar');

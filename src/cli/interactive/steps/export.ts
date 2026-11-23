@@ -21,10 +21,11 @@ import {
 } from '../../../modules/interactive/steps/currency';
 import type { Lens } from '../../../modules/interactive/steps/lens';
 import { BACK, type WizardDependency, type WizardStep } from '../../../modules/interactive/wizard';
-import { noticePanel, writeTerminalOutput } from '../../../ui';
+import { formatTableRows, noticePanel, writeTerminalOutput } from '../../../ui';
 import { withSpinner } from '../../spinner';
 import { validateExportPaymentDate } from '../export-options';
-import { askTextStep } from '../prompts';
+import type { FilterListRow } from '../filter-list';
+import { chooseOrTypeStep } from '../prompts';
 import { validateExchangeRate, validatePositiveInteger } from '../validators';
 
 import { exchangeRateStep } from './currency';
@@ -90,8 +91,38 @@ export interface ActivityStepDef<S> {
 }
 
 /**
- * La actividad de WSFEX, si no esta en la config (ni en la factura que se repite). Es opcional: ARCA no exige
- * `Actividades` (la 2100 solo prohibe el bloque vacio). La comparten "Emitir factura E" y "Repetir" E (REV-74, #11).
+ * Las actividades de WSFEX como filas de una lista donde tambien se escribe, con CODIGO y DESCRIPCION (TUI-25). El
+ * codigo es palabra clave (escrito entero gana a otro que lo contiene, como 620100 y 6201000) y la descripcion es lo
+ * que queda al elegirla (escrita entera, tambien gana). La usan la E y "Modificar configuracion".
+ */
+export function activityRows(activities: readonly ExportActivity[]): {
+  readonly header: string;
+  readonly rows: ReadonlyArray<FilterListRow<number>>;
+} {
+  const { header, rows } = formatTableRows(
+    ['CÓDIGO', 'DESCRIPCIÓN'],
+    activities.map((activity) => [String(activity.id), activity.name]),
+  );
+
+  return {
+    header,
+    rows: activities.map((activity, index) => ({
+      keywords: String(activity.id),
+      label: rows[index] ?? String(activity.id),
+      short: activity.name,
+      value: activity.id,
+    })),
+  };
+}
+
+/** La ayuda de la lista de actividades. */
+export const ACTIVITY_HELP = 'Escribí el código o parte de la descripción, por ejemplo "6201" o "consultores".';
+
+/**
+ * La actividad de WSFEX, si no esta en la config (ni en la factura que se repite), de una lista donde tambien se escribe
+ * (TUI-25). Es opcional: ARCA no exige `Actividades` (la 2100 solo prohibe el bloque vacio), y la primera fila la deja
+ * sin informar. Sin la tabla de ARCA es una pregunta de texto. La comparten "Emitir factura E" y "Repetir" E (REV-74,
+ * #11).
  */
 export function activityStep<S>(def: ActivityStepDef<S>): WizardStep<S> {
   return {
@@ -99,13 +130,22 @@ export function activityStep<S>(def: ActivityStepDef<S>): WizardStep<S> {
     run: async (state, { previous }) => {
       const typed = previous ? def.activity.get(previous as S) : undefined;
       const activities = await def.activities();
-      const answer = await askTextStep('Código de actividad de WSFEX, por ejemplo 620100:', {
-        hint: '(Enter para no informarla)',
-        previousAnswer: typed === undefined ? undefined : String(typed),
-        validate: validateActivity(activities),
-      });
+      const { header, rows } = activityRows(activities);
+      const answer = await chooseOrTypeStep<number>(
+        rows.length > 0 ? 'Actividad de WSFEX:' : 'Actividad de WSFEX (ARCA no devolvió la tabla), por ejemplo 620100:',
+        rows,
+        {
+          emptyLabel: 'Sin actividad (no se informa)',
+          header,
+          help: ACTIVITY_HELP,
+          optional: true,
+          parse: (text) => parseStrictInteger(text) as number,
+          previous: typed,
+          validate: validateActivity(activities),
+        },
+      );
 
-      return answer === BACK ? BACK : def.activity.set(answer.trim() ? parseStrictInteger(answer) : undefined, state);
+      return answer === BACK ? BACK : def.activity.set(answer, state);
     },
     skip: def.skip,
   };

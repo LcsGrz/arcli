@@ -44,6 +44,19 @@ const ARGENTINA_COUNTRY_CODE = 200;
 /** Forma de pago por defecto: WSFEX la exige y casi todas las exportaciones se cobran por transferencia internacional. */
 export const DEFAULT_EXPORT_PAYMENT_TERMS = 'Transferencia Internacional';
 
+/**
+ * Las formas de cobro mas comunes de una exportacion, para sugerir en el asistente (TUI-26). ARCA toma `Forma_pago`
+ * como texto libre: son sugerencias, cualquier otro texto de hasta 50 caracteres vale igual. La de por defecto va
+ * primera.
+ */
+export const EXPORT_PAYMENT_TERMS_SUGGESTIONS: readonly string[] = [
+  DEFAULT_EXPORT_PAYMENT_TERMS,
+  'Pago anticipado',
+  'Carta de crédito',
+  'Cobranza documentaria',
+  'Cuenta corriente',
+];
+
 /** Exportacion de servicios: la cotizacion es la del dia habil anterior (error 2053). */
 export const SERVICES_EXPORT_TYPE: ExportType = 2;
 

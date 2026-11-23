@@ -145,7 +145,7 @@ describe('runExportFlow', () => {
       [/Te pagan en dólares/, 'Sí'],
       ...singleExportItem('1.500', 'Consultoría de software'),
       [/Forma de pago/, 'Transferencia Internacional'],
-      [/actividad/, '620100'],
+      [/Actividad de WSFEX/, '620100'],
       [/Fecha de pago/, ''],
       [/Agregamos algún opcional/, []],
       [/Emitimos la factura de exportación E en testing/, 'Sí, emitir ahora'],
@@ -185,7 +185,7 @@ describe('runExportFlow', () => {
       [/moneda/, 'Pesos'],
       ...singleExportItem('100'),
       [/Forma de pago/, 'Transferencia Internacional'],
-      [/actividad de WSFEX/, ''],
+      [/Actividad de WSFEX/, ''],
       [/Fecha de pago/, ''],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'Sí, emitir ahora'],
@@ -680,9 +680,9 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       [/Incoterm/, 'FOB'],
       [/Permisos de embarque/, '26001EC01000123A'],
       [/Forma de pago/, 'Carta de crédito'],
-      [/actividad/, '620100'],
+      [/Actividad de WSFEX/, '620100'],
       [/Agregamos algún opcional/, BACK],
-      [/actividad/, BACK],
+      [/Actividad de WSFEX/, BACK],
       [/Forma de pago/, BACK],
       [/Permisos de embarque/, BACK],
       [/Incoterm/, BACK],
@@ -721,16 +721,17 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
         .map(([message, , options]) => [message.split('.')[0], options.previous]),
     );
 
+    // La actividad y la forma de pago son listas donde tambien se escribe (TUI-25, TUI-26): lo respondido arranca marcado.
     expect(chosen).toEqual({
       'ARCA no tiene un CUIT publicado para ATLANTIDA': 55000002126,
+      'Actividad de WSFEX:': 620100,
+      'Forma de pago:': 'Carta de crédito',
       'País de destino:': 'ATLANTIDA',
     });
     expect(typed).toEqual({
-      'Código de actividad de WSFEX, por ejemplo 620100:': '620100',
       // Escrita a mano, arranca con la escrita y no con la de ARCA (NAV-9).
       'Cotización de USD': '1180',
       'Domicilio del cliente:': '123 Main St',
-      'Forma de pago:': 'Carta de crédito',
       'ID impositivo del cliente en su país:': '12-3456789',
       'Nombre o razón social del cliente del exterior:': 'ACME LLC',
       'Permisos de embarque ya existentes, separados por coma': '26001EC01000123A',
@@ -786,7 +787,10 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       [/moneda/, 'Pesos'],
       ...singleExportItem('100'),
       [/Forma de pago/, ''],
-      [/actividad/, rejecting('620100', ['999999', /no está en la tabla de actividades.*2105/], ['abc', /actividad/i])],
+      [
+        /Actividad de WSFEX/,
+        rejecting('620100', ['999999', /no está en la tabla de actividades.*2105/], ['abc', /actividad/i]),
+      ],
       [/Fecha de pago/, ''],
       [/Agregamos algún opcional/, []],
       // Sin emitir no se ofrece guardar la actividad (REV-62).
@@ -806,7 +810,7 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       [/moneda/, 'Pesos'],
       ...singleExportItem('100'),
       [/Forma de pago/, ''],
-      [/actividad/, '999999'],
+      [/Actividad de WSFEX/, '999999'],
       [/Fecha de pago/, ''],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'No, dejar sin emitir'],
@@ -832,7 +836,7 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       [/Incoterm \(ARCA no devolvió la lista\)/, rejecting('fob', ['', /obligatorio/])],
       [/Permisos de embarque/, ''],
       [/Forma de pago/, ''],
-      [/actividad/, ''],
+      [/Actividad de WSFEX/, ''],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'No, dejar sin emitir'],
     ]);
@@ -884,7 +888,7 @@ describe('runExportFlow: volver en cada paso, ARCA que falla y el PDF despues de
       [/Te pagan en dólares/, 'Sí'],
       ...singleExportItem('1.500'),
       [/Forma de pago/, ''],
-      [/actividad/, '620100'],
+      [/Actividad de WSFEX/, '620100'],
       [/Fecha de pago/, ''],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'Sí, emitir ahora'],
@@ -1243,7 +1247,7 @@ describe('runExportFlow: el país y el CUIT del país de una lista donde tambié
       [/Incoterm \(ARCA no devolvió la lista\)/, rejecting('fob', ['', /obligatorio/])],
       [/Permisos de embarque/, ''],
       [/Forma de pago/, ''],
-      [/actividad/, ''],
+      [/Actividad de WSFEX/, ''],
       [/Agregamos algún opcional/, []],
       [/Emitimos/, 'No, dejar sin emitir'],
     ]);

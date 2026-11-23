@@ -291,7 +291,7 @@ const ANSWERS: TextAnswers = [
   [/^(Importe|Precio unitario)( en [A-Z]{3})?:/, fc.constantFrom('1', '100', '1.500,50', '60,50', '2,123456')],
   [/^Descripción del incoterm/, fc.constantFrom('', 'FOB Buenos Aires')],
   [/^Forma de pago/, fc.constant('')],
-  [/actividad de WSFEX/, fc.constantFrom('', '620100')],
+  [/Actividad de WSFEX/, fc.constantFrom('', '620100')],
   [/^Permisos de embarque/, fc.constant('')],
   [/^Observaciones/, fc.constantFrom('', 'Texto de prueba')],
 ];

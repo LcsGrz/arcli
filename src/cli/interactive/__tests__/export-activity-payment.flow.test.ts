@@ -244,81 +244,64 @@ describe('runExportFlow: la actividad y la forma de pago de una lista donde tamb
   });
 
   // Criterio 1.
-  // Tests primero (TUI-25): pasa a it() al implementarlo.
-  it.fails(
-    'escribir "6201" deja la actividad de la tabla en la lista y Enter la elige: lo mismo que el código entero',
-    async () => {
-      const { command, sent } = await emitted([
-        [/Forma de pago/, ''],
-        [/actividad/i, '6201'],
-      ]);
+  it('escribir "6201" deja la actividad de la tabla en la lista y Enter la elige: lo mismo que el código entero', async () => {
+    const { command, sent } = await emitted([
+      [/Forma de pago/, ''],
+      [/actividad/i, '6201'],
+    ]);
 
-      expect(sent).toMatchObject({ Actividades: { Actividad: [{ Id: 620100 }] } });
-      expect(command).toBe(COMMAND_WITH_ACTIVITY);
-    },
-  );
+    expect(sent).toMatchObject({ Actividades: { Actividad: [{ Id: 620100 }] } });
+    expect(command).toBe(COMMAND_WITH_ACTIVITY);
+  });
 
   // Criterio 1.
-  // Tests primero (TUI-25): pasa a it() al implementarlo.
-  it.fails(
-    'escribir parte de la descripción ("consultores") elige la actividad: lo mismo que el código entero',
-    async () => {
-      const { command, sent } = await emitted([
-        [/Forma de pago/, ''],
-        [/actividad/i, 'consultores'],
-      ]);
+  it('escribir parte de la descripción ("consultores") elige la actividad: lo mismo que el código entero', async () => {
+    const { command, sent } = await emitted([
+      [/Forma de pago/, ''],
+      [/actividad/i, 'consultores'],
+    ]);
 
-      expect(sent).toMatchObject({ Actividades: { Actividad: [{ Id: 620100 }] } });
-      expect(command).toBe(COMMAND_WITH_ACTIVITY);
-    },
-  );
+    expect(sent).toMatchObject({ Actividades: { Actividad: [{ Id: 620100 }] } });
+    expect(command).toBe(COMMAND_WITH_ACTIVITY);
+  });
 
   // Criterio 1: las filas salen de la tabla de WSFEX, con el código y la descripción.
-  // Tests primero (TUI-25): pasa a it() al implementarlo.
-  it.fails(
-    'la lista de la actividad muestra el código y la descripción de la tabla, con encabezado CÓDIGO y DESCRIPCIÓN',
-    async () => {
-      await emitted([
-        [/Forma de pago/, ''],
-        [/actividad/i, '620100'],
-      ]);
+  it('la lista de la actividad muestra el código y la descripción de la tabla, con encabezado CÓDIGO y DESCRIPCIÓN', async () => {
+    await emitted([
+      [/Forma de pago/, ''],
+      [/actividad/i, '620100'],
+    ]);
 
-      const [, rows, options] = listCall(/actividad/i) ?? [];
+    const [, rows, options] = listCall(/actividad/i) ?? [];
 
-      expect(rows?.map((row) => stripAnsi(row.label).replace(/\s+/g, ' ').trim())).toEqual([
-        '620100 SERVICIOS DE CONSULTORES EN INFORMATICA',
-        '471100 VENTA AL POR MENOR EN HIPERMERCADOS',
-      ]);
-      expect(options?.header).toMatch(/CÓDIGO\s+DESCRIPCIÓN/);
-    },
-  );
+    expect(rows?.map((row) => stripAnsi(row.label).replace(/\s+/g, ' ').trim())).toEqual([
+      '620100 SERVICIOS DE CONSULTORES EN INFORMATICA',
+      '471100 VENTA AL POR MENOR EN HIPERMERCADOS',
+    ]);
+    expect(options?.header).toMatch(/CÓDIGO\s+DESCRIPCIÓN/);
+  });
 
   // Criterio 1: opcional, con la fila de "sin actividad" marcada con el filtro vacío; Enter ahí la deja sin informar.
-  // Tests primero (TUI-25): pasa a it() al implementarlo.
-  it.fails(
-    'con el filtro vacío, la fila "Sin actividad" deja la E sin el bloque Actividades y el comando sin `--actividad`',
-    async () => {
-      const { command, sent } = await emitted(
-        [
-          [/Forma de pago/, ''],
-          [/actividad/i, ''],
-        ],
-        false,
-      );
-      const [, , options] = listCall(/actividad/i) ?? [];
+  it('con el filtro vacío, la fila "Sin actividad" deja la E sin el bloque Actividades y el comando sin `--actividad`', async () => {
+    const { command, sent } = await emitted(
+      [
+        [/Forma de pago/, ''],
+        [/actividad/i, ''],
+      ],
+      false,
+    );
+    const [, , options] = listCall(/actividad/i) ?? [];
 
-      expect(options?.optional).toBe(true);
-      expect(options?.emptyLabel).toMatch(/sin actividad/i);
-      expect(sent).not.toHaveProperty('Actividades');
-      expect(command).not.toContain('--actividad');
-      expect(savedConfig).not.toHaveBeenCalled();
-    },
-  );
+    expect(options?.optional).toBe(true);
+    expect(options?.emptyLabel).toMatch(/sin actividad/i);
+    expect(sent).not.toHaveProperty('Actividades');
+    expect(command).not.toContain('--actividad');
+    expect(savedConfig).not.toHaveBeenCalled();
+  });
 
   // Criterio 2: sin tabla, el mismo componente con la lista vacía es una pregunta de texto, como hoy (lo de hoy lo fija
   // "una actividad que no esta en la tabla de WSFEX se rechaza; sin tabla, cualquiera vale y avisa").
-  // Tests primero (TUI-25): pasa a it() al implementarlo.
-  it.fails('con la tabla vacía se pregunta como texto: el código escrito va sin validar, con aviso', async () => {
+  it('con la tabla vacía se pregunta como texto: el código escrito va sin validar, con aviso', async () => {
     vi.mocked(gateway.getActivities).mockResolvedValue([]);
 
     const { command } = await emitted([
@@ -369,8 +352,7 @@ describe('runExportFlow: la actividad y la forma de pago de una lista donde tamb
   });
 
   // Criterio 3.
-  // Tests primero (TUI-26): pasa a it() al implementarlo.
-  it.fails('la forma de pago es una lista de sugerencias que arranca en "Transferencia Internacional"', async () => {
+  it('la forma de pago es una lista de sugerencias que arranca en "Transferencia Internacional"', async () => {
     const { command, sent } = await emitted([
       [/Forma de pago/, ''],
       [/actividad/i, '620100'],
@@ -386,8 +368,7 @@ describe('runExportFlow: la actividad y la forma de pago de una lista donde tamb
   });
 
   // Criterio 3.
-  // Tests primero (TUI-26): pasa a it() al implementarlo.
-  it.fails('elegir otra sugerencia de la lista manda ese texto a ARCA y al comando con `--forma-pago`', async () => {
+  it('elegir otra sugerencia de la lista manda ese texto a ARCA y al comando con `--forma-pago`', async () => {
     await emitted([
       [/Forma de pago/, ''],
       [/actividad/i, '620100'],
@@ -408,19 +389,15 @@ describe('runExportFlow: la actividad y la forma de pago de una lista donde tamb
   });
 
   // Criterio 3: en la lista también se escribe, con la misma regla que `--forma-pago` (50 caracteres).
-  // Tests primero (TUI-26): pasa a it() al implementarlo.
-  it.fails(
-    'en la lista de la forma de pago se escribe: más de 50 caracteres da el error y un texto propio vale',
-    async () => {
-      const { sent } = await emitted([
-        [/Forma de pago/, rejecting('Según contrato 42', ['a'.repeat(51), /50 caracteres/])],
-        [/actividad/i, '620100'],
-      ]);
+  it('en la lista de la forma de pago se escribe: más de 50 caracteres da el error y un texto propio vale', async () => {
+    const { sent } = await emitted([
+      [/Forma de pago/, rejecting('Según contrato 42', ['a'.repeat(51), /50 caracteres/])],
+      [/actividad/i, '620100'],
+    ]);
 
-      expect(listCall(/Forma de pago/)).toBeDefined();
-      expect(sent).toMatchObject({ Forma_pago: 'Según contrato 42' });
-    },
-  );
+    expect(listCall(/Forma de pago/)).toBeDefined();
+    expect(sent).toMatchObject({ Forma_pago: 'Según contrato 42' });
+  });
 });
 
 /**
@@ -474,17 +451,13 @@ describe('runExportRepeatFlow: la actividad de una lista donde también se escri
   });
 
   // Criterio 1.
-  // Tests primero (TUI-25): pasa a it() al implementarlo.
-  it.fails(
-    'elegir la actividad por parte de la descripción da lo mismo que escribir el código, y la fila "Sin actividad" está',
-    async () => {
-      const byCode = await repeatedWith('620100');
-      const byDescription = await repeatedWith('consultores');
-      const options = script.chooseOrTypeStep.mock.calls.find(([message]) => /actividad/i.test(message))?.[2];
+  it('elegir la actividad por parte de la descripción da lo mismo que escribir el código, y la fila "Sin actividad" está', async () => {
+    const byCode = await repeatedWith('620100');
+    const byDescription = await repeatedWith('consultores');
+    const options = script.chooseOrTypeStep.mock.calls.find(([message]) => /actividad/i.test(message))?.[2];
 
-      expect(byDescription).toEqual(byCode);
-      expect(options?.optional).toBe(true);
-      expect(options?.emptyLabel).toMatch(/sin actividad/i);
-    },
-  );
+    expect(byDescription).toEqual(byCode);
+    expect(options?.optional).toBe(true);
+    expect(options?.emptyLabel).toMatch(/sin actividad/i);
+  });
 });

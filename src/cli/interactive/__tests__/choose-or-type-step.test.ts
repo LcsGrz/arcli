@@ -385,21 +385,15 @@ describe('la actividad de WSFEX con la tabla de verdad: códigos y descripciones
   });
 
   // Esc al final: si Enter no cierra la pregunta, vuelve y el test falla en lo que mira.
-  // Tests primero (TUI-25): pasa a it() al implementarlo.
-  it.fails('la descripción entera de 620100 elige 620100, aunque la de 6201000 la contiene y va antes', async () => {
+  it('la descripción entera de 620100 elige 620100, aunque la de 6201000 la contiene y va antes', async () => {
     const { answer } = await askActivity([...typed('SERVICIOS DE CONSULTORES EN INFORMATICA'), BACK]);
 
     expect(answer).toEqual({ activity: 620100 });
   });
+  it('con el filtro vacío, la fila "Sin actividad" arranca marcada y Enter deja la actividad sin informar', async () => {
+    const { answer, frames } = await askActivity([ENTER]);
 
-  // Tests primero (TUI-25): pasa a it() al implementarlo.
-  it.fails(
-    'con el filtro vacío, la fila "Sin actividad" arranca marcada y Enter deja la actividad sin informar',
-    async () => {
-      const { answer, frames } = await askActivity([ENTER]);
-
-      expect(frames[0]).toMatch(/❯ Sin actividad/i);
-      expect(answer).toEqual({ activity: undefined });
-    },
-  );
+    expect(frames[0]).toMatch(/❯ Sin actividad/i);
+    expect(answer).toEqual({ activity: undefined });
+  });
 });

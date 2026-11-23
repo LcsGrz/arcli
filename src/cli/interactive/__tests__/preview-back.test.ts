@@ -261,7 +261,7 @@ describe('TUI-15: Esc en la vista previa vuelve a la última pregunta', () => {
         [/Descripción del ítem 2/, ''],
         [/Importe total/, 'Confirmar'],
         [/Forma de pago/, ''],
-        [/actividad/, '620100'],
+        [/Actividad de WSFEX/, '620100'],
         [/Fecha de pago/, '30/11/2026'],
         [/Agregamos/, ['Observaciones']],
         [/Observaciones \(Enter/, 'Primera cuota'],
