@@ -1,11 +1,10 @@
-import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { parseCuit } from '../../lib/identity/cuit';
 import { parseDni } from '../../lib/identity/dni';
 import { assertRules } from '../../lib/rules/rules';
 
 import { formatDocumentFlag, formatVoucherSubject, formatVoucherWithArticle } from './billing.mappers';
-import { RECEIVER_NOT_EMITTER_RULE } from './billing.rules';
+import { type BillingRuleContext, RECEIVER_NOT_EMITTER_RULE } from './billing.rules';
 import type { BillingCommandInput } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
 import { getVoucherKindByFamilyAndLetter, isFceInvoice } from './voucher-kind-map';
@@ -141,7 +140,7 @@ export function validateUncategorizedReceiver(
 export function validateDocumentIdentity(
   input: BillingCommandInput,
   voucherKind: VoucherKindDefinition,
-  emitterCuit?: number,
+  { emitterCuit, today }: Pick<BillingRuleContext, 'emitterCuit' | 'today'>,
 ): void {
   validateDocumentTypeForVoucher(input, voucherKind);
 
@@ -179,11 +178,7 @@ export function validateDocumentIdentity(
     }
 
     // ARCA 10069: la regla es la misma que usa el asistente al preguntar el CUIT.
-    assertRules([RECEIVER_NOT_EMITTER_RULE], input, {
-      emitterCuit,
-      today: formatDateAsArcaDate(new Date()),
-      voucherKind,
-    });
+    assertRules([RECEIVER_NOT_EMITTER_RULE], input, { emitterCuit, today, voucherKind });
   }
 
   // Propia (ver `parseDni`): de 6 a 8 dígitos.

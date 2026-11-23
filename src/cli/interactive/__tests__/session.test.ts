@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { billingCommandSchema } from '../../../modules/billing/billing.schemas';
 import { BillingService } from '../../../modules/billing/billing.service';
 import { BACK } from '../../../modules/interactive/wizard';
-import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
+import { systemClock } from '../../../services/time/system-clock';
+import type { CliArcaRuntime } from '../../arca-runtime';
 import { offerPdf } from '../pdf.flow';
 import { askTextStep, chooseOne, confirm } from '../prompts';
 import { type InteractiveSession, previewAndEmit, requirePointOfSale } from '../session';
@@ -36,11 +37,12 @@ function createSession(
   const runtime = {
     config: { cert: {}, entornoPorDefecto: environment, key: {}, output: {}, pdf },
     context: { cuit: 20333333334 },
+    cuit: 20333333334,
     environment,
     outputJson: false,
     outputRaw: false,
     pointOfSale: pointOfSale ?? undefined,
-  } as unknown as ResolvedArcaRuntime;
+  } as unknown as CliArcaRuntime;
 
   return {
     arca: {} as never,
@@ -48,7 +50,7 @@ function createSession(
     createVoucher,
     historyGateway: { getLastNumber: vi.fn(), getVoucher: vi.fn() },
     runtime,
-    service: new BillingService(),
+    service: new BillingService({ clock: systemClock }),
   };
 }
 

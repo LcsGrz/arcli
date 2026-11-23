@@ -58,6 +58,7 @@ const runtime = {
   certificateNotices: [],
   config: {},
   context: { cuit: 20333333334 },
+  cuit: 20333333334,
   environment: 'testing',
   pointOfSale: 3,
 };

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BillingService } from '../../../modules/billing/billing.service';
+import { systemClock } from '../../../services/time/system-clock';
 import {
   exchangeRateSuggestionLoader,
   exportExchangeRateLoader,
@@ -10,7 +11,10 @@ import {
 vi.mock('../../spinner', () => ({ startSpinner: () => undefined }));
 
 const loader = (getQuotation: (currencyCode: string, arcaDate?: string) => Promise<number>) =>
-  officialExchangeRateLoader({ billingGateway: { getQuotation } as never, service: new BillingService() });
+  officialExchangeRateLoader({
+    billingGateway: { getQuotation } as never,
+    service: new BillingService({ clock: systemClock }),
+  });
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });

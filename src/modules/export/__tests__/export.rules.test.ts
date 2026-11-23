@@ -92,6 +92,27 @@ describe('reglas de la E (export.rules.ts)', () => {
     expect(
       EXPORT_PAYMENT_DATE_RULE.check({ exportType: 2, paymentDate: '14/11/2026', voucherDate: '15/11/2026' }, {}),
     ).toMatchObject({ question: expect.stringContaining('(15/11/2026)') });
+    // Sin año, se completa desde hoy; sin hoy no se puede comparar.
+    expect(
+      EXPORT_PAYMENT_DATE_RULE.check({ exportType: 2, paymentDate: '1/12', voucherDate: '5/1' }, { today: '20270104' }),
+    ).toMatchObject({ message: expect.stringContaining('(01/12/2026)') });
+    expect(
+      EXPORT_PAYMENT_DATE_RULE.check({ exportType: 2, paymentDate: '1/12', voucherDate: '5/1' }, {}),
+    ).toBeUndefined();
+    // Alcanza con que a una de las dos le falte el año.
+    expect(
+      EXPORT_PAYMENT_DATE_RULE.check({ exportType: 2, paymentDate: '1/12', voucherDate: '15/11/2026' }, {}),
+    ).toBeUndefined();
+    expect(
+      EXPORT_PAYMENT_DATE_RULE.check({ exportType: 2, paymentDate: '01/12/2026', voucherDate: '5/1' }, {}),
+    ).toBeUndefined();
+    // Ilegible da error aunque falte hoy.
+    expect(() =>
+      EXPORT_PAYMENT_DATE_RULE.check({ exportType: 2, paymentDate: 'x', voucherDate: '15/11/2026' }, {}),
+    ).toThrow('La fecha "x" no es válida');
+    expect(() =>
+      EXPORT_PAYMENT_DATE_RULE.check({ exportType: 2, paymentDate: '15/11/2026', voucherDate: '31/2/2026' }, {}),
+    ).toThrow('La fecha "31/2/2026" no es válida');
   });
 
   it('export-note-after-associated: la nota no es anterior al comprobante que ajusta', () => {
@@ -107,6 +128,23 @@ describe('reglas de la E (export.rules.ts)', () => {
     // Sin fecha, hoy; sin asociado, no corre.
     expect(EXPORT_NOTE_AFTER_ASSOCIATED_RULE.check(note, { associated, today: '20261109' })).toMatch(/09\/11\/2026/);
     expect(EXPORT_NOTE_AFTER_ASSOCIATED_RULE.check({ ...note, voucherDate: '01/01/2020' }, { today })).toBeUndefined();
+    // Sin año se completa desde hoy. Sin hoy: la completa se compara igual y la que le falta el año no corre.
+    const check = (voucherDate: string, context: { readonly today?: string }) =>
+      EXPORT_NOTE_AFTER_ASSOCIATED_RULE.check({ ...note, voucherDate }, { associated, ...context });
+
+    expect(check('9/11', { today })).toMatch(/09\/11\/2026/);
+    expect(check('09/11/2026', {})).toMatch(/09\/11\/2026/);
+    expect(['9', '31', '9/11', '29/2'].map((date) => check(date, {}))).toEqual([
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ]);
+    // Ilegible da error, con hoy o sin hoy.
+    for (const date of ['x', '32', '31/2', '30/2/2026']) {
+      expect(() => check(date, {})).toThrow(`La fecha "${date}" no es válida`);
+      expect(() => check(date, { today })).toThrow(`La fecha "${date}" no es válida`);
+    }
   });
 
   it('export-items-total (1610): los items suman el monto, y en el asistente nombra el monto total', () => {

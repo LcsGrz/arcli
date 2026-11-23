@@ -18,6 +18,9 @@ import {
   VOUCHER_SHORTCUTS,
 } from '../voucher-kind-map';
 
+/** Hoy (yyyymmdd): las reglas de los importes no lo usan. */
+const TODAY = '20261118';
+
 /**
  * Caracterización de ARQ8-1: qué es cada familia de comprobante. Hoy la respuesta está repartida en copias
  * (`NOTE_FAMILIES`, `CREDIT_NOTE_FAMILIES`, `family === 'factura-credito-electronica'`, `letter !== 'c'`); acá se fija
@@ -131,7 +134,7 @@ describe('familias de comprobante (caracterización de ARQ8-1)', () => {
 
         expect(kinds.length).toBeGreaterThan(0);
         // Lo que recibe ARCA en ImpIVA por un total de 121 con la alícuota por defecto (21 %).
-        expect(kinds.map((kind) => resolveTaxAmounts({ totalAmount: 121 }, kind).ivaAmount)).toEqual(
+        expect(kinds.map((kind) => resolveTaxAmounts({ totalAmount: 121 }, kind, TODAY).ivaAmount)).toEqual(
           kinds.map(() => (expected ? 21 : 0)),
         );
       });

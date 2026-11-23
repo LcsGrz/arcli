@@ -49,7 +49,7 @@ describe('resolveExportVoucherDate', () => {
   });
 
   it('acepta la fecha del usuario', () => {
-    expect(resolveExportVoucherDate('1/6/2026')).toBe('20260601');
+    expect(resolveExportVoucherDate('1/6/2026', new Date('2026-06-01T15:00:00Z'))).toBe('20260601');
   });
 });
 

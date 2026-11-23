@@ -1,6 +1,5 @@
 import { ConfigurationError, InputValidationError } from '../../lib/errors/app-error';
 import { CERTIFICATE_GUIDE_URL } from '../../lib/links';
-import type { ArcaRuntimeValidation } from '../../services/arca/arca-context.resolver';
 import {
   attentionPanel,
   certificateBanner,
@@ -176,19 +175,6 @@ function createSampleUpdateCheckResult(): UpdateCheckResult {
   };
 }
 
-function createSampleValidation(): ArcaRuntimeValidation {
-  return {
-    certPath: '/Users/demo/.arcli/testing/certificado.crt',
-    cuit: 20333333334,
-    environment: 'testing',
-    keyPath: '/Users/demo/.arcli/testing/clave.key',
-    outputJson: false,
-    outputRaw: false,
-    pointOfSale: 3,
-    ticketPath: '/Users/demo/.arcli/tickets',
-  };
-}
-
 function sceneTitle(title: string, subtitle?: string): string {
   return renderPanel({
     borderColor: STORYBOOK_SHOWCASE_THEME.borderColor,
@@ -360,13 +346,16 @@ function buildBillingScene(): string {
   ].join('\n\n');
 }
 
+/** Una fecha fija, para que las escenas no cambien con los dias. */
+const SAMPLE_NOW = new Date('2026-03-26T12:00:00-03:00');
+
 function buildConfigScene(): string {
   const config = createSampleConfig();
-  const doctor = buildConfigDoctorReport(config, [{ environment: 'testing' }]);
+  const doctor = buildConfigDoctorReport(config, SAMPLE_NOW, [{ environment: 'testing' }]);
 
   return [
     sceneTitle('Configuración', 'Vista actual y revisión'),
-    formatConfigAsText(config, { pdfFolder: '~/arcli/comprobantes', ticketPath: createSampleValidation().ticketPath }),
+    formatConfigAsText(config, { pdfFolder: '~/arcli/comprobantes', ticketPath: '/Users/demo/.arcli/tickets' }),
     formatConfigDoctorAsText(doctor),
   ].join('\n\n');
 }
@@ -529,9 +518,6 @@ function buildQueriesScene(): string {
 }
 
 function buildCertificatesScene(): string {
-  // Una fecha fija, para que la escena no cambie con los dias.
-  const now = new Date('2026-03-26T12:00:00-03:00');
-
   return [
     sceneTitle('Certificados', 'Estado por entorno, pedido nuevo y certificado importado'),
     formatCertificateStatusAsText(
@@ -546,7 +532,7 @@ function buildCertificatesScene(): string {
         },
         { environment: 'produccion', pendingRequestPath: '/ruta/a/produccion.csr', unreadable: false },
       ],
-      now,
+      SAMPLE_NOW,
     ),
     formatGeneratedRequestAsText({
       alias: 'arcli',
@@ -587,11 +573,11 @@ function buildJsonScene(): string {
   const configJson = highlightJsonValues(
     formatConfig(createSampleConfig(), {
       pdfFolder: '~/arcli/comprobantes',
-      ticketPath: createSampleValidation().ticketPath,
+      ticketPath: '/Users/demo/.arcli/tickets',
     }),
   );
   const doctorJson = highlightJsonValues(
-    formatConfigDoctor(buildConfigDoctorReport(createSampleConfig(), [{ environment: 'testing' }])),
+    formatConfigDoctor(buildConfigDoctorReport(createSampleConfig(), SAMPLE_NOW, [{ environment: 'testing' }])),
   );
 
   return [

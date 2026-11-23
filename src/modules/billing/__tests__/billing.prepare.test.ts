@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { systemClock } from '../../../services/time/system-clock';
 import { prepareBillingInput, resolveFceWarningsInOrder } from '../billing.prepare';
 import type { BillingCommandInput } from '../billing.schemas';
 import { BillingService } from '../billing.service';
@@ -23,7 +24,7 @@ function input(overrides: Partial<BillingCommandInput> = {}): BillingCommandInpu
 const PADRON = { getTaxpayer: vi.fn(async () => null) };
 
 describe('prepareBillingInput', () => {
-  const service = new BillingService();
+  const service = new BillingService({ clock: systemClock });
 
   it('en pesos no consulta la cotizacion ni avisa nada', async () => {
     const getQuotation = vi.fn(async () => 1000);
@@ -186,7 +187,7 @@ describe('prepareBillingInput', () => {
 
 describe('resolveFceWarningsInOrder', () => {
   it('consulta un comprobante por vez, en orden', async () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
     const calls: string[] = [];
     const spy = vi.spyOn(service, 'resolveFceWarnings').mockImplementation(async (entry) => {
       calls.push(`inicio ${entry.totalAmount}`);

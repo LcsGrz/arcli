@@ -27,7 +27,8 @@ import type { buildEquivalentCommand } from '../../../modules/interactive/equiva
 import type { buildExportEquivalentCommand } from '../../../modules/interactive/export-equivalent-command';
 import { BACK } from '../../../modules/interactive/wizard';
 import type { PadronGateway } from '../../../modules/padron/padron';
-import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
+import { systemClock } from '../../../services/time/system-clock';
+import type { CliArcaRuntime } from '../../arca-runtime';
 import { parseBillingCommandPlan } from '../../commands/billing.command.parser';
 import { resolveBillingCommandDefaults } from '../../commands/billing.command.shared';
 import { parseExportCommandPlan } from '../../commands/export.command.parser';
@@ -480,7 +481,7 @@ async function assertEquivalentRoundtrip(run: Walk): Promise<void> {
         comparableInput(shown.billing.input, issuerCuit),
       );
 
-      const service = new BillingService();
+      const service = new BillingService({ clock: systemClock });
       const prepared = await prepareBillingInput(service, parsed, {
         billing: run.session.billingGateway,
         padron,
@@ -498,11 +499,10 @@ async function assertEquivalentRoundtrip(run: Walk): Promise<void> {
         comparableInput(shown.export.input, issuerCuit),
       );
 
-      const resolved = await new ExportService().resolve(
+      const resolved = await new ExportService({ clock: { now: () => NOW } }).resolve(
         plan.input,
         exportGateway,
-        runtime as ResolvedArcaRuntime,
-        NOW,
+        runtime as CliArcaRuntime,
       );
 
       expect(resolved.payload, `${line}${context(run)}`).toEqual(run.exportPayload);

@@ -14,8 +14,9 @@ import { buildInvoiceInput } from '../../../modules/interactive/invoice-input';
 import { buildNoteInput } from '../../../modules/interactive/note-input';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../../../modules/vouchers/voucher-history';
-import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
+import { systemClock } from '../../../services/time/system-clock';
 import { stripAnsi } from '../../../ui';
+import type { CliArcaRuntime } from '../../arca-runtime';
 import { runInvoiceFlow } from '../invoice.flow';
 import { noteInputEnv, noteSteps } from '../note.flow';
 import { type RepeatState, repeatSteps } from '../repeat.flow';
@@ -76,7 +77,7 @@ function createSession(vouchers: IssuedVoucher[] = [], officialRate = 1000) {
     getNextVoucherNumber: vi.fn(async () => 15),
     getQuotation: vi.fn(async () => officialRate),
   };
-  const service = new BillingService();
+  const service = new BillingService({ clock: systemClock });
   const session: InteractiveSession = {
     arca: {} as never,
     billingGateway,
@@ -91,11 +92,12 @@ function createSession(vouchers: IssuedVoucher[] = [], officialRate = 1000) {
         verificarFce: false,
       }),
       context: { cuit: 20333333334 },
+      cuit: 20333333334,
       environment: 'testing',
       outputJson: false,
       outputRaw: false,
       pointOfSale: 3,
-    } as unknown as ResolvedArcaRuntime,
+    } as unknown as CliArcaRuntime,
     service,
   };
 
@@ -526,7 +528,9 @@ describe('consumidor final con datos en el asistente (REV-66)', () => {
 
       expect(printed()).toContain(NOTICE);
       expect(input).toMatchObject({ documentNumber: 30123456, documentType: 'dni', ivaCondition: 'consumidor-final' });
-      expect(buildEquivalentCommand(input!, { environment: 'testing' })).toMatch(/--dni 30123456 --ir-cf/);
+      expect(buildEquivalentCommand(input!, { environment: 'testing', platform: 'linux' })).toMatch(
+        /--dni 30123456 --ir-cf/,
+      );
     });
 
     it('con el mismo monto, por debajo del tope, no lo pide y lo ofrece en los opcionales', async () => {

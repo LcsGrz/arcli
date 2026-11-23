@@ -22,13 +22,14 @@ import {
 import type { VoucherHistoryGateway } from '../../modules/vouchers/voucher-history';
 import { ArcaBillingGateway } from '../../services/arca/arca-billing.gateway';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
-import { ArcaContextResolver, type ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
 import { ArcaFceObligationGateway } from '../../services/arca/arca-fce-obligation.gateway';
 import { ArcaFceRegistryGateway } from '../../services/arca/arca-fce-registry.gateway';
 import { ArcaPadronGateway } from '../../services/arca/arca-padron.gateway';
 import type { Arca } from '../../services/arca/arca-sdk.types';
 import { ArcaVoucherHistoryGateway } from '../../services/arca/arca-voucher-history.gateway';
+import { systemClock } from '../../services/time/system-clock';
 import { colorize, noticePanel, renderPanel, uiSymbol, writeTerminalError, writeTerminalOutput } from '../../ui';
+import { type CliArcaRuntime, loadArcaRuntime } from '../arca-runtime';
 import { formatBillingOutputs } from '../commands/billing.command.output';
 import { formatCliError } from '../error-output';
 import { startSpinner } from '../spinner';
@@ -42,7 +43,7 @@ export interface InteractiveSession {
   readonly arca: Arca;
   readonly billingGateway: BillingGateway;
   readonly historyGateway: VoucherHistoryGateway;
-  readonly runtime: ResolvedArcaRuntime;
+  readonly runtime: CliArcaRuntime;
   readonly service: BillingService;
   /**
    * El punto de venta se escribio en el asistente porque la config no tiene uno: la entrada y el comando equivalente
@@ -65,7 +66,7 @@ const PREVIEW_GATEWAY: BillingGateway = {
 
 /** Resuelve config y credenciales; si falta algo, el error explica que configurar. */
 export function createInteractiveSession(options: GlobalCliOptions): InteractiveSession {
-  const runtime = new ArcaContextResolver({ options }).resolve();
+  const runtime = loadArcaRuntime(options);
   const arca = new ArcaClientFactory().create(runtime);
 
   return {
@@ -73,7 +74,7 @@ export function createInteractiveSession(options: GlobalCliOptions): Interactive
     billingGateway: new ArcaBillingGateway(arca),
     historyGateway: new ArcaVoucherHistoryGateway(arca),
     runtime,
-    service: new BillingService(),
+    service: new BillingService({ clock: systemClock }),
   };
 }
 
@@ -134,7 +135,7 @@ export type EmissionAnswer = EmissionChoice | false;
  */
 export async function confirmEmission(
   question: string,
-  environment: ResolvedArcaRuntime['environment'],
+  environment: CliArcaRuntime['environment'],
   plan: EmissionConfirmationPlan,
 ): Promise<Back | EmissionAnswer> {
   const answer = await askEmission(question, plan, 'volver');
@@ -286,6 +287,7 @@ export async function previewAndEmit(
         defaultCurrency: runtime.config.monedaPorDefecto,
         environment: runtime.environment,
         issuerCuit: runtime.context.cuit,
+        platform: process.platform,
       }),
     ),
   );

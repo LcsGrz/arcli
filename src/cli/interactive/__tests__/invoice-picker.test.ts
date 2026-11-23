@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getVoucherKindByShortcut } from '../../../modules/billing/voucher-kind-map';
 import { BACK } from '../../../modules/interactive/wizard';
 import type { IssuedVoucher } from '../../../modules/vouchers/voucher-history';
-import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import { stripAnsi } from '../../../ui';
+import type { CliArcaRuntime } from '../../arca-runtime';
 import { missingNonWebServiceInvoiceNotice, pickInvoice, pickNoteInvoice } from '../invoice-picker';
 import type { InteractiveSession } from '../session';
 
@@ -80,7 +80,7 @@ function createSession(vouchers: IssuedVoucher[], rows = 2): InteractiveSession 
       config: { filasPorLista: rows },
       environment: 'testing',
       pointOfSale: 3,
-    } as unknown as ResolvedArcaRuntime,
+    } as unknown as CliArcaRuntime,
     service: {} as never,
   };
 }

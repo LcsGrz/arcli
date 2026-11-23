@@ -86,7 +86,7 @@ export function repeatSteps(
   retry: AmountCurrencyRetry<RepeatState> = invoiceAmountRetry(),
 ): Array<WizardStep<RepeatState>> {
   const { config } = session.runtime;
-  const rules = (state: RepeatState) => invoiceRuleScope(state, billingRuleEnv(session.runtime));
+  const rules = (state: RepeatState) => invoiceRuleScope(state, billingRuleEnv(session.runtime, new Date()));
   const officialExchangeRate = officialExchangeRateLoader(session);
   const exchangeRateSuggestion = exchangeRateSuggestionLoader(config, officialExchangeRate);
   const copiedFrom = (state: RepeatState) =>
@@ -357,7 +357,7 @@ export async function runRepeatFlow(baseSession: InteractiveSession): Promise<vo
     undefined,
     {
       confirm: emission.confirm,
-      finalize: retry.finalize(invoiceFinalize<RepeatState>(() => billingRuleEnv(session.runtime))),
+      finalize: retry.finalize(invoiceFinalize<RepeatState>(() => billingRuleEnv(session.runtime, new Date()))),
     },
   );
 

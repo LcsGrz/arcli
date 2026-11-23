@@ -15,9 +15,9 @@ import {
 } from '../../modules/config/config.schemas';
 import { ConfigService, deprecatedConfigKeyWarning } from '../../modules/config/config.service';
 import { buildConfigDoctorReport, type ConfigDoctorRuntimeCheck } from '../../modules/config/config-doctor';
-import { ArcaContextResolver } from '../../services/arca/arca-context.resolver';
 import { PdfPlugin } from '../../services/pdf/pdf-plugin';
 import { writeTerminalJson, writeTerminalNotice, writeTerminalOutput } from '../../ui';
+import { checkProfileFromConfig } from '../arca-runtime';
 import { registerJsonOption, resolveOutputJson } from '../global-options';
 import { configureSpanishHelp, createConfigHelp, createConfigSetHelp } from '../help';
 import { startSpinner } from '../spinner';
@@ -56,7 +56,7 @@ export function buildRuntimeChecks(config: ArcliConfig): ConfigDoctorRuntimeChec
       environment === config.entornoPorDefecto || Boolean(config.cert[environment] || config.key[environment]),
   ).map((environment) => {
     try {
-      new ArcaContextResolver({ options: { [environment]: true } }).validate();
+      checkProfileFromConfig(config, environment);
 
       return { environment };
     } catch (error) {
@@ -108,7 +108,7 @@ export function registerConfigCommand(program: Command): void {
           configuredBrowser: config.pdfNavegador,
           path: join(service.getPluginsPath(), 'pdf'),
         }).getStatus();
-        const report = buildConfigDoctorReport(config, buildRuntimeChecks(config), pdfPlugin);
+        const report = buildConfigDoctorReport(config, new Date(), buildRuntimeChecks(config), pdfPlugin);
         spinner?.stop();
         printConfigResult(formatConfigDoctorAsText(report), formatConfigDoctor(report), useJson);
       } catch (error) {

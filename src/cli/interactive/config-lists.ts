@@ -9,8 +9,8 @@ import {
   isSameConfigChoice,
 } from '../../modules/interactive/config-lists';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
-import { ArcaContextResolver } from '../../services/arca/arca-context.resolver';
 import { formatTableRows, noticePanel, writeTerminalOutput } from '../../ui';
+import { loadArcaRuntime } from '../arca-runtime';
 import { withSpinner } from '../spinner';
 import type { GlobalCliOptions } from '../types';
 
@@ -71,13 +71,13 @@ function currencyRows(): Pick<ConfigFieldList, 'header' | 'rows'> {
 type ConfigListFlags = Pick<GlobalCliOptions, 'produccion' | 'testing'>;
 
 /**
- * La tabla de actividades de WSFEX con el mismo resolver que `arcli fe`: hacen falta el CUIT y el certificado y la
+ * La tabla de actividades de WSFEX con el mismo perfil que `arcli fe`: hacen falta el CUIT y el certificado y la
  * clave de facturacion del entorno, y el de exportacion se usa si esta configurado (`createExportGateway`). Si falta
  * algo o ARCA falla, `undefined`: la actividad se escribe, como antes, sin cortar el menu.
  */
 async function loadActivities(flags: ConfigListFlags): Promise<readonly ExportActivity[] | undefined> {
   try {
-    const runtime = new ArcaContextResolver({ options: flags }).resolve();
+    const runtime = loadArcaRuntime(flags);
 
     return await withSpinner('Consultando las actividades de WSFEX...', () =>
       new ArcaClientFactory().createExportGateway(runtime).getActivities(),

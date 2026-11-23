@@ -39,7 +39,7 @@ export function dateStep<S>(def: DateStepDef<S>): WizardStep<S> {
     name: def.name,
     run: async (state, { error, previous }) => {
       const answer = await askTextStep(typeof def.message === 'string' ? def.message : def.message(state), {
-        answered: (value) => (value ? completeDateInput(value) : value),
+        answered: (value) => (value ? completeDateInput(value, new Date()) : value),
         // Lo que se puede escribir ademas de la fecha (TUI-18): el mismo texto que los errores de fecha.
         inputHelp: RELATIVE_DAY_WORDS_TEXT,
         previousAnswer: previous ? def.date.get(previous as S) : undefined,
@@ -50,7 +50,7 @@ export function dateStep<S>(def: DateStepDef<S>): WizardStep<S> {
         return BACK;
       }
 
-      const date = def.optional && !answer.trim() ? undefined : completeDateInput(answer);
+      const date = def.optional && !answer.trim() ? undefined : completeDateInput(answer, new Date());
 
       return def.write ? def.write(date, state) : def.date.set(date, state);
     },
@@ -87,7 +87,7 @@ export function servicePeriodSteps<S>(def: ServicePeriodStepsDef<S>): Array<Wiza
           BILLING_RULES,
           field,
           def.rules(state),
-          (value) => ({ ...def.answered(state), [field]: completeDateInput(value) }),
+          (value) => ({ ...def.answered(state), [field]: completeDateInput(value, new Date()) }),
           (value: string) => validateDate(value, new Date()),
         ),
       writes: [field],

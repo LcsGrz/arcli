@@ -45,13 +45,12 @@ function checkPointOfSale(points: readonly SalesPoint[], number: number | undefi
 export async function buildStatusReport(options: {
   readonly environment: 'produccion' | 'testing';
   readonly gateway: ParametersGateway;
-  readonly now?: () => number;
+  readonly now: () => number;
   readonly pointOfSale?: number;
 }): Promise<StatusReport> {
-  const now = options.now ?? Date.now;
-  const start = now();
+  const start = options.now();
   const servers = await options.gateway.getServerStatus();
-  const latencyMs = now() - start;
+  const latencyMs = options.now() - start;
   const points = await options.gateway.getSalesPoints();
   const pointOfSale = checkPointOfSale(points, options.pointOfSale);
   const serversOk = [servers.app, servers.db, servers.auth].every((value) => value === SERVER_OK);

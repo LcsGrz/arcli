@@ -143,6 +143,7 @@ function noticesWithExpired(expired: CertificateExpiryNotice): CertificateExpiry
   try {
     const others = inspectConfiguredCertificates(service.getConfig().cert ?? {}, {
       activeEnvironment: expired.environment,
+      now: new Date(),
     }).filter((notice) => notice.environment !== expired.environment);
 
     return [expired, ...others];
@@ -179,7 +180,7 @@ async function buildHeader(options: GlobalCliOptions): Promise<string> {
   }
 
   const spinner = startSpinner('Consultando el estado de ARCA...');
-  const health = await checkArcaHealth({ gateway: new ArcaParametersGateway(session.arca) });
+  const health = await checkArcaHealth({ gateway: new ArcaParametersGateway(session.arca), now: Date.now });
 
   spinner?.stop();
 

@@ -46,7 +46,7 @@ export interface ConfigDoctorPdfPlugin {
   readonly version: string;
 }
 
-/** Lo que valida `ArcaContextResolver` para un entorno: CUIT, certificado y clave legibles. */
+/** Lo que valida `checkArcaProfile` para un entorno: CUIT, y que existan el certificado y la clave. */
 export interface ConfigDoctorRuntimeCheck {
   readonly environment: ArcliEnvironment;
   /** Sin error, el entorno esta listo. */
@@ -57,6 +57,7 @@ function buildCertificateExpiryCheck(
   label: string,
   name: string,
   certPath: string | undefined,
+  now: Date,
 ): ConfigDoctorReport['checks'][number] | null {
   if (!certPath) {
     return null;
@@ -64,7 +65,7 @@ function buildCertificateExpiryCheck(
 
   try {
     const pemContent = readPemFile(certPath, 'certificado');
-    const expiry = readCertificateExpiry(pemContent);
+    const expiry = readCertificateExpiry(pemContent, now);
     const formattedDate = formatCertificateExpiryDate(expiry.expiresAt);
 
     if (expiry.isExpired) {
@@ -135,6 +136,7 @@ function buildPdfPluginCheck(plugin: ConfigDoctorPdfPlugin): ConfigDoctorReport[
 
 export function buildConfigDoctorReport(
   config: ArcliConfig,
+  now: Date,
   runtimeChecks: readonly ConfigDoctorRuntimeCheck[] = [],
   pdfPlugin?: ConfigDoctorPdfPlugin,
 ): ConfigDoctorReport {
@@ -222,7 +224,7 @@ export function buildConfigDoctorReport(
       config.exportacion?.cert.produccion,
     ],
   ] as const) {
-    const certificateCheck = buildCertificateExpiryCheck(label, name, certPath);
+    const certificateCheck = buildCertificateExpiryCheck(label, name, certPath, now);
 
     if (certificateCheck) {
       checks.push(certificateCheck);

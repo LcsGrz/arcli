@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
+import { systemClock } from '../../../services/time/system-clock';
 import type { FceRegistryState } from '../../fce/fce-registry';
 import type { IssuedVoucher } from '../../vouchers/voucher-history';
 import {
@@ -10,18 +10,11 @@ import {
 } from '../billing.associated-lookup';
 import type { BillingCommandInput } from '../billing.schemas';
 import { BillingService } from '../billing.service';
+import type { BillingRuntime } from '../billing.types.internal';
 
 const EMITTER = 20123456786;
 
-const runtime = {
-  certificateNotices: [],
-  config: { puntoVentaPorDefecto: 3 },
-  context: { cuit: EMITTER },
-  environment: 'testing',
-  outputJson: false,
-  outputRaw: false,
-  pointOfSale: 3,
-} as unknown as ResolvedArcaRuntime;
+const runtime: BillingRuntime = { cuit: EMITTER, environment: 'testing', pointOfSale: 3 };
 
 function note(overrides: Partial<BillingCommandInput> = {}): BillingCommandInput {
   return {
@@ -111,7 +104,7 @@ function check(
     input,
     runtime,
     salesPoints: parameters,
-    service: new BillingService(),
+    service: new BillingService({ clock: systemClock }),
   });
 
   return { gateway, parameters, result };
@@ -347,7 +340,7 @@ describe('checkAssociatedInArca: fecha del asociado en notas FCE (REV-46)', () =
 
     expect(gateway.getVoucher).toHaveBeenCalledWith(7, 3, 201);
     expect(input.associatedVoucher?.fecha).toBe('10/03/2026');
-    expect(new BillingService().buildVoucherPayload(input, runtime).CbtesAsoc).toEqual([
+    expect(new BillingService({ clock: systemClock }).buildVoucherPayload(input, runtime).CbtesAsoc).toEqual([
       { CbteFch: '20260310', Cuit: String(EMITTER), Nro: 7, PtoVta: 3, Tipo: 201 },
     ]);
   });
@@ -381,7 +374,9 @@ describe('checkAssociatedInArca: fecha del asociado en notas FCE (REV-46)', () =
   it('una fecha de ARCA posterior a la nota sigue siendo un error', async () => {
     const { input } = await check(fceNote(), fceIssued({ date: '20260320', total: 5000 })).result;
 
-    expect(() => new BillingService().buildVoucherPayload(input, runtime)).toThrow(/no puede ser posterior/);
+    expect(() => new BillingService({ clock: systemClock }).buildVoucherPayload(input, runtime)).toThrow(
+      /no puede ser posterior/,
+    );
   });
 });
 
@@ -451,7 +446,12 @@ describe('checkFceCancellationInRegistry: el comprador tiene que rechazar el aso
         return state;
       }),
     };
-    const result = checkFceCancellationInRegistry({ gateway, input, runtime, service: new BillingService() });
+    const result = checkFceCancellationInRegistry({
+      gateway,
+      input,
+      runtime,
+      service: new BillingService({ clock: systemClock }),
+    });
 
     return { gateway, result };
   }
@@ -494,7 +494,7 @@ describe('checkFceCancellationInRegistry: el comprador tiene que rechazar el aso
 
   it('no consulta sin `--anulacion`, en notas comunes ni con el asociado de otro CUIT', async () => {
     const gateway = { getVoucherState: vi.fn() };
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
     const inputs = [
       cancellation({ cancellation: false }),
       note(),

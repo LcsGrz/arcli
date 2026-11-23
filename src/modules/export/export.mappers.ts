@@ -1,10 +1,12 @@
 import {
   addDaysToArcaDate,
+  arcaDateToInstant,
   formatArcaDateAsArgentineDate,
   formatDateAsArcaDate,
   lastDayOfArcaMonth,
   minArcaDate,
   parseArgentineDateInputAsArcaDate,
+  parseFullArgentineDateAsArcaDate,
 } from '../../lib/dates/arca-date';
 import { AppError, InputValidationError } from '../../lib/errors/app-error';
 import { roundToCents } from '../../lib/numbers/argentine-amount';
@@ -97,8 +99,30 @@ function requireText(value: string | undefined, description: string, flag: strin
 }
 
 /** La fecha del comprobante, en formato ARCA: por defecto hoy en Argentina. */
-export function resolveExportVoucherDate(value: string | undefined, now = new Date()): string {
-  return value?.trim() ? parseArgentineDateInputAsArcaDate(value) : formatDateAsArcaDate(now);
+export function resolveExportVoucherDate(value: string | undefined, now: Date): string {
+  return value?.trim() ? parseArgentineDateInputAsArcaDate(value, now) : formatDateAsArcaDate(now);
+}
+
+/**
+ * Enero de un año bisiesto: desde ahi se lee cualquier fecha incompleta que exista (`31`, `29/2`). Solo distingue una
+ * incompleta de una ilegible; la fecha que sale no se usa.
+ */
+const READABLE_DATE_REFERENCE = '20240115';
+
+/**
+ * Una fecha escrita, para una regla: completa (dd/mm/aaaa) no necesita `today` (yyyymmdd); a la que le falta el mes o el
+ * año la completa desde ahi, y sin `today` no se puede resolver (`undefined`). Una ilegible da error siempre.
+ */
+export function resolveExportRuleDate(value: string, today: string | undefined): string | undefined {
+  const full = parseFullArgentineDateAsArcaDate(value);
+
+  if (full) {
+    return full;
+  }
+
+  const date = parseArgentineDateInputAsArcaDate(value, arcaDateToInstant(today ?? READABLE_DATE_REFERENCE));
+
+  return today ? date : undefined;
 }
 
 /** Cuantos dias antes y despues de la fecha de envio acepta ARCA la fecha de la E (1500, WSFEX v3.1.0). */
@@ -154,13 +178,6 @@ export function assertExportVoucherDate(options: {
     [EXPORT_VOUCHER_DATE_WINDOW_RULE],
     { exportType: options.exportType, voucherDate: formatArcaDateAsArgentineDate(options.voucherDate) },
     { today: options.today },
-  );
-}
-
-/** Mediodia argentino (15 UTC) de una fecha ARCA: completa una fecha sin año desde ese dia. */
-function arcaDateToInstant(arcaDate: string): Date {
-  return new Date(
-    Date.UTC(Number(arcaDate.slice(0, 4)), Number(arcaDate.slice(4, 6)) - 1, Number(arcaDate.slice(6, 8)), 15),
   );
 }
 

@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { ExportIssuedVoucher, ExportVoucherQuery } from '../../../modules/export/export.types';
 import { BACK } from '../../../modules/interactive/wizard';
-import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import { stripAnsi } from '../../../ui';
+import type { CliArcaRuntime } from '../../arca-runtime';
 import { runHistoryFlow } from '../history.flow';
 import type { InteractiveSession } from '../session';
 
@@ -85,7 +85,7 @@ function createSession(): InteractiveSession {
       config: { cert: {}, key: {}, output: {} },
       environment: 'testing',
       pointOfSale: 4,
-    } as unknown as ResolvedArcaRuntime,
+    } as unknown as CliArcaRuntime,
     service: {} as never,
   };
 }

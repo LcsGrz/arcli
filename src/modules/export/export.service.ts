@@ -7,6 +7,7 @@ import {
 import { InputValidationError } from '../../lib/errors/app-error';
 import { AMOUNT_DECIMALS, formatExchangeRate, hasAtMostDecimals } from '../../lib/numbers/argentine-amount';
 import { assertRules } from '../../lib/rules/rules';
+import type { Clock } from '../../lib/time/clock';
 import { assertCurrencyInTable } from '../billing/billing.currency';
 import { EmissionUncertainError } from '../billing/billing.errors';
 import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
@@ -253,7 +254,17 @@ function describeAssociated(voucher: ExportIssuedVoucher): ExportDisplayInfo['as
   };
 }
 
+export interface ExportServiceOptions {
+  readonly clock: Clock;
+}
+
 export class ExportService {
+  private readonly clock: Clock;
+
+  public constructor(options: ExportServiceOptions) {
+    this.clock = options.clock;
+  }
+
   /**
    * Resuelve todo lo que pide WSFEX antes de emitir: tablas de paises, incoterms, idiomas y unidades,
    * numeracion y cotizacion. Son llamadas de lectura: no emiten nada.
@@ -262,8 +273,8 @@ export class ExportService {
     rawInput: ExportVoucherInput,
     gateway: ExportGateway,
     runtime: ExportRuntime,
-    now = new Date(),
   ): Promise<ResolvedExportVoucher> {
+    const now = this.clock.now();
     const config = runtime.config;
     const voucherKind = rawInput.voucherKind ?? EXPORT_VOUCHER_KIND;
 
@@ -282,7 +293,9 @@ export class ExportService {
 
     const exportType = resolveExportType(input.exportType);
     const voucherDate = resolveExportVoucherDate(input.voucherDate, now);
-    const paymentDate = input.paymentDate?.trim() ? parseArgentineDateInputAsArcaDate(input.paymentDate) : voucherDate;
+    const paymentDate = input.paymentDate?.trim()
+      ? parseArgentineDateInputAsArcaDate(input.paymentDate, now)
+      : voucherDate;
 
     // 1500 y 1674, con las fechas ya resueltas: las mismas reglas que el asistente al preguntarlas.
     assertRules(

@@ -9,8 +9,8 @@ import {
   type ExportIssuedVoucher,
   type ExportVoucherKind,
 } from '../../../modules/export/export.types';
-import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
+import type { CliArcaRuntime } from '../../arca-runtime';
 import { registerGlobalOptions } from '../../global-options';
 import { chooseOne } from '../../interactive/prompts';
 import { executeExportCommand, type ExportCommandDependencies } from '../export.command';
@@ -89,7 +89,7 @@ function gateway(overrides: Partial<ExportGateway> = {}): ExportGateway {
   };
 }
 
-function runtime(outputJson: boolean, config: Record<string, unknown>): ResolvedArcaRuntime {
+function runtime(outputJson: boolean, config: Record<string, unknown>): CliArcaRuntime {
   return {
     certificateNotices: [],
     config: arcliConfigSchema.parse({
@@ -100,11 +100,12 @@ function runtime(outputJson: boolean, config: Record<string, unknown>): Resolved
       ...config,
     }),
     context: { cuit: 20111111112 },
+    cuit: 20111111112,
     environment: 'testing',
     outputJson,
     outputRaw: false,
     pointOfSale: 4,
-  } as unknown as ResolvedArcaRuntime;
+  } as unknown as CliArcaRuntime;
 }
 
 let stdout = '';

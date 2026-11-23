@@ -1,12 +1,9 @@
-import {
-  formatArcaDateAsArgentineDate,
-  formatDateAsArcaDate,
-  parseArgentineDateInputAsArcaDate,
-} from '../../lib/dates/arca-date';
+import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { assertRules } from '../../lib/rules/rules';
 import type { IPeriodoAsoc } from '../../services/arca/arca-sdk.types';
 
+import { parseBillingDateInput } from './billing.dates';
 import { formatVoucherSubject } from './billing.mappers';
 import { ASSOCIATED_PERIOD_RULES } from './billing.rules';
 import type { BillingCommandInput } from './billing.schemas';
@@ -22,6 +19,7 @@ export function resolveAssociatedPeriod(
   input: Pick<BillingCommandInput, 'associatedPeriod' | 'associatedVoucher' | 'billingDate'>,
   voucherKind: VoucherKindDefinition,
   billingDate: string,
+  today: string,
 ): IPeriodoAsoc | undefined {
   const period = input.associatedPeriod;
 
@@ -55,14 +53,11 @@ export function resolveAssociatedPeriod(
   assertRules(
     ASSOCIATED_PERIOD_RULES,
     { ...input, billingDate: formatArcaDateAsArgentineDate(billingDate) },
-    {
-      today: formatDateAsArcaDate(new Date()),
-      voucherKind,
-    },
+    { today, voucherKind },
   );
 
   return {
-    FchDesde: parseArgentineDateInputAsArcaDate(period.desde),
-    FchHasta: parseArgentineDateInputAsArcaDate(period.hasta),
+    FchDesde: parseBillingDateInput(period.desde, today),
+    FchHasta: parseBillingDateInput(period.hasta, today),
   };
 }

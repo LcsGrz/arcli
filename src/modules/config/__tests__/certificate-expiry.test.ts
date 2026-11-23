@@ -60,9 +60,9 @@ describe('describeCertificateExpiry', () => {
 
 describe('inspectCertificateExpiry', () => {
   it('does not invent a notice when the certificate cannot be read', () => {
-    expect(inspectCertificateExpiry('-----BEGIN CERTIFICATE-----\nnope\n-----END CERTIFICATE-----', 'testing')).toBe(
-      undefined,
-    );
+    expect(
+      inspectCertificateExpiry('-----BEGIN CERTIFICATE-----\nnope\n-----END CERTIFICATE-----', 'testing', new Date()),
+    ).toBe(undefined);
   });
 });
 
@@ -73,7 +73,7 @@ describe('inspectConfiguredCertificates', () => {
 
     const notices = inspectConfiguredCertificates(
       { produccion: production.certPath, testing: testing.certPath },
-      { activeEnvironment: 'testing' },
+      { activeEnvironment: 'testing', now: new Date() },
     );
 
     expect(notices.map((notice) => notice.environment)).toEqual(['testing', 'produccion']);
@@ -86,7 +86,7 @@ describe('inspectConfiguredCertificates', () => {
 
     const notices = inspectConfiguredCertificates(
       { produccion: production.certPath, testing: testing.certPath },
-      { activeEnvironment: 'testing' },
+      { activeEnvironment: 'testing', now: new Date() },
     );
 
     expect(notices).toHaveLength(1);
@@ -99,7 +99,7 @@ describe('inspectConfiguredCertificates', () => {
 
     const notices = inspectConfiguredCertificates(
       { produccion: '/no/existe/cert.pem' },
-      { activeEnvironment: 'produccion', activePem: production.pem },
+      { activeEnvironment: 'produccion', activePem: production.pem, now: new Date() },
     );
 
     expect(notices).toHaveLength(1);
@@ -107,9 +107,12 @@ describe('inspectConfiguredCertificates', () => {
   }, 10_000);
 
   it('skips certificates that are not configured or cannot be read', () => {
-    expect(inspectConfiguredCertificates({}, { activeEnvironment: 'testing' })).toEqual([]);
+    expect(inspectConfiguredCertificates({}, { activeEnvironment: 'testing', now: new Date() })).toEqual([]);
     expect(
-      inspectConfiguredCertificates({ produccion: '/no/existe/cert.pem' }, { activeEnvironment: 'testing' }),
+      inspectConfiguredCertificates(
+        { produccion: '/no/existe/cert.pem' },
+        { activeEnvironment: 'testing', now: new Date() },
+      ),
     ).toEqual([]);
   });
 });

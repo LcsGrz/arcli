@@ -8,6 +8,9 @@ import { resolveTaxAmounts, sumTaxAmounts } from '../billing.amounts';
 import type { BillingIvaRate } from '../billing.schemas';
 import { VOUCHER_KIND_MAP } from '../voucher-kind-map';
 
+/** Hoy (yyyymmdd): las reglas de los importes no lo usan. */
+const TODAY = '20261118';
+
 /** Importes con centavos, de 0,01 a 10.000 millones: el rango donde un double guarda los centavos exactos. */
 const amount = fc.integer({ max: 1_000_000_000_000, min: 1 }).map((cents) => new Big(cents).div(100).toNumber());
 const optionalAmount = fc.option(amount, { nil: undefined });
@@ -25,6 +28,7 @@ describe('resolveTaxAmounts (propiedades)', () => {
         const result = resolveTaxAmounts(
           { exemptAmount: exempt, ivaRate, totalAmount: total, untaxedAmount: untaxed },
           kind,
+          TODAY,
         );
 
         expect(sumTaxAmounts(result)).toBe(total);
@@ -42,6 +46,7 @@ describe('resolveTaxAmounts (propiedades)', () => {
         const result = resolveTaxAmounts(
           { exemptAmount: exempt, ivaRateAmounts, totalAmount: total, untaxedAmount: untaxed },
           kind,
+          TODAY,
         );
 
         expect(sumTaxAmounts(result)).toBe(total);
@@ -60,7 +65,7 @@ describe('resolveTaxAmounts (propiedades)', () => {
       fc.property(parts, amount, (ivaRateAmounts, total) => {
         fc.pre(!sum(ivaRateAmounts.map((part) => part.amount)).eq(total));
 
-        expect(() => resolveTaxAmounts({ ivaRateAmounts, totalAmount: total }, VOUCHER_KIND_MAP.fa)).toThrow(
+        expect(() => resolveTaxAmounts({ ivaRateAmounts, totalAmount: total }, VOUCHER_KIND_MAP.fa, TODAY)).toThrow(
           /no coincide con lo gravado/,
         );
       }),
@@ -73,7 +78,11 @@ describe('resolveTaxAmounts (propiedades)', () => {
         fc.pre(sum([exempt, untaxed]).gt(total));
 
         expect(() =>
-          resolveTaxAmounts({ exemptAmount: exempt, totalAmount: total, untaxedAmount: untaxed }, VOUCHER_KIND_MAP.fb),
+          resolveTaxAmounts(
+            { exemptAmount: exempt, totalAmount: total, untaxedAmount: untaxed },
+            VOUCHER_KIND_MAP.fb,
+            TODAY,
+          ),
         ).toThrow(/no puede superar el monto total/);
       }),
     );
@@ -89,7 +98,7 @@ describe('resolveTaxAmounts (propiedades)', () => {
 
     fc.assert(
       fc.property(letterC, amount, (kind, total) => {
-        const result = resolveTaxAmounts({ totalAmount: total }, kind);
+        const result = resolveTaxAmounts({ totalAmount: total }, kind, TODAY);
 
         expect(result).toEqual({ exemptAmount: 0, ivaAmount: 0, netAmount: total, untaxedAmount: 0 });
         expect(sumTaxAmounts(result)).toBe(total);

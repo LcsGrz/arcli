@@ -1,7 +1,6 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { formatArgentineAmountInput } from '../../lib/numbers/argentine-amount';
-import type { ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
 import { FCE_REGISTRY_STATE_LABELS, type FceRegistryGateway, type FceRegistryState } from '../fce/fce-registry';
 import type { ParametersGateway } from '../parameters/parameters';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../vouchers/voucher-history';
@@ -12,6 +11,7 @@ import { formatVoucherSubject, formatVoucherWithArticle } from './billing.mapper
 import type { BillingCommandInput } from './billing.schemas';
 import type { BillingService } from './billing.service';
 import type { VoucherKindDefinition } from './billing.types';
+import type { BillingRuntime } from './billing.types.internal';
 import { ARCA_LOCAL_CURRENCY_CODE } from './currency-codes';
 import { getVoucherKindByArcaType, getVoucherKindByShortcut, isFceInvoice, noteSide } from './voucher-kind-map';
 
@@ -264,7 +264,7 @@ function reasonOf(error: unknown): string {
 export async function checkAssociatedInArca(options: {
   readonly gateway: Pick<VoucherHistoryGateway, 'getLastNumber' | 'getVoucher'>;
   readonly input: BillingCommandInput;
-  readonly runtime: ResolvedArcaRuntime;
+  readonly runtime: BillingRuntime;
   readonly salesPoints?: Pick<ParametersGateway, 'getSalesPoints'>;
   readonly service: Pick<BillingService, 'buildVoucherPayload'>;
 }): Promise<CheckedAssociated> {
@@ -273,7 +273,7 @@ export async function checkAssociatedInArca(options: {
   const associated = input.associatedVoucher;
   const unchanged: CheckedAssociated = { input, warnings: [] };
 
-  if (!voucherKind || !associated || !shouldLookUpAssociated(input, voucherKind, runtime.context.cuit)) {
+  if (!voucherKind || !associated || !shouldLookUpAssociated(input, voucherKind, runtime.cuit)) {
     return unchanged;
   }
 
@@ -377,13 +377,13 @@ export async function checkAssociatedInArca(options: {
 export async function checkFceCancellationInRegistry(options: {
   readonly gateway: Pick<FceRegistryGateway, 'getVoucherState'>;
   readonly input: BillingCommandInput;
-  readonly runtime: ResolvedArcaRuntime;
+  readonly runtime: BillingRuntime;
   readonly service: Pick<BillingService, 'buildVoucherPayload'>;
 }): Promise<string[]> {
   const { gateway, input, runtime, service } = options;
   const voucherKind = getVoucherKindByShortcut(input.shortcut);
   const associated = input.associatedVoucher;
-  const emitterCuit = runtime.context.cuit;
+  const emitterCuit = runtime.cuit;
 
   if (
     !voucherKind?.isElectronicCredit ||

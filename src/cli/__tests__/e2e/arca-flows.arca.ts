@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { addDaysToArcaDate, formatDateAsArcaDate, maxArcaDate } from '../../../lib/dates/arca-date';
 import { ArcaBillingGateway } from '../../../services/arca/arca-billing.gateway';
 import { ArcaClientFactory } from '../../../services/arca/arca-client.factory';
-import { ArcaContextResolver } from '../../../services/arca/arca-context.resolver';
+import { loadArcaRuntime } from '../../arca-runtime';
 
 import { assertArcaTestingReady } from './arca-guard';
 
@@ -165,7 +165,7 @@ describe.skipIf(Boolean(process.env.CI) || !POINT_OF_SALE)('Flujos de WSFE contr
   let issuerCuit: number;
 
   beforeAll(() => {
-    const runtime = new ArcaContextResolver({ options: { testing: true } }).resolve();
+    const runtime = loadArcaRuntime({ testing: true });
 
     if (runtime.environment !== 'testing' || runtime.context.production !== false) {
       throw new Error('Los flujos contra ARCA corren solo en testing.');

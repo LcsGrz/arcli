@@ -73,8 +73,8 @@ export function buildEquivalentCommand(
     readonly environment: 'produccion' | 'testing';
     /** CUIT emisor: un asociado de ese CUIT en una nota común va sin `--acuit`, porque es lo que toma el CLI sin el flag. */
     readonly issuerCuit?: number;
-    /** Para qué shell van las comillas (POSIX o PowerShell en `win32`); por defecto, la de este SO. */
-    readonly platform?: NodeJS.Platform;
+    /** Para qué shell van las comillas (POSIX o PowerShell en `win32`). */
+    readonly platform: NodeJS.Platform;
   },
 ): string {
   const parts = [

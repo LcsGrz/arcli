@@ -35,8 +35,8 @@ export function buildExportEquivalentCommand(
   options: {
     readonly activity?: number;
     readonly environment: 'produccion' | 'testing';
-    /** Para qué shell van las comillas (POSIX o PowerShell en `win32`); por defecto, la de este SO. */
-    readonly platform?: NodeJS.Platform;
+    /** Para qué shell van las comillas (POSIX o PowerShell en `win32`). */
+    readonly platform: NodeJS.Platform;
   },
 ): string {
   const kind = input.voucherKind ?? EXPORT_VOUCHER_KIND;

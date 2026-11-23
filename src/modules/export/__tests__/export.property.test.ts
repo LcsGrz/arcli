@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { resolveRelativeDateInput } from '../../../lib/dates/relative-date';
 import { AppError } from '../../../lib/errors/app-error';
 import { hasAtMostDecimals } from '../../../lib/numbers/argentine-amount';
+import { systemClock } from '../../../services/time/system-clock';
 import { arcliConfigSchema } from '../../config/config.schemas';
 import { buildExportItems, parseExportItemArgument, sumExportItems } from '../export.items';
 import { readExportJsonInput } from '../export.json-input';
@@ -155,7 +156,7 @@ describe('readExportJsonInput (propiedades)', () => {
 });
 
 describe('ExportService.resolve (propiedades)', () => {
-  const service = new ExportService();
+  const service = new ExportService({ clock: systemClock });
   const exportType = fc.constantFrom<ExportType>(1, 2, 4);
 
   it('arma un Cmp con fechas AAAAMMDD, Imp_total igual a los ítems y Fecha_pago solo donde va', async () => {
@@ -193,7 +194,6 @@ describe('ExportService.resolve (propiedades)', () => {
               { ...input, voucherDate: resolveRelativeDateInput(input.voucherDate, 'day', now) },
               createGateway(),
               RUNTIME,
-              now,
             ));
           } catch (error) {
             // Lo único que puede frenar este comprobante es la ventana de fechas (1500): servicios no pasa del mes.
@@ -240,7 +240,7 @@ describe('ExportService.resolve (propiedades)', () => {
       emit: false,
     };
 
-    await expect(service.resolve(fields, createGateway(), RUNTIME, now)).rejects.toMatchObject({
+    await expect(service.resolve(fields, createGateway(), RUNTIME)).rejects.toMatchObject({
       code: 'INPUT_VALIDATION_ERROR',
       message: expect.stringMatching(/La moneda BRASIL no está en la tabla de monedas de ARCA.*1590/),
     });
@@ -276,7 +276,7 @@ describe('ExportService.resolve (propiedades)', () => {
           vi.setSystemTime(now);
 
           try {
-            await service.resolve({ ...fields, emit: false }, createGateway(), RUNTIME, now);
+            await service.resolve({ ...fields, emit: false }, createGateway(), RUNTIME);
           } catch (error) {
             expect(isControlledInputError(error)).toBe(true);
           }

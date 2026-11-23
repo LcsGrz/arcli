@@ -1,38 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { POINT_OF_SALE_GUIDE_URL } from '../../../lib/links';
-import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
+import { systemClock } from '../../../services/time/system-clock';
 import { EmissionUncertainError } from '../billing.errors';
 import { type BillingCommandInput, billingCommandSchema } from '../billing.schemas';
 import { BillingService } from '../billing.service';
+import type { BillingRuntime } from '../billing.types.internal';
 import { mapBillingResponse } from '../billing-response';
 
-function createRuntime(): ResolvedArcaRuntime {
-  return {
-    certificateNotices: [],
-    config: {
-      cert: {},
-      emisor: {},
-      entornoPorDefecto: 'testing',
-      key: {},
-      output: {
-        emitirPorDefecto: false,
-        brutoPorDefecto: false,
-        jsonPorDefecto: false,
-      },
-      puntoVentaPorDefecto: 3,
-    },
-    context: {
-      cert: 'CERT',
-      cuit: 20409509763,
-      key: 'KEY',
-      production: false,
-    },
-    environment: 'testing',
-    outputJson: false,
-    outputRaw: false,
-    pointOfSale: 3,
-  };
+function createRuntime(): BillingRuntime {
+  return { cuit: 20409509763, environment: 'testing', pointOfSale: 3 };
 }
 
 function createBillingInput(overrides: Partial<BillingCommandInput> = {}): BillingCommandInput {
@@ -64,7 +41,7 @@ describe('billing.service', () => {
   });
 
   it('stops a configured point of sale that does not fit in PtoVta (10004)', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     expect(() =>
       service.buildVoucherPayload(createBillingInput(), { ...createRuntime(), pointOfSale: 100_000 }),
@@ -72,7 +49,7 @@ describe('billing.service', () => {
   });
 
   it('builds invoice payload with default service dates', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     const payload = service.buildVoucherPayload(createBillingInput({ shortcut: 'fc' }), createRuntime());
 
@@ -95,7 +72,7 @@ describe('billing.service', () => {
   });
 
   it('sends DocNro 0 for consumidor final with or without an explicit number (REV-63)', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
     const implicit = service.buildVoucherPayload(createBillingInput({ documentNumber: undefined }), createRuntime());
     const explicit = service.buildVoucherPayload(createBillingInput({ documentNumber: 0 }), createRuntime());
 
@@ -104,7 +81,7 @@ describe('billing.service', () => {
   });
 
   it('uses today as billing date when no explicit date is provided', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     const payload = service.buildVoucherPayload(
       createBillingInput({ concept: 'productos', shortcut: 'fc' }),
@@ -117,7 +94,7 @@ describe('billing.service', () => {
   it('uses --dia only for the payment due date, keeping the service period', () => {
     vi.setSystemTime(new Date('2026-11-03T12:00:00Z'));
 
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
     const alone = service.buildVoucherPayload(
       createBillingInput({ concept: 'servicios', dueDay: 10, shortcut: 'fc' }),
       createRuntime(),
@@ -143,7 +120,7 @@ describe('billing.service', () => {
 
   it('rejects --dia together with --vencimiento', () => {
     expect(() =>
-      new BillingService().buildVoucherPayload(
+      new BillingService({ clock: systemClock }).buildVoucherPayload(
         createBillingInput({ concept: 'servicios', dueDay: 10, paymentDueDate: '10/11', shortcut: 'fc' }),
         createRuntime(),
       ),
@@ -154,7 +131,7 @@ describe('billing.service', () => {
     // 22:30 del 18/03 en Argentina; en UTC ya es el 19.
     vi.setSystemTime(new Date('2026-03-19T01:30:00Z'));
 
-    const payload = new BillingService().buildVoucherPayload(
+    const payload = new BillingService({ clock: systemClock }).buildVoucherPayload(
       createBillingInput({ concept: 'servicios', dueDay: 25, shortcut: 'fc' }),
       createRuntime(),
     );
@@ -165,7 +142,7 @@ describe('billing.service', () => {
 
   it('never builds a payload while the IVA condition still waits for the padron', () => {
     expect(() =>
-      new BillingService().buildVoucherPayload(
+      new BillingService({ clock: systemClock }).buildVoucherPayload(
         createBillingInput({ documentNumber: 20201797064, documentType: 'cuit', ivaConditionSource: 'missing' }),
         createRuntime(),
       ),
@@ -175,7 +152,7 @@ describe('billing.service', () => {
   it('keeps --dia in the next month when today is the 31st', () => {
     vi.setSystemTime(new Date('2026-03-31T12:00:00Z'));
 
-    const payload = new BillingService().buildVoucherPayload(
+    const payload = new BillingService({ clock: systemClock }).buildVoucherPayload(
       createBillingInput({ concept: 'servicios', dueDay: 15, shortcut: 'fc' }),
       createRuntime(),
     );
@@ -187,7 +164,7 @@ describe('billing.service', () => {
   it('rolls --dia over to January when it already passed in December', () => {
     vi.setSystemTime(new Date('2026-12-20T12:00:00Z'));
 
-    const payload = new BillingService().buildVoucherPayload(
+    const payload = new BillingService({ clock: systemClock }).buildVoucherPayload(
       createBillingInput({ concept: 'servicios', dueDay: 10, shortcut: 'fc' }),
       createRuntime(),
     );
@@ -199,7 +176,7 @@ describe('billing.service', () => {
     vi.setSystemTime(new Date('2026-03-31T12:00:00Z'));
 
     expect(() =>
-      new BillingService().buildVoucherPayload(
+      new BillingService({ clock: systemClock }).buildVoucherPayload(
         createBillingInput({ concept: 'servicios', dueDay: 30, shortcut: 'fc' }),
         createRuntime(),
       ),
@@ -207,7 +184,7 @@ describe('billing.service', () => {
     // 31 ya paso en marzo y abril no tiene 31.
     vi.setSystemTime(new Date('2026-04-01T12:00:00Z'));
     expect(() =>
-      new BillingService().buildVoucherPayload(
+      new BillingService({ clock: systemClock }).buildVoucherPayload(
         createBillingInput({ concept: 'servicios', dueDay: 31, shortcut: 'fc' }),
         createRuntime(),
       ),
@@ -215,7 +192,7 @@ describe('billing.service', () => {
   });
 
   it('builds invoice payload with explicit billing date in Argentine format', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     const payload = service.buildVoucherPayload(
       createBillingInput({
@@ -238,7 +215,7 @@ describe('billing.service', () => {
   it('uses the current year when Argentine dates omit it', () => {
     vi.setSystemTime(new Date('2026-08-12T12:00:00Z'));
 
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     const payload = service.buildVoucherPayload(
       createBillingInput({
@@ -256,7 +233,7 @@ describe('billing.service', () => {
   });
 
   it('requires associated vouchers for credit notes and debit notes', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     expect(() =>
       service.buildVoucherPayload(
@@ -270,7 +247,7 @@ describe('billing.service', () => {
   });
 
   it('takes the emitter CUIT when a common note omits --acuit, as ARCA only requires it in FCE (10151)', () => {
-    const payload = new BillingService().buildVoucherPayload(
+    const payload = new BillingService({ clock: systemClock }).buildVoucherPayload(
       createBillingInput({
         associatedVoucher: { numero: 1, puntoVenta: 9, shortcut: 'fb' },
         documentNumber: 0,
@@ -284,7 +261,7 @@ describe('billing.service', () => {
 
   it('does not ask for --acuit when the associated voucher is incomplete', () => {
     expect(() =>
-      new BillingService().buildVoucherPayload(
+      new BillingService({ clock: systemClock }).buildVoucherPayload(
         createBillingInput({
           associatedVoucher: { puntoVenta: 9, shortcut: 'fb' },
           documentNumber: 0,
@@ -298,7 +275,7 @@ describe('billing.service', () => {
   });
 
   it('includes associated voucher data when provided', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     const payload = service.buildVoucherPayload(
       createBillingInput({
@@ -325,7 +302,7 @@ describe('billing.service', () => {
   });
 
   it('resolves associated voucher type from shortcut when provided', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     const payload = service.buildVoucherPayload(
       createBillingInput({
@@ -347,7 +324,7 @@ describe('billing.service', () => {
   });
 
   it('supports custom currency and exchange rate', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     const payload = service.buildVoucherPayload(
       createBillingInput({
@@ -364,7 +341,7 @@ describe('billing.service', () => {
   });
 
   it('does not send CanMisMonExt for pesos', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     const payload = service.buildVoucherPayload(createBillingInput({ documentNumber: 0 }), createRuntime());
 
@@ -374,7 +351,7 @@ describe('billing.service', () => {
   });
 
   it('rejects foreign currency without an explicit exchange rate', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     expect(() =>
       service.buildVoucherPayload(
@@ -391,7 +368,7 @@ describe('billing.service', () => {
   });
 
   it('rejects an exchange rate other than 1 for pesos', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     expect(() =>
       service.buildVoucherPayload(createBillingInput({ documentNumber: 0, exchangeRate: 1200 }), createRuntime()),
@@ -399,7 +376,7 @@ describe('billing.service', () => {
   });
 
   it('rejects --misma-moneda for pesos', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     expect(() =>
       service.buildVoucherPayload(createBillingInput({ documentNumber: 0, sameCurrency: true }), createRuntime()),
@@ -407,7 +384,7 @@ describe('billing.service', () => {
   });
 
   it('resolves the official exchange rate when paying in the same foreign currency', async () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
     const getQuotation = vi.fn(async () => 1415.25);
     const input = await service.resolveExchangeRate(
       createBillingInput({ currencyCode: 'USD', documentNumber: 0, exchangeRate: undefined, sameCurrency: true }),
@@ -421,7 +398,7 @@ describe('billing.service', () => {
   });
 
   it('without --cm or --misma-moneda, uses the official exchange rate and marks it to warn', async () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
     const getQuotation = vi.fn(async () => 1415.25);
     const input = await service.resolveExchangeRate(
       createBillingInput({ currencyCode: 'USD', documentNumber: 0, exchangeRate: undefined }),
@@ -435,7 +412,7 @@ describe('billing.service', () => {
   });
 
   it('does not query the exchange rate when it is not needed', async () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
     const getQuotation = vi.fn(async () => 1415.25);
     const input = createBillingInput({ currencyCode: 'USD', exchangeRate: 1200 });
 
@@ -444,7 +421,7 @@ describe('billing.service', () => {
   });
 
   it('with --misma-moneda and a past date, asks ARCA for the rate of the business day before that date (10038)', async () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
     const getQuotation = vi.fn(async () => 1410.5);
     const input = await service.resolveExchangeRate(
       createBillingInput({
@@ -463,7 +440,7 @@ describe('billing.service', () => {
   });
 
   it('with --misma-moneda and a future date, uses the current official rate (10038)', async () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
     const getQuotation = vi.fn(async () => 1415.25);
     const input = await service.resolveExchangeRate(
       createBillingInput({
@@ -484,7 +461,7 @@ describe('billing.service', () => {
   it('without --misma-moneda, a past date still uses the current official rate as the default', async () => {
     const getQuotation = vi.fn(async () => 1415.25);
 
-    await new BillingService().resolveExchangeRate(
+    await new BillingService({ clock: systemClock }).resolveExchangeRate(
       createBillingInput({
         billingDate: '16/03/2026',
         currencyCode: 'USD',
@@ -498,7 +475,7 @@ describe('billing.service', () => {
   });
 
   it('discriminates IVA in factura A for a monotributista', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     const payload = service.buildVoucherPayload(
       createBillingInput({
@@ -517,7 +494,7 @@ describe('billing.service', () => {
   });
 
   it('rejects receiver IVA conditions that ARCA does not accept for the voucher letter', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     expect(() =>
       service.buildVoucherPayload(createBillingInput({ documentNumber: 0, shortcut: 'fa' }), createRuntime()),
@@ -536,7 +513,7 @@ describe('billing.service', () => {
   });
 
   it('accepts any receiver IVA condition for letter C', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     expect(() =>
       service.buildVoucherPayload(
@@ -552,7 +529,7 @@ describe('billing.service', () => {
   });
 
   it('requires identifying the consumer final from $10.000.000', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     expect(() =>
       service.buildVoucherPayload(
@@ -572,7 +549,7 @@ describe('billing.service', () => {
   });
 
   it('converts foreign currency amounts to pesos for the consumer final threshold', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     expect(() =>
       service.buildVoucherPayload(
@@ -583,7 +560,7 @@ describe('billing.service', () => {
   });
 
   it('builds IVA automatically for factura A with responsable inscripto', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     const payload = service.buildVoucherPayload(
       createBillingInput({
@@ -608,7 +585,7 @@ describe('billing.service', () => {
   });
 
   it('builds IVA automatically for factura B', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     const payload = service.buildVoucherPayload(
       createBillingInput({
@@ -632,7 +609,7 @@ describe('billing.service', () => {
   });
 
   it('requires a receiver document when document type is not consumer final', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     expect(() =>
       service.buildVoucherPayload(
@@ -646,7 +623,7 @@ describe('billing.service', () => {
   });
 
   it('rejects consumer final with a non-zero document number', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     expect(() =>
       service.buildVoucherPayload(
@@ -659,7 +636,7 @@ describe('billing.service', () => {
   });
 
   it('rejects consumer final with a non-consumer-final iva condition', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     expect(() =>
       service.buildVoucherPayload(
@@ -673,7 +650,7 @@ describe('billing.service', () => {
   });
 
   it('rejects cuit or cuil with invalid length', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     expect(() =>
       service.buildVoucherPayload(
@@ -688,7 +665,7 @@ describe('billing.service', () => {
   });
 
   it('rejects a cuit or cuil with a wrong check digit', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     expect(() =>
       service.buildVoucherPayload(
@@ -703,7 +680,7 @@ describe('billing.service', () => {
   });
 
   it('rejects dni with invalid length', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     for (const documentNumber of [12345, 123456789]) {
       expect(() =>
@@ -713,7 +690,7 @@ describe('billing.service', () => {
   });
 
   it('accepts a 6-digit DNI, which ARCA testing approved', () => {
-    const payload = new BillingService().buildVoucherPayload(
+    const payload = new BillingService({ clock: systemClock }).buildVoucherPayload(
       createBillingInput({ documentNumber: 543210, documentType: 'dni' }),
       createRuntime(),
     );
@@ -722,7 +699,7 @@ describe('billing.service', () => {
   });
 
   it('rejects service dates for products concept', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     expect(() =>
       service.buildVoucherPayload(
@@ -739,7 +716,7 @@ describe('billing.service', () => {
   });
 
   it('requires both service dates when one is provided', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     expect(() =>
       service.buildVoucherPayload(
@@ -754,7 +731,7 @@ describe('billing.service', () => {
   });
 
   it('rejects billing dates outside the ARCA window', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
     const build = (overrides: Partial<BillingCommandInput>) => () =>
       service.buildVoucherPayload(createBillingInput({ documentNumber: 0, ...overrides }), createRuntime());
 
@@ -769,7 +746,7 @@ describe('billing.service', () => {
   it('rejects future product dates in another month', () => {
     vi.setSystemTime(new Date('2026-03-30T12:00:00Z'));
 
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     expect(() =>
       service.buildVoucherPayload(
@@ -780,7 +757,7 @@ describe('billing.service', () => {
   });
 
   it('uses the FCE billing date window', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
     const build = (billingDate: string) => () =>
       service.buildVoucherPayload(
         createBillingInput({
@@ -800,7 +777,7 @@ describe('billing.service', () => {
   });
 
   it('sends FchVtoPago on FCE invoices even for products', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     const payload = service.buildVoucherPayload(
       createBillingInput({
@@ -820,7 +797,7 @@ describe('billing.service', () => {
   });
 
   it('rejects an FCE payment due date before today', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     expect(() =>
       service.buildVoucherPayload(
@@ -839,7 +816,7 @@ describe('billing.service', () => {
   });
 
   it('does not send FchVtoPago on FCE credit or debit notes', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
     const input = createBillingInput({
       associatedVoucher: { cuit: '20409509763', fecha: '10/03/2026', numero: 1, puntoVenta: 3, shortcut: 'fcea' },
       documentNumber: 20123456786,
@@ -855,7 +832,7 @@ describe('billing.service', () => {
   });
 
   it('accepts an explicit payment due date independent from the service period', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     const payload = service.buildVoucherPayload(
       createBillingInput({
@@ -873,7 +850,7 @@ describe('billing.service', () => {
   });
 
   it('defaults the payment due date to the billing date when the service ended earlier', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     const payload = service.buildVoucherPayload(
       createBillingInput({
@@ -889,7 +866,7 @@ describe('billing.service', () => {
   });
 
   it('rejects a payment due date before the billing date', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     expect(() =>
       service.buildVoucherPayload(
@@ -900,7 +877,7 @@ describe('billing.service', () => {
   });
 
   it('rejects --vencimiento on product invoices', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     expect(() =>
       service.buildVoucherPayload(
@@ -920,8 +897,27 @@ describe('billing.service', () => {
         ...overrides,
       });
 
+    it('lee el reloj una vez por operación: la medianoche no cae en el medio de un comprobante', () => {
+      // La primera lectura es del 18/03; las que sigan, del 19/03.
+      const now = vi.fn(() => new Date('2026-03-19T03:00:00Z')).mockReturnValueOnce(new Date('2026-03-19T02:59:59Z'));
+      const service = new BillingService({ clock: { now } });
+      const untilTomorrow = periodNote({
+        associatedPeriod: { desde: '01/03/2026', hasta: '19/03/2026' },
+        billingDate: undefined,
+      });
+
+      expect(now).not.toHaveBeenCalled();
+      expect(() => service.buildVoucherPayload(untilTomorrow, createRuntime())).toThrow(/período asociado/);
+      expect(now).toHaveBeenCalledTimes(1);
+      expect(service.buildVoucherPayload(untilTomorrow, createRuntime())).toMatchObject({
+        CbteFch: '20260319',
+        PeriodoAsoc: { FchHasta: '20260319' },
+      });
+      expect(now).toHaveBeenCalledTimes(2);
+    });
+
     it('sends PeriodoAsoc instead of CbtesAsoc on regular notes', () => {
-      const payload = new BillingService().buildVoucherPayload(periodNote(), createRuntime());
+      const payload = new BillingService({ clock: systemClock }).buildVoucherPayload(periodNote(), createRuntime());
 
       expect(payload.PeriodoAsoc).toEqual({ FchDesde: '20260201', FchHasta: '20260228' });
       expect(payload.CbtesAsoc).toBeUndefined();
@@ -929,7 +925,7 @@ describe('billing.service', () => {
 
     it('requires both period dates', () => {
       expect(() =>
-        new BillingService().buildVoucherPayload(
+        new BillingService({ clock: systemClock }).buildVoucherPayload(
           periodNote({ associatedPeriod: { desde: '01/02/2026' } }),
           createRuntime(),
         ),
@@ -938,7 +934,7 @@ describe('billing.service', () => {
 
     it('rejects a period together with an associated voucher', () => {
       expect(() =>
-        new BillingService().buildVoucherPayload(
+        new BillingService({ clock: systemClock }).buildVoucherPayload(
           periodNote({ associatedVoucher: { cuit: '20123456786', numero: 1, puntoVenta: 3, shortcut: 'fb' } }),
           createRuntime(),
         ),
@@ -947,7 +943,7 @@ describe('billing.service', () => {
 
     it('with a period and only part of an associated voucher, says not to mix them instead of asking for the voucher', () => {
       expect(() =>
-        new BillingService().buildVoucherPayload(
+        new BillingService({ clock: systemClock }).buildVoucherPayload(
           periodNote({ associatedVoucher: { cuit: '20123456786' } }),
           createRuntime(),
         ),
@@ -956,7 +952,7 @@ describe('billing.service', () => {
 
     it('rejects a period ending after the note date', () => {
       expect(() =>
-        new BillingService().buildVoucherPayload(
+        new BillingService({ clock: systemClock }).buildVoucherPayload(
           periodNote({ associatedPeriod: { desde: '01/03/2026', hasta: '19/03/2026' } }),
           createRuntime(),
         ),
@@ -965,7 +961,7 @@ describe('billing.service', () => {
 
     it('rejects an inverted period', () => {
       expect(() =>
-        new BillingService().buildVoucherPayload(
+        new BillingService({ clock: systemClock }).buildVoucherPayload(
           periodNote({ associatedPeriod: { desde: '28/02/2026', hasta: '01/02/2026' } }),
           createRuntime(),
         ),
@@ -974,8 +970,10 @@ describe('billing.service', () => {
 
     it('acepta los bordes del período: desde el 01/01/2006, desde = hasta y hasta = fecha de la nota (TEST-17)', () => {
       const period = (desde: string, hasta: string) =>
-        new BillingService().buildVoucherPayload(periodNote({ associatedPeriod: { desde, hasta } }), createRuntime())
-          .PeriodoAsoc;
+        new BillingService({ clock: systemClock }).buildVoucherPayload(
+          periodNote({ associatedPeriod: { desde, hasta } }),
+          createRuntime(),
+        ).PeriodoAsoc;
 
       expect(period('01/01/2006', '31/01/2006')).toEqual({ FchDesde: '20060101', FchHasta: '20060131' });
       expect(period('10/03/2026', '10/03/2026')).toEqual({ FchDesde: '20260310', FchHasta: '20260310' });
@@ -985,7 +983,7 @@ describe('billing.service', () => {
 
     it('rejects periods before 2006', () => {
       expect(() =>
-        new BillingService().buildVoucherPayload(
+        new BillingService({ clock: systemClock }).buildVoucherPayload(
           periodNote({ associatedPeriod: { desde: '01/12/2005', hasta: '31/12/2005' } }),
           createRuntime(),
         ),
@@ -993,7 +991,7 @@ describe('billing.service', () => {
     });
 
     it('rejects a period on invoices and FCE notes', () => {
-      const service = new BillingService();
+      const service = new BillingService({ clock: systemClock });
 
       expect(() => service.buildVoucherPayload(periodNote({ shortcut: 'fb' }), createRuntime())).toThrow(
         /no usa período asociado/,
@@ -1013,7 +1011,10 @@ describe('billing.service', () => {
 
     it('mentions the period alternative when a regular note has no association', () => {
       expect(() =>
-        new BillingService().buildVoucherPayload(periodNote({ associatedPeriod: undefined }), createRuntime()),
+        new BillingService({ clock: systemClock }).buildVoucherPayload(
+          periodNote({ associatedPeriod: undefined }),
+          createRuntime(),
+        ),
       ).toThrow(/o un período con `--periodo-desde` y `--periodo-hasta`/);
     });
   });
@@ -1027,7 +1028,7 @@ describe('billing.service', () => {
 
     it('queries the receiver CUIT with the billing date and amount in pesos', async () => {
       const getObligation = vi.fn(async () => ({ minimumAmount: 3_958_316, obligated: true }));
-      const warnings = await new BillingService().resolveFceWarnings(
+      const warnings = await new BillingService({ clock: systemClock }).resolveFceWarnings(
         createBillingInput({
           billingDate: '15/03/2026',
           currencyCode: 'USD',
@@ -1049,13 +1050,15 @@ describe('billing.service', () => {
       const getObligation = vi.fn();
 
       await expect(
-        new BillingService().resolveFceWarnings(createBillingInput({ documentNumber: 0 }), { getObligation }),
+        new BillingService({ clock: systemClock }).resolveFceWarnings(createBillingInput({ documentNumber: 0 }), {
+          getObligation,
+        }),
       ).resolves.toEqual([]);
       expect(getObligation).not.toHaveBeenCalled();
     });
 
     it('turns query failures into a warning instead of blocking', async () => {
-      const warnings = await new BillingService().resolveFceWarnings(
+      const warnings = await new BillingService({ clock: systemClock }).resolveFceWarnings(
         createBillingInput({
           documentNumber: 30709965812,
           documentType: 'cuit',
@@ -1094,7 +1097,7 @@ describe('billing.service', () => {
       });
 
     it('sends CBU and the default SCA transfer mode on FCE invoices', () => {
-      const payload = new BillingService().buildVoucherPayload(fceInvoice(), createRuntime());
+      const payload = new BillingService({ clock: systemClock }).buildVoucherPayload(fceInvoice(), createRuntime());
 
       expect(payload.Opcionales).toEqual([
         { Id: '2101', Valor: '0110599520000012345678' },
@@ -1103,7 +1106,7 @@ describe('billing.service', () => {
     });
 
     it('sends the CBU alias and the chosen transfer mode', () => {
-      const payload = new BillingService().buildVoucherPayload(
+      const payload = new BillingService({ clock: systemClock }).buildVoucherPayload(
         fceInvoice({ cbuAlias: 'mi.alias.cbu', transferMode: 'adc' }),
         createRuntime(),
       );
@@ -1116,19 +1119,22 @@ describe('billing.service', () => {
     });
 
     it('requires the CBU on FCE invoices', () => {
-      expect(() => new BillingService().buildVoucherPayload(fceInvoice({ cbu: undefined }), createRuntime())).toThrow(
-        /requiere el CBU del emisor/,
-      );
+      expect(() =>
+        new BillingService({ clock: systemClock }).buildVoucherPayload(fceInvoice({ cbu: undefined }), createRuntime()),
+      ).toThrow(/requiere el CBU del emisor/);
     });
 
     it('rejects --anulacion on FCE invoices', () => {
       expect(() =>
-        new BillingService().buildVoucherPayload(fceInvoice({ cancellation: true }), createRuntime()),
+        new BillingService({ clock: systemClock }).buildVoucherPayload(
+          fceInvoice({ cancellation: true }),
+          createRuntime(),
+        ),
       ).toThrow(/no usa `--anulacion`/);
     });
 
     it('sends the cancellation code, associated date and emitter CUIT on FCE notes', () => {
-      const service = new BillingService();
+      const service = new BillingService({ clock: systemClock });
       const regular = service.buildVoucherPayload(fceNote(), createRuntime());
       const cancellation = service.buildVoucherPayload(fceNote({ cancellation: true }), createRuntime());
 
@@ -1152,7 +1158,7 @@ describe('billing.service', () => {
         ['ncea', 'ndea', true, 202],
         ['ndea', 'ncea', true, 203],
       ] as const)('una %s sobre una %s con anulacion %s es valida', (shortcut, associated, cancellation, tipo) => {
-        const payload = new BillingService().buildVoucherPayload(
+        const payload = new BillingService({ clock: systemClock }).buildVoucherPayload(
           over(shortcut, associated, cancellation),
           createRuntime(),
         );
@@ -1161,7 +1167,9 @@ describe('billing.service', () => {
       });
 
       it('sin --anulacion solo asocia la factura FCE, y sugiere sumarla si con ella vale', () => {
-        expect(() => new BillingService().buildVoucherPayload(over('ncea', 'ndea', false), createRuntime())).toThrow(
+        expect(() =>
+          new BillingService({ clock: systemClock }).buildVoucherPayload(over('ncea', 'ndea', false), createRuntime()),
+        ).toThrow(
           expect.objectContaining({
             message:
               'La nota de crédito electrónica A sin `--anulacion` solo puede asociar una factura de crédito electrónica A, no la nota de débito electrónica A.',
@@ -1171,7 +1179,9 @@ describe('billing.service', () => {
       });
 
       it('con --anulacion una ND FCE solo asocia una NC FCE, no la factura', () => {
-        expect(() => new BillingService().buildVoucherPayload(over('ndea', 'fcea', true), createRuntime())).toThrow(
+        expect(() =>
+          new BillingService({ clock: systemClock }).buildVoucherPayload(over('ndea', 'fcea', true), createRuntime()),
+        ).toThrow(
           expect.objectContaining({
             message:
               'La nota de débito electrónica A con `--anulacion` solo puede asociar una nota de crédito electrónica A, no la factura de crédito electrónica A.',
@@ -1182,7 +1192,10 @@ describe('billing.service', () => {
 
       it('una NC FCE nunca asocia otra NC FCE', () => {
         const run = (cancellation: boolean) => () =>
-          new BillingService().buildVoucherPayload(over('ncea', 'ncea', cancellation), createRuntime());
+          new BillingService({ clock: systemClock }).buildVoucherPayload(
+            over('ncea', 'ncea', cancellation),
+            createRuntime(),
+          );
 
         expect(run(false)).toThrow(expect.objectContaining({ suggestion: undefined }));
         expect(run(true)).toThrow(
@@ -1193,12 +1206,15 @@ describe('billing.service', () => {
 
     it('rejects invoice-only optionals on FCE notes', () => {
       expect(() =>
-        new BillingService().buildVoucherPayload(fceNote({ cbu: '0110599520000012345678' }), createRuntime()),
+        new BillingService({ clock: systemClock }).buildVoucherPayload(
+          fceNote({ cbu: '0110599520000012345678' }),
+          createRuntime(),
+        ),
       ).toThrow(/no lleva `--cbu`/);
     });
 
     it('previews an FCE note without the associated date: it comes from ARCA when emitting', () => {
-      const payload = new BillingService().buildVoucherPayload(
+      const payload = new BillingService({ clock: systemClock }).buildVoucherPayload(
         fceNote({ associatedVoucher: { numero: 7, puntoVenta: 3, shortcut: 'fcea' } }),
         createRuntime(),
       );
@@ -1210,7 +1226,7 @@ describe('billing.service', () => {
       const gateway = { createVoucher: vi.fn(), getNextVoucherNumber: vi.fn(), getQuotation: vi.fn() };
 
       await expect(
-        new BillingService().execute({
+        new BillingService({ clock: systemClock }).execute({
           gateway,
           input: fceNote({
             associatedVoucher: { numero: 7, puntoVenta: 3, shortcut: 'fcea' },
@@ -1226,7 +1242,7 @@ describe('billing.service', () => {
 
     it('rejects an associated voucher date after the note date', () => {
       expect(() =>
-        new BillingService().buildVoucherPayload(
+        new BillingService({ clock: systemClock }).buildVoucherPayload(
           fceNote({ associatedVoucher: { fecha: '19/03/2026', numero: 7, puntoVenta: 3, shortcut: 'fcea' } }),
           createRuntime(),
         ),
@@ -1235,7 +1251,7 @@ describe('billing.service', () => {
 
     it('rejects an associated CUIT different from the emitter on FCE notes', () => {
       expect(() =>
-        new BillingService().buildVoucherPayload(
+        new BillingService({ clock: systemClock }).buildVoucherPayload(
           fceNote({
             associatedVoucher: { cuit: '20999999999', fecha: '10/03/2026', numero: 7, puntoVenta: 3, shortcut: 'fcea' },
           }),
@@ -1246,7 +1262,7 @@ describe('billing.service', () => {
 
     it('rejects FCE optionals on regular vouchers', () => {
       expect(() =>
-        new BillingService().buildVoucherPayload(
+        new BillingService({ clock: systemClock }).buildVoucherPayload(
           createBillingInput({ billingDate: '18/03/2026', cbu: '0110599520000012345678', documentNumber: 0 }),
           createRuntime(),
         ),
@@ -1254,7 +1270,7 @@ describe('billing.service', () => {
     });
 
     it('acepta un asociado con la misma fecha que la nota (TEST-17)', () => {
-      const payload = new BillingService().buildVoucherPayload(
+      const payload = new BillingService({ clock: systemClock }).buildVoucherPayload(
         createBillingInput({
           associatedVoucher: { cuit: '20123456786', fecha: '18/03/2026', numero: 7, puntoVenta: 3, shortcut: 'fb' },
           billingDate: '18/03/2026',
@@ -1268,7 +1284,7 @@ describe('billing.service', () => {
     });
 
     it('keeps the associated date optional on regular credit notes', () => {
-      const payload = new BillingService().buildVoucherPayload(
+      const payload = new BillingService({ clock: systemClock }).buildVoucherPayload(
         createBillingInput({
           associatedVoucher: { cuit: '20123456786', fecha: '10/03/2026', numero: 7, puntoVenta: 3, shortcut: 'fb' },
           billingDate: '18/03/2026',
@@ -1284,7 +1300,7 @@ describe('billing.service', () => {
   });
 
   it('rejects invalid service date ranges', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     expect(() =>
       service.buildVoucherPayload(
@@ -1300,7 +1316,7 @@ describe('billing.service', () => {
   });
 
   it('rejects associated vouchers on invoice types that do not support them', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     expect(() =>
       service.buildVoucherPayload(
@@ -1319,7 +1335,7 @@ describe('billing.service', () => {
   });
 
   it('rejects associated vouchers with a different letter when shortcut is provided', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     expect(() =>
       service.buildVoucherPayload(
@@ -1340,7 +1356,7 @@ describe('billing.service', () => {
 
   it('validates a numeric --at like a shortcut: an NC A cannot point to a Factura B', () => {
     expect(() =>
-      new BillingService().buildVoucherPayload(
+      new BillingService({ clock: systemClock }).buildVoucherPayload(
         createBillingInput({
           associatedVoucher: { cuit: '20123456786', numero: 99, puntoVenta: 3, tipo: 6 },
           documentNumber: 20123456786,
@@ -1355,7 +1371,7 @@ describe('billing.service', () => {
 
   it('rejects a shortcut and a numeric type that do not match', () => {
     expect(() =>
-      new BillingService().buildVoucherPayload(
+      new BillingService({ clock: systemClock }).buildVoucherPayload(
         createBillingInput({
           associatedVoucher: { cuit: '20123456786', numero: 99, puntoVenta: 3, shortcut: 'fa', tipo: 6 },
           documentNumber: 20123456786,
@@ -1392,7 +1408,10 @@ describe('billing.service', () => {
       ['ncb', 'rb', 9],
       ['ndb', 'rb', 9],
     ] as const)('una %s puede asociar una %s de la misma letra', (shortcut, associated, tipo) => {
-      const payload = new BillingService().buildVoucherPayload(noteOver(shortcut, associated), createRuntime());
+      const payload = new BillingService({ clock: systemClock }).buildVoucherPayload(
+        noteOver(shortcut, associated),
+        createRuntime(),
+      );
 
       expect(payload.CbtesAsoc).toEqual([expect.objectContaining({ Nro: 99, Tipo: tipo })]);
     });
@@ -1404,19 +1423,19 @@ describe('billing.service', () => {
       ['nca', 'rb'],
       ['ncb', 'rc'],
     ] as const)('una %s no asocia una %s de otra letra', (shortcut, associated) => {
-      expect(() => new BillingService().buildVoucherPayload(noteOver(shortcut, associated), createRuntime())).toThrow(
-        /misma letra/,
-      );
+      expect(() =>
+        new BillingService({ clock: systemClock }).buildVoucherPayload(noteOver(shortcut, associated), createRuntime()),
+      ).toThrow(/misma letra/);
     });
 
     it('una nota comun no asocia una nota FCE', () => {
-      expect(() => new BillingService().buildVoucherPayload(noteOver('nca', 'ndea'), createRuntime())).toThrow(
-        /misma categoría electrónica/,
-      );
+      expect(() =>
+        new BillingService({ clock: systemClock }).buildVoucherPayload(noteOver('nca', 'ndea'), createRuntime()),
+      ).toThrow(/misma categoría electrónica/);
     });
 
     it('valida igual el asociado por codigo ARCA (--at)', () => {
-      const payload = new BillingService().buildVoucherPayload(
+      const payload = new BillingService({ clock: systemClock }).buildVoucherPayload(
         createBillingInput({
           associatedVoucher: { cuit: '20123456786', numero: 99, puntoVenta: 3, tipo: 12 },
           documentNumber: 0,
@@ -1430,7 +1449,7 @@ describe('billing.service', () => {
   });
 
   it('accepts a recibo C as the associated voucher of a C note', () => {
-    const payload = new BillingService().buildVoucherPayload(
+    const payload = new BillingService({ clock: systemClock }).buildVoucherPayload(
       createBillingInput({
         associatedVoucher: { cuit: '20123456786', numero: 1, puntoVenta: 3, shortcut: 'rc' },
         documentNumber: 0,
@@ -1443,7 +1462,7 @@ describe('billing.service', () => {
   });
 
   it('builds a recibo A (4) with discriminated IVA, like the factura A, and rejects a consumidor final', () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
     const payload = service.buildVoucherPayload(
       createBillingInput({
         documentNumber: 30709965812,
@@ -1463,7 +1482,7 @@ describe('billing.service', () => {
   });
 
   it('builds a recibo B (9) for a consumidor final, with the IVA included like the factura B', () => {
-    const payload = new BillingService().buildVoucherPayload(
+    const payload = new BillingService({ clock: systemClock }).buildVoucherPayload(
       createBillingInput({ shortcut: 'rb', totalAmount: 1210 }),
       createRuntime(),
     );
@@ -1473,7 +1492,7 @@ describe('billing.service', () => {
 
   it('returns the number it sent to ARCA with the emitted voucher', async () => {
     const createVoucher = vi.fn(async () => ({ cae: '76123456789012', caeFchVto: '20261103', response: {} }));
-    const result = await new BillingService().execute({
+    const result = await new BillingService({ clock: systemClock }).execute({
       gateway: { createVoucher, getNextVoucherNumber: async () => 125, getQuotation: async () => 1 },
       input: createBillingInput({ documentNumber: 0, dryRun: false, emit: true }),
       runtime: createRuntime(),
@@ -1484,7 +1503,7 @@ describe('billing.service', () => {
   });
 
   it('returns a mapped dry-run response without calling the gateway', async () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
 
     const result = await service.execute({
       gateway: {
@@ -1523,7 +1542,7 @@ describe('billing.service', () => {
       const createVoucher = vi.fn(async () => ({ cae: '76123456789012', caeFchVto: '20261103', response: {} }));
       const getNextVoucherNumber = vi.fn(async () => 7);
 
-      const result = await new BillingService().execute({
+      const result = await new BillingService({ clock: systemClock }).execute({
         gateway: { createVoucher, getNextVoucherNumber, getQuotation: async () => 1 },
         input: createBillingInput({ documentNumber: 0, dryRun, emit }),
         runtime: createRuntime(),
@@ -1548,7 +1567,7 @@ describe('billing.service', () => {
   });
 
   it('flags a failed createVoucher call as uncertain, because the voucher may have been issued', async () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
     const run = service.execute({
       gateway: {
         createVoucher: async () => {
@@ -1573,7 +1592,7 @@ describe('billing.service', () => {
     ['an authentication (WSAA) failure', 'Certificado expirado'],
     ['a failure fetching the last voucher number', 'ARCA no disponible'],
   ])('does not flag %s as uncertain, because nothing was sent to ARCA', async (_case, message) => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
     const cause = new Error(message);
     const createVoucher = vi.fn();
     const run = service.execute({
@@ -1594,7 +1613,7 @@ describe('billing.service', () => {
   });
 
   it('emits the next voucher number with the same payload and maps the response', async () => {
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
     const arcaResult = {
       cae: '76123456789012',
       caeFchVto: '20261029',
@@ -1705,7 +1724,7 @@ describe('billing.service', () => {
 
   describe('receptor según la letra y la FCE (REGLAS-12)', () => {
     const build = (overrides: Partial<BillingCommandInput>) =>
-      new BillingService().buildVoucherPayload(createBillingInput(overrides), createRuntime());
+      new BillingService({ clock: systemClock }).buildVoucherPayload(createBillingInput(overrides), createRuntime());
 
     it.each([
       ['fa', 'dni', 12345678],

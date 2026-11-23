@@ -15,6 +15,7 @@ import {
 } from '../../modules/config/config.schemas';
 import { ConfigService } from '../../modules/config/config.service';
 import { BACK, type Back } from '../../modules/interactive/wizard';
+import { systemClock } from '../../services/time/system-clock';
 import { noticePanel, uiSymbol, writeTerminalError, writeTerminalOutput } from '../../ui';
 import { formatCliError } from '../error-output';
 
@@ -35,14 +36,17 @@ function withService<T>(run: (service: CertificateService, config: ConfigService
   const config = new ConfigService();
 
   try {
-    return run(new CertificateService({ certificatesRoot: config.getCertificatesPath(), config }), config);
+    return run(
+      new CertificateService({ certificatesRoot: config.getCertificatesPath(), clock: systemClock, config }),
+      config,
+    );
   } finally {
     config.close();
   }
 }
 
 function validateCertificateFile(value: string): string | true {
-  const path = normalizeDroppedPath(value);
+  const path = normalizeDroppedPath(value, process.platform);
 
   if (!path) {
     return 'Indicá la ruta del .crt, o arrastralo a la terminal.';
@@ -76,7 +80,7 @@ export async function runImportCertificate(): Promise<'importado' | Back> {
     return BACK;
   }
 
-  const content = readFileSync(normalizeDroppedPath(answer), 'utf8');
+  const content = readFileSync(normalizeDroppedPath(answer, process.platform), 'utf8');
 
   try {
     let imported;
@@ -191,6 +195,7 @@ export async function runCertificateMenu(): Promise<void> {
     writeTerminalOutput(
       formatCertificateStatusAsText(
         withService((service) => arcliEnvironmentSchema.options.map((environment) => service.status(environment))),
+        new Date(),
       ),
     );
 

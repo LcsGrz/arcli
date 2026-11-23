@@ -4,9 +4,9 @@ import { arcliConfigSchema } from '../../../modules/config/config.schemas';
 import type { ExportGateway, ExportIssuedVoucher } from '../../../modules/export/export.types';
 import { buildExportRepeatInput } from '../../../modules/interactive/export-repeat-input';
 import { BACK, runWizard } from '../../../modules/interactive/wizard';
-import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
 import { stripAnsi } from '../../../ui';
+import type { CliArcaRuntime } from '../../arca-runtime';
 import { attachExportPdf } from '../../commands/export.command.pdf';
 import { exportRepeatSteps, runExportRepeatFlow } from '../export-repeat.flow';
 import type { Choice } from '../prompts';
@@ -142,7 +142,7 @@ function createSession(config: Record<string, unknown> = {}): InteractiveSession
       config: arcliConfigSchema.parse({ cuit: '20111111112', puntoVentaPorDefecto: 4, ...config }),
       environment: 'testing',
       pointOfSale: 4,
-    } as unknown as ResolvedArcaRuntime,
+    } as unknown as CliArcaRuntime,
     service: {} as never,
   };
 }

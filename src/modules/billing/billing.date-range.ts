@@ -1,4 +1,4 @@
-import { formatDateAsArcaDate, maxArcaDate } from '../../lib/dates/arca-date';
+import { maxArcaDate } from '../../lib/dates/arca-date';
 import { assertRules } from '../../lib/rules/rules';
 
 import {
@@ -53,7 +53,7 @@ function resolveServiceDates(
 export function resolveBillingDateRange(
   input: BillingCommandInput,
   voucherKind: VoucherKindDefinition,
-  today = formatDateAsArcaDate(new Date()),
+  today: string,
 ): BillingDateRange {
   validateConceptDateInputs(input, voucherKind);
 

@@ -73,7 +73,7 @@ export function describeCertificateExpiry(
 export function inspectCertificateExpiry(
   pemContent: string,
   environment: ArcliEnvironment,
-  now: Date = new Date(),
+  now: Date,
 ): CertificateExpiryNotice | undefined {
   try {
     return describeCertificateExpiry(readCertificateExpiry(pemContent, now), environment);
@@ -86,7 +86,7 @@ export interface ConfiguredCertificatesOptions {
   readonly activeEnvironment: ArcliEnvironment;
   /** El PEM del entorno activo, si ya se leyo para el contexto: no se vuelve a leer el archivo. */
   readonly activePem?: string;
-  readonly now?: Date;
+  readonly now: Date;
 }
 
 /**

@@ -61,7 +61,7 @@ function optionalDate(
     message,
     name,
     validate: (current) =>
-      billingRule(context, field, current, (value) => ({ [field]: completeDateInput(value) }), validate),
+      billingRule(context, field, current, (value) => ({ [field]: completeDateInput(value, new Date()) }), validate),
     writes: [field],
   });
 }

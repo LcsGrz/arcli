@@ -32,9 +32,11 @@ const UI_BARREL = {
 
 // =========================
 // Fronteras del núcleo (docs/architecture.md, "Núcleo y adaptadores"): `modules` y `lib` no saben quién los llama.
-// Lo que ya se cumple es error (`no-restricted-imports`). Lo que hoy falla es deuda en warn, con el ticket que la
-// cierra (`@typescript-eslint/no-restricted-imports`, `no-restricted-globals`, `no-restricted-syntax`): no es un
-// patrón para copiar. Cuando el ticket se cierra, la frontera pasa al bloque de error.
+// Lo que ya se cumple es error: `no-restricted-imports`, `no-restricted-syntax` (el reloj) y `no-restricted-globals`
+// (`process`). El reloj y `process` siguen en warn en los módulos de la app (ARQ-7), y el global `process`, también en
+// `PROCESS_DEBT_FILES` (ARQ-12). Lo que hoy falla es deuda en warn, con el ticket que la cierra
+// (`@typescript-eslint/no-restricted-imports`): no es un patrón para copiar. Cuando el ticket se cierra, la frontera
+// pasa al bloque de error.
 // =========================
 const CORE_FILES = ['src/lib/**/*.ts', 'src/modules/**/*.ts'];
 const TEST_FILES = ['src/**/__tests__/**/*.ts', 'src/**/*.test.ts'];
@@ -62,16 +64,34 @@ const CORE_ON_APP_LIBS = [
   },
 ];
 
-// --- Deuda: warn, con su ticket ---
+const NOW_MESSAGE =
+  'El núcleo no lee el reloj: recibí la fecha como parámetro o el puerto Clock (docs/architecture.md, "Núcleo y adaptadores").';
+const NOW_SELECTORS = [
+  "NewExpression[callee.name='Date'][arguments.length=0]",
+  // Tambien sin llamarla, como `now = Date.now`.
+  "MemberExpression[object.name='Date'][property.name='now']",
+];
+/** Las lecturas del reloj: error en el núcleo, warn de ARQ-7 en los módulos de la app. */
+const noClockReads = (severity, message) => [severity, ...NOW_SELECTORS.map((selector) => ({ selector, message }))];
+
+const PROCESS_MESSAGE =
+  'El núcleo no lee el proceso (process.env, argv, cwd, platform, stdout, exit): recibilo como parámetro desde la app.';
+/** `process`, el global y el módulo: error en el núcleo, warn donde es deuda con ticket. */
+const noProcessGlobal = (severity, message) => ({
+  'no-restricted-globals': [severity, { name: 'process', message }],
+});
+const processModule = (message) => ['node:process', 'process'].map((name) => ({ name, message }));
+
 const SERVICES_ON_CLI = {
   regex: '(^|/)cli(/|$)',
-  message:
-    'services no conoce a src/cli: recibí lo ya resuelto (entorno, opciones de salida) como parámetro. Lo cierra REV-48.',
+  message: 'services no conoce a src/cli: recibí lo ya resuelto (entorno, opciones de salida) como parámetro.',
 };
+
+// --- Deuda: warn, con su ticket ---
 const CORE_ON_SERVICES = {
   regex: '(^|/)services(/|$)',
   message:
-    'El núcleo no conoce los adaptadores: usá tipos propios y recibí el gateway o el contexto como dependencia; la traducción a los tipos del SDK vive en src/services/arca. Lo cierran ARQ-4 (tipos del SDK) y REV-48 (contexto).',
+    'El núcleo no conoce los adaptadores: usá tipos propios y recibí el gateway como dependencia; la traducción a los tipos del SDK vive en src/services/arca. Lo cierra ARQ-4.',
 };
 const CORE_ON_UI = {
   regex: '(^|/)ui/',
@@ -86,38 +106,41 @@ const CORE_ON_CONF = {
 const CORE_ON_FS = ['node:fs', 'node:fs/promises', 'fs', 'fs/promises'].map((name) => ({
   name,
   message:
-    'El núcleo no lee ni escribe archivos: recibí el contenido, o un puerto (TicketStore, un repositorio) como dependencia. Lo cierran REV-48 (contexto y tickets) y ARQ-12 (datos locales).',
+    'El núcleo no lee ni escribe archivos: recibí el contenido, o un puerto (TicketStore, un repositorio) como dependencia. Lo cierra ARQ-12.',
 }));
-const CORE_ON_PROCESS_MODULE = ['node:process', 'process'].map((name) => ({
-  name,
-  message:
-    'El núcleo no lee el proceso: recibí el entorno, los argumentos o la salida como parámetro. Lo cierra REV-48.',
-}));
-const PROCESS_MESSAGE =
-  'El núcleo no lee el proceso (process.env, argv, cwd, stdout, exit): recibilo como parámetro desde la app. Lo cierra REV-48.';
-const NOW_MESSAGE =
-  'El núcleo no lee el reloj: recibí la fecha como parámetro o el puerto Clock (docs/architecture.md, "Núcleo y adaptadores"). Lo cierra REV-48.';
-const NOW_SELECTORS = [
-  "NewExpression[callee.name='Date'][arguments.length=0]",
-  "CallExpression[callee.object.name='Date'][callee.property.name='now']",
+/** Leen el proceso junto con los archivos o la carpeta de la config: se mudan con ellos. Ningún otro del núcleo. */
+const PROCESS_DEBT_FILES = [
+  'src/lib/files/restrict-to-owner.ts',
+  'src/modules/certificates/certificate-store.ts',
+  'src/modules/config/config.service.ts',
 ];
+const PROCESS_DEBT_MESSAGE =
+  'La plataforma y ARCLI_CONFIG_DIR se leen acá junto con los archivos: pasan al adaptador con ellos. Lo cierra ARQ-12. No copies el patrón.';
 
-/** Arma las reglas de deuda del núcleo; en los módulos de la app, todas con el mensaje de ARQ-7. */
-const coreDebtRules = (override) => {
-  const msg = (message) => override ?? message;
-  const withMessage = (entries) => entries.map((entry) => ({ ...entry, message: msg(entry.message) }));
+/** Las reglas de deuda del núcleo; en los módulos de la app, todas con el mensaje de ARQ-7. */
+const coreDebtRules = ({ message, extraPaths = [] } = {}) => {
+  const withMessage = (entries) => entries.map((entry) => ({ ...entry, message: message ?? entry.message }));
   return {
     '@typescript-eslint/no-restricted-imports': [
       'warn',
       {
-        paths: withMessage([CORE_ON_CONF, ...CORE_ON_FS, ...CORE_ON_PROCESS_MODULE]),
+        paths: [...withMessage([CORE_ON_CONF, ...CORE_ON_FS]), ...extraPaths],
         patterns: withMessage([CORE_ON_SERVICES, CORE_ON_UI]),
       },
     ],
-    'no-restricted-globals': ['warn', { name: 'process', message: msg(PROCESS_MESSAGE) }],
-    'no-restricted-syntax': ['warn', ...NOW_SELECTORS.map((selector) => ({ selector, message: msg(NOW_MESSAGE) }))],
   };
 };
+
+/** Los imports del núcleo que son error. */
+const coreImportRules = (extraPaths = []) => ({
+  'no-restricted-imports': [
+    'error',
+    {
+      paths: [...UI_STYLE_IMPORTS, ...CORE_ON_APP_LIBS, ...extraPaths],
+      patterns: [UI_BARREL, SDK_OUTSIDE_SERVICES, CORE_ON_CLI, CORE_ON_PROMPTS],
+    },
+  ],
+});
 
 export default defineConfig([
   // =========================
@@ -236,41 +259,41 @@ export default defineConfig([
     files: CORE_FILES,
     ignores: TEST_FILES,
     rules: {
-      'no-restricted-imports': [
-        'error',
-        {
-          paths: [...UI_STYLE_IMPORTS, ...CORE_ON_APP_LIBS],
-          patterns: [UI_BARREL, SDK_OUTSIDE_SERVICES, CORE_ON_CLI, CORE_ON_PROMPTS],
-        },
-      ],
+      ...coreImportRules(processModule(PROCESS_MESSAGE)),
+      ...noProcessGlobal('error', PROCESS_MESSAGE),
+      'no-restricted-syntax': noClockReads('error', NOW_MESSAGE),
       ...coreDebtRules(),
     },
   },
   {
-    files: APP_MODULES,
-    ignores: TEST_FILES,
-    rules: coreDebtRules(APP_MODULE_MESSAGE),
+    files: PROCESS_DEBT_FILES,
+    // Solo el global: importar `node:process` sigue en error, como en el resto del núcleo.
+    rules: noProcessGlobal('warn', PROCESS_DEBT_MESSAGE),
   },
   {
-    // Deuda en warn: la versión de typescript-eslint de la regla, porque `no-restricted-imports` ya está en error
-    // en este archivo y una regla tiene una sola severidad.
-    files: ['src/services/**/*.ts'],
+    files: APP_MODULES,
     ignores: TEST_FILES,
     rules: {
-      '@typescript-eslint/no-restricted-imports': ['warn', { patterns: [SERVICES_ON_CLI] }],
+      'no-restricted-syntax': noClockReads('warn', APP_MODULE_MESSAGE),
+      ...coreImportRules(),
+      ...noProcessGlobal('warn', APP_MODULE_MESSAGE),
+      ...coreDebtRules({ message: APP_MODULE_MESSAGE, extraPaths: processModule(APP_MODULE_MESSAGE) }),
     },
   },
   {
     files: ['src/services/**/*.ts'],
     ignores: [SDK_TYPES_FILE],
     rules: {
-      'no-restricted-imports': ['error', { paths: UI_STYLE_IMPORTS, patterns: [UI_BARREL, SDK_INTERNAL_PATHS] }],
+      'no-restricted-imports': [
+        'error',
+        { paths: UI_STYLE_IMPORTS, patterns: [UI_BARREL, SDK_INTERNAL_PATHS, SERVICES_ON_CLI] },
+      ],
     },
   },
   {
     files: [SDK_TYPES_FILE],
     rules: {
-      'no-restricted-imports': ['error', { paths: UI_STYLE_IMPORTS, patterns: [UI_BARREL] }],
+      'no-restricted-imports': ['error', { paths: UI_STYLE_IMPORTS, patterns: [UI_BARREL, SERVICES_ON_CLI] }],
     },
   },
   {

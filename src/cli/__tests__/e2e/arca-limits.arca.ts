@@ -22,9 +22,9 @@ import {
   EXPORT_VOUCHER_KINDS,
 } from '../../../modules/export/export.types';
 import { ArcaClientFactory } from '../../../services/arca/arca-client.factory';
-import { ArcaContextResolver } from '../../../services/arca/arca-context.resolver';
 import type { ArcaExportGateway } from '../../../services/arca/arca-export.gateway';
 import type { Arca } from '../../../services/arca/arca-sdk.types';
+import { loadArcaRuntime } from '../../arca-runtime';
 
 import { ARCA_CLI, assertArcaTestingReady } from './arca-guard';
 
@@ -151,7 +151,7 @@ describe.skipIf(Boolean(process.env.CI))('Tablas copiadas de ARCA contra las de 
   let exportGateway: ArcaExportGateway;
 
   beforeAll(() => {
-    const runtime = new ArcaContextResolver({ options: { testing: true } }).resolve();
+    const runtime = loadArcaRuntime({ testing: true });
 
     if (runtime.environment !== 'testing' || runtime.context.production !== false) {
       throw new Error('Los canarios contra ARCA corren solo en testing.');

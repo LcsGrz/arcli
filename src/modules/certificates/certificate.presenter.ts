@@ -244,7 +244,7 @@ function statusRows(status: CertificateStatus, now: Date): string[] {
 }
 
 /** Una caja por entorno, con el titulo en su color: alias, vencimiento, archivos y si quedo un pedido sin importar. */
-export function formatCertificateStatusAsText(statuses: readonly CertificateStatus[], now = new Date()): string {
+export function formatCertificateStatusAsText(statuses: readonly CertificateStatus[], now: Date): string {
   return statuses
     .map((status) =>
       sheetPanel(`Certificado de ${formatEnvironmentLabel(status.environment)}`, statusRows(status, now), {

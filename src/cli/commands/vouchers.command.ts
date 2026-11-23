@@ -26,9 +26,9 @@ import {
   formatVoucherListAsText,
 } from '../../modules/vouchers/voucher-history.presenter';
 import { formatVoucherNumber } from '../../modules/vouchers/voucher-number';
-import type { ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
 import { ArcaVoucherHistoryGateway } from '../../services/arca/arca-voucher-history.gateway';
 import { type ArcaQuery, createArcaQuery, createExportQuery, withQuerySpinner, writeQueryOutput } from '../arca-query';
+import type { CliArcaRuntime } from '../arca-runtime';
 import { registerQueryOptions } from '../global-options';
 import { configureSpanishHelp, createVoucherQueryHelp } from '../help';
 import { integerOption } from '../option-parsers';
@@ -66,7 +66,7 @@ function voucherNotFound(
   kind: VoucherKindDefinition | ExportVoucherKind,
   pointOfSale: number,
   number: number,
-  environment: ResolvedArcaRuntime['environment'],
+  environment: CliArcaRuntime['environment'],
 ): AppError {
   return new AppError(
     `No existe ${formatVoucherWithArticle(kind)} N° ${formatVoucherNumber(pointOfSale, number)} en ARCA (${formatEnvironmentLabel(environment)}).`,
@@ -74,7 +74,7 @@ function voucherNotFound(
   );
 }
 
-function requirePointOfSale(options: PointOfSaleOptions, runtime: ResolvedArcaRuntime): number {
+function requirePointOfSale(options: PointOfSaleOptions, runtime: CliArcaRuntime): number {
   const pointOfSale = options.pv ?? options.puntoVenta ?? runtime.pointOfSale;
 
   if (!pointOfSale || !Number.isInteger(pointOfSale) || pointOfSale <= 0) {

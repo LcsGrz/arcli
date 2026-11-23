@@ -111,11 +111,39 @@ const INPUT: ExportVoucherInput = {
 };
 
 describe('ExportService.resolve', () => {
-  const service = new ExportService();
+  const service = new ExportService({ clock: { now: () => NOW } });
+
+  it('lee el reloj en cada resolucion, no al crear el servicio', async () => {
+    let now = new Date('2026-06-02T02:59:59Z');
+    const longLived = new ExportService({ clock: { now: () => now } });
+    const before = await longLived.resolve(INPUT, createGateway(), RUNTIME);
+
+    now = new Date('2026-06-02T03:00:00Z');
+
+    const after = await longLived.resolve(INPUT, createGateway(), RUNTIME);
+
+    expect([before.payload.Fecha_cbte, after.payload.Fecha_cbte]).toEqual(['20260601', '20260602']);
+  });
+
+  it('lee el reloj una vez por resolucion: la medianoche no cae en el medio', async () => {
+    // La primera lectura es del 01/06; las que sigan, de otro año, para que tambien cambie la fecha sin año.
+    const now = vi.fn(() => new Date('2030-06-02T03:00:00Z')).mockReturnValueOnce(new Date('2026-06-02T02:59:59Z'));
+    const gateway = createGateway();
+    const resolved = await new ExportService({ clock: { now } }).resolve(
+      { ...INPUT, paymentDate: '10/6', voucherDate: '2/6/2026' },
+      gateway,
+      RUNTIME,
+    );
+
+    expect(now).toHaveBeenCalledTimes(1);
+    expect(resolved.payload).toMatchObject({ Fecha_cbte: '20260602', Fecha_pago: '20260610' });
+    expect(gateway.getQuotations).toHaveBeenCalledWith('20260531');
+    expect(resolved.warnings).toContainEqual(expect.stringContaining('(02/06/2026) es futura'));
+  });
 
   it('arma el payload con la numeracion, la cotizacion y las tablas de ARCA', async () => {
     const gateway = createGateway();
-    const resolved = await service.resolve({ ...INPUT, exportType: 1 }, gateway, RUNTIME, NOW);
+    const resolved = await service.resolve({ ...INPUT, exportType: 1 }, gateway, RUNTIME);
 
     expect(resolved.payload).toMatchObject({
       Cbte_nro: 42,
@@ -162,7 +190,7 @@ describe('ExportService.resolve', () => {
 
   it('sin permisos de embarque no consulta FEXCheck_Permiso', async () => {
     const gateway = createGateway();
-    const resolved = await service.resolve({ ...INPUT, exportType: 1 }, gateway, RUNTIME, NOW);
+    const resolved = await service.resolve({ ...INPUT, exportType: 1 }, gateway, RUNTIME);
 
     expect(gateway.checkPermit).not.toHaveBeenCalled();
     expect(resolved.display.permitChecks).toBeUndefined();
@@ -174,7 +202,6 @@ describe('ExportService.resolve', () => {
       { ...INPUT, exportType: 1, permits: ['P1', 'P2'], permitsExisting: true },
       gateway,
       RUNTIME,
-      NOW,
     );
 
     expect(gateway.checkPermit).toHaveBeenCalledWith('P1', 203);
@@ -189,7 +216,7 @@ describe('ExportService.resolve', () => {
     const gateway = createGateway({ checkPermit: vi.fn(async () => 'NO') });
 
     await expect(
-      service.resolve({ ...INPUT, exportType: 1, permits: ['P1'], permitsExisting: true }, gateway, RUNTIME, NOW),
+      service.resolve({ ...INPUT, exportType: 1, permits: ['P1'], permitsExisting: true }, gateway, RUNTIME),
     ).rejects.toThrow('ARCA dice que el permiso de embarque P1 no es válido para el destino 203 - Brasil');
     expect(gateway.authorize).not.toHaveBeenCalled();
   });
@@ -200,7 +227,6 @@ describe('ExportService.resolve', () => {
       { ...INPUT, exportType: 1, permits: ['P1'], permitsExisting: true },
       gateway,
       RUNTIME,
-      NOW,
     );
 
     expect(resolved.display.permitChecks).toEqual([{ permit: 'P1', status: 'sin-verificar' }]);
@@ -210,7 +236,7 @@ describe('ExportService.resolve', () => {
   });
 
   it('en una exportacion de servicios deja vacio Permiso_existente, como pide ARCA (1550)', async () => {
-    const resolved = await service.resolve({ ...INPUT, exportType: 2 }, createGateway(), RUNTIME, NOW);
+    const resolved = await service.resolve({ ...INPUT, exportType: 2 }, createGateway(), RUNTIME);
 
     expect(resolved.payload.Permiso_existente).toBe('');
     expect(resolved.payload).not.toHaveProperty('Permisos');
@@ -221,7 +247,6 @@ describe('ExportService.resolve', () => {
       { ...INPUT, exportType: 2, paymentDate: '15/06/2026' },
       createGateway(),
       RUNTIME,
-      NOW,
     );
 
     expect(resolved.payload.Fecha_pago).toBe('20260615');
@@ -229,12 +254,11 @@ describe('ExportService.resolve', () => {
   });
 
   it('en bienes no manda la fecha de pago (ARCA la rechaza, 1673) y avisa si vino `--fecha-pago`', async () => {
-    const withoutDate = await service.resolve({ ...INPUT, exportType: 1 }, createGateway(), RUNTIME, NOW);
+    const withoutDate = await service.resolve({ ...INPUT, exportType: 1 }, createGateway(), RUNTIME);
     const withDate = await service.resolve(
       { ...INPUT, exportType: 1, paymentDate: '15/06/2026' },
       createGateway(),
       RUNTIME,
-      NOW,
     );
 
     expect(withoutDate.payload).not.toHaveProperty('Fecha_pago');
@@ -247,7 +271,7 @@ describe('ExportService.resolve', () => {
 
   it('sin moneda ni tipo usa los defaults: servicios, dolares y transferencia internacional', async () => {
     const gateway = createGateway();
-    const resolved = await service.resolve({ ...INPUT, currencyCode: undefined }, gateway, RUNTIME, NOW);
+    const resolved = await service.resolve({ ...INPUT, currencyCode: undefined }, gateway, RUNTIME);
 
     expect(resolved.payload).toMatchObject({
       Forma_pago: 'Transferencia Internacional',
@@ -264,16 +288,11 @@ describe('ExportService.resolve', () => {
     const gateway = createGateway();
 
     // Sin --fecha la cotizacion es la del dia del comprobante (hoy en Argentina): la consulta va en yyyymmdd.
-    await service.resolve({ ...INPUT, exportType: 1 }, gateway, RUNTIME, NOW);
+    await service.resolve({ ...INPUT, exportType: 1 }, gateway, RUNTIME);
     expect(gateway.getQuotations).toHaveBeenCalledWith('20260601');
 
     const backdated = createGateway();
-    const resolved = await service.resolve(
-      { ...INPUT, exportType: 1, voucherDate: '29/05/2026' },
-      backdated,
-      RUNTIME,
-      NOW,
-    );
+    const resolved = await service.resolve({ ...INPUT, exportType: 1, voucherDate: '29/05/2026' }, backdated, RUNTIME);
 
     expect(resolved.payload.Fecha_cbte).toBe('20260529');
     expect(backdated.getQuotations).toHaveBeenCalledWith('20260529');
@@ -282,17 +301,14 @@ describe('ExportService.resolve', () => {
   it('en servicios pide la cotizacion del dia anterior a la fecha del comprobante (error 2053)', async () => {
     const gateway = createGateway();
 
-    await service.resolve({ ...INPUT, currencyCode: undefined }, gateway, RUNTIME, NOW);
+    await service.resolve({ ...INPUT, currencyCode: undefined }, gateway, RUNTIME);
     expect(gateway.getQuotations).toHaveBeenCalledWith('20260531');
 
     // El caso del rechazo en testing: una E de servicios del 16/11 tiene que ir con la del 15/11.
     const backdated = createGateway();
-    const resolved = await service.resolve(
-      { ...INPUT, voucherDate: '16/11/2026' },
-      backdated,
-      RUNTIME,
-      new Date('2026-11-18T15:00:00Z'),
-    );
+    const resolved = await new ExportService({
+      clock: { now: () => new Date('2026-11-18T15:00:00Z') },
+    }).resolve({ ...INPUT, voucherDate: '16/11/2026' }, backdated, RUNTIME);
 
     expect(backdated.getQuotations).toHaveBeenCalledWith('20261115');
     expect(resolved.payload.Moneda_ctz).toBe(900.5);
@@ -304,7 +320,9 @@ describe('ExportService.resolve', () => {
     const gateway = createGateway({
       getQuotations: vi.fn(async () => [{ code: 'DOL', date: '20261113', rate: 1179.27 }]),
     });
-    const resolved = await service.resolve(INPUT, gateway, RUNTIME, new Date('2026-11-16T15:00:00Z'));
+    const resolved = await new ExportService({
+      clock: { now: () => new Date('2026-11-16T15:00:00Z') },
+    }).resolve(INPUT, gateway, RUNTIME);
 
     expect(gateway.getQuotations).toHaveBeenCalledWith('20261115');
     expect(resolved.payload.Moneda_ctz).toBe(1179.27);
@@ -315,7 +333,7 @@ describe('ExportService.resolve', () => {
 
   it('con --misma-moneda tambien pide la del dia anterior, en bienes y otros', async () => {
     const gateway = createGateway();
-    const resolved = await service.resolve({ ...INPUT, exportType: 1, sameCurrency: true }, gateway, RUNTIME, NOW);
+    const resolved = await service.resolve({ ...INPUT, exportType: 1, sameCurrency: true }, gateway, RUNTIME);
 
     expect(gateway.getQuotations).toHaveBeenCalledWith('20260531');
     expect(resolved.payload).toMatchObject({ CanMisMonExt: 'S', Moneda_ctz: 900.5 });
@@ -325,7 +343,7 @@ describe('ExportService.resolve', () => {
     const gateway = createGateway({
       getQuotations: vi.fn(async () => [{ code: 'DOL', date: '20260529', rate: 895 }]),
     });
-    const resolved = await service.resolve({ ...INPUT, currencyCode: undefined, exportType: 1 }, gateway, RUNTIME, NOW);
+    const resolved = await service.resolve({ ...INPUT, currencyCode: undefined, exportType: 1 }, gateway, RUNTIME);
 
     expect(resolved.payload.Moneda_ctz).toBe(895);
     expect(resolved.warnings).toEqual([
@@ -334,7 +352,7 @@ describe('ExportService.resolve', () => {
   });
 
   it('no avisa nada cuando la cotizacion es la del dia pedido', async () => {
-    const resolved = await service.resolve(INPUT, createGateway(), RUNTIME, NOW);
+    const resolved = await service.resolve(INPUT, createGateway(), RUNTIME);
 
     expect(resolved.warnings).toEqual([]);
   });
@@ -344,10 +362,10 @@ describe('ExportService.resolve', () => {
       getQuotations: vi.fn(async () => [{ code: '060', date: '20260531', rate: 1300 }]),
     });
 
-    await expect(service.resolve(INPUT, gateway, RUNTIME, NOW)).rejects.toThrow(
+    await expect(service.resolve(INPUT, gateway, RUNTIME)).rejects.toThrow(
       /no informó la cotización de DOL para el 31\/05\/2026\. Las monedas con cotización son 060\./,
     );
-    await expect(service.resolve(INPUT, gateway, RUNTIME, NOW)).rejects.toThrow(/--cotizacion-moneda/);
+    await expect(service.resolve(INPUT, gateway, RUNTIME)).rejects.toThrow(/--cotizacion-moneda/);
   });
 
   it('una moneda que no esta en la tabla de WSFEX es error de entrada (1590), sin pedir la cotizacion', async () => {
@@ -355,7 +373,7 @@ describe('ExportService.resolve', () => {
 
     for (const exchangeRate of [undefined, 10]) {
       await expect(
-        service.resolve({ ...INPUT, currencyCode: 'XYZ', exchangeRate }, gateway, RUNTIME, NOW),
+        service.resolve({ ...INPUT, currencyCode: 'XYZ', exchangeRate }, gateway, RUNTIME),
       ).rejects.toMatchObject({
         code: 'INPUT_VALIDATION_ERROR',
         message: 'La moneda XYZ no está en la tabla de monedas de ARCA: la rechaza al emitir (error 1590).',
@@ -369,7 +387,7 @@ describe('ExportService.resolve', () => {
   it('sin cotizacion para la moneda (el gateway descarta las de 0) es ARCA_QUOTATION_ERROR', async () => {
     const gateway = createGateway({ getQuotations: vi.fn(async () => []) });
 
-    await expect(service.resolve(INPUT, gateway, RUNTIME, NOW)).rejects.toMatchObject({
+    await expect(service.resolve(INPUT, gateway, RUNTIME)).rejects.toMatchObject({
       code: 'ARCA_QUOTATION_ERROR',
       message: expect.stringMatching(/no informó la cotización de DOL para el 31\/05\/2026\. Informá/),
     });
@@ -383,7 +401,6 @@ describe('ExportService.resolve', () => {
       { ...INPUT, clientTaxId: 'IE1234567T', destinationCountry: 'irlanda' },
       gateway,
       RUNTIME,
-      NOW,
     );
 
     expect(resolved.payload).not.toHaveProperty('Cuit_pais_cliente');
@@ -397,7 +414,7 @@ describe('ExportService.resolve', () => {
     });
 
     await expect(
-      service.resolve({ ...INPUT, clientTaxId: undefined, destinationCountry: '415' }, gateway, RUNTIME, NOW),
+      service.resolve({ ...INPUT, clientTaxId: undefined, destinationCountry: '415' }, gateway, RUNTIME),
     ).rejects.toThrow(/ARCA pide el CUIT del país o el ID impositivo del cliente \(error 1580\)/);
     expect(gateway.authorize).not.toHaveBeenCalled();
   });
@@ -407,7 +424,6 @@ describe('ExportService.resolve', () => {
       { ...INPUT, currencyCode: 'ARS', exportType: 1, paymentTerms: 'Carta de credito' },
       createGateway(),
       RUNTIME,
-      NOW,
     );
 
     expect(resolved.payload).toMatchObject({
@@ -420,12 +436,7 @@ describe('ExportService.resolve', () => {
   });
 
   it('toma la actividad y el pago en la misma moneda que vienen por flag', async () => {
-    const resolved = await service.resolve(
-      { ...INPUT, activity: 46201, sameCurrency: true },
-      createGateway(),
-      RUNTIME,
-      NOW,
-    );
+    const resolved = await service.resolve({ ...INPUT, activity: 46201, sameCurrency: true }, createGateway(), RUNTIME);
 
     expect(resolved.payload.Actividades).toEqual({ Actividad: [{ Id: 46201 }] });
     // CanMisMonExt es el campo de WSFEX que dice que el pago se cancela en la moneda extranjera del comprobante.
@@ -435,7 +446,7 @@ describe('ExportService.resolve', () => {
   it('corta antes de emitir si la actividad no esta en la tabla de WSFEX (ARCA la rechaza con 2105)', async () => {
     const gateway = createGateway();
 
-    await expect(service.resolve({ ...INPUT, activity: 620900 }, gateway, RUNTIME, NOW)).rejects.toThrow(
+    await expect(service.resolve({ ...INPUT, activity: 620900 }, gateway, RUNTIME)).rejects.toThrow(
       /La actividad 620900 no está en la tabla de actividades de WSFEX.*Las que empiezan con 620 son 620100/,
     );
     expect(gateway.authorize).not.toHaveBeenCalled();
@@ -443,7 +454,7 @@ describe('ExportService.resolve', () => {
 
   it('con las tablas de incoterms y actividades vacías no valida contra ellas y avisa (REV-62)', async () => {
     const gateway = createGateway({ getActivities: vi.fn(async () => []), getIncoterms: vi.fn(async () => []) });
-    const resolved = await service.resolve({ ...INPUT, activity: 999999, exportType: 1 }, gateway, RUNTIME, NOW);
+    const resolved = await service.resolve({ ...INPUT, activity: 999999, exportType: 1 }, gateway, RUNTIME);
 
     expect(resolved.payload).toMatchObject({ Actividades: { Actividad: [{ Id: 999999 }] }, Incoterms: 'FOB' });
     expect(resolved.warnings).toEqual(
@@ -457,7 +468,7 @@ describe('ExportService.resolve', () => {
   it('sin actividad por flag ni por config no manda el bloque Actividades ni consulta la tabla (2100 es el bloque vacio)', async () => {
     const gateway = createGateway();
     const runtime = { ...RUNTIME, config: arcliConfigSchema.parse({ cuit: '20111111112', puntoVentaPorDefecto: 3 }) };
-    const resolved = await service.resolve(INPUT, gateway, runtime, NOW);
+    const resolved = await service.resolve(INPUT, gateway, runtime);
 
     expect(resolved.payload).not.toHaveProperty('Actividades');
     expect(gateway.getActivities).not.toHaveBeenCalled();
@@ -465,13 +476,13 @@ describe('ExportService.resolve', () => {
 
   it('rechaza un monto con más de 2 decimales, como A, B y C, en lugar de redondearlo', async () => {
     await expect(
-      service.resolve({ ...INPUT, amount: 1500.005, items: undefined }, createGateway(), RUNTIME, NOW),
+      service.resolve({ ...INPUT, amount: 1500.005, items: undefined }, createGateway(), RUNTIME),
     ).rejects.toThrow(/más de 2 decimales/);
   });
 
   it('no consulta el ID de solicitud si el usuario lo informa', async () => {
     const gateway = createGateway();
-    const resolved = await service.resolve({ ...INPUT, requestId: 100, voucherNumber: 5 }, gateway, RUNTIME, NOW);
+    const resolved = await service.resolve({ ...INPUT, requestId: 100, voucherNumber: 5 }, gateway, RUNTIME);
 
     expect(resolved.payload.Cbte_nro).toBe(5);
     expect(resolved.payload.Id).toBe(100);
@@ -480,7 +491,7 @@ describe('ExportService.resolve', () => {
 
   it('sin --numero usa el siguiente al último que tiene ARCA para ese tipo y punto de venta', async () => {
     const gateway = createGateway();
-    const resolved = await service.resolve({ ...INPUT, voucherNumber: undefined }, gateway, RUNTIME, NOW);
+    const resolved = await service.resolve({ ...INPUT, voucherNumber: undefined }, gateway, RUNTIME);
 
     expect(gateway.getLastVoucherNumber).toHaveBeenCalledWith(19, 3);
     expect(resolved.payload.Cbte_nro).toBe(42);
@@ -489,53 +500,47 @@ describe('ExportService.resolve', () => {
   it('con --numero no consulta el último', async () => {
     const gateway = createGateway();
 
-    await service.resolve(INPUT, gateway, RUNTIME, NOW);
+    await service.resolve(INPUT, gateway, RUNTIME);
 
     expect(gateway.getLastVoucherNumber).not.toHaveBeenCalled();
   });
 
   it('en bienes no consulta la cotizacion si viene por flag', async () => {
     const gateway = createGateway();
-    const resolved = await service.resolve({ ...INPUT, exchangeRate: 1000, exportType: 1 }, gateway, RUNTIME, NOW);
+    const resolved = await service.resolve({ ...INPUT, exchangeRate: 1000, exportType: 1 }, gateway, RUNTIME);
 
     expect(resolved.payload.Moneda_ctz).toBe(1000);
     expect(gateway.getQuotations).not.toHaveBeenCalled();
   });
 
   it('en servicios y con `--misma-moneda`, `--cotizacion-moneda` tiene que ser la de ARCA (2053, 1604)', async () => {
-    const official = await service.resolve({ ...INPUT, exchangeRate: 900.5 }, createGateway(), RUNTIME, NOW);
+    const official = await service.resolve({ ...INPUT, exchangeRate: 900.5 }, createGateway(), RUNTIME);
 
     expect(official.payload.Moneda_ctz).toBe(900.5);
-    await expect(service.resolve({ ...INPUT, exchangeRate: 1000 }, createGateway(), RUNTIME, NOW)).rejects.toThrow(
+    await expect(service.resolve({ ...INPUT, exchangeRate: 1000 }, createGateway(), RUNTIME)).rejects.toThrow(
       /900,50 del 31\/05\/2026.*error 2053/,
     );
     await expect(
-      service.resolve(
-        { ...INPUT, exchangeRate: 1000, exportType: 1, sameCurrency: true },
-        createGateway(),
-        RUNTIME,
-        NOW,
-      ),
+      service.resolve({ ...INPUT, exchangeRate: 1000, exportType: 1, sameCurrency: true }, createGateway(), RUNTIME),
     ).rejects.toThrow(/Con `--misma-moneda`.*error 1604/);
   });
 
   it('frena antes lo que ARCA rechaza: incoterm (1640, 1641), fecha de pago (1674), unidad 99 (1775) y largos', async () => {
     const reject = (input: Partial<ExportVoucherInput>) =>
-      expect(service.resolve({ ...INPUT, ...input }, createGateway(), RUNTIME, NOW)).rejects.toThrow();
+      expect(service.resolve({ ...INPUT, ...input }, createGateway(), RUNTIME)).rejects.toThrow();
 
     await reject({ exportType: 1, incoterm: undefined });
     await expect(
-      service.resolve({ ...INPUT, incoterm: undefined, incotermDescription: 'Puerto' }, createGateway(), RUNTIME, NOW),
+      service.resolve({ ...INPUT, incoterm: undefined, incotermDescription: 'Puerto' }, createGateway(), RUNTIME),
     ).rejects.toThrow(/error 1641/);
-    await expect(
-      service.resolve({ ...INPUT, paymentDate: '31/05/2026' }, createGateway(), RUNTIME, NOW),
-    ).rejects.toThrow(/error 1674/);
+    await expect(service.resolve({ ...INPUT, paymentDate: '31/05/2026' }, createGateway(), RUNTIME)).rejects.toThrow(
+      /error 1674/,
+    );
     await expect(
       service.resolve(
         { ...INPUT, items: [{ description: 'Descuento', quantity: 1, unit: 99, unitPrice: 1500 }] },
         createGateway({ getUnits: vi.fn(async () => [{ id: 99, name: 'bonificación' }]) }),
         RUNTIME,
-        NOW,
       ),
     ).rejects.toThrow(/error 1775/);
     await reject({ clientName: 'a'.repeat(201) });
@@ -546,13 +551,11 @@ describe('ExportService.resolve', () => {
   it('valida los datos obligatorios antes de ir a ARCA', async () => {
     const gateway = createGateway();
 
-    await expect(service.resolve({ ...INPUT, clientName: undefined }, gateway, RUNTIME, NOW)).rejects.toThrow(
-      /--cliente/,
-    );
-    await expect(service.resolve({ ...INPUT, destinationCountry: undefined }, gateway, RUNTIME, NOW)).rejects.toThrow(
+    await expect(service.resolve({ ...INPUT, clientName: undefined }, gateway, RUNTIME)).rejects.toThrow(/--cliente/);
+    await expect(service.resolve({ ...INPUT, destinationCountry: undefined }, gateway, RUNTIME)).rejects.toThrow(
       /--pais-destino/,
     );
-    await expect(service.resolve({ ...INPUT, amount: 1000 }, gateway, RUNTIME, NOW)).rejects.toThrow(
+    await expect(service.resolve({ ...INPUT, amount: 1000 }, gateway, RUNTIME)).rejects.toThrow(
       /no coincide con `--monto`/,
     );
     expect(gateway.getDestinationCountries).not.toHaveBeenCalled();
@@ -561,13 +564,13 @@ describe('ExportService.resolve', () => {
   it('rechaza un monto 0 o negativo y pide el domicilio, sin ir a ARCA (TEST-16)', async () => {
     const gateway = createGateway();
 
-    await expect(service.resolve({ ...INPUT, amount: 0 }, gateway, RUNTIME, NOW)).rejects.toThrow(
+    await expect(service.resolve({ ...INPUT, amount: 0 }, gateway, RUNTIME)).rejects.toThrow(
       /Falta el monto total o no es válido/,
     );
-    await expect(service.resolve({ ...INPUT, amount: -1500 }, gateway, RUNTIME, NOW)).rejects.toThrow(
+    await expect(service.resolve({ ...INPUT, amount: -1500 }, gateway, RUNTIME)).rejects.toThrow(
       /Falta el monto total o no es válido/,
     );
-    await expect(service.resolve({ ...INPUT, clientAddress: ' ' }, gateway, RUNTIME, NOW)).rejects.toThrow(
+    await expect(service.resolve({ ...INPUT, clientAddress: ' ' }, gateway, RUNTIME)).rejects.toThrow(
       /--domicilio-cliente/,
     );
     expect(gateway.getDestinationCountries).not.toHaveBeenCalled();
@@ -576,24 +579,24 @@ describe('ExportService.resolve', () => {
 
   it('en servicios en pesos no consulta la cotizacion (TEST-16)', async () => {
     const gateway = createGateway();
-    const resolved = await service.resolve({ ...INPUT, currencyCode: 'PES' }, gateway, RUNTIME, NOW);
+    const resolved = await service.resolve({ ...INPUT, currencyCode: 'PES' }, gateway, RUNTIME);
 
     expect(resolved.payload).toMatchObject({ Moneda_ctz: 1, Moneda_Id: 'PES' });
     expect(gateway.getQuotations).not.toHaveBeenCalled();
   });
 
   it('rechaza una fecha de mas de 5 dias antes o despues de hoy (error 1500)', async () => {
-    await expect(
-      service.resolve({ ...INPUT, voucherDate: '07/06/2026' }, createGateway(), RUNTIME, NOW),
-    ).rejects.toThrow(/error 1500/);
-    await expect(
-      service.resolve({ ...INPUT, voucherDate: '26/05/2026' }, createGateway(), RUNTIME, NOW),
-    ).rejects.toThrow(/error 1500/);
+    await expect(service.resolve({ ...INPUT, voucherDate: '07/06/2026' }, createGateway(), RUNTIME)).rejects.toThrow(
+      /error 1500/,
+    );
+    await expect(service.resolve({ ...INPUT, voucherDate: '26/05/2026' }, createGateway(), RUNTIME)).rejects.toThrow(
+      /error 1500/,
+    );
   });
 
   it('acepta una fecha futura de hasta 5 dias, con la cotizacion del dia habil anterior a hoy y un aviso (1535)', async () => {
     const gateway = createGateway();
-    const resolved = await service.resolve({ ...INPUT, voucherDate: '03/06/2026' }, gateway, RUNTIME, NOW);
+    const resolved = await service.resolve({ ...INPUT, voucherDate: '03/06/2026' }, gateway, RUNTIME);
 
     expect(resolved.payload.Fecha_cbte).toBe('20260603');
     expect(gateway.getQuotations).toHaveBeenCalledWith('20260531');
@@ -603,26 +606,21 @@ describe('ExportService.resolve', () => {
   });
 
   it('usa el punto de venta de la config y falla si no hay ninguno', async () => {
-    const resolved = await service.resolve(INPUT, createGateway(), RUNTIME, NOW);
+    const resolved = await service.resolve(INPUT, createGateway(), RUNTIME);
 
     expect(resolved.payload.Punto_vta).toBe(3);
 
     await expect(
-      service.resolve(
-        INPUT,
-        createGateway(),
-        {
-          config: arcliConfigSchema.parse({ cuit: '20111111112', exportacion: { actividad: 620100 } }),
-          environment: 'testing',
-        },
-        NOW,
-      ),
+      service.resolve(INPUT, createGateway(), {
+        config: arcliConfigSchema.parse({ cuit: '20111111112', exportacion: { actividad: 620100 } }),
+        environment: 'testing',
+      }),
     ).rejects.toThrow(/--pv <numero>/);
   });
 });
 
 describe('ExportService.resolve: notas E', () => {
-  const service = new ExportService();
+  const service = new ExportService({ clock: { now: () => NOW } });
   const NOTE_INPUT: ExportVoucherInput = {
     amount: 500,
     associatedVoucher: { number: 12 },
@@ -645,7 +643,6 @@ describe('ExportService.resolve: notas E', () => {
       },
       gateway,
       RUNTIME,
-      NOW,
     );
 
     expect(gateway.getVoucher).not.toHaveBeenCalled();
@@ -656,18 +653,18 @@ describe('ExportService.resolve: notas E', () => {
   it('en servicios la nota sin `--ar` es error (2047), y con `--ac` sin `--ar` falta el numero', async () => {
     const gateway = createGateway();
 
+    await expect(service.resolve({ ...NOTE_INPUT, associatedVoucher: undefined }, gateway, RUNTIME)).rejects.toThrow(
+      /error 2047/,
+    );
     await expect(
-      service.resolve({ ...NOTE_INPUT, associatedVoucher: undefined }, gateway, RUNTIME, NOW),
-    ).rejects.toThrow(/error 2047/);
-    await expect(
-      service.resolve({ ...NOTE_INPUT, associatedVoucher: { shortcut: 'fe' }, exportType: 1 }, gateway, RUNTIME, NOW),
+      service.resolve({ ...NOTE_INPUT, associatedVoucher: { shortcut: 'fe' }, exportType: 1 }, gateway, RUNTIME),
     ).rejects.toThrow(/Falta el número del comprobante asociado/);
     expect(gateway.getVoucher).not.toHaveBeenCalled();
   });
 
   it('arma la nota con el asociado, sin fecha de pago, CanMisMonExt ni permisos', async () => {
     const gateway = createGateway();
-    const resolved = await service.resolve(NOTE_INPUT, gateway, RUNTIME, NOW);
+    const resolved = await service.resolve(NOTE_INPUT, gateway, RUNTIME);
 
     expect(gateway.getVoucher).toHaveBeenCalledWith({ arcaType: 19, number: 12, pointOfSale: 3 });
     expect(gateway.getQuotations).not.toHaveBeenCalled();
@@ -698,7 +695,6 @@ describe('ExportService.resolve: notas E', () => {
       { ...NOTE_INPUT, voucherKind: EXPORT_DEBIT_NOTE_KIND },
       createGateway(),
       RUNTIME,
-      NOW,
     );
 
     expect(resolved.payload.Cbte_Tipo).toBe(20);
@@ -707,10 +703,8 @@ describe('ExportService.resolve: notas E', () => {
   it('valida lo local antes de consultar el asociado', async () => {
     const gateway = createGateway();
 
-    await expect(service.resolve({ ...NOTE_INPUT, associatedVoucher: {} }, gateway, RUNTIME, NOW)).rejects.toThrow(
-      /--ar/,
-    );
-    await expect(service.resolve({ ...NOTE_INPUT, paymentDate: '01/06' }, gateway, RUNTIME, NOW)).rejects.toThrow(
+    await expect(service.resolve({ ...NOTE_INPUT, associatedVoucher: {} }, gateway, RUNTIME)).rejects.toThrow(/--ar/);
+    await expect(service.resolve({ ...NOTE_INPUT, paymentDate: '01/06' }, gateway, RUNTIME)).rejects.toThrow(
       /error 1673/,
     );
     expect(gateway.getVoucher).not.toHaveBeenCalled();
@@ -723,31 +717,31 @@ describe('ExportService.resolve: notas E', () => {
       environment: 'testing' as const,
     };
 
-    await expect(service.resolve(NOTE_INPUT, gateway, runtime, NOW)).rejects.toThrow(/Falta el CUIT/);
+    await expect(service.resolve(NOTE_INPUT, gateway, runtime)).rejects.toThrow(/Falta el CUIT/);
     expect(gateway.getVoucher).not.toHaveBeenCalled();
   });
 
   it('falla si ARCA no tiene el asociado', async () => {
     const gateway = createGateway({ getVoucher: vi.fn(async () => null) });
 
-    await expect(service.resolve(NOTE_INPUT, gateway, RUNTIME, NOW)).rejects.toThrow(
+    await expect(service.resolve(NOTE_INPUT, gateway, RUNTIME)).rejects.toThrow(
       /ARCA no tiene la factura de exportación E 00003-00000012/,
     );
   });
 
   it('compara la nota contra el asociado antes de emitir', async () => {
-    await expect(service.resolve({ ...NOTE_INPUT, amount: 2000 }, createGateway(), RUNTIME, NOW)).rejects.toThrow(
+    await expect(service.resolve({ ...NOTE_INPUT, amount: 2000 }, createGateway(), RUNTIME)).rejects.toThrow(
       /no puede superar el total/,
     );
   });
 });
 
 describe('ExportService.preview y execute', () => {
-  const service = new ExportService();
+  const service = new ExportService({ clock: { now: () => NOW } });
 
   it('la vista previa no llama a authorize', async () => {
     const gateway = createGateway();
-    const resolved = await service.resolve(INPUT, gateway, RUNTIME, NOW);
+    const resolved = await service.resolve(INPUT, gateway, RUNTIME);
     const result = service.preview(resolved, RUNTIME, ['aviso']);
 
     expect(gateway.authorize).not.toHaveBeenCalled();
@@ -757,7 +751,7 @@ describe('ExportService.preview y execute', () => {
 
   it('execute manda el payload y devuelve el CAE', async () => {
     const gateway = createGateway();
-    const resolved = await service.resolve(INPUT, gateway, RUNTIME, NOW);
+    const resolved = await service.resolve(INPUT, gateway, RUNTIME);
     const result = await service.execute({ gateway, resolved, runtime: RUNTIME });
 
     expect(gateway.authorize).toHaveBeenCalledWith(resolved.payload);
@@ -771,7 +765,7 @@ describe('ExportService.preview y execute', () => {
         throw new Error('socket hang up');
       }),
     });
-    const resolved = await service.resolve(INPUT, gateway, RUNTIME, NOW);
+    const resolved = await service.resolve(INPUT, gateway, RUNTIME);
     const { Cbte_nro: numero, Id: idSolicitud, Punto_vta: pv } = resolved.payload;
     const run = service.execute({ gateway, resolved, runtime: RUNTIME });
 
@@ -792,6 +786,6 @@ describe('ExportService.preview y execute', () => {
       }),
     });
 
-    await expect(service.resolve(INPUT, gateway, RUNTIME, NOW)).rejects.not.toBeInstanceOf(EmissionUncertainError);
+    await expect(service.resolve(INPUT, gateway, RUNTIME)).rejects.not.toBeInstanceOf(EmissionUncertainError);
   });
 });

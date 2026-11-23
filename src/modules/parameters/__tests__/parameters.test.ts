@@ -104,7 +104,12 @@ describe('parameters', () => {
 
 describe('entorno en el texto', () => {
   it('names production with its accent', async () => {
-    const report = await buildStatusReport({ environment: 'produccion', gateway: createGateway(), pointOfSale: 3 });
+    const report = await buildStatusReport({
+      now: Date.now,
+      environment: 'produccion',
+      gateway: createGateway(),
+      pointOfSale: 3,
+    });
 
     expect(stripAnsi(formatQuotationAsText({ currency: 'DOL', rate: 1 }, 'produccion'))).toContain(
       'COTIZACIÓN OFICIAL · PRODUCCIÓN',
@@ -135,6 +140,7 @@ describe('formatQuotationAsText', () => {
 describe('formatStatusAsText sin estado de un servidor (TUI-20)', () => {
   it('la fila va igual y dice que ARCA no lo informa', async () => {
     const report = await buildStatusReport({
+      now: Date.now,
       environment: 'testing',
       gateway: createGateway({ getServerStatus: async () => ({ app: 'OK', auth: 'OK', db: '' }) }),
       pointOfSale: undefined,
@@ -147,6 +153,7 @@ describe('formatStatusAsText sin estado de un servidor (TUI-20)', () => {
 describe('buildStatusReport', () => {
   it('is ready when servers are OK and the point of sale is enabled', async () => {
     const report = await buildStatusReport({
+      now: Date.now,
       environment: 'produccion',
       gateway: createGateway({ getSalesPoints: async () => [{ blocked: false, emissionType: 'CAE', number: 3 }] }),
       pointOfSale: 3,
@@ -157,7 +164,12 @@ describe('buildStatusReport', () => {
   });
 
   it('cannot verify the point of sale in testing but still is ready', async () => {
-    const report = await buildStatusReport({ environment: 'testing', gateway: createGateway(), pointOfSale: 3 });
+    const report = await buildStatusReport({
+      now: Date.now,
+      environment: 'testing',
+      gateway: createGateway(),
+      pointOfSale: 3,
+    });
 
     expect(report).toMatchObject({ pointOfSale: { kind: 'sin-datos' }, ready: true });
   });
@@ -169,16 +181,18 @@ describe('buildStatusReport', () => {
     ];
 
     const blocked = await buildStatusReport({
+      now: Date.now,
       environment: 'produccion',
       gateway: createGateway({ getSalesPoints: points }),
       pointOfSale: 3,
     });
     const missing = await buildStatusReport({
+      now: Date.now,
       environment: 'produccion',
       gateway: createGateway({ getSalesPoints: points }),
       pointOfSale: 9,
     });
-    const unset = await buildStatusReport({ environment: 'produccion', gateway: createGateway() });
+    const unset = await buildStatusReport({ now: Date.now, environment: 'produccion', gateway: createGateway() });
 
     expect([blocked.pointOfSale.kind, missing.pointOfSale.kind, unset.pointOfSale.kind]).toEqual([
       'bloqueado',

@@ -4,15 +4,17 @@ import {
   AuthRepository,
   type Context,
   FileSystemTicketStorage,
+  type ITicketStoragePort,
   MemoryTicketStorage,
 } from '@arcasdk/core';
 import tls from 'node:tls';
 
 import { readPemFile } from '../../lib/security/pem';
+import type { ArcaProfile } from '../../modules/config/arca-profile';
 import { CertificateExpiredError, inspectCertificateExpiry } from '../../modules/config/certificate-expiry';
 import { resolveExportCredentials } from '../../modules/config/config.export-credentials';
+import { systemClock } from '../time/system-clock';
 
-import type { ResolvedArcaRuntime } from './arca-context.resolver';
 import { ArcaExportGateway, type WsfexAuthenticator } from './arca-export.gateway';
 
 function createArcaClient(context: Context): Arca {
@@ -51,26 +53,38 @@ function createWsfexAuthenticator(context: Context): WsfexAuthenticator {
   return async () => auth.getAuthParams(await auth.login(ArcaServiceNames.WSFEX), context.cuit).Auth;
 }
 
+export interface ArcaClientFactoryOptions {
+  /**
+   * Donde guardar los tickets de WSAA. Sin definir, en disco, en el `ticketPath` del perfil. Los del SDK fijan el CUIT
+   * y el entorno al construirse: una fabrica con storage propio es de un solo CUIT y entorno.
+   */
+  readonly ticketStorage?: ITicketStoragePort;
+}
+
 export class ArcaClientFactory {
+  private readonly ticketStorage?: ITicketStoragePort;
+
+  public constructor(options: ArcaClientFactoryOptions = {}) {
+    this.ticketStorage = options.ticketStorage;
+  }
+
   /** Todo cliente de ARCA sale de aca: con el certificado vencido se corta antes de pedir el ticket a WSAA. */
-  public create(runtime: Pick<ResolvedArcaRuntime, 'certificateExpiry' | 'context'>): Arca {
+  public create(runtime: Pick<ArcaProfile, 'certificateExpiry' | 'context'>): Arca {
     if (runtime.certificateExpiry?.expired) {
       throw new CertificateExpiredError(runtime.certificateExpiry);
     }
 
-    return createArcaClient(runtime.context);
+    return createArcaClient(this.withTicketStorage(runtime.context));
   }
 
   /** El cliente de WSFEX, con su certificado (ver `resolveExportContext`). */
-  public createForExport(
-    runtime: Pick<ResolvedArcaRuntime, 'certificateExpiry' | 'config' | 'context' | 'environment'>,
-  ): Arca {
+  public createForExport(runtime: Pick<ArcaProfile, 'certificateExpiry' | 'config' | 'context' | 'environment'>): Arca {
     return createArcaClient(this.resolveExportContext(runtime));
   }
 
   /** El gateway de WSFEX, con el cliente y el autenticador del mismo certificado. */
   public createExportGateway(
-    runtime: Pick<ResolvedArcaRuntime, 'certificateExpiry' | 'config' | 'context' | 'environment'>,
+    runtime: Pick<ArcaProfile, 'certificateExpiry' | 'config' | 'context' | 'environment'>,
   ): ArcaExportGateway {
     const context = this.resolveExportContext(runtime);
 
@@ -82,7 +96,7 @@ export class ArcaClientFactory {
    * estan configurados usa esos archivos (y su propio vencimiento); si no, los mismos de facturacion.
    */
   private resolveExportContext(
-    runtime: Pick<ResolvedArcaRuntime, 'certificateExpiry' | 'config' | 'context' | 'environment'>,
+    runtime: Pick<ArcaProfile, 'certificateExpiry' | 'config' | 'context' | 'environment'>,
   ): Context {
     const credentials = resolveExportCredentials(runtime.config, runtime.environment);
 
@@ -92,16 +106,20 @@ export class ArcaClientFactory {
         throw new CertificateExpiredError(runtime.certificateExpiry);
       }
 
-      return runtime.context;
+      return this.withTicketStorage(runtime.context);
     }
 
     const cert = readPemFile(credentials.cert, 'certificado');
-    const notice = inspectCertificateExpiry(cert, runtime.environment);
+    const notice = inspectCertificateExpiry(cert, runtime.environment, systemClock.now());
 
     if (notice?.expired) {
       throw new CertificateExpiredError(notice);
     }
 
-    return { ...runtime.context, cert, key: readPemFile(credentials.key, 'clave privada') };
+    return this.withTicketStorage({ ...runtime.context, cert, key: readPemFile(credentials.key, 'clave privada') });
+  }
+
+  private withTicketStorage(context: Context): Context {
+    return this.ticketStorage ? { ...context, ticketStorage: this.ticketStorage } : context;
   }
 }

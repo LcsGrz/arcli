@@ -4,8 +4,9 @@ import { BillingService } from '../../../modules/billing/billing.service';
 import { arcliConfigSchema } from '../../../modules/config/config.schemas';
 import type { ExportGateway, ExportIssuedVoucher } from '../../../modules/export/export.types';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../../../modules/vouchers/voucher-history';
-import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
+import { systemClock } from '../../../services/time/system-clock';
+import type { CliArcaRuntime } from '../../arca-runtime';
 import type { InteractiveSession } from '../session';
 
 /**
@@ -103,12 +104,13 @@ export function createBillingSession(config: Record<string, unknown> = {}): Inte
         ...config,
       }),
       context: { cuit: ISSUER_CUIT },
+      cuit: ISSUER_CUIT,
       environment: 'testing',
       outputJson: false,
       outputRaw: false,
       pointOfSale: POINT_OF_SALE,
-    } as unknown as ResolvedArcaRuntime,
-    service: new BillingService(),
+    } as unknown as CliArcaRuntime,
+    service: new BillingService({ clock: systemClock }),
   };
 }
 

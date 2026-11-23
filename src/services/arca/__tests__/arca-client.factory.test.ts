@@ -2,9 +2,9 @@ import { Arca } from '@arcasdk/core';
 import tls from 'node:tls';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { ArcaProfile } from '../../../modules/config/arca-profile';
 import { CertificateExpiredError, type CertificateExpiryNotice } from '../../../modules/config/certificate-expiry';
 import { ArcaClientFactory } from '../arca-client.factory';
-import type { ResolvedArcaRuntime } from '../arca-context.resolver';
 
 vi.mock('@arcasdk/core', () => ({ Arca: vi.fn() }));
 vi.mock('../../../lib/security/pem', () => ({ readPemFile: (path: string) => `pem:${path}` }));
@@ -14,9 +14,9 @@ const productionContext = {
   cuit: 20123456786,
   key: 'key',
   production: true,
-} as ResolvedArcaRuntime['context'];
+} as ArcaProfile['context'];
 
-const testingContext = { ...productionContext, production: false } as ResolvedArcaRuntime['context'];
+const testingContext = { ...productionContext, production: false } as ArcaProfile['context'];
 
 function notice(expired: boolean): CertificateExpiryNotice {
   return {
@@ -70,7 +70,7 @@ describe('ArcaClientFactory', () => {
         cert: {},
         exportacion: { cert: { produccion: 'wsfex.crt' }, key: { produccion: 'wsfex.key' } },
         key: {},
-      } as ResolvedArcaRuntime['config'],
+      } as ArcaProfile['config'],
       context: productionContext,
       environment: 'produccion',
     });

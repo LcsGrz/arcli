@@ -3,9 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { arcliConfigSchema } from '../../../modules/config/config.schemas';
 import type { ExportGateway } from '../../../modules/export/export.types';
 import { BACK } from '../../../modules/interactive/wizard';
-import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
 import { stripAnsi } from '../../../ui';
+import type { CliArcaRuntime } from '../../arca-runtime';
 import { attachExportPdf } from '../../commands/export.command.pdf';
 import { runExportFlow } from '../export.flow';
 import type { InteractiveSession } from '../session';
@@ -108,7 +108,7 @@ function createSession(config: Record<string, unknown> = {}): InteractiveSession
     runtime: {
       config: arcliConfigSchema.parse({ cuit: '20111111112', puntoVentaPorDefecto: 4, ...config }),
       environment: 'testing',
-    } as unknown as ResolvedArcaRuntime,
+    } as unknown as CliArcaRuntime,
     service: {} as never,
   };
 }

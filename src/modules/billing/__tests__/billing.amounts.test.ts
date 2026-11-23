@@ -4,15 +4,18 @@ import { resolveIvaRateLabel, resolveTaxAmounts, sumTaxAmounts } from '../billin
 import { billingCommandSchema, billingIvaRateSchema } from '../billing.schemas';
 import { VOUCHER_KIND_MAP } from '../voucher-kind-map';
 
+/** Hoy (yyyymmdd): las reglas de los importes no lo usan. */
+const TODAY = '20261118';
+
 describe('resolveTaxAmounts', () => {
   it('no discrimina IVA para comprobantes tipo C', () => {
-    const result = resolveTaxAmounts({ totalAmount: 121 }, VOUCHER_KIND_MAP.fc);
+    const result = resolveTaxAmounts({ totalAmount: 121 }, VOUCHER_KIND_MAP.fc, TODAY);
 
     expect(result).toEqual({ exemptAmount: 0, ivaAmount: 0, netAmount: 121, untaxedAmount: 0 });
   });
 
   it('discrimina neto e IVA para Factura B', () => {
-    const result = resolveTaxAmounts({ totalAmount: 121 }, VOUCHER_KIND_MAP.fb);
+    const result = resolveTaxAmounts({ totalAmount: 121 }, VOUCHER_KIND_MAP.fb, TODAY);
 
     expect(result.netAmount).toBe(100);
     expect(result.ivaAmount).toBe(21);
@@ -20,7 +23,7 @@ describe('resolveTaxAmounts', () => {
   });
 
   it('redondea sin arrastrar el error de punto flotante de la division', () => {
-    const result = resolveTaxAmounts({ totalAmount: 100 }, VOUCHER_KIND_MAP.fb);
+    const result = resolveTaxAmounts({ totalAmount: 100 }, VOUCHER_KIND_MAP.fb, TODAY);
 
     expect(result.netAmount).toBe(82.64);
     expect(result.ivaAmount).toBe(17.36);
@@ -28,7 +31,7 @@ describe('resolveTaxAmounts', () => {
   });
 
   it('discrimina IVA en Factura A', () => {
-    const result = resolveTaxAmounts({ totalAmount: 121 }, VOUCHER_KIND_MAP.fa);
+    const result = resolveTaxAmounts({ totalAmount: 121 }, VOUCHER_KIND_MAP.fa, TODAY);
 
     expect(result.ivaAmount).toBe(21);
     expect(result.iva).toEqual([{ BaseImp: 100, Id: 5, Importe: 21 }]);
@@ -41,7 +44,7 @@ describe('resolveTaxAmounts', () => {
     ['10.5', 110.5, 4, 100, 10.5],
     ['27', 127, 6, 100, 27],
   ] as const)('usa la alícuota %s%%', (ivaRate, totalAmount, id, netAmount, ivaAmount) => {
-    const result = resolveTaxAmounts({ ivaRate, totalAmount }, VOUCHER_KIND_MAP.fa);
+    const result = resolveTaxAmounts({ ivaRate, totalAmount }, VOUCHER_KIND_MAP.fa, TODAY);
 
     expect(result.iva).toEqual([{ BaseImp: netAmount, Id: id, Importe: ivaAmount }]);
     expect(result.netAmount).toBe(netAmount);
@@ -49,7 +52,11 @@ describe('resolveTaxAmounts', () => {
   });
 
   it('descuenta exento y no gravado antes de calcular el IVA', () => {
-    const result = resolveTaxAmounts({ exemptAmount: 50, totalAmount: 196, untaxedAmount: 25 }, VOUCHER_KIND_MAP.fb);
+    const result = resolveTaxAmounts(
+      { exemptAmount: 50, totalAmount: 196, untaxedAmount: 25 },
+      VOUCHER_KIND_MAP.fb,
+      TODAY,
+    );
 
     expect(result).toEqual({
       exemptAmount: 50,
@@ -62,20 +69,20 @@ describe('resolveTaxAmounts', () => {
   });
 
   it('no informa IVA cuando todo el monto es exento', () => {
-    const result = resolveTaxAmounts({ exemptAmount: 1000, totalAmount: 1000 }, VOUCHER_KIND_MAP.fb);
+    const result = resolveTaxAmounts({ exemptAmount: 1000, totalAmount: 1000 }, VOUCHER_KIND_MAP.fb, TODAY);
 
     expect(result).toEqual({ exemptAmount: 1000, ivaAmount: 0, netAmount: 0, untaxedAmount: 0 });
   });
 
   it('rechaza exento mas no gravado por encima del total', () => {
     expect(() =>
-      resolveTaxAmounts({ exemptAmount: 600, totalAmount: 1000, untaxedAmount: 500 }, VOUCHER_KIND_MAP.fb),
+      resolveTaxAmounts({ exemptAmount: 600, totalAmount: 1000, untaxedAmount: 500 }, VOUCHER_KIND_MAP.fb, TODAY),
     ).toThrow(/no puede superar el monto total/);
   });
 
   it('rechaza alicuota, exento y no gravado en letra C', () => {
     expect(() =>
-      resolveTaxAmounts({ exemptAmount: 10, ivaRate: '10.5', totalAmount: 100 }, VOUCHER_KIND_MAP.fc),
+      resolveTaxAmounts({ exemptAmount: 10, ivaRate: '10.5', totalAmount: 100 }, VOUCHER_KIND_MAP.fc, TODAY),
     ).toThrow(/Sacá `--alicuota`, `--exento`/);
   });
 });
@@ -91,6 +98,7 @@ describe('resolveTaxAmounts con varias alicuotas', () => {
         totalAmount: 1762.5,
       },
       VOUCHER_KIND_MAP.fa,
+      TODAY,
     );
 
     expect(result.iva).toEqual([
@@ -111,6 +119,7 @@ describe('resolveTaxAmounts con varias alicuotas', () => {
         totalAmount: 363,
       },
       VOUCHER_KIND_MAP.fb,
+      TODAY,
     );
 
     expect(result.iva).toEqual([{ BaseImp: 300, Id: 5, Importe: 63 }]);
@@ -120,6 +129,7 @@ describe('resolveTaxAmounts con varias alicuotas', () => {
     const result = resolveTaxAmounts(
       { exemptAmount: 50, ivaRateAmounts: [{ amount: 121, rate: '21' }], totalAmount: 171 },
       VOUCHER_KIND_MAP.fb,
+      TODAY,
     );
 
     expect(result.exemptAmount).toBe(50);
@@ -128,13 +138,21 @@ describe('resolveTaxAmounts con varias alicuotas', () => {
 
   it('rechaza alicuotas que no suman lo gravado del total', () => {
     expect(() =>
-      resolveTaxAmounts({ ivaRateAmounts: [{ amount: 1210, rate: '21' }], totalAmount: 2000 }, VOUCHER_KIND_MAP.fa),
+      resolveTaxAmounts(
+        { ivaRateAmounts: [{ amount: 1210, rate: '21' }], totalAmount: 2000 },
+        VOUCHER_KIND_MAP.fa,
+        TODAY,
+      ),
     ).toThrow(/La suma de las alícuotas \(1210.00\) no coincide con lo gravado del monto total \(2000.00\)/);
   });
 
   it('rechaza varias alicuotas en letra C', () => {
     expect(() =>
-      resolveTaxAmounts({ ivaRateAmounts: [{ amount: 100, rate: '21' }], totalAmount: 100 }, VOUCHER_KIND_MAP.fc),
+      resolveTaxAmounts(
+        { ivaRateAmounts: [{ amount: 100, rate: '21' }], totalAmount: 100 },
+        VOUCHER_KIND_MAP.fc,
+        TODAY,
+      ),
     ).toThrow(/Sacá `--alicuota`/);
   });
 });
@@ -151,6 +169,7 @@ describe('ImpTotal exacto', () => {
           totalAmount: 1000,
         },
         VOUCHER_KIND_MAP.fa,
+        TODAY,
       ),
     ).toThrow(/no coincide/);
   });
@@ -170,7 +189,7 @@ describe('ImpTotal exacto', () => {
     [{ totalAmount: 0.1 }, 'fa'],
     [{ totalAmount: 1234.56 }, 'fc'],
   ] as const)('las partes suman exacto el total: %j', (input, shortcut) => {
-    const amounts = resolveTaxAmounts(input as never, VOUCHER_KIND_MAP[shortcut]);
+    const amounts = resolveTaxAmounts(input as never, VOUCHER_KIND_MAP[shortcut], TODAY);
 
     expect(sumTaxAmounts(amounts)).toBe(input.totalAmount);
   });

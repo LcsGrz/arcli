@@ -18,13 +18,13 @@ import type { ParametersGateway } from '../../modules/parameters/parameters';
 import type { VoucherHistoryGateway } from '../../modules/vouchers/voucher-history';
 import { ArcaBillingGateway } from '../../services/arca/arca-billing.gateway';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
-import type { ResolvedArcaRuntime } from '../../services/arca/arca-context.resolver';
 import { ArcaFceObligationGateway } from '../../services/arca/arca-fce-obligation.gateway';
 import { ArcaFceRegistryGateway } from '../../services/arca/arca-fce-registry.gateway';
 import { ArcaPadronGateway } from '../../services/arca/arca-padron.gateway';
 import { ArcaParametersGateway } from '../../services/arca/arca-parameters.gateway';
 import { ArcaVoucherHistoryGateway } from '../../services/arca/arca-voucher-history.gateway';
-import { certificateWarnings, resolveArcaRuntime } from '../arca-runtime';
+import { systemClock } from '../../services/time/system-clock';
+import { certificateWarnings, type CliArcaRuntime, resolveArcaRuntime } from '../arca-runtime';
 import { getGlobalOptions, registerGlobalOptions } from '../global-options';
 import { startSpinner } from '../spinner';
 
@@ -135,7 +135,7 @@ export interface BillingCommandGateways {
 
 /** Lo que el comando toma de afuera: en los tests, una config y un ARCA falsos. */
 export interface BillingCommandDependencies {
-  readonly createGateways: (runtime: ResolvedArcaRuntime) => BillingCommandGateways;
+  readonly createGateways: (runtime: CliArcaRuntime) => BillingCommandGateways;
   readonly resolveRuntime: typeof resolveArcaRuntime;
 }
 
@@ -168,7 +168,7 @@ export async function executeBillingCommand(
   try {
     const runtime = dependencies.resolveRuntime(globalOptions);
     const plan = parseBillingCommandPlan(command, shortcut, resolveBillingCommandDefaults(runtime.config));
-    const service = new BillingService();
+    const service = new BillingService({ clock: systemClock });
     const gateways = dependencies.createGateways(runtime);
     const gateway = gateways.billing;
     const useRaw = typeof globalOptions.bruto === 'boolean' ? globalOptions.bruto : runtime.outputRaw;

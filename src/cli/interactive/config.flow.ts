@@ -180,7 +180,7 @@ async function askField(
     // Con un valor actual, Enter lo deja igual (es el default del prompt); "-" lo borra.
     const canClear = !options.required && Boolean(current);
     // Un archivo arrastrado a la terminal llega entre comillas o con espacios escapados, como en Certificados.
-    const normalize = (text: string) => (field.path ? normalizeDroppedPath(text) : text);
+    const normalize = (text: string) => (field.path ? normalizeDroppedPath(text, process.platform) : text);
     const hint = [
       field.hint,
       field.path ? 'podés arrastrar el archivo' : undefined,
@@ -561,7 +561,9 @@ export async function runConfigMenu(flags: EnvironmentFlags = {}): Promise<void>
     if (option === 'revisar') {
       const config = readConfig();
 
-      writeTerminalOutput(formatConfigDoctorAsText(buildConfigDoctorReport(config, buildRuntimeChecks(config))));
+      writeTerminalOutput(
+        formatConfigDoctorAsText(buildConfigDoctorReport(config, new Date(), buildRuntimeChecks(config))),
+      );
     }
 
     if (option === 'guiada') await runGuidedSetup(flags);

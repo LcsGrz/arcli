@@ -45,7 +45,7 @@ function setup(overrides: Partial<ArcliConfig> = {}) {
         config = { ...config, [group]: { ...config[group], [environment]: value } };
       },
     },
-    now: () => new Date('2026-11-04T12:00:00Z'),
+    clock: { now: () => new Date('2026-11-04T12:00:00Z') },
   });
 
   return { config: () => config, root, service };
