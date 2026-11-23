@@ -69,6 +69,8 @@ function resolveBillingDateWindow(
 /**
  * La fecha mas tardia que ARCA acepta para el comprobante (10016 y 10152, WSFEv1 v4.7), la misma ventana que
  * `BILLING_DATE_WINDOW_RULE`. Sin concepto, la mas amplia (servicios).
+ *
+ * @internal Exportado para los tests.
  */
 export function latestBillingDate(
   concept: BillingCommandInput['concept'] | undefined,
@@ -201,7 +203,11 @@ function parsePeriod(
   };
 }
 
-/** ARCA 10206 (WSFEv1 v4.7): el periodo asociado no empieza antes del 01/01/2006. */
+/**
+ * ARCA 10206 (WSFEv1 v4.7): el periodo asociado no empieza antes del 01/01/2006.
+ *
+ * @internal Exportado para los tests.
+ */
 export const ASSOCIATED_PERIOD_MINIMUM_RULE: BillingRule = {
   check: (input, { today }) => {
     const period = parsePeriod(input, today);
@@ -214,7 +220,11 @@ export const ASSOCIATED_PERIOD_MINIMUM_RULE: BillingRule = {
   id: 'associated-period-minimum',
 };
 
-/** ARCA 10207 (WSFEv1 v4.7): en el periodo asociado, desde no es posterior a hasta. */
+/**
+ * ARCA 10207 (WSFEv1 v4.7): en el periodo asociado, desde no es posterior a hasta.
+ *
+ * @internal Exportado para los tests.
+ */
 export const ASSOCIATED_PERIOD_ORDER_RULE: BillingRule = {
   check: (input, { today }) => {
     const period = parsePeriod(input, today);
@@ -230,7 +240,11 @@ export const ASSOCIATED_PERIOD_ORDER_RULE: BillingRule = {
   id: 'associated-period-order',
 };
 
-/** ARCA 10208 (WSFEv1 v4.7): el periodo asociado no termina despues de la fecha de la nota. */
+/**
+ * ARCA 10208 (WSFEv1 v4.7): el periodo asociado no termina despues de la fecha de la nota.
+ *
+ * @internal Exportado para los tests.
+ */
 export const ASSOCIATED_PERIOD_WITHIN_NOTE_RULE: BillingRule = {
   check: (input, context) => {
     const { today, voucherKind } = context;

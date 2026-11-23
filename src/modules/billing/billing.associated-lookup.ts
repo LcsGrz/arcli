@@ -5,14 +5,14 @@ import type { ResolvedArcaRuntime } from '../../services/arca/arca-context.resol
 import { FCE_REGISTRY_STATE_LABELS, type FceRegistryGateway, type FceRegistryState } from '../fce/fce-registry';
 import type { ParametersGateway } from '../parameters/parameters';
 import type { IssuedVoucher, VoucherHistoryGateway } from '../vouchers/voucher-history';
-import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
+import { formatVoucherNumber } from '../vouchers/voucher-number';
 
-import { ARCA_LOCAL_CURRENCY_CODE } from './billing.currency';
 import { formatMoneyLabel } from './billing.labels';
 import { formatVoucherSubject, formatVoucherWithArticle } from './billing.mappers';
 import type { BillingCommandInput } from './billing.schemas';
 import type { BillingService } from './billing.service';
 import type { VoucherKindDefinition } from './billing.types';
+import { ARCA_LOCAL_CURRENCY_CODE } from './currency-codes';
 import { getVoucherKindByArcaType, getVoucherKindByShortcut, isFceInvoice, noteSide } from './voucher-kind-map';
 
 /** `la factura A 00003-00000012`, para usar dentro de una frase. */
@@ -57,6 +57,8 @@ export function creditNoteOverTotalHint(associatedLabel: string, total: number, 
  * Propia: ARCA solo observa una NC que supera al asociado (10237, WSFEv1 v4.7) y la aprueba igual; en WSFEX no hay
  * control. El tope de la NC, con el mismo criterio que las notas E: solo si van en la misma moneda, porque en otra moneda los
  * totales no se comparan.
+ *
+ * @internal Exportado para los tests.
  */
 export function assertCreditNoteWithinAssociated(options: {
   readonly associated: Pick<IssuedVoucher, 'currency' | 'total'>;

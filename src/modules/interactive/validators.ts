@@ -3,15 +3,17 @@ import { dateInputHint } from '../../lib/dates/date-input-text';
 import { parseDateInputAsArcaDate } from '../../lib/dates/relative-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { describeInvalidCbu, parseCbu } from '../../lib/identity/cbu';
+import { describeInvalidCbuAlias, parseCbuAlias } from '../../lib/identity/cbu-alias';
 import { parseCuit } from '../../lib/identity/cuit';
+import { parseDni } from '../../lib/identity/dni';
 import { EXCHANGE_RATE_DECIMALS, parseArgentineAmount } from '../../lib/numbers/argentine-amount';
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import { findRuleFailure } from '../../lib/rules/rules';
-import { BILLING_DATE_WINDOW_RULE } from '../../modules/billing/billing.rules';
-import type { BillingConcept } from '../../modules/billing/billing.schemas';
-import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
-import { assertExportVoucherDate } from '../../modules/export/export.mappers';
-import type { ExportType } from '../../modules/export/export.types';
+import { BILLING_DATE_WINDOW_RULE } from '../billing/billing.rules';
+import type { BillingConcept } from '../billing/billing.schemas';
+import type { VoucherKindDefinition } from '../billing/billing.types';
+import { assertExportVoucherDate } from '../export/export.mappers';
+import type { ExportType } from '../export/export.types';
 
 export function validateAmount(value: string): string | true {
   const result = parseArgentineAmount(value);
@@ -32,7 +34,9 @@ export function validateCuil(value: string): string | true {
 }
 
 export function validateDni(value: string): string | true {
-  return /^\d{6,8}$/.test(value.replace(/\./g, '')) ? true : 'El DNI tiene de 6 a 8 dígitos.';
+  const result = parseDni(value);
+
+  return result.ok ? true : `El DNI tiene ${result.reason}.`;
 }
 
 export function validateCbu(value: string): string | true {
@@ -43,9 +47,13 @@ export function validateCbu(value: string): string | true {
 
 /** Como `--alias`: vacio vale (no se informa); si no, de 6 a 20 letras, números, puntos o guiones. */
 export function validateOptionalCbuAlias(value: string): string | true {
-  return !value.trim() || /^[A-Za-z0-9.-]{6,20}$/.test(value.trim())
-    ? true
-    : 'El alias tiene entre 6 y 20 letras, números, puntos o guiones.';
+  if (!value.trim()) {
+    return true;
+  }
+
+  const result = parseCbuAlias(value);
+
+  return result.ok ? true : describeInvalidCbuAlias(result.reason);
 }
 
 export function normalizeDocumentNumber(value: string): number {
@@ -53,10 +61,12 @@ export function normalizeDocumentNumber(value: string): number {
 }
 
 /**
+ * Las fechas reciben `now` de quien pregunta: el núcleo no lee el reloj.
+ *
  * Una fecha como en los flags: escrita a mano (`5`, `15/11`, `15/11/2026`) o relativa (`hoy`, `ayer`, `+N`, `-N`).
  * El error es uno solo, con los formatos de `dateInputHint` y sin flags: el de una palabra de mes nombra `--sd` (TUI-18).
  */
-export function validateDate(value: string, now = new Date()): string | true {
+export function validateDate(value: string, now: Date): string | true {
   try {
     parseDateInputAsArcaDate(value, 'day', now);
 
@@ -75,7 +85,7 @@ export function validateBillingDate(
   value: string,
   concept: BillingConcept,
   voucherKind: VoucherKindDefinition,
-  now = new Date(),
+  now: Date,
 ): string | true {
   const valid = validateDate(value, now);
 
@@ -96,7 +106,7 @@ export function validateBillingDate(
  * Fecha de la factura o nota E: la misma ventana que `--fecha` en `arcli fe` (`assertExportVoucherDate`, error 1500),
  * que en servicios no pasa del fin de mes.
  */
-export function validateExportVoucherDate(value: string, exportType: ExportType, now = new Date()): string | true {
+export function validateExportVoucherDate(value: string, exportType: ExportType, now: Date): string | true {
   const valid = validateDate(value, now);
 
   if (valid !== true) {
@@ -121,8 +131,8 @@ export function validateExportVoucherDate(value: string, exportType: ExportType,
 }
 
 /** Fecha opcional: vacia vale (va la de por defecto); si no, tiene que ser una fecha valida. */
-export function validateOptionalDate(value: string): string | true {
-  return value.trim() ? validateDate(value) : true;
+export function validateOptionalDate(value: string, now: Date): string | true {
+  return value.trim() ? validateDate(value, now) : true;
 }
 
 /** Un entero mayor a 0 (punto de venta, numero de comprobante, actividad); `label` nombra el dato en el error. */

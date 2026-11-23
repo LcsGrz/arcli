@@ -1,4 +1,4 @@
-import { Separator } from '@inquirer/select';
+import { Separator } from '@inquirer/core';
 import { tmpdir } from 'node:os';
 import { isDeepStrictEqual } from 'node:util';
 import { expect, vi } from 'vitest';

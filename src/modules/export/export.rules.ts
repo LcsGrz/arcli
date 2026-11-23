@@ -32,6 +32,8 @@ export type ExportRule = Rule<ExportVoucherInput, ExportRuleContext>;
 /**
  * 1674 (WSFEX v3.1.0): en la factura de servicios y otros, la fecha de pago es igual o posterior a la del comprobante
  * (sin fecha, hoy). En bienes y en las notas no va. Sin `--fecha-pago` va la del comprobante.
+ *
+ * @internal Exportado para los tests.
  */
 export const EXPORT_PAYMENT_DATE_RULE: ExportRule = {
   check: (input, { today, undecidedVoucherDate }) => {

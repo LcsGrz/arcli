@@ -13,7 +13,11 @@ export interface PadronResolution {
 const MISSING_IVA_HINT =
   'Usá `--ir <tipo>` o un flag `--ir-*`, o configurá uno por defecto con `arcli config establecer ivaReceptor <tipo>`.';
 
-/** Hay que consultar el padron: un CUIT sin IVA receptor explicito (vino de la config o falta). */
+/**
+ * Hay que consultar el padron: un CUIT sin IVA receptor explicito (vino de la config o falta).
+ *
+ * @internal Exportado para los tests.
+ */
 export function needsPadronLookup(input: BillingCommandInput): boolean {
   return (
     input.documentType === 'cuit' &&

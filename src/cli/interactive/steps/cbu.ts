@@ -1,11 +1,11 @@
 import type { ArcliConfig } from '../../../modules/config/config.schemas';
 import { type InvoiceState, isFceInvoiceState } from '../../../modules/interactive/invoice-input';
 import { cbuToSave } from '../../../modules/interactive/steps/config-offer';
+import { validateCbu, validateOptionalCbuAlias } from '../../../modules/interactive/validators';
 import { BACK, type WizardStep } from '../../../modules/interactive/wizard';
 import { askTextStep } from '../prompts';
 import { offerConfig } from '../save-to-config';
 import { SKIP_HINT } from '../text-hints';
-import { validateCbu, validateOptionalCbuAlias } from '../validators';
 
 /**
  * El CBU de la FCE cuando la config no tiene uno y, si tampoco tiene alias, el alias (Enter lo omite, como sin

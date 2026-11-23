@@ -9,9 +9,15 @@ export interface ArcaCurrency {
   readonly name: string;
 }
 
+/** Codigo de ARCA de los pesos argentinos (`MonId` en WSFEv1, `Moneda_Id` en WSFEX). */
+export const ARCA_LOCAL_CURRENCY_CODE = 'PES';
+
+/** Codigo de ARCA del dolar estadounidense, en WSFEv1 y en WSFEX. */
+export const ARCA_DOLLAR_CODE = 'DOL';
+
 export const ARCA_CURRENCIES: readonly ArcaCurrency[] = [
-  { arca: 'PES', iso: 'ARS', name: 'Pesos argentinos' },
-  { arca: 'DOL', iso: 'USD', name: 'Dólares estadounidenses' },
+  { arca: ARCA_LOCAL_CURRENCY_CODE, iso: 'ARS', name: 'Pesos argentinos' },
+  { arca: ARCA_DOLLAR_CODE, iso: 'USD', name: 'Dólares estadounidenses' },
   { arca: '060', iso: 'EUR', name: 'Euros' },
   { arca: '012', iso: 'BRL', name: 'Reales' },
   { arca: '011', iso: 'UYU', name: 'Pesos uruguayos' },

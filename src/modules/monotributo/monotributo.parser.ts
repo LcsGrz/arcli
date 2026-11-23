@@ -44,7 +44,11 @@ function cellText(html: string): string {
     .trim();
 }
 
-/** `$12.009.410,45` → 12009410.45. NaN si no tiene esa forma. */
+/**
+ * `$12.009.410,45` → 12009410.45. NaN si no tiene esa forma.
+ *
+ * @internal Exportado para los tests.
+ */
 export function parsePageMoney(text: string): number {
   const value = text.replace(/[$\s]/g, '');
 
@@ -55,7 +59,11 @@ export function parsePageMoney(text: string): number {
   return Number(value.replace(/\./g, '').replace(',', '.'));
 }
 
-/** `Hasta 30 m²`, `Hasta 13000 kWh`, `Hasta 13.000 kWh` → el numero. NaN si no hay uno. */
+/**
+ * `Hasta 30 m²`, `Hasta 13000 kWh`, `Hasta 13.000 kWh` → el numero. NaN si no hay uno.
+ *
+ * @internal Exportado para los tests.
+ */
 export function parsePageQuantity(text: string): number {
   const match = /(\d[\d.]*)/.exec(text);
 

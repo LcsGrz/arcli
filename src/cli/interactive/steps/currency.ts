@@ -1,27 +1,29 @@
 import { formatExchangeRate } from '../../../lib/numbers/argentine-amount';
 import { DEFAULT_CURRENCY_CODE } from '../../../modules/billing/billing.constants';
 import { isForeignCurrency } from '../../../modules/billing/billing.currency';
-import { toIsoCurrencyCode } from '../../../modules/billing/currency-codes';
+import { ARCA_LOCAL_CURRENCY_CODE, toIsoCurrencyCode } from '../../../modules/billing/currency-codes';
 import { amountInputText, parseExchangeRateInput } from '../../../modules/interactive/amount-input';
 import { currencyName, type ExchangeRateSuggestion } from '../../../modules/interactive/billing-optionals';
 import { currencyChoices } from '../../../modules/interactive/choices';
 import type { CurrencyChoice, CurrencyLock } from '../../../modules/interactive/steps/currency';
 import type { Lens } from '../../../modules/interactive/steps/lens';
+import { validateExchangeRate } from '../../../modules/interactive/validators';
 import { BACK, type Back, type WizardDependency, type WizardStep } from '../../../modules/interactive/wizard';
 import { noticePanel, writeTerminalOutput } from '../../../ui';
 import { askTextStep, chooseStep } from '../prompts';
-import { validateExchangeRate } from '../validators';
 
 /** El codigo de la moneda en la lista de monedas: `PES` para pesos. */
 function currencyChoiceValue(options: { readonly currencyCode?: string } | undefined): string {
   return options?.currencyCode && isForeignCurrency({ currencyCode: options.currencyCode })
     ? toIsoCurrencyCode(options.currencyCode)
-    : 'PES';
+    : ARCA_LOCAL_CURRENCY_CODE;
 }
 
 /**
  * Como se cobra un comprobante en moneda extranjera: en pesos (la cotizacion arranca con la de la config o la oficial de
  * ARCA y se puede cambiar por la acordada) o en esa moneda (se usa la oficial de ARCA, `--misma-moneda`). Devuelve si es en esa moneda.
+ *
+ * @internal Exportado para los tests.
  */
 export async function askPaymentCurrency(currencyCode: string, previous?: boolean): Promise<Back | boolean> {
   const payment = await chooseStep(
@@ -183,7 +185,7 @@ export function currencySteps<S>(def: CurrencyStepsDef<S>): Array<WizardStep<S>>
 
         return currency.set(
           {
-            currencyCode: chosen === 'PES' ? DEFAULT_CURRENCY_CODE : chosen,
+            currencyCode: chosen === ARCA_LOCAL_CURRENCY_CODE ? DEFAULT_CURRENCY_CODE : chosen,
             exchangeRate: undefined,
             exchangeRateSource: undefined,
             sameCurrency: false,

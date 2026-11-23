@@ -79,7 +79,11 @@ export function invoiceConsumer(state: InvoiceState, receiver: string): Consumer
 export const invoiceAmountRetry = <S extends InvoiceState>(): AmountCurrencyRetry<S> =>
   amountCurrencyRetry<S>((state) => state.advanced.currencyCode);
 
-/** Pasos del flujo de factura; cada uno se puede deshacer con "Volver". */
+/**
+ * Pasos del flujo de factura; cada uno se puede deshacer con "Volver".
+ *
+ * @internal Exportado para los tests.
+ */
 export function invoiceSteps(
   session: InteractiveSession,
   retry: AmountCurrencyRetry<InvoiceState> = invoiceAmountRetry(),
@@ -194,7 +198,11 @@ export function invoiceSteps(
   ]);
 }
 
-/** El receptor ya cargado, con el CUIT y lo que dijo el padron: "Emitir una factura a este CUIT". */
+/**
+ * El receptor ya cargado, con el CUIT y lo que dijo el padron: "Emitir una factura a este CUIT".
+ *
+ * @internal Exportado para los tests.
+ */
 export function invoiceStateForReceiver(receiver: ReceiverFromPadron): Partial<InvoiceState> {
   return {
     documentNumber: receiver.cuit,

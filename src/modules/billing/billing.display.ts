@@ -1,6 +1,6 @@
 import type { IIva } from '../../services/arca/arca-sdk.types';
 import { renderKeyValueRows, resolveKeyValueLabelWidth } from '../../ui/primitives';
-import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
+import { formatVoucherNumber } from '../vouchers/voucher-number';
 
 import { CONSUMER_DOCUMENT_TYPE_CODE, CONSUMER_IVA_CONDITION_CODE, isTaxIdDocumentType } from './arca-codes';
 import { resolveIvaRateLabel } from './billing.amounts';
@@ -18,6 +18,7 @@ import {
   MISSING_CAE_TEXT,
 } from './billing.labels';
 import type { BillingExecutionResult } from './billing.types.internal';
+import { ARCA_LOCAL_CURRENCY_CODE } from './currency-codes';
 import { getVoucherKindByArcaType } from './voucher-kind-map';
 
 /** Una fila sin valor no se muestra (renderKeyValueRows). */
@@ -105,7 +106,9 @@ function formatFriendlyPayloadRows(result: BillingExecutionResult): Row[] {
     ['Fecha del comprobante', formatDateLabel(payload.CbteFch)],
     ...formatReceiverRows(result),
     ['Moneda', formatCurrencyLabel(payload.MonId)],
-    ...(payload.MonId === 'PES' ? [] : [['Cotización', formatDecimalLabel(payload.MonCotiz)] as const]),
+    ...(payload.MonId === ARCA_LOCAL_CURRENCY_CODE
+      ? []
+      : [['Cotización', formatDecimalLabel(payload.MonCotiz)] as const]),
     ['Importe neto', formatMoneyLabel(payload.ImpNeto, payload.MonId)],
     ...formatOptionalMoneyRow('Importe IVA', payload.ImpIVA, payload.MonId),
     ...formatIvaRows(payload.Iva ?? [], payload.MonId),

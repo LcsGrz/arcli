@@ -24,6 +24,7 @@ import { defaultIvaRate } from '../../modules/interactive/iva-rate';
 import { scopedRuleValidator } from '../../modules/interactive/rule-validator';
 import { foreignCurrencyOf, repeatCurrencyLock } from '../../modules/interactive/steps/currency';
 import { fieldLens, nestedLens } from '../../modules/interactive/steps/lens';
+import { normalizeDocumentNumber, validateCuit } from '../../modules/interactive/validators';
 import { BACK, type Back, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import type { IssuedVoucher } from '../../modules/vouchers/voucher-history';
 import { noticePanel, writeTerminalOutput } from '../../ui';
@@ -44,10 +45,10 @@ import { currencySteps } from './steps/currency';
 import { servicePeriodSteps } from './steps/date';
 import { receiverIvaStep } from './steps/receiver';
 import { sameAmountStep } from './steps/same-amount';
-import { normalizeDocumentNumber, validateCuit } from './validators';
 
 type RepeatPeriod = 'actual' | 'anterior' | 'hoy' | 'otro';
 
+/** @internal Exportado para los tests. */
 export interface RepeatState extends InvoiceState {
   readonly original?: IssuedVoucher;
   /** Punto de venta del original: puede no ser el configurado si se ingreso a mano. */
@@ -75,6 +76,8 @@ function describePeriod(period: ServicePeriod): string {
  * Repetir una factura o un recibo: se elige uno de los ultimos emitidos y se copian el comprobante, el receptor, el concepto,
  * el monto y la alicuota. Las fechas se actualizan: la factura sale con fecha de hoy y el periodo se elige. La factura E
  * corre su propio asistente (`runExportRepeatFlow`).
+ *
+ * @internal Exportado para los tests.
  */
 export function repeatSteps(
   session: InteractiveSession,

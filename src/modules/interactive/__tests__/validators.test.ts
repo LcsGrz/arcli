@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { getVoucherKindByShortcut } from '../../../modules/billing/voucher-kind-map';
+import { getVoucherKindByShortcut } from '../../billing/voucher-kind-map';
 import {
   validateAmount,
   validateBillingDate,
@@ -37,9 +37,9 @@ describe('validatePositiveInteger', () => {
 
 describe('validateOptionalDate', () => {
   it('vacío vale; si no, tiene que ser una fecha', () => {
-    expect(validateOptionalDate('  ')).toBe(true);
-    expect(validateOptionalDate('15/10/2026')).toBe(true);
-    expect(validateOptionalDate('32/10/2026')).toMatch(/Fecha inválida/);
+    expect(validateOptionalDate('  ', new Date(2026, 9, 20))).toBe(true);
+    expect(validateOptionalDate('15/10/2026', new Date(2026, 9, 20))).toBe(true);
+    expect(validateOptionalDate('32/10/2026', new Date(2026, 9, 20))).toMatch(/Fecha inválida/);
   });
 });
 

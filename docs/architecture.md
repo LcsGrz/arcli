@@ -139,7 +139,7 @@ Comandos, flags, claves de config y JSON son contrato público. Antes de cambiar
 
   Descartado:
   - Los `writes` del grupo como la unión fija de los `owns`: `finalize` volvería al grupo por un campo de un opcional desmarcado. El grupo escribe los de lo marcado.
-  - Un tipo aparte para el dato que a veces es obligatorio: `OptionalDef` extiende `FieldDef`, así `label`, `describe` y `owns` se declaran una vez. `FieldDef` solo queda para un dato obligatorio fuera de un grupo (`requiredField`).
+  - Un tipo aparte para el dato que a veces es obligatorio: `OptionalDef` extiende `FieldDef`, así `label`, `describe` y `owns` se declaran una vez. Un dato obligatorio fuera de un grupo no tiene paso propio: hoy no hay ninguno.
   - Componer en el orden en que se marcó: el resultado dependería de cómo se eligió. Se compone en el orden del catálogo.
   - Un paso con todas las preguntas de un dato obligatorio: "Volver" saltaría preguntas. `requiredOptional` hace un paso por pregunta.
   - Escalar el exento y el no gravado en "Repetir" con otro monto: se vuelven a preguntar, con el opcional preseleccionado.

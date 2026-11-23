@@ -98,7 +98,11 @@ export function matchesSearch(text: string, term: string): boolean {
   return searchWords(term).every((word) => haystack.includes(word));
 }
 
-/** Si lo escrito es exactamente una fila: su texto, lo que deja al elegirla o sus palabras clave. */
+/**
+ * Si lo escrito es exactamente una fila: su texto, lo que deja al elegirla o sus palabras clave.
+ *
+ * @internal Exportado para los tests.
+ */
 export function isExactRow<T>(row: FilterListRow<T>, term: string): boolean {
   return [row.label, row.short, row.keywords, ...(row.keywords?.split(/\s+/) ?? [])].some(
     (text) => text !== undefined && sameSearch(stripAnsi(text), term),
@@ -116,7 +120,11 @@ function firstMatch<T>(visible: ReadonlyArray<FilterListRow<T>>, term: string): 
   );
 }
 
-/** Las filas que contienen lo escrito, en la fila o en sus palabras clave. */
+/**
+ * Las filas que contienen lo escrito, en la fila o en sus palabras clave.
+ *
+ * @internal Exportado para los tests.
+ */
 export function filterRows<T>(rows: ReadonlyArray<FilterListRow<T>>, term: string): Array<FilterListRow<T>> {
   const filtering = searchWords(term).length > 0;
 

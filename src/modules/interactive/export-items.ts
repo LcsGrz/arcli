@@ -32,6 +32,8 @@ export function summaryExportItem(total: number): ExportItemInput {
  * El total de la E que arma el asistente: la suma de los items, cada renglon redondeado a dos decimales como los suma
  * el CLI (`sumExportItems`). Asi `--monto` y los `--item` del comando equivalente cierran por construccion (1610).
  * Sin items todavia, no hay total.
+ *
+ * @internal Exportado para los tests.
  */
 export function exportItemsTotal(items: readonly ExportItemInput[] | undefined): number | undefined {
   return items && items.length > 0 ? sumExportItems(items) : undefined;

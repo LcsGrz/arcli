@@ -12,6 +12,7 @@ import {
   toneText,
   uiSymbol,
 } from '../../ui/primitives';
+import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
 import { RECENT_VOUCHERS_LIMIT } from '../vouchers/voucher-history';
 
 import type { ArcliConfig, ConfigPublicKey } from './config.schemas';
@@ -180,7 +181,7 @@ const CONFIG_TEXT_VALUES: Record<ConfigPublicKey, PublicConfigValue> = {
   json: (c) => yesNo(c.json),
   'key.produccion': (c) => notSet(c.key.produccion),
   'key.testing': (c) => notSet(c.key.testing),
-  moneda: (c) => c.moneda ?? 'PES',
+  moneda: (c) => c.moneda ?? ARCA_LOCAL_CURRENCY_CODE,
   'monotributo.tope': (c) => (c.monotributo ? formatArgentineMoney(c.monotributo.tope) : 'el de tu categoría'),
   pdf: (c) => c.pdf,
   pdfCarpeta: (c) => c.pdfCarpeta,

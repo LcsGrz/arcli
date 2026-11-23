@@ -18,6 +18,7 @@ export type ExportOptions = Pick<
   'clientCountryCuit' | 'commercialObservations' | 'incotermDescription' | 'language' | 'observations' | 'voucherDate'
 >;
 
+/** @internal Exportado para los tests. */
 export type ExportOptionKey = 'cuit-pais' | 'fecha' | 'idioma' | 'incoterm' | 'observaciones';
 
 /** El CUIT del pais se elige contra la tabla DST_CUIT, con el destino ya elegido. */

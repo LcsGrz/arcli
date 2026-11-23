@@ -24,6 +24,8 @@ function looksRelative(value: string): boolean {
  * La fecha ARCA (yyyymmdd) de una fecha relativa (`hoy`, `ayer`, `+N`, `-N`, `mes-actual`, `mes-pasado`), sin
  * distinguir mayusculas. `now` es la referencia: "hoy" es su fecha argentina. Devuelve `undefined` si el valor no es
  * relativo (una fecha escrita a mano sigue su camino de siempre) y tira si parece relativo pero no es valido.
+ *
+ * @internal Exportado para los tests.
  */
 export function parseRelativeDateAsArcaDate(value: string, role: DateInputRole, now: Date): string | undefined {
   const normalized = value.trim().toLowerCase();

@@ -5,8 +5,7 @@ import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { DEFAULT_EXCHANGE_RATE } from './billing.constants';
 import { resolveBillingCurrencyCode } from './billing.mappers';
 import type { BillingCommandInput } from './billing.schemas';
-
-export const ARCA_LOCAL_CURRENCY_CODE = 'PES';
+import { ARCA_LOCAL_CURRENCY_CODE } from './currency-codes';
 
 export interface BillingCurrencyFields {
   readonly CanMisMonExt?: 'N' | 'S';

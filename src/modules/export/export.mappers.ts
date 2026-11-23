@@ -10,11 +10,13 @@ import { AppError, InputValidationError } from '../../lib/errors/app-error';
 import { roundToCents } from '../../lib/numbers/argentine-amount';
 import { assertRules } from '../../lib/rules/rules';
 import { resolveBillingCurrencyCode } from '../billing/billing.mappers';
+import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
 import type { ArcliConfig } from '../config/config.schemas';
 
 import { exportTextLengthError, MAX_EXPORT_ITEM_DESCRIPTION_LENGTH } from './export.items';
 import type { ExportRule } from './export.rules';
 import {
+  BILLS_EXPORT_TYPE,
   DEFAULT_EXPORT_CURRENCY_CODE,
   DEFAULT_EXPORT_LANGUAGE,
   DEFAULT_EXPORT_TYPE,
@@ -36,6 +38,7 @@ import {
   type ExportVoucherPayload,
   isExportNote,
   MAX_EXPORT_POINT_OF_SALE,
+  SERVICES_EXPORT_TYPE,
 } from './export.types';
 
 /** Codigo de pais de Argentina en la tabla DST_pais: no es un destino de exportacion. */
@@ -56,9 +59,6 @@ export const EXPORT_PAYMENT_TERMS_SUGGESTIONS: readonly string[] = [
   'Cobranza documentaria',
   'Cuenta corriente',
 ];
-
-/** Exportacion de servicios: la cotizacion es la del dia habil anterior (error 2053). */
-export const SERVICES_EXPORT_TYPE: ExportType = 2;
 
 /** ARCA no acepta cotizaciones en pesos distintas de 1. */
 const LOCAL_EXCHANGE_RATE = 1;
@@ -179,7 +179,7 @@ export const EXPORT_EXCHANGE_RATE_RULE: ExportRule = {
 
     const requested = input.currencyCode?.trim() || DEFAULT_EXPORT_CURRENCY_CODE;
 
-    if (resolveBillingCurrencyCode(requested) === 'PES') {
+    if (resolveBillingCurrencyCode(requested) === ARCA_LOCAL_CURRENCY_CODE) {
       return rate === LOCAL_EXCHANGE_RATE
         ? undefined
         : {
@@ -206,7 +206,7 @@ export function resolveExportCurrency(
   const requested = input.currencyCode?.trim() || DEFAULT_EXPORT_CURRENCY_CODE;
   const currencyCode = resolveBillingCurrencyCode(requested);
 
-  if (currencyCode === 'PES') {
+  if (currencyCode === ARCA_LOCAL_CURRENCY_CODE) {
     if (input.sameCurrency) {
       throw new InputValidationError('`--misma-moneda` solo aplica a comprobantes en moneda extranjera.');
     }
@@ -538,7 +538,11 @@ export function assertExportClientIdentification(options: {
   }
 }
 
-/** Los textos de la E con su largo maximo en WSFEX v3.1.0: el codigo de control, si el manual lo da, y el flag. */
+/**
+ * Los textos de la E con su largo maximo en WSFEX v3.1.0: el codigo de control, si el manual lo da, y el flag.
+ *
+ * @internal Exportado para los tests.
+ */
 export const EXPORT_TEXT_LIMITS = {
   clientAddress: { code: 1661, flag: '--domicilio-cliente', label: 'El domicilio del cliente', max: 300 },
   clientName: { code: 1651, flag: '--cliente', label: 'El nombre del cliente', max: 200 },
@@ -590,7 +594,7 @@ export function assertExportIncoterm(options: {
 }): void {
   const hasIncoterm = Boolean(options.incoterm?.trim());
 
-  if (!options.isNote && options.exportType === 1 && !hasIncoterm) {
+  if (!options.isNote && options.exportType === BILLS_EXPORT_TYPE && !hasIncoterm) {
     throw new InputValidationError(
       'La factura E de bienes (`--tipo-expo 1`) lleva incoterm: ARCA lo exige (error 1640). Usá `--incoterm`, por ejemplo `FOB`.',
     );

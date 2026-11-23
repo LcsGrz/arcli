@@ -4,7 +4,8 @@ import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { assertRules } from '../../lib/rules/rules';
 import { creditNoteOverTotalError } from '../billing/billing.associated-lookup';
 import { formatVoucherSubject, formatVoucherWithArticle } from '../billing/billing.mappers';
-import { formatVoucherNumber } from '../vouchers/voucher-history.presenter';
+import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
+import { formatVoucherNumber } from '../vouchers/voucher-number';
 
 import { assertExportPointOfSaleRange } from './export.mappers';
 import type { ExportRule, ExportRuleContext } from './export.rules';
@@ -21,10 +22,10 @@ import {
   type ExportVoucherQuery,
   getExportVoucherKindByArcaType,
   getExportVoucherKindByShortcut,
+  SERVICES_EXPORT_TYPE,
 } from './export.types';
 
 /** Servicios: el tipo de la nota en el que ARCA la compara con el asociado (2040 a 2055, WSFEX v3.1.0). */
-const SERVICES_EXPORT_TYPE = 2;
 
 const ASSOCIATED_SHORTCUTS = EXPORT_VOUCHER_KINDS.map((kind) => `\`${kind.shortcut}\``)
   .join(', ')
@@ -341,7 +342,7 @@ export function assertExportNoteMatchesAssociated(options: {
     );
   }
 
-  if (!sameCurrency && note.currencyCode.trim().toUpperCase() !== 'PES') {
+  if (!sameCurrency && note.currencyCode.trim().toUpperCase() !== ARCA_LOCAL_CURRENCY_CODE) {
     throw new InputValidationError(
       `En servicios la nota va en la moneda de ${label} (${associated.currencyCode}) o en pesos: ARCA rechaza otra (error 2051).`,
     );

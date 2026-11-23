@@ -9,6 +9,7 @@ import { AMOUNT_DECIMALS, formatExchangeRate, hasAtMostDecimals } from '../../li
 import { assertRules } from '../../lib/rules/rules';
 import { assertCurrencyInTable } from '../billing/billing.currency';
 import { EmissionUncertainError } from '../billing/billing.errors';
+import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
 import { type ArcliConfig, MISSING_CUIT_MESSAGE } from '../config/config.schemas';
 
 import {
@@ -66,6 +67,7 @@ import {
   MAX_EXPORT_REQUEST_ID,
   MAX_EXPORT_VOUCHER_NUMBER,
   type ResolvedExportVoucher,
+  SERVICES_EXPORT_TYPE,
 } from './export.types';
 
 export interface ExportRuntime {
@@ -114,10 +116,10 @@ function assertExportExchangeRateMatches(options: {
   }
 
   const subject =
-    options.exportType === 2
+    options.exportType === SERVICES_EXPORT_TYPE
       ? 'En servicios ARCA exige la cotización de aduana'
       : 'Con `--misma-moneda` ARCA exige la cotización oficial';
-  const code = options.exportType === 2 ? 2053 : 1604;
+  const code = options.exportType === SERVICES_EXPORT_TYPE ? 2053 : 1604;
   const day = official.date ? ` del ${formatArcaDateAsArgentineDate(official.date)}` : '';
 
   throw new InputValidationError(
@@ -227,7 +229,7 @@ function exportQuotationWarnings(
   const used = `la del ${formatArcaDateAsArgentineDate(quotation.date)} (${formatExchangeRate(quotation.rate)})`;
 
   if (quotationDate.rule === 'previous-business-day') {
-    const subject = exportType === 2 ? 'En servicios' : 'Con `--misma-moneda`';
+    const subject = exportType === SERVICES_EXPORT_TYPE ? 'En servicios' : 'Con `--misma-moneda`';
 
     return [
       `${subject} ARCA exige la cotización de ${quotation.code} del día hábil anterior a ${quotationDate.date < addDaysToArcaDate(voucherDate, -1) ? 'hoy, porque la fecha del comprobante es futura' : 'la fecha del comprobante'} (error 2053): se usa ${used}, la última que publicó hasta el ${formatArcaDateAsArgentineDate(quotationDate.date)}.`,
@@ -337,7 +339,7 @@ export class ExportService {
       arcaCode: currency.fields.Moneda_Id,
       requested: input.currencyCode?.trim() || currency.fields.Moneda_Id,
       service: 'wsfex',
-      table: currency.fields.Moneda_Id === 'PES' ? [] : currencies.map((entry) => entry.code),
+      table: currency.fields.Moneda_Id === ARCA_LOCAL_CURRENCY_CODE ? [] : currencies.map((entry) => entry.code),
     });
     const quotationDate = resolveExportQuotationDate({
       exportType,
@@ -357,7 +359,7 @@ export class ExportService {
     // `--cotizacion-moneda` en la factura de servicios o con `--misma-moneda`: tiene que ser la de ARCA (2053, 1604).
     if (
       !currency.needsQuotation &&
-      currency.fields.Moneda_Id !== 'PES' &&
+      currency.fields.Moneda_Id !== ARCA_LOCAL_CURRENCY_CODE &&
       quotationDate.rule === 'previous-business-day'
     ) {
       const code = currency.fields.Moneda_Id.trim().toUpperCase();

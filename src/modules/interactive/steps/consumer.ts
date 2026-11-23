@@ -34,6 +34,8 @@ export function officialRateQuery(amount: ConsumerAmount): {
 /**
  * El monto con la cotizacion oficial ya consultada, si sin ella el total en pesos no se sabe (moneda extranjera sin
  * cotizacion o cobrada en esa moneda): con `--misma-moneda` la cotizacion tambien es la oficial.
+ *
+ * @internal Exportado para los tests.
  */
 export function withOfficialRate(amount: ConsumerAmount, officialRate: number | undefined): ConsumerAmount {
   return officialRate === undefined || amountInPesos(amount) !== undefined

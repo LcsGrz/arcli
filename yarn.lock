@@ -381,16 +381,6 @@
     "@inquirer/core" "^12.0.6"
     "@inquirer/type" "4.2.1"
 
-"@inquirer/select@5.2.8":
-  version "5.2.8"
-  resolved "https://registry.yarnpkg.com/@inquirer/select/-/select-5.2.8.tgz#97dca017e4b2fc04ad98f31dd41d445656822554"
-  integrity sha512-BklkkAAOpjdCfuQw5fVGcDuhKxA7T1iBpn6b2JUvDDdkIsO3Ftlg+WnWUCVpkUBFagL2o036OFW+xL4lC9wIPw==
-  dependencies:
-    "@inquirer/ansi" "^2.0.10"
-    "@inquirer/core" "^12.0.6"
-    "@inquirer/figures" "^2.0.10"
-    "@inquirer/type" "4.2.1"
-
 "@inquirer/type@4.2.1":
   version "4.2.1"
   resolved "https://registry.yarnpkg.com/@inquirer/type/-/type-4.2.1.tgz#ef7de2070d26e0e3f1c558b9e3939eab147717a3"

@@ -1,3 +1,4 @@
+import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
 import { sumExportItems } from '../export/export.items';
 import {
   DEFAULT_EXPORT_LANGUAGE,
@@ -93,7 +94,7 @@ export function copyExportItems(voucher: Pick<ExportIssuedVoucher, 'items' | 'to
  */
 export function copyExportInvoice(original: ExportIssuedVoucher, defaultCountryCuit?: number): ExportInvoiceCopy {
   const { limitation } = copyExportItems(original);
-  const inPesos = original.currencyCode.trim().toUpperCase() === 'PES';
+  const inPesos = original.currencyCode.trim().toUpperCase() === ARCA_LOCAL_CURRENCY_CODE;
 
   return {
     input: {

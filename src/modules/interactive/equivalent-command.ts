@@ -4,6 +4,7 @@ import { DEFAULT_CURRENCY_CODE } from '../billing/billing.constants';
 import { isForeignCurrency } from '../billing/billing.currency';
 import { resolveBillingCurrencyCode } from '../billing/billing.mappers';
 import type { BillingCommandInput } from '../billing/billing.schemas';
+import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
 import { getVoucherKindByShortcut } from '../billing/voucher-kind-map';
 
 const CONCEPT_FLAGS: Record<BillingCommandInput['concept'], string> = {
@@ -100,7 +101,10 @@ export function buildEquivalentCommand(
       // comando pegado otro dia emita con una cotizacion vieja (REV-72).
       parts.push('--cm', formatArgentineAmountInput(input.exchangeRate));
     }
-  } else if (options.defaultCurrency && resolveBillingCurrencyCode(options.defaultCurrency) !== 'PES') {
+  } else if (
+    options.defaultCurrency &&
+    resolveBillingCurrencyCode(options.defaultCurrency) !== ARCA_LOCAL_CURRENCY_CODE
+  ) {
     parts.push('--moneda', DEFAULT_CURRENCY_CODE);
   }
   if (input.ivaRate) parts.push('--alicuota', input.ivaRate);

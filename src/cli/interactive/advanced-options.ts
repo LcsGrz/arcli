@@ -13,6 +13,7 @@ import { completeDateInput } from '../../modules/interactive/date-input';
 import { optionalGroup } from '../../modules/interactive/optional-group';
 import { scopedRuleValidator } from '../../modules/interactive/rule-validator';
 import type { Lens } from '../../modules/interactive/steps/lens';
+import { validateBillingDate, validateDate, validateOptionalAmount } from '../../modules/interactive/validators';
 import { BACK, type WizardStep } from '../../modules/interactive/wizard';
 
 import { markIfNew } from './new-mark';
@@ -21,7 +22,6 @@ import { askTextStep, chooseStep } from './prompts';
 import { type BillingOptionalsGroup, consumerQuestions } from './steps/consumer';
 import { currencySteps } from './steps/currency';
 import { dateStep, servicePeriodSteps } from './steps/date';
-import { validateBillingDate, validateDate, validateOptionalAmount } from './validators';
 
 /** El validador de una pregunta de un opcional: el formato (`validate`) y las reglas que leen `field`. */
 function billingRule(
@@ -129,7 +129,7 @@ const QUESTIONS: BillingOptionalQuestions = {
   // La ventana de ARCA (tambien sin las reglas del flujo) y que no quede antes del periodo o del asociado.
   fecha: (context) => [
     optionalDate(context, 'fecha', 'Fecha del comprobante:', 'billingDate', (value) =>
-      validateBillingDate(value, context.concept, context.voucherKind),
+      validateBillingDate(value, context.concept, context.voucherKind, new Date()),
     ),
   ],
   servicio: (context) =>
@@ -162,7 +162,9 @@ const QUESTIONS: BillingOptionalQuestions = {
     },
   ],
   vencimiento: (context) => [
-    optionalDate(context, 'vencimiento', 'Vencimiento del pago:', 'paymentDueDate', validateDate),
+    optionalDate(context, 'vencimiento', 'Vencimiento del pago:', 'paymentDueDate', (value) =>
+      validateDate(value, new Date()),
+    ),
   ],
 };
 

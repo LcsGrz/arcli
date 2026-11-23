@@ -48,7 +48,11 @@ export function hyperlink(text: string, url: string, target?: OutputTarget): str
   return `${ESC}]8;;${url}${ESC}\\${text}${OSC8_CLOSE}`;
 }
 
-/** Link a un archivo o carpeta local: con un clic se abre en el editor o el explorador. */
+/**
+ * Link a un archivo o carpeta local: con un clic se abre en el editor o el explorador.
+ *
+ * @internal Exportado para los tests.
+ */
 export function fileHyperlink(text: string, path: string, target?: OutputTarget): string {
   return hyperlink(text, pathToFileURL(path).href, target);
 }

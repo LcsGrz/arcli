@@ -2,8 +2,8 @@ import { DEFAULT_CURRENCY_CODE } from '../../billing/billing.constants';
 import { isForeignCurrency } from '../../billing/billing.currency';
 import type { BillingCommandInput } from '../../billing/billing.schemas';
 import { toIsoCurrencyCode } from '../../billing/currency-codes';
-import { SERVICES_EXPORT_TYPE } from '../../export/export.mappers';
 import type { ExportType } from '../../export/export.types';
+import { SERVICES_EXPORT_TYPE } from '../../export/export.types';
 
 /** La moneda de un comprobante de A, B o C, como pagan y la cotizacion: lo que escriben las preguntas de la moneda. */
 export type CurrencyChoice = Pick<

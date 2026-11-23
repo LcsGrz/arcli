@@ -3,7 +3,7 @@ import { formatCuit } from '../../lib/identity/format-cuit';
 import { formatArgentineAmount, formatArgentineMoney, formatExchangeRate } from '../../lib/numbers/argentine-amount';
 
 import { conceptLabel, documentTypeLabel, ivaConditionLabel } from './arca-codes';
-import { findArcaCurrency } from './currency-codes';
+import { ARCA_LOCAL_CURRENCY_CODE, findArcaCurrency } from './currency-codes';
 
 /*
  * Sin valor, los formatos devuelven `undefined` y `renderKeyValueRows` no muestra la fila. Una fila que tiene que estar
@@ -39,7 +39,7 @@ export function formatMoneyLabel(value: number | undefined, currency?: string): 
 
   const known = findArcaCurrency(currency);
 
-  return known?.arca === 'PES'
+  return known?.arca === ARCA_LOCAL_CURRENCY_CODE
     ? formatArgentineMoney(value)
     : `${formatArgentineAmount(value)} ${known?.iso ?? currency}`;
 }

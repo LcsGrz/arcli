@@ -1,6 +1,6 @@
 import { roundToCents } from '../../lib/numbers/argentine-amount';
 import type { IIva } from '../../services/arca/arca-sdk.types';
-import { CONSUMER_DOCUMENT_TYPE_CODE } from '../billing/arca-codes';
+import { conceptCode, CONSUMER_DOCUMENT_TYPE_CODE, documentTypeLabel } from '../billing/arca-codes';
 import { resolveIvaRateLabel } from '../billing/billing.amounts';
 import { formatIvaConditionLabel } from '../billing/billing.labels';
 import type { BillingExecutionResult } from '../billing/billing.types.internal';
@@ -8,6 +8,7 @@ import { toIsoCurrencyCode } from '../billing/currency-codes';
 import { formatSaleCondition } from '../billing/sale-condition';
 import { discriminatesIva, isReceipt } from '../billing/voucher-kind-map';
 import type { ExportExecutionResult } from '../export/export.types';
+import { SERVICES_EXPORT_TYPE } from '../export/export.types';
 
 import { PdfError } from './pdf.errors';
 import type { InvoicePdfData, InvoicePdfIssuer, InvoicePdfItem, InvoicePdfIva, PdfVoucherExtras } from './pdf.types';
@@ -15,14 +16,13 @@ import { buildPdfLegends, EXPORT_IVA_LEGEND } from './pdf-legends';
 
 const DEFAULT_ITEM_DESCRIPTION = 'Según detalle';
 
-// Mismos nombres que usa la plantilla del SDK para calcular el tipo de documento del QR.
-const DOCUMENT_TYPE_NAMES: Readonly<Record<number, string>> = {
-  80: 'CUIT',
-  86: 'CUIL',
-  96: 'DNI',
-};
-
-const CURRENCY_CODES: Readonly<Record<string, string>> = { PES: 'PES', DOL: 'DOL' };
+/**
+ * El nombre del tipo de documento, el mismo que usa la plantilla del SDK para calcular el tipo del QR (`CUIT`, `CUIL`,
+ * `DNI`). El consumidor final no tiene nombre ahi: sale con su codigo.
+ */
+function documentTypeName(code: number): string {
+  return (code === CONSUMER_DOCUMENT_TYPE_CODE ? undefined : documentTypeLabel(code)) ?? String(code);
+}
 
 // Un solo guion para el dato que falta. La plantilla escribe el valor tal cual (el helper `docNumber` no agrega nada),
 // pero si el domicilio llega vacio pone su propio "- -": por eso se lo manda siempre.
@@ -150,14 +150,14 @@ export function mapBillingResultToPdfData(
     items: buildItems(result, extras.descripcion?.trim() || DEFAULT_ITEM_DESCRIPTION),
     iva: iva.length > 0 ? iva : undefined,
     // La plantilla del SDK solo conoce pesos y dolares; el resto se muestra con su codigo ARCA.
-    moneda: CURRENCY_CODES[payload.MonId] ?? payload.MonId,
+    moneda: payload.MonId,
     observaciones: buildPdfLegends(result),
     puntoVenta: payload.PtoVta,
     receptor: {
       condicionIva: capitalizeWords(formatIvaConditionLabel(payload.CondicionIVAReceptorId)),
       // Consumidor final sin documento: el QR igual sale con tipo 99 y numero 0 (el SDK usa `Number(nro) || 0`).
       documentoNro: isUnidentified ? EMPTY_TEXT : String(payload.DocNro),
-      documentoTipo: isUnidentified ? 'Documento' : (DOCUMENT_TYPE_NAMES[payload.DocTipo] ?? String(payload.DocTipo)),
+      documentoTipo: isUnidentified ? 'Documento' : documentTypeName(payload.DocTipo),
       domicilio: extras.receptorDomicilio?.trim() || EMPTY_TEXT,
       razonSocial: extras.receptorNombre?.trim() || (isConsumer ? 'Consumidor Final' : EMPTY_TEXT),
     },
@@ -174,13 +174,6 @@ function resolveExportVoucherNumber(result: ExportExecutionResult): number {
 
   return number;
 }
-
-/** El titulo que lleva la E de Comprobantes en linea, en lugar del "FACTURA" de la plantilla. Por tipo ARCA. */
-const EXPORT_VOUCHER_TITLES: Readonly<Record<number, string>> = {
-  19: 'FACTURA DE EXPORTACIÓN',
-  20: 'NOTA DE DÉBITO DE EXPORTACIÓN',
-  21: 'NOTA DE CRÉDITO DE EXPORTACIÓN',
-};
 
 /**
  * WSFEX usa sus propios codigos de moneda (`DOL`, `060`), pero la E de Comprobantes en linea muestra la divisa con
@@ -251,7 +244,7 @@ export function mapExportResultToPdfData(
     caeFechaVencimiento: response.caeVencimiento,
     cbteDesde: number,
     cbteFecha: payload.Fecha_cbte,
-    cbteDescripcion: EXPORT_VOUCHER_TITLES[payload.Cbte_Tipo],
+    cbteDescripcion: result.voucherKind.pdfTitle,
     cbteHasta: number,
     cbteLetra: result.voucherKind.letter.toUpperCase(),
     cbteTipo: payload.Cbte_Tipo,
@@ -262,7 +255,7 @@ export function mapExportResultToPdfData(
       puntoVenta: voucher.Cbte_punto_vta,
       tipo: voucher.Cbte_tipo,
     })),
-    concepto: payload.Tipo_expo === 2 ? 2 : 1,
+    concepto: conceptCode(payload.Tipo_expo === SERVICES_EXPORT_TYPE ? 'servicios' : 'productos'),
     condicionIvaExportacion: EXPORT_IVA_LEGEND,
     cotizacion: payload.Moneda_ctz,
     destinoComprobante: display.countryName ?? String(payload.Dst_cmp),

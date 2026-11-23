@@ -6,11 +6,10 @@ import {
   consumerIdentificationNotice,
   type ConsumerIdentity,
   describeConsumerIdentity,
-  isConsumerIdentified,
   reachesConsumerThreshold,
 } from '../consumer-identification';
 import { type OptionalDef, optionalGroup, type OptionalGroupDef, requiredOptional } from '../optional-group';
-import { type FieldDef, requiredField } from '../required-field';
+import type { FieldDef } from '../required-field';
 import { BACK, type Back, runWizard, type WizardStep } from '../wizard';
 
 /**
@@ -310,91 +309,5 @@ describe('opcional obligatorio segun el contexto: datos del consumidor final (RG
         questions: [],
       }),
     ).toThrow('El grupo opcionales no tiene el opcional consumidor.');
-  });
-});
-
-describe('requiredField: un dato obligatorio fuera de un grupo', () => {
-  function steps(field: FieldDef<ConsumerIdentity, Context>, notices: string[]): Array<WizardStep<Flow>> {
-    return [
-      { name: 'monto', run: async () => ({ totalAmount: CONSUMER_IDENTIFICATION_THRESHOLD }) },
-      requiredField({
-        ...lens,
-        answered: (state) => isConsumerIdentified(state.consumer),
-        field,
-        name: 'consumidor',
-        notice: (reason) => notices.push(reason),
-      }),
-    ];
-  }
-
-  it('lo pide con el motivo si es obligatorio y no esta respondido', async () => {
-    const notices: string[] = [];
-    const { field } = consumerField({ number: [30123456], type: ['dni'] });
-
-    expect((await runWizard(steps(field, notices), INITIAL))?.consumer).toEqual(DNI);
-    expect(notices).toEqual([consumerIdentificationNotice()]);
-  });
-
-  it('no lo pide si no es obligatorio', async () => {
-    const notices: string[] = [];
-    const { field, seen } = consumerField({ number: [], type: [] });
-    const [, consumer] = steps(field, notices);
-    const below: Array<WizardStep<Flow>> = [
-      { name: 'monto', run: async () => ({ totalAmount: BELOW }) },
-      consumer as WizardStep<Flow>,
-    ];
-
-    expect((await runWizard(below, INITIAL))?.consumer).toEqual({});
-    expect(seen).toEqual([]);
-  });
-
-  it('no lo pide si nunca es obligatorio', async () => {
-    const notices: string[] = [];
-    const { field, seen } = consumerField({ number: [], type: [] });
-    const optional: FieldDef<ConsumerIdentity, Context> = {
-      available: field.available,
-      key: field.key,
-      steps: field.steps,
-    };
-
-    await runWizard(steps(optional, notices), INITIAL);
-
-    expect(seen).toEqual([]);
-  });
-
-  it('no lo pide si ya esta respondido', async () => {
-    const notices: string[] = [];
-    const { field, seen } = consumerField({ number: [], type: [] });
-
-    expect((await runWizard(steps(field, notices), { ...INITIAL, consumer: DNI }))?.consumer).toEqual(DNI);
-    expect(seen).toEqual([]);
-  });
-
-  it('Volver en la primera pregunta vuelve al paso anterior, y al volver se ofrece lo escrito', async () => {
-    const notices: string[] = [];
-    const { field, seen } = consumerField({ number: [BACK, 30123456], type: ['cuit', BACK, 'cuit'] });
-    const amounts: Array<number | Back> = [CONSUMER_IDENTIFICATION_THRESHOLD, CONSUMER_IDENTIFICATION_THRESHOLD];
-    const [, consumer] = steps(field, notices);
-    const flowSteps: Array<WizardStep<Flow>> = [
-      {
-        name: 'monto',
-        run: async () => {
-          const amount = amounts.shift();
-
-          return amount === BACK ? BACK : { totalAmount: amount };
-        },
-      },
-      consumer as WizardStep<Flow>,
-    ];
-
-    await runWizard(flowSteps, INITIAL);
-
-    expect(seen).toEqual([
-      ['documento', undefined],
-      ['numero', undefined],
-      ['documento', 'cuit'],
-      ['documento', 'cuit'],
-      ['numero', undefined],
-    ]);
   });
 });

@@ -4,8 +4,10 @@ import {
   billingConceptValueSchema,
   billingIvaConditionSchema,
   billingIvaRateSchema,
+  cbuAliasSchema,
   cbuSchema,
 } from '../billing/billing.schemas';
+import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
 import { saleConditionSchema } from '../billing/sale-condition';
 import { MAX_RECENT_VOUCHERS, RECENT_VOUCHERS_LIMIT } from '../vouchers/voucher-history';
 
@@ -38,11 +40,7 @@ export const arcliConfigSchema = z.object({
     .regex(/^\d{11}$/, 'El CUIT debe tener 11 dígitos')
     .optional(),
   cbu: cbuSchema.optional(),
-  aliasCbu: z
-    .string()
-    .trim()
-    .regex(/^[A-Za-z0-9.-]{6,20}$/, 'El alias debe tener entre 6 y 20 caracteres (letras, números, punto o guion)')
-    .optional(),
+  aliasCbu: cbuAliasSchema.optional(),
   conceptoPorDefecto: arcliDefaultConceptSchema.optional(),
   ivaReceptorPorDefecto: arcliDefaultIvaConditionSchema.optional(),
   monedaPorDefecto: arcliDefaultCurrencySchema.optional(),
@@ -146,7 +144,7 @@ export const CONFIG_DEFAULTS: ArcliConfig = {
   emisor: {},
   entornoPorDefecto: 'testing',
   key: {},
-  monedaPorDefecto: 'PES',
+  monedaPorDefecto: ARCA_LOCAL_CURRENCY_CODE,
   cotizacionPorDefecto: 1,
   output: {
     emitirPorDefecto: false,

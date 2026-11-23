@@ -6,14 +6,34 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { needsPadronLookup } from '../../../modules/billing/billing.padron';
 import type { BillingCommandInput } from '../../../modules/billing/billing.schemas';
+import { prepareBatch } from '../billing.command.batch';
 import {
-  parseBillingCommandInput,
-  parseBillingCommandInputs,
+  type BillingCommandDefaults,
   parseBillingCommandPlan,
   registerBillingOptions,
 } from '../billing.command.parser';
 
 const temporaryDirectories: string[] = [];
+
+/** Un comprobante suelto por el camino de produccion: el plan de un solo input, sin lote. */
+function parseSingleInput(
+  command: Command,
+  shortcut: Parameters<typeof parseBillingCommandPlan>[1],
+  defaults?: BillingCommandDefaults,
+): BillingCommandInput {
+  const plan = parseBillingCommandPlan(command, shortcut, defaults);
+
+  expect(plan.isBatch).toBe(false);
+
+  return plan.inputs[0] as BillingCommandInput;
+}
+
+/** Prepara un lote como `arcli` antes de emitir, sin consultar ARCA: el error es el `BatchValidationError` del comando. */
+function prepareFileBatch(command: Command): Promise<BillingCommandInput[]> {
+  const plan = parseBillingCommandPlan(command, 'fc');
+
+  return prepareBatch({ inputs: plan.inputs, plan, resolve: async (input) => input, validate: () => {} });
+}
 
 function createCommand(args: string[]): Command {
   const command = new Command();
@@ -54,7 +74,7 @@ afterEach(() => {
 describe('billing.command.parser', () => {
   it('never rounds the JSON total: keeps 2 decimals and rejects more', () => {
     const parse = (montoTotal: number) =>
-      parseBillingCommandInput(createCommand(['--cargar', writeJsonInput({ montoTotal })]), 'fc');
+      parseSingleInput(createCommand(['--cargar', writeJsonInput({ montoTotal })]), 'fc');
 
     expect(parse(100.55).totalAmount).toBe(100.55);
     expect(parse(1234.5).totalAmount).toBe(1234.5);
@@ -63,7 +83,7 @@ describe('billing.command.parser', () => {
   });
 
   it('stops values that do not fit in the WSFEv1 fields, from flags or from --cargar (REGLAS-18)', () => {
-    const parse = (args: string[]) => parseBillingCommandInput(createCommand(['--cs', '--ir-cf', ...args]), 'ncb');
+    const parse = (args: string[]) => parseSingleInput(createCommand(['--cs', '--ir-cf', ...args]), 'ncb');
     const associated = ['--ac', 'fb', '--apv', '1', '--ar', '1'];
 
     expect(parse(['--monto', '9999999999999,99', ...associated]).totalAmount).toBe(9_999_999_999_999.99);
@@ -99,7 +119,7 @@ describe('billing.command.parser', () => {
 
   it('defaults to safe dry-run when emit is absent', () => {
     const command = createCommand(['--monto', '1000']);
-    const input = parseBillingCommandInput(command, 'fa', {
+    const input = parseSingleInput(command, 'fa', {
       defaultConcept: 'servicios',
       defaultCurrencyCode: 'ARS',
       defaultExchangeRate: 1,
@@ -156,7 +176,7 @@ describe('billing.command.parser', () => {
 
   it('uses emit when explicitly requested', () => {
     const command = createCommand(['--monto', '1000', '--emitir']);
-    const input = parseBillingCommandInput(command, 'fa', {
+    const input = parseSingleInput(command, 'fa', {
       defaultConcept: 'servicios',
       defaultCurrencyCode: 'ARS',
       defaultExchangeRate: 1,
@@ -170,25 +190,21 @@ describe('billing.command.parser', () => {
   it('rejects mixing emit and preview at the same time', () => {
     const command = createCommand(['--monto', '1000', '--emitir', '--previsualizar', '--cs', '--ir-cf']);
 
-    expect(() => parseBillingCommandInput(command, 'fa')).toThrow(/Usá `--emitir` o `--previsualizar`/);
+    expect(() => parseSingleInput(command, 'fa')).toThrow(/Usá `--emitir` o `--previsualizar`/);
   });
 
   describe('a written flag wins over the file and the config', () => {
     it('previews with --previsualizar even if the config emits by default', () => {
-      const input = parseBillingCommandInput(
-        createCommand(['--monto', '1000', '--cs', '--ir-cf', '--previsualizar']),
-        'fc',
-        {
-          defaultEmit: true,
-        },
-      );
+      const input = parseSingleInput(createCommand(['--monto', '1000', '--cs', '--ir-cf', '--previsualizar']), 'fc', {
+        defaultEmit: true,
+      });
 
       expect(input.emit).toBe(false);
       expect(input.dryRun).toBe(true);
     });
 
     it('previews with --previsualizar even if the file says emitir', () => {
-      const input = parseBillingCommandInput(
+      const input = parseSingleInput(
         createCommand(['--cargar', writeJsonInput({ emitir: true }), '--previsualizar']),
         'fc',
       );
@@ -197,7 +213,7 @@ describe('billing.command.parser', () => {
     });
 
     it('emits with --emitir even if the file says previsualizar', () => {
-      const input = parseBillingCommandInput(
+      const input = parseSingleInput(
         createCommand(['--cargar', writeJsonInput({ previsualizar: true }), '--emitir']),
         'fc',
       );
@@ -208,24 +224,18 @@ describe('billing.command.parser', () => {
 
     it('rejects a file that asks for emitir and previsualizar', () => {
       expect(() =>
-        parseBillingCommandInput(
-          createCommand(['--cargar', writeJsonInput({ emitir: true, previsualizar: true })]),
-          'fc',
-        ),
+        parseSingleInput(createCommand(['--cargar', writeJsonInput({ emitir: true, previsualizar: true })]), 'fc'),
       ).toThrow(/"emitir" o "previsualizar", pero no ambos/);
     });
 
     it('does not emit when the file only says previsualizar false', () => {
-      const input = parseBillingCommandInput(
-        createCommand(['--cargar', writeJsonInput({ previsualizar: false })]),
-        'fc',
-      );
+      const input = parseSingleInput(createCommand(['--cargar', writeJsonInput({ previsualizar: false })]), 'fc');
 
       expect(input.emit).toBe(false);
     });
 
     it('uses a single --alicuota instead of the file alicuotas', () => {
-      const input = parseBillingCommandInput(
+      const input = parseSingleInput(
         createCommand([
           '--cargar',
           writeJsonInput({ alicuotas: [{ monto: 1000, tasa: 21 }], ivaReceptor: 'responsable-inscripto' }),
@@ -242,7 +252,7 @@ describe('billing.command.parser', () => {
     });
 
     it('uses --cm instead of the file mismaMoneda', () => {
-      const input = parseBillingCommandInput(
+      const input = parseSingleInput(
         createCommand(['--cargar', writeJsonInput({ codigoMoneda: 'USD', mismaMoneda: true }), '--cm', '1.200']),
         'fc',
       );
@@ -252,11 +262,11 @@ describe('billing.command.parser', () => {
     });
 
     it('marks a cotizacionMoneda from the file, so the range error names the JSON key', () => {
-      const fromFile = parseBillingCommandInput(
+      const fromFile = parseSingleInput(
         createCommand(['--cargar', writeJsonInput({ codigoMoneda: 'USD', cotizacionMoneda: 1200 })]),
         'fc',
       );
-      const fromFlag = parseBillingCommandInput(
+      const fromFlag = parseSingleInput(
         createCommand(['--cargar', writeJsonInput({ codigoMoneda: 'USD', cotizacionMoneda: 1200 }), '--cm', '1.300']),
         'fc',
       );
@@ -266,7 +276,7 @@ describe('billing.command.parser', () => {
     });
 
     it('uses --misma-moneda instead of the file cotizacionMoneda', () => {
-      const input = parseBillingCommandInput(
+      const input = parseSingleInput(
         createCommand(['--cargar', writeJsonInput({ codigoMoneda: 'USD', cotizacionMoneda: 1200 }), '--misma-moneda']),
         'fc',
       );
@@ -278,7 +288,7 @@ describe('billing.command.parser', () => {
 
   it('parses --misma-moneda without applying the default exchange rate', () => {
     const command = createCommand(['--monto', '1000', '--cs', '--ir-cf', '--moneda', 'USD', '--misma-moneda']);
-    const input = parseBillingCommandInput(command, 'fc', { defaultExchangeRate: 1200 });
+    const input = parseSingleInput(command, 'fc', { defaultExchangeRate: 1200 });
 
     expect(input.sameCurrency).toBe(true);
     expect(input.exchangeRate).toBeUndefined();
@@ -297,7 +307,7 @@ describe('billing.command.parser', () => {
       '1200',
     ]);
 
-    expect(() => parseBillingCommandInput(command, 'fc')).toThrow(
+    expect(() => parseSingleInput(command, 'fc')).toThrow(
       'Con `--misma-moneda` la cotización se toma de ARCA. Sacá `--cotizacion-moneda` o `--cm`.',
     );
   });
@@ -312,20 +322,18 @@ describe('billing.command.parser', () => {
       writeJsonInput({ codigoMoneda: 'USD', cotizacionMoneda: 1200, mismaMoneda: true }),
     ]);
 
-    expect(() => parseBillingCommandInput(command, 'fc')).toThrow(
+    expect(() => parseSingleInput(command, 'fc')).toThrow(
       'Con `"mismaMoneda": true` la cotización se toma de ARCA. Sacá `"cotizacionMoneda"` del JSON de `--cargar`.',
     );
   });
 
   it('applies the default exchange rate only to foreign currency', () => {
-    const pesos = parseBillingCommandInput(createCommand(['--monto', '1000', '--cs', '--ir-cf']), 'fc', {
+    const pesos = parseSingleInput(createCommand(['--monto', '1000', '--cs', '--ir-cf']), 'fc', {
       defaultExchangeRate: 1200,
     });
-    const dollars = parseBillingCommandInput(
-      createCommand(['--monto', '1000', '--cs', '--ir-cf', '--moneda', 'USD']),
-      'fc',
-      { defaultExchangeRate: 1200 },
-    );
+    const dollars = parseSingleInput(createCommand(['--monto', '1000', '--cs', '--ir-cf', '--moneda', 'USD']), 'fc', {
+      defaultExchangeRate: 1200,
+    });
 
     expect(pesos.exchangeRate).toBeUndefined();
     expect(dollars.exchangeRate).toBe(1200);
@@ -333,17 +341,16 @@ describe('billing.command.parser', () => {
   });
 
   it('does not apply the config exchange rate of another foreign currency', () => {
-    const euros = parseBillingCommandInput(
-      createCommand(['--monto', '1000', '--cs', '--ir-cf', '--moneda', 'EUR']),
-      'fc',
-      { defaultCurrencyCode: 'USD', defaultExchangeRate: 1400 },
-    );
+    const euros = parseSingleInput(createCommand(['--monto', '1000', '--cs', '--ir-cf', '--moneda', 'EUR']), 'fc', {
+      defaultCurrencyCode: 'USD',
+      defaultExchangeRate: 1400,
+    });
 
     expect(euros.exchangeRate).toBeUndefined();
   });
 
   it('combines the associated voucher from the file with a single flag instead of dropping it', () => {
-    const input = parseBillingCommandInput(
+    const input = parseSingleInput(
       createCommand([
         '--cargar',
         writeJsonInput({ comprobanteAsociado: { atajo: 'fc', numero: 5, puntoVenta: 1 } }),
@@ -357,7 +364,7 @@ describe('billing.command.parser', () => {
   });
 
   it('treats zero exempt and untaxed amounts in the file as absent', () => {
-    const input = parseBillingCommandInput(
+    const input = parseSingleInput(
       createCommand(['--cargar', writeJsonInput({ importeExento: 0, importeNoGravado: 0 })]),
       'fb',
     );
@@ -373,7 +380,7 @@ describe('billing.command.parser', () => {
   });
 
   it('a rate from --cm is not marked as coming from the config', () => {
-    const input = parseBillingCommandInput(
+    const input = parseSingleInput(
       createCommand(['--monto', '1000', '--cs', '--ir-cf', '--moneda', 'USD', '--cm', '1300']),
       'fc',
       { defaultExchangeRate: 1200 },
@@ -384,14 +391,11 @@ describe('billing.command.parser', () => {
   });
 
   it('parses the payment due date from --vencimiento or --vto', () => {
-    const long = parseBillingCommandInput(
+    const long = parseSingleInput(
       createCommand(['--monto', '1000', '--cs', '--ir-cf', '--vencimiento', '10/04']),
       'fc',
     );
-    const short = parseBillingCommandInput(
-      createCommand(['--monto', '1000', '--cs', '--ir-cf', '--vto', '11/04']),
-      'fc',
-    );
+    const short = parseSingleInput(createCommand(['--monto', '1000', '--cs', '--ir-cf', '--vto', '11/04']), 'fc');
 
     expect(long.paymentDueDate).toBe('10/04');
     expect(short.paymentDueDate).toBe('11/04');
@@ -399,8 +403,8 @@ describe('billing.command.parser', () => {
 
   it('applies the configured CBU only to FCE invoices', () => {
     const defaults = { defaultCbu: '0110599520000012345678', defaultCbuAlias: 'mi.alias.cbu' };
-    const fce = parseBillingCommandInput(createCommand(['--monto', '1000', '--cs', '--ir-ri']), 'fcea', defaults);
-    const regular = parseBillingCommandInput(createCommand(['--monto', '1000', '--cs', '--ir-ri']), 'fa', defaults);
+    const fce = parseSingleInput(createCommand(['--monto', '1000', '--cs', '--ir-ri']), 'fcea', defaults);
+    const regular = parseSingleInput(createCommand(['--monto', '1000', '--cs', '--ir-ri']), 'fa', defaults);
 
     expect(fce.cbu).toBe('0110599520000012345678');
     expect(fce.cbuAlias).toBe('mi.alias.cbu');
@@ -411,10 +415,7 @@ describe('billing.command.parser', () => {
   it.each(['20-11111111-2', '20.11111111.2', '20 11111111 2', ' 20111111112 '])(
     'accepts --cuit %j with dashes, dots or spaces',
     (cuit) => {
-      const input = parseBillingCommandInput(
-        createCommand(['--monto', '1000', '--cs', '--ir-rm', '--cuit', cuit]),
-        'fc',
-      );
+      const input = parseSingleInput(createCommand(['--monto', '1000', '--cs', '--ir-rm', '--cuit', cuit]), 'fc');
 
       expect(input).toMatchObject({ documentNumber: 20111111112, documentType: 'cuit' });
     },
@@ -422,7 +423,7 @@ describe('billing.command.parser', () => {
 
   it('accepts a 22-digit --cbu and rejects any other length or characters', () => {
     const parse = (cbu: string) =>
-      parseBillingCommandInput(createCommand(['--monto', '1000', '--cs', '--ir-ri', '--cbu', cbu]), 'fcea');
+      parseSingleInput(createCommand(['--monto', '1000', '--cs', '--ir-ri', '--cbu', cbu]), 'fcea');
 
     expect(parse('0110599520000012345678').cbu).toBe('0110599520000012345678');
     expect(parse(' 0110599520000012345678 ').cbu).toBe('0110599520000012345678');
@@ -437,7 +438,7 @@ describe('billing.command.parser', () => {
     ['0110599520000012345677', /bloque de la cuenta/],
   ])('rejects a CBU %j with a wrong check digit, from --cbu or from --cargar', (cbu, reason) => {
     const parse = (args: string[]) =>
-      parseBillingCommandInput(createCommand(['--monto', '1000', '--cs', '--ir-ri', ...args]), 'fcea');
+      parseSingleInput(createCommand(['--monto', '1000', '--cs', '--ir-ri', ...args]), 'fcea');
 
     expect(() => parse(['--cbu', cbu])).toThrow(reason);
     expect(() => parse(['--cargar', writeJsonInput({ cbu })])).toThrow(reason);
@@ -445,7 +446,7 @@ describe('billing.command.parser', () => {
   });
 
   it('parses FCE flags', () => {
-    const input = parseBillingCommandInput(
+    const input = parseSingleInput(
       createCommand([
         '--monto',
         '1000',
@@ -469,19 +470,19 @@ describe('billing.command.parser', () => {
   });
 
   it('normalizes the transfer mode and rejects unknown values', () => {
-    const input = parseBillingCommandInput(
+    const input = parseSingleInput(
       createCommand(['--monto', '1000', '--cs', '--ir-ri', '--transferencia', 'ADC']),
       'fcea',
     );
 
     expect(input.transferMode).toBe('adc');
     expect(() =>
-      parseBillingCommandInput(createCommand(['--monto', '1000', '--cs', '--ir-ri', '--transferencia', 'xyz']), 'fcea'),
+      parseSingleInput(createCommand(['--monto', '1000', '--cs', '--ir-ri', '--transferencia', 'xyz']), 'fcea'),
     ).toThrow(expect.objectContaining({ issues: [expect.objectContaining({ path: ['transferMode'] })] }));
   });
 
   it('parses the IVA rate and the exempt and untaxed amounts', () => {
-    const input = parseBillingCommandInput(
+    const input = parseSingleInput(
       createCommand([
         '--monto',
         '1000',
@@ -504,9 +505,9 @@ describe('billing.command.parser', () => {
 
   it('applies the configured IVA rate only to letters A and B', () => {
     const defaults = { defaultIvaRate: '10.5' as const };
-    const letterA = parseBillingCommandInput(createCommand(['--monto', '1000', '--cs', '--ir-ri']), 'fa', defaults);
-    const letterC = parseBillingCommandInput(createCommand(['--monto', '1000', '--cs', '--ir-cf']), 'fc', defaults);
-    const explicit = parseBillingCommandInput(
+    const letterA = parseSingleInput(createCommand(['--monto', '1000', '--cs', '--ir-ri']), 'fa', defaults);
+    const letterC = parseSingleInput(createCommand(['--monto', '1000', '--cs', '--ir-cf']), 'fc', defaults);
+    const explicit = parseSingleInput(
       createCommand(['--monto', '1000', '--cs', '--ir-ri', '--alicuota', '27']),
       'fa',
       defaults,
@@ -518,11 +519,11 @@ describe('billing.command.parser', () => {
   });
 
   it('parses the associated period from long and short flags', () => {
-    const long = parseBillingCommandInput(
+    const long = parseSingleInput(
       createCommand(['--monto', '1000', '--cs', '--ir-cf', '--periodo-desde', '1/2', '--periodo-hasta', '28/2']),
       'ncb',
     );
-    const short = parseBillingCommandInput(
+    const short = parseSingleInput(
       createCommand(['--monto', '1000', '--cs', '--ir-cf', '--pd', '1/2', '--ph', '28/2']),
       'ncb',
     );
@@ -532,7 +533,7 @@ describe('billing.command.parser', () => {
   });
 
   it('parses several alicuotas with aliases and computes the total', () => {
-    const input = parseBillingCommandInput(
+    const input = parseSingleInput(
       createCommand(['--cs', '--ir-ri', '--alicuota', 'general:1210', '--alicuota', '10,5:552,50', '--exento', '50']),
       'fa',
     );
@@ -552,13 +553,13 @@ describe('billing.command.parser', () => {
     ['--nogravado', '2.000', 'untaxedAmount', 2000],
   ] as const)('reads %s %s with the Argentine format', (flag, value, field, expected) => {
     const args = flag === '--monto' ? [flag, value] : ['--monto', '100.000', flag, value];
-    const input = parseBillingCommandInput(createCommand([...args, '--cs', '--ir-ri']), 'fa');
+    const input = parseSingleInput(createCommand([...args, '--cs', '--ir-ri']), 'fa');
 
     expect(input[field]).toBe(expected);
   });
 
   it('accepts up to 6 decimals in the exchange rate', () => {
-    const input = parseBillingCommandInput(
+    const input = parseSingleInput(
       createCommand(['--monto', '100', '--cs', '--ir-ri', '--moneda', 'USD', '--cm', '1.452,123456']),
       'fa',
     );
@@ -609,7 +610,7 @@ describe('billing.command.parser', () => {
     const command = createCommand(['--monto', '1000', ...flags]);
 
     expect(() =>
-      parseBillingCommandInput(command, 'nca', {
+      parseSingleInput(command, 'nca', {
         defaultConcept: 'servicios',
         defaultIvaCondition: 'consumidor-final',
       }),
@@ -618,7 +619,7 @@ describe('billing.command.parser', () => {
 
   it('rejects an alicuota amount that is not in the Argentine format', () => {
     expect(() =>
-      parseBillingCommandInput(
+      parseSingleInput(
         createCommand(['--cs', '--ir-ri', '--alicuota', 'general:1210', '--alicuota', 'reducida:552.50']),
         'fa',
       ),
@@ -626,7 +627,7 @@ describe('billing.command.parser', () => {
   });
 
   it('sums several alicuotas without floating point errors', () => {
-    const input = parseBillingCommandInput(
+    const input = parseSingleInput(
       createCommand(['--cs', '--ir-ri', '--alicuota', 'general:100,1', '--alicuota', 'reducida:200,2']),
       'fa',
     );
@@ -635,7 +636,7 @@ describe('billing.command.parser', () => {
   });
 
   it('accepts a single alicuota by alias', () => {
-    const input = parseBillingCommandInput(
+    const input = parseSingleInput(
       createCommand(['--monto', '110,5', '--cs', '--ir-ri', '--alicuota', 'reducida']),
       'fa',
     );
@@ -645,13 +646,13 @@ describe('billing.command.parser', () => {
 
   it('rejects mixing a single alicuota with TASA:MONTO pairs', () => {
     expect(() =>
-      parseBillingCommandInput(
+      parseSingleInput(
         createCommand(['--monto', '100', '--cs', '--ir-ri', '--alicuota', '21', '--alicuota', '10.5:50']),
         'fa',
       ),
     ).toThrow(/No mezcles `--alicuota TASA` con `--alicuota TASA:MONTO`/);
     expect(() =>
-      parseBillingCommandInput(
+      parseSingleInput(
         createCommand(['--monto', '100', '--cs', '--ir-ri', '--alicuota', '21', '--alicuota', '27']),
         'fa',
       ),
@@ -687,7 +688,7 @@ describe('billing.command.parser', () => {
     );
 
     const command = createCommand(['--cargar', inputPath]);
-    const input = parseBillingCommandInput(command, 'fb');
+    const input = parseSingleInput(command, 'fb');
 
     expect(input.concept).toBe('productos');
     expect(input.documentType).toBe('dni');
@@ -699,7 +700,7 @@ describe('billing.command.parser', () => {
     expect(input.associatedVoucher?.shortcut).toBe('fc');
   });
 
-  it('in a batch, collects every invalid item instead of failing on the first one', () => {
+  it('in a batch, collects every invalid item instead of failing on the first one', async () => {
     const directory = mkdtempSync(join(tmpdir(), 'arcli-billing-cli-'));
 
     temporaryDirectories.push(directory);
@@ -724,12 +725,12 @@ describe('billing.command.parser', () => {
     expect(plan.inputs.map((input) => input.totalAmount)).toEqual([100, 300]);
     expect(plan.invalidItems.map((item) => item.index)).toEqual([2, 4]);
     expect(plan.invalidItems[0]?.message).toContain('monto');
-    expect(() => parseBillingCommandInputs(createCommand(['--cargar', inputPath]), 'fc')).toThrow(
+    await expect(prepareFileBatch(createCommand(['--cargar', inputPath]))).rejects.toThrow(
       /2 de 4 comprobantes del lote tienen errores/,
     );
   });
 
-  it('loads multiple voucher inputs from a JSON array', () => {
+  it('loads multiple voucher inputs from a JSON array', async () => {
     const directory = mkdtempSync(join(tmpdir(), 'arcli-billing-cli-'));
 
     temporaryDirectories.push(directory);
@@ -758,7 +759,7 @@ describe('billing.command.parser', () => {
     );
 
     const command = createCommand(['--cargar', inputPath]);
-    const inputs = parseBillingCommandInputs(command, 'fc');
+    const inputs = await prepareFileBatch(command);
 
     expect(inputs).toHaveLength(2);
     expect(inputs[0]?.totalAmount).toBe(1000);
@@ -767,14 +768,14 @@ describe('billing.command.parser', () => {
 
   it('accepts concept aliases from flags', () => {
     const command = createCommand(['-m', '1000', '--concepto', 'productos-servicios']);
-    const input = parseBillingCommandInput(command, 'fa', { defaultIvaCondition: 'consumidor-final' });
+    const input = parseSingleInput(command, 'fa', { defaultIvaCondition: 'consumidor-final' });
 
     expect(input.concept).toBe('productos-servicios');
   });
 
   it('uses the configured default concept when the command omits it', () => {
     const command = createCommand(['--monto', '1000']);
-    const input = parseBillingCommandInput(command, 'fa', {
+    const input = parseSingleInput(command, 'fa', {
       defaultConcept: 'servicios',
       defaultCurrencyCode: 'ARS',
       defaultExchangeRate: 1,
@@ -787,14 +788,14 @@ describe('billing.command.parser', () => {
   it('fails when no concept is provided anywhere', () => {
     const command = createCommand(['--monto', '1000']);
 
-    expect(() => parseBillingCommandInput(command, 'fa', { defaultIvaCondition: 'consumidor-final' })).toThrow(
+    expect(() => parseSingleInput(command, 'fa', { defaultIvaCondition: 'consumidor-final' })).toThrow(
       /Falta el concepto/,
     );
   });
 
   it('keeps document number undefined when the user does not provide it', () => {
     const command = createCommand(['-m', '1000', '--concepto', 'servicios', '--ir-cf']);
-    const input = parseBillingCommandInput(command, 'fa');
+    const input = parseSingleInput(command, 'fa');
 
     expect(input.documentNumber).toBeUndefined();
   });
@@ -817,7 +818,7 @@ describe('billing.command.parser', () => {
       '--sh',
       '31-03-2026',
     ]);
-    const input = parseBillingCommandInput(command, 'fc');
+    const input = parseSingleInput(command, 'fc');
 
     expect(input.pointOfSale).toBe(9);
     expect(input.currencyCode).toBe('USD');
@@ -844,7 +845,7 @@ describe('billing.command.parser', () => {
       '--acuit',
       '20-33333333-4',
     ]);
-    const input = parseBillingCommandInput(command, 'ncc');
+    const input = parseSingleInput(command, 'ncc');
 
     expect(input.associatedVoucher).toEqual({
       cuit: '20333333334',
@@ -865,8 +866,7 @@ describe('billing.command.parser', () => {
     const defaults = { defaultConcept: 'servicios' as const, defaultIvaCondition: 'consumidor-final' as const };
 
     it('reads, overrides and explicitly omits the sale condition', () => {
-      const parse = (args: string[]) =>
-        parseBillingCommandInput(createCommand(['--monto', '1000', ...args]), 'fc', defaults);
+      const parse = (args: string[]) => parseSingleInput(createCommand(['--monto', '1000', ...args]), 'fc', defaults);
 
       expect(parse(['--cv', 'contado']).saleCondition).toBe('contado');
       expect(parse(['--cargar', writeJsonInput({ condicionVenta: 'cheque' })]).saleCondition).toBe('cheque');
@@ -882,8 +882,7 @@ describe('billing.command.parser', () => {
     });
 
     it('marca los datos con aviso que vinieron del JSON de --cargar, salvo los que pisa un flag', () => {
-      const parse = (args: string[]) =>
-        parseBillingCommandInput(createCommand(['--monto', '1000', ...args]), 'fc', defaults);
+      const parse = (args: string[]) => parseSingleInput(createCommand(['--monto', '1000', ...args]), 'fc', defaults);
       const file = writeJsonInput({
         condicionVenta: 'cheque',
         descripcion: 'Servicio',
@@ -910,7 +909,7 @@ describe('billing.command.parser', () => {
 
     it('rejects a sale condition together with --sin-condicion-venta', () => {
       expect(() =>
-        parseBillingCommandInput(
+        parseSingleInput(
           createCommand(['--monto', '1000', '--cv', 'contado', '--sin-condicion-venta']),
           'fc',
           defaults,
@@ -919,7 +918,7 @@ describe('billing.command.parser', () => {
     });
 
     it('reads --exportar-pdf, its alias and the PDF-only data', () => {
-      const input = parseBillingCommandInput(
+      const input = parseSingleInput(
         createCommand([
           '--monto',
           '1000',
@@ -944,15 +943,15 @@ describe('billing.command.parser', () => {
         receiverName: 'Cliente SA',
         saleCondition: 'Otros medios de pago electrónico',
       });
-      expect(parseBillingCommandInput(createCommand(['--monto', '1000', '--pdf']), 'fc', defaults).pdf).toBe(true);
-      expect(parseBillingCommandInput(createCommand(['--monto', '1000', '--sin-pdf']), 'fc', defaults).pdf).toBe(false);
-      expect(parseBillingCommandInput(createCommand(['--monto', '1000']), 'fc', defaults).pdf).toBeUndefined();
+      expect(parseSingleInput(createCommand(['--monto', '1000', '--pdf']), 'fc', defaults).pdf).toBe(true);
+      expect(parseSingleInput(createCommand(['--monto', '1000', '--sin-pdf']), 'fc', defaults).pdf).toBe(false);
+      expect(parseSingleInput(createCommand(['--monto', '1000']), 'fc', defaults).pdf).toBeUndefined();
     });
 
     it('rejects --exportar-pdf together with --sin-pdf', () => {
-      expect(() =>
-        parseBillingCommandInput(createCommand(['--monto', '1000', '--pdf', '--sin-pdf']), 'fc', defaults),
-      ).toThrow(/`--exportar-pdf` o `--sin-pdf`/);
+      expect(() => parseSingleInput(createCommand(['--monto', '1000', '--pdf', '--sin-pdf']), 'fc', defaults)).toThrow(
+        /`--exportar-pdf` o `--sin-pdf`/,
+      );
     });
   });
 });
@@ -1002,7 +1001,7 @@ describe('IVA receptor y padron', () => {
   });
 
   it('tipoDocumento consumidor-final en el JSON implica IVA consumidor final', () => {
-    const input = parseBillingCommandInput(
+    const input = parseSingleInput(
       createCommand([
         '--cargar',
         writeJsonInput({ concepto: 'servicios', montoTotal: 100, tipoDocumento: 'consumidor-final' }),
@@ -1032,18 +1031,18 @@ describe('--cargar JSON validation', () => {
   }
 
   it('rejects a point of sale written as text instead of using the one in the config', () => {
-    expect(() =>
-      parseBillingCommandInput(createCommand(['--cargar', writeJsonInput({ puntoVenta: '3' })]), 'fc'),
-    ).toThrow(/"puntoVenta" tiene que ser un número/);
+    expect(() => parseSingleInput(createCommand(['--cargar', writeJsonInput({ puntoVenta: '3' })]), 'fc')).toThrow(
+      /"puntoVenta" tiene que ser un número/,
+    );
   });
 
   it('rejects a misspelled key instead of ignoring it', () => {
     expect(() =>
-      parseBillingCommandInput(createCommand(['--cargar', writeJsonInput({ vencimiento: '10-04-2026' })]), 'fc'),
+      parseSingleInput(createCommand(['--cargar', writeJsonInput({ vencimiento: '10-04-2026' })]), 'fc'),
     ).toThrow(/"vencimiento"/);
   });
 
-  it('reports invalid JSON items of a batch with their index', () => {
+  it('reports invalid JSON items of a batch with their index', async () => {
     const inputPath = writeRawJson([
       { concepto: 'servicios', ivaReceptor: 'consumidor-final', montoTotal: 100 },
       { concepto: 'servicios', ivaReceptor: 'consumidor-final', montototal: 200 },
@@ -1055,12 +1054,12 @@ describe('--cargar JSON validation', () => {
     expect(plan.invalidItems.map((item) => item.index)).toEqual([2, 3]);
     expect(plan.invalidItems[0]?.message).toContain('"montototal"');
     expect(plan.invalidItems[1]?.message).toContain('"puntoVenta"');
-    expect(() => parseBillingCommandInputs(createCommand(['--cargar', inputPath]), 'fc')).toThrow(
+    await expect(prepareFileBatch(createCommand(['--cargar', inputPath]))).rejects.toThrow(
       /2 de 3 comprobantes del lote tienen errores/,
     );
   });
 
-  it('treats a one-item array as a batch and reports its errors with the index', () => {
+  it('treats a one-item array as a batch and reports its errors with the index', async () => {
     const inputPath = writeRawJson([{ concepto: 'servicios', ivaReceptor: 'consumidor-final', montototal: 100 }]);
     const plan = parseBillingCommandPlan(createCommand(['--cargar', inputPath]), 'fc');
 
@@ -1068,7 +1067,7 @@ describe('--cargar JSON validation', () => {
     expect(plan.total).toBe(1);
     expect(plan.inputs).toEqual([]);
     expect(plan.invalidItems.map((item) => item.index)).toEqual([1]);
-    expect(() => parseBillingCommandInputs(createCommand(['--cargar', inputPath]), 'fc')).toThrow(
+    await expect(prepareFileBatch(createCommand(['--cargar', inputPath]))).rejects.toThrow(
       /1 de 1 comprobante del lote tiene errores/,
     );
   });
@@ -1096,10 +1095,7 @@ describe('--cargar JSON validation', () => {
 
   it('rejects an empty batch instead of falling back to flags', () => {
     expect(() =>
-      parseBillingCommandInput(
-        createCommand(['--cargar', writeRawJson([]), '--monto', '100', '--cs', '--ir-cf']),
-        'fc',
-      ),
+      parseSingleInput(createCommand(['--cargar', writeRawJson([]), '--monto', '100', '--cs', '--ir-cf']), 'fc'),
     ).toThrow(/vacío/);
   });
 });
@@ -1118,7 +1114,7 @@ describe('billing.command.parser: fechas relativas', () => {
   const BASE_FLAGS = ['--monto', '1000', '--cs', '--cfinal'];
 
   it('resuelve las palabras de los flags: un día o las puntas del mes', () => {
-    const input = parseBillingCommandInput(
+    const input = parseSingleInput(
       createCommand([...BASE_FLAGS, '--fecha', 'HOY', '--sd', 'mes-pasado', '--sh', 'Mes-Pasado', '--vto', '+10']),
       'fc',
     );
@@ -1132,11 +1128,11 @@ describe('billing.command.parser: fechas relativas', () => {
   });
 
   it('resuelve el período y la fecha del asociado de una nota', () => {
-    const withPeriod = parseBillingCommandInput(
+    const withPeriod = parseSingleInput(
       createCommand([...BASE_FLAGS, '--pd', 'mes-actual', '--ph', 'mes-actual']),
       'ncc',
     );
-    const withAssociated = parseBillingCommandInput(
+    const withAssociated = parseSingleInput(
       createCommand([...BASE_FLAGS, '--ac', 'fc', '--apv', '1', '--ar', '5', '--afecha', 'ayer']),
       'ncc',
     );
@@ -1166,13 +1162,13 @@ describe('billing.command.parser: fechas relativas', () => {
       (input: BillingCommandInput) => input.associatedVoucher?.fecha,
     ],
   ] as const)('%s acepta hoy', (flag, shortcut, extra, read) => {
-    const input = parseBillingCommandInput(createCommand([...BASE_FLAGS, ...extra, flag, 'hoy']), shortcut);
+    const input = parseSingleInput(createCommand([...BASE_FLAGS, ...extra, flag, 'hoy']), shortcut);
 
     expect(read(input)).toBe('01/01/2027');
   });
 
   it('acepta las mismas palabras en las claves de fecha de --cargar', () => {
-    const input = parseBillingCommandInput(
+    const input = parseSingleInput(
       createCommand([
         '--cargar',
         writeJsonInput({
@@ -1194,17 +1190,17 @@ describe('billing.command.parser: fechas relativas', () => {
   });
 
   it('deja igual las fechas escritas a mano', () => {
-    const input = parseBillingCommandInput(createCommand([...BASE_FLAGS, '--sd', '1/12', '--sh', '31/12/2026']), 'fc');
+    const input = parseSingleInput(createCommand([...BASE_FLAGS, '--sd', '1/12', '--sh', '31/12/2026']), 'fc');
 
     expect(input).toMatchObject({ serviceEndDate: '31/12/2026', serviceStartDate: '1/12' });
   });
 
   it('una palabra de mes en una fecha de un día es un error, también desde --cargar', () => {
-    expect(() => parseBillingCommandInput(createCommand([...BASE_FLAGS, '--vto', 'mes-pasado']), 'fc')).toThrow(
+    expect(() => parseSingleInput(createCommand([...BASE_FLAGS, '--vto', 'mes-pasado']), 'fc')).toThrow(
       /valen solo en desde y hasta/,
     );
     expect(() =>
-      parseBillingCommandInput(createCommand(['--cargar', writeJsonInput({ fechaComprobante: 'mes-actual' })]), 'fc'),
+      parseSingleInput(createCommand(['--cargar', writeJsonInput({ fechaComprobante: 'mes-actual' })]), 'fc'),
     ).toThrow(/valen solo en desde y hasta/);
   });
 });

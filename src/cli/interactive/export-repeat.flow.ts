@@ -2,6 +2,8 @@ import { formatDateAsArcaDate } from '../../lib/dates/arca-date';
 import { formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import { resolveExportClientCountryCuit } from '../../modules/export/export.mappers';
 import {
+  BILLS_EXPORT_TYPE,
+  DEFAULT_EXPORT_CURRENCY_CODE,
   DEFAULT_EXPORT_TYPE,
   EXPORT_VOUCHER_KIND,
   type ExportCountry,
@@ -40,7 +42,11 @@ import {
 } from './steps/export';
 import { exportItemsStep } from './steps/export-items';
 
-/** Las tablas de WSFEX para el destino de la factura, su CUIT y la actividad, como en "Emitir factura". */
+/**
+ * Las tablas de WSFEX para el destino de la factura, su CUIT y la actividad, como en "Emitir factura".
+ *
+ * @internal Exportado para los tests.
+ */
 export type ExportRepeatTables = ExportTables;
 
 /** El CUIT que ARCA publica para el destino, o `undefined` si no tiene. */
@@ -61,6 +67,8 @@ function optionsOf(copy: ExportInvoiceCopy['input']): ExportOptions {
  * Pasos para repetir una factura E: se elige una de las ultimas y se copian cliente, destino, moneda, incoterm e
  * items (el editor arranca con ellos y el total es su suma). Las fechas son nuevas, la cotizacion es la de hoy, y se
  * preguntan los permisos de embarque y la fecha de pago, que son de cada operacion.
+ *
+ * @internal Exportado para los tests.
  */
 export function exportRepeatSteps(
   session: InteractiveSession,
@@ -78,7 +86,7 @@ export function exportRepeatSteps(
     const copy = requireStepValue(state.copy, 'copy');
 
     return {
-      currencyCode: copy.currencyCode ?? 'DOL',
+      currencyCode: copy.currencyCode ?? DEFAULT_EXPORT_CURRENCY_CODE,
       exportType: copy.exportType ?? DEFAULT_EXPORT_TYPE,
       sameCurrency: copy.sameCurrency,
     };
@@ -194,7 +202,7 @@ export function exportRepeatSteps(
       // Los permisos son de cada embarque: no se copian.
       name: 'permisos',
       run: askPermitsStep,
-      skip: (state) => state.copy?.exportType !== 1,
+      skip: (state) => state.copy?.exportType !== BILLS_EXPORT_TYPE,
     },
     // La factura no trae actividad y tampoco esta en la config. Con la misma tabla que "Emitir factura" (REV-74, #11).
     activityStep<ExportRepeatState>({
@@ -208,7 +216,7 @@ export function exportRepeatSteps(
       context: (state) => {
         const copy = requireStepValue(state.copy, 'copy');
         const original = requireStepValue(state.original, 'original');
-        const currencyCode = copy.currencyCode ?? 'DOL';
+        const currencyCode = copy.currencyCode ?? DEFAULT_EXPORT_CURRENCY_CODE;
 
         return {
           // Idioma, CUIT del pais y descripcion del incoterm vienen de la factura elegida: con otra, arrancan con lo

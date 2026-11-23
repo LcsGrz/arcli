@@ -61,6 +61,8 @@ export function buildExportNoteInput(state: ExportNoteState, env: ExportNoteInpu
 /**
  * La nota como la ve `ExportService`: con lo respondido y, lo que no se pregunta (tipo de exportacion, moneda,
  * cotizacion), del asociado. Sin eso la ventana de la fecha seria la de servicios en una nota de bienes.
+ *
+ * @internal Exportado para los tests.
  */
 export function exportNoteRuleInput(state: ExportNoteState, env: ExportNoteInputEnv): ExportVoucherInput {
   return applyExportAssociatedDefaults(buildExportNoteInput(state, env), requireStepValue(state.invoice, 'invoice'));

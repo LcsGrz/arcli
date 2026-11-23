@@ -79,6 +79,7 @@ function withSpanishKeys(item: ExportResponseError): Record<string, unknown> {
   return { ...item, codigo: item.code, mensaje: item.message };
 }
 
+/** @internal Exportado para los tests. */
 export function serializeExportResult(
   result: ExportExecutionResult,
   options: ExportSerializeOptions = {},

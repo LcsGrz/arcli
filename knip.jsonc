@@ -1,8 +1,10 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  // La entrada del CLI la toma de `bin` en package.json. El `!` marca lo que cuenta en `knip --production`.
+  // La entrada del CLI la toma de `bin` en package.json. El `!` marca lo que cuenta en `knip --production`
+  // (`lint:guardrails`): un export que solo usan los tests falla ahí, salvo que lleve `@internal`.
   "entry": ["scripts/**/*.{mjs,mts,ts}"],
-  "project": ["src/**/*.ts!", "scripts/**/*.{mjs,mts,ts}"],
+  // Los helpers de los tests no son producción: `!…!` los saca solo de `--production`.
+  "project": ["src/**/*.ts!", "!src/**/__tests__/**!", "scripts/**/*.{mjs,mts,ts}"],
   "ignoreBinaries": ["openssl", "qlmanage"],
   // Lo resuelve el plugin de PDF desde su propia carpeta (<config>/plugins/pdf), no desde el proyecto.
   "ignoreDependencies": ["puppeteer"],

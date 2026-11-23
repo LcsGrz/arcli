@@ -3,7 +3,13 @@ import { formatCuit } from '../../lib/identity/format-cuit';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
 import { attentionPanel, listingPanel, noticePanel, ticketPanel } from '../../ui/components';
 import { renderKeyValueRows, resolveKeyValueLabelWidth, uiSymbol } from '../../ui/primitives';
-import { CONSUMER_DOCUMENT_TYPE_CODE, CONSUMER_IVA_CONDITION_CODE, isTaxIdDocumentType } from '../billing/arca-codes';
+import {
+  CONSUMER_DOCUMENT_TYPE_CODE,
+  CONSUMER_IVA_CONDITION_CODE,
+  documentTypeFromCode,
+  documentTypeLabel,
+  isTaxIdDocumentType,
+} from '../billing/arca-codes';
 import { resolveIvaRateLabel } from '../billing/billing.amounts';
 import {
   formatConceptLabel,
@@ -17,10 +23,12 @@ import {
 } from '../billing/billing.labels';
 import { formatLatestVouchersTitle, formatNoVouchersEmitted } from '../billing/billing.mappers';
 import type { VoucherKindDefinition } from '../billing/billing.types';
+import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
 import { getVoucherKindByArcaType } from '../billing/voucher-kind-map';
 import { formatEnvironmentLabel } from '../config/config.schemas';
 
 import type { IssuedVoucher } from './voucher-history';
+import { formatVoucherNumber } from './voucher-number';
 
 export interface VoucherListReport {
   readonly environment: 'produccion' | 'testing';
@@ -36,22 +44,16 @@ export interface VoucherDetailReport {
   readonly voucherKind: VoucherKindDefinition;
 }
 
-const DOCUMENT_LABELS: Record<number, string> = {
-  80: 'CUIT',
-  86: 'CUIL',
-  96: 'DNI',
-};
-
-export function formatVoucherNumber(pointOfSale: number, number: number): string {
-  return `${String(pointOfSale).padStart(5, '0')}-${String(number).padStart(8, '0')}`;
-}
-
+/** @internal Exportado para los tests. */
 export function formatReceiver(voucher: IssuedVoucher): string {
   if (voucher.documentTypeCode === CONSUMER_DOCUMENT_TYPE_CODE) {
     return 'Consumidor final';
   }
 
-  const label = DOCUMENT_LABELS[voucher.documentTypeCode] ?? `Doc ${voucher.documentTypeCode}`;
+  // `documentTypeLabel` devuelve el código solo para uno desconocido: acá va con "Doc" adelante.
+  const label = documentTypeFromCode(voucher.documentTypeCode)
+    ? documentTypeLabel(voucher.documentTypeCode)
+    : `Doc ${voucher.documentTypeCode}`;
 
   const number = isTaxIdDocumentType(voucher.documentTypeCode)
     ? formatCuit(voucher.documentNumber)
@@ -340,7 +342,7 @@ function formatVoucherExtraRows(voucher: IssuedVoucher): Row[] {
 
 export function formatVoucherDetailAsText(report: VoucherDetailReport): string {
   const { pointOfSale, voucher, voucherKind } = report;
-  const foreignCurrency = Boolean(voucher.currency && voucher.currency !== 'PES');
+  const foreignCurrency = Boolean(voucher.currency && voucher.currency !== ARCA_LOCAL_CURRENCY_CODE);
   const rows: Row[] = [
     ['Número', formatVoucherNumber(pointOfSale, voucher.number)],
     ['Fecha del comprobante', formatArcaDateAsArgentineDate(voucher.date)],

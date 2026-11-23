@@ -6,7 +6,11 @@ import type { BillingCommandInput } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
 import { isFceInvoice } from './voucher-kind-map';
 
-/** Codigos de "Adicionales por R.G." que usa FCE (FEParamGetTiposOpcional). */
+/**
+ * Codigos de "Adicionales por R.G." que usa FCE (FEParamGetTiposOpcional).
+ *
+ * @internal Exportado para los tests.
+ */
 export const FCE_OPTIONAL_IDS = {
   cancellation: '22',
   cbu: '2101',

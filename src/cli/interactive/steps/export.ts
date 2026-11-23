@@ -10,6 +10,7 @@ import type {
   ExportGateway,
   ExportType,
 } from '../../../modules/export/export.types';
+import { EXPORT_TYPES_WITH_PAYMENT_DATE } from '../../../modules/export/export.types';
 import { parseExchangeRateInput } from '../../../modules/interactive/amount-input';
 import type { ExchangeRateSuggestion } from '../../../modules/interactive/billing-optionals';
 import type { ExportOptions, ExportRuleScope } from '../../../modules/interactive/export-optionals';
@@ -20,13 +21,13 @@ import {
   exportFixedExchangeRate,
 } from '../../../modules/interactive/steps/currency';
 import type { Lens } from '../../../modules/interactive/steps/lens';
+import { validateExchangeRate, validatePositiveInteger } from '../../../modules/interactive/validators';
 import { BACK, type WizardDependency, type WizardStep } from '../../../modules/interactive/wizard';
 import { formatTableRows, noticePanel, writeTerminalOutput } from '../../../ui';
 import { withSpinner } from '../../spinner';
 import { validateExportPaymentDate } from '../export-options';
 import type { FilterListRow } from '../filter-list';
 import { chooseOrTypeStep } from '../prompts';
-import { validateExchangeRate, validatePositiveInteger } from '../validators';
 
 import { exchangeRateStep } from './currency';
 import { dateStep } from './date';
@@ -171,7 +172,11 @@ export function exportPaymentDateStep<S extends { readonly options?: ExportOptio
     message: 'Fecha de pago (Enter para la fecha del comprobante):',
     name: 'fecha-pago',
     optional: true,
-    skip: (state) => exportType(state) === 1,
+    skip: (state) => {
+      const type = exportType(state);
+
+      return type !== undefined && !EXPORT_TYPES_WITH_PAYMENT_DATE.includes(type);
+    },
     // Si `finalize` volvio aca, no se eligio fecha del comprobante (la pregunta de la fecha ya controla contra esta): va
     // la de hoy, y se compara con ella para no aceptar de nuevo la misma.
     validate: (state, retry) => validateExportPaymentDate(state.options?.voucherDate, { undecided: !retry }),

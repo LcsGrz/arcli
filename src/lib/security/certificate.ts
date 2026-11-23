@@ -9,7 +9,11 @@ export interface CertificateExpiry {
   readonly isExpired: boolean;
 }
 
-/** Vencido desde el instante exacto de `notAfter`; los dias se cuentan en fechas argentinas, no en horas. */
+/**
+ * Vencido desde el instante exacto de `notAfter`; los dias se cuentan en fechas argentinas, no en horas.
+ *
+ * @internal Exportado para los tests.
+ */
 export function computeCertificateExpiry(expiresAt: Date, now: Date = new Date()): CertificateExpiry {
   return {
     daysRemaining: diffArcaDatesInDays(formatDateAsArcaDate(now), formatDateAsArcaDate(expiresAt)),

@@ -5,6 +5,7 @@ import { formatMoneyLabel } from '../../modules/billing/billing.labels';
 import { formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import { assertExportNoteMatchesAssociated } from '../../modules/export/export.notes';
 import {
+  BILLS_EXPORT_TYPE,
   EXPORT_CREDIT_NOTE_KIND,
   EXPORT_DEBIT_NOTE_KIND,
   EXPORT_VOUCHER_KIND,
@@ -21,8 +22,9 @@ import {
   type ExportNoteState,
 } from '../../modules/interactive/export-note-input';
 import { fieldLens } from '../../modules/interactive/steps/lens';
+import { validatePositiveInteger } from '../../modules/interactive/validators';
 import { BACK, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
-import { formatVoucherNumber } from '../../modules/vouchers/voucher-history.presenter';
+import { formatVoucherNumber } from '../../modules/vouchers/voucher-number';
 import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 import { withSpinner } from '../spinner';
@@ -34,7 +36,6 @@ import { askTextStep } from './prompts';
 import { emissionStep, type InteractiveSession, requirePointOfSale } from './session';
 import { exportExchangeRateStep } from './steps/export';
 import { exportItemsStep } from './steps/export-items';
-import { validatePositiveInteger } from './validators';
 
 /** Como se nombra el asociado en las preguntas: "la factura E", "la nota de débito E". */
 const ASSOCIATED_NAMES: Record<ExportVoucherKind['shortcut'], string> = {
@@ -89,6 +90,8 @@ function validateAssociated(
  * Pasos de la nota E sobre `associatedKind` (la factura E u otra nota E, elegido en el selector de comprobantes): el
  * comprobante que ajusta (se busca en ARCA y de ahi salen cliente, destino y moneda), los items (arrancan con los del
  * asociado), en bienes los permisos de embarque, y los opcionales. Cada uno se puede deshacer con "Volver".
+ *
+ * @internal Exportado para los tests.
  */
 export function exportNoteSteps(
   kind: 'credito' | 'debito',
@@ -211,7 +214,7 @@ export function exportNoteSteps(
       // Solo en bienes: los permisos son opcionales en la nota y van sin `--permiso-existente` (tabla de la 1720).
       name: 'permisos',
       run: askPermitsStep,
-      skip: (state) => state.invoice?.exportType !== 1,
+      skip: (state) => state.invoice?.exportType !== BILLS_EXPORT_TYPE,
     },
     exportOptionalsStep<ExportNoteState>({
       context: (state) => {

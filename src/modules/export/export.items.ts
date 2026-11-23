@@ -162,6 +162,8 @@ function findUnitByName(units: readonly ExportUnit[], normalized: string): Expor
 /**
  * Codigo de ARCA de la unidad: si viene un nombre se busca en la tabla de WSFEX. Un nombre desconocido
  * es un error, no un default silencioso.
+ *
+ * @internal Exportado para los tests.
  */
 export function resolveUnitCode(unit: string | number | undefined, units: readonly ExportUnit[]): number {
   if (typeof unit === 'number') {

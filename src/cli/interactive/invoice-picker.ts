@@ -1,4 +1,4 @@
-import { Separator } from '@inquirer/select';
+import { Separator } from '@inquirer/core';
 
 import { classifyAssociatedPointOfSale } from '../../modules/billing/billing.associated-lookup';
 import { formatNoVouchersEmitted, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
@@ -7,9 +7,11 @@ import { resolveRowsPerList } from '../../modules/config/config.schemas';
 import { formatExportVoucherPickerRows } from '../../modules/export/export.history.presenter';
 import type { ExportGateway, ExportIssuedVoucher, ExportVoucherKind } from '../../modules/export/export.types';
 import type { OtherSystemInvoice } from '../../modules/interactive/note-input';
+import { validatePositiveInteger } from '../../modules/interactive/validators';
 import { BACK, type Back } from '../../modules/interactive/wizard';
 import { fetchVouchersBackwards, type IssuedVoucher } from '../../modules/vouchers/voucher-history';
-import { formatVoucherNumber, formatVoucherPickerRows } from '../../modules/vouchers/voucher-history.presenter';
+import { formatVoucherPickerRows } from '../../modules/vouchers/voucher-history.presenter';
+import { formatVoucherNumber } from '../../modules/vouchers/voucher-number';
 import { ArcaParametersGateway } from '../../services/arca/arca-parameters.gateway';
 import { colorize, noticePanel, statusBarWidth, uiSymbol, writeTerminalOutput } from '../../ui';
 import { withSpinner } from '../spinner';
@@ -26,7 +28,6 @@ import {
   type LoadingResult,
 } from './prompts';
 import type { InteractiveSession } from './session';
-import { validatePositiveInteger } from './validators';
 
 /** Comprobante elegido y el punto de venta donde se emitio (a mano puede ser otro que el configurado). */
 export interface PickedVoucher<T> {
@@ -162,6 +163,8 @@ async function askVoucherByNumber<T extends { readonly number: number }, M>(
 /**
  * Una factura que ARCA no tiene, en un punto de venta que no es de web service: el asistente no puede copiar sus
  * datos, asi que los pregunta (ver `noteSteps`).
+ *
+ * @internal Exportado para los tests.
  */
 export function missingNonWebServiceInvoiceNotice(
   voucherKind: VoucherKindDefinition,

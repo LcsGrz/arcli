@@ -1,5 +1,4 @@
-import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/billing.currency';
-import { toIsoCurrencyCode } from '../billing/currency-codes';
+import { ARCA_LOCAL_CURRENCY_CODE, toIsoCurrencyCode } from '../billing/currency-codes';
 import type { IssuedVoucher } from '../vouchers/voucher-history';
 
 import type { InteractiveChoice } from './choices';

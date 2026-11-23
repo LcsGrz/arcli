@@ -6,6 +6,8 @@ import { confirm, isPromptCancellation } from './prompts';
 /**
  * Despues de emitir, ofrece guardar en la config un dato que se escribio a mano (la actividad de la E, el CBU y
  * el alias de la FCE), para no volver a preguntarlo. El comprobante ya se emitio: Ctrl+C aca es "No", no "No se emitio nada".
+ *
+ * @internal Exportado para los tests.
  */
 export async function offerSavingToConfig(
   message: string,

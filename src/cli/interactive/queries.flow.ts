@@ -3,6 +3,7 @@ import { formatCuit } from '../../lib/identity/format-cuit';
 import { toIsoCurrencyCode } from '../../modules/billing/currency-codes';
 import { resolveRowsPerList } from '../../modules/config/config.schemas';
 import { formatFceObligationAsText } from '../../modules/fce/fce-obligation.presenter';
+import { normalizeDocumentNumber, validateCuit } from '../../modules/interactive/validators';
 import { BACK } from '../../modules/interactive/wizard';
 import { taxpayerNotFoundError } from '../../modules/padron/padron';
 import { formatPadronAsText } from '../../modules/padron/padron.presenter';
@@ -46,7 +47,6 @@ import {
   isPromptCancellation,
 } from './prompts';
 import type { InteractiveSession } from './session';
-import { normalizeDocumentNumber, validateCuit } from './validators';
 
 type QueryOption = 'comprobantes' | 'cotizacion' | 'cuit' | 'fce' | 'monotributo' | 'tablas';
 

@@ -30,6 +30,8 @@ export function renderCertificateNotices(notices: readonly CertificateExpiryNoti
  * Aviso de los certificados por vencer o vencidos, de cualquier entorno, al principio del comando. Va a stderr:
  * con `--json` stdout queda solo para el JSON. Si vencio el del entorno activo y hay `--json`, no se escribe: el
  * error JSON de `CERTIFICATE_EXPIRED` (tambien en stderr) ya lo dice, y un texto antes lo romperia.
+ *
+ * @internal Exportado para los tests.
  */
 export function writeCertificateNotice(runtime: CertificateRuntime): void {
   if (runtime.certificateExpiry?.expired && runtime.outputJson) {

@@ -116,6 +116,8 @@ export function parseMonotributoLetter(value: string): MonotributoCategoryLetter
 /**
  * El ultimo corte en que ARCA actualiza las categorias (1/2 o 1/8) que ya paso: hoy tiene que ser posterior al
  * corte, no el mismo dia, porque ARCA publica los valores nuevos durante ese mes. Fecha ARCA (yyyymmdd).
+ *
+ * @internal Exportado para los tests.
  */
 export function lastMonotributoUpdateCutoff(today: string): string {
   const year = Number(today.slice(0, 4));

@@ -48,9 +48,10 @@ import {
 } from '../../modules/interactive/note-input';
 import { consumerContext } from '../../modules/interactive/steps/consumer';
 import { fieldLens } from '../../modules/interactive/steps/lens';
+import { validateAmount, validateDate } from '../../modules/interactive/validators';
 import { BACK, type Back, requireStepValue, runWizard, type WizardStep } from '../../modules/interactive/wizard';
 import type { IssuedVoucher } from '../../modules/vouchers/voucher-history';
-import { formatVoucherNumber } from '../../modules/vouchers/voucher-history.presenter';
+import { formatVoucherNumber } from '../../modules/vouchers/voucher-number';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 
 import { billingOptionalsGroup, billingOptionalsStep } from './advanced-options';
@@ -65,7 +66,6 @@ import { type AmountCurrencyRetry, amountCurrencyRetry, amountStep, billingAmoun
 import { consumerIdentificationSteps } from './steps/consumer';
 import { dateStep } from './steps/date';
 import { receiverIvaStep, receiverSteps } from './steps/receiver';
-import { validateAmount, validateDate } from './validators';
 
 const isOverNote = (state: NoteState): boolean => isNote(state.invoiceKind);
 
@@ -227,7 +227,11 @@ function validateNoteAmount(state: NoteState): (value: string) => string | true 
   };
 }
 
-/** Pasos del flujo de notas; cada uno se puede deshacer con "Volver". */
+/**
+ * Pasos del flujo de notas; cada uno se puede deshacer con "Volver".
+ *
+ * @internal Exportado para los tests.
+ */
 export function noteSteps(
   session: InteractiveSession,
   pointOfSale: number,
@@ -384,9 +388,13 @@ export function noteSteps(
       },
       name: 'fecha-asociado',
       skip: (state) => !state.otherSystemInvoice,
-      validate: noteRule('associatedVoucher.fecha', validateDate, (value) => ({
-        associatedDate: completeDateInput(value),
-      })),
+      validate: noteRule(
+        'associatedVoucher.fecha',
+        (date) => validateDate(date, new Date()),
+        (value) => ({
+          associatedDate: completeDateInput(value),
+        }),
+      ),
       writes: ['associatedVoucher.fecha'],
     }),
     dateStep<NoteState>({
@@ -394,10 +402,14 @@ export function noteSteps(
       message: 'Período desde:',
       name: 'periodo-desde',
       skip: (state) => !isPeriodNote(state),
-      validate: noteRule('associatedPeriod.desde', validateDate, (value) => ({
-        periodFrom: completeDateInput(value),
-        periodTo: undefined,
-      })),
+      validate: noteRule(
+        'associatedPeriod.desde',
+        (date) => validateDate(date, new Date()),
+        (value) => ({
+          periodFrom: completeDateInput(value),
+          periodTo: undefined,
+        }),
+      ),
       write: (periodFrom) => ({ invoice: undefined, invoicePointOfSale: undefined, periodFrom }),
       writes: ['associatedPeriod.desde'],
     }),
@@ -407,7 +419,11 @@ export function noteSteps(
       message: 'Período hasta:',
       name: 'periodo-hasta',
       skip: (state) => !isPeriodNote(state),
-      validate: noteRule('associatedPeriod.hasta', validateDate, (value) => ({ periodTo: completeDateInput(value) })),
+      validate: noteRule(
+        'associatedPeriod.hasta',
+        (date) => validateDate(date, new Date()),
+        (value) => ({ periodTo: completeDateInput(value) }),
+      ),
       writes: ['associatedPeriod.hasta'],
     }),
     ...receiverSteps<NoteState>({
@@ -525,7 +541,11 @@ function noteRuleEnv(session: InteractiveSession, pointOfSale: number): NoteRule
   return { ...noteInputEnv(session, pointOfSale), today: formatDateAsArcaDate(new Date()) };
 }
 
-/** El emisor y el punto de venta de la sesion, para la entrada de la nota. */
+/**
+ * El emisor y el punto de venta de la sesion, para la entrada de la nota.
+ *
+ * @internal Exportado para los tests.
+ */
 export function noteInputEnv(session: InteractiveSession, pointOfSale: number): NoteInputEnv {
   return { config: session.runtime.config, issuerCuit: session.runtime.context.cuit, pointOfSale };
 }
@@ -568,6 +588,8 @@ function withPreposition(invoiceKind: VoucherKindDefinition): string {
 /**
  * Los avisos de la vista previa que el asistente sabe y `previewAndEmit` no: el de un asociado de otro sistema, con
  * el mismo texto que con flags (`checkAssociatedInArca`).
+ *
+ * @internal Exportado para los tests.
  */
 export function noteWarnings(state: NoteState): string[] {
   const other = state.otherSystemInvoice;

@@ -5,11 +5,11 @@ import type { BillingRuleScope } from '../../../modules/interactive/billing-opti
 import { availableChoice, receiverChoices } from '../../../modules/interactive/choices';
 import type { ReceiverFromPadron } from '../../../modules/interactive/receiver-document';
 import { scopedRuleValidator } from '../../../modules/interactive/rule-validator';
+import { normalizeDocumentNumber } from '../../../modules/interactive/validators';
 import { BACK, type WizardDependency, type WizardStep } from '../../../modules/interactive/wizard';
 import { chooseStep } from '../prompts';
 import { askDocumentNumber, askReceiverIvaCondition } from '../receiver-padron';
 import type { InteractiveSession } from '../session';
-import { normalizeDocumentNumber } from '../validators';
 
 interface ReceiverStepState {
   readonly documentNumber?: number;

@@ -1,6 +1,7 @@
 import { realpathSync } from 'node:fs';
 import process from 'node:process';
 
+/** @internal Exportado para los tests. */
 export type PackageManager = 'bun' | 'npm' | 'pnpm' | 'yarn';
 
 const UPDATE_COMMANDS: Readonly<Record<PackageManager, string>> = {
@@ -26,6 +27,8 @@ const PATH_PATTERNS: ReadonlyArray<readonly [PackageManager, RegExp]> = [
 /**
  * Con que gestor se instalo arcli. Primero mira la ruta real del ejecutable (sirve para los globales, que no tienen
  * `npm_config_user_agent`) y despues el user agent (`pnpm dlx`, `bunx`, scripts). Sin señales, npm.
+ *
+ * @internal Exportado para los tests.
  */
 export function detectPackageManager(signals: {
   readonly scriptPath?: string;
@@ -43,6 +46,7 @@ export function detectPackageManager(signals: {
   return (agent as PackageManager | undefined) ?? 'npm';
 }
 
+/** @internal Exportado para los tests. */
 export function formatUpdateCommand(packageManager: PackageManager): string {
   return UPDATE_COMMANDS[packageManager];
 }

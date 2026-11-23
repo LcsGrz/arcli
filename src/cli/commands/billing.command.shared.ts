@@ -37,7 +37,11 @@ import { attachPdfs } from './billing.command.pdf';
 /** Exit code cuando ARCA rechaza algun comprobante: la operacion corrio bien, pero no hay CAE. */
 export const REJECTED_EXIT_CODE = 2;
 
-/** 2 si ARCA rechazo alguno de los comprobantes emitidos; si no, no se toca (queda en 0). */
+/**
+ * 2 si ARCA rechazo alguno de los comprobantes emitidos; si no, no se toca (queda en 0).
+ *
+ * @internal Exportado para los tests.
+ */
 export function setExitCodeForResults(results: readonly BillingExecutionResult[]): void {
   if (results.some((result) => !result.dryRun && result.response.status === 'rechazado')) {
     process.exitCode = REJECTED_EXIT_CODE;
@@ -49,7 +53,11 @@ export function registerBillingCommandOptions(command: Command): void {
   registerBillingOptions(command);
 }
 
-/** Los defaults de la config que completan lo que no viene por flags ni por JSON. */
+/**
+ * Los defaults de la config que completan lo que no viene por flags ni por JSON.
+ *
+ * @internal Exportado para los tests.
+ */
 export function resolveBillingCommandDefaults(config: ArcliConfig): BillingCommandDefaults {
   return {
     defaultCbu: config.cbu,
@@ -69,6 +77,8 @@ export function resolveBillingCommandDefaults(config: ArcliConfig): BillingComma
 /**
  * Imprime los resultados con su PDF, segun la config `pdf` o `--exportar-pdf`. Se usa con el lote completo y
  * con los ya emitidos de un lote que se corto: esos tambien tienen CAE y merecen su PDF.
+ *
+ * @internal Exportado para los tests.
  */
 export async function writeResultsWithPdfs(
   results: BillingExecutionResult[],
@@ -103,7 +113,11 @@ export interface BillingCommandOptions {
   readonly extraWarnings?: readonly string[];
 }
 
-/** Los gateways de ARCA que usa el comando. */
+/**
+ * Los gateways de ARCA que usa el comando.
+ *
+ * @internal Exportado para los tests.
+ */
 export interface BillingCommandGateways {
   readonly billing: BillingGateway;
   readonly fce: FceObligationGateway;
