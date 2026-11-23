@@ -614,6 +614,7 @@ describe('ExportService.resolve', () => {
     await expect(
       service.resolve(INPUT, createGateway(), {
         config: arcliConfigSchema.parse({ cuit: '20111111112', exportacion: { actividad: 620100 } }),
+        cuit: 20111111112,
         environment: 'testing',
       }),
     ).rejects.toThrow(/--pv <numero>/);
@@ -736,15 +737,14 @@ describe('ExportService.resolve: notas E', () => {
     expect(gateway.getVoucher).not.toHaveBeenCalled();
   });
 
-  it('sin CUIT en la config no consulta el asociado (TEST-16)', async () => {
-    const gateway = createGateway();
+  it('el CUIT del asociado es el del perfil, no el de la config (ARQ-18)', async () => {
     const runtime = {
+      ...RUNTIME,
       config: arcliConfigSchema.parse({ exportacion: { actividad: 620100 }, puntoVentaPorDefecto: 3 }),
-      environment: 'testing' as const,
     };
+    const { payload } = await service.resolve(NOTE_INPUT, createGateway(), runtime);
 
-    await expect(service.resolve(NOTE_INPUT, gateway, runtime)).rejects.toThrow(/Falta el CUIT/);
-    expect(gateway.getVoucher).not.toHaveBeenCalled();
+    expect(payload.Cmps_asoc?.Cmp_asoc[0]?.Cbte_cuit).toBe(20111111112);
   });
 
   it('falla si ARCA no tiene el asociado', async () => {

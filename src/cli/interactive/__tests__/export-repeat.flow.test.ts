@@ -140,6 +140,7 @@ function createSession(config: Record<string, unknown> = {}): InteractiveSession
     historyGateway: { getLastNumber: vi.fn(), getVoucher: vi.fn() },
     runtime: {
       config: arcliConfigSchema.parse({ cuit: '20111111112', puntoVentaPorDefecto: 4, ...config }),
+      cuit: 20111111112,
       environment: 'testing',
       pointOfSale: 4,
     } as unknown as CliArcaRuntime,

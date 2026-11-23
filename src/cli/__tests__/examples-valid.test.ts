@@ -428,10 +428,7 @@ async function validate(args: readonly string[], settings: Example['config'] = [
   if (call.exportKind) {
     const exportPlan = parseExportCommandPlan(call.command, { voucherKind: call.exportKind });
 
-    await new ExportService({ clock: { now: () => NOW } }).resolve(exportPlan.input, exportGateway, {
-      config,
-      environment: 'testing',
-    });
+    await new ExportService({ clock: { now: () => NOW } }).resolve(exportPlan.input, exportGateway, runtime);
 
     return;
   }

@@ -737,6 +737,7 @@ describe('el comando equivalente de la E con textos raros pasa por el parser rea
       exportacion: { actividad: 620100 },
       puntoVentaPorDefecto: 3,
     }),
+    cuit: 20111111112,
     environment: 'testing' as const,
   };
 

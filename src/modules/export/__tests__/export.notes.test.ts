@@ -50,7 +50,7 @@ const NOTE = {
 const INPUT: ExportVoucherInput = { amount: 500, emit: false, voucherNumber: 1 };
 
 describe('resolveExportAssociatedQuery', () => {
-  const base = { emitterCuit: '20409509763', kind: EXPORT_CREDIT_NOTE_KIND, pointOfSale: 4 };
+  const base = { emitterCuit: 20409509763, kind: EXPORT_CREDIT_NOTE_KIND, pointOfSale: 4 };
 
   it('sin --ac es una factura E del punto de venta de la nota', () => {
     expect(resolveExportAssociatedQuery({ ...base, input: { number: 1 } })).toEqual({

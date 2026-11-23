@@ -547,7 +547,7 @@ function noteRuleEnv(session: InteractiveSession, pointOfSale: number): NoteRule
  * @internal Exportado para los tests.
  */
 export function noteInputEnv(session: InteractiveSession, pointOfSale: number): NoteInputEnv {
-  return { config: session.runtime.config, issuerCuit: session.runtime.context.cuit, pointOfSale };
+  return { config: session.runtime.config, issuerCuit: session.runtime.cuit, pointOfSale };
 }
 
 export async function runNoteFlow(baseSession: InteractiveSession, kind: NoteKind): Promise<void> {
