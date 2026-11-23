@@ -1,9 +1,12 @@
 import { PassThrough } from 'node:stream';
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, onTestFinished, vi } from 'vitest';
 
-import { BACK } from '../../../modules/interactive/wizard';
+import type { ExportActivity } from '../../../modules/export/export.types';
+import { fieldLens } from '../../../modules/interactive/steps/lens';
+import { BACK, stepMemo } from '../../../modules/interactive/wizard';
 import { stripAnsi } from '../../../ui';
 import { chooseOrTypeStep, type ChooseOrTypeStepOptions, type FilterListRow } from '../prompts';
+import { activityStep } from '../steps/export';
 
 /**
  * `chooseOrTypeStep` (TUI-35) de verdad: una lista que se filtra escribiendo, donde tambien se puede usar lo escrito.
@@ -43,12 +46,16 @@ function pressEscape(): void {
 }
 
 /** Corre el paso, manda cada tecla (o Esc) y devuelve la respuesta y lo que se dibujo hasta ahi. */
-async function run<T>(
+function run<T>(
   options: ChooseOrTypeStepOptions<T>,
   keys: ReadonlyArray<string | typeof BACK>,
   rows: ReadonlyArray<FilterListRow<T>> = ROWS as unknown as ReadonlyArray<FilterListRow<T>>,
 ) {
-  const answer = chooseOrTypeStep('¿Cuál?', rows, options);
+  return press(chooseOrTypeStep('¿Cuál?', rows, options), keys);
+}
+
+/** Manda cada tecla (o Esc) a la pregunta que ya arrancó y devuelve su respuesta y lo que se dibujo hasta ahi. */
+async function press<A>(answer: Promise<A>, keys: ReadonlyArray<string | typeof BACK>) {
   const frames: string[] = [];
 
   for (const key of keys) {
@@ -310,4 +317,89 @@ describe('chooseOrTypeStep: el alto en una terminal chica', () => {
     expect(lastDraw(frames.at(-1))).toContain('← Volver');
     expect(lines.length, lines.join('\n')).toBeLessThanOrEqual(20);
   });
+});
+
+/**
+ * Criterio 6 de TUI-25 (Búsquedas y filtros de `criterios.md`): códigos y descripciones contenidos en otros. 62010 está
+ * dentro de 620100 y de 6201000, "SERVICIOS DE CONSULTORES EN INFORMATICA" dentro de la descripción de 6201000, y las
+ * palabras de "SERVICIOS DE INFORMATICA" en las tres. ARCA puede mandar la más larga primero: lo escrito entero elige
+ * esa fila, no la primera que lo contiene.
+ */
+const NESTED_ACTIVITIES: readonly ExportActivity[] = [
+  { id: 6201000, name: 'SERVICIOS DE CONSULTORES EN INFORMATICA Y SUMINISTROS DE PROGRAMAS' },
+  { id: 620100, name: 'SERVICIOS DE CONSULTORES EN INFORMATICA' },
+  { id: 62010, name: 'SERVICIOS DE INFORMATICA' },
+];
+
+/** Cada caracter de `text` como una tecla, y Enter. */
+function typed(text: string): string[] {
+  return [...text, ENTER];
+}
+
+describe('chooseOrTypeStep: códigos y descripciones contenidos en otros (TUI-25, criterio 6)', () => {
+  // Las filas como las de "Monedas y cotizaciones": la fila con código y descripción, el código como palabra clave y la
+  // descripción como lo que deja al elegirla.
+  const rows: ReadonlyArray<FilterListRow<number>> = NESTED_ACTIVITIES.map((activity) => ({
+    keywords: String(activity.id),
+    label: `${activity.id}  ${activity.name}`,
+    short: activity.name,
+    value: activity.id,
+  }));
+
+  it.each([
+    ['620100', 620100],
+    ['62010', 62010],
+    ['SERVICIOS DE CONSULTORES EN INFORMATICA', 620100],
+    ['servicios de informatica', 62010],
+  ])('"%s" entero elige su fila aunque otra que lo contiene vaya antes', async (text, expected) => {
+    const { answer } = await run({ parse: Number }, typed(text), rows);
+
+    expect(answer).toBe(expected);
+  });
+});
+
+describe('la actividad de WSFEX con la tabla de verdad: códigos y descripciones contenidos en otros (TUI-25, criterio 6)', () => {
+  interface ActivityState {
+    readonly activity?: number;
+  }
+
+  /** La pregunta de la actividad de "Emitir factura E" y "Repetir" E, con la tabla anidada. */
+  function askActivity(keys: ReadonlyArray<string | typeof BACK>) {
+    const step = activityStep<ActivityState>({
+      activities: async () => NESTED_ACTIVITIES,
+      activity: fieldLens('activity'),
+      skip: () => false,
+    });
+
+    return press(step.run({}, { memo: stepMemo(new Map(), 'actividad') }), keys);
+  }
+
+  // Lo de hoy: el código entero vale aunque esté contenido en otro de la tabla.
+  it.each([
+    ['620100', 620100],
+    ['62010', 62010],
+  ])('el código %s escrito entero es esa actividad, aunque 6201000 vaya antes', async (text, expected) => {
+    const { answer } = await askActivity(typed(text));
+
+    expect(answer).toEqual({ activity: expected });
+  });
+
+  // Esc al final: si Enter no cierra la pregunta, vuelve y el test falla en lo que mira.
+  // Tests primero (TUI-25): pasa a it() al implementarlo.
+  it.fails('la descripción entera de 620100 elige 620100, aunque la de 6201000 la contiene y va antes', async () => {
+    const { answer } = await askActivity([...typed('SERVICIOS DE CONSULTORES EN INFORMATICA'), BACK]);
+
+    expect(answer).toEqual({ activity: 620100 });
+  });
+
+  // Tests primero (TUI-25): pasa a it() al implementarlo.
+  it.fails(
+    'con el filtro vacío, la fila "Sin actividad" arranca marcada y Enter deja la actividad sin informar',
+    async () => {
+      const { answer, frames } = await askActivity([ENTER]);
+
+      expect(frames[0]).toMatch(/❯ Sin actividad/i);
+      expect(answer).toEqual({ activity: undefined });
+    },
+  );
 });
