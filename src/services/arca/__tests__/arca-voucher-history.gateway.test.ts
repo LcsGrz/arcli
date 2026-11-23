@@ -147,19 +147,110 @@ describe('ArcaVoucherHistoryGateway', () => {
     expect(await gateway.getVoucher(999, 3, 11)).toBeUndefined();
   });
 
-  it('un error "no existe" que se lanza también es undefined; otro error sigue', async () => {
-    const notFound = createGateway(
-      {},
-      { call: vi.fn(async () => Promise.reject(Object.assign(new Error('x'), { code: 602 }))) },
-    );
+  const NOT_FOUND = { Code: 602, Msg: 'No existen datos en nuestros registros para los parametros ingresados.' };
+  const INVALID_TOKEN = { Code: 600, Msg: 'ValidacionDeToken: No aparecio CUIT.' };
 
-    expect(await notFound.getVoucher(999, 3, 11)).toBeUndefined();
+  it.each([
+    ['un objeto en lugar de un array', { Err: NOT_FOUND }],
+    ['el código como texto', { Err: [{ ...NOT_FOUND, Code: '602' }] }],
+    ['dos veces', { Err: [NOT_FOUND, NOT_FOUND] }],
+  ])('el 602 es inexistente: %s', async (_case, Errors) => {
+    expect(await consulting(undefined, { Errors }).gateway.getVoucher(999, 3, 11)).toBeUndefined();
+    // Con un `ResultGet` vacío o en ceros, como hace WSFEX con el 1020, también.
+    expect(await consulting({ CbteFch: '', ImpTotal: 0 }, { Errors }).gateway.getVoucher(999, 3, 11)).toBeUndefined();
+  });
 
-    const notAuthorized = createGateway(
-      {},
-      { call: vi.fn(async () => Promise.reject(new Error('ns1:cms.cert.notAuthorized'))) },
-    );
+  it('si ARCA trae el comprobante, un 602 no lo vuelve inexistente', async () => {
+    const { gateway } = consulting({ CbteFch: '20261105' }, { Errors: { Err: [NOT_FOUND] } });
 
-    await expect(notAuthorized.getVoucher(1, 3, 11)).rejects.toMatchObject({ code: 'WSFE_SERVICE_NOT_AUTHORIZED' });
+    expect(await gateway.getVoucher(14, 3, 11)).toMatchObject({ number: 14 });
+  });
+
+  it.each([
+    ['array', { Err: [INVALID_TOKEN] }],
+    ['objeto', { Err: INVALID_TOKEN }],
+    ['código como texto', { Err: { ...INVALID_TOKEN, Code: '600' } }],
+  ])('otro error de ARCA no es "no existe" (ERR-1): %s', async (_case, Errors) => {
+    const error = await consulting(undefined, { Errors })
+      .gateway.getVoucher(999, 3, 11)
+      .catch((caught: unknown) => caught);
+
+    expect(error).toMatchObject({
+      code: 'ARCA_VOUCHER_QUERY_ERROR',
+      message:
+        'ARCA devolvió un error al consultar el comprobante 00003-00000999 y no se sabe si existe: 600 ValidacionDeToken: No aparecio CUIT.',
+      suggestion:
+        'Volvé a consultar en unos minutos. Si estabas verificando una emisión, no la reintentes hasta saber si el comprobante existe.',
+    });
+    expect(error).toHaveProperty('details', {
+      errores: [{ code: 600, codigo: 600, mensaje: INVALID_TOKEN.Msg, msg: INVALID_TOKEN.Msg }],
+    });
+  });
+
+  it('con un 602 y otro error, gana el otro', async () => {
+    for (const Err of [
+      [NOT_FOUND, INVALID_TOKEN],
+      [INVALID_TOKEN, NOT_FOUND],
+    ]) {
+      await expect(consulting(undefined, { Errors: { Err } }).gateway.getVoucher(999, 3, 11)).rejects.toMatchObject({
+        code: 'ARCA_VOUCHER_QUERY_ERROR',
+        details: { errores: Err.map(({ Code }) => ({ codigo: Code })) },
+      });
+    }
+  });
+
+  it('un error con un código ilegible tampoco es "no existe"', async () => {
+    const { gateway } = consulting(undefined, { Errors: { Err: [NOT_FOUND, { Msg: 'No existe' }] } });
+
+    await expect(gateway.getVoucher(999, 3, 11)).rejects.toMatchObject({ code: 'ARCA_VOUCHER_QUERY_ERROR' });
+  });
+
+  it('un error junto con los datos del comprobante también corta', async () => {
+    const { gateway } = consulting({ CbteFch: '20261105' }, { Errors: { Err: [INVALID_TOKEN] } });
+
+    await expect(gateway.getVoucher(14, 3, 11)).rejects.toMatchObject({ code: 'ARCA_VOUCHER_QUERY_ERROR' });
+  });
+
+  it.each([
+    ['vacía', undefined],
+    ['nula', null],
+    ['sin resultado', {}],
+    ['sin ResultGet ni Errors', { FECompConsultarResult: {} }],
+    ['con Errors vacío', { FECompConsultarResult: { Errors: null } }],
+    ['sin la fecha del comprobante', { FECompConsultarResult: { ResultGet: { ImpTotal: 100 } } }],
+  ])('una respuesta inesperada (%s) es un error, no "no existe"', async (_case, response) => {
+    const gateway = createGateway({}, { call: vi.fn(async () => response) });
+
+    await expect(gateway.getVoucher(14, 3, 11)).rejects.toMatchObject({
+      code: 'ARCA_VOUCHER_QUERY_ERROR',
+      details: { errores: [] },
+      message:
+        'ARCA devolvió una respuesta inesperada al consultar el comprobante 00003-00000014 y no se sabe si existe.',
+    });
+  });
+
+  function failing(error: unknown) {
+    return createGateway({}, { call: vi.fn(async () => Promise.reject(error)) });
+  }
+
+  it('un 602 que se lanza también es undefined', async () => {
+    expect(await failing(Object.assign(new Error('x'), { code: 602 })).getVoucher(999, 3, 11)).toBeUndefined();
+    expect(await failing(Object.assign(new Error('x'), { code: '602' })).getVoucher(999, 3, 11)).toBeUndefined();
+  });
+
+  it('una excepción con "no existe" en el texto no es un comprobante inexistente', async () => {
+    const error = new Error('El dominio no existe');
+
+    await expect(failing(error).getVoucher(999, 3, 11)).rejects.toBe(error);
+  });
+
+  it('la red y los transitorios siguen tal cual; no autorizado, con su código', async () => {
+    for (const error of [new Error('connect ETIMEDOUT'), new Error('ns1:coe.alreadyAuthenticated')]) {
+      await expect(failing(error).getVoucher(1, 3, 11)).rejects.toBe(error);
+    }
+
+    await expect(failing(new Error('ns1:cms.cert.notAuthorized')).getVoucher(1, 3, 11)).rejects.toMatchObject({
+      code: 'WSFE_SERVICE_NOT_AUTHORIZED',
+    });
   });
 });

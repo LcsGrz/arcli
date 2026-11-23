@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { Arca } from '../../../services/arca/arca-sdk.types';
+import { ArcaVoucherHistoryGateway } from '../../../services/arca/arca-voucher-history.gateway';
 import { systemClock } from '../../../services/time/system-clock';
 import type { FceRegistryState } from '../../fce/fce-registry';
 import type { IssuedVoucher } from '../../vouchers/voucher-history';
@@ -222,6 +224,67 @@ describe('checkAssociatedInArca: NC no mayor que el asociado (REV-45)', () => {
       warnings: [
         'No se pudo verificar en ARCA que la nota de crédito no supere la factura C 00003-00000012: ARCA no disponible',
       ],
+    });
+  });
+
+  describe('si ARCA contesta con un error (ERR-1), no es que no exista, aunque el PV sea de web service', () => {
+    // El gateway real, con `FECompConsultar` contestando un error que no es el 602.
+    const history = new ArcaVoucherHistoryGateway({
+      genericService: {
+        call: async () => ({ FECompConsultarResult: { Errors: { Err: { Code: 600, Msg: 'ValidacionDeToken' } } } }),
+      },
+    } as unknown as Arca);
+    const checkWithError = (input: BillingCommandInput) => {
+      const getSalesPoints = vi.fn(async () => [{ blocked: false, emissionType: 'CAE', number: 3 }]);
+
+      return {
+        getSalesPoints,
+        result: checkAssociatedInArca({
+          gateway: history,
+          input,
+          runtime,
+          salesPoints: { getSalesPoints },
+          service: new BillingService({ clock: systemClock }),
+        }),
+      };
+    };
+
+    it.each([
+      ['NC común', note(), 'que la nota de crédito no supere la factura C 00003-00000012'],
+      ['ND común', note({ shortcut: 'ndc' }), 'que exista la factura C 00003-00000012'],
+      [
+        'ND FCE con --afecha',
+        fceNote({
+          associatedVoucher: { fecha: '05/03/2026', numero: 7, puntoVenta: 3, shortcut: 'fcea' },
+          shortcut: 'ndea',
+        }),
+        'que exista la factura de crédito electrónica A 00003-00000007',
+      ],
+    ])('%s: sigue con el aviso', async (_case, input, unchecked) => {
+      const { getSalesPoints, result } = checkWithError(input);
+
+      await expect(result).resolves.toEqual({
+        input,
+        warnings: [
+          expect.stringMatching(
+            new RegExp(`^No se pudo verificar en ARCA ${unchecked}: ARCA devolvió un error .*600 ValidacionDeToken$`),
+          ),
+        ],
+      });
+      expect(getSalesPoints).not.toHaveBeenCalled();
+    });
+
+    it('nota FCE sin --afecha: frena porque no hay fecha, sin decir que ARCA no lo tiene', async () => {
+      const { getSalesPoints, result } = checkWithError(fceNote());
+
+      await expect(result).rejects.toMatchObject({
+        code: 'INPUT_VALIDATION_ERROR',
+        message: expect.stringMatching(
+          /^No se pudo consultar en ARCA la factura de crédito electrónica A 00003-00000007 para tomar su fecha: ARCA devolvió un error .*600 ValidacionDeToken$/,
+        ),
+        suggestion: 'Probá de nuevo en un rato o pasá la fecha del asociado con `--afecha <fecha>`.',
+      });
+      expect(getSalesPoints).not.toHaveBeenCalled();
     });
   });
 

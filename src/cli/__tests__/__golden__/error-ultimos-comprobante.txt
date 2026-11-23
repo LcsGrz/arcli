@@ -1,0 +1,22 @@
+$ arcli ultimos fc --cantidad 3 --json
+exit: 1
+--- stdout ---
+
+--- stderr ---
+
+{
+  "codigo": "ARCA_VOUCHER_QUERY_ERROR",
+  "detalles": {
+    "errores": [
+      {
+        "code": 600,
+        "msg": "ValidacionDeToken: No aparecio CUIT.",
+        "codigo": 600,
+        "mensaje": "ValidacionDeToken: No aparecio CUIT."
+      }
+    ]
+  },
+  "error": "ARCA devolvió un error al consultar el comprobante 00003-00000040 y no se sabe si existe: 600 ValidacionDeToken: No aparecio CUIT.",
+  "sugerencia": "Volvé a consultar en unos minutos. Si estabas verificando una emisión, no la reintentes hasta saber si el comprobante existe."
+}
+

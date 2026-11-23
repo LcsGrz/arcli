@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getVoucherKindByShortcut } from '../../../modules/billing/voucher-kind-map';
 import { BACK } from '../../../modules/interactive/wizard';
 import type { IssuedVoucher } from '../../../modules/vouchers/voucher-history';
+import type { Arca } from '../../../services/arca/arca-sdk.types';
+import { ArcaVoucherHistoryGateway } from '../../../services/arca/arca-voucher-history.gateway';
 import { stripAnsi } from '../../../ui';
 import type { CliArcaRuntime } from '../../arca-runtime';
 import { missingNonWebServiceInvoiceNotice, pickInvoice, pickNoteInvoice } from '../invoice-picker';
@@ -85,13 +87,43 @@ function createSession(vouchers: IssuedVoucher[], rows = 2): InteractiveSession 
   };
 }
 
+/** El gateway real con `FECompConsultar` contestando un error que no es el 602, para un numero (ERR-1). */
+function failQueryOf(session: InteractiveSession, failing: number, { once = false } = {}): void {
+  const real = new ArcaVoucherHistoryGateway({
+    genericService: {
+      call: async () => ({ FECompConsultarResult: { Errors: { Err: { Code: 600, Msg: 'ValidacionDeToken' } } } }),
+    },
+  } as unknown as Arca);
+  const find = vi.mocked(session.historyGateway.getVoucher).getMockImplementation()!;
+  let failed = false;
+
+  vi.mocked(session.historyGateway.getVoucher).mockImplementation(async (number, pointOfSale, voucherType) => {
+    if (number === failing && !(once && failed)) {
+      failed = true;
+
+      return real.getVoucher(number, pointOfSale, voucherType);
+    }
+
+    return find(number, pointOfSale, voucherType);
+  });
+}
+
 const FC = getVoucherKindByShortcut('fc')!;
 const options = { message: '¿Cuál?', pointOfSale: 3, voucherKind: FC };
 
 let output = '';
+let errors = '';
+
+const shownErrors = () => stripAnsi(errors).replace(/[│\s]+/g, ' ');
 
 beforeEach(() => {
   output = '';
+  errors = '';
+  vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+    errors += String(chunk);
+
+    return true;
+  });
   vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
     output += String(chunk);
 
@@ -165,6 +197,67 @@ describe('pickInvoice', () => {
     expect(stripAnsi(output)).toContain('No existe la factura C N° 00003-00000099.');
   });
 
+  it('si ARCA contesta con un error al buscar a mano, lo muestra y vuelve a la lista sin decir que no existe (ERR-1)', async () => {
+    const session = createSession([invoice(1)]);
+
+    failQueryOf(session, 99);
+    script = createScript([
+      [/Cuál/, 'Ingresar el número a mano'],
+      [/Punto de venta/, '3'],
+      [/Número/, '99'],
+      [/Cuál/, '00003-00000001'],
+    ]);
+
+    expect(await pickInvoice(session, options)).toMatchObject({ invoice: { number: 1 } });
+    expect(shownErrors()).toContain('600 ValidacionDeToken');
+    expect(stripAnsi(output)).not.toContain('No existe');
+    // Vuelve con "a mano" marcado, como al no encontrarlo.
+    expect(script.chooseStep.mock.calls.at(-1)?.[2]).toBe('a-mano');
+  });
+
+  it('si falla "Cargar más", muestra el error, conserva lo cargado y deja reintentar (ERR-1)', async () => {
+    const session = createSession([1, 2, 3, 4, 5].map(invoice));
+
+    failQueryOf(session, 3, { once: true });
+    script = createScript([
+      [/Cuál/, 'Cargar más'],
+      [/Cuál/, 'Cargar más'],
+      [/Cuál/, '00003-00000003'],
+    ]);
+
+    expect(await pickInvoice(session, options)).toMatchObject({ invoice: { number: 3 } });
+    expect(shownErrors()).toContain('600 ValidacionDeToken');
+  });
+
+  it('si falla uno de la primera tanda, sale el error y no una lista incompleta (ERR-1)', async () => {
+    const session = createSession([1, 2, 3].map(invoice));
+
+    failQueryOf(session, 2);
+    script = createScript([]);
+
+    await expect(pickInvoice(session, options)).rejects.toMatchObject({ code: 'ARCA_VOUCHER_QUERY_ERROR' });
+    expect(stripAnsi(output)).not.toContain('en el punto de venta 3');
+  });
+
+  it('otro error al buscar a mano sigue saliendo al menú', async () => {
+    const session = createSession([invoice(1)]);
+
+    vi.mocked(session.historyGateway.getVoucher).mockImplementation(async (number) => {
+      if (number === 99) {
+        throw new Error('connect ETIMEDOUT');
+      }
+
+      return invoice(number);
+    });
+    script = createScript([
+      [/Cuál/, 'Ingresar el número a mano'],
+      [/Punto de venta/, '3'],
+      [/Número/, '99'],
+    ]);
+
+    await expect(pickInvoice(session, options)).rejects.toThrow('connect ETIMEDOUT');
+  });
+
   it('elegir otra opción mientras carga descarta lo que llegue', async () => {
     const vouchers = [1, 2, 3, 4, 5].map(invoice);
 
@@ -236,6 +329,23 @@ describe('pickNoteInvoice', () => {
     ]);
 
     expect(await pickNoteInvoice(createSession([invoice(1)]), options)).toBe(BACK);
+  });
+
+  it('un error de ARCA al buscarla no la acepta como de otro sistema (ERR-1)', async () => {
+    const session = createSession([invoice(1)]);
+
+    failQueryOf(session, 15);
+    getSalesPoints.mockClear();
+    script = createScript([
+      [/Cuál/, 'Ingresar el número a mano'],
+      [/Punto de venta/, '50'],
+      [/Número/, '15'],
+      [/Cuál/, BACK],
+    ]);
+
+    expect(await pickNoteInvoice(session, options)).toBe(BACK);
+    expect(shownErrors()).toContain('600 ValidacionDeToken');
+    expect(getSalesPoints).not.toHaveBeenCalled();
   });
 
   it('si no se puede saber de qué sistema es el PV, la acepta igual y lo dice', async () => {
