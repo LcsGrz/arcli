@@ -1,0 +1,144 @@
+$ arcli nota-credito --ayuda
+Uso: arcli nota-credito [opciones] <letra>
+
+usar nota-credito por letra A, B, C o E con ejemplos y atajos (nca, ncb, ncc, nce)
+
+Argumentos:
+  letra                         letra del comprobante
+
+Opciones:
+  --testing                     usar entorno de testing en esta ejecución
+  --produccion                  usar entorno de producción en esta ejecución
+  --json                        imprimir salida JSON
+  --bruto                       mostrar la respuesta bruta de ARCA cuando exista
+  -m, --monto <numero>          importe total del comprobante, por ejemplo 15000 o 1.500,50
+  --alicuota <tasa>             alícuota de IVA para A y B: general (21), reducida (10.5),
+                                incrementada (27), cero (0), 5 o 2.5. Repetible como TASA:MONTO para
+                                varias alícuotas
+  --exento <numero>             parte exenta del monto total (A y B)
+  --nogravado <numero>          parte no gravada del monto total (A y B)
+  -d, --dia <numero>            deprecado, usá --vencimiento o --vto: vence el próximo día con ese
+                                número
+  --punto-venta <numero>        punto de venta (alias: --pv)
+  --cargar <ruta>               cargar datos base desde un archivo JSON
+  -f, --fecha <fecha>           fecha del comprobante; acepta D, D/M, D/M/YY o D/M/YYYY con - o /,
+                                hoy, ayer, +N o -N (días desde hoy)
+  -c, --concepto <tipo>         productos, servicios o productos y servicios (alias: --cs, --cp,
+                                --csp)
+  --cs                          usar concepto servicios
+  --cp                          usar concepto productos
+  --csp                         usar concepto productos y servicios
+  --moneda <codigo>             moneda: código ISO (ARS, USD, EUR, UYU, etc.) o de ARCA (PES, DOL,
+                                060, etc.) (alias: --mda)
+  --cotizacion-moneda <numero>  cotización de la moneda, por ejemplo 1.452,50 (alias: --cm)
+  --misma-moneda                el pago se cancela en la misma moneda extranjera; usa la cotización
+                                oficial de ARCA
+  --cuit <numero>               usar CUIT del receptor
+  --cuil <numero>               usar CUIL del receptor
+  --dni <numero>                usar DNI del receptor
+  --consumidor-final            usar consumidor final con documento 0 (alias: --cfinal)
+  --iva-receptor <tipo>         condición IVA del receptor; con --cuit, sin este flag, se toma del
+                                padrón (alias: --ir)
+  --ir-ce                       IVA receptor: cliente del exterior
+  --ir-cf                       IVA receptor: consumidor final
+  --ir-il                       IVA receptor: IVA liberado
+  --ir-ina                      IVA receptor: IVA no alcanzado
+  --ir-ms                       IVA receptor: monotributista social
+  --ir-mtip                     IVA receptor: monotributo trabajador independiente promovido
+  --ir-pe                       IVA receptor: proveedor del exterior
+  --ir-ri                       IVA receptor: responsable inscripto
+  --ir-rm                       IVA receptor: responsable monotributo
+  --ir-se                       IVA receptor: sujeto exento
+  --ir-snc                      IVA receptor: sujeto no categorizado
+  --servicio-desde <fecha>      fecha de inicio de servicio; también hoy, ayer, +N, -N, mes-actual o
+                                mes-pasado (el día 1) (alias: --sd)
+  --servicio-hasta <fecha>      fecha de fin de servicio; también hoy, ayer, +N, -N, mes-actual o
+                                mes-pasado (el último día) (alias: --sh)
+  --vencimiento <fecha>         fecha de vencimiento del pago; por defecto el fin del servicio;
+                                también hoy, ayer, +N o -N (alias: --vto)
+  --at <numero>                 tipo ARCA del comprobante asociado
+  --apv <numero>                punto de venta del comprobante asociado (alias:
+                                --asociado-punto-venta)
+  --ar <numero>                 número del comprobante asociado
+  --ac <atajo>                  atajo del comprobante asociado, por ejemplo fc o fa
+  --acuit <numero>              CUIT del comprobante asociado; en NC/ND FCE por defecto el CUIT
+                                emisor
+  --periodo-desde <fecha>       inicio del período asociado; alternativa a --ac en notas comunes;
+                                también hoy, ayer, +N, -N, mes-actual o mes-pasado (el día 1)
+                                (alias: --pd)
+  --periodo-hasta <fecha>       fin del período asociado; alternativa a --ac en notas comunes;
+                                también hoy, ayer, +N, -N, mes-actual o mes-pasado (el último día)
+                                (alias: --ph)
+  --afecha <fecha>              fecha del comprobante asociado; también hoy, ayer, +N o -N; en NC/ND
+                                FCE, sin ella sale de ARCA
+  --exportar-pdf                generar el PDF del comprobante emitido, aunque la config diga otra
+                                cosa (alias: --pdf)
+  --sin-pdf                     no generar el PDF, aunque la config diga otra cosa
+  --descripcion <texto>         detalle del comprobante en el PDF; por defecto "Según detalle"
+  --condicion-venta <tipo>      condición de venta en el PDF: contado, tarjeta-debito,
+                                tarjeta-credito, cuenta-corriente, cheque, transferencia,
+                                otros-medios-electronicos, otra o un texto (alias: --cv)
+  --sin-condicion-venta         omitir la condición de venta aunque esté configurada
+  --receptor-nombre <texto>     nombre o razón social del receptor en el PDF
+  --receptor-domicilio <texto>  domicilio del receptor en el PDF
+  --previsualizar               mostrar la solicitud sin emitir en ARCA
+  --emitir                      emitir realmente en ARCA
+  --ayuda                       mostrar ayuda
+
+Familia
+  - Nota de crédito, letras A, B, C y E (exportación): arcli nota-credito <a|b|c|e>. Atajos: nca, ncb, ncc y nce. Los flags que no aplican a la letra se saltean con un aviso.
+
+Ejemplos
+  - Letra A: arcli nota-credito a --monto 1 --concepto servicios --cuit 20168598204 --iva-receptor responsable-inscripto --ac fa --asociado-punto-venta 3 --ar 120 --acuit 20333333334
+  - Letra B: arcli nota-credito b --monto 15000 --concepto servicios --consumidor-final --iva-receptor consumidor-final --ac fb --asociado-punto-venta 3 --ar 120 --acuit 20333333334
+  - Letra C: arcli nota-credito c --monto 300000 --concepto servicios --consumidor-final --iva-receptor consumidor-final --ac fc --asociado-punto-venta 3 --ar 120 --acuit 20333333334
+  - Letra E: arcli nota-credito e --monto 500 --ar 1
+  - Desde un JSON: arcli nota-credito c --cargar ./voucher.json --json
+
+Reglas
+  - Usá --emitir o --previsualizar, no los dos.
+  - Una sola identidad del receptor: --cuit, --cuil, --dni o --consumidor-final.
+  - Un solo IVA receptor: --iva-receptor o un flag --ir-*.
+  - Un solo concepto: --concepto o uno entre --cs, --cp y --csp.
+  - Con servicios: --servicio-desde y --servicio-hasta para el período, y --vto para el vencimiento.
+  - Sin --fecha usa hoy. Lo que no pasás por flag sale del JSON de --cargar o de la config.
+  - Fechas: además de D/M/YYYY, hoy, ayer, +N y -N (días desde hoy). En desde y hasta (--sd/--sh, --pd/--ph) también mes-actual y mes-pasado: el día 1 en desde y el último día en hasta.
+  - IVA (A y B): --alicuota usa 21 por defecto, o la clave alícuota de la config. Para varias, repetí --alicuota TASA:MONTO con el IVA incluido; --monto pasa a ser opcional.
+  - Asociado: la factura, el recibo u otra nota de la misma letra con --ac o --at, --apv, --ar y --acuit, o un período con --periodo-desde y --periodo-hasta.
+
+
+--- opciones ocultas ---
+--pv <numero>
+--mda <codigo>
+--cm <numero>
+--cfinal
+--ir <tipo>
+--sd <fecha>
+--sh <fecha>
+--vto <fecha>
+--asociado-punto-venta <numero>
+--pd <fecha>
+--ph <fecha>
+--cbu <cbu>
+--alias <alias>
+--transferencia <modalidad>
+--anulacion
+--pdf
+--cv <tipo>
+--cliente <texto>
+--domicilio-cliente <texto>
+--pais-destino <codigo|nombre>
+--id-impositivo <texto>
+--cuit-pais <numero>
+--tipo-expo <1|2|4>
+--actividad <codigo>
+--incoterm <codigo>
+--incoterms-desc <texto>
+--idioma <codigo>
+--forma-pago <texto>
+--permiso <id>
+--item <partes>
+--numero <numero>
+--id-solicitud <numero>
+--observaciones <texto>
+--obs-comerciales <texto>

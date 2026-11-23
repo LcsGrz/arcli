@@ -1,0 +1,73 @@
+$ arcli fe --ayuda
+Uso: arcli fe [opciones]
+
+Factura de exportación E por atajo (WSFEX), con ayuda guiada para previsualizar o emitir
+
+Opciones:
+  --testing                       usar entorno de testing en esta ejecución
+  --produccion                    usar entorno de producción en esta ejecución
+  --json                          imprimir salida JSON
+  --bruto                         mostrar la respuesta bruta de ARCA cuando exista
+  -m, --monto <numero>            importe total del comprobante, por ejemplo 15000 o 1.500,50
+  --cliente <texto>               nombre o razón social del cliente del exterior
+  --domicilio-cliente <texto>     domicilio del cliente en el exterior
+  --pais-destino <codigo|nombre>  país de destino por código o nombre, por ejemplo 203 o Brasil
+  --id-impositivo <texto>         ID impositivo del cliente en su país
+  --cuit-pais <numero>            CUIT del país del cliente; sin este flag se resuelve desde el país
+                                  de destino
+  --tipo-expo <1|2|4>             tipo de exportación: 1 bienes, 2 servicios (por defecto), 4 otros
+  --actividad <codigo>            código de la tabla de actividades de WSFEX, por ejemplo 620100;
+                                  sin flag, exportacion.actividad de la config
+  --incoterm <codigo>             código de incoterm, por ejemplo FOB
+  --incoterms-desc <texto>        descripción del incoterm; por defecto la de la tabla de ARCA
+  --idioma <codigo>               código de idioma del comprobante: 1 español (por defecto), 2
+                                  inglés, 3 portugués
+  --forma-pago <texto>            forma de pago; por defecto "Transferencia Internacional"
+  --permiso <id>                  permiso de embarque ya existente; repetible. Solo en bienes
+                                  (--tipo-expo 1); en la factura, con --permiso-existente
+  --permiso-existente             el permiso de embarque informado ya existe en ARCA
+  --item <partes>                 ítem del comprobante: "codigo|descripcion|cantidad|precio|unidad".
+                                  Repetible; la suma tiene que dar --monto
+  --numero <numero>               número del comprobante; por defecto, el siguiente al último de
+                                  ARCA en el punto de venta
+  --id-solicitud <numero>         ID de la solicitud; por defecto el siguiente de ARCA
+  --punto-venta <numero>          punto de venta (alias: --pv)
+  -f, --fecha <fecha>             fecha del comprobante; acepta D, D/M, D/M/YY o D/M/YYYY con - o /,
+                                  hoy, ayer, +N o -N (días desde hoy)
+  --fecha-pago <fecha>            fecha de pago, solo en servicios y otros; por defecto la del
+                                  comprobante; también hoy, ayer, +N o -N
+  --moneda <codigo>               moneda: código ISO o de ARCA; USD o DOL por defecto (alias: --mda)
+  --cotizacion-moneda <numero>    cotización de la moneda; sin este flag se usa la de aduana que
+                                  publica ARCA (alias: --cm)
+  --misma-moneda                  el pago se cancela en la misma moneda extranjera
+  --observaciones <texto>         observaciones del comprobante
+  --obs-comerciales <texto>       observaciones comerciales del comprobante
+  --descripcion <texto>           descripción del comprobante cuando no se informan ítems; también
+                                  va al PDF
+  --cargar <ruta>                 cargar los datos desde un archivo JSON
+  --exportar-pdf                  generar el PDF del comprobante emitido, aunque la config diga otra
+                                  cosa (alias: --pdf)
+  --sin-pdf                       no generar el PDF, aunque la config diga otra cosa
+  --previsualizar                 mostrar la solicitud sin emitir en ARCA
+  --emitir                        emitir realmente en ARCA
+  --ayuda                         mostrar ayuda
+
+Comprobante
+  - Factura de exportación E, tipo ARCA 19, por WSFEX. Es lo mismo que arcli factura e.
+  - Sin flags sale de servicios (--tipo-expo 2), en dólares (USD) y con forma de pago "Transferencia Internacional".
+  - La actividad sale de --actividad o de exportacion.actividad en la config.
+  - Sin --numero toma el siguiente al último de ARCA en el punto de venta. Para verlos: arcli ultimos fe.
+
+Ejemplos
+  - Vista previa: arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 212 --actividad 620100
+  - Emitir: arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 212 --actividad 620100 --emitir
+  - Con ítems, que tienen que sumar --monto: arcli fe -m 1500 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 212 --actividad 620100 --item "001|Consultoría|10|150|unidades"
+  - Desde un JSON: arcli fe --cargar ./factura-e.json --json
+  - Más ejemplos: arcli ejemplos
+
+
+--- opciones ocultas ---
+--pv <numero>
+--mda <codigo>
+--cm <numero>
+--pdf

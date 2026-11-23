@@ -16,6 +16,7 @@ const NOW = new Date('2026-06-01T15:00:00Z');
 
 const RUNTIME = {
   config: arcliConfigSchema.parse({ cuit: '20111111112', exportacion: { actividad: 620100 }, puntoVentaPorDefecto: 3 }),
+  cuit: 20111111112,
   environment: 'testing' as const,
 };
 
@@ -688,6 +689,31 @@ describe('ExportService.resolve: notas E', () => {
       displayName: 'Factura de exportación E',
       total: 1500,
     });
+  });
+
+  it('`--acuit` solo puede ser el CUIT emisor (2031), con o sin guiones', async () => {
+    const withCuit = (cuit: string) => ({ ...NOTE_INPUT, associatedVoucher: { cuit, number: 12 } });
+    const own = createGateway();
+
+    for (const cuit of ['20111111112', '20-11111111-2']) {
+      const { payload } = await service.resolve(withCuit(cuit), own, RUNTIME);
+
+      expect(payload.Cmps_asoc).toEqual({
+        Cmp_asoc: [{ Cbte_cuit: 20111111112, Cbte_nro: 12, Cbte_punto_vta: 3, Cbte_tipo: 19 }],
+      });
+    }
+
+    expect(vi.mocked(own.getVoucher).mock.calls).toEqual([
+      [{ arcaType: 19, number: 12, pointOfSale: 3 }],
+      [{ arcaType: 19, number: 12, pointOfSale: 3 }],
+    ]);
+
+    const other = createGateway();
+
+    await expect(service.resolve(withCuit('30709965812'), other, RUNTIME)).rejects.toThrow(
+      'En las notas E el comprobante asociado tiene que ser tuyo (CUIT 20111111112): ARCA rechaza otro CUIT (error 2031). Sacá `--acuit`.',
+    );
+    expect(other.getVoucher).not.toHaveBeenCalled();
   });
 
   it('una nota de debito usa el tipo 20', async () => {
