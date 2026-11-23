@@ -7,6 +7,7 @@ import {
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
 import { formatVoucherLabel, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
+import { discriminatesIva, isNote, isReceipt, noteSide } from '../../modules/billing/voucher-kind-map';
 import { EXPORT_VOUCHER_KINDS, type ExportVoucherKind } from '../../modules/export/export.types';
 import { parseAmountInput } from '../../modules/interactive/amount-input';
 import {
@@ -66,24 +67,10 @@ import { dateStep } from './steps/date';
 import { receiverIvaStep, receiverSteps } from './steps/receiver';
 import { validateAmount, validateDate } from './validators';
 
-const NOTE_FAMILIES: ReadonlySet<VoucherKindDefinition['family']> = new Set([
-  'nota-credito',
-  'nota-debito',
-  'nota-credito-electronica',
-  'nota-debito-electronica',
-]);
-
-const CREDIT_NOTE_FAMILIES: ReadonlySet<VoucherKindDefinition['family']> = new Set([
-  'nota-credito',
-  'nota-credito-electronica',
-]);
-
-const isOverNote = (state: NoteState): boolean =>
-  Boolean(state.invoiceKind && NOTE_FAMILIES.has(state.invoiceKind.family));
+const isOverNote = (state: NoteState): boolean => isNote(state.invoiceKind);
 
 /** Como el CLI y la E: una NC no tiene tope ni se anula entera si ajusta otra NC. */
-const isOverCreditNote = (state: NoteState): boolean =>
-  Boolean(state.invoiceKind && CREDIT_NOTE_FAMILIES.has(state.invoiceKind.family));
+const isOverCreditNote = (state: NoteState): boolean => noteSide(state.invoiceKind) === 'credito';
 
 /**
  * "¿Sobre qué comprobante?" en dos niveles: la familia y, si tiene mas de una opcion, el comprobante. Volver desde el
@@ -298,7 +285,7 @@ export function noteSteps(
           [
             {
               description: 'Elegís una de las últimas emitidas o la ingresás a mano',
-              name: state.invoiceKind?.family === 'recibo' ? 'A un recibo' : 'A una factura',
+              name: isReceipt(state.invoiceKind) ? 'A un recibo' : 'A una factura',
               value: 'factura' as const,
             },
             {
@@ -488,7 +475,9 @@ export function noteSteps(
         return ivaRate === BACK ? BACK : { ivaRate };
       },
       // En la C no hay IVA; si la factura deja deducir la alicuota, no se pregunta.
-      skip: (state) => state.invoiceKind?.letter === 'c' || (!asksOwnNoteData(state) && Boolean(state.ivaRate)),
+      skip: (state) =>
+        Boolean(state.invoiceKind && !discriminatesIva(state.invoiceKind.letter)) ||
+        (!asksOwnNoteData(state) && Boolean(state.ivaRate)),
     },
     {
       // Es sobre la factura elegida.

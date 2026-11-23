@@ -229,3 +229,51 @@ export function getVoucherKindByArcaType(arcaType: number): VoucherKindDefinitio
 export function isVoucherShortcut(value: string): value is VoucherShortcut {
   return value in VOUCHER_KIND_MAP;
 }
+
+/*
+ * Qué es cada comprobante, en un solo lugar: no compares `family` ni `letter` a mano. Reciben un comprobante o nada
+ * (un estado del asistente sin elegir todavía) y, sin comprobante, responden que no. `voucher-families.test.ts`
+ * clasifica cada familia: una familia nueva tiene que pasar por el `switch` de `noteSide`.
+ */
+type VoucherKindLike = Pick<VoucherKindDefinition, 'family'> | null | undefined;
+
+export type NoteSide = 'credito' | 'debito';
+
+/** De qué lado es una nota, común o FCE; `undefined` si no es nota. */
+export function noteSide(kind: VoucherKindLike): NoteSide | undefined {
+  if (!kind) {
+    return undefined;
+  }
+
+  switch (kind.family) {
+    case 'nota-credito':
+    case 'nota-credito-electronica':
+      return 'credito';
+    case 'nota-debito':
+    case 'nota-debito-electronica':
+      return 'debito';
+    case 'factura':
+    case 'factura-credito-electronica':
+    case 'recibo':
+      return undefined;
+  }
+}
+
+/** Nota de crédito o de débito, común o FCE: ajusta un comprobante asociado. */
+export function isNote(kind: VoucherKindLike): boolean {
+  return noteSide(kind) !== undefined;
+}
+
+export function isReceipt(kind: VoucherKindLike): boolean {
+  return kind?.family === 'recibo';
+}
+
+/** La factura FCE, sin sus notas (que también son `isElectronicCredit`). */
+export function isFceInvoice(kind: VoucherKindLike): boolean {
+  return kind?.family === 'factura-credito-electronica';
+}
+
+/** A y B discriminan IVA; la C no informa IVA (10071) ni exento o no gravado (10043, 10044), WSFEv1 v4.7. */
+export function discriminatesIva(letter: VoucherLetter): boolean {
+  return letter !== 'c';
+}

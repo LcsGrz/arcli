@@ -1,6 +1,7 @@
 import { formatArgentineMoney } from '../../lib/numbers/argentine-amount';
 import type { BillingCommandInput } from '../billing/billing.schemas';
 import type { VoucherKindDefinition } from '../billing/billing.types';
+import { isFceInvoice } from '../billing/voucher-kind-map';
 
 /** Respuesta de wsfecred consultarMontoObligadoRecepcion. */
 export interface FceObligation {
@@ -14,7 +15,7 @@ export interface FceObligationGateway {
 }
 
 function isInvoice(voucherKind: VoucherKindDefinition): boolean {
-  return voucherKind.family === 'factura' || voucherKind.family === 'factura-credito-electronica';
+  return voucherKind.family === 'factura' || isFceInvoice(voucherKind);
 }
 
 /** Solo las facturas (comunes o FCE) a un receptor con CUIT dependen del regimen FCE. */
@@ -44,7 +45,7 @@ export function evaluateFceObligation(
     ];
   }
 
-  if (voucherKind.family === 'factura-credito-electronica' && !requiresFce) {
+  if (isFceInvoice(voucherKind) && !requiresFce) {
     const reason = obligation.obligated
       ? `el monto es menor al mínimo del régimen (${formatArgentineMoney(obligation.minimumAmount)})`
       : 'el receptor no está obligado a recibir FCE';

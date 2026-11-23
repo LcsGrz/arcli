@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { VOUCHER_KIND_MAP } from '../../billing/voucher-kind-map';
-import { buildInvoiceInput, type InvoiceState, isFceInvoice } from '../invoice-input';
+import { buildInvoiceInput, type InvoiceState, isFceInvoiceState } from '../invoice-input';
 
 const PESOS = { currencyCode: 'ARS', sameCurrency: false } as const;
 const NO_CONFIG = { config: {} };
@@ -155,11 +155,11 @@ describe('buildInvoiceInput', () => {
   });
 });
 
-describe('isFceInvoice', () => {
+describe('isFceInvoiceState', () => {
   it('solo la factura de crédito electrónica, no sus notas', () => {
-    expect(isFceInvoice({ voucherKind: VOUCHER_KIND_MAP.fceb })).toBe(true);
-    expect(isFceInvoice({ voucherKind: VOUCHER_KIND_MAP.nceb })).toBe(false);
-    expect(isFceInvoice({ voucherKind: VOUCHER_KIND_MAP.fb })).toBe(false);
-    expect(isFceInvoice({})).toBe(false);
+    expect(isFceInvoiceState({ voucherKind: VOUCHER_KIND_MAP.fceb })).toBe(true);
+    expect(isFceInvoiceState({ voucherKind: VOUCHER_KIND_MAP.nceb })).toBe(false);
+    expect(isFceInvoiceState({ voucherKind: VOUCHER_KIND_MAP.fb })).toBe(false);
+    expect(isFceInvoiceState({})).toBe(false);
   });
 });

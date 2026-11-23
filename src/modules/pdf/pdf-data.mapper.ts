@@ -6,6 +6,7 @@ import { formatIvaConditionLabel } from '../billing/billing.labels';
 import type { BillingExecutionResult } from '../billing/billing.types.internal';
 import { toIsoCurrencyCode } from '../billing/currency-codes';
 import { formatSaleCondition } from '../billing/sale-condition';
+import { discriminatesIva, isReceipt } from '../billing/voucher-kind-map';
 import type { ExportExecutionResult } from '../export/export.types';
 
 import { PdfError } from './pdf.errors';
@@ -63,7 +64,7 @@ function buildItems(result: BillingExecutionResult, description: string): Invoic
     unidadMedida: 'unidad',
   });
 
-  if (voucherKind.letter === 'c') {
+  if (!discriminatesIva(voucherKind.letter)) {
     return [line(payload.ImpTotal)];
   }
 
@@ -111,12 +112,12 @@ export function mapBillingResultToPdfData(
   const number = resolveVoucherNumber(result);
   const isConsumer = payload.DocTipo === CONSUMER_DOCUMENT_TYPE_CODE;
   const isUnidentified = isConsumer && !payload.DocNro;
-  const iva = voucherKind.letter === 'c' ? [] : buildIvaEntries(payload.Iva);
+  const iva = discriminatesIva(voucherKind.letter) ? buildIvaEntries(payload.Iva) : [];
 
   return {
     cae: response.cae,
     caeFechaVencimiento: response.caeVencimiento,
-    ...(voucherKind.family === 'recibo' ? { cbteDescripcion: 'RECIBO' } : {}),
+    ...(isReceipt(voucherKind) ? { cbteDescripcion: 'RECIBO' } : {}),
     cbteDesde: number,
     cbteFecha: payload.CbteFch,
     cbteHasta: number,
@@ -137,14 +138,13 @@ export function mapBillingResultToPdfData(
     fechaServicioHasta: payload.FchServHasta,
     fechaVtoPago: payload.FchVtoPago,
     importeExento: payload.ImpOpEx || undefined,
-    importeIva: voucherKind.letter === 'c' ? 0 : payload.ImpIVA,
+    importeIva: discriminatesIva(voucherKind.letter) ? payload.ImpIVA : 0,
     // La plantilla muestra este importe como "Subtotal" en la B y como neto gravado en la A.
-    importeNetoGravado:
-      voucherKind.letter === 'c'
-        ? payload.ImpTotal
-        : voucherKind.letter === 'b'
-          ? roundToCents(payload.ImpTotal - payload.ImpTrib)
-          : payload.ImpNeto,
+    importeNetoGravado: !discriminatesIva(voucherKind.letter)
+      ? payload.ImpTotal
+      : voucherKind.letter === 'b'
+        ? roundToCents(payload.ImpTotal - payload.ImpTrib)
+        : payload.ImpNeto,
     importeNetoNoGravado: payload.ImpTotConc || undefined,
     importeTotal: roundToCents(payload.ImpTotal),
     items: buildItems(result, extras.descripcion?.trim() || DEFAULT_ITEM_DESCRIPTION),

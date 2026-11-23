@@ -13,12 +13,7 @@ import { formatVoucherSubject, formatVoucherWithArticle } from './billing.mapper
 import type { BillingCommandInput } from './billing.schemas';
 import type { BillingService } from './billing.service';
 import type { VoucherKindDefinition } from './billing.types';
-import { getVoucherKindByArcaType, getVoucherKindByShortcut } from './voucher-kind-map';
-
-const CREDIT_NOTE_FAMILIES: ReadonlySet<VoucherKindDefinition['family']> = new Set([
-  'nota-credito',
-  'nota-credito-electronica',
-]);
+import { getVoucherKindByArcaType, getVoucherKindByShortcut, isFceInvoice, noteSide } from './voucher-kind-map';
 
 /** `la factura A 00003-00000012`, para usar dentro de una frase. */
 export function describeAssociated(arcaType: number, pointOfSale: number, number: number): string {
@@ -131,13 +126,9 @@ function assertFceNoteMatchesAssociated(options: {
 
 /** Si el total del asociado es tope de la nota: solo en una NC y, como en la E, no si ajusta otra NC. */
 function capsCreditNote(voucherKind: VoucherKindDefinition, associatedArcaType: number | undefined): boolean {
-  const associatedFamily =
-    associatedArcaType === undefined ? undefined : getVoucherKindByArcaType(associatedArcaType)?.family;
+  const associatedKind = associatedArcaType === undefined ? undefined : getVoucherKindByArcaType(associatedArcaType);
 
-  return (
-    CREDIT_NOTE_FAMILIES.has(voucherKind.family) &&
-    (associatedFamily === undefined || !CREDIT_NOTE_FAMILIES.has(associatedFamily))
-  );
+  return noteSide(voucherKind) === 'credito' && noteSide(associatedKind) !== 'credito';
 }
 
 /**
@@ -307,9 +298,8 @@ export async function checkAssociatedInArca(options: {
       );
     }
 
-    const unchecked = CREDIT_NOTE_FAMILIES.has(voucherKind.family)
-      ? `que la nota de crédito no supere ${label}`
-      : `que exista ${label}`;
+    const unchecked =
+      noteSide(voucherKind) === 'credito' ? `que la nota de crédito no supere ${label}` : `que exista ${label}`;
 
     return { input, warnings: [`No se pudo verificar en ARCA ${unchecked}: ${reasonOf(error)}`] };
   }
@@ -339,7 +329,7 @@ export async function checkAssociatedInArca(options: {
       warnings: [
         missingAssociatedWarning({
           hasDate: Boolean(associated.fecha),
-          isCreditNote: CREDIT_NOTE_FAMILIES.has(voucherKind.family),
+          isCreditNote: noteSide(voucherKind) === 'credito',
           label,
           origin,
           pointOfSale: reference.PtoVta,
@@ -431,7 +421,7 @@ export async function checkFceCancellationInRegistry(options: {
     return [];
   }
 
-  const overInvoice = getVoucherKindByArcaType(reference.Tipo)?.family === 'factura-credito-electronica';
+  const overInvoice = isFceInvoice(getVoucherKindByArcaType(reference.Tipo));
   const todo = overInvoice
     ? 'Pedile al comprador que lo rechace o, si no es una anulación, emitila sin `--anulacion`.'
     : 'Pedile al comprador que lo rechace antes de emitir.';

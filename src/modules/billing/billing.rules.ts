@@ -21,6 +21,7 @@ import { CONSUMER_IDENTIFICATION_THRESHOLD, requiresConsumerIdentification } fro
 import { formatDocumentFlag, formatVoucherSubject, formatVoucherWithArticle } from './billing.mappers';
 import type { BillingCommandInput } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
+import { discriminatesIva } from './voucher-kind-map';
 
 /**
  * Lo que una regla de A, B y C necesita ademas de la entrada: hoy (yyyymmdd), el comprobante, el CUIT emisor y la
@@ -169,7 +170,7 @@ export const DUE_DATE_MINIMUM_RULE: BillingRule = {
  */
 export const EXEMPT_UNTAXED_WITHIN_TOTAL_RULE: BillingRule = {
   check: (input, { voucherKind }) => {
-    if (voucherKind.letter === 'c' || input.totalAmount === undefined) {
+    if (!discriminatesIva(voucherKind.letter) || input.totalAmount === undefined) {
       return undefined;
     }
 

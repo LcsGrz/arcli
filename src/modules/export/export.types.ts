@@ -1,4 +1,5 @@
 import type { IFEXAuthorizeOutput } from '../../services/arca/arca-sdk.types';
+import type { EmitDecisionSource } from '../billing/billing.emit-decision';
 import type { PdfOutcome } from '../pdf/pdf.types';
 
 /** WSFEX solo emite comprobantes de exportacion, asi que la letra es siempre E. 19 es la Factura E. */
@@ -378,7 +379,8 @@ export interface ExportItemInput {
   readonly unitPrice: number;
 }
 
-export type ExportModeSource = 'default' | 'file' | 'flags';
+/** Qué decidió emitir en la E: la misma regla que en A, B y C. */
+export type ExportModeSource = EmitDecisionSource;
 
 /** El comprobante que ajusta una nota E, como llega de `--ac`/`--at`, `--apv`, `--ar` y `--acuit`. */
 export interface ExportAssociatedVoucherInput {

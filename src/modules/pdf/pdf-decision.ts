@@ -1,3 +1,4 @@
+import { InputValidationError } from '../../lib/errors/app-error';
 import type { BillingExecutionResult } from '../billing/billing.types.internal';
 import type { ArcliPdfMode } from '../config/config.schemas';
 
@@ -9,6 +10,31 @@ export interface PdfDecisionInput {
   /** Hay alguien para responder: terminal interactiva y sin --json. */
   readonly interactive: boolean;
   readonly mode?: ArcliPdfMode;
+}
+
+export interface PdfFlagInput {
+  /** `--exportar-pdf` o su alias `--pdf`. */
+  readonly exportPdf: boolean;
+  /** `"pdf"` del JSON de `--cargar`. */
+  readonly filePdf?: boolean;
+  /** `--sin-pdf`. */
+  readonly skipPdf: boolean;
+}
+
+/**
+ * El `flag` que recibe `resolvePdfDecision`, igual en A, B, C y la E: los flags ganan y, sin ellos, vale `"pdf"` del
+ * archivo. Sin ninguno queda `undefined` y decide la config.
+ */
+export function resolvePdfFlag(input: PdfFlagInput): boolean | undefined {
+  if (input.exportPdf && input.skipPdf) {
+    throw new InputValidationError('Usá `--exportar-pdf` o `--sin-pdf`, pero no ambos a la vez.');
+  }
+
+  if (input.exportPdf) {
+    return true;
+  }
+
+  return input.skipPdf ? false : input.filePdf;
 }
 
 /** El flag gana; sin flag decide la config, y "preguntar" sin nadie que responda no genera. */

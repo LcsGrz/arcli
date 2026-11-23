@@ -1,6 +1,6 @@
 import type { ArcliConfig } from '../../config/config.schemas';
 import type { ExportRepeatState } from '../export-repeat-input';
-import { type InvoiceState, isFceInvoice } from '../invoice-input';
+import { type InvoiceState, isFceInvoiceState } from '../invoice-input';
 
 /** Lo que se ofrece guardar en la config despues de emitir: la pregunta y las claves con su valor. */
 export interface ConfigOffer {
@@ -20,7 +20,7 @@ export function cbuToSave(
 ): ConfigOffer | undefined {
   const { cbu, cbuAlias } = state;
 
-  if (!authorized || !cbu || config.cbu || !isFceInvoice(state)) {
+  if (!authorized || !cbu || config.cbu || !isFceInvoiceState(state)) {
     return undefined;
   }
 

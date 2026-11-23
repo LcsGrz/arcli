@@ -4,6 +4,7 @@ import type { IOpcional } from '../../services/arca/arca-sdk.types';
 import { formatVoucherSubject } from './billing.mappers';
 import type { BillingCommandInput } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
+import { isFceInvoice } from './voucher-kind-map';
 
 /** Codigos de "Adicionales por R.G." que usa FCE (FEParamGetTiposOpcional). */
 export const FCE_OPTIONAL_IDS = {
@@ -16,10 +17,6 @@ export const FCE_OPTIONAL_IDS = {
 const DEFAULT_FCE_TRANSFER_MODE = 'sca';
 
 type FceInput = Pick<BillingCommandInput, 'cancellation' | 'cbu' | 'cbuAlias' | 'transferMode'>;
-
-export function isElectronicCreditInvoice(voucherKind: VoucherKindDefinition): boolean {
-  return voucherKind.family === 'factura-credito-electronica';
-}
 
 function listInvoiceOnlyFlags(input: FceInput): string[] {
   return [
@@ -54,7 +51,7 @@ export function resolveElectronicCreditOptionals(
     return undefined;
   }
 
-  if (!isElectronicCreditInvoice(voucherKind)) {
+  if (!isFceInvoice(voucherKind)) {
     if (invoiceOnlyFlags.length > 0) {
       throw new InputValidationError(
         `${subject} no lleva ${invoiceOnlyFlags.map((flag) => `\`${flag}\``).join(', ')}: solo van en la factura FCE.`,

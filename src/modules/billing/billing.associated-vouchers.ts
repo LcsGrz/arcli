@@ -11,7 +11,7 @@ import { formatVoucherLabel, formatVoucherSubject, formatVoucherWithArticle } fr
 import { ASSOCIATED_NOT_AFTER_NOTE_RULE } from './billing.rules';
 import type { BillingCommandInput } from './billing.schemas';
 import type { VoucherFamily, VoucherKindDefinition } from './billing.types';
-import { getVoucherKindByArcaType, getVoucherKindByFamilyAndLetter } from './voucher-kind-map';
+import { getVoucherKindByArcaType, getVoucherKindByFamilyAndLetter, isReceipt } from './voucher-kind-map';
 
 interface ResolveAssociatedVoucherOptions {
   readonly billingDate: string;
@@ -190,7 +190,7 @@ function describeAssociableFamilies(
     .flatMap((family) => {
       const kind = getVoucherKindByFamilyAndLetter(family, letter);
 
-      return kind ? [`${family === 'recibo' ? 'un' : 'una'} ${formatVoucherLabel(kind)}`] : [];
+      return kind ? [`${isReceipt(kind) ? 'un' : 'una'} ${formatVoucherLabel(kind)}`] : [];
     })
     .join(' o ');
 }

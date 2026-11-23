@@ -3,6 +3,7 @@ import type { Command } from 'commander';
 import { resolveRelativeDateInput } from '../../lib/dates/relative-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { readJsonFile } from '../../lib/files/read-json-file';
+import { resolveEmitDecision } from '../../modules/billing/billing.emit-decision';
 import {
   exportJsonInputWarnings,
   mapExportJsonItems,
@@ -18,6 +19,7 @@ import {
   type ExportVoucherKind,
   isExportNote,
 } from '../../modules/export/export.types';
+import { resolvePdfFlag } from '../../modules/pdf/pdf-decision';
 
 const ITEMS_DESCRIPTION_WARNING =
   '`--descripcion` se usa solo cuando no hay `--item`: el detalle del comprobante sale de los items.';
@@ -78,63 +80,26 @@ function pickList(flagsValue: unknown, fileValue: readonly string[] | undefined)
   return Array.isArray(flagsValue) && flagsValue.length > 0 ? (flagsValue as string[]) : fileValue?.slice();
 }
 
-/** `--emitir` y `--previsualizar` deciden juntos, y el archivo de `--cargar` puede traer `emitir`. */
-function resolveEmitDecision(
-  flags: { readonly emitir?: boolean; readonly previsualizar?: boolean },
-  file: { readonly emitir?: boolean; readonly previsualizar?: boolean } | undefined,
-  defaults: ExportCommandDefaults,
-): { readonly emit: boolean; readonly modeSource: ExportModeSource } {
-  if (flags.emitir && flags.previsualizar) {
-    throw new InputValidationError('Usá `--emitir` o `--previsualizar`, no los dos.');
-  }
-
-  if (flags.emitir !== undefined) {
-    return { emit: flags.emitir, modeSource: 'flags' };
-  }
-
-  if (flags.previsualizar !== undefined) {
-    return { emit: !flags.previsualizar, modeSource: 'flags' };
-  }
-
-  if (file?.emitir === true && file.previsualizar === true) {
-    throw new InputValidationError('En el archivo usá "emitir" o "previsualizar", pero no ambos en true.');
-  }
-
-  if (file?.emitir !== undefined) {
-    return { emit: file.emitir, modeSource: 'file' };
-  }
-
-  // Igual que en A, B y C: "previsualizar": false no es lo mismo que "emitir": true; sin "emitir" decide la config
-  // (y en una terminal se pregunta).
-  if (file?.previsualizar === true) {
-    return { emit: false, modeSource: 'file' };
-  }
-
-  return { emit: defaults.defaultEmit ?? false, modeSource: 'default' };
-}
-
 /** Los flags ganan sobre el JSON de `--cargar`, igual que en facturacion. */
 export function parseExportCommandPlan(command: Command, defaults: ExportCommandDefaults = {}): ExportCommandPlan {
   const options = command.optsWithGlobals<Record<string, unknown>>();
   const filePath = typeof options.cargar === 'string' ? options.cargar : undefined;
   const file = filePath ? readExportJsonInput(readJsonFile<unknown>(filePath)) : undefined;
-  const { emit, modeSource } = resolveEmitDecision(
-    { emitir: pickBoolean(options.emitir), previsualizar: pickBoolean(options.previsualizar) },
+  const { emit, source: modeSource } = resolveEmitDecision({
+    bothFlagsMessage: 'Usá `--emitir` o `--previsualizar`, no los dos.',
+    defaultEmit: defaults.defaultEmit,
     file,
-    defaults,
-  );
+    flags: { emitir: pickBoolean(options.emitir), previsualizar: pickBoolean(options.previsualizar) },
+  });
   const destination =
     pickString(options.paisDestino, file?.paisDestino) ?? pickNumber(options.paisDestino, file?.paisDestino);
   const currency = pickString(options.moneda, options.mda, file?.codigoMoneda);
-  const exportPdf = pickBoolean(options.exportarPdf, options.pdf) === true;
-  const skipPdf = pickBoolean(options.sinPdf) === true;
-
-  if (exportPdf && skipPdf) {
-    throw new InputValidationError('Usá `--exportar-pdf` o `--sin-pdf`, pero no ambos a la vez.');
-  }
-
   // Igual que en A, B y C: los flags ganan y, sin ellos, vale `"pdf"` del archivo.
-  const pdf = exportPdf ? true : skipPdf ? false : file?.pdf;
+  const pdf = resolvePdfFlag({
+    exportPdf: pickBoolean(options.exportarPdf, options.pdf) === true,
+    filePdf: file?.pdf,
+    skipPdf: pickBoolean(options.sinPdf) === true,
+  });
   const voucherKind = defaults.voucherKind ?? EXPORT_VOUCHER_KIND;
   // Las fechas relativas (`hoy`, `+10`...) se resuelven aca, para flags y `--cargar`. En la E todas son de un dia.
   const now = new Date();
