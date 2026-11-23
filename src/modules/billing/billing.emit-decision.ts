@@ -9,7 +9,7 @@ export interface EmitDecision {
 }
 
 /** Lo que pide un nivel: `true` en `emitir` o `previsualizar`, o nada (`undefined`). */
-export interface EmitLevel {
+interface EmitLevel {
   readonly emitir?: boolean;
   readonly previsualizar?: boolean;
 }
