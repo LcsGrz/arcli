@@ -301,6 +301,8 @@ function exportSteps(
           {
             help: 'Elegí una o escribí otra, de hasta 50 caracteres.',
             parse: (text) => text,
+            // Texto libre: "Transferencia" va tal cual, no como "Transferencia Internacional".
+            preferTyped: true,
             previous: previous?.paymentTerms,
             validate: validateExportText('paymentTerms', 'La forma de pago'),
           },

@@ -2,11 +2,13 @@ import { PassThrough } from 'node:stream';
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, onTestFinished, vi } from 'vitest';
 
 import type { ExportActivity } from '../../../modules/export/export.types';
+import { getConfigField } from '../../../modules/interactive/config-fields';
 import { fieldLens } from '../../../modules/interactive/steps/lens';
 import { BACK, stepMemo } from '../../../modules/interactive/wizard';
 import { stripAnsi } from '../../../ui';
+import { configFieldLists } from '../config-lists';
 import { chooseOrTypeStep, type ChooseOrTypeStepOptions, type FilterListRow } from '../prompts';
-import { activityStep } from '../steps/export';
+import { activityRows, activityStep } from '../steps/export';
 
 /**
  * `chooseOrTypeStep` (TUI-35) de verdad: una lista que se filtra escribiendo, donde tambien se puede usar lo escrito.
@@ -395,5 +397,93 @@ describe('la actividad de WSFEX con la tabla de verdad: códigos y descripciones
 
     expect(frames[0]).toMatch(/❯ Sin actividad/i);
     expect(answer).toEqual({ activity: undefined });
+  });
+});
+
+describe('chooseOrTypeStep: lo que arranca escrito y lo escrito en el texto libre', () => {
+  const { rows: activityTable } = activityRows(NESTED_ACTIVITIES);
+
+  // Un `previous` que no es una fila (6201, contenido en 6201000 y 620100) arranca escrito con "Usar lo escrito"
+  // marcada: Enter lo deja, no elige la primera actividad que lo contiene. Es la actividad guardada en la config.
+  it('con un valor anterior que no es una fila, Enter usa lo escrito y no la primera fila que lo contiene', async () => {
+    const { answer, frames } = await run({ parse: Number, previous: 6201 }, [ENTER], activityTable);
+
+    expect(lastDraw(frames[0])).toMatch(/❯ Usar lo escrito: 6201/);
+    expect(answer).toBe(6201);
+  });
+
+  const PAYMENT_TERMS: ReadonlyArray<FilterListRow<string>> = [
+    { label: 'Transferencia Internacional', value: 'Transferencia Internacional' },
+    { label: 'Pago anticipado', value: 'Pago anticipado' },
+  ];
+
+  // TUI-26: en el texto libre con sugerencias, lo escrito que no es exactamente una sugerencia gana.
+  it('con `preferTyped`, "Transferencia" + Enter usa lo escrito aunque una sugerencia lo contenga', async () => {
+    const { answer, frames } = await run(
+      { parse: (text) => text, preferTyped: true },
+      typed('Transferencia'),
+      PAYMENT_TERMS,
+    );
+    const beforeEnter = lastDraw(frames.at(-2));
+
+    // La sugerencia que lo contiene se ve, sin marcar; marcada, la de lo escrito.
+    expect(beforeEnter).toMatch(/^ {2}Transferencia Internacional$/m);
+    expect(beforeEnter).toMatch(/❯ Usar lo escrito: Transferenci/);
+    expect(answer).toBe('Transferencia');
+  });
+
+  it('con `preferTyped`, la sugerencia sigue a mano con las flechas', async () => {
+    const { answer } = await run(
+      { parse: (text) => text, preferTyped: true },
+      [...'Transferencia', '\u001B[A', ENTER],
+      PAYMENT_TERMS,
+    );
+
+    expect(answer).toBe('Transferencia Internacional');
+  });
+
+  // En una tabla o un código, sin `preferTyped`, sigue ganando la primera fila que coincide.
+  it('sin `preferTyped`, "Transferencia" + Enter elige la primera fila que coincide', async () => {
+    const { answer } = await run({ parse: (text) => text }, typed('Transferencia'), PAYMENT_TERMS);
+
+    expect(answer).toBe('Transferencia Internacional');
+  });
+});
+
+describe('la actividad de WSFEX sin tabla', () => {
+  // "actividad" es femenino: la pregunta de texto dice "(Enter para no informarla)", no "(Enter para omitirlo)".
+  it('se pregunta como texto con "(Enter para no informarla)" y Enter la deja sin informar', async () => {
+    const step = activityStep<{ readonly activity?: number }>({
+      activities: async () => [],
+      activity: fieldLens('activity'),
+      skip: () => false,
+    });
+    const { answer } = await press(step.run({}, { memo: stepMemo(new Map(), 'actividad') }), [ENTER]);
+
+    expect(screen().replace(/\s+/g, ' ')).toContain('(Enter para no informarla)');
+    expect(screen()).not.toContain('omitirlo');
+    expect(answer).toEqual({ activity: undefined });
+  });
+});
+
+describe('la moneda de la config con las filas de verdad (TUI-39)', () => {
+  /** Las filas de "Moneda" de "Modificar configuración", con su lista real. */
+  async function currencyRows(): Promise<ReadonlyArray<FilterListRow<string>>> {
+    const list = await configFieldLists().of(getConfigField('moneda'));
+
+    return list?.rows ?? [];
+  }
+
+  // `dol` y `usd` son palabras clave exactas de DOL; "pesos" está en varias monedas y llega a la primera, PES.
+  it.each([
+    ['pes', 'PES'],
+    ['dol', 'DOL'],
+    ['usd', 'DOL'],
+    ['pesos', 'PES'],
+    ['060', '060'],
+  ])('"%s" + Enter elige %s', async (text, expected) => {
+    const { answer } = await run({ parse: (value) => value }, typed(text), await currencyRows());
+
+    expect(answer).toBe(expected);
   });
 });

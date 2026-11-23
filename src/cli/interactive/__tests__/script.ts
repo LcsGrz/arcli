@@ -4,7 +4,7 @@ import { vi } from 'vitest';
 import type { RowEdits } from '../../../modules/interactive/row-marks';
 import { BACK, type Back } from '../../../modules/interactive/wizard';
 import type { RowActionsListRow } from '../../../ui';
-import { filterRows, sameSearch } from '../filter-list';
+import { filterRows, isExactRow, sameSearch } from '../filter-list';
 import type {
   Choice,
   ChooseOrTypeStepOptions,
@@ -90,15 +90,12 @@ export function chooseOrTypeInitialTerm<T>(
   return previous !== undefined && !rows.some((row) => row.value === previous) ? String(previous) : '';
 }
 
-/** Si lo escrito es exactamente la fila (su texto, lo que deja o sus palabras clave), como `filterList`. */
-function isExactChoice<T>(row: FilterListRow<T>, term: string): boolean {
-  return [row.label, row.short, row.keywords].some((text) => text !== undefined && sameSearch(text, term));
-}
-
 /**
  * Enter en `chooseOrTypeStep` con `term` en el filtro, como el componente: la primera fila que coincide (con la misma
  * busqueda que `filterList`, y en una opcional primero la de `emptyLabel`, que es "sin valor") o, si ninguna, lo
- * escrito validado y convertido ("Usar lo escrito"). Vacio, la marcada: la de `previous` o, si no, la primera (en una
+ * escrito validado y convertido ("Usar lo escrito"). Lo escrito que no es exactamente una fila va como "Usar lo escrito"
+ * si la pregunta lo prefiere (`preferTyped`) o si arranco escrito (`initial`, un `previous` que no es una fila), como
+ * el componente, que en esos casos marca esa fila. Vacio, la marcada: la de `previous` o, si no, la primera (en una
  * opcional, la de "sin valor"). Sin filas es una pregunta de texto: vacio es "sin valor" si es opcional o lo que diga
  * `validate('')`.
  */
@@ -106,6 +103,7 @@ export function enterOnChooseOrType<T>(
   rows: ReadonlyArray<FilterListRow<T>>,
   options: ChooseOrTypeStepOptions<T>,
   term: string,
+  initial = false,
 ): { readonly error: string } | { readonly value: T | undefined } {
   const listed = rows.length > 0;
 
@@ -133,7 +131,8 @@ export function enterOnChooseOrType<T>(
 
   const matches = term.trim() ? filterRows(rows, term) : [];
   // Como el componente: la fila que es exactamente lo escrito gana a la primera que coincide.
-  const row = matches.find((item) => isExactChoice(item, term)) ?? matches[0];
+  const exact = matches.find((item) => isExactRow(item, term));
+  const row = exact ?? (options.preferTyped || initial ? undefined : matches[0]);
 
   if (row) {
     return { value: row.value };
@@ -338,7 +337,7 @@ export function createScript(steps: ReadonlyArray<readonly [RegExp, ScriptedAnsw
 
       const answer = typeof scripted === 'string' ? scripted : scripted.answer;
       const term = answer === '' ? chooseOrTypeInitialTerm(rows, options) : answer;
-      const result = enterOnChooseOrType(rows, options, term);
+      const result = enterOnChooseOrType(rows, options, term, answer === '' && term !== '');
 
       if ('error' in result) {
         throw new Error(`"${term}" no cierra "${message}": ${result.error}`);

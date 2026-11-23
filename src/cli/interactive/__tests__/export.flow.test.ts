@@ -370,8 +370,8 @@ describe('runExportFlow', () => {
           rejecting('Consultoría', ['a'.repeat(4001), /más de 4\.000 caracteres.*error 1770/]),
         ],
         ...singleExportItem('100').slice(1),
-        // Un texto que no está entre las sugerencias de la forma de pago (TUI-26): se usa lo escrito.
-        [/Forma de pago/, rejecting('Según contrato 42', ['a'.repeat(51), /50 caracteres/])],
+        // Contenido en la sugerencia "Transferencia Internacional": en el texto libre lo escrito gana (TUI-26).
+        [/Forma de pago/, rejecting('Transferencia', ['a'.repeat(51), /50 caracteres/])],
         [/Fecha de pago/, ''],
         [/Agregamos algún opcional/, ['Observaciones']],
         [/^Observaciones \(/, rejecting('Pedido 42', ['a'.repeat(1001), /más de 1\.000 caracteres.*error 1665/])],
@@ -383,7 +383,7 @@ describe('runExportFlow', () => {
 
       expect(gateway.authorize).not.toHaveBeenCalled();
       expect(printed()).toContain(
-        "--descripcion 'Consultoría' --moneda PES --forma-pago 'Según contrato 42' --observaciones 'Pedido 42'",
+        "--descripcion 'Consultoría' --moneda PES --forma-pago Transferencia --observaciones 'Pedido 42'",
       );
     });
 

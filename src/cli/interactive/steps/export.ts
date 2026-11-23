@@ -132,12 +132,14 @@ export function activityStep<S>(def: ActivityStepDef<S>): WizardStep<S> {
       const activities = await def.activities();
       const { header, rows } = activityRows(activities);
       const answer = await chooseOrTypeStep<number>(
-        rows.length > 0 ? 'Actividad de WSFEX:' : 'Actividad de WSFEX (ARCA no devolvió la tabla), por ejemplo 620100:',
+        rows.length > 0 ? 'Actividad de WSFEX:' : 'Actividad de WSFEX, por ejemplo 620100:',
         rows,
         {
           emptyLabel: 'Sin actividad (no se informa)',
           header,
           help: ACTIVITY_HELP,
+          // Sin tabla es una pregunta de texto: "actividad" es femenino, no el "Enter para omitirlo" de siempre.
+          hint: '(Enter para no informarla)',
           optional: true,
           parse: (text) => parseStrictInteger(text) as number,
           previous: typed,

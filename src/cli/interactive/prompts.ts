@@ -634,12 +634,23 @@ export interface ChooseOrTypeStepOptions<T> {
   /** Fila de encabezado fija arriba de la lista (CÓDIGO, PAÍS…), como `chooseFromFilterList`. */
   readonly header?: string;
   readonly help?: string;
+  /**
+   * Lo que aclara la pregunta de texto cuando no hay filas (ARCA no devolvio la tabla), por ejemplo "(Enter para no
+   * informarla)". En una opcional, por defecto `SKIP_HINT`.
+   */
+  readonly hint?: string;
   /** Se puede dejar sin valor: suma la fila de `emptyLabel`. Si no, Enter con el filtro vacio elige la primera fila. */
   readonly optional?: boolean;
   /** Por defecto, las filas que entran en la terminal (`fitPageSize`). */
   readonly pageSize?: number;
   /** Convierte lo escrito (ya validado) en el valor del paso, cuando no se elige una fila. */
   readonly parse: (text: string) => T;
+  /**
+   * Texto libre con sugerencias (la forma de pago, la condicion de venta): lo escrito que no es exactamente una fila se
+   * usa tal cual con Enter ("Usar lo escrito" arranca marcada), y las sugerencias que coinciden quedan para las
+   * flechas. Sin esto, en una tabla o un codigo (pais, actividad, moneda), Enter elige la primera que coincide.
+   */
+  readonly preferTyped?: boolean;
   /** Lo respondido antes: si es una fila, arranca marcada; si no, arranca escrito (`String(previous)`). */
   readonly previous?: T;
   /**
@@ -670,7 +681,7 @@ function typedRowLabel(term: string): string {
  */
 async function typeWithoutRows<T>(message: string, options: ChooseOrTypeStepOptions<T>): Promise<Back | T | undefined> {
   const answer = await askTextStep(message, {
-    hint: options.optional ? SKIP_HINT : undefined,
+    hint: options.hint ?? (options.optional ? SKIP_HINT : undefined),
     previousAnswer: options.previous === undefined ? undefined : String(options.previous),
     validate: (text) => (options.optional && !text.trim() ? true : (options.validate?.(text) ?? true)),
   });
@@ -685,8 +696,9 @@ async function typeWithoutRows<T>(message: string, options: ChooseOrTypeStepOpti
 /**
  * Elegir de una lista que se filtra escribiendo o usar lo escrito (TUI-35): con algo escrito que no es exactamente una
  * fila, debajo de las que coinciden aparece "Usar lo escrito: …", que valida con `validate` y convierte con `parse`.
- * Enter elige la marcada: la primera que coincide con lo escrito o, con el filtro vacio, la de `previous` o la primera
- * (en una opcional, la de `emptyLabel`, que devuelve `undefined`). Con un `previous` que no es una fila, arranca escrito.
+ * Enter elige la marcada: la fila que es exactamente lo escrito; si no hay, la primera que coincide (o lo escrito, con
+ * `preferTyped`); con el filtro vacio, la de `previous` o la primera (en una opcional, la de `emptyLabel`, que devuelve
+ * `undefined`). Con un `previous` que no es una fila, arranca escrito y marcado "Usar lo escrito".
  * Sin filas, es una pregunta de texto. Esc y "Volver" vuelven al paso anterior.
  */
 export function chooseOrTypeStep<T>(
@@ -737,6 +749,7 @@ export async function chooseOrTypeStep<T>(
           theme: STEP_THEME,
           typed: {
             label: typedRowLabel,
+            preferred: options.preferTyped,
             validate: options.validate,
             value: (term) => ({ text: term.trim() }),
           },
