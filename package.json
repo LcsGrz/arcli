@@ -50,7 +50,7 @@
     "lint:eslint:fix": "eslint --fix 'src/**/*.{js,jsx,ts,tsx,json}' 'site/scripts/**/*.mjs' 'site/src/**/*.ts' 'scripts/**/*.{ts,mjs}'",
     "lint:prettier": "prettier --check 'src/**/*.{js,jsx,ts,tsx,json,md}' 'docs/**/*.md' 'scripts/**/*.{ts,mts,mjs}' site/astro.config.mjs AGENTS.md README.md package.json",
     "lint:prettier:fix": "prettier --write 'src/**/*.{js,jsx,ts,tsx,json,md}' 'docs/**/*.md' 'scripts/**/*.{ts,mts,mjs}' site/astro.config.mjs AGENTS.md README.md package.json",
-    "lint:guardrails": "knip --no-progress && jscpd --silent && depcruise src --validate --output-type err && lockfile-lint --path yarn.lock --type yarn --allowed-hosts npm yarn --validate-https",
+    "lint:guardrails": "knip --no-progress && knip --no-progress --production --include exports,types --tags=-internal && jscpd --silent && depcruise src --validate --output-type err && lockfile-lint --path yarn.lock --type yarn --allowed-hosts npm yarn --validate-https",
     "open-source:check": "yarn typecheck && yarn test:coverage && yarn build && publint --strict --pack npm && yarn test:e2e && yarn pack:check",
     "prepack": "yarn build",
     "pack:check": "node ./scripts/check-package.mjs",

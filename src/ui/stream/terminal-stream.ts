@@ -18,6 +18,8 @@ const COLOR_SEQUENCE = /^\u001B\[[0-9;]*m$/;
  * Lo que se muestra incluye textos de afuera (observaciones de ARCA, datos del JSON, errores de npm). Solo pasan
  * los colores (SGR), saltos de linea, tabs y los links que armo `hyperlink`: un texto no puede mover el cursor,
  * borrar la pantalla, pisar una linea para ocultar, por ejemplo, el aviso de PRODUCCION, ni disfrazar un link.
+ *
+ * @internal Exportado para los tests.
  */
 export function sanitizeTerminalText(content: string): string {
   return content.replace(TERMINAL_SEQUENCES, (sequence) =>
@@ -25,6 +27,7 @@ export function sanitizeTerminalText(content: string): string {
   );
 }
 
+/** @internal Exportado para los tests. */
 export function formatTerminalOutput(content: string, options: TerminalStreamOptions = {}): string {
   const target = options.target ?? 'stdout';
   const safeContent = sanitizeTerminalText(content);

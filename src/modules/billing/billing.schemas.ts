@@ -35,6 +35,7 @@ const billingConceptSchema = z.preprocess((value) => {
 
   return BILLING_CONCEPT_ALIASES[normalizedValue as keyof typeof BILLING_CONCEPT_ALIASES] ?? value;
 }, billingConceptValueSchema);
+/** @internal Exportado para los tests. */
 export const billingDocumentTypeSchema = z.enum(['consumidor-final', 'cuil', 'cuit', 'dni']);
 export const billingIvaConditionSchema = z.enum([
   'cliente-del-exterior',

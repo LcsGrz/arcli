@@ -350,6 +350,8 @@ function wrapLabel(label: string, indent: string, width: number): string[] {
  * Si la linea es una fila etiqueta/valor, el valor sigue debajo de su propia columna en vez de
  * pegarse a la etiqueta, asi la tabla no se desarma en terminales angostas. Las columnas de `stackedColumns` van
  * con la etiqueta en una linea y el valor debajo, aunque la fila entre (ver `wrapPanelLines`).
+ *
+ * @internal Exportado para los tests.
  */
 export function wrapIndentedPlainText(
   value: string,

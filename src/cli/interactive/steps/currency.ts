@@ -22,6 +22,8 @@ function currencyChoiceValue(options: { readonly currencyCode?: string } | undef
 /**
  * Como se cobra un comprobante en moneda extranjera: en pesos (la cotizacion arranca con la de la config o la oficial de
  * ARCA y se puede cambiar por la acordada) o en esa moneda (se usa la oficial de ARCA, `--misma-moneda`). Devuelve si es en esa moneda.
+ *
+ * @internal Exportado para los tests.
  */
 export async function askPaymentCurrency(currencyCode: string, previous?: boolean): Promise<Back | boolean> {
   const payment = await chooseStep(

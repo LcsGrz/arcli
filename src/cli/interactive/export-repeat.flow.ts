@@ -41,7 +41,11 @@ import {
 } from './steps/export';
 import { exportItemsStep } from './steps/export-items';
 
-/** Las tablas de WSFEX para el destino de la factura, su CUIT y la actividad, como en "Emitir factura". */
+/**
+ * Las tablas de WSFEX para el destino de la factura, su CUIT y la actividad, como en "Emitir factura".
+ *
+ * @internal Exportado para los tests.
+ */
 export type ExportRepeatTables = ExportTables;
 
 /** El CUIT que ARCA publica para el destino, o `undefined` si no tiene. */
@@ -62,6 +66,8 @@ function optionsOf(copy: ExportInvoiceCopy['input']): ExportOptions {
  * Pasos para repetir una factura E: se elige una de las ultimas y se copian cliente, destino, moneda, incoterm e
  * items (el editor arranca con ellos y el total es su suma). Las fechas son nuevas, la cotizacion es la de hoy, y se
  * preguntan los permisos de embarque y la fecha de pago, que son de cada operacion.
+ *
+ * @internal Exportado para los tests.
  */
 export function exportRepeatSteps(
   session: InteractiveSession,

@@ -59,6 +59,8 @@ const CONFIG_KEY_ALIASES: Record<ConfigPublicKey, CanonicalConfigKey> = {
 /**
  * Claves deprecadas que `config establecer` y `config eliminar` todavia aceptan, con la clave que las reemplaza. No
  * son claves publicas: no salen en la ayuda, el autocompletado ni `arcli config`. Se sacan en la 3.0.0.
+ *
+ * @internal Exportado para los tests.
  */
 export const DEPRECATED_CONFIG_KEYS: Readonly<
   Record<string, { readonly replacement: ConfigPublicKey; readonly warning: string }>
@@ -146,6 +148,8 @@ function defaultTicketPathFor(configPath: string): string {
 /**
  * Dónde quedarían el config.json y la carpeta de tickets por defecto, sin leer ni escribir el archivo. Lo usa el
  * setup de los tests para frenar la suite si apuntan fuera de la carpeta temporal.
+ *
+ * @internal Exportado para los tests.
  */
 export function resolveConfigLocation(options: ConfigServiceOptions = {}): {
   readonly configPath: string;

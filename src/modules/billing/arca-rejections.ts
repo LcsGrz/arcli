@@ -16,6 +16,7 @@ export interface ArcaRejection {
   readonly todo: string;
 }
 
+/** @internal Exportado para los tests. */
 export const ARCA_REJECTIONS: readonly ArcaRejection[] = [
   {
     codes: [10005, 11002],

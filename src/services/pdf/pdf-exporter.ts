@@ -15,6 +15,7 @@ import { resolvePdfIssuer } from '../../modules/pdf/pdf-issuer';
 import { escapeHtmlStrings } from './escape-html';
 import type { PdfRenderer } from './pdf-plugin';
 
+/** @internal Exportado para los tests. */
 export const TESTING_FOOTER = 'COMPROBANTE DE PRUEBA - SIN VALIDEZ FISCAL';
 
 export function toPdfFailure(error: unknown): Extract<PdfOutcome, { error: unknown }> {

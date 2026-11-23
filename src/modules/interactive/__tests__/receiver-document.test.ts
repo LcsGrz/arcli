@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  CONSUMER_DOCUMENT_NUMBER,
-  receiverDocumentNumber,
-  type ReceiverFromPadron,
-  receiverInputFields,
-} from '../receiver-document';
+import { CONSUMER_DOCUMENT_NUMBER } from '../../billing/arca-codes';
+import { receiverDocumentNumber, type ReceiverFromPadron, receiverInputFields } from '../receiver-document';
 
 const FROM_PADRON: ReceiverFromPadron = {
   address: 'Av. Siempre Viva 742',

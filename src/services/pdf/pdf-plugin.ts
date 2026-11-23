@@ -9,7 +9,11 @@ import type { InvoicePdfData, InvoicePdfOptions } from '../../modules/pdf/pdf.ty
 import { findDownloadedBrowser, findSystemBrowser } from './pdf-browser';
 
 const PDF_PLUGIN_PACKAGE = '@arcasdk/pdf';
-/** Version probada con arcli. Se sube a mano despues de revisar los PDFs que genera. */
+/**
+ * Version probada con arcli. Se sube a mano despues de revisar los PDFs que genera.
+ *
+ * @internal Exportado para los tests.
+ */
 export const PDF_PLUGIN_VERSION = '0.2.1';
 
 export type PdfBrowserSource = 'config' | 'descargado' | 'entorno' | 'sistema';
@@ -37,8 +41,13 @@ export type ProcessRunner = (
   options: { readonly cwd: string; readonly env: NodeJS.ProcessEnv; readonly timeoutMs: number },
 ) => Promise<ProcessResult>;
 
-/** Limites de la instalacion: con un proxy colgado, npm o la descarga no terminan nunca. */
+/**
+ * Limites de la instalacion: con un proxy colgado, npm o la descarga no terminan nunca.
+ *
+ * @internal Exportado para los tests.
+ */
 export const NPM_INSTALL_TIMEOUT_MS = 5 * 60_000;
+/** @internal Exportado para los tests. */
 export const BROWSER_DOWNLOAD_TIMEOUT_MS = 15 * 60_000;
 
 export interface PdfRenderer {
@@ -61,6 +70,7 @@ export interface PdfPluginOptions {
   readonly runProcess?: ProcessRunner;
 }
 
+/** @internal Exportado para los tests. */
 export const runProcessWithSpawn: ProcessRunner = (command, args, options) =>
   new Promise((resolve) => {
     // En Windows npm es un .cmd y necesita shell. Solo ese caso: con shell, una ruta con espacios (node.exe en

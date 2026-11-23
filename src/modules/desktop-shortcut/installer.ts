@@ -95,7 +95,11 @@ function runPowerShell(
   ]);
 }
 
-/** El escritorio de quien usa la maquina. Si el sistema no lo informa, el `Desktop` del usuario. */
+/**
+ * El escritorio de quien usa la maquina. Si el sistema no lo informa, el `Desktop` del usuario.
+ *
+ * @internal Exportado para los tests.
+ */
 export function resolveDesktopFolder(environment: DesktopShortcutEnvironment): string {
   const reported =
     environment.platform === 'win32'

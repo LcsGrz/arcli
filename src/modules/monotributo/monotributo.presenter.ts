@@ -375,7 +375,11 @@ const BLOCK_TITLES: Readonly<Record<MonotributoBlock, string>> = {
   limites: 'Límites anuales',
 };
 
-/** La linea de arriba de cada bloque: en cual estas y donde esta el otro. */
+/**
+ * La linea de arriba de cada bloque: en cual estas y donde esta el otro.
+ *
+ * @internal Exportado para los tests.
+ */
 export function formatMonotributoBlockPosition(
   block: MonotributoBlock,
   navigation: MonotributoBlockNavigation,

@@ -57,6 +57,8 @@ export function creditNoteOverTotalHint(associatedLabel: string, total: number, 
  * Propia: ARCA solo observa una NC que supera al asociado (10237, WSFEv1 v4.7) y la aprueba igual; en WSFEX no hay
  * control. El tope de la NC, con el mismo criterio que las notas E: solo si van en la misma moneda, porque en otra moneda los
  * totales no se comparan.
+ *
+ * @internal Exportado para los tests.
  */
 export function assertCreditNoteWithinAssociated(options: {
   readonly associated: Pick<IssuedVoucher, 'currency' | 'total'>;

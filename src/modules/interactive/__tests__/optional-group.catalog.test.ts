@@ -7,7 +7,6 @@ import {
   type OptionalGroupMemo,
   requiredOptional,
 } from '../optional-group';
-import { requiredField } from '../required-field';
 import { BACK, type Back, runWizard, type WizardStep } from '../wizard';
 
 interface Values {
@@ -402,39 +401,5 @@ describe('requiredOptional', () => {
 
     // Elegido en la seleccion con un contexto; con otro, lo respondido se olvido y se pide como obligatorio.
     expect(asked).toEqual(['a0', 'a0']);
-  });
-});
-
-describe('requiredField', () => {
-  it('las preguntas internas guardan su memo entre corridas del paso', async () => {
-    const memos: unknown[] = [];
-    const answers: Array<'v' | typeof BACK> = [BACK, 'v'];
-    const step = requiredField<Parent, Values, Parent>({
-      answered: () => false,
-      context: (state) => state,
-      field: {
-        available: () => true,
-        key: 'a',
-        required: () => ({ reason: 'hace falta' }),
-        steps: () => [
-          {
-            name: 'items',
-            run: async (_state, { memo }) => {
-              memos.push(memo.get());
-              memo.set('a medio cargar');
-
-              return answers.shift() === BACK ? BACK : { a: 'v' };
-            },
-          },
-        ],
-      },
-      name: 'obligatorio',
-      notice: () => {},
-      read: (state) => state.values,
-      write: (values) => ({ values }),
-    });
-
-    expect((await runWizard([scripted('antes', []), step], INITIAL))?.values).toEqual({ a: 'v', b: 'b0' });
-    expect(memos).toEqual([undefined, 'a medio cargar']);
   });
 });

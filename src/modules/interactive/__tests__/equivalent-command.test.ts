@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import { describe, expect, it } from 'vitest';
 
-import { parseBillingCommandInput, registerBillingOptions } from '../../../cli/commands/billing.command.parser';
+import { parseBillingCommandPlan, registerBillingOptions } from '../../../cli/commands/billing.command.parser';
 import { registerGlobalOptions } from '../../../cli/global-options';
 import { type BillingCommandInput, billingCommandSchema } from '../../billing/billing.schemas';
 import type { VoucherShortcut } from '../../billing/billing.types';
@@ -44,7 +44,7 @@ function parseCommand(command: string, shortcut: VoucherShortcut): BillingComman
   program.exitOverride();
   program.parse(shellWords(command).slice(2), { from: 'user' });
 
-  return parseBillingCommandInput(program, shortcut);
+  return parseBillingCommandPlan(program, shortcut).inputs[0] as BillingCommandInput;
 }
 
 function input(overrides: Record<string, unknown>): BillingCommandInput {

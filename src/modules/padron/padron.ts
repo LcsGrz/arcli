@@ -2,7 +2,11 @@ import { AppError } from '../../lib/errors/app-error';
 import type { BillingIvaCondition } from '../billing/billing.schemas';
 import { type ArcliEnvironment, formatEnvironmentLabel } from '../config/config.schemas';
 
-/** Impuestos del padron que definen la condicion frente al IVA. */
+/**
+ * Impuestos del padron que definen la condicion frente al IVA.
+ *
+ * @internal Exportado para los tests.
+ */
 export const PADRON_TAX_IDS = {
   iva: 30,
   ivaExento: 32,

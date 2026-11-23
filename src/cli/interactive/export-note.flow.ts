@@ -90,6 +90,8 @@ function validateAssociated(
  * Pasos de la nota E sobre `associatedKind` (la factura E u otra nota E, elegido en el selector de comprobantes): el
  * comprobante que ajusta (se busca en ARCA y de ahi salen cliente, destino y moneda), los items (arrancan con los del
  * asociado), en bienes los permisos de embarque, y los opcionales. Cada uno se puede deshacer con "Volver".
+ *
+ * @internal Exportado para los tests.
  */
 export function exportNoteSteps(
   kind: 'credito' | 'debito',

@@ -123,7 +123,11 @@ function readPersonType(value: unknown): Taxpayer['personType'] {
   return type === 'FISICA' ? 'fisica' : type === 'JURIDICA' ? 'juridica' : null;
 }
 
-/** Arma un `Taxpayer` con la respuesta de `getTaxpayerDetails`. */
+/**
+ * Arma un `Taxpayer` con la respuesta de `getTaxpayerDetails`.
+ *
+ * @internal Exportado para los tests.
+ */
 export function mapTaxpayerDetails(cuit: number, raw: unknown): Taxpayer {
   const details = asRecord(raw) ?? {};
   const general = asRecord(details.datosGenerales);

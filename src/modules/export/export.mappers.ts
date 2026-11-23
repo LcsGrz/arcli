@@ -542,7 +542,11 @@ export function assertExportClientIdentification(options: {
   }
 }
 
-/** Los textos de la E con su largo maximo en WSFEX v3.1.0: el codigo de control, si el manual lo da, y el flag. */
+/**
+ * Los textos de la E con su largo maximo en WSFEX v3.1.0: el codigo de control, si el manual lo da, y el flag.
+ *
+ * @internal Exportado para los tests.
+ */
 export const EXPORT_TEXT_LIMITS = {
   clientAddress: { code: 1661, flag: '--domicilio-cliente', label: 'El domicilio del cliente', max: 300 },
   clientName: { code: 1651, flag: '--cliente', label: 'El nombre del cliente', max: 200 },

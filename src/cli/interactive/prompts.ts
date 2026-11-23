@@ -471,6 +471,8 @@ function describeRowEdits(edits: RowEdits): string {
  * Lo que la lista con acciones suma a una lista comun, en el peor caso (9): la linea en blanco y el boton de agregar,
  * la linea en blanco despues de "Volver" y la de antes de la ayuda, el detalle de la fila partido en dos lineas en una
  * terminal angosta, lo marcado, el aviso y el titulo partido en dos lineas. Asi "Volver" no queda fuera de pantalla.
+ *
+ * @internal Exportado para los tests.
  */
 export const ROW_ACTIONS_EXTRA_LINES = 9;
 

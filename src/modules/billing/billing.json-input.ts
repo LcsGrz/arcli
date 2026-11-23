@@ -38,6 +38,7 @@ const ivaRateAmountJsonSchema = z
   })
   .strict();
 
+/** @internal Exportado para los tests. */
 export const billingJsonInputSchema = z
   .object({
     aliasCbu: z.string().optional(),

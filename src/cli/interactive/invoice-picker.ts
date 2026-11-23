@@ -163,6 +163,8 @@ async function askVoucherByNumber<T extends { readonly number: number }, M>(
 /**
  * Una factura que ARCA no tiene, en un punto de venta que no es de web service: el asistente no puede copiar sus
  * datos, asi que los pregunta (ver `noteSteps`).
+ *
+ * @internal Exportado para los tests.
  */
 export function missingNonWebServiceInvoiceNotice(
   voucherKind: VoucherKindDefinition,

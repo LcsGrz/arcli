@@ -115,7 +115,11 @@ export async function requirePointOfSale(session: InteractiveSession): Promise<S
   };
 }
 
-/** La segunda confirmacion, en produccion. Los botones de "¿Emitimos?" estan en `emission-prompt`. */
+/**
+ * La segunda confirmacion, en produccion. Los botones de "¿Emitimos?" estan en `emission-prompt`.
+ *
+ * @internal Exportado para los tests.
+ */
 export const EMIT_IN_PRODUCTION_LABEL = 'Sí, emitir en producción';
 const PRODUCTION_CONFIRMATION = 'Vas a emitir un comprobante real en PRODUCCIÓN. ¿Confirmás?';
 

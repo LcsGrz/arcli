@@ -118,7 +118,11 @@ export async function listRecentVouchers(
   return listVouchersFrom(gateway, pointOfSale, voucherType, lastNumber, options);
 }
 
-/** Comprobantes desde `fromNumber` hacia atras (incluido), para paginar sin volver a pedir el ultimo numero. */
+/**
+ * Comprobantes desde `fromNumber` hacia atras (incluido), para paginar sin volver a pedir el ultimo numero.
+ *
+ * @internal Exportado para los tests.
+ */
 export async function listVouchersFrom(
   gateway: VoucherHistoryGateway,
   pointOfSale: number,

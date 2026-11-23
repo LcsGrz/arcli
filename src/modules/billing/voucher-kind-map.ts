@@ -226,10 +226,6 @@ export function getVoucherKindByArcaType(arcaType: number): VoucherKindDefinitio
   );
 }
 
-export function isVoucherShortcut(value: string): value is VoucherShortcut {
-  return value in VOUCHER_KIND_MAP;
-}
-
 /*
  * Qué es cada comprobante, en un solo lugar: no compares `family` ni `letter` a mano. Reciben un comprobante o nada
  * (un estado del asistente sin elegir todavía) y, sin comprobante, responden que no. `voucher-families.test.ts`

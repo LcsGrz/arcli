@@ -27,6 +27,7 @@ function commandPath(program: Command, command: Command): string {
   return ['arcli', ...names].join(' ');
 }
 
+/** @internal Exportado para los tests. */
 export function formatIgnoredGlobalOptionsWarning(options: readonly string[], command: string): string {
   const flags = options.map((option) => `\`${option}\``).join(', ');
   const verb = options.length === 1 ? 'no aplica' : 'no aplican';

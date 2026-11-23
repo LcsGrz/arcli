@@ -64,6 +64,8 @@ async function chooseEnvironment(): Promise<ArcliEnvironment | Back> {
 /**
  * Pide el .crt, lo valida y lo configura. Si ya habia otro certificado en ese entorno, pregunta antes de reemplazarlo.
  * Un error (otro CUIT, vencido, otra clave) se muestra y vuelve: nada quedo a medias.
+ *
+ * @internal Exportado para los tests.
  */
 export async function runImportCertificate(): Promise<'importado' | Back> {
   const answer = await askTextStep('Ruta del .crt que bajaste de ARCA (podés arrastrarlo acá):', {

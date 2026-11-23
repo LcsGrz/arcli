@@ -44,6 +44,7 @@ const DOCUMENT_LABELS: Record<number, string> = {
   96: 'DNI',
 };
 
+/** @internal Exportado para los tests. */
 export function formatReceiver(voucher: IssuedVoucher): string {
   if (voucher.documentTypeCode === CONSUMER_DOCUMENT_TYPE_CODE) {
     return 'Consumidor final';

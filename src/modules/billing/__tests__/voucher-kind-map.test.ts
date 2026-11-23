@@ -4,7 +4,6 @@ import {
   getVoucherFamilyLetters,
   getVoucherKindByFamilyAndLetter,
   getVoucherKindByShortcut,
-  isVoucherShortcut,
   VOUCHER_FAMILIES,
   VOUCHER_KIND_MAP,
   VOUCHER_SHORTCUTS,
@@ -56,11 +55,6 @@ describe('voucher-kind-map', () => {
     expect(VOUCHER_KIND_MAP.nca.requiresAssociatedVoucher).toBe(true);
     expect(VOUCHER_KIND_MAP.ndea.requiresAssociatedVoucher).toBe(true);
     expect(VOUCHER_KIND_MAP.fa.requiresAssociatedVoucher).toBe(false);
-  });
-
-  it('recognizes valid shortcuts only', () => {
-    expect(isVoucherShortcut('fcea')).toBe(true);
-    expect(isVoucherShortcut('zzz')).toBe(false);
   });
 
   it('exposes the seven configured voucher families', () => {

@@ -3,7 +3,11 @@ import type { EmissionChoice, EmissionConfirmationPlan } from '../../modules/pdf
 
 import { chooseOne } from './prompts';
 
-/** Los botones de "¿Emitimos?": los mismos en los comandos con flags y en el asistente. */
+/**
+ * Los botones de "¿Emitimos?": los mismos en los comandos con flags y en el asistente.
+ *
+ * @internal Exportado para los tests.
+ */
 export const EMIT_NOW_LABEL = 'Sí, emitir ahora';
 const EMIT_WITH_PDF_LABEL = 'Sí, emitir y generar el PDF';
 export const DO_NOT_EMIT_LABEL = 'No, dejar sin emitir';

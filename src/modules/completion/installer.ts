@@ -44,7 +44,11 @@ export function detectShell(shellPath: string | undefined): CompletionShell | un
   return COMPLETION_SHELLS.find((shell) => shell === name);
 }
 
-/** Donde va el autocompletado: la linea en el rc de bash o zsh, o un archivo propio en fish. */
+/**
+ * Donde va el autocompletado: la linea en el rc de bash o zsh, o un archivo propio en fish.
+ *
+ * @internal Exportado para los tests.
+ */
 export function resolveCompletionPath(shell: CompletionShell, environment: CompletionEnvironment): string {
   if (shell === 'fish') {
     return join(environment.xdgConfigHome ?? join(environment.home, '.config'), 'fish', 'completions', 'arcli.fish');

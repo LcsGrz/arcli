@@ -7,6 +7,8 @@ const POWERSHELL_SINGLE_QUOTES = /['‘’‚‛]/g;
  * Comillas solo cuando hacen falta, para que un comando armado se pueda pegar tal cual. Son simples porque adentro
  * nada se expande (`!`, `$`, backtick): en bash, zsh y fish la `'` se escribe `'\''`; en Windows (PowerShell), `''`.
  * La plataforma se puede pasar para probar las dos sin depender del SO.
+ *
+ * @internal Exportado para los tests.
  */
 export function quoteShellArgument(value: string, platform: NodeJS.Platform = process.platform): string {
   if (platform === 'win32') {

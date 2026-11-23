@@ -40,6 +40,7 @@ function formatDaysRemaining(days: number): string {
   return days === 1 ? 'en 1 día' : `en ${days} días`;
 }
 
+/** @internal Exportado para los tests. */
 export function describeCertificateExpiry(
   expiry: CertificateExpiry,
   environment: ArcliEnvironment,

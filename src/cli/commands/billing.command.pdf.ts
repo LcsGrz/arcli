@@ -13,6 +13,7 @@ import { PdfPlugin, type PdfRenderer } from '../../services/pdf/pdf-plugin';
 import { confirm, isPromptCancellation } from '../interactive/prompts';
 import { startSpinner } from '../spinner';
 
+/** @internal Exportado para los tests. */
 export const PDF_ONLY_FLAGS_WARNING =
   '`--descripcion`, `--condicion-venta`, `--receptor-nombre` y `--receptor-domicilio` solo se usan en el PDF; no se generó ninguno.';
 
@@ -86,6 +87,8 @@ function joinWithAnd(parts: readonly string[]): string {
 /**
  * El aviso de los datos que solo van en el PDF cuando no se generó ninguno. Con flags es el de siempre; si alguno
  * vino del JSON de `--cargar`, nombra esas claves y no los flags.
+ *
+ * @internal Exportado para los tests.
  */
 export function pdfOnlyDataWarning(input: BillingCommandInput | undefined): string | undefined {
   const fields = pdfOnlyFields(input);

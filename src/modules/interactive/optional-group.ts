@@ -62,6 +62,8 @@ export interface OptionalGroupDef<S, K extends string, O, C> {
 /**
  * Memo del grupo, que comparte con `requiredOptional`: las respuestas internas (REV-68) y el memo de cada pregunta
  * interna (por ejemplo, los items de la E a medio cargar).
+ *
+ * @internal Exportado para los tests.
  */
 export interface OptionalGroupMemo<K, O> {
   readonly answers: WizardAnswers<O>;
@@ -213,6 +215,8 @@ function replay<O>(steps: ReadonlyArray<WizardStep<O>>, from: O, answers: Wizard
  * Lo que vale el grupo con lo marcado y lo respondido: `initial`, con los `owns` de cada opcional marcado, disponible y
  * completo (todas sus preguntas que aplican respondidas), en el orden del catalogo, y los `owns` de cada opcional no
  * disponible en `cleared`. Lo desmarcado o a medias queda como en `initial`.
+ *
+ * @internal Exportado para los tests.
  */
 export function composeOptionals<K extends string, O, C>(
   initial: O,

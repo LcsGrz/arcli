@@ -13,7 +13,7 @@ import { getVoucherKindByShortcut, VOUCHER_KIND_MAP } from '../../../modules/bil
 import type { ResolvedArcaRuntime } from '../../../services/arca/arca-context.resolver';
 import {
   type BillingCommandDefaults,
-  parseBillingCommandInput,
+  parseBillingCommandPlan,
   registerBillingOptions,
 } from '../billing.command.parser';
 
@@ -232,7 +232,14 @@ function runToPayload(args: readonly string[], shortcut: VoucherShortcut, now: D
   vi.setSystemTime(now);
 
   try {
-    const input = parseBillingCommandInput(createCommand(args), shortcut, DEFAULTS);
+    const plan = parseBillingCommandPlan(createCommand(args), shortcut, DEFAULTS);
+
+    // Un lote con algun item invalido no llega a ARCA: `prepareBatch` lo rechaza entero. Si no, va el primero.
+    if (plan.invalidItems.length > 0) {
+      return {};
+    }
+
+    const [input] = plan.inputs;
     const payload = new BillingService().buildVoucherPayload(input, RUNTIME);
 
     return { payload, totalAmount: input.totalAmount };
@@ -488,7 +495,10 @@ describe('billing por --cargar (propiedades)', () => {
           vi.setSystemTime(now);
 
           try {
-            parseBillingCommandInput(createCommand(['--cargar=lote.json']), 'fb', DEFAULTS);
+            const plan = parseBillingCommandPlan(createCommand(['--cargar=lote.json']), 'fb', DEFAULTS);
+
+            // Cada item queda como comprobante o como error con su indice: ninguno se pierde.
+            expect(plan.inputs.length + plan.invalidItems.length).toBe(plan.total);
           } catch (error) {
             expect(isControlledInputError(error)).toBe(true);
           }

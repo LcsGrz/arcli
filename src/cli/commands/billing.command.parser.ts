@@ -6,7 +6,7 @@ import { resolveRelativeDateInput } from '../../lib/dates/relative-date';
 import { InputValidationError } from '../../lib/errors/app-error';
 import { readJsonFile } from '../../lib/files/read-json-file';
 import { parseArgentineAmount } from '../../lib/numbers/argentine-amount';
-import { type BatchItemError, BatchValidationError, describeBatchItemError } from '../../modules/billing/billing.batch';
+import { type BatchItemError, describeBatchItemError } from '../../modules/billing/billing.batch';
 import { resolveConfigExchangeRate } from '../../modules/billing/billing.currency';
 import { type EmitDecisionSource, resolveEmitDecision } from '../../modules/billing/billing.emit-decision';
 import {
@@ -494,26 +494,4 @@ export function parseBillingCommandPlan(
     modeSource,
     total: fileInputs.length,
   };
-}
-
-export function parseBillingCommandInputs(
-  command: Command,
-  shortcut: VoucherShortcut,
-  defaults: BillingCommandDefaults = {},
-): BillingCommandInput[] {
-  const plan = parseBillingCommandPlan(command, shortcut, defaults);
-
-  if (plan.invalidItems.length > 0) {
-    throw new BatchValidationError(plan.invalidItems, plan.total);
-  }
-
-  return plan.inputs;
-}
-
-export function parseBillingCommandInput(
-  command: Command,
-  shortcut: VoucherShortcut,
-  defaults: BillingCommandDefaults = {},
-): BillingCommandInput {
-  return parseBillingCommandInputs(command, shortcut, defaults)[0];
 }

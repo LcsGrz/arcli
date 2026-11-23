@@ -227,7 +227,11 @@ function validateNoteAmount(state: NoteState): (value: string) => string | true 
   };
 }
 
-/** Pasos del flujo de notas; cada uno se puede deshacer con "Volver". */
+/**
+ * Pasos del flujo de notas; cada uno se puede deshacer con "Volver".
+ *
+ * @internal Exportado para los tests.
+ */
 export function noteSteps(
   session: InteractiveSession,
   pointOfSale: number,
@@ -537,7 +541,11 @@ function noteRuleEnv(session: InteractiveSession, pointOfSale: number): NoteRule
   return { ...noteInputEnv(session, pointOfSale), today: formatDateAsArcaDate(new Date()) };
 }
 
-/** El emisor y el punto de venta de la sesion, para la entrada de la nota. */
+/**
+ * El emisor y el punto de venta de la sesion, para la entrada de la nota.
+ *
+ * @internal Exportado para los tests.
+ */
 export function noteInputEnv(session: InteractiveSession, pointOfSale: number): NoteInputEnv {
   return { config: session.runtime.config, issuerCuit: session.runtime.context.cuit, pointOfSale };
 }
@@ -580,6 +588,8 @@ function withPreposition(invoiceKind: VoucherKindDefinition): string {
 /**
  * Los avisos de la vista previa que el asistente sabe y `previewAndEmit` no: el de un asociado de otro sistema, con
  * el mismo texto que con flags (`checkAssociatedInArca`).
+ *
+ * @internal Exportado para los tests.
  */
 export function noteWarnings(state: NoteState): string[] {
   const other = state.otherSystemInvoice;
