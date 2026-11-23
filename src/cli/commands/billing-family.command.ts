@@ -12,6 +12,7 @@ import { getExportVoucherKindByFamily } from '../../modules/export/export.types'
 import { configureSpanishHelp, createFamilyHelp } from '../help';
 import { GLOBAL_OPTION_FLAGS } from '../ignored-global-options';
 import { findPassedOptions, formatSkippedOptionsWarning } from '../skipped-options';
+import { familyScope } from '../voucher-scope';
 
 import { hideInapplicableBillingOptions } from './billing.command.options';
 import { executeBillingCommand, registerBillingCommandOptions } from './billing.command.shared';
@@ -50,11 +51,7 @@ export function registerBillingFamilyCommands(program: Command): void {
     configureSpanishHelp(command);
 
     registerBillingCommandOptions(command);
-    hideInapplicableBillingOptions(command, {
-      isElectronicCredit: definitions.some((definition) => definition.isElectronicCredit),
-      isNote: definitions.some((definition) => definition.requiresAssociatedVoucher),
-      letters: definitions.map((definition) => definition.letter),
-    });
+    hideInapplicableBillingOptions(command, familyScope(family));
 
     // Un solo comando para A, B, C y E: acepta los flags de todas y saltea con un aviso los que no aplican a la letra.
     const exportFlags = exportKind ? exportOptionFlags(exportKind) : new Set<string>();

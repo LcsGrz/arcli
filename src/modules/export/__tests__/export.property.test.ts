@@ -26,6 +26,7 @@ const UNITS: readonly ExportUnit[] = [
 
 const RUNTIME = {
   config: arcliConfigSchema.parse({ cuit: '20111111112', puntoVentaPorDefecto: 3 }),
+  cuit: 20111111112,
   environment: 'testing' as const,
 };
 

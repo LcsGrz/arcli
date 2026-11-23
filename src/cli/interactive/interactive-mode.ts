@@ -185,12 +185,9 @@ async function buildHeader(options: GlobalCliOptions): Promise<string> {
   spinner?.stop();
 
   const [label, color] = HEALTH_LABELS[health];
-  const { certificateNotices, config, context, environment, pointOfSale } = session.runtime;
+  const { certificateNotices, config, cuit, environment, pointOfSale } = session.runtime;
   const bar = statusBar(
-    [
-      { text: formatIssuer(config.emisor?.razonSocial, context.cuit) },
-      { text: `PV ${pointOfSale ?? 'sin configurar'}` },
-    ],
+    [{ text: formatIssuer(config.emisor?.razonSocial, cuit) }, { text: `PV ${pointOfSale ?? 'sin configurar'}` }],
     [{ color, text: label.toUpperCase() }, environmentSegment(environment)],
     { rightSeparator: 'rule' },
   );
