@@ -1,8 +1,12 @@
-import { type output, ZodError, type ZodType } from 'zod';
+import { type output, type ZodError, ZodRealError, type ZodType } from 'zod';
 
 import type { InputIssue } from '../../lib/errors/input-issue';
 
-import { BILLING_JSON_KEY_BY_INTERNAL_KEY, describeExpected } from './billing.json-input';
+import {
+  BILLING_JSON_KEY_BY_INTERNAL_KEY,
+  BILLING_JSON_NESTED_KEY_BY_INTERNAL_KEY,
+  describeExpected,
+} from './billing.json-input';
 
 const ZOD_PATH_LABELS: Record<string, string> = {
   associatedPeriod: 'período asociado',
@@ -38,6 +42,17 @@ function formatZodIssuePath(path: PropertyKey[]): string {
   return path.map((segment) => String(segment)).join('.');
 }
 
+/** La clave como la escribe quien carga el JSON, tambien adentro de otra: `alicuotas.0.monto`. Solo para el texto. */
+function formatPublicKey(path: PropertyKey[]): string {
+  const [head, ...rest] = path.map((segment) => String(segment));
+  const nested = head === undefined ? undefined : BILLING_JSON_NESTED_KEY_BY_INTERNAL_KEY[head];
+
+  return [
+    head === undefined ? undefined : (BILLING_JSON_KEY_BY_INTERNAL_KEY[head] ?? head),
+    ...rest.map((segment) => nested?.[segment] ?? segment),
+  ].join('.');
+}
+
 type ZodInputIssue = ZodError['issues'][number] & { readonly received?: string };
 
 /**
@@ -52,11 +67,16 @@ export function parseZodInput<T extends ZodType>(schema: T, value: unknown): out
     return result.data;
   }
 
-  throw new ZodError(
+  // `ZodRealError`, como `parse`: es un `Error`. zod lo crea sin stack y lo captura al lanzarlo.
+  const error = new ZodRealError(
     result.error.issues.map(({ input, ...issue }) =>
       input === undefined ? issue : { ...issue, received: typeof input },
     ) as ZodError['issues'],
   );
+
+  Error.captureStackTrace(error, parseZodInput);
+
+  throw error;
 }
 
 /** De que habla el mensaje: la etiqueta, la clave como se escribe, o "El valor" si el problema no trae ruta. */
@@ -67,9 +87,7 @@ function describeSubject(issue: ZodInputIssue): string {
 
   const label = ZOD_PATH_LABELS[formatZodIssuePath(issue.path)];
 
-  return label
-    ? `${label[0]?.toUpperCase() ?? ''}${label.slice(1)}`
-    : `\`${formatPublicIssuePath(issue.path).join('.')}\``;
+  return label ? `${label[0]?.toUpperCase() ?? ''}${label.slice(1)}` : `\`${formatPublicKey(issue.path)}\``;
 }
 
 const SIZE_UNITS: Readonly<Record<string, readonly [one: string, many: string]>> = {
@@ -110,8 +128,8 @@ function humanizeZodIssue(issue: ZodInputIssue, label: string): string {
       : `${describeSubject(issue)} ${describeLimit(issue, issue.minimum)}`;
   }
 
-  // El maximo de ARCA de un numero trae su mensaje en el esquema; los demas, el de zod, en ingles.
-  if (issue.code === 'too_big' && typeof issue.maximum === 'number' && issue.message.startsWith('Too big')) {
+  // El maximo de un numero trae su mensaje en el esquema (por ejemplo, con el error de ARCA).
+  if (issue.code === 'too_big' && typeof issue.maximum === 'number' && issue.origin !== 'number') {
     return `${describeSubject(issue)} ${describeLimit(issue, issue.maximum)}`;
   }
 
@@ -135,7 +153,7 @@ function formatPublicIssuePath(path: PropertyKey[]): string[] {
 export function describeZodIssues(error: ZodError): InputIssue[] {
   return error.issues.map((issue) => {
     const pathKey = formatZodIssuePath(issue.path);
-    const label = ZOD_PATH_LABELS[pathKey] ?? (pathKey || 'Valor');
+    const label = ZOD_PATH_LABELS[pathKey] ?? (formatPublicKey(issue.path) || 'Valor');
 
     return { label, mensaje: humanizeZodIssue(issue, label), ruta: formatPublicIssuePath(issue.path) };
   });

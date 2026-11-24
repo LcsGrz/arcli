@@ -4,6 +4,7 @@ import { z, type ZodError } from 'zod';
 
 import { InputIssuesError } from '../../lib/errors/app-error';
 import { billingCommandSchema } from '../../modules/billing/billing.schemas';
+import { parseZodInput } from '../../modules/billing/billing.zod-errors';
 import { type CanonicalConfigKey, parseConfigValue } from '../../modules/config/config-value-parser';
 import { stripAnsi } from '../../ui';
 import { configureUsageErrors, formatCliError, reportCliError, shouldPrintErrorAsJson } from '../error-output';
@@ -32,13 +33,13 @@ describe('shouldPrintErrorAsJson', () => {
 });
 
 function parseAndGetError(input: unknown): ZodError {
-  const result = billingCommandSchema.safeParse(input);
-
-  if (result.success) {
-    throw new Error('se esperaba que la validación fallara');
+  try {
+    parseZodInput(billingCommandSchema, input);
+  } catch (error) {
+    return error as ZodError;
   }
 
-  return result.error;
+  throw new Error('se esperaba que la validación fallara');
 }
 
 describe('formatCliError con errores de zod', () => {

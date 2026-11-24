@@ -4,7 +4,6 @@ import { resolveRequiredCancellation } from '../billing/billing.associated-vouch
 import { BILLING_RULES, type BillingRuleContext } from '../billing/billing.rules';
 import { type BillingCommandInput, billingCommandSchema, type BillingConcept } from '../billing/billing.schemas';
 import type { VoucherKindDefinition } from '../billing/billing.types';
-import { parseZodInput } from '../billing/billing.zod-errors';
 import type { ArcliConfig } from '../config/config.schemas';
 import type { IssuedVoucher } from '../vouchers/voucher-history';
 
@@ -132,7 +131,7 @@ export function noteCurrency(
  * la solicitud a ARCA.
  */
 export function buildNoteInput(state: NoteState, env: NoteInputEnv): BillingCommandInput {
-  return parseZodInput(billingCommandSchema, noteInputFields(state, env));
+  return billingCommandSchema.parse(noteInputFields(state, env));
 }
 
 /** Los campos de la entrada de la nota, sin validar: lo que leen las reglas mientras se pregunta. */

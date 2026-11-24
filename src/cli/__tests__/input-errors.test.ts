@@ -1,6 +1,10 @@
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { ZodError } from 'zod';
+import { z, ZodError } from 'zod';
 
+import { billingCommandSchema } from '../../modules/billing/billing.schemas';
+import { parseZodInput, summarizeZodError } from '../../modules/billing/billing.zod-errors';
 import { ConfigService } from '../../modules/config/config.service';
 
 import { useArcaProfileFixture } from './arca-profile.fixture';
@@ -50,6 +54,73 @@ describe('config.json editado a mano: el tipo equivocado no es "falta"', () => {
   });
 });
 
+function inputFile(content: unknown): string {
+  const path = join(profile.temporaryDirectory('arcli-entrada-'), 'entrada.json');
+
+  writeFileSync(path, JSON.stringify(content));
+
+  return path;
+}
+
+const ITEM = { concepto: 'servicios', ivaReceptor: 'consumidor-final', montoTotal: 1000, puntoVenta: 3 };
+
+describe('--cargar', () => {
+  it.each([
+    ['fc', { ...ITEM, puntoVenta: 1.5 }, 'Punto de venta tiene que ser un entero.', ['puntoVenta']],
+    [
+      'ncc',
+      { ...ITEM, comprobanteAsociado: { atajo: 'fc', numero: 1.5, puntoVenta: 3 } },
+      '`comprobanteAsociado.numero` tiene que ser un entero.',
+      ['associatedVoucher', 'numero'],
+    ],
+    [
+      'fb',
+      { ...ITEM, alicuotas: [{ monto: -1, tasa: 21 }] },
+      '`alicuotas.0.monto` debe ser mayor a 0.',
+      ['ivaRateAmounts', '0', 'amount'],
+    ],
+  ])('%s %j: nombra la clave del JSON; `ruta` no cambia', async (command, item, mensaje, ruta) => {
+    expect(await detailsOf([command, '--cargar', inputFile(item), '--previsualizar'])).toContainEqual({
+      mensaje,
+      ruta,
+    });
+  });
+
+  it('en un lote', async () => {
+    const error = await profile.runJsonError([
+      'fc',
+      '--cargar',
+      inputFile([ITEM, { ...ITEM, puntoVenta: 1.5 }]),
+      '--previsualizar',
+    ]);
+
+    expect(error.detalles).toEqual({
+      comprobantes: [{ error: 'Punto de venta tiene que ser un entero.', indice: 2 }],
+    });
+  });
+
+  it('las demás claves anidadas', () => {
+    const invalid = { associatedVoucher: { shortcut: 1 }, ivaRateAmounts: [{ amount: 1 }], shortcut: 'fc' };
+    let message = '';
+
+    try {
+      parseZodInput(billingCommandSchema, invalid);
+    } catch (error) {
+      message = summarizeZodError(error as ZodError);
+    }
+
+    expect(message).toContain('`comprobanteAsociado.atajo` tiene que ser un texto.');
+
+    const rate = z.object({ ivaRateAmounts: z.array(z.object({ rate: z.string() })) });
+
+    expect(() => parseZodInput(rate, { ivaRateAmounts: [{ rate: 1 }] })).toThrow(
+      expect.toSatisfy(
+        (error: ZodError) => summarizeZodError(error) === '`alicuotas.0.tasa` tiene que ser un texto.',
+      ) as Error,
+    );
+  });
+});
+
 describe('largos y rangos', () => {
   it.each([
     [{ monedaPorDefecto: 'XX' }, '`monedaPorDefecto` tiene que tener 3 caracteres.'],
@@ -68,9 +139,25 @@ describe('largos y rangos', () => {
     [['--descripcion', 'x'.repeat(201)], 'Descripción tiene que tener hasta 200 caracteres.'],
     [['--condicion-venta', 'x'.repeat(101)], 'Condición de venta tiene que tener hasta 100 caracteres.'],
     [['--dia', '32'], 'Día de vencimiento debe ser 31 o menos.'],
+    [['--pv', '99999'], 'El punto de venta va de 1 a 99998: ARCA rechaza 99999 (error 10004).'],
     [['--dia', '0'], 'Día de vencimiento debe ser 1 o más.'],
   ])('flags: %j', async (flags, mensaje) => {
     expect(await detailsOf([...FC, ...flags])).toEqual([expect.objectContaining({ mensaje })]);
+  });
+
+  it('config establecer sobre una config que ya estaba mal', async () => {
+    expect(await detailsOf(['config', 'establecer', 'moneda', 'DOL'], { puntoVentaPorDefecto: 'a' })).toEqual([
+      { mensaje: '`puntoVentaPorDefecto` tiene que ser un número.', ruta: ['puntoVentaPorDefecto'] },
+    ]);
+  });
+
+  it('una fecha de inicio de actividades mal guardada', async () => {
+    expect(await detailsOf(['config'], { emisor: { inicioActividades: '1/3/2020' } })).toEqual([
+      {
+        mensaje: 'El inicio de actividades tiene que ser una fecha AAAAMMDD.',
+        ruta: ['emisor', 'inicioActividades'],
+      },
+    ]);
   });
 
   it('config establecer', async () => {
@@ -109,6 +196,9 @@ describe('el valor recibido no sale', () => {
     }
 
     expect(thrown).toBeInstanceOf(ZodError);
+    // Un error de verdad: con stack, y reconocible por quien solo mira `instanceof Error`.
+    expect(thrown).toBeInstanceOf(Error);
+    expect((thrown as Error).stack).toContain('config.service');
     // `message` de un ZodError es el JSON de sus problemas: si llega a otro mensaje, el valor tampoco sale.
     expect(`${(thrown as ZodError).message}${JSON.stringify((thrown as ZodError).issues)}`).not.toContain(secret);
 

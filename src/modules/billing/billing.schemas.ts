@@ -212,7 +212,7 @@ export const billingCommandSchema = z.object({
   exemptAmount: billingAmountSchema('El importe exento').optional(),
   ivaRate: billingIvaRateSchema.optional(),
   ivaRateAmounts: z.array(billingIvaRateAmountSchema).min(1).optional(),
-  dueDay: z.number().int().min(1).max(31).optional(),
+  dueDay: z.number().int().min(1).max(31, 'Día de vencimiento debe ser 31 o menos.').optional(),
   ivaCondition: billingIvaConditionSchema,
   /**
    * De donde salio `ivaCondition`; sin definir, la indico el usuario (flag, JSON o modo interactivo). Con `default`
