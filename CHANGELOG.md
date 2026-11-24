@@ -68,10 +68,10 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Errores:** una sugerencia propia para los errores de red, detalles que no se repiten y el mismo texto para la misma regla (#270).
 - **Facturas:** un CUIT mal escrito o un punto de venta inválido da error antes de consultar a ARCA (#272).
 - **Consultas:** con el certificado sin autorizar, `parametros` y `ultimos` de una `E` dicen qué autorizar (#272).
-- **Config:** un dato inválido guardado dice que está en la configuración, con qué clave y cómo arreglarlo (#PR).
-- **Errores:** si no se puede leer o escribir un archivo, el error dice cuál, por qué y qué hacer, en castellano (#PR).
-- **Errores:** un JSON de `--cargar` ilegible dice la línea y la columna, y ya no muestra un trozo del archivo (#PR).
-- **Certificados:** si `importar` no puede leer la clave, lo dice en vez de mandar a armar otro pedido (#PR).
+- **Config:** un dato inválido guardado dice que está en la configuración, con qué clave y cómo arreglarlo (#276).
+- **Errores:** si no se puede leer o escribir un archivo, el error dice cuál, por qué y qué hacer, en castellano (#276).
+- **Errores:** un JSON de `--cargar` ilegible dice la línea y la columna, y ya no muestra un trozo del archivo (#276).
+- **Certificados:** si `importar` no puede leer la clave, lo dice en vez de mandar a armar otro pedido (#276).
 - **Asistente:** con los opcionales o la fecha de pago abiertos al pasar la medianoche, las fechas se validan con el día nuevo (#269).
 - **Errores:** en `--cargar` y la config, el tipo equivocado ya no dice "Falta el dato", y los largos y máximos salen en castellano (#269).
 - **Salida:** con el disco lleno al escribir la salida, la emisión, su PDF y el lote terminan, y un aviso dice qué se emitió (#271).
