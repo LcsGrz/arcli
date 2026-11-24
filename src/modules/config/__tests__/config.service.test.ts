@@ -1,8 +1,8 @@
+// Tests primero: en rojo hasta el arreglo (ERR-4 y ERR-8).
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ZodError } from 'zod';
 
 import { ConfigurationError } from '../../../lib/errors/app-error';
 import { formatConfig } from '../config.presenter';
@@ -136,13 +136,18 @@ describe('config.service', () => {
     }
   });
 
-  it('fixes a config that was already broken by setting or deleting the bad key', () => {
+  it.fails('fixes a config that was already broken by setting or deleting the bad key', () => {
     const service = createService();
 
     try {
       writeFileSync(service.getPath(), JSON.stringify({ cuit: 'abc', puntoVentaPorDefecto: 3 }));
 
-      expect(() => service.getConfig()).toThrow(ZodError);
+      expect(() => service.getConfig()).toThrow(
+        expect.objectContaining({
+          code: 'INPUT_VALIDATION_ERROR',
+          issues: [{ label: 'cuit', mensaje: 'El CUIT debe tener 11 dígitos', ruta: ['cuit'] }],
+        }),
+      );
       expect(service.unsetValue('cuit').puntoVentaPorDefecto).toBe(3);
 
       writeFileSync(service.getPath(), JSON.stringify({ cuit: 'abc' }));
