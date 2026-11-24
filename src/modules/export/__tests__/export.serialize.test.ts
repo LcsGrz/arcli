@@ -8,7 +8,7 @@ import {
   type ExportVoucherPayload,
 } from '../export.types';
 
-import { readExportAnswer } from './export-answer.fixture';
+import { emitWithExportAnswer } from './export-answer.fixture';
 
 function payload(overrides: Partial<ExportVoucherPayload> = {}): ExportVoucherPayload {
   return {
@@ -73,7 +73,7 @@ const AUTHORIZATION = {
   },
 };
 
-const RESPONSE = await readExportAnswer(AUTHORIZATION);
+const RESPONSE = await emitWithExportAnswer(AUTHORIZATION);
 
 function result(overrides: Partial<ExportExecutionResult> = {}): ExportExecutionResult {
   return {

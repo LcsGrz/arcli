@@ -4,8 +4,8 @@ import { arcliConfigSchema } from '../../config/config.schemas';
 import { ExportService } from '../export.service';
 import { EXPORT_VOUCHER_KIND, type ExportResponseSummary, type ExportVoucherPayload } from '../export.types';
 
-/** Lo mismo que `readBillingAnswer`, para `FEXAuthorize`. El comprobante no importa: solo lo que contesta el SDK. */
-export async function readExportAnswer(answer: unknown): Promise<ExportResponseSummary> {
+/** Lo mismo que `emitWithBillingAnswer`, para `FEXAuthorize`. El comprobante no importa: solo lo que contesta el SDK. */
+export async function emitWithExportAnswer(answer: unknown): Promise<ExportResponseSummary> {
   const arca = { wsfexService: { authorize: async () => answer } };
   const { response } = await new ExportService({ clock: systemClock }).execute({
     gateway: new ArcaExportGateway(arca as unknown as ConstructorParameters<typeof ArcaExportGateway>[0]),

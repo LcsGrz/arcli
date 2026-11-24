@@ -8,7 +8,7 @@ import type { BillingResponseSummary } from '../billing.types.internal';
  * El resumen de lo que contesta el SDK a la llamada que emite, por el servicio y el gateway reales (ARQ-4): no depende
  * de en que capa se lee la respuesta. Lo que no se puede leer sale como `EmissionUncertainError`.
  */
-export async function readBillingAnswer(answer: unknown): Promise<BillingResponseSummary> {
+export async function emitWithBillingAnswer(answer: unknown): Promise<BillingResponseSummary> {
   const arca = {
     electronicBillingService: { createVoucher: async () => answer, getLastVoucher: async () => ({ cbteNro: 41 }) },
   };

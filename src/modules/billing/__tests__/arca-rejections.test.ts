@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { TROUBLESHOOTING_URL } from '../../../lib/links';
 import { ARCA_REJECTIONS, findArcaRejections, formatArcaRejection } from '../arca-rejections';
 
-import { readBillingAnswer } from './billing-answer.fixture';
+import { emitWithBillingAnswer } from './billing-answer.fixture';
 
 const TROUBLESHOOTING = readFileSync(join(process.cwd(), 'docs', 'troubleshooting.md'), 'utf8');
 
@@ -72,7 +72,7 @@ describe('tabla de rechazos de ARCA', () => {
 
 describe('mapBillingResponse: sugerencias', () => {
   it('lee los códigos de las observaciones, no solo de los errores', async () => {
-    const summary = await readBillingAnswer({
+    const summary = await emitWithBillingAnswer({
       cae: '',
       caeFchVto: '',
       response: {
@@ -88,7 +88,7 @@ describe('mapBillingResponse: sugerencias', () => {
   });
 
   it('una observación de padrón en un comprobante aprobado aclara que no es un rechazo', async () => {
-    const summary = await readBillingAnswer({
+    const summary = await emitWithBillingAnswer({
       cae: '12345678901234',
       caeFchVto: '20261130',
       response: {
@@ -108,7 +108,7 @@ describe('mapBillingResponse: sugerencias', () => {
   ])(
     'la observación %i del tope del Monotributo explica que el comprobante está emitido (MONO-6)',
     async (code, text) => {
-      const summary = await readBillingAnswer({
+      const summary = await emitWithBillingAnswer({
         cae: '12345678901234',
         caeFchVto: '20261130',
         response: {
@@ -136,7 +136,7 @@ describe('mapBillingResponse: sugerencias', () => {
 
   it('un receptor que no está en los padrones (10015, solo en observaciones) tiene su sugerencia', async () => {
     // Respuesta real de ARCA testing (18/11/2026): `fb --cuit 20201797064`.
-    const summary = await readBillingAnswer({
+    const summary = await emitWithBillingAnswer({
       cae: '',
       caeFchVto: '',
       response: {
@@ -165,7 +165,7 @@ describe('mapBillingResponse: sugerencias', () => {
   });
 
   it('un rechazo sin código conocido pide revisar errores y observaciones', async () => {
-    const summary = await readBillingAnswer({
+    const summary = await emitWithBillingAnswer({
       cae: '',
       caeFchVto: '',
       response: {

@@ -9,7 +9,7 @@ import { BillingService } from '../billing.service';
 import type { BillingRuntime } from '../billing.types.internal';
 import { mapBillingResponse } from '../billing-response';
 
-import { readBillingAnswer } from './billing-answer.fixture';
+import { emitWithBillingAnswer } from './billing-answer.fixture';
 
 function createRuntime(): BillingRuntime {
   return { cuit: 20409509763, environment: 'testing', pointOfSale: 3 };
@@ -1732,7 +1732,7 @@ describe('billing.service', () => {
   });
 
   it('maps the empty CAE of a rejected voucher to null', async () => {
-    const summary = await readBillingAnswer({
+    const summary = await emitWithBillingAnswer({
       cae: '',
       caeFchVto: '',
       response: { FeDetResp: { FECAEDetResponse: [{ Resultado: 'R' }] } },
@@ -1742,7 +1742,7 @@ describe('billing.service', () => {
   });
 
   it('suggests a web service point of sale when ARCA rejects it with code 10005', async () => {
-    const summary = await readBillingAnswer({
+    const summary = await emitWithBillingAnswer({
       cae: '',
       caeFchVto: '',
       response: {
@@ -1758,7 +1758,7 @@ describe('billing.service', () => {
   });
 
   it('recognizes the point of sale rejection by its message when the code is missing', async () => {
-    const summary = await readBillingAnswer({
+    const summary = await emitWithBillingAnswer({
       cae: '',
       caeFchVto: '',
       response: {
@@ -1771,7 +1771,7 @@ describe('billing.service', () => {
   });
 
   it('does not suggest a point of sale fix for unrelated rejections', async () => {
-    const summary = await readBillingAnswer({
+    const summary = await emitWithBillingAnswer({
       cae: '',
       caeFchVto: '',
       response: {
@@ -1784,7 +1784,7 @@ describe('billing.service', () => {
   });
 
   it('maps ARCA responses into a stable summary', async () => {
-    const summary = await readBillingAnswer({
+    const summary = await emitWithBillingAnswer({
       cae: '12345678901234',
       caeFchVto: '20260331',
       response: {

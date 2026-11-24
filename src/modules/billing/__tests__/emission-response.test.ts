@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import { asArray } from '../../../lib/arrays/as-array';
-import { readExportAnswer } from '../../export/__tests__/export-answer.fixture';
+import { emitWithExportAnswer } from '../../export/__tests__/export-answer.fixture';
 import { EmissionUncertainError } from '../billing.errors';
 import { formatArcaMessages } from '../billing.labels';
 import { readCae, readCaeExpiration } from '../emission-response';
 
-import { readBillingAnswer } from './billing-answer.fixture';
+import { emitWithBillingAnswer } from './billing-answer.fixture';
 
 describe('lo que ARCA contesta a la emisión (ERR-16)', () => {
   it('asArray: un elemento, una lista o nada', () => {
@@ -35,7 +35,7 @@ describe('lo que ARCA contesta a la emisión (ERR-16)', () => {
   it('un rechazo con algo ilegible en lugar del CAE sigue siendo un rechazo', async () => {
     const response = { FeDetResp: { FECAEDetResponse: [{ CAE: {}, Resultado: 'R' }] } };
 
-    expect(await readBillingAnswer({ cae: '', caeFchVto: '', response })).toMatchObject({
+    expect(await emitWithBillingAnswer({ cae: '', caeFchVto: '', response })).toMatchObject({
       cae: null,
       status: 'rechazado',
     });
@@ -46,8 +46,8 @@ describe('lo que ARCA contesta a la emisión (ERR-16)', () => {
     const answer = Object.freeze({ cae: '1', caeFchVto: '', response: Object.freeze({}) });
     const output = Object.freeze({ FEXAuthorizeResult: Object.freeze({ FEXResultAuth: { Cae: '1' } }) });
 
-    expect((await readBillingAnswer(answer)).raw).toBe(answer);
-    expect((await readExportAnswer(output)).raw).toBe(output);
+    expect((await emitWithBillingAnswer(answer)).raw).toBe(answer);
+    expect((await emitWithExportAnswer(output)).raw).toBe(output);
   });
 
   it('un texto suelto se lee en la terminal', () => {
@@ -57,7 +57,7 @@ describe('lo que ARCA contesta a la emisión (ERR-16)', () => {
   it('la E con el resultado en una lista', async () => {
     const output = { FEXAuthorizeResult: { FEXResultAuth: [{ Cae: '1', Resultado: 'A' }] } };
 
-    expect(await readExportAnswer(output)).toMatchObject({ cae: '1', status: 'aprobado' });
+    expect(await emitWithExportAnswer(output)).toMatchObject({ cae: '1', status: 'aprobado' });
   });
 
   it.each([

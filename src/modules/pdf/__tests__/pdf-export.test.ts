@@ -123,6 +123,18 @@ describe('mapExportResultToPdfData', () => {
     ]);
   });
 
+  it.each([
+    ['el que informó ARCA, si es otro que el que se mandó', 125, 125],
+    ['el que se mandó, si ARCA informa cero', 0, 12],
+    ['el que se mandó, si ARCA no lo informa', undefined, 12],
+  ])('el número es %s', (_name, arcaNumber, expected) => {
+    const result = createResult();
+
+    expect(mapExportResultToPdfData({ ...result, response: { ...result.response, arcaNumber } }, ISSUER)).toMatchObject(
+      { cbteDesde: expected, cbteHasta: expected },
+    );
+  });
+
   it('sin incoterm no lo informa, y suma la descripcion del incoterm cuando agrega algo', () => {
     expect(mapExportResultToPdfData(createResult(), ISSUER).incoterms).toBeUndefined();
     expect(
