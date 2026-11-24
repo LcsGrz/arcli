@@ -40,6 +40,15 @@ describe('el número que informó ARCA', () => {
     expect(exportE(authorization).arcaNumber).toBe(expected);
   });
 
+  it.each([
+    ['A, B y C sin response', readBillingAnswer({ cae: CAE } as never)],
+    ['A, B y C sin FeDetResp', readBillingAnswer({ cae: CAE, response: {} } as never)],
+    ['E sin FEXAuthorizeResult', readExportAnswer({} as never)],
+    ['E sin FEXResultAuth', readExportAnswer({ FEXAuthorizeResult: {} } as never)],
+  ])('%s: sin número, sin fallar', (_name, answer) => {
+    expect(answer.voucherNumber).toBeUndefined();
+  });
+
   // Es accesorio: si no se puede leer falla el PDF, no la emisión.
   it('uno que no se puede leer no cuesta el CAE', () => {
     expect(billing({ FeDetResp: { FECAEDetResponse: [throwing('CbteDesde', {})] } })).toHaveProperty('cae', CAE);
