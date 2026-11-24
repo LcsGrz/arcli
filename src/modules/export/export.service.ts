@@ -60,7 +60,12 @@ import {
 import { checkExportPermits } from './export.permits';
 import { createDryRunExportResponse, mapExportResponse } from './export.response';
 import { EXPORT_DATE_RULES } from './export.rules';
-import { describeQueryFailure, readExportTable, unreadExportTableWarnings } from './export.tables';
+import {
+  createExportTableReader,
+  describeQueryFailure,
+  type ExportTableReader,
+  unreadExportTableWarnings,
+} from './export.tables';
 import {
   DEFAULT_EXPORT_UNIT_CODE,
   EXPORT_VOUCHER_KIND,
@@ -252,10 +257,11 @@ async function checkWrittenExchangeRate(options: {
   readonly gateway: Pick<ExportPreviewGateway, 'getQuotations'>;
   readonly quotationDate: ExportQuotationDate;
   readonly rate: number;
+  readonly tables: ExportTableReader;
 }): Promise<string[]> {
-  const { exportType, gateway, quotationDate, rate } = options;
+  const { exportType, gateway, quotationDate, rate, tables } = options;
   const code = options.code.trim().toUpperCase();
-  const table = await readExportTable(() => gateway.getQuotations(quotationDate.date));
+  const table = await tables.read(() => gateway.getQuotations(quotationDate.date));
   const official = table.rows.find((entry) => entry.code.trim().toUpperCase() === code);
 
   if (quotationDate.rule === 'previous-business-day') {
@@ -317,6 +323,7 @@ export class ExportService {
     const now = this.clock.now();
     const today = formatDateAsArcaDate(now);
     const config = runtime.config;
+    const tables = createExportTableReader();
     const voucherKind = rawInput.voucherKind ?? EXPORT_VOUCHER_KIND;
 
     assertLocalFields(rawInput, voucherKind);
@@ -370,7 +377,7 @@ export class ExportService {
     const givenCountryCuit = input.clientCountryCuit ?? associatedCuit;
 
     // Sin escribirlo, el CUIT del pais sale de la tabla.
-    const countryCuitTable = await readExportTable(() => gateway.getDestinationCountryCuits(), {
+    const countryCuitTable = await tables.read(() => gateway.getDestinationCountryCuits(), {
       required: givenCountryCuit === undefined,
     });
     const countryCuits = countryCuitTable.rows;
@@ -389,7 +396,7 @@ export class ExportService {
     });
 
     // Una unidad escrita por nombre sale de la tabla.
-    const unitTable = await readExportTable(() => gateway.getUnits(), {
+    const unitTable = await tables.read(() => gateway.getUnits(), {
       required: input.items?.some(({ unit }) => typeof unit === 'string'),
     });
     const units = unitTable.rows;
@@ -402,16 +409,16 @@ export class ExportService {
 
     // Sin `--incoterms-desc`, la descripcion (`Incoterms_Ds`) sale de la tabla.
     const incotermTable = input.incoterm?.trim()
-      ? await readExportTable(() => gateway.getIncoterms(), { required: !input.incotermDescription?.trim() })
+      ? await tables.read(() => gateway.getIncoterms(), { required: !input.incotermDescription?.trim() })
       : undefined;
     const incoterm = resolveExportIncoterm(input.incoterm, incotermTable?.rows ?? []);
     // Se consulta siempre: la vista previa muestra el nombre del idioma, tambien el de por defecto.
-    const languageTable = await readExportTable(() => gateway.getLanguages());
+    const languageTable = await tables.read(() => gateway.getLanguages());
     const languageId = resolveExportLanguage(input.language, languageTable.rows);
     const currency = resolveExportCurrency(input);
     // Se consulta siempre: la vista previa muestra el nombre de la moneda. Una extranjera que no esta en la tabla es
     // error de entrada (1590), antes de buscar su cotizacion; los pesos no se controlan.
-    const currencyTable = await readExportTable(() => gateway.getCurrencies());
+    const currencyTable = await tables.read(() => gateway.getCurrencies());
     const isLocalCurrency = currency.fields.Moneda_Id === ARCA_LOCAL_CURRENCY_CODE;
     const requestedCurrency = input.currencyCode?.trim() || currency.fields.Moneda_Id;
 
@@ -437,7 +444,8 @@ export class ExportService {
       : undefined;
 
     // `--cotizacion-moneda`: en servicios o con `--misma-moneda` tiene que ser la de ARCA (2053, 1604), y en bienes y
-    // otros se avisa si esta fuera de rango (1667). Solo en la factura: la de una nota sale del asociado.
+    // otros se avisa si esta fuera de rango (1667). Solo en la factura: la de una nota, heredada
+    // del asociado o escrita con `--cm`, no se compara.
     const exchangeRateWarnings =
       currency.needsQuotation || isLocalCurrency || isExportNote(voucherKind)
         ? []
@@ -447,6 +455,7 @@ export class ExportService {
             gateway,
             quotationDate,
             rate: currency.fields.Moneda_ctz,
+            tables,
           });
     const exchangeRate = quotation?.rate ?? currency.fields.Moneda_ctz;
     // WSFEX numera por punto de venta y tipo. Sin `--numero`, el siguiente al ultimo que tiene ARCA: es una lectura.
@@ -468,7 +477,7 @@ export class ExportService {
     });
 
     // Sin `--actividad` ni `exportacion.actividad` la E va sin el bloque `Actividades`: ARCA no lo exige.
-    const activityTable = activityCode === undefined ? undefined : await readExportTable(() => gateway.getActivities());
+    const activityTable = activityCode === undefined ? undefined : await tables.read(() => gateway.getActivities());
     const activity =
       activityCode === undefined ? undefined : resolveExportActivity(activityCode, activityTable?.rows ?? []);
     const payload = buildExportPayload(input, {
@@ -509,7 +518,14 @@ export class ExportService {
     }
 
     // Ultima lectura antes de emitir: un permiso que ARCA no reconoce corta aca y no en el rechazo de `FEXAuthorize`.
-    const permitChecks = await checkExportPermits(payload, gateway, destinationCountry.name);
+    const permitChecks = await checkExportPermits(
+      payload,
+      { checkPermit: (permit, country) => tables.observe(() => gateway.checkPermit(permit, country)) },
+      destinationCountry.name,
+    );
+
+    tables.assertConnected();
+
     const currencyCode = payload.Moneda_Id.trim().toUpperCase();
     const display: ExportDisplayInfo = {
       ...(associated ? { associatedVoucher: describeAssociated(associated.voucher) } : {}),

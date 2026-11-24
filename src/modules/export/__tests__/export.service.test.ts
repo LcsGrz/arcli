@@ -803,7 +803,7 @@ describe('ExportService.resolve: tablas que no responden (EXPO-13, ARQ-22)', () 
       'CUIT de país escrito',
       { getDestinationCountryCuits: down() },
       {},
-      `CUIT de países de WSFEX (${TIMEOUT}): el CUIT de país 55000000050 va sin`,
+      `CUIT de países de WSFEX (${TIMEOUT}): el CUIT de país 55000000050 no se pudo comparar con el país. Revisalo antes de emitir.`,
     ],
   ])('%s: avisa y sigue, con los mismos datos', async (_case, gateway, input, warning) => {
     const ok = await read({}, input);
@@ -869,6 +869,38 @@ describe('ExportService.resolve: tablas que no responden (EXPO-13, ARQ-22)', () 
     ]);
   });
 
+  it('con países ok y la red caída después, el segundo error corta con el primero: no se llega a emitir', async () => {
+    const error = new Error(TIMEOUT);
+    const rest = createGateway();
+    const gateway: ExportGateway = {
+      ...(Object.fromEntries(
+        Object.keys(rest).map((name) => [name, down(new Error('socket hang up'))]),
+      ) as unknown as ExportGateway),
+      getDestinationCountries: rest.getDestinationCountries,
+      getDestinationCountryCuits: down(error),
+    };
+
+    await expect(
+      service.resolve(
+        { ...CODES, currencyCode: 'USD', exchangeRate: 900, requestId: 100, voucherNumber: 5 },
+        gateway,
+        RUNTIME,
+      ),
+    ).rejects.toBe(error);
+    expect(gateway.getLanguages).not.toHaveBeenCalled();
+    expect(gateway.authorize).not.toHaveBeenCalled();
+  });
+
+  it('una tabla y un permiso sin conexión también cortan; dos errores de WSFEX, no', async () => {
+    const answered = new AppError('ARCA devolvió un error', { code: 'ARCA_EXPORT_ERROR' });
+    const permits = { exportType: 1, incoterm: 'fob', permits: ['P1'], permitsExisting: true } as const;
+
+    await expect(
+      read({ checkPermit: down(new Error('socket hang up')), getActivities: down() }, permits),
+    ).rejects.toThrow(TIMEOUT);
+    expect((await read({ getCurrencies: down(answered), getLanguages: down(answered) })).warnings).toHaveLength(2);
+  });
+
   it('un error de WSFEX en una tabla se tolera, salvo el del token', async () => {
     const answered = new AppError('ARCA devolvió un error al consultar los idiomas: interno', {
       code: 'ARCA_EXPORT_ERROR',
@@ -900,13 +932,14 @@ describe('ExportService.resolve: tablas que no responden (EXPO-13, ARQ-22)', () 
   });
 
   it('lo heredado del asociado no es "sin validar"', async () => {
+    const answered = new AppError('ARCA devolvió un error', { code: 'ARCA_EXPORT_ERROR' });
     const { warnings } = await service.resolve(
       { amount: 100, associatedVoucher: { number: 12 }, emit: true, voucherKind: EXPORT_CREDIT_NOTE_KIND },
       createGateway({
-        getActivities: down(),
-        getCurrencies: down(),
-        getDestinationCountryCuits: down(),
-        getLanguages: down(),
+        getActivities: down(answered),
+        getCurrencies: down(answered),
+        getDestinationCountryCuits: down(answered),
+        getLanguages: down(answered),
       }),
       RUNTIME,
     );

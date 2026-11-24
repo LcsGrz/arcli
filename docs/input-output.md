@@ -319,7 +319,7 @@ Es el mismo resumen que A, B y C (`atajo`, `cae`, `estado`, `errores`, `observac
 
 En las notas, `solicitud` lleva `Cmps_asoc` con el asociado y `Permiso_existente` vacío (con `Permisos` solo si la nota de bienes los informa), y no lleva `Fecha_pago` ni `CanMisMonExt`. La factura de bienes (`tipoExpo: 1`) tampoco lleva `Fecha_pago`: ARCA la rechaza (error 1673). La factura en pesos (`PES`) no lleva `CanMisMonExt`: ARCA pide que no se informe (error 1605). Si la tabla de ARCA no trae CUIT para el destino y no se pasa `--cuit-pais`, `solicitud` no lleva `Cuit_pais_cliente` y `exportacion.cuitPaisCliente` es `null`: la `E` va solo con el ID impositivo (error 1580).
 
-`exportacion.destino.nombre`, `exportacion.incotermDescripcion` y `exportacion.items[].unidad` salen de las tablas de WSFEX; si la tabla no trae el nombre, o no respondió (sale en `avisos`), `destino.nombre` y `unidad` quedan en `null` y el código numérico sigue disponible. `exportacion.actividad` lista los códigos de actividad informados en `solicitud.Actividades` (de `--actividad` o de `exportacion.actividad`); sin actividad, `solicitud` no trae `Actividades` y la lista va vacía y `exportacion.mismaMoneda` indica si el pago se cancela en la misma moneda extranjera (`solicitud.CanMisMonExt` en `S`).
+`exportacion.destino.nombre`, `exportacion.incotermDescripcion` y `exportacion.items[].unidad` salen de las tablas de WSFEX; si la tabla no trae el nombre, quedan en `null` y el código numérico sigue disponible. Si una tabla no respondió (sale en `avisos`), solo `unidad` queda en `null`: sin la de países o sin la descripción del incoterm, la vista previa corta. `exportacion.actividad` lista los códigos de actividad informados en `solicitud.Actividades` (de `--actividad` o de `exportacion.actividad`); sin actividad, `solicitud` no trae `Actividades` y la lista va vacía y `exportacion.mismaMoneda` indica si el pago se cancela en la misma moneda extranjera (`solicitud.CanMisMonExt` en `S`).
 
 Una actividad que no está en la tabla de actividades de WSFEX es `INPUT_VALIDATION_ERROR` antes de ir a ARCA, porque ARCA la rechaza (error 2105). En `arcli factura e`, los flags de A, B y C que se saltean salen en `avisos`. En la factura, `solicitud` no trae `Cmps_asoc` ni `Opcionales`: ARCA rechaza esos bloques vacíos (error 1820 el primero).
 
@@ -1160,6 +1160,17 @@ Con el certificado del entorno vencido, los comandos que van a ARCA cortan antes
   "detalles": { "entorno": "produccion", "vencimiento": "20/11/2026" },
   "error": "El certificado de producción venció el 20/11/2026: ARCA no lo acepta.",
   "sugerencia": "Renovalo con `arcli certificado generar --produccion` y cargá el .crt de ARCA con `arcli certificado importar <archivo>`. Guía: https://arcli.com.ar/empezar/certificado-testing/"
+}
+```
+
+Si el vencido es el propio de exportación (`exportacion.cert.<entorno>`), el `codigo` y los `detalles` son los mismos y cambian los textos:
+
+```json
+{
+  "codigo": "CERTIFICATE_EXPIRED",
+  "detalles": { "entorno": "produccion", "vencimiento": "20/11/2026" },
+  "error": "El certificado de exportación de producción venció el 20/11/2026: ARCA no lo acepta.",
+  "sugerencia": "Sacá uno nuevo en ARCA, autorizalo a `wsfex` y cargá el .crt con `arcli config establecer exportacion.cert.produccion <ruta>` (si cambió la clave, también `exportacion.key.produccion`). Guía: https://arcli.com.ar/referencia/configuracion/#certificados-de-exportación-wsfex"
 }
 ```
 
