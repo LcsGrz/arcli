@@ -40,7 +40,10 @@ export const COMMAND_COVERAGE: SurfaceCoverage = {
   'certificado-importar': { en: ['certificado importar'] },
   'config-borrar': { en: ['config eliminar'] },
   'config-cambiar': { en: ['config establecer'] },
-  'config-guiada': { en: [], excepcion: 'ARQ-22: sin decidir' },
+  'config-guiada': {
+    en: [],
+    excepcion: 'docs/architecture.md: la configuración guiada está solo en el asistente, porque son preguntas',
+  },
   'config-revisar': { en: ['config revisar'] },
   'config-ruta': { en: ['config ruta'] },
   'config-ver': { en: ['config'] },
@@ -66,7 +69,11 @@ export const COMMAND_COVERAGE: SurfaceCoverage = {
   'pdf-estado': { en: ['pdf', 'pdf estado'] },
   'pdf-instalar': { en: ['pdf instalar'] },
   previsualizar: { en: withFlag([...WSFE, ...WSFEX], '--previsualizar') },
-  'repetir-comprobante': { en: [], excepcion: 'ARQ-22: sin decidir' },
+  'repetir-comprobante': {
+    en: [],
+    excepcion:
+      'docs/architecture.md: repetir un comprobante está solo en el asistente, porque en la terminal alcanza con el historial',
+  },
 };
 
 /**
@@ -82,7 +89,11 @@ export const ASSISTANT_COVERAGE: SurfaceCoverage = {
   'config-cambiar': { en: ['Configuración > Modificar configuración'] },
   'config-guiada': { en: ['Configuración > Configuración guiada'] },
   'config-revisar': { en: ['Configuración > Revisar configuración'] },
-  'config-ruta': { en: [], excepcion: 'ARQ-22: sin decidir' },
+  'config-ruta': {
+    en: [],
+    excepcion:
+      'docs/architecture.md: la ruta de la config está solo en los comandos, porque es para quien usa la terminal',
+  },
   'config-ver': { en: ['Configuración > Ver configuración'] },
   'consultar-comprobante': { en: ['Consultas > Mis comprobantes'] },
   'consultar-cotizacion': { en: ['Consultas > Monedas y cotizaciones'] },
