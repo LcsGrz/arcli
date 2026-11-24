@@ -768,6 +768,197 @@ describe('lotes', () => {
     ]));
 });
 
+describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () => {
+  // Tests primero: los `it.fails` pasan a `it` con el arreglo.
+  const RC = ['rc', '-m', '1000', '--cs', '--cfinal'];
+  const NCEA = [
+    ...['ncea', '-m', '1000000', '--cs', '--cuit', String(CLIENT_CUIT), '--ir-ri'],
+    ...['--ac', 'fcea', '--apv', '3', '--ar', '12'],
+  ];
+  const FE_APPROVABLE = [...FE, '--cuit-pais', '55000002126', '--pv', '4'];
+  const CAUSE = 'ARCA contestó algo que ARCLI no pudo leer';
+  const ONE = { Code: 1, Msg: 'x' };
+
+  /** La respuesta aprobada, con estas claves en la raiz y en el detalle: sin el array que promete el WSDL. */
+  function approvedWith(root: Record<string, unknown>, detail: Record<string, unknown> = {}) {
+    return async (request: WsfeRequest) => {
+      const answer = await wsfeAnswer('A')(request);
+      const [first] = answer.response.FeDetResp.FECAEDetResponse;
+
+      return {
+        ...answer,
+        response: { ...answer.response, ...root, FeDetResp: { FECAEDetResponse: [{ ...first, ...detail }] } },
+      };
+    };
+  }
+
+  const UNREADABLE: ReadonlyArray<readonly [string, (request: WsfeRequest) => Promise<unknown>]> = [
+    ['sin respuesta', async () => undefined],
+    ['null', async () => null],
+    ['Errors.Err no es una lista', approvedWith({ Errors: { Err: ONE } })],
+    ['Events.Evt no es una lista', approvedWith({ Events: { Evt: ONE } })],
+    ['Observaciones.Obs no es una lista', approvedWith({}, { Observaciones: { Obs: ONE } })],
+    ['una observación nula', approvedWith({}, { Observaciones: { Obs: [null] } })],
+  ];
+
+  async function uncertain(args: readonly string[]): Promise<Record<string, unknown>> {
+    prepareConfig({});
+
+    const result = await runCli([...args, '--emitir', '--json']);
+
+    expect(result).toMatchObject({ code: 1, stdout: '' });
+
+    return JSON.parse(result.stderr) as Record<string, unknown>;
+  }
+
+  it.fails.each(UNREADABLE)('fc, %s: EMISSION_UNCERTAIN con el comando para verificar', async (_name, answer) => {
+    sdk.wsfe.createVoucher.mockImplementation(answer);
+
+    expect(await uncertain(FC)).toEqual({
+      codigo: 'EMISSION_UNCERTAIN',
+      detalles: { causa: CAUSE },
+      error: `No se pudo confirmar la emisión: ${CAUSE}`,
+      sugerencia: expect.stringContaining('`arcli ultimos fc --pv 3 --testing`'),
+    });
+    expect(sdk.wsfe.createVoucher).toHaveBeenCalledTimes(1);
+  });
+
+  it.fails.each(UNREADABLE)('fc en la terminal, %s: el mismo error', async (_name, answer) => {
+    sdk.wsfe.createVoucher.mockImplementation(answer);
+    prepareConfig({});
+
+    const result = await runCli([...FC, '--emitir']);
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('EMISIÓN SIN CONFIRMAR');
+    expect(result.stderr.replace(/[│┃\s]+/g, ' ')).toContain('arcli ultimos fc --pv 3 --testing');
+  });
+
+  it.fails.each<[string, string[]]>([
+    ['fa', FA],
+    ['fb', FB],
+    ['fcea', FCEA],
+    ['rc', RC],
+    ['ncc', NCC],
+    ['ncea', NCEA],
+  ])('%s', async (shortcut, args) => {
+    sdk.wsfe.createVoucher.mockResolvedValue(undefined);
+    sdk.generic.call.mockImplementation(
+      consulting(issuedVoucher(shortcut === 'ncea' ? { DocNro: CLIENT_CUIT, DocTipo: 80, ImpTotal: 5000000 } : {})),
+    );
+
+    expect(await uncertain(args)).toMatchObject({
+      codigo: 'EMISSION_UNCERTAIN',
+      detalles: { causa: CAUSE },
+      sugerencia: expect.stringContaining(`\`arcli ultimos ${shortcut} --pv 3 --testing\``),
+    });
+  });
+
+  it.fails.each<[string, unknown]>([
+    ['sin respuesta', undefined],
+    ['null', null],
+    ['Motivos_Obs no es texto', { FEXAuthorizeResult: { FEXResultAuth: { Motivos_Obs: ['x'], Resultado: 'A' } } }],
+    ['Cae no es texto', { FEXAuthorizeResult: { FEXResultAuth: { Cae: 76463926585399, Resultado: 'A' } } }],
+    ['ErrMsg no es texto', { FEXAuthorizeResult: { FEXErr: { ErrCode: 1, ErrMsg: ['x'] } } }],
+    ['EventMsg no es texto', { FEXAuthorizeResult: { FEXEvents: { EventCode: 1, EventMsg: ['x'] } } }],
+  ])('fe, %s: EMISSION_UNCERTAIN con su número y su solicitud', async (_name, answer) => {
+    sdk.wsfex.authorize.mockResolvedValue(answer);
+
+    expect(await uncertain(FE_APPROVABLE)).toEqual({
+      codigo: 'EMISSION_UNCERTAIN',
+      detalles: { causa: CAUSE, idSolicitud: 42, numero: 8 },
+      error: `No se pudo confirmar la emisión: ${CAUSE}`,
+      sugerencia: expect.stringContaining('`arcli consultar fe 8 --pv 4 --testing`'),
+    });
+    expect(sdk.wsfex.authorize).toHaveBeenCalledTimes(1);
+  });
+
+  it.fails.each(['nce', 'nde'])('%s', async (shortcut) => {
+    sdk.wsfex.authorize.mockResolvedValue(undefined);
+
+    expect(await uncertain([shortcut, ...NCE.slice(1)])).toMatchObject({
+      codigo: 'EMISSION_UNCERTAIN',
+      detalles: { causa: CAUSE, idSolicitud: 42, numero: 8 },
+      sugerencia: expect.stringContaining(`\`arcli consultar ${shortcut} 8 --pv 4 --testing\``),
+    });
+  });
+
+  // Antes de la llamada que emite no es incierto: sale su error y, en un lote, sin `sinConfirmar`.
+  it.each<[string, () => unknown]>([
+    ['el último número', () => sdk.wsfe.getLastVoucher.mockRejectedValue(new Error('LoginFault'))],
+    [
+      'un error de ARCA por el último número',
+      () => sdk.wsfe.getLastVoucher.mockResolvedValue({ errors: { err: [{ code: 600, msg: 'x' }] } }),
+    ],
+    ['el tope de numeración', () => sdk.wsfe.getLastVoucher.mockResolvedValue({ cbteNro: 99_999_999 })],
+    ['un último número que no se puede leer', () => sdk.wsfe.getLastVoucher.mockResolvedValue(undefined)],
+  ])('un lote cortado por %s no emitió y no trae sinConfirmar', async (_name, fail) => {
+    fail();
+    prepareConfig({});
+
+    const result = await runCli([
+      ...['fc', '--cargar', writeInput('lote.json', [batchItem(1000), batchItem(2000)]), '--emitir', '--json'],
+    ]);
+
+    expect(result.code).toBe(1);
+    expect(JSON.parse(result.stderr)).toMatchObject({
+      codigo: 'BATCH_EMISSION_ERROR',
+      detalles: { fallo: 1, procesados: 0, sinProcesar: [1, 2], total: 2 },
+    });
+    expect(result.stderr).not.toContain('sinConfirmar');
+    expect(sdk.wsfe.createVoucher).not.toHaveBeenCalled();
+  });
+
+  // Caracterización: una respuesta que se lee pero viene vacía o sin CAE sale como antes de ERR-16.
+  it.each<[string, unknown, Record<string, unknown>, number]>([
+    ['vacía', { cae: '', caeFchVto: '', response: {} }, { cae: null, estado: 'observado', resultado: null }, 0],
+    [
+      'aprobada sin CAE',
+      { cae: '', caeFchVto: '', response: { FeDetResp: { FECAEDetResponse: [{ Resultado: 'A' }] } } },
+      { cae: null, estado: 'aprobado', resultado: 'A' },
+      0,
+    ],
+    [
+      'con un error interno de ARCA y sin detalle',
+      { cae: '', caeFchVto: '', response: { Errors: { Err: [{ Code: 501, Msg: 'Error interno de base de datos' }] } } },
+      { cae: null, estado: 'rechazado', resultado: null },
+      2,
+    ],
+  ])('sin cambios, fc con la respuesta %s', async (_name, answer, expected, code) => {
+    sdk.wsfe.createVoucher.mockResolvedValue(answer);
+    prepareConfig({});
+
+    const result = await runCli([...FC, '--emitir', '--json']);
+
+    expect(result.code).toBe(code);
+    expect(JSON.parse(result.stdout)).toMatchObject(expected);
+  });
+
+  it.each<[string, unknown, Record<string, unknown>, number]>([
+    ['vacía', {}, { cae: null, estado: 'observado', resultado: null }, 0],
+    [
+      'aprobada sin CAE',
+      { FEXAuthorizeResult: { FEXResultAuth: { Resultado: 'A' } } },
+      { cae: null, estado: 'aprobado', resultado: 'A' },
+      0,
+    ],
+    [
+      'con un error interno de ARCA y sin detalle',
+      { FEXAuthorizeResult: { FEXErr: { ErrCode: 500, ErrMsg: 'Error interno' } } },
+      { cae: null, estado: 'rechazado', resultado: null },
+      2,
+    ],
+  ])('sin cambios, fe con la respuesta %s', async (_name, answer, expected, code) => {
+    sdk.wsfex.authorize.mockResolvedValue(answer);
+    prepareConfig({});
+
+    const result = await runCli([...FE_APPROVABLE, '--emitir', '--json']);
+
+    expect(result.code).toBe(code);
+    expect(JSON.parse(result.stdout)).toMatchObject(expected);
+  });
+});
+
 describe('consumidor final sin numero (REV-63)', () => {
   // Sin flag de receptor, el IVA receptor sale de la config; el documento, consumidor final por defecto.
   const setup: Setup = { config: { ivaReceptorPorDefecto: 'consumidor-final' } };
