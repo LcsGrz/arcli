@@ -153,7 +153,7 @@ export const OPTIONS = {
     name: 'Comprobante que ajusta',
     rows: [
       ['', '--ac <atajo>', 'Atajo del comprobante: fc, rc, ndc…'],
-      ['--apv', '--asociado-punto-venta <número>', 'Su punto de venta'],
+      ['--apv', '--asociado-punto-venta <número>', 'Su punto de venta; por defecto, el de la nota'],
       ['', '--ar <número>', 'Su número'],
       ['', '--acuit <cuit>', 'El CUIT de quien lo emitió; sin él, el tuyo'],
       ['', '--at <número>', 'Tipo ARCA, en vez de --ac'],
@@ -189,7 +189,7 @@ export const OPTIONS = {
     name: 'Factura que ajusta',
     rows: [
       ['', '--ac <atajo>', 'fcec, fcea o fceb; con --anulacion, también una nota FCE'],
-      ['--apv', '--asociado-punto-venta <número>', 'Su punto de venta'],
+      ['--apv', '--asociado-punto-venta <número>', 'Su punto de venta; por defecto, el de la nota'],
       ['', '--ar <número>', 'Su número'],
       ['', '--at <número>', 'Tipo ARCA, en vez de --ac'],
     ],

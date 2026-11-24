@@ -8,6 +8,13 @@ function createGateway(service: Record<string, unknown>): ArcaParametersGateway 
 }
 
 describe('ArcaParametersGateway', () => {
+  it('el estado de WSFEX sale de FEXDummy', async () => {
+    const dummy = vi.fn(async () => ({ FEXDummyResult: { AppServer: 'OK', AuthServer: 'A', DbServer: 'D' } }));
+    const gateway = new ArcaParametersGateway({ wsfexService: { dummy } } as unknown as Arca);
+
+    expect(await gateway.getExportServerStatus()).toEqual({ app: 'OK', auth: 'A', db: 'D' });
+  });
+
   it('maps tables and treats "NULL" as no expiry', async () => {
     const gateway = createGateway({
       getIvaReceptorTypes: vi.fn(async () => ({

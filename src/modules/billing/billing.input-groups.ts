@@ -151,10 +151,24 @@ export function resolveAssociatedPeriod({ file, flags, now }: BillingInputLayers
   };
 }
 
-export function resolveAssociatedVoucher({ file, flags, now }: BillingInputLayers) {
+/**
+ * Sin `--apv`, el asociado es del punto de venta de la nota: con un `--pv` distinto al del archivo es otro comprobante y
+ * la fecha del archivo no va, como con `--apv` (`mergeAssociatedVoucher`).
+ */
+function fileAssociatedVoucher({ file, flags }: BillingInputLayers): BillingJsonInput['comprobanteAsociado'] {
+  const voucher = file.comprobanteAsociado;
+  const followsNote = voucher?.puntoVenta === undefined && flags.comprobanteAsociado?.puntoVenta === undefined;
+  const changesNote =
+    flags.puntoVenta !== undefined && file.puntoVenta !== undefined && flags.puntoVenta !== file.puntoVenta;
+
+  return voucher && followsNote && changesNote ? { ...voucher, fecha: undefined } : voucher;
+}
+
+export function resolveAssociatedVoucher(layers: BillingInputLayers) {
+  const { flags, now } = layers;
   const voucher = mergeAssociatedVoucher(
     flags.comprobanteAsociado,
-    file.comprobanteAsociado,
+    fileAssociatedVoucher(layers),
     (shortcut) => getVoucherKindByShortcut(shortcut.trim().toLowerCase())?.arcaType,
   );
 

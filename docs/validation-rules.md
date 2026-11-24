@@ -258,7 +258,7 @@ Período asociado (`--periodo-desde` y `--periodo-hasta`):
 Comprobante asociado (si no se usa el período), que necesita:
 
 - `--ac` o `--at` (ARCA 10057)
-- `--apv` o `--asociado-punto-venta` (ARCA 10058)
+- `--apv` o `--asociado-punto-venta` (ARCA 10058): sin él, el punto de venta de la nota, también en `--cargar`. Si el asociado es de otro CUIT, es obligatorio. Con un `--pv` distinto del `puntoVenta` del JSON, el asociado sin punto de venta cambia con él y su `fecha` del JSON no va
 - `--ar` (ARCA 10059)
 - `--acuit` es opcional: sin él, el asociado es del CUIT emisor. En las notas comunes el CUIT del asociado es opcional para ARCA (p. 31); en NC/ND FCE es obligatorio (ARCA 10151) y tiene que ser el del emisor (ARCA 10155), así que ARCLI siempre lo manda
 

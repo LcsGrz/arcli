@@ -1,6 +1,7 @@
 import { formatArcaDateAsArgentineDate } from '../../lib/dates/arca-date';
 import { formatCuit } from '../../lib/identity/format-cuit';
 import { formatExchangeRate } from '../../lib/numbers/argentine-amount';
+import { joinWithAnd } from '../../lib/text/join-with-and';
 import { attentionPanel, listingPanel, noticePanel, ticketPanel } from '../../ui/components';
 import { renderKeyValueRows, resolveKeyValueLabelWidth, uiSymbol } from '../../ui/primitives';
 import {
@@ -33,6 +34,8 @@ import { formatVoucherNumber } from './voucher-number';
 export interface VoucherListReport {
   readonly environment: 'produccion' | 'testing';
   readonly pointOfSale: number;
+  /** Los que existen y no se pudieron leer. */
+  readonly skipped?: readonly number[];
   readonly voucherKind: VoucherKindDefinition;
   readonly vouchers: readonly IssuedVoucher[];
 }
@@ -44,7 +47,6 @@ export interface VoucherDetailReport {
   readonly voucherKind: VoucherKindDefinition;
 }
 
-/** @internal Exportado para los tests. */
 export function formatReceiver(voucher: IssuedVoucher): string {
   if (voucher.documentTypeCode === CONSUMER_DOCUMENT_TYPE_CODE) {
     return 'Consumidor final';
@@ -63,7 +65,7 @@ export function formatReceiver(voucher: IssuedVoucher): string {
 }
 
 /** Titulo del listado de ultimos comprobantes, tambien usado por el selector del modo interactivo. */
-function formatVoucherListTitle(report: Omit<VoucherListReport, 'vouchers'>): string {
+function formatVoucherListTitle(report: Omit<VoucherListReport, 'skipped' | 'vouchers'>): string {
   const separator = uiSymbol('separator');
 
   return `${formatLatestVouchersTitle(report.voucherKind)} ${separator} PV ${report.pointOfSale} ${separator} ${formatEnvironmentLabel(report.environment)}`;
@@ -78,7 +80,7 @@ export function formatSkippedVouchers(pointOfSale: number, numbers: readonly num
   const labels = [...numbers]
     .sort((left, right) => right - left)
     .map((number) => formatVoucherNumber(pointOfSale, number));
-  const list = labels.length > 1 ? `${labels.slice(0, -1).join(', ')} y ${labels.at(-1)}` : labels[0];
+  const list = joinWithAnd(labels);
   const subject = labels.length === 1 ? 'No se muestra 1 comprobante' : `No se muestran ${labels.length} comprobantes`;
 
   return noticePanel(
@@ -174,16 +176,22 @@ export function formatVoucherPickerRows(
 }
 
 export function formatVoucherListAsText(report: VoucherListReport): string {
-  const { pointOfSale, voucherKind, vouchers } = report;
+  const { pointOfSale, skipped = [], voucherKind, vouchers } = report;
+  const skippedNotice = formatSkippedVouchers(pointOfSale, skipped);
 
   if (vouchers.length === 0) {
-    return noticePanel(`${formatNoVouchersEmitted(voucherKind)} en el punto de venta ${pointOfSale}.`, 'muted');
+    return (
+      skippedNotice ||
+      noticePanel(`${formatNoVouchersEmitted(voucherKind)} en el punto de venta ${pointOfSale}.`, 'muted')
+    );
   }
 
-  return listingPanel(
+  const listing = listingPanel(
     formatVoucherListTitle(report),
     vouchers.map((voucher) => formatVoucherListRow(pointOfSale, voucher)),
   );
+
+  return [listing, skippedNotice].filter(Boolean).join('\n\n');
 }
 
 function serializeVoucher(voucher: IssuedVoucher): Record<string, unknown> {

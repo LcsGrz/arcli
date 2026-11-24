@@ -1,3 +1,4 @@
+import { joinWithAnd } from '../../lib/text/join-with-and';
 import { conceptFromCode } from '../billing/arca-codes';
 import type {
   BillingConcept,
@@ -10,6 +11,7 @@ import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
 import { discriminatesIva } from '../billing/voucher-kind-map';
 import { formatVoucherSubject } from '../billing/voucher-names';
 import { inferIvaRate, type IssuedVoucher, resolveDocumentType } from '../vouchers/voucher-history';
+import { formatReceiver } from '../vouchers/voucher-history.presenter';
 
 import { receiverChoices } from './choices';
 
@@ -108,6 +110,27 @@ export function copiedReceiverNotice(
   return allowed
     ? undefined
     : `${formatVoucherSubject(voucherKind)} original fue ${COPIED_DOCUMENT_LABELS[receiver.documentType]}, pero ARCA solo admite un CUIT como receptor (error ${voucherKind.isElectronicCredit ? 10015 : 10013}). Ingresá el CUIT del receptor.`;
+}
+
+/**
+ * Lo que "Repetir" copia de una A, B, C, FCE o recibo, dicho al elegirlo, como en la E. El receptor que la letra no
+ * admite no va (se pide el CUIT) y el monto tampoco si no se puede reproducir.
+ */
+export function copiedInvoiceNotice(invoice: IssuedVoucher, voucherKind: VoucherKindDefinition): string {
+  const receiver = copyInvoiceReceiver(invoice);
+  const { currencyCode, ivaRate, limitation } = copyInvoiceAmounts(invoice, voucherKind.letter);
+  const copiesReceiver = receiver && copiedReceiverNotice(receiver, voucherKind) === undefined;
+  const label = receiver?.documentType === 'consumidor-final' ? 'consumidor final' : formatReceiver(invoice);
+  const copied = [
+    ...(copiesReceiver ? [`el receptor (${label})`] : []),
+    'el concepto',
+    'la moneda',
+    ...(limitation ? [] : ['el monto']),
+    ...(ivaRate ? ['la alícuota'] : []),
+  ];
+  const renewed = currencyCode === ARCA_LOCAL_CURRENCY_CODE ? 'Las fechas' : 'Las fechas y la cotización';
+
+  return `Se copian ${joinWithAnd(copied)}. ${renewed} son nuevas.`;
 }
 
 /**

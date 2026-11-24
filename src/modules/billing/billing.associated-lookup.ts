@@ -154,7 +154,7 @@ function shouldLookUpAssociated(
 ): boolean {
   const associated = input.associatedVoucher;
 
-  if (!isNote(voucherKind) || !associated?.numero || !associated.puntoVenta) {
+  if (!isNote(voucherKind) || !associated?.numero) {
     return false;
   }
 
@@ -436,7 +436,6 @@ export async function checkFceCancellationInRegistry(options: {
     !isNote(voucherKind) ||
     !input.cancellation ||
     !associated?.numero ||
-    !associated.puntoVenta ||
     (associated.cuit !== undefined && associated.cuit.replace(/\D/g, '') !== String(emitterCuit))
   ) {
     return [];

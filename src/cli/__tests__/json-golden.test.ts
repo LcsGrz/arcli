@@ -61,6 +61,7 @@ const sdk = vi.hoisted(() => ({
   wsfex: {
     authorize: vi.fn(),
     checkPermiso: vi.fn(),
+    dummy: vi.fn(),
     getCmp: vi.fn(),
     getLastCmp: vi.fn(),
     getLastId: vi.fn(),
@@ -281,6 +282,7 @@ function resetSdk(): void {
   sdk.wsfe.getQuotation.mockResolvedValue({ resultGet: { fchCotiz: '20261116', monCotiz: 1452.5, monId: 'DOL' } });
   sdk.generic.call.mockImplementation(consulting(issuedVoucher()));
   sdk.wsfe.getServerStatus.mockResolvedValue({ appServer: 'OK', authServer: 'OK', dbServer: 'OK' });
+  sdk.wsfex.dummy.mockResolvedValue({ FEXDummyResult: { AppServer: 'OK', AuthServer: 'OK', DbServer: 'OK' } });
   sdk.padron.getTaxpayerDetails.mockResolvedValue({
     datosGenerales: {
       domicilioFiscal: {
@@ -2906,6 +2908,76 @@ describe('otros comandos que van a ARCA', () => {
     return golden('ultimos-con-hueco', ['ultimos', 'fc', '--cantidad', '3', '--json']);
   });
 
+  // ARQ-22: como la E.
+  describe('ultimos de A, B y C con uno que existe y no se puede leer', () => {
+    const flat = (text: string) => text.replace(/[│┃╏║\s]+/g, ' ');
+    const answering = (broken: (number: number) => boolean) => {
+      sdk.generic.call.mockImplementation(
+        async (service: string, method: string, params: { FeCompConsReq: { CbteNro: number } }) => {
+          const number = params.FeCompConsReq.CbteNro;
+
+          return broken(number)
+            ? {
+                FECompConsultarResult: {
+                  ResultGet: { CbteDesde: number, CbteHasta: number, CodAutorizacion: '76463926585300' },
+                },
+              }
+            : consulting(issuedVoucher())(service, method);
+        },
+      );
+    };
+
+    it('lo saltea y lo avisa; con --json, en stderr y sin cambiar la forma', async () => {
+      answering((number) => number === 40);
+      prepareConfig({});
+
+      const json = await runCli(['ultimos', 'fc', '--cantidad', '3', '--json']);
+      const notice = 'No se muestra 1 comprobante, porque ARCLI no pudo leer sus datos: 00003-00000040.';
+
+      expect(json.code).toBe(0);
+      expect(Object.keys(JSON.parse(json.stdout) as object)).toEqual([
+        'atajo',
+        'comprobante',
+        'tipoArca',
+        'comprobantes',
+        'entorno',
+        'puntoVenta',
+      ]);
+      expect((JSON.parse(json.stdout) as { comprobantes: unknown[] }).comprobantes).toHaveLength(2);
+      expect(flat(json.stderr)).toContain(notice);
+
+      const text = await runCli(['ultimos', 'fc', '--cantidad', '3']);
+
+      expect(text).toMatchObject({ code: 0, stderr: '' });
+      expect(flat(text.stdout)).toContain(notice);
+    });
+
+    it('si no se puede leer ninguno, los nombra y no dice que no hay', async () => {
+      answering(() => true);
+      prepareConfig({});
+
+      const text = await runCli(['ultimos', 'fc', '--cantidad', '2']);
+
+      expect(text).toMatchObject({ code: 0, stderr: '' });
+      expect(flat(text.stdout)).toContain('No se muestran 2 comprobantes');
+      expect(text.stdout).not.toContain('No hay');
+    });
+
+    it('consultar falla con el mismo código', async () => {
+      answering(() => true);
+      prepareConfig({});
+
+      const result = await runCli(['consultar', 'fc', '40', '--json']);
+
+      expect(result.code).toBe(1);
+      expect(JSON.parse(result.stderr)).toMatchObject({
+        codigo: 'ARCA_VOUCHER_QUERY_ERROR',
+        detalles: { errores: [] },
+        error: expect.stringContaining('00003-00000040 existe, con el CAE 76463926585300'),
+      });
+    });
+  });
+
   // Con estos comandos se verifica una emisión: no pueden decir que no se emitió ni mandar a emitir.
   describe('un error al consultar no habla de emitir', () => {
     const VERIFY = 'Si estabas verificando una emisión, no la reintentes hasta saber si el comprobante existe.';
@@ -3255,6 +3327,13 @@ describe('consultas y comandos sin dorado (REV-49)', () => {
     });
 
     return golden('estado', ['estado', '--json']);
+  });
+
+  it('estado sin respuesta de WSFEX: lo demás y el exit code no cambian (ARQ-22)', () => {
+    sdk.wsfe.getSalesPoints.mockResolvedValue({ resultGet: { ptoVenta: [] } });
+    sdk.wsfex.dummy.mockRejectedValue(new Error('connect ETIMEDOUT'));
+
+    return golden('estado-sin-wsfex', ['estado', '--json']);
   });
 
   it('estado sin punto de venta configurado', () => {

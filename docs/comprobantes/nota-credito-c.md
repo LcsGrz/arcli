@@ -73,7 +73,7 @@ Atajo, punto de venta y número del comprobante: una factura u otra nota de la m
 | Largo | Corto | Qué es |
 | --- | --- | --- |
 | `--ac <atajo>` |  | Atajo del comprobante: fc, rc, ndc… |
-| `--asociado-punto-venta <número>` | `--apv` | Su punto de venta |
+| `--asociado-punto-venta <número>` | `--apv` | Su punto de venta; por defecto, el de la nota |
 | `--ar <número>` |  | Su número |
 | `--acuit <cuit>` |  | El CUIT de quien lo emitió; sin él, el tuyo |
 | `--at <número>` |  | Tipo ARCA, en vez de --ac |

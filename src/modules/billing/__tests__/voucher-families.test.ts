@@ -96,6 +96,7 @@ describe('familias de comprobante (caracterización de ARQ8-1)', () => {
             billingDate: TODAY,
             emitterCuit: 20111111112,
             input: { shortcut: voucherKind.shortcut } as BillingCommandInput,
+            pointOfSale: 3,
             requireVoucherKind: () => voucherKind,
             today: TODAY,
             voucherKind,

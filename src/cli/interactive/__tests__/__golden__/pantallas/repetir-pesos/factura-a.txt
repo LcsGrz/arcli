@@ -21,6 +21,14 @@
   · # Ingresar el número a mano… — Uno más viejo o de otro punto de venta
   = 00003-00000008  ·   10/11/2026  ·   CUIT 30-70996581-2  ·   $ 1.210  ·  CAE 86400940834693
 
+== pantalla ==
+┌                                                                                          ┐
+
+     Se copian el receptor (CUIT 30-70996581-2), el concepto, la moneda, el monto y la
+                              alícuota. Las fechas son nuevas.
+
+└                                                                                          ┘
+
 ? [lista] Condición frente al IVA del receptor:
   arranca en: (ninguna)
   · Responsable inscripto

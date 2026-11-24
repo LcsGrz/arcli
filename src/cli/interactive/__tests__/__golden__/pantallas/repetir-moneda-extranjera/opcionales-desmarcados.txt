@@ -22,6 +22,14 @@
   · # Ingresar el número a mano… — Uno más viejo o de otro punto de venta
   = 00003-00000015  ·   10/11/2026  ·   Consumidor final  ·     500 USD  ·  CAE 86400940834693
 
+== pantalla ==
+┌                                                                                          ┐
+
+      Se copian el receptor (consumidor final), el concepto, la moneda y el monto. Las
+                             fechas y la cotización son nuevas.
+
+└                                                                                          ┘
+
 ? [lista] ¿Mismo monto?
   arranca en: (ninguna)
   · Sí, 500 USD
@@ -36,9 +44,9 @@
 └                                                                                          ┘
 
 ? [lista] ¿Cómo te pagan?
-  arranca en: (ninguna)
+  arranca en: En dólares
   · En pesos — El comprobante va en dólares y lo cobrás en pesos: confirmás o cambiás la cotización
-  · En dólares — Se usa la cotización oficial de ARCA
+  > En dólares — Se usa la cotización oficial de ARCA
   = En dólares
 
 ? [lista] Período del servicio:

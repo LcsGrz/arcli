@@ -1,4 +1,5 @@
 import { addDaysToArcaDate } from '../../lib/dates/arca-date';
+import { readRejectedCae } from '../../modules/billing/emission-response';
 import type {
   IssuedAssociatedVoucher,
   IssuedIvaAliquot,
@@ -10,7 +11,7 @@ import type {
 
 import type { Arca } from './arca-sdk.types';
 import { getLastAuthorizedNumber, rethrowIfWsfeNotAuthorized } from './last-voucher';
-import { voucherQueryError } from './voucher-query-error';
+import { unreadableVoucherError, voucherQueryError } from './voucher-query-error';
 
 type Row = Record<string, unknown>;
 
@@ -48,7 +49,12 @@ export class ArcaVoucherHistoryGateway implements VoucherHistoryGateway {
 
     // Sin el 602, que falte el comprobante no dice que no exista (ERR-1). Un error sin codigo ni mensaje, tampoco.
     if (errors.length < rows.length || (!voucher && errors.length === 0)) {
-      throw voucherQueryError({ errors: [], number, pointOfSale });
+      const cae = rows.length === 0 ? readExistingCae(result?.ResultGet, number) : null;
+
+      // Con su numero y su CAE existe: una lista lo saltea en vez de fallar entera, como en la E (ARQ-22).
+      throw cae === null
+        ? voucherQueryError({ errors: [], number, pointOfSale })
+        : unreadableVoucherError({ cae, number, pointOfSale });
     }
 
     return voucher;
@@ -80,6 +86,16 @@ function readDate(value: unknown): string | undefined {
   const date = readText(value);
 
   return /^\d{8}$/.test(date) && addDaysToArcaDate(date, 0) === date ? date : undefined;
+}
+
+/** El CAE, si la respuesta es la de ese numero (`CbteDesde` a `CbteHasta`). */
+function readExistingCae(row: Row | null | undefined, number: number): string | null {
+  const from = readNumber(row?.CbteDesde);
+  const to = readNumber(row?.CbteHasta) ?? from;
+
+  return from !== undefined && to !== undefined && from <= number && number <= to
+    ? readRejectedCae(row?.CodAutorizacion)
+    : null;
 }
 
 /** Sin una fecha real no es un comprobante: si existe o no lo dicen los errores de la respuesta. */

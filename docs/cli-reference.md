@@ -310,16 +310,16 @@ Estos flags importan solo para notas. Si estás emitiendo una factura, podés ig
 
 Dicho más directo: **no aplican a `factura`, `factura-credito-electronica`, `recibo`, `fa`, `fb`, `fc`, `fcea`, `fceb`, `fcec`, `ra`, `rb` ni `rc`**.
 
-| Flag                              | Alias            | Tipo         | Valor por defecto | Descripción                                                     |
-| --------------------------------- | ---------------- | ------------ | ----------------- | --------------------------------------------------------------- |
-| `--ac <atajo>`                    | ninguno          | `string`     | ninguno           | Atajo del comprobante asociado                                  |
-| `--at <numero>`                   | ninguno          | `integer`    | ninguno           | Tipo ARCA del comprobante asociado                              |
-| `--asociado-punto-venta <numero>` | `--apv <numero>` | `integer`    | ninguno           | Punto de venta del asociado, hasta 99.998 (error 10058)         |
-| `--ar <numero>`                   | ninguno          | `integer`    | ninguno           | Número del comprobante asociado, hasta 99.999.999 (error 10059) |
-| `--acuit <numero>`                | ninguno          | `string(11)` | el CUIT emisor    | CUIT del comprobante asociado                                   |
-| `--afecha <fecha>`                | ninguno          | `string`     | ninguno           | Fecha del comprobante asociado                                  |
-| `--periodo-desde <fecha>`         | `--pd <fecha>`   | `string`     | ninguno           | Inicio del período asociado                                     |
-| `--periodo-hasta <fecha>`         | `--ph <fecha>`   | `string`     | ninguno           | Fin del período asociado                                        |
+| Flag                              | Alias            | Tipo         | Valor por defecto | Descripción                                                                                        |
+| --------------------------------- | ---------------- | ------------ | ----------------- | -------------------------------------------------------------------------------------------------- |
+| `--ac <atajo>`                    | ninguno          | `string`     | ninguno           | Atajo del comprobante asociado                                                                     |
+| `--at <numero>`                   | ninguno          | `integer`    | ninguno           | Tipo ARCA del comprobante asociado                                                                 |
+| `--asociado-punto-venta <numero>` | `--apv <numero>` | `integer`    | el de la nota     | Punto de venta del asociado, hasta 99.998 (error 10058); con `--acuit` de otro CUIT es obligatorio |
+| `--ar <numero>`                   | ninguno          | `integer`    | ninguno           | Número del comprobante asociado, hasta 99.999.999 (error 10059)                                    |
+| `--acuit <numero>`                | ninguno          | `string(11)` | el CUIT emisor    | CUIT del comprobante asociado                                                                      |
+| `--afecha <fecha>`                | ninguno          | `string`     | ninguno           | Fecha del comprobante asociado                                                                     |
+| `--periodo-desde <fecha>`         | `--pd <fecha>`   | `string`     | ninguno           | Inicio del período asociado                                                                        |
+| `--periodo-hasta <fecha>`         | `--ph <fecha>`   | `string`     | ninguno           | Fin del período asociado                                                                           |
 
 ### Crédito electrónico (FCE)
 
@@ -385,12 +385,12 @@ Arma el pedido del certificado de ARCA y carga el certificado que te devuelve, s
 
 Consultan a ARCA sin emitir nada. Usan el entorno y el punto de venta de la config (o `--testing` / `--produccion`) y aceptan `--json`.
 
-| Comando                                | Descripción                                                                                                                  |
-| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `arcli estado`                         | Si los servidores de ARCA responden, cuánto tardan y si el punto de venta está habilitado                                    |
-| `arcli parametros`                     | Lista las tablas disponibles (no consulta ARCA)                                                                              |
-| `arcli parametros <tabla>`             | `puntos-venta`, `comprobantes`, `documentos`, `alicuotas`, `iva-receptor`, `monedas`, `conceptos`, `opcionales` o `tributos` |
-| `arcli parametros cotizacion <moneda>` | Cotización oficial de ARCA, por ejemplo `USD`                                                                                |
+| Comando                                | Descripción                                                                                                                   |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `arcli estado`                         | Si los servidores de ARCA responden, también los de exportación (WSFEX), cuánto tardan y si el punto de venta está habilitado |
+| `arcli parametros`                     | Lista las tablas disponibles (no consulta ARCA)                                                                               |
+| `arcli parametros <tabla>`             | `puntos-venta`, `comprobantes`, `documentos`, `alicuotas`, `iva-receptor`, `monedas`, `conceptos`, `opcionales` o `tributos`  |
+| `arcli parametros cotizacion <moneda>` | Cotización oficial de ARCA, por ejemplo `USD`                                                                                 |
 
 - Las tablas muestran solo los valores vigentes hoy, salvo `puntos-venta`, que también lista los bloqueados o dados de baja, con su estado.
 - En texto, cada tabla tiene una fila de encabezado (`CÓDIGO`, o `NÚMERO` en `puntos-venta`, la descripción y, en `iva-receptor` y `puntos-venta`, una tercera columna) y al pie para qué sirve el código en ARCLI, por ejemplo que `--moneda` acepta el código o el ISO. El `--json` no cambia.
@@ -494,7 +494,7 @@ Las notas heredan todo lo de una factura, pero suman una regla importante: **sie
 
 - todo lo base de una factura
 - además:
-  - un comprobante asociado: `--ac` o `--at`, con `--asociado-punto-venta` (o `--apv`) y `--ar`; `--acuit` solo si es de otro CUIT (sin él, el tuyo)
+  - un comprobante asociado: `--ac` o `--at` y `--ar`; `--asociado-punto-venta` (o `--apv`) solo si es de otro punto de venta que la nota, y `--acuit` solo si es de otro CUIT (sin él, el tuyo)
   - o un período asociado: `--periodo-desde` y `--periodo-hasta` (entonces no van `--ac`, `--apv`, `--ar` ni `--acuit`)
 
 **Opcional**
@@ -519,13 +519,13 @@ El período no puede terminar después de la fecha de la nota. Las notas FCE no 
 
 #### Resumen rápido de parámetros asociados
 
-| Parámetro                         | Alias            | Tipo         | Requerido   | Cuándo usarlo                                                          |
-| --------------------------------- | ---------------- | ------------ | ----------- | ---------------------------------------------------------------------- |
-| `--ac <atajo>`                    | ninguno          | `string`     | Condicional | Si querés identificar el asociado por shortcut                         |
-| `--at <numero>`                   | ninguno          | `integer`    | Condicional | Si querés identificar el asociado por tipo ARCA                        |
-| `--asociado-punto-venta <numero>` | `--apv <numero>` | `integer`    | Condicional | Con `--ac`/`--at`                                                      |
-| `--ar <numero>`                   | ninguno          | `integer`    | Condicional | Con `--ac`/`--at`                                                      |
-| `--acuit <numero>`                | ninguno          | `string(11)` | No          | Si el asociado es de otro CUIT; sin él, el CUIT emisor; no con período |
+| Parámetro                         | Alias            | Tipo         | Requerido   | Cuándo usarlo                                                                                              |
+| --------------------------------- | ---------------- | ------------ | ----------- | ---------------------------------------------------------------------------------------------------------- |
+| `--ac <atajo>`                    | ninguno          | `string`     | Condicional | Si querés identificar el asociado por shortcut                                                             |
+| `--at <numero>`                   | ninguno          | `integer`    | Condicional | Si querés identificar el asociado por tipo ARCA                                                            |
+| `--asociado-punto-venta <numero>` | `--apv <numero>` | `integer`    | No          | Si el asociado es de otro punto de venta; sin él, el de la nota. Con `--acuit` de otro CUIT es obligatorio |
+| `--ar <numero>`                   | ninguno          | `integer`    | Condicional | Con `--ac`/`--at`                                                                                          |
+| `--acuit <numero>`                | ninguno          | `string(11)` | No          | Si el asociado es de otro CUIT; sin él, el CUIT emisor; no con período                                     |
 
 ### Factura de crédito electrónica `A`, `B` y `C`
 
@@ -569,7 +569,7 @@ Acá se combinan las dos reglas anteriores:
 **Obligatorio**
 
 - todo lo base de una factura
-- bloque de asociado: `--ac` o `--at`, `--apv` y `--ar`
+- bloque de asociado: `--ac` o `--at` y `--ar`; `--apv` solo si es de otro punto de venta que la nota
 - el asociado tiene que ser del propio emisor: `--acuit` se puede omitir y toma el CUIT configurado
 
 **Opcional**
@@ -727,7 +727,7 @@ Antes de armar la nota, ARCLI consulta el asociado en ARCA (`FEXGetCMP`) y toma 
 arcli nce -m 500 --ar 1
 ```
 
-En bienes y otros (`--tipo-expo 1` o `4`) el asociado es opcional, por ejemplo para un descuento por volumen sobre varias facturas: sin `--ar` la nota no hereda nada y cliente, domicilio, país de destino y lo demás van por flag, como en `fe`. En servicios, ARCA lo exige (error 2047).
+En bienes y otros (`--tipo-expo 1` o `4`) el asociado es opcional, por ejemplo para un descuento por volumen sobre varias facturas: sin `--ar` la nota no hereda nada y cliente, domicilio, país de destino y lo demás van por flag, como en `fe`. Se emite solo por comando: el asistente siempre pide el asociado. En servicios, ARCA lo exige (error 2047).
 
 ```bash
 arcli nce -m 300 --tipo-expo 1 --cliente "ACME LLC" --domicilio-cliente "123 Main St" --pais-destino 212 \
@@ -825,7 +825,7 @@ arcli consultar fb 14 --json      # lo mismo, en JSON
 
 `consultar` muestra el CAE, el receptor, los importes con sus alícuotas y tributos, y, si los tiene, el período de servicio, el vencimiento del pago, el comprobante asociado de una nota (o su período asociado), si se cobra en la misma moneda extranjera, los datos de FCE (CBU, alias, transferencia, anulación) y las observaciones de ARCA.
 
-Sin `--pv` usan el punto de venta de la config. Aceptan también la `E` (`fe`, `nde`, `nce`), que se consulta en WSFEX con su certificado. Si el comprobante no existe, `consultar` termina con el error `VOUCHER_NOT_FOUND`. Si ARCA contesta con un error o sin los datos del comprobante, los dos comandos terminan con `ARCA_VOUCHER_QUERY_ERROR` (en la `E`, un error es `ARCA_EXPORT_ERROR`): no se sabe si el comprobante existe, y `ultimos` no muestra una lista incompleta. Una `E` que existe y ARCLI no pudo leer es la excepción: `consultar` falla diciendo que existe, y `ultimos` la saltea con un aviso. El formato del JSON está en [Entrada y salida](input-output.md#comprobantes-emitidos-ultimos-y-consultar).
+Sin `--pv` usan el punto de venta de la config. Aceptan también la `E` (`fe`, `nde`, `nce`), que se consulta en WSFEX con su certificado. Si el comprobante no existe, `consultar` termina con el error `VOUCHER_NOT_FOUND`. Si ARCA contesta con un error o sin los datos del comprobante, los dos comandos terminan con `ARCA_VOUCHER_QUERY_ERROR` (en la `E`, un error es `ARCA_EXPORT_ERROR`): no se sabe si el comprobante existe, y `ultimos` no muestra una lista incompleta. Uno que existe (vino con su número y su CAE) y ARCLI no pudo leer es la excepción: `consultar` falla diciendo que existe, y `ultimos` lo saltea con un aviso. El formato del JSON está en [Entrada y salida](input-output.md#comprobantes-emitidos-ultimos-y-consultar).
 
 ## Consultar el régimen FCE
 

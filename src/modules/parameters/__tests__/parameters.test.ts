@@ -19,6 +19,7 @@ import { buildStatusReport } from '../status';
 
 function createGateway(overrides: Partial<ParametersGateway> = {}): ParametersGateway {
   return {
+    getExportServerStatus: async () => ({ app: 'OK', auth: 'OK', db: 'OK' }),
     getQuotation: async () => ({ currency: 'DOL', rate: 1 }),
     getSalesPoints: async () => [],
     getServerStatus: async () => ({ app: 'OK', auth: 'OK', db: 'OK' }),
@@ -223,5 +224,56 @@ describe('buildStatusReport', () => {
 
     expect(report).toMatchObject({ latencyMs: 120, ready: false });
     expect(formatStatusAsText(report)).toContain('ARCA tiene problemas');
+  });
+});
+
+describe('los servidores de exportación, WSFEX (ARQ-22)', () => {
+  const build = (overrides: Partial<ParametersGateway> = {}, timeoutMs?: number) =>
+    buildStatusReport({
+      environment: 'testing',
+      gateway: createGateway(overrides),
+      now: () => 1000,
+      pointOfSale: 3,
+      timeoutMs,
+    });
+  const text = async (overrides: Partial<ParametersGateway> = {}, timeoutMs?: number) =>
+    stripAnsi(formatStatusAsText(await build(overrides, timeoutMs)));
+
+  it('van en una línea propia y en `servidoresExportacion`', async () => {
+    expect(await text()).toMatch(/Exportación \(WSFEX\)\s+OK\s/);
+    expect(serializeStatus(await build())).toMatchObject({
+      listo: true,
+      servidoresExportacion: { aplicacion: 'OK', autenticacion: 'OK', baseDeDatos: 'OK' },
+    });
+  });
+
+  it('si uno no está en OK los nombra, y lo demás no cambia', async () => {
+    const getExportServerStatus = async () => ({ app: 'OK', auth: '', db: 'ERROR' });
+
+    expect(await text({ getExportServerStatus })).toMatch(
+      /Exportación \(WSFEX\)\s+base de datos: ERROR, autenticación: ARCA no lo informa/,
+    );
+    expect(await text({ getExportServerStatus })).toContain('ARCA responde: se puede emitir');
+    expect(serializeStatus(await build({ getExportServerStatus }))).toMatchObject({ listo: true });
+  });
+
+  it.each<[string, () => Promise<never>]>([
+    ['falla', () => Promise.reject(new Error('ETIMEDOUT'))],
+    [
+      'lanza antes de consultar',
+      () => {
+        throw new TypeError('sin método');
+      },
+    ],
+    ['no contesta', () => new Promise(() => undefined)],
+  ])('si %s no cambia el resto', async (_name, getExportServerStatus) => {
+    const expected = { ...serializeStatus(await build()), servidoresExportacion: null };
+
+    expect(serializeStatus(await build({ getExportServerStatus }, 10))).toEqual(expected);
+    expect(await text({ getExportServerStatus }, 10)).toMatch(/Exportación \(WSFEX\)\s+sin respuesta/);
+  });
+
+  it('si falla lo de siempre, el error es el de siempre', async () => {
+    await expect(build({ getServerStatus: () => Promise.reject(new Error('ETIMEDOUT')) })).rejects.toThrow('ETIMEDOUT');
   });
 });

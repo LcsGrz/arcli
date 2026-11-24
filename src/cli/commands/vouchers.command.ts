@@ -96,6 +96,23 @@ function requirePointOfSale(options: PointOfSaleOptions, runtime: CliArcaRuntime
   return pointOfSale;
 }
 
+/** El JSON no tiene donde: va a stderr, como el aviso del certificado. Si fallo stdout, ahi va el JSON que lo dice. */
+async function warnSkippedInJson(
+  runtime: CliArcaRuntime,
+  pointOfSale: number,
+  skipped: readonly number[],
+): Promise<void> {
+  if (!runtime.outputJson || skipped.length === 0) {
+    return;
+  }
+
+  await settleOutput('stdout');
+
+  if (!outputState.failures.has('stdout')) {
+    writeTerminalNotice(() => formatSkippedVouchers(pointOfSale, skipped));
+  }
+}
+
 function createContext(command: Command): ArcaQuery<ArcaVoucherHistoryGateway> {
   return createArcaQuery(command, (arca) => new ArcaVoucherHistoryGateway(arca));
 }
@@ -148,14 +165,7 @@ export function registerVoucherQueryCommands(program: Command): void {
         text: () => formatExportVoucherListAsText(report),
       });
 
-      // El JSON no tiene donde: va a stderr, como el aviso del certificado. Si fallo stdout, ahi va el JSON que lo dice.
-      if (runtime.outputJson && skipped.length > 0) {
-        await settleOutput('stdout');
-
-        if (!outputState.failures.has('stdout')) {
-          writeTerminalNotice(() => formatSkippedVouchers(pointOfSale, skipped));
-        }
-      }
+      await warnSkippedInJson(runtime, pointOfSale, skipped);
 
       return;
     }
@@ -164,15 +174,21 @@ export function registerVoucherQueryCommands(program: Command): void {
     const { gateway, runtime } = createContext(self);
     const limit = cantidad ?? resolveRowsPerList(runtime.config);
     const pointOfSale = requirePointOfSale(options, runtime);
+    const skipped: number[] = [];
     const vouchers = await withQuerySpinner(runtime, () =>
-      listRecentVouchers(gateway, pointOfSale, voucherKind.arcaType, { limit }),
+      listRecentVouchers(gateway, pointOfSale, voucherKind.arcaType, {
+        limit,
+        onSkip: (number) => skipped.push(number),
+      }),
     );
-    const report = { environment: runtime.environment, pointOfSale, voucherKind, vouchers };
+    const report = { environment: runtime.environment, pointOfSale, skipped, voucherKind, vouchers };
 
     writeQueryOutput(runtime, {
       json: () => serializeVoucherList(report),
       text: () => formatVoucherListAsText(report),
     });
+
+    await warnSkippedInJson(runtime, pointOfSale, skipped);
   });
 
   const detail = addPointOfSaleOptions(

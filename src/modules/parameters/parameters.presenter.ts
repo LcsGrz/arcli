@@ -12,7 +12,9 @@ import {
   type ParameterEntry,
   type ParameterTable,
   type Quotation,
+  type ServerStatus,
 } from './parameters';
+import { areServersOk } from './server-status';
 import type { PointOfSaleCheck, StatusReport } from './status';
 
 type Environment = 'produccion' | 'testing';
@@ -177,12 +179,33 @@ function describePointOfSale(check: PointOfSaleCheck, number: number | undefined
   }
 }
 
+/** Una linea sola: `OK` o los que no lo estan. */
+function describeExportServers(servers: ServerStatus | undefined): string {
+  if (!servers) {
+    return 'sin respuesta';
+  }
+
+  if (areServersOk(servers)) {
+    return servers.app;
+  }
+
+  return [
+    ['aplicación', servers.app],
+    ['base de datos', servers.db],
+    ['autenticación', servers.auth],
+  ]
+    .filter(([, value]) => value !== 'OK')
+    .map(([label, value]) => `${label}: ${value || NO_SERVER_STATUS}`)
+    .join(', ');
+}
+
 export function formatStatusAsText(report: StatusReport): string {
   const rows = [
     ['Entorno', formatEnvironmentLabel(report.environment)],
     ['Servidor de aplicación', report.servers.app || NO_SERVER_STATUS],
     ['Base de datos', report.servers.db || NO_SERVER_STATUS],
     ['Autenticación', report.servers.auth || NO_SERVER_STATUS],
+    ['Exportación (WSFEX)', describeExportServers(report.exportServers)],
     ['Tiempo de respuesta', `${report.latencyMs} ms`],
     ['Punto de venta', describePointOfSale(report.pointOfSale, report.pointOfSaleNumber)],
   ] as const;
@@ -203,6 +226,10 @@ export function formatStatusAsText(report: StatusReport): string {
   );
 }
 
+function serializeServers(servers: ServerStatus) {
+  return { aplicacion: servers.app, autenticacion: servers.auth, baseDeDatos: servers.db };
+}
+
 export function serializeStatus(report: StatusReport) {
   const point = 'point' in report.pointOfSale ? report.pointOfSale.point : undefined;
   const pointOfSale = {
@@ -218,10 +245,7 @@ export function serializeStatus(report: StatusReport) {
     listo: report.ready,
     puntoVenta: pointOfSale,
     puntoVentaDetalle: pointOfSale,
-    servidores: {
-      aplicacion: report.servers.app,
-      autenticacion: report.servers.auth,
-      baseDeDatos: report.servers.db,
-    },
+    servidores: serializeServers(report.servers),
+    servidoresExportacion: report.exportServers ? serializeServers(report.exportServers) : null,
   };
 }

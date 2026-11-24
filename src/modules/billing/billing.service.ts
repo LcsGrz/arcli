@@ -316,6 +316,7 @@ export class BillingService {
       billingDate: dateRange.billingDate,
       emitterCuit: runtime.cuit,
       input,
+      pointOfSale,
       requireVoucherKind: (shortcut) => this.requireVoucherKind(shortcut),
       today,
       voucherKind,

@@ -49,6 +49,8 @@ export interface SalesPoint {
 }
 
 export interface ParametersGateway {
+  /** El estado de WSFEX, los servidores de la factura de exportacion. */
+  getExportServerStatus(): Promise<ServerStatus>;
   getQuotation(currency: string): Promise<Quotation>;
   getSalesPoints(): Promise<SalesPoint[]>;
   getServerStatus(): Promise<ServerStatus>;

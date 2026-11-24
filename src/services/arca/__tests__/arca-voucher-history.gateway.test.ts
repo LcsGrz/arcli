@@ -270,6 +270,47 @@ describe('ArcaVoucherHistoryGateway', () => {
     });
   });
 
+  // ARQ-22: como en la E, para que una lista lo saltee en lugar de fallar entera.
+  it.each<[string, Record<string, unknown>]>([
+    ['el número como número', { CbteDesde: 14, CbteHasta: 14 }],
+    ['el número como texto y el CAE como número', { CbteDesde: '14', CodAutorizacion: 75123456789012 }],
+    ['adentro de un rango', { CbteDesde: 10, CbteHasta: 20 }],
+  ])('con su número y su CAE existe, aunque no se pueda leer: %s', async (_case, row) => {
+    const { gateway } = consulting({ CbteFch: '20260230', CodAutorizacion: '75123456789012', ...row });
+
+    await expect(gateway.getVoucher(14, 3, 11)).rejects.toMatchObject({
+      code: 'ARCA_VOUCHER_QUERY_ERROR',
+      details: { errores: [] },
+      exists: true,
+      message:
+        'El comprobante 00003-00000014 existe, con el CAE 75123456789012, pero ARCLI no pudo leer los datos que devolvió ARCA.',
+    });
+  });
+
+  it.each<[string, Record<string, unknown>]>([
+    ['otro número', { CbteDesde: 15, CbteHasta: 15 }],
+    ['un rango que no lo incluye', { CbteDesde: 10, CbteHasta: 13 }],
+    ['sin número', {}],
+    ['sin CAE', { CbteDesde: 14, CodAutorizacion: '' }],
+    ['con el CAE en ceros', { CbteDesde: 14, CodAutorizacion: '00000000000000' }],
+  ])('no se sabe si existe: %s', async (_case, row) => {
+    const { gateway } = consulting({ CodAutorizacion: '75123456789012', ...row });
+
+    await expect(gateway.getVoucher(14, 3, 11)).rejects.toMatchObject({
+      exists: false,
+      message: expect.stringContaining('no se sabe si existe'),
+    });
+  });
+
+  it('con un 602 sigue siendo inexistente, y con otro error gana el error', async () => {
+    const row = { CbteDesde: 14, CodAutorizacion: '75123456789012' };
+
+    expect(await consulting(row, { Errors: { Err: NOT_FOUND } }).gateway.getVoucher(14, 3, 11)).toBeUndefined();
+    await expect(
+      consulting(row, { Errors: { Err: INVALID_TOKEN } }).gateway.getVoucher(14, 3, 11),
+    ).rejects.toMatchObject({ exists: false, message: expect.stringContaining('600') });
+  });
+
   function failing(error: unknown) {
     return createGateway({}, { call: vi.fn(async () => Promise.reject(error)) });
   }

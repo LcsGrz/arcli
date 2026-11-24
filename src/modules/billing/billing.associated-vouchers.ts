@@ -14,6 +14,8 @@ interface ResolveAssociatedVoucherOptions {
   readonly billingDate: string;
   readonly emitterCuit: number;
   readonly input: BillingCommandInput;
+  /** El de la nota: sin `--apv`, es el del asociado propio. */
+  readonly pointOfSale: number;
   readonly requireVoucherKind: (shortcut: string) => VoucherKindDefinition;
   /** Hoy en Argentina (yyyymmdd). */
   readonly today: string;
@@ -23,7 +25,7 @@ interface ResolveAssociatedVoucherOptions {
 export function resolveAssociatedVouchers(
   options: ResolveAssociatedVoucherOptions,
 ): VoucherRequestAssociated[] | undefined {
-  const { billingDate, emitterCuit, input, requireVoucherKind, today, voucherKind } = options;
+  const { billingDate, emitterCuit, input, pointOfSale, requireVoucherKind, today, voucherKind } = options;
 
   if (!isNote(voucherKind)) {
     if (input.associatedVoucher) {
@@ -53,16 +55,29 @@ export function resolveAssociatedVouchers(
   const associatedVoucherType =
     associatedVoucher?.tipo ?? resolveAssociatedVoucherType(associatedVoucher?.shortcut, requireVoucherKind);
   const associatedVoucherKind = resolveAssociatedVoucherKind(associatedVoucher, requireVoucherKind);
+  // Como en la E. De otro emisor se pide: el de la nota no dice nada del suyo.
+  const associatedPointOfSale =
+    associatedVoucher?.puntoVenta ?? (associatedCuit === String(emitterCuit) ? pointOfSale : undefined);
 
-  if (!associatedVoucher?.numero || !associatedVoucher.puntoVenta || !associatedVoucherType) {
+  if (!associatedVoucher?.numero || !associatedPointOfSale || !associatedVoucherType) {
     const missing = [
       ...(associatedVoucherType ? [] : [{ flag: '`--ac <tipo>`', label: 'el tipo' }]),
-      ...(associatedVoucher?.puntoVenta ? [] : [{ flag: '`--apv <número>`', label: 'el punto de venta' }]),
-      ...(associatedVoucher?.numero ? [] : [{ flag: '`--ar <número>`', label: 'el número' }]),
+      ...(associatedPointOfSale ? [] : [{ flag: '`--apv <número>`', label: 'el punto de venta' }]),
+      ...(associatedVoucher?.numero
+        ? []
+        : [
+            {
+              flag:
+                associatedPointOfSale && !associatedVoucher?.puntoVenta
+                  ? '`--ar <número>` (y `--apv` si es de otro punto de venta)'
+                  : '`--ar <número>`',
+              label: 'el número',
+            },
+          ]),
     ];
 
     // Con alguno de los tres, decir que falta el comprobante entero confundiria.
-    if (missing.length < 3) {
+    if (associatedVoucherType || associatedVoucher?.numero || associatedVoucher?.puntoVenta) {
       const labels = missing.map(({ label }) => label).join(' y ');
       const flags = missing.map(({ flag }) => flag).join(' y ');
 
@@ -72,7 +87,7 @@ export function resolveAssociatedVouchers(
     }
 
     throw new InputValidationError(
-      `${formatVoucherSubject(voucherKind)} requiere comprobante asociado. Usá \`--ac\` o \`--at\`, junto con \`--apv\` o \`--asociado-punto-venta\` y \`--ar\`${voucherKind.isElectronicCredit ? '' : ' (y `--acuit` si es de otro CUIT), o un período con `--periodo-desde` y `--periodo-hasta`'}.`,
+      `${formatVoucherSubject(voucherKind)} requiere comprobante asociado. Usá \`--ac\` o \`--at\` y \`--ar\` (con \`--apv\` si es de otro punto de venta${voucherKind.isElectronicCredit ? ')' : ' y `--acuit` si es de otro CUIT), o un período con `--periodo-desde` y `--periodo-hasta`'}.`,
     );
   }
 
@@ -94,7 +109,7 @@ export function resolveAssociatedVouchers(
       ...(associatedDate ? { CbteFch: associatedDate } : {}),
       Cuit: associatedCuit,
       Nro: associatedVoucher.numero,
-      PtoVta: associatedVoucher.puntoVenta,
+      PtoVta: associatedPointOfSale,
       Tipo: associatedVoucherType,
     },
   ];
