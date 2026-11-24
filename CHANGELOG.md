@@ -59,9 +59,9 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 ### 🔧 Cambiado
 
 - **Factura E:** en el asistente, el país de destino y el CUIT del país se eligen de una lista con filtro donde también podés escribir (#257).
-- **Factura E:** en el asistente, "¿Cómo te pagan?" arranca en pesos, como A, B y C; antes, en dólares. "Repetir" propone lo de la factura (#NNN).
-- **Factura E:** el asistente ofrece euros y las demás monedas de A, B y C que acepta WSFEX, no solo dólares y pesos (#NNN).
-- **Notas:** en el asistente, una nota `E` sobre un comprobante en otra moneda puede ir en pesos, como en A, B y C (#NNN).
+- **Factura E:** en el asistente, "¿Cómo te pagan?" arranca en pesos, como A, B y C; antes, en dólares. "Repetir" propone lo de la factura (#286).
+- **Factura E:** el asistente ofrece euros y las demás monedas de A, B y C que acepta WSFEX, no solo dólares y pesos (#286).
+- **Notas:** en el asistente, una nota `E` sobre un comprobante en otra moneda puede ir en pesos, como en A, B y C (#286).
 - **PDF:** en el asistente, la condición de venta se elige o se escribe en la misma lista, sin la pregunta aparte de "Otra" (#257).
 - **Factura E:** en el asistente, la actividad de WSFEX y la forma de pago se eligen de una lista donde también podés escribir (#261).
 - **Config:** en "Modificar configuración", la moneda y la actividad de exportación se eligen de una lista donde también podés escribir (#261).
