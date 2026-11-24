@@ -9,13 +9,13 @@ import { type IssuedVoucher, type VoucherHistoryGateway, VoucherQueryError } fro
 import { formatVoucherNumber } from '../vouchers/voucher-number';
 
 import { formatMoneyLabel } from './billing.labels';
-import { formatVoucherSubject, formatVoucherWithArticle } from './billing.mappers';
 import type { BillingCommandInput } from './billing.schemas';
 import type { BillingService } from './billing.service';
 import type { VoucherKindDefinition } from './billing.types';
 import type { BillingRuntime } from './billing.types.internal';
 import { ARCA_LOCAL_CURRENCY_CODE } from './currency-codes';
 import { getVoucherKindByArcaType, getVoucherKindByShortcut, isFceInvoice, isNote, noteSide } from './voucher-kind-map';
+import { formatVoucherSubject, formatVoucherWithArticle } from './voucher-names';
 
 /** `la factura A 00003-00000012`, para usar dentro de una frase. */
 export function describeAssociated(arcaType: number, pointOfSale: number, number: number): string {

@@ -11,9 +11,8 @@ import {
 import { AppError, InputValidationError } from '../../lib/errors/app-error';
 import { roundToCents } from '../../lib/numbers/argentine-amount';
 import { assertRules } from '../../lib/rules/rules';
-import { resolveBillingCurrencyCode } from '../billing/billing.mappers';
 import { INVALID_POINT_OF_SALE_MESSAGE } from '../billing/billing.schemas';
-import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
+import { ARCA_LOCAL_CURRENCY_CODE, resolveBillingCurrencyCode } from '../billing/currency-codes';
 import { type ArcliConfig, MISSING_POINT_OF_SALE_MESSAGE } from '../config/config.schemas';
 
 import { exportTextLengthError, MAX_EXPORT_ITEM_DESCRIPTION_LENGTH } from './export.items';

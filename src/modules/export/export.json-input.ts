@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { InputValidationError } from '../../lib/errors/app-error';
 import { describeJsonIssue, describeReceived, type JsonInputKeys } from '../../lib/json/json-input-issues';
+import { associatedVoucherJsonSchema } from '../vouchers/associated-voucher.json-input';
 
 import type { ExportItemInput } from './export.types';
 
@@ -20,18 +21,6 @@ const itemJsonSchema = z
     descripcion: z.string(),
     precioUnitario: z.number(),
     unidad: z.union([z.string(), z.number()], { error: expecting('un texto ("unidades") o un número (7)') }).optional(),
-  })
-  .strict();
-
-/** El comprobante que ajusta una nota E, con las mismas claves que en A, B y C. */
-const associatedVoucherJsonSchema = z
-  .object({
-    atajo: z.string().optional(),
-    cuit: z.string().optional(),
-    fecha: z.string().optional(),
-    numero: z.number().optional(),
-    puntoVenta: z.number().optional(),
-    tipo: z.number().optional(),
   })
   .strict();
 

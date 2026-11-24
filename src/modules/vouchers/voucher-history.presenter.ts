@@ -21,10 +21,10 @@ import {
   formatTaxIdLabel,
   MISSING_CAE_TEXT,
 } from '../billing/billing.labels';
-import { formatLatestVouchersTitle, formatNoVouchersEmitted } from '../billing/billing.mappers';
 import type { VoucherKindDefinition } from '../billing/billing.types';
 import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
 import { getVoucherKindByArcaType } from '../billing/voucher-kind-map';
+import { formatLatestVouchersTitle, formatNoVouchersEmitted } from '../billing/voucher-names';
 import { formatEnvironmentLabel } from '../config/config.schemas';
 
 import type { IssuedVoucher } from './voucher-history';

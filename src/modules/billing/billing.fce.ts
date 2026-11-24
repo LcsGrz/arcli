@@ -1,10 +1,10 @@
 import { InputValidationError } from '../../lib/errors/app-error';
 import type { IOpcional } from '../../services/arca/arca-sdk.types';
 
-import { formatVoucherSubject } from './billing.mappers';
 import type { BillingCommandInput } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
 import { isFceInvoice } from './voucher-kind-map';
+import { formatVoucherSubject } from './voucher-names';
 
 /**
  * Codigos de "Adicionales por R.G." que usa FCE (FEParamGetTiposOpcional).

@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { InputValidationError } from '../../lib/errors/app-error';
 import { describeJsonIssue, describeReceived, type JsonInputKeys } from '../../lib/json/json-input-issues';
+import { associatedVoucherJsonSchema } from '../vouchers/associated-voucher.json-input';
 
 import type { BillingCommandInput } from './billing.schemas';
 
@@ -13,17 +14,6 @@ import type { BillingCommandInput } from './billing.schemas';
 const ivaRateJsonSchema = z.union([z.string(), z.number()], {
   error: 'tiene que ser un texto ("general", "10.5") o un número (10.5)',
 });
-
-const associatedVoucherJsonSchema = z
-  .object({
-    atajo: z.string().optional(),
-    cuit: z.string().optional(),
-    fecha: z.string().optional(),
-    numero: z.number().optional(),
-    puntoVenta: z.number().optional(),
-    tipo: z.number().optional(),
-  })
-  .strict();
 
 const associatedPeriodJsonSchema = z
   .object({

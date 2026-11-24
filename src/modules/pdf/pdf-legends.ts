@@ -1,4 +1,4 @@
-import { resolveBillingIvaConditionCode } from '../billing/billing.mappers';
+import { ivaConditionCode } from '../billing/arca-codes';
 import type { BillingExecutionResult } from '../billing/billing.types.internal';
 import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
 
@@ -13,9 +13,9 @@ const MONOTRIBUTO_CREDIT_LEGEND =
 export const EXPORT_IVA_LEGEND = 'IVA EXENTO OPERACIÓN DE EXPORTACIÓN';
 
 const MONOTRIBUTO_CONDITION_CODES: ReadonlySet<number> = new Set([
-  resolveBillingIvaConditionCode('responsable-monotributo'),
-  resolveBillingIvaConditionCode('monotributista-social'),
-  resolveBillingIvaConditionCode('monotributo-trabajador-independiente-promovido'),
+  ivaConditionCode('responsable-monotributo'),
+  ivaConditionCode('monotributista-social'),
+  ivaConditionCode('monotributo-trabajador-independiente-promovido'),
 ]);
 
 function formatAmount(value: number, currency: string): string {

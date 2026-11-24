@@ -1,6 +1,6 @@
 import type { Command } from 'commander';
 
-import { formatEmissionQuestion, formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
+import { formatVoucherWithArticle } from '../../modules/billing/voucher-names';
 import { formatExportResultAsJson, formatExportResultAsText } from '../../modules/export/export.presenter';
 import { ExportService } from '../../modules/export/export.service';
 import {
@@ -15,6 +15,7 @@ import { ArcaClientFactory } from '../../services/arca/arca-client.factory';
 import { systemClock } from '../../services/time/system-clock';
 import { writeTerminalJson, writeTerminalOutput } from '../../ui';
 import { certificateWarnings, type CliArcaRuntime, resolveArcaRuntime } from '../arca-runtime';
+import { formatEmissionQuestion } from '../emission-texts';
 import { recordExportEmission } from '../emitted-vouchers';
 import { getGlobalOptions } from '../global-options';
 import { startSpinner } from '../spinner';

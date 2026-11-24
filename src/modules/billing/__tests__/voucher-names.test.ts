@@ -1,15 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import { EXPORT_VOUCHER_KIND } from '../../export/export.types';
+import { VOUCHER_KIND_MAP, VOUCHER_SHORTCUTS } from '../voucher-kind-map';
 import {
-  formatEmissionQuestion,
   formatLatestVouchersTitle,
   formatNoVouchersEmitted,
   formatVoucherLabel,
   formatVoucherSubject,
   formatVoucherWithArticle,
-} from '../billing.mappers';
-import { VOUCHER_KIND_MAP, VOUCHER_SHORTCUTS } from '../voucher-kind-map';
+} from '../voucher-names';
 
 describe('nombres de comprobante dentro de una frase', () => {
   it('deja la letra en mayuscula en todos los comprobantes', () => {
@@ -37,12 +36,5 @@ describe('nombres de comprobante dentro de una frase', () => {
     expect(formatLatestVouchersTitle(VOUCHER_KIND_MAP.rc)).toBe('Últimos recibos C');
     expect(formatNoVouchersEmitted(VOUCHER_KIND_MAP.fb)).toBe('No hay facturas B emitidas');
     expect(formatNoVouchersEmitted(VOUCHER_KIND_MAP.rc)).toBe('No hay recibos C emitidos');
-  });
-});
-
-describe('formatEmissionQuestion', () => {
-  it('dice en que entorno se emite', () => {
-    expect(formatEmissionQuestion('la factura B', 'produccion')).toBe('¿Emitimos la factura B en PRODUCCIÓN?');
-    expect(formatEmissionQuestion('el recibo C', 'testing')).toBe('¿Emitimos el recibo C en testing?');
   });
 });

@@ -2,9 +2,8 @@ import { formatArgentineAmountInput } from '../../lib/numbers/argentine-amount';
 import { formatShellCommand } from '../../lib/shell/shell-argument';
 import { DEFAULT_CURRENCY_CODE } from '../billing/billing.constants';
 import { isForeignCurrency } from '../billing/billing.currency';
-import { resolveBillingCurrencyCode } from '../billing/billing.mappers';
 import type { BillingCommandInput } from '../billing/billing.schemas';
-import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
+import { ARCA_LOCAL_CURRENCY_CODE, resolveBillingCurrencyCode } from '../billing/currency-codes';
 import { getVoucherKindByShortcut } from '../billing/voucher-kind-map';
 
 const CONCEPT_FLAGS: Record<BillingCommandInput['concept'], string> = {

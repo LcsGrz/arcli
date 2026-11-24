@@ -1,6 +1,6 @@
-import { formatVoucherLabel } from '../../modules/billing/billing.mappers';
 import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
 import { VOUCHER_KIND_MAP, VOUCHER_SHORTCUTS } from '../../modules/billing/voucher-kind-map';
+import { formatVoucherLabel } from '../../modules/billing/voucher-names';
 import { formatExportVoucherDetailAsText } from '../../modules/export/export.history.presenter';
 import { EXPORT_VOUCHER_KINDS, type ExportVoucherKind } from '../../modules/export/export.types';
 import { BACK } from '../../modules/interactive/wizard';

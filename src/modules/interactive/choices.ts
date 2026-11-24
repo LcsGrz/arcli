@@ -1,7 +1,7 @@
+import { ivaConditionCode } from '../billing/arca-codes';
 import { listAssociableFamilies } from '../billing/billing.associated-vouchers';
 import { listAllowedIvaConditions } from '../billing/billing.iva-receptor';
 import { formatIvaConditionLabel } from '../billing/billing.labels';
-import { resolveBillingIvaConditionCode } from '../billing/billing.mappers';
 import type {
   BillingConcept,
   BillingDocumentType,
@@ -163,7 +163,7 @@ export function receiverChoices(
 
 export function ivaConditionChoices(letter: VoucherLetter): Array<InteractiveChoice<BillingIvaCondition>> {
   return listAllowedIvaConditions(letter).map((condition) => ({
-    name: formatIvaConditionLabel(resolveBillingIvaConditionCode(condition)),
+    name: formatIvaConditionLabel(ivaConditionCode(condition)),
     value: condition,
   }));
 }

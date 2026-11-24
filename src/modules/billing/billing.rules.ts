@@ -18,10 +18,10 @@ import {
   shouldSendPaymentDueDate,
 } from './billing.dates';
 import { CONSUMER_IDENTIFICATION_THRESHOLD, requiresConsumerIdentification } from './billing.iva-receptor';
-import { formatDocumentFlag, formatVoucherSubject, formatVoucherWithArticle } from './billing.mappers';
-import type { BillingCommandInput } from './billing.schemas';
+import type { BillingCommandInput, BillingDocumentType } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
 import { discriminatesIva } from './voucher-kind-map';
+import { formatVoucherSubject, formatVoucherWithArticle } from './voucher-names';
 
 /**
  * Lo que una regla de A, B y C necesita ademas de la entrada: hoy (yyyymmdd), el comprobante, el CUIT emisor y la
@@ -317,6 +317,20 @@ export const ASSOCIATED_NOT_AFTER_NOTE_RULE: BillingRule = {
   fields: ['billingDate', 'associatedVoucher.fecha'],
   id: 'associated-not-after-note',
 };
+
+/** El flag con el que se carga el documento del receptor, para los mensajes. */
+export function formatDocumentFlag(documentType: BillingDocumentType): string {
+  switch (documentType) {
+    case 'cuit':
+      return '--cuit';
+    case 'cuil':
+      return '--cuil';
+    case 'dni':
+      return '--dni';
+    case 'consumidor-final':
+      return '--consumidor-final';
+  }
+}
 
 /** ARCA 10069 (WSFEv1 v4.7): el documento del receptor no puede ser el del emisor. */
 export const RECEIVER_NOT_EMITTER_RULE: BillingRule = {

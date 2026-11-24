@@ -3,7 +3,7 @@ import { asQuery } from '../../lib/errors/query-error';
 import { parseStrictInteger } from '../../lib/numbers/strict-integer';
 import { creditNoteOverTotalHint } from '../../modules/billing/billing.associated-lookup';
 import { formatMoneyLabel } from '../../modules/billing/billing.labels';
-import { formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
+import { formatVoucherWithArticle } from '../../modules/billing/voucher-names';
 import { assertExportNoteMatchesAssociated } from '../../modules/export/export.notes';
 import {
   BILLS_EXPORT_TYPE,

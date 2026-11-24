@@ -1,5 +1,4 @@
 import { conceptFromCode } from '../billing/arca-codes';
-import { formatVoucherSubject } from '../billing/billing.mappers';
 import type {
   BillingConcept,
   BillingDocumentType,
@@ -9,6 +8,7 @@ import type {
 import type { VoucherKindDefinition } from '../billing/billing.types';
 import { ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
 import { discriminatesIva } from '../billing/voucher-kind-map';
+import { formatVoucherSubject } from '../billing/voucher-names';
 import { inferIvaRate, type IssuedVoucher, resolveDocumentType } from '../vouchers/voucher-history';
 
 import { receiverChoices } from './choices';

@@ -6,11 +6,11 @@ import { assertRules } from '../../lib/rules/rules';
 import type { IIva } from '../../services/arca/arca-sdk.types';
 
 import { ivaRateFactor, ivaRateFromId, ivaRateId } from './arca-codes';
-import { formatVoucherSubject } from './billing.mappers';
 import { EXEMPT_UNTAXED_WITHIN_TOTAL_RULE } from './billing.rules';
 import type { BillingCommandInput, BillingIvaRate } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
 import { discriminatesIva } from './voucher-kind-map';
+import { formatVoucherSubject } from './voucher-names';
 
 export const DEFAULT_IVA_RATE: BillingIvaRate = '21';
 

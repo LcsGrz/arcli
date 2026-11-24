@@ -1,4 +1,4 @@
-import { formatVoucherWithArticle } from '../../modules/billing/billing.mappers';
+import { formatVoucherWithArticle } from '../../modules/billing/voucher-names';
 import { resolveExportClientCountryCuit } from '../../modules/export/export.mappers';
 import {
   BILLS_EXPORT_TYPE,

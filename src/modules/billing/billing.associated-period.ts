@@ -4,11 +4,11 @@ import { assertRules } from '../../lib/rules/rules';
 import type { IPeriodoAsoc } from '../../services/arca/arca-sdk.types';
 
 import { parseBillingDateInput } from './billing.dates';
-import { formatVoucherSubject } from './billing.mappers';
 import { ASSOCIATED_PERIOD_RULES } from './billing.rules';
 import type { BillingCommandInput } from './billing.schemas';
 import type { VoucherKindDefinition } from './billing.types';
 import { isNote } from './voucher-kind-map';
+import { formatVoucherSubject } from './voucher-names';
 
 /**
  * PeriodoAsoc es la alternativa a CbtesAsoc para NC/ND que ajustan un periodo y no una factura puntual (10197).
