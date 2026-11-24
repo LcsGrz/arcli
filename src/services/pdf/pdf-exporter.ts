@@ -1,14 +1,12 @@
 import { mkdirSync, readFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
 
-import { AppError } from '../../lib/errors/app-error';
-import { describeFileError, withFilePath } from '../../lib/files/file-error';
+import { withFilePath } from '../../lib/files/file-error';
 import { writeNewFile } from '../../lib/files/write-new-file';
 import type { BillingExecutionResult } from '../../modules/billing/billing.types.internal';
 import type { ArcliConfig } from '../../modules/config/config.schemas';
 import type { ExportExecutionResult } from '../../modules/export/export.types';
-import { PdfError } from '../../modules/pdf/pdf.errors';
-import type { InvoicePdfOptions, PdfOutcome, PdfVoucherExtras } from '../../modules/pdf/pdf.types';
+import type { InvoicePdfOptions, PdfVoucherExtras } from '../../modules/pdf/pdf.types';
 import { mapBillingResultToPdfData, mapExportResultToPdfData } from '../../modules/pdf/pdf-data.mapper';
 import { buildPdfFileName } from '../../modules/pdf/pdf-file-name';
 import { resolvePdfIssuer } from '../../modules/pdf/pdf-issuer';
@@ -18,26 +16,6 @@ import type { PdfRenderer } from './pdf-plugin';
 
 /** @internal Exportado para los tests. */
 export const TESTING_FOOTER = 'COMPROBANTE DE PRUEBA - SIN VALIDEZ FISCAL';
-
-export function toPdfFailure(error: unknown): Extract<PdfOutcome, { error: unknown }> {
-  if (error instanceof PdfError) {
-    return { error: { code: error.code, message: error.message, suggestion: error.suggestion } };
-  }
-
-  if (error instanceof AppError) {
-    return { error: { code: error.code, message: error.message } };
-  }
-
-  const fileError = describeFileError(error);
-
-  if (fileError) {
-    return { error: { code: 'PDF_GENERATION_ERROR', ...fileError } };
-  }
-
-  return {
-    error: { code: 'PDF_GENERATION_ERROR', message: error instanceof Error ? error.message : String(error) },
-  };
-}
 
 function readLogoAsDataUrl(path: string | undefined): string | undefined {
   if (!path) {

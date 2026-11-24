@@ -5,8 +5,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { BillingExecutionResult } from '../../../modules/billing/billing.types.internal';
 import { getVoucherKindByShortcut } from '../../../modules/billing/voucher-kind-map';
+import { toPdfFailure } from '../../../modules/pdf/pdf-failure';
 import { findDownloadedBrowser } from '../pdf-browser';
-import { exportBillingPdf, TESTING_FOOTER, toPdfFailure } from '../pdf-exporter';
+import { exportBillingPdf, TESTING_FOOTER } from '../pdf-exporter';
 import {
   BROWSER_DOWNLOAD_TIMEOUT_MS,
   NPM_INSTALL_TIMEOUT_MS,

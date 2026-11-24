@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { billingCommandSchema } from '../../../modules/billing/billing.schemas';
 import { BillingService } from '../../../modules/billing/billing.service';
 import { BACK } from '../../../modules/interactive/wizard';
+import { ArcaFceObligationGateway } from '../../../services/arca/arca-fce-obligation.gateway';
 import { systemClock } from '../../../services/time/system-clock';
 import { billingAnswer } from '../../../testing/arca-answers';
 import { fakeBillingGateway } from '../../../testing/arca-gateways';
@@ -492,5 +493,36 @@ describe('previewAndEmit: cancelar y ARCA que falla en cada momento', () => {
     );
     expect(chooseOneMock).not.toHaveBeenCalled();
     expect(session.createVoucher).not.toHaveBeenCalled();
+  });
+
+  it('un inválido falla antes de consultar el régimen FCE, y uno válido lleva sus avisos en orden', async () => {
+    const session = createSession('testing');
+    const runtime = { ...session.runtime, config: { ...session.runtime.config, verificarFce: true } };
+    const entry = {
+      ...input,
+      documentNumber: 30709965812,
+      documentType: 'cuit' as const,
+      ivaCondition: 'responsable-inscripto' as const,
+      shortcut: 'fa' as const,
+      totalAmount: 5_000_000,
+    };
+    const getObligation = vi
+      .spyOn(ArcaFceObligationGateway.prototype, 'getObligation')
+      .mockResolvedValue({ minimumAmount: 1, obligated: true });
+    const write = vi.mocked(process.stdout.write);
+
+    vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+
+    await expect(previewAndEmit({ ...session, runtime }, { ...entry, billingDate: '01/01/2020' })).resolves.toBe(BACK);
+    expect(getObligation).not.toHaveBeenCalled();
+
+    chooseOneMock.mockResolvedValueOnce(false);
+    await previewAndEmit({ ...session, runtime }, entry, ['aviso del flujo']);
+
+    const shown = write.mock.calls.map(([chunk]) => String(chunk)).join('');
+
+    expect(getObligation).toHaveBeenCalledTimes(1);
+    expect(shown.indexOf('aviso del flujo')).toBeGreaterThan(-1);
+    expect(shown.indexOf('está obligado')).toBeGreaterThan(shown.indexOf('aviso del flujo'));
   });
 });

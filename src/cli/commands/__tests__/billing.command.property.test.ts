@@ -7,13 +7,13 @@ import { ZodError } from 'zod';
 import { AppError } from '../../../lib/errors/app-error';
 import { readJsonFile } from '../../../lib/files/read-json-file';
 import { hasAtMostDecimals } from '../../../lib/numbers/argentine-amount';
+import { prepareBatch } from '../../../modules/billing/billing.batch-run';
 import type { BillingDefaults } from '../../../modules/billing/billing.defaults';
 import { BillingService } from '../../../modules/billing/billing.service';
 import type { VoucherShortcut } from '../../../modules/billing/billing.types';
 import { getVoucherKindByShortcut, VOUCHER_KIND_MAP } from '../../../modules/billing/voucher-kind-map';
 import { systemClock } from '../../../services/time/system-clock';
 import type { CliArcaRuntime } from '../../arca-runtime';
-import { prepareBatch } from '../billing.command.batch';
 import { parseBillingCommandPlan, registerBillingOptions } from '../billing.command.parser';
 
 vi.mock('../../../lib/files/read-json-file', () => ({ readJsonFile: vi.fn() }));
@@ -509,7 +509,7 @@ describe('billing por --cargar (propiedades)', () => {
 
           // Como el comando antes de emitir: un lote con errores sale como `BatchValidationError`, que es de entrada.
           try {
-            await prepareBatch({ inputs: plan.inputs, plan, resolve: async (input) => input, validate: () => {} });
+            await prepareBatch({ inputs: plan.inputs, plan, resolve: async (input) => input });
           } catch (error) {
             expect(isControlledInputError(error)).toBe(true);
           }

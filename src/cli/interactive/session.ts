@@ -28,6 +28,7 @@ import { type CliArcaRuntime, loadArcaRuntime } from '../arca-runtime';
 import { formatBillingOutputs } from '../commands/billing.command.output';
 import { formatEmissionQuestion, NOTHING_EMITTED_NOTICE } from '../emission-texts';
 import { recordEmission } from '../emitted-vouchers';
+import { withPendingSpinner } from '../pending-spinner';
 import { startSpinner } from '../spinner';
 import type { GlobalCliOptions } from '../types';
 
@@ -49,18 +50,6 @@ export interface InteractiveSession {
    */
   readonly typedPointOfSale?: number;
 }
-
-const PREVIEW_GATEWAY: BillingGateway = {
-  createVoucher: async () => {
-    throw new Error('La vista previa no emite comprobantes.');
-  },
-  getNextVoucherNumber: async () => {
-    throw new Error('La vista previa no emite comprobantes.');
-  },
-  getQuotation: async () => {
-    throw new Error('La vista previa no consulta cotizaciones.');
-  },
-};
 
 /** Resuelve config y credenciales; si falta algo, el error explica que configurar. */
 export function createInteractiveSession(options: GlobalCliOptions): InteractiveSession {
@@ -235,9 +224,6 @@ async function previewBilling(
     runtime,
   );
   const input: BillingCommandInput = { ...prepared.input, dryRun: true, emit: false };
-  const fceWarnings = runtime.config.verificarFce
-    ? await resolveFceWarningsInOrder(service, [input], new ArcaFceObligationGateway(session.arca))
-    : [];
   // Como con flags: una nota FCE de anulacion avisa si el comprador no rechazo el asociado en el Registro.
   const registryWarnings = await checkFceCancellationInRegistry({
     gateway: new ArcaFceRegistryGateway(session.arca),
@@ -245,10 +231,14 @@ async function previewBilling(
     runtime,
     service,
   });
+  // Armarla es validarla: si no vale, no se consulta el regimen FCE.
+  const preview = service.preview({ input, runtime });
+  const fceWarnings = runtime.config.verificarFce
+    ? await resolveFceWarningsInOrder(service, [input], new ArcaFceObligationGateway(session.arca))
+    : [];
   const warnings = [...flowWarnings, ...prepared.warnings, ...(fceWarnings[0] ?? []), ...registryWarnings];
-  const preview = await service.execute({ gateway: PREVIEW_GATEWAY, input, runtime, warnings });
 
-  return { input, preview, warnings };
+  return { input, preview: { ...preview, warnings }, warnings };
 }
 
 /**
@@ -270,7 +260,9 @@ export async function previewAndEmit(
     ...rawInput,
     pointOfSale: rawInput.pointOfSale ?? session.typedPointOfSale,
   };
-  const previewed = await rejectedAsBack(() => previewBilling(session, entry, flowWarnings));
+  const previewed = await rejectedAsBack(() =>
+    withPendingSpinner('Consultando ARCA...', () => previewBilling(session, entry, flowWarnings)),
+  );
 
   if (previewed === BACK) {
     return BACK;
@@ -311,7 +303,7 @@ export async function previewAndEmit(
 
   try {
     const result = recordEmission(
-      await service.execute({
+      await service.emit({
         gateway: session.billingGateway,
         input: { ...input, dryRun: false, emit: true },
         preview,

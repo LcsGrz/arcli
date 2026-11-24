@@ -1,13 +1,12 @@
 import type { ArcliConfig } from '../../modules/config/config.schemas';
 import type { ExportExecutionResult, ExportVoucherInput } from '../../modules/export/export.types';
-import { resolvePdfDecision } from '../../modules/pdf/pdf-decision';
-import { resolvePdfIssuer } from '../../modules/pdf/pdf-issuer';
-import { exportExportacionPdf, toPdfFailure } from '../../services/pdf/pdf-exporter';
-import { startSpinner } from '../spinner';
+import { decidePdfs } from '../../modules/pdf/pdf-decision';
+import { generatePdfs } from '../../modules/pdf/pdf-generation';
 
 import {
+  confirmPdfs,
   defaultPdfStepDependencies,
-  loadPdfRenderer,
+  loadPdfExporter,
   type PdfStepDependencies,
   withCancellationAsNo,
 } from './billing.command.pdf';
@@ -21,11 +20,6 @@ export interface ExportPdfOptions {
   readonly interactive: boolean;
 }
 
-/** Sin CAE no hay PDF: ni en vista previa ni en rechazados. */
-function canHavePdf(result: ExportExecutionResult): boolean {
-  return !result.dryRun && result.response.status !== 'rechazado' && Boolean(result.response.cae);
-}
-
 /**
  * Genera el PDF del comprobante emitido. El comprobante ya esta emitido, asi que un error del PDF se devuelve en
  * `pdf.error` y no cambia el codigo de salida. Solo lanza lo que lance `completeConfig`, como un Ctrl+C.
@@ -37,47 +31,25 @@ export async function attachExportPdf(
 ): Promise<ExportExecutionResult> {
   const deps = withCancellationAsNo(defaultDeps);
 
-  if (!canHavePdf(result)) {
-    return result;
-  }
-
-  const decision = resolvePdfDecision({
-    flag: options.input.pdf,
-    interactive: options.interactive,
-    mode: options.config.pdf,
-  });
+  const [decision] = await confirmPdfs(
+    decidePdfs({
+      interactive: options.interactive,
+      mode: options.config.pdf,
+      vouchers: [{ flag: options.input.pdf, result }],
+    }),
+    deps,
+  );
 
   if (decision === 'omitir') {
     return result;
   }
 
-  if (
-    decision === 'preguntar' &&
-    !(await deps.confirm('¿Generamos el PDF del comprobante?', 'Sí, generar el PDF', 'No'))
-  ) {
-    return result;
-  }
-
   const config = options.completeConfig ? await options.completeConfig(options.config) : options.config;
-  const spinner = startSpinner('Generando PDF...');
+  const [pdf] = await generatePdfs({
+    config,
+    loadExporter: () => loadPdfExporter(config, options.interactive, deps),
+    vouchers: [{ family: 'export', result }],
+  });
 
-  try {
-    // Antes de descargar nada: sin los datos del emisor no se puede armar el PDF.
-    resolvePdfIssuer(config, result.voucherKind.letter);
-
-    const renderer = await loadPdfRenderer(deps.createPlugin(config), options.interactive, deps);
-
-    const path = await exportExportacionPdf({
-      config,
-      folder: deps.resolveFolder(config),
-      renderer,
-      result,
-    });
-
-    return { ...result, pdf: { path } };
-  } catch (error) {
-    return { ...result, pdf: toPdfFailure(error) };
-  } finally {
-    spinner?.stop();
-  }
+  return { ...result, pdf };
 }

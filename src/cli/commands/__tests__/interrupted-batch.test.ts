@@ -261,6 +261,18 @@ describe('si falla la entrega de los ya procesados (ERR-14)', () => {
     expect(stderr.indexOf('No se pudieron mostrar')).toBeLessThan(stderr.indexOf('LoginFault'));
   });
 
+  it('si tampoco se puede escribir el aviso, igual sale el error del lote', async () => {
+    failDelivery();
+    // El aviso es lo primero que va a stderr; lo que sigue, el error, se escribe.
+    vi.mocked(process.stderr.write).mockImplementationOnce(() => {
+      throw new Error('write EPIPE');
+    });
+
+    expect(await runBatch(['A', 'login'])).toBe(1);
+    expect(plain(stderr)).toContain('El lote se interrumpió en el comprobante #2: LoginFault');
+    expect(plain(stderr)).not.toContain('EPIPE');
+  });
+
   it('con 20, el rango y una cantidad que los alcanza (sin ella se ven 15)', async () => {
     failDelivery();
     await runBatch(steps(20));

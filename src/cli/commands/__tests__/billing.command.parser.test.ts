@@ -4,10 +4,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { prepareBatch } from '../../../modules/billing/billing.batch-run';
 import type { BillingDefaults } from '../../../modules/billing/billing.defaults';
 import { needsPadronLookup } from '../../../modules/billing/billing.padron';
 import type { BillingCommandInput } from '../../../modules/billing/billing.schemas';
-import { prepareBatch } from '../billing.command.batch';
 import { parseBillingCommandPlan, registerBillingOptions } from '../billing.command.parser';
 
 const temporaryDirectories: string[] = [];
@@ -29,7 +29,7 @@ function parseSingleInput(
 function prepareFileBatch(command: Command): Promise<BillingCommandInput[]> {
   const plan = parseBillingCommandPlan(command, 'fc');
 
-  return prepareBatch({ inputs: plan.inputs, plan, resolve: async (input) => input, validate: () => {} });
+  return prepareBatch({ inputs: plan.inputs, plan, resolve: async (input) => input });
 }
 
 function createCommand(args: string[]): Command {

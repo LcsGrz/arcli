@@ -3,8 +3,7 @@ import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
-import { isFceInvoice, isNote, VOUCHER_KIND_MAP } from '../../modules/billing/voucher-kind-map';
+import { VOUCHER_KIND_MAP } from '../../modules/billing/voucher-kind-map';
 import { PdfPlugin } from '../../services/pdf/pdf-plugin';
 import { stripAnsi } from '../../ui';
 import { EMIT_NOW_LABEL } from '../interactive/emission-prompt';
@@ -24,6 +23,7 @@ import {
   useClockFixture,
   wsfeRequests,
 } from './clock.fixture';
+import { argsForKind } from './voucher-args.fixture';
 
 /**
  * ARQ-21: con la terminal, al confirmar se emite la solicitud que mostró la vista previa más el número, aunque la
@@ -48,24 +48,6 @@ const CUIT = ['--cuit', String(CLIENT_CUIT), '--ir-ri'];
 const FC = ['fc', '-m', '1000', '--cs', '--cfinal'];
 const FCEA = ['fcea', '-m', '5000000', '--cs', ...CUIT, '--cbu', '0110599520000012345678'];
 const NCC = ['ncc', '-m', '100', '--cs', '--cfinal'];
-
-/** Los flags de un comprobante válido de cada tipo, a partir del mapa: uno nuevo entra solo o hace fallar el test. */
-function argsFor(kind: VoucherKindDefinition): string[] {
-  const { isElectronicCredit, letter, shortcut } = kind;
-  const receiver =
-    !isElectronicCredit && letter !== 'a'
-      ? ['--cfinal']
-      : ['--cuit', String(CLIENT_CUIT), letter === 'b' ? '--ir-se' : '--ir-ri'];
-  const invoice = Object.values(VOUCHER_KIND_MAP).find(
-    (other) => other.letter === letter && (isElectronicCredit ? isFceInvoice(other) : other.family === 'factura'),
-  );
-
-  return [
-    ...[shortcut, '-m', '1000000', '--cs', ...receiver],
-    ...(isNote(kind) ? ['--ac', String(invoice?.shortcut), '--apv', '3', '--ar', '12'] : []),
-    ...(isFceInvoice(kind) ? ['--cbu', '0110599520000012345678'] : []),
-  ];
-}
 
 /** Config con los datos del emisor y el plugin de PDF falso: devuelve lo que recibe la plantilla. */
 function fakePdf() {
@@ -181,7 +163,7 @@ describe('un comprobante confirmado pasada la medianoche', () => {
         ImpTotal: 5_000_000,
       });
 
-      const args = argsFor(kind);
+      const args = argsForKind(kind, CLIENT_CUIT);
       const [previewed] = await previewedRequests(args);
 
       expect(previewed).toMatchObject({ CbteFch: '20261110', CbteTipo: kind.arcaType });

@@ -10,7 +10,7 @@ import type { ArcliConfig } from '../../modules/config/config.schemas';
 import { ConfigService } from '../../modules/config/config.service';
 import { parseConfigValue } from '../../modules/config/config-value-parser';
 import { BACK, type Back } from '../../modules/interactive/wizard';
-import { canHavePdf, resolvePdfDecision } from '../../modules/pdf/pdf-decision';
+import { decidePdfs } from '../../modules/pdf/pdf-decision';
 import { listMissingIssuerKeys } from '../../modules/pdf/pdf-issuer';
 import { noticePanel, writeTerminalOutput } from '../../ui';
 import { isOutputLost } from '../closed-output';
@@ -125,11 +125,7 @@ export async function offerPdf(
   input: BillingCommandInput,
   result: BillingExecutionResult,
 ): Promise<void> {
-  if (!canHavePdf(result)) {
-    return;
-  }
-
-  const decision = resolvePdfDecision({ flag: input.pdf, interactive: true, mode: config.pdf });
+  const [decision] = decidePdfs({ interactive: true, mode: config.pdf, vouchers: [{ flag: input.pdf, result }] });
 
   if (decision === 'omitir') {
     return;

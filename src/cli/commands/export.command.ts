@@ -1,9 +1,9 @@
 import type { Command } from 'commander';
 
 import { formatVoucherWithArticle } from '../../modules/billing/voucher-names';
+import { emitExport, previewExport } from '../../modules/export/export.emission';
 import { formatExportResultAsText } from '../../modules/export/export.presenter';
 import { serializeExportResult } from '../../modules/export/export.serialize';
-import { ExportService } from '../../modules/export/export.service';
 import {
   EXPORT_VOUCHER_KIND,
   type ExportExecutionResult,
@@ -86,32 +86,30 @@ export async function executeExportCommand(
     const plan = parseExportCommandPlan(command, { defaultEmit: runtime.config.output.emitirPorDefecto, voucherKind });
     const useRaw = typeof globalOptions.bruto === 'boolean' ? globalOptions.bruto : runtime.outputRaw;
     const interactive = !runtime.outputJson && Boolean(process.stdin.isTTY && process.stdout.isTTY);
-    const service = new ExportService({ clock: systemClock });
     const gateway = dependencies.createGateway(runtime);
 
     spinner = runtime.outputJson ? null : startSpinner('Consultando WSFEX...');
 
-    const resolved = await service.resolve(plan.input, gateway, runtime);
-    // Los avisos de la resolucion (por ejemplo, la cotizacion de un dia anterior) van con los del certificado.
-    const warnings = [
-      ...certificateWarnings(runtime),
-      ...plan.warnings,
-      ...(options.extraWarnings ?? []),
-      ...(resolved.warnings ?? []),
-    ];
+    const { preview, resolved, warnings } = await previewExport({
+      clock: systemClock,
+      // Los avisos de la resolucion (por ejemplo, la cotizacion de un dia anterior) van despues de estos.
+      extraWarnings: [...certificateWarnings(runtime), ...plan.warnings, ...(options.extraWarnings ?? [])],
+      gateway,
+      input: plan.input,
+      runtime,
+    });
 
     spinner?.stop();
     spinner = null;
 
-    let result = service.preview(resolved, runtime, warnings);
     let previewShown = false;
-    let pdfInput = plan.input;
+    let { input } = plan;
 
     if (!plan.input.emit) {
       // Sin flags de emision y con terminal: se muestra la vista previa y se pregunta. Con --json o sin
       // terminal nadie puede responder, asi que queda en vista previa.
       if (plan.modeSource !== 'default' || !interactive) {
-        writeExportResult(result, {
+        writeExportResult(preview, {
           environment: runtime.environment,
           outputJson: runtime.outputJson,
           previewShown: false,
@@ -121,7 +119,7 @@ export async function executeExportCommand(
         return;
       }
 
-      writeTerminalOutput(formatExportResultAsText(result, { environment: runtime.environment, raw: useRaw }));
+      writeTerminalOutput(formatExportResultAsText(preview, { environment: runtime.environment, raw: useRaw }));
 
       // Esc cuenta como no, igual que en A, B y C. Si ningun flag decidio el PDF, la pregunta tambien lo decide.
       const choice = await confirmEmissionOrNotify(
@@ -133,36 +131,57 @@ export async function executeExportCommand(
         return;
       }
 
-      pdfInput = { ...plan.input, pdf: resolvePdfAfterConfirmation(plan.input.pdf, choice) };
+      input = { ...plan.input, emit: true, pdf: resolvePdfAfterConfirmation(plan.input.pdf, choice) };
       previewShown = true;
     }
 
     spinner = runtime.outputJson ? null : startSpinner(`Emitiendo ${formatVoucherWithArticle(voucherKind)} en ARCA...`);
 
-    result = recordExportEmission(await service.execute({ gateway, resolved, runtime, warnings }));
+    const outcome = await emitExport({
+      clock: systemClock,
+      gateway,
+      input,
+      onEmitted: (result) => {
+        recordExportEmission(result);
+      },
+      resolved,
+      runtime,
+      warnings,
+    });
+
+    if ('error' in outcome) {
+      throw outcome.error;
+    }
 
     spinner?.stop();
     spinner = null;
 
-    result = await attachExportPdf(result, {
-      config: runtime.config,
-      input: pdfInput,
-      interactive,
-    });
-
-    writeExportResult(result, {
+    const [result] = outcome.results;
+    const pdfOptions = { config: runtime.config, input, interactive };
+    const outputOptions = {
       environment: runtime.environment,
       outputJson: runtime.outputJson,
       previewShown,
       raw: useRaw,
-    });
+    };
 
     if (result.response.status === 'rechazado') {
       process.exitCode = REJECTED_EXIT_CODE;
     }
 
-    if (result.pdf && !runtime.outputJson) {
-      writeTerminalOutput(formatPdfOutcomeAsText(result.pdf));
+    // Como en A, B y C: en JSON el PDF va dentro del mismo resultado; en texto primero se ve el CAE.
+    if (runtime.outputJson) {
+      writeExportResult(await attachExportPdf(result, pdfOptions), outputOptions);
+
+      return;
+    }
+
+    writeExportResult(result, outputOptions);
+
+    const { pdf } = await attachExportPdf(result, pdfOptions);
+
+    if (pdf) {
+      writeTerminalOutput(formatPdfOutcomeAsText(pdf));
     }
   } catch (error) {
     spinner?.stop();

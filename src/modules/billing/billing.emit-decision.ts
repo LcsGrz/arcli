@@ -33,6 +33,11 @@ export interface EmitDecisionInput {
 
 const BOTH_IN_FILE_MESSAGE = 'En el archivo usá "emitir" o "previsualizar", pero no ambos en true.';
 
+/** Se emite solo si la entrada lo pide y no es una vista previa. */
+export function shouldEmit(input: { readonly dryRun?: boolean; readonly emit: boolean }): boolean {
+  return input.emit && !input.dryRun;
+}
+
 /**
  * Emitir o no, por nivel: los flags, después el archivo de `--cargar` y por último la config. Decide el primer nivel
  * que diga algo; es error que un mismo nivel pida las dos cosas. Es la regla de seguridad de AGENTS.md: sin nada que

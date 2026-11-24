@@ -263,7 +263,9 @@ export class PdfPlugin {
       });
     }
 
-    // El SDK no deja elegir el ejecutable; Puppeteer lo toma de esta variable.
+    // El SDK no deja elegir el ejecutable (llama a `puppeteer.launch({ headless: true })`); Puppeteer lo toma de esta
+    // variable, que es de todo el proceso: con dos pedidos a la vez y navegadores distintos gana el ultimo. El CLI
+    // genera de a uno; para `arcli servir` es un riesgo anotado en API-1.
     process.env.PUPPETEER_EXECUTABLE_PATH = browser.path;
 
     const require = createRequire(join(this.options.path, 'package.json'));

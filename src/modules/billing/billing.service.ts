@@ -21,6 +21,7 @@ import {
 } from './billing.currency';
 import { resolveBillingDateRange } from './billing.date-range';
 import { resolveBillingDate } from './billing.dates';
+import { shouldEmit } from './billing.emit-decision';
 import { EmissionUncertainError } from './billing.errors';
 import { resolveElectronicCreditOptionals } from './billing.fce';
 import { missingIvaReceiverMessage, validateIvaConditionForVoucher } from './billing.iva-receptor';
@@ -41,22 +42,32 @@ import { getVoucherKindByShortcut } from './voucher-kind-map';
 import { formatVoucherSubject } from './voucher-names';
 import type { UnnumberedVoucherRequest } from './voucher-request';
 
-export interface BillingExecutionOptions {
-  readonly gateway: BillingGateway;
+export interface BillingPreviewOptions {
   readonly input: BillingCommandInput;
+  readonly runtime: BillingRuntime;
+  readonly warnings?: readonly string[];
+}
+
+/** Las llamadas que emiten. */
+export type BillingEmissionGateway = Pick<BillingGateway, 'createVoucher' | 'getNextVoucherNumber'>;
+
+export interface BillingEmitOptions extends BillingPreviewOptions {
+  readonly gateway: BillingEmissionGateway;
   /**
    * La vista previa que se confirmo: se emite su payload tal cual, sin armarlo de nuevo con la fecha de ahora (ARQ-21),
    * y solo se pide el numero. Sin ella (`--emitir`, `--json`), se arma al emitir.
    */
   readonly preview?: Pick<BillingExecutionResult, 'payload'>;
-  readonly runtime: BillingRuntime;
-  readonly warnings?: readonly string[];
 }
 
 type ExchangeRateInput = Pick<
   BillingCommandInput,
   'billingDate' | 'currencyCode' | 'exchangeRate' | 'exchangeRateSource' | 'sameCurrency'
 >;
+
+function describeReceiver(input: BillingCommandInput): BillingExecutionResult['receiver'] {
+  return { ivaConditionFromPadron: input.ivaConditionSource === 'padron', name: input.receiverName };
+}
 
 export interface BillingServiceOptions {
   readonly clock: Clock;
@@ -165,25 +176,32 @@ export class BillingService {
     return resolveIvaConditionFromPadron(input, gateway);
   }
 
-  public async execute(options: BillingExecutionOptions): Promise<BillingExecutionResult> {
+  /** La vista previa, sin hablar con ARCA: no recibe un gateway. */
+  public preview(options: BillingPreviewOptions): BillingExecutionResult {
+    const voucherKind = this.requireVoucherKind(options.input.shortcut);
+
+    return {
+      dryRun: true,
+      environment: options.runtime.environment,
+      payload: this.buildVoucherPayload(options.input, options.runtime, voucherKind),
+      receiver: describeReceiver(options.input),
+      response: createDryRunResponse(),
+      voucherKind,
+      warnings: options.warnings ?? [],
+    };
+  }
+
+  /**
+   * Emite siempre: si corresponde lo decide antes quien llama. Una entrada que no pide emitir es un error de programacion
+   * de quien llama, no de quien factura: se frena aca, antes de pedir el numero.
+   */
+  public async emit(options: BillingEmitOptions): Promise<BillingExecutionResult> {
+    if (!shouldEmit(options.input)) {
+      throw new Error('BillingService.emit recibió una entrada que no pide emitir.');
+    }
+
     const voucherKind = this.requireVoucherKind(options.input.shortcut);
     const payload = options.preview?.payload ?? this.buildVoucherPayload(options.input, options.runtime, voucherKind);
-    const receiver = {
-      ivaConditionFromPadron: options.input.ivaConditionSource === 'padron',
-      name: options.input.receiverName,
-    };
-
-    if (options.input.dryRun || !options.input.emit) {
-      return {
-        dryRun: true,
-        environment: options.runtime.environment,
-        payload,
-        receiver,
-        response: createDryRunResponse(),
-        voucherKind,
-        warnings: options.warnings ?? [],
-      };
-    }
 
     // Resguardo: una nota FCE no llega a ARCA sin la fecha del asociado (10158). Sin `--afecha` la completa
     // checkAssociatedInArca antes de la vista previa; si quien llama no la consulto, se frena aca.
@@ -221,7 +239,7 @@ export class BillingService {
       dryRun: false,
       environment: options.runtime.environment,
       payload,
-      receiver,
+      receiver: describeReceiver(options.input),
       response,
       voucherNumber,
       voucherKind,
