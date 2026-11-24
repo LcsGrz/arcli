@@ -43,8 +43,10 @@ const CLIENT_CUIT = 30709965812;
 const sdk = vi.hoisted(() => ({
   generic: { call: vi.fn() },
   padron: { getTaxpayerDetails: vi.fn() },
+  wsaa: { login: vi.fn() },
   wsfe: {
     createVoucher: vi.fn(),
+    getCurrencyTypes: vi.fn(),
     getLastVoucher: vi.fn(),
     getQuotation: vi.fn(),
     getSalesPoints: vi.fn(),
@@ -84,7 +86,7 @@ vi.mock('@arcasdk/core', async (importOriginal) => ({
     }
 
     public async login() {
-      return {};
+      return sdk.wsaa.login();
     }
   },
 }));
@@ -263,6 +265,7 @@ function resetSdk(): void {
     }
   }
 
+  sdk.wsaa.login.mockResolvedValue({});
   sdk.wsfe.getLastVoucher.mockResolvedValue({ cbteNro: 41 });
   sdk.wsfe.createVoucher.mockImplementation(wsfeAnswer('A'));
   sdk.wsfe.getQuotation.mockResolvedValue({ resultGet: { fchCotiz: '20261116', monCotiz: 1452.5, monId: 'DOL' } });
@@ -977,6 +980,97 @@ describe('ARCA contesta a la emisión algo que no se puede leer (ERR-16)', () =>
 
     expect(result.code).toBe(code);
     expect(JSON.parse(result.stdout)).toMatchObject(expected);
+  });
+});
+
+describe('el certificado sin autorizar, en las consultas (ERR-7)', () => {
+  // Tests primero: los `it.fails` pasan a `it` con el arreglo.
+  const NOT_AUTHORIZED = new Error('ns1:coe.notAuthorized: Computador no autorizado a acceder al servicio');
+
+  async function failure(args: readonly string[]): Promise<Record<string, unknown>> {
+    prepareConfig({});
+
+    const result = await runCli([...args, '--json']);
+
+    expect(result).toMatchObject({ code: 1, stdout: '' });
+
+    return JSON.parse(result.stderr) as Record<string, unknown>;
+  }
+
+  it.fails.each(['fe', 'nce', 'nde'])(
+    'ultimos %s: WSFEX_SERVICE_NOT_AUTHORIZED, como el resto de wsfex',
+    async (shortcut) => {
+      sdk.wsaa.login.mockRejectedValue(NOT_AUTHORIZED);
+
+      expect(await failure(['ultimos', shortcut])).toEqual({
+        codigo: 'WSFEX_SERVICE_NOT_AUTHORIZED',
+        detalles: null,
+        error: expect.stringContaining('El certificado no está autorizado para el servicio wsfex'),
+        sugerencia: null,
+      });
+      expect(sdk.wsfex.getLastCmp).not.toHaveBeenCalled();
+    },
+  );
+
+  it.fails.each<[string, string[]]>([
+    ['puntos-venta', ['parametros', 'puntos-venta']],
+    ['comprobantes', ['parametros', 'comprobantes']],
+    ['monedas', ['parametros', 'monedas']],
+    ['cotizacion', ['parametros', 'cotizacion', 'USD']],
+  ])('parametros %s: WSFE_SERVICE_NOT_AUTHORIZED, como fc', async (_name, args) => {
+    sdk.wsfe.getSalesPoints.mockRejectedValue(NOT_AUTHORIZED);
+    sdk.wsfe.getVoucherTypes.mockRejectedValue(NOT_AUTHORIZED);
+    sdk.wsfe.getCurrencyTypes.mockRejectedValue(NOT_AUTHORIZED);
+    sdk.wsfe.getQuotation.mockRejectedValue(NOT_AUTHORIZED);
+
+    expect(await failure(args)).toEqual({
+      codigo: 'WSFE_SERVICE_NOT_AUTHORIZED',
+      detalles: null,
+      error: 'El certificado no está autorizado para facturar (servicio wsfe).',
+      sugerencia: expect.stringContaining('Autorizalo en ARCA'),
+    });
+  });
+
+  // Caracterización: lo que no cambia.
+  it.each<[string, Error]>([
+    ['sin autorizar', NOT_AUTHORIZED],
+    ['la red', new Error('connect ETIMEDOUT')],
+  ])('estado sigue en ARCA_UNAVAILABLE: %s', async (_name, error) => {
+    sdk.wsfe.getSalesPoints.mockRejectedValue(error);
+
+    expect(await failure(['estado'])).toMatchObject({
+      codigo: 'ARCA_UNAVAILABLE',
+      detalles: null,
+      error: expect.stringMatching(/^ARCA no respondió: /),
+      sugerencia: null,
+    });
+  });
+
+  it('otro error de WSAA o de la red sale como antes', async () => {
+    const error = new Error('connect ETIMEDOUT');
+
+    sdk.wsaa.login.mockRejectedValue(error);
+    sdk.wsfe.getSalesPoints.mockRejectedValue(error);
+
+    expect(await failure(['ultimos', 'fe'])).toMatchObject({ codigo: 'UNEXPECTED_ERROR', error: error.message });
+    expect(await failure(['parametros', 'puntos-venta'])).toMatchObject({
+      codigo: 'UNEXPECTED_ERROR',
+      error: error.message,
+    });
+  });
+
+  it('una nota con los puntos de venta sin autorizar clasifica el asociado por el último número, como antes', async () => {
+    sdk.generic.call.mockImplementation(consulting(null));
+    sdk.wsfe.getSalesPoints.mockRejectedValue(NOT_AUTHORIZED);
+    sdk.wsfe.getLastVoucher.mockResolvedValue({ cbteNro: 0 });
+    prepareConfig({});
+
+    const result = await runCli([...NCC, '--previsualizar', '--json']);
+
+    expect(result).toMatchObject({ code: 0, stderr: '' });
+    expect((JSON.parse(result.stdout) as { avisos: string[] }).avisos.join()).toContain(
+      'no se pudo consultar si el punto de venta 3 es de web service',
+    );
   });
 });
 
