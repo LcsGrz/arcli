@@ -27,6 +27,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 > - En una consulta (`ultimos`, `consultar`, `parametros`, `padron`…), la `sugerencia` de `TRANSIENT_ERROR` y, en `ultimos`, la de `ARCA_LAST_VOUCHER_ERROR` dicen que repitas la consulta, no la emisión; antes, "reintentá la emisión" y "No se emitió nada". Los códigos no cambian.
 > - Con el certificado sin autorizar, `parametros` sale con `WSFE_SERVICE_NOT_AUTHORIZED` y `ultimos` de una `E` con `WSFEX_SERVICE_NOT_AUTHORIZED`, antes `UNEXPECTED_ERROR`. `estado` sigue en `ARCA_UNAVAILABLE`, con otro texto.
 > - Un documento del receptor o un punto de venta inválido sale con `INPUT_VALIDATION_ERROR` antes de consultar a ARCA: si además fallaba la red o el padrón, antes salía ese error.
+> - Si falla el padrón al facturar sin IVA receptor, o la consulta del asociado de una nota FCE sin `--afecha`, `detalles` es `{ "codigoCausa": "…" }`, antes `null`. `codigo`, `error` y `sugerencia` no cambian.
 > - Si no se puede escribir stdout, con `--json` sale el código nuevo `OUTPUT_WRITE_ERROR`, que puede traer comprobantes ya emitidos en `sugerencia`: no los reemitas. Un rechazo con el disco lleno sale con `2`, antes `1`.
 >
 > No se saca ni se renombra ningún comando, flag ni clave de config o de `--json`. Un comprobante que no existe sigue siendo `VOUCHER_NOT_FOUND`.
@@ -75,6 +76,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Facturas:** en un lote inválido, cada comprobante de `detalles.comprobantes` trae su `codigo` y su `sugerencia` (#275).
 - **Errores:** si falta un dato porque falló una consulta a ARCA, `detalles.codigoCausa` dice cuál fue la falla (#275).
 - **Factura E:** los errores de `--cargar` dicen qué llegó y sugieren la clave parecida, como en A, B y C (#275).
+- **Errores:** en `--cargar`, una clave `constructor` ya no sugiere un texto interno de JavaScript (#275).
 
 <details><summary>Detalle</summary>
 
@@ -108,7 +110,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 **Salida cortada.** Si quien lee la salida la cerraba antes de tiempo (`| head`, o `less` y `q`), ARCLI mostraba `Error: write EPIPE` con el detalle interno de Node y salía con 1. Ahora el comando termina sin ese error y, con la salida cortada, el código de salida pasa de 1 al del comando (0, 1 o 2), también si lo que se cerró es stderr: un 0 no garantiza que alguien haya leído la salida, así que si se cortó al emitir conviene buscar el comprobante antes de reintentar. Una emisión, su PDF o un lote se completan igual que con la salida abierta: antes podían cortarse ahí, por ejemplo con el comprobante ya autorizado y sin PDF. La salida y el `--json` no cambian.
 
-**Lote: código y sugerencia de cada comprobante.** En `BATCH_VALIDATION_ERROR`, cada elemento de `detalles.comprobantes` traía solo `error` e `indice`, y había que leer el texto para saber si corregir el archivo o reintentar. Ahora suma `codigo` y `sugerencia` (texto o `null`), con los valores que daría ese comprobante solo. `error`, `indice` y el texto del panel no cambian.
+**Lote: código y sugerencia de cada comprobante.** En `BATCH_VALIDATION_ERROR`, cada elemento de `detalles.comprobantes` traía solo `error` e `indice`. Ahora suma `codigo` y `sugerencia` (texto o `null`), con los valores que daría ese comprobante solo. `error`, `indice` y el texto del panel no cambian. El ítem no trae `codigoCausa`: si un `INPUT_VALIDATION_ERROR` sale de una consulta a ARCA que falló, lo sigue diciendo `error`.
 
 **Qué falló al consultar a ARCA.** Al facturar a un CUIT sin IVA receptor con el padrón caído, y en una nota FCE sin `--afecha` si falla la consulta del asociado, el error es `INPUT_VALIDATION_ERROR` y no decía si era la red, ARCA o el certificado. Ahora `detalles`, antes `null`, es `{ "codigoCausa": "…" }` con el código de la falla, por ejemplo `UNEXPECTED_ERROR` o `WSFE_SERVICE_NOT_AUTHORIZED`. `codigo`, `error`, `sugerencia` y el panel no cambian, y si ARCA contestó que no figura o no lo tiene, `detalles` sigue en `null`.
 

@@ -89,9 +89,8 @@ const DEPRECATED_AMOUNT_KEY_WARNING =
 /**
  * Nombres de flags (sin guiones) que alguien puede escribir en el JSON pensando que valen igual; los que se parecen a
  * su clave los encuentra la comparacion por parecido. Sin `afecha`: en la E no hay flag y la clave no se usa.
- * Sin prototipo, para que una clave como `constructor` no encuentre lo heredado.
  */
-const FLAG_NAME_HINTS: Readonly<Record<string, string>> = Object.assign(Object.create(null) as Record<string, string>, {
+const FLAG_NAME_HINTS: Readonly<Record<string, string>> = {
   ac: 'comprobanteAsociado.atajo',
   acuit: 'comprobanteAsociado.cuit',
   apv: 'comprobanteAsociado.puntoVenta',
@@ -107,7 +106,7 @@ const FLAG_NAME_HINTS: Readonly<Record<string, string>> = Object.assign(Object.c
   obscomerciales: 'observacionesComerciales',
   pv: 'puntoVenta',
   sinpdf: 'pdf',
-});
+};
 
 const JSON_KEYS: JsonInputKeys = {
   byParent: {

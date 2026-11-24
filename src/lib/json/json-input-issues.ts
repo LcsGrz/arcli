@@ -39,10 +39,10 @@ function editDistance(a: string, b: string): number {
 function suggestKey(unknownKey: string, parent: string, keys: JsonInputKeys): string | undefined {
   const normalized = normalizeKey(unknownKey);
   const validKeys = keys.byParent[parent] ?? [];
-  const flagHint = parent === '' ? keys.flagHints[normalized] : undefined;
 
-  if (flagHint) {
-    return flagHint;
+  // `hasOwn`: una clave como `constructor` no puede encontrar lo heredado.
+  if (parent === '' && Object.hasOwn(keys.flagHints, normalized)) {
+    return keys.flagHints[normalized];
   }
 
   const ranked = validKeys

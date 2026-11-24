@@ -79,7 +79,8 @@ describe('readExportJsonInput', () => {
       [{ Monto: 1 }, 'La clave "Monto" no existe: ¿quisiste decir "montoTotal"?'],
       [{ ar: 1 }, 'La clave "ar" no existe: ¿quisiste decir "comprobanteAsociado.numero"?'],
       [{ 'obs-comerciales': 'x' }, 'La clave "obs-comerciales" no existe: ¿quisiste decir "observacionesComerciales"?'],
-      [{ constructor: 1 }, 'La clave "constructor" no existe.'],
+      [JSON.parse('{"constructor": 1}'), 'La clave "constructor" no existe.'],
+      [JSON.parse('{"__proto__": 1}'), 'La clave "__proto__" no existe.'],
       [{ ivaReceptor: 'x' }, 'La clave "ivaReceptor" no existe.'],
       [{ items: [ITEM, { ...ITEM, unidd: 7 }] }, 'La clave "items[1].unidd" no existe: ¿quisiste decir "unidad"?'],
       [

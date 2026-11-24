@@ -38,6 +38,12 @@ function documentedInputs(markdown: string): unknown[] {
 }
 
 describe('billing.json-input', () => {
+  it.each(['constructor', '__proto__'])('no sugiere lo heredado por una clave %s', (key) => {
+    const error = errorOf(() => parseBillingJsonInput(JSON.parse(`{"${key}": 1}`)));
+
+    expect(error.message).toBe(`En el JSON de \`--cargar\`: La clave "${key}" no existe.`);
+  });
+
   it('accepts every key the parser used to read', () => {
     const input = {
       aliasCbu: 'mi.alias.cbu',
