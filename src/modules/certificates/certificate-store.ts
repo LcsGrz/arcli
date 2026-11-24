@@ -58,6 +58,21 @@ export function readIfExists(path: string): string | undefined {
   return existsSync(path) ? withFilePath(path, () => readFileSync(path, 'utf8')) : undefined;
 }
 
+/** Como `readIfExists`, pero sin permiso (en el archivo o su carpeta) falla: no es lo mismo que si no existiera. */
+export function readUnlessMissing(path: string): string | undefined {
+  try {
+    return withFilePath(path, () => readFileSync(path, 'utf8'));
+  } catch (error) {
+    const { code } = error as NodeJS.ErrnoException;
+
+    if (code === 'ENOENT' || code === 'ENOTDIR') {
+      return undefined;
+    }
+
+    throw error;
+  }
+}
+
 /** Mueve `from` a `to` pisando `to`; si `from` no existe, no hace nada. */
 export function moveIfExists(from: string, to: string): void {
   if (existsSync(from)) {

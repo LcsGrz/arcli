@@ -845,6 +845,8 @@ Los importes son números en pesos. Con `--categoria E`, `categorias` trae solo 
 
 Las claves son las de [configuración](configuration.md), salvo que `cert.*`, `key.*`, `emisor.*` y `exportacion.*` van anidadas en los objetos `cert`, `key`, `emisor` y `exportacion` (vacíos si no hay nada; `exportacion` trae a su vez `cert`, `key` y, si está, `actividad`). `emitir`, `entorno`, `exportacion`, `json`, `bruto`, `pdf`, `pdfCarpeta`, `moneda`, `cotizacion`, `consultarPadron` y `ticketPath` siempre aparecen, con su valor por defecto si no se configuraron; el resto, solo si tiene valor. `monotributo` sale solo con `monotributo.tope` configurado: `{ "tope": 30000000 }`. Si `filasPorLista` tiene valor (o el archivo tiene la clave vieja `comprobantesPorLista`), sale también `comprobantesPorLista` con el mismo valor, deprecada hasta la 3.0.0, y `deprecado` lo avisa (ver [Estabilidad del contrato](#estabilidad-del-contrato)).
 
+Si en el archivo hay otras claves inválidas, `config establecer` y `config eliminar` guardan igual el cambio pedido, sin tocar el resto, y salen con exit code `0`. El JSON no trae las claves rotas y suma `avisos` (`string[]`), con un texto por cada una que queda y cómo arreglarla; sin `--json`, el aviso sale en stderr. Si la rota es `json`, manda el flag. Un valor inválido, o un cambio que produce un problema nuevo, se rechaza y no se guarda nada. Los demás comandos siguen frenando hasta que no quede ninguna.
+
 `arcli config revisar --json`:
 
 ```json
@@ -1067,7 +1069,7 @@ Cuando el error viene de Zod o de validación de entrada:
 }
 ```
 
-Si el dato inválido está en la config guardada, `error` lo dice con la clave pública y `sugerencia` trae cómo arreglarlo. `detalles` usa el nombre del archivo:
+Si el dato inválido está en la config guardada, `error` lo dice con la clave pública y `sugerencia` trae cómo arreglarlo (con varios, de a uno). `detalles` usa el nombre del archivo:
 
 ```json
 {

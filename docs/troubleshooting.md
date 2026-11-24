@@ -174,7 +174,7 @@ O abrí `arcli` y elegí "Configuración" para la configuración guiada.
 - **Severidad:** crítico
 - **Síntoma:** cualquier comando falla con "La configuración guardada tiene un dato inválido", la clave y el motivo (`INPUT_VALIDATION_ERROR` con `--json`). Con un CBU, "El CBU guardado en la config no es válido".
 - **Causa:** el `config.json` tiene un valor que ARCLI no acepta, casi siempre por una edición a mano.
-- **Solución:** volvé a guardar esa clave o borrala. Con más de una mal, `arcli config establecer` no puede guardar ninguna: corregilas en el archivo que dice la sugerencia.
+- **Solución:** volvé a guardar esa clave o borrala. Con más de una mal, arreglalas de a una: cada `arcli config establecer` o `arcli config eliminar` guarda su cambio y avisa cuáles quedan.
 
 ```bash
 arcli config establecer cuit 20168598204

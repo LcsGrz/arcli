@@ -19,6 +19,7 @@ import {
   ensureCertificateFolder,
   moveIfExists,
   readIfExists,
+  readUnlessMissing,
   resolveCertificateFiles,
   writePrivateFile,
 } from './certificate-store';
@@ -107,7 +108,10 @@ export class CertificateService {
     const cuit = this.requireCuit(config);
     const files = this.files(cuit, options.environment);
 
-    if (readIfExists(files.pendingKey) && !options.replace) {
+    // Sin `--reemplazar`, un pedido que no se puede leer no se pisa: la clave podria ser la del CSR que ya se subio.
+    const pendingKey = options.replace ? readIfExists(files.pendingKey) : readUnlessMissing(files.pendingKey);
+
+    if (pendingKey && !options.replace) {
       throw certificateError(
         'CERTIFICATE_REQUEST_PENDING',
         `Ya hay un pedido de certificado de ${formatEnvironmentLabel(options.environment)} sin importar.`,
@@ -322,7 +326,7 @@ export class CertificateService {
         [
           ...(pendingKey ? [`${downloadLatest} Si no es de ese pedido, revisá`] : ['Revisá']),
           'que tu usuario tenga permiso para leer esa clave y su carpeta, y volvé a importar el certificado.',
-          // Con un pedido (o sin poder saberlo), `generar` cortaria o lo pisaria.
+          // Con un pedido (o sin poder saberlo), `generar` frena: no se sugiere.
           ...(pendingKey === undefined && !pendingProblem
             ? [`Si esa clave se perdió, armá otro pedido con \`arcli certificado generar --${environment}\`.`]
             : []),
@@ -343,12 +347,12 @@ export class CertificateService {
 /** Una clave que no se puede leer (permisos, es una carpeta) no es una que falta: `problem` dice cual y por que. */
 function readKey(path: string): { readonly content?: string; readonly problem?: string } {
   try {
-    return { content: readFileSync(path, 'utf8') };
+    return { content: readUnlessMissing(path) };
   } catch (error) {
     const { code } = error as NodeJS.ErrnoException;
 
-    return code === 'ENOENT' || code === 'ENOTDIR'
-      ? {}
-      : { problem: `la clave privada ${shortenPath(path)}: ${fileErrorReason(code) ?? code ?? 'error desconocido'}` };
+    return {
+      problem: `la clave privada ${shortenPath(path)}: ${fileErrorReason(code) ?? code ?? 'error desconocido'}`,
+    };
   }
 }

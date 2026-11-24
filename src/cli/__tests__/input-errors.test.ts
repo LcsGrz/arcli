@@ -154,8 +154,9 @@ describe('largos y rangos', () => {
   });
 
   it('config establecer sobre una config que ya estaba mal', async () => {
-    expect(await detailsOf(['config', 'establecer', 'moneda', 'DOL'], { puntoVentaPorDefecto: 'a' })).toEqual([
-      { mensaje: '`puntoVentaPorDefecto` tiene que ser un número.', ruta: ['puntoVentaPorDefecto'] },
+    // Con un valor válido se guarda y avisa (config-repair.test.ts): uno inválido sale con su error.
+    expect(await detailsOf(['config', 'establecer', 'moneda', 'XX'], { puntoVentaPorDefecto: 'a' })).toEqual([
+      { mensaje: '`monedaPorDefecto` tiene que tener 3 caracteres.', ruta: ['monedaPorDefecto'] },
     ]);
   });
 

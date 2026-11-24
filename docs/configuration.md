@@ -241,6 +241,8 @@ arcli config eliminar puntoVenta
 
 Un valor inválido no se guarda y es `INPUT_VALIDATION_ERROR`: el mensaje nombra la clave, el valor recibido y, en las claves con una lista cerrada, los valores válidos (por ejemplo, `` `emisor.condicionIva` no acepta "Inscripto". Valores válidos: … ``), y la sugerencia lleva a `arcli config establecer --ayuda`. Una clave que no existe también es `INPUT_VALIDATION_ERROR`.
 
+Si el archivo ya tenía otras claves inválidas (por una edición a mano), el cambio se guarda igual y un aviso dice cuáles quedan: se arreglan [de a una](troubleshooting.md#la-configuración-guardada-tiene-datos-inválidos).
+
 ### Validación al guardar credenciales
 
 Cuando se guarda `cert.*`, `key.*`, `exportacion.cert.*` o `exportacion.key.*`, ARCLI valida:
