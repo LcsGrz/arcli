@@ -7,7 +7,11 @@ export const DOCS_SITE_URL = 'https://arcli.com.ar';
  */
 export const CERTIFICATE_GUIDE_URL = `${DOCS_SITE_URL}/empezar/certificado-testing/`;
 
-/** Seccion "Renovar el certificado" de la guia de produccion. */
+/**
+ * Seccion "Renovar el certificado" de la guia de produccion.
+ *
+ * @internal Exportado para los tests.
+ */
 export const PRODUCTION_RENEWAL_GUIDE_URL = `${DOCS_SITE_URL}/empezar/certificado-produccion/#renovar-el-certificado`;
 
 /**
