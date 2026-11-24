@@ -53,7 +53,7 @@ export interface BillingExecutionOptions {
    * La vista previa que se confirmo: se emite su payload tal cual, sin armarlo de nuevo con la fecha de ahora (ARQ-21),
    * y solo se pide el numero. Sin ella (`--emitir`, `--json`), se arma al emitir.
    */
-  readonly preview?: BillingExecutionResult;
+  readonly preview?: Pick<BillingExecutionResult, 'payload'>;
   readonly runtime: BillingRuntime;
   readonly warnings?: readonly string[];
 }

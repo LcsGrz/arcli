@@ -3,6 +3,8 @@ import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { VoucherKindDefinition } from '../../modules/billing/billing.types';
+import { isFceInvoice, isNote, VOUCHER_KIND_MAP } from '../../modules/billing/voucher-kind-map';
 import { PdfPlugin } from '../../services/pdf/pdf-plugin';
 import { stripAnsi } from '../../ui';
 import { EMIT_NOW_LABEL } from '../interactive/emission-prompt';
@@ -46,6 +48,42 @@ const CUIT = ['--cuit', String(CLIENT_CUIT), '--ir-ri'];
 const FC = ['fc', '-m', '1000', '--cs', '--cfinal'];
 const FCEA = ['fcea', '-m', '5000000', '--cs', ...CUIT, '--cbu', '0110599520000012345678'];
 const NCC = ['ncc', '-m', '100', '--cs', '--cfinal'];
+
+/** Los flags de un comprobante válido de cada tipo, a partir del mapa: uno nuevo entra solo o hace fallar el test. */
+function argsFor(kind: VoucherKindDefinition): string[] {
+  const { isElectronicCredit, letter, shortcut } = kind;
+  const receiver =
+    !isElectronicCredit && letter !== 'a'
+      ? ['--cfinal']
+      : ['--cuit', String(CLIENT_CUIT), letter === 'b' ? '--ir-se' : '--ir-ri'];
+  const invoice = Object.values(VOUCHER_KIND_MAP).find(
+    (other) => other.letter === letter && (isElectronicCredit ? isFceInvoice(other) : other.family === 'factura'),
+  );
+
+  return [
+    ...[shortcut, '-m', '1000000', '--cs', ...receiver],
+    ...(isNote(kind) ? ['--ac', String(invoice?.shortcut), '--apv', '3', '--ar', '12'] : []),
+    ...(isFceInvoice(kind) ? ['--cbu', '0110599520000012345678'] : []),
+  ];
+}
+
+/** Config con los datos del emisor y el plugin de PDF falso: devuelve lo que recibe la plantilla. */
+function fakePdf() {
+  const render = vi.fn(async (_data: unknown) => new Uint8Array());
+
+  vi.spyOn(PdfPlugin.prototype, 'getStatus').mockReturnValue({ installed: true } as never);
+  vi.spyOn(PdfPlugin.prototype, 'load').mockReturnValue({ render } as never);
+  profile.writeConfig(
+    profile.configWith(profile.healthy, {
+      ...CLOCK_CONFIG,
+      emisor: { domicilio: 'Calle 1', inicioActividades: '20200301', razonSocial: 'Yo' },
+      pdfCarpeta: profile.temporaryDirectory('arcli-pdf-'),
+    }),
+  );
+  answerAfterMidnight('Sí, emitir y generar el PDF');
+
+  return render;
+}
 
 function setTty(stdin: boolean, stdout: boolean): void {
   process.stdin.isTTY = stdin;
@@ -126,7 +164,6 @@ afterEach(() => {
 });
 
 describe('un comprobante confirmado pasada la medianoche', () => {
-  const fceAssociated = () => answerAssociated({ DocNro: CLIENT_CUIT, DocTipo: 80, ImpTotal: 5_000_000 });
   const otherSystem = () => {
     sdk.wsfe.getSalesPoints.mockResolvedValue({
       resultGet: { ptoVenta: [{ bloqueado: 'N', emisionTipo: 'CAE', nro: 3 }] },
@@ -134,27 +171,35 @@ describe('un comprobante confirmado pasada la medianoche', () => {
     answerAssociated({}, { missing: 15 });
   };
 
+  it.each(Object.values(VOUCHER_KIND_MAP))(
+    '$shortcut: el SDK recibe la solicitud de la vista previa más el número',
+    async (kind) => {
+      const { isElectronicCredit } = kind;
+
+      answerAssociated({
+        ...(isElectronicCredit || kind.letter === 'a' ? { DocNro: CLIENT_CUIT, DocTipo: 80 } : {}),
+        ImpTotal: 5_000_000,
+      });
+
+      const args = argsFor(kind);
+      const [previewed] = await previewedRequests(args);
+
+      expect(previewed).toMatchObject({ CbteFch: '20261110', CbteTipo: kind.arcaType });
+      await confirmAfterMidnight(args);
+
+      expect(sentRequests()).toEqual([numbered(previewed)]);
+    },
+  );
+
   it.each<[string, readonly string[], (() => void)?]>([
-    ['Factura A', ['fa', '-m', '12100', '--cs', ...CUIT]],
-    ['Factura B', ['fb', '-m', '12100', '--cs', '--cfinal']],
-    ['Factura C', FC],
     ['Factura C de productos', ['fc', '-m', '1000', '--cp', '--cfinal']],
     ['Factura C con fechas relativas', [...FC, '--sd', 'ayer', '--sh', 'hoy', '--vto', '+2']],
-    ['FCE A', FCEA],
     ['FCE A que vence el día de la vista previa', [...FCEA, '--fecha', '08/11/2026', '--vto', '10/11/2026']],
-    ['Recibo A', ['ra', '-m', '12100', '--cs', ...CUIT]],
-    ['Recibo C', ['rc', '-m', '1000', '--cs', '--cfinal']],
     ['Nota de crédito C por período', [...NCC, '--pd', '01/11/2026', '--ph', 'hoy']],
-    ['Nota de débito C', ['ndc', ...NCC.slice(1), '--ac', 'fc', '--apv', '3', '--ar', '12']],
     [
       'Nota de crédito C sobre otro sistema',
       [...NCC, '--ac', 'fc', '--apv', '50', '--ar', '15', '--afecha', '10/11/2026'],
       otherSystem,
-    ],
-    [
-      'Nota de crédito FCE A',
-      ['ncea', '-m', '1000000', '--cs', ...CUIT, '--ac', 'fcea', '--apv', '3', '--ar', '12'],
-      fceAssociated,
     ],
     ['en dólares, cotización oficial', [...FC, '--moneda', 'USD']],
     ['en dólares, con `--misma-moneda`', [...FC, '--moneda', 'USD', '--misma-moneda']],
@@ -171,18 +216,8 @@ describe('un comprobante confirmado pasada la medianoche', () => {
   });
 
   it('el texto y el PDF dicen la fecha de la vista previa', async () => {
-    const render = vi.fn(async (_data: unknown) => new Uint8Array());
+    const render = fakePdf();
 
-    vi.spyOn(PdfPlugin.prototype, 'getStatus').mockReturnValue({ installed: true } as never);
-    vi.spyOn(PdfPlugin.prototype, 'load').mockReturnValue({ render } as never);
-    profile.writeConfig(
-      profile.configWith(profile.healthy, {
-        ...CLOCK_CONFIG,
-        emisor: { domicilio: 'Calle 1', inicioActividades: '20200301', razonSocial: 'Yo' },
-        pdfCarpeta: profile.temporaryDirectory('arcli-pdf-'),
-      }),
-    );
-    answerAfterMidnight('Sí, emitir y generar el PDF');
     await confirmAfterMidnight([...FC, '--bruto']);
 
     expect(stripAnsi(profile.stdout)).toMatch(/Fecha del comprobante\s+10\/11\/2026/);
@@ -226,6 +261,78 @@ describe('un lote confirmado pasada la medianoche', () => {
     await confirmAfterMidnight(args);
 
     expect(sentRequests()).toEqual(previewed.map((request) => numbered(request)));
+  });
+
+  it('con "Sí, emitir y generar el PDF": cada PDF y el texto dicen lo que se emitió', async () => {
+    const render = fakePdf();
+
+    sdk.wsfe.getLastVoucher.mockResolvedValueOnce({ cbteNro: 41 }).mockResolvedValueOnce({ cbteNro: 42 });
+    await confirmAfterMidnight([
+      'fc',
+      '--cargar',
+      writeBatch(
+        item({ montoTotal: 1000 }),
+        item({
+          fechaComprobante: 'ayer',
+          montoTotal: 2000,
+          servicioDesde: '01/11/2026',
+          servicioHasta: 'hoy',
+          vencimientoPago: '+5',
+        }),
+      ),
+    ]);
+
+    const requests = sentRequests();
+
+    expect(requests).toMatchObject([
+      { CbteDesde: 42, CbteFch: '20261110', FchServDesde: '20261110', FchVtoPago: '20261110', ImpTotal: 1000 },
+      { CbteDesde: 43, CbteFch: '20261109', FchServDesde: '20261101', FchVtoPago: '20261115', ImpTotal: 2000 },
+    ]);
+    expect(render.mock.calls.map(([data]) => data)).toMatchObject(
+      requests.map((request) => ({
+        cbteDesde: request.CbteDesde,
+        cbteFecha: request.CbteFch,
+        fechaServicioDesde: request.FchServDesde,
+        fechaServicioHasta: request.FchServHasta,
+        fechaVtoPago: request.FchVtoPago,
+        importeTotal: request.ImpTotal,
+      })),
+    );
+
+    // El de cada vista previa y después el de cada emitido.
+    const [, first, second, firstEmitted, secondEmitted] = stripAnsi(profile.stdout).split(/Lote [12]\/2\n/);
+
+    expect(first).toMatch(/Fecha del comprobante\s+10\/11\/2026[^]*\$ 1\.000[^]*Vencimiento del pago\s+10\/11\/2026/);
+    expect(second).toMatch(/Fecha del comprobante\s+09\/11\/2026[^]*\$ 2\.000[^]*Vencimiento del pago\s+15\/11\/2026/);
+    expect(firstEmitted).toMatch(/00003-00000042[^]*\$ 1\.000/);
+    expect(secondEmitted).toMatch(/00003-00000043[^]*\$ 2\.000/);
+    expect(stripAnsi(profile.stdout)).not.toMatch(/11\/11\/2026/);
+  });
+
+  it('notas FCE sin la fecha del asociado: cada una con la del suyo', async () => {
+    answerAssociated(
+      { DocNro: CLIENT_CUIT, DocTipo: 80, ImpTotal: 5_000_000 },
+      { byNumber: { 12: { CbteFch: '20261101' }, 13: { CbteFch: '20261105' } } },
+    );
+
+    const note = (numero: number) => ({
+      comprobanteAsociado: { atajo: 'fcea', numero, puntoVenta: 3 },
+      concepto: 'servicios',
+      ivaReceptor: 'responsable-inscripto',
+      montoTotal: 12100,
+      numeroDocumento: CLIENT_CUIT,
+      tipoDocumento: 'cuit',
+    });
+    const args = ['ncea', '--cargar', writeBatch(note(12), note(13))];
+    const previewed = await previewedRequests(args);
+
+    await confirmAfterMidnight(args);
+
+    expect(sentRequests()).toEqual(previewed.map((request) => numbered(request)));
+    expect(sentRequests()).toMatchObject([
+      { CbteFch: '20261110', CbtesAsoc: [{ CbteFch: '20261101', Nro: 12 }] },
+      { CbteFch: '20261110', CbtesAsoc: [{ CbteFch: '20261105', Nro: 13 }] },
+    ]);
   });
 
   it('una fecha que salió de la ventana no corta el lote: decide ARCA', async () => {

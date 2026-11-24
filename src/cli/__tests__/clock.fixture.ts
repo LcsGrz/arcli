@@ -115,7 +115,7 @@ export async function rejectWsfe(request: WsfeRequest) {
 /** `FECompConsultar`: el comprobante que ajusta una nota o que se repite, aprobado. El numero `missing` no existe (602). */
 export function answerAssociated(
   overrides: Record<string, unknown> = {},
-  { missing }: { readonly missing?: number } = {},
+  { byNumber = {}, missing }: { readonly byNumber?: Record<number, object>; readonly missing?: number } = {},
 ): void {
   sdk.generic.call.mockImplementation(async (_service: string, method: string, params?: unknown) => {
     if (method === 'FEParamGetCotizacion') {
@@ -153,6 +153,7 @@ export function answerAssociated(
           MonId: 'PES',
           Resultado: 'A',
           ...overrides,
+          ...byNumber[FeCompConsReq?.CbteNro ?? 0],
         },
       },
     };
