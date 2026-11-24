@@ -529,9 +529,9 @@ ARCLI_ASCII=1 arcli fc -m 1000 --cs --cfinal
 ### No se pudo escribir toda la salida
 
 - **Severidad:** ocasional, crítico al emitir
-- **Síntoma:** "No se pudo escribir toda la salida: no queda espacio en el disco." (o un código del sistema, como `EIO`), y el comando sale con `1`. Si lo que falló es stderr, "No se pudieron escribir todos los avisos y errores: …". Con `--json`, `UNEXPECTED_ERROR`.
+- **Síntoma:** "No se pudo escribir toda la salida: no queda espacio en el disco." (o un código del sistema, como `EIO`), y el comando sale con `1`, o con `2` si hubo un rechazo. Si lo que falló es stderr, "No se pudieron escribir todos los avisos y errores: …". Con `--json` y stdout roto, `UNEXPECTED_ERROR`, o el error que el comando ya daba con esto en su `sugerencia`. Si solo entró una parte, la salida puede quedar cortada sin ningún aviso.
 - **Causa:** la salida va a un archivo en un disco lleno, o la terminal o el archivo dejaron de aceptar escrituras.
-- **Solución:** ARCLI terminó igual lo que hacía: si emitió, el aviso dice los números con CAE y el comando para verlos (`arcli ultimos <tipo> --pv <n> --cantidad <n> --<entorno>`). **No los vuelvas a emitir.** Liberá espacio y buscalos con ese comando. Si el aviso no dice que se emitió, no se emitió nada, salvo que el error sea `EMISSION_UNCERTAIN` o un lote cortado con uno sin confirmar.
+- **Solución:** el comando terminó igual lo que hacía (el asistente, en cambio, para sin emitir nada más): si emitió, el aviso dice los números con CAE y el comando para verlos (`arcli ultimos <tipo> --pv <n> --cantidad <n> --<entorno>`). **No los vuelvas a emitir.** Liberá espacio y buscalos con ese comando. Si no hay aviso, o hay también un `EMISSION_UNCERTAIN` o un lote cortado con uno sin confirmar, no se sabe: verificá con `arcli ultimos` antes de reintentar.
 - **Documentación relacionada:** [Entrada y salida](input-output.md#formato-de-errores)
 
 ## Acceso directo

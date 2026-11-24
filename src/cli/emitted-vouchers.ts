@@ -20,6 +20,19 @@ export function listEmittedVouchers(results: readonly BillingExecutionResult[]):
 }
 
 const emittedInThisRun: EmittedVoucher[] = [];
+/** Cuantos de los primeros ya nombro un aviso en stderr. */
+let announced = 0;
+
+/** Lo emitido hasta aca ya se dijo en stderr (`writePartialResultsFailure`). */
+export function markEmissionsAnnounced(): void {
+  announced = emittedInThisRun.length;
+}
+
+/** @internal Para los tests: el registro es del proceso. */
+export function resetEmittedInThisRun(): void {
+  emittedInThisRun.length = 0;
+  announced = 0;
+}
 
 /**
  * Anota lo emitido apenas ARCA responde, antes de mostrarlo: si despues no se puede escribir la salida, el aviso lo
@@ -47,9 +60,12 @@ export function recordExportEmission(result: ExportExecutionResult): ExportExecu
   return result;
 }
 
-/** Una linea por tipo, entorno y punto de venta de lo emitido en esta corrida; vacia si no se emitio nada. */
-export function describeEmittedInThisRun(): string[] {
-  return describeEmittedVouchers(emittedInThisRun);
+/**
+ * Una linea por tipo, entorno y punto de venta de lo emitido en esta corrida; vacia si no se emitio nada. Con
+ * `no-avisado`, sin lo que ya se dijo en stderr: para otro aviso que va ahi mismo.
+ */
+export function describeEmittedInThisRun(scope: 'no-avisado' | 'todo' = 'todo'): string[] {
+  return describeEmittedVouchers(scope === 'todo' ? emittedInThisRun : emittedInThisRun.slice(announced));
 }
 
 export function describeEmittedVouchers(vouchers: readonly EmittedVoucher[]): string[] {

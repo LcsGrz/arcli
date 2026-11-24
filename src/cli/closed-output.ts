@@ -1,9 +1,22 @@
 import type { EventEmitter } from 'node:events';
+import { setImmediate, setTimeout } from 'node:timers/promises';
 
 export type OutputName = 'stderr' | 'stdout';
 
 /** El primer error de cada salida que no se pudo escribir. */
 export type OutputFailures = ReadonlyMap<OutputName, NodeJS.ErrnoException>;
+
+export interface OutputState {
+  /** Las que cerro quien las leia (`EPIPE`). */
+  readonly closed: Map<OutputName, NodeJS.ErrnoException>;
+  readonly failures: Map<OutputName, NodeJS.ErrnoException>;
+}
+
+/** El `codigo` del aviso con `--json`. */
+export const OUTPUT_WRITE_ERROR_CODE = 'UNEXPECTED_ERROR';
+
+/** El estado de las salidas del proceso. */
+export const outputState: OutputState = { closed: new Map(), failures: new Map() };
 
 /**
  * Un error al escribir una salida, sin nadie que escuche `error`, corta el proceso con el stack de Node. Aca el comando
@@ -15,18 +28,48 @@ export type OutputFailures = ReadonlyMap<OutputName, NodeJS.ErrnoException>;
  */
 export function watchOutputs(
   streams: Readonly<Record<OutputName, EventEmitter>> = { stderr: process.stderr, stdout: process.stdout },
+  state: OutputState = outputState,
 ): OutputFailures {
-  const failures = new Map<OutputName, NodeJS.ErrnoException>();
-
   for (const output of ['stderr', 'stdout'] as const) {
     streams[output].on('error', (error: NodeJS.ErrnoException) => {
-      if (error.code !== 'EPIPE' && !failures.has(output)) {
-        failures.set(output, error);
+      const errors = error.code === 'EPIPE' ? state.closed : state.failures;
+
+      if (!errors.has(output)) {
+        errors.set(output, error);
       }
     });
   }
 
-  return failures;
+  return state.failures;
+}
+
+/** Cerrada o sin poder escribirse: lo que se escriba ahi no lo ve nadie. */
+export function isOutputLost(output: OutputName, state: OutputState = outputState): boolean {
+  return state.failures.has(output) || state.closed.has(output);
+}
+
+const SETTLE_STEP_MS = 10;
+/** Un lector que no lee (`| less`) no puede demorar un error como `EMISSION_UNCERTAIN`. */
+const SETTLE_TIMEOUT_MS = 1_000;
+
+/**
+ * Espera a que terminen las escrituras pendientes de una salida, para saber si fallaron, hasta un tope. El error de la
+ * ultima llega en el turno siguiente.
+ */
+export async function settleOutput(
+  output: OutputName,
+  stream: Pick<NodeJS.WriteStream, 'writableLength'> = process[output],
+  state: OutputState = outputState,
+): Promise<void> {
+  for (
+    let waited = 0;
+    stream.writableLength > 0 && !isOutputLost(output, state) && waited < SETTLE_TIMEOUT_MS;
+    waited += SETTLE_STEP_MS
+  ) {
+    await setTimeout(SETTLE_STEP_MS);
+  }
+
+  await setImmediate();
 }
 
 /** Que no se pudo escribir y por que, para quien usa el CLI. */

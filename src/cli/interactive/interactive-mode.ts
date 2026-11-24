@@ -23,12 +23,10 @@ import {
   type StatusBarSegment,
   uiSymbol,
   type UiTextColor,
-  writeTerminalError,
   writeTerminalOutput,
   writeTerminalRaw,
 } from '../../ui';
 import { renderCertificateNotices } from '../arca-runtime';
-import { formatCliError } from '../error-output';
 import { startSpinner } from '../spinner';
 import type { GlobalCliOptions } from '../types';
 import { CLI_VERSION } from '../version';
@@ -37,6 +35,7 @@ import { runConfigMenu, runGuidedSetup } from './config.flow';
 import { runInvoiceFlow } from './invoice.flow';
 import { markIfNew } from './new-mark';
 import { runNoteFlow } from './note.flow';
+import { showAssistantError } from './output-guard';
 import { chooseOne, confirm, isPromptCancellation } from './prompts';
 import { runQueriesMenu } from './queries.flow';
 import { runRepeatFlow } from './repeat.flow';
@@ -71,11 +70,11 @@ function listMissingSetup(options: GlobalCliOptions): string[] {
   }
 }
 
-function resolveSession(options: GlobalCliOptions): InteractiveSession | undefined {
+async function resolveSession(options: GlobalCliOptions): Promise<InteractiveSession | undefined> {
   try {
     return createInteractiveSession(options);
   } catch (error) {
-    writeTerminalError(() => formatCliError(error, false));
+    await showAssistantError(error);
     writeTerminalOutput(noticePanel('Revisala desde "Configuración" en el menú.', 'warning'));
 
     return undefined;
@@ -92,7 +91,7 @@ async function runOption(
     return;
   }
 
-  const session = resolveSession(options);
+  const session = await resolveSession(options);
 
   if (!session) {
     return;
@@ -331,7 +330,7 @@ export async function runInteractiveMode(options: GlobalCliOptions = {}): Promis
       if (isPromptCancellation(error)) {
         writeTerminalOutput(colorize(CANCELLED_NOTICE, 'muted'));
       } else {
-        writeTerminalError(() => formatCliError(error, false));
+        await showAssistantError(error);
       }
     }
   }

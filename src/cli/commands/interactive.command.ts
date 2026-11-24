@@ -4,6 +4,7 @@ import { InputValidationError } from '../../lib/errors/app-error';
 import { getGlobalOptions, registerEnvironmentOptions } from '../global-options';
 import { configureSpanishHelp } from '../help';
 import { runInteractiveMode } from '../interactive/interactive-mode';
+import { withOutputGuard } from '../interactive/output-guard';
 
 export function isInteractiveTerminal(): boolean {
   return Boolean(process.stdin.isTTY && process.stdout.isTTY);
@@ -28,6 +29,6 @@ export function registerInteractiveCommand(program: Command): void {
     // `--json` y `--bruto` se ignoran con un aviso: al asistente le llega solo el entorno.
     const { produccion, testing } = getGlobalOptions(self);
 
-    await runInteractiveMode({ produccion, testing });
+    await withOutputGuard(() => runInteractiveMode({ produccion, testing }));
   });
 }

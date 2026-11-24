@@ -6,9 +6,11 @@ import { BACK } from '../../../modules/interactive/wizard';
 import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
 import { stripAnsi } from '../../../ui';
 import type { CliArcaRuntime } from '../../arca-runtime';
+import { outputState } from '../../closed-output';
 import { attachExportPdf } from '../../commands/export.command.pdf';
-import { describeEmittedInThisRun } from '../../emitted-vouchers';
+import { describeEmittedInThisRun, resetEmittedInThisRun } from '../../emitted-vouchers';
 import { runExportFlow } from '../export.flow';
+import { withOutputGuard } from '../output-guard';
 import type { InteractiveSession } from '../session';
 
 import { createScript, editing, onlyChoices, rejecting, type ScriptedAnswer, singleExportItem } from './script';
@@ -132,8 +134,42 @@ describe('runExportFlow', () => {
   });
 
   afterEach(() => {
+    resetEmittedInThisRun();
     vi.restoreAllMocks();
     expect(script.remaining()).toBe(0);
+  });
+
+  it('con stdout roto en "¿Emitimos?" no emite (ERR-18)', async () => {
+    script = createScript([
+      [/cliente del exterior/, 'ACME LLC'],
+      [/Domicilio/, '123 Main St'],
+      [/País de destino/, 'estados unidos'],
+      [/ID impositivo/, '12-3456789'],
+      [/Qué exportás/, 'Servicios'],
+      [/moneda/, 'Dólares'],
+      [/Te pagan en dólares/, 'Sí'],
+      ...singleExportItem('1.500', 'Consultoría de software'),
+      [/Forma de pago/, 'Transferencia Internacional'],
+      [/Actividad de WSFEX/, '620100'],
+      [/Fecha de pago/, ''],
+      [/Agregamos algún opcional/, []],
+      [/Emitimos la factura de exportación E en testing/, 'Sí, emitir ahora'],
+    ]);
+
+    vi.mocked(process.stdout.write).mockImplementation((chunk) => {
+      if (String(chunk).includes('Esto equivale a')) {
+        outputState.failures.set('stdout', new Error('write'));
+      }
+
+      return true;
+    });
+
+    try {
+      await expect(withOutputGuard(async () => void (await runExportFlow(createSession())))).rejects.toThrow();
+      expect(gateway.authorize).not.toHaveBeenCalled();
+    } finally {
+      outputState.failures.clear();
+    }
   });
 
   it('emite una E de servicios en dólares y ofrece guardar la actividad escrita a mano', async () => {

@@ -42,7 +42,7 @@
 
 El exit code no dice si alguien leyó la salida: cortarla (`| head`) no corta el comando. Si se cortó al emitir, buscar el comprobante con `arcli ultimos` o `arcli consultar` antes de reintentar, aunque sea `0`.
 
-Si la salida no se puede escribir (disco lleno), el comando termina igual lo que hacía y sale con `1` (o `2` si hubo un rechazo). Si falló stdout, con `--json` sale en stderr `UNEXPECTED_ERROR` con el motivo en `error` y lo emitido en `sugerencia` (si ya había otro error, sale ese con lo mismo al final de su `sugerencia`): no reemitir esos. Si falló stderr, con `--json` stdout trae solo el resultado: exit `1` sin un error en stderr no dice que no se emitió, hay que verificar antes de reintentar.
+Si la salida no se puede escribir (disco lleno), el comando termina igual lo que hacía y, si el sistema informa el error, sale con `1` (o `2` si hubo un rechazo; los demás de un lote pueden estar emitidos). Un JSON cortado, con cualquier exit code, no dice que no se emitió: verificar. Si falló stdout, con `--json` sale en stderr `UNEXPECTED_ERROR` con el motivo en `error` y lo emitido en `sugerencia` (si ya había otro error, sale ese con lo mismo al final de su `sugerencia`): no reemitir esos. Si falló stderr, con `--json` stdout trae solo el resultado: un exit distinto de `0` sin un error en stderr ni un resultado en stdout no dice que no se emitió, hay que verificar antes de reintentar.
 
 ## Ejemplos (A, B, C y notas)
 

@@ -26,14 +26,14 @@ import {
 import { ArcaFceObligationGateway } from '../../services/arca/arca-fce-obligation.gateway';
 import { ArcaPadronGateway } from '../../services/arca/arca-padron.gateway';
 import { ArcaParametersGateway } from '../../services/arca/arca-parameters.gateway';
-import { writeTerminalError, writeTerminalOutput } from '../../ui';
-import { formatCliError } from '../error-output';
+import { writeTerminalOutput } from '../../ui';
 import { withSpinner } from '../spinner';
 
 import { runHistoryFlow } from './history.flow';
 import { runInvoiceFlow } from './invoice.flow';
 import { runMonotributoQuery } from './monotributo.flow';
 import { markIfNew } from './new-mark';
+import { showAssistantError } from './output-guard';
 import {
   askTextStep,
   BACK_CHOICE,
@@ -322,7 +322,7 @@ export async function runQueriesMenu(session: InteractiveSession): Promise<void>
         throw error;
       }
 
-      writeTerminalError(() => formatCliError(error, false));
+      await showAssistantError(error);
     }
   }
 }

@@ -10,6 +10,7 @@ import { blockPager } from './block-pager';
 import { filterList, type FilterListRow } from './filter-list';
 import { listSelect, type ListSelectState } from './list-select';
 import { multiSelect } from './multi-select';
+import { assertOutputVisible, isAssistantRunning } from './output-guard';
 import { rowActionsList } from './row-actions-list';
 import { SKIP_HINT, SKIP_ROW } from './text-hints';
 
@@ -115,6 +116,10 @@ export async function chooseOne<T>(
   };
 
   if (escapeValue === undefined) {
+    if (isAssistantRunning()) {
+      await assertOutputVisible();
+    }
+
     return listSelect<T, T>(config);
   }
 
@@ -147,6 +152,10 @@ export async function askText(
     readonly validate?: (value: string) => string | true;
   } = {},
 ): Promise<string> {
+  if (isAssistantRunning()) {
+    await assertOutputVisible();
+  }
+
   const answer = await input(
     {
       default: options.defaultValue,
@@ -235,6 +244,11 @@ async function runStepPrompt<T>(
   answeredLine: (answer: T) => { readonly answer: string; readonly message: string } | undefined,
   signal?: AbortSignal,
 ): Promise<{ readonly aborted: true } | { readonly answer: Back | T }> {
+  // Antes de escuchar el teclado: con algo escuchando y sin pregunta que lo cierre, el proceso no termina.
+  if (isAssistantRunning()) {
+    await assertOutputVisible();
+  }
+
   const controller = new AbortController();
   const onKeypress = (_text: string, key?: { readonly name?: string }) => {
     if (key?.name === 'escape') {
@@ -242,6 +256,10 @@ async function runStepPrompt<T>(
     }
   };
   const onAbort = () => controller.abort(signal?.reason);
+
+  if (signal?.aborted) {
+    onAbort();
+  }
 
   signal?.addEventListener('abort', onAbort);
   // @inquirer ya emite keypress sobre stdin; llamarlo de nuevo no hace nada.

@@ -3,7 +3,7 @@ import { serializeBillingBatch } from '../../modules/billing/billing.serialize';
 import type { BillingExecutionResult } from '../../modules/billing/billing.types.internal';
 import { formatPdfOutcomeAsText } from '../../modules/pdf/pdf.presenter';
 import { noticePanel, writeTerminalError, writeTerminalJson, writeTerminalOutput } from '../../ui';
-import { describeEmittedVouchers, listEmittedVouchers } from '../emitted-vouchers';
+import { describeEmittedVouchers, listEmittedVouchers, markEmissionsAnnounced } from '../emitted-vouchers';
 
 export function formatBillingOutputs(
   results: BillingExecutionResult[],
@@ -79,6 +79,7 @@ export function writePartialResultsFailure(results: readonly BillingExecutionRes
   ];
 
   writeTerminalError(() => noticePanel(lines.join('\n'), 'warning'));
+  markEmissionsAnnounced();
 }
 
 /** En texto el comprobante ya se mostro: solo se agrega lo que paso con el PDF y los avisos nuevos. */

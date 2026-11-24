@@ -38,6 +38,7 @@ import { withSpinner } from '../spinner';
 import { askCountryCuit, askDestinationCountry, exportOptionalsStep, validateExportText } from './export-options';
 import { withFinalizeNotice } from './finalize-notice';
 import { exportExchangeRateLoader } from './official-exchange-rate';
+import { assertOutputVisible } from './output-guard';
 import { completeIssuer } from './pdf.flow';
 import { askTextStep, chooseOrTypeStep, chooseStep, isPromptCancellation } from './prompts';
 import { offerConfig } from './save-to-config';
@@ -404,6 +405,8 @@ export async function emitExportVoucher(
   if (emission === BACK || !emission) {
     return emission;
   }
+
+  await assertOutputVisible();
 
   const result = recordExportEmission(
     await withSpinner(`Emitiendo ${label} en ARCA...`, () =>

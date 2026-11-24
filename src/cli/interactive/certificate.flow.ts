@@ -16,9 +16,9 @@ import {
 import { ConfigService } from '../../modules/config/config.service';
 import { BACK, type Back } from '../../modules/interactive/wizard';
 import { systemClock } from '../../services/time/system-clock';
-import { noticePanel, uiSymbol, writeTerminalError, writeTerminalOutput } from '../../ui';
-import { formatCliError } from '../error-output';
+import { noticePanel, uiSymbol, writeTerminalOutput } from '../../ui';
 
+import { showAssistantError } from './output-guard';
 import { askTextStep, chooseStep, confirm } from './prompts';
 
 export type CertificateFlowResult = 'importado' | 'pendiente';
@@ -109,7 +109,7 @@ export async function runImportCertificate(): Promise<'importado' | Back> {
       throw error;
     }
 
-    writeTerminalError(() => formatCliError(error, false));
+    await showAssistantError(error);
 
     return BACK;
   }

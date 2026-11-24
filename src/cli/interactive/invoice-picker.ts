@@ -13,11 +13,11 @@ import { fetchVouchersBackwards, type IssuedVoucher, VoucherQueryError } from '.
 import { formatVoucherPickerRows } from '../../modules/vouchers/voucher-history.presenter';
 import { formatVoucherNumber } from '../../modules/vouchers/voucher-number';
 import { ArcaParametersGateway } from '../../services/arca/arca-parameters.gateway';
-import { colorize, noticePanel, statusBarWidth, uiSymbol, writeTerminalError, writeTerminalOutput } from '../../ui';
-import { formatCliError } from '../error-output';
+import { colorize, noticePanel, statusBarWidth, uiSymbol, writeTerminalOutput } from '../../ui';
 import { withSpinner } from '../spinner';
 
 import { PinnedSeparator } from './list-select';
+import { showAssistantError } from './output-guard';
 import {
   askTextStep,
   type Choice,
@@ -138,7 +138,7 @@ async function orShowQueryError<T>(search: () => Promise<T>): Promise<T | undefi
       throw error;
     }
 
-    writeTerminalError(() => formatCliError(error, false));
+    await showAssistantError(error);
 
     return undefined;
   }

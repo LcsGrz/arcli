@@ -635,7 +635,7 @@ describe('con stdout que no se puede escribir', () => {
 
   it('con `json=true` en la config, el aviso de actualización no va con el JSON', async () => {
     configure();
-    writeFileSync(file('config.json'), JSON.stringify({ ...readConfig(), json: true }));
+    writeFileSync(file('config.json'), JSON.stringify({ ...readConfig(), output: { jsonPorDefecto: true } }));
     writeFileSync(file('update-cache.json'), JSON.stringify({ lastCheckedAt: Date.now(), latestVersion: '99.0.0' }));
 
     const terminal = writePreload(
@@ -881,7 +881,7 @@ describe('el asistente', () => {
       [failOutput(['stdout'], { when: "seen.includes('Emitimos')" }), driveAssistant(ASSISTANT_INVOICE), fakeArca()],
     );
 
-    expect(result.stdout).toMatch(/vista previa/i);
+    expect(result.stdout).toContain('SIN EMITIR');
     expect(emitted()).toEqual([]);
     expect(result.code).toBe(1);
     expect(plain(result.stderr)).not.toContain('Se emitió');

@@ -13,7 +13,7 @@ import {
   writeTerminalOutput,
 } from '../ui';
 
-import { describeOutputFailure, type OutputFailures } from './closed-output';
+import { describeOutputFailure, OUTPUT_WRITE_ERROR_CODE, type OutputFailures } from './closed-output';
 import { EmissionCancelledError } from './emission-cancelled';
 import { describeEmittedInThisRun } from './emitted-vouchers';
 import { readJsonDefault } from './global-options';
@@ -195,14 +195,16 @@ export function reportOutputFailure(
 
   const [output] = failure;
   const message = describeOutputFailure(...failure);
-  const emitted = describeEmittedInThisRun();
+  const emitted = describeEmittedInThisRun(output === 'stdout' ? 'no-avisado' : 'todo');
   const formatNotice = (): string => noticePanel([message, ...emitted].join('\n'), 'warning');
 
   if (output === 'stdout') {
     if (options.json) {
       const suggestion = emitted.join(' ') || undefined;
 
-      writeTerminalJsonError(formatAppError(new AppError(message, { code: 'UNEXPECTED_ERROR', suggestion }), true));
+      writeTerminalJsonError(
+        formatAppError(new AppError(message, { code: OUTPUT_WRITE_ERROR_CODE, suggestion }), true),
+      );
     } else {
       writeTerminalError(formatNotice);
     }

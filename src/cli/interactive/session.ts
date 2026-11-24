@@ -28,15 +28,15 @@ import { ArcaPadronGateway } from '../../services/arca/arca-padron.gateway';
 import type { Arca } from '../../services/arca/arca-sdk.types';
 import { ArcaVoucherHistoryGateway } from '../../services/arca/arca-voucher-history.gateway';
 import { systemClock } from '../../services/time/system-clock';
-import { colorize, noticePanel, renderPanel, uiSymbol, writeTerminalError, writeTerminalOutput } from '../../ui';
+import { colorize, noticePanel, renderPanel, uiSymbol, writeTerminalOutput } from '../../ui';
 import { type CliArcaRuntime, loadArcaRuntime } from '../arca-runtime';
 import { formatBillingOutputs } from '../commands/billing.command.output';
 import { recordEmission } from '../emitted-vouchers';
-import { formatCliError } from '../error-output';
 import { startSpinner } from '../spinner';
 import type { GlobalCliOptions } from '../types';
 
 import { askEmission, DO_NOT_EMIT_LABEL } from './emission-prompt';
+import { assertOutputVisible, showAssistantError } from './output-guard';
 import { offerPdf } from './pdf.flow';
 import { askTextStep, confirm } from './prompts';
 
@@ -211,7 +211,7 @@ export async function rejectedAsBack<T>(preview: () => Promise<T>): Promise<Back
       throw error;
     }
 
-    writeTerminalError(() => formatCliError(error, false));
+    await showAssistantError(error);
     writeTerminalOutput(
       noticePanel(
         'No se emitió nada. Volvemos a la última pregunta con lo que respondiste: corregí el dato ahí o volvé con Esc hasta la pregunta que lo pide.',
@@ -304,6 +304,8 @@ export async function previewAndEmit(
   if (emission === BACK || !emission) {
     return emission;
   }
+
+  await assertOutputVisible();
 
   const spinner = startSpinner(`Emitiendo ${label} en ARCA...`);
 

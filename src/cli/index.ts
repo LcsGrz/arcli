@@ -1,14 +1,12 @@
 #!/usr/bin/env node
 
-import { setImmediate } from 'node:timers/promises';
-
 import { OWNER_ONLY_UMASK } from '../lib/files/restrict-to-owner';
 import { COMPLETE_COMMAND } from '../modules/completion/shell-scripts';
 import { renderUpdateNoticePanel } from '../modules/update-check/update-check.presenter';
 import { checkForUpdate } from '../modules/update-check/update-check.service';
 import { writeTerminalError } from '../ui';
 
-import { watchOutputs } from './closed-output';
+import { settleOutput, watchOutputs } from './closed-output';
 import { isInteractiveTerminal } from './commands/interactive.command';
 import { isCommanderExit, reportCliError, reportOutputFailure, shouldPrintErrorAsJson } from './error-output';
 import { normalizeHelpArgv } from './help-argv';
@@ -40,17 +38,23 @@ program
   .then(async () => {
     const updateResult = await updateCheckPromise;
 
-    if (updateResult) {
+    if (!updateResult) {
+      return;
+    }
+
+    await settleOutput('stdout');
+
+    // Si va a ir el JSON de la salida que no se pudo escribir, no va: igual que con cualquier error en JSON.
+    if (!outputFailures.has('stdout') || !shouldPrintErrorsAsJson()) {
       writeTerminalError(() => renderUpdateNoticePanel(updateResult));
     }
   })
   .catch(async (error: unknown) => {
     commandError = error;
 
-    // El error de una escritura a un archivo llega en el turno siguiente: con JSON se espera, para que stderr siga
-    // siendo un solo documento.
+    // Con JSON se espera a saber si stdout fallo, para que stderr siga siendo un solo documento.
     if (shouldPrintErrorsAsJson() && !isCommanderExit(error)) {
-      await setImmediate();
+      await settleOutput('stdout');
       outputFailureReported = outputFailures.has('stdout');
     }
 
