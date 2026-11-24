@@ -60,10 +60,8 @@ function resolveExportAssociatedVoucher(
   voucherKind: ExportVoucherKind,
   now: Date,
 ): ExportAssociatedVoucherInput | undefined {
-  const fromFile = layers.file.comprobanteAsociado;
-
   if (!isExportNote(voucherKind)) {
-    if (fromFile) {
+    if (layers.file.comprobanteAsociado) {
       throw new InputValidationError(
         'La factura E no lleva comprobante asociado: sacá "comprobanteAsociado" del JSON o usá `arcli nce` o `arcli nde`.',
       );
@@ -72,15 +70,16 @@ function resolveExportAssociatedVoucher(
     return undefined;
   }
 
-  const fromFlags = layers.flags.comprobanteAsociado;
+  const fromFile = layers.file.comprobanteAsociado ?? {};
+  const fromFlags = layers.flags.comprobanteAsociado ?? {};
 
   return {
-    arcaType: fromFlags?.tipo ?? fromFile?.tipo,
-    cuit: fromFlags?.cuit ?? fromFile?.cuit,
-    date: resolveRelativeDateInput(fromFlags?.fecha ?? fromFile?.fecha, 'day', now),
-    number: fromFlags?.numero ?? fromFile?.numero,
-    pointOfSale: fromFlags?.puntoVenta ?? fromFile?.puntoVenta,
-    shortcut: fromFlags?.atajo ?? fromFile?.atajo,
+    arcaType: fromFlags.tipo ?? fromFile.tipo,
+    cuit: fromFlags.cuit ?? fromFile.cuit,
+    date: resolveRelativeDateInput(fromFlags.fecha ?? fromFile.fecha, 'day', now),
+    number: fromFlags.numero ?? fromFile.numero,
+    pointOfSale: fromFlags.puntoVenta ?? fromFile.puntoVenta,
+    shortcut: fromFlags.atajo ?? fromFile.atajo,
   };
 }
 
