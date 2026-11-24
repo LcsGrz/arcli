@@ -31,7 +31,13 @@
 
 └                                                                                          ┘
 
+? [lista] ¿En qué moneda va la nota?
+  arranca en: (ninguna)
+  · En USD, como el comprobante — Con la misma cotización
+  · En pesos — Por ejemplo, para ajustar una diferencia de cambio
+  = En USD, como el comprobante
 
+== pantalla ==
 ┌                                                                                          ┐
 
     Cotización: 1.174,60 por USD, la de la factura E. ARCA no acepta otra en servicios.
@@ -41,6 +47,12 @@
 ? [editor] Ítems de la nota de crédito de exportación E (1): modificá o eliminá ítems, o presioná Enter para continuar
   · Según detalle — 1 unidades x 1.500 USD = 1.500 USD
   · + Agregar ítem
+  = ← Volver
+
+? [lista] ¿En qué moneda va la nota?
+  arranca en: En USD, como el comprobante
+  > En USD, como el comprobante — Con la misma cotización
+  · En pesos — Por ejemplo, para ajustar una diferencia de cambio
   = ← Volver
 
 ? [texto] Número de la factura E:
@@ -54,7 +66,13 @@
 
 └                                                                                          ┘
 
+? [lista] ¿En qué moneda va la nota?
+  arranca en: En USD, como el comprobante
+  > En USD, como el comprobante — Con la misma cotización
+  · En pesos — Por ejemplo, para ajustar una diferencia de cambio
+  = En USD, como el comprobante
 
+== pantalla ==
 ┌                                                                                          ┐
 
     Cotización: 1.174,60 por USD, la de la factura E. ARCA no acepta otra en servicios.

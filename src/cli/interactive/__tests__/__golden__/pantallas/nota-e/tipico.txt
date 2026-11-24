@@ -31,7 +31,13 @@
 
 └                                                                                          ┘
 
+? [lista] ¿En qué moneda va la nota?
+  arranca en: (ninguna)
+  · En USD, como el comprobante — Con la misma cotización
+  · En pesos — Por ejemplo, para ajustar una diferencia de cambio
+  = En USD, como el comprobante
 
+== pantalla ==
 ┌                                                                                          ┐
 
     Cotización: 1.174,60 por USD, la de la factura E. ARCA no acepta otra en servicios.

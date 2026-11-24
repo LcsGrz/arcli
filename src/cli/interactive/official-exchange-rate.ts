@@ -96,7 +96,7 @@ export function officialExchangeRateLoader(
 }
 
 /** De que E es la cotizacion: la fecha de la consulta sale de estos datos, como en `ExportService`. */
-export interface ExportExchangeRateQuery {
+interface ExportExchangeRateQuery {
   readonly currencyCode: string;
   readonly exportType: ExportType;
   readonly sameCurrency?: boolean;
@@ -104,14 +104,18 @@ export interface ExportExchangeRateQuery {
   readonly voucherDate?: string;
 }
 
+export interface ExportExchangeRateLoader {
+  (query: ExportExchangeRateQuery): Promise<ExchangeRateSuggestion | undefined>;
+  /** ARCA contesto con las cotizaciones y la de esa moneda no esta; una consulta que fallo o vino vacia no cuenta. */
+  readonly unpublished: (query: ExportExchangeRateQuery) => Promise<boolean>;
+}
+
 /**
  * La cotizacion de aduana que toma `arcli fe` sin `--cotizacion-moneda`: la de WSFEX (`FEXGetPARAM_MON_CON_COTIZACION`)
  * del dia que pide ARCA (`resolveExportQuotationDate`), una vez por moneda y dia en el flujo, como sugerencia de la
  * pregunta. Si falla o ARCA no la informa, `undefined`: la pregunta arranca vacia y la vista previa vuelve a intentar.
  */
-export function exportExchangeRateLoader(
-  gateway: Pick<ExportGateway, 'getQuotations'>,
-): (query: ExportExchangeRateQuery) => Promise<ExchangeRateSuggestion | undefined> {
+export function exportExchangeRateLoader(gateway: Pick<ExportGateway, 'getQuotations'>): ExportExchangeRateLoader {
   const dateOf = (query: ExportExchangeRateQuery) => {
     const now = new Date();
 
@@ -125,20 +129,38 @@ export function exportExchangeRateLoader(
   };
   const codeOf = (query: ExportExchangeRateQuery) => resolveBillingCurrencyCode(query.currencyCode);
 
-  const load = cachedRateLoader<ExportExchangeRateQuery>(
-    (query) => `${codeOf(query)}|${dateOf(query)}`,
-    async (query) => {
-      const date = dateOf(query);
+  const keyOf = (query: ExportExchangeRateQuery) => `${codeOf(query)}|${dateOf(query)}`;
+  const unpublished = new Set<string>();
 
-      return resolveExportQuotation(codeOf(query), await gateway.getQuotations(date), date).rate;
+  const load = cachedRateLoader<ExportExchangeRateQuery>(keyOf, async (query) => {
+    const date = dateOf(query);
+    const quotations = await gateway.getQuotations(date);
+
+    try {
+      return resolveExportQuotation(codeOf(query), quotations, date).rate;
+    } catch (error) {
+      if (quotations.length > 0) {
+        unpublished.add(keyOf(query));
+      }
+
+      throw error;
+    }
+  });
+
+  return Object.assign(
+    async (query: ExportExchangeRateQuery): Promise<ExchangeRateSuggestion | undefined> => {
+      const rate = await load(query);
+
+      return rate === undefined ? undefined : { rate, source: 'arca' };
+    },
+    {
+      unpublished: async (query: ExportExchangeRateQuery) => {
+        await load(query);
+
+        return unpublished.has(keyOf(query));
+      },
     },
   );
-
-  return async (query) => {
-    const rate = await load(query);
-
-    return rate === undefined ? undefined : { rate, source: 'arca' };
-  };
 }
 
 /**

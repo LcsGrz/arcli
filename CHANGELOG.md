@@ -59,6 +59,9 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 ### 🔧 Cambiado
 
 - **Factura E:** en el asistente, el país de destino y el CUIT del país se eligen de una lista con filtro donde también podés escribir (#257).
+- **Factura E:** en el asistente, "¿Cómo te pagan?" arranca en pesos, como A, B y C; antes, en dólares. "Repetir" propone lo de la factura (#286).
+- **Factura E:** el asistente ofrece euros y las demás monedas de A, B y C que acepta WSFEX, no solo dólares y pesos (#286).
+- **Notas:** en el asistente, una nota `E` sobre un comprobante en otra moneda puede ir en pesos, como en A, B y C (#286).
 - **PDF:** en el asistente, la condición de venta se elige o se escribe en la misma lista, sin la pregunta aparte de "Otra" (#257).
 - **Factura E:** en el asistente, la actividad de WSFEX y la forma de pago se eligen de una lista donde también podés escribir (#261).
 - **Config:** en "Modificar configuración", la moneda y la actividad de exportación se eligen de una lista donde también podés escribir (#261).
@@ -75,6 +78,12 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 <details><summary>Detalle</summary>
 
 **País y CUIT del país de la `E`.** Antes se escribían: el país por nombre o código, y el CUIT por número o buscando el país, que abría una segunda lista. Ahora cada uno es una lista que se filtra escribiendo, con el código o el CUIT a la izquierda; si lo escrito no es una opción, "Usar lo escrito" lo valida como `--pais-destino` o `--cuit-pais`. El CUIT del país trae solo los que acepta `--cuit-pais` para el destino, y en la factura la primera opción, "Sin CUIT del país (solo ID impositivo)", lo deja vacío. "Repetir" E usa la misma lista para el CUIT, sin ninguno marcado la primera vez: es un dato fiscal y Enter vacío pide elegirlo. Los flags, `--cargar`, el `--json` y el comando equivalente no cambian.
+
+**Cómo te pagan una `E`.** El asistente preguntaba "¿Te pagan en dólares?" con Sí primero, así que Enter mandaba `CanMisMonExt` en `S`. Ahora pregunta "¿Cómo te pagan?", con "En pesos" primero: Enter manda `N`, como `arcli fe` sin `--misma-moneda`. "Repetir" copiaba el dato sin preguntar; ahora pregunta siempre que la factura sea en moneda extranjera, con lo que informó marcado o, si ARCA no lo devolvió, "En pesos". Los comandos no cambian.
+
+**Monedas de la `E`.** La lista es la de A, B y C, limitada a las monedas de la tabla de WSFEX, con los dólares primero. La cotización, la pregunta de cobro y el comando equivalente valen para cualquiera. Si ARCA no devuelve la tabla, quedan dólares, pesos o escribir el código. Si no publica la cotización de aduana de la moneda, en bienes y otros cobrados en pesos la escribís; en servicios o cobrada en la moneda, el asistente avisa y vuelve a elegirla. Si el error aparece en la vista previa (`ARCA_QUOTATION_ERROR`), también en A, B y C, ya no se pierde lo respondido.
+
+**Notas `E` en pesos.** Si el comprobante que ajusta no está en pesos, el asistente pregunta "¿En qué moneda va la nota?": la suya, por defecto, o pesos. En pesos va con cotización 1, sin el tope del total, y los ítems se cargan en vez de copiarse. El comando equivalente lleva `--moneda PES`.
 
 **Condición de venta.** En el PDF del asistente y en "Modificar configuración", la condición de venta es una lista donde también se escribe un texto propio, que se guarda o se imprime tal cual. Un texto propio guardado arranca escrito, sin la opción "Mantener: …". En el PDF, "Omitir" sigue primera y Esc no genera el PDF. Si ARCA no devuelve los incoterms, el incoterm de la `E` se escribe en la misma pregunta, como antes.
 

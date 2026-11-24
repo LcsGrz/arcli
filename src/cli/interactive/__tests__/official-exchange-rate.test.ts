@@ -127,6 +127,22 @@ describe('exportExchangeRateLoader (NAV-9)', () => {
     expect(getQuotations.mock.calls).toEqual([['20261118'], ['20261116'], ['20261117']]);
   });
 
+  it('distingue la moneda que ARCA no publica de una consulta que falló o vino vacía (ARQ-22)', async () => {
+    const query = { currencyCode: '012', exportType: 1 } as const;
+    const published = exportExchangeRateLoader({
+      getQuotations: async () => [{ code: 'DOL', date: '20261118', rate: 1450 }],
+    });
+
+    expect(await published.unpublished(query)).toBe(true);
+    expect(await published.unpublished({ ...query, currencyCode: 'USD' })).toBe(false);
+    expect(
+      await exportExchangeRateLoader({ getQuotations: () => Promise.reject(new Error('Sin conexión')) }).unpublished(
+        query,
+      ),
+    ).toBe(false);
+    expect(await exportExchangeRateLoader({ getQuotations: async () => [] }).unpublished(query)).toBe(false);
+  });
+
   it('sin red, o si ARCA no informa la moneda, ninguna', async () => {
     expect(
       await exportExchangeRateLoader({ getQuotations: () => Promise.reject(new Error('Sin conexión')) })({

@@ -19,6 +19,7 @@ import {
 import { initialAdvancedOptions } from '../../../modules/interactive/billing-optionals';
 import { buildEquivalentCommand } from '../../../modules/interactive/equivalent-command';
 import { buildExportEquivalentCommand } from '../../../modules/interactive/export-equivalent-command';
+import { buildExportInput } from '../../../modules/interactive/export-input';
 import { buildExportNoteInput } from '../../../modules/interactive/export-note-input';
 import { buildExportRepeatInput } from '../../../modules/interactive/export-repeat-input';
 import { buildInvoiceInput } from '../../../modules/interactive/invoice-input';
@@ -38,7 +39,7 @@ import { repeatSteps } from '../repeat.flow';
 import type { InteractiveSession } from '../session';
 
 import { captured, comparableInput, parseWithProgram } from './equivalent-command.parse';
-import { createScript, KEEP_EXPORT_ITEMS, noteExportItem, type ScriptedAnswer } from './script';
+import { createScript, KEEP_EXPORT_ITEMS, noteExportItem, type ScriptedAnswer, singleExportItem } from './script';
 
 /**
  * Cada flujo del asistente termina mostrando el comando equivalente. Ese comando, pegado en la terminal, tiene que
@@ -918,13 +919,16 @@ describe('el comando equivalente de la E con textos raros pasa por el parser rea
     const goodsGateway: ExportGateway = { ...exportGateway, getVoucher: goodsVoucher };
 
     /** El comando equivalente arma la misma solicitud: devuelve el comando y la cotización que va a ARCA. */
-    async function expectSameGoodsRequest(input: ExportVoucherInput): Promise<{ line: string; sent: number }> {
+    async function expectSameGoodsRequest(
+      input: ExportVoucherInput,
+      gateway: ExportGateway = goodsGateway,
+    ): Promise<{ line: string; sent: number }> {
       const service = new ExportService({ clock: { now: () => NOW } });
-      const expected = await service.resolve(input, goodsGateway, exportRuntime);
+      const expected = await service.resolve(input, gateway, exportRuntime);
       const line = buildExportEquivalentCommand(input, { activity: 620100, environment: 'testing', platform: 'linux' });
       const call = await parseWithProgram(line, 'linux');
       const plan = parseExportCommandPlan(call.command, { voucherKind: call.exportKind });
-      const resolved = await service.resolve(plan.input, goodsGateway, exportRuntime);
+      const resolved = await service.resolve(plan.input, gateway, exportRuntime);
 
       expect(resolved.payload, line).toEqual(expected.payload);
 
@@ -938,6 +942,7 @@ describe('el comando equivalente de la E con textos raros pasa por el parser rea
       script = createScript([
         [/Punto de venta de la factura E/, '4'],
         [/Número de la factura E/, '1'],
+        [/En qué moneda va la nota/, 'En USD'],
         [/^Cotización de USD \(la de la factura E es 1\.400\):$/, typed],
         ...noteExportItem('500'),
         [/Permisos de embarque/, ''],
@@ -959,6 +964,81 @@ describe('el comando equivalente de la E con textos raros pasa por el parser rea
       }
     });
 
+    const euroGateway: ExportGateway = {
+      ...exportGateway,
+      getCurrencies: async () => [{ code: '060', name: 'Euro' }],
+      getQuotations: async () => [{ code: '060', date: '20261118', rate: 1600 }],
+    };
+
+    // ARQ-22: la E en otra moneda que dólares, con lo que arma el asistente.
+    it.each([
+      ['cobrada en euros', 1, { sameCurrency: true }, 'S', 1600, '--moneda 060 --misma-moneda'],
+      ['cobrada en pesos, con --cm', 1, { exchangeRate: 1650.5, sameCurrency: false }, 'N', 1650.5, '--cm 1650,50'],
+      ['de otros (tipo 4), cobrada en pesos', 4, { sameCurrency: false }, 'N', 1600, '--tipo-expo 4'],
+      ['de otros (tipo 4), cobrada en euros', 4, { sameCurrency: true }, 'S', 1600, '--misma-moneda'],
+    ] as const)('factura E en euros, %s', async (_case, exportType, paid, sameCurrencyFlag, rate, flag) => {
+      const input = buildExportInput(
+        {
+          clientAddress: '123 Main St',
+          clientName: 'ACME LLC',
+          currencyCode: '060',
+          destinationCountry: 'ESTADOS UNIDOS',
+          exportType,
+          incoterm: exportType === 1 ? 'FOB' : undefined,
+          items: [{ description: 'Bienes varios', quantity: 2, unit: 7, unitPrice: 750 }],
+          options: {},
+          ...paid,
+        },
+        { configuredActivity: 620100 },
+      );
+      const { line, sent } = await expectSameGoodsRequest(input, euroGateway);
+      const { payload } = await new ExportService({ clock: { now: () => NOW } }).resolve(
+        input,
+        euroGateway,
+        exportRuntime,
+      );
+
+      expect(line).toContain('--moneda 060');
+      expect(line).toContain(flag);
+      expect(sent).toBe(rate);
+      expect(payload).toMatchObject({ CanMisMonExt: sameCurrencyFlag, Moneda_Id: '060' });
+    });
+
+    // ARQ-22: la nota en pesos sobre una factura en dólares (2051), con su propio monto y cotización 1.
+    it.each([
+      ['credito', 1],
+      ['credito', 2],
+      ['credito', 4],
+      ['debito', 1],
+      ['debito', 2],
+      ['debito', 4],
+    ] as const)('nota de %s E en pesos, tipo de exportación %s', async (kind, exportType) => {
+      script = createScript([
+        [/Punto de venta de la factura E/, '4'],
+        [/Número de la factura E/, '1'],
+        [/En qué moneda va la nota/, 'En pesos'],
+        ...singleExportItem('250.000', 'Diferencia de cambio'),
+        ...(exportType === 1 ? ([[/Permisos de embarque/, '']] as const) : []),
+        [/Agregamos/, []],
+      ]);
+
+      const notesGateway: ExportGateway = {
+        ...exportGateway,
+        getVoucher: async (query) => ({
+          ...(await goodsVoucher(query)),
+          exportType,
+          incoterm: exportType === 1 ? 'FOB' : undefined,
+        }),
+      };
+      const state = await runWizard(exportNoteSteps(kind, notesGateway, 4), {});
+      const input = buildExportNoteInput(state as NonNullable<typeof state>, { kind });
+      const request = await expectSameGoodsRequest(input, notesGateway);
+
+      expect(request.line).toContain('--moneda PES');
+      expect(request.line).not.toContain('--cm');
+      expect(request.sent).toBe(1);
+    });
+
     it.each([
       ['sin tocar', '1450', undefined, 1450],
       ['editada', '1.300', 1300, 1300],
@@ -966,6 +1046,7 @@ describe('el comando equivalente de la E con textos raros pasa por el parser rea
       script = createScript([
         [/Cuál repetimos/, '00004-00000001'],
         ...KEEP_EXPORT_ITEMS,
+        [/Cómo te pagan/, 'En pesos'],
         [/^Cotización de USD \(la oficial de ARCA es 1\.450\):$/, typed],
         [/Permisos de embarque/, ''],
         [/Agregamos/, []],

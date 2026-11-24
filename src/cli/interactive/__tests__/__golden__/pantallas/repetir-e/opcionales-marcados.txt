@@ -40,6 +40,12 @@
   · Modificar los ítems — Modificar, borrar o agregar ítems
   = Confirmar
 
+? [lista] ¿Cómo te pagan?
+  arranca en: En dólares
+  · En pesos — El comprobante va en dólares y lo cobrás en pesos
+  > En dólares — Se usa la cotización oficial de ARCA
+  = En dólares
+
 == pantalla ==
 ┌                                                                                          ┐
 

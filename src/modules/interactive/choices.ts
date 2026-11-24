@@ -9,7 +9,7 @@ import type {
   BillingIvaRate,
 } from '../billing/billing.schemas';
 import type { VoucherKindDefinition, VoucherLetter, VoucherShortcut } from '../billing/billing.types';
-import { ARCA_CURRENCIES, ARCA_LOCAL_CURRENCY_CODE } from '../billing/currency-codes';
+import { ARCA_CURRENCIES, ARCA_LOCAL_CURRENCY_CODE, toArcaCurrencyCode } from '../billing/currency-codes';
 import {
   getVoucherKindByFamilyAndLetter,
   isNote,
@@ -17,6 +17,7 @@ import {
   VOUCHER_KIND_MAP,
 } from '../billing/voucher-kind-map';
 import {
+  DEFAULT_EXPORT_CURRENCY_CODE,
   EXPORT_CREDIT_NOTE_KIND,
   EXPORT_DEBIT_NOTE_KIND,
   EXPORT_VOUCHER_KIND,
@@ -202,4 +203,21 @@ export function currencyChoices(): Array<InteractiveChoice<string>> {
       ? [{ keywords, name: 'Pesos', value: ARCA_LOCAL_CURRENCY_CODE }]
       : [{ keywords, name: `${currency.name} (${code})`, value: code }];
   });
+}
+
+/**
+ * Monedas de una E: las mismas que ofrecen A, B y C, con los dolares primero y con su codigo de ARCA, que estan en la
+ * tabla de WSFEX (`table`). Los pesos van siempre: WSFEX los acepta y no se controlan contra la tabla. Sin la tabla
+ * (ARCA no respondio o vino vacia), solo dolares y pesos.
+ */
+export function exportCurrencyChoices(table: ReadonlyArray<{ readonly code: string }>) {
+  const listed = new Set(
+    table.length > 0 ? table.map((entry) => entry.code.trim().toUpperCase()) : [DEFAULT_EXPORT_CURRENCY_CODE],
+  );
+  const choices = currencyChoices()
+    .map((choice) => ({ ...choice, value: toArcaCurrencyCode(choice.value) }))
+    .filter((choice) => choice.value === ARCA_LOCAL_CURRENCY_CODE || listed.has(choice.value));
+  const isDefault = (choice: { readonly value: string }) => choice.value === DEFAULT_EXPORT_CURRENCY_CODE;
+
+  return [...choices.filter(isDefault), ...choices.filter((choice) => !isDefault(choice))];
 }

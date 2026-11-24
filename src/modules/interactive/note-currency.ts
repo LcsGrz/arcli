@@ -18,19 +18,31 @@ export function canChooseNoteCurrency(invoice: Pick<IssuedVoucher, 'currency'> |
   return Boolean(currency && currency !== ARCA_LOCAL_CURRENCY_CODE);
 }
 
-/** Las dos opciones, con la moneda del asociado en el texto, con su codigo ISO (`USD` por `DOL`), como el resto. */
-export function noteCurrencyChoices(invoice: Pick<IssuedVoucher, 'currency'>): Array<InteractiveChoice<NoteCurrency>> {
+/**
+ * Las dos opciones, con la moneda del asociado en el texto, con su codigo ISO (`USD` por `DOL`), como el resto.
+ * `asksExchangeRate`: despues se pregunta la cotizacion (una nota E de bienes u otros).
+ */
+export function noteCurrencyChoices(
+  invoice: Pick<IssuedVoucher, 'currency'>,
+  options: { readonly asksExchangeRate?: boolean } = {},
+): Array<InteractiveChoice<NoteCurrency>> {
   const currency = toIsoCurrencyCode(invoice.currency ?? ARCA_LOCAL_CURRENCY_CODE);
 
   return [
-    { description: 'Con la misma cotización', name: `En ${currency}, como el comprobante`, value: 'asociado' },
+    {
+      description: options.asksExchangeRate
+        ? 'Confirmás o cambiás la cotización del comprobante'
+        : 'Con la misma cotización',
+      name: `En ${currency}, como el comprobante`,
+      value: 'asociado',
+    },
     { description: 'Por ejemplo, para ajustar una diferencia de cambio', name: 'En pesos', value: 'pesos' },
   ];
 }
 
 /** La moneda y la cotizacion de la nota: las del asociado o pesos, con cotizacion 1. */
 export function resolveNoteCurrency(
-  copy: Pick<InvoiceCopy, 'currencyCode' | 'exchangeRate'> | undefined,
+  copy: Partial<Pick<InvoiceCopy, 'currencyCode' | 'exchangeRate'>> | undefined,
   choice: NoteCurrency | undefined,
 ): { readonly currencyCode?: string; readonly exchangeRate?: number } {
   if (choice === 'pesos') {

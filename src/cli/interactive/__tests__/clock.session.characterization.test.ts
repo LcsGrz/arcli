@@ -106,7 +106,7 @@ const INVOICE_E: Steps = [
   [/País de destino/, '212'],
   [/ID impositivo/, ''],
   [/Qué exportás/, 'Servicios'],
-  [/moneda/, 'Pesos'],
+  [/Moneda del comprobante/, 'Pesos'],
   ...singleExportItem('100', 'Consultoría'),
   [/Forma de pago/, 'Transferencia Internacional'],
 ];
