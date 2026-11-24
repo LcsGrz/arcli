@@ -45,9 +45,9 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - **Consultas:** `consultar` y `ultimos` dan `ARCA_VOUCHER_QUERY_ERROR` si ARCA contesta con un error, en vez de decir que no existe (#268).
 - **Notas:** si ARCA contesta con un error por el asociado, A, B, C y FCE ya no dicen que no existe (#268).
 - **Asistente:** si ARCA contesta con un error al listar A, B, C, FCE o recibos, lo muestra y podés reintentar o buscar a mano (#268).
-- **Facturas:** Ctrl+C en "¿Emitimos?" dice que se canceló y que no se emitió nada, en vez de "Error inesperado" (#PR).
-- **Facturas:** la sugerencia de un lote cortado dice lo que pasó, y un aviso cómo ver los ya procesados si no se mostraron (#PR).
-- **Errores:** sin sugerencias que repiten el mensaje, con una propia para la red y el mismo texto para la misma regla (#PR).
+- **Facturas:** Ctrl+C en "¿Emitimos?" dice que se canceló y que no se emitió nada, en vez de "Error inesperado" (#270).
+- **Facturas:** la sugerencia de un lote cortado dice lo que pasó, y un aviso cómo ver los ya procesados si no se mostraron (#270).
+- **Errores:** sin sugerencias que repiten el mensaje, con una propia para la red y el mismo texto para la misma regla (#270).
 - **Salida:** cortar la salida (`arcli ayuda | head`) ya no muestra un error de Node ni corta el comando a mitad de camino (#266).
 
 <details><summary>Detalle</summary>
