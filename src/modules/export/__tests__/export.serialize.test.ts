@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
 
-import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
-import { mapExportResponse } from '../export.response';
 import { serializeExportResult } from '../export.serialize';
 import {
   EXPORT_CREDIT_NOTE_KIND,
@@ -9,6 +7,8 @@ import {
   type ExportExecutionResult,
   type ExportVoucherPayload,
 } from '../export.types';
+
+import { readExportAnswer } from './export-answer.fixture';
 
 function payload(overrides: Partial<ExportVoucherPayload> = {}): ExportVoucherPayload {
   return {
@@ -53,7 +53,7 @@ function payload(overrides: Partial<ExportVoucherPayload> = {}): ExportVoucherPa
   };
 }
 
-const AUTHORIZATION: IFEXAuthorizeOutput = {
+const AUTHORIZATION = {
   FEXAuthorizeResult: {
     FEXErr: { ErrCode: 0, ErrMsg: '' },
     FEXEvents: { EventCode: 0, EventMsg: '' },
@@ -73,13 +73,15 @@ const AUTHORIZATION: IFEXAuthorizeOutput = {
   },
 };
 
+const RESPONSE = await readExportAnswer(AUTHORIZATION);
+
 function result(overrides: Partial<ExportExecutionResult> = {}): ExportExecutionResult {
   return {
     display: { countryName: 'Brasil', incotermName: 'Free on Board', unitNames: { 7: 'Unidad' } },
     dryRun: false,
     environment: 'testing',
     payload: payload(),
-    response: mapExportResponse(AUTHORIZATION),
+    response: RESPONSE,
     voucherKind: EXPORT_VOUCHER_KIND,
     ...overrides,
   };

@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import type { IFEXAuthorizeOutput } from '../../../services/arca/arca-sdk.types';
-import { createDryRunExportResponse, mapExportResponse } from '../export.response';
+import { createDryRunExportResponse } from '../export.response';
 
-function authorization(overrides: Record<string, unknown> = {}): IFEXAuthorizeOutput {
+import { readExportAnswer } from './export-answer.fixture';
+
+function authorization(overrides: Record<string, unknown> = {}) {
   return {
     FEXAuthorizeResult: {
       FEXErr: { ErrCode: 0, ErrMsg: '' },
@@ -27,8 +28,8 @@ function authorization(overrides: Record<string, unknown> = {}): IFEXAuthorizeOu
 }
 
 describe('mapExportResponse', () => {
-  it('arma el resumen aprobado con el CAE y su vencimiento', () => {
-    const summary = mapExportResponse(authorization());
+  it('arma el resumen aprobado con el CAE y su vencimiento', async () => {
+    const summary = await readExportAnswer(authorization());
 
     expect(summary).toMatchObject({
       cae: '75123456789012',
@@ -42,27 +43,29 @@ describe('mapExportResponse', () => {
     });
   });
 
-  it('normaliza el vencimiento cuando ARCA manda la hora', () => {
-    expect(mapExportResponse(authorization({ Fch_venc_Cae: '2026-06-11 00:00:00' })).caeVencimiento).toBe('20260611');
+  it('normaliza el vencimiento cuando ARCA manda la hora', async () => {
+    expect((await readExportAnswer(authorization({ Fch_venc_Cae: '2026-06-11 00:00:00' }))).caeVencimiento).toBe(
+      '20260611',
+    );
   });
 
-  it('no toma como error el `OK` que manda ARCA con codigo 0 en una autorizacion exitosa', () => {
+  it('no toma como error el `OK` que manda ARCA con codigo 0 en una autorizacion exitosa', async () => {
     // Asi contesta WSFEX cuando autoriza: FEXErr con ErrCode 0 y ErrMsg "OK".
-    const summary = mapExportResponse({
+    const summary = await readExportAnswer({
       FEXAuthorizeResult: {
         FEXErr: { ErrCode: 0, ErrMsg: 'OK' },
         FEXEvents: { EventCode: 0, EventMsg: '' },
         FEXResultAuth: authorization().FEXAuthorizeResult.FEXResultAuth,
       },
-    } as IFEXAuthorizeOutput);
+    });
 
     expect(summary.errors).toEqual([]);
     expect(summary.status).toBe('aprobado');
     expect(summary.cae).toBe('75123456789012');
   });
 
-  it('un rechazo queda como rechazado, sin CAE y con sugerencia', () => {
-    const summary = mapExportResponse(
+  it('un rechazo queda como rechazado, sin CAE y con sugerencia', async () => {
+    const summary = await readExportAnswer(
       authorization({ Cae: '', Motivos_Obs: 'El pais de destino no es valido', Resultado: 'R' }),
     );
 
@@ -72,22 +75,22 @@ describe('mapExportResponse', () => {
     expect(summary.suggestions.length).toBeGreaterThan(0);
   });
 
-  it('un error de ARCA en FEXErr tambien es un rechazo', () => {
+  it('un error de ARCA en FEXErr tambien es un rechazo', async () => {
     // WSFEX devuelve FEXErr sin FEXResultAuth: el tipo del SDK lo exige, la respuesta real no lo trae.
-    const summary = mapExportResponse({
+    const summary = await readExportAnswer({
       FEXAuthorizeResult: {
         FEXErr: { ErrCode: 1601, ErrMsg: 'El numero de comprobante no es correlativo' },
         FEXEvents: { EventCode: 0, EventMsg: '' },
       },
-    } as unknown as IFEXAuthorizeOutput);
+    });
 
     expect(summary.status).toBe('rechazado');
     expect(summary.errors).toEqual([{ code: 1601, message: 'El numero de comprobante no es correlativo' }]);
     expect(summary.suggestions.join(' ')).toMatch(/número del comprobante/);
   });
 
-  it('sugiere revisar la actividad cuando ARCA la rechaza por no estar vinculada al emisor', () => {
-    const summary = mapExportResponse({
+  it('sugiere revisar la actividad cuando ARCA la rechaza por no estar vinculada al emisor', async () => {
+    const summary = await readExportAnswer({
       FEXAuthorizeResult: {
         FEXErr: {
           ErrCode: 2105,
@@ -95,69 +98,73 @@ describe('mapExportResponse', () => {
         },
         FEXEvents: { EventCode: 0, EventMsg: '' },
       },
-    } as unknown as IFEXAuthorizeOutput);
+    });
 
     expect(summary.status).toBe('rechazado');
     expect(summary.suggestions.join(' ')).toMatch(/vinculada al emisor/);
     expect(summary.suggestions.join(' ')).toMatch(/--actividad/);
   });
 
-  it('un rechazo por la actividad no dice que está emitido (ERR-20)', () => {
-    const { suggestions } = mapExportResponse(
+  it('un rechazo por la actividad no dice que está emitido (ERR-20)', async () => {
+    const { suggestions } = await readExportAnswer(
       authorization({ Cae: '', Motivos_Obs: 'La actividad no es valida', Resultado: 'R' }),
     );
 
     expect(suggestions).toEqual([expect.stringContaining('--actividad')]);
   });
 
-  it('un comprobante observado conserva el CAE', () => {
-    const summary = mapExportResponse(authorization({ Motivos_Obs: 'Observacion informativa' }));
+  it('un comprobante observado conserva el CAE', async () => {
+    const summary = await readExportAnswer(authorization({ Motivos_Obs: 'Observacion informativa' }));
 
     expect(summary.status).toBe('observado');
     expect(summary.cae).toBe('75123456789012');
     expect(summary.observacion).toBe('Observacion informativa');
   });
 
-  it('una E aprobada con observaciones no sugiere volver a emitir (UI-32)', () => {
+  it('una E aprobada con observaciones no sugiere volver a emitir (UI-32)', async () => {
     // Resultado A con Motivos_Obs: ARCA dio CAE, volver a emitir duplicaria el comprobante.
-    const summary = mapExportResponse(authorization({ Motivos_Obs: 'Observacion informativa' }));
+    const summary = await readExportAnswer(authorization({ Motivos_Obs: 'Observacion informativa' }));
 
     expect(summary.status).toBe('observado');
     expect(summary.suggestions).toEqual([]);
   });
 
-  it('una E rechazada sin otra sugerencia sigue sugiriendo revisar antes de volver a emitir (UI-32)', () => {
+  it('una E rechazada sin otra sugerencia sigue sugiriendo revisar antes de volver a emitir (UI-32)', async () => {
     const generic = 'Revisá observaciones y errores de ARCA antes de volver a emitir.';
-    const byResultado = mapExportResponse(authorization({ Cae: '', Motivos_Obs: 'Dato invalido', Resultado: 'R' }));
-    const byFexErr = mapExportResponse({
+    const byResultado = await readExportAnswer(
+      authorization({ Cae: '', Motivos_Obs: 'Dato invalido', Resultado: 'R' }),
+    );
+    const byFexErr = await readExportAnswer({
       FEXAuthorizeResult: {
         FEXErr: { ErrCode: 1601, ErrMsg: 'Dato invalido' },
         FEXEvents: { EventCode: 0, EventMsg: '' },
       },
-    } as unknown as IFEXAuthorizeOutput);
+    });
 
     expect(byResultado.suggestions).toEqual([generic]);
     expect(byFexErr.suggestions).toEqual([generic]);
   });
 
-  it('sin Resultado, CAE ni FEXErr no se sabe si se emitio (ERR-20)', () => {
-    expect(() => mapExportResponse(authorization({ Resultado: '', Cae: '' }))).toThrow(
+  it('sin Resultado, CAE ni FEXErr no se sabe si se emitio (ERR-20)', async () => {
+    await expect(readExportAnswer(authorization({ Resultado: '', Cae: '' }))).rejects.toThrow(
       'ARCA contestó sin CAE, sin resultado y sin errores',
     );
   });
 
-  it('con CAE y sin Resultado no sugiere volver a emitir (UI-32)', () => {
-    expect(mapExportResponse(authorization({ Resultado: '' })).suggestions).toEqual([]);
+  it('con CAE y sin Resultado no sugiere volver a emitir (UI-32)', async () => {
+    expect((await readExportAnswer(authorization({ Resultado: '' }))).suggestions).toEqual([]);
   });
 
-  it('el estado sale de Resultado y las observaciones (TEST-16)', () => {
-    expect(mapExportResponse(authorization()).status).toBe('aprobado');
-    expect(mapExportResponse(authorization({ Motivos_Obs: 'Obs' })).status).toBe('observado');
-    expect(mapExportResponse(authorization({ Motivos_Obs: '   ' })).status).toBe('aprobado');
-    expect(mapExportResponse(authorization({ Cae: '', Resultado: 'R' })).status).toBe('rechazado');
-    expect(mapExportResponse(authorization({ Cae: '', Motivos_Obs: 'Obs', Resultado: 'R' })).status).toBe('rechazado');
+  it('el estado sale de Resultado y las observaciones (TEST-16)', async () => {
+    expect((await readExportAnswer(authorization())).status).toBe('aprobado');
+    expect((await readExportAnswer(authorization({ Motivos_Obs: 'Obs' }))).status).toBe('observado');
+    expect((await readExportAnswer(authorization({ Motivos_Obs: '   ' }))).status).toBe('aprobado');
+    expect((await readExportAnswer(authorization({ Cae: '', Resultado: 'R' }))).status).toBe('rechazado');
+    expect((await readExportAnswer(authorization({ Cae: '', Motivos_Obs: 'Obs', Resultado: 'R' }))).status).toBe(
+      'rechazado',
+    );
     // Sin Resultado no hay aprobacion que mostrar: no puede salir `aprobado` en el --json.
-    expect(mapExportResponse(authorization({ Resultado: '' })).status).toBe('observado');
+    expect((await readExportAnswer(authorization({ Resultado: '' }))).status).toBe('observado');
   });
 
   it('la vista previa no tiene CAE ni respuesta cruda', () => {

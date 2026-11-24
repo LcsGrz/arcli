@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import { asArray } from '../../../lib/arrays/as-array';
-import { mapExportResponse } from '../../export/export.response';
+import { readExportAnswer } from '../../export/__tests__/export-answer.fixture';
 import { EmissionUncertainError } from '../billing.errors';
 import { formatArcaMessages } from '../billing.labels';
-import { mapBillingResponse } from '../billing-response';
 import { readCae, readCaeExpiration } from '../emission-response';
+
+import { readBillingAnswer } from './billing-answer.fixture';
 
 describe('lo que ARCA contesta a la emisión (ERR-16)', () => {
   it('asArray: un elemento, una lista o nada', () => {
@@ -31,10 +32,10 @@ describe('lo que ARCA contesta a la emisión (ERR-16)', () => {
     ]);
   });
 
-  it('un rechazo con algo ilegible en lugar del CAE sigue siendo un rechazo', () => {
+  it('un rechazo con algo ilegible en lugar del CAE sigue siendo un rechazo', async () => {
     const response = { FeDetResp: { FECAEDetResponse: [{ CAE: {}, Resultado: 'R' }] } };
 
-    expect(mapBillingResponse({ cae: '', caeFchVto: '', response } as never)).toMatchObject({
+    expect(await readBillingAnswer({ cae: '', caeFchVto: '', response })).toMatchObject({
       cae: null,
       status: 'rechazado',
     });
@@ -44,10 +45,10 @@ describe('lo que ARCA contesta a la emisión (ERR-16)', () => {
     expect(formatArcaMessages([{ codigo: null, mensaje: 'hola' }])).toBe('1. hola');
   });
 
-  it('la E con el resultado en una lista', () => {
+  it('la E con el resultado en una lista', async () => {
     const output = { FEXAuthorizeResult: { FEXResultAuth: [{ Cae: '1', Resultado: 'A' }] } };
 
-    expect(mapExportResponse(output as never)).toMatchObject({ cae: '1', status: 'aprobado' });
+    expect(await readExportAnswer(output)).toMatchObject({ cae: '1', status: 'aprobado' });
   });
 
   it.each([

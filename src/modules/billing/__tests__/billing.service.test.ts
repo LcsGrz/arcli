@@ -8,6 +8,8 @@ import { BillingService } from '../billing.service';
 import type { BillingRuntime } from '../billing.types.internal';
 import { mapBillingResponse } from '../billing-response';
 
+import { readBillingAnswer } from './billing-answer.fixture';
+
 function createRuntime(): BillingRuntime {
   return { cuit: 20409509763, environment: 'testing', pointOfSale: 3 };
 }
@@ -1724,18 +1726,18 @@ describe('billing.service', () => {
     });
   });
 
-  it('maps the empty CAE of a rejected voucher to null', () => {
-    const summary = mapBillingResponse({
+  it('maps the empty CAE of a rejected voucher to null', async () => {
+    const summary = await readBillingAnswer({
       cae: '',
       caeFchVto: '',
       response: { FeDetResp: { FECAEDetResponse: [{ Resultado: 'R' }] } },
-    } as never);
+    });
 
     expect(summary).toMatchObject({ cae: null, caeVencimiento: null, status: 'rechazado' });
   });
 
-  it('suggests a web service point of sale when ARCA rejects it with code 10005', () => {
-    const summary = mapBillingResponse({
+  it('suggests a web service point of sale when ARCA rejects it with code 10005', async () => {
+    const summary = await readBillingAnswer({
       cae: '',
       caeFchVto: '',
       response: {
@@ -1743,41 +1745,41 @@ describe('billing.service', () => {
           Err: [{ Code: 10005, Msg: 'El punto de venta informado debe estar dado de alta y ser del tipo RECE.' }],
         },
       },
-    } as never);
+    });
 
     expect(summary.status).toBe('rechazado');
     expect(summary.suggestions).toEqual([expect.stringContaining('Factura en línea')]);
     expect(summary.suggestions[0]).toContain(POINT_OF_SALE_GUIDE_URL);
   });
 
-  it('recognizes the point of sale rejection by its message when the code is missing', () => {
-    const summary = mapBillingResponse({
+  it('recognizes the point of sale rejection by its message when the code is missing', async () => {
+    const summary = await readBillingAnswer({
       cae: '',
       caeFchVto: '',
       response: {
         Errors: { Err: [{ Msg: 'El punto de venta informado debe estar dado de alta y ser del tipo RECE.' }] },
         FeDetResp: { FECAEDetResponse: [{ Resultado: 'R' }] },
       },
-    } as never);
+    });
 
     expect(summary.suggestions).toEqual([expect.stringContaining('arcli parametros puntos-venta')]);
   });
 
-  it('does not suggest a point of sale fix for unrelated rejections', () => {
-    const summary = mapBillingResponse({
+  it('does not suggest a point of sale fix for unrelated rejections', async () => {
+    const summary = await readBillingAnswer({
       cae: '',
       caeFchVto: '',
       response: {
         Errors: { Err: [{ Code: 10016, Msg: 'El número de comprobante no es el próximo a autorizar.' }] },
         FeDetResp: { FECAEDetResponse: [{ Resultado: 'R' }] },
       },
-    } as never);
+    });
 
     expect(summary.suggestions.join(' ')).not.toContain('Factura en línea');
   });
 
-  it('maps ARCA responses into a stable summary', () => {
-    const summary = mapBillingResponse({
+  it('maps ARCA responses into a stable summary', async () => {
+    const summary = await readBillingAnswer({
       cae: '12345678901234',
       caeFchVto: '20260331',
       response: {
@@ -1798,7 +1800,7 @@ describe('billing.service', () => {
           ],
         },
       },
-    } as never);
+    });
 
     expect(summary).toMatchObject({
       cae: '12345678901234',
